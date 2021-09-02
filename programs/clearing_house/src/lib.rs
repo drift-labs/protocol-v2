@@ -1783,7 +1783,18 @@ impl AMM {
 
         let oracle_mantissa = 10_u128.pow(price_data.expo.unsigned_abs());
 
-        return (oracle_price, oracle_conf);
+        let oracle_price_scaled = (oracle_price)
+            .checked_mul(MANTISSA as i128)
+            .unwrap()
+            .checked_div(oracle_mantissa as i128)
+            .unwrap();
+        let oracle_conf_scaled = (oracle_conf)
+            .checked_mul(MANTISSA)
+            .unwrap()
+            .checked_div(oracle_mantissa)
+            .unwrap();
+
+        return (oracle_price_scaled, oracle_conf_scaled);
     }
 
     pub fn get_oracle_price(&self, price_oracle: &AccountInfo, window: u32) -> (i128, u128) {
@@ -1959,11 +1970,10 @@ impl AMM {
 
         let x_eq_0 = self.peg_multiplier;
         let peg_spread_0 = (x_eq_0 as i128).checked_sub(oracle_px).unwrap();
-        
-        if(peg_spread_0.unsigned_abs().lt(&oracle_conf)){
+
+        if (peg_spread_0.unsigned_abs().lt(&oracle_conf)) {
             return x_eq_0;
         }
-
 
         let mut i = 1; // max move is half way to oracle
         let mut x_eq = x_eq_0;
@@ -2455,8 +2465,7 @@ fn _settle_funding_payment(
                 .checked_div(MANTISSA as i128)
                 .unwrap()
                 .checked_div(MANTISSA as i128)
-                .unwrap()
-                ;
+                .unwrap();
 
             let record_id = funding_rate_history.next_record_id();
             funding_rate_history.append(FundingRateRecord {
