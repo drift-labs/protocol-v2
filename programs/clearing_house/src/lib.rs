@@ -1783,17 +1783,6 @@ impl AMM {
 
         let oracle_mantissa = 10_u128.pow(price_data.expo.unsigned_abs());
 
-        let oracle_price_scaled = (oracle_price)
-            .checked_mul(MANTISSA)
-            .unwrap()
-            .checked_div(oracle_mantissa)
-            .unwrap();
-        let oracle_conf_scaled = (oracle_conf)
-            .checked_mul(MANTISSA)
-            .unwrap()
-            .checked_div(oracle_mantissa)
-            .unwrap();
-
         return (oracle_price, oracle_conf);
     }
 
@@ -1971,7 +1960,7 @@ impl AMM {
         let x_eq_0 = self.peg_multiplier;
         let peg_spread_0 = (x_eq_0 as i128).checked_sub(oracle_px).unwrap();
         
-        if(peg_spread_0.unsigned_abs().lt(oracle_conf)){
+        if(peg_spread_0.unsigned_abs().lt(&oracle_conf)){
             return x_eq_0;
         }
 
