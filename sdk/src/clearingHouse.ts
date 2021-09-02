@@ -691,7 +691,8 @@ export class ClearingHouse {
 			direction,
 			tradeSize.mul(AMM_MANTISSA).div(peg),
 			'quote',
-			market.amm.k
+			market.amm.k,
+			market.amm.pegMultiplier,
 		);
 
 		return await this.program.state.rpc.moveAmmPrice(
@@ -875,10 +876,15 @@ export class ClearingHouse {
 		direction: PositionDirection,
 		inputAmount: BN,
 		inputAsset: string,
-		invariant: BN
+		invariant: BN,
+		pegMultiplier: BN,
 	): [BN, BN] {
 		assert(inputAmount.gte(ZERO)); // must be abs term
 		// constant product
+
+		if(inputAsset=='quote'){
+			inputAmount = inputAmount.mul(AMM_MANTISSA).div(pegMultiplier);
+		}
 
 		let newInputAssetAmount;
 
@@ -966,12 +972,13 @@ export class ClearingHouse {
 			direction,
 			amount.abs(),
 			'quote',
-			market.amm.k
+			market.amm.k,
+			market.amm.pegMultiplier,
 		);
 		const entryPrice = this.calculateCurvePriceWithMantissa(
 			market.amm.baseAssetAmount.sub(newBaseAssetAmount),
 			market.amm.quoteAssetAmount.sub(newQuoteAssetAmount),
-			AMM_MANTISSA
+			market.amm.pegMultiplier
 		).mul(new BN(-1));
 
 		assert(entryPrice.gt(new BN(0)));
@@ -1223,11 +1230,11 @@ export class ClearingHouse {
 		assert(tp1.sub(tp2).lte(ogDiff), 'Target Price Calculation incorrect');
 		// assert(tp1.sub(tp2).lt(AMM_MANTISSA), 'Target Price Calculation incorrect'); //  super OoB shorts do not
 		assert(
-			tp2.lte(tp1),
+			tp2.sub(tp1).abs()<10,
 			'Target Price Calculation incorrect' +
 				tp2.toString() +
 				'>=' +
-				tp1.toString()
+				tp1.toString() + 'err: ' + tp2.sub(tp1).abs().toString()
 		); //todo
 
 		return [direction, new BN(tradeSize), entryPrice];
@@ -1266,7 +1273,8 @@ export class ClearingHouse {
 			direction,
 			amount.abs(),
 			inputAsset,
-			invariant
+			invariant,
+			market.amm.pegMultiplier,
 		);
 
 		const newBaseAssetPriceWithMantissa = this.calculateCurvePriceWithMantissa(
@@ -1428,7 +1436,8 @@ export class ClearingHouse {
 			directionToClose,
 			marketPosition.baseAssetAmount.abs(),
 			'base',
-			market.amm.k
+			market.amm.k,
+			market.amm.pegMultiplier,
 		);
 
 		let pnlAssetAmount;
