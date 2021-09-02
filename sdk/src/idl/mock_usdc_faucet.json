@@ -1,0 +1,100 @@
+{
+  "version": "0.0.0",
+  "name": "mock_usdc_faucet",
+  "instructions": [],
+  "state": {
+    "struct": {
+      "name": "MockUSDCFaucet",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "type": "publicKey"
+          },
+          {
+            "name": "mint",
+            "type": "publicKey"
+          },
+          {
+            "name": "mintAuthority",
+            "type": "publicKey"
+          },
+          {
+            "name": "mintAuthorityNonce",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    "methods": [
+      {
+        "name": "new",
+        "accounts": [
+          {
+            "name": "admin",
+            "isMut": false,
+            "isSigner": true
+          },
+          {
+            "name": "mintAccount",
+            "isMut": false,
+            "isSigner": false
+          },
+          {
+            "name": "rent",
+            "isMut": false,
+            "isSigner": false
+          }
+        ],
+        "args": []
+      },
+      {
+        "name": "mintToUser",
+        "accounts": [
+          {
+            "name": "mintAccount",
+            "isMut": true,
+            "isSigner": false
+          },
+          {
+            "name": "userTokenAccount",
+            "isMut": true,
+            "isSigner": false
+          },
+          {
+            "name": "mintAuthority",
+            "isMut": false,
+            "isSigner": false
+          },
+          {
+            "name": "tokenProgram",
+            "isMut": false,
+            "isSigner": false
+          }
+        ],
+        "args": [
+          {
+            "name": "amount",
+            "type": "u64"
+          }
+        ]
+      }
+    ]
+  },
+  "errors": [
+    {
+      "code": 300,
+      "name": "InvalidMintAccountAuthority",
+      "msg": "Program not mint authority"
+    },
+    {
+      "code": 301,
+      "name": "Unauthorized",
+      "msg": "Signer must be MockUSDCFaucet admin"
+    }
+  ],
+  "metadata": {
+    "address": "4p1vEso32HDHbxW42V1kaxJnWJTtYAKe8eAL3zMD6KHN"
+  }
+}

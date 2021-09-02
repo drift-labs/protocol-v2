@@ -7,4 +7,4 @@
 .idea
 yarn-lock
 .env
-sdk/src/**/*.js*
+sdk/src/**/*.js
