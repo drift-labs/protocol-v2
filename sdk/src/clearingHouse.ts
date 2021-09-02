@@ -971,7 +971,7 @@ export class ClearingHouse {
 		const entryPrice = this.calculateCurvePriceWithMantissa(
 			market.amm.baseAssetAmount.sub(newBaseAssetAmount),
 			market.amm.quoteAssetAmount.sub(newQuoteAssetAmount),
-			market.amm.pegMultiplier
+			AMM_MANTISSA
 		).mul(new BN(-1));
 
 		assert(entryPrice.gt(new BN(0)));
