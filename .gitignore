@@ -1,0 +1,10 @@
+/**/target
+/**/test-ledger
+/**/node_modules
+/package-lock.json
+/**/output*
+.anchor
+.idea
+yarn-lock
+.env
+sdk/src/**/*.js*

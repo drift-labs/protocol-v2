@@ -1,0 +1,19 @@
+[package]
+name = "mock-usdc-faucet"
+version = "0.1.0"
+description = "Created with Anchor"
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "mock_usdc_faucet"
+
+[features]
+no-entrypoint = []
+cpi = ["no-entrypoint"]
+
+[dependencies]
+anchor-lang = "0.11.1"
+solana-program = "1.5.0"
+anchor-spl = "0.11.1"
+bytemuck = { version = "1.4.0" }

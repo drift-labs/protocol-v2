@@ -1,0 +1,9 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+echo "Running typescript linter"
+npm run pre-commit
+echo "Running rust linter"
+cargo fmt -- --check
+echo "Running moet anchor tests"
+sh ./scripts/run-anchor-tests.sh

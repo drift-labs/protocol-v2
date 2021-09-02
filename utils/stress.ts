@@ -1,0 +1,428 @@
+import * as anchor from '@project-serum/anchor';
+import BN from 'bn.js';
+
+import { Program } from '@project-serum/anchor';
+// import { getTokenAccount } from '@project-serum/common';
+import {
+	mockOracle,
+	mockUSDCMint,
+	mockUserUSDCAccount,
+	mintToInsuranceFund,
+} from './mockAccounts';
+
+import { getFeedData, setFeedPrice } from './mockPythUtils';
+import {
+	initUserAccounts,
+	simEvent,
+	writeStressCSV,
+	readStressCSV,
+} from './stressUtils';
+
+import {
+	ClearingHouse,
+	AMM_MANTISSA,
+	Network,
+	PositionDirection,
+} from '../sdk/src';
+import { isAssertionExpression } from 'typescript';
+import { assert } from '../sdk/src/assert/assert';
+
+const myArgs = process.argv.slice(2);
+console.log('myArgs: ', myArgs);
+
+export async function stress_test(
+	clearingHouse,
+	usdcMint,
+	provider,
+	NUM_USERS = 1,
+	NUM_EVENTS = 10,
+	user_capital = 100000,
+	k = 1e8,
+	inputEventFile = '',
+	pegs = [AMM_MANTISSA, AMM_MANTISSA],
+	marketOffset = 0,
+	outputFolder = 'output',
+	outputName = ''
+) {
+	console.log('starting stress test');
+	console.log(marketOffset, outputFolder, outputName);
+
+	const usdcAmount = new BN(user_capital); // $10k
+
+	// const solUsd = anchor.web3.Keypair.generate();
+	const dogMoney = await mockOracle(pegs[0].div(AMM_MANTISSA).toNumber(), -6);
+	const solUsd = await mockOracle(22, -6);
+	const oracles = [dogMoney, solUsd];
+
+	// todo: should be equal at init, with xeq for scale as oracle px
+	const periodicity = new BN(1); // 1 SECOND
+	const PAIR_AMT = Math.sqrt(k);
+	const ammInitialQuoteAssetAmount = new anchor.BN(PAIR_AMT);
+	const ammInitialBaseAssetAmount = new anchor.BN(PAIR_AMT);
+
+	for (let i = 0; i < oracles.length; i++) {
+		const amtScale = pegs[i].div(AMM_MANTISSA); // same slippage pct for regardless of peg levels
+
+		const [, marketPublicKey] = await clearingHouse.initializeMarket(
+			new BN(i + marketOffset),
+			oracles[i],
+			ammInitialBaseAssetAmount.div(amtScale),
+			ammInitialQuoteAssetAmount.div(amtScale),
+			periodicity,
+			pegs[i]
+		);
+	}
+
+	// create <NUM_USERS> users with 10k that collectively do <NUM_EVENTS> actions
+	const [
+		userUSDCAccounts,
+		user_account_keys,
+		clearingHouses,
+		userAccountInfos,
+	] = await initUserAccounts(NUM_USERS, usdcMint, usdcAmount, provider);
+
+	// const eventTimeline = [];
+	const stateTimeline = [];
+	// console.log(cnt, NUM_EVENTS);
+	// require csvtojson
+
+	async function getEventTimeline(ff): Promise<[]> {
+		// Convert a csv file with csvtojson
+		// csv()
+		let eventTimeline;
+		if (ff) {
+			eventTimeline = readStressCSV(ff);
+		} else {
+			eventTimeline = [];
+		}
+
+		return eventTimeline;
+	}
+
+	async function getEventParams(i) {
+		// console.log('getting event param', i)
+		if (inputEventFile == '') {
+			console.log('gen random event param', i);
+			const event_kinds = [
+				'deposit',
+				// 'withdraw',
+				'buy',
+				'sell',
+				'close',
+				'repeg',
+				// 'liquidate',
+				'update_funding',
+			];
+
+			let rand_amt = new BN(Math.floor(Math.random() * 1e2));
+			const user_i = Math.floor(Math.random() * user_account_keys.length);
+
+			const rand_i = Math.floor(Math.random() * event_kinds.length);
+			let rand_e = event_kinds[rand_i];
+			let randEType;
+
+			if (i == 0) {
+				rand_e = 'noop';
+			}
+			const market_i = new BN(
+				Math.floor(Math.random() * oracles.length + marketOffset)
+			); // expand from 2
+
+			if (user_i % 2 == 0 && ['buy', 'sell'].includes(rand_e)) {
+				// arb user
+				const state: any = await clearingHouse.program.state.fetch();
+				const marketsAccount: any =
+					await clearingHouse.program.account.marketsAccount.fetch(
+						state.marketsAccount
+					);
+
+				const marketData = marketsAccount.markets[market_i.toNumber()];
+				const ammData = marketData.amm;
+				const oracleData = await getFeedData(
+					anchor.workspace.Pyth,
+					ammData.oracle
+				);
+				const ast_px =
+					ammData.quoteAssetAmount.toNumber() /
+					ammData.baseAssetAmount.toNumber();
+
+				// const user: any = await clearingHouse.program.account.userAccount.fetch(
+				// 	user_e
+				// );
+
+				// const upnl = await user_act_info_e.getUnrealizedPNL();
+				const xeq_scaled = ammData.pegMultiplier; //.div(AMM_MANTISSA);
+				const ast_px2 = ast_px * xeq_scaled.div(AMM_MANTISSA).toNumber();
+				let entry_px; //todo
+
+				[randEType, rand_amt, entry_px] =
+					clearingHouse.calculateTargetPriceTrade(
+						market_i,
+						new BN(oracleData.price * AMM_MANTISSA.toNumber()),
+						new BN(250)
+					);
+
+				if (randEType == PositionDirection.LONG) {
+					rand_e = 'buy';
+				} else {
+					rand_e = 'sell';
+				}
+			} else {
+				// dir user
+			}
+
+			// const market_i = new BN(0); //todo
+			const succeeded = true;
+
+			return [user_i, market_i, rand_e, rand_amt];
+		} else {
+			let [, , rand_amt, market_i] = Object.values(eventTimeline[i]);
+			const [user_i, rand_e, , ,] = Object.values(eventTimeline[i]);
+
+			// const rand_e, user_i, succeeded = rand_e, user_i, succeeded;
+			console.log('got event param', i);
+			console.log(user_i, rand_e, rand_amt, market_i);
+
+			// user_i = user_i;
+			// console.log(user_i);
+			market_i = new BN(market_i + marketOffset);
+			console.log(market_i);
+			assert(market_i.gte(new BN(marketOffset)));
+			rand_amt = new BN(rand_amt);
+			console.log(rand_amt);
+
+			return [user_i, market_i, rand_e, rand_amt];
+		}
+	}
+
+	let eventTimeline: Array<JSON>;
+
+	if (inputEventFile == '') {
+		eventTimeline = [];
+	} else {
+		// eventTimeline = await getEventTimeline(
+		// 	'utils/configs/stress_event_timeline_test0.csv'
+		// );
+		eventTimeline = await getEventTimeline(inputEventFile);
+	}
+
+	const solUsdTimeline = await readStressCSV('../vAMM/solusd.csv');
+
+	// console.log(event_timeline);
+	const eventTimeline2 = [];
+
+	if (inputEventFile) {
+		NUM_EVENTS = eventTimeline.length;
+	}
+
+	for (let i = 0; i < NUM_EVENTS; i++) {
+		const [user_i, market_i, rand_e, rand_amt] = await getEventParams(i);
+		console.log([user_i, market_i, rand_e, rand_amt]);
+		const user_e = user_account_keys[user_i];
+		const userUSDCAccount = userUSDCAccounts[user_i];
+		const user_act_info_e = userAccountInfos[user_i];
+
+		let clearingHouse_e = clearingHouses[user_i];
+		if (['move'].includes(rand_e)) {
+			clearingHouse_e = clearingHouse;
+		}
+
+		const event_i = await simEvent(
+			clearingHouse_e,
+			user_i,
+			user_e,
+			userUSDCAccount,
+			market_i,
+			rand_e,
+			rand_amt
+		);
+
+		console.log('event', i, ':', event_i);
+		eventTimeline2.push(event_i);
+
+		const state: any = await clearingHouse.program.state.fetch();
+		const marketsAccount: any =
+			await clearingHouse.program.account.marketsAccount.fetch(
+				state.marketsAccount
+			);
+
+		const marketData = marketsAccount.markets[market_i.toNumber()];
+		// assert.ok(marketData.initialized);
+		// assert.ok(marketData.baseAssetAmount.eq(new BN(0)));
+		// assert.ok(marketData.quoteAssetNotionalAmount.eq(new BN(0)));
+		// assert.ok(marketData.openInterest.eq(new BN(0)));
+		// assert.ok(marketData.volume.eq(new BN(0)));
+		// assert.ok(marketData.volumeArb.eq(new BN(0)));
+
+		const ammData = marketData.amm;
+		// assert.ok(ammData.oracle.equals(solUsd.publicKey));
+		// assert.ok(ammData.baseAssetAmount.eq(ammInitialBaseAssetAmount));
+		// assert.ok(ammData.quoteAssetAmount.eq(ammInitialQuoteAssetAmount));
+		// assert.ok(ammData.cumFundingRate.eq(new BN(0)));
+		// assert.ok(ammData.periodicity.eq(periodicity));
+		// assert.ok(ammData.fundingRate.eq(new BN(0)));
+		// assert.ok(ammData.fundingRateTs.eq(new BN(0)));
+		// assert.ok(ammData.markTwap.eq(new BN(0)));
+		// assert.ok(ammData.markTwapTs.eq(new BN(0)));
+		// assert.ok(ammData.spreadThreshold.eq(new BN(100000)));
+		// assert.ok(ammData.volume1.eq(new BN(0)));
+		// assert.ok(ammData.volume2.eq(new BN(0)));
+		const ast_px =
+			ammData.quoteAssetAmount.toNumber() / ammData.baseAssetAmount.toNumber();
+
+		const oracleData = await getFeedData(anchor.workspace.Pyth, ammData.oracle);
+
+		const user: any = await clearingHouse.program.account.userAccount.fetch(
+			user_e
+		);
+
+		// const userSummary = await user_act_info_e.summary('liq');
+		// const userSummary2 = await user_act_info_e.summary('avg');
+		const userSummary3 = await user_act_info_e.summary('last');
+
+		const xeq_scaled = ammData.pegMultiplier.div(AMM_MANTISSA);
+		const state_i = {
+			market_index: market_i,
+
+			base_ast_amt: ammData.baseAssetAmount,
+			quote_ast_amt: ammData.quoteAssetAmount,
+
+			market_oi: marketData.openInterest,
+			market_v: marketData.baseAssetVolume,
+			market_dv: marketData.pegQuoteAssetVolume,
+
+			user_i: user_i,
+			user_i_collateral: user.collateral,
+			user_i_cumfee: user.totalPotentialFee,
+
+			oracle_px: oracleData.price,
+
+			mark_1: ast_px,
+			mark_peg: xeq_scaled,
+			mark_px: ast_px * xeq_scaled.toNumber(),
+			mark_twap: ammData.markTwap,
+			mark_twap_ts: ammData.markTwapTs,
+			funding_rate: ammData.fundingRate,
+			funding_rate_ts: ammData.fundingRateTs,
+
+			cumSlippage: ammData.cumSlippage,
+			cumSlippageProfit: ammData.cumSlippageProfit,
+
+			// repeg_pnl_pct: (
+			// 	ammData.xcpr.div(ammData.xcp.div(new BN(1000))).toNumber() * 1000
+			// ).toFixed(3),
+		};
+
+		const stateI2 = Object.assign(
+			{},
+			state_i,
+			// userSummary2,
+			userSummary3
+			// userSummary
+		);
+
+		console.log(event_i);
+		stateTimeline.push(stateI2);
+
+		const dogMoneyData = await getFeedData(anchor.workspace.Pyth, dogMoney);
+
+		setFeedPrice(anchor.workspace.Pyth, dogMoneyData.price * 1.002, dogMoney);
+		setFeedPrice(anchor.workspace.Pyth, solUsdTimeline[i + 1].close, solUsd);
+	}
+
+	writeStressCSV(
+		eventTimeline2,
+		outputFolder + '/' + outputName + '_stress_event_timeline.csv'
+	);
+	writeStressCSV(
+		stateTimeline,
+		outputFolder + '/' + outputName + '_stress_state_timeline.csv'
+	);
+
+	for (const clearingHouse1 of clearingHouses) {
+		clearingHouse1.unsubscribe();
+	}
+	for (const userActInfo1 of userAccountInfos) {
+		userActInfo1.unsubscribe();
+	}
+}
+
+// describe('stress-test', () => {
+// 	const provider = anchor.Provider.local();
+// 	const connection = provider.connection;
+// 	anchor.setProvider(provider);
+
+// 	const chProgram = anchor.workspace.ClearingHouse as Program; // this.program-ify
+// 	let usdcMint: Keypair;
+
+// 	const clearingHouse = new ClearingHouse(
+// 		connection,
+// 		Network.LOCAL,
+// 		//@ts-ignore
+// 		provider.wallet,
+// 		chProgram.programId
+// 	);
+
+// 	before(async () => {
+// 		usdcMint = await mockUSDCMint(provider);
+
+// 		await clearingHouse.initialize(usdcMint.publicKey, true);
+// 		await clearingHouse.subscribe();
+
+// 		// const [ammAccountAuthority, ammAccountNonce] =
+// 		// 	await anchor.web3.PublicKey.findProgramAddress(
+// 		// 		[
+// 		// 			anchor.utils.bytes.utf8.encode('amm'),
+// 		// 			ammAccount.publicKey.toBuffer(),
+// 		// 		],
+// 		// 		clearingHouse.program.programId
+// 		// 	);
+// 	});
+
+// 	after(async () => {
+// 		await clearingHouse.unsubscribe();
+// 		// await userAccount.unsubscribe();
+// 	});
+
+// 	// it('test0', async () => {
+// 	// 	// await stress_test(1, 15, 1000, 1e10, true);
+
+// 	// 	await stress_test(
+// 	// 		1,
+// 	// 		1337,
+// 	// 		10 * 10 ** 6,
+// 	// 		25 * 10 ** 20,
+// 	// 		'utils/configs/clearingHouse.spec.timeline.csv'
+// 	// 	);
+
+// 	// 	// await stress_test(
+// 	// 	// 	1,
+// 	// 	// 	13,
+// 	// 	// 	1000,
+// 	// 	// 	1e8,
+// 	// 	// 	'utils/configs/stress_event_timeline.csv'
+// 	// 	// 	// 'utils/configs/clearinghouse.spec.1.events.csv'
+// 	// 	// 	// 'utils/configs/stress_event_timeline_bad1.csv'
+// 	// 	// 	// 'output/stress_event_timeline.csv',
+// 	// 	// );
+
+// 	// 	console.log('success!');
+// 	// });
+
+// 	it('test-pegmult2', async () => {
+// 		// await stress_test(1, 15, 1000, 1e10, true);
+
+// 		await stress_test(
+// 			clearingHouse,
+// 			usdcMint,
+// 			provider,
+// 			1,
+// 			1337,
+// 			10 * 10 ** 6,
+// 			25 * 10 ** 20,
+// 			'utils/configs/clearingHouse.spec.pegmult.csv'
+// 		);
+
+// 		console.log('success!');
+// 	});
+// });

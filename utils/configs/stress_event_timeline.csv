@@ -1,0 +1,6 @@
+user_i,event,amt,market_i,succeeded
+0,noop,0,0,true
+0,buy,500,1,true
+0,sell,100,1,true
+0,sell,900,1,true
+0,close,01,1,true

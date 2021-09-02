@@ -1,0 +1,13 @@
+user_i,event,amt,market_i,succeeded
+0,noop,0,0,true
+0,buy,50000000,0,true
+0,sell,25000000,0,true
+0,sell,30000000,0,false
+0,close,0,0,true
+0,sell,40000,0,true
+0,move,1150000,0,true
+0,close,0,0,true
+0,move,40000000000,0,true
+0,sell,50000000,0,true
+0,move,50000000000,0,true
+0,liquidate,1,0,true
