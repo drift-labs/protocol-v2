@@ -1255,8 +1255,5 @@
       "name": "SlippageOutsideLimit",
       "msg": "Slippage Outside Limit Price"
     }
-  ],
-  "metadata": {
-    "address": "FnPriVYnGoeXRnGyCbEa3jZn2rZv6uSv1LMWYRQbNbwa"
-  }
+  ]
 }

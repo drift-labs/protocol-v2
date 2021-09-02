@@ -1781,6 +1781,19 @@ impl AMM {
             price_data.agg.conf as u128
         };
 
+        let oracle_mantissa = 10_u128.pow(price_data.expo.unsigned_abs());
+
+        let oracle_price_scaled = (oracle_price)
+            .checked_mul(MANTISSA)
+            .unwrap()
+            .checked_div(oracle_mantissa)
+            .unwrap();
+        let oracle_conf_scaled = (oracle_conf)
+            .checked_mul(MANTISSA)
+            .unwrap()
+            .checked_div(oracle_mantissa)
+            .unwrap();
+
         return (oracle_price, oracle_conf);
     }
 
@@ -1957,6 +1970,11 @@ impl AMM {
 
         let x_eq_0 = self.peg_multiplier;
         let peg_spread_0 = (x_eq_0 as i128).checked_sub(oracle_px).unwrap();
+        
+        if(peg_spread_0.unsigned_abs().lt(oracle_conf)){
+            return x_eq_0;
+        }
+
 
         let mut i = 1; // max move is half way to oracle
         let mut x_eq = x_eq_0;
@@ -2442,7 +2460,14 @@ fn _settle_funding_payment(
                 .checked_sub(market_position.last_cum_funding)
                 .unwrap()
                 .checked_mul(market_position.base_asset_amount)
-                .unwrap();
+                .unwrap()
+                .checked_mul(amm.peg_multiplier as i128)
+                .unwrap()
+                .checked_div(MANTISSA as i128)
+                .unwrap()
+                .checked_div(MANTISSA as i128)
+                .unwrap()
+                ;
 
             let record_id = funding_rate_history.next_record_id();
             funding_rate_history.append(FundingRateRecord {
@@ -2492,7 +2517,8 @@ fn _settle_funding_payment(
         market_position.last_cum_funding = amm.cum_funding_rate;
     }
 
-    let funding_payment_collateral = funding_payment
+    // longs pay shorts the `funding_payment`
+    let funding_payment_collateral = -funding_payment
         .checked_div(FUNDING_MANTISSA as i128)
         .unwrap();
 

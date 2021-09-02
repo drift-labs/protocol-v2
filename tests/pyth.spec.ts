@@ -122,7 +122,7 @@ describe('pyth-oracle', () => {
 
 	it('change feed price', async () => {
 		const price = 50000;
-		const expo = -7;
+		const expo = -10;
 		const priceFeedAddress = await mockOracle(price, expo);
 
 		const feedDataBefore = await getFeedData(program, priceFeedAddress);

@@ -1462,10 +1462,10 @@ export class ClearingHouse {
 		}
 
 		if (withFunding) {
-			const fundingRateCostPnL =
+			const fundingRatePnL =
 				this.calculatePositionFundingPNL(marketPosition).div(FUNDING_MANTISSA);
 
-			pnlAssetAmount = pnlAssetAmount.sub(fundingRateCostPnL);
+			pnlAssetAmount = pnlAssetAmount.add(fundingRatePnL);
 		}
 
 		return pnlAssetAmount;
@@ -1481,7 +1481,11 @@ export class ClearingHouse {
 
 		const perPositionFundingRate = market.amm.cumFundingRate
 			.sub(marketPosition.lastCumFunding)
-			.mul(marketPosition.baseAssetAmount);
+			.mul(marketPosition.baseAssetAmount)
+			.mul(market.amm.pegMultiplier)
+			.div(AMM_MANTISSA)
+			.div(AMM_MANTISSA)
+			.mul(new BN(-1));
 
 		return perPositionFundingRate;
 	}
