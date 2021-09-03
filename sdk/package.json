@@ -16,6 +16,7 @@
   "dependencies": {
     "@project-serum/anchor": "^0.11.1",
     "@pythnetwork/client": "^2.2.0",
+    "@slack/web-api": "^6.4.0",
     "@solana/spl-token": "^0.1.6",
     "@solana/web3.js": "^1.22.0",
     "@types/bn.js": "^5.1.0",

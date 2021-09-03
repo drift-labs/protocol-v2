@@ -9,6 +9,7 @@ import { SwapDirection, PositionDirection } from './types';
 import { UserAccount } from './userAccount';
 import { Liquidator } from './liquidator';
 import Markets from './constants/markets';
+import SlackMessenger from "./slackMessanger";
 
 export * from './clearingHouse';
 export * from './utils';
@@ -28,6 +29,7 @@ export {
 	UserAccount,
 	Liquidator,
 	Markets,
+	SlackMessenger
 };
 
 export type { UserPositionData };
