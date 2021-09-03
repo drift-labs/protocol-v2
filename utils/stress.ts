@@ -267,8 +267,15 @@ export async function stress_test(
 		// assert.ok(ammData.spreadThreshold.eq(new BN(100000)));
 		// assert.ok(ammData.volume1.eq(new BN(0)));
 		// assert.ok(ammData.volume2.eq(new BN(0)));
-		const ast_px =
-			ammData.quoteAssetAmount.toNumber() / ammData.baseAssetAmount.toNumber();
+		let ast_px = 0;
+
+			try{
+
+			ast_px = ammData.quoteAssetAmount.toNumber() / ammData.baseAssetAmount.toNumber();
+		} catch{
+			ast_px = -1;
+		}
+
 
 		const oracleData = await getFeedData(anchor.workspace.Pyth, ammData.oracle);
 
@@ -327,7 +334,9 @@ export async function stress_test(
 		const dogMoneyData = await getFeedData(anchor.workspace.Pyth, dogMoney);
 
 		setFeedPrice(anchor.workspace.Pyth, dogMoneyData.price * 1.002, dogMoney);
-		setFeedPrice(anchor.workspace.Pyth, solUsdTimeline[i + 1].close, solUsd);
+		if(solUsdTimeline.length){
+			setFeedPrice(anchor.workspace.Pyth, solUsdTimeline[i + 1].close, solUsd);
+		}
 	}
 
 	writeStressCSV(

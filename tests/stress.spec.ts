@@ -64,25 +64,25 @@ describe('stress-test', () => {
 		);
 	});
 
-	it('test-pegmult-peg=2', async () => {
-		const pegM = new BN(2).mul(AMM_MANTISSA);
-		await stress_test(
-			clearingHouse,
-			usdcMint,
-			provider,
-			1,
-			1337,
-			10 * 10 ** 6,
-			25 * 10 ** 20,
-			'utils/configs/clearingHouse.spec.pegmult.csv',
-			[pegM, pegM],
-			5,
-			undefined,
-			'simp-peg-2'
-		);
-		clearingHouse.uninitializeMarket(new BN(0));
-		clearingHouse.uninitializeMarket(new BN(1));
-	});
+	// it('test-pegmult-peg=2', async () => {
+	// 	const pegM = new BN(2).mul(AMM_MANTISSA);
+	// 	await stress_test(
+	// 		clearingHouse,
+	// 		usdcMint,
+	// 		provider,
+	// 		1,
+	// 		1337,
+	// 		10 * 10 ** 6,
+	// 		25 * 10 ** 20,
+	// 		'utils/configs/clearingHouse.spec.pegmult.csv',
+	// 		[pegM, pegM],
+	// 		5,
+	// 		undefined,
+	// 		'simp-peg-2'
+	// 	);
+	// 	clearingHouse.uninitializeMarket(new BN(0));
+	// 	clearingHouse.uninitializeMarket(new BN(1));
+	// });
 
 	// it('test-pegmult-peg=40000', async () => {
 	// 	const pegM = new BN(40000).mul(AMM_MANTISSA);
@@ -100,22 +100,22 @@ describe('stress-test', () => {
 	// 	);
 	// });
 
-	it('test-pegmult-peg=40000', async () => {
-		const pegM = new BN(20).mul(AMM_MANTISSA);
+	// it('test-pegmult-peg=40000', async () => {
+	// 	const pegM = new BN(20).mul(AMM_MANTISSA);
 
-		await stress_test(
-			clearingHouse,
-			usdcMint,
-			provider,
-			1,
-			10,
-			10 * 10 ** 6,
-			25 * 10 ** 20,
-			'utils/configs/clearingHouse.spec.pegmult.csv',
-			[pegM, pegM],
-			10,
-			undefined,
-			'simp-peg-40000'
-		);
-	});
+	// 	await stress_test(
+	// 		clearingHouse,
+	// 		usdcMint,
+	// 		provider,
+	// 		1,
+	// 		10,
+	// 		10 * 10 ** 6,
+	// 		25 * 10 ** 20,
+	// 		'utils/configs/clearingHouse.spec.pegmult.csv',
+	// 		[pegM, pegM],
+	// 		10,
+	// 		undefined,
+	// 		'simp-peg-40000'
+	// 	);
+	// });
 });

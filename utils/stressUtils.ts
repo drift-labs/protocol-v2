@@ -198,6 +198,10 @@ export async function readStressCSV(ff, maxLines = 100) {
 	// 			count++;
 	// 		}
 	// 	});
+	if (!fs.existsSync(ff)) {
+		console.log('cannot find', ff)
+		return [];
+	}
 
 	return await csv()
 		.fromFile(ff)

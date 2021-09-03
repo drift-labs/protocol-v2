@@ -674,22 +674,23 @@ export class ClearingHouse {
 		const market = this.getMarketsAccount().markets[marketIndex.toNumber()];
 		const peg = market.amm.pegMultiplier;
 
-		const [direction, tradeSize, _] = this.calculateTargetPriceTrade(
+		let [direction, tradeSize, _] = this.calculateTargetPriceTrade(
 			marketIndex,
 			targetPrice
 		);
+
 		console.log(
 			'direction',
 			direction,
 
-			'tradeSize',
+			'tradeSizeInternal',
 			tradeSize.toNumber()
 		);
 		const [newQuoteAssetAmount, newBaseAssetAmount] = this.findSwapOutput(
 			market.amm.quoteAssetAmount,
 			market.amm.baseAssetAmount,
 			direction,
-			tradeSize.mul(AMM_MANTISSA).div(peg),
+			tradeSize,
 			'quote',
 			market.amm.k,
 			market.amm.pegMultiplier,
@@ -906,6 +907,10 @@ export class ClearingHouse {
 		quoteAssetAmount: BN,
 		peg?: BN
 	) {
+		if(baseAssetAmount.abs().lte(ZERO)){
+			return new BN(0);
+		}
+		
 		if (peg == undefined) {
 			peg = AMM_MANTISSA;
 		}
@@ -1109,7 +1114,8 @@ export class ClearingHouse {
 		// set a pct optional default is 100% gap filling, can set smaller.
 		this.assertIsSubscribed();
 		const market = this.getMarketsAccount().markets[marketIndex.toNumber()];
-
+		console.log(market.amm.baseAssetAmount, market.amm.quoteAssetAmount);
+		assert(market.amm.baseAssetAmount.gt(ZERO));
 		assert(targetPrice.gt(ZERO));
 		assert(pct.lte(MAXPCT) && pct.gt(ZERO));
 
@@ -1180,6 +1186,7 @@ export class ClearingHouse {
 			// no trade, market is at target
 			direction = PositionDirection.LONG;
 			tradeSize = 0;
+			baseSize = 0;
 			return [direction, new BN(tradeSize), new BN(0)];
 		}
 
@@ -1222,7 +1229,7 @@ export class ClearingHouse {
 		}
 
 		const entryPrice = this.calculateCurvePriceWithMantissa(
-			baseSize,
+			baseSize.abs(),
 			tradeSize,
 			AMM_MANTISSA
 		);
