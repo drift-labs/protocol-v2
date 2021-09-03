@@ -1,4 +1,4 @@
-import {WebClient} from "@slack/web-api";
+import {KnownBlock, MessageAttachment, WebClient} from "@slack/web-api";
 
 export default class SlackMessenger {
     private client: WebClient;
@@ -7,12 +7,13 @@ export default class SlackMessenger {
         this.client = new WebClient(token);
     }
 
-    public async message(text: string, channel: string, iconEmoji?: string, username?: string) {
+    public async message(text: string, channel: string, attachments?: MessageAttachment[], iconEmoji?: string, username?: string) {
         await this.client.chat.postMessage({
-            text: 'gang gang',
-            channel: "dev",
-            icon_emoji: ":thughawk:",
-            username: "thughawk",
+            text,
+            attachments,
+            channel: channel,
+            icon_emoji: iconEmoji,
+            username: username,
         });
     }
 }
