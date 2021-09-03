@@ -61,6 +61,11 @@ export type ClearingHouseMarketsAccountData = {
 			xeq: BN;
 			pegMultiplier: BN;
 			k: BN;
+			cumLongFundingRate: BN;
+			cumShortFundingRate: BN;
+			cumLongRepegProfit: BN;
+			cumShortRepegProfit: BN;
+
 		};
 		baseAssetAmount: BN;
 		baseAssetAmountLong: BN;
