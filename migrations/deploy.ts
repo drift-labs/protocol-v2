@@ -98,7 +98,7 @@ module.exports = async function (provider: Provider) {
 	const spyOraclePriceKey = new PublicKey(
 		'Epqu3qYZXJtnsH6r61wUj6LGJ2pp11VtpE3SbdqmHffD'
 	);
-	const spyPrice = (await pythClient.getPriceData(btcOraclePriceKey)).price;
+	const spyPrice = (await pythClient.getPriceData(spyOraclePriceKey)).price;
 	const pegMultiplierSPY = new anchor.BN(spyPrice).mul(AMM_MANTISSA);
 	console.log('SPY Price:', spyPrice);
 
