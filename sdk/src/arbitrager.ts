@@ -50,31 +50,15 @@ export class Arbitrager {
 				return;
 			}
 
-			// This is throwing errors from moving the price too far, just catching errors for now
-			try {
-				await this.clearingHouse.openPosition(
-					(
-						await this.clearingHouse.getUserAccountPublicKey()
-					)[0],
-					direction,
-					amount,
-					marketIndexBN,
-					oraclePriceWithMantissa
-				);
-			} catch (e) {
-				console.log(
-					'market',
-					marketIndexBN.toNumber(),
-					'failed:',
-					amount.toNumber(),
-					direction,
-					'limitPrice:',
-					oraclePriceData.price
-				);
-
-				console.log('Error while opening position');
-				console.log(e);
-			}
+			await this.clearingHouse.openPosition(
+				(
+					await this.clearingHouse.getUserAccountPublicKey()
+				)[0],
+				direction,
+				amount,
+				marketIndexBN,
+				oraclePriceWithMantissa
+			);
 		}
 	}
 }

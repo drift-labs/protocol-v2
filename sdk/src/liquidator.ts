@@ -24,24 +24,17 @@ export class Liquidator {
 			const [canLiquidate, marginRatio] = userAccount.canBeLiquidated();
 			if (canLiquidate) {
 				const liquidateeUserAccountPublicKey = await userAccount.getPublicKey();
-				try {
-					const tx = await this.clearingHouse.liquidate(
-						this.liquidatorUSDCTokenPublicKey,
-						liquidateeUserAccountPublicKey
-					);
-					const formattedMarginRatio = (marginRatio.toNumber() / 1000).toFixed(
-						3
-					);
-					console.log(
-						`Liquidated user ${liquidateeUserAccountPublicKey.toString()}. Margin Ratio: ${formattedMarginRatio}`
-					);
-					console.log(`Liquidation Tx ${tx}`);
-				} catch (e) {
-					console.log(
-						`Failed to liquidate ${liquidateeUserAccountPublicKey.toString()}.`
-					);
-					console.log(e);
-				}
+				const tx = await this.clearingHouse.liquidate(
+					this.liquidatorUSDCTokenPublicKey,
+					liquidateeUserAccountPublicKey
+				);
+				const formattedMarginRatio = (marginRatio.toNumber() / 1000).toFixed(
+					3
+				);
+				console.log(
+					`Liquidated user ${liquidateeUserAccountPublicKey.toString()}. Margin Ratio: ${formattedMarginRatio}`
+				);
+				console.log(`Liquidation Tx ${tx}`);
 			}
 		}
 	}
