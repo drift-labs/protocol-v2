@@ -1230,7 +1230,7 @@ export class ClearingHouse {
 		assert(tp1.sub(tp2).lte(ogDiff), 'Target Price Calculation incorrect');
 		// assert(tp1.sub(tp2).lt(AMM_MANTISSA), 'Target Price Calculation incorrect'); //  super OoB shorts do not
 		assert(
-			tp2.sub(tp1).abs()<10,
+			tp2.lte(tp1) || tp2.sub(tp1).abs()<10,
 			'Target Price Calculation incorrect' +
 				tp2.toString() +
 				'>=' +
