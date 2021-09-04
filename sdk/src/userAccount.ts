@@ -176,7 +176,6 @@ export class UserAccount {
 	}
 
 	public getUnrealizedFundingPNL(): BN {
-		// scaled by up by FUNDING_MANTISSA
 		this.assertIsSubscribed();
 
 		return this.userPositionsAccount.positions.reduce((pnl, marketPosition) => {
@@ -184,7 +183,6 @@ export class UserAccount {
 				this.clearingHouse.calculatePositionFundingPNL(marketPosition)
 			);
 		}, ZERO);
-		// .div(FUNDING_MANTISSA);
 	}
 
 	public getTotalCollateral(): BN {
