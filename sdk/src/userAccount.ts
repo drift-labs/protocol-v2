@@ -5,13 +5,12 @@ import { Subscriber, SubscriberResult } from './types';
 import { UserAccountData, UserPosition, UserPositionData } from './DataTypes';
 
 export const MAX_LEVERAGE = new BN(5);
-export const MAX_FULL_LIQ_LEVERAGE = new BN(20);
 
-const PARTIAL_LIQUIDATION_RATIO = new BN(500);
+const PARTIAL_LIQUIDATION_RATIO = new BN(625);
 const ZERO = new BN(0);
 const BN_MAX = new BN(Number.MAX_SAFE_INTEGER);
 const THOUSAND = new BN(1000);
-const MAXPCT = THOUSAND;
+const TEN_THOUSAND = new BN(10000);
 
 type UserAccountSubscriberResults =
 	| SubscriberResult<'userAccountData', UserAccountData>
@@ -151,19 +150,18 @@ export class UserAccount {
 		return userAccountRPCResponse.value !== null;
 	}
 
-	public getBuyingPower(pricePoint?: 'last' | 'avg' | 'liq'): BN {
+	public getBuyingPower(): BN {
 		this.assertIsSubscribed();
-		return this.getFreeCollateral(pricePoint).mul(MAX_LEVERAGE);
+		return this.getFreeCollateral().mul(MAX_LEVERAGE);
 	}
 
-	public getFreeCollateral(pricePoint?: 'last' | 'avg' | 'liq'): BN {
-		return this.getTotalCollateral(pricePoint).sub(
-			this.getTotalPositionValue(pricePoint).div(MAX_LEVERAGE)
+	public getFreeCollateral(): BN {
+		return this.getTotalCollateral().sub(
+			this.getTotalPositionValue().div(MAX_LEVERAGE)
 		);
 	}
 
 	public getUnrealizedPNL(
-		pricePoint?: 'last' | 'avg' | 'liq',
 		withFunding?: boolean
 	): BN {
 		this.assertIsSubscribed();
@@ -171,8 +169,6 @@ export class UserAccount {
 			return pnl.add(
 				this.clearingHouse.calculatePositionPNL(
 					marketPosition,
-					pricePoint,
-					MAXPCT,
 					withFunding
 				)
 			);
@@ -191,62 +187,56 @@ export class UserAccount {
 		// .div(FUNDING_MANTISSA);
 	}
 
-	public getTotalCollateral(pricePoint?: 'last' | 'avg' | 'liq'): BN {
+	public getTotalCollateral(): BN {
 		return (
 			this.userAccountData?.collateral.add(
-				this.getUnrealizedPNL(pricePoint, true)
+				this.getUnrealizedPNL(true)
 			) ?? new BN(0)
 		);
 	}
 
-	getTotalPositionValue(pricePoint?: 'last' | 'avg' | 'liq'): BN {
+	getTotalPositionValue(): BN {
 		return this.userPositionsAccount.positions
-			.reduce((pnl, marketPosition) => {
-				return pnl.add(
-					this.clearingHouse.calculateBaseAssetValuePoint(
-						marketPosition,
-						pricePoint,
-						MAXPCT
+			.reduce((positionValue, marketPosition) => {
+				return positionValue.add(
+					this.clearingHouse.calculateBaseAssetValue(
+						marketPosition
 					)
 				);
-			}, ZERO)
-			.div(AMM_MANTISSA);
+			}, ZERO);
 	}
 
-	public getPositionValue(positionIndex: number, pricePoint?: string): BN {
+	public getPositionValue(positionIndex: number): BN {
 		return this.clearingHouse
-			.calculateBaseAssetValuePoint(
-				this.userPositionsAccount.positions[positionIndex],
-				pricePoint,
-				MAXPCT
-			)
-			.div(AMM_MANTISSA);
+			.calculateBaseAssetValue(
+				this.userPositionsAccount.positions[positionIndex]
+			);
 	}
 
 	/**
-	 * Since we are using BN, we multiply the result by 1000 to maintain 3 digits of precision
+	 * Since we are using BN, we multiply the result by 10000 to maintain 4 digits of precision
 	 */
-	public getLeverage(pricePoint?: 'last' | 'avg' | 'liq'): BN {
-		const totalCollateral = this.getTotalCollateral(pricePoint);
-		const totalPositionValue = this.getTotalPositionValue(pricePoint);
+	public getLeverage(): BN {
+		const totalCollateral = this.getTotalCollateral();
+		const totalPositionValue = this.getTotalPositionValue();
 		if (totalPositionValue.eq(ZERO) && totalCollateral.eq(ZERO)) {
 			return ZERO;
 		}
-		return totalPositionValue.mul(THOUSAND).div(totalCollateral);
+		return totalPositionValue.mul(TEN_THOUSAND).div(totalCollateral);
 	}
 
 	/**
-	 * Since we are using BN, we multiply the result by 1000 to maintain 3 digits of precision
+	 * Since we are using BN, we multiply the result by 10000 to maintain 4 digits of precision
 	 */
-	public getMarginRatio(pricePoint?: 'last' | 'avg' | 'liq'): BN {
-		const totalPositionValue = this.getTotalPositionValue(pricePoint);
+	public getMarginRatio(): BN {
+		const totalPositionValue = this.getTotalPositionValue();
 
 		if (totalPositionValue.eq(ZERO)) {
 			return BN_MAX;
 		}
 
-		return this.getTotalCollateral(pricePoint)
-			.mul(THOUSAND)
+		return this.getTotalCollateral()
+			.mul(TEN_THOUSAND)
 			.div(totalPositionValue);
 	}
 
@@ -276,7 +266,6 @@ export class UserAccount {
 
 	public liquidationPrice(
 		marketPosition: UserPosition,
-		pricePoint?: string
 	): BN {
 		// todo: pricePoint:liq doesnt anticipate market-impact AT point of sale, just at current point
 		// 		 current estimate is biased lower, which is also kinda fair
@@ -289,7 +278,7 @@ export class UserAccount {
 
 		// const M_I_LEVERAGE_RATIO = new BN(4);
 		const currentPrice =
-			this.clearingHouse.calculateBaseAssetPricePoint(marketPosition); //, pricePoint, 1);
+			this.clearingHouse.calculateBaseAssetPriceWithMantissa(marketPosition.marketIndex)
 
 		// let freeCollateral = this.getFreeCollateral().div(MAX_LEVERAGE);
 		// console.log(freeCollateral.toNumber(), marketPosition.baseAssetAmount.toNumber());
@@ -347,82 +336,35 @@ export class UserAccount {
 		return liqPrice;
 	}
 
-	public summary(pricePoint?: 'last' | 'avg' | 'liq') {
+	public summary() {
 		const marketPosition0 = this.userPositionsAccount.positions[0];
 		const pos0PNL = this.clearingHouse.calculatePositionPNL(
 			marketPosition0,
-			pricePoint,
-			new BN(1000)
 		);
-		const pos0Value = this.clearingHouse.calculateBaseAssetValuePoint(
-			marketPosition0,
-			pricePoint,
-			new BN(1000)
+		const pos0Value = this.clearingHouse.calculateBaseAssetValue(
+			marketPosition0
 		);
 
-		const pos0Px = this.clearingHouse.calculateBaseAssetPricePoint(
-			marketPosition0,
-			pricePoint,
-			new BN(1000)
+		const pos0Px = this.clearingHouse.calculateBaseAssetPriceWithMantissa(
+			marketPosition0.marketIndex,
 		);
 
-		let summary;
+		return {
+			totalCollateral: this.getTotalCollateral(),
+			uPnL: this.getUnrealizedPNL(),
+			marginRatio: this.getMarginRatio(),
+			freeCollateral: this.getFreeCollateral(),
+			leverage: this.getLeverage(),
+			buyingPower: this.getBuyingPower(),
+			tPV: this.getTotalPositionValue(),
 
-		//todo: in desperate need of javascript help
-		if (pricePoint == 'liq') {
-			summary = {
-				uPnLLiq: this.getUnrealizedPNL(pricePoint),
-				marginRatioLiq: this.getMarginRatio(pricePoint),
-				freeCollateralLiq: this.getFreeCollateral(pricePoint),
-				leverageLiq: this.getLeverage(pricePoint),
-				buyingPowerLiq: this.getBuyingPower(pricePoint),
-				tPVLiq: this.getTotalPositionValue(pricePoint),
-
-				pos0BAmtLiq: marketPosition0.baseAssetAmount,
-				pos0QAmtLiq: marketPosition0.quoteAssetNotionalAmount,
-				pos0MarketLiq: marketPosition0.marketIndex,
-				pos0LiqPxLiq: this.liquidationPrice(marketPosition0),
-				pos0ValueLiq: pos0PNL,
-				pos0PxLiq: pos0Px,
-				pos0PNLLiq: pos0PNL,
-			};
-		} else if (pricePoint == 'avg') {
-			summary = {
-				uPnLAvg: this.getUnrealizedPNL(pricePoint),
-				marginRatioAvg: this.getMarginRatio(pricePoint),
-				freeCollateralAvg: this.getFreeCollateral(pricePoint),
-				leverageAvg: this.getLeverage(pricePoint),
-				buyingPowerAvg: this.getBuyingPower(pricePoint),
-				tPVAvg: this.getTotalPositionValue(pricePoint),
-
-				pos0BAmtAvg: marketPosition0.baseAssetAmount,
-				pos0QAmtAvg: marketPosition0.quoteAssetNotionalAmount,
-				pos0MarketAvg: marketPosition0.marketIndex,
-				pos0LiqAvg: this.liquidationPrice(marketPosition0),
-				pos0ValueAvg: pos0Value,
-				pos0PxAvg: pos0Px,
-				pos0PNLAvg: pos0PNL,
-			};
-		} else {
-			summary = {
-				totalCollateral: this.getTotalCollateral(pricePoint),
-				uPnL: this.getUnrealizedPNL(pricePoint),
-				marginRatio: this.getMarginRatio(pricePoint),
-				freeCollateral: this.getFreeCollateral(pricePoint),
-				leverage: this.getLeverage(pricePoint),
-				buyingPower: this.getBuyingPower(pricePoint),
-				tPV: this.getTotalPositionValue(pricePoint),
-
-				pos0BAmt: marketPosition0.baseAssetAmount,
-				pos0QAmt: marketPosition0.quoteAssetNotionalAmount,
-				pos0Market: marketPosition0.marketIndex,
-				pos0LiqPrice: this.liquidationPrice(marketPosition0),
-				pos0Value: pos0Value,
-				pos0Px: pos0Px,
-				pos0PNL: pos0PNL,
-			};
-		}
-
-		return summary;
+			pos0BAmt: marketPosition0.baseAssetAmount,
+			pos0QAmt: marketPosition0.quoteAssetNotionalAmount,
+			pos0Market: marketPosition0.marketIndex,
+			pos0LiqPrice: this.liquidationPrice(marketPosition0),
+			pos0Value: pos0Value,
+			pos0Px: pos0Px,
+			pos0PNL: pos0PNL,
+		};
 	}
 }

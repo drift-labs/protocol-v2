@@ -905,16 +905,12 @@ export class ClearingHouse {
 	public calculateCurvePriceWithMantissa(
 		baseAssetAmount: BN,
 		quoteAssetAmount: BN,
-		peg?: BN
+		peg: BN
 	) {
 		if(baseAssetAmount.abs().lte(ZERO)){
 			return new BN(0);
 		}
-		
-		if (peg == undefined) {
-			peg = AMM_MANTISSA;
-		}
-		// constant product
+
 		return quoteAssetAmount.mul(peg).div(baseAssetAmount);
 	}
 
@@ -1293,139 +1289,7 @@ export class ClearingHouse {
 		return newBaseAssetPriceWithMantissa;
 	}
 
-	public calculateBaseAssetValueAfterSwapWithMantissa(
-		marketPosition: UserPosition,
-		pct: BN
-	): BN {
-		const baseAssetAmountToClose = marketPosition.baseAssetAmount
-			.mul(pct)
-			.div(MAXPCT);
-
-		let direction;
-		if (marketPosition.baseAssetAmount.gt(new BN(0))) {
-			direction = PositionDirection.SHORT;
-		} else {
-			direction = PositionDirection.LONG;
-		}
-
-		const baseAssetPriceWithMantissa =
-			this.calculateBaseAssetPriceAfterSwapWithMantissa(
-				marketPosition.marketIndex,
-				direction,
-				baseAssetAmountToClose,
-				'base'
-			);
-		return baseAssetPriceWithMantissa.mul(marketPosition.baseAssetAmount.abs());
-	}
-
-	public calculateBaseAssetValueWithMantissa(marketPosition: UserPosition): BN {
-		const baseAssetPriceWithMantissa = this.calculateBaseAssetPriceWithMantissa(
-			marketPosition.marketIndex
-		);
-		return baseAssetPriceWithMantissa.mul(marketPosition.baseAssetAmount.abs());
-	}
-
-	public calculateBaseAssetValuePoint(
-		marketPosition,
-		pricePoint: string,
-		pricePointPct: BN
-	) {
-		if (pricePoint == undefined) {
-			pricePoint = 'last';
-		}
-		if (pricePointPct == undefined) {
-			pricePointPct = MAXPCT;
-		}
-		assert(pricePointPct.gt(ZERO) && pricePointPct.lte(MAXPCT));
-		assert(['last', 'avg', 'liq'].includes(pricePoint));
-
-		let baseAssetValueWithMantissa;
-		if (pricePoint == 'liq') {
-			baseAssetValueWithMantissa =
-				this.calculateBaseAssetValueAfterSwapWithMantissa(
-					marketPosition,
-					pricePointPct
-				);
-		} else if (pricePoint == 'avg') {
-			// todo, taylor series approx?
-
-			const baseAssetValueWithMantissaBefore =
-				this.calculateBaseAssetValueWithMantissa(marketPosition);
-			const baseAssetValueWithMantissaAfter =
-				this.calculateBaseAssetValueAfterSwapWithMantissa(
-					marketPosition,
-					pricePointPct
-				);
-			baseAssetValueWithMantissa = baseAssetValueWithMantissaBefore
-				.add(baseAssetValueWithMantissaAfter)
-				.div(new BN(2));
-		} else {
-			baseAssetValueWithMantissa =
-				this.calculateBaseAssetValueWithMantissa(marketPosition);
-		}
-
-		return baseAssetValueWithMantissa;
-	}
-
-	public calculateBaseAssetPricePoint(
-		marketPosition: UserPosition,
-		pricePoint?: 'last' | 'avg' | 'liq',
-		pricePointPct?: BN
-	): BN {
-		if (pricePoint == undefined) {
-			pricePoint = 'last';
-		}
-		assert(['last', 'avg', 'liq'].includes(pricePoint));
-
-		let baseAssetPriceWithMantissa;
-		if (pricePoint == 'liq' || pricePoint == 'avg') {
-			if (pricePointPct == undefined) {
-				pricePointPct = MAXPCT;
-			}
-			assert(pricePointPct.gt(ZERO) && pricePointPct.lte(MAXPCT));
-
-			const baseAssetAmountToClose = marketPosition.baseAssetAmount
-				.mul(pricePointPct)
-				.div(MAXPCT);
-
-			let direction;
-			if (marketPosition.baseAssetAmount.gt(new BN(0))) {
-				// must short to close position
-				direction = PositionDirection.SHORT;
-			} else {
-				// must long to close position
-				direction = PositionDirection.LONG;
-			}
-
-			baseAssetPriceWithMantissa =
-				this.calculateBaseAssetPriceAfterSwapWithMantissa(
-					marketPosition.marketIndex,
-					direction,
-					baseAssetAmountToClose.abs(),
-					'base'
-				);
-
-			if (pricePoint == 'avg') {
-				baseAssetPriceWithMantissa = baseAssetPriceWithMantissa
-					.add(
-						this.calculateBaseAssetPriceWithMantissa(marketPosition.marketIndex)
-					)
-					.div(new BN(2));
-			}
-		} else {
-			baseAssetPriceWithMantissa = this.calculateBaseAssetPriceWithMantissa(
-				marketPosition.marketIndex
-			);
-		}
-
-		return baseAssetPriceWithMantissa;
-	}
-	public calculatePositionPNL(
-		marketPosition: UserPosition,
-		pricePoint?: 'last' | 'avg' | 'liq',
-		pricePointPct?: BN,
-		withFunding?: boolean
-	): BN {
+	public calculateBaseAssetValue(marketPosition: UserPosition) {
 		if (marketPosition.baseAssetAmount.eq(ZERO)) {
 			return ZERO;
 		}
@@ -1447,24 +1311,47 @@ export class ClearingHouse {
 			market.amm.pegMultiplier,
 		);
 
+		switch (directionToClose) {
+			case PositionDirection.SHORT:
+				return market.amm.quoteAssetAmount
+					.sub(newQuoteAssetAmount)
+					.mul(market.amm.pegMultiplier)
+					.div(AMM_MANTISSA)
+
+			case PositionDirection.LONG:
+				return newQuoteAssetAmount
+					.sub(market.amm.quoteAssetAmount)
+					.mul(market.amm.pegMultiplier)
+					.div(AMM_MANTISSA)
+		}
+	}
+
+	public calculatePositionPNL(
+		marketPosition: UserPosition,
+		withFunding: boolean = false
+	): BN {
+		if (marketPosition.baseAssetAmount.eq(ZERO)) {
+			return ZERO;
+		}
+
+		const directionToClose = marketPosition.baseAssetAmount.gt(ZERO)
+			? PositionDirection.SHORT
+			: PositionDirection.LONG;
+
+		const baseAssetValue = this.calculateBaseAssetValue(marketPosition);
 		let pnlAssetAmount;
 
 		switch (directionToClose) {
 			case PositionDirection.SHORT:
-				pnlAssetAmount = market.amm.quoteAssetAmount
-					.sub(newQuoteAssetAmount)
+				pnlAssetAmount = baseAssetValue
 					.sub(
 						marketPosition.quoteAssetNotionalAmount
-							.mul(AMM_MANTISSA)
-							.div(market.amm.pegMultiplier)
 					);
 				break;
 
 			case PositionDirection.LONG:
 				pnlAssetAmount = marketPosition.quoteAssetNotionalAmount
-					.mul(AMM_MANTISSA)
-					.div(market.amm.pegMultiplier)
-					.sub(newQuoteAssetAmount.sub(market.amm.quoteAssetAmount));
+					.sub(baseAssetValue)
 				break;
 		}
 
