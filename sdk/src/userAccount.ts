@@ -211,6 +211,13 @@ export class UserAccount {
 			);
 	}
 
+	public getPositionEstimatedExitPriceWithMantissa(positionIndex: number): BN {
+		const position = this.userPositionsAccount.positions[positionIndex];
+		const baseAssetValue = this.clearingHouse
+			.calculateBaseAssetValue(position);
+		return baseAssetValue.mul(AMM_MANTISSA).div(position.baseAssetAmount);
+	}
+
 	/**
 	 * Since we are using BN, we multiply the result by 10000 to maintain 4 digits of precision
 	 */
