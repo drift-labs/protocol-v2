@@ -161,8 +161,14 @@ export async function stress_test(
 						new BN(oracleData.price * AMM_MANTISSA.toNumber()),
 						new BN(250)
 					);
+				
+				rand_amt = BN.min(rand_amt.abs(), userAccountInfos[user_i].getFreeCollateral());
 
-				if (randEType == PositionDirection.LONG) {
+				if(rand_amt.eq(new BN(0))){
+					rand_e = 'move';
+					rand_amt = new BN(oracleData.price * AMM_MANTISSA.toNumber());
+				}
+				else if (randEType == PositionDirection.LONG) {
 					rand_e = 'buy';
 				} else {
 					rand_e = 'sell';

@@ -725,7 +725,7 @@
           },
           {
             "name": "totalPotentialFee",
-            "type": "u128"
+            "type": "i128"
           },
           {
             "name": "positions",

@@ -169,10 +169,10 @@ describe('User Account', () => {
 
 		const expectedPNL = new BN(0);
 		const expectedTotalCollateral = new BN(10000000);
-		const expectedBuyingPower = new BN(24999375);
-		const expectedFreeCollateral = new BN(4999875);
-		const expectedLeverage = new BN(2500); // 2.499x
-		const expectedMarginRatio = new BN(399); // 39.9%
+		const expectedBuyingPower = new BN(25000000);
+		const expectedFreeCollateral = new BN(5000000);
+		const expectedLeverage = new BN(25000); // 2.499x
+		const expectedMarginRatio = new BN(4000); // 39.9%
 
 		await assertState(
 			expectedBuyingPower,
@@ -194,10 +194,10 @@ describe('User Account', () => {
 
 		const expectedPNL = new BN(24997511);
 		const expectedTotalCollateral = new BN(34997511);
-		const expectedBuyingPower = new BN(124988795);
-		const expectedFreeCollateral = new BN(24997759);
-		const expectedLeverage = new BN(1428); // 1.428x
-		const expectedMarginRatio = new BN(699); // 69.9%
+		const expectedBuyingPower = new BN(124990045);
+		const expectedFreeCollateral = new BN(24998009);
+		const expectedLeverage = new BN(14286); // 1.428x
+		const expectedMarginRatio = new BN(6999); // 69.9%
 
 		await assertState(
 			expectedBuyingPower,

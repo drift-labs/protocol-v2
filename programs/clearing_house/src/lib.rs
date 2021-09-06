@@ -266,7 +266,7 @@ pub mod clearing_house {
                 .unwrap();
             let net_winnings_fee = max(net_winnings.checked_div(10000).unwrap(), 0) as u128;
 
-            let withdrawl_fee = min(user_account.total_potential_fee, net_winnings_fee);
+            let withdrawl_fee = min(user_account.total_potential_fee, net_winnings_fee as i128);
             user_account.total_potential_fee = user_account
                 .total_potential_fee
                 .checked_sub(withdrawl_fee)
@@ -559,7 +559,7 @@ pub mod clearing_house {
 
             user_account.total_potential_fee = user_account
                 .total_potential_fee
-                .checked_add(quote_asset_peg_fee as u128)
+                .checked_add(quote_asset_peg_fee)
                 .unwrap();
 
             if margin_ratio_after < MARGIN_MANTISSA && potentially_risk_increasing {
@@ -1412,7 +1412,7 @@ pub struct UserAccount {
     pub authority: Pubkey,
     pub collateral: u128,
     pub initial_purchase: i128,
-    pub total_potential_fee: u128,
+    pub total_potential_fee: i128,
     pub positions: Pubkey,
 
     pub creation_ts: i64,
@@ -2508,7 +2508,7 @@ fn _settle_funding_payment(
                 .unwrap();
             user_account.total_potential_fee = user_account
                 .total_potential_fee
-                .checked_sub(repeg_profit_share_pnl)
+                .checked_sub(repeg_profit_share_pnl as i128)
                 .unwrap();
         }
 
