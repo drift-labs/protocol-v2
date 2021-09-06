@@ -56,16 +56,14 @@ export type ClearingHouseMarketsAccountData = {
 			spreadThreshold: BN;
 			volume1: BN;
 			volume2: BN;
-			xcp: BN;
-			xcpr: BN;
-			xeq: BN;
 			pegMultiplier: BN;
 			k: BN;
 			cumLongFundingRate: BN;
 			cumShortFundingRate: BN;
 			cumLongRepegProfit: BN;
 			cumShortRepegProfit: BN;
-
+            cumSlippageProfit: BN;
+            cumSlippage: BN;
 		};
 		baseAssetAmount: BN;
 		baseAssetAmountLong: BN;
