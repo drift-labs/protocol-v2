@@ -47,7 +47,25 @@ describe('stress-test', () => {
 		// await userAccount.unsubscribe();
 	});
 
-	it('test-pegmult-peg=1', async () => {
+	// it('test-pegmult-peg=1', async () => {
+	// 	await stress_test(
+	// 		clearingHouse,
+	// 		usdcMint,
+	// 		provider,
+	// 		1,
+	// 		1337,
+	// 		10 * 10 ** 6,
+	// 		25 * 10 ** 20,
+	// 		'utils/configs/clearingHouse.spec.pegmult.csv',
+	// 		undefined,
+	// 		undefined,
+	// 		undefined,
+	// 		'simp-peg-1'
+	// 	);
+	// });
+
+	it('test-repeg-peg=150', async () => {
+		const pegM = new BN(150).mul(AMM_MANTISSA);
 		await stress_test(
 			clearingHouse,
 			usdcMint,
@@ -56,11 +74,12 @@ describe('stress-test', () => {
 			1337,
 			10 * 10 ** 6,
 			25 * 10 ** 20,
-			'utils/configs/clearingHouse.spec.pegmult.csv',
+			// 'utils/configs/clearingHouse.spec.pegmult.csv',
+			undefined,
+			[pegM, pegM],
 			undefined,
 			undefined,
-			undefined,
-			'simp-peg-1'
+			'1337-sim-repeg-1'
 		);
 	});
 
