@@ -1,21 +1,6 @@
 {
-  "name": "moet",
-  "version": "0.1.0",
-  "description": "",
-  "main": "index.js",
   "directories": {
     "test": "tests"
-  },
-  "scripts": {
-    "prepare": "husky install",
-    "lint": "eslint tests migrations sdk utils --ext .ts",
-    "lint:fix": "yarn lint --fix",
-    "pre-commit": "lint-staged"
-  },
-  "lint-staged": {
-    "**/*.ts": [
-      "yarn lint"
-    ]
   },
   "author": "",
   "license": "ISC",
@@ -27,16 +12,8 @@
     "@solana/web3.js": "1.17.0",
     "@types/bn.js": "^5.1.0",
     "@types/mocha": "^8.2.2",
-    "@typescript-eslint/eslint-plugin": "^4.28.0",
-    "@typescript-eslint/parser": "^4.28.0",
     "bn.js": "^5.2.0",
-    "chai": "^4.3.4",
-    "eslint": "^7.29.0",
-    "eslint-config-prettier": "^8.3.0",
-    "eslint-plugin-prettier": "^3.4.0",
-    "husky": "^6.0.0",
-    "lint-staged": "^11.0.0",
-    "prettier": "^2.3.1"
+    "chai": "^4.3.4"
   },
   "dependencies": {
     "chai-bn": "^0.2.2",
