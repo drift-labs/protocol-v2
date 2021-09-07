@@ -6,6 +6,7 @@ import { UserAccountData, UserPosition, UserPositionData } from './DataTypes';
 
 export const MAX_LEVERAGE = new BN(5);
 
+const FULL_LIQUIDATION_RATIO = new BN(500);
 const PARTIAL_LIQUIDATION_RATIO = new BN(625);
 const ZERO = new BN(0);
 const BN_MAX = new BN(Number.MAX_SAFE_INTEGER);
@@ -263,7 +264,7 @@ export class UserAccount {
 		return false;
 	}
 
-	public liquidationPrice(marketPosition: UserPosition, partial: boolean=false): BN {
+	public liquidationPrice(marketPosition: UserPosition, partial = false): BN {
 		// todo: pricePoint:liq doesnt anticipate market-impact AT point of sale, just at current point
 		// 		 current estimate is biased lower, which is also kinda fair
 
@@ -297,8 +298,8 @@ export class UserAccount {
 		// +/-(margin_ratio-liq_ratio) * price_now = price_liq
 
 		const marginRatio = this.getMarginRatio();
-		let liqRatio = new BN(500); // .05 * 1000 = .5 * 100 = 5 * 10
-		if(partial){
+		let liqRatio = FULL_LIQUIDATION_RATIO;
+		if (partial) {
 			liqRatio = PARTIAL_LIQUIDATION_RATIO;
 		}
 
