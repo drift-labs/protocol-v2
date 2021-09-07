@@ -1080,7 +1080,7 @@ export class ClearingHouse {
 				.div(AMM_MANTISSA);
 			const [direction, liquidity, entryPrice] = this.calculateTargetPriceTrade(
 				marketIndex,
-				targetPriceDefaultSlippage
+				BN.max(targetPriceDefaultSlippage, new BN(1))
 			);
 			asksPrice.push(entryPrice);
 			asksCumSize.push(liquidity);
@@ -1091,7 +1091,7 @@ export class ClearingHouse {
 			const [directionBid, liquidityBid, entryPriceBid] =
 				this.calculateTargetPriceTrade(
 					marketIndex,
-					targetPriceDefaultSlippageBid
+					BN.max(targetPriceDefaultSlippageBid, new BN(1))
 				);
 			bidsPrice.push(entryPriceBid);
 			bidsCumSize.push(liquidityBid);

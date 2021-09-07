@@ -30,9 +30,9 @@ describe('AMM Curve', () => {
 
 	let solUsdOracle;
 	const marketIndex = new BN(0);
-	const initialSOLPrice = 20;
+	const initialSOLPrice = 150;
 
-	const usdcAmount = new BN(10 * 10 ** 6);
+	const usdcAmount = new BN(10000 * 10 ** 6);
 	const solPositionInitialValue = usdcAmount.div(new BN(10));
 
 	let userAccount: UserAccount;
@@ -120,7 +120,7 @@ describe('AMM Curve', () => {
 			clearingHouse.calculateBaseAssetPriceWithMantissa(marketIndex);
 
 		const [bidsPrice, bidsCumSize, asksPrice, asksCumSize] =
-			clearingHouse.liquidityBook(marketIndex, 3, 0.02);
+			clearingHouse.liquidityBook(marketIndex, 100, 0.1);
 
 		for (let i = asksCumSize.length - 1; i >= 0; i--) {
 			console.log(
@@ -133,9 +133,9 @@ describe('AMM Curve', () => {
 		console.log(currentMark.toNumber() / AMM_MANTISSA.toNumber());
 		console.log(
 			'peg:',
-			market.amm.pegMultiplier.toNumber() / AMM_MANTISSA.toNumber()
-			// 'k:',
-			// market.amm.k.div(AMM_MANTISSA).toNumber(),
+			market.amm.pegMultiplier.toNumber() / AMM_MANTISSA.toNumber(),
+			'k (M*M):',
+			market.amm.k.div(AMM_MANTISSA).div(AMM_MANTISSA).toNumber()
 		);
 		console.log('------------');
 		for (let i = 0; i < bidsCumSize.length; i++) {
@@ -221,7 +221,7 @@ describe('AMM Curve', () => {
 		const priceIncreaseFactor = new BN(2);
 		await clearingHouse.moveAmmToPrice(
 			marketIndex,
-			new BN(initialSOLPrice * AMM_MANTISSA.toNumber() * 1.01)
+			new BN(initialSOLPrice * AMM_MANTISSA.toNumber() * 1.0001)
 		);
 
 		showBook(marketIndex);
