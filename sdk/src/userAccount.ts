@@ -263,7 +263,7 @@ export class UserAccount {
 		return false;
 	}
 
-	public liquidationPrice(marketPosition: UserPosition): BN {
+	public liquidationPrice(marketPosition: UserPosition, partial: boolean=false): BN {
 		// todo: pricePoint:liq doesnt anticipate market-impact AT point of sale, just at current point
 		// 		 current estimate is biased lower, which is also kinda fair
 
@@ -297,23 +297,27 @@ export class UserAccount {
 		// +/-(margin_ratio-liq_ratio) * price_now = price_liq
 
 		const marginRatio = this.getMarginRatio();
-		const liqRatio = new BN(50); // .05 * 1000 = .5 * 100 = 5 * 10
+		let liqRatio = new BN(500); // .05 * 1000 = .5 * 100 = 5 * 10
+		if(partial){
+			liqRatio = PARTIAL_LIQUIDATION_RATIO;
+		}
+
 		console.log(liqRatio.toNumber(), marginRatio.toNumber());
 		let pctChange = marginRatio.abs().sub(liqRatio);
 		const baseAssetSign = marketPosition.baseAssetAmount; //todo
 
 		// if user is short, higher price is liq
 		if (baseAssetSign.isNeg()) {
-			pctChange = pctChange.add(THOUSAND);
+			pctChange = pctChange.add(TEN_THOUSAND);
 		} else {
-			if (THOUSAND.lte(pctChange)) {
+			if (TEN_THOUSAND.lte(pctChange)) {
 				// no liquidation price, position is a fully/over collateralized long
 				return new BN(-1);
 			}
-			pctChange = THOUSAND.sub(pctChange);
+			pctChange = TEN_THOUSAND.sub(pctChange);
 		}
 
-		const liqPrice = currentPrice.mul(pctChange).div(THOUSAND);
+		const liqPrice = currentPrice.mul(pctChange).div(TEN_THOUSAND);
 		try {
 			console.log(
 				' currentPrice:',
