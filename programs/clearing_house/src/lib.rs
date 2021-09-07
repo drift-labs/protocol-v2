@@ -1503,16 +1503,30 @@ impl AMM {
         now: i64,
     ) -> (i128, i128) {
         // fee inspired by https://curve.fi/files/crypto-pools-paper.pdf
+
+        let unpegged_quote_asset_amount = quote_asset_swap_amount
+            .checked_mul(MANTISSA)
+            .unwrap()
+            .checked_div(self.peg_multiplier)
+            .unwrap();
+        assert_ne!(unpegged_quote_asset_amount, 0);
+
+        let initial_base_asset_amount = self.base_asset_amount;
+        let (new_base_asset_amount, new_quote_asset_amount) = AMM::find_swap_output(
+            unpegged_quote_asset_amount,
+            self.quote_asset_amount,
+            direction,
+            self.k,
+        );
+
         let thousand: u128 = 1000;
 
         let lambda_fee: u128 = 1;
-        let cp_prod = self
-            .base_asset_amount
-            .checked_mul(self.quote_asset_amount)
+        let cp_prod = new_base_asset_amount
+            .checked_mul(new_quote_asset_amount)
             .unwrap();
-        let cs_sum = self
-            .base_asset_amount
-            .checked_add(self.quote_asset_amount)
+        let cs_sum = new_base_asset_amount
+            .checked_add(new_quote_asset_amount)
             .unwrap();
         let g_fee_denom_1 = cp_prod
             .checked_mul(thousand)
@@ -1531,8 +1545,8 @@ impl AMM {
 
         let g_fee_recip = thousand.checked_sub(g_fee).unwrap();
 
-        let f_mid: u128 = 100; // 1 bps, .01%
-        let f_out: u128 = 1500; // 15 bps, .15%
+        let f_mid: u128 = 50; // .5 bps, .005%
+        let f_out: u128 = 200; // 20 bps, .2%
         let f = f_mid
             .checked_mul(g_fee)
             .unwrap()
@@ -1544,8 +1558,9 @@ impl AMM {
             .checked_div(thousand)
             .unwrap();
 
-        let quote_asset_swap_amount_fee = 0; //todo, change and pass spec test
-                                             // let quote_asset_swap_amount_fee = fee.checked_div(self.peg_multiplier).unwrap();
+        //todo, change and pass spec test
+        let quote_asset_swap_amount_fee = 0;
+        // let quote_asset_swap_amount_fee = fee.checked_div(MANTISSA).unwrap();
         let quote_asset_swap_amount_less_fee = quote_asset_swap_amount
             .checked_sub(quote_asset_swap_amount_fee)
             .unwrap();
