@@ -124,10 +124,11 @@ export async function stress_test(
 			if (i == 0) {
 				rand_e = 'noop';
 			}
-			const market_i = new BN(
-				Math.floor(Math.random() * oracles.length + marketOffset)
-			); // expand from 2
-
+			//todo: expand from 2
+			// const market_i = new BN(
+			// 	Math.floor(Math.random() * oracles.length + marketOffset)
+			// );
+			const market_i = new BN(0);
 			if (user_i % 2 == 0 && ['buy', 'sell'].includes(rand_e)) {
 				// arb user
 				const state: any = await clearingHouse.program.state.fetch();
@@ -158,8 +159,7 @@ export async function stress_test(
 				[randEType, rand_amt, entry_px] =
 					clearingHouse.calculateTargetPriceTrade(
 						market_i,
-						new BN(oracleData.price * AMM_MANTISSA.toNumber()),
-						new BN(250)
+						new BN(oracleData.price * AMM_MANTISSA.toNumber())
 					);
 
 				rand_amt = BN.min(
@@ -167,7 +167,7 @@ export async function stress_test(
 					userAccountInfos[user_i].getFreeCollateral()
 				);
 
-				if (rand_amt.eq(new BN(0))) {
+				if (rand_amt.abs().gt(new BN(10000))) {
 					rand_e = 'move';
 					rand_amt = new BN(oracleData.price * AMM_MANTISSA.toNumber());
 				} else if (randEType == PositionDirection.LONG) {

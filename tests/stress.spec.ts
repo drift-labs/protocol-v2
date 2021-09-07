@@ -71,7 +71,7 @@ describe('stress-test', () => {
 			usdcMint,
 			provider,
 			10,
-			1000000,
+			1000,
 			10 * 10 ** 6,
 			25 * 10 ** 20,
 			// 'utils/configs/clearingHouse.spec.pegmult.csv',

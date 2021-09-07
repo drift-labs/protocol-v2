@@ -1047,8 +1047,6 @@ pub mod clearing_house {
 
         let price_oracle = &ctx.accounts.oracle;
 
-        let insurance_fund_balance = &ctx.accounts.clearing_house_insurance_account.amount;
-
         let now = ctx.accounts.clock.unix_timestamp;
         let time_since_last_update = now - market.amm.funding_rate_ts;
 
@@ -1064,7 +1062,6 @@ pub mod clearing_house {
                 .unwrap();
             // funding period = 1 hour, window = 1 day
             // low periodicity => quickly updating/settled funding rates => lower funding rate payment per interval
-
             let price_spread = market.amm.get_oracle_mark_spread(price_oracle, one_hour);
             let funding_rate = price_spread
                 .checked_mul(FUNDING_MANTISSA as i128)
@@ -1072,12 +1069,7 @@ pub mod clearing_house {
                 .checked_div(period_adjustment as i128)
                 .unwrap();
 
-            let mut haircut_numerator = 1;
-            let mut funding_rate_bounded = funding_rate;
-            if market.amm.periodicity == 0 {
-                //bound by (rounded up) max solana transactions per second
-                funding_rate_bounded = funding_rate_bounded.checked_div(100000).unwrap();
-            }
+            let mut haircut_numerator = 0;
 
             if market.base_asset_amount == 0 {
                 market.amm.cum_long_funding_rate = market
@@ -1093,26 +1085,10 @@ pub mod clearing_house {
                     .unwrap();
             } else if market.base_asset_amount > 0 {
                 // assert(market.base_asset_amount_long > market.base_asset_amount);
-                // more longs that shorts, insurance fund acts as 1 short if no shorts
-
-                let funding_rate_notional = (funding_rate
-                    .checked_div(FUNDING_MANTISSA as i128)
-                    .unwrap()
-                    .checked_mul(MANTISSA as i128)
-                    .unwrap()
-                    .unsigned_abs())
-                .checked_mul(market.base_asset_amount.unsigned_abs())
-                .unwrap();
+                // more longs that shorts
 
                 if market.base_asset_amount_short.unsigned_abs() > 0 {
                     haircut_numerator = market.base_asset_amount_short.unsigned_abs();
-                } else if funding_rate < 0
-                    && (funding_rate_notional as u64).gt(insurance_fund_balance)
-                {
-                    // funding rate value is longs pays shorts
-                    // positive implies insurance fund gets payment
-                    // negative implies insurance fund has to pay
-                    funding_rate_bounded = 0;
                 }
 
                 let funding_rate_long_haircut = haircut_numerator
@@ -1121,7 +1097,7 @@ pub mod clearing_house {
                     .checked_div(market.base_asset_amount_long as u128)
                     .unwrap();
 
-                let funding_rate_long = funding_rate_bounded
+                let funding_rate_long = funding_rate
                     .checked_mul(funding_rate_long_haircut as i128)
                     .unwrap()
                     .checked_div(MANTISSA as i128)
@@ -1136,19 +1112,12 @@ pub mod clearing_house {
                 market.amm.cum_short_funding_rate = market
                     .amm
                     .cum_short_funding_rate
-                    .checked_add(funding_rate_bounded)
+                    .checked_add(funding_rate)
                     .unwrap();
             } else {
-                // more shorts than longs, insurance fund acts as 1 long if no longs
+                // more shorts than longs
                 if market.base_asset_amount_long.unsigned_abs() > 0 {
                     haircut_numerator = market.base_asset_amount_long.unsigned_abs();
-                } else if funding_rate > 0
-                    && (funding_rate.unsigned_abs() as u64).gt(insurance_fund_balance)
-                {
-                    // funding rate value is longs pays shorts
-                    // positive implies insurance fund gets payment
-                    // negative implies insurance fund has to pay
-                    funding_rate_bounded = 0;
                 }
 
                 let funding_rate_short_haircut = haircut_numerator
@@ -1157,7 +1126,7 @@ pub mod clearing_house {
                     .checked_div(market.base_asset_amount_short.unsigned_abs())
                     .unwrap();
 
-                let funding_rate_short = funding_rate_bounded
+                let funding_rate_short = funding_rate
                     .checked_mul(funding_rate_short_haircut as i128)
                     .unwrap()
                     .checked_div(MANTISSA as i128)
@@ -1172,7 +1141,7 @@ pub mod clearing_house {
                 market.amm.cum_long_funding_rate = market
                     .amm
                     .cum_long_funding_rate
-                    .checked_add(funding_rate_bounded)
+                    .checked_add(funding_rate)
                     .unwrap();
             }
 
@@ -2454,18 +2423,13 @@ fn _settle_funding_payment(
         let amm: &AMM = &market.amm;
 
         if amm.cum_funding_rate != market_position.last_cum_funding {
-            let market_funding_rate_payment = amm
-                .cum_funding_rate
-                .checked_sub(market_position.last_cum_funding)
-                .unwrap()
-                .checked_mul(market_position.base_asset_amount)
-                .unwrap()
-                .checked_mul(amm.peg_multiplier as i128)
-                .unwrap()
-                .checked_div(MANTISSA as i128)
-                .unwrap()
-                .checked_div(MANTISSA as i128)
-                .unwrap();
+            let market_funding_rate_payment = _calculate_funding_payment_notional(
+                amm.cum_funding_rate
+                    .checked_sub(market_position.last_cum_funding)
+                    .unwrap(),
+                market_position.base_asset_amount,
+                amm.peg_multiplier,
+            );
 
             let record_id = funding_rate_history.next_record_id();
             funding_rate_history.append(FundingRateRecord {
@@ -2576,6 +2540,24 @@ fn _calculate_margin_ratio_inp(estimated_margin: u128, base_asset_value: u128) -
         .unwrap();
 
     return margin_ratio;
+}
+
+fn _calculate_funding_payment_notional(
+    funding_rate: i128,
+    base_asset_amount: i128,
+    peg_multiplier: u128,
+) -> i128 {
+    let market_funding_rate_payment = funding_rate
+        .checked_mul(base_asset_amount)
+        .unwrap()
+        .checked_mul(peg_multiplier as i128)
+        .unwrap()
+        .checked_div(MANTISSA as i128)
+        .unwrap()
+        .checked_div(MANTISSA as i128)
+        .unwrap();
+
+    return market_funding_rate_payment;
 }
 
 fn calculate_margin_ratio(
