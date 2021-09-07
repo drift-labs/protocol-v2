@@ -161,14 +161,16 @@ export async function stress_test(
 						new BN(oracleData.price * AMM_MANTISSA.toNumber()),
 						new BN(250)
 					);
-				
-				rand_amt = BN.min(rand_amt.abs(), userAccountInfos[user_i].getFreeCollateral());
 
-				if(rand_amt.eq(new BN(0))){
+				rand_amt = BN.min(
+					rand_amt.abs(),
+					userAccountInfos[user_i].getFreeCollateral()
+				);
+
+				if (rand_amt.eq(new BN(0))) {
 					rand_e = 'move';
 					rand_amt = new BN(oracleData.price * AMM_MANTISSA.toNumber());
-				}
-				else if (randEType == PositionDirection.LONG) {
+				} else if (randEType == PositionDirection.LONG) {
 					rand_e = 'buy';
 				} else {
 					rand_e = 'sell';
@@ -275,13 +277,13 @@ export async function stress_test(
 		// assert.ok(ammData.volume2.eq(new BN(0)));
 		let ast_px = 0;
 
-			try{
-
-			ast_px = ammData.quoteAssetAmount.toNumber() / ammData.baseAssetAmount.toNumber();
-		} catch{
+		try {
+			ast_px =
+				ammData.quoteAssetAmount.toNumber() /
+				ammData.baseAssetAmount.toNumber();
+		} catch {
 			ast_px = -1;
 		}
-
 
 		const oracleData = await getFeedData(anchor.workspace.Pyth, ammData.oracle);
 
@@ -340,7 +342,7 @@ export async function stress_test(
 		const dogMoneyData = await getFeedData(anchor.workspace.Pyth, dogMoney);
 
 		setFeedPrice(anchor.workspace.Pyth, dogMoneyData.price * 1.002, dogMoney);
-		if(solUsdTimeline.length){
+		if (solUsdTimeline.length) {
 			setFeedPrice(anchor.workspace.Pyth, solUsdTimeline[i + 1].close, solUsd);
 		}
 	}

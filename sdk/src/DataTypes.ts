@@ -62,8 +62,8 @@ export type ClearingHouseMarketsAccountData = {
 			cumShortFundingRate: BN;
 			cumLongRepegProfit: BN;
 			cumShortRepegProfit: BN;
-            cumSlippageProfit: BN;
-            cumSlippage: BN;
+			cumSlippageProfit: BN;
+			cumSlippage: BN;
 		};
 		baseAssetAmount: BN;
 		baseAssetAmountLong: BN;

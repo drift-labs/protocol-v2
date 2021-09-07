@@ -199,7 +199,7 @@ export async function readStressCSV(ff, maxLines = 100) {
 	// 		}
 	// 	});
 	if (!fs.existsSync(ff)) {
-		console.log('cannot find', ff)
+		console.log('cannot find', ff);
 		return [];
 	}
 

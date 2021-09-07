@@ -30,7 +30,7 @@ export interface Trade {
 	size: number;
 	ts: number;
 	marketIndex: number;
-	chainTs:number;
+	chainTs: number;
 }
 
 export type Candle = {
@@ -42,4 +42,4 @@ export type Candle = {
 	vwap: number;
 	start: number;
 	end: number;
-}
+};

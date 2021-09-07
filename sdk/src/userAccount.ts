@@ -161,16 +161,11 @@ export class UserAccount {
 		);
 	}
 
-	public getUnrealizedPNL(
-		withFunding?: boolean
-	): BN {
+	public getUnrealizedPNL(withFunding?: boolean): BN {
 		this.assertIsSubscribed();
 		return this.userPositionsAccount.positions.reduce((pnl, marketPosition) => {
 			return pnl.add(
-				this.clearingHouse.calculatePositionPNL(
-					marketPosition,
-					withFunding
-				)
+				this.clearingHouse.calculatePositionPNL(marketPosition, withFunding)
 			);
 		}, ZERO);
 	}
@@ -187,36 +182,33 @@ export class UserAccount {
 
 	public getTotalCollateral(): BN {
 		return (
-			this.userAccountData?.collateral.add(
-				this.getUnrealizedPNL(true)
-			) ?? new BN(0)
+			this.userAccountData?.collateral.add(this.getUnrealizedPNL(true)) ??
+			new BN(0)
 		);
 	}
 
 	getTotalPositionValue(): BN {
-		return this.userPositionsAccount.positions
-			.reduce((positionValue, marketPosition) => {
+		return this.userPositionsAccount.positions.reduce(
+			(positionValue, marketPosition) => {
 				return positionValue.add(
-					this.clearingHouse.calculateBaseAssetValue(
-						marketPosition
-					)
+					this.clearingHouse.calculateBaseAssetValue(marketPosition)
 				);
-			}, ZERO);
+			},
+			ZERO
+		);
 	}
 
 	public getPositionValue(positionIndex: number): BN {
-		return this.clearingHouse
-			.calculateBaseAssetValue(
-				this.userPositionsAccount.positions[positionIndex]
-			);
+		return this.clearingHouse.calculateBaseAssetValue(
+			this.userPositionsAccount.positions[positionIndex]
+		);
 	}
 
 	public getPositionEstimatedExitPriceWithMantissa(positionIndex: number): BN {
 		const position = this.userPositionsAccount.positions[positionIndex];
-		const baseAssetValue = this.clearingHouse
-			.calculateBaseAssetValue(position);
-		if(position.baseAssetAmount.eq(ZERO)){
-			console.log('zero position:', position)
+		const baseAssetValue = this.clearingHouse.calculateBaseAssetValue(position);
+		if (position.baseAssetAmount.eq(ZERO)) {
+			console.log('zero position:', position);
 			return ZERO;
 		}
 		return baseAssetValue.mul(AMM_MANTISSA).div(position.baseAssetAmount);
@@ -244,9 +236,7 @@ export class UserAccount {
 			return BN_MAX;
 		}
 
-		return this.getTotalCollateral()
-			.mul(TEN_THOUSAND)
-			.div(totalPositionValue);
+		return this.getTotalCollateral().mul(TEN_THOUSAND).div(totalPositionValue);
 	}
 
 	public canBeLiquidated(): [boolean, BN] {
@@ -273,9 +263,7 @@ export class UserAccount {
 		return false;
 	}
 
-	public liquidationPrice(
-		marketPosition: UserPosition,
-	): BN {
+	public liquidationPrice(marketPosition: UserPosition): BN {
 		// todo: pricePoint:liq doesnt anticipate market-impact AT point of sale, just at current point
 		// 		 current estimate is biased lower, which is also kinda fair
 
@@ -286,8 +274,9 @@ export class UserAccount {
 		// price_liq >= price_now - free_collateral/x
 
 		// const M_I_LEVERAGE_RATIO = new BN(4);
-		const currentPrice =
-			this.clearingHouse.calculateBaseAssetPriceWithMantissa(marketPosition.marketIndex)
+		const currentPrice = this.clearingHouse.calculateBaseAssetPriceWithMantissa(
+			marketPosition.marketIndex
+		);
 
 		// let freeCollateral = this.getFreeCollateral().div(MAX_LEVERAGE);
 		// console.log(freeCollateral.toNumber(), marketPosition.baseAssetAmount.toNumber());
@@ -347,15 +336,12 @@ export class UserAccount {
 
 	public summary() {
 		const marketPosition0 = this.userPositionsAccount.positions[0];
-		const pos0PNL = this.clearingHouse.calculatePositionPNL(
-			marketPosition0,
-		);
-		const pos0Value = this.clearingHouse.calculateBaseAssetValue(
-			marketPosition0
-		);
+		const pos0PNL = this.clearingHouse.calculatePositionPNL(marketPosition0);
+		const pos0Value =
+			this.clearingHouse.calculateBaseAssetValue(marketPosition0);
 
 		const pos0Px = this.clearingHouse.calculateBaseAssetPriceWithMantissa(
-			marketPosition0.marketIndex,
+			marketPosition0.marketIndex
 		);
 
 		return {

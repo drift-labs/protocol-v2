@@ -674,7 +674,7 @@ export class ClearingHouse {
 		const market = this.getMarketsAccount().markets[marketIndex.toNumber()];
 		const peg = market.amm.pegMultiplier;
 
-		let [direction, tradeSize, _] = this.calculateTargetPriceTrade(
+		const [direction, tradeSize, _] = this.calculateTargetPriceTrade(
 			marketIndex,
 			targetPrice
 		);
@@ -693,7 +693,7 @@ export class ClearingHouse {
 			tradeSize,
 			'quote',
 			market.amm.k,
-			market.amm.pegMultiplier,
+			market.amm.pegMultiplier
 		);
 
 		return await this.program.state.rpc.moveAmmPrice(
@@ -878,12 +878,12 @@ export class ClearingHouse {
 		inputAmount: BN,
 		inputAsset: string,
 		invariant: BN,
-		pegMultiplier: BN,
+		pegMultiplier: BN
 	): [BN, BN] {
 		assert(inputAmount.gte(ZERO)); // must be abs term
 		// constant product
 
-		if(inputAsset=='quote'){
+		if (inputAsset == 'quote') {
 			inputAmount = inputAmount.mul(AMM_MANTISSA).div(pegMultiplier);
 		}
 
@@ -907,7 +907,7 @@ export class ClearingHouse {
 		quoteAssetAmount: BN,
 		peg: BN
 	) {
-		if(baseAssetAmount.abs().lte(ZERO)){
+		if (baseAssetAmount.abs().lte(ZERO)) {
 			return new BN(0);
 		}
 
@@ -974,7 +974,7 @@ export class ClearingHouse {
 			amount.abs(),
 			'quote',
 			market.amm.k,
-			market.amm.pegMultiplier,
+			market.amm.pegMultiplier
 		);
 		const entryPrice = this.calculateCurvePriceWithMantissa(
 			market.amm.baseAssetAmount.sub(newBaseAssetAmount),
@@ -1233,11 +1233,13 @@ export class ClearingHouse {
 		assert(tp1.sub(tp2).lte(ogDiff), 'Target Price Calculation incorrect');
 		// assert(tp1.sub(tp2).lt(AMM_MANTISSA), 'Target Price Calculation incorrect'); //  super OoB shorts do not
 		assert(
-			tp2.lte(tp1) || tp2.sub(tp1).abs()<10,
+			tp2.lte(tp1) || tp2.sub(tp1).abs() < 10,
 			'Target Price Calculation incorrect' +
 				tp2.toString() +
 				'>=' +
-				tp1.toString() + 'err: ' + tp2.sub(tp1).abs().toString()
+				tp1.toString() +
+				'err: ' +
+				tp2.sub(tp1).abs().toString()
 		); //todo
 
 		return [direction, new BN(tradeSize), entryPrice];
@@ -1277,7 +1279,7 @@ export class ClearingHouse {
 			amount.abs(),
 			inputAsset,
 			invariant,
-			market.amm.pegMultiplier,
+			market.amm.pegMultiplier
 		);
 
 		const newBaseAssetPriceWithMantissa = this.calculateCurvePriceWithMantissa(
@@ -1308,7 +1310,7 @@ export class ClearingHouse {
 			marketPosition.baseAssetAmount.abs(),
 			'base',
 			market.amm.k,
-			market.amm.pegMultiplier,
+			market.amm.pegMultiplier
 		);
 
 		switch (directionToClose) {
@@ -1316,19 +1318,19 @@ export class ClearingHouse {
 				return market.amm.quoteAssetAmount
 					.sub(newQuoteAssetAmount)
 					.mul(market.amm.pegMultiplier)
-					.div(AMM_MANTISSA)
+					.div(AMM_MANTISSA);
 
 			case PositionDirection.LONG:
 				return newQuoteAssetAmount
 					.sub(market.amm.quoteAssetAmount)
 					.mul(market.amm.pegMultiplier)
-					.div(AMM_MANTISSA)
+					.div(AMM_MANTISSA);
 		}
 	}
 
 	public calculatePositionPNL(
 		marketPosition: UserPosition,
-		withFunding: boolean = false
+		withFunding = false
 	): BN {
 		if (marketPosition.baseAssetAmount.eq(ZERO)) {
 			return ZERO;
@@ -1343,15 +1345,14 @@ export class ClearingHouse {
 
 		switch (directionToClose) {
 			case PositionDirection.SHORT:
-				pnlAssetAmount = baseAssetValue
-					.sub(
-						marketPosition.quoteAssetNotionalAmount
-					);
+				pnlAssetAmount = baseAssetValue.sub(
+					marketPosition.quoteAssetNotionalAmount
+				);
 				break;
 
 			case PositionDirection.LONG:
-				pnlAssetAmount = marketPosition.quoteAssetNotionalAmount
-					.sub(baseAssetValue)
+				pnlAssetAmount =
+					marketPosition.quoteAssetNotionalAmount.sub(baseAssetValue);
 				break;
 		}
 

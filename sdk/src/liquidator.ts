@@ -28,9 +28,7 @@ export class Liquidator {
 					this.liquidatorUSDCTokenPublicKey,
 					liquidateeUserAccountPublicKey
 				);
-				const formattedMarginRatio = (marginRatio.toNumber() / 1000).toFixed(
-					3
-				);
+				const formattedMarginRatio = (marginRatio.toNumber() / 1000).toFixed(3);
 				console.log(
 					`Liquidated user ${liquidateeUserAccountPublicKey.toString()}. Margin Ratio: ${formattedMarginRatio}`
 				);

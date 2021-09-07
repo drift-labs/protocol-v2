@@ -51,7 +51,10 @@ export const getNewTrades = (
 
 		const newTrade = TradeRecordToUITrade(tradeRecord);
 
-		newTrades.push({ trade: newTrade, userAccount: tradeRecord.userClearingHousePublicKey });
+		newTrades.push({
+			trade: newTrade,
+			userAccount: tradeRecord.userClearingHousePublicKey,
+		});
 
 		newHead = (newHead + 1) % tradingHistorySize;
 	}
