@@ -2444,13 +2444,8 @@ fn _settle_funding_payment(
         let amm: &AMM = &market.amm;
 
         if amm.cum_funding_rate != market_position.last_cum_funding {
-            let market_funding_rate_payment = _calculate_funding_payment_notional(
-                amm.cum_funding_rate
-                    .checked_sub(market_position.last_cum_funding)
-                    .unwrap(),
-                market_position.base_asset_amount,
-                amm.peg_multiplier,
-            );
+            let market_funding_rate_payment =
+                _calculate_funding_payment_notional(amm, market_position);
 
             let record_id = funding_rate_history.next_record_id();
             funding_rate_history.append(FundingRateRecord {
@@ -2501,7 +2496,7 @@ fn _settle_funding_payment(
     }
 
     // longs pay shorts the `funding_payment`
-    let funding_payment_collateral = -funding_payment
+    let funding_payment_collateral = funding_payment
         .checked_div(FUNDING_MANTISSA as i128)
         .unwrap();
 
@@ -2563,22 +2558,21 @@ fn _calculate_margin_ratio_inp(estimated_margin: u128, base_asset_value: u128) -
     return margin_ratio;
 }
 
-fn _calculate_funding_payment_notional(
-    funding_rate: i128,
-    base_asset_amount: i128,
-    peg_multiplier: u128,
-) -> i128 {
-    let market_funding_rate_payment = funding_rate
-        .checked_mul(base_asset_amount)
-        .unwrap()
-        .checked_mul(peg_multiplier as i128)
-        .unwrap()
-        .checked_div(MANTISSA as i128)
-        .unwrap()
-        .checked_div(MANTISSA as i128)
+fn _calculate_funding_payment_notional(amm: &AMM, market_position: &MarketPosition) -> i128 {
+    let funding_rate_delta = amm
+        .cum_funding_rate
+        .checked_sub(market_position.last_cum_funding)
         .unwrap();
 
-    return market_funding_rate_payment;
+    return funding_rate_delta
+        .checked_mul(market_position.base_asset_amount)
+        .unwrap()
+        .checked_mul(amm.base_asset_price_with_mantissa() as i128)
+        .unwrap()
+        .checked_div(MANTISSA as i128)
+        .unwrap()
+        .checked_mul(-1)
+        .unwrap();
 }
 
 fn calculate_margin_ratio(
