@@ -918,6 +918,7 @@ pub mod clearing_house {
                 [MarketsAccount::index_from_u64(market_index)];
             let amm = &mut market.amm;
             if new_peg == amm.peg_multiplier {
+                msg!("InvalidRepegRedundant1");
                 return Err(ErrorCode::InvalidRepegRedundant.into());
             }
 
@@ -934,6 +935,7 @@ pub mod clearing_house {
                 new_peg_candidate = amm.find_valid_repeg(oracle_px, oracle_conf);
 
                 if new_peg_candidate == amm.peg_multiplier {
+                    msg!("InvalidRepegRedundant");
                     return Err(ErrorCode::InvalidRepegRedundant.into());
                 }
             }
@@ -969,6 +971,7 @@ pub mod clearing_house {
             if pnl > 0 {
                 pnl_r = pnl_r.checked_add(pnl.abs() as u128).unwrap();
             } else if pnl.abs() as u128 > pnl_r {
+                msg!("InvalidRepegProfitability");
                 return Err(ErrorCode::InvalidRepegProfitability.into());
             } else {
                 pnl_r = (pnl_r).checked_sub(pnl.unsigned_abs()).unwrap();
@@ -995,6 +998,7 @@ pub mod clearing_house {
                 }
 
                 if pnl_r < amm.cum_slippage.checked_div(2).unwrap() {
+                    msg!("InvalidRepegProfitability2");
                     return Err(ErrorCode::InvalidRepegProfitability.into());
                 }
             }
@@ -1962,7 +1966,7 @@ impl AMM {
         let mut i = 1; // max move is half way to oracle
         let mut x_eq = x_eq_0;
 
-        while i < 10 {
+        while i < 1000 {
             let base: i128 = 2;
             let step = base.pow(i);
             let redux = peg_spread_0.checked_div(step).unwrap();

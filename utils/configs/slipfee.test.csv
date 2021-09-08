@@ -1,3 +1,5 @@
 user_i,event,amt,market_i,succeeded
 0,noop,0,0,true
-0,buy,50000000,0,true
+0,sell,50000000000,0,true
+0,close,0,0,true
+0,repeg,0,0,true

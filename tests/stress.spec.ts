@@ -70,16 +70,16 @@ describe('stress-test', () => {
 			clearingHouse,
 			usdcMint,
 			provider,
-			10,
+			1,
 			1000,
-			10 * 10 ** 6,
-			25 * 10 ** 20,
-			// 'utils/configs/clearingHouse.spec.pegmult.csv',
-			undefined,
+			10000 * 10 ** 6,
+			10 ** (18 + 6),
+			'utils/configs/slipfee.test.csv',
+			// undefined,
 			[pegM, pegM],
 			undefined,
 			undefined,
-			'1337-sim-repeg-1'
+			'sim-slipfee-test'
 		);
 	});
 

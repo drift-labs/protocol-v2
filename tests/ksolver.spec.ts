@@ -22,8 +22,8 @@ describe('AMM Curve', () => {
 		chProgram.programId
 	);
 
-	const ammInitialQuoteAssetAmount = new anchor.BN(1 * 10 ** 10);
-	const ammInitialBaseAssetAmount = new anchor.BN(1 * 10 ** 10);
+	const ammInitialQuoteAssetAmount = new anchor.BN(1 * 10 ** 11);
+	const ammInitialBaseAssetAmount = new anchor.BN(1 * 10 ** 11);
 
 	let usdcMint: Keypair;
 	let userUSDCAccount: Keypair;
