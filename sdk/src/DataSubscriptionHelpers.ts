@@ -3,12 +3,15 @@ import BN from 'bn.js';
 import { ZERO } from './constants/numericConstants';
 import { TradeHistoryAccount, TradeRecord } from './DataTypes';
 import { Candle, Trade, TradeSide } from './types';
-import { AMM_MANTISSA } from './ClearingHouse';
+import { AMM_MANTISSA } from './clearingHouse';
 
 const defaultPublicKey = new PublicKey('11111111111111111111111111111111');
 const priceMantissa = new BN(10 ** 3);
 
-export const calculatePrice = (quoteAssetAmount: BN, baseAssetAmount: BN): number => {
+export const calculatePrice = (
+	quoteAssetAmount: BN,
+	baseAssetAmount: BN
+): number => {
 	const priceWithMantissa = quoteAssetAmount
 		.mul(priceMantissa)
 		.div(baseAssetAmount);
@@ -19,12 +22,12 @@ export const calculatePrice = (quoteAssetAmount: BN, baseAssetAmount: BN): numbe
 	);
 };
 
-export const stripMantissa = (mantissaNumber:BN) => {
+export const stripMantissa = (mantissaNumber: BN) => {
 	return (
 		mantissaNumber.div(AMM_MANTISSA).toNumber() +
 		mantissaNumber.mod(AMM_MANTISSA).toNumber() / AMM_MANTISSA.toNumber()
-	)
-}
+	);
+};
 
 export const getNewTrades = (
 	currentHead: number,
@@ -86,9 +89,8 @@ export const convertTradesToCandles = (
 		const candle = convertTradesToCandle(trades, from, from + resolution);
 
 		if (candle) {
-
 			if (candleCounter > 0) {
-				candle.open = candles[candleCounter-1].close;
+				candle.open = candles[candleCounter - 1].close;
 			}
 
 			candles.push(candle);
