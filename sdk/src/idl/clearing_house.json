@@ -1006,6 +1006,10 @@
             "type": "i64"
           },
           {
+            "name": "prevFundingRateTs",
+            "type": "i64"
+          },
+          {
             "name": "periodicity",
             "type": "i64"
           },

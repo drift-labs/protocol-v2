@@ -160,6 +160,7 @@ pub mod clearing_house {
                     cum_short_funding_rate: 0,
                     funding_rate: 0,
                     funding_rate_ts: now,
+                    prev_funding_rate_ts: now,
                     periodicity: amm_periodicity,
                     mark_twap: init_mark_price,
                     mark_twap_ts: now,
@@ -1157,8 +1158,8 @@ pub mod clearing_house {
 
             market.amm.cum_funding_rate = cum_funding_rate;
             market.amm.funding_rate = funding_rate;
+            market.amm.prev_funding_rate_ts = market.amm.funding_rate_ts;
             market.amm.funding_rate_ts = now;
-
             // todo: is unused anyways? (funding_rate_ts-mark_twap_ts = 0)
             market.amm.mark_twap = market.amm.base_asset_price_with_mantissa();
             market.amm.mark_twap_ts = now;
@@ -1486,6 +1487,7 @@ pub struct AMM {
     pub cum_short_funding_rate: i128,
     pub funding_rate: i128,
     pub funding_rate_ts: i64,
+    pub prev_funding_rate_ts: i64,
     pub periodicity: i64,
     pub mark_twap: u128,
     pub mark_twap_ts: i64,

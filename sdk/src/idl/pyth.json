@@ -1,0 +1,46 @@
+{
+  "version": "0.0.0",
+  "name": "pyth",
+  "instructions": [
+    {
+      "name": "initialize",
+      "accounts": [
+        {
+          "name": "price",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "price",
+          "type": "i64"
+        },
+        {
+          "name": "expo",
+          "type": "i32"
+        },
+        {
+          "name": "conf",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "setPrice",
+      "accounts": [
+        {
+          "name": "price",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "price",
+          "type": "i64"
+        }
+      ]
+    }
+  ]
+}

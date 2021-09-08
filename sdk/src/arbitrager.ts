@@ -43,7 +43,7 @@ export class Arbitrager {
 			const [direction, amount] = this.clearingHouse.calculateTargetPriceTrade(
 				marketIndexBN,
 				oraclePriceWithMantissa,
-				new BN(500) //50% (given partial fills)
+				new BN(1000) //100% (given partial fills)
 			);
 
 			if (amount.eq(ZERO)) {
