@@ -26,6 +26,8 @@ export enum TradeSide {
 }
 export interface Trade {
 	price: number;
+	beforePrice: number;
+	afterPrice: number;
 	side: TradeSide;
 	size: number;
 	ts: number;

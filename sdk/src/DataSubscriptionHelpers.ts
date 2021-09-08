@@ -3,11 +3,12 @@ import BN from 'bn.js';
 import { ZERO } from './constants/numericConstants';
 import { TradeHistoryAccount, TradeRecord } from './DataTypes';
 import { Candle, Trade, TradeSide } from './types';
+import { AMM_MANTISSA } from './ClearingHouse';
 
 const defaultPublicKey = new PublicKey('11111111111111111111111111111111');
 const priceMantissa = new BN(10 ** 3);
 
-const calculatePrice = (quoteAssetAmount: BN, baseAssetAmount: BN): number => {
+export const calculatePrice = (quoteAssetAmount: BN, baseAssetAmount: BN): number => {
 	const priceWithMantissa = quoteAssetAmount
 		.mul(priceMantissa)
 		.div(baseAssetAmount);
@@ -17,6 +18,13 @@ const calculatePrice = (quoteAssetAmount: BN, baseAssetAmount: BN): number => {
 		priceWithMantissa.mod(priceMantissa).toNumber() / priceMantissa.toNumber()
 	);
 };
+
+export const stripMantissa = (mantissaNumber:BN) => {
+	return (
+		mantissaNumber.div(AMM_MANTISSA).toNumber() +
+		mantissaNumber.mod(AMM_MANTISSA).toNumber() / AMM_MANTISSA.toNumber()
+	)
+}
 
 export const getNewTrades = (
 	currentHead: number,
@@ -72,11 +80,19 @@ export const convertTradesToCandles = (
 
 	if (trades.length === 0) return [];
 
+	let candleCounter = 0;
+
 	while (from + resolution <= to) {
 		const candle = convertTradesToCandle(trades, from, from + resolution);
 
 		if (candle) {
+
+			if (candleCounter > 0) {
+				candle.open = candles[candleCounter-1].close;
+			}
+
 			candles.push(candle);
+			candleCounter++;
 		}
 		from += resolution;
 	}
@@ -106,10 +122,10 @@ export const convertTradesToCandle = (
 	} else {
 		const t0 = batchTrades[0];
 		const c = {
-			open: t0.price,
-			close: t0.price,
-			high: t0.price,
-			low: t0.price,
+			open: t0.beforePrice,
+			close: t0.afterPrice,
+			high: Math.max(t0.beforePrice, t0.afterPrice),
+			low: Math.min(t0.beforePrice, t0.afterPrice),
 			volume: t0.size,
 			vwap: t0.price * t0.size,
 			start: from ?? min,
@@ -118,8 +134,8 @@ export const convertTradesToCandle = (
 
 		batchTrades.slice(1).forEach((t) => {
 			c.close = t.price;
-			c.high = Math.max(c.high, t.price);
-			c.low = Math.min(c.low, t.price);
+			c.high = Math.max(c.high, t.beforePrice, t.afterPrice);
+			c.low = Math.min(c.low, t.beforePrice, t.afterPrice);
 			c.volume += t.size;
 			c.vwap += t.price * t.size;
 		});
@@ -136,6 +152,8 @@ export const TradeRecordToUITrade = (tradeRecord: TradeRecord): Trade => {
 			tradeRecord.quoteAssetNotionalAmount,
 			tradeRecord.baseAssetAmount
 		),
+		beforePrice: stripMantissa(tradeRecord.baseAssetPriceWithMantissaBefore),
+		afterPrice: stripMantissa(tradeRecord.baseAssetPriceWithMantissaAfter),
 		side: tradeRecord.direction.long ? TradeSide.Buy : TradeSide.Sell,
 		ts: Date.now(),
 		chainTs: tradeRecord.ts.toNumber(),
