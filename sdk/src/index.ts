@@ -1,21 +1,20 @@
-import { Arbitrager } from './arbitrager';
 import { BN } from '@project-serum/anchor';
-import { UserPositionData } from './DataTypes';
-import { Funder } from './funder';
-import { MockUSDCFaucet } from './mockUSDCFaucet';
-import { Network, LOCAL_NET } from './network';
-import { PythClient } from './pythClient';
-import { SwapDirection, PositionDirection } from './types';
-import { UserAccount } from './userAccount';
-import { Liquidator } from './liquidator';
+import { Arbitrager } from './arbitrager';
 import Markets from './constants/markets';
+import { Funder } from './funder';
+import { Liquidator } from './liquidator';
+import { MockUSDCFaucet } from './mockUSDCFaucet';
+import { LOCAL_NET, Network } from './network';
+import { PythClient } from './pythClient';
 import SlackMessenger from './slackMessanger';
+import { PositionDirection, SwapDirection } from './types';
+import { UserAccount } from './userAccount';
 
 export * from './clearingHouse';
-export * from './utils';
-export * from './types';
 export * from './DataSubscriptionHelpers';
-
+export * from './DataTypes';
+export * from './types';
+export * from './utils';
 export {
 	Arbitrager,
 	BN,
@@ -31,5 +30,3 @@ export {
 	Markets,
 	SlackMessenger,
 };
-
-export type { UserPositionData };
