@@ -38,7 +38,7 @@ module.exports = async function (provider: Provider) {
 	const mockUsdcFaucetState: any = await mockUsdcFaucet.program.state.fetch();
 	console.log('USDC Mint:', mockUsdcFaucetState.mint.toString()); // TODO: put into Next config
 	console.log('Initializing ClearingHouse');
-	await clearingHouse.initialize(mockUsdcFaucetState.mint, false);
+	await clearingHouse.initialize(mockUsdcFaucetState.mint, true);
 	console.log('Initialized ClearingHouse');
 
 	const pythClient = new PythClient(clearingHouse.connection);
@@ -59,8 +59,8 @@ module.exports = async function (provider: Provider) {
 
 	const marketIndex = new BN(0);
 	const periodicity = new BN(3600);
-	const ammQuoteAssetAmount = new anchor.BN(1 * 10 ** 10);
-	const ammBaseAssetAmount = new anchor.BN(1 * 10 ** 10);
+	const ammQuoteAssetAmount = new anchor.BN(1 * 10 ** 11);
+	const ammBaseAssetAmount = new anchor.BN(1 * 10 ** 11);
 	const pegMultiplierSOL = new anchor.BN(solPrice).mul(AMM_MANTISSA);
 
 	console.log('Initializing Market for SOL/USD: ');
