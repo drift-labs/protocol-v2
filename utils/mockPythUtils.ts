@@ -227,7 +227,7 @@ const parsePriceData = (data) => {
 		{ priceComponents }
 	);
 };
-const parseProductData = (data) => {
+const _parseProductData = (data) => {
 	// Pyth magic number.
 	const magic = data.readUInt32LE(0);
 	// Program version.

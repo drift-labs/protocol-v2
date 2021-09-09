@@ -28,7 +28,7 @@ async function updateFundingRateHelper(
 		const newprice = prices[i];
 		setFeedPrice(anchor.workspace.Pyth, newprice, priceFeedAddress);
 
-		const tx = await clearingHouse.updateFundingRate(
+		const _tx = await clearingHouse.updateFundingRate(
 			priceFeedAddress,
 			marketIndex
 		);
@@ -91,7 +91,7 @@ describe('pyth-oracle', () => {
 	let clearingHouse: ClearingHouse;
 
 	let usdcMint;
-	let userUSDCAccount;
+	let _userUSDCAccount;
 
 	const ammInitialQuoteAssetAmount = new anchor.BN(5 * 10 ** 10);
 	const ammInitialBaseAssetAmount = new anchor.BN(5 * 10 ** 10);
@@ -100,7 +100,11 @@ describe('pyth-oracle', () => {
 
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
-		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
+		_userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			provider
+		);
 
 		clearingHouse = new ClearingHouse(
 			connection,

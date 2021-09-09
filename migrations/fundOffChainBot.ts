@@ -1,9 +1,9 @@
-import { Program, Wallet } from '@project-serum/anchor';
 import * as anchor from '@project-serum/anchor';
-import { MockUSDCFaucet } from '../sdk/src';
-import { ClearingHouse, Network } from '../sdk';
+import { Program, Wallet } from '@project-serum/anchor';
+import { Keypair } from '@solana/web3.js';
 import BN from 'bn.js';
-import { Keypair, PublicKey } from '@solana/web3.js';
+import { ClearingHouse, Network } from '../sdk';
+import { MockUSDCFaucet } from '../sdk/src';
 
 import dotenv = require('dotenv');
 dotenv.config();

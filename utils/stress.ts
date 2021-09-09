@@ -1,31 +1,16 @@
 import * as anchor from '@project-serum/anchor';
 import BN from 'bn.js';
-
-import { Program } from '@project-serum/anchor';
+import { AMM_MANTISSA, PositionDirection } from '../sdk/src';
+import { assert } from '../sdk/src/assert/assert';
 // import { getTokenAccount } from '@project-serum/common';
-import {
-	mockOracle,
-	mockUSDCMint,
-	mockUserUSDCAccount,
-	mintToInsuranceFund,
-} from './mockAccounts';
-
+import { mockOracle } from './mockAccounts';
 import { getFeedData, setFeedPrice } from './mockPythUtils';
 import {
 	initUserAccounts,
+	readStressCSV,
 	simEvent,
 	writeStressCSV,
-	readStressCSV,
 } from './stressUtils';
-
-import {
-	ClearingHouse,
-	AMM_MANTISSA,
-	Network,
-	PositionDirection,
-} from '../sdk/src';
-import { isAssertionExpression } from 'typescript';
-import { assert } from '../sdk/src/assert/assert';
 
 const myArgs = process.argv.slice(2);
 console.log('myArgs: ', myArgs);
@@ -63,7 +48,7 @@ export async function stress_test(
 	for (let i = 0; i < oracles.length; i++) {
 		const amtScale = pegs[i].div(AMM_MANTISSA); // same slippage pct for regardless of peg levels
 
-		const [, marketPublicKey] = await clearingHouse.initializeMarket(
+		const [, _marketPublicKey] = await clearingHouse.initializeMarket(
 			new BN(i + marketOffset),
 			oracles[i],
 			ammInitialBaseAssetAmount.div(amtScale),
@@ -153,10 +138,10 @@ export async function stress_test(
 
 				// const upnl = await user_act_info_e.getUnrealizedPNL();
 				const xeq_scaled = ammData.pegMultiplier; //.div(AMM_MANTISSA);
-				const ast_px2 = ast_px * xeq_scaled.div(AMM_MANTISSA).toNumber();
-				let entry_px; //todo
+				const _ast_px2 = ast_px * xeq_scaled.div(AMM_MANTISSA).toNumber();
+				let _entry_px; //todo
 
-				[randEType, rand_amt, entry_px] =
+				[randEType, rand_amt, _entry_px] =
 					clearingHouse.calculateTargetPriceTrade(
 						market_i,
 						new BN(oracleData.price * AMM_MANTISSA.toNumber())
@@ -180,7 +165,7 @@ export async function stress_test(
 			}
 
 			// const market_i = new BN(0); //todo
-			const succeeded = true;
+			const _succeeded = true;
 
 			return [user_i, market_i, rand_e, rand_amt];
 		} else {

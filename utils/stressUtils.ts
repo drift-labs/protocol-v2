@@ -1,24 +1,15 @@
+import * as anchor from '@project-serum/anchor';
+import { PublicKey } from '@solana/web3.js';
+import BN from 'bn.js';
+import csv from 'csvtojson';
+import fs from 'fs';
 import {
 	ClearingHouse,
 	Network,
 	PositionDirection,
 	UserAccount,
 } from '../sdk/src';
-import { assert } from 'chai';
-import { PublicKey } from '@solana/web3.js';
-import BN from 'bn.js';
-
-import * as anchor from '@project-serum/anchor';
-
-import fs from 'fs';
-import csv from 'csvtojson';
-
-import {
-	mockOracle,
-	mockUSDCMint,
-	mockUserUSDCAccount,
-	mintToInsuranceFund,
-} from './mockAccounts';
+import { mockUserUSDCAccount } from './mockAccounts';
 
 export async function initUserAccounts(
 	NUM_USERS,
@@ -178,7 +169,7 @@ export async function simEvent(
 	return event_i;
 }
 
-export async function readStressCSV(ff, maxLines = 100) {
+export async function readStressCSV(ff, _maxLines = 100) {
 	// let count = 0;
 	// let fsStream = fs.createReadStream(ff);
 	// let csvStream = csv();

@@ -1,10 +1,10 @@
+import * as anchor from '@project-serum/anchor';
+import { Program } from '@project-serum/anchor';
 import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { PublicKey } from '@solana/web3.js';
-import { Program, Wallet } from '@project-serum/anchor';
-import * as anchor from '@project-serum/anchor';
-import { MockUSDCFaucet } from '../sdk/src';
-import { Network } from '../sdk';
 import BN from 'bn.js';
+import { Network } from '../sdk';
+import { MockUSDCFaucet } from '../sdk/src';
 
 /**
  * Update these parameters after you run the `deploy.ts`

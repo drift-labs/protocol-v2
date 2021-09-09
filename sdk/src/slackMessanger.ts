@@ -1,4 +1,4 @@
-import { KnownBlock, MessageAttachment, WebClient } from '@slack/web-api';
+import { MessageAttachment, WebClient } from '@slack/web-api';
 
 export default class SlackMessenger {
 	private client: WebClient;

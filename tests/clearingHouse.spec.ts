@@ -34,7 +34,7 @@ describe('clearing_house', () => {
 	const ammInitialBaseAssetAmount = new anchor.BN(5 * 10 ** 10);
 
 	// ammInvariant == k == x * y
-	const ammInvariant = ammInitialQuoteAssetAmount.mul(
+	const _ammInvariant = ammInitialQuoteAssetAmount.mul(
 		ammInitialBaseAssetAmount
 	);
 
@@ -277,10 +277,10 @@ describe('clearing_house', () => {
 		const oldConsoleLog = console.log;
 		const oldConsoleError = console.error;
 		console.log = function () {
-			const noop = '';
+			const _noop = '';
 		};
 		console.error = function () {
-			const noop = '';
+			const _noop = '';
 		};
 		try {
 			await clearingHouse.withdrawCollateral(
@@ -654,7 +654,7 @@ describe('clearing_house', () => {
 	it('SHORT order partial fill limit price ', async () => {
 		const state: any = clearingHouse.getState();
 		mintToInsuranceFund(state.insuranceAccount, usdcMint, usdcAmount, provider);
-		const userUSDCTokenAccount = await getTokenAccount(
+		const _userUSDCTokenAccount = await getTokenAccount(
 			provider,
 			userUSDCAccount.publicKey
 		);

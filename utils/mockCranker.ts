@@ -1,45 +1,20 @@
 import * as anchor from '@project-serum/anchor';
-import {
-	Keypair,
-	PublicKey,
-	sendAndConfirmTransaction,
-	SystemProgram,
-	Transaction,
-} from '@solana/web3.js';
-import {
-	AccountLayout,
-	MintLayout,
-	Token,
-	TOKEN_PROGRAM_ID,
-} from '@solana/spl-token';
-import { Program, Provider, Wallet } from '@project-serum/anchor';
+import { Program } from '@project-serum/anchor';
 import BN from 'bn.js';
-import {
-	ClearingHouse,
-	Network,
-	PositionDirection,
-	UserAccount,
-	Liquidator,
-	Arbitrager,
-} from '../sdk/src';
-
 // import minheap from 'minheap';
 import { assert } from 'chai';
 import {
-	mockOracle,
-	mockUSDCMint,
-	mockUserUSDCAccount,
-	mintToInsuranceFund,
-} from './mockAccounts';
+	Arbitrager,
+	ClearingHouse,
+	Liquidator,
+	Network,
+	PositionDirection,
+	UserAccount,
+} from '../sdk/src';
+import { mockOracle, mockUSDCMint } from './mockAccounts';
+import { getFeedData } from './mockPythUtils';
+import { initUserAccounts } from './stressUtils';
 
-import { getFeedData, setFeedPrice } from './mockPythUtils';
-import {
-	initUserAccounts,
-	simEvent,
-	writeStressCSV,
-	readStressCSV,
-} from './stressUtils';
-import { InternalSymbolName } from 'typescript';
 // var maxHeap = new minheap.Heap(function(a,b) {
 //  return b - a;
 // });
@@ -69,7 +44,7 @@ async function arbTrade(clearingHouse, marketIndex) {
 
 	// const upnl = await user_act_info_e.getUnrealizedPNL();
 	const xeq_scaled = ammData.xeq; //.div(AMM_MANTISSA);
-	const ast_px2 = ast_px * xeq_scaled;
+	const _ast_px2 = ast_px * xeq_scaled;
 
 	const limitPrice = new BN(oracleData.price * xeq_scaled);
 
@@ -82,12 +57,12 @@ async function arbTrade(clearingHouse, marketIndex) {
 	return [direction, amount, limitPrice];
 }
 
-async function liquidate(userAccountInfos, liqCH, liqUSDCKey, liqPubKey) {
+async function _liquidate(userAccountInfos, liqCH, liqUSDCKey, liqPubKey) {
 	const liqRatio = new BN(500); // 5%
 
 	for (let i = 0; i < userAccountInfos.length; i++) {
 		// Loop through and check open positions
-		const openPositions = userAccountInfos[i].userPositionsAccount;
+		const _openPositions = userAccountInfos[i].userPositionsAccount;
 
 		// Calculate Margin Ratio of an account
 		const marginRatio = await userAccountInfos[i].getMarginRatio();
@@ -107,7 +82,7 @@ async function liquidate(userAccountInfos, liqCH, liqUSDCKey, liqPubKey) {
 	}
 }
 
-async function arbMarkets(allOracles, liqCH, liqPubKey) {
+async function _arbMarkets(allOracles, liqCH, liqPubKey) {
 	for (let i = 0; i < allOracles.length; i++) {
 		const marketIndex = new BN(i);
 		const [direction, amount, limitPrice] = await arbTrade(liqCH, marketIndex);
@@ -159,13 +134,13 @@ async function crank(mock = true, actions = ['liq'], chProgram?) {
 
 	let userAccountInfos;
 	let clearingHouses;
-	let userUSDCAccounts;
-	let userAccountKeys;
+	let _userUSDCAccounts;
+	let _userAccountKeys;
 
 	let liqUSDCAccounts;
 	let liqClearingHouses;
-	let liqAccountInfos;
-	let liqAccountKeys;
+	let _liqAccountInfos;
+	let _liqAccountKeys;
 
 	let allUsers;
 	let allOracles;
@@ -204,7 +179,7 @@ async function crank(mock = true, actions = ['liq'], chProgram?) {
 		// 	ammInitialBaseAssetAmount
 		// );
 
-		const [, marketPublicKey] = await clearingHouse.initializeMarket(
+		const [, _marketPublicKey] = await clearingHouse.initializeMarket(
 			new BN(0),
 			dogMoney,
 			ammInitialBaseAssetAmount,
@@ -213,7 +188,7 @@ async function crank(mock = true, actions = ['liq'], chProgram?) {
 		);
 
 		const solUsd = await mockOracle(22, -6);
-		const [, marketPublicKey2] = await clearingHouse.initializeMarket(
+		const [, _marketPublicKey2] = await clearingHouse.initializeMarket(
 			new BN(1),
 			solUsd,
 			ammInitialBaseAssetAmount,
@@ -224,10 +199,10 @@ async function crank(mock = true, actions = ['liq'], chProgram?) {
 		allOracles = [dogMoney, solUsd];
 
 		// create <NUM_USERS> users with 10k that collectively do <NUM_EVENTS> actions
-		[userUSDCAccounts, userAccountKeys, clearingHouses, userAccountInfos] =
+		[_userUSDCAccounts, _userAccountKeys, clearingHouses, userAccountInfos] =
 			await initUserAccounts(numUsers, usdcMint, usdcAmount, provider);
 
-		[liqUSDCAccounts, liqAccountKeys, liqClearingHouses, liqAccountInfos] =
+		[liqUSDCAccounts, _liqAccountKeys, liqClearingHouses, _liqAccountInfos] =
 			await initUserAccounts(1, usdcMint, usdcAmount.mul(new BN(10)), provider);
 
 		// add a mock user position to be liquidated
@@ -316,7 +291,7 @@ async function crank(mock = true, actions = ['liq'], chProgram?) {
 	}
 }
 
-function onMarketChange(clearingHouse, marketIndex) {
+function _onMarketChange(clearingHouse, marketIndex) {
 	marketLast[marketIndex] =
 		clearingHouse.calculateBaseAssetPricePoint(marketIndex);
 	console.log(marketLast);

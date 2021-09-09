@@ -1,13 +1,16 @@
 import * as anchor from '@project-serum/anchor';
 import { Program } from '@project-serum/anchor';
-import { mockUSDCMint, mockUserUSDCAccount } from '../utils/mockAccounts';
-import { AMM_MANTISSA, ClearingHouse, Network } from '../sdk/src';
 import { Keypair } from '@solana/web3.js';
 import BN from 'bn.js';
-import { MAX_LEVERAGE, UserAccount } from '../sdk/src/userAccount';
-import { assert } from 'chai';
+import {
+	AMM_MANTISSA,
+	ClearingHouse,
+	Network,
+	PositionDirection,
+} from '../sdk/src';
+import { UserAccount } from '../sdk/src/userAccount';
+import { mockUSDCMint, mockUserUSDCAccount } from '../utils/mockAccounts';
 import { createPriceFeed } from '../utils/mockPythUtils';
-import { PositionDirection } from '../sdk/src';
 
 describe('AMM Curve', () => {
 	const provider = anchor.Provider.local();
@@ -70,11 +73,17 @@ describe('AMM Curve', () => {
 	});
 
 	const assertState = async (
+		// eslint-disable-next-line @typescript-eslint/no-unused-vars
 		expectedBuyingPower: BN,
+		// eslint-disable-next-line @typescript-eslint/no-unused-vars
 		expectedFreeCollateral: BN,
+		// eslint-disable-next-line @typescript-eslint/no-unused-vars
 		expectedPNL: BN,
+		// eslint-disable-next-line @typescript-eslint/no-unused-vars
 		expectedTotalCollateral: BN,
+		// eslint-disable-next-line @typescript-eslint/no-unused-vars
 		expectedLeverage: BN,
+		// eslint-disable-next-line @typescript-eslint/no-unused-vars
 		expectedMarginRatio: BN
 	) => {
 		// 	const summary = userAccount.summary();
@@ -218,7 +227,7 @@ describe('AMM Curve', () => {
 	});
 
 	it('After Position Price Moves', async () => {
-		const priceIncreaseFactor = new BN(2);
+		const _priceIncreaseFactor = new BN(2);
 		await clearingHouse.moveAmmToPrice(
 			marketIndex,
 			new BN(initialSOLPrice * AMM_MANTISSA.toNumber() * 1.0001)

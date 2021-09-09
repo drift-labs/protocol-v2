@@ -1,23 +1,20 @@
 import * as anchor from '@project-serum/anchor';
-import { createPriceFeed, getFeedData, setFeedPrice } from './mockPythUtils';
-import { assert } from 'chai';
-
 import { Provider } from '@project-serum/anchor';
-
 import {
+	AccountLayout,
+	MintLayout,
 	Token,
 	TOKEN_PROGRAM_ID,
-	MintLayout,
-	AccountLayout,
 } from '@solana/spl-token';
-
 import {
-	SystemProgram,
-	Transaction,
-	sendAndConfirmTransaction,
 	Keypair,
 	PublicKey,
+	sendAndConfirmTransaction,
+	SystemProgram,
+	Transaction,
 } from '@solana/web3.js';
+import { assert } from 'chai';
+import { createPriceFeed, getFeedData } from './mockPythUtils';
 
 export async function mockOracle(price = 50 * 10e7, expo = -7) {
 	// default: create a $50 coin oracle
@@ -57,7 +54,7 @@ export async function mockUSDCMint(provider: Provider): Promise<Keypair> {
 	fakeUSDCTx.add(createUSDCMintAccountIx);
 	fakeUSDCTx.add(initCollateralMintIx);
 
-	const fakeUSDCTxResult = await sendAndConfirmTransaction(
+	const _fakeUSDCTxResult = await sendAndConfirmTransaction(
 		provider.connection,
 		fakeUSDCTx,
 		// @ts-ignore
@@ -113,7 +110,7 @@ export async function mockUserUSDCAccount(
 	);
 	fakeUSDCTx.add(mintToUserAccountTx);
 
-	const fakeUSDCTxResult = await sendAndConfirmTransaction(
+	const _fakeUSDCTxResult = await sendAndConfirmTransaction(
 		provider.connection,
 		fakeUSDCTx,
 		[provider.wallet.payer, userUSDCAccount],
@@ -144,7 +141,7 @@ export async function mintToInsuranceFund(
 	const fakeUSDCTx = new Transaction();
 	fakeUSDCTx.add(mintToUserAccountTx);
 
-	const fakeUSDCTxResult = await sendAndConfirmTransaction(
+	const _fakeUSDCTxResult = await sendAndConfirmTransaction(
 		provider.connection,
 		fakeUSDCTx,
 		[provider.wallet.payer],

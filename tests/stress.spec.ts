@@ -1,23 +1,10 @@
 import * as anchor from '@project-serum/anchor';
-import BN from 'bn.js';
-
 import { Program } from '@project-serum/anchor';
+import { Keypair } from '@solana/web3.js';
+import BN from 'bn.js';
+import { AMM_MANTISSA, ClearingHouse, Network } from '../sdk/src';
 // import { getTokenAccount } from '@project-serum/common';
-import {
-	mockOracle,
-	mockUSDCMint,
-	mockUserUSDCAccount,
-	mintToInsuranceFund,
-} from '../utils/mockAccounts';
-
-import {
-	ClearingHouse,
-	AMM_MANTISSA,
-	Network,
-	PositionDirection,
-} from '../sdk/src';
-import { isAssertionExpression } from 'typescript';
-
+import { mockUSDCMint } from '../utils/mockAccounts';
 import { stress_test } from '../utils/stress';
 
 describe('stress-test', () => {

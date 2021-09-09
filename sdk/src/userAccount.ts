@@ -1,8 +1,8 @@
-import { AMM_MANTISSA, FUNDING_MANTISSA, ClearingHouse } from './clearingHouse';
 import { PublicKey } from '@solana/web3.js';
 import BN from 'bn.js';
-import { Subscriber, SubscriberResult } from './types';
+import { AMM_MANTISSA, ClearingHouse } from './clearingHouse';
 import { UserAccountData, UserPosition, UserPositionData } from './DataTypes';
+import { Subscriber, SubscriberResult } from './types';
 
 export const MAX_LEVERAGE = new BN(5);
 
@@ -10,7 +10,7 @@ const FULL_LIQUIDATION_RATIO = new BN(500);
 const PARTIAL_LIQUIDATION_RATIO = new BN(625);
 const ZERO = new BN(0);
 const BN_MAX = new BN(Number.MAX_SAFE_INTEGER);
-const THOUSAND = new BN(1000);
+const _THOUSAND = new BN(1000);
 const TEN_THOUSAND = new BN(10000);
 
 type UserAccountSubscriberResults =

@@ -1,13 +1,16 @@
 import * as anchor from '@project-serum/anchor';
 import { Program } from '@project-serum/anchor';
-import { mockUSDCMint, mockUserUSDCAccount } from '../utils/mockAccounts';
-import { AMM_MANTISSA, ClearingHouse, Network } from '../sdk/src';
 import { Keypair } from '@solana/web3.js';
 import BN from 'bn.js';
-import { MAX_LEVERAGE, UserAccount } from '../sdk/src/userAccount';
-import { assert } from 'chai';
+import {
+	AMM_MANTISSA,
+	ClearingHouse,
+	Network,
+	PositionDirection,
+} from '../sdk/src';
+import { UserAccount } from '../sdk/src/userAccount';
+import { mockUSDCMint, mockUserUSDCAccount } from '../utils/mockAccounts';
 import { createPriceFeed } from '../utils/mockPythUtils';
-import { PositionDirection } from '../sdk/src';
 
 describe('AMM Curve', () => {
 	const provider = anchor.Provider.local();

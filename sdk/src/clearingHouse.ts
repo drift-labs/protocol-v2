@@ -102,7 +102,7 @@ export class ClearingHouse {
 		}
 
 		const collateralAccount = Keypair.generate();
-		const [chCollateralAccountAuthority, chCollateralAccountNonce] =
+		const [chCollateralAccountAuthority, _chCollateralAccountNonce] =
 			await PublicKey.findProgramAddress(
 				[collateralAccount.publicKey.toBuffer()],
 				this.program.programId
@@ -123,7 +123,7 @@ export class ClearingHouse {
 		);
 
 		const insuranceAccount = Keypair.generate();
-		const [insuranceAccountOwner, insuranceAccountNonce] =
+		const [insuranceAccountOwner, _insuranceAccountNonce] =
 			await PublicKey.findProgramAddress(
 				[insuranceAccount.publicKey.toBuffer()],
 				this.program.programId
@@ -672,7 +672,7 @@ export class ClearingHouse {
 	): Promise<TransactionSignature> {
 		this.assertIsSubscribed();
 		const market = this.getMarketsAccount().markets[marketIndex.toNumber()];
-		const peg = market.amm.pegMultiplier;
+		const _peg = market.amm.pegMultiplier;
 
 		const [direction, tradeSize, _] = this.calculateTargetPriceTrade(
 			marketIndex,
@@ -1078,17 +1078,18 @@ export class ClearingHouse {
 			const targetPriceDefaultSlippage = baseAssetPriceWithMantissa
 				.mul(AMM_MANTISSA.add(defaultSlippageBN.mul(new BN(i))))
 				.div(AMM_MANTISSA);
-			const [direction, liquidity, entryPrice] = this.calculateTargetPriceTrade(
-				marketIndex,
-				BN.max(targetPriceDefaultSlippage, new BN(1))
-			);
+			const [_direction, liquidity, entryPrice] =
+				this.calculateTargetPriceTrade(
+					marketIndex,
+					BN.max(targetPriceDefaultSlippage, new BN(1))
+				);
 			asksPrice.push(entryPrice);
 			asksCumSize.push(liquidity);
 
 			const targetPriceDefaultSlippageBid = baseAssetPriceWithMantissa
 				.mul(AMM_MANTISSA.sub(defaultSlippageBN.mul(new BN(i))))
 				.div(AMM_MANTISSA);
-			const [directionBid, liquidityBid, entryPriceBid] =
+			const [_directionBid, liquidityBid, entryPriceBid] =
 				this.calculateTargetPriceTrade(
 					marketIndex,
 					BN.max(targetPriceDefaultSlippageBid, new BN(1))

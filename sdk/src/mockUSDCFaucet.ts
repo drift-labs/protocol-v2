@@ -74,7 +74,7 @@ export class MockUSDCFaucet {
 			programId: TOKEN_PROGRAM_ID,
 		});
 
-		const [mintAuthority, mintAuthorityNonce] =
+		const [mintAuthority, _mintAuthorityNonce] =
 			await PublicKey.findProgramAddress(
 				[fakeUSDCMint.publicKey.toBuffer()],
 				this.program.programId
@@ -207,7 +207,7 @@ export class MockUSDCFaucet {
 			this.connection.onAccountChange(
 				tokenAccountKey,
 				async (
-					accountInfo /* accountInfo is a buffer which we don't know how to deserialize */
+					_accountInfo /* accountInfo is a buffer which we don't know how to deserialize */
 				) => {
 					props.callback(await this.getTokenAccountInfo(props));
 				}

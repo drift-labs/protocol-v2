@@ -1,11 +1,9 @@
-import { ClearingHouse, PythClient } from '../sdk/';
-import { Network } from '../sdk/';
 import * as anchor from '@project-serum/anchor';
 import { Program, Provider } from '@project-serum/anchor';
-import BN from 'bn.js';
-import { MockUSDCFaucet, AMM_MANTISSA } from '../sdk/src';
-import { createPriceFeed } from '../utils/mockPythUtils';
 import { PublicKey } from '@solana/web3.js';
+import BN from 'bn.js';
+import { ClearingHouse, Network, PythClient } from '../sdk/';
+import { AMM_MANTISSA, MockUSDCFaucet } from '../sdk/src';
 
 module.exports = async function (provider: Provider) {
 	const connection = provider.connection;
