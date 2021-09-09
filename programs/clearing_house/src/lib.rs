@@ -2571,6 +2571,8 @@ fn _calculate_funding_payment_notional(amm: &AMM, market_position: &MarketPositi
         .unwrap()
         .checked_div(MANTISSA as i128)
         .unwrap()
+        .checked_div(MANTISSA as i128)
+        .unwrap()
         .checked_mul(-1)
         .unwrap();
 }
