@@ -279,7 +279,10 @@ async function crank(mock = true, actions = ['liq'], chProgram?) {
 		}
 		if (actions.includes('arb')) {
 			console.log('running arb');
-			await arbitrager.arbitrage();
+			const tradesToExecute = await arbitrager.findTradesToExecute();
+			for (const tradeToExecute of tradesToExecute) {
+				await arbitrager.executeTrade(tradeToExecute);
+			}
 		}
 		if (actions.includes('funding')) {
 			console.log('running funding');

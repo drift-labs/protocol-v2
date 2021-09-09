@@ -2,6 +2,14 @@ import { ClearingHouse, AMM_MANTISSA } from './clearingHouse';
 import { PythClient } from './pythClient';
 import BN from 'bn.js';
 import { ZERO } from './constants/numericConstants';
+import {PositionDirection} from "./types";
+
+export interface TradeToExecute {
+	direction: PositionDirection;
+	marketIndex: BN;
+	amount: BN;
+	oraclePriceWithMantissa: BN;
+}
 
 export class Arbitrager {
 	private clearingHouse: ClearingHouse;
@@ -15,8 +23,9 @@ export class Arbitrager {
 		this.pythClient = new PythClient(this.clearingHouse.connection);
 	}
 
-	public async arbitrage() {
+	public async findTradesToExecute() : Promise<TradeToExecute[]> {
 		const marketsAccount: any = await this.clearingHouse.getMarketsAccount();
+		const tradesToExecute : TradeToExecute[] = [];
 		for (const marketIndex in marketsAccount.markets) {
 			const market = marketsAccount.markets[marketIndex];
 			if (!market.initialized) {
@@ -50,15 +59,25 @@ export class Arbitrager {
 				return;
 			}
 
-			await this.clearingHouse.openPosition(
-				(
-					await this.clearingHouse.getUserAccountPublicKey()
-				)[0],
+			tradesToExecute.push({
 				direction,
+				marketIndex: marketIndexBN,
 				amount,
-				marketIndexBN,
-				oraclePriceWithMantissa
-			);
+				oraclePriceWithMantissa,
+			});
 		}
+		return tradesToExecute;
+	}
+
+	public async executeTrade(tradeToExecute: TradeToExecute) {
+		await this.clearingHouse.openPosition(
+			(
+				await this.clearingHouse.getUserAccountPublicKey()
+			)[0],
+			tradeToExecute.direction,
+			tradeToExecute.amount,
+			tradeToExecute.marketIndex,
+			tradeToExecute.oraclePriceWithMantissa
+		);
 	}
 }
