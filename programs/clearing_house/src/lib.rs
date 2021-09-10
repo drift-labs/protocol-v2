@@ -1930,6 +1930,10 @@ impl AMM {
 
         return (new_quote_asset_amount as i128)
             .checked_sub(self.quote_asset_amount as i128)
+            .unwrap()
+            .checked_mul(self.peg_multiplier as i128)
+            .unwrap()
+            .checked_div(MANTISSA as i128)
             .unwrap();
     }
 
