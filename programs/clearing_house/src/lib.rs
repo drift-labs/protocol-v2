@@ -431,23 +431,6 @@ pub mod clearing_house {
                 let market = &mut ctx.accounts.markets_account.load_mut()?.markets
                     [MarketsAccount::index_from_u64(market_index)];
 
-                if limit_price != 0 {
-                    incremental_quote_asset_notional_amount_partial = min(
-                        incremental_quote_asset_notional_amount,
-                        market
-                            .amm
-                            .calc_target_price_trade_vector(limit_price)
-                            .unsigned_abs(),
-                    );
-                    if incremental_quote_asset_notional_amount_partial == 0 {
-                        msg!(
-                            "LIMIT BECAME 0 {:?}",
-                            incremental_quote_asset_notional_amount_partial
-                        );
-                        return Err(ErrorCode::SlippageOutsideLimit.into());
-                    }
-                }
-
                 quote_asset_peg_fee = increase_position(
                     direction,
                     incremental_quote_asset_notional_amount_partial,
@@ -458,20 +441,6 @@ pub mod clearing_house {
             } else {
                 let market = &mut ctx.accounts.markets_account.load_mut()?.markets
                     [MarketsAccount::index_from_u64(market_index)];
-
-                if limit_price != 0 {
-                    incremental_quote_asset_notional_amount_partial = min(
-                        incremental_quote_asset_notional_amount,
-                        market
-                            .amm
-                            .calc_target_price_trade_vector(limit_price)
-                            .unsigned_abs(),
-                    );
-                    if incremental_quote_asset_notional_amount_partial == 0 {
-                        msg!("{:?}", incremental_quote_asset_notional_amount_partial);
-                        return Err(ErrorCode::SlippageOutsideLimit.into());
-                    }
-                }
 
                 let (base_asset_value, _unrealized_pnl) =
                     calculate_base_asset_value_and_pnl(market_position, &market.amm);
@@ -543,11 +512,6 @@ pub mod clearing_house {
                 &ctx.accounts.markets_account.load().unwrap(),
             );
             if margin_ratio_after < self.margin_ratio_initial && potentially_risk_increasing {
-                msg!(
-                    "margin ratio violation: {:?} {:?}",
-                    margin_ratio_after,
-                    self.margin_ratio_initial
-                );
                 return Err(ErrorCode::InsufficientCollateral.into());
             }
 
@@ -555,29 +519,6 @@ pub mod clearing_house {
                 .total_potential_fee
                 .checked_add(quote_asset_peg_fee)
                 .unwrap();
-
-            if margin_ratio_after < MARGIN_MANTISSA && potentially_risk_increasing {
-                // todo: add a dol_fee/2 * leverage surcharge
-                assert_eq!(margin_ratio_after > 0, true);
-                let leverage = MARGIN_MANTISSA
-                    .checked_mul(MANTISSA)
-                    .unwrap()
-                    .checked_div(margin_ratio_after)
-                    .unwrap();
-
-                let dol_fee_surcharge = (quote_asset_peg_fee as u128)
-                    .checked_mul(leverage)
-                    .unwrap()
-                    .checked_div(MANTISSA)
-                    .unwrap()
-                    .checked_div(2)
-                    .unwrap();
-
-                // user_account.total_potential_fee = user_account
-                // .total_potential_fee
-                // .checked_add(dol_fee_surcharge)
-                // .unwrap();
-            }
 
             if limit_price != 0 {
                 let market = &ctx.accounts.markets_account.load().unwrap().markets
@@ -591,20 +532,8 @@ pub mod clearing_house {
                 if new_price > limit_price && direction == PositionDirection::Long
                     || new_price < limit_price && direction == PositionDirection::Short
                 {
-                    msg!(
-                        "LIMIT2 {:?}",
-                        incremental_quote_asset_notional_amount_partial
-                    );
                     return Err(ErrorCode::SlippageOutsideLimit.into());
                 }
-            }
-
-            // todo: should not occur
-            if incremental_quote_asset_notional_amount_partial
-                > incremental_quote_asset_notional_amount_intended
-            {
-                msg!("{:?}", incremental_quote_asset_notional_amount_partial);
-                return Err(ErrorCode::SlippageOutsideLimit.into());
             }
 
             Ok(())
