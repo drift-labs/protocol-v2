@@ -19,21 +19,25 @@ export class Liquidator {
 		this.liquidatorUSDCTokenPublicKey = liquidatorUSDCTokenPublicKey;
 	}
 
-	public async liquidate(userAccounts: UserAccount[]) {
+	public async liquidate(userAccounts: UserAccount[]) : Promise<UserAccount[]> {
+		const accountsToLiquidate : UserAccount[] = [];
 		for (const userAccount of userAccounts) {
-			const [canLiquidate, marginRatio] = userAccount.canBeLiquidated();
+			const [canLiquidate] = userAccount.canBeLiquidated();
 			if (canLiquidate) {
+				accountsToLiquidate.push(userAccount);
 				const liquidateeUserAccountPublicKey = await userAccount.getPublicKey();
-				const tx = await this.clearingHouse.liquidate(
-					this.liquidatorUSDCTokenPublicKey,
-					liquidateeUserAccountPublicKey
-				);
-				const formattedMarginRatio = (marginRatio.toNumber() / 1000).toFixed(3);
-				console.log(
-					`Liquidated user ${liquidateeUserAccountPublicKey.toString()}. Margin Ratio: ${formattedMarginRatio}`
-				);
-				console.log(`Liquidation Tx ${tx}`);
+				try {
+					this.clearingHouse.liquidate(
+						this.liquidatorUSDCTokenPublicKey,
+						liquidateeUserAccountPublicKey
+					).then(tx => {
+						console.log(`Liquidated user: ${userAccount.userPublicKey} Tx: ${tx}`);
+					});
+				} catch (e) {
+					console.log(e);
+				}
 			}
 		}
+		return accountsToLiquidate;
 	}
 }
