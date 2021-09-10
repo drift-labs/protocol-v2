@@ -501,13 +501,6 @@ pub mod clearing_house {
 
                     close_position(user_account, market, market_position, now);
 
-                    let incremental_quote_asset_notional_amount_resid_peg =
-                        incremental_quote_asset_notional_amount_resid
-                            .checked_mul(MANTISSA)
-                            .unwrap()
-                            .checked_div(market.amm.peg_multiplier)
-                            .unwrap();
-
                     quote_asset_peg_fee = increase_position(
                         direction,
                         incremental_quote_asset_notional_amount_resid,
