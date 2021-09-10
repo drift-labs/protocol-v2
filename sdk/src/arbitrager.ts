@@ -56,7 +56,7 @@ export class Arbitrager {
 			);
 
 			if (amount.eq(ZERO)) {
-				return;
+				continue;
 			}
 
 			tradesToExecute.push({
