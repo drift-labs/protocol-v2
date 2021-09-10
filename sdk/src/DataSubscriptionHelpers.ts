@@ -6,7 +6,7 @@ import { Candle, Trade, TradeSide } from './types';
 import { AMM_MANTISSA } from './clearingHouse';
 
 const defaultPublicKey = new PublicKey('11111111111111111111111111111111');
-const priceMantissa = new BN(10 ** 3);
+const priceMantissa = new BN(10 ** 6);
 
 export const calculatePrice = (
 	quoteAssetAmount: BN,
