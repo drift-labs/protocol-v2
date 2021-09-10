@@ -205,8 +205,7 @@ export class UserAccount {
 		);
 	}
 
-	public getPositionEstimatedExitPriceWithMantissa(positionIndex: number): BN {
-		const position = this.userPositionsAccount.positions[positionIndex];
+	public getPositionEstimatedExitPriceWithMantissa(position: UserPosition): BN {
 		const baseAssetValue = this.clearingHouse.calculateBaseAssetValue(position);
 		if (position.baseAssetAmount.eq(ZERO)) {
 			console.log('zero position:', position);
