@@ -66,8 +66,8 @@ module.exports = async function (provider: Provider) {
 
 	const marketIndex = new BN(0);
 	const periodicity = new BN(3600);
-	const ammQuoteAssetAmount = new anchor.BN(1 * 10 ** 11);
-	const ammBaseAssetAmount = new anchor.BN(1 * 10 ** 11);
+	const ammQuoteAssetAmount = new anchor.BN(2 * 10 ** 13);
+	const ammBaseAssetAmount = new anchor.BN(2 * 10 ** 13);
 	const pegMultiplierSOL = new anchor.BN(solPrice * AMM_MANTISSA.toNumber());
 
 	console.log('Initializing Market for SOL/USD: ');
@@ -75,8 +75,8 @@ module.exports = async function (provider: Provider) {
 	await clearingHouse.initializeMarket(
 		marketIndex,
 		solOraclePriceKey,
-		ammBaseAssetAmount,
-		ammQuoteAssetAmount,
+		normAssetAmount(ammBaseAssetAmount, pegMultiplierSOL),
+		normAssetAmount(ammQuoteAssetAmount, pegMultiplierSOL),
 		periodicity,
 		pegMultiplierSOL
 	);
