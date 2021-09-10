@@ -368,10 +368,6 @@ pub mod clearing_house {
         ) -> ProgramResult {
             let user_account = &mut ctx.accounts.user_account;
             let now = ctx.accounts.clock.unix_timestamp;
-            let incremental_quote_asset_notional_amount_intended =
-                incremental_quote_asset_notional_amount;
-            let mut incremental_quote_asset_notional_amount_partial =
-                incremental_quote_asset_notional_amount;
 
             let user_positions_account =
                 &mut ctx.accounts.user_positions_account.load_mut().unwrap();
@@ -433,7 +429,7 @@ pub mod clearing_house {
 
                 quote_asset_peg_fee = increase_position(
                     direction,
-                    incremental_quote_asset_notional_amount_partial,
+                    incremental_quote_asset_notional_amount,
                     market,
                     market_position,
                     now,
@@ -449,7 +445,7 @@ pub mod clearing_house {
                 if base_asset_value > incremental_quote_asset_notional_amount {
                     reduce_position(
                         direction,
-                        incremental_quote_asset_notional_amount_partial,
+                        incremental_quote_asset_notional_amount,
                         user_account,
                         market,
                         market_position,
@@ -500,7 +496,7 @@ pub mod clearing_house {
                 user_clearing_house_public_key: *user_account.to_account_info().key,
                 direction,
                 base_asset_amount: base_asset_amount_change,
-                quote_asset_notional_amount: incremental_quote_asset_notional_amount_partial,
+                quote_asset_notional_amount: incremental_quote_asset_notional_amount,
                 base_asset_price_with_mantissa_before,
                 base_asset_price_with_mantissa_after,
                 market_index,
