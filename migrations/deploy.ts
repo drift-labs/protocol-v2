@@ -53,7 +53,7 @@ module.exports = async function (provider: Provider) {
 	// console.log('Mock SOL oracle:', mockSolOraclePriceKey.toString());
 
 
-	function normAssetAmount(assetAmount, pegMultiplier){
+	function normAssetAmount(assetAmount: BN, pegMultiplier: BN) : BN{
 		// assetAmount is scaled to offer comparable slippage
 		return assetAmount.mul(AMM_MANTISSA).div(pegMultiplier);
 	}
