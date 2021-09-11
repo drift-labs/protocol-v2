@@ -2180,12 +2180,17 @@ fn reduce_position<'info>(
 
     let (base_asset_value_after, pnl_after) =
         calculate_base_asset_value_and_pnl(market_position, &market.amm);
-    let pnl = calculate_realized_pnl(
-        base_asset_value_before,
-        base_asset_value_after,
-        pnl_before,
-        swap_direction,
-    );
+
+    let base_asset_value_change = (base_asset_value_before as i128)
+        .checked_sub(base_asset_value_after as i128)
+        .unwrap()
+        .abs();
+
+    let pnl = pnl_before
+        .checked_mul(base_asset_value_change)
+        .unwrap()
+        .checked_div(base_asset_value_before as i128)
+        .unwrap();
 
     user_account.collateral = calculate_updated_collateral(user_account.collateral, pnl);
 }
@@ -2296,31 +2301,6 @@ fn close_position(
     }
 
     market_position.base_asset_amount = 0;
-}
-
-fn calculate_realized_pnl(
-    base_asset_value_before: u128,
-    base_asset_value_after: u128,
-    pnl_before: i128,
-    swap_direction: SwapDirection,
-) -> i128 {
-    // checks the value change before/after position adj to scale the pnl of selling all
-    // effectively realizes the average price a user paid for position against the price to close now
-
-    // todo: checked_mul porition needs to be unsigned_abs??
-    let value_change = (base_asset_value_before as i128)
-        .checked_sub(base_asset_value_after as i128)
-        .unwrap()
-        .unsigned_abs();
-
-    let pnl = pnl_before.checked_mul(value_change as i128).unwrap();
-
-    let pnlpct = match swap_direction {
-        SwapDirection::Add => pnl.checked_div(base_asset_value_after as i128).unwrap(),
-        SwapDirection::Remove => pnl.checked_div(base_asset_value_before as i128).unwrap(),
-    };
-
-    return pnl_before;
 }
 
 fn calculate_withdrawal_amounts(
