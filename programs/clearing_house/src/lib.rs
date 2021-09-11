@@ -439,7 +439,6 @@ pub mod clearing_house {
                 if trade_size_too_small {
                     return Err(ErrorCode::TradeSizeTooSmall.into());
                 }
-
             } else {
                 let market = &mut ctx.accounts.markets_account.load_mut()?.markets
                     [MarketsAccount::index_from_u64(market_index)];
@@ -1511,7 +1510,11 @@ impl AMM {
 
         let fee_unpaid = fee.checked_sub(quote_asset_swap_amount_fee).unwrap();
 
-        return (acquired_base_asset_amount, fee_unpaid as i128, trade_size_too_small);
+        return (
+            acquired_base_asset_amount,
+            fee_unpaid as i128,
+            trade_size_too_small,
+        );
     }
 
     pub fn swap_quote_asset(
@@ -2111,10 +2114,9 @@ fn increase_position(
         PositionDirection::Short => SwapDirection::Remove,
     };
 
-    let (base_asset_acquired, quote_asset_peg_fee_unpaid, trade_size_to_small) =
-        market
-            .amm
-            .swap_quote_asset_with_fee(new_quote_asset_notional_amount, swap_direction, now);
+    let (base_asset_acquired, quote_asset_peg_fee_unpaid, trade_size_to_small) = market
+        .amm
+        .swap_quote_asset_with_fee(new_quote_asset_notional_amount, swap_direction, now);
 
     // update the position size on market and user
     market_position.base_asset_amount = market_position
