@@ -427,13 +427,19 @@ pub mod clearing_house {
                 let market = &mut ctx.accounts.markets_account.load_mut()?.markets
                     [MarketsAccount::index_from_u64(market_index)];
 
-                quote_asset_peg_fee = increase_position(
+                let (_quote_asset_peg_fee, trade_size_too_small) = increase_position(
                     direction,
                     incremental_quote_asset_notional_amount,
                     market,
                     market_position,
                     now,
                 );
+                quote_asset_peg_fee = _quote_asset_peg_fee;
+
+                if trade_size_too_small {
+                    return Err(ErrorCode::TradeSizeTooSmall.into());
+                }
+
             } else {
                 let market = &mut ctx.accounts.markets_account.load_mut()?.markets
                     [MarketsAccount::index_from_u64(market_index)];
@@ -443,7 +449,7 @@ pub mod clearing_house {
                 // we calculate what the user's position is worth if they closed to determine
                 // if they are reducing or closing and reversing their position
                 if base_asset_value > incremental_quote_asset_notional_amount {
-                    reduce_position(
+                    let trade_size_too_small = reduce_position(
                         direction,
                         incremental_quote_asset_notional_amount,
                         user_account,
@@ -451,6 +457,11 @@ pub mod clearing_house {
                         market_position,
                         now,
                     );
+
+                    if trade_size_too_small {
+                        return Err(ErrorCode::TradeSizeTooSmall.into());
+                    }
+
                     potentially_risk_increasing = false;
                 } else {
                     let incremental_quote_asset_notional_amount_resid =
@@ -466,13 +477,18 @@ pub mod clearing_house {
 
                     close_position(user_account, market, market_position, now);
 
-                    quote_asset_peg_fee = increase_position(
+                    let (_quote_asset_peg_fee, trade_size_too_small) = increase_position(
                         direction,
                         incremental_quote_asset_notional_amount_resid,
                         market,
                         market_position,
                         now,
                     );
+                    quote_asset_peg_fee = _quote_asset_peg_fee;
+
+                    if trade_size_too_small {
+                        return Err(ErrorCode::TradeSizeTooSmall.into());
+                    }
                 }
             }
 
@@ -884,8 +900,6 @@ pub mod clearing_house {
                     .checked_mul(market_position)
                     .unwrap();
             }
-
-            // assert_ne!(pnl, 0);
 
             if pnl > 0 {
                 pnl_r = pnl_r.checked_add(pnl.abs() as u128).unwrap();
@@ -1425,7 +1439,7 @@ impl AMM {
         quote_asset_swap_amount: u128,
         direction: SwapDirection,
         now: i64,
-    ) -> (i128, i128) {
+    ) -> (i128, i128, bool) {
         // fee inspired by https://curve.fi/files/crypto-pools-paper.pdf
 
         let unpegged_quote_asset_amount = quote_asset_swap_amount
@@ -1489,7 +1503,7 @@ impl AMM {
             .checked_sub(quote_asset_swap_amount_fee)
             .unwrap();
 
-        let acquired_base_asset_amount =
+        let (acquired_base_asset_amount, trade_size_too_small) =
             self.swap_quote_asset(quote_asset_swap_amount_less_fee, direction, now);
 
         self.cum_slippage = self.cum_slippage.checked_add(fee).unwrap();
@@ -1497,7 +1511,7 @@ impl AMM {
 
         let fee_unpaid = fee.checked_sub(quote_asset_swap_amount_fee).unwrap();
 
-        return (acquired_base_asset_amount, fee_unpaid as i128);
+        return (acquired_base_asset_amount, fee_unpaid as i128, trade_size_too_small);
     }
 
     pub fn swap_quote_asset(
@@ -1505,7 +1519,7 @@ impl AMM {
         quote_asset_swap_amount: u128,
         direction: SwapDirection,
         now: i64,
-    ) -> i128 {
+    ) -> (i128, bool) {
         let unpegged_quote_asset_amount = quote_asset_swap_amount
             .checked_mul(MANTISSA)
             .unwrap()
@@ -1525,6 +1539,7 @@ impl AMM {
             direction,
             self.k,
         );
+        let base_asset_price_before = self.base_asset_price_with_mantissa();
 
         self.base_asset_amount = new_base_asset_amount;
         self.quote_asset_amount = new_quote_asset_amount;
@@ -1532,9 +1547,28 @@ impl AMM {
         self.mark_twap = self.get_new_twap(now);
         self.mark_twap_ts = now;
 
-        return (initial_base_asset_amount as i128)
+        let acquired_base_asset_amount = (initial_base_asset_amount as i128)
             .checked_sub(new_base_asset_amount as i128)
             .unwrap();
+
+        let base_asset_price_after = self.base_asset_price_with_mantissa();
+
+        let entry_price = quote_asset_swap_amount
+            .checked_mul(MANTISSA)
+            .unwrap()
+            .checked_div(acquired_base_asset_amount.unsigned_abs())
+            .unwrap();
+
+        let trade_size_too_small = match direction {
+            SwapDirection::Add => {
+                entry_price > base_asset_price_after || entry_price < base_asset_price_before
+            }
+            SwapDirection::Remove => {
+                entry_price < base_asset_price_after || entry_price > base_asset_price_before
+            }
+        };
+
+        return (acquired_base_asset_amount, trade_size_too_small);
     }
 
     pub fn swap_base_asset(
@@ -1883,7 +1917,7 @@ impl AMM {
         let x_eq_0 = self.peg_multiplier;
         let peg_spread_0 = (x_eq_0 as i128).checked_sub(oracle_px).unwrap();
 
-        if (peg_spread_0.unsigned_abs().lt(&oracle_conf)) {
+        if peg_spread_0.unsigned_abs().lt(&oracle_conf) {
             return x_eq_0;
         }
 
@@ -2032,6 +2066,8 @@ pub enum ErrorCode {
     InvalidRepegProfitability,
     #[msg("Slippage Outside Limit Price")]
     SlippageOutsideLimit,
+    #[msg("Trade Size Too Small")]
+    TradeSizeTooSmall,
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq)]
@@ -2046,9 +2082,9 @@ fn increase_position(
     market: &mut Market,
     market_position: &mut MarketPosition,
     now: i64,
-) -> i128 {
+) -> (i128, bool) {
     if new_quote_asset_notional_amount == 0 {
-        return 0;
+        return (0, false);
     }
 
     // Update funding rate if this is a new position
@@ -2075,7 +2111,7 @@ fn increase_position(
         PositionDirection::Short => SwapDirection::Remove,
     };
 
-    let (base_asset_acquired, quote_asset_peg_fee_unpaid) =
+    let (base_asset_acquired, quote_asset_peg_fee_unpaid, trade_size_to_small) =
         market
             .amm
             .swap_quote_asset_with_fee(new_quote_asset_notional_amount, swap_direction, now);
@@ -2112,7 +2148,7 @@ fn increase_position(
         .checked_add(new_quote_asset_notional_amount)
         .unwrap();
 
-    return quote_asset_peg_fee_unpaid;
+    return (quote_asset_peg_fee_unpaid, trade_size_to_small);
 }
 
 fn reduce_position<'info>(
@@ -2122,14 +2158,14 @@ fn reduce_position<'info>(
     market: &mut Market,
     market_position: &mut MarketPosition,
     now: i64,
-) {
+) -> bool {
     let swap_direction = match direction {
         PositionDirection::Long => SwapDirection::Add,
         PositionDirection::Short => SwapDirection::Remove,
     };
     let (base_asset_value_before, pnl_before) =
         calculate_base_asset_value_and_pnl(market_position, &market.amm);
-    let base_asset_swapped =
+    let (base_asset_swapped, trade_size_too_small) =
         market
             .amm
             .swap_quote_asset(new_quote_asset_notional_amount, swap_direction, now);
@@ -2193,6 +2229,8 @@ fn reduce_position<'info>(
         .unwrap();
 
     user_account.collateral = calculate_updated_collateral(user_account.collateral, pnl);
+
+    return trade_size_too_small;
 }
 
 // Todo Make this work with new market structure
