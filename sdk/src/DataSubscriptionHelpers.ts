@@ -40,13 +40,19 @@ export const getNewTrades = (
 	const tradingHistorySize = tradeHistory.tradeRecords.length;
 
 	const tradesToProcess = Math.abs(tradingHistoryHead - currentHead);
+	
 	if (tradesToProcess > 0) {
 		console.log(`${tradesToProcess} trades to process`);
+	} else {
+		return {
+			newTrades:[],
+			newHead: tradingHistoryHead
+		};
 	}
 
 	const newTrades: { trade: Trade; userAccount: PublicKey }[] = [];
 
-	let newHead = currentHead;
+	let newHead = currentHead + 1;
 
 	while (newHead != tradingHistoryHead) {
 		const tradeRecord = tradeHistory.tradeRecords[newHead];
