@@ -53,9 +53,9 @@ module.exports = async function (provider: Provider) {
 	// console.log('Mock SOL oracle:', mockSolOraclePriceKey.toString());
 
 
-	function normAssetAmount(assetAmount: BN, pegMultiplier: number) : BN{
+	function normAssetAmount(assetAmount: BN, pegMultiplier: BN) : BN{
 		// assetAmount is scaled to offer comparable slippage
-		return assetAmount.mul(AMM_MANTISSA).div(new BN(Math.sqrt(pegMultiplier) * AMM_MANTISSA.toNumber()));
+		return assetAmount.mul(AMM_MANTISSA).div(pegMultiplier);
 	}
 
 	const solOraclePriceKey = new PublicKey(
@@ -75,8 +75,8 @@ module.exports = async function (provider: Provider) {
 	await clearingHouse.initializeMarket(
 		marketIndex,
 		solOraclePriceKey,
-		normAssetAmount(ammBaseAssetAmount, solPrice),
-		normAssetAmount(ammQuoteAssetAmount, solPrice),
+		normAssetAmount(ammBaseAssetAmount, pegMultiplierSOL),
+		normAssetAmount(ammQuoteAssetAmount, pegMultiplierSOL),
 		periodicity,
 		pegMultiplierSOL
 	);
@@ -96,8 +96,8 @@ module.exports = async function (provider: Provider) {
 	await clearingHouse.initializeMarket(
 		new BN(1),
 		btcOraclePriceKey,
-		normAssetAmount(ammBaseAssetAmount, btcPrice),
-		normAssetAmount(ammQuoteAssetAmount, btcPrice),
+		normAssetAmount(ammBaseAssetAmount, pegMultiplierBTC),
+		normAssetAmount(ammQuoteAssetAmount, pegMultiplierBTC),
 		periodicity,
 		pegMultiplierBTC
 	);
@@ -112,8 +112,8 @@ module.exports = async function (provider: Provider) {
 	await clearingHouse.initializeMarket(
 		new BN(2),
 		spyOraclePriceKey,
-		normAssetAmount(ammBaseAssetAmount, spyPrice),
-		normAssetAmount(ammQuoteAssetAmount, spyPrice),
+		normAssetAmount(ammBaseAssetAmount, pegMultiplierSPY),
+		normAssetAmount(ammQuoteAssetAmount, pegMultiplierSPY),
 		periodicity,
 		pegMultiplierSPY
 	);
