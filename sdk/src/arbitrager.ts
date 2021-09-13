@@ -38,8 +38,11 @@ export class Arbitrager {
 			const oraclePriceData = await this.pythClient.getPriceData(
 				market.amm.oracle
 			);
+			
+			const oraclePriceDataT = oraclePriceData.price;
+
 			const oraclePriceWithMantissa = new BN(
-				oraclePriceData.price * AMM_MANTISSA.toNumber()
+				oraclePriceDataT * AMM_MANTISSA.toNumber()
 			);
 
 			console.log(`Oracle price: ${oraclePriceData.price}`);
@@ -55,6 +58,18 @@ export class Arbitrager {
 				new BN(1000) //100% (given partial fills)
 			);
 
+			let oraclePriceWithMantissaWithBuffer: BN;
+			
+			if (direction == PositionDirection.LONG) {
+				oraclePriceWithMantissaWithBuffer = new BN(
+				oraclePriceDataT * (AMM_MANTISSA.toNumber() + AMM_MANTISSA.toNumber()/1000)
+				)
+			} else{
+				oraclePriceWithMantissaWithBuffer = new BN(
+					oraclePriceDataT * (AMM_MANTISSA.toNumber() - AMM_MANTISSA.toNumber()/1000)
+				)
+			}
+
 			if (amount.eq(ZERO)) {
 				continue;
 			}
@@ -63,7 +78,7 @@ export class Arbitrager {
 				direction,
 				marketIndex: marketIndexBN,
 				amount,
-				oraclePriceWithMantissa,
+				oraclePriceWithMantissa: oraclePriceWithMantissaWithBuffer,
 			});
 		}
 		return tradesToExecute;
