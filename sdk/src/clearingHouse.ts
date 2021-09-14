@@ -182,89 +182,84 @@ export class ClearingHouse {
 	}
 
 	public async subscribe(): Promise<boolean> {
-		try {
-			if (this.isSubscribed) {
-				return;
-			}
-
-			//return and set up subscriber for state data
-			const latestState =
-				(await this.program.state.fetch()) as ClearingHouseState;
-			this.state = latestState;
-			this.eventEmitter.emit('programStateUpdate', latestState);
-
-			this.program.state
-				.subscribe(this.opts.commitment)
-				.on('change', async (updateData) => {
-					this.state = updateData;
-
-					this.eventEmitter.emit('programStateUpdate', updateData);
-				});
-
-			console.log(`Subscribing to clearing house marketsAccount`);
-
-			//return and set up subscriber for markets data
-			const latestMarketsAccount =
-				(await this.program.account.marketsAccount.fetch(
-					this.state.marketsAccount
-				)) as ClearingHouseMarketsAccountData;
-			this.marketsAccount = latestMarketsAccount;
-
-			this.eventEmitter.emit('marketsAccountUpdate', latestMarketsAccount);
-
-			this.program.account.marketsAccount
-				.subscribe(this.state.marketsAccount, this.opts.commitment)
-				.on('change', async (updateData) => {
-					this.marketsAccount = updateData;
-
-					this.eventEmitter.emit('marketsAccountUpdate', updateData);
-				});
-
-			const latestFundingRateHistory =
-				(await this.program.account.fundingRateHistory.fetch(
-					this.state.fundingRateHistory
-				)) as FundingHistoryAccountData;
-			this.fundingRateHistory = latestFundingRateHistory;
-
-			this.eventEmitter.emit(
-				'fundingHistoryAccountUpdate',
-				latestFundingRateHistory
-			);
-
-			this.program.account.fundingRateHistory
-				.subscribe(this.state.fundingRateHistory, this.opts.commitment)
-				.on('change', async (updateData) => {
-					this.fundingRateHistory = updateData;
-
-					this.eventEmitter.emit('fundingHistoryAccountUpdate', updateData);
-				});
-
-			const lastTradeHistoryAccount =
-				(await this.program.account.tradeHistoryAccount.fetch(
-					this.state.tradeHistoryAccount
-				)) as TradeHistoryAccount;
-			this.tradeHistoryAccount = lastTradeHistoryAccount;
-
-			this.eventEmitter.emit(
-				'tradeHistoryAccountUpdate',
-				lastTradeHistoryAccount
-			);
-
-			this.program.account.tradeHistoryAccount
-				.subscribe(this.state.tradeHistoryAccount, this.opts.commitment)
-				.on('change', async (updateData) => {
-					this.tradeHistoryAccount = updateData;
-
-					this.eventEmitter.emit('tradeHistoryAccountUpdate', updateData);
-				});
-
-			this.isSubscribed = true;
-
-			return true;
-		} catch (error) {
-			console.error(`Caught error trying to subscribe to ClearingHouse`, error);
-			return false;
+		if (this.isSubscribed) {
+			return;
 		}
+
+		//return and set up subscriber for state data
+		const latestState =
+			(await this.program.state.fetch()) as ClearingHouseState;
+		this.state = latestState;
+		this.eventEmitter.emit('programStateUpdate', latestState);
+
+		this.program.state
+			.subscribe(this.opts.commitment)
+			.on('change', async (updateData) => {
+				this.state = updateData;
+
+				this.eventEmitter.emit('programStateUpdate', updateData);
+			});
+
+		console.log(`Subscribing to clearing house marketsAccount`);
+
+		//return and set up subscriber for markets data
+		const latestMarketsAccount =
+			(await this.program.account.marketsAccount.fetch(
+				this.state.marketsAccount
+			)) as ClearingHouseMarketsAccountData;
+		this.marketsAccount = latestMarketsAccount;
+
+		this.eventEmitter.emit('marketsAccountUpdate', latestMarketsAccount);
+
+		this.program.account.marketsAccount
+			.subscribe(this.state.marketsAccount, this.opts.commitment)
+			.on('change', async (updateData) => {
+				this.marketsAccount = updateData;
+
+				this.eventEmitter.emit('marketsAccountUpdate', updateData);
+			});
+
+		const latestFundingRateHistory =
+			(await this.program.account.fundingRateHistory.fetch(
+				this.state.fundingRateHistory
+			)) as FundingHistoryAccountData;
+		this.fundingRateHistory = latestFundingRateHistory;
+
+		this.eventEmitter.emit(
+			'fundingHistoryAccountUpdate',
+			latestFundingRateHistory
+		);
+
+		this.program.account.fundingRateHistory
+			.subscribe(this.state.fundingRateHistory, this.opts.commitment)
+			.on('change', async (updateData) => {
+				this.fundingRateHistory = updateData;
+
+				this.eventEmitter.emit('fundingHistoryAccountUpdate', updateData);
+			});
+
+		const lastTradeHistoryAccount =
+			(await this.program.account.tradeHistoryAccount.fetch(
+				this.state.tradeHistoryAccount
+			)) as TradeHistoryAccount;
+		this.tradeHistoryAccount = lastTradeHistoryAccount;
+
+		this.eventEmitter.emit(
+			'tradeHistoryAccountUpdate',
+			lastTradeHistoryAccount
+		);
+
+		this.program.account.tradeHistoryAccount
+			.subscribe(this.state.tradeHistoryAccount, this.opts.commitment)
+			.on('change', async (updateData) => {
+				this.tradeHistoryAccount = updateData;
+
+				this.eventEmitter.emit('tradeHistoryAccountUpdate', updateData);
+			});
+
+		this.isSubscribed = true;
+
+		return true;
 	}
 
 	public async unsubscribe(): Promise<void> {
