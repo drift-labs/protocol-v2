@@ -285,6 +285,20 @@ export class ClearingHouse {
 		}
 	}
 
+	public updateWallet(newWallet: IWallet): void {
+		
+		const newProvider = new Provider(this.connection, newWallet, this.opts);
+		const newProgram = new Program(
+			clearingHouseIDL as Idl,
+			this.program.programId,
+			newProvider
+		);
+
+		this.wallet = newWallet;
+		this.provider = newProvider;
+		this.program = newProgram;
+	}
+
 	public getState(): ClearingHouseState {
 		this.assertIsSubscribed();
 		return this.state;

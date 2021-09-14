@@ -122,12 +122,16 @@ export class UserAccount {
 	}
 
 	public async unsubscribe() {
-		this.clearingHouse.program.account.userAccount.unsubscribe(
-			await this.getPublicKey()
-		);
-		this.clearingHouse.program.account.userPositionsAccount.unsubscribe(
-			this.userAccountData.positions
-		);
+		this.clearingHouse
+			.getUserAccountClient()
+			.unsubscribe(await this.getPublicKey());
+		
+		this.clearingHouse
+		.getPositionsAccountClient()
+		.unsubscribe(this.userAccountData.positions);
+
+		this.clearingHouse.unsubscribe();
+
 		this.isSubscribed = false;
 	}
 

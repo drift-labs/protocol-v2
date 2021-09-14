@@ -63,11 +63,11 @@ export class Arbitrager {
 			if (direction == PositionDirection.LONG) {
 				oraclePriceWithMantissaWithBuffer = new BN(
 				oraclePriceDataT * (AMM_MANTISSA.toNumber() + AMM_MANTISSA.toNumber()/1000)
-				)
+				);
 			} else{
 				oraclePriceWithMantissaWithBuffer = new BN(
 					oraclePriceDataT * (AMM_MANTISSA.toNumber() - AMM_MANTISSA.toNumber()/1000)
-				)
+				);
 			}
 
 			if (amount.eq(ZERO)) {
