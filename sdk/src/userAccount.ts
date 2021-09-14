@@ -306,7 +306,7 @@ export class UserAccount {
 			liqRatio = PARTIAL_LIQUIDATION_RATIO;
 		}
 
-		console.log(liqRatio.toNumber(), marginRatio.toNumber());
+		// console.log(liqRatio.toNumber(), marginRatio.toNumber());
 		let pctChange = marginRatio.abs().sub(liqRatio);
 		const baseAssetSign = marketPosition.baseAssetAmount; //todo
 
@@ -323,14 +323,14 @@ export class UserAccount {
 
 		const liqPrice = currentPrice.mul(pctChange).div(TEN_THOUSAND);
 		try {
-			console.log(
-				' currentPrice:',
-				currentPrice.toNumber(),
-				'\n pctChange:',
-				pctChange.toNumber(),
-				'\n liqPrice:',
-				liqPrice.toNumber()
-			);
+			// console.log(
+			// 	' currentPrice:',
+			// 	currentPrice.toNumber(),
+			// 	'\n pctChange:',
+			// 	pctChange.toNumber(),
+			// 	'\n liqPrice:',
+			// 	liqPrice.toNumber()
+			// );
 		} catch (err) {
 			// # this code block same behavior as
 			if (err instanceof TypeError) {

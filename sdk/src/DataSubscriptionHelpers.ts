@@ -41,9 +41,7 @@ export const getNewTrades = (
 
 	const tradesToProcess = Math.abs(tradingHistoryHead - currentHead);
 	
-	if (tradesToProcess > 0) {
-		console.log(`${tradesToProcess} trades to process`);
-	} else {
+	if (tradesToProcess <= 0) {
 		return {
 			newTrades:[],
 			newHead: tradingHistoryHead
