@@ -33,8 +33,6 @@ export class Arbitrager {
 			}
 			const marketIndexBN = new BN(marketIndex);
 
-			console.log(`Trying to arbitrage market: ${marketIndex}`);
-
 			const oraclePriceData = await this.pythClient.getPriceData(
 				market.amm.oracle
 			);
@@ -43,13 +41,6 @@ export class Arbitrager {
 
 			const oraclePriceWithMantissa = new BN(
 				oraclePriceDataT * AMM_MANTISSA.toNumber()
-			);
-
-			console.log(`Oracle price: ${oraclePriceData.price}`);
-			console.log(
-				`Mark price: ${this.clearingHouse.calculateBaseAssetPriceAsNumber(
-					marketIndexBN
-				)}`
 			);
 
 			const [direction, amount] = this.clearingHouse.calculateTargetPriceTrade(

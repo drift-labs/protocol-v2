@@ -200,8 +200,6 @@ export class ClearingHouse {
 				this.eventEmitter.emit('programStateUpdate', updateData);
 			});
 
-		console.log(`Subscribing to clearing house marketsAccount`);
-
 		//return and set up subscriber for markets data
 		const latestMarketsAccount =
 			(await this.program.account.marketsAccount.fetch(
@@ -688,13 +686,6 @@ export class ClearingHouse {
 			targetPrice
 		);
 
-		console.log(
-			'direction',
-			direction,
-
-			'tradeSizeInternal',
-			tradeSize.toNumber()
-		);
 		const [newQuoteAssetAmount, newBaseAssetAmount] = this.findSwapOutput(
 			market.amm.quoteAssetAmount,
 			market.amm.baseAssetAmount,
@@ -1008,19 +999,7 @@ export class ClearingHouse {
 		}
 
 		if (oldPrice == newPrice) {
-			const usdcScale = 10 ** -6;
-			const minTickSize =
-				usdcScale *
-				(market.amm.pegMultiplier.toNumber() / AMM_MANTISSA.toNumber());
-
-			console.log(
-				'amount:',
-				amount.toNumber() * usdcScale,
-				'minTickSize:',
-				minTickSize
-			);
-
-			assert(!oldPrice.eq(newPrice), 'insufficient `amount` passed:');
+			throw new Error('insufficient `amount` passed:');
 		}
 
 		let slippage;
@@ -1120,7 +1099,6 @@ export class ClearingHouse {
 		// set a pct optional default is 100% gap filling, can set smaller.
 		this.assertIsSubscribed();
 		const market = this.getMarketsAccount().markets[marketIndex.toNumber()];
-		console.log(market.amm.baseAssetAmount, market.amm.quoteAssetAmount);
 		assert(market.amm.baseAssetAmount.gt(ZERO));
 		assert(targetPrice.gt(ZERO));
 		assert(pct.lte(MAXPCT) && pct.gt(ZERO));

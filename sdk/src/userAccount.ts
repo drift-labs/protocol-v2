@@ -29,7 +29,6 @@ export class UserAccount {
 	subscriber?: UserAccountSubscriber = null;
 
 	public constructor(clearingHouse: ClearingHouse, userPublicKey: PublicKey) {
-		console.log(`Constructing User Account Instance`);
 		this.clearingHouse = clearingHouse;
 		this.userPublicKey = userPublicKey;
 	}
@@ -212,7 +211,6 @@ export class UserAccount {
 	public getPositionEstimatedExitPriceWithMantissa(position: UserPosition): BN {
 		const baseAssetValue = this.clearingHouse.calculateBaseAssetValue(position);
 		if (position.baseAssetAmount.eq(ZERO)) {
-			console.log('zero position:', position);
 			return ZERO;
 		}
 		return baseAssetValue.mul(AMM_MANTISSA).div(position.baseAssetAmount.abs());
