@@ -52,7 +52,7 @@ export const getNewTrades = (
 
 	const newTrades: { trade: Trade; userAccount: PublicKey }[] = [];
 
-	let newHead = currentHead + 1;
+	let newHead = currentHead;
 
 	while (newHead != tradingHistoryHead) {
 		const tradeRecord = tradeHistory.tradeRecords[newHead];
