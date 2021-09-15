@@ -25,18 +25,21 @@ describe('AMM Curve', () => {
 		chProgram.programId
 	);
 
-	const ammInitialQuoteAssetAmount = new anchor.BN(1 * 10 ** 11);
-	const ammInitialBaseAssetAmount = new anchor.BN(1 * 10 ** 11);
+	const ammInitialQuoteAssetAmount = new anchor.BN(2 * 10 ** 13);
+	const ammInitialBaseAssetAmount = new anchor.BN(2 * 10 ** 13);
 
 	let usdcMint: Keypair;
 	let userUSDCAccount: Keypair;
 
 	let solUsdOracle;
 	const marketIndex = new BN(0);
-	const initialSOLPrice = 180;
-
+	const initialSOLPrice = 46000;
+	function normAssetAmount(assetAmount: BN, pegMultiplier: number) : BN{
+		// assetAmount is scaled to offer comparable slippage
+		return assetAmount.mul(AMM_MANTISSA).div(new BN((pegMultiplier) * AMM_MANTISSA.toNumber()));
+	}
 	const usdcAmount = new BN(10000 * 10 ** 6);
-	const solPositionInitialValue = usdcAmount.div(new BN(10));
+	const solPositionInitialValue = usdcAmount;
 
 	let userAccount: UserAccount;
 
@@ -56,12 +59,11 @@ describe('AMM Curve', () => {
 		await clearingHouse.initializeMarket(
 			marketIndex,
 			solUsdOracle,
-			ammInitialBaseAssetAmount,
-			ammInitialQuoteAssetAmount,
+			normAssetAmount(ammInitialBaseAssetAmount, initialSOLPrice),
+			normAssetAmount(ammInitialQuoteAssetAmount, initialSOLPrice),
 			periodicity,
 			AMM_MANTISSA.mul(new BN(initialSOLPrice))
 		);
-
 		await clearingHouse.initializeUserAccount();
 		userAccount = new UserAccount(clearingHouse, provider.wallet.publicKey);
 		await userAccount.subscribe();

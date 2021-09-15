@@ -7,7 +7,7 @@ import { getTokenAccount } from '@project-serum/common';
 
 import { PublicKey } from '@solana/web3.js';
 
-import { ClearingHouse, Network, PositionDirection } from '../sdk/src';
+import { ClearingHouse, Network, PositionDirection} from '../sdk/src';
 
 import Markets from '../sdk/src/constants/markets';
 
@@ -582,8 +582,8 @@ describe('clearing_house', () => {
 			userUSDCAccount.publicKey
 		);
 
-		assert.ok(chInsuranceAccountToken.amount.eq(new BN(799266)));
-		assert.ok(userUSDCTokenAccount.amount.eq(new BN(799266)));
+		assert.ok(chInsuranceAccountToken.amount.eq(new BN(1518606)));
+		assert.ok(userUSDCTokenAccount.amount.eq(new BN(79926)));
 	});
 
 	it('Pay from insurance fund', async () => {
@@ -593,6 +593,16 @@ describe('clearing_house', () => {
 			provider,
 			userUSDCAccount.publicKey
 		);
+		console.log(userUSDCTokenAccount.amount);
+		await mintToInsuranceFund(userUSDCAccount, usdcMint, usdcAmount, provider);
+
+		userUSDCTokenAccount = await getTokenAccount(
+			provider,
+			userUSDCAccount.publicKey
+		);
+
+
+		console.log(userUSDCTokenAccount.amount);
 
 		const initialUserUSDCAmount = userUSDCTokenAccount.amount;
 
@@ -650,5 +660,4 @@ describe('clearing_house', () => {
 		);
 		assert(chInsuranceAccountToken.amount.eq(new BN(0)));
 	});
-
 });

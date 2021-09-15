@@ -958,11 +958,14 @@ export class ClearingHouse {
 			| 'pctMax'
 			| 'quoteAssetAmount'
 			| 'quoteAssetAmountPeg'
+			| 'acquiredBaseAssetAmount'
+			| 'acquiredQuoteAssetAmount'
+
 	) {
 		this.assertIsSubscribed();
 
 		if (amount.eq(new BN(0))) {
-			return 0;
+			return new BN(0);
 		}
 		const market = this.getMarketsAccount().markets[marketIndex.toNumber()];
 		const oldPrice = this.calculateBaseAssetPriceWithMantissa(marketIndex);
@@ -976,13 +979,23 @@ export class ClearingHouse {
 			market.amm.k,
 			market.amm.pegMultiplier
 		);
+		
+		if(unit == 'acquiredBaseAssetAmount'){
+			return market.amm.baseAssetAmount.sub(newBaseAssetAmount);
+		}
+		if(unit == 'acquiredQuoteAssetAmount'){
+			return market.amm.quoteAssetAmount.sub(newQuoteAssetAmount);
+		}
+
 		const entryPrice = this.calculateCurvePriceWithMantissa(
 			market.amm.baseAssetAmount.sub(newBaseAssetAmount),
 			market.amm.quoteAssetAmount.sub(newQuoteAssetAmount),
 			market.amm.pegMultiplier
 		).mul(new BN(-1));
 
-		assert(entryPrice.gt(new BN(0)));
+		if(entryPrice.eq(new BN(0))){
+			return new BN(0);
+		}
 
 		if (unit == 'entryPrice') {
 			return entryPrice;

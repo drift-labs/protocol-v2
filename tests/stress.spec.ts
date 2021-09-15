@@ -52,21 +52,21 @@ describe('stress-test', () => {
 	// });
 
 	it('test-repeg-peg=150', async () => {
-		const pegM = new BN(150).mul(AMM_MANTISSA);
+		const pegM = new BN(3).mul(AMM_MANTISSA);
 		await stress_test(
 			clearingHouse,
 			usdcMint,
 			provider,
 			1,
-			1000,
-			10000 * 10 ** 6,
+			50,
+			10000 * 10 ** 11,
 			10 ** (18 + 6),
-			'utils/configs/slipfee.test.csv',
-			// undefined,
+			// 'utils/configs/slipfee.test.csv',
+			undefined,
 			[pegM, pegM],
 			undefined,
 			undefined,
-			'sim-slipfee-test'
+			'sim-slipfee-rand-test'
 		);
 	});
 

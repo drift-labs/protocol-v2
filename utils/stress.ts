@@ -152,7 +152,7 @@ export async function stress_test(
 					userAccountInfos[user_i].getFreeCollateral()
 				);
 
-				if (rand_amt.abs().gt(new BN(10000))) {
+				if (rand_amt.abs().lt(new BN(10000))) {
 					rand_e = 'move';
 					rand_amt = new BN(oracleData.price * AMM_MANTISSA.toNumber());
 				} else if (randEType == PositionDirection.LONG) {
@@ -280,7 +280,7 @@ export async function stress_test(
 		// const userSummary2 = await user_act_info_e.summary('avg');
 		const userSummary3 = await user_act_info_e.summary('last');
 
-		const xeq_scaled = ammData.pegMultiplier.div(AMM_MANTISSA);
+		const xeq_scaled = ammData.pegMultiplier.toNumber()/(AMM_MANTISSA.toNumber());
 		const state_i = {
 			market_index: market_i,
 
@@ -293,20 +293,20 @@ export async function stress_test(
 
 			user_i: user_i,
 			user_i_collateral: user.collateral,
-			user_i_cumfee: user.totalPotentialFee,
+			user_i_cumfee: user.totalPotentialFee.toNumber()/AMM_MANTISSA.toNumber(),
 
 			oracle_px: oracleData.price,
 
 			mark_1: ast_px,
 			mark_peg: xeq_scaled,
-			mark_px: ast_px * xeq_scaled.toNumber(),
+			mark_px: ast_px * xeq_scaled,
 			mark_twap: ammData.markTwap,
 			mark_twap_ts: ammData.markTwapTs,
 			funding_rate: ammData.fundingRate,
 			funding_rate_ts: ammData.fundingRateTs,
 
-			cumSlippage: ammData.cumSlippage,
-			cumSlippageProfit: ammData.cumSlippageProfit,
+			cumSlippage: ammData.cumSlippage.toNumber()/AMM_MANTISSA.toNumber(),
+			cumSlippageProfit: ammData.cumSlippageProfit.toNumber()/AMM_MANTISSA.toNumber(),
 
 			// repeg_pnl_pct: (
 			// 	ammData.xcpr.div(ammData.xcp.div(new BN(1000))).toNumber() * 1000
@@ -326,7 +326,7 @@ export async function stress_test(
 
 		const dogMoneyData = await getFeedData(anchor.workspace.Pyth, dogMoney);
 
-		setFeedPrice(anchor.workspace.Pyth, dogMoneyData.price * 1.002, dogMoney);
+		setFeedPrice(anchor.workspace.Pyth, dogMoneyData.price * .99, dogMoney);
 		if (solUsdTimeline.length) {
 			setFeedPrice(anchor.workspace.Pyth, solUsdTimeline[i + 1].close, solUsd);
 		}

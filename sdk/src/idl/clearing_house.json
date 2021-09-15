@@ -1134,6 +1134,10 @@
           {
             "name": "lastCumRepegProfit",
             "type": "u128"
+          },
+          {
+            "name": "lastFundingTs",
+            "type": "i64"
           }
         ]
       }

@@ -304,7 +304,6 @@ export class UserAccount {
 			liqRatio = PARTIAL_LIQUIDATION_RATIO;
 		}
 
-		// console.log(liqRatio.toNumber(), marginRatio.toNumber());
 		let pctChange = marginRatio.abs().sub(liqRatio);
 		const baseAssetSign = marketPosition.baseAssetAmount; //todo
 

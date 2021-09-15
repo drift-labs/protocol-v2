@@ -400,6 +400,7 @@ pub mod clearing_house {
                     quote_asset_notional_amount: 0,
                     last_cum_funding: 0,
                     last_cum_repeg_profit: 0,
+                    last_funding_ts: 0,
                 };
 
                 user_positions_account.positions[available_position_index.unwrap()] =
@@ -468,9 +469,7 @@ pub mod clearing_house {
                             .checked_sub(base_asset_value)
                             .unwrap();
 
-                    if incremental_quote_asset_notional_amount_resid
-                        < market_position.quote_asset_notional_amount
-                    {
+                    if incremental_quote_asset_notional_amount_resid < base_asset_value {
                         potentially_risk_increasing = false; //todo
                     }
 
@@ -713,8 +712,13 @@ pub mod clearing_house {
             user_account.collateral = 0;
             user_account.total_potential_fee = 0;
 
-            let split_withdrawal_amount = withdrawal_amount.checked_div(2).unwrap();
-            if split_withdrawal_amount > 0 {
+            // 5% for liquidator, 95% for insurance fund
+            let liquidator_cut_amount = withdrawal_amount.checked_div(20).unwrap();
+            let insurance_fund_cut_amount = withdrawal_amount
+                .checked_sub(liquidator_cut_amount)
+                .unwrap();
+
+            if liquidator_cut_amount > 0 {
                 let signature_seeds = [
                     self.collateral_account.as_ref(),
                     bytemuck::bytes_of(&self.collateral_account_nonce),
@@ -735,8 +739,10 @@ pub mod clearing_house {
                 };
                 let cpi_program = ctx.accounts.token_program.clone();
                 let cpi_context = CpiContext::new_with_signer(cpi_program, cpi_accounts, signers);
-                token::transfer(cpi_context, split_withdrawal_amount).unwrap();
+                token::transfer(cpi_context, liquidator_cut_amount).unwrap();
+            }
 
+            if insurance_fund_cut_amount > 0 {
                 let signature_seeds = [
                     self.collateral_account.as_ref(),
                     bytemuck::bytes_of(&self.collateral_account_nonce),
@@ -761,7 +767,7 @@ pub mod clearing_house {
                 };
                 let cpi_program = ctx.accounts.token_program.clone();
                 let cpi_context = CpiContext::new_with_signer(cpi_program, cpi_accounts, signers);
-                token::transfer(cpi_context, split_withdrawal_amount).unwrap();
+                token::transfer(cpi_context, insurance_fund_cut_amount).unwrap();
             }
             // todo: still need to reward liquidator a tiny amount
 
@@ -869,75 +875,121 @@ pub mod clearing_house {
                 new_peg_candidate = amm.find_valid_repeg(oracle_px, oracle_conf);
 
                 if new_peg_candidate == amm.peg_multiplier {
-                    msg!("InvalidRepegRedundant");
+                    msg!("InvalidRepegRedundant {:?}", oracle_conf);
                     return Err(ErrorCode::InvalidRepegRedundant.into());
                 }
             }
+            msg!(
+                "new peg {:?}, old peg {:?}",
+                new_peg_candidate,
+                amm.peg_multiplier
+            );
 
             let price_spread_0 = (cur_peg as i128).checked_sub(oracle_px).unwrap();
             let price_spread_1 = (new_peg_candidate as i128).checked_sub(oracle_px).unwrap();
 
-            // if price_spread_1.abs() > price_spread_0.abs() {
-            //     // decrease
-            //     return Err(ErrorCode::InvalidRepegDirection.into());
-            // }
+            if price_spread_1.abs() > price_spread_0.abs() {
+                // decrease
+                return Err(ErrorCode::InvalidRepegDirection.into());
+            }
 
             let mut pnl_r = amm.cum_slippage_profit;
             //todo: replace with Market.base_asset_amount
             let base_asset_amount_i = amm.base_asset_amount_i as i128;
-            let market_position = base_asset_amount_i
+            let net_market_position = base_asset_amount_i
                 .checked_sub(amm.base_asset_amount as i128)
                 .unwrap();
 
             let mut pnl: i128 = 0;
             if new_peg_candidate > cur_peg {
-                pnl = (new_peg_candidate.checked_sub(cur_peg).unwrap() as i128)
-                    .checked_mul(market_position)
+                pnl = -(new_peg_candidate.checked_sub(cur_peg).unwrap() as i128)
+                    .checked_mul(net_market_position)
+                    .unwrap()
+                    .checked_mul(amm.base_asset_price_with_mantissa() as i128)
+                    .unwrap()
+                    .checked_div(MANTISSA as i128)
+                    .unwrap()
+                    .checked_div(MANTISSA as i128)
                     .unwrap();
             } else {
                 pnl = (cur_peg.checked_sub(new_peg_candidate).unwrap() as i128)
-                    .checked_mul(market_position)
+                    .checked_mul(net_market_position)
+                    .unwrap()
+                    .checked_mul(amm.base_asset_price_with_mantissa() as i128)
+                    .unwrap()
+                    .checked_div(MANTISSA as i128)
+                    .unwrap()
+                    .checked_div(MANTISSA as i128)
                     .unwrap();
             }
 
-            if pnl > 0 {
-                pnl_r = pnl_r.checked_add(pnl.abs() as u128).unwrap();
+            if net_market_position != 0 && pnl == 0 {
+                msg!("Too Small of Repeg");
+                return Err(ErrorCode::InvalidRepegProfitability.into());
+            }
+
+            if pnl >= 0 {
+                pnl_r = pnl_r.checked_add(pnl.unsigned_abs()).unwrap();
             } else if pnl.abs() as u128 > pnl_r {
+                msg!(
+                    "pnl_r: {:?}, pnl: {:?}, nmp: {:?}",
+                    pnl_r,
+                    pnl,
+                    net_market_position
+                );
+
                 msg!("InvalidRepegProfitability");
                 return Err(ErrorCode::InvalidRepegProfitability.into());
             } else {
                 pnl_r = (pnl_r).checked_sub(pnl.unsigned_abs()).unwrap();
-
-                // profit sharing with only those who held the rewarded position before repeg
-                if new_peg_candidate > amm.peg_multiplier {
-                    let repeg_profit_per_unit = pnl
-                        .unsigned_abs()
-                        .checked_div(market.base_asset_amount_short.unsigned_abs())
-                        .unwrap();
-                    amm.cum_short_repeg_profit = amm
-                        .cum_short_repeg_profit
-                        .checked_add(repeg_profit_per_unit)
-                        .unwrap();
-                } else {
-                    let repeg_profit_per_unit = pnl
-                        .unsigned_abs()
-                        .checked_div(market.base_asset_amount_long.unsigned_abs())
-                        .unwrap();
-                    amm.cum_long_repeg_profit = amm
-                        .cum_long_repeg_profit
-                        .checked_add(repeg_profit_per_unit)
-                        .unwrap();
-                }
-
                 if pnl_r < amm.cum_slippage.checked_div(2).unwrap() {
                     msg!("InvalidRepegProfitability2");
                     return Err(ErrorCode::InvalidRepegProfitability.into());
                 }
+
+                // profit sharing with only those who held the rewarded position before repeg
+                if new_peg_candidate < amm.peg_multiplier {
+                    if market.base_asset_amount_short.unsigned_abs() > 0 {
+                        let repeg_profit_per_unit = pnl
+                            .unsigned_abs()
+                            .checked_mul(FUNDING_MANTISSA)
+                            .unwrap()
+                            .checked_div(market.base_asset_amount_short.unsigned_abs())
+                            .unwrap();
+                        assert_ne!(repeg_profit_per_unit, 0);
+                        amm.cum_short_repeg_profit = amm
+                            .cum_short_repeg_profit
+                            .checked_add(repeg_profit_per_unit)
+                            .unwrap();
+                    }
+                } else {
+                    if market.base_asset_amount_long.unsigned_abs() > 0 {
+                        let repeg_profit_per_unit = pnl
+                            .unsigned_abs()
+                            .checked_mul(FUNDING_MANTISSA)
+                            .unwrap()
+                            .checked_div(market.base_asset_amount_long.unsigned_abs())
+                            .unwrap();
+                        assert_ne!(repeg_profit_per_unit, 0);
+
+                        amm.cum_long_repeg_profit = amm
+                            .cum_long_repeg_profit
+                            .checked_add(repeg_profit_per_unit)
+                            .unwrap();
+                    }
+                }
+
+                amm.move_to_price(current_mark);
             }
 
             amm.cum_slippage_profit = pnl_r;
             amm.peg_multiplier = new_peg_candidate;
-            amm.move_to_price(current_mark);
+            msg!(
+                "pnl_r: {:?}, pnl: {:?}, nmp: {:?}",
+                pnl_r,
+                pnl,
+                net_market_position
+            );
 
             Ok(())
         }
@@ -1439,80 +1491,33 @@ impl AMM {
         direction: SwapDirection,
         now: i64,
     ) -> (i128, i128, bool) {
-        // fee inspired by https://curve.fi/files/crypto-pools-paper.pdf
-
         let unpegged_quote_asset_amount = quote_asset_swap_amount
             .checked_mul(MANTISSA)
             .unwrap()
             .checked_div(self.peg_multiplier)
             .unwrap();
-        assert_ne!(unpegged_quote_asset_amount, 0);
-
-        let initial_base_asset_amount = self.base_asset_amount;
-        let (new_base_asset_amount, new_quote_asset_amount) = AMM::find_swap_output(
-            unpegged_quote_asset_amount,
-            self.quote_asset_amount,
-            direction,
-            self.k,
-        );
 
         let thousand: u128 = 1000;
+        let hundred_thousand: u128 = 100000;
 
-        let lambda_fee: u128 = 1;
-        let cp_prod = new_base_asset_amount
-            .checked_mul(new_quote_asset_amount)
-            .unwrap();
-        let cs_sum = new_base_asset_amount
-            .checked_add(new_quote_asset_amount)
-            .unwrap();
-        let g_fee_denom_1 = cp_prod
-            .checked_mul(thousand)
-            .unwrap()
-            .checked_div(cs_sum.checked_div(2).unwrap().checked_pow(2).unwrap())
-            .unwrap();
-
-        let g_fee_denom = lambda_fee
-            .checked_add(thousand.checked_sub(g_fee_denom_1).unwrap())
-            .unwrap();
-        let g_fee = lambda_fee
-            .checked_mul(thousand)
-            .unwrap()
-            .checked_div(g_fee_denom)
-            .unwrap();
-
-        let g_fee_recip = thousand.checked_sub(g_fee).unwrap();
-
-        let f_mid: u128 = 50; // .5 bps, .005%
-        let f_out: u128 = 200; // 20 bps, .2%
-        let f = f_mid
-            .checked_mul(g_fee)
-            .unwrap()
-            .checked_add(f_out.checked_mul(g_fee_recip).unwrap())
-            .unwrap();
+        let fixed_fee = 500; // 5 bps, .05% fee
         let fee = quote_asset_swap_amount
-            .checked_mul(f)
+            .checked_mul(fixed_fee)
             .unwrap()
             .checked_div(thousand)
-            .unwrap();
-
-        //todo, change and pass spec test
-        let quote_asset_swap_amount_fee = 0;
-        // let quote_asset_swap_amount_fee = fee.checked_div(MANTISSA).unwrap();
-        let quote_asset_swap_amount_less_fee = quote_asset_swap_amount
-            .checked_sub(quote_asset_swap_amount_fee)
+            .unwrap()
+            .checked_div(hundred_thousand)
             .unwrap();
 
         let (acquired_base_asset_amount, trade_size_too_small) =
-            self.swap_quote_asset(quote_asset_swap_amount_less_fee, direction, now);
+            self.swap_quote_asset(quote_asset_swap_amount, direction, now);
 
         self.cum_slippage = self.cum_slippage.checked_add(fee).unwrap();
         self.cum_slippage_profit = self.cum_slippage_profit.checked_add(fee).unwrap();
 
-        let fee_unpaid = fee.checked_sub(quote_asset_swap_amount_fee).unwrap();
-
         return (
             acquired_base_asset_amount,
-            fee_unpaid as i128,
+            fee as i128,
             trade_size_too_small,
         );
     }
@@ -1586,11 +1591,12 @@ impl AMM {
             direction,
             self.k,
         );
-        self.mark_twap = self.get_new_twap(now);
-        self.mark_twap_ts = now;
 
         self.base_asset_amount = new_base_asset_amount;
         self.quote_asset_amount = new_quote_asset_amount;
+
+        self.mark_twap = self.get_new_twap(now);
+        self.mark_twap_ts = now;
     }
 
     fn find_swap_output(
@@ -1660,50 +1666,6 @@ impl AMM {
     }
 
     pub fn get_switchboard_price(&self, price_oracle: &AccountInfo, window: u32) -> (i128, u128) {
-        // todo: switchboard roadmap for twap
-        // assert_eq!(window, 0);
-
-        // let switchboard_feed_account = price_oracle;
-        // // use switchboard_program::{
-        // //     get_aggregator, get_aggregator_result, AggregatorState, FastRoundResultAccountData,
-        // //     RoundResult, SwitchboardAccountType,
-        // // };
-
-        // let mut out = 0.0;
-        // let account_buf = switchboard_feed_account.try_borrow_data().unwrap();
-        // if account_buf.len() == 0 {
-        //     msg!("The provided account is empty.");
-        //     // return Err(ErrorCode::InvalidOracle.into());
-        // }
-        // if account_buf[0] == switchboard_program::SwitchboardAccountType::TYPE_AGGREGATOR as u8 {
-        //     let aggregator: switchboard_program::AggregatorState =
-        //         switchboard_program::get_aggregator(switchboard_feed_account)
-        //             .map_err(|e| {
-        //                 msg!("Aggregator parse failed. Please double check the provided address.");
-        //                 return e;
-        //             })
-        //             .unwrap();
-        //     let round_result: switchboard_program::RoundResult = switchboard_program::get_aggregator_result(&aggregator)
-        //         .map_err(|e| {
-        //             msg!("Failed to parse an aggregator round. Has update been called on the aggregator?");
-        //             return e;
-        //         }).unwrap();
-        //     out = round_result.result.unwrap_or(0.0);
-        //     // out = feed_data.result;
-        // } else if account_buf[0]
-        //     == switchboard_program::SwitchboardAccountType::TYPE_AGGREGATOR_RESULT_PARSE_OPTIMIZED
-        //         as u8
-        // {
-        //     let feed_data =
-        //         switchboard_program::FastRoundResultAccountData::deserialize(&account_buf).unwrap();
-        //     out = feed_data.result.result;
-        //     // out = feed_data.result;
-        // } else {
-        //     // return Err(ErrorCode::InvalidOracle.into());
-        // }
-        // // msg!("Current feed result is {}!", &lexical::to_string(out));
-
-        // return out as i128;
         return (0, 0);
     }
 
@@ -1877,28 +1839,6 @@ impl AMM {
         self.k = base_asset_amount.checked_mul(quote_asset_amount).unwrap();
     }
 
-    pub fn calc_target_price_trade_vector(&mut self, target_price: u128) -> i128 {
-        // positive => LONG magnitude
-        // negative => SHORT magnitude
-        let new_base_asset_amount_squared = self
-            .k
-            .checked_div(target_price)
-            .unwrap()
-            .checked_mul(self.peg_multiplier)
-            .unwrap();
-
-        let new_base_asset_amount = new_base_asset_amount_squared.integer_sqrt();
-        let new_quote_asset_amount = self.k.checked_div(new_base_asset_amount).unwrap();
-
-        return (new_quote_asset_amount as i128)
-            .checked_sub(self.quote_asset_amount as i128)
-            .unwrap()
-            .checked_mul(self.peg_multiplier as i128)
-            .unwrap()
-            .checked_div(MANTISSA as i128)
-            .unwrap();
-    }
-
     pub fn move_to_price(&mut self, target_price: u128) {
         let new_base_asset_amount_squared = self
             .k
@@ -1915,63 +1855,67 @@ impl AMM {
     }
 
     pub fn find_valid_repeg(&mut self, oracle_px: i128, oracle_conf: u128) -> u128 {
-        // amm.oracle
-
-        let x_eq_0 = self.peg_multiplier;
-        let peg_spread_0 = (x_eq_0 as i128).checked_sub(oracle_px).unwrap();
+        let peg_spread_0 = (self.peg_multiplier as i128)
+            .checked_sub(oracle_px)
+            .unwrap();
 
         if peg_spread_0.unsigned_abs().lt(&oracle_conf) {
-            return x_eq_0;
+            return self.peg_multiplier;
         }
 
         let mut i = 1; // max move is half way to oracle
-        let mut x_eq = x_eq_0;
+        let mut new_peg_candidate = self.peg_multiplier;
 
-        while i < 1000 {
+        while i < 20 {
             let base: i128 = 2;
-            let step = base.pow(i);
-            let redux = peg_spread_0.checked_div(step).unwrap();
+            let step_fraction_size = base.pow(i);
+            let step = peg_spread_0.checked_div(step_fraction_size).unwrap();
 
             if peg_spread_0 < 0 {
-                x_eq = x_eq_0.checked_add(redux.abs() as u128).unwrap();
+                new_peg_candidate = self.peg_multiplier.checked_add(step.abs() as u128).unwrap();
             } else {
-                x_eq = x_eq_0.checked_sub(redux.abs() as u128).unwrap();
+                new_peg_candidate = self.peg_multiplier.checked_sub(step.abs() as u128).unwrap();
             }
 
-            let peg_spread_1 = (x_eq as i128).checked_sub(oracle_px).unwrap();
+            let peg_spread_1 = (new_peg_candidate as i128).checked_sub(oracle_px).unwrap();
 
-            let mut pnl_r = self.cum_slippage_profit;
-            //todo: replace with Market.base_asset_amount
-            let base_asset_amount_i = self.base_asset_amount_i as i128;
-            let market_position = base_asset_amount_i
+            let market_position = (self.base_asset_amount_i as i128)
                 .checked_sub(self.base_asset_amount as i128)
                 .unwrap();
 
-            let mut pnl = 0;
-            if x_eq > x_eq_0 {
-                let pnl = (x_eq.checked_sub(x_eq_0).unwrap() as i128)
-                    .checked_mul(market_position)
-                    .unwrap();
-            } else {
-                let pnl = (x_eq_0.checked_sub(x_eq).unwrap() as i128)
-                    .checked_mul(market_position)
-                    .unwrap();
-            }
+            let pnl = (new_peg_candidate as i128)
+                .checked_sub(self.peg_multiplier as i128)
+                .unwrap()
+                .checked_mul(market_position)
+                .unwrap()
+                .checked_mul(self.base_asset_price_with_mantissa() as i128)
+                .unwrap()
+                .checked_div(MANTISSA as i128)
+                .unwrap()
+                .checked_div(MANTISSA as i128)
+                .unwrap();
 
-            if pnl > 0 {
-                pnl_r = pnl_r.checked_add(pnl).unwrap();
-            } else {
-                pnl_r = pnl_r.checked_sub(pnl).unwrap();
-            }
+            let cum_pnl_profit = (self.cum_slippage_profit as i128).checked_sub(pnl).unwrap();
 
-            if pnl_r >= self.cum_slippage.checked_div(2).unwrap() {
+            if cum_pnl_profit >= self.cum_slippage.checked_div(2).unwrap() as i128 {
+                msg!(
+                    "pnl_r: {:?}, pnl: {:?}, nmp: {:?}",
+                    cum_pnl_profit,
+                    pnl,
+                    market_position
+                );
+                msg!(
+                    "{:?}, {:?}",
+                    cum_pnl_profit,
+                    self.cum_slippage.checked_div(2).unwrap()
+                );
                 break;
             }
 
             i = i + 1;
         }
 
-        return x_eq;
+        return new_peg_candidate;
     }
 }
 
@@ -2023,6 +1967,7 @@ pub struct MarketPosition {
     pub quote_asset_notional_amount: u128,
     pub last_cum_funding: i128,
     pub last_cum_repeg_profit: u128,
+    pub last_funding_ts: i64,
 }
 
 #[error]
@@ -2219,6 +2164,8 @@ fn reduce_position<'info>(
     let (base_asset_value_after, pnl_after) =
         calculate_base_asset_value_and_pnl(market_position, &market.amm);
 
+    assert_eq!(base_asset_value_before > base_asset_value_after, true);
+
     let base_asset_value_change = (base_asset_value_before as i128)
         .checked_sub(base_asset_value_after as i128)
         .unwrap()
@@ -2405,36 +2352,12 @@ fn _settle_funding_payment(
             funding_payment = funding_payment
                 .checked_add(market_funding_rate_payment)
                 .unwrap();
+
+            market_position.last_cum_funding = amm.cum_funding_rate;
+            market_position.last_funding_ts = amm.funding_rate_ts;
         }
 
-        if market_position.base_asset_amount > 0
-            && market_position.last_cum_repeg_profit != amm.cum_long_repeg_profit
-            || market_position.base_asset_amount < 0
-                && market_position.last_cum_repeg_profit != amm.cum_short_repeg_profit
-        {
-            let repeg_profit_share = if market_position.base_asset_amount > 0 {
-                market
-                    .amm
-                    .cum_long_repeg_profit
-                    .checked_sub(market_position.last_cum_repeg_profit)
-                    .unwrap()
-            } else {
-                market
-                    .amm
-                    .cum_short_repeg_profit
-                    .checked_sub(market_position.last_cum_repeg_profit)
-                    .unwrap()
-            };
-            let repeg_profit_share_pnl = (repeg_profit_share as u128)
-                .checked_mul(market_position.base_asset_amount.unsigned_abs())
-                .unwrap();
-            user_account.total_potential_fee = user_account
-                .total_potential_fee
-                .checked_sub(repeg_profit_share_pnl as i128)
-                .unwrap();
-        }
-
-        market_position.last_cum_funding = amm.cum_funding_rate;
+        _settle_repeg_profit_position(user_account, market_position, market);
     }
 
     // longs pay shorts the `funding_payment`
@@ -2444,6 +2367,47 @@ fn _settle_funding_payment(
 
     user_account.collateral =
         calculate_updated_collateral(user_account.collateral, funding_payment_collateral);
+}
+
+fn _settle_repeg_profit_position(
+    user_account: &mut UserAccount,
+    market_position: &mut MarketPosition,
+    market: Market,
+) {
+    if market_position.base_asset_amount > 0
+        && market_position.last_cum_repeg_profit != market.amm.cum_long_repeg_profit
+        || market_position.base_asset_amount < 0
+            && market_position.last_cum_repeg_profit != market.amm.cum_short_repeg_profit
+    {
+        let repeg_profit_share = if market_position.base_asset_amount > 0 {
+            market
+                .amm
+                .cum_long_repeg_profit
+                .checked_sub(market_position.last_cum_repeg_profit)
+                .unwrap()
+        } else {
+            market
+                .amm
+                .cum_short_repeg_profit
+                .checked_sub(market_position.last_cum_repeg_profit)
+                .unwrap()
+        };
+        market_position.last_cum_repeg_profit = if market_position.base_asset_amount > 0 {
+            market.amm.cum_long_repeg_profit
+        } else {
+            market.amm.cum_short_repeg_profit
+        };
+
+        let repeg_profit_share_pnl = (repeg_profit_share as u128)
+            .checked_mul(market_position.base_asset_amount.unsigned_abs())
+            .unwrap()
+            .checked_div(FUNDING_MANTISSA)
+            .unwrap();
+        user_account.total_potential_fee = user_account
+            .total_potential_fee
+            .checked_sub(repeg_profit_share_pnl as i128)
+            .unwrap();
+    }
 }
 
 fn calculate_margin_ratio_full(
@@ -2473,9 +2437,9 @@ fn calculate_margin_ratio_full(
     }
 
     // todo: add this once total_potential_fee looks good
-    // unrealized_pnl = unrealized_pnl
-    //     .checked_sub(user_account.total_potential_fee as i128)
-    //     .unwrap();
+    unrealized_pnl = unrealized_pnl
+        .checked_sub(user_account.total_potential_fee as i128)
+        .unwrap();
 
     if base_asset_value == 0 {
         return (u128::MAX, base_asset_value);
