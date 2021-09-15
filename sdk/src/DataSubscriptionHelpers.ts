@@ -121,7 +121,7 @@ export const convertTradesToCandle = (
 		if (from && t.ts < from) return false;
 		if (to && t.ts >= to) return false;
 		return true;
-	});
+	}).sort((a,b) => a.chainTs - b.chainTs);
 
 	if (batchTrades.length == 0) {
 		return undefined;
@@ -139,7 +139,7 @@ export const convertTradesToCandle = (
 		};
 
 		batchTrades.slice(1).forEach((t) => {
-			c.close = t.price;
+			c.close = t.afterPrice;
 			c.high = Math.max(c.high, t.beforePrice, t.afterPrice);
 			c.low = Math.min(c.low, t.beforePrice, t.afterPrice);
 			c.volume += t.size;
