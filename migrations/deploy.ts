@@ -68,7 +68,7 @@ module.exports = async function (provider: Provider) {
 	for(let i=0; i<marketOracleKeys.length; i++){
 		const keyName = marketOracleKeys[i];
 		const oraclePriceKey = devnetOracles[keyName];
-		const astPrice = (await pythClient.getPriceData()).price;
+		const astPrice = (await pythClient.getPriceData(oraclePriceKey)).price;
 		console.log(keyName + ' Price:', astPrice);
 	
 		const marketIndex = new BN(i);
