@@ -3,7 +3,7 @@ import { Program, Provider } from '@project-serum/anchor';
 import { PublicKey } from '@solana/web3.js';
 import BN from 'bn.js';
 import { ClearingHouse, Network, PythClient } from '../sdk/';
-import { AMM_MANTISSA, MockUSDCFaucet } from '../sdk/src';
+import { AMM_MANTISSA, MockUSDCFaucet, Markets } from '../sdk/src';
 
 
 
@@ -57,66 +57,38 @@ module.exports = async function (provider: Provider) {
 		// assetAmount is scaled to offer comparable slippage
 		return assetAmount.mul(AMM_MANTISSA).div(pegMultiplier);
 	}
+	const devnetOracles = {
+		"SOL": "J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix",
+		"BTC": "HovQMDrbAgAYPCmHVSrezcSmkMtXSSUsLDFANExrZh2J",
+		"ETH": "EdVCmQ9FSPcVe5YySXDPCRmc8aDQLKJ9xvYBMZPie1Vw",
+		"COPE": "BAXDJUXtz6P5ARhHH1aPwgv4WENzHwzyhmLYK4daFwiM",
+	};
+	const marketOracleKeys = Object.keys(devnetOracles);
 
-	const solOraclePriceKey = new PublicKey(
-		'J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix'
-	);
-	const solPrice = (await pythClient.getPriceData(solOraclePriceKey)).price;
-	console.log('SOL Price:', solPrice);
-
-	const marketIndex = new BN(0);
-	const periodicity = new BN(3600);
-	const ammQuoteAssetAmount = new anchor.BN(2 * 10 ** 13);
-	const ammBaseAssetAmount = new anchor.BN(2 * 10 ** 13);
-	const pegMultiplierSOL = new anchor.BN(solPrice * AMM_MANTISSA.toNumber());
-
-	console.log('Initializing Market for SOL/USD: ');
-	await clearingHouse.subscribe();
-	await clearingHouse.initializeMarket(
-		marketIndex,
-		solOraclePriceKey,
-		normAssetAmount(ammBaseAssetAmount, pegMultiplierSOL),
-		normAssetAmount(ammQuoteAssetAmount, pegMultiplierSOL),
-		periodicity,
-		pegMultiplierSOL
-	);
-	console.log(`SOL/USD Market Index: ${marketIndex.toString()}`);
-
-	// const mockBtcOraclePriceKey = await createPriceFeed({
-	// 	oracleProgram,
-	// 	initPrice: 50,
-	// });
-	const btcOraclePriceKey = new PublicKey(
-		'HovQMDrbAgAYPCmHVSrezcSmkMtXSSUsLDFANExrZh2J'
-	);
-	const btcPrice = (await pythClient.getPriceData(btcOraclePriceKey)).price;
-	const pegMultiplierBTC = new anchor.BN(btcPrice * AMM_MANTISSA.toNumber());
-	console.log('BTC Price:', btcPrice);
-
-	await clearingHouse.initializeMarket(
-		new BN(1),
-		btcOraclePriceKey,
-		normAssetAmount(ammBaseAssetAmount, pegMultiplierBTC),
-		normAssetAmount(ammQuoteAssetAmount, pegMultiplierBTC),
-		periodicity,
-		pegMultiplierBTC
-	);
-
-	const spyOraclePriceKey = new PublicKey(
-		'Epqu3qYZXJtnsH6r61wUj6LGJ2pp11VtpE3SbdqmHffD'
-	);
-	const spyPrice = (await pythClient.getPriceData(spyOraclePriceKey)).price;
-	const pegMultiplierSPY = new anchor.BN(spyPrice * AMM_MANTISSA.toNumber());
-	console.log('SPY Price:', spyPrice);
-
-	await clearingHouse.initializeMarket(
-		new BN(2),
-		spyOraclePriceKey,
-		normAssetAmount(ammBaseAssetAmount, pegMultiplierSPY),
-		normAssetAmount(ammQuoteAssetAmount, pegMultiplierSPY),
-		periodicity,
-		pegMultiplierSPY
-	);
+	for(let i=0; i<marketOracleKeys.length; i++){
+		const keyName = marketOracleKeys[i];
+		const oraclePriceKey = devnetOracles[keyName];
+		const astPrice = (await pythClient.getPriceData()).price;
+		console.log(keyName + ' Price:', astPrice);
+	
+		const marketIndex = new BN(i);
+		const periodicity = new BN(3600);
+		const ammQuoteAssetAmount = new anchor.BN(2 * 10 ** 13);
+		const ammBaseAssetAmount = new anchor.BN(2 * 10 ** 13);
+		const pegMultiplierAst = new anchor.BN(astPrice * AMM_MANTISSA.toNumber());
+	
+		console.log('Initializing Market for ', keyName,'/USD: ');
+		await clearingHouse.subscribe();
+		await clearingHouse.initializeMarket(
+			marketIndex,
+			oraclePriceKey,
+			normAssetAmount(ammBaseAssetAmount, pegMultiplierAst),
+			normAssetAmount(ammQuoteAssetAmount, pegMultiplierAst),
+			periodicity,
+			pegMultiplierAst
+		);
+		console.log(keyName, `Market Index: ${marketIndex.toString()}`);
+	}
 
 	await clearingHouse.unsubscribe();
 };
