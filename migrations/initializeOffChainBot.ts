@@ -25,7 +25,7 @@ async function main() {
 	console.log(`Bot Public Key: ${botWallet.publicKey.toString()}`);
 
 	console.log('Requesting airdrop to bot');
-	await connection.getBalance(botWallet.publicKey);
+	//await connection.getBalance(botWallet.publicKey);
 
 	const chProgram = anchor.workspace.ClearingHouse as Program;
 	const clearingHouse = new ClearingHouse(

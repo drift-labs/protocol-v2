@@ -3,7 +3,7 @@ import { Program, Provider } from '@project-serum/anchor';
 import { PublicKey } from '@solana/web3.js';
 import BN from 'bn.js';
 import { ClearingHouse, Network, PythClient } from '../sdk/';
-import { AMM_MANTISSA, MockUSDCFaucet, Markets } from '../sdk/src';
+import { AMM_MANTISSA, MockUSDCFaucet } from '../sdk/src';
 
 
 
@@ -68,7 +68,7 @@ module.exports = async function (provider: Provider) {
 	for(let i=0; i<marketOracleKeys.length; i++){
 		const keyName = marketOracleKeys[i];
 		const oraclePriceKey = devnetOracles[keyName];
-		const astPrice = (await pythClient.getPriceData(oraclePriceKey)).price;
+		const astPrice = (await pythClient.getPriceData(new PublicKey(oraclePriceKey))).price;
 		console.log(keyName + ' Price:', astPrice);
 	
 		const marketIndex = new BN(i);
