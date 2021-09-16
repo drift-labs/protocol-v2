@@ -18,9 +18,14 @@ const Markets: Market[] = [
 		marketIndex: new BN(1),
 	},
 	{
-		symbol: 'SPY/USD',
-		baseAssetSymbol: 'SPY',
+		symbol: 'ETH/USD',
+		baseAssetSymbol: 'ETH',
 		marketIndex: new BN(2),
+	},
+	{
+		symbol: 'COPE/USD',
+		baseAssetSymbol: 'COPE',
+		marketIndex: new BN(3),
 	},
 ];
 
