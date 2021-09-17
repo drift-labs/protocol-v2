@@ -2,16 +2,6 @@ import { TradeRecord } from './DataTypes';
 import { AMM_MANTISSA } from './clearingHouse';
 import { Candle } from './types';
 
-export type Candles = {
-	s: 'ok' | 'error';
-	t: number[];
-	c: number[];
-	o: number[];
-	h: number[];
-	l: number[];
-	v: number[];
-};
-
 // This Type is copied from tradingview charting_library
 type Bar = {
 	time: number;
@@ -116,18 +106,23 @@ export const tradeRecordsToTvBar = (trades: TradeRecord[]): Bar => {
 	return c;
 };
 
+export const candleToTvBar = (candle: Candle): Bar => {
+	return {
+		// time: candle.start + new Date().getTimezoneOffset() * 60 * 1000 * -1,
+		time: candle.start,
+		open: candle.open,
+		close: candle.close,
+		low: candle.low,
+		high: candle.high,
+		volume: candle.volume,
+	};
+};
+
 /**
  * This method handles the candles that come back from the exchange history server and converts them into Bars for the TradingView Chart.
  * @param candles
  * @returns
  */
 export const candlesToTvBars = (candles: Candle[]): Bar[] => {
-	return candles.map((candle) => ({
-		time: candle.start + new Date().getTimezoneOffset() * 60 * 1000 * -1,
-		open: candle.open,
-		close: candle.close,
-		low: candle.low,
-		high: candle.high,
-		volume: candle.volume,
-	}));
+	return candles.map((candle) => candleToTvBar(candle));
 };
