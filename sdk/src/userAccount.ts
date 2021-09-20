@@ -265,7 +265,7 @@ export class UserAccount {
 		return false;
 	}
 
-	public liquidationPrice(marketPosition: UserPosition, partial = false): BN {
+	public liquidationPrice(marketPosition: Pick<UserPosition, "baseAssetAmount"|"marketIndex">, partial = false): BN {
 		// todo: pricePoint:liq doesnt anticipate market-impact AT point of sale, just at current point
 		// 		 current estimate is biased lower, which is also kinda fair
 
