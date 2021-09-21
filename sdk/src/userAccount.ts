@@ -4,7 +4,7 @@ import { AMM_MANTISSA, ClearingHouse } from './clearingHouse';
 import { UserAccountData, UserPosition, UserPositionData } from './DataTypes';
 import { Subscriber, SubscriberResult } from './types';
 
-export const MAX_LEVERAGE = new BN(5);
+export const MAX_LEVERAGE = new BN(10);
 
 const FULL_LIQUIDATION_RATIO = new BN(500);
 const PARTIAL_LIQUIDATION_RATIO = new BN(625);
