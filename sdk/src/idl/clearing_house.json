@@ -974,10 +974,6 @@
             "type": "u128"
           },
           {
-            "name": "k",
-            "type": "u128"
-          },
-          {
             "name": "cumFundingRate",
             "type": "i128"
           },
@@ -1267,6 +1263,11 @@
       "code": 321,
       "name": "TradeSizeTooSmall",
       "msg": "Trade Size Too Small"
+    },
+    {
+      "code": 322,
+      "name": "InvalidOracleSource",
+      "msg": "Invalid Oracle Source"
     }
   ]
 }

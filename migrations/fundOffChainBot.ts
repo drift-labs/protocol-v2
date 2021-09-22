@@ -1,9 +1,9 @@
 import * as anchor from '@project-serum/anchor';
 import { Program, Wallet } from '@project-serum/anchor';
-import { Keypair } from '@solana/web3.js';
 import BN from 'bn.js';
 import { ClearingHouse, Network } from '../sdk';
 import { MockUSDCFaucet } from '../sdk/src';
+import { PublicKey, Keypair } from '@solana/web3.js';
 
 import dotenv = require('dotenv');
 dotenv.config();
@@ -25,27 +25,41 @@ async function main() {
 	console.log(`Bot Public Key: ${botWallet.publicKey.toString()}`);
 
 	console.log('Requesting airdrop to bot');
-	await connection.getBalance(botWallet.publicKey);
+	// await connection.getBalance(botWallet.publicKey);
 
 	const chProgram = anchor.workspace.ClearingHouse as Program;
+	let chProgramId;
+	if(!chProgram){
+		chProgramId = new PublicKey(process.env.CLEARING_HOUSE_PROGRAM_ID);
+	} else{
+		chProgramId = chProgram.programId;
+	}
+
 	const clearingHouse = new ClearingHouse(
 		connection,
 		Network.LOCAL,
 		botWallet,
-		chProgram.programId
-	);
+		chProgramId
+		);
 	await clearingHouse.subscribe();
-	console.log(`Clearing House: ${chProgram.programId.toString()}`);
+	console.log(`Clearing House: ${chProgramId.toString()}`);
 
 	const mockUsdcFaucetProgram = anchor.workspace.MockUsdcFaucet as Program;
+	let mockUsdcFaucetProgramId;
+	if(!chProgram){
+		mockUsdcFaucetProgramId = new PublicKey(process.env.MOCK_USDC_FAUCET_ADDRESS);
+	} else{
+		mockUsdcFaucetProgramId = mockUsdcFaucetProgram.programId;
+	}
+
 	const mockUsdcFaucet = new MockUSDCFaucet(
 		connection,
 		Network.LOCAL,
 		botWallet,
-		mockUsdcFaucetProgram.programId
+		mockUsdcFaucetProgramId
 	);
 	console.log(
-		`Mock USDC Faucet: ${mockUsdcFaucetProgram.programId.toString()}`
+		`Mock USDC Faucet: ${mockUsdcFaucetProgramId.toString()}`
 	);
 
 	const associatedTokenPublicKey =

@@ -1,6 +1,6 @@
 import { PublicKey } from '@solana/web3.js';
 import BN from 'bn.js';
-import { AMM_MANTISSA, ClearingHouse } from './clearingHouse';
+import { QUOTE_BASE_PRECISION_DIFF, AMM_MANTISSA, ClearingHouse } from './clearingHouse';
 import { UserAccountData, UserPosition, UserPositionData } from './DataTypes';
 import { Subscriber, SubscriberResult } from './types';
 
@@ -199,13 +199,13 @@ export class UserAccount {
 				);
 			},
 			ZERO
-		);
+		).div(AMM_MANTISSA);
 	}
 
 	public getPositionValue(positionIndex: number): BN {
 		return this.clearingHouse.calculateBaseAssetValue(
 			this.userPositionsAccount.positions[positionIndex]
-		);
+		).div(AMM_MANTISSA);
 	}
 
 	public getPositionEstimatedExitPriceWithMantissa(position: UserPosition): BN {
@@ -213,7 +213,7 @@ export class UserAccount {
 		if (position.baseAssetAmount.eq(ZERO)) {
 			return ZERO;
 		}
-		return baseAssetValue.mul(AMM_MANTISSA).div(position.baseAssetAmount.abs());
+		return baseAssetValue.mul(QUOTE_BASE_PRECISION_DIFF).div(position.baseAssetAmount.abs());
 	}
 
 	/**

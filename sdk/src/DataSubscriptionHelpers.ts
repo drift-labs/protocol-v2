@@ -3,16 +3,17 @@ import BN from 'bn.js';
 import { ZERO } from './constants/numericConstants';
 import { TradeHistoryAccount, TradeRecord } from './DataTypes';
 import { Candle, Trade, TradeSide } from './types';
-import { AMM_MANTISSA } from './clearingHouse';
+import { AMM_MANTISSA, PEG_SCALAR, QUOTE_BASE_PRECISION_DIFF} from './clearingHouse';
 
 const defaultPublicKey = new PublicKey('11111111111111111111111111111111');
-const priceMantissa = new BN(10 ** 6);
+const priceMantissa = AMM_MANTISSA;
 
 export const calculatePrice = (
 	quoteAssetAmount: BN,
 	baseAssetAmount: BN
 ): number => {
 	const priceWithMantissa = quoteAssetAmount
+		.mul(QUOTE_BASE_PRECISION_DIFF)
 		.mul(priceMantissa)
 		.div(baseAssetAmount);
 
@@ -22,11 +23,15 @@ export const calculatePrice = (
 	);
 };
 
-export const stripMantissa = (mantissaNumber: BN) => {
-	return (
-		mantissaNumber.div(AMM_MANTISSA).toNumber() +
-		mantissaNumber.mod(AMM_MANTISSA).toNumber() / AMM_MANTISSA.toNumber()
+export const stripMantissa = (bigNumber: BN, precision: BN = AMM_MANTISSA) => {
+	if (!bigNumber) return 0;
+	return (bigNumber.div(precision).toNumber() + 
+		bigNumber.mod(precision).toNumber() / precision.toNumber()
 	);
+};
+
+export const stripBaseAssetPrecision = (baseAssetAmount: BN) => {
+	return stripMantissa(baseAssetAmount, AMM_MANTISSA.mul(PEG_SCALAR));
 };
 
 export const getNewTrades = (
@@ -163,7 +168,7 @@ export const TradeRecordToUITrade = (tradeRecord: TradeRecord): Trade => {
 		side: tradeRecord.direction.long ? TradeSide.Buy : TradeSide.Sell,
 		ts: Date.now(),
 		chainTs: tradeRecord.ts.toNumber(),
-		size: tradeRecord.baseAssetAmount.toNumber() / 10 ** 6,
+		size: stripBaseAssetPrecision(tradeRecord.baseAssetAmount),
 		marketIndex: tradeRecord.marketIndex.toNumber(),
 	};
 };

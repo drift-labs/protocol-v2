@@ -4,6 +4,7 @@ import { IWallet, PositionDirection } from './types';
 import * as anchor from '@project-serum/anchor';
 import clearingHouseIDL from './idl/clearing_house.json';
 import { PythClient } from './pythClient';
+import {squareRootBN} from './utils';
 
 import {
 	Connection,
@@ -41,8 +42,14 @@ interface ClearingHouseEvents {
 	update: void;
 }
 
-export const AMM_MANTISSA = new BN(10 ** 6);
+export const USDC_PRECISION = new BN(10 ** 6);
+export const AMM_MANTISSA = new BN(10 ** 10);
 export const FUNDING_MANTISSA = new BN(10000);
+export const PEG_SCALAR = new BN(1000);
+
+export const BASE_ASSET_PRECISION = AMM_MANTISSA.mul(PEG_SCALAR);
+export const QUOTE_BASE_PRECISION_DIFF = BASE_ASSET_PRECISION.div(USDC_PRECISION); // 10**(10+3-6)
+export const PRICE_TO_USDC_PRECISION = AMM_MANTISSA.div(USDC_PRECISION);
 
 const ZERO = new BN(0);
 const MAXPCT = new BN(1000); //percentage units are [0,1000] => [0,1]
@@ -261,6 +268,10 @@ export class ClearingHouse {
 	}
 
 	public async unsubscribe(): Promise<void> {
+		if (!this.isSubscribed) {
+			return;
+		}
+
 		this.program.state.unsubscribe();
 		this.program.account.marketsAccount.unsubscribe(this.state.marketsAccount);
 		this.program.account.fundingRateHistory.unsubscribe(
@@ -318,7 +329,7 @@ export class ClearingHouse {
 		baseAmount: BN,
 		quoteAmount: BN,
 		periodicity: BN,
-		pegMultiplier: BN = AMM_MANTISSA
+		pegMultiplier: BN = PEG_SCALAR
 	): Promise<TransactionSignature> {
 		this.assertIsSubscribed();
 
@@ -686,13 +697,15 @@ export class ClearingHouse {
 			targetPrice
 		);
 
+		const invariant = market.amm.baseAssetAmountI.mul(market.amm.baseAssetAmountI);
+
 		const [newQuoteAssetAmount, newBaseAssetAmount] = this.findSwapOutput(
 			market.amm.quoteAssetAmount,
 			market.amm.baseAssetAmount,
 			direction,
 			tradeSize,
 			'quote',
-			market.amm.k,
+			invariant,
 			market.amm.pegMultiplier
 		);
 
@@ -833,9 +846,11 @@ export class ClearingHouse {
 		);
 		const markTwapWithMantissa = market.amm.markTwap;
 
-		const twapSpreadPct = markTwapWithMantissa
-			.sub(oracleTwapWithMantissa)
-			.div(oracleTwapWithMantissa.div(AMM_MANTISSA));
+		const twapSpreadPct = (markTwapWithMantissa
+			.sub(oracleTwapWithMantissa))
+			.mul(AMM_MANTISSA)
+			.mul(new BN(100)) 
+			.div(oracleTwapWithMantissa);
 		// solana ts is seconds since 1970, js is milliseconds.
 
 		// todo: need utc?
@@ -859,8 +874,8 @@ export class ClearingHouse {
 				.mul(timeSinceLastUpdate)
 				.mul(periodAdjustment)
 				.div(new BN(3600))
+				.div(new BN(3600))
 				.div(new BN(24));
-
 			return estFundingRateLowerBound;
 		} else {
 			const estFundingRate = twapSpreadPct
@@ -911,7 +926,7 @@ export class ClearingHouse {
 			return new BN(0);
 		}
 
-		return quoteAssetAmount.mul(peg).div(baseAssetAmount);
+		return quoteAssetAmount.mul(AMM_MANTISSA).mul(peg).div(PEG_SCALAR).div(baseAssetAmount);
 	}
 
 	public calculateBaseAssetPriceWithMantissa(marketIndex: BN): BN {
@@ -969,6 +984,7 @@ export class ClearingHouse {
 		}
 		const market = this.getMarketsAccount().markets[marketIndex.toNumber()];
 		const oldPrice = this.calculateBaseAssetPriceWithMantissa(marketIndex);
+		const invariant = market.amm.baseAssetAmountI.mul(market.amm.baseAssetAmountI);
 
 		const [newQuoteAssetAmount, newBaseAssetAmount] = this.findSwapOutput(
 			market.amm.quoteAssetAmount,
@@ -976,7 +992,7 @@ export class ClearingHouse {
 			direction,
 			amount.abs(),
 			'quote',
-			market.amm.k,
+			invariant,
 			market.amm.pegMultiplier
 		);
 		
@@ -1139,7 +1155,8 @@ export class ClearingHouse {
 		const x1 = market.amm.baseAssetAmount;
 		const y1 = market.amm.quoteAssetAmount;
 		const peg = market.amm.pegMultiplier;
-		const k = market.amm.k.mul(AMM_MANTISSA); //todo: ensure targetPrice is MANTISSA-ifyed, use peg?
+		const invariant = market.amm.baseAssetAmountI.mul(market.amm.baseAssetAmountI);
+		const k = invariant.mul(AMM_MANTISSA);
 
 		let x2;
 		let y2;
@@ -1148,36 +1165,26 @@ export class ClearingHouse {
 
 		if (markPriceWithMantissa.gt(targetPrice)) {
 			// overestimate y2, todo Math.sqrt
-			x2 = new BN(
-				Math.sqrt(
-					//TODO - should use @ts-ignore when temporarily checking in things which cause an error .. it prevents the sdk from being built.
-					// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-					//@ts-ignore
-					k.div(targetPrice).mul(peg).div(AMM_MANTISSA).sub(biasModifer)
-				) - 1
-			);
+			x2 = squareRootBN(
+					k.div(targetPrice).mul(peg).div(PEG_SCALAR).sub(biasModifer)
+			).sub(new BN(1));
 			y2 = k.div(AMM_MANTISSA).div(x2);
 
 			targetPriceCalced = this.calculateCurvePriceWithMantissa(x2, y2, peg);
 			direction = PositionDirection.SHORT;
-			tradeSize = y1.sub(y2).mul(peg).div(AMM_MANTISSA);
+			tradeSize = y1.sub(y2).mul(peg).div(PEG_SCALAR).div(QUOTE_BASE_PRECISION_DIFF);
 			baseSize = x1.sub(x2);
 		} else if (markPriceWithMantissa.lt(targetPrice)) {
 			// underestimate y2, todo Math.sqrt
-			x2 = new BN(
-				Math.sqrt(
-					//TODO - should use @ts-ignore when temporarily checking in things which cause an error .. it prevents the sdk from being built.
-					// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-					//@ts-ignore
-					k.div(targetPrice).mul(peg).div(AMM_MANTISSA).add(biasModifer)
-				) + 1
-			);
+			x2 =squareRootBN(
+					k.div(targetPrice).mul(peg).div(PEG_SCALAR).add(biasModifer)
+				).add(new BN(1));
 			y2 = k.div(AMM_MANTISSA).div(x2);
 
 			targetPriceCalced = this.calculateCurvePriceWithMantissa(x2, y2, peg);
 
 			direction = PositionDirection.LONG;
-			tradeSize = y2.sub(y1).mul(peg).div(AMM_MANTISSA);
+			tradeSize = y2.sub(y1).mul(peg).div(PEG_SCALAR).div(QUOTE_BASE_PRECISION_DIFF);
 			baseSize = x2.sub(x1);
 		} else {
 			// no trade, market is at target
@@ -1230,11 +1237,10 @@ export class ClearingHouse {
 			tradeSize,
 			AMM_MANTISSA
 		);
-
 		assert(tp1.sub(tp2).lte(ogDiff), 'Target Price Calculation incorrect');
 		// assert(tp1.sub(tp2).lt(AMM_MANTISSA), 'Target Price Calculation incorrect'); //  super OoB shorts do not
 		assert(
-			tp2.lte(tp1) || tp2.sub(tp1).abs() < 10,
+			tp2.lte(tp1) || tp2.sub(tp1).abs() < 100000,
 			'Target Price Calculation incorrect' +
 				tp2.toString() +
 				'>=' +
@@ -1256,7 +1262,7 @@ export class ClearingHouse {
 
 		const market = this.getMarketsAccount().markets[marketIndex.toNumber()];
 		const peg = market.amm.pegMultiplier;
-		const invariant = market.amm.k;
+		const invariant = market.amm.baseAssetAmountI.mul(market.amm.baseAssetAmountI);
 
 		let inputAssetAmount;
 		let outputAssetAmount;
@@ -1304,13 +1310,14 @@ export class ClearingHouse {
 			? PositionDirection.SHORT
 			: PositionDirection.LONG;
 
+		const invariant = market.amm.baseAssetAmountI.mul(market.amm.baseAssetAmountI);
 		const [, newQuoteAssetAmount] = this.findSwapOutput(
 			market.amm.baseAssetAmount,
 			market.amm.quoteAssetAmount,
 			directionToClose,
 			marketPosition.baseAssetAmount.abs(),
 			'base',
-			market.amm.k,
+			invariant,
 			market.amm.pegMultiplier
 		);
 
@@ -1318,14 +1325,12 @@ export class ClearingHouse {
 			case PositionDirection.SHORT:
 				return market.amm.quoteAssetAmount
 					.sub(newQuoteAssetAmount)
-					.mul(market.amm.pegMultiplier)
-					.div(AMM_MANTISSA);
+					.mul(market.amm.pegMultiplier);
 
 			case PositionDirection.LONG:
 				return newQuoteAssetAmount
 					.sub(market.amm.quoteAssetAmount)
-					.mul(market.amm.pegMultiplier)
-					.div(AMM_MANTISSA);
+					.mul(market.amm.pegMultiplier);
 		}
 	}
 
@@ -1341,7 +1346,7 @@ export class ClearingHouse {
 			? PositionDirection.SHORT
 			: PositionDirection.LONG;
 
-		const baseAssetValue = this.calculateBaseAssetValue(marketPosition);
+		const baseAssetValue = this.calculateBaseAssetValue(marketPosition).div(AMM_MANTISSA);
 		let pnlAssetAmount;
 
 		switch (directionToClose) {
@@ -1359,7 +1364,7 @@ export class ClearingHouse {
 
 		if (withFunding) {
 			const fundingRatePnL =
-				this.calculatePositionFundingPNL(marketPosition).div(FUNDING_MANTISSA);
+				this.calculatePositionFundingPNL(marketPosition).div(PRICE_TO_USDC_PRECISION);
 
 			pnlAssetAmount = pnlAssetAmount.add(fundingRatePnL);
 		}
@@ -1378,9 +1383,8 @@ export class ClearingHouse {
 		const perPositionFundingRate = market.amm.cumFundingRate
 			.sub(marketPosition.lastCumFunding)
 			.mul(marketPosition.baseAssetAmount)
-			.mul(market.amm.pegMultiplier)
-			.div(AMM_MANTISSA)
-			.div(AMM_MANTISSA)
+			.div(BASE_ASSET_PRECISION)
+			.div(FUNDING_MANTISSA)
 			.mul(new BN(-1));
 
 		return perPositionFundingRate;

@@ -19,3 +19,8 @@ anchor-spl = "0.11.1"
 pyth-client = "0.2.2"
 bytemuck = { version = "1.4.0" }
 integer-sqrt = "0.1.5"
+borsh = "0.9.1"
+num-traits = "0.2"
+uint = { version = "0.9.1", default-features = false }
+num-derive = "0.3"
+thiserror = "1.0"

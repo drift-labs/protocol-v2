@@ -1,6 +1,6 @@
 import * as anchor from '@project-serum/anchor';
 import BN from 'bn.js';
-import { AMM_MANTISSA, PositionDirection } from '../sdk/src';
+import { AMM_MANTISSA, PEG_SCALAR, stripMantissa } from '../sdk/src';
 import { assert } from '../sdk/src/assert/assert';
 // import { getTokenAccount } from '@project-serum/common';
 import { mockOracle } from './mockAccounts';
@@ -22,9 +22,9 @@ export async function stress_test(
 	NUM_USERS = 1,
 	NUM_EVENTS = 10,
 	user_capital = 100000,
-	k = 1e8,
+	sqrtk = 1e8,
 	inputEventFile = '',
-	pegs = [AMM_MANTISSA, AMM_MANTISSA],
+	pegs = [PEG_SCALAR, PEG_SCALAR],
 	marketOffset = 0,
 	outputFolder = 'output',
 	outputName = ''
@@ -35,18 +35,18 @@ export async function stress_test(
 	const usdcAmount = new BN(user_capital); // $10k
 
 	// const solUsd = anchor.web3.Keypair.generate();
-	const dogMoney = await mockOracle(pegs[0].div(AMM_MANTISSA).toNumber(), -6);
+	const dogMoney = await mockOracle(pegs[0].div(PEG_SCALAR).toNumber(), -6);
 	const solUsd = await mockOracle(22, -6);
 	const oracles = [dogMoney, solUsd];
 
 	// todo: should be equal at init, with xeq for scale as oracle px
 	const periodicity = new BN(1); // 1 SECOND
-	const PAIR_AMT = Math.sqrt(k);
-	const ammInitialQuoteAssetAmount = new anchor.BN(PAIR_AMT);
-	const ammInitialBaseAssetAmount = new anchor.BN(PAIR_AMT);
+	const PAIR_AMT = sqrtk;
+	const ammInitialQuoteAssetAmount = new anchor.BN(PAIR_AMT).mul(AMM_MANTISSA);
+	const ammInitialBaseAssetAmount = new anchor.BN(PAIR_AMT).mul(AMM_MANTISSA);
 
 	for (let i = 0; i < oracles.length; i++) {
-		const amtScale = pegs[i].div(AMM_MANTISSA); // same slippage pct for regardless of peg levels
+		const amtScale = pegs[i].div(PEG_SCALAR); // same slippage pct for regardless of peg levels
 
 		const [, _marketPublicKey] = await clearingHouse.initializeMarket(
 			new BN(i + marketOffset),
@@ -128,23 +128,13 @@ export async function stress_test(
 					anchor.workspace.Pyth,
 					ammData.oracle
 				);
-				const ast_px =
-					ammData.quoteAssetAmount.toNumber() /
-					ammData.baseAssetAmount.toNumber();
-
-				// const user: any = await clearingHouse.program.account.userAccount.fetch(
-				// 	user_e
-				// );
-
-				// const upnl = await user_act_info_e.getUnrealizedPNL();
-				const xeq_scaled = ammData.pegMultiplier; //.div(AMM_MANTISSA);
-				const _ast_px2 = ast_px * xeq_scaled.div(AMM_MANTISSA).toNumber();
+				
 				let _entry_px; //todo
 
 				[randEType, rand_amt, _entry_px] =
 					clearingHouse.calculateTargetPriceTrade(
 						market_i,
-						new BN(oracleData.price * AMM_MANTISSA.toNumber())
+						new BN(oracleData.price * PEG_SCALAR.toNumber())
 					);
 
 				rand_amt = BN.min(
@@ -155,9 +145,11 @@ export async function stress_test(
 				if (rand_amt.abs().lt(new BN(10000))) {
 					rand_e = 'move';
 					rand_amt = new BN(oracleData.price * AMM_MANTISSA.toNumber());
-				} else if (randEType == PositionDirection.LONG) {
+				} else if (randEType == { long: {} }) {
 					rand_e = 'buy';
 				} else {
+					console.log(randEType);
+					throw Error('hi');
 					rand_e = 'sell';
 				}
 			} else {
@@ -264,8 +256,8 @@ export async function stress_test(
 
 		try {
 			ast_px =
-				ammData.quoteAssetAmount.toNumber() /
-				ammData.baseAssetAmount.toNumber();
+				stripMantissa(ammData.quoteAssetAmount.mul(AMM_MANTISSA).div(
+				ammData.baseAssetAmount));
 		} catch {
 			ast_px = -1;
 		}
@@ -280,7 +272,7 @@ export async function stress_test(
 		// const userSummary2 = await user_act_info_e.summary('avg');
 		const userSummary3 = await user_act_info_e.summary('last');
 
-		const xeq_scaled = ammData.pegMultiplier.toNumber()/(AMM_MANTISSA.toNumber());
+		const xeq_scaled = ammData.pegMultiplier.toNumber()/(PEG_SCALAR.toNumber());
 		const state_i = {
 			market_index: market_i,
 
@@ -293,20 +285,20 @@ export async function stress_test(
 
 			user_i: user_i,
 			user_i_collateral: user.collateral,
-			user_i_cumfee: user.totalPotentialFee.toNumber()/AMM_MANTISSA.toNumber(),
+			user_i_cumfee: user.totalPotentialFee.toNumber()/(10**6),
 
 			oracle_px: oracleData.price,
 
 			mark_1: ast_px,
 			mark_peg: xeq_scaled,
 			mark_px: ast_px * xeq_scaled,
-			mark_twap: ammData.markTwap,
+			mark_twap: stripMantissa(ammData.markTwap),
 			mark_twap_ts: ammData.markTwapTs,
 			funding_rate: ammData.fundingRate,
 			funding_rate_ts: ammData.fundingRateTs,
 
-			cumSlippage: ammData.cumSlippage.toNumber()/AMM_MANTISSA.toNumber(),
-			cumSlippageProfit: ammData.cumSlippageProfit.toNumber()/AMM_MANTISSA.toNumber(),
+			cumSlippage: ammData.cumSlippage.toNumber()/(10**6),
+			cumSlippageProfit: ammData.cumSlippageProfit.toNumber()/(10**6),
 
 			// repeg_pnl_pct: (
 			// 	ammData.xcpr.div(ammData.xcp.div(new BN(1000))).toNumber() * 1000
@@ -326,7 +318,7 @@ export async function stress_test(
 
 		const dogMoneyData = await getFeedData(anchor.workspace.Pyth, dogMoney);
 
-		setFeedPrice(anchor.workspace.Pyth, dogMoneyData.price * .99, dogMoney);
+		setFeedPrice(anchor.workspace.Pyth, dogMoneyData.price * 1.01, dogMoney);
 		if (solUsdTimeline.length) {
 			setFeedPrice(anchor.workspace.Pyth, solUsdTimeline[i + 1].close, solUsd);
 		}

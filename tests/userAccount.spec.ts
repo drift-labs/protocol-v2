@@ -1,7 +1,7 @@
 import * as anchor from '@project-serum/anchor';
 import { Program } from '@project-serum/anchor';
 import { mockUSDCMint, mockUserUSDCAccount } from '../utils/mockAccounts';
-import { ClearingHouse, Network } from '../sdk/src';
+import { ClearingHouse, Network, PEG_SCALAR } from '../sdk/src';
 import { Keypair } from '@solana/web3.js';
 import BN from 'bn.js';
 import { MAX_LEVERAGE, UserAccount } from '../sdk/src/userAccount';
@@ -22,8 +22,8 @@ describe('User Account', () => {
 		chProgram.programId
 	);
 
-	const ammInitialQuoteAssetAmount = new anchor.BN(1 * 10 ** 12);
-	const ammInitialBaseAssetAmount = new anchor.BN(5 * 10 ** 10);
+	const ammInitialQuoteAssetAmount = new anchor.BN(2 * 10 ** 12).mul(new BN(10**6));
+	const ammInitialBaseAssetAmount = new anchor.BN(2 * 10 ** 12).mul(new BN(10**6));
 
 	let usdcMint: Keypair;
 	let userUSDCAccount: Keypair;
@@ -34,7 +34,6 @@ describe('User Account', () => {
 
 	const usdcAmount = new BN(10 * 10 ** 6);
 	const solPositionInitialValue = usdcAmount.div(new BN(2)).mul(MAX_LEVERAGE);
-
 	let userAccount: UserAccount;
 
 	before(async () => {
@@ -55,7 +54,8 @@ describe('User Account', () => {
 			solUsdOracle,
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,
-			periodicity
+			periodicity,
+			new BN(initialSOLPrice).mul(PEG_SCALAR),
 		);
 
 		await clearingHouse.initializeUserAccount();
@@ -94,6 +94,7 @@ describe('User Account', () => {
 		);
 
 		console.log(summary.marginRatio.toNumber(), expectedMarginRatio.toNumber());
+		console.log(summary.leverage.toNumber(), expectedLeverage.toNumber());
 
 		// todo: dont hate me
 		const buyingPower = userAccount.getBuyingPower();
@@ -185,19 +186,40 @@ describe('User Account', () => {
 	});
 
 	it('After Position Price Moves', async () => {
-		const priceIncreaseFactor = new BN(2);
 		await clearingHouse.moveAmmPrice(
 			ammInitialBaseAssetAmount,
-			ammInitialQuoteAssetAmount.mul(priceIncreaseFactor),
+			ammInitialQuoteAssetAmount.mul(new BN(11)).div(new BN(10)),
 			marketIndex
 		);
 
-		const expectedPNL = new BN(24997511);
-		const expectedTotalCollateral = new BN(34997511);
-		const expectedBuyingPower = new BN(124990045);
-		const expectedFreeCollateral = new BN(24998009);
-		const expectedLeverage = new BN(14286); // 1.428x
-		const expectedMarginRatio = new BN(6999); // 69.9%
+		const expectedPNL = new BN(2499862);
+		const expectedTotalCollateral = new BN(12499862);
+		const expectedBuyingPower = new BN(34999450);
+		const expectedFreeCollateral = new BN(6999890);
+		const expectedLeverage = new BN(22000); // 1.428x
+		const expectedMarginRatio = new BN(4545); // 69.9%
+
+		await assertState(
+			expectedBuyingPower,
+			expectedFreeCollateral,
+			expectedPNL,
+			expectedTotalCollateral,
+			expectedLeverage,
+			expectedMarginRatio
+		);
+	});
+	it('Close Position', async () => {
+		await clearingHouse.closePosition(
+			await userAccount.getPublicKey(),
+			marketIndex
+		);
+
+		const expectedBuyingPower = new BN(62499310);
+		const expectedFreeCollateral = new BN(12499862);
+		const expectedPNL = new BN(0);
+		const expectedTotalCollateral = new BN(12499862);
+		const expectedLeverage = new BN(0);
+		const expectedMarginRatio = new BN(Number.MAX_SAFE_INTEGER);
 
 		await assertState(
 			expectedBuyingPower,

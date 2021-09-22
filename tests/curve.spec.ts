@@ -4,6 +4,7 @@ import { Keypair } from '@solana/web3.js';
 import BN from 'bn.js';
 import {
 	AMM_MANTISSA,
+	PEG_SCALAR,
 	ClearingHouse,
 	Network,
 	PositionDirection,
@@ -35,7 +36,7 @@ describe('AMM Curve', () => {
 	const marketIndex = new BN(0);
 	const initialSOLPrice = 150;
 
-	const usdcAmount = new BN(10000 * 10 ** 6);
+	const usdcAmount = new BN(1 * 10 ** 6);
 	const solPositionInitialValue = usdcAmount.div(new BN(10));
 
 	let userAccount: UserAccount;
@@ -56,10 +57,10 @@ describe('AMM Curve', () => {
 		await clearingHouse.initializeMarket(
 			marketIndex,
 			solUsdOracle,
-			ammInitialBaseAssetAmount,
-			ammInitialQuoteAssetAmount,
+			ammInitialBaseAssetAmount.mul(PEG_SCALAR),
+			ammInitialQuoteAssetAmount.mul(PEG_SCALAR),
 			periodicity,
-			AMM_MANTISSA.mul(new BN(initialSOLPrice))
+			PEG_SCALAR.mul(new BN(initialSOLPrice))
 		);
 
 		await clearingHouse.initializeUserAccount();
@@ -129,7 +130,7 @@ describe('AMM Curve', () => {
 			clearingHouse.calculateBaseAssetPriceWithMantissa(marketIndex);
 
 		const [bidsPrice, bidsCumSize, asksPrice, asksCumSize] =
-			clearingHouse.liquidityBook(marketIndex, 100, 0.1);
+			clearingHouse.liquidityBook(marketIndex, 3, 0.1);
 
 		for (let i = asksCumSize.length - 1; i >= 0; i--) {
 			console.log(
@@ -142,7 +143,7 @@ describe('AMM Curve', () => {
 		console.log(currentMark.toNumber() / AMM_MANTISSA.toNumber());
 		console.log(
 			'peg:',
-			market.amm.pegMultiplier.toNumber() / AMM_MANTISSA.toNumber(),
+			market.amm.pegMultiplier.toNumber() / PEG_SCALAR.toNumber(),
 			'k (M*M):',
 			market.amm.k.div(AMM_MANTISSA).div(AMM_MANTISSA).toNumber()
 		);

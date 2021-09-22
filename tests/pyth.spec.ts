@@ -9,18 +9,19 @@ import {
 	mockUSDCMint,
 } from '../utils/mockAccounts';
 import { getFeedData, setFeedPrice } from '../utils/mockPythUtils';
+import { PEG_SCALAR, stripMantissa } from "../sdk";
 
 import { Program } from '@project-serum/anchor';
 
 import { PublicKey } from '@solana/web3.js';
 
-import { AMM_MANTISSA, ClearingHouse, Network } from '../sdk/src';
+import { AMM_MANTISSA, FUNDING_MANTISSA, ClearingHouse, Network } from '../sdk/src';
 
 async function updateFundingRateHelper(
 	clearingHouse: ClearingHouse,
 	marketIndex: BN,
 	priceFeedAddress: PublicKey,
-	prices: Array<number>
+	prices: Array<number>,
 ) {
 	for (let i = 0; i < prices.length; i++) {
 		await new Promise((r) => setTimeout(r, 1000)); // wait 1 second
@@ -28,25 +29,55 @@ async function updateFundingRateHelper(
 		const newprice = prices[i];
 		setFeedPrice(anchor.workspace.Pyth, newprice, priceFeedAddress);
 
+
+		const marketsAccount0 = await clearingHouse.getMarketsAccount();
+		const marketData0 = marketsAccount0.markets[marketIndex.toNumber()];
+		const ammAccountState0 = marketData0.amm;
+		const oraclePx0 = await getFeedData(
+			anchor.workspace.Pyth,
+			ammAccountState0.oracle
+		);
+
+		const priceSpread0 = (stripMantissa(ammAccountState0.markTwap) -
+			oraclePx0.twap);
+		const frontEndFundingCalc0 = priceSpread0 / oraclePx0.twap / (24 * 3600);
+
+		console.log(
+			'funding rate frontend calc0:',
+
+			'markTwap0:',
+			ammAccountState0.markTwap.toNumber() / AMM_MANTISSA.toNumber(),
+			'markTwap0:',
+			ammAccountState0.markTwap.toNumber(),
+			'oracleTwap0:',
+			oraclePx0.twap,
+			priceSpread0,
+			frontEndFundingCalc0
+		);
+
 		const _tx = await clearingHouse.updateFundingRate(
 			priceFeedAddress,
 			marketIndex
 		);
 
-		const CONVERSION_SCALE = AMM_MANTISSA.toNumber();
+		const CONVERSION_SCALE = (FUNDING_MANTISSA).mul(AMM_MANTISSA);
 
 		const marketsAccount = await clearingHouse.getMarketsAccount();
 		const marketData = marketsAccount.markets[marketIndex.toNumber()];
 		const ammAccountState = marketData.amm;
+		const peroidicity = marketData.amm.periodicity;
+
+		const lastFundingRate = stripMantissa(ammAccountState.fundingRate, CONVERSION_SCALE);
 
 		console.log(
 			'last funding rate:',
-			ammAccountState.fundingRate.toNumber() / CONVERSION_SCALE
+			lastFundingRate
 		);
 		console.log(
 			'cumfunding rate:',
-			ammAccountState.cumFundingRate.toNumber() / CONVERSION_SCALE
+			stripMantissa(ammAccountState.cumFundingRate, CONVERSION_SCALE)
 		);
+		
 
 		const oraclePx = await getFeedData(
 			anchor.workspace.Pyth,
@@ -54,9 +85,8 @@ async function updateFundingRateHelper(
 		);
 
 		const priceSpread =
-			ammAccountState.markTwap.toNumber() / AMM_MANTISSA.toNumber() -
-			oraclePx.twap;
-		const frontEndFundingCalc = priceSpread / oraclePx.twap / (24 * 3600);
+			ammAccountState.markTwap.toNumber() / AMM_MANTISSA.toNumber() - oraclePx.twap;
+		const frontEndFundingCalc = priceSpread / (24 * 3600 / Math.max(1, peroidicity.toNumber()));
 
 		console.log(
 			'funding rate frontend calc:',
@@ -70,12 +100,13 @@ async function updateFundingRateHelper(
 			priceSpread,
 			frontEndFundingCalc
 		);
-
 		const s = new Date(ammAccountState.fundingRateTs.toNumber() * 1000);
 		const sdate = s.toLocaleDateString('en-US');
 		const stime = s.toLocaleTimeString('en-US');
 
 		console.log('funding rate timestamp:', sdate, stime);
+
+		// assert(Math.abs(frontEndFundingCalc - lastFundingRate) < 9e-6);
 	}
 }
 
@@ -126,7 +157,7 @@ describe('pyth-oracle', () => {
 
 	it('change feed price', async () => {
 		const price = 50000;
-		const expo = -10;
+		const expo = -9;
 		const priceFeedAddress = await mockOracle(price, expo);
 
 		const feedDataBefore = await getFeedData(program, priceFeedAddress);
@@ -140,9 +171,9 @@ describe('pyth-oracle', () => {
 		assert.ok(feedDataAfter.exponent === expo);
 	});
 
-	it('oracle/vamm: funding rate calc 1hour periodicity', async () => {
-		const priceFeedAddress = await mockOracle(40, -9);
-		const periodicity = new BN(60 * 60); // 1 HOUR
+	it('oracle/vamm: funding rate calc 0hour periodicity', async () => {
+		const priceFeedAddress = await mockOracle(40, -10);
+		const periodicity = new BN(0); // 1 HOUR
 		const marketIndex = new BN(0);
 
 		await clearingHouse.initializeMarket(
@@ -150,7 +181,8 @@ describe('pyth-oracle', () => {
 			priceFeedAddress,
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,
-			periodicity
+			periodicity,
+			new BN(30*PEG_SCALAR.toNumber())
 		);
 
 		await updateFundingRateHelper(
@@ -162,7 +194,7 @@ describe('pyth-oracle', () => {
 	});
 
 	it('oracle/vamm: funding rate calc 0hour periodicity', async () => {
-		const priceFeedAddress = await mockOracle(40, -9);
+		const priceFeedAddress = await mockOracle(40, -10);
 		const periodicity = new BN(0);
 		const marketIndex = new BN(1);
 
@@ -171,16 +203,17 @@ describe('pyth-oracle', () => {
 			priceFeedAddress,
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,
-			periodicity
+			periodicity,
+			new BN(41.5*PEG_SCALAR.toNumber())
 		);
 
-		await clearingHouse.moveAmmToPrice(marketIndex, new BN(41500000));
+		await clearingHouse.moveAmmToPrice(marketIndex, new BN(41.5 * AMM_MANTISSA.toNumber()));
 
 		await updateFundingRateHelper(
 			clearingHouse,
 			marketIndex,
 			priceFeedAddress,
-			[41.501, 41.499]
+			[41.501, 41.499],
 		);
 	});
 });
