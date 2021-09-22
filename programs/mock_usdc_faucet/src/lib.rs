@@ -1,5 +1,7 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Mint, TokenAccount};
+use anchor_spl::token::{self, Mint, Token, TokenAccount};
+
+declare_id!("FpamDNbBXYujFzRcmqbJCi618Se6S8Q1jKUDAggo5Qze");
 
 #[program]
 pub mod mock_usdc_faucet {
@@ -43,7 +45,7 @@ pub mod mock_usdc_faucet {
                 to: ctx.accounts.user_token_account.to_account_info(),
                 authority: ctx.accounts.mint_authority.clone(),
             };
-            let cpi_program = ctx.accounts.token_program.clone();
+            let cpi_program = ctx.accounts.token_program.to_account_info();
             let cpi_context = CpiContext::new_with_signer(cpi_program, cpi_accounts, signers);
             token::mint_to(cpi_context, amount).unwrap();
             Ok(())
@@ -53,26 +55,24 @@ pub mod mock_usdc_faucet {
 
 #[derive(Accounts)]
 pub struct InitializeMockUSDCFaucet<'info> {
-    #[account(signer)]
-    pub admin: AccountInfo<'info>,
-    pub mint_account: CpiAccount<'info, Mint>,
+    pub admin: Signer<'info>,
+    pub mint_account: Account<'info, Mint>,
     pub rent: Sysvar<'info, Rent>,
 }
 
 #[derive(Accounts)]
 pub struct UpdateMaxUserAmount<'info> {
-    #[account(signer)]
-    pub admin: AccountInfo<'info>,
+    pub admin: Signer<'info>,
 }
 
 #[derive(Accounts)]
 pub struct MintToUser<'info> {
     #[account(mut)]
-    pub mint_account: CpiAccount<'info, Mint>,
+    pub mint_account: Account<'info, Mint>,
     #[account(mut)]
-    pub user_token_account: CpiAccount<'info, TokenAccount>,
+    pub user_token_account: Account<'info, TokenAccount>,
     pub mint_authority: AccountInfo<'info>,
-    pub token_program: AccountInfo<'info>,
+    pub token_program: Program<'info, Token>,
 }
 
 #[error]

@@ -34,6 +34,8 @@ import {
 import { EventEmitter } from 'events';
 import StrictEventEmitter from 'strict-event-emitter-types';
 
+anchor.utils.features.set('anchor-deprecated-state');
+
 interface ClearingHouseEvents {
 	programStateUpdate: (payload: ClearingHouseState) => void;
 	marketsAccountUpdate: (payload: ClearingHouseMarketsAccountData) => void;
@@ -162,6 +164,7 @@ export class ClearingHouse {
 				fundingRateHistory: fundingRateHistory.publicKey,
 				tradeHistoryAccount: tradeHistoryAccount.publicKey,
 				rent: SYSVAR_RENT_PUBKEY,
+				systemProgram: anchor.web3.SystemProgram.programId,
 			},
 			instructions: [
 				createCollateralTokenAccountIx,
@@ -383,30 +386,23 @@ export class ClearingHouse {
 
 		const [
 			userPositionsAccount,
-			createUserPositionsAccountIx,
 			userAccountPublicKey,
 			initializeUserAccountIx,
 		] = await this.getInitializeUserInstructions();
 
 		const tx = new Transaction()
-			.add(createUserPositionsAccountIx)
 			.add(initializeUserAccountIx);
 		const txSig = await this.program.provider.send(tx, [userPositionsAccount]);
 		return [txSig, userAccountPublicKey];
 	}
 
 	async getInitializeUserInstructions(): Promise<
-		[Keypair, TransactionInstruction, PublicKey, TransactionInstruction]
+		[Keypair, PublicKey, TransactionInstruction]
 	> {
 		const [userAccountPublicKey, userAccountNonce] =
 			await this.getUserAccountPublicKey();
 
 		const userPositionsAccount = new Keypair();
-		const createUserPositionsAccountIx =
-			await this.program.account.userPositionsAccount.createInstruction(
-				userPositionsAccount
-			);
-
 		const initializeUserAccountIx =
 			await this.program.instruction.initializeUserAccount(userAccountNonce, {
 				accounts: {
@@ -420,7 +416,6 @@ export class ClearingHouse {
 			});
 		return [
 			userPositionsAccount,
-			createUserPositionsAccountIx,
 			userAccountPublicKey,
 			initializeUserAccountIx,
 		];
@@ -514,7 +509,6 @@ export class ClearingHouse {
 
 		const [
 			userPositionsAccount,
-			createUserPositionsAccountIx,
 			userAccountPublicKey,
 			initializeUserAccountIx,
 		] = await this.getInitializeUserInstructions();
@@ -527,7 +521,6 @@ export class ClearingHouse {
 		);
 
 		const tx = new Transaction()
-			.add(createUserPositionsAccountIx)
 			.add(initializeUserAccountIx)
 			.add(depositCollateralIx);
 
@@ -550,7 +543,6 @@ export class ClearingHouse {
 
 		const [
 			userPositionsAccount,
-			createUserPositionsAccountIx,
 			userAccountPublicKey,
 			initializeUserAccountIx,
 		] = await this.getInitializeUserInstructions();
@@ -565,7 +557,6 @@ export class ClearingHouse {
 		const tx = new Transaction()
 			.add(createAssociatedAccountIx)
 			.add(mintToIx)
-			.add(createUserPositionsAccountIx)
 			.add(initializeUserAccountIx)
 			.add(depositCollateralIx);
 
@@ -751,23 +742,14 @@ export class ClearingHouse {
 	): Promise<TransactionSignature> {
 		this.assertIsSubscribed();
 
-		const [liquidatorUserAccountPublicKey, liquidateeUserAccount] =
-			await Promise.all([
-				(async () => {
-					return (await this.getUserAccountPublicKey(this.wallet.publicKey))[0];
-				})(),
-				(async (): Promise<any> => {
-					return await this.program.account.userAccount.fetch(
-						liquidateeUserAccountPublicKey
-					);
-				})(),
-			]);
+		const liquidateeUserAccount : any = await this.program.account.userAccount.fetch(
+			liquidateeUserAccountPublicKey
+		);
 
 		return await this.program.state.rpc.liquidate({
 			accounts: {
 				liquidator: this.wallet.publicKey,
 				userAccount: liquidateeUserAccountPublicKey,
-				liquidatorUserAccount: liquidatorUserAccountPublicKey,
 				clearingHouseCollateralAccount: this.state.collateralAccount,
 				clearingHouseCollateralAccountAuthority:
 					this.state.collateralAccountAuthority,
@@ -778,7 +760,6 @@ export class ClearingHouse {
 				tokenProgram: TOKEN_PROGRAM_ID,
 				marketsAccount: this.state.marketsAccount,
 				userPositionsAccount: liquidateeUserAccount.positions,
-				clock: SYSVAR_CLOCK_PUBKEY,
 				fundingRateHistory: this.state.fundingRateHistory,
 				tradeHistoryAccount: this.state.tradeHistoryAccount,
 			},

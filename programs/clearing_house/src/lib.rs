@@ -5,7 +5,7 @@ use bytemuck;
 use solana_program::msg;
 
 use anchor_lang::Key;
-use anchor_spl::token::{self, TokenAccount, Transfer};
+use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 use borsh::{BorshDeserialize, BorshSerialize};
 use integer_sqrt::IntegerSquareRoot;
 use std::cell::{Ref, RefMut};
@@ -22,6 +22,8 @@ pub const USDC_PRECISION: u128 = 1_000_000;
 pub const BASE_ASSET_AMT_PRECISION: u128 = MANTISSA * PEG_SCALAR;
 pub const MARGIN_MANTISSA: u128 = 10_000; // expo = -4
 pub const FUNDING_MANTISSA: u128 = 10_000; // expo = -4
+
+declare_id!("JDHa8mNN2ei9tKmcag1UNNErkVnJtTJdhz8fsFw2NUqF");
 
 #[program]
 pub mod clearing_house {
@@ -43,7 +45,6 @@ pub mod clearing_house {
         pub margin_ratio_maintenence: u128, // maintenance margin
         pub margin_ratio_partial: u128,     // todo: support partial liquidation
         pub trade_history_account: Pubkey,
-
         pub allocated_deposits: u128,
     }
 
@@ -71,7 +72,6 @@ pub mod clearing_house {
             ctx.accounts.markets_account.load_init()?;
             ctx.accounts.funding_rate_history.load_init()?;
             ctx.accounts.trade_history_account.load_init()?;
-
             Ok(Self {
                 admin: *ctx.accounts.admin.key,
                 admin_controls_prices,
@@ -190,7 +190,7 @@ pub mod clearing_house {
 
         #[access_control(
             collateral_account(&self, &ctx.accounts.clearing_house_collateral_account)
-            token_program(&ctx.accounts.token_program)
+
             users_positions_account_matches_user_account(&ctx.accounts.user_account, &ctx.accounts.user_positions_account)
         )]
         pub fn deposit_collateral(
@@ -233,7 +233,7 @@ pub mod clearing_house {
                     .clone(),
                 authority: ctx.accounts.authority.to_account_info().clone(),
             };
-            let cpi_program = ctx.accounts.token_program.clone();
+            let cpi_program = ctx.accounts.token_program.to_account_info();
             let cpi_context = CpiContext::new(cpi_program, cpi_accounts);
             token::transfer(cpi_context, amount).unwrap();
 
@@ -245,7 +245,7 @@ pub mod clearing_house {
         #[access_control(
             collateral_account(&self, &ctx.accounts.clearing_house_collateral_account)
             insurance_account(&self, &ctx.accounts.clearing_house_insurance_account)
-            token_program(&ctx.accounts.token_program)
+
             users_positions_account_matches_user_account(&ctx.accounts.user_account, &ctx.accounts.user_positions_account)
         )]
         pub fn withdraw_collateral(
@@ -324,7 +324,7 @@ pub mod clearing_house {
                     .to_account_info()
                     .clone(),
             };
-            let cpi_program = ctx.accounts.token_program.clone();
+            let cpi_program = ctx.accounts.token_program.to_account_info();
             let cpi_context = CpiContext::new_with_signer(cpi_program, cpi_accounts, signers);
             token::transfer(cpi_context, collateral_account_withdrawal).unwrap();
 
@@ -356,7 +356,7 @@ pub mod clearing_house {
                         .to_account_info()
                         .clone(),
                 };
-                let cpi_program = ctx.accounts.token_program.clone();
+                let cpi_program = ctx.accounts.token_program.to_account_info();
                 let cpi_context = CpiContext::new_with_signer(cpi_program, cpi_accounts, signers);
                 token::transfer(cpi_context, insurance_account_withdrawal).unwrap();
             }
@@ -627,12 +627,13 @@ pub mod clearing_house {
 
         #[access_control(
             collateral_account(&self, &ctx.accounts.clearing_house_collateral_account)
-            token_program(&ctx.accounts.token_program)
+
             users_positions_account_matches_user_account(&ctx.accounts.user_account, &ctx.accounts.user_positions_account)
         )]
         pub fn liquidate(&self, ctx: Context<Liquidate>) -> ProgramResult {
             let user_account = &mut ctx.accounts.user_account;
-            let now = ctx.accounts.clock.unix_timestamp;
+            let clock = Clock::get().unwrap();
+            let now = clock.unix_timestamp;
 
             let (estimated_margin, base_asset_notional) = calculate_margin_ratio_full(
                 user_account,
@@ -746,7 +747,7 @@ pub mod clearing_house {
                         .to_account_info()
                         .clone(),
                 };
-                let cpi_program = ctx.accounts.token_program.clone();
+                let cpi_program = ctx.accounts.token_program.to_account_info();
                 let cpi_context = CpiContext::new_with_signer(cpi_program, cpi_accounts, signers);
                 token::transfer(cpi_context, liquidator_cut_amount).unwrap();
             }
@@ -774,7 +775,7 @@ pub mod clearing_house {
                         .to_account_info()
                         .clone(),
                 };
-                let cpi_program = ctx.accounts.token_program.clone();
+                let cpi_program = ctx.accounts.token_program.to_account_info();
                 let cpi_context = CpiContext::new_with_signer(cpi_program, cpi_accounts, signers);
                 token::transfer(cpi_context, insurance_fund_cut_amount).unwrap();
             }
@@ -844,7 +845,7 @@ pub mod clearing_house {
                         .to_account_info()
                         .clone(),
                 };
-                let cpi_program = ctx.accounts.token_program.clone();
+                let cpi_program = ctx.accounts.token_program.to_account_info();
                 let cpi_context = CpiContext::new_with_signer(cpi_program, cpi_accounts, signers);
                 token::transfer(cpi_context, amount).unwrap();
             }
@@ -1125,17 +1126,17 @@ pub mod clearing_house {
 
 #[derive(Accounts)]
 pub struct InitializeClearingHouse<'info> {
-    #[account(signer)]
-    pub admin: AccountInfo<'info>,
-    pub collateral_account: CpiAccount<'info, TokenAccount>,
-    pub insurance_account: CpiAccount<'info, TokenAccount>,
-    #[account(init)]
+    pub admin: Signer<'info>,
+    pub collateral_account: Account<'info, TokenAccount>,
+    pub insurance_account: Account<'info, TokenAccount>,
+    #[account(zero)]
     pub markets_account: Loader<'info, MarketsAccount>,
-    #[account(init)]
+    #[account(zero)]
     pub funding_rate_history: Loader<'info, FundingRateHistory>,
-    #[account(init)]
+    #[account(zero)]
     pub trade_history_account: Loader<'info, TradeHistoryAccount>,
     pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
@@ -1143,35 +1144,31 @@ pub struct InitializeClearingHouse<'info> {
 pub struct InitializeUserAccount<'info> {
     #[account(
         init,
-        seeds = [b"user", authority.key.as_ref(), &[user_account_nonce]],
+        seeds = [b"user", authority.key.as_ref()],
+        bump = user_account_nonce,
         payer = authority
     )]
-    pub user_account: ProgramAccount<'info, UserAccount>,
-    #[account(init)]
+    pub user_account: Account<'info, UserAccount>,
+    #[account(init, payer=authority)]
     pub user_positions_account: Loader<'info, UserPositionsAccount>,
-    #[account(signer)]
-    pub authority: AccountInfo<'info>,
+    pub authority: Signer<'info>,
     pub rent: Sysvar<'info, Rent>,
-    pub system_program: AccountInfo<'info>,
-
+    pub system_program: Program<'info, System>,
     pub clock: Sysvar<'info, Clock>,
 }
 
 #[derive(Accounts)]
 pub struct InitializeMarket<'info> {
-    #[account(signer)]
-    pub admin: AccountInfo<'info>,
+    pub admin: Signer<'info>,
     #[account(mut)]
     pub markets_account: Loader<'info, MarketsAccount>,
     pub oracle: AccountInfo<'info>,
-
     pub clock: Sysvar<'info, Clock>,
 }
 
 #[derive(Accounts)]
 pub struct UninitializeMarket<'info> {
-    #[account(signer)]
-    pub admin: AccountInfo<'info>,
+    pub admin: Signer<'info>,
     #[account(mut)]
     pub markets_account: Loader<'info, MarketsAccount>,
     pub clock: Sysvar<'info, Clock>,
@@ -1180,14 +1177,13 @@ pub struct UninitializeMarket<'info> {
 #[derive(Accounts)]
 pub struct DepositCollateral<'info> {
     #[account(mut, has_one = authority)]
-    pub user_account: ProgramAccount<'info, UserAccount>,
-    #[account(signer)]
-    pub authority: AccountInfo<'info>,
+    pub user_account: Account<'info, UserAccount>,
+    pub authority: Signer<'info>,
     #[account(mut)]
-    pub clearing_house_collateral_account: CpiAccount<'info, TokenAccount>,
+    pub clearing_house_collateral_account: Account<'info, TokenAccount>,
     #[account(mut)]
-    pub user_collateral_account: CpiAccount<'info, TokenAccount>,
-    pub token_program: AccountInfo<'info>,
+    pub user_collateral_account: Account<'info, TokenAccount>,
+    pub token_program: Program<'info, Token>,
     pub markets_account: Loader<'info, MarketsAccount>,
     #[account(mut)]
     pub user_positions_account: Loader<'info, UserPositionsAccount>,
@@ -1198,18 +1194,17 @@ pub struct DepositCollateral<'info> {
 #[derive(Accounts)]
 pub struct WithdrawCollateral<'info> {
     #[account(mut, has_one = authority)]
-    pub user_account: ProgramAccount<'info, UserAccount>,
-    #[account(signer)]
-    pub authority: AccountInfo<'info>,
+    pub user_account: Account<'info, UserAccount>,
+    pub authority: Signer<'info>,
     #[account(mut)]
-    pub clearing_house_collateral_account: CpiAccount<'info, TokenAccount>,
+    pub clearing_house_collateral_account: Account<'info, TokenAccount>,
     pub clearing_house_collateral_account_authority: AccountInfo<'info>,
     #[account(mut)]
-    pub clearing_house_insurance_account: CpiAccount<'info, TokenAccount>,
+    pub clearing_house_insurance_account: Account<'info, TokenAccount>,
     pub clearing_house_insurance_account_authority: AccountInfo<'info>,
     #[account(mut)]
-    pub user_collateral_account: CpiAccount<'info, TokenAccount>,
-    pub token_program: AccountInfo<'info>,
+    pub user_collateral_account: Account<'info, TokenAccount>,
+    pub token_program: Program<'info, Token>,
     pub markets_account: Loader<'info, MarketsAccount>,
     #[account(mut)]
     pub user_positions_account: Loader<'info, UserPositionsAccount>,
@@ -1219,25 +1214,23 @@ pub struct WithdrawCollateral<'info> {
 
 #[derive(Accounts)]
 pub struct AdminWithdrawCollateral<'info> {
-    #[account(signer)]
-    pub admin: AccountInfo<'info>,
+    pub admin: Signer<'info>,
     #[account(mut)]
-    pub clearing_house_collateral_account: CpiAccount<'info, TokenAccount>,
+    pub clearing_house_collateral_account: Account<'info, TokenAccount>,
     pub clearing_house_collateral_account_authority: AccountInfo<'info>,
     #[account(mut)]
-    pub clearing_house_insurance_account: CpiAccount<'info, TokenAccount>,
+    pub clearing_house_insurance_account: Account<'info, TokenAccount>,
     pub clearing_house_insurance_account_authority: AccountInfo<'info>,
     #[account(mut)]
-    pub token_program: AccountInfo<'info>,
+    pub token_program: Program<'info, Token>,
     pub markets_account: Loader<'info, MarketsAccount>,
 }
 
 #[derive(Accounts)]
 pub struct OpenPosition<'info> {
     #[account(mut, has_one = authority)]
-    pub user_account: ProgramAccount<'info, UserAccount>,
-    #[account(signer)]
-    pub authority: AccountInfo<'info>,
+    pub user_account: Account<'info, UserAccount>,
+    pub authority: Signer<'info>,
     #[account(mut)]
     pub markets_account: Loader<'info, MarketsAccount>,
     #[account(mut)]
@@ -1252,9 +1245,8 @@ pub struct OpenPosition<'info> {
 #[derive(Accounts)]
 pub struct ClosePosition<'info> {
     #[account(mut, has_one = authority)]
-    pub user_account: ProgramAccount<'info, UserAccount>,
-    #[account(signer)]
-    pub authority: AccountInfo<'info>,
+    pub user_account: Account<'info, UserAccount>,
+    pub authority: Signer<'info>,
     #[account(mut)]
     pub markets_account: Loader<'info, MarketsAccount>,
     #[account(mut)]
@@ -1268,32 +1260,28 @@ pub struct ClosePosition<'info> {
 
 #[derive(Accounts)]
 pub struct Liquidate<'info> {
-    #[account(signer)]
-    pub liquidator: AccountInfo<'info>,
+    pub liquidator: Signer<'info>,
     #[account(mut)]
-    pub user_account: ProgramAccount<'info, UserAccount>,
-    pub liquidator_user_account: ProgramAccount<'info, UserAccount>,
+    pub user_account: Account<'info, UserAccount>,
     #[account(mut)]
-    pub clearing_house_collateral_account: CpiAccount<'info, TokenAccount>,
+    pub clearing_house_collateral_account: Account<'info, TokenAccount>,
     pub clearing_house_collateral_account_authority: AccountInfo<'info>,
     #[account(mut)]
-    pub clearing_house_insurance_account: CpiAccount<'info, TokenAccount>,
+    pub clearing_house_insurance_account: Account<'info, TokenAccount>,
     pub clearing_house_insurance_account_authority: AccountInfo<'info>,
     #[account(mut)]
-    pub liquidator_account: CpiAccount<'info, TokenAccount>,
-    pub token_program: AccountInfo<'info>,
+    pub liquidator_account: Account<'info, TokenAccount>,
+    pub token_program: Program<'info, Token>,
     #[account(mut)]
     pub markets_account: Loader<'info, MarketsAccount>,
     #[account(mut)]
     pub user_positions_account: Loader<'info, UserPositionsAccount>,
-
-    pub clock: Sysvar<'info, Clock>,
 }
 
 #[derive(Accounts)]
 pub struct SettleFunding<'info> {
     #[account(mut)]
-    pub user_account: ProgramAccount<'info, UserAccount>,
+    pub user_account: Account<'info, UserAccount>,
     pub markets_account: Loader<'info, MarketsAccount>,
     #[account(mut)]
     pub user_positions_account: Loader<'info, UserPositionsAccount>,
@@ -1309,7 +1297,7 @@ pub struct UpdateFundingRate<'info> {
     pub clock: Sysvar<'info, Clock>,
 
     #[account(mut)]
-    pub clearing_house_insurance_account: CpiAccount<'info, TokenAccount>,
+    pub clearing_house_insurance_account: Account<'info, TokenAccount>,
     pub clearing_house_insurance_account_authority: AccountInfo<'info>,
 }
 
@@ -1318,23 +1306,20 @@ pub struct RepegCurve<'info> {
     #[account(mut)]
     pub markets_account: Loader<'info, MarketsAccount>,
     pub oracle: AccountInfo<'info>,
-    #[account(signer)]
-    pub admin: AccountInfo<'info>,
-
+    pub admin: Signer<'info>,
     pub clock: Sysvar<'info, Clock>,
 }
 
 #[derive(Accounts)]
 pub struct MoveAMMPrice<'info> {
-    #[account(signer)]
-    pub admin: AccountInfo<'info>,
+    pub admin: Signer<'info>,
     #[account(mut)]
     pub markets_account: Loader<'info, MarketsAccount>,
 
     pub clock: Sysvar<'info, Clock>,
 }
 
-#[associated]
+#[account]
 #[derive(Default)]
 pub struct UserAccount {
     pub authority: Pubkey,
@@ -1347,6 +1332,7 @@ pub struct UserAccount {
 }
 
 #[account(zero_copy)]
+#[derive(Default)]
 pub struct UserPositionsAccount {
     pub user_account: Pubkey,
     pub positions: [MarketPosition; 10],
@@ -1356,6 +1342,15 @@ pub struct UserPositionsAccount {
 pub struct TradeHistoryAccount {
     head: u64,
     trade_records: [TradeRecord; 1000],
+}
+
+impl Default for TradeHistoryAccount {
+    fn default() -> Self {
+        return TradeHistoryAccount {
+            head: 0,
+            trade_records: [TradeRecord::default(); 1000],
+        };
+    }
 }
 
 impl TradeHistoryAccount {
@@ -1375,6 +1370,7 @@ impl TradeHistoryAccount {
 }
 
 #[zero_copy]
+#[derive(Default)]
 pub struct TradeRecord {
     pub ts: i64,
     pub record_id: u128,
@@ -1394,10 +1390,26 @@ pub enum OracleSource {
     Switchboard,
 }
 
+impl Default for OracleSource {
+    // UpOnly
+    fn default() -> Self {
+        OracleSource::Pyth
+    }
+}
+
 #[account(zero_copy)]
 pub struct MarketsAccount {
     pub account_index: u64,
     pub markets: [Market; 1000],
+}
+
+impl Default for MarketsAccount {
+    fn default() -> Self {
+        return MarketsAccount {
+            account_index: 0,
+            markets: [Market::default(); 1000],
+        };
+    }
 }
 
 impl MarketsAccount {
@@ -1407,6 +1419,7 @@ impl MarketsAccount {
 }
 
 #[zero_copy]
+#[derive(Default)]
 pub struct Market {
     pub initialized: bool,
     pub base_asset_amount_long: i128,
@@ -1428,6 +1441,7 @@ pub struct Market {
 }
 
 #[zero_copy]
+#[derive(Default)]
 pub struct AMM {
     pub oracle: Pubkey,
     pub oracle_src: OracleSource,
@@ -1892,6 +1906,15 @@ pub struct FundingRateHistory {
     funding_rate_records: [FundingRateRecord; 1000],
 }
 
+impl Default for FundingRateHistory {
+    fn default() -> Self {
+        return FundingRateHistory {
+            head: 0,
+            funding_rate_records: [FundingRateRecord::default(); 1000],
+        };
+    }
+}
+
 impl FundingRateHistory {
     fn append(&mut self, pos: FundingRateRecord) {
         self.funding_rate_records[FundingRateHistory::index_of(self.head)] = pos;
@@ -1909,6 +1932,7 @@ impl FundingRateHistory {
 }
 
 #[zero_copy]
+#[derive(Default)]
 pub struct FundingRateRecord {
     pub ts: i64,
     pub record_id: u128,
@@ -1928,6 +1952,7 @@ pub enum SwapDirection {
 }
 
 #[zero_copy]
+#[derive(Default)]
 pub struct MarketPosition {
     pub market_index: u64,
     pub base_asset_amount: i128,
@@ -1991,6 +2016,13 @@ pub enum ErrorCode {
 pub enum PositionDirection {
     Long,
     Short,
+}
+
+impl Default for PositionDirection {
+    // UpOnly
+    fn default() -> Self {
+        PositionDirection::Long
+    }
 }
 
 fn increase_position(
@@ -2070,7 +2102,7 @@ fn increase_position(
 fn reduce_position<'info>(
     direction: PositionDirection,
     new_quote_asset_notional_amount: u128,
-    user_account: &mut ProgramAccount<'info, UserAccount>,
+    user_account: &mut Account<'info, UserAccount>,
     market: &mut Market,
     market_position: &mut MarketPosition,
     now: i64,
@@ -2153,9 +2185,9 @@ fn reduce_position<'info>(
 
 // Todo Make this work with new market structure
 fn transfer_position<'info>(
-    user_account_to: &mut ProgramAccount<UserAccount>,
+    user_account_to: &mut Account<UserAccount>,
     market_position_to: &mut MarketPosition,
-    user_account_from: &mut ProgramAccount<UserAccount>,
+    user_account_from: &mut Account<UserAccount>,
     market_position_from: &mut MarketPosition,
     market: &mut Market,
 ) {
@@ -2194,7 +2226,7 @@ fn transfer_position<'info>(
 }
 
 fn close_position(
-    user_account: &mut ProgramAccount<UserAccount>,
+    user_account: &mut Account<UserAccount>,
     market: &mut Market,
     market_position: &mut MarketPosition,
     now: i64,
@@ -2516,7 +2548,7 @@ fn admin<'info>(state: &clearing_house::ClearingHouse, signer: &AccountInfo<'inf
 
 fn collateral_account<'info>(
     state: &clearing_house::ClearingHouse,
-    collateral_account: &CpiAccount<'info, TokenAccount>,
+    collateral_account: &Account<'info, TokenAccount>,
 ) -> Result<()> {
     if !collateral_account
         .to_account_info()
@@ -2530,7 +2562,7 @@ fn collateral_account<'info>(
 
 fn insurance_account<'info>(
     state: &clearing_house::ClearingHouse,
-    insurance_account: &CpiAccount<'info, TokenAccount>,
+    insurance_account: &Account<'info, TokenAccount>,
 ) -> Result<()> {
     if !insurance_account
         .to_account_info()
@@ -2538,15 +2570,6 @@ fn insurance_account<'info>(
         .eq(&state.insurance_account)
     {
         return Err(ErrorCode::InvalidInsuranceAccount.into());
-    }
-    Ok(())
-}
-
-fn token_program<'info>(token_program: &AccountInfo<'info>) -> Result<()> {
-    let canonicl_token_program =
-        Pubkey::from_str("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA").unwrap();
-    if !token_program.key.eq(&canonicl_token_program) {
-        return Err(ErrorCode::InvalidTokenProgram.into());
     }
     Ok(())
 }
@@ -2559,7 +2582,7 @@ fn admin_controls_prices<'info>(state: &clearing_house::ClearingHouse) -> Result
 }
 
 fn users_positions_account_matches_user_account<'info>(
-    user_account: &ProgramAccount<'info, UserAccount>,
+    user_account: &Account<'info, UserAccount>,
     user_positions_account: &Loader<'info, UserPositionsAccount>,
 ) -> Result<()> {
     if !user_account
