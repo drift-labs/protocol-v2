@@ -143,7 +143,7 @@ describe('User Account', () => {
 			userUSDCAccount.publicKey
 		);
 
-		const expectedBuyingPower = new BN(50000000);
+		const expectedBuyingPower = (new BN(10000000)).mul(MAX_LEVERAGE);
 		const expectedFreeCollateral = new BN(10000000);
 		const expectedPNL = new BN(0);
 		const expectedTotalCollateral = new BN(10000000);
@@ -170,10 +170,10 @@ describe('User Account', () => {
 
 		const expectedPNL = new BN(0);
 		const expectedTotalCollateral = new BN(10000000);
-		const expectedBuyingPower = new BN(25000000);
+		const expectedBuyingPower = (new BN(5000000)).mul(MAX_LEVERAGE);
 		const expectedFreeCollateral = new BN(5000000);
-		const expectedLeverage = new BN(25000); // 2.499x
-		const expectedMarginRatio = new BN(4000); // 39.9%
+		const expectedLeverage = new BN(50000); // 5x
+		const expectedMarginRatio = new BN(2000); // 20%
 
 		await assertState(
 			expectedBuyingPower,
@@ -192,12 +192,12 @@ describe('User Account', () => {
 			marketIndex
 		);
 
-		const expectedPNL = new BN(2499862);
-		const expectedTotalCollateral = new BN(12499862);
-		const expectedBuyingPower = new BN(34999450);
-		const expectedFreeCollateral = new BN(6999890);
-		const expectedLeverage = new BN(22000); // 1.428x
-		const expectedMarginRatio = new BN(4545); // 69.9%
+		const expectedPNL = new BN(4999450);
+		const expectedTotalCollateral = new BN(14999450);
+		const expectedBuyingPower = new BN(94995050);
+		const expectedFreeCollateral = new BN(9499505);
+		const expectedLeverage = new BN(36667); // 1.428x
+		const expectedMarginRatio = new BN(2727); // 69.9%
 
 		await assertState(
 			expectedBuyingPower,
@@ -214,10 +214,10 @@ describe('User Account', () => {
 			marketIndex
 		);
 
-		const expectedBuyingPower = new BN(62499310);
-		const expectedFreeCollateral = new BN(12499862);
+		const expectedBuyingPower = new BN(149994500);
+		const expectedFreeCollateral = new BN(14999450);
 		const expectedPNL = new BN(0);
-		const expectedTotalCollateral = new BN(12499862);
+		const expectedTotalCollateral = new BN(14999450);
 		const expectedLeverage = new BN(0);
 		const expectedMarginRatio = new BN(Number.MAX_SAFE_INTEGER);
 
