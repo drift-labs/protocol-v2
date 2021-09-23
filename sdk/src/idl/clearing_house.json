@@ -13,7 +13,7 @@
         {
           "name": "userPositionsAccount",
           "isMut": true,
-          "isSigner": false
+          "isSigner": true
         },
         {
           "name": "authority",
@@ -211,6 +211,11 @@
           },
           {
             "name": "rent",
+            "isMut": false,
+            "isSigner": false
+          },
+          {
+            "name": "systemProgram",
             "isMut": false,
             "isSigner": false
           }
@@ -532,11 +537,6 @@
             "isSigner": false
           },
           {
-            "name": "liquidatorUserAccount",
-            "isMut": false,
-            "isSigner": false
-          },
-          {
             "name": "clearingHouseCollateralAccount",
             "isMut": true,
             "isSigner": false
@@ -574,11 +574,6 @@
           {
             "name": "userPositionsAccount",
             "isMut": true,
-            "isSigner": false
-          },
-          {
-            "name": "clock",
-            "isMut": false,
             "isSigner": false
           }
         ],
@@ -883,20 +878,6 @@
       }
     },
     {
-      "name": "OracleSource",
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "Pyth"
-          },
-          {
-            "name": "Switchboard"
-          }
-        ]
-      }
-    },
-    {
       "name": "Market",
       "type": {
         "kind": "struct",
@@ -971,10 +952,6 @@
           },
           {
             "name": "quoteAssetAmount",
-            "type": "u128"
-          },
-          {
-            "name": "k",
             "type": "u128"
           },
           {
@@ -1097,20 +1074,6 @@
       }
     },
     {
-      "name": "SwapDirection",
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "Add"
-          },
-          {
-            "name": "Remove"
-          }
-        ]
-      }
-    },
-    {
       "name": "MarketPosition",
       "type": {
         "kind": "struct",
@@ -1138,6 +1101,45 @@
           {
             "name": "lastFundingTs",
             "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SwapError",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "ConversionFailure"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OracleSource",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Pyth"
+          },
+          {
+            "name": "Switchboard"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SwapDirection",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Add"
+          },
+          {
+            "name": "Remove"
           }
         ]
       }
@@ -1267,6 +1269,11 @@
       "code": 321,
       "name": "TradeSizeTooSmall",
       "msg": "Trade Size Too Small"
+    },
+    {
+      "code": 322,
+      "name": "InvalidOracleSource",
+      "msg": "Invalid Oracle Source"
     }
   ]
 }

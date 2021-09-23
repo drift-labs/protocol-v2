@@ -2,7 +2,7 @@ import * as anchor from '@project-serum/anchor';
 import { Program } from '@project-serum/anchor';
 import { Keypair } from '@solana/web3.js';
 import BN from 'bn.js';
-import { AMM_MANTISSA, ClearingHouse, Network } from '../sdk/src';
+import { ClearingHouse, Network, PEG_SCALAR } from '../sdk/src';
 // import { getTokenAccount } from '@project-serum/common';
 import { mockUSDCMint } from '../utils/mockAccounts';
 import { stress_test } from '../utils/stress';
@@ -51,44 +51,44 @@ describe('stress-test', () => {
 	// 	);
 	// });
 
-	// it('test-repeg-peg=150', async () => {
-	// 	const pegM = new BN(3).mul(AMM_MANTISSA);
-	// 	await stress_test(
-	// 		clearingHouse,
-	// 		usdcMint,
-	// 		provider,
-	// 		1,
-	// 		50,
-	// 		10000 * 10 ** 11,
-	// 		10 ** (18 + 6),
-	// 		// 'utils/configs/slipfee.test.csv',
-	// 		undefined,
-	// 		[pegM, pegM],
-	// 		undefined,
-	// 		undefined,
-	// 		'sim-slipfee-rand-test'
-	// 	);
-	// });
-
-	it('test-pegmult-peg=2-master', async () => {
-		const pegM = new BN(46000).mul(AMM_MANTISSA);
+	it('test-repeg-peg=150', async () => {
+		const pegM = new BN(150).mul(PEG_SCALAR);
 		await stress_test(
 			clearingHouse,
 			usdcMint,
 			provider,
 			1,
-			1337,
-			10 * 10 ** 6,
-			25 * 10 ** 30,
-			'utils/configs/clearingHouse.spec.pegmult.csv',
-			[pegM, pegM],
-			5,
+			100,
+			10000 * 10 ** 11,
+			10 ** (13),
+			// 'utils/configs/slipfee.test.csv',
 			undefined,
-			'simp-peg-2-master'
+			[pegM, pegM],
+			undefined,
+			undefined,
+			'sim-slipfee-rand1-test'
 		);
-		clearingHouse.uninitializeMarket(new BN(0));
-		clearingHouse.uninitializeMarket(new BN(1));
 	});
+
+	// it('test-pegmult-peg=2', async () => {
+	// 	const pegM = new BN(46000).mul(PEG_SCALAR);
+	// 	await stress_test(
+	// 		clearingHouse,
+	// 		usdcMint,
+	// 		provider,
+	// 		1,
+	// 		1337,
+	// 		10 * 10 ** 6,
+	// 		25 * 10 ** 30,
+	// 		'utils/configs/clearingHouse.spec.pegmult.csv',
+	// 		[pegM, pegM],
+	// 		5,
+	// 		undefined,
+	// 		'simp-peg-2'
+	// 	);
+	// 	clearingHouse.uninitializeMarket(new BN(0));
+	// 	clearingHouse.uninitializeMarket(new BN(1));
+	// });
 
 	// it('test-pegmult-peg=40000', async () => {
 	// 	const pegM = new BN(40000).mul(AMM_MANTISSA);

@@ -3,7 +3,7 @@ import { Program, Provider } from '@project-serum/anchor';
 import { PublicKey } from '@solana/web3.js';
 import BN from 'bn.js';
 import { ClearingHouse, Network, PythClient } from '../sdk/';
-import { AMM_MANTISSA, MockUSDCFaucet } from '../sdk/src';
+import { AMM_MANTISSA, MockUSDCFaucet, PEG_SCALAR } from '../sdk/src';
 
 
 
@@ -75,7 +75,7 @@ module.exports = async function (provider: Provider) {
 		const periodicity = new BN(3600);
 		const ammQuoteAssetAmount = new anchor.BN(2 * 10 ** 13);
 		const ammBaseAssetAmount = new anchor.BN(2 * 10 ** 13);
-		const pegMultiplierAst = new anchor.BN(astPrice * AMM_MANTISSA.toNumber());
+		const pegMultiplierAst = new anchor.BN(astPrice * PEG_SCALAR.toNumber());
 	
 		console.log('Initializing Market for ', keyName,'/USD: ');
 		await clearingHouse.subscribe();

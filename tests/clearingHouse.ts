@@ -7,7 +7,7 @@ import { getTokenAccount } from '@project-serum/common';
 
 import { PublicKey } from '@solana/web3.js';
 
-import { ClearingHouse, Network, PositionDirection} from '../sdk/src';
+import { AMM_MANTISSA, ClearingHouse, Network, PositionDirection} from '../sdk/src';
 
 import Markets from '../sdk/src/constants/markets';
 
@@ -30,13 +30,10 @@ describe('clearing_house', () => {
 	let usdcMint;
 	let userUSDCAccount;
 
-	const ammInitialQuoteAssetAmount = new anchor.BN(5 * 10 ** 10);
-	const ammInitialBaseAssetAmount = new anchor.BN(5 * 10 ** 10);
-
 	// ammInvariant == k == x * y
-	const _ammInvariant = ammInitialQuoteAssetAmount.mul(
-		ammInitialBaseAssetAmount
-	);
+	const mantissaSqrtScale = new BN(Math.sqrt(AMM_MANTISSA.toNumber()));
+	const ammInitialQuoteAssetAmount = (new anchor.BN(5 * 10 ** 13)).mul(mantissaSqrtScale);
+	const ammInitialBaseAssetAmount = (new anchor.BN(5 * 10 ** 13)).mul(mantissaSqrtScale);
 
 	const usdcAmount = new BN(10 * 10 ** 6);
 
@@ -238,15 +235,18 @@ describe('clearing_house', () => {
 				new BN(50000000)
 			)
 		);
+		console.log(userPositionsAccount.positions[0].baseAssetAmount);
 		assert.ok(
-			userPositionsAccount.positions[0].baseAssetAmount.eq(new BN(49950050))
+			userPositionsAccount.positions[0].baseAssetAmount.eq(new BN(499950004999501))
 		);
 
 		const marketsAccount = clearingHouse.getMarketsAccount();
 
 		const market = marketsAccount.markets[0];
 		assert.ok(market.quoteAssetNotionalAmount.eq(new BN(50000000)));
-		assert.ok(market.baseAssetAmount.eq(new BN(49950050)));
+		console.log(market.baseAssetAmount.toNumber());
+
+		assert.ok(market.baseAssetAmount.eq(new BN(499950004999501)));
 
 		const tradeHistoryAccount = clearingHouse.getTradeHistoryAccount();
 
@@ -262,7 +262,7 @@ describe('clearing_house', () => {
 				JSON.stringify(PositionDirection.LONG)
 		);
 		assert.ok(
-			tradeHistoryAccount.tradeRecords[0].baseAssetAmount.eq(new BN(49950050))
+			tradeHistoryAccount.tradeRecords[0].baseAssetAmount.eq(new BN(499950004999501))
 		);
 		assert.ok(
 			tradeHistoryAccount.tradeRecords[0].quoteAssetNotionalAmount.eq(
@@ -296,42 +296,6 @@ describe('clearing_house', () => {
 			console.error = oldConsoleError;
 		}
 	});
-	it('Order fails due to unrealiziable limit price ', async () => {
-		// Should be a better a way to catch an exception with chai but wasn't working for me
-		try {
-			const newUSDCNotionalAmount = usdcAmount.div(new BN(2)).mul(new BN(5));
-			const marketIndex = new BN(0);
-			const estTradePrice =
-				clearingHouse.calculateBaseAssetPriceAfterSwapWithMantissa(
-					marketIndex,
-					PositionDirection.SHORT,
-					newUSDCNotionalAmount
-				);
-
-			// trying to sell at price too high
-			const limitPriceTooHigh =
-				clearingHouse.calculateBaseAssetPriceWithMantissa(marketIndex);
-			console.log(
-				'failed order:',
-				estTradePrice.toNumber(),
-				limitPriceTooHigh.toNumber()
-			);
-
-			await clearingHouse.openPosition(
-				userAccountPublicKey,
-				PositionDirection.SHORT,
-				newUSDCNotionalAmount,
-				marketIndex,
-				limitPriceTooHigh
-			);
-			assert(false, 'Order succeeded');
-		} catch (e) {
-			if (e.message == 'Order succeeded') {
-				assert(false, 'Order succeeded');
-			}
-			assert(true);
-		}
-	});
 
 	it('Reduce long position', async () => {
 		const newUSDCNotionalAmount = usdcAmount.div(new BN(2)).mul(new BN(5));
@@ -349,22 +313,21 @@ describe('clearing_house', () => {
 			await clearingHouse.program.account.userPositionsAccount.fetch(
 				user.positions
 			);
-
 		assert.ok(
 			userPositionsAccount.positions[0].quoteAssetNotionalAmount.eq(
 				new BN(25000000)
 			)
 		);
-
+		console.log(userPositionsAccount.positions[0].baseAssetAmount.toNumber());
 		assert.ok(
-			userPositionsAccount.positions[0].baseAssetAmount.eq(new BN(24987507))
+			userPositionsAccount.positions[0].baseAssetAmount.eq(new BN(249987500624969))
 		);
 		assert.ok(user.collateral.eq(usdcAmount));
 
 		const marketsAccount = clearingHouse.getMarketsAccount();
 		const market: any = marketsAccount.markets[0];
 		assert.ok(market.quoteAssetNotionalAmount.eq(new BN(25000000)));
-		assert.ok(market.baseAssetAmount.eq(new BN(24987507)));
+		assert.ok(market.baseAssetAmount.eq(new BN(249987500624969)));
 
 		const tradeHistoryAccount = clearingHouse.getTradeHistoryAccount();
 
@@ -379,8 +342,9 @@ describe('clearing_house', () => {
 			JSON.stringify(tradeHistoryAccount.tradeRecords[1].direction) ===
 				JSON.stringify(PositionDirection.SHORT)
 		);
+		console.log(tradeHistoryAccount.tradeRecords[1].baseAssetAmount.toNumber());
 		assert.ok(
-			tradeHistoryAccount.tradeRecords[1].baseAssetAmount.eq(new BN(24962543))
+			tradeHistoryAccount.tradeRecords[1].baseAssetAmount.eq(new BN(249962504374532))
 		);
 		assert.ok(
 			tradeHistoryAccount.tradeRecords[1].quoteAssetNotionalAmount.eq(
@@ -413,14 +377,15 @@ describe('clearing_house', () => {
 				new BN(25000000)
 			)
 		);
+		// console.log(userPositionsAccount.positions[0].baseAssetAmount.toNumber());
 		assert.ok(
-			userPositionsAccount.positions[0].baseAssetAmount.eq(new BN(-25012506))
+			userPositionsAccount.positions[0].baseAssetAmount.eq(new BN(-250012500625031))
 		);
 
 		const marketsAccount = clearingHouse.getMarketsAccount();
 		const market: any = marketsAccount.markets[0];
 		assert.ok(market.quoteAssetNotionalAmount.eq(new BN(25000000)));
-		assert.ok(market.baseAssetAmount.eq(new BN(-25012506)));
+		assert.ok(market.baseAssetAmount.eq(new BN(-250012500625031)));
 
 		const tradeHistoryAccount = clearingHouse.getTradeHistoryAccount();
 
@@ -435,8 +400,9 @@ describe('clearing_house', () => {
 			JSON.stringify(tradeHistoryAccount.tradeRecords[2].direction) ===
 				JSON.stringify(PositionDirection.SHORT)
 		);
+		console.log(tradeHistoryAccount.tradeRecords[2].baseAssetAmount.toNumber());
 		assert.ok(
-			tradeHistoryAccount.tradeRecords[2].baseAssetAmount.eq(new BN(50000013))
+			tradeHistoryAccount.tradeRecords[2].baseAssetAmount.eq(new BN(500000001250000))
 		);
 		assert.ok(
 			tradeHistoryAccount.tradeRecords[2].quoteAssetNotionalAmount.eq(
@@ -480,8 +446,10 @@ describe('clearing_house', () => {
 			JSON.stringify(tradeHistoryAccount.tradeRecords[3].direction) ===
 				JSON.stringify(PositionDirection.LONG)
 		);
+		// console.log(tradeHistoryAccount.tradeRecords[3].baseAssetAmount.toNumber());
+
 		assert.ok(
-			tradeHistoryAccount.tradeRecords[3].baseAssetAmount.eq(new BN(25012506))
+			tradeHistoryAccount.tradeRecords[3].baseAssetAmount.eq(new BN(250012500625031))
 		);
 		assert.ok(
 			tradeHistoryAccount.tradeRecords[3].quoteAssetNotionalAmount.eq(
@@ -512,14 +480,15 @@ describe('clearing_house', () => {
 				new BN(50000000)
 			)
 		);
+		console.log(userPositionsAccount.positions[0].baseAssetAmount.toNumber());
 		assert.ok(
-			userPositionsAccount.positions[0].baseAssetAmount.eq(new BN(-50050050))
+			userPositionsAccount.positions[0].baseAssetAmount.eq(new BN(-500050005000500))
 		);
 
 		const marketsAccount = clearingHouse.getMarketsAccount();
 		const market: any = marketsAccount.markets[0];
 		assert.ok(market.quoteAssetNotionalAmount.eq(new BN(50000000)));
-		assert.ok(market.baseAssetAmount.eq(new BN(-50050050)));
+		assert.ok(market.baseAssetAmount.eq(new BN(-500050005000500)));
 
 		const tradeHistoryAccount = clearingHouse.getTradeHistoryAccount();
 
@@ -535,7 +504,7 @@ describe('clearing_house', () => {
 				JSON.stringify(PositionDirection.SHORT)
 		);
 		assert.ok(
-			tradeHistoryAccount.tradeRecords[4].baseAssetAmount.eq(new BN(50050050))
+			tradeHistoryAccount.tradeRecords[4].baseAssetAmount.eq(new BN(500050005000500))
 		);
 		assert.ok(
 			tradeHistoryAccount.tradeRecords[4].quoteAssetNotionalAmount.eq(
@@ -547,8 +516,8 @@ describe('clearing_house', () => {
 
 	it('Liquidation', async () => {
 		await clearingHouse.moveAmmPrice(
-			ammInitialBaseAssetAmount.mul(new BN(6)),
-			ammInitialQuoteAssetAmount.mul(new BN(7)),
+			ammInitialBaseAssetAmount.mul(new BN(6)).div(new BN(7)),
+			ammInitialQuoteAssetAmount,
 			new BN(0)
 		);
 
@@ -581,9 +550,11 @@ describe('clearing_house', () => {
 			provider,
 			userUSDCAccount.publicKey
 		);
+		console.log(chInsuranceAccountToken.amount.toNumber());
+		console.log(userUSDCTokenAccount.amount.toNumber());
 
-		assert.ok(chInsuranceAccountToken.amount.eq(new BN(1518606)));
-		assert.ok(userUSDCTokenAccount.amount.eq(new BN(79926)));
+		assert.ok(chInsuranceAccountToken.amount.eq(new BN(1571325)));
+		assert.ok(userUSDCTokenAccount.amount.eq(new BN(82701)));
 	});
 
 	it('Pay from insurance fund', async () => {
@@ -622,8 +593,8 @@ describe('clearing_house', () => {
 
 		// Send the price to the moon so that user has huge pnl
 		await clearingHouse.moveAmmPrice(
-			ammInitialBaseAssetAmount.mul(new BN(1)),
-			ammInitialQuoteAssetAmount.mul(new BN(1000)),
+			ammInitialBaseAssetAmount.div(new BN(1000)),
+			ammInitialQuoteAssetAmount,
 			new BN(0)
 		);
 
@@ -659,5 +630,15 @@ describe('clearing_house', () => {
 			state.insuranceAccount
 		);
 		assert(chInsuranceAccountToken.amount.eq(new BN(0)));
+	});
+
+
+	it('Trade small size position', async () => {
+		await clearingHouse.openPosition(
+			userAccountPublicKey,
+			PositionDirection.LONG,
+			new BN(10000),
+			new BN(0)
+		);
 	});
 });
