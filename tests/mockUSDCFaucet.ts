@@ -48,7 +48,7 @@ describe('mock_usdc_faucet', () => {
 
 	it('Initialize State', async () => {
 		await mockUSDCFaucet.initialize();
-		const state: any = await mockUSDCFaucet.program.state.fetch();
+		const state: any = await mockUSDCFaucet.fetchState();
 
 		assert.ok(state.admin.equals(provider.wallet.publicKey));
 
@@ -63,7 +63,7 @@ describe('mock_usdc_faucet', () => {
 	});
 
 	it('mint to user', async () => {
-		const state: any = await mockUSDCFaucet.program.state.fetch();
+		const state: any = await mockUSDCFaucet.fetchState();
 		const token = new Token(
 			connection,
 			state.mint,
@@ -84,7 +84,7 @@ describe('mock_usdc_faucet', () => {
 	});
 
 	it('initialize user for dev net', async () => {
-		const state: any = await mockUSDCFaucet.program.state.fetch();
+		const state: any = await mockUSDCFaucet.fetchState();
 
 		await clearingHouse.initialize(state.mint, false);
 		await clearingHouse.subscribe();

@@ -1,10 +1,83 @@
 {
   "version": "0.0.0",
   "name": "mock_usdc_faucet",
-  "instructions": [],
-  "state": {
-    "struct": {
-      "name": "MockUSDCFaucet",
+  "instructions": [
+    {
+      "name": "initialize",
+      "accounts": [
+        {
+          "name": "mockUsdcFaucetState",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "mintAccount",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "mockUsdcFaucetNonce",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "mintToUser",
+      "accounts": [
+        {
+          "name": "mockUsdcFaucetState",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "mintAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "mintAuthority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "MockUSDCFaucetState",
       "type": {
         "kind": "struct",
         "fields": [
@@ -26,62 +99,8 @@
           }
         ]
       }
-    },
-    "methods": [
-      {
-        "name": "new",
-        "accounts": [
-          {
-            "name": "admin",
-            "isMut": false,
-            "isSigner": true
-          },
-          {
-            "name": "mintAccount",
-            "isMut": false,
-            "isSigner": false
-          },
-          {
-            "name": "rent",
-            "isMut": false,
-            "isSigner": false
-          }
-        ],
-        "args": []
-      },
-      {
-        "name": "mintToUser",
-        "accounts": [
-          {
-            "name": "mintAccount",
-            "isMut": true,
-            "isSigner": false
-          },
-          {
-            "name": "userTokenAccount",
-            "isMut": true,
-            "isSigner": false
-          },
-          {
-            "name": "mintAuthority",
-            "isMut": false,
-            "isSigner": false
-          },
-          {
-            "name": "tokenProgram",
-            "isMut": false,
-            "isSigner": false
-          }
-        ],
-        "args": [
-          {
-            "name": "amount",
-            "type": "u64"
-          }
-        ]
-      }
-    ]
-  },
+    }
+  ],
   "errors": [
     {
       "code": 300,

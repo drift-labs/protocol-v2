@@ -58,10 +58,27 @@ export class MockUSDCFaucet {
 		}
 	}
 
+	public async getMockUSDCFaucetStatePublicKeyAndNonce(): Promise<[PublicKey, number]> {
+		return anchor.web3.PublicKey.findProgramAddress(
+			[
+				Buffer.from(anchor.utils.bytes.utf8.encode('mock_usdc_faucet')),
+			],
+			this.program.programId
+		);
+	}
+
+	mockUSDCFaucetStatePublicKey? : PublicKey;
+	public async getMockUSDCFaucetStatePublicKey(): Promise<PublicKey> {
+		if (this.mockUSDCFaucetStatePublicKey) {
+			return this.mockUSDCFaucetStatePublicKey;
+		}
+		this.mockUSDCFaucetStatePublicKey = (await this.getMockUSDCFaucetStatePublicKeyAndNonce())[0];
+		return this.mockUSDCFaucetStatePublicKey;
+	}
+
 	public async initialize(): Promise<TransactionSignature> {
-		const stateAddress = this.program.state.address();
 		const stateAccountRPCResponse = await this.connection.getParsedAccountInfo(
-			stateAddress
+			await this.getMockUSDCFaucetStatePublicKey()
 		);
 		if (stateAccountRPCResponse.value !== null) {
 			throw new Error('Faucet already initialized');
@@ -90,24 +107,34 @@ export class MockUSDCFaucet {
 			null
 		);
 
-		return await this.program.state.rpc.new({
+		const [mockUSDCFaucetStatePublicKey, mockUSDCFaucetStateNonce] = await this.getMockUSDCFaucetStatePublicKeyAndNonce();
+		return await this.program.rpc.initialize(mockUSDCFaucetStateNonce, {
 			accounts: {
+				mockUsdcFaucetState: mockUSDCFaucetStatePublicKey,
 				admin: this.wallet.publicKey,
 				mintAccount: fakeUSDCMint.publicKey,
 				rent: SYSVAR_RENT_PUBKEY,
+				systemProgram: anchor.web3.SystemProgram.programId,
 			},
 			instructions: [createUSDCMintAccountIx, initUSDCMintIx],
 			signers: [fakeUSDCMint],
 		});
 	}
 
+	public async fetchState() : Promise<any> {
+		return await this.program.account.mockUsdcFaucetState.fetch(
+			await this.getMockUSDCFaucetStatePublicKey()
+		);
+	}
+
 	public async mintToUser(
 		userTokenAccount: PublicKey,
 		amount: BN
 	): Promise<TransactionSignature> {
-		const state: any = await this.program.state.fetch();
-		return await this.program.state.rpc.mintToUser(amount, {
+		const state: any = await this.fetchState();
+		return await this.program.rpc.mintToUser(amount, {
 			accounts: {
+				mockUsdcFaucetState: await this.getMockUSDCFaucetStatePublicKey(),
 				mintAccount: state.mint,
 				userTokenAccount,
 				mintAuthority: state.mintAuthority,
@@ -134,7 +161,7 @@ export class MockUSDCFaucet {
 		userPublicKey: PublicKey,
 		amount: BN
 	): Promise<[PublicKey, TransactionInstruction, TransactionInstruction]> {
-		const state: any = await this.program.state.fetch();
+		const state: any = await this.fetchState();
 
 		const associateTokenPublicKey = await this.getAssosciatedMockUSDMintAddress(
 			{ userPubKey: userPublicKey }
@@ -150,8 +177,9 @@ export class MockUSDCFaucet {
 				this.wallet.publicKey
 			);
 
-		const mintToIx = await this.program.state.instruction.mintToUser(amount, {
+		const mintToIx = await this.program.instruction.mintToUser(amount, {
 			accounts: {
+				mockUsdcFaucetState: await this.getMockUSDCFaucetStatePublicKey(),
 				mintAccount: state.mint,
 				userTokenAccount: associateTokenPublicKey,
 				mintAuthority: state.mintAuthority,
@@ -165,7 +193,7 @@ export class MockUSDCFaucet {
 	public async getAssosciatedMockUSDMintAddress(props: {
 		userPubKey: PublicKey;
 	}): Promise<anchor.web3.PublicKey> {
-		const state: any = await this.program.state.fetch();
+		const state: any = await this.fetchState();
 
 		return Token.getAssociatedTokenAddress(
 			ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -180,7 +208,7 @@ export class MockUSDCFaucet {
 	}): Promise<AccountInfo> {
 		const assosciatedKey = await this.getAssosciatedMockUSDMintAddress(props);
 
-		const state: any = await this.program.state.fetch();
+		const state: any = await this.fetchState();
 
 		const token = new Token(
 			this.connection,

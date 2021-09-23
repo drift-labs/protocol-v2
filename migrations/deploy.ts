@@ -35,7 +35,7 @@ module.exports = async function (provider: Provider) {
 	);
 
 	await mockUsdcFaucet.initialize();
-	const mockUsdcFaucetState: any = await mockUsdcFaucet.program.state.fetch();
+	const mockUsdcFaucetState: any = await mockUsdcFaucet.fetchState();
 	console.log('USDC Mint:', mockUsdcFaucetState.mint.toString()); // TODO: put into Next config
 	console.log('Initializing ClearingHouse');
 	await clearingHouse.initialize(mockUsdcFaucetState.mint, true);

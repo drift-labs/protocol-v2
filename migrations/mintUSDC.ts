@@ -35,7 +35,7 @@ async function main() {
 	);
 	console.log('Tx:', txSig);
 
-	const mockUsdcFaucetState: any = await mockUsdcFaucet.program.state.fetch();
+	const mockUsdcFaucetState: any = await mockUsdcFaucet.fetchState();
 	const token = new Token(
 		connection,
 		mockUsdcFaucetState.mint,

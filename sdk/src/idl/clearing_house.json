@@ -3,6 +3,587 @@
   "name": "clearing_house",
   "instructions": [
     {
+      "name": "initializeClearingHouse",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "clearingHouseState",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "collateralAccount",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceAccount",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "marketsAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "fundingRateHistory",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tradeHistoryAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "clearingHouseNonce",
+          "type": "u8"
+        },
+        {
+          "name": "adminControlsPrices",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "initializeMarket",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "clearingHouseState",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "marketsAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "oracle",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "clock",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        },
+        {
+          "name": "ammBaseAssetAmount",
+          "type": "u128"
+        },
+        {
+          "name": "ammQuoteAssetAmount",
+          "type": "u128"
+        },
+        {
+          "name": "ammPeriodicity",
+          "type": "i64"
+        },
+        {
+          "name": "ammPegMultiplier",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "uninitializeMarket",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "clearingHouseState",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "marketsAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "clock",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "depositCollateral",
+      "accounts": [
+        {
+          "name": "clearingHouseState",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "clearingHouseCollateralAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userCollateralAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "marketsAccount",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "userPositionsAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "fundingRateHistory",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "withdrawCollateral",
+      "accounts": [
+        {
+          "name": "clearingHouseState",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "clearingHouseCollateralAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "clearingHouseCollateralAccountAuthority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "clearingHouseInsuranceAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "clearingHouseInsuranceAccountAuthority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "userCollateralAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "marketsAccount",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "userPositionsAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "fundingRateHistory",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "openPosition",
+      "accounts": [
+        {
+          "name": "clearingHouseState",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "marketsAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userPositionsAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tradeHistoryAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "fundingRateHistory",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "clock",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "direction",
+          "type": {
+            "defined": "PositionDirection"
+          }
+        },
+        {
+          "name": "incrementalQuoteAssetNotionalAmount",
+          "type": "u128"
+        },
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        },
+        {
+          "name": "limitPrice",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "closePosition",
+      "accounts": [
+        {
+          "name": "clearingHouseState",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "marketsAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userPositionsAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tradeHistoryAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "fundingRateHistory",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "clock",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "liquidate",
+      "accounts": [
+        {
+          "name": "clearingHouseState",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "liquidator",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "userAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "clearingHouseCollateralAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "clearingHouseCollateralAccountAuthority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "clearingHouseInsuranceAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "clearingHouseInsuranceAccountAuthority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "liquidatorAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "marketsAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userPositionsAccount",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "moveAmmPrice",
+      "accounts": [
+        {
+          "name": "clearingHouseState",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "marketsAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "clock",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "baseAssetAmount",
+          "type": "u128"
+        },
+        {
+          "name": "quoteAssetAmount",
+          "type": "u128"
+        },
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "adminWithdrawCollateral",
+      "accounts": [
+        {
+          "name": "clearingHouseState",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "clearingHouseCollateralAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "clearingHouseCollateralAccountAuthority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "clearingHouseInsuranceAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "clearingHouseInsuranceAccountAuthority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "marketsAccount",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "repegAmmCurve",
+      "accounts": [
+        {
+          "name": "clearingHouseState",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "marketsAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "oracle",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "clock",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "newPeg",
+          "type": "u128"
+        },
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "initializeUserAccount",
       "accounts": [
         {
@@ -106,9 +687,9 @@
       ]
     }
   ],
-  "state": {
-    "struct": {
-      "name": "ClearingHouse",
+  "accounts": [
+    {
+      "name": "ClearingHouseState",
       "type": {
         "kind": "struct",
         "fields": [
@@ -175,532 +756,6 @@
         ]
       }
     },
-    "methods": [
-      {
-        "name": "new",
-        "accounts": [
-          {
-            "name": "admin",
-            "isMut": false,
-            "isSigner": true
-          },
-          {
-            "name": "collateralAccount",
-            "isMut": false,
-            "isSigner": false
-          },
-          {
-            "name": "insuranceAccount",
-            "isMut": false,
-            "isSigner": false
-          },
-          {
-            "name": "marketsAccount",
-            "isMut": true,
-            "isSigner": false
-          },
-          {
-            "name": "fundingRateHistory",
-            "isMut": true,
-            "isSigner": false
-          },
-          {
-            "name": "tradeHistoryAccount",
-            "isMut": true,
-            "isSigner": false
-          },
-          {
-            "name": "rent",
-            "isMut": false,
-            "isSigner": false
-          },
-          {
-            "name": "systemProgram",
-            "isMut": false,
-            "isSigner": false
-          }
-        ],
-        "args": [
-          {
-            "name": "adminControlsPrices",
-            "type": "bool"
-          }
-        ]
-      },
-      {
-        "name": "uninitializeMarket",
-        "accounts": [
-          {
-            "name": "admin",
-            "isMut": false,
-            "isSigner": true
-          },
-          {
-            "name": "marketsAccount",
-            "isMut": true,
-            "isSigner": false
-          },
-          {
-            "name": "clock",
-            "isMut": false,
-            "isSigner": false
-          }
-        ],
-        "args": [
-          {
-            "name": "marketIndex",
-            "type": "u64"
-          }
-        ]
-      },
-      {
-        "name": "initializeMarket",
-        "accounts": [
-          {
-            "name": "admin",
-            "isMut": false,
-            "isSigner": true
-          },
-          {
-            "name": "marketsAccount",
-            "isMut": true,
-            "isSigner": false
-          },
-          {
-            "name": "oracle",
-            "isMut": false,
-            "isSigner": false
-          },
-          {
-            "name": "clock",
-            "isMut": false,
-            "isSigner": false
-          }
-        ],
-        "args": [
-          {
-            "name": "marketIndex",
-            "type": "u64"
-          },
-          {
-            "name": "ammBaseAssetAmount",
-            "type": "u128"
-          },
-          {
-            "name": "ammQuoteAssetAmount",
-            "type": "u128"
-          },
-          {
-            "name": "ammPeriodicity",
-            "type": "i64"
-          },
-          {
-            "name": "ammPegMultiplier",
-            "type": "u128"
-          }
-        ]
-      },
-      {
-        "name": "depositCollateral",
-        "accounts": [
-          {
-            "name": "userAccount",
-            "isMut": true,
-            "isSigner": false
-          },
-          {
-            "name": "authority",
-            "isMut": false,
-            "isSigner": true
-          },
-          {
-            "name": "clearingHouseCollateralAccount",
-            "isMut": true,
-            "isSigner": false
-          },
-          {
-            "name": "userCollateralAccount",
-            "isMut": true,
-            "isSigner": false
-          },
-          {
-            "name": "tokenProgram",
-            "isMut": false,
-            "isSigner": false
-          },
-          {
-            "name": "marketsAccount",
-            "isMut": false,
-            "isSigner": false
-          },
-          {
-            "name": "userPositionsAccount",
-            "isMut": true,
-            "isSigner": false
-          },
-          {
-            "name": "fundingRateHistory",
-            "isMut": true,
-            "isSigner": false
-          }
-        ],
-        "args": [
-          {
-            "name": "amount",
-            "type": "u64"
-          }
-        ]
-      },
-      {
-        "name": "withdrawCollateral",
-        "accounts": [
-          {
-            "name": "userAccount",
-            "isMut": true,
-            "isSigner": false
-          },
-          {
-            "name": "authority",
-            "isMut": false,
-            "isSigner": true
-          },
-          {
-            "name": "clearingHouseCollateralAccount",
-            "isMut": true,
-            "isSigner": false
-          },
-          {
-            "name": "clearingHouseCollateralAccountAuthority",
-            "isMut": false,
-            "isSigner": false
-          },
-          {
-            "name": "clearingHouseInsuranceAccount",
-            "isMut": true,
-            "isSigner": false
-          },
-          {
-            "name": "clearingHouseInsuranceAccountAuthority",
-            "isMut": false,
-            "isSigner": false
-          },
-          {
-            "name": "userCollateralAccount",
-            "isMut": true,
-            "isSigner": false
-          },
-          {
-            "name": "tokenProgram",
-            "isMut": false,
-            "isSigner": false
-          },
-          {
-            "name": "marketsAccount",
-            "isMut": false,
-            "isSigner": false
-          },
-          {
-            "name": "userPositionsAccount",
-            "isMut": true,
-            "isSigner": false
-          },
-          {
-            "name": "fundingRateHistory",
-            "isMut": true,
-            "isSigner": false
-          }
-        ],
-        "args": [
-          {
-            "name": "amount",
-            "type": "u64"
-          }
-        ]
-      },
-      {
-        "name": "openPosition",
-        "accounts": [
-          {
-            "name": "userAccount",
-            "isMut": true,
-            "isSigner": false
-          },
-          {
-            "name": "authority",
-            "isMut": false,
-            "isSigner": true
-          },
-          {
-            "name": "marketsAccount",
-            "isMut": true,
-            "isSigner": false
-          },
-          {
-            "name": "userPositionsAccount",
-            "isMut": true,
-            "isSigner": false
-          },
-          {
-            "name": "tradeHistoryAccount",
-            "isMut": true,
-            "isSigner": false
-          },
-          {
-            "name": "fundingRateHistory",
-            "isMut": true,
-            "isSigner": false
-          },
-          {
-            "name": "clock",
-            "isMut": false,
-            "isSigner": false
-          }
-        ],
-        "args": [
-          {
-            "name": "direction",
-            "type": {
-              "defined": "PositionDirection"
-            }
-          },
-          {
-            "name": "incrementalQuoteAssetNotionalAmount",
-            "type": "u128"
-          },
-          {
-            "name": "marketIndex",
-            "type": "u64"
-          },
-          {
-            "name": "limitPrice",
-            "type": "u128"
-          }
-        ]
-      },
-      {
-        "name": "closePosition",
-        "accounts": [
-          {
-            "name": "userAccount",
-            "isMut": true,
-            "isSigner": false
-          },
-          {
-            "name": "authority",
-            "isMut": false,
-            "isSigner": true
-          },
-          {
-            "name": "marketsAccount",
-            "isMut": true,
-            "isSigner": false
-          },
-          {
-            "name": "userPositionsAccount",
-            "isMut": true,
-            "isSigner": false
-          },
-          {
-            "name": "tradeHistoryAccount",
-            "isMut": true,
-            "isSigner": false
-          },
-          {
-            "name": "fundingRateHistory",
-            "isMut": true,
-            "isSigner": false
-          },
-          {
-            "name": "clock",
-            "isMut": false,
-            "isSigner": false
-          }
-        ],
-        "args": [
-          {
-            "name": "marketIndex",
-            "type": "u64"
-          }
-        ]
-      },
-      {
-        "name": "liquidate",
-        "accounts": [
-          {
-            "name": "liquidator",
-            "isMut": false,
-            "isSigner": true
-          },
-          {
-            "name": "userAccount",
-            "isMut": true,
-            "isSigner": false
-          },
-          {
-            "name": "clearingHouseCollateralAccount",
-            "isMut": true,
-            "isSigner": false
-          },
-          {
-            "name": "clearingHouseCollateralAccountAuthority",
-            "isMut": false,
-            "isSigner": false
-          },
-          {
-            "name": "clearingHouseInsuranceAccount",
-            "isMut": true,
-            "isSigner": false
-          },
-          {
-            "name": "clearingHouseInsuranceAccountAuthority",
-            "isMut": false,
-            "isSigner": false
-          },
-          {
-            "name": "liquidatorAccount",
-            "isMut": true,
-            "isSigner": false
-          },
-          {
-            "name": "tokenProgram",
-            "isMut": false,
-            "isSigner": false
-          },
-          {
-            "name": "marketsAccount",
-            "isMut": true,
-            "isSigner": false
-          },
-          {
-            "name": "userPositionsAccount",
-            "isMut": true,
-            "isSigner": false
-          }
-        ],
-        "args": []
-      },
-      {
-        "name": "moveAmmPrice",
-        "accounts": [
-          {
-            "name": "admin",
-            "isMut": false,
-            "isSigner": true
-          },
-          {
-            "name": "marketsAccount",
-            "isMut": true,
-            "isSigner": false
-          },
-          {
-            "name": "clock",
-            "isMut": false,
-            "isSigner": false
-          }
-        ],
-        "args": [
-          {
-            "name": "baseAssetAmount",
-            "type": "u128"
-          },
-          {
-            "name": "quoteAssetAmount",
-            "type": "u128"
-          },
-          {
-            "name": "marketIndex",
-            "type": "u64"
-          }
-        ]
-      },
-      {
-        "name": "adminWithdrawCollateral",
-        "accounts": [
-          {
-            "name": "admin",
-            "isMut": false,
-            "isSigner": true
-          },
-          {
-            "name": "clearingHouseCollateralAccount",
-            "isMut": true,
-            "isSigner": false
-          },
-          {
-            "name": "clearingHouseCollateralAccountAuthority",
-            "isMut": false,
-            "isSigner": false
-          },
-          {
-            "name": "clearingHouseInsuranceAccount",
-            "isMut": true,
-            "isSigner": false
-          },
-          {
-            "name": "clearingHouseInsuranceAccountAuthority",
-            "isMut": false,
-            "isSigner": false
-          },
-          {
-            "name": "tokenProgram",
-            "isMut": true,
-            "isSigner": false
-          },
-          {
-            "name": "marketsAccount",
-            "isMut": false,
-            "isSigner": false
-          }
-        ],
-        "args": [
-          {
-            "name": "amount",
-            "type": "u64"
-          },
-          {
-            "name": "marketIndex",
-            "type": "u64"
-          }
-        ]
-      },
-      {
-        "name": "repegAmmCurve",
-        "accounts": [
-          {
-            "name": "marketsAccount",
-            "isMut": true,
-            "isSigner": false
-          },
-          {
-            "name": "oracle",
-            "isMut": false,
-            "isSigner": false
-          },
-          {
-            "name": "admin",
-            "isMut": false,
-            "isSigner": true
-          },
-          {
-            "name": "clock",
-            "isMut": false,
-            "isSigner": false
-          }
-        ],
-        "args": [
-          {
-            "name": "newPeg",
-            "type": "u128"
-          },
-          {
-            "name": "marketIndex",
-            "type": "u64"
-          }
-        ]
-      }
-    ]
-  },
-  "accounts": [
     {
       "name": "UserAccount",
       "type": {

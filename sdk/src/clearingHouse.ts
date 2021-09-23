@@ -101,14 +101,31 @@ export class ClearingHouse {
 		this.eventEmitter = new EventEmitter();
 	}
 
+	public async getClearingHouseStatePublicKeyAndNonce(): Promise<[PublicKey, number]> {
+		return anchor.web3.PublicKey.findProgramAddress(
+			[
+				Buffer.from(anchor.utils.bytes.utf8.encode('clearing_house')),
+			],
+			this.program.programId
+		);
+	}
+
+	clearingHouseStatePublicKey? : PublicKey;
+	public async getClearingHouseStatePublicKey(): Promise<PublicKey> {
+		if (this.clearingHouseStatePublicKey) {
+			return this.clearingHouseStatePublicKey;
+		}
+		this.clearingHouseStatePublicKey = (await this.getClearingHouseStatePublicKeyAndNonce())[0];
+		return this.clearingHouseStatePublicKey;
+	}
+
 	// Initialise Clearinghouse
 	public async initialize(
 		usdcMint: PublicKey,
 		adminControlsPrices: boolean
 	): Promise<TransactionSignature> {
-		const stateAddress = this.program.state.address();
 		const stateAccountRPCResponse = await this.connection.getParsedAccountInfo(
-			stateAddress
+			await this.getClearingHouseStatePublicKey()
 		);
 		if (stateAccountRPCResponse.value !== null) {
 			throw new Error('Clearing house already initialized');
@@ -159,9 +176,11 @@ export class ClearingHouse {
 		const fundingRateHistory = anchor.web3.Keypair.generate();
 		const tradeHistoryAccount = anchor.web3.Keypair.generate();
 
-		return await this.program.state.rpc.new(adminControlsPrices, {
+		const [clearingHouseStatePublicKey, clearingHouseNonce] = await this.getClearingHouseStatePublicKeyAndNonce();
+		return await this.program.rpc.initializeClearingHouse(clearingHouseNonce, adminControlsPrices, {
 			accounts: {
 				admin: this.wallet.publicKey,
+				clearingHouseState: clearingHouseStatePublicKey,
 				collateralAccount: collateralAccount.publicKey,
 				insuranceAccount: insuranceAccount.publicKey,
 				marketsAccount: marketsAccount.publicKey,
@@ -201,13 +220,16 @@ export class ClearingHouse {
 		}
 
 		//return and set up subscriber for state data
+		const [clearingHouseStatePublicKey, _] = await this.getClearingHouseStatePublicKeyAndNonce();
 		const latestState =
-			(await this.program.state.fetch()) as ClearingHouseState;
+			(await this.program.account.clearingHouseState.fetch(
+				clearingHouseStatePublicKey
+			)) as ClearingHouseState;
 		this.state = latestState;
 		this.eventEmitter.emit('programStateUpdate', latestState);
 
-		this.program.state
-			.subscribe(this.opts.commitment)
+		this.program.account.clearingHouseState
+			.subscribe(clearingHouseStatePublicKey, this.opts.commitment)
 			.on('change', async (updateData) => {
 				this.state = updateData;
 
@@ -279,12 +301,12 @@ export class ClearingHouse {
 			return;
 		}
 
-		this.program.state.unsubscribe();
-		this.program.account.marketsAccount.unsubscribe(this.state.marketsAccount);
-		this.program.account.fundingRateHistory.unsubscribe(
+		await this.program.account.clearingHouseState.unsubscribe(await this.getClearingHouseStatePublicKey());
+		await this.program.account.marketsAccount.unsubscribe(this.state.marketsAccount);
+		await this.program.account.fundingRateHistory.unsubscribe(
 			this.state.fundingRateHistory
 		);
-		this.program.account.tradeHistoryAccount.unsubscribe(
+		await this.program.account.tradeHistoryAccount.unsubscribe(
 			this.state.tradeHistoryAccount
 		);
 		this.isSubscribed = false;
@@ -345,7 +367,7 @@ export class ClearingHouse {
 			throw Error(`MarketIndex ${marketIndex.toNumber()} already initialized`);
 		}
 
-		const txSig = await this.program.state.rpc.initializeMarket(
+		const txSig = await this.program.rpc.initializeMarket(
 			marketIndex,
 			baseAmount,
 			quoteAmount,
@@ -353,6 +375,7 @@ export class ClearingHouse {
 			pegMultiplier,
 			{
 				accounts: {
+					clearingHouseState: await this.getClearingHouseStatePublicKey(),
 					admin: this.wallet.publicKey,
 					oracle: priceOracle,
 					marketsAccount: this.state.marketsAccount,
@@ -492,8 +515,9 @@ export class ClearingHouse {
 			userPositionPublicKey = user.positions;
 		}
 
-		return await this.program.state.instruction.depositCollateral(amount, {
+		return await this.program.instruction.depositCollateral(amount, {
 			accounts: {
+				clearingHouseState: await this.getClearingHouseStatePublicKey(),
 				userAccount: userAccountPublicKey,
 				clearingHouseCollateralAccount: this.state.collateralAccount,
 				userCollateralAccount: collateralAccountPublicKey,
@@ -581,8 +605,9 @@ export class ClearingHouse {
 			userAccountPublicKey
 		);
 
-		return await this.program.state.rpc.withdrawCollateral(amount, {
+		return await this.program.rpc.withdrawCollateral(amount, {
 			accounts: {
+				clearingHouseState: await this.getClearingHouseStatePublicKey(),
 				userAccount: userAccountPublicKey,
 				clearingHouseCollateralAccount: this.state.collateralAccount,
 				clearingHouseCollateralAccountAuthority:
@@ -617,13 +642,14 @@ export class ClearingHouse {
 			limitPrice = new BN(0); // no limit
 		}
 
-		return await this.program.state.rpc.openPosition(
+		return await this.program.rpc.openPosition(
 			direction,
 			amount,
 			marketIndex,
 			limitPrice,
 			{
 				accounts: {
+					clearingHouseState: await this.getClearingHouseStatePublicKey(),
 					userAccount: userAccountPublicKey,
 					authority: this.wallet.publicKey,
 					marketsAccount: this.state.marketsAccount,
@@ -646,8 +672,9 @@ export class ClearingHouse {
 			userAccountPublicKey
 		);
 
-		return await this.program.state.rpc.closePosition(marketIndex, {
+		return await this.program.rpc.closePosition(marketIndex, {
 			accounts: {
+				clearingHouseState: await this.getClearingHouseStatePublicKey(),
 				userAccount: userAccountPublicKey,
 				authority: this.wallet.publicKey,
 				marketsAccount: this.state.marketsAccount,
@@ -666,12 +693,13 @@ export class ClearingHouse {
 	): Promise<TransactionSignature> {
 		this.assertIsSubscribed();
 
-		return await this.program.state.rpc.moveAmmPrice(
+		return await this.program.rpc.moveAmmPrice(
 			baseAmount,
 			quoteAmount,
 			marketIndex,
 			{
 				accounts: {
+					clearingHouseState: await this.getClearingHouseStatePublicKey(),
 					admin: this.wallet.publicKey,
 					marketsAccount: this.state.marketsAccount,
 					clock: SYSVAR_CLOCK_PUBKEY,
@@ -705,12 +733,13 @@ export class ClearingHouse {
 			market.amm.pegMultiplier
 		);
 
-		return await this.program.state.rpc.moveAmmPrice(
+		return await this.program.rpc.moveAmmPrice(
 			newBaseAssetAmount,
 			newQuoteAssetAmount,
 			marketIndex,
 			{
 				accounts: {
+					clearingHouseState: await this.getClearingHouseStatePublicKey(),
 					admin: this.wallet.publicKey,
 					marketsAccount: this.state.marketsAccount,
 					clock: SYSVAR_CLOCK_PUBKEY,
@@ -731,8 +760,9 @@ export class ClearingHouse {
 		const marketData = marketsAccount.markets[marketIndex.toNumber()];
 		const ammData = marketData.amm;
 
-		return await this.program.state.rpc.repegAmmCurve(newPeg, marketIndex, {
+		return await this.program.rpc.repegAmmCurve(newPeg, marketIndex, {
 			accounts: {
+				clearingHouseState: await this.getClearingHouseStatePublicKey(),
 				admin: this.wallet.publicKey,
 				oracle: ammData.oracle,
 				marketsAccount: this.state.marketsAccount,
@@ -751,8 +781,9 @@ export class ClearingHouse {
 			liquidateeUserAccountPublicKey
 		);
 
-		return await this.program.state.rpc.liquidate({
+		return await this.program.rpc.liquidate({
 			accounts: {
+				clearingHouseState: await this.getClearingHouseStatePublicKey(),
 				liquidator: this.wallet.publicKey,
 				userAccount: liquidateeUserAccountPublicKey,
 				clearingHouseCollateralAccount: this.state.collateralAccount,
