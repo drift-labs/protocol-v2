@@ -47,6 +47,10 @@ export const FUNDING_MANTISSA = new BN(10000);
 const ZERO = new BN(0);
 const MAXPCT = new BN(1000); //percentage units are [0,1000] => [0,1]
 
+export class NotSubscribedError extends Error {
+	name = 'NotSubscribedError';
+}
+
 export class ClearingHouse {
 	connection: Connection;
 	network: Network;
@@ -274,12 +278,13 @@ export class ClearingHouse {
 
 	assertIsSubscribed(): void {
 		if (!this.isSubscribed) {
-			throw Error('You must call `subscribe` before using this function');
+			throw new NotSubscribedError(
+				'You must call `subscribe` before using this function'
+			);
 		}
 	}
 
 	public updateWallet(newWallet: IWallet): void {
-		
 		const newProvider = new Provider(this.connection, newWallet, this.opts);
 		const newProgram = new Program(
 			clearingHouseIDL as Idl,
@@ -960,7 +965,6 @@ export class ClearingHouse {
 			| 'quoteAssetAmountPeg'
 			| 'acquiredBaseAssetAmount'
 			| 'acquiredQuoteAssetAmount'
-
 	) {
 		this.assertIsSubscribed();
 
@@ -979,11 +983,11 @@ export class ClearingHouse {
 			market.amm.k,
 			market.amm.pegMultiplier
 		);
-		
-		if(unit == 'acquiredBaseAssetAmount'){
+
+		if (unit == 'acquiredBaseAssetAmount') {
 			return market.amm.baseAssetAmount.sub(newBaseAssetAmount);
 		}
-		if(unit == 'acquiredQuoteAssetAmount'){
+		if (unit == 'acquiredQuoteAssetAmount') {
 			return market.amm.quoteAssetAmount.sub(newQuoteAssetAmount);
 		}
 
@@ -993,7 +997,7 @@ export class ClearingHouse {
 			market.amm.pegMultiplier
 		).mul(new BN(-1));
 
-		if(entryPrice.eq(new BN(0))){
+		if (entryPrice.eq(new BN(0))) {
 			return new BN(0);
 		}
 
