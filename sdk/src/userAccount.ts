@@ -160,6 +160,7 @@ export class UserAccount {
 	}
 
 	public getFreeCollateral(): BN {
+		this.assertIsSubscribed();
 		return this.getTotalCollateral().sub(
 			this.getTotalPositionValue().div(MAX_LEVERAGE)
 		);
@@ -176,7 +177,6 @@ export class UserAccount {
 
 	public getUnrealizedFundingPNL(): BN {
 		this.assertIsSubscribed();
-
 		return this.userPositionsAccount.positions.reduce((pnl, marketPosition) => {
 			return pnl.add(
 				this.clearingHouse.calculatePositionFundingPNL(marketPosition)
@@ -185,6 +185,8 @@ export class UserAccount {
 	}
 
 	public getTotalCollateral(): BN {
+		this.assertIsSubscribed();
+
 		return (
 			this.userAccountData?.collateral.add(this.getUnrealizedPNL(true)) ??
 			new BN(0)
@@ -192,6 +194,7 @@ export class UserAccount {
 	}
 
 	getTotalPositionValue(): BN {
+		this.assertIsSubscribed();
 		return this.userPositionsAccount.positions.reduce(
 			(positionValue, marketPosition) => {
 				return positionValue.add(
@@ -232,6 +235,7 @@ export class UserAccount {
 	 * Since we are using BN, we multiply the result by 10000 to maintain 4 digits of precision
 	 */
 	public getMarginRatio(): BN {
+		this.assertIsSubscribed();
 		const totalPositionValue = this.getTotalPositionValue();
 
 		if (totalPositionValue.eq(ZERO)) {
