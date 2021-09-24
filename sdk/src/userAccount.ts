@@ -302,8 +302,14 @@ export class UserAccount {
 		  };
 		
 		totalPositionValue = totalPositionValue.add(this.clearingHouse.calculateBaseAssetValue(proposedMarketPosition));
+		
+		let marginRatio;
+		if (totalPositionValue.eq(ZERO)) {
+			marginRatio = BN_MAX;
+		} else{
+			marginRatio = totalCollateral.mul(TEN_THOUSAND).div(totalPositionValue);
+		}
 
-		const marginRatio = totalCollateral.mul(TEN_THOUSAND).div(totalPositionValue);
 
 		let liqRatio = FULL_LIQUIDATION_RATIO;
 		if (partial) {
