@@ -269,40 +269,42 @@ export class UserAccount {
 		return false;
 	}
 
-	public liquidationPrice(marketPosition: Pick<UserPosition, "baseAssetAmount"|"marketIndex">, partial = false): BN {
-		// todo: pricePoint:liq doesnt anticipate market-impact AT point of sale, just at current point
-		// 		 current estimate is biased lower, which is also kinda fair
+	public liquidationPrice(marketPosition: Pick<UserPosition, "baseAssetAmount"|"marketIndex">, 
+	proposedTradeSize: BN=ZERO, partial=false): BN {
+		// +/-(margin_ratio-liq_ratio) * price_now = price_liq
+		// todo: margin_ratio is not symmetric on price action (both numer and denom change)
+		// margin_ratio = collateral / base_asset_value
+		
+		
+		/* example: assume BTC price is $40k (examine 10% up/down)
+		
+		if 10k deposit and levered 10x short BTC => BTC up $400 means:
+		1. higher base_asset_value (+$4k)
+		2. lower collateral (-$4k)
+		3. (10k - 4k)/(100k + 4k) => 6k/104k => .0576
 
-		// x = baseAmount (positive => long, negative => short)
-		// x*price_now - x*price_liq >= free_collateral * (MAX_LEVERAGE_I / MAX_LEVERAGE_M)
-		// x*price_now - x*price_liq >= free_collateral * (5 / 20)
-		// solve for price_liq
-		// price_liq >= price_now - free_collateral/x
-
-		// const M_I_LEVERAGE_RATIO = new BN(4);
+		for 10x long, BTC down $400:
+		3. (10k - 4k) / (100k - 4k) = 6k/96k => .0625 */
+		
 		const currentPrice = this.clearingHouse.calculateBaseAssetPriceWithMantissa(
 			marketPosition.marketIndex
 		);
 
-		// let freeCollateral = this.getFreeCollateral().div(MAX_LEVERAGE);
-		// console.log(freeCollateral.toNumber(), marketPosition.baseAssetAmount.toNumber());
+		const totalCollateral = this.getTotalCollateral();
+		let totalPositionValue = this.getTotalPositionValue();
+		
+		const proposedMarketPosition: UserPosition = {
+			marketIndex: marketPosition.marketIndex,
+			baseAssetAmount: proposedTradeSize,
+			lastCumFunding: new BN(0),
+			quoteAssetNotionalAmount: new BN(0),
 
-		// const drawDownPriceAction = freeCollateral
-		// 	.mul(AMM_MANTISSA)
-		// 	.div(marketPosition.baseAssetAmount)
-		// 	.mul(M_I_LEVERAGE_RATIO);
+		  };
+		
+		totalPositionValue = totalPositionValue.add(this.clearingHouse.calculateBaseAssetValue(proposedMarketPosition));
 
-		// const liqPrice = currentPrice.sub(drawDownPriceAction);
+		const marginRatio = totalCollateral.mul(TEN_THOUSAND).div(totalPositionValue);
 
-		// console.log('currentPrice:', currentPrice.toNumber(),
-		// 			'\ndrawDownPriceAction:', drawDownPriceAction.toNumber(),
-		// 			'\nliqPrice:',liqPrice.toNumber(),
-		// );
-
-		// alternatively:
-		// +/-(margin_ratio-liq_ratio) * price_now = price_liq
-
-		const marginRatio = this.getMarginRatio();
 		let liqRatio = FULL_LIQUIDATION_RATIO;
 		if (partial) {
 			liqRatio = PARTIAL_LIQUIDATION_RATIO;
@@ -317,28 +319,13 @@ export class UserAccount {
 		} else {
 			if (TEN_THOUSAND.lte(pctChange)) {
 				// no liquidation price, position is a fully/over collateralized long
-				return new BN(-1);
+				// handle as NaN on UI
+				return new BN(-1); 
 			}
 			pctChange = TEN_THOUSAND.sub(pctChange);
 		}
 
 		const liqPrice = currentPrice.mul(pctChange).div(TEN_THOUSAND);
-		try {
-			// console.log(
-			// 	' currentPrice:',
-			// 	currentPrice.toNumber(),
-			// 	'\n pctChange:',
-			// 	pctChange.toNumber(),
-			// 	'\n liqPrice:',
-			// 	liqPrice.toNumber()
-			// );
-		} catch (err) {
-			// # this code block same behavior as
-			if (err instanceof TypeError) {
-				// except ValueError as err:
-				throw err; //     pass
-			}
-		}
 
 		return liqPrice;
 	}
