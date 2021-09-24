@@ -115,37 +115,6 @@
       ]
     },
     {
-      "name": "uninitializeMarket",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "clearingHouseState",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "marketsAccount",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "clock",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "marketIndex",
-          "type": "u64"
-        }
-      ]
-    },
-    {
       "name": "depositCollateral",
       "accounts": [
         {
@@ -738,7 +707,7 @@
             "type": "u128"
           },
           {
-            "name": "marginRatioMaintenence",
+            "name": "marginRatioMaintenance",
             "type": "u128"
           },
           {
@@ -752,61 +721,6 @@
           {
             "name": "allocatedDeposits",
             "type": "u128"
-          }
-        ]
-      }
-    },
-    {
-      "name": "UserAccount",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "authority",
-            "type": "publicKey"
-          },
-          {
-            "name": "collateral",
-            "type": "u128"
-          },
-          {
-            "name": "initialPurchase",
-            "type": "i128"
-          },
-          {
-            "name": "totalPotentialFee",
-            "type": "i128"
-          },
-          {
-            "name": "positions",
-            "type": "publicKey"
-          },
-          {
-            "name": "creationTs",
-            "type": "i64"
-          }
-        ]
-      }
-    },
-    {
-      "name": "UserPositionsAccount",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "userAccount",
-            "type": "publicKey"
-          },
-          {
-            "name": "positions",
-            "type": {
-              "array": [
-                {
-                  "defined": "MarketPosition"
-                },
-                10
-              ]
-            }
           }
         ]
       }
@@ -826,6 +740,29 @@
               "array": [
                 {
                   "defined": "TradeRecord"
+                },
+                1000
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "FundingRateHistory",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "head",
+            "type": "u64"
+          },
+          {
+            "name": "fundingRateRecords",
+            "type": {
+              "array": [
+                {
+                  "defined": "FundingRateRecord"
                 },
                 1000
               ]
@@ -858,22 +795,50 @@
       }
     },
     {
-      "name": "FundingRateHistory",
+      "name": "UserAccount",
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "head",
-            "type": "u64"
+            "name": "authority",
+            "type": "publicKey"
           },
           {
-            "name": "fundingRateRecords",
+            "name": "collateral",
+            "type": "u128"
+          },
+          {
+            "name": "initialPurchase",
+            "type": "i128"
+          },
+          {
+            "name": "totalPotentialFee",
+            "type": "i128"
+          },
+          {
+            "name": "positions",
+            "type": "publicKey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "UserPositionsAccount",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "userAccount",
+            "type": "publicKey"
+          },
+          {
+            "name": "positions",
             "type": {
               "array": [
                 {
-                  "defined": "FundingRateRecord"
+                  "defined": "MarketPosition"
                 },
-                1000
+                10
               ]
             }
           }
@@ -933,6 +898,50 @@
       }
     },
     {
+      "name": "FundingRateRecord",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "ts",
+            "type": "i64"
+          },
+          {
+            "name": "recordId",
+            "type": "u128"
+          },
+          {
+            "name": "userPublicKey",
+            "type": "publicKey"
+          },
+          {
+            "name": "userClearingHousePublicKey",
+            "type": "publicKey"
+          },
+          {
+            "name": "marketIndex",
+            "type": "u64"
+          },
+          {
+            "name": "fundingRatePayment",
+            "type": "i128"
+          },
+          {
+            "name": "baseAssetAmount",
+            "type": "i128"
+          },
+          {
+            "name": "userLastCumulativeFunding",
+            "type": "i128"
+          },
+          {
+            "name": "ammCumulativeFunding",
+            "type": "i128"
+          }
+        ]
+      }
+    },
+    {
       "name": "Market",
       "type": {
         "kind": "struct",
@@ -970,18 +979,10 @@
             "type": "u128"
           },
           {
-            "name": "arbVolume",
-            "type": "u128"
-          },
-          {
             "name": "amm",
             "type": {
               "defined": "AMM"
             }
-          },
-          {
-            "name": "creationTs",
-            "type": "i64"
           }
         ]
       }
@@ -1054,18 +1055,6 @@
             "type": "i64"
           },
           {
-            "name": "spreadThreshold",
-            "type": "u64"
-          },
-          {
-            "name": "volume1",
-            "type": "u128"
-          },
-          {
-            "name": "volume2",
-            "type": "u128"
-          },
-          {
             "name": "baseAssetAmountI",
             "type": "u128"
           },
@@ -1080,50 +1069,6 @@
           {
             "name": "cumSlippageProfit",
             "type": "u128"
-          }
-        ]
-      }
-    },
-    {
-      "name": "FundingRateRecord",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "ts",
-            "type": "i64"
-          },
-          {
-            "name": "recordId",
-            "type": "u128"
-          },
-          {
-            "name": "userPublicKey",
-            "type": "publicKey"
-          },
-          {
-            "name": "userClearingHousePublicKey",
-            "type": "publicKey"
-          },
-          {
-            "name": "marketIndex",
-            "type": "u64"
-          },
-          {
-            "name": "fundingRatePayment",
-            "type": "i128"
-          },
-          {
-            "name": "baseAssetAmount",
-            "type": "i128"
-          },
-          {
-            "name": "userLastCumulativeFunding",
-            "type": "i128"
-          },
-          {
-            "name": "ammCumulativeFunding",
-            "type": "i128"
           }
         ]
       }
@@ -1172,20 +1117,6 @@
       }
     },
     {
-      "name": "OracleSource",
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "Pyth"
-          },
-          {
-            "name": "Switchboard"
-          }
-        ]
-      }
-    },
-    {
       "name": "SwapDirection",
       "type": {
         "kind": "enum",
@@ -1212,6 +1143,20 @@
           }
         ]
       }
+    },
+    {
+      "name": "OracleSource",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Pyth"
+          },
+          {
+            "name": "Switchboard"
+          }
+        ]
+      }
     }
   ],
   "errors": [
@@ -1227,108 +1172,78 @@
     },
     {
       "code": 302,
-      "name": "Unauthorized",
-      "msg": "Signer must be ClearingHouse admin"
-    },
-    {
-      "code": 303,
-      "name": "InvalidCollateralAccount",
-      "msg": "Invalid Collateral Account"
-    },
-    {
-      "code": 304,
-      "name": "InvalidInsuranceAccount",
-      "msg": "Invalid Insurance Account"
-    },
-    {
-      "code": 305,
-      "name": "InvalidTokenProgram",
-      "msg": "Invalid Token Program"
-    },
-    {
-      "code": 306,
       "name": "InsufficientDeposit",
       "msg": "Insufficient deposit"
     },
     {
-      "code": 307,
+      "code": 303,
       "name": "InsufficientCollateral",
       "msg": "Insufficient collateral"
     },
     {
-      "code": 308,
+      "code": 304,
       "name": "SufficientCollateral",
       "msg": "Sufficient collateral"
     },
     {
-      "code": 309,
+      "code": 305,
       "name": "MaxNumberOfPositions",
       "msg": "Max number of positions taken"
     },
     {
-      "code": 310,
+      "code": 306,
       "name": "AdminControlsPricesDisabled",
       "msg": "Admin Controls Prices Disabled"
     },
     {
-      "code": 311,
+      "code": 307,
       "name": "MarketIndexNotInitialized",
       "msg": "Market Index Not Initialized"
     },
     {
-      "code": 312,
+      "code": 308,
       "name": "MarketIndexAlreadyInitialized",
       "msg": "Market Index Already Initialized"
     },
     {
-      "code": 313,
+      "code": 309,
       "name": "UserAccountAndUserPositionsAccountMismatch",
       "msg": "User Account And User Positions Account Mismatch"
     },
     {
-      "code": 314,
+      "code": 310,
       "name": "UserHasNoPositionInMarket",
       "msg": "User Has No Position In Market"
     },
     {
-      "code": 315,
+      "code": 311,
       "name": "InvalidInitialPeg",
       "msg": "AMM peg in v0 must be > MANTISSA/10 (e.g. .1)"
     },
     {
-      "code": 316,
+      "code": 312,
       "name": "InvalidRepegRedundant",
       "msg": "AMM repeg already configured with amt given"
     },
     {
-      "code": 317,
+      "code": 313,
       "name": "InvalidRepegDirection",
       "msg": "AMM repeg incorrect repeg direction"
     },
     {
-      "code": 318,
-      "name": "InvalidRepegSize",
-      "msg": "AMM repeg out of bounds size"
-    },
-    {
-      "code": 319,
+      "code": 314,
       "name": "InvalidRepegProfitability",
       "msg": "AMM repeg out of bounds pnl"
     },
     {
-      "code": 320,
+      "code": 315,
       "name": "SlippageOutsideLimit",
       "msg": "Slippage Outside Limit Price"
     },
     {
-      "code": 321,
+      "code": 316,
       "name": "TradeSizeTooSmall",
       "msg": "Trade Size Too Small"
-    },
-    {
-      "code": 322,
-      "name": "InvalidOracleSource",
-      "msg": "Invalid Oracle Source"
     }
   ]
 }

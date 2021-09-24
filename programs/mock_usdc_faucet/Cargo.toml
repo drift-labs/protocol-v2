@@ -11,8 +11,6 @@ name = "mock_usdc_faucet"
 [features]
 no-entrypoint = []
 cpi = ["no-entrypoint"]
-anchor-deprecated-state = []
-default = ["anchor-deprecated-state"]
 
 [dependencies]
 anchor-lang = "0.16.1"

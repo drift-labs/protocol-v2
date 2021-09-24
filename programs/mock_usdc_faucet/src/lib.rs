@@ -91,13 +91,3 @@ pub enum ErrorCode {
     #[msg("Signer must be MockUSDCFaucet admin")]
     Unauthorized,
 }
-
-fn admin<'info>(
-    state: &Account<'info, MockUSDCFaucetState>,
-    signer: &AccountInfo<'info>,
-) -> Result<()> {
-    if !signer.key.eq(&state.admin) {
-        return Err(ErrorCode::Unauthorized.into());
-    }
-    Ok(())
-}

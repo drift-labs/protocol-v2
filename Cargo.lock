@@ -375,7 +375,6 @@ dependencies = [
  "anchor-spl",
  "borsh",
  "bytemuck",
- "integer-sqrt",
  "num-derive",
  "num-traits",
  "pyth-client",
@@ -602,15 +601,6 @@ name = "humantime"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9a3a5bfb195931eeb336b2a7b4d761daec841b97f947d34394601737a7bba5e4"
-
-[[package]]
-name = "integer-sqrt"
-version = "0.1.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "276ec31bcb4a9ee45f58bec6f9ec700ae4cf4f4f8f2fa7e06cb406bd5ffdd770"
-dependencies = [
- "num-traits",
-]
 
 [[package]]
 name = "itertools"

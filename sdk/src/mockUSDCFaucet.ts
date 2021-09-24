@@ -22,8 +22,6 @@ import mockUSDCFaucetIDL from './idl/mock_usdc_faucet.json';
 import { Network } from './network';
 import { IWallet } from './types';
 
-anchor.utils.features.set('anchor-deprecated-state');
-
 export class MockUSDCFaucet {
 	connection: Connection;
 	network: Network;

@@ -34,8 +34,6 @@ import {
 import { EventEmitter } from 'events';
 import StrictEventEmitter from 'strict-event-emitter-types';
 
-anchor.utils.features.set('anchor-deprecated-state');
-
 interface ClearingHouseEvents {
 	programStateUpdate: (payload: ClearingHouseState) => void;
 	marketsAccountUpdate: (payload: ClearingHouseMarketsAccountData) => void;
@@ -386,27 +384,6 @@ export class ClearingHouse {
 		return txSig;
 	}
 
-	public async uninitializeMarket(
-		marketIndex: BN
-	): Promise<TransactionSignature> {
-		this.assertIsSubscribed();
-
-		if (
-			this.getMarketsAccount().markets[marketIndex.toNumber()].initialized ==
-			false
-		) {
-			throw Error(`MarketIndex ${marketIndex.toNumber()} is not initialized`);
-		}
-
-		const txSig = await this.program.state.rpc.unInitializeMarket(marketIndex, {
-			accounts: {
-				admin: this.wallet.publicKey,
-				marketsAccount: this.state.marketsAccount,
-				clock: SYSVAR_CLOCK_PUBKEY,
-			},
-		});
-		return txSig;
-	}
 	public async initializeUserAccount(): Promise<
 		[TransactionSignature, PublicKey]
 	> {

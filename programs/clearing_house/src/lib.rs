@@ -1,27 +1,23 @@
-#![feature(unsigned_abs)]
-
 use anchor_lang::prelude::*;
 use bytemuck;
-use solana_program::msg;
 
-use anchor_lang::Key;
 use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 use borsh::{BorshDeserialize, BorshSerialize};
-use integer_sqrt::IntegerSquareRoot;
 use std::cell::{Ref, RefMut};
 use std::cmp::{max, min};
-use std::str::FromStr;
-pub mod bn;
-pub mod curve;
 
-pub const MANTISSA: u128 = 10_000_000_000; //expo = -10
-pub const PEG_SCALAR: u128 = 1_000; //expo = -3
-pub const PEG_SCALAR_COMPL: u128 = MANTISSA / PEG_SCALAR;
-pub const USDC_PRECISION: u128 = 1_000_000;
-
-pub const BASE_ASSET_AMT_PRECISION: u128 = MANTISSA * PEG_SCALAR;
-pub const MARGIN_MANTISSA: u128 = 10_000; // expo = -4
-pub const FUNDING_MANTISSA: u128 = 10_000; // expo = -4
+mod bn;
+mod curve;
+mod market;
+use market::{Market, MarketsAccount, OracleSource, AMM};
+mod user;
+use user::{MarketPosition, UserAccount, UserPositionsAccount};
+mod history;
+use history::{FundingRateHistory, FundingRateRecord, TradeHistoryAccount, TradeRecord};
+mod constants;
+mod error;
+use constants::*;
+use error::*;
 
 declare_id!("5bmnmT2xTaLL3aCxaFbpzVr54TgQcBm4CLz8fURuu1A9");
 
@@ -67,7 +63,7 @@ pub mod clearing_house {
             markets_account: *ctx.accounts.markets_account.to_account_info().key,
             margin_ratio_initial: 1000, // unit is 10% (+2 decimal places)
             margin_ratio_partial: 625,
-            margin_ratio_maintenence: 500,
+            margin_ratio_maintenance: 500,
             trade_history_account: *ctx.accounts.trade_history_account.to_account_info().key,
             allocated_deposits: 0,
         };
@@ -75,7 +71,6 @@ pub mod clearing_house {
         return Ok(());
     }
 
-    #[access_control(admin(&ctx.accounts.clearing_house_state, &ctx.accounts.admin))]
     pub fn initialize_market(
         ctx: Context<InitializeMarket>,
         market_index: u64,
@@ -102,8 +97,8 @@ pub mod clearing_house {
             amm_peg_multiplier,
         );
 
-        let k: bn::U256;
-        k = bn::U256::from(amm_base_asset_amount)
+        // Verify there's no overflow
+        let _k = bn::U256::from(amm_base_asset_amount)
             .checked_mul(bn::U256::from(amm_quote_asset_amount))
             .unwrap();
 
@@ -116,8 +111,6 @@ pub mod clearing_house {
             open_interest: 0,
             base_asset_volume: 0,
             peg_quote_asset_volume: 0,
-            arb_volume: 0,
-            creation_ts: now,
             amm: AMM {
                 oracle: *ctx.accounts.oracle.key,
                 oracle_src: OracleSource::Pyth,
@@ -134,9 +127,6 @@ pub mod clearing_house {
                 periodicity: amm_periodicity,
                 mark_twap: init_mark_price,
                 mark_twap_ts: now,
-                spread_threshold: 100000,
-                volume1: 0,
-                volume2: 0,
                 base_asset_amount_i: amm_base_asset_amount,
                 peg_multiplier: amm_peg_multiplier,
                 cum_slippage: 0,
@@ -149,31 +139,6 @@ pub mod clearing_house {
         Ok(())
     }
 
-    #[access_control(admin(&ctx.accounts.clearing_house_state, &ctx.accounts.admin))]
-    pub fn uninitialize_market(
-        ctx: Context<UninitializeMarket>,
-        market_index: u64,
-    ) -> ProgramResult {
-        let markets_account = &mut ctx.accounts.markets_account.load_mut().unwrap();
-        let market = &markets_account.markets[MarketsAccount::index_from_u64(market_index)];
-        let _now = ctx.accounts.clock.unix_timestamp;
-
-        if market.initialized == false {
-            return Err(ErrorCode::MarketIndexNotInitialized.into());
-        }
-
-        let mut mm = *market;
-        mm.initialized = false;
-
-        markets_account.markets[MarketsAccount::index_from_u64(market_index)] = mm;
-
-        Ok(())
-    }
-
-    #[access_control(
-        collateral_account(&ctx.accounts.clearing_house_state, &ctx.accounts.clearing_house_collateral_account)
-        users_positions_account_matches_user_account(&ctx.accounts.user_account, &ctx.accounts.user_positions_account)
-    )]
     pub fn deposit_collateral(ctx: Context<DepositCollateral>, amount: u64) -> ProgramResult {
         if amount == 0 {
             return Err(ErrorCode::InsufficientDeposit.into());
@@ -223,11 +188,6 @@ pub mod clearing_house {
         Ok(())
     }
 
-    #[access_control(
-        collateral_account(&ctx.accounts.clearing_house_state, &ctx.accounts.clearing_house_collateral_account)
-        insurance_account(&ctx.accounts.clearing_house_state, &ctx.accounts.clearing_house_insurance_account)
-        users_positions_account_matches_user_account(&ctx.accounts.user_account, &ctx.accounts.user_positions_account)
-    )]
     pub fn withdraw_collateral(ctx: Context<WithdrawCollateral>, amount: u64) -> ProgramResult {
         let user_account = &mut ctx.accounts.user_account;
 
@@ -344,7 +304,6 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        users_positions_account_matches_user_account(&ctx.accounts.user_account, &ctx.accounts.user_positions_account)
         market_initialized(&ctx.accounts.markets_account, market_index)
     )]
     pub fn open_position<'info>(
@@ -482,7 +441,7 @@ pub mod clearing_house {
             .checked_sub(base_asset_amount_before)
             .unwrap()
             .unsigned_abs();
-        let mut base_asset_price_with_mantissa_after: u128;
+        let base_asset_price_with_mantissa_after: u128;
         {
             let market = &mut ctx.accounts.markets_account.load_mut()?.markets
                 [MarketsAccount::index_from_u64(market_index)];
@@ -539,7 +498,6 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        users_positions_account_matches_user_account(&ctx.accounts.user_account, &ctx.accounts.user_positions_account)
         market_initialized(&ctx.accounts.markets_account, market_index)
     )]
     pub fn close_position(ctx: Context<ClosePosition>, market_index: u64) -> ProgramResult {
@@ -600,10 +558,6 @@ pub mod clearing_house {
         Ok(())
     }
 
-    #[access_control(
-        collateral_account(&ctx.accounts.clearing_house_state, &ctx.accounts.clearing_house_collateral_account)
-        users_positions_account_matches_user_account(&ctx.accounts.user_account, &ctx.accounts.user_positions_account)
-    )]
     pub fn liquidate(ctx: Context<Liquidate>) -> ProgramResult {
         let user_account = &mut ctx.accounts.user_account;
         let clock = Clock::get().unwrap();
@@ -625,7 +579,7 @@ pub mod clearing_house {
 
         let mut liquidation_penalty = user_account.collateral;
 
-        if margin_ratio <= ctx.accounts.clearing_house_state.margin_ratio_maintenence {
+        if margin_ratio <= ctx.accounts.clearing_house_state.margin_ratio_maintenance {
             for market_position in user_positions_accounts.positions.iter_mut() {
                 if market_position.base_asset_amount == 0 {
                     continue;
@@ -676,7 +630,7 @@ pub mod clearing_house {
                     .checked_mul(
                         ctx.accounts
                             .clearing_house_state
-                            .margin_ratio_maintenence
+                            .margin_ratio_maintenance
                             .checked_div(100)
                             .unwrap(),
                     ) // .05 => 5 * 100 / 10000
@@ -769,8 +723,6 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        admin(&ctx.accounts.clearing_house_state, &ctx.accounts.admin)
-        admin_controls_prices(&ctx.accounts.clearing_house_state)
         market_initialized(&ctx.accounts.markets_account, market_index)
     )]
     pub fn move_amm_price(
@@ -779,7 +731,7 @@ pub mod clearing_house {
         quote_asset_amount: u128,
         market_index: u64,
     ) -> ProgramResult {
-        let now = ctx.accounts.clock.unix_timestamp;
+        let _now = ctx.accounts.clock.unix_timestamp;
         let markets_account = &mut ctx.accounts.markets_account.load_mut().unwrap();
         let market = &mut markets_account.markets[MarketsAccount::index_from_u64(market_index)];
         market.amm.move_price(base_asset_amount, quote_asset_amount);
@@ -787,7 +739,6 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        admin(&ctx.accounts.clearing_house_state, &ctx.accounts.admin)
         market_initialized(&ctx.accounts.markets_account, market_index)
     )]
     pub fn admin_withdraw_collateral(
@@ -840,7 +791,6 @@ pub mod clearing_house {
 
     #[access_control(
         market_initialized(&ctx.accounts.markets_account, market_index)
-        // admin(&ctx.accounts.clearing_house_state, &ctx.accounts.admin)
     )]
     pub fn repeg_amm_curve(
         ctx: Context<RepegCurve>,
@@ -955,13 +905,11 @@ pub mod clearing_house {
         ctx: Context<InitializeUserAccount>,
         _user_account_nonce: u8,
     ) -> ProgramResult {
-        let now = ctx.accounts.clock.unix_timestamp;
         let user_account = &mut ctx.accounts.user_account;
         user_account.authority = *ctx.accounts.authority.key;
         user_account.collateral = 0;
         user_account.initial_purchase = 0;
         user_account.positions = *ctx.accounts.user_positions_account.to_account_info().key;
-        user_account.creation_ts = now;
 
         let user_positions_account = &mut ctx.accounts.user_positions_account.load_init()?;
         user_positions_account.user_account = *ctx.accounts.user_account.to_account_info().key;
@@ -1151,19 +1099,13 @@ pub struct InitializeUserAccount<'info> {
 #[derive(Accounts)]
 pub struct InitializeMarket<'info> {
     pub admin: Signer<'info>,
+    #[account(
+        has_one = admin
+    )]
     pub clearing_house_state: Box<Account<'info, ClearingHouseState>>,
     #[account(mut)]
     pub markets_account: Loader<'info, MarketsAccount>,
     pub oracle: AccountInfo<'info>,
-    pub clock: Sysvar<'info, Clock>,
-}
-
-#[derive(Accounts)]
-pub struct UninitializeMarket<'info> {
-    pub admin: Signer<'info>,
-    pub clearing_house_state: Box<Account<'info, ClearingHouseState>>,
-    #[account(mut)]
-    pub markets_account: Loader<'info, MarketsAccount>,
     pub clock: Sysvar<'info, Clock>,
 }
 
@@ -1174,13 +1116,19 @@ pub struct DepositCollateral<'info> {
     #[account(mut, has_one = authority)]
     pub user_account: Box<Account<'info, UserAccount>>,
     pub authority: Signer<'info>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = &clearing_house_state.collateral_account.eq(&clearing_house_collateral_account.key())
+    )]
     pub clearing_house_collateral_account: Box<Account<'info, TokenAccount>>,
     #[account(mut)]
     pub user_collateral_account: Box<Account<'info, TokenAccount>>,
     pub token_program: Program<'info, Token>,
     pub markets_account: Loader<'info, MarketsAccount>,
-    #[account(mut)]
+    #[account(
+        mut,
+        has_one = user_account
+    )]
     pub user_positions_account: Loader<'info, UserPositionsAccount>,
     #[account(mut)]
     pub funding_rate_history: Loader<'info, FundingRateHistory>,
@@ -1193,17 +1141,26 @@ pub struct WithdrawCollateral<'info> {
     #[account(mut, has_one = authority)]
     pub user_account: Box<Account<'info, UserAccount>>,
     pub authority: Signer<'info>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = &clearing_house_state.collateral_account.eq(&clearing_house_collateral_account.key())
+    )]
     pub clearing_house_collateral_account: Box<Account<'info, TokenAccount>>,
     pub clearing_house_collateral_account_authority: AccountInfo<'info>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = &clearing_house_state.insurance_account.eq(&clearing_house_insurance_account.key())
+    )]
     pub clearing_house_insurance_account: Box<Account<'info, TokenAccount>>,
     pub clearing_house_insurance_account_authority: AccountInfo<'info>,
     #[account(mut)]
     pub user_collateral_account: Box<Account<'info, TokenAccount>>,
     pub token_program: Program<'info, Token>,
     pub markets_account: Loader<'info, MarketsAccount>,
-    #[account(mut)]
+    #[account(
+        mut,
+        has_one = user_account
+    )]
     pub user_positions_account: Loader<'info, UserPositionsAccount>,
     #[account(mut)]
     pub funding_rate_history: Loader<'info, FundingRateHistory>,
@@ -1211,6 +1168,9 @@ pub struct WithdrawCollateral<'info> {
 
 #[derive(Accounts)]
 pub struct AdminWithdrawCollateral<'info> {
+    #[account(
+        has_one = admin
+    )]
     pub clearing_house_state: Box<Account<'info, ClearingHouseState>>,
     pub admin: Signer<'info>,
     #[account(mut)]
@@ -1228,12 +1188,18 @@ pub struct AdminWithdrawCollateral<'info> {
 pub struct OpenPosition<'info> {
     #[account(mut)]
     pub clearing_house_state: Box<Account<'info, ClearingHouseState>>,
-    #[account(mut, has_one = authority)]
+    #[account(
+        mut,
+        has_one = authority
+    )]
     pub user_account: Box<Account<'info, UserAccount>>,
     pub authority: Signer<'info>,
     #[account(mut)]
     pub markets_account: Loader<'info, MarketsAccount>,
-    #[account(mut)]
+    #[account(
+        mut,
+        has_one = user_account
+    )]
     pub user_positions_account: Loader<'info, UserPositionsAccount>,
     #[account(mut)]
     pub trade_history_account: Loader<'info, TradeHistoryAccount>,
@@ -1251,7 +1217,10 @@ pub struct ClosePosition<'info> {
     pub authority: Signer<'info>,
     #[account(mut)]
     pub markets_account: Loader<'info, MarketsAccount>,
-    #[account(mut)]
+    #[account(
+        mut,
+        has_one = user_account
+    )]
     pub user_positions_account: Loader<'info, UserPositionsAccount>,
     #[account(mut)]
     pub trade_history_account: Loader<'info, TradeHistoryAccount>,
@@ -1266,10 +1235,16 @@ pub struct Liquidate<'info> {
     pub liquidator: Signer<'info>,
     #[account(mut)]
     pub user_account: Box<Account<'info, UserAccount>>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = &clearing_house_state.collateral_account.eq(&clearing_house_collateral_account.key())
+    )]
     pub clearing_house_collateral_account: Box<Account<'info, TokenAccount>>,
     pub clearing_house_collateral_account_authority: AccountInfo<'info>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = &clearing_house_state.insurance_account.eq(&clearing_house_insurance_account.key())
+    )]
     pub clearing_house_insurance_account: Box<Account<'info, TokenAccount>>,
     pub clearing_house_insurance_account_authority: AccountInfo<'info>,
     #[account(mut)]
@@ -1277,7 +1252,10 @@ pub struct Liquidate<'info> {
     pub token_program: Program<'info, Token>,
     #[account(mut)]
     pub markets_account: Loader<'info, MarketsAccount>,
-    #[account(mut)]
+    #[account(
+        mut,
+        has_one = user_account
+    )]
     pub user_positions_account: Loader<'info, UserPositionsAccount>,
 }
 
@@ -1305,6 +1283,9 @@ pub struct UpdateFundingRate<'info> {
 
 #[derive(Accounts)]
 pub struct RepegCurve<'info> {
+    #[account(
+        has_one = admin
+    )]
     pub clearing_house_state: Box<Account<'info, ClearingHouseState>>,
     #[account(mut)]
     pub markets_account: Loader<'info, MarketsAccount>,
@@ -1315,6 +1296,10 @@ pub struct RepegCurve<'info> {
 
 #[derive(Accounts)]
 pub struct MoveAMMPrice<'info> {
+    #[account(
+        has_one = admin,
+        constraint = clearing_house_state.admin_controls_prices == true
+    )]
     pub clearing_house_state: Box<Account<'info, ClearingHouseState>>,
     pub admin: Signer<'info>,
     #[account(mut)]
@@ -1336,703 +1321,16 @@ pub struct ClearingHouseState {
     pub insurance_account_nonce: u8,
     pub markets_account: Pubkey,
     pub margin_ratio_initial: u128,
-    pub margin_ratio_maintenence: u128,
+    pub margin_ratio_maintenance: u128,
     pub margin_ratio_partial: u128,
     pub trade_history_account: Pubkey,
     pub allocated_deposits: u128,
-}
-
-#[account]
-#[derive(Default)]
-pub struct UserAccount {
-    pub authority: Pubkey,
-    pub collateral: u128,
-    pub initial_purchase: i128,
-    pub total_potential_fee: i128,
-    pub positions: Pubkey,
-
-    pub creation_ts: i64,
-}
-
-#[account(zero_copy)]
-#[derive(Default)]
-pub struct UserPositionsAccount {
-    pub user_account: Pubkey,
-    pub positions: [MarketPosition; 10],
-}
-
-#[account(zero_copy)]
-pub struct TradeHistoryAccount {
-    head: u64,
-    trade_records: [TradeRecord; 1000],
-}
-
-impl Default for TradeHistoryAccount {
-    fn default() -> Self {
-        return TradeHistoryAccount {
-            head: 0,
-            trade_records: [TradeRecord::default(); 1000],
-        };
-    }
-}
-
-impl TradeHistoryAccount {
-    fn append(&mut self, pos: TradeRecord) {
-        self.trade_records[TradeHistoryAccount::index_of(self.head)] = pos;
-        self.head = (self.head + 1) % 1000;
-    }
-    fn index_of(counter: u64) -> usize {
-        std::convert::TryInto::try_into(counter).unwrap()
-    }
-
-    fn next_record_id(&self) -> u128 {
-        let prev_trade_id = if self.head == 0 { 999 } else { self.head - 1 };
-        let prev_trade = &self.trade_records[TradeHistoryAccount::index_of(prev_trade_id)];
-        return prev_trade.record_id + 1;
-    }
-}
-
-#[zero_copy]
-#[derive(Default)]
-pub struct TradeRecord {
-    pub ts: i64,
-    pub record_id: u128,
-    pub user_public_key: Pubkey,
-    pub user_clearing_house_public_key: Pubkey,
-    pub direction: PositionDirection,
-    pub base_asset_amount: u128,
-    pub quote_asset_notional_amount: u128,
-    pub base_asset_price_with_mantissa_before: u128,
-    pub base_asset_price_with_mantissa_after: u128,
-    pub market_index: u64,
-}
-
-#[derive(Clone, Copy)]
-pub enum OracleSource {
-    Pyth,
-    Switchboard,
-}
-
-impl Default for OracleSource {
-    // UpOnly
-    fn default() -> Self {
-        OracleSource::Pyth
-    }
-}
-
-#[account(zero_copy)]
-pub struct MarketsAccount {
-    pub account_index: u64,
-    pub markets: [Market; 1000],
-}
-
-impl Default for MarketsAccount {
-    fn default() -> Self {
-        return MarketsAccount {
-            account_index: 0,
-            markets: [Market::default(); 1000],
-        };
-    }
-}
-
-impl MarketsAccount {
-    pub fn index_from_u64(index: u64) -> usize {
-        return std::convert::TryInto::try_into(index).unwrap();
-    }
-}
-
-#[zero_copy]
-#[derive(Default)]
-pub struct Market {
-    pub initialized: bool,
-    pub base_asset_amount_long: i128,
-    pub base_asset_amount_short: i128,
-    pub base_asset_amount: i128,           // net market bias
-    pub quote_asset_notional_amount: u128, //outstanding notional?
-    pub open_interest: u128,               // number of users in a position
-    pub base_asset_volume: u128,           // amt of base asset volume since inception
-    pub peg_quote_asset_volume: u128,      // amt of quote asset volume since inception
-    pub arb_volume: u128,                  // amt of volume bringing mark -> oracle
-    pub amm: AMM,
-
-    pub creation_ts: i64,
-    // todo: margin requirement per market
-    // unit scale: 20% == 2000
-    // pub margin_ratio_i: u128, // initial
-    // pub margin_ratio_p: u128, // partial
-    // pub margin_ratio_m: u128, // maintenance
-}
-
-#[zero_copy]
-#[derive(Default)]
-pub struct AMM {
-    pub oracle: Pubkey,
-    pub oracle_src: OracleSource,
-    pub base_asset_amount: u128,
-    pub quote_asset_amount: u128,
-    pub cum_funding_rate: i128,
-    pub cum_long_repeg_profit: u128,
-    pub cum_short_repeg_profit: u128,
-    pub cum_long_funding_rate: i128,
-    pub cum_short_funding_rate: i128,
-    pub funding_rate: i128,
-    pub funding_rate_ts: i64,
-    pub prev_funding_rate_ts: i64,
-    pub periodicity: i64,
-    pub mark_twap: u128,
-    pub mark_twap_ts: i64,
-    pub spread_threshold: u64,
-
-    pub volume1: u128,
-    pub volume2: u128,
-    pub base_asset_amount_i: u128,
-    pub peg_multiplier: u128,      // amm equilibrium price
-    pub cum_slippage: u128,        //re-pegging
-    pub cum_slippage_profit: u128, //re-pegging
-}
-
-impl AMM {
-    pub fn swap_quote_asset_with_fee(
-        &mut self,
-        quote_asset_swap_amount: u128,
-        direction: SwapDirection,
-        now: i64,
-    ) -> (i128, i128, bool) {
-        let unpegged_quote_asset_amount = quote_asset_swap_amount
-            .checked_mul(MANTISSA)
-            .unwrap()
-            .checked_div(self.peg_multiplier)
-            .unwrap();
-
-        let thousand: u128 = 1000;
-        let one_hundreth: u128 = 100;
-
-        // 1% * 50/1000 (5/100) = .05%
-        let fixed_fee = 50; // 5 bps, .05% fee 50/1000
-        let fee = quote_asset_swap_amount
-            .checked_mul(fixed_fee)
-            .unwrap()
-            .checked_div(thousand)
-            .unwrap()
-            .checked_div(one_hundreth)
-            .unwrap();
-
-        let (acquired_base_asset_amount, trade_size_too_small) =
-            self.swap_quote_asset(quote_asset_swap_amount, direction, now);
-
-        self.cum_slippage = self.cum_slippage.checked_add(fee).unwrap();
-        self.cum_slippage_profit = self.cum_slippage_profit.checked_add(fee).unwrap();
-
-        return (
-            acquired_base_asset_amount,
-            fee as i128,
-            trade_size_too_small,
-        );
-    }
-
-    pub fn swap_quote_asset(
-        &mut self,
-        quote_asset_swap_amount: u128,
-        direction: SwapDirection,
-        now: i64,
-    ) -> (i128, bool) {
-        let unpegged_quote_asset_amount = quote_asset_swap_amount
-            .checked_mul(MANTISSA)
-            .unwrap()
-            .checked_div(self.peg_multiplier)
-            .unwrap();
-
-        // min tick size a funciton of the peg.
-        // 1000000 (expo 6) units of USDC = $1
-        // ex: peg=40000 => min tick size of $1 / (1000000/40000) = $.04
-        // my understanding is orders will be shrunk to the lowest tick size
-        assert_ne!(unpegged_quote_asset_amount, 0);
-
-        let initial_base_asset_amount = self.base_asset_amount;
-        let (new_base_asset_amount, new_quote_asset_amount) = AMM::find_swap_output(
-            unpegged_quote_asset_amount,
-            self.quote_asset_amount,
-            direction,
-            self.base_asset_amount_i,
-        )
-        .unwrap();
-        let base_asset_price_before = self.base_asset_price_with_mantissa();
-
-        self.base_asset_amount = new_base_asset_amount;
-        self.quote_asset_amount = new_quote_asset_amount;
-
-        self.mark_twap = self.get_new_twap(now);
-        self.mark_twap_ts = now;
-
-        let acquired_base_asset_amount = (initial_base_asset_amount as i128)
-            .checked_sub(new_base_asset_amount as i128)
-            .unwrap();
-        let base_asset_price_after = self.base_asset_price_with_mantissa();
-
-        let entry_price = curve::calculate_base_asset_price_with_mantissa(
-            unpegged_quote_asset_amount,
-            acquired_base_asset_amount.unsigned_abs(),
-            self.peg_multiplier,
-        );
-
-        let trade_size_too_small = match direction {
-            SwapDirection::Add => {
-                entry_price > base_asset_price_after || entry_price < base_asset_price_before
-            }
-            SwapDirection::Remove => {
-                entry_price < base_asset_price_after || entry_price > base_asset_price_before
-            }
-        };
-
-        return (acquired_base_asset_amount, trade_size_too_small);
-    }
-
-    pub fn swap_base_asset(
-        &mut self,
-        base_asset_swap_amount: u128,
-        direction: SwapDirection,
-        now: i64,
-    ) {
-        let (new_quote_asset_amount, new_base_asset_amount) = AMM::find_swap_output(
-            base_asset_swap_amount,
-            self.base_asset_amount,
-            direction,
-            self.base_asset_amount_i,
-        )
-        .unwrap();
-
-        self.base_asset_amount = new_base_asset_amount;
-        self.quote_asset_amount = new_quote_asset_amount;
-
-        self.mark_twap = self.get_new_twap(now);
-        self.mark_twap_ts = now;
-    }
-
-    fn find_swap_output(
-        swap_amount: u128,
-        input_asset_amount: u128,
-        direction: SwapDirection,
-        invariant_sqrt: u128,
-    ) -> Option<(u128, u128)> {
-        let invariant_sqrt_u256 = bn::U256::from(invariant_sqrt);
-        let invariant = invariant_sqrt_u256.checked_mul(invariant_sqrt_u256)?;
-
-        let new_input_amount = if let SwapDirection::Add = direction {
-            input_asset_amount.checked_add(swap_amount)?
-        } else {
-            input_asset_amount.checked_sub(swap_amount)?
-        };
-
-        let new_output_amount = invariant
-            .checked_div(bn::U256::from(new_input_amount))?
-            .try_to_u128()
-            .unwrap();
-
-        return Option::Some((new_output_amount, new_input_amount));
-    }
-
-    fn find_swap_output_and_pnl(
-        self,
-        base_swap_amount: u128,
-        quote_asset_notional_amount: u128,
-        direction: SwapDirection,
-    ) -> (u128, i128) {
-        let initial_quote_asset_amount = self.quote_asset_amount;
-
-        let (new_quote_asset_amount, new_base_asset_amount) = AMM::find_swap_output(
-            base_swap_amount,
-            self.base_asset_amount,
-            direction,
-            self.base_asset_amount_i,
-        )
-        .unwrap();
-
-        let mut quote_asset_acquired = match direction {
-            SwapDirection::Add => initial_quote_asset_amount
-                .checked_sub(new_quote_asset_amount)
-                .unwrap(),
-
-            SwapDirection::Remove => new_quote_asset_amount
-                .checked_sub(initial_quote_asset_amount)
-                .unwrap(),
-        };
-
-        quote_asset_acquired = quote_asset_acquired
-            .checked_mul(self.peg_multiplier)
-            .unwrap()
-            .checked_div(MANTISSA)
-            .unwrap();
-
-        let mut pnl = match direction {
-            SwapDirection::Add => (quote_asset_acquired as i128)
-                .checked_sub(quote_asset_notional_amount as i128)
-                .unwrap(),
-
-            SwapDirection::Remove => (quote_asset_notional_amount as i128)
-                .checked_sub(quote_asset_acquired as i128)
-                .unwrap(),
-        };
-
-        return (quote_asset_acquired, pnl);
-    }
-
-    pub fn base_asset_price_with_mantissa(&self) -> u128 {
-        let ast_px = curve::calculate_base_asset_price_with_mantissa(
-            self.quote_asset_amount,
-            self.base_asset_amount,
-            self.peg_multiplier,
-        );
-
-        return ast_px;
-    }
-
-    pub fn calculate_repeg_candidate_pnl(&self, new_peg_candidate: u128) -> i128 {
-        let net_user_market_position = (self.base_asset_amount_i as i128)
-            .checked_sub(self.base_asset_amount as i128)
-            .unwrap();
-
-        let peg_spread_1 = (new_peg_candidate as i128)
-            .checked_sub(self.peg_multiplier as i128)
-            .unwrap();
-
-        let peg_spread_direction: i128 = if peg_spread_1 > 0 { 1 } else { -1 };
-        let market_position_bias_direction: i128 =
-            if net_user_market_position > 0 { 1 } else { -1 };
-        msg!("ps: {:?}", peg_spread_1);
-        let pnl = (bn::U256::from(
-            peg_spread_1
-                .unsigned_abs()
-                .checked_mul(PEG_SCALAR_COMPL)
-                .unwrap(),
-        )
-        .checked_mul(bn::U256::from(net_user_market_position))
-        .unwrap()
-        .checked_mul(bn::U256::from(self.base_asset_price_with_mantissa()))
-        .unwrap()
-        .checked_div(bn::U256::from(MANTISSA))
-        .unwrap()
-        .checked_div(bn::U256::from(MANTISSA))
-        .unwrap()
-        .checked_div(bn::U256::from(MANTISSA))
-        .unwrap()
-        .try_to_u128()
-        .unwrap() as i128)
-            .checked_mul(
-                market_position_bias_direction
-                    .checked_mul(peg_spread_direction)
-                    .unwrap(),
-            )
-            .unwrap();
-
-        msg!("pnl: {:?}", pnl);
-        return pnl;
-    }
-
-    pub fn get_switchboard_price(&self, price_oracle: &AccountInfo, window: u32) -> (i128, u128) {
-        return (0, 0);
-    }
-
-    pub fn get_pyth_price(&self, price_oracle: &AccountInfo, window: u32) -> (i128, u128) {
-        let pyth_price_data = price_oracle.try_borrow_data().unwrap();
-        let price_data = pyth_client::cast::<pyth_client::Price>(&pyth_price_data);
-
-        // todo: support some interpolated number based on window_size
-        // currently only support (0, 1hour+] (since funding_rate_ts)
-        // window can check spread over a time window instead
-        let oracle_price = if window > 0 {
-            price_data.twap.val as i128
-        } else {
-            price_data.agg.price as i128
-        };
-
-        let oracle_conf = if window > 0 {
-            price_data.twac.val as u128
-        } else {
-            price_data.agg.conf as u128
-        };
-
-        let oracle_mantissa = 10_u128.pow(price_data.expo.unsigned_abs());
-
-        let mut oracle_scale_mult = 1;
-        let mut oracle_scale_div = 1;
-
-        if oracle_mantissa > MANTISSA {
-            oracle_scale_div = oracle_mantissa.checked_div(MANTISSA).unwrap();
-        } else {
-            oracle_scale_mult = MANTISSA.checked_div(oracle_mantissa).unwrap();
-        }
-
-        let oracle_price_scaled = (oracle_price)
-            .checked_mul(oracle_scale_mult as i128)
-            .unwrap()
-            .checked_div(oracle_scale_div as i128)
-            .unwrap();
-        let oracle_conf_scaled = (oracle_conf)
-            .checked_mul(oracle_scale_mult)
-            .unwrap()
-            .checked_div(oracle_scale_div)
-            .unwrap();
-
-        return (oracle_price_scaled, oracle_conf_scaled);
-    }
-
-    pub fn get_oracle_price(&self, price_oracle: &AccountInfo, window: u32) -> (i128, u128) {
-        let (oracle_px, oracle_conf) = match self.oracle_src {
-            OracleSource::Pyth => self.get_pyth_price(price_oracle, window),
-            OracleSource::Switchboard => self.get_switchboard_price(price_oracle, window),
-        };
-
-        return (oracle_px, oracle_conf);
-    }
-
-    pub fn get_new_twap(&self, now: i64) -> u128 {
-        let since_last = max(1, now - self.mark_twap_ts);
-        let since_start = max(1, self.mark_twap_ts - self.funding_rate_ts);
-        let denom = (since_last + since_start) as u128;
-
-        let mark_mantissa = 1; // todo store and then reset to equal oracle after each funding rate update
-
-        let prev_twap_99 = self.mark_twap.checked_mul(since_start as u128).unwrap();
-        let latest_price_01 = self
-            .base_asset_price_with_mantissa()
-            .checked_mul(since_last as u128)
-            .unwrap();
-        let new_twap = prev_twap_99
-            .checked_add(latest_price_01 as u128)
-            .unwrap()
-            .checked_div(denom)
-            .unwrap();
-        return new_twap;
-    }
-
-    pub fn get_oracle_mark_spread(&self, price_oracle: &AccountInfo, window: u32) -> i128 {
-        let mark_price: i128;
-
-        // todo: support some interpolated number based on window_size
-        // currently only support (0, 1hour+] (since funding_rate_ts)
-        // window can check spread over a time window instead
-        if window > 0 {
-            mark_price = self.mark_twap as i128;
-        } else {
-            mark_price = self.base_asset_price_with_mantissa() as i128;
-        }
-
-        let (oracle_price, oracle_conf) = self.get_oracle_price(price_oracle, window);
-
-        let price_spread = mark_price.checked_sub(oracle_price).unwrap();
-
-        return price_spread;
-    }
-
-    pub fn is_arb_trade(&self, price_oracle: &AccountInfo, base_asset_amount: i128) -> bool {
-        // arb_op > 0 -> mark > oracle
-        let arb_op = self.get_oracle_mark_spread(price_oracle, 0);
-
-        // todo: calculate post_trade arb
-        if arb_op < 0 {
-            return base_asset_amount > 0;
-        } else {
-            return base_asset_amount < 0;
-        }
-    }
-
-    pub fn is_spread_limit(&self, price_oracle: &AccountInfo, now: i64) -> [bool; 2] {
-        // set a limit up and limit down as guard rails for risk increasing orders
-        // risk increasing order = non-reducing `open_position`
-
-        let percentage_threshold = self.spread_threshold;
-        let current_spread = self.get_oracle_mark_spread(price_oracle, 0);
-
-        return [
-            current_spread > percentage_threshold as i128, // limit_up
-            current_spread < -1 * percentage_threshold as i128, // limit_down
-        ];
-    }
-
-    pub fn move_price(&mut self, base_asset_amount: u128, quote_asset_amount: u128) {
-        self.base_asset_amount = base_asset_amount;
-        self.quote_asset_amount = quote_asset_amount;
-
-        let sqrtk1 = bn::U256::from(base_asset_amount);
-        let sqrtk2 = bn::U256::from(quote_asset_amount);
-        let k = sqrtk1.checked_mul(sqrtk2).unwrap();
-        let sqrtk = k.integer_sqrt();
-        self.base_asset_amount_i = sqrtk.try_to_u128().unwrap();
-    }
-
-    pub fn move_to_price(&mut self, target_price: u128) {
-        let sqrtk = bn::U256::from(self.base_asset_amount_i);
-        let k = sqrtk.checked_mul(sqrtk).unwrap();
-
-        let new_base_asset_amount_squared = k
-            .checked_mul(bn::U256::from(self.peg_multiplier))
-            .unwrap()
-            .checked_mul(bn::U256::from(PEG_SCALAR_COMPL))
-            .unwrap()
-            .checked_div(bn::U256::from(target_price))
-            .unwrap();
-
-        let new_base_asset_amount = new_base_asset_amount_squared.integer_sqrt();
-        let new_quote_asset_amount = k.checked_div(new_base_asset_amount).unwrap();
-
-        self.base_asset_amount = new_base_asset_amount.try_to_u128().unwrap();
-        self.quote_asset_amount = new_quote_asset_amount.try_to_u128().unwrap();
-    }
-
-    pub fn find_valid_repeg(&mut self, oracle_px: i128, oracle_conf: u128) -> u128 {
-        let peg_spread_0 = (self.peg_multiplier as i128)
-            .checked_mul(PEG_SCALAR_COMPL as i128)
-            .unwrap()
-            .checked_sub(oracle_px)
-            .unwrap();
-
-        if peg_spread_0.unsigned_abs().lt(&oracle_conf) {
-            return self.peg_multiplier;
-        }
-
-        let mut i = 1; // max move is half way to oracle
-        let mut new_peg_candidate = self.peg_multiplier;
-
-        while i < 20 {
-            let base: i128 = 2;
-            let step_fraction_size = base.pow(i);
-            let step = peg_spread_0
-                .checked_div(step_fraction_size)
-                .unwrap()
-                .checked_div(PEG_SCALAR_COMPL as i128)
-                .unwrap();
-
-            if peg_spread_0 < 0 {
-                new_peg_candidate = self.peg_multiplier.checked_add(step.abs() as u128).unwrap();
-            } else {
-                new_peg_candidate = self.peg_multiplier.checked_sub(step.abs() as u128).unwrap();
-            }
-
-            let pnl = self.calculate_repeg_candidate_pnl(new_peg_candidate);
-            msg!("cumslip profit: {:?}", self.cum_slippage_profit);
-            let cum_pnl_profit = (self.cum_slippage_profit as i128).checked_add(pnl).unwrap();
-
-            if cum_pnl_profit >= self.cum_slippage.checked_div(2).unwrap() as i128 {
-                break;
-            }
-
-            i = i + 1;
-        }
-
-        return new_peg_candidate;
-    }
-}
-
-#[account(zero_copy)]
-pub struct FundingRateHistory {
-    head: u64,
-    funding_rate_records: [FundingRateRecord; 1000],
-}
-
-impl Default for FundingRateHistory {
-    fn default() -> Self {
-        return FundingRateHistory {
-            head: 0,
-            funding_rate_records: [FundingRateRecord::default(); 1000],
-        };
-    }
-}
-
-impl FundingRateHistory {
-    fn append(&mut self, pos: FundingRateRecord) {
-        self.funding_rate_records[FundingRateHistory::index_of(self.head)] = pos;
-        self.head = (self.head + 1) % 1000;
-    }
-    fn index_of(counter: u64) -> usize {
-        std::convert::TryInto::try_into(counter).unwrap()
-    }
-
-    fn next_record_id(&self) -> u128 {
-        let prev_record_id = if self.head == 0 { 999 } else { self.head - 1 };
-        let prev_record = &self.funding_rate_records[FundingRateHistory::index_of(prev_record_id)];
-        return prev_record.record_id + 1;
-    }
-}
-
-#[zero_copy]
-#[derive(Default)]
-pub struct FundingRateRecord {
-    pub ts: i64,
-    pub record_id: u128,
-    pub user_public_key: Pubkey,
-    pub user_clearing_house_public_key: Pubkey,
-    pub market_index: u64,
-    pub funding_rate_payment: i128,
-    pub base_asset_amount: i128,
-    pub user_last_cumulative_funding: i128,
-    pub amm_cumulative_funding: i128,
 }
 
 #[derive(Clone, Copy)]
 pub enum SwapDirection {
     Add,
     Remove,
-}
-
-#[zero_copy]
-#[derive(Default)]
-pub struct MarketPosition {
-    pub market_index: u64,
-    pub base_asset_amount: i128,
-    pub quote_asset_notional_amount: u128,
-    pub last_cum_funding: i128,
-    pub last_cum_repeg_profit: u128,
-    pub last_funding_ts: i64,
-}
-
-#[error]
-pub enum ErrorCode {
-    #[msg("Clearing house not collateral account owner")]
-    InvalidCollateralAccountAuthority,
-    #[msg("Clearing house not insurance account owner")]
-    InvalidInsuranceAccountAuthority,
-    #[msg("Signer must be ClearingHouse admin")]
-    Unauthorized,
-    #[msg("Invalid Collateral Account")]
-    InvalidCollateralAccount,
-    #[msg("Invalid Insurance Account")]
-    InvalidInsuranceAccount,
-    #[msg("Invalid Token Program")]
-    InvalidTokenProgram,
-    #[msg("Insufficient deposit")]
-    InsufficientDeposit,
-    #[msg("Insufficient collateral")]
-    InsufficientCollateral,
-    #[msg("Sufficient collateral")]
-    SufficientCollateral,
-    #[msg("Max number of positions taken")]
-    MaxNumberOfPositions,
-    #[msg("Admin Controls Prices Disabled")]
-    AdminControlsPricesDisabled,
-    #[msg("Market Index Not Initialized")]
-    MarketIndexNotInitialized,
-    #[msg("Market Index Already Initialized")]
-    MarketIndexAlreadyInitialized,
-    #[msg("User Account And User Positions Account Mismatch")]
-    UserAccountAndUserPositionsAccountMismatch,
-    #[msg("User Has No Position In Market")]
-    UserHasNoPositionInMarket,
-    #[msg("AMM peg in v0 must be > MANTISSA/10 (e.g. .1)")]
-    InvalidInitialPeg,
-    #[msg("AMM repeg already configured with amt given")]
-    InvalidRepegRedundant,
-    #[msg("AMM repeg incorrect repeg direction")]
-    InvalidRepegDirection,
-    #[msg("AMM repeg out of bounds size")]
-    InvalidRepegSize,
-    #[msg("AMM repeg out of bounds pnl")]
-    InvalidRepegProfitability,
-    #[msg("Slippage Outside Limit Price")]
-    SlippageOutsideLimit,
-    #[msg("Trade Size Too Small")]
-    TradeSizeTooSmall,
-    #[msg("Invalid Oracle Source")]
-    InvalidOracleSource,
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq)]
@@ -2185,7 +1483,7 @@ fn reduce_position<'info>(
         .checked_add(new_quote_asset_notional_amount)
         .unwrap();
 
-    let (base_asset_value_after, pnl_after) =
+    let (base_asset_value_after, _pnl_after) =
         calculate_base_asset_value_and_pnl(market_position, &market.amm);
 
     assert_eq!(base_asset_value_before > base_asset_value_after, true);
@@ -2204,48 +1502,6 @@ fn reduce_position<'info>(
     user_account.collateral = calculate_updated_collateral(user_account.collateral, pnl);
 
     return trade_size_too_small;
-}
-
-// Todo Make this work with new market structure
-fn transfer_position<'info>(
-    user_account_to: &mut Account<UserAccount>,
-    market_position_to: &mut MarketPosition,
-    user_account_from: &mut Account<UserAccount>,
-    market_position_from: &mut MarketPosition,
-    market: &mut Market,
-) {
-    // allow user to take over another users position at fair market value
-    // e.g. liquidator can take over positions at zero market impact (todo: need better incentive?)
-    // iff user.margin below maintence req
-    let (base_asset_value, pnl) =
-        calculate_base_asset_value_and_pnl(market_position_from, &market.amm);
-    let realized_collateral = calculate_updated_collateral(user_account_from.collateral, pnl);
-    user_account_from.collateral = realized_collateral;
-
-    // todo: add support for partial take over
-    let position_transfer = market_position_from.base_asset_amount;
-
-    market_position_to.base_asset_amount = market_position_to
-        .base_asset_amount
-        .checked_add(position_transfer)
-        .unwrap();
-
-    if market_position_to.last_cum_funding == 0 {
-        market_position_to.last_cum_funding = market.amm.cum_funding_rate;
-    }
-
-    if market_position_to.base_asset_amount == 0 {
-        market.open_interest = market.open_interest.checked_sub(1).unwrap();
-    }
-
-    market_position_to.quote_asset_notional_amount = market_position_to
-        .quote_asset_notional_amount
-        .checked_sub(base_asset_value)
-        .unwrap();
-
-    market_position_from.base_asset_amount = 0;
-    market_position_from.quote_asset_notional_amount = 0;
-    market_position_from.last_cum_funding = 0;
 }
 
 fn _close_position(
@@ -2353,7 +1609,7 @@ fn _settle_funding_payment(
         }
 
         let market =
-            markets_account.markets[MarketsAccount::index_from_u64(market_position.market_index)];
+            &markets_account.markets[MarketsAccount::index_from_u64(market_position.market_index)];
         let amm: &AMM = &market.amm;
 
         if amm.cum_funding_rate != market_position.last_cum_funding {
@@ -2400,7 +1656,7 @@ fn _settle_funding_payment(
 fn _settle_repeg_profit_position(
     user_account: &mut UserAccount,
     market_position: &mut MarketPosition,
-    market: Market,
+    market: &Market,
 ) {
     if market_position.base_asset_amount > 0
         && market_position.last_cum_repeg_profit != market.amm.cum_long_repeg_profit
@@ -2560,64 +1816,6 @@ fn calculate_updated_collateral(collateral: u128, pnl: i128) -> u128 {
     } else {
         collateral.checked_sub(pnl.unsigned_abs()).unwrap()
     };
-}
-
-fn admin<'info>(
-    state: &Account<'info, ClearingHouseState>,
-    signer: &AccountInfo<'info>,
-) -> Result<()> {
-    if !signer.key.eq(&state.admin) {
-        return Err(ErrorCode::Unauthorized.into());
-    }
-    Ok(())
-}
-
-fn collateral_account<'info>(
-    state: &Account<'info, ClearingHouseState>,
-    collateral_account: &Account<'info, TokenAccount>,
-) -> Result<()> {
-    if !collateral_account
-        .to_account_info()
-        .key
-        .eq(&state.collateral_account)
-    {
-        return Err(ErrorCode::InvalidCollateralAccount.into());
-    }
-    Ok(())
-}
-
-fn insurance_account<'info>(
-    state: &Account<'info, ClearingHouseState>,
-    insurance_account: &Account<'info, TokenAccount>,
-) -> Result<()> {
-    if !insurance_account
-        .to_account_info()
-        .key
-        .eq(&state.insurance_account)
-    {
-        return Err(ErrorCode::InvalidInsuranceAccount.into());
-    }
-    Ok(())
-}
-
-fn admin_controls_prices<'info>(state: &Account<'info, ClearingHouseState>) -> Result<()> {
-    if !state.admin_controls_prices {
-        return Err(ErrorCode::AdminControlsPricesDisabled.into());
-    }
-    Ok(())
-}
-
-fn users_positions_account_matches_user_account<'info>(
-    user_account: &Account<'info, UserAccount>,
-    user_positions_account: &Loader<'info, UserPositionsAccount>,
-) -> Result<()> {
-    if !user_account
-        .positions
-        .eq(&user_positions_account.to_account_info().key)
-    {
-        return Err(ErrorCode::UserAccountAndUserPositionsAccountMismatch.into());
-    }
-    Ok(())
 }
 
 fn market_initialized(markets_account: &Loader<MarketsAccount>, market_index: u64) -> Result<()> {

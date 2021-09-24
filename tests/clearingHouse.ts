@@ -116,7 +116,6 @@ describe('clearing_house', () => {
 		assert.ok(marketData.openInterest.eq(new BN(0)));
 		assert.ok(marketData.baseAssetVolume.eq(new BN(0)));
 		assert.ok(marketData.pegQuoteAssetVolume.eq(new BN(0)));
-		assert.ok(marketData.arbVolume.eq(new BN(0)));
 
 		const ammData = marketData.amm;
 		assert.ok(ammData.oracle.equals(solUsd.publicKey));
@@ -128,9 +127,6 @@ describe('clearing_house', () => {
 		assert.ok(!ammData.fundingRateTs.eq(new BN(0)));
 		// assert.ok(ammData.markTwap.eq(new BN(0))); //todo
 		// assert.ok(ammData.markTwapTs.eq(new BN(0)));
-		assert.ok(ammData.spreadThreshold.eq(new BN(100000)));
-		assert.ok(ammData.volume1.eq(new BN(0)));
-		assert.ok(ammData.volume2.eq(new BN(0)));
 	});
 
 	it('Initialize user account and deposit collateral atomically', async () => {

@@ -1,10 +1,5 @@
 use crate::bn::U256;
-// use crate::{clearing_house::MANTISSA,PEG_SCALAR};
-
-pub const MANTISSA: u128 = 10_000_000_000; //expo = -10
-pub const PEG_SCALAR: u128 = 1_000; //expo = -3
-pub const MARGIN_MANTISSA: u128 = 10_000; // expo = -4
-pub const FUNDING_MANTISSA: u128 = 10_000; // expo = -4
+use crate::constants::{MANTISSA, PEG_SCALAR};
 
 pub fn calculate_base_asset_price_with_mantissa(
     unpegged_quote_asset_amount: u128,
