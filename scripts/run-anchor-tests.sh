@@ -1,3 +1,5 @@
+./program_ids/mv-keys
+
 if [ "$1" != "--skip-build" ]
   then
     anchor build &&
