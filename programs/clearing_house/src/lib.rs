@@ -19,7 +19,7 @@ mod error;
 use constants::*;
 use error::*;
 
-declare_id!("5bmnmT2xTaLL3aCxaFbpzVr54TgQcBm4CLz8fURuu1A9");
+declare_id!("HBhu1DhDxM7WzXMzbpycXQCiM3GFqL9VHtPcf8AXfmuM");
 
 #[program]
 pub mod clearing_house {
