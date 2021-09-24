@@ -1,0 +1,8 @@
+#!/bin/sh
+BASEDIR=$(dirname "$0")
+
+programs=(pyth mock_usdc_faucet clearing_house)
+
+for program in ${programs[@]}; do
+  cp $BASEDIR/$program-keypair.json $BASEDIR/../target/deploy/$program-keypair.json
+done

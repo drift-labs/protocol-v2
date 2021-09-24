@@ -1,5 +1,0 @@
-#!/bin/sh
-BASEDIR=$(dirname "$0")
-cp $BASEDIR/clearing_house-keypair.json $BASEDIR/../target/deploy/clearing_house-keypair.json
-cp $BASEDIR/pyth-keypair.json $BASEDIR/../target/deploy/pyth-keypair.json
-cp $BASEDIR/mock_usdc_faucet-keypair.json $BASEDIR/../target/deploy/mock_usdc_faucet-keypair.json

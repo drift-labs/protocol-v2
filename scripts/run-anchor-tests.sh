@@ -1,4 +1,4 @@
-./program_ids/mv-keys
+./keys/mv-keys
 
 if [ "$1" != "--skip-build" ]
   then

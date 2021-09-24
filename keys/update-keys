@@ -1,0 +1,13 @@
+#!/bin/sh
+BASEDIR=$(dirname "$0")
+
+programs=(pyth mock_usdc_faucet clearing_house)
+
+for program in ${programs[@]}; do
+  solana-keygen new -f --silent --no-bip39-passphrase -o $BASEDIR/$program-keypair.json
+  PUBKEY=$(solana address -k $BASEDIR/$program-keypair.json)
+  echo $program public key: $PUBKEY
+  gsed -i "s/declare_id!\(.*\)/declare_id!(\"$PUBKEY\")\;/" $BASEDIR/../programs/$program/src/lib.rs
+done
+
+$BASEDIR/mv-keys
