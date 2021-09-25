@@ -1,13 +1,16 @@
 import * as anchor from '@project-serum/anchor';
-import { Program, Provider } from '@project-serum/anchor';
-import { PublicKey } from '@solana/web3.js';
+import {Program, Provider, Wallet} from '@project-serum/anchor';
+import {Keypair, PublicKey} from '@solana/web3.js';
 import BN from 'bn.js';
 import { ClearingHouse, Network, PythClient } from '../sdk/';
 import { AMM_MANTISSA, MockUSDCFaucet, PEG_SCALAR } from '../sdk/src';
 
+import dotenv = require('dotenv');
+dotenv.config();
 
+const fs = require('fs');
 
-module.exports = async function (provider: Provider) {
+async function deploy(provider: Provider) {
 	const connection = provider.connection;
 	const chProgram = anchor.workspace.ClearingHouse as Program;
 	const clearingHouse = new ClearingHouse(
@@ -42,16 +45,6 @@ module.exports = async function (provider: Provider) {
 	console.log('Initialized ClearingHouse');
 
 	const pythClient = new PythClient(clearingHouse.connection);
-
-	// let oracleProgram = anchor.workspace.Pyth as Program;
-	// // Dirty workaround `anchor.workspace.Pyth` was only using localhost
-	// oracleProgram = await Program.at(oracleProgram.programId, provider);
-	// const mockSolOraclePriceKey = await createPriceFeed({
-	// 	oracleProgram,
-	// 	initPrice: 50,
-	// });
-	// console.log('Mock SOL oracle:', mockSolOraclePriceKey.toString());
-
 
 	function normAssetAmount(assetAmount: BN, pegMultiplier: BN) : BN{
 		// assetAmount is scaled to offer comparable slippage
@@ -90,5 +83,101 @@ module.exports = async function (provider: Provider) {
 		console.log(keyName, `Market Index: ${marketIndex.toString()}`);
 	}
 
+	const botWallet = new Wallet(
+		Keypair.fromSecretKey(
+			Uint8Array.from(
+				process.env.OFF_CHAIN_BOT_PRIVATE_KEY.split(',').map((val) =>
+					Number(val)
+				)
+			)
+		)
+	);
+	console.log(`Bot Public Key: ${botWallet.publicKey.toString()}`);
+
+	const associatedTokenPublicKey =
+		await mockUsdcFaucet.getAssosciatedMockUSDMintAddress({
+			userPubKey: botWallet.publicKey,
+		});
+
+	console.log("Bot's associated key:", associatedTokenPublicKey.toString());
+
+	console.log('Initializing Bot for devnet');
+	await clearingHouse.initializeUserAccountForDevnet(
+		mockUsdcFaucet,
+		new BN(10 ** 13) // $10M
+	);
+	console.log('Initialized Bot for devnet');
 	await clearingHouse.unsubscribe();
-};
+
+	await updateEnvFiles(
+		clearingHouse.program.programId,
+		mockUsdcFaucet.program.programId,
+		mockUsdcFaucetState.mint,
+		associatedTokenPublicKey
+	);
+}
+
+async function replace(filePath: string, search: RegExp, replacement: string) {
+	fs.readFile(filePath, 'utf8', function (err,data) {
+		if (err) {
+			return console.error(err);
+		}
+		const result = data.replace(search, replacement);
+
+		fs.writeFile(filePath, result, 'utf8', function (err) {
+			if (err) return console.error(err);
+		});
+	});
+}
+
+async function updateEnvFiles(
+	clearingHouseProgramId: PublicKey,
+	mockUSDCFaucetProgramId: PublicKey,
+	USDCMintProgramId: PublicKey,
+	offChainBotTokenAccount: PublicKey,
+) {
+	const uiEnvPath = `${__dirname}/../../ui/.env`;
+	await replace(
+		uiEnvPath,
+		/NEXT_PUBLIC_CLEARING_HOUSE_PROGRAM_ID=([\d\w]*)/g,
+		`NEXT_PUBLIC_CLEARING_HOUSE_PROGRAM_ID=${clearingHouseProgramId.toString()}`
+	);
+	await replace(
+		uiEnvPath,
+		/NEXT_PUBLIC_USDC_MINT_ADDRESS=([\d\w]*)/g,
+		`NEXT_PUBLIC_USDC_MINT_ADDRESS=${USDCMintProgramId.toString()}`
+	);
+	await replace(
+		uiEnvPath,
+		/NEXT_PUBLIC_MOCK_USDC_FAUCET_ADDRESS=([\d\w]*)/g,
+		`NEXT_PUBLIC_MOCK_USDC_FAUCET_ADDRESS=${mockUSDCFaucetProgramId.toString()}`
+	);
+
+	const offChainBotEnvPath = `${__dirname}/../../off-chain-bot/.env`;
+	await replace(
+		offChainBotEnvPath,
+		/LIQUIDATION_USER_TOKEN_PUBLIC_KEY=([\d\w]*)/g,
+		`LIQUIDATION_USER_TOKEN_PUBLIC_KEY=${offChainBotTokenAccount.toString()}`
+	);
+	await replace(
+		offChainBotEnvPath,
+		/NEXT_PUBLIC_USDC_MINT_ADDRESS=([\d\w]*)/g,
+		`CLEARING_HOUSE_PROGRAM_ID=${clearingHouseProgramId.toString()}`
+	);
+
+	const exchangeHistoryEnvPath = `${__dirname}/../../exchange-history/.env`;
+	await replace(
+		exchangeHistoryEnvPath,
+		/CLEARING_HOUSE_PROGRAM_ID=([\d\w]*)/g,
+		`CLEARING_HOUSE_PROGRAM_ID=${clearingHouseProgramId.toString()}`
+	);
+}
+
+try {
+	if (!process.env.ANCHOR_WALLET) {
+		throw new Error("ANCHOR_WALLET must be set.");
+	}
+	deploy(anchor.Provider.local("https://api.devnet.solana.com"));
+} catch (e) {
+	console.error(e);
+}

@@ -3,6 +3,8 @@ BASEDIR=$(dirname "$0")
 
 programs=(pyth mock_usdc_faucet clearing_house)
 
+rm $BASEDIR/../target/deploy/*
+
 for program in ${programs[@]}; do
   solana-keygen new -f --silent --no-bip39-passphrase -o $BASEDIR/$program-keypair.json
   PUBKEY=$(solana address -k $BASEDIR/$program-keypair.json)
