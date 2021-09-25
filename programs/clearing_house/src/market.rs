@@ -1,25 +1,23 @@
 use crate::bn;
 use crate::curve;
-use crate::{SwapDirection, MANTISSA, PEG_SCALAR_COMPL};
+use crate::{SwapDirection, MARK_PRICE_MANTISSA, PRICE_TO_PEG_PRECISION_RATIO};
 use anchor_lang::prelude::*;
 use std::cmp::max;
 
 #[account(zero_copy)]
-pub struct MarketsAccount {
-    pub account_index: u64,
+pub struct Markets {
     pub markets: [Market; 1000],
 }
 
-impl Default for MarketsAccount {
+impl Default for Markets {
     fn default() -> Self {
-        return MarketsAccount {
-            account_index: 0,
+        return Markets {
             markets: [Market::default(); 1000],
         };
     }
 }
 
-impl MarketsAccount {
+impl Markets {
     pub fn index_from_u64(index: u64) -> usize {
         return std::convert::TryInto::try_into(index).unwrap();
     }
@@ -31,11 +29,14 @@ pub struct Market {
     pub initialized: bool,
     pub base_asset_amount_long: i128,
     pub base_asset_amount_short: i128,
-    pub base_asset_amount: i128,           // net market bias
+    pub base_asset_amount: i128, // net market bias
+    // remove
     pub quote_asset_notional_amount: u128, //outstanding notional?
     pub open_interest: u128,               // number of users in a position
-    pub base_asset_volume: u128,           // amt of base asset volume since inception
-    pub peg_quote_asset_volume: u128,      // amt of quote asset volume since inception
+    // remove
+    pub base_asset_volume: u128, // amt of base asset volume since inception
+    // remove
+    pub peg_quote_asset_volume: u128, // amt of quote asset volume since inception
     pub amm: AMM,
 }
 
@@ -56,24 +57,25 @@ impl Default for OracleSource {
 #[derive(Default)]
 pub struct AMM {
     pub oracle: Pubkey,
-    pub oracle_src: OracleSource,
-    pub base_asset_amount: u128,
-    pub quote_asset_amount: u128,
-    pub cum_funding_rate: i128,
-    pub cum_long_repeg_profit: u128,
-    pub cum_short_repeg_profit: u128,
-    pub cum_long_funding_rate: i128,
-    pub cum_short_funding_rate: i128,
-    pub funding_rate: i128,
-    pub funding_rate_ts: i64,
+    pub oracle_source: OracleSource,
+    pub base_asset_reserve: u128,
+    pub quote_asset_reserve: u128,
+    pub cumulative_funding_rate: i128,
+    pub cumulative_repeg_rebate_long: u128,
+    pub cumulative_repeg_rebate_short: u128,
+    pub cumulative_funding_rate_long: i128,
+    pub cumulative_funding_rate_short: i128,
+    pub last_funding_rate: i128,
+    pub last_funding_rate_ts: i64,
+    // remove
     pub prev_funding_rate_ts: i64,
-    pub periodicity: i64,
-    pub mark_twap: u128,
-    pub mark_twap_ts: i64,
-    pub base_asset_amount_i: u128,
-    pub peg_multiplier: u128,      // amm equilibrium price
-    pub cum_slippage: u128,        //re-pegging
-    pub cum_slippage_profit: u128, //re-pegging
+    pub funding_period: i64,
+    pub last_mark_price_twap: u128,
+    pub last_mark_price_twap_ts: i64,
+    pub sqrt_k: u128,
+    pub peg_multiplier: u128,
+    pub cumulative_fee: u128,
+    pub cumulative_fee_realized: u128,
 }
 
 impl AMM {
@@ -99,8 +101,8 @@ impl AMM {
         let (acquired_base_asset_amount, trade_size_too_small) =
             self.swap_quote_asset(quote_asset_swap_amount, direction, now);
 
-        self.cum_slippage = self.cum_slippage.checked_add(fee).unwrap();
-        self.cum_slippage_profit = self.cum_slippage_profit.checked_add(fee).unwrap();
+        self.cumulative_fee = self.cumulative_fee.checked_add(fee).unwrap();
+        self.cumulative_fee_realized = self.cumulative_fee_realized.checked_add(fee).unwrap();
 
         return (
             acquired_base_asset_amount,
@@ -116,7 +118,7 @@ impl AMM {
         now: i64,
     ) -> (i128, bool) {
         let unpegged_quote_asset_amount = quote_asset_swap_amount
-            .checked_mul(MANTISSA)
+            .checked_mul(MARK_PRICE_MANTISSA)
             .unwrap()
             .checked_div(self.peg_multiplier)
             .unwrap();
@@ -127,21 +129,21 @@ impl AMM {
         // my understanding is orders will be shrunk to the lowest tick size
         assert_ne!(unpegged_quote_asset_amount, 0);
 
-        let initial_base_asset_amount = self.base_asset_amount;
+        let initial_base_asset_amount = self.base_asset_reserve;
         let (new_base_asset_amount, new_quote_asset_amount) = AMM::find_swap_output(
             unpegged_quote_asset_amount,
-            self.quote_asset_amount,
+            self.quote_asset_reserve,
             direction,
-            self.base_asset_amount_i,
+            self.sqrt_k,
         )
         .unwrap();
         let base_asset_price_before = self.base_asset_price_with_mantissa();
 
-        self.base_asset_amount = new_base_asset_amount;
-        self.quote_asset_amount = new_quote_asset_amount;
+        self.base_asset_reserve = new_base_asset_amount;
+        self.quote_asset_reserve = new_quote_asset_amount;
 
-        self.mark_twap = self.get_new_twap(now);
-        self.mark_twap_ts = now;
+        self.last_mark_price_twap = self.get_new_twap(now);
+        self.last_mark_price_twap_ts = now;
 
         let acquired_base_asset_amount = (initial_base_asset_amount as i128)
             .checked_sub(new_base_asset_amount as i128)
@@ -174,17 +176,17 @@ impl AMM {
     ) {
         let (new_quote_asset_amount, new_base_asset_amount) = AMM::find_swap_output(
             base_asset_swap_amount,
-            self.base_asset_amount,
+            self.base_asset_reserve,
             direction,
-            self.base_asset_amount_i,
+            self.sqrt_k,
         )
         .unwrap();
 
-        self.base_asset_amount = new_base_asset_amount;
-        self.quote_asset_amount = new_quote_asset_amount;
+        self.base_asset_reserve = new_base_asset_amount;
+        self.quote_asset_reserve = new_quote_asset_amount;
 
-        self.mark_twap = self.get_new_twap(now);
-        self.mark_twap_ts = now;
+        self.last_mark_price_twap = self.get_new_twap(now);
+        self.last_mark_price_twap_ts = now;
     }
 
     fn find_swap_output(
@@ -216,13 +218,13 @@ impl AMM {
         quote_asset_notional_amount: u128,
         direction: SwapDirection,
     ) -> (u128, i128) {
-        let initial_quote_asset_amount = self.quote_asset_amount;
+        let initial_quote_asset_amount = self.quote_asset_reserve;
 
         let (new_quote_asset_amount, _new_base_asset_amount) = AMM::find_swap_output(
             base_swap_amount,
-            self.base_asset_amount,
+            self.base_asset_reserve,
             direction,
-            self.base_asset_amount_i,
+            self.sqrt_k,
         )
         .unwrap();
 
@@ -239,7 +241,7 @@ impl AMM {
         quote_asset_acquired = quote_asset_acquired
             .checked_mul(self.peg_multiplier)
             .unwrap()
-            .checked_div(MANTISSA)
+            .checked_div(MARK_PRICE_MANTISSA)
             .unwrap();
 
         let pnl = match direction {
@@ -257,8 +259,8 @@ impl AMM {
 
     pub fn base_asset_price_with_mantissa(&self) -> u128 {
         let ast_px = curve::calculate_base_asset_price_with_mantissa(
-            self.quote_asset_amount,
-            self.base_asset_amount,
+            self.quote_asset_reserve,
+            self.base_asset_reserve,
             self.peg_multiplier,
         );
 
@@ -266,8 +268,8 @@ impl AMM {
     }
 
     pub fn calculate_repeg_candidate_pnl(&self, new_peg_candidate: u128) -> i128 {
-        let net_user_market_position = (self.base_asset_amount_i as i128)
-            .checked_sub(self.base_asset_amount as i128)
+        let net_user_market_position = (self.sqrt_k as i128)
+            .checked_sub(self.base_asset_reserve as i128)
             .unwrap();
 
         let peg_spread_1 = (new_peg_candidate as i128)
@@ -281,18 +283,18 @@ impl AMM {
         let pnl = (bn::U256::from(
             peg_spread_1
                 .unsigned_abs()
-                .checked_mul(PEG_SCALAR_COMPL)
+                .checked_mul(PRICE_TO_PEG_PRECISION_RATIO)
                 .unwrap(),
         )
         .checked_mul(bn::U256::from(net_user_market_position))
         .unwrap()
         .checked_mul(bn::U256::from(self.base_asset_price_with_mantissa()))
         .unwrap()
-        .checked_div(bn::U256::from(MANTISSA))
+        .checked_div(bn::U256::from(MARK_PRICE_MANTISSA))
         .unwrap()
-        .checked_div(bn::U256::from(MANTISSA))
+        .checked_div(bn::U256::from(MARK_PRICE_MANTISSA))
         .unwrap()
-        .checked_div(bn::U256::from(MANTISSA))
+        .checked_div(bn::U256::from(MARK_PRICE_MANTISSA))
         .unwrap()
         .try_to_u128()
         .unwrap() as i128)
@@ -331,10 +333,10 @@ impl AMM {
         let mut oracle_scale_mult = 1;
         let mut oracle_scale_div = 1;
 
-        if oracle_mantissa > MANTISSA {
-            oracle_scale_div = oracle_mantissa.checked_div(MANTISSA).unwrap();
+        if oracle_mantissa > MARK_PRICE_MANTISSA {
+            oracle_scale_div = oracle_mantissa.checked_div(MARK_PRICE_MANTISSA).unwrap();
         } else {
-            oracle_scale_mult = MANTISSA.checked_div(oracle_mantissa).unwrap();
+            oracle_scale_mult = MARK_PRICE_MANTISSA.checked_div(oracle_mantissa).unwrap();
         }
 
         let oracle_price_scaled = (oracle_price)
@@ -352,7 +354,7 @@ impl AMM {
     }
 
     pub fn get_oracle_price(&self, price_oracle: &AccountInfo, window: u32) -> (i128, u128) {
-        let (oracle_px, oracle_conf) = match self.oracle_src {
+        let (oracle_px, oracle_conf) = match self.oracle_source {
             OracleSource::Pyth => self.get_pyth_price(price_oracle, window),
             OracleSource::Switchboard => (0, 0),
         };
@@ -361,11 +363,14 @@ impl AMM {
     }
 
     pub fn get_new_twap(&self, now: i64) -> u128 {
-        let since_last = max(1, now - self.mark_twap_ts);
-        let since_start = max(1, self.mark_twap_ts - self.funding_rate_ts);
+        let since_last = max(1, now - self.last_mark_price_twap_ts);
+        let since_start = max(1, self.last_mark_price_twap_ts - self.last_funding_rate_ts);
         let denom = (since_last + since_start) as u128;
 
-        let prev_twap_99 = self.mark_twap.checked_mul(since_start as u128).unwrap();
+        let prev_twap_99 = self
+            .last_mark_price_twap
+            .checked_mul(since_start as u128)
+            .unwrap();
         let latest_price_01 = self
             .base_asset_price_with_mantissa()
             .checked_mul(since_last as u128)
@@ -385,7 +390,7 @@ impl AMM {
         // currently only support (0, 1hour+] (since funding_rate_ts)
         // window can check spread over a time window instead
         if window > 0 {
-            mark_price = self.mark_twap as i128;
+            mark_price = self.last_mark_price_twap as i128;
         } else {
             mark_price = self.base_asset_price_with_mantissa() as i128;
         }
@@ -398,24 +403,24 @@ impl AMM {
     }
 
     pub fn move_price(&mut self, base_asset_amount: u128, quote_asset_amount: u128) {
-        self.base_asset_amount = base_asset_amount;
-        self.quote_asset_amount = quote_asset_amount;
+        self.base_asset_reserve = base_asset_amount;
+        self.quote_asset_reserve = quote_asset_amount;
 
         let sqrtk1 = bn::U256::from(base_asset_amount);
         let sqrtk2 = bn::U256::from(quote_asset_amount);
         let k = sqrtk1.checked_mul(sqrtk2).unwrap();
         let sqrtk = k.integer_sqrt();
-        self.base_asset_amount_i = sqrtk.try_to_u128().unwrap();
+        self.sqrt_k = sqrtk.try_to_u128().unwrap();
     }
 
     pub fn move_to_price(&mut self, target_price: u128) {
-        let sqrtk = bn::U256::from(self.base_asset_amount_i);
+        let sqrtk = bn::U256::from(self.sqrt_k);
         let k = sqrtk.checked_mul(sqrtk).unwrap();
 
         let new_base_asset_amount_squared = k
             .checked_mul(bn::U256::from(self.peg_multiplier))
             .unwrap()
-            .checked_mul(bn::U256::from(PEG_SCALAR_COMPL))
+            .checked_mul(bn::U256::from(PRICE_TO_PEG_PRECISION_RATIO))
             .unwrap()
             .checked_div(bn::U256::from(target_price))
             .unwrap();
@@ -423,13 +428,13 @@ impl AMM {
         let new_base_asset_amount = new_base_asset_amount_squared.integer_sqrt();
         let new_quote_asset_amount = k.checked_div(new_base_asset_amount).unwrap();
 
-        self.base_asset_amount = new_base_asset_amount.try_to_u128().unwrap();
-        self.quote_asset_amount = new_quote_asset_amount.try_to_u128().unwrap();
+        self.base_asset_reserve = new_base_asset_amount.try_to_u128().unwrap();
+        self.quote_asset_reserve = new_quote_asset_amount.try_to_u128().unwrap();
     }
 
     pub fn find_valid_repeg(&mut self, oracle_px: i128, oracle_conf: u128) -> u128 {
         let peg_spread_0 = (self.peg_multiplier as i128)
-            .checked_mul(PEG_SCALAR_COMPL as i128)
+            .checked_mul(PRICE_TO_PEG_PRECISION_RATIO as i128)
             .unwrap()
             .checked_sub(oracle_px)
             .unwrap();
@@ -447,7 +452,7 @@ impl AMM {
             let step = peg_spread_0
                 .checked_div(step_fraction_size)
                 .unwrap()
-                .checked_div(PEG_SCALAR_COMPL as i128)
+                .checked_div(PRICE_TO_PEG_PRECISION_RATIO as i128)
                 .unwrap();
 
             if peg_spread_0 < 0 {
@@ -457,9 +462,11 @@ impl AMM {
             }
 
             let pnl = self.calculate_repeg_candidate_pnl(new_peg_candidate);
-            let cum_pnl_profit = (self.cum_slippage_profit as i128).checked_add(pnl).unwrap();
+            let cum_pnl_profit = (self.cumulative_fee_realized as i128)
+                .checked_add(pnl)
+                .unwrap();
 
-            if cum_pnl_profit >= self.cum_slippage.checked_div(2).unwrap() as i128 {
+            if cum_pnl_profit >= self.cumulative_fee.checked_div(2).unwrap() as i128 {
                 break;
             }
 

@@ -3,7 +3,7 @@
   "name": "clearing_house",
   "instructions": [
     {
-      "name": "initializeClearingHouse",
+      "name": "initialize",
       "accounts": [
         {
           "name": "admin",
@@ -11,32 +11,32 @@
           "isSigner": true
         },
         {
-          "name": "clearingHouseState",
+          "name": "state",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "collateralAccount",
+          "name": "collateralVault",
           "isMut": false,
           "isSigner": false
         },
         {
-          "name": "insuranceAccount",
+          "name": "insuranceVault",
           "isMut": false,
           "isSigner": false
         },
         {
-          "name": "marketsAccount",
+          "name": "markets",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "fundingRateHistory",
+          "name": "fundingPaymentHistory",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "tradeHistoryAccount",
+          "name": "tradeHistory",
           "isMut": true,
           "isSigner": false
         },
@@ -71,12 +71,12 @@
           "isSigner": true
         },
         {
-          "name": "clearingHouseState",
+          "name": "state",
           "isMut": false,
           "isSigner": false
         },
         {
-          "name": "marketsAccount",
+          "name": "markets",
           "isMut": true,
           "isSigner": false
         },
@@ -118,12 +118,12 @@
       "name": "depositCollateral",
       "accounts": [
         {
-          "name": "clearingHouseState",
+          "name": "state",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "userAccount",
+          "name": "user",
           "isMut": true,
           "isSigner": false
         },
@@ -133,7 +133,7 @@
           "isSigner": true
         },
         {
-          "name": "clearingHouseCollateralAccount",
+          "name": "collateralVault",
           "isMut": true,
           "isSigner": false
         },
@@ -148,17 +148,17 @@
           "isSigner": false
         },
         {
-          "name": "marketsAccount",
+          "name": "markets",
           "isMut": false,
           "isSigner": false
         },
         {
-          "name": "userPositionsAccount",
+          "name": "userPositions",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "fundingRateHistory",
+          "name": "fundingPaymentHistory",
           "isMut": true,
           "isSigner": false
         }
@@ -174,12 +174,12 @@
       "name": "withdrawCollateral",
       "accounts": [
         {
-          "name": "clearingHouseState",
+          "name": "state",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "userAccount",
+          "name": "user",
           "isMut": true,
           "isSigner": false
         },
@@ -189,22 +189,22 @@
           "isSigner": true
         },
         {
-          "name": "clearingHouseCollateralAccount",
+          "name": "collateralVault",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "clearingHouseCollateralAccountAuthority",
+          "name": "collateralVaultAuthority",
           "isMut": false,
           "isSigner": false
         },
         {
-          "name": "clearingHouseInsuranceAccount",
+          "name": "insuranceVault",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "clearingHouseInsuranceAccountAuthority",
+          "name": "insuranceVaultAuthority",
           "isMut": false,
           "isSigner": false
         },
@@ -219,17 +219,17 @@
           "isSigner": false
         },
         {
-          "name": "marketsAccount",
+          "name": "markets",
           "isMut": false,
           "isSigner": false
         },
         {
-          "name": "userPositionsAccount",
+          "name": "userPositions",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "fundingRateHistory",
+          "name": "fundingPaymentHistory",
           "isMut": true,
           "isSigner": false
         }
@@ -245,12 +245,12 @@
       "name": "openPosition",
       "accounts": [
         {
-          "name": "clearingHouseState",
+          "name": "state",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "userAccount",
+          "name": "user",
           "isMut": true,
           "isSigner": false
         },
@@ -260,22 +260,22 @@
           "isSigner": true
         },
         {
-          "name": "marketsAccount",
+          "name": "markets",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "userPositionsAccount",
+          "name": "userPositions",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "tradeHistoryAccount",
+          "name": "tradeHistory",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "fundingRateHistory",
+          "name": "fundingPaymentHistory",
           "isMut": true,
           "isSigner": false
         },
@@ -310,12 +310,12 @@
       "name": "closePosition",
       "accounts": [
         {
-          "name": "clearingHouseState",
+          "name": "state",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "userAccount",
+          "name": "user",
           "isMut": true,
           "isSigner": false
         },
@@ -325,12 +325,12 @@
           "isSigner": true
         },
         {
-          "name": "marketsAccount",
+          "name": "markets",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "userPositionsAccount",
+          "name": "userPositions",
           "isMut": true,
           "isSigner": false
         },
@@ -340,7 +340,7 @@
           "isSigner": false
         },
         {
-          "name": "fundingRateHistory",
+          "name": "fundingPaymentHistory",
           "isMut": true,
           "isSigner": false
         },
@@ -361,7 +361,7 @@
       "name": "liquidate",
       "accounts": [
         {
-          "name": "clearingHouseState",
+          "name": "state",
           "isMut": false,
           "isSigner": false
         },
@@ -371,27 +371,27 @@
           "isSigner": true
         },
         {
-          "name": "userAccount",
+          "name": "user",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "clearingHouseCollateralAccount",
+          "name": "collateralVault",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "clearingHouseCollateralAccountAuthority",
+          "name": "collateralVaultAuthority",
           "isMut": false,
           "isSigner": false
         },
         {
-          "name": "clearingHouseInsuranceAccount",
+          "name": "insuranceVault",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "clearingHouseInsuranceAccountAuthority",
+          "name": "insuranceVaultAuthority",
           "isMut": false,
           "isSigner": false
         },
@@ -406,12 +406,12 @@
           "isSigner": false
         },
         {
-          "name": "marketsAccount",
+          "name": "markets",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "userPositionsAccount",
+          "name": "userPositions",
           "isMut": true,
           "isSigner": false
         }
@@ -422,7 +422,7 @@
       "name": "moveAmmPrice",
       "accounts": [
         {
-          "name": "clearingHouseState",
+          "name": "state",
           "isMut": false,
           "isSigner": false
         },
@@ -432,7 +432,7 @@
           "isSigner": true
         },
         {
-          "name": "marketsAccount",
+          "name": "markets",
           "isMut": true,
           "isSigner": false
         },
@@ -461,7 +461,7 @@
       "name": "adminWithdrawCollateral",
       "accounts": [
         {
-          "name": "clearingHouseState",
+          "name": "state",
           "isMut": false,
           "isSigner": false
         },
@@ -471,22 +471,22 @@
           "isSigner": true
         },
         {
-          "name": "clearingHouseCollateralAccount",
+          "name": "collateralVault",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "clearingHouseCollateralAccountAuthority",
+          "name": "collateralVaultAuthority",
           "isMut": false,
           "isSigner": false
         },
         {
-          "name": "clearingHouseInsuranceAccount",
+          "name": "insuranceVault",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "clearingHouseInsuranceAccountAuthority",
+          "name": "insuranceVaultAuthority",
           "isMut": false,
           "isSigner": false
         },
@@ -496,7 +496,7 @@
           "isSigner": false
         },
         {
-          "name": "marketsAccount",
+          "name": "markets",
           "isMut": false,
           "isSigner": false
         }
@@ -516,12 +516,12 @@
       "name": "repegAmmCurve",
       "accounts": [
         {
-          "name": "clearingHouseState",
+          "name": "state",
           "isMut": false,
           "isSigner": false
         },
         {
-          "name": "marketsAccount",
+          "name": "markets",
           "isMut": true,
           "isSigner": false
         },
@@ -553,15 +553,15 @@
       ]
     },
     {
-      "name": "initializeUserAccount",
+      "name": "initializeUser",
       "accounts": [
         {
-          "name": "userAccount",
+          "name": "user",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "userPositionsAccount",
+          "name": "userPositions",
           "isMut": true,
           "isSigner": true
         },
@@ -588,7 +588,7 @@
       ],
       "args": [
         {
-          "name": "userAccountNonce",
+          "name": "userNonce",
           "type": "u8"
         }
       ]
@@ -597,22 +597,22 @@
       "name": "settleFundingPayment",
       "accounts": [
         {
-          "name": "userAccount",
+          "name": "user",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "marketsAccount",
+          "name": "markets",
           "isMut": false,
           "isSigner": false
         },
         {
-          "name": "userPositionsAccount",
+          "name": "userPositions",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "fundingRateHistory",
+          "name": "fundingPaymentHistory",
           "isMut": true,
           "isSigner": false
         }
@@ -623,7 +623,7 @@
       "name": "updateFundingRate",
       "accounts": [
         {
-          "name": "marketsAccount",
+          "name": "markets",
           "isMut": true,
           "isSigner": false
         },
@@ -638,12 +638,12 @@
           "isSigner": false
         },
         {
-          "name": "clearingHouseInsuranceAccount",
+          "name": "insuranceVault",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "clearingHouseInsuranceAccountAuthority",
+          "name": "insuranceVaultAuthority",
           "isMut": false,
           "isSigner": false
         }
@@ -658,7 +658,7 @@
   ],
   "accounts": [
     {
-      "name": "ClearingHouseState",
+      "name": "State",
       "type": {
         "kind": "struct",
         "fields": [
@@ -671,35 +671,35 @@
             "type": "bool"
           },
           {
-            "name": "collateralAccount",
+            "name": "collateralVault",
             "type": "publicKey"
           },
           {
-            "name": "collateralAccountAuthority",
+            "name": "collateralVaultAuthority",
             "type": "publicKey"
           },
           {
-            "name": "collateralAccountNonce",
+            "name": "collateralVaultNonce",
             "type": "u8"
           },
           {
-            "name": "fundingRateHistory",
+            "name": "fundingPaymentHistory",
             "type": "publicKey"
           },
           {
-            "name": "insuranceAccount",
+            "name": "insuranceVault",
             "type": "publicKey"
           },
           {
-            "name": "insuranceAccountAuthority",
+            "name": "insuranceVaultAuthority",
             "type": "publicKey"
           },
           {
-            "name": "insuranceAccountNonce",
+            "name": "insuranceVaultNonce",
             "type": "u8"
           },
           {
-            "name": "marketsAccount",
+            "name": "markets",
             "type": "publicKey"
           },
           {
@@ -715,18 +715,18 @@
             "type": "u128"
           },
           {
-            "name": "tradeHistoryAccount",
+            "name": "tradeHistory",
             "type": "publicKey"
           },
           {
-            "name": "allocatedDeposits",
+            "name": "collateralDeposits",
             "type": "u128"
           }
         ]
       }
     },
     {
-      "name": "TradeHistoryAccount",
+      "name": "TradeHistory",
       "type": {
         "kind": "struct",
         "fields": [
@@ -749,7 +749,7 @@
       }
     },
     {
-      "name": "FundingRateHistory",
+      "name": "FundingPaymentHistory",
       "type": {
         "kind": "struct",
         "fields": [
@@ -762,7 +762,7 @@
             "type": {
               "array": [
                 {
-                  "defined": "FundingRateRecord"
+                  "defined": "FundingPaymentRecord"
                 },
                 1000
               ]
@@ -772,14 +772,10 @@
       }
     },
     {
-      "name": "MarketsAccount",
+      "name": "Markets",
       "type": {
         "kind": "struct",
         "fields": [
-          {
-            "name": "accountIndex",
-            "type": "u64"
-          },
           {
             "name": "markets",
             "type": {
@@ -795,7 +791,7 @@
       }
     },
     {
-      "name": "UserAccount",
+      "name": "User",
       "type": {
         "kind": "struct",
         "fields": [
@@ -808,7 +804,7 @@
             "type": "u128"
           },
           {
-            "name": "initialPurchase",
+            "name": "cumulativeDeposits",
             "type": "i128"
           },
           {
@@ -823,12 +819,12 @@
       }
     },
     {
-      "name": "UserPositionsAccount",
+      "name": "UserPositions",
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "userAccount",
+            "name": "user",
             "type": "publicKey"
           },
           {
@@ -861,11 +857,11 @@
             "type": "u128"
           },
           {
-            "name": "userPublicKey",
+            "name": "userAuthority",
             "type": "publicKey"
           },
           {
-            "name": "userClearingHousePublicKey",
+            "name": "user",
             "type": "publicKey"
           },
           {
@@ -879,15 +875,15 @@
             "type": "u128"
           },
           {
-            "name": "quoteAssetNotionalAmount",
+            "name": "quoteAssetAmount",
             "type": "u128"
           },
           {
-            "name": "baseAssetPriceWithMantissaBefore",
+            "name": "markPriceBefore",
             "type": "u128"
           },
           {
-            "name": "baseAssetPriceWithMantissaAfter",
+            "name": "markPriceAfter",
             "type": "u128"
           },
           {
@@ -898,7 +894,7 @@
       }
     },
     {
-      "name": "FundingRateRecord",
+      "name": "FundingPaymentRecord",
       "type": {
         "kind": "struct",
         "fields": [
@@ -911,11 +907,11 @@
             "type": "u128"
           },
           {
-            "name": "userPublicKey",
+            "name": "userAuthority",
             "type": "publicKey"
           },
           {
-            "name": "userClearingHousePublicKey",
+            "name": "user",
             "type": "publicKey"
           },
           {
@@ -923,7 +919,7 @@
             "type": "u64"
           },
           {
-            "name": "fundingRatePayment",
+            "name": "fundingPayment",
             "type": "i128"
           },
           {
@@ -997,45 +993,45 @@
             "type": "publicKey"
           },
           {
-            "name": "oracleSrc",
+            "name": "oracleSource",
             "type": {
               "defined": "OracleSource"
             }
           },
           {
-            "name": "baseAssetAmount",
+            "name": "baseAssetReserve",
             "type": "u128"
           },
           {
-            "name": "quoteAssetAmount",
+            "name": "quoteAssetReserve",
             "type": "u128"
           },
           {
-            "name": "cumFundingRate",
+            "name": "cumulativeFundingRate",
             "type": "i128"
           },
           {
-            "name": "cumLongRepegProfit",
+            "name": "cumulativeRepegRebateLong",
             "type": "u128"
           },
           {
-            "name": "cumShortRepegProfit",
+            "name": "cumulativeRepegRebateShort",
             "type": "u128"
           },
           {
-            "name": "cumLongFundingRate",
+            "name": "cumulativeFundingRateLong",
             "type": "i128"
           },
           {
-            "name": "cumShortFundingRate",
+            "name": "cumulativeFundingRateShort",
             "type": "i128"
           },
           {
-            "name": "fundingRate",
+            "name": "lastFundingRate",
             "type": "i128"
           },
           {
-            "name": "fundingRateTs",
+            "name": "lastFundingRateTs",
             "type": "i64"
           },
           {
@@ -1043,19 +1039,19 @@
             "type": "i64"
           },
           {
-            "name": "periodicity",
+            "name": "fundingPeriod",
             "type": "i64"
           },
           {
-            "name": "markTwap",
+            "name": "lastMarkPriceTwap",
             "type": "u128"
           },
           {
-            "name": "markTwapTs",
+            "name": "lastMarkPriceTwapTs",
             "type": "i64"
           },
           {
-            "name": "baseAssetAmountI",
+            "name": "sqrtK",
             "type": "u128"
           },
           {
@@ -1063,11 +1059,11 @@
             "type": "u128"
           },
           {
-            "name": "cumSlippage",
+            "name": "cumulativeFee",
             "type": "u128"
           },
           {
-            "name": "cumSlippageProfit",
+            "name": "cumulativeFeeRealized",
             "type": "u128"
           }
         ]
@@ -1087,19 +1083,19 @@
             "type": "i128"
           },
           {
-            "name": "quoteAssetNotionalAmount",
+            "name": "quoteAssetAmount",
             "type": "u128"
           },
           {
-            "name": "lastCumFunding",
+            "name": "lastCumulativeFundingRate",
             "type": "i128"
           },
           {
-            "name": "lastCumRepegProfit",
+            "name": "lastCumulativeRepegRebate",
             "type": "u128"
           },
           {
-            "name": "lastFundingTs",
+            "name": "lastFundingRateTs",
             "type": "i64"
           }
         ]
@@ -1245,5 +1241,8 @@
       "name": "TradeSizeTooSmall",
       "msg": "Trade Size Too Small"
     }
-  ]
+  ],
+  "metadata": {
+    "address": "GunoLs4qXiwE9Tpmv2Uj3ZSLtk8pmc9UmLtTm9bqhvK1"
+  }
 }

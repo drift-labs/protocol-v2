@@ -238,7 +238,7 @@ async function crank(mock = true, actions = ['liq'], chProgram?) {
 			provider.wallet,
 			chProgram.programId
 		);
-		allUsers = await clearingHouse.program.account.userAccount.all();
+		allUsers = await clearingHouse.program.account.user.all();
 		assert(allUsers.length > 0, 'No Users Found');
 
 		for (let i = 0; i < allUsers.length, i++; ) {

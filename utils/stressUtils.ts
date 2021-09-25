@@ -17,7 +17,7 @@ export async function initUserAccounts(
 	usdcAmount,
 	provider: anchor.Provider
 ) {
-	const user_account_keys = [];
+	const user_keys = [];
 	const userUSDCAccounts = [];
 	const clearingHouses = [];
 	const userAccountInfos = [];
@@ -73,11 +73,11 @@ export async function initUserAccounts(
 		// 	assert(true);
 		// }
 
-		user_account_keys.push(userAccountPublicKey);
+		user_keys.push(userAccountPublicKey);
 	}
 	return [
 		userUSDCAccounts,
-		user_account_keys,
+		user_keys,
 		clearingHouses,
 		userAccountInfos,
 	];

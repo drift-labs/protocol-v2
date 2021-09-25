@@ -260,7 +260,7 @@ export class UserAccount {
 
 			const market =
 				marketsAccount.markets[userPosition.marketIndex.toNumber()];
-			if (market.amm.cumFundingRate.eq(userPosition.lastCumFunding)) {
+			if (market.amm.cumulativeFundingRate.eq(userPosition.lastCumulativeFundingRate)) {
 				continue;
 			}
 
@@ -296,8 +296,8 @@ export class UserAccount {
 		const proposedMarketPosition: UserPosition = {
 			marketIndex: marketPosition.marketIndex,
 			baseAssetAmount: proposedTradeSize,
-			lastCumFunding: new BN(0),
-			quoteAssetNotionalAmount: new BN(0),
+			lastCumulativeFundingRate: new BN(0),
+			quoteAssetAmount: new BN(0),
 
 		  };
 		
@@ -356,7 +356,7 @@ export class UserAccount {
 			tPV: this.getTotalPositionValue(),
 
 			pos0BAmt: marketPosition0.baseAssetAmount,
-			pos0QAmt: marketPosition0.quoteAssetNotionalAmount,
+			pos0QAmt: marketPosition0.quoteAssetAmount,
 			pos0Market: marketPosition0.marketIndex,
 			pos0LiqPrice: this.liquidationPrice(marketPosition0),
 			pos0Value: pos0Value,

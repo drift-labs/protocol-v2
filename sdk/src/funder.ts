@@ -26,8 +26,8 @@ export class Funder {
 			const currentTimestamp = new BN(Date.now() / 1000);
 			if (
 				currentTimestamp
-					.sub(market.amm.fundingRateTs)
-					.add(market.amm.periodicity)
+					.sub(market.amm.lastFundingRateTs)
+					.add(market.amm.fundingPeriod)
 					.gt(ZERO)
 			) {
 				await this.clearingHouse.updateFundingRate(

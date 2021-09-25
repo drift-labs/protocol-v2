@@ -14,13 +14,13 @@ type Bar = {
 };
 
 const tradePrice = (trade: TradeRecord) =>
-	trade.quoteAssetNotionalAmount
+	trade.quoteAssetAmount
 		.div(trade.baseAssetAmount)
 		.div(AMM_MANTISSA)
 		.toNumber();
 
 const tradeVolume = (trade: TradeRecord) =>
-	trade.quoteAssetNotionalAmount
+	trade.quoteAssetAmount
 		.div(trade.baseAssetAmount)
 		.div(AMM_MANTISSA)
 		.toNumber();

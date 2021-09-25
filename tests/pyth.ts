@@ -38,7 +38,7 @@ async function updateFundingRateHelper(
 			ammAccountState0.oracle
 		);
 
-		const priceSpread0 = (stripMantissa(ammAccountState0.markTwap) -
+		const priceSpread0 = (stripMantissa(ammAccountState0.lastMarkPriceTwap) -
 			oraclePx0.twap);
 		const frontEndFundingCalc0 = priceSpread0 / oraclePx0.twap / (24 * 3600);
 
@@ -46,9 +46,9 @@ async function updateFundingRateHelper(
 			'funding rate frontend calc0:',
 
 			'markTwap0:',
-			ammAccountState0.markTwap.toNumber() / AMM_MANTISSA.toNumber(),
+			ammAccountState0.lastMarkPriceTwap.toNumber() / AMM_MANTISSA.toNumber(),
 			'markTwap0:',
-			ammAccountState0.markTwap.toNumber(),
+			ammAccountState0.lastMarkPriceTwap.toNumber(),
 			'oracleTwap0:',
 			oraclePx0.twap,
 			priceSpread0,
@@ -65,9 +65,9 @@ async function updateFundingRateHelper(
 		const marketsAccount = await clearingHouse.getMarketsAccount();
 		const marketData = marketsAccount.markets[marketIndex.toNumber()];
 		const ammAccountState = marketData.amm;
-		const peroidicity = marketData.amm.periodicity;
+		const peroidicity = marketData.amm.fundingPeriod;
 
-		const lastFundingRate = stripMantissa(ammAccountState.fundingRate, CONVERSION_SCALE);
+		const lastFundingRate = stripMantissa(ammAccountState.lastFundingRate, CONVERSION_SCALE);
 
 		console.log(
 			'last funding rate:',
@@ -75,7 +75,7 @@ async function updateFundingRateHelper(
 		);
 		console.log(
 			'cumfunding rate:',
-			stripMantissa(ammAccountState.cumFundingRate, CONVERSION_SCALE)
+			stripMantissa(ammAccountState.cumulativeFundingRate, CONVERSION_SCALE)
 		);
 		
 
@@ -85,22 +85,22 @@ async function updateFundingRateHelper(
 		);
 
 		const priceSpread =
-			ammAccountState.markTwap.toNumber() / AMM_MANTISSA.toNumber() - oraclePx.twap;
+			ammAccountState.lastMarkPriceTwap.toNumber() / AMM_MANTISSA.toNumber() - oraclePx.twap;
 		const frontEndFundingCalc = priceSpread / (24 * 3600 / Math.max(1, peroidicity.toNumber()));
 
 		console.log(
 			'funding rate frontend calc:',
 
 			'markTwap:',
-			ammAccountState.markTwap.toNumber() / AMM_MANTISSA.toNumber(),
+			ammAccountState.lastMarkPriceTwap.toNumber() / AMM_MANTISSA.toNumber(),
 			'markTwap:',
-			ammAccountState.markTwap.toNumber(),
+			ammAccountState.lastMarkPriceTwap.toNumber(),
 			'oracleTwap:',
 			oraclePx.twap,
 			priceSpread,
 			frontEndFundingCalc
 		);
-		const s = new Date(ammAccountState.fundingRateTs.toNumber() * 1000);
+		const s = new Date(ammAccountState.lastMarkPriceTwapTs.toNumber() * 1000);
 		const sdate = s.toLocaleDateString('en-US');
 		const stime = s.toLocaleTimeString('en-US');
 

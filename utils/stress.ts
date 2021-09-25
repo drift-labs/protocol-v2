@@ -61,7 +61,7 @@ export async function stress_test(
 	// create <NUM_USERS> users with 10k that collectively do <NUM_EVENTS> actions
 	const [
 		userUSDCAccounts,
-		user_account_keys,
+		user_keys,
 		clearingHouses,
 		userAccountInfos,
 	] = await initUserAccounts(NUM_USERS, usdcMint, usdcAmount, provider);
@@ -100,7 +100,7 @@ export async function stress_test(
 			];
 
 			let rand_amt = new BN(Math.floor(Math.random() * 1e2));
-			const user_i = Math.floor(Math.random() * user_account_keys.length);
+			const user_i = Math.floor(Math.random() * user_keys.length);
 
 			const rand_i = Math.floor(Math.random() * event_kinds.length);
 			let rand_e = event_kinds[rand_i];
@@ -203,7 +203,7 @@ export async function stress_test(
 	for (let i = 0; i < NUM_EVENTS; i++) {
 		const [user_i, market_i, rand_e, rand_amt] = await getEventParams(i);
 		console.log([user_i, market_i, rand_e, rand_amt]);
-		const user_e = user_account_keys[user_i];
+		const user_e = user_keys[user_i];
 		const userUSDCAccount = userUSDCAccounts[user_i];
 		const user_act_info_e = userAccountInfos[user_i];
 

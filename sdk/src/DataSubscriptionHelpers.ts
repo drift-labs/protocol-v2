@@ -59,10 +59,9 @@ export const getNewTrades = (
 
 	while (newHead != tradingHistoryHead) {
 		const tradeRecord = tradeHistory.tradeRecords[newHead];
-
 		//Skip blank trades which are created when clearingHouse initialized
 		if (
-			defaultPublicKey.equals(tradeRecord.userPublicKey) ||
+			defaultPublicKey.equals(tradeRecord.userAuthority) ||
 			tradeRecord.baseAssetAmount.eq(ZERO)
 		) {
 			newHead = (newHead + 1) % tradingHistorySize;
@@ -73,7 +72,7 @@ export const getNewTrades = (
 
 		newTrades.push({
 			trade: newTrade,
-			userAccount: tradeRecord.userClearingHousePublicKey,
+			userAccount: tradeRecord.user,
 		});
 
 		newHead = (newHead + 1) % tradingHistorySize;
@@ -160,11 +159,11 @@ export const convertTradesToCandle = (
 export const TradeRecordToUITrade = (tradeRecord: TradeRecord): Trade => {
 	return {
 		price: calculatePrice(
-			tradeRecord.quoteAssetNotionalAmount,
+			tradeRecord.quoteAssetAmount,
 			tradeRecord.baseAssetAmount
 		),
-		beforePrice: stripMantissa(tradeRecord.baseAssetPriceWithMantissaBefore),
-		afterPrice: stripMantissa(tradeRecord.baseAssetPriceWithMantissaAfter),
+		beforePrice: stripMantissa(tradeRecord.markPriceBefore),
+		afterPrice: stripMantissa(tradeRecord.markPriceAfter),
 		side: tradeRecord.direction.long ? TradeSide.Buy : TradeSide.Sell,
 		ts: Date.now(),
 		chainTs: tradeRecord.ts.toNumber(),

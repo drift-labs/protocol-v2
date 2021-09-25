@@ -3,94 +3,87 @@ import { BN } from '@project-serum/anchor';
 
 export type UserPosition = {
 	baseAssetAmount: BN;
-	lastCumFunding: BN;
+	lastCumulativeFundingRate: BN;
 	marketIndex: BN;
-	quoteAssetNotionalAmount: BN;
+	quoteAssetAmount: BN;
 };
 
 export type UserPositionData = {
 	positions: UserPosition[];
-	userAccount: PublicKey;
+	user: PublicKey;
 };
 
 export type UserAccountData = {
 	authority: PublicKey;
 	collateral: BN;
-	creationTs: BN;
-	initialPurchase: BN;
+	cumulativeDeposits: BN;
 	positions: PublicKey;
-	totalPotentualFee: BN;
+	totalPotentialFee: BN;
 };
 
 export type ClearingHouseState = {
 	admin: PublicKey;
 	adminControlsPrices: boolean;
-	collateralAccount: PublicKey;
-	collateralAccountAuthority: PublicKey;
-	collateralAccountNonce: number;
-	insuranceAccount: PublicKey;
-	insuranceAccountAuthority: PublicKey;
-	insuranceAccountNonce: number;
+	collateralVault: PublicKey;
+	collateralVaultAuthority: PublicKey;
+	collateralVaultNonce: number;
+	insuranceVault: PublicKey;
+	insuranceVaultAuthority: PublicKey;
+	insuranceVaultNonce: number;
 	marginRatioInitial: BN;
-	marginRatioMaintenence: BN;
+	marginRatioMaintenance: BN;
 	marginRatioPartial: BN;
-	marketsAccount: PublicKey;
-	fundingRateHistory: PublicKey;
-	tradeHistoryAccount: PublicKey;
+	markets: PublicKey;
+	fundingPaymentHistory: PublicKey;
+	tradeHistory: PublicKey;
 };
 
 export type ClearingHouseMarketsAccountData = {
 	accountIndex: BN;
 	markets: {
 		amm: {
-			baseAssetAmount: BN;
-			baseAssetAmountI: BN;
-			cumFundingRate: BN;
-			fundingRate: BN;
-			fundingRateTs: BN;
-			markTwap: BN;
-			markTwapTs: BN;
+			baseAssetReserve: BN;
+			sqrtK: BN;
+			cumulativeFundingRate: BN;
+			lastFundingRate: BN;
+			lastFundingRateTs: BN;
+			lastMarkPriceTwap: BN;
+			lastMarkPriceTwapTs: BN;
 			oracle: PublicKey;
-			periodicity: BN;
-			quoteAssetAmount: BN;
-			spreadThreshold: BN;
-			volume1: BN;
-			volume2: BN;
+			fundingPeriod: BN;
+			quoteAssetReserve: BN;
 			pegMultiplier: BN;
-			k: BN;
-			cumLongFundingRate: BN;
-			cumShortFundingRate: BN;
-			cumLongRepegProfit: BN;
-			cumShortRepegProfit: BN;
-			cumSlippageProfit: BN;
-			cumSlippage: BN;
+			cumulativeFundingRateLong: BN;
+			cumulativeFundingRateShort: BN;
+			cumulativeRepegRebateLong: BN;
+			cumulativeRepegRebateShort: BN;
+			cumulativeFeeRealized: BN;
+			cumulativeFee: BN;
 		};
 		baseAssetAmount: BN;
 		baseAssetAmountLong: BN;
 		baseAssetAmountShort: BN;
-		creationTs: BN;
 		initialized: boolean;
 		openInterest: BN;
 		quoteAssetNotionalAmount: BN;
 		baseAssetVolume: BN;
 		pegQuoteAssetVolume: BN;
-		volumeArb: BN;
 	}[];
 };
 
 export type TradeRecord = {
 	ts: BN;
 	recordId: BN;
-	userPublicKey: PublicKey;
-	userClearingHousePublicKey: PublicKey;
+	userAuthority: PublicKey;
+	user: PublicKey;
 	direction: {
 		long?: any;
 		short?: any;
 	};
 	baseAssetAmount: BN;
-	quoteAssetNotionalAmount: BN;
-	baseAssetPriceWithMantissaBefore: BN;
-	baseAssetPriceWithMantissaAfter: BN;
+	quoteAssetAmount: BN;
+	markPriceBefore: BN;
+	markPriceAfter: BN;
 	marketIndex: BN;
 };
 
@@ -102,10 +95,10 @@ export type TradeHistoryAccount = {
 export type FundingRateRecord = {
 	ts: BN;
 	recordId: BN;
-	userPublicKey: PublicKey;
-	userClearingHousePublicKey: PublicKey;
+	userAuthority: PublicKey;
+	user: PublicKey;
 	marketIndex: BN;
-	fundingRatePayment: BN;
+	fundingPayment: BN;
 	baseAssetAmount: BN;
 	userLastCumulativeFunding: BN;
 	ammCumulativeFunding: BN;
