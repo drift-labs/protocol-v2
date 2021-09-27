@@ -7,7 +7,7 @@ import { getTokenAccount } from '@project-serum/common';
 
 import { PublicKey } from '@solana/web3.js';
 
-import { AMM_MANTISSA, ClearingHouse, Network, PositionDirection} from '../sdk/src';
+import { AMM_MANTISSA, ClearingHouse, UserAccount, Network, PositionDirection} from '../sdk/src';
 
 import Markets from '../sdk/src/constants/markets';
 
@@ -16,6 +16,7 @@ import {
 	mockUserUSDCAccount,
 	mintToInsuranceFund,
 } from '../utils/mockAccounts';
+import { BASE_ASSET_PRECISION, stripMantissa, USDC_PRECISION } from '../sdk/lib';
 
 describe('clearing_house', () => {
 	const provider = anchor.Provider.local();
@@ -507,12 +508,93 @@ describe('clearing_house', () => {
 		assert.ok(tradeHistoryAccount.tradeRecords[4].marketIndex.eq(new BN(0)));
 	});
 
-	it('Liquidation', async () => {
-		await clearingHouse.moveAmmPrice(
-			ammInitialBaseAssetAmount.mul(new BN(6)).div(new BN(7)),
-			ammInitialQuoteAssetAmount,
-			new BN(0)
+	it('Partial Liquidation', async () => {
+		const marketIndex = new BN(0);
+		
+		const userAccount = new UserAccount(clearingHouse, provider.wallet.publicKey);
+		await userAccount.subscribe();
+
+		const user0: any = await clearingHouse.program.account.user.fetch(
+			userAccountPublicKey
 		);
+		const userPositionsAccount0: any =
+			await clearingHouse.program.account.userPositions.fetch(
+				user0.positions
+			);
+
+		const liqPrice = userAccount.liquidationPrice(userPositionsAccount0.positions[0],
+			new BN(0),
+			true
+			);
+
+		console.log('liqPrice move:', 
+		stripMantissa(clearingHouse.calculateBaseAssetPriceWithMantissa(marketIndex)), 
+		'->', 
+		stripMantissa(liqPrice),
+		'on position',
+		stripMantissa(userPositionsAccount0.positions[0].baseAssetAmount, BASE_ASSET_PRECISION),
+		'with collateral:',
+		stripMantissa(user0.collateral, USDC_PRECISION),
+		);
+
+		await clearingHouse.moveAmmToPrice(
+			marketIndex,
+			liqPrice
+		);
+
+		console.log(		'collateral + pnl post px move:',
+		stripMantissa(userAccount.getTotalCollateral(), USDC_PRECISION));
+
+		// having the user liquidate themsevles because I'm too lazy to create a separate liquidator account
+		await clearingHouse.liquidate(
+			userUSDCAccount.publicKey,
+			userAccountPublicKey
+		);
+
+		console.log(		'collateral + pnl post liq:',
+		stripMantissa(userAccount.getTotalCollateral(), USDC_PRECISION));
+
+		const state: any = clearingHouse.getState();
+		const user: any = await clearingHouse.program.account.user.fetch(
+			userAccountPublicKey
+		);
+		const userPositionsAccount: any =
+			await clearingHouse.program.account.userPositions.fetch(
+				user.positions
+			);
+
+		assert.ok(userPositionsAccount.positions[0].baseAssetAmount.abs().lt(
+			userPositionsAccount0.positions[0].baseAssetAmount.abs())
+			);
+		assert.ok(userPositionsAccount.positions[0].quoteAssetAmount.abs().lt(
+			userPositionsAccount0.positions[0].quoteAssetAmount.abs())
+			);
+		assert.ok(user.collateral.lt(user0.collateral));
+
+		const chInsuranceAccountToken = await getTokenAccount(
+			provider,
+			state.insuranceVault
+		);
+		const userUSDCTokenAccount = await getTokenAccount(
+			provider,
+			userUSDCAccount.publicKey
+		);
+		console.log(chInsuranceAccountToken.amount.toNumber());
+		console.log(userUSDCTokenAccount.amount.toNumber());
+
+		assert.ok(chInsuranceAccountToken.amount.eq(new BN(371049)));
+		assert.ok(userUSDCTokenAccount.amount.eq(new BN(19528)));
+	});
+
+	it('Full Liquidation', async () => {
+
+		// todo: price impact / penalty from partial liq test put price is liq territory...
+		// because slippage is high, collateral low in test setup...
+		
+		// await clearingHouse.moveAmmToPrice(
+		// 	marketIndex,
+		// 	liqPrice
+		// );
 
 		// having the user liquidate themsevles because I'm too lazy to create a separate liquidator account
 		await clearingHouse.liquidate(
@@ -527,7 +609,7 @@ describe('clearing_house', () => {
 			await clearingHouse.program.account.userPositions.fetch(
 				user.positions
 			);
-
+		console.log(stripMantissa(userPositionsAccount.positions[0].baseAssetAmount, BASE_ASSET_PRECISION));
 		assert.ok(userPositionsAccount.positions[0].baseAssetAmount.eq(new BN(0)));
 		assert.ok(
 			userPositionsAccount.positions[0].quoteAssetAmount.eq(new BN(0))
@@ -546,8 +628,8 @@ describe('clearing_house', () => {
 		console.log(chInsuranceAccountToken.amount.toNumber());
 		console.log(userUSDCTokenAccount.amount.toNumber());
 
-		assert.ok(chInsuranceAccountToken.amount.eq(new BN(1571325)));
-		assert.ok(userUSDCTokenAccount.amount.eq(new BN(82701)));
+		assert.ok(chInsuranceAccountToken.amount.eq(new BN(1335490)));
+		assert.ok(userUSDCTokenAccount.amount.eq(new BN(70288)));
 	});
 
 	it('Pay from insurance fund', async () => {

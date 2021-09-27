@@ -576,11 +576,11 @@ pub mod clearing_house {
                     .checked_div(100)
                     .unwrap();
 
-                let mut direction = PositionDirection::Short;
-
-                if market_position.base_asset_amount < 0 {
-                    direction = PositionDirection::Long;
-                }
+                let direction = if market_position.base_asset_amount > 0 {
+                    PositionDirection::Short
+                } else {
+                    PositionDirection::Long
+                };
 
                 reduce_position(direction, haircut, user, market, market_position, now);
 
@@ -598,8 +598,19 @@ pub mod clearing_house {
                     .checked_div(100)
                     .unwrap();
 
+                let max_partial_liquidation_penalty_2 = estimated_margin
+                    .checked_mul(trim_pct)
+                    .unwrap()
+                    .checked_div(100)
+                    .unwrap()
+                    .checked_div(2)
+                    .unwrap();
+
                 // if market impact was high enough to bankrupt user, take all remaining collateral
-                liquidation_penalty = min(user.collateral, max_partial_liquidation_penalty);
+                liquidation_penalty = min(
+                    max_partial_liquidation_penalty_2,
+                    max_partial_liquidation_penalty,
+                );
             }
         }
 
@@ -611,8 +622,8 @@ pub mod clearing_house {
             &ctx.accounts.insurance_vault,
         );
 
-        user.collateral = 0;
-        user.total_potential_fee = 0;
+        user.collateral = user.collateral.checked_sub(liquidation_penalty).unwrap();
+        // user.total_potential_fee = 0;
 
         // 5% for liquidator, 95% for insurance fund
         let liquidator_cut_amount = withdrawal_amount.checked_div(20).unwrap();
@@ -1644,11 +1655,6 @@ fn calculate_margin_ratio_full(
             .unwrap();
         unrealized_pnl = unrealized_pnl.checked_add(position_unrealized_pnl).unwrap();
     }
-
-    // todo: add this once total_potential_fee looks good
-    unrealized_pnl = unrealized_pnl
-        .checked_sub(user.total_potential_fee as i128)
-        .unwrap();
 
     if base_asset_value == 0 {
         return (u128::MAX, base_asset_value);
