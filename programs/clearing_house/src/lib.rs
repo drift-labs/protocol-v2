@@ -544,8 +544,8 @@ pub mod clearing_house {
         let marketss = &mut ctx.accounts.markets.load_mut().unwrap();
         let user_positionss = &mut ctx.accounts.user_positions.load_mut().unwrap();
 
-        let mut liquidation_penalty = user.collateral;
-
+        let mut liquidation_penalty = 0;
+        let mut is_full_liquidation = true;
         if margin_ratio <= ctx.accounts.state.margin_ratio_maintenance {
             for market_position in user_positionss.positions.iter_mut() {
                 if market_position.base_asset_amount == 0 {
@@ -558,9 +558,6 @@ pub mod clearing_house {
                 _close_position(user, market, market_position, now)
             }
         } else {
-            let trim_pct = 25;
-            assert_eq!(trim_pct < 100, true); // make sure partial is partial
-
             for market_position in user_positionss.positions.iter_mut() {
                 if market_position.base_asset_amount == 0 {
                     continue;
@@ -569,9 +566,8 @@ pub mod clearing_house {
                 let market =
                     &mut marketss.markets[Markets::index_from_u64(market_position.market_index)];
 
-                // remove a haircut = .25 * base_asset_notional
                 let haircut = base_asset_notional
-                    .checked_mul(trim_pct)
+                    .checked_mul(PARTIAL_LIQUIDATION_TRIM_PCT)
                     .unwrap()
                     .checked_div(100)
                     .unwrap();
@@ -583,38 +579,22 @@ pub mod clearing_house {
                 };
 
                 reduce_position(direction, haircut, user, market, market_position, now);
-
-                // charge user up to 5% of their haircut notional
-                // haircut * .05 (maintence margin)
-                let max_partial_liquidation_penalty = haircut
-                    .checked_mul(
-                        ctx.accounts
-                            .state
-                            .margin_ratio_maintenance
-                            .checked_div(100)
-                            .unwrap(),
-                    ) // .05 => 5 * 100 / 10000
-                    .unwrap()
-                    .checked_div(100)
-                    .unwrap();
-
-                let max_partial_liquidation_penalty_2 = estimated_margin
-                    .checked_mul(trim_pct)
-                    .unwrap()
-                    .checked_div(100)
-                    .unwrap()
-                    .checked_div(2)
-                    .unwrap();
-
-                // if market impact was high enough to bankrupt user, take all remaining collateral
-                liquidation_penalty = min(
-                    max_partial_liquidation_penalty_2,
-                    max_partial_liquidation_penalty,
-                );
             }
+
+            is_full_liquidation = false;
         }
 
-        liquidation_penalty = min(user.collateral, liquidation_penalty);
+        liquidation_penalty = if is_full_liquidation {
+            user.collateral
+        } else {
+            estimated_margin
+                .checked_mul(PARTIAL_LIQUIDATION_TRIM_PCT)
+                .unwrap()
+                .checked_div(100)
+                .unwrap()
+                .checked_div(10)
+                .unwrap()
+        };
 
         let (withdrawal_amount, _) = calculate_withdrawal_amounts(
             liquidation_penalty as u64,
@@ -625,8 +605,12 @@ pub mod clearing_house {
         user.collateral = user.collateral.checked_sub(liquidation_penalty).unwrap();
         // user.total_potential_fee = 0;
 
-        // 5% for liquidator, 95% for insurance fund
-        let liquidator_cut_amount = withdrawal_amount.checked_div(20).unwrap();
+        // partial: 50%, 50%, full: 5% liquidator, 95% insurance fund
+        let liquidator_cut_amount = if is_full_liquidation {
+            withdrawal_amount.checked_div(20).unwrap()
+        } else {
+            withdrawal_amount.checked_div(2).unwrap()
+        };
         let insurance_fund_cut_amount = withdrawal_amount
             .checked_sub(liquidator_cut_amount)
             .unwrap();

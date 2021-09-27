@@ -551,6 +551,11 @@ describe('clearing_house', () => {
 			userAccountPublicKey
 		);
 
+		// await clearingHouse.closePosition(
+		// 	userAccountPublicKey,
+		// 	new BN(0),
+		// );
+
 		console.log(		'collateral + pnl post liq:',
 		stripMantissa(userAccount.getTotalCollateral(), USDC_PRECISION));
 
@@ -582,8 +587,8 @@ describe('clearing_house', () => {
 		console.log(chInsuranceAccountToken.amount.toNumber());
 		console.log(userUSDCTokenAccount.amount.toNumber());
 
-		assert.ok(chInsuranceAccountToken.amount.eq(new BN(371049)));
-		assert.ok(userUSDCTokenAccount.amount.eq(new BN(19528)));
+		assert.ok(chInsuranceAccountToken.amount.eq(new BN(39058)));
+		assert.ok(userUSDCTokenAccount.amount.eq(new BN(39057)));
 	});
 
 	it('Full Liquidation', async () => {
@@ -628,8 +633,8 @@ describe('clearing_house', () => {
 		console.log(chInsuranceAccountToken.amount.toNumber());
 		console.log(userUSDCTokenAccount.amount.toNumber());
 
-		assert.ok(chInsuranceAccountToken.amount.eq(new BN(1335490)));
-		assert.ok(userUSDCTokenAccount.amount.eq(new BN(70288)));
+		assert.ok(chInsuranceAccountToken.amount.eq(new BN(1300338)));
+		assert.ok(userUSDCTokenAccount.amount.eq(new BN(105440)));
 	});
 
 	it('Pay from insurance fund', async () => {
