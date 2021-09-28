@@ -27,6 +27,7 @@ describe('clearing_house', () => {
 	let clearingHouse: ClearingHouse;
 
 	let userAccountPublicKey: PublicKey;
+	let userAccount: UserAccount;
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -52,6 +53,7 @@ describe('clearing_house', () => {
 
 	after(async () => {
 		await clearingHouse.unsubscribe();
+		await userAccount.unsubscribe();
 	});
 
 	it('Initialize State', async () => {
@@ -510,8 +512,8 @@ describe('clearing_house', () => {
 
 	it('Partial Liquidation', async () => {
 		const marketIndex = new BN(0);
-		
-		const userAccount = new UserAccount(clearingHouse, provider.wallet.publicKey);
+
+		userAccount = new UserAccount(clearingHouse, provider.wallet.publicKey);
 		await userAccount.subscribe();
 
 		const user0: any = await clearingHouse.program.account.user.fetch(
