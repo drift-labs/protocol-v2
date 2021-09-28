@@ -218,7 +218,7 @@ pub mod clearing_house {
             .checked_sub(insurance_account_withdrawal as u128)
             .unwrap();
 
-        let margin_ratio = calculate_margin_ratio(user, user_positions, markets);
+        let (_estimated_margin, _estimated_base_asset_value, margin_ratio) = calculate_margin_ratio(user, user_positions, markets);
         if margin_ratio < ctx.accounts.state.margin_ratio_initial {
             return Err(ErrorCode::InsufficientCollateral.into());
         }
@@ -438,7 +438,7 @@ pub mod clearing_house {
             market_index,
         });
 
-        let margin_ratio_after =
+        let (_estimated_margin_after, _estimated_base_asset_value_after, margin_ratio_after) =
             calculate_margin_ratio(user, user_positions, &ctx.accounts.markets.load().unwrap());
         if margin_ratio_after < ctx.accounts.state.margin_ratio_initial
             && potentially_risk_increasing
@@ -537,13 +537,11 @@ pub mod clearing_house {
         let clock = Clock::get().unwrap();
         let now = clock.unix_timestamp;
 
-        let (estimated_margin, base_asset_notional) = calculate_margin_ratio_full(
+        let (estimated_margin, base_asset_notional, margin_ratio) = calculate_margin_ratio(
             user,
             &ctx.accounts.user_positions.load_mut().unwrap(),
             &ctx.accounts.markets.load().unwrap(),
         );
-
-        let margin_ratio = _calculate_margin_ratio_inp(estimated_margin, base_asset_notional);
         if margin_ratio > ctx.accounts.state.margin_ratio_partial {
             return Err(ErrorCode::SufficientCollateral.into());
         }
@@ -1398,53 +1396,6 @@ fn _settle_repeg_profit_position(
     }
 }
 
-fn calculate_margin_ratio_full(
-    user: &User,
-    user_positions: &RefMut<UserPositions>,
-    markets: &Ref<Markets>,
-) -> (u128, u128) {
-    let mut base_asset_value: u128 = 0;
-    let mut unrealized_pnl: i128 = 0;
-
-    // loop 1 to calculate unrealized_pnl
-    for market_position in user_positions.positions.iter() {
-        if market_position.base_asset_amount == 0 {
-            continue;
-        }
-
-        let amm = &markets.markets[Markets::index_from_u64(market_position.market_index)].amm;
-        let (position_base_asset_value, position_unrealized_pnl) =
-            calculate_base_asset_value_and_pnl(market_position, amm);
-
-        base_asset_value = base_asset_value
-            .checked_add(position_base_asset_value)
-            .unwrap();
-        unrealized_pnl = unrealized_pnl.checked_add(position_unrealized_pnl).unwrap();
-    }
-
-    if base_asset_value == 0 {
-        return (u128::MAX, base_asset_value);
-    }
-
-    let estimated_margin = calculate_updated_collateral(user.collateral, unrealized_pnl);
-
-    return (estimated_margin, base_asset_value);
-}
-
-fn _calculate_margin_ratio_inp(estimated_margin: u128, base_asset_value: u128) -> u128 {
-    if base_asset_value == 0 {
-        return u128::MAX;
-    }
-
-    let margin_ratio = estimated_margin
-        .checked_mul(10000)
-        .unwrap()
-        .checked_div(base_asset_value)
-        .unwrap();
-
-    return margin_ratio;
-}
-
 fn _calculate_funding_payment_notional(amm: &AMM, market_position: &MarketPosition) -> i128 {
     let funding_rate_delta = amm
         .cumulative_funding_rate
@@ -1484,11 +1435,40 @@ fn calculate_margin_ratio(
     user: &User,
     user_positions: &RefMut<UserPositions>,
     markets: &Ref<Markets>,
-) -> u128 {
-    let (estimated_margin, base_asset_value) =
-        calculate_margin_ratio_full(user, user_positions, markets);
-    let margin_ratio = _calculate_margin_ratio_inp(estimated_margin, base_asset_value);
-    return margin_ratio;
+) -> (u128, u128, u128) {
+    let mut base_asset_value: u128 = 0;
+    let mut unrealized_pnl: i128 = 0;
+
+    // loop 1 to calculate unrealized_pnl
+    for market_position in user_positions.positions.iter() {
+        if market_position.base_asset_amount == 0 {
+            continue;
+        }
+
+        let amm = &markets.markets[Markets::index_from_u64(market_position.market_index)].amm;
+        let (position_base_asset_value, position_unrealized_pnl) =
+            calculate_base_asset_value_and_pnl(market_position, amm);
+
+        base_asset_value = base_asset_value
+            .checked_add(position_base_asset_value)
+            .unwrap();
+        unrealized_pnl = unrealized_pnl.checked_add(position_unrealized_pnl).unwrap();
+    }
+
+    let estimated_margin : u128;
+    let margin_ratio: u128;
+    if base_asset_value == 0 {
+        estimated_margin = u128::MAX;
+        margin_ratio = u128::MAX;
+    } else {
+        estimated_margin = calculate_updated_collateral(user.collateral, unrealized_pnl);
+        margin_ratio = estimated_margin
+            .checked_mul(10000)
+            .unwrap()
+            .checked_div(base_asset_value)
+            .unwrap();
+    }
+    return (estimated_margin, base_asset_value, margin_ratio);
 }
 
 fn calculate_base_asset_value_and_pnl(market_position: &MarketPosition, amm: &AMM) -> (u128, i128) {
