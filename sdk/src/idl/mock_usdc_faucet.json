@@ -112,5 +112,8 @@
       "name": "Unauthorized",
       "msg": "Signer must be MockUSDCFaucet admin"
     }
-  ]
+  ],
+  "metadata": {
+    "address": "CzhLaw6CNq8FGShKRBHvQi9gwDa1sYDAGRcPjjFbL2oC"
+  }
 }

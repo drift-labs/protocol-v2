@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 mod pc;
 use pc::Price;
 
-declare_id!("GsLKTZmJTPywiyCWY6FVNx5D8nsFzhxnPXu7F1TB4eN");
+declare_id!("CCiLK3XoHd8P3ZDuYKJg8YreDdMcpAHw6tXqrkvfV3E3");
 
 #[program]
 pub mod pyth {

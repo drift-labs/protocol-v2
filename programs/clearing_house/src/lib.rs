@@ -22,7 +22,7 @@ use trade_execution::*;
 use constants::*;
 use error::*;
 
-declare_id!("GunoLs4qXiwE9Tpmv2Uj3ZSLtk8pmc9UmLtTm9bqhvK1");
+declare_id!("BEUZsRnm9XK2NqT7jhXsYfJgkvjAf7YE3VpzeYJrxCzi");
 
 #[program]
 pub mod clearing_house {
