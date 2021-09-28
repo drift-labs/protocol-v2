@@ -120,16 +120,16 @@ export class UserAccount {
 		}
 	}
 
-	public async unsubscribe() {
+	public async unsubscribe(keepClearingHouseSubscription?: boolean) {
 		this.clearingHouse
 			.getUserAccountClient()
 			.unsubscribe(await this.getPublicKey());
-		
-		this.clearingHouse
-		.getPositionsAccountClient()
-		.unsubscribe(this.userAccountData.positions);
 
-		this.clearingHouse.unsubscribe();
+		this.clearingHouse
+			.getPositionsAccountClient()
+			.unsubscribe(this.userAccountData.positions);
+
+		if (!keepClearingHouseSubscription) this.clearingHouse.unsubscribe();
 
 		this.isSubscribed = false;
 	}
@@ -207,7 +207,7 @@ export class UserAccount {
 
 	public getPositionValue(positionIndex: number): BN {
 		return this.clearingHouse.calculateBaseAssetValue(
-			this.userPositionsAccount.positions[positionIndex]
+				this.userPositionsAccount.positions[positionIndex]
 		).div(AMM_MANTISSA);
 	}
 
@@ -274,7 +274,7 @@ export class UserAccount {
 		// +/-(margin_ratio-liq_ratio) * price_now = price_liq
 		// todo: margin_ratio is not symmetric on price action (both numer and denom change)
 		// margin_ratio = collateral / base_asset_value
-		
+
 		
 		/* example: assume BTC price is $40k (examine 10% up/down)
 		
@@ -285,31 +285,30 @@ export class UserAccount {
 
 		for 10x long, BTC down $400:
 		3. (10k - 4k) / (100k - 4k) = 6k/96k => .0625 */
-		
+
 		const currentPrice = this.clearingHouse.calculateBaseAssetPriceWithMantissa(
 			marketPosition.marketIndex
 		);
 
 		const totalCollateral = this.getTotalCollateral();
 		let totalPositionValue = this.getTotalPositionValue();
-		
+
 		const proposedMarketPosition: UserPosition = {
 			marketIndex: marketPosition.marketIndex,
 			baseAssetAmount: proposedTradeSize,
 			lastCumulativeFundingRate: new BN(0),
 			quoteAssetAmount: new BN(0),
 
-		  };
-		
+		};
+
 		totalPositionValue = totalPositionValue.add(this.clearingHouse.calculateBaseAssetValue(proposedMarketPosition));
-		
+
 		let marginRatio;
 		if (totalPositionValue.eq(ZERO)) {
 			marginRatio = BN_MAX;
-		} else{
+		} else {
 			marginRatio = totalCollateral.mul(TEN_THOUSAND).div(totalPositionValue);
 		}
-
 
 		let liqRatio = FULL_LIQUIDATION_RATIO;
 		if (partial) {
@@ -326,7 +325,7 @@ export class UserAccount {
 			if (TEN_THOUSAND.lte(pctChange)) {
 				// no liquidation price, position is a fully/over collateralized long
 				// handle as NaN on UI
-				return new BN(-1); 
+				return new BN(-1);
 			}
 			pctChange = TEN_THOUSAND.sub(pctChange);
 		}
