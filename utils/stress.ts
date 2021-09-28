@@ -1,6 +1,6 @@
 import * as anchor from '@project-serum/anchor';
 import BN from 'bn.js';
-import { AMM_MANTISSA, PEG_SCALAR, stripMantissa } from '../sdk/src';
+import { USDC_PRECISION, AMM_MANTISSA, PEG_SCALAR, stripMantissa } from '../sdk/src';
 import { assert } from '../sdk/src/assert/assert';
 // import { getTokenAccount } from '@project-serum/common';
 import { mockOracle } from './mockAccounts';
@@ -225,12 +225,8 @@ export async function stress_test(
 		console.log('event', i, ':', event_i);
 		eventTimeline2.push(event_i);
 
-		const state: any = await clearingHouse.program.state.fetch();
-		const marketsAccount: any =
-			await clearingHouse.program.account.marketsAccount.fetch(
-				state.marketsAccount
-			);
-
+		const state: any = clearingHouse.getState();
+		const marketsAccount: any = await clearingHouse.getMarketsAccount();
 		const marketData = marketsAccount.markets[market_i.toNumber()];
 		// assert.ok(marketData.initialized);
 		// assert.ok(marketData.baseAssetAmount.eq(new BN(0)));
@@ -264,7 +260,7 @@ export async function stress_test(
 
 		const oracleData = await getFeedData(anchor.workspace.Pyth, ammData.oracle);
 
-		const user: any = await clearingHouse.program.account.userAccount.fetch(
+		const user: any = await clearingHouse.program.account.user.fetch(
 			user_e
 		);
 
@@ -276,8 +272,8 @@ export async function stress_test(
 		const state_i = {
 			market_index: market_i,
 
-			base_ast_amt: ammData.baseAssetAmount,
-			quote_ast_amt: ammData.quoteAssetAmount,
+			base_ast_amt: ammData.baseAssetReserve,
+			quote_ast_amt: ammData.quoteAssetReserve,
 
 			market_oi: marketData.openInterest,
 			market_v: marketData.baseAssetVolume,
@@ -292,13 +288,13 @@ export async function stress_test(
 			mark_1: ast_px,
 			mark_peg: xeq_scaled,
 			mark_px: ast_px * xeq_scaled,
-			mark_twap: stripMantissa(ammData.markTwap),
-			mark_twap_ts: ammData.markTwapTs,
-			funding_rate: ammData.fundingRate,
-			funding_rate_ts: ammData.fundingRateTs,
+			mark_twap: stripMantissa(ammData.lastMarkPriceTwap),
+			mark_twap_ts: ammData.lastMarkPriceTwapTs,
+			funding_rate: stripMantissa(ammData.lastFundingRate),
+			funding_rate_ts: ammData.lastFundingRateTs,
 
-			cumSlippage: ammData.cumSlippage.toNumber()/(10**6),
-			cumSlippageProfit: ammData.cumSlippageProfit.toNumber()/(10**6),
+			cumSlippage: stripMantissa(ammData.cumulativeFee, USDC_PRECISION),
+			cumSlippageProfit: stripMantissa(ammData.cumulativeFeeRealized, USDC_PRECISION),
 
 			// repeg_pnl_pct: (
 			// 	ammData.xcpr.div(ammData.xcp.div(new BN(1000))).toNumber() * 1000
