@@ -1082,20 +1082,6 @@
       }
     },
     {
-      "name": "PositionDirection",
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "Long"
-          },
-          {
-            "name": "Short"
-          }
-        ]
-      }
-    },
-    {
       "name": "OracleSource",
       "type": {
         "kind": "enum",
@@ -1105,6 +1091,20 @@
           },
           {
             "name": "Switchboard"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PositionDirection",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Long"
+          },
+          {
+            "name": "Short"
           }
         ]
       }
