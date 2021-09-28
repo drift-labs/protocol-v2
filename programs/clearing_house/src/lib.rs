@@ -990,6 +990,9 @@ pub struct Initialize<'info> {
     )]
     pub state: Box<Account<'info, State>>,
     pub collateral_vault: Box<Account<'info, TokenAccount>>,
+    #[account(
+        constraint = &insurance_vault.mint.eq(&collateral_vault.mint)
+    )]
     pub insurance_vault: Box<Account<'info, TokenAccount>>,
     #[account(zero)]
     pub markets: Loader<'info, Markets>,
@@ -1011,7 +1014,10 @@ pub struct InitializeUser<'info> {
         payer = authority
     )]
     pub user: Box<Account<'info, User>>,
-    #[account(init, payer=authority)]
+    #[account(
+        init,
+        payer = authority,
+    )]
     pub user_positions: Loader<'info, UserPositions>,
     pub authority: Signer<'info>,
     pub rent: Sysvar<'info, Rent>,
@@ -1096,12 +1102,17 @@ pub struct AdminWithdrawCollateral<'info> {
     )]
     pub state: Box<Account<'info, State>>,
     pub admin: Signer<'info>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = &state.collateral_vault.eq(&collateral_vault.key())
+    )]
     pub collateral_vault: Box<Account<'info, TokenAccount>>,
     pub collateral_vault_authority: AccountInfo<'info>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = &state.insurance_vault.eq(&insurance_vault.key())
+    )]
     pub insurance_vault: Box<Account<'info, TokenAccount>>,
-    pub insurance_vault_authority: AccountInfo<'info>,
     #[account(mut)]
     pub token_program: Program<'info, Token>,
     pub markets: Loader<'info, Markets>,
@@ -1187,7 +1198,10 @@ pub struct SettleFunding<'info> {
     #[account(mut)]
     pub user: Box<Account<'info, User>>,
     pub markets: Loader<'info, Markets>,
-    #[account(mut)]
+    #[account(
+        mut,
+        has_one = user
+    )]
     pub user_positions: Loader<'info, UserPositions>,
     #[account(mut)]
     pub funding_payment_history: Loader<'info, FundingPaymentHistory>,
@@ -1199,9 +1213,6 @@ pub struct UpdateFundingRate<'info> {
     pub markets: Loader<'info, Markets>,
     pub oracle: AccountInfo<'info>,
     pub clock: Sysvar<'info, Clock>,
-    #[account(mut)]
-    pub insurance_vault: Box<Account<'info, TokenAccount>>,
-    pub insurance_vault_authority: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]

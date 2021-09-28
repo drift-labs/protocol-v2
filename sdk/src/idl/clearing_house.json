@@ -486,11 +486,6 @@
           "isSigner": false
         },
         {
-          "name": "insuranceVaultAuthority",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
           "name": "tokenProgram",
           "isMut": true,
           "isSigner": false
@@ -634,16 +629,6 @@
         },
         {
           "name": "clock",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "insuranceVault",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "insuranceVaultAuthority",
           "isMut": false,
           "isSigner": false
         }
@@ -1241,8 +1226,5 @@
       "name": "TradeSizeTooSmall",
       "msg": "Trade Size Too Small"
     }
-  ],
-  "metadata": {
-    "address": "GunoLs4qXiwE9Tpmv2Uj3ZSLtk8pmc9UmLtTm9bqhvK1"
-  }
+  ]
 }
