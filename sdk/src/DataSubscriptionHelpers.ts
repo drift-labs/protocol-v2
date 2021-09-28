@@ -2,8 +2,12 @@ import { PublicKey } from '@solana/web3.js';
 import BN from 'bn.js';
 import { ZERO } from './constants/numericConstants';
 import { TradeHistoryAccount, TradeRecord } from './DataTypes';
-import { Candle, Trade, TradeSide } from './types';
-import { AMM_MANTISSA, PEG_SCALAR, QUOTE_BASE_PRECISION_DIFF} from './clearingHouse';
+import { Candle, Trade, TradeSide, CandleResolution } from './types';
+import {
+	AMM_MANTISSA,
+	PEG_SCALAR,
+	QUOTE_BASE_PRECISION_DIFF,
+} from './clearingHouse';
 
 const defaultPublicKey = new PublicKey('11111111111111111111111111111111');
 const priceMantissa = AMM_MANTISSA;
@@ -25,7 +29,8 @@ export const calculatePrice = (
 
 export const stripMantissa = (bigNumber: BN, precision: BN = AMM_MANTISSA) => {
 	if (!bigNumber) return 0;
-	return (bigNumber.div(precision).toNumber() + 
+	return (
+		bigNumber.div(precision).toNumber() +
 		bigNumber.mod(precision).toNumber() / precision.toNumber()
 	);
 };
@@ -35,50 +40,51 @@ export const stripBaseAssetPrecision = (baseAssetAmount: BN) => {
 };
 
 export const getNewTrades = (
-	currentHead: number,
+	lastSeenTrade: number,
 	tradingHistoryHead: number,
 	tradeHistory: TradeHistoryAccount
 ): {
 	newTrades: { trade: Trade; userAccount: PublicKey }[];
-	newHead: number;
+	newLastSeenTrade: number;
 } => {
+	// last seen head is 1+lastSeenTrade because the head is always 1 ahead of the actual seen trade
+	let lastSeenHead = lastSeenTrade + 1;
+
 	const tradingHistorySize = tradeHistory.tradeRecords.length;
 
-	const tradesToProcess = Math.abs(tradingHistoryHead - currentHead);
-	
+	const tradesToProcess = Math.abs(tradingHistoryHead - lastSeenTrade);
+
 	if (tradesToProcess <= 0) {
 		return {
-			newTrades:[],
-			newHead: tradingHistoryHead
+			newTrades: [],
+			newLastSeenTrade: lastSeenTrade,
 		};
 	}
 
 	const newTrades: { trade: Trade; userAccount: PublicKey }[] = [];
 
-	let newHead = currentHead;
-
-	while (newHead != tradingHistoryHead) {
-		const tradeRecord = tradeHistory.tradeRecords[newHead];
+	while (lastSeenHead != tradingHistoryHead) {
+		const tradeRecord = tradeHistory.tradeRecords[lastSeenHead];
 		//Skip blank trades which are created when clearingHouse initialized
 		if (
 			defaultPublicKey.equals(tradeRecord.userAuthority) ||
 			tradeRecord.baseAssetAmount.eq(ZERO)
 		) {
-			newHead = (newHead + 1) % tradingHistorySize;
+			lastSeenHead = (lastSeenHead + 1) % tradingHistorySize;
 			continue;
 		}
 
-		const newTrade = TradeRecordToUITrade(tradeRecord);
+		const newTrade = tradeRecordToUITrade(tradeRecord);
 
 		newTrades.push({
 			trade: newTrade,
 			userAccount: tradeRecord.user,
 		});
 
-		newHead = (newHead + 1) % tradingHistorySize;
+		lastSeenHead = (lastSeenHead + 1) % tradingHistorySize;
 	}
 
-	return { newTrades, newHead: newHead };
+	return { newTrades, newLastSeenTrade: (lastSeenHead - 1) % 1000 };
 };
 
 export const convertTradesToCandles = (
@@ -118,14 +124,16 @@ export const convertTradesToCandle = (
 	let min = trades[0].ts;
 	let max = trades[0].ts;
 
-	const batchTrades = trades.filter((t) => {
-		if (t.ts < min) min = t.ts;
-		if (t.ts > max) max = t.ts;
+	const batchTrades = trades
+		.filter((t) => {
+			if (t.ts < min) min = t.ts;
+			if (t.ts > max) max = t.ts;
 
-		if (from && t.ts < from) return false;
-		if (to && t.ts >= to) return false;
-		return true;
-	}).sort((a,b) => a.chainTs - b.chainTs);
+			if (from && t.ts < from) return false;
+			if (to && t.ts >= to) return false;
+			return true;
+		})
+		.sort((a, b) => a.chainTs - b.chainTs);
 
 	if (batchTrades.length == 0) {
 		return undefined;
@@ -137,7 +145,6 @@ export const convertTradesToCandle = (
 			high: Math.max(t0.beforePrice, t0.afterPrice),
 			low: Math.min(t0.beforePrice, t0.afterPrice),
 			volume: t0.size,
-			vwap: t0.price * t0.size,
 			start: from ?? min,
 			end: to ?? max,
 		};
@@ -147,16 +154,13 @@ export const convertTradesToCandle = (
 			c.high = Math.max(c.high, t.beforePrice, t.afterPrice);
 			c.low = Math.min(c.low, t.beforePrice, t.afterPrice);
 			c.volume += t.size;
-			c.vwap += t.price * t.size;
 		});
-
-		c.vwap /= c.volume;
 
 		return c;
 	}
 };
 
-export const TradeRecordToUITrade = (tradeRecord: TradeRecord): Trade => {
+export const tradeRecordToUITrade = (tradeRecord: TradeRecord): Trade => {
 	return {
 		price: calculatePrice(
 			tradeRecord.quoteAssetAmount,
@@ -170,4 +174,27 @@ export const TradeRecordToUITrade = (tradeRecord: TradeRecord): Trade => {
 		size: stripBaseAssetPrecision(tradeRecord.baseAssetAmount),
 		marketIndex: tradeRecord.marketIndex.toNumber(),
 	};
+};
+
+export const resolutionStringToCandleLengthMs = (
+	resolutionString: CandleResolution
+) => {
+	switch (resolutionString) {
+		case '1':
+			return 1 * 60 * 1000;
+		case '5':
+			return 5 * 60 * 1000;
+		case '15':
+			return 15 * 60 * 1000;
+		case '60':
+			return 60 * 60 * 1000;
+		case '240':
+			return 240 * 60 * 1000;
+		case 'D':
+			return 24 * 60 * 60 * 1000;
+		case 'W':
+			return 7 * 24 * 60 * 60 * 1000;
+		case 'M':
+			return 30 * 24 * 60 * 60 * 1000;
+	}
 };

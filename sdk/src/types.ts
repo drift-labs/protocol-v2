@@ -41,7 +41,16 @@ export type Candle = {
 	high: number;
 	low: number;
 	volume: number;
-	vwap: number;
 	start: number;
 	end: number;
 };
+
+export type CandleResolution =
+	| '1'
+	| '5'
+	| '15'
+	| '60'
+	| '240'
+	| 'D'
+	| 'W'
+	| 'M';

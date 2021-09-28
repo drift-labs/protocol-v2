@@ -15,6 +15,7 @@ export * from './DataSubscriptionHelpers';
 export * from './DataTypes';
 export * from './types';
 export * from './utils';
+export * from './constants/chartConstants';
 export {
 	Arbitrager,
 	BN,
