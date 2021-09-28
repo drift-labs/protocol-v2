@@ -8,8 +8,8 @@ import { LOCAL_NET, Network } from './network';
 import { PythClient } from './pythClient';
 import SlackMessenger from './slackMessanger';
 import { PositionDirection, SwapDirection } from './types';
-import { UserAccount } from './userAccount';
 
+export * from './userAccount';
 export * from './clearingHouse';
 export * from './DataSubscriptionHelpers';
 export * from './DataTypes';
@@ -26,7 +26,6 @@ export {
 	PositionDirection,
 	PythClient,
 	SwapDirection,
-	UserAccount,
 	Liquidator,
 	Markets,
 	SlackMessenger,
