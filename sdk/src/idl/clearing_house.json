@@ -84,11 +84,6 @@
           "name": "oracle",
           "isMut": false,
           "isSigner": false
-        },
-        {
-          "name": "clock",
-          "isMut": false,
-          "isSigner": false
         }
       ],
       "args": [
@@ -278,11 +273,6 @@
           "name": "fundingPaymentHistory",
           "isMut": true,
           "isSigner": false
-        },
-        {
-          "name": "clock",
-          "isMut": false,
-          "isSigner": false
         }
       ],
       "args": [
@@ -342,11 +332,6 @@
         {
           "name": "fundingPaymentHistory",
           "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "clock",
-          "isMut": false,
           "isSigner": false
         }
       ],
@@ -434,11 +419,6 @@
         {
           "name": "markets",
           "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "clock",
-          "isMut": false,
           "isSigner": false
         }
       ],
@@ -529,11 +509,6 @@
           "name": "admin",
           "isMut": false,
           "isSigner": true
-        },
-        {
-          "name": "clock",
-          "isMut": false,
-          "isSigner": false
         }
       ],
       "args": [
@@ -624,11 +599,6 @@
         },
         {
           "name": "oracle",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "clock",
           "isMut": false,
           "isSigner": false
         }

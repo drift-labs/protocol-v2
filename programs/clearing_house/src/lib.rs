@@ -81,7 +81,8 @@ pub mod clearing_house {
     ) -> ProgramResult {
         let markets = &mut ctx.accounts.markets.load_mut().unwrap();
         let market = &markets.markets[Markets::index_from_u64(market_index)];
-        let now = ctx.accounts.clock.unix_timestamp;
+        let clock = Clock::get().unwrap();
+        let now = clock.unix_timestamp;
 
         if market.initialized {
             return Err(ErrorCode::MarketIndexAlreadyInitialized.into());
@@ -285,7 +286,8 @@ pub mod clearing_house {
         limit_price: u128,
     ) -> ProgramResult {
         let user = &mut ctx.accounts.user;
-        let now = ctx.accounts.clock.unix_timestamp;
+        let clock = Clock::get().unwrap();
+        let now = clock.unix_timestamp;
 
         let user_positions = &mut ctx.accounts.user_positions.load_mut().unwrap();
         let funding_payment_history = &mut ctx.accounts.funding_payment_history.load_mut().unwrap();
@@ -469,7 +471,8 @@ pub mod clearing_house {
     )]
     pub fn close_position(ctx: Context<ClosePosition>, market_index: u64) -> ProgramResult {
         let user = &mut ctx.accounts.user;
-        let now = ctx.accounts.clock.unix_timestamp;
+        let clock = Clock::get().unwrap();
+        let now = clock.unix_timestamp;
 
         let user_positions = &mut ctx.accounts.user_positions.load_mut().unwrap();
         let funding_payment_history = &mut ctx.accounts.funding_payment_history.load_mut().unwrap();
@@ -668,7 +671,6 @@ pub mod clearing_house {
         quote_asset_amount: u128,
         market_index: u64,
     ) -> ProgramResult {
-        let _now = ctx.accounts.clock.unix_timestamp;
         let markets = &mut ctx.accounts.markets.load_mut().unwrap();
         let market = &mut markets.markets[Markets::index_from_u64(market_index)];
         market.amm.move_price(base_asset_amount, quote_asset_amount);
@@ -723,7 +725,6 @@ pub mod clearing_house {
         new_peg: u128,
         market_index: u64,
     ) -> ProgramResult {
-        let _now = ctx.accounts.clock.unix_timestamp;
         let market =
             &mut ctx.accounts.markets.load_mut()?.markets[Markets::index_from_u64(market_index)];
         let amm = &mut market.amm;
@@ -862,7 +863,9 @@ pub mod clearing_house {
 
         let price_oracle = &ctx.accounts.oracle;
 
-        let now = ctx.accounts.clock.unix_timestamp;
+        let clock = Clock::get().unwrap();
+        let now = clock.unix_timestamp;
+
         let time_since_last_update = now - market.amm.last_funding_rate_ts;
 
         market.amm.last_mark_price_twap = market.amm.get_new_twap(now);
@@ -1035,7 +1038,6 @@ pub struct InitializeMarket<'info> {
     #[account(mut)]
     pub markets: Loader<'info, Markets>,
     pub oracle: AccountInfo<'info>,
-    pub clock: Sysvar<'info, Clock>,
 }
 
 #[derive(Accounts)]
@@ -1139,7 +1141,6 @@ pub struct OpenPosition<'info> {
     pub trade_history: Loader<'info, TradeHistory>,
     #[account(mut)]
     pub funding_payment_history: Loader<'info, FundingPaymentHistory>,
-    pub clock: Sysvar<'info, Clock>,
 }
 
 #[derive(Accounts)]
@@ -1160,7 +1161,6 @@ pub struct ClosePosition<'info> {
     pub trade_history_account: Loader<'info, TradeHistory>,
     #[account(mut)]
     pub funding_payment_history: Loader<'info, FundingPaymentHistory>,
-    pub clock: Sysvar<'info, Clock>,
 }
 
 #[derive(Accounts)]
@@ -1212,7 +1212,6 @@ pub struct UpdateFundingRate<'info> {
     #[account(mut)]
     pub markets: Loader<'info, Markets>,
     pub oracle: AccountInfo<'info>,
-    pub clock: Sysvar<'info, Clock>,
 }
 
 #[derive(Accounts)]
@@ -1225,7 +1224,6 @@ pub struct RepegCurve<'info> {
     pub markets: Loader<'info, Markets>,
     pub oracle: AccountInfo<'info>,
     pub admin: Signer<'info>,
-    pub clock: Sysvar<'info, Clock>,
 }
 
 #[derive(Accounts)]
@@ -1238,7 +1236,6 @@ pub struct MoveAMMPrice<'info> {
     pub admin: Signer<'info>,
     #[account(mut)]
     pub markets: Loader<'info, Markets>,
-    pub clock: Sysvar<'info, Clock>,
 }
 
 #[account]

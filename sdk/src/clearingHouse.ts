@@ -377,7 +377,6 @@ export class ClearingHouse {
 					admin: this.wallet.publicKey,
 					oracle: priceOracle,
 					markets: this.state.markets,
-					clock: SYSVAR_CLOCK_PUBKEY,
 				},
 			}
 		);
@@ -632,7 +631,6 @@ export class ClearingHouse {
 					markets: this.state.markets,
 					userPositions: user.positions,
 					tradeHistory: this.state.tradeHistory,
-					clock: SYSVAR_CLOCK_PUBKEY,
 					fundingPaymentHistory: this.state.fundingPaymentHistory,
 				},
 			}
@@ -656,7 +654,6 @@ export class ClearingHouse {
 				authority: this.wallet.publicKey,
 				markets: this.state.markets,
 				userPositions: user.positions,
-				clock: SYSVAR_CLOCK_PUBKEY,
 				tradeHistoryAccount: this.state.tradeHistory,
 				fundingPaymentHistory: this.state.fundingPaymentHistory,
 			},
@@ -743,7 +740,6 @@ export class ClearingHouse {
 				admin: this.wallet.publicKey,
 				oracle: ammData.oracle,
 				markets: this.state.markets,
-				clock: SYSVAR_CLOCK_PUBKEY,
 			},
 		});
 	}
@@ -789,7 +785,6 @@ export class ClearingHouse {
 			accounts: {
 				markets: this.state.markets,
 				oracle: oracle,
-				clock: anchor.web3.SYSVAR_CLOCK_PUBKEY,
 				insuranceVault: this.state.insuranceVault,
 				insuranceVaultAuthority:
 					this.state.insuranceVaultAuthority,
