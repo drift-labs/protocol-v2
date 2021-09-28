@@ -1,8 +1,13 @@
 import { PublicKey } from '@solana/web3.js';
 import BN from 'bn.js';
-import { QUOTE_BASE_PRECISION_DIFF, AMM_MANTISSA, ClearingHouse } from './clearingHouse';
+import {
+	QUOTE_BASE_PRECISION_DIFF,
+	AMM_MANTISSA,
+	ClearingHouse,
+} from './clearingHouse';
 import { UserAccountData, UserPosition, UserPositionData } from './DataTypes';
-import { Subscriber, SubscriberResult } from './types';
+import { EventEmitter } from 'events';
+import StrictEventEmitter from 'strict-event-emitter-types';
 
 export const MAX_LEVERAGE = new BN(10);
 
@@ -12,12 +17,11 @@ const ZERO = new BN(0);
 const BN_MAX = new BN(Number.MAX_SAFE_INTEGER);
 const _THOUSAND = new BN(1000);
 const TEN_THOUSAND = new BN(10000);
-
-type UserAccountSubscriberResults =
-	| SubscriberResult<'userAccountData', UserAccountData>
-	| SubscriberResult<'userPositionsData', UserPositionData>;
-
-type UserAccountSubscriber = Subscriber<UserAccountSubscriberResults>;
+interface UserAccountEvents {
+	userAccountData: (payload: UserAccountData) => void;
+	userPositionsData: (payload: UserPositionData) => void;
+	update: void;
+}
 
 export class UserAccount {
 	clearingHouse: ClearingHouse;
@@ -26,20 +30,20 @@ export class UserAccount {
 	userAccountData?: UserAccountData;
 	userPositionsAccount?: UserPositionData;
 	isSubscribed = false;
-	subscriber?: UserAccountSubscriber = null;
+	eventEmitter: StrictEventEmitter<EventEmitter, UserAccountEvents>;
 
 	public constructor(clearingHouse: ClearingHouse, userPublicKey: PublicKey) {
 		this.clearingHouse = clearingHouse;
 		this.userPublicKey = userPublicKey;
+
+		this.eventEmitter = new EventEmitter();
 	}
 
-	public async subscribe(callback?: UserAccountSubscriber): Promise<boolean> {
+	public async subscribe(): Promise<boolean> {
 		try {
 			if (this.isSubscribed) {
 				return;
 			}
-
-			if (callback) this.subscriber = callback;
 
 			await this.clearingHouse.subscribe();
 
@@ -64,16 +68,10 @@ export class UserAccount {
 			this.isSubscribed = true;
 
 			// callback with latest account data
-			this.subscriber?.({
-				dataLabel: 'userAccountData',
-				data: currentUserAccount,
-			});
+			this.eventEmitter.emit('userAccountData', currentUserAccount);
 
 			// callback with latest positions data
-			this.subscriber?.({
-				dataLabel: 'userPositionsData',
-				data: currentUserPositionsAccount,
-			});
+			this.eventEmitter.emit('userPositionsData', currentUserPositionsAccount);
 
 			// set up subscriber for account data
 			this.clearingHouse
@@ -82,10 +80,7 @@ export class UserAccount {
 				.on('change', async (updateData) => {
 					this.userAccountData = updateData;
 
-					this.subscriber?.({
-						dataLabel: 'userAccountData',
-						data: updateData,
-					});
+					this.eventEmitter.emit('userAccountData', updateData);
 				});
 
 			// set up subscriber for positions data
@@ -98,11 +93,10 @@ export class UserAccount {
 				.on('change', async (updateData) => {
 					this.userPositionsAccount = updateData;
 
-					this.subscriber?.({
-						dataLabel: 'userPositionsData',
-						data: updateData,
-					});
+					this.eventEmitter.emit('userPositionsData', updateData);
 				});
+
+			this.eventEmitter.emit('update');
 
 			return true;
 		} catch (error) {

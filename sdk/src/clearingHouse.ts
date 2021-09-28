@@ -291,6 +291,8 @@ export class ClearingHouse {
 
 		this.isSubscribed = true;
 
+		this.eventEmitter.emit('update');
+
 		return true;
 	}
 
