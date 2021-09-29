@@ -546,7 +546,6 @@ pub mod clearing_house {
         let marketss = &mut ctx.accounts.markets.load_mut().unwrap();
         let user_positionss = &mut ctx.accounts.user_positions.load_mut().unwrap();
 
-        let mut liquidation_penalty = 0;
         let mut is_full_liquidation = true;
         if margin_ratio <= ctx.accounts.state.margin_ratio_maintenance {
             for market_position in user_positionss.positions.iter_mut() {
