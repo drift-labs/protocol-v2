@@ -18,7 +18,7 @@ export type UserAccountData = {
 	collateral: BN;
 	cumulativeDeposits: BN;
 	positions: PublicKey;
-	totalPotentialFee: BN;
+	totalFeePaid: BN;
 };
 
 export type ClearingHouseState = {

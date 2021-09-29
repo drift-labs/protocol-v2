@@ -763,7 +763,7 @@
             "type": "i128"
           },
           {
-            "name": "totalPotentialFee",
+            "name": "totalFeePaid",
             "type": "i128"
           },
           {

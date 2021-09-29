@@ -197,8 +197,8 @@ pub mod clearing_house {
             .unwrap();
         let net_winnings_fee = max(net_winnings.checked_div(10000).unwrap(), 0) as u128;
 
-        let withdrawl_fee = min(user.total_potential_fee, net_winnings_fee as i128);
-        user.total_potential_fee = user.total_potential_fee.checked_sub(withdrawl_fee).unwrap();
+        let withdrawl_fee = min(user.total_fee_paid, net_winnings_fee as i128);
+        user.total_fee_paid = user.total_fee_paid.checked_sub(withdrawl_fee).unwrap();
 
         let (collateral_account_withdrawal, insurance_account_withdrawal) =
             calculate_withdrawal_amounts(
@@ -443,8 +443,8 @@ pub mod clearing_house {
             return Err(ErrorCode::InsufficientCollateral.into());
         }
 
-        user.total_potential_fee = user
-            .total_potential_fee
+        user.total_fee_paid = user
+            .total_fee_paid
             .checked_add(quote_asset_peg_fee)
             .unwrap();
 
@@ -1385,8 +1385,8 @@ fn _settle_repeg_profit_position(
             .unwrap()
             .checked_div(FUNDING_PAYMENT_MANTISSA)
             .unwrap();
-        user.total_potential_fee = user
-            .total_potential_fee
+        user.total_fee_paid = user
+            .total_fee_paid
             .checked_sub(repeg_profit_share_pnl as i128)
             .unwrap();
     }
