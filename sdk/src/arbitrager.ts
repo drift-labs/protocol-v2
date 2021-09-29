@@ -23,7 +23,7 @@ export class Arbitrager {
 		this.pythClient = new PythClient(this.clearingHouse.connection);
 	}
 
-	public async findTradesToExecute() : Promise<TradeToExecute[]> {
+	public async findTradesToExecute(marketsTraded: Array<BN>=[], arbPct=new BN(1000)) : Promise<TradeToExecute[]> {
 		const marketsAccount: any = await this.clearingHouse.getMarketsAccount();
 		const tradesToExecute : TradeToExecute[] = [];
 		for (const marketIndex in marketsAccount.markets) {
@@ -32,6 +32,10 @@ export class Arbitrager {
 				continue;
 			}
 			const marketIndexBN = new BN(marketIndex);
+			
+			if(marketsTraded!=[] && !marketsTraded.includes(marketIndexBN)){
+				continue;
+			}
 
 			const oraclePriceData = await this.pythClient.getPriceData(
 				market.amm.oracle
@@ -43,10 +47,11 @@ export class Arbitrager {
 				oraclePriceDataT * AMM_MANTISSA.toNumber()
 			);
 
-			const [direction, amount] = this.clearingHouse.calculateTargetPriceTrade(
+			const [direction, amount, , ] = 
+			this.clearingHouse.calculateTargetPriceTrade(
 				marketIndexBN,
 				oraclePriceWithMantissa,
-				new BN(1000) //100% (given partial fills)
+				arbPct
 			);
 
 			let oraclePriceWithMantissaWithBuffer: BN;

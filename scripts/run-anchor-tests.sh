@@ -1,4 +1,4 @@
-./keys/mv-keys
+bash keys/mv-keys
 
 if [ "$1" != "--skip-build" ]
   then
