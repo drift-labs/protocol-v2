@@ -124,7 +124,6 @@ pub mod clearing_house {
                 cumulative_funding_rate_short: 0,
                 last_funding_rate: 0,
                 last_funding_rate_ts: now,
-                prev_funding_rate_ts: now,
                 funding_period: amm_periodicity,
                 last_mark_price_twap: init_mark_price,
                 last_mark_price_twap_ts: now,
@@ -978,7 +977,6 @@ pub mod clearing_house {
 
             market.amm.cumulative_funding_rate = cum_funding_rate;
             market.amm.last_funding_rate = funding_rate;
-            market.amm.prev_funding_rate_ts = market.amm.last_funding_rate_ts;
             market.amm.last_funding_rate_ts = now;
             market.amm.last_mark_price_twap = market.amm.base_asset_price_with_mantissa();
             market.amm.last_mark_price_twap_ts = now;

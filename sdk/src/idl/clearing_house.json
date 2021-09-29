@@ -978,10 +978,6 @@
             "type": "i64"
           },
           {
-            "name": "prevFundingRateTs",
-            "type": "i64"
-          },
-          {
             "name": "fundingPeriod",
             "type": "i64"
           },
