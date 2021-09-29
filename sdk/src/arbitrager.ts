@@ -3,12 +3,13 @@ import { PythClient } from './pythClient';
 import BN from 'bn.js';
 import { ZERO } from './constants/numericConstants';
 import {PositionDirection} from "./types";
+import { assert } from './assert/assert';
 
 export interface TradeToExecute {
 	direction: PositionDirection;
 	marketIndex: BN;
 	amount: BN;
-	oraclePriceWithMantissa: BN;
+	limitPrice: BN;
 }
 
 export class Arbitrager {
@@ -23,7 +24,7 @@ export class Arbitrager {
 		this.pythClient = new PythClient(this.clearingHouse.connection);
 	}
 
-	public async findTradesToExecute() : Promise<TradeToExecute[]> {
+	public async findTradesToExecute(marketsTraded: Array<BN>=[], arbPct: BN=new BN(1000)) : Promise<TradeToExecute[]> {
 		const marketsAccount: any = await this.clearingHouse.getMarketsAccount();
 		const tradesToExecute : TradeToExecute[] = [];
 		for (const marketIndex in marketsAccount.markets) {
@@ -32,6 +33,12 @@ export class Arbitrager {
 				continue;
 			}
 			const marketIndexBN = new BN(marketIndex);
+
+			if (marketsTraded!=[] && !marketsTraded.includes(marketIndexBN)){
+				continue;
+			}
+
+			assert(false);
 
 			const oraclePriceData = await this.pythClient.getPriceData(
 				market.amm.oracle
@@ -43,21 +50,22 @@ export class Arbitrager {
 				oraclePriceDataT * AMM_MANTISSA.toNumber()
 			);
 
-			const [direction, amount] = this.clearingHouse.calculateTargetPriceTrade(
+			const [direction, amount, expectedEntryPrice, expectedTargetPrice] = 
+			this.clearingHouse.calculateTargetPriceTrade(
 				marketIndexBN,
 				oraclePriceWithMantissa,
-				new BN(1000) //100% (given partial fills)
+				arbPct
 			);
 
-			let oraclePriceWithMantissaWithBuffer: BN;
+			let targetPriceWithBuffer: BN;
 			
 			if (direction == PositionDirection.LONG) {
-				oraclePriceWithMantissaWithBuffer = new BN(
-				oraclePriceDataT * (AMM_MANTISSA.toNumber() + AMM_MANTISSA.toNumber()/1000)
+				targetPriceWithBuffer = new BN(
+					expectedTargetPrice.toNumber() * (1 + .0001)
 				);
 			} else{
-				oraclePriceWithMantissaWithBuffer = new BN(
-					oraclePriceDataT * (AMM_MANTISSA.toNumber() - AMM_MANTISSA.toNumber()/1000)
+				targetPriceWithBuffer = new BN(
+					expectedTargetPrice.toNumber() * (1 - .0001)
 				);
 			}
 
@@ -69,7 +77,7 @@ export class Arbitrager {
 				direction,
 				marketIndex: marketIndexBN,
 				amount,
-				oraclePriceWithMantissa: oraclePriceWithMantissaWithBuffer,
+				limitPrice: targetPriceWithBuffer,
 			});
 		}
 		return tradesToExecute;
@@ -83,7 +91,7 @@ export class Arbitrager {
 			tradeToExecute.direction,
 			tradeToExecute.amount,
 			tradeToExecute.marketIndex,
-			tradeToExecute.oraclePriceWithMantissa
+			tradeToExecute.limitPrice
 		);
 	}
 }
