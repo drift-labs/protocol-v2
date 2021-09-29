@@ -67,7 +67,6 @@ export type ClearingHouseMarketsAccountData = {
 		openInterest: BN;
 		quoteAssetNotionalAmount: BN;
 		baseAssetVolume: BN;
-		pegQuoteAssetVolume: BN;
 	}[];
 };
 

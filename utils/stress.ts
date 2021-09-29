@@ -277,7 +277,6 @@ export async function stress_test(
 
 			market_oi: marketData.openInterest,
 			market_v: marketData.baseAssetVolume,
-			market_dv: marketData.pegQuoteAssetVolume,
 
 			user_i: user_i,
 			user_i_collateral: user.collateral,

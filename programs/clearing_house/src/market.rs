@@ -35,8 +35,6 @@ pub struct Market {
     pub open_interest: u128,               // number of users in a position
     // remove
     pub base_asset_volume: u128, // amt of base asset volume since inception
-    // remove
-    pub peg_quote_asset_volume: u128, // amt of quote asset volume since inception
     pub amm: AMM,
 }
 

@@ -114,7 +114,6 @@ pub mod clearing_house {
             quote_asset_notional_amount: 0,
             open_interest: 0,
             base_asset_volume: 0,
-            peg_quote_asset_volume: 0,
             amm: AMM {
                 oracle: *ctx.accounts.oracle.key,
                 oracle_source: OracleSource::Pyth,
@@ -218,7 +217,8 @@ pub mod clearing_house {
             .checked_sub(insurance_account_withdrawal as u128)
             .unwrap();
 
-        let (_estimated_margin, _estimated_base_asset_value, margin_ratio) = calculate_margin_ratio(user, user_positions, markets);
+        let (_estimated_margin, _estimated_base_asset_value, margin_ratio) =
+            calculate_margin_ratio(user, user_positions, markets);
         if margin_ratio < ctx.accounts.state.margin_ratio_initial {
             return Err(ErrorCode::InsufficientCollateral.into());
         }
@@ -1455,7 +1455,7 @@ fn calculate_margin_ratio(
         unrealized_pnl = unrealized_pnl.checked_add(position_unrealized_pnl).unwrap();
     }
 
-    let estimated_margin : u128;
+    let estimated_margin: u128;
     let margin_ratio: u128;
     if base_asset_value == 0 {
         estimated_margin = u128::MAX;

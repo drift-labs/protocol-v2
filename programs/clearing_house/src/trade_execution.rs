@@ -84,11 +84,6 @@ pub fn increase_position(
         .checked_add(base_asset_acquired.unsigned_abs())
         .unwrap();
 
-    market.peg_quote_asset_volume = market
-        .peg_quote_asset_volume
-        .checked_add(new_quote_asset_notional_amount)
-        .unwrap();
-
     return (quote_asset_peg_fee_unpaid, trade_size_to_small);
 }
 
@@ -150,11 +145,6 @@ pub fn reduce_position<'info>(
         .checked_add(base_asset_swapped.unsigned_abs())
         .unwrap();
 
-    market.peg_quote_asset_volume = market
-        .peg_quote_asset_volume
-        .checked_add(new_quote_asset_notional_amount)
-        .unwrap();
-
     let (base_asset_value_after, _pnl_after) =
         calculate_base_asset_value_and_pnl(market_position, &market.amm);
 
@@ -193,7 +183,8 @@ pub fn close_position(
         SwapDirection::Remove
     };
 
-    let (base_asset_value, pnl) = calculate_base_asset_value_and_pnl(&market_position, &market.amm);
+    let (_base_asset_value, pnl) =
+        calculate_base_asset_value_and_pnl(&market_position, &market.amm);
 
     market.amm.swap_base_asset(
         market_position.base_asset_amount.unsigned_abs(),
@@ -214,10 +205,6 @@ pub fn close_position(
         .base_asset_volume
         .checked_add(market_position.base_asset_amount.unsigned_abs())
         .unwrap();
-    market.peg_quote_asset_volume = market
-        .peg_quote_asset_volume
-        .checked_add(base_asset_value)
-        .unwrap(); //todo
     market.open_interest = market.open_interest.checked_sub(1).unwrap();
 
     market_position.quote_asset_amount = 0;

@@ -118,7 +118,6 @@ describe('clearing_house', () => {
 		assert.ok(marketData.quoteAssetNotionalAmount.eq(new BN(0)));
 		assert.ok(marketData.openInterest.eq(new BN(0)));
 		assert.ok(marketData.baseAssetVolume.eq(new BN(0)));
-		assert.ok(marketData.pegQuoteAssetVolume.eq(new BN(0)));
 
 		const ammData = marketData.amm;
 		assert.ok(ammData.oracle.equals(solUsd.publicKey));
