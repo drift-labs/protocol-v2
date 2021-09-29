@@ -32,11 +32,9 @@ export class Arbitrager {
 				continue;
 			}
 			const marketIndexBN = new BN(marketIndex);
-			
-			if(marketsTraded!=[] && !marketsTraded.includes(marketIndexBN)){
+			if(marketsTraded.length > 0 && !marketsTraded.includes(marketIndexBN)){
 				continue;
 			}
-
 			const oraclePriceData = await this.pythClient.getPriceData(
 				market.amm.oracle
 			);
