@@ -75,11 +75,6 @@ pub fn increase_position(
             .unwrap();
     }
 
-    market.base_asset_volume = market
-        .base_asset_volume
-        .checked_add(base_asset_acquired.unsigned_abs())
-        .unwrap();
-
     return (quote_asset_peg_fee_unpaid, trade_size_to_small);
 }
 
@@ -130,11 +125,6 @@ pub fn reduce_position<'info>(
     market_position.quote_asset_amount = market_position
         .quote_asset_amount
         .checked_sub(new_quote_asset_notional_amount)
-        .unwrap();
-
-    market.base_asset_volume = market
-        .base_asset_volume
-        .checked_add(base_asset_swapped.unsigned_abs())
         .unwrap();
 
     let (base_asset_value_after, _pnl_after) =
@@ -188,10 +178,6 @@ pub fn close_position(
     market_position.last_cumulative_funding_rate = 0;
     market_position.last_cumulative_repeg_rebate = 0;
 
-    market.base_asset_volume = market
-        .base_asset_volume
-        .checked_add(market_position.base_asset_amount.unsigned_abs())
-        .unwrap();
     market.open_interest = market.open_interest.checked_sub(1).unwrap();
 
     market_position.quote_asset_amount = 0;

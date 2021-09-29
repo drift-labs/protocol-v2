@@ -65,7 +65,6 @@ export type ClearingHouseMarketsAccountData = {
 		baseAssetAmountShort: BN;
 		initialized: boolean;
 		openInterest: BN;
-		baseAssetVolume: BN;
 	}[];
 };
 

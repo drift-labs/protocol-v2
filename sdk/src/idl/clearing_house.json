@@ -918,10 +918,6 @@
             "type": "u128"
           },
           {
-            "name": "baseAssetVolume",
-            "type": "u128"
-          },
-          {
             "name": "amm",
             "type": {
               "defined": "AMM"

@@ -112,7 +112,6 @@ pub mod clearing_house {
             base_asset_amount_short: 0,
             base_asset_amount: 0,
             open_interest: 0,
-            base_asset_volume: 0,
             amm: AMM {
                 oracle: *ctx.accounts.oracle.key,
                 oracle_source: OracleSource::Pyth,

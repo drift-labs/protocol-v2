@@ -275,7 +275,6 @@ export async function stress_test(
 			quote_ast_amt: ammData.quoteAssetReserve,
 
 			market_oi: marketData.openInterest,
-			market_v: marketData.baseAssetVolume,
 
 			user_i: user_i,
 			user_i_collateral: user.collateral,
