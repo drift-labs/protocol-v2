@@ -1112,7 +1112,7 @@ export class ClearingHouse {
 		marketIndex: BN,
 		targetPrice: BN,
 		pct: BN = MAXPCT
-	): [PositionDirection, BN, BN, BN] {
+	): [PositionDirection, BN, BN] {
 		// simple function for funding rate arbitrage bot
 		// return the trade direction/size in order to push price to a targetPrice
 		// set a pct optional default is 100% gap filling, can set smaller.
@@ -1181,7 +1181,7 @@ export class ClearingHouse {
 			direction = PositionDirection.LONG;
 			tradeSize = 0;
 			baseSize = 0;
-			return [direction, new BN(tradeSize), new BN(0), targetPrice];
+			return [direction, new BN(tradeSize), new BN(0)];
 		}
 
 		let tp1 = targetPrice;
@@ -1239,7 +1239,7 @@ export class ClearingHouse {
 				tp2.sub(tp1).abs().toString()
 		); //todo
 
-		return [direction, new BN(tradeSize), entryPrice, targetPrice];
+		return [direction, new BN(tradeSize), entryPrice];
 	}
 
 	public calculateBaseAssetPriceAfterSwapWithMantissa(
