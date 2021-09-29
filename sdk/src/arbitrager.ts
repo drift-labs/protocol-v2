@@ -23,7 +23,7 @@ export class Arbitrager {
 		this.pythClient = new PythClient(this.clearingHouse.connection);
 	}
 
-	public async findTradesToExecute(marketsTraded: Array<BN>=[], arbPct=new BN(1000)) : Promise<TradeToExecute[]> {
+	public async findTradesToExecute(marketsTraded: Array<BN>=[], arbPct=new BN(250)) : Promise<TradeToExecute[]> {
 		const marketsAccount: any = await this.clearingHouse.getMarketsAccount();
 		const tradesToExecute : TradeToExecute[] = [];
 		for (const marketIndex in marketsAccount.markets) {
