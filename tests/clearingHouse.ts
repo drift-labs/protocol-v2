@@ -180,7 +180,6 @@ describe('clearing_house', () => {
 			userAccountPublicKey
 		);
 		assert.ok(user.collateral.eq(new BN(0)));
-
 		// Check that clearing house collateral account has proper collateral]
 		const clearingHouseState: any = clearingHouse.getState();
 		const clearingHouseCollateralVault = await getTokenAccount(
@@ -535,6 +534,7 @@ describe('clearing_house', () => {
 			marketIndex,
 			liqPrice
 		);
+		console.log("margin ratio", userAccount.getMarginRatio().toString());
 
 		console.log(		'collateral + pnl post px move:',
 		stripMantissa(userAccount.getTotalCollateral(), USDC_PRECISION));
@@ -545,13 +545,10 @@ describe('clearing_house', () => {
 			userAccountPublicKey
 		);
 
-		// await clearingHouse.closePosition(
-		// 	userAccountPublicKey,
-		// 	new BN(0),
-		// );
-
 		console.log(		'collateral + pnl post liq:',
 		stripMantissa(userAccount.getTotalCollateral(), USDC_PRECISION));
+		console.log("can be liquidated", userAccount.canBeLiquidated());
+		console.log("margin ratio", userAccount.getMarginRatio().toString());
 
 		const state: any = clearingHouse.getState();
 		const user: any = await clearingHouse.program.account.user.fetch(
@@ -587,13 +584,25 @@ describe('clearing_house', () => {
 
 	it('Full Liquidation', async () => {
 
-		// todo: price impact / penalty from partial liq test put price is liq territory...
-		// because slippage is high, collateral low in test setup...
-		
-		// await clearingHouse.moveAmmToPrice(
-		// 	marketIndex,
-		// 	liqPrice
-		// );
+		const marketIndex = new BN(0);
+
+		const user0: any = await clearingHouse.program.account.user.fetch(
+			userAccountPublicKey
+		);
+		const userPositionsAccount0: any =
+			await clearingHouse.program.account.userPositions.fetch(
+				user0.positions
+			);
+
+		const liqPrice = userAccount.liquidationPrice(userPositionsAccount0.positions[0],
+			new BN(0),
+			false
+		);
+
+		await clearingHouse.moveAmmToPrice(
+			marketIndex,
+			liqPrice
+		);
 
 		// having the user liquidate themsevles because I'm too lazy to create a separate liquidator account
 		await clearingHouse.liquidate(
@@ -627,8 +636,8 @@ describe('clearing_house', () => {
 		console.log(chInsuranceAccountToken.amount.toNumber());
 		console.log(userUSDCTokenAccount.amount.toNumber());
 
-		assert.ok(chInsuranceAccountToken.amount.eq(new BN(1300338)));
-		assert.ok(userUSDCTokenAccount.amount.eq(new BN(105440)));
+		assert.ok(chInsuranceAccountToken.amount.eq(new BN(2065998)));
+		assert.ok(userUSDCTokenAccount.amount.eq(new BN(145738)));
 	});
 
 	it('Pay from insurance fund', async () => {

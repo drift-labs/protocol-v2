@@ -64,9 +64,17 @@ pub mod clearing_house {
             insurance_vault_authority: insurance_account_authority,
             insurance_vault_nonce: insurance_account_nonce,
             markets: *ctx.accounts.markets.to_account_info().key,
-            margin_ratio_initial: 950, // unit is 10% (+2 decimal places)
+            margin_ratio_initial: 950, // unit is 9.5% (+2 decimal places)
             margin_ratio_partial: 625,
             margin_ratio_maintenance: 500,
+            partial_liquidation_close_percentage_numerator: 25,
+            partial_liquidation_close_percentage_denominator: 100,
+            partial_liquidation_penalty_percentage_numerator: 25,
+            partial_liquidation_penalty_percentage_denominator: 1000,
+            full_liquidation_penalty_percentage_numerator: 1,
+            full_liquidation_penalty_percentage_denominator: 1,
+            partial_liquidation_liquidator_share_denominator: 2,
+            full_liquidation_liquidator_share_denominator: 20,
             trade_history: *ctx.accounts.trade_history.to_account_info().key,
             collateral_deposits: 0,
         };
@@ -530,11 +538,12 @@ pub mod clearing_house {
     }
 
     pub fn liquidate(ctx: Context<Liquidate>) -> ProgramResult {
+        let state = &ctx.accounts.state;
         let user = &mut ctx.accounts.user;
         let clock = Clock::get().unwrap();
         let now = clock.unix_timestamp;
 
-        let (estimated_margin, base_asset_notional, margin_ratio) = calculate_margin_ratio(
+        let (_estimated_margin, _base_asset_notional, margin_ratio) = calculate_margin_ratio(
             user,
             &ctx.accounts.user_positions.load_mut().unwrap(),
             &ctx.accounts.markets.load().unwrap(),
@@ -543,34 +552,41 @@ pub mod clearing_house {
             return Err(ErrorCode::SufficientCollateral.into());
         }
 
-        let marketss = &mut ctx.accounts.markets.load_mut().unwrap();
-        let user_positionss = &mut ctx.accounts.user_positions.load_mut().unwrap();
+        let user_positions = &mut ctx.accounts.user_positions.load_mut().unwrap();
 
         let mut is_full_liquidation = true;
         if margin_ratio <= ctx.accounts.state.margin_ratio_maintenance {
-            for market_position in user_positionss.positions.iter_mut() {
+            let markets = &mut ctx.accounts.markets.load_mut().unwrap();
+            for market_position in user_positions.positions.iter_mut() {
                 if market_position.base_asset_amount == 0 {
                     continue;
                 }
 
                 let market =
-                    &mut marketss.markets[Markets::index_from_u64(market_position.market_index)];
+                    &mut markets.markets[Markets::index_from_u64(market_position.market_index)];
 
                 trade_execution::close_position(user, market, market_position, now)
             }
         } else {
-            for market_position in user_positionss.positions.iter_mut() {
+            let markets = &mut ctx.accounts.markets.load_mut().unwrap();
+            for market_position in user_positions.positions.iter_mut() {
                 if market_position.base_asset_amount == 0 {
                     continue;
                 }
 
                 let market =
-                    &mut marketss.markets[Markets::index_from_u64(market_position.market_index)];
+                    &mut markets.markets[Markets::index_from_u64(market_position.market_index)];
 
-                let haircut = base_asset_notional
-                    .checked_mul(PARTIAL_LIQUIDATION_TRIM_PCT)
+                let (base_asset_value, _pnl) =
+                    calculate_base_asset_value_and_pnl(market_position, &market.amm);
+                let base_asset_value_to_close = base_asset_value
+                    .checked_mul(state.partial_liquidation_close_percentage_numerator.into())
                     .unwrap()
-                    .checked_div(100)
+                    .checked_div(
+                        state
+                            .partial_liquidation_close_percentage_denominator
+                            .into(),
+                    )
                     .unwrap();
 
                 let direction = if market_position.base_asset_amount > 0 {
@@ -581,7 +597,7 @@ pub mod clearing_house {
 
                 trade_execution::reduce_position(
                     direction,
-                    haircut,
+                    base_asset_value_to_close,
                     user,
                     market,
                     market_position,
@@ -592,15 +608,29 @@ pub mod clearing_house {
             is_full_liquidation = false;
         }
 
-        liquidation_penalty = if is_full_liquidation {
+        let liquidation_penalty = if is_full_liquidation {
             user.collateral
+                .checked_mul(state.full_liquidation_penalty_percentage_numerator.into())
+                .unwrap()
+                .checked_div(state.full_liquidation_penalty_percentage_denominator.into())
+                .unwrap()
         } else {
-            estimated_margin
-                .checked_mul(PARTIAL_LIQUIDATION_TRIM_PCT)
+            let markets = &ctx.accounts.markets.load().unwrap();
+            let (estimated_margin_after, _base_asset_notional_after, _margin_ratio_after) =
+                calculate_margin_ratio(user, user_positions, markets);
+
+            estimated_margin_after
+                .checked_mul(
+                    state
+                        .partial_liquidation_penalty_percentage_numerator
+                        .into(),
+                )
                 .unwrap()
-                .checked_div(100)
-                .unwrap()
-                .checked_div(10)
+                .checked_div(
+                    state
+                        .partial_liquidation_penalty_percentage_denominator
+                        .into(),
+                )
                 .unwrap()
         };
 
@@ -611,14 +641,17 @@ pub mod clearing_house {
         );
 
         user.collateral = user.collateral.checked_sub(liquidation_penalty).unwrap();
-        // user.total_potential_fee = 0;
 
-        // partial: 50%, 50%, full: 5% liquidator, 95% insurance fund
         let liquidator_cut_amount = if is_full_liquidation {
-            withdrawal_amount.checked_div(20).unwrap()
+            withdrawal_amount
+                .checked_div(state.full_liquidation_liquidator_share_denominator)
+                .unwrap()
         } else {
-            withdrawal_amount.checked_div(2).unwrap()
+            withdrawal_amount
+                .checked_div(state.partial_liquidation_liquidator_share_denominator)
+                .unwrap()
         };
+
         let insurance_fund_cut_amount = withdrawal_amount
             .checked_sub(liquidator_cut_amount)
             .unwrap();
@@ -662,7 +695,6 @@ pub mod clearing_house {
             let cpi_context = CpiContext::new_with_signer(cpi_program, cpi_accounts, signers);
             token::transfer(cpi_context, insurance_fund_cut_amount).unwrap();
         }
-        // todo: still need to reward liquidator a tiny amount
 
         Ok(())
     }
@@ -1258,6 +1290,14 @@ pub struct State {
     pub margin_ratio_initial: u128,
     pub margin_ratio_maintenance: u128,
     pub margin_ratio_partial: u128,
+    pub partial_liquidation_close_percentage_numerator: u128,
+    pub partial_liquidation_close_percentage_denominator: u128,
+    pub partial_liquidation_penalty_percentage_numerator: u128,
+    pub partial_liquidation_penalty_percentage_denominator: u128,
+    pub full_liquidation_penalty_percentage_numerator: u128,
+    pub full_liquidation_penalty_percentage_denominator: u128,
+    pub partial_liquidation_liquidator_share_denominator: u64,
+    pub full_liquidation_liquidator_share_denominator: u64,
     pub trade_history: Pubkey,
     pub collateral_deposits: u128,
 }
@@ -1458,7 +1498,7 @@ fn calculate_margin_ratio(
     } else {
         estimated_margin = calculate_updated_collateral(user.collateral, unrealized_pnl);
         margin_ratio = estimated_margin
-            .checked_mul(10000)
+            .checked_mul(MARGIN_MANTISSA)
             .unwrap()
             .checked_div(base_asset_value)
             .unwrap();

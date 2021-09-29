@@ -670,6 +670,38 @@
             "type": "u128"
           },
           {
+            "name": "partialLiquidationClosePercentageNumerator",
+            "type": "u128"
+          },
+          {
+            "name": "partialLiquidationClosePercentageDenominator",
+            "type": "u128"
+          },
+          {
+            "name": "partialLiquidationPenaltyPercentageNumerator",
+            "type": "u128"
+          },
+          {
+            "name": "partialLiquidationPenaltyPercentageDenominator",
+            "type": "u128"
+          },
+          {
+            "name": "fullLiquidationPenaltyPercentageNumerator",
+            "type": "u128"
+          },
+          {
+            "name": "fullLiquidationPenaltyPercentageDenominator",
+            "type": "u128"
+          },
+          {
+            "name": "partialLiquidationLiquidatorShareDenominator",
+            "type": "u64"
+          },
+          {
+            "name": "fullLiquidationLiquidatorShareDenominator",
+            "type": "u64"
+          },
+          {
             "name": "tradeHistory",
             "type": "publicKey"
           },

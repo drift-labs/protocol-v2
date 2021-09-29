@@ -122,12 +122,8 @@ pub fn reduce_position<'info>(
             .checked_add(base_asset_swapped)
             .unwrap();
     }
-    market_position.quote_asset_amount = market_position
-        .quote_asset_amount
-        .checked_sub(new_quote_asset_notional_amount)
-        .unwrap();
 
-    let (base_asset_value_after, _pnl_after) =
+    let (base_asset_value_after, _) =
         calculate_base_asset_value_and_pnl(market_position, &market.amm);
 
     assert_eq!(base_asset_value_before > base_asset_value_after, true);
@@ -136,6 +132,18 @@ pub fn reduce_position<'info>(
         .checked_sub(base_asset_value_after as i128)
         .unwrap()
         .abs();
+
+    let quote_asset_amount_closed = market_position
+        .quote_asset_amount
+        .checked_mul(base_asset_value_change.unsigned_abs())
+        .unwrap()
+        .checked_div(base_asset_value_before)
+        .unwrap();
+
+    market_position.quote_asset_amount = market_position
+        .quote_asset_amount
+        .checked_sub(quote_asset_amount_closed)
+        .unwrap();
 
     let pnl = pnl_before
         .checked_mul(base_asset_value_change)
