@@ -1,6 +1,11 @@
 import * as anchor from '@project-serum/anchor';
 import BN from 'bn.js';
-import { USDC_PRECISION, AMM_MANTISSA, PEG_SCALAR, stripMantissa } from '../sdk/src';
+import {
+	USDC_PRECISION,
+	AMM_MANTISSA,
+	PEG_SCALAR,
+	stripMantissa,
+} from '../sdk/src';
 import { assert } from '../sdk/src/assert/assert';
 // import { getTokenAccount } from '@project-serum/common';
 import { mockOracle } from './mockAccounts';
@@ -59,12 +64,8 @@ export async function stress_test(
 	}
 
 	// create <NUM_USERS> users with 10k that collectively do <NUM_EVENTS> actions
-	const [
-		userUSDCAccounts,
-		user_keys,
-		clearingHouses,
-		userAccountInfos,
-	] = await initUserAccounts(NUM_USERS, usdcMint, usdcAmount, provider);
+	const [userUSDCAccounts, user_keys, clearingHouses, userAccountInfos] =
+		await initUserAccounts(NUM_USERS, usdcMint, usdcAmount, provider);
 
 	// const eventTimeline = [];
 	const stateTimeline = [];
@@ -128,7 +129,7 @@ export async function stress_test(
 					anchor.workspace.Pyth,
 					ammData.oracle
 				);
-				
+
 				let _entry_px; //todo
 
 				[randEType, rand_amt, _entry_px] =
@@ -225,7 +226,7 @@ export async function stress_test(
 		console.log('event', i, ':', event_i);
 		eventTimeline2.push(event_i);
 
-		const state: any = clearingHouse.getState();
+		// const state: any = clearingHouse.getState();
 		const marketsAccount: any = await clearingHouse.getMarketsAccount();
 		const marketData = marketsAccount.markets[market_i.toNumber()];
 		// assert.ok(marketData.initialized);
@@ -250,24 +251,22 @@ export async function stress_test(
 		let ast_px = 0;
 
 		try {
-			ast_px =
-				stripMantissa(ammData.quoteAssetAmount.mul(AMM_MANTISSA).div(
-				ammData.baseAssetAmount));
+			ast_px = stripMantissa(
+				ammData.quoteAssetAmount.mul(AMM_MANTISSA).div(ammData.baseAssetAmount)
+			);
 		} catch {
 			ast_px = -1;
 		}
 
 		const oracleData = await getFeedData(anchor.workspace.Pyth, ammData.oracle);
 
-		const user: any = await clearingHouse.program.account.user.fetch(
-			user_e
-		);
+		const user: any = await clearingHouse.program.account.user.fetch(user_e);
 
 		// const userSummary = await user_act_info_e.summary('liq');
 		// const userSummary2 = await user_act_info_e.summary('avg');
 		const userSummary3 = await user_act_info_e.summary('last');
 
-		const xeq_scaled = ammData.pegMultiplier.toNumber()/(PEG_SCALAR.toNumber());
+		const xeq_scaled = ammData.pegMultiplier.toNumber() / PEG_SCALAR.toNumber();
 		const state_i = {
 			market_index: market_i,
 
@@ -278,7 +277,7 @@ export async function stress_test(
 
 			user_i: user_i,
 			user_i_collateral: user.collateral,
-			user_i_cumfee: user.totalFeePaid.toNumber()/(10**6),
+			user_i_cumfee: user.totalFeePaid.toNumber() / 10 ** 6,
 
 			oracle_px: oracleData.price,
 
@@ -291,7 +290,10 @@ export async function stress_test(
 			funding_rate_ts: ammData.lastFundingRateTs,
 
 			cumSlippage: stripMantissa(ammData.cumulativeFee, USDC_PRECISION),
-			cumSlippageProfit: stripMantissa(ammData.cumulativeFeeRealized, USDC_PRECISION),
+			cumSlippageProfit: stripMantissa(
+				ammData.cumulativeFeeRealized,
+				USDC_PRECISION
+			),
 
 			// repeg_pnl_pct: (
 			// 	ammData.xcpr.div(ammData.xcp.div(new BN(1000))).toNumber() * 1000

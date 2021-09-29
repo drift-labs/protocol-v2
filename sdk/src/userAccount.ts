@@ -69,9 +69,11 @@ export class UserAccount {
 
 			// callback with latest account data
 			this.eventEmitter.emit('userAccountData', currentUserAccount);
+			this.eventEmitter.emit('update');
 
 			// callback with latest positions data
 			this.eventEmitter.emit('userPositionsData', currentUserPositionsAccount);
+			this.eventEmitter.emit('update');
 
 			// set up subscriber for account data
 			this.clearingHouse
@@ -81,6 +83,7 @@ export class UserAccount {
 					this.userAccountData = updateData;
 
 					this.eventEmitter.emit('userAccountData', updateData);
+					this.eventEmitter.emit('update');
 				});
 
 			// set up subscriber for positions data
@@ -94,9 +97,8 @@ export class UserAccount {
 					this.userPositionsAccount = updateData;
 
 					this.eventEmitter.emit('userPositionsData', updateData);
+					this.eventEmitter.emit('update');
 				});
-
-			this.eventEmitter.emit('update');
 
 			return true;
 		} catch (error) {
