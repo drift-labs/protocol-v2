@@ -230,7 +230,6 @@ export async function stress_test(
 		const marketData = marketsAccount.markets[market_i.toNumber()];
 		// assert.ok(marketData.initialized);
 		// assert.ok(marketData.baseAssetAmount.eq(new BN(0)));
-		// assert.ok(marketData.quoteAssetNotionalAmount.eq(new BN(0)));
 		// assert.ok(marketData.openInterest.eq(new BN(0)));
 		// assert.ok(marketData.volume.eq(new BN(0)));
 		// assert.ok(marketData.volumeArb.eq(new BN(0)));

@@ -43,10 +43,6 @@ pub fn increase_position(
         .quote_asset_amount
         .checked_add(new_quote_asset_notional_amount)
         .unwrap();
-    market.quote_asset_notional_amount = market
-        .quote_asset_notional_amount
-        .checked_add(new_quote_asset_notional_amount)
-        .unwrap();
 
     let swap_direction = match direction {
         PositionDirection::Long => SwapDirection::Add,
@@ -135,10 +131,6 @@ pub fn reduce_position<'info>(
         .quote_asset_amount
         .checked_sub(new_quote_asset_notional_amount)
         .unwrap();
-    market.quote_asset_notional_amount = market
-        .quote_asset_notional_amount
-        .checked_sub(new_quote_asset_notional_amount)
-        .unwrap();
 
     market.base_asset_volume = market
         .base_asset_volume
@@ -195,11 +187,6 @@ pub fn close_position(
     user.collateral = calculate_updated_collateral(user.collateral, pnl);
     market_position.last_cumulative_funding_rate = 0;
     market_position.last_cumulative_repeg_rebate = 0;
-
-    market.quote_asset_notional_amount = market
-        .quote_asset_notional_amount
-        .checked_sub(market_position.quote_asset_amount)
-        .unwrap();
 
     market.base_asset_volume = market
         .base_asset_volume

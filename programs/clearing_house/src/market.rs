@@ -30,9 +30,7 @@ pub struct Market {
     pub base_asset_amount_long: i128,
     pub base_asset_amount_short: i128,
     pub base_asset_amount: i128, // net market bias
-    // remove
-    pub quote_asset_notional_amount: u128, //outstanding notional?
-    pub open_interest: u128,               // number of users in a position
+    pub open_interest: u128,     // number of users in a position
     // remove
     pub base_asset_volume: u128, // amt of base asset volume since inception
     pub amm: AMM,

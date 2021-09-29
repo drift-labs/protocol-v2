@@ -115,7 +115,6 @@ describe('clearing_house', () => {
 		const marketData = marketsAccount.markets[0];
 		assert.ok(marketData.initialized);
 		assert.ok(marketData.baseAssetAmount.eq(new BN(0)));
-		assert.ok(marketData.quoteAssetNotionalAmount.eq(new BN(0)));
 		assert.ok(marketData.openInterest.eq(new BN(0)));
 		assert.ok(marketData.baseAssetVolume.eq(new BN(0)));
 
@@ -239,7 +238,6 @@ describe('clearing_house', () => {
 		const marketsAccount = clearingHouse.getMarketsAccount();
 
 		const market = marketsAccount.markets[0];
-		assert.ok(market.quoteAssetNotionalAmount.eq(new BN(50000000)));
 		console.log(market.baseAssetAmount.toNumber());
 
 		assert.ok(market.baseAssetAmount.eq(new BN(499950004999501)));
@@ -322,7 +320,6 @@ describe('clearing_house', () => {
 
 		const marketsAccount = clearingHouse.getMarketsAccount();
 		const market: any = marketsAccount.markets[0];
-		assert.ok(market.quoteAssetNotionalAmount.eq(new BN(25000000)));
 		assert.ok(market.baseAssetAmount.eq(new BN(249987500624969)));
 
 		const tradeHistoryAccount = clearingHouse.getTradeHistoryAccount();
@@ -380,7 +377,6 @@ describe('clearing_house', () => {
 
 		const marketsAccount = clearingHouse.getMarketsAccount();
 		const market: any = marketsAccount.markets[0];
-		assert.ok(market.quoteAssetNotionalAmount.eq(new BN(25000000)));
 		assert.ok(market.baseAssetAmount.eq(new BN(-250012500625031)));
 
 		const tradeHistoryAccount = clearingHouse.getTradeHistoryAccount();
@@ -426,7 +422,6 @@ describe('clearing_house', () => {
 
 		const marketsAccount = clearingHouse.getMarketsAccount();
 		const market: any = marketsAccount.markets[0];
-		assert.ok(market.quoteAssetNotionalAmount.eq(new BN(0)));
 		assert.ok(market.baseAssetAmount.eq(new BN(0)));
 
 		const tradeHistoryAccount = clearingHouse.getTradeHistoryAccount();
@@ -482,7 +477,6 @@ describe('clearing_house', () => {
 
 		const marketsAccount = clearingHouse.getMarketsAccount();
 		const market: any = marketsAccount.markets[0];
-		assert.ok(market.quoteAssetNotionalAmount.eq(new BN(50000000)));
 		assert.ok(market.baseAssetAmount.eq(new BN(-500050005000500)));
 
 		const tradeHistoryAccount = clearingHouse.getTradeHistoryAccount();

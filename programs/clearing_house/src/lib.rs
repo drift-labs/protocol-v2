@@ -111,7 +111,6 @@ pub mod clearing_house {
             base_asset_amount_long: 0,
             base_asset_amount_short: 0,
             base_asset_amount: 0,
-            quote_asset_notional_amount: 0,
             open_interest: 0,
             base_asset_volume: 0,
             amm: AMM {

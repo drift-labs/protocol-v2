@@ -914,10 +914,6 @@
             "type": "i128"
           },
           {
-            "name": "quoteAssetNotionalAmount",
-            "type": "u128"
-          },
-          {
             "name": "openInterest",
             "type": "u128"
           },
