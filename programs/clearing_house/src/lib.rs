@@ -1,33 +1,33 @@
-use anchor_lang::prelude::*;
-use bytemuck;
-
-use anchor_spl::token::{self, Token, TokenAccount, Transfer};
-use borsh::{BorshDeserialize, BorshSerialize};
 use std::cell::{Ref, RefMut};
 use std::cmp::max;
 
-mod bn;
-mod curve;
-mod market;
-use market::{Market, Markets, OracleSource, AMM};
-mod user;
-use user::{MarketPosition, User, UserPositions};
-mod history;
-use history::{FundingPaymentHistory, FundingPaymentRecord, TradeHistory, TradeRecord};
-mod constants;
-mod error;
-mod trade_execution;
-use trade_execution::*;
-mod math;
-use math::fees;
+use anchor_lang::prelude::*;
+use anchor_spl::token::{self, Token, TokenAccount, Transfer};
+use borsh::{BorshDeserialize, BorshSerialize};
+use bytemuck;
 
 use constants::*;
 use error::*;
+use history::{FundingPaymentHistory, FundingPaymentRecord, TradeHistory, TradeRecord};
+use market::{AMM, Market, Markets, OracleSource};
+use math::fees;
+use trade_execution::*;
+use user::{MarketPosition, User, UserPositions};
 
+mod bn;
+mod market;
+mod user;
+mod history;
+mod constants;
+mod error;
+mod trade_execution;
+mod math;
 declare_id!("HdfkJg9RcFZnBNEKrUvxR7srWwzYWRSkfLSQYjY9jg1Z");
 
 #[program]
 pub mod clearing_house {
+    use crate::math::curve;
+
     use super::*;
 
     pub fn initialize(

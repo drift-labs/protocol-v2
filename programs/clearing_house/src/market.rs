@@ -1,5 +1,5 @@
 use crate::bn;
-use crate::curve;
+use crate::math::curve;
 use crate::{SwapDirection, MARK_PRICE_MANTISSA, PRICE_TO_PEG_PRECISION_RATIO};
 use anchor_lang::prelude::*;
 use std::cmp::max;
