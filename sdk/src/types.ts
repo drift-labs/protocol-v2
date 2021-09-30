@@ -16,7 +16,6 @@ export class PositionDirection {
 	static readonly SHORT = { short: {} };
 }
 
-export type SubscriberResult<A, B> = { dataLabel: A; data: B };
 export type Subscriber<T> = (props: T) => void;
 
 export enum TradeSide {

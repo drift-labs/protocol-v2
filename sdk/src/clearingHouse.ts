@@ -842,18 +842,6 @@ export class ClearingHouse {
 			.mul(AMM_MANTISSA)
 			.mul(new BN(100))
 			.div(oracleTwapWithMantissa);
-		// solana ts is seconds since 1970, js is milliseconds.
-
-		// todo: need utc?
-		// var now = new Date;
-		// var nowUTC = Date.UTC(now.getUTCFullYear(),now.getUTCMonth(), now.getUTCDate() ,
-		// now.getUTCHours(), now.getUTCMinutes(), now.getUTCSeconds(), now.getUTCMilliseconds())/10000;
-
-		// const nowSOL = new BN(
-		//      await this.connection.getBlockTime(await this.connection.getSlot())
-		// );
-
-		// const timeSinceLastUpdate = new BN(nowUTC).sub(market.amm.fundingRateTs);
 
 		const now = new BN((Date.now() / 1000).toFixed(0));
 		const timeSinceLastUpdate = now.sub(market.amm.lastFundingRateTs);
@@ -1193,34 +1181,6 @@ export class ClearingHouse {
 			tp2 = targetPrice;
 			ogDiff = markPriceWithMantissa.sub(targetPrice);
 		}
-		try {
-			// console.log(
-			// 	'targetPrice',
-			// 	targetPrice.toNumber(),
-			// 	'targetPriceCalced',
-			// 	targetPriceCalced.toNumber(),
-			// 	'AMM_MANTISSA',
-			// 	AMM_MANTISSA.toNumber(),
-			// 	'markPriceWithMantissa',
-			// 	markPriceWithMantissa.toNumber()
-			// );
-			// console.log(
-			// 	'tp1',
-			// 	tp1.toNumber(),
-			// 	'tp2',
-			// 	tp2.toNumber(),
-			// 	'ogDiff',
-			// 	ogDiff.toNumber()
-			// );
-			// //note: high chance k is too big for .toNumber()
-			// console.log('y2', y2.toNumber(), 'y1', y1.toNumber());
-		} catch (err) {
-			// # this code block same behavior as
-			if (err instanceof TypeError) {
-				// except ValueError as err:
-				throw err; //     pass
-			}
-		}
 
 		const entryPrice = this.calculateCurvePriceWithMantissa(
 			baseSize.abs(),
@@ -1240,52 +1200,6 @@ export class ClearingHouse {
 		); //todo
 
 		return [direction, new BN(tradeSize), entryPrice, targetPrice];
-	}
-
-	public calculateBaseAssetPriceAfterSwapWithMantissa(
-		marketIndex: BN,
-		direction: PositionDirection,
-		amount: BN,
-		inputAsset?: string
-	): BN {
-		this.assertIsSubscribed();
-
-		const market = this.getMarketsAccount().markets[marketIndex.toNumber()];
-		const peg = market.amm.pegMultiplier;
-		const invariant = market.amm.sqrtK.mul(market.amm.sqrtK);
-
-		let inputAssetAmount;
-		let outputAssetAmount;
-		if (inputAsset == undefined) {
-			inputAsset = 'quote';
-		}
-		assert(['quote', 'base'].includes(inputAsset));
-
-		if (inputAsset == 'base') {
-			inputAssetAmount = market.amm.baseAssetReserve;
-			outputAssetAmount = market.amm.quoteAssetReserve;
-		} else {
-			inputAssetAmount = market.amm.quoteAssetReserve;
-			outputAssetAmount = market.amm.baseAssetReserve;
-		}
-
-		const [newQuoteAssetAmount, newBaseAssetAmount] = this.findSwapOutput(
-			inputAssetAmount,
-			outputAssetAmount,
-			direction,
-			amount.abs(),
-			inputAsset,
-			invariant,
-			market.amm.pegMultiplier
-		);
-
-		const newBaseAssetPriceWithMantissa = this.calculateCurvePriceWithMantissa(
-			newBaseAssetAmount,
-			newQuoteAssetAmount,
-			peg
-		);
-
-		return newBaseAssetPriceWithMantissa;
 	}
 
 	public calculateBaseAssetValue(marketPosition: UserPosition) {

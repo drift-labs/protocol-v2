@@ -15,7 +15,6 @@ const FULL_LIQUIDATION_RATIO = new BN(500);
 const PARTIAL_LIQUIDATION_RATIO = new BN(625);
 const ZERO = new BN(0);
 const BN_MAX = new BN(Number.MAX_SAFE_INTEGER);
-const _THOUSAND = new BN(1000);
 const TEN_THOUSAND = new BN(10000);
 interface UserAccountEvents {
 	userAccountData: (payload: UserAccountData) => void;
