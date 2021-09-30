@@ -99,8 +99,15 @@ async function deploy(provider: Provider) {
 
 	console.log("Bot's associated key:", associatedTokenPublicKey.toString());
 
+	const clearingHouseForBot = new ClearingHouse(
+		connection,
+		botWallet,
+		chProgram.programId
+	);
+	await clearingHouseForBot.subscribe();
+
 	console.log('Initializing Bot for devnet');
-	await clearingHouse.initializeUserAccountForDevnet(
+	await clearingHouseForBot.initializeUserAccountForDevnet(
 		mockUsdcFaucet,
 		new BN(10 ** 13) // $10M
 	);
@@ -175,7 +182,7 @@ try {
 	if (!process.env.ANCHOR_WALLET) {
 		throw new Error("ANCHOR_WALLET must be set.");
 	}
-	deploy(anchor.Provider.local("https://api.devnet.solana.com"));
+	deploy(anchor.Provider.local("https://psytrbhymqlkfrhudd.dev.genesysgo.net:8899/"));
 } catch (e) {
 	console.error(e);
 }
