@@ -1373,8 +1373,6 @@ fn _settle_funding_payment(
             market_position.last_cumulative_funding_rate = amm.cumulative_funding_rate;
             market_position.last_funding_rate_ts = amm.last_funding_rate_ts;
         }
-
-        _settle_repeg_profit_position(user, market_position, market);
     }
 
     // longs pay shorts the `funding_payment`
@@ -1387,48 +1385,6 @@ fn _settle_funding_payment(
         .unwrap();
 
     user.collateral = calculate_updated_collateral(user.collateral, funding_payment_collateral);
-}
-
-fn _settle_repeg_profit_position(
-    user: &mut User,
-    market_position: &mut MarketPosition,
-    market: &Market,
-) {
-    if market_position.base_asset_amount > 0
-        && market_position.last_cumulative_repeg_rebate != market.amm.cumulative_repeg_rebate_long
-        || market_position.base_asset_amount < 0
-            && market_position.last_cumulative_repeg_rebate
-                != market.amm.cumulative_repeg_rebate_short
-    {
-        let repeg_profit_share = if market_position.base_asset_amount > 0 {
-            market
-                .amm
-                .cumulative_repeg_rebate_long
-                .checked_sub(market_position.last_cumulative_repeg_rebate)
-                .unwrap()
-        } else {
-            market
-                .amm
-                .cumulative_repeg_rebate_short
-                .checked_sub(market_position.last_cumulative_repeg_rebate)
-                .unwrap()
-        };
-        market_position.last_cumulative_repeg_rebate = if market_position.base_asset_amount > 0 {
-            market.amm.cumulative_repeg_rebate_long
-        } else {
-            market.amm.cumulative_repeg_rebate_short
-        };
-
-        let repeg_profit_share_pnl = (repeg_profit_share as u128)
-            .checked_mul(market_position.base_asset_amount.unsigned_abs())
-            .unwrap()
-            .checked_div(FUNDING_PAYMENT_MANTISSA)
-            .unwrap();
-        user.total_fee_paid = user
-            .total_fee_paid
-            .checked_sub(repeg_profit_share_pnl as i128)
-            .unwrap();
-    }
 }
 
 fn _calculate_funding_payment_notional(amm: &AMM, market_position: &MarketPosition) -> i128 {
