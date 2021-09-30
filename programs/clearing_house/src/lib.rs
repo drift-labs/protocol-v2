@@ -23,7 +23,7 @@ mod fees;
 use constants::*;
 use error::*;
 
-declare_id!("2k1LKksMT5Ree2ad5xPzGY8eTj9cjvNBrCAunzYfJjZ7");
+declare_id!("HdfkJg9RcFZnBNEKrUvxR7srWwzYWRSkfLSQYjY9jg1Z");
 
 #[program]
 pub mod clearing_house {
