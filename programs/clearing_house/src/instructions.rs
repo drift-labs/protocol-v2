@@ -1,10 +1,10 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Token, TokenAccount};
 
-use crate::history::{FundingPaymentHistory, TradeHistory};
-use crate::market::Markets;
-use crate::user::{User, UserPositions};
-use crate::State;
+use crate::state::history::{FundingPaymentHistory, TradeHistory};
+use crate::state::market::Markets;
+use crate::state::state::State;
+use crate::state::user::{User, UserPositions};
 
 #[derive(Accounts)]
 #[instruction(clearing_house_nonce: u8)]

@@ -1,10 +1,10 @@
 use std::cell::{Ref, RefMut};
 
-use crate::market::Markets;
 use crate::math::collateral::calculate_updated_collateral;
 use crate::math::constants::MARGIN_MANTISSA;
 use crate::math::position::calculate_base_asset_value_and_pnl;
-use crate::user::{User, UserPositions};
+use crate::state::market::Markets;
+use crate::state::user::{User, UserPositions};
 
 pub fn calculate_margin_ratio(
     user: &User,

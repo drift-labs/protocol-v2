@@ -1,9 +1,9 @@
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 
-use crate::market::SwapDirection;
 use crate::math::collateral::calculate_updated_collateral;
 use crate::math::position::calculate_base_asset_value_and_pnl;
+use crate::state::market::SwapDirection;
 use crate::{Market, MarketPosition, User};
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq)]
