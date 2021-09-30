@@ -613,6 +613,71 @@
   ],
   "accounts": [
     {
+      "name": "TradeHistory",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "head",
+            "type": "u64"
+          },
+          {
+            "name": "tradeRecords",
+            "type": {
+              "array": [
+                {
+                  "defined": "TradeRecord"
+                },
+                1000
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "FundingPaymentHistory",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "head",
+            "type": "u64"
+          },
+          {
+            "name": "fundingRateRecords",
+            "type": {
+              "array": [
+                {
+                  "defined": "FundingPaymentRecord"
+                },
+                1000
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Markets",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "markets",
+            "type": {
+              "array": [
+                {
+                  "defined": "Market"
+                },
+                1000
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
       "name": "State",
       "type": {
         "kind": "struct",
@@ -716,71 +781,6 @@
           {
             "name": "collateralDeposits",
             "type": "u128"
-          }
-        ]
-      }
-    },
-    {
-      "name": "TradeHistory",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "head",
-            "type": "u64"
-          },
-          {
-            "name": "tradeRecords",
-            "type": {
-              "array": [
-                {
-                  "defined": "TradeRecord"
-                },
-                1000
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "FundingPaymentHistory",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "head",
-            "type": "u64"
-          },
-          {
-            "name": "fundingRateRecords",
-            "type": {
-              "array": [
-                {
-                  "defined": "FundingPaymentRecord"
-                },
-                1000
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "Markets",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "markets",
-            "type": {
-              "array": [
-                {
-                  "defined": "Market"
-                },
-                1000
-              ]
-            }
           }
         ]
       }
@@ -1224,5 +1224,8 @@
       "name": "TradeSizeTooSmall",
       "msg": "Trade Size Too Small"
     }
-  ]
+  ],
+  "metadata": {
+    "address": "Hn5QxcBS3F378b3Uc2pEcbfm7ULMkLthbVrYtP1HHhZc"
+  }
 }

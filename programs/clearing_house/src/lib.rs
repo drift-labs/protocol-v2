@@ -22,7 +22,7 @@ mod instructions;
 mod math;
 mod state;
 mod trade;
-declare_id!("HdfkJg9RcFZnBNEKrUvxR7srWwzYWRSkfLSQYjY9jg1Z");
+declare_id!("Hn5QxcBS3F378b3Uc2pEcbfm7ULMkLthbVrYtP1HHhZc");
 
 #[program]
 pub mod clearing_house {
