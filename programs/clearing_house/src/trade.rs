@@ -2,9 +2,8 @@ use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 
 use crate::market::SwapDirection;
-use crate::{
-    calculate_base_asset_value_and_pnl, calculate_updated_collateral, Market, MarketPosition, User,
-};
+use crate::math::position::calculate_base_asset_value_and_pnl;
+use crate::{calculate_updated_collateral, Market, MarketPosition, User};
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq)]
 pub enum PositionDirection {

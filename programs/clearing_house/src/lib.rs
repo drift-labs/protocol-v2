@@ -7,8 +7,8 @@ use bytemuck;
 
 use error::*;
 use history::{FundingPaymentHistory, TradeHistory, TradeRecord};
-use market::{Market, Markets, OracleSource, SwapDirection, AMM};
-use math::{bn, constants::*, curve, fees, margin::*};
+use market::{Market, Markets, OracleSource, AMM};
+use math::{bn, constants::*, curve, fees, margin::*, position::*};
 use trade::*;
 use user::{MarketPosition, User, UserPositions};
 
@@ -1344,20 +1344,6 @@ fn calculate_withdrawal_amounts(
             insurance_token_account.amount,
         )
     };
-}
-
-fn calculate_base_asset_value_and_pnl(market_position: &MarketPosition, amm: &AMM) -> (u128, i128) {
-    let swap_direction = if market_position.base_asset_amount > 0 {
-        SwapDirection::Add
-    } else {
-        SwapDirection::Remove
-    };
-    let (quote_asset_acquired, pnl) = amm.find_swap_output_and_pnl(
-        market_position.base_asset_amount.unsigned_abs(),
-        market_position.quote_asset_amount,
-        swap_direction,
-    );
-    return (quote_asset_acquired, pnl);
 }
 
 fn calculate_updated_collateral(collateral: u128, pnl: i128) -> u128 {
