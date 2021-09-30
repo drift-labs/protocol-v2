@@ -190,20 +190,21 @@ export class UserAccount {
 
 	getTotalPositionValue(): BN {
 		this.assertIsSubscribed();
-		return this.userPositionsAccount.positions.reduce(
-			(positionValue, marketPosition) => {
+		return this.userPositionsAccount.positions
+			.reduce((positionValue, marketPosition) => {
 				return positionValue.add(
 					this.clearingHouse.calculateBaseAssetValue(marketPosition)
 				);
-			},
-			ZERO
-		).div(AMM_MANTISSA);
+			}, ZERO)
+			.div(AMM_MANTISSA);
 	}
 
 	public getPositionValue(positionIndex: number): BN {
-		return this.clearingHouse.calculateBaseAssetValue(
+		return this.clearingHouse
+			.calculateBaseAssetValue(
 				this.userPositionsAccount.positions[positionIndex]
-		).div(AMM_MANTISSA);
+			)
+			.div(AMM_MANTISSA);
 	}
 
 	public getPositionEstimatedExitPriceWithMantissa(position: UserPosition): BN {
@@ -211,7 +212,9 @@ export class UserAccount {
 		if (position.baseAssetAmount.eq(ZERO)) {
 			return ZERO;
 		}
-		return baseAssetValue.mul(QUOTE_BASE_PRECISION_DIFF).div(position.baseAssetAmount.abs());
+		return baseAssetValue
+			.mul(QUOTE_BASE_PRECISION_DIFF)
+			.div(position.baseAssetAmount.abs());
 	}
 
 	/**
@@ -255,7 +258,11 @@ export class UserAccount {
 
 			const market =
 				marketsAccount.markets[userPosition.marketIndex.toNumber()];
-			if (market.amm.cumulativeFundingRate.eq(userPosition.lastCumulativeFundingRate)) {
+			if (
+				market.amm.cumulativeFundingRate.eq(
+					userPosition.lastCumulativeFundingRate
+				)
+			) {
 				continue;
 			}
 
@@ -264,13 +271,15 @@ export class UserAccount {
 		return false;
 	}
 
-	public liquidationPrice(marketPosition: Pick<UserPosition, "baseAssetAmount"|"marketIndex">, 
-	proposedTradeSize: BN=ZERO, partial=false): BN {
+	public liquidationPrice(
+		marketPosition: Pick<UserPosition, 'baseAssetAmount' | 'marketIndex'>,
+		proposedTradeSize: BN = ZERO,
+		partial = false
+	): BN {
 		// +/-(margin_ratio-liq_ratio) * price_now = price_liq
 		// todo: margin_ratio is not symmetric on price action (both numer and denom change)
 		// margin_ratio = collateral / base_asset_value
 
-		
 		/* example: assume BTC price is $40k (examine 10% up/down)
 		
 		if 10k deposit and levered 10x short BTC => BTC up $400 means:
@@ -293,10 +302,11 @@ export class UserAccount {
 			baseAssetAmount: proposedTradeSize,
 			lastCumulativeFundingRate: new BN(0),
 			quoteAssetAmount: new BN(0),
-
 		};
 
-		totalPositionValue = totalPositionValue.add(this.clearingHouse.calculateBaseAssetValue(proposedMarketPosition));
+		totalPositionValue = totalPositionValue.add(
+			this.clearingHouse.calculateBaseAssetValue(proposedMarketPosition)
+		);
 
 		let marginRatio;
 		if (totalPositionValue.eq(ZERO)) {

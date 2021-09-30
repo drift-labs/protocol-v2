@@ -1,11 +1,7 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
 import { Program } from '@project-serum/anchor';
-import {
-	ClearingHouse,
-	MockUSDCFaucet,
-	UserAccount,
-} from '../sdk/src';
+import { ClearingHouse, MockUSDCFaucet, UserAccount } from '../sdk/src';
 import BN from 'bn.js';
 import { Keypair, PublicKey } from '@solana/web3.js';
 import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';

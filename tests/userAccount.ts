@@ -21,8 +21,12 @@ describe('User Account', () => {
 		chProgram.programId
 	);
 
-	const ammInitialQuoteAssetAmount = new anchor.BN(2 * 10 ** 12).mul(new BN(10**6));
-	const ammInitialBaseAssetAmount = new anchor.BN(2 * 10 ** 12).mul(new BN(10**6));
+	const ammInitialQuoteAssetAmount = new anchor.BN(2 * 10 ** 12).mul(
+		new BN(10 ** 6)
+	);
+	const ammInitialBaseAssetAmount = new anchor.BN(2 * 10 ** 12).mul(
+		new BN(10 ** 6)
+	);
 
 	let usdcMint: Keypair;
 	let userUSDCAccount: Keypair;
@@ -54,7 +58,7 @@ describe('User Account', () => {
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,
 			periodicity,
-			new BN(initialSOLPrice).mul(PEG_SCALAR),
+			new BN(initialSOLPrice).mul(PEG_SCALAR)
 		);
 
 		await clearingHouse.initializeUserAccount();
@@ -142,7 +146,7 @@ describe('User Account', () => {
 			userUSDCAccount.publicKey
 		);
 
-		const expectedBuyingPower = (new BN(10000000)).mul(MAX_LEVERAGE);
+		const expectedBuyingPower = new BN(10000000).mul(MAX_LEVERAGE);
 		const expectedFreeCollateral = new BN(10000000);
 		const expectedPNL = new BN(0);
 		const expectedTotalCollateral = new BN(10000000);

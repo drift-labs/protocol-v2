@@ -4,4 +4,4 @@ import * as anchor from '@project-serum/anchor';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const main = require('./deploy');
 
-main(anchor.Provider.local("https://api.devnet.solana.com"));
+main(anchor.Provider.local('https://api.devnet.solana.com'));

@@ -59,7 +59,7 @@ describe('stress-test', () => {
 			1,
 			100,
 			10000 * 10 ** 11,
-			10 ** (13),
+			10 ** 13,
 			// 'utils/configs/slipfee.test.csv',
 			undefined,
 			[pegM, pegM],

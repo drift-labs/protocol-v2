@@ -2,11 +2,7 @@ import * as anchor from '@project-serum/anchor';
 import { Program } from '@project-serum/anchor';
 import { Keypair } from '@solana/web3.js';
 import BN from 'bn.js';
-import {
-	AMM_MANTISSA,
-	ClearingHouse,
-	PositionDirection,
-} from '../sdk/src';
+import { AMM_MANTISSA, ClearingHouse, PositionDirection } from '../sdk/src';
 import { UserAccount } from '../sdk/src/userAccount';
 import { mockUSDCMint, mockUserUSDCAccount } from '../utils/mockAccounts';
 import { createPriceFeed } from '../utils/mockPythUtils';
@@ -32,9 +28,11 @@ describe('AMM Curve', () => {
 	let solUsdOracle;
 	const marketIndex = new BN(0);
 	const initialSOLPrice = 46000;
-	function normAssetAmount(assetAmount: BN, pegMultiplier: number) : BN{
+	function normAssetAmount(assetAmount: BN, pegMultiplier: number): BN {
 		// assetAmount is scaled to offer comparable slippage
-		return assetAmount.mul(AMM_MANTISSA).div(new BN((pegMultiplier) * AMM_MANTISSA.toNumber()));
+		return assetAmount
+			.mul(AMM_MANTISSA)
+			.div(new BN(pegMultiplier * AMM_MANTISSA.toNumber()));
 	}
 	const usdcAmount = new BN(10000 * 10 ** 6);
 	const solPositionInitialValue = usdcAmount;

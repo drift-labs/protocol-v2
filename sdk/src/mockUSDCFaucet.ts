@@ -39,28 +39,26 @@ export class MockUSDCFaucet {
 		this.opts = opts || Provider.defaultOptions();
 		const provider = new Provider(connection, wallet, this.opts);
 		this.provider = provider;
-		this.program = new Program(
-			mockUSDCFaucetIDL as Idl,
-			programId,
-			provider
-		);
+		this.program = new Program(mockUSDCFaucetIDL as Idl, programId, provider);
 	}
 
-	public async getMockUSDCFaucetStatePublicKeyAndNonce(): Promise<[PublicKey, number]> {
+	public async getMockUSDCFaucetStatePublicKeyAndNonce(): Promise<
+		[PublicKey, number]
+	> {
 		return anchor.web3.PublicKey.findProgramAddress(
-			[
-				Buffer.from(anchor.utils.bytes.utf8.encode('mock_usdc_faucet')),
-			],
+			[Buffer.from(anchor.utils.bytes.utf8.encode('mock_usdc_faucet'))],
 			this.program.programId
 		);
 	}
 
-	mockUSDCFaucetStatePublicKey? : PublicKey;
+	mockUSDCFaucetStatePublicKey?: PublicKey;
 	public async getMockUSDCFaucetStatePublicKey(): Promise<PublicKey> {
 		if (this.mockUSDCFaucetStatePublicKey) {
 			return this.mockUSDCFaucetStatePublicKey;
 		}
-		this.mockUSDCFaucetStatePublicKey = (await this.getMockUSDCFaucetStatePublicKeyAndNonce())[0];
+		this.mockUSDCFaucetStatePublicKey = (
+			await this.getMockUSDCFaucetStatePublicKeyAndNonce()
+		)[0];
 		return this.mockUSDCFaucetStatePublicKey;
 	}
 
@@ -95,7 +93,8 @@ export class MockUSDCFaucet {
 			null
 		);
 
-		const [mockUSDCFaucetStatePublicKey, mockUSDCFaucetStateNonce] = await this.getMockUSDCFaucetStatePublicKeyAndNonce();
+		const [mockUSDCFaucetStatePublicKey, mockUSDCFaucetStateNonce] =
+			await this.getMockUSDCFaucetStatePublicKeyAndNonce();
 		return await this.program.rpc.initialize(mockUSDCFaucetStateNonce, {
 			accounts: {
 				mockUsdcFaucetState: mockUSDCFaucetStatePublicKey,
@@ -109,7 +108,7 @@ export class MockUSDCFaucet {
 		});
 	}
 
-	public async fetchState() : Promise<any> {
+	public async fetchState(): Promise<any> {
 		return await this.program.account.mockUsdcFaucetState.fetch(
 			await this.getMockUSDCFaucetStatePublicKey()
 		);

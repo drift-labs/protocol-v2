@@ -3,11 +3,7 @@ import { PublicKey } from '@solana/web3.js';
 import BN from 'bn.js';
 import csv from 'csvtojson';
 import fs from 'fs';
-import {
-	ClearingHouse,
-	PositionDirection,
-	UserAccount,
-} from '../sdk/src';
+import { ClearingHouse, PositionDirection, UserAccount } from '../sdk/src';
 import { mockUserUSDCAccount } from './mockAccounts';
 
 export async function initUserAccounts(
@@ -73,12 +69,7 @@ export async function initUserAccounts(
 
 		user_keys.push(userAccountPublicKey);
 	}
-	return [
-		userUSDCAccounts,
-		user_keys,
-		clearingHouses,
-		userAccountInfos,
-	];
+	return [userUSDCAccounts, user_keys, clearingHouses, userAccountInfos];
 }
 
 export async function simEvent(

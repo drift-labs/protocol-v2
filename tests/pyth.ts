@@ -9,7 +9,7 @@ import {
 	mockUSDCMint,
 } from '../utils/mockAccounts';
 import { getFeedData, setFeedPrice } from '../utils/mockPythUtils';
-import { PEG_SCALAR, stripMantissa } from "../sdk";
+import { PEG_SCALAR, stripMantissa } from '../sdk';
 
 import { Program } from '@project-serum/anchor';
 
@@ -21,14 +21,13 @@ async function updateFundingRateHelper(
 	clearingHouse: ClearingHouse,
 	marketIndex: BN,
 	priceFeedAddress: PublicKey,
-	prices: Array<number>,
+	prices: Array<number>
 ) {
 	for (let i = 0; i < prices.length; i++) {
 		await new Promise((r) => setTimeout(r, 1000)); // wait 1 second
 
 		const newprice = prices[i];
 		setFeedPrice(anchor.workspace.Pyth, newprice, priceFeedAddress);
-
 
 		const marketsAccount0 = await clearingHouse.getMarketsAccount();
 		const marketData0 = marketsAccount0.markets[marketIndex.toNumber()];
@@ -38,8 +37,8 @@ async function updateFundingRateHelper(
 			ammAccountState0.oracle
 		);
 
-		const priceSpread0 = (stripMantissa(ammAccountState0.lastMarkPriceTwap) -
-			oraclePx0.twap);
+		const priceSpread0 =
+			stripMantissa(ammAccountState0.lastMarkPriceTwap) - oraclePx0.twap;
 		const frontEndFundingCalc0 = priceSpread0 / oraclePx0.twap / (24 * 3600);
 
 		console.log(
@@ -60,24 +59,23 @@ async function updateFundingRateHelper(
 			marketIndex
 		);
 
-		const CONVERSION_SCALE = (FUNDING_MANTISSA).mul(AMM_MANTISSA);
+		const CONVERSION_SCALE = FUNDING_MANTISSA.mul(AMM_MANTISSA);
 
 		const marketsAccount = await clearingHouse.getMarketsAccount();
 		const marketData = marketsAccount.markets[marketIndex.toNumber()];
 		const ammAccountState = marketData.amm;
 		const peroidicity = marketData.amm.fundingPeriod;
 
-		const lastFundingRate = stripMantissa(ammAccountState.lastFundingRate, CONVERSION_SCALE);
-
-		console.log(
-			'last funding rate:',
-			lastFundingRate
+		const lastFundingRate = stripMantissa(
+			ammAccountState.lastFundingRate,
+			CONVERSION_SCALE
 		);
+
+		console.log('last funding rate:', lastFundingRate);
 		console.log(
 			'cumfunding rate:',
 			stripMantissa(ammAccountState.cumulativeFundingRate, CONVERSION_SCALE)
 		);
-		
 
 		const oraclePx = await getFeedData(
 			anchor.workspace.Pyth,
@@ -85,8 +83,10 @@ async function updateFundingRateHelper(
 		);
 
 		const priceSpread =
-			ammAccountState.lastMarkPriceTwap.toNumber() / AMM_MANTISSA.toNumber() - oraclePx.twap;
-		const frontEndFundingCalc = priceSpread / (24 * 3600 / Math.max(1, peroidicity.toNumber()));
+			ammAccountState.lastMarkPriceTwap.toNumber() / AMM_MANTISSA.toNumber() -
+			oraclePx.twap;
+		const frontEndFundingCalc =
+			priceSpread / ((24 * 3600) / Math.max(1, peroidicity.toNumber()));
 
 		console.log(
 			'funding rate frontend calc:',
@@ -181,7 +181,7 @@ describe('pyth-oracle', () => {
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,
 			periodicity,
-			new BN(30*PEG_SCALAR.toNumber())
+			new BN(30 * PEG_SCALAR.toNumber())
 		);
 
 		await updateFundingRateHelper(
@@ -203,16 +203,19 @@ describe('pyth-oracle', () => {
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,
 			periodicity,
-			new BN(41.5*PEG_SCALAR.toNumber())
+			new BN(41.5 * PEG_SCALAR.toNumber())
 		);
 
-		await clearingHouse.moveAmmToPrice(marketIndex, new BN(41.5 * AMM_MANTISSA.toNumber()));
+		await clearingHouse.moveAmmToPrice(
+			marketIndex,
+			new BN(41.5 * AMM_MANTISSA.toNumber())
+		);
 
 		await updateFundingRateHelper(
 			clearingHouse,
 			marketIndex,
 			priceFeedAddress,
-			[41.501, 41.499],
+			[41.501, 41.499]
 		);
 	});
 });

@@ -29,25 +29,23 @@ async function main() {
 
 	const chProgram = anchor.workspace.ClearingHouse as Program;
 	let chProgramId;
-	if(!chProgram){
+	if (!chProgram) {
 		chProgramId = new PublicKey(process.env.CLEARING_HOUSE_PROGRAM_ID);
-	} else{
+	} else {
 		chProgramId = chProgram.programId;
 	}
 
-	const clearingHouse = new ClearingHouse(
-		connection,
-		botWallet,
-		chProgramId
-		);
+	const clearingHouse = new ClearingHouse(connection, botWallet, chProgramId);
 	await clearingHouse.subscribe();
 	console.log(`Clearing House: ${chProgramId.toString()}`);
 
 	const mockUsdcFaucetProgram = anchor.workspace.MockUsdcFaucet as Program;
 	let mockUsdcFaucetProgramId;
-	if(!chProgram){
-		mockUsdcFaucetProgramId = new PublicKey(process.env.MOCK_USDC_FAUCET_ADDRESS);
-	} else{
+	if (!chProgram) {
+		mockUsdcFaucetProgramId = new PublicKey(
+			process.env.MOCK_USDC_FAUCET_ADDRESS
+		);
+	} else {
 		mockUsdcFaucetProgramId = mockUsdcFaucetProgram.programId;
 	}
 
@@ -56,9 +54,7 @@ async function main() {
 		botWallet,
 		mockUsdcFaucetProgramId
 	);
-	console.log(
-		`Mock USDC Faucet: ${mockUsdcFaucetProgramId.toString()}`
-	);
+	console.log(`Mock USDC Faucet: ${mockUsdcFaucetProgramId.toString()}`);
 
 	const associatedTokenPublicKey =
 		await mockUsdcFaucet.getAssosciatedMockUSDMintAddress({

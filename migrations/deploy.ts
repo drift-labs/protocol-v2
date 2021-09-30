@@ -1,6 +1,6 @@
 import * as anchor from '@project-serum/anchor';
-import {Program, Provider, Wallet} from '@project-serum/anchor';
-import {Keypair, PublicKey} from '@solana/web3.js';
+import { Program, Provider, Wallet } from '@project-serum/anchor';
+import { Keypair, PublicKey } from '@solana/web3.js';
 import BN from 'bn.js';
 import { ClearingHouse, PythClient } from '../sdk/';
 import { AMM_MANTISSA, MockUSDCFaucet, PEG_SCALAR } from '../sdk/src';
@@ -44,31 +44,33 @@ async function deploy(provider: Provider) {
 
 	const pythClient = new PythClient(clearingHouse.connection);
 
-	function normAssetAmount(assetAmount: BN, pegMultiplier: BN) : BN{
+	function normAssetAmount(assetAmount: BN, pegMultiplier: BN): BN {
 		// assetAmount is scaled to offer comparable slippage
 		return assetAmount.mul(AMM_MANTISSA).div(pegMultiplier);
 	}
 	const devnetOracles = {
-		"SOL": "J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix",
-		"BTC": "HovQMDrbAgAYPCmHVSrezcSmkMtXSSUsLDFANExrZh2J",
-		"ETH": "EdVCmQ9FSPcVe5YySXDPCRmc8aDQLKJ9xvYBMZPie1Vw",
-		"COPE": "BAXDJUXtz6P5ARhHH1aPwgv4WENzHwzyhmLYK4daFwiM",
+		SOL: 'J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix',
+		BTC: 'HovQMDrbAgAYPCmHVSrezcSmkMtXSSUsLDFANExrZh2J',
+		ETH: 'EdVCmQ9FSPcVe5YySXDPCRmc8aDQLKJ9xvYBMZPie1Vw',
+		COPE: 'BAXDJUXtz6P5ARhHH1aPwgv4WENzHwzyhmLYK4daFwiM',
 	};
 	const marketOracleKeys = Object.keys(devnetOracles);
 
-	for(let i=0; i<marketOracleKeys.length; i++){
+	for (let i = 0; i < marketOracleKeys.length; i++) {
 		const keyName = marketOracleKeys[i];
 		const oraclePriceKey = devnetOracles[keyName];
-		const astPrice = (await pythClient.getPriceData(new PublicKey(oraclePriceKey))).price;
+		const astPrice = (
+			await pythClient.getPriceData(new PublicKey(oraclePriceKey))
+		).price;
 		console.log(keyName + ' Price:', astPrice);
-	
+
 		const marketIndex = new BN(i);
 		const periodicity = new BN(3600);
 		const ammQuoteAssetAmount = new anchor.BN(2 * 10 ** 13);
 		const ammBaseAssetAmount = new anchor.BN(2 * 10 ** 13);
 		const pegMultiplierAst = new anchor.BN(astPrice * PEG_SCALAR.toNumber());
-	
-		console.log('Initializing Market for ', keyName,'/USD: ');
+
+		console.log('Initializing Market for ', keyName, '/USD: ');
 		await clearingHouse.subscribe();
 		await clearingHouse.initializeMarket(
 			marketIndex,
@@ -123,7 +125,7 @@ async function deploy(provider: Provider) {
 }
 
 async function replace(filePath: string, search: RegExp, replacement: string) {
-	fs.readFile(filePath, 'utf8', function (err,data) {
+	fs.readFile(filePath, 'utf8', function (err, data) {
 		if (err) {
 			return console.error(err);
 		}
@@ -139,7 +141,7 @@ async function updateEnvFiles(
 	clearingHouseProgramId: PublicKey,
 	mockUSDCFaucetProgramId: PublicKey,
 	USDCMintProgramId: PublicKey,
-	offChainBotTokenAccount: PublicKey,
+	offChainBotTokenAccount: PublicKey
 ) {
 	const uiEnvPath = `${__dirname}/../../ui/.env`;
 	await replace(
@@ -180,9 +182,11 @@ async function updateEnvFiles(
 
 try {
 	if (!process.env.ANCHOR_WALLET) {
-		throw new Error("ANCHOR_WALLET must be set.");
+		throw new Error('ANCHOR_WALLET must be set.');
 	}
-	deploy(anchor.Provider.local("https://psytrbhymqlkfrhudd.dev.genesysgo.net:8899/"));
+	deploy(
+		anchor.Provider.local('https://psytrbhymqlkfrhudd.dev.genesysgo.net:8899/')
+	);
 } catch (e) {
 	console.error(e);
 }
