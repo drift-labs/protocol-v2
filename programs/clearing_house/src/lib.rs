@@ -6,15 +6,14 @@ use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 use borsh::{BorshDeserialize, BorshSerialize};
 use bytemuck;
 
-use constants::*;
 use error::*;
 use history::{FundingPaymentHistory, TradeHistory, TradeRecord};
 use market::{Market, Markets, OracleSource, AMM};
+use math::constants::*;
 use math::fees;
 use trade::*;
 use user::{MarketPosition, User, UserPositions};
 
-mod constants;
 mod error;
 mod funding;
 mod history;
