@@ -1,4 +1,4 @@
-use crate::bn;
+use crate::math::bn;
 use crate::math::curve;
 use crate::{SwapDirection, MARK_PRICE_MANTISSA, PRICE_TO_PEG_PRECISION_RATIO};
 use anchor_lang::prelude::*;

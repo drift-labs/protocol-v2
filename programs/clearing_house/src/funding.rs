@@ -1,10 +1,10 @@
-use crate::bn;
 use crate::calculate_updated_collateral;
 use crate::constants::{
     BASE_ASSET_AMOUNT_PRECISION, FUNDING_PAYMENT_MANTISSA, MARK_PRICE_MANTISSA, USDC_PRECISION,
 };
 use crate::history::{FundingPaymentHistory, FundingPaymentRecord};
 use crate::market::{Markets, AMM};
+use crate::math::bn;
 use crate::user::{MarketPosition, User, UserPositions};
 use anchor_lang::prelude::*;
 use std::cell::{Ref, RefMut};

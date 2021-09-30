@@ -14,7 +14,6 @@ use math::fees;
 use trade::*;
 use user::{MarketPosition, User, UserPositions};
 
-mod bn;
 mod constants;
 mod error;
 mod funding;
@@ -27,7 +26,7 @@ declare_id!("HdfkJg9RcFZnBNEKrUvxR7srWwzYWRSkfLSQYjY9jg1Z");
 
 #[program]
 pub mod clearing_house {
-    use crate::math::curve;
+    use crate::math::{bn, curve};
 
     use super::*;
 
