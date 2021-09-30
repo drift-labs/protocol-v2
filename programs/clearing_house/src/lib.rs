@@ -18,7 +18,8 @@ mod constants;
 mod error;
 mod trade_execution;
 use trade_execution::*;
-mod fees;
+mod math;
+use math::fees;
 
 use constants::*;
 use error::*;
