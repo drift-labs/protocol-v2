@@ -283,7 +283,7 @@
           }
         },
         {
-          "name": "quoteAssetNotionalAmount",
+          "name": "quoteAssetAmount",
           "type": "u128"
         },
         {

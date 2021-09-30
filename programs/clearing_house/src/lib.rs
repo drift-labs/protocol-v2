@@ -9,19 +9,19 @@ use bytemuck;
 use constants::*;
 use error::*;
 use history::{FundingPaymentHistory, FundingPaymentRecord, TradeHistory, TradeRecord};
-use market::{AMM, Market, Markets, OracleSource};
+use market::{Market, Markets, OracleSource, AMM};
 use math::fees;
 use trade_execution::*;
 use user::{MarketPosition, User, UserPositions};
 
 mod bn;
-mod market;
-mod user;
-mod history;
 mod constants;
 mod error;
-mod trade_execution;
+mod history;
+mod market;
 mod math;
+mod trade_execution;
+mod user;
 declare_id!("HdfkJg9RcFZnBNEKrUvxR7srWwzYWRSkfLSQYjY9jg1Z");
 
 #[program]
@@ -284,7 +284,7 @@ pub mod clearing_house {
     pub fn open_position<'info>(
         ctx: Context<OpenPosition>,
         direction: PositionDirection,
-        quote_asset_notional_amount: u128,
+        quote_asset_amount: u128,
         market_index: u64,
         limit_price: u128,
     ) -> ProgramResult {
@@ -350,7 +350,7 @@ pub mod clearing_house {
 
             let trade_size_too_small = trade_execution::increase_position(
                 direction,
-                quote_asset_notional_amount,
+                quote_asset_amount,
                 market,
                 market_position,
                 now,
@@ -367,10 +367,10 @@ pub mod clearing_house {
                 calculate_base_asset_value_and_pnl(market_position, &market.amm);
             // we calculate what the user's position is worth if they closed to determine
             // if they are reducing or closing and reversing their position
-            if base_asset_value > quote_asset_notional_amount {
+            if base_asset_value > quote_asset_amount {
                 let trade_size_too_small = trade_execution::reduce_position(
                     direction,
-                    quote_asset_notional_amount,
+                    quote_asset_amount,
                     user,
                     market,
                     market_position,
@@ -383,9 +383,8 @@ pub mod clearing_house {
 
                 potentially_risk_increasing = false;
             } else {
-                let incremental_quote_asset_notional_amount_resid = quote_asset_notional_amount
-                    .checked_sub(base_asset_value)
-                    .unwrap();
+                let incremental_quote_asset_notional_amount_resid =
+                    quote_asset_amount.checked_sub(base_asset_value).unwrap();
 
                 if incremental_quote_asset_notional_amount_resid < base_asset_value {
                     potentially_risk_increasing = false; //todo
@@ -420,7 +419,7 @@ pub mod clearing_house {
         }
 
         let fee = fees::calculate(
-            quote_asset_notional_amount,
+            quote_asset_amount,
             ctx.accounts.state.fee_numerator,
             ctx.accounts.state.fee_denominator,
         );
@@ -453,7 +452,7 @@ pub mod clearing_house {
             user: *user.to_account_info().key,
             direction,
             base_asset_amount: base_asset_amount_change,
-            quote_asset_amount: quote_asset_notional_amount,
+            quote_asset_amount,
             mark_price_before: base_asset_price_with_mantissa_before,
             mark_price_after: base_asset_price_with_mantissa_after,
             fee,
@@ -464,15 +463,23 @@ pub mod clearing_house {
             let market = &ctx.accounts.markets.load().unwrap().markets
                 [Markets::index_from_u64(market_index)];
 
-            // todo: allow for average price limit? instead of most expensive slice?
-            // todo: support partial fill
-            let new_price = market.amm.base_asset_price_with_mantissa();
+            let entry_price = curve::calculate_base_asset_price_with_mantissa(
+                quote_asset_amount,
+                base_asset_amount_change,
+                market.amm.peg_multiplier,
+            );
 
-            // error if bought too high or sold too low
-            if new_price > limit_price && direction == PositionDirection::Long
-                || new_price < limit_price && direction == PositionDirection::Short
-            {
-                return Err(ErrorCode::SlippageOutsideLimit.into());
+            match direction {
+                PositionDirection::Long => {
+                    if entry_price > limit_price {
+                        return Err(ErrorCode::SlippageOutsideLimit.into());
+                    }
+                }
+                PositionDirection::Short => {
+                    if entry_price < limit_price {
+                        return Err(ErrorCode::SlippageOutsideLimit.into());
+                    }
+                }
             }
         }
 

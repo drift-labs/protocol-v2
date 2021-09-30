@@ -1,2 +1,2 @@
-pub mod fees;
 pub mod curve;
+pub mod fees;
