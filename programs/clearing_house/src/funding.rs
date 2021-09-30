@@ -1,7 +1,7 @@
-use crate::calculate_updated_collateral;
 use crate::history::{FundingPaymentHistory, FundingPaymentRecord};
 use crate::market::{Markets, AMM};
 use crate::math::bn;
+use crate::math::collateral::calculate_updated_collateral;
 use crate::math::constants::{
     BASE_ASSET_AMOUNT_PRECISION, FUNDING_PAYMENT_MANTISSA, MARK_PRICE_MANTISSA, USDC_PRECISION,
 };

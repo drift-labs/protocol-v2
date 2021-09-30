@@ -1,4 +1,5 @@
 pub mod bn;
+pub mod collateral;
 pub mod constants;
 pub mod curve;
 pub mod fees;

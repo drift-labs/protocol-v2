@@ -1,7 +1,7 @@
 use std::cell::{Ref, RefMut};
 
-use crate::calculate_updated_collateral;
 use crate::market::Markets;
+use crate::math::collateral::calculate_updated_collateral;
 use crate::math::constants::MARGIN_MANTISSA;
 use crate::math::position::calculate_base_asset_value_and_pnl;
 use crate::user::{User, UserPositions};
