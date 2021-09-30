@@ -7,7 +7,6 @@ import {
 	Arbitrager,
 	ClearingHouse,
 	Liquidator,
-	Network,
 	PositionDirection,
 	UserAccount,
 } from '../sdk/src';
@@ -151,7 +150,6 @@ async function crank(mock = true, actions = ['liq'], chProgram?) {
 		const chProgramMock = anchor.workspace.ClearingHouse as Program;
 		clearingHouse = new ClearingHouse(
 			connection,
-			Network.LOCAL,
 			provider.wallet,
 			chProgramMock.programId
 		);
@@ -234,7 +232,6 @@ async function crank(mock = true, actions = ['liq'], chProgram?) {
 
 		const clearingHouse = new ClearingHouse(
 			connection,
-			Network.LOCAL,
 			provider.wallet,
 			chProgram.programId
 		);
@@ -246,7 +243,6 @@ async function crank(mock = true, actions = ['liq'], chProgram?) {
 
 			const clearingHouse1 = new ClearingHouse(
 				provider.connection,
-				Network.LOCAL,
 				//@ts-ignore
 				ownerWallet,
 				chProgram.programId

@@ -1,7 +1,7 @@
 import { Program, Wallet } from '@project-serum/anchor';
 import * as anchor from '@project-serum/anchor';
 import { MockUSDCFaucet } from '../sdk/src';
-import { ClearingHouse, Network } from '../sdk';
+import { ClearingHouse } from '../sdk';
 import BN from 'bn.js';
 import { Keypair } from '@solana/web3.js';
 
@@ -30,7 +30,6 @@ async function main() {
 	const chProgram = anchor.workspace.ClearingHouse as Program;
 	const clearingHouse = new ClearingHouse(
 		connection,
-		Network.LOCAL,
 		botWallet,
 		chProgram.programId
 	);
@@ -40,7 +39,6 @@ async function main() {
 	const mockUsdcFaucetProgram = anchor.workspace.MockUsdcFaucet as Program;
 	const mockUsdcFaucet = new MockUSDCFaucet(
 		connection,
-		Network.LOCAL,
 		botWallet,
 		mockUsdcFaucetProgram.programId
 	);

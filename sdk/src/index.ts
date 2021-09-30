@@ -4,7 +4,6 @@ import Markets from './constants/markets';
 import { Funder } from './funder';
 import { Liquidator } from './liquidator';
 import { MockUSDCFaucet } from './mockUSDCFaucet';
-import { LOCAL_NET, Network } from './network';
 import { PythClient } from './pythClient';
 import SlackMessenger from './slackMessanger';
 import { PositionDirection, SwapDirection } from './types';
@@ -20,9 +19,7 @@ export {
 	Arbitrager,
 	BN,
 	Funder,
-	LOCAL_NET,
 	MockUSDCFaucet,
-	Network,
 	PositionDirection,
 	PythClient,
 	SwapDirection,

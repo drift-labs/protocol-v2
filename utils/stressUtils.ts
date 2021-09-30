@@ -5,7 +5,6 @@ import csv from 'csvtojson';
 import fs from 'fs';
 import {
 	ClearingHouse,
-	Network,
 	PositionDirection,
 	UserAccount,
 } from '../sdk/src';
@@ -42,7 +41,6 @@ export async function initUserAccounts(
 
 		const clearingHouse1 = new ClearingHouse(
 			provider.connection,
-			Network.LOCAL,
 			//@ts-ignore
 			ownerWallet,
 			chProgram.programId

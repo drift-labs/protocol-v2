@@ -7,7 +7,7 @@ import { getTokenAccount } from '@project-serum/common';
 
 import { PublicKey } from '@solana/web3.js';
 
-import { AMM_MANTISSA, ClearingHouse, UserAccount, Network, PositionDirection} from '../sdk/src';
+import { AMM_MANTISSA, ClearingHouse, UserAccount, PositionDirection} from '../sdk/src';
 
 import Markets from '../sdk/src/constants/markets';
 
@@ -45,7 +45,6 @@ describe('clearing_house', () => {
 
 		clearingHouse = new ClearingHouse(
 			connection,
-			Network.LOCAL,
 			provider.wallet,
 			chProgram.programId
 		);

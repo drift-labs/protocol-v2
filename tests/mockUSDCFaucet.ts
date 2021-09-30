@@ -4,7 +4,6 @@ import { Program } from '@project-serum/anchor';
 import {
 	ClearingHouse,
 	MockUSDCFaucet,
-	Network,
 	UserAccount,
 } from '../sdk/src';
 import BN from 'bn.js';
@@ -19,7 +18,6 @@ describe('mock_usdc_faucet', () => {
 
 	const mockUSDCFaucet = new MockUSDCFaucet(
 		connection,
-		Network.LOCAL,
 		provider.wallet,
 		program.programId
 	);
@@ -33,7 +31,6 @@ describe('mock_usdc_faucet', () => {
 	before(() => {
 		clearingHouse = new ClearingHouse(
 			connection,
-			Network.LOCAL,
 			provider.wallet,
 			chProgram.programId
 		);

@@ -15,7 +15,7 @@ import { Program } from '@project-serum/anchor';
 
 import { PublicKey } from '@solana/web3.js';
 
-import { AMM_MANTISSA, FUNDING_MANTISSA, ClearingHouse, Network } from '../sdk/src';
+import { AMM_MANTISSA, FUNDING_MANTISSA, ClearingHouse } from '../sdk/src';
 
 async function updateFundingRateHelper(
 	clearingHouse: ClearingHouse,
@@ -139,7 +139,6 @@ describe('pyth-oracle', () => {
 
 		clearingHouse = new ClearingHouse(
 			connection,
-			Network.LOCAL,
 			provider.wallet,
 			chProgram.programId
 		);

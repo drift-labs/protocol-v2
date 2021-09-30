@@ -1,6 +1,6 @@
 import { Program } from '@project-serum/anchor';
 import * as anchor from '@project-serum/anchor';
-import { ClearingHouse, Network, PythClient } from '../sdk';
+import { ClearingHouse, PythClient } from '../sdk';
 import BN from 'bn.js';
 
 import dotenv = require('dotenv');
@@ -15,7 +15,6 @@ async function main() {
 	const chProgram = anchor.workspace.ClearingHouse as Program;
 	const clearingHouse = new ClearingHouse(
 		connection,
-		Network.LOCAL,
 		provider.wallet,
 		chProgram.programId
 	);

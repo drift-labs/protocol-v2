@@ -18,7 +18,6 @@ import {
 	SYSVAR_RENT_PUBKEY,
 	SYSVAR_CLOCK_PUBKEY,
 } from '@solana/web3.js';
-import { Network } from './network';
 
 import { assert } from './assert/assert';
 import { MockUSDCFaucet } from './mockUSDCFaucet';
@@ -60,7 +59,6 @@ export class NotSubscribedError extends Error {
 
 export class ClearingHouse {
 	connection: Connection;
-	network: Network;
 	wallet: IWallet;
 	public program: Program;
 	provider: Provider;
@@ -74,28 +72,19 @@ export class ClearingHouse {
 
 	public constructor(
 		connection: Connection,
-		network: Network,
 		wallet: IWallet,
 		clearingHouseProgramId: PublicKey,
 		opts?: ConfirmOptions
 	) {
 		this.connection = connection;
-		this.network = network;
 		this.wallet = wallet;
 		this.opts = opts || Provider.defaultOptions();
 		const provider = new Provider(connection, wallet, this.opts);
-		switch (network) {
-			case Network.LOCAL:
-				this.program = new Program(
-					clearingHouseIDL as Idl,
-					clearingHouseProgramId,
-					provider
-				);
-				break;
-			default:
-				throw new Error('Not supported');
-		}
-
+		this.program = new Program(
+			clearingHouseIDL as Idl,
+			clearingHouseProgramId,
+			provider
+		);
 		this.eventEmitter = new EventEmitter();
 	}
 

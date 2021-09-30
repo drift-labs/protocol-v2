@@ -3,7 +3,6 @@ import { Program } from '@project-serum/anchor';
 import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { PublicKey } from '@solana/web3.js';
 import BN from 'bn.js';
-import { Network } from '../sdk';
 import { MockUSDCFaucet } from '../sdk/src';
 
 /**
@@ -23,7 +22,6 @@ async function main() {
 	const mockUsdcFaucetProgram = anchor.workspace.MockUsdcFaucet as Program;
 	const mockUsdcFaucet = new MockUSDCFaucet(
 		connection,
-		Network.LOCAL,
 		provider.wallet,
 		mockUsdcFaucetProgram.programId
 	);

@@ -6,7 +6,6 @@ import {
 	AMM_MANTISSA,
 	PEG_SCALAR,
 	ClearingHouse,
-	Network,
 	PositionDirection,
 } from '../sdk/src';
 import { UserAccount } from '../sdk/src/userAccount';
@@ -21,7 +20,6 @@ describe('AMM Curve', () => {
 
 	const clearingHouse = new ClearingHouse(
 		connection,
-		Network.LOCAL,
 		provider.wallet,
 		chProgram.programId
 	);

@@ -2,7 +2,7 @@ import * as anchor from '@project-serum/anchor';
 import { Program } from '@project-serum/anchor';
 import { Keypair } from '@solana/web3.js';
 import BN from 'bn.js';
-import { ClearingHouse, Network, PEG_SCALAR } from '../sdk/src';
+import { ClearingHouse, PEG_SCALAR } from '../sdk/src';
 // import { getTokenAccount } from '@project-serum/common';
 import { mockUSDCMint } from '../utils/mockAccounts';
 import { stress_test } from '../utils/stress';
@@ -17,7 +17,6 @@ describe('stress-test', () => {
 
 	const clearingHouse = new ClearingHouse(
 		connection,
-		Network.LOCAL,
 		//@ts-ignore
 		provider.wallet,
 		chProgram.programId

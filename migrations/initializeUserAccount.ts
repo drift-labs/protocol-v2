@@ -1,7 +1,7 @@
 import { Program } from '@project-serum/anchor';
 import * as anchor from '@project-serum/anchor';
 import { MockUSDCFaucet } from '../sdk/src';
-import { ClearingHouse, Network, PositionDirection } from '../sdk';
+import { ClearingHouse, PositionDirection } from '../sdk';
 import BN from 'bn.js';
 
 import dotenv = require('dotenv');
@@ -16,7 +16,6 @@ async function main() {
 	const chProgram = anchor.workspace.ClearingHouse as Program;
 	const clearingHouse = new ClearingHouse(
 		connection,
-		Network.LOCAL,
 		provider.wallet,
 		chProgram.programId
 	);
@@ -26,7 +25,6 @@ async function main() {
 	const mockUsdcFaucetProgram = anchor.workspace.MockUsdcFaucet as Program;
 	const mockUsdcFaucet = new MockUSDCFaucet(
 		connection,
-		Network.LOCAL,
 		provider.wallet,
 		mockUsdcFaucetProgram.programId
 	);

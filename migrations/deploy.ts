@@ -2,7 +2,7 @@ import * as anchor from '@project-serum/anchor';
 import {Program, Provider, Wallet} from '@project-serum/anchor';
 import {Keypair, PublicKey} from '@solana/web3.js';
 import BN from 'bn.js';
-import { ClearingHouse, Network, PythClient } from '../sdk/';
+import { ClearingHouse, PythClient } from '../sdk/';
 import { AMM_MANTISSA, MockUSDCFaucet, PEG_SCALAR } from '../sdk/src';
 
 import dotenv = require('dotenv');
@@ -15,7 +15,6 @@ async function deploy(provider: Provider) {
 	const chProgram = anchor.workspace.ClearingHouse as Program;
 	const clearingHouse = new ClearingHouse(
 		connection,
-		Network.LOCAL,
 		provider.wallet,
 		chProgram.programId
 	);
@@ -27,7 +26,6 @@ async function deploy(provider: Provider) {
 	const mockUsdcFaucetProgram = anchor.workspace.MockUsdcFaucet as Program;
 	const mockUsdcFaucet = new MockUSDCFaucet(
 		connection,
-		Network.LOCAL,
 		provider.wallet,
 		mockUsdcFaucetProgram.programId
 	);

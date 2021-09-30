@@ -19,12 +19,10 @@ import {
 } from '@solana/web3.js';
 import BN from 'bn.js';
 import mockUSDCFaucetIDL from './idl/mock_usdc_faucet.json';
-import { Network } from './network';
 import { IWallet } from './types';
 
 export class MockUSDCFaucet {
 	connection: Connection;
-	network: Network;
 	wallet: IWallet;
 	public program: Program;
 	provider: Provider;
@@ -32,28 +30,20 @@ export class MockUSDCFaucet {
 
 	public constructor(
 		connection: Connection,
-		network: Network,
 		wallet: IWallet,
 		programId: PublicKey,
 		opts?: ConfirmOptions
 	) {
 		this.connection = connection;
-		this.network = network;
 		this.wallet = wallet;
 		this.opts = opts || Provider.defaultOptions();
 		const provider = new Provider(connection, wallet, this.opts);
 		this.provider = provider;
-		switch (network) {
-			case Network.LOCAL:
-				this.program = new Program(
-					mockUSDCFaucetIDL as Idl,
-					programId,
-					provider
-				);
-				break;
-			default:
-				throw new Error('Not supported');
-		}
+		this.program = new Program(
+			mockUSDCFaucetIDL as Idl,
+			programId,
+			provider
+		);
 	}
 
 	public async getMockUSDCFaucetStatePublicKeyAndNonce(): Promise<[PublicKey, number]> {

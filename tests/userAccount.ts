@@ -1,7 +1,7 @@
 import * as anchor from '@project-serum/anchor';
 import { Program } from '@project-serum/anchor';
 import { mockUSDCMint, mockUserUSDCAccount } from '../utils/mockAccounts';
-import { ClearingHouse, Network, PEG_SCALAR } from '../sdk/src';
+import { ClearingHouse, PEG_SCALAR } from '../sdk/src';
 import { Keypair } from '@solana/web3.js';
 import BN from 'bn.js';
 import { MAX_LEVERAGE, UserAccount } from '../sdk/src/userAccount';
@@ -17,7 +17,6 @@ describe('User Account', () => {
 
 	const clearingHouse = new ClearingHouse(
 		connection,
-		Network.LOCAL,
 		provider.wallet,
 		chProgram.programId
 	);
