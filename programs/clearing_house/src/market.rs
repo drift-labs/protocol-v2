@@ -71,38 +71,6 @@ pub struct AMM {
 }
 
 impl AMM {
-    pub fn swap_quote_asset_with_fee(
-        &mut self,
-        quote_asset_swap_amount: u128,
-        direction: SwapDirection,
-        now: i64,
-    ) -> (i128, i128, bool) {
-        let thousand: u128 = 1000;
-        let one_hundreth: u128 = 100;
-
-        // 1% * 50/1000 (5/100) = .05%
-        let fixed_fee = 50; // 5 bps, .05% fee 50/1000
-        let fee = quote_asset_swap_amount
-            .checked_mul(fixed_fee)
-            .unwrap()
-            .checked_div(thousand)
-            .unwrap()
-            .checked_div(one_hundreth)
-            .unwrap();
-
-        let (acquired_base_asset_amount, trade_size_too_small) =
-            self.swap_quote_asset(quote_asset_swap_amount, direction, now);
-
-        self.cumulative_fee = self.cumulative_fee.checked_add(fee).unwrap();
-        self.cumulative_fee_realized = self.cumulative_fee_realized.checked_add(fee).unwrap();
-
-        return (
-            acquired_base_asset_amount,
-            fee as i128,
-            trade_size_too_small,
-        );
-    }
-
     pub fn swap_quote_asset(
         &mut self,
         quote_asset_swap_amount: u128,

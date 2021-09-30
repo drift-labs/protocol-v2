@@ -24,9 +24,9 @@ pub fn increase_position(
     market: &mut Market,
     market_position: &mut MarketPosition,
     now: i64,
-) -> (i128, bool) {
+) -> bool {
     if new_quote_asset_notional_amount == 0 {
-        return (0, false);
+        return false;
     }
 
     // Update funding rate if this is a new position
@@ -49,9 +49,10 @@ pub fn increase_position(
         PositionDirection::Short => SwapDirection::Remove,
     };
 
-    let (base_asset_acquired, quote_asset_peg_fee_unpaid, trade_size_to_small) = market
-        .amm
-        .swap_quote_asset_with_fee(new_quote_asset_notional_amount, swap_direction, now);
+    let (base_asset_acquired, trade_size_to_small) =
+        market
+            .amm
+            .swap_quote_asset(new_quote_asset_notional_amount, swap_direction, now);
 
     // update the position size on market and user
     market_position.base_asset_amount = market_position
@@ -75,7 +76,7 @@ pub fn increase_position(
             .unwrap();
     }
 
-    return (quote_asset_peg_fee_unpaid, trade_size_to_small);
+    return trade_size_to_small;
 }
 
 pub fn reduce_position<'info>(

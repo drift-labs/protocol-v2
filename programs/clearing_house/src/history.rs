@@ -46,6 +46,7 @@ pub struct TradeRecord {
     pub quote_asset_amount: u128,
     pub mark_price_before: u128,
     pub mark_price_after: u128,
+    pub fee: u128,
     pub market_index: u64,
 }
 

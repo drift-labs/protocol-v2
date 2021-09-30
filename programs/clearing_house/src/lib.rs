@@ -4,7 +4,7 @@ use bytemuck;
 use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 use borsh::{BorshDeserialize, BorshSerialize};
 use std::cell::{Ref, RefMut};
-use std::cmp::{max, min};
+use std::cmp::max;
 
 mod bn;
 mod curve;
@@ -18,6 +18,7 @@ mod constants;
 mod error;
 mod trade_execution;
 use trade_execution::*;
+mod fees;
 
 use constants::*;
 use error::*;
@@ -75,6 +76,8 @@ pub mod clearing_house {
             full_liquidation_penalty_percentage_denominator: 1,
             partial_liquidation_liquidator_share_denominator: 2,
             full_liquidation_liquidator_share_denominator: 20,
+            fee_numerator: DEFAULT_FEE_NUMERATOR,
+            fee_denominator: DEFAULT_FEE_DENOMINATOR,
             trade_history: *ctx.accounts.trade_history.to_account_info().key,
             collateral_deposits: 0,
         };
@@ -199,15 +202,6 @@ pub mod clearing_house {
             return Err(ErrorCode::InsufficientCollateral.into());
         }
 
-        // todo: what is scale? test a .01% max fee on net winnings withdrawled
-        let net_winnings = (user.collateral as i128)
-            .checked_sub(user.cumulative_deposits)
-            .unwrap();
-        let net_winnings_fee = max(net_winnings.checked_div(10000).unwrap(), 0) as u128;
-
-        let withdrawl_fee = min(user.total_fee_paid, net_winnings_fee as i128);
-        user.total_fee_paid = user.total_fee_paid.checked_sub(withdrawl_fee).unwrap();
-
         let (collateral_account_withdrawal, insurance_account_withdrawal) =
             calculate_withdrawal_amounts(
                 amount,
@@ -289,7 +283,7 @@ pub mod clearing_house {
     pub fn open_position<'info>(
         ctx: Context<OpenPosition>,
         direction: PositionDirection,
-        incremental_quote_asset_notional_amount: u128,
+        quote_asset_notional_amount: u128,
         market_index: u64,
         limit_price: u128,
     ) -> ProgramResult {
@@ -345,7 +339,6 @@ pub mod clearing_house {
             base_asset_price_with_mantissa_before = market.amm.base_asset_price_with_mantissa();
         }
         let mut potentially_risk_increasing = true;
-        let mut quote_asset_peg_fee = 0;
 
         if market_position.base_asset_amount == 0
             || market_position.base_asset_amount > 0 && direction == PositionDirection::Long
@@ -354,14 +347,13 @@ pub mod clearing_house {
             let market = &mut ctx.accounts.markets.load_mut()?.markets
                 [Markets::index_from_u64(market_index)];
 
-            let (_quote_asset_peg_fee, trade_size_too_small) = trade_execution::increase_position(
+            let trade_size_too_small = trade_execution::increase_position(
                 direction,
-                incremental_quote_asset_notional_amount,
+                quote_asset_notional_amount,
                 market,
                 market_position,
                 now,
             );
-            quote_asset_peg_fee = _quote_asset_peg_fee;
 
             if trade_size_too_small {
                 return Err(ErrorCode::TradeSizeTooSmall.into());
@@ -374,10 +366,10 @@ pub mod clearing_house {
                 calculate_base_asset_value_and_pnl(market_position, &market.amm);
             // we calculate what the user's position is worth if they closed to determine
             // if they are reducing or closing and reversing their position
-            if base_asset_value > incremental_quote_asset_notional_amount {
+            if base_asset_value > quote_asset_notional_amount {
                 let trade_size_too_small = trade_execution::reduce_position(
                     direction,
-                    incremental_quote_asset_notional_amount,
+                    quote_asset_notional_amount,
                     user,
                     market,
                     market_position,
@@ -390,10 +382,9 @@ pub mod clearing_house {
 
                 potentially_risk_increasing = false;
             } else {
-                let incremental_quote_asset_notional_amount_resid =
-                    incremental_quote_asset_notional_amount
-                        .checked_sub(base_asset_value)
-                        .unwrap();
+                let incremental_quote_asset_notional_amount_resid = quote_asset_notional_amount
+                    .checked_sub(base_asset_value)
+                    .unwrap();
 
                 if incremental_quote_asset_notional_amount_resid < base_asset_value {
                     potentially_risk_increasing = false; //todo
@@ -401,15 +392,13 @@ pub mod clearing_house {
 
                 trade_execution::close_position(user, market, market_position, now);
 
-                let (_quote_asset_peg_fee, trade_size_too_small) =
-                    trade_execution::increase_position(
-                        direction,
-                        incremental_quote_asset_notional_amount_resid,
-                        market,
-                        market_position,
-                        now,
-                    );
-                quote_asset_peg_fee = _quote_asset_peg_fee;
+                let trade_size_too_small = trade_execution::increase_position(
+                    direction,
+                    incremental_quote_asset_notional_amount_resid,
+                    market,
+                    market_position,
+                    now,
+                );
 
                 if trade_size_too_small {
                     return Err(ErrorCode::TradeSizeTooSmall.into());
@@ -428,20 +417,23 @@ pub mod clearing_house {
                 [Markets::index_from_u64(market_index)];
             base_asset_price_with_mantissa_after = market.amm.base_asset_price_with_mantissa();
         }
-        let trade_history_account = &mut ctx.accounts.trade_history.load_mut()?;
-        let record_id = trade_history_account.next_record_id();
-        trade_history_account.append(TradeRecord {
-            ts: now,
-            record_id,
-            user_authority: *ctx.accounts.authority.to_account_info().key,
-            user: *user.to_account_info().key,
-            direction,
-            base_asset_amount: base_asset_amount_change,
-            quote_asset_amount: incremental_quote_asset_notional_amount,
-            mark_price_before: base_asset_price_with_mantissa_before,
-            mark_price_after: base_asset_price_with_mantissa_after,
-            market_index,
-        });
+
+        let fee = fees::calculate(
+            quote_asset_notional_amount,
+            ctx.accounts.state.fee_numerator,
+            ctx.accounts.state.fee_denominator,
+        );
+        {
+            let market = &mut ctx.accounts.markets.load_mut()?.markets
+                [Markets::index_from_u64(market_index)];
+            market.amm.cumulative_fee = market.amm.cumulative_fee.checked_add(fee).unwrap();
+            market.amm.cumulative_fee_realized =
+                market.amm.cumulative_fee_realized.checked_add(fee).unwrap();
+        }
+
+        user.collateral = user.collateral.checked_sub(fee).unwrap();
+
+        user.total_fee_paid = user.total_fee_paid.checked_add(fee).unwrap();
 
         let (_estimated_margin_after, _estimated_base_asset_value_after, margin_ratio_after) =
             calculate_margin_ratio(user, user_positions, &ctx.accounts.markets.load().unwrap());
@@ -451,10 +443,21 @@ pub mod clearing_house {
             return Err(ErrorCode::InsufficientCollateral.into());
         }
 
-        user.total_fee_paid = user
-            .total_fee_paid
-            .checked_add(quote_asset_peg_fee)
-            .unwrap();
+        let trade_history_account = &mut ctx.accounts.trade_history.load_mut()?;
+        let record_id = trade_history_account.next_record_id();
+        trade_history_account.append(TradeRecord {
+            ts: now,
+            record_id,
+            user_authority: *ctx.accounts.authority.to_account_info().key,
+            user: *user.to_account_info().key,
+            direction,
+            base_asset_amount: base_asset_amount_change,
+            quote_asset_amount: quote_asset_notional_amount,
+            mark_price_before: base_asset_price_with_mantissa_before,
+            mark_price_after: base_asset_price_with_mantissa_after,
+            fee,
+            market_index,
+        });
 
         if limit_price != 0 {
             let market = &ctx.accounts.markets.load().unwrap().markets
@@ -520,6 +523,19 @@ pub mod clearing_house {
         let base_asset_amount = market_position.base_asset_amount.unsigned_abs();
         trade_execution::close_position(user, market, market_position, now);
 
+        let fee = fees::calculate(
+            base_asset_value,
+            ctx.accounts.state.fee_numerator,
+            ctx.accounts.state.fee_denominator,
+        );
+        market.amm.cumulative_fee = market.amm.cumulative_fee.checked_add(fee).unwrap();
+        market.amm.cumulative_fee_realized =
+            market.amm.cumulative_fee_realized.checked_add(fee).unwrap();
+
+        user.collateral = user.collateral.checked_sub(fee).unwrap();
+
+        user.total_fee_paid = user.total_fee_paid.checked_add(fee).unwrap();
+
         let base_asset_price_with_mantissa_after = market.amm.base_asset_price_with_mantissa();
         trade_history_account.append(TradeRecord {
             ts: now,
@@ -531,6 +547,7 @@ pub mod clearing_house {
             quote_asset_amount: base_asset_value,
             mark_price_before: base_asset_price_with_mantissa_before,
             mark_price_after: base_asset_price_with_mantissa_after,
+            fee,
             market_index,
         });
 
@@ -1298,6 +1315,8 @@ pub struct State {
     pub full_liquidation_penalty_percentage_denominator: u128,
     pub partial_liquidation_liquidator_share_denominator: u64,
     pub full_liquidation_liquidator_share_denominator: u64,
+    pub fee_numerator: u128,
+    pub fee_denominator: u128,
     pub trade_history: Pubkey,
     pub collateral_deposits: u128,
 }

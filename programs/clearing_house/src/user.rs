@@ -6,7 +6,7 @@ pub struct User {
     pub authority: Pubkey,
     pub collateral: u128,
     pub cumulative_deposits: i128,
-    pub total_fee_paid: i128,
+    pub total_fee_paid: u128,
     pub positions: Pubkey,
 }
 

@@ -283,7 +283,7 @@
           }
         },
         {
-          "name": "incrementalQuoteAssetNotionalAmount",
+          "name": "quoteAssetNotionalAmount",
           "type": "u128"
         },
         {
@@ -702,6 +702,14 @@
             "type": "u64"
           },
           {
+            "name": "feeNumerator",
+            "type": "u128"
+          },
+          {
+            "name": "feeDenominator",
+            "type": "u128"
+          },
+          {
             "name": "tradeHistory",
             "type": "publicKey"
           },
@@ -796,7 +804,7 @@
           },
           {
             "name": "totalFeePaid",
-            "type": "i128"
+            "type": "u128"
           },
           {
             "name": "positions",
@@ -871,6 +879,10 @@
           },
           {
             "name": "markPriceAfter",
+            "type": "u128"
+          },
+          {
+            "name": "fee",
             "type": "u128"
           },
           {
