@@ -121,6 +121,7 @@ async function deploy(provider: Provider) {
 	);
 	console.log('Initialized Bot for devnet');
 	await clearingHouse.unsubscribe();
+	await clearingHouseForBot.unsubscribe();
 
 	updateEnvFiles(
 		clearingHouse.program.programId,
