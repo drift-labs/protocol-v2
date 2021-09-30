@@ -4,3 +4,4 @@ pub mod curve;
 pub mod fees;
 pub mod margin;
 pub mod position;
+pub mod withdrawal;
