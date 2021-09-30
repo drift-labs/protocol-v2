@@ -1,12 +1,13 @@
+use std::cmp::max;
+
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 use borsh::{BorshDeserialize, BorshSerialize};
 use bytemuck;
-use std::cmp::max;
 
 use error::*;
 use history::{FundingPaymentHistory, TradeHistory, TradeRecord};
-use market::{Market, Markets, OracleSource, AMM};
+use market::{Market, Markets, OracleSource, SwapDirection, AMM};
 use math::{bn, constants::*, curve, fees, margin::*};
 use trade::*;
 use user::{MarketPosition, User, UserPositions};
@@ -1321,12 +1322,6 @@ pub struct State {
     pub fee_denominator: u128,
     pub trade_history: Pubkey,
     pub collateral_deposits: u128,
-}
-
-#[derive(Clone, Copy)]
-pub enum SwapDirection {
-    Add,
-    Remove,
 }
 
 fn calculate_withdrawal_amounts(

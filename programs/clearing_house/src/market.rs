@@ -1,8 +1,10 @@
+use std::cmp::max;
+
+use anchor_lang::prelude::*;
+
 use crate::math::bn;
 use crate::math::curve;
-use crate::{SwapDirection, MARK_PRICE_MANTISSA, PRICE_TO_PEG_PRECISION_RATIO};
-use anchor_lang::prelude::*;
-use std::cmp::max;
+use crate::{MARK_PRICE_MANTISSA, PRICE_TO_PEG_PRECISION_RATIO};
 
 #[account(zero_copy)]
 pub struct Markets {
@@ -45,6 +47,12 @@ impl Default for OracleSource {
     fn default() -> Self {
         OracleSource::Pyth
     }
+}
+
+#[derive(Clone, Copy)]
+pub enum SwapDirection {
+    Add,
+    Remove,
 }
 
 #[zero_copy]

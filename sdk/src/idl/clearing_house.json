@@ -1096,20 +1096,6 @@
       }
     },
     {
-      "name": "SwapDirection",
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "Add"
-          },
-          {
-            "name": "Remove"
-          }
-        ]
-      }
-    },
-    {
       "name": "OracleSource",
       "type": {
         "kind": "enum",
@@ -1119,6 +1105,20 @@
           },
           {
             "name": "Switchboard"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SwapDirection",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Add"
+          },
+          {
+            "name": "Remove"
           }
         ]
       }
