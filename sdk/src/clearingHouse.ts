@@ -806,6 +806,9 @@ export class ClearingHouse {
 		// 	1: hourly
 		//  24: daily
 		//  24 * 365.25: annualized
+		const secondsInHour = new BN(3600);
+		const hoursInDay = new BN(24);
+
 		const marketsAccount: any = await this.getMarketsAccount();
 
 		const market = marketsAccount.markets[marketIndex.toNumber()];
@@ -819,31 +822,47 @@ export class ClearingHouse {
 		const oracleTwapWithMantissa = new BN(
 			oraclePriceData.twap.value * AMM_MANTISSA.toNumber()
 		);
-		const markTwapWithMantissa = market.amm.lastMarkPriceTwap;
-
-		const twapSpreadPct = markTwapWithMantissa
-			.sub(oracleTwapWithMantissa)
-			.mul(AMM_MANTISSA)
-			.mul(new BN(100))
-			.div(oracleTwapWithMantissa);
 
 		const now = new BN((Date.now() / 1000).toFixed(0));
 		const timeSinceLastUpdate = now.sub(market.amm.lastFundingRateTs);
+
+		const lastMarkTwapWithMantissa = market.amm.lastMarkPriceTwap;
+		const lastMarkTwapTs = market.amm.lastMarkPriceTwapTs;
+
+		const timeSinceLastMarkChange = now.sub(market.amm.lastMarkTwapTs);
+		const markTwapTimeSinceLastUpdate = lastMarkTwapTs.sub(
+			market.amm.lastFundingRateTs
+		);
+
+		const baseAssetPriceWithMantissa =
+			this.calculateBaseAssetPriceWithMantissa(marketIndex);
+
+		const markTwapWithMantissa = markTwapTimeSinceLastUpdate
+			.mul(lastMarkTwapWithMantissa)
+			.add(timeSinceLastMarkChange.mul(baseAssetPriceWithMantissa))
+			.div(timeSinceLastMarkChange.add(markTwapTimeSinceLastUpdate));
+
+		const twapSpread = markTwapWithMantissa.sub(oracleTwapWithMantissa);
+
+		const twapSpreadPct = twapSpread
+			.mul(AMM_MANTISSA)
+			.mul(new BN(100))
+			.div(oracleTwapWithMantissa);
 
 		if (estimationMethod == 'lowerbound') {
 			//assuming remaining funding period has no gap
 			const estFundingRateLowerBound = twapSpreadPct
 				.mul(payFreq)
-				.mul(timeSinceLastUpdate)
+				.mul(BN.min(secondsInHour, timeSinceLastUpdate))
 				.mul(periodAdjustment)
-				.div(new BN(3600))
-				.div(new BN(3600))
-				.div(new BN(24));
+				.div(secondsInHour)
+				.div(secondsInHour)
+				.div(hoursInDay);
 			return estFundingRateLowerBound;
 		} else {
 			const estFundingRate = twapSpreadPct
 				.mul(periodAdjustment)
-				.div(new BN(24));
+				.div(hoursInDay);
 
 			return estFundingRate;
 		}

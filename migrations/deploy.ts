@@ -54,6 +54,12 @@ async function deploy(provider: Provider) {
 		ETH: 'EdVCmQ9FSPcVe5YySXDPCRmc8aDQLKJ9xvYBMZPie1Vw',
 		COPE: 'BAXDJUXtz6P5ARhHH1aPwgv4WENzHwzyhmLYK4daFwiM',
 	};
+	// const mainnetOracles = {
+	// 	SOL: 'H6ARHf6YXhGYeQfUzQNGk6rDNnLBQKrenN712K4AQJEG',
+	// 	BTC: 'GVXRSBjFk6e6J3NbVPXohDJetcTjaeeuykUpbQF8UoMU',
+	// 	ETH: 'JBu1AL4obBcCMqKBBxhpWCNUt136ijcuMZLFvTP7iWdB',
+	// 	COPE: '9xYBiDWYsh2fHzpsz3aaCnNHCKWBNtfEDLtU6kS4aFD9',
+	// };
 	const marketOracleKeys = Object.keys(devnetOracles);
 
 	for (let i = 0; i < marketOracleKeys.length; i++) {

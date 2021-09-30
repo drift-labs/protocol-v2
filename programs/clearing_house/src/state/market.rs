@@ -85,6 +85,9 @@ impl AMM {
         direction: SwapDirection,
         now: i64,
     ) -> (i128, bool) {
+        self.last_mark_price_twap = self.get_new_twap(now);
+        self.last_mark_price_twap_ts = now;
+
         let unpegged_quote_asset_amount = quote_asset_swap_amount
             .checked_mul(MARK_PRICE_MANTISSA)
             .unwrap()
@@ -109,9 +112,6 @@ impl AMM {
 
         self.base_asset_reserve = new_base_asset_amount;
         self.quote_asset_reserve = new_quote_asset_amount;
-
-        self.last_mark_price_twap = self.get_new_twap(now);
-        self.last_mark_price_twap_ts = now;
 
         let acquired_base_asset_amount = (initial_base_asset_amount as i128)
             .checked_sub(new_base_asset_amount as i128)
@@ -142,6 +142,9 @@ impl AMM {
         direction: SwapDirection,
         now: i64,
     ) {
+        self.last_mark_price_twap = self.get_new_twap(now);
+        self.last_mark_price_twap_ts = now;
+
         let (new_quote_asset_amount, new_base_asset_amount) = AMM::find_swap_output(
             base_asset_swap_amount,
             self.base_asset_reserve,
@@ -152,9 +155,6 @@ impl AMM {
 
         self.base_asset_reserve = new_base_asset_amount;
         self.quote_asset_reserve = new_quote_asset_amount;
-
-        self.last_mark_price_twap = self.get_new_twap(now);
-        self.last_mark_price_twap_ts = now;
     }
 
     fn find_swap_output(
