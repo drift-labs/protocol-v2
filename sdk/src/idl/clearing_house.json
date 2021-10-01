@@ -1277,6 +1277,20 @@
       }
     },
     {
+      "name": "SwapDirection",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Add"
+          },
+          {
+            "name": "Remove"
+          }
+        ]
+      }
+    },
+    {
       "name": "SwapError",
       "type": {
         "kind": "enum",

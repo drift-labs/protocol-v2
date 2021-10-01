@@ -20,7 +20,7 @@ impl Default for PositionDirection {
     }
 }
 
-pub fn increase_position(
+pub fn increase(
     direction: PositionDirection,
     new_quote_asset_notional_amount: u128,
     market: &mut Market,
@@ -83,7 +83,7 @@ pub fn increase_position(
     return trade_size_to_small;
 }
 
-pub fn reduce_position<'info>(
+pub fn reduce<'info>(
     direction: PositionDirection,
     new_quote_asset_notional_amount: u128,
     user: &mut Account<'info, User>,
@@ -163,7 +163,7 @@ pub fn reduce_position<'info>(
     return trade_size_too_small;
 }
 
-pub fn close_position(
+pub fn close(
     user: &mut Account<User>,
     market: &mut Market,
     market_position: &mut MarketPosition,

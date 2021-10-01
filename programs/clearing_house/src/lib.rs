@@ -5,6 +5,7 @@ use anchor_spl::token::{self, Transfer};
 use borsh::{BorshDeserialize, BorshSerialize};
 use bytemuck;
 
+use controller::position::PositionDirection;
 use error::*;
 use instructions::*;
 use math::{amm, bn, constants::*, fees, margin::*, position::*, withdrawal::*};
@@ -14,7 +15,6 @@ use state::{
     state::State,
     user::{MarketPosition, User},
 };
-use trade::*;
 
 mod controller;
 mod error;
@@ -22,7 +22,6 @@ mod funding;
 mod instructions;
 mod math;
 mod state;
-mod trade;
 declare_id!("CBoHNBhdJ7dv5BCovoDBH7dH7qKfA595dpRhodugJbqx");
 
 #[program]
@@ -347,7 +346,7 @@ pub mod clearing_house {
             let market = &mut ctx.accounts.markets.load_mut()?.markets
                 [Markets::index_from_u64(market_index)];
 
-            let trade_size_too_small = trade::increase_position(
+            let trade_size_too_small = controller::position::increase(
                 direction,
                 quote_asset_amount,
                 market,
@@ -367,7 +366,7 @@ pub mod clearing_house {
             // we calculate what the user's position is worth if they closed to determine
             // if they are reducing or closing and reversing their position
             if base_asset_value > quote_asset_amount {
-                let trade_size_too_small = trade::reduce_position(
+                let trade_size_too_small = controller::position::reduce(
                     direction,
                     quote_asset_amount,
                     user,
@@ -389,9 +388,9 @@ pub mod clearing_house {
                     potentially_risk_increasing = false; //todo
                 }
 
-                trade::close_position(user, market, market_position, now);
+                controller::position::close(user, market, market_position, now);
 
-                let trade_size_too_small = trade::increase_position(
+                let trade_size_too_small = controller::position::increase(
                     direction,
                     incremental_quote_asset_notional_amount_resid,
                     market,
@@ -534,7 +533,7 @@ pub mod clearing_house {
             PositionDirection::Long
         };
         let base_asset_amount = market_position.base_asset_amount.unsigned_abs();
-        trade::close_position(user, market, market_position, now);
+        controller::position::close(user, market, market_position, now);
 
         let fee = fees::calculate(
             base_asset_value,
@@ -595,7 +594,7 @@ pub mod clearing_house {
                 let market =
                     &mut markets.markets[Markets::index_from_u64(market_position.market_index)];
 
-                trade::close_position(user, market, market_position, now)
+                controller::position::close(user, market, market_position, now)
             }
         } else {
             let markets = &mut ctx.accounts.markets.load_mut().unwrap();
@@ -625,7 +624,7 @@ pub mod clearing_house {
                     PositionDirection::Long
                 };
 
-                trade::reduce_position(
+                controller::position::reduce(
                     direction,
                     base_asset_value_to_close,
                     user,
