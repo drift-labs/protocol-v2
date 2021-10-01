@@ -1302,20 +1302,6 @@
       }
     },
     {
-      "name": "SwapDirection",
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "Add"
-          },
-          {
-            "name": "Remove"
-          }
-        ]
-      }
-    },
-    {
       "name": "PositionDirection",
       "type": {
         "kind": "enum",

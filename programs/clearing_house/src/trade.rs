@@ -1,9 +1,10 @@
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 
+use crate::controller;
+use crate::controller::amm::SwapDirection;
 use crate::math::collateral::calculate_updated_collateral;
 use crate::math::position::calculate_base_asset_value_and_pnl;
-use crate::state::market::SwapDirection;
 use crate::{Market, MarketPosition, User};
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq)]
@@ -50,10 +51,12 @@ pub fn increase_position(
         PositionDirection::Short => SwapDirection::Remove,
     };
 
-    let (base_asset_acquired, trade_size_to_small) =
-        market
-            .amm
-            .swap_quote_asset(new_quote_asset_notional_amount, swap_direction, now);
+    let (base_asset_acquired, trade_size_to_small) = controller::amm::swap_quote_asset(
+        &mut market.amm,
+        new_quote_asset_notional_amount,
+        swap_direction,
+        now,
+    );
 
     // update the position size on market and user
     market_position.base_asset_amount = market_position
@@ -94,10 +97,12 @@ pub fn reduce_position<'info>(
     };
     let (base_asset_value_before, pnl_before) =
         calculate_base_asset_value_and_pnl(market_position, &market.amm);
-    let (base_asset_swapped, trade_size_too_small) =
-        market
-            .amm
-            .swap_quote_asset(new_quote_asset_notional_amount, swap_direction, now);
+    let (base_asset_swapped, trade_size_too_small) = controller::amm::swap_quote_asset(
+        &mut market.amm,
+        new_quote_asset_notional_amount,
+        swap_direction,
+        now,
+    );
 
     market_position.base_asset_amount = market_position
         .base_asset_amount
@@ -178,7 +183,8 @@ pub fn close_position(
     let (_base_asset_value, pnl) =
         calculate_base_asset_value_and_pnl(&market_position, &market.amm);
 
-    market.amm.swap_base_asset(
+    controller::amm::swap_base_asset(
+        &mut market.amm,
         market_position.base_asset_amount.unsigned_abs(),
         swap_direction,
         now,

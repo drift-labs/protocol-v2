@@ -7,7 +7,7 @@ use bytemuck;
 
 use error::*;
 use instructions::*;
-use math::{bn, constants::*, curve, fees, margin::*, position::*, withdrawal::*};
+use math::{amm, bn, constants::*, fees, margin::*, position::*, withdrawal::*};
 use state::{
     history::TradeRecord,
     market::{Market, Markets, OracleSource, AMM},
@@ -16,6 +16,7 @@ use state::{
 };
 use trade::*;
 
+mod controller;
 mod error;
 mod funding;
 mod instructions;
@@ -105,7 +106,7 @@ pub mod clearing_house {
             return Err(ErrorCode::InvalidInitialPeg.into());
         }
 
-        let init_mark_price = curve::calculate_base_asset_price_with_mantissa(
+        let init_mark_price = amm::calculate_base_asset_price_with_mantissa(
             amm_quote_asset_amount,
             amm_base_asset_amount,
             amm_peg_multiplier,
@@ -467,7 +468,7 @@ pub mod clearing_house {
                 .checked_div(market.amm.peg_multiplier)
                 .unwrap();
 
-            let entry_price = curve::calculate_base_asset_price_with_mantissa(
+            let entry_price = amm::calculate_base_asset_price_with_mantissa(
                 unpegged_quote_asset_amount,
                 base_asset_amount_change,
                 market.amm.peg_multiplier,
@@ -739,7 +740,7 @@ pub mod clearing_house {
     ) -> ProgramResult {
         let markets = &mut ctx.accounts.markets.load_mut().unwrap();
         let market = &mut markets.markets[Markets::index_from_u64(market_index)];
-        market.amm.move_price(base_asset_amount, quote_asset_amount);
+        controller::amm::move_price(&mut market.amm, base_asset_amount, quote_asset_amount);
         Ok(())
     }
 
@@ -808,7 +809,7 @@ pub mod clearing_house {
 
         if new_peg_candidate == 0 {
             // try to find semi-opt solution
-            new_peg_candidate = amm.find_valid_repeg(oracle_px, oracle_conf);
+            new_peg_candidate = math::amm::find_valid_repeg(&amm, oracle_px, oracle_conf);
 
             if new_peg_candidate == amm.peg_multiplier {
                 return Err(ErrorCode::InvalidRepegRedundant.into());
@@ -838,7 +839,7 @@ pub mod clearing_house {
             .checked_sub(amm.base_asset_reserve as i128)
             .unwrap();
 
-        let pnl = amm.calculate_repeg_candidate_pnl(new_peg_candidate);
+        let pnl = math::amm::calculate_repeg_candidate_pnl(amm, new_peg_candidate);
 
         if net_market_position != 0 && pnl == 0 {
             return Err(ErrorCode::InvalidRepegProfitability.into());
@@ -885,7 +886,7 @@ pub mod clearing_house {
                 }
             }
 
-            amm.move_to_price(current_mark);
+            controller::amm::move_to_price(amm, current_mark);
         }
 
         amm.cumulative_fee_realized = pnl_r;
@@ -934,7 +935,7 @@ pub mod clearing_house {
 
         let time_since_last_update = now - market.amm.last_funding_rate_ts;
 
-        market.amm.last_mark_price_twap = market.amm.get_new_twap(now);
+        market.amm.last_mark_price_twap = math::amm::calculate_new_mark_twap(&market.amm, now);
         market.amm.last_mark_price_twap_ts = now;
 
         if time_since_last_update >= market.amm.funding_period {
@@ -946,7 +947,8 @@ pub mod clearing_house {
                 .unwrap();
             // funding period = 1 hour, window = 1 day
             // low periodicity => quickly updating/settled funding rates => lower funding rate payment per interval
-            let price_spread = market.amm.get_oracle_mark_spread(price_oracle, one_hour);
+            let price_spread =
+                amm::calculate_oracle_mark_spread(&market.amm, price_oracle, one_hour);
             let funding_rate = price_spread
                 .checked_mul(FUNDING_PAYMENT_MANTISSA as i128)
                 .unwrap()

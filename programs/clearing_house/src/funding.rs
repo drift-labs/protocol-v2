@@ -1,13 +1,16 @@
+use std::cell::{Ref, RefMut};
+
+use anchor_lang::prelude::*;
+
 use crate::math::bn;
 use crate::math::collateral::calculate_updated_collateral;
 use crate::math::constants::{
     BASE_ASSET_AMOUNT_PRECISION, FUNDING_PAYMENT_MANTISSA, MARK_PRICE_MANTISSA, USDC_PRECISION,
 };
 use crate::state::history::{FundingPaymentHistory, FundingPaymentRecord};
-use crate::state::market::{Markets, AMM};
+use crate::state::market::Markets;
+use crate::state::market::AMM;
 use crate::state::user::{MarketPosition, User, UserPositions};
-use anchor_lang::prelude::*;
-use std::cell::{Ref, RefMut};
 
 pub fn settle_funding_payment(
     user: &mut User,
