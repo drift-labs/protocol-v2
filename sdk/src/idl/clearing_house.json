@@ -1416,5 +1416,8 @@
       "name": "TradeSizeTooSmall",
       "msg": "Trade Size Too Small"
     }
-  ]
+  ],
+  "metadata": {
+    "address": "CYNfxYRPzxAPwWu5JfFgrhYviNmtFhBkppyruMvrAtzV"
+  }
 }
