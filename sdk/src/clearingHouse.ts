@@ -827,10 +827,10 @@ export class ClearingHouse {
 		const timeSinceLastUpdate = now.sub(market.amm.lastFundingRateTs);
 
 		const lastMarkTwapWithMantissa = market.amm.lastMarkPriceTwap;
-		const lastMarkTwapTs = market.amm.lastMarkPriceTwapTs;
+		const lastMarkPriceTwapTs = market.amm.lastMarkPriceTwapTs;
 
-		const timeSinceLastMarkChange = now.sub(market.amm.lastMarkTwapTs);
-		const markTwapTimeSinceLastUpdate = lastMarkTwapTs.sub(
+		const timeSinceLastMarkChange = now.sub(lastMarkPriceTwapTs);
+		const markTwapTimeSinceLastUpdate = lastMarkPriceTwapTs.sub(
 			market.amm.lastFundingRateTs
 		);
 
