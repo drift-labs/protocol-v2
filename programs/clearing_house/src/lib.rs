@@ -1,7 +1,5 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Transfer};
 use borsh::{BorshDeserialize, BorshSerialize};
-use bytemuck;
 
 use controller::position::PositionDirection;
 use error::*;
@@ -168,18 +166,13 @@ pub mod clearing_house {
             funding_payment_history,
         );
 
-        let cpi_accounts = Transfer {
-            from: ctx
-                .accounts
-                .user_collateral_account
-                .to_account_info()
-                .clone(),
-            to: ctx.accounts.collateral_vault.to_account_info().clone(),
-            authority: ctx.accounts.authority.to_account_info().clone(),
-        };
-        let cpi_program = ctx.accounts.token_program.to_account_info();
-        let cpi_context = CpiContext::new(cpi_program, cpi_accounts);
-        token::transfer(cpi_context, amount).unwrap();
+        controller::token::receive(
+            &ctx.accounts.token_program,
+            &ctx.accounts.user_collateral_account,
+            &ctx.accounts.collateral_vault,
+            &ctx.accounts.authority,
+            amount,
+        );
 
         ctx.accounts.state.collateral_deposits = ctx
             .accounts
@@ -228,27 +221,14 @@ pub mod clearing_house {
             return Err(ErrorCode::InsufficientCollateral.into());
         }
 
-        let signature_seeds = [
-            ctx.accounts.state.collateral_vault.as_ref(),
-            bytemuck::bytes_of(&ctx.accounts.state.collateral_vault_nonce),
-        ];
-        let signers = &[&signature_seeds[..]];
-        let cpi_accounts = Transfer {
-            from: ctx.accounts.collateral_vault.to_account_info().clone(),
-            to: ctx
-                .accounts
-                .user_collateral_account
-                .to_account_info()
-                .clone(),
-            authority: ctx
-                .accounts
-                .collateral_vault_authority
-                .to_account_info()
-                .clone(),
-        };
-        let cpi_program = ctx.accounts.token_program.to_account_info();
-        let cpi_context = CpiContext::new_with_signer(cpi_program, cpi_accounts, signers);
-        token::transfer(cpi_context, collateral_account_withdrawal).unwrap();
+        controller::token::send(
+            &ctx.accounts.token_program,
+            &ctx.accounts.collateral_vault,
+            &ctx.accounts.user_collateral_account,
+            &ctx.accounts.collateral_vault_authority,
+            ctx.accounts.state.collateral_vault_nonce,
+            collateral_account_withdrawal,
+        );
 
         ctx.accounts.state.collateral_deposits = ctx
             .accounts
@@ -258,27 +238,14 @@ pub mod clearing_house {
             .unwrap();
 
         if insurance_account_withdrawal > 0 {
-            let signature_seeds = [
-                ctx.accounts.state.insurance_vault.as_ref(),
-                bytemuck::bytes_of(&ctx.accounts.state.insurance_vault_nonce),
-            ];
-            let signers = &[&signature_seeds[..]];
-            let cpi_accounts = Transfer {
-                from: ctx.accounts.insurance_vault.to_account_info().clone(),
-                to: ctx
-                    .accounts
-                    .user_collateral_account
-                    .to_account_info()
-                    .clone(),
-                authority: ctx
-                    .accounts
-                    .insurance_vault_authority
-                    .to_account_info()
-                    .clone(),
-            };
-            let cpi_program = ctx.accounts.token_program.to_account_info();
-            let cpi_context = CpiContext::new_with_signer(cpi_program, cpi_accounts, signers);
-            token::transfer(cpi_context, insurance_account_withdrawal).unwrap();
+            controller::token::send(
+                &ctx.accounts.token_program,
+                &ctx.accounts.insurance_vault,
+                &ctx.accounts.user_collateral_account,
+                &ctx.accounts.insurance_vault_authority,
+                ctx.accounts.state.insurance_vault_nonce,
+                insurance_account_withdrawal,
+            );
         }
         Ok(())
     }
@@ -693,43 +660,25 @@ pub mod clearing_house {
             .unwrap();
 
         if liquidator_cut_amount > 0 {
-            let signature_seeds = [
-                ctx.accounts.state.collateral_vault.as_ref(),
-                bytemuck::bytes_of(&ctx.accounts.state.collateral_vault_nonce),
-            ];
-            let signers = &[&signature_seeds[..]];
-            let cpi_accounts = Transfer {
-                from: ctx.accounts.collateral_vault.to_account_info().clone(),
-                to: ctx.accounts.liquidator_account.to_account_info().clone(),
-                authority: ctx
-                    .accounts
-                    .collateral_vault_authority
-                    .to_account_info()
-                    .clone(),
-            };
-            let cpi_program = ctx.accounts.token_program.to_account_info();
-            let cpi_context = CpiContext::new_with_signer(cpi_program, cpi_accounts, signers);
-            token::transfer(cpi_context, liquidator_cut_amount).unwrap();
+            controller::token::send(
+                &ctx.accounts.token_program,
+                &ctx.accounts.collateral_vault,
+                &ctx.accounts.liquidator_account,
+                &ctx.accounts.collateral_vault_authority,
+                ctx.accounts.state.collateral_vault_nonce,
+                liquidator_cut_amount,
+            );
         }
 
         if insurance_fund_cut_amount > 0 {
-            let signature_seeds = [
-                ctx.accounts.state.collateral_vault.as_ref(),
-                bytemuck::bytes_of(&ctx.accounts.state.collateral_vault_nonce),
-            ];
-            let signers = &[&signature_seeds[..]];
-            let cpi_accounts = Transfer {
-                from: ctx.accounts.collateral_vault.to_account_info().clone(),
-                to: ctx.accounts.insurance_vault.to_account_info().clone(),
-                authority: ctx
-                    .accounts
-                    .collateral_vault_authority
-                    .to_account_info()
-                    .clone(),
-            };
-            let cpi_program = ctx.accounts.token_program.to_account_info();
-            let cpi_context = CpiContext::new_with_signer(cpi_program, cpi_accounts, signers);
-            token::transfer(cpi_context, insurance_fund_cut_amount).unwrap();
+            controller::token::send(
+                &ctx.accounts.token_program,
+                &ctx.accounts.collateral_vault,
+                &ctx.accounts.insurance_vault,
+                &ctx.accounts.collateral_vault_authority,
+                ctx.accounts.state.collateral_vault_nonce,
+                insurance_fund_cut_amount,
+            );
         }
 
         Ok(())
@@ -768,23 +717,14 @@ pub mod clearing_house {
             .checked_sub(market.amm.cumulative_fee_realized)
             .unwrap();
         if amount <= max_withdraw as u64 {
-            let signature_seeds = [
-                ctx.accounts.state.collateral_vault.as_ref(),
-                bytemuck::bytes_of(&ctx.accounts.state.collateral_vault_nonce),
-            ];
-            let signers = &[&signature_seeds[..]];
-            let cpi_accounts = Transfer {
-                from: ctx.accounts.collateral_vault.to_account_info().clone(),
-                to: ctx.accounts.insurance_vault.to_account_info().clone(),
-                authority: ctx
-                    .accounts
-                    .collateral_vault_authority
-                    .to_account_info()
-                    .clone(),
-            };
-            let cpi_program = ctx.accounts.token_program.to_account_info();
-            let cpi_context = CpiContext::new_with_signer(cpi_program, cpi_accounts, signers);
-            token::transfer(cpi_context, amount).unwrap();
+            controller::token::send(
+                &ctx.accounts.token_program,
+                &ctx.accounts.collateral_vault,
+                &ctx.accounts.insurance_vault,
+                &ctx.accounts.collateral_vault_authority,
+                ctx.accounts.state.collateral_vault_nonce,
+                amount,
+            );
         }
 
         Ok(())
