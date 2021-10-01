@@ -36,6 +36,16 @@ export type ClearingHouseState = {
 	markets: PublicKey;
 	fundingPaymentHistory: PublicKey;
 	tradeHistory: PublicKey;
+	partialLiquidationClosePercentageNumerator: BN;
+	partialLiquidationClosePercentageDenominator: BN;
+	partialLiquidationPenaltyPercentageNumerator: BN;
+	partialLiquidationPenaltyPercentageDenominator: BN;
+	fullLiquidationPenaltyPercentageNumerator: BN;
+	fullLiquidationPenaltyPercentageDenominator: BN;
+	partialLiquidationLiquidatorShareDenominator: BN;
+	fullLiquidationLiquidatorShareDenominator: BN;
+	feeNumerator: BN;
+	feeDenominator: BN;
 };
 
 export type ClearingHouseMarketsAccountData = {

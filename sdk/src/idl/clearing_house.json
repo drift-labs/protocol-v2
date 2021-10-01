@@ -609,6 +609,198 @@
           "type": "u64"
         }
       ]
+    },
+    {
+      "name": "updateMarginRatio",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marginRatioInitial",
+          "type": "u128"
+        },
+        {
+          "name": "marginRatioPartial",
+          "type": "u128"
+        },
+        {
+          "name": "marginRatioMaintenance",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "updatePartialLiquidationClosePercentage",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "numerator",
+          "type": "u128"
+        },
+        {
+          "name": "denominator",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "updatePartialLiquidationPenaltyPercentage",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "numerator",
+          "type": "u128"
+        },
+        {
+          "name": "denominator",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "updateFullLiquidationPenaltyPercentage",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "numerator",
+          "type": "u128"
+        },
+        {
+          "name": "denominator",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "updatePartialLiquidationLiquidatorShareDenominator",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "denominator",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "updateFullLiquidationLiquidatorShareDenominator",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "denominator",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "updateFee",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "feeNumerator",
+          "type": "u128"
+        },
+        {
+          "name": "feeDenominator",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "updateAdmin",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "admin",
+          "type": "publicKey"
+        }
+      ]
     }
   ],
   "accounts": [
@@ -1224,8 +1416,5 @@
       "name": "TradeSizeTooSmall",
       "msg": "Trade Size Too Small"
     }
-  ],
-  "metadata": {
-    "address": "Hn5QxcBS3F378b3Uc2pEcbfm7ULMkLthbVrYtP1HHhZc"
-  }
+  ]
 }

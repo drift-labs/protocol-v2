@@ -262,3 +262,13 @@ pub struct MoveAMMPrice<'info> {
     #[account(mut)]
     pub markets: Loader<'info, Markets>,
 }
+
+#[derive(Accounts)]
+pub struct AdminUpdateState<'info> {
+    pub admin: Signer<'info>,
+    #[account(
+        mut,
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+}

@@ -1307,4 +1307,106 @@ export class ClearingHouse {
 
 		return perPositionFundingRate;
 	}
+
+	public async updateAdmin(admin: PublicKey) : Promise<TransactionSignature> {
+		return await this.program.rpc.updateAdmin(
+			admin,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+				}
+			}
+		);
+	}
+
+	public async updateMarginRatio(marginRatioInitial: BN, marginRatioPartial: BN, marginRatioMaintenance: BN) : Promise<TransactionSignature> {
+		return await this.program.rpc.updateMarginRatio(
+			marginRatioInitial,
+			marginRatioPartial,
+			marginRatioMaintenance,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+				}
+			}
+		);
+	}
+
+	public async updatePartialLiquidationClosePercentage(numerator: BN, denominator: BN) : Promise<TransactionSignature> {
+		return await this.program.rpc.updatePartialLiquidationClosePercentage(
+			numerator,
+			denominator,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+				}
+			}
+		);
+	}
+
+	public async updatePartialLiquidationPenaltyPercentage(numerator: BN, denominator: BN) : Promise<TransactionSignature> {
+		return await this.program.rpc.updatePartialLiquidationPenaltyPercentage(
+			numerator,
+			denominator,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+				}
+			}
+		);
+	}
+
+	public async updateFullLiquidationPenaltyPercentage(numerator: BN, denominator: BN) : Promise<TransactionSignature> {
+		return await this.program.rpc.updateFullLiquidationPenaltyPercentage(
+			numerator,
+			denominator,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+				}
+			}
+		);
+	}
+
+	public async updatePartialLiquidationShareDenominator(denominator: BN) : Promise<TransactionSignature> {
+		return await this.program.rpc.updatePartialLiquidationLiquidatorShareDenominator(
+			denominator,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+				}
+			}
+		);
+	}
+
+	public async updateFullLiquidationShareDenominator(denominator: BN) : Promise<TransactionSignature> {
+		return await this.program.rpc.updateFullLiquidationLiquidatorShareDenominator(
+			denominator,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+				}
+			}
+		);
+	}
+
+	public async updateFee(numerator: BN, denominator: BN) : Promise<TransactionSignature> {
+		return await this.program.rpc.updateFee(
+			numerator,
+			denominator,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+				}
+			}
+		);
+	}
 }

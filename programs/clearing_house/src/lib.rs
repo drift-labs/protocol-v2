@@ -1038,6 +1038,95 @@ pub mod clearing_house {
 
         Ok(())
     }
+
+    pub fn update_margin_ratio(
+        ctx: Context<AdminUpdateState>,
+        margin_ratio_initial: u128,
+        margin_ratio_partial: u128,
+        margin_ratio_maintenance: u128,
+    ) -> ProgramResult {
+        ctx.accounts.state.margin_ratio_initial = margin_ratio_initial;
+        ctx.accounts.state.margin_ratio_partial = margin_ratio_partial;
+        ctx.accounts.state.margin_ratio_maintenance = margin_ratio_maintenance;
+        Ok(())
+    }
+
+    pub fn update_partial_liquidation_close_percentage(
+        ctx: Context<AdminUpdateState>,
+        numerator: u128,
+        denominator: u128,
+    ) -> ProgramResult {
+        ctx.accounts
+            .state
+            .partial_liquidation_close_percentage_numerator = numerator;
+        ctx.accounts
+            .state
+            .partial_liquidation_close_percentage_denominator = denominator;
+        Ok(())
+    }
+
+    pub fn update_partial_liquidation_penalty_percentage(
+        ctx: Context<AdminUpdateState>,
+        numerator: u128,
+        denominator: u128,
+    ) -> ProgramResult {
+        ctx.accounts
+            .state
+            .partial_liquidation_penalty_percentage_numerator = numerator;
+        ctx.accounts
+            .state
+            .partial_liquidation_penalty_percentage_denominator = denominator;
+        Ok(())
+    }
+
+    pub fn update_full_liquidation_penalty_percentage(
+        ctx: Context<AdminUpdateState>,
+        numerator: u128,
+        denominator: u128,
+    ) -> ProgramResult {
+        ctx.accounts
+            .state
+            .full_liquidation_penalty_percentage_numerator = numerator;
+        ctx.accounts
+            .state
+            .full_liquidation_penalty_percentage_denominator = denominator;
+        Ok(())
+    }
+
+    pub fn update_partial_liquidation_liquidator_share_denominator(
+        ctx: Context<AdminUpdateState>,
+        denominator: u64,
+    ) -> ProgramResult {
+        ctx.accounts
+            .state
+            .partial_liquidation_liquidator_share_denominator = denominator;
+        Ok(())
+    }
+
+    pub fn update_full_liquidation_liquidator_share_denominator(
+        ctx: Context<AdminUpdateState>,
+        denominator: u64,
+    ) -> ProgramResult {
+        ctx.accounts
+            .state
+            .full_liquidation_liquidator_share_denominator = denominator;
+        Ok(())
+    }
+
+    pub fn update_fee(
+        ctx: Context<AdminUpdateState>,
+        fee_numerator: u128,
+        fee_denominator: u128,
+    ) -> ProgramResult {
+        ctx.accounts.state.fee_numerator = fee_numerator;
+        ctx.accounts.state.fee_denominator = fee_denominator;
+        Ok(())
+    }
+
+    pub fn update_admin(ctx: Context<AdminUpdateState>, admin: Pubkey) -> ProgramResult {
+        ctx.accounts.state.admin = admin;
+        Ok(())
+    }
 }
 
 fn market_initialized(markets: &Loader<Markets>, market_index: u64) -> Result<()> {
