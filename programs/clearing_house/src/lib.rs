@@ -18,7 +18,6 @@ use state::{
 
 mod controller;
 mod error;
-mod funding;
 mod instructions;
 mod math;
 mod state;
@@ -164,7 +163,12 @@ pub mod clearing_house {
         let markets = &ctx.accounts.markets.load().unwrap();
         let user_positions = &mut ctx.accounts.user_positions.load_mut().unwrap();
         let funding_payment_history = &mut ctx.accounts.funding_payment_history.load_mut().unwrap();
-        funding::settle_funding_payment(user, user_positions, markets, funding_payment_history);
+        controller::funding::settle_funding_payment(
+            user,
+            user_positions,
+            markets,
+            funding_payment_history,
+        );
 
         let cpi_accounts = Transfer {
             from: ctx
@@ -195,7 +199,12 @@ pub mod clearing_house {
         let markets = &ctx.accounts.markets.load().unwrap();
         let user_positions = &mut ctx.accounts.user_positions.load_mut().unwrap();
         let funding_payment_history = &mut ctx.accounts.funding_payment_history.load_mut().unwrap();
-        funding::settle_funding_payment(user, user_positions, markets, funding_payment_history);
+        controller::funding::settle_funding_payment(
+            user,
+            user_positions,
+            markets,
+            funding_payment_history,
+        );
 
         if (amount as u128) > user.collateral {
             return Err(ErrorCode::InsufficientCollateral.into());
@@ -292,7 +301,7 @@ pub mod clearing_house {
 
         let user_positions = &mut ctx.accounts.user_positions.load_mut().unwrap();
         let funding_payment_history = &mut ctx.accounts.funding_payment_history.load_mut().unwrap();
-        funding::settle_funding_payment(
+        controller::funding::settle_funding_payment(
             user,
             user_positions,
             &ctx.accounts.markets.load().unwrap(),
@@ -500,7 +509,7 @@ pub mod clearing_house {
 
         let user_positions = &mut ctx.accounts.user_positions.load_mut().unwrap();
         let funding_payment_history = &mut ctx.accounts.funding_payment_history.load_mut().unwrap();
-        funding::settle_funding_payment(
+        controller::funding::settle_funding_payment(
             user,
             user_positions,
             &ctx.accounts.markets.load().unwrap(),
@@ -908,7 +917,7 @@ pub mod clearing_house {
     }
 
     pub fn settle_funding_payment(ctx: Context<SettleFunding>) -> ProgramResult {
-        funding::settle_funding_payment(
+        controller::funding::settle_funding_payment(
             &mut ctx.accounts.user,
             &mut ctx.accounts.user_positions.load_mut().unwrap(),
             &ctx.accounts.markets.load().unwrap(),
