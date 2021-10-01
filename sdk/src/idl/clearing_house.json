@@ -513,7 +513,7 @@
       ],
       "args": [
         {
-          "name": "newPeg",
+          "name": "newPegCandidate",
           "type": "u128"
         },
         {
