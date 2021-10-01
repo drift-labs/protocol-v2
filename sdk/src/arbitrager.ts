@@ -125,17 +125,17 @@ export class Arbitrager {
 			const oracleLastValidSlot = oraclePriceData.validSlot;
 			const oracleDelay = (nowSlot - Number(oracleLastValidSlot)) * 0.4; // estimate in seconds (assume 400ms each block)
 			if (oracleDelay > 30) {
-				console.log(
-					'Market',
-					marketIndex,
-					'oracle delay > 30 seconds:',
-					oracleDelay
-				);
+				// console.log(
+				// 	'Market',
+				// 	marketIndex,
+				// 	'oracle delay > 30 seconds:',
+				// 	oracleDelay
+				// );
 				continue;
 			}
 			if (oraclePriceData.status.toString() !== '1') {
 				//agg.status = Trading (1)
-				console.log(marketIndexBN, 'oracle status != Trading(1)');
+				// console.log(marketIndexBN, 'oracle status != Trading(1)');
 				continue;
 			}
 
@@ -208,7 +208,7 @@ export class Arbitrager {
 				currentMarketAlpha * 0.99;
 			this.alphas[marketIndexBN.toNumber()] = newMarketAlpha;
 
-			console.log('Market', marketIndex, 'oracle alpha:', newMarketAlpha);
+			// console.log('Market', marketIndex, 'oracle alpha:', newMarketAlpha);
 
 			const oracleTwapWithMantissa = new BN(
 				oraclePriceData.twap.value * AMM_MANTISSA.toNumber()
@@ -265,14 +265,14 @@ export class Arbitrager {
 					!shouldReducePosition &&
 					currentSpreadPct < 0.03
 				) {
-					console.log(
-						'spread too small to arb in Market:',
-						marketIndexBN.toNumber(),
-						currentSpreadPct,
-						currentSpread,
-						oracleTwac,
-						oracleNoise
-					);
+					// console.log(
+					// 	'spread too small to arb in Market:',
+					// 	marketIndexBN.toNumber(),
+					// 	currentSpreadPct,
+					// 	currentSpread,
+					// 	oracleTwac,
+					// 	oracleNoise
+					// );
 					continue;
 				}
 			} else if (uPnL > 0) {
@@ -314,7 +314,7 @@ export class Arbitrager {
 			}
 
 			if (isPositionValueLimit && !riskReduction) {
-				console.log('hit isPositionValueLimit and not risk reducing trade');
+				// console.log('hit isPositionValueLimit and not risk reducing trade');
 				continue;
 			}
 
@@ -360,7 +360,7 @@ export class Arbitrager {
 			// skip trades < 1 USDC
 			const expectedFee = stripMantissa(amount.abs(), USDC_PRECISION) * 0.0005;
 			if (amount.abs().lt(USDC_PRECISION)) {
-				console.log('trade amount < $1');
+				// console.log('trade amount < $1');
 				continue;
 			}
 
@@ -382,12 +382,12 @@ export class Arbitrager {
 
 			const newNetExposure = netExposure + baseAssetAmountToAcquire;
 			tradeEV += Math.abs(postTradeSpread * newNetExposure);
-			console.log('post trade info:', postTradeSpread, newNetExposure);
+			// console.log('post trade info:', postTradeSpread, newNetExposure);
 
 			// todo have tradeEV determine whether trade worth doing
 			// first pass has $100 buffer...
 			if (expectedFee > tradeEV + 100 && !riskReduction) {
-				console.log('expectedFee', expectedFee, ' > tradeEV:', tradeEV);
+				// console.log('expectedFee', expectedFee, ' > tradeEV:', tradeEV);
 				continue;
 			}
 
@@ -402,7 +402,7 @@ export class Arbitrager {
 				direction,
 				marketIndex: marketIndexBN,
 				amount,
-				oraclePriceWithMantissa: limitPrice,
+				oraclePriceWithMantissa: new BN(0), //todo
 			});
 		}
 		return tradesToExecute;
