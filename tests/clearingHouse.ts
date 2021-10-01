@@ -295,6 +295,43 @@ describe('clearing_house', () => {
 		}
 	});
 
+	it('Order fails due to unrealiziable limit price ', async () => {
+		// Should be a better a way to catch an exception with chai but wasn't working for me
+		try {
+			const newUSDCNotionalAmount = usdcAmount.div(new BN(2)).mul(new BN(5));
+			const marketIndex = new BN(0);
+			const estTradePrice = clearingHouse.calculatePriceImpact(
+				PositionDirection.SHORT,
+				newUSDCNotionalAmount,
+				marketIndex,
+				'entryPrice'
+			);
+
+			// trying to sell at price too high
+			const limitPriceTooHigh =
+				clearingHouse.calculateBaseAssetPriceWithMantissa(marketIndex);
+			console.log(
+				'failed order:',
+				estTradePrice.toNumber(),
+				limitPriceTooHigh.toNumber()
+			);
+
+			await clearingHouse.openPosition(
+				userAccountPublicKey,
+				PositionDirection.SHORT,
+				newUSDCNotionalAmount,
+				marketIndex,
+				limitPriceTooHigh
+			);
+			assert(false, 'Order succeeded');
+		} catch (e) {
+			if (e.message == 'Order succeeded') {
+				assert(false, 'Order succeeded');
+			}
+			assert(true);
+		}
+	});
+
 	it('Reduce long position', async () => {
 		const newUSDCNotionalAmount = usdcAmount.div(new BN(2)).mul(new BN(5));
 		await clearingHouse.openPosition(
@@ -724,5 +761,47 @@ describe('clearing_house', () => {
 			new BN(10000),
 			new BN(0)
 		);
+	});
+
+	it('Short order succeeds due to realiziable limit price ', async () => {
+		const newUSDCNotionalAmount = usdcAmount.div(new BN(2)).mul(new BN(5));
+		const marketIndex = new BN(0);
+		const estTradePrice = clearingHouse.calculatePriceImpact(
+			PositionDirection.SHORT,
+			newUSDCNotionalAmount,
+			marketIndex,
+			'entryPrice'
+		);
+
+		await clearingHouse.openPosition(
+			userAccountPublicKey,
+			PositionDirection.SHORT,
+			newUSDCNotionalAmount,
+			marketIndex,
+			estTradePrice
+		);
+
+		await clearingHouse.closePosition(userAccountPublicKey, marketIndex);
+	});
+
+	it('Long order succeeds due to realiziable limit price ', async () => {
+		const newUSDCNotionalAmount = usdcAmount.div(new BN(2)).mul(new BN(5));
+		const marketIndex = new BN(0);
+		const estTradePrice = clearingHouse.calculatePriceImpact(
+			PositionDirection.LONG,
+			newUSDCNotionalAmount,
+			marketIndex,
+			'entryPrice'
+		);
+
+		await clearingHouse.openPosition(
+			userAccountPublicKey,
+			PositionDirection.LONG,
+			newUSDCNotionalAmount,
+			marketIndex,
+			estTradePrice
+		);
+
+		await clearingHouse.closePosition(userAccountPublicKey, marketIndex);
 	});
 });

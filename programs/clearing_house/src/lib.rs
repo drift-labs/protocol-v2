@@ -461,8 +461,14 @@ pub mod clearing_house {
             let market = &ctx.accounts.markets.load().unwrap().markets
                 [Markets::index_from_u64(market_index)];
 
+            let unpegged_quote_asset_amount = quote_asset_amount
+                .checked_mul(MARK_PRICE_MANTISSA)
+                .unwrap()
+                .checked_div(market.amm.peg_multiplier)
+                .unwrap();
+
             let entry_price = curve::calculate_base_asset_price_with_mantissa(
-                quote_asset_amount,
+                unpegged_quote_asset_amount,
                 base_asset_amount_change,
                 market.amm.peg_multiplier,
             );
