@@ -152,7 +152,7 @@ export class Arbitrager {
 			let tradeEV = 0;
 			let positionValue = ZERO;
 
-			const positions = this.userAccount.userPositionsAccount.positions;
+			const positions = this.userAccount.userPositionsAccount?.positions;
 			for (const position in positions) {
 				if (positions[position].marketIndex.eq(marketIndexBN)) {
 					arbPos = positions[position];
@@ -402,7 +402,7 @@ export class Arbitrager {
 				direction,
 				marketIndex: marketIndexBN,
 				amount,
-				oraclePriceWithMantissa: new BN(0), //todo
+				oraclePriceWithMantissa: limitPrice, //todo
 			});
 		}
 		return tradesToExecute;
