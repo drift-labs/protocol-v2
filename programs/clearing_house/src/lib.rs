@@ -689,13 +689,13 @@ pub mod clearing_house {
     )]
     pub fn move_amm_price(
         ctx: Context<MoveAMMPrice>,
-        base_asset_amount: u128,
-        quote_asset_amount: u128,
+        base_asset_reserve: u128,
+        quote_asset_reserve: u128,
         market_index: u64,
     ) -> ProgramResult {
         let markets = &mut ctx.accounts.markets.load_mut().unwrap();
         let market = &mut markets.markets[Markets::index_from_u64(market_index)];
-        controller::amm::move_price(&mut market.amm, base_asset_amount, quote_asset_amount);
+        controller::amm::move_price(&mut market.amm, base_asset_reserve, quote_asset_reserve);
         Ok(())
     }
 
@@ -783,6 +783,44 @@ pub mod clearing_house {
 
         controller::funding::update_funding_rate(market, price_oracle, now);
 
+        Ok(())
+    }
+
+    #[access_control(
+        market_initialized(&ctx.accounts.markets, market_index)
+    )]
+    pub fn update_k(
+        ctx: Context<AdminUpdateK>,
+        base_asset_reserve: u128,
+        quote_asset_reserve: u128,
+        market_index: u64,
+    ) -> ProgramResult {
+        let markets = &mut ctx.accounts.markets.load_mut().unwrap();
+        let market = &mut markets.markets[Markets::index_from_u64(market_index)];
+        let amm = &mut market.amm;
+
+        let price_before = math::amm::calculate_base_asset_price_with_mantissa(
+            amm.quote_asset_reserve,
+            amm.base_asset_reserve,
+            amm.peg_multiplier,
+        );
+
+        let price_after = math::amm::calculate_base_asset_price_with_mantissa(
+            quote_asset_reserve,
+            base_asset_reserve,
+            amm.peg_multiplier,
+        );
+
+        let price_change_too_large = (price_before as i128)
+            .checked_sub(price_after as i128)
+            .unwrap()
+            .unsigned_abs()
+            .gt(&UPDATE_K_ALLOWED_PRICE_CHANGE);
+        if price_change_too_large {
+            return Err(ErrorCode::InvalidUpdateK.into());
+        }
+
+        controller::amm::move_price(amm, base_asset_reserve, quote_asset_reserve);
         Ok(())
     }
 

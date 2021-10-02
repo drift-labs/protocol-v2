@@ -88,12 +88,12 @@ pub fn swap_base_asset(
     amm.quote_asset_reserve = new_quote_asset_amount;
 }
 
-pub fn move_price(amm: &mut AMM, base_asset_amount: u128, quote_asset_amount: u128) {
-    amm.base_asset_reserve = base_asset_amount;
-    amm.quote_asset_reserve = quote_asset_amount;
+pub fn move_price(amm: &mut AMM, base_asset_reserve: u128, quote_asset_reserve: u128) {
+    amm.base_asset_reserve = base_asset_reserve;
+    amm.quote_asset_reserve = quote_asset_reserve;
 
-    let k = bn::U256::from(base_asset_amount)
-        .checked_mul(bn::U256::from(quote_asset_amount))
+    let k = bn::U256::from(base_asset_reserve)
+        .checked_mul(bn::U256::from(quote_asset_reserve))
         .unwrap();
 
     amm.sqrt_k = k.integer_sqrt().try_to_u128().unwrap();

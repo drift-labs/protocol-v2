@@ -12,7 +12,7 @@ import {
 } from '../utils/mockAccounts';
 import {PublicKey} from "@solana/web3.js";
 
-describe('clearing_house', () => {
+describe('admin', () => {
     const provider = anchor.Provider.local();
     const connection = provider.connection;
     anchor.setProvider(provider);

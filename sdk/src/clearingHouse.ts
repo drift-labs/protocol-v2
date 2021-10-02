@@ -650,22 +650,42 @@ export class ClearingHouse {
 	}
 
 	public async moveAmmPrice(
-		baseAmount: BN,
-		quoteAmount: BN,
+		baseAssetReserve: BN,
+		quoteAssetReserve: BN,
 		marketIndex: BN
 	): Promise<TransactionSignature> {
 		this.assertIsSubscribed();
 
 		return await this.program.rpc.moveAmmPrice(
-			baseAmount,
-			quoteAmount,
+			baseAssetReserve,
+			quoteAssetReserve,
 			marketIndex,
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
 					admin: this.wallet.publicKey,
 					markets: this.state.markets,
-					clock: SYSVAR_CLOCK_PUBKEY,
+				},
+			}
+		);
+	}
+
+	public async updateK(
+		baseAssetReserve: BN,
+		quoteAssetReserve: BN,
+		marketIndex: BN
+	): Promise<TransactionSignature> {
+		this.assertIsSubscribed();
+
+		return await this.program.rpc.updateK(
+			baseAssetReserve,
+			quoteAssetReserve,
+			marketIndex,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					admin: this.wallet.publicKey,
+					markets: this.state.markets,
 				},
 			}
 		);

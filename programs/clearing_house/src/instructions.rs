@@ -272,3 +272,14 @@ pub struct AdminUpdateState<'info> {
     )]
     pub state: Box<Account<'info, State>>,
 }
+
+#[derive(Accounts)]
+pub struct AdminUpdateK<'info> {
+    pub admin: Signer<'info>,
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub markets: Loader<'info, Markets>,
+}

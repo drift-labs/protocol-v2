@@ -424,11 +424,11 @@
       ],
       "args": [
         {
-          "name": "baseAssetAmount",
+          "name": "baseAssetReserve",
           "type": "u128"
         },
         {
-          "name": "quoteAssetAmount",
+          "name": "quoteAssetReserve",
           "type": "u128"
         },
         {
@@ -604,6 +604,40 @@
         }
       ],
       "args": [
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "updateK",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "markets",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "baseAssetReserve",
+          "type": "u128"
+        },
+        {
+          "name": "quoteAssetReserve",
+          "type": "u128"
+        },
         {
           "name": "marketIndex",
           "type": "u64"
@@ -1415,9 +1449,11 @@
       "code": 316,
       "name": "TradeSizeTooSmall",
       "msg": "Trade Size Too Small"
+    },
+    {
+      "code": 317,
+      "name": "InvalidUpdateK",
+      "msg": "Price change too large when updating K"
     }
-  ],
-  "metadata": {
-    "address": "CYNfxYRPzxAPwWu5JfFgrhYviNmtFhBkppyruMvrAtzV"
-  }
+  ]
 }
