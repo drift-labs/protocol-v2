@@ -38,4 +38,6 @@ pub enum ErrorCode {
     TradeSizeTooSmall,
     #[msg("Price change too large when updating K")]
     InvalidUpdateK,
+    #[msg("Admin tried to withdraw amount larger than fees collected")]
+    AdminWithdrawTooLarge,
 }

@@ -28,4 +28,6 @@ pub struct State {
     pub fee_denominator: u128,
     pub trade_history: Pubkey,
     pub collateral_deposits: u128,
+    pub fees_collected: u128,
+    pub fees_withdrawn: u128,
 }

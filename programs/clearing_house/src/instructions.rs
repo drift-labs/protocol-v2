@@ -123,8 +123,9 @@ pub struct WithdrawCollateral<'info> {
 }
 
 #[derive(Accounts)]
-pub struct AdminWithdrawCollateral<'info> {
+pub struct WithdrawFees<'info> {
     #[account(
+        mut,
         has_one = admin
     )]
     pub state: Box<Account<'info, State>>,
@@ -135,14 +136,29 @@ pub struct AdminWithdrawCollateral<'info> {
     )]
     pub collateral_vault: Box<Account<'info, TokenAccount>>,
     pub collateral_vault_authority: AccountInfo<'info>,
+    #[account(mut)]
+    pub recipient: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+pub struct WithdrawFromInsuranceVault<'info> {
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    pub admin: Signer<'info>,
     #[account(
         mut,
         constraint = &state.insurance_vault.eq(&insurance_vault.key())
     )]
     pub insurance_vault: Box<Account<'info, TokenAccount>>,
+    pub insurance_vault_authority: AccountInfo<'info>,
+    #[account(mut)]
+    pub recipient: Box<Account<'info, TokenAccount>>,
     #[account(mut)]
     pub token_program: Program<'info, Token>,
-    pub markets: Loader<'info, Markets>,
 }
 
 #[derive(Accounts)]

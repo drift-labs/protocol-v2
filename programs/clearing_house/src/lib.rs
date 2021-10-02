@@ -74,6 +74,8 @@ pub mod clearing_house {
             fee_denominator: DEFAULT_FEE_DENOMINATOR,
             trade_history: *ctx.accounts.trade_history.to_account_info().key,
             collateral_deposits: 0,
+            fees_collected: 0,
+            fees_withdrawn: 0,
         };
 
         return Ok(());
@@ -395,6 +397,8 @@ pub mod clearing_house {
             ctx.accounts.state.fee_numerator,
             ctx.accounts.state.fee_denominator,
         );
+        ctx.accounts.state.fees_collected =
+            ctx.accounts.state.fees_collected.checked_add(fee).unwrap();
         {
             let market = &mut ctx.accounts.markets.load_mut()?.markets
                 [Markets::index_from_u64(market_index)];
@@ -514,6 +518,8 @@ pub mod clearing_house {
             ctx.accounts.state.fee_numerator,
             ctx.accounts.state.fee_denominator,
         );
+        ctx.accounts.state.fees_collected =
+            ctx.accounts.state.fees_collected.checked_add(fee).unwrap();
         market.amm.cumulative_fee = market.amm.cumulative_fee.checked_add(fee).unwrap();
         market.amm.cumulative_fee_realized =
             market.amm.cumulative_fee_realized.checked_add(fee).unwrap();
@@ -699,34 +705,46 @@ pub mod clearing_house {
         Ok(())
     }
 
-    #[access_control(
-        market_initialized(&ctx.accounts.markets, market_index)
-    )]
-    pub fn admin_withdraw_collateral(
-        ctx: Context<AdminWithdrawCollateral>,
-        amount: u64,
-        market_index: u64,
-    ) -> ProgramResult {
-        let markets = &mut ctx.accounts.markets.load_mut().unwrap();
-        let market = &mut markets.markets[Markets::index_from_u64(market_index)];
+    pub fn withdraw_fees(ctx: Context<WithdrawFees>, amount: u64) -> ProgramResult {
+        let state = &mut ctx.accounts.state;
 
-        let max_withdraw = ctx
-            .accounts
-            .state
-            .collateral_deposits
-            .checked_sub(market.amm.cumulative_fee_realized)
+        let max_withdraw = state
+            .fees_collected
+            .checked_div(SHARE_OF_FEES_ALLOCATED_TO_REPEG)
+            .unwrap()
+            .checked_sub(state.fees_withdrawn)
             .unwrap();
-        if amount <= max_withdraw as u64 {
-            controller::token::send(
-                &ctx.accounts.token_program,
-                &ctx.accounts.collateral_vault,
-                &ctx.accounts.insurance_vault,
-                &ctx.accounts.collateral_vault_authority,
-                ctx.accounts.state.collateral_vault_nonce,
-                amount,
-            );
+
+        if (amount as u128) > max_withdraw {
+            return Err(ErrorCode::AdminWithdrawTooLarge.into());
         }
 
+        controller::token::send(
+            &ctx.accounts.token_program,
+            &ctx.accounts.collateral_vault,
+            &ctx.accounts.recipient,
+            &ctx.accounts.collateral_vault_authority,
+            state.collateral_vault_nonce,
+            amount,
+        );
+
+        state.fees_withdrawn = state.fees_withdrawn.checked_add(amount as u128).unwrap();
+
+        Ok(())
+    }
+
+    pub fn withdraw_from_insurance_vault(
+        ctx: Context<WithdrawFromInsuranceVault>,
+        amount: u64,
+    ) -> ProgramResult {
+        controller::token::send(
+            &ctx.accounts.token_program,
+            &ctx.accounts.insurance_vault,
+            &ctx.accounts.recipient,
+            &ctx.accounts.insurance_vault_authority,
+            ctx.accounts.state.insurance_vault_nonce,
+            amount,
+        );
         Ok(())
     }
 

@@ -1328,6 +1328,44 @@ export class ClearingHouse {
 		return perPositionFundingRate;
 	}
 
+	public async withdrawFees(amount: BN, recipient: PublicKey) : Promise<TransactionSignature> {
+		this.assertIsSubscribed();
+
+		const state = await this.getState();
+		return await this.program.rpc.withdrawFees(
+			amount,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					collateralVault: state.collateralVault,
+					collateralVaultAuthority: state.collateralVaultAuthority,
+					recipient: recipient,
+					tokenProgram: TOKEN_PROGRAM_ID
+				}
+			}
+		);
+	}
+
+	public async withdrawFromInsuranceVault(amount: BN, recipient: PublicKey) : Promise<TransactionSignature> {
+		this.assertIsSubscribed();
+
+		const state = await this.getState();
+		return await this.program.rpc.withdrawFromInsuranceVault(
+			amount,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					insuranceVault: state.insuranceVault,
+					insuranceVaultAuthority: state.insuranceVaultAuthority,
+					recipient: recipient,
+					tokenProgram: TOKEN_PROGRAM_ID
+				}
+			}
+		);
+	}
+
 	public async updateAdmin(admin: PublicKey) : Promise<TransactionSignature> {
 		return await this.program.rpc.updateAdmin(
 			admin,

@@ -1,7 +1,9 @@
 use crate::controller;
 use crate::error::*;
 use crate::math;
-use crate::math::constants::{FUNDING_PAYMENT_MANTISSA, PRICE_TO_PEG_PRECISION_RATIO};
+use crate::math::constants::{
+    FUNDING_PAYMENT_MANTISSA, PRICE_TO_PEG_PRECISION_RATIO, SHARE_OF_FEES_ALLOCATED_TO_REPEG,
+};
 use crate::state::market::Market;
 use anchor_lang::prelude::{AccountInfo, ProgramResult};
 
@@ -65,7 +67,12 @@ pub fn repeg(
         return Err(ErrorCode::InvalidRepegProfitability.into());
     } else {
         pnl_r = (pnl_r).checked_sub(pnl.unsigned_abs()).unwrap();
-        if pnl_r < amm.cumulative_fee.checked_div(2).unwrap() {
+        if pnl_r
+            < amm
+                .cumulative_fee
+                .checked_div(SHARE_OF_FEES_ALLOCATED_TO_REPEG)
+                .unwrap()
+        {
             return Err(ErrorCode::InvalidRepegProfitability.into());
         }
 

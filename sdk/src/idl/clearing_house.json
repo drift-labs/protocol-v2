@@ -438,11 +438,11 @@
       ]
     },
     {
-      "name": "adminWithdrawCollateral",
+      "name": "withdrawFees",
       "accounts": [
         {
           "name": "state",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -461,7 +461,7 @@
           "isSigner": false
         },
         {
-          "name": "insuranceVault",
+          "name": "recipient",
           "isMut": true,
           "isSigner": false
         },
@@ -469,20 +469,52 @@
           "name": "tokenProgram",
           "isMut": true,
           "isSigner": false
-        },
-        {
-          "name": "markets",
-          "isMut": false,
-          "isSigner": false
         }
       ],
       "args": [
         {
           "name": "amount",
           "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "withdrawFromInsuranceVault",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
         },
         {
-          "name": "marketIndex",
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "insuranceVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceVaultAuthority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "recipient",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
           "type": "u64"
         }
       ]
@@ -1007,6 +1039,14 @@
           {
             "name": "collateralDeposits",
             "type": "u128"
+          },
+          {
+            "name": "feesCollected",
+            "type": "u128"
+          },
+          {
+            "name": "feesWithdrawn",
+            "type": "u128"
           }
         ]
       }
@@ -1454,6 +1494,11 @@
       "code": 317,
       "name": "InvalidUpdateK",
       "msg": "Price change too large when updating K"
+    },
+    {
+      "code": 318,
+      "name": "AdminWithdrawTooLarge",
+      "msg": "Admin tried to withdraw amount larger than fees collected"
     }
   ]
 }
