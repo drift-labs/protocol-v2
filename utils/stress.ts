@@ -117,11 +117,8 @@ export async function stress_test(
 			const market_i = new BN(0);
 			if (user_i % 2 == 0 && ['buy', 'sell'].includes(rand_e)) {
 				// arb user
-				const state: any = await clearingHouse.program.state.fetch();
-				const marketsAccount: any =
-					await clearingHouse.program.account.marketsAccount.fetch(
-						state.marketsAccount
-					);
+				const state: any = await clearingHouse.getState();
+				const marketsAccount: any = await clearingHouse.getMarketsAccount();
 
 				const marketData = marketsAccount.markets[market_i.toNumber()];
 				const ammData = marketData.amm;
@@ -131,11 +128,16 @@ export async function stress_test(
 				);
 
 				let _entry_px; //todo
+				let oraclePriceMantissa = new BN(
+					oracleData.price * PEG_SCALAR.toNumber()
+				).mul(AMM_MANTISSA.div(PEG_SCALAR));
+				let markPriceMantissa =
+					clearingHouse.calculateBaseAssetPriceWithMantissa(market_i);
 
 				[randEType, rand_amt, _entry_px] =
 					clearingHouse.calculateTargetPriceTrade(
 						market_i,
-						new BN(oracleData.price * PEG_SCALAR.toNumber())
+						oraclePriceMantissa
 					);
 
 				rand_amt = BN.min(
@@ -145,12 +147,15 @@ export async function stress_test(
 
 				if (rand_amt.abs().lt(new BN(10000))) {
 					rand_e = 'move';
-					rand_amt = new BN(oracleData.price * AMM_MANTISSA.toNumber());
-				} else if (randEType == { long: {} }) {
+					rand_amt = oraclePriceMantissa;
+				} else if (
+					randEType == { long: {} } ||
+					oraclePriceMantissa.gt(markPriceMantissa)
+				) {
 					rand_e = 'buy';
 				} else {
 					console.log(randEType);
-					throw Error('hi');
+					// throw Error('hi');
 					rand_e = 'sell';
 				}
 			} else {
@@ -252,7 +257,9 @@ export async function stress_test(
 
 		try {
 			ast_px = stripMantissa(
-				ammData.quoteAssetAmount.mul(AMM_MANTISSA).div(ammData.baseAssetAmount)
+				ammData.quoteAssetReserve
+					.mul(AMM_MANTISSA)
+					.div(ammData.baseAssetReserve)
 			);
 		} catch {
 			ast_px = -1;
