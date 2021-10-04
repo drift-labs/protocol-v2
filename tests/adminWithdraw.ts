@@ -10,7 +10,6 @@ import { PublicKey } from '@solana/web3.js';
 import {
     AMM_MANTISSA,
     ClearingHouse,
-    UserAccount,
     PositionDirection,
 } from '../sdk/src';
 
