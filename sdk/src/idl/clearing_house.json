@@ -273,6 +273,11 @@
           "name": "fundingPaymentHistory",
           "isMut": true,
           "isSigner": false
+        },
+        {
+          "name": "oracle",
+          "isMut": false,
+          "isSigner": false
         }
       ],
       "args": [
@@ -332,6 +337,11 @@
         {
           "name": "fundingPaymentHistory",
           "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "oracle",
+          "isMut": false,
           "isSigner": false
         }
       ],

@@ -182,6 +182,7 @@ pub struct OpenPosition<'info> {
     pub trade_history: Loader<'info, TradeHistory>,
     #[account(mut)]
     pub funding_payment_history: Loader<'info, FundingPaymentHistory>,
+    pub oracle: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
@@ -202,6 +203,7 @@ pub struct ClosePosition<'info> {
     pub trade_history_account: Loader<'info, TradeHistory>,
     #[account(mut)]
     pub funding_payment_history: Loader<'info, FundingPaymentHistory>,
+    pub oracle: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]

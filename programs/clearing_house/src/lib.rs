@@ -486,6 +486,13 @@ pub mod clearing_house {
             }
         }
 
+        {
+            let market = &mut ctx.accounts.markets.load_mut()?.markets
+                [Markets::index_from_u64(market_index)];
+            let price_oracle = &ctx.accounts.oracle;
+            controller::funding::update_funding_rate(market, &price_oracle, now)?;
+        }
+
         Ok(())
     }
 
@@ -578,6 +585,9 @@ pub mod clearing_house {
             fee,
             market_index,
         });
+
+        let price_oracle = &ctx.accounts.oracle;
+        controller::funding::update_funding_rate(market, &price_oracle, now)?;
 
         Ok(())
     }

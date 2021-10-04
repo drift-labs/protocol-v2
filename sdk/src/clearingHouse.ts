@@ -607,6 +607,8 @@ export class ClearingHouse {
 			limitPrice = new BN(0); // no limit
 		}
 
+		const priceOracle = this.getMarketsAccount().markets[marketIndex.toNumber()].amm.oracle;
+
 		return await this.program.rpc.openPosition(
 			direction,
 			amount,
@@ -621,6 +623,7 @@ export class ClearingHouse {
 					userPositions: user.positions,
 					tradeHistory: this.state.tradeHistory,
 					fundingPaymentHistory: this.state.fundingPaymentHistory,
+					oracle: priceOracle,
 				},
 			}
 		);
@@ -636,6 +639,8 @@ export class ClearingHouse {
 			userAccountPublicKey
 		);
 
+		const priceOracle = this.getMarketsAccount().markets[marketIndex.toNumber()].amm.oracle;
+
 		return await this.program.rpc.closePosition(marketIndex, {
 			accounts: {
 				state: await this.getStatePublicKey(),
@@ -645,6 +650,7 @@ export class ClearingHouse {
 				userPositions: user.positions,
 				tradeHistoryAccount: this.state.tradeHistory,
 				fundingPaymentHistory: this.state.fundingPaymentHistory,
+				oracle: priceOracle,
 			},
 		});
 	}
