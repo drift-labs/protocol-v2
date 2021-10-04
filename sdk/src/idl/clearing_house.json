@@ -1365,17 +1365,6 @@
       }
     },
     {
-      "name": "SwapError",
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "ConversionFailure"
-          }
-        ]
-      }
-    },
-    {
       "name": "OracleSource",
       "type": {
         "kind": "enum",
@@ -1499,6 +1488,26 @@
       "code": 318,
       "name": "AdminWithdrawTooLarge",
       "msg": "Admin tried to withdraw amount larger than fees collected"
+    },
+    {
+      "code": 319,
+      "name": "MathError",
+      "msg": "Math Error"
+    },
+    {
+      "code": 320,
+      "name": "BnConversionError",
+      "msg": "Conversion to u128/u64 failed with an overflow or underflow"
+    },
+    {
+      "code": 321,
+      "name": "ClockUnavailable",
+      "msg": "Clock unavailable"
+    },
+    {
+      "code": 322,
+      "name": "UnableToLoadOracle",
+      "msg": "Unable To Load Oracles"
     }
   ]
 }

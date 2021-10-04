@@ -4,30 +4,15 @@
 #![allow(clippy::ptr_offset_with_cast)]
 #![allow(clippy::manual_range_contains)]
 
+use crate::error::ErrorCode::BnConversionError;
 use borsh::{BorshDeserialize, BorshSerialize};
-// use stable_swap_client::error::SwapError;
 use std::borrow::BorrowMut;
 use std::convert::TryInto;
 use std::io::{Error, ErrorKind, Write};
 use std::mem::size_of;
 use uint::construct_uint;
 
-use num_derive::FromPrimitive;
-use solana_program::program_error::ProgramError;
-use thiserror::Error;
-
-/// Errors that may be returned by the StableSwap program.
-#[derive(Clone, Debug, Eq, Error, FromPrimitive, PartialEq)]
-pub enum SwapError {
-    #[error("Conversion to u128/u64 failed with an overflow or underflow")]
-    ConversionFailure,
-}
-
-impl From<SwapError> for ProgramError {
-    fn from(e: SwapError) -> Self {
-        ProgramError::Custom(e as u32)
-    }
-}
+use crate::error::ClearingHouseResult;
 
 macro_rules! impl_borsh_serialize_for_bn {
     ($type: ident) => {
@@ -72,8 +57,8 @@ impl U256 {
     }
 
     /// Convert u256 to u64
-    pub fn try_to_u64(self) -> Result<u64, SwapError> {
-        self.try_into().map_err(|_| SwapError::ConversionFailure)
+    pub fn try_to_u64(self) -> ClearingHouseResult<u64> {
+        self.try_into().map_err(|_| BnConversionError)
     }
 
     /// Convert u256 to u128
@@ -82,8 +67,8 @@ impl U256 {
     }
 
     /// Convert u256 to u128
-    pub fn try_to_u128(self) -> Result<u128, SwapError> {
-        self.try_into().map_err(|_| SwapError::ConversionFailure)
+    pub fn try_to_u128(self) -> ClearingHouseResult<u128> {
+        self.try_into().map_err(|_| BnConversionError)
     }
 
     /// Convert from little endian bytes
@@ -117,8 +102,8 @@ impl U192 {
     }
 
     /// Convert u256 to u64
-    pub fn try_to_u64(self) -> Result<u64, SwapError> {
-        self.try_into().map_err(|_| SwapError::ConversionFailure)
+    pub fn try_to_u64(self) -> ClearingHouseResult<u64> {
+        self.try_into().map_err(|_| BnConversionError)
     }
 
     /// Convert u256 to u128
@@ -127,8 +112,8 @@ impl U192 {
     }
 
     /// Convert u256 to u128
-    pub fn try_to_u128(self) -> Result<u128, SwapError> {
-        self.try_into().map_err(|_| SwapError::ConversionFailure)
+    pub fn try_to_u128(self) -> ClearingHouseResult<u128> {
+        self.try_into().map_err(|_| BnConversionError)
     }
 
     /// Convert from little endian bytes

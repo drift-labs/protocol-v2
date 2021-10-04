@@ -1,7 +1,10 @@
 use anchor_lang::prelude::*;
 
+use crate::error::*;
 use crate::math::amm;
+use crate::math_error;
 use crate::MARK_PRICE_MANTISSA;
+use solana_program::msg;
 
 #[account(zero_copy)]
 pub struct Markets {
@@ -70,16 +73,22 @@ pub struct AMM {
 }
 
 impl AMM {
-    pub fn base_asset_price_with_mantissa(&self) -> u128 {
-        return amm::calculate_base_asset_price_with_mantissa(
+    pub fn base_asset_price_with_mantissa(&self) -> ClearingHouseResult<u128> {
+        amm::calculate_base_asset_price_with_mantissa(
             self.quote_asset_reserve,
             self.base_asset_reserve,
             self.peg_multiplier,
-        );
+        )
     }
 
-    pub fn get_pyth_price(&self, price_oracle: &AccountInfo, window: u32) -> (i128, u128) {
-        let pyth_price_data = price_oracle.try_borrow_data().unwrap();
+    pub fn get_pyth_price(
+        &self,
+        price_oracle: &AccountInfo,
+        window: u32,
+    ) -> ClearingHouseResult<(i128, u128)> {
+        let pyth_price_data = price_oracle
+            .try_borrow_data()
+            .or(Err(ErrorCode::UnableToLoadOracle.into()))?;
         let price_data = pyth_client::cast::<pyth_client::Price>(&pyth_price_data);
 
         let oracle_price = if window > 0 {
@@ -100,45 +109,59 @@ impl AMM {
         let mut oracle_scale_div = 1;
 
         if oracle_mantissa > MARK_PRICE_MANTISSA {
-            oracle_scale_div = oracle_mantissa.checked_div(MARK_PRICE_MANTISSA).unwrap();
+            oracle_scale_div = oracle_mantissa
+                .checked_div(MARK_PRICE_MANTISSA)
+                .ok_or_else(math_error!())?;
         } else {
-            oracle_scale_mult = MARK_PRICE_MANTISSA.checked_div(oracle_mantissa).unwrap();
+            oracle_scale_mult = MARK_PRICE_MANTISSA
+                .checked_div(oracle_mantissa)
+                .ok_or_else(math_error!())?;
         }
 
         let oracle_price_scaled = (oracle_price)
             .checked_mul(oracle_scale_mult as i128)
-            .unwrap()
+            .ok_or_else(math_error!())?
             .checked_div(oracle_scale_div as i128)
-            .unwrap();
+            .ok_or_else(math_error!())?;
         let oracle_conf_scaled = (oracle_conf)
             .checked_mul(oracle_scale_mult)
-            .unwrap()
+            .ok_or_else(math_error!())?
             .checked_div(oracle_scale_div)
-            .unwrap();
+            .ok_or_else(math_error!())?;
 
-        return (oracle_price_scaled, oracle_conf_scaled);
+        return Ok((oracle_price_scaled, oracle_conf_scaled));
     }
 
-    pub fn get_oracle_price(&self, price_oracle: &AccountInfo, window: u32) -> (i128, u128) {
+    pub fn get_oracle_price(
+        &self,
+        price_oracle: &AccountInfo,
+        window: u32,
+    ) -> ClearingHouseResult<(i128, u128)> {
         let (oracle_px, oracle_conf) = match self.oracle_source {
-            OracleSource::Pyth => self.get_pyth_price(price_oracle, window),
+            OracleSource::Pyth => self.get_pyth_price(price_oracle, window)?,
             OracleSource::Switchboard => (0, 0),
         };
-        return (oracle_px, oracle_conf);
+        return Ok((oracle_px, oracle_conf));
     }
 
-    pub fn get_oracle_mark_spread(&self, price_oracle: &AccountInfo, window: u32) -> i128 {
+    pub fn get_oracle_mark_spread(
+        &self,
+        price_oracle: &AccountInfo,
+        window: u32,
+    ) -> ClearingHouseResult<i128> {
         let mark_price: i128;
         if window > 0 {
             mark_price = self.last_mark_price_twap as i128;
         } else {
-            mark_price = self.base_asset_price_with_mantissa() as i128;
+            mark_price = self.base_asset_price_with_mantissa()? as i128;
         }
 
-        let (oracle_price, _oracle_conf) = self.get_oracle_price(price_oracle, window);
+        let (oracle_price, _oracle_conf) = self.get_oracle_price(price_oracle, window)?;
 
-        let price_spread = mark_price.checked_sub(oracle_price).unwrap();
+        let price_spread = mark_price
+            .checked_sub(oracle_price)
+            .ok_or_else(math_error!())?;
 
-        return price_spread;
+        return Ok(price_spread);
     }
 }

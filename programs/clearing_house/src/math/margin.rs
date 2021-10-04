@@ -1,16 +1,19 @@
 use std::cell::{Ref, RefMut};
 
+use crate::error::*;
 use crate::math::collateral::calculate_updated_collateral;
 use crate::math::constants::MARGIN_MANTISSA;
 use crate::math::position::calculate_base_asset_value_and_pnl;
+use crate::math_error;
 use crate::state::market::Markets;
 use crate::state::user::{User, UserPositions};
+use solana_program::msg;
 
 pub fn calculate_margin_ratio(
     user: &User,
     user_positions: &RefMut<UserPositions>,
     markets: &Ref<Markets>,
-) -> (u128, u128, u128) {
+) -> ClearingHouseResult<(u128, u128, u128)> {
     let mut base_asset_value: u128 = 0;
     let mut unrealized_pnl: i128 = 0;
 
@@ -22,12 +25,14 @@ pub fn calculate_margin_ratio(
 
         let amm = &markets.markets[Markets::index_from_u64(market_position.market_index)].amm;
         let (position_base_asset_value, position_unrealized_pnl) =
-            calculate_base_asset_value_and_pnl(market_position, amm);
+            calculate_base_asset_value_and_pnl(market_position, amm)?;
 
         base_asset_value = base_asset_value
             .checked_add(position_base_asset_value)
-            .unwrap();
-        unrealized_pnl = unrealized_pnl.checked_add(position_unrealized_pnl).unwrap();
+            .ok_or_else(math_error!())?;
+        unrealized_pnl = unrealized_pnl
+            .checked_add(position_unrealized_pnl)
+            .ok_or_else(math_error!())?;
     }
 
     let estimated_margin: u128;
@@ -36,12 +41,13 @@ pub fn calculate_margin_ratio(
         estimated_margin = u128::MAX;
         margin_ratio = u128::MAX;
     } else {
-        estimated_margin = calculate_updated_collateral(user.collateral, unrealized_pnl);
+        estimated_margin = calculate_updated_collateral(user.collateral, unrealized_pnl)?;
         margin_ratio = estimated_margin
             .checked_mul(MARGIN_MANTISSA)
-            .unwrap()
+            .ok_or_else(math_error!())?
             .checked_div(base_asset_value)
-            .unwrap();
+            .ok_or_else(math_error!())?;
     }
-    return (estimated_margin, base_asset_value, margin_ratio);
+
+    Ok((estimated_margin, base_asset_value, margin_ratio))
 }

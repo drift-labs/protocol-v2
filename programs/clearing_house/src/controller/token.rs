@@ -10,7 +10,7 @@ pub fn send<'info>(
     authority: &AccountInfo<'info>,
     nonce: u8,
     amount: u64,
-) {
+) -> ProgramResult {
     let from_key = from.key();
     let signature_seeds = [from_key.as_ref(), bytemuck::bytes_of(&nonce)];
     let signers = &[&signature_seeds[..]];
@@ -21,7 +21,7 @@ pub fn send<'info>(
     };
     let cpi_program = token_program.to_account_info();
     let cpi_context = CpiContext::new_with_signer(cpi_program, cpi_accounts, signers);
-    token::transfer(cpi_context, amount).unwrap();
+    return token::transfer(cpi_context, amount);
 }
 
 pub fn receive<'info>(
@@ -30,7 +30,7 @@ pub fn receive<'info>(
     to: &Account<'info, TokenAccount>,
     authority: &AccountInfo<'info>,
     amount: u64,
-) {
+) -> ProgramResult {
     let cpi_accounts = Transfer {
         from: from.to_account_info().clone(),
         to: to.to_account_info().clone(),
@@ -38,5 +38,5 @@ pub fn receive<'info>(
     };
     let cpi_program = token_program.to_account_info();
     let cpi_context = CpiContext::new(cpi_program, cpi_accounts);
-    token::transfer(cpi_context, amount).unwrap();
+    return token::transfer(cpi_context, amount);
 }

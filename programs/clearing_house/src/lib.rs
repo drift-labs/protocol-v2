@@ -89,9 +89,9 @@ pub mod clearing_house {
         amm_periodicity: i64,
         amm_peg_multiplier: u128,
     ) -> ProgramResult {
-        let markets = &mut ctx.accounts.markets.load_mut().unwrap();
+        let markets = &mut ctx.accounts.markets.load_mut()?;
         let market = &markets.markets[Markets::index_from_u64(market_index)];
-        let clock = Clock::get().unwrap();
+        let clock = Clock::get()?;
         let now = clock.unix_timestamp;
 
         if market.initialized {
@@ -106,12 +106,12 @@ pub mod clearing_house {
             amm_quote_asset_amount,
             amm_base_asset_amount,
             amm_peg_multiplier,
-        );
+        )?;
 
         // Verify there's no overflow
         let _k = bn::U256::from(amm_base_asset_amount)
             .checked_mul(bn::U256::from(amm_quote_asset_amount))
-            .unwrap();
+            .ok_or_else(math_error!())?;
 
         let market = Market {
             initialized: true,
@@ -147,26 +147,33 @@ pub mod clearing_house {
     }
 
     pub fn deposit_collateral(ctx: Context<DepositCollateral>, amount: u64) -> ProgramResult {
+        let clock = Clock::get()?;
+        let now = clock.unix_timestamp;
+
         if amount == 0 {
             return Err(ErrorCode::InsufficientDeposit.into());
         }
 
         let user = &mut ctx.accounts.user;
-        user.collateral = user.collateral.checked_add(amount as u128).unwrap();
+        user.collateral = user
+            .collateral
+            .checked_add(amount as u128)
+            .ok_or_else(math_error!())?;
         user.cumulative_deposits = user
             .cumulative_deposits
             .checked_add(amount as i128)
-            .unwrap();
+            .ok_or_else(math_error!())?;
 
-        let markets = &ctx.accounts.markets.load().unwrap();
-        let user_positions = &mut ctx.accounts.user_positions.load_mut().unwrap();
-        let funding_payment_history = &mut ctx.accounts.funding_payment_history.load_mut().unwrap();
+        let markets = &ctx.accounts.markets.load()?;
+        let user_positions = &mut ctx.accounts.user_positions.load_mut()?;
+        let funding_payment_history = &mut ctx.accounts.funding_payment_history.load_mut()?;
         controller::funding::settle_funding_payment(
             user,
             user_positions,
             markets,
             funding_payment_history,
-        );
+            now,
+        )?;
 
         controller::token::receive(
             &ctx.accounts.token_program,
@@ -174,30 +181,34 @@ pub mod clearing_house {
             &ctx.accounts.collateral_vault,
             &ctx.accounts.authority,
             amount,
-        );
+        )?;
 
         ctx.accounts.state.collateral_deposits = ctx
             .accounts
             .state
             .collateral_deposits
             .checked_add(amount as u128)
-            .unwrap();
+            .ok_or_else(math_error!())?;
 
         Ok(())
     }
 
     pub fn withdraw_collateral(ctx: Context<WithdrawCollateral>, amount: u64) -> ProgramResult {
+        let clock = Clock::get()?;
+        let now = clock.unix_timestamp;
+
         let user = &mut ctx.accounts.user;
 
-        let markets = &ctx.accounts.markets.load().unwrap();
-        let user_positions = &mut ctx.accounts.user_positions.load_mut().unwrap();
-        let funding_payment_history = &mut ctx.accounts.funding_payment_history.load_mut().unwrap();
+        let markets = &ctx.accounts.markets.load()?;
+        let user_positions = &mut ctx.accounts.user_positions.load_mut()?;
+        let funding_payment_history = &mut ctx.accounts.funding_payment_history.load_mut()?;
         controller::funding::settle_funding_payment(
             user,
             user_positions,
             markets,
             funding_payment_history,
-        );
+            now,
+        )?;
 
         if (amount as u128) > user.collateral {
             return Err(ErrorCode::InsufficientCollateral.into());
@@ -208,17 +219,17 @@ pub mod clearing_house {
                 amount,
                 &ctx.accounts.collateral_vault,
                 &ctx.accounts.insurance_vault,
-            );
+            )?;
 
         user.collateral = user
             .collateral
             .checked_sub(collateral_account_withdrawal as u128)
-            .unwrap()
+            .ok_or_else(math_error!())?
             .checked_sub(insurance_account_withdrawal as u128)
-            .unwrap();
+            .ok_or_else(math_error!())?;
 
         let (_estimated_margin, _estimated_base_asset_value, margin_ratio) =
-            calculate_margin_ratio(user, user_positions, markets);
+            calculate_margin_ratio(user, user_positions, markets)?;
         if margin_ratio < ctx.accounts.state.margin_ratio_initial {
             return Err(ErrorCode::InsufficientCollateral.into());
         }
@@ -230,14 +241,14 @@ pub mod clearing_house {
             &ctx.accounts.collateral_vault_authority,
             ctx.accounts.state.collateral_vault_nonce,
             collateral_account_withdrawal,
-        );
+        )?;
 
         ctx.accounts.state.collateral_deposits = ctx
             .accounts
             .state
             .collateral_deposits
             .checked_sub(collateral_account_withdrawal as u128)
-            .unwrap();
+            .ok_or_else(math_error!())?;
 
         if insurance_account_withdrawal > 0 {
             controller::token::send(
@@ -247,7 +258,7 @@ pub mod clearing_house {
                 &ctx.accounts.insurance_vault_authority,
                 ctx.accounts.state.insurance_vault_nonce,
                 insurance_account_withdrawal,
-            );
+            )?;
         }
         Ok(())
     }
@@ -263,17 +274,18 @@ pub mod clearing_house {
         limit_price: u128,
     ) -> ProgramResult {
         let user = &mut ctx.accounts.user;
-        let clock = Clock::get().unwrap();
+        let clock = Clock::get()?;
         let now = clock.unix_timestamp;
 
-        let user_positions = &mut ctx.accounts.user_positions.load_mut().unwrap();
-        let funding_payment_history = &mut ctx.accounts.funding_payment_history.load_mut().unwrap();
+        let user_positions = &mut ctx.accounts.user_positions.load_mut()?;
+        let funding_payment_history = &mut ctx.accounts.funding_payment_history.load_mut()?;
         controller::funding::settle_funding_payment(
             user,
             user_positions,
-            &ctx.accounts.markets.load().unwrap(),
+            &ctx.accounts.markets.load()?,
             funding_payment_history,
-        );
+            now,
+        )?;
 
         let mut market_position = user_positions
             .positions
@@ -311,7 +323,7 @@ pub mod clearing_house {
         {
             let market = &mut ctx.accounts.markets.load_mut()?.markets
                 [Markets::index_from_u64(market_index)];
-            base_asset_price_with_mantissa_before = market.amm.base_asset_price_with_mantissa();
+            base_asset_price_with_mantissa_before = market.amm.base_asset_price_with_mantissa()?;
         }
         let mut potentially_risk_increasing = true;
 
@@ -322,97 +334,100 @@ pub mod clearing_house {
             let market = &mut ctx.accounts.markets.load_mut()?.markets
                 [Markets::index_from_u64(market_index)];
 
-            let trade_size_too_small = controller::position::increase(
+            controller::position::increase(
                 direction,
                 quote_asset_amount,
                 market,
                 market_position,
                 now,
-            );
-
-            if trade_size_too_small {
-                return Err(ErrorCode::TradeSizeTooSmall.into());
-            }
+            )?;
         } else {
             let market = &mut ctx.accounts.markets.load_mut()?.markets
                 [Markets::index_from_u64(market_index)];
 
             let (base_asset_value, _unrealized_pnl) =
-                calculate_base_asset_value_and_pnl(market_position, &market.amm);
+                calculate_base_asset_value_and_pnl(market_position, &market.amm)?;
             // we calculate what the user's position is worth if they closed to determine
             // if they are reducing or closing and reversing their position
             if base_asset_value > quote_asset_amount {
-                let trade_size_too_small = controller::position::reduce(
+                controller::position::reduce(
                     direction,
                     quote_asset_amount,
                     user,
                     market,
                     market_position,
                     now,
-                );
-
-                if trade_size_too_small {
-                    return Err(ErrorCode::TradeSizeTooSmall.into());
-                }
+                )?;
 
                 potentially_risk_increasing = false;
             } else {
-                let incremental_quote_asset_notional_amount_resid =
-                    quote_asset_amount.checked_sub(base_asset_value).unwrap();
+                let incremental_quote_asset_notional_amount_resid = quote_asset_amount
+                    .checked_sub(base_asset_value)
+                    .ok_or_else(math_error!())?;
 
                 if incremental_quote_asset_notional_amount_resid < base_asset_value {
                     potentially_risk_increasing = false; //todo
                 }
 
-                controller::position::close(user, market, market_position, now);
+                controller::position::close(user, market, market_position, now)?;
 
-                let trade_size_too_small = controller::position::increase(
+                controller::position::increase(
                     direction,
                     incremental_quote_asset_notional_amount_resid,
                     market,
                     market_position,
                     now,
-                );
-
-                if trade_size_too_small {
-                    return Err(ErrorCode::TradeSizeTooSmall.into());
-                }
+                )?;
             }
         }
 
         let base_asset_amount_change = market_position
             .base_asset_amount
             .checked_sub(base_asset_amount_before)
-            .unwrap()
+            .ok_or_else(math_error!())?
             .unsigned_abs();
         let base_asset_price_with_mantissa_after: u128;
         {
             let market = &mut ctx.accounts.markets.load_mut()?.markets
                 [Markets::index_from_u64(market_index)];
-            base_asset_price_with_mantissa_after = market.amm.base_asset_price_with_mantissa();
+            base_asset_price_with_mantissa_after = market.amm.base_asset_price_with_mantissa()?;
         }
 
         let fee = fees::calculate(
             quote_asset_amount,
             ctx.accounts.state.fee_numerator,
             ctx.accounts.state.fee_denominator,
-        );
-        ctx.accounts.state.fees_collected =
-            ctx.accounts.state.fees_collected.checked_add(fee).unwrap();
+        )?;
+        ctx.accounts.state.fees_collected = ctx
+            .accounts
+            .state
+            .fees_collected
+            .checked_add(fee)
+            .ok_or_else(math_error!())?;
         {
             let market = &mut ctx.accounts.markets.load_mut()?.markets
                 [Markets::index_from_u64(market_index)];
-            market.amm.cumulative_fee = market.amm.cumulative_fee.checked_add(fee).unwrap();
-            market.amm.cumulative_fee_realized =
-                market.amm.cumulative_fee_realized.checked_add(fee).unwrap();
+            market.amm.cumulative_fee = market
+                .amm
+                .cumulative_fee
+                .checked_add(fee)
+                .ok_or_else(math_error!())?;
+            market.amm.cumulative_fee_realized = market
+                .amm
+                .cumulative_fee_realized
+                .checked_add(fee)
+                .ok_or_else(math_error!())?;
         }
 
-        user.collateral = user.collateral.checked_sub(fee).unwrap();
+        user.collateral = user.collateral.checked_sub(fee).ok_or_else(math_error!())?;
 
-        user.total_fee_paid = user.total_fee_paid.checked_add(fee).unwrap();
+        user.total_fee_paid = user
+            .total_fee_paid
+            .checked_add(fee)
+            .ok_or_else(math_error!())?;
 
         let (_estimated_margin_after, _estimated_base_asset_value_after, margin_ratio_after) =
-            calculate_margin_ratio(user, user_positions, &ctx.accounts.markets.load().unwrap());
+            calculate_margin_ratio(user, user_positions, &ctx.accounts.markets.load()?)?;
         if margin_ratio_after < ctx.accounts.state.margin_ratio_initial
             && potentially_risk_increasing
         {
@@ -436,20 +451,20 @@ pub mod clearing_house {
         });
 
         if limit_price != 0 {
-            let market = &ctx.accounts.markets.load().unwrap().markets
-                [Markets::index_from_u64(market_index)];
+            let market =
+                &ctx.accounts.markets.load()?.markets[Markets::index_from_u64(market_index)];
 
             let unpegged_quote_asset_amount = quote_asset_amount
                 .checked_mul(MARK_PRICE_MANTISSA)
-                .unwrap()
+                .ok_or_else(math_error!())?
                 .checked_div(market.amm.peg_multiplier)
-                .unwrap();
+                .ok_or_else(math_error!())?;
 
             let entry_price = amm::calculate_base_asset_price_with_mantissa(
                 unpegged_quote_asset_amount,
                 base_asset_amount_change,
                 market.amm.peg_multiplier,
-            );
+            )?;
 
             match direction {
                 PositionDirection::Long => {
@@ -473,17 +488,18 @@ pub mod clearing_house {
     )]
     pub fn close_position(ctx: Context<ClosePosition>, market_index: u64) -> ProgramResult {
         let user = &mut ctx.accounts.user;
-        let clock = Clock::get().unwrap();
+        let clock = Clock::get()?;
         let now = clock.unix_timestamp;
 
-        let user_positions = &mut ctx.accounts.user_positions.load_mut().unwrap();
-        let funding_payment_history = &mut ctx.accounts.funding_payment_history.load_mut().unwrap();
+        let user_positions = &mut ctx.accounts.user_positions.load_mut()?;
+        let funding_payment_history = &mut ctx.accounts.funding_payment_history.load_mut()?;
         controller::funding::settle_funding_payment(
             user,
             user_positions,
-            &ctx.accounts.markets.load().unwrap(),
+            &ctx.accounts.markets.load()?,
             funding_payment_history,
-        );
+            now,
+        )?;
 
         let market_position = user_positions
             .positions
@@ -495,40 +511,54 @@ pub mod clearing_house {
         }
         let market_position = market_position.unwrap();
 
-        let market = &mut ctx.accounts.markets.load_mut().unwrap().markets
-            [Markets::index_from_u64(market_index)];
+        let market =
+            &mut ctx.accounts.markets.load_mut()?.markets[Markets::index_from_u64(market_index)];
 
         // base_asset_value is the base_asset_amount priced in quote_asset, so we can use this
         // as quote_asset_notional_amount in trade history
         let (base_asset_value, _pnl) =
-            calculate_base_asset_value_and_pnl(market_position, &market.amm);
+            calculate_base_asset_value_and_pnl(market_position, &market.amm)?;
         let trade_history_account = &mut ctx.accounts.trade_history_account.load_mut()?;
         let record_id = trade_history_account.next_record_id();
-        let base_asset_price_with_mantissa_before = market.amm.base_asset_price_with_mantissa();
+        let base_asset_price_with_mantissa_before = market.amm.base_asset_price_with_mantissa()?;
         let direction = if market_position.base_asset_amount > 0 {
             PositionDirection::Short
         } else {
             PositionDirection::Long
         };
         let base_asset_amount = market_position.base_asset_amount.unsigned_abs();
-        controller::position::close(user, market, market_position, now);
+        controller::position::close(user, market, market_position, now)?;
 
         let fee = fees::calculate(
             base_asset_value,
             ctx.accounts.state.fee_numerator,
             ctx.accounts.state.fee_denominator,
-        );
-        ctx.accounts.state.fees_collected =
-            ctx.accounts.state.fees_collected.checked_add(fee).unwrap();
-        market.amm.cumulative_fee = market.amm.cumulative_fee.checked_add(fee).unwrap();
-        market.amm.cumulative_fee_realized =
-            market.amm.cumulative_fee_realized.checked_add(fee).unwrap();
+        )?;
+        ctx.accounts.state.fees_collected = ctx
+            .accounts
+            .state
+            .fees_collected
+            .checked_add(fee)
+            .ok_or_else(math_error!())?;
+        market.amm.cumulative_fee = market
+            .amm
+            .cumulative_fee
+            .checked_add(fee)
+            .ok_or_else(math_error!())?;
+        market.amm.cumulative_fee_realized = market
+            .amm
+            .cumulative_fee_realized
+            .checked_add(fee)
+            .ok_or_else(math_error!())?;
 
-        user.collateral = user.collateral.checked_sub(fee).unwrap();
+        user.collateral = user.collateral.checked_sub(fee).ok_or_else(math_error!())?;
 
-        user.total_fee_paid = user.total_fee_paid.checked_add(fee).unwrap();
+        user.total_fee_paid = user
+            .total_fee_paid
+            .checked_add(fee)
+            .ok_or_else(math_error!())?;
 
-        let base_asset_price_with_mantissa_after = market.amm.base_asset_price_with_mantissa();
+        let base_asset_price_with_mantissa_after = market.amm.base_asset_price_with_mantissa()?;
         trade_history_account.append(TradeRecord {
             ts: now,
             record_id,
@@ -549,23 +579,23 @@ pub mod clearing_house {
     pub fn liquidate(ctx: Context<Liquidate>) -> ProgramResult {
         let state = &ctx.accounts.state;
         let user = &mut ctx.accounts.user;
-        let clock = Clock::get().unwrap();
+        let clock = Clock::get()?;
         let now = clock.unix_timestamp;
 
         let (_estimated_margin, _base_asset_notional, margin_ratio) = calculate_margin_ratio(
             user,
-            &ctx.accounts.user_positions.load_mut().unwrap(),
-            &ctx.accounts.markets.load().unwrap(),
-        );
+            &ctx.accounts.user_positions.load_mut()?,
+            &ctx.accounts.markets.load()?,
+        )?;
         if margin_ratio > ctx.accounts.state.margin_ratio_partial {
             return Err(ErrorCode::SufficientCollateral.into());
         }
 
-        let user_positions = &mut ctx.accounts.user_positions.load_mut().unwrap();
+        let user_positions = &mut ctx.accounts.user_positions.load_mut()?;
 
         let mut is_full_liquidation = true;
         if margin_ratio <= ctx.accounts.state.margin_ratio_maintenance {
-            let markets = &mut ctx.accounts.markets.load_mut().unwrap();
+            let markets = &mut ctx.accounts.markets.load_mut()?;
             for market_position in user_positions.positions.iter_mut() {
                 if market_position.base_asset_amount == 0 {
                     continue;
@@ -574,10 +604,10 @@ pub mod clearing_house {
                 let market =
                     &mut markets.markets[Markets::index_from_u64(market_position.market_index)];
 
-                controller::position::close(user, market, market_position, now)
+                controller::position::close(user, market, market_position, now)?
             }
         } else {
-            let markets = &mut ctx.accounts.markets.load_mut().unwrap();
+            let markets = &mut ctx.accounts.markets.load_mut()?;
             for market_position in user_positions.positions.iter_mut() {
                 if market_position.base_asset_amount == 0 {
                     continue;
@@ -587,16 +617,16 @@ pub mod clearing_house {
                     &mut markets.markets[Markets::index_from_u64(market_position.market_index)];
 
                 let (base_asset_value, _pnl) =
-                    calculate_base_asset_value_and_pnl(market_position, &market.amm);
+                    calculate_base_asset_value_and_pnl(market_position, &market.amm)?;
                 let base_asset_value_to_close = base_asset_value
                     .checked_mul(state.partial_liquidation_close_percentage_numerator.into())
-                    .unwrap()
+                    .ok_or_else(math_error!())?
                     .checked_div(
                         state
                             .partial_liquidation_close_percentage_denominator
                             .into(),
                     )
-                    .unwrap();
+                    .ok_or_else(math_error!())?;
 
                 let direction = if market_position.base_asset_amount > 0 {
                     PositionDirection::Short
@@ -611,7 +641,7 @@ pub mod clearing_house {
                     market,
                     market_position,
                     now,
-                );
+                )?;
             }
 
             is_full_liquidation = false;
@@ -620,13 +650,13 @@ pub mod clearing_house {
         let liquidation_penalty = if is_full_liquidation {
             user.collateral
                 .checked_mul(state.full_liquidation_penalty_percentage_numerator.into())
-                .unwrap()
+                .ok_or_else(math_error!())?
                 .checked_div(state.full_liquidation_penalty_percentage_denominator.into())
-                .unwrap()
+                .ok_or_else(math_error!())?
         } else {
-            let markets = &ctx.accounts.markets.load().unwrap();
+            let markets = &ctx.accounts.markets.load()?;
             let (estimated_margin_after, _base_asset_notional_after, _margin_ratio_after) =
-                calculate_margin_ratio(user, user_positions, markets);
+                calculate_margin_ratio(user, user_positions, markets)?;
 
             estimated_margin_after
                 .checked_mul(
@@ -634,36 +664,39 @@ pub mod clearing_house {
                         .partial_liquidation_penalty_percentage_numerator
                         .into(),
                 )
-                .unwrap()
+                .ok_or_else(math_error!())?
                 .checked_div(
                     state
                         .partial_liquidation_penalty_percentage_denominator
                         .into(),
                 )
-                .unwrap()
+                .ok_or_else(math_error!())?
         };
 
         let (withdrawal_amount, _) = calculate_withdrawal_amounts(
             liquidation_penalty as u64,
             &ctx.accounts.collateral_vault,
             &ctx.accounts.insurance_vault,
-        );
+        )?;
 
-        user.collateral = user.collateral.checked_sub(liquidation_penalty).unwrap();
+        user.collateral = user
+            .collateral
+            .checked_sub(liquidation_penalty)
+            .ok_or_else(math_error!())?;
 
         let liquidator_cut_amount = if is_full_liquidation {
             withdrawal_amount
                 .checked_div(state.full_liquidation_liquidator_share_denominator)
-                .unwrap()
+                .ok_or_else(math_error!())?
         } else {
             withdrawal_amount
                 .checked_div(state.partial_liquidation_liquidator_share_denominator)
-                .unwrap()
+                .ok_or_else(math_error!())?
         };
 
         let insurance_fund_cut_amount = withdrawal_amount
             .checked_sub(liquidator_cut_amount)
-            .unwrap();
+            .ok_or_else(math_error!())?;
 
         if liquidator_cut_amount > 0 {
             controller::token::send(
@@ -673,7 +706,7 @@ pub mod clearing_house {
                 &ctx.accounts.collateral_vault_authority,
                 ctx.accounts.state.collateral_vault_nonce,
                 liquidator_cut_amount,
-            );
+            )?;
         }
 
         if insurance_fund_cut_amount > 0 {
@@ -684,7 +717,7 @@ pub mod clearing_house {
                 &ctx.accounts.collateral_vault_authority,
                 ctx.accounts.state.collateral_vault_nonce,
                 insurance_fund_cut_amount,
-            );
+            )?;
         }
 
         Ok(())
@@ -699,9 +732,9 @@ pub mod clearing_house {
         quote_asset_reserve: u128,
         market_index: u64,
     ) -> ProgramResult {
-        let markets = &mut ctx.accounts.markets.load_mut().unwrap();
+        let markets = &mut ctx.accounts.markets.load_mut()?;
         let market = &mut markets.markets[Markets::index_from_u64(market_index)];
-        controller::amm::move_price(&mut market.amm, base_asset_reserve, quote_asset_reserve);
+        controller::amm::move_price(&mut market.amm, base_asset_reserve, quote_asset_reserve)?;
         Ok(())
     }
 
@@ -711,9 +744,9 @@ pub mod clearing_house {
         let max_withdraw = state
             .fees_collected
             .checked_div(SHARE_OF_FEES_ALLOCATED_TO_REPEG)
-            .unwrap()
+            .ok_or_else(math_error!())?
             .checked_sub(state.fees_withdrawn)
-            .unwrap();
+            .ok_or_else(math_error!())?;
 
         if (amount as u128) > max_withdraw {
             return Err(ErrorCode::AdminWithdrawTooLarge.into());
@@ -726,9 +759,12 @@ pub mod clearing_house {
             &ctx.accounts.collateral_vault_authority,
             state.collateral_vault_nonce,
             amount,
-        );
+        )?;
 
-        state.fees_withdrawn = state.fees_withdrawn.checked_add(amount as u128).unwrap();
+        state.fees_withdrawn = state
+            .fees_withdrawn
+            .checked_add(amount as u128)
+            .ok_or_else(math_error!())?;
 
         Ok(())
     }
@@ -744,7 +780,7 @@ pub mod clearing_house {
             &ctx.accounts.insurance_vault_authority,
             ctx.accounts.state.insurance_vault_nonce,
             amount,
-        );
+        )?;
         Ok(())
     }
 
@@ -760,7 +796,9 @@ pub mod clearing_house {
             &mut ctx.accounts.markets.load_mut()?.markets[Markets::index_from_u64(market_index)];
         let price_oracle = &ctx.accounts.oracle;
 
-        return controller::repeg::repeg(market, price_oracle, new_peg_candidate);
+        controller::repeg::repeg(market, price_oracle, new_peg_candidate)?;
+
+        Ok(())
     }
 
     pub fn initialize_user(ctx: Context<InitializeUser>, _user_nonce: u8) -> ProgramResult {
@@ -777,12 +815,15 @@ pub mod clearing_house {
     }
 
     pub fn settle_funding_payment(ctx: Context<SettleFunding>) -> ProgramResult {
+        let clock = Clock::get()?;
+        let now = clock.unix_timestamp;
         controller::funding::settle_funding_payment(
             &mut ctx.accounts.user,
-            &mut ctx.accounts.user_positions.load_mut().unwrap(),
-            &ctx.accounts.markets.load().unwrap(),
-            &mut ctx.accounts.funding_payment_history.load_mut().unwrap(),
-        );
+            &mut ctx.accounts.user_positions.load_mut()?,
+            &ctx.accounts.markets.load()?,
+            &mut ctx.accounts.funding_payment_history.load_mut()?,
+            now,
+        )?;
         Ok(())
     }
 
@@ -796,10 +837,10 @@ pub mod clearing_house {
         let market =
             &mut ctx.accounts.markets.load_mut()?.markets[Markets::index_from_u64(market_index)];
         let price_oracle = &ctx.accounts.oracle;
-        let clock = Clock::get().unwrap();
+        let clock = Clock::get()?;
         let now = clock.unix_timestamp;
 
-        controller::funding::update_funding_rate(market, price_oracle, now);
+        controller::funding::update_funding_rate(market, price_oracle, now)?;
 
         Ok(())
     }
@@ -813,7 +854,7 @@ pub mod clearing_house {
         quote_asset_reserve: u128,
         market_index: u64,
     ) -> ProgramResult {
-        let markets = &mut ctx.accounts.markets.load_mut().unwrap();
+        let markets = &mut ctx.accounts.markets.load_mut()?;
         let market = &mut markets.markets[Markets::index_from_u64(market_index)];
         let amm = &mut market.amm;
 
@@ -821,24 +862,24 @@ pub mod clearing_house {
             amm.quote_asset_reserve,
             amm.base_asset_reserve,
             amm.peg_multiplier,
-        );
+        )?;
 
         let price_after = math::amm::calculate_base_asset_price_with_mantissa(
             quote_asset_reserve,
             base_asset_reserve,
             amm.peg_multiplier,
-        );
+        )?;
 
         let price_change_too_large = (price_before as i128)
             .checked_sub(price_after as i128)
-            .unwrap()
+            .ok_or_else(math_error!())?
             .unsigned_abs()
             .gt(&UPDATE_K_ALLOWED_PRICE_CHANGE);
         if price_change_too_large {
             return Err(ErrorCode::InvalidUpdateK.into());
         }
 
-        controller::amm::move_price(amm, base_asset_reserve, quote_asset_reserve);
+        controller::amm::move_price(amm, base_asset_reserve, quote_asset_reserve)?;
         Ok(())
     }
 

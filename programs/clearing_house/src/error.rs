@@ -1,5 +1,7 @@
 use anchor_lang::prelude::*;
 
+pub type ClearingHouseResult<T = ()> = std::result::Result<T, ErrorCode>;
+
 #[error]
 pub enum ErrorCode {
     #[msg("Clearing house not collateral account owner")]
@@ -40,4 +42,33 @@ pub enum ErrorCode {
     InvalidUpdateK,
     #[msg("Admin tried to withdraw amount larger than fees collected")]
     AdminWithdrawTooLarge,
+    #[msg("Math Error")]
+    MathError,
+    #[msg("Conversion to u128/u64 failed with an overflow or underflow")]
+    BnConversionError,
+    #[msg("Clock unavailable")]
+    ClockUnavailable,
+    #[msg("Unable To Load Oracles")]
+    UnableToLoadOracle,
+}
+
+#[macro_export]
+macro_rules! wrap_error {
+    ($err:expr) => {{
+        || {
+            msg!("Error thrown at {}:{}", file!(), line!());
+            $err
+        }
+    }};
+}
+
+#[macro_export]
+macro_rules! math_error {
+    () => {{
+        || {
+            let error_code = ErrorCode::MathError;
+            msg!("Error {} thrown at {}:{}", error_code, file!(), line!());
+            error_code
+        }
+    }};
 }
