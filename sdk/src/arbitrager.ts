@@ -11,7 +11,7 @@ import { stripMantissa } from './DataSubscriptionHelpers';
 import { ZERO } from './constants/numericConstants';
 import { PositionDirection } from './types';
 // import { BinanceClient, Trade } from 'ccxws';
-// import { Connection, PublicKey } from '@solana/web3.js';
+import { Connection, PublicKey } from '@solana/web3.js';
 
 export interface TradeToExecute {
 	direction: PositionDirection;
@@ -33,8 +33,6 @@ export const MAINNET_ORACLES = {
 	COPE: '9xYBiDWYsh2fHzpsz3aaCnNHCKWBNtfEDLtU6kS4aFD9',
 };
 
-// const mainnetConnection = new Connection('https://api.mainnet-beta.solana.com');
-
 export const VWAP = (trades): number => {
 	const [valueSum, weightSum] = trades.reduce(
 		([valueSum, weightSum], trade) => [
@@ -51,18 +49,23 @@ export class Arbitrager {
 	private pythClient: PythClient;
 	private userAccount: UserAccount;
 	private alphas: Array<number>;
+	private connectionOverride: Connection;
 	// private binance: BinanceClient;
 	// private btrades: Array<Trade>;
 
-	public constructor(clearingHouse: ClearingHouse, userAccount: UserAccount) {
+	public constructor(clearingHouse: ClearingHouse, userAccount: UserAccount, connectionOverride?: Connection) {
 		if (!clearingHouse.isSubscribed) {
 			throw Error('clearingHouse must be subscribed to create arbitrager');
 		}
 		this.clearingHouse = clearingHouse;
 		this.userAccount = userAccount;
+		this.connectionOverride = connectionOverride;
 
-		this.pythClient = new PythClient(this.clearingHouse.connection);
-
+		if(connectionOverride !== undefined) {
+			this.pythClient = new PythClient(connectionOverride);
+		} else{
+			this.pythClient = new PythClient(this.clearingHouse.connection);
+		}
 		this.alphas = [0, 0, 0, 0]; //todo
 
 		// // todo this outside of main sdk. pass api key?
@@ -99,43 +102,57 @@ export class Arbitrager {
 			);
 
 			//todo
-			// const indextoMarketName = {
-			// 	0: 'SOL',
-			// 	1: 'BTC',
-			// 	2: 'ETH',
-			// 	3: 'COPE',
-			// };
+			const indextoMarketName = {
+				0: 'SOL',
+				1: 'BTC',
+				2: 'ETH',
+				3: 'COPE',
+			};
 
-			const oraclePricePubkey = market.amm.oracle;
-			// const oracleMarketName = indextoMarketName[marketIndexBN.toNumber()];
-			// const oracleMainnetPricePubkey = new PublicKey(
-			// 	MAINNET_ORACLES[oracleMarketName]
-			// );
+			let oraclePricePubkey: PublicKey = market.amm.oracle;
+			const oracleMarketName = indextoMarketName[marketIndexBN.toNumber()];
+
+			if(oraclePricePubkey.toString() !== DEVNET_ORACLES[oracleMarketName]){
+				throw Error('wrong oracle assumptions');
+			}
+
+			let blockTimeConnection = this.clearingHouse.connection; 
+
+			if(this.connectionOverride){
+				console.log('using connectionOverride');
+				oraclePricePubkey = new PublicKey(
+					MAINNET_ORACLES[oracleMarketName]
+				);
+				blockTimeConnection = this.connectionOverride;
+			}
 
 			const oraclePriceData = await this.pythClient.getPriceData(
 				oraclePricePubkey
 			);
 
 			// const nowBN = new BN((Date.now() / 1000).toFixed(0));
-			const nowSlot = await this.clearingHouse.connection.getSlot();
+			
+
+			const nowSlot = await blockTimeConnection.getSlot();
 			const nowSOL = new BN(
-				await this.clearingHouse.connection.getBlockTime(nowSlot)
+				await blockTimeConnection.getBlockTime(nowSlot)
 			);
 
 			const oracleLastValidSlot = oraclePriceData.validSlot;
 			const oracleDelay = (nowSlot - Number(oracleLastValidSlot)) * 0.4; // estimate in seconds (assume 400ms each block)
+
 			if (oracleDelay > 30) {
-				// console.log(
-				// 	'Market',
-				// 	marketIndex,
-				// 	'oracle delay > 30 seconds:',
-				// 	oracleDelay
-				// );
+				console.log(
+					'Market',
+					marketIndex,
+					'oracle delay > 30 seconds:',
+					oracleDelay
+				);
 				continue;
 			}
 			if (oraclePriceData.status.toString() !== '1') {
 				//agg.status = Trading (1)
-				// console.log(marketIndexBN, 'oracle status != Trading(1)');
+				console.log(marketIndexBN, 'oracle status != Trading(1)');
 				continue;
 			}
 
@@ -144,7 +161,7 @@ export class Arbitrager {
 
 			const oracleConf = oraclePriceData.confidence;
 			const oracleNoise = oracleConf / 5;
-
+			console.log(oraclePrice);
 			let positionIdx = 0;
 			let arbPos;
 			let uPnL = 0;
@@ -188,6 +205,8 @@ export class Arbitrager {
 				.add(periodicity)
 				.sub(nowSOL)
 				.toNumber();
+
+			console.log("NEXT FUNDING TIME IN Makret", marketIndexBN.toNumber(), ":", nextFundingTime);
 
 			let goodForFundingUpdate = false;
 			const closeToFundingUpdate = nextFundingTime <= 60 * 5; // last 5 minutes
@@ -265,14 +284,14 @@ export class Arbitrager {
 					!shouldReducePosition &&
 					currentSpreadPct < 0.03
 				) {
-					// console.log(
-					// 	'spread too small to arb in Market:',
-					// 	marketIndexBN.toNumber(),
-					// 	currentSpreadPct,
-					// 	currentSpread,
-					// 	oracleTwac,
-					// 	oracleNoise
-					// );
+					console.log(
+						'spread too small to arb in Market:',
+						marketIndexBN.toNumber(),
+						currentSpreadPct,
+						currentSpread,
+						oracleTwac,
+						oracleNoise
+					);
 					continue;
 				}
 			} else if (uPnL > 0) {
@@ -308,13 +327,14 @@ export class Arbitrager {
 
 				// randomly do or dont to juke front runners
 				if (randomDraw % 2) {
+					console.log('skipping trade randomly', randomDraw);
 					continue;
 				}
 				arbPctMod = new BN(Math.min(randomDraw, 250));
 			}
 
 			if (isPositionValueLimit && !riskReduction) {
-				// console.log('hit isPositionValueLimit and not risk reducing trade');
+				console.log('hit isPositionValueLimit and not risk reducing trade');
 				continue;
 			}
 
@@ -334,6 +354,7 @@ export class Arbitrager {
 						arbPctMod
 					);
 			} else if (riskReduction) {
+				console.log('ATTEMPT RISK REDUCTION');
 				const reductionDenom = Math.sqrt(Math.max(2, nextFundingTime));
 
 				if (uPnL > 0) {
@@ -346,6 +367,11 @@ export class Arbitrager {
 					positionValue.div(new BN(reductionDenom))
 				);
 				amount = BN.min(positionValue, reductionSize);
+
+				if(netExposure == 0){
+					console.log("Market", marketIndexBN.toNumber(), 'no exposure to reduce')
+					continue;
+				}
 				direction =
 					netExposure > 0 ? PositionDirection.SHORT : PositionDirection.LONG;
 
@@ -360,7 +386,7 @@ export class Arbitrager {
 			// skip trades < 1 USDC
 			const expectedFee = stripMantissa(amount.abs(), USDC_PRECISION) * 0.0005;
 			if (amount.abs().lt(USDC_PRECISION)) {
-				// console.log('trade amount < $1');
+				console.log('trade amount < $1');
 				continue;
 			}
 
@@ -387,15 +413,17 @@ export class Arbitrager {
 			// todo have tradeEV determine whether trade worth doing
 			// first pass has $100 buffer...
 			if (expectedFee > tradeEV + 100 && !riskReduction) {
-				// console.log('expectedFee', expectedFee, ' > tradeEV:', tradeEV);
+				console.log('expectedFee', expectedFee, ' > tradeEV:', tradeEV);
 				continue;
 			}
 
 			// tiny buffers for limitPrice
 			if (direction == PositionDirection.LONG) {
-				limitPrice = new BN(limitPrice.toNumber() * 1.0001);
+				console.log('GOING LONG');
+				limitPrice = new BN(limitPrice.toNumber() * 1.001);
 			} else {
-				limitPrice = new BN(limitPrice.toNumber() * 0.9999);
+				console.log('GOING SHORT');
+				limitPrice = new BN(limitPrice.toNumber() * 0.999);
 			}
 
 			tradesToExecute.push({
@@ -410,7 +438,7 @@ export class Arbitrager {
 
 	public async executeTrade(tradeToExecute: TradeToExecute) {
 		console.log(tradeToExecute);
-		await this.clearingHouse.openPosition(
+		const tx = await this.clearingHouse.openPosition(
 			(
 				await this.clearingHouse.getUserAccountPublicKey()
 			)[0],
