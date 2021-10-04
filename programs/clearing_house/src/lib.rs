@@ -214,6 +214,11 @@ pub mod clearing_house {
             return Err(ErrorCode::InsufficientCollateral.into());
         }
 
+        user.cumulative_deposits = user
+            .cumulative_deposits
+            .checked_sub(amount as i128)
+            .ok_or_else(math_error!())?;
+
         let (collateral_account_withdrawal, insurance_account_withdrawal) =
             calculate_withdrawal_amounts(
                 amount,

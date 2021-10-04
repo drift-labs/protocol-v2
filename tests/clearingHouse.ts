@@ -150,6 +150,7 @@ describe('clearing_house', () => {
 
 		assert.ok(user.authority.equals(provider.wallet.publicKey));
 		assert.ok(user.collateral.eq(usdcAmount));
+		assert.ok(user.cumulativeDeposits.eq(usdcAmount));
 
 		// Check that clearing house collateral account has proper collateral
 		const clearingHouseState: any = clearingHouse.getState();
@@ -188,6 +189,7 @@ describe('clearing_house', () => {
 			userAccountPublicKey
 		);
 		assert.ok(user.collateral.eq(new BN(0)));
+		assert.ok(user.cumulativeDeposits.eq(new BN(0)));
 		// Check that clearing house collateral account has proper collateral]
 		const clearingHouseState: any = clearingHouse.getState();
 		const clearingHouseCollateralVault = await getTokenAccount(
@@ -225,6 +227,7 @@ describe('clearing_house', () => {
 		);
 		assert(user.collateral.eq(new BN(9997500)));
 		assert(user.totalFeePaid.eq(new BN(2500)));
+		assert(user.cumulativeDeposits.eq(usdcAmount));
 
 		const userPositionsAccount: any =
 			await clearingHouse.program.account.userPositions.fetch(user.positions);
@@ -357,6 +360,7 @@ describe('clearing_house', () => {
 		);
 		assert.ok(user.collateral.eq(new BN(9996250)));
 		assert(user.totalFeePaid.eq(new BN(3750)));
+		assert(user.cumulativeDeposits.eq(usdcAmount));
 
 		const marketsAccount = clearingHouse.getMarketsAccount();
 		const market: any = marketsAccount.markets[0];
