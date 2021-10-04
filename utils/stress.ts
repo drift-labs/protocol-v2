@@ -117,7 +117,7 @@ export async function stress_test(
 			const market_i = new BN(0);
 			if (user_i % 2 == 0 && ['buy', 'sell'].includes(rand_e)) {
 				// arb user
-				const state: any = await clearingHouse.getState();
+				// const state: any = await clearingHouse.getState();
 				const marketsAccount: any = await clearingHouse.getMarketsAccount();
 
 				const marketData = marketsAccount.markets[market_i.toNumber()];
@@ -128,10 +128,10 @@ export async function stress_test(
 				);
 
 				let _entry_px; //todo
-				let oraclePriceMantissa = new BN(
+				const oraclePriceMantissa = new BN(
 					oracleData.price * PEG_SCALAR.toNumber()
 				).mul(AMM_MANTISSA.div(PEG_SCALAR));
-				let markPriceMantissa =
+				const markPriceMantissa =
 					clearingHouse.calculateBaseAssetPriceWithMantissa(market_i);
 
 				[randEType, rand_amt, _entry_px] =
