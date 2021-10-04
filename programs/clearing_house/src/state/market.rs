@@ -143,25 +143,4 @@ impl AMM {
         };
         return Ok((oracle_px, oracle_conf));
     }
-
-    pub fn get_oracle_mark_spread(
-        &self,
-        price_oracle: &AccountInfo,
-        window: u32,
-    ) -> ClearingHouseResult<i128> {
-        let mark_price: i128;
-        if window > 0 {
-            mark_price = self.last_mark_price_twap as i128;
-        } else {
-            mark_price = self.base_asset_price_with_mantissa()? as i128;
-        }
-
-        let (oracle_price, _oracle_conf) = self.get_oracle_price(price_oracle, window)?;
-
-        let price_spread = mark_price
-            .checked_sub(oracle_price)
-            .ok_or_else(math_error!())?;
-
-        return Ok(price_spread);
-    }
 }
