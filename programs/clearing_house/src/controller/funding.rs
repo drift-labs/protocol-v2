@@ -7,7 +7,7 @@ use crate::error::*;
 use crate::math::amm;
 use crate::math::collateral::calculate_updated_collateral;
 use crate::math::constants::{
-    BASE_ASSET_AMOUNT_PRECISION, FUNDING_PAYMENT_MANTISSA, MARK_PRICE_MANTISSA, USDC_PRECISION,
+    AMM_ASSET_AMOUNT_PRECISION, FUNDING_PAYMENT_MANTISSA, MARK_PRICE_MANTISSA, USDC_PRECISION,
 };
 use crate::math::funding::calculate_funding_payment;
 use crate::math_error;
@@ -63,7 +63,7 @@ pub fn settle_funding_payment(
     // longs pay shorts the `funding_payment`
     let funding_payment_collateral = funding_payment
         .checked_div(
-            BASE_ASSET_AMOUNT_PRECISION
+            AMM_ASSET_AMOUNT_PRECISION
                 .checked_div(USDC_PRECISION)
                 .ok_or_else(math_error!())? as i128,
         )

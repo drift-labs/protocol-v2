@@ -1,8 +1,5 @@
 use crate::error::{ClearingHouseResult, ErrorCode};
-use crate::math::{
-    amm, bn,
-    constants::{MARK_PRICE_MANTISSA, PRICE_TO_PEG_PRECISION_RATIO},
-};
+use crate::math::{amm, bn, constants::PRICE_TO_PEG_PRECISION_RATIO, quote_asset::*};
 use crate::math_error;
 use crate::state::market::AMM;
 use solana_program::msg;
@@ -22,19 +19,17 @@ pub fn swap_quote_asset(
     amm.last_mark_price_twap = amm::calculate_new_mark_twap(amm, now)?;
     amm.last_mark_price_twap_ts = now;
 
-    let unpegged_quote_asset_amount = quote_asset_swap_amount
-        .checked_mul(MARK_PRICE_MANTISSA)
-        .ok_or_else(math_error!())?
-        .checked_div(amm.peg_multiplier)
-        .ok_or_else(math_error!())?;
+    let scaled_quote_asset_amount = scale_to_amm_precision(quote_asset_swap_amount)?;
+    let unpegged_scaled_quote_asset_amount =
+        unpeg_quote_asset_amount(scaled_quote_asset_amount, amm.peg_multiplier)?;
 
-    if unpegged_quote_asset_amount == 0 {
+    if unpegged_scaled_quote_asset_amount == 0 {
         return Err(ErrorCode::TradeSizeTooSmall);
     }
 
     let initial_base_asset_amount = amm.base_asset_reserve;
     let (new_base_asset_amount, new_quote_asset_amount) = amm::calculate_swap_output(
-        unpegged_quote_asset_amount,
+        unpegged_scaled_quote_asset_amount,
         amm.quote_asset_reserve,
         direction,
         amm.sqrt_k,
@@ -50,7 +45,7 @@ pub fn swap_quote_asset(
     let base_asset_price_after = amm.base_asset_price_with_mantissa()?;
 
     let entry_price = amm::calculate_base_asset_price_with_mantissa(
-        unpegged_quote_asset_amount,
+        unpegged_scaled_quote_asset_amount,
         acquired_base_asset_amount.unsigned_abs(),
         amm.peg_multiplier,
     )?;

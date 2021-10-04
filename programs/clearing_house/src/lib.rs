@@ -454,14 +454,15 @@ pub mod clearing_house {
             let market =
                 &ctx.accounts.markets.load()?.markets[Markets::index_from_u64(market_index)];
 
-            let unpegged_quote_asset_amount = quote_asset_amount
-                .checked_mul(MARK_PRICE_MANTISSA)
-                .ok_or_else(math_error!())?
-                .checked_div(market.amm.peg_multiplier)
-                .ok_or_else(math_error!())?;
+            let scaled_quote_asset_amount =
+                math::quote_asset::scale_to_amm_precision(quote_asset_amount)?;
+            let unpegged_scaled_quote_asset_amount = math::quote_asset::unpeg_quote_asset_amount(
+                scaled_quote_asset_amount,
+                market.amm.peg_multiplier,
+            )?;
 
             let entry_price = amm::calculate_base_asset_price_with_mantissa(
-                unpegged_quote_asset_amount,
+                unpegged_scaled_quote_asset_amount,
                 base_asset_amount_change,
                 market.amm.peg_multiplier,
             )?;
