@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Mint, Token, TokenAccount};
 
-declare_id!("DM2Kae4RSLr88XH2wpqV2VquSfp8zodRLCEV8pukaT3z");
+declare_id!("7gi5CTAyKettJNgWyWsfuxYXwmM7dYSuWDs1piqryPxM");
 
 #[program]
 pub mod mock_usdc_faucet {
