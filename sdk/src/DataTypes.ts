@@ -92,6 +92,7 @@ export type TradeRecord = {
 	markPriceBefore: BN;
 	markPriceAfter: BN;
 	marketIndex: BN;
+	liquidation: false
 };
 
 export type TradeHistoryAccount = {

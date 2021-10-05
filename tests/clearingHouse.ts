@@ -267,6 +267,7 @@ describe('clearing_house', () => {
 				new BN(499950004999501)
 			)
 		);
+		assert.ok(tradeHistoryAccount.tradeRecords[0].liquidation == false);
 		assert.ok(
 			tradeHistoryAccount.tradeRecords[0].quoteAssetAmount.eq(new BN(50000000))
 		);
@@ -385,6 +386,7 @@ describe('clearing_house', () => {
 				new BN(249962504374532)
 			)
 		);
+		assert.ok(tradeHistoryAccount.tradeRecords[1].liquidation == false);
 		assert.ok(
 			tradeHistoryAccount.tradeRecords[1].quoteAssetAmount.eq(new BN(25000000))
 		);
@@ -483,6 +485,7 @@ describe('clearing_house', () => {
 				new BN(250012500625031)
 			)
 		);
+		assert.ok(tradeHistoryAccount.tradeRecords[2].liquidation == false);
 		assert.ok(
 			tradeHistoryAccount.tradeRecords[3].quoteAssetAmount.eq(new BN(25000000))
 		);
@@ -533,6 +536,7 @@ describe('clearing_house', () => {
 				new BN(500050005000500)
 			)
 		);
+		assert.ok(tradeHistoryAccount.tradeRecords[4].liquidation == false);
 		assert.ok(
 			tradeHistoryAccount.tradeRecords[4].quoteAssetAmount.eq(new BN(50000000))
 		);
@@ -626,6 +630,28 @@ describe('clearing_house', () => {
 
 		assert.ok(chInsuranceAccountToken.amount.eq(new BN(39058)));
 		assert.ok(userUSDCTokenAccount.amount.eq(new BN(39057)));
+
+		const tradeHistoryAccount = clearingHouse.getTradeHistoryAccount();
+
+		assert.ok(tradeHistoryAccount.head.toNumber() === 6);
+		assert.ok(
+			tradeHistoryAccount.tradeRecords[5].user.equals(userAccountPublicKey)
+		);
+		assert.ok(tradeHistoryAccount.tradeRecords[5].recordId.eq(new BN(6)));
+		assert.ok(
+			JSON.stringify(tradeHistoryAccount.tradeRecords[5].direction) ===
+			JSON.stringify(PositionDirection.LONG)
+		);
+		assert.ok(
+			tradeHistoryAccount.tradeRecords[5].baseAssetAmount.eq(
+				new BN(125022496854328)
+			)
+		);
+		assert.ok(tradeHistoryAccount.tradeRecords[5].liquidation);
+		assert.ok(
+			tradeHistoryAccount.tradeRecords[5].quoteAssetAmount.eq(new BN(14216344))
+		);
+		assert.ok(tradeHistoryAccount.tradeRecords[5].marketIndex.eq(new BN(0)));
 	});
 
 	it('Full Liquidation', async () => {
@@ -682,6 +708,28 @@ describe('clearing_house', () => {
 
 		assert.ok(chInsuranceAccountToken.amount.eq(new BN(2066151)));
 		assert.ok(userUSDCTokenAccount.amount.eq(new BN(145746)));
+
+		const tradeHistoryAccount = clearingHouse.getTradeHistoryAccount();
+
+		assert.ok(tradeHistoryAccount.head.toNumber() === 7);
+		assert.ok(
+			tradeHistoryAccount.tradeRecords[6].user.equals(userAccountPublicKey)
+		);
+		assert.ok(tradeHistoryAccount.tradeRecords[6].recordId.eq(new BN(7)));
+		assert.ok(
+			JSON.stringify(tradeHistoryAccount.tradeRecords[6].direction) ===
+			JSON.stringify(PositionDirection.LONG)
+		);
+		assert.ok(
+			tradeHistoryAccount.tradeRecords[6].baseAssetAmount.eq(
+				new BN(375027508146172)
+			)
+		);
+		assert.ok(tradeHistoryAccount.tradeRecords[6].liquidation);
+		assert.ok(
+			tradeHistoryAccount.tradeRecords[6].quoteAssetAmount.eq(new BN(43561760))
+		);
+		assert.ok(tradeHistoryAccount.tradeRecords[6].marketIndex.eq(new BN(0)));
 	});
 
 	it('Pay from insurance fund', async () => {

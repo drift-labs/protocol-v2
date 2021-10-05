@@ -452,6 +452,7 @@ pub mod clearing_house {
             mark_price_before: base_asset_price_with_mantissa_before,
             mark_price_after: base_asset_price_with_mantissa_after,
             fee,
+            liquidation: false,
             market_index,
         });
 
@@ -531,14 +532,11 @@ pub mod clearing_house {
         // as quote_asset_notional_amount in trade history
         let (base_asset_value, _pnl) =
             calculate_base_asset_value_and_pnl(market_position, &market.amm)?;
-        let trade_history_account = &mut ctx.accounts.trade_history_account.load_mut()?;
+        let trade_history_account = &mut ctx.accounts.trade_history.load_mut()?;
         let record_id = trade_history_account.next_record_id();
         let base_asset_price_with_mantissa_before = market.amm.base_asset_price_with_mantissa()?;
-        let direction = if market_position.base_asset_amount > 0 {
-            PositionDirection::Short
-        } else {
-            PositionDirection::Long
-        };
+        let direction_to_close =
+            math::position::direction_to_close_position(market_position.base_asset_amount);
         let base_asset_amount = market_position.base_asset_amount.unsigned_abs();
         controller::position::close(user, market, market_position, now)?;
 
@@ -577,11 +575,12 @@ pub mod clearing_house {
             record_id,
             user_authority: *ctx.accounts.authority.to_account_info().key,
             user: *user.to_account_info().key,
-            direction,
+            direction: direction_to_close,
             base_asset_amount,
             quote_asset_amount: base_asset_value,
             mark_price_before: base_asset_price_with_mantissa_before,
             mark_price_after: base_asset_price_with_mantissa_after,
+            liquidation: false,
             fee,
             market_index,
         });
@@ -595,6 +594,7 @@ pub mod clearing_house {
     pub fn liquidate(ctx: Context<Liquidate>) -> ProgramResult {
         let state = &ctx.accounts.state;
         let user = &mut ctx.accounts.user;
+        let trade_history = &mut ctx.accounts.trade_history.load_mut()?;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
 
@@ -620,7 +620,33 @@ pub mod clearing_house {
                 let market =
                     &mut markets.markets[Markets::index_from_u64(market_position.market_index)];
 
-                controller::position::close(user, market, market_position, now)?
+                let direction_to_close =
+                    math::position::direction_to_close_position(market_position.base_asset_amount);
+                let (base_asset_value, _pnl) = math::position::calculate_base_asset_value_and_pnl(
+                    &market_position,
+                    &market.amm,
+                )?;
+                let base_asset_amount = market_position.base_asset_amount.unsigned_abs();
+
+                let mark_price_before = market.amm.base_asset_price_with_mantissa()?;
+                controller::position::close(user, market, market_position, now)?;
+                let mark_price_after = market.amm.base_asset_price_with_mantissa()?;
+
+                let record_id = trade_history.next_record_id();
+                trade_history.append(TradeRecord {
+                    ts: now,
+                    record_id,
+                    user_authority: user.authority,
+                    user: *user.to_account_info().key,
+                    direction: direction_to_close,
+                    base_asset_amount,
+                    quote_asset_amount: base_asset_value,
+                    mark_price_before,
+                    mark_price_after,
+                    fee: 0,
+                    liquidation: true,
+                    market_index: market_position.market_index,
+                });
             }
         } else {
             let markets = &mut ctx.accounts.markets.load_mut()?;
@@ -644,20 +670,42 @@ pub mod clearing_house {
                     )
                     .ok_or_else(math_error!())?;
 
-                let direction = if market_position.base_asset_amount > 0 {
-                    PositionDirection::Short
-                } else {
-                    PositionDirection::Long
-                };
+                let direction_to_reduce =
+                    math::position::direction_to_close_position(market_position.base_asset_amount);
+                let mark_price_before = market.amm.base_asset_price_with_mantissa()?;
+                let base_asset_amount_before = market_position.base_asset_amount;
 
                 controller::position::reduce(
-                    direction,
+                    direction_to_reduce,
                     base_asset_value_to_close,
                     user,
                     market,
                     market_position,
                     now,
                 )?;
+
+                let base_asset_amount_change = market_position
+                    .base_asset_amount
+                    .checked_sub(base_asset_amount_before)
+                    .ok_or_else(math_error!())?
+                    .unsigned_abs();
+
+                let mark_price_after = market.amm.base_asset_price_with_mantissa()?;
+                let record_id = trade_history.next_record_id();
+                trade_history.append(TradeRecord {
+                    ts: now,
+                    record_id,
+                    user_authority: user.authority,
+                    user: *user.to_account_info().key,
+                    direction: direction_to_reduce,
+                    base_asset_amount: base_asset_amount_change,
+                    quote_asset_amount: base_asset_value_to_close,
+                    mark_price_before,
+                    mark_price_after,
+                    fee: 0,
+                    liquidation: true,
+                    market_index: market_position.market_index,
+                });
             }
 
             is_full_liquidation = false;

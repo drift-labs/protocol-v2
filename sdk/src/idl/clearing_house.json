@@ -330,7 +330,7 @@
           "isSigner": false
         },
         {
-          "name": "tradeHistoryAccount",
+          "name": "tradeHistory",
           "isMut": true,
           "isSigner": false
         },
@@ -407,6 +407,11 @@
         },
         {
           "name": "userPositions",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tradeHistory",
           "isMut": true,
           "isSigner": false
         }
@@ -1162,6 +1167,10 @@
             "type": "u128"
           },
           {
+            "name": "liquidation",
+            "type": "bool"
+          },
+          {
             "name": "marketIndex",
             "type": "u64"
           }
@@ -1519,8 +1528,5 @@
       "name": "UnableToLoadOracle",
       "msg": "Unable To Load Oracles"
     }
-  ],
-  "metadata": {
-    "address": "CxoFf4oyt8AbVvxQ5DqrA33C2me28erNf8A11TrvBrLt"
-  }
+  ]
 }

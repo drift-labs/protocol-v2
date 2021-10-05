@@ -200,7 +200,7 @@ pub struct ClosePosition<'info> {
     )]
     pub user_positions: Loader<'info, UserPositions>,
     #[account(mut)]
-    pub trade_history_account: Loader<'info, TradeHistory>,
+    pub trade_history: Loader<'info, TradeHistory>,
     #[account(mut)]
     pub funding_payment_history: Loader<'info, FundingPaymentHistory>,
     pub oracle: AccountInfo<'info>,
@@ -234,6 +234,8 @@ pub struct Liquidate<'info> {
         has_one = user
     )]
     pub user_positions: Loader<'info, UserPositions>,
+    #[account(mut)]
+    pub trade_history: Loader<'info, TradeHistory>,
 }
 
 #[derive(Accounts)]

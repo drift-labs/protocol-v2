@@ -1,4 +1,5 @@
 use crate::controller::amm::SwapDirection;
+use crate::controller::position::PositionDirection;
 use crate::error::*;
 use crate::math::{amm, quote_asset::*};
 use crate::math_error;
@@ -52,4 +53,12 @@ pub fn calculate_base_asset_value_and_pnl(
     };
 
     return Ok((pegged_quote_asset_amount_acquired, pnl));
+}
+
+pub fn direction_to_close_position(base_asset_amount: i128) -> PositionDirection {
+    if base_asset_amount > 0 {
+        PositionDirection::Short
+    } else {
+        PositionDirection::Long
+    }
 }

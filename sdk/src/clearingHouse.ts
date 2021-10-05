@@ -648,7 +648,7 @@ export class ClearingHouse {
 				authority: this.wallet.publicKey,
 				markets: this.state.markets,
 				userPositions: user.positions,
-				tradeHistoryAccount: this.state.tradeHistory,
+				tradeHistory: this.state.tradeHistory,
 				fundingPaymentHistory: this.state.fundingPaymentHistory,
 				oracle: priceOracle,
 			},
@@ -782,7 +782,6 @@ export class ClearingHouse {
 				tokenProgram: TOKEN_PROGRAM_ID,
 				markets: this.state.markets,
 				userPositions: liquidateeUserAccount.positions,
-				fundingPaymentHistory: this.state.fundingPaymentHistory,
 				tradeHistory: this.state.tradeHistory,
 			},
 		});
