@@ -103,6 +103,9 @@ export class UserAccount {
 		} catch (error) {
 			console.error(`Caught error trying to subscribe to UserAccount`, error);
 
+			// run unsubscribe so that things are properly cleaned up
+			this.unsubscribe(true);
+
 			this.isSubscribed = false;
 
 			return false;
