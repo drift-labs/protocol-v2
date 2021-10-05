@@ -7,10 +7,13 @@ import {
 import { UserAccount } from './userAccount';
 import { PythClient } from './pythClient';
 import BN from 'bn.js';
-import { stripMantissa } from './DataSubscriptionHelpers';
+import {
+	stripMantissa,
+	stripBaseAssetPrecision,
+} from './DataSubscriptionHelpers';
 import { ZERO } from './constants/numericConstants';
 import { PositionDirection } from './types';
-// import { BinanceClient, Trade } from 'ccxws';
+import { BinanceClient, FtxClient, Trade } from 'ccxws';
 import { Connection, PublicKey } from '@solana/web3.js';
 
 export interface TradeToExecute {
@@ -50,8 +53,8 @@ export class Arbitrager {
 	private userAccount: UserAccount;
 	private alphas: Array<number>;
 	private connectionOverride: Connection;
-	// private binance: BinanceClient;
-	// private btrades: Array<Trade>;
+	private ftxClient: FtxClient;
+	private exchangeTrades: Array<Trade>;
 
 	public constructor(
 		clearingHouse: ClearingHouse,
@@ -73,17 +76,17 @@ export class Arbitrager {
 		this.alphas = [0, 0, 0, 0]; //todo
 
 		// // todo this outside of main sdk. pass api key?
-		// this.btrades = []; //todo
-		// this.binance = new BinanceClient();
-		// // market could be from CCXT or genearted by the user
-		// const binanceMarket = {
-		// 	id: 'BTCUSDC', // remote_id used by the exchange
-		// 	base: 'BTC', // standardized base symbol for Bitcoin
-		// 	quote: 'USDC', // standardized quote symbol for Tether
-		// };
-		// // handle trade events
-		// this.binance.on('trade', (trade) => this.btrades.push(trade));
-		// this.binance.subscribeTrades(binanceMarket);
+		this.exchangeTrades = []; //todo
+		this.ftxClient = new FtxClient();
+		// market could be from CCXT or genearted by the user
+		const binanceMarket = {
+			id: 'BTCUSDC', // remote_id used by the exchange
+			base: 'BTC', // standardized base symbol for Bitcoin
+			quote: 'USDC', // standardized quote symbol for Tether
+		};
+		// handle trade events
+		this.ftxClient.on('trade', (trade) => this.exchangeTrades.push(trade));
+		this.ftxClient.subscribeTrades(binanceMarket);
 	}
 
 	public async findTradesToExecute(
@@ -92,6 +95,7 @@ export class Arbitrager {
 	): Promise<TradeToExecute[]> {
 		const marketsAccount: any = await this.clearingHouse.getMarketsAccount();
 		const tradesToExecute: TradeToExecute[] = [];
+		const MAX_TRADE_AMOUNT = new BN(10000).mul(USDC_PRECISION);
 		for (const marketIndex in marketsAccount.markets) {
 			const market = marketsAccount.markets[marketIndex];
 			if (!market.initialized) {
@@ -113,6 +117,7 @@ export class Arbitrager {
 				3: 'COPE',
 			};
 
+			let marketNetExposure = stripBaseAssetPrecision(market.baseAssetAmount);
 			let oraclePricePubkey: PublicKey = market.amm.oracle;
 			const oracleMarketName = indextoMarketName[marketIndexBN.toNumber()];
 
@@ -164,6 +169,7 @@ export class Arbitrager {
 			let positionIdx = 0;
 			let arbPos;
 			let uPnL = 0;
+			let marketNetExposureExBot = marketNetExposure;
 			let netExposure = 0;
 			let tradeEV = 0;
 			let positionValue = ZERO;
@@ -180,6 +186,8 @@ export class Arbitrager {
 						arbPos.baseAssetAmount,
 						BASE_ASSET_PRECISION
 					);
+					marketNetExposureExBot = marketNetExposure - netExposure;
+
 					positionValue = this.userAccount.getPositionValue(positionIdx);
 				}
 				positionIdx += 1;
@@ -206,7 +214,7 @@ export class Arbitrager {
 				.toNumber();
 
 			console.log(
-				'NEXT FUNDING TIME IN Makret',
+				'NEXT FUNDING TIME IN Market',
 				marketIndexBN.toNumber(),
 				':',
 				nextFundingTime
@@ -423,6 +431,10 @@ export class Arbitrager {
 			if (expectedFee > tradeEV + 100 && !riskReduction) {
 				console.log('expectedFee', expectedFee, ' > tradeEV:', tradeEV);
 				continue;
+			}
+
+			if (amount.gt(MAX_TRADE_AMOUNT) && !riskReduction) {
+				amount = MAX_TRADE_AMOUNT;
 			}
 
 			// tiny buffers for limitPrice
