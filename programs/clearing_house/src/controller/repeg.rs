@@ -1,8 +1,11 @@
 use crate::controller;
 use crate::error::*;
 use crate::math;
+use crate::math::bn;
+
 use crate::math::constants::{
     FUNDING_PAYMENT_MANTISSA, PRICE_TO_PEG_PRECISION_RATIO, SHARE_OF_FEES_ALLOCATED_TO_REPEG,
+    AMM_ASSET_AMOUNT_PRECISION, MARK_PRICE_MANTISSA
 };
 use crate::math_error;
 use crate::state::market::Market;
@@ -51,27 +54,35 @@ pub fn repeg(
     }
 
     let mut pnl_r = amm.cumulative_fee_realized;
-    //todo: replace with Market.base_asset_amount
-    let base_asset_amount_i = amm.sqrt_k as i128;
-    let net_market_position = base_asset_amount_i
-        .checked_sub(amm.base_asset_reserve as i128)
+    let net_market_position = market.base_asset_amount;
+
+    let pnl_mantissa = math::repeg::calculate_repeg_candidate_pnl(amm, new_peg_candidate)?;
+    let pnl_mag = pnl_mantissa
+        .unsigned_abs()
+        .checked_div(MARK_PRICE_MANTISSA)
         .ok_or_else(math_error!())?;
-
-    let pnl = math::repeg::calculate_repeg_candidate_pnl(amm, new_peg_candidate)?;
-
-    if net_market_position != 0 && pnl == 0 {
+    
+    if net_market_position != 0 && pnl_mantissa == 0 {
         return Err(ErrorCode::InvalidRepegProfitability.into());
     }
 
-    if pnl >= 0 {
+    if pnl_mantissa != 0 && pnl_mag == 0 {
+        return Err(ErrorCode::InvalidRepegProfitability.into());
+    }
+    
+    if net_market_position != 0 && pnl_mag == 0 {
+        return Err(ErrorCode::InvalidRepegProfitability.into());
+    }
+
+    if pnl_mantissa >= 0 {
         pnl_r = pnl_r
-            .checked_add(pnl.unsigned_abs())
+            .checked_add(pnl_mag)
             .ok_or_else(math_error!())?;
-    } else if pnl.abs() as u128 > pnl_r {
+    } else if pnl_mag > pnl_r {
         return Err(ErrorCode::InvalidRepegProfitability.into());
     } else {
         pnl_r = (pnl_r)
-            .checked_sub(pnl.unsigned_abs())
+            .checked_sub(pnl_mag)
             .ok_or_else(math_error!())?;
         if pnl_r
             < amm
@@ -85,12 +96,12 @@ pub fn repeg(
         // profit sharing with only those who held the rewarded position before repeg
         if new_peg_candidate < amm.peg_multiplier {
             if market.base_asset_amount_short.unsigned_abs() > 0 {
-                let repeg_profit_per_unit = pnl
-                    .unsigned_abs()
-                    .checked_mul(FUNDING_PAYMENT_MANTISSA)
+                let repeg_profit_per_unit = bn::U256::from(pnl_mantissa.unsigned_abs())
+                    .checked_mul(bn::U256::from(AMM_ASSET_AMOUNT_PRECISION))
                     .ok_or_else(math_error!())?
-                    .checked_div(market.base_asset_amount_short.unsigned_abs())
-                    .ok_or_else(math_error!())?;
+                    .checked_div(bn::U256::from(market.base_asset_amount_short.unsigned_abs()))
+                    .ok_or_else(math_error!())?
+                    .try_to_u128()?;
 
                 amm.cumulative_repeg_rebate_short = amm
                     .cumulative_repeg_rebate_short
@@ -99,12 +110,12 @@ pub fn repeg(
             }
         } else {
             if market.base_asset_amount_long.unsigned_abs() > 0 {
-                let repeg_profit_per_unit = pnl
-                    .unsigned_abs()
-                    .checked_mul(FUNDING_PAYMENT_MANTISSA)
+                let repeg_profit_per_unit = bn::U256::from(pnl_mantissa.unsigned_abs())
+                    .checked_mul(bn::U256::from(AMM_ASSET_AMOUNT_PRECISION))
                     .ok_or_else(math_error!())?
-                    .checked_div(market.base_asset_amount_long.unsigned_abs())
-                    .ok_or_else(math_error!())?;
+                    .checked_div(bn::U256::from(market.base_asset_amount_long.unsigned_abs()))
+                    .ok_or_else(math_error!())?
+                    .try_to_u128()?;
 
                 amm.cumulative_repeg_rebate_long = amm
                     .cumulative_repeg_rebate_long

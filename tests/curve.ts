@@ -7,6 +7,7 @@ import {
 	PEG_SCALAR,
 	ClearingHouse,
 	PositionDirection,
+	stripMantissa,
 } from '../sdk/src';
 import { UserAccount } from '../sdk/src/userAccount';
 import { mockUSDCMint, mockUserUSDCAccount } from '../utils/mockAccounts';
@@ -24,8 +25,8 @@ describe('AMM Curve', () => {
 		chProgram.programId
 	);
 
-	const ammInitialQuoteAssetAmount = new anchor.BN(1 * 10 ** 9);
-	const ammInitialBaseAssetAmount = new anchor.BN(1 * 10 ** 9);
+	const ammInitialQuoteAssetAmount = new anchor.BN(10 ** 13);
+	const ammInitialBaseAssetAmount = new anchor.BN(10 ** 13);
 
 	let usdcMint: Keypair;
 	let userUSDCAccount: Keypair;
@@ -34,7 +35,7 @@ describe('AMM Curve', () => {
 	const marketIndex = new BN(0);
 	const initialSOLPrice = 150;
 
-	const usdcAmount = new BN(1 * 10 ** 6);
+	const usdcAmount = new BN(100 * 10 ** 6);
 	const solPositionInitialValue = usdcAmount.div(new BN(10));
 
 	let userAccount: UserAccount;
@@ -71,56 +72,6 @@ describe('AMM Curve', () => {
 		await userAccount.unsubscribe();
 	});
 
-	const assertState = async (
-		// eslint-disable-next-line @typescript-eslint/no-unused-vars
-		expectedBuyingPower: BN,
-		// eslint-disable-next-line @typescript-eslint/no-unused-vars
-		expectedFreeCollateral: BN,
-		// eslint-disable-next-line @typescript-eslint/no-unused-vars
-		expectedPNL: BN,
-		// eslint-disable-next-line @typescript-eslint/no-unused-vars
-		expectedTotalCollateral: BN,
-		// eslint-disable-next-line @typescript-eslint/no-unused-vars
-		expectedLeverage: BN,
-		// eslint-disable-next-line @typescript-eslint/no-unused-vars
-		expectedMarginRatio: BN
-	) => {
-		// 	const summary = userAccount.summary();
-		// 	console.log(summary);
-		// 	const pnl0 = userAccount.getUnrealizedPNL();
-		// 	console.log(
-		// 		'PnL',
-		// 		summary.uPnL.toNumber(),
-		// 		pnl0.toNumber(),
-		// 		expectedPNL.toNumber()
-		// 	);
-		// 	console.log(summary.buyingPower.toNumber(), expectedBuyingPower.toNumber());
-		// 	console.log(
-		// 		summary.freeCollateral.toNumber(),
-		// 		expectedFreeCollateral.toNumber()
-		// 	);
-		// 	console.log(summary.marginRatio.toNumber(), expectedMarginRatio.toNumber());
-		// 	// todo: dont hate me
-		// 	const buyingPower = userAccount.getBuyingPower();
-		// 	assert(buyingPower.eq(expectedBuyingPower));
-		// 	const pnl = userAccount.getUnrealizedPNL();
-		// 	assert(pnl.eq(expectedPNL));
-		// 	const totalCollateral = userAccount.getTotalCollateral();
-		// 	console.log(
-		// 		'totalCollateral',
-		// 		totalCollateral.toNumber(),
-		// 		expectedTotalCollateral.toNumber()
-		// 	);
-		// 	assert(totalCollateral.eq(expectedTotalCollateral));
-		// 	const freeCollateral = userAccount.getFreeCollateral();
-		// 	assert(freeCollateral.eq(expectedFreeCollateral));
-		// 	const leverage = userAccount.getLeverage();
-		// 	console.log('leverage', leverage.toNumber(), expectedLeverage.toNumber());
-		// 	assert(leverage.eq(expectedLeverage));
-		// 	const marginRatio = userAccount.getMarginRatio();
-		// 	assert(marginRatio.eq(expectedMarginRatio));
-	};
-
 	const showBook = (marketIndex) => {
 		const market =
 			clearingHouse.getMarketsAccount().markets[marketIndex.toNumber()];
@@ -131,46 +82,22 @@ describe('AMM Curve', () => {
 			clearingHouse.liquidityBook(marketIndex, 3, 0.1);
 
 		for (let i = asksCumSize.length - 1; i >= 0; i--) {
-			console.log(
-				asksPrice[i].toNumber() / AMM_MANTISSA.toNumber(),
-				asksCumSize[i].toNumber() / AMM_MANTISSA.toNumber()
-			);
+			console.log(stripMantissa(asksPrice[i]), stripMantissa(asksCumSize[i]));
 		}
 
 		console.log('------------');
 		console.log(currentMark.toNumber() / AMM_MANTISSA.toNumber());
 		console.log(
 			'peg:',
-			market.amm.pegMultiplier.toNumber() / PEG_SCALAR.toNumber(),
+			stripMantissa(market.amm.pegMultiplier, PEG_SCALAR),
 			'k (M*M):',
-			market.amm.k.div(AMM_MANTISSA).div(AMM_MANTISSA).toNumber()
+			stripMantissa(market.amm.sqrtK)
 		);
 		console.log('------------');
 		for (let i = 0; i < bidsCumSize.length; i++) {
-			console.log(
-				bidsPrice[i].toNumber() / AMM_MANTISSA.toNumber(),
-				bidsCumSize[i].toNumber() / AMM_MANTISSA.toNumber()
-			);
+			console.log(stripMantissa(bidsPrice[i]), stripMantissa(bidsCumSize[i]));
 		}
 	};
-
-	it('Before Deposit', async () => {
-		const expectedBuyingPower = new BN(0);
-		const expectedFreeCollateral = new BN(0);
-		const expectedPNL = new BN(0);
-		const expectedTotalCollateral = new BN(0);
-		const expectedLeverage = new BN(0);
-		const expectedMarginRatio = new BN(Number.MAX_SAFE_INTEGER);
-
-		await assertState(
-			expectedBuyingPower,
-			expectedFreeCollateral,
-			expectedPNL,
-			expectedTotalCollateral,
-			expectedLeverage,
-			expectedMarginRatio
-		);
-	});
 
 	it('After Deposit', async () => {
 		await clearingHouse.depositCollateral(
@@ -187,15 +114,6 @@ describe('AMM Curve', () => {
 		const expectedMarginRatio = new BN(Number.MAX_SAFE_INTEGER);
 
 		showBook(marketIndex);
-
-		await assertState(
-			expectedBuyingPower,
-			expectedFreeCollateral,
-			expectedPNL,
-			expectedTotalCollateral,
-			expectedLeverage,
-			expectedMarginRatio
-		);
 	});
 
 	it('After Position Taken', async () => {
@@ -207,22 +125,6 @@ describe('AMM Curve', () => {
 		);
 
 		showBook(marketIndex);
-
-		const expectedPNL = new BN(0);
-		const expectedTotalCollateral = new BN(10000000);
-		const expectedBuyingPower = new BN(24999375);
-		const expectedFreeCollateral = new BN(4999875);
-		const expectedLeverage = new BN(2500); // 2.499x
-		const expectedMarginRatio = new BN(399); // 39.9%
-
-		await assertState(
-			expectedBuyingPower,
-			expectedFreeCollateral,
-			expectedPNL,
-			expectedTotalCollateral,
-			expectedLeverage,
-			expectedMarginRatio
-		);
 	});
 
 	it('After Position Price Moves', async () => {
@@ -233,22 +135,6 @@ describe('AMM Curve', () => {
 		);
 
 		showBook(marketIndex);
-
-		const expectedPNL = new BN(24997511);
-		const expectedTotalCollateral = new BN(34997511);
-		const expectedBuyingPower = new BN(124988795);
-		const expectedFreeCollateral = new BN(24997759);
-		const expectedLeverage = new BN(1428); // 1.428x
-		const expectedMarginRatio = new BN(699); // 69.9%
-
-		await assertState(
-			expectedBuyingPower,
-			expectedFreeCollateral,
-			expectedPNL,
-			expectedTotalCollateral,
-			expectedLeverage,
-			expectedMarginRatio
-		);
 	});
 	it('Arb back to Oracle Price Moves', async () => {
 		const [direction, quoteSize] = clearingHouse.calculateTargetPriceTrade(
