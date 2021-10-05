@@ -73,8 +73,8 @@ pub struct AMM {
 }
 
 impl AMM {
-    pub fn base_asset_price_with_mantissa(&self) -> ClearingHouseResult<u128> {
-        amm::calculate_base_asset_price_with_mantissa(
+    pub fn mark_price(&self) -> ClearingHouseResult<u128> {
+        amm::calculate_price(
             self.quote_asset_reserve,
             self.base_asset_reserve,
             self.peg_multiplier,

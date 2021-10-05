@@ -27,7 +27,7 @@ pub fn repeg(
     let (oracle_px, oracle_conf) = amm.get_oracle_price(price_oracle, 0)?;
     let cur_peg = amm.peg_multiplier;
 
-    let current_mark = amm.base_asset_price_with_mantissa()?;
+    let current_mark = amm.mark_price()?;
 
     if new_peg_candidate == 0 {
         // try to find semi-opt solution

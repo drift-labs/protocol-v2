@@ -102,7 +102,7 @@ pub mod clearing_house {
             return Err(ErrorCode::InvalidInitialPeg.into());
         }
 
-        let init_mark_price = amm::calculate_base_asset_price_with_mantissa(
+        let init_mark_price = amm::calculate_price(
             amm_quote_asset_amount,
             amm_base_asset_amount,
             amm_peg_multiplier,
@@ -324,11 +324,11 @@ pub mod clearing_house {
 
         let market_position = market_position.unwrap();
         let base_asset_amount_before = market_position.base_asset_amount;
-        let base_asset_price_with_mantissa_before: u128;
+        let mark_price_before: u128;
         {
             let market = &mut ctx.accounts.markets.load_mut()?.markets
                 [Markets::index_from_u64(market_index)];
-            base_asset_price_with_mantissa_before = market.amm.base_asset_price_with_mantissa()?;
+            mark_price_before = market.amm.mark_price()?;
         }
         let mut potentially_risk_increasing = true;
 
@@ -391,11 +391,11 @@ pub mod clearing_house {
             .checked_sub(base_asset_amount_before)
             .ok_or_else(math_error!())?
             .unsigned_abs();
-        let base_asset_price_with_mantissa_after: u128;
+        let mark_price_after: u128;
         {
             let market = &mut ctx.accounts.markets.load_mut()?.markets
                 [Markets::index_from_u64(market_index)];
-            base_asset_price_with_mantissa_after = market.amm.base_asset_price_with_mantissa()?;
+            mark_price_after = market.amm.mark_price()?;
         }
 
         let fee = fees::calculate(
@@ -449,8 +449,8 @@ pub mod clearing_house {
             direction,
             base_asset_amount: base_asset_amount_change,
             quote_asset_amount,
-            mark_price_before: base_asset_price_with_mantissa_before,
-            mark_price_after: base_asset_price_with_mantissa_after,
+            mark_price_before,
+            mark_price_after,
             fee,
             liquidation: false,
             market_index,
@@ -467,7 +467,7 @@ pub mod clearing_house {
                 market.amm.peg_multiplier,
             )?;
 
-            let entry_price = amm::calculate_base_asset_price_with_mantissa(
+            let entry_price = amm::calculate_price(
                 unpegged_scaled_quote_asset_amount,
                 base_asset_amount_change,
                 market.amm.peg_multiplier,
@@ -534,7 +534,7 @@ pub mod clearing_house {
             calculate_base_asset_value_and_pnl(market_position, &market.amm)?;
         let trade_history_account = &mut ctx.accounts.trade_history.load_mut()?;
         let record_id = trade_history_account.next_record_id();
-        let base_asset_price_with_mantissa_before = market.amm.base_asset_price_with_mantissa()?;
+        let mark_price_before = market.amm.mark_price()?;
         let direction_to_close =
             math::position::direction_to_close_position(market_position.base_asset_amount);
         let base_asset_amount = market_position.base_asset_amount.unsigned_abs();
@@ -569,7 +569,7 @@ pub mod clearing_house {
             .checked_add(fee)
             .ok_or_else(math_error!())?;
 
-        let base_asset_price_with_mantissa_after = market.amm.base_asset_price_with_mantissa()?;
+        let mark_price_after = market.amm.mark_price()?;
         trade_history_account.append(TradeRecord {
             ts: now,
             record_id,
@@ -578,8 +578,8 @@ pub mod clearing_house {
             direction: direction_to_close,
             base_asset_amount,
             quote_asset_amount: base_asset_value,
-            mark_price_before: base_asset_price_with_mantissa_before,
-            mark_price_after: base_asset_price_with_mantissa_after,
+            mark_price_before,
+            mark_price_after,
             liquidation: false,
             fee,
             market_index,
@@ -628,9 +628,9 @@ pub mod clearing_house {
                 )?;
                 let base_asset_amount = market_position.base_asset_amount.unsigned_abs();
 
-                let mark_price_before = market.amm.base_asset_price_with_mantissa()?;
+                let mark_price_before = market.amm.mark_price()?;
                 controller::position::close(user, market, market_position, now)?;
-                let mark_price_after = market.amm.base_asset_price_with_mantissa()?;
+                let mark_price_after = market.amm.mark_price()?;
 
                 let record_id = trade_history.next_record_id();
                 trade_history.append(TradeRecord {
@@ -672,7 +672,7 @@ pub mod clearing_house {
 
                 let direction_to_reduce =
                     math::position::direction_to_close_position(market_position.base_asset_amount);
-                let mark_price_before = market.amm.base_asset_price_with_mantissa()?;
+                let mark_price_before = market.amm.mark_price()?;
                 let base_asset_amount_before = market_position.base_asset_amount;
 
                 controller::position::reduce(
@@ -690,7 +690,7 @@ pub mod clearing_house {
                     .ok_or_else(math_error!())?
                     .unsigned_abs();
 
-                let mark_price_after = market.amm.base_asset_price_with_mantissa()?;
+                let mark_price_after = market.amm.mark_price()?;
                 let record_id = trade_history.next_record_id();
                 trade_history.append(TradeRecord {
                     ts: now,
@@ -922,13 +922,13 @@ pub mod clearing_house {
         let market = &mut markets.markets[Markets::index_from_u64(market_index)];
         let amm = &mut market.amm;
 
-        let price_before = math::amm::calculate_base_asset_price_with_mantissa(
+        let price_before = math::amm::calculate_price(
             amm.quote_asset_reserve,
             amm.base_asset_reserve,
             amm.peg_multiplier,
         )?;
 
-        let price_after = math::amm::calculate_base_asset_price_with_mantissa(
+        let price_after = math::amm::calculate_price(
             quote_asset_reserve,
             base_asset_reserve,
             amm.peg_multiplier,

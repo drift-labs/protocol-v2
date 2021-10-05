@@ -185,7 +185,7 @@ pub fn update_funding_rate(
         market.amm.cumulative_funding_rate = cum_funding_rate;
         market.amm.last_funding_rate = funding_rate;
         market.amm.last_funding_rate_ts = now;
-        market.amm.last_mark_price_twap = market.amm.base_asset_price_with_mantissa()?;
+        market.amm.last_mark_price_twap = market.amm.mark_price()?;
         market.amm.last_mark_price_twap_ts = now;
     }
 

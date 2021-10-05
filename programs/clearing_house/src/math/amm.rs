@@ -9,7 +9,7 @@ use crate::math_error;
 use crate::state::market::AMM;
 use solana_program::msg;
 
-pub fn calculate_base_asset_price_with_mantissa(
+pub fn calculate_price(
     unpegged_quote_asset_amount: u128,
     base_asset_amount: u128,
     peg_multiplier: u128,
@@ -40,7 +40,7 @@ pub fn calculate_new_mark_twap(amm: &AMM, now: i64) -> ClearingHouseResult<u128>
         .checked_mul(since_start as u128)
         .ok_or_else(math_error!())?;
     let latest_price_01 = amm
-        .base_asset_price_with_mantissa()?
+        .mark_price()?
         .checked_mul(since_last as u128)
         .ok_or_else(math_error!())?;
     let new_twap = prev_twap_99
@@ -89,7 +89,7 @@ pub fn calculate_oracle_mark_spread(
     if window > 0 {
         mark_price = amm.last_mark_price_twap as i128;
     } else {
-        mark_price = amm.base_asset_price_with_mantissa()? as i128;
+        mark_price = amm.mark_price()? as i128;
     }
 
     let (oracle_price, _oracle_conf) = amm.get_oracle_price(price_oracle, window)?;

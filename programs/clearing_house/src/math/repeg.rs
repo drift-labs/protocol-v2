@@ -27,7 +27,7 @@ pub fn calculate_repeg_candidate_pnl(
     )
     .checked_mul(U256::from(net_user_market_position))
     .ok_or_else(math_error!())?
-    .checked_mul(U256::from(amm.base_asset_price_with_mantissa()?))
+    .checked_mul(U256::from(amm.mark_price()?))
     .ok_or_else(math_error!())?
     .checked_div(U256::from(MARK_PRICE_MANTISSA))
     .ok_or_else(math_error!())?

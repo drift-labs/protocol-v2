@@ -34,7 +34,7 @@ pub fn swap_quote_asset(
         direction,
         amm.sqrt_k,
     )?;
-    let base_asset_price_before = amm.base_asset_price_with_mantissa()?;
+    let mark_price_before = amm.mark_price()?;
 
     amm.base_asset_reserve = new_base_asset_amount;
     amm.quote_asset_reserve = new_quote_asset_amount;
@@ -42,21 +42,17 @@ pub fn swap_quote_asset(
     let acquired_base_asset_amount = (initial_base_asset_amount as i128)
         .checked_sub(new_base_asset_amount as i128)
         .ok_or_else(math_error!())?;
-    let base_asset_price_after = amm.base_asset_price_with_mantissa()?;
+    let mark_price_after = amm.mark_price()?;
 
-    let entry_price = amm::calculate_base_asset_price_with_mantissa(
+    let entry_price = amm::calculate_price(
         unpegged_scaled_quote_asset_amount,
         acquired_base_asset_amount.unsigned_abs(),
         amm.peg_multiplier,
     )?;
 
     let trade_size_too_small = match direction {
-        SwapDirection::Add => {
-            entry_price > base_asset_price_after || entry_price < base_asset_price_before
-        }
-        SwapDirection::Remove => {
-            entry_price < base_asset_price_after || entry_price > base_asset_price_before
-        }
+        SwapDirection::Add => entry_price > mark_price_after || entry_price < mark_price_before,
+        SwapDirection::Remove => entry_price < mark_price_after || entry_price > mark_price_before,
     };
 
     if trade_size_too_small {
