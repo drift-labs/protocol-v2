@@ -53,7 +53,11 @@ export class Arbitrager {
 	// private binance: BinanceClient;
 	// private btrades: Array<Trade>;
 
-	public constructor(clearingHouse: ClearingHouse, userAccount: UserAccount, connectionOverride?: Connection) {
+	public constructor(
+		clearingHouse: ClearingHouse,
+		userAccount: UserAccount,
+		connectionOverride?: Connection
+	) {
 		if (!clearingHouse.isSubscribed) {
 			throw Error('clearingHouse must be subscribed to create arbitrager');
 		}
@@ -61,9 +65,9 @@ export class Arbitrager {
 		this.userAccount = userAccount;
 		this.connectionOverride = connectionOverride;
 
-		if(connectionOverride !== undefined) {
+		if (connectionOverride !== undefined) {
 			this.pythClient = new PythClient(connectionOverride);
-		} else{
+		} else {
 			this.pythClient = new PythClient(this.clearingHouse.connection);
 		}
 		this.alphas = [0, 0, 0, 0]; //todo
@@ -112,17 +116,15 @@ export class Arbitrager {
 			let oraclePricePubkey: PublicKey = market.amm.oracle;
 			const oracleMarketName = indextoMarketName[marketIndexBN.toNumber()];
 
-			if(oraclePricePubkey.toString() !== DEVNET_ORACLES[oracleMarketName]){
+			if (oraclePricePubkey.toString() !== DEVNET_ORACLES[oracleMarketName]) {
 				throw Error('wrong oracle assumptions');
 			}
 
-			let blockTimeConnection = this.clearingHouse.connection; 
+			let blockTimeConnection = this.clearingHouse.connection;
 
-			if(this.connectionOverride){
+			if (this.connectionOverride) {
 				console.log('using connectionOverride');
-				oraclePricePubkey = new PublicKey(
-					MAINNET_ORACLES[oracleMarketName]
-				);
+				oraclePricePubkey = new PublicKey(MAINNET_ORACLES[oracleMarketName]);
 				blockTimeConnection = this.connectionOverride;
 			}
 
@@ -131,12 +133,9 @@ export class Arbitrager {
 			);
 
 			// const nowBN = new BN((Date.now() / 1000).toFixed(0));
-			
 
 			const nowSlot = await blockTimeConnection.getSlot();
-			const nowSOL = new BN(
-				await blockTimeConnection.getBlockTime(nowSlot)
-			);
+			const nowSOL = new BN(await blockTimeConnection.getBlockTime(nowSlot));
 
 			const oracleLastValidSlot = oraclePriceData.validSlot;
 			const oracleDelay = (nowSlot - Number(oracleLastValidSlot)) * 0.4; // estimate in seconds (assume 400ms each block)
@@ -206,7 +205,12 @@ export class Arbitrager {
 				.sub(nowSOL)
 				.toNumber();
 
-			console.log("NEXT FUNDING TIME IN Makret", marketIndexBN.toNumber(), ":", nextFundingTime);
+			console.log(
+				'NEXT FUNDING TIME IN Makret',
+				marketIndexBN.toNumber(),
+				':',
+				nextFundingTime
+			);
 
 			let goodForFundingUpdate = false;
 			const closeToFundingUpdate = nextFundingTime <= 60 * 5; // last 5 minutes
@@ -368,8 +372,12 @@ export class Arbitrager {
 				);
 				amount = BN.min(positionValue, reductionSize);
 
-				if(netExposure == 0){
-					console.log("Market", marketIndexBN.toNumber(), 'no exposure to reduce')
+				if (netExposure == 0) {
+					console.log(
+						'Market',
+						marketIndexBN.toNumber(),
+						'no exposure to reduce'
+					);
 					continue;
 				}
 				direction =
@@ -438,7 +446,7 @@ export class Arbitrager {
 
 	public async executeTrade(tradeToExecute: TradeToExecute) {
 		console.log(tradeToExecute);
-		const tx = await this.clearingHouse.openPosition(
+		await this.clearingHouse.openPosition(
 			(
 				await this.clearingHouse.getUserAccountPublicKey()
 			)[0],
