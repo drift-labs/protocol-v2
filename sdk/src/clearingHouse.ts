@@ -1,5 +1,5 @@
 import { BN, Idl, Program, Provider } from '@project-serum/anchor';
-import { AccountLayout, Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { IWallet, PositionDirection } from './types';
 import * as anchor from '@project-serum/anchor';
 import clearingHouseIDL from './idl/clearing_house.json';
@@ -9,7 +9,6 @@ import { squareRootBN } from './utils';
 import {
 	Connection,
 	PublicKey,
-	SystemProgram,
 	TransactionSignature,
 	Keypair,
 	ConfirmOptions,
@@ -24,7 +23,7 @@ import { MockUSDCFaucet } from './mockUSDCFaucet';
 import {
 	ClearingHouseMarketsAccountData,
 	ClearingHouseState,
-	FundingHistoryAccountData,
+	FundingHistoryAccountData, LiquidationHistory,
 	TradeHistoryAccount,
 	UserAccountData,
 	UserPosition,
@@ -38,6 +37,7 @@ interface ClearingHouseEvents {
 	marketsAccountUpdate: (payload: ClearingHouseMarketsAccountData) => void;
 	fundingHistoryAccountUpdate: (payload: FundingHistoryAccountData) => void;
 	tradeHistoryAccountUpdate: (payload: TradeHistoryAccount) => void;
+	liquidationHistoryUpdate: (payload: LiquidationHistory) => void;
 	update: void;
 }
 
@@ -68,6 +68,7 @@ export class ClearingHouse {
 	private marketsAccount?: ClearingHouseMarketsAccountData;
 	private fundingRateHistory?: FundingHistoryAccountData;
 	private tradeHistoryAccount?: TradeHistoryAccount;
+	private liquidationHistory?: LiquidationHistory;
 	isSubscribed = false;
 	eventEmitter: StrictEventEmitter<EventEmitter, ClearingHouseEvents>;
 
@@ -121,73 +122,60 @@ export class ClearingHouse {
 			throw new Error('Clearing house already initialized');
 		}
 
-		const collateralVault = Keypair.generate();
-		const [chCollateralAccountAuthority, _chCollateralAccountNonce] =
+		const [collateralVaultPublicKey, collateralVaultNonce] =
 			await PublicKey.findProgramAddress(
-				[collateralVault.publicKey.toBuffer()],
+				[Buffer.from(anchor.utils.bytes.utf8.encode('collateral_vault'))],
 				this.program.programId
 			);
 
-		const createCollateralTokenAccountIx = SystemProgram.createAccount({
-			fromPubkey: this.wallet.publicKey,
-			newAccountPubkey: collateralVault.publicKey,
-			lamports: await Token.getMinBalanceRentForExemptAccount(this.connection),
-			space: AccountLayout.span,
-			programId: TOKEN_PROGRAM_ID,
-		});
-		const initCollateralTokenAccountIx = Token.createInitAccountInstruction(
-			TOKEN_PROGRAM_ID,
-			usdcMint,
-			collateralVault.publicKey,
-			chCollateralAccountAuthority
-		);
-
-		const insuranceVault = Keypair.generate();
-		const [insuranceAccountOwner, _insuranceAccountNonce] =
+		const [collateralVaultAuthority, _collateralVaultAuthorityNonce] =
 			await PublicKey.findProgramAddress(
-				[insuranceVault.publicKey.toBuffer()],
+				[collateralVaultPublicKey.toBuffer()],
 				this.program.programId
 			);
-		const createInsuranceTokenAccountIx = SystemProgram.createAccount({
-			fromPubkey: this.wallet.publicKey,
-			newAccountPubkey: insuranceVault.publicKey,
-			lamports: await Token.getMinBalanceRentForExemptAccount(this.connection),
-			space: AccountLayout.span,
-			programId: TOKEN_PROGRAM_ID,
-		});
-		const initInsuranceTokenAccountIx = Token.createInitAccountInstruction(
-			TOKEN_PROGRAM_ID,
-			usdcMint,
-			insuranceVault.publicKey,
-			insuranceAccountOwner
-		);
+
+		const [insuranceVaultPublicKey, insuranceVaultNonce] =
+			await PublicKey.findProgramAddress(
+				[Buffer.from(anchor.utils.bytes.utf8.encode('insurance_vault'))],
+				this.program.programId
+			);
+
+		const [insuranceVaultAuthority, _insuranceVaultAuthorityNonce] =
+			await PublicKey.findProgramAddress(
+				[insuranceVaultPublicKey.toBuffer()],
+				this.program.programId
+			);
 
 		const markets = anchor.web3.Keypair.generate();
 		const fundingPaymentHistory = anchor.web3.Keypair.generate();
 		const tradeHistory = anchor.web3.Keypair.generate();
+		const liquidationHistory = anchor.web3.Keypair.generate();
 
 		const [clearingHouseStatePublicKey, clearingHouseNonce] =
 			await this.getClearingHouseStatePublicKeyAndNonce();
 		return await this.program.rpc.initialize(
 			clearingHouseNonce,
+			collateralVaultNonce,
+			insuranceVaultNonce,
 			adminControlsPrices,
 			{
 				accounts: {
 					admin: this.wallet.publicKey,
 					state: clearingHouseStatePublicKey,
-					collateralVault: collateralVault.publicKey,
-					insuranceVault: insuranceVault.publicKey,
+					collateralMint: usdcMint,
+					collateralVault: collateralVaultPublicKey,
+					collateralVaultAuthority: collateralVaultAuthority,
+					insuranceVault: insuranceVaultPublicKey,
+					insuranceVaultAuthority: insuranceVaultAuthority,
 					markets: markets.publicKey,
 					fundingPaymentHistory: fundingPaymentHistory.publicKey,
 					tradeHistory: tradeHistory.publicKey,
+					liquidationHistory: liquidationHistory.publicKey,
 					rent: SYSVAR_RENT_PUBKEY,
 					systemProgram: anchor.web3.SystemProgram.programId,
+					tokenProgram: TOKEN_PROGRAM_ID,
 				},
 				instructions: [
-					createCollateralTokenAccountIx,
-					initCollateralTokenAccountIx,
-					createInsuranceTokenAccountIx,
-					initInsuranceTokenAccountIx,
 					await this.program.account.markets.createInstruction(markets),
 					await this.program.account.fundingPaymentHistory.createInstruction(
 						fundingPaymentHistory
@@ -195,13 +183,15 @@ export class ClearingHouse {
 					await this.program.account.tradeHistory.createInstruction(
 						tradeHistory
 					),
+					await this.program.account.liquidationHistory.createInstruction(
+						liquidationHistory
+					),
 				],
 				signers: [
-					collateralVault,
-					insuranceVault,
 					markets,
 					fundingPaymentHistory,
 					tradeHistory,
+					liquidationHistory,
 				],
 			}
 		);
@@ -283,6 +273,24 @@ export class ClearingHouse {
 				this.eventEmitter.emit('tradeHistoryAccountUpdate', updateData);
 			});
 
+		const lastLiquidationHistory =
+			(await this.program.account.liquidationHistory.fetch(
+				this.state.liquidationHistory
+			)) as LiquidationHistory;
+		this.liquidationHistory = lastLiquidationHistory;
+
+		this.eventEmitter.emit(
+			'liquidationHistoryUpdate',
+			lastLiquidationHistory
+		);
+
+		this.program.account.liquidationHistory
+			.subscribe(this.state.liquidationHistory, this.opts.commitment)
+			.on('change', async (updateData) => {
+				this.liquidationHistory = updateData;
+				this.eventEmitter.emit('liquidationHistoryUpdate', updateData);
+			});
+
 		this.isSubscribed = true;
 
 		this.eventEmitter.emit('update');
@@ -304,6 +312,9 @@ export class ClearingHouse {
 		);
 		await this.program.account.tradeHistory.unsubscribe(
 			this.state.tradeHistory
+		);
+		await this.program.account.liquidationHistory.unsubscribe(
+			this.state.liquidationHistory
 		);
 		this.isSubscribed = false;
 	}
@@ -347,6 +358,11 @@ export class ClearingHouse {
 	public getTradeHistoryAccount(): TradeHistoryAccount {
 		this.assertIsSubscribed();
 		return this.tradeHistoryAccount;
+	}
+
+	public getLiquidationHistory(): LiquidationHistory {
+		this.assertIsSubscribed();
+		return this.liquidationHistory;
 	}
 
 	public async initializeMarket(
@@ -783,6 +799,7 @@ export class ClearingHouse {
 				markets: this.state.markets,
 				userPositions: liquidateeUserAccount.positions,
 				tradeHistory: this.state.tradeHistory,
+				liquidationHistory: this.state.liquidationHistory,
 			},
 		});
 	}

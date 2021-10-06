@@ -36,6 +36,7 @@ export type ClearingHouseState = {
 	markets: PublicKey;
 	fundingPaymentHistory: PublicKey;
 	tradeHistory: PublicKey;
+	liquidationHistory: PublicKey;
 	partialLiquidationClosePercentageNumerator: BN;
 	partialLiquidationClosePercentageDenominator: BN;
 	partialLiquidationPenaltyPercentageNumerator: BN;
@@ -115,4 +116,27 @@ export type FundingRateRecord = {
 export type FundingHistoryAccountData = {
 	head: BN;
 	fundingRateRecords: FundingRateRecord[];
+};
+
+export type LiquidationHistory = {
+	head: BN;
+	liquidationRecords: LiquidationRecord[];
+};
+
+export type LiquidationRecord = {
+	ts: BN;
+	recordId: BN;
+	userAuthority: PublicKey;
+	user: PublicKey;
+	partial: boolean,
+	baseAssetValue: BN,
+	baseAssetValueClosed: BN,
+	liquidationFee: BN,
+	feeToLiquidator: BN,
+	feeToInsuranceFund: BN,
+	liquidator: PublicKey,
+	totalCollateral:BN,
+	collateral: BN,
+	unrealizedPnl: BN,
+	marginRatio: BN,
 };

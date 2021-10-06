@@ -652,6 +652,45 @@ describe('clearing_house', () => {
 			tradeHistoryAccount.tradeRecords[5].quoteAssetAmount.eq(new BN(14216344))
 		);
 		assert.ok(tradeHistoryAccount.tradeRecords[5].marketIndex.eq(new BN(0)));
+
+		const liquidationHistory = clearingHouse.getLiquidationHistory();
+		assert.ok(liquidationHistory.head.toNumber() === 1);
+		assert.ok(
+			liquidationHistory.liquidationRecords[0].user.equals(userAccountPublicKey)
+		);
+		assert.ok(liquidationHistory.liquidationRecords[0].recordId.eq(new BN(1)));
+		assert.ok(liquidationHistory.liquidationRecords[0].partial);
+
+		assert.ok(
+			liquidationHistory.liquidationRecords[0].baseAssetValue.eq(new BN(56865377))
+		);
+		assert.ok(
+			liquidationHistory.liquidationRecords[0].baseAssetValueClosed.eq(new BN(14216344))
+		);
+		assert.ok(
+			liquidationHistory.liquidationRecords[0].liquidationFee.eq(new BN(78115))
+		);
+		assert.ok(
+			liquidationHistory.liquidationRecords[0].feeToLiquidator.eq(new BN(39057))
+		);
+		assert.ok(
+			liquidationHistory.liquidationRecords[0].feeToInsuranceFund.eq(new BN(39058))
+		);
+		assert.ok(
+			liquidationHistory.liquidationRecords[0].liquidator.equals(provider.wallet.publicKey)
+		);
+		assert.ok(
+			liquidationHistory.liquidationRecords[0].totalCollateral.eq(new BN(3124623))
+		);
+		assert.ok(
+			liquidationHistory.liquidationRecords[0].collateral.eq(new BN(9990000))
+		);
+		assert.ok(
+			liquidationHistory.liquidationRecords[0].unrealizedPnl.eq(new BN(-6865377))
+		);
+		assert.ok(
+			liquidationHistory.liquidationRecords[0].marginRatio.eq(new BN(549))
+		);
 	});
 
 	it('Full Liquidation', async () => {
@@ -730,6 +769,44 @@ describe('clearing_house', () => {
 			tradeHistoryAccount.tradeRecords[6].quoteAssetAmount.eq(new BN(43561760))
 		);
 		assert.ok(tradeHistoryAccount.tradeRecords[6].marketIndex.eq(new BN(0)));
+
+		const liquidationHistory = clearingHouse.getLiquidationHistory();
+		assert.ok(liquidationHistory.head.toNumber() === 2);
+		assert.ok(
+			liquidationHistory.liquidationRecords[1].user.equals(userAccountPublicKey)
+		);
+		assert.ok(liquidationHistory.liquidationRecords[1].recordId.eq(new BN(2)));
+		assert.ok(!liquidationHistory.liquidationRecords[1].partial);
+		assert.ok(
+			liquidationHistory.liquidationRecords[1].baseAssetValue.eq(new BN(43561760))
+		);
+		assert.ok(
+			liquidationHistory.liquidationRecords[1].baseAssetValueClosed.eq(new BN(43561760))
+		);
+		assert.ok(
+			liquidationHistory.liquidationRecords[1].liquidationFee.eq(new BN(2133782))
+		);
+		assert.ok(
+			liquidationHistory.liquidationRecords[1].feeToLiquidator.eq(new BN(106689))
+		);
+		assert.ok(
+			liquidationHistory.liquidationRecords[1].feeToInsuranceFund.eq(new BN(2027093))
+		);
+		assert.ok(
+			liquidationHistory.liquidationRecords[1].liquidator.equals(provider.wallet.publicKey)
+		);
+		assert.ok(
+			liquidationHistory.liquidationRecords[1].totalCollateral.eq(new BN(2133782))
+		);
+		assert.ok(
+			liquidationHistory.liquidationRecords[1].collateral.eq(new BN(8195541))
+		);
+		assert.ok(
+			liquidationHistory.liquidationRecords[1].unrealizedPnl.eq(new BN(-6061759))
+		);
+		assert.ok(
+			liquidationHistory.liquidationRecords[1].marginRatio.eq(new BN(489))
+		);
 	});
 
 	it('Pay from insurance fund', async () => {

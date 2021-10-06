@@ -13,7 +13,7 @@ pub fn calculate_margin_ratio(
     user: &User,
     user_positions: &RefMut<UserPositions>,
     markets: &Ref<Markets>,
-) -> ClearingHouseResult<(u128, u128, u128)> {
+) -> ClearingHouseResult<(u128, i128, u128, u128)> {
     let mut base_asset_value: u128 = 0;
     let mut unrealized_pnl: i128 = 0;
 
@@ -35,19 +35,24 @@ pub fn calculate_margin_ratio(
             .ok_or_else(math_error!())?;
     }
 
-    let estimated_margin: u128;
+    let total_collateral: u128;
     let margin_ratio: u128;
     if base_asset_value == 0 {
-        estimated_margin = u128::MAX;
+        total_collateral = u128::MAX;
         margin_ratio = u128::MAX;
     } else {
-        estimated_margin = calculate_updated_collateral(user.collateral, unrealized_pnl)?;
-        margin_ratio = estimated_margin
+        total_collateral = calculate_updated_collateral(user.collateral, unrealized_pnl)?;
+        margin_ratio = total_collateral
             .checked_mul(MARGIN_MANTISSA)
             .ok_or_else(math_error!())?
             .checked_div(base_asset_value)
             .ok_or_else(math_error!())?;
     }
 
-    Ok((estimated_margin, base_asset_value, margin_ratio))
+    Ok((
+        total_collateral,
+        unrealized_pnl,
+        base_asset_value,
+        margin_ratio,
+    ))
 }

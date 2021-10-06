@@ -16,12 +16,27 @@
           "isSigner": false
         },
         {
+          "name": "collateralMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
           "name": "collateralVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "collateralVaultAuthority",
           "isMut": false,
           "isSigner": false
         },
         {
           "name": "insuranceVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceVaultAuthority",
           "isMut": false,
           "isSigner": false
         },
@@ -41,6 +56,11 @@
           "isSigner": false
         },
         {
+          "name": "liquidationHistory",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "rent",
           "isMut": false,
           "isSigner": false
@@ -49,11 +69,24 @@
           "name": "systemProgram",
           "isMut": false,
           "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
         }
       ],
       "args": [
         {
           "name": "clearingHouseNonce",
+          "type": "u8"
+        },
+        {
+          "name": "collateralVaultNonce",
+          "type": "u8"
+        },
+        {
+          "name": "insuranceVaultNonce",
           "type": "u8"
         },
         {
@@ -412,6 +445,11 @@
         },
         {
           "name": "tradeHistory",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "liquidationHistory",
           "isMut": true,
           "isSigner": false
         }
@@ -886,29 +924,6 @@
   ],
   "accounts": [
     {
-      "name": "TradeHistory",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "head",
-            "type": "u64"
-          },
-          {
-            "name": "tradeRecords",
-            "type": {
-              "array": [
-                {
-                  "defined": "TradeRecord"
-                },
-                1000
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
       "name": "FundingPaymentHistory",
       "type": {
         "kind": "struct",
@@ -923,6 +938,29 @@
               "array": [
                 {
                   "defined": "FundingPaymentRecord"
+                },
+                1000
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "LiquidationHistory",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "head",
+            "type": "u64"
+          },
+          {
+            "name": "liquidationRecords",
+            "type": {
+              "array": [
+                {
+                  "defined": "LiquidationRecord"
                 },
                 1000
               ]
@@ -964,6 +1002,10 @@
             "type": "bool"
           },
           {
+            "name": "collateralMint",
+            "type": "publicKey"
+          },
+          {
             "name": "collateralVault",
             "type": "publicKey"
           },
@@ -976,7 +1018,15 @@
             "type": "u8"
           },
           {
+            "name": "tradeHistory",
+            "type": "publicKey"
+          },
+          {
             "name": "fundingPaymentHistory",
+            "type": "publicKey"
+          },
+          {
+            "name": "liquidationHistory",
             "type": "publicKey"
           },
           {
@@ -1048,10 +1098,6 @@
             "type": "u128"
           },
           {
-            "name": "tradeHistory",
-            "type": "publicKey"
-          },
-          {
             "name": "collateralDeposits",
             "type": "u128"
           },
@@ -1062,6 +1108,29 @@
           {
             "name": "feesWithdrawn",
             "type": "u128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TradeHistory",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "head",
+            "type": "u64"
+          },
+          {
+            "name": "tradeRecords",
+            "type": {
+              "array": [
+                {
+                  "defined": "TradeRecord"
+                },
+                1000
+              ]
+            }
           }
         ]
       }
@@ -1120,64 +1189,6 @@
   ],
   "types": [
     {
-      "name": "TradeRecord",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "ts",
-            "type": "i64"
-          },
-          {
-            "name": "recordId",
-            "type": "u128"
-          },
-          {
-            "name": "userAuthority",
-            "type": "publicKey"
-          },
-          {
-            "name": "user",
-            "type": "publicKey"
-          },
-          {
-            "name": "direction",
-            "type": {
-              "defined": "PositionDirection"
-            }
-          },
-          {
-            "name": "baseAssetAmount",
-            "type": "u128"
-          },
-          {
-            "name": "quoteAssetAmount",
-            "type": "u128"
-          },
-          {
-            "name": "markPriceBefore",
-            "type": "u128"
-          },
-          {
-            "name": "markPriceAfter",
-            "type": "u128"
-          },
-          {
-            "name": "fee",
-            "type": "u128"
-          },
-          {
-            "name": "liquidation",
-            "type": "bool"
-          },
-          {
-            "name": "marketIndex",
-            "type": "u64"
-          }
-        ]
-      }
-    },
-    {
       "name": "FundingPaymentRecord",
       "type": {
         "kind": "struct",
@@ -1217,6 +1228,74 @@
           {
             "name": "ammCumulativeFunding",
             "type": "i128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LiquidationRecord",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "ts",
+            "type": "i64"
+          },
+          {
+            "name": "recordId",
+            "type": "u128"
+          },
+          {
+            "name": "userAuthority",
+            "type": "publicKey"
+          },
+          {
+            "name": "user",
+            "type": "publicKey"
+          },
+          {
+            "name": "partial",
+            "type": "bool"
+          },
+          {
+            "name": "baseAssetValue",
+            "type": "u128"
+          },
+          {
+            "name": "baseAssetValueClosed",
+            "type": "u128"
+          },
+          {
+            "name": "liquidationFee",
+            "type": "u128"
+          },
+          {
+            "name": "feeToLiquidator",
+            "type": "u64"
+          },
+          {
+            "name": "feeToInsuranceFund",
+            "type": "u64"
+          },
+          {
+            "name": "liquidator",
+            "type": "publicKey"
+          },
+          {
+            "name": "totalCollateral",
+            "type": "u128"
+          },
+          {
+            "name": "collateral",
+            "type": "u128"
+          },
+          {
+            "name": "unrealizedPnl",
+            "type": "i128"
+          },
+          {
+            "name": "marginRatio",
+            "type": "u128"
           }
         ]
       }
@@ -1333,6 +1412,64 @@
           {
             "name": "cumulativeFeeRealized",
             "type": "u128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TradeRecord",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "ts",
+            "type": "i64"
+          },
+          {
+            "name": "recordId",
+            "type": "u128"
+          },
+          {
+            "name": "userAuthority",
+            "type": "publicKey"
+          },
+          {
+            "name": "user",
+            "type": "publicKey"
+          },
+          {
+            "name": "direction",
+            "type": {
+              "defined": "PositionDirection"
+            }
+          },
+          {
+            "name": "baseAssetAmount",
+            "type": "u128"
+          },
+          {
+            "name": "quoteAssetAmount",
+            "type": "u128"
+          },
+          {
+            "name": "markPriceBefore",
+            "type": "u128"
+          },
+          {
+            "name": "markPriceAfter",
+            "type": "u128"
+          },
+          {
+            "name": "fee",
+            "type": "u128"
+          },
+          {
+            "name": "liquidation",
+            "type": "bool"
+          },
+          {
+            "name": "marketIndex",
+            "type": "u64"
           }
         ]
       }

@@ -6,7 +6,7 @@ use error::*;
 use instructions::*;
 use math::{amm, bn, constants::*, fees, margin::*, position::*, withdrawal::*};
 use state::{
-    history::TradeRecord,
+    history::trade::TradeRecord,
     market::{Market, Markets, OracleSource, AMM},
     state::State,
     user::{MarketPosition, User},
@@ -22,10 +22,13 @@ declare_id!("CxoFf4oyt8AbVvxQ5DqrA33C2me28erNf8A11TrvBrLt");
 #[program]
 pub mod clearing_house {
     use super::*;
+    use crate::state::history::liquidation::LiquidationRecord;
 
     pub fn initialize(
         ctx: Context<Initialize>,
         _clearing_house_nonce: u8,
+        _collateral_vault_nonce: u8,
+        _insurance_vault_nonce: u8,
         admin_controls_prices: bool,
     ) -> ProgramResult {
         let collateral_account_key = ctx.accounts.collateral_vault.to_account_info().key;
@@ -51,10 +54,13 @@ pub mod clearing_house {
         **ctx.accounts.state = State {
             admin: *ctx.accounts.admin.key,
             admin_controls_prices,
+            collateral_mint: *ctx.accounts.collateral_mint.to_account_info().key,
             collateral_vault: *collateral_account_key,
             collateral_vault_authority: collateral_account_authority,
             collateral_vault_nonce: collateral_account_nonce,
+            trade_history: *ctx.accounts.trade_history.to_account_info().key,
             funding_payment_history: *ctx.accounts.funding_payment_history.to_account_info().key,
+            liquidation_history: *ctx.accounts.liquidation_history.to_account_info().key,
             insurance_vault: *insurance_account_key,
             insurance_vault_authority: insurance_account_authority,
             insurance_vault_nonce: insurance_account_nonce,
@@ -72,7 +78,6 @@ pub mod clearing_house {
             full_liquidation_liquidator_share_denominator: 20,
             fee_numerator: DEFAULT_FEE_NUMERATOR,
             fee_denominator: DEFAULT_FEE_DENOMINATOR,
-            trade_history: *ctx.accounts.trade_history.to_account_info().key,
             collateral_deposits: 0,
             fees_collected: 0,
             fees_withdrawn: 0,
@@ -233,7 +238,7 @@ pub mod clearing_house {
             .checked_sub(insurance_account_withdrawal as u128)
             .ok_or_else(math_error!())?;
 
-        let (_estimated_margin, _estimated_base_asset_value, margin_ratio) =
+        let (_total_collateral, _unrealized_pnl, _base_asset_value, margin_ratio) =
             calculate_margin_ratio(user, user_positions, markets)?;
         if margin_ratio < ctx.accounts.state.margin_ratio_initial {
             return Err(ErrorCode::InsufficientCollateral.into());
@@ -431,8 +436,12 @@ pub mod clearing_house {
             .checked_add(fee)
             .ok_or_else(math_error!())?;
 
-        let (_estimated_margin_after, _estimated_base_asset_value_after, margin_ratio_after) =
-            calculate_margin_ratio(user, user_positions, &ctx.accounts.markets.load()?)?;
+        let (
+            _total_collateral_after,
+            _unrealized_pnl_after,
+            _base_asset_value_after,
+            margin_ratio_after,
+        ) = calculate_margin_ratio(user, user_positions, &ctx.accounts.markets.load()?)?;
         if margin_ratio_after < ctx.accounts.state.margin_ratio_initial
             && potentially_risk_increasing
         {
@@ -598,11 +607,13 @@ pub mod clearing_house {
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
 
-        let (_estimated_margin, _base_asset_notional, margin_ratio) = calculate_margin_ratio(
-            user,
-            &ctx.accounts.user_positions.load_mut()?,
-            &ctx.accounts.markets.load()?,
-        )?;
+        let collateral = user.collateral;
+        let (total_collateral, unrealized_pnl, base_asset_value, margin_ratio) =
+            calculate_margin_ratio(
+                user,
+                &ctx.accounts.user_positions.load_mut()?,
+                &ctx.accounts.markets.load()?,
+            )?;
         if margin_ratio > ctx.accounts.state.margin_ratio_partial {
             return Err(ErrorCode::SufficientCollateral.into());
         }
@@ -610,6 +621,7 @@ pub mod clearing_house {
         let user_positions = &mut ctx.accounts.user_positions.load_mut()?;
 
         let mut is_full_liquidation = true;
+        let mut base_asset_value_closed: u128 = 0;
         if margin_ratio <= ctx.accounts.state.margin_ratio_maintenance {
             let markets = &mut ctx.accounts.markets.load_mut()?;
             for market_position in user_positions.positions.iter_mut() {
@@ -626,6 +638,7 @@ pub mod clearing_house {
                     &market_position,
                     &market.amm,
                 )?;
+                base_asset_value_closed += base_asset_value;
                 let base_asset_amount = market_position.base_asset_amount.unsigned_abs();
 
                 let mark_price_before = market.amm.mark_price()?;
@@ -669,6 +682,7 @@ pub mod clearing_house {
                             .into(),
                     )
                     .ok_or_else(math_error!())?;
+                base_asset_value_closed += base_asset_value_to_close;
 
                 let direction_to_reduce =
                     math::position::direction_to_close_position(market_position.base_asset_amount);
@@ -711,7 +725,7 @@ pub mod clearing_house {
             is_full_liquidation = false;
         }
 
-        let liquidation_penalty = if is_full_liquidation {
+        let liquidation_fee = if is_full_liquidation {
             user.collateral
                 .checked_mul(state.full_liquidation_penalty_percentage_numerator.into())
                 .ok_or_else(math_error!())?
@@ -719,10 +733,14 @@ pub mod clearing_house {
                 .ok_or_else(math_error!())?
         } else {
             let markets = &ctx.accounts.markets.load()?;
-            let (estimated_margin_after, _base_asset_notional_after, _margin_ratio_after) =
-                calculate_margin_ratio(user, user_positions, markets)?;
+            let (
+                total_collateral_after,
+                _unrealized_pnl_after,
+                _base_asset_value_after,
+                _margin_ratio_after,
+            ) = calculate_margin_ratio(user, user_positions, markets)?;
 
-            estimated_margin_after
+            total_collateral_after
                 .checked_mul(
                     state
                         .partial_liquidation_penalty_percentage_numerator
@@ -738,17 +756,17 @@ pub mod clearing_house {
         };
 
         let (withdrawal_amount, _) = calculate_withdrawal_amounts(
-            liquidation_penalty as u64,
+            liquidation_fee as u64,
             &ctx.accounts.collateral_vault,
             &ctx.accounts.insurance_vault,
         )?;
 
         user.collateral = user
             .collateral
-            .checked_sub(liquidation_penalty)
+            .checked_sub(liquidation_fee)
             .ok_or_else(math_error!())?;
 
-        let liquidator_cut_amount = if is_full_liquidation {
+        let fee_to_liquidator = if is_full_liquidation {
             withdrawal_amount
                 .checked_div(state.full_liquidation_liquidator_share_denominator)
                 .ok_or_else(math_error!())?
@@ -758,31 +776,52 @@ pub mod clearing_house {
                 .ok_or_else(math_error!())?
         };
 
-        let insurance_fund_cut_amount = withdrawal_amount
-            .checked_sub(liquidator_cut_amount)
+        let fee_to_insurance_fund = withdrawal_amount
+            .checked_sub(fee_to_liquidator)
             .ok_or_else(math_error!())?;
 
-        if liquidator_cut_amount > 0 {
+        if fee_to_liquidator > 0 {
             controller::token::send(
                 &ctx.accounts.token_program,
                 &ctx.accounts.collateral_vault,
                 &ctx.accounts.liquidator_account,
                 &ctx.accounts.collateral_vault_authority,
                 ctx.accounts.state.collateral_vault_nonce,
-                liquidator_cut_amount,
+                fee_to_liquidator,
             )?;
         }
 
-        if insurance_fund_cut_amount > 0 {
+        if fee_to_insurance_fund > 0 {
             controller::token::send(
                 &ctx.accounts.token_program,
                 &ctx.accounts.collateral_vault,
                 &ctx.accounts.insurance_vault,
                 &ctx.accounts.collateral_vault_authority,
                 ctx.accounts.state.collateral_vault_nonce,
-                insurance_fund_cut_amount,
+                fee_to_insurance_fund,
             )?;
         }
+
+        let liquidation_history = &mut ctx.accounts.liquidation_history.load_mut()?;
+        let record_id = liquidation_history.next_record_id();
+
+        liquidation_history.append(LiquidationRecord {
+            ts: now,
+            record_id,
+            user: user.to_account_info().key(),
+            user_authority: user.authority,
+            partial: !is_full_liquidation,
+            base_asset_value,
+            base_asset_value_closed,
+            liquidation_fee,
+            fee_to_liquidator,
+            fee_to_insurance_fund,
+            liquidator: ctx.accounts.liquidator.to_account_info().key(),
+            total_collateral,
+            collateral,
+            unrealized_pnl,
+            margin_ratio,
+        });
 
         Ok(())
     }

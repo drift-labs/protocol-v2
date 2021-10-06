@@ -11,7 +11,7 @@ use crate::math::constants::{
 };
 use crate::math::funding::calculate_funding_payment;
 use crate::math_error;
-use crate::state::history::{FundingPaymentHistory, FundingPaymentRecord};
+use crate::state::history::funding_payment::{FundingPaymentHistory, FundingPaymentRecord};
 use crate::state::market::AMM;
 use crate::state::market::{Market, Markets};
 use crate::state::user::{User, UserPositions};

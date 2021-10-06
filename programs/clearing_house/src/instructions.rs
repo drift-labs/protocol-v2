@@ -1,13 +1,18 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Token, TokenAccount};
+use anchor_spl::token::{Mint, Token, TokenAccount};
 
-use crate::state::history::{FundingPaymentHistory, TradeHistory};
+use crate::state::history::liquidation::LiquidationHistory;
+use crate::state::history::{funding_payment::FundingPaymentHistory, trade::TradeHistory};
 use crate::state::market::Markets;
 use crate::state::state::State;
 use crate::state::user::{User, UserPositions};
 
 #[derive(Accounts)]
-#[instruction(clearing_house_nonce: u8)]
+#[instruction(
+    clearing_house_nonce: u8,
+    collateral_vault_nonce: u8,
+    insurance_vault_nonce: u8
+)]
 pub struct Initialize<'info> {
     pub admin: Signer<'info>,
     #[account(
@@ -17,19 +22,38 @@ pub struct Initialize<'info> {
         payer = admin
     )]
     pub state: Box<Account<'info, State>>,
-    pub collateral_vault: Box<Account<'info, TokenAccount>>,
+    pub collateral_mint: Box<Account<'info, Mint>>,
     #[account(
-        constraint = &insurance_vault.mint.eq(&collateral_vault.mint)
+        init,
+        seeds = [b"collateral_vault".as_ref()],
+        bump = collateral_vault_nonce,
+        payer = admin,
+        token::mint = collateral_mint,
+        token::authority = collateral_vault_authority
+    )]
+    pub collateral_vault: Box<Account<'info, TokenAccount>>,
+    pub collateral_vault_authority: AccountInfo<'info>,
+    #[account(
+        init,
+        seeds = [b"insurance_vault".as_ref()],
+        bump = insurance_vault_nonce,
+        payer = admin,
+        token::mint = collateral_mint,
+        token::authority = insurance_vault_authority
     )]
     pub insurance_vault: Box<Account<'info, TokenAccount>>,
+    pub insurance_vault_authority: AccountInfo<'info>,
     #[account(zero)]
     pub markets: Loader<'info, Markets>,
     #[account(zero)]
     pub funding_payment_history: Loader<'info, FundingPaymentHistory>,
     #[account(zero)]
     pub trade_history: Loader<'info, TradeHistory>,
+    #[account(zero)]
+    pub liquidation_history: Loader<'info, LiquidationHistory>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
+    pub token_program: Program<'info, Token>,
 }
 
 #[derive(Accounts)]
@@ -236,6 +260,8 @@ pub struct Liquidate<'info> {
     pub user_positions: Loader<'info, UserPositions>,
     #[account(mut)]
     pub trade_history: Loader<'info, TradeHistory>,
+    #[account(mut)]
+    pub liquidation_history: Loader<'info, LiquidationHistory>,
 }
 
 #[derive(Accounts)]
