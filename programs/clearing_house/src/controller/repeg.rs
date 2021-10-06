@@ -4,8 +4,8 @@ use crate::math;
 use crate::math::bn;
 
 use crate::math::constants::{
-    FUNDING_PAYMENT_MANTISSA, PRICE_TO_PEG_PRECISION_RATIO, SHARE_OF_FEES_ALLOCATED_TO_REPEG,
-    AMM_ASSET_AMOUNT_PRECISION, MARK_PRICE_MANTISSA
+    AMM_ASSET_AMOUNT_PRECISION, FUNDING_PAYMENT_MANTISSA, MARK_PRICE_MANTISSA,
+    PRICE_TO_PEG_PRECISION_RATIO, SHARE_OF_FEES_ALLOCATED_TO_REPEG,
 };
 use crate::math_error;
 use crate::state::market::Market;
@@ -61,7 +61,7 @@ pub fn repeg(
         .unsigned_abs()
         .checked_div(MARK_PRICE_MANTISSA)
         .ok_or_else(math_error!())?;
-    
+
     if net_market_position != 0 && pnl_mantissa == 0 {
         return Err(ErrorCode::InvalidRepegProfitability.into());
     }
@@ -69,21 +69,17 @@ pub fn repeg(
     if pnl_mantissa != 0 && pnl_mag == 0 {
         return Err(ErrorCode::InvalidRepegProfitability.into());
     }
-    
+
     if net_market_position != 0 && pnl_mag == 0 {
         return Err(ErrorCode::InvalidRepegProfitability.into());
     }
 
     if pnl_mantissa >= 0 {
-        pnl_r = pnl_r
-            .checked_add(pnl_mag)
-            .ok_or_else(math_error!())?;
+        pnl_r = pnl_r.checked_add(pnl_mag).ok_or_else(math_error!())?;
     } else if pnl_mag > pnl_r {
         return Err(ErrorCode::InvalidRepegProfitability.into());
     } else {
-        pnl_r = (pnl_r)
-            .checked_sub(pnl_mag)
-            .ok_or_else(math_error!())?;
+        pnl_r = (pnl_r).checked_sub(pnl_mag).ok_or_else(math_error!())?;
         if pnl_r
             < amm
                 .cumulative_fee
@@ -99,7 +95,9 @@ pub fn repeg(
                 let repeg_profit_per_unit = bn::U256::from(pnl_mantissa.unsigned_abs())
                     .checked_mul(bn::U256::from(AMM_ASSET_AMOUNT_PRECISION))
                     .ok_or_else(math_error!())?
-                    .checked_div(bn::U256::from(market.base_asset_amount_short.unsigned_abs()))
+                    .checked_div(bn::U256::from(
+                        market.base_asset_amount_short.unsigned_abs(),
+                    ))
                     .ok_or_else(math_error!())?
                     .try_to_u128()?;
 

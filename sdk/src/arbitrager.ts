@@ -13,7 +13,7 @@ import {
 } from './DataSubscriptionHelpers';
 import { ZERO } from './constants/numericConstants';
 import { PositionDirection } from './types';
-import { BinanceClient, FtxClient, Trade } from 'ccxws';
+import { FtxClient, Trade } from 'ccxws';
 import { Connection, PublicKey } from '@solana/web3.js';
 
 export interface TradeToExecute {
@@ -52,6 +52,7 @@ export class Arbitrager {
 	private pythClient: PythClient;
 	private userAccount: UserAccount;
 	private alphas: Array<number>;
+	private prevMarketNetExposureExBot: Array<number>;
 	private connectionOverride: Connection;
 	private ftxClient: FtxClient;
 	private exchangeTrades: Array<Trade>;
@@ -74,6 +75,7 @@ export class Arbitrager {
 			this.pythClient = new PythClient(this.clearingHouse.connection);
 		}
 		this.alphas = [0, 0, 0, 0]; //todo
+		this.prevMarketNetExposureExBot = [0, 0, 0, 0]; //todo
 
 		// // todo this outside of main sdk. pass api key?
 		this.exchangeTrades = []; //todo
@@ -117,7 +119,12 @@ export class Arbitrager {
 				3: 'COPE',
 			};
 
-			let marketNetExposure = stripBaseAssetPrecision(market.baseAssetAmount);
+			const marketNetExposure = stripBaseAssetPrecision(market.baseAssetAmount);
+			const prevMarketNetExposureExBot =
+				this.prevMarketNetExposureExBot[marketIndexBN.toNumber()];
+			this.prevMarketNetExposureExBot[marketIndexBN.toNumber()] =
+				prevMarketNetExposureExBot;
+
 			let oraclePricePubkey: PublicKey = market.amm.oracle;
 			const oracleMarketName = indextoMarketName[marketIndexBN.toNumber()];
 
@@ -173,6 +180,7 @@ export class Arbitrager {
 			let netExposure = 0;
 			let tradeEV = 0;
 			let positionValue = ZERO;
+			let deltaNetExposureExBot = 0;
 
 			const positions = this.userAccount.userPositionsAccount?.positions;
 			for (const position in positions) {
@@ -186,8 +194,9 @@ export class Arbitrager {
 						arbPos.baseAssetAmount,
 						BASE_ASSET_PRECISION
 					);
-					marketNetExposureExBot = marketNetExposure - netExposure;
-
+					marketNetExposureExBot -= netExposure;
+					deltaNetExposureExBot =
+						prevMarketNetExposureExBot - marketNetExposureExBot;
 					positionValue = this.userAccount.getPositionValue(positionIdx);
 				}
 				positionIdx += 1;
@@ -246,7 +255,7 @@ export class Arbitrager {
 			);
 			const markTwapWithMantissa = market.amm.lastMarkPriceTwap;
 			const estFundingPayment =
-				(netExposure *
+				(Math.abs(netExposure) *
 					stripMantissa(markTwapWithMantissa.sub(oracleTwapWithMantissa))) /
 				24;
 
@@ -367,7 +376,12 @@ export class Arbitrager {
 					);
 			} else if (riskReduction) {
 				console.log('ATTEMPT RISK REDUCTION');
-				const reductionDenom = Math.sqrt(Math.max(2, nextFundingTime));
+
+				// max reduction of 1% in a single interval
+				const reductionDenom = Math.max(
+					100,
+					Math.sqrt(Math.max(1, nextFundingTime))
+				);
 
 				if (uPnL > 0) {
 					// only count profit taking for now...
@@ -397,6 +411,26 @@ export class Arbitrager {
 					marketIndexBN,
 					'entryPrice'
 				);
+
+				let entrySpread = stripMantissa(
+					limitPrice.sub(oraclePriceWithMantissa)
+				);
+
+				while (
+					Math.abs(entrySpread) > currentSpread * 1.01 &&
+					amount.gt(USDC_PRECISION)
+				) {
+					amount = amount.div(new BN(2));
+
+					limitPrice = this.clearingHouse.calculatePriceImpact(
+						direction,
+						amount,
+						marketIndexBN,
+						'entryPrice'
+					);
+
+					entrySpread = stripMantissa(limitPrice.sub(oraclePriceWithMantissa));
+				}
 			}
 
 			// skip trades < 1 USDC
@@ -435,6 +469,14 @@ export class Arbitrager {
 
 			if (amount.gt(MAX_TRADE_AMOUNT) && !riskReduction) {
 				amount = MAX_TRADE_AMOUNT;
+			}
+
+			// reduce trade size if it gives pnl to most recent competitor trade done
+			if (
+				(deltaNetExposureExBot > 0 && direction == PositionDirection.LONG) ||
+				(deltaNetExposureExBot < 0 && direction == PositionDirection.SHORT)
+			) {
+				amount = amount.div(new BN(2));
 			}
 
 			// tiny buffers for limitPrice

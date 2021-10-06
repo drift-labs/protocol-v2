@@ -106,13 +106,6 @@ describe('AMM Curve', () => {
 			userUSDCAccount.publicKey
 		);
 
-		const expectedBuyingPower = new BN(50000000);
-		const expectedFreeCollateral = new BN(10000000);
-		const expectedPNL = new BN(0);
-		const expectedTotalCollateral = new BN(10000000);
-		const expectedLeverage = new BN(0);
-		const expectedMarginRatio = new BN(Number.MAX_SAFE_INTEGER);
-
 		showBook(marketIndex);
 	});
 
