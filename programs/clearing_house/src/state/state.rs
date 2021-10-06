@@ -9,6 +9,7 @@ pub struct State {
     pub collateral_vault: Pubkey,
     pub collateral_vault_authority: Pubkey,
     pub collateral_vault_nonce: u8,
+    pub deposit_history: Pubkey,
     pub trade_history: Pubkey,
     pub funding_payment_history: Pubkey,
     pub liquidation_history: Pubkey,

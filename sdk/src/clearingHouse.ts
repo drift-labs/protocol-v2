@@ -23,7 +23,9 @@ import { MockUSDCFaucet } from './mockUSDCFaucet';
 import {
 	ClearingHouseMarketsAccountData,
 	ClearingHouseState,
-	FundingHistoryAccountData, LiquidationHistory,
+	DepositHistory,
+	FundingHistoryAccountData,
+	LiquidationHistory,
 	TradeHistoryAccount,
 	UserAccountData,
 	UserPosition,
@@ -38,6 +40,7 @@ interface ClearingHouseEvents {
 	fundingHistoryAccountUpdate: (payload: FundingHistoryAccountData) => void;
 	tradeHistoryAccountUpdate: (payload: TradeHistoryAccount) => void;
 	liquidationHistoryUpdate: (payload: LiquidationHistory) => void;
+	depositHistoryUpdate: (payload: DepositHistory) => void;
 	update: void;
 }
 
@@ -69,6 +72,7 @@ export class ClearingHouse {
 	private fundingRateHistory?: FundingHistoryAccountData;
 	private tradeHistoryAccount?: TradeHistoryAccount;
 	private liquidationHistory?: LiquidationHistory;
+	private depositHistory?: DepositHistory;
 	isSubscribed = false;
 	eventEmitter: StrictEventEmitter<EventEmitter, ClearingHouseEvents>;
 
@@ -114,7 +118,7 @@ export class ClearingHouse {
 	public async initialize(
 		usdcMint: PublicKey,
 		adminControlsPrices: boolean
-	): Promise<TransactionSignature> {
+	): Promise<[TransactionSignature, TransactionSignature]> {
 		const stateAccountRPCResponse = await this.connection.getParsedAccountInfo(
 			await this.getStatePublicKey()
 		);
@@ -147,13 +151,14 @@ export class ClearingHouse {
 			);
 
 		const markets = anchor.web3.Keypair.generate();
+		const depositHistory = anchor.web3.Keypair.generate();
 		const fundingPaymentHistory = anchor.web3.Keypair.generate();
 		const tradeHistory = anchor.web3.Keypair.generate();
 		const liquidationHistory = anchor.web3.Keypair.generate();
 
 		const [clearingHouseStatePublicKey, clearingHouseNonce] =
 			await this.getClearingHouseStatePublicKeyAndNonce();
-		return await this.program.rpc.initialize(
+		const initializeTx = await this.program.rpc.initialize(
 			clearingHouseNonce,
 			collateralVaultNonce,
 			insuranceVaultNonce,
@@ -168,33 +173,49 @@ export class ClearingHouse {
 					insuranceVault: insuranceVaultPublicKey,
 					insuranceVaultAuthority: insuranceVaultAuthority,
 					markets: markets.publicKey,
-					fundingPaymentHistory: fundingPaymentHistory.publicKey,
-					tradeHistory: tradeHistory.publicKey,
-					liquidationHistory: liquidationHistory.publicKey,
 					rent: SYSVAR_RENT_PUBKEY,
 					systemProgram: anchor.web3.SystemProgram.programId,
 					tokenProgram: TOKEN_PROGRAM_ID,
 				},
 				instructions: [
 					await this.program.account.markets.createInstruction(markets),
-					await this.program.account.fundingPaymentHistory.createInstruction(
-						fundingPaymentHistory
-					),
-					await this.program.account.tradeHistory.createInstruction(
-						tradeHistory
-					),
-					await this.program.account.liquidationHistory.createInstruction(
-						liquidationHistory
-					),
 				],
-				signers: [
-					markets,
-					fundingPaymentHistory,
-					tradeHistory,
-					liquidationHistory,
-				],
+				signers: [markets],
 			}
 		);
+
+		const initializeHistoryTx = await this.program.rpc.initializeHistory({
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: clearingHouseStatePublicKey,
+				depositHistory: depositHistory.publicKey,
+				fundingPaymentHistory: fundingPaymentHistory.publicKey,
+				tradeHistory: tradeHistory.publicKey,
+				liquidationHistory: liquidationHistory.publicKey,
+				rent: SYSVAR_RENT_PUBKEY,
+				systemProgram: anchor.web3.SystemProgram.programId,
+			},
+			instructions: [
+				await this.program.account.fundingPaymentHistory.createInstruction(
+					fundingPaymentHistory
+				),
+				await this.program.account.tradeHistory.createInstruction(tradeHistory),
+				await this.program.account.liquidationHistory.createInstruction(
+					liquidationHistory
+				),
+				await this.program.account.depositHistory.createInstruction(
+					depositHistory
+				),
+			],
+			signers: [
+				depositHistory,
+				fundingPaymentHistory,
+				tradeHistory,
+				liquidationHistory,
+			],
+		});
+
+		return [initializeTx, initializeHistoryTx];
 	}
 
 	public async subscribe(): Promise<boolean> {
@@ -279,16 +300,27 @@ export class ClearingHouse {
 			)) as LiquidationHistory;
 		this.liquidationHistory = lastLiquidationHistory;
 
-		this.eventEmitter.emit(
-			'liquidationHistoryUpdate',
-			lastLiquidationHistory
-		);
+		this.eventEmitter.emit('liquidationHistoryUpdate', lastLiquidationHistory);
 
 		this.program.account.liquidationHistory
 			.subscribe(this.state.liquidationHistory, this.opts.commitment)
 			.on('change', async (updateData) => {
 				this.liquidationHistory = updateData;
 				this.eventEmitter.emit('liquidationHistoryUpdate', updateData);
+			});
+
+		const lastDepositHistory = (await this.program.account.depositHistory.fetch(
+			this.state.depositHistory
+		)) as DepositHistory;
+		this.depositHistory = lastDepositHistory;
+
+		this.eventEmitter.emit('depositHistoryUpdate', lastDepositHistory);
+
+		this.program.account.depositHistory
+			.subscribe(this.state.depositHistory, this.opts.commitment)
+			.on('change', async (updateData) => {
+				this.depositHistory = updateData;
+				this.eventEmitter.emit('depositHistoryUpdate', updateData);
 			});
 
 		this.isSubscribed = true;
@@ -315,6 +347,9 @@ export class ClearingHouse {
 		);
 		await this.program.account.liquidationHistory.unsubscribe(
 			this.state.liquidationHistory
+		);
+		await this.program.account.depositHistory.unsubscribe(
+			this.state.depositHistory
 		);
 		this.isSubscribed = false;
 	}
@@ -363,6 +398,11 @@ export class ClearingHouse {
 	public getLiquidationHistory(): LiquidationHistory {
 		this.assertIsSubscribed();
 		return this.liquidationHistory;
+	}
+
+	public getDepositHistory(): DepositHistory {
+		this.assertIsSubscribed();
+		return this.depositHistory;
 	}
 
 	public async initializeMarket(
@@ -508,6 +548,7 @@ export class ClearingHouse {
 				tokenProgram: TOKEN_PROGRAM_ID,
 				markets: this.state.markets,
 				fundingPaymentHistory: this.state.fundingPaymentHistory,
+				depositHistory: this.state.depositHistory,
 				userPositions: userPositionsPublicKey,
 			},
 		});
@@ -602,6 +643,7 @@ export class ClearingHouse {
 				markets: this.state.markets,
 				userPositions: user.positions,
 				fundingPaymentHistory: this.state.fundingPaymentHistory,
+				depositHistory: this.state.depositHistory,
 			},
 		});
 	}
@@ -623,7 +665,8 @@ export class ClearingHouse {
 			limitPrice = new BN(0); // no limit
 		}
 
-		const priceOracle = this.getMarketsAccount().markets[marketIndex.toNumber()].amm.oracle;
+		const priceOracle =
+			this.getMarketsAccount().markets[marketIndex.toNumber()].amm.oracle;
 
 		return await this.program.rpc.openPosition(
 			direction,
@@ -655,7 +698,8 @@ export class ClearingHouse {
 			userAccountPublicKey
 		);
 
-		const priceOracle = this.getMarketsAccount().markets[marketIndex.toNumber()].amm.oracle;
+		const priceOracle =
+			this.getMarketsAccount().markets[marketIndex.toNumber()].amm.oracle;
 
 		return await this.program.rpc.closePosition(marketIndex, {
 			accounts: {
@@ -1350,57 +1394,58 @@ export class ClearingHouse {
 		return perPositionFundingRate;
 	}
 
-	public async withdrawFees(amount: BN, recipient: PublicKey) : Promise<TransactionSignature> {
+	public async withdrawFees(
+		amount: BN,
+		recipient: PublicKey
+	): Promise<TransactionSignature> {
 		this.assertIsSubscribed();
 
 		const state = await this.getState();
-		return await this.program.rpc.withdrawFees(
-			amount,
-			{
-				accounts: {
-					admin: this.wallet.publicKey,
-					state: await this.getStatePublicKey(),
-					collateralVault: state.collateralVault,
-					collateralVaultAuthority: state.collateralVaultAuthority,
-					recipient: recipient,
-					tokenProgram: TOKEN_PROGRAM_ID
-				}
-			}
-		);
+		return await this.program.rpc.withdrawFees(amount, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				collateralVault: state.collateralVault,
+				collateralVaultAuthority: state.collateralVaultAuthority,
+				recipient: recipient,
+				tokenProgram: TOKEN_PROGRAM_ID,
+			},
+		});
 	}
 
-	public async withdrawFromInsuranceVault(amount: BN, recipient: PublicKey) : Promise<TransactionSignature> {
+	public async withdrawFromInsuranceVault(
+		amount: BN,
+		recipient: PublicKey
+	): Promise<TransactionSignature> {
 		this.assertIsSubscribed();
 
 		const state = await this.getState();
-		return await this.program.rpc.withdrawFromInsuranceVault(
-			amount,
-			{
-				accounts: {
-					admin: this.wallet.publicKey,
-					state: await this.getStatePublicKey(),
-					insuranceVault: state.insuranceVault,
-					insuranceVaultAuthority: state.insuranceVaultAuthority,
-					recipient: recipient,
-					tokenProgram: TOKEN_PROGRAM_ID
-				}
-			}
-		);
+		return await this.program.rpc.withdrawFromInsuranceVault(amount, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				insuranceVault: state.insuranceVault,
+				insuranceVaultAuthority: state.insuranceVaultAuthority,
+				recipient: recipient,
+				tokenProgram: TOKEN_PROGRAM_ID,
+			},
+		});
 	}
 
-	public async updateAdmin(admin: PublicKey) : Promise<TransactionSignature> {
-		return await this.program.rpc.updateAdmin(
-			admin,
-			{
-				accounts: {
-					admin: this.wallet.publicKey,
-					state: await this.getStatePublicKey(),
-				}
-			}
-		);
+	public async updateAdmin(admin: PublicKey): Promise<TransactionSignature> {
+		return await this.program.rpc.updateAdmin(admin, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+			},
+		});
 	}
 
-	public async updateMarginRatio(marginRatioInitial: BN, marginRatioPartial: BN, marginRatioMaintenance: BN) : Promise<TransactionSignature> {
+	public async updateMarginRatio(
+		marginRatioInitial: BN,
+		marginRatioPartial: BN,
+		marginRatioMaintenance: BN
+	): Promise<TransactionSignature> {
 		return await this.program.rpc.updateMarginRatio(
 			marginRatioInitial,
 			marginRatioPartial,
@@ -1409,12 +1454,15 @@ export class ClearingHouse {
 				accounts: {
 					admin: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
-				}
+				},
 			}
 		);
 	}
 
-	public async updatePartialLiquidationClosePercentage(numerator: BN, denominator: BN) : Promise<TransactionSignature> {
+	public async updatePartialLiquidationClosePercentage(
+		numerator: BN,
+		denominator: BN
+	): Promise<TransactionSignature> {
 		return await this.program.rpc.updatePartialLiquidationClosePercentage(
 			numerator,
 			denominator,
@@ -1422,12 +1470,15 @@ export class ClearingHouse {
 				accounts: {
 					admin: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
-				}
+				},
 			}
 		);
 	}
 
-	public async updatePartialLiquidationPenaltyPercentage(numerator: BN, denominator: BN) : Promise<TransactionSignature> {
+	public async updatePartialLiquidationPenaltyPercentage(
+		numerator: BN,
+		denominator: BN
+	): Promise<TransactionSignature> {
 		return await this.program.rpc.updatePartialLiquidationPenaltyPercentage(
 			numerator,
 			denominator,
@@ -1435,12 +1486,15 @@ export class ClearingHouse {
 				accounts: {
 					admin: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
-				}
+				},
 			}
 		);
 	}
 
-	public async updateFullLiquidationPenaltyPercentage(numerator: BN, denominator: BN) : Promise<TransactionSignature> {
+	public async updateFullLiquidationPenaltyPercentage(
+		numerator: BN,
+		denominator: BN
+	): Promise<TransactionSignature> {
 		return await this.program.rpc.updateFullLiquidationPenaltyPercentage(
 			numerator,
 			denominator,
@@ -1448,45 +1502,48 @@ export class ClearingHouse {
 				accounts: {
 					admin: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
-				}
+				},
 			}
 		);
 	}
 
-	public async updatePartialLiquidationShareDenominator(denominator: BN) : Promise<TransactionSignature> {
+	public async updatePartialLiquidationShareDenominator(
+		denominator: BN
+	): Promise<TransactionSignature> {
 		return await this.program.rpc.updatePartialLiquidationLiquidatorShareDenominator(
 			denominator,
 			{
 				accounts: {
 					admin: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
-				}
+				},
 			}
 		);
 	}
 
-	public async updateFullLiquidationShareDenominator(denominator: BN) : Promise<TransactionSignature> {
+	public async updateFullLiquidationShareDenominator(
+		denominator: BN
+	): Promise<TransactionSignature> {
 		return await this.program.rpc.updateFullLiquidationLiquidatorShareDenominator(
 			denominator,
 			{
 				accounts: {
 					admin: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
-				}
+				},
 			}
 		);
 	}
 
-	public async updateFee(numerator: BN, denominator: BN) : Promise<TransactionSignature> {
-		return await this.program.rpc.updateFee(
-			numerator,
-			denominator,
-			{
-				accounts: {
-					admin: this.wallet.publicKey,
-					state: await this.getStatePublicKey(),
-				}
-			}
-		);
+	public async updateFee(
+		numerator: BN,
+		denominator: BN
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateFee(numerator, denominator, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+			},
+		});
 	}
 }

@@ -1,6 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 
+use crate::state::history::deposit::DepositHistory;
 use crate::state::history::liquidation::LiquidationHistory;
 use crate::state::history::{funding_payment::FundingPaymentHistory, trade::TradeHistory};
 use crate::state::market::Markets;
@@ -45,15 +46,27 @@ pub struct Initialize<'info> {
     pub insurance_vault_authority: AccountInfo<'info>,
     #[account(zero)]
     pub markets: Loader<'info, Markets>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+pub struct InitializeHistory<'info> {
+    pub admin: Signer<'info>,
+    #[account(
+        mut,
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
     #[account(zero)]
     pub funding_payment_history: Loader<'info, FundingPaymentHistory>,
     #[account(zero)]
     pub trade_history: Loader<'info, TradeHistory>,
     #[account(zero)]
     pub liquidation_history: Loader<'info, LiquidationHistory>,
-    pub rent: Sysvar<'info, Rent>,
-    pub system_program: Program<'info, System>,
-    pub token_program: Program<'info, Token>,
+    #[account(zero)]
+    pub deposit_history: Loader<'info, DepositHistory>,
 }
 
 #[derive(Accounts)]
@@ -112,6 +125,8 @@ pub struct DepositCollateral<'info> {
     pub user_positions: Loader<'info, UserPositions>,
     #[account(mut)]
     pub funding_payment_history: Loader<'info, FundingPaymentHistory>,
+    #[account(mut)]
+    pub deposit_history: Loader<'info, DepositHistory>,
 }
 
 #[derive(Accounts)]
@@ -144,6 +159,8 @@ pub struct WithdrawCollateral<'info> {
     pub user_positions: Loader<'info, UserPositions>,
     #[account(mut)]
     pub funding_payment_history: Loader<'info, FundingPaymentHistory>,
+    #[account(mut)]
+    pub deposit_history: Loader<'info, DepositHistory>,
 }
 
 #[derive(Accounts)]

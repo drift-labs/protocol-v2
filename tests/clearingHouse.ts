@@ -175,6 +175,29 @@ describe('clearing_house', () => {
 			userPositionsAccount.positions[0].lastCumulativeFundingRate.toNumber() ===
 				0
 		);
+
+		const depositHistory = clearingHouse.getDepositHistory();
+
+		assert.ok(depositHistory.head.toNumber() === 1);
+		assert.ok(depositHistory.depositRecords[0].recordId.eq(new BN(1)));
+		assert.ok(
+			depositHistory.depositRecords[0].userAuthority.equals(
+				provider.wallet.publicKey
+			)
+		);
+		assert.ok(
+			depositHistory.depositRecords[0].user.equals(userAccountPublicKey)
+		);
+
+		assert.ok(
+			JSON.stringify(depositHistory.depositRecords[0].direction) ===
+				JSON.stringify({ deposit: {} })
+		);
+		assert.ok(depositHistory.depositRecords[0].amount.eq(new BN(10000000)));
+		assert.ok(depositHistory.depositRecords[0].collateralBefore.eq(new BN(0)));
+		assert.ok(
+			depositHistory.depositRecords[0].cumulativeDepositsBefore.eq(new BN(0))
+		);
 	});
 
 	it('Withdraw Collateral', async () => {
@@ -203,6 +226,22 @@ describe('clearing_house', () => {
 			userUSDCAccount.publicKey
 		);
 		assert.ok(userUSDCtoken.amount.eq(usdcAmount));
+
+		const depositHistory = clearingHouse.getDepositHistory();
+
+		const depositRecord = depositHistory.depositRecords[1];
+		assert.ok(depositHistory.head.toNumber() === 2);
+		assert.ok(depositRecord.recordId.eq(new BN(2)));
+		assert.ok(depositRecord.userAuthority.equals(provider.wallet.publicKey));
+		assert.ok(depositRecord.user.equals(userAccountPublicKey));
+
+		assert.ok(
+			JSON.stringify(depositRecord.direction) ===
+				JSON.stringify({ withdraw: {} })
+		);
+		assert.ok(depositRecord.amount.eq(new BN(10000000)));
+		assert.ok(depositRecord.collateralBefore.eq(new BN(10000000)));
+		assert.ok(depositRecord.cumulativeDepositsBefore.eq(new BN(10000000)));
 	});
 
 	it('Long from 0 position', async () => {

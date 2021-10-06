@@ -22,6 +22,7 @@ declare_id!("9vNbzHGb1WstrTr2x2Etm7rqQLAM6BJA5VS9Mzto2Efw");
 #[program]
 pub mod clearing_house {
     use super::*;
+    use crate::state::history::deposit::{DepositDirection, DepositHistory, DepositRecord};
     use crate::state::history::liquidation::LiquidationRecord;
 
     pub fn initialize(
@@ -48,8 +49,6 @@ pub mod clearing_house {
         }
 
         ctx.accounts.markets.load_init()?;
-        ctx.accounts.funding_payment_history.load_init()?;
-        ctx.accounts.trade_history.load_init()?;
 
         **ctx.accounts.state = State {
             admin: *ctx.accounts.admin.key,
@@ -58,9 +57,10 @@ pub mod clearing_house {
             collateral_vault: *collateral_account_key,
             collateral_vault_authority: collateral_account_authority,
             collateral_vault_nonce: collateral_account_nonce,
-            trade_history: *ctx.accounts.trade_history.to_account_info().key,
-            funding_payment_history: *ctx.accounts.funding_payment_history.to_account_info().key,
-            liquidation_history: *ctx.accounts.liquidation_history.to_account_info().key,
+            deposit_history: Pubkey::default(),
+            trade_history: Pubkey::default(),
+            funding_payment_history: Pubkey::default(),
+            liquidation_history: Pubkey::default(),
             insurance_vault: *insurance_account_key,
             insurance_vault_authority: insurance_account_authority,
             insurance_vault_nonce: insurance_account_nonce,
@@ -84,6 +84,34 @@ pub mod clearing_house {
         };
 
         return Ok(());
+    }
+
+    pub fn initialize_history(ctx: Context<InitializeHistory>) -> ProgramResult {
+        let state = &mut ctx.accounts.state;
+        if !state.deposit_history.eq(&Pubkey::default())
+            && !state.trade_history.eq(&Pubkey::default())
+            && !state.liquidation_history.eq(&Pubkey::default())
+            && !state.funding_payment_history.eq(&Pubkey::default())
+        {
+            return Err(ErrorCode::HistoryAlreadyInitialized.into());
+        }
+
+        ctx.accounts.deposit_history.load_init()?;
+        ctx.accounts.trade_history.load_init()?;
+        ctx.accounts.funding_payment_history.load_init()?;
+        ctx.accounts.liquidation_history.load_init()?;
+
+        let deposit_history = ctx.accounts.deposit_history.to_account_info().key;
+        let trade_history = ctx.accounts.trade_history.to_account_info().key;
+        let funding_payment_history = ctx.accounts.funding_payment_history.to_account_info().key;
+        let liquidation_history = ctx.accounts.liquidation_history.to_account_info().key;
+
+        state.deposit_history = *deposit_history;
+        state.trade_history = *trade_history;
+        state.funding_payment_history = *funding_payment_history;
+        state.liquidation_history = *liquidation_history;
+
+        Ok(())
     }
 
     pub fn initialize_market(
@@ -152,6 +180,7 @@ pub mod clearing_house {
     }
 
     pub fn deposit_collateral(ctx: Context<DepositCollateral>, amount: u64) -> ProgramResult {
+        let user = &mut ctx.accounts.user;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
 
@@ -159,7 +188,9 @@ pub mod clearing_house {
             return Err(ErrorCode::InsufficientDeposit.into());
         }
 
-        let user = &mut ctx.accounts.user;
+        let collateral_before = user.collateral;
+        let cumulative_deposits_before = user.cumulative_deposits;
+
         user.collateral = user
             .collateral
             .checked_add(amount as u128)
@@ -195,14 +226,29 @@ pub mod clearing_house {
             .checked_add(amount as u128)
             .ok_or_else(math_error!())?;
 
+        let deposit_history = &mut ctx.accounts.deposit_history.load_mut()?;
+        let record_id = deposit_history.next_record_id();
+        deposit_history.append(DepositRecord {
+            ts: now,
+            record_id,
+            user_authority: user.authority,
+            user: user.to_account_info().key(),
+            direction: DepositDirection::DEPOSIT,
+            collateral_before,
+            cumulative_deposits_before,
+            amount,
+        });
+
         Ok(())
     }
 
     pub fn withdraw_collateral(ctx: Context<WithdrawCollateral>, amount: u64) -> ProgramResult {
+        let user = &mut ctx.accounts.user;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
 
-        let user = &mut ctx.accounts.user;
+        let collateral_before = user.collateral;
+        let cumulative_deposits_before = user.cumulative_deposits;
 
         let markets = &ctx.accounts.markets.load()?;
         let user_positions = &mut ctx.accounts.user_positions.load_mut()?;
@@ -270,6 +316,20 @@ pub mod clearing_house {
                 insurance_account_withdrawal,
             )?;
         }
+
+        let deposit_history = &mut ctx.accounts.deposit_history.load_mut()?;
+        let record_id = deposit_history.next_record_id();
+        deposit_history.append(DepositRecord {
+            ts: now,
+            record_id,
+            user_authority: user.authority,
+            user: user.to_account_info().key(),
+            direction: DepositDirection::WITHDRAW,
+            collateral_before,
+            cumulative_deposits_before,
+            amount,
+        });
+
         Ok(())
     }
 

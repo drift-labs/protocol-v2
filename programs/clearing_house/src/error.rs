@@ -52,6 +52,8 @@ pub enum ErrorCode {
     UnableToLoadOracle,
     #[msg("Oracle/Mark Spread Too Large")]
     OracleMarkSpreadLimit,
+    #[msg("Clearing House history already initialized")]
+    HistoryAlreadyInitialized,
 }
 
 #[macro_export]

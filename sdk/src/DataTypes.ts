@@ -34,6 +34,7 @@ export type ClearingHouseState = {
 	marginRatioMaintenance: BN;
 	marginRatioPartial: BN;
 	markets: PublicKey;
+	depositHistory: PublicKey;
 	fundingPaymentHistory: PublicKey;
 	tradeHistory: PublicKey;
 	liquidationHistory: PublicKey;
@@ -93,7 +94,7 @@ export type TradeRecord = {
 	markPriceBefore: BN;
 	markPriceAfter: BN;
 	marketIndex: BN;
-	liquidation: false
+	liquidation: false;
 };
 
 export type TradeHistoryAccount = {
@@ -128,15 +129,34 @@ export type LiquidationRecord = {
 	recordId: BN;
 	userAuthority: PublicKey;
 	user: PublicKey;
-	partial: boolean,
-	baseAssetValue: BN,
-	baseAssetValueClosed: BN,
-	liquidationFee: BN,
-	feeToLiquidator: BN,
-	feeToInsuranceFund: BN,
-	liquidator: PublicKey,
-	totalCollateral:BN,
-	collateral: BN,
-	unrealizedPnl: BN,
-	marginRatio: BN,
+	partial: boolean;
+	baseAssetValue: BN;
+	baseAssetValueClosed: BN;
+	liquidationFee: BN;
+	feeToLiquidator: BN;
+	feeToInsuranceFund: BN;
+	liquidator: PublicKey;
+	totalCollateral: BN;
+	collateral: BN;
+	unrealizedPnl: BN;
+	marginRatio: BN;
+};
+
+export type DepositHistory = {
+	head: BN;
+	depositRecords: DepositRecord[];
+};
+
+export type DepositRecord = {
+	ts: BN;
+	recordId: BN;
+	userAuthority: PublicKey;
+	user: PublicKey;
+	direction: {
+		deposit?: any;
+		withdraw?: any;
+	};
+	collateralBefore: BN;
+	cumulativeDepositsBefore: BN;
+	amount: BN;
 };

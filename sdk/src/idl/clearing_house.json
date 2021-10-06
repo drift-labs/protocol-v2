@@ -46,21 +46,6 @@
 					"isSigner": false
 				},
 				{
-					"name": "fundingPaymentHistory",
-					"isMut": true,
-					"isSigner": false
-				},
-				{
-					"name": "tradeHistory",
-					"isMut": true,
-					"isSigner": false
-				},
-				{
-					"name": "liquidationHistory",
-					"isMut": true,
-					"isSigner": false
-				},
-				{
 					"name": "rent",
 					"isMut": false,
 					"isSigner": false
@@ -94,6 +79,42 @@
 					"type": "bool"
 				}
 			]
+		},
+		{
+			"name": "initializeHistory",
+			"accounts": [
+				{
+					"name": "admin",
+					"isMut": false,
+					"isSigner": true
+				},
+				{
+					"name": "state",
+					"isMut": true,
+					"isSigner": false
+				},
+				{
+					"name": "fundingPaymentHistory",
+					"isMut": true,
+					"isSigner": false
+				},
+				{
+					"name": "tradeHistory",
+					"isMut": true,
+					"isSigner": false
+				},
+				{
+					"name": "liquidationHistory",
+					"isMut": true,
+					"isSigner": false
+				},
+				{
+					"name": "depositHistory",
+					"isMut": true,
+					"isSigner": false
+				}
+			],
+			"args": []
 		},
 		{
 			"name": "initializeMarket",
@@ -189,6 +210,12 @@
 					"name": "fundingPaymentHistory",
 					"isMut": true,
 					"isSigner": false
+				},
+				{
+					"name": "depositHistory",
+					"isMut": true,
+					"isSigner": false
+
 				}
 			],
 			"args": [
@@ -258,6 +285,11 @@
 				},
 				{
 					"name": "fundingPaymentHistory",
+					"isMut": true,
+					"isSigner": false
+				},
+				{
+					"name": "depositHistory",
 					"isMut": true,
 					"isSigner": false
 				}
@@ -924,6 +956,29 @@
 	],
 	"accounts": [
 		{
+			"name": "DepositHistory",
+			"type": {
+				"kind": "struct",
+				"fields": [
+					{
+						"name": "head",
+						"type": "u64"
+					},
+					{
+						"name": "depositRecords",
+						"type": {
+							"array": [
+								{
+									"defined": "DepositRecord"
+								},
+								1000
+							]
+						}
+					}
+				]
+			}
+		},
+		{
 			"name": "FundingPaymentHistory",
 			"type": {
 				"kind": "struct",
@@ -1016,6 +1071,10 @@
 					{
 						"name": "collateralVaultNonce",
 						"type": "u8"
+					},
+					{
+						"name": "depositHistory",
+						"type": "publicKey"
 					},
 					{
 						"name": "tradeHistory",
@@ -1188,6 +1247,48 @@
 		}
 	],
 	"types": [
+		{
+			"name": "DepositRecord",
+			"type": {
+				"kind": "struct",
+				"fields": [
+					{
+						"name": "ts",
+						"type": "i64"
+					},
+					{
+						"name": "recordId",
+						"type": "u128"
+					},
+					{
+						"name": "userAuthority",
+						"type": "publicKey"
+					},
+					{
+						"name": "user",
+						"type": "publicKey"
+					},
+					{
+						"name": "direction",
+						"type": {
+							"defined": "DepositDirection"
+						}
+					},
+					{
+						"name": "collateralBefore",
+						"type": "u128"
+					},
+					{
+						"name": "cumulativeDepositsBefore",
+						"type": "i128"
+					},
+					{
+						"name": "amount",
+						"type": "u64"
+					}
+				]
+			}
+		},
 		{
 			"name": "FundingPaymentRecord",
 			"type": {
@@ -1521,6 +1622,20 @@
 			}
 		},
 		{
+			"name": "DepositDirection",
+			"type": {
+				"kind": "enum",
+				"variants": [
+					{
+						"name": "DEPOSIT"
+					},
+					{
+						"name": "WITHDRAW"
+					}
+				]
+			}
+		},
+		{
 			"name": "OracleSource",
 			"type": {
 				"kind": "enum",
@@ -1669,6 +1784,11 @@
 			"code": 323,
 			"name": "OracleMarkSpreadLimit",
 			"msg": "Oracle/Mark Spread Too Large"
+		},
+		{
+			"code": 324,
+			"name": "HistoryAlreadyInitialized",
+			"msg": "Clearing House history already initialized"
 		}
 	]
 }
