@@ -1665,5 +1665,8 @@
       "name": "UnableToLoadOracle",
       "msg": "Unable To Load Oracles"
     }
-  ]
+  ],
+  "metadata": {
+    "address": "9vNbzHGb1WstrTr2x2Etm7rqQLAM6BJA5VS9Mzto2Efw"
+  }
 }
