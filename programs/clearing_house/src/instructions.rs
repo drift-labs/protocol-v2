@@ -1,6 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 
+use crate::state::history::curve::CurveHistory;
 use crate::state::history::deposit::DepositHistory;
 use crate::state::history::funding_rate::FundingRateHistory;
 use crate::state::history::liquidation::LiquidationHistory;
@@ -70,6 +71,8 @@ pub struct InitializeHistory<'info> {
     pub deposit_history: Loader<'info, DepositHistory>,
     #[account(zero)]
     pub funding_rate_history: Loader<'info, FundingRateHistory>,
+    #[account(zero)]
+    pub curve_history: Loader<'info, CurveHistory>,
 }
 
 #[derive(Accounts)]
@@ -321,6 +324,7 @@ pub struct RepegCurve<'info> {
     pub markets: Loader<'info, Markets>,
     pub oracle: AccountInfo<'info>,
     pub admin: Signer<'info>,
+    pub curve_history: Loader<'info, CurveHistory>,
 }
 
 #[derive(Accounts)]
@@ -354,4 +358,6 @@ pub struct AdminUpdateK<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub markets: Loader<'info, Markets>,
+    #[account(mut)]
+    pub curve_history: Loader<'info, CurveHistory>,
 }

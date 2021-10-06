@@ -14,6 +14,7 @@ pub struct State {
     pub funding_payment_history: Pubkey,
     pub funding_rate_history: Pubkey,
     pub liquidation_history: Pubkey,
+    pub curve_history: Pubkey,
     pub insurance_vault: Pubkey,
     pub insurance_vault_authority: Pubkey,
     pub insurance_vault_nonce: u8,

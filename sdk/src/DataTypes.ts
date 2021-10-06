@@ -34,6 +34,7 @@ export type ClearingHouseState = {
 	marginRatioMaintenance: BN;
 	marginRatioPartial: BN;
 	markets: PublicKey;
+	curveHistory: PublicKey;
 	depositHistory: PublicKey;
 	fundingRateHistory: PublicKey;
 	fundingPaymentHistory: PublicKey;
@@ -175,4 +176,27 @@ export type DepositRecord = {
 	collateralBefore: BN;
 	cumulativeDepositsBefore: BN;
 	amount: BN;
+};
+
+export type CurveHistory = {
+	head: BN;
+	depositRecords: CurveRecord[];
+};
+
+export type CurveRecord = {
+	ts: BN;
+	recordId: BN;
+	marketIndex: BN;
+	pegMultiplierBefore: BN;
+	baseAssetReserveBefore: BN;
+	quoteAssetReserveBefore: BN;
+	sqrtKBefore: BN;
+	pegMultiplierAfter: BN;
+	baseAssetReserveAfter: BN;
+	quoteAssetReserveAfter: BN;
+	sqrtKAfter: BN;
+	baseAssetAmountLong: BN;
+	baseAssetAmountShort: BN;
+	baseAssetAmount: BN;
+	openInterest: BN;
 };

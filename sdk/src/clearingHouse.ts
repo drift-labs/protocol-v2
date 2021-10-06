@@ -23,6 +23,7 @@ import { MockUSDCFaucet } from './mockUSDCFaucet';
 import {
 	ClearingHouseMarketsAccountData,
 	ClearingHouseState,
+	CurveHistory,
 	DepositHistory,
 	FundingPaymentHistory,
 	FundingRateHistory,
@@ -43,6 +44,7 @@ interface ClearingHouseEvents {
 	tradeHistoryAccountUpdate: (payload: TradeHistoryAccount) => void;
 	liquidationHistoryUpdate: (payload: LiquidationHistory) => void;
 	depositHistoryUpdate: (payload: DepositHistory) => void;
+	curveHistoryUpdate: (payload: CurveHistory) => void;
 	update: void;
 }
 
@@ -76,6 +78,7 @@ export class ClearingHouse {
 	private tradeHistoryAccount?: TradeHistoryAccount;
 	private liquidationHistory?: LiquidationHistory;
 	private depositHistory?: DepositHistory;
+	private curveHistory?: CurveHistory;
 	isSubscribed = false;
 	eventEmitter: StrictEventEmitter<EventEmitter, ClearingHouseEvents>;
 
@@ -159,6 +162,7 @@ export class ClearingHouse {
 		const fundingPaymentHistory = anchor.web3.Keypair.generate();
 		const tradeHistory = anchor.web3.Keypair.generate();
 		const liquidationHistory = anchor.web3.Keypair.generate();
+		const curveHistory = anchor.web3.Keypair.generate();
 
 		const [clearingHouseStatePublicKey, clearingHouseNonce] =
 			await this.getClearingHouseStatePublicKeyAndNonce();
@@ -197,6 +201,7 @@ export class ClearingHouse {
 				fundingPaymentHistory: fundingPaymentHistory.publicKey,
 				tradeHistory: tradeHistory.publicKey,
 				liquidationHistory: liquidationHistory.publicKey,
+				curveHistory: curveHistory.publicKey,
 				rent: SYSVAR_RENT_PUBKEY,
 				systemProgram: anchor.web3.SystemProgram.programId,
 			},
@@ -214,6 +219,7 @@ export class ClearingHouse {
 				await this.program.account.depositHistory.createInstruction(
 					depositHistory
 				),
+				await this.program.account.curveHistory.createInstruction(curveHistory),
 			],
 			signers: [
 				depositHistory,
@@ -221,6 +227,7 @@ export class ClearingHouse {
 				tradeHistory,
 				liquidationHistory,
 				fundingRateHistory,
+				curveHistory,
 			],
 		});
 
@@ -351,6 +358,20 @@ export class ClearingHouse {
 				this.eventEmitter.emit('depositHistoryUpdate', updateData);
 			});
 
+		const lastCurveHistory = (await this.program.account.curveHistory.fetch(
+			this.state.curveHistory
+		)) as CurveHistory;
+		this.curveHistory = lastCurveHistory;
+
+		this.eventEmitter.emit('curveHistoryUpdate', lastCurveHistory);
+
+		this.program.account.curveHistory
+			.subscribe(this.state.curveHistory, this.opts.commitment)
+			.on('change', async (updateData) => {
+				this.curveHistory = updateData;
+				this.eventEmitter.emit('curveHistoryUpdate', updateData);
+			});
+
 		this.isSubscribed = true;
 
 		this.eventEmitter.emit('update');
@@ -381,6 +402,9 @@ export class ClearingHouse {
 		);
 		await this.program.account.depositHistory.unsubscribe(
 			this.state.depositHistory
+		);
+		await this.program.account.curveHistory.unsubscribe(
+			this.state.curveHistory
 		);
 		this.isSubscribed = false;
 	}
@@ -790,6 +814,7 @@ export class ClearingHouse {
 					state: await this.getStatePublicKey(),
 					admin: this.wallet.publicKey,
 					markets: this.state.markets,
+					curveHistory: this.state.curveHistory,
 				},
 			}
 		);
@@ -853,6 +878,7 @@ export class ClearingHouse {
 				admin: this.wallet.publicKey,
 				oracle: ammData.oracle,
 				markets: this.state.markets,
+				curveHistory: this.state.curveHistory,
 			},
 		});
 	}

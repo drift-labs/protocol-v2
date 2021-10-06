@@ -22,6 +22,7 @@ declare_id!("9vNbzHGb1WstrTr2x2Etm7rqQLAM6BJA5VS9Mzto2Efw");
 #[program]
 pub mod clearing_house {
     use super::*;
+    use crate::state::history::curve::CurveRecord;
     use crate::state::history::deposit::{DepositDirection, DepositHistory, DepositRecord};
     use crate::state::history::liquidation::LiquidationRecord;
 
@@ -62,6 +63,7 @@ pub mod clearing_house {
             funding_rate_history: Pubkey::default(),
             funding_payment_history: Pubkey::default(),
             liquidation_history: Pubkey::default(),
+            curve_history: Pubkey::default(),
             insurance_vault: *insurance_account_key,
             insurance_vault_authority: insurance_account_authority,
             insurance_vault_nonce: insurance_account_nonce,
@@ -94,6 +96,7 @@ pub mod clearing_house {
             && !state.liquidation_history.eq(&Pubkey::default())
             && !state.funding_payment_history.eq(&Pubkey::default())
             && !state.funding_rate_history.eq(&Pubkey::default())
+            && !state.curve_history.eq(&Pubkey::default())
         {
             return Err(ErrorCode::HistoryAlreadyInitialized.into());
         }
@@ -103,18 +106,21 @@ pub mod clearing_house {
         ctx.accounts.funding_payment_history.load_init()?;
         ctx.accounts.funding_rate_history.load_init()?;
         ctx.accounts.liquidation_history.load_init()?;
+        ctx.accounts.curve_history.load_init()?;
 
         let deposit_history = ctx.accounts.deposit_history.to_account_info().key;
         let trade_history = ctx.accounts.trade_history.to_account_info().key;
         let funding_payment_history = ctx.accounts.funding_payment_history.to_account_info().key;
         let funding_rate_history = ctx.accounts.funding_rate_history.to_account_info().key;
         let liquidation_history = ctx.accounts.liquidation_history.to_account_info().key;
+        let curve_history = ctx.accounts.curve_history.to_account_info().key;
 
         state.deposit_history = *deposit_history;
         state.trade_history = *trade_history;
         state.funding_rate_history = *funding_rate_history;
         state.funding_payment_history = *funding_payment_history;
         state.liquidation_history = *liquidation_history;
+        state.curve_history = *curve_history;
 
         Ok(())
     }
@@ -988,6 +994,9 @@ pub mod clearing_house {
         new_peg_candidate: u128,
         market_index: u64,
     ) -> ProgramResult {
+        let clock = Clock::get()?;
+        let now = clock.unix_timestamp;
+
         let market =
             &mut ctx.accounts.markets.load_mut()?.markets[Markets::index_from_u64(market_index)];
         let price_oracle = &ctx.accounts.oracle;
@@ -995,7 +1004,37 @@ pub mod clearing_house {
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
 
+        let peg_multiplier_before = market.amm.peg_multiplier;
+        let base_asset_reserve_before = market.amm.base_asset_reserve;
+        let quote_asset_reserve_before = market.amm.quote_asset_reserve;
+        let sqrt_k_before = market.amm.sqrt_k;
+
         controller::repeg::repeg(market, price_oracle, new_peg_candidate, now)?;
+
+        let peg_multiplier_after = market.amm.peg_multiplier;
+        let base_asset_reserve_after = market.amm.base_asset_reserve;
+        let quote_asset_reserve_after = market.amm.quote_asset_reserve;
+        let sqrt_k_after = market.amm.sqrt_k;
+
+        let curve_history = &mut ctx.accounts.curve_history.load_mut()?;
+        let record_id = curve_history.next_record_id();
+        curve_history.append(CurveRecord {
+            ts: now,
+            record_id,
+            market_index,
+            peg_multiplier_before,
+            base_asset_reserve_before,
+            quote_asset_reserve_before,
+            sqrt_k_before,
+            peg_multiplier_after,
+            base_asset_reserve_after,
+            quote_asset_reserve_after,
+            sqrt_k_after,
+            base_asset_amount_long: market.base_asset_amount_long.unsigned_abs(),
+            base_asset_amount_short: market.base_asset_amount_short.unsigned_abs(),
+            base_asset_amount: market.base_asset_amount,
+            open_interest: market.open_interest,
+        });
 
         Ok(())
     }
@@ -1060,8 +1099,17 @@ pub mod clearing_house {
         quote_asset_reserve: u128,
         market_index: u64,
     ) -> ProgramResult {
+        let clock = Clock::get()?;
+        let now = clock.unix_timestamp;
+
         let markets = &mut ctx.accounts.markets.load_mut()?;
         let market = &mut markets.markets[Markets::index_from_u64(market_index)];
+
+        let base_asset_amount_long = market.base_asset_amount_long.unsigned_abs();
+        let base_asset_amount_short = market.base_asset_amount_short.unsigned_abs();
+        let base_asset_amount = market.base_asset_amount;
+        let open_interest = market.open_interest;
+
         let amm = &mut market.amm;
 
         let price_before = math::amm::calculate_price(
@@ -1085,7 +1133,38 @@ pub mod clearing_house {
             return Err(ErrorCode::InvalidUpdateK.into());
         }
 
+        let peg_multiplier_before = amm.peg_multiplier;
+        let base_asset_reserve_before = amm.base_asset_reserve;
+        let quote_asset_reserve_before = amm.quote_asset_reserve;
+        let sqrt_k_before = amm.sqrt_k;
+
         controller::amm::move_price(amm, base_asset_reserve, quote_asset_reserve)?;
+
+        let peg_multiplier_after = amm.peg_multiplier;
+        let base_asset_reserve_after = amm.base_asset_reserve;
+        let quote_asset_reserve_after = amm.quote_asset_reserve;
+        let sqrt_k_after = amm.sqrt_k;
+
+        let curve_history = &mut ctx.accounts.curve_history.load_mut()?;
+        let record_id = curve_history.next_record_id();
+        curve_history.append(CurveRecord {
+            ts: now,
+            record_id,
+            market_index,
+            peg_multiplier_before,
+            base_asset_reserve_before,
+            quote_asset_reserve_before,
+            sqrt_k_before,
+            peg_multiplier_after,
+            base_asset_reserve_after,
+            quote_asset_reserve_after,
+            sqrt_k_after,
+            base_asset_amount_long,
+            base_asset_amount_short,
+            base_asset_amount,
+            open_interest,
+        });
+
         Ok(())
     }
 

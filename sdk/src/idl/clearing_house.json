@@ -117,6 +117,11 @@
 					"name": "fundingRateHistory",
 					"isMut": true,
 					"isSigner": false
+				},
+				{
+					"name": "curveHistory",
+					"isMut": true,
+					"isSigner": false
 				}
 			],
 			"args": []
@@ -641,6 +646,11 @@
 					"name": "admin",
 					"isMut": false,
 					"isSigner": true
+				},
+				{
+					"name": "curveHistory",
+					"isMut": false,
+					"isSigner": false
 				}
 			],
 			"args": [
@@ -762,6 +772,11 @@
 				},
 				{
 					"name": "markets",
+					"isMut": true,
+					"isSigner": false
+				},
+				{
+					"name": "curveHistory",
 					"isMut": true,
 					"isSigner": false
 				}
@@ -976,6 +991,29 @@
 	],
 	"accounts": [
 		{
+			"name": "CurveHistory",
+			"type": {
+				"kind": "struct",
+				"fields": [
+					{
+						"name": "head",
+						"type": "u64"
+					},
+					{
+						"name": "depositRecords",
+						"type": {
+							"array": [
+								{
+									"defined": "CurveRecord"
+								},
+								1000
+							]
+						}
+					}
+				]
+			}
+		},
+		{
 			"name": "DepositHistory",
 			"type": {
 				"kind": "struct",
@@ -1133,6 +1171,10 @@
 					},
 					{
 						"name": "liquidationHistory",
+						"type": "publicKey"
+					},
+					{
+						"name": "curveHistory",
 						"type": "publicKey"
 					},
 					{
@@ -1294,6 +1336,74 @@
 		}
 	],
 	"types": [
+		{
+			"name": "CurveRecord",
+			"type": {
+				"kind": "struct",
+				"fields": [
+					{
+						"name": "ts",
+						"type": "i64"
+					},
+					{
+						"name": "recordId",
+						"type": "u128"
+					},
+					{
+						"name": "marketIndex",
+						"type": "u64"
+					},
+					{
+						"name": "pegMultiplierBefore",
+						"type": "u128"
+					},
+					{
+						"name": "baseAssetReserveBefore",
+						"type": "u128"
+					},
+					{
+						"name": "quoteAssetReserveBefore",
+						"type": "u128"
+					},
+					{
+						"name": "sqrtKBefore",
+						"type": "u128"
+					},
+					{
+						"name": "pegMultiplierAfter",
+						"type": "u128"
+					},
+					{
+						"name": "baseAssetReserveAfter",
+						"type": "u128"
+					},
+					{
+						"name": "quoteAssetReserveAfter",
+						"type": "u128"
+					},
+					{
+						"name": "sqrtKAfter",
+						"type": "u128"
+					},
+					{
+						"name": "baseAssetAmountLong",
+						"type": "u128"
+					},
+					{
+						"name": "baseAssetAmountShort",
+						"type": "u128"
+					},
+					{
+						"name": "baseAssetAmount",
+						"type": "i128"
+					},
+					{
+						"name": "openInterest",
+						"type": "u128"
+					}
+				]
+			}
+		},
 		{
 			"name": "DepositRecord",
 			"type": {
@@ -1700,6 +1810,20 @@
 					},
 					{
 						"name": "Remove"
+					}
+				]
+			}
+		},
+		{
+			"name": "Type",
+			"type": {
+				"kind": "enum",
+				"variants": [
+					{
+						"name": "Repeg"
+					},
+					{
+						"name": "UpdateK"
 					}
 				]
 			}
