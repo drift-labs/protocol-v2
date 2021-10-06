@@ -87,7 +87,7 @@ pub fn calculate_oracle_mark_spread(
     price_oracle: &AccountInfo,
     window: u32,
     now: i64,
-) -> ClearingHouseResult<i128> {
+) -> ClearingHouseResult<(i128, i128)> {
     let mark_price: i128;
     if window > 0 {
         mark_price = amm.last_mark_price_twap as i128;
@@ -101,7 +101,7 @@ pub fn calculate_oracle_mark_spread(
         .checked_sub(oracle_price)
         .ok_or_else(math_error!())?;
 
-    Ok(price_spread)
+    Ok((oracle_price, price_spread))
 }
 
 pub fn is_oracle_mark_limit(

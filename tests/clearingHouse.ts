@@ -99,9 +99,9 @@ describe('clearing_house', () => {
 		const marketsAccount = clearingHouse.getMarketsAccount();
 		assert.ok(marketsAccount.markets.length == 1000);
 
-		const fundingRateHistory = clearingHouse.getFundingRateHistory();
+		const fundingRateHistory = clearingHouse.getFundingPaymentHistory();
 		assert.ok(fundingRateHistory.head.toNumber() === 0);
-		assert.ok(fundingRateHistory.fundingRateRecords.length === 1000);
+		assert.ok(fundingRateHistory.fundingPaymentRecords.length === 1000);
 
 		const tradeHistoryAccount = clearingHouse.getTradeHistoryAccount();
 		assert.ok(tradeHistoryAccount.head.toNumber() === 0);

@@ -24,7 +24,8 @@ import {
 	ClearingHouseMarketsAccountData,
 	ClearingHouseState,
 	DepositHistory,
-	FundingHistoryAccountData,
+	FundingPaymentHistory,
+	FundingRateHistory,
 	LiquidationHistory,
 	TradeHistoryAccount,
 	UserAccountData,
@@ -37,7 +38,8 @@ import StrictEventEmitter from 'strict-event-emitter-types';
 interface ClearingHouseEvents {
 	programStateUpdate: (payload: ClearingHouseState) => void;
 	marketsAccountUpdate: (payload: ClearingHouseMarketsAccountData) => void;
-	fundingHistoryAccountUpdate: (payload: FundingHistoryAccountData) => void;
+	fundingPaymentHistoryUpdate: (payload: FundingPaymentHistory) => void;
+	fundingRateHistoryUpdate: (payload: FundingRateHistory) => void;
 	tradeHistoryAccountUpdate: (payload: TradeHistoryAccount) => void;
 	liquidationHistoryUpdate: (payload: LiquidationHistory) => void;
 	depositHistoryUpdate: (payload: DepositHistory) => void;
@@ -69,7 +71,8 @@ export class ClearingHouse {
 	opts?: ConfirmOptions;
 	private state?: ClearingHouseState;
 	private marketsAccount?: ClearingHouseMarketsAccountData;
-	private fundingRateHistory?: FundingHistoryAccountData;
+	private fundingPaymentHistory?: FundingPaymentHistory;
+	private fundingRateHistory?: FundingRateHistory;
 	private tradeHistoryAccount?: TradeHistoryAccount;
 	private liquidationHistory?: LiquidationHistory;
 	private depositHistory?: DepositHistory;
@@ -152,6 +155,7 @@ export class ClearingHouse {
 
 		const markets = anchor.web3.Keypair.generate();
 		const depositHistory = anchor.web3.Keypair.generate();
+		const fundingRateHistory = anchor.web3.Keypair.generate();
 		const fundingPaymentHistory = anchor.web3.Keypair.generate();
 		const tradeHistory = anchor.web3.Keypair.generate();
 		const liquidationHistory = anchor.web3.Keypair.generate();
@@ -189,6 +193,7 @@ export class ClearingHouse {
 				admin: this.wallet.publicKey,
 				state: clearingHouseStatePublicKey,
 				depositHistory: depositHistory.publicKey,
+				fundingRateHistory: fundingRateHistory.publicKey,
 				fundingPaymentHistory: fundingPaymentHistory.publicKey,
 				tradeHistory: tradeHistory.publicKey,
 				liquidationHistory: liquidationHistory.publicKey,
@@ -196,6 +201,9 @@ export class ClearingHouse {
 				systemProgram: anchor.web3.SystemProgram.programId,
 			},
 			instructions: [
+				await this.program.account.fundingRateHistory.createInstruction(
+					fundingRateHistory
+				),
 				await this.program.account.fundingPaymentHistory.createInstruction(
 					fundingPaymentHistory
 				),
@@ -212,6 +220,7 @@ export class ClearingHouse {
 				fundingPaymentHistory,
 				tradeHistory,
 				liquidationHistory,
+				fundingRateHistory,
 			],
 		});
 
@@ -259,20 +268,39 @@ export class ClearingHouse {
 		const latestFundingPaymentHistory =
 			(await this.program.account.fundingPaymentHistory.fetch(
 				this.state.fundingPaymentHistory
-			)) as FundingHistoryAccountData;
-		this.fundingRateHistory = latestFundingPaymentHistory;
+			)) as FundingPaymentHistory;
+		this.fundingPaymentHistory = latestFundingPaymentHistory;
 
 		this.eventEmitter.emit(
-			'fundingHistoryAccountUpdate',
+			'fundingPaymentHistoryUpdate',
 			latestFundingPaymentHistory
 		);
 
 		this.program.account.fundingPaymentHistory
 			.subscribe(this.state.fundingPaymentHistory, this.opts.commitment)
 			.on('change', async (updateData) => {
+				this.fundingPaymentHistory = updateData;
+
+				this.eventEmitter.emit('fundingPaymentHistoryUpdate', updateData);
+			});
+
+		const latestFundingRateHistory =
+			(await this.program.account.fundingRateHistory.fetch(
+				this.state.fundingRateHistory
+			)) as FundingRateHistory;
+		this.fundingRateHistory = latestFundingRateHistory;
+
+		this.eventEmitter.emit(
+			'fundingRateHistoryUpdate',
+			latestFundingRateHistory
+		);
+
+		this.program.account.fundingRateHistory
+			.subscribe(this.state.fundingRateHistory, this.opts.commitment)
+			.on('change', async (updateData) => {
 				this.fundingRateHistory = updateData;
 
-				this.eventEmitter.emit('fundingHistoryAccountUpdate', updateData);
+				this.eventEmitter.emit('fundingRateHistoryUpdate', updateData);
 			});
 
 		const lastTradeHistoryAccount =
@@ -342,6 +370,9 @@ export class ClearingHouse {
 		await this.program.account.fundingPaymentHistory.unsubscribe(
 			this.state.fundingPaymentHistory
 		);
+		await this.program.account.fundingRateHistory.unsubscribe(
+			this.state.fundingRateHistory
+		);
 		await this.program.account.tradeHistory.unsubscribe(
 			this.state.tradeHistory
 		);
@@ -385,7 +416,12 @@ export class ClearingHouse {
 		return this.marketsAccount;
 	}
 
-	public getFundingRateHistory(): FundingHistoryAccountData {
+	public getFundingPaymentHistory(): FundingPaymentHistory {
+		this.assertIsSubscribed();
+		return this.fundingPaymentHistory;
+	}
+
+	public getFundingRateHistory(): FundingRateHistory {
 		this.assertIsSubscribed();
 		return this.fundingRateHistory;
 	}
@@ -682,6 +718,7 @@ export class ClearingHouse {
 					userPositions: user.positions,
 					tradeHistory: this.state.tradeHistory,
 					fundingPaymentHistory: this.state.fundingPaymentHistory,
+					fundingRateHistory: this.state.fundingRateHistory,
 					oracle: priceOracle,
 				},
 			}
@@ -710,6 +747,7 @@ export class ClearingHouse {
 				userPositions: user.positions,
 				tradeHistory: this.state.tradeHistory,
 				fundingPaymentHistory: this.state.fundingPaymentHistory,
+				fundingRateHistory: this.state.fundingRateHistory,
 				oracle: priceOracle,
 			},
 		});
@@ -858,8 +896,7 @@ export class ClearingHouse {
 			accounts: {
 				markets: this.state.markets,
 				oracle: oracle,
-				insuranceVault: this.state.insuranceVault,
-				insuranceVaultAuthority: this.state.insuranceVaultAuthority,
+				fundingRateHistory: this.state.fundingRateHistory,
 			},
 		});
 

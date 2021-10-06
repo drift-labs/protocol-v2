@@ -3,21 +3,21 @@ use anchor_lang::prelude::*;
 #[account(zero_copy)]
 pub struct FundingPaymentHistory {
     head: u64,
-    funding_rate_records: [FundingPaymentRecord; 1000],
+    funding_payment_records: [FundingPaymentRecord; 1000],
 }
 
 impl Default for FundingPaymentHistory {
     fn default() -> Self {
         return FundingPaymentHistory {
             head: 0,
-            funding_rate_records: [FundingPaymentRecord::default(); 1000],
+            funding_payment_records: [FundingPaymentRecord::default(); 1000],
         };
     }
 }
 
 impl FundingPaymentHistory {
     pub fn append(&mut self, pos: FundingPaymentRecord) {
-        self.funding_rate_records[FundingPaymentHistory::index_of(self.head)] = pos;
+        self.funding_payment_records[FundingPaymentHistory::index_of(self.head)] = pos;
         self.head = (self.head + 1) % 1000;
     }
 
@@ -28,7 +28,7 @@ impl FundingPaymentHistory {
     pub fn next_record_id(&self) -> u128 {
         let prev_record_id = if self.head == 0 { 999 } else { self.head - 1 };
         let prev_record =
-            &self.funding_rate_records[FundingPaymentHistory::index_of(prev_record_id)];
+            &self.funding_payment_records[FundingPaymentHistory::index_of(prev_record_id)];
         return prev_record.record_id + 1;
     }
 }

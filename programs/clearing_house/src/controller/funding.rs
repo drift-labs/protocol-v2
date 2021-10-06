@@ -12,6 +12,7 @@ use crate::math::constants::{
 use crate::math::funding::calculate_funding_payment;
 use crate::math_error;
 use crate::state::history::funding_payment::{FundingPaymentHistory, FundingPaymentRecord};
+use crate::state::history::funding_rate::{FundingRateHistory, FundingRateRecord};
 use crate::state::market::AMM;
 use crate::state::market::{Market, Markets};
 use crate::state::user::{User, UserPositions};
@@ -75,13 +76,16 @@ pub fn settle_funding_payment(
 }
 
 pub fn update_funding_rate(
+    market_index: u64,
     market: &mut Market,
     price_oracle: &AccountInfo,
     now: UnixTimestamp,
+    funding_rate_history: &mut RefMut<FundingRateHistory>,
 ) -> ClearingHouseResult {
     let time_since_last_update = now - market.amm.last_funding_rate_ts;
 
-    market.amm.last_mark_price_twap = amm::calculate_new_mark_twap(&market.amm, now)?;
+    let mark_price_twap = amm::calculate_new_mark_twap(&market.amm, now)?;
+    market.amm.last_mark_price_twap = mark_price_twap;
     market.amm.last_mark_price_twap_ts = now;
 
     if time_since_last_update >= market.amm.funding_period {
@@ -93,7 +97,8 @@ pub fn update_funding_rate(
             .ok_or_else(math_error!())?;
         // funding period = 1 hour, window = 1 day
         // low periodicity => quickly updating/settled funding rates => lower funding rate payment per interval
-        let price_spread = amm::calculate_oracle_mark_spread(&market.amm, price_oracle, one_hour, now)?;
+        let (oracle_price_twap, price_spread) =
+            amm::calculate_oracle_mark_spread(&market.amm, price_oracle, one_hour, now)?;
         let funding_rate = price_spread
             .checked_mul(FUNDING_PAYMENT_MANTISSA as i128)
             .ok_or_else(math_error!())?
@@ -176,17 +181,26 @@ pub fn update_funding_rate(
                 .ok_or_else(math_error!())?;
         }
 
-        let cum_funding_rate = market
+        let cumulative_funding_rate = market
             .amm
             .cumulative_funding_rate
             .checked_add(funding_rate)
             .ok_or_else(math_error!())?;
 
-        market.amm.cumulative_funding_rate = cum_funding_rate;
+        market.amm.cumulative_funding_rate = cumulative_funding_rate;
         market.amm.last_funding_rate = funding_rate;
         market.amm.last_funding_rate_ts = now;
-        market.amm.last_mark_price_twap = market.amm.mark_price()?;
-        market.amm.last_mark_price_twap_ts = now;
+
+        let record_id = funding_rate_history.next_record_id();
+        funding_rate_history.append(FundingRateRecord {
+            ts: now,
+            record_id,
+            market_index,
+            funding_rate,
+            cumulative_funding_rate,
+            mark_price_twap,
+            oracle_price_twap,
+        });
     }
 
     Ok(())

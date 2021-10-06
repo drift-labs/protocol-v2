@@ -112,6 +112,11 @@
 					"name": "depositHistory",
 					"isMut": true,
 					"isSigner": false
+				},
+				{
+					"name": "fundingRateHistory",
+					"isMut": true,
+					"isSigner": false
 				}
 			],
 			"args": []
@@ -340,6 +345,11 @@
 					"isSigner": false
 				},
 				{
+					"name": "fundingRateHistory",
+					"isMut": true,
+					"isSigner": false
+				},
+				{
 					"name": "oracle",
 					"isMut": false,
 					"isSigner": false
@@ -401,6 +411,11 @@
 				},
 				{
 					"name": "fundingPaymentHistory",
+					"isMut": true,
+					"isSigner": false
+				},
+				{
+					"name": "fundingRateHistory",
 					"isMut": true,
 					"isSigner": false
 				},
@@ -718,6 +733,11 @@
 					"name": "oracle",
 					"isMut": false,
 					"isSigner": false
+				},
+				{
+					"name": "fundingRateHistory",
+					"isMut": true,
+					"isSigner": false
 				}
 			],
 			"args": [
@@ -988,11 +1008,34 @@
 						"type": "u64"
 					},
 					{
-						"name": "fundingRateRecords",
+						"name": "fundingPaymentRecords",
 						"type": {
 							"array": [
 								{
 									"defined": "FundingPaymentRecord"
+								},
+								1000
+							]
+						}
+					}
+				]
+			}
+		},
+		{
+			"name": "FundingRateHistory",
+			"type": {
+				"kind": "struct",
+				"fields": [
+					{
+						"name": "head",
+						"type": "u64"
+					},
+					{
+						"name": "fundingRateRecords",
+						"type": {
+							"array": [
+								{
+									"defined": "FundingRateRecord"
 								},
 								1000
 							]
@@ -1082,6 +1125,10 @@
 					},
 					{
 						"name": "fundingPaymentHistory",
+						"type": "publicKey"
+					},
+					{
+						"name": "fundingRateHistory",
 						"type": "publicKey"
 					},
 					{
@@ -1329,6 +1376,42 @@
 					{
 						"name": "ammCumulativeFunding",
 						"type": "i128"
+					}
+				]
+			}
+		},
+		{
+			"name": "FundingRateRecord",
+			"type": {
+				"kind": "struct",
+				"fields": [
+					{
+						"name": "ts",
+						"type": "i64"
+					},
+					{
+						"name": "recordId",
+						"type": "u128"
+					},
+					{
+						"name": "marketIndex",
+						"type": "u64"
+					},
+					{
+						"name": "fundingRate",
+						"type": "i128"
+					},
+					{
+						"name": "cumulativeFundingRate",
+						"type": "i128"
+					},
+					{
+						"name": "oraclePriceTwap",
+						"type": "i128"
+					},
+					{
+						"name": "markPriceTwap",
+						"type": "u128"
 					}
 				]
 			}

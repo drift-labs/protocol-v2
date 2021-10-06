@@ -35,6 +35,7 @@ export type ClearingHouseState = {
 	marginRatioPartial: BN;
 	markets: PublicKey;
 	depositHistory: PublicKey;
+	fundingRateHistory: PublicKey;
 	fundingPaymentHistory: PublicKey;
 	tradeHistory: PublicKey;
 	liquidationHistory: PublicKey;
@@ -102,7 +103,12 @@ export type TradeHistoryAccount = {
 	tradeRecords: TradeRecord[];
 };
 
-export type FundingRateRecord = {
+export type FundingPaymentHistory = {
+	head: BN;
+	fundingPaymentRecords: FundingPaymentRecord[];
+};
+
+export type FundingPaymentRecord = {
 	ts: BN;
 	recordId: BN;
 	userAuthority: PublicKey;
@@ -114,9 +120,19 @@ export type FundingRateRecord = {
 	ammCumulativeFunding: BN;
 };
 
-export type FundingHistoryAccountData = {
+export type FundingRateHistory = {
 	head: BN;
 	fundingRateRecords: FundingRateRecord[];
+};
+
+export type FundingRateRecord = {
+	ts: BN;
+	recordId: BN;
+	marketIndex: BN;
+	fundingRate: BN;
+	cumulativeFundingRate: BN;
+	oraclePriceTwap: BN;
+	markPriceTwap: BN;
 };
 
 export type LiquidationHistory = {

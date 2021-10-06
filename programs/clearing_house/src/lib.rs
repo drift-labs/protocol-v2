@@ -59,6 +59,7 @@ pub mod clearing_house {
             collateral_vault_nonce: collateral_account_nonce,
             deposit_history: Pubkey::default(),
             trade_history: Pubkey::default(),
+            funding_rate_history: Pubkey::default(),
             funding_payment_history: Pubkey::default(),
             liquidation_history: Pubkey::default(),
             insurance_vault: *insurance_account_key,
@@ -92,6 +93,7 @@ pub mod clearing_house {
             && !state.trade_history.eq(&Pubkey::default())
             && !state.liquidation_history.eq(&Pubkey::default())
             && !state.funding_payment_history.eq(&Pubkey::default())
+            && !state.funding_rate_history.eq(&Pubkey::default())
         {
             return Err(ErrorCode::HistoryAlreadyInitialized.into());
         }
@@ -99,15 +101,18 @@ pub mod clearing_house {
         ctx.accounts.deposit_history.load_init()?;
         ctx.accounts.trade_history.load_init()?;
         ctx.accounts.funding_payment_history.load_init()?;
+        ctx.accounts.funding_rate_history.load_init()?;
         ctx.accounts.liquidation_history.load_init()?;
 
         let deposit_history = ctx.accounts.deposit_history.to_account_info().key;
         let trade_history = ctx.accounts.trade_history.to_account_info().key;
         let funding_payment_history = ctx.accounts.funding_payment_history.to_account_info().key;
+        let funding_rate_history = ctx.accounts.funding_rate_history.to_account_info().key;
         let liquidation_history = ctx.accounts.liquidation_history.to_account_info().key;
 
         state.deposit_history = *deposit_history;
         state.trade_history = *trade_history;
+        state.funding_rate_history = *funding_rate_history;
         state.funding_payment_history = *funding_payment_history;
         state.liquidation_history = *liquidation_history;
 
@@ -572,7 +577,14 @@ pub mod clearing_house {
             let market = &mut ctx.accounts.markets.load_mut()?.markets
                 [Markets::index_from_u64(market_index)];
             let price_oracle = &ctx.accounts.oracle;
-            controller::funding::update_funding_rate(market, &price_oracle, now)?;
+            let funding_rate_history = &mut ctx.accounts.funding_rate_history.load_mut()?;
+            controller::funding::update_funding_rate(
+                market_index,
+                market,
+                &price_oracle,
+                now,
+                funding_rate_history,
+            )?;
         }
 
         Ok(())
@@ -667,7 +679,14 @@ pub mod clearing_house {
         });
 
         let price_oracle = &ctx.accounts.oracle;
-        controller::funding::update_funding_rate(market, &price_oracle, now)?;
+        let funding_rate_history = &mut ctx.accounts.funding_rate_history.load_mut()?;
+        controller::funding::update_funding_rate(
+            market_index,
+            market,
+            &price_oracle,
+            now,
+            funding_rate_history,
+        )?;
 
         Ok(())
     }
@@ -1020,7 +1039,14 @@ pub mod clearing_house {
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
 
-        controller::funding::update_funding_rate(market, price_oracle, now)?;
+        let funding_rate_history = &mut ctx.accounts.funding_rate_history.load_mut()?;
+        controller::funding::update_funding_rate(
+            market_index,
+            market,
+            price_oracle,
+            now,
+            funding_rate_history,
+        )?;
 
         Ok(())
     }

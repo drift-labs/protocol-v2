@@ -2,6 +2,7 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 
 use crate::state::history::deposit::DepositHistory;
+use crate::state::history::funding_rate::FundingRateHistory;
 use crate::state::history::liquidation::LiquidationHistory;
 use crate::state::history::{funding_payment::FundingPaymentHistory, trade::TradeHistory};
 use crate::state::market::Markets;
@@ -67,6 +68,8 @@ pub struct InitializeHistory<'info> {
     pub liquidation_history: Loader<'info, LiquidationHistory>,
     #[account(zero)]
     pub deposit_history: Loader<'info, DepositHistory>,
+    #[account(zero)]
+    pub funding_rate_history: Loader<'info, FundingRateHistory>,
 }
 
 #[derive(Accounts)]
@@ -223,6 +226,8 @@ pub struct OpenPosition<'info> {
     pub trade_history: Loader<'info, TradeHistory>,
     #[account(mut)]
     pub funding_payment_history: Loader<'info, FundingPaymentHistory>,
+    #[account(mut)]
+    pub funding_rate_history: Loader<'info, FundingRateHistory>,
     pub oracle: AccountInfo<'info>,
 }
 
@@ -244,6 +249,8 @@ pub struct ClosePosition<'info> {
     pub trade_history: Loader<'info, TradeHistory>,
     #[account(mut)]
     pub funding_payment_history: Loader<'info, FundingPaymentHistory>,
+    #[account(mut)]
+    pub funding_rate_history: Loader<'info, FundingRateHistory>,
     pub oracle: AccountInfo<'info>,
 }
 
@@ -300,6 +307,8 @@ pub struct UpdateFundingRate<'info> {
     #[account(mut)]
     pub markets: Loader<'info, Markets>,
     pub oracle: AccountInfo<'info>,
+    #[account(mut)]
+    pub funding_rate_history: Loader<'info, FundingRateHistory>,
 }
 
 #[derive(Accounts)]
