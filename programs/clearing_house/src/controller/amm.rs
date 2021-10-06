@@ -1,7 +1,10 @@
 use crate::error::{ClearingHouseResult, ErrorCode};
-use crate::math::{amm, bn, constants::PRICE_TO_PEG_PRECISION_RATIO, quote_asset::*};
+use crate::math::constants::{
+    AMM_ASSET_AMOUNT_PRECISION, MARK_PRICE_MANTISSA, PRICE_TO_PEG_PRECISION_RATIO, USDC_PRECISION,
+};
+use crate::math::{amm, bn, position::*, quote_asset::*};
 use crate::math_error;
-use crate::state::market::AMM;
+use crate::state::market::{Market, AMM};
 use solana_program::msg;
 
 #[derive(Clone, Copy)]
@@ -122,4 +125,156 @@ pub fn move_to_price(amm: &mut AMM, target_price: u128) -> ClearingHouseResult {
     amm.quote_asset_reserve = new_quote_asset_amount.try_to_u128()?;
 
     Ok(())
+}
+
+pub fn adjust_k(market: &mut Market, new_sqrt_k: bn::U256) {
+    // price is fixed, change k in market (preventive cost checks)
+    let (cur_net_value, _) =
+        _calculate_base_asset_value_and_pnl(market.base_asset_amount, 0, &market.amm).unwrap();
+
+    let k_mult = new_sqrt_k
+        .checked_mul(bn::U256::from(MARK_PRICE_MANTISSA))
+        .unwrap()
+        .checked_div(bn::U256::from(market.amm.sqrt_k))
+        .unwrap();
+
+    market.amm.sqrt_k = new_sqrt_k.try_to_u128().unwrap();
+    market.amm.base_asset_reserve = bn::U256::from(market.amm.base_asset_reserve)
+        .checked_mul(k_mult)
+        .unwrap()
+        .checked_div(bn::U256::from(MARK_PRICE_MANTISSA))
+        .unwrap()
+        .try_to_u128()
+        .unwrap();
+    market.amm.quote_asset_reserve = bn::U256::from(market.amm.quote_asset_reserve)
+        .checked_mul(k_mult)
+        .unwrap()
+        .checked_div(bn::U256::from(MARK_PRICE_MANTISSA))
+        .unwrap()
+        .try_to_u128()
+        .unwrap();
+
+    let (new_net_value, cost) =
+        _calculate_base_asset_value_and_pnl(market.base_asset_amount, cur_net_value, &market.amm)
+            .unwrap();
+
+    if cost > 0 && cost.unsigned_abs() > market.amm.cumulative_fee_realized {
+        msg!("new_net_value: {:?}", new_net_value);
+        msg!("cur_net_value: {:?}", cur_net_value);
+        msg!("net_user_pnl_delta: {:?}", cost);
+        assert_eq!(cost, 0); //todo
+    }
+
+    if cost > 0 {
+        market.amm.cumulative_fee_realized = market
+            .amm
+            .cumulative_fee_realized
+            .checked_sub(cost.unsigned_abs())
+            .unwrap();
+    } else {
+        market.amm.cumulative_fee_realized = market
+            .amm
+            .cumulative_fee_realized
+            .checked_add(cost.unsigned_abs())
+            .unwrap();
+    }
+}
+
+pub fn calculate_cost_of_k(market: &mut Market, new_sqrt_k: bn::U256) -> i128 {
+    // RESEARCH ONLY - mimic paper's alternative formula
+    let p = bn::U256::from(market.amm.sqrt_k)
+        .checked_mul(bn::U256::from(AMM_ASSET_AMOUNT_PRECISION))
+        .unwrap()
+        .checked_div(new_sqrt_k)
+        .unwrap();
+
+    let net_market_position = market.base_asset_amount;
+
+    let net_market_position_sign = if net_market_position > 0 { 1 } else { -1 };
+
+    let cost_numer_1_mantissa = p;
+
+    let mut cost_denom_1 = p
+        .checked_mul(bn::U256::from(market.amm.base_asset_reserve))
+        .unwrap()
+        .checked_div(bn::U256::from(AMM_ASSET_AMOUNT_PRECISION))
+        .unwrap();
+
+    if net_market_position > 0 {
+        cost_denom_1
+            .checked_add(bn::U256::from(net_market_position.unsigned_abs()))
+            .unwrap();
+    } else {
+        cost_denom_1
+            .checked_sub(bn::U256::from(net_market_position.unsigned_abs()))
+            .unwrap();
+    }
+
+    let cost_numer_2_mantissa = bn::U256::from(AMM_ASSET_AMOUNT_PRECISION);
+
+    // same as amm.sqrt_k
+    let cost_denom_2;
+
+    if net_market_position > 0 {
+        cost_denom_2 = bn::U256::from(market.amm.base_asset_reserve)
+            .checked_add(bn::U256::from(net_market_position.unsigned_abs()))
+            .unwrap();
+    } else {
+        cost_denom_2 = bn::U256::from(market.amm.base_asset_reserve)
+            .checked_sub(bn::U256::from(net_market_position.unsigned_abs()))
+            .unwrap();
+    }
+
+    let cost_scalar = bn::U256::from(net_market_position.unsigned_abs())
+        .checked_mul(bn::U256::from(market.amm.quote_asset_reserve))
+        .unwrap();
+
+    let cost_1 = cost_numer_1_mantissa
+        .checked_mul(cost_scalar)
+        .unwrap()
+        .checked_div(cost_denom_1)
+        .unwrap()
+        .try_to_u128()
+        .unwrap();
+
+    let cost_2 = cost_numer_2_mantissa
+        .checked_mul(cost_scalar)
+        .unwrap()
+        .checked_div(cost_denom_2)
+        .unwrap()
+        .try_to_u128()
+        .unwrap();
+
+    let cost = (cost_1 as i128)
+        .checked_sub(cost_2 as i128)
+        .unwrap()
+        .checked_mul(net_market_position_sign)
+        .unwrap()
+        .checked_div(AMM_ASSET_AMOUNT_PRECISION as i128)
+        .unwrap()
+        .checked_div(
+            AMM_ASSET_AMOUNT_PRECISION
+                .checked_div(USDC_PRECISION)
+                .unwrap() as i128,
+        )
+        .unwrap();
+
+    if (cost > market.amm.cumulative_fee_realized as i128) {
+        //todo throw an error
+        msg!("{:?} - {:?}", cost_1, cost_2);
+        msg!(
+            "moving k cost too high: {:?} vs {:?}",
+            cost,
+            market.amm.cumulative_fee_realized
+        );
+        msg!(
+            "{:?} -> {:?} (p={:?})",
+            market.amm.sqrt_k,
+            new_sqrt_k.try_to_u128().unwrap(),
+            p.try_to_u128().unwrap()
+        );
+        // assert_eq!(cost, 0);
+    }
+
+    return cost;
 }

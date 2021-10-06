@@ -122,7 +122,7 @@ pub fn repeg(
             }
         }
 
-        controller::amm::move_to_price(amm, current_mark)?;
+        controller::amm::move_to_price(amm, current_mark);
     }
 
     amm.cumulative_fee_realized = pnl_r;

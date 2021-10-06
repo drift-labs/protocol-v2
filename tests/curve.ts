@@ -121,7 +121,7 @@ describe('AMM Curve', () => {
 	});
 
 	it('After Position Price Moves', async () => {
-		const _priceIncreaseFactor = new BN(2);
+		// const _priceIncreaseFactor = new BN(2);
 		await clearingHouse.moveAmmToPrice(
 			marketIndex,
 			new BN(initialSOLPrice * AMM_MANTISSA.toNumber() * 1.0001)
@@ -145,4 +145,12 @@ describe('AMM Curve', () => {
 
 		showBook(marketIndex);
 	});
+	it('Repeg Curve with Fees', async () => {
+		const tx = clearingHouse.repegAmmCurve(
+			new BN(0),
+			new BN(0),
+		);
+
+		showBook(marketIndex);
+	});	
 });
