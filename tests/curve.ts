@@ -2,16 +2,19 @@ import * as anchor from '@project-serum/anchor';
 import { Program } from '@project-serum/anchor';
 import { Keypair } from '@solana/web3.js';
 import BN from 'bn.js';
+import { stripBaseAssetPrecision } from '../sdk/lib';
 import {
 	AMM_MANTISSA,
 	PEG_SCALAR,
+	USDC_PRECISION,
 	ClearingHouse,
 	PositionDirection,
 	stripMantissa,
 } from '../sdk/src';
+import { assert } from '../sdk/src/assert/assert';
 import { UserAccount } from '../sdk/src/userAccount';
 import { mockUSDCMint, mockUserUSDCAccount } from '../utils/mockAccounts';
-import { createPriceFeed } from '../utils/mockPythUtils';
+import { createPriceFeed, setFeedPrice } from '../utils/mockPythUtils';
 
 describe('AMM Curve', () => {
 	const provider = anchor.Provider.local();
@@ -25,8 +28,8 @@ describe('AMM Curve', () => {
 		chProgram.programId
 	);
 
-	const ammInitialQuoteAssetAmount = new anchor.BN(10 ** 13);
-	const ammInitialBaseAssetAmount = new anchor.BN(10 ** 13);
+	const ammInitialQuoteAssetAmount = (new anchor.BN(10 ** 8)).mul(new BN(10 ** 10));
+	const ammInitialBaseAssetAmount = (new anchor.BN(10 ** 8)).mul(new BN(10 ** 10));
 
 	let usdcMint: Keypair;
 	let userUSDCAccount: Keypair;
@@ -35,7 +38,7 @@ describe('AMM Curve', () => {
 	const marketIndex = new BN(0);
 	const initialSOLPrice = 150;
 
-	const usdcAmount = new BN(100 * 10 ** 6);
+	const usdcAmount = new BN(1e9 * 10 ** 6);
 	const solPositionInitialValue = usdcAmount.div(new BN(10));
 
 	let userAccount: UserAccount;
@@ -71,6 +74,25 @@ describe('AMM Curve', () => {
 		await clearingHouse.unsubscribe();
 		await userAccount.unsubscribe();
 	});
+
+	const showCurve = (marketIndex) => {
+		const marketsAccount = clearingHouse.getMarketsAccount();
+		const marketData = marketsAccount.markets[marketIndex.toNumber()];
+		const ammAccountState = marketData.amm;
+
+		ammAccountState.pegMultiplier;
+		
+		console.log('baseAssetAmountShort', stripBaseAssetPrecision(marketData.baseAssetAmountShort),
+					'baseAssetAmountLong', stripBaseAssetPrecision(marketData.baseAssetAmountLong)
+		);
+
+		console.log('pegMultiplier', stripMantissa(ammAccountState.pegMultiplier, PEG_SCALAR));
+		console.log('cumulativeRepegRebateShort', stripMantissa(ammAccountState.cumulativeRepegRebateShort, USDC_PRECISION));
+		console.log('cumulativeRepegRebateLong', stripMantissa(ammAccountState.cumulativeRepegRebateLong, USDC_PRECISION));
+
+		console.log('cumFee', stripMantissa(ammAccountState.cumulativeFee, USDC_PRECISION));
+		console.log('cumFeeReal', stripMantissa(ammAccountState.cumulativeFeeRealized, USDC_PRECISION));
+	};
 
 	const showBook = (marketIndex) => {
 		const market =
@@ -145,12 +167,111 @@ describe('AMM Curve', () => {
 
 		showBook(marketIndex);
 	});
-	it('Repeg Curve with Fees', async () => {
-		const tx = clearingHouse.repegAmmCurve(
-			new BN(0),
-			new BN(0),
+
+	it('Repeg Curve LONG', async () => {
+		let marketsAccount = clearingHouse.getMarketsAccount();
+		let marketData = marketsAccount.markets[marketIndex.toNumber()];
+		let ammAccountState = marketData.amm;
+		const feeDist1 = 
+		marketData.amm.cumulativeFeeRealized.add(userAccount.getTotalCollateral());
+		console.log(stripMantissa(usdcAmount, USDC_PRECISION),
+		
+		stripMantissa(feeDist1, USDC_PRECISION));
+
+		await setFeedPrice(
+			anchor.workspace.Pyth,
+			155,
+			solUsdOracle
+		);
+		showCurve(marketIndex);
+
+		await clearingHouse.openPosition(
+			await userAccount.getPublicKey(),
+			PositionDirection.LONG,
+			USDC_PRECISION.mul(new BN(10)),
+			marketIndex
 		);
 
+		marketsAccount = clearingHouse.getMarketsAccount();
+		marketData = marketsAccount.markets[marketIndex.toNumber()];
+		ammAccountState = marketData.amm;
+		assert(ammAccountState.cumulativeFee.eq(ammAccountState.cumulativeFeeRealized));
+		
+		const feeDist11h= marketData.amm.cumulativeFeeRealized.add(userAccount.getTotalCollateral());
+		console.log(stripMantissa(usdcAmount, USDC_PRECISION),
+		
+		stripMantissa(feeDist11h, USDC_PRECISION));
 		showBook(marketIndex);
+
+		await clearingHouse.repegAmmCurve(
+			new BN(0),
+			marketIndex,
+		);
+
+		console.log('\n post repeg: \n --------');
+		showCurve(marketIndex);
+		showBook(marketIndex);
+
+		marketsAccount = clearingHouse.getMarketsAccount();
+		marketData = marketsAccount.markets[marketIndex.toNumber()];
+		ammAccountState = marketData.amm;
+		assert(ammAccountState.cumulativeFee.gt(ammAccountState.cumulativeFeeRealized));
+
+		marketsAccount = clearingHouse.getMarketsAccount();
+		marketData = marketsAccount.markets[marketIndex.toNumber()];
+		ammAccountState = marketData.amm;
+		const feeDist1h= marketData.amm.cumulativeFeeRealized.add(userAccount.getTotalCollateral());
+		console.log(stripMantissa(usdcAmount, USDC_PRECISION),
+		
+		stripMantissa(feeDist1h, USDC_PRECISION));
+
+		await clearingHouse.closePosition(
+			await userAccount.getPublicKey(),
+			marketIndex,
+		);
+
+		showCurve(marketIndex);
+		marketsAccount = clearingHouse.getMarketsAccount();
+		marketData = marketsAccount.markets[marketIndex.toNumber()];
+		ammAccountState = marketData.amm;
+
+
+
+		const feeDist2 = marketData.amm.cumulativeFeeRealized.add(userAccount.getTotalCollateral());
+		console.log(stripMantissa(usdcAmount, USDC_PRECISION),
+		
+		stripMantissa(feeDist2, USDC_PRECISION));
+		// assert(usdcAmount.eq(feeDist2));
+	});	
+
+	it('Repeg Curve SHORT', async () => {
+		await setFeedPrice(
+			anchor.workspace.Pyth,
+			145,
+			solUsdOracle
+		);
+		showCurve(marketIndex);
+
+		await clearingHouse.openPosition(
+			await userAccount.getPublicKey(),
+			PositionDirection.SHORT,
+			USDC_PRECISION,
+			marketIndex
+		);
+
+		// const marketsAccount = clearingHouse.getMarketsAccount();
+		// const marketData = marketsAccount.markets[marketIndex.toNumber()];
+		await clearingHouse.repegAmmCurve(
+			new BN(0),
+			marketIndex,
+		);
+
+		console.log('\n post repeg: \n --------');
+		showCurve(marketIndex);
+
+		await clearingHouse.closePosition(
+			await userAccount.getPublicKey(),
+			marketIndex,
+		);
 	});	
 });
