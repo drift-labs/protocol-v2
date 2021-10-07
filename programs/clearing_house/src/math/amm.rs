@@ -2,8 +2,8 @@ use crate::controller::amm::SwapDirection;
 use crate::error::*;
 use crate::math::bn::U256;
 use crate::math::constants::{
-    AMM_ASSET_AMOUNT_PRECISION, MARK_PRICE_MANTISSA, PEG_PRECISION, PRICE_TO_PEG_PRECISION_RATIO,
-    USDC_PRECISION,
+    AMM_ASSET_AMOUNT_PRECISION, MARGIN_MANTISSA, MARK_PRICE_MANTISSA, PEG_PRECISION,
+    PRICE_TO_PEG_PRECISION_RATIO, USDC_PRECISION,
 };
 use crate::math_error;
 use crate::state::market::AMM;
@@ -101,4 +101,34 @@ pub fn calculate_oracle_mark_spread(
         .ok_or_else(math_error!())?;
 
     Ok(price_spread)
+}
+
+pub fn is_oracle_mark_limit(
+    amm: &AMM,
+    price_oracle: &AccountInfo,
+    window: u32,
+) -> ClearingHouseResult<bool> {
+    let mark_price: i128;
+    if window > 0 {
+        mark_price = amm.last_mark_price_twap as i128;
+    } else {
+        mark_price = amm.mark_price()? as i128;
+    }
+
+    let (oracle_price, _oracle_conf) = amm.get_oracle_price(price_oracle, window)?;
+
+    let price_spread = mark_price
+        .checked_sub(oracle_price)
+        .ok_or_else(math_error!())?;
+
+    let price_spread_pct = price_spread
+        .checked_mul(MARGIN_MANTISSA as i128)
+        .ok_or_else(math_error!())?
+        .checked_div(oracle_price)
+        .ok_or_else(math_error!())?;
+
+    let ten_percent_limit = MARGIN_MANTISSA.checked_div(10).ok_or_else(math_error!())?;
+    msg!("OM SPREAD LIMIT: {:?} - {:?} => {:?}",mark_price, 
+     oracle_price, price_spread_pct);
+    Ok(price_spread_pct.unsigned_abs() > ten_percent_limit)
 }

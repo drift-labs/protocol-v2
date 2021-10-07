@@ -12,6 +12,9 @@ import {
 	ClearingHouse,
 	UserAccount,
 	PositionDirection,
+	BASE_ASSET_PRECISION,
+	stripMantissa,
+	USDC_PRECISION,
 } from '../sdk/src';
 
 import Markets from '../sdk/src/constants/markets';
@@ -20,12 +23,9 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	mintToInsuranceFund,
+	mockOracle,
 } from '../utils/mockAccounts';
-import {
-	BASE_ASSET_PRECISION,
-	stripMantissa,
-	USDC_PRECISION,
-} from '../sdk/lib';
+import { getFeedData, setFeedPrice } from '../utils/mockPythUtils';
 
 describe('clearing_house', () => {
 	const provider = anchor.Provider.local();
@@ -109,12 +109,12 @@ describe('clearing_house', () => {
 	});
 
 	it('Initialize Market', async () => {
-		const solUsd = anchor.web3.Keypair.generate();
+		const solUsd = await mockOracle(1);
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await clearingHouse.initializeMarket(
 			Markets[0].marketIndex,
-			solUsd.publicKey,
+			solUsd,
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,
 			periodicity
@@ -128,7 +128,7 @@ describe('clearing_house', () => {
 		assert.ok(marketData.openInterest.eq(new BN(0)));
 
 		const ammData = marketData.amm;
-		assert.ok(ammData.oracle.equals(solUsd.publicKey));
+		assert.ok(ammData.oracle.equals(solUsd));
 		assert.ok(ammData.baseAssetReserve.eq(ammInitialBaseAssetAmount));
 		assert.ok(ammData.quoteAssetReserve.eq(ammInitialQuoteAssetAmount));
 		assert.ok(ammData.cumulativeFundingRate.eq(new BN(0)));
@@ -640,7 +640,7 @@ describe('clearing_house', () => {
 		assert.ok(tradeHistoryAccount.tradeRecords[5].recordId.eq(new BN(6)));
 		assert.ok(
 			JSON.stringify(tradeHistoryAccount.tradeRecords[5].direction) ===
-			JSON.stringify(PositionDirection.LONG)
+				JSON.stringify(PositionDirection.LONG)
 		);
 		assert.ok(
 			tradeHistoryAccount.tradeRecords[5].baseAssetAmount.eq(
@@ -662,10 +662,14 @@ describe('clearing_house', () => {
 		assert.ok(liquidationHistory.liquidationRecords[0].partial);
 
 		assert.ok(
-			liquidationHistory.liquidationRecords[0].baseAssetValue.eq(new BN(56865377))
+			liquidationHistory.liquidationRecords[0].baseAssetValue.eq(
+				new BN(56865377)
+			)
 		);
 		assert.ok(
-			liquidationHistory.liquidationRecords[0].baseAssetValueClosed.eq(new BN(14216344))
+			liquidationHistory.liquidationRecords[0].baseAssetValueClosed.eq(
+				new BN(14216344)
+			)
 		);
 		assert.ok(
 			liquidationHistory.liquidationRecords[0].liquidationFee.eq(new BN(78115))
@@ -674,19 +678,27 @@ describe('clearing_house', () => {
 			liquidationHistory.liquidationRecords[0].feeToLiquidator.eq(new BN(39057))
 		);
 		assert.ok(
-			liquidationHistory.liquidationRecords[0].feeToInsuranceFund.eq(new BN(39058))
+			liquidationHistory.liquidationRecords[0].feeToInsuranceFund.eq(
+				new BN(39058)
+			)
 		);
 		assert.ok(
-			liquidationHistory.liquidationRecords[0].liquidator.equals(provider.wallet.publicKey)
+			liquidationHistory.liquidationRecords[0].liquidator.equals(
+				provider.wallet.publicKey
+			)
 		);
 		assert.ok(
-			liquidationHistory.liquidationRecords[0].totalCollateral.eq(new BN(3124623))
+			liquidationHistory.liquidationRecords[0].totalCollateral.eq(
+				new BN(3124623)
+			)
 		);
 		assert.ok(
 			liquidationHistory.liquidationRecords[0].collateral.eq(new BN(9990000))
 		);
 		assert.ok(
-			liquidationHistory.liquidationRecords[0].unrealizedPnl.eq(new BN(-6865377))
+			liquidationHistory.liquidationRecords[0].unrealizedPnl.eq(
+				new BN(-6865377)
+			)
 		);
 		assert.ok(
 			liquidationHistory.liquidationRecords[0].marginRatio.eq(new BN(549))
@@ -757,7 +769,7 @@ describe('clearing_house', () => {
 		assert.ok(tradeHistoryAccount.tradeRecords[6].recordId.eq(new BN(7)));
 		assert.ok(
 			JSON.stringify(tradeHistoryAccount.tradeRecords[6].direction) ===
-			JSON.stringify(PositionDirection.LONG)
+				JSON.stringify(PositionDirection.LONG)
 		);
 		assert.ok(
 			tradeHistoryAccount.tradeRecords[6].baseAssetAmount.eq(
@@ -778,31 +790,47 @@ describe('clearing_house', () => {
 		assert.ok(liquidationHistory.liquidationRecords[1].recordId.eq(new BN(2)));
 		assert.ok(!liquidationHistory.liquidationRecords[1].partial);
 		assert.ok(
-			liquidationHistory.liquidationRecords[1].baseAssetValue.eq(new BN(43561760))
+			liquidationHistory.liquidationRecords[1].baseAssetValue.eq(
+				new BN(43561760)
+			)
 		);
 		assert.ok(
-			liquidationHistory.liquidationRecords[1].baseAssetValueClosed.eq(new BN(43561760))
+			liquidationHistory.liquidationRecords[1].baseAssetValueClosed.eq(
+				new BN(43561760)
+			)
 		);
 		assert.ok(
-			liquidationHistory.liquidationRecords[1].liquidationFee.eq(new BN(2133782))
+			liquidationHistory.liquidationRecords[1].liquidationFee.eq(
+				new BN(2133782)
+			)
 		);
 		assert.ok(
-			liquidationHistory.liquidationRecords[1].feeToLiquidator.eq(new BN(106689))
+			liquidationHistory.liquidationRecords[1].feeToLiquidator.eq(
+				new BN(106689)
+			)
 		);
 		assert.ok(
-			liquidationHistory.liquidationRecords[1].feeToInsuranceFund.eq(new BN(2027093))
+			liquidationHistory.liquidationRecords[1].feeToInsuranceFund.eq(
+				new BN(2027093)
+			)
 		);
 		assert.ok(
-			liquidationHistory.liquidationRecords[1].liquidator.equals(provider.wallet.publicKey)
+			liquidationHistory.liquidationRecords[1].liquidator.equals(
+				provider.wallet.publicKey
+			)
 		);
 		assert.ok(
-			liquidationHistory.liquidationRecords[1].totalCollateral.eq(new BN(2133782))
+			liquidationHistory.liquidationRecords[1].totalCollateral.eq(
+				new BN(2133782)
+			)
 		);
 		assert.ok(
 			liquidationHistory.liquidationRecords[1].collateral.eq(new BN(8195541))
 		);
 		assert.ok(
-			liquidationHistory.liquidationRecords[1].unrealizedPnl.eq(new BN(-6061759))
+			liquidationHistory.liquidationRecords[1].unrealizedPnl.eq(
+				new BN(-6061759)
+			)
 		);
 		assert.ok(
 			liquidationHistory.liquidationRecords[1].marginRatio.eq(new BN(489))
@@ -811,6 +839,9 @@ describe('clearing_house', () => {
 
 	it('Pay from insurance fund', async () => {
 		const state: any = clearingHouse.getState();
+		const marketsAccount: any = clearingHouse.getMarketsAccount();
+		const marketData = marketsAccount.markets[0];
+
 		mintToInsuranceFund(state.insuranceVault, usdcMint, usdcAmount, provider);
 		let userUSDCTokenAccount = await getTokenAccount(
 			provider,
@@ -834,6 +865,7 @@ describe('clearing_house', () => {
 			userUSDCAccount.publicKey
 		);
 
+		await setFeedPrice(anchor.workspace.Pyth, 1.11, marketData.amm.oracle);
 		const newUSDCNotionalAmount = initialUserUSDCAmount.mul(new BN(5));
 		await clearingHouse.openPosition(
 			userAccountPublicKey,
@@ -842,6 +874,7 @@ describe('clearing_house', () => {
 			new BN(0)
 		);
 
+		await setFeedPrice(anchor.workspace.Pyth, 1000, marketData.amm.oracle);
 		// Send the price to the moon so that user has huge pnl
 		await clearingHouse.moveAmmPrice(
 			ammInitialBaseAssetAmount.div(new BN(1000)),
@@ -881,6 +914,13 @@ describe('clearing_house', () => {
 			state.insuranceVault
 		);
 		assert(chInsuranceAccountToken.amount.eq(new BN(0)));
+
+		await setFeedPrice(anchor.workspace.Pyth, 1, marketData.amm.oracle);
+		await clearingHouse.moveAmmPrice(
+			ammInitialBaseAssetAmount,
+			ammInitialQuoteAssetAmount,
+			new BN(0)
+		);
 	});
 
 	it('Trade small size position', async () => {

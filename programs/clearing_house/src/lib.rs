@@ -336,6 +336,7 @@ pub mod clearing_house {
             mark_price_before = market.amm.mark_price()?;
         }
         let mut potentially_risk_increasing = true;
+        let mut is_oracle_mark_limit = false;
 
         if market_position.base_asset_amount == 0
             || market_position.base_asset_amount > 0 && direction == PositionDirection::Long
@@ -351,6 +352,9 @@ pub mod clearing_house {
                 market_position,
                 now,
             )?;
+
+            let price_oracle = &ctx.accounts.oracle;
+            is_oracle_mark_limit = amm::is_oracle_mark_limit(&market.amm, price_oracle, 0).unwrap();
         } else {
             let market = &mut ctx.accounts.markets.load_mut()?.markets
                 [Markets::index_from_u64(market_index)];
@@ -442,10 +446,15 @@ pub mod clearing_house {
             _base_asset_value_after,
             margin_ratio_after,
         ) = calculate_margin_ratio(user, user_positions, &ctx.accounts.markets.load()?)?;
+
         if margin_ratio_after < ctx.accounts.state.margin_ratio_initial
             && potentially_risk_increasing
         {
             return Err(ErrorCode::InsufficientCollateral.into());
+        }
+
+        if is_oracle_mark_limit && potentially_risk_increasing {
+            return Err(ErrorCode::OracleMarkSpreadLimit.into());
         }
 
         let trade_history_account = &mut ctx.accounts.trade_history.load_mut()?;

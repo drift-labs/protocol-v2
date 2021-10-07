@@ -50,6 +50,8 @@ pub enum ErrorCode {
     ClockUnavailable,
     #[msg("Unable To Load Oracles")]
     UnableToLoadOracle,
+    #[msg("Oracle/Mark Spread Too Large")]
+    OracleMarkSpreadLimit,
 }
 
 #[macro_export]
