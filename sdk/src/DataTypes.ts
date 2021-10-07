@@ -23,6 +23,7 @@ export type UserAccountData = {
 
 export type ClearingHouseState = {
 	admin: PublicKey;
+	exchangePaused: boolean;
 	adminControlsPrices: boolean;
 	collateralVault: PublicKey;
 	collateralVaultAuthority: PublicKey;

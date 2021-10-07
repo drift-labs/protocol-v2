@@ -53,6 +53,7 @@ pub mod clearing_house {
 
         **ctx.accounts.state = State {
             admin: *ctx.accounts.admin.key,
+            exchange_paused: false,
             admin_controls_prices,
             collateral_mint: *ctx.accounts.collateral_mint.to_account_info().key,
             collateral_vault: *collateral_account_key,
@@ -253,6 +254,9 @@ pub mod clearing_house {
         Ok(())
     }
 
+    #[access_control(
+        exchange_not_paused(&ctx.accounts.state)
+    )]
     pub fn withdraw_collateral(ctx: Context<WithdrawCollateral>, amount: u64) -> ProgramResult {
         let user = &mut ctx.accounts.user;
         let clock = Clock::get()?;
@@ -345,7 +349,8 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        market_initialized(&ctx.accounts.markets, market_index)
+        market_initialized(&ctx.accounts.markets, market_index) &&
+        exchange_not_paused(&ctx.accounts.state)
     )]
     pub fn open_position<'info>(
         ctx: Context<OpenPosition>,
@@ -597,7 +602,8 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        market_initialized(&ctx.accounts.markets, market_index)
+        market_initialized(&ctx.accounts.markets, market_index) &&
+        exchange_not_paused(&ctx.accounts.state)
     )]
     pub fn close_position(ctx: Context<ClosePosition>, market_index: u64) -> ProgramResult {
         let user = &mut ctx.accounts.user;
@@ -697,6 +703,9 @@ pub mod clearing_house {
         Ok(())
     }
 
+    #[access_control(
+        exchange_not_paused(&ctx.accounts.state)
+    )]
     pub fn liquidate(ctx: Context<Liquidate>) -> ProgramResult {
         let state = &ctx.accounts.state;
         let user = &mut ctx.accounts.user;
@@ -924,7 +933,8 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        market_initialized(&ctx.accounts.markets, market_index)
+        market_initialized(&ctx.accounts.markets, market_index) &&
+        exchange_not_paused(&ctx.accounts.state)
     )]
     pub fn move_amm_price(
         ctx: Context<MoveAMMPrice>,
@@ -987,7 +997,8 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        market_initialized(&ctx.accounts.markets, market_index)
+        market_initialized(&ctx.accounts.markets, market_index) &&
+        exchange_not_paused(&ctx.accounts.state)
     )]
     pub fn repeg_amm_curve(
         ctx: Context<RepegCurve>,
@@ -1052,6 +1063,9 @@ pub mod clearing_house {
         Ok(())
     }
 
+    #[access_control(
+        exchange_not_paused(&ctx.accounts.state)
+    )]
     pub fn settle_funding_payment(ctx: Context<SettleFunding>) -> ProgramResult {
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
@@ -1066,7 +1080,8 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        market_initialized(&ctx.accounts.markets, market_index)
+        market_initialized(&ctx.accounts.markets, market_index) &&
+        exchange_not_paused(&ctx.accounts.state)
     )]
     pub fn update_funding_rate(
         ctx: Context<UpdateFundingRate>,
@@ -1091,7 +1106,8 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        market_initialized(&ctx.accounts.markets, market_index)
+        market_initialized(&ctx.accounts.markets, market_index) &&
+        exchange_not_paused(&ctx.accounts.state)
     )]
     pub fn update_k(
         ctx: Context<AdminUpdateK>,
@@ -1256,11 +1272,26 @@ pub mod clearing_house {
         ctx.accounts.state.admin = admin;
         Ok(())
     }
+
+    pub fn update_exchange_paused(
+        ctx: Context<AdminUpdateState>,
+        exchange_paused: bool,
+    ) -> ProgramResult {
+        ctx.accounts.state.exchange_paused = exchange_paused;
+        Ok(())
+    }
 }
 
 fn market_initialized(markets: &Loader<Markets>, market_index: u64) -> Result<()> {
     if !markets.load()?.markets[Markets::index_from_u64(market_index)].initialized {
         return Err(ErrorCode::MarketIndexNotInitialized.into());
+    }
+    Ok(())
+}
+
+fn exchange_not_paused(state: &Box<Account<State>>) -> Result<()> {
+    if state.exchange_paused {
+        return Err(ErrorCode::ExchangePaused.into());
     }
     Ok(())
 }

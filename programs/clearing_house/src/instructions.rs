@@ -293,6 +293,7 @@ pub struct Liquidate<'info> {
 
 #[derive(Accounts)]
 pub struct SettleFunding<'info> {
+    pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub user: Box<Account<'info, User>>,
     pub markets: Loader<'info, Markets>,
@@ -307,6 +308,7 @@ pub struct SettleFunding<'info> {
 
 #[derive(Accounts)]
 pub struct UpdateFundingRate<'info> {
+    pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub markets: Loader<'info, Markets>,
     pub oracle: AccountInfo<'info>,

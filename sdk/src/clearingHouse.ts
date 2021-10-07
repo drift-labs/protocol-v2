@@ -920,6 +920,7 @@ export class ClearingHouse {
 
 		const tx = await this.program.rpc.updateFundingRate(marketIndex, {
 			accounts: {
+				state: await this.getStatePublicKey(),
 				markets: this.state.markets,
 				oracle: oracle,
 				fundingRateHistory: this.state.fundingRateHistory,
@@ -937,6 +938,7 @@ export class ClearingHouse {
 
 		return await this.program.rpc.settleFundingPayment({
 			accounts: {
+				state: await this.getStatePublicKey(),
 				markets: this.state.markets,
 				user: userAccount,
 				userPositions: userPositionsAccount,
@@ -1603,6 +1605,17 @@ export class ClearingHouse {
 		denominator: BN
 	): Promise<TransactionSignature> {
 		return await this.program.rpc.updateFee(numerator, denominator, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+			},
+		});
+	}
+
+	public async updateExchangePaused(
+		exchangePaused: boolean,
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateExchangePaused(exchangePaused, {
 			accounts: {
 				admin: this.wallet.publicKey,
 				state: await this.getStatePublicKey(),

@@ -54,6 +54,8 @@ pub enum ErrorCode {
     OracleMarkSpreadLimit,
     #[msg("Clearing House history already initialized")]
     HistoryAlreadyInitialized,
+    #[msg("Exchange is paused")]
+    ExchangePaused,
 }
 
 #[macro_export]
