@@ -648,7 +648,7 @@
         },
         {
           "name": "curveHistory",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         }
       ],

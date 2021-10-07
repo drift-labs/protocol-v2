@@ -326,6 +326,7 @@ pub struct RepegCurve<'info> {
     pub markets: Loader<'info, Markets>,
     pub oracle: AccountInfo<'info>,
     pub admin: Signer<'info>,
+    #[account(mut)]
     pub curve_history: Loader<'info, CurveHistory>,
 }
 
