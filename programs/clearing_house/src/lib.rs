@@ -934,7 +934,8 @@ pub mod clearing_house {
 
     #[access_control(
         market_initialized(&ctx.accounts.markets, market_index) &&
-        exchange_not_paused(&ctx.accounts.state)
+        exchange_not_paused(&ctx.accounts.state) &&
+        admin_controls_prices(&ctx.accounts.state)
     )]
     pub fn move_amm_price(
         ctx: Context<MoveAMMPrice>,
@@ -1292,6 +1293,13 @@ fn market_initialized(markets: &Loader<Markets>, market_index: u64) -> Result<()
 fn exchange_not_paused(state: &Box<Account<State>>) -> Result<()> {
     if state.exchange_paused {
         return Err(ErrorCode::ExchangePaused.into());
+    }
+    Ok(())
+}
+
+fn admin_controls_prices(state: &Box<Account<State>>) -> Result<()> {
+    if !state.admin_controls_prices {
+        return Err(ErrorCode::AdminControlsPricesDisabled.into());
     }
     Ok(())
 }
