@@ -1,4 +1,3 @@
-// import * as anchor from '@project-serum/anchor';
 import { Wallet } from '@project-serum/anchor';
 import BN from 'bn.js';
 import { ClearingHouse } from '../sdk';
@@ -21,11 +20,6 @@ async function main() {
 			)
 		)
 	);
-	// const provider = new Provider(
-	// 	connection,
-	// 	botWallet,
-	// 	Provider.defaultOptions()
-	// );
 	console.log(`Bot Public Key: ${botWallet.publicKey.toString()}`);
 
 	console.log('Requesting airdrop to bot');
