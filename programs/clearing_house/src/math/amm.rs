@@ -135,10 +135,14 @@ pub fn is_oracle_mark_limit(
     Ok(price_spread_pct.unsigned_abs() > ten_percent_limit)
 }
 
-pub fn is_oracle_valid(price_oracle: &AccountInfo, now: i64) -> ClearingHouseResult<bool> {
+pub fn is_oracle_valid(amm: &AMM, price_oracle: &AccountInfo, now: i64) -> ClearingHouseResult<bool> {
 
-    let is_stale = false;
+    let (oracle_price, oracle_conf, oracle_delay) = amm.get_oracle_price(price_oracle, 0, now)?;
+    let conf_size = (oracle_price as u128).checked_div(max(1, oracle_conf)).ok_or_else(math_error!())?;
+    let is_conf_too_large = conf_size.lt(&(4 as u128));
 
-    Ok(!is_stale)
+    let is_stale = oracle_delay.gt(&(30 as i64));
+
+    Ok(!(is_stale || is_conf_too_large))
 
 }
