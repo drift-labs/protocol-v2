@@ -93,7 +93,7 @@ pub fn update_funding_rate(
             .ok_or_else(math_error!())?;
         // funding period = 1 hour, window = 1 day
         // low periodicity => quickly updating/settled funding rates => lower funding rate payment per interval
-        let price_spread = amm::calculate_oracle_mark_spread(&market.amm, price_oracle, one_hour)?;
+        let price_spread = amm::calculate_oracle_mark_spread(&market.amm, price_oracle, one_hour, now)?;
         let funding_rate = price_spread
             .checked_mul(FUNDING_PAYMENT_MANTISSA as i128)
             .ok_or_else(math_error!())?

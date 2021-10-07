@@ -354,7 +354,7 @@ pub mod clearing_house {
             )?;
 
             let price_oracle = &ctx.accounts.oracle;
-            is_oracle_mark_limit = amm::is_oracle_mark_limit(&market.amm, price_oracle, 0).unwrap();
+            is_oracle_mark_limit = amm::is_oracle_mark_limit(&market.amm, price_oracle, 0, now).unwrap();
         } else {
             let market = &mut ctx.accounts.markets.load_mut()?.markets
                 [Markets::index_from_u64(market_index)];
@@ -855,6 +855,8 @@ pub mod clearing_house {
 
         let max_withdraw = state
             .fees_collected
+            .checked_mul(SHARE_OF_FEES_ALLOCATED_TO_REPEG_NUMERATOR)
+            .ok_or_else(math_error!())?
             .checked_div(SHARE_OF_FEES_ALLOCATED_TO_REPEG_DENOMINATOR)
             .ok_or_else(math_error!())?
             .checked_sub(state.fees_withdrawn)
@@ -907,8 +909,11 @@ pub mod clearing_house {
         let market =
             &mut ctx.accounts.markets.load_mut()?.markets[Markets::index_from_u64(market_index)];
         let price_oracle = &ctx.accounts.oracle;
+        
+        let clock = Clock::get()?;
+        let now = clock.unix_timestamp;
 
-        controller::repeg::repeg(market, price_oracle, new_peg_candidate)?;
+        controller::repeg::repeg(market, price_oracle, new_peg_candidate, now)?;
 
         Ok(())
     }

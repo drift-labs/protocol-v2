@@ -23,7 +23,6 @@ pub fn calculate_repeg_candidate_pnl(
 
     let peg_spread_direction: i128 = if peg_spread_1 > 0 { 1 } else { -1 };
     let market_position_bias_direction: i128 = if net_user_market_position > 0 { 1 } else { -1 };
-    msg!("PNL MAG 1");
 
     let pnl_mag = U256::from(
         peg_spread_1
@@ -39,7 +38,6 @@ pub fn calculate_repeg_candidate_pnl(
             .unwrap(), // 1e13/1e6 = 1e7
     ))
     .ok_or_else(math_error!())?;
-    msg!("PNL MAG");
 
     let pnl = (pnl_mag.try_to_u128()? as i128)
         .checked_mul(
@@ -104,13 +102,6 @@ pub fn find_valid_repeg(
             .checked_div(MARK_PRICE_MANTISSA as i128)
             .ok_or_else(math_error!())?;
 
-        msg!(
-            "{:?}: new_peg_candidate: {:?}, pnl: {:?}",
-            i,
-            new_peg_candidate,
-            pnl
-        );
-
         if pnl > 0 || pnl_usdc.unsigned_abs() < amm.cumulative_fee_realized {
             let cum_pnl_profit = (amm.cumulative_fee_realized as i128)
                 .checked_add(pnl_usdc)
@@ -119,6 +110,8 @@ pub fn find_valid_repeg(
             if cum_pnl_profit
                 >= amm
                     .cumulative_fee
+                    .checked_mul(SHARE_OF_FEES_ALLOCATED_TO_REPEG_NUMERATOR)
+                    .ok_or_else(math_error!())?
                     .checked_div(SHARE_OF_FEES_ALLOCATED_TO_REPEG_DENOMINATOR)
                     .ok_or_else(math_error!())? as i128
             {

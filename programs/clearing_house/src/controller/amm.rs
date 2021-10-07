@@ -159,9 +159,6 @@ pub fn adjust_k(market: &mut Market, new_sqrt_k: bn::U256) {
             .unwrap();
 
     if cost > 0 && cost.unsigned_abs() > market.amm.cumulative_fee_realized {
-        msg!("new_net_value: {:?}", new_net_value);
-        msg!("cur_net_value: {:?}", cur_net_value);
-        msg!("net_user_pnl_delta: {:?}", cost);
         assert_eq!(cost, 0); //todo
     }
 
@@ -259,7 +256,7 @@ pub fn calculate_cost_of_k(market: &mut Market, new_sqrt_k: bn::U256) -> i128 {
         )
         .unwrap();
 
-    if (cost > market.amm.cumulative_fee_realized as i128) {
+    if cost > market.amm.cumulative_fee_realized as i128 {
         //todo throw an error
         msg!("{:?} - {:?}", cost_1, cost_2);
         msg!(
@@ -273,7 +270,7 @@ pub fn calculate_cost_of_k(market: &mut Market, new_sqrt_k: bn::U256) -> i128 {
             new_sqrt_k.try_to_u128().unwrap(),
             p.try_to_u128().unwrap()
         );
-        // assert_eq!(cost, 0);
+        assert_eq!(cost, 0);
     }
 
     return cost;

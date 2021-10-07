@@ -19,15 +19,16 @@ pub fn repeg(
     market: &mut Market,
     price_oracle: &AccountInfo,
     new_peg_candidate: u128,
+    now: i64,
 ) -> ClearingHouseResult {
     let amm = market.amm;
-    // if new_peg_candidate == amm.peg_multiplier {
-    //     return Err(ErrorCode::InvalidRepegRedundant.into());
-    // }
+    if new_peg_candidate == amm.peg_multiplier {
+        return Err(ErrorCode::InvalidRepegRedundant.into());
+    }
 
     let mut new_peg_candidate = new_peg_candidate;
 
-    let (oracle_px, oracle_conf) = amm.get_oracle_price(price_oracle, 0)?;
+    let (oracle_px, oracle_conf, _oracle_delay) = amm.get_oracle_price(price_oracle, 0, now)?;
     let cur_peg = amm.peg_multiplier;
 
     let current_mark = amm.mark_price()?;
@@ -36,7 +37,6 @@ pub fn repeg(
     if new_peg_candidate == 0 {
         // try to find semi-opt solution
         new_peg_candidate = math::repeg::find_valid_repeg(&market, oracle_px, oracle_conf)?;
-        msg!("HIHIHIHI");
         if new_peg_candidate == amm.peg_multiplier {
             return Err(ErrorCode::InvalidRepegRedundant.into());
         }
@@ -62,29 +62,27 @@ pub fn repeg(
     let net_market_position = market.base_asset_amount;
 
     let amm_pnl_mantissa = math::repeg::calculate_repeg_candidate_pnl(market, new_peg_candidate)?;
-    let amm_pnl_usdc = amm_pnl_mantissa
+    let amm_pnl_quote_asset = amm_pnl_mantissa
         .unsigned_abs()
         .checked_div(MARK_PRICE_MANTISSA)
         .ok_or_else(math_error!())?;
 
     if net_market_position != 0 && amm_pnl_mantissa == 0 {
-        msg!("1 net market position: {:?}", net_market_position);
         return Err(ErrorCode::InvalidRepegProfitability.into());
     }
 
-    if amm_pnl_mantissa < 0 && amm_pnl_usdc == 0 {
-        msg!("2 pnl_mantissa: {:?}", amm_pnl_mantissa);
+    if amm_pnl_mantissa < 0 && amm_pnl_quote_asset == 0 {
         return Err(ErrorCode::InvalidRepegProfitability.into());
     }
 
     if amm_pnl_mantissa >= 0 {
-        pnl_r = pnl_r.checked_add(amm_pnl_usdc).ok_or_else(math_error!())?;
+        pnl_r = pnl_r.checked_add(amm_pnl_quote_asset).ok_or_else(math_error!())?;
         perserve_price = false;
-    } else if amm_pnl_usdc > pnl_r {
+    } else if amm_pnl_quote_asset > pnl_r {
         return Err(ErrorCode::InvalidRepegProfitability.into());
     } else {
         pnl_r = (pnl_r)
-            .checked_sub(amm_pnl_usdc)
+            .checked_sub(amm_pnl_quote_asset)
             .ok_or_else(math_error!())?;
         if pnl_r
             < amm
@@ -100,10 +98,6 @@ pub fn repeg(
         // profit sharing with only those who held the rewarded position before repeg
         if new_peg_candidate < amm.peg_multiplier {
             if market.base_asset_amount_short.unsigned_abs() > 0 {
-                msg!(
-                    "base_asset_amount_short: {:?}",
-                    market.base_asset_amount_short.unsigned_abs()
-                );
                 let repeg_profit_per_unit = bn::U256::from(amm_pnl_mantissa.unsigned_abs())
                     .checked_mul(bn::U256::from(AMM_ASSET_AMOUNT_PRECISION))
                     .ok_or_else(math_error!())?
@@ -120,10 +114,6 @@ pub fn repeg(
             }
         } else {
             if market.base_asset_amount_long.unsigned_abs() > 0 {
-                msg!(
-                    "base_asset_amount_long: {:?}",
-                    market.base_asset_amount_long.unsigned_abs()
-                );
                 let repeg_profit_per_unit = bn::U256::from(amm_pnl_mantissa.unsigned_abs())
                     .checked_mul(bn::U256::from(AMM_ASSET_AMOUNT_PRECISION))
                     .ok_or_else(math_error!())?

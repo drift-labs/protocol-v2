@@ -86,6 +86,7 @@ pub fn calculate_oracle_mark_spread(
     amm: &AMM,
     price_oracle: &AccountInfo,
     window: u32,
+    now: i64,
 ) -> ClearingHouseResult<i128> {
     let mark_price: i128;
     if window > 0 {
@@ -94,7 +95,7 @@ pub fn calculate_oracle_mark_spread(
         mark_price = amm.mark_price()? as i128;
     }
 
-    let (oracle_price, _oracle_conf) = amm.get_oracle_price(price_oracle, window)?;
+    let (oracle_price, _oracle_conf, _oracle_delay) = amm.get_oracle_price(price_oracle, window, now)?;
 
     let price_spread = mark_price
         .checked_sub(oracle_price)
@@ -107,6 +108,7 @@ pub fn is_oracle_mark_limit(
     amm: &AMM,
     price_oracle: &AccountInfo,
     window: u32,
+    now: i64,
 ) -> ClearingHouseResult<bool> {
     let mark_price: i128;
     if window > 0 {
@@ -115,7 +117,9 @@ pub fn is_oracle_mark_limit(
         mark_price = amm.mark_price()? as i128;
     }
 
-    let (oracle_price, _oracle_conf) = amm.get_oracle_price(price_oracle, window)?;
+    let (oracle_price, 
+        _oracle_conf, 
+        _oracle_delay) = amm.get_oracle_price(price_oracle, window, now)?;
 
     let price_spread = mark_price
         .checked_sub(oracle_price)
@@ -128,7 +132,13 @@ pub fn is_oracle_mark_limit(
         .ok_or_else(math_error!())?;
 
     let ten_percent_limit = MARGIN_MANTISSA.checked_div(10).ok_or_else(math_error!())?;
-    msg!("OM SPREAD LIMIT: {:?} - {:?} => {:?}",mark_price, 
-     oracle_price, price_spread_pct);
     Ok(price_spread_pct.unsigned_abs() > ten_percent_limit)
+}
+
+pub fn is_oracle_valid(price_oracle: &AccountInfo, now: i64) -> ClearingHouseResult<bool> {
+
+    let is_stale = false;
+
+    Ok(!is_stale)
+
 }

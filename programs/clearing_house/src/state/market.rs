@@ -85,7 +85,8 @@ impl AMM {
         &self,
         price_oracle: &AccountInfo,
         window: u32,
-    ) -> ClearingHouseResult<(i128, u128)> {
+        now: i64,
+    ) -> ClearingHouseResult<(i128, u128, i64)> {
         let pyth_price_data = price_oracle
             .try_borrow_data()
             .or(Err(ErrorCode::UnableToLoadOracle.into()))?;
@@ -129,18 +130,23 @@ impl AMM {
             .checked_div(oracle_scale_div)
             .ok_or_else(math_error!())?;
 
-        return Ok((oracle_price_scaled, oracle_conf_scaled));
+        let oracle_delay = (now as i64)
+        .checked_sub(price_data.valid_slot as i64)
+        .ok_or_else(math_error!())?;
+
+        return Ok((oracle_price_scaled, oracle_conf_scaled, oracle_delay));
     }
 
     pub fn get_oracle_price(
         &self,
         price_oracle: &AccountInfo,
         window: u32,
-    ) -> ClearingHouseResult<(i128, u128)> {
-        let (oracle_px, oracle_conf) = match self.oracle_source {
-            OracleSource::Pyth => self.get_pyth_price(price_oracle, window)?,
-            OracleSource::Switchboard => (0, 0),
+        now: i64,
+    ) -> ClearingHouseResult<(i128, u128, i64)> {
+        let (oracle_px, oracle_conf, oracle_delay) = match self.oracle_source {
+            OracleSource::Pyth => self.get_pyth_price(price_oracle, window, now)?,
+            OracleSource::Switchboard => (0, 0, 0),
         };
-        return Ok((oracle_px, oracle_conf));
+        return Ok((oracle_px, oracle_conf, oracle_delay));
     }
 }
