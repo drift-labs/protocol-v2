@@ -51,7 +51,6 @@ export type ClearingHouseState = {
 	fullLiquidationLiquidatorShareDenominator: BN;
 	feeNumerator: BN;
 	feeDenominator: BN;
-	maxDeposit: BN;
 };
 
 export type ClearingHouseMarketsAccountData = {

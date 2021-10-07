@@ -36,5 +36,4 @@ pub struct State {
     pub collateral_deposits: u128,
     pub fees_collected: u128,
     pub fees_withdrawn: u128,
-    pub max_deposit: u128,
 }
