@@ -56,6 +56,8 @@ pub enum ErrorCode {
     HistoryAlreadyInitialized,
     #[msg("Exchange is paused")]
     ExchangePaused,
+    #[msg("Can not deposit more than max deposit")]
+    UserMaxDeposit,
 }
 
 #[macro_export]

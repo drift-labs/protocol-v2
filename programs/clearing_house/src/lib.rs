@@ -85,6 +85,7 @@ pub mod clearing_house {
             collateral_deposits: 0,
             fees_collected: 0,
             fees_withdrawn: 0,
+            max_deposit: 0,
         };
 
         return Ok(());
@@ -250,6 +251,12 @@ pub mod clearing_house {
             cumulative_deposits_before,
             amount,
         });
+
+        if ctx.accounts.state.max_deposit > 0
+            && user.cumulative_deposits > ctx.accounts.state.max_deposit as i128
+        {
+            return Err(ErrorCode::UserMaxDeposit.into());
+        }
 
         Ok(())
     }
@@ -1271,6 +1278,11 @@ pub mod clearing_house {
 
     pub fn update_admin(ctx: Context<AdminUpdateState>, admin: Pubkey) -> ProgramResult {
         ctx.accounts.state.admin = admin;
+        Ok(())
+    }
+
+    pub fn update_max_deposit(ctx: Context<AdminUpdateState>, max_deposit: u128) -> ProgramResult {
+        ctx.accounts.state.max_deposit = max_deposit;
         Ok(())
     }
 

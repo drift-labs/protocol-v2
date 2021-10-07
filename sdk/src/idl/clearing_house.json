@@ -998,6 +998,27 @@
       ]
     },
     {
+      "name": "updateMaxDeposit",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "maxDeposit",
+          "type": "u128"
+        }
+      ]
+    },
+    {
       "name": "updateExchangePaused",
       "accounts": [
         {
@@ -1289,6 +1310,10 @@
           },
           {
             "name": "feesWithdrawn",
+            "type": "u128"
+          },
+          {
+            "name": "maxDeposit",
             "type": "u128"
           }
         ]
@@ -2035,6 +2060,11 @@
       "code": 325,
       "name": "ExchangePaused",
       "msg": "Exchange is paused"
+    },
+    {
+      "code": 326,
+      "name": "UserMaxDeposit",
+      "msg": "Can not deposit more than max deposit"
     }
   ]
 }
