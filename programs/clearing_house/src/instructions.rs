@@ -214,6 +214,11 @@ pub struct WithdrawFromInsuranceVault<'info> {
     pub token_program: Program<'info, Token>,
 }
 
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
+pub struct ManagePositionOptionalAccounts {
+    pub drift_token: bool,
+}
+
 #[derive(Accounts)]
 pub struct OpenPosition<'info> {
     #[account(mut)]

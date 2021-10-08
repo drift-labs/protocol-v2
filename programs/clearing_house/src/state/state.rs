@@ -31,10 +31,32 @@ pub struct State {
     pub full_liquidation_penalty_percentage_denominator: u128,
     pub partial_liquidation_liquidator_share_denominator: u64,
     pub full_liquidation_liquidator_share_denominator: u64,
-    pub fee_numerator: u128,
-    pub fee_denominator: u128,
+    pub fee_structure: FeeStructure,
     pub collateral_deposits: u128,
     pub fees_collected: u128,
     pub fees_withdrawn: u128,
     pub whitelist_mint: Pubkey,
+    pub drift_mint: Pubkey,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
+pub struct FeeStructure {
+    pub fee_numerator: u128,
+    pub fee_denominator: u128,
+    pub drift_token_rebate: DriftTokenRebate,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
+pub struct DriftTokenRebate {
+    pub first_tier: DriftTokenRebateTier,
+    pub second_tier: DriftTokenRebateTier,
+    pub third_tier: DriftTokenRebateTier,
+    pub fourth_tier: DriftTokenRebateTier,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
+pub struct DriftTokenRebateTier {
+    pub minimum_balance: u64,
+    pub rebate_numerator: u128,
+    pub rebate_denominator: u128,
 }

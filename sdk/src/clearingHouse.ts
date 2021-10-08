@@ -31,7 +31,7 @@ import {
 	DepositHistory,
 	FundingPaymentHistory,
 	FundingRateHistory,
-	LiquidationHistory,
+	LiquidationHistory, FeeStructure,
 	TradeHistoryAccount,
 	UserAccountData,
 	UserPosition,
@@ -744,7 +744,8 @@ export class ClearingHouse {
 		direction: PositionDirection,
 		amount: BN,
 		marketIndex: BN,
-		limitPrice?: BN
+		limitPrice?: BN,
+		driftToken?: PublicKey
 	): Promise<TransactionSignature> {
 		this.assertIsSubscribed();
 
@@ -756,6 +757,19 @@ export class ClearingHouse {
 			limitPrice = new BN(0); // no limit
 		}
 
+		const optionalAccounts = {
+				driftToken: false
+		};
+		const remainingAccounts = [];
+		if (driftToken) {
+			optionalAccounts.driftToken = true;
+			remainingAccounts.push({
+				pubkey: driftToken,
+				isWritable: false,
+				isSigner: false,
+			});
+		}
+
 		const priceOracle =
 			this.getMarketsAccount().markets[marketIndex.toNumber()].amm.oracle;
 
@@ -764,6 +778,7 @@ export class ClearingHouse {
 			amount,
 			marketIndex,
 			limitPrice,
+			optionalAccounts,
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
@@ -776,13 +791,15 @@ export class ClearingHouse {
 					fundingRateHistory: this.state.fundingRateHistory,
 					oracle: priceOracle,
 				},
+				remainingAccounts: remainingAccounts,
 			}
 		);
 	}
 
 	public async closePosition(
 		userAccountPublicKey: PublicKey,
-		marketIndex: BN
+		marketIndex: BN,
+		driftToken?: PublicKey
 	): Promise<TransactionSignature> {
 		this.assertIsSubscribed();
 
@@ -793,19 +810,37 @@ export class ClearingHouse {
 		const priceOracle =
 			this.getMarketsAccount().markets[marketIndex.toNumber()].amm.oracle;
 
-		return await this.program.rpc.closePosition(marketIndex, {
-			accounts: {
-				state: await this.getStatePublicKey(),
-				user: userAccountPublicKey,
-				authority: this.wallet.publicKey,
-				markets: this.state.markets,
-				userPositions: user.positions,
-				tradeHistory: this.state.tradeHistory,
-				fundingPaymentHistory: this.state.fundingPaymentHistory,
-				fundingRateHistory: this.state.fundingRateHistory,
-				oracle: priceOracle,
-			},
-		});
+		const optionalAccounts = {
+			driftToken: false
+		};
+		const remainingAccounts = [];
+		if (driftToken) {
+			optionalAccounts.driftToken = true;
+			remainingAccounts.push({
+				pubkey: driftToken,
+				isWritable: false,
+				isSigner: false,
+			});
+		}
+
+		return await this.program.rpc.closePosition(
+			marketIndex,
+			optionalAccounts,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					user: userAccountPublicKey,
+					authority: this.wallet.publicKey,
+					markets: this.state.markets,
+					userPositions: user.positions,
+					tradeHistory: this.state.tradeHistory,
+					fundingPaymentHistory: this.state.fundingPaymentHistory,
+					fundingRateHistory: this.state.fundingRateHistory,
+					oracle: priceOracle,
+				},
+				remainingAccounts: remainingAccounts,
+			}
+		);
 	}
 
 	public async moveAmmPrice(
@@ -1632,10 +1667,9 @@ export class ClearingHouse {
 	}
 
 	public async updateFee(
-		numerator: BN,
-		denominator: BN
+		fees: FeeStructure
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateFee(numerator, denominator, {
+		return await this.program.rpc.updateFee(fees, {
 			accounts: {
 				admin: this.wallet.publicKey,
 				state: await this.getStatePublicKey(),
@@ -1647,6 +1681,17 @@ export class ClearingHouse {
 		whitelistMint?: PublicKey
 	): Promise<TransactionSignature> {
 		return await this.program.rpc.updateWhitelistMint(whitelistMint, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+			},
+		});
+	}
+
+	public async updateDriftMint(
+		driftMint: PublicKey
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateDriftMint(driftMint, {
 			accounts: {
 				admin: this.wallet.publicKey,
 				state: await this.getStatePublicKey(),

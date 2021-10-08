@@ -4,7 +4,7 @@ import BN from 'bn.js';
 import { assert } from 'chai';
 
 import {
-    ClearingHouse,
+    ClearingHouse, FeeStructure,
 } from '../sdk/src';
 
 import {
@@ -109,15 +109,48 @@ describe('admin', () => {
     });
 
     it('Update fee', async () => {
-        const numerator = new BN (10);
-        const denominator = new BN (10);
+        const newFeeStructure : FeeStructure = {
+            feeNumerator: new BN(10),
+            feeDenominator: new BN(10),
+            driftTokenRebate: {
+                firstTier: {
+                    minimumBalance: new BN(1),
+                    rebateNumerator: new BN(1),
+                    rebateDenominator: new BN(1),
+                },
+                secondTier: {
+                    minimumBalance: new BN(1),
+                    rebateNumerator: new BN(1),
+                    rebateDenominator: new BN(1),
+                },
+                thirdTier: {
+                    minimumBalance: new BN(1),
+                    rebateNumerator: new BN(1),
+                    rebateDenominator: new BN(1),
+                },
+                fourthTier: {
+                    minimumBalance: new BN(1),
+                    rebateNumerator: new BN(1),
+                    rebateDenominator: new BN(1),
+                },
+            }
+        };
 
-        await clearingHouse.updateFee(numerator, denominator);
+        await clearingHouse.updateFee(newFeeStructure);
 
         const state = clearingHouse.getState();
 
-        assert(state.feeNumerator.eq(numerator));
-        assert(state.feeDenominator.eq(denominator));
+        assert(JSON.stringify(newFeeStructure) === JSON.stringify(state.feeStructure));
+    });
+
+    it('Update protocol mint', async () => {
+        const mint = new PublicKey("2fvh6hkCYfpNqke9N48x6HcrW92uZVU3QSiXZX4A5L27");
+
+        await clearingHouse.updateDriftMint(mint);
+
+        const state = clearingHouse.getState();
+
+        assert(state.driftMint.equals(mint));
     });
 
     it('Update admin', async () => {

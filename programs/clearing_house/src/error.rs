@@ -60,6 +60,10 @@ pub enum ErrorCode {
     InvalidWhitelistToken,
     #[msg("Whitelist token not found")]
     WhitelistTokenNotFound,
+    #[msg("Invalid drift token")]
+    InvalidDriftToken,
+    #[msg("Drift token not found")]
+    DriftTokenNotFound,
 }
 
 #[macro_export]

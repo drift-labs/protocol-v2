@@ -377,6 +377,12 @@
         {
           "name": "limitPrice",
           "type": "u128"
+        },
+        {
+          "name": "optionalAccounts",
+          "type": {
+            "defined": "ManagePositionOptionalAccounts"
+          }
         }
       ]
     },
@@ -433,6 +439,12 @@
         {
           "name": "marketIndex",
           "type": "u64"
+        },
+        {
+          "name": "optionalAccounts",
+          "type": {
+            "defined": "ManagePositionOptionalAccounts"
+          }
         }
       ]
     },
@@ -978,12 +990,10 @@
       ],
       "args": [
         {
-          "name": "feeNumerator",
-          "type": "u128"
-        },
-        {
-          "name": "feeDenominator",
-          "type": "u128"
+          "name": "fees",
+          "type": {
+            "defined": "FeeStructure"
+          }
         }
       ]
     },
@@ -1025,6 +1035,27 @@
       "args": [
         {
           "name": "whitelistMint",
+          "type": "publicKey"
+        }
+      ]
+    },
+    {
+      "name": "updateDriftMint",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "protocolMint",
           "type": "publicKey"
         }
       ]
@@ -1304,12 +1335,10 @@
             "type": "u64"
           },
           {
-            "name": "feeNumerator",
-            "type": "u128"
-          },
-          {
-            "name": "feeDenominator",
-            "type": "u128"
+            "name": "feeStructure",
+            "type": {
+              "defined": "FeeStructure"
+            }
           },
           {
             "name": "collateralDeposits",
@@ -1325,6 +1354,10 @@
           },
           {
             "name": "whitelistMint",
+            "type": "publicKey"
+          },
+          {
+            "name": "driftMint",
             "type": "publicKey"
           }
         ]
@@ -1609,6 +1642,18 @@
       }
     },
     {
+      "name": "ManagePositionOptionalAccounts",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "driftToken",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
       "name": "LiquidationRecord",
       "type": {
         "kind": "struct",
@@ -1793,6 +1838,80 @@
       }
     },
     {
+      "name": "FeeStructure",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "feeNumerator",
+            "type": "u128"
+          },
+          {
+            "name": "feeDenominator",
+            "type": "u128"
+          },
+          {
+            "name": "driftTokenRebate",
+            "type": {
+              "defined": "DriftTokenRebate"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "DriftTokenRebate",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "firstTier",
+            "type": {
+              "defined": "DriftTokenRebateTier"
+            }
+          },
+          {
+            "name": "secondTier",
+            "type": {
+              "defined": "DriftTokenRebateTier"
+            }
+          },
+          {
+            "name": "thirdTier",
+            "type": {
+              "defined": "DriftTokenRebateTier"
+            }
+          },
+          {
+            "name": "fourthTier",
+            "type": {
+              "defined": "DriftTokenRebateTier"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "DriftTokenRebateTier",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "minimumBalance",
+            "type": "u64"
+          },
+          {
+            "name": "rebateNumerator",
+            "type": "u128"
+          },
+          {
+            "name": "rebateDenominator",
+            "type": "u128"
+          }
+        ]
+      }
+    },
+    {
       "name": "TradeRecord",
       "type": {
         "kind": "struct",
@@ -1837,6 +1956,10 @@
           },
           {
             "name": "fee",
+            "type": "u128"
+          },
+          {
+            "name": "driftTokenRebate",
             "type": "u128"
           },
           {
@@ -2093,9 +2216,16 @@
       "code": 327,
       "name": "WhitelistTokenNotFound",
       "msg": "Whitelist token not found"
+    },
+    {
+      "code": 328,
+      "name": "InvalidDriftToken",
+      "msg": "Invalid drift token"
+    },
+    {
+      "code": 329,
+      "name": "DriftTokenNotFound",
+      "msg": "Drift token not found"
     }
-  ],
-  "metadata": {
-    "address": "4SYdcUY98GqtjDjwRK9ZNpGqeCdjJnyfbFrXKsuKAvFF"
-  }
+  ]
 }

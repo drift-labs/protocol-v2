@@ -49,10 +49,37 @@ export type ClearingHouseState = {
 	fullLiquidationPenaltyPercentageDenominator: BN;
 	partialLiquidationLiquidatorShareDenominator: BN;
 	fullLiquidationLiquidatorShareDenominator: BN;
+	feeStructure: FeeStructure;
+	whitelistMint: PublicKey;
+	driftMint: PublicKey;
+};
+
+export type FeeStructure = {
 	feeNumerator: BN;
 	feeDenominator: BN;
-	whitelistMint: PublicKey;
-};
+	driftTokenRebate: {
+		firstTier: {
+			minimumBalance: BN;
+			rebateNumerator: BN;
+			rebateDenominator: BN;
+		},
+		secondTier: {
+			minimumBalance: BN;
+			rebateNumerator: BN;
+			rebateDenominator: BN;
+		},
+		thirdTier: {
+			minimumBalance: BN;
+			rebateNumerator: BN;
+			rebateDenominator: BN;
+		},
+		fourthTier: {
+			minimumBalance: BN;
+			rebateNumerator: BN;
+			rebateDenominator: BN;
+		}
+	}
+}
 
 export type ClearingHouseMarketsAccountData = {
 	accountIndex: BN;

@@ -8,22 +8,22 @@ use math::{amm, bn, constants::*, fees, margin::*, position::*, withdrawal::*};
 use state::{
     history::trade::TradeRecord,
     market::{Market, Markets, OracleSource, AMM},
-    state::State,
+    state::{DriftTokenRebate, DriftTokenRebateTier, FeeStructure, State},
     user::{MarketPosition, User},
 };
 
-mod account;
 mod controller;
 mod error;
 mod instructions;
 mod math;
+mod optional_accounts;
 mod state;
 declare_id!("4SYdcUY98GqtjDjwRK9ZNpGqeCdjJnyfbFrXKsuKAvFF");
 
 #[program]
 pub mod clearing_house {
     use super::*;
-    use crate::account::get_whitelist_token;
+    use crate::optional_accounts::get_whitelist_token;
     use crate::state::history::curve::CurveRecord;
     use crate::state::history::deposit::{DepositDirection, DepositHistory, DepositRecord};
     use crate::state::history::liquidation::LiquidationRecord;
@@ -83,12 +83,37 @@ pub mod clearing_house {
             full_liquidation_penalty_percentage_denominator: 1,
             partial_liquidation_liquidator_share_denominator: 2,
             full_liquidation_liquidator_share_denominator: 20,
-            fee_numerator: DEFAULT_FEE_NUMERATOR,
-            fee_denominator: DEFAULT_FEE_DENOMINATOR,
+            fee_structure: FeeStructure {
+                fee_numerator: DEFAULT_FEE_NUMERATOR,
+                fee_denominator: DEFAULT_FEE_DENOMINATOR,
+                drift_token_rebate: DriftTokenRebate {
+                    first_tier: DriftTokenRebateTier {
+                        minimum_balance: DEFAULT_PROTOCOL_TOKEN_FIRST_TIER_MINIMUM_BALANCE,
+                        rebate_numerator: DEFAULT_PROTOCOL_TOKEN_FIRST_TIER_REBATE_NUMERATOR,
+                        rebate_denominator: DEFAULT_PROTOCOL_TOKEN_FIRST_TIER_REBATE_DENOMINATOR,
+                    },
+                    second_tier: DriftTokenRebateTier {
+                        minimum_balance: DEFAULT_PROTOCOL_TOKEN_SECOND_TIER_MINIMUM_BALANCE,
+                        rebate_numerator: DEFAULT_PROTOCOL_TOKEN_SECOND_TIER_REBATE_NUMERATOR,
+                        rebate_denominator: DEFAULT_PROTOCOL_TOKEN_SECOND_TIER_REBATE_DENOMINATOR,
+                    },
+                    third_tier: DriftTokenRebateTier {
+                        minimum_balance: DEFAULT_PROTOCOL_TOKEN_THIRD_TIER_MINIMUM_BALANCE,
+                        rebate_numerator: DEFAULT_PROTOCOL_TOKEN_THIRD_TIER_REBATE_NUMERATOR,
+                        rebate_denominator: DEFAULT_PROTOCOL_TOKEN_THIRD_TIER_REBATE_DENOMINATOR,
+                    },
+                    fourth_tier: DriftTokenRebateTier {
+                        minimum_balance: DEFAULT_PROTOCOL_TOKEN_FOURTH_TIER_MINIMUM_BALANCE,
+                        rebate_numerator: DEFAULT_PROTOCOL_TOKEN_FOURTH_TIER_REBATE_NUMERATOR,
+                        rebate_denominator: DEFAULT_PROTOCOL_TOKEN_FOURTH_TIER_REBATE_DENOMINATOR,
+                    },
+                },
+            },
             collateral_deposits: 0,
             fees_collected: 0,
             fees_withdrawn: 0,
             whitelist_mint: Pubkey::default(),
+            drift_mint: Pubkey::default(),
         };
 
         return Ok(());
@@ -362,6 +387,7 @@ pub mod clearing_house {
         quote_asset_amount: u128,
         market_index: u64,
         limit_price: u128,
+        optional_accounts: ManagePositionOptionalAccounts,
     ) -> ProgramResult {
         let user = &mut ctx.accounts.user;
         let clock = Clock::get()?;
@@ -435,7 +461,8 @@ pub mod clearing_house {
             )?;
 
             let price_oracle = &ctx.accounts.oracle;
-            is_oracle_mark_limit = amm::is_oracle_mark_limit(&market.amm, price_oracle, 0, now).unwrap();
+            is_oracle_mark_limit =
+                amm::is_oracle_mark_limit(&market.amm, price_oracle, 0, now).unwrap();
             is_oracle_valid = amm::is_oracle_valid(&market.amm, price_oracle, now).unwrap();
         } else {
             let market = &mut ctx.accounts.markets.load_mut()?.markets
@@ -489,11 +516,19 @@ pub mod clearing_house {
             mark_price_after = market.amm.mark_price()?;
         }
 
-        let fee = fees::calculate(
-            quote_asset_amount,
-            ctx.accounts.state.fee_numerator,
-            ctx.accounts.state.fee_denominator,
+        let drift_token = optional_accounts::get_drift_token(
+            optional_accounts,
+            ctx.remaining_accounts,
+            &ctx.accounts.state.drift_mint,
         )?;
+        let (fee, drift_token_rebate) = fees::calculate(
+            quote_asset_amount,
+            &ctx.accounts.state.fee_structure,
+            drift_token,
+        )?;
+
+        msg!("fee {}", fee);
+        msg!("drift_token_rebate {}", drift_token_rebate);
         ctx.accounts.state.fees_collected = ctx
             .accounts
             .state
@@ -552,6 +587,7 @@ pub mod clearing_house {
             mark_price_before,
             mark_price_after,
             fee,
+            drift_token_rebate,
             liquidation: false,
             market_index,
         });
@@ -608,7 +644,11 @@ pub mod clearing_house {
         market_initialized(&ctx.accounts.markets, market_index) &&
         exchange_not_paused(&ctx.accounts.state)
     )]
-    pub fn close_position(ctx: Context<ClosePosition>, market_index: u64) -> ProgramResult {
+    pub fn close_position(
+        ctx: Context<ClosePosition>,
+        market_index: u64,
+        optional_accounts: ManagePositionOptionalAccounts,
+    ) -> ProgramResult {
         let user = &mut ctx.accounts.user;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
@@ -648,10 +688,15 @@ pub mod clearing_house {
         let base_asset_amount = market_position.base_asset_amount.unsigned_abs();
         controller::position::close(user, market, market_position, now)?;
 
-        let fee = fees::calculate(
+        let drift_token = optional_accounts::get_drift_token(
+            optional_accounts,
+            ctx.remaining_accounts,
+            &ctx.accounts.state.drift_mint,
+        )?;
+        let (fee, drift_token_rebate) = fees::calculate(
             base_asset_value,
-            ctx.accounts.state.fee_numerator,
-            ctx.accounts.state.fee_denominator,
+            &ctx.accounts.state.fee_structure,
+            drift_token,
         )?;
         ctx.accounts.state.fees_collected = ctx
             .accounts
@@ -690,6 +735,7 @@ pub mod clearing_house {
             mark_price_after,
             liquidation: false,
             fee,
+            drift_token_rebate,
             market_index,
         });
 
@@ -766,6 +812,7 @@ pub mod clearing_house {
                     mark_price_before,
                     mark_price_after,
                     fee: 0,
+                    drift_token_rebate: 0,
                     liquidation: true,
                     market_index: market_position.market_index,
                 });
@@ -826,6 +873,7 @@ pub mod clearing_house {
                     mark_price_before,
                     mark_price_after,
                     fee: 0,
+                    drift_token_rebate: 0,
                     liquidation: true,
                     market_index: market_position.market_index,
                 });
@@ -1072,7 +1120,7 @@ pub mod clearing_house {
             if !whitelist_token.owner.eq(ctx.accounts.authority.key) {
                 return Err(ErrorCode::InvalidWhitelistToken.into());
             }
-            msg!("here2");
+
             if whitelist_token.amount == 0 {
                 return Err(ErrorCode::WhitelistTokenNotFound.into());
             }
@@ -1284,13 +1332,8 @@ pub mod clearing_house {
         Ok(())
     }
 
-    pub fn update_fee(
-        ctx: Context<AdminUpdateState>,
-        fee_numerator: u128,
-        fee_denominator: u128,
-    ) -> ProgramResult {
-        ctx.accounts.state.fee_numerator = fee_numerator;
-        ctx.accounts.state.fee_denominator = fee_denominator;
+    pub fn update_fee(ctx: Context<AdminUpdateState>, fees: FeeStructure) -> ProgramResult {
+        ctx.accounts.state.fee_structure = fees;
         Ok(())
     }
 
@@ -1304,6 +1347,14 @@ pub mod clearing_house {
         whitelist_mint: Pubkey,
     ) -> ProgramResult {
         ctx.accounts.state.whitelist_mint = whitelist_mint;
+        Ok(())
+    }
+
+    pub fn update_drift_mint(
+        ctx: Context<AdminUpdateState>,
+        protocol_mint: Pubkey,
+    ) -> ProgramResult {
+        ctx.accounts.state.drift_mint = protocol_mint;
         Ok(())
     }
 
