@@ -14,9 +14,8 @@ import {
 import { ZERO } from './constants/numericConstants';
 import Markets from './constants/markets';
 import { PositionDirection } from './types';
-import { FtxClient, Trade } from 'ccxws';
+import { Trade } from 'ccxws';
 import { Connection, PublicKey } from '@solana/web3.js';
-import { assert } from './assert/assert';
 import { PriceData } from '@pythnetwork/client';
 import { ftx } from 'ccxt';
 
@@ -99,7 +98,6 @@ export class Arbitrager {
 	public async getRecentTradeAvg(symbol: string): Promise<any> {
 		const limit = 10;
 		const recentTrades = await this.ftxClient.fetchTrades(symbol, limit);
-		console.log(recentTrades);
 		let pricesum = 0;
 		let volumesum = 0;
 
@@ -133,6 +131,7 @@ export class Arbitrager {
 			let marketNetExposure: number;
 			let blockTimeConnection;
 			let prevMarketNetExposureExBot;
+			let arbPctMod;
 
 			const loadMarket = () => {
 				let isValidMarket = true;
@@ -214,6 +213,8 @@ export class Arbitrager {
 			let positionValue = ZERO;
 			let deltaNetExposureExBot = 0;
 
+			let isPositionValueLimit = false;
+
 			const getOracleData = async (oraclePricePubkey) => {
 				oraclePriceData = await this.pythClient.getPriceData(oraclePricePubkey);
 
@@ -273,11 +274,19 @@ export class Arbitrager {
 					.getTotalCollateral()
 					.div(new BN(Markets.length / 2));
 
-				// don't continue higher after exceeding 1x leverage in a particular market
-				const positionValueConstraint = positionValue.gt(
-					maxPostionValuePerMarket
+				const positionValueNum = stripMantissa(positionValue, USDC_PRECISION);
+				const maxPositionValueNum = stripMantissa(
+					maxPostionValuePerMarket,
+					USDC_PRECISION
 				);
-				return positionValueConstraint;
+				console.log(
+					'assert position limit: ',
+					positionValueNum,
+					'<',
+					maxPositionValueNum
+				);
+				// don't continue higher after exceeding .5x leverage in a particular market
+				return positionValueNum > maxPositionValueNum;
 			};
 
 			const marketValid = loadMarket();
@@ -413,7 +422,7 @@ export class Arbitrager {
 				// avoid deterministic behavior, draw from range: [5%, 25%)
 				const randomDraw = 50 + Math.floor(Math.random() * 200);
 
-				if (shouldReducePosition) {
+				if (shouldReducePosition || isPositionValueLimit) {
 					riskReduction = true;
 					arbPctMod = ZERO;
 				} else if (
@@ -442,11 +451,7 @@ export class Arbitrager {
 					arbPctMod = new BN(Math.min(randomDraw, 250));
 				}
 
-				if (isPositionValueLimit && !riskReduction) {
-					console.log('hit isPositionValueLimit and not risk reducing trade');
-				}
-
-				return BN.min(arbPct, arbPctMod);
+				arbPctMod = BN.min(arbPct, arbPctMod);
 			};
 
 			const constructTrade = async (targetPrice: BN) => {
@@ -582,7 +587,11 @@ export class Arbitrager {
 
 			const checkExternalExchange = async () => {
 				const symbol = marketJSON.baseAssetSymbol;
-				const symbolPerp = symbol + '-PERP';
+				let symbolPerp = symbol + '-PERP';
+				if (symbol == 'COPE') {
+					symbolPerp = symbol + '/USD';
+				}
+
 				const wgtOBPrice = await this.getWeightedOBprice(symbolPerp);
 				const wgtTradePrice = await this.getRecentTradeAvg(symbolPerp);
 
@@ -595,16 +604,17 @@ export class Arbitrager {
 			if (!oracleValid) {
 				// todo: use external source price to trade
 				console.log('invalid oracle');
-				continue;
+				// continue;
 			}
-			const isPositionValueLimit = getNetExposure();
-			if (isPositionValueLimit) {
-				console.log('isPositionValueLimit');
-				continue;
-			}
+			isPositionValueLimit = await getNetExposure();
 			await eyeFundingPayment();
 			examineMarketSpread();
-			let arbPctMod = decideArbAmount();
+			decideArbAmount();
+
+			if (isPositionValueLimit && !riskReduction) {
+				console.log('hit isPositionValueLimit and not risk reducing trade');
+				continue;
+			}
 
 			if (this.useExternal) {
 				const ftxPrice = await checkExternalExchange();
@@ -615,7 +625,12 @@ export class Arbitrager {
 				constructTrade(oraclePriceWithMantissa);
 			}
 
-			resizeTrade();
+			skipTrade = await resizeTrade();
+
+			if (skipTrade) {
+				console.log('SKIPPING TRADE DUE TO RESIZE CHECK');
+				continue;
+			}
 			addLimitPriceBuffer();
 
 			tradesToExecute.push({
