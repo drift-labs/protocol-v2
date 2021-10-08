@@ -18,7 +18,7 @@ mod instructions;
 mod math;
 mod optional_accounts;
 mod state;
-declare_id!("4SYdcUY98GqtjDjwRK9ZNpGqeCdjJnyfbFrXKsuKAvFF");
+declare_id!("GJWSKZQ6Zkda8UvE4gpvLNG97gcyukbpdSSxh7KFjj7b");
 
 #[program]
 pub mod clearing_house {

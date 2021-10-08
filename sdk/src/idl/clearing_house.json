@@ -2223,5 +2223,8 @@
       "name": "DriftTokenNotFound",
       "msg": "Drift token not found"
     }
-  ]
+  ],
+  "metadata": {
+    "address": "GJWSKZQ6Zkda8UvE4gpvLNG97gcyukbpdSSxh7KFjj7b"
+  }
 }
