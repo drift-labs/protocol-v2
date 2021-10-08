@@ -12,6 +12,7 @@ use state::{
     user::{MarketPosition, User},
 };
 
+mod account;
 mod controller;
 mod error;
 mod instructions;
@@ -22,9 +23,11 @@ declare_id!("9vNbzHGb1WstrTr2x2Etm7rqQLAM6BJA5VS9Mzto2Efw");
 #[program]
 pub mod clearing_house {
     use super::*;
+    use crate::account::get_whitelist_token;
     use crate::state::history::curve::CurveRecord;
     use crate::state::history::deposit::{DepositDirection, DepositHistory, DepositRecord};
     use crate::state::history::liquidation::LiquidationRecord;
+    use std::cmp::min;
 
     pub fn initialize(
         ctx: Context<Initialize>,
@@ -85,6 +88,7 @@ pub mod clearing_house {
             collateral_deposits: 0,
             fees_collected: 0,
             fees_withdrawn: 0,
+            whitelist_mint: Pubkey::default(),
         };
 
         return Ok(());
@@ -433,7 +437,6 @@ pub mod clearing_house {
             let price_oracle = &ctx.accounts.oracle;
             is_oracle_mark_limit = amm::is_oracle_mark_limit(&market.amm, price_oracle, 0, now).unwrap();
             is_oracle_valid = amm::is_oracle_valid(&market.amm, price_oracle, now).unwrap();
-
         } else {
             let market = &mut ctx.accounts.markets.load_mut()?.markets
                 [Markets::index_from_u64(market_index)];
@@ -1012,7 +1015,7 @@ pub mod clearing_house {
         let market =
             &mut ctx.accounts.markets.load_mut()?.markets[Markets::index_from_u64(market_index)];
         let price_oracle = &ctx.accounts.oracle;
-        
+
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
 
@@ -1051,8 +1054,30 @@ pub mod clearing_house {
         Ok(())
     }
 
-    pub fn initialize_user(ctx: Context<InitializeUser>, _user_nonce: u8) -> ProgramResult {
+    pub fn initialize_user(
+        ctx: Context<InitializeUser>,
+        _user_nonce: u8,
+        optional_accounts: InitializeUserOptionalAccounts,
+    ) -> ProgramResult {
         let user = &mut ctx.accounts.user;
+
+        if !ctx.accounts.state.whitelist_mint.eq(&Pubkey::default()) {
+            let whitelist_token = get_whitelist_token(optional_accounts, ctx.remaining_accounts)?;
+
+            if whitelist_token.is_none() {
+                return Err(ErrorCode::WhitelistTokenNotFound.into());
+            }
+
+            let whitelist_token = whitelist_token.unwrap();
+            if !whitelist_token.owner.eq(ctx.accounts.authority.key) {
+                return Err(ErrorCode::InvalidWhitelistToken.into());
+            }
+            msg!("here2");
+            if whitelist_token.amount == 0 {
+                return Err(ErrorCode::WhitelistTokenNotFound.into());
+            }
+        }
+
         user.authority = *ctx.accounts.authority.key;
         user.collateral = 0;
         user.cumulative_deposits = 0;
@@ -1271,6 +1296,14 @@ pub mod clearing_house {
 
     pub fn update_admin(ctx: Context<AdminUpdateState>, admin: Pubkey) -> ProgramResult {
         ctx.accounts.state.admin = admin;
+        Ok(())
+    }
+
+    pub fn update_whitelist_mint(
+        ctx: Context<AdminUpdateState>,
+        whitelist_mint: Pubkey,
+    ) -> ProgramResult {
+        ctx.accounts.state.whitelist_mint = whitelist_mint;
         Ok(())
     }
 

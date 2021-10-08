@@ -131,8 +131,8 @@ impl AMM {
             .ok_or_else(math_error!())?;
 
         let oracle_delay = (now as i64)
-        .checked_sub(price_data.valid_slot as i64)
-        .ok_or_else(math_error!())?;
+            .checked_sub(price_data.valid_slot as i64)
+            .ok_or_else(math_error!())?;
 
         return Ok((oracle_price_scaled, oracle_conf_scaled, oracle_delay));
     }

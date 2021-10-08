@@ -51,6 +51,7 @@ export type ClearingHouseState = {
 	fullLiquidationLiquidatorShareDenominator: BN;
 	feeNumerator: BN;
 	feeDenominator: BN;
+	whitelistMint: PublicKey;
 };
 
 export type ClearingHouseMarketsAccountData = {

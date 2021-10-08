@@ -1,4 +1,4 @@
-use anchor_lang::prelude::*;
+use anchor_lang::{prelude::*, AnchorDeserialize, AnchorSerialize};
 use anchor_spl::token::{Mint, Token, TokenAccount};
 
 use crate::state::history::curve::CurveHistory;
@@ -85,6 +85,7 @@ pub struct InitializeUser<'info> {
         payer = authority
     )]
     pub user: Box<Account<'info, User>>,
+    pub state: Box<Account<'info, State>>,
     #[account(
         init,
         payer = authority,
@@ -94,6 +95,11 @@ pub struct InitializeUser<'info> {
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
     pub clock: Sysvar<'info, Clock>,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
+pub struct InitializeUserOptionalAccounts {
+    pub whitelist_token: bool,
 }
 
 #[derive(Accounts)]

@@ -56,6 +56,10 @@ pub enum ErrorCode {
     HistoryAlreadyInitialized,
     #[msg("Exchange is paused")]
     ExchangePaused,
+    #[msg("Invalid whitelist token")]
+    InvalidWhitelistToken,
+    #[msg("Whitelist token not found")]
+    WhitelistTokenNotFound,
 }
 
 #[macro_export]

@@ -1,5 +1,9 @@
 import { BN, Idl, Program, Provider } from '@project-serum/anchor';
-import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import {
+	ASSOCIATED_TOKEN_PROGRAM_ID,
+	Token,
+	TOKEN_PROGRAM_ID,
+} from '@solana/spl-token';
 import { IWallet, PositionDirection } from './types';
 import * as anchor from '@project-serum/anchor';
 import clearingHouseIDL from './idl/clearing_house.json';
@@ -519,18 +523,45 @@ export class ClearingHouse {
 		const [userPublicKey, userAccountNonce] =
 			await this.getUserAccountPublicKey();
 
+		const remainingAccounts = [];
+		const optionalAccounts = {
+			whitelistToken: false,
+		};
+
+		const state = this.getState();
+		if (state.whitelistMint) {
+			optionalAccounts.whitelistToken = true;
+			const associatedTokenPublicKey = await Token.getAssociatedTokenAddress(
+				ASSOCIATED_TOKEN_PROGRAM_ID,
+				TOKEN_PROGRAM_ID,
+				state.whitelistMint,
+				this.wallet.publicKey
+			);
+			remainingAccounts.push({
+				pubkey: associatedTokenPublicKey,
+				isWritable: false,
+				isSigner: false,
+			});
+		}
+
 		const userPositions = new Keypair();
 		const initializeUserAccountIx =
-			await this.program.instruction.initializeUser(userAccountNonce, {
-				accounts: {
-					user: userPublicKey,
-					authority: this.wallet.publicKey,
-					rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-					systemProgram: anchor.web3.SystemProgram.programId,
-					userPositions: userPositions.publicKey,
-					clock: SYSVAR_CLOCK_PUBKEY,
-				},
-			});
+			await this.program.instruction.initializeUser(
+				userAccountNonce,
+				optionalAccounts,
+				{
+					accounts: {
+						user: userPublicKey,
+						authority: this.wallet.publicKey,
+						rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+						systemProgram: anchor.web3.SystemProgram.programId,
+						userPositions: userPositions.publicKey,
+						clock: SYSVAR_CLOCK_PUBKEY,
+						state: await this.getStatePublicKey(),
+					},
+					remainingAccounts: remainingAccounts,
+				}
+			);
 		return [userPositions, userPublicKey, initializeUserAccountIx];
 	}
 
@@ -1612,8 +1643,19 @@ export class ClearingHouse {
 		});
 	}
 
+	public async updateWhitelistMint(
+		whitelistMint?: PublicKey
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateWhitelistMint(whitelistMint, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+			},
+		});
+	}
+
 	public async updateExchangePaused(
-		exchangePaused: boolean,
+		exchangePaused: boolean
 	): Promise<TransactionSignature> {
 		return await this.program.rpc.updateExchangePaused(exchangePaused, {
 			accounts: {

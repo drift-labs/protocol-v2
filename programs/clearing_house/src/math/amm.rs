@@ -95,7 +95,8 @@ pub fn calculate_oracle_mark_spread(
         mark_price = amm.mark_price()? as i128;
     }
 
-    let (oracle_price, _oracle_conf, _oracle_delay) = amm.get_oracle_price(price_oracle, window, now)?;
+    let (oracle_price, _oracle_conf, _oracle_delay) =
+        amm.get_oracle_price(price_oracle, window, now)?;
 
     let price_spread = mark_price
         .checked_sub(oracle_price)
@@ -117,9 +118,8 @@ pub fn is_oracle_mark_limit(
         mark_price = amm.mark_price()? as i128;
     }
 
-    let (oracle_price, 
-        _oracle_conf, 
-        _oracle_delay) = amm.get_oracle_price(price_oracle, window, now)?;
+    let (oracle_price, _oracle_conf, _oracle_delay) =
+        amm.get_oracle_price(price_oracle, window, now)?;
 
     let price_spread = mark_price
         .checked_sub(oracle_price)
@@ -144,5 +144,4 @@ pub fn is_oracle_valid(amm: &AMM, price_oracle: &AccountInfo, now: i64) -> Clear
     let is_stale = oracle_delay.gt(&(30 as i64));
 
     Ok(!(is_stale || is_conf_too_large))
-
 }

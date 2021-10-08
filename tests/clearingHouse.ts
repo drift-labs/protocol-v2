@@ -25,7 +25,7 @@ import {
 	mintToInsuranceFund,
 	mockOracle,
 } from '../utils/mockAccounts';
-import { getFeedData, setFeedPrice } from '../utils/mockPythUtils';
+import { setFeedPrice } from '../utils/mockPythUtils';
 
 describe('clearing_house', () => {
 	const provider = anchor.Provider.local();

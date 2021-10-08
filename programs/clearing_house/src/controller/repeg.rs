@@ -76,7 +76,9 @@ pub fn repeg(
     }
 
     if amm_pnl_mantissa >= 0 {
-        pnl_r = pnl_r.checked_add(amm_pnl_quote_asset).ok_or_else(math_error!())?;
+        pnl_r = pnl_r
+            .checked_add(amm_pnl_quote_asset)
+            .ok_or_else(math_error!())?;
         perserve_price = false;
     } else if amm_pnl_quote_asset > pnl_r {
         return Err(ErrorCode::InvalidRepegProfitability.into());

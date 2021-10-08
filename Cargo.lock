@@ -379,6 +379,7 @@ dependencies = [
  "num-traits",
  "pyth-client",
  "solana-program",
+ "spl-token",
  "thiserror",
  "uint",
 ]
