@@ -18,7 +18,7 @@ mod error;
 mod instructions;
 mod math;
 mod state;
-declare_id!("9vNbzHGb1WstrTr2x2Etm7rqQLAM6BJA5VS9Mzto2Efw");
+declare_id!("4SYdcUY98GqtjDjwRK9ZNpGqeCdjJnyfbFrXKsuKAvFF");
 
 #[program]
 pub mod clearing_house {
