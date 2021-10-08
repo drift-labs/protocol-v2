@@ -90,6 +90,8 @@ pub fn calculate_base_asset_value(
         sqrt_k,
     )
     .unwrap();
+    
+    msg!("{:?} {:?}", new_quote_asset_amount, quote_asset_reserve);
 
     let mut quote_asset_acquired = match swap_direction {
         SwapDirection::Add => quote_asset_reserve

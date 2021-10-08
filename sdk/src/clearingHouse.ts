@@ -865,25 +865,19 @@ export class ClearingHouse {
 	}
 
 	public async updateK(
-		baseAssetReserve: BN,
-		quoteAssetReserve: BN,
+		sqrtK: BN,
 		marketIndex: BN
 	): Promise<TransactionSignature> {
 		this.assertIsSubscribed();
 
-		return await this.program.rpc.updateK(
-			baseAssetReserve,
-			quoteAssetReserve,
-			marketIndex,
-			{
-				accounts: {
-					state: await this.getStatePublicKey(),
-					admin: this.wallet.publicKey,
-					markets: this.state.markets,
-					curveHistory: this.state.curveHistory,
-				},
-			}
-		);
+		return await this.program.rpc.updateK(sqrtK, marketIndex, {
+			accounts: {
+				state: await this.getStatePublicKey(),
+				admin: this.wallet.publicKey,
+				markets: this.state.markets,
+				curveHistory: this.state.curveHistory,
+			},
+		});
 	}
 
 	public async moveAmmToPrice(

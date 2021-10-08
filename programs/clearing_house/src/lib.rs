@@ -1183,12 +1183,7 @@ pub mod clearing_house {
         market_initialized(&ctx.accounts.markets, market_index) &&
         exchange_not_paused(&ctx.accounts.state)
     )]
-    pub fn update_k(
-        ctx: Context<AdminUpdateK>,
-        base_asset_reserve: u128,
-        quote_asset_reserve: u128,
-        market_index: u64,
-    ) -> ProgramResult {
+    pub fn update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128, market_index: u64) -> ProgramResult {
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
 
@@ -1200,7 +1195,7 @@ pub mod clearing_house {
         let base_asset_amount = market.base_asset_amount;
         let open_interest = market.open_interest;
 
-        let amm = &mut market.amm;
+        let amm = market.amm;
 
         let price_before = math::amm::calculate_price(
             amm.quote_asset_reserve,
@@ -1208,9 +1203,16 @@ pub mod clearing_house {
             amm.peg_multiplier,
         )?;
 
+        let peg_multiplier_before = amm.peg_multiplier;
+        let base_asset_reserve_before = amm.base_asset_reserve;
+        let quote_asset_reserve_before = amm.quote_asset_reserve;
+        let sqrt_k_before = amm.sqrt_k;
+
+        controller::amm::adjust_k(market, bn::U256::from(sqrt_k));
+
         let price_after = math::amm::calculate_price(
-            quote_asset_reserve,
-            base_asset_reserve,
+            amm.base_asset_reserve,
+            amm.quote_asset_reserve,
             amm.peg_multiplier,
         )?;
 
@@ -1219,16 +1221,10 @@ pub mod clearing_house {
             .ok_or_else(math_error!())?
             .unsigned_abs()
             .gt(&UPDATE_K_ALLOWED_PRICE_CHANGE);
+
         if price_change_too_large {
             return Err(ErrorCode::InvalidUpdateK.into());
         }
-
-        let peg_multiplier_before = amm.peg_multiplier;
-        let base_asset_reserve_before = amm.base_asset_reserve;
-        let quote_asset_reserve_before = amm.quote_asset_reserve;
-        let sqrt_k_before = amm.sqrt_k;
-
-        controller::amm::move_price(amm, base_asset_reserve, quote_asset_reserve)?;
 
         let peg_multiplier_after = amm.peg_multiplier;
         let base_asset_reserve_after = amm.base_asset_reserve;

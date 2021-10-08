@@ -815,11 +815,7 @@
       ],
       "args": [
         {
-          "name": "baseAssetReserve",
-          "type": "u128"
-        },
-        {
-          "name": "quoteAssetReserve",
+          "name": "sqrtK",
           "type": "u128"
         },
         {
