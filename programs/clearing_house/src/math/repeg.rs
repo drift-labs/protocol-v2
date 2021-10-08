@@ -33,9 +33,7 @@ pub fn calculate_repeg_candidate_pnl(
     .checked_mul(U256::from(net_user_market_position.unsigned_abs())) //1e13
     .ok_or_else(math_error!())?
     .checked_div(U256::from(
-        AMM_ASSET_AMOUNT_PRECISION
-            .checked_div(USDC_PRECISION)
-            .unwrap(), // 1e13/1e6 = 1e7
+        AMM_ASSET_AMOUNT_PRECISION, // 1e13
     ))
     .ok_or_else(math_error!())?;
 
@@ -49,7 +47,7 @@ pub fn calculate_repeg_candidate_pnl(
         )
         .ok_or_else(math_error!())?;
 
-    // 1e16 (MANTISSA * USDC_PRECISION)
+    // 1e10 (MANTISSA)
     return Ok(pnl);
 }
 
@@ -99,7 +97,11 @@ pub fn find_valid_repeg(
 
         let pnl = calculate_repeg_candidate_pnl(market, new_peg_candidate)?;
         let pnl_usdc = pnl
-            .checked_div(MARK_PRICE_MANTISSA as i128)
+            .checked_div(
+                MARK_PRICE_MANTISSA
+                    .checked_div(USDC_PRECISION)
+                    .ok_or_else(math_error!())? as i128,
+            )
             .ok_or_else(math_error!())?;
 
         if pnl > 0 || pnl_usdc.unsigned_abs() < amm.cumulative_fee_realized {

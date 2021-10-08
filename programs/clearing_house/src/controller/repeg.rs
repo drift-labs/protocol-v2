@@ -64,7 +64,11 @@ pub fn repeg(
     let amm_pnl_mantissa = math::repeg::calculate_repeg_candidate_pnl(market, new_peg_candidate)?;
     let amm_pnl_quote_asset = amm_pnl_mantissa
         .unsigned_abs()
-        .checked_div(MARK_PRICE_MANTISSA)
+        .checked_div(
+            MARK_PRICE_MANTISSA
+                .checked_div(USDC_PRECISION)
+                .ok_or_else(math_error!())?,
+        )
         .ok_or_else(math_error!())?;
 
     if net_market_position != 0 && amm_pnl_mantissa == 0 {
@@ -79,6 +83,7 @@ pub fn repeg(
         pnl_r = pnl_r
             .checked_add(amm_pnl_quote_asset)
             .ok_or_else(math_error!())?;
+
         perserve_price = false;
     } else if amm_pnl_quote_asset > pnl_r {
         return Err(ErrorCode::InvalidRepegProfitability.into());
@@ -97,46 +102,62 @@ pub fn repeg(
             return Err(ErrorCode::InvalidRepegProfitability.into());
         }
 
-        // profit sharing with only those who held the rewarded position before repeg
-        if new_peg_candidate < amm.peg_multiplier {
-            if market.base_asset_amount_short.unsigned_abs() > 0 {
-                let repeg_profit_per_unit = bn::U256::from(amm_pnl_mantissa.unsigned_abs())
-                    .checked_mul(bn::U256::from(AMM_ASSET_AMOUNT_PRECISION))
-                    .ok_or_else(math_error!())?
-                    .checked_div(bn::U256::from(
-                        market.base_asset_amount_short.unsigned_abs(),
-                    ))
-                    .ok_or_else(math_error!())?
-                    .try_to_u128()?;
+        // todo: add for repeg rebate v2
+        //add_repeg_rebate(market, new_peg_candidate, amm_pnl_mantissa)
+        //perserve_price = true;
 
-                market.amm.cumulative_repeg_rebate_short = amm
-                    .cumulative_repeg_rebate_short
-                    .checked_add(repeg_profit_per_unit)
-                    .ok_or_else(math_error!())?;
-            }
-        } else {
-            if market.base_asset_amount_long.unsigned_abs() > 0 {
-                let repeg_profit_per_unit = bn::U256::from(amm_pnl_mantissa.unsigned_abs())
-                    .checked_mul(bn::U256::from(AMM_ASSET_AMOUNT_PRECISION))
-                    .ok_or_else(math_error!())?
-                    .checked_div(bn::U256::from(market.base_asset_amount_long.unsigned_abs()))
-                    .ok_or_else(math_error!())?
-                    .try_to_u128()?;
-
-                market.amm.cumulative_repeg_rebate_long = amm
-                    .cumulative_repeg_rebate_long
-                    .checked_add(repeg_profit_per_unit)
-                    .ok_or_else(math_error!())?;
-            }
-        }
-
-        perserve_price = true;
+        perserve_price = false;
     }
 
     market.amm.cumulative_fee_realized = pnl_r;
     market.amm.peg_multiplier = new_peg_candidate;
+
     if perserve_price {
         controller::amm::move_to_price(&mut market.amm, current_mark);
+    }
+
+    Ok(())
+}
+
+// todo: repeg v2
+
+fn add_repeg_rebate(
+    market: &mut Market,
+    new_peg_candidate: u128,
+    amm_pnl_mantissa: i128,
+) -> ClearingHouseResult {
+    let amm = market.amm;
+    // profit sharing with only those who held the rewarded position before repeg
+    if new_peg_candidate < amm.peg_multiplier {
+        if market.base_asset_amount_short.unsigned_abs() > 0 {
+            let repeg_profit_per_unit = bn::U256::from(amm_pnl_mantissa.unsigned_abs())
+                .checked_mul(bn::U256::from(AMM_ASSET_AMOUNT_PRECISION))
+                .ok_or_else(math_error!())?
+                .checked_div(bn::U256::from(
+                    market.base_asset_amount_short.unsigned_abs(),
+                ))
+                .ok_or_else(math_error!())?
+                .try_to_u128()?;
+
+            market.amm.cumulative_repeg_rebate_short = amm
+                .cumulative_repeg_rebate_short
+                .checked_add(repeg_profit_per_unit)
+                .ok_or_else(math_error!())?;
+        }
+    } else {
+        if market.base_asset_amount_long.unsigned_abs() > 0 {
+            let repeg_profit_per_unit = bn::U256::from(amm_pnl_mantissa.unsigned_abs())
+                .checked_mul(bn::U256::from(AMM_ASSET_AMOUNT_PRECISION))
+                .ok_or_else(math_error!())?
+                .checked_div(bn::U256::from(market.base_asset_amount_long.unsigned_abs()))
+                .ok_or_else(math_error!())?
+                .try_to_u128()?;
+
+            market.amm.cumulative_repeg_rebate_long = amm
+                .cumulative_repeg_rebate_long
+                .checked_add(repeg_profit_per_unit)
+                .ok_or_else(math_error!())?;
+        }
     }
 
     Ok(())
