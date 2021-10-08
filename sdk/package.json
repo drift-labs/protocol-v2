@@ -20,6 +20,7 @@
 		"@solana/spl-token": "^0.1.6",
 		"@solana/web3.js": "^1.22.0",
 		"@types/bn.js": "^5.1.0",
+		"ccxt": "^1.57.77",
 		"ccxws": "^0.46.1",
 		"strict-event-emitter-types": "^2.0.0"
 	},
