@@ -11,6 +11,7 @@ use spl_token::state::{Account as TokenAccount, Mint};
 pub fn get_whitelist_token(
     optional_accounts: InitializeUserOptionalAccounts,
     accounts: &[AccountInfo],
+    whitelist_mint: &Pubkey,
 ) -> ClearingHouseResult<Option<TokenAccount>> {
     if !optional_accounts.whitelist_token {
         return Ok(None);
@@ -25,6 +26,10 @@ pub fn get_whitelist_token(
         .or(Err(ErrorCode::InvalidWhitelistToken.into()))?;
 
     if !token_account.is_initialized() {
+        return Err(ErrorCode::InvalidWhitelistToken.into());
+    }
+
+    if !token_account.mint.eq(whitelist_mint) {
         return Err(ErrorCode::InvalidWhitelistToken.into());
     }
 

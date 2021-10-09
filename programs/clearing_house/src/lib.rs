@@ -1166,7 +1166,11 @@ pub mod clearing_house {
         let user = &mut ctx.accounts.user;
 
         if !ctx.accounts.state.whitelist_mint.eq(&Pubkey::default()) {
-            let whitelist_token = get_whitelist_token(optional_accounts, ctx.remaining_accounts)?;
+            let whitelist_token = get_whitelist_token(
+                optional_accounts,
+                ctx.remaining_accounts,
+                &ctx.accounts.state.whitelist_mint,
+            )?;
 
             if whitelist_token.is_none() {
                 return Err(ErrorCode::WhitelistTokenNotFound.into());
