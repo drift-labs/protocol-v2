@@ -91,7 +91,7 @@ pub fn increase(
 
 pub fn reduce<'info>(
     direction: PositionDirection,
-    new_quote_asset_notional_amount: u128,
+    quote_asset_swap_amount: u128,
     user: &mut Account<'info, User>,
     market: &mut Market,
     market_position: &mut MarketPosition,
@@ -101,15 +101,15 @@ pub fn reduce<'info>(
         PositionDirection::Long => SwapDirection::Add,
         PositionDirection::Short => SwapDirection::Remove,
     };
-    let (base_asset_value_before, pnl_before) =
-        calculate_base_asset_value_and_pnl(market_position, &market.amm)?;
+
     let base_asset_swapped = controller::amm::swap_quote_asset(
         &mut market.amm,
-        new_quote_asset_notional_amount,
+        quote_asset_swap_amount,
         swap_direction,
         now,
     )?;
 
+    let base_asset_amount_before = market_position.base_asset_amount;
     market_position.base_asset_amount = market_position
         .base_asset_amount
         .checked_add(base_asset_swapped)
@@ -136,33 +136,32 @@ pub fn reduce<'info>(
             .ok_or_else(math_error!())?;
     }
 
-    let (base_asset_value_after, _) =
-        calculate_base_asset_value_and_pnl(market_position, &market.amm)?;
-
-    assert_eq!(base_asset_value_before > base_asset_value_after, true);
-
-    let base_asset_value_change = (base_asset_value_before as i128)
-        .checked_sub(base_asset_value_after as i128)
+    let base_asset_amount_change = base_asset_amount_before
+        .checked_sub(market_position.base_asset_amount)
         .ok_or_else(math_error!())?
         .abs();
 
-    let quote_asset_amount_closed = market_position
+    let initial_quote_asset_amount_closed = market_position
         .quote_asset_amount
-        .checked_mul(base_asset_value_change.unsigned_abs())
+        .checked_mul(base_asset_amount_change.unsigned_abs())
         .ok_or_else(math_error!())?
-        .checked_div(base_asset_value_before)
+        .checked_div(base_asset_amount_before.unsigned_abs())
         .ok_or_else(math_error!())?;
 
     market_position.quote_asset_amount = market_position
         .quote_asset_amount
-        .checked_sub(quote_asset_amount_closed)
+        .checked_sub(initial_quote_asset_amount_closed)
         .ok_or_else(math_error!())?;
 
-    let pnl = pnl_before
-        .checked_mul(base_asset_value_change)
-        .ok_or_else(math_error!())?
-        .checked_div(base_asset_value_before as i128)
-        .ok_or_else(math_error!())?;
+    let pnl = if market_position.base_asset_amount > 0 {
+        (quote_asset_swap_amount as i128)
+            .checked_sub(initial_quote_asset_amount_closed as i128)
+            .ok_or_else(math_error!())?
+    } else {
+        (initial_quote_asset_amount_closed as i128)
+            .checked_sub(quote_asset_swap_amount as i128)
+            .ok_or_else(math_error!())?
+    };
 
     user.collateral = calculate_updated_collateral(user.collateral, pnl)?;
 

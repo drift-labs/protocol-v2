@@ -6,7 +6,7 @@ if [ "$1" != "--skip-build" ]
     cp target/idl/clearing_house.json sdk/src/idl/
 fi
 
-test_files=(clearingHouse.ts pyth.ts userAccount.ts mockUSDCFaucet.ts admin.ts updateK.ts adminWithdraw.ts curve.ts whitelist.ts fees.ts)
+test_files=(clearingHouse.ts pyth.ts userAccount.ts mockUSDCFaucet.ts admin.ts updateK.ts adminWithdraw.ts curve.ts whitelist.ts fees.ts idempotentCurve.ts)
 
 for test_file in ${test_files[@]}; do
   export ANCHOR_TEST_FILE=${test_file} && anchor test --skip-build || exit 1;

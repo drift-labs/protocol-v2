@@ -390,7 +390,7 @@ describe('clearing_house', () => {
 		const userPositionsAccount: any =
 			await clearingHouse.program.account.userPositions.fetch(user.positions);
 		assert.ok(
-			userPositionsAccount.positions[0].quoteAssetAmount.eq(new BN(25000000))
+			userPositionsAccount.positions[0].quoteAssetAmount.eq(new BN(25001250))
 		);
 		console.log(userPositionsAccount.positions[0].baseAssetAmount.toNumber());
 		assert.ok(
@@ -398,7 +398,7 @@ describe('clearing_house', () => {
 				new BN(249987500624969)
 			)
 		);
-		assert.ok(user.collateral.eq(new BN(9996250)));
+		assert.ok(user.collateral.eq(new BN(9997500)));
 		assert(user.totalFeePaid.eq(new BN(3750)));
 		assert(user.cumulativeDeposits.eq(usdcAmount));
 
@@ -796,7 +796,7 @@ describe('clearing_house', () => {
 		console.log(chInsuranceAccountToken.amount.toNumber());
 		console.log(userUSDCTokenAccount.amount.toNumber());
 
-		assert.ok(chInsuranceAccountToken.amount.eq(new BN(2066151)));
+		assert.ok(chInsuranceAccountToken.amount.eq(new BN(2066150)));
 		assert.ok(userUSDCTokenAccount.amount.eq(new BN(145746)));
 
 		const tradeHistoryAccount = clearingHouse.getTradeHistoryAccount();
@@ -840,7 +840,7 @@ describe('clearing_house', () => {
 		);
 		assert.ok(
 			liquidationHistory.liquidationRecords[1].liquidationFee.eq(
-				new BN(2133782)
+				new BN(2133781)
 			)
 		);
 		assert.ok(
@@ -850,7 +850,7 @@ describe('clearing_house', () => {
 		);
 		assert.ok(
 			liquidationHistory.liquidationRecords[1].feeToInsuranceFund.eq(
-				new BN(2027093)
+				new BN(2027092)
 			)
 		);
 		assert.ok(
@@ -860,15 +860,15 @@ describe('clearing_house', () => {
 		);
 		assert.ok(
 			liquidationHistory.liquidationRecords[1].totalCollateral.eq(
-				new BN(2133782)
+				new BN(2133781)
 			)
 		);
 		assert.ok(
-			liquidationHistory.liquidationRecords[1].collateral.eq(new BN(8195541))
+			liquidationHistory.liquidationRecords[1].collateral.eq(new BN(8196540))
 		);
 		assert.ok(
 			liquidationHistory.liquidationRecords[1].unrealizedPnl.eq(
-				new BN(-6061759)
+				new BN(-6062759)
 			)
 		);
 		assert.ok(
