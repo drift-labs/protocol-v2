@@ -745,7 +745,8 @@ export class ClearingHouse {
 		amount: BN,
 		marketIndex: BN,
 		limitPrice?: BN,
-		driftToken?: PublicKey
+		driftToken?: PublicKey,
+		referrer?: PublicKey
 	): Promise<TransactionSignature> {
 		this.assertIsSubscribed();
 
@@ -758,7 +759,8 @@ export class ClearingHouse {
 		}
 
 		const optionalAccounts = {
-				driftToken: false
+			driftToken: false,
+			referrer: false,
 		};
 		const remainingAccounts = [];
 		if (driftToken) {
@@ -766,6 +768,14 @@ export class ClearingHouse {
 			remainingAccounts.push({
 				pubkey: driftToken,
 				isWritable: false,
+				isSigner: false,
+			});
+		}
+		if (referrer) {
+			optionalAccounts.referrer = true;
+			remainingAccounts.push({
+				pubkey: referrer,
+				isWritable: true,
 				isSigner: false,
 			});
 		}
@@ -799,7 +809,8 @@ export class ClearingHouse {
 	public async closePosition(
 		userAccountPublicKey: PublicKey,
 		marketIndex: BN,
-		driftToken?: PublicKey
+		driftToken?: PublicKey,
+		referrer?: PublicKey
 	): Promise<TransactionSignature> {
 		this.assertIsSubscribed();
 
@@ -811,7 +822,9 @@ export class ClearingHouse {
 			this.getMarketsAccount().markets[marketIndex.toNumber()].amm.oracle;
 
 		const optionalAccounts = {
-			driftToken: false
+			driftToken: false,
+			referrer: false,
+
 		};
 		const remainingAccounts = [];
 		if (driftToken) {
@@ -819,6 +832,14 @@ export class ClearingHouse {
 			remainingAccounts.push({
 				pubkey: driftToken,
 				isWritable: false,
+				isSigner: false,
+			});
+		}
+		if (referrer) {
+			optionalAccounts.referrer = true;
+			remainingAccounts.push({
+				pubkey: referrer,
+				isWritable: true,
 				isSigner: false,
 			});
 		}

@@ -64,6 +64,10 @@ pub enum ErrorCode {
     InvalidDriftToken,
     #[msg("Drift token not found")]
     DriftTokenNotFound,
+    #[msg("Invalid referrer")]
+    InvalidReferrer,
+    #[msg("Referrer not found")]
+    ReferrerNotFound,
 }
 
 #[macro_export]

@@ -1404,6 +1404,18 @@
             "type": "u128"
           },
           {
+            "name": "totalDriftTokenRebate",
+            "type": "u128"
+          },
+          {
+            "name": "totalReferralReward",
+            "type": "u128"
+          },
+          {
+            "name": "totalRefereeRebate",
+            "type": "u128"
+          },
+          {
             "name": "positions",
             "type": "publicKey"
           }
@@ -1645,6 +1657,10 @@
           {
             "name": "driftToken",
             "type": "bool"
+          },
+          {
+            "name": "referrer",
+            "type": "bool"
           }
         ]
       }
@@ -1851,6 +1867,12 @@
             "type": {
               "defined": "DriftTokenRebate"
             }
+          },
+          {
+            "name": "referralRebate",
+            "type": {
+              "defined": "ReferralRebate"
+            }
           }
         ]
       }
@@ -1908,6 +1930,30 @@
       }
     },
     {
+      "name": "ReferralRebate",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "referrerRewardNumerator",
+            "type": "u128"
+          },
+          {
+            "name": "referrerRewardDenominator",
+            "type": "u128"
+          },
+          {
+            "name": "refereeRebateNumerator",
+            "type": "u128"
+          },
+          {
+            "name": "refereeRebateDenominator",
+            "type": "u128"
+          }
+        ]
+      }
+    },
+    {
       "name": "TradeRecord",
       "type": {
         "kind": "struct",
@@ -1952,6 +1998,14 @@
           },
           {
             "name": "fee",
+            "type": "u128"
+          },
+          {
+            "name": "referrerReward",
+            "type": "u128"
+          },
+          {
+            "name": "refereeRebate",
             "type": "u128"
           },
           {
@@ -2222,9 +2276,16 @@
       "code": 329,
       "name": "DriftTokenNotFound",
       "msg": "Drift token not found"
+    },
+    {
+      "code": 330,
+      "name": "InvalidReferrer",
+      "msg": "Invalid referrer"
+    },
+    {
+      "code": 331,
+      "name": "ReferrerNotFound",
+      "msg": "Referrer not found"
     }
-  ],
-  "metadata": {
-    "address": "GJWSKZQ6Zkda8UvE4gpvLNG97gcyukbpdSSxh7KFjj7b"
-  }
+  ]
 }

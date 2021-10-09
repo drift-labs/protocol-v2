@@ -133,6 +133,12 @@ describe('admin', () => {
                     rebateNumerator: new BN(1),
                     rebateDenominator: new BN(1),
                 },
+            },
+            referralRebate: {
+                referrerRewardNumerator: new BN(1),
+                referrerRewardDenominator: new BN(1),
+                refereeRebateNumerator: new BN(1),
+                refereeRebateDenominator: new BN(1),
             }
         };
 

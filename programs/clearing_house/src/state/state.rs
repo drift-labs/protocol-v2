@@ -44,6 +44,7 @@ pub struct FeeStructure {
     pub fee_numerator: u128,
     pub fee_denominator: u128,
     pub drift_token_rebate: DriftTokenRebate,
+    pub referral_rebate: ReferralRebate,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
@@ -59,4 +60,12 @@ pub struct DriftTokenRebateTier {
     pub minimum_balance: u64,
     pub rebate_numerator: u128,
     pub rebate_denominator: u128,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
+pub struct ReferralRebate {
+    pub referrer_reward_numerator: u128,
+    pub referrer_reward_denominator: u128,
+    pub referee_rebate_numerator: u128,
+    pub referee_rebate_denominator: u128,
 }

@@ -217,6 +217,7 @@ pub struct WithdrawFromInsuranceVault<'info> {
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
 pub struct ManagePositionOptionalAccounts {
     pub drift_token: bool,
+    pub referrer: bool,
 }
 
 #[derive(Accounts)]

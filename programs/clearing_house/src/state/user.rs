@@ -7,6 +7,9 @@ pub struct User {
     pub collateral: u128,
     pub cumulative_deposits: i128,
     pub total_fee_paid: u128,
+    pub total_drift_token_rebate: u128,
+    pub total_referral_reward: u128,
+    pub total_referee_rebate: u128,
     pub positions: Pubkey,
 }
 

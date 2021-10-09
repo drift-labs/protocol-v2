@@ -27,6 +27,7 @@ pub mod clearing_house {
     use crate::state::history::curve::CurveRecord;
     use crate::state::history::deposit::{DepositDirection, DepositHistory, DepositRecord};
     use crate::state::history::liquidation::LiquidationRecord;
+    use crate::state::state::ReferralRebate;
     use std::cmp::min;
 
     pub fn initialize(
@@ -107,6 +108,12 @@ pub mod clearing_house {
                         rebate_numerator: DEFAULT_PROTOCOL_TOKEN_FOURTH_TIER_REBATE_NUMERATOR,
                         rebate_denominator: DEFAULT_PROTOCOL_TOKEN_FOURTH_TIER_REBATE_DENOMINATOR,
                     },
+                },
+                referral_rebate: ReferralRebate {
+                    referrer_reward_numerator: DEFAULT_REFERRER_REWARD_NUMERATOR,
+                    referrer_reward_denominator: DEFAULT_REFERRER_REWARD_DENOMINATOR,
+                    referee_rebate_numerator: DEFAULT_REFEREE_REBATE_NUMERATOR,
+                    referee_rebate_denominator: DEFAULT_REFEREE_REBATE_DENOMINATOR,
                 },
             },
             collateral_deposits: 0,
@@ -516,19 +523,20 @@ pub mod clearing_house {
             mark_price_after = market.amm.mark_price()?;
         }
 
-        let drift_token = optional_accounts::get_drift_token(
+        let (drift_token, referrer) = optional_accounts::get_drift_token_and_referrer(
             optional_accounts,
             ctx.remaining_accounts,
             &ctx.accounts.state.drift_mint,
+            &user.key(),
         )?;
-        let (fee, drift_token_rebate) = fees::calculate(
+
+        let (fee, drift_token_rebate, referrer_reward, referee_rebate) = fees::calculate(
             quote_asset_amount,
             &ctx.accounts.state.fee_structure,
             drift_token,
+            &referrer,
         )?;
 
-        msg!("fee {}", fee);
-        msg!("drift_token_rebate {}", drift_token_rebate);
         ctx.accounts.state.fees_collected = ctx
             .accounts
             .state
@@ -556,6 +564,25 @@ pub mod clearing_house {
             .total_fee_paid
             .checked_add(fee)
             .ok_or_else(math_error!())?;
+
+        user.total_drift_token_rebate = user
+            .total_drift_token_rebate
+            .checked_add(drift_token_rebate)
+            .ok_or_else(math_error!())?;
+
+        user.total_referee_rebate = user
+            .total_referee_rebate
+            .checked_add(referee_rebate)
+            .ok_or_else(math_error!())?;
+
+        if referrer.is_some() {
+            let mut referrer = referrer.unwrap();
+            referrer.total_referral_reward = referrer
+                .total_referral_reward
+                .checked_add(referrer_reward)
+                .ok_or_else(math_error!())?;
+            referrer.exit(ctx.program_id)?;
+        }
 
         let (
             _total_collateral_after,
@@ -588,6 +615,8 @@ pub mod clearing_house {
             mark_price_after,
             fee,
             drift_token_rebate,
+            referrer_reward,
+            referee_rebate,
             liquidation: false,
             market_index,
         });
@@ -688,15 +717,17 @@ pub mod clearing_house {
         let base_asset_amount = market_position.base_asset_amount.unsigned_abs();
         controller::position::close(user, market, market_position, now)?;
 
-        let drift_token = optional_accounts::get_drift_token(
+        let (drift_token, referrer) = optional_accounts::get_drift_token_and_referrer(
             optional_accounts,
             ctx.remaining_accounts,
             &ctx.accounts.state.drift_mint,
+            &user.key(),
         )?;
-        let (fee, drift_token_rebate) = fees::calculate(
+        let (fee, drift_token_rebate, referrer_reward, referee_rebate) = fees::calculate(
             base_asset_value,
             &ctx.accounts.state.fee_structure,
             drift_token,
+            &referrer,
         )?;
         ctx.accounts.state.fees_collected = ctx
             .accounts
@@ -722,6 +753,25 @@ pub mod clearing_house {
             .checked_add(fee)
             .ok_or_else(math_error!())?;
 
+        user.total_drift_token_rebate = user
+            .total_drift_token_rebate
+            .checked_add(drift_token_rebate)
+            .ok_or_else(math_error!())?;
+
+        user.total_referee_rebate = user
+            .total_referee_rebate
+            .checked_add(referee_rebate)
+            .ok_or_else(math_error!())?;
+
+        if referrer.is_some() {
+            let mut referrer = referrer.unwrap();
+            referrer.total_referral_reward = referrer
+                .total_referral_reward
+                .checked_add(referrer_reward)
+                .ok_or_else(math_error!())?;
+            referrer.exit(ctx.program_id)?;
+        }
+
         let mark_price_after = market.amm.mark_price()?;
         trade_history_account.append(TradeRecord {
             ts: now,
@@ -736,6 +786,8 @@ pub mod clearing_house {
             liquidation: false,
             fee,
             drift_token_rebate,
+            referrer_reward,
+            referee_rebate,
             market_index,
         });
 
@@ -813,6 +865,8 @@ pub mod clearing_house {
                     mark_price_after,
                     fee: 0,
                     drift_token_rebate: 0,
+                    referrer_reward: 0,
+                    referee_rebate: 0,
                     liquidation: true,
                     market_index: market_position.market_index,
                 });
@@ -874,6 +928,8 @@ pub mod clearing_house {
                     mark_price_after,
                     fee: 0,
                     drift_token_rebate: 0,
+                    referrer_reward: 0,
+                    referee_rebate: 0,
                     liquidation: true,
                     market_index: market_position.market_index,
                 });

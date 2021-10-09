@@ -19,6 +19,9 @@ export type UserAccountData = {
 	cumulativeDeposits: BN;
 	positions: PublicKey;
 	totalFeePaid: BN;
+	totalReferralReward: BN;
+	totalRefereeRebate: BN;
+	totalDriftTokenRebate: BN;
 };
 
 export type ClearingHouseState = {
@@ -78,6 +81,12 @@ export type FeeStructure = {
 			rebateNumerator: BN;
 			rebateDenominator: BN;
 		}
+	},
+	referralRebate: {
+		referrerRewardNumerator: BN;
+		referrerRewardDenominator: BN;
+		refereeRebateNumerator: BN;
+		refereeRebateDenominator: BN;
 	}
 }
 
