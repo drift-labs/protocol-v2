@@ -151,6 +151,7 @@ export type ClearingHouseState = {
 	admin: PublicKey;
 	exchangePaused: boolean;
 	adminControlsPrices: boolean;
+	collateralMint: PublicKey;
 	collateralVault: PublicKey;
 	collateralVaultAuthority: PublicKey;
 	collateralVaultNonce: number;
