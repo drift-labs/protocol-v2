@@ -146,7 +146,7 @@ pub fn is_oracle_valid(
         .ok_or_else(math_error!())?;
     let is_conf_too_large = conf_size.lt(&(4 as u128));
 
-    let is_stale = oracle_delay.gt(&(30 as i64));
+    let is_stale = oracle_delay.gt(&(1000 as i64));
 
     Ok(!(is_stale || is_conf_too_large))
 }
