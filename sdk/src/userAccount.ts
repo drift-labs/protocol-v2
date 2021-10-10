@@ -5,9 +5,9 @@ import {
 	AMM_MANTISSA,
 	ClearingHouse,
 } from './clearingHouse';
-import { UserAccountData, UserPosition, UserPositionData } from './DataTypes';
 import { EventEmitter } from 'events';
 import StrictEventEmitter from 'strict-event-emitter-types';
+import { UserAccountData, UserPositionData, UserPosition } from './types';
 
 export const MAX_LEVERAGE = new BN(10);
 

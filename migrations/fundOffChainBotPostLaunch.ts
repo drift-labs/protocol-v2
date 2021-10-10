@@ -2,9 +2,9 @@ import { Wallet } from '@project-serum/anchor';
 import BN from 'bn.js';
 import { ClearingHouse } from '../sdk';
 import { MockUSDCFaucet } from '../sdk/src';
-import { PublicKey, Keypair, Connection } from '@solana/web3.js';
 
 import dotenv = require('dotenv');
+import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 dotenv.config();
 
 async function main() {

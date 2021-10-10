@@ -11,7 +11,6 @@ import { PositionDirection, SwapDirection } from './types';
 export * from './userAccount';
 export * from './clearingHouse';
 export * from './DataSubscriptionHelpers';
-export * from './DataTypes';
 export * from './types';
 export * from './utils';
 export * from './constants/chartConstants';

@@ -1,119 +1,119 @@
 {
-  "version": "0.0.0",
-  "name": "mock_usdc_faucet",
-  "instructions": [
-    {
-      "name": "initialize",
-      "accounts": [
-        {
-          "name": "mockUsdcFaucetState",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "mintAccount",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "rent",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "mockUsdcFaucetNonce",
-          "type": "u8"
-        }
-      ]
-    },
-    {
-      "name": "mintToUser",
-      "accounts": [
-        {
-          "name": "mockUsdcFaucetState",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "mintAccount",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "userTokenAccount",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "mintAuthority",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "tokenProgram",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "amount",
-          "type": "u64"
-        }
-      ]
-    }
-  ],
-  "accounts": [
-    {
-      "name": "MockUSDCFaucetState",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "admin",
-            "type": "publicKey"
-          },
-          {
-            "name": "mint",
-            "type": "publicKey"
-          },
-          {
-            "name": "mintAuthority",
-            "type": "publicKey"
-          },
-          {
-            "name": "mintAuthorityNonce",
-            "type": "u8"
-          }
-        ]
-      }
-    }
-  ],
-  "errors": [
-    {
-      "code": 300,
-      "name": "InvalidMintAccountAuthority",
-      "msg": "Program not mint authority"
-    },
-    {
-      "code": 301,
-      "name": "Unauthorized",
-      "msg": "Signer must be MockUSDCFaucet admin"
-    }
-  ],
-  "metadata": {
-    "address": "7H2dxbZuf9PRy8yBFcAmSekmrnFL53XJdXLhksLdGBxo"
-  }
+	"version": "0.0.0",
+	"name": "mock_usdc_faucet",
+	"instructions": [
+		{
+			"name": "initialize",
+			"accounts": [
+				{
+					"name": "mockUsdcFaucetState",
+					"isMut": true,
+					"isSigner": false
+				},
+				{
+					"name": "admin",
+					"isMut": false,
+					"isSigner": true
+				},
+				{
+					"name": "mintAccount",
+					"isMut": false,
+					"isSigner": false
+				},
+				{
+					"name": "rent",
+					"isMut": false,
+					"isSigner": false
+				},
+				{
+					"name": "systemProgram",
+					"isMut": false,
+					"isSigner": false
+				}
+			],
+			"args": [
+				{
+					"name": "mockUsdcFaucetNonce",
+					"type": "u8"
+				}
+			]
+		},
+		{
+			"name": "mintToUser",
+			"accounts": [
+				{
+					"name": "mockUsdcFaucetState",
+					"isMut": false,
+					"isSigner": false
+				},
+				{
+					"name": "mintAccount",
+					"isMut": true,
+					"isSigner": false
+				},
+				{
+					"name": "userTokenAccount",
+					"isMut": true,
+					"isSigner": false
+				},
+				{
+					"name": "mintAuthority",
+					"isMut": false,
+					"isSigner": false
+				},
+				{
+					"name": "tokenProgram",
+					"isMut": false,
+					"isSigner": false
+				}
+			],
+			"args": [
+				{
+					"name": "amount",
+					"type": "u64"
+				}
+			]
+		}
+	],
+	"accounts": [
+		{
+			"name": "MockUSDCFaucetState",
+			"type": {
+				"kind": "struct",
+				"fields": [
+					{
+						"name": "admin",
+						"type": "publicKey"
+					},
+					{
+						"name": "mint",
+						"type": "publicKey"
+					},
+					{
+						"name": "mintAuthority",
+						"type": "publicKey"
+					},
+					{
+						"name": "mintAuthorityNonce",
+						"type": "u8"
+					}
+				]
+			}
+		}
+	],
+	"errors": [
+		{
+			"code": 300,
+			"name": "InvalidMintAccountAuthority",
+			"msg": "Program not mint authority"
+		},
+		{
+			"code": 301,
+			"name": "Unauthorized",
+			"msg": "Signer must be MockUSDCFaucet admin"
+		}
+	],
+	"metadata": {
+		"address": "7H2dxbZuf9PRy8yBFcAmSekmrnFL53XJdXLhksLdGBxo"
+	}
 }

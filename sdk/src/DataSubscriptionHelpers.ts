@@ -1,13 +1,20 @@
 import { PublicKey } from '@solana/web3.js';
 import BN from 'bn.js';
 import { ZERO } from './constants/numericConstants';
-import { TradeHistoryAccount, TradeRecord } from './DataTypes';
-import { Candle, Trade, TradeSide, CandleResolution } from './types';
+import {
+	Candle,
+	Trade,
+	TradeSide,
+	CandleResolution,
+	TradeHistoryAccount,
+	TradeRecord,
+} from './types';
 import {
 	AMM_MANTISSA,
 	PEG_SCALAR,
 	QUOTE_BASE_PRECISION_DIFF,
 } from './clearingHouse';
+import { Liquidation, LiquidationRecord } from './types';
 
 const defaultPublicKey = new PublicKey('11111111111111111111111111111111');
 const priceMantissa = AMM_MANTISSA;
@@ -197,4 +204,27 @@ export const resolutionStringToCandleLengthMs = (
 		case 'M':
 			return 30 * 24 * 60 * 60 * 1000;
 	}
+};
+
+export const liquidationRecordToUILiquidation = (
+	liquidationRecord: LiquidationRecord
+): Liquidation => {
+	return {
+		ts: Date.now(),
+		chainTs: liquidationRecord.ts.toNumber(),
+		recordId: stripMantissa(liquidationRecord.recordId),
+		userAuthority: liquidationRecord.userAuthority,
+		user: liquidationRecord.user,
+		partial: liquidationRecord.partial,
+		baseAssetValue: stripMantissa(liquidationRecord.baseAssetValue),
+		baseAssetValueClosed: stripMantissa(liquidationRecord.baseAssetValueClosed),
+		liquidationFee: stripMantissa(liquidationRecord.liquidationFee),
+		feeToLiquidator: stripMantissa(liquidationRecord.feeToLiquidator),
+		feeToInsuranceFund: stripMantissa(liquidationRecord.feeToInsuranceFund),
+		liquidator: liquidationRecord.liquidator,
+		totalCollateral: stripMantissa(liquidationRecord.totalCollateral),
+		collateral: stripMantissa(liquidationRecord.collateral),
+		unrealizedPnl: stripMantissa(liquidationRecord.unrealizedPnl),
+		marginRatio: stripMantissa(liquidationRecord.marginRatio),
+	};
 };

@@ -4,7 +4,22 @@ import {
 	Token,
 	TOKEN_PROGRAM_ID,
 } from '@solana/spl-token';
-import { IWallet, PositionDirection } from './types';
+import {
+	ClearingHouseMarketsAccountData,
+	ClearingHouseState,
+	CurveHistory,
+	DepositHistory,
+	FeeStructure,
+	FundingPaymentHistory,
+	FundingRateHistory,
+	IWallet,
+	LiquidationHistory,
+	PositionDirection,
+	TradeHistoryAccount,
+	UserAccountData,
+	UserPosition,
+	UserPositionData,
+} from './types';
 import * as anchor from '@project-serum/anchor';
 import clearingHouseIDL from './idl/clearing_house.json';
 import { PythClient } from './pythClient';
@@ -24,19 +39,6 @@ import {
 
 import { assert } from './assert/assert';
 import { MockUSDCFaucet } from './mockUSDCFaucet';
-import {
-	ClearingHouseMarketsAccountData,
-	ClearingHouseState,
-	CurveHistory,
-	DepositHistory,
-	FundingPaymentHistory,
-	FundingRateHistory,
-	LiquidationHistory, FeeStructure,
-	TradeHistoryAccount,
-	UserAccountData,
-	UserPosition,
-	UserPositionData,
-} from './DataTypes';
 import { EventEmitter } from 'events';
 import StrictEventEmitter from 'strict-event-emitter-types';
 
@@ -824,7 +826,6 @@ export class ClearingHouse {
 		const optionalAccounts = {
 			driftToken: false,
 			referrer: false,
-
 		};
 		const remainingAccounts = [];
 		if (driftToken) {
@@ -844,24 +845,20 @@ export class ClearingHouse {
 			});
 		}
 
-		return await this.program.rpc.closePosition(
-			marketIndex,
-			optionalAccounts,
-			{
-				accounts: {
-					state: await this.getStatePublicKey(),
-					user: userAccountPublicKey,
-					authority: this.wallet.publicKey,
-					markets: this.state.markets,
-					userPositions: user.positions,
-					tradeHistory: this.state.tradeHistory,
-					fundingPaymentHistory: this.state.fundingPaymentHistory,
-					fundingRateHistory: this.state.fundingRateHistory,
-					oracle: priceOracle,
-				},
-				remainingAccounts: remainingAccounts,
-			}
-		);
+		return await this.program.rpc.closePosition(marketIndex, optionalAccounts, {
+			accounts: {
+				state: await this.getStatePublicKey(),
+				user: userAccountPublicKey,
+				authority: this.wallet.publicKey,
+				markets: this.state.markets,
+				userPositions: user.positions,
+				tradeHistory: this.state.tradeHistory,
+				fundingPaymentHistory: this.state.fundingPaymentHistory,
+				fundingRateHistory: this.state.fundingRateHistory,
+				oracle: priceOracle,
+			},
+			remainingAccounts: remainingAccounts,
+		});
 	}
 
 	public async moveAmmPrice(
@@ -1681,9 +1678,7 @@ export class ClearingHouse {
 		);
 	}
 
-	public async updateFee(
-		fees: FeeStructure
-	): Promise<TransactionSignature> {
+	public async updateFee(fees: FeeStructure): Promise<TransactionSignature> {
 		return await this.program.rpc.updateFee(fees, {
 			accounts: {
 				admin: this.wallet.publicKey,
@@ -1723,5 +1718,9 @@ export class ClearingHouse {
 				state: await this.getStatePublicKey(),
 			},
 		});
+	}
+
+	public triggerEvent(eventName: keyof ClearingHouseEvents, data?: any) {
+		this.eventEmitter.emit(eventName, data);
 	}
 }

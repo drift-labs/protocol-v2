@@ -1,6 +1,5 @@
-import { TradeRecord } from './DataTypes';
 import { AMM_MANTISSA } from './clearingHouse';
-import { Candle } from './types';
+import { Candle, TradeRecord } from './types';
 import { BN } from 'bn.js';
 
 // This Type is copied from tradingview charting_library
