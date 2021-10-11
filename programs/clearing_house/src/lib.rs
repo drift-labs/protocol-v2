@@ -456,12 +456,12 @@ pub mod clearing_house {
         let market_position = market_position.unwrap();
 
         let mut potentially_risk_increasing = true;
-        let mut is_oracle_mark_limit = false;
-        let mut is_oracle_valid = true;
 
         let base_asset_amount_before = market_position.base_asset_amount;
         let mark_price_before: u128;
         let oracle_mark_spread_pct_before: i128;
+        let is_oracle_valid: bool;
+
         {
             let market = &mut ctx.accounts.markets.load_mut()?.markets
                 [Markets::index_from_u64(market_index)];
@@ -635,7 +635,7 @@ pub mod clearing_house {
             return Err(ErrorCode::InsufficientCollateral.into());
         }
 
-        is_oracle_mark_limit = amm::is_oracle_mark_limit(
+        let is_oracle_mark_limit = amm::is_oracle_mark_limit(
             oracle_mark_spread_pct_after,
             &ctx.accounts.state.oracle_guard_rails.open_position,
         )
