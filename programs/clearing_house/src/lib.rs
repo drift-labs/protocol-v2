@@ -636,13 +636,12 @@ pub mod clearing_house {
             return Err(ErrorCode::InsufficientCollateral.into());
         }
 
-        let is_oracle_mark_limit = amm::is_oracle_mark_limit(
+        let is_oracle_mark_too_divergent = amm::is_oracle_mark_too_divergent(
             oracle_mark_spread_pct_after,
             &ctx.accounts.state.oracle_guard_rails.price_divergence,
-        )
-        .unwrap();
+        )?;
 
-        if is_oracle_mark_limit
+        if is_oracle_mark_too_divergent
             && oracle_mark_spread_pct_after.unsigned_abs()
                 >= oracle_mark_spread_pct_before.unsigned_abs()
             && is_oracle_valid

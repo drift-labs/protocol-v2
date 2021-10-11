@@ -42,8 +42,8 @@ fn block_operation(
         amm::is_oracle_valid(amm, oracle_account_info, clock_slot, &guard_rails.validity)?;
     let oracle_mark_spread_pct =
         amm::calculate_oracle_mark_spread_pct(&amm, &oracle_account_info, 0, clock_slot)?;
-    let is_oracle_mark_limit =
-        amm::is_oracle_mark_limit(oracle_mark_spread_pct, &guard_rails.price_divergence)?;
+    let is_oracle_mark_too_divergent =
+        amm::is_oracle_mark_too_divergent(oracle_mark_spread_pct, &guard_rails.price_divergence)?;
 
-    return Ok(!oracle_is_valid || is_oracle_mark_limit);
+    return Ok(!oracle_is_valid || is_oracle_mark_too_divergent);
 }

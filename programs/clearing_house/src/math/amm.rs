@@ -121,7 +121,7 @@ pub fn calculate_oracle_mark_spread_pct(
     Ok(price_spread_pct)
 }
 
-pub fn is_oracle_mark_limit(
+pub fn is_oracle_mark_too_divergent(
     price_spread_pct: i128,
     oracle_guard_rails: &PriceDivergenceGuardRails,
 ) -> ClearingHouseResult<bool> {
