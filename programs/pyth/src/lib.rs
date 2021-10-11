@@ -23,6 +23,8 @@ pub mod pyth {
 
         price_oracle.agg.price = price;
         price_oracle.agg.conf = 0;
+
+        price_oracle.twap = price;
         price_oracle.expo = expo;
         price_oracle.ptype = pc::PriceType::Price;
         Ok(())
@@ -32,7 +34,7 @@ pub mod pyth {
         let oracle = &ctx.accounts.price;
         let mut price_oracle = Price::load(&oracle).unwrap();
 
-        price_oracle.twap = price as i64; //todo
+        price_oracle.twap = price_oracle.twap.checked_add(price).unwrap().checked_div(2).unwrap(); //todo
         price_oracle.agg.price = price as i64;
         Ok(())
     }

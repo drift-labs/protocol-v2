@@ -142,12 +142,33 @@ pub fn is_oracle_valid(
 ) -> ClearingHouseResult<bool> {
     let (oracle_price, oracle_conf, oracle_delay) =
         amm.get_oracle_price(price_oracle, 0, clock_slot)?;
-    let conf_size = (oracle_price as u128)
+
+    let (oracle_twap, oracle_twap_conf, _oracle_delay) =
+        amm.get_oracle_price(price_oracle, 60 * 60, clock_slot)?;
+
+    let is_oracle_price_nonpositive = (oracle_twap <= 0) || (oracle_price <= 0);
+    assert_eq!(is_oracle_price_nonpositive, false);
+    
+    let is_oracle_price_too_volatile = ((oracle_price
+        .checked_div(max(1, oracle_twap))
+        .ok_or_else(math_error!())?)
+    .gt(&5))
+        || ((oracle_twap
+            .checked_div(max(1,oracle_price))
+            .ok_or_else(math_error!())?)
+        .gt(&5));
+
+    let conf_denom_of_price = (oracle_price as u128)
         .checked_div(max(1, oracle_conf))
         .ok_or_else(math_error!())?;
-    let is_conf_too_large = conf_size.lt(&valid_oracle_guard_rails.confidence_interval_max_size);
+    let conf_denom_of_twap_price = (oracle_twap as u128)
+        .checked_div(max(1, oracle_twap_conf))
+        .ok_or_else(math_error!())?;
+    let is_conf_too_large = (conf_denom_of_price
+        .lt(&valid_oracle_guard_rails.confidence_interval_max_size))
+        || (conf_denom_of_twap_price.lt(&valid_oracle_guard_rails.confidence_interval_max_size));
 
     let is_stale = oracle_delay.gt(&valid_oracle_guard_rails.slots_before_stale);
 
-    Ok(!(is_stale || is_conf_too_large))
+    Ok(!(is_stale || is_conf_too_large || is_oracle_price_nonpositive || is_oracle_price_too_volatile))
 }
