@@ -11,6 +11,7 @@ name = "mock_usdc_faucet"
 [features]
 no-entrypoint = []
 cpi = ["no-entrypoint"]
+mainnet-beta=[]
 
 [dependencies]
 anchor-lang = "0.16.1"

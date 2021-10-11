@@ -18,6 +18,10 @@ mod instructions;
 mod math;
 mod optional_accounts;
 mod state;
+
+#[cfg(feature = "mainnet-beta")]
+declare_id!("8ZKUvZGZtEH8ktPELKoEZzVJSf11WzXiCpKjdWq5jnzV");
+#[cfg(not(feature = "mainnet-beta"))]
 declare_id!("8ZKUvZGZtEH8ktPELKoEZzVJSf11WzXiCpKjdWq5jnzV");
 
 #[program]

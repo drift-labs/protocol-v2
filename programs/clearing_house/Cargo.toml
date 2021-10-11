@@ -11,6 +11,7 @@ name = "clearing_house"
 [features]
 no-entrypoint = []
 cpi = ["no-entrypoint"]
+mainnet-beta=[]
 
 [dependencies]
 anchor-lang = "0.16.1"
