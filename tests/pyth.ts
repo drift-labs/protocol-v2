@@ -251,7 +251,7 @@ describe('pyth-oracle', () => {
 			'->',
 			stripMantissa(targetPriceDefaultSlippage)
 		);
-		const [_directionSuc, tradeSizeSuc, entryPriceSuc] =
+		const [_directionSuc, _tradeSizeSuc, _entryPriceSuc] =
 			clearingHouse.calculateTargetPriceTrade(
 				marketIndex,
 				BN.max(targetPriceDefaultSlippage, new BN(1))
@@ -277,7 +277,7 @@ describe('pyth-oracle', () => {
 			stripMantissa(targetPriceFails)
 		);
 
-		const [_direction, tradeSize, entryPrice] =
+		const [_direction, tradeSize, _entryPrice] =
 			clearingHouse.calculateTargetPriceTrade(
 				marketIndex,
 				BN.max(targetPriceFails, new BN(1))
