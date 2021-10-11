@@ -471,6 +471,10 @@ pub mod clearing_house {
             let market = &mut ctx.accounts.markets.load_mut()?.markets
                 [Markets::index_from_u64(market_index)];
 
+            if !market.amm.oracle.eq(ctx.accounts.oracle.key) {
+                return Err(ErrorCode::InvalidOracle.into());
+            }
+
             controller::position::increase(
                 direction,
                 quote_asset_amount,
@@ -496,6 +500,10 @@ pub mod clearing_house {
         } else {
             let market = &mut ctx.accounts.markets.load_mut()?.markets
                 [Markets::index_from_u64(market_index)];
+
+            if !market.amm.oracle.eq(ctx.accounts.oracle.key) {
+                return Err(ErrorCode::InvalidOracle.into());
+            }
 
             let (base_asset_value, _unrealized_pnl) =
                 calculate_base_asset_value_and_pnl(market_position, &market.amm)?;
@@ -726,6 +734,10 @@ pub mod clearing_house {
 
         let market =
             &mut ctx.accounts.markets.load_mut()?.markets[Markets::index_from_u64(market_index)];
+
+        if !market.amm.oracle.eq(ctx.accounts.oracle.key) {
+            return Err(ErrorCode::InvalidOracle.into());
+        }
 
         // base_asset_value is the base_asset_amount priced in quote_asset, so we can use this
         // as quote_asset_notional_amount in trade history

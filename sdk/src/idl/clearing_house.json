@@ -2367,6 +2367,11 @@
       "code": 331,
       "name": "ReferrerNotFound",
       "msg": "Referrer not found"
+    },
+    {
+      "code": 332,
+      "name": "InvalidOracle",
+      "msg": "InvalidOracle"
     }
   ]
 }

@@ -68,6 +68,8 @@ pub enum ErrorCode {
     InvalidReferrer,
     #[msg("Referrer not found")]
     ReferrerNotFound,
+    #[msg("InvalidOracle")]
+    InvalidOracle,
 }
 
 #[macro_export]
