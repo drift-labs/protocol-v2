@@ -1,9 +1,10 @@
 use crate::controller::amm::SwapDirection;
 use crate::error::*;
 use crate::math::bn::U256;
-use crate::math::constants::{MARGIN_MANTISSA, MARK_PRICE_MANTISSA, PEG_PRECISION};
+use crate::math::constants::{MARK_ORACLE_DIVERGENCE_MANTISSA, MARK_PRICE_MANTISSA, PEG_PRECISION};
 use crate::math_error;
 use crate::state::market::AMM;
+use crate::state::state::{OpenPositionOracleGuardRails, ValidOracleGuardRails};
 use anchor_lang::prelude::AccountInfo;
 use solana_program::msg;
 use std::cmp::max;
@@ -107,6 +108,7 @@ pub fn is_oracle_mark_limit(
     price_oracle: &AccountInfo,
     window: u32,
     now: i64,
+    oracle_guard_rails: &OpenPositionOracleGuardRails,
 ) -> ClearingHouseResult<bool> {
     let mark_price: i128;
     if window > 0 {
@@ -123,27 +125,33 @@ pub fn is_oracle_mark_limit(
         .ok_or_else(math_error!())?;
 
     let price_spread_pct = price_spread
-        .checked_mul(MARGIN_MANTISSA as i128)
+        .checked_mul(MARK_ORACLE_DIVERGENCE_MANTISSA as i128)
         .ok_or_else(math_error!())?
         .checked_div(oracle_price)
         .ok_or_else(math_error!())?;
 
-    let ten_percent_limit = MARGIN_MANTISSA.checked_div(10).ok_or_else(math_error!())?;
-    Ok(price_spread_pct.unsigned_abs() > ten_percent_limit)
+    let max_divergence = MARK_ORACLE_DIVERGENCE_MANTISSA
+        .checked_mul(oracle_guard_rails.mark_oracle_divergence_numerator)
+        .ok_or_else(math_error!())?
+        .checked_div(oracle_guard_rails.mark_oracle_divergence_denominator)
+        .ok_or_else(math_error!())?;
+
+    Ok(price_spread_pct.unsigned_abs() > max_divergence)
 }
 
 pub fn is_oracle_valid(
     amm: &AMM,
     price_oracle: &AccountInfo,
     now: i64,
+    valid_oracle_guard_rails: &ValidOracleGuardRails,
 ) -> ClearingHouseResult<bool> {
     let (oracle_price, oracle_conf, oracle_delay) = amm.get_oracle_price(price_oracle, 0, now)?;
     let conf_size = (oracle_price as u128)
         .checked_div(max(1, oracle_conf))
         .ok_or_else(math_error!())?;
-    let is_conf_too_large = conf_size.lt(&(4 as u128));
+    let is_conf_too_large = conf_size.lt(&valid_oracle_guard_rails.confidence_interval_max_size);
 
-    let is_stale = oracle_delay.gt(&(1000 as i64));
+    let is_stale = oracle_delay.gt(&valid_oracle_guard_rails.slots_before_stale);
 
     Ok(!(is_stale || is_conf_too_large))
 }

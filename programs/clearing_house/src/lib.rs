@@ -8,7 +8,7 @@ use math::{amm, bn, constants::*, fees, margin::*, position::*, withdrawal::*};
 use state::{
     history::trade::TradeRecord,
     market::{Market, Markets, OracleSource, AMM},
-    state::{DriftTokenRebate, DriftTokenRebateTier, FeeStructure, State},
+    state::*,
     user::{MarketPosition, User},
 };
 
@@ -31,7 +31,6 @@ pub mod clearing_house {
     use crate::state::history::curve::CurveRecord;
     use crate::state::history::deposit::{DepositDirection, DepositRecord};
     use crate::state::history::liquidation::LiquidationRecord;
-    use crate::state::state::ReferralRebate;
 
     pub fn initialize(
         ctx: Context<Initialize>,
@@ -124,6 +123,16 @@ pub mod clearing_house {
             fees_withdrawn: 0,
             whitelist_mint: Pubkey::default(),
             drift_mint: Pubkey::default(),
+            oracle_guard_rails: OracleGuardRails {
+                open_position: OpenPositionOracleGuardRails {
+                    mark_oracle_divergence_numerator: 1,
+                    mark_oracle_divergence_denominator: 10,
+                },
+                valid_oracle: ValidOracleGuardRails {
+                    slots_before_stale: 1000,
+                    confidence_interval_max_size: 4,
+                },
+            },
         };
 
         return Ok(());
@@ -471,9 +480,19 @@ pub mod clearing_house {
             )?;
 
             let price_oracle = &ctx.accounts.oracle;
-            is_oracle_mark_limit =
-                amm::is_oracle_mark_limit(&market.amm, price_oracle, 0, now).unwrap();
-            is_oracle_valid = amm::is_oracle_valid(&market.amm, price_oracle, now).unwrap();
+            is_oracle_mark_limit = amm::is_oracle_mark_limit(
+                &market.amm,
+                price_oracle,
+                0,
+                now,
+                &ctx.accounts.state.oracle_guard_rails.open_position,
+            )?;
+            is_oracle_valid = amm::is_oracle_valid(
+                &market.amm,
+                price_oracle,
+                now,
+                &ctx.accounts.state.oracle_guard_rails.valid_oracle,
+            )?;
         } else {
             let market = &mut ctx.accounts.markets.load_mut()?.markets
                 [Markets::index_from_u64(market_index)];
@@ -1390,6 +1409,14 @@ pub mod clearing_house {
 
     pub fn update_fee(ctx: Context<AdminUpdateState>, fees: FeeStructure) -> ProgramResult {
         ctx.accounts.state.fee_structure = fees;
+        Ok(())
+    }
+
+    pub fn update_oracle_guard_rails(
+        ctx: Context<AdminUpdateState>,
+        oracle_guard_rails: OracleGuardRails,
+    ) -> ProgramResult {
+        ctx.accounts.state.oracle_guard_rails = oracle_guard_rails;
         Ok(())
     }
 

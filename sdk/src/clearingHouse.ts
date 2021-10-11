@@ -13,7 +13,7 @@ import {
 	FundingPaymentHistory,
 	FundingRateHistory,
 	IWallet,
-	LiquidationHistory,
+	LiquidationHistory, OracleGuardRails,
 	PositionDirection,
 	TradeHistoryAccount,
 	UserAccountData,
@@ -1680,6 +1680,15 @@ export class ClearingHouse {
 
 	public async updateFee(fees: FeeStructure): Promise<TransactionSignature> {
 		return await this.program.rpc.updateFee(fees, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+			},
+		});
+	}
+
+	public async updateOracleGuardRails(oracleGuardRails: OracleGuardRails): Promise<TransactionSignature> {
+		return await this.program.rpc.updateOracleGuardRails(oracleGuardRails, {
 			accounts: {
 				admin: this.wallet.publicKey,
 				state: await this.getStatePublicKey(),

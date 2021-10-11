@@ -179,6 +179,7 @@ export type ClearingHouseState = {
 	feeStructure: FeeStructure;
 	whitelistMint: PublicKey;
 	driftMint: PublicKey;
+	oracleGuardRails: OracleGuardRails;
 };
 
 export type ClearingHouseMarketsAccountData = {
@@ -317,4 +318,15 @@ export type FeeStructure = {
 		refereeRebateNumerator: BN;
 		refereeRebateDenominator: BN;
 	};
+};
+
+export type OracleGuardRails = {
+	openPosition: {
+		markOracleDivergenceNumerator: BN,
+		markOracleDivergenceDenominator: BN,
+	},
+	validOracle: {
+		slotsBeforeStale: BN,
+		confidenceIntervalMaxSize: BN,
+	}
 };

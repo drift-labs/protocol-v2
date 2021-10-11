@@ -994,6 +994,29 @@
       ]
     },
     {
+      "name": "updateOracleGuardRails",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "oracleGuardRails",
+          "type": {
+            "defined": "OracleGuardRails"
+          }
+        }
+      ]
+    },
+    {
       "name": "updateAdmin",
       "accounts": [
         {
@@ -1355,6 +1378,12 @@
           {
             "name": "driftMint",
             "type": "publicKey"
+          },
+          {
+            "name": "oracleGuardRails",
+            "type": {
+              "defined": "OracleGuardRails"
+            }
           }
         ]
       }
@@ -1844,6 +1873,58 @@
           },
           {
             "name": "cumulativeFeeRealized",
+            "type": "u128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OracleGuardRails",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "openPosition",
+            "type": {
+              "defined": "OpenPositionOracleGuardRails"
+            }
+          },
+          {
+            "name": "validOracle",
+            "type": {
+              "defined": "ValidOracleGuardRails"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "OpenPositionOracleGuardRails",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "markOracleDivergenceNumerator",
+            "type": "u128"
+          },
+          {
+            "name": "markOracleDivergenceDenominator",
+            "type": "u128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ValidOracleGuardRails",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "slotsBeforeStale",
+            "type": "i64"
+          },
+          {
+            "name": "confidenceIntervalMaxSize",
             "type": "u128"
           }
         ]

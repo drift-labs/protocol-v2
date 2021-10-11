@@ -37,6 +37,25 @@ pub struct State {
     pub fees_withdrawn: u128,
     pub whitelist_mint: Pubkey,
     pub drift_mint: Pubkey,
+    pub oracle_guard_rails: OracleGuardRails,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
+pub struct OracleGuardRails {
+    pub open_position: OpenPositionOracleGuardRails,
+    pub valid_oracle: ValidOracleGuardRails,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
+pub struct OpenPositionOracleGuardRails {
+    pub mark_oracle_divergence_numerator: u128,
+    pub mark_oracle_divergence_denominator: u128,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
+pub struct ValidOracleGuardRails {
+    pub slots_before_stale: i64,
+    pub confidence_interval_max_size: u128,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]

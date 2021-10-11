@@ -3,7 +3,7 @@ import { Program } from '@project-serum/anchor';
 import BN from 'bn.js';
 import { assert } from 'chai';
 
-import { ClearingHouse, FeeStructure } from '../sdk/src';
+import {ClearingHouse, FeeStructure, OracleGuardRails} from '../sdk/src';
 
 import { mockUSDCMint } from '../utils/mockAccounts';
 import { PublicKey } from '@solana/web3.js';
@@ -156,6 +156,27 @@ describe('admin', () => {
 
 		assert(
 			JSON.stringify(newFeeStructure) === JSON.stringify(state.feeStructure)
+		);
+	});
+
+	it('Update oracle guard rails', async () => {
+		const oracleGuardRails: OracleGuardRails = {
+			openPosition: {
+				markOracleDivergenceNumerator: new BN(1),
+				markOracleDivergenceDenominator: new BN(1),
+			},
+			validOracle: {
+				slotsBeforeStale: new BN(1),
+				confidenceIntervalMaxSize: new BN(1),
+			}
+		};
+
+		await clearingHouse.updateOracleGuardRails(oracleGuardRails);
+
+		const state = clearingHouse.getState();
+
+		assert(
+			JSON.stringify(oracleGuardRails) === JSON.stringify(state.oracleGuardRails)
 		);
 	});
 
