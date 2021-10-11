@@ -147,8 +147,7 @@ pub fn is_oracle_valid(
         amm.get_oracle_price(price_oracle, 60 * 60, clock_slot)?;
 
     let is_oracle_price_nonpositive = (oracle_twap <= 0) || (oracle_price <= 0);
-    assert_eq!(is_oracle_price_nonpositive, false);
-    
+
     let is_oracle_price_too_volatile = ((oracle_price
         .checked_div(max(1, oracle_twap))
         .ok_or_else(math_error!())?)
