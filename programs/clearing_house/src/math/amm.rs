@@ -1,10 +1,7 @@
 use crate::controller::amm::SwapDirection;
 use crate::error::*;
 use crate::math::bn::U256;
-use crate::math::constants::{
-    AMM_ASSET_AMOUNT_PRECISION, MARGIN_MANTISSA, MARK_PRICE_MANTISSA, PEG_PRECISION,
-    PRICE_TO_PEG_PRECISION_RATIO, USDC_PRECISION,
-};
+use crate::math::constants::{MARGIN_MANTISSA, MARK_PRICE_MANTISSA, PEG_PRECISION};
 use crate::math_error;
 use crate::state::market::AMM;
 use anchor_lang::prelude::AccountInfo;

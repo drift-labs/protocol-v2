@@ -29,10 +29,9 @@ pub mod clearing_house {
     use super::*;
     use crate::optional_accounts::get_whitelist_token;
     use crate::state::history::curve::CurveRecord;
-    use crate::state::history::deposit::{DepositDirection, DepositHistory, DepositRecord};
+    use crate::state::history::deposit::{DepositDirection, DepositRecord};
     use crate::state::history::liquidation::LiquidationRecord;
     use crate::state::state::ReferralRebate;
-    use std::cmp::min;
 
     pub fn initialize(
         ctx: Context<Initialize>,
@@ -1124,9 +1123,6 @@ pub mod clearing_house {
             &mut ctx.accounts.markets.load_mut()?.markets[Markets::index_from_u64(market_index)];
         let price_oracle = &ctx.accounts.oracle;
 
-        let clock = Clock::get()?;
-        let now = clock.unix_timestamp;
-
         let peg_multiplier_before = market.amm.peg_multiplier;
         let base_asset_reserve_before = market.amm.base_asset_reserve;
         let quote_asset_reserve_before = market.amm.quote_asset_reserve;
@@ -1259,20 +1255,20 @@ pub mod clearing_house {
         let base_asset_amount = market.base_asset_amount;
         let open_interest = market.open_interest;
 
-        let amm = market.amm;
-
         let price_before = math::amm::calculate_price(
-            amm.quote_asset_reserve,
-            amm.base_asset_reserve,
-            amm.peg_multiplier,
+            market.amm.quote_asset_reserve,
+            market.amm.base_asset_reserve,
+            market.amm.peg_multiplier,
         )?;
 
-        let peg_multiplier_before = amm.peg_multiplier;
-        let base_asset_reserve_before = amm.base_asset_reserve;
-        let quote_asset_reserve_before = amm.quote_asset_reserve;
-        let sqrt_k_before = amm.sqrt_k;
+        let peg_multiplier_before = market.amm.peg_multiplier;
+        let base_asset_reserve_before = market.amm.base_asset_reserve;
+        let quote_asset_reserve_before = market.amm.quote_asset_reserve;
+        let sqrt_k_before = market.amm.sqrt_k;
 
         controller::amm::adjust_k(market, bn::U256::from(sqrt_k));
+
+        let amm = &market.amm;
 
         let price_after = math::amm::calculate_price(
             amm.base_asset_reserve,

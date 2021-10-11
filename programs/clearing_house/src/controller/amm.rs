@@ -154,7 +154,7 @@ pub fn adjust_k(market: &mut Market, new_sqrt_k: bn::U256) {
         .try_to_u128()
         .unwrap();
 
-    let (new_net_value, cost) =
+    let (_new_net_value, cost) =
         _calculate_base_asset_value_and_pnl(market.base_asset_amount, cur_net_value, &market.amm)
             .unwrap();
 
@@ -177,6 +177,7 @@ pub fn adjust_k(market: &mut Market, new_sqrt_k: bn::U256) {
     }
 }
 
+#[allow(dead_code)]
 pub fn calculate_cost_of_k(market: &mut Market, new_sqrt_k: bn::U256) -> i128 {
     // RESEARCH ONLY - mimic paper's alternative formula
     let p = bn::U256::from(market.amm.sqrt_k)
@@ -191,7 +192,7 @@ pub fn calculate_cost_of_k(market: &mut Market, new_sqrt_k: bn::U256) -> i128 {
 
     let cost_numer_1_mantissa = p;
 
-    let mut cost_denom_1 = p
+    let cost_denom_1 = p
         .checked_mul(bn::U256::from(market.amm.base_asset_reserve))
         .unwrap()
         .checked_div(bn::U256::from(AMM_ASSET_AMOUNT_PRECISION))
@@ -258,18 +259,6 @@ pub fn calculate_cost_of_k(market: &mut Market, new_sqrt_k: bn::U256) -> i128 {
 
     if cost > market.amm.cumulative_fee_realized as i128 {
         //todo throw an error
-        msg!("{:?} - {:?}", cost_1, cost_2);
-        msg!(
-            "moving k cost too high: {:?} vs {:?}",
-            cost,
-            market.amm.cumulative_fee_realized
-        );
-        msg!(
-            "{:?} -> {:?} (p={:?})",
-            market.amm.sqrt_k,
-            new_sqrt_k.try_to_u128().unwrap(),
-            p.try_to_u128().unwrap()
-        );
         assert_eq!(cost, 0);
     }
 

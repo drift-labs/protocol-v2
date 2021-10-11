@@ -4,13 +4,13 @@ use crate::math;
 use crate::math::bn;
 
 use crate::math::constants::{
-    AMM_ASSET_AMOUNT_PRECISION, FUNDING_PAYMENT_MANTISSA, MARK_PRICE_MANTISSA, PEG_PRECISION,
-    PRICE_TO_PEG_PRECISION_RATIO, SHARE_OF_FEES_ALLOCATED_TO_REPEG_DENOMINATOR,
-    SHARE_OF_FEES_ALLOCATED_TO_REPEG_NUMERATOR, USDC_PRECISION,
+    AMM_ASSET_AMOUNT_PRECISION, MARK_PRICE_MANTISSA, PRICE_TO_PEG_PRECISION_RATIO,
+    SHARE_OF_FEES_ALLOCATED_TO_REPEG_DENOMINATOR, SHARE_OF_FEES_ALLOCATED_TO_REPEG_NUMERATOR,
+    USDC_PRECISION,
 };
 use crate::math_error;
-use crate::state::market::{Market, AMM};
-use crate::state::user::{MarketPosition, User};
+use crate::state::market::Market;
+use crate::state::user::MarketPosition;
 
 use anchor_lang::prelude::AccountInfo;
 use solana_program::msg;
@@ -113,14 +113,13 @@ pub fn repeg(
     market.amm.peg_multiplier = new_peg_candidate;
 
     if perserve_price {
-        controller::amm::move_to_price(&mut market.amm, current_mark);
+        controller::amm::move_to_price(&mut market.amm, current_mark)?;
     }
 
     Ok(())
 }
 
-// todo: repeg v2
-
+#[allow(dead_code)]
 fn add_repeg_rebate(
     market: &mut Market,
     new_peg_candidate: u128,
@@ -163,11 +162,8 @@ fn add_repeg_rebate(
     Ok(())
 }
 
-fn settle_repeg_rebate(
-    user_account: &mut User,
-    market_position: &mut MarketPosition,
-    market: Market,
-) {
+#[allow(dead_code)]
+fn settle_repeg_rebate(market_position: &mut MarketPosition, market: Market) {
     if market_position.base_asset_amount > 0
         && market_position.last_cumulative_repeg_rebate != market.amm.cumulative_repeg_rebate_long
         || market_position.base_asset_amount < 0
@@ -193,7 +189,7 @@ fn settle_repeg_rebate(
             market.amm.cumulative_repeg_rebate_short
         };
 
-        let repeg_rebate_share_pnl = bn::U256::from(repeg_rebate_share)
+        let _repeg_rebate_share_pnl = bn::U256::from(repeg_rebate_share)
             .checked_mul(bn::U256::from(
                 market_position.base_asset_amount.unsigned_abs(),
             ))

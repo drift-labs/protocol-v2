@@ -1,9 +1,6 @@
 use crate::controller::amm::SwapDirection;
 use crate::controller::position::PositionDirection;
 use crate::error::*;
-use crate::math::constants::{
-    AMM_ASSET_AMOUNT_PRECISION, MARK_PRICE_MANTISSA, PRICE_TO_PEG_PRECISION_RATIO, USDC_PRECISION,
-};
 use crate::math::{amm, quote_asset::*};
 use crate::math_error;
 use crate::state::market::AMM;
@@ -26,14 +23,6 @@ pub fn _calculate_base_asset_value_and_pnl(
     quote_asset_amount: u128,
     amm: &AMM,
 ) -> ClearingHouseResult<(u128, i128)> {
-    let quote_asset_acquired = calculate_base_asset_value(
-        base_asset_amount,
-        amm.base_asset_reserve,
-        amm.quote_asset_reserve,
-        amm.sqrt_k,
-        amm.peg_multiplier,
-    );
-
     let swap_direction = swap_direction_to_close_position(base_asset_amount);
 
     let (new_quote_asset_reserve, _new_base_asset_reserve) = amm::calculate_swap_output(
@@ -72,44 +61,6 @@ pub fn _calculate_base_asset_value_and_pnl(
     };
 
     return Ok((pegged_quote_asset_amount_acquired, pnl));
-}
-
-pub fn calculate_base_asset_value(
-    base_asset_amount: i128,
-    base_asset_reserve: u128,
-    quote_asset_reserve: u128,
-    sqrt_k: u128,
-    peg_multiplier: u128,
-) -> u128 {
-    let swap_direction = swap_direction_to_close_position(base_asset_amount);
-
-    let (new_quote_asset_amount, _new_base_asset_amount) = amm::calculate_swap_output(
-        base_asset_amount.unsigned_abs(),
-        base_asset_reserve,
-        swap_direction,
-        sqrt_k,
-    )
-    .unwrap();
-
-    msg!("{:?} {:?}", new_quote_asset_amount, quote_asset_reserve);
-
-    let mut quote_asset_acquired = match swap_direction {
-        SwapDirection::Add => quote_asset_reserve
-            .checked_sub(new_quote_asset_amount)
-            .unwrap(),
-
-        SwapDirection::Remove => new_quote_asset_amount
-            .checked_sub(quote_asset_reserve)
-            .unwrap(),
-    };
-
-    quote_asset_acquired = quote_asset_acquired
-        .checked_mul(peg_multiplier)
-        .unwrap()
-        .checked_div(MARK_PRICE_MANTISSA)
-        .unwrap();
-
-    return quote_asset_acquired;
 }
 
 pub fn direction_to_close_position(base_asset_amount: i128) -> PositionDirection {

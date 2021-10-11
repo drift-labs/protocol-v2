@@ -6,7 +6,7 @@ use crate::math::constants::{
     USDC_PRECISION,
 };
 use crate::math_error;
-use crate::state::market::{Market, AMM};
+use crate::state::market::Market;
 use solana_program::msg;
 
 pub fn calculate_repeg_candidate_pnl(
@@ -54,7 +54,7 @@ pub fn calculate_repeg_candidate_pnl(
 pub fn find_valid_repeg(
     market: &Market,
     oracle_px: i128,
-    oracle_conf: u128,
+    _oracle_conf: u128,
 ) -> ClearingHouseResult<u128> {
     let amm = market.amm;
     let peg_spread_0 = (amm.peg_multiplier as i128)
