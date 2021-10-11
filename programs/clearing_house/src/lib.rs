@@ -454,16 +454,31 @@ pub mod clearing_house {
         }
 
         let market_position = market_position.unwrap();
+
+        let mut potentially_risk_increasing = true;
+        let mut is_oracle_mark_limit = false;
+        let mut is_oracle_valid = true;
+
         let base_asset_amount_before = market_position.base_asset_amount;
         let mark_price_before: u128;
+        let oracle_mark_spread_pct_before: i128;
         {
             let market = &mut ctx.accounts.markets.load_mut()?.markets
                 [Markets::index_from_u64(market_index)];
             mark_price_before = market.amm.mark_price()?;
+            oracle_mark_spread_pct_before = amm::calculate_oracle_mark_spread_pct(
+                &market.amm,
+                &ctx.accounts.oracle,
+                0,
+                clock_slot,
+            )?;
+            is_oracle_valid = amm::is_oracle_valid(
+                &market.amm,
+                &ctx.accounts.oracle,
+                clock_slot,
+                &ctx.accounts.state.oracle_guard_rails.valid_oracle,
+            )?;
         }
-        let mut potentially_risk_increasing = true;
-        let mut is_oracle_mark_limit = false;
-        let mut is_oracle_valid = true;
 
         if market_position.base_asset_amount == 0
             || market_position.base_asset_amount > 0 && direction == PositionDirection::Long
@@ -482,21 +497,6 @@ pub mod clearing_house {
                 market,
                 market_position,
                 now,
-            )?;
-
-            let price_oracle = &ctx.accounts.oracle;
-            is_oracle_mark_limit = amm::is_oracle_mark_limit(
-                &market.amm,
-                price_oracle,
-                0,
-                clock_slot,
-                &ctx.accounts.state.oracle_guard_rails.open_position,
-            )?;
-            is_oracle_valid = amm::is_oracle_valid(
-                &market.amm,
-                price_oracle,
-                clock_slot,
-                &ctx.accounts.state.oracle_guard_rails.valid_oracle,
             )?;
         } else {
             let market = &mut ctx.accounts.markets.load_mut()?.markets
@@ -548,10 +548,17 @@ pub mod clearing_house {
             .ok_or_else(math_error!())?
             .unsigned_abs();
         let mark_price_after: u128;
+        let oracle_mark_spread_pct_after: i128;
         {
             let market = &mut ctx.accounts.markets.load_mut()?.markets
                 [Markets::index_from_u64(market_index)];
             mark_price_after = market.amm.mark_price()?;
+            oracle_mark_spread_pct_after = amm::calculate_oracle_mark_spread_pct(
+                &market.amm,
+                &ctx.accounts.oracle,
+                0,
+                clock_slot,
+            )?;
         }
 
         let (drift_token, referrer) = optional_accounts::get_drift_token_and_referrer(
@@ -628,7 +635,18 @@ pub mod clearing_house {
             return Err(ErrorCode::InsufficientCollateral.into());
         }
 
-        if is_oracle_mark_limit && is_oracle_valid && potentially_risk_increasing {
+        is_oracle_mark_limit = amm::is_oracle_mark_limit(
+            oracle_mark_spread_pct_after,
+            &ctx.accounts.state.oracle_guard_rails.open_position,
+        )
+        .unwrap();
+
+        if is_oracle_mark_limit
+            && oracle_mark_spread_pct_after.unsigned_abs()
+                >= oracle_mark_spread_pct_before.unsigned_abs()
+            && is_oracle_valid
+            && potentially_risk_increasing
+        {
             return Err(ErrorCode::OracleMarkSpreadLimit.into());
         }
 

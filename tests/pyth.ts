@@ -9,7 +9,12 @@ import {
 	mockUSDCMint,
 } from '../utils/mockAccounts';
 import { getFeedData, setFeedPrice } from '../utils/mockPythUtils';
-import { PEG_SCALAR, stripMantissa } from '../sdk';
+import {
+	PEG_SCALAR,
+	stripMantissa,
+	UserAccount,
+	PositionDirection,
+} from '../sdk';
 
 import { Program } from '@project-serum/anchor';
 
@@ -129,6 +134,7 @@ describe('pyth-oracle', () => {
 
 	const usdcAmount = new BN(10 * 10 ** 6);
 
+	let userAccount: UserAccount;
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
 		_userUSDCAccount = await mockUserUSDCAccount(
@@ -148,10 +154,15 @@ describe('pyth-oracle', () => {
 
 		const price = 50000;
 		await mockOracle(price, -6);
+
+		await clearingHouse.initializeUserAccount();
+		userAccount = new UserAccount(clearingHouse, provider.wallet.publicKey);
+		await userAccount.subscribe();
 	});
 
 	after(async () => {
 		await clearingHouse.unsubscribe();
+		await userAccount.unsubscribe();
 	});
 
 	it('change feed price', async () => {
@@ -217,5 +228,74 @@ describe('pyth-oracle', () => {
 			priceFeedAddress,
 			[41.501, 41.499]
 		);
+	});
+	it('new LONG trade above oracle-mark limit fails', async () => {
+		const marketIndex = new BN(1);
+
+		const market =
+			clearingHouse.getMarketsAccount().markets[marketIndex.toNumber()];
+		const baseAssetPriceWithMantissa =
+			clearingHouse.calculateCurvePriceWithMantissa(
+				market.amm.baseAssetReserve,
+				market.amm.quoteAssetReserve,
+				market.amm.pegMultiplier
+			);
+
+		const targetPriceDefaultSlippage = baseAssetPriceWithMantissa.add(
+			baseAssetPriceWithMantissa.div(new BN(11))
+		); // < 10% increase
+
+		console.log(
+			'SUCCEEDS: price from',
+			stripMantissa(baseAssetPriceWithMantissa),
+			'->',
+			stripMantissa(targetPriceDefaultSlippage)
+		);
+		const [_directionSuc, tradeSizeSuc, entryPriceSuc] =
+			clearingHouse.calculateTargetPriceTrade(
+				marketIndex,
+				BN.max(targetPriceDefaultSlippage, new BN(1))
+			);
+		// await clearingHouse.openPosition(
+		// 	await userAccount.getPublicKey(),
+		// 	PositionDirection.LONG,
+		// 	tradeSizeSuc,
+		// 	marketIndex
+		// );
+		// await clearingHouse.closePosition(
+		// 	await userAccount.getPublicKey(),
+		// 	marketIndex
+		// );
+
+		const targetPriceFails = baseAssetPriceWithMantissa.add(
+			baseAssetPriceWithMantissa.div(new BN(9))
+		); // > 10% increase
+		console.log(
+			'FAILS: price from',
+			stripMantissa(baseAssetPriceWithMantissa),
+			'->',
+			stripMantissa(targetPriceFails)
+		);
+
+		const [_direction, tradeSize, entryPrice] =
+			clearingHouse.calculateTargetPriceTrade(
+				marketIndex,
+				BN.max(targetPriceFails, new BN(1))
+			);
+
+		try {
+			await clearingHouse.openPosition(
+				await userAccount.getPublicKey(),
+				PositionDirection.LONG,
+				tradeSize,
+				marketIndex
+			);
+			assert(false, 'Order succeeded');
+		} catch (e) {
+			if (e.message == 'Order succeeded') {
+				assert(false, 'Order succeeded');
+			}
+			assert(true);
+		}
 	});
 });
