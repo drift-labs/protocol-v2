@@ -48,6 +48,7 @@ pub fn settle_funding_payment(
                 market_index: market_position.market_index,
                 funding_payment: market_funding_rate_payment, //10e13
                 user_last_cumulative_funding: market_position.last_cumulative_funding_rate, //10e14
+                user_last_funding_rate_ts: market_position.last_funding_rate_ts,
                 amm_cumulative_funding: amm.cumulative_funding_rate, //10e14
                 base_asset_amount: market_position.base_asset_amount, //10e13
             });
