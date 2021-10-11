@@ -10,11 +10,13 @@ use crate::math::constants::{
     AMM_ASSET_AMOUNT_PRECISION, FUNDING_PAYMENT_MANTISSA, MARK_PRICE_MANTISSA, USDC_PRECISION,
 };
 use crate::math::funding::calculate_funding_payment;
+use crate::math::oracle;
 use crate::math_error;
 use crate::state::history::funding_payment::{FundingPaymentHistory, FundingPaymentRecord};
 use crate::state::history::funding_rate::{FundingRateHistory, FundingRateRecord};
 use crate::state::market::AMM;
 use crate::state::market::{Market, Markets};
+use crate::state::state::OracleGuardRails;
 use crate::state::user::{User, UserPositions};
 use solana_program::clock::UnixTimestamp;
 use solana_program::msg;
@@ -83,6 +85,7 @@ pub fn update_funding_rate(
     now: UnixTimestamp,
     clock_slot: u64,
     funding_rate_history: &mut RefMut<FundingRateHistory>,
+    guard_rails: &OracleGuardRails,
 ) -> ClearingHouseResult {
     let time_since_last_update = now - market.amm.last_funding_rate_ts;
 
@@ -90,7 +93,10 @@ pub fn update_funding_rate(
     market.amm.last_mark_price_twap = mark_price_twap;
     market.amm.last_mark_price_twap_ts = now;
 
-    if time_since_last_update >= market.amm.funding_period {
+    let block_funding_rate_update =
+        oracle::block_funding_rate_update(&market.amm, price_oracle, clock_slot, guard_rails)?;
+
+    if !block_funding_rate_update && time_since_last_update >= market.amm.funding_period {
         let one_hour: u32 = 3600;
         let period_adjustment = (24_i64)
             .checked_mul(one_hour as i64)

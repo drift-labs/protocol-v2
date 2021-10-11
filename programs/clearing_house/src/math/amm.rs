@@ -153,7 +153,7 @@ pub fn is_oracle_valid(
         .ok_or_else(math_error!())?)
     .gt(&5))
         || ((oracle_twap
-            .checked_div(max(1,oracle_price))
+            .checked_div(max(1, oracle_price))
             .ok_or_else(math_error!())?)
         .gt(&5));
 
@@ -169,5 +169,8 @@ pub fn is_oracle_valid(
 
     let is_stale = oracle_delay.gt(&valid_oracle_guard_rails.slots_before_stale);
 
-    Ok(!(is_stale || is_conf_too_large || is_oracle_price_nonpositive || is_oracle_price_too_volatile))
+    Ok(!(is_stale
+        || is_conf_too_large
+        || is_oracle_price_nonpositive
+        || is_oracle_price_too_volatile))
 }

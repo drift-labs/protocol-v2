@@ -20,6 +20,24 @@ pub fn block_liquidation(
         .find(|account_info| account_info.key.eq(&amm.oracle))
         .ok_or(ErrorCode::OracleNotFound)?;
 
+    return block_operation(amm, oracle_account_info, clock_slot, guard_rails);
+}
+
+pub fn block_funding_rate_update(
+    amm: &AMM,
+    oracle_account_info: &AccountInfo,
+    clock_slot: Slot,
+    guard_rails: &OracleGuardRails,
+) -> ClearingHouseResult<bool> {
+    return block_operation(amm, oracle_account_info, clock_slot, guard_rails);
+}
+
+fn block_operation(
+    amm: &AMM,
+    oracle_account_info: &AccountInfo,
+    clock_slot: Slot,
+    guard_rails: &OracleGuardRails,
+) -> ClearingHouseResult<bool> {
     let oracle_is_valid =
         amm::is_oracle_valid(amm, oracle_account_info, clock_slot, &guard_rails.validity)?;
     let oracle_mark_spread_pct =

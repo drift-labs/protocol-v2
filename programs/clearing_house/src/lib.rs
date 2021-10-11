@@ -714,6 +714,7 @@ pub mod clearing_house {
                 now,
                 clock_slot,
                 funding_rate_history,
+                &ctx.accounts.state.oracle_guard_rails,
             )?;
         }
 
@@ -856,6 +857,7 @@ pub mod clearing_house {
             now,
             clock_slot,
             funding_rate_history,
+            &ctx.accounts.state.oracle_guard_rails,
         )?;
 
         Ok(())
@@ -1312,6 +1314,7 @@ pub mod clearing_house {
             now,
             clock_slot,
             funding_rate_history,
+            &ctx.accounts.state.oracle_guard_rails,
         )?;
 
         Ok(())
