@@ -328,6 +328,7 @@ export type OracleGuardRails = {
 	validity: {
 		slotsBeforeStale: BN,
 		confidenceIntervalMaxSize: BN,
+		tooVolatileRatio: BN,
 	},
 	useForLiquidations: boolean,
 };

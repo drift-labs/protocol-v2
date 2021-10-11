@@ -1934,6 +1934,10 @@
           {
             "name": "confidenceIntervalMaxSize",
             "type": "u128"
+          },
+          {
+            "name": "tooVolatileRatio",
+            "type": "i128"
           }
         ]
       }

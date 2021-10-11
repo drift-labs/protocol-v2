@@ -57,6 +57,7 @@ pub struct PriceDivergenceGuardRails {
 pub struct ValidityGuardRails {
     pub slots_before_stale: i64,
     pub confidence_interval_max_size: u128,
+    pub too_volatile_ratio: i128,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]

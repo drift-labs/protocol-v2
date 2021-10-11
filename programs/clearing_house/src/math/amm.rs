@@ -151,11 +151,11 @@ pub fn is_oracle_valid(
     let is_oracle_price_too_volatile = ((oracle_price
         .checked_div(max(1, oracle_twap))
         .ok_or_else(math_error!())?)
-    .gt(&5))
+    .gt(&valid_oracle_guard_rails.too_volatile_ratio))
         || ((oracle_twap
             .checked_div(max(1, oracle_price))
             .ok_or_else(math_error!())?)
-        .gt(&5));
+        .gt(&valid_oracle_guard_rails.too_volatile_ratio));
 
     let conf_denom_of_price = (oracle_price as u128)
         .checked_div(max(1, oracle_conf))

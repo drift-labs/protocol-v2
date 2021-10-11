@@ -168,6 +168,7 @@ describe('admin', () => {
 			validity: {
 				slotsBeforeStale: new BN(1),
 				confidenceIntervalMaxSize: new BN(1),
+				tooVolatileRatio: new BN(1),
 			},
 			useForLiquidations: false
 		};

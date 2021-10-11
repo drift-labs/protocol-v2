@@ -131,6 +131,7 @@ pub mod clearing_house {
                 validity: ValidityGuardRails {
                     slots_before_stale: 1000,
                     confidence_interval_max_size: 4,
+                    too_volatile_ratio: 5,
                 },
                 use_for_liquidations: true,
             },
