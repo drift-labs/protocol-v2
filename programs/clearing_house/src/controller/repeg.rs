@@ -19,7 +19,7 @@ pub fn repeg(
     market: &mut Market,
     price_oracle: &AccountInfo,
     new_peg_candidate: u128,
-    now: i64,
+    clock_slot: u64,
 ) -> ClearingHouseResult {
     let amm = market.amm;
     if new_peg_candidate == amm.peg_multiplier {
@@ -28,7 +28,7 @@ pub fn repeg(
 
     let mut new_peg_candidate = new_peg_candidate;
 
-    let (oracle_px, oracle_conf, _oracle_delay) = amm.get_oracle_price(price_oracle, 0, now)?;
+    let (oracle_px, oracle_conf, _oracle_delay) = amm.get_oracle_price(price_oracle, 0, clock_slot)?;
     let cur_peg = amm.peg_multiplier;
 
     let current_mark = amm.mark_price()?;

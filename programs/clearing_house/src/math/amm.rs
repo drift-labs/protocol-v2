@@ -84,7 +84,7 @@ pub fn calculate_oracle_mark_spread(
     amm: &AMM,
     price_oracle: &AccountInfo,
     window: u32,
-    now: i64,
+    clock_slot: u64,
 ) -> ClearingHouseResult<(i128, i128)> {
     let mark_price: i128;
     if window > 0 {
@@ -94,7 +94,7 @@ pub fn calculate_oracle_mark_spread(
     }
 
     let (oracle_price, _oracle_conf, _oracle_delay) =
-        amm.get_oracle_price(price_oracle, window, now)?;
+        amm.get_oracle_price(price_oracle, window, clock_slot)?;
 
     let price_spread = mark_price
         .checked_sub(oracle_price)
@@ -107,7 +107,7 @@ pub fn is_oracle_mark_limit(
     amm: &AMM,
     price_oracle: &AccountInfo,
     window: u32,
-    now: i64,
+    clock_slot: u64,
     oracle_guard_rails: &OpenPositionOracleGuardRails,
 ) -> ClearingHouseResult<bool> {
     let mark_price: i128;
@@ -118,7 +118,7 @@ pub fn is_oracle_mark_limit(
     }
 
     let (oracle_price, _oracle_conf, _oracle_delay) =
-        amm.get_oracle_price(price_oracle, window, now)?;
+        amm.get_oracle_price(price_oracle, window, clock_slot)?;
 
     let price_spread = mark_price
         .checked_sub(oracle_price)
@@ -142,10 +142,10 @@ pub fn is_oracle_mark_limit(
 pub fn is_oracle_valid(
     amm: &AMM,
     price_oracle: &AccountInfo,
-    now: i64,
+    clock_slot: u64,
     valid_oracle_guard_rails: &ValidOracleGuardRails,
 ) -> ClearingHouseResult<bool> {
-    let (oracle_price, oracle_conf, oracle_delay) = amm.get_oracle_price(price_oracle, 0, now)?;
+    let (oracle_price, oracle_conf, oracle_delay) = amm.get_oracle_price(price_oracle, 0, clock_slot)?;
     let conf_size = (oracle_price as u128)
         .checked_div(max(1, oracle_conf))
         .ok_or_else(math_error!())?;

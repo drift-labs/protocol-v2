@@ -411,6 +411,7 @@ pub mod clearing_house {
         let user = &mut ctx.accounts.user;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
+        let clock_slot = clock.slot;
 
         let user_positions = &mut ctx.accounts.user_positions.load_mut()?;
         let funding_payment_history = &mut ctx.accounts.funding_payment_history.load_mut()?;
@@ -488,13 +489,13 @@ pub mod clearing_house {
                 &market.amm,
                 price_oracle,
                 0,
-                now,
+                clock_slot,
                 &ctx.accounts.state.oracle_guard_rails.open_position,
             )?;
             is_oracle_valid = amm::is_oracle_valid(
                 &market.amm,
                 price_oracle,
-                now,
+                clock_slot,
                 &ctx.accounts.state.oracle_guard_rails.valid_oracle,
             )?;
         } else {
@@ -692,6 +693,7 @@ pub mod clearing_house {
                 market,
                 &price_oracle,
                 now,
+                clock_slot,
                 funding_rate_history,
             )?;
         }
@@ -711,6 +713,7 @@ pub mod clearing_house {
         let user = &mut ctx.accounts.user;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
+        let clock_slot = clock.slot;
 
         let user_positions = &mut ctx.accounts.user_positions.load_mut()?;
         let funding_payment_history = &mut ctx.accounts.funding_payment_history.load_mut()?;
@@ -832,6 +835,7 @@ pub mod clearing_house {
             market,
             &price_oracle,
             now,
+            clock_slot,
             funding_rate_history,
         )?;
 
@@ -1149,6 +1153,7 @@ pub mod clearing_house {
     ) -> ProgramResult {
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
+        let clock_slot = clock.slot;
 
         let market =
             &mut ctx.accounts.markets.load_mut()?.markets[Markets::index_from_u64(market_index)];
@@ -1159,7 +1164,7 @@ pub mod clearing_house {
         let quote_asset_reserve_before = market.amm.quote_asset_reserve;
         let sqrt_k_before = market.amm.sqrt_k;
 
-        controller::repeg::repeg(market, price_oracle, new_peg_candidate, now)?;
+        controller::repeg::repeg(market, price_oracle, new_peg_candidate, clock_slot)?;
 
         let peg_multiplier_after = market.amm.peg_multiplier;
         let base_asset_reserve_after = market.amm.base_asset_reserve;
@@ -1257,6 +1262,7 @@ pub mod clearing_house {
         let price_oracle = &ctx.accounts.oracle;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
+        let clock_slot = clock.slot;
 
         let funding_rate_history = &mut ctx.accounts.funding_rate_history.load_mut()?;
         controller::funding::update_funding_rate(
@@ -1264,6 +1270,7 @@ pub mod clearing_house {
             market,
             price_oracle,
             now,
+            clock_slot,
             funding_rate_history,
         )?;
 

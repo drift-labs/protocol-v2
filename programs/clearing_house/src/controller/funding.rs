@@ -80,6 +80,7 @@ pub fn update_funding_rate(
     market: &mut Market,
     price_oracle: &AccountInfo,
     now: UnixTimestamp,
+    clock_slot: u64,
     funding_rate_history: &mut RefMut<FundingRateHistory>,
 ) -> ClearingHouseResult {
     let time_since_last_update = now - market.amm.last_funding_rate_ts;
@@ -98,7 +99,7 @@ pub fn update_funding_rate(
         // funding period = 1 hour, window = 1 day
         // low periodicity => quickly updating/settled funding rates => lower funding rate payment per interval
         let (oracle_price_twap, price_spread) =
-            amm::calculate_oracle_mark_spread(&market.amm, price_oracle, one_hour, now)?;
+            amm::calculate_oracle_mark_spread(&market.amm, price_oracle, one_hour, clock_slot)?;
         let funding_rate = price_spread
             .checked_mul(FUNDING_PAYMENT_MANTISSA as i128)
             .ok_or_else(math_error!())?

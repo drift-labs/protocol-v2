@@ -85,7 +85,7 @@ impl AMM {
         &self,
         price_oracle: &AccountInfo,
         window: u32,
-        now: i64,
+        clock_slot: u64,
     ) -> ClearingHouseResult<(i128, u128, i64)> {
         let pyth_price_data = price_oracle
             .try_borrow_data()
@@ -130,7 +130,7 @@ impl AMM {
             .checked_div(oracle_scale_div)
             .ok_or_else(math_error!())?;
 
-        let oracle_delay = (now as i64)
+        let oracle_delay = (clock_slot as i64)
             .checked_sub(price_data.valid_slot as i64)
             .ok_or_else(math_error!())?;
 
@@ -141,10 +141,10 @@ impl AMM {
         &self,
         price_oracle: &AccountInfo,
         window: u32,
-        now: i64,
+        clock_slot: u64,
     ) -> ClearingHouseResult<(i128, u128, i64)> {
         let (oracle_px, oracle_conf, oracle_delay) = match self.oracle_source {
-            OracleSource::Pyth => self.get_pyth_price(price_oracle, window, now)?,
+            OracleSource::Pyth => self.get_pyth_price(price_oracle, window, clock_slot)?,
             OracleSource::Switchboard => (0, 0, 0),
         };
         return Ok((oracle_px, oracle_conf, oracle_delay));
