@@ -33,9 +33,9 @@ const configs: { [key in DriftEnv]: DriftConfig } = {
 	//TODO - replace these with mainnet values
 	'mainnet-beta': {
 		PYTH_ORACLE_MAPPING_ADDRESS: 'BmA9Z6FjioHJPpjT39QazZyhDRUdZy2ezwx4GiDdE2u2',
-		CLEARING_HOUSE_PROGRAM_ID: '9vNbzHGb1WstrTr2x2Etm7rqQLAM6BJA5VS9Mzto2Efw',
-		USDC_MINT_ADDRESS: 'CCkDdiRzZibDG8UMcrhBtAM2WhzmYpWAi4oUNvkg1zve',
-		MOCK_USDC_FAUCET_ADDRESS: '8Bb44YDL3aWBzuhqGhbCpjQAABnUDcXELATFavad76qm',
+		CLEARING_HOUSE_PROGRAM_ID: '2GKYrCi6xAsH82dQbXKH4Sn7o59wcjSmcHbeF4jvkpcZ',
+		USDC_MINT_ADDRESS: 'FRaqszHXLdPPY9d7e7oJMei7McYaJgjcmrYzW3ahbG3X',
+		MOCK_USDC_FAUCET_ADDRESS: '8swCeiLXZU1UBwxkYLUjmZdbAGMP87RY5T4JFcM8wxcG',
 		EXCHANGE_HISTORY_SERVER_URL: 'https://devnet.history.drift.trade',
 	},
 };

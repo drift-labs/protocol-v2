@@ -6,7 +6,7 @@ import BN from 'bn.js';
 import { MockUSDCFaucet } from '../sdk/src';
 
 /**
- * Update these parameters after you run the `deploy.ts`
+ * Update these parameters after you run the `deployDevnet.ts`
  */
 const recipientPublicKey = new PublicKey(
 	'E7iAhFMa9KvwhJtaPpoqJE4wPZb16zj2Az7PM9YdWK15'

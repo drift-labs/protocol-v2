@@ -8,9 +8,7 @@ import { AMM_MANTISSA, MockUSDCFaucet, PEG_SCALAR } from '../sdk/src';
 import dotenv = require('dotenv');
 dotenv.config();
 
-const fs = require('fs');
-
-async function deploy(provider: Provider) {
+async function deployDevnet(provider: Provider) {
 	const connection = provider.connection;
 	const chProgram = anchor.workspace.ClearingHouse as Program;
 	const clearingHouse = new ClearingHouse(
@@ -122,69 +120,13 @@ async function deploy(provider: Provider) {
 	console.log('Initialized Bot for devnet');
 	await clearingHouse.unsubscribe();
 	await clearingHouseForBot.unsubscribe();
-
-	updateEnvFiles(
-		clearingHouse.program.programId,
-		mockUsdcFaucet.program.programId,
-		mockUsdcFaucetState.mint,
-		associatedTokenPublicKey
-	);
-}
-
-function replace(filePath: string, search: RegExp, replacement: string) {
-	const data = fs.readFileSync(filePath, 'utf8');
-	const result = data.replace(search, replacement);
-	fs.writeFileSync(filePath, result, 'utf8');
-}
-
-function updateEnvFiles(
-	clearingHouseProgramId: PublicKey,
-	mockUSDCFaucetProgramId: PublicKey,
-	USDCMintProgramId: PublicKey,
-	offChainBotTokenAccount: PublicKey
-) {
-	const uiEnvPath = `${__dirname}/../../ui/.env`;
-	replace(
-		uiEnvPath,
-		/NEXT_PUBLIC_CLEARING_HOUSE_PROGRAM_ID=([\d\w]*)/g,
-		`NEXT_PUBLIC_CLEARING_HOUSE_PROGRAM_ID=${clearingHouseProgramId.toString()}`
-	);
-	replace(
-		uiEnvPath,
-		/NEXT_PUBLIC_USDC_MINT_ADDRESS=([\d\w]*)/g,
-		`NEXT_PUBLIC_USDC_MINT_ADDRESS=${USDCMintProgramId.toString()}`
-	);
-	replace(
-		uiEnvPath,
-		/NEXT_PUBLIC_MOCK_USDC_FAUCET_ADDRESS=([\d\w]*)/g,
-		`NEXT_PUBLIC_MOCK_USDC_FAUCET_ADDRESS=${mockUSDCFaucetProgramId.toString()}`
-	);
-
-	const offChainBotEnvPath = `${__dirname}/../../off-chain-bot/.env`;
-	replace(
-		offChainBotEnvPath,
-		/LIQUIDATION_USER_TOKEN_PUBLIC_KEY=([\d\w]*)/g,
-		`LIQUIDATION_USER_TOKEN_PUBLIC_KEY=${offChainBotTokenAccount.toString()}`
-	);
-	replace(
-		offChainBotEnvPath,
-		/CLEARING_HOUSE_PROGRAM_ID=([\d\w]*)/g,
-		`CLEARING_HOUSE_PROGRAM_ID=${clearingHouseProgramId.toString()}`
-	);
-
-	const exchangeHistoryEnvPath = `${__dirname}/../../exchange-history/.env`;
-	replace(
-		exchangeHistoryEnvPath,
-		/CLEARING_HOUSE_PROGRAM_ID=([\d\w]*)/g,
-		`CLEARING_HOUSE_PROGRAM_ID=${clearingHouseProgramId.toString()}`
-	);
 }
 
 try {
 	if (!process.env.ANCHOR_WALLET) {
 		throw new Error('ANCHOR_WALLET must be set.');
 	}
-	deploy(
+	deployDevnet(
 		anchor.Provider.local('https://psytrbhymqlkfrhudd.dev.genesysgo.net:8899/')
 	);
 } catch (e) {

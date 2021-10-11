@@ -20,7 +20,7 @@ mod optional_accounts;
 mod state;
 
 #[cfg(feature = "mainnet-beta")]
-declare_id!("8ZKUvZGZtEH8ktPELKoEZzVJSf11WzXiCpKjdWq5jnzV");
+declare_id!("2GKYrCi6xAsH82dQbXKH4Sn7o59wcjSmcHbeF4jvkpcZ");
 #[cfg(not(feature = "mainnet-beta"))]
 declare_id!("8ZKUvZGZtEH8ktPELKoEZzVJSf11WzXiCpKjdWq5jnzV");
 
