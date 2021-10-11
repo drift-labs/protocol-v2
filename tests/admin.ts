@@ -161,14 +161,15 @@ describe('admin', () => {
 
 	it('Update oracle guard rails', async () => {
 		const oracleGuardRails: OracleGuardRails = {
-			openPosition: {
+			priceDivergence: {
 				markOracleDivergenceNumerator: new BN(1),
 				markOracleDivergenceDenominator: new BN(1),
 			},
-			validOracle: {
+			validity: {
 				slotsBeforeStale: new BN(1),
 				confidenceIntervalMaxSize: new BN(1),
-			}
+			},
+			useForLiquidations: false
 		};
 
 		await clearingHouse.updateOracleGuardRails(oracleGuardRails);

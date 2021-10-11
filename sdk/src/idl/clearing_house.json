@@ -1888,22 +1888,26 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "openPosition",
+            "name": "priceDivergence",
             "type": {
-              "defined": "OpenPositionOracleGuardRails"
+              "defined": "PriceDivergenceGuardRails"
             }
           },
           {
-            "name": "validOracle",
+            "name": "validity",
             "type": {
-              "defined": "ValidOracleGuardRails"
+              "defined": "ValidityGuardRails"
             }
+          },
+          {
+            "name": "useForLiquidations",
+            "type": "bool"
           }
         ]
       }
     },
     {
-      "name": "OpenPositionOracleGuardRails",
+      "name": "PriceDivergenceGuardRails",
       "type": {
         "kind": "struct",
         "fields": [
@@ -1919,7 +1923,7 @@
       }
     },
     {
-      "name": "ValidOracleGuardRails",
+      "name": "ValidityGuardRails",
       "type": {
         "kind": "struct",
         "fields": [
@@ -2376,9 +2380,16 @@
       "code": 332,
       "name": "InvalidOracle",
       "msg": "InvalidOracle"
+    },
+    {
+      "code": 333,
+      "name": "OracleNotFound",
+      "msg": "OracleNotFound"
+    },
+    {
+      "code": 334,
+      "name": "LiquidationsBlockedByOracle",
+      "msg": "Liquidations Blocked By Oracle"
     }
-  ],
-  "metadata": {
-    "address": "29gLTsGSuS7xn3isPfLsDg7dfnCU9oxLhu5YEUc6yr37"
-  }
+  ]
 }

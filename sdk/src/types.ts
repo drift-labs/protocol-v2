@@ -321,12 +321,13 @@ export type FeeStructure = {
 };
 
 export type OracleGuardRails = {
-	openPosition: {
+	priceDivergence: {
 		markOracleDivergenceNumerator: BN,
 		markOracleDivergenceDenominator: BN,
 	},
-	validOracle: {
+	validity: {
 		slotsBeforeStale: BN,
 		confidenceIntervalMaxSize: BN,
-	}
+	},
+	useForLiquidations: boolean,
 };

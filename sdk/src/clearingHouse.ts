@@ -970,6 +970,22 @@ export class ClearingHouse {
 		const liquidateeUserAccount: any = await this.program.account.user.fetch(
 			liquidateeUserAccountPublicKey
 		);
+		const liquidateePositions: UserPositionData = await this.program.account.userPositions.fetch(
+			liquidateeUserAccount.positions
+		);
+		const markets = this.getMarketsAccount();
+
+		const remainingAccounts = [];
+		for (const position of liquidateePositions.positions) {
+			if (!position.baseAssetAmount.eq(new BN(0))) {
+				const market = markets.markets[position.marketIndex.toNumber()];
+				remainingAccounts.push({
+					pubkey: market.amm.oracle,
+					isWritable: false,
+					isSigner: false,
+				});
+			}
+		}
 
 		return await this.program.rpc.liquidate({
 			accounts: {
@@ -987,6 +1003,7 @@ export class ClearingHouse {
 				tradeHistory: this.state.tradeHistory,
 				liquidationHistory: this.state.liquidationHistory,
 			},
+			remainingAccounts: remainingAccounts,
 		});
 	}
 

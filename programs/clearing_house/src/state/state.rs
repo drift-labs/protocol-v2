@@ -42,18 +42,19 @@ pub struct State {
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
 pub struct OracleGuardRails {
-    pub open_position: OpenPositionOracleGuardRails,
-    pub valid_oracle: ValidOracleGuardRails,
+    pub price_divergence: PriceDivergenceGuardRails,
+    pub validity: ValidityGuardRails,
+    pub use_for_liquidations: bool,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
-pub struct OpenPositionOracleGuardRails {
+pub struct PriceDivergenceGuardRails {
     pub mark_oracle_divergence_numerator: u128,
     pub mark_oracle_divergence_denominator: u128,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
-pub struct ValidOracleGuardRails {
+pub struct ValidityGuardRails {
     pub slots_before_stale: i64,
     pub confidence_interval_max_size: u128,
 }

@@ -616,6 +616,10 @@ describe('clearing_house', () => {
 			stripMantissa(user0.collateral, USDC_PRECISION)
 		);
 
+		const marketsAccount: any = clearingHouse.getMarketsAccount();
+		const marketData = marketsAccount.markets[0];
+		await setFeedPrice(anchor.workspace.Pyth, stripMantissa(liqPrice), marketData.amm.oracle);
+
 		await clearingHouse.moveAmmToPrice(marketIndex, liqPrice);
 		console.log('margin ratio', userAccount.getMarginRatio().toString());
 
@@ -758,6 +762,10 @@ describe('clearing_house', () => {
 			new BN(0),
 			false
 		);
+
+		const marketsAccount: any = clearingHouse.getMarketsAccount();
+		const marketData = marketsAccount.markets[0];
+		await setFeedPrice(anchor.workspace.Pyth, stripMantissa(liqPrice), marketData.amm.oracle);
 
 		await clearingHouse.moveAmmToPrice(marketIndex, liqPrice);
 

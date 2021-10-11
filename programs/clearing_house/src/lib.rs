@@ -124,14 +124,15 @@ pub mod clearing_house {
             whitelist_mint: Pubkey::default(),
             drift_mint: Pubkey::default(),
             oracle_guard_rails: OracleGuardRails {
-                open_position: OpenPositionOracleGuardRails {
+                price_divergence: PriceDivergenceGuardRails {
                     mark_oracle_divergence_numerator: 1,
                     mark_oracle_divergence_denominator: 10,
                 },
-                valid_oracle: ValidOracleGuardRails {
+                validity: ValidityGuardRails {
                     slots_before_stale: 1000,
                     confidence_interval_max_size: 4,
                 },
+                use_for_liquidations: true,
             },
         };
 
@@ -476,7 +477,7 @@ pub mod clearing_house {
                 &market.amm,
                 &ctx.accounts.oracle,
                 clock_slot,
-                &ctx.accounts.state.oracle_guard_rails.valid_oracle,
+                &ctx.accounts.state.oracle_guard_rails.validity,
             )?;
         }
 
@@ -637,7 +638,7 @@ pub mod clearing_house {
 
         let is_oracle_mark_limit = amm::is_oracle_mark_limit(
             oracle_mark_spread_pct_after,
-            &ctx.accounts.state.oracle_guard_rails.open_position,
+            &ctx.accounts.state.oracle_guard_rails.price_divergence,
         )
         .unwrap();
 
@@ -869,6 +870,7 @@ pub mod clearing_house {
         let trade_history = &mut ctx.accounts.trade_history.load_mut()?;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
+        let clock_slot = clock.slot;
 
         let collateral = user.collateral;
         let (total_collateral, unrealized_pnl, base_asset_value, margin_ratio) =
@@ -894,6 +896,16 @@ pub mod clearing_house {
 
                 let market =
                     &mut markets.markets[Markets::index_from_u64(market_position.market_index)];
+
+                let liquidations_blocked = math::oracle::block_liquidation(
+                    &market.amm,
+                    ctx.remaining_accounts,
+                    clock_slot,
+                    &state.oracle_guard_rails,
+                )?;
+                if liquidations_blocked {
+                    return Err(ErrorCode::LiquidationsBlockedByOracle.into());
+                }
 
                 let direction_to_close =
                     math::position::direction_to_close_position(market_position.base_asset_amount);
@@ -936,6 +948,16 @@ pub mod clearing_house {
 
                 let market =
                     &mut markets.markets[Markets::index_from_u64(market_position.market_index)];
+
+                let liquidations_blocked = math::oracle::block_liquidation(
+                    &market.amm,
+                    ctx.remaining_accounts,
+                    clock_slot,
+                    &state.oracle_guard_rails,
+                )?;
+                if liquidations_blocked {
+                    return Err(ErrorCode::LiquidationsBlockedByOracle.into());
+                }
 
                 let (base_asset_value, _pnl) =
                     calculate_base_asset_value_and_pnl(market_position, &market.amm)?;

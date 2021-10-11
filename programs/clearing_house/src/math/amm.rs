@@ -4,7 +4,7 @@ use crate::math::bn::U256;
 use crate::math::constants::{MARK_ORACLE_DIVERGENCE_MANTISSA, MARK_PRICE_MANTISSA, PEG_PRECISION};
 use crate::math_error;
 use crate::state::market::AMM;
-use crate::state::state::{OpenPositionOracleGuardRails, ValidOracleGuardRails};
+use crate::state::state::{PriceDivergenceGuardRails, ValidityGuardRails};
 use anchor_lang::prelude::AccountInfo;
 use solana_program::msg;
 use std::cmp::max;
@@ -123,7 +123,7 @@ pub fn calculate_oracle_mark_spread_pct(
 
 pub fn is_oracle_mark_limit(
     price_spread_pct: i128,
-    oracle_guard_rails: &OpenPositionOracleGuardRails,
+    oracle_guard_rails: &PriceDivergenceGuardRails,
 ) -> ClearingHouseResult<bool> {
     let max_divergence = MARK_ORACLE_DIVERGENCE_MANTISSA
         .checked_mul(oracle_guard_rails.mark_oracle_divergence_numerator)
@@ -138,7 +138,7 @@ pub fn is_oracle_valid(
     amm: &AMM,
     price_oracle: &AccountInfo,
     clock_slot: u64,
-    valid_oracle_guard_rails: &ValidOracleGuardRails,
+    valid_oracle_guard_rails: &ValidityGuardRails,
 ) -> ClearingHouseResult<bool> {
     let (oracle_price, oracle_conf, oracle_delay) =
         amm.get_oracle_price(price_oracle, 0, clock_slot)?;

@@ -70,6 +70,10 @@ pub enum ErrorCode {
     ReferrerNotFound,
     #[msg("InvalidOracle")]
     InvalidOracle,
+    #[msg("OracleNotFound")]
+    OracleNotFound,
+    #[msg("Liquidations Blocked By Oracle")]
+    LiquidationsBlockedByOracle,
 }
 
 #[macro_export]

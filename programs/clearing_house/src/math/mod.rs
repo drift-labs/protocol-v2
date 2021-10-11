@@ -5,6 +5,7 @@ pub mod constants;
 pub mod fees;
 pub mod funding;
 pub mod margin;
+pub mod oracle;
 pub mod position;
 pub mod quote_asset;
 pub mod repeg;
