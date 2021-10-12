@@ -138,7 +138,10 @@ describe('AMM Curve', () => {
 			clearingHouse.liquidityBook(marketIndex, 3, 0.1);
 
 		for (let i = asksCumSize.length - 1; i >= 0; i--) {
-			console.log(stripMantissa(asksPrice[i]), stripMantissa(asksCumSize[i]));
+			console.log(
+				stripMantissa(asksPrice[i]),
+				stripMantissa(asksCumSize[i], USDC_PRECISION)
+			);
 		}
 
 		console.log('------------');
@@ -151,7 +154,10 @@ describe('AMM Curve', () => {
 		);
 		console.log('------------');
 		for (let i = 0; i < bidsCumSize.length; i++) {
-			console.log(stripMantissa(bidsPrice[i]), stripMantissa(bidsCumSize[i]));
+			console.log(
+				stripMantissa(bidsPrice[i]),
+				stripMantissa(bidsCumSize[i], USDC_PRECISION)
+			);
 		}
 	};
 

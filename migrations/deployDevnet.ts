@@ -63,10 +63,15 @@ async function deployDevnet(provider: Provider) {
 	for (let i = 0; i < marketOracleKeys.length; i++) {
 		const keyName = marketOracleKeys[i];
 		const oraclePriceKey = devnetOracles[keyName];
-		const astPrice = (
-			await pythClient.getPriceData(new PublicKey(oraclePriceKey))
-		).price;
-		console.log(keyName + ' Price:', astPrice);
+		const oraclePriceData = await pythClient.getPriceData(
+			new PublicKey(oraclePriceKey)
+		);
+		const astPrice =
+			(oraclePriceData.price +
+				oraclePriceData.previousPrice +
+				oraclePriceData.twap.value) /
+			3;
+		console.log(keyName + ' Recent Average Price:', astPrice);
 
 		const marketIndex = new BN(i);
 		const periodicity = new BN(3600);
