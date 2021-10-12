@@ -2425,5 +2425,8 @@
       "name": "UserMaxDeposit",
       "msg": "Can not deposit more than max deposit"
     }
-  ]
+  ],
+  "metadata": {
+    "address": "8Fs5E3Jt4Tx7La47XHXBWevqGrZtTJB2txvU8MrBUoWS"
+  }
 }
