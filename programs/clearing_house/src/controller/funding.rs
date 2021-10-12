@@ -89,9 +89,7 @@ pub fn update_funding_rate(
 ) -> ClearingHouseResult {
     let time_since_last_update = now - market.amm.last_funding_rate_ts;
 
-    let mark_price_twap = amm::calculate_new_mark_twap(&market.amm, now)?;
-    market.amm.last_mark_price_twap = mark_price_twap;
-    market.amm.last_mark_price_twap_ts = now;
+    let mark_price_twap = amm::update_mark_twap(&mut market.amm, now)?;
 
     let block_funding_rate_update =
         oracle::block_funding_rate_update(&market.amm, price_oracle, clock_slot, guard_rails)?;

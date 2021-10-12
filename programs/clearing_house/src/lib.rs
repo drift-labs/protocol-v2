@@ -228,6 +228,7 @@ pub mod clearing_house {
                 last_funding_rate: 0,
                 last_funding_rate_ts: now,
                 funding_period: amm_periodicity,
+                last_oracle_mark_spread_twap: 0,
                 last_mark_price_twap: init_mark_price,
                 last_mark_price_twap_ts: now,
                 sqrt_k: amm_base_asset_amount,
@@ -558,10 +559,18 @@ pub mod clearing_house {
             .unsigned_abs();
         let mark_price_after: u128;
         let oracle_mark_spread_pct_after: i128;
+        let oracle_mark_spread_after: i128;
         {
             let market = &mut ctx.accounts.markets.load_mut()?.markets
                 [Markets::index_from_u64(market_index)];
             mark_price_after = market.amm.mark_price()?;
+            let (_oracle_price_after_tmp, oracle_mark_spread_after_tmp) = amm::calculate_oracle_mark_spread(
+                &market.amm,
+                &ctx.accounts.oracle,
+                0,
+                clock_slot,
+            )?;
+            oracle_mark_spread_after = oracle_mark_spread_after_tmp;
             oracle_mark_spread_pct_after = amm::calculate_oracle_mark_spread_pct(
                 &market.amm,
                 &ctx.accounts.oracle,
@@ -723,6 +732,8 @@ pub mod clearing_house {
                 funding_rate_history,
                 &ctx.accounts.state.oracle_guard_rails,
             )?;
+
+            amm::update_oracle_mark_spread_twap(&mut market.amm, now, oracle_mark_spread_after);
         }
 
         Ok(())
@@ -866,6 +877,9 @@ pub mod clearing_house {
             funding_rate_history,
             &ctx.accounts.state.oracle_guard_rails,
         )?;
+
+        let (_, oracle_mark_spread_after) = amm::calculate_oracle_mark_spread(&market.amm, price_oracle, 0, clock_slot)?;
+        amm::update_oracle_mark_spread_twap(&mut market.amm, now, oracle_mark_spread_after);
 
         Ok(())
     }
