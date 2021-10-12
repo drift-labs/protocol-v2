@@ -36,7 +36,7 @@ const configs: { [key in DriftEnv]: DriftConfig } = {
 		CLEARING_HOUSE_PROGRAM_ID: '2i8i9Rv4XX6wuictxEXoJ56ErZ2dRR262tTYNMA9bV32',
 		USDC_MINT_ADDRESS: '2V7AWJA8Tbb9RxQbjWsWq6XsPboJtxY5G9Kdh6tbKxo2',
 		MOCK_USDC_FAUCET_ADDRESS: 'EkGpQeUhTDirWbdUz3VFd9onTUTKMBqTHcgRZqHEoCtg',
-		EXCHANGE_HISTORY_SERVER_URL: 'https://devnet.history.drift.trade',
+		EXCHANGE_HISTORY_SERVER_URL: 'https://mainnet-beta.history.drift.trade',
 	},
 };
 
