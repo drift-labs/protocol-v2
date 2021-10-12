@@ -33,7 +33,6 @@ pub struct State {
     pub partial_liquidation_liquidator_share_denominator: u64,
     pub full_liquidation_liquidator_share_denominator: u64,
     pub fee_structure: FeeStructure,
-    pub collateral_deposits: u128,
     pub fees_collected: u128,
     pub fees_withdrawn: u128,
     pub whitelist_mint: Pubkey,

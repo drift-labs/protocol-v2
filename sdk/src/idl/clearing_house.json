@@ -1468,10 +1468,6 @@
             }
           },
           {
-            "name": "collateralDeposits",
-            "type": "u128"
-          },
-          {
             "name": "feesCollected",
             "type": "u128"
           },

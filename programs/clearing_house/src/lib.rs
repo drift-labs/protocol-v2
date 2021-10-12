@@ -119,7 +119,6 @@ pub mod clearing_house {
                     referee_rebate_denominator: DEFAULT_REFEREE_REBATE_DENOMINATOR,
                 },
             },
-            collateral_deposits: 0,
             fees_collected: 0,
             fees_withdrawn: 0,
             whitelist_mint: Pubkey::default(),
@@ -283,13 +282,6 @@ pub mod clearing_house {
             amount,
         )?;
 
-        ctx.accounts.state.collateral_deposits = ctx
-            .accounts
-            .state
-            .collateral_deposits
-            .checked_add(amount as u128)
-            .ok_or_else(math_error!())?;
-
         let deposit_history = &mut ctx.accounts.deposit_history.load_mut()?;
         let record_id = deposit_history.next_record_id();
         deposit_history.append(DepositRecord {
@@ -371,13 +363,6 @@ pub mod clearing_house {
             ctx.accounts.state.collateral_vault_nonce,
             collateral_account_withdrawal,
         )?;
-
-        ctx.accounts.state.collateral_deposits = ctx
-            .accounts
-            .state
-            .collateral_deposits
-            .checked_sub(collateral_account_withdrawal as u128)
-            .ok_or_else(math_error!())?;
 
         if insurance_account_withdrawal > 0 {
             controller::token::send(
