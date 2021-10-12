@@ -74,6 +74,8 @@ pub enum ErrorCode {
     OracleNotFound,
     #[msg("Liquidations Blocked By Oracle")]
     LiquidationsBlockedByOracle,
+    #[msg("Can not deposit more than max deposit")]
+    UserMaxDeposit,
 }
 
 #[macro_export]

@@ -1735,6 +1735,15 @@ export class ClearingHouse {
 		});
 	}
 
+	public async updateMaxDeposit(maxDeposit: BN): Promise<TransactionSignature> {
+		return await this.program.rpc.updateMaxDeposit(maxDeposit, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+			},
+		});
+	}
+
 	public async updateExchangePaused(
 		exchangePaused: boolean
 	): Promise<TransactionSignature> {

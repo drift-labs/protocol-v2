@@ -192,6 +192,16 @@ describe('admin', () => {
 		assert(state.driftMint.equals(mint));
 	});
 
+	it('Update max deposit', async () => {
+		const maxDeposit = new BN(10);
+
+		await clearingHouse.updateMaxDeposit(maxDeposit);
+
+		const state = clearingHouse.getState();
+
+		assert(state.maxDeposit.eq(maxDeposit));
+	});
+
 	it('Update admin', async () => {
 		const admin = PublicKey.default;
 

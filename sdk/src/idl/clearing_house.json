@@ -1080,6 +1080,27 @@
       ]
     },
     {
+      "name": "updateMaxDeposit",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "maxDeposit",
+          "type": "u128"
+        }
+      ]
+    },
+    {
       "name": "updateExchangePaused",
       "accounts": [
         {
@@ -1384,6 +1405,10 @@
             "type": {
               "defined": "OracleGuardRails"
             }
+          },
+          {
+            "name": "maxDeposit",
+            "type": "u128"
           }
         ]
       }
@@ -2394,6 +2419,11 @@
       "code": 334,
       "name": "LiquidationsBlockedByOracle",
       "msg": "Liquidations Blocked By Oracle"
+    },
+    {
+      "code": 335,
+      "name": "UserMaxDeposit",
+      "msg": "Can not deposit more than max deposit"
     }
   ]
 }

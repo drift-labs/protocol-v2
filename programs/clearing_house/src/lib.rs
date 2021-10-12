@@ -123,6 +123,7 @@ pub mod clearing_house {
             fees_withdrawn: 0,
             whitelist_mint: Pubkey::default(),
             drift_mint: Pubkey::default(),
+            max_deposit: 0,
             oracle_guard_rails: OracleGuardRails {
                 price_divergence: PriceDivergenceGuardRails {
                     mark_oracle_divergence_numerator: 1,
@@ -300,6 +301,12 @@ pub mod clearing_house {
             cumulative_deposits_before,
             amount,
         });
+
+        if ctx.accounts.state.max_deposit > 0
+            && user.cumulative_deposits > ctx.accounts.state.max_deposit as i128
+        {
+            return Err(ErrorCode::UserMaxDeposit.into());
+        }
 
         Ok(())
     }
@@ -1500,6 +1507,11 @@ pub mod clearing_house {
         protocol_mint: Pubkey,
     ) -> ProgramResult {
         ctx.accounts.state.drift_mint = protocol_mint;
+        Ok(())
+    }
+
+    pub fn update_max_deposit(ctx: Context<AdminUpdateState>, max_deposit: u128) -> ProgramResult {
+        ctx.accounts.state.max_deposit = max_deposit;
         Ok(())
     }
 

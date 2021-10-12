@@ -180,6 +180,7 @@ export type ClearingHouseState = {
 	whitelistMint: PublicKey;
 	driftMint: PublicKey;
 	oracleGuardRails: OracleGuardRails;
+	maxDeposit: BN;
 };
 
 export type ClearingHouseMarketsAccountData = {

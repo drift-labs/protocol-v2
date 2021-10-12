@@ -38,6 +38,7 @@ pub struct State {
     pub whitelist_mint: Pubkey,
     pub drift_mint: Pubkey,
     pub oracle_guard_rails: OracleGuardRails,
+    pub max_deposit: u128,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
