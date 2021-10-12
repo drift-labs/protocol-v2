@@ -75,7 +75,7 @@ pub mod clearing_house {
             insurance_vault_authority: insurance_account_authority,
             insurance_vault_nonce: insurance_account_nonce,
             markets: *ctx.accounts.markets.to_account_info().key,
-            margin_ratio_initial: 950, // unit is 9.5% (+2 decimal places)
+            margin_ratio_initial: 1950, // unit is 19.5% (+2 decimal places)
             margin_ratio_partial: 625,
             margin_ratio_maintenance: 500,
             partial_liquidation_close_percentage_numerator: 25,
