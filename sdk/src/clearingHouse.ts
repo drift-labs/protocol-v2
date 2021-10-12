@@ -1605,6 +1605,26 @@ export class ClearingHouse {
 		});
 	}
 
+	public async withdrawFromInsuranceVaultToMarket(
+		marketIndex: BN,
+		amount: BN,
+	): Promise<TransactionSignature> {
+		this.assertIsSubscribed();
+
+		const state = await this.getState();
+		return await this.program.rpc.withdrawFromInsuranceVaultToMarket(marketIndex, amount, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				markets: state.markets,
+				insuranceVault: state.insuranceVault,
+				insuranceVaultAuthority: state.insuranceVaultAuthority,
+				collateralVault: state.collateralVault,
+				tokenProgram: TOKEN_PROGRAM_ID,
+			},
+		});
+	}
+
 	public async updateAdmin(admin: PublicKey): Promise<TransactionSignature> {
 		return await this.program.rpc.updateAdmin(admin, {
 			accounts: {

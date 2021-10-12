@@ -183,6 +183,8 @@ export type ClearingHouseState = {
 	partialLiquidationLiquidatorShareDenominator: BN;
 	fullLiquidationLiquidatorShareDenominator: BN;
 	feeStructure: FeeStructure;
+	feesCollected: BN;
+	feesWithdrawn: BN;
 	whitelistMint: PublicKey;
 	driftMint: PublicKey;
 	oracleGuardRails: OracleGuardRails;

@@ -1189,6 +1189,39 @@ pub mod clearing_house {
     }
 
     #[access_control(
+        market_initialized(&ctx.accounts.markets, market_index)
+    )]
+    pub fn withdraw_from_insurance_vault_to_market(
+        ctx: Context<WithdrawFromInsuranceVaultToMarket>,
+        market_index: u64,
+        amount: u64,
+    ) -> ProgramResult {
+        let markets = &mut ctx.accounts.markets.load_mut()?;
+        let market = &mut markets.markets[Markets::index_from_u64(market_index)];
+        market.amm.cumulative_fee = market
+            .amm
+            .cumulative_fee
+            .checked_add(amount as u128)
+            .ok_or_else(math_error!())?;
+
+        let state = &mut ctx.accounts.state;
+        state.fees_collected = state
+            .fees_collected
+            .checked_add(amount as u128)
+            .ok_or_else(math_error!())?;
+
+        controller::token::send(
+            &ctx.accounts.token_program,
+            &ctx.accounts.insurance_vault,
+            &ctx.accounts.collateral_vault,
+            &ctx.accounts.insurance_vault_authority,
+            ctx.accounts.state.insurance_vault_nonce,
+            amount,
+        )?;
+        Ok(())
+    }
+
+    #[access_control(
         market_initialized(&ctx.accounts.markets, market_index) &&
         exchange_not_paused(&ctx.accounts.state)
     )]

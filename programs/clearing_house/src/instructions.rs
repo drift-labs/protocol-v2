@@ -227,6 +227,30 @@ pub struct WithdrawFromInsuranceVault<'info> {
     pub token_program: Program<'info, Token>,
 }
 
+#[derive(Accounts)]
+pub struct WithdrawFromInsuranceVaultToMarket<'info> {
+    #[account(
+        mut,
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub markets: Loader<'info, Markets>,
+    pub admin: Signer<'info>,
+    #[account(
+        mut,
+        constraint = &state.insurance_vault.eq(&insurance_vault.key())
+    )]
+    pub insurance_vault: Box<Account<'info, TokenAccount>>,
+    pub insurance_vault_authority: AccountInfo<'info>,
+    #[account(
+        mut,
+        constraint = &state.collateral_vault.eq(&collateral_vault.key())
+    )]
+    pub collateral_vault: Box<Account<'info, TokenAccount>>,
+    pub token_program: Program<'info, Token>,
+}
+
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
 pub struct ManagePositionOptionalAccounts {
     pub drift_token: bool,

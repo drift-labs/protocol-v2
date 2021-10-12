@@ -110,7 +110,7 @@ describe('admin withdraw', () => {
 	});
 
 	it('Withdraw From Insurance Vault', async () => {
-		const withdrawAmount = fee.div(new BN(2));
+		const withdrawAmount = fee.div(new BN(4));
 		await clearingHouse.withdrawFromInsuranceVault(
 			withdrawAmount,
 			userUSDCAccount.publicKey
@@ -120,5 +120,28 @@ describe('admin withdraw', () => {
 			userUSDCAccount.publicKey
 		);
 		assert(userUSDCTokenAccount.amount.eq(withdrawAmount));
+	});
+
+	it('Withdraw From Insurance Vault to amm', async () => {
+		const withdrawAmount = fee.div(new BN(4));
+
+		let clearingHouseState = clearingHouse.getState();
+		assert(clearingHouseState.feesCollected.eq(new BN(2500)));
+
+		await clearingHouse.withdrawFromInsuranceVaultToMarket(
+			new BN(0),
+			withdrawAmount,
+		);
+		const collateralVaultTokenAccount = await getTokenAccount(
+			provider,
+			clearingHouseState.collateralVault
+		);
+		assert(collateralVaultTokenAccount.amount.eq(new BN(9999375)));
+
+		clearingHouseState = clearingHouse.getState();
+		assert(clearingHouseState.feesCollected.eq(new BN(3125)));
+
+		const market = clearingHouse.getMarketsAccount().markets[0];
+		console.assert(market.amm.cumulativeFee.eq(new BN(3125)));
 	});
 });
