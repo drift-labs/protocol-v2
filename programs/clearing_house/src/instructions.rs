@@ -206,7 +206,6 @@ pub struct WithdrawFees<'info> {
     pub collateral_vault_authority: AccountInfo<'info>,
     #[account(mut)]
     pub recipient: Box<Account<'info, TokenAccount>>,
-    #[account(mut)]
     pub token_program: Program<'info, Token>,
 }
 
@@ -225,7 +224,6 @@ pub struct WithdrawFromInsuranceVault<'info> {
     pub insurance_vault_authority: AccountInfo<'info>,
     #[account(mut)]
     pub recipient: Box<Account<'info, TokenAccount>>,
-    #[account(mut)]
     pub token_program: Program<'info, Token>,
 }
 
