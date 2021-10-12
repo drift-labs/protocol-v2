@@ -18,9 +18,9 @@ const configs: { [key in DriftEnv]: DriftConfig } = {
 	},
 	master: {
 		PYTH_ORACLE_MAPPING_ADDRESS: 'BmA9Z6FjioHJPpjT39QazZyhDRUdZy2ezwx4GiDdE2u2',
-		CLEARING_HOUSE_PROGRAM_ID: '8Fs5E3Jt4Tx7La47XHXBWevqGrZtTJB2txvU8MrBUoWS',
-		USDC_MINT_ADDRESS: 'Doe9rajhwt18aAeaVe8vewzAsBk4kSQ2tTyZVUJhHjhY',
-		MOCK_USDC_FAUCET_ADDRESS: '2z2DLVD3tBWc86pbvvy5qN31v1NXprM6zA5MDr2FMx64',
+		CLEARING_HOUSE_PROGRAM_ID: '2i8i9Rv4XX6wuictxEXoJ56ErZ2dRR262tTYNMA9bV32',
+		USDC_MINT_ADDRESS: '2V7AWJA8Tbb9RxQbjWsWq6XsPboJtxY5G9Kdh6tbKxo2',
+		MOCK_USDC_FAUCET_ADDRESS: 'EkGpQeUhTDirWbdUz3VFd9onTUTKMBqTHcgRZqHEoCtg',
 		EXCHANGE_HISTORY_SERVER_URL: 'https://master.history.drift.trade',
 	},
 	devnet: {
@@ -33,9 +33,9 @@ const configs: { [key in DriftEnv]: DriftConfig } = {
 	//TODO - replace these with mainnet values
 	'mainnet-beta': {
 		PYTH_ORACLE_MAPPING_ADDRESS: 'BmA9Z6FjioHJPpjT39QazZyhDRUdZy2ezwx4GiDdE2u2',
-		CLEARING_HOUSE_PROGRAM_ID: '2GKYrCi6xAsH82dQbXKH4Sn7o59wcjSmcHbeF4jvkpcZ',
-		USDC_MINT_ADDRESS: 'FRaqszHXLdPPY9d7e7oJMei7McYaJgjcmrYzW3ahbG3X',
-		MOCK_USDC_FAUCET_ADDRESS: '8swCeiLXZU1UBwxkYLUjmZdbAGMP87RY5T4JFcM8wxcG',
+		CLEARING_HOUSE_PROGRAM_ID: '2i8i9Rv4XX6wuictxEXoJ56ErZ2dRR262tTYNMA9bV32',
+		USDC_MINT_ADDRESS: '2V7AWJA8Tbb9RxQbjWsWq6XsPboJtxY5G9Kdh6tbKxo2',
+		MOCK_USDC_FAUCET_ADDRESS: 'EkGpQeUhTDirWbdUz3VFd9onTUTKMBqTHcgRZqHEoCtg',
 		EXCHANGE_HISTORY_SERVER_URL: 'https://devnet.history.drift.trade',
 	},
 };
