@@ -1767,6 +1767,17 @@ export class ClearingHouse {
 		});
 	}
 
+	public async updateFundingPaused(
+		fundingPaused: boolean
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateFundingPaused(fundingPaused, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+			},
+		});
+	}
+
 	public async updateExchangePaused(
 		exchangePaused: boolean
 	): Promise<TransactionSignature> {

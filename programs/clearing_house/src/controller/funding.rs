@@ -86,6 +86,7 @@ pub fn update_funding_rate(
     clock_slot: u64,
     funding_rate_history: &mut RefMut<FundingRateHistory>,
     guard_rails: &OracleGuardRails,
+    funding_paused: bool,
 ) -> ClearingHouseResult {
     let time_since_last_update = now - market.amm.last_funding_rate_ts;
 
@@ -96,7 +97,10 @@ pub fn update_funding_rate(
     let block_funding_rate_update =
         oracle::block_funding_rate_update(&market.amm, price_oracle, clock_slot, guard_rails)?;
 
-    if !block_funding_rate_update && time_since_last_update >= market.amm.funding_period {
+    if !funding_paused
+        && !block_funding_rate_update
+        && time_since_last_update >= market.amm.funding_period
+    {
         let one_hour: u32 = 3600;
         let period_adjustment = (24_i64)
             .checked_mul(one_hour as i64)

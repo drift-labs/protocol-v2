@@ -59,6 +59,7 @@ pub mod clearing_house {
 
         **ctx.accounts.state = State {
             admin: *ctx.accounts.admin.key,
+            funding_paused: false,
             exchange_paused: false,
             admin_controls_prices,
             collateral_mint: *ctx.accounts.collateral_mint.to_account_info().key,
@@ -722,6 +723,7 @@ pub mod clearing_house {
                 clock_slot,
                 funding_rate_history,
                 &ctx.accounts.state.oracle_guard_rails,
+                ctx.accounts.state.funding_paused,
             )?;
         }
 
@@ -865,6 +867,7 @@ pub mod clearing_house {
             clock_slot,
             funding_rate_history,
             &ctx.accounts.state.oracle_guard_rails,
+            ctx.accounts.state.funding_paused,
         )?;
 
         Ok(())
@@ -1356,6 +1359,7 @@ pub mod clearing_house {
             clock_slot,
             funding_rate_history,
             &ctx.accounts.state.oracle_guard_rails,
+            ctx.accounts.state.funding_paused,
         )?;
 
         Ok(())
@@ -1570,6 +1574,14 @@ pub mod clearing_house {
         exchange_paused: bool,
     ) -> ProgramResult {
         ctx.accounts.state.exchange_paused = exchange_paused;
+        Ok(())
+    }
+
+    pub fn update_funding_paused(
+        ctx: Context<AdminUpdateState>,
+        funding_paused: bool,
+    ) -> ProgramResult {
+        ctx.accounts.state.funding_paused = funding_paused;
         Ok(())
     }
 }

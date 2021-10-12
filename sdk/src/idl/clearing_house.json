@@ -588,7 +588,7 @@
         },
         {
           "name": "tokenProgram",
-          "isMut": true,
+          "isMut": false,
           "isSigner": false
         }
       ],
@@ -629,7 +629,7 @@
         },
         {
           "name": "tokenProgram",
-          "isMut": true,
+          "isMut": false,
           "isSigner": false
         }
       ],
@@ -1182,6 +1182,27 @@
           "type": "bool"
         }
       ]
+    },
+    {
+      "name": "updateFundingPaused",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "fundingPaused",
+          "type": "bool"
+        }
+      ]
     }
   ],
   "accounts": [
@@ -1330,6 +1351,10 @@
           },
           {
             "name": "exchangePaused",
+            "type": "bool"
+          },
+          {
+            "name": "fundingPaused",
             "type": "bool"
           },
           {

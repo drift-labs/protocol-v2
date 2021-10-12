@@ -233,6 +233,12 @@ describe('admin', () => {
 		assert(JSON.stringify(market.amm.oracleSource) === JSON.stringify(newOracleSource));
 	});
 
+	it('Pause funding', async () => {
+		await clearingHouse.updateFundingPaused(true);
+		const state = clearingHouse.getState();
+		assert(state.fundingPaused);
+	});
+
 	it('Update admin', async () => {
 		const admin = PublicKey.default;
 

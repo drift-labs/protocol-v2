@@ -154,6 +154,7 @@ export type LiquidationRecord = {
 
 export type ClearingHouseState = {
 	admin: PublicKey;
+	fundingPaused: boolean;
 	exchangePaused: boolean;
 	adminControlsPrices: boolean;
 	collateralMint: PublicKey;

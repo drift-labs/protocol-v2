@@ -5,6 +5,7 @@ use anchor_lang::prelude::*;
 pub struct State {
     pub admin: Pubkey,
     pub exchange_paused: bool,
+    pub funding_paused: bool,
     pub admin_controls_prices: bool,
     pub collateral_mint: Pubkey,
     pub collateral_vault: Pubkey,
