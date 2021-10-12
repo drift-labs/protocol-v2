@@ -316,6 +316,8 @@ pub struct Liquidate<'info> {
     pub trade_history: Loader<'info, TradeHistory>,
     #[account(mut)]
     pub liquidation_history: Loader<'info, LiquidationHistory>,
+    #[account(mut)]
+    pub funding_payment_history: Loader<'info, FundingPaymentHistory>,
 }
 
 #[derive(Accounts)]

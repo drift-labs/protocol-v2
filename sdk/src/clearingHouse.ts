@@ -1014,6 +1014,7 @@ export class ClearingHouse {
 				userPositions: liquidateeUserAccount.positions,
 				tradeHistory: this.state.tradeHistory,
 				liquidationHistory: this.state.liquidationHistory,
+				fundingPaymentHistory: this.state.fundingPaymentHistory,
 			},
 			remainingAccounts: remainingAccounts,
 		});

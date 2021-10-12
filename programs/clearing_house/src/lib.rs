@@ -894,6 +894,15 @@ pub mod clearing_house {
 
         let user_positions = &mut ctx.accounts.user_positions.load_mut()?;
 
+        let funding_payment_history = &mut ctx.accounts.funding_payment_history.load_mut()?;
+        controller::funding::settle_funding_payment(
+            user,
+            user_positions,
+            &ctx.accounts.markets.load()?,
+            funding_payment_history,
+            now,
+        )?;
+
         let mut is_full_liquidation = true;
         let mut base_asset_value_closed: u128 = 0;
         if margin_ratio <= ctx.accounts.state.margin_ratio_maintenance {

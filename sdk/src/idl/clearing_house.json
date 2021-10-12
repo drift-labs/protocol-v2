@@ -515,6 +515,11 @@
           "name": "liquidationHistory",
           "isMut": true,
           "isSigner": false
+        },
+        {
+          "name": "fundingPaymentHistory",
+          "isMut": true,
+          "isSigner": false
         }
       ],
       "args": []
