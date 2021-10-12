@@ -97,6 +97,21 @@ pub struct InitializeUser<'info> {
     pub clock: Sysvar<'info, Clock>,
 }
 
+#[derive(Accounts)]
+pub struct DeleteUser<'info> {
+    #[account(
+        mut,
+        has_one = authority
+    )]
+    pub user: Box<Account<'info, User>>,
+    #[account(
+        mut,
+        has_one = user
+    )]
+    pub user_positions: Loader<'info, UserPositions>,
+    pub authority: Signer<'info>,
+}
+
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
 pub struct InitializeUserOptionalAccounts {
     pub whitelist_token: bool,

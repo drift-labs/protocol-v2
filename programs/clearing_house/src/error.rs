@@ -76,6 +76,8 @@ pub enum ErrorCode {
     LiquidationsBlockedByOracle,
     #[msg("Can not deposit more than max deposit")]
     UserMaxDeposit,
+    #[msg("Can not delete user that still has collateral")]
+    CantDeleteUserWithCollateral,
 }
 
 #[macro_export]

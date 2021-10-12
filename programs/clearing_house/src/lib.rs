@@ -1282,6 +1282,31 @@ pub mod clearing_house {
         Ok(())
     }
 
+    pub fn delete_user(ctx: Context<DeleteUser>) -> ProgramResult {
+        let user = &ctx.accounts.user;
+        let user_positions = &ctx.accounts.user_positions;
+        let user_authority = &ctx.accounts.authority;
+
+        if user.collateral > 0 {
+            return Err(ErrorCode::CantDeleteUserWithCollateral.into());
+        }
+
+        let user_account_lamports = user.to_account_info().lamports();
+        let user_positions_account_lamports = user_positions.to_account_info().lamports();
+        **user_authority.to_account_info().lamports.borrow_mut() = user_authority
+            .to_account_info()
+            .lamports()
+            .checked_add(user_account_lamports)
+            .ok_or_else(math_error!())?
+            .checked_add(user_positions_account_lamports)
+            .ok_or_else(math_error!())?;
+
+        **user.to_account_info().lamports.borrow_mut() = 0;
+        **user_positions.to_account_info().lamports.borrow_mut() = 0;
+
+        Ok(())
+    }
+
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]

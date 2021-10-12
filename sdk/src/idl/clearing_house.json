@@ -728,6 +728,27 @@
       ]
     },
     {
+      "name": "deleteUser",
+      "accounts": [
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userPositions",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "settleFundingPayment",
       "accounts": [
         {
@@ -2424,9 +2445,11 @@
       "code": 335,
       "name": "UserMaxDeposit",
       "msg": "Can not deposit more than max deposit"
+    },
+    {
+      "code": 336,
+      "name": "CantDeleteUserWithCollateral",
+      "msg": "Can not delete user that still has collateral"
     }
-  ],
-  "metadata": {
-    "address": "8Fs5E3Jt4Tx7La47XHXBWevqGrZtTJB2txvU8MrBUoWS"
-  }
+  ]
 }
