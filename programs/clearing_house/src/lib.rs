@@ -1523,6 +1523,22 @@ pub mod clearing_house {
         Ok(())
     }
 
+    #[access_control(
+        market_initialized(&ctx.accounts.markets, market_index)
+    )]
+    pub fn update_market_oracle(
+        ctx: Context<AdminUpdateMarketOracle>,
+        market_index: u64,
+        oracle: Pubkey,
+        oracle_source: OracleSource,
+    ) -> ProgramResult {
+        let market =
+            &mut ctx.accounts.markets.load_mut()?.markets[Markets::index_from_u64(market_index)];
+        market.amm.oracle = oracle;
+        market.amm.oracle_source = oracle_source;
+        Ok(())
+    }
+
     pub fn update_admin(ctx: Context<AdminUpdateState>, admin: Pubkey) -> ProgramResult {
         ctx.accounts.state.admin = admin;
         Ok(())

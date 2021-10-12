@@ -3,10 +3,12 @@ import { Program } from '@project-serum/anchor';
 import BN from 'bn.js';
 import { assert } from 'chai';
 
-import {ClearingHouse, FeeStructure, OracleGuardRails} from '../sdk/src';
+import {AMM_MANTISSA, ClearingHouse, FeeStructure, OracleGuardRails} from '../sdk/src';
+import {OracleSource} from '../sdk';
 
-import { mockUSDCMint } from '../utils/mockAccounts';
+import {mockOracle, mockUSDCMint} from '../utils/mockAccounts';
 import { PublicKey } from '@solana/web3.js';
+import Markets from "../sdk/src/constants/markets";
 
 describe('admin', () => {
 	const provider = anchor.Provider.local();
@@ -200,6 +202,35 @@ describe('admin', () => {
 		const state = clearingHouse.getState();
 
 		assert(state.maxDeposit.eq(maxDeposit));
+	});
+
+	it('Update market oracle', async () => {
+		const solUsd = await mockOracle(1);
+		const periodicity = new BN(60 * 60); // 1 HOUR
+		const mantissaSqrtScale = new BN(Math.sqrt(AMM_MANTISSA.toNumber()));
+		const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
+			mantissaSqrtScale
+		);
+		const ammInitialBaseAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
+			mantissaSqrtScale
+		);
+
+		await clearingHouse.initializeMarket(
+			Markets[0].marketIndex,
+			solUsd,
+			ammInitialBaseAssetReserve,
+			ammInitialQuoteAssetReserve,
+			periodicity
+		);
+
+		const newOracle = PublicKey.default;
+		const newOracleSource = OracleSource.SWITCHBOARD;
+
+		await clearingHouse.updateMarketOracle(Markets[0].marketIndex, newOracle, newOracleSource);
+
+		const market = clearingHouse.getMarketsAccount().markets[Markets[0].marketIndex.toNumber()];
+		assert(market.amm.oracle.equals(PublicKey.default));
+		assert(JSON.stringify(market.amm.oracleSource) === JSON.stringify(newOracleSource));
 	});
 
 	it('Update admin', async () => {

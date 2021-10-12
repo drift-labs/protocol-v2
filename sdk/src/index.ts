@@ -6,7 +6,7 @@ import { Liquidator } from './liquidator';
 import { MockUSDCFaucet } from './mockUSDCFaucet';
 import { PythClient } from './pythClient';
 import SlackMessenger from './slackMessanger';
-import { PositionDirection, SwapDirection } from './types';
+import { PositionDirection, SwapDirection, OracleSource } from './types';
 
 export * from './userAccount';
 export * from './clearingHouse';
@@ -23,6 +23,7 @@ export {
 	MockUSDCFaucet,
 	PositionDirection,
 	PythClient,
+	OracleSource,
 	SwapDirection,
 	Liquidator,
 	Markets,

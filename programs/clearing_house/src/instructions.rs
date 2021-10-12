@@ -393,3 +393,14 @@ pub struct AdminUpdateK<'info> {
     #[account(mut)]
     pub curve_history: Loader<'info, CurveHistory>,
 }
+
+#[derive(Accounts)]
+pub struct AdminUpdateMarketOracle<'info> {
+    pub admin: Signer<'info>,
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub markets: Loader<'info, Markets>,
+}

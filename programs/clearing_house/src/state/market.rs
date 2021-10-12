@@ -36,7 +36,7 @@ pub struct Market {
     pub amm: AMM,
 }
 
-#[derive(Clone, Copy)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy)]
 pub enum OracleSource {
     Pyth,
     Switchboard,

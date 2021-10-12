@@ -1043,6 +1043,42 @@
       ]
     },
     {
+      "name": "updateMarketOracle",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "markets",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        },
+        {
+          "name": "oracle",
+          "type": "publicKey"
+        },
+        {
+          "name": "oracleSource",
+          "type": {
+            "defined": "OracleSource"
+          }
+        }
+      ]
+    },
+    {
       "name": "updateAdmin",
       "accounts": [
         {

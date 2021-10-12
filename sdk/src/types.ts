@@ -11,6 +11,11 @@ export class PositionDirection {
 	static readonly SHORT = { short: {} };
 }
 
+export class OracleSource {
+	static readonly PYTH = { pyth: {} };
+	static readonly SWITCHBOARD = { switchboard: {} };
+}
+
 export enum TradeSide {
 	None = 0,
 	Buy = 1,
@@ -195,6 +200,7 @@ export type ClearingHouseMarketsAccountData = {
 			lastMarkPriceTwap: BN;
 			lastMarkPriceTwapTs: BN;
 			oracle: PublicKey;
+			oracleSource: OracleSource;
 			fundingPeriod: BN;
 			quoteAssetReserve: BN;
 			pegMultiplier: BN;
