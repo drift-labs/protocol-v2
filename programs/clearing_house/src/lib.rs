@@ -1599,6 +1599,13 @@ pub mod clearing_house {
         Ok(())
     }
 
+    pub fn disable_admin_controls_prices(
+        ctx: Context<AdminUpdateState>,
+    ) -> ProgramResult {
+        ctx.accounts.state.admin_controls_prices = false;
+        Ok(())
+    }
+
     pub fn update_funding_paused(
         ctx: Context<AdminUpdateState>,
         funding_paused: bool,

@@ -1809,6 +1809,15 @@ export class ClearingHouse {
 		});
 	}
 
+	public async disableAdminControlsPrices(): Promise<TransactionSignature> {
+		return await this.program.rpc.disableAdminControlsPrices({
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+			},
+		});
+	}
+
 	public triggerEvent(eventName: keyof ClearingHouseEvents, data?: any) {
 		this.eventEmitter.emit(eventName, data);
 	}

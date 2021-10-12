@@ -29,7 +29,7 @@ describe('admin', () => {
 			chProgram.programId
 		);
 
-		await clearingHouse.initialize(usdcMint.publicKey, false);
+		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
 	});
 
@@ -237,6 +237,14 @@ describe('admin', () => {
 		await clearingHouse.updateFundingPaused(true);
 		const state = clearingHouse.getState();
 		assert(state.fundingPaused);
+	});
+
+	it('Disable admin controls prices', async () => {
+		let state = clearingHouse.getState();
+		assert(state.adminControlsPrices);
+		await clearingHouse.disableAdminControlsPrices();
+		state = clearingHouse.getState();
+		assert(!state.adminControlsPrices);
 	});
 
 	it('Update admin', async () => {

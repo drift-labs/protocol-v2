@@ -1234,6 +1234,22 @@
       ]
     },
     {
+      "name": "disableAdminControlsPrices",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "updateFundingPaused",
       "accounts": [
         {
