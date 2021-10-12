@@ -64,6 +64,7 @@ pub struct AMM {
     pub last_funding_rate: i128,
     pub last_funding_rate_ts: i64,
     pub funding_period: i64,
+    pub last_oracle_mark_spread_twap: i128,
     pub last_mark_price_twap: u128,
     pub last_mark_price_twap_ts: i64,
     pub sqrt_k: u128,

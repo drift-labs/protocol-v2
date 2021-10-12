@@ -19,8 +19,7 @@ pub fn swap_quote_asset(
     direction: SwapDirection,
     now: i64,
 ) -> ClearingHouseResult<i128> {
-    amm.last_mark_price_twap = amm::calculate_new_mark_twap(amm, now)?;
-    amm.last_mark_price_twap_ts = now;
+    amm::update_mark_twap(amm, now);
 
     let scaled_quote_asset_amount = scale_to_amm_precision(quote_asset_swap_amount)?;
     let unpegged_scaled_quote_asset_amount =
@@ -71,8 +70,7 @@ pub fn swap_base_asset(
     direction: SwapDirection,
     now: i64,
 ) -> ClearingHouseResult {
-    amm.last_mark_price_twap = amm::calculate_new_mark_twap(amm, now)?;
-    amm.last_mark_price_twap_ts = now;
+    amm::update_mark_twap(amm, now);
 
     let (new_quote_asset_amount, new_base_asset_amount) = amm::calculate_swap_output(
         base_asset_swap_amount,

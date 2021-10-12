@@ -30,21 +30,61 @@ pub fn calculate_price(
         .try_to_u128();
 }
 
+pub fn update_mark_twap(amm: &mut AMM, now: i64) -> ClearingHouseResult<u128> {
+    let mark_twap = calculate_new_mark_twap(amm, now)?;
+    amm.last_mark_price_twap = mark_twap;
+    amm.last_mark_price_twap_ts = now;
+
+    return Ok(mark_twap);
+}
+
+pub fn update_oracle_mark_spread_twap(
+    amm: &mut AMM,
+    now: i64,
+    new_spread: i128,
+) -> ClearingHouseResult<i128> {
+    let since_last = max(1, now - amm.last_mark_price_twap_ts);
+    let since_start = max(1, amm.last_mark_price_twap_ts - amm.last_funding_rate_ts);
+
+    let new_twap = calculate_twap(
+        new_spread,
+        amm.last_oracle_mark_spread_twap,
+        since_last as i128,
+        since_start as i128,
+    )?;
+    amm.last_oracle_mark_spread_twap = new_twap;
+    return Ok(new_twap);
+}
+
 pub fn calculate_new_mark_twap(amm: &AMM, now: i64) -> ClearingHouseResult<u128> {
     let since_last = max(1, now - amm.last_mark_price_twap_ts);
     let since_start = max(1, amm.last_mark_price_twap_ts - amm.last_funding_rate_ts);
-    let denominator = (since_last + since_start) as u128;
 
-    let prev_twap_99 = amm
-        .last_mark_price_twap
-        .checked_mul(since_start as u128)
+    let current_price = amm.mark_price()?;
+
+    let new_twap = calculate_twap(
+        current_price as i128,
+        amm.last_mark_price_twap as i128,
+        since_start as i128,
+        since_last as i128,
+    )? as u128;
+
+    return Ok(new_twap);
+}
+
+pub fn calculate_twap(
+    new_data: i128,
+    old_data: i128,
+    new_weight: i128,
+    old_weight: i128,
+) -> ClearingHouseResult<i128> {
+    let denominator = new_weight
+        .checked_add(old_weight)
         .ok_or_else(math_error!())?;
-    let latest_price_01 = amm
-        .mark_price()?
-        .checked_mul(since_last as u128)
-        .ok_or_else(math_error!())?;
+    let prev_twap_99 = old_data.checked_mul(old_weight).ok_or_else(math_error!())?;
+    let latest_price_01 = new_data.checked_mul(new_weight).ok_or_else(math_error!())?;
     let new_twap = prev_twap_99
-        .checked_add(latest_price_01 as u128)
+        .checked_add(latest_price_01)
         .ok_or_else(math_error!())?
         .checked_div(denominator)
         .ok_or_else(math_error!());

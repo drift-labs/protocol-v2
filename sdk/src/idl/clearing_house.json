@@ -2030,6 +2030,10 @@
             "type": "i64"
           },
           {
+            "name": "lastOracleMarkSpreadTwap",
+            "type": "i128"
+          },
+          {
             "name": "lastMarkPriceTwap",
             "type": "u128"
           },
