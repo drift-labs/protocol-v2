@@ -330,17 +330,21 @@ pub mod clearing_house {
             return Err(ErrorCode::InsufficientCollateral.into());
         }
 
-        user.cumulative_deposits = user
-            .cumulative_deposits
-            .checked_sub(amount as i128)
-            .ok_or_else(math_error!())?;
-
         let (collateral_account_withdrawal, insurance_account_withdrawal) =
             calculate_withdrawal_amounts(
                 amount,
                 &ctx.accounts.collateral_vault,
                 &ctx.accounts.insurance_vault,
             )?;
+
+        let amount_withdraw = collateral_account_withdrawal
+            .checked_add(insurance_account_withdrawal)
+            .ok_or_else(math_error!())?;
+
+        user.cumulative_deposits = user
+            .cumulative_deposits
+            .checked_sub(amount_withdraw as i128)
+            .ok_or_else(math_error!())?;
 
         user.collateral = user
             .collateral
@@ -385,7 +389,7 @@ pub mod clearing_house {
             direction: DepositDirection::WITHDRAW,
             collateral_before,
             cumulative_deposits_before,
-            amount,
+            amount: amount_withdraw,
         });
 
         Ok(())
