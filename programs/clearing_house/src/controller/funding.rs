@@ -88,16 +88,44 @@ pub fn update_funding_rate(
     guard_rails: &OracleGuardRails,
     funding_paused: bool,
 ) -> ClearingHouseResult {
-    let time_since_last_update = now - market.amm.last_funding_rate_ts;
+    let time_since_last_update = now.checked_sub(market.amm.last_funding_rate_ts).unwrap();
 
     let mark_price_twap = amm::update_mark_twap(&mut market.amm, now)?;
 
     let block_funding_rate_update =
         oracle::block_funding_rate_update(&market.amm, price_oracle, clock_slot, guard_rails)?;
 
+    // round next update time to be available on the hour
+    let mut next_update_wait = market.amm.funding_period;
+    if market.amm.funding_period > 1 {
+        let last_update_delay = market
+            .amm
+            .funding_period
+            .rem_euclid(market.amm.funding_period);
+        if last_update_delay != 0 {
+            if last_update_delay > market.amm.funding_period.checked_div(4).unwrap(){
+                // too late for on the hour next period, delay to following period
+                next_update_wait = market
+                .amm
+                .funding_period
+                .checked_mul(2)
+                .unwrap()
+                .checked_sub(last_update_delay)
+                .unwrap();
+            } else{
+                // allow update on the hour
+                next_update_wait = market
+                .amm
+                .funding_period
+                .checked_sub(last_update_delay)
+                .unwrap();
+            }
+        }
+    }
+
     if !funding_paused
         && !block_funding_rate_update
-        && time_since_last_update >= market.amm.funding_period
+        && time_since_last_update >= next_update_wait 
     {
         let one_hour: u32 = 3600;
         let period_adjustment = (24_i64)
@@ -188,7 +216,7 @@ pub fn update_funding_rate(
                 .cumulative_funding_rate_short
                 .checked_add(funding_rate_short)
                 .ok_or_else(math_error!())?;
-                
+
             if funding_rate_short != 0 {
                 market.amm.cumulative_funding_rate_long = market
                 .amm

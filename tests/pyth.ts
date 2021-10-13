@@ -190,10 +190,10 @@ describe('pyth-oracle', () => {
 
 				// create <NUM_USERS> users with 10k that collectively do <NUM_EVENTS> actions
 		const [userUSDCAccounts, user_keys, clearingHouses, userAccountInfos] =
-		await initUserAccounts(2, usdcMint, usdcAmount, provider);
+		await initUserAccounts(1, usdcMint, usdcAmount, provider);
 
-		clearingHouse2 = clearingHouses[1];
-		userAccount2 = userAccountInfos[1];
+		clearingHouse2 = clearingHouses[0];
+		userAccount2 = userAccountInfos[0];
 
 		// await clearingHouse.depositCollateral(
 		// 	await userAccount2.getPublicKey(),
@@ -205,6 +205,9 @@ describe('pyth-oracle', () => {
 	after(async () => {
 		await clearingHouse.unsubscribe();
 		await userAccount.unsubscribe();
+
+		await clearingHouse2.unsubscribe();
+		await userAccount2.unsubscribe();
 	});
 
 	it('change feed price', async () => {
