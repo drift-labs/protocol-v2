@@ -1399,7 +1399,7 @@
                 {
                   "defined": "Market"
                 },
-                1000
+                64
               ]
             }
           }
@@ -1558,6 +1558,38 @@
           {
             "name": "maxDeposit",
             "type": "u128"
+          },
+          {
+            "name": "padding0",
+            "type": "u128"
+          },
+          {
+            "name": "padding1",
+            "type": "u128"
+          },
+          {
+            "name": "padding2",
+            "type": "u128"
+          },
+          {
+            "name": "padding3",
+            "type": "u128"
+          },
+          {
+            "name": "padding4",
+            "type": "u128"
+          },
+          {
+            "name": "padding5",
+            "type": "u128"
+          },
+          {
+            "name": "padding6",
+            "type": "u128"
+          },
+          {
+            "name": "padding7",
+            "type": "u128"
           }
         ]
       }
@@ -1621,6 +1653,22 @@
           {
             "name": "positions",
             "type": "publicKey"
+          },
+          {
+            "name": "padding0",
+            "type": "u128"
+          },
+          {
+            "name": "padding1",
+            "type": "u128"
+          },
+          {
+            "name": "padding2",
+            "type": "u128"
+          },
+          {
+            "name": "padding3",
+            "type": "u128"
           }
         ]
       }
@@ -1641,7 +1689,7 @@
                 {
                   "defined": "MarketPosition"
                 },
-                10
+                8
               ]
             }
           }
@@ -1982,6 +2030,26 @@
             "type": {
               "defined": "AMM"
             }
+          },
+          {
+            "name": "padding0",
+            "type": "u128"
+          },
+          {
+            "name": "padding1",
+            "type": "u128"
+          },
+          {
+            "name": "padding2",
+            "type": "u128"
+          },
+          {
+            "name": "padding3",
+            "type": "u128"
+          },
+          {
+            "name": "padding4",
+            "type": "u128"
           }
         ]
       }
@@ -2067,6 +2135,26 @@
           },
           {
             "name": "cumulativeFeeRealized",
+            "type": "u128"
+          },
+          {
+            "name": "padding0",
+            "type": "u128"
+          },
+          {
+            "name": "padding1",
+            "type": "u128"
+          },
+          {
+            "name": "padding2",
+            "type": "u128"
+          },
+          {
+            "name": "padding3",
+            "type": "u128"
+          },
+          {
+            "name": "padding4",
             "type": "u128"
           }
         ]
@@ -2334,6 +2422,14 @@
           {
             "name": "lastFundingRateTs",
             "type": "i64"
+          },
+          {
+            "name": "padding0",
+            "type": "u128"
+          },
+          {
+            "name": "padding1",
+            "type": "u128"
           }
         ]
       }

@@ -97,7 +97,7 @@ describe('clearing_house', () => {
 		assert.ok(state.insuranceVaultNonce == expectedInsuranceAccountNonce);
 
 		const marketsAccount = clearingHouse.getMarketsAccount();
-		assert.ok(marketsAccount.markets.length == 1000);
+		assert.ok(marketsAccount.markets.length == 64);
 
 		const fundingRateHistory = clearingHouse.getFundingPaymentHistory();
 		assert.ok(fundingRateHistory.head.toNumber() === 0);
@@ -163,7 +163,7 @@ describe('clearing_house', () => {
 		const userPositionsAccount: any =
 			await clearingHouse.program.account.userPositions.fetch(user.positions);
 
-		assert.ok(userPositionsAccount.positions.length == 10);
+		assert.ok(userPositionsAccount.positions.length == 8);
 		assert.ok(userPositionsAccount.user.equals(userAccountPublicKey));
 		assert.ok(
 			userPositionsAccount.positions[0].baseAssetAmount.toNumber() === 0

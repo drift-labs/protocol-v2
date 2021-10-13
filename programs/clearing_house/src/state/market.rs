@@ -8,13 +8,13 @@ use solana_program::msg;
 
 #[account(zero_copy)]
 pub struct Markets {
-    pub markets: [Market; 1000],
+    pub markets: [Market; 64],
 }
 
 impl Default for Markets {
     fn default() -> Self {
         return Markets {
-            markets: [Market::default(); 1000],
+            markets: [Market::default(); 64],
         };
     }
 }
@@ -34,6 +34,13 @@ pub struct Market {
     pub base_asset_amount: i128, // net market bias
     pub open_interest: u128,     // number of users in a position
     pub amm: AMM,
+
+    // upgrade-ability
+    pub padding0: u128,
+    pub padding1: u128,
+    pub padding2: u128,
+    pub padding3: u128,
+    pub padding4: u128,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy)]
@@ -71,6 +78,13 @@ pub struct AMM {
     pub peg_multiplier: u128,
     pub cumulative_fee: u128,
     pub cumulative_fee_realized: u128,
+
+    // upgrade-ability
+    pub padding0: u128,
+    pub padding1: u128,
+    pub padding2: u128,
+    pub padding3: u128,
+    pub padding4: u128,
 }
 
 impl AMM {

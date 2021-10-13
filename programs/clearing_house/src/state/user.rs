@@ -11,13 +11,27 @@ pub struct User {
     pub total_referral_reward: u128,
     pub total_referee_rebate: u128,
     pub positions: Pubkey,
+
+    // upgrade-ability
+    pub padding0: u128,
+    pub padding1: u128,
+    pub padding2: u128,
+    pub padding3: u128,
 }
 
 #[account(zero_copy)]
-#[derive(Default)]
 pub struct UserPositions {
     pub user: Pubkey,
-    pub positions: [MarketPosition; 10],
+    pub positions: [MarketPosition; 8],
+}
+
+impl Default for UserPositions {
+    fn default() -> Self {
+        return Self {
+            user: Pubkey::default(),
+            positions: [MarketPosition::default(); 8],
+        };
+    }
 }
 
 #[zero_copy]
@@ -29,4 +43,8 @@ pub struct MarketPosition {
     pub last_cumulative_funding_rate: i128,
     pub last_cumulative_repeg_rebate: u128,
     pub last_funding_rate_ts: i64,
+
+    // upgrade-ability
+    pub padding0: u128,
+    pub padding1: u128,
 }

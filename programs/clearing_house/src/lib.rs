@@ -136,6 +136,14 @@ pub mod clearing_house {
                 },
                 use_for_liquidations: true,
             },
+            padding0: 0,
+            padding1: 0,
+            padding2: 0,
+            padding3: 0,
+            padding4: 0,
+            padding5: 0,
+            padding6: 0,
+            padding7: 0,
         };
 
         return Ok(());
@@ -216,6 +224,11 @@ pub mod clearing_house {
             base_asset_amount_short: 0,
             base_asset_amount: 0,
             open_interest: 0,
+            padding0: 0,
+            padding1: 0,
+            padding2: 0,
+            padding3: 0,
+            padding4: 0,
             amm: AMM {
                 oracle: *ctx.accounts.oracle.key,
                 oracle_source: OracleSource::Pyth,
@@ -237,6 +250,11 @@ pub mod clearing_house {
                 peg_multiplier: amm_peg_multiplier,
                 cumulative_fee: 0,
                 cumulative_fee_realized: 0,
+                padding0: 0,
+                padding1: 0,
+                padding2: 0,
+                padding3: 0,
+                padding4: 0,
             },
         };
 
@@ -450,6 +468,8 @@ pub mod clearing_house {
                 last_cumulative_funding_rate: 0,
                 last_cumulative_repeg_rebate: 0,
                 last_funding_rate_ts: 0,
+                padding0: 0,
+                padding1: 0,
             };
 
             user_positions.positions[available_position_index.unwrap()] = new_market_position;
@@ -1333,6 +1353,11 @@ pub mod clearing_house {
         user.collateral = 0;
         user.cumulative_deposits = 0;
         user.positions = *ctx.accounts.user_positions.to_account_info().key;
+
+        user.padding0 = 0;
+        user.padding1 = 0;
+        user.padding2 = 0;
+        user.padding3 = 0;
 
         let user_positions = &mut ctx.accounts.user_positions.load_init()?;
         user_positions.user = *ctx.accounts.user.to_account_info().key;
