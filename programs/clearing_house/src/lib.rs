@@ -1435,8 +1435,8 @@ pub mod clearing_house {
         let amm = &market.amm;
 
         let price_after = math::amm::calculate_price(
-            amm.base_asset_reserve,
             amm.quote_asset_reserve,
+            amm.base_asset_reserve,
             amm.peg_multiplier,
         )?;
 
