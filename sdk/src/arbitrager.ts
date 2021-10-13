@@ -98,14 +98,19 @@ export class Arbitrager {
 	public async getRecentTradeAvg(symbol: string): Promise<any> {
 		const limit = 10;
 		const recentTrades = await this.ftxClient.fetchTrades(symbol, limit);
-		let pricesum = 0;
-		let volumesum = 0;
-
-		for (let i = 0; i < recentTrades.length; i++) {
-			pricesum += recentTrades[i]['price'] * recentTrades[i]['size'];
-			volumesum += recentTrades[i]['size'];
+		let pricesum = 0; 
+		let volumesum = 0; 
+		for (let i=0; i<recentTrades.length; i++) {
+			// console.log(recentTrades[i]);
+			// console.log(recentTrades[i].timestamp);
+			const amount =  recentTrades[i]['amount'];
+			const price =  recentTrades[i]['price'];
+			if(price && amount){
+				pricesum += price * amount;
+				volumesum += amount;
+			}
 		}
-
+		
 		const weightedAvg = pricesum / volumesum;
 		console.log('Weighted Average Price of', limit, 'Trades', weightedAvg);
 		return weightedAvg;
@@ -199,8 +204,14 @@ export class Arbitrager {
 
 			let oraclePriceData: PriceData;
 			let oraclePrice;
-			let oraclePriceWithMantissa;
 			let oracleTwac;
+
+			let oracleBid;
+			let oracleAsk;
+
+			let oracleTarget: number;
+			let orcaleTwapTarget: number;
+			let oracleTargetWithMantissa: BN;
 
 			let nowSOL: BN;
 
@@ -243,8 +254,25 @@ export class Arbitrager {
 				}
 
 				oraclePrice = oraclePriceData.price;
-				oraclePriceWithMantissa = new BN(oraclePrice * AMM_MANTISSA.toNumber());
 				oracleTwac = oraclePriceData.twac.value;
+				
+				// const oracelConfLatest = oraclePriceData.priceComponents[0].latest.confidence;
+				const oracleConfs = [oraclePriceData.previousConfidence, oraclePriceData.confidence, oracleTwac];
+				function median(numbers) {
+					const sorted = numbers.slice().sort((a, b) => a - b);
+					const middle = Math.floor(sorted.length / 2);
+				
+					if (sorted.length % 2 === 0) {
+						return (sorted[middle - 1] + sorted[middle]) / 2;
+					}
+				
+					return sorted[middle];
+				}
+
+				const oracleConfReg = median(oracleConfs)
+
+				oracleBid = oraclePriceData.price - oracleConfReg;
+				oracleAsk = oraclePriceData.price + oracleConfReg;
 
 				return true;
 			};
@@ -285,7 +313,27 @@ export class Arbitrager {
 					'<',
 					maxPositionValueNum
 				);
-				// don't continue higher after exceeding .5x leverage in a particular market
+
+				if(netExposure > 0){
+					oracleTarget = oracleBid;
+					orcaleTwapTarget = oraclePriceData.twap.value - oracleTwac;
+				} else if(netExposure < 0){
+					oracleTarget = oracleAsk;
+					orcaleTwapTarget = oraclePriceData.twap.value + oracleTwac;
+				} else{
+					if(currentSpread < 0){ 
+						// mark > oracle
+						oracleTarget = oracleBid;
+						orcaleTwapTarget = oraclePriceData.twap.value - oracleTwac;
+					} else{
+						oracleTarget = oracleAsk;
+						orcaleTwapTarget = oraclePriceData.twap.value + oracleTwac;
+					}
+				}
+
+				oracleTargetWithMantissa = new BN(oracleTarget * AMM_MANTISSA.toNumber());
+
+				// don't continue higher after exceeding .5x isolated leverage in a particular market
 				return positionValueNum > maxPositionValueNum;
 			};
 
@@ -387,20 +435,17 @@ export class Arbitrager {
 			};
 
 			const examineMarketSpread = () => {
-				currentSpread = Math.abs(markPrice - oraclePrice);
-				currentSpreadPct = currentSpread / oraclePrice;
+				currentSpread = Math.abs(markPrice - oracleTarget);
+				currentSpreadPct = currentSpread / oracleTarget;
 
 				// if netExposure is correct direction
 				if (
-					(netExposure > 0 && markPrice < oraclePrice) ||
-					(netExposure < 0 && markPrice > oraclePrice)
+					(netExposure > 0 && markPrice < oracleTarget) ||
+					(netExposure < 0 && markPrice > oracleTarget)
 				) {
 					if (
-						(currentSpreadPct < 0.0005 ||
-							currentSpread < oracleTwac / 5 ||
-							currentSpread < oraclePriceData.confidence) &&
 						!shouldReducePosition &&
-						currentSpreadPct < 0.03
+						currentSpreadPct < 0.0005
 					) {
 						console.log(
 							'spread too small to arb in Market:',
@@ -421,26 +466,25 @@ export class Arbitrager {
 			const decideArbAmount = () => {
 				// avoid deterministic behavior, draw from range: [5%, 25%)
 				const randomDraw = 50 + Math.floor(Math.random() * 200);
-
-				if (shouldReducePosition || isPositionValueLimit) {
-					riskReduction = true;
-					arbPctMod = ZERO;
-				} else if (
-					(markPrice >= oraclePriceData.twap.value &&
-						markPrice < oraclePrice &&
-						netExposure > 0) ||
-					(markPrice <= oraclePriceData.twap.value &&
-						markPrice > oraclePrice &&
-						netExposure < 0)
-				) {
-					arbPctMod = new BN(Math.min(randomDraw / 2, 100));
-				} else if (
-					(markPrice > oraclePrice && netExposure > 0) ||
-					(markPrice < oraclePrice && netExposure < 0)
+				if (
+					(markPrice > oracleTarget && netExposure > 0) ||
+					(markPrice < oracleTarget && netExposure < 0)
 				) {
 					// markPrice is wrong in our favor, time to be aggressive in risk reduction
 					riskReduction = true;
 					arbPctMod = new BN(1000);
+				} else if (shouldReducePosition || isPositionValueLimit) {
+					riskReduction = true;
+					arbPctMod = ZERO;
+				} else if (
+					(markPrice >= orcaleTwapTarget &&
+						markPrice < oracleTarget &&
+						netExposure > 0) ||
+					(markPrice <= orcaleTwapTarget &&
+						markPrice > oracleTarget &&
+						netExposure < 0)
+				) {
+					arbPctMod = new BN(Math.min(randomDraw / 2, 100));
 				} else {
 					// catch all for non-critical arb trade
 
@@ -498,7 +542,7 @@ export class Arbitrager {
 					);
 
 					let entrySpread = stripMantissa(
-						limitPrice.sub(oraclePriceWithMantissa)
+						limitPrice.sub(targetPrice)
 					);
 
 					while (
@@ -515,7 +559,7 @@ export class Arbitrager {
 						);
 
 						entrySpread = stripMantissa(
-							limitPrice.sub(oraclePriceWithMantissa)
+							limitPrice.sub(targetPrice)
 						);
 					}
 				}
@@ -526,7 +570,7 @@ export class Arbitrager {
 				// skip trades < 1 USDC
 				const expectedFee =
 					stripMantissa(amount.abs(), USDC_PRECISION) * 0.0005;
-				if (amount.abs().lt(USDC_PRECISION)) {
+				if (amount.abs().lt(USDC_PRECISION.mul(new BN(1)))) {
 					console.log('trade amount < $1');
 
 					skipTrade = true;
@@ -622,7 +666,7 @@ export class Arbitrager {
 				console.log(ftxPrice);
 				constructTrade(ftxPriceWithMantissa);
 			} else {
-				constructTrade(oraclePriceWithMantissa);
+				constructTrade(oracleTargetWithMantissa);
 			}
 
 			skipTrade = await resizeTrade();
