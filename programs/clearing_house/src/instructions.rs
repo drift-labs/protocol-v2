@@ -7,8 +7,8 @@ use crate::state::history::funding_rate::FundingRateHistory;
 use crate::state::history::liquidation::LiquidationHistory;
 use crate::state::history::{funding_payment::FundingPaymentHistory, trade::TradeHistory};
 use crate::state::market::Markets;
-use crate::state::state::State;
-use crate::state::user::{User, UserPositions};
+use crate::state::state::{State, PADDED_CLEARING_HOUSE_SIZE};
+use crate::state::user::{User, UserPositions, PADDED_USER_SIZE};
 
 #[derive(Accounts)]
 #[instruction(
@@ -22,7 +22,8 @@ pub struct Initialize<'info> {
         init,
         seeds = [b"clearing_house".as_ref()],
         bump = clearing_house_nonce,
-        payer = admin
+        payer = admin,
+        space = PADDED_CLEARING_HOUSE_SIZE
     )]
     pub state: Box<Account<'info, State>>,
     pub collateral_mint: Box<Account<'info, Mint>>,
@@ -82,7 +83,8 @@ pub struct InitializeUser<'info> {
         init,
         seeds = [b"user", authority.key.as_ref()],
         bump = user_nonce,
-        payer = authority
+        payer = authority,
+        space = PADDED_USER_SIZE
     )]
     pub user: Box<Account<'info, User>>,
     pub state: Box<Account<'info, State>>,
