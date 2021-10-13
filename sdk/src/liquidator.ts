@@ -1,6 +1,7 @@
 import { ClearingHouse } from './clearingHouse';
 import { PublicKey } from '@solana/web3.js';
 import { UserAccount } from './userAccount';
+import { Wallet } from '@project-serum/anchor';
 
 export class Liquidator {
 	clearingHouse: ClearingHouse;
@@ -19,13 +20,20 @@ export class Liquidator {
 		this.liquidatorUSDCTokenPublicKey = liquidatorUSDCTokenPublicKey;
 	}
 
-	public async liquidate(userAccounts: UserAccount[]): Promise<UserAccount[]> {
+	public async liquidate(userAccounts: UserAccount[], blacklist: Wallet[]): Promise<UserAccount[]> {
 		const accountsToLiquidate: UserAccount[] = [];
 		for (const userAccount of userAccounts) {
 			const [canLiquidate] = userAccount.canBeLiquidated();
+
+			
 			if (canLiquidate) {
 				accountsToLiquidate.push(userAccount);
 				const liquidateeUserAccountPublicKey = await userAccount.getPublicKey();
+
+				if(liquidateeUserAccountPublicKey.toString() == blacklist[0].publicKey.toString()){
+					continue;
+				}
+
 				try {
 					this.clearingHouse
 						.liquidate(

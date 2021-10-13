@@ -1,13 +1,14 @@
 import { Wallet } from '@project-serum/anchor';
 import BN from 'bn.js';
-import { ClearingHouse } from '../sdk';
-import { MockUSDCFaucet } from '../sdk/src';
-
+import { ClearingHouse, MockUSDCFaucet, initialize } from '../sdk';
 import dotenv = require('dotenv');
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 dotenv.config();
 
 async function main() {
+	//@ts-ignore
+	const sdkConfig = initialize({ env: 'devnet' });
+
 	const endpoint = process.env.ENDPOINT;
 	const connection = new Connection(endpoint);
 
@@ -26,14 +27,7 @@ async function main() {
 	// await connection.getBalance(botWallet.publicKey);
 
 	const chProgram = null; // anchor.workspace.ClearingHouse as Program;
-	// const chProgram = process.env.CLEARING_HOUSE_PROGRAM_ID;
-	let chProgramId;
-	if (!chProgram) {
-		chProgramId = new PublicKey(process.env.CLEARING_HOUSE_PROGRAM_ID);
-	} else {
-		chProgramId = chProgram.programId;
-	}
-
+	const chProgramId = new PublicKey(sdkConfig.CLEARING_HOUSE_PROGRAM_ID);
 	const clearingHouse = new ClearingHouse(connection, botWallet, chProgramId);
 	await clearingHouse.subscribe();
 	console.log(`Clearing House: ${chProgramId.toString()}`);
@@ -42,7 +36,7 @@ async function main() {
 	let mockUsdcFaucetProgramId;
 	if (!chProgram) {
 		mockUsdcFaucetProgramId = new PublicKey(
-			process.env.MOCK_USDC_FAUCET_ADDRESS
+			sdkConfig.MOCK_USDC_FAUCET_ADDRESS
 		);
 	} else {
 		mockUsdcFaucetProgramId = mockUsdcFaucetProgram.programId;
