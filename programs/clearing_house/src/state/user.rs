@@ -2,16 +2,19 @@ use anchor_lang::prelude::*;
 
 #[account]
 #[derive(Default)]
-pub struct User {
-    pub authority: Pubkey,
-    pub collateral: u128,
-    pub cumulative_deposits: i128,
-    pub total_fee_paid: u128,
-    pub total_drift_token_rebate: u128,
-    pub total_referral_reward: u128,
-    pub total_referee_rebate: u128,
-    pub positions: Pubkey,
+pub struct User { // 168
+    // anchor discriminator 8
+    pub authority: Pubkey, // 32
+    pub collateral: u128, // 16
+    pub cumulative_deposits: i128, // 16
+    pub total_fee_paid: u128, // 16
+    pub total_drift_token_rebate: u128, // 16
+    pub total_referral_reward: u128, // 16
+    pub total_referee_rebate: u128, // 16
+    pub positions: Pubkey, // 32
 }
+
+pub const PADDED_USER_SIZE : usize = 168 + 128;
 
 #[account(zero_copy)]
 #[derive(Default)]
