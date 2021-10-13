@@ -108,8 +108,12 @@ export type TradeRecord = {
 	quoteAssetAmount: BN;
 	markPriceBefore: BN;
 	markPriceAfter: BN;
+	fee: BN;
+	referrerReward: BN;
+	refereeRebate: BN;
+	driftTokenRebate: BN;
 	marketIndex: BN;
-	liquidation: false;
+	liquidation: boolean;
 };
 
 export type FundingRateRecord = {
@@ -131,6 +135,7 @@ export type FundingPaymentRecord = {
 	fundingPayment: BN;
 	baseAssetAmount: BN;
 	userLastCumulativeFunding: BN;
+	userLastFundingRateTs: BN;
 	ammCumulativeFunding: BN;
 };
 
