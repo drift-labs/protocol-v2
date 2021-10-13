@@ -10,7 +10,7 @@ import { AMM_MANTISSA, ClearingHouse } from '../sdk/src';
 
 import Markets from '../sdk/src/constants/markets';
 
-import { mockUSDCMint, mockUserUSDCAccount } from '../utils/mockAccounts';
+import {mockOracle, mockUSDCMint, mockUserUSDCAccount} from '../utils/mockAccounts';
 
 describe('max deposit', () => {
 	const provider = anchor.Provider.local();
@@ -48,12 +48,12 @@ describe('max deposit', () => {
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
 
-		const solUsd = anchor.web3.Keypair.generate();
+		const solUsd = await mockOracle(1);
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await clearingHouse.initializeMarket(
 			Markets[0].marketIndex,
-			solUsd.publicKey,
+			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			periodicity

@@ -80,6 +80,7 @@ describe('update k', () => {
 
 	after(async () => {
 		await clearingHouse.unsubscribe();
+		await userAccount.unsubscribe();
 	});
 
 	it('increase k (FREE)', async () => {
