@@ -19,6 +19,8 @@ import { mockUSDCMint, mockUserUSDCAccount } from '../utils/mockAccounts';
 import { createPriceFeed, setFeedPrice } from '../utils/mockPythUtils';
 import { USDC_PRECISION } from '../sdk/lib';
 
+const ZERO = new BN(0);
+
 describe('update k', () => {
 	const provider = anchor.Provider.local();
 	const connection = provider.connection;
@@ -55,12 +57,16 @@ describe('update k', () => {
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
 
-		const solUsd = anchor.web3.Keypair.generate();
 		const periodicity = new BN(60 * 60); // 1 HOUR
+
+		let solUsdOracle = await createPriceFeed({
+			oracleProgram: anchor.workspace.Pyth,
+			initPrice: initialSOLPrice,
+		});
 
 		await clearingHouse.initializeMarket(
 			Markets[0].marketIndex,
-			solUsd.publicKey,
+			solUsdOracle,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			periodicity,
@@ -113,6 +119,13 @@ describe('update k', () => {
 	});
 
 	it('increase k base/quote imbalance (FREE)', async () => {
+
+		await clearingHouse.depositCollateral(
+			await userAccount.getPublicKey(),
+			usdcAmount,
+			userUSDCAccount.publicKey
+		);
+
 		const marketIndex = Markets[0].marketIndex;
 
 		const marketsOld = await clearingHouse.getMarketsAccount();
@@ -160,63 +173,161 @@ describe('update k', () => {
 		assert(amm.sqrtK.eq(newSqrtK));
 	});
 
-	// it('lower k position imbalance (AMM PROFIT)', async () => {
-	// 	const marketIndex = Markets[0].marketIndex;
+	it('lower k position imbalance (AMM PROFIT)', async () => {
+		const marketIndex = Markets[0].marketIndex;
 
-	// 	const marketsOld = await clearingHouse.getMarketsAccount();
-	// 	const targetPriceUp = (new BN(initialSOLPrice * AMM_MANTISSA.toNumber()));
+		const targetPriceBack = (new BN(initialSOLPrice * AMM_MANTISSA.toNumber()));
 
-	// 	const [direction, tradeSize, _] = clearingHouse.calculateTargetPriceTrade(
-	// 		marketIndex,
-	// 		targetPriceUp
-	// 	);
-	// 	console.log('taking position');
-	// 	await clearingHouse.openPosition(
-	// 		await userAccount.getPublicKey(),
-	// 		PositionDirection.LONG,
-	// 		new BN(USDC_PRECISION),
-	// 		marketIndex
-	// 	);
-	// 	console.log('$1 position taken');
+		// const [direction, tradeSize, _] = clearingHouse.calculateTargetPriceTrade(
+		// 	marketIndex,
+		// 	targetPriceUp
+		// );
+		await clearingHouse.moveAmmToPrice(marketIndex, targetPriceBack);
 
-	// 	const oldKPrice =
-	// 		clearingHouse.calculateBaseAssetPriceWithMantissa(marketIndex);
-	// 	const ammOld = marketsOld.markets[0].amm;
+		console.log('taking position');
+		await clearingHouse.openPosition(
+			await userAccount.getPublicKey(),
+			PositionDirection.LONG,
+			new BN(USDC_PRECISION),
+			marketIndex
+		);
+		console.log('$1 position taken');
+		const marketsOld = await clearingHouse.getMarketsAccount();
+		assert(!(marketsOld.markets[0].baseAssetAmount.eq(ZERO)));
+		
+		const oldKPrice =
+			clearingHouse.calculateBaseAssetPriceWithMantissa(marketIndex);
+		const ammOld = marketsOld.markets[0].amm;
+		console.log('USER getTotalCollateral', stripMantissa(userAccount.getTotalCollateral(), USDC_PRECISION));
 
-	// 	const newSqrtK = ammOld.sqrtK.mul(new BN(.8 * AMM_MANTISSA.toNumber())).div(AMM_MANTISSA);
-	// 	await clearingHouse.updateK(newSqrtK, marketIndex);
+		const newSqrtK = ammOld.sqrtK.mul(new BN(.5 * AMM_MANTISSA.toNumber())).div(AMM_MANTISSA);
+		await clearingHouse.updateK(newSqrtK, marketIndex);
+		const marketsKChange = await clearingHouse.getMarketsAccount();
+		const ammKChange = marketsKChange.markets[0].amm;
 
-	// 	console.log('$1 position closing');
+		const newKPrice =
+		clearingHouse.calculateBaseAssetPriceWithMantissa(marketIndex);
 
-	// 	await clearingHouse.closePosition(
-	// 		await userAccount.getPublicKey(),
-	// 		marketIndex
-	// 	);
-	// 	console.log('$1 position closed');
 
-	// 	const markets = await clearingHouse.getMarketsAccount();
-	// 	const newKPrice =
-	// 		clearingHouse.calculateBaseAssetPriceWithMantissa(marketIndex);
+		console.log('$1 position closing');
 
-	// 	const amm = markets.markets[0].amm;
+		await clearingHouse.closePosition(
+			await userAccount.getPublicKey(),
+			marketIndex
+		);
+		console.log('$1 position closed');
 
-	// 	const marginOfError = new BN(100);
+		const markets = await clearingHouse.getMarketsAccount();
 
-	// 	console.log(
-	// 		'oldSqrtK',
-	// 		stripMantissa(ammOld.sqrtK),
-	// 		'oldKPrice:',
-	// 		stripMantissa(oldKPrice)
-	// 	);
-	// 	console.log(
-	// 		'newSqrtK',
-	// 		stripMantissa(newSqrtK),
-	// 		'newKPrice:',
-	// 		stripMantissa(newKPrice)
-	// 	);
+		const amm = markets.markets[0].amm;
 
-	// 	assert(ammOld.sqrtK.lt(amm.sqrtK));
-	// 	assert(newKPrice.sub(oldKPrice).abs().lt(marginOfError));
-	// 	assert(amm.sqrtK.eq(newSqrtK));
-	// });
+		const marginOfError = new BN(AMM_MANTISSA.div(new BN(1000))); // price change less than 3 decimal places
+
+		console.log(
+			'oldSqrtK',
+			stripMantissa(ammOld.sqrtK),
+			'oldKPrice:',
+			stripMantissa(oldKPrice)
+		);
+		console.log(
+			'newSqrtK',
+			stripMantissa(newSqrtK),
+			'newKPrice:',
+			stripMantissa(newKPrice)
+		);
+
+		assert(ammOld.sqrtK.gt(amm.sqrtK));
+		assert(newKPrice.sub(oldKPrice).abs().lt(marginOfError));
+		assert(amm.sqrtK.eq(newSqrtK));
+
+		
+		console.log('realizedFeeOld', 
+		stripMantissa(ammOld.cumulativeFeeRealized, USDC_PRECISION),
+		'realizedFeePostK', 
+		stripMantissa(ammKChange.cumulativeFeeRealized, USDC_PRECISION),
+		'realizedFeePostClose',
+		stripMantissa(amm.cumulativeFeeRealized, USDC_PRECISION),
+		);
+		console.log('USER getTotalCollateral', stripMantissa(userAccount.getTotalCollateral(), USDC_PRECISION));
+
+		// assert(amm.cumulativeFeeRealized.lt(ammOld.cumulativeFeeRealized));
+	});
+
+
+	it('increase k position imbalance (AMM LOSS)', async () => {
+		const marketIndex = Markets[0].marketIndex;
+		const targetPriceBack = (new BN(initialSOLPrice * AMM_MANTISSA.toNumber()));
+
+		// const [direction, tradeSize, _] = clearingHouse.calculateTargetPriceTrade(
+		// 	marketIndex,
+		// 	targetPriceUp
+		// );
+		await clearingHouse.moveAmmToPrice(marketIndex, targetPriceBack);
+
+		console.log('taking position');
+		await clearingHouse.openPosition(
+			await userAccount.getPublicKey(),
+			PositionDirection.LONG,
+			(new BN(USDC_PRECISION)).mul(new BN(30000)),
+			marketIndex
+		);
+		console.log('$1 position taken');
+		const marketsOld = await clearingHouse.getMarketsAccount();
+		assert(!(marketsOld.markets[0].baseAssetAmount.eq(ZERO)));
+		
+		const oldKPrice =
+			clearingHouse.calculateBaseAssetPriceWithMantissa(marketIndex);
+		const ammOld = marketsOld.markets[0].amm;
+		console.log('USER getTotalCollateral', stripMantissa(userAccount.getTotalCollateral(), USDC_PRECISION));
+
+		const newSqrtK = ammOld.sqrtK.mul(new BN(1.1 * AMM_MANTISSA.toNumber())).div(AMM_MANTISSA);
+		await clearingHouse.updateK(newSqrtK, marketIndex);
+		const marketsKChange = await clearingHouse.getMarketsAccount();
+		const ammKChange = marketsKChange.markets[0].amm;
+		const newKPrice =
+		clearingHouse.calculateBaseAssetPriceWithMantissa(marketIndex);
+
+		console.log('$1 position closing');
+
+		await clearingHouse.closePosition(
+			await userAccount.getPublicKey(),
+			marketIndex
+		);
+		console.log('$1 position closed');
+
+		const markets = await clearingHouse.getMarketsAccount();
+		const amm = markets.markets[0].amm;
+
+		const marginOfError = new BN(AMM_MANTISSA.div(new BN(1000))); // price change less than 3 decimal places
+
+		console.log(
+			'oldSqrtK',
+			stripMantissa(ammOld.sqrtK),
+			'oldKPrice:',
+			stripMantissa(oldKPrice)
+		);
+		console.log(
+			'newSqrtK',
+			stripMantissa(newSqrtK),
+			'newKPrice:',
+			stripMantissa(newKPrice)
+		);
+
+		assert(ammOld.sqrtK.lt(amm.sqrtK));
+		assert(newKPrice.sub(oldKPrice).abs().lt(marginOfError));
+		assert(amm.sqrtK.eq(newSqrtK));
+
+		console.log('realizedFeeOld', 
+		stripMantissa(ammOld.cumulativeFeeRealized, USDC_PRECISION),
+		'realizedFeePostK', 
+		stripMantissa(ammKChange.cumulativeFeeRealized, USDC_PRECISION),
+		'realizedFeePostClose',
+		stripMantissa(amm.cumulativeFeeRealized, USDC_PRECISION),
+		);
+
+		assert(amm.cumulativeFeeRealized.gt(ammOld.cumulativeFeeRealized));
+
+
+		console.log('USER getTotalCollateral', stripMantissa(userAccount.getTotalCollateral(), USDC_PRECISION));
+	});
 });

@@ -71,7 +71,7 @@ pub fn swap_base_asset(
     now: i64,
 ) -> ClearingHouseResult {
     amm::update_mark_twap(amm, now);
-
+    
     let (new_quote_asset_amount, new_base_asset_amount) = amm::calculate_swap_output(
         base_asset_swap_amount,
         amm.base_asset_reserve,
@@ -125,54 +125,38 @@ pub fn move_to_price(amm: &mut AMM, target_price: u128) -> ClearingHouseResult {
     Ok(())
 }
 
-pub fn adjust_k(market: &mut Market, new_sqrt_k: bn::U256) {
-    // price is fixed, change k in market (preventive cost checks)
+pub fn adjust_k_cost(market: &mut Market, new_sqrt_k: bn::U256) -> ClearingHouseResult<i128> {
+    // price is fixed, calculate cost of changing k in market
     let (cur_net_value, _) =
-        _calculate_base_asset_value_and_pnl(market.base_asset_amount, 0, &market.amm).unwrap();
+        _calculate_base_asset_value_and_pnl(market.base_asset_amount, 0, &market.amm)?;
 
     let k_mult = new_sqrt_k
         .checked_mul(bn::U256::from(MARK_PRICE_MANTISSA))
-        .unwrap()
+        .ok_or_else(math_error!())?
         .checked_div(bn::U256::from(market.amm.sqrt_k))
-        .unwrap();
+        .ok_or_else(math_error!())?;
 
     market.amm.sqrt_k = new_sqrt_k.try_to_u128().unwrap();
     market.amm.base_asset_reserve = bn::U256::from(market.amm.base_asset_reserve)
         .checked_mul(k_mult)
-        .unwrap()
+        .ok_or_else(math_error!())?
         .checked_div(bn::U256::from(MARK_PRICE_MANTISSA))
-        .unwrap()
+        .ok_or_else(math_error!())?
         .try_to_u128()
         .unwrap();
     market.amm.quote_asset_reserve = bn::U256::from(market.amm.quote_asset_reserve)
         .checked_mul(k_mult)
-        .unwrap()
+        .ok_or_else(math_error!())?
         .checked_div(bn::U256::from(MARK_PRICE_MANTISSA))
-        .unwrap()
+        .ok_or_else(math_error!())?
         .try_to_u128()
         .unwrap();
 
     let (_new_net_value, cost) =
         _calculate_base_asset_value_and_pnl(market.base_asset_amount, cur_net_value, &market.amm)
-            .unwrap();
+        .unwrap();
 
-    if cost > 0 && cost.unsigned_abs() > market.amm.cumulative_fee_realized {
-        assert_eq!(cost, 0); //todo
-    }
-
-    if cost > 0 {
-        market.amm.cumulative_fee_realized = market
-            .amm
-            .cumulative_fee_realized
-            .checked_sub(cost.unsigned_abs())
-            .unwrap();
-    } else {
-        market.amm.cumulative_fee_realized = market
-            .amm
-            .cumulative_fee_realized
-            .checked_add(cost.unsigned_abs())
-            .unwrap();
-    }
+    Ok(cost)
 }
 
 #[allow(dead_code)]

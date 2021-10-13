@@ -189,6 +189,7 @@ pub mod clearing_house {
         let market = &markets.markets[Markets::index_from_u64(market_index)];
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
+        let clock_slot = clock.slot;
 
         if market.initialized {
             return Err(ErrorCode::MarketIndexAlreadyInitialized.into());
@@ -226,6 +227,7 @@ pub mod clearing_house {
                 cumulative_funding_rate_long: 0,
                 cumulative_funding_rate_short: 0,
                 last_funding_rate: 0,
+                // funding_rate_bias_streak: 0, // double funding each update to attract exposure
                 last_funding_rate_ts: now,
                 funding_period: amm_periodicity,
                 last_oracle_mark_spread_twap: 0,
@@ -237,6 +239,9 @@ pub mod clearing_house {
                 cumulative_fee_realized: 0,
             },
         };
+
+        // Verify oracle is readable
+        market.amm.get_oracle_price(&ctx.accounts.oracle, 0, clock_slot).unwrap();
 
         markets.markets[Markets::index_from_u64(market_index)] = market;
 
@@ -1263,7 +1268,7 @@ pub mod clearing_house {
         let quote_asset_reserve_before = market.amm.quote_asset_reserve;
         let sqrt_k_before = market.amm.sqrt_k;
 
-        controller::repeg::repeg(market, price_oracle, new_peg_candidate, clock_slot)?;
+        let adjustment_cost = controller::repeg::repeg(market, price_oracle, new_peg_candidate, clock_slot)?;
 
         let peg_multiplier_after = market.amm.peg_multiplier;
         let base_asset_reserve_after = market.amm.base_asset_reserve;
@@ -1288,6 +1293,9 @@ pub mod clearing_house {
             base_asset_amount_short: market.base_asset_amount_short.unsigned_abs(),
             base_asset_amount: market.base_asset_amount,
             open_interest: market.open_interest,
+            cumulative_fee: market.amm.cumulative_fee,
+            cumulative_fee_realized: market.amm.cumulative_fee_realized,
+            adjustment_cost: adjustment_cost,
         });
 
         Ok(())
@@ -1430,7 +1438,25 @@ pub mod clearing_house {
         let quote_asset_reserve_before = market.amm.quote_asset_reserve;
         let sqrt_k_before = market.amm.sqrt_k;
 
-        controller::amm::adjust_k(market, bn::U256::from(sqrt_k));
+        let adjustment_cost = controller::amm::adjust_k_cost(market, bn::U256::from(sqrt_k))?;
+
+        if adjustment_cost > 0 {
+            if adjustment_cost.unsigned_abs() > market.amm.cumulative_fee_realized {
+                return Err(ErrorCode::InvalidUpdateK.into());
+            } else{
+                market.amm.cumulative_fee_realized = market
+                .amm
+                .cumulative_fee_realized
+                .checked_sub(adjustment_cost.unsigned_abs())
+                .ok_or_else(math_error!())?;
+            }
+        } else {
+            market.amm.cumulative_fee_realized = market
+                .amm
+                .cumulative_fee_realized
+                .checked_add(adjustment_cost.unsigned_abs())
+                .ok_or_else(math_error!())?;
+        }
 
         let amm = &market.amm;
 
@@ -1455,6 +1481,9 @@ pub mod clearing_house {
         let quote_asset_reserve_after = amm.quote_asset_reserve;
         let sqrt_k_after = amm.sqrt_k;
 
+        let cumulative_fee = amm.cumulative_fee;
+        let cumulative_fee_realized = amm.cumulative_fee_realized;
+
         let curve_history = &mut ctx.accounts.curve_history.load_mut()?;
         let record_id = curve_history.next_record_id();
         curve_history.append(CurveRecord {
@@ -1473,6 +1502,9 @@ pub mod clearing_house {
             base_asset_amount_short,
             base_asset_amount,
             open_interest,
+            adjustment_cost,
+            cumulative_fee,
+            cumulative_fee_realized,
         });
 
         Ok(())

@@ -1714,6 +1714,18 @@
           {
             "name": "openInterest",
             "type": "u128"
+          },
+          {
+            "name": "cumulativeFee",
+            "type": "u128"
+          },
+          {
+            "name": "cumulativeFeeRealized",
+            "type": "u128"
+          },
+          {
+            "name": "adjustmentCost",
+            "type": "i128"
           }
         ]
       }

@@ -20,7 +20,7 @@ pub fn repeg(
     price_oracle: &AccountInfo,
     new_peg_candidate: u128,
     clock_slot: u64,
-) -> ClearingHouseResult {
+) -> ClearingHouseResult<i128> {
     let amm = market.amm;
     if new_peg_candidate == amm.peg_multiplier {
         return Err(ErrorCode::InvalidRepegRedundant.into());
@@ -117,7 +117,13 @@ pub fn repeg(
         controller::amm::move_to_price(&mut market.amm, current_mark)?;
     }
 
-    Ok(())
+    let amm_pnl_quote_asset_signed = if amm_pnl_mantissa > 0 {
+        amm_pnl_quote_asset as i128
+    } else{
+        (amm_pnl_quote_asset as i128).checked_mul(-1).ok_or_else(math_error!())?
+    };
+
+    Ok(amm_pnl_quote_asset_signed)
 }
 
 #[allow(dead_code)]
