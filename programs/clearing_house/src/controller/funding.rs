@@ -116,8 +116,10 @@ pub fn update_funding_rate(
             .ok_or_else(math_error!())?;
 
         let mut haircut_numerator = 0;
-
-        if market.base_asset_amount == 0 {
+        if market.base_asset_amount_long == 0 && market.base_asset_amount_short == 0 {
+            // no positions, no funding
+            // pass
+        } else if market.base_asset_amount == 0 {
             market.amm.cumulative_funding_rate_long = market
                 .amm
                 .cumulative_funding_rate_long
@@ -155,11 +157,14 @@ pub fn update_funding_rate(
                 .checked_add(funding_rate_long)
                 .ok_or_else(math_error!())?;
 
-            market.amm.cumulative_funding_rate_short = market
+            if funding_rate_long != 0 {
+                market.amm.cumulative_funding_rate_short = market
                 .amm
                 .cumulative_funding_rate_short
                 .checked_add(funding_rate)
                 .ok_or_else(math_error!())?;
+            }
+            
         } else {
             // more shorts than longs
             if market.base_asset_amount_long.unsigned_abs() > 0 {
@@ -183,12 +188,15 @@ pub fn update_funding_rate(
                 .cumulative_funding_rate_short
                 .checked_add(funding_rate_short)
                 .ok_or_else(math_error!())?;
-
-            market.amm.cumulative_funding_rate_long = market
+                
+            if funding_rate_short != 0 {
+                market.amm.cumulative_funding_rate_long = market
                 .amm
                 .cumulative_funding_rate_long
                 .checked_add(funding_rate)
                 .ok_or_else(math_error!())?;
+            }
+           
         }
 
         let cumulative_funding_rate = market

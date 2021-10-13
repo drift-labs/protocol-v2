@@ -14,6 +14,7 @@ import {
 	stripMantissa,
 	UserAccount,
 	PositionDirection,
+	USDC_PRECISION,
 } from '../sdk';
 
 import { Program } from '@project-serum/anchor';
@@ -21,6 +22,10 @@ import { Program } from '@project-serum/anchor';
 import { PublicKey } from '@solana/web3.js';
 
 import { AMM_MANTISSA, FUNDING_MANTISSA, ClearingHouse } from '../sdk/src';
+
+import {
+	initUserAccounts,
+} from './../utils/stressUtils';
 
 async function updateFundingRateHelper(
 	clearingHouse: ClearingHouse,
@@ -48,16 +53,20 @@ async function updateFundingRateHelper(
 
 		console.log(
 			'funding rate frontend calc0:',
-
+			frontEndFundingCalc0,
 			'markTwap0:',
 			ammAccountState0.lastMarkPriceTwap.toNumber() / AMM_MANTISSA.toNumber(),
 			'markTwap0:',
 			ammAccountState0.lastMarkPriceTwap.toNumber(),
 			'oracleTwap0:',
 			oraclePx0.twap,
+			'priceSpread',
 			priceSpread0,
-			frontEndFundingCalc0
 		);
+
+		const cumulativeFundingRateLongOld = ammAccountState0.cumulativeFundingRateLong;
+		const cumulativeFundingRateShortOld = ammAccountState0.cumulativeFundingRateShort;
+
 
 		const _tx = await clearingHouse.updateFundingRate(
 			priceFeedAddress,
@@ -79,8 +88,18 @@ async function updateFundingRateHelper(
 		console.log('last funding rate:', lastFundingRate);
 		console.log(
 			'cumfunding rate:',
-			stripMantissa(ammAccountState.cumulativeFundingRate, CONVERSION_SCALE)
+			stripMantissa(ammAccountState.cumulativeFundingRate, CONVERSION_SCALE),
+			'cumfunding rate long',
+			stripMantissa(ammAccountState.cumulativeFundingRateLong, CONVERSION_SCALE),
+			'cumfunding rate short',
+			stripMantissa(ammAccountState.cumulativeFundingRateShort, CONVERSION_SCALE),
 		);
+		
+		const lastFundingLong = (ammAccountState.cumulativeFundingRateLong.sub(cumulativeFundingRateLongOld)).abs();
+		const lastFundingShort = (ammAccountState.cumulativeFundingRateShort.sub(cumulativeFundingRateShortOld)).abs();
+
+		assert(ammAccountState.lastFundingRate.abs().gte(lastFundingLong.abs()));
+		assert(ammAccountState.lastFundingRate.abs().gte(lastFundingShort.abs()));
 
 		const oraclePx = await getFeedData(
 			anchor.workspace.Pyth,
@@ -95,15 +114,15 @@ async function updateFundingRateHelper(
 
 		console.log(
 			'funding rate frontend calc:',
-
+			frontEndFundingCalc,
 			'markTwap:',
 			ammAccountState.lastMarkPriceTwap.toNumber() / AMM_MANTISSA.toNumber(),
 			'markTwap:',
 			ammAccountState.lastMarkPriceTwap.toNumber(),
 			'oracleTwap:',
 			oraclePx.twap,
+			'priceSpread:',
 			priceSpread,
-			frontEndFundingCalc
 		);
 		const s = new Date(ammAccountState.lastMarkPriceTwapTs.toNumber() * 1000);
 		const sdate = s.toLocaleDateString('en-US');
@@ -125,19 +144,22 @@ describe('pyth-oracle', () => {
 	const chProgram = anchor.workspace.ClearingHouse as Program;
 
 	let clearingHouse: ClearingHouse;
+	let clearingHouse2: ClearingHouse;
 
-	let usdcMint;
-	let _userUSDCAccount;
+	let usdcMint: Keypair;
+	let userUSDCAccount: Keypair;
 
-	const ammInitialQuoteAssetAmount = new anchor.BN(5 * 10 ** 10);
-	const ammInitialBaseAssetAmount = new anchor.BN(5 * 10 ** 10);
+
+	const ammInitialQuoteAssetAmount = new anchor.BN(5 * 10 ** 13);
+	const ammInitialBaseAssetAmount = new anchor.BN(5 * 10 ** 13);
 
 	const usdcAmount = new BN(10 * 10 ** 6);
 
 	let userAccount: UserAccount;
+	let userAccount2: UserAccount;
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
-		_userUSDCAccount = await mockUserUSDCAccount(
+		userUSDCAccount = await mockUserUSDCAccount(
 			usdcMint,
 			usdcAmount,
 			provider
@@ -158,6 +180,26 @@ describe('pyth-oracle', () => {
 		await clearingHouse.initializeUserAccount();
 		userAccount = new UserAccount(clearingHouse, provider.wallet.publicKey);
 		await userAccount.subscribe();
+
+		await clearingHouse.depositCollateral(
+			await userAccount.getPublicKey(),
+			usdcAmount,
+			userUSDCAccount.publicKey
+		);
+
+
+				// create <NUM_USERS> users with 10k that collectively do <NUM_EVENTS> actions
+		const [userUSDCAccounts, user_keys, clearingHouses, userAccountInfos] =
+		await initUserAccounts(2, usdcMint, usdcAmount, provider);
+
+		clearingHouse2 = clearingHouses[1];
+		userAccount2 = userAccountInfos[1];
+
+		// await clearingHouse.depositCollateral(
+		// 	await userAccount2.getPublicKey(),
+		// 	usdcAmount,
+		// 	userUSDCAccounts[1].publicKey
+		// );
 	});
 
 	after(async () => {
@@ -203,7 +245,7 @@ describe('pyth-oracle', () => {
 		);
 	});
 
-	it('oracle/vamm: funding rate calc 0hour periodicity', async () => {
+	it('oracle/vamm: funding rate calc2 0hour periodicity', async () => {
 		const priceFeedAddress = await mockOracle(40, -10);
 		const periodicity = new BN(0);
 		const marketIndex = new BN(1);
@@ -217,10 +259,10 @@ describe('pyth-oracle', () => {
 			new BN(41.5 * PEG_SCALAR.toNumber())
 		);
 
-		await clearingHouse.moveAmmToPrice(
-			marketIndex,
-			new BN(41.5 * AMM_MANTISSA.toNumber())
-		);
+		// await clearingHouse.moveAmmToPrice(
+		// 	marketIndex,
+		// 	new BN(41.5 * AMM_MANTISSA.toNumber())
+		// );
 
 		await updateFundingRateHelper(
 			clearingHouse,
@@ -229,6 +271,54 @@ describe('pyth-oracle', () => {
 			[41.501, 41.499]
 		);
 	});
+
+	it('oracle/vamm: asym funding rate calc 0hour periodicity', async () => {
+		const marketIndex = new BN(1);
+
+		// await clearingHouse.moveAmmToPrice(
+		// 	marketIndex,
+		// 	new BN(41.5 * AMM_MANTISSA.toNumber())
+		// );
+
+		console.log('PRICE', stripMantissa(clearingHouse.calculateBaseAssetPriceWithMantissa(marketIndex)));
+
+		await clearingHouse.openPosition(
+			await userAccount.getPublicKey(),
+			PositionDirection.LONG,
+			USDC_PRECISION,
+			marketIndex
+		);
+
+		await clearingHouse2.openPosition(
+			await userAccount2.getPublicKey(),
+			PositionDirection.SHORT,
+			USDC_PRECISION.div(new BN(2)),
+			marketIndex
+		)
+
+		const market =
+			clearingHouse.getMarketsAccount().markets[marketIndex.toNumber()];
+
+		await updateFundingRateHelper(
+			clearingHouse,
+			marketIndex,
+			market.amm.oracle,
+			[41.501, 41.499]
+		);
+
+		const marketNew =
+		clearingHouse.getMarketsAccount().markets[marketIndex.toNumber()];
+
+		const fundingRateLong = marketNew.amm.cumulativeFundingRateLong.sub(market.amm.cumulativeFundingRateLong);
+		const fundingRateShort = marketNew.amm.cumulativeFundingRateShort.sub(market.amm.cumulativeFundingRateShort);
+
+		// more dollars long than short
+		assert(fundingRateLong.gt(new BN(0)));
+		assert(fundingRateShort.gt(new BN(0)));
+		assert(fundingRateShort.gt(fundingRateLong));
+
+	});
+
 	it('new LONG trade above oracle-mark limit fails', async () => {
 		const marketIndex = new BN(1);
 
