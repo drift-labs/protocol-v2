@@ -4,7 +4,7 @@ use anchor_spl::token::{self, Mint, Token, TokenAccount};
 #[cfg(feature = "mainnet-beta")]
 declare_id!("FPj8ZqD9CnsDismBjHq4oXLjm8zypvitc86mSwj9tYgH");
 #[cfg(not(feature = "mainnet-beta"))]
-declare_id!("DYCCcZWgh18x7J4k1Ci8cDoy7rYSUQTdX3gNNjiZ4wJp");
+declare_id!("79wPMqgrg3VXUcUiwPUcyBYkrKu8FnqSodGirvhZxGQ6");
 
 #[program]
 pub mod mock_usdc_faucet {
