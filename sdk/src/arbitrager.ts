@@ -189,10 +189,6 @@ export class Arbitrager {
 
 				oraclePricePubkey = market.amm.oracle;
 
-				if (oraclePricePubkey.toString() !== devnetOracle) {
-					throw Error('wrong oracle assumptions');
-				}
-
 				blockTimeConnection = this.clearingHouse.connection;
 
 				if (this.connectionOverride) {
