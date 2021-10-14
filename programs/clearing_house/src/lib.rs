@@ -259,7 +259,10 @@ pub mod clearing_house {
         };
 
         // Verify oracle is readable
-        market.amm.get_oracle_price(&ctx.accounts.oracle, 0, clock_slot).unwrap();
+        market
+            .amm
+            .get_oracle_price(&ctx.accounts.oracle, 0, clock_slot)
+            .unwrap();
 
         markets.markets[Markets::index_from_u64(market_index)] = market;
 
@@ -1288,7 +1291,8 @@ pub mod clearing_house {
         let quote_asset_reserve_before = market.amm.quote_asset_reserve;
         let sqrt_k_before = market.amm.sqrt_k;
 
-        let adjustment_cost = controller::repeg::repeg(market, price_oracle, new_peg_candidate, clock_slot)?;
+        let adjustment_cost =
+            controller::repeg::repeg(market, price_oracle, new_peg_candidate, clock_slot)?;
 
         let peg_multiplier_after = market.amm.peg_multiplier;
         let base_asset_reserve_after = market.amm.base_asset_reserve;
@@ -1468,12 +1472,12 @@ pub mod clearing_house {
         if adjustment_cost > 0 {
             if adjustment_cost.unsigned_abs() > market.amm.cumulative_fee_realized {
                 return Err(ErrorCode::InvalidUpdateK.into());
-            } else{
+            } else {
                 market.amm.cumulative_fee_realized = market
-                .amm
-                .cumulative_fee_realized
-                .checked_sub(adjustment_cost.unsigned_abs())
-                .ok_or_else(math_error!())?;
+                    .amm
+                    .cumulative_fee_realized
+                    .checked_sub(adjustment_cost.unsigned_abs())
+                    .ok_or_else(math_error!())?;
             }
         } else {
             market.amm.cumulative_fee_realized = market

@@ -119,8 +119,10 @@ pub fn repeg(
 
     let amm_pnl_quote_asset_signed = if amm_pnl_mantissa > 0 {
         amm_pnl_quote_asset as i128
-    } else{
-        (amm_pnl_quote_asset as i128).checked_mul(-1).ok_or_else(math_error!())?
+    } else {
+        (amm_pnl_quote_asset as i128)
+            .checked_mul(-1)
+            .ok_or_else(math_error!())?
     };
 
     Ok(amm_pnl_quote_asset_signed)

@@ -24,7 +24,7 @@ pub fn _calculate_base_asset_value_and_pnl(
     amm: &AMM,
 ) -> ClearingHouseResult<(u128, i128)> {
     if base_asset_amount == 0 {
-        return Ok((0,0));
+        return Ok((0, 0));
     }
 
     let swap_direction = swap_direction_to_close_position(base_asset_amount);
@@ -35,7 +35,7 @@ pub fn _calculate_base_asset_value_and_pnl(
         swap_direction,
         amm.sqrt_k,
     )?;
-    
+
     let scaled_unpegged_quote_asset_amount_acquired = match swap_direction {
         SwapDirection::Add => amm
             .quote_asset_reserve

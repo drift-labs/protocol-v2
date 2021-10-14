@@ -71,7 +71,7 @@ pub fn swap_base_asset(
     now: i64,
 ) -> ClearingHouseResult {
     amm::update_mark_twap(amm, now)?;
-    
+
     let (new_quote_asset_amount, new_base_asset_amount) = amm::calculate_swap_output(
         base_asset_swap_amount,
         amm.base_asset_reserve,
@@ -154,7 +154,7 @@ pub fn adjust_k_cost(market: &mut Market, new_sqrt_k: bn::U256) -> ClearingHouse
 
     let (_new_net_value, cost) =
         _calculate_base_asset_value_and_pnl(market.base_asset_amount, cur_net_value, &market.amm)
-        .unwrap();
+            .unwrap();
 
     Ok(cost)
 }
