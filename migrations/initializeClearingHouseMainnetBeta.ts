@@ -19,7 +19,7 @@ async function deployDevnet(provider: Provider) {
     console.log('Deploying wallet:', provider.wallet.publicKey.toString());
     console.log('ClearingHouse ProgramID:', chProgram.programId.toString());
 
-    const usdcMint = new PublicKey("FRaqszHXLdPPY9d7e7oJMei7McYaJgjcmrYzW3ahbG3X");
+    const usdcMint = new PublicKey("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
 
     console.log('USDC Mint:', usdcMint.toString()); // TODO: put into Next config
     console.log('Initializing ClearingHouse');
@@ -33,32 +33,38 @@ async function deployDevnet(provider: Provider) {
         // assetAmount is scaled to offer comparable slippage
         return assetAmount.mul(AMM_MANTISSA).div(pegMultiplier);
     }
-    const devnetOracles = {
-        SOL: 'J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix',
-        BTC: 'HovQMDrbAgAYPCmHVSrezcSmkMtXSSUsLDFANExrZh2J',
-        ETH: 'EdVCmQ9FSPcVe5YySXDPCRmc8aDQLKJ9xvYBMZPie1Vw',
-        COPE: 'BAXDJUXtz6P5ARhHH1aPwgv4WENzHwzyhmLYK4daFwiM',
-    };
-    // const mainnetOracles = {
-    // 	SOL: 'H6ARHf6YXhGYeQfUzQNGk6rDNnLBQKrenN712K4AQJEG',
-    // 	BTC: 'GVXRSBjFk6e6J3NbVPXohDJetcTjaeeuykUpbQF8UoMU',
-    // 	ETH: 'JBu1AL4obBcCMqKBBxhpWCNUt136ijcuMZLFvTP7iWdB',
-    // 	COPE: '9xYBiDWYsh2fHzpsz3aaCnNHCKWBNtfEDLtU6kS4aFD9',
+    // const devnetOracles = {
+    //     SOL: 'J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix',
+    //     BTC: 'HovQMDrbAgAYPCmHVSrezcSmkMtXSSUsLDFANExrZh2J',
+    //     ETH: 'EdVCmQ9FSPcVe5YySXDPCRmc8aDQLKJ9xvYBMZPie1Vw',
+    //     COPE: 'BAXDJUXtz6P5ARhHH1aPwgv4WENzHwzyhmLYK4daFwiM',
     // };
-    const marketOracleKeys = Object.keys(devnetOracles);
+    const mainnetOracles = {
+    	SOL: 'H6ARHf6YXhGYeQfUzQNGk6rDNnLBQKrenN712K4AQJEG',
+    	// BTC: 'GVXRSBjFk6e6J3NbVPXohDJetcTjaeeuykUpbQF8UoMU',
+    	// ETH: 'JBu1AL4obBcCMqKBBxhpWCNUt136ijcuMZLFvTP7iWdB',
+    	// COPE: '9xYBiDWYsh2fHzpsz3aaCnNHCKWBNtfEDLtU6kS4aFD9',
+    };
+    const marketOracleKeys = Object.keys(mainnetOracles);
 
     for (let i = 0; i < marketOracleKeys.length; i++) {
         const keyName = marketOracleKeys[i];
-        const oraclePriceKey = devnetOracles[keyName];
-        const astPrice = (
-            await pythClient.getPriceData(new PublicKey(oraclePriceKey))
-        ).price;
-        console.log(keyName + ' Price:', astPrice);
+        const oraclePriceKey = mainnetOracles[keyName];
+        const oraclePriceData = await pythClient.getPriceData(
+            new PublicKey(oraclePriceKey)
+        );
+        const astPrice =
+            (oraclePriceData.price +
+                oraclePriceData.previousPrice +
+                oraclePriceData.twap.value) /
+            3;
+        console.log(keyName + ' Recent Average Price:', astPrice);
 
         const marketIndex = new BN(i);
         const periodicity = new BN(3600);
-        const ammQuoteAssetAmount = new anchor.BN(2 * 10 ** 13);
-        const ammBaseAssetAmount = new anchor.BN(2 * 10 ** 13);
+        const kSqrt = new anchor.BN(2 * 10 ** 12);
+        const ammQuoteAssetAmount =  kSqrt;
+        const ammBaseAssetAmount =  kSqrt;
         const pegMultiplierAst = new anchor.BN(astPrice * PEG_SCALAR.toNumber());
 
         console.log('Initializing Market for ', keyName, '/USD: ');
@@ -74,7 +80,7 @@ async function deployDevnet(provider: Provider) {
     }
 
     console.log("Updating whitelist mint");
-    const whitelistMint = new PublicKey("k85XcekAVVs5YFc4SQh18kboSGHRum7hoNe6Fh281oY");
+    const whitelistMint = new PublicKey("EGeMJgLaAHkBQ1UaLEBhzscfFsPqWgyaw9Lc4gMav186");
     console.log("whitelist mint", whitelistMint.toString());
     await clearingHouse.updateWhitelistMint(whitelistMint);
     console.log("Updated whitelist mint");
@@ -87,7 +93,7 @@ try {
         throw new Error('ANCHOR_WALLET must be set.');
     }
     deployDevnet(
-        anchor.Provider.local('https://psytrbhymqlkfrhudd.dev.genesysgo.net:8899/')
+        anchor.Provider.local('')
     );
 } catch (e) {
     console.error(e);
