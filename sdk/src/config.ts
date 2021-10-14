@@ -18,9 +18,9 @@ const configs: { [key in DriftEnv]: DriftConfig } = {
 	},
 	master: {
 		PYTH_ORACLE_MAPPING_ADDRESS: 'BmA9Z6FjioHJPpjT39QazZyhDRUdZy2ezwx4GiDdE2u2',
-		CLEARING_HOUSE_PROGRAM_ID: 'C9H7NXHcW3uQvpqruwhpcKR9SnbnUhmvdM1TUYfY9ZFj',
+		CLEARING_HOUSE_PROGRAM_ID: 'H44rgda6EEuHE93aUX6FrAx6X6pNdKnBUkZiT8ssqjtG',
 		USDC_MINT_ADDRESS: '8zGuJQqwhZafTah7Uc7Z4tXRnguqkn5KLFAP8oV6PHe2',
-		MOCK_USDC_FAUCET_ADDRESS: 'FPj8ZqD9CnsDismBjHq4oXLjm8zypvitc86mSwj9tYgH',
+		MOCK_USDC_FAUCET_ADDRESS: 'AmNeSW4UMPFBodCjEJD22G3kA8EraUGkhxr3GmdyEF4f',
 		EXCHANGE_HISTORY_SERVER_URL: 'https://master.history.drift.trade',
 	},
 	devnet: {

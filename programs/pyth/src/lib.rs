@@ -3,7 +3,7 @@ mod pc;
 use pc::Price;
 
 #[cfg(feature = "mainnet-beta")]
-declare_id!("7kbmdV7CHDKpSF4sKbvyvLwbKBeWEx1tpeU2hBeHHrQ8");
+declare_id!("GWXu4vLvXFN87dePFvM7Ejt8HEALEG9GNmwimNKHZrXG");
 #[cfg(not(feature = "mainnet-beta"))]
 declare_id!("8gFjaVSqspDW5oTGfoEn8BK9tnWNserXSRHD1SKmF2X7");
 
