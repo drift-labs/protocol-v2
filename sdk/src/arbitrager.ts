@@ -122,7 +122,7 @@ export class Arbitrager {
 	): Promise<TradeToExecute[]> {
 		const marketsAccount: any = await this.clearingHouse.getMarketsAccount();
 		const tradesToExecute: TradeToExecute[] = [];
-		const MAX_TRADE_AMOUNT = new BN(100000).mul(USDC_PRECISION);
+		const MAX_TRADE_AMOUNT = new BN(750).mul(USDC_PRECISION);
 
 		for (const marketIndex in Markets) {
 			// LOAD MARKET + DATA
