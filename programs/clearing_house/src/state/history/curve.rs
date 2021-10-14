@@ -4,14 +4,14 @@ use borsh::{BorshDeserialize, BorshSerialize};
 #[account(zero_copy)]
 pub struct CurveHistory {
     head: u64,
-    deposit_records: [CurveRecord; 1000],
+    deposit_records: [CurveRecord; 32],
 }
 
 impl Default for CurveHistory {
     fn default() -> Self {
         return CurveHistory {
             head: 0,
-            deposit_records: [CurveRecord::default(); 1000],
+            deposit_records: [CurveRecord::default(); 32],
         };
     }
 }
@@ -19,7 +19,7 @@ impl Default for CurveHistory {
 impl CurveHistory {
     pub fn append(&mut self, pos: CurveRecord) {
         self.deposit_records[CurveHistory::index_of(self.head)] = pos;
-        self.head = (self.head + 1) % 1000;
+        self.head = (self.head + 1) % 32;
     }
 
     pub fn index_of(counter: u64) -> usize {
@@ -27,7 +27,7 @@ impl CurveHistory {
     }
 
     pub fn next_record_id(&self) -> u128 {
-        let prev_trade_id = if self.head == 0 { 999 } else { self.head - 1 };
+        let prev_trade_id = if self.head == 0 { 31 } else { self.head - 1 };
         let prev_trade = &self.deposit_records[CurveHistory::index_of(prev_trade_id)];
         return prev_trade.record_id + 1;
     }

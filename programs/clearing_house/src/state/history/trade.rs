@@ -5,14 +5,14 @@ use crate::PositionDirection;
 #[account(zero_copy)]
 pub struct TradeHistory {
     head: u64,
-    trade_records: [TradeRecord; 1000],
+    trade_records: [TradeRecord; 1024],
 }
 
 impl Default for TradeHistory {
     fn default() -> Self {
         return TradeHistory {
             head: 0,
-            trade_records: [TradeRecord::default(); 1000],
+            trade_records: [TradeRecord::default(); 1024],
         };
     }
 }
@@ -20,7 +20,7 @@ impl Default for TradeHistory {
 impl TradeHistory {
     pub fn append(&mut self, pos: TradeRecord) {
         self.trade_records[TradeHistory::index_of(self.head)] = pos;
-        self.head = (self.head + 1) % 1000;
+        self.head = (self.head + 1) % 1024;
     }
 
     pub fn index_of(counter: u64) -> usize {
@@ -28,7 +28,7 @@ impl TradeHistory {
     }
 
     pub fn next_record_id(&self) -> u128 {
-        let prev_trade_id = if self.head == 0 { 999 } else { self.head - 1 };
+        let prev_trade_id = if self.head == 0 { 1023 } else { self.head - 1 };
         let prev_trade = &self.trade_records[TradeHistory::index_of(prev_trade_id)];
         return prev_trade.record_id + 1;
     }

@@ -133,8 +133,8 @@ describe('fees', () => {
 			userAccountPublicKey
 		);
 
-		assert(user.collateral.eq(new BN(9995000)));
-		assert(user.totalFeePaid.eq(new BN(5000)));
+		assert(user.collateral.eq(new BN(9990000)));
+		assert(user.totalFeePaid.eq(new BN(10000)));
 		assert(user.totalDriftTokenRebate.eq(new BN(0)));
 		assert(user.totalRefereeRebate.eq(new BN(0)));
 	});
@@ -163,16 +163,16 @@ describe('fees', () => {
 			userAccountPublicKey
 		);
 
-		assert(user.collateral.eq(new BN(9990750)));
-		assert(user.totalFeePaid.eq(new BN(9250)));
-		assert(user.totalDriftTokenRebate.eq(new BN(250)));
-		assert(user.totalRefereeRebate.eq(new BN(250)));
+		assert(user.collateral.eq(new BN(9981500)));
+		assert(user.totalFeePaid.eq(new BN(18500)));
+		assert(user.totalDriftTokenRebate.eq(new BN(500)));
+		assert(user.totalRefereeRebate.eq(new BN(500)));
 
 		const referrer: any = await clearingHouse.program.account.user.fetch(
 			referrerUserAccountPublicKey
 		);
 
-		assert(referrer.totalReferralReward.eq(new BN(250)));
+		assert(referrer.totalReferralReward.eq(new BN(500)));
 	});
 
 	it('Trade third tier rebate', async () => {
@@ -199,16 +199,16 @@ describe('fees', () => {
 			userAccountPublicKey
 		);
 
-		assert(user.collateral.eq(new BN(9986750)));
-		assert(user.totalFeePaid.eq(new BN(13250)));
-		assert(user.totalDriftTokenRebate.eq(new BN(750)));
-		assert(user.totalRefereeRebate.eq(new BN(500)));
+		assert(user.collateral.eq(new BN(9973500)));
+		assert(user.totalFeePaid.eq(new BN(26500)));
+		assert(user.totalDriftTokenRebate.eq(new BN(1500)));
+		assert(user.totalRefereeRebate.eq(new BN(1000)));
 
 		const referrer: any = await clearingHouse.program.account.user.fetch(
 			referrerUserAccountPublicKey
 		);
 
-		assert(referrer.totalReferralReward.eq(new BN(500)));
+		assert(referrer.totalReferralReward.eq(new BN(1000)));
 	});
 
 	it('Trade second tier rebate', async () => {
@@ -235,16 +235,16 @@ describe('fees', () => {
 			userAccountPublicKey
 		);
 
-		assert(user.collateral.eq(new BN(9983000)));
-		assert(user.totalFeePaid.eq(new BN(17000)));
-		assert(user.totalDriftTokenRebate.eq(new BN(1500)));
-		assert(user.totalRefereeRebate.eq(new BN(750)));
+		assert(user.collateral.eq(new BN(9966000)));
+		assert(user.totalFeePaid.eq(new BN(34000)));
+		assert(user.totalDriftTokenRebate.eq(new BN(3000)));
+		assert(user.totalRefereeRebate.eq(new BN(1500)));
 
 		const referrer: any = await clearingHouse.program.account.user.fetch(
 			referrerUserAccountPublicKey
 		);
 
-		assert(referrer.totalReferralReward.eq(new BN(750)));
+		assert(referrer.totalReferralReward.eq(new BN(1500)));
 	});
 
 	it('Trade first tier rebate', async () => {
@@ -271,16 +271,16 @@ describe('fees', () => {
 			userAccountPublicKey
 		);
 
-		assert(user.collateral.eq(new BN(9979500)));
-		assert(user.totalFeePaid.eq(new BN(20500)));
-		assert(user.totalDriftTokenRebate.eq(new BN(2500)));
-		assert(user.totalRefereeRebate.eq(new BN(1000)));
+		assert(user.collateral.eq(new BN(9959000)));
+		assert(user.totalFeePaid.eq(new BN(41000)));
+		assert(user.totalDriftTokenRebate.eq(new BN(5000)));
+		assert(user.totalRefereeRebate.eq(new BN(2000)));
 
 		const referrer: any = await clearingHouse.program.account.user.fetch(
 			referrerUserAccountPublicKey
 		);
 
-		assert(referrer.totalReferralReward.eq(new BN(1000)));
+		assert(referrer.totalReferralReward.eq(new BN(2000)));
 	});
 
 	it('Close position', async () => {
@@ -296,15 +296,15 @@ describe('fees', () => {
 			userAccountPublicKey
 		);
 
-		assert(user.collateral.eq(new BN(9962000)));
-		assert(user.totalFeePaid.eq(new BN(38000)));
-		assert(user.totalDriftTokenRebate.eq(new BN(7500)));
-		assert(user.totalRefereeRebate.eq(new BN(2250)));
+		assert(user.collateral.eq(new BN(9924000)));
+		assert(user.totalFeePaid.eq(new BN(76000)));
+		assert(user.totalDriftTokenRebate.eq(new BN(15000)));
+		assert(user.totalRefereeRebate.eq(new BN(4500)));
 
 		const referrer: any = await clearingHouse.program.account.user.fetch(
 			referrerUserAccountPublicKey
 		);
 
-		assert(referrer.totalReferralReward.eq(new BN(2250)));
+		assert(referrer.totalReferralReward.eq(new BN(4500)));
 	});
 });
