@@ -750,7 +750,7 @@ pub mod clearing_house {
                 ctx.accounts.state.funding_paused,
             )?;
 
-            amm::update_oracle_mark_spread_twap(&mut market.amm, now, oracle_mark_spread_after);
+            amm::update_oracle_mark_spread_twap(&mut market.amm, now, oracle_mark_spread_after)?;
         }
 
         Ok(())
@@ -898,7 +898,7 @@ pub mod clearing_house {
 
         let (_, oracle_mark_spread_after) =
             amm::calculate_oracle_mark_spread(&market.amm, price_oracle, 0, clock_slot)?;
-        amm::update_oracle_mark_spread_twap(&mut market.amm, now, oracle_mark_spread_after);
+        amm::update_oracle_mark_spread_twap(&mut market.amm, now, oracle_mark_spread_after)?;
 
         Ok(())
     }
