@@ -296,7 +296,7 @@ export class Arbitrager {
 
 				const maxPostionValuePerMarket = this.userAccount
 					.getTotalCollateral()
-					.div(new BN(Markets.length / 2));
+					.div(new BN(Markets.length));
 
 				const positionValueNum = stripMantissa(positionValue, USDC_PRECISION);
 				const maxPositionValueNum = stripMantissa(
