@@ -1,3 +1,4 @@
+import { getConfig } from './config';
 import { PublicKey } from '@solana/web3.js';
 import BN from 'bn.js';
 import {
@@ -154,13 +155,13 @@ export class UserAccount {
 
 	public getBuyingPower(): BN {
 		this.assertIsSubscribed();
-		return this.getFreeCollateral().mul(MAX_LEVERAGE);
+		return this.getFreeCollateral().mul(this.getCurrentMaxLeverage());
 	}
 
 	public getFreeCollateral(): BN {
 		this.assertIsSubscribed();
 		return this.getTotalCollateral().sub(
-			this.getTotalPositionValue().div(MAX_LEVERAGE)
+			this.getTotalPositionValue().div(this.getCurrentMaxLeverage())
 		);
 	}
 
@@ -370,5 +371,9 @@ export class UserAccount {
 			pos0Px: pos0Px,
 			pos0PNL: pos0PNL,
 		};
+	}
+
+	private getCurrentMaxLeverage() {
+		return getConfig().MAX_LEVERAGE;
 	}
 }
