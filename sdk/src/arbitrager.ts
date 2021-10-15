@@ -123,6 +123,10 @@ export class Arbitrager {
 		const tradesToExecute: TradeToExecute[] = [];
 		const MAX_TRADE_AMOUNT = new BN(750).mul(USDC_PRECISION);
 
+		const maxPostionValuePerMarket = this.userAccount
+		.getTotalCollateral().mul(new BN(3))
+		.div(new BN(Markets.length));
+
 		for (const marketIndex in Markets) {
 			// LOAD MARKET + DATA
 			let marketIndexBN: BN;
@@ -221,6 +225,7 @@ export class Arbitrager {
 
 			let isPositionValueLimit = false;
 
+
 			const getOracleData = async (oraclePricePubkey) => {
 				oraclePriceData = await this.pythClient.getPriceData(oraclePricePubkey);
 
@@ -264,7 +269,7 @@ export class Arbitrager {
 					return sorted[middle];
 				}
 
-				const oracleConfReg = median(oracleConfs)
+				const oracleConfReg = median(oracleConfs);
 
 				oracleBid = oraclePriceData.price - oracleConfReg;
 				oracleAsk = oraclePriceData.price + oracleConfReg;
@@ -292,10 +297,6 @@ export class Arbitrager {
 					}
 					positionIdx += 1;
 				}
-
-				const maxPostionValuePerMarket = this.userAccount
-					.getTotalCollateral()
-					.div(new BN(Markets.length));
 
 				const positionValueNum = stripMantissa(positionValue, USDC_PRECISION);
 				const maxPositionValueNum = stripMantissa(
