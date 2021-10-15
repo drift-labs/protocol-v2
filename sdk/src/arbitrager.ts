@@ -13,11 +13,10 @@ import {
 } from './DataSubscriptionHelpers';
 import { ZERO } from './constants/numericConstants';
 import Markets from './constants/markets';
-import { PositionDirection } from './types';
-import { Trade } from 'ccxws';
+import { PositionDirection, UserPosition } from './types';
 import { Connection, PublicKey } from '@solana/web3.js';
 import { PriceData } from '@pythnetwork/client';
-import { ftx } from 'ccxt';
+import { ftx, Trade } from 'ccxt';
 
 export interface TradeToExecute {
 	direction: PositionDirection;
@@ -126,8 +125,8 @@ export class Arbitrager {
 
 		for (const marketIndex in Markets) {
 			// LOAD MARKET + DATA
-			let marketIndexBN;
-			let marketIndexNum;
+			let marketIndexBN: BN;
+			let marketIndexNum: number;
 			let marketJSON;
 			let market;
 
@@ -199,11 +198,11 @@ export class Arbitrager {
 			};
 
 			let oraclePriceData: PriceData;
-			let oraclePrice;
-			let oracleTwac;
+			let oraclePrice: number;
+			let oracleTwac: number;
 
-			let oracleBid;
-			let oracleAsk;
+			let oracleBid: number;
+			let oracleAsk: number;
 
 			let oracleTarget: number;
 			let orcaleTwapTarget: number;
@@ -212,7 +211,7 @@ export class Arbitrager {
 			let nowSOL: BN;
 
 			let positionIdx = 0;
-			let arbPos;
+			let arbPos: UserPosition;
 			let uPnL = 0;
 			let marketNetExposureExBot = marketNetExposure;
 			let netExposure = 0;
@@ -276,7 +275,7 @@ export class Arbitrager {
 			const getNetExposure = async () => {
 				const positions = this.userAccount.userPositionsAccount?.positions;
 				for (const position in positions) {
-					if (positions[position].marketIndex.eq(marketIndexBN)) {
+					if (positions[position].marketIndex.eq(marketIndexBN) && !positions[position].baseAssetAmount.eq(ZERO)) {
 						arbPos = positions[position];
 						uPnL = stripMantissa(
 							this.clearingHouse.calculatePositionPNL(arbPos, false),
@@ -345,7 +344,7 @@ export class Arbitrager {
 
 			let goodForFundingUpdate = false;
 			let shouldReducePosition = false;
-			let nextFundingTime;
+			let nextFundingTime: number;
 
 			let riskReduction = false;
 			let direction: PositionDirection;
@@ -353,8 +352,8 @@ export class Arbitrager {
 			let amount = ZERO;
 
 			let skipTrade = false;
-			let currentSpread;
-			let currentSpreadPct;
+			let currentSpread: number;
+			let currentSpreadPct: number;
 
 			const eyeFundingPayment = async () => {
 				// console.log('timestamp', nowBN.sub(nowSOL).toNumber());
@@ -509,7 +508,7 @@ export class Arbitrager {
 
 					// max reduction of 1% in a single interval
 					const reductionDenom = Math.max(
-						100,
+						20,
 						Math.sqrt(Math.max(1, nextFundingTime))
 					);
 
@@ -542,7 +541,7 @@ export class Arbitrager {
 					);
 
 					while (
-						Math.abs(entrySpread) > currentSpread * 1.01 &&
+						Math.abs(entrySpread) > (currentSpread * 1.01) &&
 						amount.gt(USDC_PRECISION)
 					) {
 						amount = amount.div(new BN(2));
@@ -661,23 +660,26 @@ export class Arbitrager {
 				const ftxPriceWithMantissa = new BN(ftxPrice * AMM_MANTISSA.toNumber());
 				console.log(ftxPrice);
 				constructTrade(ftxPriceWithMantissa);
-			} else {
+				skipTrade = await resizeTrade();
+			} else if (oracleValid) {
 				constructTrade(oracleTargetWithMantissa);
+				skipTrade = await resizeTrade();
+			} else{
+				skipTrade = true;
 			}
-
-			skipTrade = await resizeTrade();
 
 			if (skipTrade) {
 				console.log('SKIPPING TRADE DUE TO RESIZE CHECK');
 				continue;
 			}
+
 			addLimitPriceBuffer();
 
 			tradesToExecute.push({
 				direction,
 				marketIndex: marketIndexBN,
 				amount,
-				oraclePriceWithMantissa: limitPrice, //todo
+				oraclePriceWithMantissa: limitPrice,
 			});
 		}
 		return tradesToExecute;
