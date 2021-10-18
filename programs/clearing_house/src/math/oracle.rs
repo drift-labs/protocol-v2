@@ -1,4 +1,4 @@
-use crate::error::{ClearingHouseResult};
+use crate::error::ClearingHouseResult;
 use crate::math::amm;
 use crate::state::market::AMM;
 use crate::state::state::OracleGuardRails;

@@ -1,16 +1,14 @@
 use crate::controller;
 use crate::error::*;
 use crate::math;
-use crate::math::bn;
 
 use crate::math::constants::{
-    AMM_ASSET_AMOUNT_PRECISION, MARK_PRICE_MANTISSA, PRICE_TO_PEG_PRECISION_RATIO,
+    MARK_PRICE_MANTISSA, PRICE_TO_PEG_PRECISION_RATIO,
     SHARE_OF_FEES_ALLOCATED_TO_REPEG_DENOMINATOR, SHARE_OF_FEES_ALLOCATED_TO_REPEG_NUMERATOR,
     USDC_PRECISION,
 };
 use crate::math_error;
 use crate::state::market::Market;
-use crate::state::user::MarketPosition;
 
 use anchor_lang::prelude::AccountInfo;
 use solana_program::msg;
