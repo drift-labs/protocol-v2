@@ -1,7 +1,7 @@
 use crate::controller::amm::SwapDirection;
 use crate::error::*;
 use crate::math::bn::U192;
-use crate::math::constants::{MARK_PRICE_MANTISSA, PEG_PRECISION};
+use crate::math::constants::{PRICE_TO_PEG_PRECISION_RATIO, MARK_PRICE_MANTISSA, PEG_PRECISION};
 use crate::math_error;
 use crate::state::market::AMM;
 use crate::state::state::{PriceDivergenceGuardRails, ValidityGuardRails};
@@ -19,11 +19,7 @@ pub fn calculate_price(
         .ok_or_else(math_error!())?;
 
     return U192::from(peg_quote_asset_amount)
-        .checked_mul(U192::from(
-            MARK_PRICE_MANTISSA
-                .checked_div(PEG_PRECISION)
-                .ok_or_else(math_error!())?,
-        ))
+        .checked_mul(U192::from(PRICE_TO_PEG_PRECISION_RATIO))
         .ok_or_else(math_error!())?
         .checked_div(U192::from(base_asset_amount))
         .ok_or_else(math_error!())?

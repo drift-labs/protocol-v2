@@ -214,8 +214,8 @@ pub mod clearing_house {
         )?;
 
         // Verify there's no overflow
-        let _k = bn::U256::from(amm_base_asset_amount)
-            .checked_mul(bn::U256::from(amm_quote_asset_amount))
+        let _k = bn::U192::from(amm_base_asset_amount)
+            .checked_mul(bn::U192::from(amm_quote_asset_amount))
             .ok_or_else(math_error!())?;
 
         let market = Market {
