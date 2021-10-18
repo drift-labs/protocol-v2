@@ -37,10 +37,6 @@ pub fn increase(
     // Update funding rate if this is a new position
     if market_position.base_asset_amount == 0 {
         market_position.last_cumulative_funding_rate = market.amm.cumulative_funding_rate;
-        market_position.last_cumulative_repeg_rebate = match direction {
-            PositionDirection::Long => market.amm.cumulative_repeg_rebate_long,
-            PositionDirection::Short => market.amm.cumulative_repeg_rebate_short,
-        };
         market.open_interest = market
             .open_interest
             .checked_add(1)
@@ -200,7 +196,6 @@ pub fn close(
 
     user.collateral = calculate_updated_collateral(user.collateral, pnl)?;
     market_position.last_cumulative_funding_rate = 0;
-    market_position.last_cumulative_repeg_rebate = 0;
 
     market.open_interest = market
         .open_interest
