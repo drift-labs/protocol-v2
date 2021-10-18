@@ -92,7 +92,7 @@ pub fn update_funding_rate(
 
     let mark_price_twap = amm::update_mark_twap(&mut market.amm, now, None)?;
 
-    let block_funding_rate_update =
+    let (block_funding_rate_update, _) =
         oracle::block_operation(&market.amm, price_oracle, clock_slot, guard_rails, None)?;
 
     let next_update_wait = market.amm.funding_period;

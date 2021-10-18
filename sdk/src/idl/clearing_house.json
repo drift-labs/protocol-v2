@@ -2424,6 +2424,10 @@
           {
             "name": "marketIndex",
             "type": "u64"
+          },
+          {
+            "name": "oraclePrice",
+            "type": "i128"
           }
         ]
       }

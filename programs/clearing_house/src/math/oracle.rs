@@ -11,10 +11,10 @@ pub fn block_operation(
     clock_slot: Slot,
     guard_rails: &OracleGuardRails,
     precomputed_mark_price: Option<u128>,
-) -> ClearingHouseResult<bool> {
+) -> ClearingHouseResult<(bool, i128)> {
     let oracle_is_valid =
         amm::is_oracle_valid(amm, oracle_account_info, clock_slot, &guard_rails.validity)?;
-    let oracle_mark_spread_pct = amm::calculate_oracle_mark_spread_pct(
+    let (oracle_price, _, oracle_mark_spread_pct) = amm::calculate_oracle_mark_spread_pct(
         &amm,
         &oracle_account_info,
         0,
@@ -24,5 +24,6 @@ pub fn block_operation(
     let is_oracle_mark_too_divergent =
         amm::is_oracle_mark_too_divergent(oracle_mark_spread_pct, &guard_rails.price_divergence)?;
 
-    return Ok(!oracle_is_valid || is_oracle_mark_too_divergent);
+    let block = !oracle_is_valid || is_oracle_mark_too_divergent;
+    return Ok((block, oracle_price));
 }

@@ -490,18 +490,18 @@ pub mod clearing_house {
         let mark_price_before: u128;
         let oracle_mark_spread_pct_before: i128;
         let is_oracle_valid: bool;
-
         {
             let market = &mut ctx.accounts.markets.load_mut()?.markets
                 [Markets::index_from_u64(market_index)];
             mark_price_before = market.amm.mark_price()?;
-            oracle_mark_spread_pct_before = amm::calculate_oracle_mark_spread_pct(
+            let (_, _, _oracle_mark_spread_pct_before) = amm::calculate_oracle_mark_spread_pct(
                 &market.amm,
                 &ctx.accounts.oracle,
                 0,
                 clock_slot,
                 None,
             )?;
+            oracle_mark_spread_pct_before = _oracle_mark_spread_pct_before;
             is_oracle_valid = amm::is_oracle_valid(
                 &market.amm,
                 &ctx.accounts.oracle,
@@ -579,28 +579,24 @@ pub mod clearing_house {
             .ok_or_else(math_error!())?
             .unsigned_abs();
         let mark_price_after: u128;
+        let oracle_price_after: i128;
         let oracle_mark_spread_pct_after: i128;
         let oracle_mark_spread_after: i128;
         {
             let market = &mut ctx.accounts.markets.load_mut()?.markets
                 [Markets::index_from_u64(market_index)];
             mark_price_after = market.amm.mark_price()?;
-            let (_oracle_price_after_tmp, oracle_mark_spread_after_tmp) =
-                amm::calculate_oracle_mark_spread(
+            let (_oracle_price_after, _oracle_mark_spread_after, _oracle_mark_spread_pct_after) =
+                amm::calculate_oracle_mark_spread_pct(
                     &market.amm,
                     &ctx.accounts.oracle,
                     0,
                     clock_slot,
-                    None,
+                    Some(mark_price_after),
                 )?;
-            oracle_mark_spread_after = oracle_mark_spread_after_tmp;
-            oracle_mark_spread_pct_after = amm::calculate_oracle_mark_spread_pct(
-                &market.amm,
-                &ctx.accounts.oracle,
-                0,
-                clock_slot,
-                None,
-            )?;
+            oracle_price_after = _oracle_price_after;
+            oracle_mark_spread_after = _oracle_mark_spread_after;
+            oracle_mark_spread_pct_after = _oracle_mark_spread_pct_after;
         }
 
         let (drift_token, referrer) = optional_accounts::get_drift_token_and_referrer(
@@ -709,6 +705,7 @@ pub mod clearing_house {
             referee_rebate,
             liquidation: false,
             market_index,
+            oracle_price: oracle_price_after,
         });
 
         if limit_price != 0 {
@@ -873,6 +870,16 @@ pub mod clearing_house {
         }
 
         let mark_price_after = market.amm.mark_price()?;
+        let price_oracle = &ctx.accounts.oracle;
+        let (oracle_price_after, oracle_mark_spread_after) = amm::calculate_oracle_mark_spread(
+            &market.amm,
+            price_oracle,
+            0,
+            clock_slot,
+            Some(mark_price_after),
+        )?;
+        amm::update_oracle_mark_spread_twap(&mut market.amm, now, oracle_mark_spread_after)?;
+
         trade_history_account.append(TradeRecord {
             ts: now,
             record_id,
@@ -889,9 +896,9 @@ pub mod clearing_house {
             referrer_reward,
             referee_rebate,
             market_index,
+            oracle_price: oracle_price_after,
         });
 
-        let price_oracle = &ctx.accounts.oracle;
         let funding_rate_history = &mut ctx.accounts.funding_rate_history.load_mut()?;
         controller::funding::update_funding_rate(
             market_index,
@@ -903,10 +910,6 @@ pub mod clearing_house {
             &ctx.accounts.state.oracle_guard_rails,
             ctx.accounts.state.funding_paused,
         )?;
-
-        let (_, oracle_mark_spread_after) =
-            amm::calculate_oracle_mark_spread(&market.amm, price_oracle, 0, clock_slot, None)?;
-        amm::update_oracle_mark_spread_twap(&mut market.amm, now, oracle_mark_spread_after)?;
 
         Ok(())
     }
@@ -956,7 +959,7 @@ pub mod clearing_house {
                     .iter()
                     .find(|account_info| account_info.key.eq(&market.amm.oracle))
                     .ok_or(ErrorCode::OracleNotFound)?;
-                let liquidations_blocked = math::oracle::block_operation(
+                let (liquidations_blocked, oracle_price) = math::oracle::block_operation(
                     &market.amm,
                     &oracle_account_info,
                     clock_slot,
@@ -997,6 +1000,7 @@ pub mod clearing_house {
                     referee_rebate: 0,
                     liquidation: true,
                     market_index: market_position.market_index,
+                    oracle_price,
                 });
             }
         } else {
@@ -1016,7 +1020,7 @@ pub mod clearing_house {
                     .iter()
                     .find(|account_info| account_info.key.eq(&market.amm.oracle))
                     .ok_or(ErrorCode::OracleNotFound)?;
-                let liquidations_blocked = math::oracle::block_operation(
+                let (liquidations_blocked, oracle_price) = math::oracle::block_operation(
                     &market.amm,
                     &oracle_account_info,
                     clock_slot,
@@ -1079,6 +1083,7 @@ pub mod clearing_house {
                     referee_rebate: 0,
                     liquidation: true,
                     market_index: market_position.market_index,
+                    oracle_price,
                 });
             }
 

@@ -181,7 +181,7 @@ pub fn calculate_oracle_mark_spread_pct(
     window: u32,
     clock_slot: u64,
     precomputed_mark_price: Option<u128>,
-) -> ClearingHouseResult<i128> {
+) -> ClearingHouseResult<(i128, i128, i128)> {
     let (oracle_price, price_spread) = calculate_oracle_mark_spread(
         amm,
         price_oracle,
@@ -196,7 +196,7 @@ pub fn calculate_oracle_mark_spread_pct(
         .checked_div(oracle_price)
         .ok_or_else(math_error!())?;
 
-    Ok(price_spread_pct)
+    Ok((oracle_price, price_spread, price_spread_pct))
 }
 
 pub fn is_oracle_mark_too_divergent(

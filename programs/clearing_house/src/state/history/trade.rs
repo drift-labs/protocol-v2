@@ -52,4 +52,5 @@ pub struct TradeRecord {
     pub drift_token_rebate: u128,
     pub liquidation: bool,
     pub market_index: u64,
+    pub oracle_price: i128,
 }
