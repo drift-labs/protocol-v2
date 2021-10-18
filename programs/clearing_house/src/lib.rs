@@ -922,19 +922,7 @@ pub mod clearing_house {
         let now = clock.unix_timestamp;
         let clock_slot = clock.slot;
 
-        let collateral = user.collateral;
-        let (total_collateral, unrealized_pnl, base_asset_value, margin_ratio) =
-            calculate_margin_ratio(
-                user,
-                &ctx.accounts.user_positions.load_mut()?,
-                &ctx.accounts.markets.load()?,
-            )?;
-        if margin_ratio > ctx.accounts.state.margin_ratio_partial {
-            return Err(ErrorCode::SufficientCollateral.into());
-        }
-
         let user_positions = &mut ctx.accounts.user_positions.load_mut()?;
-
         let funding_payment_history = &mut ctx.accounts.funding_payment_history.load_mut()?;
         controller::funding::settle_funding_payment(
             user,
@@ -943,6 +931,13 @@ pub mod clearing_house {
             funding_payment_history,
             now,
         )?;
+
+        let collateral = user.collateral;
+        let (total_collateral, unrealized_pnl, base_asset_value, margin_ratio) =
+            calculate_margin_ratio(user, user_positions, &ctx.accounts.markets.load()?)?;
+        if margin_ratio > ctx.accounts.state.margin_ratio_partial {
+            return Err(ErrorCode::SufficientCollateral.into());
+        }
 
         let mut is_full_liquidation = true;
         let mut base_asset_value_closed: u128 = 0;
