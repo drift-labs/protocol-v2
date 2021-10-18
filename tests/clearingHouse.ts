@@ -163,7 +163,7 @@ describe('clearing_house', () => {
 		const userPositionsAccount: any =
 			await clearingHouse.program.account.userPositions.fetch(user.positions);
 
-		assert.ok(userPositionsAccount.positions.length == 8);
+		assert.ok(userPositionsAccount.positions.length == 6);
 		assert.ok(userPositionsAccount.user.equals(userAccountPublicKey));
 		assert.ok(
 			userPositionsAccount.positions[0].baseAssetAmount.toNumber() === 0

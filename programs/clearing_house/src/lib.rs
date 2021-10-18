@@ -250,6 +250,7 @@ pub mod clearing_house {
                 peg_multiplier: amm_peg_multiplier,
                 cumulative_fee: 0,
                 cumulative_fee_realized: 0,
+                minimum_trade_size: 10000000,
                 padding0: 0,
                 padding1: 0,
                 padding2: 0,
@@ -499,6 +500,7 @@ pub mod clearing_house {
                 &ctx.accounts.oracle,
                 0,
                 clock_slot,
+                None,
             )?;
             is_oracle_valid = amm::is_oracle_valid(
                 &market.amm,
@@ -546,6 +548,7 @@ pub mod clearing_house {
                     market,
                     market_position,
                     now,
+                    None,
                 )?;
 
                 potentially_risk_increasing = false;
@@ -588,6 +591,7 @@ pub mod clearing_house {
                     &ctx.accounts.oracle,
                     0,
                     clock_slot,
+                    None,
                 )?;
             oracle_mark_spread_after = oracle_mark_spread_after_tmp;
             oracle_mark_spread_pct_after = amm::calculate_oracle_mark_spread_pct(
@@ -595,6 +599,7 @@ pub mod clearing_house {
                 &ctx.accounts.oracle,
                 0,
                 clock_slot,
+                None,
             )?;
         }
 
@@ -900,7 +905,7 @@ pub mod clearing_house {
         )?;
 
         let (_, oracle_mark_spread_after) =
-            amm::calculate_oracle_mark_spread(&market.amm, price_oracle, 0, clock_slot)?;
+            amm::calculate_oracle_mark_spread(&market.amm, price_oracle, 0, clock_slot, None)?;
         amm::update_oracle_mark_spread_twap(&mut market.amm, now, oracle_mark_spread_after)?;
 
         Ok(())
@@ -951,11 +956,17 @@ pub mod clearing_house {
                 let market =
                     &mut markets.markets[Markets::index_from_u64(market_position.market_index)];
 
-                let liquidations_blocked = math::oracle::block_liquidation(
+                let oracle_account_info = ctx
+                    .remaining_accounts
+                    .iter()
+                    .find(|account_info| account_info.key.eq(&market.amm.oracle))
+                    .ok_or(ErrorCode::OracleNotFound)?;
+                let liquidations_blocked = math::oracle::block_operation(
                     &market.amm,
-                    ctx.remaining_accounts,
+                    &oracle_account_info,
                     clock_slot,
                     &state.oracle_guard_rails,
+                    None,
                 )?;
                 if liquidations_blocked {
                     return Err(ErrorCode::LiquidationsBlockedByOracle.into());
@@ -1003,11 +1014,19 @@ pub mod clearing_house {
                 let market =
                     &mut markets.markets[Markets::index_from_u64(market_position.market_index)];
 
-                let liquidations_blocked = math::oracle::block_liquidation(
+                let mark_price_before = market.amm.mark_price()?;
+
+                let oracle_account_info = ctx
+                    .remaining_accounts
+                    .iter()
+                    .find(|account_info| account_info.key.eq(&market.amm.oracle))
+                    .ok_or(ErrorCode::OracleNotFound)?;
+                let liquidations_blocked = math::oracle::block_operation(
                     &market.amm,
-                    ctx.remaining_accounts,
+                    &oracle_account_info,
                     clock_slot,
                     &state.oracle_guard_rails,
+                    Some(mark_price_before),
                 )?;
                 if liquidations_blocked {
                     return Err(ErrorCode::LiquidationsBlockedByOracle.into());
@@ -1015,6 +1034,7 @@ pub mod clearing_house {
 
                 let (base_asset_value, _pnl) =
                     calculate_base_asset_value_and_pnl(market_position, &market.amm)?;
+
                 let base_asset_value_to_close = base_asset_value
                     .checked_mul(state.partial_liquidation_close_percentage_numerator.into())
                     .ok_or_else(math_error!())?
@@ -1028,7 +1048,6 @@ pub mod clearing_house {
 
                 let direction_to_reduce =
                     math::position::direction_to_close_position(market_position.base_asset_amount);
-                let mark_price_before = market.amm.mark_price()?;
                 let base_asset_amount_before = market_position.base_asset_amount;
 
                 controller::position::reduce(
@@ -1038,6 +1057,7 @@ pub mod clearing_house {
                     market,
                     market_position,
                     now,
+                    Some(mark_price_before),
                 )?;
 
                 let base_asset_amount_change = market_position
@@ -1077,15 +1097,7 @@ pub mod clearing_house {
                 .checked_div(state.full_liquidation_penalty_percentage_denominator.into())
                 .ok_or_else(math_error!())?
         } else {
-            let markets = &ctx.accounts.markets.load()?;
-            let (
-                total_collateral_after,
-                _unrealized_pnl_after,
-                _base_asset_value_after,
-                _margin_ratio_after,
-            ) = calculate_margin_ratio(user, user_positions, markets)?;
-
-            total_collateral_after
+            total_collateral
                 .checked_mul(
                     state
                         .partial_liquidation_penalty_percentage_numerator
@@ -1630,7 +1642,7 @@ pub mod clearing_house {
         market_initialized(&ctx.accounts.markets, market_index)
     )]
     pub fn update_market_oracle(
-        ctx: Context<AdminUpdateMarketOracle>,
+        ctx: Context<AdminUpdateMarket>,
         market_index: u64,
         oracle: Pubkey,
         oracle_source: OracleSource,
@@ -1639,6 +1651,20 @@ pub mod clearing_house {
             &mut ctx.accounts.markets.load_mut()?.markets[Markets::index_from_u64(market_index)];
         market.amm.oracle = oracle;
         market.amm.oracle_source = oracle_source;
+        Ok(())
+    }
+
+    #[access_control(
+        market_initialized(&ctx.accounts.markets, market_index)
+    )]
+    pub fn update_market_minimum_trade_size(
+        ctx: Context<AdminUpdateMarket>,
+        market_index: u64,
+        minimum_trade_size: u128,
+    ) -> ProgramResult {
+        let market =
+            &mut ctx.accounts.markets.load_mut()?.markets[Markets::index_from_u64(market_index)];
+        market.amm.minimum_trade_size = minimum_trade_size;
         Ok(())
     }
 

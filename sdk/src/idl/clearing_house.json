@@ -1129,6 +1129,36 @@
       ]
     },
     {
+      "name": "updateMarketMinimumTradeSize",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "markets",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        },
+        {
+          "name": "minimumTradeSize",
+          "type": "u128"
+        }
+      ]
+    },
+    {
       "name": "updateAdmin",
       "accounts": [
         {
@@ -1689,7 +1719,7 @@
                 {
                   "defined": "MarketPosition"
                 },
-                8
+                6
               ]
             }
           }
@@ -2135,6 +2165,10 @@
           },
           {
             "name": "cumulativeFeeRealized",
+            "type": "u128"
+          },
+          {
+            "name": "minimumTradeSize",
             "type": "u128"
           },
           {

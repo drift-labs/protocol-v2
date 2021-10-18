@@ -1756,6 +1756,16 @@ export class ClearingHouse {
 		});
 	}
 
+	public async updateMarketMinimumTradeSize(marketIndex: BN, minimumTradeSize: BN): Promise<TransactionSignature> {
+		return await this.program.rpc.updateMarketMinimumTradeSize(marketIndex, minimumTradeSize, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				markets: this.state.markets
+			},
+		});
+	}
+
 	public async updateWhitelistMint(
 		whitelistMint?: PublicKey
 	): Promise<TransactionSignature> {

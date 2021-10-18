@@ -22,14 +22,14 @@ pub struct User {
 #[account(zero_copy)]
 pub struct UserPositions {
     pub user: Pubkey,
-    pub positions: [MarketPosition; 8],
+    pub positions: [MarketPosition; 6],
 }
 
 impl Default for UserPositions {
     fn default() -> Self {
         return Self {
             user: Pubkey::default(),
-            positions: [MarketPosition::default(); 8],
+            positions: [MarketPosition::default(); 6],
         };
     }
 }

@@ -417,7 +417,7 @@ pub struct AdminUpdateK<'info> {
 }
 
 #[derive(Accounts)]
-pub struct AdminUpdateMarketOracle<'info> {
+pub struct AdminUpdateMarket<'info> {
     pub admin: Signer<'info>,
     #[account(
         has_one = admin

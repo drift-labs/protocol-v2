@@ -62,6 +62,7 @@ pub fn increase(
         new_quote_asset_notional_amount,
         swap_direction,
         now,
+        None,
     )?;
 
     // update the position size on market and user
@@ -96,6 +97,7 @@ pub fn reduce<'info>(
     market: &mut Market,
     market_position: &mut MarketPosition,
     now: i64,
+    precomputed_mark_price: Option<u128>,
 ) -> ClearingHouseResult {
     let swap_direction = match direction {
         PositionDirection::Long => SwapDirection::Add,
@@ -107,6 +109,7 @@ pub fn reduce<'info>(
         quote_asset_swap_amount,
         swap_direction,
         now,
+        precomputed_mark_price,
     )?;
 
     let base_asset_amount_before = market_position.base_asset_amount;

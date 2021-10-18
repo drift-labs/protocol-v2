@@ -18,14 +18,15 @@ pub fn swap_quote_asset(
     quote_asset_swap_amount: u128,
     direction: SwapDirection,
     now: i64,
+    precomputed_mark_price: Option<u128>,
 ) -> ClearingHouseResult<i128> {
-    amm::update_mark_twap(amm, now)?;
+    amm::update_mark_twap(amm, now, precomputed_mark_price)?;
 
     let scaled_quote_asset_amount = scale_to_amm_precision(quote_asset_swap_amount)?;
     let unpegged_scaled_quote_asset_amount =
         unpeg_quote_asset_amount(scaled_quote_asset_amount, amm.peg_multiplier)?;
 
-    if unpegged_scaled_quote_asset_amount == 0 {
+    if unpegged_scaled_quote_asset_amount < amm.minimum_trade_size {
         return Err(ErrorCode::TradeSizeTooSmall);
     }
 
@@ -36,7 +37,6 @@ pub fn swap_quote_asset(
         direction,
         amm.sqrt_k,
     )?;
-    let mark_price_before = amm.mark_price()?;
 
     amm.base_asset_reserve = new_base_asset_amount;
     amm.quote_asset_reserve = new_quote_asset_amount;
@@ -44,22 +44,6 @@ pub fn swap_quote_asset(
     let acquired_base_asset_amount = (initial_base_asset_amount as i128)
         .checked_sub(new_base_asset_amount as i128)
         .ok_or_else(math_error!())?;
-    let mark_price_after = amm.mark_price()?;
-
-    let entry_price = amm::calculate_price(
-        unpegged_scaled_quote_asset_amount,
-        acquired_base_asset_amount.unsigned_abs(),
-        amm.peg_multiplier,
-    )?;
-
-    let trade_size_too_small = match direction {
-        SwapDirection::Add => entry_price > mark_price_after || entry_price < mark_price_before,
-        SwapDirection::Remove => entry_price < mark_price_after || entry_price > mark_price_before,
-    };
-
-    if trade_size_too_small {
-        return Err(ErrorCode::TradeSizeTooSmall);
-    }
 
     return Ok(acquired_base_asset_amount);
 }
@@ -70,7 +54,7 @@ pub fn swap_base_asset(
     direction: SwapDirection,
     now: i64,
 ) -> ClearingHouseResult {
-    amm::update_mark_twap(amm, now)?;
+    amm::update_mark_twap(amm, now, None)?;
 
     let (new_quote_asset_amount, new_base_asset_amount) = amm::calculate_swap_output(
         base_asset_swap_amount,

@@ -1,7 +1,7 @@
 use crate::controller::amm::SwapDirection;
 use crate::error::*;
-use crate::math::bn::U256;
-use crate::math::constants::{MARK_ORACLE_DIVERGENCE_MANTISSA, MARK_PRICE_MANTISSA, PEG_PRECISION};
+use crate::math::bn::U192;
+use crate::math::constants::{MARK_PRICE_MANTISSA, PEG_PRECISION};
 use crate::math_error;
 use crate::state::market::AMM;
 use crate::state::state::{PriceDivergenceGuardRails, ValidityGuardRails};
@@ -18,20 +18,24 @@ pub fn calculate_price(
         .checked_mul(peg_multiplier)
         .ok_or_else(math_error!())?;
 
-    return U256::from(peg_quote_asset_amount)
-        .checked_mul(U256::from(
+    return U192::from(peg_quote_asset_amount)
+        .checked_mul(U192::from(
             MARK_PRICE_MANTISSA
                 .checked_div(PEG_PRECISION)
                 .ok_or_else(math_error!())?,
         ))
         .ok_or_else(math_error!())?
-        .checked_div(U256::from(base_asset_amount))
+        .checked_div(U192::from(base_asset_amount))
         .ok_or_else(math_error!())?
         .try_to_u128();
 }
 
-pub fn update_mark_twap(amm: &mut AMM, now: i64) -> ClearingHouseResult<u128> {
-    let mark_twap = calculate_new_mark_twap(amm, now)?;
+pub fn update_mark_twap(
+    amm: &mut AMM,
+    now: i64,
+    precomputed_mark_price: Option<u128>,
+) -> ClearingHouseResult<u128> {
+    let mark_twap = calculate_new_mark_twap(amm, now, precomputed_mark_price)?;
     amm.last_mark_price_twap = mark_twap;
     amm.last_mark_price_twap_ts = now;
 
@@ -64,7 +68,11 @@ pub fn update_oracle_mark_spread_twap(
     return Ok(new_twap);
 }
 
-pub fn calculate_new_mark_twap(amm: &AMM, now: i64) -> ClearingHouseResult<u128> {
+pub fn calculate_new_mark_twap(
+    amm: &AMM,
+    now: i64,
+    precomputed_mark_price: Option<u128>,
+) -> ClearingHouseResult<u128> {
     let since_last = max(
         1,
         now.checked_sub(amm.last_mark_price_twap_ts)
@@ -77,7 +85,10 @@ pub fn calculate_new_mark_twap(amm: &AMM, now: i64) -> ClearingHouseResult<u128>
             .ok_or_else(math_error!())?,
     );
 
-    let current_price = amm.mark_price()?;
+    let current_price = match precomputed_mark_price {
+        Some(mark_price) => mark_price,
+        None => amm.mark_price()?,
+    };
 
     let new_twap = calculate_twap(
         current_price as i128,
@@ -114,7 +125,7 @@ pub fn calculate_swap_output(
     direction: SwapDirection,
     invariant_sqrt: u128,
 ) -> ClearingHouseResult<(u128, u128)> {
-    let invariant_sqrt_u256 = U256::from(invariant_sqrt);
+    let invariant_sqrt_u256 = U192::from(invariant_sqrt);
     let invariant = invariant_sqrt_u256
         .checked_mul(invariant_sqrt_u256)
         .ok_or_else(math_error!())?;
@@ -130,7 +141,7 @@ pub fn calculate_swap_output(
     };
 
     let new_output_amount = invariant
-        .checked_div(U256::from(new_input_amount))
+        .checked_div(U192::from(new_input_amount))
         .ok_or_else(math_error!())?
         .try_to_u128()?;
 
@@ -142,12 +153,16 @@ pub fn calculate_oracle_mark_spread(
     price_oracle: &AccountInfo,
     window: u32,
     clock_slot: u64,
+    precomputed_mark_price: Option<u128>,
 ) -> ClearingHouseResult<(i128, i128)> {
     let mark_price: i128;
     if window > 0 {
         mark_price = amm.last_mark_price_twap as i128;
     } else {
-        mark_price = amm.mark_price()? as i128;
+        mark_price = match precomputed_mark_price {
+            Some(mark_price) => mark_price as i128,
+            None => amm.mark_price()? as i128,
+        }
     }
 
     let (oracle_price, _oracle_conf, _oracle_delay) =
@@ -165,12 +180,18 @@ pub fn calculate_oracle_mark_spread_pct(
     price_oracle: &AccountInfo,
     window: u32,
     clock_slot: u64,
+    precomputed_mark_price: Option<u128>,
 ) -> ClearingHouseResult<i128> {
-    let (oracle_price, price_spread) =
-        calculate_oracle_mark_spread(amm, price_oracle, window, clock_slot).unwrap();
+    let (oracle_price, price_spread) = calculate_oracle_mark_spread(
+        amm,
+        price_oracle,
+        window,
+        clock_slot,
+        precomputed_mark_price,
+    )?;
 
     let price_spread_pct = price_spread
-        .checked_mul(MARK_ORACLE_DIVERGENCE_MANTISSA as i128)
+        .checked_shl(10)
         .ok_or_else(math_error!())?
         .checked_div(oracle_price)
         .ok_or_else(math_error!())?;
@@ -182,8 +203,9 @@ pub fn is_oracle_mark_too_divergent(
     price_spread_pct: i128,
     oracle_guard_rails: &PriceDivergenceGuardRails,
 ) -> ClearingHouseResult<bool> {
-    let max_divergence = MARK_ORACLE_DIVERGENCE_MANTISSA
-        .checked_mul(oracle_guard_rails.mark_oracle_divergence_numerator)
+    let max_divergence = oracle_guard_rails
+        .mark_oracle_divergence_numerator
+        .checked_shl(10)
         .ok_or_else(math_error!())?
         .checked_div(oracle_guard_rails.mark_oracle_divergence_denominator)
         .ok_or_else(math_error!())?;
