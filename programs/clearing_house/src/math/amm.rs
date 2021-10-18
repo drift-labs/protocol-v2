@@ -43,9 +43,17 @@ pub fn update_oracle_mark_spread_twap(
     now: i64,
     new_spread: i128,
 ) -> ClearingHouseResult<i128> {
-    let since_last = max(1, now - amm.last_mark_price_twap_ts);
-    let since_start = max(1, amm.last_mark_price_twap_ts - amm.last_funding_rate_ts);
-
+    let since_last = max(
+        1,
+        now.checked_sub(amm.last_mark_price_twap_ts)
+            .ok_or_else(math_error!())?,
+    );
+    let since_start = max(
+        1,
+        amm.last_mark_price_twap_ts
+            .checked_sub(amm.last_funding_rate_ts)
+            .ok_or_else(math_error!())?,
+    );
     let new_twap = calculate_twap(
         new_spread,
         amm.last_oracle_mark_spread_twap,
@@ -57,16 +65,25 @@ pub fn update_oracle_mark_spread_twap(
 }
 
 pub fn calculate_new_mark_twap(amm: &AMM, now: i64) -> ClearingHouseResult<u128> {
-    let since_last = max(1, now - amm.last_mark_price_twap_ts);
-    let since_start = max(1, amm.last_mark_price_twap_ts - amm.last_funding_rate_ts);
+    let since_last = max(
+        1,
+        now.checked_sub(amm.last_mark_price_twap_ts)
+            .ok_or_else(math_error!())?,
+    );
+    let since_start = max(
+        1,
+        amm.last_mark_price_twap_ts
+            .checked_sub(amm.last_funding_rate_ts)
+            .ok_or_else(math_error!())?,
+    );
 
     let current_price = amm.mark_price()?;
 
     let new_twap = calculate_twap(
         current_price as i128,
         amm.last_mark_price_twap as i128,
-        since_start as i128,
         since_last as i128,
+        since_start as i128,
     )? as u128;
 
     return Ok(new_twap);
