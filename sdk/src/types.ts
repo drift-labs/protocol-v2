@@ -114,6 +114,7 @@ export type TradeRecord = {
 	driftTokenRebate: BN;
 	marketIndex: BN;
 	liquidation: boolean;
+	oraclePrice: BN;
 };
 
 export type FundingRateRecord = {
