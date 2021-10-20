@@ -425,7 +425,8 @@ pub mod clearing_house {
 
     #[access_control(
         market_initialized(&ctx.accounts.markets, market_index) &&
-        exchange_not_paused(&ctx.accounts.state)
+        exchange_not_paused(&ctx.accounts.state) &&
+        valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.markets, market_index)
     )]
     pub fn open_position<'info>(
         ctx: Context<OpenPosition>,
@@ -766,7 +767,8 @@ pub mod clearing_house {
 
     #[access_control(
         market_initialized(&ctx.accounts.markets, market_index) &&
-        exchange_not_paused(&ctx.accounts.state)
+        exchange_not_paused(&ctx.accounts.state) &&
+        valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.markets, market_index)
     )]
     pub fn close_position(
         ctx: Context<ClosePosition>,
@@ -1286,7 +1288,8 @@ pub mod clearing_house {
 
     #[access_control(
         market_initialized(&ctx.accounts.markets, market_index) &&
-        exchange_not_paused(&ctx.accounts.state)
+        exchange_not_paused(&ctx.accounts.state) &&
+        valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.markets, market_index)
     )]
     pub fn repeg_amm_curve(
         ctx: Context<RepegCurve>,
@@ -1427,7 +1430,8 @@ pub mod clearing_house {
 
     #[access_control(
         market_initialized(&ctx.accounts.markets, market_index) &&
-        exchange_not_paused(&ctx.accounts.state)
+        exchange_not_paused(&ctx.accounts.state) &&
+        valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.markets, market_index)
     )]
     pub fn update_funding_rate(
         ctx: Context<UpdateFundingRate>,
@@ -1722,6 +1726,13 @@ pub mod clearing_house {
 fn market_initialized(markets: &Loader<Markets>, market_index: u64) -> Result<()> {
     if !markets.load()?.markets[Markets::index_from_u64(market_index)].initialized {
         return Err(ErrorCode::MarketIndexNotInitialized.into());
+    }
+    Ok(())
+}
+
+fn valid_oracle_for_market(oracle: &AccountInfo, markets: &Loader<Markets>, market_index: u64) -> Result<()> {
+    if !markets.load()?.markets[Markets::index_from_u64(market_index)].amm.oracle.eq(oracle.key) {
+        return Err(ErrorCode::InvalidOracle.into());
     }
     Ok(())
 }
