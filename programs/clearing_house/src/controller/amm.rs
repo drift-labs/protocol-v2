@@ -7,7 +7,7 @@ use crate::math_error;
 use crate::state::market::{Market, AMM};
 use solana_program::msg;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum SwapDirection {
     Add,
     Remove,
@@ -23,8 +23,9 @@ pub fn swap_quote_asset(
     amm::update_mark_twap(amm, now, precomputed_mark_price)?;
 
     let scaled_quote_asset_amount = scale_to_amm_precision(quote_asset_swap_amount)?;
+    let round_up = direction == SwapDirection::Remove;
     let unpegged_scaled_quote_asset_amount =
-        unpeg_quote_asset_amount(scaled_quote_asset_amount, amm.peg_multiplier)?;
+        unpeg_quote_asset_amount(scaled_quote_asset_amount, amm.peg_multiplier, round_up)?;
 
     if unpegged_scaled_quote_asset_amount < amm.minimum_trade_size {
         return Err(ErrorCode::TradeSizeTooSmall);

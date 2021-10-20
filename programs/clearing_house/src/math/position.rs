@@ -47,8 +47,10 @@ pub fn _calculate_base_asset_value_and_pnl(
             .ok_or_else(math_error!())?,
     };
 
+    let round_up = swap_direction == SwapDirection::Remove;
     let scaled_pegged_quote_asset_amount_acquired =
-        scale_from_amm_precision(scaled_unpegged_quote_asset_amount_acquired)?;
+        scale_from_amm_precision(scaled_unpegged_quote_asset_amount_acquired, round_up)?;
+
     let pegged_quote_asset_amount_acquired = peg_quote_asset_amount(
         scaled_pegged_quote_asset_amount_acquired,
         amm.peg_multiplier,

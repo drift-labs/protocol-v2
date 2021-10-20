@@ -714,9 +714,12 @@ pub mod clearing_house {
 
             let scaled_quote_asset_amount =
                 math::quote_asset::scale_to_amm_precision(quote_asset_amount)?;
+
+            let round_up = direction == PositionDirection::Short;
             let unpegged_scaled_quote_asset_amount = math::quote_asset::unpeg_quote_asset_amount(
                 scaled_quote_asset_amount,
                 market.amm.peg_multiplier,
+                round_up,
             )?;
 
             let entry_price = amm::calculate_price(

@@ -39,7 +39,7 @@ describe('max positions', () => {
 
     const usdcAmount = new BN(10 * 10 ** 6);
 
-    const maxPositions = 6;
+    const maxPositions = 5;
 
     before(async () => {
         usdcMint = await mockUSDCMint(provider);

@@ -1,7 +1,7 @@
 use crate::controller::amm::SwapDirection;
 use crate::error::*;
 use crate::math::bn::U192;
-use crate::math::constants::{PRICE_TO_PEG_PRECISION_RATIO, MARK_PRICE_MANTISSA, PEG_PRECISION};
+use crate::math::constants::{MARK_PRICE_MANTISSA, PEG_PRECISION, PRICE_TO_PEG_PRECISION_RATIO};
 use crate::math_error;
 use crate::state::market::AMM;
 use crate::state::state::{PriceDivergenceGuardRails, ValidityGuardRails};
@@ -121,9 +121,9 @@ pub fn calculate_swap_output(
     direction: SwapDirection,
     invariant_sqrt: u128,
 ) -> ClearingHouseResult<(u128, u128)> {
-    let invariant_sqrt_u256 = U192::from(invariant_sqrt);
-    let invariant = invariant_sqrt_u256
-        .checked_mul(invariant_sqrt_u256)
+    let invariant_sqrt_u192 = U192::from(invariant_sqrt);
+    let invariant = invariant_sqrt_u192
+        .checked_mul(invariant_sqrt_u192)
         .ok_or_else(math_error!())?;
 
     let new_input_amount = if let SwapDirection::Add = direction {
@@ -136,8 +136,9 @@ pub fn calculate_swap_output(
             .ok_or_else(math_error!())?
     };
 
+    let new_input_amount_u192 = U192::from(new_input_amount);
     let new_output_amount = invariant
-        .checked_div(U192::from(new_input_amount))
+        .checked_div(new_input_amount_u192)
         .ok_or_else(math_error!())?
         .try_to_u128()?;
 

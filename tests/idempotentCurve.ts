@@ -303,9 +303,8 @@ describe('idempotent curve', () => {
 		userPositionsAccount =
 			await clearingHouse.program.account.userPositions.fetch(user.positions);
 
-		assert(user.collateral.eq(new BN(14999850)));
+		assert(user.collateral.eq(new BN(14999849)));
 		assert(userPositionsAccount.positions[0].quoteAssetAmount.eq(new BN(0)));
-		// await clearingHouse.unsubscribe();
 	};
 
 	const shrinkUnrofitableShort = async (chunks: number) => {
@@ -370,7 +369,7 @@ describe('idempotent curve', () => {
 		userPositionsAccount =
 			await clearingHouse.program.account.userPositions.fetch(user.positions);
 
-		assert(user.collateral.eq(new BN(6666312)));
+		assert(user.collateral.eq(new BN(6666311)));
 		assert(userPositionsAccount.positions[0].quoteAssetAmount.eq(new BN(0)));
 		// await clearingHouse.unsubscribe();
 	};
