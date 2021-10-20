@@ -123,7 +123,10 @@ pub struct InitializeMarket<'info> {
         has_one = admin
     )]
     pub state: Box<Account<'info, State>>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = &state.markets.eq(&markets.key())
+    )]
     pub markets: Loader<'info, Markets>,
     pub oracle: AccountInfo<'info>,
 }
@@ -143,15 +146,24 @@ pub struct DepositCollateral<'info> {
     #[account(mut)]
     pub user_collateral_account: Box<Account<'info, TokenAccount>>,
     pub token_program: Program<'info, Token>,
+    #[account(
+        constraint = &state.markets.eq(&markets.key())
+    )]
     pub markets: Loader<'info, Markets>,
     #[account(
         mut,
         has_one = user
     )]
     pub user_positions: Loader<'info, UserPositions>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = &state.funding_payment_history.eq(&funding_payment_history.key())
+    )]
     pub funding_payment_history: Loader<'info, FundingPaymentHistory>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = &state.deposit_history.eq(&deposit_history.key())
+    )]
     pub deposit_history: Loader<'info, DepositHistory>,
 }
 
@@ -167,25 +179,40 @@ pub struct WithdrawCollateral<'info> {
         constraint = &state.collateral_vault.eq(&collateral_vault.key())
     )]
     pub collateral_vault: Box<Account<'info, TokenAccount>>,
+    #[account(
+        constraint = &state.collateral_vault_authority.eq(&collateral_vault_authority.key())
+    )]
     pub collateral_vault_authority: AccountInfo<'info>,
     #[account(
         mut,
         constraint = &state.insurance_vault.eq(&insurance_vault.key())
     )]
     pub insurance_vault: Box<Account<'info, TokenAccount>>,
+    #[account(
+        constraint = &state.insurance_vault_authority.eq(&insurance_vault_authority.key())
+    )]
     pub insurance_vault_authority: AccountInfo<'info>,
     #[account(mut)]
     pub user_collateral_account: Box<Account<'info, TokenAccount>>,
     pub token_program: Program<'info, Token>,
+    #[account(
+        constraint = &state.markets.eq(&markets.key())
+    )]
     pub markets: Loader<'info, Markets>,
     #[account(
         mut,
         has_one = user
     )]
     pub user_positions: Loader<'info, UserPositions>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = &state.funding_payment_history.eq(&funding_payment_history.key())
+    )]
     pub funding_payment_history: Loader<'info, FundingPaymentHistory>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = &state.deposit_history.eq(&deposit_history.key())
+    )]
     pub deposit_history: Loader<'info, DepositHistory>,
 }
 
@@ -202,6 +229,9 @@ pub struct WithdrawFees<'info> {
         constraint = &state.collateral_vault.eq(&collateral_vault.key())
     )]
     pub collateral_vault: Box<Account<'info, TokenAccount>>,
+    #[account(
+        constraint = &state.collateral_vault_authority.eq(&collateral_vault_authority.key())
+    )]
     pub collateral_vault_authority: AccountInfo<'info>,
     #[account(mut)]
     pub recipient: Box<Account<'info, TokenAccount>>,
@@ -220,6 +250,9 @@ pub struct WithdrawFromInsuranceVault<'info> {
         constraint = &state.insurance_vault.eq(&insurance_vault.key())
     )]
     pub insurance_vault: Box<Account<'info, TokenAccount>>,
+    #[account(
+        constraint = &state.insurance_vault_authority.eq(&insurance_vault_authority.key())
+    )]
     pub insurance_vault_authority: AccountInfo<'info>,
     #[account(mut)]
     pub recipient: Box<Account<'info, TokenAccount>>,
@@ -233,7 +266,10 @@ pub struct WithdrawFromInsuranceVaultToMarket<'info> {
         has_one = admin
     )]
     pub state: Box<Account<'info, State>>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = &state.markets.eq(&markets.key())
+    )]
     pub markets: Loader<'info, Markets>,
     pub admin: Signer<'info>,
     #[account(
@@ -241,6 +277,9 @@ pub struct WithdrawFromInsuranceVaultToMarket<'info> {
         constraint = &state.insurance_vault.eq(&insurance_vault.key())
     )]
     pub insurance_vault: Box<Account<'info, TokenAccount>>,
+    #[account(
+        constraint = &state.insurance_vault_authority.eq(&insurance_vault_authority.key())
+    )]
     pub insurance_vault_authority: AccountInfo<'info>,
     #[account(
         mut,
@@ -266,18 +305,30 @@ pub struct OpenPosition<'info> {
     )]
     pub user: Box<Account<'info, User>>,
     pub authority: Signer<'info>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = &state.markets.eq(&markets.key())
+    )]
     pub markets: Loader<'info, Markets>,
     #[account(
         mut,
         has_one = user
     )]
     pub user_positions: Loader<'info, UserPositions>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = &state.trade_history.eq(&trade_history.key())
+    )]
     pub trade_history: Loader<'info, TradeHistory>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = &state.funding_payment_history.eq(&funding_payment_history.key())
+    )]
     pub funding_payment_history: Loader<'info, FundingPaymentHistory>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = &state.funding_rate_history.eq(&funding_rate_history.key())
+    )]
     pub funding_rate_history: Loader<'info, FundingRateHistory>,
     pub oracle: AccountInfo<'info>,
 }
@@ -289,18 +340,30 @@ pub struct ClosePosition<'info> {
     #[account(mut, has_one = authority)]
     pub user: Box<Account<'info, User>>,
     pub authority: Signer<'info>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = &state.markets.eq(&markets.key())
+    )]
     pub markets: Loader<'info, Markets>,
     #[account(
         mut,
         has_one = user
     )]
     pub user_positions: Loader<'info, UserPositions>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = &state.trade_history.eq(&trade_history.key())
+    )]
     pub trade_history: Loader<'info, TradeHistory>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = &state.funding_payment_history.eq(&funding_payment_history.key())
+    )]
     pub funding_payment_history: Loader<'info, FundingPaymentHistory>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = &state.funding_rate_history.eq(&funding_rate_history.key())
+    )]
     pub funding_rate_history: Loader<'info, FundingRateHistory>,
     pub oracle: AccountInfo<'info>,
 }
@@ -316,28 +379,46 @@ pub struct Liquidate<'info> {
         constraint = &state.collateral_vault.eq(&collateral_vault.key())
     )]
     pub collateral_vault: Box<Account<'info, TokenAccount>>,
+    #[account(
+        constraint = &state.collateral_vault_authority.eq(&collateral_vault_authority.key())
+    )]
     pub collateral_vault_authority: AccountInfo<'info>,
     #[account(
         mut,
         constraint = &state.insurance_vault.eq(&insurance_vault.key())
     )]
     pub insurance_vault: Box<Account<'info, TokenAccount>>,
+    #[account(
+        constraint = &state.insurance_vault_authority.eq(&insurance_vault_authority.key())
+    )]
     pub insurance_vault_authority: AccountInfo<'info>,
     #[account(mut)]
     pub liquidator_account: Box<Account<'info, TokenAccount>>,
     pub token_program: Program<'info, Token>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = &state.markets.eq(&markets.key())
+    )]
     pub markets: Loader<'info, Markets>,
     #[account(
         mut,
         has_one = user
     )]
     pub user_positions: Loader<'info, UserPositions>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = &state.trade_history.eq(&trade_history.key())
+    )]
     pub trade_history: Loader<'info, TradeHistory>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = &state.liquidation_history.eq(&liquidation_history.key())
+    )]
     pub liquidation_history: Loader<'info, LiquidationHistory>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = &state.funding_payment_history.eq(&funding_payment_history.key())
+    )]
     pub funding_payment_history: Loader<'info, FundingPaymentHistory>,
 }
 
@@ -346,23 +427,35 @@ pub struct SettleFunding<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub user: Box<Account<'info, User>>,
+    #[account(
+        constraint = &state.markets.eq(&markets.key())
+    )]
     pub markets: Loader<'info, Markets>,
     #[account(
         mut,
         has_one = user
     )]
     pub user_positions: Loader<'info, UserPositions>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = &state.funding_payment_history.eq(&funding_payment_history.key())
+    )]
     pub funding_payment_history: Loader<'info, FundingPaymentHistory>,
 }
 
 #[derive(Accounts)]
 pub struct UpdateFundingRate<'info> {
     pub state: Box<Account<'info, State>>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = &state.markets.eq(&markets.key())
+    )]
     pub markets: Loader<'info, Markets>,
     pub oracle: AccountInfo<'info>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = &state.funding_rate_history.eq(&funding_rate_history.key())
+    )]
     pub funding_rate_history: Loader<'info, FundingRateHistory>,
 }
 
@@ -372,11 +465,17 @@ pub struct RepegCurve<'info> {
         has_one = admin
     )]
     pub state: Box<Account<'info, State>>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = &state.markets.eq(&markets.key())
+    )]
     pub markets: Loader<'info, Markets>,
     pub oracle: AccountInfo<'info>,
     pub admin: Signer<'info>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = &state.curve_history.eq(&curve_history.key())
+    )]
     pub curve_history: Loader<'info, CurveHistory>,
 }
 
@@ -388,7 +487,10 @@ pub struct MoveAMMPrice<'info> {
     )]
     pub state: Box<Account<'info, State>>,
     pub admin: Signer<'info>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = &state.markets.eq(&markets.key())
+    )]
     pub markets: Loader<'info, Markets>,
 }
 
@@ -409,7 +511,10 @@ pub struct AdminUpdateK<'info> {
         has_one = admin
     )]
     pub state: Box<Account<'info, State>>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = &state.markets.eq(&markets.key())
+    )]
     pub markets: Loader<'info, Markets>,
     #[account(mut)]
     pub curve_history: Loader<'info, CurveHistory>,
@@ -422,6 +527,9 @@ pub struct AdminUpdateMarket<'info> {
         has_one = admin
     )]
     pub state: Box<Account<'info, State>>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = &state.markets.eq(&markets.key())
+    )]
     pub markets: Loader<'info, Markets>,
 }
