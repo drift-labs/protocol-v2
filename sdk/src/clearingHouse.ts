@@ -558,7 +558,6 @@ export class ClearingHouse {
 						rent: anchor.web3.SYSVAR_RENT_PUBKEY,
 						systemProgram: anchor.web3.SystemProgram.programId,
 						userPositions: userPositions.publicKey,
-						clock: SYSVAR_CLOCK_PUBKEY,
 						state: await this.getStatePublicKey(),
 					},
 					remainingAccounts: remainingAccounts,

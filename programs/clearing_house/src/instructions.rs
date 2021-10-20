@@ -94,7 +94,6 @@ pub struct InitializeUser<'info> {
     pub authority: Signer<'info>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
-    pub clock: Sysvar<'info, Clock>,
 }
 
 #[derive(Accounts)]
