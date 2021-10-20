@@ -34,7 +34,6 @@ import {
 	Transaction,
 	TransactionInstruction,
 	SYSVAR_RENT_PUBKEY,
-	SYSVAR_CLOCK_PUBKEY,
 } from '@solana/web3.js';
 
 import { assert } from './assert/assert';
@@ -943,7 +942,6 @@ export class ClearingHouse {
 					state: await this.getStatePublicKey(),
 					admin: this.wallet.publicKey,
 					markets: this.state.markets,
-					clock: SYSVAR_CLOCK_PUBKEY,
 				},
 			}
 		);
