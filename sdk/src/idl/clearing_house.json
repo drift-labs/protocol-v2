@@ -1915,7 +1915,11 @@
             "type": "i128"
           },
           {
-            "name": "cumulativeFundingRate",
+            "name": "cumulativeFundingRateLong",
+            "type": "i128"
+          },
+          {
+            "name": "cumulativeFundingRateShort",
             "type": "i128"
           },
           {
@@ -2101,10 +2105,6 @@
           {
             "name": "quoteAssetReserve",
             "type": "u128"
-          },
-          {
-            "name": "cumulativeFundingRate",
-            "type": "i128"
           },
           {
             "name": "cumulativeRepegRebateLong",

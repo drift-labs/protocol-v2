@@ -137,7 +137,8 @@ export type FundingPaymentRecord = {
 	baseAssetAmount: BN;
 	userLastCumulativeFunding: BN;
 	userLastFundingRateTs: BN;
-	ammCumulativeFunding: BN;
+	ammCumulativeFundingLong: BN;
+	ammCumulativeFundingShort: BN;
 };
 
 export type LiquidationRecord = {

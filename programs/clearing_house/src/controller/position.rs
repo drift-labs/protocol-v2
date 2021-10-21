@@ -36,7 +36,11 @@ pub fn increase(
 
     // Update funding rate if this is a new position
     if market_position.base_asset_amount == 0 {
-        market_position.last_cumulative_funding_rate = market.amm.cumulative_funding_rate;
+        market_position.last_cumulative_funding_rate = match direction {
+            PositionDirection::Long => market.amm.cumulative_funding_rate_long,
+            PositionDirection::Short => market.amm.cumulative_funding_rate_short,
+        };
+
         market.open_interest = market
             .open_interest
             .checked_add(1)

@@ -1,7 +1,7 @@
 use crate::controller::amm::SwapDirection;
 use crate::error::*;
 use crate::math::bn::U192;
-use crate::math::constants::{MARK_PRICE_MANTISSA, PEG_PRECISION, PRICE_TO_PEG_PRECISION_RATIO};
+use crate::math::constants::{ONE_HOUR, PRICE_TO_PEG_PRECISION_RATIO};
 use crate::math_error;
 use crate::state::market::AMM;
 use crate::state::state::{PriceDivergenceGuardRails, ValidityGuardRails};
@@ -48,17 +48,12 @@ pub fn update_oracle_mark_spread_twap(
         now.checked_sub(amm.last_mark_price_twap_ts)
             .ok_or_else(math_error!())?,
     );
-    let since_start = max(
-        1,
-        amm.last_mark_price_twap_ts
-            .checked_sub(amm.last_funding_rate_ts)
-            .ok_or_else(math_error!())?,
-    );
+
     let new_twap = calculate_twap(
         new_spread,
         amm.last_oracle_mark_spread_twap,
         since_last as i128,
-        since_start as i128,
+        ONE_HOUR,
     )?;
     amm.last_oracle_mark_spread_twap = new_twap;
     return Ok(new_twap);
@@ -74,13 +69,6 @@ pub fn calculate_new_mark_twap(
         now.checked_sub(amm.last_mark_price_twap_ts)
             .ok_or_else(math_error!())?,
     );
-    let since_start = max(
-        1,
-        amm.last_mark_price_twap_ts
-            .checked_sub(amm.last_funding_rate_ts)
-            .ok_or_else(math_error!())?,
-    );
-
     let current_price = match precomputed_mark_price {
         Some(mark_price) => mark_price,
         None => amm.mark_price()?,
@@ -90,7 +78,7 @@ pub fn calculate_new_mark_twap(
         current_price as i128,
         amm.last_mark_price_twap as i128,
         since_last as i128,
-        since_start as i128,
+        ONE_HOUR,
     )? as u128;
 
     return Ok(new_twap);

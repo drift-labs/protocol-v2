@@ -234,7 +234,6 @@ pub mod clearing_house {
                 oracle_source: OracleSource::Pyth,
                 base_asset_reserve: amm_base_asset_amount,
                 quote_asset_reserve: amm_quote_asset_amount,
-                cumulative_funding_rate: 0,
                 cumulative_repeg_rebate_long: 0,
                 cumulative_repeg_rebate_short: 0,
                 cumulative_funding_rate_long: 0,

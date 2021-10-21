@@ -7,9 +7,9 @@ use crate::error::*;
 use crate::math::amm;
 use crate::math::collateral::calculate_updated_collateral;
 use crate::math::constants::{
-    AMM_ASSET_AMOUNT_PRECISION, FUNDING_PAYMENT_MANTISSA, MARK_PRICE_MANTISSA, USDC_PRECISION,
+    AMM_ASSET_AMOUNT_PRECISION, FUNDING_PAYMENT_MANTISSA, USDC_PRECISION,
 };
-use crate::math::funding::calculate_funding_payment;
+use crate::math::funding::{calculate_funding_payment, calculate_funding_rate_long_short};
 use crate::math::oracle;
 use crate::math_error;
 use crate::state::history::funding_payment::{FundingPaymentHistory, FundingPaymentRecord};
@@ -38,8 +38,15 @@ pub fn settle_funding_payment(
         let market = &markets.markets[Markets::index_from_u64(market_position.market_index)];
         let amm: &AMM = &market.amm;
 
-        if amm.cumulative_funding_rate != market_position.last_cumulative_funding_rate {
-            let market_funding_rate_payment = calculate_funding_payment(amm, market_position)?;
+        let amm_cumulative_funding_rate_dir = if market_position.base_asset_amount > 0 {
+            amm.cumulative_funding_rate_long
+        } else {
+            amm.cumulative_funding_rate_short
+        };
+
+        if amm_cumulative_funding_rate_dir != market_position.last_cumulative_funding_rate {
+            let market_funding_rate_payment =
+                calculate_funding_payment(amm_cumulative_funding_rate_dir, market_position)?;
 
             let record_id = funding_payment_history.next_record_id();
             funding_payment_history.append(FundingPaymentRecord {
@@ -51,15 +58,15 @@ pub fn settle_funding_payment(
                 funding_payment: market_funding_rate_payment, //10e13
                 user_last_cumulative_funding: market_position.last_cumulative_funding_rate, //10e14
                 user_last_funding_rate_ts: market_position.last_funding_rate_ts,
-                amm_cumulative_funding: amm.cumulative_funding_rate, //10e14
-                base_asset_amount: market_position.base_asset_amount, //10e13
+                amm_cumulative_funding: amm_cumulative_funding_rate_dir, //10e14
+                base_asset_amount: market_position.base_asset_amount,    //10e13
             });
 
             funding_payment = funding_payment
                 .checked_add(market_funding_rate_payment)
                 .ok_or_else(math_error!())?;
 
-            market_position.last_cumulative_funding_rate = amm.cumulative_funding_rate;
+            market_position.last_cumulative_funding_rate = amm_cumulative_funding_rate_dir;
             market_position.last_funding_rate_ts = amm.last_funding_rate_ts;
         }
     }
@@ -88,7 +95,9 @@ pub fn update_funding_rate(
     guard_rails: &OracleGuardRails,
     funding_paused: bool,
 ) -> ClearingHouseResult {
-    let time_since_last_update = now.checked_sub(market.amm.last_funding_rate_ts).unwrap();
+    let time_since_last_update = now
+        .checked_sub(market.amm.last_funding_rate_ts)
+        .ok_or_else(math_error!())?;
 
     let mark_price_twap = amm::update_mark_twap(&mut market.amm, now, None)?;
 
@@ -102,7 +111,7 @@ pub fn update_funding_rate(
         let period_adjustment = (24_i64)
             .checked_mul(one_hour as i64)
             .ok_or_else(math_error!())?
-            .checked_div(max(1, market.amm.funding_period))
+            .checked_div(max(one_hour as i64, market.amm.funding_period))
             .ok_or_else(math_error!())?;
         // funding period = 1 hour, window = 1 day
         // low periodicity => quickly updating/settled funding rates => lower funding rate payment per interval
@@ -119,95 +128,21 @@ pub fn update_funding_rate(
             .checked_div(period_adjustment as i128)
             .ok_or_else(math_error!())?;
 
-        let mut haircut_numerator = 0;
-        if market.base_asset_amount_long == 0 && market.base_asset_amount_short == 0 {
-            // no positions, no funding
-            // pass
-        } else if market.base_asset_amount == 0 {
-            market.amm.cumulative_funding_rate_long = market
-                .amm
-                .cumulative_funding_rate_long
-                .checked_add(funding_rate)
-                .ok_or_else(math_error!())?;
+        let (funding_rate_long, funding_rate_short) =
+            calculate_funding_rate_long_short(market, funding_rate)?;
 
-            market.amm.cumulative_funding_rate_short = market
-                .amm
-                .cumulative_funding_rate_short
-                .checked_add(funding_rate)
-                .ok_or_else(math_error!())?;
-        } else if market.base_asset_amount > 0 {
-            // assert(market.base_asset_amount_long > market.base_asset_amount);
-            // more longs that shorts
-
-            if market.base_asset_amount_short.unsigned_abs() > 0 {
-                haircut_numerator = market.base_asset_amount_short.unsigned_abs();
-            }
-
-            let funding_rate_long_haircut = haircut_numerator
-                .checked_mul(MARK_PRICE_MANTISSA)
-                .ok_or_else(math_error!())?
-                .checked_div(market.base_asset_amount_long as u128)
-                .ok_or_else(math_error!())?;
-
-            let funding_rate_long = funding_rate
-                .checked_mul(funding_rate_long_haircut as i128)
-                .ok_or_else(math_error!())?
-                .checked_div(MARK_PRICE_MANTISSA as i128)
-                .ok_or_else(math_error!())?;
-
-            market.amm.cumulative_funding_rate_long = market
-                .amm
-                .cumulative_funding_rate_long
-                .checked_add(funding_rate_long)
-                .ok_or_else(math_error!())?;
-
-            if funding_rate_long != 0 {
-                market.amm.cumulative_funding_rate_short = market
-                    .amm
-                    .cumulative_funding_rate_short
-                    .checked_add(funding_rate)
-                    .ok_or_else(math_error!())?;
-            }
-        } else {
-            // more shorts than longs
-            if market.base_asset_amount_long.unsigned_abs() > 0 {
-                haircut_numerator = market.base_asset_amount_long.unsigned_abs();
-            }
-
-            let funding_rate_short_haircut = haircut_numerator
-                .checked_mul(MARK_PRICE_MANTISSA)
-                .ok_or_else(math_error!())?
-                .checked_div(market.base_asset_amount_short.unsigned_abs())
-                .ok_or_else(math_error!())?;
-
-            let funding_rate_short = funding_rate
-                .checked_mul(funding_rate_short_haircut as i128)
-                .ok_or_else(math_error!())?
-                .checked_div(MARK_PRICE_MANTISSA as i128)
-                .ok_or_else(math_error!())?;
-
-            market.amm.cumulative_funding_rate_short = market
-                .amm
-                .cumulative_funding_rate_short
-                .checked_add(funding_rate_short)
-                .ok_or_else(math_error!())?;
-
-            if funding_rate_short != 0 {
-                market.amm.cumulative_funding_rate_long = market
-                    .amm
-                    .cumulative_funding_rate_long
-                    .checked_add(funding_rate)
-                    .ok_or_else(math_error!())?;
-            }
-        }
-
-        let cumulative_funding_rate = market
+        market.amm.cumulative_funding_rate_long = market
             .amm
-            .cumulative_funding_rate
-            .checked_add(funding_rate)
+            .cumulative_funding_rate_long
+            .checked_add(funding_rate_long)
             .ok_or_else(math_error!())?;
 
-        market.amm.cumulative_funding_rate = cumulative_funding_rate;
+        market.amm.cumulative_funding_rate_short = market
+            .amm
+            .cumulative_funding_rate_short
+            .checked_add(funding_rate_short)
+            .ok_or_else(math_error!())?;
+
         market.amm.last_funding_rate = funding_rate;
         market.amm.last_funding_rate_ts = now;
 
@@ -217,7 +152,8 @@ pub fn update_funding_rate(
             record_id,
             market_index,
             funding_rate,
-            cumulative_funding_rate,
+            cumulative_funding_rate_long: market.amm.cumulative_funding_rate_long,
+            cumulative_funding_rate_short: market.amm.cumulative_funding_rate_short,
             mark_price_twap,
             oracle_price_twap,
         });

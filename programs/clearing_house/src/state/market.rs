@@ -63,7 +63,6 @@ pub struct AMM {
     pub oracle_source: OracleSource,
     pub base_asset_reserve: u128,
     pub quote_asset_reserve: u128,
-    pub cumulative_funding_rate: i128,
     pub cumulative_repeg_rebate_long: u128,
     pub cumulative_repeg_rebate_short: u128,
     pub cumulative_funding_rate_long: i128,

@@ -1,11 +1,11 @@
 use crate::error::*;
-use crate::math::constants::{AMM_TO_USDC_PRECION_RATIO, PEG_PRECISION};
+use crate::math::constants::{AMM_TO_USDC_PRECISION_RATIO, PEG_PRECISION};
 use crate::math_error;
 use solana_program::msg;
 
 pub fn scale_to_amm_precision(quote_asset_amount: u128) -> ClearingHouseResult<u128> {
     let scaled_quote_asset_amount = quote_asset_amount
-        .checked_mul(AMM_TO_USDC_PRECION_RATIO)
+        .checked_mul(AMM_TO_USDC_PRECISION_RATIO)
         .ok_or_else(math_error!())?;
 
     return Ok(scaled_quote_asset_amount);
@@ -46,12 +46,12 @@ pub fn scale_from_amm_precision(
     round_up: bool,
 ) -> ClearingHouseResult<u128> {
     let mut scaled_quote_asset_amount = quote_asset_amount
-        .checked_div(AMM_TO_USDC_PRECION_RATIO)
+        .checked_div(AMM_TO_USDC_PRECISION_RATIO)
         .ok_or_else(math_error!())?;
 
     if round_up
         && quote_asset_amount
-            .checked_rem(AMM_TO_USDC_PRECION_RATIO)
+            .checked_rem(AMM_TO_USDC_PRECISION_RATIO)
             .is_some()
     {
         scaled_quote_asset_amount = scaled_quote_asset_amount
