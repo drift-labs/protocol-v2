@@ -1,14 +1,12 @@
-import { getConfig } from './config';
 import { PublicKey } from '@solana/web3.js';
 import BN from 'bn.js';
-import {
-	QUOTE_BASE_PRECISION_DIFF,
-	AMM_MANTISSA,
-	ClearingHouse,
-} from './clearingHouse';
 import { EventEmitter } from 'events';
 import StrictEventEmitter from 'strict-event-emitter-types';
-import { UserAccountData, UserPositionData, UserPosition } from './types';
+import {
+	AMM_MANTISSA,
+	ClearingHouse, QUOTE_BASE_PRECISION_DIFF
+} from './clearingHouse';
+import { UserAccountData, UserPosition, UserPositionData } from './types';
 
 export const MAX_LEVERAGE = new BN(10);
 
@@ -155,13 +153,15 @@ export class UserAccount {
 
 	public getBuyingPower(): BN {
 		this.assertIsSubscribed();
-		return this.getFreeCollateral().mul(this.getCurrentMaxLeverage());
+		return this.getFreeCollateral().mul(
+			this.clearingHouse.getState().marginRatioInitial
+		);
 	}
 
 	public getFreeCollateral(): BN {
 		this.assertIsSubscribed();
 		return this.getTotalCollateral().sub(
-			this.getTotalPositionValue().div(this.getCurrentMaxLeverage())
+			this.getTotalPositionValue().div(this.clearingHouse.getState().marginRatioInitial)
 		);
 	}
 
@@ -265,10 +265,10 @@ export class UserAccount {
 			if (
 				market.amm.cumulativeFundingRateLong.eq(
 					userPosition.lastCumulativeFundingRate
-				) || market.amm.cumulativeFundingRateShort.eq(
+				) ||
+				market.amm.cumulativeFundingRateShort.eq(
 					userPosition.lastCumulativeFundingRate
 				)
-
 			) {
 				continue;
 			}
@@ -374,9 +374,5 @@ export class UserAccount {
 			pos0Px: pos0Px,
 			pos0PNL: pos0PNL,
 		};
-	}
-
-	private getCurrentMaxLeverage() {
-		return getConfig().MAX_LEVERAGE;
 	}
 }

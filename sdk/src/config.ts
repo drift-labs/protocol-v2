@@ -1,4 +1,3 @@
-import BN from 'bn.js';
 
 type DriftConfig = {
 	ENV: DriftEnv;
@@ -7,7 +6,6 @@ type DriftConfig = {
 	USDC_MINT_ADDRESS: string;
 	MOCK_USDC_FAUCET_ADDRESS: string;
 	EXCHANGE_HISTORY_SERVER_URL: string;
-	MAX_LEVERAGE: BN;
 };
 
 export type DriftEnv = 'local' | 'master' | 'devnet' | 'mainnet-beta';
@@ -20,7 +18,6 @@ export const configs: { [key in DriftEnv]: DriftConfig } = {
 		USDC_MINT_ADDRESS: '8zGuJQqwhZafTah7Uc7Z4tXRnguqkn5KLFAP8oV6PHe2',
 		MOCK_USDC_FAUCET_ADDRESS: '2vUr12Y5ELMMBCshTkkBrCHkcBXmigpqEGCKAmc5YqcD',
 		EXCHANGE_HISTORY_SERVER_URL: 'http://localhost:5000',
-		MAX_LEVERAGE: new BN(5),
 	},
 	master: {
 		ENV: 'master',
@@ -29,7 +26,6 @@ export const configs: { [key in DriftEnv]: DriftConfig } = {
 		USDC_MINT_ADDRESS: '8zGuJQqwhZafTah7Uc7Z4tXRnguqkn5KLFAP8oV6PHe2',
 		MOCK_USDC_FAUCET_ADDRESS: 'GujvnKR5wtCD5HjH1o4QN96KtTUs4Zg4TegBDahqFPZs',
 		EXCHANGE_HISTORY_SERVER_URL: 'https://master.history.drift.trade',
-		MAX_LEVERAGE: new BN(5),
 	},
 	devnet: {
 		ENV: 'devnet',
@@ -38,7 +34,6 @@ export const configs: { [key in DriftEnv]: DriftConfig } = {
 		USDC_MINT_ADDRESS: '5p5BksZo5qHAvZxdwKJWWF7QLk4boLavSnrqRvKJGWFD',
 		MOCK_USDC_FAUCET_ADDRESS: '79wPMqgrg3VXUcUiwPUcyBYkrKu8FnqSodGirvhZxGQ6',
 		EXCHANGE_HISTORY_SERVER_URL: 'https://devnet.history.drift.trade',
-		MAX_LEVERAGE: new BN(10),
 	},
 	//TODO - replace these with mainnet values
 	'mainnet-beta': {
@@ -48,7 +43,6 @@ export const configs: { [key in DriftEnv]: DriftConfig } = {
 		USDC_MINT_ADDRESS: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
 		MOCK_USDC_FAUCET_ADDRESS: 'FPj8ZqD9CnsDismBjHq4oXLjm8zypvitc86mSwj9tYgH',
 		EXCHANGE_HISTORY_SERVER_URL: 'https://mainnet-beta.history.drift.trade',
-		MAX_LEVERAGE: new BN(5),
 	},
 };
 
