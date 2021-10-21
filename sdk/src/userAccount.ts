@@ -263,9 +263,12 @@ export class UserAccount {
 			const market =
 				marketsAccount.markets[userPosition.marketIndex.toNumber()];
 			if (
-				market.amm.cumulativeFundingRate.eq(
+				market.amm.cumulativeFundingRateLong.eq(
+					userPosition.lastCumulativeFundingRate
+				) || market.amm.cumulativeFundingRateShort.eq(
 					userPosition.lastCumulativeFundingRate
 				)
+
 			) {
 				continue;
 			}

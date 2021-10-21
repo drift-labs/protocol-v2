@@ -1554,7 +1554,14 @@ export class ClearingHouse {
 		const market =
 			this.getMarketsAccount().markets[marketPosition.marketIndex.toNumber()];
 
-		const perPositionFundingRate = market.amm.cumulativeFundingRate
+		let ammCumulativeFundingRate : BN;
+		if (marketPosition.baseAssetAmount) {
+			ammCumulativeFundingRate = market.amm.cumulativeFundingRateLong;
+		} else {
+			ammCumulativeFundingRate = market.amm.cumulativeFundingRateShort;
+		}
+
+		const perPositionFundingRate = ammCumulativeFundingRate
 			.sub(marketPosition.lastCumulativeFundingRate)
 			.mul(marketPosition.baseAssetAmount)
 			.div(BASE_ASSET_PRECISION)

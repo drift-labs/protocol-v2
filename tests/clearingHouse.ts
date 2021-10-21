@@ -131,7 +131,8 @@ describe('clearing_house', () => {
 		assert.ok(ammData.oracle.equals(solUsd));
 		assert.ok(ammData.baseAssetReserve.eq(ammInitialBaseAssetAmount));
 		assert.ok(ammData.quoteAssetReserve.eq(ammInitialQuoteAssetAmount));
-		assert.ok(ammData.cumulativeFundingRate.eq(new BN(0)));
+		assert.ok(ammData.cumulativeFundingRateLong.eq(new BN(0)));
+		assert.ok(ammData.cumulativeFundingRateShort.eq(new BN(0)));
 		assert.ok(ammData.fundingPeriod.eq(periodicity));
 		assert.ok(ammData.lastFundingRate.eq(new BN(0)));
 		assert.ok(!ammData.lastFundingRateTs.eq(new BN(0)));
