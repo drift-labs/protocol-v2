@@ -46,5 +46,6 @@ pub struct FundingPaymentRecord {
     pub base_asset_amount: i128,
     pub user_last_cumulative_funding: i128,
     pub user_last_funding_rate_ts: i64,
-    pub amm_cumulative_funding: i128,
+    pub amm_cumulative_funding_long: i128,
+    pub amm_cumulative_funding_short: i128,
 }

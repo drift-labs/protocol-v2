@@ -1724,8 +1724,16 @@ fn market_initialized(markets: &Loader<Markets>, market_index: u64) -> Result<()
     Ok(())
 }
 
-fn valid_oracle_for_market(oracle: &AccountInfo, markets: &Loader<Markets>, market_index: u64) -> Result<()> {
-    if !markets.load()?.markets[Markets::index_from_u64(market_index)].amm.oracle.eq(oracle.key) {
+fn valid_oracle_for_market(
+    oracle: &AccountInfo,
+    markets: &Loader<Markets>,
+    market_index: u64,
+) -> Result<()> {
+    if !markets.load()?.markets[Markets::index_from_u64(market_index)]
+        .amm
+        .oracle
+        .eq(oracle.key)
+    {
         return Err(ErrorCode::InvalidOracle.into());
     }
     Ok(())

@@ -1887,7 +1887,11 @@
             "type": "i64"
           },
           {
-            "name": "ammCumulativeFunding",
+            "name": "ammCumulativeFundingLong",
+            "type": "i128"
+          },
+          {
+            "name": "ammCumulativeFundingShort",
             "type": "i128"
           }
         ]
