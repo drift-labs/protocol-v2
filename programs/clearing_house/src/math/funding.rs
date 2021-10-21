@@ -2,7 +2,7 @@ use crate::error::*;
 use crate::math::bn;
 use crate::math::constants::{
     AMM_TO_USDC_PRECISION_RATIO, FUNDING_PAYMENT_MANTISSA, MARK_PRICE_MANTISSA,
-    SHARE_OF_FEES_ALLOCATED_TO_REPEG_DENOMINATOR, SHARE_OF_FEES_ALLOCATED_TO_REPEG_NUMERATOR,
+    SHARE_OF_FEES_ALLOCATED_TO_MARKET_DENOMINATOR, SHARE_OF_FEES_ALLOCATED_TO_MARKET_NUMERATOR,
     USDC_TO_BASE_AMT_FUNDING_PRECISION,
 };
 use crate::math_error;
@@ -56,9 +56,9 @@ fn calculate_capped_funding_rate(
     let cumulative_fee_lower_bound = market
         .amm
         .cumulative_fee
-        .checked_mul(SHARE_OF_FEES_ALLOCATED_TO_REPEG_NUMERATOR)
+        .checked_mul(SHARE_OF_FEES_ALLOCATED_TO_MARKET_NUMERATOR)
         .ok_or_else(math_error!())?
-        .checked_div(SHARE_OF_FEES_ALLOCATED_TO_REPEG_DENOMINATOR)
+        .checked_div(SHARE_OF_FEES_ALLOCATED_TO_MARKET_DENOMINATOR)
         .ok_or_else(math_error!())?;
 
     let this_funding_rate_inflow = -(if funding_rate > 0 {

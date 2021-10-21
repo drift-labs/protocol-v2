@@ -2,7 +2,7 @@ use crate::error::*;
 use crate::math::bn::U256;
 use crate::math::constants::{
     AMM_ASSET_AMOUNT_PRECISION, MARK_PRICE_MANTISSA, PRICE_TO_PEG_PRECISION_RATIO,
-    SHARE_OF_FEES_ALLOCATED_TO_REPEG_DENOMINATOR, SHARE_OF_FEES_ALLOCATED_TO_REPEG_NUMERATOR,
+    SHARE_OF_FEES_ALLOCATED_TO_MARKET_DENOMINATOR, SHARE_OF_FEES_ALLOCATED_TO_MARKET_NUMERATOR,
     USDC_PRECISION,
 };
 use crate::math_error;
@@ -112,9 +112,9 @@ pub fn find_valid_repeg(
             if cum_pnl_profit
                 >= amm
                     .cumulative_fee
-                    .checked_mul(SHARE_OF_FEES_ALLOCATED_TO_REPEG_NUMERATOR)
+                    .checked_mul(SHARE_OF_FEES_ALLOCATED_TO_MARKET_NUMERATOR)
                     .ok_or_else(math_error!())?
-                    .checked_div(SHARE_OF_FEES_ALLOCATED_TO_REPEG_DENOMINATOR)
+                    .checked_div(SHARE_OF_FEES_ALLOCATED_TO_MARKET_DENOMINATOR)
                     .ok_or_else(math_error!())? as i128
             {
                 break;

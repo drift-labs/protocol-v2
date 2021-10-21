@@ -1204,9 +1204,9 @@ pub mod clearing_house {
 
         let max_withdraw = state
             .fees_collected
-            .checked_mul(SHARE_OF_FEES_ALLOCATED_TO_REPEG_NUMERATOR)
+            .checked_mul(SHARE_OF_FEES_ALLOCATED_TO_MARKET_NUMERATOR)
             .ok_or_else(math_error!())?
-            .checked_div(SHARE_OF_FEES_ALLOCATED_TO_REPEG_DENOMINATOR)
+            .checked_div(SHARE_OF_FEES_ALLOCATED_TO_MARKET_DENOMINATOR)
             .ok_or_else(math_error!())?
             .checked_sub(state.fees_withdrawn)
             .ok_or_else(math_error!())?;
