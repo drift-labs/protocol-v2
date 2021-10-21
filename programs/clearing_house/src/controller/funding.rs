@@ -99,14 +99,15 @@ pub fn update_funding_rate(
         .checked_sub(market.amm.last_funding_rate_ts)
         .ok_or_else(math_error!())?;
 
-    let mark_price_twap = amm::update_mark_twap(&mut market.amm, now, None)?;
-
     let (block_funding_rate_update, _) =
         oracle::block_operation(&market.amm, price_oracle, clock_slot, guard_rails, None)?;
 
     let next_update_wait = market.amm.funding_period;
 
     if !funding_paused && !block_funding_rate_update && time_since_last_update >= next_update_wait {
+
+        let mark_price_twap = amm::update_mark_twap(&mut market.amm, now, None)?;
+
         let one_hour: u32 = 3600;
         let period_adjustment = (24_i64)
             .checked_mul(one_hour as i64)
