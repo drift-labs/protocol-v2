@@ -7,7 +7,7 @@ use crate::error::*;
 use crate::math::amm;
 use crate::math::collateral::calculate_updated_collateral;
 use crate::math::constants::{
-    AMM_ASSET_AMOUNT_PRECISION, FUNDING_PAYMENT_MANTISSA, USDC_PRECISION,
+    AMM_ASSET_AMOUNT_PRECISION, FUNDING_PAYMENT_MANTISSA, ONE_HOUR, USDC_PRECISION,
 };
 use crate::math::funding::{calculate_funding_payment, calculate_funding_rate_long_short};
 use crate::math::oracle;
@@ -105,21 +105,19 @@ pub fn update_funding_rate(
     let next_update_wait = market.amm.funding_period;
 
     if !funding_paused && !block_funding_rate_update && time_since_last_update >= next_update_wait {
-
         let mark_price_twap = amm::update_mark_twap(&mut market.amm, now, None)?;
 
-        let one_hour: u32 = 3600;
         let period_adjustment = (24_i64)
-            .checked_mul(one_hour as i64)
+            .checked_mul(ONE_HOUR as i64)
             .ok_or_else(math_error!())?
-            .checked_div(max(one_hour as i64, market.amm.funding_period))
+            .checked_div(max(1, market.amm.funding_period))
             .ok_or_else(math_error!())?;
         // funding period = 1 hour, window = 1 day
         // low periodicity => quickly updating/settled funding rates => lower funding rate payment per interval
         let (oracle_price_twap, price_spread) = amm::calculate_oracle_mark_spread(
             &market.amm,
             price_oracle,
-            one_hour,
+            ONE_HOUR as u32,
             clock_slot,
             None,
         )?;

@@ -48,13 +48,18 @@ pub fn update_oracle_mark_spread_twap(
         1,
         now.checked_sub(amm.last_mark_price_twap_ts)
             .ok_or_else(math_error!())?,
+    ) as i128;
+
+    let from_start = max(
+        1,
+        ONE_HOUR.checked_sub(since_last).ok_or_else(math_error!())?,
     );
 
     let new_twap = calculate_twap(
         new_spread,
         amm.last_oracle_mark_spread_twap,
-        since_last as i128,
-        ONE_HOUR,
+        since_last,
+        from_start,
     )?;
     amm.last_oracle_mark_spread_twap = new_twap;
     return Ok(new_twap);
@@ -69,6 +74,10 @@ pub fn calculate_new_mark_twap(
         1,
         now.checked_sub(amm.last_mark_price_twap_ts)
             .ok_or_else(math_error!())?,
+    ) as i128;
+    let from_start = max(
+        1,
+        ONE_HOUR.checked_sub(since_last).ok_or_else(math_error!())?,
     );
     let current_price = match precomputed_mark_price {
         Some(mark_price) => mark_price,
@@ -78,8 +87,8 @@ pub fn calculate_new_mark_twap(
     let new_twap = calculate_twap(
         current_price as i128,
         amm.last_mark_price_twap as i128,
-        since_last as i128,
-        ONE_HOUR,
+        since_last,
+        from_start,
     )? as u128;
 
     return Ok(new_twap);
@@ -209,7 +218,7 @@ pub fn is_oracle_valid(
         amm.get_oracle_price(price_oracle, 0, clock_slot)?;
 
     let (oracle_twap, oracle_twap_conf, _oracle_delay) =
-        amm.get_oracle_price(price_oracle, 60 * 60, clock_slot)?;
+        amm.get_oracle_price(price_oracle, ONE_HOUR as u32, clock_slot)?;
 
     let is_oracle_price_nonpositive = (oracle_twap <= 0) || (oracle_price <= 0);
 
