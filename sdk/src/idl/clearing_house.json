@@ -1559,11 +1559,11 @@
             }
           },
           {
-            "name": "feesCollected",
+            "name": "totalFee",
             "type": "u128"
           },
           {
-            "name": "feesWithdrawn",
+            "name": "totalFeeWithdrawn",
             "type": "u128"
           },
           {
@@ -1789,11 +1789,11 @@
             "type": "u128"
           },
           {
-            "name": "cumulativeFee",
+            "name": "totalFee",
             "type": "u128"
           },
           {
-            "name": "cumulativeFeeRealized",
+            "name": "cumulativeFee",
             "type": "u128"
           },
           {
@@ -2159,11 +2159,11 @@
             "type": "u128"
           },
           {
-            "name": "cumulativeFee",
+            "name": "totalFee",
             "type": "u128"
           },
           {
-            "name": "cumulativeFeeRealized",
+            "name": "cumulativeFee",
             "type": "u128"
           },
           {

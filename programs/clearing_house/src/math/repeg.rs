@@ -104,14 +104,14 @@ pub fn find_valid_repeg(
             )
             .ok_or_else(math_error!())?;
 
-        if pnl > 0 || pnl_usdc.unsigned_abs() < amm.cumulative_fee_realized {
-            let cum_pnl_profit = (amm.cumulative_fee_realized as i128)
+        if pnl > 0 || pnl_usdc.unsigned_abs() < amm.cumulative_fee {
+            let cum_pnl_profit = (amm.cumulative_fee as i128)
                 .checked_add(pnl_usdc)
                 .ok_or_else(math_error!())?;
 
             if cum_pnl_profit
                 >= amm
-                    .cumulative_fee
+                    .total_fee
                     .checked_mul(SHARE_OF_FEES_ALLOCATED_TO_MARKET_NUMERATOR)
                     .ok_or_else(math_error!())?
                     .checked_div(SHARE_OF_FEES_ALLOCATED_TO_MARKET_DENOMINATOR)

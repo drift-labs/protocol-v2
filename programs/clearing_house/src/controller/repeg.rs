@@ -57,7 +57,7 @@ pub fn repeg(
         return Err(ErrorCode::InvalidRepegDirection.into());
     }
 
-    let mut pnl_r = amm.cumulative_fee_realized;
+    let mut pnl_r = amm.cumulative_fee;
     let net_market_position = market.base_asset_amount;
 
     let amm_pnl_mantissa = math::repeg::calculate_repeg_candidate_pnl(market, new_peg_candidate)?;
@@ -92,7 +92,7 @@ pub fn repeg(
             .ok_or_else(math_error!())?;
         if pnl_r
             < amm
-                .cumulative_fee
+                .total_fee
                 .checked_mul(SHARE_OF_FEES_ALLOCATED_TO_MARKET_NUMERATOR)
                 .ok_or_else(math_error!())?
                 .checked_div(SHARE_OF_FEES_ALLOCATED_TO_MARKET_DENOMINATOR)
@@ -104,7 +104,7 @@ pub fn repeg(
         perserve_price = false;
     }
 
-    market.amm.cumulative_fee_realized = pnl_r;
+    market.amm.cumulative_fee = pnl_r;
     market.amm.peg_multiplier = new_peg_candidate;
 
     if perserve_price {

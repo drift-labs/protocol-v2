@@ -104,17 +104,17 @@ describe('AMM Curve', () => {
 			stripMantissa(ammAccountState.cumulativeRepegRebateLong, USDC_PRECISION)
 		);
 
+		const totalFeeNum = stripMantissa(
+			ammAccountState.totalFee,
+			USDC_PRECISION
+		);
 		const cumFeeNum = stripMantissa(
 			ammAccountState.cumulativeFee,
 			USDC_PRECISION
 		);
-		const cumFeeRealNum = stripMantissa(
-			ammAccountState.cumulativeFeeRealized,
-			USDC_PRECISION
-		);
+		console.log('totalFee', totalFeeNum);
 		console.log('cumFee', cumFeeNum);
-		console.log('cumFeeReal', cumFeeRealNum);
-		return cumFeeNum - cumFeeRealNum;
+		return totalFeeNum - cumFeeNum;
 	};
 
 	// const calculateFeeDist = (marketIndex) => {
@@ -122,7 +122,7 @@ describe('AMM Curve', () => {
 	// 	const marketData = marketsAccount.markets[marketIndex.toNumber()];
 	// 	const ammAccountState = marketData.amm;
 
-	// 	const feeDist= marketData.amm.cumulativeFeeRealized.add(userAccount.getTotalCollateral());
+	// 	const feeDist= marketData.amm.cumulativeFee.add(userAccount.getTotalCollateral());
 	// 	// console.log(stripMantissa(usdcAmount, USDC_PRECISION), stripMantissa(feeDist, USDC_PRECISION));
 
 	// 	return feeDist;
@@ -213,7 +213,7 @@ describe('AMM Curve', () => {
 		let marketData = marketsAccount.markets[marketIndex.toNumber()];
 		const ammAccountState = marketData.amm;
 		assert(
-			ammAccountState.cumulativeFee.eq(ammAccountState.cumulativeFeeRealized)
+			ammAccountState.totalFee.eq(ammAccountState.totalFee)
 		);
 
 		const oldPeg = ammAccountState.pegMultiplier;
@@ -249,8 +249,9 @@ describe('AMM Curve', () => {
 
 		marketsAccount = clearingHouse.getMarketsAccount();
 		marketData = marketsAccount.markets[marketIndex.toNumber()];
+		console.log(marketData.amm);
 		assert(
-			marketData.amm.cumulativeFee.gt(marketData.amm.cumulativeFeeRealized)
+			marketData.amm.totalFee.gt(marketData.amm.cumulativeFee)
 		);
 
 		const newPeg = marketData.amm.pegMultiplier;

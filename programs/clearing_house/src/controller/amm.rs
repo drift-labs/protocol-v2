@@ -224,7 +224,7 @@ pub fn calculate_cost_of_k(market: &mut Market, new_sqrt_k: bn::U256) -> i128 {
         )
         .unwrap();
 
-    if cost > market.amm.cumulative_fee_realized as i128 {
+    if cost > market.amm.cumulative_fee as i128 {
         //todo throw an error
         assert_eq!(cost, 0);
     }

@@ -288,8 +288,8 @@ describe('clearing_house', () => {
 		console.log(market.baseAssetAmount.toNumber());
 
 		assert.ok(market.baseAssetAmount.eq(new BN(499950004999501)));
+		assert.ok(market.amm.totalFee.eq(new BN(50000)));
 		assert.ok(market.amm.cumulativeFee.eq(new BN(50000)));
-		assert.ok(market.amm.cumulativeFeeRealized.eq(new BN(50000)));
 
 		const tradeHistoryAccount = clearingHouse.getTradeHistoryAccount();
 
@@ -408,8 +408,8 @@ describe('clearing_house', () => {
 		const marketsAccount = clearingHouse.getMarketsAccount();
 		const market: any = marketsAccount.markets[0];
 		assert.ok(market.baseAssetAmount.eq(new BN(249987500624968)));
+		assert.ok(market.amm.totalFee.eq(new BN(75000)));
 		assert.ok(market.amm.cumulativeFee.eq(new BN(75000)));
-		assert.ok(market.amm.cumulativeFeeRealized.eq(new BN(75000)));
 
 		const tradeHistoryAccount = clearingHouse.getTradeHistoryAccount();
 
@@ -464,8 +464,8 @@ describe('clearing_house', () => {
 		const marketsAccount = clearingHouse.getMarketsAccount();
 		const market: any = marketsAccount.markets[0];
 		assert.ok(market.baseAssetAmount.eq(new BN(-250012510626032)));
+		assert.ok(market.amm.totalFee.eq(new BN(125000)));
 		assert.ok(market.amm.cumulativeFee.eq(new BN(125000)));
-		assert.ok(market.amm.cumulativeFeeRealized.eq(new BN(125000)));
 
 		const tradeHistoryAccount = clearingHouse.getTradeHistoryAccount();
 
@@ -506,8 +506,8 @@ describe('clearing_house', () => {
 		const marketsAccount = clearingHouse.getMarketsAccount();
 		const market: any = marketsAccount.markets[0];
 		assert.ok(market.baseAssetAmount.eq(new BN(0)));
+		assert.ok(market.amm.totalFee.eq(new BN(150000)));
 		assert.ok(market.amm.cumulativeFee.eq(new BN(150000)));
-		assert.ok(market.amm.cumulativeFeeRealized.eq(new BN(150000)));
 
 		const tradeHistoryAccount = clearingHouse.getTradeHistoryAccount();
 

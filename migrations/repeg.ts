@@ -17,8 +17,8 @@ async function repeg(provider: Provider) {
     await clearingHouse.subscribe();
     let amm = clearingHouse.getMarketsAccount().markets[0].amm;
     console.log("peg", amm.pegMultiplier.toString());
+    console.log("total fee", amm.totalFee.toString());
     console.log("cumulative fee", amm.cumulativeFee.toString());
-    console.log("cumulative fee realized", amm.cumulativeFeeRealized.toString());
 
     const newPeg = new anchor.BN(0);
     const marketIndex = new anchor.BN(0);
@@ -26,8 +26,8 @@ async function repeg(provider: Provider) {
 
     amm = clearingHouse.getMarketsAccount().markets[0].amm;
     console.log("peg", amm.pegMultiplier.toString());
+    console.log("total fee", amm.totalFee.toString());
     console.log("cumulative fee", amm.cumulativeFee.toString());
-    console.log("cumulative fee realized", amm.cumulativeFeeRealized.toString());
 
     await clearingHouse.unsubscribe();
 }

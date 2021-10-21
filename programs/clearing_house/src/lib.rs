@@ -119,8 +119,8 @@ pub mod clearing_house {
                     referee_rebate_denominator: DEFAULT_REFEREE_REBATE_DENOMINATOR,
                 },
             },
-            fees_collected: 0,
-            fees_withdrawn: 0,
+            total_fee: 0,
+            total_fee_withdrawn: 0,
             whitelist_mint: Pubkey::default(),
             drift_mint: Pubkey::default(),
             max_deposit: 0,
@@ -247,8 +247,8 @@ pub mod clearing_house {
                 last_mark_price_twap_ts: now,
                 sqrt_k: amm_base_asset_amount,
                 peg_multiplier: amm_peg_multiplier,
+                total_fee: 0,
                 cumulative_fee: 0,
-                cumulative_fee_realized: 0,
                 minimum_trade_size: 10000000,
                 padding0: 0,
                 padding1: 0,
@@ -611,23 +611,23 @@ pub mod clearing_house {
             &referrer,
         )?;
 
-        ctx.accounts.state.fees_collected = ctx
+        ctx.accounts.state.total_fee = ctx
             .accounts
             .state
-            .fees_collected
+            .total_fee
             .checked_add(fee)
             .ok_or_else(math_error!())?;
         {
             let market = &mut ctx.accounts.markets.load_mut()?.markets
                 [Markets::index_from_u64(market_index)];
+            market.amm.total_fee = market
+                .amm
+                .total_fee
+                .checked_add(fee)
+                .ok_or_else(math_error!())?;
             market.amm.cumulative_fee = market
                 .amm
                 .cumulative_fee
-                .checked_add(fee)
-                .ok_or_else(math_error!())?;
-            market.amm.cumulative_fee_realized = market
-                .amm
-                .cumulative_fee_realized
                 .checked_add(fee)
                 .ok_or_else(math_error!())?;
         }
@@ -826,20 +826,20 @@ pub mod clearing_house {
             drift_token,
             &referrer,
         )?;
-        ctx.accounts.state.fees_collected = ctx
+        ctx.accounts.state.total_fee = ctx
             .accounts
             .state
-            .fees_collected
+            .total_fee
+            .checked_add(fee)
+            .ok_or_else(math_error!())?;
+        market.amm.total_fee = market
+            .amm
+            .total_fee
             .checked_add(fee)
             .ok_or_else(math_error!())?;
         market.amm.cumulative_fee = market
             .amm
             .cumulative_fee
-            .checked_add(fee)
-            .ok_or_else(math_error!())?;
-        market.amm.cumulative_fee_realized = market
-            .amm
-            .cumulative_fee_realized
             .checked_add(fee)
             .ok_or_else(math_error!())?;
 
@@ -1203,12 +1203,12 @@ pub mod clearing_house {
         let state = &mut ctx.accounts.state;
 
         let max_withdraw = state
-            .fees_collected
+            .total_fee
             .checked_mul(SHARE_OF_FEES_ALLOCATED_TO_MARKET_NUMERATOR)
             .ok_or_else(math_error!())?
             .checked_div(SHARE_OF_FEES_ALLOCATED_TO_MARKET_DENOMINATOR)
             .ok_or_else(math_error!())?
-            .checked_sub(state.fees_withdrawn)
+            .checked_sub(state.total_fee_withdrawn)
             .ok_or_else(math_error!())?;
 
         if (amount as u128) > max_withdraw {
@@ -1224,8 +1224,8 @@ pub mod clearing_house {
             amount,
         )?;
 
-        state.fees_withdrawn = state
-            .fees_withdrawn
+        state.total_fee_withdrawn = state
+            .total_fee_withdrawn
             .checked_add(amount as u128)
             .ok_or_else(math_error!())?;
 
@@ -1257,15 +1257,15 @@ pub mod clearing_house {
     ) -> ProgramResult {
         let markets = &mut ctx.accounts.markets.load_mut()?;
         let market = &mut markets.markets[Markets::index_from_u64(market_index)];
-        market.amm.cumulative_fee = market
+        market.amm.total_fee = market
             .amm
-            .cumulative_fee
+            .total_fee
             .checked_add(amount as u128)
             .ok_or_else(math_error!())?;
 
         let state = &mut ctx.accounts.state;
-        state.fees_collected = state
-            .fees_collected
+        state.total_fee = state
+            .total_fee
             .checked_add(amount as u128)
             .ok_or_else(math_error!())?;
 
@@ -1329,8 +1329,8 @@ pub mod clearing_house {
             base_asset_amount_short: market.base_asset_amount_short.unsigned_abs(),
             base_asset_amount: market.base_asset_amount,
             open_interest: market.open_interest,
+            total_fee: market.amm.total_fee,
             cumulative_fee: market.amm.cumulative_fee,
-            cumulative_fee_realized: market.amm.cumulative_fee_realized,
             adjustment_cost: adjustment_cost,
         });
 
@@ -1483,19 +1483,19 @@ pub mod clearing_house {
         let adjustment_cost = controller::amm::adjust_k_cost(market, bn::U256::from(sqrt_k))?;
 
         if adjustment_cost > 0 {
-            if adjustment_cost.unsigned_abs() > market.amm.cumulative_fee_realized {
+            if adjustment_cost.unsigned_abs() > market.amm.cumulative_fee {
                 return Err(ErrorCode::InvalidUpdateK.into());
             } else {
-                market.amm.cumulative_fee_realized = market
+                market.amm.cumulative_fee = market
                     .amm
-                    .cumulative_fee_realized
+                    .cumulative_fee
                     .checked_sub(adjustment_cost.unsigned_abs())
                     .ok_or_else(math_error!())?;
             }
         } else {
-            market.amm.cumulative_fee_realized = market
+            market.amm.cumulative_fee = market
                 .amm
-                .cumulative_fee_realized
+                .cumulative_fee
                 .checked_add(adjustment_cost.unsigned_abs())
                 .ok_or_else(math_error!())?;
         }
@@ -1523,8 +1523,8 @@ pub mod clearing_house {
         let quote_asset_reserve_after = amm.quote_asset_reserve;
         let sqrt_k_after = amm.sqrt_k;
 
+        let total_fee = amm.total_fee;
         let cumulative_fee = amm.cumulative_fee;
-        let cumulative_fee_realized = amm.cumulative_fee_realized;
 
         let curve_history = &mut ctx.accounts.curve_history.load_mut()?;
         let record_id = curve_history.next_record_id();
@@ -1545,8 +1545,8 @@ pub mod clearing_house {
             base_asset_amount,
             open_interest,
             adjustment_cost,
+            total_fee,
             cumulative_fee,
-            cumulative_fee_realized,
         });
 
         Ok(())

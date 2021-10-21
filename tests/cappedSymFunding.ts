@@ -88,8 +88,6 @@ async function updateFundingRateHelper(
 
 		console.log('last funding rate:', lastFundingRate);
 		console.log(
-			'cumfunding rate:',
-			stripMantissa(ammAccountState.cumulativeFundingRate, CONVERSION_SCALE),
 			'cumfunding rate long',
 			stripMantissa(ammAccountState.cumulativeFundingRateLong, CONVERSION_SCALE),
 			'cumfunding rate short',
@@ -240,10 +238,10 @@ async function cappedSymFundingScenario
 			 stripMantissa(marketNew.baseAssetAmountLong, BASE_ASSET_PRECISION),
 			'baseAssetAmountShort', 
 			stripMantissa(marketNew.baseAssetAmountShort, BASE_ASSET_PRECISION),
+			'totalFee',
+			stripMantissa(marketNew.amm.totalFee, USDC_PRECISION),
 			'cumFee',
 			stripMantissa(marketNew.amm.cumulativeFee, USDC_PRECISION),
-			'cumFeeReal',
-			stripMantissa(marketNew.amm.cumulativeFeeRealized, USDC_PRECISION),
 			);
 
 		const fundingPnLForLongs = marketNew.baseAssetAmountLong.mul(fundingRateLong).mul(new BN(-1));
@@ -273,7 +271,7 @@ async function cappedSymFundingScenario
 		)
 
 		return [fundingRateLong, fundingRateShort, fundingPnLForLongs, fundingPnLForShorts,
-			marketNew.amm.cumulativeFee, marketNew.amm.cumulativeFeeRealized]
+			marketNew.amm.totalFee, marketNew.amm.cumulativeFee];
 }
 
 describe('pyth-oracle', () => {
@@ -355,7 +353,7 @@ describe('pyth-oracle', () => {
 		const marketIndex = new BN(rollingMarketNum);
 		rollingMarketNum+=1;
 		const [fundingRateLong, fundingRateShort, fundingPnLForLongs, fundingPnLForShorts,
-			cumulativeFee, cumulativeFeeRealized] =  await cappedSymFundingScenario(
+			totalFee, cumulativeFee] =  await cappedSymFundingScenario(
 			clearingHouse, userAccount,
 			clearingHouse2, userAccount2, 
 			marketIndex,
@@ -370,8 +368,8 @@ describe('pyth-oracle', () => {
 
 		assert(fundingPnLForLongs.abs().lt(fundingPnLForShorts.abs()));
 
-		const feeAlloced =  stripMantissa(cumulativeFee, USDC_PRECISION) - 
-		stripMantissa(cumulativeFeeRealized, USDC_PRECISION);
+		const feeAlloced =  stripMantissa(totalFee, USDC_PRECISION) -
+		stripMantissa(cumulativeFee, USDC_PRECISION);
 
 		let precisionFundingPay = BASE_ASSET_PRECISION;
 		const fundingPnLForLongsNum = stripMantissa(fundingPnLForLongs.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)), precisionFundingPay);
@@ -387,7 +385,7 @@ describe('pyth-oracle', () => {
 		rollingMarketNum+=1;
 
 		const [fundingRateLong, fundingRateShort, fundingPnLForLongs, fundingPnLForShorts,
-			cumulativeFee, cumulativeFeeRealized] =  await cappedSymFundingScenario(
+			totalFee, cumulativeFee] =  await cappedSymFundingScenario(
 			clearingHouse, userAccount,
 			clearingHouse2, userAccount2, 
 			marketIndex,
@@ -402,8 +400,8 @@ describe('pyth-oracle', () => {
 
 		assert(fundingPnLForLongs.abs().lt(fundingPnLForShorts.abs()));
 
-		const feeAlloced =  stripMantissa(cumulativeFee, USDC_PRECISION) - 
-		stripMantissa(cumulativeFeeRealized, USDC_PRECISION);
+		const feeAlloced =  stripMantissa(totalFee, USDC_PRECISION) -
+		stripMantissa(cumulativeFee, USDC_PRECISION);
 
 		let precisionFundingPay = BASE_ASSET_PRECISION;
 		const fundingPnLForLongsNum = stripMantissa(fundingPnLForLongs.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)), precisionFundingPay);
@@ -420,7 +418,7 @@ describe('pyth-oracle', () => {
 		rollingMarketNum+=1;
 
 		const [fundingRateLong, fundingRateShort, fundingPnLForLongs, fundingPnLForShorts,
-			cumulativeFee, cumulativeFeeRealized] =  await cappedSymFundingScenario(
+			totalFee, cumulativeFee] =  await cappedSymFundingScenario(
 			clearingHouse, userAccount,
 			clearingHouse2, userAccount2, 
 			marketIndex,
@@ -435,8 +433,8 @@ describe('pyth-oracle', () => {
 
 		assert(fundingPnLForLongs.abs().lt(fundingPnLForShorts.abs()));
 
-		const feeAlloced =  stripMantissa(cumulativeFee, USDC_PRECISION) - 
-		stripMantissa(cumulativeFeeRealized, USDC_PRECISION);
+		const feeAlloced =  stripMantissa(totalFee, USDC_PRECISION) -
+		stripMantissa(cumulativeFee, USDC_PRECISION);
 
 		let precisionFundingPay = BASE_ASSET_PRECISION;
 		const fundingPnLForLongsNum = stripMantissa(fundingPnLForLongs.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)), precisionFundingPay);
@@ -451,7 +449,7 @@ describe('pyth-oracle', () => {
 		rollingMarketNum+=1;
 
 		const [fundingRateLong, fundingRateShort, fundingPnLForLongs, fundingPnLForShorts,
-			cumulativeFee, cumulativeFeeRealized] = await cappedSymFundingScenario(
+			totalFee, cumulativeFee] = await cappedSymFundingScenario(
 			clearingHouse, userAccount,
 			clearingHouse2, userAccount2, 
 			marketIndex,
@@ -469,8 +467,8 @@ describe('pyth-oracle', () => {
 
 			 assert(fundingPnLForShorts.abs().lt(fundingPnLForLongs.abs()));
 	 
-			 const feeAlloced =  stripMantissa(cumulativeFee, USDC_PRECISION) - 
-			 stripMantissa(cumulativeFeeRealized, USDC_PRECISION);
+			 const feeAlloced =  stripMantissa(totalFee, USDC_PRECISION) -
+			 stripMantissa(cumulativeFee, USDC_PRECISION);
 	 
 			 let precisionFundingPay = BASE_ASSET_PRECISION;
 			 const fundingPnLForLongsNum = stripMantissa(fundingPnLForLongs.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)), precisionFundingPay);
@@ -487,7 +485,7 @@ describe('pyth-oracle', () => {
 		rollingMarketNum+=1;
 
 		const [fundingRateLong, fundingRateShort, fundingPnLForLongs, fundingPnLForShorts,
-			cumulativeFee, cumulativeFeeRealized] = await cappedSymFundingScenario(
+			totalFee, cumulativeFee] = await cappedSymFundingScenario(
 			clearingHouse, userAccount,
 			clearingHouse2, userAccount2, 
 			marketIndex,
@@ -505,8 +503,8 @@ describe('pyth-oracle', () => {
 
 			 assert(fundingPnLForShorts.abs().lt(fundingPnLForLongs.abs()));
 	 
-			 const feeAlloced =  stripMantissa(cumulativeFee, USDC_PRECISION) - 
-			 stripMantissa(cumulativeFeeRealized, USDC_PRECISION);
+			 const feeAlloced =  stripMantissa(totalFee, USDC_PRECISION) -
+			 stripMantissa(cumulativeFee, USDC_PRECISION);
 	 
 			 let precisionFundingPay = BASE_ASSET_PRECISION;
 			 const fundingPnLForLongsNum = stripMantissa(fundingPnLForLongs.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)), precisionFundingPay);
@@ -524,7 +522,7 @@ describe('pyth-oracle', () => {
 		rollingMarketNum+=1;
 
 		const [fundingRateLong, fundingRateShort, fundingPnLForLongs, fundingPnLForShorts,
-			cumulativeFee, cumulativeFeeRealized] = await cappedSymFundingScenario(
+			totalFee, cumulativeFee] = await cappedSymFundingScenario(
 			clearingHouse, userAccount,
 			clearingHouse2, userAccount2, 
 			marketIndex,
@@ -542,8 +540,8 @@ describe('pyth-oracle', () => {
 
 			 assert(fundingPnLForShorts.abs().lt(fundingPnLForLongs.abs()));
 	 
-			 const feeAlloced =  stripMantissa(cumulativeFee, USDC_PRECISION) - 
-			 stripMantissa(cumulativeFeeRealized, USDC_PRECISION);
+			 const feeAlloced =  stripMantissa(totalFee, USDC_PRECISION) -
+			 stripMantissa(cumulativeFee, USDC_PRECISION);
 	 
 			 let precisionFundingPay = BASE_ASSET_PRECISION;
 			 const fundingPnLForLongsNum = stripMantissa(fundingPnLForLongs.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)), precisionFundingPay);

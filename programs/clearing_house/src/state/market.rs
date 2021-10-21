@@ -75,8 +75,8 @@ pub struct AMM {
     pub last_mark_price_twap_ts: i64,
     pub sqrt_k: u128,
     pub peg_multiplier: u128,
+    pub total_fee: u128,
     pub cumulative_fee: u128,
-    pub cumulative_fee_realized: u128,
     pub minimum_trade_size: u128,
 
     // upgrade-ability

@@ -126,7 +126,7 @@ describe('admin withdraw', () => {
 		const withdrawAmount = fee.div(new BN(4));
 
 		let clearingHouseState = clearingHouse.getState();
-		assert(clearingHouseState.feesCollected.eq(new BN(50000)));
+		assert(clearingHouseState.totalFee.eq(new BN(50000)));
 
 		await clearingHouse.withdrawFromInsuranceVaultToMarket(
 			new BN(0),
@@ -139,9 +139,9 @@ describe('admin withdraw', () => {
 		assert(collateralVaultTokenAccount.amount.eq(new BN(9987500)));
 
 		clearingHouseState = clearingHouse.getState();
-		assert(clearingHouseState.feesCollected.eq(new BN(62500)));
+		assert(clearingHouseState.totalFee.eq(new BN(62500)));
 
 		const market = clearingHouse.getMarketsAccount().markets[0];
-		console.assert(market.amm.cumulativeFee.eq(new BN(62500)));
+		console.assert(market.amm.totalFee.eq(new BN(62500)));
 	});
 });

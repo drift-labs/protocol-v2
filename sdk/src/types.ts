@@ -191,8 +191,8 @@ export type ClearingHouseState = {
 	partialLiquidationLiquidatorShareDenominator: BN;
 	fullLiquidationLiquidatorShareDenominator: BN;
 	feeStructure: FeeStructure;
-	feesCollected: BN;
-	feesWithdrawn: BN;
+	totalFee: BN;
+	totalFeeWithdrawn: BN;
 	whitelistMint: PublicKey;
 	driftMint: PublicKey;
 	oracleGuardRails: OracleGuardRails;
@@ -219,8 +219,8 @@ export type ClearingHouseMarketsAccountData = {
 			cumulativeFundingRateShort: BN;
 			cumulativeRepegRebateLong: BN;
 			cumulativeRepegRebateShort: BN;
-			cumulativeFeeRealized: BN;
 			cumulativeFee: BN;
+			totalFee: BN;
 			minimumTradeSize: BN;
 		};
 		baseAssetAmount: BN;

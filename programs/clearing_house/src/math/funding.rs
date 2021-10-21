@@ -17,9 +17,9 @@ pub fn calculate_funding_rate_long_short(
     let symmetric_funding_pnl =
         -(calculate_funding_payment_in_quote_precision(funding_rate, market.base_asset_amount)?);
     if symmetric_funding_pnl >= 0 {
-        market.amm.cumulative_fee_realized = market
+        market.amm.cumulative_fee = market
             .amm
-            .cumulative_fee_realized
+            .cumulative_fee
             .checked_add(symmetric_funding_pnl.unsigned_abs())
             .ok_or_else(math_error!())?;
         return Ok((funding_rate, funding_rate));
@@ -28,9 +28,9 @@ pub fn calculate_funding_rate_long_short(
     let (capped_funding_rate, capped_symmetric_funding_pnl) =
         calculate_capped_funding_rate(&market, symmetric_funding_pnl, funding_rate)?;
 
-    market.amm.cumulative_fee_realized = market
+    market.amm.cumulative_fee = market
         .amm
-        .cumulative_fee_realized
+        .cumulative_fee
         .checked_sub(capped_symmetric_funding_pnl.unsigned_abs())
         .ok_or_else(math_error!())?;
     let funding_rate_long = if funding_rate < 0 {
@@ -55,7 +55,7 @@ fn calculate_capped_funding_rate(
 ) -> ClearingHouseResult<(i128, i128)> {
     let cumulative_fee_lower_bound = market
         .amm
-        .cumulative_fee
+        .total_fee
         .checked_mul(SHARE_OF_FEES_ALLOCATED_TO_MARKET_NUMERATOR)
         .ok_or_else(math_error!())?
         .checked_div(SHARE_OF_FEES_ALLOCATED_TO_MARKET_DENOMINATOR)
@@ -69,7 +69,7 @@ fn calculate_capped_funding_rate(
 
     let cumulative_fee_available = market
         .amm
-        .cumulative_fee_realized
+        .cumulative_fee
         .checked_add(this_funding_rate_inflow.unsigned_abs())
         .ok_or_else(math_error!())?;
 
