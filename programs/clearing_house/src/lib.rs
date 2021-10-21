@@ -581,7 +581,6 @@ pub mod clearing_house {
         let mark_price_after: u128;
         let oracle_price_after: i128;
         let oracle_mark_spread_pct_after: i128;
-        let oracle_mark_spread_after: i128;
         {
             let market = &mut ctx.accounts.markets.load_mut()?.markets
                 [Markets::index_from_u64(market_index)];
@@ -595,7 +594,6 @@ pub mod clearing_house {
                     Some(mark_price_after),
                 )?;
             oracle_price_after = _oracle_price_after;
-            oracle_mark_spread_after = _oracle_mark_spread_after;
             oracle_mark_spread_pct_after = _oracle_mark_spread_pct_after;
         }
 
@@ -757,8 +755,6 @@ pub mod clearing_house {
                 &ctx.accounts.state.oracle_guard_rails,
                 ctx.accounts.state.funding_paused,
             )?;
-
-            amm::update_oracle_mark_spread_twap(&mut market.amm, now, oracle_mark_spread_after)?;
         }
 
         Ok(())
@@ -875,14 +871,13 @@ pub mod clearing_house {
 
         let mark_price_after = market.amm.mark_price()?;
         let price_oracle = &ctx.accounts.oracle;
-        let (oracle_price_after, oracle_mark_spread_after) = amm::calculate_oracle_mark_spread(
+        let (oracle_price_after, _oracle_mark_spread_after) = amm::calculate_oracle_mark_spread(
             &market.amm,
             price_oracle,
             0,
             clock_slot,
             Some(mark_price_after),
         )?;
-        amm::update_oracle_mark_spread_twap(&mut market.amm, now, oracle_mark_spread_after)?;
 
         trade_history_account.append(TradeRecord {
             ts: now,

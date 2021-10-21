@@ -38,6 +38,7 @@ pub fn update_mark_twap(
     return Ok(mark_twap);
 }
 
+#[allow(dead_code)]
 pub fn update_oracle_mark_spread_twap(
     amm: &mut AMM,
     now: i64,
