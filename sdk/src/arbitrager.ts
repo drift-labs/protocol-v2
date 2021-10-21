@@ -329,7 +329,8 @@ export class Arbitrager {
 
 				oracleTargetWithMantissa = new BN(oracleTarget * AMM_MANTISSA.toNumber());
 
-				// don't continue higher after exceeding .5x isolated leverage in a particular market
+				// don't continue higher after exceeding maxPositionValueNum
+				// isolated leverage in a particular market
 				return positionValueNum > maxPositionValueNum;
 			};
 
@@ -598,6 +599,21 @@ export class Arbitrager {
 					console.log('expectedFee', expectedFee, ' > tradeEV:', tradeEV);
 					skipTrade = true;
 				}
+
+				let postTradePositionValue: BN = positionValue;
+				if (direction == PositionDirection.LONG && netExposure > 0
+					|| direction == PositionDirection.SHORT && netExposure < 0
+					){
+						postTradePositionValue = positionValue.add(amount);
+
+						if (postTradePositionValue.gte(maxPostionValuePerMarket)) {
+							console.log('new trade would put position in maxPostionValuePerMarket');
+							skipTrade = true;
+						} 
+					} else {
+						postTradePositionValue = positionValue.sub(amount);
+					}
+				console.log('postTradePositionValue', stripMantissa(postTradePositionValue, USDC_PRECISION));
 
 				if (amount.gt(MAX_TRADE_AMOUNT) && !riskReduction) {
 					amount = MAX_TRADE_AMOUNT;
