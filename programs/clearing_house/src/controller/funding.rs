@@ -108,10 +108,11 @@ pub fn update_funding_rate(
     if !funding_paused && !block_funding_rate_update && time_since_last_update >= next_update_wait {
         let mark_price_twap = amm::update_mark_twap(&mut market.amm, now, None)?;
 
+        let one_houri64 = ONE_HOUR as i64;
         let period_adjustment = (24_i64)
-            .checked_mul(ONE_HOUR as i64)
+            .checked_mul(one_houri64)
             .ok_or_else(math_error!())?
-            .checked_div(max(1, market.amm.funding_period))
+            .checked_div(max(one_houri64, market.amm.funding_period))
             .ok_or_else(math_error!())?;
         // funding period = 1 hour, window = 1 day
         // low periodicity => quickly updating/settled funding rates => lower funding rate payment per interval
