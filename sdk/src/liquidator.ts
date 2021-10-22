@@ -43,7 +43,6 @@ export class Liquidator {
 				try {
 					this.clearingHouse
 						.liquidate(
-							this.liquidatorUSDCTokenPublicKey,
 							liquidateeUserAccountPublicKey
 						)
 						.then((tx) => {

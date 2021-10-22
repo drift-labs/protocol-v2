@@ -1137,14 +1137,11 @@ pub mod clearing_house {
             .ok_or_else(math_error!())?;
 
         if fee_to_liquidator > 0 {
-            controller::token::send(
-                &ctx.accounts.token_program,
-                &ctx.accounts.collateral_vault,
-                &ctx.accounts.liquidator_account,
-                &ctx.accounts.collateral_vault_authority,
-                ctx.accounts.state.collateral_vault_nonce,
-                fee_to_liquidator,
-            )?;
+            let liquidator = &mut ctx.accounts.liquidator;
+            liquidator.collateral = liquidator
+                .collateral
+                .checked_add(fee_to_liquidator as u128)
+                .ok_or_else(math_error!())?;
         }
 
         if fee_to_insurance_fund > 0 {

@@ -113,7 +113,6 @@ describe('admin withdraw', () => {
 	it('Block liquidation', async () => {
 		try {
 			await clearingHouse.liquidate(
-				userUSDCAccount.publicKey,
 				userAccountPublicKey
 			);
 		} catch (e) {

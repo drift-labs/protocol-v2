@@ -457,9 +457,14 @@
           "isSigner": false
         },
         {
-          "name": "liquidator",
+          "name": "authority",
           "isMut": false,
           "isSigner": true
+        },
+        {
+          "name": "liquidator",
+          "isMut": true,
+          "isSigner": false
         },
         {
           "name": "user",
@@ -484,11 +489,6 @@
         {
           "name": "insuranceVaultAuthority",
           "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "liquidatorAccount",
-          "isMut": true,
           "isSigner": false
         },
         {

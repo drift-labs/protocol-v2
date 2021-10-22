@@ -632,7 +632,6 @@ describe('clearing_house', () => {
 
 		// having the user liquidate themsevles because I'm too lazy to create a separate liquidator account
 		await clearingHouse.liquidate(
-			userUSDCAccount.publicKey,
 			userAccountPublicKey
 		);
 
@@ -671,10 +670,8 @@ describe('clearing_house', () => {
 			userUSDCAccount.publicKey
 		);
 		console.log(chInsuranceAccountToken.amount.toNumber());
-		console.log(userUSDCTokenAccount.amount.toNumber());
 
 		assert.ok(chInsuranceAccountToken.amount.eq(new BN(39120)));
-		assert.ok(userUSDCTokenAccount.amount.eq(new BN(39120)));
 
 		const tradeHistoryAccount = clearingHouse.getTradeHistoryAccount();
 
@@ -729,7 +726,7 @@ describe('clearing_house', () => {
 		);
 		assert.ok(
 			liquidationHistory.liquidationRecords[0].liquidator.equals(
-				provider.wallet.publicKey
+				userAccountPublicKey
 			)
 		);
 		assert.ok(
@@ -773,7 +770,6 @@ describe('clearing_house', () => {
 
 		// having the user liquidate themsevles because I'm too lazy to create a separate liquidator account
 		await clearingHouse.liquidate(
-			userUSDCAccount.publicKey,
 			userAccountPublicKey
 		);
 		const state: any = clearingHouse.getState();
@@ -804,10 +800,8 @@ describe('clearing_house', () => {
 			userUSDCAccount.publicKey
 		);
 		console.log(chInsuranceAccountToken.amount.toNumber());
-		console.log(userUSDCTokenAccount.amount.toNumber());
 
 		assert.ok(chInsuranceAccountToken.amount.eq(new BN(2061712)));
-		assert.ok(userUSDCTokenAccount.amount.eq(new BN(145572)));
 
 		const tradeHistoryAccount = clearingHouse.getTradeHistoryAccount();
 
@@ -865,7 +859,7 @@ describe('clearing_house', () => {
 		);
 		assert.ok(
 			liquidationHistory.liquidationRecords[1].liquidator.equals(
-				provider.wallet.publicKey
+				userAccountPublicKey
 			)
 		);
 		assert.ok(

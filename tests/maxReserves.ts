@@ -108,7 +108,7 @@ describe('max reserves', () => {
         }
         console.log('liquidate');
         await clearingHouse.liquidate(
-            userUSDCAccount.publicKey,
+            userAccountPublicKey,
             userAccountPublicKey
         );
     });
@@ -125,7 +125,7 @@ describe('max reserves', () => {
         }
 
         await clearingHouse.liquidate(
-            userUSDCAccount.publicKey,
+            userAccountPublicKey,
             userAccountPublicKey
         );
     });

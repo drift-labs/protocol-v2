@@ -131,7 +131,7 @@ export async function simEvent(
 				break;
 
 			case 'liquidate':
-				await clearingHouse.liquidate(userUSDCAccount.publicKey, user_e);
+				await clearingHouse.liquidate(user_e);
 				break;
 
 			default:

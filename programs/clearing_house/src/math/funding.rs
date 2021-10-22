@@ -135,12 +135,12 @@ fn _calculate_funding_payment(
 ) -> ClearingHouseResult<i128> {
     let funding_rate_delta_sign: i128 = if funding_rate_delta > 0 { 1 } else { -1 } as i128;
 
-    let funding_rate_payment_mag = bn::U256::from(funding_rate_delta.unsigned_abs())
-        .checked_mul(bn::U256::from(base_asset_amount.unsigned_abs()))
+    let funding_rate_payment_mag = bn::U192::from(funding_rate_delta.unsigned_abs())
+        .checked_mul(bn::U192::from(base_asset_amount.unsigned_abs()))
         .ok_or_else(math_error!())?
-        .checked_div(bn::U256::from(MARK_PRICE_MANTISSA))
+        .checked_div(bn::U192::from(MARK_PRICE_MANTISSA))
         .ok_or_else(math_error!())?
-        .checked_div(bn::U256::from(FUNDING_PAYMENT_MANTISSA))
+        .checked_div(bn::U192::from(FUNDING_PAYMENT_MANTISSA))
         .ok_or_else(math_error!())?
         .try_to_u128()? as i128;
 

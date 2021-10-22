@@ -107,7 +107,6 @@ describe('max positions', () => {
         }
 
         await clearingHouse.liquidate(
-            userUSDCAccount.publicKey,
             userAccountPublicKey
         );
     });
@@ -125,7 +124,6 @@ describe('max positions', () => {
         }
 
         await clearingHouse.liquidate(
-            userUSDCAccount.publicKey,
             userAccountPublicKey
         );
     });

@@ -971,10 +971,11 @@ export class ClearingHouse {
 	}
 
 	public async liquidate(
-		liquidatorUSDCTokenPublicKey: PublicKey,
 		liquidateeUserAccountPublicKey: PublicKey
 	): Promise<TransactionSignature> {
 		this.assertIsSubscribed();
+
+		const userAccountPublicKey = (await this.getUserAccountPublicKey())[0];
 
 		const liquidateeUserAccount: any = await this.program.account.user.fetch(
 			liquidateeUserAccountPublicKey
@@ -999,13 +1000,13 @@ export class ClearingHouse {
 		return await this.program.rpc.liquidate({
 			accounts: {
 				state: await this.getStatePublicKey(),
-				liquidator: this.wallet.publicKey,
+				authority: this.wallet.publicKey,
 				user: liquidateeUserAccountPublicKey,
+				liquidator: userAccountPublicKey,
 				collateralVault: this.state.collateralVault,
 				collateralVaultAuthority: this.state.collateralVaultAuthority,
 				insuranceVault: this.state.insuranceVault,
 				insuranceVaultAuthority: this.state.insuranceVaultAuthority,
-				liquidatorAccount: liquidatorUSDCTokenPublicKey,
 				tokenProgram: TOKEN_PROGRAM_ID,
 				markets: this.state.markets,
 				userPositions: liquidateeUserAccount.positions,

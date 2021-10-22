@@ -371,7 +371,12 @@ pub struct ClosePosition<'info> {
 #[derive(Accounts)]
 pub struct Liquidate<'info> {
     pub state: Box<Account<'info, State>>,
-    pub liquidator: Signer<'info>,
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        has_one = authority
+    )]
+    pub liquidator: Box<Account<'info, User>>,
     #[account(mut)]
     pub user: Box<Account<'info, User>>,
     #[account(
@@ -392,8 +397,6 @@ pub struct Liquidate<'info> {
         constraint = &state.insurance_vault_authority.eq(&insurance_vault_authority.key())
     )]
     pub insurance_vault_authority: AccountInfo<'info>,
-    #[account(mut)]
-    pub liquidator_account: Box<Account<'info, TokenAccount>>,
     pub token_program: Program<'info, Token>,
     #[account(
         mut,
