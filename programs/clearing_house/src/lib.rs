@@ -22,7 +22,7 @@ mod state;
 #[cfg(feature = "mainnet-beta")]
 declare_id!("damm6x5ddj4JZKzpFN9y2jgtnHY3xryBUoQfjFuL5qo");
 #[cfg(not(feature = "mainnet-beta"))]
-declare_id!("5hMicvLUamtMTHQVkAbs4Z19naErhwVp8PqtfhsPRYhM");
+declare_id!("CyauwQx8EtBmJJk1BjTCv5aHcaAqpudLkwA2uSroL9o3");
 
 #[program]
 pub mod clearing_house {

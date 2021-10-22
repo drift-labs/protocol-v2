@@ -22,7 +22,7 @@ export const configs: { [key in DriftEnv]: DriftConfig } = {
 	master: {
 		ENV: 'master',
 		PYTH_ORACLE_MAPPING_ADDRESS: 'BmA9Z6FjioHJPpjT39QazZyhDRUdZy2ezwx4GiDdE2u2',
-		CLEARING_HOUSE_PROGRAM_ID: '5hMicvLUamtMTHQVkAbs4Z19naErhwVp8PqtfhsPRYhM',
+		CLEARING_HOUSE_PROGRAM_ID: 'CyauwQx8EtBmJJk1BjTCv5aHcaAqpudLkwA2uSroL9o3',
 		USDC_MINT_ADDRESS: '8zGuJQqwhZafTah7Uc7Z4tXRnguqkn5KLFAP8oV6PHe2',
 		MOCK_USDC_FAUCET_ADDRESS: 'GujvnKR5wtCD5HjH1o4QN96KtTUs4Zg4TegBDahqFPZs',
 		EXCHANGE_HISTORY_SERVER_URL: 'https://master.history.drift.trade',
