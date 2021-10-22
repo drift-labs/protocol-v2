@@ -472,6 +472,8 @@ pub mod clearing_house {
                 last_cumulative_funding_rate: 0,
                 last_cumulative_repeg_rebate: 0,
                 last_funding_rate_ts: 0,
+                stop_profit_price: 0,
+                stop_loss_price: 0,
                 padding0: 0,
                 padding1: 0,
             };

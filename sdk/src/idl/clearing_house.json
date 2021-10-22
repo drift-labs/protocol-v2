@@ -2461,6 +2461,14 @@
             "type": "i64"
           },
           {
+            "name": "stopLossPrice",
+            "type": "u128"
+          },
+          {
+            "name": "stopProfitPrice",
+            "type": "u128"
+          },
+          {
             "name": "padding0",
             "type": "u128"
           },
