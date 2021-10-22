@@ -200,6 +200,7 @@ pub fn close(
 
     user.collateral = calculate_updated_collateral(user.collateral, pnl)?;
     market_position.last_cumulative_funding_rate = 0;
+    market_position.last_funding_rate_ts = 0;
 
     market.open_interest = market
         .open_interest
@@ -226,6 +227,7 @@ pub fn close(
     }
 
     market_position.base_asset_amount = 0;
+    market_position.market_index = 0;
 
     Ok(())
 }
