@@ -45,6 +45,7 @@ pub struct MarketPosition {
     pub last_funding_rate_ts: i64,
     pub stop_loss_price: u128,
     pub stop_profit_price: u128,
+    pub transfer_to: Pubkey,
 
     // upgrade-ability
     pub padding0: u128,

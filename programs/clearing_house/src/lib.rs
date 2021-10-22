@@ -474,6 +474,7 @@ pub mod clearing_house {
                 last_funding_rate_ts: 0,
                 stop_profit_price: 0,
                 stop_loss_price: 0,
+                transfer_to: Pubkey::default(),
                 padding0: 0,
                 padding1: 0,
             };

@@ -2469,6 +2469,10 @@
             "type": "u128"
           },
           {
+            "name": "transferTo",
+            "type": "publicKey"
+          },
+          {
             "name": "padding0",
             "type": "u128"
           },
