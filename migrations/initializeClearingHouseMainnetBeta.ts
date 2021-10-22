@@ -23,7 +23,7 @@ async function deployDevnet(provider: Provider) {
 
     console.log('USDC Mint:', usdcMint.toString()); // TODO: put into Next config
     console.log('Initializing ClearingHouse');
-    await clearingHouse.initialize(usdcMint, false);
+    await clearingHouse.initialize(usdcMint, true);
     console.log('Initialized ClearingHouse');
     await clearingHouse.subscribe();
 
