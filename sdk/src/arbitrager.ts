@@ -95,7 +95,7 @@ export class Arbitrager {
 	}
 
 	public async getRecentTradeAvg(symbol: string): Promise<any> {
-		const limit = 10;
+		const limit = 3;
 		const recentTrades = await this.ftxClient.fetchTrades(symbol, limit);
 		let pricesum = 0; 
 		let volumesum = 0; 
@@ -161,8 +161,8 @@ export class Arbitrager {
 
 				if (marketJSON !== marketJSON2) {
 					throw Error('Market JSON assumptions incorrect');
-					isValidMarket = false;
 				}
+
 				if (!market.initialized) {
 					isValidMarket = false;
 				} else if (
@@ -227,12 +227,10 @@ export class Arbitrager {
 
 
 			const getOracleData = async (oraclePricePubkey) => {
-				oraclePriceData = await this.pythClient.getPriceData(oraclePricePubkey);
-
-				// const nowBN = new BN((Date.now() / 1000).toFixed(0));
-
 				const nowSlot = await blockTimeConnection.getSlot();
 				nowSOL = new BN(await blockTimeConnection.getBlockTime(nowSlot));
+
+				oraclePriceData = await this.pythClient.getPriceData(oraclePricePubkey);
 
 				const oracleLastValidSlot = oraclePriceData.validSlot;
 				const oracleDelay = (nowSlot - Number(oracleLastValidSlot)) * 0.4; // estimate in seconds (assume 400ms each block)
@@ -258,7 +256,7 @@ export class Arbitrager {
 				
 				// const oracelConfLatest = oraclePriceData.priceComponents[0].latest.confidence;
 				const oracleConfs = [oraclePriceData.previousConfidence, oraclePriceData.confidence, oracleTwac];
-				function median(numbers) {
+				function median(numbers: number[]): number {
 					const sorted = numbers.slice().sort((a, b) => a - b);
 					const middle = Math.floor(sorted.length / 2);
 				
@@ -269,11 +267,11 @@ export class Arbitrager {
 					return sorted[middle];
 				}
 
-				const oracleConfReg = median(oracleConfs);
+				const oracleConfReg = ((Math.max(...oracleConfs) + median(oracleConfs))/2) + .01;
 
 				oracleBid = oraclePriceData.price - oracleConfReg;
 				oracleAsk = oraclePriceData.price + oracleConfReg;
-
+				
 				return true;
 			};
 
@@ -374,18 +372,18 @@ export class Arbitrager {
 					nextFundingTime
 				);
 
-				const prevToNextMarketAlpha =
-					(oraclePriceData.price - oraclePriceData.previousPrice) /
-					(oraclePriceData.confidence + oraclePriceData.previousConfidence);
+				// TODO:
+				// const prevToNextMarketAlpha =
+				// 	(oraclePriceData.price - oraclePriceData.previousPrice) /
+				// 	(oraclePriceData.confidence + oraclePriceData.previousConfidence);
 
-				const currentMarketAlpha = this.alphas[marketIndexNum];
-				const newMarketAlpha =
-					prevToNextMarketAlpha *
-						(currentMarketAlpha !== 0 ? currentMarketAlpha : 1) *
-						0.01 +
-					currentMarketAlpha * 0.99;
-				this.alphas[marketIndexNum] = newMarketAlpha;
-
+				// const currentMarketAlpha = this.alphas[marketIndexNum];
+				// const newMarketAlpha =
+				// 	prevToNextMarketAlpha *
+				// 		(currentMarketAlpha !== 0 ? currentMarketAlpha : 1) *
+				// 		0.01 +
+				// 	currentMarketAlpha * 0.99;
+				// this.alphas[marketIndexNum] = newMarketAlpha;
 				// console.log('Market', marketIndex, 'oracle alpha:', newMarketAlpha);
 
 				const oracleTwapWithMantissa = new BN(
@@ -607,23 +605,25 @@ export class Arbitrager {
 						postTradePositionValue = positionValue.add(amount);
 
 						if (postTradePositionValue.gte(maxPostionValuePerMarket)) {
-							console.log('new trade would put position in maxPostionValuePerMarket');
+							console.log('skipTrade: postTradePositionValue >= maxPostionValuePerMarket');
 							skipTrade = true;
 						} 
 					} else {
 						postTradePositionValue = positionValue.sub(amount);
 					}
-				console.log('postTradePositionValue', stripMantissa(postTradePositionValue, USDC_PRECISION));
 
 				if (amount.gt(MAX_TRADE_AMOUNT) && !riskReduction) {
+					console.log('hit MAX_TRADE_AMOUNT: capping trade size')
 					amount = MAX_TRADE_AMOUNT;
 				}
 
 				// reduce trade size if it gives pnl to most recent competitor trade done
-				if (
+				if ((
 					(deltaNetExposureExBot > 0 && direction == PositionDirection.LONG) ||
 					(deltaNetExposureExBot < 0 && direction == PositionDirection.SHORT)
+				) && !riskReduction
 				) {
+					console.log('front runner detected for risk-increasing trade: halving trade size')
 					amount = amount.div(new BN(2));
 				}
 
@@ -633,10 +633,8 @@ export class Arbitrager {
 			const addLimitPriceBuffer = () => {
 				// tiny buffers for limitPrice
 				if (direction == PositionDirection.LONG) {
-					console.log('GOING LONG');
 					limitPrice = new BN(limitPrice.toNumber() * 1.001);
 				} else {
-					console.log('GOING SHORT');
 					limitPrice = new BN(limitPrice.toNumber() * 0.999);
 				}
 			};
@@ -648,19 +646,17 @@ export class Arbitrager {
 					symbolPerp = symbol + '/USD';
 				}
 
-				const wgtOBPrice = await this.getWeightedOBprice(symbolPerp);
-				const wgtTradePrice = await this.getRecentTradeAvg(symbolPerp);
+				const wgtOBPrice: number = await this.getWeightedOBprice(symbolPerp);
+				const wgtTradePrice: number = await this.getRecentTradeAvg(symbolPerp);
+				const ftxPriceTarget = (wgtTradePrice + wgtOBPrice) / 2;
 
-				console.log(wgtOBPrice, wgtTradePrice); //todo on trade price nan
-
-				return wgtOBPrice;
+				return ftxPriceTarget;
 			};
 
 			const oracleValid = await getOracleData(oraclePricePubkey);
 			if (!oracleValid) {
 				// todo: use external source price to trade
 				console.log('invalid oracle');
-				// continue;
 			}
 			isPositionValueLimit = await getNetExposure();
 			await eyeFundingPayment();
@@ -672,14 +668,42 @@ export class Arbitrager {
 				continue;
 			}
 
-			if (this.useExternal) {
-				const ftxPrice = await checkExternalExchange();
-				const ftxPriceWithMantissa = new BN(ftxPrice * AMM_MANTISSA.toNumber());
-				console.log(ftxPrice);
+			let ftxPrice: number;
+			let ftxPriceWithMantissa: BN;
+			let ftxValid = true;
+
+			try{
+				ftxPrice = await checkExternalExchange();
+				ftxPriceWithMantissa = new BN(ftxPrice * AMM_MANTISSA.toNumber());
+			} catch(e){
+				console.log('error with checkExternalExchange, only oracleTargetWithMantissa');
+				ftxValid = false;
+			}
+
+			if (this.useExternal && ftxValid) {
 				constructTrade(ftxPriceWithMantissa);
 				skipTrade = await resizeTrade();
 			} else if (oracleValid) {
-				constructTrade(oracleTargetWithMantissa);
+				let priceTargetWithMantissa: BN;
+				
+				if (ftxValid) {
+					if(ftxPriceWithMantissa.sub(oracleTargetWithMantissa).abs().lt(AMM_MANTISSA)){
+						priceTargetWithMantissa = ftxPriceWithMantissa.mul(new BN(1))
+						.add(oracleTargetWithMantissa.mul(new BN(4)))
+						.div(new BN(5));
+					} else{
+						priceTargetWithMantissa = oracleTargetWithMantissa;;	
+					}
+				} else{
+					priceTargetWithMantissa = oracleTargetWithMantissa;;
+				}
+
+				console.log('priceTargetWithMantissa:', stripMantissa(priceTargetWithMantissa),
+				'oracleTargetWithMantissa:', stripMantissa(oracleTargetWithMantissa),
+				'ftxPriceWithMantissa:', stripMantissa(ftxPriceWithMantissa),
+				);
+
+				constructTrade(priceTargetWithMantissa);
 				skipTrade = await resizeTrade();
 			} else{
 				skipTrade = true;
