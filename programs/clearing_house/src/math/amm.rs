@@ -1,13 +1,17 @@
-use crate::controller::amm::SwapDirection;
-use crate::error::*;
-use crate::math::bn::U192;
-use crate::math::constants::{ONE_HOUR, PRICE_TO_PEG_PRECISION_RATIO};
-use crate::math_error;
-use crate::state::market::AMM;
-use crate::state::state::{PriceDivergenceGuardRails, ValidityGuardRails};
+use std::cmp::max;
+
 use anchor_lang::prelude::AccountInfo;
 use solana_program::msg;
-use std::cmp::max;
+
+use crate::controller::amm::SwapDirection;
+use crate::error::*;
+use crate::math::bn;
+use crate::math::bn::U192;
+use crate::math::constants::{MARK_PRICE_MANTISSA, ONE_HOUR, PRICE_TO_PEG_PRECISION_RATIO};
+use crate::math::position::_calculate_base_asset_value_and_pnl;
+use crate::math_error;
+use crate::state::market::{Market, AMM};
+use crate::state::state::{PriceDivergenceGuardRails, ValidityGuardRails};
 
 pub fn calculate_price(
     unpegged_quote_asset_amount: u128,
@@ -247,4 +251,38 @@ pub fn is_oracle_valid(
         || is_conf_too_large
         || is_oracle_price_nonpositive
         || is_oracle_price_too_volatile))
+}
+
+pub fn adjust_k_cost(market: &mut Market, new_sqrt_k: bn::U256) -> ClearingHouseResult<i128> {
+    // price is fixed, calculate cost of changing k in market
+    let (cur_net_value, _) =
+        _calculate_base_asset_value_and_pnl(market.base_asset_amount, 0, &market.amm)?;
+
+    let k_mult = new_sqrt_k
+        .checked_mul(bn::U256::from(MARK_PRICE_MANTISSA))
+        .ok_or_else(math_error!())?
+        .checked_div(bn::U256::from(market.amm.sqrt_k))
+        .ok_or_else(math_error!())?;
+
+    market.amm.sqrt_k = new_sqrt_k.try_to_u128().unwrap();
+    market.amm.base_asset_reserve = bn::U256::from(market.amm.base_asset_reserve)
+        .checked_mul(k_mult)
+        .ok_or_else(math_error!())?
+        .checked_div(bn::U256::from(MARK_PRICE_MANTISSA))
+        .ok_or_else(math_error!())?
+        .try_to_u128()
+        .unwrap();
+    market.amm.quote_asset_reserve = bn::U256::from(market.amm.quote_asset_reserve)
+        .checked_mul(k_mult)
+        .ok_or_else(math_error!())?
+        .checked_div(bn::U256::from(MARK_PRICE_MANTISSA))
+        .ok_or_else(math_error!())?
+        .try_to_u128()
+        .unwrap();
+
+    let (_new_net_value, cost) =
+        _calculate_base_asset_value_and_pnl(market.base_asset_amount, cur_net_value, &market.amm)
+            .unwrap();
+
+    Ok(cost)
 }

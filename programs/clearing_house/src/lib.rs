@@ -26,11 +26,13 @@ declare_id!("CyauwQx8EtBmJJk1BjTCv5aHcaAqpudLkwA2uSroL9o3");
 
 #[program]
 pub mod clearing_house {
-    use super::*;
+    use crate::math;
     use crate::optional_accounts::get_whitelist_token;
     use crate::state::history::curve::CurveRecord;
     use crate::state::history::deposit::{DepositDirection, DepositRecord};
     use crate::state::history::liquidation::LiquidationRecord;
+
+    use super::*;
 
     pub fn initialize(
         ctx: Context<Initialize>,
@@ -1480,7 +1482,7 @@ pub mod clearing_house {
         let quote_asset_reserve_before = market.amm.quote_asset_reserve;
         let sqrt_k_before = market.amm.sqrt_k;
 
-        let adjustment_cost = controller::amm::adjust_k_cost(market, bn::U256::from(sqrt_k))?;
+        let adjustment_cost = math::amm::adjust_k_cost(market, bn::U256::from(sqrt_k))?;
 
         if adjustment_cost > 0 {
             if adjustment_cost.unsigned_abs() > market.amm.cumulative_fee {
