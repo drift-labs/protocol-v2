@@ -35,8 +35,8 @@ describe('User Account', () => {
 	const marketIndex = new BN(0);
 	const initialSOLPrice = 50;
 
-	const usdcAmount = new BN(10 * 10 ** 6);
-	const solPositionInitialValue = usdcAmount.div(new BN(2)).mul(MAX_LEVERAGE);
+	const usdcAmount = new BN(20 * 10 ** 6);
+	const solPositionInitialValue = usdcAmount.mul(MAX_LEVERAGE);
 	let userAccount: UserAccount;
 
 	before(async () => {
@@ -89,20 +89,20 @@ describe('User Account', () => {
 			pnl0.toNumber(),
 			expectedPNL.toNumber()
 		);
-		console.log(summary.buyingPower.toNumber(), expectedBuyingPower.toNumber());
+		console.log('buyingPower',summary.buyingPower.toNumber(), expectedBuyingPower.toNumber());
 
-		console.log(
+		console.log('totalCollateral',
 			summary.totalCollateral.toNumber(),
 			expectedTotalCollateral.toNumber()
 		);
 
-		console.log(
+		console.log('freeCollateral',
 			summary.freeCollateral.toNumber(),
 			expectedFreeCollateral.toNumber()
 		);
 
-		console.log(summary.marginRatio.toNumber(), expectedMarginRatio.toNumber());
-		console.log(summary.leverage.toNumber(), expectedLeverage.toNumber());
+		console.log('marginRatio',summary.marginRatio.toNumber(), expectedMarginRatio.toNumber());
+		console.log('leverage',summary.leverage.toNumber(), expectedLeverage.toNumber());
 
 		// todo: dont hate me
 		const buyingPower = userAccount.getBuyingPower();
@@ -151,10 +151,10 @@ describe('User Account', () => {
 			userUSDCAccount.publicKey
 		);
 
-		const expectedBuyingPower = new BN(10000000).mul(MAX_LEVERAGE);
-		const expectedFreeCollateral = new BN(10000000);
+		const expectedBuyingPower = new BN(usdcAmount).mul(MAX_LEVERAGE);
+		const expectedFreeCollateral = new BN(20000000);
 		const expectedPNL = new BN(0);
-		const expectedTotalCollateral = new BN(10000000);
+		const expectedTotalCollateral = new BN(20000000);
 		const expectedLeverage = new BN(0);
 		const expectedMarginRatio = new BN(Number.MAX_SAFE_INTEGER);
 
@@ -177,9 +177,9 @@ describe('User Account', () => {
 		);
 
 		const expectedPNL = new BN(0);
-		const expectedTotalCollateral = new BN(9950000);
-		const expectedBuyingPower = new BN(49500000);
-		const expectedFreeCollateral = new BN(4950000);
+		const expectedTotalCollateral = new BN(19900000);
+		const expectedBuyingPower = new BN(-500000); //todo?
+		const expectedFreeCollateral = new BN(-100000); //todo?
 		const expectedLeverage = new BN(50251); // 5x
 		const expectedMarginRatio = new BN(1990); // 20%
 
@@ -200,11 +200,11 @@ describe('User Account', () => {
 			marketIndex
 		);
 
-		const expectedPNL = new BN(4999450);
-		const expectedTotalCollateral = new BN(14949450);
-		const expectedBuyingPower = new BN(94495050);
-		const expectedFreeCollateral = new BN(9449505);
-		const expectedLeverage = new BN(36790);
+		const expectedPNL = new BN(9997800);
+		const expectedTotalCollateral = new BN(29897800);
+		const expectedBuyingPower = new BN(39491200);
+		const expectedFreeCollateral = new BN(7898240);
+		const expectedLeverage = new BN(36791);
 		const expectedMarginRatio = new BN(2718);
 
 		await assertState(
@@ -222,10 +222,10 @@ describe('User Account', () => {
 			marketIndex
 		);
 
-		const expectedBuyingPower = new BN(148944510);
-		const expectedFreeCollateral = new BN(14894451);
+		const expectedBuyingPower = new BN(148939015);
+		const expectedFreeCollateral = new BN(29787803);
 		const expectedPNL = new BN(0);
-		const expectedTotalCollateral = new BN(14894451);
+		const expectedTotalCollateral = new BN(29787803);
 		const expectedLeverage = new BN(0);
 		const expectedMarginRatio = new BN(Number.MAX_SAFE_INTEGER);
 

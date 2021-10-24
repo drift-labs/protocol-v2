@@ -244,7 +244,7 @@ describe('pyth-oracle', () => {
 			clearingHouse,
 			marketIndex,
 			priceFeedAddress,
-			[40]
+			[42]
 		);
 	});
 
