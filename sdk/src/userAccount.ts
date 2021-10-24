@@ -8,8 +8,7 @@ import {
 } from './clearingHouse';
 import { UserAccountData, UserPosition, UserPositionData } from './types';
 
-export const MAX_LEVERAGE = new BN(10);
-
+export const MAX_LEVERAGE = new BN(5);
 const FULL_LIQUIDATION_RATIO = new BN(500);
 const PARTIAL_LIQUIDATION_RATIO = new BN(625);
 const ZERO = new BN(0);
@@ -153,15 +152,13 @@ export class UserAccount {
 
 	public getBuyingPower(): BN {
 		this.assertIsSubscribed();
-		return this.getFreeCollateral().mul(
-			this.clearingHouse.getState().marginRatioInitial
-		);
+		return this.getFreeCollateral().mul(this.getMaxLeverage('Initial')).div(TEN_THOUSAND);
 	}
 
 	public getFreeCollateral(): BN {
 		this.assertIsSubscribed();
 		return this.getTotalCollateral().sub(
-			this.getTotalPositionValue().div(this.clearingHouse.getState().marginRatioInitial)
+			this.getTotalPositionValue().mul(TEN_THOUSAND).div(this.getMaxLeverage('Initial'))
 		);
 	}
 
@@ -231,6 +228,29 @@ export class UserAccount {
 			return ZERO;
 		}
 		return totalPositionValue.mul(TEN_THOUSAND).div(totalCollateral);
+	}
+
+	public getMaxLeverage(category?: | 'Initial' | 'Partial' | 'Maintenance'): BN {
+		const chState = this.clearingHouse.getState();
+		let marginRatioCategory: BN;
+		
+		switch (category) {
+			case 'Initial':
+				marginRatioCategory = chState.marginRatioInitial;
+				marginRatioCategory = new BN(2000); // todo
+				break;
+			case 'Maintenance':
+				marginRatioCategory = chState.marginRatioMaintenance;
+				break;
+			case 'Partial':
+				marginRatioCategory = chState.marginRatioPartial;
+				break;
+			default:
+				marginRatioCategory = chState.marginRatioInitial;
+				break;
+		}
+		const maxLeverage = TEN_THOUSAND.mul(TEN_THOUSAND).div(marginRatioCategory);
+		return maxLeverage;
 	}
 
 	/**
