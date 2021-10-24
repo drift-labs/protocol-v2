@@ -164,8 +164,8 @@ pub fn calculate_oracle_mark_spread(
         }
     }
 
-    let (oracle_price, _oracle_conf, _oracle_delay) =
-        amm.get_oracle_price(price_oracle, window, clock_slot)?;
+    let (oracle_price, _oracle_twap, _oracle_conf, _oracle_twac, _oracle_delay) =
+        amm.get_oracle_price(price_oracle, clock_slot)?;
 
     let price_spread = mark_price
         .checked_sub(oracle_price)
@@ -218,11 +218,8 @@ pub fn is_oracle_valid(
     clock_slot: u64,
     valid_oracle_guard_rails: &ValidityGuardRails,
 ) -> ClearingHouseResult<bool> {
-    let (oracle_price, oracle_conf, oracle_delay) =
-        amm.get_oracle_price(price_oracle, 0, clock_slot)?;
-
-    let (oracle_twap, oracle_twap_conf, _oracle_delay) =
-        amm.get_oracle_price(price_oracle, ONE_HOUR as u32, clock_slot)?;
+    let (oracle_price, oracle_twap, oracle_conf, oracle_twap_conf, oracle_delay) =
+        amm.get_oracle_price(price_oracle, clock_slot)?;
 
     let is_oracle_price_nonpositive = (oracle_twap <= 0) || (oracle_price <= 0);
 

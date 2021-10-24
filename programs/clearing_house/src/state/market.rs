@@ -99,25 +99,17 @@ impl AMM {
     pub fn get_pyth_price(
         &self,
         price_oracle: &AccountInfo,
-        window: u32,
         clock_slot: u64,
-    ) -> ClearingHouseResult<(i128, u128, i64)> {
+    ) -> ClearingHouseResult<(i128, i128, u128, u128, i64)> {
         let pyth_price_data = price_oracle
             .try_borrow_data()
             .or(Err(ErrorCode::UnableToLoadOracle.into()))?;
         let price_data = pyth_client::cast::<pyth_client::Price>(&pyth_price_data);
 
-        let oracle_price = if window > 0 {
-            price_data.twap.val as i128
-        } else {
-            price_data.agg.price as i128
-        };
-
-        let oracle_conf = if window > 0 {
-            price_data.twac.val as u128
-        } else {
-            price_data.agg.conf as u128
-        };
+        let oracle_price = price_data.agg.price as i128;
+        let oracle_conf = price_data.agg.conf as u128;
+        let oracle_twap = price_data.agg.price as i128;
+        let oracle_twac = price_data.twac.val as u128;
 
         let oracle_mantissa = 10_u128.pow(price_data.expo.unsigned_abs());
 
@@ -139,7 +131,20 @@ impl AMM {
             .ok_or_else(math_error!())?
             .checked_div(oracle_scale_div as i128)
             .ok_or_else(math_error!())?;
+
+        let oracle_twap_scaled = (oracle_twap)
+            .checked_mul(oracle_scale_mult as i128)
+            .ok_or_else(math_error!())?
+            .checked_div(oracle_scale_div as i128)
+            .ok_or_else(math_error!())?;
+
         let oracle_conf_scaled = (oracle_conf)
+            .checked_mul(oracle_scale_mult)
+            .ok_or_else(math_error!())?
+            .checked_div(oracle_scale_div)
+            .ok_or_else(math_error!())?;
+
+        let oracle_twac_scaled = (oracle_twac)
             .checked_mul(oracle_scale_mult)
             .ok_or_else(math_error!())?
             .checked_div(oracle_scale_div)
@@ -149,19 +154,31 @@ impl AMM {
             .checked_sub(price_data.valid_slot as i64)
             .ok_or_else(math_error!())?;
 
-        return Ok((oracle_price_scaled, oracle_conf_scaled, oracle_delay));
+        return Ok((
+            oracle_price_scaled,
+            oracle_twap_scaled,
+            oracle_conf_scaled,
+            oracle_twac_scaled,
+            oracle_delay,
+        ));
     }
 
     pub fn get_oracle_price(
         &self,
         price_oracle: &AccountInfo,
-        window: u32,
         clock_slot: u64,
-    ) -> ClearingHouseResult<(i128, u128, i64)> {
-        let (oracle_px, oracle_conf, oracle_delay) = match self.oracle_source {
-            OracleSource::Pyth => self.get_pyth_price(price_oracle, window, clock_slot)?,
-            OracleSource::Switchboard => (0, 0, 0),
-        };
-        return Ok((oracle_px, oracle_conf, oracle_delay));
+    ) -> ClearingHouseResult<(i128, i128, u128, u128, i64)> {
+        let (oracle_px, oracle_twap, oracle_conf, oracle_twac, oracle_delay) =
+            match self.oracle_source {
+                OracleSource::Pyth => self.get_pyth_price(price_oracle, clock_slot)?,
+                OracleSource::Switchboard => (0, 0, 0, 0, 0),
+            };
+        return Ok((
+            oracle_px,
+            oracle_twap,
+            oracle_conf,
+            oracle_twac,
+            oracle_delay,
+        ));
     }
 }

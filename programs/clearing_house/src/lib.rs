@@ -263,7 +263,7 @@ pub mod clearing_house {
         // Verify oracle is readable
         market
             .amm
-            .get_oracle_price(&ctx.accounts.oracle, 0, clock_slot)
+            .get_oracle_price(&ctx.accounts.oracle, clock_slot)
             .unwrap();
 
         markets.markets[Markets::index_from_u64(market_index)] = market;
