@@ -1,12 +1,10 @@
 use solana_program::msg;
 
 use crate::error::{ClearingHouseResult, ErrorCode};
-use crate::math::constants::{
-    AMM_ASSET_AMOUNT_PRECISION, MARK_PRICE_MANTISSA, PRICE_TO_PEG_PRECISION_RATIO, USDC_PRECISION,
-};
-use crate::math::{amm, bn, position::*, quote_asset::*};
+use crate::math::constants::PRICE_TO_PEG_PRECISION_RATIO;
+use crate::math::{amm, bn, quote_asset::*};
 use crate::math_error;
-use crate::state::market::{Market, AMM};
+use crate::state::market::AMM;
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum SwapDirection {

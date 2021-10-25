@@ -7,8 +7,7 @@ use crate::error::*;
 use crate::math::amm;
 use crate::math::collateral::calculate_updated_collateral;
 use crate::math::constants::{
-    AMM_ASSET_AMOUNT_PRECISION, AMM_TO_USDC_PRECISION_RATIO_I128, FUNDING_PAYMENT_MANTISSA,
-    ONE_HOUR, USDC_PRECISION,
+    AMM_TO_USDC_PRECISION_RATIO_I128, FUNDING_PAYMENT_MANTISSA, ONE_HOUR,
 };
 use crate::math::funding::{calculate_funding_payment, calculate_funding_rate_long_short};
 use crate::math::oracle;
