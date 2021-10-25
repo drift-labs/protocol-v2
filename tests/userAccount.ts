@@ -1,7 +1,7 @@
 import * as anchor from '@project-serum/anchor';
 import { Program } from '@project-serum/anchor';
 import { mockUSDCMint, mockUserUSDCAccount } from '../utils/mockAccounts';
-import { ClearingHouse, PEG_SCALAR } from '../sdk/src';
+import {ClearingHouse, PEG_SCALAR} from '../sdk/src';
 import { Keypair } from '@solana/web3.js';
 import BN from 'bn.js';
 import { MAX_LEVERAGE, UserAccount } from '../sdk/src/userAccount';
@@ -36,7 +36,12 @@ describe('User Account', () => {
 	const initialSOLPrice = 50;
 
 	const usdcAmount = new BN(20 * 10 ** 6);
-	const solPositionInitialValue = usdcAmount.mul(MAX_LEVERAGE);
+
+	const ONE_MANTISSA = new BN(100000);
+	const fee = ONE_MANTISSA.div(new BN(1000));
+	const solPositionInitialValue = usdcAmount
+		.mul(MAX_LEVERAGE)
+		.mul(ONE_MANTISSA.sub(MAX_LEVERAGE.mul(fee))).div(ONE_MANTISSA);
 	let userAccount: UserAccount;
 
 	before(async () => {
@@ -177,11 +182,11 @@ describe('User Account', () => {
 		);
 
 		const expectedPNL = new BN(0);
-		const expectedTotalCollateral = new BN(19900000);
-		const expectedBuyingPower = new BN(-500000); //todo?
-		const expectedFreeCollateral = new BN(-100000); //todo?
-		const expectedLeverage = new BN(50251); // 5x
-		const expectedMarginRatio = new BN(1990); // 20%
+		const expectedTotalCollateral = new BN(19900500);
+		const expectedBuyingPower = new BN(2500);
+		const expectedFreeCollateral = new BN(500);
+		const expectedLeverage = new BN(49998); // 5x
+		const expectedMarginRatio = new BN(2000); // 20%
 
 		await assertState(
 			expectedBuyingPower,
@@ -200,12 +205,12 @@ describe('User Account', () => {
 			marketIndex
 		);
 
-		const expectedPNL = new BN(9997800);
-		const expectedTotalCollateral = new BN(29897800);
-		const expectedBuyingPower = new BN(39491200);
-		const expectedFreeCollateral = new BN(7898240);
-		const expectedLeverage = new BN(36791);
-		const expectedMarginRatio = new BN(2718);
+		const expectedPNL = new BN(9947821);
+		const expectedTotalCollateral = new BN(29848321);
+		const expectedBuyingPower = new BN(39793785);
+		const expectedFreeCollateral = new BN(7958757);
+		const expectedLeverage = new BN(36667);
+		const expectedMarginRatio = new BN(2727);
 
 		await assertState(
 			expectedBuyingPower,
@@ -222,10 +227,10 @@ describe('User Account', () => {
 			marketIndex
 		);
 
-		const expectedBuyingPower = new BN(148939015);
-		const expectedFreeCollateral = new BN(29787803);
+		const expectedBuyingPower = new BN(148694265);
+		const expectedFreeCollateral = new BN(29738853);
 		const expectedPNL = new BN(0);
-		const expectedTotalCollateral = new BN(29787803);
+		const expectedTotalCollateral = new BN(29738853);
 		const expectedLeverage = new BN(0);
 		const expectedMarginRatio = new BN(Number.MAX_SAFE_INTEGER);
 

@@ -242,7 +242,6 @@ export class UserAccount {
 		switch (category) {
 			case 'Initial':
 				marginRatioCategory = chState.marginRatioInitial;
-				marginRatioCategory = new BN(2000); // todo
 				break;
 			case 'Maintenance':
 				marginRatioCategory = chState.marginRatioMaintenance;
