@@ -4,7 +4,8 @@ import { EventEmitter } from 'events';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import {
 	AMM_MANTISSA,
-	ClearingHouse, QUOTE_BASE_PRECISION_DIFF
+	ClearingHouse,
+	QUOTE_BASE_PRECISION_DIFF,
 } from './clearingHouse';
 import { UserAccountData, UserPosition, UserPositionData } from './types';
 
@@ -365,6 +366,50 @@ export class UserAccount {
 		const liqPrice = currentPrice.mul(pctChange).div(TEN_THOUSAND);
 
 		return liqPrice;
+	}
+
+	/**
+	 * Calculates the liquidation price for a position after closing a quote amount of the position.
+	 * @param positionMarketIndex
+	 * @param closeQuoteAmount
+	 * @returns
+	 */
+	public liquidationPriceAfterClose(
+		positionMarketIndex: BN,
+		closeQuoteAmount: BN
+	): BN {
+		const currentPosition = this.userPositionsAccount?.positions.find(
+			(position) => position.marketIndex.eq(positionMarketIndex)
+		);
+
+		const closeBaseAmount = currentPosition.baseAssetAmount
+			.mul(closeQuoteAmount)
+			.div(currentPosition.quoteAssetAmount)
+			.add(
+				currentPosition.baseAssetAmount
+					.mul(closeQuoteAmount)
+					.mod(currentPosition.quoteAssetAmount)
+			);
+
+		return this.liquidationPrice(
+			{ baseAssetAmount: closeBaseAmount, marketIndex: positionMarketIndex },
+			closeBaseAmount
+		);
+	}
+
+	/**
+	 * Returns the leverage ratio for the account after adding (or subtracting) the given quote size to the given position
+	 * @param positionMarketIndex
+	 * @param tradeAmount
+	 * @returns
+	 */
+	public accountLeverageRatioAfterTrade(
+		tradeAmount: BN
+	) {
+		return tradeAmount
+			.add(this.getTotalPositionValue())
+			.mul(new BN(10 ** 2))
+			.div(this.userAccountData.collateral);
 	}
 
 	public summary() {
