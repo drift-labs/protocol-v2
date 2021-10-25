@@ -2465,7 +2465,15 @@
             "type": "u128"
           },
           {
+            "name": "stopLossAmount",
+            "type": "u128"
+          },
+          {
             "name": "stopProfitPrice",
+            "type": "u128"
+          },
+          {
+            "name": "stopProfitAmount",
             "type": "u128"
           },
           {
