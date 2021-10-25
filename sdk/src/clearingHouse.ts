@@ -1573,16 +1573,18 @@ export class ClearingHouse {
 	}
 
 	public async withdrawFees(
+		marketIndex: BN,
 		amount: BN,
 		recipient: PublicKey
 	): Promise<TransactionSignature> {
 		this.assertIsSubscribed();
 
 		const state = await this.getState();
-		return await this.program.rpc.withdrawFees(amount, {
+		return await this.program.rpc.withdrawFees(marketIndex, amount, {
 			accounts: {
 				admin: this.wallet.publicKey,
 				state: await this.getStatePublicKey(),
+				markets: state.markets,
 				collateralVault: state.collateralVault,
 				collateralVaultAuthority: state.collateralVaultAuthority,
 				recipient: recipient,

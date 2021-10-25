@@ -563,7 +563,7 @@
       "accounts": [
         {
           "name": "state",
-          "isMut": true,
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -582,6 +582,11 @@
           "isSigner": false
         },
         {
+          "name": "markets",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "recipient",
           "isMut": true,
           "isSigner": false
@@ -593,6 +598,10 @@
         }
       ],
       "args": [
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        },
         {
           "name": "amount",
           "type": "u64"
@@ -1559,14 +1568,6 @@
             }
           },
           {
-            "name": "totalFee",
-            "type": "u128"
-          },
-          {
-            "name": "totalFeeWithdrawn",
-            "type": "u128"
-          },
-          {
             "name": "whitelistMint",
             "type": "publicKey"
           },
@@ -1793,7 +1794,7 @@
             "type": "u128"
           },
           {
-            "name": "cumulativeFee",
+            "name": "totalFeeMinusDistributions",
             "type": "u128"
           },
           {
@@ -2163,7 +2164,11 @@
             "type": "u128"
           },
           {
-            "name": "cumulativeFee",
+            "name": "totalFeeMinusDistributions",
+            "type": "u128"
+          },
+          {
+            "name": "totalFeeWithdrawn",
             "type": "u128"
           },
           {

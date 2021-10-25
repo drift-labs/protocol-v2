@@ -219,7 +219,8 @@ export type ClearingHouseMarketsAccountData = {
 			cumulativeFundingRateShort: BN;
 			cumulativeRepegRebateLong: BN;
 			cumulativeRepegRebateShort: BN;
-			cumulativeFee: BN;
+			totalFeeMinusDistributions: BN;
+			totalFeeWithdrawn: BN;
 			totalFee: BN;
 			minimumTradeSize: BN;
 		};

@@ -33,8 +33,6 @@ pub struct State {
     pub partial_liquidation_liquidator_share_denominator: u64,
     pub full_liquidation_liquidator_share_denominator: u64,
     pub fee_structure: FeeStructure,
-    pub total_fee: u128,
-    pub total_fee_withdrawn: u128,
     pub whitelist_mint: Pubkey,
     pub discount_mint: Pubkey,
     pub oracle_guard_rails: OracleGuardRails,

@@ -46,8 +46,8 @@ pub fn get_discount_token_and_referrer<'a, 'b, 'c, 'd>(
 
     let account_info_iter = &mut accounts.iter();
     if optional_accounts.discount_token {
-        let token_account_info =
-            next_account_info(account_info_iter).or(Err(ErrorCode::DiscountTokenNotFound.into()))?;
+        let token_account_info = next_account_info(account_info_iter)
+            .or(Err(ErrorCode::DiscountTokenNotFound.into()))?;
 
         let token_account = TokenAccount::unpack_unchecked(&token_account_info.data.borrow())
             .or(Err(ErrorCode::InvalidDiscountToken.into()))?;

@@ -4,8 +4,8 @@ use crate::math;
 
 use crate::math::constants::{
     MARK_PRICE_MANTISSA, PRICE_TO_PEG_PRECISION_RATIO,
-    SHARE_OF_FEES_ALLOCATED_TO_MARKET_DENOMINATOR, SHARE_OF_FEES_ALLOCATED_TO_MARKET_NUMERATOR,
-    USDC_PRECISION,
+    SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_DENOMINATOR,
+    SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR, USDC_PRECISION,
 };
 use crate::math_error;
 use crate::state::market::Market;
@@ -57,7 +57,7 @@ pub fn repeg(
         return Err(ErrorCode::InvalidRepegDirection.into());
     }
 
-    let mut pnl_r = amm.cumulative_fee;
+    let mut pnl_r = amm.total_fee_minus_distributions;
     let net_market_position = market.base_asset_amount;
 
     let amm_pnl_mantissa = math::repeg::calculate_repeg_candidate_pnl(market, new_peg_candidate)?;
@@ -93,9 +93,9 @@ pub fn repeg(
         if pnl_r
             < amm
                 .total_fee
-                .checked_mul(SHARE_OF_FEES_ALLOCATED_TO_MARKET_NUMERATOR)
+                .checked_mul(SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR)
                 .ok_or_else(math_error!())?
-                .checked_div(SHARE_OF_FEES_ALLOCATED_TO_MARKET_DENOMINATOR)
+                .checked_div(SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_DENOMINATOR)
                 .ok_or_else(math_error!())?
         {
             return Err(ErrorCode::InvalidRepegProfitability.into());
@@ -104,7 +104,7 @@ pub fn repeg(
         perserve_price = false;
     }
 
-    market.amm.cumulative_fee = pnl_r;
+    market.amm.total_fee_minus_distributions = pnl_r;
     market.amm.peg_multiplier = new_peg_candidate;
 
     if perserve_price {

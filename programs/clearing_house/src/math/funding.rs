@@ -2,8 +2,8 @@ use crate::error::*;
 use crate::math::bn;
 use crate::math::constants::{
     AMM_TO_USDC_PRECISION_RATIO, FUNDING_PAYMENT_MANTISSA, MARK_PRICE_MANTISSA,
-    SHARE_OF_FEES_ALLOCATED_TO_MARKET_DENOMINATOR, SHARE_OF_FEES_ALLOCATED_TO_MARKET_NUMERATOR,
-    USDC_TO_BASE_AMT_FUNDING_PRECISION,
+    SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_DENOMINATOR,
+    SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR, USDC_TO_BASE_AMT_FUNDING_PRECISION,
 };
 use crate::math_error;
 use crate::state::market::Market;
@@ -17,9 +17,9 @@ pub fn calculate_funding_rate_long_short(
     let symmetric_funding_pnl =
         -(calculate_funding_payment_in_quote_precision(funding_rate, market.base_asset_amount)?);
     if symmetric_funding_pnl >= 0 {
-        market.amm.cumulative_fee = market
+        market.amm.total_fee_minus_distributions = market
             .amm
-            .cumulative_fee
+            .total_fee_minus_distributions
             .checked_add(symmetric_funding_pnl.unsigned_abs())
             .ok_or_else(math_error!())?;
         return Ok((funding_rate, funding_rate));
@@ -28,9 +28,9 @@ pub fn calculate_funding_rate_long_short(
     let (capped_funding_rate, capped_symmetric_funding_pnl) =
         calculate_capped_funding_rate(&market, symmetric_funding_pnl, funding_rate)?;
 
-    market.amm.cumulative_fee = market
+    market.amm.total_fee_minus_distributions = market
         .amm
-        .cumulative_fee
+        .total_fee_minus_distributions
         .checked_sub(capped_symmetric_funding_pnl.unsigned_abs())
         .ok_or_else(math_error!())?;
     let funding_rate_long = if funding_rate < 0 {
@@ -53,12 +53,12 @@ fn calculate_capped_funding_rate(
     symmetric_funding_pnl: i128,
     funding_rate: i128,
 ) -> ClearingHouseResult<(i128, i128)> {
-    let cumulative_fee_lower_bound = market
+    let total_fee_minus_distributions_low_bound = market
         .amm
         .total_fee
-        .checked_mul(SHARE_OF_FEES_ALLOCATED_TO_MARKET_NUMERATOR)
+        .checked_mul(SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR)
         .ok_or_else(math_error!())?
-        .checked_div(SHARE_OF_FEES_ALLOCATED_TO_MARKET_DENOMINATOR)
+        .checked_div(SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_DENOMINATOR)
         .ok_or_else(math_error!())?;
 
     let this_funding_rate_inflow = -(if funding_rate > 0 {
@@ -67,19 +67,20 @@ fn calculate_capped_funding_rate(
         calculate_funding_payment_in_quote_precision(funding_rate, market.base_asset_amount_short)
     }?);
 
-    let cumulative_fee_available = market
+    let total_fee_minus_distributions_available = market
         .amm
-        .cumulative_fee
+        .total_fee_minus_distributions
         .checked_add(this_funding_rate_inflow.unsigned_abs())
         .ok_or_else(math_error!())?;
 
-    let funding_rate_pnl_limit = if cumulative_fee_available > cumulative_fee_lower_bound {
-        -(cumulative_fee_available
-            .checked_sub(cumulative_fee_lower_bound)
-            .ok_or_else(math_error!())? as i128)
-    } else {
-        0
-    };
+    let funding_rate_pnl_limit =
+        if total_fee_minus_distributions_available > total_fee_minus_distributions_low_bound {
+            -(total_fee_minus_distributions_available
+                .checked_sub(total_fee_minus_distributions_low_bound)
+                .ok_or_else(math_error!())? as i128)
+        } else {
+            0
+        };
 
     // if theres enough in fees, give user's symmetric at a loss funding
     // if theres a little in fees, give the user's assymetric capped outflow funding

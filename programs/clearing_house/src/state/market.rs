@@ -76,7 +76,8 @@ pub struct AMM {
     pub sqrt_k: u128,
     pub peg_multiplier: u128,
     pub total_fee: u128,
-    pub cumulative_fee: u128,
+    pub total_fee_minus_distributions: u128,
+    pub total_fee_withdrawn: u128,
     pub minimum_trade_size: u128,
 
     // upgrade-ability

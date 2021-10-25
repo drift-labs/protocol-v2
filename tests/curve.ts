@@ -109,7 +109,7 @@ describe('AMM Curve', () => {
 			USDC_PRECISION
 		);
 		const cumFeeNum = stripMantissa(
-			ammAccountState.cumulativeFee,
+			ammAccountState.totalFeeMinusDistributions,
 			USDC_PRECISION
 		);
 		console.log('totalFee', totalFeeNum);
@@ -251,7 +251,7 @@ describe('AMM Curve', () => {
 		marketData = marketsAccount.markets[marketIndex.toNumber()];
 		console.log(marketData.amm);
 		assert(
-			marketData.amm.totalFee.gt(marketData.amm.cumulativeFee)
+			marketData.amm.totalFee.gt(marketData.amm.totalFeeMinusDistributions)
 		);
 
 		const newPeg = marketData.amm.pegMultiplier;

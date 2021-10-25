@@ -243,15 +243,15 @@ describe('update k', () => {
 
 		
 		console.log('realizedFeeOld', 
-		stripMantissa(ammOld.cumulativeFee, USDC_PRECISION),
+		stripMantissa(ammOld.totalFeeMinusDistributions, USDC_PRECISION),
 		'realizedFeePostK', 
-		stripMantissa(ammKChange.cumulativeFee, USDC_PRECISION),
+		stripMantissa(ammKChange.totalFeeMinusDistributions, USDC_PRECISION),
 		'realizedFeePostClose',
-		stripMantissa(amm.cumulativeFee, USDC_PRECISION),
+		stripMantissa(amm.totalFeeMinusDistributions, USDC_PRECISION),
 		);
 		console.log('USER getTotalCollateral', stripMantissa(userAccount.getTotalCollateral(), USDC_PRECISION));
 
-		// assert(amm.cumulativeFee.lt(ammOld.cumulativeFee));
+		// assert(amm.totalFeeMinusDistributions.lt(ammOld.totalFeeMinusDistributions));
 	});
 
 
@@ -319,14 +319,14 @@ describe('update k', () => {
 		assert(amm.sqrtK.eq(newSqrtK));
 
 		console.log('realizedFeeOld', 
-		stripMantissa(ammOld.cumulativeFee, USDC_PRECISION),
+		stripMantissa(ammOld.totalFeeMinusDistributions, USDC_PRECISION),
 		'realizedFeePostK', 
-		stripMantissa(ammKChange.cumulativeFee, USDC_PRECISION),
+		stripMantissa(ammKChange.totalFeeMinusDistributions, USDC_PRECISION),
 		'realizedFeePostClose',
-		stripMantissa(amm.cumulativeFee, USDC_PRECISION),
+		stripMantissa(amm.totalFeeMinusDistributions, USDC_PRECISION),
 		);
 
-		assert(amm.cumulativeFee.gt(ammOld.cumulativeFee));
+		assert(amm.totalFeeMinusDistributions.gt(ammOld.totalFeeMinusDistributions));
 
 
 		console.log('USER getTotalCollateral', stripMantissa(userAccount.getTotalCollateral(), USDC_PRECISION));

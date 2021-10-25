@@ -96,22 +96,26 @@ pub mod clearing_house {
                     first_tier: DiscountTokenTier {
                         minimum_balance: DEFAULT_DISCOUNT_TOKEN_FIRST_TIER_MINIMUM_BALANCE,
                         discount_numerator: DEFAULT_DISCOUNT_TOKEN_FIRST_TIER_DISCOUNT_NUMERATOR,
-                        discount_denominator: DEFAULT_DISCOUNT_TOKEN_FIRST_TIER_DISCOUNT_DENOMINATOR,
+                        discount_denominator:
+                            DEFAULT_DISCOUNT_TOKEN_FIRST_TIER_DISCOUNT_DENOMINATOR,
                     },
                     second_tier: DiscountTokenTier {
                         minimum_balance: DEFAULT_DISCOUNT_TOKEN_SECOND_TIER_MINIMUM_BALANCE,
                         discount_numerator: DEFAULT_DISCOUNT_TOKEN_SECOND_TIER_DISCOUNT_NUMERATOR,
-                        discount_denominator: DEFAULT_DISCOUNT_TOKEN_SECOND_TIER_DISCOUNT_DENOMINATOR,
+                        discount_denominator:
+                            DEFAULT_DISCOUNT_TOKEN_SECOND_TIER_DISCOUNT_DENOMINATOR,
                     },
                     third_tier: DiscountTokenTier {
                         minimum_balance: DEFAULT_DISCOUNT_TOKEN_THIRD_TIER_MINIMUM_BALANCE,
                         discount_numerator: DEFAULT_DISCOUNT_TOKEN_THIRD_TIER_DISCOUNT_NUMERATOR,
-                        discount_denominator: DEFAULT_DISCOUNT_TOKEN_THIRD_TIER_DISCOUNT_DENOMINATOR,
+                        discount_denominator:
+                            DEFAULT_DISCOUNT_TOKEN_THIRD_TIER_DISCOUNT_DENOMINATOR,
                     },
                     fourth_tier: DiscountTokenTier {
                         minimum_balance: DEFAULT_DISCOUNT_TOKEN_FOURTH_TIER_MINIMUM_BALANCE,
                         discount_numerator: DEFAULT_DISCOUNT_TOKEN_FOURTH_TIER_DISCOUNT_NUMERATOR,
-                        discount_denominator: DEFAULT_DISCOUNT_TOKEN_FOURTH_TIER_DISCOUNT_DENOMINATOR,
+                        discount_denominator:
+                            DEFAULT_DISCOUNT_TOKEN_FOURTH_TIER_DISCOUNT_DENOMINATOR,
                     },
                 },
                 referral_discount: ReferralDiscount {
@@ -121,8 +125,6 @@ pub mod clearing_house {
                     referee_discount_denominator: DEFAULT_REFEREE_DISCOUNT_DENOMINATOR,
                 },
             },
-            total_fee: 0,
-            total_fee_withdrawn: 0,
             whitelist_mint: Pubkey::default(),
             discount_mint: Pubkey::default(),
             max_deposit: 0,
@@ -250,7 +252,8 @@ pub mod clearing_house {
                 sqrt_k: amm_base_asset_amount,
                 peg_multiplier: amm_peg_multiplier,
                 total_fee: 0,
-                cumulative_fee: 0,
+                total_fee_withdrawn: 0,
+                total_fee_minus_distributions: 0,
                 minimum_trade_size: 10000000,
                 padding0: 0,
                 padding1: 0,
@@ -618,12 +621,6 @@ pub mod clearing_house {
             &referrer,
         )?;
 
-        ctx.accounts.state.total_fee = ctx
-            .accounts
-            .state
-            .total_fee
-            .checked_add(fee)
-            .ok_or_else(math_error!())?;
         {
             let market = &mut ctx.accounts.markets.load_mut()?.markets
                 [Markets::index_from_u64(market_index)];
@@ -632,9 +629,9 @@ pub mod clearing_house {
                 .total_fee
                 .checked_add(fee)
                 .ok_or_else(math_error!())?;
-            market.amm.cumulative_fee = market
+            market.amm.total_fee_minus_distributions = market
                 .amm
-                .cumulative_fee
+                .total_fee_minus_distributions
                 .checked_add(fee)
                 .ok_or_else(math_error!())?;
         }
@@ -833,20 +830,14 @@ pub mod clearing_house {
             discount_token,
             &referrer,
         )?;
-        ctx.accounts.state.total_fee = ctx
-            .accounts
-            .state
-            .total_fee
-            .checked_add(fee)
-            .ok_or_else(math_error!())?;
         market.amm.total_fee = market
             .amm
             .total_fee
             .checked_add(fee)
             .ok_or_else(math_error!())?;
-        market.amm.cumulative_fee = market
+        market.amm.total_fee_minus_distributions = market
             .amm
-            .cumulative_fee
+            .total_fee_minus_distributions
             .checked_add(fee)
             .ok_or_else(math_error!())?;
 
@@ -1203,16 +1194,26 @@ pub mod clearing_house {
         Ok(())
     }
 
-    pub fn withdraw_fees(ctx: Context<WithdrawFees>, amount: u64) -> ProgramResult {
+    #[access_control(
+        market_initialized(&ctx.accounts.markets, market_index)
+    )]
+    pub fn withdraw_fees(
+        ctx: Context<WithdrawFees>,
+        market_index: u64,
+        amount: u64,
+    ) -> ProgramResult {
         let state = &mut ctx.accounts.state;
+        let markets = &mut ctx.accounts.markets.load_mut()?;
+        let market = &mut markets.markets[Markets::index_from_u64(market_index)];
 
-        let max_withdraw = state
+        let max_withdraw = market
+            .amm
             .total_fee
-            .checked_mul(SHARE_OF_FEES_ALLOCATED_TO_MARKET_NUMERATOR)
+            .checked_mul(SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR)
             .ok_or_else(math_error!())?
-            .checked_div(SHARE_OF_FEES_ALLOCATED_TO_MARKET_DENOMINATOR)
+            .checked_div(SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_DENOMINATOR)
             .ok_or_else(math_error!())?
-            .checked_sub(state.total_fee_withdrawn)
+            .checked_sub(market.amm.total_fee_withdrawn)
             .ok_or_else(math_error!())?;
 
         if (amount as u128) > max_withdraw {
@@ -1228,7 +1229,8 @@ pub mod clearing_house {
             amount,
         )?;
 
-        state.total_fee_withdrawn = state
+        market.amm.total_fee_withdrawn = market
+            .amm
             .total_fee_withdrawn
             .checked_add(amount as u128)
             .ok_or_else(math_error!())?;
@@ -1267,9 +1269,9 @@ pub mod clearing_house {
             .checked_add(amount as u128)
             .ok_or_else(math_error!())?;
 
-        let state = &mut ctx.accounts.state;
-        state.total_fee = state
-            .total_fee
+        market
+            .amm
+            .total_fee_minus_distributions
             .checked_add(amount as u128)
             .ok_or_else(math_error!())?;
 
@@ -1334,7 +1336,7 @@ pub mod clearing_house {
             base_asset_amount: market.base_asset_amount,
             open_interest: market.open_interest,
             total_fee: market.amm.total_fee,
-            cumulative_fee: market.amm.cumulative_fee,
+            total_fee_minus_distributions: market.amm.total_fee_minus_distributions,
             adjustment_cost: adjustment_cost,
         });
 
@@ -1487,19 +1489,24 @@ pub mod clearing_house {
         let adjustment_cost = math::amm::adjust_k_cost(market, bn::U256::from(sqrt_k))?;
 
         if adjustment_cost > 0 {
-            if adjustment_cost.unsigned_abs() > market.amm.cumulative_fee {
+            let max_cost = market
+                .amm
+                .total_fee_minus_distributions
+                .checked_sub(market.amm.total_fee_withdrawn)
+                .ok_or_else(math_error!())?;
+            if adjustment_cost.unsigned_abs() > max_cost {
                 return Err(ErrorCode::InvalidUpdateK.into());
             } else {
-                market.amm.cumulative_fee = market
+                market.amm.total_fee_minus_distributions = market
                     .amm
-                    .cumulative_fee
+                    .total_fee_minus_distributions
                     .checked_sub(adjustment_cost.unsigned_abs())
                     .ok_or_else(math_error!())?;
             }
         } else {
-            market.amm.cumulative_fee = market
+            market.amm.total_fee_minus_distributions = market
                 .amm
-                .cumulative_fee
+                .total_fee_minus_distributions
                 .checked_add(adjustment_cost.unsigned_abs())
                 .ok_or_else(math_error!())?;
         }
@@ -1528,7 +1535,7 @@ pub mod clearing_house {
         let sqrt_k_after = amm.sqrt_k;
 
         let total_fee = amm.total_fee;
-        let cumulative_fee = amm.cumulative_fee;
+        let total_fee_minus_distributions = amm.total_fee_minus_distributions;
 
         let curve_history = &mut ctx.accounts.curve_history.load_mut()?;
         let record_id = curve_history.next_record_id();
@@ -1550,7 +1557,7 @@ pub mod clearing_house {
             open_interest,
             adjustment_cost,
             total_fee,
-            cumulative_fee,
+            total_fee_minus_distributions,
         });
 
         Ok(())

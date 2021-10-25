@@ -2,8 +2,8 @@ use crate::error::*;
 use crate::math::bn::U256;
 use crate::math::constants::{
     AMM_ASSET_AMOUNT_PRECISION, MARK_PRICE_MANTISSA, PRICE_TO_PEG_PRECISION_RATIO,
-    SHARE_OF_FEES_ALLOCATED_TO_MARKET_DENOMINATOR, SHARE_OF_FEES_ALLOCATED_TO_MARKET_NUMERATOR,
-    USDC_PRECISION,
+    SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_DENOMINATOR,
+    SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR, USDC_PRECISION,
 };
 use crate::math_error;
 use crate::state::market::Market;
@@ -104,17 +104,17 @@ pub fn find_valid_repeg(
             )
             .ok_or_else(math_error!())?;
 
-        if pnl > 0 || pnl_usdc.unsigned_abs() < amm.cumulative_fee {
-            let cum_pnl_profit = (amm.cumulative_fee as i128)
+        if pnl > 0 || pnl_usdc.unsigned_abs() < amm.total_fee_minus_distributions {
+            let cum_pnl_profit = (amm.total_fee_minus_distributions as i128)
                 .checked_add(pnl_usdc)
                 .ok_or_else(math_error!())?;
 
             if cum_pnl_profit
                 >= amm
                     .total_fee
-                    .checked_mul(SHARE_OF_FEES_ALLOCATED_TO_MARKET_NUMERATOR)
+                    .checked_mul(SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR)
                     .ok_or_else(math_error!())?
-                    .checked_div(SHARE_OF_FEES_ALLOCATED_TO_MARKET_DENOMINATOR)
+                    .checked_div(SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_DENOMINATOR)
                     .ok_or_else(math_error!())? as i128
             {
                 break;

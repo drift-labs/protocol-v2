@@ -65,6 +65,6 @@ pub struct CurveRecord {
     pub base_asset_amount: i128,
     pub open_interest: u128,
     pub total_fee: u128,
-    pub cumulative_fee: u128,
+    pub total_fee_minus_distributions: u128,
     pub adjustment_cost: i128,
 }

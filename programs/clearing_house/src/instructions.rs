@@ -219,7 +219,6 @@ pub struct WithdrawCollateral<'info> {
 #[derive(Accounts)]
 pub struct WithdrawFees<'info> {
     #[account(
-        mut,
         has_one = admin
     )]
     pub state: Box<Account<'info, State>>,
@@ -233,6 +232,11 @@ pub struct WithdrawFees<'info> {
         constraint = &state.collateral_vault_authority.eq(&collateral_vault_authority.key())
     )]
     pub collateral_vault_authority: AccountInfo<'info>,
+    #[account(
+        mut,
+        constraint = &state.markets.eq(&markets.key())
+    )]
+    pub markets: Loader<'info, Markets>,
     #[account(mut)]
     pub recipient: Box<Account<'info, TokenAccount>>,
     pub token_program: Program<'info, Token>,
