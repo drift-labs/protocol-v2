@@ -62,7 +62,7 @@ async function deployDevnet(provider: Provider) {
 
         const marketIndex = new BN(i);
         const periodicity = new BN(3600);
-        const kSqrt = new anchor.BN(2 * 10 ** 12);
+        const kSqrt = new anchor.BN(1 * 10 ** 12);
         const ammQuoteAssetAmount =  kSqrt;
         const ammBaseAssetAmount =  kSqrt;
         const pegMultiplierAst = new anchor.BN(astPrice * PEG_SCALAR.toNumber());
@@ -93,7 +93,7 @@ try {
         throw new Error('ANCHOR_WALLET must be set.');
     }
     deployDevnet(
-        anchor.Provider.local('')
+        anchor.Provider.local('https://drift.genesysgo.net')
     );
 } catch (e) {
     console.error(e);

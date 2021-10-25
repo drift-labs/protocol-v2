@@ -39,7 +39,7 @@ export const configs: { [key in DriftEnv]: DriftConfig } = {
 	'mainnet-beta': {
 		ENV: 'mainnet-beta',
 		PYTH_ORACLE_MAPPING_ADDRESS: 'AHtgzX45WTKfkPG53L6WYhGEXwQkN1BVknET3sVsLL8J',
-		CLEARING_HOUSE_PROGRAM_ID: 'damm6x5ddj4JZKzpFN9y2jgtnHY3xryBUoQfjFuL5qo',
+		CLEARING_HOUSE_PROGRAM_ID: 'dammHkt7jmytvbS3nHTxQNEcP59aE57nxwV21YdqEDN',
 		USDC_MINT_ADDRESS: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
 		MOCK_USDC_FAUCET_ADDRESS: 'FPj8ZqD9CnsDismBjHq4oXLjm8zypvitc86mSwj9tYgH',
 		EXCHANGE_HISTORY_SERVER_URL: 'https://mainnet-beta.history.drift.trade',
