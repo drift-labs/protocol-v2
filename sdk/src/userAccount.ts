@@ -153,13 +153,17 @@ export class UserAccount {
 
 	public getBuyingPower(): BN {
 		this.assertIsSubscribed();
-		return this.getFreeCollateral().mul(this.getMaxLeverage('Initial')).div(TEN_THOUSAND);
+		return this.getFreeCollateral()
+			.mul(this.getMaxLeverage('Initial'))
+			.div(TEN_THOUSAND);
 	}
 
 	public getFreeCollateral(): BN {
 		this.assertIsSubscribed();
 		return this.getTotalCollateral().sub(
-			this.getTotalPositionValue().mul(TEN_THOUSAND).div(this.getMaxLeverage('Initial'))
+			this.getTotalPositionValue()
+				.mul(TEN_THOUSAND)
+				.div(this.getMaxLeverage('Initial'))
 		);
 	}
 
@@ -231,10 +235,10 @@ export class UserAccount {
 		return totalPositionValue.mul(TEN_THOUSAND).div(totalCollateral);
 	}
 
-	public getMaxLeverage(category?: | 'Initial' | 'Partial' | 'Maintenance'): BN {
+	public getMaxLeverage(category?: 'Initial' | 'Partial' | 'Maintenance'): BN {
 		const chState = this.clearingHouse.getState();
 		let marginRatioCategory: BN;
-		
+
 		switch (category) {
 			case 'Initial':
 				marginRatioCategory = chState.marginRatioInitial;
@@ -389,11 +393,19 @@ export class UserAccount {
 				currentPosition.baseAssetAmount
 					.mul(closeQuoteAmount)
 					.mod(currentPosition.quoteAssetAmount)
-			);
+			)
+			.neg();
+
+		const newPositionAmount = currentPosition.baseAssetAmount
+			.add(closeBaseAmount)
+			.div(AMM_MANTISSA);
 
 		return this.liquidationPrice(
-			{ baseAssetAmount: closeBaseAmount, marketIndex: positionMarketIndex },
-			closeBaseAmount
+			{
+				baseAssetAmount: newPositionAmount,
+				marketIndex: positionMarketIndex,
+			},
+			newPositionAmount
 		);
 	}
 
@@ -403,9 +415,7 @@ export class UserAccount {
 	 * @param tradeAmount
 	 * @returns
 	 */
-	public accountLeverageRatioAfterTrade(
-		tradeAmount: BN
-	) {
+	public accountLeverageRatioAfterTrade(tradeAmount: BN) {
 		return tradeAmount
 			.add(this.getTotalPositionValue())
 			.mul(new BN(10 ** 2))
