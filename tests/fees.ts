@@ -260,7 +260,7 @@ describe('fees', () => {
 		await clearingHouse.openPosition(
 			userAccountPublicKey,
 			PositionDirection.LONG,
-			usdcAmount,
+			usdcAmount.mul(new BN(9)).div(new BN(10)),
 			marketIndex,
 			new BN(0),
 			driftTokenAccount.address,
@@ -271,16 +271,16 @@ describe('fees', () => {
 			userAccountPublicKey
 		);
 
-		assert(user.collateral.eq(new BN(9959000)));
-		assert(user.totalFeePaid.eq(new BN(41000)));
-		assert(user.totalDriftTokenRebate.eq(new BN(5000)));
-		assert(user.totalRefereeRebate.eq(new BN(2000)));
+		assert(user.collateral.eq(new BN(9959700)));
+		assert(user.totalFeePaid.eq(new BN(40300)));
+		assert(user.totalDriftTokenRebate.eq(new BN(4800)));
+		assert(user.totalRefereeRebate.eq(new BN(1950)));
 
 		const referrer: any = await clearingHouse.program.account.user.fetch(
 			referrerUserAccountPublicKey
 		);
 
-		assert(referrer.totalReferralReward.eq(new BN(2000)));
+		assert(referrer.totalReferralReward.eq(new BN(1950)));
 	});
 
 	it('Close position', async () => {
@@ -296,15 +296,15 @@ describe('fees', () => {
 			userAccountPublicKey
 		);
 
-		assert(user.collateral.eq(new BN(9924000)));
-		assert(user.totalFeePaid.eq(new BN(76000)));
-		assert(user.totalDriftTokenRebate.eq(new BN(15000)));
-		assert(user.totalRefereeRebate.eq(new BN(4500)));
+		assert(user.collateral.eq(new BN(9925400)));
+		assert(user.totalFeePaid.eq(new BN(74600)));
+		assert(user.totalDriftTokenRebate.eq(new BN(14600)));
+		assert(user.totalRefereeRebate.eq(new BN(4400)));
 
 		const referrer: any = await clearingHouse.program.account.user.fetch(
 			referrerUserAccountPublicKey
 		);
 
-		assert(referrer.totalReferralReward.eq(new BN(4500)));
+		assert(referrer.totalReferralReward.eq(new BN(4400)));
 	});
 });

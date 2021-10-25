@@ -80,7 +80,7 @@ describe('max reserves', () => {
     });
 
     it('open max positions', async () => {
-        const usdcPerPosition = usdcAmount.mul(new BN(5)).div(new BN(maxPositions));
+        const usdcPerPosition = usdcAmount.mul(new BN(5)).div(new BN(maxPositions)).mul(new BN(99)).div(new BN(100));;
         for (let i  = 0; i < maxPositions; i++) {
             await clearingHouse.openPosition(
                 userAccountPublicKey,

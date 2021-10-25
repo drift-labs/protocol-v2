@@ -7,7 +7,7 @@ import { getTokenAccount } from '@project-serum/common';
 
 import { PublicKey } from '@solana/web3.js';
 
-import { AMM_MANTISSA, ClearingHouse, PositionDirection } from '../sdk/src';
+import {AMM_MANTISSA, ClearingHouse, MAX_LEVERAGE, PositionDirection} from '../sdk/src';
 
 import Markets from '../sdk/src/constants/markets';
 
@@ -16,6 +16,16 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from '../utils/mockAccounts';
+
+const calculateTradeAmount = (amountOfCollateral: BN) => {
+	const ONE_MANTISSA = new BN(100000);
+	const fee = ONE_MANTISSA.div(new BN(1000));
+	const tradeAmount = amountOfCollateral
+		.mul(MAX_LEVERAGE)
+		.mul(ONE_MANTISSA.sub(MAX_LEVERAGE.mul(fee)))
+		.div(ONE_MANTISSA);
+	return tradeAmount;
+};
 
 describe('admin withdraw', () => {
 	const provider = anchor.Provider.local();
@@ -40,7 +50,7 @@ describe('admin withdraw', () => {
 	);
 
 	const usdcAmount = new BN(10 * 10 ** 6);
-	const fee = new BN(50000);
+	const fee = new BN(49750);
 
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
@@ -72,7 +82,7 @@ describe('admin withdraw', () => {
 			);
 
 		const marketIndex = new BN(0);
-		const incrementalUSDCNotionalAmount = usdcAmount.mul(new BN(5));
+		const incrementalUSDCNotionalAmount = calculateTradeAmount(usdcAmount);
 		await clearingHouse.openPosition(
 			userAccountPublicKey,
 			PositionDirection.LONG,
@@ -126,7 +136,7 @@ describe('admin withdraw', () => {
 		const withdrawAmount = fee.div(new BN(4));
 
 		let clearingHouseState = clearingHouse.getState();
-		assert(clearingHouseState.totalFee.eq(new BN(50000)));
+		assert(clearingHouseState.totalFee.eq(fee));
 
 		await clearingHouse.withdrawFromInsuranceVaultToMarket(
 			new BN(0),
@@ -136,12 +146,12 @@ describe('admin withdraw', () => {
 			provider,
 			clearingHouseState.collateralVault
 		);
-		assert(collateralVaultTokenAccount.amount.eq(new BN(9987500)));
+		assert(collateralVaultTokenAccount.amount.eq(new BN(9987562)));
 
 		clearingHouseState = clearingHouse.getState();
-		assert(clearingHouseState.totalFee.eq(new BN(62500)));
+		assert(clearingHouseState.totalFee.eq(new BN(62187)));
 
 		const market = clearingHouse.getMarketsAccount().markets[0];
-		console.assert(market.amm.totalFee.eq(new BN(62500)));
+		console.assert(market.amm.totalFee.eq(new BN(62187)));
 	});
 });

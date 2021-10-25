@@ -6,7 +6,7 @@ import {Program, Wallet} from '@project-serum/anchor';
 
 import {Keypair} from '@solana/web3.js';
 
-import {ClearingHouse, PositionDirection} from '../sdk/src';
+import {ClearingHouse, MAX_LEVERAGE, PositionDirection} from '../sdk/src';
 
 import Markets from '../sdk/src/constants/markets';
 
@@ -15,6 +15,16 @@ import {
     mockUSDCMint, mockUserUSDCAccount,
 } from '../utils/mockAccounts';
 import { FeeStructure } from '../sdk';
+
+const calculateTradeAmount = (amountOfCollateral: BN) => {
+    const ONE_MANTISSA = new BN(100000);
+    const fee = ONE_MANTISSA.div(new BN(1000));
+    const tradeAmount = amountOfCollateral
+        .mul(MAX_LEVERAGE)
+        .mul(ONE_MANTISSA.sub(MAX_LEVERAGE.mul(fee)))
+        .div(ONE_MANTISSA);
+    return tradeAmount;
+};
 
 describe('round in favor', () => {
     const provider = anchor.Provider.local();
@@ -116,7 +126,7 @@ describe('round in favor', () => {
         await clearingHouse.openPosition(
             userAccountPublicKey,
             PositionDirection.SHORT,
-            usdcAmount.mul(new BN(5)),
+            calculateTradeAmount(usdcAmount),
             marketIndex,
             new BN(0),
         );
@@ -135,7 +145,7 @@ describe('round in favor', () => {
             userAccountPublicKey
         );
 
-        assert(user.collateral.eq(new BN(9972000)));
+        assert(user.collateral.eq(new BN(9974025)));
     });
 
     it('long', async () => {
@@ -160,7 +170,7 @@ describe('round in favor', () => {
         await clearingHouse.openPosition(
             userAccountPublicKey,
             PositionDirection.LONG,
-            usdcAmount.mul(new BN(5)),
+            calculateTradeAmount(usdcAmount),
             marketIndex,
             new BN(0),
         );
@@ -179,6 +189,6 @@ describe('round in favor', () => {
             userAccountPublicKey
         );
 
-        assert(user.collateral.eq(new BN(9963000)));
+        assert(user.collateral.eq(new BN(9960975)));
     });
 });
