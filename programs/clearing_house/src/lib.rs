@@ -637,7 +637,7 @@ pub mod clearing_house {
                 .ok_or_else(math_error!())?;
         }
 
-        user.collateral = user.collateral.checked_sub(fee).or(Some(0))?;
+        user.collateral = user.collateral.checked_sub(fee).or(Some(0)).unwrap();
 
         user.total_fee_paid = user
             .total_fee_paid
@@ -848,7 +848,7 @@ pub mod clearing_house {
             .checked_add(fee)
             .ok_or_else(math_error!())?;
 
-        user.collateral = user.collateral.checked_sub(fee).or(Some(0))?;
+        user.collateral = user.collateral.checked_sub(fee).or(Some(0)).unwrap();
 
         user.total_fee_paid = user
             .total_fee_paid
