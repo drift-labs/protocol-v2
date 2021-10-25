@@ -5,7 +5,7 @@ use pc::Price;
 #[cfg(feature = "mainnet-beta")]
 declare_id!("GWXu4vLvXFN87dePFvM7Ejt8HEALEG9GNmwimNKHZrXG");
 #[cfg(not(feature = "mainnet-beta"))]
-declare_id!("HN4aTUFp9Dt5YoLv1GWxRMPybotL9gorGjRJrq1RqxQ7");
+declare_id!("BjczPRJVfWpPVUuSbikfKiFZHjEZMcdYvcXc8HagJoEf");
 
 #[program]
 pub mod pyth {
