@@ -35,32 +35,32 @@ pub fn get_whitelist_token(
     return Ok(Some(token_account));
 }
 
-pub fn get_drift_token_and_referrer<'a, 'b, 'c, 'd>(
+pub fn get_discount_token_and_referrer<'a, 'b, 'c, 'd>(
     optional_accounts: ManagePositionOptionalAccounts,
     accounts: &'a [AccountInfo<'b>],
-    drift_mint: &'c Pubkey,
+    discount_mint: &'c Pubkey,
     user_public_key: &'d Pubkey,
 ) -> ClearingHouseResult<(Option<TokenAccount>, Option<Account<'b, User>>)> {
-    let mut optional_drift_token = None;
+    let mut optional_discount_token = None;
     let mut optional_referrer = None;
 
     let account_info_iter = &mut accounts.iter();
-    if optional_accounts.drift_token {
+    if optional_accounts.discount_token {
         let token_account_info =
-            next_account_info(account_info_iter).or(Err(ErrorCode::DriftTokenNotFound.into()))?;
+            next_account_info(account_info_iter).or(Err(ErrorCode::DiscountTokenNotFound.into()))?;
 
         let token_account = TokenAccount::unpack_unchecked(&token_account_info.data.borrow())
-            .or(Err(ErrorCode::InvalidDriftToken.into()))?;
+            .or(Err(ErrorCode::InvalidDiscountToken.into()))?;
 
         if !token_account.is_initialized() {
-            return Err(ErrorCode::InvalidDriftToken.into());
+            return Err(ErrorCode::InvalidDiscountToken.into());
         }
 
-        if !token_account.mint.eq(drift_mint) {
-            return Err(ErrorCode::InvalidDriftToken.into());
+        if !token_account.mint.eq(discount_mint) {
+            return Err(ErrorCode::InvalidDiscountToken.into());
         }
 
-        optional_drift_token = Some(token_account);
+        optional_discount_token = Some(token_account);
     }
 
     if optional_accounts.referrer {
@@ -75,5 +75,5 @@ pub fn get_drift_token_and_referrer<'a, 'b, 'c, 'd>(
         }
     }
 
-    return Ok((optional_drift_token, optional_referrer));
+    return Ok((optional_discount_token, optional_referrer));
 }

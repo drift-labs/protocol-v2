@@ -1196,7 +1196,7 @@
       ]
     },
     {
-      "name": "updateDriftMint",
+      "name": "updateDiscountMint",
       "accounts": [
         {
           "name": "admin",
@@ -1211,7 +1211,7 @@
       ],
       "args": [
         {
-          "name": "protocolMint",
+          "name": "discountMint",
           "type": "publicKey"
         }
       ]
@@ -1571,7 +1571,7 @@
             "type": "publicKey"
           },
           {
-            "name": "driftMint",
+            "name": "discountMint",
             "type": "publicKey"
           },
           {
@@ -1664,7 +1664,7 @@
             "type": "u128"
           },
           {
-            "name": "totalDriftTokenRebate",
+            "name": "totalTokenDiscount",
             "type": "u128"
           },
           {
@@ -1672,7 +1672,7 @@
             "type": "u128"
           },
           {
-            "name": "totalRefereeRebate",
+            "name": "totalRefereeDiscount",
             "type": "u128"
           },
           {
@@ -1955,7 +1955,7 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "driftToken",
+            "name": "discountToken",
             "type": "bool"
           },
           {
@@ -2267,54 +2267,54 @@
             "type": "u128"
           },
           {
-            "name": "driftTokenRebate",
+            "name": "discountTokenTiers",
             "type": {
-              "defined": "DriftTokenRebate"
+              "defined": "DiscountTokenTiers"
             }
           },
           {
-            "name": "referralRebate",
+            "name": "referralDiscount",
             "type": {
-              "defined": "ReferralRebate"
+              "defined": "ReferralDiscount"
             }
           }
         ]
       }
     },
     {
-      "name": "DriftTokenRebate",
+      "name": "DiscountTokenTiers",
       "type": {
         "kind": "struct",
         "fields": [
           {
             "name": "firstTier",
             "type": {
-              "defined": "DriftTokenRebateTier"
+              "defined": "DiscountTokenTier"
             }
           },
           {
             "name": "secondTier",
             "type": {
-              "defined": "DriftTokenRebateTier"
+              "defined": "DiscountTokenTier"
             }
           },
           {
             "name": "thirdTier",
             "type": {
-              "defined": "DriftTokenRebateTier"
+              "defined": "DiscountTokenTier"
             }
           },
           {
             "name": "fourthTier",
             "type": {
-              "defined": "DriftTokenRebateTier"
+              "defined": "DiscountTokenTier"
             }
           }
         ]
       }
     },
     {
-      "name": "DriftTokenRebateTier",
+      "name": "DiscountTokenTier",
       "type": {
         "kind": "struct",
         "fields": [
@@ -2323,18 +2323,18 @@
             "type": "u64"
           },
           {
-            "name": "rebateNumerator",
+            "name": "discountNumerator",
             "type": "u128"
           },
           {
-            "name": "rebateDenominator",
+            "name": "discountDenominator",
             "type": "u128"
           }
         ]
       }
     },
     {
-      "name": "ReferralRebate",
+      "name": "ReferralDiscount",
       "type": {
         "kind": "struct",
         "fields": [
@@ -2347,11 +2347,11 @@
             "type": "u128"
           },
           {
-            "name": "refereeRebateNumerator",
+            "name": "refereeDiscountNumerator",
             "type": "u128"
           },
           {
-            "name": "refereeRebateDenominator",
+            "name": "refereeDiscountDenominator",
             "type": "u128"
           }
         ]
@@ -2409,11 +2409,11 @@
             "type": "u128"
           },
           {
-            "name": "refereeRebate",
+            "name": "refereeDiscount",
             "type": "u128"
           },
           {
-            "name": "driftTokenRebate",
+            "name": "tokenDiscount",
             "type": "u128"
           },
           {
@@ -2705,13 +2705,13 @@
     },
     {
       "code": 328,
-      "name": "InvalidDriftToken",
-      "msg": "Invalid drift token"
+      "name": "InvalidDiscountToken",
+      "msg": "Invalid discount token"
     },
     {
       "code": 329,
-      "name": "DriftTokenNotFound",
-      "msg": "Drift token not found"
+      "name": "DiscountTokenNotFound",
+      "msg": "Discount token not found"
     },
     {
       "code": 330,

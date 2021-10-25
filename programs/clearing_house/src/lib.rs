@@ -92,39 +92,39 @@ pub mod clearing_house {
             fee_structure: FeeStructure {
                 fee_numerator: DEFAULT_FEE_NUMERATOR,
                 fee_denominator: DEFAULT_FEE_DENOMINATOR,
-                drift_token_rebate: DriftTokenRebate {
-                    first_tier: DriftTokenRebateTier {
-                        minimum_balance: DEFAULT_PROTOCOL_TOKEN_FIRST_TIER_MINIMUM_BALANCE,
-                        rebate_numerator: DEFAULT_PROTOCOL_TOKEN_FIRST_TIER_REBATE_NUMERATOR,
-                        rebate_denominator: DEFAULT_PROTOCOL_TOKEN_FIRST_TIER_REBATE_DENOMINATOR,
+                discount_token_tiers: DiscountTokenTiers {
+                    first_tier: DiscountTokenTier {
+                        minimum_balance: DEFAULT_DISCOUNT_TOKEN_FIRST_TIER_MINIMUM_BALANCE,
+                        discount_numerator: DEFAULT_DISCOUNT_TOKEN_FIRST_TIER_DISCOUNT_NUMERATOR,
+                        discount_denominator: DEFAULT_DISCOUNT_TOKEN_FIRST_TIER_DISCOUNT_DENOMINATOR,
                     },
-                    second_tier: DriftTokenRebateTier {
-                        minimum_balance: DEFAULT_PROTOCOL_TOKEN_SECOND_TIER_MINIMUM_BALANCE,
-                        rebate_numerator: DEFAULT_PROTOCOL_TOKEN_SECOND_TIER_REBATE_NUMERATOR,
-                        rebate_denominator: DEFAULT_PROTOCOL_TOKEN_SECOND_TIER_REBATE_DENOMINATOR,
+                    second_tier: DiscountTokenTier {
+                        minimum_balance: DEFAULT_DISCOUNT_TOKEN_SECOND_TIER_MINIMUM_BALANCE,
+                        discount_numerator: DEFAULT_DISCOUNT_TOKEN_SECOND_TIER_DISCOUNT_NUMERATOR,
+                        discount_denominator: DEFAULT_DISCOUNT_TOKEN_SECOND_TIER_DISCOUNT_DENOMINATOR,
                     },
-                    third_tier: DriftTokenRebateTier {
-                        minimum_balance: DEFAULT_PROTOCOL_TOKEN_THIRD_TIER_MINIMUM_BALANCE,
-                        rebate_numerator: DEFAULT_PROTOCOL_TOKEN_THIRD_TIER_REBATE_NUMERATOR,
-                        rebate_denominator: DEFAULT_PROTOCOL_TOKEN_THIRD_TIER_REBATE_DENOMINATOR,
+                    third_tier: DiscountTokenTier {
+                        minimum_balance: DEFAULT_DISCOUNT_TOKEN_THIRD_TIER_MINIMUM_BALANCE,
+                        discount_numerator: DEFAULT_DISCOUNT_TOKEN_THIRD_TIER_DISCOUNT_NUMERATOR,
+                        discount_denominator: DEFAULT_DISCOUNT_TOKEN_THIRD_TIER_DISCOUNT_DENOMINATOR,
                     },
-                    fourth_tier: DriftTokenRebateTier {
-                        minimum_balance: DEFAULT_PROTOCOL_TOKEN_FOURTH_TIER_MINIMUM_BALANCE,
-                        rebate_numerator: DEFAULT_PROTOCOL_TOKEN_FOURTH_TIER_REBATE_NUMERATOR,
-                        rebate_denominator: DEFAULT_PROTOCOL_TOKEN_FOURTH_TIER_REBATE_DENOMINATOR,
+                    fourth_tier: DiscountTokenTier {
+                        minimum_balance: DEFAULT_DISCOUNT_TOKEN_FOURTH_TIER_MINIMUM_BALANCE,
+                        discount_numerator: DEFAULT_DISCOUNT_TOKEN_FOURTH_TIER_DISCOUNT_NUMERATOR,
+                        discount_denominator: DEFAULT_DISCOUNT_TOKEN_FOURTH_TIER_DISCOUNT_DENOMINATOR,
                     },
                 },
-                referral_rebate: ReferralRebate {
+                referral_discount: ReferralDiscount {
                     referrer_reward_numerator: DEFAULT_REFERRER_REWARD_NUMERATOR,
                     referrer_reward_denominator: DEFAULT_REFERRER_REWARD_DENOMINATOR,
-                    referee_rebate_numerator: DEFAULT_REFEREE_REBATE_NUMERATOR,
-                    referee_rebate_denominator: DEFAULT_REFEREE_REBATE_DENOMINATOR,
+                    referee_discount_numerator: DEFAULT_REFEREE_DISCOUNT_NUMERATOR,
+                    referee_discount_denominator: DEFAULT_REFEREE_DISCOUNT_DENOMINATOR,
                 },
             },
             total_fee: 0,
             total_fee_withdrawn: 0,
             whitelist_mint: Pubkey::default(),
-            drift_mint: Pubkey::default(),
+            discount_mint: Pubkey::default(),
             max_deposit: 0,
             oracle_guard_rails: OracleGuardRails {
                 price_divergence: PriceDivergenceGuardRails {
@@ -604,17 +604,17 @@ pub mod clearing_house {
             oracle_mark_spread_pct_after = _oracle_mark_spread_pct_after;
         }
 
-        let (drift_token, referrer) = optional_accounts::get_drift_token_and_referrer(
+        let (discount_token, referrer) = optional_accounts::get_discount_token_and_referrer(
             optional_accounts,
             ctx.remaining_accounts,
-            &ctx.accounts.state.drift_mint,
+            &ctx.accounts.state.discount_mint,
             &user.key(),
         )?;
 
-        let (fee, drift_token_rebate, referrer_reward, referee_rebate) = fees::calculate(
+        let (fee, token_discount, referrer_reward, referee_discount) = fees::calculate(
             quote_asset_amount,
             &ctx.accounts.state.fee_structure,
-            drift_token,
+            discount_token,
             &referrer,
         )?;
 
@@ -646,14 +646,14 @@ pub mod clearing_house {
             .checked_add(fee)
             .ok_or_else(math_error!())?;
 
-        user.total_drift_token_rebate = user
-            .total_drift_token_rebate
-            .checked_add(drift_token_rebate)
+        user.total_token_discount = user
+            .total_token_discount
+            .checked_add(token_discount)
             .ok_or_else(math_error!())?;
 
-        user.total_referee_rebate = user
-            .total_referee_rebate
-            .checked_add(referee_rebate)
+        user.total_referee_discount = user
+            .total_referee_discount
+            .checked_add(referee_discount)
             .ok_or_else(math_error!())?;
 
         if referrer.is_some() {
@@ -705,9 +705,9 @@ pub mod clearing_house {
             mark_price_before,
             mark_price_after,
             fee,
-            drift_token_rebate,
+            token_discount,
             referrer_reward,
-            referee_rebate,
+            referee_discount,
             liquidation: false,
             market_index,
             oracle_price: oracle_price_after,
@@ -821,16 +821,16 @@ pub mod clearing_house {
         let base_asset_amount = market_position.base_asset_amount.unsigned_abs();
         controller::position::close(user, market, market_position, now)?;
 
-        let (drift_token, referrer) = optional_accounts::get_drift_token_and_referrer(
+        let (discount_token, referrer) = optional_accounts::get_discount_token_and_referrer(
             optional_accounts,
             ctx.remaining_accounts,
-            &ctx.accounts.state.drift_mint,
+            &ctx.accounts.state.discount_mint,
             &user.key(),
         )?;
-        let (fee, drift_token_rebate, referrer_reward, referee_rebate) = fees::calculate(
+        let (fee, token_discount, referrer_reward, referee_discount) = fees::calculate(
             base_asset_value,
             &ctx.accounts.state.fee_structure,
-            drift_token,
+            discount_token,
             &referrer,
         )?;
         ctx.accounts.state.total_fee = ctx
@@ -857,14 +857,14 @@ pub mod clearing_house {
             .checked_add(fee)
             .ok_or_else(math_error!())?;
 
-        user.total_drift_token_rebate = user
-            .total_drift_token_rebate
-            .checked_add(drift_token_rebate)
+        user.total_token_discount = user
+            .total_token_discount
+            .checked_add(token_discount)
             .ok_or_else(math_error!())?;
 
-        user.total_referee_rebate = user
-            .total_referee_rebate
-            .checked_add(referee_rebate)
+        user.total_referee_discount = user
+            .total_referee_discount
+            .checked_add(referee_discount)
             .ok_or_else(math_error!())?;
 
         if referrer.is_some() {
@@ -898,9 +898,9 @@ pub mod clearing_house {
             mark_price_after,
             liquidation: false,
             fee,
-            drift_token_rebate,
+            token_discount,
             referrer_reward,
-            referee_rebate,
+            referee_discount,
             market_index,
             oracle_price: oracle_price_after,
         });
@@ -1001,9 +1001,9 @@ pub mod clearing_house {
                     mark_price_before,
                     mark_price_after,
                     fee: 0,
-                    drift_token_rebate: 0,
+                    token_discount: 0,
                     referrer_reward: 0,
-                    referee_rebate: 0,
+                    referee_discount: 0,
                     liquidation: true,
                     market_index: market_position.market_index,
                     oracle_price,
@@ -1084,9 +1084,9 @@ pub mod clearing_house {
                     mark_price_before,
                     mark_price_after,
                     fee: 0,
-                    drift_token_rebate: 0,
+                    token_discount: 0,
                     referrer_reward: 0,
-                    referee_rebate: 0,
+                    referee_discount: 0,
                     liquidation: true,
                     market_index: market_position.market_index,
                     oracle_price,
@@ -1686,11 +1686,11 @@ pub mod clearing_house {
         Ok(())
     }
 
-    pub fn update_drift_mint(
+    pub fn update_discount_mint(
         ctx: Context<AdminUpdateState>,
-        protocol_mint: Pubkey,
+        discount_mint: Pubkey,
     ) -> ProgramResult {
-        ctx.accounts.state.drift_mint = protocol_mint;
+        ctx.accounts.state.discount_mint = discount_mint;
         Ok(())
     }
 

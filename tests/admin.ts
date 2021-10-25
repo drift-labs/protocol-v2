@@ -122,33 +122,33 @@ describe('admin', () => {
 		const newFeeStructure: FeeStructure = {
 			feeNumerator: new BN(10),
 			feeDenominator: new BN(10),
-			driftTokenRebate: {
+			discountTokenTiers: {
 				firstTier: {
 					minimumBalance: new BN(1),
-					rebateNumerator: new BN(1),
-					rebateDenominator: new BN(1),
+					discountNumerator: new BN(1),
+					discountDenominator: new BN(1),
 				},
 				secondTier: {
 					minimumBalance: new BN(1),
-					rebateNumerator: new BN(1),
-					rebateDenominator: new BN(1),
+					discountNumerator: new BN(1),
+					discountDenominator: new BN(1),
 				},
 				thirdTier: {
 					minimumBalance: new BN(1),
-					rebateNumerator: new BN(1),
-					rebateDenominator: new BN(1),
+					discountNumerator: new BN(1),
+					discountDenominator: new BN(1),
 				},
 				fourthTier: {
 					minimumBalance: new BN(1),
-					rebateNumerator: new BN(1),
-					rebateDenominator: new BN(1),
+					discountNumerator: new BN(1),
+					discountDenominator: new BN(1),
 				},
 			},
-			referralRebate: {
+			referralDiscount: {
 				referrerRewardNumerator: new BN(1),
 				referrerRewardDenominator: new BN(1),
-				refereeRebateNumerator: new BN(1),
-				refereeRebateDenominator: new BN(1),
+				refereeDiscountNumerator: new BN(1),
+				refereeDiscountDenominator: new BN(1),
 			},
 		};
 
@@ -187,11 +187,11 @@ describe('admin', () => {
 	it('Update protocol mint', async () => {
 		const mint = new PublicKey('2fvh6hkCYfpNqke9N48x6HcrW92uZVU3QSiXZX4A5L27');
 
-		await clearingHouse.updateDriftMint(mint);
+		await clearingHouse.updateDiscountMint(mint);
 
 		const state = clearingHouse.getState();
 
-		assert(state.driftMint.equals(mint));
+		assert(state.discountMint.equals(mint));
 	});
 
 	it('Update max deposit', async () => {

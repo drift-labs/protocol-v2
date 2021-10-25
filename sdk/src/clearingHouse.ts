@@ -757,7 +757,7 @@ export class ClearingHouse {
 		amount: BN,
 		marketIndex: BN,
 		limitPrice?: BN,
-		driftToken?: PublicKey,
+		discountToken?: PublicKey,
 		referrer?: PublicKey
 	): Promise<TransactionSignature> {
 		this.assertIsSubscribed();
@@ -771,14 +771,14 @@ export class ClearingHouse {
 		}
 
 		const optionalAccounts = {
-			driftToken: false,
+			discountToken: false,
 			referrer: false,
 		};
 		const remainingAccounts = [];
-		if (driftToken) {
-			optionalAccounts.driftToken = true;
+		if (discountToken) {
+			optionalAccounts.discountToken = true;
 			remainingAccounts.push({
-				pubkey: driftToken,
+				pubkey: discountToken,
 				isWritable: false,
 				isSigner: false,
 			});
@@ -821,7 +821,7 @@ export class ClearingHouse {
 	public async closePosition(
 		userAccountPublicKey: PublicKey,
 		marketIndex: BN,
-		driftToken?: PublicKey,
+		discountToken?: PublicKey,
 		referrer?: PublicKey
 	): Promise<TransactionSignature> {
 		this.assertIsSubscribed();
@@ -834,14 +834,14 @@ export class ClearingHouse {
 			this.getMarketsAccount().markets[marketIndex.toNumber()].amm.oracle;
 
 		const optionalAccounts = {
-			driftToken: false,
+			discountToken: false,
 			referrer: false,
 		};
 		const remainingAccounts = [];
-		if (driftToken) {
-			optionalAccounts.driftToken = true;
+		if (discountToken) {
+			optionalAccounts.discountToken = true;
 			remainingAccounts.push({
-				pubkey: driftToken,
+				pubkey: discountToken,
 				isWritable: false,
 				isSigner: false,
 			});
@@ -1782,10 +1782,10 @@ export class ClearingHouse {
 		});
 	}
 
-	public async updateDriftMint(
-		driftMint: PublicKey
+	public async updateDiscountMint(
+		discountMint: PublicKey
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateDriftMint(driftMint, {
+		return await this.program.rpc.updateDiscountMint(discountMint, {
 			accounts: {
 				admin: this.wallet.publicKey,
 				state: await this.getStatePublicKey(),

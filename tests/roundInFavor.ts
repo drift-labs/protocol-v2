@@ -68,33 +68,33 @@ describe('round in favor', () => {
         const newFeeStructure: FeeStructure = {
             feeNumerator: new BN(0),
             feeDenominator: new BN(1),
-            driftTokenRebate: {
+            discountTokenTiers: {
                 firstTier: {
                     minimumBalance: new BN(1),
-                    rebateNumerator: new BN(1),
-                    rebateDenominator: new BN(1),
+                    discountNumerator: new BN(1),
+                    discountDenominator: new BN(1),
                 },
                 secondTier: {
                     minimumBalance: new BN(1),
-                    rebateNumerator: new BN(1),
-                    rebateDenominator: new BN(1),
+                    discountNumerator: new BN(1),
+                    discountDenominator: new BN(1),
                 },
                 thirdTier: {
                     minimumBalance: new BN(1),
-                    rebateNumerator: new BN(1),
-                    rebateDenominator: new BN(1),
+                    discountNumerator: new BN(1),
+                    discountDenominator: new BN(1),
                 },
                 fourthTier: {
                     minimumBalance: new BN(1),
-                    rebateNumerator: new BN(1),
-                    rebateDenominator: new BN(1),
+                    discountNumerator: new BN(1),
+                    discountDenominator: new BN(1),
                 },
             },
-            referralRebate: {
+            referralDiscount: {
                 referrerRewardNumerator: new BN(1),
                 referrerRewardDenominator: new BN(1),
-                refereeRebateNumerator: new BN(1),
-                refereeRebateDenominator: new BN(1),
+                refereeDiscountNumerator: new BN(1),
+                refereeDiscountDenominator: new BN(1),
             },
         };
 

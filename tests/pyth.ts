@@ -297,7 +297,7 @@ describe('pyth-oracle', () => {
 			PositionDirection.SHORT,
 			USDC_PRECISION.div(new BN(2)),
 			marketIndex
-		)
+		);
 
 		const market =
 			clearingHouse.getMarketsAccount().markets[marketIndex.toNumber()];

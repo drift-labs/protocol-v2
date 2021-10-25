@@ -41,8 +41,8 @@ describe('fees', () => {
 
 	const usdcAmount = new BN(10 * 10 ** 6);
 
-	let driftMint: Token;
-	let driftTokenAccount: AccountInfo;
+	let discountMint: Token;
+	let discountTokenAccount: AccountInfo;
 
 	const referrerKeyPair = new Keypair();
 	let referrerUSDCAccount: Keypair;
@@ -77,7 +77,7 @@ describe('fees', () => {
 				userUSDCAccount.publicKey
 			);
 
-		driftMint = await Token.createMint(
+		discountMint = await Token.createMint(
 			connection,
 			// @ts-ignore
 			provider.wallet.payer,
@@ -87,9 +87,9 @@ describe('fees', () => {
 			TOKEN_PROGRAM_ID
 		);
 
-		await clearingHouse.updateDriftMint(driftMint.publicKey);
+		await clearingHouse.updateDiscountMint(discountMint.publicKey);
 
-		driftTokenAccount = await driftMint.getOrCreateAssociatedAccountInfo(
+		discountTokenAccount = await discountMint.getOrCreateAssociatedAccountInfo(
 			provider.wallet.publicKey
 		);
 
@@ -126,7 +126,7 @@ describe('fees', () => {
 			usdcAmount,
 			marketIndex,
 			new BN(0),
-			driftTokenAccount.address
+			discountTokenAccount.address
 		);
 
 		const user: any = await clearingHouse.program.account.user.fetch(
@@ -135,13 +135,13 @@ describe('fees', () => {
 
 		assert(user.collateral.eq(new BN(9990000)));
 		assert(user.totalFeePaid.eq(new BN(10000)));
-		assert(user.totalDriftTokenRebate.eq(new BN(0)));
-		assert(user.totalRefereeRebate.eq(new BN(0)));
+		assert(user.totalTokenDiscount.eq(new BN(0)));
+		assert(user.totalRefereeDiscount.eq(new BN(0)));
 	});
 
 	it('Trade fourth tier rebate', async () => {
-		await driftMint.mintTo(
-			driftTokenAccount.address,
+		await discountMint.mintTo(
+			discountTokenAccount.address,
 			// @ts-ignore
 			provider.wallet.payer,
 			[],
@@ -155,7 +155,7 @@ describe('fees', () => {
 			usdcAmount,
 			marketIndex,
 			new BN(0),
-			driftTokenAccount.address,
+			discountTokenAccount.address,
 			referrerUserAccountPublicKey
 		);
 
@@ -165,8 +165,8 @@ describe('fees', () => {
 
 		assert(user.collateral.eq(new BN(9981500)));
 		assert(user.totalFeePaid.eq(new BN(18500)));
-		assert(user.totalDriftTokenRebate.eq(new BN(500)));
-		assert(user.totalRefereeRebate.eq(new BN(500)));
+		assert(user.totalTokenDiscount.eq(new BN(500)));
+		assert(user.totalRefereeDiscount.eq(new BN(500)));
 
 		const referrer: any = await clearingHouse.program.account.user.fetch(
 			referrerUserAccountPublicKey
@@ -176,8 +176,8 @@ describe('fees', () => {
 	});
 
 	it('Trade third tier rebate', async () => {
-		await driftMint.mintTo(
-			driftTokenAccount.address,
+		await discountMint.mintTo(
+			discountTokenAccount.address,
 			// @ts-ignore
 			provider.wallet.payer,
 			[],
@@ -191,7 +191,7 @@ describe('fees', () => {
 			usdcAmount,
 			marketIndex,
 			new BN(0),
-			driftTokenAccount.address,
+			discountTokenAccount.address,
 			referrerUserAccountPublicKey
 		);
 
@@ -201,8 +201,8 @@ describe('fees', () => {
 
 		assert(user.collateral.eq(new BN(9973500)));
 		assert(user.totalFeePaid.eq(new BN(26500)));
-		assert(user.totalDriftTokenRebate.eq(new BN(1500)));
-		assert(user.totalRefereeRebate.eq(new BN(1000)));
+		assert(user.totalTokenDiscount.eq(new BN(1500)));
+		assert(user.totalRefereeDiscount.eq(new BN(1000)));
 
 		const referrer: any = await clearingHouse.program.account.user.fetch(
 			referrerUserAccountPublicKey
@@ -212,8 +212,8 @@ describe('fees', () => {
 	});
 
 	it('Trade second tier rebate', async () => {
-		await driftMint.mintTo(
-			driftTokenAccount.address,
+		await discountMint.mintTo(
+			discountTokenAccount.address,
 			// @ts-ignore
 			provider.wallet.payer,
 			[],
@@ -227,7 +227,7 @@ describe('fees', () => {
 			usdcAmount,
 			marketIndex,
 			new BN(0),
-			driftTokenAccount.address,
+			discountTokenAccount.address,
 			referrerUserAccountPublicKey
 		);
 
@@ -237,8 +237,8 @@ describe('fees', () => {
 
 		assert(user.collateral.eq(new BN(9966000)));
 		assert(user.totalFeePaid.eq(new BN(34000)));
-		assert(user.totalDriftTokenRebate.eq(new BN(3000)));
-		assert(user.totalRefereeRebate.eq(new BN(1500)));
+		assert(user.totalTokenDiscount.eq(new BN(3000)));
+		assert(user.totalRefereeDiscount.eq(new BN(1500)));
 
 		const referrer: any = await clearingHouse.program.account.user.fetch(
 			referrerUserAccountPublicKey
@@ -248,8 +248,8 @@ describe('fees', () => {
 	});
 
 	it('Trade first tier rebate', async () => {
-		await driftMint.mintTo(
-			driftTokenAccount.address,
+		await discountMint.mintTo(
+			discountTokenAccount.address,
 			// @ts-ignore
 			provider.wallet.payer,
 			[],
@@ -263,7 +263,7 @@ describe('fees', () => {
 			usdcAmount.mul(new BN(9)).div(new BN(10)),
 			marketIndex,
 			new BN(0),
-			driftTokenAccount.address,
+			discountTokenAccount.address,
 			referrerUserAccountPublicKey
 		);
 
@@ -273,8 +273,8 @@ describe('fees', () => {
 
 		assert(user.collateral.eq(new BN(9959700)));
 		assert(user.totalFeePaid.eq(new BN(40300)));
-		assert(user.totalDriftTokenRebate.eq(new BN(4800)));
-		assert(user.totalRefereeRebate.eq(new BN(1950)));
+		assert(user.totalTokenDiscount.eq(new BN(4800)));
+		assert(user.totalRefereeDiscount.eq(new BN(1950)));
 
 		const referrer: any = await clearingHouse.program.account.user.fetch(
 			referrerUserAccountPublicKey
@@ -288,7 +288,7 @@ describe('fees', () => {
 		await clearingHouse.closePosition(
 			userAccountPublicKey,
 			marketIndex,
-			driftTokenAccount.address,
+			discountTokenAccount.address,
 			referrerUserAccountPublicKey
 		);
 
@@ -298,8 +298,8 @@ describe('fees', () => {
 
 		assert(user.collateral.eq(new BN(9925400)));
 		assert(user.totalFeePaid.eq(new BN(74600)));
-		assert(user.totalDriftTokenRebate.eq(new BN(14600)));
-		assert(user.totalRefereeRebate.eq(new BN(4400)));
+		assert(user.totalTokenDiscount.eq(new BN(14600)));
+		assert(user.totalRefereeDiscount.eq(new BN(4400)));
 
 		const referrer: any = await clearingHouse.program.account.user.fetch(
 			referrerUserAccountPublicKey

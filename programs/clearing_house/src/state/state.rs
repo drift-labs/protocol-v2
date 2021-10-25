@@ -36,7 +36,7 @@ pub struct State {
     pub total_fee: u128,
     pub total_fee_withdrawn: u128,
     pub whitelist_mint: Pubkey,
-    pub drift_mint: Pubkey,
+    pub discount_mint: Pubkey,
     pub oracle_guard_rails: OracleGuardRails,
     pub max_deposit: u128,
 
@@ -75,29 +75,29 @@ pub struct ValidityGuardRails {
 pub struct FeeStructure {
     pub fee_numerator: u128,
     pub fee_denominator: u128,
-    pub drift_token_rebate: DriftTokenRebate,
-    pub referral_rebate: ReferralRebate,
+    pub discount_token_tiers: DiscountTokenTiers,
+    pub referral_discount: ReferralDiscount,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
-pub struct DriftTokenRebate {
-    pub first_tier: DriftTokenRebateTier,
-    pub second_tier: DriftTokenRebateTier,
-    pub third_tier: DriftTokenRebateTier,
-    pub fourth_tier: DriftTokenRebateTier,
+pub struct DiscountTokenTiers {
+    pub first_tier: DiscountTokenTier,
+    pub second_tier: DiscountTokenTier,
+    pub third_tier: DiscountTokenTier,
+    pub fourth_tier: DiscountTokenTier,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
-pub struct DriftTokenRebateTier {
+pub struct DiscountTokenTier {
     pub minimum_balance: u64,
-    pub rebate_numerator: u128,
-    pub rebate_denominator: u128,
+    pub discount_numerator: u128,
+    pub discount_denominator: u128,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
-pub struct ReferralRebate {
+pub struct ReferralDiscount {
     pub referrer_reward_numerator: u128,
     pub referrer_reward_denominator: u128,
-    pub referee_rebate_numerator: u128,
-    pub referee_rebate_denominator: u128,
+    pub referee_discount_numerator: u128,
+    pub referee_discount_denominator: u128,
 }

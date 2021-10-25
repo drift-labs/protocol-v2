@@ -1,6 +1,6 @@
 use crate::error::*;
 use crate::math_error;
-use crate::state::state::{DriftTokenRebateTier, FeeStructure};
+use crate::state::state::{DiscountTokenTier, FeeStructure};
 use crate::state::user::User;
 use anchor_lang::Account;
 use solana_program::msg;
@@ -9,7 +9,7 @@ use spl_token::state::Account as TokenAccount;
 pub fn calculate(
     quote_asset_amount: u128,
     fee_structure: &FeeStructure,
-    drift_token: Option<TokenAccount>,
+    discount_token: Option<TokenAccount>,
     referrer: &Option<Account<User>>,
 ) -> ClearingHouseResult<(u128, u128, u128, u128)> {
     let fee = quote_asset_amount
@@ -18,83 +18,83 @@ pub fn calculate(
         .checked_div(fee_structure.fee_denominator)
         .ok_or_else(math_error!())?;
 
-    let drift_token_rebate = calculate_drift_token_rebate(fee, fee_structure, drift_token);
+    let token_discount = calculate_token_discount(fee, fee_structure, discount_token);
 
-    let (referrer_reward, referee_rebate) =
-        calculate_referral_reward_and_rebate(fee, fee_structure, referrer)?;
+    let (referrer_reward, referee_discount) =
+        calculate_referral_reward_and_referee_discount(fee, fee_structure, referrer)?;
 
     let fee = fee
-        .checked_sub(drift_token_rebate)
+        .checked_sub(token_discount)
         .ok_or_else(math_error!())?
         .checked_sub(referrer_reward)
         .ok_or_else(math_error!())?
-        .checked_sub(referee_rebate)
+        .checked_sub(referee_discount)
         .ok_or_else(math_error!())?;
 
-    return Ok((fee, drift_token_rebate, referrer_reward, referee_rebate));
+    return Ok((fee, token_discount, referrer_reward, referee_discount));
 }
 
-fn calculate_drift_token_rebate(
+fn calculate_token_discount(
     fee: u128,
     fee_structure: &FeeStructure,
-    drift_token: Option<TokenAccount>,
+    discount_token: Option<TokenAccount>,
 ) -> u128 {
-    if drift_token.is_none() {
+    if discount_token.is_none() {
         return 0;
     }
 
-    let drift_token = drift_token.unwrap();
+    let discount_token = discount_token.unwrap();
 
-    if let Some(rebate) = calculate_drift_token_rebate_for_tier(
+    if let Some(discount) = calculate_token_discount_for_tier(
         fee,
-        &fee_structure.drift_token_rebate.first_tier,
-        drift_token,
+        &fee_structure.discount_token_tiers.first_tier,
+        discount_token,
     ) {
-        return rebate;
+        return discount;
     }
 
-    if let Some(rebate) = calculate_drift_token_rebate_for_tier(
+    if let Some(discount) = calculate_token_discount_for_tier(
         fee,
-        &fee_structure.drift_token_rebate.second_tier,
-        drift_token,
+        &fee_structure.discount_token_tiers.second_tier,
+        discount_token,
     ) {
-        return rebate;
+        return discount;
     }
 
-    if let Some(rebate) = calculate_drift_token_rebate_for_tier(
+    if let Some(discount) = calculate_token_discount_for_tier(
         fee,
-        &fee_structure.drift_token_rebate.third_tier,
-        drift_token,
+        &fee_structure.discount_token_tiers.third_tier,
+        discount_token,
     ) {
-        return rebate;
+        return discount;
     }
 
-    if let Some(rebate) = calculate_drift_token_rebate_for_tier(
+    if let Some(discount) = calculate_token_discount_for_tier(
         fee,
-        &fee_structure.drift_token_rebate.fourth_tier,
-        drift_token,
+        &fee_structure.discount_token_tiers.fourth_tier,
+        discount_token,
     ) {
-        return rebate;
+        return discount;
     }
 
     return 0;
 }
 
-fn calculate_drift_token_rebate_for_tier(
+fn calculate_token_discount_for_tier(
     fee: u128,
-    tier: &DriftTokenRebateTier,
-    drift_token: TokenAccount,
+    tier: &DiscountTokenTier,
+    discount_token: TokenAccount,
 ) -> Option<u128> {
-    if drift_token.amount >= tier.minimum_balance {
+    if discount_token.amount >= tier.minimum_balance {
         return Some(
-            fee.checked_mul(tier.rebate_numerator)?
-                .checked_div(tier.rebate_denominator)?,
+            fee.checked_mul(tier.discount_numerator)?
+                .checked_div(tier.discount_denominator)?,
         );
     }
     return None;
 }
 
-fn calculate_referral_reward_and_rebate(
+fn calculate_referral_reward_and_referee_discount(
     fee: u128,
     fee_structure: &FeeStructure,
     referrer: &Option<Account<User>>,
@@ -104,16 +104,16 @@ fn calculate_referral_reward_and_rebate(
     }
 
     let referrer_reward = fee
-        .checked_mul(fee_structure.referral_rebate.referrer_reward_numerator)
+        .checked_mul(fee_structure.referral_discount.referrer_reward_numerator)
         .ok_or_else(math_error!())?
-        .checked_div(fee_structure.referral_rebate.referrer_reward_denominator)
+        .checked_div(fee_structure.referral_discount.referrer_reward_denominator)
         .ok_or_else(math_error!())?;
 
-    let referee_rebate = fee
-        .checked_mul(fee_structure.referral_rebate.referee_rebate_numerator)
+    let referee_discount = fee
+        .checked_mul(fee_structure.referral_discount.referee_discount_numerator)
         .ok_or_else(math_error!())?
-        .checked_div(fee_structure.referral_rebate.referee_rebate_denominator)
+        .checked_div(fee_structure.referral_discount.referee_discount_denominator)
         .ok_or_else(math_error!())?;
 
-    return Ok((referrer_reward, referee_rebate));
+    return Ok((referrer_reward, referee_discount));
 }

@@ -60,10 +60,10 @@ pub enum ErrorCode {
     InvalidWhitelistToken,
     #[msg("Whitelist token not found")]
     WhitelistTokenNotFound,
-    #[msg("Invalid drift token")]
-    InvalidDriftToken,
-    #[msg("Drift token not found")]
-    DriftTokenNotFound,
+    #[msg("Invalid discount token")]
+    InvalidDiscountToken,
+    #[msg("Discount token not found")]
+    DiscountTokenNotFound,
     #[msg("Invalid referrer")]
     InvalidReferrer,
     #[msg("Referrer not found")]

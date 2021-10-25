@@ -110,8 +110,8 @@ export type TradeRecord = {
 	markPriceAfter: BN;
 	fee: BN;
 	referrerReward: BN;
-	refereeRebate: BN;
-	driftTokenRebate: BN;
+	refereeDiscount: BN;
+	tokenDiscount: BN;
 	marketIndex: BN;
 	liquidation: boolean;
 	oraclePrice: BN;
@@ -194,7 +194,7 @@ export type ClearingHouseState = {
 	totalFee: BN;
 	totalFeeWithdrawn: BN;
 	whitelistMint: PublicKey;
-	driftMint: PublicKey;
+	discountMint: PublicKey;
 	oracleGuardRails: OracleGuardRails;
 	maxDeposit: BN;
 };
@@ -309,33 +309,33 @@ export interface IWallet {
 export type FeeStructure = {
 	feeNumerator: BN;
 	feeDenominator: BN;
-	driftTokenRebate: {
+	discountTokenTiers: {
 		firstTier: {
 			minimumBalance: BN;
-			rebateNumerator: BN;
-			rebateDenominator: BN;
+			discountNumerator: BN;
+			discountDenominator: BN;
 		};
 		secondTier: {
 			minimumBalance: BN;
-			rebateNumerator: BN;
-			rebateDenominator: BN;
+			discountNumerator: BN;
+			discountDenominator: BN;
 		};
 		thirdTier: {
 			minimumBalance: BN;
-			rebateNumerator: BN;
-			rebateDenominator: BN;
+			discountNumerator: BN;
+			discountDenominator: BN;
 		};
 		fourthTier: {
 			minimumBalance: BN;
-			rebateNumerator: BN;
-			rebateDenominator: BN;
+			discountNumerator: BN;
+			discountDenominator: BN;
 		};
 	};
-	referralRebate: {
+	referralDiscount: {
 		referrerRewardNumerator: BN;
 		referrerRewardDenominator: BN;
-		refereeRebateNumerator: BN;
-		refereeRebateDenominator: BN;
+		refereeDiscountNumerator: BN;
+		refereeDiscountDenominator: BN;
 	};
 };
 
