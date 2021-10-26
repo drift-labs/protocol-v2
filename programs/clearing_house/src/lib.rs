@@ -1269,7 +1269,7 @@ pub mod clearing_house {
             .checked_add(amount as u128)
             .ok_or_else(math_error!())?;
 
-        market
+        market.amm.total_fee_minus_distributions = market
             .amm
             .total_fee_minus_distributions
             .checked_add(amount as u128)
