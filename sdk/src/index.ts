@@ -15,6 +15,7 @@ export * from './types';
 export * from './utils';
 export * from './constants/chartConstants';
 export * from './config';
+export * from './constants/numericConstants';
 
 export {
 	Arbitrager,

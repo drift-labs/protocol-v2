@@ -8,13 +8,8 @@ import {
 	QUOTE_BASE_PRECISION_DIFF,
 } from './clearingHouse';
 import { UserAccountData, UserPosition, UserPositionData } from './types';
+import {ZERO, TEN_THOUSAND, BN_MAX, PARTIAL_LIQUIDATION_RATIO, FULL_LIQUIDATION_RATIO} from './constants/numericConstants';
 
-export const MAX_LEVERAGE = new BN(5);
-const FULL_LIQUIDATION_RATIO = new BN(500);
-const PARTIAL_LIQUIDATION_RATIO = new BN(625);
-const ZERO = new BN(0);
-const BN_MAX = new BN(Number.MAX_SAFE_INTEGER);
-const TEN_THOUSAND = new BN(10000);
 interface UserAccountEvents {
 	userAccountData: (payload: UserAccountData) => void;
 	userPositionsData: (payload: UserPositionData) => void;
@@ -417,8 +412,8 @@ export class UserAccount {
 	public accountLeverageRatioAfterTrade(tradeAmount: BN) {
 		return tradeAmount
 			.add(this.getTotalPositionValue())
-			.mul(new BN(10 ** 2))
-			.div(this.userAccountData.collateral);
+			.mul(TEN_THOUSAND)
+			.div(this.getTotalCollateral());
 	}
 
 	public summary() {
