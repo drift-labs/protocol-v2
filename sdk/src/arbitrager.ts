@@ -203,10 +203,14 @@ export class Arbitrager {
 
 			let oraclePriceData: PriceData;
 			let oraclePrice: number;
+			let oracleTwap: number;
 			let oracleTwac: number;
 
 			let oracleBid: number;
 			let oracleAsk: number;
+
+			let oracleTwapBid: number;
+			let oracleTwapAsk: number;
 
 			let oracleTarget: number;
 			let orcaleTwapTarget: number;
@@ -255,7 +259,11 @@ export class Arbitrager {
 				oracleTwac = oraclePriceData.twac.value;
 				
 				// const oracelConfLatest = oraclePriceData.priceComponents[0].latest.confidence;
-				const oracleConfs = [oraclePriceData.previousConfidence, oraclePriceData.confidence, oracleTwac];
+				const oracleConfs = [oraclePriceData.previousConfidence, 
+					oraclePriceData.confidence, 
+					oracleTwac
+				];
+				
 				function median(numbers: number[]): number {
 					const sorted = numbers.slice().sort((a, b) => a - b);
 					const middle = Math.floor(sorted.length / 2);
@@ -270,8 +278,11 @@ export class Arbitrager {
 				const oracleConfReg = ((Math.max(...oracleConfs) + median(oracleConfs))/2) + .01;
 
 				oracleBid = oraclePriceData.price - oracleConfReg;
-				oracleAsk = oraclePriceData.price + oracleConfReg;
+				oracleAsk = oraclePriceData.price + oracleConfReg * 3; // don't like being short 
 				
+				oracleTwapBid = oraclePriceData.twap.value - oracleTwac;
+				oracleTwapAsk = oraclePriceData.twap.value - oracleTwac * 3; // don't like being short 
+
 				return true;
 			};
 
@@ -310,10 +321,10 @@ export class Arbitrager {
 
 				if(netExposure > 0){
 					oracleTarget = oracleBid;
-					orcaleTwapTarget = oraclePriceData.twap.value - oracleTwac;
+					orcaleTwapTarget = oracleTwapBid;
 				} else if(netExposure < 0){
 					oracleTarget = oracleAsk;
-					orcaleTwapTarget = oraclePriceData.twap.value + oracleTwac;
+					orcaleTwapTarget = oracleTwapAsk;
 				} else{
 					if(currentSpread < 0){ 
 						// mark > oracle
