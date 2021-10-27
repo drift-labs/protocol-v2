@@ -6,7 +6,7 @@ import { ClearingHouse } from '../sdk/';
 import dotenv = require('dotenv');
 dotenv.config();
 
-async function adjustK(provider: Provider) {
+async function depositToMarketFromInsuranceFund(provider: Provider) {
     const connection = provider.connection;
     const clearingHouseProgramId = new PublicKey("dammHkt7jmytvbS3nHTxQNEcP59aE57nxwV21YdqEDN");
     const clearingHouse = new ClearingHouse(
@@ -15,17 +15,15 @@ async function adjustK(provider: Provider) {
         clearingHouseProgramId
     );
     await clearingHouse.subscribe();
-    const marketIndex = new anchor.BN(0);
-    let amm = clearingHouse.getMarketsAccount().markets[marketIndex.toNumber()].amm;
-    console.log("sqrt k", amm.sqrtK.toString());
 
-    const newSqrtK = amm.sqrtK.mul(new anchor.BN(132)).div(new anchor.BN(100));
-    await clearingHouse.updateK(newSqrtK, marketIndex);
+    const amount = new anchor.BN(99999900);
+    const market = new anchor.BN(0);
+    const tx = await clearingHouse.withdrawFromInsuranceVaultToMarket(
+        market,
+        amount
+    );
 
-    // amm = clearingHouse.getMarketsAccount().markets[0].amm;
-    // console.log("peg", amm.pegMultiplier.toString());
-    // console.log("total fee", amm.totalFee.toString());
-    // console.log("cumulative fee", amm.cumulativeFee.toString());
+    console.log(tx);
 
     await clearingHouse.unsubscribe();
 }
@@ -34,7 +32,7 @@ try {
     if (!process.env.ANCHOR_WALLET) {
         throw new Error('ANCHOR_WALLET must be set.');
     }
-    adjustK(
+    depositToMarketFromInsuranceFund(
         anchor.Provider.local('https://drift.genesysgo.net')
     );
 } catch (e) {
