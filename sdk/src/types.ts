@@ -45,7 +45,7 @@ export type DepositHistory = {
 
 export type CurveHistory = {
 	head: BN;
-	depositRecords: CurveRecord[];
+	curveRecords: CurveRecord[];
 };
 
 export type FundingRateHistory = {

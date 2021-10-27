@@ -470,6 +470,11 @@ export class ClearingHouse {
 		return this.depositHistory;
 	}
 
+	public getCurveHistory(): CurveHistory {
+		this.assertIsSubscribed();
+		return this.curveHistory;
+	}
+
 	public async initializeMarket(
 		marketIndex: BN,
 		priceOracle: PublicKey,
