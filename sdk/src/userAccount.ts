@@ -146,6 +146,11 @@ export class UserAccount {
 		return userAccountRPCResponse.value !== null;
 	}
 
+	/**
+	 * calculates Buying Power = FC * MAX_LEVERAGE
+	 * return precision = 1e6 (USDC_PRECISION)
+	 * @returns 
+	 */
 	public getBuyingPower(): BN {
 		this.assertIsSubscribed();
 		return this.getFreeCollateral()
@@ -153,6 +158,11 @@ export class UserAccount {
 			.div(TEN_THOUSAND);
 	}
 
+	/**
+	 * calculates Free Collateral = (TC - TPV) * MAX_LEVERAGE
+	 * return precision = 1e6 (USDC_PRECISION)
+	 * @returns 
+	 */
 	public getFreeCollateral(): BN {
 		this.assertIsSubscribed();
 		return this.getTotalCollateral().sub(
@@ -162,6 +172,11 @@ export class UserAccount {
 		);
 	}
 
+	/**
+	 * calculates unrealized position price pnl
+	 * return precision = 1e6 (USDC_PRECISION)
+	 * @returns 
+	 */
 	public getUnrealizedPNL(withFunding?: boolean): BN {
 		this.assertIsSubscribed();
 		return this.userPositionsAccount.positions.reduce((pnl, marketPosition) => {
@@ -171,6 +186,11 @@ export class UserAccount {
 		}, ZERO);
 	}
 
+	/**
+	 * calculates unrealized funding payment pnl
+	 * return precision = 1e6 (USDC_PRECISION)
+	 * @returns 
+	 */
 	public getUnrealizedFundingPNL(): BN {
 		this.assertIsSubscribed();
 		return this.userPositionsAccount.positions.reduce((pnl, marketPosition) => {
@@ -180,6 +200,11 @@ export class UserAccount {
 		}, ZERO);
 	}
 
+	/**
+	 * calculates TotalCollateral: collateral + unrealized pnl
+	 * return precision = 1e6 (USDC_PRECISION)
+	 * @returns 
+	 */
 	public getTotalCollateral(): BN {
 		this.assertIsSubscribed();
 
@@ -189,6 +214,11 @@ export class UserAccount {
 		);
 	}
 
+	/**
+	 * calculates sum of position value across all positions
+	 * return precision = 1e10 (AMM_MANTISSA)
+	 * @returns 
+	 */
 	getTotalPositionValue(): BN {
 		this.assertIsSubscribed();
 		return this.userPositionsAccount.positions
@@ -200,6 +230,11 @@ export class UserAccount {
 			.div(AMM_MANTISSA);
 	}
 
+	/**
+	 * calculates position value from closing 100%
+	 * return precision = 1e10 (AMM_MANTISSA)
+	 * @returns 
+	 */
 	public getPositionValue(positionIndex: number): BN {
 		return this.clearingHouse
 			.calculateBaseAssetValue(
@@ -208,6 +243,11 @@ export class UserAccount {
 			.div(AMM_MANTISSA);
 	}
 
+	/**
+	 * calculates average exit price for closing 100% of position
+	 * return precision = 1e10 (AMM_MANTISSA)
+	 * @returns 
+	 */
 	public getPositionEstimatedExitPriceWithMantissa(position: UserPosition): BN {
 		const baseAssetValue = this.clearingHouse.calculateBaseAssetValue(position);
 		if (position.baseAssetAmount.eq(ZERO)) {
@@ -219,7 +259,9 @@ export class UserAccount {
 	}
 
 	/**
-	 * Since we are using BN, we multiply the result by 10000 to maintain 4 digits of precision
+	 * calculates current user leverage across all positions
+	 * return precision = 1e4 (TEN_THOUSAND)
+	 * @returns 
 	 */
 	public getLeverage(): BN {
 		const totalCollateral = this.getTotalCollateral();
@@ -230,6 +272,12 @@ export class UserAccount {
 		return totalPositionValue.mul(TEN_THOUSAND).div(totalCollateral);
 	}
 
+	/**
+	 * calculates max allowable leverage exceeding hitting requirement category
+	 * return precision = 1e4 (TEN_THOUSAND)
+	 * @params category {Initial, Partial, Maintenance}
+	 * @returns 
+	 */
 	public getMaxLeverage(category?: 'Initial' | 'Partial' | 'Maintenance'): BN {
 		const chState = this.clearingHouse.getState();
 		let marginRatioCategory: BN;
@@ -253,7 +301,9 @@ export class UserAccount {
 	}
 
 	/**
-	 * Since we are using BN, we multiply the result by 10000 to maintain 4 digits of precision
+	 * calculates margin ratio: total collateral / |total position value|
+	 * return precision = 1e4 (TEN_THOUSAND)
+	 * @returns 
 	 */
 	public getMarginRatio(): BN {
 		this.assertIsSubscribed();
@@ -272,6 +322,10 @@ export class UserAccount {
 		return [canLiquidate, marginRatio];
 	}
 
+	/**
+	 * Checks if any user position cumulative funding differs from respective market cumulative funding
+	 * @returns 
+	 */
 	public needsToSettleFundingPayment(): boolean {
 		const marketsAccount = this.clearingHouse.getMarketsAccount();
 		for (const userPosition of this.userPositionsAccount.positions) {
@@ -297,6 +351,15 @@ export class UserAccount {
 		return false;
 	}
 
+	/**
+	 * Calculates the estimated liquidation price.
+	 * assumptions: all other market positions and prices are static
+	 * return precision = 1e10 (AMM_MANTISSA)
+	 * @param marketPosition
+	 * @param proposedTradeSize
+	 * @param partial
+	 * @returns 
+	 */
 	public liquidationPrice(
 		marketPosition: Pick<UserPosition, 'baseAssetAmount' | 'marketIndex'>,
 		proposedTradeSize: BN = ZERO,
@@ -367,10 +430,11 @@ export class UserAccount {
 	}
 
 	/**
-	 * Calculates the liquidation price for a position after closing a quote amount of the position.
+	 * Calculates the estimated liquidation price for a position after closing a quote amount of the position.
+	 * return precision = 1e10 (AMM_MANTISSA)
 	 * @param positionMarketIndex
 	 * @param closeQuoteAmount
-	 * @returns
+	 * @returns 
 	 */
 	public liquidationPriceAfterClose(
 		positionMarketIndex: BN,

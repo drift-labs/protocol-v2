@@ -1196,9 +1196,8 @@ export class ClearingHouse {
 	}
 
 	/**
-	 * Calculates various types of price impact:
-	 *
-	 * Unit argument and returned value :
+	 * Calculates various types of price impact statistics
+	 * @param unit
 	 * 	| 'entryPrice' => the average price a user gets the position at : BN
 	 * 	| 'maxPrice' =>  the price that the market is moved to after the trade : BN
 	 * 	| 'priceDelta' =>  the change in price (with MANTISSA) : BN
@@ -1323,9 +1322,15 @@ export class ClearingHouse {
 		return slippage;
 	}
 
+	/**
+	 * liquidityBook 
+	 * show snapshot of liquidity, similar to traditional orderbook
+	 * @param marketIndex 
+	 * @param N number of bids/asks
+	 * @param incrementSize grouping of liquidity by pct price move
+	 * @returns
+	 */
 	public liquidityBook(marketIndex: BN, N = 5, incrementSize = 0.1) {
-		// show snapshot of liquidity, similar to traditional orderbook
-
 		const market = this.getMarketsAccount().markets[marketIndex.toNumber()];
 		const defaultSlippageBN = new BN(incrementSize * AMM_MANTISSA.toNumber());
 		const baseAssetPriceWithMantissa = this.calculateCurvePriceWithMantissa(
@@ -1365,14 +1370,19 @@ export class ClearingHouse {
 		return [bidsPrice, bidsCumSize, asksPrice, asksCumSize];
 	}
 
+	/**
+	 * calculateTargetPriceTrade 
+	 * simple function for finding arbitraging trades
+	 * @param marketIndex 
+	 * @param targetPrice 
+	 * @param pct optional default is 100% gap filling, can set smaller.
+	 * @returns trade direction/size in order to push price to a targetPrice
+	 */
 	public calculateTargetPriceTrade(
 		marketIndex: BN,
 		targetPrice: BN,
 		pct: BN = MAXPCT
 	): [PositionDirection, BN, BN, BN] {
-		// simple function for funding rate arbitrage bot
-		// return the trade direction/size in order to push price to a targetPrice
-		// set a pct optional default is 100% gap filling, can set smaller.
 		this.assertIsSubscribed();
 		const market = this.getMarketsAccount().markets[marketIndex.toNumber()];
 		assert(market.amm.baseAssetReserve.gt(ZERO));
@@ -1479,6 +1489,12 @@ export class ClearingHouse {
 		return [direction, new BN(tradeSize), entryPrice, targetPrice];
 	}
 
+	/**
+	 * calculateBaseAssetValue 
+	 * = market value of closing entire position
+	 * @param marketPosition 
+	 * @returns precision = 1e10 (AMM_MANTISSA)
+	 */
 	public calculateBaseAssetValue(marketPosition: UserPosition) {
 		if (marketPosition.baseAssetAmount.eq(ZERO)) {
 			return ZERO;
@@ -1515,6 +1531,13 @@ export class ClearingHouse {
 		}
 	}
 
+	/**
+	 * calculatePositionPNL 
+	 * = BaseAssetAmount * (Avg Exit Price - Avg Entry Price)
+	 * @param marketPosition 
+	 * @param withFunding (adds unrealized funding payment pnl to result)
+	 * @returns precision = 1e6 (USDC_PRECISION)
+	 */
 	public calculatePositionPNL(
 		marketPosition: UserPosition,
 		withFunding = false
