@@ -259,7 +259,7 @@ describe('pyth-oracle', () => {
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,
 			periodicity,
-			new BN(41.5 * PEG_SCALAR.toNumber())
+			new BN(41.7 * PEG_SCALAR.toNumber())
 		);
 
 		// await clearingHouse.moveAmmToPrice(
