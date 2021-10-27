@@ -4,10 +4,10 @@ import { mockUSDCMint, mockUserUSDCAccount } from '../utils/mockAccounts';
 import {ClearingHouse, PEG_SCALAR} from '../sdk/src';
 import { Keypair } from '@solana/web3.js';
 import BN from 'bn.js';
-import { MAX_LEVERAGE, UserAccount } from '../sdk/src/userAccount';
+import { UserAccount } from '../sdk/src/userAccount';
 import { assert } from 'chai';
 import { createPriceFeed } from '../utils/mockPythUtils';
-import { PositionDirection } from '../sdk/src';
+import { MAX_LEVERAGE, PositionDirection } from '../sdk/src';
 
 describe('User Account', () => {
 	const provider = anchor.Provider.local();
