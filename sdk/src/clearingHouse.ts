@@ -1584,7 +1584,7 @@ export class ClearingHouse {
 			this.getMarketsAccount().markets[marketPosition.marketIndex.toNumber()];
 
 		let ammCumulativeFundingRate : BN;
-		if (marketPosition.baseAssetAmount) {
+		if (marketPosition.baseAssetAmount.gt(ZERO)) {
 			ammCumulativeFundingRate = market.amm.cumulativeFundingRateLong;
 		} else {
 			ammCumulativeFundingRate = market.amm.cumulativeFundingRateShort;
