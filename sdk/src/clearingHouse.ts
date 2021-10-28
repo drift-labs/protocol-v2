@@ -1454,9 +1454,9 @@ export class ClearingHouse {
 		} else {
 			// no trade, market is at target
 			direction = PositionDirection.LONG;
-			tradeSize = 0;
-			baseSize = 0;
-			return [direction, new BN(tradeSize), new BN(0), targetPrice];
+			tradeSize = ZERO;
+			baseSize = ZERO;
+			return [direction, tradeSize, targetPrice, targetPrice];
 		}
 
 		let tp1 = targetPrice;
@@ -1486,7 +1486,7 @@ export class ClearingHouse {
 				tp2.sub(tp1).abs().toString()
 		); //todo
 
-		return [direction, new BN(tradeSize), entryPrice, targetPrice];
+		return [direction, tradeSize, entryPrice, targetPrice];
 	}
 
 	/**

@@ -117,7 +117,7 @@ export class Arbitrager {
 
 	public async findTradesToExecute(
 		marketsTraded: Array<BN> = [],
-		arbPct = new BN(250)
+		arbPct = new BN(1000)
 	): Promise<TradeToExecute[]> {
 		const marketsAccount: any = await this.clearingHouse.getMarketsAccount();
 		const tradesToExecute: TradeToExecute[] = [];
@@ -506,14 +506,20 @@ export class Arbitrager {
 
 			const constructTrade = async (targetPrice: BN) => {
 				if (arbPctMod.gt(ZERO)) {
+					let newMarkPrice: BN;
 					// use expected entryPrice as limit given this change:
 					// https://github.com/drift-labs/protocol-v1/commit/a82f08deb2202efe73e48d0f84f981c9443fde67
-					[direction, amount, limitPrice] =
+					[direction, amount, limitPrice, newMarkPrice] =
 						this.clearingHouse.calculateTargetPriceTrade(
 							marketIndexBN,
 							targetPrice,
 							arbPctMod
 						);
+					console.log('arbing toward', arbPctMod.toNumber()/10,'% toward',
+					 stripMantissa(targetPrice),
+					'\n order:', direction, stripMantissa(amount, USDC_PRECISION), '@', stripMantissa(limitPrice),
+					'\n mark price:', markPrice, '->', stripMantissa(newMarkPrice)
+					);
 				} else if (riskReduction) {
 					console.log('ATTEMPT RISK REDUCTION');
 
@@ -658,8 +664,8 @@ export class Arbitrager {
 				}
 
 				const wgtOBPrice: number = await this.getWeightedOBprice(symbolPerp);
-				const wgtTradePrice: number = await this.getRecentTradeAvg(symbolPerp);
-				const ftxPriceTarget = (wgtTradePrice + wgtOBPrice) / 2;
+				// const wgtTradePrice: number = await this.getRecentTradeAvg(symbolPerp);
+				const ftxPriceTarget = wgtOBPrice; //(wgtTradePrice + wgtOBPrice) / 2;
 
 				return ftxPriceTarget;
 			};
