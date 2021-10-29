@@ -28,16 +28,14 @@ async function main() {
 
 	const chProgram = null; // anchor.workspace.ClearingHouse as Program;
 	const chProgramId = new PublicKey(sdkConfig.CLEARING_HOUSE_PROGRAM_ID);
-	const clearingHouse = new ClearingHouse(connection, botWallet, chProgramId);
+	const clearingHouse = ClearingHouse.from(connection, botWallet, chProgramId);
 	await clearingHouse.subscribe();
 	console.log(`Clearing House: ${chProgramId.toString()}`);
 
 	const mockUsdcFaucetProgram = null; //anchor.workspace.MockUsdcFaucet as Program;
 	let mockUsdcFaucetProgramId;
 	if (!chProgram) {
-		mockUsdcFaucetProgramId = new PublicKey(
-			sdkConfig.MOCK_USDC_FAUCET_ADDRESS
-		);
+		mockUsdcFaucetProgramId = new PublicKey(sdkConfig.MOCK_USDC_FAUCET_ADDRESS);
 	} else {
 		mockUsdcFaucetProgramId = mockUsdcFaucetProgram.programId;
 	}

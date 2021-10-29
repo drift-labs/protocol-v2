@@ -53,9 +53,6 @@ export class Arbitrager {
 		connectionOverride?: Connection,
 		useExternal?: boolean
 	) {
-		if (!clearingHouse.isSubscribed) {
-			throw Error('clearingHouse must be subscribed to create arbitrager');
-		}
 		this.clearingHouse = clearingHouse;
 		this.userAccount = userAccount;
 		this.connectionOverride = connectionOverride;
@@ -287,7 +284,7 @@ export class Arbitrager {
 			};
 
 			const getNetExposure = async () => {
-				const positions = this.userAccount.userPositionsAccount?.positions;
+				const positions = this.userAccount.getUserPositionsAccountData()?.positions;
 				for (const position in positions) {
 					if (positions[position].marketIndex.eq(marketIndexBN) && !positions[position].baseAssetAmount.eq(ZERO)) {
 						arbPos = positions[position];

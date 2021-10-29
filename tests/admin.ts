@@ -3,12 +3,17 @@ import { Program } from '@project-serum/anchor';
 import BN from 'bn.js';
 import { assert } from 'chai';
 
-import {AMM_MANTISSA, ClearingHouse, FeeStructure, OracleGuardRails} from '../sdk/src';
-import {OracleSource} from '../sdk';
+import {
+	AMM_MANTISSA,
+	ClearingHouse,
+	FeeStructure,
+	OracleGuardRails,
+} from '../sdk/src';
+import { OracleSource } from '../sdk';
 
-import {mockOracle, mockUSDCMint} from '../utils/mockAccounts';
+import { mockOracle, mockUSDCMint } from '../utils/mockAccounts';
 import { PublicKey } from '@solana/web3.js';
-import Markets from "../sdk/src/constants/markets";
+import Markets from '../sdk/src/constants/markets';
 
 describe('admin', () => {
 	const provider = anchor.Provider.local();
@@ -23,7 +28,7 @@ describe('admin', () => {
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
 
-		clearingHouse = new ClearingHouse(
+		clearingHouse = ClearingHouse.from(
 			connection,
 			provider.wallet,
 			chProgram.programId
@@ -172,7 +177,7 @@ describe('admin', () => {
 				confidenceIntervalMaxSize: new BN(1),
 				tooVolatileRatio: new BN(1),
 			},
-			useForLiquidations: false
+			useForLiquidations: false,
 		};
 
 		await clearingHouse.updateOracleGuardRails(oracleGuardRails);
@@ -180,7 +185,8 @@ describe('admin', () => {
 		const state = clearingHouse.getState();
 
 		assert(
-			JSON.stringify(oracleGuardRails) === JSON.stringify(state.oracleGuardRails)
+			JSON.stringify(oracleGuardRails) ===
+				JSON.stringify(state.oracleGuardRails)
 		);
 	});
 
@@ -226,19 +232,35 @@ describe('admin', () => {
 		const newOracle = PublicKey.default;
 		const newOracleSource = OracleSource.SWITCHBOARD;
 
-		await clearingHouse.updateMarketOracle(Markets[0].marketIndex, newOracle, newOracleSource);
+		await clearingHouse.updateMarketOracle(
+			Markets[0].marketIndex,
+			newOracle,
+			newOracleSource
+		);
 
-		const market = clearingHouse.getMarketsAccount().markets[Markets[0].marketIndex.toNumber()];
+		const market =
+			clearingHouse.getMarketsAccount().markets[
+				Markets[0].marketIndex.toNumber()
+			];
 		assert(market.amm.oracle.equals(PublicKey.default));
-		assert(JSON.stringify(market.amm.oracleSource) === JSON.stringify(newOracleSource));
+		assert(
+			JSON.stringify(market.amm.oracleSource) ===
+				JSON.stringify(newOracleSource)
+		);
 	});
 
 	it('Update market minimum trade size', async () => {
 		const minimumTradeSize = new BN(1);
 
-		await clearingHouse.updateMarketMinimumTradeSize(Markets[0].marketIndex, minimumTradeSize);
+		await clearingHouse.updateMarketMinimumTradeSize(
+			Markets[0].marketIndex,
+			minimumTradeSize
+		);
 
-		const market = clearingHouse.getMarketsAccount().markets[Markets[0].marketIndex.toNumber()];
+		const market =
+			clearingHouse.getMarketsAccount().markets[
+				Markets[0].marketIndex.toNumber()
+			];
 		assert(market.amm.minimumTradeSize.eq(minimumTradeSize));
 	});
 

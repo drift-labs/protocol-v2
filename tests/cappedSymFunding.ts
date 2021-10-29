@@ -24,9 +24,7 @@ import { PublicKey } from '@solana/web3.js';
 
 import { AMM_MANTISSA, FUNDING_MANTISSA, ClearingHouse } from '../sdk/src';
 
-import {
-	initUserAccounts,
-} from './../utils/stressUtils';
+import { initUserAccounts } from './../utils/stressUtils';
 
 async function updateFundingRateHelper(
 	clearingHouse: ClearingHouse,
@@ -62,12 +60,13 @@ async function updateFundingRateHelper(
 			'oracleTwap0:',
 			oraclePx0.twap,
 			'priceSpread',
-			priceSpread0,
+			priceSpread0
 		);
 
-		const cumulativeFundingRateLongOld = ammAccountState0.cumulativeFundingRateLong;
-		const cumulativeFundingRateShortOld = ammAccountState0.cumulativeFundingRateShort;
-
+		const cumulativeFundingRateLongOld =
+			ammAccountState0.cumulativeFundingRateLong;
+		const cumulativeFundingRateShortOld =
+			ammAccountState0.cumulativeFundingRateShort;
 
 		const _tx = await clearingHouse.updateFundingRate(
 			priceFeedAddress,
@@ -89,18 +88,30 @@ async function updateFundingRateHelper(
 		console.log('last funding rate:', lastFundingRate);
 		console.log(
 			'cumfunding rate long',
-			stripMantissa(ammAccountState.cumulativeFundingRateLong, CONVERSION_SCALE),
+			stripMantissa(
+				ammAccountState.cumulativeFundingRateLong,
+				CONVERSION_SCALE
+			),
 			'cumfunding rate short',
-			stripMantissa(ammAccountState.cumulativeFundingRateShort, CONVERSION_SCALE),
+			stripMantissa(
+				ammAccountState.cumulativeFundingRateShort,
+				CONVERSION_SCALE
+			)
 		);
-		
-		const lastFundingLong = (ammAccountState.cumulativeFundingRateLong.sub(cumulativeFundingRateLongOld)).abs();
-		const lastFundingShort = (ammAccountState.cumulativeFundingRateShort.sub(cumulativeFundingRateShortOld)).abs();
+
+		const lastFundingLong = ammAccountState.cumulativeFundingRateLong
+			.sub(cumulativeFundingRateLongOld)
+			.abs();
+		const lastFundingShort = ammAccountState.cumulativeFundingRateShort
+			.sub(cumulativeFundingRateShortOld)
+			.abs();
 
 		assert(ammAccountState.lastFundingRate.abs().gte(lastFundingLong.abs()));
-		console.log(stripMantissa(ammAccountState.lastFundingRate.abs()),
-		'>', 
-		stripMantissa(lastFundingShort.abs()));
+		console.log(
+			stripMantissa(ammAccountState.lastFundingRate.abs()),
+			'>',
+			stripMantissa(lastFundingShort.abs())
+		);
 		assert(ammAccountState.lastFundingRate.abs().gte(lastFundingShort.abs()));
 
 		const oraclePx = await getFeedData(
@@ -126,7 +137,7 @@ async function updateFundingRateHelper(
 			'oracleTwap:',
 			oraclePx.twap,
 			'priceSpread:',
-			priceSpread,
+			priceSpread
 		);
 		const s = new Date(ammAccountState.lastMarkPriceTwapTs.toNumber() * 1000);
 		const sdate = s.toLocaleDateString('en-US');
@@ -138,140 +149,156 @@ async function updateFundingRateHelper(
 	}
 }
 
-
-async function cappedSymFundingScenario
-	(
-		clearingHouse: ClearingHouse,
-		userAccount: UserAccount,
-		clearingHouse2: ClearingHouse,
-		userAccount2: UserAccount,
-		marketIndex: BN,
-		kSqrt: BN,
-		priceAction: Array<number>,
-		longShortSizes: Array<number>,
-	)
-	
-	{
+async function cappedSymFundingScenario(
+	clearingHouse: ClearingHouse,
+	userAccount: UserAccount,
+	clearingHouse2: ClearingHouse,
+	userAccount2: UserAccount,
+	marketIndex: BN,
+	kSqrt: BN,
+	priceAction: Array<number>,
+	longShortSizes: Array<number>
+) {
 	const priceFeedAddress = await mockOracle(priceAction[0], -10);
-		const periodicity = new BN(0);
+	const periodicity = new BN(0);
 
-		await clearingHouse.initializeMarket(
-			marketIndex,
-			priceFeedAddress,
-			kSqrt,
-			kSqrt,
-			periodicity,
-			new BN(priceAction[0] * PEG_SCALAR.toNumber())
-		);
+	await clearingHouse.initializeMarket(
+		marketIndex,
+		priceFeedAddress,
+		kSqrt,
+		kSqrt,
+		periodicity,
+		new BN(priceAction[0] * PEG_SCALAR.toNumber())
+	);
 
-		console.log('PRICE', stripMantissa(clearingHouse.calculateBaseAssetPriceWithMantissa(marketIndex)));
-		await clearingHouse.updateFundingPaused(true);
-
-		await clearingHouse.openPosition(
-			await userAccount.getPublicKey(),
-			PositionDirection.LONG,
-			USDC_PRECISION.mul(new BN(longShortSizes[0])),
-			marketIndex
-		);
-
-		console.log('clearingHouse2.openPosition');
-		// try{
-		await clearingHouse2.openPosition(
-			await userAccount2.getPublicKey(),
-			PositionDirection.SHORT,
-			USDC_PRECISION.mul(new BN(longShortSizes[1])),
-			marketIndex
+	console.log(
+		'PRICE',
+		stripMantissa(
+			clearingHouse.calculateBaseAssetPriceWithMantissa(marketIndex)
 		)
-		console.log(longShortSizes[0], longShortSizes[1]);
-		if(longShortSizes[0]!=0){
-			assert(!userAccount.getTotalPositionValue().eq(new BN(0)));
-		} else{
-			assert(userAccount.getTotalPositionValue().eq(new BN(0)));
-		}
-		if(longShortSizes[1]!=0){
-			assert(!userAccount2.getTotalPositionValue().eq(new BN(0)));
-		} else{
-			assert(userAccount2.getTotalPositionValue().eq(new BN(0)));
-		}
+	);
+	await clearingHouse.updateFundingPaused(true);
 
-		// } catch(e){
-		// }
-		console.log('clearingHouse.getMarketsAccount');
+	await clearingHouse.openPosition(
+		await userAccount.getPublicKey(),
+		PositionDirection.LONG,
+		USDC_PRECISION.mul(new BN(longShortSizes[0])),
+		marketIndex
+	);
 
-		const market =
-			await clearingHouse.getMarketsAccount().markets[marketIndex.toNumber()];
-		const prevFRL = market.amm.cumulativeFundingRateLong;
-		const prevFRS = market.amm.cumulativeFundingRateShort;
-		console.log('updateFundingRateHelper');
+	console.log('clearingHouse2.openPosition');
+	// try{
+	await clearingHouse2.openPosition(
+		await userAccount2.getPublicKey(),
+		PositionDirection.SHORT,
+		USDC_PRECISION.mul(new BN(longShortSizes[1])),
+		marketIndex
+	);
+	console.log(longShortSizes[0], longShortSizes[1]);
+	if (longShortSizes[0] != 0) {
+		assert(!userAccount.getTotalPositionValue().eq(new BN(0)));
+	} else {
+		assert(userAccount.getTotalPositionValue().eq(new BN(0)));
+	}
+	if (longShortSizes[1] != 0) {
+		assert(!userAccount2.getTotalPositionValue().eq(new BN(0)));
+	} else {
+		assert(userAccount2.getTotalPositionValue().eq(new BN(0)));
+	}
 
+	// } catch(e){
+	// }
+	console.log('clearingHouse.getMarketsAccount');
 
+	const market = await clearingHouse.getMarketsAccount().markets[
+		marketIndex.toNumber()
+	];
+	const prevFRL = market.amm.cumulativeFundingRateLong;
+	const prevFRS = market.amm.cumulativeFundingRateShort;
+	console.log('updateFundingRateHelper');
 
-		await clearingHouse.updateFundingPaused(false);
+	await clearingHouse.updateFundingPaused(false);
 
-		const state = clearingHouse.getState();
-		// console.log('Clearing House unpaused state', 
-		// state);
+	const state = clearingHouse.getState();
+	// console.log('Clearing House unpaused state',
+	// state);
 
-		console.log('priceAction update', priceAction, priceAction.slice(1));
-		await updateFundingRateHelper(
-			clearingHouse,
-			marketIndex,
-			market.amm.oracle,
-			priceAction.slice(1)
-		);
+	console.log('priceAction update', priceAction, priceAction.slice(1));
+	await updateFundingRateHelper(
+		clearingHouse,
+		marketIndex,
+		market.amm.oracle,
+		priceAction.slice(1)
+	);
 
-		const marketNew =
-		await clearingHouse.getMarketsAccount().markets[marketIndex.toNumber()];
+	const marketNew = await clearingHouse.getMarketsAccount().markets[
+		marketIndex.toNumber()
+	];
 
-		const fundingRateLong = marketNew.amm.cumulativeFundingRateLong;//.sub(prevFRL);
-		const fundingRateShort = marketNew.amm.cumulativeFundingRateShort;//.sub(prevFRS);
+	const fundingRateLong = marketNew.amm.cumulativeFundingRateLong; //.sub(prevFRL);
+	const fundingRateShort = marketNew.amm.cumulativeFundingRateShort; //.sub(prevFRS);
 
-
-		console.log(
+	console.log(
 		'fundingRateLong',
-		 stripMantissa(fundingRateLong, AMM_MANTISSA.mul(FUNDING_MANTISSA)),
-		'fundingRateShort', 
-		stripMantissa(fundingRateShort, AMM_MANTISSA.mul(FUNDING_MANTISSA)),
-		);
-		console.log(
-			'baseAssetAmountLong',
-			 stripMantissa(marketNew.baseAssetAmountLong, BASE_ASSET_PRECISION),
-			'baseAssetAmountShort', 
-			stripMantissa(marketNew.baseAssetAmountShort, BASE_ASSET_PRECISION),
-			'totalFee',
-			stripMantissa(marketNew.amm.totalFee, USDC_PRECISION),
-			'cumFee',
-			stripMantissa(marketNew.amm.cumulativeFee, USDC_PRECISION),
-			);
+		stripMantissa(fundingRateLong, AMM_MANTISSA.mul(FUNDING_MANTISSA)),
+		'fundingRateShort',
+		stripMantissa(fundingRateShort, AMM_MANTISSA.mul(FUNDING_MANTISSA))
+	);
+	console.log(
+		'baseAssetAmountLong',
+		stripMantissa(marketNew.baseAssetAmountLong, BASE_ASSET_PRECISION),
+		'baseAssetAmountShort',
+		stripMantissa(marketNew.baseAssetAmountShort, BASE_ASSET_PRECISION),
+		'totalFee',
+		stripMantissa(marketNew.amm.totalFee, USDC_PRECISION),
+		'cumFee',
+		stripMantissa(marketNew.amm.cumulativeFee, USDC_PRECISION)
+	);
 
-		const fundingPnLForLongs = marketNew.baseAssetAmountLong.mul(fundingRateLong).mul(new BN(-1));
-		const fundingPnLForShorts = marketNew.baseAssetAmountShort.mul(fundingRateShort).mul(new BN(-1));
+	const fundingPnLForLongs = marketNew.baseAssetAmountLong
+		.mul(fundingRateLong)
+		.mul(new BN(-1));
+	const fundingPnLForShorts = marketNew.baseAssetAmountShort
+		.mul(fundingRateShort)
+		.mul(new BN(-1));
 
-		let precisionFundingPay = BASE_ASSET_PRECISION;
-		console.log(
-			'fundingPnLForLongs',
-			 stripMantissa(fundingPnLForLongs.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)), precisionFundingPay),
-			'fundingPnLForShorts', 
-			stripMantissa(fundingPnLForShorts.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)), precisionFundingPay),
-			);
-
-		// more dollars long than short
-		assert(!fundingRateLong.eq(new BN(0)));
-		assert(!fundingRateShort.eq(new BN(0)));
-
-		assert(fundingRateShort.lte(fundingRateLong));
-		await clearingHouse.closePosition(
-			await userAccount.getPublicKey(),
-			marketIndex
-		);
-
-		await clearingHouse2.closePosition(
-			await userAccount2.getPublicKey(),
-			marketIndex
+	const precisionFundingPay = BASE_ASSET_PRECISION;
+	console.log(
+		'fundingPnLForLongs',
+		stripMantissa(
+			fundingPnLForLongs.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)),
+			precisionFundingPay
+		),
+		'fundingPnLForShorts',
+		stripMantissa(
+			fundingPnLForShorts.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)),
+			precisionFundingPay
 		)
+	);
 
-		return [fundingRateLong, fundingRateShort, fundingPnLForLongs, fundingPnLForShorts,
-			marketNew.amm.totalFee, marketNew.amm.cumulativeFee];
+	// more dollars long than short
+	assert(!fundingRateLong.eq(new BN(0)));
+	assert(!fundingRateShort.eq(new BN(0)));
+
+	assert(fundingRateShort.lte(fundingRateLong));
+	await clearingHouse.closePosition(
+		await userAccount.getPublicKey(),
+		marketIndex
+	);
+
+	await clearingHouse2.closePosition(
+		await userAccount2.getPublicKey(),
+		marketIndex
+	);
+
+	return [
+		fundingRateLong,
+		fundingRateShort,
+		fundingPnLForLongs,
+		fundingPnLForShorts,
+		marketNew.amm.totalFee,
+		marketNew.amm.cumulativeFee,
+	];
 }
 
 describe('pyth-oracle', () => {
@@ -289,9 +316,12 @@ describe('pyth-oracle', () => {
 	let usdcMint: Keypair;
 	let userUSDCAccount: Keypair;
 
-
-	const ammInitialQuoteAssetAmount = (new anchor.BN(5 * 10 ** 13)).mul(AMM_MANTISSA);
-	const ammInitialBaseAssetAmount = (new anchor.BN(5 * 10 ** 13)).mul(AMM_MANTISSA);
+	const ammInitialQuoteAssetAmount = new anchor.BN(5 * 10 ** 13).mul(
+		AMM_MANTISSA
+	);
+	const ammInitialBaseAssetAmount = new anchor.BN(5 * 10 ** 13).mul(
+		AMM_MANTISSA
+	);
 
 	const usdcAmount = new BN(10000 * 10 ** 6);
 
@@ -301,13 +331,9 @@ describe('pyth-oracle', () => {
 	let rollingMarketNum = 0;
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
-		userUSDCAccount = await mockUserUSDCAccount(
-			usdcMint,
-			usdcAmount,
-			provider
-		);
+		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
-		clearingHouse = new ClearingHouse(
+		clearingHouse = ClearingHouse.from(
 			connection,
 			provider.wallet,
 			chProgram.programId
@@ -317,7 +343,7 @@ describe('pyth-oracle', () => {
 		await clearingHouse.subscribe();
 
 		await clearingHouse.initializeUserAccount();
-		userAccount = new UserAccount(clearingHouse, provider.wallet.publicKey);
+		userAccount = UserAccount.from(clearingHouse, provider.wallet.publicKey);
 		await userAccount.subscribe();
 
 		await clearingHouse.depositCollateral(
@@ -326,10 +352,9 @@ describe('pyth-oracle', () => {
 			userUSDCAccount.publicKey
 		);
 
-
-				// create <NUM_USERS> users with 10k that collectively do <NUM_EVENTS> actions
+		// create <NUM_USERS> users with 10k that collectively do <NUM_EVENTS> actions
 		const [userUSDCAccounts, user_keys, clearingHouses, userAccountInfos] =
-		await initUserAccounts(1, usdcMint, usdcAmount, provider);
+			await initUserAccounts(1, usdcMint, usdcAmount, provider);
 
 		clearingHouse2 = clearingHouses[0];
 		userAccount2 = userAccountInfos[0];
@@ -351,16 +376,24 @@ describe('pyth-oracle', () => {
 
 	it('capped sym funding: ($1 long, $200 short, oracle < mark)', async () => {
 		const marketIndex = new BN(rollingMarketNum);
-		rollingMarketNum+=1;
-		const [fundingRateLong, fundingRateShort, fundingPnLForLongs, fundingPnLForShorts,
-			totalFee, cumulativeFee] =  await cappedSymFundingScenario(
-			clearingHouse, userAccount,
-			clearingHouse2, userAccount2, 
+		rollingMarketNum += 1;
+		const [
+			fundingRateLong,
+			fundingRateShort,
+			fundingPnLForLongs,
+			fundingPnLForShorts,
+			totalFee,
+			cumulativeFee,
+		] = await cappedSymFundingScenario(
+			clearingHouse,
+			userAccount,
+			clearingHouse2,
+			userAccount2,
 			marketIndex,
-			 ammInitialBaseAssetAmount,
-			 [40, 36.5],
-			 [1, 200],
-			 );
+			ammInitialBaseAssetAmount,
+			[40, 36.5],
+			[1, 200]
+		);
 
 		assert(fundingRateLong.abs().gt(fundingRateShort.abs()));
 		assert(fundingRateLong.gt(new BN(0)));
@@ -368,31 +401,53 @@ describe('pyth-oracle', () => {
 
 		assert(fundingPnLForLongs.abs().lt(fundingPnLForShorts.abs()));
 
-		const feeAlloced =  stripMantissa(totalFee, USDC_PRECISION) -
-		stripMantissa(cumulativeFee, USDC_PRECISION);
+		const feeAlloced =
+			stripMantissa(totalFee, USDC_PRECISION) -
+			stripMantissa(cumulativeFee, USDC_PRECISION);
 
-		let precisionFundingPay = BASE_ASSET_PRECISION;
-		const fundingPnLForLongsNum = stripMantissa(fundingPnLForLongs.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)), precisionFundingPay);
-		const fundingPnLForShortsNum = stripMantissa(fundingPnLForShorts.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)), precisionFundingPay);
+		const precisionFundingPay = BASE_ASSET_PRECISION;
+		const fundingPnLForLongsNum = stripMantissa(
+			fundingPnLForLongs.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)),
+			precisionFundingPay
+		);
+		const fundingPnLForShortsNum = stripMantissa(
+			fundingPnLForShorts.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)),
+			precisionFundingPay
+		);
 
-		console.log(feeAlloced, '+', Math.abs(fundingPnLForLongsNum), '>=', fundingPnLForShortsNum);
-		assert(feeAlloced + Math.abs(fundingPnLForLongsNum) >= fundingPnLForShortsNum);
-
+		console.log(
+			feeAlloced,
+			'+',
+			Math.abs(fundingPnLForLongsNum),
+			'>=',
+			fundingPnLForShortsNum
+		);
+		assert(
+			feeAlloced + Math.abs(fundingPnLForLongsNum) >= fundingPnLForShortsNum
+		);
 	});
 
 	it('capped sym funding: ($0 long, $200 short, oracle < mark)', async () => {
 		const marketIndex = new BN(rollingMarketNum);
-		rollingMarketNum+=1;
+		rollingMarketNum += 1;
 
-		const [fundingRateLong, fundingRateShort, fundingPnLForLongs, fundingPnLForShorts,
-			totalFee, cumulativeFee] =  await cappedSymFundingScenario(
-			clearingHouse, userAccount,
-			clearingHouse2, userAccount2, 
+		const [
+			fundingRateLong,
+			fundingRateShort,
+			fundingPnLForLongs,
+			fundingPnLForShorts,
+			totalFee,
+			cumulativeFee,
+		] = await cappedSymFundingScenario(
+			clearingHouse,
+			userAccount,
+			clearingHouse2,
+			userAccount2,
 			marketIndex,
-			 ammInitialBaseAssetAmount,
-			 [40, 36.5],
-			 [0, 200],
-			 );
+			ammInitialBaseAssetAmount,
+			[40, 36.5],
+			[0, 200]
+		);
 
 		assert(fundingRateLong.abs().gt(fundingRateShort.abs()));
 		assert(fundingRateLong.gt(new BN(0)));
@@ -400,32 +455,54 @@ describe('pyth-oracle', () => {
 
 		assert(fundingPnLForLongs.abs().lt(fundingPnLForShorts.abs()));
 
-		const feeAlloced =  stripMantissa(totalFee, USDC_PRECISION) -
-		stripMantissa(cumulativeFee, USDC_PRECISION);
+		const feeAlloced =
+			stripMantissa(totalFee, USDC_PRECISION) -
+			stripMantissa(cumulativeFee, USDC_PRECISION);
 
-		let precisionFundingPay = BASE_ASSET_PRECISION;
-		const fundingPnLForLongsNum = stripMantissa(fundingPnLForLongs.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)), precisionFundingPay);
-		const fundingPnLForShortsNum = stripMantissa(fundingPnLForShorts.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)), precisionFundingPay);
+		const precisionFundingPay = BASE_ASSET_PRECISION;
+		const fundingPnLForLongsNum = stripMantissa(
+			fundingPnLForLongs.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)),
+			precisionFundingPay
+		);
+		const fundingPnLForShortsNum = stripMantissa(
+			fundingPnLForShorts.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)),
+			precisionFundingPay
+		);
 
-		console.log(feeAlloced, '+', Math.abs(fundingPnLForLongsNum), '>=', fundingPnLForShortsNum);
-		assert(feeAlloced + Math.abs(fundingPnLForLongsNum) >= fundingPnLForShortsNum);
-
+		console.log(
+			feeAlloced,
+			'+',
+			Math.abs(fundingPnLForLongsNum),
+			'>=',
+			fundingPnLForShortsNum
+		);
+		assert(
+			feeAlloced + Math.abs(fundingPnLForLongsNum) >= fundingPnLForShortsNum
+		);
 	});
 	it('capped sym funding: ($1 long, $200 short, oracle > mark)', async () => {
 		// symmetric is taking fees
 
 		const marketIndex = new BN(rollingMarketNum);
-		rollingMarketNum+=1;
+		rollingMarketNum += 1;
 
-		const [fundingRateLong, fundingRateShort, fundingPnLForLongs, fundingPnLForShorts,
-			totalFee, cumulativeFee] =  await cappedSymFundingScenario(
-			clearingHouse, userAccount,
-			clearingHouse2, userAccount2, 
+		const [
+			fundingRateLong,
+			fundingRateShort,
+			fundingPnLForLongs,
+			fundingPnLForShorts,
+			totalFee,
+			cumulativeFee,
+		] = await cappedSymFundingScenario(
+			clearingHouse,
+			userAccount,
+			clearingHouse2,
+			userAccount2,
 			marketIndex,
-			 ammInitialBaseAssetAmount,
-			 [40, 43.5],
-			 [1, 200],
-			 );
+			ammInitialBaseAssetAmount,
+			[40, 43.5],
+			[1, 200]
+		);
 
 		assert(fundingRateLong.abs().eq(fundingRateShort.abs()));
 		assert(fundingRateLong.lt(new BN(0)));
@@ -433,124 +510,201 @@ describe('pyth-oracle', () => {
 
 		assert(fundingPnLForLongs.abs().lt(fundingPnLForShorts.abs()));
 
-		const feeAlloced =  stripMantissa(totalFee, USDC_PRECISION) -
-		stripMantissa(cumulativeFee, USDC_PRECISION);
+		const feeAlloced =
+			stripMantissa(totalFee, USDC_PRECISION) -
+			stripMantissa(cumulativeFee, USDC_PRECISION);
 
-		let precisionFundingPay = BASE_ASSET_PRECISION;
-		const fundingPnLForLongsNum = stripMantissa(fundingPnLForLongs.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)), precisionFundingPay);
-		const fundingPnLForShortsNum = stripMantissa(fundingPnLForShorts.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)), precisionFundingPay);
+		const precisionFundingPay = BASE_ASSET_PRECISION;
+		const fundingPnLForLongsNum = stripMantissa(
+			fundingPnLForLongs.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)),
+			precisionFundingPay
+		);
+		const fundingPnLForShortsNum = stripMantissa(
+			fundingPnLForShorts.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)),
+			precisionFundingPay
+		);
 
-		console.log(feeAlloced, '+', Math.abs(fundingPnLForLongsNum), '>=', fundingPnLForShortsNum);
-		assert(feeAlloced + Math.abs(fundingPnLForLongsNum) >= fundingPnLForShortsNum);
-
+		console.log(
+			feeAlloced,
+			'+',
+			Math.abs(fundingPnLForLongsNum),
+			'>=',
+			fundingPnLForShortsNum
+		);
+		assert(
+			feeAlloced + Math.abs(fundingPnLForLongsNum) >= fundingPnLForShortsNum
+		);
 	});
 	it('capped sym funding: ($200 long, $1 short, oracle > mark)', async () => {
 		const marketIndex = new BN(rollingMarketNum);
-		rollingMarketNum+=1;
+		rollingMarketNum += 1;
 
-		const [fundingRateLong, fundingRateShort, fundingPnLForLongs, fundingPnLForShorts,
-			totalFee, cumulativeFee] = await cappedSymFundingScenario(
-			clearingHouse, userAccount,
-			clearingHouse2, userAccount2, 
+		const [
+			fundingRateLong,
+			fundingRateShort,
+			fundingPnLForLongs,
+			fundingPnLForShorts,
+			totalFee,
+			cumulativeFee,
+		] = await cappedSymFundingScenario(
+			clearingHouse,
+			userAccount,
+			clearingHouse2,
+			userAccount2,
 			marketIndex,
-			 ammInitialBaseAssetAmount,
-			 [41, 42.5],
-			 [200, 1],
-			 );
+			ammInitialBaseAssetAmount,
+			[41, 42.5],
+			[200, 1]
+		);
 
-			 assert(fundingRateShort.abs().gt(fundingRateLong.abs()));
-			 assert(fundingRateLong.lt(new BN(0)));
-			 assert(fundingRateShort.lt(new BN(0)));
+		assert(fundingRateShort.abs().gt(fundingRateLong.abs()));
+		assert(fundingRateLong.lt(new BN(0)));
+		assert(fundingRateShort.lt(new BN(0)));
 
-			 assert(fundingPnLForLongs.gt(new BN(0)));
-			 assert(fundingPnLForShorts.lt(new BN(0)));
+		assert(fundingPnLForLongs.gt(new BN(0)));
+		assert(fundingPnLForShorts.lt(new BN(0)));
 
-			 assert(fundingPnLForShorts.abs().lt(fundingPnLForLongs.abs()));
-	 
-			 const feeAlloced =  stripMantissa(totalFee, USDC_PRECISION) -
-			 stripMantissa(cumulativeFee, USDC_PRECISION);
-	 
-			 let precisionFundingPay = BASE_ASSET_PRECISION;
-			 const fundingPnLForLongsNum = stripMantissa(fundingPnLForLongs.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)), precisionFundingPay);
-			 const fundingPnLForShortsNum = stripMantissa(fundingPnLForShorts.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)), precisionFundingPay);
-	 
-	 
-			 // amount of money inflow must be greater than or equal to money outflow
-			 console.log(feeAlloced, '+', Math.abs(fundingPnLForShortsNum), '>=', fundingPnLForLongsNum);
-			 assert(feeAlloced + Math.abs(fundingPnLForShortsNum) >= fundingPnLForLongsNum);
-			
+		assert(fundingPnLForShorts.abs().lt(fundingPnLForLongs.abs()));
+
+		const feeAlloced =
+			stripMantissa(totalFee, USDC_PRECISION) -
+			stripMantissa(cumulativeFee, USDC_PRECISION);
+
+		const precisionFundingPay = BASE_ASSET_PRECISION;
+		const fundingPnLForLongsNum = stripMantissa(
+			fundingPnLForLongs.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)),
+			precisionFundingPay
+		);
+		const fundingPnLForShortsNum = stripMantissa(
+			fundingPnLForShorts.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)),
+			precisionFundingPay
+		);
+
+		// amount of money inflow must be greater than or equal to money outflow
+		console.log(
+			feeAlloced,
+			'+',
+			Math.abs(fundingPnLForShortsNum),
+			'>=',
+			fundingPnLForLongsNum
+		);
+		assert(
+			feeAlloced + Math.abs(fundingPnLForShortsNum) >= fundingPnLForLongsNum
+		);
 	});
 	it('capped sym funding: ($200 long, $0 short, oracle > mark)', async () => {
 		const marketIndex = new BN(rollingMarketNum);
-		rollingMarketNum+=1;
+		rollingMarketNum += 1;
 
-		const [fundingRateLong, fundingRateShort, fundingPnLForLongs, fundingPnLForShorts,
-			totalFee, cumulativeFee] = await cappedSymFundingScenario(
-			clearingHouse, userAccount,
-			clearingHouse2, userAccount2, 
+		const [
+			fundingRateLong,
+			fundingRateShort,
+			fundingPnLForLongs,
+			fundingPnLForShorts,
+			totalFee,
+			cumulativeFee,
+		] = await cappedSymFundingScenario(
+			clearingHouse,
+			userAccount,
+			clearingHouse2,
+			userAccount2,
 			marketIndex,
-			 ammInitialBaseAssetAmount,
-			 [41, 42.5],
-			 [200, 0],
-			 );
+			ammInitialBaseAssetAmount,
+			[41, 42.5],
+			[200, 0]
+		);
 
-			 assert(fundingRateShort.abs().gt(fundingRateLong.abs()));
-			 assert(fundingRateLong.lt(new BN(0)));
-			 assert(fundingRateShort.lt(new BN(0)));
+		assert(fundingRateShort.abs().gt(fundingRateLong.abs()));
+		assert(fundingRateLong.lt(new BN(0)));
+		assert(fundingRateShort.lt(new BN(0)));
 
-			 assert(fundingPnLForLongs.gt(new BN(0)));
-			 assert(fundingPnLForShorts.eq(new BN(0)));
+		assert(fundingPnLForLongs.gt(new BN(0)));
+		assert(fundingPnLForShorts.eq(new BN(0)));
 
-			 assert(fundingPnLForShorts.abs().lt(fundingPnLForLongs.abs()));
-	 
-			 const feeAlloced =  stripMantissa(totalFee, USDC_PRECISION) -
-			 stripMantissa(cumulativeFee, USDC_PRECISION);
-	 
-			 let precisionFundingPay = BASE_ASSET_PRECISION;
-			 const fundingPnLForLongsNum = stripMantissa(fundingPnLForLongs.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)), precisionFundingPay);
-			 const fundingPnLForShortsNum = stripMantissa(fundingPnLForShorts.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)), precisionFundingPay);
-	 
-	 
-			 // amount of money inflow must be greater than or equal to money outflow
-			 console.log(feeAlloced, '+', Math.abs(fundingPnLForShortsNum), '>=', fundingPnLForLongsNum);
-			 assert(feeAlloced + Math.abs(fundingPnLForShortsNum) >= fundingPnLForLongsNum);
-			
+		assert(fundingPnLForShorts.abs().lt(fundingPnLForLongs.abs()));
+
+		const feeAlloced =
+			stripMantissa(totalFee, USDC_PRECISION) -
+			stripMantissa(cumulativeFee, USDC_PRECISION);
+
+		const precisionFundingPay = BASE_ASSET_PRECISION;
+		const fundingPnLForLongsNum = stripMantissa(
+			fundingPnLForLongs.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)),
+			precisionFundingPay
+		);
+		const fundingPnLForShortsNum = stripMantissa(
+			fundingPnLForShorts.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)),
+			precisionFundingPay
+		);
+
+		// amount of money inflow must be greater than or equal to money outflow
+		console.log(
+			feeAlloced,
+			'+',
+			Math.abs(fundingPnLForShortsNum),
+			'>=',
+			fundingPnLForLongsNum
+		);
+		assert(
+			feeAlloced + Math.abs(fundingPnLForShortsNum) >= fundingPnLForLongsNum
+		);
 	});
 	it('capped sym funding: ($200 long, $1 short, oracle < mark)', async () => {
 		//symmetric is taking fees
 		const marketIndex = new BN(rollingMarketNum);
-		rollingMarketNum+=1;
+		rollingMarketNum += 1;
 
-		const [fundingRateLong, fundingRateShort, fundingPnLForLongs, fundingPnLForShorts,
-			totalFee, cumulativeFee] = await cappedSymFundingScenario(
-			clearingHouse, userAccount,
-			clearingHouse2, userAccount2, 
+		const [
+			fundingRateLong,
+			fundingRateShort,
+			fundingPnLForLongs,
+			fundingPnLForShorts,
+			totalFee,
+			cumulativeFee,
+		] = await cappedSymFundingScenario(
+			clearingHouse,
+			userAccount,
+			clearingHouse2,
+			userAccount2,
 			marketIndex,
-			 ammInitialBaseAssetAmount,
-			 [41, 38.5],
-			 [200, 1],
-			 );
+			ammInitialBaseAssetAmount,
+			[41, 38.5],
+			[200, 1]
+		);
 
-			 assert(fundingRateShort.abs().eq(fundingRateLong.abs()));
-			 assert(fundingRateLong.gt(new BN(0)));
-			 assert(fundingRateShort.gt(new BN(0)));
+		assert(fundingRateShort.abs().eq(fundingRateLong.abs()));
+		assert(fundingRateLong.gt(new BN(0)));
+		assert(fundingRateShort.gt(new BN(0)));
 
-			 assert(fundingPnLForLongs.lt(new BN(0)));
-			 assert(fundingPnLForShorts.gt(new BN(0)));
+		assert(fundingPnLForLongs.lt(new BN(0)));
+		assert(fundingPnLForShorts.gt(new BN(0)));
 
-			 assert(fundingPnLForShorts.abs().lt(fundingPnLForLongs.abs()));
-	 
-			 const feeAlloced =  stripMantissa(totalFee, USDC_PRECISION) -
-			 stripMantissa(cumulativeFee, USDC_PRECISION);
-	 
-			 let precisionFundingPay = BASE_ASSET_PRECISION;
-			 const fundingPnLForLongsNum = stripMantissa(fundingPnLForLongs.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)), precisionFundingPay);
-			 const fundingPnLForShortsNum = stripMantissa(fundingPnLForShorts.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)), precisionFundingPay);
-	 
-	 
-			 // amount of money inflow must be greater than or equal to money outflow
-			 console.log(feeAlloced, '+', Math.abs(fundingPnLForShortsNum), '>=', fundingPnLForLongsNum);
-			 assert(feeAlloced + Math.abs(fundingPnLForShortsNum) >= fundingPnLForLongsNum);
-			
+		assert(fundingPnLForShorts.abs().lt(fundingPnLForLongs.abs()));
+
+		const feeAlloced =
+			stripMantissa(totalFee, USDC_PRECISION) -
+			stripMantissa(cumulativeFee, USDC_PRECISION);
+
+		const precisionFundingPay = BASE_ASSET_PRECISION;
+		const fundingPnLForLongsNum = stripMantissa(
+			fundingPnLForLongs.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)),
+			precisionFundingPay
+		);
+		const fundingPnLForShortsNum = stripMantissa(
+			fundingPnLForShorts.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)),
+			precisionFundingPay
+		);
+
+		// amount of money inflow must be greater than or equal to money outflow
+		console.log(
+			feeAlloced,
+			'+',
+			Math.abs(fundingPnLForShortsNum),
+			'>=',
+			fundingPnLForLongsNum
+		);
+		assert(
+			feeAlloced + Math.abs(fundingPnLForShortsNum) >= fundingPnLForLongsNum
+		);
 	});
 });

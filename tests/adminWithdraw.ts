@@ -7,7 +7,12 @@ import { getTokenAccount } from '@project-serum/common';
 
 import { PublicKey } from '@solana/web3.js';
 
-import {AMM_MANTISSA, ClearingHouse, MAX_LEVERAGE, PositionDirection} from '../sdk/src';
+import {
+	AMM_MANTISSA,
+	ClearingHouse,
+	MAX_LEVERAGE,
+	PositionDirection,
+} from '../sdk/src';
 
 import Markets from '../sdk/src/constants/markets';
 
@@ -56,7 +61,7 @@ describe('admin withdraw', () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
-		clearingHouse = new ClearingHouse(
+		clearingHouse = ClearingHouse.from(
 			connection,
 			provider.wallet,
 			chProgram.programId
@@ -112,7 +117,11 @@ describe('admin withdraw', () => {
 	it('Withdraw Fees', async () => {
 		const withdrawAmount = fee.div(new BN(2));
 		const state = await clearingHouse.getState();
-		await clearingHouse.withdrawFees(new BN(0), withdrawAmount, state.insuranceVault);
+		await clearingHouse.withdrawFees(
+			new BN(0),
+			withdrawAmount,
+			state.insuranceVault
+		);
 		const insuranceVaultAccount = await getTokenAccount(
 			provider,
 			state.insuranceVault
@@ -141,7 +150,7 @@ describe('admin withdraw', () => {
 
 		await clearingHouse.withdrawFromInsuranceVaultToMarket(
 			new BN(0),
-			withdrawAmount,
+			withdrawAmount
 		);
 		const clearingHouseState = clearingHouse.getState();
 		const collateralVaultTokenAccount = await getTokenAccount(

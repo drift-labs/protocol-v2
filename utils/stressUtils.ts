@@ -35,7 +35,7 @@ export async function initUserAccounts(
 
 		const chProgram = anchor.workspace.ClearingHouse as anchor.Program; // this.program-ify
 
-		const clearingHouse1 = new ClearingHouse(
+		const clearingHouse1 = ClearingHouse.from(
 			provider.connection,
 			//@ts-ignore
 			ownerWallet,
@@ -58,7 +58,7 @@ export async function initUserAccounts(
 			);
 
 		// const userAccount = 0;
-		const userAccount = new UserAccount(clearingHouse1, ownerWallet.publicKey);
+		const userAccount = UserAccount.from(clearingHouse1, ownerWallet.publicKey);
 		await userAccount.subscribe();
 
 		userAccountInfos.push(userAccount);

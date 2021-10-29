@@ -22,7 +22,7 @@ describe('AMM Curve', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.ClearingHouse as Program;
 
-	const clearingHouse = new ClearingHouse(
+	const clearingHouse = ClearingHouse.from(
 		connection,
 		provider.wallet,
 		chProgram.programId
@@ -70,7 +70,7 @@ describe('AMM Curve', () => {
 		);
 
 		await clearingHouse.initializeUserAccount();
-		userAccount = new UserAccount(clearingHouse, provider.wallet.publicKey);
+		userAccount = UserAccount.from(clearingHouse, provider.wallet.publicKey);
 		await userAccount.subscribe();
 	});
 
@@ -104,10 +104,7 @@ describe('AMM Curve', () => {
 			stripMantissa(ammAccountState.cumulativeRepegRebateLong, USDC_PRECISION)
 		);
 
-		const totalFeeNum = stripMantissa(
-			ammAccountState.totalFee,
-			USDC_PRECISION
-		);
+		const totalFeeNum = stripMantissa(ammAccountState.totalFee, USDC_PRECISION);
 		const cumFeeNum = stripMantissa(
 			ammAccountState.totalFeeMinusDistributions,
 			USDC_PRECISION
@@ -212,9 +209,7 @@ describe('AMM Curve', () => {
 		let marketsAccount = clearingHouse.getMarketsAccount();
 		let marketData = marketsAccount.markets[marketIndex.toNumber()];
 		const ammAccountState = marketData.amm;
-		assert(
-			ammAccountState.totalFee.eq(ammAccountState.totalFee)
-		);
+		assert(ammAccountState.totalFee.eq(ammAccountState.totalFee));
 
 		const oldPeg = ammAccountState.pegMultiplier;
 
@@ -256,7 +251,8 @@ describe('AMM Curve', () => {
 
 		const newPeg = marketData.amm.pegMultiplier;
 
-		const userMarketPosition = userAccount.userPositionsAccount.positions[0];
+		const userMarketPosition =
+			userAccount.getUserPositionsAccountData().positions[0];
 		const costToAMM = stripBaseAssetPrecision(
 			newPeg.sub(oldPeg).mul(userMarketPosition.baseAssetAmount).div(PEG_SCALAR)
 		);

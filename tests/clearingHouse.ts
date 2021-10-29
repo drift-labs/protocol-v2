@@ -14,7 +14,8 @@ import {
 	PositionDirection,
 	BASE_ASSET_PRECISION,
 	stripMantissa,
-	USDC_PRECISION, MAX_LEVERAGE,
+	USDC_PRECISION,
+	MAX_LEVERAGE,
 } from '../sdk/src';
 
 import Markets from '../sdk/src/constants/markets';
@@ -66,7 +67,7 @@ describe('clearing_house', () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
-		clearingHouse = new ClearingHouse(
+		clearingHouse = ClearingHouse.from(
 			connection,
 			provider.wallet,
 			chProgram.programId
@@ -388,7 +389,9 @@ describe('clearing_house', () => {
 	});
 
 	it('Reduce long position', async () => {
-		const newUSDCNotionalAmount = calculateTradeAmount(usdcAmount.div(new BN(2)));
+		const newUSDCNotionalAmount = calculateTradeAmount(
+			usdcAmount.div(new BN(2))
+		);
 		await clearingHouse.openPosition(
 			userAccountPublicKey,
 			PositionDirection.SHORT,
@@ -555,9 +558,7 @@ describe('clearing_house', () => {
 			new BN(0)
 		);
 
-		user = await clearingHouse.program.account.user.fetch(
-			userAccountPublicKey
-		);
+		user = await clearingHouse.program.account.user.fetch(userAccountPublicKey);
 		const userPositionsAccount: any =
 			await clearingHouse.program.account.userPositions.fetch(user.positions);
 		assert.ok(
@@ -599,7 +600,7 @@ describe('clearing_house', () => {
 	it('Partial Liquidation', async () => {
 		const marketIndex = new BN(0);
 
-		userAccount = new UserAccount(clearingHouse, provider.wallet.publicKey);
+		userAccount = UserAccount.from(clearingHouse, provider.wallet.publicKey);
 		await userAccount.subscribe();
 
 		const user0: any = await clearingHouse.program.account.user.fetch(
@@ -632,7 +633,11 @@ describe('clearing_house', () => {
 
 		const marketsAccount: any = clearingHouse.getMarketsAccount();
 		const marketData = marketsAccount.markets[0];
-		await setFeedPrice(anchor.workspace.Pyth, stripMantissa(liqPrice), marketData.amm.oracle);
+		await setFeedPrice(
+			anchor.workspace.Pyth,
+			stripMantissa(liqPrice),
+			marketData.amm.oracle
+		);
 
 		await clearingHouse.moveAmmToPrice(marketIndex, liqPrice);
 		console.log('margin ratio', userAccount.getMarginRatio().toString());
@@ -643,9 +648,7 @@ describe('clearing_house', () => {
 		);
 
 		// having the user liquidate themsevles because I'm too lazy to create a separate liquidator account
-		await clearingHouse.liquidate(
-			userAccountPublicKey
-		);
+		await clearingHouse.liquidate(userAccountPublicKey);
 
 		console.log(
 			'collateral + pnl post liq:',
@@ -772,14 +775,16 @@ describe('clearing_house', () => {
 
 		const marketsAccount: any = clearingHouse.getMarketsAccount();
 		const marketData = marketsAccount.markets[0];
-		await setFeedPrice(anchor.workspace.Pyth, stripMantissa(liqPrice), marketData.amm.oracle);
+		await setFeedPrice(
+			anchor.workspace.Pyth,
+			stripMantissa(liqPrice),
+			marketData.amm.oracle
+		);
 
 		await clearingHouse.moveAmmToPrice(marketIndex, liqPrice);
 
 		// having the user liquidate themsevles because I'm too lazy to create a separate liquidator account
-		await clearingHouse.liquidate(
-			userAccountPublicKey
-		);
+		await clearingHouse.liquidate(userAccountPublicKey);
 		const state: any = clearingHouse.getState();
 		const user: any = await clearingHouse.program.account.user.fetch(
 			userAccountPublicKey

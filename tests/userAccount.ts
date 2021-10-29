@@ -1,7 +1,7 @@
 import * as anchor from '@project-serum/anchor';
 import { Program } from '@project-serum/anchor';
 import { mockUSDCMint, mockUserUSDCAccount } from '../utils/mockAccounts';
-import {ClearingHouse, PEG_SCALAR} from '../sdk/src';
+import { ClearingHouse, PEG_SCALAR } from '../sdk/src';
 import { Keypair } from '@solana/web3.js';
 import BN from 'bn.js';
 import { UserAccount } from '../sdk/src/userAccount';
@@ -15,7 +15,7 @@ describe('User Account', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.ClearingHouse as Program;
 
-	const clearingHouse = new ClearingHouse(
+	const clearingHouse = ClearingHouse.from(
 		connection,
 		provider.wallet,
 		chProgram.programId
@@ -41,7 +41,8 @@ describe('User Account', () => {
 	const fee = ONE_MANTISSA.div(new BN(1000));
 	const solPositionInitialValue = usdcAmount
 		.mul(MAX_LEVERAGE)
-		.mul(ONE_MANTISSA.sub(MAX_LEVERAGE.mul(fee))).div(ONE_MANTISSA);
+		.mul(ONE_MANTISSA.sub(MAX_LEVERAGE.mul(fee)))
+		.div(ONE_MANTISSA);
 	let userAccount: UserAccount;
 
 	before(async () => {
@@ -67,7 +68,7 @@ describe('User Account', () => {
 		);
 
 		await clearingHouse.initializeUserAccount();
-		userAccount = new UserAccount(clearingHouse, provider.wallet.publicKey);
+		userAccount = UserAccount.from(clearingHouse, provider.wallet.publicKey);
 		await userAccount.subscribe();
 	});
 
@@ -94,20 +95,34 @@ describe('User Account', () => {
 			pnl0.toNumber(),
 			expectedPNL.toNumber()
 		);
-		console.log('buyingPower',summary.buyingPower.toNumber(), expectedBuyingPower.toNumber());
+		console.log(
+			'buyingPower',
+			summary.buyingPower.toNumber(),
+			expectedBuyingPower.toNumber()
+		);
 
-		console.log('totalCollateral',
+		console.log(
+			'totalCollateral',
 			summary.totalCollateral.toNumber(),
 			expectedTotalCollateral.toNumber()
 		);
 
-		console.log('freeCollateral',
+		console.log(
+			'freeCollateral',
 			summary.freeCollateral.toNumber(),
 			expectedFreeCollateral.toNumber()
 		);
 
-		console.log('marginRatio',summary.marginRatio.toNumber(), expectedMarginRatio.toNumber());
-		console.log('leverage',summary.leverage.toNumber(), expectedLeverage.toNumber());
+		console.log(
+			'marginRatio',
+			summary.marginRatio.toNumber(),
+			expectedMarginRatio.toNumber()
+		);
+		console.log(
+			'leverage',
+			summary.leverage.toNumber(),
+			expectedLeverage.toNumber()
+		);
 
 		// todo: dont hate me
 		const buyingPower = userAccount.getBuyingPower();

@@ -351,7 +351,7 @@ export async function stress_test(
 // 	const chProgram = anchor.workspace.ClearingHouse as Program; // this.program-ify
 // 	let usdcMint: Keypair;
 
-// 	const clearingHouse = new ClearingHouse(
+// 	const clearingHouse = ClearingHouse.from(
 // 		connection,
 // 		Network.LOCAL,
 // 		//@ts-ignore

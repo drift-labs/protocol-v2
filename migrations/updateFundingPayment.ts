@@ -13,7 +13,7 @@ async function main() {
 	console.log('Endpoint:', endpoint);
 
 	const chProgram = anchor.workspace.ClearingHouse as Program;
-	const clearingHouse = new ClearingHouse(
+	const clearingHouse = ClearingHouse.from(
 		connection,
 		provider.wallet,
 		chProgram.programId

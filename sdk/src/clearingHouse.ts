@@ -5,17 +5,19 @@ import {
 	TOKEN_PROGRAM_ID,
 } from '@solana/spl-token';
 import {
-	ClearingHouseMarketsAccountData,
-	ClearingHouseState,
+	Markets,
+	State,
 	CurveHistory,
 	DepositHistory,
 	FeeStructure,
 	FundingPaymentHistory,
 	FundingRateHistory,
 	IWallet,
-	LiquidationHistory, OracleGuardRails, OracleSource,
+	LiquidationHistory,
+	OracleGuardRails,
+	OracleSource,
 	PositionDirection,
-	TradeHistoryAccount,
+	TradeHistory,
 	UserAccountData,
 	UserPosition,
 	UserPositionData,
@@ -40,18 +42,15 @@ import { assert } from './assert/assert';
 import { MockUSDCFaucet } from './mockUSDCFaucet';
 import { EventEmitter } from 'events';
 import StrictEventEmitter from 'strict-event-emitter-types';
-
-interface ClearingHouseEvents {
-	programStateUpdate: (payload: ClearingHouseState) => void;
-	marketsAccountUpdate: (payload: ClearingHouseMarketsAccountData) => void;
-	fundingPaymentHistoryUpdate: (payload: FundingPaymentHistory) => void;
-	fundingRateHistoryUpdate: (payload: FundingRateHistory) => void;
-	tradeHistoryAccountUpdate: (payload: TradeHistoryAccount) => void;
-	liquidationHistoryUpdate: (payload: LiquidationHistory) => void;
-	depositHistoryUpdate: (payload: DepositHistory) => void;
-	curveHistoryUpdate: (payload: CurveHistory) => void;
-	update: void;
-}
+import {
+	getClearingHouseStatePublicKey,
+	getClearingHouseStatePublicKeyAndNonce,
+} from './addresses';
+import {
+	ClearingHouseAccountSubscriber,
+	ClearingHouseEvents,
+} from './accounts/types';
+import { DefaultClearingHouseAccountSubscriber } from './accounts/defaultClearingHouseAccountSubscriber';
 
 export const USDC_PRECISION = new BN(10 ** 6);
 export const AMM_MANTISSA = new BN(10 ** 10);
@@ -66,52 +65,53 @@ export const PRICE_TO_USDC_PRECISION = AMM_MANTISSA.div(USDC_PRECISION);
 const ZERO = new BN(0);
 const MAXPCT = new BN(1000); //percentage units are [0,1000] => [0,1]
 
-export class NotSubscribedError extends Error {
-	name = 'NotSubscribedError';
-}
-
 export class ClearingHouse {
 	connection: Connection;
 	wallet: IWallet;
 	public program: Program;
 	provider: Provider;
 	opts?: ConfirmOptions;
-	private state?: ClearingHouseState;
-	private marketsAccount?: ClearingHouseMarketsAccountData;
-	private fundingPaymentHistory?: FundingPaymentHistory;
-	private fundingRateHistory?: FundingRateHistory;
-	private tradeHistoryAccount?: TradeHistoryAccount;
-	private liquidationHistory?: LiquidationHistory;
-	private depositHistory?: DepositHistory;
-	private curveHistory?: CurveHistory;
-	isSubscribed = false;
+	accountSubscriber: ClearingHouseAccountSubscriber;
 	eventEmitter: StrictEventEmitter<EventEmitter, ClearingHouseEvents>;
+	isSubscribed = false;
 
-	public constructor(
+	public static from(
 		connection: Connection,
 		wallet: IWallet,
 		clearingHouseProgramId: PublicKey,
-		opts?: ConfirmOptions
-	) {
-		this.connection = connection;
-		this.wallet = wallet;
-		this.opts = opts || Provider.defaultOptions();
-		const provider = new Provider(connection, wallet, this.opts);
-		this.program = new Program(
+		opts: ConfirmOptions = Provider.defaultOptions()
+	): ClearingHouse {
+		const provider = new Provider(connection, wallet, opts);
+		const program = new Program(
 			clearingHouseIDL as Idl,
 			clearingHouseProgramId,
 			provider
 		);
-		this.eventEmitter = new EventEmitter();
+		const accountSubscriber = new DefaultClearingHouseAccountSubscriber(
+			program
+		);
+		return new ClearingHouse(
+			connection,
+			wallet,
+			program,
+			accountSubscriber,
+			opts
+		);
 	}
 
-	public async getClearingHouseStatePublicKeyAndNonce(): Promise<
-		[PublicKey, number]
-	> {
-		return anchor.web3.PublicKey.findProgramAddress(
-			[Buffer.from(anchor.utils.bytes.utf8.encode('clearing_house'))],
-			this.program.programId
-		);
+	public constructor(
+		connection: Connection,
+		wallet: IWallet,
+		program: Program,
+		accountSubscriber: ClearingHouseAccountSubscriber,
+		opts: ConfirmOptions
+	) {
+		this.connection = connection;
+		this.wallet = wallet;
+		this.opts = opts;
+		this.program = program;
+		this.accountSubscriber = accountSubscriber;
+		this.eventEmitter = this.accountSubscriber.eventEmitter;
 	}
 
 	statePublicKey?: PublicKey;
@@ -119,9 +119,9 @@ export class ClearingHouse {
 		if (this.statePublicKey) {
 			return this.statePublicKey;
 		}
-		this.statePublicKey = (
-			await this.getClearingHouseStatePublicKeyAndNonce()
-		)[0];
+		this.statePublicKey = await getClearingHouseStatePublicKey(
+			this.program.programId
+		);
 		return this.statePublicKey;
 	}
 
@@ -170,7 +170,7 @@ export class ClearingHouse {
 		const curveHistory = anchor.web3.Keypair.generate();
 
 		const [clearingHouseStatePublicKey, clearingHouseNonce] =
-			await this.getClearingHouseStatePublicKeyAndNonce();
+			await getClearingHouseStatePublicKeyAndNonce(this.program.programId);
 		const initializeTx = await this.program.rpc.initialize(
 			clearingHouseNonce,
 			collateralVaultNonce,
@@ -240,186 +240,13 @@ export class ClearingHouse {
 	}
 
 	public async subscribe(): Promise<boolean> {
-		if (this.isSubscribed) {
-			return;
-		}
-
-		//return and set up subscriber for state data
-		const [clearingHouseStatePublicKey, _] =
-			await this.getClearingHouseStatePublicKeyAndNonce();
-		const latestState = (await this.program.account.state.fetch(
-			clearingHouseStatePublicKey
-		)) as ClearingHouseState;
-		this.state = latestState;
-		this.eventEmitter.emit('programStateUpdate', latestState);
-
-		this.program.account.state
-			.subscribe(clearingHouseStatePublicKey, this.opts.commitment)
-			.on('change', async (updateData) => {
-				this.state = updateData;
-
-				this.eventEmitter.emit('programStateUpdate', updateData);
-			});
-
-		//return and set up subscriber for markets data
-		const latestMarketsAccount = (await this.program.account.markets.fetch(
-			this.state.markets
-		)) as ClearingHouseMarketsAccountData;
-		this.marketsAccount = latestMarketsAccount;
-
-		this.eventEmitter.emit('marketsAccountUpdate', latestMarketsAccount);
-
-		this.program.account.markets
-			.subscribe(this.state.markets, this.opts.commitment)
-			.on('change', async (updateData) => {
-				this.marketsAccount = updateData;
-
-				this.eventEmitter.emit('marketsAccountUpdate', updateData);
-			});
-
-		const latestFundingPaymentHistory =
-			(await this.program.account.fundingPaymentHistory.fetch(
-				this.state.fundingPaymentHistory
-			)) as FundingPaymentHistory;
-		this.fundingPaymentHistory = latestFundingPaymentHistory;
-
-		this.eventEmitter.emit(
-			'fundingPaymentHistoryUpdate',
-			latestFundingPaymentHistory
-		);
-
-		this.program.account.fundingPaymentHistory
-			.subscribe(this.state.fundingPaymentHistory, this.opts.commitment)
-			.on('change', async (updateData) => {
-				this.fundingPaymentHistory = updateData;
-
-				this.eventEmitter.emit('fundingPaymentHistoryUpdate', updateData);
-			});
-
-		const latestFundingRateHistory =
-			(await this.program.account.fundingRateHistory.fetch(
-				this.state.fundingRateHistory
-			)) as FundingRateHistory;
-		this.fundingRateHistory = latestFundingRateHistory;
-
-		this.eventEmitter.emit(
-			'fundingRateHistoryUpdate',
-			latestFundingRateHistory
-		);
-
-		this.program.account.fundingRateHistory
-			.subscribe(this.state.fundingRateHistory, this.opts.commitment)
-			.on('change', async (updateData) => {
-				this.fundingRateHistory = updateData;
-
-				this.eventEmitter.emit('fundingRateHistoryUpdate', updateData);
-			});
-
-		const lastTradeHistoryAccount =
-			(await this.program.account.tradeHistory.fetch(
-				this.state.tradeHistory
-			)) as TradeHistoryAccount;
-		this.tradeHistoryAccount = lastTradeHistoryAccount;
-
-		this.eventEmitter.emit(
-			'tradeHistoryAccountUpdate',
-			lastTradeHistoryAccount
-		);
-
-		this.program.account.tradeHistory
-			.subscribe(this.state.tradeHistory, this.opts.commitment)
-			.on('change', async (updateData) => {
-				this.tradeHistoryAccount = updateData;
-
-				this.eventEmitter.emit('tradeHistoryAccountUpdate', updateData);
-			});
-
-		const lastLiquidationHistory =
-			(await this.program.account.liquidationHistory.fetch(
-				this.state.liquidationHistory
-			)) as LiquidationHistory;
-		this.liquidationHistory = lastLiquidationHistory;
-
-		this.eventEmitter.emit('liquidationHistoryUpdate', lastLiquidationHistory);
-
-		this.program.account.liquidationHistory
-			.subscribe(this.state.liquidationHistory, this.opts.commitment)
-			.on('change', async (updateData) => {
-				this.liquidationHistory = updateData;
-				this.eventEmitter.emit('liquidationHistoryUpdate', updateData);
-			});
-
-		const lastDepositHistory = (await this.program.account.depositHistory.fetch(
-			this.state.depositHistory
-		)) as DepositHistory;
-		this.depositHistory = lastDepositHistory;
-
-		this.eventEmitter.emit('depositHistoryUpdate', lastDepositHistory);
-
-		this.program.account.depositHistory
-			.subscribe(this.state.depositHistory, this.opts.commitment)
-			.on('change', async (updateData) => {
-				this.depositHistory = updateData;
-				this.eventEmitter.emit('depositHistoryUpdate', updateData);
-			});
-
-		const lastCurveHistory = (await this.program.account.curveHistory.fetch(
-			this.state.curveHistory
-		)) as CurveHistory;
-		this.curveHistory = lastCurveHistory;
-
-		this.eventEmitter.emit('curveHistoryUpdate', lastCurveHistory);
-
-		this.program.account.curveHistory
-			.subscribe(this.state.curveHistory, this.opts.commitment)
-			.on('change', async (updateData) => {
-				this.curveHistory = updateData;
-				this.eventEmitter.emit('curveHistoryUpdate', updateData);
-			});
-
-		this.isSubscribed = true;
-
-		this.eventEmitter.emit('update');
-
-		return true;
+		this.isSubscribed = await this.accountSubscriber.subscribe();
+		return this.isSubscribed;
 	}
 
 	public async unsubscribe(): Promise<void> {
-		if (!this.isSubscribed) {
-			return;
-		}
-
-		await this.program.account.state.unsubscribe(
-			await this.getStatePublicKey()
-		);
-		await this.program.account.markets.unsubscribe(this.state.markets);
-		await this.program.account.fundingPaymentHistory.unsubscribe(
-			this.state.fundingPaymentHistory
-		);
-		await this.program.account.fundingRateHistory.unsubscribe(
-			this.state.fundingRateHistory
-		);
-		await this.program.account.tradeHistory.unsubscribe(
-			this.state.tradeHistory
-		);
-		await this.program.account.liquidationHistory.unsubscribe(
-			this.state.liquidationHistory
-		);
-		await this.program.account.depositHistory.unsubscribe(
-			this.state.depositHistory
-		);
-		await this.program.account.curveHistory.unsubscribe(
-			this.state.curveHistory
-		);
+		await this.accountSubscriber.unsubscribe();
 		this.isSubscribed = false;
-	}
-
-	assertIsSubscribed(): void {
-		if (!this.isSubscribed) {
-			throw new NotSubscribedError(
-				'You must call `subscribe` before using this function'
-			);
-		}
 	}
 
 	public updateWallet(newWallet: IWallet): void {
@@ -435,44 +262,36 @@ export class ClearingHouse {
 		this.program = newProgram;
 	}
 
-	public getState(): ClearingHouseState {
-		this.assertIsSubscribed();
-		return this.state;
+	public getState(): State {
+		return this.accountSubscriber.getState();
 	}
 
-	public getMarketsAccount(): ClearingHouseMarketsAccountData {
-		this.assertIsSubscribed();
-		return this.marketsAccount;
+	public getMarketsAccount(): Markets {
+		return this.accountSubscriber.getMarkets();
 	}
 
 	public getFundingPaymentHistory(): FundingPaymentHistory {
-		this.assertIsSubscribed();
-		return this.fundingPaymentHistory;
+		return this.accountSubscriber.getFundingPaymentHistory();
 	}
 
 	public getFundingRateHistory(): FundingRateHistory {
-		this.assertIsSubscribed();
-		return this.fundingRateHistory;
+		return this.accountSubscriber.getFundingRateHistory();
 	}
 
-	public getTradeHistoryAccount(): TradeHistoryAccount {
-		this.assertIsSubscribed();
-		return this.tradeHistoryAccount;
+	public getTradeHistoryAccount(): TradeHistory {
+		return this.accountSubscriber.getTradeHistory();
 	}
 
 	public getLiquidationHistory(): LiquidationHistory {
-		this.assertIsSubscribed();
-		return this.liquidationHistory;
+		return this.accountSubscriber.getLiquidationHistory();
 	}
 
 	public getDepositHistory(): DepositHistory {
-		this.assertIsSubscribed();
-		return this.depositHistory;
+		return this.accountSubscriber.getDepositHistory();
 	}
 
 	public getCurveHistory(): CurveHistory {
-		this.assertIsSubscribed();
-		return this.curveHistory;
+		return this.accountSubscriber.getCurveHistory();
 	}
 
 	public async initializeMarket(
@@ -483,8 +302,6 @@ export class ClearingHouse {
 		periodicity: BN,
 		pegMultiplier: BN = PEG_SCALAR
 	): Promise<TransactionSignature> {
-		this.assertIsSubscribed();
-
 		if (this.getMarketsAccount().markets[marketIndex.toNumber()].initialized) {
 			throw Error(`MarketIndex ${marketIndex.toNumber()} already initialized`);
 		}
@@ -500,7 +317,7 @@ export class ClearingHouse {
 					state: await this.getStatePublicKey(),
 					admin: this.wallet.publicKey,
 					oracle: priceOracle,
-					markets: this.state.markets,
+					markets: this.getState().markets,
 				},
 			}
 		);
@@ -510,8 +327,6 @@ export class ClearingHouse {
 	public async initializeUserAccount(): Promise<
 		[TransactionSignature, PublicKey]
 	> {
-		this.assertIsSubscribed();
-
 		const [
 			userPositionsAccount,
 			userAccountPublicKey,
@@ -610,8 +425,6 @@ export class ClearingHouse {
 		amount: BN,
 		collateralAccountPublicKey: PublicKey
 	): Promise<TransactionSignature> {
-		this.assertIsSubscribed();
-
 		const depositCollateralIx = await this.getDepositCollateralInstruction(
 			userAccountPublicKey,
 			amount,
@@ -634,17 +447,18 @@ export class ClearingHouse {
 			userPositionsPublicKey = user.positions;
 		}
 
+		const state = this.getState();
 		return await this.program.instruction.depositCollateral(amount, {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				user: userPublicKey,
-				collateralVault: this.state.collateralVault,
+				collateralVault: state.collateralVault,
 				userCollateralAccount: collateralAccountPublicKey,
 				authority: this.wallet.publicKey,
 				tokenProgram: TOKEN_PROGRAM_ID,
-				markets: this.state.markets,
-				fundingPaymentHistory: this.state.fundingPaymentHistory,
-				depositHistory: this.state.depositHistory,
+				markets: state.markets,
+				fundingPaymentHistory: state.fundingPaymentHistory,
+				depositHistory: state.depositHistory,
 				userPositions: userPositionsPublicKey,
 			},
 		});
@@ -654,8 +468,6 @@ export class ClearingHouse {
 		amount: BN,
 		collateralAccountPublicKey: PublicKey
 	): Promise<[TransactionSignature, PublicKey]> {
-		this.assertIsSubscribed();
-
 		const [
 			userPositionsAccount,
 			userAccountPublicKey,
@@ -682,8 +494,6 @@ export class ClearingHouse {
 		mockUSDCFaucet: MockUSDCFaucet,
 		amount: BN
 	): Promise<[TransactionSignature, PublicKey]> {
-		this.assertIsSubscribed();
-
 		const [associateTokenPublicKey, createAssociatedAccountIx, mintToIx] =
 			await mockUSDCFaucet.createAssociatedTokenAccountAndMintToInstructions(
 				this.wallet.publicKey,
@@ -714,7 +524,7 @@ export class ClearingHouse {
 		return [txSig, userAccountPublicKey];
 	}
 
-	public async deleteUser() : Promise<TransactionSignature> {
+	public async deleteUser(): Promise<TransactionSignature> {
 		const userAccountPublicKey = (await this.getUserAccountPublicKey())[0];
 		const user = await this.program.account.user.fetch(userAccountPublicKey);
 		return await this.program.rpc.deleteUser({
@@ -722,7 +532,7 @@ export class ClearingHouse {
 				user: userAccountPublicKey,
 				userPositions: user.positions,
 				authority: this.wallet.publicKey,
-			}
+			},
 		});
 	}
 
@@ -731,27 +541,26 @@ export class ClearingHouse {
 		amount: BN,
 		collateralAccountPublicKey: PublicKey
 	): Promise<TransactionSignature> {
-		this.assertIsSubscribed();
-
 		const user: any = await this.program.account.user.fetch(
 			userAccountPublicKey
 		);
 
+		const state = this.getState();
 		return await this.program.rpc.withdrawCollateral(amount, {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				user: userAccountPublicKey,
-				collateralVault: this.state.collateralVault,
-				collateralVaultAuthority: this.state.collateralVaultAuthority,
-				insuranceVault: this.state.insuranceVault,
-				insuranceVaultAuthority: this.state.insuranceVaultAuthority,
+				collateralVault: state.collateralVault,
+				collateralVaultAuthority: state.collateralVaultAuthority,
+				insuranceVault: state.insuranceVault,
+				insuranceVaultAuthority: state.insuranceVaultAuthority,
 				userCollateralAccount: collateralAccountPublicKey,
 				authority: this.wallet.publicKey,
 				tokenProgram: TOKEN_PROGRAM_ID,
-				markets: this.state.markets,
+				markets: state.markets,
 				userPositions: user.positions,
-				fundingPaymentHistory: this.state.fundingPaymentHistory,
-				depositHistory: this.state.depositHistory,
+				fundingPaymentHistory: state.fundingPaymentHistory,
+				depositHistory: state.depositHistory,
 			},
 		});
 	}
@@ -765,8 +574,6 @@ export class ClearingHouse {
 		discountToken?: PublicKey,
 		referrer?: PublicKey
 	): Promise<TransactionSignature> {
-		this.assertIsSubscribed();
-
 		const user: any = await this.program.account.user.fetch(
 			userAccountPublicKey
 		);
@@ -800,6 +607,7 @@ export class ClearingHouse {
 		const priceOracle =
 			this.getMarketsAccount().markets[marketIndex.toNumber()].amm.oracle;
 
+		const state = this.getState();
 		return await this.program.rpc.openPosition(
 			direction,
 			amount,
@@ -811,11 +619,11 @@ export class ClearingHouse {
 					state: await this.getStatePublicKey(),
 					user: userAccountPublicKey,
 					authority: this.wallet.publicKey,
-					markets: this.state.markets,
+					markets: state.markets,
 					userPositions: user.positions,
-					tradeHistory: this.state.tradeHistory,
-					fundingPaymentHistory: this.state.fundingPaymentHistory,
-					fundingRateHistory: this.state.fundingRateHistory,
+					tradeHistory: state.tradeHistory,
+					fundingPaymentHistory: state.fundingPaymentHistory,
+					fundingRateHistory: state.fundingRateHistory,
 					oracle: priceOracle,
 				},
 				remainingAccounts: remainingAccounts,
@@ -829,8 +637,6 @@ export class ClearingHouse {
 		discountToken?: PublicKey,
 		referrer?: PublicKey
 	): Promise<TransactionSignature> {
-		this.assertIsSubscribed();
-
 		const user: any = await this.program.account.user.fetch(
 			userAccountPublicKey
 		);
@@ -860,16 +666,17 @@ export class ClearingHouse {
 			});
 		}
 
+		const state = this.getState();
 		return await this.program.rpc.closePosition(marketIndex, optionalAccounts, {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				user: userAccountPublicKey,
 				authority: this.wallet.publicKey,
-				markets: this.state.markets,
+				markets: state.markets,
 				userPositions: user.positions,
-				tradeHistory: this.state.tradeHistory,
-				fundingPaymentHistory: this.state.fundingPaymentHistory,
-				fundingRateHistory: this.state.fundingRateHistory,
+				tradeHistory: state.tradeHistory,
+				fundingPaymentHistory: state.fundingPaymentHistory,
+				fundingRateHistory: state.fundingRateHistory,
 				oracle: priceOracle,
 			},
 			remainingAccounts: remainingAccounts,
@@ -881,8 +688,7 @@ export class ClearingHouse {
 		quoteAssetReserve: BN,
 		marketIndex: BN
 	): Promise<TransactionSignature> {
-		this.assertIsSubscribed();
-
+		const state = this.getState();
 		return await this.program.rpc.moveAmmPrice(
 			baseAssetReserve,
 			quoteAssetReserve,
@@ -891,7 +697,7 @@ export class ClearingHouse {
 				accounts: {
 					state: await this.getStatePublicKey(),
 					admin: this.wallet.publicKey,
-					markets: this.state.markets,
+					markets: state.markets,
 				},
 			}
 		);
@@ -901,14 +707,13 @@ export class ClearingHouse {
 		sqrtK: BN,
 		marketIndex: BN
 	): Promise<TransactionSignature> {
-		this.assertIsSubscribed();
-
+		const state = this.getState();
 		return await this.program.rpc.updateK(sqrtK, marketIndex, {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				admin: this.wallet.publicKey,
-				markets: this.state.markets,
-				curveHistory: this.state.curveHistory,
+				markets: state.markets,
+				curveHistory: state.curveHistory,
 			},
 		});
 	}
@@ -917,9 +722,7 @@ export class ClearingHouse {
 		marketIndex: BN,
 		targetPrice: BN
 	): Promise<TransactionSignature> {
-		this.assertIsSubscribed();
 		const market = this.getMarketsAccount().markets[marketIndex.toNumber()];
-		const _peg = market.amm.pegMultiplier;
 
 		const [direction, tradeSize, _] = this.calculateTargetPriceTrade(
 			marketIndex,
@@ -938,6 +741,7 @@ export class ClearingHouse {
 			market.amm.pegMultiplier
 		);
 
+		const state = this.getState();
 		return await this.program.rpc.moveAmmPrice(
 			newBaseAssetAmount,
 			newQuoteAssetAmount,
@@ -946,7 +750,7 @@ export class ClearingHouse {
 				accounts: {
 					state: await this.getStatePublicKey(),
 					admin: this.wallet.publicKey,
-					markets: this.state.markets,
+					markets: state.markets,
 				},
 			}
 		);
@@ -956,12 +760,9 @@ export class ClearingHouse {
 		newPeg: BN,
 		marketIndex: BN
 	): Promise<TransactionSignature> {
-		this.assertIsSubscribed();
-
-		const marketsAccount: any = await this.program.account.markets.fetch(
-			this.state.markets
-		);
-		const marketData = marketsAccount.markets[marketIndex.toNumber()];
+		const state = this.getState();
+		const markets = this.getMarketsAccount();
+		const marketData = markets.markets[marketIndex.toNumber()];
 		const ammData = marketData.amm;
 
 		return await this.program.rpc.repegAmmCurve(newPeg, marketIndex, {
@@ -969,8 +770,8 @@ export class ClearingHouse {
 				state: await this.getStatePublicKey(),
 				admin: this.wallet.publicKey,
 				oracle: ammData.oracle,
-				markets: this.state.markets,
-				curveHistory: this.state.curveHistory,
+				markets: state.markets,
+				curveHistory: state.curveHistory,
 			},
 		});
 	}
@@ -978,16 +779,15 @@ export class ClearingHouse {
 	public async liquidate(
 		liquidateeUserAccountPublicKey: PublicKey
 	): Promise<TransactionSignature> {
-		this.assertIsSubscribed();
-
 		const userAccountPublicKey = (await this.getUserAccountPublicKey())[0];
 
 		const liquidateeUserAccount: any = await this.program.account.user.fetch(
 			liquidateeUserAccountPublicKey
 		);
-		const liquidateePositions: UserPositionData = await this.program.account.userPositions.fetch(
-			liquidateeUserAccount.positions
-		);
+		const liquidateePositions: UserPositionData =
+			await this.program.account.userPositions.fetch(
+				liquidateeUserAccount.positions
+			);
 		const markets = this.getMarketsAccount();
 
 		const remainingAccounts = [];
@@ -1002,22 +802,23 @@ export class ClearingHouse {
 			}
 		}
 
+		const state = this.getState();
 		return await this.program.rpc.liquidate({
 			accounts: {
 				state: await this.getStatePublicKey(),
 				authority: this.wallet.publicKey,
 				user: liquidateeUserAccountPublicKey,
 				liquidator: userAccountPublicKey,
-				collateralVault: this.state.collateralVault,
-				collateralVaultAuthority: this.state.collateralVaultAuthority,
-				insuranceVault: this.state.insuranceVault,
-				insuranceVaultAuthority: this.state.insuranceVaultAuthority,
+				collateralVault: state.collateralVault,
+				collateralVaultAuthority: state.collateralVaultAuthority,
+				insuranceVault: state.insuranceVault,
+				insuranceVaultAuthority: state.insuranceVaultAuthority,
 				tokenProgram: TOKEN_PROGRAM_ID,
-				markets: this.state.markets,
+				markets: state.markets,
 				userPositions: liquidateeUserAccount.positions,
-				tradeHistory: this.state.tradeHistory,
-				liquidationHistory: this.state.liquidationHistory,
-				fundingPaymentHistory: this.state.fundingPaymentHistory,
+				tradeHistory: state.tradeHistory,
+				liquidationHistory: state.liquidationHistory,
+				fundingPaymentHistory: state.fundingPaymentHistory,
 			},
 			remainingAccounts: remainingAccounts,
 		});
@@ -1027,14 +828,13 @@ export class ClearingHouse {
 		oracle: PublicKey,
 		marketIndex: BN
 	): Promise<TransactionSignature> {
-		this.assertIsSubscribed();
-
+		const state = this.getState();
 		const tx = await this.program.rpc.updateFundingRate(marketIndex, {
 			accounts: {
 				state: await this.getStatePublicKey(),
-				markets: this.state.markets,
+				markets: state.markets,
 				oracle: oracle,
-				fundingRateHistory: this.state.fundingRateHistory,
+				fundingRateHistory: state.fundingRateHistory,
 			},
 		});
 
@@ -1045,15 +845,14 @@ export class ClearingHouse {
 		userAccount: PublicKey,
 		userPositionsAccount: PublicKey
 	): Promise<TransactionSignature> {
-		this.assertIsSubscribed();
-
+		const state = this.getState();
 		return await this.program.rpc.settleFundingPayment({
 			accounts: {
 				state: await this.getStatePublicKey(),
-				markets: this.state.markets,
+				markets: state.markets,
 				user: userAccount,
 				userPositions: userPositionsAccount,
-				fundingPaymentHistory: this.state.fundingPaymentHistory,
+				fundingPaymentHistory: state.fundingPaymentHistory,
 			},
 		});
 	}
@@ -1223,8 +1022,6 @@ export class ClearingHouse {
 			| 'acquiredBaseAssetAmount'
 			| 'acquiredQuoteAssetAmount'
 	) {
-		this.assertIsSubscribed();
-
 		if (amount.eq(new BN(0))) {
 			return new BN(0);
 		}
@@ -1323,9 +1120,9 @@ export class ClearingHouse {
 	}
 
 	/**
-	 * liquidityBook 
+	 * liquidityBook
 	 * show snapshot of liquidity, similar to traditional orderbook
-	 * @param marketIndex 
+	 * @param marketIndex
 	 * @param N number of bids/asks
 	 * @param incrementSize grouping of liquidity by pct price move
 	 * @returns
@@ -1371,10 +1168,10 @@ export class ClearingHouse {
 	}
 
 	/**
-	 * calculateTargetPriceTrade 
+	 * calculateTargetPriceTrade
 	 * simple function for finding arbitraging trades
-	 * @param marketIndex 
-	 * @param targetPrice 
+	 * @param marketIndex
+	 * @param targetPrice
 	 * @param pct optional default is 100% gap filling, can set smaller.
 	 * @returns trade direction/size in order to push price to a targetPrice
 	 */
@@ -1383,7 +1180,6 @@ export class ClearingHouse {
 		targetPrice: BN,
 		pct: BN = MAXPCT
 	): [PositionDirection, BN, BN, BN] {
-		this.assertIsSubscribed();
 		const market = this.getMarketsAccount().markets[marketIndex.toNumber()];
 		assert(market.amm.baseAssetReserve.gt(ZERO));
 		assert(targetPrice.gt(ZERO));
@@ -1490,9 +1286,9 @@ export class ClearingHouse {
 	}
 
 	/**
-	 * calculateBaseAssetValue 
+	 * calculateBaseAssetValue
 	 * = market value of closing entire position
-	 * @param marketPosition 
+	 * @param marketPosition
 	 * @returns precision = 1e10 (AMM_MANTISSA)
 	 */
 	public calculateBaseAssetValue(marketPosition: UserPosition) {
@@ -1501,7 +1297,7 @@ export class ClearingHouse {
 		}
 
 		const market =
-			this.marketsAccount.markets[marketPosition.marketIndex.toNumber()];
+			this.getMarketsAccount().markets[marketPosition.marketIndex.toNumber()];
 
 		const directionToClose = marketPosition.baseAssetAmount.gt(ZERO)
 			? PositionDirection.SHORT
@@ -1532,9 +1328,9 @@ export class ClearingHouse {
 	}
 
 	/**
-	 * calculatePositionPNL 
+	 * calculatePositionPNL
 	 * = BaseAssetAmount * (Avg Exit Price - Avg Entry Price)
-	 * @param marketPosition 
+	 * @param marketPosition
 	 * @param withFunding (adds unrealized funding payment pnl to result)
 	 * @returns precision = 1e6 (USDC_PRECISION)
 	 */
@@ -1583,7 +1379,7 @@ export class ClearingHouse {
 		const market =
 			this.getMarketsAccount().markets[marketPosition.marketIndex.toNumber()];
 
-		let ammCumulativeFundingRate : BN;
+		let ammCumulativeFundingRate: BN;
 		if (marketPosition.baseAssetAmount.gt(ZERO)) {
 			ammCumulativeFundingRate = market.amm.cumulativeFundingRateLong;
 		} else {
@@ -1605,8 +1401,6 @@ export class ClearingHouse {
 		amount: BN,
 		recipient: PublicKey
 	): Promise<TransactionSignature> {
-		this.assertIsSubscribed();
-
 		const state = await this.getState();
 		return await this.program.rpc.withdrawFees(marketIndex, amount, {
 			accounts: {
@@ -1625,8 +1419,6 @@ export class ClearingHouse {
 		amount: BN,
 		recipient: PublicKey
 	): Promise<TransactionSignature> {
-		this.assertIsSubscribed();
-
 		const state = await this.getState();
 		return await this.program.rpc.withdrawFromInsuranceVault(amount, {
 			accounts: {
@@ -1642,22 +1434,24 @@ export class ClearingHouse {
 
 	public async withdrawFromInsuranceVaultToMarket(
 		marketIndex: BN,
-		amount: BN,
+		amount: BN
 	): Promise<TransactionSignature> {
-		this.assertIsSubscribed();
-
 		const state = await this.getState();
-		return await this.program.rpc.withdrawFromInsuranceVaultToMarket(marketIndex, amount, {
-			accounts: {
-				admin: this.wallet.publicKey,
-				state: await this.getStatePublicKey(),
-				markets: state.markets,
-				insuranceVault: state.insuranceVault,
-				insuranceVaultAuthority: state.insuranceVaultAuthority,
-				collateralVault: state.collateralVault,
-				tokenProgram: TOKEN_PROGRAM_ID,
-			},
-		});
+		return await this.program.rpc.withdrawFromInsuranceVaultToMarket(
+			marketIndex,
+			amount,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					markets: state.markets,
+					insuranceVault: state.insuranceVault,
+					insuranceVaultAuthority: state.insuranceVaultAuthority,
+					collateralVault: state.collateralVault,
+					tokenProgram: TOKEN_PROGRAM_ID,
+				},
+			}
+		);
 	}
 
 	public async updateAdmin(admin: PublicKey): Promise<TransactionSignature> {
@@ -1772,7 +1566,9 @@ export class ClearingHouse {
 		});
 	}
 
-	public async updateOracleGuardRails(oracleGuardRails: OracleGuardRails): Promise<TransactionSignature> {
+	public async updateOracleGuardRails(
+		oracleGuardRails: OracleGuardRails
+	): Promise<TransactionSignature> {
 		return await this.program.rpc.updateOracleGuardRails(oracleGuardRails, {
 			accounts: {
 				admin: this.wallet.publicKey,
@@ -1781,24 +1577,42 @@ export class ClearingHouse {
 		});
 	}
 
-	public async updateMarketOracle(marketIndex: BN, oracle: PublicKey, oracleSource: OracleSource): Promise<TransactionSignature> {
-		return await this.program.rpc.updateMarketOracle(marketIndex, oracle, oracleSource, {
-			accounts: {
-				admin: this.wallet.publicKey,
-				state: await this.getStatePublicKey(),
-				markets: this.state.markets
-			},
-		});
+	public async updateMarketOracle(
+		marketIndex: BN,
+		oracle: PublicKey,
+		oracleSource: OracleSource
+	): Promise<TransactionSignature> {
+		const state = this.getState();
+		return await this.program.rpc.updateMarketOracle(
+			marketIndex,
+			oracle,
+			oracleSource,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					markets: state.markets,
+				},
+			}
+		);
 	}
 
-	public async updateMarketMinimumTradeSize(marketIndex: BN, minimumTradeSize: BN): Promise<TransactionSignature> {
-		return await this.program.rpc.updateMarketMinimumTradeSize(marketIndex, minimumTradeSize, {
-			accounts: {
-				admin: this.wallet.publicKey,
-				state: await this.getStatePublicKey(),
-				markets: this.state.markets
-			},
-		});
+	public async updateMarketMinimumTradeSize(
+		marketIndex: BN,
+		minimumTradeSize: BN
+	): Promise<TransactionSignature> {
+		const state = this.getState();
+		return await this.program.rpc.updateMarketMinimumTradeSize(
+			marketIndex,
+			minimumTradeSize,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					markets: state.markets,
+				},
+			}
+		);
 	}
 
 	public async updateWhitelistMint(

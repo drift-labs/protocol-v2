@@ -10,7 +10,11 @@ import { AMM_MANTISSA, ClearingHouse } from '../sdk/src';
 
 import Markets from '../sdk/src/constants/markets';
 
-import {mockOracle, mockUSDCMint, mockUserUSDCAccount} from '../utils/mockAccounts';
+import {
+	mockOracle,
+	mockUSDCMint,
+	mockUserUSDCAccount,
+} from '../utils/mockAccounts';
 
 describe('max deposit', () => {
 	const provider = anchor.Provider.local();
@@ -40,7 +44,7 @@ describe('max deposit', () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
-		clearingHouse = new ClearingHouse(
+		clearingHouse = ClearingHouse.from(
 			connection,
 			provider.wallet,
 			chProgram.programId

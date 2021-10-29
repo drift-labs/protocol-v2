@@ -148,7 +148,7 @@ async function crank(mock = true, actions = ['liq'], chProgram?) {
 		provider = anchor.Provider.local();
 		const connection = provider.connection;
 		const chProgramMock = anchor.workspace.ClearingHouse as Program;
-		clearingHouse = new ClearingHouse(
+		clearingHouse = ClearingHouse.from(
 			connection,
 			provider.wallet,
 			chProgramMock.programId
@@ -230,7 +230,7 @@ async function crank(mock = true, actions = ['liq'], chProgram?) {
 		provider = anchor.Provider.local(); //todo
 		const connection = provider.connection;
 
-		const clearingHouse = new ClearingHouse(
+		const clearingHouse = ClearingHouse.from(
 			connection,
 			provider.wallet,
 			chProgram.programId
@@ -241,7 +241,7 @@ async function crank(mock = true, actions = ['liq'], chProgram?) {
 		for (let i = 0; i < allUsers.length, i++; ) {
 			const ownerWallet = allUsers[i];
 
-			const clearingHouse1 = new ClearingHouse(
+			const clearingHouse1 = ClearingHouse.from(
 				provider.connection,
 				//@ts-ignore
 				ownerWallet,
@@ -249,7 +249,7 @@ async function crank(mock = true, actions = ['liq'], chProgram?) {
 			);
 			await clearingHouse1.subscribe();
 			clearingHouses.push(clearingHouse1);
-			const userAccount = new UserAccount(
+			const userAccount = UserAccount.from(
 				clearingHouse1,
 				ownerWallet.publicKey
 			);

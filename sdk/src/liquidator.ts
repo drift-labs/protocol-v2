@@ -13,14 +13,17 @@ export class Liquidator {
 		liquidatorUSDCTokenPublicKey: PublicKey
 	) {
 		this.clearingHouse = clearingHouse;
-		this.liquidatorUserAccount = new UserAccount(
+		this.liquidatorUserAccount = UserAccount.from(
 			clearingHouse,
 			clearingHouse.wallet.publicKey
 		);
 		this.liquidatorUSDCTokenPublicKey = liquidatorUSDCTokenPublicKey;
 	}
 
-	public async liquidate(userAccounts: UserAccount[], blacklistWallets: Wallet[]): Promise<UserAccount[]> {
+	public async liquidate(
+		userAccounts: UserAccount[],
+		blacklistWallets: Wallet[]
+	): Promise<UserAccount[]> {
 		const accountsToLiquidate: UserAccount[] = [];
 
 		const blackListSet = new Set();
@@ -31,7 +34,6 @@ export class Liquidator {
 		for (const userAccount of userAccounts) {
 			const [canLiquidate] = userAccount.canBeLiquidated();
 
-			
 			if (canLiquidate) {
 				accountsToLiquidate.push(userAccount);
 				const liquidateeUserAccountPublicKey = await userAccount.getPublicKey();
@@ -42,9 +44,7 @@ export class Liquidator {
 
 				try {
 					this.clearingHouse
-						.liquidate(
-							liquidateeUserAccountPublicKey
-						)
+						.liquidate(liquidateeUserAccountPublicKey)
 						.then((tx) => {
 							console.log(
 								`Liquidated user: ${userAccount.userPublicKey} Tx: ${tx}`

@@ -40,7 +40,7 @@ describe('idempotent curve', () => {
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
 
-		primaryClearingHouse = new ClearingHouse(
+		primaryClearingHouse = ClearingHouse.from(
 			connection,
 			provider.wallet,
 			chProgram.programId
@@ -116,7 +116,7 @@ describe('idempotent curve', () => {
 			provider,
 			userKeypair.publicKey
 		);
-		const clearingHouse = new ClearingHouse(
+		const clearingHouse = ClearingHouse.from(
 			connection,
 			new Wallet(userKeypair),
 			chProgram.programId
@@ -183,7 +183,7 @@ describe('idempotent curve', () => {
 			provider,
 			userKeypair.publicKey
 		);
-		const clearingHouse = new ClearingHouse(
+		const clearingHouse = ClearingHouse.from(
 			connection,
 			new Wallet(userKeypair),
 			chProgram.programId
@@ -250,7 +250,7 @@ describe('idempotent curve', () => {
 			provider,
 			userKeypair.publicKey
 		);
-		const clearingHouse = new ClearingHouse(
+		const clearingHouse = ClearingHouse.from(
 			connection,
 			new Wallet(userKeypair),
 			chProgram.programId
@@ -316,7 +316,7 @@ describe('idempotent curve', () => {
 			provider,
 			userKeypair.publicKey
 		);
-		const clearingHouse = new ClearingHouse(
+		const clearingHouse = ClearingHouse.from(
 			connection,
 			new Wallet(userKeypair),
 			chProgram.programId

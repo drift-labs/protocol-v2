@@ -35,7 +35,7 @@ async function main() {
 		chProgramId = chProgram.programId;
 	}
 
-	const clearingHouse = new ClearingHouse(connection, botWallet, chProgramId);
+	const clearingHouse = ClearingHouse.from(connection, botWallet, chProgramId);
 	await clearingHouse.subscribe();
 	console.log(`Clearing House: ${chProgramId.toString()}`);
 

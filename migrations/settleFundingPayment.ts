@@ -12,7 +12,7 @@ async function main() {
 	console.log('Endpoint:', endpoint);
 
 	const chProgram = anchor.workspace.ClearingHouse as Program;
-	const clearingHouse = new ClearingHouse(
+	const clearingHouse = ClearingHouse.from(
 		connection,
 		provider.wallet,
 		chProgram.programId
@@ -20,7 +20,10 @@ async function main() {
 	await clearingHouse.subscribe();
 	console.log(`Clearing House: ${chProgram.programId.toString()}`);
 
-	const userAccount = new UserAccount(clearingHouse, provider.wallet.publicKey);
+	const userAccount = UserAccount.from(
+		clearingHouse,
+		provider.wallet.publicKey
+	);
 	await userAccount.subscribe();
 
 	await clearingHouse.settleFundingPayment(

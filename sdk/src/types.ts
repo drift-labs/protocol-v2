@@ -33,7 +33,7 @@ export type CandleResolution =
 	| 'M';
 
 // # ClearingHouse Account Types
-export type TradeHistoryAccount = {
+export type TradeHistory = {
 	head: BN;
 	tradeRecords: TradeRecord[];
 };
@@ -160,7 +160,7 @@ export type LiquidationRecord = {
 	marginRatio: BN;
 };
 
-export type ClearingHouseState = {
+export type State = {
 	admin: PublicKey;
 	fundingPaused: boolean;
 	exchangePaused: boolean;
@@ -199,7 +199,7 @@ export type ClearingHouseState = {
 	maxDeposit: BN;
 };
 
-export type ClearingHouseMarketsAccountData = {
+export type Markets = {
 	accountIndex: BN;
 	markets: {
 		amm: {

@@ -11,7 +11,7 @@ dotenv.config();
 async function deployDevnet(provider: Provider) {
 	const connection = provider.connection;
 	const chProgram = anchor.workspace.ClearingHouse as Program;
-	const clearingHouse = new ClearingHouse(
+	const clearingHouse = ClearingHouse.from(
 		connection,
 		provider.wallet,
 		chProgram.programId
@@ -110,7 +110,7 @@ async function deployDevnet(provider: Provider) {
 
 	console.log("Bot's associated key:", associatedTokenPublicKey.toString());
 
-	const clearingHouseForBot = new ClearingHouse(
+	const clearingHouseForBot = ClearingHouse.from(
 		connection,
 		botWallet,
 		chProgram.programId

@@ -15,7 +15,7 @@ describe('stress-test', () => {
 	const chProgram = anchor.workspace.ClearingHouse as Program; // this.program-ify
 	let usdcMint: Keypair;
 
-	const clearingHouse = new ClearingHouse(
+	const clearingHouse = ClearingHouse.from(
 		connection,
 		//@ts-ignore
 		provider.wallet,

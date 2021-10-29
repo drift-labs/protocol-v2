@@ -134,7 +134,7 @@ describe('AMM Curve', () => {
 			'pctMax'
 		);
 
-		let targetSlippageBN = new BN(
+		const targetSlippageBN = new BN(
 			TARGET_MAX_SLIPPAGE * AMM_MANTISSA.toNumber()
 		);
 		let kSqrtI: BN;
@@ -159,7 +159,7 @@ describe('AMM Curve', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.ClearingHouse as Program;
 
-	const clearingHouse = new ClearingHouse(
+	const clearingHouse = ClearingHouse.from(
 		connection,
 		provider.wallet,
 		chProgram.programId
@@ -204,7 +204,7 @@ describe('AMM Curve', () => {
 			initialSOLPriceBN
 		);
 		await clearingHouse.initializeUserAccount();
-		userAccount = new UserAccount(clearingHouse, provider.wallet.publicKey);
+		userAccount = UserAccount.from(clearingHouse, provider.wallet.publicKey);
 		await userAccount.subscribe();
 	});
 

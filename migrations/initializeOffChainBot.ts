@@ -28,7 +28,7 @@ async function main() {
 	//await connection.getBalance(botWallet.publicKey);
 
 	const chProgram = anchor.workspace.ClearingHouse as Program;
-	const clearingHouse = new ClearingHouse(
+	const clearingHouse = ClearingHouse.from(
 		connection,
 		botWallet,
 		chProgram.programId

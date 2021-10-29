@@ -7,30 +7,30 @@ import dotenv = require('dotenv');
 dotenv.config();
 
 async function main(provider: Provider) {
-    const connection = provider.connection;
-    const clearingHouseProgramId = new PublicKey("dammHkt7jmytvbS3nHTxQNEcP59aE57nxwV21YdqEDN");
-    const clearingHouse = new ClearingHouse(
-        connection,
-        provider.wallet,
-        clearingHouseProgramId
-    );
-    await clearingHouse.subscribe();
+	const connection = provider.connection;
+	const clearingHouseProgramId = new PublicKey(
+		'dammHkt7jmytvbS3nHTxQNEcP59aE57nxwV21YdqEDN'
+	);
+	const clearingHouse = ClearingHouse.from(
+		connection,
+		provider.wallet,
+		clearingHouseProgramId
+	);
+	await clearingHouse.subscribe();
 
-    console.log(clearingHouse.getState().discountMint.toString());
+	console.log(clearingHouse.getState().discountMint.toString());
 
-    // const newDiscountMint = new PublicKey("EGfR6MbHk3P5kksmWjZG8sxY3GNnK7TBvCLYXEoNvB7G");
-    // await clearingHouse.updateDiscountMint(newDiscountMint);
+	// const newDiscountMint = new PublicKey("EGfR6MbHk3P5kksmWjZG8sxY3GNnK7TBvCLYXEoNvB7G");
+	// await clearingHouse.updateDiscountMint(newDiscountMint);
 
-    await clearingHouse.unsubscribe();
+	await clearingHouse.unsubscribe();
 }
 
 try {
-    if (!process.env.ANCHOR_WALLET) {
-        throw new Error('ANCHOR_WALLET must be set.');
-    }
-    main(
-        anchor.Provider.local('https://drift.genesysgo.net')
-    );
+	if (!process.env.ANCHOR_WALLET) {
+		throw new Error('ANCHOR_WALLET must be set.');
+	}
+	main(anchor.Provider.local('https://drift.genesysgo.net'));
 } catch (e) {
-    console.error(e);
+	console.error(e);
 }

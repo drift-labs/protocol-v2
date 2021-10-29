@@ -7,26 +7,24 @@ import dotenv = require('dotenv');
 dotenv.config();
 
 async function deployDevnet(provider: Provider) {
-    const connection = provider.connection;
-    const clearingHouseProgramId = new PublicKey("");
-    const clearingHouse = new ClearingHouse(
-        connection,
-        provider.wallet,
-        clearingHouseProgramId
-    );
-    await clearingHouse.subscribe();
-    const pauseExchange = true;
-    await clearingHouse.updateExchangePaused(pauseExchange);
-    await clearingHouse.unsubscribe();
+	const connection = provider.connection;
+	const clearingHouseProgramId = new PublicKey('');
+	const clearingHouse = ClearingHouse.from(
+		connection,
+		provider.wallet,
+		clearingHouseProgramId
+	);
+	await clearingHouse.subscribe();
+	const pauseExchange = true;
+	await clearingHouse.updateExchangePaused(pauseExchange);
+	await clearingHouse.unsubscribe();
 }
 
 try {
-    if (!process.env.ANCHOR_WALLET) {
-        throw new Error('ANCHOR_WALLET must be set.');
-    }
-    deployDevnet(
-        anchor.Provider.local('https://drift.genesysgo.net')
-    );
+	if (!process.env.ANCHOR_WALLET) {
+		throw new Error('ANCHOR_WALLET must be set.');
+	}
+	deployDevnet(anchor.Provider.local('https://drift.genesysgo.net'));
 } catch (e) {
-    console.error(e);
+	console.error(e);
 }

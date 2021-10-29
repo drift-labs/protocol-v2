@@ -25,13 +25,13 @@ describe('mock_usdc_faucet', () => {
 	const mintAmount = new BN(10);
 
 	before(() => {
-		clearingHouse = new ClearingHouse(
+		clearingHouse = ClearingHouse.from(
 			connection,
 			provider.wallet,
 			chProgram.programId
 		);
 
-		userAccount = new UserAccount(clearingHouse, provider.wallet.publicKey);
+		userAccount = UserAccount.from(clearingHouse, provider.wallet.publicKey);
 	});
 
 	after(async () => {
@@ -87,6 +87,6 @@ describe('mock_usdc_faucet', () => {
 		);
 
 		await userAccount.subscribe();
-		assert(userAccount.userAccountData.collateral.eq(mintAmount));
+		assert(userAccount.getUserAccountData().collateral.eq(mintAmount));
 	});
 });

@@ -40,7 +40,7 @@ describe('admin withdraw', () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
-		clearingHouse = new ClearingHouse(
+		clearingHouse = ClearingHouse.from(
 			connection,
 			provider.wallet,
 			chProgram.programId
@@ -112,9 +112,7 @@ describe('admin withdraw', () => {
 
 	it('Block liquidation', async () => {
 		try {
-			await clearingHouse.liquidate(
-				userAccountPublicKey
-			);
+			await clearingHouse.liquidate(userAccountPublicKey);
 		} catch (e) {
 			assert(e.msg, 'Exchange is paused');
 			return;

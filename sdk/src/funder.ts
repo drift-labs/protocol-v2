@@ -7,11 +7,6 @@ export class Funder {
 	clearingHouse: ClearingHouse;
 
 	public constructor(clearingHouse: ClearingHouse) {
-		if (!clearingHouse.isSubscribed) {
-			throw new Error(
-				'ClearingHouse must be subscribed before creating Funder'
-			);
-		}
 		this.clearingHouse = clearingHouse;
 	}
 
@@ -48,7 +43,7 @@ export class Funder {
 					const userAccountPublicKey = await userAccount.getPublicKey();
 					await this.clearingHouse.settleFundingPayment(
 						userAccountPublicKey,
-						userAccount.userAccountData?.positions
+						userAccount.getUserAccountData().positions
 					);
 				})();
 			})

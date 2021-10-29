@@ -52,7 +52,7 @@ describe('fees', () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
-		clearingHouse = new ClearingHouse(
+		clearingHouse = ClearingHouse.from(
 			connection,
 			provider.wallet,
 			chProgram.programId
@@ -100,7 +100,7 @@ describe('fees', () => {
 			provider,
 			referrerKeyPair.publicKey
 		);
-		const referrerClearingHouse = new ClearingHouse(
+		const referrerClearingHouse = ClearingHouse.from(
 			connection,
 			new Wallet(referrerKeyPair),
 			chProgram.programId

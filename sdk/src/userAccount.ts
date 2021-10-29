@@ -15,122 +15,56 @@ import {
 	PARTIAL_LIQUIDATION_RATIO,
 	FULL_LIQUIDATION_RATIO,
 } from './constants/numericConstants';
+import { UserAccountSubscriber, UserAccountEvents } from './accounts/types';
+import { DefaultUserAccountSubscriber } from './accounts/defaultUserAccountSubscriber';
 import { PositionDirection } from '.';
-
-interface UserAccountEvents {
-	userAccountData: (payload: UserAccountData) => void;
-	userPositionsData: (payload: UserPositionData) => void;
-	update: void;
-}
 
 export class UserAccount {
 	clearingHouse: ClearingHouse;
 	userPublicKey: PublicKey;
+	accountSubscriber: UserAccountSubscriber;
 	userAccountPublicKey?: PublicKey;
-	userAccountData?: UserAccountData;
-	userPositionsAccount?: UserPositionData;
 	isSubscribed = false;
 	eventEmitter: StrictEventEmitter<EventEmitter, UserAccountEvents>;
 
-	public constructor(clearingHouse: ClearingHouse, userPublicKey: PublicKey) {
+	public static from(
+		clearingHouse: ClearingHouse,
+		userPublicKey: PublicKey
+	): UserAccount {
+		const accountSubscriber = new DefaultUserAccountSubscriber(
+			clearingHouse.program,
+			userPublicKey
+		);
+		return new UserAccount(clearingHouse, userPublicKey, accountSubscriber);
+	}
+
+	public constructor(
+		clearingHouse: ClearingHouse,
+		userPublicKey: PublicKey,
+		accountSubscriber: UserAccountSubscriber
+	) {
 		this.clearingHouse = clearingHouse;
 		this.userPublicKey = userPublicKey;
-
-		this.eventEmitter = new EventEmitter();
+		this.accountSubscriber = accountSubscriber;
+		this.eventEmitter = this.accountSubscriber.eventEmitter;
 	}
 
 	public async subscribe(): Promise<boolean> {
-		try {
-			if (this.isSubscribed) {
-				return;
-			}
-
-			await this.clearingHouse.subscribe();
-
-			const userAccountPublicKey = await this.getPublicKey();
-
-			// get current user account data
-			const currentUserAccount = await this.clearingHouse.getUserAccountData(
-				userAccountPublicKey
-			);
-
-			this.userAccountData = currentUserAccount;
-
-			//get current positions data
-			const currentUserPositionsAccount =
-				await this.clearingHouse.getPositionsAccountData(
-					this.userAccountData.positions
-				);
-
-			this.userPositionsAccount = currentUserPositionsAccount;
-
-			// now that data is initialized, safe to use methods, set isSubscribed true
-			this.isSubscribed = true;
-
-			// callback with latest account data
-			this.eventEmitter.emit('userAccountData', currentUserAccount);
-			this.eventEmitter.emit('update');
-
-			// callback with latest positions data
-			this.eventEmitter.emit('userPositionsData', currentUserPositionsAccount);
-			this.eventEmitter.emit('update');
-
-			// set up subscriber for account data
-			this.clearingHouse
-				.getUserAccountClient()
-				.subscribe(userAccountPublicKey, this.clearingHouse.opts.commitment)
-				.on('change', async (updateData) => {
-					this.userAccountData = updateData;
-
-					this.eventEmitter.emit('userAccountData', updateData);
-					this.eventEmitter.emit('update');
-				});
-
-			// set up subscriber for positions data
-			this.clearingHouse
-				.getPositionsAccountClient()
-				.subscribe(
-					this.userAccountData.positions,
-					this.clearingHouse.opts.commitment
-				)
-				.on('change', async (updateData) => {
-					this.userPositionsAccount = updateData;
-
-					this.eventEmitter.emit('userPositionsData', updateData);
-					this.eventEmitter.emit('update');
-				});
-
-			return true;
-		} catch (error) {
-			console.error(`Caught error trying to subscribe to UserAccount`, error);
-
-			// run unsubscribe so that things are properly cleaned up
-			this.unsubscribe(true);
-
-			this.isSubscribed = false;
-
-			return false;
-		}
+		this.isSubscribed = await this.accountSubscriber.subscribe();
+		return this.isSubscribed;
 	}
 
-	assertIsSubscribed() {
-		if (!this.isSubscribed) {
-			throw Error('You must call `subscribe` before using this function');
-		}
-	}
-
-	public async unsubscribe(keepClearingHouseSubscription?: boolean) {
-		this.clearingHouse
-			.getUserAccountClient()
-			.unsubscribe(await this.getPublicKey());
-
-		this.clearingHouse
-			.getPositionsAccountClient()
-			.unsubscribe(this.userAccountData.positions);
-
-		if (!keepClearingHouseSubscription) this.clearingHouse.unsubscribe();
-
+	public async unsubscribe(): Promise<void> {
+		await this.accountSubscriber.unsubscribe();
 		this.isSubscribed = false;
+	}
+
+	public getUserAccountData(): UserAccountData {
+		return this.accountSubscriber.getUserAccountData();
+	}
+
+	public getUserPositionsAccountData(): UserPositionData {
+		return this.accountSubscriber.getUserPositionsData();
 	}
 
 	public async getPublicKey(): Promise<PublicKey> {
@@ -159,7 +93,6 @@ export class UserAccount {
 	 * @returns
 	 */
 	public getBuyingPower(): BN {
-		this.assertIsSubscribed();
 		return this.getFreeCollateral()
 			.mul(this.getMaxLeverage('Initial'))
 			.div(TEN_THOUSAND);
@@ -171,7 +104,6 @@ export class UserAccount {
 	 * @returns
 	 */
 	public getFreeCollateral(): BN {
-		this.assertIsSubscribed();
 		return this.getTotalCollateral().sub(
 			this.getTotalPositionValue()
 				.mul(TEN_THOUSAND)
@@ -185,12 +117,14 @@ export class UserAccount {
 	 * @returns
 	 */
 	public getUnrealizedPNL(withFunding?: boolean): BN {
-		this.assertIsSubscribed();
-		return this.userPositionsAccount.positions.reduce((pnl, marketPosition) => {
-			return pnl.add(
-				this.clearingHouse.calculatePositionPNL(marketPosition, withFunding)
-			);
-		}, ZERO);
+		return this.getUserPositionsAccountData().positions.reduce(
+			(pnl, marketPosition) => {
+				return pnl.add(
+					this.clearingHouse.calculatePositionPNL(marketPosition, withFunding)
+				);
+			},
+			ZERO
+		);
 	}
 
 	/**
@@ -199,12 +133,14 @@ export class UserAccount {
 	 * @returns
 	 */
 	public getUnrealizedFundingPNL(): BN {
-		this.assertIsSubscribed();
-		return this.userPositionsAccount.positions.reduce((pnl, marketPosition) => {
-			return pnl.add(
-				this.clearingHouse.calculatePositionFundingPNL(marketPosition)
-			);
-		}, ZERO);
+		return this.getUserPositionsAccountData().positions.reduce(
+			(pnl, marketPosition) => {
+				return pnl.add(
+					this.clearingHouse.calculatePositionFundingPNL(marketPosition)
+				);
+			},
+			ZERO
+		);
 	}
 
 	/**
@@ -213,10 +149,8 @@ export class UserAccount {
 	 * @returns
 	 */
 	public getTotalCollateral(): BN {
-		this.assertIsSubscribed();
-
 		return (
-			this.userAccountData?.collateral.add(this.getUnrealizedPNL(true)) ??
+			this.getUserAccountData().collateral.add(this.getUnrealizedPNL(true)) ??
 			new BN(0)
 		);
 	}
@@ -227,9 +161,8 @@ export class UserAccount {
 	 * @returns
 	 */
 	getTotalPositionValue(): BN {
-		this.assertIsSubscribed();
-		return this.userPositionsAccount.positions
-			.reduce((positionValue, marketPosition) => {
+		return this.getUserPositionsAccountData()
+			.positions.reduce((positionValue, marketPosition) => {
 				return positionValue.add(
 					this.clearingHouse.calculateBaseAssetValue(marketPosition)
 				);
@@ -245,7 +178,7 @@ export class UserAccount {
 	public getPositionValue(positionIndex: number): BN {
 		return this.clearingHouse
 			.calculateBaseAssetValue(
-				this.userPositionsAccount.positions[positionIndex]
+				this.getUserPositionsAccountData().positions[positionIndex]
 			)
 			.div(AMM_MANTISSA);
 	}
@@ -313,7 +246,6 @@ export class UserAccount {
 	 * @returns
 	 */
 	public getMarginRatio(): BN {
-		this.assertIsSubscribed();
 		const totalPositionValue = this.getTotalPositionValue();
 
 		if (totalPositionValue.eq(ZERO)) {
@@ -335,7 +267,7 @@ export class UserAccount {
 	 */
 	public needsToSettleFundingPayment(): boolean {
 		const marketsAccount = this.clearingHouse.getMarketsAccount();
-		for (const userPosition of this.userPositionsAccount.positions) {
+		for (const userPosition of this.getUserPositionsAccountData().positions) {
 			if (userPosition.baseAssetAmount.eq(ZERO)) {
 				continue;
 			}
@@ -483,7 +415,7 @@ export class UserAccount {
 		positionMarketIndex: BN,
 		closeQuoteAmount: BN
 	): BN {
-		const currentPosition = this.userPositionsAccount?.positions.find(
+		const currentPosition = this.getUserPositionsAccountData().positions.find(
 			(position) => position.marketIndex.eq(positionMarketIndex)
 		);
 
@@ -665,7 +597,7 @@ export class UserAccount {
 	}
 
 	public summary() {
-		const marketPosition0 = this.userPositionsAccount.positions[0];
+		const marketPosition0 = this.getUserPositionsAccountData().positions[0];
 		const pos0PNL = this.clearingHouse.calculatePositionPNL(marketPosition0);
 		const pos0Value =
 			this.clearingHouse.calculateBaseAssetValue(marketPosition0);
