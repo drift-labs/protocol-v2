@@ -607,6 +607,19 @@ pub mod clearing_house {
             oracle_mark_spread_pct_after = _oracle_mark_spread_pct_after;
         }
 
+        let (
+            _total_collateral_after,
+            _unrealized_pnl_after,
+            _base_asset_value_after,
+            margin_ratio_after,
+        ) = calculate_margin_ratio(user, user_positions, &ctx.accounts.markets.load()?)?;
+
+        if margin_ratio_after < ctx.accounts.state.margin_ratio_initial
+            && potentially_risk_increasing
+        {
+            return Err(ErrorCode::InsufficientCollateral.into());
+        }
+
         let (discount_token, referrer) = optional_accounts::get_discount_token_and_referrer(
             optional_accounts,
             ctx.remaining_accounts,
@@ -660,19 +673,6 @@ pub mod clearing_house {
                 .checked_add(referrer_reward)
                 .ok_or_else(math_error!())?;
             referrer.exit(ctx.program_id)?;
-        }
-
-        let (
-            _total_collateral_after,
-            _unrealized_pnl_after,
-            _base_asset_value_after,
-            margin_ratio_after,
-        ) = calculate_margin_ratio(user, user_positions, &ctx.accounts.markets.load()?)?;
-
-        if margin_ratio_after < ctx.accounts.state.margin_ratio_initial
-            && potentially_risk_increasing
-        {
-            return Err(ErrorCode::InsufficientCollateral.into());
         }
 
         let is_oracle_mark_too_divergent = amm::is_oracle_mark_too_divergent(
