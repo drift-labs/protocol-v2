@@ -17,7 +17,7 @@ import {
 } from './constants/numericConstants';
 import { UserAccountSubscriber, UserAccountEvents } from './accounts/types';
 import { DefaultUserAccountSubscriber } from './accounts/defaultUserAccountSubscriber';
-import { PositionDirection } from '.';
+import { PositionDirection, stripMantissa } from '.';
 
 export class ClearingHouseUser {
 	clearingHouse: ClearingHouse;
@@ -384,23 +384,44 @@ export class ClearingHouseUser {
 		// sign of position in current market after the trade
 		const baseAssetSignIsNeg = proposedMarketPosition.baseAssetAmount.isNeg();
 
-		let liqPrice = new BN(-1);
+		// console.log(
+		// 	stripMantissa(currentPrice),
+		// stripMantissa(liqRatio),
+		// stripMantissa(marginRatio),
+		// stripMantissa(marketProportion),
+		// );
 
-		// if the user is long, then the liq price is the currentPrice multiplied by liqRatio/marginRatio (how many multiples lower does the current marginRatio have to go to reach the liqRatio), multiplied by the fraction of the proposed total position value that this market will take up
-		if (!baseAssetSignIsNeg) {
-			liqPrice = currentPrice
-				.mul(liqRatio)
-				.div(marginRatio)
-				.mul(marketProportion)
-				.div(TEN_THOUSAND);
+		
+		// // if the user is long, then the liq price is the currentPrice multiplied by liqRatio/marginRatio (how many multiples lower does the current marginRatio have to go to reach the liqRatio), multiplied by the fraction of the proposed total position value that this market will take up
+		// if (!baseAssetSignIsNeg) {
+		// 	liqPrice = currentPrice
+		// 		.mul(liqRatio)
+		// 		.div(marginRatio)
+		// 		.mul(marketProportion)
+		// 		.div(TEN_THOUSAND);
+		// } else {
+		// 	// if the user is short, it's the reciprocal of the above
+		// 	liqPrice = currentPrice
+		// 		.mul(marginRatio)
+		// 		.div(liqRatio)
+		// 		.mul(TEN_THOUSAND)
+		// 		.div(marketProportion);
+		// }
+
+		let pctChange = marginRatio.abs().sub(liqRatio);
+		// if user is short, higher price is liq
+		if (baseAssetSignIsNeg) {
+			pctChange = pctChange.add(TEN_THOUSAND);
 		} else {
-			// if the user is short, it's the reciprocal of the above
-			liqPrice = currentPrice
-				.mul(marginRatio)
-				.div(liqRatio)
-				.mul(TEN_THOUSAND)
-				.div(marketProportion);
+			if (TEN_THOUSAND.lte(pctChange)) {
+				// no liquidation price, position is a fully/over collateralized long
+				// handle as NaN on UI
+				return new BN(-1);
+			}
+			pctChange = TEN_THOUSAND.sub(pctChange);
 		}
+
+		const liqPrice = currentPrice.mul(pctChange).div(TEN_THOUSAND);
 
 		return liqPrice;
 	}
