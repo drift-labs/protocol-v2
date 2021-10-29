@@ -327,9 +327,10 @@ export class UserAccount {
 		const totalCurrentPositionValueIgnoringTargetUSDC =
 			this.getTotalPositionValueExcludingMarket(targetMarket.marketIndex);
 
-		const currentMarketPosition = this.userPositionsAccount?.positions?.find(
-			(position) => position.marketIndex.eq(targetMarket.marketIndex)
-		);
+		const currentMarketPosition =
+			this.getUserPositionsAccountData().positions?.find((position) =>
+				position.marketIndex.eq(targetMarket.marketIndex)
+			);
 
 		const currentMarketPositionBaseSize = currentMarketPosition
 			? currentMarketPosition.baseAssetAmount
@@ -544,7 +545,7 @@ export class UserAccount {
 	 * @returns userPosition
 	 */
 	private getPositionForMarket(marketIndex: BN): UserPosition {
-		return this.userPositionsAccount.positions.find((position) =>
+		return this.getUserPositionsAccountData().positions.find((position) =>
 			position.marketIndex.eq(marketIndex)
 		);
 	}
