@@ -33,32 +33,32 @@ export type CandleResolution =
 	| 'M';
 
 // # ClearingHouse Account Types
-export type TradeHistory = {
+export type TradeHistoryAccount = {
 	head: BN;
 	tradeRecords: TradeRecord[];
 };
 
-export type DepositHistory = {
+export type DepositHistoryAccount = {
 	head: BN;
 	depositRecords: DepositRecord[];
 };
 
-export type CurveHistory = {
+export type CurveHistoryAccount = {
 	head: BN;
 	curveRecords: CurveRecord[];
 };
 
-export type FundingRateHistory = {
+export type FundingRateHistoryAccount = {
 	head: BN;
 	fundingRateRecords: FundingRateRecord[];
 };
 
-export type FundingPaymentHistory = {
+export type FundingPaymentHistoryAccount = {
 	head: BN;
 	fundingPaymentRecords: FundingPaymentRecord[];
 };
 
-export type LiquidationHistory = {
+export type LiquidationHistoryAccount = {
 	head: BN;
 	liquidationRecords: LiquidationRecord[];
 };
@@ -160,7 +160,7 @@ export type LiquidationRecord = {
 	marginRatio: BN;
 };
 
-export type State = {
+export type StateAccount = {
 	admin: PublicKey;
 	fundingPaused: boolean;
 	exchangePaused: boolean;
@@ -199,7 +199,7 @@ export type State = {
 	maxDeposit: BN;
 };
 
-export type Markets = {
+export type MarketsAccount = {
 	accountIndex: BN;
 	markets: {
 		amm: {
@@ -240,12 +240,12 @@ export type UserPosition = {
 	quoteAssetAmount: BN;
 };
 
-export type UserPositionData = {
+export type UserPositionsAccount = {
 	positions: UserPosition[];
 	user: PublicKey;
 };
 
-export type UserAccountData = {
+export type UserAccount = {
 	authority: PublicKey;
 	collateral: BN;
 	cumulativeDeposits: BN;
@@ -342,13 +342,13 @@ export type FeeStructure = {
 
 export type OracleGuardRails = {
 	priceDivergence: {
-		markOracleDivergenceNumerator: BN,
-		markOracleDivergenceDenominator: BN,
-	},
+		markOracleDivergenceNumerator: BN;
+		markOracleDivergenceDenominator: BN;
+	};
 	validity: {
-		slotsBeforeStale: BN,
-		confidenceIntervalMaxSize: BN,
-		tooVolatileRatio: BN,
-	},
-	useForLiquidations: boolean,
+		slotsBeforeStale: BN;
+		confidenceIntervalMaxSize: BN;
+		tooVolatileRatio: BN;
+	};
+	useForLiquidations: boolean;
 };

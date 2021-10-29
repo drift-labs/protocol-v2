@@ -4,7 +4,7 @@ import { mockUSDCMint, mockUserUSDCAccount } from '../utils/mockAccounts';
 import { ClearingHouse, PEG_SCALAR } from '../sdk/src';
 import { Keypair } from '@solana/web3.js';
 import BN from 'bn.js';
-import { UserAccount } from '../sdk/src/userAccount';
+import { ClearingHouseUser } from '../sdk/src/clearingHouseUser';
 import { assert } from 'chai';
 import { createPriceFeed } from '../utils/mockPythUtils';
 import { MAX_LEVERAGE, PositionDirection } from '../sdk/src';
@@ -43,7 +43,7 @@ describe('User Account', () => {
 		.mul(MAX_LEVERAGE)
 		.mul(ONE_MANTISSA.sub(MAX_LEVERAGE.mul(fee)))
 		.div(ONE_MANTISSA);
-	let userAccount: UserAccount;
+	let userAccount: ClearingHouseUser;
 
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
@@ -68,7 +68,10 @@ describe('User Account', () => {
 		);
 
 		await clearingHouse.initializeUserAccount();
-		userAccount = UserAccount.from(clearingHouse, provider.wallet.publicKey);
+		userAccount = ClearingHouseUser.from(
+			clearingHouse,
+			provider.wallet.publicKey
+		);
 		await userAccount.subscribe();
 	});
 
@@ -166,7 +169,7 @@ describe('User Account', () => {
 
 	it('After Deposit', async () => {
 		await clearingHouse.depositCollateral(
-			await userAccount.getPublicKey(),
+			await userAccount.getUserAccountPublicKey(),
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
@@ -190,7 +193,7 @@ describe('User Account', () => {
 
 	it('After Position Taken', async () => {
 		await clearingHouse.openPosition(
-			await userAccount.getPublicKey(),
+			await userAccount.getUserAccountPublicKey(),
 			PositionDirection.LONG,
 			solPositionInitialValue,
 			marketIndex
@@ -238,7 +241,7 @@ describe('User Account', () => {
 	});
 	it('Close Position', async () => {
 		await clearingHouse.closePosition(
-			await userAccount.getPublicKey(),
+			await userAccount.getUserAccountPublicKey(),
 			marketIndex
 		);
 

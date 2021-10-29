@@ -8,7 +8,7 @@ import {
 	ClearingHouse,
 	Liquidator,
 	PositionDirection,
-	UserAccount,
+	ClearingHouseUser,
 } from '../sdk/src';
 import { mockOracle, mockUSDCMint } from './mockAccounts';
 import { getFeedData } from './mockPythUtils';
@@ -249,7 +249,7 @@ async function crank(mock = true, actions = ['liq'], chProgram?) {
 			);
 			await clearingHouse1.subscribe();
 			clearingHouses.push(clearingHouse1);
-			const userAccount = UserAccount.from(
+			const userAccount = ClearingHouseUser.from(
 				clearingHouse1,
 				ownerWallet.publicKey
 			);

@@ -12,7 +12,7 @@ import { getFeedData, setFeedPrice } from '../utils/mockPythUtils';
 import {
 	PEG_SCALAR,
 	stripMantissa,
-	UserAccount,
+	ClearingHouseUser,
 	PositionDirection,
 	USDC_PRECISION,
 } from '../sdk';
@@ -163,8 +163,8 @@ describe('pyth-oracle', () => {
 
 	const usdcAmount = new BN(10 * 10 ** 6);
 
-	let userAccount: UserAccount;
-	let userAccount2: UserAccount;
+	let userAccount: ClearingHouseUser;
+	let userAccount2: ClearingHouseUser;
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
@@ -182,11 +182,14 @@ describe('pyth-oracle', () => {
 		await mockOracle(price, -6);
 
 		await clearingHouse.initializeUserAccount();
-		userAccount = UserAccount.from(clearingHouse, provider.wallet.publicKey);
+		userAccount = ClearingHouseUser.from(
+			clearingHouse,
+			provider.wallet.publicKey
+		);
 		await userAccount.subscribe();
 
 		await clearingHouse.depositCollateral(
-			await userAccount.getPublicKey(),
+			await userAccount.getUserAccountPublicKey(),
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
@@ -293,14 +296,14 @@ describe('pyth-oracle', () => {
 		);
 
 		await clearingHouse.openPosition(
-			await userAccount.getPublicKey(),
+			await userAccount.getUserAccountPublicKey(),
 			PositionDirection.LONG,
 			USDC_PRECISION,
 			marketIndex
 		);
 
 		await clearingHouse2.openPosition(
-			await userAccount2.getPublicKey(),
+			await userAccount2.getUserAccountPublicKey(),
 			PositionDirection.SHORT,
 			USDC_PRECISION.div(new BN(2)),
 			marketIndex
@@ -388,7 +391,7 @@ describe('pyth-oracle', () => {
 
 		try {
 			await clearingHouse.openPosition(
-				await userAccount.getPublicKey(),
+				await userAccount.getUserAccountPublicKey(),
 				PositionDirection.LONG,
 				tradeSize,
 				marketIndex

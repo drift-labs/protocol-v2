@@ -8,7 +8,7 @@ import { PythClient } from './pythClient';
 import SlackMessenger from './slackMessanger';
 import { PositionDirection, SwapDirection, OracleSource } from './types';
 
-export * from './userAccount';
+export * from './clearingHouseUser';
 export * from './clearingHouse';
 export * from './DataSubscriptionHelpers';
 export * from './types';

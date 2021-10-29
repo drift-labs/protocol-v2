@@ -3,7 +3,11 @@ import { PublicKey } from '@solana/web3.js';
 import BN from 'bn.js';
 import csv from 'csvtojson';
 import fs from 'fs';
-import { ClearingHouse, PositionDirection, UserAccount } from '../sdk/src';
+import {
+	ClearingHouse,
+	PositionDirection,
+	ClearingHouseUser,
+} from '../sdk/src';
 import { mockUserUSDCAccount } from './mockAccounts';
 
 export async function initUserAccounts(
@@ -58,7 +62,10 @@ export async function initUserAccounts(
 			);
 
 		// const userAccount = 0;
-		const userAccount = UserAccount.from(clearingHouse1, ownerWallet.publicKey);
+		const userAccount = ClearingHouseUser.from(
+			clearingHouse1,
+			ownerWallet.publicKey
+		);
 		await userAccount.subscribe();
 
 		userAccountInfos.push(userAccount);

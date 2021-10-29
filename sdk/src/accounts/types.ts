@@ -1,14 +1,14 @@
 import {
-	CurveHistory,
-	DepositHistory,
-	FundingPaymentHistory,
-	FundingRateHistory,
-	LiquidationHistory,
-	Markets,
-	State,
-	TradeHistory,
-	UserAccountData,
-	UserPositionData,
+	CurveHistoryAccount,
+	DepositHistoryAccount,
+	FundingPaymentHistoryAccount,
+	FundingRateHistoryAccount,
+	LiquidationHistoryAccount,
+	MarketsAccount,
+	StateAccount,
+	TradeHistoryAccount,
+	UserAccount,
+	UserPositionsAccount,
 } from '../types';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
@@ -23,38 +23,40 @@ export class NotSubscribedError extends Error {
 	name = 'NotSubscribedError';
 }
 
-export interface ClearingHouseEvents {
-	stateUpdate: (payload: State) => void;
-	marketsUpdate: (payload: Markets) => void;
-	fundingPaymentHistoryUpdate: (payload: FundingPaymentHistory) => void;
-	fundingRateHistoryUpdate: (payload: FundingRateHistory) => void;
-	tradeHistoryUpdate: (payload: TradeHistory) => void;
-	liquidationHistoryUpdate: (payload: LiquidationHistory) => void;
-	depositHistoryUpdate: (payload: DepositHistory) => void;
-	curveHistoryUpdate: (payload: CurveHistory) => void;
+export interface ClearingHouseAccountEvents {
+	stateAccountUpdate: (payload: StateAccount) => void;
+	marketsAccountUpdate: (payload: MarketsAccount) => void;
+	fundingPaymentHistoryAccountUpdate: (
+		payload: FundingPaymentHistoryAccount
+	) => void;
+	fundingRateHistoryAccountUpdate: (payload: FundingRateHistoryAccount) => void;
+	tradeHistoryAccountUpdate: (payload: TradeHistoryAccount) => void;
+	liquidationHistoryAccountUpdate: (payload: LiquidationHistoryAccount) => void;
+	depositHistoryAccountUpdate: (payload: DepositHistoryAccount) => void;
+	curveHistoryAccountUpdate: (payload: CurveHistoryAccount) => void;
 	update: void;
 }
 
 export interface ClearingHouseAccountSubscriber {
-	eventEmitter: StrictEventEmitter<EventEmitter, ClearingHouseEvents>;
+	eventEmitter: StrictEventEmitter<EventEmitter, ClearingHouseAccountEvents>;
 	isSubscribed: boolean;
 
 	subscribe(): Promise<boolean>;
 	unsubscribe(): Promise<void>;
 
-	getState(): State;
-	getMarkets(): Markets;
-	getTradeHistory(): TradeHistory;
-	getDepositHistory(): DepositHistory;
-	getFundingPaymentHistory(): FundingPaymentHistory;
-	getFundingRateHistory(): FundingRateHistory;
-	getCurveHistory(): CurveHistory;
-	getLiquidationHistory(): LiquidationHistory;
+	getStateAccount(): StateAccount;
+	getMarketsAccount(): MarketsAccount;
+	getTradeHistoryAccount(): TradeHistoryAccount;
+	getDepositHistoryAccount(): DepositHistoryAccount;
+	getFundingPaymentHistoryAccount(): FundingPaymentHistoryAccount;
+	getFundingRateHistoryAccount(): FundingRateHistoryAccount;
+	getCurveHistoryAccount(): CurveHistoryAccount;
+	getLiquidationHistoryAccount(): LiquidationHistoryAccount;
 }
 
 export interface UserAccountEvents {
-	userAccountData: (payload: UserAccountData) => void;
-	userPositionsData: (payload: UserPositionData) => void;
+	userAccountData: (payload: UserAccount) => void;
+	userPositionsData: (payload: UserPositionsAccount) => void;
 	update: void;
 }
 
@@ -65,6 +67,6 @@ export interface UserAccountSubscriber {
 	subscribe(): Promise<boolean>;
 	unsubscribe(): Promise<void>;
 
-	getUserAccountData(): UserAccountData;
-	getUserPositionsData(): UserPositionData;
+	getUserAccount(): UserAccount;
+	getUserPositionsAccount(): UserPositionsAccount;
 }

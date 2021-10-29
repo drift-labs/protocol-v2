@@ -4,7 +4,7 @@ import {
 	BASE_ASSET_PRECISION,
 	USDC_PRECISION,
 } from './clearingHouse';
-import { UserAccount } from './userAccount';
+import { ClearingHouseUser } from './clearingHouseUser';
 import { PythClient } from './pythClient';
 import BN from 'bn.js';
 import {
@@ -39,7 +39,7 @@ export const VWAP = (trades): number => {
 export class Arbitrager {
 	private clearingHouse: ClearingHouse;
 	private pythClient: PythClient;
-	private userAccount: UserAccount;
+	private userAccount: ClearingHouseUser;
 	private alphas: Array<number>;
 	private prevMarketNetExposureExBot: Array<number>;
 	private connectionOverride: Connection;
@@ -49,7 +49,7 @@ export class Arbitrager {
 
 	public constructor(
 		clearingHouse: ClearingHouse,
-		userAccount: UserAccount,
+		userAccount: ClearingHouseUser,
 		connectionOverride?: Connection,
 		useExternal?: boolean
 	) {
@@ -94,19 +94,19 @@ export class Arbitrager {
 	public async getRecentTradeAvg(symbol: string): Promise<any> {
 		const limit = 3;
 		const recentTrades = await this.ftxClient.fetchTrades(symbol, limit);
-		let pricesum = 0; 
-		let volumesum = 0; 
-		for (let i=0; i<recentTrades.length; i++) {
+		let pricesum = 0;
+		let volumesum = 0;
+		for (let i = 0; i < recentTrades.length; i++) {
 			// console.log(recentTrades[i]);
 			// console.log(recentTrades[i].timestamp);
-			const amount =  recentTrades[i]['amount'];
-			const price =  recentTrades[i]['price'];
-			if(price && amount){
+			const amount = recentTrades[i]['amount'];
+			const price = recentTrades[i]['price'];
+			if (price && amount) {
 				pricesum += price * amount;
 				volumesum += amount;
 			}
 		}
-		
+
 		const weightedAvg = pricesum / volumesum;
 		console.log('Weighted Average Price of', limit, 'Trades', weightedAvg);
 		return weightedAvg;
@@ -121,8 +121,9 @@ export class Arbitrager {
 		const MAX_TRADE_AMOUNT = new BN(750).mul(USDC_PRECISION);
 
 		const maxPostionValuePerMarket = this.userAccount
-		.getTotalCollateral().mul(new BN(3))
-		.div(new BN(Markets.length));
+			.getTotalCollateral()
+			.mul(new BN(3))
+			.div(new BN(Markets.length));
 
 		for (const marketIndex in Markets) {
 			// LOAD MARKET + DATA
@@ -226,7 +227,6 @@ export class Arbitrager {
 
 			let isPositionValueLimit = false;
 
-
 			const getOracleData = async (oraclePricePubkey) => {
 				const nowSlot = await blockTimeConnection.getSlot();
 				nowSOL = new BN(await blockTimeConnection.getBlockTime(nowSlot));
@@ -254,39 +254,44 @@ export class Arbitrager {
 
 				oraclePrice = oraclePriceData.price;
 				oracleTwac = oraclePriceData.twac.value;
-				
+
 				// const oracelConfLatest = oraclePriceData.priceComponents[0].latest.confidence;
-				const oracleConfs = [oraclePriceData.previousConfidence, 
-					oraclePriceData.confidence, 
-					oracleTwac
+				const oracleConfs = [
+					oraclePriceData.previousConfidence,
+					oraclePriceData.confidence,
+					oracleTwac,
 				];
-				
+
 				function median(numbers: number[]): number {
 					const sorted = numbers.slice().sort((a, b) => a - b);
 					const middle = Math.floor(sorted.length / 2);
-				
+
 					if (sorted.length % 2 === 0) {
 						return (sorted[middle - 1] + sorted[middle]) / 2;
 					}
-				
+
 					return sorted[middle];
 				}
 
-				const oracleConfReg = ((Math.max(...oracleConfs) + median(oracleConfs))/2) + .01;
+				const oracleConfReg =
+					(Math.max(...oracleConfs) + median(oracleConfs)) / 2 + 0.01;
 
 				oracleBid = oraclePriceData.price - oracleConfReg;
-				oracleAsk = oraclePriceData.price + oracleConfReg * 3; // don't like being short 
-				
+				oracleAsk = oraclePriceData.price + oracleConfReg * 3; // don't like being short
+
 				oracleTwapBid = oraclePriceData.twap.value - oracleTwac;
-				oracleTwapAsk = oraclePriceData.twap.value - oracleTwac * 3; // don't like being short 
+				oracleTwapAsk = oraclePriceData.twap.value - oracleTwac * 3; // don't like being short
 
 				return true;
 			};
 
 			const getNetExposure = async () => {
-				const positions = this.userAccount.getUserPositionsAccountData()?.positions;
+				const positions = this.userAccount.getUserPositionsAccount()?.positions;
 				for (const position in positions) {
-					if (positions[position].marketIndex.eq(marketIndexBN) && !positions[position].baseAssetAmount.eq(ZERO)) {
+					if (
+						positions[position].marketIndex.eq(marketIndexBN) &&
+						!positions[position].baseAssetAmount.eq(ZERO)
+					) {
 						arbPos = positions[position];
 						uPnL = stripMantissa(
 							this.clearingHouse.calculatePositionPNL(arbPos, false),
@@ -316,24 +321,26 @@ export class Arbitrager {
 					maxPositionValueNum
 				);
 
-				if(netExposure > 0){
+				if (netExposure > 0) {
 					oracleTarget = oracleBid;
 					orcaleTwapTarget = oracleTwapBid;
-				} else if(netExposure < 0){
+				} else if (netExposure < 0) {
 					oracleTarget = oracleAsk;
 					orcaleTwapTarget = oracleTwapAsk;
-				} else{
-					if(currentSpread < 0){ 
+				} else {
+					if (currentSpread < 0) {
 						// mark > oracle
 						oracleTarget = oracleBid;
 						orcaleTwapTarget = oraclePriceData.twap.value - oracleTwac;
-					} else{
+					} else {
 						oracleTarget = oracleAsk;
 						orcaleTwapTarget = oraclePriceData.twap.value + oracleTwac;
 					}
 				}
 
-				oracleTargetWithMantissa = new BN(oracleTarget * AMM_MANTISSA.toNumber());
+				oracleTargetWithMantissa = new BN(
+					oracleTarget * AMM_MANTISSA.toNumber()
+				);
 
 				// don't continue higher after exceeding maxPositionValueNum
 				// isolated leverage in a particular market
@@ -446,10 +453,7 @@ export class Arbitrager {
 					(netExposure > 0 && markPrice < oracleTarget) ||
 					(netExposure < 0 && markPrice > oracleTarget)
 				) {
-					if (
-						!shouldReducePosition &&
-						currentSpreadPct < 0.0005
-					) {
+					if (!shouldReducePosition && currentSpreadPct < 0.0005) {
 						console.log(
 							'spread too small to arb in Market:',
 							marketIndexNum,
@@ -512,10 +516,20 @@ export class Arbitrager {
 							targetPrice,
 							arbPctMod
 						);
-					console.log('arbing toward', arbPctMod.toNumber()/10,'% toward',
-					 stripMantissa(targetPrice),
-					'\n order:', direction, stripMantissa(amount, USDC_PRECISION), '@', stripMantissa(limitPrice),
-					'\n mark price:', markPrice, '->', stripMantissa(newMarkPrice)
+					console.log(
+						'arbing toward',
+						arbPctMod.toNumber() / 10,
+						'% toward',
+						stripMantissa(targetPrice),
+						'\n order:',
+						direction,
+						stripMantissa(amount, USDC_PRECISION),
+						'@',
+						stripMantissa(limitPrice),
+						'\n mark price:',
+						markPrice,
+						'->',
+						stripMantissa(newMarkPrice)
 					);
 				} else if (riskReduction) {
 					console.log('ATTEMPT RISK REDUCTION');
@@ -550,12 +564,10 @@ export class Arbitrager {
 						'entryPrice'
 					);
 
-					let entrySpread = stripMantissa(
-						limitPrice.sub(targetPrice)
-					);
+					let entrySpread = stripMantissa(limitPrice.sub(targetPrice));
 
 					while (
-						Math.abs(entrySpread) > (currentSpread * 1.01) &&
+						Math.abs(entrySpread) > currentSpread * 1.01 &&
 						amount.gt(USDC_PRECISION)
 					) {
 						amount = amount.div(new BN(2));
@@ -567,9 +579,7 @@ export class Arbitrager {
 							'entryPrice'
 						);
 
-						entrySpread = stripMantissa(
-							limitPrice.sub(targetPrice)
-						);
+						entrySpread = stripMantissa(limitPrice.sub(targetPrice));
 					}
 				}
 			};
@@ -613,31 +623,37 @@ export class Arbitrager {
 				}
 
 				let postTradePositionValue: BN = positionValue;
-				if (direction == PositionDirection.LONG && netExposure > 0
-					|| direction == PositionDirection.SHORT && netExposure < 0
-					){
-						postTradePositionValue = positionValue.add(amount);
+				if (
+					(direction == PositionDirection.LONG && netExposure > 0) ||
+					(direction == PositionDirection.SHORT && netExposure < 0)
+				) {
+					postTradePositionValue = positionValue.add(amount);
 
-						if (postTradePositionValue.gte(maxPostionValuePerMarket)) {
-							console.log('skipTrade: postTradePositionValue >= maxPostionValuePerMarket');
-							skipTrade = true;
-						} 
-					} else {
-						postTradePositionValue = positionValue.sub(amount);
+					if (postTradePositionValue.gte(maxPostionValuePerMarket)) {
+						console.log(
+							'skipTrade: postTradePositionValue >= maxPostionValuePerMarket'
+						);
+						skipTrade = true;
 					}
+				} else {
+					postTradePositionValue = positionValue.sub(amount);
+				}
 
 				if (amount.gt(MAX_TRADE_AMOUNT) && !riskReduction) {
-					console.log('hit MAX_TRADE_AMOUNT: capping trade size')
+					console.log('hit MAX_TRADE_AMOUNT: capping trade size');
 					amount = MAX_TRADE_AMOUNT;
 				}
 
 				// reduce trade size if it gives pnl to most recent competitor trade done
-				if ((
-					(deltaNetExposureExBot > 0 && direction == PositionDirection.LONG) ||
-					(deltaNetExposureExBot < 0 && direction == PositionDirection.SHORT)
-				) && !riskReduction
+				if (
+					((deltaNetExposureExBot > 0 && direction == PositionDirection.LONG) ||
+						(deltaNetExposureExBot < 0 &&
+							direction == PositionDirection.SHORT)) &&
+					!riskReduction
 				) {
-					console.log('front runner detected for risk-increasing trade: halving trade size')
+					console.log(
+						'front runner detected for risk-increasing trade: halving trade size'
+					);
 					amount = amount.div(new BN(2));
 				}
 
@@ -686,11 +702,13 @@ export class Arbitrager {
 			let ftxPriceWithMantissa: BN;
 			let ftxValid = true;
 
-			try{
+			try {
 				ftxPrice = await checkExternalExchange();
 				ftxPriceWithMantissa = new BN(ftxPrice * AMM_MANTISSA.toNumber());
-			} catch(e){
-				console.log('error with checkExternalExchange, only oracleTargetWithMantissa');
+			} catch (e) {
+				console.log(
+					'error with checkExternalExchange, only oracleTargetWithMantissa'
+				);
 				ftxValid = false;
 			}
 
@@ -699,27 +717,37 @@ export class Arbitrager {
 				skipTrade = await resizeTrade();
 			} else if (oracleValid) {
 				let priceTargetWithMantissa: BN;
-				
+
 				if (ftxValid) {
-					if(ftxPriceWithMantissa.sub(oracleTargetWithMantissa).abs().lt(AMM_MANTISSA)){
-						priceTargetWithMantissa = ftxPriceWithMantissa.mul(new BN(1))
-						.add(oracleTargetWithMantissa.mul(new BN(4)))
-						.div(new BN(5));
-					} else{
-						priceTargetWithMantissa = oracleTargetWithMantissa;;	
+					if (
+						ftxPriceWithMantissa
+							.sub(oracleTargetWithMantissa)
+							.abs()
+							.lt(AMM_MANTISSA)
+					) {
+						priceTargetWithMantissa = ftxPriceWithMantissa
+							.mul(new BN(1))
+							.add(oracleTargetWithMantissa.mul(new BN(4)))
+							.div(new BN(5));
+					} else {
+						priceTargetWithMantissa = oracleTargetWithMantissa;
 					}
-				} else{
-					priceTargetWithMantissa = oracleTargetWithMantissa;;
+				} else {
+					priceTargetWithMantissa = oracleTargetWithMantissa;
 				}
 
-				console.log('priceTargetWithMantissa:', stripMantissa(priceTargetWithMantissa),
-				'oracleTargetWithMantissa:', stripMantissa(oracleTargetWithMantissa),
-				'ftxPriceWithMantissa:', stripMantissa(ftxPriceWithMantissa),
+				console.log(
+					'priceTargetWithMantissa:',
+					stripMantissa(priceTargetWithMantissa),
+					'oracleTargetWithMantissa:',
+					stripMantissa(oracleTargetWithMantissa),
+					'ftxPriceWithMantissa:',
+					stripMantissa(ftxPriceWithMantissa)
 				);
 
 				constructTrade(priceTargetWithMantissa);
 				skipTrade = await resizeTrade();
-			} else{
+			} else {
 				skipTrade = true;
 			}
 

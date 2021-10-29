@@ -1,6 +1,6 @@
 import { Program } from '@project-serum/anchor';
 import * as anchor from '@project-serum/anchor';
-import { ClearingHouse, UserAccount } from '../sdk';
+import { ClearingHouse, ClearingHouseUser } from '../sdk';
 
 import dotenv = require('dotenv');
 dotenv.config();
@@ -20,7 +20,7 @@ async function main() {
 	await clearingHouse.subscribe();
 	console.log(`Clearing House: ${chProgram.programId.toString()}`);
 
-	const userAccount = UserAccount.from(
+	const userAccount = ClearingHouseUser.from(
 		clearingHouse,
 		provider.wallet.publicKey
 	);

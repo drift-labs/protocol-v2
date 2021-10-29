@@ -1,7 +1,7 @@
 import { ClearingHouse } from './clearingHouse';
 import BN from 'bn.js';
 import { ZERO } from './constants/numericConstants';
-import { UserAccount } from './userAccount';
+import { ClearingHouseUser } from './clearingHouseUser';
 
 export class Funder {
 	clearingHouse: ClearingHouse;
@@ -33,17 +33,18 @@ export class Funder {
 		}
 	}
 
-	public async settleUsersFundingPayments(userAccounts: UserAccount[]) {
+	public async settleUsersFundingPayments(userAccounts: ClearingHouseUser[]) {
 		const usersNeedSettling = userAccounts.filter((userAccount) =>
 			userAccount.needsToSettleFundingPayment()
 		);
 		await Promise.all(
 			usersNeedSettling.map((userAccount) => {
 				return (async () => {
-					const userAccountPublicKey = await userAccount.getPublicKey();
+					const userAccountPublicKey =
+						await userAccount.getUserAccountPublicKey();
 					await this.clearingHouse.settleFundingPayment(
 						userAccountPublicKey,
-						userAccount.getUserAccountData().positions
+						userAccount.getUserAccount().positions
 					);
 				})();
 			})

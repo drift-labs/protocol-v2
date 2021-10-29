@@ -6,7 +6,7 @@ import {
 	Trade,
 	TradeSide,
 	CandleResolution,
-	TradeHistory,
+	TradeHistoryAccount,
 	TradeRecord,
 } from './types';
 import {
@@ -49,7 +49,7 @@ export const stripBaseAssetPrecision = (baseAssetAmount: BN) => {
 export const getNewTrades = (
 	lastSeenTrade: number,
 	tradingHistoryHead: number,
-	tradeHistory: TradeHistory
+	tradeHistory: TradeHistoryAccount
 ): {
 	newTrades: { trade: Trade; userAccount: PublicKey }[];
 	newLastSeenTrade: number;

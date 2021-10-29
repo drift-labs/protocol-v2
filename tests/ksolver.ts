@@ -11,7 +11,7 @@ import {
 	PEG_SCALAR,
 	MAX_LEVERAGE,
 } from '../sdk/src';
-import { UserAccount } from '../sdk/src/userAccount';
+import { ClearingHouseUser } from '../sdk/src/clearingHouseUser';
 import { mockUSDCMint, mockUserUSDCAccount } from '../utils/mockAccounts';
 import { createPriceFeed } from '../utils/mockPythUtils';
 
@@ -180,7 +180,7 @@ describe('AMM Curve', () => {
 	const usdcAmount = new BN(1000 * 10 ** 6);
 	const solPositionInitialValue = usdcAmount;
 
-	let userAccount: UserAccount;
+	let userAccount: ClearingHouseUser;
 
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
@@ -204,7 +204,10 @@ describe('AMM Curve', () => {
 			initialSOLPriceBN
 		);
 		await clearingHouse.initializeUserAccount();
-		userAccount = UserAccount.from(clearingHouse, provider.wallet.publicKey);
+		userAccount = ClearingHouseUser.from(
+			clearingHouse,
+			provider.wallet.publicKey
+		);
 		await userAccount.subscribe();
 	});
 
@@ -248,7 +251,7 @@ describe('AMM Curve', () => {
 
 	it('After Deposit', async () => {
 		await clearingHouse.depositCollateral(
-			await userAccount.getPublicKey(),
+			await userAccount.getUserAccountPublicKey(),
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
@@ -256,7 +259,7 @@ describe('AMM Curve', () => {
 
 	it('After Position Taken', async () => {
 		await clearingHouse.openPosition(
-			await userAccount.getPublicKey(),
+			await userAccount.getUserAccountPublicKey(),
 			PositionDirection.LONG,
 			solPositionInitialValue,
 			marketIndex

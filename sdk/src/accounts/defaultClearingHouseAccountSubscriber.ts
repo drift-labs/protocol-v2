@@ -1,19 +1,22 @@
-import { ClearingHouseAccountSubscriber, ClearingHouseEvents } from './types';
+import {
+	ClearingHouseAccountSubscriber,
+	ClearingHouseAccountEvents,
+} from './types';
 import { AccountSubscriber, NotSubscribedError } from './types';
 import {
-	CurveHistory,
-	DepositHistory,
-	FundingPaymentHistory,
-	FundingRateHistory,
-	LiquidationHistory,
-	Markets,
-	State,
-	TradeHistory,
+	CurveHistoryAccount,
+	DepositHistoryAccount,
+	FundingPaymentHistoryAccount,
+	FundingRateHistoryAccount,
+	LiquidationHistoryAccount,
+	MarketsAccount,
+	StateAccount,
+	TradeHistoryAccount,
 } from '../types';
 import { Program } from '@project-serum/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
-import { getClearingHouseStatePublicKey } from '../addresses';
+import { getClearingHouseStateAccountPublicKey } from '../addresses';
 import { WebSocketAccountSubscriber } from './webSocketAccountSubscriber';
 
 export class DefaultClearingHouseAccountSubscriber
@@ -21,15 +24,15 @@ export class DefaultClearingHouseAccountSubscriber
 {
 	isSubscribed: boolean;
 	program: Program;
-	eventEmitter: StrictEventEmitter<EventEmitter, ClearingHouseEvents>;
-	stateAccountSubscriber?: AccountSubscriber<State>;
-	marketsAccountSubscriber?: AccountSubscriber<Markets>;
-	tradeHistoryAccountSubscriber?: AccountSubscriber<TradeHistory>;
-	depositHistoryAccountSubscriber?: AccountSubscriber<DepositHistory>;
-	fundingPaymentHistoryAccountSubscriber?: AccountSubscriber<FundingPaymentHistory>;
-	fundingRateHistoryAccountSubscriber?: AccountSubscriber<FundingRateHistory>;
-	curveHistoryAccountSubscriber?: AccountSubscriber<CurveHistory>;
-	liquidationHistoryAccountSubscriber?: AccountSubscriber<LiquidationHistory>;
+	eventEmitter: StrictEventEmitter<EventEmitter, ClearingHouseAccountEvents>;
+	stateAccountSubscriber?: AccountSubscriber<StateAccount>;
+	marketsAccountSubscriber?: AccountSubscriber<MarketsAccount>;
+	tradeHistoryAccountSubscriber?: AccountSubscriber<TradeHistoryAccount>;
+	depositHistoryAccountSubscriber?: AccountSubscriber<DepositHistoryAccount>;
+	fundingPaymentHistoryAccountSubscriber?: AccountSubscriber<FundingPaymentHistoryAccount>;
+	fundingRateHistoryAccountSubscriber?: AccountSubscriber<FundingRateHistoryAccount>;
+	curveHistoryAccountSubscriber?: AccountSubscriber<CurveHistoryAccount>;
+	liquidationHistoryAccountSubscriber?: AccountSubscriber<LiquidationHistoryAccount>;
 
 	public constructor(program: Program) {
 		this.isSubscribed = false;
@@ -42,7 +45,7 @@ export class DefaultClearingHouseAccountSubscriber
 			return true;
 		}
 
-		const statePublicKey = await getClearingHouseStatePublicKey(
+		const statePublicKey = await getClearingHouseStateAccountPublicKey(
 			this.program.programId
 		);
 		this.stateAccountSubscriber = new WebSocketAccountSubscriber(
@@ -50,8 +53,8 @@ export class DefaultClearingHouseAccountSubscriber
 			this.program,
 			statePublicKey
 		);
-		await this.stateAccountSubscriber.subscribe((data: State) => {
-			this.eventEmitter.emit('stateUpdate', data);
+		await this.stateAccountSubscriber.subscribe((data: StateAccount) => {
+			this.eventEmitter.emit('stateAccountUpdate', data);
 			this.eventEmitter.emit('update');
 		});
 
@@ -62,8 +65,8 @@ export class DefaultClearingHouseAccountSubscriber
 			this.program,
 			state.markets
 		);
-		await this.marketsAccountSubscriber.subscribe((data: Markets) => {
-			this.eventEmitter.emit('marketsUpdate', data);
+		await this.marketsAccountSubscriber.subscribe((data: MarketsAccount) => {
+			this.eventEmitter.emit('marketsAccountUpdate', data);
 			this.eventEmitter.emit('update');
 		});
 
@@ -72,10 +75,12 @@ export class DefaultClearingHouseAccountSubscriber
 			this.program,
 			state.tradeHistory
 		);
-		await this.tradeHistoryAccountSubscriber.subscribe((data: TradeHistory) => {
-			this.eventEmitter.emit('tradeHistoryUpdate', data);
-			this.eventEmitter.emit('update');
-		});
+		await this.tradeHistoryAccountSubscriber.subscribe(
+			(data: TradeHistoryAccount) => {
+				this.eventEmitter.emit('tradeHistoryAccountUpdate', data);
+				this.eventEmitter.emit('update');
+			}
+		);
 
 		this.depositHistoryAccountSubscriber = new WebSocketAccountSubscriber(
 			'depositHistory',
@@ -83,8 +88,8 @@ export class DefaultClearingHouseAccountSubscriber
 			state.depositHistory
 		);
 		await this.depositHistoryAccountSubscriber.subscribe(
-			(data: DepositHistory) => {
-				this.eventEmitter.emit('depositHistoryUpdate', data);
+			(data: DepositHistoryAccount) => {
+				this.eventEmitter.emit('depositHistoryAccountUpdate', data);
 				this.eventEmitter.emit('update');
 			}
 		);
@@ -96,8 +101,8 @@ export class DefaultClearingHouseAccountSubscriber
 				state.fundingPaymentHistory
 			);
 		await this.fundingPaymentHistoryAccountSubscriber.subscribe(
-			(data: FundingPaymentHistory) => {
-				this.eventEmitter.emit('fundingPaymentHistoryUpdate', data);
+			(data: FundingPaymentHistoryAccount) => {
+				this.eventEmitter.emit('fundingPaymentHistoryAccountUpdate', data);
 				this.eventEmitter.emit('update');
 			}
 		);
@@ -108,8 +113,8 @@ export class DefaultClearingHouseAccountSubscriber
 			state.fundingRateHistory
 		);
 		await this.fundingRateHistoryAccountSubscriber.subscribe(
-			(data: FundingRateHistory) => {
-				this.eventEmitter.emit('fundingRateHistoryUpdate', data);
+			(data: FundingRateHistoryAccount) => {
+				this.eventEmitter.emit('fundingRateHistoryAccountUpdate', data);
 				this.eventEmitter.emit('update');
 			}
 		);
@@ -120,8 +125,8 @@ export class DefaultClearingHouseAccountSubscriber
 			state.liquidationHistory
 		);
 		await this.liquidationHistoryAccountSubscriber.subscribe(
-			(data: LiquidationHistory) => {
-				this.eventEmitter.emit('liquidationHistoryUpdate', data);
+			(data: LiquidationHistoryAccount) => {
+				this.eventEmitter.emit('liquidationHistoryAccountUpdate', data);
 				this.eventEmitter.emit('update');
 			}
 		);
@@ -131,10 +136,12 @@ export class DefaultClearingHouseAccountSubscriber
 			this.program,
 			state.curveHistory
 		);
-		await this.curveHistoryAccountSubscriber.subscribe((data: CurveHistory) => {
-			this.eventEmitter.emit('curveHistoryUpdate', data);
-			this.eventEmitter.emit('update');
-		});
+		await this.curveHistoryAccountSubscriber.subscribe(
+			(data: CurveHistoryAccount) => {
+				this.eventEmitter.emit('curveHistoryAccountUpdate', data);
+				this.eventEmitter.emit('update');
+			}
+		);
 
 		this.eventEmitter.emit('update');
 
@@ -166,42 +173,42 @@ export class DefaultClearingHouseAccountSubscriber
 		}
 	}
 
-	public getState(): State {
+	public getStateAccount(): StateAccount {
 		this.assertIsSubscribed();
 		return this.stateAccountSubscriber.data;
 	}
 
-	public getMarkets(): Markets {
+	public getMarketsAccount(): MarketsAccount {
 		this.assertIsSubscribed();
 		return this.marketsAccountSubscriber.data;
 	}
 
-	public getTradeHistory(): TradeHistory {
+	public getTradeHistoryAccount(): TradeHistoryAccount {
 		this.assertIsSubscribed();
 		return this.tradeHistoryAccountSubscriber.data;
 	}
 
-	public getDepositHistory(): DepositHistory {
+	public getDepositHistoryAccount(): DepositHistoryAccount {
 		this.assertIsSubscribed();
 		return this.depositHistoryAccountSubscriber.data;
 	}
 
-	public getFundingPaymentHistory(): FundingPaymentHistory {
+	public getFundingPaymentHistoryAccount(): FundingPaymentHistoryAccount {
 		this.assertIsSubscribed();
 		return this.fundingPaymentHistoryAccountSubscriber.data;
 	}
 
-	public getFundingRateHistory(): FundingRateHistory {
+	public getFundingRateHistoryAccount(): FundingRateHistoryAccount {
 		this.assertIsSubscribed();
 		return this.fundingRateHistoryAccountSubscriber.data;
 	}
 
-	public getCurveHistory(): CurveHistory {
+	public getCurveHistoryAccount(): CurveHistoryAccount {
 		this.assertIsSubscribed();
 		return this.curveHistoryAccountSubscriber.data;
 	}
 
-	public getLiquidationHistory(): LiquidationHistory {
+	public getLiquidationHistoryAccount(): LiquidationHistoryAccount {
 		this.assertIsSubscribed();
 		return this.liquidationHistoryAccountSubscriber.data;
 	}

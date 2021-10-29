@@ -7,23 +7,23 @@ import { Program } from '@project-serum/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { PublicKey } from '@solana/web3.js';
-import { getUserPublicKey } from '../addresses';
+import { getUserAccountPublicKey } from '../addresses';
 import { WebSocketAccountSubscriber } from './webSocketAccountSubscriber';
-import { UserAccountData, UserPositionData } from '../types';
+import { UserAccount, UserPositionsAccount } from '../types';
 
 export class DefaultUserAccountSubscriber implements UserAccountSubscriber {
 	isSubscribed: boolean;
 	program: Program;
 	eventEmitter: StrictEventEmitter<EventEmitter, UserAccountEvents>;
-	userAuthorityPublicKey: PublicKey;
+	authority: PublicKey;
 
-	userDataAccountSubscriber: AccountSubscriber<UserAccountData>;
-	userPositionsAccountSubscriber: AccountSubscriber<UserPositionData>;
+	userDataAccountSubscriber: AccountSubscriber<UserAccount>;
+	userPositionsAccountSubscriber: AccountSubscriber<UserPositionsAccount>;
 
-	public constructor(program: Program, userAuthorityPublicKey: PublicKey) {
+	public constructor(program: Program, authority: PublicKey) {
 		this.isSubscribed = false;
 		this.program = program;
-		this.userAuthorityPublicKey = userAuthorityPublicKey;
+		this.authority = authority;
 		this.eventEmitter = new EventEmitter();
 	}
 
@@ -32,16 +32,16 @@ export class DefaultUserAccountSubscriber implements UserAccountSubscriber {
 			return true;
 		}
 
-		const userPublicKey = await getUserPublicKey(
+		const userPublicKey = await getUserAccountPublicKey(
 			this.program.programId,
-			this.userAuthorityPublicKey
+			this.authority
 		);
 		this.userDataAccountSubscriber = new WebSocketAccountSubscriber(
 			'user',
 			this.program,
 			userPublicKey
 		);
-		await this.userDataAccountSubscriber.subscribe((data: UserAccountData) => {
+		await this.userDataAccountSubscriber.subscribe((data: UserAccount) => {
 			this.eventEmitter.emit('userAccountData', data);
 			this.eventEmitter.emit('update');
 		});
@@ -54,7 +54,7 @@ export class DefaultUserAccountSubscriber implements UserAccountSubscriber {
 		);
 
 		await this.userPositionsAccountSubscriber.subscribe(
-			(data: UserPositionData) => {
+			(data: UserPositionsAccount) => {
 				this.eventEmitter.emit('userPositionsData', data);
 				this.eventEmitter.emit('update');
 			}
@@ -76,11 +76,11 @@ export class DefaultUserAccountSubscriber implements UserAccountSubscriber {
 		this.isSubscribed = false;
 	}
 
-	public getUserAccountData(): UserAccountData {
+	public getUserAccount(): UserAccount {
 		return this.userDataAccountSubscriber.data;
 	}
 
-	public getUserPositionsData(): UserPositionData {
+	public getUserPositionsAccount(): UserPositionsAccount {
 		return this.userPositionsAccountSubscriber.data;
 	}
 }

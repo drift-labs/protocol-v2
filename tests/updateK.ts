@@ -7,7 +7,7 @@ import { Program } from '@project-serum/anchor';
 import {
 	AMM_MANTISSA,
 	ClearingHouse,
-	UserAccount,
+	ClearingHouseUser,
 	stripMantissa,
 	PEG_SCALAR,
 	PositionDirection,
@@ -43,7 +43,7 @@ describe('update k', () => {
 	);
 	const usdcAmount = new BN(1e9 * 10 ** 6);
 
-	let userAccount: UserAccount;
+	let userAccount: ClearingHouseUser;
 
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
@@ -74,7 +74,10 @@ describe('update k', () => {
 		);
 
 		await clearingHouse.initializeUserAccount();
-		userAccount = UserAccount.from(clearingHouse, provider.wallet.publicKey);
+		userAccount = ClearingHouseUser.from(
+			clearingHouse,
+			provider.wallet.publicKey
+		);
 		await userAccount.subscribe();
 	});
 
@@ -121,7 +124,7 @@ describe('update k', () => {
 
 	it('increase k base/quote imbalance (FREE)', async () => {
 		await clearingHouse.depositCollateral(
-			await userAccount.getPublicKey(),
+			await userAccount.getUserAccountPublicKey(),
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
@@ -186,7 +189,7 @@ describe('update k', () => {
 
 		console.log('taking position');
 		await clearingHouse.openPosition(
-			await userAccount.getPublicKey(),
+			await userAccount.getUserAccountPublicKey(),
 			PositionDirection.LONG,
 			new BN(USDC_PRECISION),
 			marketIndex
@@ -216,7 +219,7 @@ describe('update k', () => {
 		console.log('$1 position closing');
 
 		await clearingHouse.closePosition(
-			await userAccount.getPublicKey(),
+			await userAccount.getUserAccountPublicKey(),
 			marketIndex
 		);
 		console.log('$1 position closed');
@@ -272,7 +275,7 @@ describe('update k', () => {
 
 		console.log('taking position');
 		await clearingHouse.openPosition(
-			await userAccount.getPublicKey(),
+			await userAccount.getUserAccountPublicKey(),
 			PositionDirection.LONG,
 			new BN(USDC_PRECISION).mul(new BN(30000)),
 			marketIndex
@@ -301,7 +304,7 @@ describe('update k', () => {
 		console.log('$1 position closing');
 
 		await clearingHouse.closePosition(
-			await userAccount.getPublicKey(),
+			await userAccount.getUserAccountPublicKey(),
 			marketIndex
 		);
 		console.log('$1 position closed');

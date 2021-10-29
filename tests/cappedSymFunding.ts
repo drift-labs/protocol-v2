@@ -12,7 +12,7 @@ import { getFeedData, setFeedPrice } from '../utils/mockPythUtils';
 import {
 	PEG_SCALAR,
 	stripMantissa,
-	UserAccount,
+	ClearingHouseUser,
 	PositionDirection,
 	USDC_PRECISION,
 	BASE_ASSET_PRECISION,
@@ -151,9 +151,9 @@ async function updateFundingRateHelper(
 
 async function cappedSymFundingScenario(
 	clearingHouse: ClearingHouse,
-	userAccount: UserAccount,
+	userAccount: ClearingHouseUser,
 	clearingHouse2: ClearingHouse,
-	userAccount2: UserAccount,
+	userAccount2: ClearingHouseUser,
 	marketIndex: BN,
 	kSqrt: BN,
 	priceAction: Array<number>,
@@ -180,7 +180,7 @@ async function cappedSymFundingScenario(
 	await clearingHouse.updateFundingPaused(true);
 
 	await clearingHouse.openPosition(
-		await userAccount.getPublicKey(),
+		await userAccount.getUserAccountPublicKey(),
 		PositionDirection.LONG,
 		USDC_PRECISION.mul(new BN(longShortSizes[0])),
 		marketIndex
@@ -189,7 +189,7 @@ async function cappedSymFundingScenario(
 	console.log('clearingHouse2.openPosition');
 	// try{
 	await clearingHouse2.openPosition(
-		await userAccount2.getPublicKey(),
+		await userAccount2.getUserAccountPublicKey(),
 		PositionDirection.SHORT,
 		USDC_PRECISION.mul(new BN(longShortSizes[1])),
 		marketIndex
@@ -282,12 +282,12 @@ async function cappedSymFundingScenario(
 
 	assert(fundingRateShort.lte(fundingRateLong));
 	await clearingHouse.closePosition(
-		await userAccount.getPublicKey(),
+		await userAccount.getUserAccountPublicKey(),
 		marketIndex
 	);
 
 	await clearingHouse2.closePosition(
-		await userAccount2.getPublicKey(),
+		await userAccount2.getUserAccountPublicKey(),
 		marketIndex
 	);
 
@@ -301,7 +301,7 @@ async function cappedSymFundingScenario(
 	];
 }
 
-describe('pyth-oracle', () => {
+describe('capped funding', () => {
 	const provider = anchor.Provider.local();
 	const connection = provider.connection;
 
@@ -325,8 +325,8 @@ describe('pyth-oracle', () => {
 
 	const usdcAmount = new BN(10000 * 10 ** 6);
 
-	let userAccount: UserAccount;
-	let userAccount2: UserAccount;
+	let userAccount: ClearingHouseUser;
+	let userAccount2: ClearingHouseUser;
 
 	let rollingMarketNum = 0;
 	before(async () => {
@@ -343,11 +343,14 @@ describe('pyth-oracle', () => {
 		await clearingHouse.subscribe();
 
 		await clearingHouse.initializeUserAccount();
-		userAccount = UserAccount.from(clearingHouse, provider.wallet.publicKey);
+		userAccount = ClearingHouseUser.from(
+			clearingHouse,
+			provider.wallet.publicKey
+		);
 		await userAccount.subscribe();
 
 		await clearingHouse.depositCollateral(
-			await userAccount.getPublicKey(),
+			await userAccount.getUserAccountPublicKey(),
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
@@ -360,7 +363,7 @@ describe('pyth-oracle', () => {
 		userAccount2 = userAccountInfos[0];
 
 		// await clearingHouse.depositCollateral(
-		// 	await userAccount2.getPublicKey(),
+		// 	await userAccount2.getUserAccountPublicKey(),
 		// 	usdcAmount,
 		// 	userUSDCAccounts[1].publicKey
 		// );

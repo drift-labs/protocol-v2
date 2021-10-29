@@ -1,7 +1,7 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
 import { Program } from '@project-serum/anchor';
-import { ClearingHouse, MockUSDCFaucet, UserAccount } from '../sdk/src';
+import { ClearingHouse, MockUSDCFaucet, ClearingHouseUser } from '../sdk/src';
 import BN from 'bn.js';
 import { Keypair, PublicKey } from '@solana/web3.js';
 import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
@@ -20,7 +20,7 @@ describe('mock_usdc_faucet', () => {
 
 	const chProgram = anchor.workspace.ClearingHouse as Program;
 	let clearingHouse: ClearingHouse;
-	let userAccount: UserAccount;
+	let userAccount: ClearingHouseUser;
 
 	const mintAmount = new BN(10);
 
@@ -31,7 +31,10 @@ describe('mock_usdc_faucet', () => {
 			chProgram.programId
 		);
 
-		userAccount = UserAccount.from(clearingHouse, provider.wallet.publicKey);
+		userAccount = ClearingHouseUser.from(
+			clearingHouse,
+			provider.wallet.publicKey
+		);
 	});
 
 	after(async () => {
@@ -87,6 +90,6 @@ describe('mock_usdc_faucet', () => {
 		);
 
 		await userAccount.subscribe();
-		assert(userAccount.getUserAccountData().collateral.eq(mintAmount));
+		assert(userAccount.getUserAccount().collateral.eq(mintAmount));
 	});
 });

@@ -1,11 +1,11 @@
 import { ClearingHouse } from './clearingHouse';
 import { PublicKey } from '@solana/web3.js';
-import { UserAccount } from './userAccount';
+import { ClearingHouseUser } from './clearingHouseUser';
 import { Wallet } from '@project-serum/anchor';
 
 export class Liquidator {
 	clearingHouse: ClearingHouse;
-	liquidatorUserAccount: UserAccount;
+	liquidatorUserAccount: ClearingHouseUser;
 	liquidatorUSDCTokenPublicKey: PublicKey;
 
 	public constructor(
@@ -13,7 +13,7 @@ export class Liquidator {
 		liquidatorUSDCTokenPublicKey: PublicKey
 	) {
 		this.clearingHouse = clearingHouse;
-		this.liquidatorUserAccount = UserAccount.from(
+		this.liquidatorUserAccount = ClearingHouseUser.from(
 			clearingHouse,
 			clearingHouse.wallet.publicKey
 		);
@@ -21,22 +21,23 @@ export class Liquidator {
 	}
 
 	public async liquidate(
-		userAccounts: UserAccount[],
+		users: ClearingHouseUser[],
 		blacklistWallets: Wallet[]
-	): Promise<UserAccount[]> {
-		const accountsToLiquidate: UserAccount[] = [];
+	): Promise<ClearingHouseUser[]> {
+		const usersToLiquidate: ClearingHouseUser[] = [];
 
 		const blackListSet = new Set();
 		for (const blacklistWallet of blacklistWallets) {
 			blackListSet.add(blacklistWallet.publicKey.toString());
 		}
 
-		for (const userAccount of userAccounts) {
-			const [canLiquidate] = userAccount.canBeLiquidated();
+		for (const user of users) {
+			const [canLiquidate] = user.canBeLiquidated();
 
 			if (canLiquidate) {
-				accountsToLiquidate.push(userAccount);
-				const liquidateeUserAccountPublicKey = await userAccount.getPublicKey();
+				usersToLiquidate.push(user);
+				const liquidateeUserAccountPublicKey =
+					await user.getUserAccountPublicKey();
 
 				if (blackListSet.has(liquidateeUserAccountPublicKey.toString())) {
 					continue;
@@ -46,15 +47,13 @@ export class Liquidator {
 					this.clearingHouse
 						.liquidate(liquidateeUserAccountPublicKey)
 						.then((tx) => {
-							console.log(
-								`Liquidated user: ${userAccount.userPublicKey} Tx: ${tx}`
-							);
+							console.log(`Liquidated user: ${user.authority} Tx: ${tx}`);
 						});
 				} catch (e) {
 					console.log(e);
 				}
 			}
 		}
-		return accountsToLiquidate;
+		return usersToLiquidate;
 	}
 }

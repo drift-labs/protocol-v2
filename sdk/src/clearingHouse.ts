@@ -5,22 +5,22 @@ import {
 	TOKEN_PROGRAM_ID,
 } from '@solana/spl-token';
 import {
-	Markets,
-	State,
-	CurveHistory,
-	DepositHistory,
+	MarketsAccount,
+	StateAccount,
+	CurveHistoryAccount,
+	DepositHistoryAccount,
 	FeeStructure,
-	FundingPaymentHistory,
-	FundingRateHistory,
+	FundingPaymentHistoryAccount,
+	FundingRateHistoryAccount,
 	IWallet,
-	LiquidationHistory,
+	LiquidationHistoryAccount,
 	OracleGuardRails,
 	OracleSource,
 	PositionDirection,
-	TradeHistory,
-	UserAccountData,
+	TradeHistoryAccount,
+	UserAccount,
 	UserPosition,
-	UserPositionData,
+	UserPositionsAccount,
 } from './types';
 import * as anchor from '@project-serum/anchor';
 import clearingHouseIDL from './idl/clearing_house.json';
@@ -43,12 +43,12 @@ import { MockUSDCFaucet } from './mockUSDCFaucet';
 import { EventEmitter } from 'events';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import {
-	getClearingHouseStatePublicKey,
-	getClearingHouseStatePublicKeyAndNonce,
+	getClearingHouseStateAccountPublicKey,
+	getClearingHouseStateAccountPublicKeyAndNonce,
 } from './addresses';
 import {
 	ClearingHouseAccountSubscriber,
-	ClearingHouseEvents,
+	ClearingHouseAccountEvents,
 } from './accounts/types';
 import { DefaultClearingHouseAccountSubscriber } from './accounts/defaultClearingHouseAccountSubscriber';
 
@@ -72,7 +72,7 @@ export class ClearingHouse {
 	provider: Provider;
 	opts?: ConfirmOptions;
 	accountSubscriber: ClearingHouseAccountSubscriber;
-	eventEmitter: StrictEventEmitter<EventEmitter, ClearingHouseEvents>;
+	eventEmitter: StrictEventEmitter<EventEmitter, ClearingHouseAccountEvents>;
 	isSubscribed = false;
 
 	public static from(
@@ -119,7 +119,7 @@ export class ClearingHouse {
 		if (this.statePublicKey) {
 			return this.statePublicKey;
 		}
-		this.statePublicKey = await getClearingHouseStatePublicKey(
+		this.statePublicKey = await getClearingHouseStateAccountPublicKey(
 			this.program.programId
 		);
 		return this.statePublicKey;
@@ -170,7 +170,9 @@ export class ClearingHouse {
 		const curveHistory = anchor.web3.Keypair.generate();
 
 		const [clearingHouseStatePublicKey, clearingHouseNonce] =
-			await getClearingHouseStatePublicKeyAndNonce(this.program.programId);
+			await getClearingHouseStateAccountPublicKeyAndNonce(
+				this.program.programId
+			);
 		const initializeTx = await this.program.rpc.initialize(
 			clearingHouseNonce,
 			collateralVaultNonce,
@@ -262,36 +264,36 @@ export class ClearingHouse {
 		this.program = newProgram;
 	}
 
-	public getState(): State {
-		return this.accountSubscriber.getState();
+	public getState(): StateAccount {
+		return this.accountSubscriber.getStateAccount();
 	}
 
-	public getMarketsAccount(): Markets {
-		return this.accountSubscriber.getMarkets();
+	public getMarketsAccount(): MarketsAccount {
+		return this.accountSubscriber.getMarketsAccount();
 	}
 
-	public getFundingPaymentHistory(): FundingPaymentHistory {
-		return this.accountSubscriber.getFundingPaymentHistory();
+	public getFundingPaymentHistory(): FundingPaymentHistoryAccount {
+		return this.accountSubscriber.getFundingPaymentHistoryAccount();
 	}
 
-	public getFundingRateHistory(): FundingRateHistory {
-		return this.accountSubscriber.getFundingRateHistory();
+	public getFundingRateHistory(): FundingRateHistoryAccount {
+		return this.accountSubscriber.getFundingRateHistoryAccount();
 	}
 
-	public getTradeHistoryAccount(): TradeHistory {
-		return this.accountSubscriber.getTradeHistory();
+	public getTradeHistoryAccount(): TradeHistoryAccount {
+		return this.accountSubscriber.getTradeHistoryAccount();
 	}
 
-	public getLiquidationHistory(): LiquidationHistory {
-		return this.accountSubscriber.getLiquidationHistory();
+	public getLiquidationHistory(): LiquidationHistoryAccount {
+		return this.accountSubscriber.getLiquidationHistoryAccount();
 	}
 
-	public getDepositHistory(): DepositHistory {
-		return this.accountSubscriber.getDepositHistory();
+	public getDepositHistory(): DepositHistoryAccount {
+		return this.accountSubscriber.getDepositHistoryAccount();
 	}
 
-	public getCurveHistory(): CurveHistory {
-		return this.accountSubscriber.getCurveHistory();
+	public getCurveHistory(): CurveHistoryAccount {
+		return this.accountSubscriber.getCurveHistoryAccount();
 	}
 
 	public async initializeMarket(
@@ -391,20 +393,20 @@ export class ClearingHouse {
 
 	public getPositionsAccountData(
 		positionsKey: PublicKey
-	): Promise<UserPositionData> {
+	): Promise<UserPositionsAccount> {
 		return this.getPositionsAccountClient().fetch(
 			positionsKey
-		) as Promise<UserPositionData>;
+		) as Promise<UserPositionsAccount>;
 	}
 
 	public getUserAccountClient(): anchor.AccountClient {
 		return this.program.account.user;
 	}
 
-	public getUserAccountData(accountKey: PublicKey): Promise<UserAccountData> {
+	public getUserAccount(accountKey: PublicKey): Promise<UserAccount> {
 		return this.getUserAccountClient().fetch(
 			accountKey
-		) as Promise<UserAccountData>;
+		) as Promise<UserAccount>;
 	}
 
 	public getUserAccountPublicKey(
@@ -784,7 +786,7 @@ export class ClearingHouse {
 		const liquidateeUserAccount: any = await this.program.account.user.fetch(
 			liquidateeUserAccountPublicKey
 		);
-		const liquidateePositions: UserPositionData =
+		const liquidateePositions: UserPositionsAccount =
 			await this.program.account.userPositions.fetch(
 				liquidateeUserAccount.positions
 			);
@@ -1677,7 +1679,7 @@ export class ClearingHouse {
 		});
 	}
 
-	public triggerEvent(eventName: keyof ClearingHouseEvents, data?: any) {
+	public triggerEvent(eventName: keyof ClearingHouseAccountEvents, data?: any) {
 		this.eventEmitter.emit(eventName, data);
 	}
 }

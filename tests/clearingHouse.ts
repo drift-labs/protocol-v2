@@ -10,7 +10,7 @@ import { PublicKey } from '@solana/web3.js';
 import {
 	AMM_MANTISSA,
 	ClearingHouse,
-	UserAccount,
+	ClearingHouseUser,
 	PositionDirection,
 	BASE_ASSET_PRECISION,
 	stripMantissa,
@@ -47,7 +47,7 @@ describe('clearing_house', () => {
 	let clearingHouse: ClearingHouse;
 
 	let userAccountPublicKey: PublicKey;
-	let userAccount: UserAccount;
+	let userAccount: ClearingHouseUser;
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -600,7 +600,10 @@ describe('clearing_house', () => {
 	it('Partial Liquidation', async () => {
 		const marketIndex = new BN(0);
 
-		userAccount = UserAccount.from(clearingHouse, provider.wallet.publicKey);
+		userAccount = ClearingHouseUser.from(
+			clearingHouse,
+			provider.wallet.publicKey
+		);
 		await userAccount.subscribe();
 
 		const user0: any = await clearingHouse.program.account.user.fetch(
