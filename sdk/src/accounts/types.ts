@@ -15,7 +15,7 @@ import { EventEmitter } from 'events';
 
 export interface AccountSubscriber<T> {
 	data?: T;
-	subscribe(onChange: (data: T) => void): void;
+	subscribe(onChange: (data: T) => void): Promise<void>;
 	unsubscribe(): void;
 }
 

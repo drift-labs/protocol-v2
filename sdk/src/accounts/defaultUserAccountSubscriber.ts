@@ -41,12 +41,9 @@ export class DefaultUserAccountSubscriber implements UserAccountSubscriber {
 			this.program,
 			userPublicKey
 		);
-		await new Promise<void>((res) => {
-			this.userDataAccountSubscriber.subscribe((data: UserAccountData) => {
-				res();
-				this.eventEmitter.emit('userAccountData', data);
-				this.eventEmitter.emit('update');
-			});
+		await this.userDataAccountSubscriber.subscribe((data: UserAccountData) => {
+			this.eventEmitter.emit('userAccountData', data);
+			this.eventEmitter.emit('update');
 		});
 
 		const userAccountData = this.userDataAccountSubscriber.data;
@@ -56,15 +53,12 @@ export class DefaultUserAccountSubscriber implements UserAccountSubscriber {
 			userAccountData.positions
 		);
 
-		await new Promise<void>((res) => {
-			this.userPositionsAccountSubscriber.subscribe(
-				(data: UserPositionData) => {
-					res();
-					this.eventEmitter.emit('userPositionsData', data);
-					this.eventEmitter.emit('update');
-				}
-			);
-		});
+		await this.userPositionsAccountSubscriber.subscribe(
+			(data: UserPositionData) => {
+				this.eventEmitter.emit('userPositionsData', data);
+				this.eventEmitter.emit('update');
+			}
+		);
 
 		this.eventEmitter.emit('update');
 		this.isSubscribed = true;
