@@ -165,9 +165,13 @@ fn calculate_funding_rate_from_pnl_limit(
         return Ok(0);
     }
 
-    let funding_rate = pnl_limit
-        .checked_add(1)
-        .ok_or_else(math_error!())?
+    let pnl_limit_biased = if pnl_limit < 0 {
+        pnl_limit.checked_add(1).ok_or_else(math_error!())?
+    } else {
+        pnl_limit
+    };
+
+    let funding_rate = pnl_limit_biased
         .checked_mul(USDC_TO_BASE_AMT_FUNDING_PRECISION)
         .ok_or_else(math_error!())?
         .checked_div(base_asset_amount_dir)

@@ -155,23 +155,29 @@ pub fn calculate_oracle_mark_spread(
     precomputed_mark_price: Option<u128>,
 ) -> ClearingHouseResult<(i128, i128)> {
     let mark_price: i128;
+
+    let (oracle_price, oracle_twap, _oracle_conf, _oracle_twac, _oracle_delay) =
+        amm.get_oracle_price(price_oracle, clock_slot)?;
+
     if window > 0 {
         mark_price = amm.last_mark_price_twap as i128;
+        let price_spread = mark_price
+            .checked_sub(oracle_twap)
+            .ok_or_else(math_error!())?;
+
+        Ok((oracle_twap, price_spread))
     } else {
         mark_price = match precomputed_mark_price {
             Some(mark_price) => mark_price as i128,
             None => amm.mark_price()? as i128,
-        }
+        };
+
+        let price_spread = mark_price
+            .checked_sub(oracle_price)
+            .ok_or_else(math_error!())?;
+
+        Ok((oracle_price, price_spread))
     }
-
-    let (oracle_price, _oracle_twap, _oracle_conf, _oracle_twac, _oracle_delay) =
-        amm.get_oracle_price(price_oracle, clock_slot)?;
-
-    let price_spread = mark_price
-        .checked_sub(oracle_price)
-        .ok_or_else(math_error!())?;
-
-    Ok((oracle_price, price_spread))
 }
 
 pub fn calculate_oracle_mark_spread_pct(
