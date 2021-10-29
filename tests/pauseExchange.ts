@@ -10,7 +10,7 @@ import { AMM_MANTISSA, ClearingHouse, PositionDirection } from '../sdk/src';
 
 import Markets from '../sdk/src/constants/markets';
 
-import { mockUSDCMint, mockUserUSDCAccount } from '../utils/mockAccounts';
+import { mockUSDCMint, mockUserUSDCAccount } from './testHelpers';
 
 describe('admin withdraw', () => {
 	const provider = anchor.Provider.local();

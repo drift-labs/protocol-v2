@@ -2,19 +2,23 @@ import * as anchor from '@project-serum/anchor';
 import { Program } from '@project-serum/anchor';
 import { Keypair } from '@solana/web3.js';
 import BN from 'bn.js';
-import { stripBaseAssetPrecision } from '../sdk/lib';
 import {
 	AMM_MANTISSA,
 	PEG_SCALAR,
 	USDC_PRECISION,
 	ClearingHouse,
+	ClearingHouseUser,
 	PositionDirection,
+	stripBaseAssetPrecision,
 	stripMantissa,
 } from '../sdk/src';
 import { assert } from '../sdk/src/assert/assert';
-import { ClearingHouseUser } from '../sdk/src/clearingHouseUser';
-import { mockUSDCMint, mockUserUSDCAccount } from '../utils/mockAccounts';
-import { createPriceFeed, setFeedPrice } from '../utils/mockPythUtils';
+import {
+	createPriceFeed,
+	mockUSDCMint,
+	mockUserUSDCAccount,
+	setFeedPrice,
+} from './testHelpers';
 
 describe('AMM Curve', () => {
 	const provider = anchor.Provider.local();

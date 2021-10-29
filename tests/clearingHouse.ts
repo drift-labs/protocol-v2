@@ -25,8 +25,8 @@ import {
 	mockUserUSDCAccount,
 	mintToInsuranceFund,
 	mockOracle,
-} from '../utils/mockAccounts';
-import { setFeedPrice } from '../utils/mockPythUtils';
+	setFeedPrice,
+} from './testHelpers';
 
 const calculateTradeAmount = (amountOfCollateral: BN) => {
 	const ONE_MANTISSA = new BN(100000);

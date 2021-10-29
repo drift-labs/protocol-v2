@@ -4,11 +4,13 @@ import { assert } from 'chai';
 import BN from 'bn.js';
 
 import {
+	getFeedData,
 	mockOracle,
 	mockUserUSDCAccount,
 	mockUSDCMint,
-} from '../utils/mockAccounts';
-import { getFeedData, setFeedPrice } from '../utils/mockPythUtils';
+	setFeedPrice,
+} from './testHelpers';
+
 import {
 	PEG_SCALAR,
 	stripMantissa,

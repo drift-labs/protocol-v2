@@ -10,11 +10,7 @@ import { AMM_MANTISSA, ClearingHouse, PositionDirection } from '../sdk/src';
 
 import Markets from '../sdk/src/constants/markets';
 
-import {
-	mockOracle,
-	mockUSDCMint,
-	mockUserUSDCAccount,
-} from '../utils/mockAccounts';
+import { mockOracle, mockUSDCMint, mockUserUSDCAccount } from './testHelpers';
 import { AccountInfo, Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
 describe('fees', () => {

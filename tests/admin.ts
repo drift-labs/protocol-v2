@@ -11,7 +11,7 @@ import {
 } from '../sdk/src';
 import { OracleSource } from '../sdk';
 
-import { mockOracle, mockUSDCMint } from '../utils/mockAccounts';
+import { mockOracle, mockUSDCMint } from './testHelpers';
 import { PublicKey } from '@solana/web3.js';
 import Markets from '../sdk/src/constants/markets';
 

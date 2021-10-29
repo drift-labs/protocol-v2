@@ -10,11 +10,7 @@ import { AMM_MANTISSA, ClearingHouse, PositionDirection } from '../sdk/src';
 
 import Markets from '../sdk/src/constants/markets';
 
-import {
-	mockOracle,
-	mockUSDCMint,
-	mockUserUSDCAccount,
-} from '../utils/mockAccounts';
+import { mockOracle, mockUSDCMint, mockUserUSDCAccount } from './testHelpers';
 import { FeeStructure } from '../sdk';
 
 describe('idempotent curve', () => {

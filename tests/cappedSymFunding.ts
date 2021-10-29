@@ -4,14 +4,19 @@ import { assert } from 'chai';
 import BN from 'bn.js';
 
 import {
+	getFeedData,
+	initUserAccounts,
 	mockOracle,
 	mockUserUSDCAccount,
 	mockUSDCMint,
-} from '../utils/mockAccounts';
-import { getFeedData, setFeedPrice } from '../utils/mockPythUtils';
+	setFeedPrice,
+} from './testHelpers';
 import {
+	AMM_MANTISSA,
+	FUNDING_MANTISSA,
 	PEG_SCALAR,
 	stripMantissa,
+	ClearingHouse,
 	ClearingHouseUser,
 	PositionDirection,
 	USDC_PRECISION,
@@ -20,11 +25,7 @@ import {
 
 import { Program } from '@project-serum/anchor';
 
-import { PublicKey } from '@solana/web3.js';
-
-import { AMM_MANTISSA, FUNDING_MANTISSA, ClearingHouse } from '../sdk/src';
-
-import { initUserAccounts } from './../utils/stressUtils';
+import { Keypair, PublicKey } from '@solana/web3.js';
 
 async function updateFundingRateHelper(
 	clearingHouse: ClearingHouse,
@@ -213,15 +214,8 @@ async function cappedSymFundingScenario(
 	const market = await clearingHouse.getMarketsAccount().markets[
 		marketIndex.toNumber()
 	];
-	const prevFRL = market.amm.cumulativeFundingRateLong;
-	const prevFRS = market.amm.cumulativeFundingRateShort;
-	console.log('updateFundingRateHelper');
 
 	await clearingHouse.updateFundingPaused(false);
-
-	const state = clearingHouse.getState();
-	// console.log('Clearing House unpaused state',
-	// state);
 
 	console.log('priceAction update', priceAction, priceAction.slice(1));
 	await updateFundingRateHelper(
@@ -251,8 +245,8 @@ async function cappedSymFundingScenario(
 		stripMantissa(marketNew.baseAssetAmountShort, BASE_ASSET_PRECISION),
 		'totalFee',
 		stripMantissa(marketNew.amm.totalFee, USDC_PRECISION),
-		'cumFee',
-		stripMantissa(marketNew.amm.cumulativeFee, USDC_PRECISION)
+		'totalFeeMinusDistributions',
+		stripMantissa(marketNew.amm.totalFeeMinusDistributions, USDC_PRECISION)
 	);
 
 	const fundingPnLForLongs = marketNew.baseAssetAmountLong
@@ -297,7 +291,7 @@ async function cappedSymFundingScenario(
 		fundingPnLForLongs,
 		fundingPnLForShorts,
 		marketNew.amm.totalFee,
-		marketNew.amm.cumulativeFee,
+		marketNew.amm.totalFeeMinusDistributions,
 	];
 }
 
@@ -306,7 +300,6 @@ describe('capped funding', () => {
 	const connection = provider.connection;
 
 	anchor.setProvider(provider);
-	const program = anchor.workspace.Pyth;
 
 	const chProgram = anchor.workspace.ClearingHouse as Program;
 
@@ -316,9 +309,6 @@ describe('capped funding', () => {
 	let usdcMint: Keypair;
 	let userUSDCAccount: Keypair;
 
-	const ammInitialQuoteAssetAmount = new anchor.BN(5 * 10 ** 13).mul(
-		AMM_MANTISSA
-	);
 	const ammInitialBaseAssetAmount = new anchor.BN(5 * 10 ** 13).mul(
 		AMM_MANTISSA
 	);
@@ -356,7 +346,7 @@ describe('capped funding', () => {
 		);
 
 		// create <NUM_USERS> users with 10k that collectively do <NUM_EVENTS> actions
-		const [userUSDCAccounts, user_keys, clearingHouses, userAccountInfos] =
+		const [_userUSDCAccounts, _user_keys, clearingHouses, userAccountInfos] =
 			await initUserAccounts(1, usdcMint, usdcAmount, provider);
 
 		clearingHouse2 = clearingHouses[0];

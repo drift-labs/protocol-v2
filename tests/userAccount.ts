@@ -1,12 +1,15 @@
 import * as anchor from '@project-serum/anchor';
 import { Program } from '@project-serum/anchor';
-import { mockUSDCMint, mockUserUSDCAccount } from '../utils/mockAccounts';
+import {
+	createPriceFeed,
+	mockUSDCMint,
+	mockUserUSDCAccount,
+} from './testHelpers';
 import { ClearingHouse, PEG_SCALAR } from '../sdk/src';
 import { Keypair } from '@solana/web3.js';
 import BN from 'bn.js';
 import { ClearingHouseUser } from '../sdk/src/clearingHouseUser';
 import { assert } from 'chai';
-import { createPriceFeed } from '../utils/mockPythUtils';
 import { MAX_LEVERAGE, PositionDirection } from '../sdk/src';
 
 describe('User Account', () => {

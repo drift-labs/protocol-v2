@@ -16,8 +16,8 @@ import {
 	mockOracle,
 	mockUSDCMint,
 	mockUserUSDCAccount,
-} from '../utils/mockAccounts';
-import { setFeedPrice } from '../utils/mockPythUtils';
+	setFeedPrice,
+} from './testHelpers';
 
 describe('max positions', () => {
 	const provider = anchor.Provider.local();

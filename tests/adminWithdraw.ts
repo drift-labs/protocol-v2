@@ -16,11 +16,7 @@ import {
 
 import Markets from '../sdk/src/constants/markets';
 
-import {
-	mockOracle,
-	mockUSDCMint,
-	mockUserUSDCAccount,
-} from '../utils/mockAccounts';
+import { mockOracle, mockUSDCMint, mockUserUSDCAccount } from './testHelpers';
 
 const calculateTradeAmount = (amountOfCollateral: BN) => {
 	const ONE_MANTISSA = new BN(100000);

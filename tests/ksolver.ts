@@ -12,8 +12,11 @@ import {
 	MAX_LEVERAGE,
 } from '../sdk/src';
 import { ClearingHouseUser } from '../sdk/src/clearingHouseUser';
-import { mockUSDCMint, mockUserUSDCAccount } from '../utils/mockAccounts';
-import { createPriceFeed } from '../utils/mockPythUtils';
+import {
+	createPriceFeed,
+	mockUSDCMint,
+	mockUserUSDCAccount,
+} from './testHelpers';
 
 describe('AMM Curve', () => {
 	// K SOLVER: find opitimal k given exchange details

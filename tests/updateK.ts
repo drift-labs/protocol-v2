@@ -15,8 +15,11 @@ import {
 
 import Markets from '../sdk/src/constants/markets';
 
-import { mockUSDCMint, mockUserUSDCAccount } from '../utils/mockAccounts';
-import { createPriceFeed, setFeedPrice } from '../utils/mockPythUtils';
+import {
+	createPriceFeed,
+	mockUSDCMint,
+	mockUserUSDCAccount,
+} from './testHelpers';
 import { USDC_PRECISION } from '../sdk/lib';
 
 const ZERO = new BN(0);

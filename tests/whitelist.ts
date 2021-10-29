@@ -11,11 +11,7 @@ import { AMM_MANTISSA, ClearingHouse } from '../sdk/src';
 
 import Markets from '../sdk/src/constants/markets';
 
-import {
-	mockOracle,
-	mockUSDCMint,
-	mockUserUSDCAccount,
-} from '../utils/mockAccounts';
+import { mockOracle, mockUSDCMint, mockUserUSDCAccount } from './testHelpers';
 
 describe('whitelist', () => {
 	const provider = anchor.Provider.local();
