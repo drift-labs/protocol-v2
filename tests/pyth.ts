@@ -14,16 +14,21 @@ import {
 import {
 	PEG_SCALAR,
 	stripMantissa,
-	ClearingHouseUser,
 	PositionDirection,
 	USDC_PRECISION,
 } from '../sdk';
 
 import { Program } from '@project-serum/anchor';
 
-import { PublicKey } from '@solana/web3.js';
+import { Keypair, PublicKey } from '@solana/web3.js';
 
-import { AMM_MANTISSA, FUNDING_MANTISSA, ClearingHouse } from '../sdk/src';
+import {
+	Admin,
+	AMM_MANTISSA,
+	FUNDING_MANTISSA,
+	ClearingHouse,
+	ClearingHouseUser,
+} from '../sdk/src';
 
 import { initUserAccounts } from './../utils/stressUtils';
 
@@ -154,7 +159,7 @@ describe('pyth-oracle', () => {
 
 	const chProgram = anchor.workspace.ClearingHouse as Program;
 
-	let clearingHouse: ClearingHouse;
+	let clearingHouse: Admin;
 	let clearingHouse2: ClearingHouse;
 
 	let usdcMint: Keypair;
@@ -171,12 +176,11 @@ describe('pyth-oracle', () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
-		clearingHouse = ClearingHouse.from(
+		clearingHouse = Admin.from(
 			connection,
 			provider.wallet,
 			chProgram.programId
 		);
-
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
 
@@ -196,7 +200,7 @@ describe('pyth-oracle', () => {
 		);
 
 		// create <NUM_USERS> users with 10k that collectively do <NUM_EVENTS> actions
-		const [userUSDCAccounts, user_keys, clearingHouses, userAccountInfos] =
+		const [_userUSDCAccounts, _user_keys, clearingHouses, userAccountInfos] =
 			await initUserAccounts(1, usdcMint, usdcAmount, provider);
 
 		clearingHouse2 = clearingHouses[0];

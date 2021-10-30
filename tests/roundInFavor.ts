@@ -6,7 +6,12 @@ import { Program, Wallet } from '@project-serum/anchor';
 
 import { Keypair } from '@solana/web3.js';
 
-import { ClearingHouse, MAX_LEVERAGE, PositionDirection } from '../sdk/src';
+import {
+	Admin,
+	ClearingHouse,
+	MAX_LEVERAGE,
+	PositionDirection,
+} from '../sdk/src';
 
 import Markets from '../sdk/src/constants/markets';
 
@@ -31,7 +36,7 @@ describe('round in favor', () => {
 
 	let usdcMint;
 
-	let primaryClearingHouse: ClearingHouse;
+	let primaryClearingHouse: Admin;
 
 	// ammInvariant == k == x * y
 	const ammInitialQuoteAssetReserve = new anchor.BN(17 * 10 ** 13);
@@ -42,7 +47,7 @@ describe('round in favor', () => {
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
 
-		primaryClearingHouse = ClearingHouse.from(
+		primaryClearingHouse = Admin.from(
 			connection,
 			provider.wallet,
 			chProgram.programId

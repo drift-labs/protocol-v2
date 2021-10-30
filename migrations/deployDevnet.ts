@@ -2,7 +2,7 @@ import * as anchor from '@project-serum/anchor';
 import { Program, Provider, Wallet } from '@project-serum/anchor';
 import { Keypair, PublicKey } from '@solana/web3.js';
 import BN from 'bn.js';
-import { ClearingHouse, PythClient } from '../sdk/';
+import { Admin, ClearingHouse, PythClient } from '../sdk/';
 import { AMM_MANTISSA, MockUSDCFaucet, PEG_SCALAR } from '../sdk/src';
 
 import dotenv = require('dotenv');
@@ -11,7 +11,7 @@ dotenv.config();
 async function deployDevnet(provider: Provider) {
 	const connection = provider.connection;
 	const chProgram = anchor.workspace.ClearingHouse as Program;
-	const clearingHouse = ClearingHouse.from(
+	const clearingHouse = Admin.from(
 		connection,
 		provider.wallet,
 		chProgram.programId

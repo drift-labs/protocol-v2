@@ -1,7 +1,7 @@
 import * as anchor from '@project-serum/anchor';
 import { Provider } from '@project-serum/anchor';
 import { PublicKey } from '@solana/web3.js';
-import { ClearingHouse } from '../sdk/';
+import { Admin } from '../sdk/';
 
 import dotenv = require('dotenv');
 import BN from 'bn.js';
@@ -12,7 +12,7 @@ async function main(provider: Provider) {
 	const clearingHouseProgramId = new PublicKey(
 		'dammHkt7jmytvbS3nHTxQNEcP59aE57nxwV21YdqEDN'
 	);
-	const clearingHouse = ClearingHouse.from(
+	const clearingHouse = Admin.from(
 		connection,
 		provider.wallet,
 		clearingHouseProgramId

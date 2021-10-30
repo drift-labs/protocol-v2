@@ -1,7 +1,7 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
 import { Program } from '@project-serum/anchor';
-import { ClearingHouse, MockUSDCFaucet, ClearingHouseUser } from '../sdk/src';
+import { Admin, MockUSDCFaucet, ClearingHouseUser } from '../sdk/src';
 import BN from 'bn.js';
 import { Keypair, PublicKey } from '@solana/web3.js';
 import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
@@ -19,13 +19,13 @@ describe('mock_usdc_faucet', () => {
 	);
 
 	const chProgram = anchor.workspace.ClearingHouse as Program;
-	let clearingHouse: ClearingHouse;
+	let clearingHouse: Admin;
 	let userAccount: ClearingHouseUser;
 
 	const mintAmount = new BN(10);
 
 	before(() => {
-		clearingHouse = ClearingHouse.from(
+		clearingHouse = Admin.from(
 			connection,
 			provider.wallet,
 			chProgram.programId

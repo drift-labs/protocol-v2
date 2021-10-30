@@ -7,7 +7,7 @@ import { Program } from '@project-serum/anchor';
 import { PublicKey } from '@solana/web3.js';
 import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
-import { AMM_MANTISSA, ClearingHouse } from '../sdk/src';
+import { Admin, AMM_MANTISSA, ClearingHouse } from '../sdk/src';
 
 import Markets from '../sdk/src/constants/markets';
 
@@ -19,7 +19,7 @@ describe('whitelist', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.ClearingHouse as Program;
 
-	let clearingHouse: ClearingHouse;
+	let clearingHouse: Admin;
 
 	let userAccountPublicKey: PublicKey;
 
@@ -43,7 +43,7 @@ describe('whitelist', () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
-		clearingHouse = ClearingHouse.from(
+		clearingHouse = Admin.from(
 			connection,
 			provider.wallet,
 			chProgram.programId

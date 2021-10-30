@@ -5,10 +5,14 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
-import { ClearingHouse, PEG_SCALAR } from '../sdk/src';
+import {
+	Admin,
+	ClearingHouse,
+	ClearingHouseUser,
+	PEG_SCALAR,
+} from '../sdk/src';
 import { Keypair } from '@solana/web3.js';
 import BN from 'bn.js';
-import { ClearingHouseUser } from '../sdk/src/clearingHouseUser';
 import { assert } from 'chai';
 import { MAX_LEVERAGE, PositionDirection } from '../sdk/src';
 
@@ -18,7 +22,7 @@ describe('User Account', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.ClearingHouse as Program;
 
-	const clearingHouse = ClearingHouse.from(
+	const clearingHouse = Admin.from(
 		connection,
 		provider.wallet,
 		chProgram.programId

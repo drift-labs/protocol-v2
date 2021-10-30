@@ -1,7 +1,7 @@
 import * as anchor from '@project-serum/anchor';
 import { Provider } from '@project-serum/anchor';
 import { PublicKey } from '@solana/web3.js';
-import { ClearingHouse } from '../sdk/';
+import { Admin, ClearingHouse } from '../sdk/';
 
 import dotenv = require('dotenv');
 dotenv.config();
@@ -11,7 +11,7 @@ async function repeg(provider: Provider) {
 	const clearingHouseProgramId = new PublicKey(
 		'damm6x5ddj4JZKzpFN9y2jgtnHY3xryBUoQfjFuL5qo'
 	);
-	const clearingHouse = ClearingHouse.from(
+	const clearingHouse = Admin.from(
 		connection,
 		provider.wallet,
 		clearingHouseProgramId
@@ -20,7 +20,10 @@ async function repeg(provider: Provider) {
 	let amm = clearingHouse.getMarketsAccount().markets[0].amm;
 	console.log('peg', amm.pegMultiplier.toString());
 	console.log('total fee', amm.totalFee.toString());
-	console.log('cumulative fee', amm.cumulativeFee.toString());
+	console.log(
+		'total fee minus distributions',
+		amm.totalFeeMinusDistributions.toString()
+	);
 
 	const newPeg = new anchor.BN(0);
 	const marketIndex = new anchor.BN(0);
@@ -29,7 +32,10 @@ async function repeg(provider: Provider) {
 	amm = clearingHouse.getMarketsAccount().markets[0].amm;
 	console.log('peg', amm.pegMultiplier.toString());
 	console.log('total fee', amm.totalFee.toString());
-	console.log('cumulative fee', amm.cumulativeFee.toString());
+	console.log(
+		'total fee minus distributions',
+		amm.totalFeeMinusDistributions.toString()
+	);
 
 	await clearingHouse.unsubscribe();
 }

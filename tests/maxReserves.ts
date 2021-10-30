@@ -6,8 +6,8 @@ import { Program } from '@project-serum/anchor';
 import { PublicKey } from '@solana/web3.js';
 
 import {
+	Admin,
 	AMM_MANTISSA,
-	ClearingHouse,
 	PositionDirection,
 	USDC_PRECISION,
 } from '../sdk/src';
@@ -25,7 +25,7 @@ describe('max reserves', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.ClearingHouse as Program;
 
-	let clearingHouse: ClearingHouse;
+	let clearingHouse: Admin;
 
 	let userAccountPublicKey: PublicKey;
 
@@ -53,7 +53,7 @@ describe('max reserves', () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
-		clearingHouse = ClearingHouse.from(
+		clearingHouse = Admin.from(
 			connection,
 			provider.wallet,
 			chProgram.programId
@@ -113,7 +113,7 @@ describe('max reserves', () => {
 			);
 		}
 		console.log('liquidate');
-		await clearingHouse.liquidate(userAccountPublicKey, userAccountPublicKey);
+		await clearingHouse.liquidate(userAccountPublicKey);
 	});
 
 	it('liquidate', async () => {
@@ -127,6 +127,6 @@ describe('max reserves', () => {
 			);
 		}
 
-		await clearingHouse.liquidate(userAccountPublicKey, userAccountPublicKey);
+		await clearingHouse.liquidate(userAccountPublicKey);
 	});
 });

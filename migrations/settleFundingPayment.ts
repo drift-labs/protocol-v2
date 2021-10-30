@@ -27,8 +27,8 @@ async function main() {
 	await userAccount.subscribe();
 
 	await clearingHouse.settleFundingPayment(
-		await userAccount.getPublicKey(),
-		userAccount.userAccountData.positions
+		await userAccount.getUserAccountPublicKey(),
+		userAccount.getUserAccount().positions
 	);
 
 	await clearingHouse.unsubscribe();

@@ -6,7 +6,12 @@ import { Program, Wallet } from '@project-serum/anchor';
 
 import { Keypair } from '@solana/web3.js';
 
-import { AMM_MANTISSA, ClearingHouse, PositionDirection } from '../sdk/src';
+import {
+	Admin,
+	AMM_MANTISSA,
+	ClearingHouse,
+	PositionDirection,
+} from '../sdk/src';
 
 import Markets from '../sdk/src/constants/markets';
 
@@ -20,7 +25,7 @@ describe('idempotent curve', () => {
 	const chProgram = anchor.workspace.ClearingHouse as Program;
 
 	let usdcMint;
-	let primaryClearingHouse: ClearingHouse;
+	let primaryClearingHouse: Admin;
 
 	// ammInvariant == k == x * y
 	const mantissaSqrtScale = new BN(Math.sqrt(AMM_MANTISSA.toNumber()));
@@ -36,7 +41,7 @@ describe('idempotent curve', () => {
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
 
-		primaryClearingHouse = ClearingHouse.from(
+		primaryClearingHouse = Admin.from(
 			connection,
 			provider.wallet,
 			chProgram.programId

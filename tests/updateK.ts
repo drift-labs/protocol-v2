@@ -5,8 +5,8 @@ import BN from 'bn.js';
 import { Keypair } from '@solana/web3.js';
 import { Program } from '@project-serum/anchor';
 import {
+	Admin,
 	AMM_MANTISSA,
-	ClearingHouse,
 	ClearingHouseUser,
 	stripMantissa,
 	PEG_SCALAR,
@@ -30,7 +30,7 @@ describe('update k', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.ClearingHouse as Program;
 
-	let clearingHouse: ClearingHouse;
+	let clearingHouse: Admin;
 
 	let usdcMint: Keypair;
 	let userUSDCAccount: Keypair;
@@ -52,7 +52,7 @@ describe('update k', () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
-		clearingHouse = ClearingHouse.from(
+		clearingHouse = Admin.from(
 			connection,
 			provider.wallet,
 			chProgram.programId
@@ -136,11 +136,6 @@ describe('update k', () => {
 		const marketsOld = await clearingHouse.getMarketsAccount();
 		const targetPriceUp = new BN(
 			initialSOLPrice * AMM_MANTISSA.toNumber() * 44.1
-		);
-
-		const [direction, tradeSize, _] = clearingHouse.calculateTargetPriceTrade(
-			marketIndex,
-			targetPriceUp
 		);
 		await clearingHouse.moveAmmToPrice(marketIndex, targetPriceUp);
 		const oldKPrice =

@@ -3,10 +3,10 @@ import { Program } from '@project-serum/anchor';
 import { Keypair } from '@solana/web3.js';
 import BN from 'bn.js';
 import {
+	Admin,
 	AMM_MANTISSA,
 	PEG_SCALAR,
 	USDC_PRECISION,
-	ClearingHouse,
 	ClearingHouseUser,
 	PositionDirection,
 	stripBaseAssetPrecision,
@@ -26,7 +26,7 @@ describe('AMM Curve', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.ClearingHouse as Program;
 
-	const clearingHouse = ClearingHouse.from(
+	const clearingHouse = Admin.from(
 		connection,
 		provider.wallet,
 		chProgram.programId

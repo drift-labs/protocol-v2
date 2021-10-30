@@ -6,9 +6,9 @@ import { Program } from '@project-serum/anchor';
 import { PublicKey } from '@solana/web3.js';
 
 import {
+	Admin,
 	AMM_MANTISSA,
 	ClearingHouse,
-	MAX_LEVERAGE,
 	PositionDirection,
 } from '../sdk/src';
 
@@ -25,7 +25,7 @@ describe('max positions', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.ClearingHouse as Program;
 
-	let clearingHouse: ClearingHouse;
+	let clearingHouse: Admin;
 
 	let userAccountPublicKey: PublicKey;
 
@@ -49,7 +49,7 @@ describe('max positions', () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
-		clearingHouse = ClearingHouse.from(
+		clearingHouse = Admin.from(
 			connection,
 			provider.wallet,
 			chProgram.programId

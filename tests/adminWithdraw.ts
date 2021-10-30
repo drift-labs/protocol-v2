@@ -5,11 +5,9 @@ import BN from 'bn.js';
 import { Program } from '@project-serum/anchor';
 import { getTokenAccount } from '@project-serum/common';
 
-import { PublicKey } from '@solana/web3.js';
-
 import {
+	Admin,
 	AMM_MANTISSA,
-	ClearingHouse,
 	MAX_LEVERAGE,
 	PositionDirection,
 } from '../sdk/src';
@@ -34,9 +32,7 @@ describe('admin withdraw', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.ClearingHouse as Program;
 
-	let clearingHouse: ClearingHouse;
-
-	let userAccountPublicKey: PublicKey;
+	let clearingHouse: Admin;
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -57,7 +53,7 @@ describe('admin withdraw', () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
-		clearingHouse = ClearingHouse.from(
+		clearingHouse = Admin.from(
 			connection,
 			provider.wallet,
 			chProgram.programId
@@ -76,11 +72,10 @@ describe('admin withdraw', () => {
 			periodicity
 		);
 
-		[, userAccountPublicKey] =
-			await clearingHouse.initializeUserAccountAndDepositCollateral(
-				usdcAmount,
-				userUSDCAccount.publicKey
-			);
+		await clearingHouse.initializeUserAccountAndDepositCollateral(
+			usdcAmount,
+			userUSDCAccount.publicKey
+		);
 
 		const marketIndex = new BN(0);
 		const incrementalUSDCNotionalAmount = calculateTradeAmount(usdcAmount);

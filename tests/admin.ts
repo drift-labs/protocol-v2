@@ -4,6 +4,7 @@ import BN from 'bn.js';
 import { assert } from 'chai';
 
 import {
+	Admin,
 	AMM_MANTISSA,
 	ClearingHouse,
 	FeeStructure,
@@ -21,14 +22,14 @@ describe('admin', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.ClearingHouse as Program;
 
-	let clearingHouse: ClearingHouse;
+	let clearingHouse: Admin;
 
 	let usdcMint;
 
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
 
-		clearingHouse = ClearingHouse.from(
+		clearingHouse = Admin.from(
 			connection,
 			provider.wallet,
 			chProgram.programId
@@ -279,13 +280,13 @@ describe('admin', () => {
 	});
 
 	it('Update admin', async () => {
-		const admin = PublicKey.default;
+		const newAdminKey = PublicKey.default;
 
-		await clearingHouse.updateAdmin(admin);
+		await clearingHouse.updateAdmin(newAdminKey);
 
 		const state = clearingHouse.getStateAccount();
 
-		assert(state.admin.equals(admin));
+		assert(state.admin.equals(newAdminKey));
 	});
 
 	after(async () => {

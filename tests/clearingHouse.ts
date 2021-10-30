@@ -8,8 +8,8 @@ import { getTokenAccount } from '@project-serum/common';
 import { PublicKey } from '@solana/web3.js';
 
 import {
+	Admin,
 	AMM_MANTISSA,
-	ClearingHouse,
 	ClearingHouseUser,
 	PositionDirection,
 	BASE_ASSET_PRECISION,
@@ -44,7 +44,7 @@ describe('clearing_house', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.ClearingHouse as Program;
 
-	let clearingHouse: ClearingHouse;
+	let clearingHouse: Admin;
 
 	let userAccountPublicKey: PublicKey;
 	let userAccount: ClearingHouseUser;
@@ -67,7 +67,7 @@ describe('clearing_house', () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
-		clearingHouse = ClearingHouse.from(
+		clearingHouse = Admin.from(
 			connection,
 			provider.wallet,
 			chProgram.programId

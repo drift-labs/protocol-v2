@@ -4,8 +4,8 @@ import { Keypair } from '@solana/web3.js';
 import BN from 'bn.js';
 import { USDC_PRECISION } from '../sdk/lib';
 import {
+	Admin,
 	AMM_MANTISSA,
-	ClearingHouse,
 	PositionDirection,
 	stripMantissa,
 	PEG_SCALAR,
@@ -162,7 +162,7 @@ describe('AMM Curve', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.ClearingHouse as Program;
 
-	const clearingHouse = ClearingHouse.from(
+	const clearingHouse = Admin.from(
 		connection,
 		provider.wallet,
 		chProgram.programId

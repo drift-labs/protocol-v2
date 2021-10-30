@@ -12,6 +12,7 @@ import {
 	setFeedPrice,
 } from './testHelpers';
 import {
+	Admin,
 	AMM_MANTISSA,
 	FUNDING_MANTISSA,
 	PEG_SCALAR,
@@ -151,7 +152,7 @@ async function updateFundingRateHelper(
 }
 
 async function cappedSymFundingScenario(
-	clearingHouse: ClearingHouse,
+	clearingHouse: Admin,
 	userAccount: ClearingHouseUser,
 	clearingHouse2: ClearingHouse,
 	userAccount2: ClearingHouseUser,
@@ -295,7 +296,7 @@ describe('capped funding', () => {
 
 	const chProgram = anchor.workspace.ClearingHouse as Program;
 
-	let clearingHouse: ClearingHouse;
+	let clearingHouse: Admin;
 	let clearingHouse2: ClearingHouse;
 
 	let usdcMint: Keypair;
@@ -315,7 +316,7 @@ describe('capped funding', () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
-		clearingHouse = ClearingHouse.from(
+		clearingHouse = Admin.from(
 			connection,
 			provider.wallet,
 			chProgram.programId
