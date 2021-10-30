@@ -219,7 +219,7 @@ export class ClearingHouseUser {
 	 * @returns
 	 */
 	public getMaxLeverage(category?: 'Initial' | 'Partial' | 'Maintenance'): BN {
-		const chState = this.clearingHouse.getState();
+		const chState = this.clearingHouse.getStateAccount();
 		let marginRatioCategory: BN;
 
 		switch (category) {
@@ -391,7 +391,6 @@ export class ClearingHouseUser {
 		// stripMantissa(marketProportion),
 		// );
 
-		
 		// // if the user is long, then the liq price is the currentPrice multiplied by liqRatio/marginRatio (how many multiples lower does the current marginRatio have to go to reach the liqRatio), multiplied by the fraction of the proposed total position value that this market will take up
 		// if (!baseAssetSignIsNeg) {
 		// 	liqPrice = currentPrice
@@ -577,7 +576,7 @@ export class ClearingHouseUser {
 	 * @returns maxQuoteAfterFee - 10^6
 	 */
 	private maxQuoteAmountAfterFee(maxQuoteAmount: BN): BN {
-		const feeStructure = this.clearingHouse.getState().feeStructure;
+		const feeStructure = this.clearingHouse.getStateAccount().feeStructure;
 
 		return maxQuoteAmount
 			.mul(
@@ -594,7 +593,7 @@ export class ClearingHouseUser {
 	 * @returns feeForQuote : 10^6
 	 */
 	public calculateFeeForQuoteAmount(quoteAmount: BN): BN {
-		const feeStructure = this.clearingHouse.getState().feeStructure;
+		const feeStructure = this.clearingHouse.getStateAccount().feeStructure;
 
 		return quoteAmount
 			.mul(feeStructure.feeNumerator)

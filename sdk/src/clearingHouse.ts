@@ -143,7 +143,7 @@ export class ClearingHouse {
 		return this.statePublicKey;
 	}
 
-	public getState(): StateAccount {
+	public getStateAccount(): StateAccount {
 		return this.accountSubscriber.getStateAccount();
 	}
 
@@ -151,11 +151,11 @@ export class ClearingHouse {
 		return this.accountSubscriber.getMarketsAccount();
 	}
 
-	public getFundingPaymentHistory(): FundingPaymentHistoryAccount {
+	public getFundingPaymentHistoryAccount(): FundingPaymentHistoryAccount {
 		return this.accountSubscriber.getFundingPaymentHistoryAccount();
 	}
 
-	public getFundingRateHistory(): FundingRateHistoryAccount {
+	public getFundingRateHistoryAccount(): FundingRateHistoryAccount {
 		return this.accountSubscriber.getFundingRateHistoryAccount();
 	}
 
@@ -163,15 +163,15 @@ export class ClearingHouse {
 		return this.accountSubscriber.getTradeHistoryAccount();
 	}
 
-	public getLiquidationHistory(): LiquidationHistoryAccount {
+	public getLiquidationHistoryAccount(): LiquidationHistoryAccount {
 		return this.accountSubscriber.getLiquidationHistoryAccount();
 	}
 
-	public getDepositHistory(): DepositHistoryAccount {
+	public getDepositHistoryAccount(): DepositHistoryAccount {
 		return this.accountSubscriber.getDepositHistoryAccount();
 	}
 
-	public getCurveHistory(): CurveHistoryAccount {
+	public getCurveHistoryAccount(): CurveHistoryAccount {
 		return this.accountSubscriber.getCurveHistoryAccount();
 	}
 
@@ -328,7 +328,7 @@ export class ClearingHouse {
 					state: await this.getStatePublicKey(),
 					admin: this.wallet.publicKey,
 					oracle: priceOracle,
-					markets: this.getState().markets,
+					markets: this.getStateAccount().markets,
 				},
 			}
 		);
@@ -377,7 +377,7 @@ export class ClearingHouse {
 			whitelistToken: false,
 		};
 
-		const state = this.getState();
+		const state = this.getStateAccount();
 		if (state.whitelistMint) {
 			optionalAccounts.whitelistToken = true;
 			const associatedTokenPublicKey = await Token.getAssociatedTokenAddress(
@@ -457,7 +457,7 @@ export class ClearingHouse {
 			userPositionsAccountPublicKey = user.positions;
 		}
 
-		const state = this.getState();
+		const state = this.getStateAccount();
 		return await this.program.instruction.depositCollateral(amount, {
 			accounts: {
 				state: await this.getStatePublicKey(),
@@ -570,7 +570,7 @@ export class ClearingHouse {
 			userAccountPublicKey
 		);
 
-		const state = this.getState();
+		const state = this.getStateAccount();
 		return await this.program.instruction.withdrawCollateral(amount, {
 			accounts: {
 				state: await this.getStatePublicKey(),
@@ -658,7 +658,7 @@ export class ClearingHouse {
 		const priceOracle =
 			this.getMarketsAccount().markets[marketIndex.toNumber()].amm.oracle;
 
-		const state = this.getState();
+		const state = this.getStateAccount();
 		return await this.program.instruction.openPosition(
 			direction,
 			amount,
@@ -737,7 +737,7 @@ export class ClearingHouse {
 			});
 		}
 
-		const state = this.getState();
+		const state = this.getStateAccount();
 		return await this.program.instruction.closePosition(
 			marketIndex,
 			optionalAccounts,
@@ -763,7 +763,7 @@ export class ClearingHouse {
 		quoteAssetReserve: BN,
 		marketIndex: BN
 	): Promise<TransactionSignature> {
-		const state = this.getState();
+		const state = this.getStateAccount();
 		return await this.program.rpc.moveAmmPrice(
 			baseAssetReserve,
 			quoteAssetReserve,
@@ -782,7 +782,7 @@ export class ClearingHouse {
 		sqrtK: BN,
 		marketIndex: BN
 	): Promise<TransactionSignature> {
-		const state = this.getState();
+		const state = this.getStateAccount();
 		return await this.program.rpc.updateK(sqrtK, marketIndex, {
 			accounts: {
 				state: await this.getStatePublicKey(),
@@ -816,7 +816,7 @@ export class ClearingHouse {
 			market.amm.pegMultiplier
 		);
 
-		const state = this.getState();
+		const state = this.getStateAccount();
 		return await this.program.rpc.moveAmmPrice(
 			newBaseAssetAmount,
 			newQuoteAssetAmount,
@@ -835,7 +835,7 @@ export class ClearingHouse {
 		newPeg: BN,
 		marketIndex: BN
 	): Promise<TransactionSignature> {
-		const state = this.getState();
+		const state = this.getStateAccount();
 		const markets = this.getMarketsAccount();
 		const marketData = markets.markets[marketIndex.toNumber()];
 		const ammData = marketData.amm;
@@ -887,7 +887,7 @@ export class ClearingHouse {
 			}
 		}
 
-		const state = this.getState();
+		const state = this.getStateAccount();
 		return await this.program.instruction.liquidate({
 			accounts: {
 				state: await this.getStatePublicKey(),
@@ -924,7 +924,7 @@ export class ClearingHouse {
 		oracle: PublicKey,
 		marketIndex: BN
 	): Promise<TransactionInstruction> {
-		const state = this.getState();
+		const state = this.getStateAccount();
 		return await this.program.instruction.updateFundingRate(marketIndex, {
 			accounts: {
 				state: await this.getStatePublicKey(),
@@ -952,7 +952,7 @@ export class ClearingHouse {
 		userAccount: PublicKey,
 		userPositionsAccount: PublicKey
 	): Promise<TransactionInstruction> {
-		const state = this.getState();
+		const state = this.getStateAccount();
 		return await this.program.instruction.settleFundingPayment({
 			accounts: {
 				state: await this.getStatePublicKey(),
@@ -1508,7 +1508,7 @@ export class ClearingHouse {
 		amount: BN,
 		recipient: PublicKey
 	): Promise<TransactionSignature> {
-		const state = await this.getState();
+		const state = await this.getStateAccount();
 		return await this.program.rpc.withdrawFees(marketIndex, amount, {
 			accounts: {
 				admin: this.wallet.publicKey,
@@ -1526,7 +1526,7 @@ export class ClearingHouse {
 		amount: BN,
 		recipient: PublicKey
 	): Promise<TransactionSignature> {
-		const state = await this.getState();
+		const state = await this.getStateAccount();
 		return await this.program.rpc.withdrawFromInsuranceVault(amount, {
 			accounts: {
 				admin: this.wallet.publicKey,
@@ -1543,7 +1543,7 @@ export class ClearingHouse {
 		marketIndex: BN,
 		amount: BN
 	): Promise<TransactionSignature> {
-		const state = await this.getState();
+		const state = await this.getStateAccount();
 		return await this.program.rpc.withdrawFromInsuranceVaultToMarket(
 			marketIndex,
 			amount,
@@ -1689,7 +1689,7 @@ export class ClearingHouse {
 		oracle: PublicKey,
 		oracleSource: OracleSource
 	): Promise<TransactionSignature> {
-		const state = this.getState();
+		const state = this.getStateAccount();
 		return await this.program.rpc.updateMarketOracle(
 			marketIndex,
 			oracle,
@@ -1708,7 +1708,7 @@ export class ClearingHouse {
 		marketIndex: BN,
 		minimumTradeSize: BN
 	): Promise<TransactionSignature> {
-		const state = this.getState();
+		const state = this.getStateAccount();
 		return await this.program.rpc.updateMarketMinimumTradeSize(
 			marketIndex,
 			minimumTradeSize,

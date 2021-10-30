@@ -49,7 +49,7 @@ describe('admin', () => {
 			marginRatioMaintenance
 		);
 
-		const state = clearingHouse.getState();
+		const state = clearingHouse.getStateAccount();
 
 		assert(state.marginRatioInitial.eq(marginRatioInitial));
 		assert(state.marginRatioPartial.eq(marginRatioPartial));
@@ -65,7 +65,7 @@ describe('admin', () => {
 			denominator
 		);
 
-		const state = clearingHouse.getState();
+		const state = clearingHouse.getStateAccount();
 
 		assert(state.partialLiquidationClosePercentageNumerator.eq(numerator));
 		assert(state.partialLiquidationClosePercentageDenominator.eq(denominator));
@@ -80,7 +80,7 @@ describe('admin', () => {
 			denominator
 		);
 
-		const state = clearingHouse.getState();
+		const state = clearingHouse.getStateAccount();
 
 		assert(state.partialLiquidationPenaltyPercentageNumerator.eq(numerator));
 		assert(
@@ -97,7 +97,7 @@ describe('admin', () => {
 			denominator
 		);
 
-		const state = clearingHouse.getState();
+		const state = clearingHouse.getStateAccount();
 
 		assert(state.fullLiquidationPenaltyPercentageNumerator.eq(numerator));
 		assert(state.fullLiquidationPenaltyPercentageDenominator.eq(denominator));
@@ -108,7 +108,7 @@ describe('admin', () => {
 
 		await clearingHouse.updatePartialLiquidationShareDenominator(denominator);
 
-		const state = clearingHouse.getState();
+		const state = clearingHouse.getStateAccount();
 
 		assert(state.partialLiquidationLiquidatorShareDenominator.eq(denominator));
 	});
@@ -118,7 +118,7 @@ describe('admin', () => {
 
 		await clearingHouse.updateFullLiquidationShareDenominator(denominator);
 
-		const state = clearingHouse.getState();
+		const state = clearingHouse.getStateAccount();
 
 		assert(state.fullLiquidationLiquidatorShareDenominator.eq(denominator));
 	});
@@ -159,7 +159,7 @@ describe('admin', () => {
 
 		await clearingHouse.updateFee(newFeeStructure);
 
-		const state = clearingHouse.getState();
+		const state = clearingHouse.getStateAccount();
 
 		assert(
 			JSON.stringify(newFeeStructure) === JSON.stringify(state.feeStructure)
@@ -182,7 +182,7 @@ describe('admin', () => {
 
 		await clearingHouse.updateOracleGuardRails(oracleGuardRails);
 
-		const state = clearingHouse.getState();
+		const state = clearingHouse.getStateAccount();
 
 		assert(
 			JSON.stringify(oracleGuardRails) ===
@@ -195,7 +195,7 @@ describe('admin', () => {
 
 		await clearingHouse.updateDiscountMint(mint);
 
-		const state = clearingHouse.getState();
+		const state = clearingHouse.getStateAccount();
 
 		assert(state.discountMint.equals(mint));
 	});
@@ -205,7 +205,7 @@ describe('admin', () => {
 
 		await clearingHouse.updateMaxDeposit(maxDeposit);
 
-		const state = clearingHouse.getState();
+		const state = clearingHouse.getStateAccount();
 
 		assert(state.maxDeposit.eq(maxDeposit));
 	});
@@ -266,15 +266,15 @@ describe('admin', () => {
 
 	it('Pause funding', async () => {
 		await clearingHouse.updateFundingPaused(true);
-		const state = clearingHouse.getState();
+		const state = clearingHouse.getStateAccount();
 		assert(state.fundingPaused);
 	});
 
 	it('Disable admin controls prices', async () => {
-		let state = clearingHouse.getState();
+		let state = clearingHouse.getStateAccount();
 		assert(state.adminControlsPrices);
 		await clearingHouse.disableAdminControlsPrices();
-		state = clearingHouse.getState();
+		state = clearingHouse.getStateAccount();
 		assert(!state.adminControlsPrices);
 	});
 
@@ -283,7 +283,7 @@ describe('admin', () => {
 
 		await clearingHouse.updateAdmin(admin);
 
-		const state = clearingHouse.getState();
+		const state = clearingHouse.getStateAccount();
 
 		assert(state.admin.equals(admin));
 	});

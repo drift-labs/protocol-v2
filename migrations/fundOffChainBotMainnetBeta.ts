@@ -34,7 +34,7 @@ async function main() {
 		clearingHousePk
 	);
 	await clearingHouse.subscribe();
-	const state = clearingHouse.getState();
+	const state = clearingHouse.getStateAccount();
 
 	const associatedTokenPublicKey = await Token.getAssociatedTokenAddress(
 		ASSOCIATED_TOKEN_PROGRAM_ID,

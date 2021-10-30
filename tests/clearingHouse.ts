@@ -82,7 +82,7 @@ describe('clearing_house', () => {
 	it('Initialize State', async () => {
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
-		const state = clearingHouse.getState();
+		const state = clearingHouse.getStateAccount();
 
 		assert.ok(state.admin.equals(provider.wallet.publicKey));
 
@@ -110,7 +110,7 @@ describe('clearing_house', () => {
 		const marketsAccount = clearingHouse.getMarketsAccount();
 		assert.ok(marketsAccount.markets.length == 64);
 
-		const fundingRateHistory = clearingHouse.getFundingPaymentHistory();
+		const fundingRateHistory = clearingHouse.getFundingPaymentHistoryAccount();
 		assert.ok(fundingRateHistory.head.toNumber() === 0);
 		assert.ok(fundingRateHistory.fundingPaymentRecords.length === 1024);
 
@@ -165,7 +165,7 @@ describe('clearing_house', () => {
 		assert.ok(user.cumulativeDeposits.eq(usdcAmount));
 
 		// Check that clearing house collateral account has proper collateral
-		const clearingHouseState: any = clearingHouse.getState();
+		const clearingHouseState: any = clearingHouse.getStateAccount();
 		const clearingHouseCollateralVault = await getTokenAccount(
 			provider,
 			clearingHouseState.collateralVault
@@ -188,7 +188,7 @@ describe('clearing_house', () => {
 				0
 		);
 
-		const depositHistory = clearingHouse.getDepositHistory();
+		const depositHistory = clearingHouse.getDepositHistoryAccount();
 
 		assert.ok(depositHistory.head.toNumber() === 1);
 		assert.ok(depositHistory.depositRecords[0].recordId.eq(new BN(1)));
@@ -226,7 +226,7 @@ describe('clearing_house', () => {
 		assert.ok(user.collateral.eq(new BN(0)));
 		assert.ok(user.cumulativeDeposits.eq(new BN(0)));
 		// Check that clearing house collateral account has proper collateral]
-		const clearingHouseState: any = clearingHouse.getState();
+		const clearingHouseState: any = clearingHouse.getStateAccount();
 		const clearingHouseCollateralVault = await getTokenAccount(
 			provider,
 			clearingHouseState.collateralVault
@@ -239,7 +239,7 @@ describe('clearing_house', () => {
 		);
 		assert.ok(userUSDCtoken.amount.eq(usdcAmount));
 
-		const depositHistory = clearingHouse.getDepositHistory();
+		const depositHistory = clearingHouse.getDepositHistoryAccount();
 
 		const depositRecord = depositHistory.depositRecords[1];
 		assert.ok(depositHistory.head.toNumber() === 2);
@@ -660,7 +660,7 @@ describe('clearing_house', () => {
 		console.log('can be liquidated', userAccount.canBeLiquidated());
 		console.log('margin ratio', userAccount.getMarginRatio().toString());
 
-		const state: any = clearingHouse.getState();
+		const state: any = clearingHouse.getStateAccount();
 		const user: any = await clearingHouse.program.account.user.fetch(
 			userAccountPublicKey
 		);
@@ -709,7 +709,7 @@ describe('clearing_house', () => {
 		);
 		assert.ok(tradeHistoryAccount.tradeRecords[5].marketIndex.eq(new BN(0)));
 
-		const liquidationHistory = clearingHouse.getLiquidationHistory();
+		const liquidationHistory = clearingHouse.getLiquidationHistoryAccount();
 		assert.ok(liquidationHistory.head.toNumber() === 1);
 		assert.ok(
 			liquidationHistory.liquidationRecords[0].user.equals(userAccountPublicKey)
@@ -788,7 +788,7 @@ describe('clearing_house', () => {
 
 		// having the user liquidate themsevles because I'm too lazy to create a separate liquidator account
 		await clearingHouse.liquidate(userAccountPublicKey);
-		const state: any = clearingHouse.getState();
+		const state: any = clearingHouse.getStateAccount();
 		const user: any = await clearingHouse.program.account.user.fetch(
 			userAccountPublicKey
 		);
@@ -837,7 +837,7 @@ describe('clearing_house', () => {
 		);
 		assert.ok(tradeHistoryAccount.tradeRecords[6].marketIndex.eq(new BN(0)));
 
-		const liquidationHistory = clearingHouse.getLiquidationHistory();
+		const liquidationHistory = clearingHouse.getLiquidationHistoryAccount();
 		assert.ok(liquidationHistory.head.toNumber() === 2);
 		assert.ok(
 			liquidationHistory.liquidationRecords[1].user.equals(userAccountPublicKey)
@@ -893,7 +893,7 @@ describe('clearing_house', () => {
 	});
 
 	it('Pay from insurance fund', async () => {
-		const state: any = clearingHouse.getState();
+		const state: any = clearingHouse.getStateAccount();
 		const marketsAccount: any = clearingHouse.getMarketsAccount();
 		const marketData = marketsAccount.markets[0];
 

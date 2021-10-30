@@ -117,7 +117,7 @@ export async function stress_test(
 			const market_i = new BN(0);
 			if (user_i % 2 == 0 && ['buy', 'sell'].includes(rand_e)) {
 				// arb user
-				// const state: any = await clearingHouse.getState();
+				// const state: any = await clearingHouse.getStateAccount();
 				const marketsAccount: any = await clearingHouse.getMarketsAccount();
 
 				const marketData = marketsAccount.markets[market_i.toNumber()];
@@ -231,7 +231,7 @@ export async function stress_test(
 		console.log('event', i, ':', event_i);
 		eventTimeline2.push(event_i);
 
-		// const state: any = clearingHouse.getState();
+		// const state: any = clearingHouse.getStateAccount();
 		const marketsAccount: any = await clearingHouse.getMarketsAccount();
 		const marketData = marketsAccount.markets[market_i.toNumber()];
 		// assert.ok(marketData.initialized);

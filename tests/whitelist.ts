@@ -78,13 +78,13 @@ describe('whitelist', () => {
 	});
 
 	it('Assert whitelist mint null', async () => {
-		const state = clearingHouse.getState();
+		const state = clearingHouse.getStateAccount();
 		assert(state.whitelistMint.equals(PublicKey.default));
 	});
 
 	it('enable whitelist mint', async () => {
 		await clearingHouse.updateWhitelistMint(whitelistMint.publicKey);
-		const state = clearingHouse.getState();
+		const state = clearingHouse.getStateAccount();
 		console.assert(state.whitelistMint.equals(whitelistMint.publicKey));
 	});
 
@@ -129,7 +129,7 @@ describe('whitelist', () => {
 
 	it('disable whitelist mint', async () => {
 		await clearingHouse.updateWhitelistMint(PublicKey.default);
-		const state = clearingHouse.getState();
+		const state = clearingHouse.getStateAccount();
 		console.assert(state.whitelistMint.equals(PublicKey.default));
 	});
 });

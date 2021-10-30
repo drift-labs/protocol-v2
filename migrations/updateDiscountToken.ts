@@ -18,7 +18,7 @@ async function main(provider: Provider) {
 	);
 	await clearingHouse.subscribe();
 
-	console.log(clearingHouse.getState().discountMint.toString());
+	console.log(clearingHouse.getStateAccount().discountMint.toString());
 
 	// const newDiscountMint = new PublicKey("EGfR6MbHk3P5kksmWjZG8sxY3GNnK7TBvCLYXEoNvB7G");
 	// await clearingHouse.updateDiscountMint(newDiscountMint);

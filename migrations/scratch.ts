@@ -15,7 +15,7 @@ async function scratch(provider: Provider) {
         clearingHouseProgramId
     );
     await clearingHouse.subscribe();
-    const curveHistory = clearingHouse.getCurveHistory();
+    const curveHistory = clearingHouse.getCurveHistoryAccount();
     console.log(curveHistory);
     for (let i = 1; i < 7; i++) {
         console.log(curveHistory.curveRecords[i].

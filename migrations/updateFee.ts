@@ -18,7 +18,7 @@ async function main(provider: Provider) {
 		clearingHouseProgramId
 	);
 	await clearingHouse.subscribe();
-	const state = clearingHouse.getState();
+	const state = clearingHouse.getStateAccount();
 	const feeStructure = state.feeStructure;
 	feeStructure.discountTokenTiers.fourthTier = {
 		minimumBalance: new BN(1),

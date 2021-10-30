@@ -81,7 +81,7 @@ describe('admin withdraw', () => {
 
 	it('Pause exchange', async () => {
 		await clearingHouse.updateExchangePaused(true);
-		const state = clearingHouse.getState();
+		const state = clearingHouse.getStateAccount();
 		assert(state.exchangePaused);
 	});
 

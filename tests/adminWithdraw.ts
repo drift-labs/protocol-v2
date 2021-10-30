@@ -112,7 +112,7 @@ describe('admin withdraw', () => {
 
 	it('Withdraw Fees', async () => {
 		const withdrawAmount = fee.div(new BN(2));
-		const state = await clearingHouse.getState();
+		const state = await clearingHouse.getStateAccount();
 		await clearingHouse.withdrawFees(
 			new BN(0),
 			withdrawAmount,
@@ -148,7 +148,7 @@ describe('admin withdraw', () => {
 			new BN(0),
 			withdrawAmount
 		);
-		const clearingHouseState = clearingHouse.getState();
+		const clearingHouseState = clearingHouse.getStateAccount();
 		const collateralVaultTokenAccount = await getTokenAccount(
 			provider,
 			clearingHouseState.collateralVault
