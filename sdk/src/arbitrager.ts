@@ -771,9 +771,6 @@ export class Arbitrager {
 	public async executeTrade(tradeToExecute: TradeToExecute) {
 		console.log(tradeToExecute);
 		await this.clearingHouse.openPosition(
-			(
-				await this.clearingHouse.getUserAccountPublicKey()
-			)[0],
 			tradeToExecute.direction,
 			tradeToExecute.amount,
 			tradeToExecute.marketIndex,

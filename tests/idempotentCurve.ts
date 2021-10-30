@@ -127,7 +127,6 @@ describe('idempotent curve', () => {
 
 		const marketIndex = new BN(0);
 		await clearingHouse.openPosition(
-			userAccountPublicKey,
 			PositionDirection.LONG,
 			usdcAmount,
 			marketIndex,
@@ -152,14 +151,13 @@ describe('idempotent curve', () => {
 			.div(AMM_MANTISSA);
 		for (let i = 0; i < numberOfReduces - 1; i++) {
 			await clearingHouse.openPosition(
-				userAccountPublicKey,
 				PositionDirection.SHORT,
 				baseAssetValue.div(new BN(numberOfReduces)),
 				marketIndex,
 				new BN(0)
 			);
 		}
-		await clearingHouse.closePosition(userAccountPublicKey, new BN(0));
+		await clearingHouse.closePosition(new BN(0));
 
 		user = await clearingHouse.program.account.user.fetch(userAccountPublicKey);
 		userPositionsAccount =
@@ -194,7 +192,6 @@ describe('idempotent curve', () => {
 
 		const marketIndex = new BN(0);
 		await clearingHouse.openPosition(
-			userAccountPublicKey,
 			PositionDirection.LONG,
 			usdcAmount,
 			marketIndex,
@@ -219,14 +216,13 @@ describe('idempotent curve', () => {
 			.div(AMM_MANTISSA);
 		for (let i = 0; i < numberOfReduces - 1; i++) {
 			await clearingHouse.openPosition(
-				userAccountPublicKey,
 				PositionDirection.SHORT,
 				baseAssetValue.div(new BN(numberOfReduces)),
 				marketIndex,
 				new BN(0)
 			);
 		}
-		await clearingHouse.closePosition(userAccountPublicKey, new BN(0));
+		await clearingHouse.closePosition(new BN(0));
 
 		user = await clearingHouse.program.account.user.fetch(userAccountPublicKey);
 		userPositionsAccount =
@@ -261,7 +257,6 @@ describe('idempotent curve', () => {
 
 		const marketIndex = new BN(0);
 		await clearingHouse.openPosition(
-			userAccountPublicKey,
 			PositionDirection.SHORT,
 			usdcAmount,
 			marketIndex,
@@ -286,14 +281,13 @@ describe('idempotent curve', () => {
 			.div(AMM_MANTISSA);
 		for (let i = 0; i < numberOfReduces - 1; i++) {
 			await clearingHouse.openPosition(
-				userAccountPublicKey,
 				PositionDirection.LONG,
 				baseAssetValue.div(new BN(numberOfReduces)),
 				marketIndex,
 				new BN(0)
 			);
 		}
-		await clearingHouse.closePosition(userAccountPublicKey, new BN(0));
+		await clearingHouse.closePosition(new BN(0));
 
 		user = await clearingHouse.program.account.user.fetch(userAccountPublicKey);
 		userPositionsAccount =
@@ -327,7 +321,6 @@ describe('idempotent curve', () => {
 
 		const marketIndex = new BN(0);
 		await clearingHouse.openPosition(
-			userAccountPublicKey,
 			PositionDirection.SHORT,
 			usdcAmount,
 			marketIndex,
@@ -352,14 +345,13 @@ describe('idempotent curve', () => {
 			.div(AMM_MANTISSA);
 		for (let i = 0; i < numberOfReduces - 1; i++) {
 			await clearingHouse.openPosition(
-				userAccountPublicKey,
 				PositionDirection.LONG,
 				baseAssetValue.div(new BN(numberOfReduces)),
 				marketIndex,
 				new BN(0)
 			);
 		}
-		await clearingHouse.closePosition(userAccountPublicKey, new BN(0));
+		await clearingHouse.closePosition(new BN(0));
 
 		user = await clearingHouse.program.account.user.fetch(userAccountPublicKey);
 		userPositionsAccount =

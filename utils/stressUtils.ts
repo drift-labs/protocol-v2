@@ -96,21 +96,18 @@ export async function simEvent(
 				break;
 			case 'deposit':
 				await clearingHouse.depositCollateral(
-					user_e,
 					rand_amt,
 					userUSDCAccount.publicKey
 				);
 				break;
 			case 'withdraw':
 				await clearingHouse.withdrawCollateral(
-					user_e,
 					rand_amt,
 					userUSDCAccount.publicKey
 				);
 				break;
 			case 'buy':
 				await clearingHouse.openPosition(
-					user_e,
 					PositionDirection.LONG,
 					rand_amt,
 					market_i
@@ -118,7 +115,6 @@ export async function simEvent(
 				break;
 			case 'sell':
 				await clearingHouse.openPosition(
-					user_e,
 					PositionDirection.SHORT,
 					rand_amt,
 					market_i
@@ -134,7 +130,7 @@ export async function simEvent(
 				break;
 
 			case 'close':
-				await clearingHouse.closePosition(user_e, market_i);
+				await clearingHouse.closePosition(market_i);
 				break;
 
 			case 'liquidate':

@@ -85,7 +85,6 @@ describe('admin withdraw', () => {
 		const marketIndex = new BN(0);
 		const incrementalUSDCNotionalAmount = calculateTradeAmount(usdcAmount);
 		await clearingHouse.openPosition(
-			userAccountPublicKey,
 			PositionDirection.LONG,
 			incrementalUSDCNotionalAmount,
 			marketIndex

@@ -172,7 +172,6 @@ describe('User Account', () => {
 
 	it('After Deposit', async () => {
 		await clearingHouse.depositCollateral(
-			await userAccount.getUserAccountPublicKey(),
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
@@ -196,7 +195,6 @@ describe('User Account', () => {
 
 	it('After Position Taken', async () => {
 		await clearingHouse.openPosition(
-			await userAccount.getUserAccountPublicKey(),
 			PositionDirection.LONG,
 			solPositionInitialValue,
 			marketIndex
@@ -243,10 +241,7 @@ describe('User Account', () => {
 		);
 	});
 	it('Close Position', async () => {
-		await clearingHouse.closePosition(
-			await userAccount.getUserAccountPublicKey(),
-			marketIndex
-		);
+		await clearingHouse.closePosition(marketIndex);
 
 		const expectedBuyingPower = new BN(148694265);
 		const expectedFreeCollateral = new BN(29738853);

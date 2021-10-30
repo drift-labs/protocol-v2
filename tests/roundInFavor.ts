@@ -126,7 +126,6 @@ describe('round in favor', () => {
 
 		const marketIndex = new BN(0);
 		await clearingHouse.openPosition(
-			userAccountPublicKey,
 			PositionDirection.SHORT,
 			calculateTradeAmount(usdcAmount),
 			marketIndex,
@@ -138,7 +137,7 @@ describe('round in favor', () => {
 		);
 		assert(user.collateral.eq(new BN(9999000)));
 
-		await clearingHouse.closePosition(userAccountPublicKey, marketIndex);
+		await clearingHouse.closePosition(marketIndex);
 
 		user = await primaryClearingHouse.program.account.user.fetch(
 			userAccountPublicKey
@@ -172,7 +171,6 @@ describe('round in favor', () => {
 
 		const marketIndex = new BN(0);
 		await clearingHouse.openPosition(
-			userAccountPublicKey,
 			PositionDirection.LONG,
 			calculateTradeAmount(usdcAmount),
 			marketIndex,
@@ -184,7 +182,7 @@ describe('round in favor', () => {
 		);
 		assert(user.collateral.eq(new BN(9999000)));
 
-		await clearingHouse.closePosition(userAccountPublicKey, marketIndex);
+		await clearingHouse.closePosition(marketIndex);
 
 		user = await primaryClearingHouse.program.account.user.fetch(
 			userAccountPublicKey

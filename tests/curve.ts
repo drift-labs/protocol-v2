@@ -167,7 +167,6 @@ describe('AMM Curve', () => {
 
 	it('After Deposit', async () => {
 		await clearingHouse.depositCollateral(
-			await userAccount.getUserAccountPublicKey(),
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
@@ -177,7 +176,6 @@ describe('AMM Curve', () => {
 
 	it('After Position Taken', async () => {
 		await clearingHouse.openPosition(
-			await userAccount.getUserAccountPublicKey(),
 			PositionDirection.LONG,
 			solPositionInitialValue,
 			marketIndex
@@ -202,12 +200,7 @@ describe('AMM Curve', () => {
 		);
 
 		console.log('arbing', direction, quoteSize.toNumber());
-		await clearingHouse.openPosition(
-			await userAccount.getUserAccountPublicKey(),
-			direction,
-			quoteSize,
-			marketIndex
-		);
+		await clearingHouse.openPosition(direction, quoteSize, marketIndex);
 
 		showBook(marketIndex);
 	});
@@ -228,7 +221,6 @@ describe('AMM Curve', () => {
 		// showCurve(marketIndex);
 
 		await clearingHouse.openPosition(
-			await userAccount.getUserAccountPublicKey(),
 			PositionDirection.LONG,
 			USDC_PRECISION.mul(new BN(10)),
 			marketIndex
@@ -270,10 +262,7 @@ describe('AMM Curve', () => {
 
 		// const feeDist1h = calculateFeeDist(marketIndex);
 
-		await clearingHouse.closePosition(
-			await userAccount.getUserAccountPublicKey(),
-			marketIndex
-		);
+		await clearingHouse.closePosition(marketIndex);
 
 		// showCurve(marketIndex);
 		// const feeDist2 = calculateFeeDist(marketIndex);
@@ -288,7 +277,6 @@ describe('AMM Curve', () => {
 		showCurve(marketIndex);
 
 		await clearingHouse.openPosition(
-			await userAccount.getUserAccountPublicKey(),
 			PositionDirection.SHORT,
 			USDC_PRECISION,
 			marketIndex
@@ -311,9 +299,6 @@ describe('AMM Curve', () => {
 		console.log('\n post repeg: \n --------');
 		showCurve(marketIndex);
 
-		await clearingHouse.closePosition(
-			await userAccount.getUserAccountPublicKey(),
-			marketIndex
-		);
+		await clearingHouse.closePosition(marketIndex);
 	});
 });

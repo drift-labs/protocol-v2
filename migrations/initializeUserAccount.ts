@@ -40,11 +40,7 @@ async function main() {
 	console.log('Initialized User Account for devnet');
 
 	console.log('Opening positions');
-	const [userAccountPublicKey] = await clearingHouse.getUserAccountPublicKey(
-		provider.wallet.publicKey
-	);
 	await clearingHouse.openPosition(
-		userAccountPublicKey,
 		PositionDirection.LONG,
 		new BN(10 ** 6),
 		new BN(0)

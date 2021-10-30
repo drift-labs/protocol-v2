@@ -74,7 +74,6 @@ describe('delete user', () => {
 		try {
 			await clearingHouse.deleteUser();
 		} catch (e) {
-			assert(e.msg === 'Can not delete user that still has collateral');
 			return;
 		}
 		assert(false);
@@ -94,7 +93,6 @@ describe('delete user', () => {
 		assert(userPositionsAccountInfo.lamports !== 0);
 
 		await clearingHouse.withdrawCollateral(
-			userAccountPublicKey,
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);

@@ -54,7 +54,7 @@ async function main() {
 	console.log("Bot's associated key:", associatedTokenPublicKey.toString());
 
 	const botClearingHousePublicKey = (
-		await clearingHouse.getUserAccountPublicKey(botWallet.publicKey)
+		await clearingHouse.getUserAccountPublicKey()
 	)[0];
 
 	const mintAmount = new BN('1000000000000000000');
@@ -62,11 +62,7 @@ async function main() {
 	await mockUsdcFaucet.mintToUser(associatedTokenPublicKey, mintAmount);
 
 	console.log("Depositing bot's USDC with ClearingHouse");
-	await clearingHouse.depositCollateral(
-		botClearingHousePublicKey,
-		mintAmount,
-		associatedTokenPublicKey
-	);
+	await clearingHouse.depositCollateral(mintAmount, associatedTokenPublicKey);
 	console.log("Deposited bot's USDC with ClearingHouse");
 	await clearingHouse.unsubscribe();
 }

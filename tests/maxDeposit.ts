@@ -77,7 +77,6 @@ describe('max deposit', () => {
 	it('blocked deposit', async () => {
 		try {
 			await clearingHouse.depositCollateral(
-				userAccountPublicKey,
 				usdcAmount.div(new BN(2)),
 				userUSDCAccount.publicKey
 			);

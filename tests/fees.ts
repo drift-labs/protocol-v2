@@ -117,7 +117,6 @@ describe('fees', () => {
 	it('Trade no rebate', async () => {
 		const marketIndex = new BN(0);
 		await clearingHouse.openPosition(
-			userAccountPublicKey,
 			PositionDirection.LONG,
 			usdcAmount,
 			marketIndex,
@@ -146,7 +145,6 @@ describe('fees', () => {
 
 		const marketIndex = new BN(0);
 		await clearingHouse.openPosition(
-			userAccountPublicKey,
 			PositionDirection.LONG,
 			usdcAmount,
 			marketIndex,
@@ -182,7 +180,6 @@ describe('fees', () => {
 
 		const marketIndex = new BN(0);
 		await clearingHouse.openPosition(
-			userAccountPublicKey,
 			PositionDirection.LONG,
 			usdcAmount,
 			marketIndex,
@@ -218,7 +215,6 @@ describe('fees', () => {
 
 		const marketIndex = new BN(0);
 		await clearingHouse.openPosition(
-			userAccountPublicKey,
 			PositionDirection.LONG,
 			usdcAmount,
 			marketIndex,
@@ -254,7 +250,6 @@ describe('fees', () => {
 
 		const marketIndex = new BN(0);
 		await clearingHouse.openPosition(
-			userAccountPublicKey,
 			PositionDirection.LONG,
 			usdcAmount.mul(new BN(9)).div(new BN(10)),
 			marketIndex,
@@ -282,7 +277,6 @@ describe('fees', () => {
 	it('Close position', async () => {
 		const marketIndex = new BN(0);
 		await clearingHouse.closePosition(
-			userAccountPublicKey,
 			marketIndex,
 			discountTokenAccount.address,
 			referrerUserAccountPublicKey

@@ -17,7 +17,8 @@ import {
 } from './constants/numericConstants';
 import { UserAccountSubscriber, UserAccountEvents } from './accounts/types';
 import { DefaultUserAccountSubscriber } from './accounts/defaultUserAccountSubscriber';
-import { PositionDirection, stripMantissa } from '.';
+import { PositionDirection } from '.';
+import { getUserAccountPublicKey } from './addresses';
 
 export class ClearingHouseUser {
 	clearingHouse: ClearingHouse;
@@ -72,9 +73,10 @@ export class ClearingHouseUser {
 			return this.userAccountPublicKey;
 		}
 
-		this.userAccountPublicKey = (
-			await this.clearingHouse.getUserAccountPublicKey(this.authority)
-		)[0];
+		this.userAccountPublicKey = await getUserAccountPublicKey(
+			this.clearingHouse.program.programId,
+			this.authority
+		);
 		return this.userAccountPublicKey;
 	}
 

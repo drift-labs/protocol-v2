@@ -89,7 +89,6 @@ describe('max positions', () => {
 			.div(new BN(100));
 		for (let i = 0; i < maxPositions; i++) {
 			await clearingHouse.openPosition(
-				userAccountPublicKey,
 				PositionDirection.LONG,
 				usdcPerPosition,
 				new BN(i),

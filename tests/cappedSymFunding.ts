@@ -181,7 +181,6 @@ async function cappedSymFundingScenario(
 	await clearingHouse.updateFundingPaused(true);
 
 	await clearingHouse.openPosition(
-		await userAccount.getUserAccountPublicKey(),
 		PositionDirection.LONG,
 		USDC_PRECISION.mul(new BN(longShortSizes[0])),
 		marketIndex
@@ -190,7 +189,6 @@ async function cappedSymFundingScenario(
 	console.log('clearingHouse2.openPosition');
 	// try{
 	await clearingHouse2.openPosition(
-		await userAccount2.getUserAccountPublicKey(),
 		PositionDirection.SHORT,
 		USDC_PRECISION.mul(new BN(longShortSizes[1])),
 		marketIndex
@@ -275,15 +273,9 @@ async function cappedSymFundingScenario(
 	assert(!fundingRateShort.eq(new BN(0)));
 
 	assert(fundingRateShort.lte(fundingRateLong));
-	await clearingHouse.closePosition(
-		await userAccount.getUserAccountPublicKey(),
-		marketIndex
-	);
+	await clearingHouse.closePosition(marketIndex);
 
-	await clearingHouse2.closePosition(
-		await userAccount2.getUserAccountPublicKey(),
-		marketIndex
-	);
+	await clearingHouse2.closePosition(marketIndex);
 
 	return [
 		fundingRateLong,
@@ -340,7 +332,6 @@ describe('capped funding', () => {
 		await userAccount.subscribe();
 
 		await clearingHouse.depositCollateral(
-			await userAccount.getUserAccountPublicKey(),
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);

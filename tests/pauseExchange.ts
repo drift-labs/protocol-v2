@@ -68,7 +68,6 @@ describe('admin withdraw', () => {
 		const marketIndex = new BN(0);
 		const incrementalUSDCNotionalAmount = usdcAmount.mul(new BN(5));
 		await clearingHouse.openPosition(
-			userAccountPublicKey,
 			PositionDirection.LONG,
 			incrementalUSDCNotionalAmount,
 			marketIndex
@@ -88,7 +87,6 @@ describe('admin withdraw', () => {
 	it('Block open position', async () => {
 		try {
 			await clearingHouse.openPosition(
-				userAccountPublicKey,
 				PositionDirection.LONG,
 				usdcAmount,
 				new BN(0)
@@ -102,7 +100,7 @@ describe('admin withdraw', () => {
 
 	it('Block close position', async () => {
 		try {
-			await clearingHouse.closePosition(userAccountPublicKey, new BN(0));
+			await clearingHouse.closePosition(new BN(0));
 		} catch (e) {
 			assert(e.msg, 'Exchange is paused');
 			return;
@@ -123,7 +121,6 @@ describe('admin withdraw', () => {
 	it('Block withdrawal', async () => {
 		try {
 			await clearingHouse.withdrawCollateral(
-				userAccountPublicKey,
 				usdcAmount,
 				userUSDCAccount.publicKey
 			);

@@ -191,7 +191,6 @@ describe('pyth-oracle', () => {
 		await userAccount.subscribe();
 
 		await clearingHouse.depositCollateral(
-			await userAccount.getUserAccountPublicKey(),
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
@@ -298,14 +297,12 @@ describe('pyth-oracle', () => {
 		);
 
 		await clearingHouse.openPosition(
-			await userAccount.getUserAccountPublicKey(),
 			PositionDirection.LONG,
 			USDC_PRECISION,
 			marketIndex
 		);
 
 		await clearingHouse2.openPosition(
-			await userAccount2.getUserAccountPublicKey(),
 			PositionDirection.SHORT,
 			USDC_PRECISION.div(new BN(2)),
 			marketIndex
@@ -365,13 +362,11 @@ describe('pyth-oracle', () => {
 				BN.max(targetPriceDefaultSlippage, new BN(1))
 			);
 		// await clearingHouse.openPosition(
-		// 	await userAccount.getPublicKey(),
 		// 	PositionDirection.LONG,
 		// 	tradeSizeSuc,
 		// 	marketIndex
 		// );
 		// await clearingHouse.closePosition(
-		// 	await userAccount.getPublicKey(),
 		// 	marketIndex
 		// );
 
@@ -393,7 +388,6 @@ describe('pyth-oracle', () => {
 
 		try {
 			await clearingHouse.openPosition(
-				await userAccount.getUserAccountPublicKey(),
 				PositionDirection.LONG,
 				tradeSize,
 				marketIndex

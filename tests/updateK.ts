@@ -127,7 +127,6 @@ describe('update k', () => {
 
 	it('increase k base/quote imbalance (FREE)', async () => {
 		await clearingHouse.depositCollateral(
-			await userAccount.getUserAccountPublicKey(),
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
@@ -192,7 +191,6 @@ describe('update k', () => {
 
 		console.log('taking position');
 		await clearingHouse.openPosition(
-			await userAccount.getUserAccountPublicKey(),
 			PositionDirection.LONG,
 			new BN(USDC_PRECISION),
 			marketIndex
@@ -221,10 +219,7 @@ describe('update k', () => {
 
 		console.log('$1 position closing');
 
-		await clearingHouse.closePosition(
-			await userAccount.getUserAccountPublicKey(),
-			marketIndex
-		);
+		await clearingHouse.closePosition(marketIndex);
 		console.log('$1 position closed');
 
 		const markets = await clearingHouse.getMarketsAccount();
@@ -278,7 +273,6 @@ describe('update k', () => {
 
 		console.log('taking position');
 		await clearingHouse.openPosition(
-			await userAccount.getUserAccountPublicKey(),
 			PositionDirection.LONG,
 			new BN(USDC_PRECISION).mul(new BN(30000)),
 			marketIndex
@@ -306,10 +300,7 @@ describe('update k', () => {
 
 		console.log('$1 position closing');
 
-		await clearingHouse.closePosition(
-			await userAccount.getUserAccountPublicKey(),
-			marketIndex
-		);
+		await clearingHouse.closePosition(marketIndex);
 		console.log('$1 position closed');
 
 		const markets = await clearingHouse.getMarketsAccount();

@@ -214,7 +214,6 @@ describe('clearing_house', () => {
 
 	it('Withdraw Collateral', async () => {
 		await clearingHouse.withdrawCollateral(
-			userAccountPublicKey,
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
@@ -259,7 +258,6 @@ describe('clearing_house', () => {
 	it('Long from 0 position', async () => {
 		// Re-Deposit USDC, assuming we have 0 balance here
 		await clearingHouse.depositCollateral(
-			userAccountPublicKey,
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
@@ -267,7 +265,6 @@ describe('clearing_house', () => {
 		const marketIndex = new BN(0);
 		const incrementalUSDCNotionalAmount = calculateTradeAmount(usdcAmount);
 		await clearingHouse.openPosition(
-			userAccountPublicKey,
 			PositionDirection.LONG,
 			incrementalUSDCNotionalAmount,
 			marketIndex
@@ -338,7 +335,6 @@ describe('clearing_house', () => {
 		};
 		try {
 			await clearingHouse.withdrawCollateral(
-				userAccountPublicKey,
 				usdcAmount,
 				userUSDCAccount.publicKey
 			);
@@ -373,7 +369,6 @@ describe('clearing_house', () => {
 			);
 
 			await clearingHouse.openPosition(
-				userAccountPublicKey,
 				PositionDirection.SHORT,
 				newUSDCNotionalAmount,
 				marketIndex,
@@ -393,7 +388,6 @@ describe('clearing_house', () => {
 			usdcAmount.div(new BN(2))
 		);
 		await clearingHouse.openPosition(
-			userAccountPublicKey,
 			PositionDirection.SHORT,
 			newUSDCNotionalAmount,
 			new BN(0)
@@ -452,7 +446,6 @@ describe('clearing_house', () => {
 	it('Reverse long position', async () => {
 		const newUSDCNotionalAmount = calculateTradeAmount(usdcAmount);
 		await clearingHouse.openPosition(
-			userAccountPublicKey,
 			PositionDirection.SHORT,
 			newUSDCNotionalAmount,
 			new BN(0)
@@ -505,7 +498,7 @@ describe('clearing_house', () => {
 	});
 
 	it('Close position', async () => {
-		await clearingHouse.closePosition(userAccountPublicKey, new BN(0));
+		await clearingHouse.closePosition(new BN(0));
 
 		const user: any = await clearingHouse.program.account.user.fetch(
 			userAccountPublicKey
@@ -552,7 +545,6 @@ describe('clearing_house', () => {
 		);
 		const incrementalUSDCNotionalAmount = calculateTradeAmount(user.collateral);
 		await clearingHouse.openPosition(
-			userAccountPublicKey,
 			PositionDirection.SHORT,
 			incrementalUSDCNotionalAmount,
 			new BN(0)
@@ -915,7 +907,6 @@ describe('clearing_house', () => {
 		const initialUserUSDCAmount = userUSDCTokenAccount.amount;
 
 		await clearingHouse.depositCollateral(
-			userAccountPublicKey,
 			initialUserUSDCAmount,
 			userUSDCAccount.publicKey
 		);
@@ -923,7 +914,6 @@ describe('clearing_house', () => {
 		await setFeedPrice(anchor.workspace.Pyth, 1.11, marketData.amm.oracle);
 		const newUSDCNotionalAmount = calculateTradeAmount(initialUserUSDCAmount);
 		await clearingHouse.openPosition(
-			userAccountPublicKey,
 			PositionDirection.LONG,
 			newUSDCNotionalAmount,
 			new BN(0)
@@ -937,7 +927,7 @@ describe('clearing_house', () => {
 			new BN(0)
 		);
 
-		await clearingHouse.closePosition(userAccountPublicKey, new BN(0));
+		await clearingHouse.closePosition(new BN(0));
 
 		const user: any = await clearingHouse.program.account.user.fetch(
 			userAccountPublicKey
@@ -945,7 +935,6 @@ describe('clearing_house', () => {
 		assert(user.collateral.gt(initialUserUSDCAmount));
 
 		await clearingHouse.withdrawCollateral(
-			userAccountPublicKey,
 			user.collateral,
 			userUSDCAccount.publicKey
 		);
@@ -980,7 +969,6 @@ describe('clearing_house', () => {
 
 	it('Trade small size position', async () => {
 		await clearingHouse.openPosition(
-			userAccountPublicKey,
 			PositionDirection.LONG,
 			new BN(10000),
 			new BN(0)
@@ -998,14 +986,13 @@ describe('clearing_house', () => {
 		);
 
 		await clearingHouse.openPosition(
-			userAccountPublicKey,
 			PositionDirection.SHORT,
 			newUSDCNotionalAmount,
 			marketIndex,
 			estTradePrice
 		);
 
-		await clearingHouse.closePosition(userAccountPublicKey, marketIndex);
+		await clearingHouse.closePosition(marketIndex);
 	});
 
 	it('Long order succeeds due to realiziable limit price ', async () => {
@@ -1019,13 +1006,12 @@ describe('clearing_house', () => {
 		);
 
 		await clearingHouse.openPosition(
-			userAccountPublicKey,
 			PositionDirection.LONG,
 			newUSDCNotionalAmount,
 			marketIndex,
 			estTradePrice
 		);
 
-		await clearingHouse.closePosition(userAccountPublicKey, marketIndex);
+		await clearingHouse.closePosition(marketIndex);
 	});
 });
