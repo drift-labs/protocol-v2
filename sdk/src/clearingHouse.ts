@@ -342,10 +342,12 @@ export class ClearingHouse {
 			this.program.programId,
 			newProvider
 		);
+		const newTxSender = new DefaultTxSender(newProvider);
 
 		this.wallet = newWallet;
 		this.provider = newProvider;
 		this.program = newProgram;
+		this.txSender = newTxSender;
 	}
 
 	public async initializeUserAccount(): Promise<
