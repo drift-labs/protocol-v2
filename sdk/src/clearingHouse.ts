@@ -351,6 +351,7 @@ export class ClearingHouse {
 		this.program = newProgram;
 		this.txSender = newTxSender;
 		this.userAccountPublicKey = undefined;
+		this.userAccount = undefined;
 	}
 
 	public async initializeUserAccount(): Promise<
