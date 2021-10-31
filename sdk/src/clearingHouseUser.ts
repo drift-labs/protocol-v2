@@ -2,13 +2,11 @@ import { PublicKey } from '@solana/web3.js';
 import BN from 'bn.js';
 import { EventEmitter } from 'events';
 import StrictEventEmitter from 'strict-event-emitter-types';
-import {
-	AMM_MANTISSA,
-	ClearingHouse,
-	QUOTE_BASE_PRECISION_DIFF,
-} from './clearingHouse';
+import { ClearingHouse } from './clearingHouse';
 import { UserAccount, UserPosition, UserPositionsAccount } from './types';
 import {
+	AMM_MANTISSA,
+	QUOTE_BASE_PRECISION_DIFF,
 	ZERO,
 	TEN_THOUSAND,
 	BN_MAX,

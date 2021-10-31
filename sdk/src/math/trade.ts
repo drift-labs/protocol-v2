@@ -5,11 +5,11 @@ import {
 	AMM_MANTISSA,
 	PEG_SCALAR,
 	QUOTE_BASE_PRECISION_DIFF,
-} from '../clearingHouse';
+	ZERO,
+} from '../constants/numericConstants';
 import { calculateBaseAssetPriceWithMantissa } from './market';
 import { calculateCurvePriceWithMantissa, findSwapOutput } from './amm';
 import { squareRootBN } from '../utils';
-import { ZERO } from '../constants/numericConstants';
 
 const MAXPCT = new BN(1000); //percentage units are [0,1000] => [0,1]
 

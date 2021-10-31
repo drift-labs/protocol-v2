@@ -1,7 +1,7 @@
 import { BN } from '@project-serum/anchor';
 import { Market } from '../types';
 import { calculateCurvePriceWithMantissa } from './amm';
-import { AMM_MANTISSA } from '../clearingHouse';
+import { AMM_MANTISSA } from '../constants/numericConstants';
 
 export function calculateBaseAssetPriceWithMantissa(market: Market): BN {
 	return calculateCurvePriceWithMantissa(

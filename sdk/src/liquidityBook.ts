@@ -1,5 +1,5 @@
 import { BN } from '@project-serum/anchor';
-import { AMM_MANTISSA } from './clearingHouse';
+import { AMM_MANTISSA } from './constants/numericConstants';
 import { Market } from './types';
 import { calculateTargetPriceTrade } from './math/trade';
 import { calculateBaseAssetPriceWithMantissa } from './math/market';

@@ -49,16 +49,6 @@ import { TxSender } from './tx/types';
 import { DefaultTxSender } from './tx/defaultTxSender';
 import { wrapInTx } from './tx/utils';
 
-export const USDC_PRECISION = new BN(10 ** 6);
-export const AMM_MANTISSA = new BN(10 ** 10);
-export const FUNDING_MANTISSA = new BN(10000);
-export const PEG_SCALAR = new BN(1000);
-
-export const BASE_ASSET_PRECISION = AMM_MANTISSA.mul(PEG_SCALAR);
-export const QUOTE_BASE_PRECISION_DIFF =
-	BASE_ASSET_PRECISION.div(USDC_PRECISION); // 10**(10+3-6)
-export const PRICE_TO_USDC_PRECISION = AMM_MANTISSA.div(USDC_PRECISION);
-
 export class ClearingHouse {
 	connection: Connection;
 	wallet: IWallet;

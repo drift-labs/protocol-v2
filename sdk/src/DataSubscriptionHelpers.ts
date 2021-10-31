@@ -1,6 +1,11 @@
 import { PublicKey } from '@solana/web3.js';
 import BN from 'bn.js';
-import { ZERO } from './constants/numericConstants';
+import {
+	AMM_MANTISSA,
+	PEG_SCALAR,
+	QUOTE_BASE_PRECISION_DIFF,
+	ZERO,
+} from './constants/numericConstants';
 import {
 	Candle,
 	Trade,
@@ -9,11 +14,6 @@ import {
 	TradeHistoryAccount,
 	TradeRecord,
 } from './types';
-import {
-	AMM_MANTISSA,
-	PEG_SCALAR,
-	QUOTE_BASE_PRECISION_DIFF,
-} from './clearingHouse';
 import { Liquidation, LiquidationRecord } from './types';
 
 const defaultPublicKey = new PublicKey('11111111111111111111111111111111');

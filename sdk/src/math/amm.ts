@@ -1,6 +1,5 @@
 import { BN } from '@project-serum/anchor';
-import { AMM_MANTISSA, PEG_SCALAR } from '../clearingHouse';
-import { ZERO } from '../constants/numericConstants';
+import { AMM_MANTISSA, PEG_SCALAR, ZERO } from '../constants/numericConstants';
 import { PositionDirection } from '../types';
 import { assert } from '../assert/assert';
 

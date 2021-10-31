@@ -7,7 +7,7 @@ import {
 	BASE_ASSET_PRECISION,
 	FUNDING_MANTISSA,
 	PRICE_TO_USDC_PRECISION,
-} from '../clearingHouse';
+} from '../constants/numericConstants';
 
 /**
  * calculateBaseAssetValue

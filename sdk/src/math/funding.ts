@@ -1,6 +1,6 @@
 import { BN } from '@project-serum/anchor';
 import { PythClient } from '../pythClient';
-import { AMM_MANTISSA } from '../clearingHouse';
+import { AMM_MANTISSA } from '../constants/numericConstants';
 import { Market } from '../types';
 import { calculateBaseAssetPriceWithMantissa } from './market';
 

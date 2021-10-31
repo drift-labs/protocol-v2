@@ -1,4 +1,4 @@
-import { AMM_MANTISSA } from './clearingHouse';
+import { AMM_MANTISSA } from './constants/numericConstants';
 import { Candle, TradeRecord } from './types';
 import { BN } from 'bn.js';
 

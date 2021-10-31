@@ -1,9 +1,4 @@
-import {
-	ClearingHouse,
-	AMM_MANTISSA,
-	BASE_ASSET_PRECISION,
-	USDC_PRECISION,
-} from './clearingHouse';
+import { ClearingHouse } from './clearingHouse';
 import { ClearingHouseUser } from './clearingHouseUser';
 import { PythClient } from './pythClient';
 import BN from 'bn.js';
@@ -11,7 +6,12 @@ import {
 	stripMantissa,
 	stripBaseAssetPrecision,
 } from './DataSubscriptionHelpers';
-import { ZERO } from './constants/numericConstants';
+import {
+	AMM_MANTISSA,
+	BASE_ASSET_PRECISION,
+	USDC_PRECISION,
+	ZERO,
+} from './constants/numericConstants';
 import Markets from './constants/markets';
 import { PositionDirection, UserPosition } from './types';
 import { Connection, PublicKey } from '@solana/web3.js';
