@@ -8,12 +8,12 @@ import { PythClient } from './pythClient';
 import SlackMessenger from './slackMessanger';
 import { PositionDirection, SwapDirection, OracleSource } from './types';
 
+export * from './accounts/accountSubscriptionHelpers';
 export * from './accounts/defaultHistoryAccountSubscriber';
 export * from './addresses';
 export * from './admin';
 export * from './clearingHouseUser';
 export * from './clearingHouse';
-export * from './DataSubscriptionHelpers';
 export * from './liquidityBook';
 export * from './math/funding';
 export * from './math/market';

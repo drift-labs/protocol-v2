@@ -5,7 +5,7 @@ import {
 	PEG_SCALAR,
 	QUOTE_BASE_PRECISION_DIFF,
 	ZERO,
-} from './constants/numericConstants';
+} from '../constants/numericConstants';
 import {
 	Candle,
 	Trade,
@@ -13,8 +13,8 @@ import {
 	CandleResolution,
 	TradeHistoryAccount,
 	TradeRecord,
-} from './types';
-import { Liquidation, LiquidationRecord } from './types';
+} from '../types';
+import { Liquidation, LiquidationRecord } from '../types';
 
 const defaultPublicKey = new PublicKey('11111111111111111111111111111111');
 const priceMantissa = AMM_MANTISSA;

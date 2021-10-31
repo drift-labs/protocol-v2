@@ -5,7 +5,7 @@ import BN from 'bn.js';
 import {
 	stripMantissa,
 	stripBaseAssetPrecision,
-} from './DataSubscriptionHelpers';
+} from './accounts/accountSubscriptionHelpers';
 import {
 	AMM_MANTISSA,
 	BASE_ASSET_PRECISION,
