@@ -12,6 +12,7 @@ import {
 	BN_MAX,
 	PARTIAL_LIQUIDATION_RATIO,
 	FULL_LIQUIDATION_RATIO,
+	USDC_PRECISION,
 } from './constants/numericConstants';
 import { UserAccountSubscriber, UserAccountEvents } from './accounts/types';
 import { DefaultUserAccountSubscriber } from './accounts/defaultUserAccountSubscriber';
@@ -530,10 +531,9 @@ export class ClearingHouseUser {
 
 		maxPositionSize = maxPositionSize.add(oppositeSizeValueUSDC);
 
-		// deduct fee
-		maxPositionSize = this.maxQuoteAmountAfterFee(maxPositionSize);
-
-		return maxPositionSize;
+		// subtract $.001 to avoid rounding errors when taking max leverage
+		const oneTenthOfACent = USDC_PRECISION.div(new BN(1000));
+		return maxPositionSize.sub(oneTenthOfACent);
 	}
 
 	// TODO - should this take the price impact of the trade into account for strict accuracy?
@@ -586,23 +586,6 @@ export class ClearingHouseUser {
 		return this.getUserPositionsAccount().positions.find((position) =>
 			position.marketIndex.eq(marketIndex)
 		);
-	}
-
-	/**
-	 * Outputs the max. IMPORTANT NOTE: the difference between the previous amount and the new amount isn't the same value as the amount of actual fee taken (you can use the calculateFeeForQuoteAmount method for this), because the fee is taken out prior to leverage.
-	 * @param maxQuoteAmount
-	 * @returns maxQuoteAfterFee - 10^6
-	 */
-	private maxQuoteAmountAfterFee(maxQuoteAmount: BN): BN {
-		const feeStructure = this.clearingHouse.getStateAccount().feeStructure;
-
-		return maxQuoteAmount
-			.mul(
-				feeStructure.feeDenominator.sub(
-					feeStructure.feeNumerator.mul(this.getMaxLeverage().div(TEN_THOUSAND))
-				)
-			)
-			.div(feeStructure.feeDenominator);
 	}
 
 	/**
