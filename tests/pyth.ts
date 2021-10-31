@@ -16,6 +16,7 @@ import {
 	stripMantissa,
 	PositionDirection,
 	USDC_PRECISION,
+	calculateTargetPriceTrade,
 } from '../sdk';
 
 import { Program } from '@project-serum/anchor';
@@ -361,8 +362,8 @@ describe('pyth-oracle', () => {
 			stripMantissa(targetPriceDefaultSlippage)
 		);
 		const [_directionSuc, _tradeSizeSuc, _entryPriceSuc] =
-			clearingHouse.calculateTargetPriceTrade(
-				marketIndex,
+			calculateTargetPriceTrade(
+				clearingHouse.getMarket(marketIndex),
 				BN.max(targetPriceDefaultSlippage, new BN(1))
 			);
 		// await clearingHouse.openPosition(
@@ -384,11 +385,10 @@ describe('pyth-oracle', () => {
 			stripMantissa(targetPriceFails)
 		);
 
-		const [_direction, tradeSize, _entryPrice] =
-			clearingHouse.calculateTargetPriceTrade(
-				marketIndex,
-				BN.max(targetPriceFails, new BN(1))
-			);
+		const [_direction, tradeSize, _entryPrice] = calculateTargetPriceTrade(
+			clearingHouse.getMarket(marketIndex),
+			BN.max(targetPriceFails, new BN(1))
+		);
 
 		try {
 			await clearingHouse.openPosition(

@@ -2,14 +2,17 @@ import * as anchor from '@project-serum/anchor';
 import { Program } from '@project-serum/anchor';
 import { Keypair } from '@solana/web3.js';
 import BN from 'bn.js';
-import { USDC_PRECISION } from '../sdk/lib';
 import {
 	Admin,
 	AMM_MANTISSA,
+	calculatePriceImpact,
+	calculateTargetPriceTrade,
 	PositionDirection,
 	stripMantissa,
 	PEG_SCALAR,
 	MAX_LEVERAGE,
+	USDC_PRECISION,
+	liquidityBook,
 } from '../sdk/src';
 import { ClearingHouseUser } from '../sdk/src/clearingHouseUser';
 import {
@@ -225,8 +228,11 @@ describe('AMM Curve', () => {
 		const currentMark =
 			clearingHouse.calculateBaseAssetPriceWithMantissa(marketIndex);
 
-		const [bidsPrice, bidsCumSize, asksPrice, asksCumSize] =
-			clearingHouse.liquidityBook(marketIndex, 3, 0.5);
+		const [bidsPrice, bidsCumSize, asksPrice, asksCumSize] = liquidityBook(
+			market,
+			3,
+			0.5
+		);
 
 		for (let i = asksCumSize.length - 1; i >= 0; i--) {
 			console.log(
@@ -266,27 +272,27 @@ describe('AMM Curve', () => {
 			marketIndex
 		);
 
-		const avgSlippageCenter = clearingHouse.calculatePriceImpact(
+		const avgSlippageCenter = calculatePriceImpact(
 			PositionDirection.LONG,
 			new BN(MAX_USER_TRADE * AMM_MANTISSA.toNumber()),
-			new BN(0),
+			clearingHouse.getMarket(0),
 			'pctAvg'
 		);
 		showBook(marketIndex);
 
 		const targetPriceUp = new BN(initialSOLPrice * AMM_MANTISSA.toNumber() * 2);
 
-		const [direction, tradeSize, _] = clearingHouse.calculateTargetPriceTrade(
-			marketIndex,
+		const [_direction, tradeSize, _] = calculateTargetPriceTrade(
+			clearingHouse.getMarket(marketIndex),
 			targetPriceUp
 		);
 
 		await clearingHouse.moveAmmToPrice(marketIndex, targetPriceUp);
 
-		const avgSlippage25PctOut = clearingHouse.calculatePriceImpact(
+		const avgSlippage25PctOut = calculatePriceImpact(
 			PositionDirection.LONG,
 			new BN(MAX_USER_TRADE * AMM_MANTISSA.toNumber()),
-			new BN(0),
+			clearingHouse.getMarket(0),
 			'pctAvg'
 		);
 

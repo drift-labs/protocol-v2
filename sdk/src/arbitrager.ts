@@ -18,6 +18,7 @@ import { Connection, PublicKey } from '@solana/web3.js';
 import { PriceData } from '@pythnetwork/client';
 import { ftx, Trade } from 'ccxt';
 import { calculatePositionPNL } from './math/position';
+import { calculatePriceImpact, calculateTargetPriceTrade } from './math/trade';
 
 export interface TradeToExecute {
 	direction: PositionDirection;
@@ -506,8 +507,8 @@ export class Arbitrager {
 					// use expected entryPrice as limit given this change:
 					// https://github.com/drift-labs/protocol-v1/commit/a82f08deb2202efe73e48d0f84f981c9443fde67
 					[direction, amount, limitPrice, newMarkPrice] =
-						this.clearingHouse.calculateTargetPriceTrade(
-							marketIndexBN,
+						calculateTargetPriceTrade(
+							this.clearingHouse.getMarket(marketIndexBN),
 							targetPrice,
 							arbPctMod
 						);
@@ -552,10 +553,11 @@ export class Arbitrager {
 					direction =
 						netExposure > 0 ? PositionDirection.SHORT : PositionDirection.LONG;
 
-					limitPrice = this.clearingHouse.calculatePriceImpact(
+					const market = this.clearingHouse.getMarket(marketIndexBN);
+					limitPrice = calculatePriceImpact(
 						direction,
 						amount,
-						marketIndexBN,
+						market,
 						'entryPrice'
 					);
 
@@ -567,10 +569,10 @@ export class Arbitrager {
 					) {
 						amount = amount.div(new BN(2));
 
-						limitPrice = this.clearingHouse.calculatePriceImpact(
+						limitPrice = calculatePriceImpact(
 							direction,
 							amount,
-							marketIndexBN,
+							market,
 							'entryPrice'
 						);
 
@@ -596,11 +598,12 @@ export class Arbitrager {
 					Math.abs(limitPriceNumber - oraclePrice)
 				);
 
+				const market = this.clearingHouse.getMarket(marketIndexBN);
 				const baseAssetAmountToAcquire = stripMantissa(
-					this.clearingHouse.calculatePriceImpact(
+					calculatePriceImpact(
 						direction,
 						amount,
-						marketIndexBN,
+						market,
 						'acquiredBaseAssetAmount'
 					),
 					BASE_ASSET_PRECISION

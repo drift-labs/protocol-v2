@@ -14,6 +14,7 @@ import { ClearingHouse, PEG_SCALAR } from './clearingHouse';
 import clearingHouseIDL from './idl/clearing_house.json';
 import { DefaultClearingHouseAccountSubscriber } from './accounts/defaultClearingHouseAccountSubscriber';
 import { DefaultTxSender } from './tx/defaultTxSender';
+import { calculateTargetPriceTrade } from './math/trade';
 
 export class Admin extends ClearingHouse {
 	public static from(
@@ -241,10 +242,10 @@ export class Admin extends ClearingHouse {
 		marketIndex: BN,
 		targetPrice: BN
 	): Promise<TransactionSignature> {
-		const market = this.getMarketsAccount().markets[marketIndex.toNumber()];
+		const market = this.getMarket(marketIndex);
 
-		const [direction, tradeSize, _] = this.calculateTargetPriceTrade(
-			marketIndex,
+		const [direction, tradeSize, _] = calculateTargetPriceTrade(
+			market,
 			targetPrice
 		);
 

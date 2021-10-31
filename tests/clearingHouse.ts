@@ -10,6 +10,7 @@ import { PublicKey } from '@solana/web3.js';
 import {
 	Admin,
 	AMM_MANTISSA,
+	calculatePriceImpact,
 	ClearingHouseUser,
 	PositionDirection,
 	BASE_ASSET_PRECISION,
@@ -352,10 +353,11 @@ describe('clearing_house', () => {
 		try {
 			const newUSDCNotionalAmount = usdcAmount.div(new BN(2)).mul(new BN(5));
 			const marketIndex = new BN(0);
-			const estTradePrice = clearingHouse.calculatePriceImpact(
+			const market = clearingHouse.getMarket(marketIndex);
+			const estTradePrice = calculatePriceImpact(
 				PositionDirection.SHORT,
 				newUSDCNotionalAmount,
-				marketIndex,
+				market,
 				'entryPrice'
 			);
 
@@ -978,10 +980,11 @@ describe('clearing_house', () => {
 	it('Short order succeeds due to realiziable limit price ', async () => {
 		const newUSDCNotionalAmount = usdcAmount.div(new BN(2)).mul(new BN(5));
 		const marketIndex = new BN(0);
-		const estTradePrice = clearingHouse.calculatePriceImpact(
+		const market = clearingHouse.getMarket(marketIndex);
+		const estTradePrice = calculatePriceImpact(
 			PositionDirection.SHORT,
 			newUSDCNotionalAmount,
-			marketIndex,
+			market,
 			'entryPrice'
 		);
 
@@ -998,10 +1001,11 @@ describe('clearing_house', () => {
 	it('Long order succeeds due to realiziable limit price ', async () => {
 		const newUSDCNotionalAmount = usdcAmount.div(new BN(2)).mul(new BN(5));
 		const marketIndex = new BN(0);
-		const estTradePrice = clearingHouse.calculatePriceImpact(
+		const market = clearingHouse.getMarket(marketIndex);
+		const estTradePrice = calculatePriceImpact(
 			PositionDirection.LONG,
 			newUSDCNotionalAmount,
-			marketIndex,
+			market,
 			'entryPrice'
 		);
 

@@ -7,10 +7,12 @@ import {
 	AMM_MANTISSA,
 	PEG_SCALAR,
 	USDC_PRECISION,
+	calculateTargetPriceTrade,
 	ClearingHouseUser,
 	PositionDirection,
 	stripBaseAssetPrecision,
 	stripMantissa,
+	liquidityBook,
 } from '../sdk/src';
 import { assert } from '../sdk/src/assert/assert';
 import {
@@ -138,8 +140,11 @@ describe('AMM Curve', () => {
 		const currentMark =
 			clearingHouse.calculateBaseAssetPriceWithMantissa(marketIndex);
 
-		const [bidsPrice, bidsCumSize, asksPrice, asksCumSize] =
-			clearingHouse.liquidityBook(marketIndex, 3, 0.1);
+		const [bidsPrice, bidsCumSize, asksPrice, asksCumSize] = liquidityBook(
+			market,
+			3,
+			0.1
+		);
 
 		for (let i = asksCumSize.length - 1; i >= 0; i--) {
 			console.log(
@@ -194,8 +199,8 @@ describe('AMM Curve', () => {
 		showBook(marketIndex);
 	});
 	it('Arb back to Oracle Price Moves', async () => {
-		const [direction, quoteSize] = clearingHouse.calculateTargetPriceTrade(
-			marketIndex,
+		const [direction, quoteSize] = calculateTargetPriceTrade(
+			clearingHouse.getMarket(marketIndex),
 			new BN(initialSOLPrice).mul(AMM_MANTISSA)
 		);
 
