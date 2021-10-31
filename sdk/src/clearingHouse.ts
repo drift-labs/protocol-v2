@@ -22,7 +22,6 @@ import {
 } from './types';
 import * as anchor from '@project-serum/anchor';
 import clearingHouseIDL from './idl/clearing_house.json';
-import { PythClient } from './pythClient';
 import { squareRootBN } from './utils';
 
 import {
@@ -33,7 +32,6 @@ import {
 	ConfirmOptions,
 	Transaction,
 	TransactionInstruction,
-	SYSVAR_RENT_PUBKEY,
 } from '@solana/web3.js';
 
 import { assert } from './assert/assert';
@@ -42,7 +40,6 @@ import { EventEmitter } from 'events';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import {
 	getClearingHouseStateAccountPublicKey,
-	getClearingHouseStateAccountPublicKeyAndNonce,
 	getUserAccountPublicKey,
 	getUserAccountPublicKeyAndNonce,
 } from './addresses';
