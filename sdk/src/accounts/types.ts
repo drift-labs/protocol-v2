@@ -54,6 +54,33 @@ export interface ClearingHouseAccountSubscriber {
 	getLiquidationHistoryAccount(): LiquidationHistoryAccount;
 }
 
+export interface HistoryAccountEvents {
+	fundingPaymentHistoryAccountUpdate: (
+		payload: FundingPaymentHistoryAccount
+	) => void;
+	fundingRateHistoryAccountUpdate: (payload: FundingRateHistoryAccount) => void;
+	tradeHistoryAccountUpdate: (payload: TradeHistoryAccount) => void;
+	liquidationHistoryAccountUpdate: (payload: LiquidationHistoryAccount) => void;
+	depositHistoryAccountUpdate: (payload: DepositHistoryAccount) => void;
+	curveHistoryAccountUpdate: (payload: CurveHistoryAccount) => void;
+	update: void;
+}
+
+export interface HistoryAccountSubscriber {
+	eventEmitter: StrictEventEmitter<EventEmitter, HistoryAccountEvents>;
+	isSubscribed: boolean;
+
+	subscribe(): Promise<boolean>;
+	unsubscribe(): Promise<void>;
+
+	getTradeHistoryAccount(): TradeHistoryAccount;
+	getDepositHistoryAccount(): DepositHistoryAccount;
+	getFundingPaymentHistoryAccount(): FundingPaymentHistoryAccount;
+	getFundingRateHistoryAccount(): FundingRateHistoryAccount;
+	getCurveHistoryAccount(): CurveHistoryAccount;
+	getLiquidationHistoryAccount(): LiquidationHistoryAccount;
+}
+
 export interface UserAccountEvents {
 	userAccountData: (payload: UserAccount) => void;
 	userPositionsData: (payload: UserPositionsAccount) => void;
