@@ -17,7 +17,12 @@ import {
 } from './constants/numericConstants';
 import { UserAccountSubscriber, UserAccountEvents } from './accounts/types';
 import { DefaultUserAccountSubscriber } from './accounts/defaultUserAccountSubscriber';
-import { PositionDirection } from '.';
+import {
+	calculateBaseAssetValue,
+	calculatePositionFundingPNL,
+	calculatePositionPNL,
+	PositionDirection,
+} from '.';
 import { getUserAccountPublicKey } from './addresses';
 
 export class ClearingHouseUser {
@@ -66,6 +71,13 @@ export class ClearingHouseUser {
 
 	public getUserPositionsAccount(): UserPositionsAccount {
 		return this.accountSubscriber.getUserPositionsAccount();
+	}
+
+	public getUserPosition(positionIndex: BN | number): UserPosition {
+		if (positionIndex instanceof BN) {
+			positionIndex = positionIndex.toNumber();
+		}
+		return this.getUserPositionsAccount().positions[positionIndex];
 	}
 
 	public async getUserAccountPublicKey(): Promise<PublicKey> {
@@ -121,8 +133,9 @@ export class ClearingHouseUser {
 	public getUnrealizedPNL(withFunding?: boolean): BN {
 		return this.getUserPositionsAccount().positions.reduce(
 			(pnl, marketPosition) => {
+				const market = this.clearingHouse.getMarket(marketPosition.marketIndex);
 				return pnl.add(
-					this.clearingHouse.calculatePositionPNL(marketPosition, withFunding)
+					calculatePositionPNL(market, marketPosition, withFunding)
 				);
 			},
 			ZERO
@@ -137,9 +150,8 @@ export class ClearingHouseUser {
 	public getUnrealizedFundingPNL(): BN {
 		return this.getUserPositionsAccount().positions.reduce(
 			(pnl, marketPosition) => {
-				return pnl.add(
-					this.clearingHouse.calculatePositionFundingPNL(marketPosition)
-				);
+				const market = this.clearingHouse.getMarket(marketPosition.marketIndex);
+				return calculatePositionFundingPNL(market, marketPosition);
 			},
 			ZERO
 		);
@@ -165,8 +177,9 @@ export class ClearingHouseUser {
 	getTotalPositionValue(): BN {
 		return this.getUserPositionsAccount()
 			.positions.reduce((positionValue, marketPosition) => {
+				const market = this.clearingHouse.getMarket(marketPosition.marketIndex);
 				return positionValue.add(
-					this.clearingHouse.calculateBaseAssetValue(marketPosition)
+					calculateBaseAssetValue(market, marketPosition)
 				);
 			}, ZERO)
 			.div(AMM_MANTISSA);
@@ -177,12 +190,10 @@ export class ClearingHouseUser {
 	 * return precision = 1e10 (AMM_MANTISSA)
 	 * @returns
 	 */
-	public getPositionValue(positionIndex: number): BN {
-		return this.clearingHouse
-			.calculateBaseAssetValue(
-				this.getUserPositionsAccount().positions[positionIndex]
-			)
-			.div(AMM_MANTISSA);
+	public getPositionValue(positionIndex: BN | number): BN {
+		const userPosition = this.getUserPosition(positionIndex);
+		const market = this.clearingHouse.getMarket(userPosition.marketIndex);
+		return calculateBaseAssetValue(market, userPosition).div(AMM_MANTISSA);
 	}
 
 	/**
@@ -191,7 +202,8 @@ export class ClearingHouseUser {
 	 * @returns
 	 */
 	public getPositionEstimatedExitPriceWithMantissa(position: UserPosition): BN {
-		const baseAssetValue = this.clearingHouse.calculateBaseAssetValue(position);
+		const market = this.clearingHouse.getMarket(position.marketIndex);
+		const baseAssetValue = calculateBaseAssetValue(market, position);
 		if (position.baseAssetAmount.eq(ZERO)) {
 			return ZERO;
 		}
@@ -348,9 +360,14 @@ export class ClearingHouseUser {
 			quoteAssetAmount: new BN(0),
 		};
 
-		const proposedMarketPositionValueUSDC = this.clearingHouse
-			.calculateBaseAssetValue(proposedMarketPosition)
-			.div(AMM_MANTISSA);
+		const market = this.clearingHouse.getMarket(
+			proposedMarketPosition.marketIndex
+		);
+
+		const proposedMarketPositionValueUSDC = calculateBaseAssetValue(
+			market,
+			proposedMarketPosition
+		).div(AMM_MANTISSA);
 
 		// total position value after trade
 		const targetTotalPositionValueUSDC =
@@ -610,20 +627,25 @@ export class ClearingHouseUser {
 	private getTotalPositionValueExcludingMarket(marketToIgnore: BN): BN {
 		const currentMarketPosition = this.getPositionForMarket(marketToIgnore);
 
-		const currentMarketPositionValueUSDC = currentMarketPosition
-			? this.clearingHouse
-					.calculateBaseAssetValue(currentMarketPosition)
-					.div(AMM_MANTISSA)
-			: ZERO;
+		let currentMarketPositionValueUSDC = ZERO;
+		if (currentMarketPosition) {
+			const market = this.clearingHouse.getMarket(
+				currentMarketPosition.marketIndex
+			);
+			currentMarketPositionValueUSDC = calculateBaseAssetValue(
+				market,
+				currentMarketPosition
+			).div(AMM_MANTISSA);
+		}
 
 		return this.getTotalPositionValue().sub(currentMarketPositionValueUSDC);
 	}
 
 	public summary() {
 		const marketPosition0 = this.getUserPositionsAccount().positions[0];
-		const pos0PNL = this.clearingHouse.calculatePositionPNL(marketPosition0);
-		const pos0Value =
-			this.clearingHouse.calculateBaseAssetValue(marketPosition0);
+		const market0 = this.clearingHouse.getMarket(marketPosition0.marketIndex);
+		const pos0PNL = calculatePositionPNL(market0, marketPosition0);
+		const pos0Value = calculateBaseAssetValue(market0, marketPosition0);
 
 		const pos0Px = this.clearingHouse.calculateBaseAssetPriceWithMantissa(
 			marketPosition0.marketIndex

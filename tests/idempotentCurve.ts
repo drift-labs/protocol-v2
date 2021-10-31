@@ -9,6 +9,7 @@ import { Keypair } from '@solana/web3.js';
 import {
 	Admin,
 	AMM_MANTISSA,
+	calculateBaseAssetValue,
 	ClearingHouse,
 	PositionDirection,
 } from '../sdk/src';
@@ -151,9 +152,11 @@ describe('idempotent curve', () => {
 			await clearingHouse.program.account.userPositions.fetch(user.positions);
 
 		const numberOfReduces = chunks;
-		const baseAssetValue = await clearingHouse
-			.calculateBaseAssetValue(userPositionsAccount.positions[0])
-			.div(AMM_MANTISSA);
+		const market = clearingHouse.getMarket(marketIndex);
+		const baseAssetValue = calculateBaseAssetValue(
+			market,
+			userPositionsAccount.positions[0]
+		).div(AMM_MANTISSA);
 		for (let i = 0; i < numberOfReduces - 1; i++) {
 			await clearingHouse.openPosition(
 				PositionDirection.SHORT,
@@ -216,9 +219,11 @@ describe('idempotent curve', () => {
 			await clearingHouse.program.account.userPositions.fetch(user.positions);
 
 		const numberOfReduces = chunks;
-		const baseAssetValue = await clearingHouse
-			.calculateBaseAssetValue(userPositionsAccount.positions[0])
-			.div(AMM_MANTISSA);
+		const market = clearingHouse.getMarket(marketIndex);
+		const baseAssetValue = calculateBaseAssetValue(
+			market,
+			userPositionsAccount.positions[0]
+		).div(AMM_MANTISSA);
 		for (let i = 0; i < numberOfReduces - 1; i++) {
 			await clearingHouse.openPosition(
 				PositionDirection.SHORT,
@@ -281,9 +286,11 @@ describe('idempotent curve', () => {
 			await clearingHouse.program.account.userPositions.fetch(user.positions);
 
 		const numberOfReduces = chunks;
-		const baseAssetValue = await clearingHouse
-			.calculateBaseAssetValue(userPositionsAccount.positions[0])
-			.div(AMM_MANTISSA);
+		const market = clearingHouse.getMarket(marketIndex);
+		const baseAssetValue = calculateBaseAssetValue(
+			market,
+			userPositionsAccount.positions[0]
+		).div(AMM_MANTISSA);
 		for (let i = 0; i < numberOfReduces - 1; i++) {
 			await clearingHouse.openPosition(
 				PositionDirection.LONG,
@@ -345,9 +352,11 @@ describe('idempotent curve', () => {
 			await clearingHouse.program.account.userPositions.fetch(user.positions);
 
 		const numberOfReduces = chunks;
-		const baseAssetValue = await clearingHouse
-			.calculateBaseAssetValue(userPositionsAccount.positions[0])
-			.div(AMM_MANTISSA);
+		const market = clearingHouse.getMarket(marketIndex);
+		const baseAssetValue = calculateBaseAssetValue(
+			market,
+			userPositionsAccount.positions[0]
+		).div(AMM_MANTISSA);
 		for (let i = 0; i < numberOfReduces - 1; i++) {
 			await clearingHouse.openPosition(
 				PositionDirection.LONG,

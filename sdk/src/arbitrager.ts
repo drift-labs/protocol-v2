@@ -17,6 +17,7 @@ import { PositionDirection, UserPosition } from './types';
 import { Connection, PublicKey } from '@solana/web3.js';
 import { PriceData } from '@pythnetwork/client';
 import { ftx, Trade } from 'ccxt';
+import { calculatePositionPNL } from './math/position';
 
 export interface TradeToExecute {
 	direction: PositionDirection;
@@ -293,8 +294,9 @@ export class Arbitrager {
 						!positions[position].baseAssetAmount.eq(ZERO)
 					) {
 						arbPos = positions[position];
+						const market = this.clearingHouse.getMarket(arbPos.marketIndex);
 						uPnL = stripMantissa(
-							this.clearingHouse.calculatePositionPNL(arbPos, false),
+							calculatePositionPNL(market, arbPos, false),
 							USDC_PRECISION
 						);
 						netExposure = stripMantissa(
