@@ -18,6 +18,7 @@ import {
 	UserAccount,
 	UserPosition,
 	UserPositionsAccount,
+	Market,
 } from './types';
 import * as anchor from '@project-serum/anchor';
 import clearingHouseIDL from './idl/clearing_house.json';
@@ -148,6 +149,13 @@ export class ClearingHouse {
 
 	public getMarketsAccount(): MarketsAccount {
 		return this.accountSubscriber.getMarketsAccount();
+	}
+
+	public getMarket(marketIndex: BN | number): Market {
+		if (marketIndex instanceof BN) {
+			marketIndex = marketIndex.toNumber();
+		}
+		return this.getMarketsAccount().markets[marketIndex];
 	}
 
 	public getFundingPaymentHistoryAccount(): FundingPaymentHistoryAccount {
@@ -707,78 +715,6 @@ export class ClearingHouse {
 				fundingPaymentHistory: state.fundingPaymentHistory,
 			},
 		});
-	}
-
-	public async calculateEstimatedFundingRate(
-		marketIndex: BN,
-		pythClient: PythClient, // todo
-		periodAdjustment: BN = new BN(1),
-		estimationMethod: 'interpolated' | 'lowerbound'
-	): Promise<BN> {
-		// periodAdjustment
-		// 	1: hourly
-		//  24: daily
-		//  24 * 365.25: annualized
-		const secondsInHour = new BN(3600);
-		const hoursInDay = new BN(24);
-
-		const marketsAccount: any = await this.getMarketsAccount();
-
-		const market = marketsAccount.markets[marketIndex.toNumber()];
-		if (!market.initialized) {
-			return new BN(0);
-		}
-
-		const payFreq = new BN(market.amm.periodicity);
-
-		const oraclePriceData = await pythClient.getPriceData(market.amm.oracle);
-		const oracleTwapWithMantissa = new BN(
-			oraclePriceData.twap.value * AMM_MANTISSA.toNumber()
-		);
-
-		const now = new BN((Date.now() / 1000).toFixed(0));
-		const timeSinceLastUpdate = now.sub(market.amm.lastFundingRateTs);
-
-		const lastMarkTwapWithMantissa = market.amm.lastMarkPriceTwap;
-		const lastMarkPriceTwapTs = market.amm.lastMarkPriceTwapTs;
-
-		const timeSinceLastMarkChange = now.sub(lastMarkPriceTwapTs);
-		const markTwapTimeSinceLastUpdate = lastMarkPriceTwapTs.sub(
-			market.amm.lastFundingRateTs
-		);
-
-		const baseAssetPriceWithMantissa =
-			this.calculateBaseAssetPriceWithMantissa(marketIndex);
-
-		const markTwapWithMantissa = markTwapTimeSinceLastUpdate
-			.mul(lastMarkTwapWithMantissa)
-			.add(timeSinceLastMarkChange.mul(baseAssetPriceWithMantissa))
-			.div(timeSinceLastMarkChange.add(markTwapTimeSinceLastUpdate));
-
-		const twapSpread = markTwapWithMantissa.sub(oracleTwapWithMantissa);
-
-		const twapSpreadPct = twapSpread
-			.mul(AMM_MANTISSA)
-			.mul(new BN(100))
-			.div(oracleTwapWithMantissa);
-
-		if (estimationMethod == 'lowerbound') {
-			//assuming remaining funding period has no gap
-			const estFundingRateLowerBound = twapSpreadPct
-				.mul(payFreq)
-				.mul(BN.min(secondsInHour, timeSinceLastUpdate))
-				.mul(periodAdjustment)
-				.div(secondsInHour)
-				.div(secondsInHour)
-				.div(hoursInDay);
-			return estFundingRateLowerBound;
-		} else {
-			const estFundingRate = twapSpreadPct
-				.mul(periodAdjustment)
-				.div(hoursInDay);
-
-			return estFundingRate;
-		}
 	}
 
 	public findSwapOutput(

@@ -413,13 +413,6 @@ export class Arbitrager {
 				const closeToFundingUpdate = nextFundingTime <= 60 * 5; // last 5 minutes
 
 				if (closeToFundingUpdate) {
-					// put position in good funding territory
-					// let estFundingRate = await this.clearingHouse.calculateEstimatedFundingRate(
-					// 												marketIndexBN,
-					// 												this.pythClient,
-					// 												new BN(1),
-					// 												"lowerbound");
-
 					if (
 						(estFundingPayment > 0 && netExposure > 0) ||
 						(estFundingPayment < 0 && netExposure < 0)

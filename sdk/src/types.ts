@@ -201,35 +201,39 @@ export type StateAccount = {
 
 export type MarketsAccount = {
 	accountIndex: BN;
-	markets: {
-		amm: {
-			baseAssetReserve: BN;
-			sqrtK: BN;
-			cumulativeFundingRate: BN;
-			lastFundingRate: BN;
-			lastFundingRateTs: BN;
-			lastMarkPriceTwap: BN;
-			lastMarkPriceTwapTs: BN;
-			oracle: PublicKey;
-			oracleSource: OracleSource;
-			fundingPeriod: BN;
-			quoteAssetReserve: BN;
-			pegMultiplier: BN;
-			cumulativeFundingRateLong: BN;
-			cumulativeFundingRateShort: BN;
-			cumulativeRepegRebateLong: BN;
-			cumulativeRepegRebateShort: BN;
-			totalFeeMinusDistributions: BN;
-			totalFeeWithdrawn: BN;
-			totalFee: BN;
-			minimumTradeSize: BN;
-		};
-		baseAssetAmount: BN;
-		baseAssetAmountLong: BN;
-		baseAssetAmountShort: BN;
-		initialized: boolean;
-		openInterest: BN;
-	}[];
+	markets: Market[];
+};
+
+export type Market = {
+	amm: AMM;
+	baseAssetAmount: BN;
+	baseAssetAmountLong: BN;
+	baseAssetAmountShort: BN;
+	initialized: boolean;
+	openInterest: BN;
+};
+
+export type AMM = {
+	baseAssetReserve: BN;
+	sqrtK: BN;
+	cumulativeFundingRate: BN;
+	lastFundingRate: BN;
+	lastFundingRateTs: BN;
+	lastMarkPriceTwap: BN;
+	lastMarkPriceTwapTs: BN;
+	oracle: PublicKey;
+	oracleSource: OracleSource;
+	fundingPeriod: BN;
+	quoteAssetReserve: BN;
+	pegMultiplier: BN;
+	cumulativeFundingRateLong: BN;
+	cumulativeFundingRateShort: BN;
+	cumulativeRepegRebateLong: BN;
+	cumulativeRepegRebateShort: BN;
+	totalFeeMinusDistributions: BN;
+	totalFeeWithdrawn: BN;
+	totalFee: BN;
+	minimumTradeSize: BN;
 };
 
 // # User Account Types

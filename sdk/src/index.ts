@@ -13,6 +13,7 @@ export * from './admin';
 export * from './clearingHouseUser';
 export * from './clearingHouse';
 export * from './DataSubscriptionHelpers';
+export * from './math/funding';
 export * from './types';
 export * from './utils';
 export * from './constants/chartConstants';
