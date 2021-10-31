@@ -15,6 +15,7 @@ export * from './clearingHouse';
 export * from './DataSubscriptionHelpers';
 export * from './liquidityBook';
 export * from './math/funding';
+export * from './math/market';
 export * from './math/position';
 export * from './math/trade';
 export * from './types';

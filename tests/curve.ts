@@ -7,6 +7,7 @@ import {
 	AMM_MANTISSA,
 	PEG_SCALAR,
 	USDC_PRECISION,
+	calculateBaseAssetPriceWithMantissa,
 	calculateTargetPriceTrade,
 	ClearingHouseUser,
 	PositionDirection,
@@ -137,8 +138,7 @@ describe('AMM Curve', () => {
 	const showBook = (marketIndex) => {
 		const market =
 			clearingHouse.getMarketsAccount().markets[marketIndex.toNumber()];
-		const currentMark =
-			clearingHouse.calculateBaseAssetPriceWithMantissa(marketIndex);
+		const currentMark = calculateBaseAssetPriceWithMantissa(market);
 
 		const [bidsPrice, bidsCumSize, asksPrice, asksCumSize] = liquidityBook(
 			market,
@@ -232,11 +232,13 @@ describe('AMM Curve', () => {
 		);
 		// showBook(marketIndex);
 
-		const priceBefore =
-			clearingHouse.calculateBaseAssetPriceWithMantissa(marketIndex);
+		const priceBefore = calculateBaseAssetPriceWithMantissa(
+			clearingHouse.getMarket(marketIndex)
+		);
 		await clearingHouse.repegAmmCurve(new BN(0), marketIndex);
-		const priceAfter =
-			clearingHouse.calculateBaseAssetPriceWithMantissa(marketIndex);
+		const priceAfter = calculateBaseAssetPriceWithMantissa(
+			clearingHouse.getMarket(marketIndex)
+		);
 
 		assert(newOraclePriceWithMantissa.gt(priceBefore));
 		assert(priceAfter.gt(priceBefore));
@@ -287,15 +289,17 @@ describe('AMM Curve', () => {
 			marketIndex
 		);
 
-		const priceBefore =
-			clearingHouse.calculateBaseAssetPriceWithMantissa(marketIndex);
+		const priceBefore = calculateBaseAssetPriceWithMantissa(
+			clearingHouse.getMarket(marketIndex)
+		);
 
 		// const marketsAccount = clearingHouse.getMarketsAccount();
 		// const marketData = marketsAccount.markets[marketIndex.toNumber()];
 		await clearingHouse.repegAmmCurve(new BN(0), marketIndex);
 
-		const priceAfter =
-			clearingHouse.calculateBaseAssetPriceWithMantissa(marketIndex);
+		const priceAfter = calculateBaseAssetPriceWithMantissa(
+			clearingHouse.getMarket(marketIndex)
+		);
 
 		assert(newOraclePriceWithMantissa.lt(priceBefore));
 		assert(priceAfter.lt(priceBefore));

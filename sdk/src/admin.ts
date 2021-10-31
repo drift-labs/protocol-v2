@@ -15,6 +15,7 @@ import clearingHouseIDL from './idl/clearing_house.json';
 import { DefaultClearingHouseAccountSubscriber } from './accounts/defaultClearingHouseAccountSubscriber';
 import { DefaultTxSender } from './tx/defaultTxSender';
 import { calculateTargetPriceTrade } from './math/trade';
+import { findSwapOutput } from './math/amm';
 
 export class Admin extends ClearingHouse {
 	public static from(
@@ -251,7 +252,7 @@ export class Admin extends ClearingHouse {
 
 		const invariant = market.amm.sqrtK.mul(market.amm.sqrtK);
 
-		const [newQuoteAssetAmount, newBaseAssetAmount] = this.findSwapOutput(
+		const [newQuoteAssetAmount, newBaseAssetAmount] = findSwapOutput(
 			market.amm.quoteAssetReserve,
 			market.amm.baseAssetReserve,
 			direction,

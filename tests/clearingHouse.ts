@@ -10,6 +10,7 @@ import { PublicKey } from '@solana/web3.js';
 import {
 	Admin,
 	AMM_MANTISSA,
+	calculateBaseAssetPriceWithMantissa,
 	calculatePriceImpact,
 	ClearingHouseUser,
 	PositionDirection,
@@ -362,8 +363,7 @@ describe('clearing_house', () => {
 			);
 
 			// trying to sell at price too high
-			const limitPriceTooHigh =
-				clearingHouse.calculateBaseAssetPriceWithMantissa(marketIndex);
+			const limitPriceTooHigh = calculateBaseAssetPriceWithMantissa(market);
 			console.log(
 				'failed order:',
 				estTradePrice.toNumber(),
@@ -615,7 +615,9 @@ describe('clearing_house', () => {
 		console.log(
 			'liqPrice move:',
 			stripMantissa(
-				clearingHouse.calculateBaseAssetPriceWithMantissa(marketIndex)
+				calculateBaseAssetPriceWithMantissa(
+					clearingHouse.getMarket(marketIndex)
+				)
 			),
 			'->',
 			stripMantissa(liqPrice),

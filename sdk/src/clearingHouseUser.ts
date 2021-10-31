@@ -18,6 +18,7 @@ import {
 import { UserAccountSubscriber, UserAccountEvents } from './accounts/types';
 import { DefaultUserAccountSubscriber } from './accounts/defaultUserAccountSubscriber';
 import {
+	calculateBaseAssetPriceWithMantissa,
 	calculateBaseAssetValue,
 	calculatePositionFundingPNL,
 	calculatePositionPNL,
@@ -331,8 +332,8 @@ export class ClearingHouseUser {
 		for 10x long, BTC down $400:
 		3. (10k - 4k) / (100k - 4k) = 6k/96k => .0625 */
 
-		const currentPrice = this.clearingHouse.calculateBaseAssetPriceWithMantissa(
-			targetMarket.marketIndex
+		const currentPrice = calculateBaseAssetPriceWithMantissa(
+			this.clearingHouse.getMarket(targetMarket.marketIndex)
 		);
 
 		const totalCollateralUSDC = this.getTotalCollateral();
@@ -647,9 +648,7 @@ export class ClearingHouseUser {
 		const pos0PNL = calculatePositionPNL(market0, marketPosition0);
 		const pos0Value = calculateBaseAssetValue(market0, marketPosition0);
 
-		const pos0Px = this.clearingHouse.calculateBaseAssetPriceWithMantissa(
-			marketPosition0.marketIndex
-		);
+		const pos0Px = calculateBaseAssetPriceWithMantissa(market0);
 
 		return {
 			totalCollateral: this.getTotalCollateral(),

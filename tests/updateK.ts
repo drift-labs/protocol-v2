@@ -7,6 +7,7 @@ import { Program } from '@project-serum/anchor';
 import {
 	Admin,
 	AMM_MANTISSA,
+	calculateBaseAssetPriceWithMantissa,
 	ClearingHouseUser,
 	stripMantissa,
 	PEG_SCALAR,
@@ -93,15 +94,17 @@ describe('update k', () => {
 		const marketIndex = Markets[0].marketIndex;
 
 		const marketsOld = await clearingHouse.getMarketsAccount();
-		const oldKPrice =
-			clearingHouse.calculateBaseAssetPriceWithMantissa(marketIndex);
+		const oldKPrice = calculateBaseAssetPriceWithMantissa(
+			clearingHouse.getMarket(marketIndex)
+		);
 		const ammOld = marketsOld.markets[0].amm;
 		const newSqrtK = ammInitialBaseAssetReserve.mul(new BN(10));
 		await clearingHouse.updateK(newSqrtK, marketIndex);
 
 		const markets = await clearingHouse.getMarketsAccount();
-		const newKPrice =
-			clearingHouse.calculateBaseAssetPriceWithMantissa(marketIndex);
+		const newKPrice = calculateBaseAssetPriceWithMantissa(
+			clearingHouse.getMarket(marketIndex)
+		);
 
 		const amm = markets.markets[0].amm;
 
@@ -138,8 +141,9 @@ describe('update k', () => {
 			initialSOLPrice * AMM_MANTISSA.toNumber() * 44.1
 		);
 		await clearingHouse.moveAmmToPrice(marketIndex, targetPriceUp);
-		const oldKPrice =
-			clearingHouse.calculateBaseAssetPriceWithMantissa(marketIndex);
+		const oldKPrice = calculateBaseAssetPriceWithMantissa(
+			clearingHouse.getMarket(marketIndex)
+		);
 		const ammOld = marketsOld.markets[0].amm;
 
 		const newSqrtK = ammOld.sqrtK
@@ -148,8 +152,9 @@ describe('update k', () => {
 		await clearingHouse.updateK(newSqrtK, marketIndex);
 
 		const markets = await clearingHouse.getMarketsAccount();
-		const newKPrice =
-			clearingHouse.calculateBaseAssetPriceWithMantissa(marketIndex);
+		const newKPrice = calculateBaseAssetPriceWithMantissa(
+			clearingHouse.getMarket(marketIndex)
+		);
 
 		const amm = markets.markets[0].amm;
 
@@ -194,8 +199,9 @@ describe('update k', () => {
 		const marketsOld = await clearingHouse.getMarketsAccount();
 		assert(!marketsOld.markets[0].baseAssetAmount.eq(ZERO));
 
-		const oldKPrice =
-			clearingHouse.calculateBaseAssetPriceWithMantissa(marketIndex);
+		const oldKPrice = calculateBaseAssetPriceWithMantissa(
+			clearingHouse.getMarket(marketIndex)
+		);
 		const ammOld = marketsOld.markets[0].amm;
 		console.log(
 			'USER getTotalCollateral',
@@ -209,8 +215,9 @@ describe('update k', () => {
 		const marketsKChange = await clearingHouse.getMarketsAccount();
 		const ammKChange = marketsKChange.markets[0].amm;
 
-		const newKPrice =
-			clearingHouse.calculateBaseAssetPriceWithMantissa(marketIndex);
+		const newKPrice = calculateBaseAssetPriceWithMantissa(
+			clearingHouse.getMarket(marketIndex)
+		);
 
 		console.log('$1 position closing');
 
@@ -276,8 +283,9 @@ describe('update k', () => {
 		const marketsOld = await clearingHouse.getMarketsAccount();
 		assert(!marketsOld.markets[0].baseAssetAmount.eq(ZERO));
 
-		const oldKPrice =
-			clearingHouse.calculateBaseAssetPriceWithMantissa(marketIndex);
+		const oldKPrice = calculateBaseAssetPriceWithMantissa(
+			clearingHouse.getMarket(marketIndex)
+		);
 		const ammOld = marketsOld.markets[0].amm;
 		console.log(
 			'USER getTotalCollateral',
@@ -290,8 +298,9 @@ describe('update k', () => {
 		await clearingHouse.updateK(newSqrtK, marketIndex);
 		const marketsKChange = await clearingHouse.getMarketsAccount();
 		const ammKChange = marketsKChange.markets[0].amm;
-		const newKPrice =
-			clearingHouse.calculateBaseAssetPriceWithMantissa(marketIndex);
+		const newKPrice = calculateBaseAssetPriceWithMantissa(
+			clearingHouse.getMarket(marketIndex)
+		);
 
 		console.log('$1 position closing');
 

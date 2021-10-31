@@ -19,6 +19,7 @@ import { PriceData } from '@pythnetwork/client';
 import { ftx, Trade } from 'ccxt';
 import { calculatePositionPNL } from './math/position';
 import { calculatePriceImpact, calculateTargetPriceTrade } from './math/trade';
+import { calculateBaseAssetPriceWithMantissa } from './math/market';
 
 export interface TradeToExecute {
 	direction: PositionDirection;
@@ -177,7 +178,9 @@ export class Arbitrager {
 
 			const loadMarketData = () => {
 				markPrice = stripMantissa(
-					this.clearingHouse.calculateBaseAssetPriceWithMantissa(marketIndexBN)
+					calculateBaseAssetPriceWithMantissa(
+						this.clearingHouse.getMarket(marketIndexBN)
+					)
 				);
 
 				const devnetOracle = marketJSON.devnetPythOracle;

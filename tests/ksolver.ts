@@ -5,6 +5,7 @@ import BN from 'bn.js';
 import {
 	Admin,
 	AMM_MANTISSA,
+	calculateBaseAssetPriceWithMantissa,
 	calculatePriceImpact,
 	calculateTargetPriceTrade,
 	PositionDirection,
@@ -225,8 +226,7 @@ describe('AMM Curve', () => {
 	const showBook = (marketIndex) => {
 		const market =
 			clearingHouse.getMarketsAccount().markets[marketIndex.toNumber()];
-		const currentMark =
-			clearingHouse.calculateBaseAssetPriceWithMantissa(marketIndex);
+		const currentMark = calculateBaseAssetPriceWithMantissa(market);
 
 		const [bidsPrice, bidsCumSize, asksPrice, asksCumSize] = liquidityBook(
 			market,

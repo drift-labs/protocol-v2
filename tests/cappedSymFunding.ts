@@ -22,6 +22,7 @@ import {
 	PositionDirection,
 	USDC_PRECISION,
 	BASE_ASSET_PRECISION,
+	calculateBaseAssetPriceWithMantissa,
 } from '../sdk';
 
 import { Program } from '@project-serum/anchor';
@@ -176,7 +177,7 @@ async function cappedSymFundingScenario(
 	console.log(
 		'PRICE',
 		stripMantissa(
-			clearingHouse.calculateBaseAssetPriceWithMantissa(marketIndex)
+			calculateBaseAssetPriceWithMantissa(clearingHouse.getMarket(marketIndex))
 		)
 	);
 	await clearingHouse.updateFundingPaused(true);

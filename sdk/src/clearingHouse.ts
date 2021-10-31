@@ -16,13 +16,11 @@ import {
 	PositionDirection,
 	TradeHistoryAccount,
 	UserAccount,
-	UserPosition,
 	UserPositionsAccount,
 	Market,
 } from './types';
 import * as anchor from '@project-serum/anchor';
 import clearingHouseIDL from './idl/clearing_house.json';
-import { squareRootBN } from './utils';
 
 import {
 	Connection,
@@ -34,7 +32,6 @@ import {
 	TransactionInstruction,
 } from '@solana/web3.js';
 
-import { assert } from './assert/assert';
 import { MockUSDCFaucet } from './mockUSDCFaucet';
 import { EventEmitter } from 'events';
 import StrictEventEmitter from 'strict-event-emitter-types';
@@ -61,9 +58,6 @@ export const BASE_ASSET_PRECISION = AMM_MANTISSA.mul(PEG_SCALAR);
 export const QUOTE_BASE_PRECISION_DIFF =
 	BASE_ASSET_PRECISION.div(USDC_PRECISION); // 10**(10+3-6)
 export const PRICE_TO_USDC_PRECISION = AMM_MANTISSA.div(USDC_PRECISION);
-
-const ZERO = new BN(0);
-const MAXPCT = new BN(1000); //percentage units are [0,1000] => [0,1]
 
 export class ClearingHouse {
 	connection: Connection;
@@ -712,71 +706,6 @@ export class ClearingHouse {
 				fundingPaymentHistory: state.fundingPaymentHistory,
 			},
 		});
-	}
-
-	public findSwapOutput(
-		inputAssetAmount: BN,
-		outputAssetAmount: BN,
-		direction: PositionDirection,
-		inputAmount: BN,
-		inputAsset: string,
-		invariant: BN,
-		pegMultiplier: BN
-	): [BN, BN] {
-		assert(inputAmount.gte(ZERO)); // must be abs term
-		// constant product
-
-		if (inputAsset == 'quote') {
-			inputAmount = inputAmount.mul(AMM_MANTISSA).div(pegMultiplier);
-		}
-
-		let newInputAssetAmount;
-
-		if (
-			(direction == PositionDirection.LONG && inputAsset == 'base') ||
-			(direction == PositionDirection.SHORT && inputAsset == 'quote')
-		) {
-			newInputAssetAmount = inputAssetAmount.sub(inputAmount);
-		} else {
-			newInputAssetAmount = inputAssetAmount.add(inputAmount);
-		}
-		const newOutputAssetAmount = invariant.div(newInputAssetAmount);
-
-		return [newInputAssetAmount, newOutputAssetAmount];
-	}
-
-	public calculateCurvePriceWithMantissa(
-		baseAssetAmount: BN,
-		quoteAssetAmount: BN,
-		peg: BN
-	) {
-		if (baseAssetAmount.abs().lte(ZERO)) {
-			return new BN(0);
-		}
-
-		return quoteAssetAmount
-			.mul(AMM_MANTISSA)
-			.mul(peg)
-			.div(PEG_SCALAR)
-			.div(baseAssetAmount);
-	}
-
-	public calculateBaseAssetPriceWithMantissa(marketIndex: BN): BN {
-		const market = this.getMarketsAccount().markets[marketIndex.toNumber()];
-		const baseAssetPriceWithMantissa = this.calculateCurvePriceWithMantissa(
-			market.amm.baseAssetReserve,
-			market.amm.quoteAssetReserve,
-			market.amm.pegMultiplier
-		);
-
-		return baseAssetPriceWithMantissa;
-	}
-
-	public calculateBaseAssetPriceAsNumber(marketIndex: BN): number {
-		return (
-			this.calculateBaseAssetPriceWithMantissa(marketIndex).toNumber() /
-			AMM_MANTISSA.toNumber()
-		);
 	}
 
 	public triggerEvent(eventName: keyof ClearingHouseAccountEvents, data?: any) {
