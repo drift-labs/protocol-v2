@@ -9,6 +9,27 @@
   dependencies:
     regenerator-runtime "^0.13.4"
 
+"@ethersproject/bytes@^5.5.0":
+  version "5.5.0"
+  resolved "https://registry.yarnpkg.com/@ethersproject/bytes/-/bytes-5.5.0.tgz#cb11c526de657e7b45d2e0f0246fb3b9d29a601c"
+  integrity sha512-ABvc7BHWhZU9PNM/tANm/Qx4ostPGadAuQzWTr3doklZOhDlmcBqclrQe/ZXUIj3K8wC28oYeuRa+A37tX9kog==
+  dependencies:
+    "@ethersproject/logger" "^5.5.0"
+
+"@ethersproject/logger@^5.5.0":
+  version "5.5.0"
+  resolved "https://registry.yarnpkg.com/@ethersproject/logger/-/logger-5.5.0.tgz#0c2caebeff98e10aefa5aef27d7441c7fd18cf5d"
+  integrity sha512-rIY/6WPm7T8n3qS2vuHTUBPdXHl+rGxWxW5okDfo9J4Z0+gRRZT0msvUdIJkE4/HS29GUMziwGaaKO2bWONBrg==
+
+"@ethersproject/sha2@^5.5.0":
+  version "5.5.0"
+  resolved "https://registry.yarnpkg.com/@ethersproject/sha2/-/sha2-5.5.0.tgz#a40a054c61f98fd9eee99af2c3cc6ff57ec24db7"
+  integrity sha512-B5UBoglbCiHamRVPLA110J+2uqsifpZaTmid2/7W5rbtYVz6gus6/hSDieIU/6gaKIDcOj12WnOdiymEUHIAOA==
+  dependencies:
+    "@ethersproject/bytes" "^5.5.0"
+    "@ethersproject/logger" "^5.5.0"
+    hash.js "1.1.7"
+
 "@project-serum/anchor@^0.16.1":
   version "0.16.2"
   resolved "https://registry.yarnpkg.com/@project-serum/anchor/-/anchor-0.16.2.tgz#b8b4ec4c749d59a224108f8d82ab68217ef752ae"
@@ -37,12 +58,12 @@
     bn.js "^5.1.2"
     buffer-layout "^1.2.0"
 
-"@pythnetwork/client@^2.2.0":
-  version "2.3.2"
-  resolved "https://registry.yarnpkg.com/@pythnetwork/client/-/client-2.3.2.tgz#3039ee4594a53025a20c05facc36dcb21786d69f"
-  integrity sha512-Rf69kmq2kkBaZ5+BjDZitjsRKEG3s+foJZogCs6UfkCsRm0rHbfZYp/BxqRexFASrzIYKN3Hp+txP4K6aXBOxw==
+"@pythnetwork/client@^2.3.2":
+  version "2.4.0"
+  resolved "https://registry.yarnpkg.com/@pythnetwork/client/-/client-2.4.0.tgz#5bc9bb3fceb748e6a2d5f23c2da66ac66f2fb4bf"
+  integrity sha512-CRoqX7r1fjogpLNl8DwJ3ihAfi68gDbQw0nO0/FLd/MyW5s+cMWjrCJsKOrl/NoYqugHI9c8ogi8i2Hbh/IzMQ==
   dependencies:
-    "@solana/web3.js" "^1.10.1"
+    "@solana/web3.js" "^1.30.2"
     assert "^2.0.0"
     buffer "^6.0.1"
 
@@ -94,7 +115,7 @@
     buffer-layout "^1.2.0"
     dotenv "10.0.0"
 
-"@solana/web3.js@^1.10.1", "@solana/web3.js@^1.17.0", "@solana/web3.js@^1.21.0", "@solana/web3.js@^1.22.0":
+"@solana/web3.js@^1.17.0", "@solana/web3.js@^1.21.0", "@solana/web3.js@^1.22.0":
   version "1.29.2"
   resolved "https://registry.yarnpkg.com/@solana/web3.js/-/web3.js-1.29.2.tgz#05c162f477c226ee3211f8ee8c1c6d4203e08f54"
   integrity sha512-gtoHzimv7upsKF2DIO4/vNfIMKN+cxSImBHvsdiMyp9IPqb8sctsHVU/+80xXl0JKXVKeairDv5RvVnesJYrtw==
@@ -107,6 +128,26 @@
     buffer "6.0.1"
     cross-fetch "^3.1.4"
     crypto-hash "^1.2.2"
+    jayson "^3.4.4"
+    js-sha3 "^0.8.0"
+    rpc-websockets "^7.4.2"
+    secp256k1 "^4.0.2"
+    superstruct "^0.14.2"
+    tweetnacl "^1.0.0"
+
+"@solana/web3.js@^1.30.2":
+  version "1.30.2"
+  resolved "https://registry.yarnpkg.com/@solana/web3.js/-/web3.js-1.30.2.tgz#e85da75e0825dc64f53eb64a1ff0115b27bec135"
+  integrity sha512-hznCj+rkfvM5taRP3Z+l5lumB7IQnDrB4l55Wpsg4kDU9Zds8pE5YOH5Z9bbF/pUzZJKQjyBjnY/6kScBm3Ugg==
+  dependencies:
+    "@babel/runtime" "^7.12.5"
+    "@ethersproject/sha2" "^5.5.0"
+    "@solana/buffer-layout" "^3.0.0"
+    bn.js "^5.0.0"
+    borsh "^0.4.0"
+    bs58 "^4.0.1"
+    buffer "6.0.1"
+    cross-fetch "^3.1.4"
     jayson "^3.4.4"
     js-sha3 "^0.8.0"
     rpc-websockets "^7.4.2"
@@ -563,7 +604,7 @@ has@^1.0.3:
   dependencies:
     function-bind "^1.1.1"
 
-hash.js@^1.0.0, hash.js@^1.0.3:
+hash.js@1.1.7, hash.js@^1.0.0, hash.js@^1.0.3:
   version "1.1.7"
   resolved "https://registry.yarnpkg.com/hash.js/-/hash.js-1.1.7.tgz#0babca538e8d4ee4a0f8988d68866537a003cf42"
   integrity sha512-taOaskGt4z4SOANNseOviYDvjEJinIkRgmp7LbKP2YTTmVxWBl87s/uzK9r+44BclBSp2X7K1hqeNfz9JbBeXA==
