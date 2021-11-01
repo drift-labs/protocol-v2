@@ -58,7 +58,7 @@
     bn.js "^5.1.2"
     buffer-layout "^1.2.0"
 
-"@pythnetwork/client@^2.3.2":
+"@pythnetwork/client@^2.2.0":
   version "2.4.0"
   resolved "https://registry.yarnpkg.com/@pythnetwork/client/-/client-2.4.0.tgz#5bc9bb3fceb748e6a2d5f23c2da66ac66f2fb4bf"
   integrity sha512-CRoqX7r1fjogpLNl8DwJ3ihAfi68gDbQw0nO0/FLd/MyW5s+cMWjrCJsKOrl/NoYqugHI9c8ogi8i2Hbh/IzMQ==
