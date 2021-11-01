@@ -35,7 +35,9 @@ async function main() {
 	const mockUsdcFaucetProgram = null; //anchor.workspace.MockUsdcFaucet as Program;
 	let mockUsdcFaucetProgramId;
 	if (!chProgram) {
-		mockUsdcFaucetProgramId = new PublicKey(sdkConfig.MOCK_USDC_FAUCET_ADDRESS);
+		mockUsdcFaucetProgramId = new PublicKey(
+			process.env.MOCK_USDC_FAUCET_ADDRESS
+		);
 	} else {
 		mockUsdcFaucetProgramId = mockUsdcFaucetProgram.programId;
 	}
