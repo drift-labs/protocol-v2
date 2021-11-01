@@ -151,7 +151,7 @@ export class ClearingHouseUser {
 		return this.getUserPositionsAccount().positions.reduce(
 			(pnl, marketPosition) => {
 				const market = this.clearingHouse.getMarket(marketPosition.marketIndex);
-				return calculatePositionFundingPNL(market, marketPosition);
+				return pnl.add(calculatePositionFundingPNL(market, marketPosition));
 			},
 			ZERO
 		);
