@@ -578,6 +578,63 @@ describe('capped funding', () => {
 			feeAlloced + Math.abs(fundingPnLForShortsNum) >= fundingPnLForLongsNum
 		);
 	});
+	it('capped sym funding: ($2000 long, $1000 short, oracle > mark)', async () => {
+		const marketIndex = new BN(rollingMarketNum);
+		rollingMarketNum += 1;
+
+		const [
+			fundingRateLong,
+			fundingRateShort,
+			fundingPnLForLongs,
+			fundingPnLForShorts,
+			totalFee,
+			cumulativeFee,
+		] = await cappedSymFundingScenario(
+			clearingHouse,
+			userAccount,
+			clearingHouse2,
+			userAccount2,
+			marketIndex,
+			ammInitialBaseAssetAmount,
+			[41, 44.5],
+			[2000, 1000]
+		);
+
+		assert(fundingRateShort.abs().gt(fundingRateLong.abs()));
+		assert(fundingRateLong.lt(new BN(0)));
+		assert(fundingRateShort.lt(new BN(0)));
+
+		assert(fundingPnLForLongs.gt(new BN(0)));
+		assert(fundingPnLForShorts.lt(new BN(0)));
+
+		assert(fundingPnLForShorts.abs().lt(fundingPnLForLongs.abs()));
+
+		const feeAlloced =
+			stripMantissa(totalFee, USDC_PRECISION) -
+			stripMantissa(cumulativeFee, USDC_PRECISION);
+
+		const precisionFundingPay = BASE_ASSET_PRECISION;
+		const fundingPnLForLongsNum = stripMantissa(
+			fundingPnLForLongs.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)),
+			precisionFundingPay
+		);
+		const fundingPnLForShortsNum = stripMantissa(
+			fundingPnLForShorts.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)),
+			precisionFundingPay
+		);
+
+		// amount of money inflow must be greater than or equal to money outflow
+		console.log(
+			feeAlloced,
+			'+',
+			Math.abs(fundingPnLForShortsNum),
+			'>=',
+			fundingPnLForLongsNum
+		);
+		assert(
+			feeAlloced + Math.abs(fundingPnLForShortsNum) >= fundingPnLForLongsNum
+		);
+	});
 	it('capped sym funding: ($200 long, $0 short, oracle > mark)', async () => {
 		const marketIndex = new BN(rollingMarketNum);
 		rollingMarketNum += 1;

@@ -78,6 +78,8 @@ pub enum ErrorCode {
     UserMaxDeposit,
     #[msg("Can not delete user that still has collateral")]
     CantDeleteUserWithCollateral,
+    #[msg("AMM funding out of bounds pnl")]
+    InvalidFundingProfitability,
 }
 
 #[macro_export]

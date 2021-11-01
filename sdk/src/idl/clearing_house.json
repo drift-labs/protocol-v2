@@ -2752,6 +2752,11 @@
       "code": 336,
       "name": "CantDeleteUserWithCollateral",
       "msg": "Can not delete user that still has collateral"
+    },
+    {
+      "code": 337,
+      "name": "InvalidFundingProfitability",
+      "msg": "AMM funding out of bounds pnl"
     }
   ]
 }

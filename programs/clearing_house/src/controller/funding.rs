@@ -104,25 +104,30 @@ pub fn update_funding_rate(
     if market.amm.funding_period > 1 {
         let last_update_delay = market
             .amm
-            .funding_period
+            .last_funding_rate_ts
             .rem_euclid(market.amm.funding_period);
         if last_update_delay != 0 {
-            if last_update_delay > market.amm.funding_period.checked_div(4).unwrap(){
+            let max_delay_for_next_period = market
+                .amm
+                .funding_period
+                .checked_div(3)
+                .ok_or_else(math_error!())?;
+            if last_update_delay > max_delay_for_next_period {
                 // too late for on the hour next period, delay to following period
                 next_update_wait = market
-                .amm
-                .funding_period
-                .checked_mul(2)
-                .unwrap()
-                .checked_sub(last_update_delay)
-                .unwrap();
-            } else{
+                    .amm
+                    .funding_period
+                    .checked_mul(2)
+                    .ok_or_else(math_error!())?
+                    .checked_sub(last_update_delay)
+                    .ok_or_else(math_error!())?;
+            } else {
                 // allow update on the hour
                 next_update_wait = market
-                .amm
-                .funding_period
-                .checked_sub(last_update_delay)
-                .unwrap();
+                    .amm
+                    .funding_period
+                    .checked_sub(last_update_delay)
+                    .ok_or_else(math_error!())?;
             }
         }
     }
