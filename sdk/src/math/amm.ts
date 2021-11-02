@@ -1,6 +1,11 @@
 import { BN } from '@project-serum/anchor';
-import { AMM_MANTISSA, PEG_SCALAR, ZERO } from '../constants/numericConstants';
-import { PositionDirection } from '../types';
+import {
+	AMM_MANTISSA,
+	ONE,
+	PEG_SCALAR,
+	ZERO,
+} from '../constants/numericConstants';
+import { AMM, PositionDirection, SwapDirection } from '../types';
 import { assert } from '../assert/assert';
 
 export function calculateCurvePriceWithMantissa(
@@ -19,33 +24,107 @@ export function calculateCurvePriceWithMantissa(
 		.div(baseAssetAmount);
 }
 
-export function findSwapOutput(
-	inputAssetAmount: BN,
-	outputAssetAmount: BN,
-	direction: PositionDirection,
-	inputAmount: BN,
-	inputAsset: string,
-	invariant: BN,
-	pegMultiplier: BN
-): [BN, BN] {
-	assert(inputAmount.gte(ZERO)); // must be abs term
-	// constant product
+export type AssetType = 'quote' | 'base';
 
-	if (inputAsset == 'quote') {
-		inputAmount = inputAmount.mul(AMM_MANTISSA).div(pegMultiplier);
+/**
+ * Calculates what the amm reserves would be after swapping a quote or base asset amount.
+ *
+ * @param amm
+ * @param inputAssetType
+ * @param swapAmount
+ * @param swapDirection
+ * @returns quoteAssetReserve and baseAssetReserve after swap. precision: 10^13
+ */
+export function calculateAmmReservesAfterSwap(
+	amm: AMM,
+	inputAssetType: AssetType,
+	swapAmount: BN,
+	swapDirection: SwapDirection
+): [BN, BN] {
+	assert(swapAmount.gte(ZERO), 'swapAmount must be greater than 0');
+
+	let newQuoteAssetReserve;
+	let newBaseAssetReserve;
+
+	if (inputAssetType === 'quote') {
+		const swapAmountIntermediate = swapAmount.mul(AMM_MANTISSA);
+		swapAmount = swapAmountIntermediate.div(amm.pegMultiplier);
+
+		// Because ints round down by default, we need to add 1 back when removing from
+		// AMM to avoid giving users extra pnl when they short
+		const roundUp =
+			swapDirection === SwapDirection.REMOVE &&
+			!swapAmountIntermediate.mod(amm.pegMultiplier).eq(ZERO);
+		if (roundUp) {
+			swapAmount = swapAmount.add(ONE);
+		}
+
+		[newQuoteAssetReserve, newBaseAssetReserve] = calculateSwapOutput(
+			amm.quoteAssetReserve,
+			swapAmount,
+			swapDirection,
+			amm.sqrtK.mul(amm.sqrtK)
+		);
+	} else {
+		[newBaseAssetReserve, newQuoteAssetReserve] = calculateSwapOutput(
+			amm.baseAssetReserve,
+			swapAmount,
+			swapDirection,
+			amm.sqrtK.mul(amm.sqrtK)
+		);
 	}
 
-	let newInputAssetAmount;
+	return [newQuoteAssetReserve, newBaseAssetReserve];
+}
+
+/**
+ * Helper function calculating constant product curve output. Agnostic to whether input asset is quote or base
+ *
+ * @param inputAssetReserve
+ * @param swapAmount
+ * @param swapDirection
+ * @param invariant
+ * @returns newInputAssetReserve and newOutputAssetReserve after swap. precision: 10^13
+ */
+export function calculateSwapOutput(
+	inputAssetReserve: BN,
+	swapAmount: BN,
+	swapDirection: SwapDirection,
+	invariant: BN
+): [BN, BN] {
+	let newInputAssetReserve;
+	if (swapDirection === SwapDirection.ADD) {
+		newInputAssetReserve = inputAssetReserve.add(swapAmount);
+	} else {
+		newInputAssetReserve = inputAssetReserve.sub(swapAmount);
+	}
+	const newOutputAssetReserve = invariant.div(newInputAssetReserve);
+	return [newInputAssetReserve, newOutputAssetReserve];
+}
+
+/**
+ * Translate long/shorting quote/base asset into amm operation
+ *
+ * @param inputAssetType
+ * @param positionDirection
+ */
+export function getSwapDirection(
+	inputAssetType: AssetType,
+	positionDirection: PositionDirection
+): SwapDirection {
+	if (
+		positionDirection === PositionDirection.LONG &&
+		inputAssetType === 'base'
+	) {
+		return SwapDirection.REMOVE;
+	}
 
 	if (
-		(direction == PositionDirection.LONG && inputAsset == 'base') ||
-		(direction == PositionDirection.SHORT && inputAsset == 'quote')
+		positionDirection === PositionDirection.SHORT &&
+		inputAssetType === 'quote'
 	) {
-		newInputAssetAmount = inputAssetAmount.sub(inputAmount);
-	} else {
-		newInputAssetAmount = inputAssetAmount.add(inputAmount);
+		return SwapDirection.REMOVE;
 	}
-	const newOutputAssetAmount = invariant.div(newInputAssetAmount);
 
-	return [newInputAssetAmount, newOutputAssetAmount];
+	return SwapDirection.ADD;
 }

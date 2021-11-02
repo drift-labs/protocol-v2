@@ -8,7 +8,11 @@ import {
 	ZERO,
 } from '../constants/numericConstants';
 import { calculateBaseAssetPriceWithMantissa } from './market';
-import { calculateCurvePriceWithMantissa, findSwapOutput } from './amm';
+import {
+	calculateAmmReservesAfterSwap,
+	calculateCurvePriceWithMantissa,
+	getSwapDirection,
+} from './amm';
 import { squareRootBN } from '../utils';
 
 const MAXPCT = new BN(1000); //percentage units are [0,1000] => [0,1]
@@ -50,28 +54,25 @@ export function calculatePriceImpact(
 		return new BN(0);
 	}
 	const oldPrice = calculateBaseAssetPriceWithMantissa(market);
-	const invariant = market.amm.sqrtK.mul(market.amm.sqrtK);
 
-	const [newQuoteAssetAmount, newBaseAssetAmount] = findSwapOutput(
-		market.amm.quoteAssetReserve,
-		market.amm.baseAssetReserve,
-		direction,
-		amount.abs(),
-		'quote',
-		invariant,
-		market.amm.pegMultiplier
-	);
+	const [newQuoteAssetReserve, newBaseAssetReserve] =
+		calculateAmmReservesAfterSwap(
+			market.amm,
+			'quote',
+			amount,
+			getSwapDirection('quote', direction)
+		);
 
 	if (unit == 'acquiredBaseAssetAmount') {
-		return market.amm.baseAssetReserve.sub(newBaseAssetAmount);
+		return market.amm.baseAssetReserve.sub(newBaseAssetReserve);
 	}
 	if (unit == 'acquiredQuoteAssetAmount') {
-		return market.amm.quoteAssetReserve.sub(newQuoteAssetAmount);
+		return market.amm.quoteAssetReserve.sub(newQuoteAssetReserve);
 	}
 
 	const entryPrice = calculateCurvePriceWithMantissa(
-		market.amm.baseAssetReserve.sub(newBaseAssetAmount),
-		market.amm.quoteAssetReserve.sub(newQuoteAssetAmount),
+		market.amm.baseAssetReserve.sub(newBaseAssetReserve),
+		market.amm.quoteAssetReserve.sub(newQuoteAssetReserve),
 		market.amm.pegMultiplier
 	).mul(new BN(-1));
 
@@ -84,8 +85,8 @@ export function calculatePriceImpact(
 	}
 
 	const newPrice = calculateCurvePriceWithMantissa(
-		newBaseAssetAmount,
-		newQuoteAssetAmount,
+		newBaseAssetReserve,
+		newQuoteAssetReserve,
 		market.amm.pegMultiplier
 	);
 

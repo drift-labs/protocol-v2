@@ -1,7 +1,7 @@
 import { Market, PositionDirection, UserPosition } from '../types';
 import { ZERO } from '../constants/numericConstants';
 import BN from 'bn.js';
-import { findSwapOutput } from './amm';
+import { calculateAmmReservesAfterSwap, getSwapDirection } from './amm';
 import {
 	AMM_MANTISSA,
 	BASE_ASSET_PRECISION,
@@ -28,25 +28,21 @@ export function calculateBaseAssetValue(
 		? PositionDirection.SHORT
 		: PositionDirection.LONG;
 
-	const invariant = market.amm.sqrtK.mul(market.amm.sqrtK);
-	const [, newQuoteAssetAmount] = findSwapOutput(
-		market.amm.baseAssetReserve,
-		market.amm.quoteAssetReserve,
-		directionToClose,
-		userPosition.baseAssetAmount.abs(),
+	const [newQuoteAssetReserve, _] = calculateAmmReservesAfterSwap(
+		market.amm,
 		'base',
-		invariant,
-		market.amm.pegMultiplier
+		userPosition.baseAssetAmount.abs(),
+		getSwapDirection('base', directionToClose)
 	);
 
 	switch (directionToClose) {
 		case PositionDirection.SHORT:
 			return market.amm.quoteAssetReserve
-				.sub(newQuoteAssetAmount)
+				.sub(newQuoteAssetReserve)
 				.mul(market.amm.pegMultiplier);
 
 		case PositionDirection.LONG:
-			return newQuoteAssetAmount
+			return newQuoteAssetReserve
 				.sub(market.amm.quoteAssetReserve)
 				.mul(market.amm.pegMultiplier);
 	}

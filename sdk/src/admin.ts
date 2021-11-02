@@ -16,7 +16,7 @@ import clearingHouseIDL from './idl/clearing_house.json';
 import { DefaultClearingHouseAccountSubscriber } from './accounts/defaultClearingHouseAccountSubscriber';
 import { DefaultTxSender } from './tx/defaultTxSender';
 import { calculateTargetPriceTrade } from './math/trade';
-import { findSwapOutput } from './math/amm';
+import { calculateAmmReservesAfterSwap, getSwapDirection } from './math/amm';
 
 export class Admin extends ClearingHouse {
 	public static from(
@@ -251,17 +251,13 @@ export class Admin extends ClearingHouse {
 			targetPrice
 		);
 
-		const invariant = market.amm.sqrtK.mul(market.amm.sqrtK);
-
-		const [newQuoteAssetAmount, newBaseAssetAmount] = findSwapOutput(
-			market.amm.quoteAssetReserve,
-			market.amm.baseAssetReserve,
-			direction,
-			tradeSize,
-			'quote',
-			invariant,
-			market.amm.pegMultiplier
-		);
+		const [newQuoteAssetAmount, newBaseAssetAmount] =
+			calculateAmmReservesAfterSwap(
+				market.amm,
+				'quote',
+				tradeSize,
+				getSwapDirection('quote', direction)
+			);
 
 		const state = this.getStateAccount();
 		return await this.program.rpc.moveAmmPrice(
