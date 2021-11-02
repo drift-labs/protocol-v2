@@ -9,10 +9,11 @@
   "author": "crispheaney",
   "license": "ISC",
   "dependencies": {
+    "@moet/sdk": "file:../sdk",
     "@project-serum/anchor": "0.16.2",
+    "@solana/spl-token": "^0.1.8",
     "@solana/web3.js": "^1.22.0",
     "@types/node": "^16.7.10",
-    "@moet/sdk": "file:../sdk",
     "commander": "^8.1.0",
     "loglevel": "^1.7.1"
   }

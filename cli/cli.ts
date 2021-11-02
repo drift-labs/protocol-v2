@@ -3,10 +3,15 @@ import { Command, OptionValues, program } from 'commander';
 import os from 'os';
 import fs from 'fs';
 import log from 'loglevel';
-import { Admin, initialize } from '@moet/sdk';
+import { Admin, ClearingHouseUser, initialize } from '@moet/sdk';
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import { Wallet } from '@project-serum/anchor';
 import BN from 'bn.js';
+import {
+	ASSOCIATED_TOKEN_PROGRAM_ID,
+	Token,
+	TOKEN_PROGRAM_ID,
+} from '@solana/spl-token';
 
 log.setLevel(log.levels.INFO);
 
@@ -56,7 +61,7 @@ function adminFromOptions(options: OptionValues): Admin {
 	);
 }
 
-async function wrapActionInSubscribeUnsubscribe(
+async function wrapActionInAdminSubscribeUnsubscribe(
 	options: OptionValues,
 	action: (admin: Admin) => Promise<void>
 ): Promise<void> {
@@ -76,6 +81,37 @@ async function wrapActionInSubscribeUnsubscribe(
 	log.info(`ClearingHouse unsubscribed`);
 }
 
+async function wrapActionInUserSubscribeUnsubscribe(
+	options: OptionValues,
+	action: (user: ClearingHouseUser) => Promise<void>
+): Promise<void> {
+	const admin = adminFromOptions(options);
+	log.info(`ClearingHouse subscribing`);
+	await admin.subscribe();
+	log.info(`ClearingHouse subscribed`);
+	const clearingHouseUser = ClearingHouseUser.from(
+		admin,
+		admin.wallet.publicKey
+	);
+	log.info(`User subscribing`);
+	await clearingHouseUser.subscribe();
+	log.info(`User subscribed`);
+
+	try {
+		await action(clearingHouseUser);
+	} catch (e) {
+		log.error(e);
+	}
+
+	log.info(`User unsubscribing`);
+	await clearingHouseUser.unsubscribe();
+	log.info(`User unsubscribed`);
+
+	log.info(`ClearingHouse unsubscribing`);
+	await admin.unsubscribe();
+	log.info(`ClearingHouse unsubscribed`);
+}
+
 commandWithDefaultOption('initialize')
 	.argument('<collateral mint>', 'The collateral mint')
 	.argument(
@@ -84,13 +120,16 @@ commandWithDefaultOption('initialize')
 	)
 	.action(
 		async (collateralMint, adminControlsPrices, options: OptionValues) => {
-			await wrapActionInSubscribeUnsubscribe(options, async (admin: Admin) => {
-				log.info(`collateralMint: ${collateralMint}`);
-				log.info(`adminControlsPrices: ${adminControlsPrices}`);
-				const collateralMintPublicKey = new PublicKey(collateralMint);
-				log.info(`ClearingHouse initializing`);
-				await admin.initialize(collateralMintPublicKey, adminControlsPrices);
-			});
+			await wrapActionInAdminSubscribeUnsubscribe(
+				options,
+				async (admin: Admin) => {
+					log.info(`collateralMint: ${collateralMint}`);
+					log.info(`adminControlsPrices: ${adminControlsPrices}`);
+					const collateralMintPublicKey = new PublicKey(collateralMint);
+					log.info(`ClearingHouse initializing`);
+					await admin.initialize(collateralMintPublicKey, adminControlsPrices);
+				}
+			);
 		}
 	);
 
@@ -99,45 +138,75 @@ commandWithDefaultOption('update-k')
 	.argument('<numerator>', 'Numerator to multiply k by')
 	.argument('<denominator>', 'Denominator to divide k by')
 	.action(async (market, numerator, denominator, options: OptionValues) => {
-		await wrapActionInSubscribeUnsubscribe(options, async (admin: Admin) => {
-			log.info(`market: ${market}`);
-			log.info(`numerator: ${numerator}`);
-			log.info(`denominator: ${denominator}`);
-			market = new BN(market);
-			numerator = new BN(numerator);
-			denominator = new BN(denominator);
+		await wrapActionInAdminSubscribeUnsubscribe(
+			options,
+			async (admin: Admin) => {
+				log.info(`market: ${market}`);
+				log.info(`numerator: ${numerator}`);
+				log.info(`denominator: ${denominator}`);
+				market = new BN(market);
+				numerator = new BN(numerator);
+				denominator = new BN(denominator);
 
-			const amm = admin.getMarketsAccount().markets[market.toNumber()].amm;
-			const oldSqrtK = amm.sqrtK;
-			log.info(`Current sqrt k: ${oldSqrtK.toString()}`);
+				const amm = admin.getMarketsAccount().markets[market.toNumber()].amm;
+				const oldSqrtK = amm.sqrtK;
+				log.info(`Current sqrt k: ${oldSqrtK.toString()}`);
 
-			const newSqrtK = oldSqrtK.mul(numerator).div(denominator);
-			log.info(`New sqrt k: ${newSqrtK.toString()}`);
+				const newSqrtK = oldSqrtK.mul(numerator).div(denominator);
+				log.info(`New sqrt k: ${newSqrtK.toString()}`);
 
-			log.info(`Updating K`);
-			await admin.updateK(newSqrtK, market);
-			log.info(`Updated K`);
-		});
+				log.info(`Updating K`);
+				await admin.updateK(newSqrtK, market);
+				log.info(`Updated K`);
+			}
+		);
 	});
 
 commandWithDefaultOption('repeg')
 	.argument('<market>', 'The market to adjust k for')
 	.argument('<peg>', 'New Peg')
 	.action(async (market, peg, options: OptionValues) => {
-		await wrapActionInSubscribeUnsubscribe(options, async (admin: Admin) => {
-			log.info(`market: ${market}`);
-			log.info(`peg: ${peg}`);
-			market = new BN(market);
-			peg = new BN(peg);
+		await wrapActionInAdminSubscribeUnsubscribe(
+			options,
+			async (admin: Admin) => {
+				log.info(`market: ${market}`);
+				log.info(`peg: ${peg}`);
+				market = new BN(market);
+				peg = new BN(peg);
 
-			const amm = admin.getMarketsAccount().markets[market.toNumber()].amm;
-			const oldPeg = amm.pegMultiplier;
-			log.info(`Current peg: ${oldPeg.toString()}`);
+				const amm = admin.getMarketsAccount().markets[market.toNumber()].amm;
+				const oldPeg = amm.pegMultiplier;
+				log.info(`Current peg: ${oldPeg.toString()}`);
 
-			log.info(`Updating peg`);
-			await admin.repegAmmCurve(peg, market);
-			log.info(`Updated peg`);
-		});
+				log.info(`Updating peg`);
+				await admin.repegAmmCurve(peg, market);
+				log.info(`Updated peg`);
+			}
+		);
+	});
+
+commandWithDefaultOption('deposit')
+	.argument('<amount>', 'The amount to deposit')
+	.action(async (amount, options: OptionValues) => {
+		await wrapActionInUserSubscribeUnsubscribe(
+			options,
+			async (user: ClearingHouseUser) => {
+				log.info(`amount: ${amount}`);
+				amount = new BN(amount);
+
+				const associatedTokenPublicKey = await Token.getAssociatedTokenAddress(
+					ASSOCIATED_TOKEN_PROGRAM_ID,
+					TOKEN_PROGRAM_ID,
+					user.clearingHouse.getStateAccount().collateralMint,
+					user.authority
+				);
+
+				await user.clearingHouse.depositCollateral(
+					amount,
+					associatedTokenPublicKey
+				);
+			}
+		);
 	});
 
 function getConfigFileDir(): string {
