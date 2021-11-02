@@ -6,6 +6,7 @@ import log from 'loglevel';
 import { Admin, initialize } from '@moet/sdk';
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import { Wallet } from '@project-serum/anchor';
+import BN from 'bn.js';
 
 log.setLevel(log.levels.INFO);
 
@@ -92,6 +93,32 @@ commandWithDefaultOption('initialize')
 			});
 		}
 	);
+
+commandWithDefaultOption('update-k')
+	.argument('<market>', 'The market to adjust k for')
+	.argument('<numerator>', 'Numerator to multiply k by')
+	.argument('<denominator>', 'Denominator to divide k by')
+	.action(async (market, numerator, denominator, options: OptionValues) => {
+		await wrapActionInSubscribeUnsubscribe(options, async (admin: Admin) => {
+			log.info(`market: ${market}`);
+			log.info(`numerator: ${numerator}`);
+			log.info(`denominator: ${denominator}`);
+			market = new BN(market);
+			numerator = new BN(numerator);
+			denominator = new BN(denominator);
+
+			const amm = admin.getMarketsAccount().markets[market.toNumber()].amm;
+			const oldSqrtK = amm.sqrtK;
+			log.info(`Current sqrt k: ${oldSqrtK.toString()}`);
+
+			const newSqrtK = oldSqrtK.mul(numerator).div(denominator);
+			log.info(`New sqrt k: ${newSqrtK.toString()}`);
+
+			log.info(`Updating K`);
+			await admin.updateK(newSqrtK, market);
+			log.info(`Updated K`);
+		});
+	});
 
 function getConfigFileDir(): string {
 	return os.homedir() + `/.config/drift-v1`;
