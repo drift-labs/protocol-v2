@@ -5,7 +5,7 @@ import BN from 'bn.js';
 import {
 	Admin,
 	AMM_MANTISSA,
-	calculateBaseAssetPriceWithMantissa,
+	calculateMarkPrice,
 	calculatePriceImpact,
 	calculateTargetPriceTrade,
 	PositionDirection,
@@ -53,7 +53,7 @@ describe('AMM Curve', () => {
 			return new BN(0);
 		}
 		const market = this.getMarketsAccount().markets[marketIndex.toNumber()];
-		const oldPrice = this.calculateBaseAssetPriceWithMantissa(marketIndex);
+		const oldPrice = this.calculateMarkPrice(marketIndex);
 		const invariant = market.amm.sqrtK.mul(market.amm.sqrtK);
 
 		const [newQuoteAssetAmount, newBaseAssetAmount] = this.findSwapOutput(
@@ -226,7 +226,7 @@ describe('AMM Curve', () => {
 	const showBook = (marketIndex) => {
 		const market =
 			clearingHouse.getMarketsAccount().markets[marketIndex.toNumber()];
-		const currentMark = calculateBaseAssetPriceWithMantissa(market);
+		const currentMark = calculateMarkPrice(market);
 
 		const [bidsPrice, bidsCumSize, asksPrice, asksCumSize] = liquidityBook(
 			market,

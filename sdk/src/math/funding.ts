@@ -2,7 +2,7 @@ import { BN } from '@project-serum/anchor';
 import { PythClient } from '../pythClient';
 import { AMM_MANTISSA } from '../constants/numericConstants';
 import { Market } from '../types';
-import { calculateBaseAssetPriceWithMantissa } from './market';
+import { calculateMarkPrice } from './market';
 
 export async function calculateEstimatedFundingRate(
 	market: Market,
@@ -39,8 +39,7 @@ export async function calculateEstimatedFundingRate(
 		market.amm.lastFundingRateTs
 	);
 
-	const baseAssetPriceWithMantissa =
-		calculateBaseAssetPriceWithMantissa(market);
+	const baseAssetPriceWithMantissa = calculateMarkPrice(market);
 
 	const markTwapWithMantissa = markTwapTimeSinceLastUpdate
 		.mul(lastMarkTwapWithMantissa)

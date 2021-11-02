@@ -2,7 +2,7 @@ import { BN } from '@project-serum/anchor';
 import { AMM_MANTISSA } from './constants/numericConstants';
 import { Market } from './types';
 import { calculateTargetPriceTrade } from './math/trade';
-import { calculateBaseAssetPriceWithMantissa } from './math/market';
+import { calculateMarkPrice } from './math/market';
 
 /**
  * liquidityBook
@@ -14,8 +14,7 @@ import { calculateBaseAssetPriceWithMantissa } from './math/market';
  */
 export function liquidityBook(market: Market, N = 5, incrementSize = 0.1) {
 	const defaultSlippageBN = new BN(incrementSize * AMM_MANTISSA.toNumber());
-	const baseAssetPriceWithMantissa =
-		calculateBaseAssetPriceWithMantissa(market);
+	const baseAssetPriceWithMantissa = calculateMarkPrice(market);
 	const bidsPrice = [];
 	const bidsCumSize = [];
 	const asksPrice = [];

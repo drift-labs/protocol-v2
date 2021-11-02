@@ -131,8 +131,7 @@ export async function stress_test(
 				const oraclePriceMantissa = new BN(
 					oracleData.price * PEG_SCALAR.toNumber()
 				).mul(AMM_MANTISSA.div(PEG_SCALAR));
-				const markPriceMantissa =
-					clearingHouse.calculateBaseAssetPriceWithMantissa(market_i);
+				const markPriceMantissa = clearingHouse.calculateMarkPrice(market_i);
 
 				[randEType, rand_amt, _entry_px] =
 					clearingHouse.calculateTargetPriceTrade(

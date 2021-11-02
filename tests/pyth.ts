@@ -12,7 +12,7 @@ import {
 } from './testHelpers';
 
 import {
-	calculateBaseAssetPriceWithMantissa,
+	calculateMarkPrice,
 	PEG_SCALAR,
 	stripMantissa,
 	PositionDirection,
@@ -297,11 +297,7 @@ describe('pyth-oracle', () => {
 
 		console.log(
 			'PRICE',
-			stripMantissa(
-				calculateBaseAssetPriceWithMantissa(
-					clearingHouse.getMarket(marketIndex)
-				)
-			)
+			stripMantissa(calculateMarkPrice(clearingHouse.getMarket(marketIndex)))
 		);
 
 		await clearingHouse.openPosition(
@@ -347,8 +343,7 @@ describe('pyth-oracle', () => {
 
 		const market =
 			clearingHouse.getMarketsAccount().markets[marketIndex.toNumber()];
-		const baseAssetPriceWithMantissa =
-			calculateBaseAssetPriceWithMantissa(market);
+		const baseAssetPriceWithMantissa = calculateMarkPrice(market);
 
 		const targetPriceDefaultSlippage = baseAssetPriceWithMantissa.add(
 			baseAssetPriceWithMantissa.div(new BN(11))

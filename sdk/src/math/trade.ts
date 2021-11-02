@@ -7,7 +7,7 @@ import {
 	QUOTE_BASE_PRECISION_DIFF,
 	ZERO,
 } from '../constants/numericConstants';
-import { calculateBaseAssetPriceWithMantissa } from './market';
+import { calculateMarkPrice } from './market';
 import {
 	calculateAmmReservesAfterSwap,
 	calculatePrice,
@@ -53,7 +53,7 @@ export function calculatePriceImpact(
 	if (amount.eq(new BN(0))) {
 		return new BN(0);
 	}
-	const oldPrice = calculateBaseAssetPriceWithMantissa(market);
+	const oldPrice = calculateMarkPrice(market);
 
 	const [newQuoteAssetReserve, newBaseAssetReserve] =
 		calculateAmmReservesAfterSwap(
@@ -160,7 +160,7 @@ export function calculateTargetPriceTrade(
 	assert(targetPrice.gt(ZERO));
 	assert(pct.lte(MAXPCT) && pct.gt(ZERO));
 
-	const markPriceWithMantissa = calculateBaseAssetPriceWithMantissa(market);
+	const markPriceWithMantissa = calculateMarkPrice(market);
 
 	if (targetPrice.gt(markPriceWithMantissa)) {
 		const priceGap = targetPrice.sub(markPriceWithMantissa);
