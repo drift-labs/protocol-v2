@@ -120,6 +120,26 @@ commandWithDefaultOption('update-k')
 		});
 	});
 
+commandWithDefaultOption('repeg')
+	.argument('<market>', 'The market to adjust k for')
+	.argument('<peg>', 'New Peg')
+	.action(async (market, peg, options: OptionValues) => {
+		await wrapActionInSubscribeUnsubscribe(options, async (admin: Admin) => {
+			log.info(`market: ${market}`);
+			log.info(`peg: ${peg}`);
+			market = new BN(market);
+			peg = new BN(peg);
+
+			const amm = admin.getMarketsAccount().markets[market.toNumber()].amm;
+			const oldPeg = amm.pegMultiplier;
+			log.info(`Current peg: ${oldPeg.toString()}`);
+
+			log.info(`Updating peg`);
+			await admin.repegAmmCurve(peg, market);
+			log.info(`Updated peg`);
+		});
+	});
+
 function getConfigFileDir(): string {
 	return os.homedir() + `/.config/drift-v1`;
 }
