@@ -48,6 +48,8 @@ export class DefaultClearingHouseAccountSubscriber
 		const statePublicKey = await getClearingHouseStateAccountPublicKey(
 			this.program.programId
 		);
+
+		// create and activate main state account subscription
 		this.stateAccountSubscriber = new WebSocketAccountSubscriber(
 			'state',
 			this.program,
@@ -60,38 +62,24 @@ export class DefaultClearingHouseAccountSubscriber
 
 		const state = this.stateAccountSubscriber.data;
 
+
+		// create subscribers for other state accounts
 		this.marketsAccountSubscriber = new WebSocketAccountSubscriber(
 			'markets',
 			this.program,
 			state.markets
 		);
-		await this.marketsAccountSubscriber.subscribe((data: MarketsAccount) => {
-			this.eventEmitter.emit('marketsAccountUpdate', data);
-			this.eventEmitter.emit('update');
-		});
 
 		this.tradeHistoryAccountSubscriber = new WebSocketAccountSubscriber(
 			'tradeHistory',
 			this.program,
 			state.tradeHistory
 		);
-		await this.tradeHistoryAccountSubscriber.subscribe(
-			(data: TradeHistoryAccount) => {
-				this.eventEmitter.emit('tradeHistoryAccountUpdate', data);
-				this.eventEmitter.emit('update');
-			}
-		);
 
 		this.depositHistoryAccountSubscriber = new WebSocketAccountSubscriber(
 			'depositHistory',
 			this.program,
 			state.depositHistory
-		);
-		await this.depositHistoryAccountSubscriber.subscribe(
-			(data: DepositHistoryAccount) => {
-				this.eventEmitter.emit('depositHistoryAccountUpdate', data);
-				this.eventEmitter.emit('update');
-			}
 		);
 
 		this.fundingPaymentHistoryAccountSubscriber =
@@ -100,23 +88,11 @@ export class DefaultClearingHouseAccountSubscriber
 				this.program,
 				state.fundingPaymentHistory
 			);
-		await this.fundingPaymentHistoryAccountSubscriber.subscribe(
-			(data: FundingPaymentHistoryAccount) => {
-				this.eventEmitter.emit('fundingPaymentHistoryAccountUpdate', data);
-				this.eventEmitter.emit('update');
-			}
-		);
 
 		this.fundingRateHistoryAccountSubscriber = new WebSocketAccountSubscriber(
 			'fundingRateHistory',
 			this.program,
 			state.fundingRateHistory
-		);
-		await this.fundingRateHistoryAccountSubscriber.subscribe(
-			(data: FundingRateHistoryAccount) => {
-				this.eventEmitter.emit('fundingRateHistoryAccountUpdate', data);
-				this.eventEmitter.emit('update');
-			}
 		);
 
 		this.liquidationHistoryAccountSubscriber = new WebSocketAccountSubscriber(
@@ -124,24 +100,58 @@ export class DefaultClearingHouseAccountSubscriber
 			this.program,
 			state.liquidationHistory
 		);
-		await this.liquidationHistoryAccountSubscriber.subscribe(
-			(data: LiquidationHistoryAccount) => {
-				this.eventEmitter.emit('liquidationHistoryAccountUpdate', data);
-				this.eventEmitter.emit('update');
-			}
-		);
 
 		this.curveHistoryAccountSubscriber = new WebSocketAccountSubscriber(
 			'curveHistory',
 			this.program,
 			state.curveHistory
 		);
-		await this.curveHistoryAccountSubscriber.subscribe(
-			(data: CurveHistoryAccount) => {
-				this.eventEmitter.emit('curveHistoryAccountUpdate', data);
+
+		// await all subcriptions in parallel to boost performance
+		//// the state account subscription above can't happen in here, because some of these susbcriptions are dependent on clearing house state being available
+		await Promise.all([
+			this.marketsAccountSubscriber.subscribe((data: MarketsAccount) => {
+				this.eventEmitter.emit('marketsAccountUpdate', data);
 				this.eventEmitter.emit('update');
-			}
-		);
+			}),
+
+			this.tradeHistoryAccountSubscriber.subscribe(
+				(data: TradeHistoryAccount) => {
+					this.eventEmitter.emit('tradeHistoryAccountUpdate', data);
+					this.eventEmitter.emit('update');
+				}
+			),
+			this.depositHistoryAccountSubscriber.subscribe(
+				(data: DepositHistoryAccount) => {
+					this.eventEmitter.emit('depositHistoryAccountUpdate', data);
+					this.eventEmitter.emit('update');
+				}
+			),
+			this.fundingPaymentHistoryAccountSubscriber.subscribe(
+				(data: FundingPaymentHistoryAccount) => {
+					this.eventEmitter.emit('fundingPaymentHistoryAccountUpdate', data);
+					this.eventEmitter.emit('update');
+				}
+			),
+			this.fundingRateHistoryAccountSubscriber.subscribe(
+				(data: FundingRateHistoryAccount) => {
+					this.eventEmitter.emit('fundingRateHistoryAccountUpdate', data);
+					this.eventEmitter.emit('update');
+				}
+			),
+			this.liquidationHistoryAccountSubscriber.subscribe(
+				(data: LiquidationHistoryAccount) => {
+					this.eventEmitter.emit('liquidationHistoryAccountUpdate', data);
+					this.eventEmitter.emit('update');
+				}
+			),
+			this.curveHistoryAccountSubscriber.subscribe(
+				(data: CurveHistoryAccount) => {
+					this.eventEmitter.emit('curveHistoryAccountUpdate', data);
+					this.eventEmitter.emit('update');
+				}
+			),
+		]);
 
 		this.eventEmitter.emit('update');
 
