@@ -1,10 +1,10 @@
 import { BN } from '@project-serum/anchor';
 import { Market } from '../types';
-import { calculateCurvePriceWithMantissa } from './amm';
+import { calculatePrice } from './amm';
 import { AMM_MANTISSA } from '../constants/numericConstants';
 
 export function calculateBaseAssetPriceWithMantissa(market: Market): BN {
-	return calculateCurvePriceWithMantissa(
+	return calculatePrice(
 		market.amm.baseAssetReserve,
 		market.amm.quoteAssetReserve,
 		market.amm.pegMultiplier

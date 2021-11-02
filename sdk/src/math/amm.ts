@@ -8,10 +8,18 @@ import {
 import { AMM, PositionDirection, SwapDirection } from '../types';
 import { assert } from '../assert/assert';
 
-export function calculateCurvePriceWithMantissa(
+/**
+ * Calculates a price given an arbitrary base and quote amount (they must have the same precision)
+ *
+ * @param baseAssetAmount
+ * @param quoteAssetAmount
+ * @param peg_multiplier
+ * @returns price precision 10^10
+ */
+export function calculatePrice(
 	baseAssetAmount: BN,
 	quoteAssetAmount: BN,
-	peg: BN
+	peg_multiplier: BN
 ): BN {
 	if (baseAssetAmount.abs().lte(ZERO)) {
 		return new BN(0);
@@ -19,7 +27,7 @@ export function calculateCurvePriceWithMantissa(
 
 	return quoteAssetAmount
 		.mul(AMM_MANTISSA)
-		.mul(peg)
+		.mul(peg_multiplier)
 		.div(PEG_SCALAR)
 		.div(baseAssetAmount);
 }

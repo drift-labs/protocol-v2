@@ -10,7 +10,7 @@ import {
 import { calculateBaseAssetPriceWithMantissa } from './market';
 import {
 	calculateAmmReservesAfterSwap,
-	calculateCurvePriceWithMantissa,
+	calculatePrice,
 	getSwapDirection,
 } from './amm';
 import { squareRootBN } from '../utils';
@@ -70,7 +70,7 @@ export function calculatePriceImpact(
 		return market.amm.quoteAssetReserve.sub(newQuoteAssetReserve);
 	}
 
-	const entryPrice = calculateCurvePriceWithMantissa(
+	const entryPrice = calculatePrice(
 		market.amm.baseAssetReserve.sub(newBaseAssetReserve),
 		market.amm.quoteAssetReserve.sub(newQuoteAssetReserve),
 		market.amm.pegMultiplier
@@ -84,7 +84,7 @@ export function calculatePriceImpact(
 		return entryPrice;
 	}
 
-	const newPrice = calculateCurvePriceWithMantissa(
+	const newPrice = calculatePrice(
 		newBaseAssetReserve,
 		newQuoteAssetReserve,
 		market.amm.pegMultiplier
@@ -194,7 +194,7 @@ export function calculateTargetPriceTrade(
 		).sub(new BN(1));
 		y2 = k.div(AMM_MANTISSA).div(x2);
 
-		targetPriceCalced = calculateCurvePriceWithMantissa(x2, y2, peg);
+		targetPriceCalced = calculatePrice(x2, y2, peg);
 		direction = PositionDirection.SHORT;
 		tradeSize = y1
 			.sub(y2)
@@ -209,7 +209,7 @@ export function calculateTargetPriceTrade(
 		).add(new BN(1));
 		y2 = k.div(AMM_MANTISSA).div(x2);
 
-		targetPriceCalced = calculateCurvePriceWithMantissa(x2, y2, peg);
+		targetPriceCalced = calculatePrice(x2, y2, peg);
 
 		direction = PositionDirection.LONG;
 		tradeSize = y2
@@ -236,11 +236,7 @@ export function calculateTargetPriceTrade(
 		ogDiff = markPriceWithMantissa.sub(targetPrice);
 	}
 
-	const entryPrice = calculateCurvePriceWithMantissa(
-		baseSize.abs(),
-		tradeSize,
-		AMM_MANTISSA
-	);
+	const entryPrice = calculatePrice(baseSize.abs(), tradeSize, AMM_MANTISSA);
 	assert(tp1.sub(tp2).lte(ogDiff), 'Target Price Calculation incorrect');
 	// assert(tp1.sub(tp2).lt(AMM_MANTISSA), 'Target Price Calculation incorrect'); //  super OoB shorts do not
 	assert(
