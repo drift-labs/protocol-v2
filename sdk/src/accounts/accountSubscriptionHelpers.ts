@@ -19,7 +19,7 @@ import { Liquidation, LiquidationRecord } from '../types';
 const defaultPublicKey = new PublicKey('11111111111111111111111111111111');
 const priceMantissa = AMM_MANTISSA;
 
-export const calculatePrice = (
+export const calculatePriceForTradeRecord = (
 	quoteAssetAmount: BN,
 	baseAssetAmount: BN
 ): number => {
@@ -169,7 +169,7 @@ export const convertTradesToCandle = (
 
 export const tradeRecordToUITrade = (tradeRecord: TradeRecord): Trade => {
 	return {
-		price: calculatePrice(
+		price: calculatePriceForTradeRecord(
 			tradeRecord.quoteAssetAmount,
 			tradeRecord.baseAssetAmount
 		),
