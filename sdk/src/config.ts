@@ -1,4 +1,3 @@
-
 type DriftConfig = {
 	ENV: DriftEnv;
 	PYTH_ORACLE_MAPPING_ADDRESS: string;
@@ -6,28 +5,15 @@ type DriftConfig = {
 	USDC_MINT_ADDRESS: string;
 };
 
-export type DriftEnv = 'local' | 'master' | 'devnet' | 'mainnet-beta';
+export type DriftEnv = 'devnet' | 'mainnet-beta';
 
 export const configs: { [key in DriftEnv]: DriftConfig } = {
-	local: {
-		ENV: 'local',
-		PYTH_ORACLE_MAPPING_ADDRESS: 'BmA9Z6FjioHJPpjT39QazZyhDRUdZy2ezwx4GiDdE2u2',
-		CLEARING_HOUSE_PROGRAM_ID: 'tCyWBVHtN4iGtZWs2dkefWk38SyN4RGtED14KzUopK9',
-		USDC_MINT_ADDRESS: '8zGuJQqwhZafTah7Uc7Z4tXRnguqkn5KLFAP8oV6PHe2',
-	},
-	master: {
-		ENV: 'master',
-		PYTH_ORACLE_MAPPING_ADDRESS: 'BmA9Z6FjioHJPpjT39QazZyhDRUdZy2ezwx4GiDdE2u2',
-		CLEARING_HOUSE_PROGRAM_ID: 'tCyWBVHtN4iGtZWs2dkefWk38SyN4RGtED14KzUopK9',
-		USDC_MINT_ADDRESS: '8zGuJQqwhZafTah7Uc7Z4tXRnguqkn5KLFAP8oV6PHe2',
-	},
 	devnet: {
 		ENV: 'devnet',
 		PYTH_ORACLE_MAPPING_ADDRESS: 'BmA9Z6FjioHJPpjT39QazZyhDRUdZy2ezwx4GiDdE2u2',
-		CLEARING_HOUSE_PROGRAM_ID: '4awDz7psr6PTq8CrE72anZx7Bbs8EtwToNtQf3YuT6of',
-		USDC_MINT_ADDRESS: '5p5BksZo5qHAvZxdwKJWWF7QLk4boLavSnrqRvKJGWFD',
+		CLEARING_HOUSE_PROGRAM_ID: 'tCyWBVHtN4iGtZWs2dkefWk38SyN4RGtED14KzUopK9',
+		USDC_MINT_ADDRESS: '8zGuJQqwhZafTah7Uc7Z4tXRnguqkn5KLFAP8oV6PHe2',
 	},
-	//TODO - replace these with mainnet values
 	'mainnet-beta': {
 		ENV: 'mainnet-beta',
 		PYTH_ORACLE_MAPPING_ADDRESS: 'AHtgzX45WTKfkPG53L6WYhGEXwQkN1BVknET3sVsLL8J',
@@ -36,7 +22,7 @@ export const configs: { [key in DriftEnv]: DriftConfig } = {
 	},
 };
 
-let currentConfig: DriftConfig = configs.master;
+let currentConfig: DriftConfig = configs.devnet;
 
 export const getConfig = (): DriftConfig => currentConfig;
 
@@ -51,6 +37,11 @@ export const initialize = (props: {
 	env: DriftEnv;
 	overrideEnv?: Partial<DriftConfig>;
 }): DriftConfig => {
+
+	//@ts-ignore
+	if (props.env === 'master')
+		return { ...configs['devnet'], ...(props.overrideEnv ?? {}) };
+
 	currentConfig = { ...configs[props.env], ...(props.overrideEnv ?? {}) };
 
 	return currentConfig;
