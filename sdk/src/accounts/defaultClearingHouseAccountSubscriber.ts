@@ -82,12 +82,18 @@ export class DefaultClearingHouseAccountSubscriber
 
 		const state = this.stateAccountSubscriber.data;
 
-		// create subscribers for other state accounts
 		this.marketsAccountSubscriber = new WebSocketAccountSubscriber(
 			'markets',
 			this.program,
 			state.markets
 		);
+
+		await this.marketsAccountSubscriber.subscribe((data: MarketsAccount) => {
+			this.eventEmitter.emit('marketsAccountUpdate', data);
+			this.eventEmitter.emit('update');
+		});
+
+		// create subscribers for other state accounts
 
 		this.tradeHistoryAccountSubscriber = new WebSocketAccountSubscriber(
 			'tradeHistory',
@@ -133,12 +139,6 @@ export class DefaultClearingHouseAccountSubscriber
 
 		// Add all required extra subscribers
 		const subToAll = optionalSubscriptions?.includes('all');
-
-		if (subToAll || optionalSubscriptions?.includes('marketsAccount'))
-			extraSusbcribersToUse.push({
-				subscriber: this.marketsAccountSubscriber,
-				eventType: 'marketsAccountUpdate',
-			});
 
 		if (subToAll || optionalSubscriptions?.includes('tradeHistoryAccount'))
 			extraSusbcribersToUse.push({
@@ -257,7 +257,6 @@ export class DefaultClearingHouseAccountSubscriber
 
 	public getMarketsAccount(): MarketsAccount {
 		this.assertIsSubscribed();
-		this.assertOptionalIsSubscribed('marketsAccount');
 		return this.marketsAccountSubscriber.data;
 	}
 

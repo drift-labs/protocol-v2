@@ -39,7 +39,6 @@ export interface ClearingHouseAccountEvents {
 
 export type ClearingHouseAccountTypes =
 	| 'all'
-	| 'marketsAccount'
 	| 'tradeHistoryAccount'
 	| 'depositHistoryAccount'
 	| 'fundingPaymentHistoryAccount'

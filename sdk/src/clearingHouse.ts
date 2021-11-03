@@ -106,7 +106,7 @@ export class ClearingHouse {
 
 	/**
 	 *
-	 * @param optionalSubscriptions - Optional extra accounts to subcribe to. Always subscribes to base clearing house state by default. You should only subscribe to optional extra accounts if required, to avoid overloading your RPC
+	 * @param optionalSubscriptions - Optional extra accounts to subcribe to. Always subscribes to base clearing house state and market account state by default. You should only subscribe to optional extra accounts if required, to avoid overloading your RPC
 	 * @returns
 	 */
 	public async subscribe(
