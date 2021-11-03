@@ -1,1 +1,0 @@
-These are just the keys for devnet. Don't check in keys for mainnet.
