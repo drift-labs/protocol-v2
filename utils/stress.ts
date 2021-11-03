@@ -1,11 +1,9 @@
 import * as anchor from '@project-serum/anchor';
 import BN from 'bn.js';
-import {
-	USDC_PRECISION,
-	AMM_MANTISSA,
-	PEG_SCALAR,
-	stripMantissa,
-} from '../sdk/src';
+import { USDC_PRECISION, AMM_MANTISSA, PEG_SCALAR } from '../sdk/src';
+
+import { stripMantissa } from '../common-ts';
+
 import { assert } from '../sdk/src/assert/assert';
 // import { getTokenAccount } from '@project-serum/common';
 import { mockOracle } from './mockAccounts';

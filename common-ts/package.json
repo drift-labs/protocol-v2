@@ -1,0 +1,22 @@
+{
+	"name": "@drift/common",
+	"version": "1.0.0",
+	"description": "Common functions for Drift",
+	"main": "lib/index.js",
+	"license": "MIT",
+	"private": true,
+	"dependencies": {
+		"@moet/sdk": "file:../sdk",
+		"@slack/web-api": "^6.4.0"
+	},
+	"scripts": {
+		"build": "tsc",
+		"clean": "rm -rf lib"
+	},
+	"directories": {
+		"lib": "lib"
+	},
+	"engines": {
+		"node": ">=14 <15"
+	}
+}

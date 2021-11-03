@@ -1,6 +1,6 @@
 import { MessageAttachment, WebClient } from '@slack/web-api';
 
-export default class SlackMessenger {
+export class SlackMessenger {
 	private client: WebClient;
 
 	public constructor(token: string) {

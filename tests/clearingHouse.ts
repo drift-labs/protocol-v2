@@ -15,10 +15,11 @@ import {
 	ClearingHouseUser,
 	PositionDirection,
 	BASE_ASSET_PRECISION,
-	stripMantissa,
 	USDC_PRECISION,
 	MAX_LEVERAGE,
 } from '../sdk/src';
+
+import { stripMantissa } from '../common-ts';
 
 import Markets from '../sdk/src/constants/markets';
 

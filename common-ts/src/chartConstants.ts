@@ -1,4 +1,4 @@
-import { CandleResolution } from './../types';
+import { CandleResolution } from '@moet/sdk';
 
 export const CandleResolutions: CandleResolution[] = [
 	'1',

@@ -11,10 +11,11 @@ import {
 	calculateTargetPriceTrade,
 	ClearingHouseUser,
 	PositionDirection,
-	stripBaseAssetPrecision,
-	stripMantissa,
 	liquidityBook,
 } from '../sdk/src';
+
+import { stripBaseAssetPrecision, stripMantissa } from '../common-ts';
+
 import { assert } from '../sdk/src/assert/assert';
 import {
 	createPriceFeed,

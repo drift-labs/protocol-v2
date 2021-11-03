@@ -14,11 +14,12 @@ import {
 import {
 	calculateMarkPrice,
 	PEG_SCALAR,
-	stripMantissa,
 	PositionDirection,
 	USDC_PRECISION,
 	calculateTargetPriceTrade,
 } from '../sdk';
+
+import { stripMantissa } from '../common-ts';
 
 import { Program } from '@project-serum/anchor';
 

@@ -16,7 +16,6 @@ import {
 	AMM_MANTISSA,
 	FUNDING_MANTISSA,
 	PEG_SCALAR,
-	stripMantissa,
 	ClearingHouse,
 	ClearingHouseUser,
 	PositionDirection,
@@ -24,6 +23,8 @@ import {
 	BASE_ASSET_PRECISION,
 	calculateMarkPrice,
 } from '../sdk';
+
+import { stripMantissa } from '../common-ts';
 
 import { Program } from '@project-serum/anchor';
 

@@ -9,12 +9,14 @@ import {
 	calculatePriceImpact,
 	calculateTargetPriceTrade,
 	PositionDirection,
-	stripMantissa,
 	PEG_SCALAR,
 	MAX_LEVERAGE,
 	USDC_PRECISION,
 	liquidityBook,
 } from '../sdk/src';
+
+import { stripMantissa } from '../common-ts';
+
 import { ClearingHouseUser } from '../sdk/src/clearingHouseUser';
 import {
 	createPriceFeed,

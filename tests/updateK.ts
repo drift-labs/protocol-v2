@@ -9,10 +9,11 @@ import {
 	AMM_MANTISSA,
 	calculateMarkPrice,
 	ClearingHouseUser,
-	stripMantissa,
 	PEG_SCALAR,
 	PositionDirection,
 } from '../sdk/src';
+
+import { stripMantissa } from '../common-ts';
 
 import Markets from '../sdk/src/constants/markets';
 
