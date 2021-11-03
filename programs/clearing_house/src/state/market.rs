@@ -109,7 +109,7 @@ impl AMM {
 
         let oracle_price = price_data.agg.price as i128;
         let oracle_conf = price_data.agg.conf as u128;
-        let oracle_twap = price_data.agg.price as i128;
+        let oracle_twap = price_data.twap.val as i128;
         let oracle_twac = price_data.twac.val as u128;
 
         let oracle_mantissa = 10_u128.pow(price_data.expo.unsigned_abs());
