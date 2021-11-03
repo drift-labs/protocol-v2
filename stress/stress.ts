@@ -189,7 +189,7 @@ export async function stress_test(
 		eventTimeline = [];
 	} else {
 		// eventTimeline = await getEventTimeline(
-		// 	'utils/configs/stress_event_timeline_test0.csv'
+		// 	'stress/configs/stress_event_timeline_test0.csv'
 		// );
 		eventTimeline = await getEventTimeline(inputEventFile);
 	}
@@ -365,7 +365,7 @@ export async function stress_test(
 // 		// const [ammAccountAuthority, ammAccountNonce] =
 // 		// 	await anchor.web3.PublicKey.findProgramAddress(
 // 		// 		[
-// 		// 			anchor.utils.bytes.utf8.encode('amm'),
+// 		// 			anchor.stress.bytes.utf8.encode('amm'),
 // 		// 			ammAccount.publicKey.toBuffer(),
 // 		// 		],
 // 		// 		clearingHouse.program.programId
@@ -385,7 +385,7 @@ export async function stress_test(
 // 	// 		1337,
 // 	// 		10 * 10 ** 6,
 // 	// 		25 * 10 ** 20,
-// 	// 		'utils/configs/clearingHouse.spec.timeline.csv'
+// 	// 		'stress/configs/clearingHouse.spec.timeline.csv'
 // 	// 	);
 
 // 	// 	// await stress_test(
@@ -393,9 +393,9 @@ export async function stress_test(
 // 	// 	// 	13,
 // 	// 	// 	1000,
 // 	// 	// 	1e8,
-// 	// 	// 	'utils/configs/stress_event_timeline.csv'
-// 	// 	// 	// 'utils/configs/clearinghouse.spec.1.events.csv'
-// 	// 	// 	// 'utils/configs/stress_event_timeline_bad1.csv'
+// 	// 	// 	'stress/configs/stress_event_timeline.csv'
+// 	// 	// 	// 'stress/configs/clearinghouse.spec.1.events.csv'
+// 	// 	// 	// 'stress/configs/stress_event_timeline_bad1.csv'
 // 	// 	// 	// 'output/stress_event_timeline.csv',
 // 	// 	// );
 
@@ -413,7 +413,7 @@ export async function stress_test(
 // 			1337,
 // 			10 * 10 ** 6,
 // 			25 * 10 ** 20,
-// 			'utils/configs/clearingHouse.spec.pegmult.csv'
+// 			'stress/configs/clearingHouse.spec.pegmult.csv'
 // 		);
 
 // 		console.log('success!');

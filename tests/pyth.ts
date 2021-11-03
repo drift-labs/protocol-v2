@@ -33,7 +33,7 @@ import {
 	ClearingHouseUser,
 } from '../sdk/src';
 
-import { initUserAccounts } from './../utils/stressUtils';
+import { initUserAccounts } from '../stress/stressUtils';
 
 async function updateFundingRateHelper(
 	clearingHouse: ClearingHouse,

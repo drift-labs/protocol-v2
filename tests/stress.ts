@@ -4,8 +4,8 @@ import { Keypair } from '@solana/web3.js';
 import BN from 'bn.js';
 import { Admin, PEG_SCALAR } from '../sdk/src';
 // import { getTokenAccount } from '@project-serum/common';
-import { mockUSDCMint } from '../utils/mockAccounts';
-import { stress_test } from '../utils/stress';
+import { mockUSDCMint } from '../stress/mockAccounts';
+import { stress_test } from '../stress/stress';
 
 describe('stress-test', () => {
 	const provider = anchor.Provider.local();
@@ -42,7 +42,7 @@ describe('stress-test', () => {
 	// 		1337,
 	// 		10 * 10 ** 6,
 	// 		25 * 10 ** 20,
-	// 		'utils/configs/clearingHouse.spec.pegmult.csv',
+	// 		'stress/configs/clearingHouse.spec.pegmult.csv',
 	// 		undefined,
 	// 		undefined,
 	// 		undefined,
@@ -60,7 +60,7 @@ describe('stress-test', () => {
 			100,
 			10000 * 10 ** 11,
 			10 ** 13,
-			// 'utils/configs/slipfee.test.csv',
+			// 'stress/configs/slipfee.test.csv',
 			undefined,
 			[pegM, pegM],
 			undefined,
@@ -79,7 +79,7 @@ describe('stress-test', () => {
 	// 		1337,
 	// 		10 * 10 ** 6,
 	// 		25 * 10 ** 30,
-	// 		'utils/configs/clearingHouse.spec.pegmult.csv',
+	// 		'stress/configs/clearingHouse.spec.pegmult.csv',
 	// 		[pegM, pegM],
 	// 		5,
 	// 		undefined,
@@ -100,7 +100,7 @@ describe('stress-test', () => {
 	// 		1337,
 	// 		10 * 10 ** 6,
 	// 		25 * 10 ** 20,
-	// 		'utils/configs/clearingHouse.spec.pegmult.csv',
+	// 		'stress/configs/clearingHouse.spec.pegmult.csv',
 	// 		[pegM, pegM]
 	// 	);
 	// });
@@ -116,7 +116,7 @@ describe('stress-test', () => {
 	// 		10,
 	// 		10 * 10 ** 6,
 	// 		25 * 10 ** 20,
-	// 		'utils/configs/clearingHouse.spec.pegmult.csv',
+	// 		'stress/configs/clearingHouse.spec.pegmult.csv',
 	// 		[pegM, pegM],
 	// 		10,
 	// 		undefined,
