@@ -14,7 +14,7 @@ import {
 	liquidityBook,
 } from '../sdk/src';
 
-import { stripBaseAssetPrecision, stripMantissa } from '../common-ts';
+import { stripBaseAssetPrecision, stripMantissa } from '../../common-ts';
 
 import { assert } from '../sdk/src/assert/assert';
 import {

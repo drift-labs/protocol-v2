@@ -72,11 +72,11 @@
     buffer-layout "^1.2.0"
 
 "@pythnetwork/client@^2.2.0":
-  version "2.3.2"
-  resolved "https://registry.yarnpkg.com/@pythnetwork/client/-/client-2.3.2.tgz#3039ee4594a53025a20c05facc36dcb21786d69f"
-  integrity sha512-Rf69kmq2kkBaZ5+BjDZitjsRKEG3s+foJZogCs6UfkCsRm0rHbfZYp/BxqRexFASrzIYKN3Hp+txP4K6aXBOxw==
+  version "2.4.0"
+  resolved "https://registry.yarnpkg.com/@pythnetwork/client/-/client-2.4.0.tgz#5bc9bb3fceb748e6a2d5f23c2da66ac66f2fb4bf"
+  integrity sha512-CRoqX7r1fjogpLNl8DwJ3ihAfi68gDbQw0nO0/FLd/MyW5s+cMWjrCJsKOrl/NoYqugHI9c8ogi8i2Hbh/IzMQ==
   dependencies:
-    "@solana/web3.js" "^1.10.1"
+    "@solana/web3.js" "^1.30.2"
     assert "^2.0.0"
     buffer "^6.0.1"
 
@@ -116,7 +116,7 @@
   dependencies:
     buffer "~6.0.3"
 
-"@solana/spl-token@^0.1.6":
+"@solana/spl-token@^0.1.6", "@solana/spl-token@^0.1.8":
   version "0.1.8"
   resolved "https://registry.yarnpkg.com/@solana/spl-token/-/spl-token-0.1.8.tgz#f06e746341ef8d04165e21fc7f555492a2a0faa6"
   integrity sha512-LZmYCKcPQDtJgecvWOgT/cnoIQPWjdH+QVyzPcFvyDUiT0DiRjZaam4aqNUyvchLFhzgunv3d9xOoyE34ofdoQ==
@@ -128,7 +128,7 @@
     buffer-layout "^1.2.0"
     dotenv "10.0.0"
 
-"@solana/web3.js@^1.10.1", "@solana/web3.js@^1.17.0", "@solana/web3.js@^1.21.0", "@solana/web3.js@^1.22.0":
+"@solana/web3.js@^1.17.0", "@solana/web3.js@^1.21.0", "@solana/web3.js@^1.22.0", "@solana/web3.js@^1.30.2":
   version "1.30.2"
   resolved "https://registry.yarnpkg.com/@solana/web3.js/-/web3.js-1.30.2.tgz#e85da75e0825dc64f53eb64a1ff0115b27bec135"
   integrity sha512-hznCj+rkfvM5taRP3Z+l5lumB7IQnDrB4l55Wpsg4kDU9Zds8pE5YOH5Z9bbF/pUzZJKQjyBjnY/6kScBm3Ugg==
@@ -351,9 +351,9 @@ camelcase@^5.3.1:
   integrity sha512-L28STB170nwWS63UjtlEOE3dldQApaJXZkOI1uMFfzf3rRuPegHaHesyee+YxQ+W6SvRDQV6UrdOdRiR153wJg==
 
 ccxt@^1.57.77:
-  version "1.59.69"
-  resolved "https://registry.yarnpkg.com/ccxt/-/ccxt-1.59.69.tgz#c07581cbc40e0ddfce05b593249ab8a80e1186ee"
-  integrity sha512-TBRw+1n/K/9/ElxjMZYJb2hHnnNyarVHsi/oxvyUQBDp1ZWnzcsEDqiRS3EtuhMRDpOJP6S2JHyZSWh+7cY5kQ==
+  version "1.60.23"
+  resolved "https://registry.yarnpkg.com/ccxt/-/ccxt-1.60.23.tgz#7314e4545298f5918bd5aa0bf1476ba0b03d9913"
+  integrity sha512-0cWdoZb/kVdu4sAWuY+JlOnLxEh+uYFY4RPXko89tc7TctlQyXk24NTmjSOOYuin7zlnd0eGC03KXBRhSdGEzg==
 
 ccxws@^0.46.1:
   version "0.46.1"

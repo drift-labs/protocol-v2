@@ -13,7 +13,7 @@ import {
 	PositionDirection,
 } from '../sdk/src';
 
-import { stripMantissa } from '../common-ts';
+import { stripMantissa } from '../../common-ts';
 
 import Markets from '../sdk/src/constants/markets';
 

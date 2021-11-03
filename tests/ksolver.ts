@@ -15,7 +15,7 @@ import {
 	liquidityBook,
 } from '../sdk/src';
 
-import { stripMantissa } from '../common-ts';
+import { stripMantissa } from '../../common-ts';
 
 import { ClearingHouseUser } from '../sdk/src/clearingHouseUser';
 import {
