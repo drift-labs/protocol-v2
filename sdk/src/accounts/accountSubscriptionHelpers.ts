@@ -91,7 +91,10 @@ export const getNewTrades = (
 		lastSeenHead = (lastSeenHead + 1) % tradingHistorySize;
 	}
 
-	return { newTrades, newLastSeenTrade: (lastSeenHead - 1) % 1000 };
+	return {
+		newTrades,
+		newLastSeenTrade: (lastSeenHead - 1) % tradingHistorySize,
+	};
 };
 
 export const convertTradesToCandles = (

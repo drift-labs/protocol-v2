@@ -12,7 +12,7 @@ export const configs: { [key in DriftEnv]: DriftConfig } = {
 	local: {
 		ENV: 'local',
 		PYTH_ORACLE_MAPPING_ADDRESS: 'BmA9Z6FjioHJPpjT39QazZyhDRUdZy2ezwx4GiDdE2u2',
-		CLEARING_HOUSE_PROGRAM_ID: '4iMFTW4MbQexJPRBF7n1bJ7yBjCDG1rpFwaspGSCmzYA',
+		CLEARING_HOUSE_PROGRAM_ID: 'tCyWBVHtN4iGtZWs2dkefWk38SyN4RGtED14KzUopK9',
 		USDC_MINT_ADDRESS: '8zGuJQqwhZafTah7Uc7Z4tXRnguqkn5KLFAP8oV6PHe2',
 	},
 	master: {
