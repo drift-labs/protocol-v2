@@ -43,6 +43,7 @@ import {
 import {
 	ClearingHouseAccountSubscriber,
 	ClearingHouseAccountEvents,
+	ClearingHouseAccountTypes,
 } from './accounts/types';
 import { DefaultClearingHouseAccountSubscriber } from './accounts/defaultClearingHouseAccountSubscriber';
 import { TxSender } from './tx/types';
@@ -103,8 +104,17 @@ export class ClearingHouse {
 		this.txSender = txSender;
 	}
 
-	public async subscribe(): Promise<boolean> {
-		this.isSubscribed = await this.accountSubscriber.subscribe();
+	/**
+	 *
+	 * @param optionalSubscriptions - Optional extra accounts to subcribe to. Always subscribes to base clearing house state by default. You should only subscribe to optional extra accounts if required, to avoid overloading your RPC
+	 * @returns
+	 */
+	public async subscribe(
+		optionalSubscriptions?: ClearingHouseAccountTypes[]
+	): Promise<boolean> {
+		this.isSubscribed = await this.accountSubscriber.subscribe(
+			optionalSubscriptions
+		);
 		return this.isSubscribed;
 	}
 

@@ -1,6 +1,7 @@
 import {
 	ClearingHouseAccountSubscriber,
 	ClearingHouseAccountEvents,
+	ClearingHouseAccountTypes,
 } from './types';
 import { AccountSubscriber, NotSubscribedError } from './types';
 import {
@@ -34,16 +35,35 @@ export class DefaultClearingHouseAccountSubscriber
 	curveHistoryAccountSubscriber?: AccountSubscriber<CurveHistoryAccount>;
 	liquidationHistoryAccountSubscriber?: AccountSubscriber<LiquidationHistoryAccount>;
 
+	optionalExtraSubscriptions = [];
+
+	private isSubscribing = false;
+	private subscriptionPromise: Promise<boolean>;
+	private subscriptionPromiseResolver: (val: boolean) => void;
+
 	public constructor(program: Program) {
 		this.isSubscribed = false;
 		this.program = program;
 		this.eventEmitter = new EventEmitter();
 	}
 
-	public async subscribe(): Promise<boolean> {
+	public async subscribe(
+		optionalSubscriptions?: ClearingHouseAccountTypes[]
+	): Promise<boolean> {
+		
 		if (this.isSubscribed) {
 			return true;
 		}
+
+		if (this.isSubscribing) {
+			return await this.subscriptionPromise;
+		}
+
+		this.isSubscribing = true;
+
+		this.subscriptionPromise = new Promise((res) => {
+			this.subscriptionPromiseResolver = res;
+		});
 
 		const statePublicKey = await getClearingHouseStateAccountPublicKey(
 			this.program.programId
@@ -61,7 +81,6 @@ export class DefaultClearingHouseAccountSubscriber
 		});
 
 		const state = this.stateAccountSubscriber.data;
-
 
 		// create subscribers for other state accounts
 		this.marketsAccountSubscriber = new WebSocketAccountSubscriber(
@@ -107,55 +126,84 @@ export class DefaultClearingHouseAccountSubscriber
 			state.curveHistory
 		);
 
+		const extraSusbcribersToUse: {
+			subscriber: AccountSubscriber<any>;
+			eventType: keyof ClearingHouseAccountEvents;
+		}[] = [];
+
+		// Add all required extra subscribers
+		const subToAll = optionalSubscriptions?.includes('all');
+
+		if (subToAll || optionalSubscriptions?.includes('marketsAccount'))
+			extraSusbcribersToUse.push({
+				subscriber: this.marketsAccountSubscriber,
+				eventType: 'marketsAccountUpdate',
+			});
+
+		if (subToAll || optionalSubscriptions?.includes('tradeHistoryAccount'))
+			extraSusbcribersToUse.push({
+				subscriber: this.tradeHistoryAccountSubscriber,
+				eventType: 'tradeHistoryAccountUpdate',
+			});
+
+		if (subToAll || optionalSubscriptions?.includes('depositHistoryAccount'))
+			extraSusbcribersToUse.push({
+				subscriber: this.depositHistoryAccountSubscriber,
+				eventType: 'depositHistoryAccountUpdate',
+			});
+
+		if (
+			subToAll ||
+			optionalSubscriptions?.includes('fundingPaymentHistoryAccount')
+		)
+			extraSusbcribersToUse.push({
+				subscriber: this.fundingPaymentHistoryAccountSubscriber,
+				eventType: 'fundingPaymentHistoryAccountUpdate',
+			});
+
+		if (
+			subToAll ||
+			optionalSubscriptions?.includes('fundingRateHistoryAccount')
+		)
+			extraSusbcribersToUse.push({
+				subscriber: this.fundingRateHistoryAccountSubscriber,
+				eventType: 'fundingRateHistoryAccountUpdate',
+			});
+
+		if (
+			subToAll ||
+			optionalSubscriptions?.includes('liquidationHistoryAccount')
+		)
+			extraSusbcribersToUse.push({
+				subscriber: this.liquidationHistoryAccountSubscriber,
+				eventType: 'liquidationHistoryAccountUpdate',
+			});
+
+		if (subToAll || optionalSubscriptions?.includes('curveHistoryAccount'))
+			extraSusbcribersToUse.push({
+				subscriber: this.curveHistoryAccountSubscriber,
+				eventType: 'curveHistoryAccountUpdate',
+			});
+
+		this.optionalExtraSubscriptions = optionalSubscriptions ?? [];
+
 		// await all subcriptions in parallel to boost performance
 		//// the state account subscription above can't happen in here, because some of these susbcriptions are dependent on clearing house state being available
-		await Promise.all([
-			this.marketsAccountSubscriber.subscribe((data: MarketsAccount) => {
-				this.eventEmitter.emit('marketsAccountUpdate', data);
-				this.eventEmitter.emit('update');
-			}),
-
-			this.tradeHistoryAccountSubscriber.subscribe(
-				(data: TradeHistoryAccount) => {
-					this.eventEmitter.emit('tradeHistoryAccountUpdate', data);
+		await Promise.all(
+			extraSusbcribersToUse.map(({ subscriber, eventType }) =>
+				subscriber.subscribe((data) => {
+					this.eventEmitter.emit(eventType, data);
 					this.eventEmitter.emit('update');
-				}
-			),
-			this.depositHistoryAccountSubscriber.subscribe(
-				(data: DepositHistoryAccount) => {
-					this.eventEmitter.emit('depositHistoryAccountUpdate', data);
-					this.eventEmitter.emit('update');
-				}
-			),
-			this.fundingPaymentHistoryAccountSubscriber.subscribe(
-				(data: FundingPaymentHistoryAccount) => {
-					this.eventEmitter.emit('fundingPaymentHistoryAccountUpdate', data);
-					this.eventEmitter.emit('update');
-				}
-			),
-			this.fundingRateHistoryAccountSubscriber.subscribe(
-				(data: FundingRateHistoryAccount) => {
-					this.eventEmitter.emit('fundingRateHistoryAccountUpdate', data);
-					this.eventEmitter.emit('update');
-				}
-			),
-			this.liquidationHistoryAccountSubscriber.subscribe(
-				(data: LiquidationHistoryAccount) => {
-					this.eventEmitter.emit('liquidationHistoryAccountUpdate', data);
-					this.eventEmitter.emit('update');
-				}
-			),
-			this.curveHistoryAccountSubscriber.subscribe(
-				(data: CurveHistoryAccount) => {
-					this.eventEmitter.emit('curveHistoryAccountUpdate', data);
-					this.eventEmitter.emit('update');
-				}
-			),
-		]);
+				})
+			)
+		);
 
 		this.eventEmitter.emit('update');
 
+		this.isSubscribing = false;
 		this.isSubscribed = true;
+		this.subscriptionPromiseResolver(true);
+
 		return true;
 	}
 
@@ -183,6 +231,25 @@ export class DefaultClearingHouseAccountSubscriber
 		}
 	}
 
+	assertOptionalIsSubscribed(
+		optionalSubscription: ClearingHouseAccountTypes
+	): void {
+		if (!this.isSubscribed) {
+			throw new NotSubscribedError(
+				'You must call `subscribe` before using this function'
+			);
+		}
+
+		if (
+			!this.optionalExtraSubscriptions.includes('all') &&
+			!this.optionalExtraSubscriptions.includes(optionalSubscription)
+		) {
+			throw new NotSubscribedError(
+				`You need to subscribe to the optional Clearing House account "${optionalSubscription}" to use this method`
+			);
+		}
+	}
+
 	public getStateAccount(): StateAccount {
 		this.assertIsSubscribed();
 		return this.stateAccountSubscriber.data;
@@ -190,36 +257,43 @@ export class DefaultClearingHouseAccountSubscriber
 
 	public getMarketsAccount(): MarketsAccount {
 		this.assertIsSubscribed();
+		this.assertOptionalIsSubscribed('marketsAccount');
 		return this.marketsAccountSubscriber.data;
 	}
 
 	public getTradeHistoryAccount(): TradeHistoryAccount {
 		this.assertIsSubscribed();
+		this.assertOptionalIsSubscribed('tradeHistoryAccount');
 		return this.tradeHistoryAccountSubscriber.data;
 	}
 
 	public getDepositHistoryAccount(): DepositHistoryAccount {
 		this.assertIsSubscribed();
+		this.assertOptionalIsSubscribed('depositHistoryAccount');
 		return this.depositHistoryAccountSubscriber.data;
 	}
 
 	public getFundingPaymentHistoryAccount(): FundingPaymentHistoryAccount {
 		this.assertIsSubscribed();
+		this.assertOptionalIsSubscribed('fundingPaymentHistoryAccount');
 		return this.fundingPaymentHistoryAccountSubscriber.data;
 	}
 
 	public getFundingRateHistoryAccount(): FundingRateHistoryAccount {
 		this.assertIsSubscribed();
+		this.assertOptionalIsSubscribed('fundingRateHistoryAccount');
 		return this.fundingRateHistoryAccountSubscriber.data;
 	}
 
 	public getCurveHistoryAccount(): CurveHistoryAccount {
 		this.assertIsSubscribed();
+		this.assertOptionalIsSubscribed('curveHistoryAccount');
 		return this.curveHistoryAccountSubscriber.data;
 	}
 
 	public getLiquidationHistoryAccount(): LiquidationHistoryAccount {
 		this.assertIsSubscribed();
+		this.assertOptionalIsSubscribed('liquidationHistoryAccount');
 		return this.liquidationHistoryAccountSubscriber.data;
 	}
 }

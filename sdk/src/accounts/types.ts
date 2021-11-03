@@ -37,11 +37,25 @@ export interface ClearingHouseAccountEvents {
 	update: void;
 }
 
+export type ClearingHouseAccountTypes =
+	| 'all'
+	| 'marketsAccount'
+	| 'tradeHistoryAccount'
+	| 'depositHistoryAccount'
+	| 'fundingPaymentHistoryAccount'
+	| 'fundingRateHistoryAccount'
+	| 'curveHistoryAccount'
+	| 'liquidationHistoryAccount';
+
 export interface ClearingHouseAccountSubscriber {
 	eventEmitter: StrictEventEmitter<EventEmitter, ClearingHouseAccountEvents>;
 	isSubscribed: boolean;
 
-	subscribe(): Promise<boolean>;
+	optionalExtraSubscriptions: ClearingHouseAccountTypes[];
+
+	subscribe(
+		optionalSubscriptions?: ClearingHouseAccountTypes[]
+	): Promise<boolean>;
 	unsubscribe(): Promise<void>;
 
 	getStateAccount(): StateAccount;

@@ -57,14 +57,8 @@ export class ClearingHouseUser {
 
 	public async subscribe(): Promise<boolean> {
 
-		// todo - figure out a more elegant way of avoiding race condition where user account subscribes before the clearing house
-		if (!this.clearingHouse.isSubscribed) {
-			await new Promise<void>((res) => {
-				setTimeout(() => {
-					res();
-				}, 4000);
-			});
-		}
+		// Clearing house should already be subscribed, but await for the subscription to avoid race condition
+		await this.clearingHouse.subscribe();
 
 		this.isSubscribed = await this.accountSubscriber.subscribe();
 		return this.isSubscribed;
