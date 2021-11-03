@@ -2,6 +2,8 @@ import {
 	AMM_MANTISSA,
 	Candle,
 	CandleResolution,
+	Liquidation,
+	LiquidationRecord,
 	QUOTE_BASE_PRECISION_DIFF,
 	Trade,
 	TradeHistoryAccount,
@@ -195,4 +197,27 @@ export const candleToTvBar = (candle: Candle): Bar => {
  */
 export const candlesToTvBars = (candles: Candle[]): Bar[] => {
 	return candles.map((candle) => candleToTvBar(candle));
+};
+
+export const liquidationRecordToUILiquidation = (
+	liquidationRecord: LiquidationRecord
+): Liquidation => {
+	return {
+		ts: Date.now(),
+		chainTs: liquidationRecord.ts.toNumber(),
+		recordId: stripMantissa(liquidationRecord.recordId),
+		userAuthority: liquidationRecord.userAuthority,
+		user: liquidationRecord.user,
+		partial: liquidationRecord.partial,
+		baseAssetValue: stripMantissa(liquidationRecord.baseAssetValue),
+		baseAssetValueClosed: stripMantissa(liquidationRecord.baseAssetValueClosed),
+		liquidationFee: stripMantissa(liquidationRecord.liquidationFee),
+		feeToLiquidator: stripMantissa(liquidationRecord.feeToLiquidator),
+		feeToInsuranceFund: stripMantissa(liquidationRecord.feeToInsuranceFund),
+		liquidator: liquidationRecord.liquidator,
+		totalCollateral: stripMantissa(liquidationRecord.totalCollateral),
+		collateral: stripMantissa(liquidationRecord.collateral),
+		unrealizedPnl: stripMantissa(liquidationRecord.unrealizedPnl),
+		marginRatio: stripMantissa(liquidationRecord.marginRatio),
+	};
 };
