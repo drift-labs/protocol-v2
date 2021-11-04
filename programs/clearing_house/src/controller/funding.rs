@@ -7,7 +7,7 @@ use crate::error::*;
 use crate::math::amm;
 use crate::math::collateral::calculate_updated_collateral;
 use crate::math::constants::{
-    AMM_TO_QUOTE_PRECISION_RATIO_I128, FUNDING_PAYMENT_MANTISSA, ONE_HOUR,
+    AMM_TO_QUOTE_PRECISION_RATIO_I128, FUNDING_PAYMENT_PRECISION, ONE_HOUR,
 };
 use crate::math::funding::{calculate_funding_payment, calculate_funding_rate_long_short};
 use crate::math::oracle;
@@ -151,7 +151,7 @@ pub fn update_funding_rate(
             None,
         )?;
         let funding_rate = price_spread
-            .checked_mul(FUNDING_PAYMENT_MANTISSA as i128)
+            .checked_mul(FUNDING_PAYMENT_PRECISION as i128)
             .ok_or_else(math_error!())?
             .checked_div(period_adjustment as i128)
             .ok_or_else(math_error!())?;

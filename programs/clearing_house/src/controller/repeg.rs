@@ -3,7 +3,7 @@ use crate::error::*;
 use crate::math;
 
 use crate::math::constants::{
-    MARK_PRICE_MANTISSA, PRICE_TO_PEG_PRECISION_RATIO,
+    MARK_PRICE_PRECISION, PRICE_TO_PEG_PRECISION_RATIO,
     SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_DENOMINATOR,
     SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR, QUOTE_PRECISION,
 };
@@ -64,7 +64,7 @@ pub fn repeg(
     let amm_pnl_quote_precision = amm_pnl
         .unsigned_abs()
         .checked_div(
-            MARK_PRICE_MANTISSA
+            MARK_PRICE_PRECISION
                 .checked_div(QUOTE_PRECISION)
                 .ok_or_else(math_error!())?,
         )

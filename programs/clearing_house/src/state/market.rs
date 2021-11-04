@@ -3,7 +3,7 @@ use anchor_lang::prelude::*;
 use crate::error::*;
 use crate::math::amm;
 use crate::math_error;
-use crate::MARK_PRICE_MANTISSA;
+use crate::MARK_PRICE_PRECISION;
 use solana_program::msg;
 
 #[account(zero_copy)]
@@ -112,18 +112,18 @@ impl AMM {
         let oracle_twap = price_data.twap.val as i128;
         let oracle_twac = price_data.twac.val as u128;
 
-        let oracle_mantissa = 10_u128.pow(price_data.expo.unsigned_abs());
+        let oracle_precision = 10_u128.pow(price_data.expo.unsigned_abs());
 
         let mut oracle_scale_mult = 1;
         let mut oracle_scale_div = 1;
 
-        if oracle_mantissa > MARK_PRICE_MANTISSA {
-            oracle_scale_div = oracle_mantissa
-                .checked_div(MARK_PRICE_MANTISSA)
+        if oracle_precision > MARK_PRICE_PRECISION {
+            oracle_scale_div = oracle_precision
+                .checked_div(MARK_PRICE_PRECISION)
                 .ok_or_else(math_error!())?;
         } else {
-            oracle_scale_mult = MARK_PRICE_MANTISSA
-                .checked_div(oracle_mantissa)
+            oracle_scale_mult = MARK_PRICE_PRECISION
+                .checked_div(oracle_precision)
                 .ok_or_else(math_error!())?;
         }
 

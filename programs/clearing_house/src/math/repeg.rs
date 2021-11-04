@@ -1,7 +1,7 @@
 use crate::error::*;
 use crate::math::bn::U256;
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION, MARK_PRICE_MANTISSA, PRICE_TO_PEG_PRECISION_RATIO,
+    AMM_RESERVE_PRECISION, MARK_PRICE_PRECISION, PRICE_TO_PEG_PRECISION_RATIO,
     SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_DENOMINATOR,
     SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR, QUOTE_PRECISION,
 };
@@ -47,7 +47,7 @@ pub fn calculate_repeg_candidate_pnl(
         )
         .ok_or_else(math_error!())?;
 
-    // 1e10 (MANTISSA)
+    // 1e10 (PRECISION)
     return Ok(pnl);
 }
 
@@ -98,7 +98,7 @@ pub fn find_valid_repeg(
         let pnl = calculate_repeg_candidate_pnl(market, new_peg_candidate)?;
         let pnl_quote_precision = pnl
             .checked_div(
-                MARK_PRICE_MANTISSA
+                MARK_PRICE_PRECISION
                     .checked_div(QUOTE_PRECISION)
                     .ok_or_else(math_error!())? as i128,
             )
