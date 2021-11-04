@@ -8,7 +8,7 @@ type Market = {
 	mainnetPythOracle: string;
 };
 
-const Markets: Market[] = [
+export const Markets: Market[] = [
 	{
 		symbol: 'SOL-PERP',
 		baseAssetSymbol: 'SOL',
@@ -38,5 +38,3 @@ const Markets: Market[] = [
 	// 	mainnetPythOracle: '9xYBiDWYsh2fHzpsz3aaCnNHCKWBNtfEDLtU6kS4aFD9',
 	// },
 ];
-
-export default Markets;
