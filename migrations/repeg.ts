@@ -1,7 +1,7 @@
 import * as anchor from '@project-serum/anchor';
 import { Provider } from '@project-serum/anchor';
 import { PublicKey } from '@solana/web3.js';
-import { Admin, ClearingHouse } from '../sdk/';
+import { Admin } from '../sdk/';
 
 import dotenv = require('dotenv');
 dotenv.config();

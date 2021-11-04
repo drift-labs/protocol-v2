@@ -385,9 +385,9 @@ export class ClearingHouseUser {
 		}
 
 		// proportion of proposed market position to overall position
-		const marketProportion = proposedMarketPositionValueUSDC
-			.mul(TEN_THOUSAND)
-			.div(targetTotalPositionValueUSDC);
+		// const marketProportion = proposedMarketPositionValueUSDC
+		// 	.mul(TEN_THOUSAND)
+		// 	.div(targetTotalPositionValueUSDC);
 
 		// get current margin ratio based on current collateral and proposed total position value
 		let marginRatio;

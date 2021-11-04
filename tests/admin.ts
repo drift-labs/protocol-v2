@@ -6,7 +6,6 @@ import { assert } from 'chai';
 import {
 	Admin,
 	AMM_MANTISSA,
-	ClearingHouse,
 	FeeStructure,
 	OracleGuardRails,
 } from '../sdk/src';

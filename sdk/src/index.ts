@@ -1,9 +1,9 @@
 import { BN } from '@project-serum/anchor';
-import Markets from './constants/markets';
 import { MockUSDCFaucet } from './mockUSDCFaucet';
 import { PythClient } from './pythClient';
 import { PositionDirection, SwapDirection, OracleSource } from './types';
 
+export * from './constants/markets';
 export * from './accounts/defaultHistoryAccountSubscriber';
 export * from './addresses';
 export * from './admin';
@@ -27,5 +27,4 @@ export {
 	PythClient,
 	OracleSource,
 	SwapDirection,
-	Markets,
 };

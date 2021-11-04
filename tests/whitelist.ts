@@ -7,7 +7,7 @@ import { Program } from '@project-serum/anchor';
 import { PublicKey } from '@solana/web3.js';
 import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
-import { Admin, AMM_MANTISSA, ClearingHouse } from '../sdk/src';
+import { Admin, AMM_MANTISSA } from '../sdk/src';
 
 import Markets from '../sdk/src/constants/markets';
 

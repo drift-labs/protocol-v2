@@ -45,7 +45,7 @@ async function main() {
 
 	console.log("Bot's associated key:", associatedTokenPublicKey.toString());
 
-	const userPublicKey = await clearingHouse.getUserAccountPublicKey();
+	// const userPublicKey = await clearingHouse.getUserAccountPublicKey();
 	await clearingHouse.depositCollateral(
 		new BN(depositAmount),
 		associatedTokenPublicKey

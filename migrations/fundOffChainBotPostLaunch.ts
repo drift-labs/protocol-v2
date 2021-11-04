@@ -55,9 +55,9 @@ async function main() {
 		});
 	console.log("Bot's associated key:", associatedTokenPublicKey.toString());
 
-	const botClearingHousePublicKey = (
-		await clearingHouse.getUserAccountPublicKey()
-	)[0];
+	// const botClearingHousePublicKey = (
+	// 	await clearingHouse.getUserAccountPublicKey()
+	// )[0];
 
 	const mintAmount = new BN('1000000000000000000');
 	console.log(`Minting to bot ${mintAmount.toString()} USDC`);

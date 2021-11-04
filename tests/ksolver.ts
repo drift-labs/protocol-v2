@@ -27,141 +27,141 @@ import {
 describe('AMM Curve', () => {
 	// K SOLVER: find opitimal k given exchange details
 
-	const NUM_USERS = 100;
+	// const NUM_USERS = 100;
 	const MAX_DEPOSIT = 1000;
 	const initialSOLPrice = 150;
 
 	const MAX_USER_TRADE = MAX_DEPOSIT * MAX_LEVERAGE.toNumber();
-	const ARB_CAPITAL = 50000;
-	const TARGET_MAX_SLIPPAGE = 0.2; // for MAX_DEPOSIT * MAX_LEVERAGE position
+	// const ARB_CAPITAL = 50000;
+	// const TARGET_MAX_SLIPPAGE = 0.2; // for MAX_DEPOSIT * MAX_LEVERAGE position
 
-	function calculateTheoPriceImpact(
-		direction: PositionDirection,
-		amount: BN,
-		kSqrt: BN,
-		unit?:
-			| 'entryPrice'
-			| 'maxPrice'
-			| 'priceDelta'
-			| 'priceDeltaAsNumber'
-			| 'pctAvg'
-			| 'pctMax'
-			| 'quoteAssetAmount'
-			| 'quoteAssetAmountPeg'
-			| 'acquiredBaseAssetAmount'
-			| 'acquiredQuoteAssetAmount'
-	) {
-		if (amount.eq(new BN(0))) {
-			return new BN(0);
-		}
-		const market = this.getMarketsAccount().markets[marketIndex.toNumber()];
-		const oldPrice = this.calculateMarkPrice(marketIndex);
-		const invariant = market.amm.sqrtK.mul(market.amm.sqrtK);
+	// function calculateTheoPriceImpact(
+	// 	direction: PositionDirection,
+	// 	amount: BN,
+	// 	kSqrt: BN,
+	// 	unit?:
+	// 		| 'entryPrice'
+	// 		| 'maxPrice'
+	// 		| 'priceDelta'
+	// 		| 'priceDeltaAsNumber'
+	// 		| 'pctAvg'
+	// 		| 'pctMax'
+	// 		| 'quoteAssetAmount'
+	// 		| 'quoteAssetAmountPeg'
+	// 		| 'acquiredBaseAssetAmount'
+	// 		| 'acquiredQuoteAssetAmount'
+	// ) {
+	// 	if (amount.eq(new BN(0))) {
+	// 		return new BN(0);
+	// 	}
+	// 	const market = this.getMarketsAccount().markets[marketIndex.toNumber()];
+	// 	const oldPrice = this.calculateMarkPrice(marketIndex);
+	// 	const invariant = market.amm.sqrtK.mul(market.amm.sqrtK);
 
-		const [newQuoteAssetAmount, newBaseAssetAmount] = this.findSwapOutput(
-			kSqrt,
-			kSqrt,
-			direction,
-			amount.abs(),
-			'quote',
-			invariant,
-			market.amm.pegMultiplier
-		);
+	// 	const [newQuoteAssetAmount, newBaseAssetAmount] = this.findSwapOutput(
+	// 		kSqrt,
+	// 		kSqrt,
+	// 		direction,
+	// 		amount.abs(),
+	// 		'quote',
+	// 		invariant,
+	// 		market.amm.pegMultiplier
+	// 	);
 
-		const entryPrice = this.calculateCurvePriceWithMantissa(
-			market.amm.baseAssetReserve.sub(newBaseAssetAmount),
-			market.amm.quoteAssetReserve.sub(newQuoteAssetAmount),
-			market.amm.pegMultiplier
-		).mul(new BN(-1));
+	// 	const entryPrice = this.calculateCurvePriceWithMantissa(
+	// 		market.amm.baseAssetReserve.sub(newBaseAssetAmount),
+	// 		market.amm.quoteAssetReserve.sub(newQuoteAssetAmount),
+	// 		market.amm.pegMultiplier
+	// 	).mul(new BN(-1));
 
-		if (entryPrice.eq(new BN(0))) {
-			return new BN(0);
-		}
+	// 	if (entryPrice.eq(new BN(0))) {
+	// 		return new BN(0);
+	// 	}
 
-		const newPrice = this.calculateCurvePriceWithMantissa(
-			newBaseAssetAmount,
-			newQuoteAssetAmount,
-			market.amm.pegMultiplier
-		);
+	// 	const newPrice = this.calculateCurvePriceWithMantissa(
+	// 		newBaseAssetAmount,
+	// 		newQuoteAssetAmount,
+	// 		market.amm.pegMultiplier
+	// 	);
 
-		if (oldPrice == newPrice) {
-			throw new Error('insufficient `amount` passed:');
-		}
+	// 	if (oldPrice == newPrice) {
+	// 		throw new Error('insufficient `amount` passed:');
+	// 	}
 
-		let slippage;
-		if (newPrice.gt(oldPrice)) {
-			if (unit == 'pctMax') {
-				slippage = newPrice.sub(oldPrice).mul(AMM_MANTISSA).div(oldPrice);
-			} else if (unit == 'pctAvg') {
-				slippage = entryPrice.sub(oldPrice).mul(AMM_MANTISSA).div(oldPrice);
-			} else if (
-				[
-					'priceDelta',
-					'quoteAssetAmount',
-					'quoteAssetAmountPeg',
-					'priceDeltaAsNumber',
-				].includes(unit)
-			) {
-				slippage = newPrice.sub(oldPrice);
-			}
-		} else {
-			if (unit == 'pctMax') {
-				slippage = oldPrice.sub(newPrice).mul(AMM_MANTISSA).div(oldPrice);
-			} else if (unit == 'pctAvg') {
-				slippage = oldPrice.sub(entryPrice).mul(AMM_MANTISSA).div(oldPrice);
-			} else if (
-				[
-					'priceDelta',
-					'quoteAssetAmount',
-					'quoteAssetAmountPeg',
-					'priceDeltaAsNumber',
-				].includes(unit)
-			) {
-				slippage = oldPrice.sub(newPrice);
-			}
-		}
-		if (unit == 'quoteAssetAmount') {
-			slippage = slippage.mul(amount);
-		} else if (unit == 'quoteAssetAmountPeg') {
-			slippage = slippage.mul(amount).div(market.amm.pegMultiplier);
-		} else if (unit == 'priceDeltaAsNumber') {
-			slippage = stripMantissa(slippage);
-		}
+	// 	let slippage;
+	// 	if (newPrice.gt(oldPrice)) {
+	// 		if (unit == 'pctMax') {
+	// 			slippage = newPrice.sub(oldPrice).mul(AMM_MANTISSA).div(oldPrice);
+	// 		} else if (unit == 'pctAvg') {
+	// 			slippage = entryPrice.sub(oldPrice).mul(AMM_MANTISSA).div(oldPrice);
+	// 		} else if (
+	// 			[
+	// 				'priceDelta',
+	// 				'quoteAssetAmount',
+	// 				'quoteAssetAmountPeg',
+	// 				'priceDeltaAsNumber',
+	// 			].includes(unit)
+	// 		) {
+	// 			slippage = newPrice.sub(oldPrice);
+	// 		}
+	// 	} else {
+	// 		if (unit == 'pctMax') {
+	// 			slippage = oldPrice.sub(newPrice).mul(AMM_MANTISSA).div(oldPrice);
+	// 		} else if (unit == 'pctAvg') {
+	// 			slippage = oldPrice.sub(entryPrice).mul(AMM_MANTISSA).div(oldPrice);
+	// 		} else if (
+	// 			[
+	// 				'priceDelta',
+	// 				'quoteAssetAmount',
+	// 				'quoteAssetAmountPeg',
+	// 				'priceDeltaAsNumber',
+	// 			].includes(unit)
+	// 		) {
+	// 			slippage = oldPrice.sub(newPrice);
+	// 		}
+	// 	}
+	// 	if (unit == 'quoteAssetAmount') {
+	// 		slippage = slippage.mul(amount);
+	// 	} else if (unit == 'quoteAssetAmountPeg') {
+	// 		slippage = slippage.mul(amount).div(market.amm.pegMultiplier);
+	// 	} else if (unit == 'priceDeltaAsNumber') {
+	// 		slippage = stripMantissa(slippage);
+	// 	}
 
-		return slippage;
-	}
+	// 	return slippage;
+	// }
 
-	function kSolver() {
-		const kSqrt0 = new anchor.BN(2 * 10 ** 13);
+	// function kSolver() {
+	// 	const kSqrt0 = new anchor.BN(2 * 10 ** 13);
 
-		let count = 0;
+	// 	let count = 0;
 
-		let avgSlippageCenter = calculateTheoPriceImpact(
-			PositionDirection.LONG,
-			new BN(MAX_DEPOSIT).mul(MAX_LEVERAGE).mul(AMM_MANTISSA),
-			kSqrt0,
-			'pctMax'
-		);
+	// 	let avgSlippageCenter = calculateTheoPriceImpact(
+	// 		PositionDirection.LONG,
+	// 		new BN(MAX_DEPOSIT).mul(MAX_LEVERAGE).mul(AMM_MANTISSA),
+	// 		kSqrt0,
+	// 		'pctMax'
+	// 	);
 
-		const targetSlippageBN = new BN(
-			TARGET_MAX_SLIPPAGE * AMM_MANTISSA.toNumber()
-		);
-		let kSqrtI: BN;
+	// 	const targetSlippageBN = new BN(
+	// 		TARGET_MAX_SLIPPAGE * AMM_MANTISSA.toNumber()
+	// 	);
+	// 	let kSqrtI: BN;
 
-		while (avgSlippageCenter.gt(targetSlippageBN) || count > 1000) {
-			kSqrtI = kSqrt0.mul(targetSlippageBN.div(avgSlippageCenter));
-			avgSlippageCenter = calculateTheoPriceImpact(
-				PositionDirection.LONG,
-				new BN(MAX_DEPOSIT).mul(MAX_LEVERAGE).mul(AMM_MANTISSA),
-				kSqrtI,
-				'pctMax'
-			);
+	// 	while (avgSlippageCenter.gt(targetSlippageBN) || count > 1000) {
+	// 		kSqrtI = kSqrt0.mul(targetSlippageBN.div(avgSlippageCenter));
+	// 		avgSlippageCenter = calculateTheoPriceImpact(
+	// 			PositionDirection.LONG,
+	// 			new BN(MAX_DEPOSIT).mul(MAX_LEVERAGE).mul(AMM_MANTISSA),
+	// 			kSqrtI,
+	// 			'pctMax'
+	// 		);
 
-			count += 1;
-		}
+	// 		count += 1;
+	// 	}
 
-		return kSqrtI;
-	}
+	// 	return kSqrtI;
+	// }
 
 	const provider = anchor.Provider.local();
 	const connection = provider.connection;

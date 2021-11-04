@@ -7,7 +7,6 @@ import {
 } from './testHelpers';
 import {
 	Admin,
-	ClearingHouse,
 	ClearingHouseUser,
 	PEG_SCALAR,
 } from '../sdk/src';

@@ -1,14 +1,14 @@
 import * as anchor from '@project-serum/anchor';
-import { assert } from 'chai';
-import BN from 'bn.js';
-
 import { Program } from '@project-serum/anchor';
-
-import { Admin, AMM_MANTISSA, ClearingHouse } from '../sdk/src';
-
+import BN from 'bn.js';
+import { assert } from 'chai';
+import { Admin, AMM_MANTISSA } from '../sdk/src';
 import Markets from '../sdk/src/constants/markets';
-
 import { mockOracle, mockUSDCMint, mockUserUSDCAccount } from './testHelpers';
+
+
+
+
 
 describe('max deposit', () => {
 	const provider = anchor.Provider.local();

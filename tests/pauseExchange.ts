@@ -9,7 +9,6 @@ import { PublicKey } from '@solana/web3.js';
 import {
 	Admin,
 	AMM_MANTISSA,
-	ClearingHouse,
 	PositionDirection,
 } from '../sdk/src';
 
