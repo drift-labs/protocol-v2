@@ -174,7 +174,7 @@ export class ClearingHouseUser {
 
 	/**
 	 * calculates sum of position value across all positions
-	 * return precision = 1e10 (MARK_PRICE_PRECISION)
+	 * return precision = 1e6 (QUOTE_PRECISION)
 	 * @returns
 	 */
 	getTotalPositionValue(): BN {
@@ -190,7 +190,7 @@ export class ClearingHouseUser {
 
 	/**
 	 * calculates position value from closing 100%
-	 * return precision = 1e10 (MARK_PRICE_PRECISION)
+	 * return precision = 1e6 (QUOTE_PRECISION)
 	 * @returns
 	 */
 	public getPositionValue(positionIndex: BN | number): BN {
