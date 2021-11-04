@@ -12,9 +12,10 @@ import {
 	PEG_PRECISION,
 	MAX_LEVERAGE,
 	QUOTE_PRECISION,
-	liquidityBook,
 	convertToNumber,
 } from '../sdk/src';
+
+import { liquidityBook } from './liquidityBook';
 
 import { ClearingHouseUser } from '../sdk/src/clearingHouseUser';
 import {

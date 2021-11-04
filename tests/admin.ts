@@ -13,7 +13,7 @@ import { OracleSource } from '../sdk';
 
 import { mockOracle, mockUSDCMint } from './testHelpers';
 import { PublicKey } from '@solana/web3.js';
-import Markets from '../sdk/src/constants/markets';
+import { Markets } from '../sdk/src/constants/markets';
 
 describe('admin', () => {
 	const provider = anchor.Provider.local();

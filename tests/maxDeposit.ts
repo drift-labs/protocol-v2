@@ -3,7 +3,7 @@ import { Program } from '@project-serum/anchor';
 import BN from 'bn.js';
 import { assert } from 'chai';
 import { Admin, MARK_PRICE_PRECISION } from '../sdk/src';
-import Markets from '../sdk/src/constants/markets';
+import { Markets } from '../sdk/src/constants/markets';
 import { mockOracle, mockUSDCMint, mockUserUSDCAccount } from './testHelpers';
 
 describe('max deposit', () => {

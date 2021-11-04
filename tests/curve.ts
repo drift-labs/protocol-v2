@@ -11,10 +11,11 @@ import {
 	calculateTargetPriceTrade,
 	ClearingHouseUser,
 	PositionDirection,
-	liquidityBook,
 	convertBaseAssetAmountToNumber,
 	convertToNumber,
 } from '../sdk/src';
+
+import { liquidityBook } from './liquidityBook';
 
 import { assert } from '../sdk/src/assert/assert';
 import {

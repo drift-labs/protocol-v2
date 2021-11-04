@@ -8,7 +8,7 @@ import { PublicKey } from '@solana/web3.js';
 
 import { Admin, MARK_PRICE_PRECISION } from '../sdk/src';
 
-import Markets from '../sdk/src/constants/markets';
+import { Markets } from '../sdk/src/constants/markets';
 
 import { mockOracle, mockUSDCMint, mockUserUSDCAccount } from './testHelpers';
 

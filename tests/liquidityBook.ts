@@ -1,8 +1,10 @@
 import { BN } from '@project-serum/anchor';
-import { MARK_PRICE_PRECISION } from './constants/numericConstants';
-import { Market } from './types';
-import { calculateTargetPriceTrade } from './math/trade';
-import { calculateMarkPrice } from './math/market';
+import {
+	MARK_PRICE_PRECISION,
+	Market,
+	calculateMarkPrice,
+	calculateTargetPriceTrade,
+} from '../sdk/src';
 
 /**
  * liquidityBook

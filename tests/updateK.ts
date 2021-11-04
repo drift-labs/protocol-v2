@@ -14,7 +14,7 @@ import {
 	convertToNumber,
 } from '../sdk/src';
 
-import Markets from '../sdk/src/constants/markets';
+import { Markets } from '../sdk/src/constants/markets';
 
 import {
 	createPriceFeed,
