@@ -9,7 +9,7 @@ import {
 	calculateTradeSlippage,
 	calculateTargetPriceTrade,
 	PositionDirection,
-	PEG_SCALAR,
+	PEG_PRECISION,
 	MAX_LEVERAGE,
 	QUOTE_PRECISION,
 	liquidityBook,
@@ -180,7 +180,7 @@ describe('AMM Curve', () => {
 
 	let solUsdOracle;
 	const marketIndex = new BN(0);
-	const initialSOLPriceBN = new BN(initialSOLPrice * PEG_SCALAR.toNumber());
+	const initialSOLPriceBN = new BN(initialSOLPrice * PEG_PRECISION.toNumber());
 	function normAssetAmount(assetAmount: BN, pegMultiplier: BN): BN {
 		// assetAmount is scaled to offer comparable slippage
 		return assetAmount.mul(MARK_PRICE_PRECISION).div(pegMultiplier);
@@ -246,7 +246,7 @@ describe('AMM Curve', () => {
 		console.log(currentMark.toNumber() / MARK_PRICE_PRECISION.toNumber());
 		console.log(
 			'peg:',
-			convertToNumber(market.amm.pegMultiplier, PEG_SCALAR),
+			convertToNumber(market.amm.pegMultiplier, PEG_PRECISION),
 			'k (M*M):',
 			convertToNumber(market.amm.sqrtK)
 		);
@@ -276,7 +276,7 @@ describe('AMM Curve', () => {
 		const avgSlippageCenter = calculateTradeSlippage(
 			PositionDirection.LONG,
 			new BN(MAX_USER_TRADE * MARK_PRICE_PRECISION.toNumber()),
-			clearingHouse.getMarket(0),
+			clearingHouse.getMarket(0)
 		)[0];
 		showBook(marketIndex);
 
@@ -294,7 +294,7 @@ describe('AMM Curve', () => {
 		const avgSlippage25PctOut = calculateTradeSlippage(
 			PositionDirection.LONG,
 			new BN(MAX_USER_TRADE * MARK_PRICE_PRECISION.toNumber()),
-			clearingHouse.getMarket(0),
+			clearingHouse.getMarket(0)
 		)[0];
 
 		showBook(marketIndex);

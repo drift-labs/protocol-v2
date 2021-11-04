@@ -1,7 +1,7 @@
 import BN from 'bn.js';
 import {
 	MARK_PRICE_PRECISION,
-	PEG_SCALAR,
+	PEG_PRECISION,
 } from '../constants/numericConstants';
 
 export const convertToNumber = (
@@ -16,5 +16,8 @@ export const convertToNumber = (
 };
 
 export const convertBaseAssetAmountToNumber = (baseAssetAmount: BN) => {
-	return convertToNumber(baseAssetAmount, MARK_PRICE_PRECISION.mul(PEG_SCALAR));
+	return convertToNumber(
+		baseAssetAmount,
+		MARK_PRICE_PRECISION.mul(PEG_PRECISION)
+	);
 };

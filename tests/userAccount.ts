@@ -5,11 +5,7 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
-import {
-	Admin,
-	ClearingHouseUser,
-	PEG_SCALAR,
-} from '../sdk/src';
+import { Admin, ClearingHouseUser, PEG_PRECISION } from '../sdk/src';
 import { Keypair } from '@solana/web3.js';
 import BN from 'bn.js';
 import { assert } from 'chai';
@@ -70,7 +66,7 @@ describe('User Account', () => {
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,
 			periodicity,
-			new BN(initialSOLPrice).mul(PEG_SCALAR)
+			new BN(initialSOLPrice).mul(PEG_PRECISION)
 		);
 
 		await clearingHouse.initializeUserAccount();

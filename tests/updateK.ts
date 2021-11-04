@@ -9,7 +9,7 @@ import {
 	MARK_PRICE_PRECISION,
 	calculateMarkPrice,
 	ClearingHouseUser,
-	PEG_SCALAR,
+	PEG_PRECISION,
 	PositionDirection,
 	convertToNumber,
 } from '../sdk/src';
@@ -74,7 +74,7 @@ describe('update k', () => {
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			periodicity,
-			new BN(initialSOLPrice * PEG_SCALAR.toNumber())
+			new BN(initialSOLPrice * PEG_PRECISION.toNumber())
 		);
 
 		await clearingHouse.initializeUserAccount();

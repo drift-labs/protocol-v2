@@ -2,7 +2,7 @@ import { BN } from '@project-serum/anchor';
 import {
 	MARK_PRICE_PRECISION,
 	ONE,
-	PEG_SCALAR,
+	PEG_PRECISION,
 	ZERO,
 } from '../constants/numericConstants';
 import { AMM, PositionDirection, SwapDirection } from '../types';
@@ -28,7 +28,7 @@ export function calculatePrice(
 	return quoteAssetAmount
 		.mul(MARK_PRICE_PRECISION)
 		.mul(peg_multiplier)
-		.div(PEG_SCALAR)
+		.div(PEG_PRECISION)
 		.div(baseAssetAmount);
 }
 

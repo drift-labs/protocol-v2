@@ -14,7 +14,7 @@ import {
 	calculateTradeSlippage,
 	ClearingHouseUser,
 	PositionDirection,
-	BASE_ASSET_PRECISION,
+	AMM_RESERVE_PRECISION,
 	QUOTE_PRECISION,
 	MAX_LEVERAGE,
 	convertToNumber,
@@ -358,7 +358,7 @@ describe('clearing_house', () => {
 			const estTradePrice = calculateTradeSlippage(
 				PositionDirection.SHORT,
 				newUSDCNotionalAmount,
-				market,
+				market
 			)[2];
 
 			// trying to sell at price too high
@@ -619,7 +619,7 @@ describe('clearing_house', () => {
 			'on position',
 			convertToNumber(
 				userPositionsAccount0.positions[0].baseAssetAmount,
-				BASE_ASSET_PRECISION
+				AMM_RESERVE_PRECISION
 			),
 			'with collateral:',
 			convertToNumber(user0.collateral, QUOTE_PRECISION)
@@ -788,7 +788,7 @@ describe('clearing_house', () => {
 		console.log(
 			convertToNumber(
 				userPositionsAccount.positions[0].baseAssetAmount,
-				BASE_ASSET_PRECISION
+				AMM_RESERVE_PRECISION
 			)
 		);
 		assert.ok(userPositionsAccount.positions[0].baseAssetAmount.eq(new BN(0)));

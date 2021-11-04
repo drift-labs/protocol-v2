@@ -3,7 +3,11 @@ import { Program, Provider, Wallet } from '@project-serum/anchor';
 import { Keypair, PublicKey } from '@solana/web3.js';
 import BN from 'bn.js';
 import { Admin, ClearingHouse, PythClient } from '../sdk/';
-import { MARK_PRICE_PRECISION, MockUSDCFaucet, PEG_SCALAR } from '../sdk/src';
+import {
+	MARK_PRICE_PRECISION,
+	MockUSDCFaucet,
+	PEG_PRECISION,
+} from '../sdk/src';
 
 import dotenv = require('dotenv');
 dotenv.config();
@@ -77,7 +81,7 @@ async function deployDevnet(provider: Provider) {
 		const periodicity = new BN(3600);
 		const ammQuoteAssetAmount = new anchor.BN(2 * 10 ** 13);
 		const ammBaseAssetAmount = new anchor.BN(2 * 10 ** 13);
-		const pegMultiplierAst = new anchor.BN(astPrice * PEG_SCALAR.toNumber());
+		const pegMultiplierAst = new anchor.BN(astPrice * PEG_PRECISION.toNumber());
 
 		console.log('Initializing Market for ', keyName, '/USD: ');
 		await clearingHouse.subscribe();

@@ -3,7 +3,7 @@ import BN from 'bn.js';
 import {
 	QUOTE_PRECISION,
 	MARK_PRICE_PRECISION,
-	PEG_SCALAR,
+	PEG_PRECISION,
 	convertToNumber,
 } from '../sdk/src';
 
@@ -30,7 +30,7 @@ export async function stress_test(
 	user_capital = 100000,
 	sqrtk = 1e8,
 	inputEventFile = '',
-	pegs = [PEG_SCALAR, PEG_SCALAR],
+	pegs = [PEG_PRECISION, PEG_PRECISION],
 	marketOffset = 0,
 	outputFolder = 'output',
 	outputName = ''
@@ -41,7 +41,7 @@ export async function stress_test(
 	const usdcAmount = new BN(user_capital); // $10k
 
 	// const solUsd = anchor.web3.Keypair.generate();
-	const dogMoney = await mockOracle(pegs[0].div(PEG_SCALAR).toNumber(), -6);
+	const dogMoney = await mockOracle(pegs[0].div(PEG_PRECISION).toNumber(), -6);
 	const solUsd = await mockOracle(22, -6);
 	const oracles = [dogMoney, solUsd];
 
@@ -56,7 +56,7 @@ export async function stress_test(
 	);
 
 	for (let i = 0; i < oracles.length; i++) {
-		const amtScale = pegs[i].div(PEG_SCALAR); // same slippage pct for regardless of peg levels
+		const amtScale = pegs[i].div(PEG_PRECISION); // same slippage pct for regardless of peg levels
 
 		const [, _marketPublicKey] = await clearingHouse.initializeMarket(
 			new BN(i + marketOffset),
@@ -134,8 +134,8 @@ export async function stress_test(
 
 				let _entry_px; //todo
 				const oraclePriceMantissa = new BN(
-					oracleData.price * PEG_SCALAR.toNumber()
-				).mul(MARK_PRICE_PRECISION.div(PEG_SCALAR));
+					oracleData.price * PEG_PRECISION.toNumber()
+				).mul(MARK_PRICE_PRECISION.div(PEG_PRECISION));
 				const markPriceMantissa = clearingHouse.calculateMarkPrice(market_i);
 
 				[randEType, rand_amt, _entry_px] =
@@ -277,7 +277,8 @@ export async function stress_test(
 		// const userSummary2 = await user_act_info_e.summary('avg');
 		const userSummary3 = await user_act_info_e.summary('last');
 
-		const xeq_scaled = ammData.pegMultiplier.toNumber() / PEG_SCALAR.toNumber();
+		const xeq_scaled =
+			ammData.pegMultiplier.toNumber() / PEG_PRECISION.toNumber();
 		const state_i = {
 			market_index: market_i,
 

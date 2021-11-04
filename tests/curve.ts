@@ -5,7 +5,7 @@ import BN from 'bn.js';
 import {
 	Admin,
 	MARK_PRICE_PRECISION,
-	PEG_SCALAR,
+	PEG_PRECISION,
 	QUOTE_PRECISION,
 	calculateMarkPrice,
 	calculateTargetPriceTrade,
@@ -71,10 +71,10 @@ describe('AMM Curve', () => {
 		await clearingHouse.initializeMarket(
 			marketIndex,
 			solUsdOracle,
-			ammInitialBaseAssetAmount.mul(PEG_SCALAR),
-			ammInitialQuoteAssetAmount.mul(PEG_SCALAR),
+			ammInitialBaseAssetAmount.mul(PEG_PRECISION),
+			ammInitialQuoteAssetAmount.mul(PEG_PRECISION),
 			periodicity,
-			PEG_SCALAR.mul(new BN(initialSOLPrice))
+			PEG_PRECISION.mul(new BN(initialSOLPrice))
 		);
 
 		await clearingHouse.initializeUserAccount();
@@ -104,7 +104,7 @@ describe('AMM Curve', () => {
 
 		console.log(
 			'pegMultiplier',
-			convertToNumber(ammAccountState.pegMultiplier, PEG_SCALAR)
+			convertToNumber(ammAccountState.pegMultiplier, PEG_PRECISION)
 		);
 		console.log(
 			'cumulativeRepegRebateShort',
@@ -167,7 +167,7 @@ describe('AMM Curve', () => {
 		console.log(currentMark.toNumber() / MARK_PRICE_PRECISION.toNumber());
 		console.log(
 			'peg:',
-			convertToNumber(market.amm.pegMultiplier, PEG_SCALAR),
+			convertToNumber(market.amm.pegMultiplier, PEG_PRECISION),
 			'k (M*M):',
 			convertToNumber(market.amm.sqrtK)
 		);
@@ -268,7 +268,10 @@ describe('AMM Curve', () => {
 		const userMarketPosition =
 			userAccount.getUserPositionsAccount().positions[0];
 		const costToAMM = convertBaseAssetAmountToNumber(
-			newPeg.sub(oldPeg).mul(userMarketPosition.baseAssetAmount).div(PEG_SCALAR)
+			newPeg
+				.sub(oldPeg)
+				.mul(userMarketPosition.baseAssetAmount)
+				.div(PEG_PRECISION)
 		);
 
 		const totalCostToAMMChain = showCurve(marketIndex);

@@ -14,13 +14,13 @@ import {
 import {
 	Admin,
 	MARK_PRICE_PRECISION,
-	FUNDING_MANTISSA,
-	PEG_SCALAR,
+	FUNDING_PAYMENT_PRECISION,
+	PEG_PRECISION,
 	ClearingHouse,
 	ClearingHouseUser,
 	PositionDirection,
 	QUOTE_PRECISION,
-	BASE_ASSET_PRECISION,
+	AMM_RESERVE_PRECISION,
 	calculateMarkPrice,
 	convertToNumber,
 } from '../sdk';
@@ -77,7 +77,8 @@ async function updateFundingRateHelper(
 			marketIndex
 		);
 
-		const CONVERSION_SCALE = FUNDING_MANTISSA.mul(MARK_PRICE_PRECISION);
+		const CONVERSION_SCALE =
+			FUNDING_PAYMENT_PRECISION.mul(MARK_PRICE_PRECISION);
 
 		const marketsAccount = clearingHouse.getMarketsAccount();
 		const marketData = marketsAccount.markets[marketIndex.toNumber()];
@@ -174,7 +175,7 @@ async function cappedSymFundingScenario(
 		kSqrt,
 		kSqrt,
 		periodicity,
-		new BN(priceAction[0] * PEG_SCALAR.toNumber())
+		new BN(priceAction[0] * PEG_PRECISION.toNumber())
 	);
 
 	console.log(
@@ -237,19 +238,19 @@ async function cappedSymFundingScenario(
 		'fundingRateLong',
 		convertToNumber(
 			fundingRateLong,
-			MARK_PRICE_PRECISION.mul(FUNDING_MANTISSA)
+			MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
 		),
 		'fundingRateShort',
 		convertToNumber(
 			fundingRateShort,
-			MARK_PRICE_PRECISION.mul(FUNDING_MANTISSA)
+			MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
 		)
 	);
 	console.log(
 		'baseAssetAmountLong',
-		convertToNumber(marketNew.baseAssetAmountLong, BASE_ASSET_PRECISION),
+		convertToNumber(marketNew.baseAssetAmountLong, AMM_RESERVE_PRECISION),
 		'baseAssetAmountShort',
-		convertToNumber(marketNew.baseAssetAmountShort, BASE_ASSET_PRECISION),
+		convertToNumber(marketNew.baseAssetAmountShort, AMM_RESERVE_PRECISION),
 		'totalFee',
 		convertToNumber(marketNew.amm.totalFee, QUOTE_PRECISION),
 		'totalFeeMinusDistributions',
@@ -263,16 +264,20 @@ async function cappedSymFundingScenario(
 		.mul(fundingRateShort)
 		.mul(new BN(-1));
 
-	const precisionFundingPay = BASE_ASSET_PRECISION;
+	const precisionFundingPay = AMM_RESERVE_PRECISION;
 	console.log(
 		'fundingPnLForLongs',
 		convertToNumber(
-			fundingPnLForLongs.div(MARK_PRICE_PRECISION.mul(FUNDING_MANTISSA)),
+			fundingPnLForLongs.div(
+				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+			),
 			precisionFundingPay
 		),
 		'fundingPnLForShorts',
 		convertToNumber(
-			fundingPnLForShorts.div(MARK_PRICE_PRECISION.mul(FUNDING_MANTISSA)),
+			fundingPnLForShorts.div(
+				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+			),
 			precisionFundingPay
 		)
 	);
@@ -398,13 +403,17 @@ describe('capped funding', () => {
 			convertToNumber(totalFee, QUOTE_PRECISION) -
 			convertToNumber(cumulativeFee, QUOTE_PRECISION);
 
-		const precisionFundingPay = BASE_ASSET_PRECISION;
+		const precisionFundingPay = AMM_RESERVE_PRECISION;
 		const fundingPnLForLongsNum = convertToNumber(
-			fundingPnLForLongs.div(MARK_PRICE_PRECISION.mul(FUNDING_MANTISSA)),
+			fundingPnLForLongs.div(
+				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+			),
 			precisionFundingPay
 		);
 		const fundingPnLForShortsNum = convertToNumber(
-			fundingPnLForShorts.div(MARK_PRICE_PRECISION.mul(FUNDING_MANTISSA)),
+			fundingPnLForShorts.div(
+				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+			),
 			precisionFundingPay
 		);
 
@@ -452,13 +461,17 @@ describe('capped funding', () => {
 			convertToNumber(totalFee, QUOTE_PRECISION) -
 			convertToNumber(cumulativeFee, QUOTE_PRECISION);
 
-		const precisionFundingPay = BASE_ASSET_PRECISION;
+		const precisionFundingPay = AMM_RESERVE_PRECISION;
 		const fundingPnLForLongsNum = convertToNumber(
-			fundingPnLForLongs.div(MARK_PRICE_PRECISION.mul(FUNDING_MANTISSA)),
+			fundingPnLForLongs.div(
+				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+			),
 			precisionFundingPay
 		);
 		const fundingPnLForShortsNum = convertToNumber(
-			fundingPnLForShorts.div(MARK_PRICE_PRECISION.mul(FUNDING_MANTISSA)),
+			fundingPnLForShorts.div(
+				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+			),
 			precisionFundingPay
 		);
 
@@ -507,13 +520,17 @@ describe('capped funding', () => {
 			convertToNumber(totalFee, QUOTE_PRECISION) -
 			convertToNumber(cumulativeFee, QUOTE_PRECISION);
 
-		const precisionFundingPay = BASE_ASSET_PRECISION;
+		const precisionFundingPay = AMM_RESERVE_PRECISION;
 		const fundingPnLForLongsNum = convertToNumber(
-			fundingPnLForLongs.div(MARK_PRICE_PRECISION.mul(FUNDING_MANTISSA)),
+			fundingPnLForLongs.div(
+				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+			),
 			precisionFundingPay
 		);
 		const fundingPnLForShortsNum = convertToNumber(
-			fundingPnLForShorts.div(MARK_PRICE_PRECISION.mul(FUNDING_MANTISSA)),
+			fundingPnLForShorts.div(
+				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+			),
 			precisionFundingPay
 		);
 
@@ -563,13 +580,17 @@ describe('capped funding', () => {
 			convertToNumber(totalFee, QUOTE_PRECISION) -
 			convertToNumber(cumulativeFee, QUOTE_PRECISION);
 
-		const precisionFundingPay = BASE_ASSET_PRECISION;
+		const precisionFundingPay = AMM_RESERVE_PRECISION;
 		const fundingPnLForLongsNum = convertToNumber(
-			fundingPnLForLongs.div(MARK_PRICE_PRECISION.mul(FUNDING_MANTISSA)),
+			fundingPnLForLongs.div(
+				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+			),
 			precisionFundingPay
 		);
 		const fundingPnLForShortsNum = convertToNumber(
-			fundingPnLForShorts.div(MARK_PRICE_PRECISION.mul(FUNDING_MANTISSA)),
+			fundingPnLForShorts.div(
+				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+			),
 			precisionFundingPay
 		);
 
@@ -620,13 +641,17 @@ describe('capped funding', () => {
 			convertToNumber(totalFee, QUOTE_PRECISION) -
 			convertToNumber(cumulativeFee, QUOTE_PRECISION);
 
-		const precisionFundingPay = BASE_ASSET_PRECISION;
+		const precisionFundingPay = AMM_RESERVE_PRECISION;
 		const fundingPnLForLongsNum = convertToNumber(
-			fundingPnLForLongs.div(MARK_PRICE_PRECISION.mul(FUNDING_MANTISSA)),
+			fundingPnLForLongs.div(
+				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+			),
 			precisionFundingPay
 		);
 		const fundingPnLForShortsNum = convertToNumber(
-			fundingPnLForShorts.div(MARK_PRICE_PRECISION.mul(FUNDING_MANTISSA)),
+			fundingPnLForShorts.div(
+				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+			),
 			precisionFundingPay
 		);
 
@@ -677,13 +702,17 @@ describe('capped funding', () => {
 			convertToNumber(totalFee, QUOTE_PRECISION) -
 			convertToNumber(cumulativeFee, QUOTE_PRECISION);
 
-		const precisionFundingPay = BASE_ASSET_PRECISION;
+		const precisionFundingPay = AMM_RESERVE_PRECISION;
 		const fundingPnLForLongsNum = convertToNumber(
-			fundingPnLForLongs.div(MARK_PRICE_PRECISION.mul(FUNDING_MANTISSA)),
+			fundingPnLForLongs.div(
+				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+			),
 			precisionFundingPay
 		);
 		const fundingPnLForShortsNum = convertToNumber(
-			fundingPnLForShorts.div(MARK_PRICE_PRECISION.mul(FUNDING_MANTISSA)),
+			fundingPnLForShorts.div(
+				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+			),
 			precisionFundingPay
 		);
 
@@ -735,13 +764,17 @@ describe('capped funding', () => {
 			convertToNumber(totalFee, QUOTE_PRECISION) -
 			convertToNumber(cumulativeFee, QUOTE_PRECISION);
 
-		const precisionFundingPay = BASE_ASSET_PRECISION;
+		const precisionFundingPay = AMM_RESERVE_PRECISION;
 		const fundingPnLForLongsNum = convertToNumber(
-			fundingPnLForLongs.div(MARK_PRICE_PRECISION.mul(FUNDING_MANTISSA)),
+			fundingPnLForLongs.div(
+				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+			),
 			precisionFundingPay
 		);
 		const fundingPnLForShortsNum = convertToNumber(
-			fundingPnLForShorts.div(MARK_PRICE_PRECISION.mul(FUNDING_MANTISSA)),
+			fundingPnLForShorts.div(
+				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+			),
 			precisionFundingPay
 		);
 

@@ -3,8 +3,8 @@ import { BN } from '@project-serum/anchor';
 import { assert } from '../assert/assert';
 import {
 	MARK_PRICE_PRECISION,
-	PEG_SCALAR,
-	QUOTE_BASE_PRECISION_DIFF,
+	PEG_PRECISION,
+	AMM_TO_QUOTE_PRECISION_RATIO,
 	ZERO,
 } from '../constants/numericConstants';
 import { calculateMarkPrice } from './market';
@@ -41,15 +41,18 @@ export type PriceImpactUnit =
 export function calculateTradeSlippage(
 	direction: PositionDirection,
 	amount: BN,
-	market: Market,
-) : [BN, BN, BN, BN] {
-	
+	market: Market
+): [BN, BN, BN, BN] {
 	const oldPrice = calculateMarkPrice(market);
-	if(amount.eq(ZERO)){
+	if (amount.eq(ZERO)) {
 		return [ZERO, ZERO, oldPrice, oldPrice];
 	}
-	const [acquiredBase, acquiredQuote] = calculateTradeAcquiredAmounts(direction, amount, market);
-	
+	const [acquiredBase, acquiredQuote] = calculateTradeAcquiredAmounts(
+		direction,
+		amount,
+		market
+	);
+
 	const entryPrice = calculatePrice(
 		acquiredBase,
 		acquiredQuote,
@@ -60,16 +63,24 @@ export function calculateTradeSlippage(
 		market.amm.baseAssetReserve.sub(acquiredBase),
 		market.amm.quoteAssetReserve.sub(acquiredQuote),
 		market.amm.pegMultiplier
-	)
-	
-	if(direction == PositionDirection.SHORT) {
-		assert(newPrice.lt(oldPrice))
-	} else{
-		assert(oldPrice.lt(newPrice))
+	);
+
+	if (direction == PositionDirection.SHORT) {
+		assert(newPrice.lt(oldPrice));
+	} else {
+		assert(oldPrice.lt(newPrice));
 	}
 
-	const pctMaxSlippage = newPrice.sub(oldPrice).mul(MARK_PRICE_PRECISION).div(oldPrice).abs();
-	const pctAvgSlippage = entryPrice.sub(oldPrice).mul(MARK_PRICE_PRECISION).div(oldPrice).abs();
+	const pctMaxSlippage = newPrice
+		.sub(oldPrice)
+		.mul(MARK_PRICE_PRECISION)
+		.div(oldPrice)
+		.abs();
+	const pctAvgSlippage = entryPrice
+		.sub(oldPrice)
+		.mul(MARK_PRICE_PRECISION)
+		.div(oldPrice)
+		.abs();
 
 	return [pctAvgSlippage, pctMaxSlippage, entryPrice, newPrice];
 }
@@ -87,8 +98,7 @@ export function calculateTradeAcquiredAmounts(
 	direction: PositionDirection,
 	amount: BN,
 	market: Market
-) : [BN, BN] {
-
+): [BN, BN] {
 	if (amount.eq(ZERO)) {
 		return [ZERO, ZERO];
 	}
@@ -101,7 +111,7 @@ export function calculateTradeAcquiredAmounts(
 			getSwapDirection('quote', direction)
 		);
 
-	const acquiredBase =  market.amm.baseAssetReserve.sub(newBaseAssetReserve);
+	const acquiredBase = market.amm.baseAssetReserve.sub(newBaseAssetReserve);
 	const acquiredQuote = market.amm.quoteAssetReserve.sub(newQuoteAssetReserve);
 
 	return [acquiredBase, acquiredQuote];
@@ -154,7 +164,7 @@ export function calculateTargetPriceTrade(
 	if (markPriceWithMantissa.gt(targetPrice)) {
 		// overestimate y2, todo Math.sqrt
 		x2 = squareRootBN(
-			k.div(targetPrice).mul(peg).div(PEG_SCALAR).sub(biasModifer)
+			k.div(targetPrice).mul(peg).div(PEG_PRECISION).sub(biasModifer)
 		).sub(new BN(1));
 		y2 = k.div(MARK_PRICE_PRECISION).div(x2);
 
@@ -163,13 +173,13 @@ export function calculateTargetPriceTrade(
 		tradeSize = y1
 			.sub(y2)
 			.mul(peg)
-			.div(PEG_SCALAR)
-			.div(QUOTE_BASE_PRECISION_DIFF);
+			.div(PEG_PRECISION)
+			.div(AMM_TO_QUOTE_PRECISION_RATIO);
 		baseSize = x1.sub(x2);
 	} else if (markPriceWithMantissa.lt(targetPrice)) {
 		// underestimate y2, todo Math.sqrt
 		x2 = squareRootBN(
-			k.div(targetPrice).mul(peg).div(PEG_SCALAR).add(biasModifer)
+			k.div(targetPrice).mul(peg).div(PEG_PRECISION).add(biasModifer)
 		).add(new BN(1));
 		y2 = k.div(MARK_PRICE_PRECISION).div(x2);
 
@@ -179,8 +189,8 @@ export function calculateTargetPriceTrade(
 		tradeSize = y2
 			.sub(y1)
 			.mul(peg)
-			.div(PEG_SCALAR)
-			.div(QUOTE_BASE_PRECISION_DIFF);
+			.div(PEG_PRECISION)
+			.div(AMM_TO_QUOTE_PRECISION_RATIO);
 		baseSize = x2.sub(x1);
 	} else {
 		// no trade, market is at target

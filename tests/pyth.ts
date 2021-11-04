@@ -13,7 +13,7 @@ import {
 
 import {
 	calculateMarkPrice,
-	PEG_SCALAR,
+	PEG_PRECISION,
 	PositionDirection,
 	QUOTE_PRECISION,
 	calculateTargetPriceTrade,
@@ -27,7 +27,7 @@ import { Keypair, PublicKey } from '@solana/web3.js';
 import {
 	Admin,
 	MARK_PRICE_PRECISION,
-	FUNDING_MANTISSA,
+	FUNDING_PAYMENT_PRECISION,
 	ClearingHouse,
 	ClearingHouseUser,
 } from '../sdk/src';
@@ -82,7 +82,8 @@ async function updateFundingRateHelper(
 			marketIndex
 		);
 
-		const CONVERSION_SCALE = FUNDING_MANTISSA.mul(MARK_PRICE_PRECISION);
+		const CONVERSION_SCALE =
+			FUNDING_PAYMENT_PRECISION.mul(MARK_PRICE_PRECISION);
 
 		const marketsAccount = await clearingHouse.getMarketsAccount();
 		const marketData = marketsAccount.markets[marketIndex.toNumber()];
@@ -252,7 +253,7 @@ describe('pyth-oracle', () => {
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,
 			periodicity,
-			new BN(39.99 * PEG_SCALAR.toNumber())
+			new BN(39.99 * PEG_PRECISION.toNumber())
 		);
 
 		await updateFundingRateHelper(
@@ -274,7 +275,7 @@ describe('pyth-oracle', () => {
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,
 			periodicity,
-			new BN(41.7 * PEG_SCALAR.toNumber())
+			new BN(41.7 * PEG_PRECISION.toNumber())
 		);
 
 		// await clearingHouse.moveAmmToPrice(

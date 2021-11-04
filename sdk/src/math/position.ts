@@ -4,8 +4,8 @@ import BN from 'bn.js';
 import { calculateAmmReservesAfterSwap, getSwapDirection } from './amm';
 import {
 	MARK_PRICE_PRECISION,
-	BASE_ASSET_PRECISION,
-	FUNDING_MANTISSA,
+	AMM_RESERVE_PRECISION,
+	FUNDING_PAYMENT_PRECISION,
 	PRICE_TO_QUOTE_PRECISION,
 } from '../constants/numericConstants';
 
@@ -114,8 +114,8 @@ export function calculatePositionFundingPNL(
 	const perPositionFundingRate = ammCumulativeFundingRate
 		.sub(marketPosition.lastCumulativeFundingRate)
 		.mul(marketPosition.baseAssetAmount)
-		.div(BASE_ASSET_PRECISION)
-		.div(FUNDING_MANTISSA)
+		.div(AMM_RESERVE_PRECISION)
+		.div(FUNDING_PAYMENT_PRECISION)
 		.mul(new BN(-1));
 
 	return perPositionFundingRate;

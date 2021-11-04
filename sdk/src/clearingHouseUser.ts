@@ -6,7 +6,7 @@ import { ClearingHouse } from './clearingHouse';
 import { UserAccount, UserPosition, UserPositionsAccount } from './types';
 import {
 	MARK_PRICE_PRECISION,
-	QUOTE_BASE_PRECISION_DIFF,
+	AMM_TO_QUOTE_PRECISION_RATIO,
 	ZERO,
 	TEN_THOUSAND,
 	BN_MAX,
@@ -213,7 +213,7 @@ export class ClearingHouseUser {
 			return ZERO;
 		}
 		return baseAssetValue
-			.mul(QUOTE_BASE_PRECISION_DIFF)
+			.mul(AMM_TO_QUOTE_PRECISION_RATIO)
 			.div(position.baseAssetAmount.abs());
 	}
 
