@@ -30,14 +30,13 @@ export type PriceImpactUnit =
 	| 'acquiredQuoteAssetAmount';
 
 /**
- * Calculates various types of price impact statistics
+ * Calculates avg/max slippage (price impact) for candidate trade
  * @param direction
  * @param amount
  * @param market
- * @param unit
  * @return
- * 	| 'pctAvg' =>  the percentage change from entryPrice (average est slippage in execution) : BN
- * 	| 'pctMax' =>  the percentage change to maxPrice (highest est slippage in execution) : BN
+ * 	| 'pctAvgSlippage' =>  the percentage change to entryPrice (average est slippage in execution) : BN
+ * 	| 'pctMaxSlippage' =>  the percentage change to maxPrice (highest est slippage in execution) : BN
  */
 export function calculateTradeSlippage(
 	direction: PositionDirection,
@@ -76,7 +75,15 @@ export function calculateTradeSlippage(
 	return [pctAvgSlippage, pctMaxSlippage];
 }
 
-
+/**
+ * Calculates acquired amounts for trade executed
+ * @param direction
+ * @param amount
+ * @param market
+ * @return
+ * 	| 'acquiredBase' =>  positive/negative change in user's base : BN
+ * 	| 'acquiredQuote' => positive/negative change in user's quote : BN
+ */
 export function calculateTradeAcquiredAmounts(
 	direction: PositionDirection,
 	amount: BN,
