@@ -1,7 +1,7 @@
 import * as anchor from '@project-serum/anchor';
 import BN from 'bn.js';
 import {
-	USDC_PRECISION,
+	QUOTE_PRECISION,
 	MARK_PRICE_PRECISION,
 	PEG_SCALAR,
 	convertToNumber,
@@ -300,10 +300,10 @@ export async function stress_test(
 			funding_rate: convertToNumber(ammData.lastFundingRate),
 			funding_rate_ts: ammData.lastFundingRateTs,
 
-			cumSlippage: convertToNumber(ammData.cumulativeFee, USDC_PRECISION),
+			cumSlippage: convertToNumber(ammData.cumulativeFee, QUOTE_PRECISION),
 			cumSlippageProfit: convertToNumber(
 				ammData.cumulativeFeeRealized,
-				USDC_PRECISION
+				QUOTE_PRECISION
 			),
 
 			// repeg_pnl_pct: (

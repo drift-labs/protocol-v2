@@ -15,7 +15,7 @@ import {
 	ClearingHouseUser,
 	PositionDirection,
 	BASE_ASSET_PRECISION,
-	USDC_PRECISION,
+	QUOTE_PRECISION,
 	MAX_LEVERAGE,
 	convertToNumber,
 } from '../sdk/src';
@@ -623,7 +623,7 @@ describe('clearing_house', () => {
 				BASE_ASSET_PRECISION
 			),
 			'with collateral:',
-			convertToNumber(user0.collateral, USDC_PRECISION)
+			convertToNumber(user0.collateral, QUOTE_PRECISION)
 		);
 
 		const marketsAccount: any = clearingHouse.getMarketsAccount();
@@ -639,7 +639,7 @@ describe('clearing_house', () => {
 
 		console.log(
 			'collateral + pnl post px move:',
-			convertToNumber(userAccount.getTotalCollateral(), USDC_PRECISION)
+			convertToNumber(userAccount.getTotalCollateral(), QUOTE_PRECISION)
 		);
 
 		// having the user liquidate themsevles because I'm too lazy to create a separate liquidator account
@@ -647,7 +647,7 @@ describe('clearing_house', () => {
 
 		console.log(
 			'collateral + pnl post liq:',
-			convertToNumber(userAccount.getTotalCollateral(), USDC_PRECISION)
+			convertToNumber(userAccount.getTotalCollateral(), QUOTE_PRECISION)
 		);
 		console.log('can be liquidated', userAccount.canBeLiquidated());
 		console.log('margin ratio', userAccount.getMarginRatio().toString());

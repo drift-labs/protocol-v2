@@ -11,7 +11,7 @@ import {
 	PositionDirection,
 	PEG_SCALAR,
 	MAX_LEVERAGE,
-	USDC_PRECISION,
+	QUOTE_PRECISION,
 	liquidityBook,
 	convertToNumber,
 } from '../sdk/src';
@@ -238,7 +238,7 @@ describe('AMM Curve', () => {
 		for (let i = asksCumSize.length - 1; i >= 0; i--) {
 			console.log(
 				convertToNumber(asksPrice[i]),
-				convertToNumber(asksCumSize[i], USDC_PRECISION)
+				convertToNumber(asksCumSize[i], QUOTE_PRECISION)
 			);
 		}
 
@@ -254,7 +254,7 @@ describe('AMM Curve', () => {
 		for (let i = 0; i < bidsCumSize.length; i++) {
 			console.log(
 				convertToNumber(bidsPrice[i]),
-				convertToNumber(bidsCumSize[i], USDC_PRECISION)
+				convertToNumber(bidsCumSize[i], QUOTE_PRECISION)
 			);
 		}
 	};
@@ -303,7 +303,7 @@ describe('AMM Curve', () => {
 
 		console.log(
 			'arbBot Long Size',
-			convertToNumber(tradeSize, USDC_PRECISION),
+			convertToNumber(tradeSize, QUOTE_PRECISION),
 			'\n Center Slippage:',
 			convertToNumber(avgSlippageCenter) / 100,
 			'\n 100% up out Slippage:',

@@ -15,7 +15,7 @@ import {
 	calculateMarkPrice,
 	PEG_SCALAR,
 	PositionDirection,
-	USDC_PRECISION,
+	QUOTE_PRECISION,
 	calculateTargetPriceTrade,
 	convertToNumber,
 } from '../sdk';
@@ -305,13 +305,13 @@ describe('pyth-oracle', () => {
 
 		await clearingHouse.openPosition(
 			PositionDirection.LONG,
-			USDC_PRECISION,
+			QUOTE_PRECISION,
 			marketIndex
 		);
 
 		await clearingHouse2.openPosition(
 			PositionDirection.SHORT,
-			USDC_PRECISION.div(new BN(2)),
+			QUOTE_PRECISION.div(new BN(2)),
 			marketIndex
 		);
 

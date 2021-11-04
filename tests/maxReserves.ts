@@ -9,7 +9,7 @@ import {
 	Admin,
 	MARK_PRICE_PRECISION,
 	PositionDirection,
-	USDC_PRECISION,
+	QUOTE_PRECISION,
 } from '../sdk/src';
 
 import {
@@ -43,7 +43,7 @@ describe('max reserves', () => {
 		.mul(mantissaSqrtScale)
 		.mul(MARK_PRICE_PRECISION);
 
-	const usdcAmount = new BN(USDC_PRECISION)
+	const usdcAmount = new BN(QUOTE_PRECISION)
 		.mul(mantissaSqrtScale)
 		.mul(new BN(1));
 

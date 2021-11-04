@@ -12,7 +12,7 @@ import {
 	BN_MAX,
 	PARTIAL_LIQUIDATION_RATIO,
 	FULL_LIQUIDATION_RATIO,
-	USDC_PRECISION,
+	QUOTE_PRECISION,
 } from './constants/numericConstants';
 import { UserAccountSubscriber, UserAccountEvents } from './accounts/types';
 import { DefaultUserAccountSubscriber } from './accounts/defaultUserAccountSubscriber';
@@ -106,7 +106,7 @@ export class ClearingHouseUser {
 
 	/**
 	 * calculates Buying Power = FC * MAX_LEVERAGE
-	 * return precision = 1e6 (USDC_PRECISION)
+	 * return precision = 1e6 (QUOTE_PRECISION)
 	 * @returns
 	 */
 	public getBuyingPower(): BN {
@@ -117,7 +117,7 @@ export class ClearingHouseUser {
 
 	/**
 	 * calculates Free Collateral = (TC - TPV) * MAX_LEVERAGE
-	 * return precision = 1e6 (USDC_PRECISION)
+	 * return precision = 1e6 (QUOTE_PRECISION)
 	 * @returns
 	 */
 	public getFreeCollateral(): BN {
@@ -130,7 +130,7 @@ export class ClearingHouseUser {
 
 	/**
 	 * calculates unrealized position price pnl
-	 * return precision = 1e6 (USDC_PRECISION)
+	 * return precision = 1e6 (QUOTE_PRECISION)
 	 * @returns
 	 */
 	public getUnrealizedPNL(withFunding?: boolean): BN {
@@ -147,7 +147,7 @@ export class ClearingHouseUser {
 
 	/**
 	 * calculates unrealized funding payment pnl
-	 * return precision = 1e6 (USDC_PRECISION)
+	 * return precision = 1e6 (QUOTE_PRECISION)
 	 * @returns
 	 */
 	public getUnrealizedFundingPNL(): BN {
@@ -162,7 +162,7 @@ export class ClearingHouseUser {
 
 	/**
 	 * calculates TotalCollateral: collateral + unrealized pnl
-	 * return precision = 1e6 (USDC_PRECISION)
+	 * return precision = 1e6 (QUOTE_PRECISION)
 	 * @returns
 	 */
 	public getTotalCollateral(): BN {
@@ -537,7 +537,7 @@ export class ClearingHouseUser {
 		maxPositionSize = maxPositionSize.add(oppositeSizeValueUSDC);
 
 		// subtract $.001 to avoid rounding errors when taking max leverage
-		const oneTenthOfACent = USDC_PRECISION.div(new BN(1000));
+		const oneTenthOfACent = QUOTE_PRECISION.div(new BN(1000));
 		return maxPositionSize.sub(oneTenthOfACent);
 	}
 

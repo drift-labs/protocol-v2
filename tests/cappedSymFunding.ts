@@ -19,7 +19,7 @@ import {
 	ClearingHouse,
 	ClearingHouseUser,
 	PositionDirection,
-	USDC_PRECISION,
+	QUOTE_PRECISION,
 	BASE_ASSET_PRECISION,
 	calculateMarkPrice,
 	convertToNumber,
@@ -185,7 +185,7 @@ async function cappedSymFundingScenario(
 
 	await clearingHouse.openPosition(
 		PositionDirection.LONG,
-		USDC_PRECISION.mul(new BN(longShortSizes[0])),
+		QUOTE_PRECISION.mul(new BN(longShortSizes[0])),
 		marketIndex
 	);
 
@@ -193,7 +193,7 @@ async function cappedSymFundingScenario(
 	// try{
 	await clearingHouse2.openPosition(
 		PositionDirection.SHORT,
-		USDC_PRECISION.mul(new BN(longShortSizes[1])),
+		QUOTE_PRECISION.mul(new BN(longShortSizes[1])),
 		marketIndex
 	);
 	console.log(longShortSizes[0], longShortSizes[1]);
@@ -251,9 +251,9 @@ async function cappedSymFundingScenario(
 		'baseAssetAmountShort',
 		convertToNumber(marketNew.baseAssetAmountShort, BASE_ASSET_PRECISION),
 		'totalFee',
-		convertToNumber(marketNew.amm.totalFee, USDC_PRECISION),
+		convertToNumber(marketNew.amm.totalFee, QUOTE_PRECISION),
 		'totalFeeMinusDistributions',
-		convertToNumber(marketNew.amm.totalFeeMinusDistributions, USDC_PRECISION)
+		convertToNumber(marketNew.amm.totalFeeMinusDistributions, QUOTE_PRECISION)
 	);
 
 	const fundingPnLForLongs = marketNew.baseAssetAmountLong
@@ -395,8 +395,8 @@ describe('capped funding', () => {
 		assert(fundingPnLForLongs.abs().lt(fundingPnLForShorts.abs()));
 
 		const feeAlloced =
-			convertToNumber(totalFee, USDC_PRECISION) -
-			convertToNumber(cumulativeFee, USDC_PRECISION);
+			convertToNumber(totalFee, QUOTE_PRECISION) -
+			convertToNumber(cumulativeFee, QUOTE_PRECISION);
 
 		const precisionFundingPay = BASE_ASSET_PRECISION;
 		const fundingPnLForLongsNum = convertToNumber(
@@ -449,8 +449,8 @@ describe('capped funding', () => {
 		assert(fundingPnLForLongs.abs().lt(fundingPnLForShorts.abs()));
 
 		const feeAlloced =
-			convertToNumber(totalFee, USDC_PRECISION) -
-			convertToNumber(cumulativeFee, USDC_PRECISION);
+			convertToNumber(totalFee, QUOTE_PRECISION) -
+			convertToNumber(cumulativeFee, QUOTE_PRECISION);
 
 		const precisionFundingPay = BASE_ASSET_PRECISION;
 		const fundingPnLForLongsNum = convertToNumber(
@@ -504,8 +504,8 @@ describe('capped funding', () => {
 		assert(fundingPnLForLongs.abs().lt(fundingPnLForShorts.abs()));
 
 		const feeAlloced =
-			convertToNumber(totalFee, USDC_PRECISION) -
-			convertToNumber(cumulativeFee, USDC_PRECISION);
+			convertToNumber(totalFee, QUOTE_PRECISION) -
+			convertToNumber(cumulativeFee, QUOTE_PRECISION);
 
 		const precisionFundingPay = BASE_ASSET_PRECISION;
 		const fundingPnLForLongsNum = convertToNumber(
@@ -560,8 +560,8 @@ describe('capped funding', () => {
 		assert(fundingPnLForShorts.abs().lt(fundingPnLForLongs.abs()));
 
 		const feeAlloced =
-			convertToNumber(totalFee, USDC_PRECISION) -
-			convertToNumber(cumulativeFee, USDC_PRECISION);
+			convertToNumber(totalFee, QUOTE_PRECISION) -
+			convertToNumber(cumulativeFee, QUOTE_PRECISION);
 
 		const precisionFundingPay = BASE_ASSET_PRECISION;
 		const fundingPnLForLongsNum = convertToNumber(
@@ -617,8 +617,8 @@ describe('capped funding', () => {
 		assert(fundingPnLForShorts.abs().lt(fundingPnLForLongs.abs()));
 
 		const feeAlloced =
-			convertToNumber(totalFee, USDC_PRECISION) -
-			convertToNumber(cumulativeFee, USDC_PRECISION);
+			convertToNumber(totalFee, QUOTE_PRECISION) -
+			convertToNumber(cumulativeFee, QUOTE_PRECISION);
 
 		const precisionFundingPay = BASE_ASSET_PRECISION;
 		const fundingPnLForLongsNum = convertToNumber(
@@ -674,8 +674,8 @@ describe('capped funding', () => {
 		assert(fundingPnLForShorts.abs().lt(fundingPnLForLongs.abs()));
 
 		const feeAlloced =
-			convertToNumber(totalFee, USDC_PRECISION) -
-			convertToNumber(cumulativeFee, USDC_PRECISION);
+			convertToNumber(totalFee, QUOTE_PRECISION) -
+			convertToNumber(cumulativeFee, QUOTE_PRECISION);
 
 		const precisionFundingPay = BASE_ASSET_PRECISION;
 		const fundingPnLForLongsNum = convertToNumber(
@@ -732,8 +732,8 @@ describe('capped funding', () => {
 		assert(fundingPnLForShorts.abs().lt(fundingPnLForLongs.abs()));
 
 		const feeAlloced =
-			convertToNumber(totalFee, USDC_PRECISION) -
-			convertToNumber(cumulativeFee, USDC_PRECISION);
+			convertToNumber(totalFee, QUOTE_PRECISION) -
+			convertToNumber(cumulativeFee, QUOTE_PRECISION);
 
 		const precisionFundingPay = BASE_ASSET_PRECISION;
 		const fundingPnLForLongsNum = convertToNumber(

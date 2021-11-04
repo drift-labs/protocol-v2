@@ -6,7 +6,7 @@ import {
 	Admin,
 	MARK_PRICE_PRECISION,
 	PEG_SCALAR,
-	USDC_PRECISION,
+	QUOTE_PRECISION,
 	calculateMarkPrice,
 	calculateTargetPriceTrade,
 	ClearingHouseUser,
@@ -110,21 +110,24 @@ describe('AMM Curve', () => {
 			'cumulativeRepegRebateShort',
 			convertToNumber(
 				ammAccountState.cumulativeRepegRebateShort,
-				USDC_PRECISION
+				QUOTE_PRECISION
 			)
 		);
 		console.log(
 			'cumulativeRepegRebateLong',
-			convertToNumber(ammAccountState.cumulativeRepegRebateLong, USDC_PRECISION)
+			convertToNumber(
+				ammAccountState.cumulativeRepegRebateLong,
+				QUOTE_PRECISION
+			)
 		);
 
 		const totalFeeNum = convertToNumber(
 			ammAccountState.totalFee,
-			USDC_PRECISION
+			QUOTE_PRECISION
 		);
 		const cumFeeNum = convertToNumber(
 			ammAccountState.totalFeeMinusDistributions,
-			USDC_PRECISION
+			QUOTE_PRECISION
 		);
 		console.log('totalFee', totalFeeNum);
 		console.log('cumFee', cumFeeNum);
@@ -137,7 +140,7 @@ describe('AMM Curve', () => {
 	// 	const ammAccountState = marketData.amm;
 
 	// 	const feeDist= marketData.amm.cumulativeFee.add(userAccount.getTotalCollateral());
-	// 	// console.log(convertToNumber(usdcAmount, USDC_PRECISION), convertToNumber(feeDist, USDC_PRECISION));
+	// 	// console.log(convertToNumber(usdcAmount, QUOTE_PRECISION), convertToNumber(feeDist, QUOTE_PRECISION));
 
 	// 	return feeDist;
 	// };
@@ -156,7 +159,7 @@ describe('AMM Curve', () => {
 		for (let i = asksCumSize.length - 1; i >= 0; i--) {
 			console.log(
 				convertToNumber(asksPrice[i]),
-				convertToNumber(asksCumSize[i], USDC_PRECISION)
+				convertToNumber(asksCumSize[i], QUOTE_PRECISION)
 			);
 		}
 
@@ -172,7 +175,7 @@ describe('AMM Curve', () => {
 		for (let i = 0; i < bidsCumSize.length; i++) {
 			console.log(
 				convertToNumber(bidsPrice[i]),
-				convertToNumber(bidsCumSize[i], USDC_PRECISION)
+				convertToNumber(bidsCumSize[i], QUOTE_PRECISION)
 			);
 		}
 	};
@@ -234,7 +237,7 @@ describe('AMM Curve', () => {
 
 		await clearingHouse.openPosition(
 			PositionDirection.LONG,
-			USDC_PRECISION.mul(new BN(10)),
+			QUOTE_PRECISION.mul(new BN(10)),
 			marketIndex
 		);
 		// showBook(marketIndex);
@@ -290,7 +293,7 @@ describe('AMM Curve', () => {
 
 		await clearingHouse.openPosition(
 			PositionDirection.SHORT,
-			USDC_PRECISION,
+			QUOTE_PRECISION,
 			marketIndex
 		);
 

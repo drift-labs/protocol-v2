@@ -21,7 +21,7 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
-import { USDC_PRECISION } from '../sdk/lib';
+import { QUOTE_PRECISION } from '../sdk/lib';
 
 const ZERO = new BN(0);
 
@@ -186,7 +186,7 @@ describe('update k', () => {
 		console.log('taking position');
 		await clearingHouse.openPosition(
 			PositionDirection.LONG,
-			new BN(USDC_PRECISION),
+			new BN(QUOTE_PRECISION),
 			marketIndex
 		);
 		console.log('$1 position taken');
@@ -197,7 +197,7 @@ describe('update k', () => {
 		const ammOld = marketsOld.markets[0].amm;
 		console.log(
 			'USER getTotalCollateral',
-			convertToNumber(userAccount.getTotalCollateral(), USDC_PRECISION)
+			convertToNumber(userAccount.getTotalCollateral(), QUOTE_PRECISION)
 		);
 
 		const newSqrtK = ammOld.sqrtK
@@ -239,15 +239,15 @@ describe('update k', () => {
 
 		console.log(
 			'realizedFeeOld',
-			convertToNumber(ammOld.totalFeeMinusDistributions, USDC_PRECISION),
+			convertToNumber(ammOld.totalFeeMinusDistributions, QUOTE_PRECISION),
 			'realizedFeePostK',
-			convertToNumber(ammKChange.totalFeeMinusDistributions, USDC_PRECISION),
+			convertToNumber(ammKChange.totalFeeMinusDistributions, QUOTE_PRECISION),
 			'realizedFeePostClose',
-			convertToNumber(amm.totalFeeMinusDistributions, USDC_PRECISION)
+			convertToNumber(amm.totalFeeMinusDistributions, QUOTE_PRECISION)
 		);
 		console.log(
 			'USER getTotalCollateral',
-			convertToNumber(userAccount.getTotalCollateral(), USDC_PRECISION)
+			convertToNumber(userAccount.getTotalCollateral(), QUOTE_PRECISION)
 		);
 
 		// assert(amm.totalFeeMinusDistributions.lt(ammOld.totalFeeMinusDistributions));
@@ -268,7 +268,7 @@ describe('update k', () => {
 		console.log('taking position');
 		await clearingHouse.openPosition(
 			PositionDirection.LONG,
-			new BN(USDC_PRECISION).mul(new BN(30000)),
+			new BN(QUOTE_PRECISION).mul(new BN(30000)),
 			marketIndex
 		);
 		console.log('$1 position taken');
@@ -279,7 +279,7 @@ describe('update k', () => {
 		const ammOld = marketsOld.markets[0].amm;
 		console.log(
 			'USER getTotalCollateral',
-			convertToNumber(userAccount.getTotalCollateral(), USDC_PRECISION)
+			convertToNumber(userAccount.getTotalCollateral(), QUOTE_PRECISION)
 		);
 
 		const newSqrtK = ammOld.sqrtK
@@ -319,11 +319,11 @@ describe('update k', () => {
 
 		console.log(
 			'realizedFeeOld',
-			convertToNumber(ammOld.totalFeeMinusDistributions, USDC_PRECISION),
+			convertToNumber(ammOld.totalFeeMinusDistributions, QUOTE_PRECISION),
 			'realizedFeePostK',
-			convertToNumber(ammKChange.totalFeeMinusDistributions, USDC_PRECISION),
+			convertToNumber(ammKChange.totalFeeMinusDistributions, QUOTE_PRECISION),
 			'realizedFeePostClose',
-			convertToNumber(amm.totalFeeMinusDistributions, USDC_PRECISION)
+			convertToNumber(amm.totalFeeMinusDistributions, QUOTE_PRECISION)
 		);
 
 		assert(
@@ -332,7 +332,7 @@ describe('update k', () => {
 
 		console.log(
 			'USER getTotalCollateral',
-			convertToNumber(userAccount.getTotalCollateral(), USDC_PRECISION)
+			convertToNumber(userAccount.getTotalCollateral(), QUOTE_PRECISION)
 		);
 	});
 });

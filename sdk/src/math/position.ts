@@ -6,7 +6,7 @@ import {
 	MARK_PRICE_PRECISION,
 	BASE_ASSET_PRECISION,
 	FUNDING_MANTISSA,
-	PRICE_TO_USDC_PRECISION,
+	PRICE_TO_QUOTE_PRECISION,
 } from '../constants/numericConstants';
 
 /**
@@ -54,7 +54,7 @@ export function calculateBaseAssetValue(
  * @param market
  * @param marketPosition
  * @param withFunding (adds unrealized funding payment pnl to result)
- * @returns precision = 1e6 (USDC_PRECISION)
+ * @returns precision = 1e6 (QUOTE_PRECISION)
  */
 export function calculatePositionPNL(
 	market: Market,
@@ -88,7 +88,7 @@ export function calculatePositionPNL(
 		const fundingRatePnL = calculatePositionFundingPNL(
 			market,
 			marketPosition
-		).div(PRICE_TO_USDC_PRECISION);
+		).div(PRICE_TO_QUOTE_PRECISION);
 
 		pnlAssetAmount = pnlAssetAmount.add(fundingRatePnL);
 	}
