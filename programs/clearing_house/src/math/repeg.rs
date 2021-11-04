@@ -3,7 +3,7 @@ use crate::math::bn::U256;
 use crate::math::constants::{
     AMM_ASSET_AMOUNT_PRECISION, MARK_PRICE_MANTISSA, PRICE_TO_PEG_PRECISION_RATIO,
     SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_DENOMINATOR,
-    SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR, USDC_PRECISION,
+    SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR, COLLATERAL_PRECISION,
 };
 use crate::math_error;
 use crate::state::market::Market;
@@ -96,17 +96,17 @@ pub fn find_valid_repeg(
         }
 
         let pnl = calculate_repeg_candidate_pnl(market, new_peg_candidate)?;
-        let pnl_usdc = pnl
+        let pnl_collateral_precision = pnl
             .checked_div(
                 MARK_PRICE_MANTISSA
-                    .checked_div(USDC_PRECISION)
+                    .checked_div(COLLATERAL_PRECISION)
                     .ok_or_else(math_error!())? as i128,
             )
             .ok_or_else(math_error!())?;
 
-        if pnl > 0 || pnl_usdc.unsigned_abs() < amm.total_fee_minus_distributions {
+        if pnl > 0 || pnl_collateral_precision.unsigned_abs() < amm.total_fee_minus_distributions {
             let cum_pnl_profit = (amm.total_fee_minus_distributions as i128)
-                .checked_add(pnl_usdc)
+                .checked_add(pnl_collateral_precision)
                 .ok_or_else(math_error!())?;
 
             if cum_pnl_profit

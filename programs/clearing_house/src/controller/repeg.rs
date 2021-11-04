@@ -5,7 +5,7 @@ use crate::math;
 use crate::math::constants::{
     MARK_PRICE_MANTISSA, PRICE_TO_PEG_PRECISION_RATIO,
     SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_DENOMINATOR,
-    SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR, USDC_PRECISION,
+    SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR, COLLATERAL_PRECISION,
 };
 use crate::math_error;
 use crate::state::market::Market;
@@ -60,35 +60,35 @@ pub fn repeg(
     let mut pnl_r = amm.total_fee_minus_distributions;
     let net_market_position = market.base_asset_amount;
 
-    let amm_pnl_mantissa = math::repeg::calculate_repeg_candidate_pnl(market, new_peg_candidate)?;
-    let amm_pnl_quote_asset = amm_pnl_mantissa
+    let amm_pnl = math::repeg::calculate_repeg_candidate_pnl(market, new_peg_candidate)?;
+    let amm_pnl_collateral_precision = amm_pnl
         .unsigned_abs()
         .checked_div(
             MARK_PRICE_MANTISSA
-                .checked_div(USDC_PRECISION)
+                .checked_div(COLLATERAL_PRECISION)
                 .ok_or_else(math_error!())?,
         )
         .ok_or_else(math_error!())?;
 
-    if net_market_position != 0 && amm_pnl_mantissa == 0 {
+    if net_market_position != 0 && amm_pnl == 0 {
         return Err(ErrorCode::InvalidRepegProfitability.into());
     }
 
-    if amm_pnl_mantissa < 0 && amm_pnl_quote_asset == 0 {
+    if amm_pnl < 0 && amm_pnl_collateral_precision == 0 {
         return Err(ErrorCode::InvalidRepegProfitability.into());
     }
 
-    if amm_pnl_mantissa >= 0 {
+    if amm_pnl >= 0 {
         pnl_r = pnl_r
-            .checked_add(amm_pnl_quote_asset)
+            .checked_add(amm_pnl_collateral_precision)
             .ok_or_else(math_error!())?;
 
         perserve_price = false;
-    } else if amm_pnl_quote_asset > pnl_r {
+    } else if amm_pnl_collateral_precision > pnl_r {
         return Err(ErrorCode::InvalidRepegProfitability.into());
     } else {
         pnl_r = (pnl_r)
-            .checked_sub(amm_pnl_quote_asset)
+            .checked_sub(amm_pnl_collateral_precision)
             .ok_or_else(math_error!())?;
         if pnl_r
             < amm
@@ -111,10 +111,10 @@ pub fn repeg(
         controller::amm::move_to_price(&mut market.amm, current_mark)?;
     }
 
-    let amm_pnl_quote_asset_signed = if amm_pnl_mantissa > 0 {
-        amm_pnl_quote_asset as i128
+    let amm_pnl_quote_asset_signed = if amm_pnl > 0 {
+        amm_pnl_collateral_precision as i128
     } else {
-        (amm_pnl_quote_asset as i128)
+        (amm_pnl_collateral_precision as i128)
             .checked_mul(-1)
             .ok_or_else(math_error!())?
     };
