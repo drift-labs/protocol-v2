@@ -214,29 +214,47 @@ export class DefaultClearingHouseAccountSubscriber
 		await this.stateAccountSubscriber.unsubscribe();
 		await this.marketsAccountSubscriber.unsubscribe();
 
-		if (this.optionalExtraSubscriptions.includes('tradeHistoryAccount')) {
+		const subbedToall = this.optionalExtraSubscriptions.includes('all');
+
+		if (
+			subbedToall ||
+			this.optionalExtraSubscriptions.includes('tradeHistoryAccount')
+		) {
 			await this.tradeHistoryAccountSubscriber.unsubscribe();
 		}
 
-		if (this.optionalExtraSubscriptions.includes('fundingRateHistoryAccount')) {
+		if (
+			subbedToall ||
+			this.optionalExtraSubscriptions.includes('fundingRateHistoryAccount')
+		) {
 			await this.fundingRateHistoryAccountSubscriber.unsubscribe();
 		}
 
 		if (
+			subbedToall ||
 			this.optionalExtraSubscriptions.includes('fundingPaymentHistoryAccount')
 		) {
 			await this.fundingPaymentHistoryAccountSubscriber.unsubscribe();
 		}
 
-		if (this.optionalExtraSubscriptions.includes('depositHistoryAccount')) {
+		if (
+			subbedToall ||
+			this.optionalExtraSubscriptions.includes('depositHistoryAccount')
+		) {
 			await this.depositHistoryAccountSubscriber.unsubscribe();
 		}
 
-		if (this.optionalExtraSubscriptions.includes('curveHistoryAccount')) {
+		if (
+			subbedToall ||
+			this.optionalExtraSubscriptions.includes('curveHistoryAccount')
+		) {
 			await this.curveHistoryAccountSubscriber.unsubscribe();
 		}
 
-		if (this.optionalExtraSubscriptions.includes('liquidationHistoryAccount')) {
+		if (
+			subbedToall ||
+			this.optionalExtraSubscriptions.includes('liquidationHistoryAccount')
+		) {
 			await this.liquidationHistoryAccountSubscriber.unsubscribe();
 		}
 
