@@ -13,7 +13,7 @@ import {
 } from './testHelpers';
 import {
 	Admin,
-	AMM_MANTISSA,
+	MARK_PRICE_PRECISION,
 	FUNDING_MANTISSA,
 	PEG_SCALAR,
 	ClearingHouse,
@@ -22,9 +22,8 @@ import {
 	USDC_PRECISION,
 	BASE_ASSET_PRECISION,
 	calculateMarkPrice,
+	convertToNumber,
 } from '../sdk';
-
-import { stripMantissa } from '../../common-ts';
 
 import { Program } from '@project-serum/anchor';
 
@@ -51,14 +50,15 @@ async function updateFundingRateHelper(
 		);
 
 		const priceSpread0 =
-			stripMantissa(ammAccountState0.lastMarkPriceTwap) - oraclePx0.twap;
+			convertToNumber(ammAccountState0.lastMarkPriceTwap) - oraclePx0.twap;
 		const frontEndFundingCalc0 = priceSpread0 / oraclePx0.twap / (24 * 3600);
 
 		console.log(
 			'funding rate frontend calc0:',
 			frontEndFundingCalc0,
 			'markTwap0:',
-			ammAccountState0.lastMarkPriceTwap.toNumber() / AMM_MANTISSA.toNumber(),
+			ammAccountState0.lastMarkPriceTwap.toNumber() /
+				MARK_PRICE_PRECISION.toNumber(),
 			'markTwap0:',
 			ammAccountState0.lastMarkPriceTwap.toNumber(),
 			'oracleTwap0:',
@@ -77,14 +77,14 @@ async function updateFundingRateHelper(
 			marketIndex
 		);
 
-		const CONVERSION_SCALE = FUNDING_MANTISSA.mul(AMM_MANTISSA);
+		const CONVERSION_SCALE = FUNDING_MANTISSA.mul(MARK_PRICE_PRECISION);
 
 		const marketsAccount = clearingHouse.getMarketsAccount();
 		const marketData = marketsAccount.markets[marketIndex.toNumber()];
 		const ammAccountState = marketData.amm;
 		const peroidicity = marketData.amm.fundingPeriod;
 
-		const lastFundingRate = stripMantissa(
+		const lastFundingRate = convertToNumber(
 			ammAccountState.lastFundingRate,
 			CONVERSION_SCALE
 		);
@@ -92,12 +92,12 @@ async function updateFundingRateHelper(
 		console.log('last funding rate:', lastFundingRate);
 		console.log(
 			'cumfunding rate long',
-			stripMantissa(
+			convertToNumber(
 				ammAccountState.cumulativeFundingRateLong,
 				CONVERSION_SCALE
 			),
 			'cumfunding rate short',
-			stripMantissa(
+			convertToNumber(
 				ammAccountState.cumulativeFundingRateShort,
 				CONVERSION_SCALE
 			)
@@ -112,9 +112,9 @@ async function updateFundingRateHelper(
 
 		assert(ammAccountState.lastFundingRate.abs().gte(lastFundingLong.abs()));
 		console.log(
-			stripMantissa(ammAccountState.lastFundingRate.abs()),
+			convertToNumber(ammAccountState.lastFundingRate.abs()),
 			'>',
-			stripMantissa(lastFundingShort.abs())
+			convertToNumber(lastFundingShort.abs())
 		);
 		assert(ammAccountState.lastFundingRate.abs().gte(lastFundingShort.abs()));
 
@@ -126,7 +126,8 @@ async function updateFundingRateHelper(
 		await new Promise((r) => setTimeout(r, 1000)); // wait 1 second
 
 		const priceSpread =
-			ammAccountState.lastMarkPriceTwap.toNumber() / AMM_MANTISSA.toNumber() -
+			ammAccountState.lastMarkPriceTwap.toNumber() /
+				MARK_PRICE_PRECISION.toNumber() -
 			oraclePx.twap;
 		const frontEndFundingCalc =
 			priceSpread / ((24 * 3600) / Math.max(1, peroidicity.toNumber()));
@@ -135,7 +136,8 @@ async function updateFundingRateHelper(
 			'funding rate frontend calc:',
 			frontEndFundingCalc,
 			'markTwap:',
-			ammAccountState.lastMarkPriceTwap.toNumber() / AMM_MANTISSA.toNumber(),
+			ammAccountState.lastMarkPriceTwap.toNumber() /
+				MARK_PRICE_PRECISION.toNumber(),
 			'markTwap:',
 			ammAccountState.lastMarkPriceTwap.toNumber(),
 			'oracleTwap:',
@@ -177,7 +179,7 @@ async function cappedSymFundingScenario(
 
 	console.log(
 		'PRICE',
-		stripMantissa(calculateMarkPrice(clearingHouse.getMarket(marketIndex)))
+		convertToNumber(calculateMarkPrice(clearingHouse.getMarket(marketIndex)))
 	);
 	await clearingHouse.updateFundingPaused(true);
 
@@ -233,19 +235,25 @@ async function cappedSymFundingScenario(
 
 	console.log(
 		'fundingRateLong',
-		stripMantissa(fundingRateLong, AMM_MANTISSA.mul(FUNDING_MANTISSA)),
+		convertToNumber(
+			fundingRateLong,
+			MARK_PRICE_PRECISION.mul(FUNDING_MANTISSA)
+		),
 		'fundingRateShort',
-		stripMantissa(fundingRateShort, AMM_MANTISSA.mul(FUNDING_MANTISSA))
+		convertToNumber(
+			fundingRateShort,
+			MARK_PRICE_PRECISION.mul(FUNDING_MANTISSA)
+		)
 	);
 	console.log(
 		'baseAssetAmountLong',
-		stripMantissa(marketNew.baseAssetAmountLong, BASE_ASSET_PRECISION),
+		convertToNumber(marketNew.baseAssetAmountLong, BASE_ASSET_PRECISION),
 		'baseAssetAmountShort',
-		stripMantissa(marketNew.baseAssetAmountShort, BASE_ASSET_PRECISION),
+		convertToNumber(marketNew.baseAssetAmountShort, BASE_ASSET_PRECISION),
 		'totalFee',
-		stripMantissa(marketNew.amm.totalFee, USDC_PRECISION),
+		convertToNumber(marketNew.amm.totalFee, USDC_PRECISION),
 		'totalFeeMinusDistributions',
-		stripMantissa(marketNew.amm.totalFeeMinusDistributions, USDC_PRECISION)
+		convertToNumber(marketNew.amm.totalFeeMinusDistributions, USDC_PRECISION)
 	);
 
 	const fundingPnLForLongs = marketNew.baseAssetAmountLong
@@ -258,13 +266,13 @@ async function cappedSymFundingScenario(
 	const precisionFundingPay = BASE_ASSET_PRECISION;
 	console.log(
 		'fundingPnLForLongs',
-		stripMantissa(
-			fundingPnLForLongs.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)),
+		convertToNumber(
+			fundingPnLForLongs.div(MARK_PRICE_PRECISION.mul(FUNDING_MANTISSA)),
 			precisionFundingPay
 		),
 		'fundingPnLForShorts',
-		stripMantissa(
-			fundingPnLForShorts.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)),
+		convertToNumber(
+			fundingPnLForShorts.div(MARK_PRICE_PRECISION.mul(FUNDING_MANTISSA)),
 			precisionFundingPay
 		)
 	);
@@ -303,7 +311,7 @@ describe('capped funding', () => {
 	let userUSDCAccount: Keypair;
 
 	const ammInitialBaseAssetAmount = new anchor.BN(5 * 10 ** 13).mul(
-		AMM_MANTISSA
+		MARK_PRICE_PRECISION
 	);
 
 	const usdcAmount = new BN(10000 * 10 ** 6);
@@ -387,16 +395,16 @@ describe('capped funding', () => {
 		assert(fundingPnLForLongs.abs().lt(fundingPnLForShorts.abs()));
 
 		const feeAlloced =
-			stripMantissa(totalFee, USDC_PRECISION) -
-			stripMantissa(cumulativeFee, USDC_PRECISION);
+			convertToNumber(totalFee, USDC_PRECISION) -
+			convertToNumber(cumulativeFee, USDC_PRECISION);
 
 		const precisionFundingPay = BASE_ASSET_PRECISION;
-		const fundingPnLForLongsNum = stripMantissa(
-			fundingPnLForLongs.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)),
+		const fundingPnLForLongsNum = convertToNumber(
+			fundingPnLForLongs.div(MARK_PRICE_PRECISION.mul(FUNDING_MANTISSA)),
 			precisionFundingPay
 		);
-		const fundingPnLForShortsNum = stripMantissa(
-			fundingPnLForShorts.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)),
+		const fundingPnLForShortsNum = convertToNumber(
+			fundingPnLForShorts.div(MARK_PRICE_PRECISION.mul(FUNDING_MANTISSA)),
 			precisionFundingPay
 		);
 
@@ -441,16 +449,16 @@ describe('capped funding', () => {
 		assert(fundingPnLForLongs.abs().lt(fundingPnLForShorts.abs()));
 
 		const feeAlloced =
-			stripMantissa(totalFee, USDC_PRECISION) -
-			stripMantissa(cumulativeFee, USDC_PRECISION);
+			convertToNumber(totalFee, USDC_PRECISION) -
+			convertToNumber(cumulativeFee, USDC_PRECISION);
 
 		const precisionFundingPay = BASE_ASSET_PRECISION;
-		const fundingPnLForLongsNum = stripMantissa(
-			fundingPnLForLongs.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)),
+		const fundingPnLForLongsNum = convertToNumber(
+			fundingPnLForLongs.div(MARK_PRICE_PRECISION.mul(FUNDING_MANTISSA)),
 			precisionFundingPay
 		);
-		const fundingPnLForShortsNum = stripMantissa(
-			fundingPnLForShorts.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)),
+		const fundingPnLForShortsNum = convertToNumber(
+			fundingPnLForShorts.div(MARK_PRICE_PRECISION.mul(FUNDING_MANTISSA)),
 			precisionFundingPay
 		);
 
@@ -496,16 +504,16 @@ describe('capped funding', () => {
 		assert(fundingPnLForLongs.abs().lt(fundingPnLForShorts.abs()));
 
 		const feeAlloced =
-			stripMantissa(totalFee, USDC_PRECISION) -
-			stripMantissa(cumulativeFee, USDC_PRECISION);
+			convertToNumber(totalFee, USDC_PRECISION) -
+			convertToNumber(cumulativeFee, USDC_PRECISION);
 
 		const precisionFundingPay = BASE_ASSET_PRECISION;
-		const fundingPnLForLongsNum = stripMantissa(
-			fundingPnLForLongs.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)),
+		const fundingPnLForLongsNum = convertToNumber(
+			fundingPnLForLongs.div(MARK_PRICE_PRECISION.mul(FUNDING_MANTISSA)),
 			precisionFundingPay
 		);
-		const fundingPnLForShortsNum = stripMantissa(
-			fundingPnLForShorts.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)),
+		const fundingPnLForShortsNum = convertToNumber(
+			fundingPnLForShorts.div(MARK_PRICE_PRECISION.mul(FUNDING_MANTISSA)),
 			precisionFundingPay
 		);
 
@@ -552,16 +560,16 @@ describe('capped funding', () => {
 		assert(fundingPnLForShorts.abs().lt(fundingPnLForLongs.abs()));
 
 		const feeAlloced =
-			stripMantissa(totalFee, USDC_PRECISION) -
-			stripMantissa(cumulativeFee, USDC_PRECISION);
+			convertToNumber(totalFee, USDC_PRECISION) -
+			convertToNumber(cumulativeFee, USDC_PRECISION);
 
 		const precisionFundingPay = BASE_ASSET_PRECISION;
-		const fundingPnLForLongsNum = stripMantissa(
-			fundingPnLForLongs.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)),
+		const fundingPnLForLongsNum = convertToNumber(
+			fundingPnLForLongs.div(MARK_PRICE_PRECISION.mul(FUNDING_MANTISSA)),
 			precisionFundingPay
 		);
-		const fundingPnLForShortsNum = stripMantissa(
-			fundingPnLForShorts.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)),
+		const fundingPnLForShortsNum = convertToNumber(
+			fundingPnLForShorts.div(MARK_PRICE_PRECISION.mul(FUNDING_MANTISSA)),
 			precisionFundingPay
 		);
 
@@ -609,16 +617,16 @@ describe('capped funding', () => {
 		assert(fundingPnLForShorts.abs().lt(fundingPnLForLongs.abs()));
 
 		const feeAlloced =
-			stripMantissa(totalFee, USDC_PRECISION) -
-			stripMantissa(cumulativeFee, USDC_PRECISION);
+			convertToNumber(totalFee, USDC_PRECISION) -
+			convertToNumber(cumulativeFee, USDC_PRECISION);
 
 		const precisionFundingPay = BASE_ASSET_PRECISION;
-		const fundingPnLForLongsNum = stripMantissa(
-			fundingPnLForLongs.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)),
+		const fundingPnLForLongsNum = convertToNumber(
+			fundingPnLForLongs.div(MARK_PRICE_PRECISION.mul(FUNDING_MANTISSA)),
 			precisionFundingPay
 		);
-		const fundingPnLForShortsNum = stripMantissa(
-			fundingPnLForShorts.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)),
+		const fundingPnLForShortsNum = convertToNumber(
+			fundingPnLForShorts.div(MARK_PRICE_PRECISION.mul(FUNDING_MANTISSA)),
 			precisionFundingPay
 		);
 
@@ -666,16 +674,16 @@ describe('capped funding', () => {
 		assert(fundingPnLForShorts.abs().lt(fundingPnLForLongs.abs()));
 
 		const feeAlloced =
-			stripMantissa(totalFee, USDC_PRECISION) -
-			stripMantissa(cumulativeFee, USDC_PRECISION);
+			convertToNumber(totalFee, USDC_PRECISION) -
+			convertToNumber(cumulativeFee, USDC_PRECISION);
 
 		const precisionFundingPay = BASE_ASSET_PRECISION;
-		const fundingPnLForLongsNum = stripMantissa(
-			fundingPnLForLongs.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)),
+		const fundingPnLForLongsNum = convertToNumber(
+			fundingPnLForLongs.div(MARK_PRICE_PRECISION.mul(FUNDING_MANTISSA)),
 			precisionFundingPay
 		);
-		const fundingPnLForShortsNum = stripMantissa(
-			fundingPnLForShorts.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)),
+		const fundingPnLForShortsNum = convertToNumber(
+			fundingPnLForShorts.div(MARK_PRICE_PRECISION.mul(FUNDING_MANTISSA)),
 			precisionFundingPay
 		);
 
@@ -724,16 +732,16 @@ describe('capped funding', () => {
 		assert(fundingPnLForShorts.abs().lt(fundingPnLForLongs.abs()));
 
 		const feeAlloced =
-			stripMantissa(totalFee, USDC_PRECISION) -
-			stripMantissa(cumulativeFee, USDC_PRECISION);
+			convertToNumber(totalFee, USDC_PRECISION) -
+			convertToNumber(cumulativeFee, USDC_PRECISION);
 
 		const precisionFundingPay = BASE_ASSET_PRECISION;
-		const fundingPnLForLongsNum = stripMantissa(
-			fundingPnLForLongs.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)),
+		const fundingPnLForLongsNum = convertToNumber(
+			fundingPnLForLongs.div(MARK_PRICE_PRECISION.mul(FUNDING_MANTISSA)),
 			precisionFundingPay
 		);
-		const fundingPnLForShortsNum = stripMantissa(
-			fundingPnLForShorts.div(AMM_MANTISSA.mul(FUNDING_MANTISSA)),
+		const fundingPnLForShortsNum = convertToNumber(
+			fundingPnLForShorts.div(MARK_PRICE_PRECISION.mul(FUNDING_MANTISSA)),
 			precisionFundingPay
 		);
 

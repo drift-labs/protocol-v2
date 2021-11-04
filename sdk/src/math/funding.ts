@@ -1,6 +1,6 @@
 import { BN } from '@project-serum/anchor';
 import { PythClient } from '../pythClient';
-import { AMM_MANTISSA } from '../constants/numericConstants';
+import { MARK_PRICE_PRECISION } from '../constants/numericConstants';
 import { Market } from '../types';
 import { calculateMarkPrice } from './market';
 
@@ -25,7 +25,7 @@ export async function calculateEstimatedFundingRate(
 
 	const oraclePriceData = await pythClient.getPriceData(market.amm.oracle);
 	const oracleTwapWithMantissa = new BN(
-		oraclePriceData.twap.value * AMM_MANTISSA.toNumber()
+		oraclePriceData.twap.value * MARK_PRICE_PRECISION.toNumber()
 	);
 
 	const now = new BN((Date.now() / 1000).toFixed(0));
@@ -49,7 +49,7 @@ export async function calculateEstimatedFundingRate(
 	const twapSpread = markTwapWithMantissa.sub(oracleTwapWithMantissa);
 
 	const twapSpreadPct = twapSpread
-		.mul(AMM_MANTISSA)
+		.mul(MARK_PRICE_PRECISION)
 		.mul(new BN(100))
 		.div(oracleTwapWithMantissa);
 

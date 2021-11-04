@@ -90,7 +90,7 @@ describe('stress-test', () => {
 	// });
 
 	// it('test-pegmult-peg=40000', async () => {
-	// 	const pegM = new BN(40000).mul(AMM_MANTISSA);
+	// 	const pegM = new BN(40000).mul(MARK_PRICE_PRECISION);
 
 	// 	await stress_test(
 	// 		clearingHouse,
@@ -106,7 +106,7 @@ describe('stress-test', () => {
 	// });
 
 	// it('test-pegmult-peg=40000', async () => {
-	// 	const pegM = new BN(20).mul(AMM_MANTISSA);
+	// 	const pegM = new BN(20).mul(MARK_PRICE_PRECISION);
 
 	// 	await stress_test(
 	// 		clearingHouse,

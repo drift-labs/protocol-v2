@@ -1,8 +1,11 @@
 import * as anchor from '@project-serum/anchor';
 import BN from 'bn.js';
-import { USDC_PRECISION, AMM_MANTISSA, PEG_SCALAR } from '../sdk/src';
-
-import { stripMantissa } from '../../common-ts';
+import {
+	USDC_PRECISION,
+	MARK_PRICE_PRECISION,
+	PEG_SCALAR,
+	convertToNumber,
+} from '../sdk/src';
 
 import { assert } from '../sdk/src/assert/assert';
 // import { getTokenAccount } from '@project-serum/common';
@@ -45,8 +48,12 @@ export async function stress_test(
 	// todo: should be equal at init, with xeq for scale as oracle px
 	const periodicity = new BN(1); // 1 SECOND
 	const PAIR_AMT = sqrtk;
-	const ammInitialQuoteAssetAmount = new anchor.BN(PAIR_AMT).mul(AMM_MANTISSA);
-	const ammInitialBaseAssetAmount = new anchor.BN(PAIR_AMT).mul(AMM_MANTISSA);
+	const ammInitialQuoteAssetAmount = new anchor.BN(PAIR_AMT).mul(
+		MARK_PRICE_PRECISION
+	);
+	const ammInitialBaseAssetAmount = new anchor.BN(PAIR_AMT).mul(
+		MARK_PRICE_PRECISION
+	);
 
 	for (let i = 0; i < oracles.length; i++) {
 		const amtScale = pegs[i].div(PEG_SCALAR); // same slippage pct for regardless of peg levels
@@ -128,7 +135,7 @@ export async function stress_test(
 				let _entry_px; //todo
 				const oraclePriceMantissa = new BN(
 					oracleData.price * PEG_SCALAR.toNumber()
-				).mul(AMM_MANTISSA.div(PEG_SCALAR));
+				).mul(MARK_PRICE_PRECISION.div(PEG_SCALAR));
 				const markPriceMantissa = clearingHouse.calculateMarkPrice(market_i);
 
 				[randEType, rand_amt, _entry_px] =
@@ -253,9 +260,9 @@ export async function stress_test(
 		let ast_px = 0;
 
 		try {
-			ast_px = stripMantissa(
+			ast_px = convertToNumber(
 				ammData.quoteAssetReserve
-					.mul(AMM_MANTISSA)
+					.mul(MARK_PRICE_PRECISION)
 					.div(ammData.baseAssetReserve)
 			);
 		} catch {
@@ -288,13 +295,13 @@ export async function stress_test(
 			mark_1: ast_px,
 			mark_peg: xeq_scaled,
 			mark_px: ast_px * xeq_scaled,
-			mark_twap: stripMantissa(ammData.lastMarkPriceTwap),
+			mark_twap: convertToNumber(ammData.lastMarkPriceTwap),
 			mark_twap_ts: ammData.lastMarkPriceTwapTs,
-			funding_rate: stripMantissa(ammData.lastFundingRate),
+			funding_rate: convertToNumber(ammData.lastFundingRate),
 			funding_rate_ts: ammData.lastFundingRateTs,
 
-			cumSlippage: stripMantissa(ammData.cumulativeFee, USDC_PRECISION),
-			cumSlippageProfit: stripMantissa(
+			cumSlippage: convertToNumber(ammData.cumulativeFee, USDC_PRECISION),
+			cumSlippageProfit: convertToNumber(
 				ammData.cumulativeFeeRealized,
 				USDC_PRECISION
 			),

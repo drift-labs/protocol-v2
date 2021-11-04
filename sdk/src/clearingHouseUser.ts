@@ -5,7 +5,7 @@ import StrictEventEmitter from 'strict-event-emitter-types';
 import { ClearingHouse } from './clearingHouse';
 import { UserAccount, UserPosition, UserPositionsAccount } from './types';
 import {
-	AMM_MANTISSA,
+	MARK_PRICE_PRECISION,
 	QUOTE_BASE_PRECISION_DIFF,
 	ZERO,
 	TEN_THOUSAND,
@@ -56,7 +56,6 @@ export class ClearingHouseUser {
 	}
 
 	public async subscribe(): Promise<boolean> {
-
 		// Clearing house should already be subscribed, but await for the subscription to avoid race condition
 		await this.clearingHouse.subscribe();
 
@@ -175,7 +174,7 @@ export class ClearingHouseUser {
 
 	/**
 	 * calculates sum of position value across all positions
-	 * return precision = 1e10 (AMM_MANTISSA)
+	 * return precision = 1e10 (MARK_PRICE_PRECISION)
 	 * @returns
 	 */
 	getTotalPositionValue(): BN {
@@ -186,23 +185,25 @@ export class ClearingHouseUser {
 					calculateBaseAssetValue(market, marketPosition)
 				);
 			}, ZERO)
-			.div(AMM_MANTISSA);
+			.div(MARK_PRICE_PRECISION);
 	}
 
 	/**
 	 * calculates position value from closing 100%
-	 * return precision = 1e10 (AMM_MANTISSA)
+	 * return precision = 1e10 (MARK_PRICE_PRECISION)
 	 * @returns
 	 */
 	public getPositionValue(positionIndex: BN | number): BN {
 		const userPosition = this.getUserPosition(positionIndex);
 		const market = this.clearingHouse.getMarket(userPosition.marketIndex);
-		return calculateBaseAssetValue(market, userPosition).div(AMM_MANTISSA);
+		return calculateBaseAssetValue(market, userPosition).div(
+			MARK_PRICE_PRECISION
+		);
 	}
 
 	/**
 	 * calculates average exit price for closing 100% of position
-	 * return precision = 1e10 (AMM_MANTISSA)
+	 * return precision = 1e10 (MARK_PRICE_PRECISION)
 	 * @returns
 	 */
 	public getPositionEstimatedExitPriceWithMantissa(position: UserPosition): BN {
@@ -310,7 +311,7 @@ export class ClearingHouseUser {
 
 	/**
 	 * Calculate the liquidation price of a position, with optional parameter to calculate the liquidation price after a trade
-	 * return precision = 1e10 (AMM_MANTISSA)
+	 * return precision = 1e10 (MARK_PRICE_PRECISION)
 	 * @param targetMarket
 	 * @param positionBaseSizeChange // change in position size to calculate liquidation price for - 10^13
 	 * @param partial
@@ -371,7 +372,7 @@ export class ClearingHouseUser {
 		const proposedMarketPositionValueUSDC = calculateBaseAssetValue(
 			market,
 			proposedMarketPosition
-		).div(AMM_MANTISSA);
+		).div(MARK_PRICE_PRECISION);
 
 		// total position value after trade
 		const targetTotalPositionValueUSDC =
@@ -408,10 +409,10 @@ export class ClearingHouseUser {
 		const baseAssetSignIsNeg = proposedMarketPosition.baseAssetAmount.isNeg();
 
 		// console.log(
-		// 	stripMantissa(currentPrice),
-		// stripMantissa(liqRatio),
-		// stripMantissa(marginRatio),
-		// stripMantissa(marketProportion),
+		// 	convertToNumber(currentPrice),
+		// convertToNumber(liqRatio),
+		// convertToNumber(marginRatio),
+		// convertToNumber(marketProportion),
 		// );
 
 		// // if the user is long, then the liq price is the currentPrice multiplied by liqRatio/marginRatio (how many multiples lower does the current marginRatio have to go to reach the liqRatio), multiplied by the fraction of the proposed total position value that this market will take up
@@ -450,7 +451,7 @@ export class ClearingHouseUser {
 
 	/**
 	 * Calculates the estimated liquidation price for a position after closing a quote amount of the position.
-	 * return precision = 1e10 (AMM_MANTISSA)
+	 * return precision = 1e10 (MARK_PRICE_PRECISION)
 	 * @param positionMarketIndex
 	 * @param closeQuoteAmount
 	 * @returns
@@ -621,7 +622,7 @@ export class ClearingHouseUser {
 			currentMarketPositionValueUSDC = calculateBaseAssetValue(
 				market,
 				currentMarketPosition
-			).div(AMM_MANTISSA);
+			).div(MARK_PRICE_PRECISION);
 		}
 
 		return this.getTotalPositionValue().sub(currentMarketPositionValueUSDC);

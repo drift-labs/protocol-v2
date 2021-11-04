@@ -3,7 +3,7 @@ import { ZERO } from '../constants/numericConstants';
 import BN from 'bn.js';
 import { calculateAmmReservesAfterSwap, getSwapDirection } from './amm';
 import {
-	AMM_MANTISSA,
+	MARK_PRICE_PRECISION,
 	BASE_ASSET_PRECISION,
 	FUNDING_MANTISSA,
 	PRICE_TO_USDC_PRECISION,
@@ -14,7 +14,7 @@ import {
  * = market value of closing entire position
  * @param market
  * @param userPosition
- * @returns precision = 1e10 (AMM_MANTISSA)
+ * @returns precision = 1e10 (MARK_PRICE_PRECISION)
  */
 export function calculateBaseAssetValue(
 	market: Market,
@@ -70,7 +70,7 @@ export function calculatePositionPNL(
 		: PositionDirection.LONG;
 
 	const baseAssetValue = calculateBaseAssetValue(market, marketPosition).div(
-		AMM_MANTISSA
+		MARK_PRICE_PRECISION
 	);
 	let pnlAssetAmount;
 

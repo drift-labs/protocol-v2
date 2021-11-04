@@ -6,7 +6,7 @@ import { Program } from '@project-serum/anchor';
 
 import { PublicKey } from '@solana/web3.js';
 
-import { Admin, AMM_MANTISSA } from '../sdk/src';
+import { Admin, MARK_PRICE_PRECISION } from '../sdk/src';
 
 import Markets from '../sdk/src/constants/markets';
 
@@ -26,7 +26,7 @@ describe('delete user', () => {
 	let userUSDCAccount;
 
 	// ammInvariant == k == x * y
-	const mantissaSqrtScale = new BN(Math.sqrt(AMM_MANTISSA.toNumber()));
+	const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
 	const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
 		mantissaSqrtScale
 	);

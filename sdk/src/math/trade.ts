@@ -2,7 +2,7 @@ import { Market, PositionDirection } from '../types';
 import { BN } from '@project-serum/anchor';
 import { assert } from '../assert/assert';
 import {
-	AMM_MANTISSA,
+	MARK_PRICE_PRECISION,
 	PEG_SCALAR,
 	QUOTE_BASE_PRECISION_DIFF,
 	ZERO,
@@ -102,9 +102,12 @@ export function calculatePriceImpact(
 	if (newPrice.gt(oldPrice)) {
 		assert(direction == PositionDirection.LONG);
 		if (unit == 'pctMax') {
-			slippage = newPrice.sub(oldPrice).mul(AMM_MANTISSA).div(oldPrice);
+			slippage = newPrice.sub(oldPrice).mul(MARK_PRICE_PRECISION).div(oldPrice);
 		} else if (unit == 'pctAvg') {
-			slippage = entryPrice.sub(oldPrice).mul(AMM_MANTISSA).div(oldPrice);
+			slippage = entryPrice
+				.sub(oldPrice)
+				.mul(MARK_PRICE_PRECISION)
+				.div(oldPrice);
 		} else if (
 			[
 				'priceDelta',
@@ -118,9 +121,12 @@ export function calculatePriceImpact(
 	} else {
 		assert(direction == PositionDirection.SHORT);
 		if (unit == 'pctMax') {
-			slippage = oldPrice.sub(newPrice).mul(AMM_MANTISSA).div(oldPrice);
+			slippage = oldPrice.sub(newPrice).mul(MARK_PRICE_PRECISION).div(oldPrice);
 		} else if (unit == 'pctAvg') {
-			slippage = oldPrice.sub(entryPrice).mul(AMM_MANTISSA).div(oldPrice);
+			slippage = oldPrice
+				.sub(entryPrice)
+				.mul(MARK_PRICE_PRECISION)
+				.div(oldPrice);
 		} else if (
 			[
 				'priceDelta',
@@ -137,7 +143,7 @@ export function calculatePriceImpact(
 	} else if (unit == 'quoteAssetAmountPeg') {
 		slippage = slippage.mul(amount).div(market.amm.pegMultiplier);
 	} else if (unit == 'priceDeltaAsNumber') {
-		slippage = slippage.toNumber() / AMM_MANTISSA.toNumber();
+		slippage = slippage.toNumber() / MARK_PRICE_PRECISION.toNumber();
 	}
 
 	return slippage;
@@ -180,7 +186,7 @@ export function calculateTargetPriceTrade(
 	const y1 = market.amm.quoteAssetReserve;
 	const peg = market.amm.pegMultiplier;
 	const invariant = market.amm.sqrtK.mul(market.amm.sqrtK);
-	const k = invariant.mul(AMM_MANTISSA);
+	const k = invariant.mul(MARK_PRICE_PRECISION);
 
 	let x2;
 	let y2;
@@ -192,7 +198,7 @@ export function calculateTargetPriceTrade(
 		x2 = squareRootBN(
 			k.div(targetPrice).mul(peg).div(PEG_SCALAR).sub(biasModifer)
 		).sub(new BN(1));
-		y2 = k.div(AMM_MANTISSA).div(x2);
+		y2 = k.div(MARK_PRICE_PRECISION).div(x2);
 
 		targetPriceCalced = calculatePrice(x2, y2, peg);
 		direction = PositionDirection.SHORT;
@@ -207,7 +213,7 @@ export function calculateTargetPriceTrade(
 		x2 = squareRootBN(
 			k.div(targetPrice).mul(peg).div(PEG_SCALAR).add(biasModifer)
 		).add(new BN(1));
-		y2 = k.div(AMM_MANTISSA).div(x2);
+		y2 = k.div(MARK_PRICE_PRECISION).div(x2);
 
 		targetPriceCalced = calculatePrice(x2, y2, peg);
 
@@ -236,9 +242,13 @@ export function calculateTargetPriceTrade(
 		ogDiff = markPriceWithMantissa.sub(targetPrice);
 	}
 
-	const entryPrice = calculatePrice(baseSize.abs(), tradeSize, AMM_MANTISSA);
+	const entryPrice = calculatePrice(
+		baseSize.abs(),
+		tradeSize,
+		MARK_PRICE_PRECISION
+	);
 	assert(tp1.sub(tp2).lte(ogDiff), 'Target Price Calculation incorrect');
-	// assert(tp1.sub(tp2).lt(AMM_MANTISSA), 'Target Price Calculation incorrect'); //  super OoB shorts do not
+	// assert(tp1.sub(tp2).lt(MARK_PRICE_PRECISION), 'Target Price Calculation incorrect'); //  super OoB shorts do not
 	assert(
 		tp2.lte(tp1) || tp2.sub(tp1).abs() < 100000,
 		'Target Price Calculation incorrect' +

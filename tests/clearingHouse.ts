@@ -9,7 +9,7 @@ import { PublicKey } from '@solana/web3.js';
 
 import {
 	Admin,
-	AMM_MANTISSA,
+	MARK_PRICE_PRECISION,
 	calculateMarkPrice,
 	calculatePriceImpact,
 	ClearingHouseUser,
@@ -17,9 +17,8 @@ import {
 	BASE_ASSET_PRECISION,
 	USDC_PRECISION,
 	MAX_LEVERAGE,
+	convertToNumber,
 } from '../sdk/src';
-
-import { stripMantissa } from '../../common-ts';
 
 import Markets from '../sdk/src/constants/markets';
 
@@ -56,7 +55,7 @@ describe('clearing_house', () => {
 	let userUSDCAccount;
 
 	// ammInvariant == k == x * y
-	const mantissaSqrtScale = new BN(Math.sqrt(AMM_MANTISSA.toNumber()));
+	const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
 	const ammInitialQuoteAssetAmount = new anchor.BN(5 * 10 ** 13).mul(
 		mantissaSqrtScale
 	);
@@ -615,23 +614,23 @@ describe('clearing_house', () => {
 
 		console.log(
 			'liqPrice move:',
-			stripMantissa(calculateMarkPrice(clearingHouse.getMarket(marketIndex))),
+			convertToNumber(calculateMarkPrice(clearingHouse.getMarket(marketIndex))),
 			'->',
-			stripMantissa(liqPrice),
+			convertToNumber(liqPrice),
 			'on position',
-			stripMantissa(
+			convertToNumber(
 				userPositionsAccount0.positions[0].baseAssetAmount,
 				BASE_ASSET_PRECISION
 			),
 			'with collateral:',
-			stripMantissa(user0.collateral, USDC_PRECISION)
+			convertToNumber(user0.collateral, USDC_PRECISION)
 		);
 
 		const marketsAccount: any = clearingHouse.getMarketsAccount();
 		const marketData = marketsAccount.markets[0];
 		await setFeedPrice(
 			anchor.workspace.Pyth,
-			stripMantissa(liqPrice),
+			convertToNumber(liqPrice),
 			marketData.amm.oracle
 		);
 
@@ -640,7 +639,7 @@ describe('clearing_house', () => {
 
 		console.log(
 			'collateral + pnl post px move:',
-			stripMantissa(userAccount.getTotalCollateral(), USDC_PRECISION)
+			convertToNumber(userAccount.getTotalCollateral(), USDC_PRECISION)
 		);
 
 		// having the user liquidate themsevles because I'm too lazy to create a separate liquidator account
@@ -648,7 +647,7 @@ describe('clearing_house', () => {
 
 		console.log(
 			'collateral + pnl post liq:',
-			stripMantissa(userAccount.getTotalCollateral(), USDC_PRECISION)
+			convertToNumber(userAccount.getTotalCollateral(), USDC_PRECISION)
 		);
 		console.log('can be liquidated', userAccount.canBeLiquidated());
 		console.log('margin ratio', userAccount.getMarginRatio().toString());
@@ -773,7 +772,7 @@ describe('clearing_house', () => {
 		const marketData = marketsAccount.markets[0];
 		await setFeedPrice(
 			anchor.workspace.Pyth,
-			stripMantissa(liqPrice),
+			convertToNumber(liqPrice),
 			marketData.amm.oracle
 		);
 
@@ -788,7 +787,7 @@ describe('clearing_house', () => {
 		const userPositionsAccount: any =
 			await clearingHouse.program.account.userPositions.fetch(user.positions);
 		console.log(
-			stripMantissa(
+			convertToNumber(
 				userPositionsAccount.positions[0].baseAssetAmount,
 				BASE_ASSET_PRECISION
 			)
