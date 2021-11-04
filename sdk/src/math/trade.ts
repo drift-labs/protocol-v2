@@ -35,25 +35,57 @@ export type PriceImpactUnit =
  * @param amount
  * @param market
  * @param unit
- * 	| 'entryPrice' => the average price a user gets the position at : BN
- * 	| 'maxPrice' =>  the price that the market is moved to after the trade : BN
- * 	| 'priceDelta' =>  the change in price (with MANTISSA) : BN
- * 	| 'priceDeltaAsNumber' =>  the change in price (as number, no MANTISSA) : number
+ * @return
  * 	| 'pctAvg' =>  the percentage change from entryPrice (average est slippage in execution) : BN
  * 	| 'pctMax' =>  the percentage change to maxPrice (highest est slippage in execution) : BN
- * 	| 'quoteAssetAmount' => the amount of quote paid (~amount w/ slight rounding?) : BN
- * 	| 'quoteAssetAmountPeg' => the amount of quotePeg paid (quote/pegMultiplier) : BN
  */
-export function calculatePriceImpact(
+export function calculateTradeSlippage(
 	direction: PositionDirection,
 	amount: BN,
 	market: Market,
-	unit?: PriceImpactUnit
-) {
-	if (amount.eq(new BN(0))) {
-		return new BN(0);
+) : [BN, BN] {
+
+	if(amount.eq(ZERO)){
+		return [ZERO, ZERO];
 	}
+	
 	const oldPrice = calculateMarkPrice(market);
+	const [acquiredBase, acquiredQuote] = calculateTradeAcquiredAmounts(direction, amount, market);
+	
+	const entryPrice = calculatePrice(
+		acquiredBase,
+		acquiredQuote,
+		market.amm.pegMultiplier
+	).mul(new BN(-1));
+
+	const newPrice = calculatePrice(
+		market.amm.baseAssetReserve.sub(acquiredBase),
+		market.amm.quoteAssetReserve.sub(acquiredQuote),
+		market.amm.pegMultiplier
+	)
+	
+	if(direction == PositionDirection.SHORT) {
+		assert(newPrice.lt(oldPrice))
+	} else{
+		assert(oldPrice.lt(newPrice))
+	}
+
+	const pctMaxSlippage = newPrice.sub(oldPrice).mul(MARK_PRICE_PRECISION).div(oldPrice).abs();
+	const pctAvgSlippage = entryPrice.sub(oldPrice).mul(MARK_PRICE_PRECISION).div(oldPrice).abs();
+
+	return [pctAvgSlippage, pctMaxSlippage];
+}
+
+
+export function calculateTradeAcquiredAmounts(
+	direction: PositionDirection,
+	amount: BN,
+	market: Market
+) : [BN, BN] {
+
+	if (amount.eq(ZERO)) {
+		return [ZERO, ZERO];
+	}
 
 	const [newQuoteAssetReserve, newBaseAssetReserve] =
 		calculateAmmReservesAfterSwap(
@@ -63,90 +95,10 @@ export function calculatePriceImpact(
 			getSwapDirection('quote', direction)
 		);
 
-	if (unit == 'acquiredBaseAssetAmount') {
-		return market.amm.baseAssetReserve.sub(newBaseAssetReserve);
-	}
-	if (unit == 'acquiredQuoteAssetAmount') {
-		return market.amm.quoteAssetReserve.sub(newQuoteAssetReserve);
-	}
+	const acquiredBase =  market.amm.baseAssetReserve.sub(newBaseAssetReserve);
+	const acquiredQuote = market.amm.quoteAssetReserve.sub(newQuoteAssetReserve);
 
-	const entryPrice = calculatePrice(
-		market.amm.baseAssetReserve.sub(newBaseAssetReserve),
-		market.amm.quoteAssetReserve.sub(newQuoteAssetReserve),
-		market.amm.pegMultiplier
-	).mul(new BN(-1));
-
-	if (entryPrice.eq(new BN(0))) {
-		return new BN(0);
-	}
-
-	if (unit == 'entryPrice') {
-		return entryPrice;
-	}
-
-	const newPrice = calculatePrice(
-		newBaseAssetReserve,
-		newQuoteAssetReserve,
-		market.amm.pegMultiplier
-	);
-
-	if (unit == 'maxPrice') {
-		return newPrice;
-	}
-
-	if (oldPrice == newPrice) {
-		throw new Error('insufficient `amount` passed:');
-	}
-
-	let slippage;
-	if (newPrice.gt(oldPrice)) {
-		assert(direction == PositionDirection.LONG);
-		if (unit == 'pctMax') {
-			slippage = newPrice.sub(oldPrice).mul(MARK_PRICE_PRECISION).div(oldPrice);
-		} else if (unit == 'pctAvg') {
-			slippage = entryPrice
-				.sub(oldPrice)
-				.mul(MARK_PRICE_PRECISION)
-				.div(oldPrice);
-		} else if (
-			[
-				'priceDelta',
-				'quoteAssetAmount',
-				'quoteAssetAmountPeg',
-				'priceDeltaAsNumber',
-			].includes(unit)
-		) {
-			slippage = newPrice.sub(oldPrice);
-		}
-	} else {
-		assert(direction == PositionDirection.SHORT);
-		if (unit == 'pctMax') {
-			slippage = oldPrice.sub(newPrice).mul(MARK_PRICE_PRECISION).div(oldPrice);
-		} else if (unit == 'pctAvg') {
-			slippage = oldPrice
-				.sub(entryPrice)
-				.mul(MARK_PRICE_PRECISION)
-				.div(oldPrice);
-		} else if (
-			[
-				'priceDelta',
-				'quoteAssetAmount',
-				'quoteAssetAmountPeg',
-				'priceDeltaAsNumber',
-			].includes(unit)
-		) {
-			slippage = oldPrice.sub(newPrice);
-		}
-	}
-	if (unit == 'quoteAssetAmount') {
-		slippage = slippage.mul(amount);
-	} else if (unit == 'quoteAssetAmountPeg') {
-		slippage = slippage.mul(amount).div(market.amm.pegMultiplier);
-	} else if (unit == 'priceDeltaAsNumber') {
-		slippage = slippage.toNumber() / MARK_PRICE_PRECISION.toNumber();
-	}
-
-	return slippage;
+	return [acquiredBase, acquiredQuote];
 }
 
 /**
