@@ -1,9 +1,9 @@
 use crate::error::*;
 use crate::math::bn;
 use crate::math::constants::{
-    AMM_TO_COLLATERAL_PRECISION_RATIO, FUNDING_PAYMENT_MANTISSA, MARK_PRICE_MANTISSA,
+    AMM_TO_USDC_PRECISION_RATIO, FUNDING_PAYMENT_MANTISSA, MARK_PRICE_MANTISSA,
     SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_DENOMINATOR,
-    SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR, COLLATERAL_TO_BASE_AMT_FUNDING_PRECISION,
+    SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR, USDC_TO_BASE_AMT_FUNDING_PRECISION,
 };
 use crate::math_error;
 use crate::state::market::Market;
@@ -16,7 +16,7 @@ pub fn calculate_funding_rate_long_short(
     funding_rate: i128,
 ) -> ClearingHouseResult<(i128, i128)> {
     let symmetric_funding_pnl =
-        -(calculate_funding_payment_in_collateral_precision(funding_rate, market.base_asset_amount)?);
+        -(calculate_funding_payment_in_quote_precision(funding_rate, market.base_asset_amount)?);
     if symmetric_funding_pnl >= 0 {
         market.amm.total_fee_minus_distributions = market
             .amm
@@ -78,9 +78,9 @@ fn calculate_capped_funding_rate(
         .ok_or_else(math_error!())?;
 
     let this_funding_rate_inflow = -(if funding_rate > 0 {
-        calculate_funding_payment_in_collateral_precision(funding_rate, market.base_asset_amount_long)
+        calculate_funding_payment_in_quote_precision(funding_rate, market.base_asset_amount_long)
     } else {
-        calculate_funding_payment_in_collateral_precision(funding_rate, market.base_asset_amount_short)
+        calculate_funding_payment_in_quote_precision(funding_rate, market.base_asset_amount_short)
     }?);
 
     let funding_rate_pnl_limit =
@@ -180,7 +180,7 @@ fn calculate_funding_rate_from_pnl_limit(
     };
 
     let funding_rate = pnl_limit_biased
-        .checked_mul(COLLATERAL_TO_BASE_AMT_FUNDING_PRECISION)
+        .checked_mul(USDC_TO_BASE_AMT_FUNDING_PRECISION)
         .ok_or_else(math_error!())?
         .checked_div(base_asset_amount_dir)
         .ok_or_else(math_error!());
@@ -188,13 +188,13 @@ fn calculate_funding_rate_from_pnl_limit(
     return funding_rate;
 }
 
-fn calculate_funding_payment_in_collateral_precision(
+fn calculate_funding_payment_in_quote_precision(
     funding_rate_delta: i128,
     base_asset_amount: i128,
 ) -> ClearingHouseResult<i128> {
     let funding_payment = _calculate_funding_payment(funding_rate_delta, base_asset_amount)?;
     let funding_payment_collateral = funding_payment
-        .checked_div(AMM_TO_COLLATERAL_PRECISION_RATIO as i128)
+        .checked_div(AMM_TO_USDC_PRECISION_RATIO as i128)
         .ok_or_else(math_error!())?;
 
     return Ok(funding_payment_collateral);
