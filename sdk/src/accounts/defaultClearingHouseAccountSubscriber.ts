@@ -35,7 +35,7 @@ export class DefaultClearingHouseAccountSubscriber
 	curveHistoryAccountSubscriber?: AccountSubscriber<CurveHistoryAccount>;
 	liquidationHistoryAccountSubscriber?: AccountSubscriber<LiquidationHistoryAccount>;
 
-	optionalExtraSubscriptions = [];
+	optionalExtraSubscriptions: ClearingHouseAccountTypes[] = [];
 
 	private isSubscribing = false;
 	private subscriptionPromise: Promise<boolean>;
@@ -50,7 +50,6 @@ export class DefaultClearingHouseAccountSubscriber
 	public async subscribe(
 		optionalSubscriptions?: ClearingHouseAccountTypes[]
 	): Promise<boolean> {
-		
 		if (this.isSubscribed) {
 			return true;
 		}
@@ -214,12 +213,33 @@ export class DefaultClearingHouseAccountSubscriber
 
 		await this.stateAccountSubscriber.unsubscribe();
 		await this.marketsAccountSubscriber.unsubscribe();
-		await this.tradeHistoryAccountSubscriber.unsubscribe();
-		await this.fundingRateHistoryAccountSubscriber.unsubscribe();
-		await this.fundingPaymentHistoryAccountSubscriber.unsubscribe();
-		await this.depositHistoryAccountSubscriber.unsubscribe();
-		await this.curveHistoryAccountSubscriber.unsubscribe();
-		await this.liquidationHistoryAccountSubscriber.unsubscribe();
+
+		if (this.optionalExtraSubscriptions.includes('tradeHistoryAccount')) {
+			await this.tradeHistoryAccountSubscriber.unsubscribe();
+		}
+
+		if (this.optionalExtraSubscriptions.includes('fundingRateHistoryAccount')) {
+			await this.fundingRateHistoryAccountSubscriber.unsubscribe();
+		}
+
+		if (
+			this.optionalExtraSubscriptions.includes('fundingPaymentHistoryAccount')
+		) {
+			await this.fundingPaymentHistoryAccountSubscriber.unsubscribe();
+		}
+
+		if (this.optionalExtraSubscriptions.includes('depositHistoryAccount')) {
+			await this.depositHistoryAccountSubscriber.unsubscribe();
+		}
+
+		if (this.optionalExtraSubscriptions.includes('curveHistoryAccount')) {
+			await this.curveHistoryAccountSubscriber.unsubscribe();
+		}
+
+		if (this.optionalExtraSubscriptions.includes('liquidationHistoryAccount')) {
+			await this.liquidationHistoryAccountSubscriber.unsubscribe();
+		}
+
 		this.isSubscribed = false;
 	}
 
