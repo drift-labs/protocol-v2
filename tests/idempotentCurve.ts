@@ -156,7 +156,7 @@ describe('idempotent curve', () => {
 		const baseAssetValue = calculateBaseAssetValue(
 			market,
 			userPositionsAccount.positions[0]
-		).div(MARK_PRICE_PRECISION);
+		);
 		for (let i = 0; i < numberOfReduces - 1; i++) {
 			await clearingHouse.openPosition(
 				PositionDirection.SHORT,
@@ -223,7 +223,7 @@ describe('idempotent curve', () => {
 		const baseAssetValue = calculateBaseAssetValue(
 			market,
 			userPositionsAccount.positions[0]
-		).div(MARK_PRICE_PRECISION);
+		);
 		for (let i = 0; i < numberOfReduces - 1; i++) {
 			await clearingHouse.openPosition(
 				PositionDirection.SHORT,
@@ -290,7 +290,7 @@ describe('idempotent curve', () => {
 		const baseAssetValue = calculateBaseAssetValue(
 			market,
 			userPositionsAccount.positions[0]
-		).div(MARK_PRICE_PRECISION);
+		);
 		for (let i = 0; i < numberOfReduces - 1; i++) {
 			await clearingHouse.openPosition(
 				PositionDirection.LONG,
@@ -356,7 +356,7 @@ describe('idempotent curve', () => {
 		const baseAssetValue = calculateBaseAssetValue(
 			market,
 			userPositionsAccount.positions[0]
-		).div(MARK_PRICE_PRECISION);
+		);
 		for (let i = 0; i < numberOfReduces - 1; i++) {
 			await clearingHouse.openPosition(
 				PositionDirection.LONG,

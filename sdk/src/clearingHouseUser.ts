@@ -182,14 +182,15 @@ export class ClearingHouseUser {
 	 * @returns
 	 */
 	getTotalPositionValue(): BN {
-		return this.getUserPositionsAccount()
-			.positions.reduce((positionValue, marketPosition) => {
+		return this.getUserPositionsAccount().positions.reduce(
+			(positionValue, marketPosition) => {
 				const market = this.clearingHouse.getMarket(marketPosition.marketIndex);
 				return positionValue.add(
 					calculateBaseAssetValue(market, marketPosition)
 				);
-			}, ZERO)
-			.div(MARK_PRICE_PRECISION);
+			},
+			ZERO
+		);
 	}
 
 	/**
@@ -200,9 +201,7 @@ export class ClearingHouseUser {
 	public getPositionValue(marketIndex: BN): BN {
 		const userPosition = this.getUserPosition(marketIndex);
 		const market = this.clearingHouse.getMarket(userPosition.marketIndex);
-		return calculateBaseAssetValue(market, userPosition).div(
-			MARK_PRICE_PRECISION
-		);
+		return calculateBaseAssetValue(market, userPosition);
 	}
 
 	public getPositionSide(currentPosition: Pick<UserPosition, 'baseAssetAmount'>): PositionDirection | undefined {
@@ -228,6 +227,7 @@ export class ClearingHouseUser {
 		}
 		return baseAssetValue
 			.mul(AMM_TO_QUOTE_PRECISION_RATIO)
+			.mul(MARK_PRICE_PRECISION)
 			.div(position.baseAssetAmount.abs());
 	}
 
@@ -384,7 +384,7 @@ export class ClearingHouseUser {
 		const proposedMarketPositionValueUSDC = calculateBaseAssetValue(
 			market,
 			proposedMarketPosition
-		).div(MARK_PRICE_PRECISION);
+		);
 
 		// total position value after trade
 		const targetTotalPositionValueUSDC =
@@ -624,7 +624,7 @@ export class ClearingHouseUser {
 			currentMarketPositionValueUSDC = calculateBaseAssetValue(
 				market,
 				currentMarketPosition
-			).div(MARK_PRICE_PRECISION);
+			);
 		}
 
 		return this.getTotalPositionValue().sub(currentMarketPositionValueUSDC);

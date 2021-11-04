@@ -1,5 +1,9 @@
 import { Market, PositionDirection, UserPosition } from '../types';
-import { ZERO } from '../constants/numericConstants';
+import {
+	AMM_TO_QUOTE_PRECISION_RATIO,
+	PEG_PRECISION,
+	ZERO,
+} from '../constants/numericConstants';
 import BN from 'bn.js';
 import { calculateAmmReservesAfterSwap, getSwapDirection } from './amm';
 import {
@@ -14,7 +18,7 @@ import {
  * = market value of closing entire position
  * @param market
  * @param userPosition
- * @returns precision = 1e10 (MARK_PRICE_PRECISION)
+ * @returns precision = 1e6 (QUOTE_PRECISION)
  */
 export function calculateBaseAssetValue(
 	market: Market,
@@ -39,12 +43,16 @@ export function calculateBaseAssetValue(
 		case PositionDirection.SHORT:
 			return market.amm.quoteAssetReserve
 				.sub(newQuoteAssetReserve)
-				.mul(market.amm.pegMultiplier);
+				.mul(market.amm.pegMultiplier)
+				.div(PEG_PRECISION)
+				.div(AMM_TO_QUOTE_PRECISION_RATIO);
 
 		case PositionDirection.LONG:
 			return newQuoteAssetReserve
 				.sub(market.amm.quoteAssetReserve)
-				.mul(market.amm.pegMultiplier);
+				.mul(market.amm.pegMultiplier)
+				.div(PEG_PRECISION)
+				.div(AMM_TO_QUOTE_PRECISION_RATIO);
 	}
 }
 
@@ -69,9 +77,7 @@ export function calculatePositionPNL(
 		? PositionDirection.SHORT
 		: PositionDirection.LONG;
 
-	const baseAssetValue = calculateBaseAssetValue(market, marketPosition).div(
-		MARK_PRICE_PRECISION
-	);
+	const baseAssetValue = calculateBaseAssetValue(market, marketPosition);
 	let pnlAssetAmount;
 
 	switch (directionToClose) {
