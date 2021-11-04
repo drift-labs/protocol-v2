@@ -90,45 +90,6 @@ describe('User Account', () => {
 		expectedLeverage: BN,
 		expectedMarginRatio: BN
 	) => {
-		const summary = userAccount.summary();
-		console.log(summary);
-		const pnl0 = userAccount.getUnrealizedPNL();
-
-		console.log(
-			'PnL',
-			summary.uPnL.toNumber(),
-			pnl0.toNumber(),
-			expectedPNL.toNumber()
-		);
-		console.log(
-			'buyingPower',
-			summary.buyingPower.toNumber(),
-			expectedBuyingPower.toNumber()
-		);
-
-		console.log(
-			'totalCollateral',
-			summary.totalCollateral.toNumber(),
-			expectedTotalCollateral.toNumber()
-		);
-
-		console.log(
-			'freeCollateral',
-			summary.freeCollateral.toNumber(),
-			expectedFreeCollateral.toNumber()
-		);
-
-		console.log(
-			'marginRatio',
-			summary.marginRatio.toNumber(),
-			expectedMarginRatio.toNumber()
-		);
-		console.log(
-			'leverage',
-			summary.leverage.toNumber(),
-			expectedLeverage.toNumber()
-		);
-
 		// todo: dont hate me
 		const buyingPower = userAccount.getBuyingPower();
 		assert(buyingPower.eq(expectedBuyingPower));

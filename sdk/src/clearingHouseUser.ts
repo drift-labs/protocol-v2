@@ -627,31 +627,4 @@ export class ClearingHouseUser {
 
 		return this.getTotalPositionValue().sub(currentMarketPositionValueUSDC);
 	}
-
-	public summary() {
-		const marketPosition0 = this.getUserPositionsAccount().positions[0];
-		const market0 = this.clearingHouse.getMarket(marketPosition0.marketIndex);
-		const pos0PNL = calculatePositionPNL(market0, marketPosition0);
-		const pos0Value = calculateBaseAssetValue(market0, marketPosition0);
-
-		const pos0Px = calculateMarkPrice(market0);
-
-		return {
-			totalCollateral: this.getTotalCollateral(),
-			uPnL: this.getUnrealizedPNL(),
-			marginRatio: this.getMarginRatio(),
-			freeCollateral: this.getFreeCollateral(),
-			leverage: this.getLeverage(),
-			buyingPower: this.getBuyingPower(),
-			tPV: this.getTotalPositionValue(),
-
-			pos0BAmt: marketPosition0.baseAssetAmount,
-			pos0QAmt: marketPosition0.quoteAssetAmount,
-			pos0Market: marketPosition0.marketIndex,
-			pos0LiqPrice: this.liquidationPrice(marketPosition0),
-			pos0Value: pos0Value,
-			pos0Px: pos0Px,
-			pos0PNL: pos0PNL,
-		};
-	}
 }
