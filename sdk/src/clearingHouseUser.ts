@@ -76,11 +76,15 @@ export class ClearingHouseUser {
 		return this.accountSubscriber.getUserPositionsAccount();
 	}
 
-	public getUserPosition(positionIndex: BN | number): UserPosition {
-		if (positionIndex instanceof BN) {
-			positionIndex = positionIndex.toNumber();
-		}
-		return this.getUserPositionsAccount().positions[positionIndex];
+	/**
+	 * Gets the user's current position for a given market
+	 * @param marketIndex
+	 * @returns userPosition
+	 */
+	public getUserPosition(marketIndex: BN): UserPosition {
+		return this.getUserPositionsAccount().positions.find((position) =>
+			position.marketIndex.eq(marketIndex)
+		);
 	}
 
 	public async getUserAccountPublicKey(): Promise<PublicKey> {
@@ -193,12 +197,22 @@ export class ClearingHouseUser {
 	 * return precision = 1e6 (QUOTE_PRECISION)
 	 * @returns
 	 */
-	public getPositionValue(positionIndex: BN | number): BN {
-		const userPosition = this.getUserPosition(positionIndex);
+	public getPositionValue(marketIndex: BN): BN {
+		const userPosition = this.getUserPosition(marketIndex);
 		const market = this.clearingHouse.getMarket(userPosition.marketIndex);
 		return calculateBaseAssetValue(market, userPosition).div(
 			MARK_PRICE_PRECISION
 		);
+	}
+
+	public getPositionSide(currentPosition: Pick<UserPosition, 'baseAssetAmount'>): PositionDirection | undefined {
+		if(currentPosition.baseAssetAmount.gt(ZERO)){
+			return PositionDirection.LONG;
+		} else if (currentPosition.baseAssetAmount.lt(ZERO)) {
+			return PositionDirection.SHORT;
+		} else {
+			return undefined;
+		}
 	}
 
 	/**
@@ -347,9 +361,7 @@ export class ClearingHouseUser {
 			this.getTotalPositionValueExcludingMarket(targetMarket.marketIndex);
 
 		const currentMarketPosition =
-			this.getUserPositionsAccount().positions?.find((position) =>
-				position.marketIndex.eq(targetMarket.marketIndex)
-			);
+			this.getUserPosition(targetMarket.marketIndex);
 
 		const currentMarketPositionBaseSize = currentMarketPosition
 			? currentMarketPosition.baseAssetAmount
@@ -460,9 +472,7 @@ export class ClearingHouseUser {
 		positionMarketIndex: BN,
 		closeQuoteAmount: BN
 	): BN {
-		const currentPosition = this.getUserPositionsAccount().positions.find(
-			(position) => position.marketIndex.eq(positionMarketIndex)
-		);
+		const currentPosition = this.getUserPosition(positionMarketIndex);
 
 		const closeBaseAmount = currentPosition.baseAssetAmount
 			.mul(closeQuoteAmount)
@@ -496,32 +506,34 @@ export class ClearingHouseUser {
 	): BN {
 		// inline function which get's the current position size on the opposite side of the target trade
 		const getOppositePositionValueUSDC = () => {
-			const currentPosition = this.getPositionForMarket(targetMarketIndex);
-
 			if (!currentPosition) return ZERO;
 
 			const side = tradeSide === PositionDirection.SHORT ? 'short' : 'long';
 
 			if (side === 'long' && currentPosition?.baseAssetAmount.isNeg()) {
-				return currentPosition.quoteAssetAmount;
+				return this.getPositionValue(targetMarketIndex);
 			} else if (
 				side === 'short' &&
 				!currentPosition?.baseAssetAmount.isNeg()
 			) {
-				return currentPosition.quoteAssetAmount;
+				return this.getPositionValue(targetMarketIndex);
 			}
 
 			return ZERO;
 		};
 
+		const currentPosition = this.getUserPosition(targetMarketIndex);
+
 		// get current leverage
 		const currentLeverage = this.getLeverage();
 
 		// remaining leverage
+		// let remainingLeverage = userMaxLeverageSetting;
+
 		const remainingLeverage = BN.max(
-			userMaxLeverageSetting.sub(currentLeverage),
-			ZERO
-		);
+				userMaxLeverageSetting.sub(currentLeverage),
+				ZERO
+			);
 
 		// get total collateral
 		const totalCollateral = this.getTotalCollateral();
@@ -536,9 +548,10 @@ export class ClearingHouseUser {
 
 		maxPositionSize = maxPositionSize.add(oppositeSizeValueUSDC);
 
-		// subtract $.001 to avoid rounding errors when taking max leverage
-		const oneTenthOfACent = QUOTE_PRECISION.div(new BN(1000));
-		return maxPositionSize.sub(oneTenthOfACent);
+		// subtract oneMillionth of maxPositionSize
+		// => to avoid rounding errors when taking max leverage
+		const oneMilli = maxPositionSize.div(QUOTE_PRECISION);
+		return maxPositionSize.sub(oneMilli);
 	}
 
 	// TODO - should this take the price impact of the trade into account for strict accuracy?
@@ -555,7 +568,7 @@ export class ClearingHouseUser {
 		tradeQuoteAmount: BN,
 		tradeSide: PositionDirection
 	): BN {
-		const currentPosition = this.getPositionForMarket(targetMarketIndex);
+		const currentPosition = this.getUserPosition(targetMarketIndex);
 		let currentPositionQuoteAmount = currentPosition.quoteAssetAmount;
 
 		const currentSide = currentPosition.baseAssetAmount.isNeg()
@@ -583,17 +596,6 @@ export class ClearingHouseUser {
 	}
 
 	/**
-	 * Gets the user's current position for a given market
-	 * @param marketIndex
-	 * @returns userPosition
-	 */
-	private getPositionForMarket(marketIndex: BN): UserPosition {
-		return this.getUserPositionsAccount().positions.find((position) =>
-			position.marketIndex.eq(marketIndex)
-		);
-	}
-
-	/**
 	 * Calculates how much fee will be taken for a given sized trade
 	 * @param quoteAmount
 	 * @returns feeForQuote : 10^6
@@ -612,7 +614,7 @@ export class ClearingHouseUser {
 	 * @returns positionValue
 	 */
 	private getTotalPositionValueExcludingMarket(marketToIgnore: BN): BN {
-		const currentMarketPosition = this.getPositionForMarket(marketToIgnore);
+		const currentMarketPosition = this.getUserPosition(marketToIgnore);
 
 		let currentMarketPositionValueUSDC = ZERO;
 		if (currentMarketPosition) {
