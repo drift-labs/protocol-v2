@@ -6,7 +6,7 @@ import {
 	Admin,
 	MARK_PRICE_PRECISION,
 	calculateMarkPrice,
-	calculatePriceImpact,
+	calculateTradeSlippage,
 	calculateTargetPriceTrade,
 	PositionDirection,
 	PEG_SCALAR,
@@ -273,12 +273,11 @@ describe('AMM Curve', () => {
 			marketIndex
 		);
 
-		const avgSlippageCenter = calculatePriceImpact(
+		const avgSlippageCenter = calculateTradeSlippage(
 			PositionDirection.LONG,
 			new BN(MAX_USER_TRADE * MARK_PRICE_PRECISION.toNumber()),
 			clearingHouse.getMarket(0),
-			'pctAvg'
-		);
+		)[0];
 		showBook(marketIndex);
 
 		const targetPriceUp = new BN(
@@ -292,12 +291,11 @@ describe('AMM Curve', () => {
 
 		await clearingHouse.moveAmmToPrice(marketIndex, targetPriceUp);
 
-		const avgSlippage25PctOut = calculatePriceImpact(
+		const avgSlippage25PctOut = calculateTradeSlippage(
 			PositionDirection.LONG,
 			new BN(MAX_USER_TRADE * MARK_PRICE_PRECISION.toNumber()),
 			clearingHouse.getMarket(0),
-			'pctAvg'
-		);
+		)[0];
 
 		showBook(marketIndex);
 

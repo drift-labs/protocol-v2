@@ -11,7 +11,7 @@ import {
 	Admin,
 	MARK_PRICE_PRECISION,
 	calculateMarkPrice,
-	calculatePriceImpact,
+	calculateTradeSlippage,
 	ClearingHouseUser,
 	PositionDirection,
 	BASE_ASSET_PRECISION,
@@ -20,7 +20,7 @@ import {
 	convertToNumber,
 } from '../sdk/src';
 
-import Markets from '../sdk/src/constants/markets';
+import { Markets } from '../sdk/src/constants/markets';
 
 import {
 	mockUSDCMint,
@@ -355,12 +355,11 @@ describe('clearing_house', () => {
 			const newUSDCNotionalAmount = usdcAmount.div(new BN(2)).mul(new BN(5));
 			const marketIndex = new BN(0);
 			const market = clearingHouse.getMarket(marketIndex);
-			const estTradePrice = calculatePriceImpact(
+			const estTradePrice = calculateTradeSlippage(
 				PositionDirection.SHORT,
 				newUSDCNotionalAmount,
 				market,
-				'entryPrice'
-			);
+			)[2];
 
 			// trying to sell at price too high
 			const limitPriceTooHigh = calculateMarkPrice(market);
@@ -979,12 +978,11 @@ describe('clearing_house', () => {
 		const newUSDCNotionalAmount = usdcAmount.div(new BN(2)).mul(new BN(5));
 		const marketIndex = new BN(0);
 		const market = clearingHouse.getMarket(marketIndex);
-		const estTradePrice = calculatePriceImpact(
+		const estTradePrice = calculateTradeSlippage(
 			PositionDirection.SHORT,
 			newUSDCNotionalAmount,
-			market,
-			'entryPrice'
-		);
+			market
+		)[2];
 
 		await clearingHouse.openPosition(
 			PositionDirection.SHORT,
@@ -1000,12 +998,11 @@ describe('clearing_house', () => {
 		const newUSDCNotionalAmount = usdcAmount.div(new BN(2)).mul(new BN(5));
 		const marketIndex = new BN(0);
 		const market = clearingHouse.getMarket(marketIndex);
-		const estTradePrice = calculatePriceImpact(
+		const estTradePrice = calculateTradeSlippage(
 			PositionDirection.LONG,
 			newUSDCNotionalAmount,
-			market,
-			'entryPrice'
-		);
+			market
+		)[2];
 
 		await clearingHouse.openPosition(
 			PositionDirection.LONG,

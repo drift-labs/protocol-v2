@@ -42,13 +42,12 @@ export function calculateTradeSlippage(
 	direction: PositionDirection,
 	amount: BN,
 	market: Market,
-) : [BN, BN] {
-
-	if(amount.eq(ZERO)){
-		return [ZERO, ZERO];
-	}
+) : [BN, BN, BN, BN] {
 	
 	const oldPrice = calculateMarkPrice(market);
+	if(amount.eq(ZERO)){
+		return [ZERO, ZERO, oldPrice, oldPrice];
+	}
 	const [acquiredBase, acquiredQuote] = calculateTradeAcquiredAmounts(direction, amount, market);
 	
 	const entryPrice = calculatePrice(
@@ -72,7 +71,7 @@ export function calculateTradeSlippage(
 	const pctMaxSlippage = newPrice.sub(oldPrice).mul(MARK_PRICE_PRECISION).div(oldPrice).abs();
 	const pctAvgSlippage = entryPrice.sub(oldPrice).mul(MARK_PRICE_PRECISION).div(oldPrice).abs();
 
-	return [pctAvgSlippage, pctMaxSlippage];
+	return [pctAvgSlippage, pctMaxSlippage, entryPrice, newPrice];
 }
 
 /**
