@@ -206,7 +206,7 @@ export class ClearingHouseUser {
 	 * return precision = 1e10 (MARK_PRICE_PRECISION)
 	 * @returns
 	 */
-	public getPositionEstimatedExitPriceWithMantissa(position: UserPosition): BN {
+	public getPositionEstimatedExitPrice(position: UserPosition): BN {
 		const market = this.clearingHouse.getMarket(position.marketIndex);
 		const baseAssetValue = calculateBaseAssetValue(market, position);
 		if (position.baseAssetAmount.eq(ZERO)) {
