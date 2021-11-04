@@ -16,7 +16,7 @@ export * from './math/position';
 export * from './math/amm';
 export * from './math/trade';
 export * from './types';
-export * from './utils';
+export * from './math/utils';
 export * from './config';
 export * from './constants/numericConstants';
 

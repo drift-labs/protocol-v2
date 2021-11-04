@@ -13,7 +13,7 @@ import {
 	calculatePrice,
 	getSwapDirection,
 } from './amm';
-import { squareRootBN } from '../utils';
+import { squareRootBN } from './utils';
 
 const MAXPCT = new BN(1000); //percentage units are [0,1000] => [0,1]
 
@@ -134,89 +134,98 @@ export function calculateTargetPriceTrade(
 	assert(targetPrice.gt(ZERO));
 	assert(pct.lte(MAXPCT) && pct.gt(ZERO));
 
-	const markPriceWithMantissa = calculateMarkPrice(market);
+	const markPriceBefore = calculateMarkPrice(market);
 
-	if (targetPrice.gt(markPriceWithMantissa)) {
-		const priceGap = targetPrice.sub(markPriceWithMantissa);
+	if (targetPrice.gt(markPriceBefore)) {
+		const priceGap = targetPrice.sub(markPriceBefore);
 		const priceGapScaled = priceGap.mul(pct).div(MAXPCT);
-		targetPrice = markPriceWithMantissa.add(priceGapScaled);
+		targetPrice = markPriceBefore.add(priceGapScaled);
 	} else {
-		const priceGap = markPriceWithMantissa.sub(targetPrice);
+		const priceGap = markPriceBefore.sub(targetPrice);
 		const priceGapScaled = priceGap.mul(pct).div(MAXPCT);
-		targetPrice = markPriceWithMantissa.sub(priceGapScaled);
+		targetPrice = markPriceBefore.sub(priceGapScaled);
 	}
 
 	let direction;
 	let tradeSize;
 	let baseSize;
 
-	const x1 = market.amm.baseAssetReserve;
-	const y1 = market.amm.quoteAssetReserve;
+	const baseAssetReserveBefore = market.amm.baseAssetReserve;
+	const quoteAssetReserveBefore = market.amm.quoteAssetReserve;
 	const peg = market.amm.pegMultiplier;
 	const invariant = market.amm.sqrtK.mul(market.amm.sqrtK);
 	const k = invariant.mul(MARK_PRICE_PRECISION);
 
-	let x2;
-	let y2;
-	const biasModifer = new BN(1);
-	let targetPriceCalced;
+	let baseAssetReserveAfter;
+	let quoteAssetReserveAfter;
+	const biasModifier = new BN(1);
+	let markPriceAfter;
 
-	if (markPriceWithMantissa.gt(targetPrice)) {
-		// overestimate y2, todo Math.sqrt
-		x2 = squareRootBN(
-			k.div(targetPrice).mul(peg).div(PEG_PRECISION).sub(biasModifer)
+	if (markPriceBefore.gt(targetPrice)) {
+		// overestimate y2
+		baseAssetReserveAfter = squareRootBN(
+			k.div(targetPrice).mul(peg).div(PEG_PRECISION).sub(biasModifier)
 		).sub(new BN(1));
-		y2 = k.div(MARK_PRICE_PRECISION).div(x2);
+		quoteAssetReserveAfter = k
+			.div(MARK_PRICE_PRECISION)
+			.div(baseAssetReserveAfter);
 
-		targetPriceCalced = calculatePrice(x2, y2, peg);
+		markPriceAfter = calculatePrice(
+			baseAssetReserveAfter,
+			quoteAssetReserveAfter,
+			peg
+		);
 		direction = PositionDirection.SHORT;
-		tradeSize = y1
-			.sub(y2)
+		tradeSize = quoteAssetReserveBefore
+			.sub(quoteAssetReserveAfter)
 			.mul(peg)
 			.div(PEG_PRECISION)
 			.div(AMM_TO_QUOTE_PRECISION_RATIO);
-		baseSize = x1.sub(x2);
-	} else if (markPriceWithMantissa.lt(targetPrice)) {
-		// underestimate y2, todo Math.sqrt
-		x2 = squareRootBN(
-			k.div(targetPrice).mul(peg).div(PEG_PRECISION).add(biasModifer)
+		baseSize = baseAssetReserveBefore.sub(baseAssetReserveAfter);
+	} else if (markPriceBefore.lt(targetPrice)) {
+		// underestimate y2
+		baseAssetReserveAfter = squareRootBN(
+			k.div(targetPrice).mul(peg).div(PEG_PRECISION).add(biasModifier)
 		).add(new BN(1));
-		y2 = k.div(MARK_PRICE_PRECISION).div(x2);
+		quoteAssetReserveAfter = k
+			.div(MARK_PRICE_PRECISION)
+			.div(baseAssetReserveAfter);
 
-		targetPriceCalced = calculatePrice(x2, y2, peg);
+		markPriceAfter = calculatePrice(
+			baseAssetReserveAfter,
+			quoteAssetReserveAfter,
+			peg
+		);
 
 		direction = PositionDirection.LONG;
-		tradeSize = y2
-			.sub(y1)
+		tradeSize = quoteAssetReserveAfter
+			.sub(quoteAssetReserveBefore)
 			.mul(peg)
 			.div(PEG_PRECISION)
 			.div(AMM_TO_QUOTE_PRECISION_RATIO);
-		baseSize = x2.sub(x1);
+		baseSize = baseAssetReserveAfter.sub(baseAssetReserveBefore);
 	} else {
 		// no trade, market is at target
 		direction = PositionDirection.LONG;
 		tradeSize = ZERO;
-		baseSize = ZERO;
 		return [direction, tradeSize, targetPrice, targetPrice];
 	}
 
 	let tp1 = targetPrice;
-	let tp2 = targetPriceCalced;
-	let ogDiff = targetPrice.sub(markPriceWithMantissa);
+	let tp2 = markPriceAfter;
+	let originalDiff = targetPrice.sub(markPriceBefore);
 
 	if (direction == PositionDirection.SHORT) {
-		tp1 = targetPriceCalced;
+		tp1 = markPriceAfter;
 		tp2 = targetPrice;
-		ogDiff = markPriceWithMantissa.sub(targetPrice);
+		originalDiff = markPriceBefore.sub(targetPrice);
 	}
 
-	const entryPrice = calculatePrice(
-		baseSize.abs(),
-		tradeSize,
-		MARK_PRICE_PRECISION
-	);
-	assert(tp1.sub(tp2).lte(ogDiff), 'Target Price Calculation incorrect');
-	// assert(tp1.sub(tp2).lt(MARK_PRICE_PRECISION), 'Target Price Calculation incorrect'); //  super OoB shorts do not
+	const entryPrice = tradeSize
+		.mul(AMM_TO_QUOTE_PRECISION_RATIO)
+		.div(baseSize.abs());
+
+	assert(tp1.sub(tp2).lte(originalDiff), 'Target Price Calculation incorrect');
 	assert(
 		tp2.lte(tp1) || tp2.sub(tp1).abs() < 100000,
 		'Target Price Calculation incorrect' +
@@ -225,7 +234,7 @@ export function calculateTargetPriceTrade(
 			tp1.toString() +
 			'err: ' +
 			tp2.sub(tp1).abs().toString()
-	); //todo
+	);
 
 	return [direction, tradeSize, entryPrice, targetPrice];
 }

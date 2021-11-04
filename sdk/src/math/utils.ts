@@ -12,7 +12,7 @@ export const squareRootBN = (n, closeness = new BN(1)) => {
 	const TWO = new BN(2);
 
 	// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-	while (true && count < Number.MAX_SAFE_INTEGER) {
+	while (count < Number.MAX_SAFE_INTEGER) {
 		count++;
 
 		// Calculate more closed x
