@@ -1,14 +1,16 @@
+import { BN, Provider, Wallet } from '@project-serum/anchor';
+import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import {
-	BN,
+	calculateMarkPrice,
+	calculatePriceImpact,
 	ClearingHouse,
 	ClearingHouseUser,
 	initialize,
+	Markets,
+	PositionDirection,
 	USDC_PRECISION,
-    //@ts-ignore
-} from '@moet/sdk';
-import { Provider, Wallet } from '@project-serum/anchor';
-import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
-import { Connection, Keypair, PublicKey } from '@solana/web3.js';
+} from '..';
 
 //// TODO: make this neater ... should we add this method to the SDK?
 export const getTokenAddress = (
@@ -41,8 +43,8 @@ const main = async () => {
 	// Set up the Provider
 	const provider = new Provider(connection, wallet, Provider.defaultOptions());
 
-    // Check SOL Balance
-    const lamportsBalance = await connection.getBalance(wallet.publicKey);
+	// Check SOL Balance
+	const lamportsBalance = await connection.getBalance(wallet.publicKey);
 	console.log('SOL balance:', lamportsBalance / 10 ** 9);
 
 	// Misc. other things to set up
@@ -82,12 +84,39 @@ const main = async () => {
 
 	await user.subscribe();
 
-	// Get recent trades
-
 	// Get current price
+	const solMarketInfo = Markets.find((market) => market.baseAssetSymbol === 'SOL');
 
-	// Make a trade
-	//// TODO
+	const currentMarketPrice = calculateMarkPrice(
+		clearingHouse.getMarket(solMarketInfo.marketIndex)
+	);
+
+	//TODO - We should either add stripMantissa to the SDK or implement our new Wrapped BN to do this for us in a neat way
+	const formattedPrice =
+		currentMarketPrice.div(USDC_PRECISION).toNumber() +
+		currentMarketPrice.mod(USDC_PRECISION).toNumber() /
+			USDC_PRECISION.toNumber();
+
+	console.log(`Current Market Price is $${formattedPrice}`);
+
+	// Estimate the slippage for a $5000 LONG trade
+	const solMarketAccount = clearingHouse.getMarket(solMarketInfo.marketIndex);
+
+	const slippage = calculatePriceImpact(
+		PositionDirection.LONG,
+		new BN(5000).mul(USDC_PRECISION),
+		solMarketAccount,
+		'priceDeltaAsNumber'
+	);
+	console.log(`Slippage for a $5000 LONG on the SOL market would be $${slippage}`);
+
+	// Make a $5000 LONG trade
+	await clearingHouse.openPosition(
+		PositionDirection.LONG,
+		new BN(5000).mul(USDC_PRECISION),
+		solMarketInfo.marketIndex
+	);
+	console.log(`LONGED $5000 SOL`);
 };
 
 main();

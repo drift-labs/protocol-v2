@@ -33,16 +33,19 @@ npm i @drift/sdk
 ### Setting up an account and making a trade
 
 ```typescript
+import { BN, Provider, Wallet } from '@project-serum/anchor';
+import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import {
-	BN,
+	calculateMarkPrice,
+	calculatePriceImpact,
 	ClearingHouse,
 	ClearingHouseUser,
 	initialize,
+	Markets,
+	PositionDirection,
 	USDC_PRECISION,
 } from '@moet/sdk';
-import { Provider, Wallet } from '@project-serum/anchor';
-import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
-import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 
 //// TODO: make this neater ... should we add this method to the SDK?
 export const getTokenAddress = (
@@ -69,11 +72,15 @@ const main = async () => {
 	const wallet = new Wallet(keypair);
 
 	// Set up the Connection
-	const rpcAddress = process.env.RPC_ADDRESS; // If you don't have your own RPC, you can use: https://api.devnet.solana.com for devnet or https://api.mainnet-beta.solana.com for mainnet instead
+	const rpcAddress = process.env.RPC_ADDRESS; // can use: https://api.devnet.solana.com for devnet; https://api.mainnet-beta.solana.com for mainnet;
 	const connection = new Connection(rpcAddress);
 
 	// Set up the Provider
 	const provider = new Provider(connection, wallet, Provider.defaultOptions());
+
+	// Check SOL Balance
+	const lamportsBalance = await connection.getBalance(wallet.publicKey);
+	console.log('SOL balance:', lamportsBalance / 10 ** 9);
 
 	// Misc. other things to set up
 	const usdcTokenAddress = await getTokenAddress(
@@ -112,17 +119,43 @@ const main = async () => {
 
 	await user.subscribe();
 
-	// Get recent trades
-    //// TODO
-
 	// Get current price
-    //// TODO
+	const solMarketInfo = Markets.find((market) => market.baseAssetSymbol === 'SOL');
 
-	// Make a trade
-	//// TODO
+	const currentMarketPrice = calculateMarkPrice(
+		clearingHouse.getMarket(solMarketInfo.marketIndex)
+	);
+
+	//TODO - We should either add stripMantissa to the SDK or implement our new Wrapped BN to do this for us in a neat way
+	const formattedPrice =
+		currentMarketPrice.div(USDC_PRECISION).toNumber() +
+		currentMarketPrice.mod(USDC_PRECISION).toNumber() /
+			USDC_PRECISION.toNumber();
+
+	console.log(`Current Market Price is $${formattedPrice}`);
+
+	// Estimate the slippage for a $5000 LONG trade
+	const solMarketAccount = clearingHouse.getMarket(solMarketInfo.marketIndex);
+
+	const slippage = calculatePriceImpact(
+		PositionDirection.LONG,
+		new BN(5000).mul(USDC_PRECISION),
+		solMarketAccount,
+		'priceDeltaAsNumber'
+	);
+	console.log(`Slippage for a $5000 LONG on the SOL market would be $${slippage}`);
+
+	// Make a $5000 LONG trade
+	await clearingHouse.openPosition(
+		PositionDirection.LONG,
+		new BN(5000).mul(USDC_PRECISION),
+		solMarketInfo.marketIndex
+	);
+	console.log(`LONGED $5000 SOL`);
 };
 
 main();
+
 ```
 
 ## License
