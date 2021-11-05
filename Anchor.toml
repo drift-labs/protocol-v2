@@ -3,4 +3,4 @@ cluster = "localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
-test = "./scripts/run-ts-mocha"
+test = "./test-scripts/run-ts-mocha"
