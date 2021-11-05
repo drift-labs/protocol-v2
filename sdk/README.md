@@ -5,7 +5,7 @@
 
   <p>
     <a href="https://www.npmjs.com/package/@drift-labs/sdk"><img alt="SDK npm package" src="https://img.shields.io/npm/v/@drift-labs/sdk" /></a>
-    <a href="https://docs.drift.trade/drift-sdk-documentation"><img alt="Docs" src="https://img.shields.io/badge/docs-tutorials-blueviolet" /></a>
+    <a href="https://drift-labs.github.io/protocol-v1/sdk/"><img alt="Docs" src="https://img.shields.io/badge/docs-tutorials-blueviolet" /></a>
     <a href="https://discord.com/channels/849494028176588802/878700556904980500"><img alt="Discord Chat" src="https://img.shields.io/discord/889577356681945098?color=blueviolet" /></a>
     <a href="https://opensource.org/licenses/Apache-2.0"><img alt="License" src="https://img.shields.io/github/license/project-serum/anchor?color=blueviolet" /></a>
   </p>
@@ -17,7 +17,7 @@ This repository provides open source access to Drift's Typescript SDK, Solana Pr
 
 # SDK Guide
 
-More of the SDK docs can be found on Drift's dedicated Docs hosted [here](https://docs.drift.trade/drift-sdk-documentation), and technical documentation of the SDK's code can be found [here](https://drift-labs.github.io/sdk/).
+The technical documentation for the SDK can be found [here](https://drift-labs.github.io/protocol-v1/sdk/), and you can visit Drift's general purpose documentation [here](https://docs.drift.trade/drift-sdk-documentation).
 
 ## Installation
 
