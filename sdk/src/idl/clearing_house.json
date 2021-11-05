@@ -2626,7 +2626,7 @@
     {
       "code": 311,
       "name": "InvalidInitialPeg",
-      "msg": "AMM peg in v0 must be > MANTISSA/10 (e.g. .1)"
+      "msg": "Invalid Initial Peg"
     },
     {
       "code": 312,

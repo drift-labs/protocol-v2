@@ -8,13 +8,13 @@ import { Keypair } from '@solana/web3.js';
 
 import {
 	Admin,
-	AMM_MANTISSA,
+	MARK_PRICE_PRECISION,
 	calculateBaseAssetValue,
 	ClearingHouse,
 	PositionDirection,
 } from '../sdk/src';
 
-import Markets from '../sdk/src/constants/markets';
+import { Markets } from '../sdk/src/constants/markets';
 
 import { mockOracle, mockUSDCMint, mockUserUSDCAccount } from './testHelpers';
 import { FeeStructure } from '../sdk';
@@ -29,7 +29,7 @@ describe('idempotent curve', () => {
 	let primaryClearingHouse: Admin;
 
 	// ammInvariant == k == x * y
-	const mantissaSqrtScale = new BN(Math.sqrt(AMM_MANTISSA.toNumber()));
+	const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
 	const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
 		mantissaSqrtScale
 	);
@@ -156,7 +156,7 @@ describe('idempotent curve', () => {
 		const baseAssetValue = calculateBaseAssetValue(
 			market,
 			userPositionsAccount.positions[0]
-		).div(AMM_MANTISSA);
+		);
 		for (let i = 0; i < numberOfReduces - 1; i++) {
 			await clearingHouse.openPosition(
 				PositionDirection.SHORT,
@@ -223,7 +223,7 @@ describe('idempotent curve', () => {
 		const baseAssetValue = calculateBaseAssetValue(
 			market,
 			userPositionsAccount.positions[0]
-		).div(AMM_MANTISSA);
+		);
 		for (let i = 0; i < numberOfReduces - 1; i++) {
 			await clearingHouse.openPosition(
 				PositionDirection.SHORT,
@@ -290,7 +290,7 @@ describe('idempotent curve', () => {
 		const baseAssetValue = calculateBaseAssetValue(
 			market,
 			userPositionsAccount.positions[0]
-		).div(AMM_MANTISSA);
+		);
 		for (let i = 0; i < numberOfReduces - 1; i++) {
 			await clearingHouse.openPosition(
 				PositionDirection.LONG,
@@ -356,7 +356,7 @@ describe('idempotent curve', () => {
 		const baseAssetValue = calculateBaseAssetValue(
 			market,
 			userPositionsAccount.positions[0]
-		).div(AMM_MANTISSA);
+		);
 		for (let i = 0; i < numberOfReduces - 1; i++) {
 			await clearingHouse.openPosition(
 				PositionDirection.LONG,

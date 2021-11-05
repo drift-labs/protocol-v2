@@ -4,18 +4,18 @@ import { Keypair } from '@solana/web3.js';
 import BN from 'bn.js';
 import {
 	Admin,
-	AMM_MANTISSA,
+	MARK_PRICE_PRECISION,
 	calculateMarkPrice,
-	calculatePriceImpact,
+	calculateTradeSlippage,
 	calculateTargetPriceTrade,
 	PositionDirection,
-	PEG_SCALAR,
+	PEG_PRECISION,
 	MAX_LEVERAGE,
-	USDC_PRECISION,
-	liquidityBook,
+	QUOTE_PRECISION,
+	convertToNumber,
 } from '../sdk/src';
 
-import { stripMantissa } from '../../common-ts';
+import { liquidityBook } from './liquidityBook';
 
 import { ClearingHouseUser } from '../sdk/src/clearingHouseUser';
 import {
@@ -91,9 +91,9 @@ describe('AMM Curve', () => {
 	// 	let slippage;
 	// 	if (newPrice.gt(oldPrice)) {
 	// 		if (unit == 'pctMax') {
-	// 			slippage = newPrice.sub(oldPrice).mul(AMM_MANTISSA).div(oldPrice);
+	// 			slippage = newPrice.sub(oldPrice).mul(MARK_PRICE_PRECISION).div(oldPrice);
 	// 		} else if (unit == 'pctAvg') {
-	// 			slippage = entryPrice.sub(oldPrice).mul(AMM_MANTISSA).div(oldPrice);
+	// 			slippage = entryPrice.sub(oldPrice).mul(MARK_PRICE_PRECISION).div(oldPrice);
 	// 		} else if (
 	// 			[
 	// 				'priceDelta',
@@ -106,9 +106,9 @@ describe('AMM Curve', () => {
 	// 		}
 	// 	} else {
 	// 		if (unit == 'pctMax') {
-	// 			slippage = oldPrice.sub(newPrice).mul(AMM_MANTISSA).div(oldPrice);
+	// 			slippage = oldPrice.sub(newPrice).mul(MARK_PRICE_PRECISION).div(oldPrice);
 	// 		} else if (unit == 'pctAvg') {
-	// 			slippage = oldPrice.sub(entryPrice).mul(AMM_MANTISSA).div(oldPrice);
+	// 			slippage = oldPrice.sub(entryPrice).mul(MARK_PRICE_PRECISION).div(oldPrice);
 	// 		} else if (
 	// 			[
 	// 				'priceDelta',
@@ -125,7 +125,7 @@ describe('AMM Curve', () => {
 	// 	} else if (unit == 'quoteAssetAmountPeg') {
 	// 		slippage = slippage.mul(amount).div(market.amm.pegMultiplier);
 	// 	} else if (unit == 'priceDeltaAsNumber') {
-	// 		slippage = stripMantissa(slippage);
+	// 		slippage = convertToNumber(slippage);
 	// 	}
 
 	// 	return slippage;
@@ -138,13 +138,13 @@ describe('AMM Curve', () => {
 
 	// 	let avgSlippageCenter = calculateTheoPriceImpact(
 	// 		PositionDirection.LONG,
-	// 		new BN(MAX_DEPOSIT).mul(MAX_LEVERAGE).mul(AMM_MANTISSA),
+	// 		new BN(MAX_DEPOSIT).mul(MAX_LEVERAGE).mul(MARK_PRICE_PRECISION),
 	// 		kSqrt0,
 	// 		'pctMax'
 	// 	);
 
 	// 	const targetSlippageBN = new BN(
-	// 		TARGET_MAX_SLIPPAGE * AMM_MANTISSA.toNumber()
+	// 		TARGET_MAX_SLIPPAGE * MARK_PRICE_PRECISION.toNumber()
 	// 	);
 	// 	let kSqrtI: BN;
 
@@ -152,7 +152,7 @@ describe('AMM Curve', () => {
 	// 		kSqrtI = kSqrt0.mul(targetSlippageBN.div(avgSlippageCenter));
 	// 		avgSlippageCenter = calculateTheoPriceImpact(
 	// 			PositionDirection.LONG,
-	// 			new BN(MAX_DEPOSIT).mul(MAX_LEVERAGE).mul(AMM_MANTISSA),
+	// 			new BN(MAX_DEPOSIT).mul(MAX_LEVERAGE).mul(MARK_PRICE_PRECISION),
 	// 			kSqrtI,
 	// 			'pctMax'
 	// 		);
@@ -181,10 +181,10 @@ describe('AMM Curve', () => {
 
 	let solUsdOracle;
 	const marketIndex = new BN(0);
-	const initialSOLPriceBN = new BN(initialSOLPrice * PEG_SCALAR.toNumber());
+	const initialSOLPriceBN = new BN(initialSOLPrice * PEG_PRECISION.toNumber());
 	function normAssetAmount(assetAmount: BN, pegMultiplier: BN): BN {
 		// assetAmount is scaled to offer comparable slippage
-		return assetAmount.mul(AMM_MANTISSA).div(pegMultiplier);
+		return assetAmount.mul(MARK_PRICE_PRECISION).div(pegMultiplier);
 	}
 	const usdcAmount = new BN(1000 * 10 ** 6);
 	const solPositionInitialValue = usdcAmount;
@@ -238,24 +238,24 @@ describe('AMM Curve', () => {
 
 		for (let i = asksCumSize.length - 1; i >= 0; i--) {
 			console.log(
-				stripMantissa(asksPrice[i]),
-				stripMantissa(asksCumSize[i], USDC_PRECISION)
+				convertToNumber(asksPrice[i]),
+				convertToNumber(asksCumSize[i], QUOTE_PRECISION)
 			);
 		}
 
 		console.log('------------');
-		console.log(currentMark.toNumber() / AMM_MANTISSA.toNumber());
+		console.log(currentMark.toNumber() / MARK_PRICE_PRECISION.toNumber());
 		console.log(
 			'peg:',
-			stripMantissa(market.amm.pegMultiplier, PEG_SCALAR),
+			convertToNumber(market.amm.pegMultiplier, PEG_PRECISION),
 			'k (M*M):',
-			stripMantissa(market.amm.sqrtK)
+			convertToNumber(market.amm.sqrtK)
 		);
 		console.log('------------');
 		for (let i = 0; i < bidsCumSize.length; i++) {
 			console.log(
-				stripMantissa(bidsPrice[i]),
-				stripMantissa(bidsCumSize[i], USDC_PRECISION)
+				convertToNumber(bidsPrice[i]),
+				convertToNumber(bidsCumSize[i], QUOTE_PRECISION)
 			);
 		}
 	};
@@ -274,15 +274,16 @@ describe('AMM Curve', () => {
 			marketIndex
 		);
 
-		const avgSlippageCenter = calculatePriceImpact(
+		const avgSlippageCenter = calculateTradeSlippage(
 			PositionDirection.LONG,
-			new BN(MAX_USER_TRADE * AMM_MANTISSA.toNumber()),
-			clearingHouse.getMarket(0),
-			'pctAvg'
-		);
+			new BN(MAX_USER_TRADE * MARK_PRICE_PRECISION.toNumber()),
+			clearingHouse.getMarket(0)
+		)[0];
 		showBook(marketIndex);
 
-		const targetPriceUp = new BN(initialSOLPrice * AMM_MANTISSA.toNumber() * 2);
+		const targetPriceUp = new BN(
+			initialSOLPrice * MARK_PRICE_PRECISION.toNumber() * 2
+		);
 
 		const [_direction, tradeSize, _] = calculateTargetPriceTrade(
 			clearingHouse.getMarket(marketIndex),
@@ -291,22 +292,21 @@ describe('AMM Curve', () => {
 
 		await clearingHouse.moveAmmToPrice(marketIndex, targetPriceUp);
 
-		const avgSlippage25PctOut = calculatePriceImpact(
+		const avgSlippage25PctOut = calculateTradeSlippage(
 			PositionDirection.LONG,
-			new BN(MAX_USER_TRADE * AMM_MANTISSA.toNumber()),
-			clearingHouse.getMarket(0),
-			'pctAvg'
-		);
+			new BN(MAX_USER_TRADE * MARK_PRICE_PRECISION.toNumber()),
+			clearingHouse.getMarket(0)
+		)[0];
 
 		showBook(marketIndex);
 
 		console.log(
 			'arbBot Long Size',
-			stripMantissa(tradeSize, USDC_PRECISION),
+			convertToNumber(tradeSize, QUOTE_PRECISION),
 			'\n Center Slippage:',
-			stripMantissa(avgSlippageCenter) / 100,
+			convertToNumber(avgSlippageCenter) / 100,
 			'\n 100% up out Slippage:',
-			stripMantissa(avgSlippage25PctOut) / 100
+			convertToNumber(avgSlippage25PctOut) / 100
 		);
 	});
 });

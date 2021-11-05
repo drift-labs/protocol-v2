@@ -7,12 +7,12 @@ import { getTokenAccount } from '@project-serum/common';
 
 import {
 	Admin,
-	AMM_MANTISSA,
+	MARK_PRICE_PRECISION,
 	MAX_LEVERAGE,
 	PositionDirection,
 } from '../sdk/src';
 
-import Markets from '../sdk/src/constants/markets';
+import { Markets } from '../sdk/src/constants/markets';
 
 import { mockOracle, mockUSDCMint, mockUserUSDCAccount } from './testHelpers';
 
@@ -38,7 +38,7 @@ describe('admin withdraw', () => {
 	let userUSDCAccount;
 
 	// ammInvariant == k == x * y
-	const mantissaSqrtScale = new BN(Math.sqrt(AMM_MANTISSA.toNumber()));
+	const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
 	const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
 		mantissaSqrtScale
 	);

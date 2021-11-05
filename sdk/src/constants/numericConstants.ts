@@ -9,12 +9,13 @@ export const MAX_LEVERAGE = new BN(5);
 export const FULL_LIQUIDATION_RATIO = new BN(500);
 export const PARTIAL_LIQUIDATION_RATIO = new BN(625);
 
-export const USDC_PRECISION = new BN(10 ** 6);
-export const AMM_MANTISSA = new BN(10 ** 10);
-export const FUNDING_MANTISSA = new BN(10000);
-export const PEG_SCALAR = new BN(1000);
+export const QUOTE_PRECISION = new BN(10 ** 6);
+export const MARK_PRICE_PRECISION = new BN(10 ** 10);
+export const FUNDING_PAYMENT_PRECISION = new BN(10000);
+export const PEG_PRECISION = new BN(1000);
 
-export const BASE_ASSET_PRECISION = AMM_MANTISSA.mul(PEG_SCALAR);
-export const QUOTE_BASE_PRECISION_DIFF =
-	BASE_ASSET_PRECISION.div(USDC_PRECISION); // 10**(10+3-6)
-export const PRICE_TO_USDC_PRECISION = AMM_MANTISSA.div(USDC_PRECISION);
+export const AMM_RESERVE_PRECISION = new BN(10 ** 13);
+export const AMM_TO_QUOTE_PRECISION_RATIO =
+	AMM_RESERVE_PRECISION.div(QUOTE_PRECISION); // 10^7
+export const PRICE_TO_QUOTE_PRECISION =
+	MARK_PRICE_PRECISION.div(QUOTE_PRECISION);

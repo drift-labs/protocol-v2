@@ -2,9 +2,9 @@ import { Market, PositionDirection } from '../types';
 import { BN } from '@project-serum/anchor';
 import { assert } from '../assert/assert';
 import {
-	AMM_MANTISSA,
-	PEG_SCALAR,
-	QUOTE_BASE_PRECISION_DIFF,
+	MARK_PRICE_PRECISION,
+	PEG_PRECISION,
+	AMM_TO_QUOTE_PRECISION_RATIO,
 	ZERO,
 } from '../constants/numericConstants';
 import { calculateMarkPrice } from './market';
@@ -13,7 +13,7 @@ import {
 	calculatePrice,
 	getSwapDirection,
 } from './amm';
-import { squareRootBN } from '../utils';
+import { squareRootBN } from './utils';
 
 const MAXPCT = new BN(1000); //percentage units are [0,1000] => [0,1]
 
@@ -30,30 +30,78 @@ export type PriceImpactUnit =
 	| 'acquiredQuoteAssetAmount';
 
 /**
- * Calculates various types of price impact statistics
+ * Calculates avg/max slippage (price impact) for candidate trade
  * @param direction
  * @param amount
  * @param market
- * @param unit
- * 	| 'entryPrice' => the average price a user gets the position at : BN
- * 	| 'maxPrice' =>  the price that the market is moved to after the trade : BN
- * 	| 'priceDelta' =>  the change in price (with MANTISSA) : BN
- * 	| 'priceDeltaAsNumber' =>  the change in price (as number, no MANTISSA) : number
- * 	| 'pctAvg' =>  the percentage change from entryPrice (average est slippage in execution) : BN
- * 	| 'pctMax' =>  the percentage change to maxPrice (highest est slippage in execution) : BN
- * 	| 'quoteAssetAmount' => the amount of quote paid (~amount w/ slight rounding?) : BN
- * 	| 'quoteAssetAmountPeg' => the amount of quotePeg paid (quote/pegMultiplier) : BN
+ * @return
+ * 	| 'pctAvgSlippage' =>  the percentage change to entryPrice (average est slippage in execution) : BN
+ * 	| 'pctMaxSlippage' =>  the percentage change to maxPrice (highest est slippage in execution) : BN
  */
-export function calculatePriceImpact(
+export function calculateTradeSlippage(
 	direction: PositionDirection,
 	amount: BN,
-	market: Market,
-	unit?: PriceImpactUnit
-) {
-	if (amount.eq(new BN(0))) {
-		return new BN(0);
-	}
+	market: Market
+): [BN, BN, BN, BN] {
 	const oldPrice = calculateMarkPrice(market);
+	if (amount.eq(ZERO)) {
+		return [ZERO, ZERO, oldPrice, oldPrice];
+	}
+	const [acquiredBase, acquiredQuote] = calculateTradeAcquiredAmounts(
+		direction,
+		amount,
+		market
+	);
+
+	const entryPrice = calculatePrice(
+		acquiredBase,
+		acquiredQuote,
+		market.amm.pegMultiplier
+	).mul(new BN(-1));
+
+	const newPrice = calculatePrice(
+		market.amm.baseAssetReserve.sub(acquiredBase),
+		market.amm.quoteAssetReserve.sub(acquiredQuote),
+		market.amm.pegMultiplier
+	);
+
+	if (direction == PositionDirection.SHORT) {
+		assert(newPrice.lt(oldPrice));
+	} else {
+		assert(oldPrice.lt(newPrice));
+	}
+
+	const pctMaxSlippage = newPrice
+		.sub(oldPrice)
+		.mul(MARK_PRICE_PRECISION)
+		.div(oldPrice)
+		.abs();
+	const pctAvgSlippage = entryPrice
+		.sub(oldPrice)
+		.mul(MARK_PRICE_PRECISION)
+		.div(oldPrice)
+		.abs();
+
+	return [pctAvgSlippage, pctMaxSlippage, entryPrice, newPrice];
+}
+
+/**
+ * Calculates acquired amounts for trade executed
+ * @param direction
+ * @param amount
+ * @param market
+ * @return
+ * 	| 'acquiredBase' =>  positive/negative change in user's base : BN
+ * 	| 'acquiredQuote' => positive/negative change in user's quote : BN
+ */
+export function calculateTradeAcquiredAmounts(
+	direction: PositionDirection,
+	amount: BN,
+	market: Market
+): [BN, BN] {
+	if (amount.eq(ZERO)) {
+		return [ZERO, ZERO];
+	}
 
 	const [newQuoteAssetReserve, newBaseAssetReserve] =
 		calculateAmmReservesAfterSwap(
@@ -63,84 +111,10 @@ export function calculatePriceImpact(
 			getSwapDirection('quote', direction)
 		);
 
-	if (unit == 'acquiredBaseAssetAmount') {
-		return market.amm.baseAssetReserve.sub(newBaseAssetReserve);
-	}
-	if (unit == 'acquiredQuoteAssetAmount') {
-		return market.amm.quoteAssetReserve.sub(newQuoteAssetReserve);
-	}
+	const acquiredBase = market.amm.baseAssetReserve.sub(newBaseAssetReserve);
+	const acquiredQuote = market.amm.quoteAssetReserve.sub(newQuoteAssetReserve);
 
-	const entryPrice = calculatePrice(
-		market.amm.baseAssetReserve.sub(newBaseAssetReserve),
-		market.amm.quoteAssetReserve.sub(newQuoteAssetReserve),
-		market.amm.pegMultiplier
-	).mul(new BN(-1));
-
-	if (entryPrice.eq(new BN(0))) {
-		return new BN(0);
-	}
-
-	if (unit == 'entryPrice') {
-		return entryPrice;
-	}
-
-	const newPrice = calculatePrice(
-		newBaseAssetReserve,
-		newQuoteAssetReserve,
-		market.amm.pegMultiplier
-	);
-
-	if (unit == 'maxPrice') {
-		return newPrice;
-	}
-
-	if (oldPrice == newPrice) {
-		throw new Error('insufficient `amount` passed:');
-	}
-
-	let slippage;
-	if (newPrice.gt(oldPrice)) {
-		assert(direction == PositionDirection.LONG);
-		if (unit == 'pctMax') {
-			slippage = newPrice.sub(oldPrice).mul(AMM_MANTISSA).div(oldPrice);
-		} else if (unit == 'pctAvg') {
-			slippage = entryPrice.sub(oldPrice).mul(AMM_MANTISSA).div(oldPrice);
-		} else if (
-			[
-				'priceDelta',
-				'quoteAssetAmount',
-				'quoteAssetAmountPeg',
-				'priceDeltaAsNumber',
-			].includes(unit)
-		) {
-			slippage = newPrice.sub(oldPrice);
-		}
-	} else {
-		assert(direction == PositionDirection.SHORT);
-		if (unit == 'pctMax') {
-			slippage = oldPrice.sub(newPrice).mul(AMM_MANTISSA).div(oldPrice);
-		} else if (unit == 'pctAvg') {
-			slippage = oldPrice.sub(entryPrice).mul(AMM_MANTISSA).div(oldPrice);
-		} else if (
-			[
-				'priceDelta',
-				'quoteAssetAmount',
-				'quoteAssetAmountPeg',
-				'priceDeltaAsNumber',
-			].includes(unit)
-		) {
-			slippage = oldPrice.sub(newPrice);
-		}
-	}
-	if (unit == 'quoteAssetAmount') {
-		slippage = slippage.mul(amount);
-	} else if (unit == 'quoteAssetAmountPeg') {
-		slippage = slippage.mul(amount).div(market.amm.pegMultiplier);
-	} else if (unit == 'priceDeltaAsNumber') {
-		slippage = slippage.toNumber() / AMM_MANTISSA.toNumber();
-	}
-
-	return slippage;
+	return [acquiredBase, acquiredQuote];
 }
 
 /**
@@ -160,85 +134,98 @@ export function calculateTargetPriceTrade(
 	assert(targetPrice.gt(ZERO));
 	assert(pct.lte(MAXPCT) && pct.gt(ZERO));
 
-	const markPriceWithMantissa = calculateMarkPrice(market);
+	const markPriceBefore = calculateMarkPrice(market);
 
-	if (targetPrice.gt(markPriceWithMantissa)) {
-		const priceGap = targetPrice.sub(markPriceWithMantissa);
+	if (targetPrice.gt(markPriceBefore)) {
+		const priceGap = targetPrice.sub(markPriceBefore);
 		const priceGapScaled = priceGap.mul(pct).div(MAXPCT);
-		targetPrice = markPriceWithMantissa.add(priceGapScaled);
+		targetPrice = markPriceBefore.add(priceGapScaled);
 	} else {
-		const priceGap = markPriceWithMantissa.sub(targetPrice);
+		const priceGap = markPriceBefore.sub(targetPrice);
 		const priceGapScaled = priceGap.mul(pct).div(MAXPCT);
-		targetPrice = markPriceWithMantissa.sub(priceGapScaled);
+		targetPrice = markPriceBefore.sub(priceGapScaled);
 	}
 
 	let direction;
 	let tradeSize;
 	let baseSize;
 
-	const x1 = market.amm.baseAssetReserve;
-	const y1 = market.amm.quoteAssetReserve;
+	const baseAssetReserveBefore = market.amm.baseAssetReserve;
+	const quoteAssetReserveBefore = market.amm.quoteAssetReserve;
 	const peg = market.amm.pegMultiplier;
 	const invariant = market.amm.sqrtK.mul(market.amm.sqrtK);
-	const k = invariant.mul(AMM_MANTISSA);
+	const k = invariant.mul(MARK_PRICE_PRECISION);
 
-	let x2;
-	let y2;
-	const biasModifer = new BN(1);
-	let targetPriceCalced;
+	let baseAssetReserveAfter;
+	let quoteAssetReserveAfter;
+	const biasModifier = new BN(1);
+	let markPriceAfter;
 
-	if (markPriceWithMantissa.gt(targetPrice)) {
-		// overestimate y2, todo Math.sqrt
-		x2 = squareRootBN(
-			k.div(targetPrice).mul(peg).div(PEG_SCALAR).sub(biasModifer)
+	if (markPriceBefore.gt(targetPrice)) {
+		// overestimate y2
+		baseAssetReserveAfter = squareRootBN(
+			k.div(targetPrice).mul(peg).div(PEG_PRECISION).sub(biasModifier)
 		).sub(new BN(1));
-		y2 = k.div(AMM_MANTISSA).div(x2);
+		quoteAssetReserveAfter = k
+			.div(MARK_PRICE_PRECISION)
+			.div(baseAssetReserveAfter);
 
-		targetPriceCalced = calculatePrice(x2, y2, peg);
+		markPriceAfter = calculatePrice(
+			baseAssetReserveAfter,
+			quoteAssetReserveAfter,
+			peg
+		);
 		direction = PositionDirection.SHORT;
-		tradeSize = y1
-			.sub(y2)
+		tradeSize = quoteAssetReserveBefore
+			.sub(quoteAssetReserveAfter)
 			.mul(peg)
-			.div(PEG_SCALAR)
-			.div(QUOTE_BASE_PRECISION_DIFF);
-		baseSize = x1.sub(x2);
-	} else if (markPriceWithMantissa.lt(targetPrice)) {
-		// underestimate y2, todo Math.sqrt
-		x2 = squareRootBN(
-			k.div(targetPrice).mul(peg).div(PEG_SCALAR).add(biasModifer)
+			.div(PEG_PRECISION)
+			.div(AMM_TO_QUOTE_PRECISION_RATIO);
+		baseSize = baseAssetReserveBefore.sub(baseAssetReserveAfter);
+	} else if (markPriceBefore.lt(targetPrice)) {
+		// underestimate y2
+		baseAssetReserveAfter = squareRootBN(
+			k.div(targetPrice).mul(peg).div(PEG_PRECISION).add(biasModifier)
 		).add(new BN(1));
-		y2 = k.div(AMM_MANTISSA).div(x2);
+		quoteAssetReserveAfter = k
+			.div(MARK_PRICE_PRECISION)
+			.div(baseAssetReserveAfter);
 
-		targetPriceCalced = calculatePrice(x2, y2, peg);
+		markPriceAfter = calculatePrice(
+			baseAssetReserveAfter,
+			quoteAssetReserveAfter,
+			peg
+		);
 
 		direction = PositionDirection.LONG;
-		tradeSize = y2
-			.sub(y1)
+		tradeSize = quoteAssetReserveAfter
+			.sub(quoteAssetReserveBefore)
 			.mul(peg)
-			.div(PEG_SCALAR)
-			.div(QUOTE_BASE_PRECISION_DIFF);
-		baseSize = x2.sub(x1);
+			.div(PEG_PRECISION)
+			.div(AMM_TO_QUOTE_PRECISION_RATIO);
+		baseSize = baseAssetReserveAfter.sub(baseAssetReserveBefore);
 	} else {
 		// no trade, market is at target
 		direction = PositionDirection.LONG;
 		tradeSize = ZERO;
-		baseSize = ZERO;
 		return [direction, tradeSize, targetPrice, targetPrice];
 	}
 
 	let tp1 = targetPrice;
-	let tp2 = targetPriceCalced;
-	let ogDiff = targetPrice.sub(markPriceWithMantissa);
+	let tp2 = markPriceAfter;
+	let originalDiff = targetPrice.sub(markPriceBefore);
 
 	if (direction == PositionDirection.SHORT) {
-		tp1 = targetPriceCalced;
+		tp1 = markPriceAfter;
 		tp2 = targetPrice;
-		ogDiff = markPriceWithMantissa.sub(targetPrice);
+		originalDiff = markPriceBefore.sub(targetPrice);
 	}
 
-	const entryPrice = calculatePrice(baseSize.abs(), tradeSize, AMM_MANTISSA);
-	assert(tp1.sub(tp2).lte(ogDiff), 'Target Price Calculation incorrect');
-	// assert(tp1.sub(tp2).lt(AMM_MANTISSA), 'Target Price Calculation incorrect'); //  super OoB shorts do not
+	const entryPrice = tradeSize
+		.mul(AMM_TO_QUOTE_PRECISION_RATIO)
+		.div(baseSize.abs());
+
+	assert(tp1.sub(tp2).lte(originalDiff), 'Target Price Calculation incorrect');
 	assert(
 		tp2.lte(tp1) || tp2.sub(tp1).abs() < 100000,
 		'Target Price Calculation incorrect' +
@@ -247,7 +234,7 @@ export function calculateTargetPriceTrade(
 			tp1.toString() +
 			'err: ' +
 			tp2.sub(tp1).abs().toString()
-	); //todo
+	);
 
 	return [direction, tradeSize, entryPrice, targetPrice];
 }

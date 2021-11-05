@@ -1,9 +1,9 @@
 use crate::error::*;
 use crate::math::bn;
 use crate::math::constants::{
-    AMM_TO_USDC_PRECISION_RATIO, FUNDING_PAYMENT_MANTISSA, MARK_PRICE_MANTISSA,
+    AMM_TO_QUOTE_PRECISION_RATIO, FUNDING_PAYMENT_PRECISION, MARK_PRICE_PRECISION,
     SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_DENOMINATOR,
-    SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR, USDC_TO_BASE_AMT_FUNDING_PRECISION,
+    SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR, QUOTE_TO_BASE_AMT_FUNDING_PRECISION,
 };
 use crate::math_error;
 use crate::state::market::Market;
@@ -147,9 +147,9 @@ fn _calculate_funding_payment(
     let funding_rate_payment_mag = bn::U192::from(funding_rate_delta.unsigned_abs())
         .checked_mul(bn::U192::from(base_asset_amount.unsigned_abs()))
         .ok_or_else(math_error!())?
-        .checked_div(bn::U192::from(MARK_PRICE_MANTISSA))
+        .checked_div(bn::U192::from(MARK_PRICE_PRECISION))
         .ok_or_else(math_error!())?
-        .checked_div(bn::U192::from(FUNDING_PAYMENT_MANTISSA))
+        .checked_div(bn::U192::from(FUNDING_PAYMENT_PRECISION))
         .ok_or_else(math_error!())?
         .try_to_u128()? as i128;
 
@@ -180,7 +180,7 @@ fn calculate_funding_rate_from_pnl_limit(
     };
 
     let funding_rate = pnl_limit_biased
-        .checked_mul(USDC_TO_BASE_AMT_FUNDING_PRECISION)
+        .checked_mul(QUOTE_TO_BASE_AMT_FUNDING_PRECISION)
         .ok_or_else(math_error!())?
         .checked_div(base_asset_amount_dir)
         .ok_or_else(math_error!());
@@ -194,7 +194,7 @@ fn calculate_funding_payment_in_quote_precision(
 ) -> ClearingHouseResult<i128> {
     let funding_payment = _calculate_funding_payment(funding_rate_delta, base_asset_amount)?;
     let funding_payment_collateral = funding_payment
-        .checked_div(AMM_TO_USDC_PRECISION_RATIO as i128)
+        .checked_div(AMM_TO_QUOTE_PRECISION_RATIO as i128)
         .ok_or_else(math_error!())?;
 
     return Ok(funding_payment_collateral);

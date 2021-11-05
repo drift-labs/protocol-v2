@@ -5,7 +5,7 @@ import { assert } from 'chai';
 
 import {
 	Admin,
-	AMM_MANTISSA,
+	MARK_PRICE_PRECISION,
 	FeeStructure,
 	OracleGuardRails,
 } from '../sdk/src';
@@ -13,7 +13,7 @@ import { OracleSource } from '../sdk';
 
 import { mockOracle, mockUSDCMint } from './testHelpers';
 import { PublicKey } from '@solana/web3.js';
-import Markets from '../sdk/src/constants/markets';
+import { Markets } from '../sdk/src/constants/markets';
 
 describe('admin', () => {
 	const provider = anchor.Provider.local();
@@ -213,7 +213,9 @@ describe('admin', () => {
 	it('Update market oracle', async () => {
 		const solUsd = await mockOracle(1);
 		const periodicity = new BN(60 * 60); // 1 HOUR
-		const mantissaSqrtScale = new BN(Math.sqrt(AMM_MANTISSA.toNumber()));
+		const mantissaSqrtScale = new BN(
+			Math.sqrt(MARK_PRICE_PRECISION.toNumber())
+		);
 		const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
 			mantissaSqrtScale
 		);

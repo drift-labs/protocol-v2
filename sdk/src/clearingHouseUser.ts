@@ -5,14 +5,14 @@ import StrictEventEmitter from 'strict-event-emitter-types';
 import { ClearingHouse } from './clearingHouse';
 import { UserAccount, UserPosition, UserPositionsAccount } from './types';
 import {
-	AMM_MANTISSA,
-	QUOTE_BASE_PRECISION_DIFF,
+	MARK_PRICE_PRECISION,
+	AMM_TO_QUOTE_PRECISION_RATIO,
 	ZERO,
 	TEN_THOUSAND,
 	BN_MAX,
 	PARTIAL_LIQUIDATION_RATIO,
 	FULL_LIQUIDATION_RATIO,
-	USDC_PRECISION,
+	QUOTE_PRECISION,
 } from './constants/numericConstants';
 import { UserAccountSubscriber, UserAccountEvents } from './accounts/types';
 import { DefaultUserAccountSubscriber } from './accounts/defaultUserAccountSubscriber';
@@ -56,7 +56,6 @@ export class ClearingHouseUser {
 	}
 
 	public async subscribe(): Promise<boolean> {
-
 		// Clearing house should already be subscribed, but await for the subscription to avoid race condition
 		await this.clearingHouse.subscribe();
 
@@ -77,11 +76,15 @@ export class ClearingHouseUser {
 		return this.accountSubscriber.getUserPositionsAccount();
 	}
 
-	public getUserPosition(positionIndex: BN | number): UserPosition {
-		if (positionIndex instanceof BN) {
-			positionIndex = positionIndex.toNumber();
-		}
-		return this.getUserPositionsAccount().positions[positionIndex];
+	/**
+	 * Gets the user's current position for a given market
+	 * @param marketIndex
+	 * @returns userPosition
+	 */
+	public getUserPosition(marketIndex: BN): UserPosition {
+		return this.getUserPositionsAccount().positions.find((position) =>
+			position.marketIndex.eq(marketIndex)
+		);
 	}
 
 	public async getUserAccountPublicKey(): Promise<PublicKey> {
@@ -107,7 +110,7 @@ export class ClearingHouseUser {
 
 	/**
 	 * calculates Buying Power = FC * MAX_LEVERAGE
-	 * return precision = 1e6 (USDC_PRECISION)
+	 * return precision = 1e6 (QUOTE_PRECISION)
 	 * @returns
 	 */
 	public getBuyingPower(): BN {
@@ -118,7 +121,7 @@ export class ClearingHouseUser {
 
 	/**
 	 * calculates Free Collateral = (TC - TPV) * MAX_LEVERAGE
-	 * return precision = 1e6 (USDC_PRECISION)
+	 * return precision = 1e6 (QUOTE_PRECISION)
 	 * @returns
 	 */
 	public getFreeCollateral(): BN {
@@ -131,7 +134,7 @@ export class ClearingHouseUser {
 
 	/**
 	 * calculates unrealized position price pnl
-	 * return precision = 1e6 (USDC_PRECISION)
+	 * return precision = 1e6 (QUOTE_PRECISION)
 	 * @returns
 	 */
 	public getUnrealizedPNL(withFunding?: boolean): BN {
@@ -148,7 +151,7 @@ export class ClearingHouseUser {
 
 	/**
 	 * calculates unrealized funding payment pnl
-	 * return precision = 1e6 (USDC_PRECISION)
+	 * return precision = 1e6 (QUOTE_PRECISION)
 	 * @returns
 	 */
 	public getUnrealizedFundingPNL(): BN {
@@ -163,7 +166,7 @@ export class ClearingHouseUser {
 
 	/**
 	 * calculates TotalCollateral: collateral + unrealized pnl
-	 * return precision = 1e6 (USDC_PRECISION)
+	 * return precision = 1e6 (QUOTE_PRECISION)
 	 * @returns
 	 */
 	public getTotalCollateral(): BN {
@@ -175,44 +178,56 @@ export class ClearingHouseUser {
 
 	/**
 	 * calculates sum of position value across all positions
-	 * return precision = 1e10 (AMM_MANTISSA)
+	 * return precision = 1e6 (QUOTE_PRECISION)
 	 * @returns
 	 */
 	getTotalPositionValue(): BN {
-		return this.getUserPositionsAccount()
-			.positions.reduce((positionValue, marketPosition) => {
+		return this.getUserPositionsAccount().positions.reduce(
+			(positionValue, marketPosition) => {
 				const market = this.clearingHouse.getMarket(marketPosition.marketIndex);
 				return positionValue.add(
 					calculateBaseAssetValue(market, marketPosition)
 				);
-			}, ZERO)
-			.div(AMM_MANTISSA);
+			},
+			ZERO
+		);
 	}
 
 	/**
 	 * calculates position value from closing 100%
-	 * return precision = 1e10 (AMM_MANTISSA)
+	 * return precision = 1e6 (QUOTE_PRECISION)
 	 * @returns
 	 */
-	public getPositionValue(positionIndex: BN | number): BN {
-		const userPosition = this.getUserPosition(positionIndex);
+	public getPositionValue(marketIndex: BN): BN {
+		const userPosition = this.getUserPosition(marketIndex);
 		const market = this.clearingHouse.getMarket(userPosition.marketIndex);
-		return calculateBaseAssetValue(market, userPosition).div(AMM_MANTISSA);
+		return calculateBaseAssetValue(market, userPosition);
+	}
+
+	public getPositionSide(currentPosition: Pick<UserPosition, 'baseAssetAmount'>): PositionDirection | undefined {
+		if(currentPosition.baseAssetAmount.gt(ZERO)){
+			return PositionDirection.LONG;
+		} else if (currentPosition.baseAssetAmount.lt(ZERO)) {
+			return PositionDirection.SHORT;
+		} else {
+			return undefined;
+		}
 	}
 
 	/**
 	 * calculates average exit price for closing 100% of position
-	 * return precision = 1e10 (AMM_MANTISSA)
+	 * return precision = 1e10 (MARK_PRICE_PRECISION)
 	 * @returns
 	 */
-	public getPositionEstimatedExitPriceWithMantissa(position: UserPosition): BN {
+	public getPositionEstimatedExitPrice(position: UserPosition): BN {
 		const market = this.clearingHouse.getMarket(position.marketIndex);
 		const baseAssetValue = calculateBaseAssetValue(market, position);
 		if (position.baseAssetAmount.eq(ZERO)) {
 			return ZERO;
 		}
 		return baseAssetValue
-			.mul(QUOTE_BASE_PRECISION_DIFF)
+			.mul(AMM_TO_QUOTE_PRECISION_RATIO)
+			.mul(MARK_PRICE_PRECISION)
 			.div(position.baseAssetAmount.abs());
 	}
 
@@ -310,7 +325,7 @@ export class ClearingHouseUser {
 
 	/**
 	 * Calculate the liquidation price of a position, with optional parameter to calculate the liquidation price after a trade
-	 * return precision = 1e10 (AMM_MANTISSA)
+	 * return precision = 1e10 (MARK_PRICE_PRECISION)
 	 * @param targetMarket
 	 * @param positionBaseSizeChange // change in position size to calculate liquidation price for - 10^13
 	 * @param partial
@@ -346,9 +361,7 @@ export class ClearingHouseUser {
 			this.getTotalPositionValueExcludingMarket(targetMarket.marketIndex);
 
 		const currentMarketPosition =
-			this.getUserPositionsAccount().positions?.find((position) =>
-				position.marketIndex.eq(targetMarket.marketIndex)
-			);
+			this.getUserPosition(targetMarket.marketIndex);
 
 		const currentMarketPositionBaseSize = currentMarketPosition
 			? currentMarketPosition.baseAssetAmount
@@ -371,7 +384,7 @@ export class ClearingHouseUser {
 		const proposedMarketPositionValueUSDC = calculateBaseAssetValue(
 			market,
 			proposedMarketPosition
-		).div(AMM_MANTISSA);
+		);
 
 		// total position value after trade
 		const targetTotalPositionValueUSDC =
@@ -408,10 +421,10 @@ export class ClearingHouseUser {
 		const baseAssetSignIsNeg = proposedMarketPosition.baseAssetAmount.isNeg();
 
 		// console.log(
-		// 	stripMantissa(currentPrice),
-		// stripMantissa(liqRatio),
-		// stripMantissa(marginRatio),
-		// stripMantissa(marketProportion),
+		// 	convertToNumber(currentPrice),
+		// convertToNumber(liqRatio),
+		// convertToNumber(marginRatio),
+		// convertToNumber(marketProportion),
 		// );
 
 		// // if the user is long, then the liq price is the currentPrice multiplied by liqRatio/marginRatio (how many multiples lower does the current marginRatio have to go to reach the liqRatio), multiplied by the fraction of the proposed total position value that this market will take up
@@ -450,7 +463,7 @@ export class ClearingHouseUser {
 
 	/**
 	 * Calculates the estimated liquidation price for a position after closing a quote amount of the position.
-	 * return precision = 1e10 (AMM_MANTISSA)
+	 * return precision = 1e10 (MARK_PRICE_PRECISION)
 	 * @param positionMarketIndex
 	 * @param closeQuoteAmount
 	 * @returns
@@ -459,9 +472,7 @@ export class ClearingHouseUser {
 		positionMarketIndex: BN,
 		closeQuoteAmount: BN
 	): BN {
-		const currentPosition = this.getUserPositionsAccount().positions.find(
-			(position) => position.marketIndex.eq(positionMarketIndex)
-		);
+		const currentPosition = this.getUserPosition(positionMarketIndex);
 
 		const closeBaseAmount = currentPosition.baseAssetAmount
 			.mul(closeQuoteAmount)
@@ -495,32 +506,34 @@ export class ClearingHouseUser {
 	): BN {
 		// inline function which get's the current position size on the opposite side of the target trade
 		const getOppositePositionValueUSDC = () => {
-			const currentPosition = this.getPositionForMarket(targetMarketIndex);
-
 			if (!currentPosition) return ZERO;
 
 			const side = tradeSide === PositionDirection.SHORT ? 'short' : 'long';
 
 			if (side === 'long' && currentPosition?.baseAssetAmount.isNeg()) {
-				return currentPosition.quoteAssetAmount;
+				return this.getPositionValue(targetMarketIndex);
 			} else if (
 				side === 'short' &&
 				!currentPosition?.baseAssetAmount.isNeg()
 			) {
-				return currentPosition.quoteAssetAmount;
+				return this.getPositionValue(targetMarketIndex);
 			}
 
 			return ZERO;
 		};
 
+		const currentPosition = this.getUserPosition(targetMarketIndex);
+
 		// get current leverage
 		const currentLeverage = this.getLeverage();
 
 		// remaining leverage
+		// let remainingLeverage = userMaxLeverageSetting;
+
 		const remainingLeverage = BN.max(
-			userMaxLeverageSetting.sub(currentLeverage),
-			ZERO
-		);
+				userMaxLeverageSetting.sub(currentLeverage),
+				ZERO
+			);
 
 		// get total collateral
 		const totalCollateral = this.getTotalCollateral();
@@ -535,9 +548,10 @@ export class ClearingHouseUser {
 
 		maxPositionSize = maxPositionSize.add(oppositeSizeValueUSDC);
 
-		// subtract $.001 to avoid rounding errors when taking max leverage
-		const oneTenthOfACent = USDC_PRECISION.div(new BN(1000));
-		return maxPositionSize.sub(oneTenthOfACent);
+		// subtract oneMillionth of maxPositionSize
+		// => to avoid rounding errors when taking max leverage
+		const oneMilli = maxPositionSize.div(QUOTE_PRECISION);
+		return maxPositionSize.sub(oneMilli);
 	}
 
 	// TODO - should this take the price impact of the trade into account for strict accuracy?
@@ -554,7 +568,7 @@ export class ClearingHouseUser {
 		tradeQuoteAmount: BN,
 		tradeSide: PositionDirection
 	): BN {
-		const currentPosition = this.getPositionForMarket(targetMarketIndex);
+		const currentPosition = this.getUserPosition(targetMarketIndex);
 		let currentPositionQuoteAmount = currentPosition.quoteAssetAmount;
 
 		const currentSide = currentPosition.baseAssetAmount.isNeg()
@@ -582,17 +596,6 @@ export class ClearingHouseUser {
 	}
 
 	/**
-	 * Gets the user's current position for a given market
-	 * @param marketIndex
-	 * @returns userPosition
-	 */
-	private getPositionForMarket(marketIndex: BN): UserPosition {
-		return this.getUserPositionsAccount().positions.find((position) =>
-			position.marketIndex.eq(marketIndex)
-		);
-	}
-
-	/**
 	 * Calculates how much fee will be taken for a given sized trade
 	 * @param quoteAmount
 	 * @returns feeForQuote : 10^6
@@ -611,7 +614,7 @@ export class ClearingHouseUser {
 	 * @returns positionValue
 	 */
 	private getTotalPositionValueExcludingMarket(marketToIgnore: BN): BN {
-		const currentMarketPosition = this.getPositionForMarket(marketToIgnore);
+		const currentMarketPosition = this.getUserPosition(marketToIgnore);
 
 		let currentMarketPositionValueUSDC = ZERO;
 		if (currentMarketPosition) {
@@ -621,36 +624,9 @@ export class ClearingHouseUser {
 			currentMarketPositionValueUSDC = calculateBaseAssetValue(
 				market,
 				currentMarketPosition
-			).div(AMM_MANTISSA);
+			);
 		}
 
 		return this.getTotalPositionValue().sub(currentMarketPositionValueUSDC);
-	}
-
-	public summary() {
-		const marketPosition0 = this.getUserPositionsAccount().positions[0];
-		const market0 = this.clearingHouse.getMarket(marketPosition0.marketIndex);
-		const pos0PNL = calculatePositionPNL(market0, marketPosition0);
-		const pos0Value = calculateBaseAssetValue(market0, marketPosition0);
-
-		const pos0Px = calculateMarkPrice(market0);
-
-		return {
-			totalCollateral: this.getTotalCollateral(),
-			uPnL: this.getUnrealizedPNL(),
-			marginRatio: this.getMarginRatio(),
-			freeCollateral: this.getFreeCollateral(),
-			leverage: this.getLeverage(),
-			buyingPower: this.getBuyingPower(),
-			tPV: this.getTotalPositionValue(),
-
-			pos0BAmt: marketPosition0.baseAssetAmount,
-			pos0QAmt: marketPosition0.quoteAssetAmount,
-			pos0Market: marketPosition0.marketIndex,
-			pos0LiqPrice: this.liquidationPrice(marketPosition0),
-			pos0Value: pos0Value,
-			pos0Px: pos0Px,
-			pos0PNL: pos0PNL,
-		};
 	}
 }

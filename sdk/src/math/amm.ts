@@ -1,8 +1,8 @@
 import { BN } from '@project-serum/anchor';
 import {
-	AMM_MANTISSA,
+	MARK_PRICE_PRECISION,
 	ONE,
-	PEG_SCALAR,
+	PEG_PRECISION,
 	ZERO,
 } from '../constants/numericConstants';
 import { AMM, PositionDirection, SwapDirection } from '../types';
@@ -26,9 +26,9 @@ export function calculatePrice(
 	}
 
 	return quoteAssetAmount
-		.mul(AMM_MANTISSA)
+		.mul(MARK_PRICE_PRECISION)
 		.mul(peg_multiplier)
-		.div(PEG_SCALAR)
+		.div(PEG_PRECISION)
 		.div(baseAssetAmount);
 }
 
@@ -55,7 +55,7 @@ export function calculateAmmReservesAfterSwap(
 	let newBaseAssetReserve;
 
 	if (inputAssetType === 'quote') {
-		const swapAmountIntermediate = swapAmount.mul(AMM_MANTISSA);
+		const swapAmountIntermediate = swapAmount.mul(MARK_PRICE_PRECISION);
 		swapAmount = swapAmountIntermediate.div(amm.pegMultiplier);
 
 		// Because ints round down by default, we need to add 1 back when removing from

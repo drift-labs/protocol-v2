@@ -11,7 +11,7 @@ import * as anchor from '@project-serum/anchor';
 import { getClearingHouseStateAccountPublicKeyAndNonce } from './addresses';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { ClearingHouse } from './clearingHouse';
-import { PEG_SCALAR } from './constants/numericConstants';
+import { PEG_PRECISION } from './constants/numericConstants';
 import clearingHouseIDL from './idl/clearing_house.json';
 import { DefaultClearingHouseAccountSubscriber } from './accounts/defaultClearingHouseAccountSubscriber';
 import { DefaultTxSender } from './tx/defaultTxSender';
@@ -181,7 +181,7 @@ export class Admin extends ClearingHouse {
 		baseAmount: BN,
 		quoteAmount: BN,
 		periodicity: BN,
-		pegMultiplier: BN = PEG_SCALAR
+		pegMultiplier: BN = PEG_PRECISION
 	): Promise<TransactionSignature> {
 		if (this.getMarketsAccount().markets[marketIndex.toNumber()].initialized) {
 			throw Error(`MarketIndex ${marketIndex.toNumber()} already initialized`);

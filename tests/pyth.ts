@@ -13,13 +13,12 @@ import {
 
 import {
 	calculateMarkPrice,
-	PEG_SCALAR,
+	PEG_PRECISION,
 	PositionDirection,
-	USDC_PRECISION,
+	QUOTE_PRECISION,
 	calculateTargetPriceTrade,
+	convertToNumber,
 } from '../sdk';
-
-import { stripMantissa } from '../../common-ts';
 
 import { Program } from '@project-serum/anchor';
 
@@ -27,8 +26,8 @@ import { Keypair, PublicKey } from '@solana/web3.js';
 
 import {
 	Admin,
-	AMM_MANTISSA,
-	FUNDING_MANTISSA,
+	MARK_PRICE_PRECISION,
+	FUNDING_PAYMENT_PRECISION,
 	ClearingHouse,
 	ClearingHouseUser,
 } from '../sdk/src';
@@ -56,14 +55,15 @@ async function updateFundingRateHelper(
 		);
 
 		const priceSpread0 =
-			stripMantissa(ammAccountState0.lastMarkPriceTwap) - oraclePx0.twap;
+			convertToNumber(ammAccountState0.lastMarkPriceTwap) - oraclePx0.twap;
 		const frontEndFundingCalc0 = priceSpread0 / oraclePx0.twap / (24 * 3600);
 
 		console.log(
 			'funding rate frontend calc0:',
 			frontEndFundingCalc0,
 			'markTwap0:',
-			ammAccountState0.lastMarkPriceTwap.toNumber() / AMM_MANTISSA.toNumber(),
+			ammAccountState0.lastMarkPriceTwap.toNumber() /
+				MARK_PRICE_PRECISION.toNumber(),
 			'markTwap0:',
 			ammAccountState0.lastMarkPriceTwap.toNumber(),
 			'oracleTwap0:',
@@ -82,14 +82,15 @@ async function updateFundingRateHelper(
 			marketIndex
 		);
 
-		const CONVERSION_SCALE = FUNDING_MANTISSA.mul(AMM_MANTISSA);
+		const CONVERSION_SCALE =
+			FUNDING_PAYMENT_PRECISION.mul(MARK_PRICE_PRECISION);
 
 		const marketsAccount = await clearingHouse.getMarketsAccount();
 		const marketData = marketsAccount.markets[marketIndex.toNumber()];
 		const ammAccountState = marketData.amm;
 		const peroidicity = marketData.amm.fundingPeriod;
 
-		const lastFundingRate = stripMantissa(
+		const lastFundingRate = convertToNumber(
 			ammAccountState.lastFundingRate,
 			CONVERSION_SCALE
 		);
@@ -97,14 +98,14 @@ async function updateFundingRateHelper(
 		console.log('last funding rate:', lastFundingRate);
 		console.log(
 			'cumfunding rate:',
-			stripMantissa(ammAccountState.cumulativeFundingRate, CONVERSION_SCALE),
+			convertToNumber(ammAccountState.cumulativeFundingRate, CONVERSION_SCALE),
 			'cumfunding rate long',
-			stripMantissa(
+			convertToNumber(
 				ammAccountState.cumulativeFundingRateLong,
 				CONVERSION_SCALE
 			),
 			'cumfunding rate short',
-			stripMantissa(
+			convertToNumber(
 				ammAccountState.cumulativeFundingRateShort,
 				CONVERSION_SCALE
 			)
@@ -126,7 +127,8 @@ async function updateFundingRateHelper(
 		);
 
 		const priceSpread =
-			ammAccountState.lastMarkPriceTwap.toNumber() / AMM_MANTISSA.toNumber() -
+			ammAccountState.lastMarkPriceTwap.toNumber() /
+				MARK_PRICE_PRECISION.toNumber() -
 			oraclePx.twap;
 		const frontEndFundingCalc =
 			priceSpread / ((24 * 3600) / Math.max(1, peroidicity.toNumber()));
@@ -135,7 +137,8 @@ async function updateFundingRateHelper(
 			'funding rate frontend calc:',
 			frontEndFundingCalc,
 			'markTwap:',
-			ammAccountState.lastMarkPriceTwap.toNumber() / AMM_MANTISSA.toNumber(),
+			ammAccountState.lastMarkPriceTwap.toNumber() /
+				MARK_PRICE_PRECISION.toNumber(),
 			'markTwap:',
 			ammAccountState.lastMarkPriceTwap.toNumber(),
 			'oracleTwap:',
@@ -250,7 +253,7 @@ describe('pyth-oracle', () => {
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,
 			periodicity,
-			new BN(39.99 * PEG_SCALAR.toNumber())
+			new BN(39.99 * PEG_PRECISION.toNumber())
 		);
 
 		await updateFundingRateHelper(
@@ -272,12 +275,12 @@ describe('pyth-oracle', () => {
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,
 			periodicity,
-			new BN(41.7 * PEG_SCALAR.toNumber())
+			new BN(41.7 * PEG_PRECISION.toNumber())
 		);
 
 		// await clearingHouse.moveAmmToPrice(
 		// 	marketIndex,
-		// 	new BN(41.5 * AMM_MANTISSA.toNumber())
+		// 	new BN(41.5 * MARK_PRICE_PRECISION.toNumber())
 		// );
 
 		await updateFundingRateHelper(
@@ -293,23 +296,23 @@ describe('pyth-oracle', () => {
 
 		// await clearingHouse.moveAmmToPrice(
 		// 	marketIndex,
-		// 	new BN(41.5 * AMM_MANTISSA.toNumber())
+		// 	new BN(41.5 * MARK_PRICE_PRECISION.toNumber())
 		// );
 
 		console.log(
 			'PRICE',
-			stripMantissa(calculateMarkPrice(clearingHouse.getMarket(marketIndex)))
+			convertToNumber(calculateMarkPrice(clearingHouse.getMarket(marketIndex)))
 		);
 
 		await clearingHouse.openPosition(
 			PositionDirection.LONG,
-			USDC_PRECISION,
+			QUOTE_PRECISION,
 			marketIndex
 		);
 
 		await clearingHouse2.openPosition(
 			PositionDirection.SHORT,
-			USDC_PRECISION.div(new BN(2)),
+			QUOTE_PRECISION.div(new BN(2)),
 			marketIndex
 		);
 
@@ -352,9 +355,9 @@ describe('pyth-oracle', () => {
 
 		console.log(
 			'SUCCEEDS: price from',
-			stripMantissa(baseAssetPriceWithMantissa),
+			convertToNumber(baseAssetPriceWithMantissa),
 			'->',
-			stripMantissa(targetPriceDefaultSlippage)
+			convertToNumber(targetPriceDefaultSlippage)
 		);
 		const [_directionSuc, _tradeSizeSuc, _entryPriceSuc] =
 			calculateTargetPriceTrade(
@@ -375,9 +378,9 @@ describe('pyth-oracle', () => {
 		); // > 10% increase
 		console.log(
 			'FAILS: price from',
-			stripMantissa(baseAssetPriceWithMantissa),
+			convertToNumber(baseAssetPriceWithMantissa),
 			'->',
-			stripMantissa(targetPriceFails)
+			convertToNumber(targetPriceFails)
 		);
 
 		const [_direction, tradeSize, _entryPrice] = calculateTargetPriceTrade(

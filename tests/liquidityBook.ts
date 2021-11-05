@@ -1,8 +1,10 @@
 import { BN } from '@project-serum/anchor';
-import { AMM_MANTISSA } from './constants/numericConstants';
-import { Market } from './types';
-import { calculateTargetPriceTrade } from './math/trade';
-import { calculateMarkPrice } from './math/market';
+import {
+	MARK_PRICE_PRECISION,
+	Market,
+	calculateMarkPrice,
+	calculateTargetPriceTrade,
+} from '../sdk/src';
 
 /**
  * liquidityBook
@@ -13,7 +15,9 @@ import { calculateMarkPrice } from './math/market';
  * @returns
  */
 export function liquidityBook(market: Market, N = 5, incrementSize = 0.1) {
-	const defaultSlippageBN = new BN(incrementSize * AMM_MANTISSA.toNumber());
+	const defaultSlippageBN = new BN(
+		incrementSize * MARK_PRICE_PRECISION.toNumber()
+	);
 	const baseAssetPriceWithMantissa = calculateMarkPrice(market);
 	const bidsPrice = [];
 	const bidsCumSize = [];
@@ -22,8 +26,8 @@ export function liquidityBook(market: Market, N = 5, incrementSize = 0.1) {
 
 	for (let i = 1; i <= N; i++) {
 		const targetPriceDefaultSlippage = baseAssetPriceWithMantissa
-			.mul(AMM_MANTISSA.add(defaultSlippageBN.mul(new BN(i))))
-			.div(AMM_MANTISSA);
+			.mul(MARK_PRICE_PRECISION.add(defaultSlippageBN.mul(new BN(i))))
+			.div(MARK_PRICE_PRECISION);
 		const [_direction, liquidity, entryPrice] = calculateTargetPriceTrade(
 			market,
 			BN.max(targetPriceDefaultSlippage, new BN(1))
@@ -32,8 +36,8 @@ export function liquidityBook(market: Market, N = 5, incrementSize = 0.1) {
 		asksCumSize.push(liquidity);
 
 		const targetPriceDefaultSlippageBid = baseAssetPriceWithMantissa
-			.mul(AMM_MANTISSA.sub(defaultSlippageBN.mul(new BN(i))))
-			.div(AMM_MANTISSA);
+			.mul(MARK_PRICE_PRECISION.sub(defaultSlippageBN.mul(new BN(i))))
+			.div(MARK_PRICE_PRECISION);
 		const [_directionBid, liquidityBid, entryPriceBid] =
 			calculateTargetPriceTrade(
 				market,

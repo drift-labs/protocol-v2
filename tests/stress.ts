@@ -2,7 +2,7 @@ import * as anchor from '@project-serum/anchor';
 import { Program } from '@project-serum/anchor';
 import { Keypair } from '@solana/web3.js';
 import BN from 'bn.js';
-import { Admin, PEG_SCALAR } from '../sdk/src';
+import { Admin, PEG_PRECISION } from '../sdk/src';
 // import { getTokenAccount } from '@project-serum/common';
 import { mockUSDCMint } from '../stress/mockAccounts';
 import { stress_test } from '../stress/stress';
@@ -51,7 +51,7 @@ describe('stress-test', () => {
 	// });
 
 	it('test-repeg-peg=150', async () => {
-		const pegM = new BN(150).mul(PEG_SCALAR);
+		const pegM = new BN(150).mul(PEG_PRECISION);
 		await stress_test(
 			clearingHouse,
 			usdcMint,
@@ -70,7 +70,7 @@ describe('stress-test', () => {
 	});
 
 	// it('test-pegmult-peg=2', async () => {
-	// 	const pegM = new BN(46000).mul(PEG_SCALAR);
+	// 	const pegM = new BN(46000).mul(PEG_PRECISION);
 	// 	await stress_test(
 	// 		clearingHouse,
 	// 		usdcMint,
@@ -90,7 +90,7 @@ describe('stress-test', () => {
 	// });
 
 	// it('test-pegmult-peg=40000', async () => {
-	// 	const pegM = new BN(40000).mul(AMM_MANTISSA);
+	// 	const pegM = new BN(40000).mul(MARK_PRICE_PRECISION);
 
 	// 	await stress_test(
 	// 		clearingHouse,
@@ -106,7 +106,7 @@ describe('stress-test', () => {
 	// });
 
 	// it('test-pegmult-peg=40000', async () => {
-	// 	const pegM = new BN(20).mul(AMM_MANTISSA);
+	// 	const pegM = new BN(20).mul(MARK_PRICE_PRECISION);
 
 	// 	await stress_test(
 	// 		clearingHouse,

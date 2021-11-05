@@ -8,12 +8,12 @@ import { Keypair, PublicKey } from '@solana/web3.js';
 
 import {
 	Admin,
-	AMM_MANTISSA,
+	MARK_PRICE_PRECISION,
 	ClearingHouse,
 	PositionDirection,
 } from '../sdk/src';
 
-import Markets from '../sdk/src/constants/markets';
+import { Markets } from '../sdk/src/constants/markets';
 
 import { mockOracle, mockUSDCMint, mockUserUSDCAccount } from './testHelpers';
 import { AccountInfo, Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
@@ -32,7 +32,7 @@ describe('fees', () => {
 	let userUSDCAccount;
 
 	// ammInvariant == k == x * y
-	const mantissaSqrtScale = new BN(Math.sqrt(AMM_MANTISSA.toNumber()));
+	const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
 	const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
 		mantissaSqrtScale
 	);

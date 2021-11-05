@@ -9,19 +9,18 @@ import { PublicKey } from '@solana/web3.js';
 
 import {
 	Admin,
-	AMM_MANTISSA,
+	MARK_PRICE_PRECISION,
 	calculateMarkPrice,
-	calculatePriceImpact,
+	calculateTradeSlippage,
 	ClearingHouseUser,
 	PositionDirection,
-	BASE_ASSET_PRECISION,
-	USDC_PRECISION,
+	AMM_RESERVE_PRECISION,
+	QUOTE_PRECISION,
 	MAX_LEVERAGE,
+	convertToNumber,
 } from '../sdk/src';
 
-import { stripMantissa } from '../../common-ts';
-
-import Markets from '../sdk/src/constants/markets';
+import { Markets } from '../sdk/src/constants/markets';
 
 import {
 	mockUSDCMint,
@@ -56,7 +55,7 @@ describe('clearing_house', () => {
 	let userUSDCAccount;
 
 	// ammInvariant == k == x * y
-	const mantissaSqrtScale = new BN(Math.sqrt(AMM_MANTISSA.toNumber()));
+	const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
 	const ammInitialQuoteAssetAmount = new anchor.BN(5 * 10 ** 13).mul(
 		mantissaSqrtScale
 	);
@@ -84,7 +83,7 @@ describe('clearing_house', () => {
 
 	it('Initialize State', async () => {
 		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.subscribe();
+		await clearingHouse.subscribeToAll();
 		const state = clearingHouse.getStateAccount();
 
 		assert.ok(state.admin.equals(provider.wallet.publicKey));
@@ -356,12 +355,11 @@ describe('clearing_house', () => {
 			const newUSDCNotionalAmount = usdcAmount.div(new BN(2)).mul(new BN(5));
 			const marketIndex = new BN(0);
 			const market = clearingHouse.getMarket(marketIndex);
-			const estTradePrice = calculatePriceImpact(
+			const estTradePrice = calculateTradeSlippage(
 				PositionDirection.SHORT,
 				newUSDCNotionalAmount,
-				market,
-				'entryPrice'
-			);
+				market
+			)[2];
 
 			// trying to sell at price too high
 			const limitPriceTooHigh = calculateMarkPrice(market);
@@ -615,23 +613,23 @@ describe('clearing_house', () => {
 
 		console.log(
 			'liqPrice move:',
-			stripMantissa(calculateMarkPrice(clearingHouse.getMarket(marketIndex))),
+			convertToNumber(calculateMarkPrice(clearingHouse.getMarket(marketIndex))),
 			'->',
-			stripMantissa(liqPrice),
+			convertToNumber(liqPrice),
 			'on position',
-			stripMantissa(
+			convertToNumber(
 				userPositionsAccount0.positions[0].baseAssetAmount,
-				BASE_ASSET_PRECISION
+				AMM_RESERVE_PRECISION
 			),
 			'with collateral:',
-			stripMantissa(user0.collateral, USDC_PRECISION)
+			convertToNumber(user0.collateral, QUOTE_PRECISION)
 		);
 
 		const marketsAccount: any = clearingHouse.getMarketsAccount();
 		const marketData = marketsAccount.markets[0];
 		await setFeedPrice(
 			anchor.workspace.Pyth,
-			stripMantissa(liqPrice),
+			convertToNumber(liqPrice),
 			marketData.amm.oracle
 		);
 
@@ -640,7 +638,7 @@ describe('clearing_house', () => {
 
 		console.log(
 			'collateral + pnl post px move:',
-			stripMantissa(userAccount.getTotalCollateral(), USDC_PRECISION)
+			convertToNumber(userAccount.getTotalCollateral(), QUOTE_PRECISION)
 		);
 
 		// having the user liquidate themsevles because I'm too lazy to create a separate liquidator account
@@ -648,7 +646,7 @@ describe('clearing_house', () => {
 
 		console.log(
 			'collateral + pnl post liq:',
-			stripMantissa(userAccount.getTotalCollateral(), USDC_PRECISION)
+			convertToNumber(userAccount.getTotalCollateral(), QUOTE_PRECISION)
 		);
 		console.log('can be liquidated', userAccount.canBeLiquidated());
 		console.log('margin ratio', userAccount.getMarginRatio().toString());
@@ -773,7 +771,7 @@ describe('clearing_house', () => {
 		const marketData = marketsAccount.markets[0];
 		await setFeedPrice(
 			anchor.workspace.Pyth,
-			stripMantissa(liqPrice),
+			convertToNumber(liqPrice),
 			marketData.amm.oracle
 		);
 
@@ -788,9 +786,9 @@ describe('clearing_house', () => {
 		const userPositionsAccount: any =
 			await clearingHouse.program.account.userPositions.fetch(user.positions);
 		console.log(
-			stripMantissa(
+			convertToNumber(
 				userPositionsAccount.positions[0].baseAssetAmount,
-				BASE_ASSET_PRECISION
+				AMM_RESERVE_PRECISION
 			)
 		);
 		assert.ok(userPositionsAccount.positions[0].baseAssetAmount.eq(new BN(0)));
@@ -980,12 +978,11 @@ describe('clearing_house', () => {
 		const newUSDCNotionalAmount = usdcAmount.div(new BN(2)).mul(new BN(5));
 		const marketIndex = new BN(0);
 		const market = clearingHouse.getMarket(marketIndex);
-		const estTradePrice = calculatePriceImpact(
+		const estTradePrice = calculateTradeSlippage(
 			PositionDirection.SHORT,
 			newUSDCNotionalAmount,
-			market,
-			'entryPrice'
-		);
+			market
+		)[2];
 
 		await clearingHouse.openPosition(
 			PositionDirection.SHORT,
@@ -1001,12 +998,11 @@ describe('clearing_house', () => {
 		const newUSDCNotionalAmount = usdcAmount.div(new BN(2)).mul(new BN(5));
 		const marketIndex = new BN(0);
 		const market = clearingHouse.getMarket(marketIndex);
-		const estTradePrice = calculatePriceImpact(
+		const estTradePrice = calculateTradeSlippage(
 			PositionDirection.LONG,
 			newUSDCNotionalAmount,
-			market,
-			'entryPrice'
-		);
+			market
+		)[2];
 
 		await clearingHouse.openPosition(
 			PositionDirection.LONG,

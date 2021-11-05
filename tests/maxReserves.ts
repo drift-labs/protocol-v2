@@ -7,9 +7,9 @@ import { PublicKey } from '@solana/web3.js';
 
 import {
 	Admin,
-	AMM_MANTISSA,
+	MARK_PRICE_PRECISION,
 	PositionDirection,
-	USDC_PRECISION,
+	QUOTE_PRECISION,
 } from '../sdk/src';
 
 import {
@@ -33,17 +33,17 @@ describe('max reserves', () => {
 	let userUSDCAccount;
 
 	// ammInvariant == k == x * y
-	const mantissaSqrtScale = new BN(Math.sqrt(AMM_MANTISSA.toNumber()));
+	const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
 
 	// MAX SQRT K WITHOUT MATH ERRORS
 	const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13)
 		.mul(mantissaSqrtScale)
-		.mul(AMM_MANTISSA);
+		.mul(MARK_PRICE_PRECISION);
 	const ammInitialBaseAssetReserve = new anchor.BN(5 * 10 ** 13)
 		.mul(mantissaSqrtScale)
-		.mul(AMM_MANTISSA);
+		.mul(MARK_PRICE_PRECISION);
 
-	const usdcAmount = new BN(USDC_PRECISION)
+	const usdcAmount = new BN(QUOTE_PRECISION)
 		.mul(mantissaSqrtScale)
 		.mul(new BN(1));
 
@@ -109,7 +109,7 @@ describe('max reserves', () => {
 			await clearingHouse.updateFundingRate(oracle, new BN(i));
 			await clearingHouse.moveAmmToPrice(
 				new BN(i),
-				new BN((1 / 1.18) * AMM_MANTISSA.toNumber())
+				new BN((1 / 1.18) * MARK_PRICE_PRECISION.toNumber())
 			);
 		}
 		console.log('liquidate');
@@ -123,7 +123,7 @@ describe('max reserves', () => {
 			await setFeedPrice(anchor.workspace.Pyth, 0.1, oracle);
 			await clearingHouse.moveAmmToPrice(
 				new BN(i),
-				new BN(0.1 * AMM_MANTISSA.toNumber())
+				new BN(0.1 * MARK_PRICE_PRECISION.toNumber())
 			);
 		}
 

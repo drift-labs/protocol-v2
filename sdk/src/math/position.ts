@@ -1,12 +1,16 @@
 import { Market, PositionDirection, UserPosition } from '../types';
-import { ZERO } from '../constants/numericConstants';
+import {
+	AMM_TO_QUOTE_PRECISION_RATIO,
+	PEG_PRECISION,
+	ZERO,
+} from '../constants/numericConstants';
 import BN from 'bn.js';
 import { calculateAmmReservesAfterSwap, getSwapDirection } from './amm';
 import {
-	AMM_MANTISSA,
-	BASE_ASSET_PRECISION,
-	FUNDING_MANTISSA,
-	PRICE_TO_USDC_PRECISION,
+	MARK_PRICE_PRECISION,
+	AMM_RESERVE_PRECISION,
+	FUNDING_PAYMENT_PRECISION,
+	PRICE_TO_QUOTE_PRECISION,
 } from '../constants/numericConstants';
 
 /**
@@ -14,7 +18,7 @@ import {
  * = market value of closing entire position
  * @param market
  * @param userPosition
- * @returns precision = 1e10 (AMM_MANTISSA)
+ * @returns precision = 1e6 (QUOTE_PRECISION)
  */
 export function calculateBaseAssetValue(
 	market: Market,
@@ -39,12 +43,16 @@ export function calculateBaseAssetValue(
 		case PositionDirection.SHORT:
 			return market.amm.quoteAssetReserve
 				.sub(newQuoteAssetReserve)
-				.mul(market.amm.pegMultiplier);
+				.mul(market.amm.pegMultiplier)
+				.div(PEG_PRECISION)
+				.div(AMM_TO_QUOTE_PRECISION_RATIO);
 
 		case PositionDirection.LONG:
 			return newQuoteAssetReserve
 				.sub(market.amm.quoteAssetReserve)
-				.mul(market.amm.pegMultiplier);
+				.mul(market.amm.pegMultiplier)
+				.div(PEG_PRECISION)
+				.div(AMM_TO_QUOTE_PRECISION_RATIO);
 	}
 }
 
@@ -54,7 +62,7 @@ export function calculateBaseAssetValue(
  * @param market
  * @param marketPosition
  * @param withFunding (adds unrealized funding payment pnl to result)
- * @returns precision = 1e6 (USDC_PRECISION)
+ * @returns precision = 1e6 (QUOTE_PRECISION)
  */
 export function calculatePositionPNL(
 	market: Market,
@@ -69,9 +77,7 @@ export function calculatePositionPNL(
 		? PositionDirection.SHORT
 		: PositionDirection.LONG;
 
-	const baseAssetValue = calculateBaseAssetValue(market, marketPosition).div(
-		AMM_MANTISSA
-	);
+	const baseAssetValue = calculateBaseAssetValue(market, marketPosition);
 	let pnlAssetAmount;
 
 	switch (directionToClose) {
@@ -88,7 +94,7 @@ export function calculatePositionPNL(
 		const fundingRatePnL = calculatePositionFundingPNL(
 			market,
 			marketPosition
-		).div(PRICE_TO_USDC_PRECISION);
+		).div(PRICE_TO_QUOTE_PRECISION);
 
 		pnlAssetAmount = pnlAssetAmount.add(fundingRatePnL);
 	}
@@ -114,8 +120,8 @@ export function calculatePositionFundingPNL(
 	const perPositionFundingRate = ammCumulativeFundingRate
 		.sub(marketPosition.lastCumulativeFundingRate)
 		.mul(marketPosition.baseAssetAmount)
-		.div(BASE_ASSET_PRECISION)
-		.div(FUNDING_MANTISSA)
+		.div(AMM_RESERVE_PRECISION)
+		.div(FUNDING_PAYMENT_PRECISION)
 		.mul(new BN(-1));
 
 	return perPositionFundingRate;

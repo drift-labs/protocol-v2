@@ -4,17 +4,18 @@ import { Keypair } from '@solana/web3.js';
 import BN from 'bn.js';
 import {
 	Admin,
-	AMM_MANTISSA,
-	PEG_SCALAR,
-	USDC_PRECISION,
+	MARK_PRICE_PRECISION,
+	PEG_PRECISION,
+	QUOTE_PRECISION,
 	calculateMarkPrice,
 	calculateTargetPriceTrade,
 	ClearingHouseUser,
 	PositionDirection,
-	liquidityBook,
+	convertBaseAssetAmountToNumber,
+	convertToNumber,
 } from '../sdk/src';
 
-import { stripBaseAssetPrecision, stripMantissa } from '../../common-ts';
+import { liquidityBook } from './liquidityBook';
 
 import { assert } from '../sdk/src/assert/assert';
 import {
@@ -71,10 +72,10 @@ describe('AMM Curve', () => {
 		await clearingHouse.initializeMarket(
 			marketIndex,
 			solUsdOracle,
-			ammInitialBaseAssetAmount.mul(PEG_SCALAR),
-			ammInitialQuoteAssetAmount.mul(PEG_SCALAR),
+			ammInitialBaseAssetAmount.mul(PEG_PRECISION),
+			ammInitialQuoteAssetAmount.mul(PEG_PRECISION),
 			periodicity,
-			PEG_SCALAR.mul(new BN(initialSOLPrice))
+			PEG_PRECISION.mul(new BN(initialSOLPrice))
 		);
 
 		await clearingHouse.initializeUserAccount();
@@ -97,28 +98,37 @@ describe('AMM Curve', () => {
 
 		console.log(
 			'baseAssetAmountShort',
-			stripBaseAssetPrecision(marketData.baseAssetAmountShort),
+			convertBaseAssetAmountToNumber(marketData.baseAssetAmountShort),
 			'baseAssetAmountLong',
-			stripBaseAssetPrecision(marketData.baseAssetAmountLong)
+			convertBaseAssetAmountToNumber(marketData.baseAssetAmountLong)
 		);
 
 		console.log(
 			'pegMultiplier',
-			stripMantissa(ammAccountState.pegMultiplier, PEG_SCALAR)
+			convertToNumber(ammAccountState.pegMultiplier, PEG_PRECISION)
 		);
 		console.log(
 			'cumulativeRepegRebateShort',
-			stripMantissa(ammAccountState.cumulativeRepegRebateShort, USDC_PRECISION)
+			convertToNumber(
+				ammAccountState.cumulativeRepegRebateShort,
+				QUOTE_PRECISION
+			)
 		);
 		console.log(
 			'cumulativeRepegRebateLong',
-			stripMantissa(ammAccountState.cumulativeRepegRebateLong, USDC_PRECISION)
+			convertToNumber(
+				ammAccountState.cumulativeRepegRebateLong,
+				QUOTE_PRECISION
+			)
 		);
 
-		const totalFeeNum = stripMantissa(ammAccountState.totalFee, USDC_PRECISION);
-		const cumFeeNum = stripMantissa(
+		const totalFeeNum = convertToNumber(
+			ammAccountState.totalFee,
+			QUOTE_PRECISION
+		);
+		const cumFeeNum = convertToNumber(
 			ammAccountState.totalFeeMinusDistributions,
-			USDC_PRECISION
+			QUOTE_PRECISION
 		);
 		console.log('totalFee', totalFeeNum);
 		console.log('cumFee', cumFeeNum);
@@ -131,7 +141,7 @@ describe('AMM Curve', () => {
 	// 	const ammAccountState = marketData.amm;
 
 	// 	const feeDist= marketData.amm.cumulativeFee.add(userAccount.getTotalCollateral());
-	// 	// console.log(stripMantissa(usdcAmount, USDC_PRECISION), stripMantissa(feeDist, USDC_PRECISION));
+	// 	// console.log(convertToNumber(usdcAmount, QUOTE_PRECISION), convertToNumber(feeDist, QUOTE_PRECISION));
 
 	// 	return feeDist;
 	// };
@@ -149,24 +159,24 @@ describe('AMM Curve', () => {
 
 		for (let i = asksCumSize.length - 1; i >= 0; i--) {
 			console.log(
-				stripMantissa(asksPrice[i]),
-				stripMantissa(asksCumSize[i], USDC_PRECISION)
+				convertToNumber(asksPrice[i]),
+				convertToNumber(asksCumSize[i], QUOTE_PRECISION)
 			);
 		}
 
 		console.log('------------');
-		console.log(currentMark.toNumber() / AMM_MANTISSA.toNumber());
+		console.log(currentMark.toNumber() / MARK_PRICE_PRECISION.toNumber());
 		console.log(
 			'peg:',
-			stripMantissa(market.amm.pegMultiplier, PEG_SCALAR),
+			convertToNumber(market.amm.pegMultiplier, PEG_PRECISION),
 			'k (M*M):',
-			stripMantissa(market.amm.sqrtK)
+			convertToNumber(market.amm.sqrtK)
 		);
 		console.log('------------');
 		for (let i = 0; i < bidsCumSize.length; i++) {
 			console.log(
-				stripMantissa(bidsPrice[i]),
-				stripMantissa(bidsCumSize[i], USDC_PRECISION)
+				convertToNumber(bidsPrice[i]),
+				convertToNumber(bidsCumSize[i], QUOTE_PRECISION)
 			);
 		}
 	};
@@ -194,7 +204,7 @@ describe('AMM Curve', () => {
 		// const _priceIncreaseFactor = new BN(2);
 		await clearingHouse.moveAmmToPrice(
 			marketIndex,
-			new BN(initialSOLPrice * AMM_MANTISSA.toNumber() * 1.0001)
+			new BN(initialSOLPrice * MARK_PRICE_PRECISION.toNumber() * 1.0001)
 		);
 
 		showBook(marketIndex);
@@ -202,7 +212,7 @@ describe('AMM Curve', () => {
 	it('Arb back to Oracle Price Moves', async () => {
 		const [direction, quoteSize] = calculateTargetPriceTrade(
 			clearingHouse.getMarket(marketIndex),
-			new BN(initialSOLPrice).mul(AMM_MANTISSA)
+			new BN(initialSOLPrice).mul(MARK_PRICE_PRECISION)
 		);
 
 		console.log('arbing', direction, quoteSize.toNumber());
@@ -221,14 +231,14 @@ describe('AMM Curve', () => {
 
 		const newOraclePrice = 155;
 		const newOraclePriceWithMantissa = new BN(
-			newOraclePrice * AMM_MANTISSA.toNumber()
+			newOraclePrice * MARK_PRICE_PRECISION.toNumber()
 		);
 		await setFeedPrice(anchor.workspace.Pyth, newOraclePrice, solUsdOracle);
 		// showCurve(marketIndex);
 
 		await clearingHouse.openPosition(
 			PositionDirection.LONG,
-			USDC_PRECISION.mul(new BN(10)),
+			QUOTE_PRECISION.mul(new BN(10)),
 			marketIndex
 		);
 		// showBook(marketIndex);
@@ -258,8 +268,11 @@ describe('AMM Curve', () => {
 
 		const userMarketPosition =
 			userAccount.getUserPositionsAccount().positions[0];
-		const costToAMM = stripBaseAssetPrecision(
-			newPeg.sub(oldPeg).mul(userMarketPosition.baseAssetAmount).div(PEG_SCALAR)
+		const costToAMM = convertBaseAssetAmountToNumber(
+			newPeg
+				.sub(oldPeg)
+				.mul(userMarketPosition.baseAssetAmount)
+				.div(PEG_PRECISION)
 		);
 
 		const totalCostToAMMChain = showCurve(marketIndex);
@@ -277,14 +290,14 @@ describe('AMM Curve', () => {
 	it('Repeg Curve SHORT', async () => {
 		const newOraclePrice = 145;
 		const newOraclePriceWithMantissa = new BN(
-			newOraclePrice * AMM_MANTISSA.toNumber()
+			newOraclePrice * MARK_PRICE_PRECISION.toNumber()
 		);
 		await setFeedPrice(anchor.workspace.Pyth, newOraclePrice, solUsdOracle);
 		showCurve(marketIndex);
 
 		await clearingHouse.openPosition(
 			PositionDirection.SHORT,
-			USDC_PRECISION,
+			QUOTE_PRECISION,
 			marketIndex
 		);
 

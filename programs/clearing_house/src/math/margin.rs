@@ -2,7 +2,7 @@ use std::cell::{Ref, RefMut};
 
 use crate::error::*;
 use crate::math::collateral::calculate_updated_collateral;
-use crate::math::constants::MARGIN_MANTISSA;
+use crate::math::constants::MARGIN_PRECISION;
 use crate::math::position::calculate_base_asset_value_and_pnl;
 use crate::math_error;
 use crate::state::market::Markets;
@@ -43,7 +43,7 @@ pub fn calculate_margin_ratio(
     } else {
         total_collateral = calculate_updated_collateral(user.collateral, unrealized_pnl)?;
         margin_ratio = total_collateral
-            .checked_mul(MARGIN_MANTISSA)
+            .checked_mul(MARGIN_PRECISION)
             .ok_or_else(math_error!())?
             .checked_div(base_asset_value)
             .ok_or_else(math_error!())?;

@@ -3,7 +3,11 @@ import { Program, Provider, Wallet } from '@project-serum/anchor';
 import { Keypair, PublicKey } from '@solana/web3.js';
 import BN from 'bn.js';
 import { Admin, ClearingHouse, PythClient } from '../sdk/';
-import { AMM_MANTISSA, MockUSDCFaucet, PEG_SCALAR } from '../sdk/src';
+import {
+	MARK_PRICE_PRECISION,
+	MockUSDCFaucet,
+	PEG_PRECISION,
+} from '../sdk/src';
 
 import dotenv = require('dotenv');
 dotenv.config();
@@ -44,7 +48,7 @@ async function deployDevnet(provider: Provider) {
 
 	function normAssetAmount(assetAmount: BN, pegMultiplier: BN): BN {
 		// assetAmount is scaled to offer comparable slippage
-		return assetAmount.mul(AMM_MANTISSA).div(pegMultiplier);
+		return assetAmount.mul(MARK_PRICE_PRECISION).div(pegMultiplier);
 	}
 	const devnetOracles = {
 		SOL: 'J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix',
@@ -77,7 +81,7 @@ async function deployDevnet(provider: Provider) {
 		const periodicity = new BN(3600);
 		const ammQuoteAssetAmount = new anchor.BN(2 * 10 ** 13);
 		const ammBaseAssetAmount = new anchor.BN(2 * 10 ** 13);
-		const pegMultiplierAst = new anchor.BN(astPrice * PEG_SCALAR.toNumber());
+		const pegMultiplierAst = new anchor.BN(astPrice * PEG_PRECISION.toNumber());
 
 		console.log('Initializing Market for ', keyName, '/USD: ');
 		await clearingHouse.subscribe();

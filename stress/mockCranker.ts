@@ -42,7 +42,7 @@ async function arbTrade(clearingHouse, marketIndex) {
 	// );
 
 	// const upnl = await user_act_info_e.getUnrealizedPNL();
-	const xeq_scaled = ammData.xeq; //.div(AMM_MANTISSA);
+	const xeq_scaled = ammData.xeq; //.div(MARK_PRICE_PRECISION);
 	const _ast_px2 = ast_px * xeq_scaled;
 
 	const limitPrice = new BN(oracleData.price * xeq_scaled);

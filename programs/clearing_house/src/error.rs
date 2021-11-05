@@ -26,7 +26,7 @@ pub enum ErrorCode {
     UserAccountAndUserPositionsAccountMismatch,
     #[msg("User Has No Position In Market")]
     UserHasNoPositionInMarket,
-    #[msg("AMM peg in v0 must be > MANTISSA/10 (e.g. .1)")]
+    #[msg("Invalid Initial Peg")]
     InvalidInitialPeg,
     #[msg("AMM repeg already configured with amt given")]
     InvalidRepegRedundant,

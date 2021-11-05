@@ -6,23 +6,22 @@ import { Keypair } from '@solana/web3.js';
 import { Program } from '@project-serum/anchor';
 import {
 	Admin,
-	AMM_MANTISSA,
+	MARK_PRICE_PRECISION,
 	calculateMarkPrice,
 	ClearingHouseUser,
-	PEG_SCALAR,
+	PEG_PRECISION,
 	PositionDirection,
+	convertToNumber,
 } from '../sdk/src';
 
-import { stripMantissa } from '../../common-ts';
-
-import Markets from '../sdk/src/constants/markets';
+import { Markets } from '../sdk/src/constants/markets';
 
 import {
 	createPriceFeed,
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
-import { USDC_PRECISION } from '../sdk/lib';
+import { QUOTE_PRECISION } from '../sdk/lib';
 
 const ZERO = new BN(0);
 
@@ -39,7 +38,7 @@ describe('update k', () => {
 	const initialSOLPrice = 150;
 
 	// ammInvariant == k == x * y
-	const mantissaSqrtScale = new BN(Math.sqrt(AMM_MANTISSA.toNumber()));
+	const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
 	const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
 		mantissaSqrtScale
 	);
@@ -75,7 +74,7 @@ describe('update k', () => {
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			periodicity,
-			new BN(initialSOLPrice * PEG_SCALAR.toNumber())
+			new BN(initialSOLPrice * PEG_PRECISION.toNumber())
 		);
 
 		await clearingHouse.initializeUserAccount();
@@ -109,15 +108,15 @@ describe('update k', () => {
 
 		console.log(
 			'oldSqrtK',
-			stripMantissa(ammOld.sqrtK),
+			convertToNumber(ammOld.sqrtK),
 			'oldKPrice:',
-			stripMantissa(oldKPrice)
+			convertToNumber(oldKPrice)
 		);
 		console.log(
 			'newSqrtK',
-			stripMantissa(newSqrtK),
+			convertToNumber(newSqrtK),
 			'newKPrice:',
-			stripMantissa(newKPrice)
+			convertToNumber(newKPrice)
 		);
 
 		assert(ammOld.sqrtK.lt(amm.sqrtK));
@@ -135,15 +134,15 @@ describe('update k', () => {
 
 		const marketsOld = await clearingHouse.getMarketsAccount();
 		const targetPriceUp = new BN(
-			initialSOLPrice * AMM_MANTISSA.toNumber() * 44.1
+			initialSOLPrice * MARK_PRICE_PRECISION.toNumber() * 44.1
 		);
 		await clearingHouse.moveAmmToPrice(marketIndex, targetPriceUp);
 		const oldKPrice = calculateMarkPrice(clearingHouse.getMarket(marketIndex));
 		const ammOld = marketsOld.markets[0].amm;
 
 		const newSqrtK = ammOld.sqrtK
-			.mul(new BN(1.000132325235 * AMM_MANTISSA.toNumber()))
-			.div(AMM_MANTISSA);
+			.mul(new BN(1.000132325235 * MARK_PRICE_PRECISION.toNumber()))
+			.div(MARK_PRICE_PRECISION);
 		await clearingHouse.updateK(newSqrtK, marketIndex);
 
 		const markets = await clearingHouse.getMarketsAccount();
@@ -155,15 +154,15 @@ describe('update k', () => {
 
 		console.log(
 			'oldSqrtK',
-			stripMantissa(ammOld.sqrtK),
+			convertToNumber(ammOld.sqrtK),
 			'oldKPrice:',
-			stripMantissa(oldKPrice)
+			convertToNumber(oldKPrice)
 		);
 		console.log(
 			'newSqrtK',
-			stripMantissa(newSqrtK),
+			convertToNumber(newSqrtK),
 			'newKPrice:',
-			stripMantissa(newKPrice)
+			convertToNumber(newKPrice)
 		);
 
 		assert(ammOld.sqrtK.lt(amm.sqrtK));
@@ -174,7 +173,9 @@ describe('update k', () => {
 	it('lower k position imbalance (AMM PROFIT)', async () => {
 		const marketIndex = Markets[0].marketIndex;
 
-		const targetPriceBack = new BN(initialSOLPrice * AMM_MANTISSA.toNumber());
+		const targetPriceBack = new BN(
+			initialSOLPrice * MARK_PRICE_PRECISION.toNumber()
+		);
 
 		// const [direction, tradeSize, _] = clearingHouse.calculateTargetPriceTrade(
 		// 	marketIndex,
@@ -185,7 +186,7 @@ describe('update k', () => {
 		console.log('taking position');
 		await clearingHouse.openPosition(
 			PositionDirection.LONG,
-			new BN(USDC_PRECISION),
+			new BN(QUOTE_PRECISION),
 			marketIndex
 		);
 		console.log('$1 position taken');
@@ -196,12 +197,12 @@ describe('update k', () => {
 		const ammOld = marketsOld.markets[0].amm;
 		console.log(
 			'USER getTotalCollateral',
-			stripMantissa(userAccount.getTotalCollateral(), USDC_PRECISION)
+			convertToNumber(userAccount.getTotalCollateral(), QUOTE_PRECISION)
 		);
 
 		const newSqrtK = ammOld.sqrtK
-			.mul(new BN(0.5 * AMM_MANTISSA.toNumber()))
-			.div(AMM_MANTISSA);
+			.mul(new BN(0.5 * MARK_PRICE_PRECISION.toNumber()))
+			.div(MARK_PRICE_PRECISION);
 		await clearingHouse.updateK(newSqrtK, marketIndex);
 		const marketsKChange = await clearingHouse.getMarketsAccount();
 		const ammKChange = marketsKChange.markets[0].amm;
@@ -217,19 +218,19 @@ describe('update k', () => {
 
 		const amm = markets.markets[0].amm;
 
-		const marginOfError = new BN(AMM_MANTISSA.div(new BN(1000))); // price change less than 3 decimal places
+		const marginOfError = new BN(MARK_PRICE_PRECISION.div(new BN(1000))); // price change less than 3 decimal places
 
 		console.log(
 			'oldSqrtK',
-			stripMantissa(ammOld.sqrtK),
+			convertToNumber(ammOld.sqrtK),
 			'oldKPrice:',
-			stripMantissa(oldKPrice)
+			convertToNumber(oldKPrice)
 		);
 		console.log(
 			'newSqrtK',
-			stripMantissa(newSqrtK),
+			convertToNumber(newSqrtK),
 			'newKPrice:',
-			stripMantissa(newKPrice)
+			convertToNumber(newKPrice)
 		);
 
 		assert(ammOld.sqrtK.gt(amm.sqrtK));
@@ -238,15 +239,15 @@ describe('update k', () => {
 
 		console.log(
 			'realizedFeeOld',
-			stripMantissa(ammOld.totalFeeMinusDistributions, USDC_PRECISION),
+			convertToNumber(ammOld.totalFeeMinusDistributions, QUOTE_PRECISION),
 			'realizedFeePostK',
-			stripMantissa(ammKChange.totalFeeMinusDistributions, USDC_PRECISION),
+			convertToNumber(ammKChange.totalFeeMinusDistributions, QUOTE_PRECISION),
 			'realizedFeePostClose',
-			stripMantissa(amm.totalFeeMinusDistributions, USDC_PRECISION)
+			convertToNumber(amm.totalFeeMinusDistributions, QUOTE_PRECISION)
 		);
 		console.log(
 			'USER getTotalCollateral',
-			stripMantissa(userAccount.getTotalCollateral(), USDC_PRECISION)
+			convertToNumber(userAccount.getTotalCollateral(), QUOTE_PRECISION)
 		);
 
 		// assert(amm.totalFeeMinusDistributions.lt(ammOld.totalFeeMinusDistributions));
@@ -254,7 +255,9 @@ describe('update k', () => {
 
 	it('increase k position imbalance (AMM LOSS)', async () => {
 		const marketIndex = Markets[0].marketIndex;
-		const targetPriceBack = new BN(initialSOLPrice * AMM_MANTISSA.toNumber());
+		const targetPriceBack = new BN(
+			initialSOLPrice * MARK_PRICE_PRECISION.toNumber()
+		);
 
 		// const [direction, tradeSize, _] = clearingHouse.calculateTargetPriceTrade(
 		// 	marketIndex,
@@ -265,7 +268,7 @@ describe('update k', () => {
 		console.log('taking position');
 		await clearingHouse.openPosition(
 			PositionDirection.LONG,
-			new BN(USDC_PRECISION).mul(new BN(30000)),
+			new BN(QUOTE_PRECISION).mul(new BN(30000)),
 			marketIndex
 		);
 		console.log('$1 position taken');
@@ -276,12 +279,12 @@ describe('update k', () => {
 		const ammOld = marketsOld.markets[0].amm;
 		console.log(
 			'USER getTotalCollateral',
-			stripMantissa(userAccount.getTotalCollateral(), USDC_PRECISION)
+			convertToNumber(userAccount.getTotalCollateral(), QUOTE_PRECISION)
 		);
 
 		const newSqrtK = ammOld.sqrtK
-			.mul(new BN(1.1 * AMM_MANTISSA.toNumber()))
-			.div(AMM_MANTISSA);
+			.mul(new BN(1.1 * MARK_PRICE_PRECISION.toNumber()))
+			.div(MARK_PRICE_PRECISION);
 		await clearingHouse.updateK(newSqrtK, marketIndex);
 		const marketsKChange = await clearingHouse.getMarketsAccount();
 		const ammKChange = marketsKChange.markets[0].amm;
@@ -295,19 +298,19 @@ describe('update k', () => {
 		const markets = await clearingHouse.getMarketsAccount();
 		const amm = markets.markets[0].amm;
 
-		const marginOfError = new BN(AMM_MANTISSA.div(new BN(1000))); // price change less than 3 decimal places
+		const marginOfError = new BN(MARK_PRICE_PRECISION.div(new BN(1000))); // price change less than 3 decimal places
 
 		console.log(
 			'oldSqrtK',
-			stripMantissa(ammOld.sqrtK),
+			convertToNumber(ammOld.sqrtK),
 			'oldKPrice:',
-			stripMantissa(oldKPrice)
+			convertToNumber(oldKPrice)
 		);
 		console.log(
 			'newSqrtK',
-			stripMantissa(newSqrtK),
+			convertToNumber(newSqrtK),
 			'newKPrice:',
-			stripMantissa(newKPrice)
+			convertToNumber(newKPrice)
 		);
 
 		assert(ammOld.sqrtK.lt(amm.sqrtK));
@@ -316,11 +319,11 @@ describe('update k', () => {
 
 		console.log(
 			'realizedFeeOld',
-			stripMantissa(ammOld.totalFeeMinusDistributions, USDC_PRECISION),
+			convertToNumber(ammOld.totalFeeMinusDistributions, QUOTE_PRECISION),
 			'realizedFeePostK',
-			stripMantissa(ammKChange.totalFeeMinusDistributions, USDC_PRECISION),
+			convertToNumber(ammKChange.totalFeeMinusDistributions, QUOTE_PRECISION),
 			'realizedFeePostClose',
-			stripMantissa(amm.totalFeeMinusDistributions, USDC_PRECISION)
+			convertToNumber(amm.totalFeeMinusDistributions, QUOTE_PRECISION)
 		);
 
 		assert(
@@ -329,7 +332,7 @@ describe('update k', () => {
 
 		console.log(
 			'USER getTotalCollateral',
-			stripMantissa(userAccount.getTotalCollateral(), USDC_PRECISION)
+			convertToNumber(userAccount.getTotalCollateral(), QUOTE_PRECISION)
 		);
 	});
 });
