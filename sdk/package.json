@@ -1,10 +1,10 @@
 {
 	"name": "@drift-labs/sdk",
-	"version": "0.1.1",
+	"version": "0.1.2",
 	"main": "lib/index.js",
 	"types": "lib/index.d.ts",
 	"author": "crispheaney",
-	"homepage": "https://github.com/drift-labs/protocol-v1#readme",
+	"homepage": "https://www.drift.trade/",
 	"repository": {
 		"type": "git",
 		"url": "git@github.com:drift-labs/protocol-v1.git"
