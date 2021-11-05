@@ -13,7 +13,7 @@
 
 # Drift Protocol v1
 
-This repository provides open source access to Drift's Typescript SDK, Solana Smart Contracts, and more.
+This repository provides open source access to Drift's Typescript SDK, Solana Programs, and more.
 
 # SDK Guide
 
