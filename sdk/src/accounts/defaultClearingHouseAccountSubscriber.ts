@@ -136,49 +136,37 @@ export class DefaultClearingHouseAccountSubscriber
 			eventType: keyof ClearingHouseAccountEvents;
 		}[] = [];
 
-		// Add all required extra subscribers
-		const subToAll = optionalSubscriptions?.includes('all');
-
-		if (subToAll || optionalSubscriptions?.includes('tradeHistoryAccount'))
+		if (optionalSubscriptions?.includes('tradeHistoryAccount'))
 			extraSusbcribersToUse.push({
 				subscriber: this.tradeHistoryAccountSubscriber,
 				eventType: 'tradeHistoryAccountUpdate',
 			});
 
-		if (subToAll || optionalSubscriptions?.includes('depositHistoryAccount'))
+		if (optionalSubscriptions?.includes('depositHistoryAccount'))
 			extraSusbcribersToUse.push({
 				subscriber: this.depositHistoryAccountSubscriber,
 				eventType: 'depositHistoryAccountUpdate',
 			});
 
-		if (
-			subToAll ||
-			optionalSubscriptions?.includes('fundingPaymentHistoryAccount')
-		)
+		if (optionalSubscriptions?.includes('fundingPaymentHistoryAccount'))
 			extraSusbcribersToUse.push({
 				subscriber: this.fundingPaymentHistoryAccountSubscriber,
 				eventType: 'fundingPaymentHistoryAccountUpdate',
 			});
 
-		if (
-			subToAll ||
-			optionalSubscriptions?.includes('fundingRateHistoryAccount')
-		)
+		if (optionalSubscriptions?.includes('fundingRateHistoryAccount'))
 			extraSusbcribersToUse.push({
 				subscriber: this.fundingRateHistoryAccountSubscriber,
 				eventType: 'fundingRateHistoryAccountUpdate',
 			});
 
-		if (
-			subToAll ||
-			optionalSubscriptions?.includes('liquidationHistoryAccount')
-		)
+		if (optionalSubscriptions?.includes('liquidationHistoryAccount'))
 			extraSusbcribersToUse.push({
 				subscriber: this.liquidationHistoryAccountSubscriber,
 				eventType: 'liquidationHistoryAccountUpdate',
 			});
 
-		if (subToAll || optionalSubscriptions?.includes('curveHistoryAccount'))
+		if (optionalSubscriptions?.includes('curveHistoryAccount'))
 			extraSusbcribersToUse.push({
 				subscriber: this.curveHistoryAccountSubscriber,
 				eventType: 'curveHistoryAccountUpdate',
@@ -214,47 +202,29 @@ export class DefaultClearingHouseAccountSubscriber
 		await this.stateAccountSubscriber.unsubscribe();
 		await this.marketsAccountSubscriber.unsubscribe();
 
-		const subbedToall = this.optionalExtraSubscriptions.includes('all');
-
-		if (
-			subbedToall ||
-			this.optionalExtraSubscriptions.includes('tradeHistoryAccount')
-		) {
+		if (this.optionalExtraSubscriptions.includes('tradeHistoryAccount')) {
 			await this.tradeHistoryAccountSubscriber.unsubscribe();
 		}
 
-		if (
-			subbedToall ||
-			this.optionalExtraSubscriptions.includes('fundingRateHistoryAccount')
-		) {
+		if (this.optionalExtraSubscriptions.includes('fundingRateHistoryAccount')) {
 			await this.fundingRateHistoryAccountSubscriber.unsubscribe();
 		}
 
 		if (
-			subbedToall ||
 			this.optionalExtraSubscriptions.includes('fundingPaymentHistoryAccount')
 		) {
 			await this.fundingPaymentHistoryAccountSubscriber.unsubscribe();
 		}
 
-		if (
-			subbedToall ||
-			this.optionalExtraSubscriptions.includes('depositHistoryAccount')
-		) {
+		if (this.optionalExtraSubscriptions.includes('depositHistoryAccount')) {
 			await this.depositHistoryAccountSubscriber.unsubscribe();
 		}
 
-		if (
-			subbedToall ||
-			this.optionalExtraSubscriptions.includes('curveHistoryAccount')
-		) {
+		if (this.optionalExtraSubscriptions.includes('curveHistoryAccount')) {
 			await this.curveHistoryAccountSubscriber.unsubscribe();
 		}
 
-		if (
-			subbedToall ||
-			this.optionalExtraSubscriptions.includes('liquidationHistoryAccount')
-		) {
+		if (this.optionalExtraSubscriptions.includes('liquidationHistoryAccount')) {
 			await this.liquidationHistoryAccountSubscriber.unsubscribe();
 		}
 
@@ -278,10 +248,7 @@ export class DefaultClearingHouseAccountSubscriber
 			);
 		}
 
-		if (
-			!this.optionalExtraSubscriptions.includes('all') &&
-			!this.optionalExtraSubscriptions.includes(optionalSubscription)
-		) {
+		if (!this.optionalExtraSubscriptions.includes(optionalSubscription)) {
 			throw new NotSubscribedError(
 				`You need to subscribe to the optional Clearing House account "${optionalSubscription}" to use this method`
 			);

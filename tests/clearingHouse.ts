@@ -83,7 +83,7 @@ describe('clearing_house', () => {
 
 	it('Initialize State', async () => {
 		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.subscribe(['all']);
+		await clearingHouse.subscribeToAll();
 		const state = clearingHouse.getStateAccount();
 
 		assert.ok(state.admin.equals(provider.wallet.publicKey));

@@ -38,7 +38,6 @@ export interface ClearingHouseAccountEvents {
 }
 
 export type ClearingHouseAccountTypes =
-	| 'all'
 	| 'tradeHistoryAccount'
 	| 'depositHistoryAccount'
 	| 'fundingPaymentHistoryAccount'
@@ -55,6 +54,7 @@ export interface ClearingHouseAccountSubscriber {
 	subscribe(
 		optionalSubscriptions?: ClearingHouseAccountTypes[]
 	): Promise<boolean>;
+
 	unsubscribe(): Promise<void>;
 
 	getStateAccount(): StateAccount;

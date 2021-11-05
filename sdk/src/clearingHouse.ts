@@ -106,8 +106,8 @@ export class ClearingHouse {
 
 	/**
 	 *
-	 * @param optionalSubscriptions - Optional extra accounts to subcribe to. Always subscribes to base clearing house state and market account state by default. You should only subscribe to optional extra accounts if required, to avoid overloading your RPC
-	 * @returns
+	 * @param optionalSubscriptions - Optional extra accounts to subcribe to. Always subscribes to base clearing house state and market account state by default. You should only subscribe to optional extra accounts if required, to avoid overloading your RPC.
+	 * @returns Promise<boolean> : SubscriptionSuccess
 	 */
 	public async subscribe(
 		optionalSubscriptions?: ClearingHouseAccountTypes[]
@@ -116,6 +116,21 @@ export class ClearingHouse {
 			optionalSubscriptions
 		);
 		return this.isSubscribed;
+	}
+
+	/**
+	 * Shorthand function to subscribe to all available Clearing House State Accounts
+	 * @returns Promise<boolean> : SubscriptionSuccess
+	 */
+	public async subscribeToAll(): Promise<boolean> {
+		return this.subscribe([
+			'curveHistoryAccount',
+			'depositHistoryAccount',
+			'fundingPaymentHistoryAccount',
+			'fundingRateHistoryAccount',
+			'liquidationHistoryAccount',
+			'tradeHistoryAccount',
+		]);
 	}
 
 	public async unsubscribe(): Promise<void> {
