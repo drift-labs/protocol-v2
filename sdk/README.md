@@ -58,6 +58,7 @@ The Drift SDK uses some common precisions, which are available as constants to i
 | ------------------------- | ----- |
 | QUOTE_PRECISION           | 10^6  |
 | MARK_PRICE_PRECISION      | 10^10 |
+| AMM_RESERVE_PRECISION     | 10^13 |
 | FUNDING_PAYMENT_PRECISION | 10^4  |
 | PEG_PRECISION             | 10^3  |
 

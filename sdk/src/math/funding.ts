@@ -4,6 +4,14 @@ import { MARK_PRICE_PRECISION } from '../constants/numericConstants';
 import { Market } from '../types';
 import { calculateMarkPrice } from './market';
 
+/**
+ * 
+ * @param market 
+ * @param pythClient 
+ * @param periodAdjustment 
+ * @param estimationMethod 
+ * @returns Estimated funding rate. : Precision //TODO-PRECISION
+ */
 export async function calculateEstimatedFundingRate(
 	market: Market,
 	pythClient: PythClient,

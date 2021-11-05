@@ -55,8 +55,12 @@ export class ClearingHouseUser {
 		this.eventEmitter = this.accountSubscriber.eventEmitter;
 	}
 
+	/**
+	 * Subscribe to ClearingHouseUser state accounts
+	 * @returns SusbcriptionSuccess result
+	 */
 	public async subscribe(): Promise<boolean> {
-		// Clearing house should already be subscribed, but await for the subscription to avoid race condition
+		// Clearing house should already be subscribed, but await for the subscription just incase to avoid race condition
 		await this.clearingHouse.subscribe();
 
 		this.isSubscribed = await this.accountSubscriber.subscribe();
@@ -110,8 +114,7 @@ export class ClearingHouseUser {
 
 	/**
 	 * calculates Buying Power = FC * MAX_LEVERAGE
-	 * return precision = 1e6 (QUOTE_PRECISION)
-	 * @returns
+	 * @returns : Precision QUOTE_PRECISION
 	 */
 	public getBuyingPower(): BN {
 		return this.getFreeCollateral()
@@ -121,8 +124,7 @@ export class ClearingHouseUser {
 
 	/**
 	 * calculates Free Collateral = (TC - TPV) * MAX_LEVERAGE
-	 * return precision = 1e6 (QUOTE_PRECISION)
-	 * @returns
+	 * @returns : Precision QUOTE_PRECISION
 	 */
 	public getFreeCollateral(): BN {
 		return this.getTotalCollateral().sub(
@@ -134,8 +136,7 @@ export class ClearingHouseUser {
 
 	/**
 	 * calculates unrealized position price pnl
-	 * return precision = 1e6 (QUOTE_PRECISION)
-	 * @returns
+	 * @returns : Precision QUOTE_PRECISION
 	 */
 	public getUnrealizedPNL(withFunding?: boolean): BN {
 		return this.getUserPositionsAccount().positions.reduce(
@@ -151,8 +152,7 @@ export class ClearingHouseUser {
 
 	/**
 	 * calculates unrealized funding payment pnl
-	 * return precision = 1e6 (QUOTE_PRECISION)
-	 * @returns
+	 * @returns : Precision QUOTE_PRECISION
 	 */
 	public getUnrealizedFundingPNL(): BN {
 		return this.getUserPositionsAccount().positions.reduce(
@@ -166,8 +166,7 @@ export class ClearingHouseUser {
 
 	/**
 	 * calculates TotalCollateral: collateral + unrealized pnl
-	 * return precision = 1e6 (QUOTE_PRECISION)
-	 * @returns
+	 * @returns : Precision QUOTE_PRECISION
 	 */
 	public getTotalCollateral(): BN {
 		return (
@@ -178,8 +177,7 @@ export class ClearingHouseUser {
 
 	/**
 	 * calculates sum of position value across all positions
-	 * return precision = 1e6 (QUOTE_PRECISION)
-	 * @returns
+	 * @returns : Precision QUOTE_PRECISION
 	 */
 	getTotalPositionValue(): BN {
 		return this.getUserPositionsAccount().positions.reduce(
@@ -195,8 +193,7 @@ export class ClearingHouseUser {
 
 	/**
 	 * calculates position value from closing 100%
-	 * return precision = 1e6 (QUOTE_PRECISION)
-	 * @returns
+	 * @returns : Precision QUOTE_PRECISION
 	 */
 	public getPositionValue(marketIndex: BN): BN {
 		const userPosition = this.getUserPosition(marketIndex);
@@ -204,8 +201,10 @@ export class ClearingHouseUser {
 		return calculateBaseAssetValue(market, userPosition);
 	}
 
-	public getPositionSide(currentPosition: Pick<UserPosition, 'baseAssetAmount'>): PositionDirection | undefined {
-		if(currentPosition.baseAssetAmount.gt(ZERO)){
+	public getPositionSide(
+		currentPosition: Pick<UserPosition, 'baseAssetAmount'>
+	): PositionDirection | undefined {
+		if (currentPosition.baseAssetAmount.gt(ZERO)) {
 			return PositionDirection.LONG;
 		} else if (currentPosition.baseAssetAmount.lt(ZERO)) {
 			return PositionDirection.SHORT;
@@ -216,8 +215,7 @@ export class ClearingHouseUser {
 
 	/**
 	 * calculates average exit price for closing 100% of position
-	 * return precision = 1e10 (MARK_PRICE_PRECISION)
-	 * @returns
+	 * @returns : Precision MARK_PRICE_PRECISION
 	 */
 	public getPositionEstimatedExitPrice(position: UserPosition): BN {
 		const market = this.clearingHouse.getMarket(position.marketIndex);
@@ -233,8 +231,7 @@ export class ClearingHouseUser {
 
 	/**
 	 * calculates current user leverage across all positions
-	 * return precision = 1e4 (TEN_THOUSAND)
-	 * @returns
+	 * @returns : Precision TEN_THOUSAND
 	 */
 	public getLeverage(): BN {
 		const totalCollateral = this.getTotalCollateral();
@@ -247,9 +244,8 @@ export class ClearingHouseUser {
 
 	/**
 	 * calculates max allowable leverage exceeding hitting requirement category
-	 * return precision = 1e4 (TEN_THOUSAND)
 	 * @params category {Initial, Partial, Maintenance}
-	 * @returns
+	 * @returns : Precision TEN_THOUSAND
 	 */
 	public getMaxLeverage(category?: 'Initial' | 'Partial' | 'Maintenance'): BN {
 		const chState = this.clearingHouse.getStateAccount();
@@ -275,8 +271,7 @@ export class ClearingHouseUser {
 
 	/**
 	 * calculates margin ratio: total collateral / |total position value|
-	 * return precision = 1e4 (TEN_THOUSAND)
-	 * @returns
+	 * @returns : Precision TEN_THOUSAND
 	 */
 	public getMarginRatio(): BN {
 		const totalPositionValue = this.getTotalPositionValue();
@@ -325,11 +320,10 @@ export class ClearingHouseUser {
 
 	/**
 	 * Calculate the liquidation price of a position, with optional parameter to calculate the liquidation price after a trade
-	 * return precision = 1e10 (MARK_PRICE_PRECISION)
 	 * @param targetMarket
-	 * @param positionBaseSizeChange // change in position size to calculate liquidation price for - 10^13
+	 * @param positionBaseSizeChange // change in position size to calculate liquidation price for : Precision 10^13
 	 * @param partial
-	 * @returns
+	 * @returns Precision : MARK_PRICE_PRECISION
 	 */
 	public liquidationPrice(
 		targetMarket: Pick<UserPosition, 'marketIndex'>,
@@ -360,8 +354,9 @@ export class ClearingHouseUser {
 		const totalCurrentPositionValueIgnoringTargetUSDC =
 			this.getTotalPositionValueExcludingMarket(targetMarket.marketIndex);
 
-		const currentMarketPosition =
-			this.getUserPosition(targetMarket.marketIndex);
+		const currentMarketPosition = this.getUserPosition(
+			targetMarket.marketIndex
+		);
 
 		const currentMarketPositionBaseSize = currentMarketPosition
 			? currentMarketPosition.baseAssetAmount
@@ -463,10 +458,9 @@ export class ClearingHouseUser {
 
 	/**
 	 * Calculates the estimated liquidation price for a position after closing a quote amount of the position.
-	 * return precision = 1e10 (MARK_PRICE_PRECISION)
 	 * @param positionMarketIndex
 	 * @param closeQuoteAmount
-	 * @returns
+	 * @returns : Precision MARK_PRICE_PRECISION
 	 */
 	public liquidationPriceAfterClose(
 		positionMarketIndex: BN,
@@ -496,8 +490,8 @@ export class ClearingHouseUser {
 	 * Get the maximum trade size for a given market, taking into account the user's current leverage, positions, collateral, etc.
 	 * @param marketIndex
 	 * @param tradeSide
-	 * @param userMaxLeverageSetting - leverage 10^4
-	 * @returns tradeSizeAllowed - quoteSize 10^6
+	 * @param userMaxLeverageSetting - leverage : Precision TEN_THOUSAND
+	 * @returns tradeSizeAllowed : Precision QUOTE_PRECISION
 	 */
 	public getMaxTradeSizeUSDC(
 		targetMarketIndex: BN,
@@ -531,9 +525,9 @@ export class ClearingHouseUser {
 		// let remainingLeverage = userMaxLeverageSetting;
 
 		const remainingLeverage = BN.max(
-				userMaxLeverageSetting.sub(currentLeverage),
-				ZERO
-			);
+			userMaxLeverageSetting.sub(currentLeverage),
+			ZERO
+		);
 
 		// get total collateral
 		const totalCollateral = this.getTotalCollateral();
@@ -561,7 +555,7 @@ export class ClearingHouseUser {
 	 * @param targetMarketIndex
 	 * @param positionMarketIndex
 	 * @param tradeQuoteAmount
-	 * @returns leverageRatio 10^4
+	 * @returns leverageRatio : Precision TEN_THOUSAND
 	 */
 	public accountLeverageRatioAfterTrade(
 		targetMarketIndex: BN,
@@ -598,7 +592,7 @@ export class ClearingHouseUser {
 	/**
 	 * Calculates how much fee will be taken for a given sized trade
 	 * @param quoteAmount
-	 * @returns feeForQuote : 10^6
+	 * @returns feeForQuote : Precision QUOTE_PRECISION
 	 */
 	public calculateFeeForQuoteAmount(quoteAmount: BN): BN {
 		const feeStructure = this.clearingHouse.getStateAccount().feeStructure;
@@ -611,7 +605,7 @@ export class ClearingHouseUser {
 	/**
 	 * Get the total position value, excluding any position coming from the given target market
 	 * @param marketToIgnore
-	 * @returns positionValue
+	 * @returns positionValue : Precision QUOTE_PRECISION
 	 */
 	private getTotalPositionValueExcludingMarket(marketToIgnore: BN): BN {
 		const currentMarketPosition = this.getUserPosition(marketToIgnore);

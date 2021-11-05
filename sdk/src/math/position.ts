@@ -17,7 +17,7 @@ import {
  * = market value of closing entire position
  * @param market
  * @param userPosition
- * @returns precision = 1e6 (QUOTE_PRECISION)
+ * @returns Base Asset Value. : Precision QUOTE_PRECISION
  */
 export function calculateBaseAssetValue(
 	market: Market,
@@ -61,7 +61,7 @@ export function calculateBaseAssetValue(
  * @param market
  * @param marketPosition
  * @param withFunding (adds unrealized funding payment pnl to result)
- * @returns precision = 1e6 (QUOTE_PRECISION)
+ * @returns BaseAssetAmount : Precision QUOTE_PRECISION
  */
 export function calculatePositionPNL(
 	market: Market,
@@ -101,6 +101,12 @@ export function calculatePositionPNL(
 	return pnlAssetAmount;
 }
 
+/**
+ * 
+ * @param market 
+ * @param marketPosition 
+ * @returns // TODO-PRECISION
+ */
 export function calculatePositionFundingPNL(
 	market: Market,
 	marketPosition: UserPosition

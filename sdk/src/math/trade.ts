@@ -36,13 +36,13 @@ export type PriceImpactUnit =
  * @param market
  * @return [pctAvgSlippage, pctMaxSlippage, entryPrice, newPrice]
  *
- * 'pctAvgSlippage' =>  the percentage change to entryPrice (average est slippage in execution) : BN - MARK_PRICE_PRECISION
+ * 'pctAvgSlippage' =>  the percentage change to entryPrice (average est slippage in execution) : Precision MARK_PRICE_PRECISION
  *
- * 'pctMaxSlippage' =>  the percentage change to maxPrice (highest est slippage in execution) : BN - MARK_PRICE_PRECISION
+ * 'pctMaxSlippage' =>  the percentage change to maxPrice (highest est slippage in execution) : Precision MARK_PRICE_PRECISION
  *
- * 'entryPrice' => the average price of the trade : BN - MARK_PRICE_PRECISION
+ * 'entryPrice' => the average price of the trade : Precision MARK_PRICE_PRECISION
  *
- * 'newPrice' => the price of the asset after the trade : BN - MARK_PRICE_PRECISION
+ * 'newPrice' => the price of the asset after the trade : Precision MARK_PRICE_PRECISION
  */
 export function calculateTradeSlippage(
 	direction: PositionDirection,
@@ -97,8 +97,8 @@ export function calculateTradeSlippage(
  * @param amount
  * @param market
  * @return
- * 	| 'acquiredBase' =>  positive/negative change in user's base : BN
- * 	| 'acquiredQuote' => positive/negative change in user's quote : BN
+ * 	| 'acquiredBase' =>  positive/negative change in user's base : BN TODO-PRECISION
+ * 	| 'acquiredQuote' => positive/negative change in user's quote : BN TODO-PRECISION
  */
 export function calculateTradeAcquiredAmounts(
 	direction: PositionDirection,
@@ -129,7 +129,14 @@ export function calculateTradeAcquiredAmounts(
  * @param market
  * @param targetPrice
  * @param pct optional default is 100% gap filling, can set smaller.
- * @returns trade direction/size in order to push price to a targetPrice
+ * @returns trade direction/size in order to push price to a targetPrice, 
+ * 
+ * [
+ *   direction => direction of trade required, TODO-PRECISION
+ *   tradeSize => size of trade required, TODO-PRECISION
+ *   entryPrice => the entry price for the trade, TODO-PRECISION
+ *   targetPrice => the target price TODO-PRECISION
+ * ]
  */
 export function calculateTargetPriceTrade(
 	market: Market,

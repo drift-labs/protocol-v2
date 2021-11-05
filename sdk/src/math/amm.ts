@@ -14,7 +14,7 @@ import { assert } from '../assert/assert';
  * @param baseAssetAmount
  * @param quoteAssetAmount
  * @param peg_multiplier
- * @returns price precision 10^10
+ * @returns price : Precision MARK_PRICE_PRECISION
  */
 export function calculatePrice(
 	baseAssetAmount: BN,
@@ -41,7 +41,7 @@ export type AssetType = 'quote' | 'base';
  * @param inputAssetType
  * @param swapAmount
  * @param swapDirection
- * @returns quoteAssetReserve and baseAssetReserve after swap. precision: 10^13
+ * @returns quoteAssetReserve and baseAssetReserve after swap. : Precision AMM_RESERVE_PRECISION
  */
 export function calculateAmmReservesAfterSwap(
 	amm: AMM,
@@ -92,7 +92,7 @@ export function calculateAmmReservesAfterSwap(
  * @param swapAmount
  * @param swapDirection
  * @param invariant
- * @returns newInputAssetReserve and newOutputAssetReserve after swap. precision: 10^13
+ * @returns newInputAssetReserve and newOutputAssetReserve after swap. : Precision AMM_RESERVE_PRECISION
  */
 export function calculateSwapOutput(
 	inputAssetReserve: BN,

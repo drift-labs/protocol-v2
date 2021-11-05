@@ -140,6 +140,9 @@ export class ClearingHouse {
 		]);
 	}
 
+	/**
+	 * Unsubscribe from all currently subscribed state accounts
+	 */
 	public async unsubscribe(): Promise<void> {
 		await this.accountSubscriber.unsubscribe();
 		this.isSubscribed = false;
@@ -195,6 +198,10 @@ export class ClearingHouse {
 		return this.accountSubscriber.getCurveHistoryAccount();
 	}
 
+	/**
+	 * Update the wallet to use for clearing house transactions and linked user account
+	 * @param newWallet 
+	 */
 	public updateWallet(newWallet: IWallet): void {
 		const newProvider = new Provider(this.connection, newWallet, this.opts);
 		const newProgram = new Program(
@@ -281,6 +288,10 @@ export class ClearingHouse {
 	}
 
 	userAccountPublicKey?: PublicKey;
+	/**
+	 * Get the address for the Clearing House User's account. NOT the user's wallet address.
+	 * @returns 
+	 */
 	public async getUserAccountPublicKey(): Promise<PublicKey> {
 		if (this.userAccountPublicKey) {
 			return this.userAccountPublicKey;
@@ -348,6 +359,12 @@ export class ClearingHouse {
 		});
 	}
 
+	/**
+	 * Creates the Clearing House User account for a user, and deposits some initial collateral
+	 * @param amount 
+	 * @param collateralAccountPublicKey 
+	 * @returns 
+	 */
 	public async initializeUserAccountAndDepositCollateral(
 		amount: BN,
 		collateralAccountPublicKey: PublicKey
@@ -549,6 +566,13 @@ export class ClearingHouse {
 		);
 	}
 
+	/**
+	 * Close an entire position. If you want to reduce a position, use the {@link openPosition} method in the opposite direction of the current position.
+	 * @param marketIndex 
+	 * @param discountToken 
+	 * @param referrer 
+	 * @returns 
+	 */
 	public async closePosition(
 		marketIndex: BN,
 		discountToken?: PublicKey,

@@ -6,7 +6,7 @@ import { calculatePrice } from './amm';
  * Calculates market mark price
  *
  * @param market
- * @return markPrice precision 10^10
+ * @return markPrice : Precision MARK_PRICE_PRECISION
  */
 export function calculateMarkPrice(market: Market): BN {
 	return calculatePrice(
