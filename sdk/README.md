@@ -64,16 +64,19 @@ The Drift SDK uses some common precisions, which are available as constants to i
 
 **Important Note for BigNum division**
 
-Because BN only supports integers, you need to be conscious of the numbers you are using when dividing. BN will always take the floor of the division, if you want to get the exact divison, you need to add the modulus of the two numbers as well. There is a helper function `convertToNumber` in the SDK which will do this for you.
+Because BN only supports integers, you need to be conscious of the numbers you are using when dividing. BN will return the floor when using the regular division function; if you want to get the exact divison, you need to add the modulus of the two numbers as well. There is a helper function `convertToNumber` in the SDK which will do this for you.
 
-```
-Example:
+```typescript
+import {convertToNumber} from @drift-labs/sdk
 
 // Gets the floor value
 new BN(10500).div(new BN(1000)).toNumber(); // = 10
 
 // Gets the exact value
 new BN(10500).div(new BN(1000)).toNumber() + BN(10500).mod(new BN(1000)).toNumber(); // = 10.5
+
+// Also gets the exact value
+convertToNumber(new BN(10500), new BN(1000)); // = 10.5
 ```
 
 ## Examples
