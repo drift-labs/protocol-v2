@@ -9,6 +9,19 @@
   dependencies:
     regenerator-runtime "^0.13.4"
 
+"@drift-labs/sdk@file:../sdk":
+  version "0.1.0"
+  dependencies:
+    "@project-serum/anchor" "^0.16.1"
+    "@pythnetwork/client" "^2.4.0"
+    "@slack/web-api" "^6.4.0"
+    "@solana/spl-token" "^0.1.6"
+    "@solana/web3.js" "^1.22.0"
+    "@types/bn.js" "^5.1.0"
+    ccxt "^1.57.77"
+    ccxws "^0.46.1"
+    strict-event-emitter-types "^2.0.0"
+
 "@ethersproject/bytes@^5.5.0":
   version "5.5.0"
   resolved "https://registry.yarnpkg.com/@ethersproject/bytes/-/bytes-5.5.0.tgz#cb11c526de657e7b45d2e0f0246fb3b9d29a601c"
@@ -29,19 +42,6 @@
     "@ethersproject/bytes" "^5.5.0"
     "@ethersproject/logger" "^5.5.0"
     hash.js "1.1.7"
-
-"@drift-labs/sdk@file:../sdk":
-  version "0.1.0"
-  dependencies:
-    "@project-serum/anchor" "^0.16.1"
-    "@pythnetwork/client" "^2.2.0"
-    "@slack/web-api" "^6.4.0"
-    "@solana/spl-token" "^0.1.6"
-    "@solana/web3.js" "^1.22.0"
-    "@types/bn.js" "^5.1.0"
-    ccxt "^1.57.77"
-    ccxws "^0.46.1"
-    strict-event-emitter-types "^2.0.0"
 
 "@project-serum/anchor@0.16.2", "@project-serum/anchor@^0.16.1":
   version "0.16.2"
@@ -71,10 +71,10 @@
     bn.js "^5.1.2"
     buffer-layout "^1.2.0"
 
-"@pythnetwork/client@^2.2.0":
-  version "2.4.0"
-  resolved "https://registry.yarnpkg.com/@pythnetwork/client/-/client-2.4.0.tgz#5bc9bb3fceb748e6a2d5f23c2da66ac66f2fb4bf"
-  integrity sha512-CRoqX7r1fjogpLNl8DwJ3ihAfi68gDbQw0nO0/FLd/MyW5s+cMWjrCJsKOrl/NoYqugHI9c8ogi8i2Hbh/IzMQ==
+"@pythnetwork/client@^2.4.0":
+  version "2.5.0"
+  resolved "https://registry.yarnpkg.com/@pythnetwork/client/-/client-2.5.0.tgz#c49a06456c6f89b732cb80ee267b928ee37b4c8b"
+  integrity sha512-zhqLaIWZzsYz4/fkaFdfZoln1cVzuLT4AFiLKdlyNE1h3VHt5bHlbX/Aj7oCijIa7fdHYIRp4F5355z4MkILGw==
   dependencies:
     "@solana/web3.js" "^1.30.2"
     assert "^2.0.0"
@@ -351,9 +351,9 @@ camelcase@^5.3.1:
   integrity sha512-L28STB170nwWS63UjtlEOE3dldQApaJXZkOI1uMFfzf3rRuPegHaHesyee+YxQ+W6SvRDQV6UrdOdRiR153wJg==
 
 ccxt@^1.57.77:
-  version "1.60.23"
-  resolved "https://registry.yarnpkg.com/ccxt/-/ccxt-1.60.23.tgz#7314e4545298f5918bd5aa0bf1476ba0b03d9913"
-  integrity sha512-0cWdoZb/kVdu4sAWuY+JlOnLxEh+uYFY4RPXko89tc7TctlQyXk24NTmjSOOYuin7zlnd0eGC03KXBRhSdGEzg==
+  version "1.60.38"
+  resolved "https://registry.yarnpkg.com/ccxt/-/ccxt-1.60.38.tgz#53e7e479136a39d0bc6251598c55e1e707b233f8"
+  integrity sha512-dImuBR7VzWKjbzRMqVzxak8tjbSV+XVN8tz0wRlxhLUEd/BTTyeowxHqhRc7artxk+YTm9QFVJz43oQp+XgQWA==
 
 ccxws@^0.46.1:
   version "0.46.1"
