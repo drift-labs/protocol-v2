@@ -3,5 +3,5 @@
 yarn &&
 tsc &&
 npm link &&
-drift-v1 config init
+drift config init
 ```
