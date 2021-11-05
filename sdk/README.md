@@ -38,7 +38,7 @@ solana address
 
 # Put the private key into your .env to be used by your bot
 cd {projectLocation}
-echo BOT_PRIVATE_KEY=`cat /Users/lukesteyn/.config/solana/id.json` >> .env
+echo BOT_PRIVATE_KEY=`cat ~/.config/solana/id.json` >> .env
 ```
 
 ## Concepts
