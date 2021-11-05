@@ -1,6 +1,6 @@
 {
 	"name": "@drift-labs/sdk",
-	"version": "0.1.3",
+	"version": "0.1.4",
 	"main": "lib/index.js",
 	"types": "lib/index.d.ts",
 	"author": "crispheaney",
@@ -11,10 +11,13 @@
 	},
 	"scripts": {
 		"build": "yarn clean && tsc",
-		"clean": "rm -rf lib"
+		"clean": "rm -rf lib",
+		"patch-and-pub": "npm version patch --force && npm publish"
 	},
 	"keywords": [
-		"drift-labs", "drift", "perps"
+		"drift-labs",
+		"drift",
+		"perps"
 	],
 	"license": "Apache-2.0",
 	"directories": {
