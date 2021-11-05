@@ -22,14 +22,14 @@ More of the SDK docs can be found on Drift's dedicated Docs hosted [here](https:
 ## Installation
 
 ```
-npm i @drift/sdk
+npm i @drift-labs/sdk
 ```
 
 ## Getting Started
 
 ### Setting up a wallet for your program
 
-```
+```bash
 # Generate a keypair
 solana-keygen new
 
@@ -39,6 +39,40 @@ solana address
 # Put the private key into your .env to be used by your bot
 cd {projectLocation}
 echo BOT_PRIVATE_KEY=`cat /Users/lukesteyn/.config/solana/id.json` >> .env
+```
+
+## Concepts
+
+### BN / Precision
+
+The Drift SDK uses BigNum (BN), using [this package](https://github.com/indutny/bn.js/), to represent numerical values. This is because Solana tokens tend to use levels of precision which are too precise for standard Javascript floating point numbers to handle. All numbers in BN are represented as integers, and we will often denote the `precision` of the number so that it can be converted back down to a regular number.
+
+```bash
+Example:
+a BigNum: 10,500,000, with precision 10^6, is equal to 10.5 because 10,500,000 / 10^6 = 10.5.
+```
+
+The Drift SDK uses some common precisions, which are available as constants to import from the SDK.
+
+| Precision Name            | Value |
+| ------------------------- | ----- |
+| QUOTE_PRECISION           | 10^6  |
+| MARK_PRICE_PRECISION      | 10^10 |
+| FUNDING_PAYMENT_PRECISION | 10^4  |
+| PEG_PRECISION             | 10^3  |
+
+**Important Note for BigNum division**
+
+Because BN only supports integers, you need to be conscious of the numbers you are using when dividing. BN will always take the floor of the division, if you want to get the exact divison, you need to add the modulus of the two numbers as well. There is a helper function `convertToNumber` in the SDK which will do this for you.
+
+```
+Example:
+
+// Gets the floor value
+new BN(10500).div(new BN(1000)).toNumber(); // = 10
+
+// Gets the exact value
+new BN(10500).div(new BN(1000)).toNumber() + BN(10500).mod(new BN(1000)).toNumber(); // = 10.5
 ```
 
 ## Examples
