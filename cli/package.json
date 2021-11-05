@@ -3,7 +3,7 @@
 	"version": "0.0.0",
 	"description": "",
 	"bin": {
-		"drift-v1": "./build/cli.js"
+		"drift": "./build/cli.js"
 	},
 	"scripts": {},
 	"author": "crispheaney",
