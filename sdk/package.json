@@ -1,17 +1,27 @@
 {
 	"name": "@drift-labs/sdk",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"main": "lib/index.js",
 	"types": "lib/index.d.ts",
 	"author": "crispheaney",
+	"homepage": "https://github.com/drift-labs/protocol-v1#readme",
+	"repository": {
+		"type": "git",
+		"url": "git@github.com:drift-labs/protocol-v1.git"
+	},
 	"scripts": {
 		"build": "yarn clean && tsc",
 		"clean": "rm -rf lib"
 	},
-	"keywords": [],
-	"license": "Apache",
+	"keywords": [
+		"drift-labs", "drift", "perps"
+	],
+	"license": "Apache-2.0",
 	"directories": {
 		"lib": "lib"
+	},
+	"publishConfig": {
+		"access": "public"
 	},
 	"dependencies": {
 		"@project-serum/anchor": "^0.16.1",
@@ -21,8 +31,8 @@
 		"@types/bn.js": "^5.1.0",
 		"strict-event-emitter-types": "^2.0.0"
 	},
-	"description": "",
+	"description": "SDK for Drift Protocol v1",
 	"engines": {
-		"node": ">=14 <15"
+		"node": ">=12"
 	}
 }

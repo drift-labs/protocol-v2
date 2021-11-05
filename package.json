@@ -16,11 +16,9 @@
     "chai": "^4.3.4"
   },
   "dependencies": {
-    "chai-bn": "^0.2.2",
-    "csvtojson": "^2.0.10",
-    "dotenv": "^10.0.0"
+    "chai-bn": "^0.2.2"
   },
   "engines": {
-    "node": ">=14 <15"
+    "node": ">=12"
   }
 }
