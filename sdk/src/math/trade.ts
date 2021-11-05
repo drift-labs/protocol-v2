@@ -34,9 +34,15 @@ export type PriceImpactUnit =
  * @param direction
  * @param amount
  * @param market
- * @return
- * 	| 'pctAvgSlippage' =>  the percentage change to entryPrice (average est slippage in execution) : BN
- * 	| 'pctMaxSlippage' =>  the percentage change to maxPrice (highest est slippage in execution) : BN
+ * @return [pctAvgSlippage, pctMaxSlippage, entryPrice, newPrice]
+ *
+ * 'pctAvgSlippage' =>  the percentage change to entryPrice (average est slippage in execution) : BN - MARK_PRICE_PRECISION
+ *
+ * 'pctMaxSlippage' =>  the percentage change to maxPrice (highest est slippage in execution) : BN - MARK_PRICE_PRECISION
+ *
+ * 'entryPrice' => the average price of the trade : BN - MARK_PRICE_PRECISION
+ *
+ * 'newPrice' => the price of the asset after the trade : BN - MARK_PRICE_PRECISION
  */
 export function calculateTradeSlippage(
 	direction: PositionDirection,

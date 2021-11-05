@@ -7,7 +7,6 @@ import {
 import BN from 'bn.js';
 import { calculateAmmReservesAfterSwap, getSwapDirection } from './amm';
 import {
-	MARK_PRICE_PRECISION,
 	AMM_RESERVE_PRECISION,
 	FUNDING_PAYMENT_PRECISION,
 	PRICE_TO_QUOTE_PRECISION,

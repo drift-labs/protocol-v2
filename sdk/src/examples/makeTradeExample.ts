@@ -3,16 +3,17 @@ import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import {
 	calculateMarkPrice,
-	calculatePriceImpact,
 	ClearingHouse,
 	ClearingHouseUser,
 	initialize,
 	Markets,
 	PositionDirection,
-	USDC_PRECISION,
+	convertToNumber,
+	calculateTradeSlippage,
+	MARK_PRICE_PRECISION,
+	QUOTE_PRECISION,
 } from '..';
 
-//// TODO: make this neater ... should we add this method to the SDK?
 export const getTokenAddress = (
 	mintAddress: string,
 	userPubKey: string
@@ -30,9 +31,9 @@ const main = async () => {
 	const sdkConfig = initialize({ env: 'devnet' });
 
 	// Set up the Wallet and Provider
-	const privateKey = process.env.BOT_PRIVATE_KEY;
+	const privateKey = process.env.BOT_PRIVATE_KEY; // stored as an array string
 	const keypair = Keypair.fromSecretKey(
-		Uint8Array.from(privateKey.split(',').map((val) => Number(val)))
+		Uint8Array.from(JSON.parse(privateKey))
 	);
 	const wallet = new Wallet(keypair);
 
@@ -72,7 +73,7 @@ const main = async () => {
 
 	if (!userAccountExists) {
 		//// Create a Clearing House account by Depositing some USDC ($10,000 in this case)
-		const depositAmount = new BN(10000).mul(USDC_PRECISION);
+		const depositAmount = new BN(10000).mul(QUOTE_PRECISION);
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
 			depositAmount,
 			await getTokenAddress(
@@ -85,38 +86,59 @@ const main = async () => {
 	await user.subscribe();
 
 	// Get current price
-	const solMarketInfo = Markets.find((market) => market.baseAssetSymbol === 'SOL');
+	const solMarketInfo = Markets.find(
+		(market) => market.baseAssetSymbol === 'SOL'
+	);
 
 	const currentMarketPrice = calculateMarkPrice(
 		clearingHouse.getMarket(solMarketInfo.marketIndex)
 	);
 
-	//TODO - We should either add stripMantissa to the SDK or implement our new Wrapped BN to do this for us in a neat way
-	const formattedPrice =
-		currentMarketPrice.div(USDC_PRECISION).toNumber() +
-		currentMarketPrice.mod(USDC_PRECISION).toNumber() /
-			USDC_PRECISION.toNumber();
+	const formattedPrice = convertToNumber(currentMarketPrice, QUOTE_PRECISION);
 
 	console.log(`Current Market Price is $${formattedPrice}`);
 
 	// Estimate the slippage for a $5000 LONG trade
 	const solMarketAccount = clearingHouse.getMarket(solMarketInfo.marketIndex);
 
-	const slippage = calculatePriceImpact(
-		PositionDirection.LONG,
-		new BN(5000).mul(USDC_PRECISION),
-		solMarketAccount,
-		'priceDeltaAsNumber'
+	const slippage = convertToNumber(
+		calculateTradeSlippage(
+			PositionDirection.LONG,
+			new BN(5000).mul(QUOTE_PRECISION),
+			solMarketAccount
+		)[0],
+		MARK_PRICE_PRECISION
 	);
-	console.log(`Slippage for a $5000 LONG on the SOL market would be $${slippage}`);
+
+	console.log(
+		`Slippage for a $5000 LONG on the SOL market would be $${slippage}`
+	);
 
 	// Make a $5000 LONG trade
 	await clearingHouse.openPosition(
 		PositionDirection.LONG,
-		new BN(5000).mul(USDC_PRECISION),
+		new BN(5000).mul(QUOTE_PRECISION),
 		solMarketInfo.marketIndex
 	);
 	console.log(`LONGED $5000 SOL`);
+
+	// Make a $5000 LONG trade
+	await clearingHouse.openPosition(
+		PositionDirection.LONG,
+		new BN(5000).mul(QUOTE_PRECISION),
+		solMarketInfo.marketIndex
+	);
+	console.log(`LONGED $5000 worth of SOL`);
+
+	// Reduce the position by $2000
+	await clearingHouse.openPosition(
+		PositionDirection.SHORT,
+		new BN(2000).mul(QUOTE_PRECISION),
+		solMarketInfo.marketIndex
+	);
+
+	// Close the rest of the position
+	await clearingHouse.closePosition(solMarketInfo.marketIndex);
 };
 
 main();

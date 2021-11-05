@@ -3,7 +3,7 @@ import { Command, OptionValues, program } from 'commander';
 import os from 'os';
 import fs from 'fs';
 import log from 'loglevel';
-import { Admin, ClearingHouseUser, initialize } from '@moet/sdk';
+import { Admin, ClearingHouseUser, initialize } from '@drift-labs/sdk';
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import { Wallet } from '@project-serum/anchor';
 import BN from 'bn.js';

@@ -1,35 +1,48 @@
 <div align="center">
-  <img height="170x" src="https://uploads-ssl.webflow.com/611580035ad59b20437eb024/616f97a42f5637c4517d0193_Logo%20(1)%20(1).png" />
+  <img height="120x" src="https://uploads-ssl.webflow.com/611580035ad59b20437eb024/616f97a42f5637c4517d0193_Logo%20(1)%20(1).png" />
 
-  <h1 style="margin-top:10px;">Drift SDK</h1>
+  <h1 style="margin-top:20px;">Drift Protocol v1</h1>
 
   <p>
-  <!-- // todo -->
-    <a href="https://opensource.org/licenses/Apache-2.0"><img alt="License" src="https://img.shields.io/npm/v/@drift/sdk" /></a>
-    <!-- // todo -->
-    <a href="https://sdk.drift.trade"><img alt="Tutorials" src="https://img.shields.io/badge/docs-tutorials-blueviolet" /></a>
+    <a href="https://www.npmjs.com/package/@drift-labs/sdk"><img alt="SDK npm package" src="https://img.shields.io/npm/v/@drift-labs/sdk" /></a>
+    <a href="https://docs.drift.trade/drift-sdk-documentation"><img alt="Docs" src="https://img.shields.io/badge/docs-tutorials-blueviolet" /></a>
     <a href="https://discord.com/channels/849494028176588802/878700556904980500"><img alt="Discord Chat" src="https://img.shields.io/discord/889577356681945098?color=blueviolet" /></a>
-    <!-- // todo -->
     <a href="https://opensource.org/licenses/Apache-2.0"><img alt="License" src="https://img.shields.io/github/license/project-serum/anchor?color=blueviolet" /></a>
   </p>
 </div>
 
+# Drift Protocol v1
+
+This repository provides open source access to Drift's Typescript SDK, Solana Smart Contracts, and more.
+
+# SDK Guide
+
+More of the SDK docs can be found on Drift's dedicated Docs hosted [here](https://docs.drift.trade/drift-sdk-documentation), and technical documentation of the SDK's code can be found [here](https://drift-labs.github.io/sdk/).
+
 ## Installation
 
-```bash
-npm i @drift/sdk 
+```
+npm i @drift/sdk
 ```
 
 ## Getting Started
 
 ### Setting up a wallet for your program
-```bash
-// TODO: How to generate a wallet keypair
-// TODO: How to get the pubkey to send some USDC to (for mainnet)
-// TODO: How to put the private key into the .env file for the user's program
+
+```
+# Generate a keypair
+solana-keygen new
+
+# Get the pubkey for the new wallet (You will need to send USDC to this address to Deposit into Drift (only on mainnet - devnet has a faucet for USDC))
+solana address
+
+# Put the private key into your .env to be used by your bot
+cd {projectLocation}
+echo BOT_PRIVATE_KEY=`cat /Users/lukesteyn/.config/solana/id.json` >> .env
 ```
 
 ## Examples
+
 ### Setting up an account and making a trade
 
 ```typescript
@@ -38,16 +51,17 @@ import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import {
 	calculateMarkPrice,
-	calculatePriceImpact,
 	ClearingHouse,
 	ClearingHouseUser,
 	initialize,
 	Markets,
 	PositionDirection,
-	USDC_PRECISION,
-} from '@moet/sdk';
+	convertToNumber,
+	calculateTradeSlippage,
+	MARK_PRICE_PRECISION,
+	QUOTE_PRECISION,
+} from '@drift/sdk';
 
-//// TODO: make this neater ... should we add this method to the SDK?
 export const getTokenAddress = (
 	mintAddress: string,
 	userPubKey: string
@@ -65,9 +79,9 @@ const main = async () => {
 	const sdkConfig = initialize({ env: 'devnet' });
 
 	// Set up the Wallet and Provider
-	const privateKey = process.env.BOT_PRIVATE_KEY;
+	const privateKey = process.env.BOT_PRIVATE_KEY; // stored as an array string
 	const keypair = Keypair.fromSecretKey(
-		Uint8Array.from(privateKey.split(',').map((val) => Number(val)))
+		Uint8Array.from(JSON.parse(privateKey))
 	);
 	const wallet = new Wallet(keypair);
 
@@ -107,7 +121,7 @@ const main = async () => {
 
 	if (!userAccountExists) {
 		//// Create a Clearing House account by Depositing some USDC ($10,000 in this case)
-		const depositAmount = new BN(10000).mul(USDC_PRECISION);
+		const depositAmount = new BN(10000).mul(QUOTE_PRECISION);
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
 			depositAmount,
 			await getTokenAddress(
@@ -120,43 +134,60 @@ const main = async () => {
 	await user.subscribe();
 
 	// Get current price
-	const solMarketInfo = Markets.find((market) => market.baseAssetSymbol === 'SOL');
+	const solMarketInfo = Markets.find(
+		(market) => market.baseAssetSymbol === 'SOL'
+	);
 
 	const currentMarketPrice = calculateMarkPrice(
 		clearingHouse.getMarket(solMarketInfo.marketIndex)
 	);
 
-	//TODO - We should either add stripMantissa to the SDK or implement our new Wrapped BN to do this for us in a neat way
-	const formattedPrice =
-		currentMarketPrice.div(USDC_PRECISION).toNumber() +
-		currentMarketPrice.mod(USDC_PRECISION).toNumber() /
-			USDC_PRECISION.toNumber();
+	const formattedPrice = convertToNumber(currentMarketPrice, QUOTE_PRECISION);
 
 	console.log(`Current Market Price is $${formattedPrice}`);
 
 	// Estimate the slippage for a $5000 LONG trade
 	const solMarketAccount = clearingHouse.getMarket(solMarketInfo.marketIndex);
 
-	const slippage = calculatePriceImpact(
-		PositionDirection.LONG,
-		new BN(5000).mul(USDC_PRECISION),
-		solMarketAccount,
-		'priceDeltaAsNumber'
+	const slippage = convertToNumber(
+		calculateTradeSlippage(
+			PositionDirection.LONG,
+			new BN(5000).mul(QUOTE_PRECISION),
+			solMarketAccount
+		)[0],
+		MARK_PRICE_PRECISION
 	);
-	console.log(`Slippage for a $5000 LONG on the SOL market would be $${slippage}`);
+
+	console.log(
+		`Slippage for a $5000 LONG on the SOL market would be $${slippage}`
+	);
 
 	// Make a $5000 LONG trade
 	await clearingHouse.openPosition(
 		PositionDirection.LONG,
-		new BN(5000).mul(USDC_PRECISION),
+		new BN(5000).mul(QUOTE_PRECISION),
 		solMarketInfo.marketIndex
 	);
-	console.log(`LONGED $5000 SOL`);
+	console.log(`LONGED $5000 worth of SOL`);
+
+	// Reduce the position by $2000
+	await clearingHouse.openPosition(
+		PositionDirection.SHORT,
+		new BN(2000).mul(QUOTE_PRECISION),
+		solMarketInfo.marketIndex
+	);
+
+	// Close the rest of the position
+	await clearingHouse.closePosition(solMarketInfo.marketIndex);
 };
 
 main();
-
 ```
 
 ## License
-// TODO
+
+Drift SDK is licensed under [Apache 2.0](./LICENSE).
+
+Unless you explicitly state otherwise, any contribution intentionally submitted
+for inclusion in Drift SDK by you, as defined in the Apache-2.0 license, shall be
+licensed as above, without any additional terms or conditions.
