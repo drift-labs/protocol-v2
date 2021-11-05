@@ -1,80 +1,18 @@
-# Moët
+<div align="center">
+  <img height="120x" src="https://uploads-ssl.webflow.com/611580035ad59b20437eb024/616f97a42f5637c4517d0193_Logo%20(1)%20(1).png" />
 
-## Installation
+  <h1 style="margin-top:20px;">Drift Protocol v1</h1>
 
-https://project-serum.github.io/anchor/getting-started/installation.html
+  <p>
+    <a href="https://discord.com/channels/849494028176588802/878700556904980500"><img alt="Discord Chat" src="https://img.shields.io/discord/889577356681945098?color=blueviolet" /></a>
+    <a href="https://opensource.org/licenses/Apache-2.0"><img alt="License" src="https://img.shields.io/github/license/project-serum/anchor?color=blueviolet" /></a>
+  </p>
+</div>
 
-```
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-source $HOME/.cargo/env
-rustup component add rustfmt
+# Drift Protocol v1
 
+This repository provides open source access to Drift's Typescript SDK, Solana Smart Contracts, and more.
 
-sh -c "$(curl -sSfL https://release.solana.com/v1.7.4/install)"
+# SDK Guide
 
-sudo apt-get update && sudo apt-get upgrade && sudo apt-get install -y pkg-config build-essential libudev-dev
-
-cargo install --git https://github.com/project-serum/anchor --tag v0.11.1 anchor-cli --locked
-```
-
-## Running Tests
-
-### Install Dependencies
-
-```
-yarn global add typescript
-yarn global add mocha
-yarn global add ts-mocha
-yarn install
-```
-
-### Run Protocol Tests
-
-```
-sh ./scripts/run-anchor-test
-```
-
-### Install SDK yarn
-
-```
-cd sdk
-yarn install
-```
-
-### Run Tests w/ new IDL
-```
-anchor build
-cp target/idl/* sdk/src/idl/*
-sh ./scripts/run-anchor-test --skip-build
-```
-
-### Run Stress Tests
-- uses historical market data from the `vAMM` repo (expected in same top directory) for oracles (solUsd)
-- simulations are parameterized: 
-- - RANDSIM vs loading from a `stress_event_timeline.csv`
-- - `numUsers, numMarkets, userCapital, K`
-- run and check your `output/` for simulation results
-- - `stress_event_timeline.csv` (can be reused to verify/reconcile different backends)
-- - `stress_state_timeline.csv` (market/user/clearinghouse state summaries)
-
-```
-cd .. &&
-git clone https://github.com/MoetFinance/vAMM &&
-unzip *.csv.zip &&
-cd ../moet &&
-anchor test utils/stress.ts
-```
-
-### Committing Changes
-
-We use a typescript and rust linter. If it blocks you from committing your changes, try `yarn lint:fix` or `cargo fmt --`
-
-- be sure you've run yarn install under both `/` and `sdk/`
-- be sure to stop `solana-test-validator` when commiting and running `yarn lint`
-
-### Deploying
-
-```
-anchor launch
-```
-To modify what network it deploys to, you must edit `Anchor.toml`
+SDK docs can be found [here](./README.md)
