@@ -1,9 +1,9 @@
 import { BN } from '@project-serum/anchor';
 import { PythClient } from '../pythClient';
-import { MARK_PRICE_PRECISION } from '../constants/numericConstants';
+import { MARK_PRICE_PRECISION, AMM_RESERVE_PRECISION, QUOTE_PRECISION } from '../constants/numericConstants';
 import { Market } from '../types';
 import { calculateMarkPrice } from './market';
-
+import { convertToNumber } from '../math/conversion';
 /**
  * 
  * @param market 
@@ -16,7 +16,7 @@ export async function calculateEstimatedFundingRate(
 	market: Market,
 	pythClient: PythClient,
 	periodAdjustment: BN = new BN(1),
-	estimationMethod: 'interpolated' | 'lowerbound'
+	estimationMethod: 'interpolated' | 'lowerbound' | 'capped'
 ): Promise<BN> {
 	// periodAdjustment
 	// 	1: hourly
@@ -70,7 +70,43 @@ export async function calculateEstimatedFundingRate(
 			.div(secondsInHour)
 			.div(secondsInHour)
 			.div(hoursInDay);
+	} else if (estimationMethod == 'capped') {
+		const interpRateQuote = twapSpreadPct.mul(periodAdjustment).div(hoursInDay)
+		.div(MARK_PRICE_PRECISION.div(QUOTE_PRECISION));
+		const feePoolSize = calculateFundingPool(market);
+
+		if(market.baseAssetAmountLong.gt(market.baseAssetAmountShort)){
+			const largerSide = market.baseAssetAmountLong;
+			const smallerSide = market.baseAssetAmountShort;
+			const cappedAltRate =feePoolSize.add(
+				smallerSide.mul(interpRateQuote).div(AMM_RESERVE_PRECISION))
+			.div(largerSide);
+			return cappedAltRate;
+		} else if(market.baseAssetAmountLong.lt(market.baseAssetAmountShort)){
+			const largerSide = market.baseAssetAmountShort;
+			const smallerSide = market.baseAssetAmountLong;
+			const cappedAltRate = feePoolSize.add(
+				smallerSide.mul(interpRateQuote).div(AMM_RESERVE_PRECISION))
+			.div(largerSide);
+			return cappedAltRate;
+		} else{
+			return twapSpreadPct.mul(periodAdjustment).div(hoursInDay);
+		}
+
 	} else {
 		return twapSpreadPct.mul(periodAdjustment).div(hoursInDay);
 	}
+}
+
+/**
+ * 
+ * @param market 
+ * @returns Estimated fee pool size
+ */
+ export function calculateFundingPool(
+	market: Market,
+): BN {
+	const totalFeeLB = market.amm.totalFee.div(new BN(2));
+	const feePool = market.amm.totalFeeMinusDistributions.sub(totalFeeLB);
+	return feePool;
 }

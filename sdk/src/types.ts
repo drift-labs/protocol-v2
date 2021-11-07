@@ -265,6 +265,7 @@ export interface Trade {
 	side: TradeSide;
 	size: number;
 	ts: number;
+	fee: number;
 	marketIndex: number;
 	chainTs: number;
 }
