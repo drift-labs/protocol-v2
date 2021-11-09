@@ -100,7 +100,8 @@ pub struct InitializeUser<'info> {
 pub struct DeleteUser<'info> {
     #[account(
         mut,
-        has_one = authority
+        has_one = authority,
+        constraint = &user.positions.eq(&user_positions.key())
     )]
     pub user: Box<Account<'info, User>>,
     #[account(
@@ -135,7 +136,11 @@ pub struct InitializeMarket<'info> {
 pub struct DepositCollateral<'info> {
     #[account(mut)]
     pub state: Box<Account<'info, State>>,
-    #[account(mut, has_one = authority)]
+    #[account(
+        mut,
+        has_one = authority,
+        constraint = &user.positions.eq(&user_positions.key())
+    )]
     pub user: Box<Account<'info, User>>,
     pub authority: Signer<'info>,
     #[account(
@@ -171,7 +176,11 @@ pub struct DepositCollateral<'info> {
 pub struct WithdrawCollateral<'info> {
     #[account(mut)]
     pub state: Box<Account<'info, State>>,
-    #[account(mut, has_one = authority)]
+    #[account(
+        mut,
+        has_one = authority,
+        constraint = &user.positions.eq(&user_positions.key())
+    )]
     pub user: Box<Account<'info, User>>,
     pub authority: Signer<'info>,
     #[account(
@@ -305,7 +314,8 @@ pub struct OpenPosition<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
         mut,
-        has_one = authority
+        has_one = authority,
+        constraint = &user.positions.eq(&user_positions.key())
     )]
     pub user: Box<Account<'info, User>>,
     pub authority: Signer<'info>,
@@ -341,7 +351,11 @@ pub struct OpenPosition<'info> {
 pub struct ClosePosition<'info> {
     #[account(mut)]
     pub state: Box<Account<'info, State>>,
-    #[account(mut, has_one = authority)]
+    #[account(
+        mut,
+        has_one = authority,
+        constraint = &user.positions.eq(&user_positions.key())
+    )]
     pub user: Box<Account<'info, User>>,
     pub authority: Signer<'info>,
     #[account(
@@ -381,7 +395,10 @@ pub struct Liquidate<'info> {
         has_one = authority
     )]
     pub liquidator: Box<Account<'info, User>>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = &user.positions.eq(&user_positions.key())
+    )]
     pub user: Box<Account<'info, User>>,
     #[account(
         mut,
@@ -432,7 +449,10 @@ pub struct Liquidate<'info> {
 #[derive(Accounts)]
 pub struct SettleFunding<'info> {
     pub state: Box<Account<'info, State>>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = &user.positions.eq(&user_positions.key())
+    )]
     pub user: Box<Account<'info, User>>,
     #[account(
         constraint = &state.markets.eq(&markets.key())
