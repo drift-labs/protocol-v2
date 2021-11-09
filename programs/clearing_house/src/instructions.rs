@@ -101,12 +101,14 @@ pub struct DeleteUser<'info> {
     #[account(
         mut,
         has_one = authority,
-        constraint = &user.positions.eq(&user_positions.key())
+        constraint = &user.positions.eq(&user_positions.key()),
+        close = authority
     )]
-    pub user: Box<Account<'info, User>>,
+    pub user: Account<'info, User>,
     #[account(
         mut,
-        has_one = user
+        has_one = user,
+        close = authority
     )]
     pub user_positions: Loader<'info, UserPositions>,
     pub authority: Signer<'info>,
