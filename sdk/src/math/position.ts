@@ -102,9 +102,9 @@ export function calculatePositionPNL(
 }
 
 /**
- * 
- * @param market 
- * @param marketPosition 
+ *
+ * @param market
+ * @param marketPosition
  * @returns // TODO-PRECISION
  */
 export function calculatePositionFundingPNL(

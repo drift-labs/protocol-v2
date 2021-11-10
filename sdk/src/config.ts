@@ -37,7 +37,6 @@ export const initialize = (props: {
 	env: DriftEnv;
 	overrideEnv?: Partial<DriftConfig>;
 }): DriftConfig => {
-
 	//@ts-ignore
 	if (props.env === 'master')
 		return { ...configs['devnet'], ...(props.overrideEnv ?? {}) };

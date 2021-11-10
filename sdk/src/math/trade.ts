@@ -129,8 +129,8 @@ export function calculateTradeAcquiredAmounts(
  * @param market
  * @param targetPrice
  * @param pct optional default is 100% gap filling, can set smaller.
- * @returns trade direction/size in order to push price to a targetPrice, 
- * 
+ * @returns trade direction/size in order to push price to a targetPrice,
+ *
  * [
  *   direction => direction of trade required, TODO-PRECISION
  *   tradeSize => size of trade required, TODO-PRECISION

@@ -52,10 +52,10 @@ import { wrapInTx } from './tx/utils';
 
 /**
  * # ClearingHouse
- * This class is the main way to interact with Drift Protocol. It allows you to subscribe to the various accounts where the Market's state is stored, as well as: opening positions, liquidating, settling funding, depositing & withdrawing, and more. 
- * 
+ * This class is the main way to interact with Drift Protocol. It allows you to subscribe to the various accounts where the Market's state is stored, as well as: opening positions, liquidating, settling funding, depositing & withdrawing, and more.
+ *
  * The default way to construct a ClearingHouse instance is using the {@link from} method. This will create an instance using the static {@link DefaultClearingHouseAccountSubscriber}, which will use a websocket for each state account subscription.
- * Alternatively, if you want to implement your own method of subscribing to the state accounts on the blockchain, you can implement a {@link ClearingHouseAccountSubscriber} and use it in the {@link ClearingHouse.constructor} 
+ * Alternatively, if you want to implement your own method of subscribing to the state accounts on the blockchain, you can implement a {@link ClearingHouseAccountSubscriber} and use it in the {@link ClearingHouse.constructor}
  */
 export class ClearingHouse {
 	connection: Connection;
@@ -200,7 +200,7 @@ export class ClearingHouse {
 
 	/**
 	 * Update the wallet to use for clearing house transactions and linked user account
-	 * @param newWallet 
+	 * @param newWallet
 	 */
 	public updateWallet(newWallet: IWallet): void {
 		const newProvider = new Provider(this.connection, newWallet, this.opts);
@@ -290,7 +290,7 @@ export class ClearingHouse {
 	userAccountPublicKey?: PublicKey;
 	/**
 	 * Get the address for the Clearing House User's account. NOT the user's wallet address.
-	 * @returns 
+	 * @returns
 	 */
 	public async getUserAccountPublicKey(): Promise<PublicKey> {
 		if (this.userAccountPublicKey) {
@@ -361,9 +361,9 @@ export class ClearingHouse {
 
 	/**
 	 * Creates the Clearing House User account for a user, and deposits some initial collateral
-	 * @param amount 
-	 * @param collateralAccountPublicKey 
-	 * @returns 
+	 * @param amount
+	 * @param collateralAccountPublicKey
+	 * @returns
 	 */
 	public async initializeUserAccountAndDepositCollateral(
 		amount: BN,
@@ -568,10 +568,10 @@ export class ClearingHouse {
 
 	/**
 	 * Close an entire position. If you want to reduce a position, use the {@link openPosition} method in the opposite direction of the current position.
-	 * @param marketIndex 
-	 * @param discountToken 
-	 * @param referrer 
-	 * @returns 
+	 * @param marketIndex
+	 * @param discountToken
+	 * @param referrer
+	 * @returns
 	 */
 	public async closePosition(
 		marketIndex: BN,
