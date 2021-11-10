@@ -1,13 +1,10 @@
 import { BN } from '@project-serum/anchor';
-import { PythClient } from '../pythClient';
 import {
-	MARK_PRICE_PRECISION,
-	AMM_RESERVE_PRECISION,
-	QUOTE_PRECISION,
+	AMM_RESERVE_PRECISION, MARK_PRICE_PRECISION, QUOTE_PRECISION
 } from '../constants/numericConstants';
+import { PythClient } from '../pythClient';
 import { Market } from '../types';
 import { calculateMarkPrice } from './market';
-import { convertToNumber } from '../math/conversion';
 /**
  *
  * @param market
