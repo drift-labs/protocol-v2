@@ -139,7 +139,7 @@ export async function calculateEstimatedFundingRate(
 	pythClient: PythClient,
 	periodAdjustment: BN = new BN(1),
 ): Promise<[BN, BN]> {
-	const [lowerboundEst, cappedAltEst, interpEst] = 
+	const [_, cappedAltEst, interpEst] = 
 		await calculateAllEstimatedFundingRate(market, pythClient, periodAdjustment);
 
 	if(market.baseAssetAmountLong.gt(market.baseAssetAmountShort)){
