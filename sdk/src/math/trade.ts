@@ -236,6 +236,7 @@ export function calculateTargetPriceTrade(
 
 	const entryPrice = tradeSize
 		.mul(AMM_TO_QUOTE_PRECISION_RATIO)
+		.mul(MARK_PRICE_PRECISION)
 		.div(baseSize.abs());
 
 	assert(tp1.sub(tp2).lte(originalDiff), 'Target Price Calculation incorrect');
