@@ -5,20 +5,19 @@ import {
 import { PythClient } from '../pythClient';
 import { Market } from '../types';
 import { calculateMarkPrice } from './market';
+
 /**
- *
- * @param market
- * @param pythClient
- * @param periodAdjustment
- * @param estimationMethod
+ * 
+ * @param market 
+ * @param pythClient 
+ * @param periodAdjustment 
  * @returns Estimated funding rate. : Precision //TODO-PRECISION
  */
-export async function calculateEstimatedFundingRate(
+ export async function calculateAllEstimatedFundingRate(
 	market: Market,
 	pythClient: PythClient,
 	periodAdjustment: BN = new BN(1),
-	estimationMethod: 'interpolated' | 'lowerbound' | 'capped'
-): Promise<BN> {
+): Promise<[BN, BN, BN]> {
 	// periodAdjustment
 	// 	1: hourly
 	//  24: daily
@@ -27,7 +26,7 @@ export async function calculateEstimatedFundingRate(
 	const hoursInDay = new BN(24);
 
 	if (!market.initialized) {
-		return new BN(0);
+		return [new BN(0), new BN(0), new BN(0)];
 	}
 
 	const payFreq = new BN(market.amm.fundingPeriod);
@@ -62,42 +61,95 @@ export async function calculateEstimatedFundingRate(
 		.mul(new BN(100))
 		.div(oracleTwapWithMantissa);
 
+
+	const lowerboundEst = twapSpreadPct
+		.mul(payFreq)
+		.mul(BN.min(secondsInHour, timeSinceLastUpdate))
+		.mul(periodAdjustment)
+		.div(secondsInHour)
+		.div(secondsInHour)
+		.div(hoursInDay);
+
+	const interpEst = twapSpreadPct.mul(periodAdjustment).div(hoursInDay);
+
+	
+	const interpRateQuote = twapSpreadPct.mul(periodAdjustment).div(hoursInDay)
+	.div(MARK_PRICE_PRECISION.div(QUOTE_PRECISION));
+	const feePoolSize = calculateFundingPool(market);
+
+	let cappedAltEst: BN;
+
+	if(market.baseAssetAmountLong.gt(market.baseAssetAmountShort)){
+		const largerSide = market.baseAssetAmountLong;
+		const smallerSide = market.baseAssetAmountShort;
+		cappedAltEst =feePoolSize.add(
+			smallerSide.mul(interpRateQuote).div(AMM_RESERVE_PRECISION))
+		.div(largerSide);
+	} else if(market.baseAssetAmountLong.lt(market.baseAssetAmountShort)){
+		const largerSide = market.baseAssetAmountShort;
+		const smallerSide = market.baseAssetAmountLong;
+		cappedAltEst = feePoolSize.add(
+			smallerSide.mul(interpRateQuote).div(AMM_RESERVE_PRECISION))
+		.div(largerSide);
+	} else{
+		cappedAltEst = interpEst;
+	}
+
+	return [lowerboundEst, cappedAltEst, interpEst];
+}
+
+/**
+ *
+ * @param market
+ * @param pythClient
+ * @param periodAdjustment
+ * @param estimationMethod
+ * @returns Estimated funding rate. : Precision //TODO-PRECISION
+ */
+export async function calculateEstimatedFundingRate(
+	market: Market,
+	pythClient: PythClient,
+	periodAdjustment: BN = new BN(1),
+	estimationMethod: 'interpolated' | 'lowerbound' | 'capped'
+): Promise<BN> {
+	const [lowerboundEst, cappedAltEst, interpEst] = 
+		await calculateAllEstimatedFundingRate(market, pythClient, periodAdjustment);
+
 	if (estimationMethod == 'lowerbound') {
 		//assuming remaining funding period has no gap
-		return twapSpreadPct
-			.mul(payFreq)
-			.mul(BN.min(secondsInHour, timeSinceLastUpdate))
-			.mul(periodAdjustment)
-			.div(secondsInHour)
-			.div(secondsInHour)
-			.div(hoursInDay);
+		return lowerboundEst;
 	} else if (estimationMethod == 'capped') {
-		const interpRateQuote = twapSpreadPct
-			.mul(periodAdjustment)
-			.div(hoursInDay)
-			.div(MARK_PRICE_PRECISION.div(QUOTE_PRECISION));
-		const feePoolSize = calculateFundingPool(market);
-
-		if (market.baseAssetAmountLong.gt(market.baseAssetAmountShort)) {
-			const largerSide = market.baseAssetAmountLong;
-			const smallerSide = market.baseAssetAmountShort;
-			const cappedAltRate = feePoolSize
-				.add(smallerSide.mul(interpRateQuote).div(AMM_RESERVE_PRECISION))
-				.div(largerSide);
-			return cappedAltRate;
-		} else if (market.baseAssetAmountLong.lt(market.baseAssetAmountShort)) {
-			const largerSide = market.baseAssetAmountShort;
-			const smallerSide = market.baseAssetAmountLong;
-			const cappedAltRate = feePoolSize
-				.add(smallerSide.mul(interpRateQuote).div(AMM_RESERVE_PRECISION))
-				.div(largerSide);
-			return cappedAltRate;
-		} else {
-			return twapSpreadPct.mul(periodAdjustment).div(hoursInDay);
-		}
+		return cappedAltEst;
 	} else {
-		return twapSpreadPct.mul(periodAdjustment).div(hoursInDay);
+		return interpEst;
 	}
+}
+
+
+/**
+ * 
+ * @param market 
+ * @param pythClient 
+ * @param periodAdjustment 
+ * @param estimationMethod 
+ * @returns Estimated funding rate. : Precision //TODO-PRECISION
+ */
+ export async function calculateLongShortFundingRate(
+	market: Market,
+	pythClient: PythClient,
+	periodAdjustment: BN = new BN(1),
+): Promise<[BN, BN]> {
+	const [lowerboundEst, cappedAltEst, interpEst] = 
+		await calculateAllEstimatedFundingRate(market, pythClient, periodAdjustment);
+
+	if(market.baseAssetAmountLong.gt(market.baseAssetAmountShort)){
+		return [cappedAltEst, interpEst];
+	} else if(market.baseAssetAmountLong.lt(market.baseAssetAmountShort)){
+		return [interpEst, cappedAltEst];
+	} else{
+		return [interpEst, interpEst];
+	}
+
 }
 
 /**
