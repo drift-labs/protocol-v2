@@ -3,13 +3,14 @@ use crate::error::*;
 use crate::math;
 
 use crate::math::constants::{
-    MARK_PRICE_PRECISION, PRICE_TO_PEG_PRECISION_RATIO,
+    MARK_PRICE_PRECISION, PRICE_TO_PEG_PRECISION_RATIO, QUOTE_PRECISION,
     SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_DENOMINATOR,
-    SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR, QUOTE_PRECISION,
+    SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR,
 };
 use crate::math_error;
 use crate::state::market::Market;
 
+use crate::math::casting::{cast, cast_to_i128};
 use anchor_lang::prelude::AccountInfo;
 use solana_program::msg;
 
@@ -41,13 +42,13 @@ pub fn repeg(
         }
     }
 
-    let price_spread_0 = (cur_peg as i128)
-        .checked_mul(PRICE_TO_PEG_PRECISION_RATIO as i128)
+    let price_spread_0 = cast_to_i128(cur_peg)?
+        .checked_mul(cast(PRICE_TO_PEG_PRECISION_RATIO)?)
         .ok_or_else(math_error!())?
         .checked_sub(oracle_px)
         .ok_or_else(math_error!())?;
-    let price_spread_1 = (new_peg_candidate as i128)
-        .checked_mul(PRICE_TO_PEG_PRECISION_RATIO as i128)
+    let price_spread_1 = cast_to_i128(new_peg_candidate)?
+        .checked_mul(cast(PRICE_TO_PEG_PRECISION_RATIO)?)
         .ok_or_else(math_error!())?
         .checked_sub(oracle_px)
         .ok_or_else(math_error!())?;
@@ -112,9 +113,9 @@ pub fn repeg(
     }
 
     let amm_pnl_quote_asset_signed = if amm_pnl > 0 {
-        amm_pnl_quote_precision as i128
+        cast_to_i128(amm_pnl_quote_precision)?
     } else {
-        (amm_pnl_quote_precision as i128)
+        cast_to_i128(amm_pnl_quote_precision)?
             .checked_mul(-1)
             .ok_or_else(math_error!())?
     };

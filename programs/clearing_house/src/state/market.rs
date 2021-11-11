@@ -2,6 +2,7 @@ use anchor_lang::prelude::*;
 
 use crate::error::*;
 use crate::math::amm;
+use crate::math::casting::{cast, cast_to_i128, cast_to_i64, cast_to_u128};
 use crate::math_error;
 use crate::MARK_PRICE_PRECISION;
 use solana_program::msg;
@@ -107,10 +108,10 @@ impl AMM {
             .or(Err(ErrorCode::UnableToLoadOracle.into()))?;
         let price_data = pyth_client::cast::<pyth_client::Price>(&pyth_price_data);
 
-        let oracle_price = price_data.agg.price as i128;
-        let oracle_conf = price_data.agg.conf as u128;
-        let oracle_twap = price_data.twap.val as i128;
-        let oracle_twac = price_data.twac.val as u128;
+        let oracle_price = cast_to_i128(price_data.agg.price)?;
+        let oracle_conf = cast_to_u128(price_data.agg.conf)?;
+        let oracle_twap = cast_to_i128(price_data.twap.val)?;
+        let oracle_twac = cast_to_u128(price_data.twac.val)?;
 
         let oracle_precision = 10_u128.pow(price_data.expo.unsigned_abs());
 
@@ -128,15 +129,15 @@ impl AMM {
         }
 
         let oracle_price_scaled = (oracle_price)
-            .checked_mul(oracle_scale_mult as i128)
+            .checked_mul(cast(oracle_scale_mult)?)
             .ok_or_else(math_error!())?
-            .checked_div(oracle_scale_div as i128)
+            .checked_div(cast(oracle_scale_div)?)
             .ok_or_else(math_error!())?;
 
         let oracle_twap_scaled = (oracle_twap)
-            .checked_mul(oracle_scale_mult as i128)
+            .checked_mul(cast(oracle_scale_mult)?)
             .ok_or_else(math_error!())?
-            .checked_div(oracle_scale_div as i128)
+            .checked_div(cast(oracle_scale_div)?)
             .ok_or_else(math_error!())?;
 
         let oracle_conf_scaled = (oracle_conf)
@@ -151,8 +152,8 @@ impl AMM {
             .checked_div(oracle_scale_div)
             .ok_or_else(math_error!())?;
 
-        let oracle_delay = (clock_slot as i64)
-            .checked_sub(price_data.valid_slot as i64)
+        let oracle_delay: i64 = cast_to_i64(clock_slot)?
+            .checked_sub(cast(price_data.valid_slot)?)
             .ok_or_else(math_error!())?;
 
         return Ok((

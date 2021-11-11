@@ -1,6 +1,7 @@
 use crate::controller::amm::SwapDirection;
 use crate::controller::position::PositionDirection;
 use crate::error::*;
+use crate::math::casting::{cast, cast_to_i128};
 use crate::math::{amm, quote_asset::*};
 use crate::math_error;
 use crate::state::market::AMM;
@@ -57,12 +58,12 @@ pub fn _calculate_base_asset_value_and_pnl(
     )?;
 
     let pnl: i128 = match swap_direction {
-        SwapDirection::Add => (pegged_quote_asset_amount_acquired as i128)
-            .checked_sub(quote_asset_amount as i128)
+        SwapDirection::Add => cast_to_i128(pegged_quote_asset_amount_acquired)?
+            .checked_sub(cast(quote_asset_amount)?)
             .ok_or_else(math_error!())?,
 
-        SwapDirection::Remove => (quote_asset_amount as i128)
-            .checked_sub(pegged_quote_asset_amount_acquired as i128)
+        SwapDirection::Remove => cast_to_i128(quote_asset_amount)?
+            .checked_sub(cast(pegged_quote_asset_amount_acquired)?)
             .ok_or_else(math_error!())?,
     };
 

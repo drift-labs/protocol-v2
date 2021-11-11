@@ -7,6 +7,7 @@ use crate::controller::amm::SwapDirection;
 use crate::error::*;
 use crate::math::bn;
 use crate::math::bn::U192;
+use crate::math::casting::{cast, cast_to_i128, cast_to_u128};
 use crate::math::constants::{MARK_PRICE_PRECISION, ONE_HOUR, PRICE_TO_PEG_PRECISION_RATIO};
 use crate::math::position::_calculate_base_asset_value_and_pnl;
 use crate::math_error;
@@ -48,11 +49,11 @@ pub fn update_oracle_mark_spread_twap(
     now: i64,
     new_spread: i128,
 ) -> ClearingHouseResult<i128> {
-    let since_last = max(
+    let since_last = cast_to_i128(max(
         1,
         now.checked_sub(amm.last_mark_price_twap_ts)
             .ok_or_else(math_error!())?,
-    ) as i128;
+    ))?;
 
     let from_start = max(
         1,
@@ -74,11 +75,11 @@ pub fn calculate_new_mark_twap(
     now: i64,
     precomputed_mark_price: Option<u128>,
 ) -> ClearingHouseResult<u128> {
-    let since_last = max(
+    let since_last = cast_to_i128(max(
         1,
         now.checked_sub(amm.last_mark_price_twap_ts)
             .ok_or_else(math_error!())?,
-    ) as i128;
+    ))?;
     let from_start = max(
         1,
         ONE_HOUR.checked_sub(since_last).ok_or_else(math_error!())?,
@@ -88,12 +89,12 @@ pub fn calculate_new_mark_twap(
         None => amm.mark_price()?,
     };
 
-    let new_twap = calculate_twap(
-        current_price as i128,
-        amm.last_mark_price_twap as i128,
+    let new_twap: u128 = cast(calculate_twap(
+        cast(current_price)?,
+        cast(amm.last_mark_price_twap)?,
         since_last,
         from_start,
-    )? as u128;
+    )?)?;
 
     return Ok(new_twap);
 }
@@ -160,7 +161,7 @@ pub fn calculate_oracle_mark_spread(
         amm.get_oracle_price(price_oracle, clock_slot)?;
 
     if window > 0 {
-        mark_price = amm.last_mark_price_twap as i128;
+        mark_price = cast_to_i128(amm.last_mark_price_twap)?;
         let price_spread = mark_price
             .checked_sub(oracle_twap)
             .ok_or_else(math_error!())?;
@@ -168,8 +169,8 @@ pub fn calculate_oracle_mark_spread(
         Ok((oracle_twap, price_spread))
     } else {
         mark_price = match precomputed_mark_price {
-            Some(mark_price) => mark_price as i128,
-            None => amm.mark_price()? as i128,
+            Some(mark_price) => cast_to_i128(mark_price)?,
+            None => cast_to_i128(amm.mark_price()?)?,
         };
 
         let price_spread = mark_price
@@ -238,10 +239,10 @@ pub fn is_oracle_valid(
             .ok_or_else(math_error!())?)
         .gt(&valid_oracle_guard_rails.too_volatile_ratio));
 
-    let conf_denom_of_price = (oracle_price as u128)
+    let conf_denom_of_price = cast_to_u128(oracle_price)?
         .checked_div(max(1, oracle_conf))
         .ok_or_else(math_error!())?;
-    let conf_denom_of_twap_price = (oracle_twap as u128)
+    let conf_denom_of_twap_price = cast_to_u128(oracle_twap)?
         .checked_div(max(1, oracle_twap_conf))
         .ok_or_else(math_error!())?;
     let is_conf_too_large = (conf_denom_of_price

@@ -80,6 +80,8 @@ pub enum ErrorCode {
     CantDeleteUserWithCollateral,
     #[msg("AMM funding out of bounds pnl")]
     InvalidFundingProfitability,
+    #[msg("Casting Failure")]
+    CastingFailure,
 }
 
 #[macro_export]

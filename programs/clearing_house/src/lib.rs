@@ -33,6 +33,7 @@ pub mod clearing_house {
     use crate::state::history::liquidation::LiquidationRecord;
 
     use super::*;
+    use crate::math::casting::{cast, cast_to_i128, cast_to_u128};
 
     pub fn initialize(
         ctx: Context<Initialize>,
@@ -288,11 +289,11 @@ pub mod clearing_house {
 
         user.collateral = user
             .collateral
-            .checked_add(amount as u128)
+            .checked_add(cast(amount)?)
             .ok_or_else(math_error!())?;
         user.cumulative_deposits = user
             .cumulative_deposits
-            .checked_add(amount as i128)
+            .checked_add(cast(amount)?)
             .ok_or_else(math_error!())?;
 
         let markets = &ctx.accounts.markets.load()?;
@@ -328,7 +329,7 @@ pub mod clearing_house {
         });
 
         if ctx.accounts.state.max_deposit > 0
-            && user.cumulative_deposits > ctx.accounts.state.max_deposit as i128
+            && user.cumulative_deposits > cast(ctx.accounts.state.max_deposit)?
         {
             return Err(ErrorCode::UserMaxDeposit.into());
         }
@@ -358,7 +359,7 @@ pub mod clearing_house {
             now,
         )?;
 
-        if (amount as u128) > user.collateral {
+        if cast_to_u128(amount)? > user.collateral {
             return Err(ErrorCode::InsufficientCollateral.into());
         }
 
@@ -375,14 +376,14 @@ pub mod clearing_house {
 
         user.cumulative_deposits = user
             .cumulative_deposits
-            .checked_sub(amount_withdraw as i128)
+            .checked_sub(cast(amount_withdraw)?)
             .ok_or_else(math_error!())?;
 
         user.collateral = user
             .collateral
-            .checked_sub(collateral_account_withdrawal as u128)
+            .checked_sub(cast(collateral_account_withdrawal)?)
             .ok_or_else(math_error!())?
-            .checked_sub(insurance_account_withdrawal as u128)
+            .checked_sub(cast(insurance_account_withdrawal)?)
             .ok_or_else(math_error!())?;
 
         let (_total_collateral, _unrealized_pnl, _base_asset_value, margin_ratio) =
@@ -1110,7 +1111,7 @@ pub mod clearing_house {
         };
 
         let (withdrawal_amount, _) = calculate_withdrawal_amounts(
-            liquidation_fee as u64,
+            cast(liquidation_fee)?,
             &ctx.accounts.collateral_vault,
             &ctx.accounts.insurance_vault,
         )?;
@@ -1138,7 +1139,7 @@ pub mod clearing_house {
             let liquidator = &mut ctx.accounts.liquidator;
             liquidator.collateral = liquidator
                 .collateral
-                .checked_add(fee_to_liquidator as u128)
+                .checked_add(cast(fee_to_liquidator)?)
                 .ok_or_else(math_error!())?;
         }
 
@@ -1216,7 +1217,7 @@ pub mod clearing_house {
             .checked_sub(market.amm.total_fee_withdrawn)
             .ok_or_else(math_error!())?;
 
-        if (amount as u128) > max_withdraw {
+        if cast_to_u128(amount)? > max_withdraw {
             return Err(ErrorCode::AdminWithdrawTooLarge.into());
         }
 
@@ -1232,7 +1233,7 @@ pub mod clearing_house {
         market.amm.total_fee_withdrawn = market
             .amm
             .total_fee_withdrawn
-            .checked_add(amount as u128)
+            .checked_add(cast(amount)?)
             .ok_or_else(math_error!())?;
 
         Ok(())
@@ -1266,13 +1267,13 @@ pub mod clearing_house {
         market.amm.total_fee = market
             .amm
             .total_fee
-            .checked_add(amount as u128)
+            .checked_add(cast(amount)?)
             .ok_or_else(math_error!())?;
 
         market.amm.total_fee_minus_distributions = market
             .amm
             .total_fee_minus_distributions
-            .checked_add(amount as u128)
+            .checked_add(cast(amount)?)
             .ok_or_else(math_error!())?;
 
         controller::token::send(
@@ -1503,8 +1504,8 @@ pub mod clearing_house {
             amm.peg_multiplier,
         )?;
 
-        let price_change_too_large = (price_before as i128)
-            .checked_sub(price_after as i128)
+        let price_change_too_large = cast_to_i128(price_before)?
+            .checked_sub(cast_to_i128(price_after)?)
             .ok_or_else(math_error!())?
             .unsigned_abs()
             .gt(&UPDATE_K_ALLOWED_PRICE_CHANGE);

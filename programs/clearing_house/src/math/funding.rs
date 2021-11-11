@@ -1,9 +1,10 @@
 use crate::error::*;
 use crate::math::bn;
+use crate::math::casting::cast_to_i128;
 use crate::math::constants::{
     AMM_TO_QUOTE_PRECISION_RATIO, FUNDING_PAYMENT_PRECISION, MARK_PRICE_PRECISION,
-    SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_DENOMINATOR,
-    SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR, QUOTE_TO_BASE_AMT_FUNDING_PRECISION,
+    QUOTE_TO_BASE_AMT_FUNDING_PRECISION, SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_DENOMINATOR,
+    SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR,
 };
 use crate::math_error;
 use crate::state::market::Market;
@@ -85,11 +86,13 @@ fn calculate_capped_funding_rate(
 
     let funding_rate_pnl_limit =
         if market.amm.total_fee_minus_distributions > total_fee_minus_distributions_low_bound {
-            -(market
-                .amm
-                .total_fee_minus_distributions
-                .checked_sub(total_fee_minus_distributions_low_bound)
-                .ok_or_else(math_error!())? as i128)
+            -cast_to_i128(
+                market
+                    .amm
+                    .total_fee_minus_distributions
+                    .checked_sub(total_fee_minus_distributions_low_bound)
+                    .ok_or_else(math_error!())?,
+            )?
         } else {
             0
         };
@@ -142,19 +145,21 @@ fn _calculate_funding_payment(
     funding_rate_delta: i128,
     base_asset_amount: i128,
 ) -> ClearingHouseResult<i128> {
-    let funding_rate_delta_sign: i128 = if funding_rate_delta > 0 { 1 } else { -1 } as i128;
+    let funding_rate_delta_sign: i128 = if funding_rate_delta > 0 { 1 } else { -1 };
 
-    let funding_rate_payment_mag = bn::U192::from(funding_rate_delta.unsigned_abs())
-        .checked_mul(bn::U192::from(base_asset_amount.unsigned_abs()))
-        .ok_or_else(math_error!())?
-        .checked_div(bn::U192::from(MARK_PRICE_PRECISION))
-        .ok_or_else(math_error!())?
-        .checked_div(bn::U192::from(FUNDING_PAYMENT_PRECISION))
-        .ok_or_else(math_error!())?
-        .try_to_u128()? as i128;
+    let funding_rate_payment_mag = cast_to_i128(
+        bn::U192::from(funding_rate_delta.unsigned_abs())
+            .checked_mul(bn::U192::from(base_asset_amount.unsigned_abs()))
+            .ok_or_else(math_error!())?
+            .checked_div(bn::U192::from(MARK_PRICE_PRECISION))
+            .ok_or_else(math_error!())?
+            .checked_div(bn::U192::from(FUNDING_PAYMENT_PRECISION))
+            .ok_or_else(math_error!())?
+            .try_to_u128()?,
+    )?;
 
     // funding_rate: longs pay shorts
-    let funding_rate_payment_sign: i128 = if base_asset_amount > 0 { -1 } else { 1 } as i128;
+    let funding_rate_payment_sign: i128 = if base_asset_amount > 0 { -1 } else { 1 };
 
     let funding_rate_payment = (funding_rate_payment_mag)
         .checked_mul(funding_rate_payment_sign)
@@ -194,7 +199,7 @@ fn calculate_funding_payment_in_quote_precision(
 ) -> ClearingHouseResult<i128> {
     let funding_payment = _calculate_funding_payment(funding_rate_delta, base_asset_amount)?;
     let funding_payment_collateral = funding_payment
-        .checked_div(AMM_TO_QUOTE_PRECISION_RATIO as i128)
+        .checked_div(cast_to_i128(AMM_TO_QUOTE_PRECISION_RATIO)?)
         .ok_or_else(math_error!())?;
 
     return Ok(funding_payment_collateral);

@@ -4,6 +4,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use crate::controller;
 use crate::controller::amm::SwapDirection;
 use crate::error::*;
+use crate::math::casting::{cast, cast_to_i128};
 use crate::math::collateral::calculate_updated_collateral;
 use crate::math::position::calculate_base_asset_value_and_pnl;
 use crate::math_error;
@@ -120,7 +121,7 @@ pub fn reduce<'info>(
 
     market.open_interest = market
         .open_interest
-        .checked_sub((market_position.base_asset_amount == 0) as u128)
+        .checked_sub(cast(market_position.base_asset_amount == 0)?)
         .ok_or_else(math_error!())?;
     market.base_asset_amount = market
         .base_asset_amount
@@ -157,12 +158,12 @@ pub fn reduce<'info>(
         .ok_or_else(math_error!())?;
 
     let pnl = if market_position.base_asset_amount > 0 {
-        (quote_asset_swap_amount as i128)
-            .checked_sub(initial_quote_asset_amount_closed as i128)
+        cast_to_i128(quote_asset_swap_amount)?
+            .checked_sub(cast(initial_quote_asset_amount_closed)?)
             .ok_or_else(math_error!())?
     } else {
-        (initial_quote_asset_amount_closed as i128)
-            .checked_sub(quote_asset_swap_amount as i128)
+        cast_to_i128(initial_quote_asset_amount_closed)?
+            .checked_sub(cast(quote_asset_swap_amount)?)
             .ok_or_else(math_error!())?
     };
 

@@ -1,6 +1,7 @@
 use solana_program::msg;
 
 use crate::error::{ClearingHouseResult, ErrorCode};
+use crate::math::casting::{cast, cast_to_i128};
 use crate::math::constants::PRICE_TO_PEG_PRECISION_RATIO;
 use crate::math::{amm, bn, quote_asset::*};
 use crate::math_error;
@@ -41,8 +42,8 @@ pub fn swap_quote_asset(
     amm.base_asset_reserve = new_base_asset_amount;
     amm.quote_asset_reserve = new_quote_asset_amount;
 
-    let acquired_base_asset_amount = (initial_base_asset_amount as i128)
-        .checked_sub(new_base_asset_amount as i128)
+    let acquired_base_asset_amount = cast_to_i128(initial_base_asset_amount)?
+        .checked_sub(cast(new_base_asset_amount)?)
         .ok_or_else(math_error!())?;
 
     return Ok(acquired_base_asset_amount);

@@ -5,6 +5,7 @@ use anchor_lang::prelude::*;
 
 use crate::error::*;
 use crate::math::amm;
+use crate::math::casting::{cast, cast_to_i64};
 use crate::math::collateral::calculate_updated_collateral;
 use crate::math::constants::{
     AMM_TO_QUOTE_PRECISION_RATIO_I128, FUNDING_PAYMENT_PRECISION, ONE_HOUR,
@@ -135,25 +136,25 @@ pub fn update_funding_rate(
     if !funding_paused && !block_funding_rate_update && time_since_last_update >= next_update_wait {
         let mark_price_twap = amm::update_mark_twap(&mut market.amm, now, None)?;
 
-        let one_houri64 = ONE_HOUR as i64;
+        let one_hour_i64 = cast_to_i64(ONE_HOUR)?;
         let period_adjustment = (24_i64)
-            .checked_mul(one_houri64)
+            .checked_mul(one_hour_i64)
             .ok_or_else(math_error!())?
-            .checked_div(max(one_houri64, market.amm.funding_period))
+            .checked_div(max(one_hour_i64, market.amm.funding_period))
             .ok_or_else(math_error!())?;
         // funding period = 1 hour, window = 1 day
         // low periodicity => quickly updating/settled funding rates => lower funding rate payment per interval
         let (oracle_price_twap, price_spread) = amm::calculate_oracle_mark_spread(
             &market.amm,
             price_oracle,
-            ONE_HOUR as u32,
+            cast(ONE_HOUR)?,
             clock_slot,
             None,
         )?;
         let funding_rate = price_spread
-            .checked_mul(FUNDING_PAYMENT_PRECISION as i128)
+            .checked_mul(cast(FUNDING_PAYMENT_PRECISION)?)
             .ok_or_else(math_error!())?
-            .checked_div(period_adjustment as i128)
+            .checked_div(cast(period_adjustment)?)
             .ok_or_else(math_error!())?;
 
         let (funding_rate_long, funding_rate_short) =

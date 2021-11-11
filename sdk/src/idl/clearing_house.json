@@ -2757,6 +2757,11 @@
       "code": 337,
       "name": "InvalidFundingProfitability",
       "msg": "AMM funding out of bounds pnl"
+    },
+    {
+      "code": 338,
+      "name": "CastingFailure",
+      "msg": "Casting Failure"
     }
   ]
 }
