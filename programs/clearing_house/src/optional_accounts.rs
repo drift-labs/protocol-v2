@@ -21,6 +21,9 @@ pub fn get_whitelist_token(
     }
     let token_account_info = &accounts[0];
 
+    spl_token::check_program_account(&token_account_info.owner)
+        .map_err(|_| ErrorCode::InvalidWhitelistToken)?;
+
     let token_account = TokenAccount::unpack_unchecked(&token_account_info.data.borrow())
         .or(Err(ErrorCode::InvalidWhitelistToken.into()))?;
 
@@ -35,11 +38,12 @@ pub fn get_whitelist_token(
     return Ok(Some(token_account));
 }
 
-pub fn get_discount_token_and_referrer<'a, 'b, 'c, 'd>(
+pub fn get_discount_token_and_referrer<'a, 'b, 'c, 'd, 'e>(
     optional_accounts: ManagePositionOptionalAccounts,
     accounts: &'a [AccountInfo<'b>],
     discount_mint: &'c Pubkey,
     user_public_key: &'d Pubkey,
+    authority_public_key: &'e Pubkey,
 ) -> ClearingHouseResult<(Option<TokenAccount>, Option<Account<'b, User>>)> {
     let mut optional_discount_token = None;
     let mut optional_referrer = None;
@@ -49,6 +53,9 @@ pub fn get_discount_token_and_referrer<'a, 'b, 'c, 'd>(
         let token_account_info = next_account_info(account_info_iter)
             .or(Err(ErrorCode::DiscountTokenNotFound.into()))?;
 
+        spl_token::check_program_account(&token_account_info.owner)
+            .map_err(|_| ErrorCode::InvalidDiscountToken)?;
+
         let token_account = TokenAccount::unpack_unchecked(&token_account_info.data.borrow())
             .or(Err(ErrorCode::InvalidDiscountToken.into()))?;
 
@@ -57,6 +64,10 @@ pub fn get_discount_token_and_referrer<'a, 'b, 'c, 'd>(
         }
 
         if !token_account.mint.eq(discount_mint) {
+            return Err(ErrorCode::InvalidDiscountToken.into());
+        }
+
+        if !token_account.owner.eq(authority_public_key) {
             return Err(ErrorCode::InvalidDiscountToken.into());
         }
 

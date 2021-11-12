@@ -626,6 +626,7 @@ pub mod clearing_house {
             ctx.remaining_accounts,
             &ctx.accounts.state.discount_mint,
             &user.key(),
+            &ctx.accounts.authority.key(),
         )?;
 
         let (fee, token_discount, referrer_reward, referee_discount) = fees::calculate(
@@ -824,6 +825,7 @@ pub mod clearing_house {
             ctx.remaining_accounts,
             &ctx.accounts.state.discount_mint,
             &user.key(),
+            &ctx.accounts.authority.key(),
         )?;
         let (fee, token_discount, referrer_reward, referee_discount) = fees::calculate(
             base_asset_value,
