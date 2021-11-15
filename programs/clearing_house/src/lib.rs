@@ -46,6 +46,7 @@ pub mod clearing_house {
         let (collateral_account_authority, collateral_account_nonce) =
             Pubkey::find_program_address(&[collateral_account_key.as_ref()], ctx.program_id);
 
+        // clearing house must be authority of collateral vault
         if ctx.accounts.collateral_vault.owner != collateral_account_authority {
             return Err(ErrorCode::InvalidCollateralAccountAuthority.into());
         }
@@ -54,6 +55,7 @@ pub mod clearing_house {
         let (insurance_account_authority, insurance_account_nonce) =
             Pubkey::find_program_address(&[insurance_account_key.as_ref()], ctx.program_id);
 
+        // clearing house must be authority of insurance vault
         if ctx.accounts.insurance_vault.owner != insurance_account_authority {
             return Err(ErrorCode::InvalidInsuranceAccountAuthority.into());
         }
@@ -156,6 +158,8 @@ pub mod clearing_house {
 
     pub fn initialize_history(ctx: Context<InitializeHistory>) -> ProgramResult {
         let state = &mut ctx.accounts.state;
+
+        // If all of the history account keys are set to the default, assume they haven't been initialized tet
         if !state.deposit_history.eq(&Pubkey::default())
             && !state.trade_history.eq(&Pubkey::default())
             && !state.liquidation_history.eq(&Pubkey::default())
@@ -244,7 +248,6 @@ pub mod clearing_house {
                 cumulative_funding_rate_long: 0,
                 cumulative_funding_rate_short: 0,
                 last_funding_rate: 0,
-                // funding_rate_bias_streak: 0, // double funding each update to attract exposure
                 last_funding_rate_ts: now,
                 funding_period: amm_periodicity,
                 last_oracle_mark_spread_twap: 0,
@@ -370,6 +373,7 @@ pub mod clearing_house {
                 &ctx.accounts.insurance_vault,
             )?;
 
+        // amount_withdrawn can be less than amount if there is an insufficient balance in collateral and insurance vault
         let amount_withdraw = collateral_account_withdrawal
             .checked_add(insurance_account_withdrawal)
             .ok_or_else(math_error!())?;
@@ -386,6 +390,7 @@ pub mod clearing_house {
             .checked_sub(cast(insurance_account_withdrawal)?)
             .ok_or_else(math_error!())?;
 
+        // Verify that the user doesn't enter liquidation territory if they withdraw
         let (_total_collateral, _unrealized_pnl, _base_asset_value, margin_ratio) =
             calculate_margin_ratio(user, user_positions, markets)?;
         if margin_ratio < ctx.accounts.state.margin_ratio_initial {
@@ -446,6 +451,7 @@ pub mod clearing_house {
         let now = clock.unix_timestamp;
         let clock_slot = clock.slot;
 
+        // Settle user's funding payments so that collateral is up to date
         let user_positions = &mut ctx.accounts.user_positions.load_mut()?;
         let funding_payment_history = &mut ctx.accounts.funding_payment_history.load_mut()?;
         controller::funding::settle_funding_payment(
@@ -456,11 +462,14 @@ pub mod clearing_house {
             now,
         )?;
 
+        // Check if the user has an existing position for the market
         let mut market_position = user_positions
             .positions
             .iter_mut()
             .find(|market_position| market_position.market_index == market_index);
 
+        // If they don't have an existing position, look into the positions account for a spot for space
+        // for a new position
         if market_position.is_none() {
             let available_position_index = user_positions
                 .positions
@@ -495,8 +504,14 @@ pub mod clearing_house {
 
         let market_position = market_position.unwrap();
 
+        // A trade is risk increasing if it increases the users leverage
+        // If a trade is risk increasing and brings the user's margin ratio below initial requirement
+        // the trade fails
+        // If a trade is risk increasing and it pushes the mark price too far away from the oracle price
+        // the trade fails
         let mut potentially_risk_increasing = true;
 
+        // Collect data about position/market before trade is executed so that it can be stored in trade history
         let base_asset_amount_before = market_position.base_asset_amount;
         let mark_price_before: u128;
         let oracle_mark_spread_pct_before: i128;
@@ -521,10 +536,13 @@ pub mod clearing_house {
             )?;
         }
 
-        if market_position.base_asset_amount == 0
+        // The trade increases the the user position if
+        // 1) the user does not have a position
+        // 2) the trade is in the same direction as the user's existing position
+        let increase_position = market_position.base_asset_amount == 0
             || market_position.base_asset_amount > 0 && direction == PositionDirection::Long
-            || market_position.base_asset_amount < 0 && direction == PositionDirection::Short
-        {
+            || market_position.base_asset_amount < 0 && direction == PositionDirection::Short;
+        if increase_position {
             let market = &mut ctx.accounts.markets.load_mut()?.markets
                 [Markets::index_from_u64(market_index)];
 
@@ -541,6 +559,7 @@ pub mod clearing_house {
 
             let (base_asset_value, _unrealized_pnl) =
                 calculate_base_asset_value_and_pnl(market_position, &market.amm)?;
+
             // we calculate what the user's position is worth if they closed to determine
             // if they are reducing or closing and reversing their position
             if base_asset_value > quote_asset_amount {
@@ -556,19 +575,21 @@ pub mod clearing_house {
 
                 potentially_risk_increasing = false;
             } else {
-                let incremental_quote_asset_notional_amount_resid = quote_asset_amount
+                // after closing existing position, how large should trade be in opposite direction
+                let quote_asset_amount_after_close = quote_asset_amount
                     .checked_sub(base_asset_value)
                     .ok_or_else(math_error!())?;
 
-                if incremental_quote_asset_notional_amount_resid < base_asset_value {
-                    potentially_risk_increasing = false; //todo
+                // If the value of the new position is less than value of the old position, consider it risk decreasing
+                if quote_asset_amount_after_close < base_asset_value {
+                    potentially_risk_increasing = false;
                 }
 
                 controller::position::close(user, market, market_position, now)?;
 
                 controller::position::increase(
                     direction,
-                    incremental_quote_asset_notional_amount_resid,
+                    quote_asset_amount_after_close,
                     market,
                     market_position,
                     now,
@@ -576,6 +597,7 @@ pub mod clearing_house {
             }
         }
 
+        // Collect data about position/market after trade is executed so that it can be stored in trade history
         let base_asset_amount_change = market_position
             .base_asset_amount
             .checked_sub(base_asset_amount_before)
@@ -600,19 +622,20 @@ pub mod clearing_house {
             oracle_mark_spread_pct_after = _oracle_mark_spread_pct_after;
         }
 
+        // Trade fails if it's risk increasing and it brings the user below the initial margin ratio level
         let (
             _total_collateral_after,
             _unrealized_pnl_after,
             _base_asset_value_after,
             margin_ratio_after,
         ) = calculate_margin_ratio(user, user_positions, &ctx.accounts.markets.load()?)?;
-
         if margin_ratio_after < ctx.accounts.state.margin_ratio_initial
             && potentially_risk_increasing
         {
             return Err(ErrorCode::InsufficientCollateral.into());
         }
 
+        // Calculate the fee to charge the user
         let (discount_token, referrer) = optional_accounts::get_discount_token_and_referrer(
             optional_accounts,
             ctx.remaining_accounts,
@@ -620,7 +643,6 @@ pub mod clearing_house {
             &user.key(),
             &ctx.accounts.authority.key(),
         )?;
-
         let (fee, token_discount, referrer_reward, referee_discount) = fees::calculate(
             quote_asset_amount,
             &ctx.accounts.state.fee_structure,
@@ -628,6 +650,7 @@ pub mod clearing_house {
             &referrer,
         )?;
 
+        // Increment the clearing house's total fee variables
         {
             let market = &mut ctx.accounts.markets.load_mut()?.markets
                 [Markets::index_from_u64(market_index)];
@@ -643,23 +666,24 @@ pub mod clearing_house {
                 .ok_or_else(math_error!())?;
         }
 
+        // Subtract the fee from user's collateral
         user.collateral = user.collateral.checked_sub(fee).or(Some(0)).unwrap();
 
+        // Increment the user's total fee variables
         user.total_fee_paid = user
             .total_fee_paid
             .checked_add(fee)
             .ok_or_else(math_error!())?;
-
         user.total_token_discount = user
             .total_token_discount
             .checked_add(token_discount)
             .ok_or_else(math_error!())?;
-
         user.total_referee_discount = user
             .total_referee_discount
             .checked_add(referee_discount)
             .ok_or_else(math_error!())?;
 
+        // Update the referrer's collateral with their reward
         if referrer.is_some() {
             let mut referrer = referrer.unwrap();
             referrer.total_referral_reward = referrer
@@ -669,11 +693,12 @@ pub mod clearing_house {
             referrer.exit(ctx.program_id)?;
         }
 
+        // Trade fails if the trade is risk increasing and it pushes to mark price too far
+        // away from the oracle price
         let is_oracle_mark_too_divergent = amm::is_oracle_mark_too_divergent(
             oracle_mark_spread_pct_after,
             &ctx.accounts.state.oracle_guard_rails.price_divergence,
         )?;
-
         if is_oracle_mark_too_divergent
             && oracle_mark_spread_pct_after.unsigned_abs()
                 >= oracle_mark_spread_pct_before.unsigned_abs()
@@ -683,6 +708,7 @@ pub mod clearing_house {
             return Err(ErrorCode::OracleMarkSpreadLimit.into());
         }
 
+        // Add to the trade history account
         let trade_history_account = &mut ctx.accounts.trade_history.load_mut()?;
         let record_id = trade_history_account.next_record_id();
         trade_history_account.append(TradeRecord {
@@ -704,6 +730,7 @@ pub mod clearing_house {
             oracle_price: oracle_price_after,
         });
 
+        // If the user adds a limit price to their trade, check that their entry price is better than the limit price
         if limit_price != 0 {
             let market =
                 &ctx.accounts.markets.load()?.markets[Markets::index_from_u64(market_index)];
@@ -738,6 +765,7 @@ pub mod clearing_house {
             }
         }
 
+        // Try to update the funding rate at the end of every trade
         {
             let market = &mut ctx.accounts.markets.load_mut()?.markets
                 [Markets::index_from_u64(market_index)];
@@ -773,6 +801,7 @@ pub mod clearing_house {
         let now = clock.unix_timestamp;
         let clock_slot = clock.slot;
 
+        // Settle user's funding payments so that collateral is up to date
         let user_positions = &mut ctx.accounts.user_positions.load_mut()?;
         let funding_payment_history = &mut ctx.accounts.funding_payment_history.load_mut()?;
         controller::funding::settle_funding_payment(
@@ -783,11 +812,11 @@ pub mod clearing_house {
             now,
         )?;
 
+        // Try to find user's position for specified market. Return Err if there is none
         let market_position = user_positions
             .positions
             .iter_mut()
             .find(|market_position| market_position.market_index == market_index);
-
         if market_position.is_none() {
             return Err(ErrorCode::UserHasNoPositionInMarket.into());
         }
@@ -797,17 +826,18 @@ pub mod clearing_house {
             &mut ctx.accounts.markets.load_mut()?.markets[Markets::index_from_u64(market_index)];
 
         // base_asset_value is the base_asset_amount priced in quote_asset, so we can use this
-        // as quote_asset_notional_amount in trade history
-        let (base_asset_value, _pnl) =
+        // as quote_asset_amount to calculate fee and record trade size in trade history
+        let (quote_asset_amount, _pnl) =
             calculate_base_asset_value_and_pnl(market_position, &market.amm)?;
-        let trade_history_account = &mut ctx.accounts.trade_history.load_mut()?;
-        let record_id = trade_history_account.next_record_id();
+
+        // Collect data about market before trade is executed so that it can be stored in trade history
         let mark_price_before = market.amm.mark_price()?;
         let direction_to_close =
             math::position::direction_to_close_position(market_position.base_asset_amount);
         let base_asset_amount = market_position.base_asset_amount.unsigned_abs();
         controller::position::close(user, market, market_position, now)?;
 
+        // Calculate the fee to charge the user
         let (discount_token, referrer) = optional_accounts::get_discount_token_and_referrer(
             optional_accounts,
             ctx.remaining_accounts,
@@ -816,11 +846,13 @@ pub mod clearing_house {
             &ctx.accounts.authority.key(),
         )?;
         let (fee, token_discount, referrer_reward, referee_discount) = fees::calculate(
-            base_asset_value,
+            quote_asset_amount,
             &ctx.accounts.state.fee_structure,
             discount_token,
             &referrer,
         )?;
+
+        // Increment the clearing house's total fee variables
         market.amm.total_fee = market
             .amm
             .total_fee
@@ -832,23 +864,24 @@ pub mod clearing_house {
             .checked_add(fee)
             .ok_or_else(math_error!())?;
 
+        // Subtract the fee from user's collateral
         user.collateral = user.collateral.checked_sub(fee).or(Some(0)).unwrap();
 
+        // Increment the user's total fee variables
         user.total_fee_paid = user
             .total_fee_paid
             .checked_add(fee)
             .ok_or_else(math_error!())?;
-
         user.total_token_discount = user
             .total_token_discount
             .checked_add(token_discount)
             .ok_or_else(math_error!())?;
-
         user.total_referee_discount = user
             .total_referee_discount
             .checked_add(referee_discount)
             .ok_or_else(math_error!())?;
 
+        // Update the referrer's collateral with their reward
         if referrer.is_some() {
             let mut referrer = referrer.unwrap();
             referrer.total_referral_reward = referrer
@@ -858,6 +891,7 @@ pub mod clearing_house {
             referrer.exit(ctx.program_id)?;
         }
 
+        // Collect data about market after trade is executed so that it can be stored in trade history
         let mark_price_after = market.amm.mark_price()?;
         let price_oracle = &ctx.accounts.oracle;
         let (oracle_price_after, _oracle_mark_spread_after) = amm::calculate_oracle_mark_spread(
@@ -868,6 +902,9 @@ pub mod clearing_house {
             Some(mark_price_after),
         )?;
 
+        // Add to the trade history account
+        let trade_history_account = &mut ctx.accounts.trade_history.load_mut()?;
+        let record_id = trade_history_account.next_record_id();
         trade_history_account.append(TradeRecord {
             ts: now,
             record_id,
@@ -875,7 +912,7 @@ pub mod clearing_house {
             user: *user.to_account_info().key,
             direction: direction_to_close,
             base_asset_amount,
-            quote_asset_amount: base_asset_value,
+            quote_asset_amount,
             mark_price_before,
             mark_price_after,
             liquidation: false,
@@ -887,6 +924,7 @@ pub mod clearing_house {
             oracle_price: oracle_price_after,
         });
 
+        // Try to update the funding rate at the end of every trade
         let funding_rate_history = &mut ctx.accounts.funding_rate_history.load_mut()?;
         controller::funding::update_funding_rate(
             market_index,
@@ -913,6 +951,7 @@ pub mod clearing_house {
         let now = clock.unix_timestamp;
         let clock_slot = clock.slot;
 
+        // Settle user's funding payments so that collateral is up to date
         let user_positions = &mut ctx.accounts.user_positions.load_mut()?;
         let funding_payment_history = &mut ctx.accounts.funding_payment_history.load_mut()?;
         controller::funding::settle_funding_payment(
@@ -923,6 +962,7 @@ pub mod clearing_house {
             now,
         )?;
 
+        // Verify that the user is in liquidation territory
         let collateral = user.collateral;
         let (total_collateral, unrealized_pnl, base_asset_value, margin_ratio) =
             calculate_margin_ratio(user, user_positions, &ctx.accounts.markets.load()?)?;
@@ -930,9 +970,11 @@ pub mod clearing_house {
             return Err(ErrorCode::SufficientCollateral.into());
         }
 
-        let mut is_full_liquidation = true;
+        // Keep track to the value of positions closed. For full liquidation this is the user's entire position,
+        // for partial it is less (it's based on the clearing house state)
         let mut base_asset_value_closed: u128 = 0;
-        if margin_ratio <= ctx.accounts.state.margin_ratio_maintenance {
+        let is_full_liquidation = margin_ratio <= ctx.accounts.state.margin_ratio_maintenance;
+        if is_full_liquidation {
             let markets = &mut ctx.accounts.markets.load_mut()?;
             for market_position in user_positions.positions.iter_mut() {
                 if market_position.base_asset_amount == 0 {
@@ -942,6 +984,7 @@ pub mod clearing_house {
                 let market =
                     &mut markets.markets[Markets::index_from_u64(market_position.market_index)];
 
+                // Block the liquidation if the oracle is invalid or the oracle and mark are too divergent
                 let oracle_account_info = ctx
                     .remaining_accounts
                     .iter()
@@ -1074,8 +1117,6 @@ pub mod clearing_house {
                     oracle_price,
                 });
             }
-
-            is_full_liquidation = false;
         }
 
         let liquidation_fee = if is_full_liquidation {
@@ -1197,6 +1238,7 @@ pub mod clearing_house {
         let markets = &mut ctx.accounts.markets.load_mut()?;
         let market = &mut markets.markets[Markets::index_from_u64(market_index)];
 
+        // A portion of fees must always remain in protocol to be used to keep markets optimal
         let max_withdraw = market
             .amm
             .total_fee
@@ -1254,12 +1296,14 @@ pub mod clearing_house {
     ) -> ProgramResult {
         let markets = &mut ctx.accounts.markets.load_mut()?;
         let market = &mut markets.markets[Markets::index_from_u64(market_index)];
+
+        // The admin can move fees from the insurance fund back to the protocol so that money in
+        // the insurance fund can be used to make market more optimal
         market.amm.total_fee = market
             .amm
             .total_fee
             .checked_add(cast(amount)?)
             .ok_or_else(math_error!())?;
-
         market.amm.total_fee_minus_distributions = market
             .amm
             .total_fee_minus_distributions
@@ -1380,6 +1424,8 @@ pub mod clearing_house {
 
     pub fn delete_user(ctx: Context<DeleteUser>) -> ProgramResult {
         let user = &ctx.accounts.user;
+
+        // Block the delete if the user still has collateral
         if user.collateral > 0 {
             return Err(ErrorCode::CantDeleteUserWithCollateral.into());
         }

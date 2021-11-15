@@ -3,6 +3,7 @@ use crate::math_error;
 use anchor_spl::token::TokenAccount;
 use solana_program::msg;
 
+/// Calculates how much of withdrawal must come from collateral vault and how much comes from insurance vault
 pub fn calculate_withdrawal_amounts(
     amount: u64,
     collateral_token_account: &TokenAccount,

@@ -87,6 +87,7 @@ pub fn move_price(
     Ok(())
 }
 
+#[allow(dead_code)]
 pub fn move_to_price(amm: &mut AMM, target_price: u128) -> ClearingHouseResult {
     let sqrt_k = bn::U256::from(amm.sqrt_k);
     let k = sqrt_k.checked_mul(sqrt_k).ok_or_else(math_error!())?;
