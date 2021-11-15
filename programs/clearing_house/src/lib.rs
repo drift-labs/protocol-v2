@@ -3,7 +3,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 
 use controller::position::PositionDirection;
 use error::*;
-use instructions::*;
+use context::*;
 use math::{amm, bn, constants::*, fees, margin::*, position::*, withdrawal::*};
 use state::{
     history::trade::TradeRecord,
@@ -14,7 +14,7 @@ use state::{
 
 mod controller;
 mod error;
-mod instructions;
+mod context;
 mod math;
 mod optional_accounts;
 mod state;

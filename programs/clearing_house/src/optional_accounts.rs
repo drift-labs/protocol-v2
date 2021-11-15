@@ -1,5 +1,5 @@
 use crate::error::{ClearingHouseResult, ErrorCode};
-use crate::instructions::{InitializeUserOptionalAccounts, ManagePositionOptionalAccounts};
+use crate::context::{InitializeUserOptionalAccounts, ManagePositionOptionalAccounts};
 use crate::state::user::User;
 use anchor_lang::prelude::{AccountInfo, Pubkey};
 use anchor_lang::Account;

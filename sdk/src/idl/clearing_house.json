@@ -1725,6 +1725,34 @@
   ],
   "types": [
     {
+      "name": "InitializeUserOptionalAccounts",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "whitelistToken",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ManagePositionOptionalAccounts",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "discountToken",
+            "type": "bool"
+          },
+          {
+            "name": "referrer",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
       "name": "CurveRecord",
       "type": {
         "kind": "struct",
@@ -1934,34 +1962,6 @@
           {
             "name": "markPriceTwap",
             "type": "u128"
-          }
-        ]
-      }
-    },
-    {
-      "name": "InitializeUserOptionalAccounts",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "whitelistToken",
-            "type": "bool"
-          }
-        ]
-      }
-    },
-    {
-      "name": "ManagePositionOptionalAccounts",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "discountToken",
-            "type": "bool"
-          },
-          {
-            "name": "referrer",
-            "type": "bool"
           }
         ]
       }
