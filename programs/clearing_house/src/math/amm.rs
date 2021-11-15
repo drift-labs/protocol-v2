@@ -257,12 +257,15 @@ pub fn is_oracle_valid(
         || is_oracle_price_too_volatile))
 }
 
+/// To find the cost of adjusting k, compare the the net market value before and after adjusting k
+/// Increasing k costs the protocol money because it reduces slippage and improves the exit price for net market position
+/// Decreasing k costs the protocol money because it increases slippage and hurts the exit price for net market position
 pub fn adjust_k_cost(market: &mut Market, new_sqrt_k: bn::U256) -> ClearingHouseResult<i128> {
-    // price is fixed, calculate cost of changing k in market
-    let (cur_net_value, _) =
+    // Find the net market value before adjusting k
+    let (current_net_market_value, _) =
         _calculate_base_asset_value_and_pnl(market.base_asset_amount, 0, &market.amm)?;
 
-    let k_mult = new_sqrt_k
+    let sqrt_k_ratio = new_sqrt_k
         .checked_mul(bn::U256::from(MARK_PRICE_PRECISION))
         .ok_or_else(math_error!())?
         .checked_div(bn::U256::from(market.amm.sqrt_k))
@@ -270,23 +273,22 @@ pub fn adjust_k_cost(market: &mut Market, new_sqrt_k: bn::U256) -> ClearingHouse
 
     market.amm.sqrt_k = new_sqrt_k.try_to_u128().unwrap();
     market.amm.base_asset_reserve = bn::U256::from(market.amm.base_asset_reserve)
-        .checked_mul(k_mult)
+        .checked_mul(sqrt_k_ratio)
         .ok_or_else(math_error!())?
         .checked_div(bn::U256::from(MARK_PRICE_PRECISION))
         .ok_or_else(math_error!())?
         .try_to_u128()
         .unwrap();
     market.amm.quote_asset_reserve = bn::U256::from(market.amm.quote_asset_reserve)
-        .checked_mul(k_mult)
+        .checked_mul(sqrt_k_ratio)
         .ok_or_else(math_error!())?
         .checked_div(bn::U256::from(MARK_PRICE_PRECISION))
         .ok_or_else(math_error!())?
         .try_to_u128()
         .unwrap();
 
-    let (_new_net_value, cost) =
-        _calculate_base_asset_value_and_pnl(market.base_asset_amount, cur_net_value, &market.amm)
-            .unwrap();
+    let (_new_net_market_value, cost) =
+        _calculate_base_asset_value_and_pnl(market.base_asset_amount, current_net_market_value, &market.amm)?;
 
     Ok(cost)
 }
