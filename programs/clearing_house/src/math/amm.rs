@@ -287,8 +287,11 @@ pub fn adjust_k_cost(market: &mut Market, new_sqrt_k: bn::U256) -> ClearingHouse
         .try_to_u128()
         .unwrap();
 
-    let (_new_net_market_value, cost) =
-        _calculate_base_asset_value_and_pnl(market.base_asset_amount, current_net_market_value, &market.amm)?;
+    let (_new_net_market_value, cost) = _calculate_base_asset_value_and_pnl(
+        market.base_asset_amount,
+        current_net_market_value,
+        &market.amm,
+    )?;
 
     Ok(cost)
 }

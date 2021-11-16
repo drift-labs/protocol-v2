@@ -1,7 +1,11 @@
 use crate::error::*;
 use crate::math;
 
-use crate::math::constants::{PRICE_TO_PEG_PRECISION_RATIO, SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_DENOMINATOR, SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR, PRICE_TO_PEG_QUOTE_PRECISION_RATIO};
+use crate::math::constants::{
+    PRICE_TO_PEG_PRECISION_RATIO, PRICE_TO_PEG_QUOTE_PRECISION_RATIO,
+    SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_DENOMINATOR,
+    SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR,
+};
 use crate::math_error;
 use crate::state::market::Market;
 
@@ -62,7 +66,6 @@ pub fn repeg(
         .checked_div(PRICE_TO_PEG_QUOTE_PRECISION_RATIO)
         .ok_or_else(math_error!())?;
 
-
     // The there is a net market position, there should be a non-zero pnl
     // If pnl is zero, fail
     if net_market_position != 0 && repeg_pnl == 0 {
@@ -81,7 +84,8 @@ pub fn repeg(
     } else {
         total_fee_minus_distributions = (total_fee_minus_distributions)
             .checked_sub(repeg_pnl_quote_precision)
-            .or(Some(0)).unwrap();
+            .or(Some(0))
+            .unwrap();
 
         // Only a portion of the protocol fees are allocated to repegging
         // This checks that the total_fee_minus_distributions does not decrease too much after repeg

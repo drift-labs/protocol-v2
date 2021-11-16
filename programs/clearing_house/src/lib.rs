@@ -1,9 +1,9 @@
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 
+use context::*;
 use controller::position::PositionDirection;
 use error::*;
-use context::*;
 use math::{amm, bn, constants::*, fees, margin::*, position::*, withdrawal::*};
 use state::{
     history::trade::TradeRecord,
@@ -12,9 +12,9 @@ use state::{
     user::{MarketPosition, User},
 };
 
+mod context;
 mod controller;
 mod error;
-mod context;
 mod math;
 mod optional_accounts;
 mod state;

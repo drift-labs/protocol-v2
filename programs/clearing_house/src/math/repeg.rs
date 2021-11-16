@@ -1,7 +1,11 @@
 use crate::error::*;
 use crate::math::bn::U256;
 use crate::math::casting::{cast, cast_to_i128, cast_to_u128};
-use crate::math::constants::{AMM_RESERVE_PRECISION, PRICE_TO_PEG_PRECISION_RATIO, SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_DENOMINATOR, SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR, PRICE_TO_PEG_QUOTE_PRECISION_RATIO};
+use crate::math::constants::{
+    AMM_RESERVE_PRECISION, PRICE_TO_PEG_PRECISION_RATIO, PRICE_TO_PEG_QUOTE_PRECISION_RATIO,
+    SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_DENOMINATOR,
+    SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR,
+};
 use crate::math_error;
 use crate::state::market::Market;
 use solana_program::msg;
@@ -52,7 +56,9 @@ pub fn find_peg_candidate(
             .checked_div(cast(PRICE_TO_PEG_QUOTE_PRECISION_RATIO)?)
             .ok_or_else(math_error!())?;
 
-        if repeg_pnl > 0 || repeg_pnl_quote_precision.unsigned_abs() < amm.total_fee_minus_distributions {
+        if repeg_pnl > 0
+            || repeg_pnl_quote_precision.unsigned_abs() < amm.total_fee_minus_distributions
+        {
             let total_fee_minus_distributions = cast_to_i128(amm.total_fee_minus_distributions)?
                 .checked_add(repeg_pnl_quote_precision)
                 .ok_or_else(math_error!())?;
@@ -77,10 +83,7 @@ pub fn find_peg_candidate(
     return Ok(new_peg_candidate);
 }
 
-pub fn calculate_repeg_pnl(
-    market: &Market,
-    new_peg_candidate: u128,
-) -> ClearingHouseResult<i128> {
+pub fn calculate_repeg_pnl(market: &Market, new_peg_candidate: u128) -> ClearingHouseResult<i128> {
     let amm = market.amm;
 
     let net_market_position = market.base_asset_amount;
@@ -103,12 +106,12 @@ pub fn calculate_repeg_pnl(
             .checked_mul(PRICE_TO_PEG_PRECISION_RATIO)
             .ok_or_else(math_error!())?, // 1e10
     )
-        .checked_mul(U256::from(net_market_position.unsigned_abs())) //1e13
-        .ok_or_else(math_error!())?
-        .checked_div(U256::from(
-            AMM_RESERVE_PRECISION, // 1e13
-        ))
-        .ok_or_else(math_error!())?;
+    .checked_mul(U256::from(net_market_position.unsigned_abs())) //1e13
+    .ok_or_else(math_error!())?
+    .checked_div(U256::from(
+        AMM_RESERVE_PRECISION, // 1e13
+    ))
+    .ok_or_else(math_error!())?;
 
     let pnl = cast_to_i128(pnl_magnitude.try_to_u128()?)?
         .checked_mul(
