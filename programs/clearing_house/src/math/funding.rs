@@ -18,6 +18,8 @@ pub fn calculate_funding_rate_long_short(
 ) -> ClearingHouseResult<(i128, i128)> {
     let symmetric_funding_pnl =
         -(calculate_funding_payment_in_quote_precision(funding_rate, market.base_asset_amount)?);
+
+    // If the symmetric_funding_pnl is positive, the clearing house receives money.
     if symmetric_funding_pnl >= 0 {
         market.amm.total_fee_minus_distributions = market
             .amm
@@ -36,7 +38,7 @@ pub fn calculate_funding_rate_long_short(
         .checked_sub(capped_symmetric_funding_pnl.unsigned_abs())
         .ok_or_else(math_error!())?;
 
-    let total_fee_minus_distributions_low_bound = market
+    let total_fee_minus_distributions_lower_bound = market
         .amm
         .total_fee
         .checked_mul(SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR)
@@ -44,7 +46,8 @@ pub fn calculate_funding_rate_long_short(
         .checked_div(SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_DENOMINATOR)
         .ok_or_else(math_error!())?;
 
-    if new_total_fee_minus_distributions < total_fee_minus_distributions_low_bound {
+    // makes sure the clearing house doesn't pay more than the share of fees allocated to `distributions`
+    if new_total_fee_minus_distributions < total_fee_minus_distributions_lower_bound {
         return Err(ErrorCode::InvalidFundingProfitability.into());
     }
 
@@ -70,7 +73,7 @@ fn calculate_capped_funding_rate(
     symmetric_funding_pnl: i128,
     funding_rate: i128,
 ) -> ClearingHouseResult<(i128, i128)> {
-    let total_fee_minus_distributions_low_bound = market
+    let total_fee_minus_distributions_lower_bound = market
         .amm
         .total_fee
         .checked_mul(SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR)
@@ -85,12 +88,12 @@ fn calculate_capped_funding_rate(
     }?);
 
     let funding_rate_pnl_limit =
-        if market.amm.total_fee_minus_distributions > total_fee_minus_distributions_low_bound {
+        if market.amm.total_fee_minus_distributions > total_fee_minus_distributions_lower_bound {
             -cast_to_i128(
                 market
                     .amm
                     .total_fee_minus_distributions
-                    .checked_sub(total_fee_minus_distributions_low_bound)
+                    .checked_sub(total_fee_minus_distributions_lower_bound)
                     .ok_or_else(math_error!())?,
             )?
         } else {
@@ -128,10 +131,10 @@ fn calculate_capped_funding_rate(
 }
 
 pub fn calculate_funding_payment(
-    amm_cumulative_funding_rate_dir: i128,
+    amm_cumulative_funding_rate: i128,
     market_position: &MarketPosition,
 ) -> ClearingHouseResult<i128> {
-    let funding_rate_delta = amm_cumulative_funding_rate_dir
+    let funding_rate_delta = amm_cumulative_funding_rate
         .checked_sub(market_position.last_cumulative_funding_rate)
         .ok_or_else(math_error!())?;
 
@@ -147,7 +150,7 @@ fn _calculate_funding_payment(
 ) -> ClearingHouseResult<i128> {
     let funding_rate_delta_sign: i128 = if funding_rate_delta > 0 { 1 } else { -1 };
 
-    let funding_rate_payment_mag = cast_to_i128(
+    let funding_rate_payment_magnitude = cast_to_i128(
         bn::U192::from(funding_rate_delta.unsigned_abs())
             .checked_mul(bn::U192::from(base_asset_amount.unsigned_abs()))
             .ok_or_else(math_error!())?
@@ -161,7 +164,7 @@ fn _calculate_funding_payment(
     // funding_rate: longs pay shorts
     let funding_rate_payment_sign: i128 = if base_asset_amount > 0 { -1 } else { 1 };
 
-    let funding_rate_payment = (funding_rate_payment_mag)
+    let funding_rate_payment = (funding_rate_payment_magnitude)
         .checked_mul(funding_rate_payment_sign)
         .ok_or_else(math_error!())?
         .checked_mul(funding_rate_delta_sign)

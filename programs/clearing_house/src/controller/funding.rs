@@ -73,7 +73,6 @@ pub fn settle_funding_payment(
         }
     }
 
-    // longs pay shorts the `funding_payment`
     let funding_payment_collateral = funding_payment
         .checked_div(AMM_TO_QUOTE_PRECISION_RATIO_I128)
         .ok_or_else(math_error!())?;
