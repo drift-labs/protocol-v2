@@ -22,6 +22,9 @@ use crate::state::user::{User, UserPositions};
 use solana_program::clock::UnixTimestamp;
 use solana_program::msg;
 
+/// Funding payments are settled lazily. The amm tracks its cumulative funding rate (for longs and shorts)
+/// and the user's market position tracks how much funding the user been cumulatively paid for that market.
+/// If the two values are not equal, the user owes/is owed funding.
 pub fn settle_funding_payment(
     user: &mut User,
     user_positions: &mut RefMut<UserPositions>,
@@ -39,15 +42,15 @@ pub fn settle_funding_payment(
         let market = &markets.markets[Markets::index_from_u64(market_position.market_index)];
         let amm: &AMM = &market.amm;
 
-        let amm_cumulative_funding_rate_dir = if market_position.base_asset_amount > 0 {
+        let amm_cumulative_funding_rate = if market_position.base_asset_amount > 0 {
             amm.cumulative_funding_rate_long
         } else {
             amm.cumulative_funding_rate_short
         };
 
-        if amm_cumulative_funding_rate_dir != market_position.last_cumulative_funding_rate {
+        if amm_cumulative_funding_rate != market_position.last_cumulative_funding_rate {
             let market_funding_rate_payment =
-                calculate_funding_payment(amm_cumulative_funding_rate_dir, market_position)?;
+                calculate_funding_payment(amm_cumulative_funding_rate, market_position)?;
 
             let record_id = funding_payment_history.next_record_id();
             funding_payment_history.append(FundingPaymentRecord {
@@ -68,7 +71,7 @@ pub fn settle_funding_payment(
                 .checked_add(market_funding_rate_payment)
                 .ok_or_else(math_error!())?;
 
-            market_position.last_cumulative_funding_rate = amm_cumulative_funding_rate_dir;
+            market_position.last_cumulative_funding_rate = amm_cumulative_funding_rate;
             market_position.last_funding_rate_ts = amm.last_funding_rate_ts;
         }
     }
@@ -96,6 +99,7 @@ pub fn update_funding_rate(
         .checked_sub(market.amm.last_funding_rate_ts)
         .ok_or_else(math_error!())?;
 
+    // Pause funding if oracle is invalid or if mark/oracle spread is too divergent
     let (block_funding_rate_update, _) =
         oracle::block_operation(&market.amm, price_oracle, clock_slot, guard_rails, None)?;
 
