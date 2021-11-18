@@ -19,14 +19,14 @@ export const Markets: Market[] = [
 	{
 		symbol: 'BTC-PERP',
 		baseAssetSymbol: 'BTC',
-		marketIndex: new BN(1),
+		marketIndex: new BN(4),
 		devnetPythOracle: 'HovQMDrbAgAYPCmHVSrezcSmkMtXSSUsLDFANExrZh2J',
 		mainnetPythOracle: 'GVXRSBjFk6e6J3NbVPXohDJetcTjaeeuykUpbQF8UoMU',
 	},
 	{
 		symbol: 'ETH-PERP',
 		baseAssetSymbol: 'ETH',
-		marketIndex: new BN(2),
+		marketIndex: new BN(5),
 		devnetPythOracle: 'EdVCmQ9FSPcVe5YySXDPCRmc8aDQLKJ9xvYBMZPie1Vw',
 		mainnetPythOracle: 'JBu1AL4obBcCMqKBBxhpWCNUt136ijcuMZLFvTP7iWdB',
 	},
