@@ -158,7 +158,7 @@ commandWithDefaultOption('initialize-market')
 					log.info(`pegMultiplier: ${pegMultiplier}`);
 					pegMultiplier = new BN(pegMultiplier);
 					log.info(`Initializing market`);
-					await admin.initializeMarket(marketIndex, priceOracle, baseAssetReserve, quoteAssetReserve, pegMultiplier);
+					await admin.initializeMarket(marketIndex, priceOracle, baseAssetReserve, quoteAssetReserve, periodicity, pegMultiplier);
 				}
 			);
 		}
