@@ -133,6 +133,37 @@ commandWithDefaultOption('initialize')
 		}
 	);
 
+commandWithDefaultOption('initialize-market')
+	.argument('<market index>', 'Where the market will be initialized in the markets account')
+	.argument('<price oracle>', 'The public key for the oracle')
+	.argument('<base asset reserve>', 'AMM base asset reserve')
+	.argument('<quote asset reserve>', 'AMM quote asset reserve')
+	.argument('<periodicity>', 'AMM quote asset reserve')
+	.argument('<peg multiplier>', 'AMM peg multiplier')
+	.action(
+		async (marketIndex, priceOracle, baseAssetReserve, quoteAssetReserve, periodicity, pegMultiplier, options: OptionValues) => {
+			await wrapActionInAdminSubscribeUnsubscribe(
+				options,
+				async (admin: Admin) => {
+					log.info(`marketIndex: ${marketIndex}`);
+					marketIndex = new BN(marketIndex);
+					log.info(`priceOracle: ${priceOracle}`);
+					priceOracle = new PublicKey(priceOracle);
+					log.info(`baseAssetReserve: ${baseAssetReserve}`);
+					baseAssetReserve = new BN(baseAssetReserve);
+					log.info(`quoteAssetReserve: ${quoteAssetReserve}`);
+					quoteAssetReserve = new BN(quoteAssetReserve);
+					log.info(`periodicity: ${periodicity}`);
+					periodicity = new BN(periodicity);
+					log.info(`pegMultiplier: ${pegMultiplier}`);
+					pegMultiplier = new BN(pegMultiplier);
+					log.info(`Initializing market`);
+					await admin.initializeMarket(marketIndex, priceOracle, baseAssetReserve, quoteAssetReserve, pegMultiplier);
+				}
+			);
+		}
+	);
+
 commandWithDefaultOption('update-k')
 	.argument('<market>', 'The market to adjust k for')
 	.argument('<numerator>', 'Numerator to multiply k by')

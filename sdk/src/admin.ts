@@ -178,8 +178,8 @@ export class Admin extends ClearingHouse {
 	public async initializeMarket(
 		marketIndex: BN,
 		priceOracle: PublicKey,
-		baseAmount: BN,
-		quoteAmount: BN,
+		baseAssetReserve: BN,
+		quoteAssetReserve: BN,
 		periodicity: BN,
 		pegMultiplier: BN = PEG_PRECISION
 	): Promise<TransactionSignature> {
@@ -189,8 +189,8 @@ export class Admin extends ClearingHouse {
 
 		const initializeMarketTx = await this.program.transaction.initializeMarket(
 			marketIndex,
-			baseAmount,
-			quoteAmount,
+			baseAssetReserve,
+			quoteAssetReserve,
 			periodicity,
 			pegMultiplier,
 			{
