@@ -86,8 +86,15 @@ export class ClearingHouseUser {
 	 * @returns userPosition
 	 */
 	public getUserPosition(marketIndex: BN): UserPosition {
-		return this.getUserPositionsAccount().positions.find((position) =>
-			position.marketIndex.eq(marketIndex)
+		return (
+			this.getUserPositionsAccount().positions.find((position) =>
+				position.marketIndex.eq(marketIndex)
+			) ?? {
+				baseAssetAmount: ZERO,
+				lastCumulativeFundingRate: ZERO,
+				marketIndex,
+				quoteAssetAmount: ZERO,
+			}
 		);
 	}
 
