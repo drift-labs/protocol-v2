@@ -31,6 +31,28 @@ pub fn calculate_price(
         .try_to_u128();
 }
 
+pub fn calculate_terminal_price(market: &mut Market) -> ClearingHouseResult<u128> {
+    let swap_direction = if market.base_asset_amount > 0 {
+        SwapDirection::Add
+    } else {
+        SwapDirection::Remove
+    };
+    let (new_quote_asset_amount, new_base_asset_amount) = calculate_swap_output(
+        market.base_asset_amount.unsigned_abs(),
+        market.amm.base_asset_reserve,
+        swap_direction,
+        market.amm.sqrt_k,
+    )?;
+
+    let terminal_price = calculate_price(
+        new_quote_asset_amount,
+        new_base_asset_amount,
+        market.amm.peg_multiplier,
+    )?;
+
+    Ok(terminal_price)
+}
+
 pub fn update_mark_twap(
     amm: &mut AMM,
     now: i64,

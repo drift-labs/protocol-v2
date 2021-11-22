@@ -1344,8 +1344,15 @@ pub mod clearing_house {
         let quote_asset_reserve_before = market.amm.quote_asset_reserve;
         let sqrt_k_before = market.amm.sqrt_k;
 
-        let adjustment_cost =
-            controller::repeg::repeg(market, price_oracle, new_peg_candidate, clock_slot)?;
+        let oracle_validity_rails = &ctx.accounts.state.oracle_guard_rails;
+
+        let adjustment_cost = controller::repeg::repeg(
+            market,
+            price_oracle,
+            new_peg_candidate,
+            clock_slot,
+            oracle_validity_rails,
+        )?;
 
         let peg_multiplier_after = market.amm.peg_multiplier;
         let base_asset_reserve_after = market.amm.base_asset_reserve;

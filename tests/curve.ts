@@ -246,38 +246,42 @@ describe('AMM Curve', () => {
 		const priceBefore = calculateMarkPrice(
 			clearingHouse.getMarket(marketIndex)
 		);
-		await clearingHouse.repegAmmCurve(new BN(0), marketIndex);
+		await clearingHouse.repegAmmCurve(new BN(150.001 * PEG_PRECISION.toNumber()), marketIndex);
 		const priceAfter = calculateMarkPrice(clearingHouse.getMarket(marketIndex));
 
 		assert(newOraclePriceWithMantissa.gt(priceBefore));
 		assert(priceAfter.gt(priceBefore));
 		assert(newOraclePriceWithMantissa.gt(priceAfter));
 
-		// console.log('\n post repeg: \n --------');
-		// showCurve(marketIndex);
+		console.log('\n post repeg: \n --------');
+		showCurve(marketIndex);
 		// showBook(marketIndex);
 
 		marketsAccount = clearingHouse.getMarketsAccount();
 		marketData = marketsAccount.markets[marketIndex.toNumber()];
 		console.log(marketData.amm);
+		console.log()
 		assert(
-			marketData.amm.totalFee.gt(marketData.amm.totalFeeMinusDistributions)
+			marketData.amm.totalFee.gte(marketData.amm.totalFeeMinusDistributions)
 		);
 
 		const newPeg = marketData.amm.pegMultiplier;
 
 		const userMarketPosition =
 			userAccount.getUserPositionsAccount().positions[0];
-		const costToAMM = convertBaseAssetAmountToNumber(
+		const linearApproxCostToAMM = convertBaseAssetAmountToNumber(
 			newPeg
 				.sub(oldPeg)
 				.mul(userMarketPosition.baseAssetAmount)
 				.div(PEG_PRECISION)
 		);
 
+		// console.log('cur user position:', convertBaseAssetAmountToNumber(userMarketPosition.baseAssetAmount));
+
 		const totalCostToAMMChain = showCurve(marketIndex);
 
-		assert(Math.abs(costToAMM - totalCostToAMMChain) < 1e-6);
+		assert(linearApproxCostToAMM > totalCostToAMMChain);
+		assert(linearApproxCostToAMM/totalCostToAMMChain < 1.1);
 
 		// const feeDist1h = calculateFeeDist(marketIndex);
 
@@ -297,17 +301,20 @@ describe('AMM Curve', () => {
 
 		await clearingHouse.openPosition(
 			PositionDirection.SHORT,
-			QUOTE_PRECISION,
+			QUOTE_PRECISION.mul(new BN(100000)),
 			marketIndex
 		);
+		let marketsAccount1 = clearingHouse.getMarketsAccount();
+		let marketData1 = marketsAccount1.markets[marketIndex.toNumber()];
+		const ammAccountState = marketData1.amm;
+		const oldPeg = ammAccountState.pegMultiplier;
 
 		const priceBefore = calculateMarkPrice(
 			clearingHouse.getMarket(marketIndex)
 		);
 
-		// const marketsAccount = clearingHouse.getMarketsAccount();
-		// const marketData = marketsAccount.markets[marketIndex.toNumber()];
-		await clearingHouse.repegAmmCurve(new BN(0), marketIndex);
+		
+		await clearingHouse.repegAmmCurve(new BN(148 * PEG_PRECISION.toNumber()), marketIndex);
 
 		const priceAfter = calculateMarkPrice(clearingHouse.getMarket(marketIndex));
 
@@ -315,8 +322,28 @@ describe('AMM Curve', () => {
 		assert(priceAfter.lt(priceBefore));
 		assert(newOraclePriceWithMantissa.lt(priceAfter));
 
+		const marketsAccount = clearingHouse.getMarketsAccount();
+		const marketData = marketsAccount.markets[marketIndex.toNumber()];
+		const newPeg = marketData.amm.pegMultiplier;
+
+		const userMarketPosition =
+			userAccount.getUserPositionsAccount().positions[0];
+
 		console.log('\n post repeg: \n --------');
+
+		const linearApproxCostToAMM = convertBaseAssetAmountToNumber(
+			newPeg
+				.sub(oldPeg)
+				.mul(userMarketPosition.baseAssetAmount)
+				.div(PEG_PRECISION)
+		);
+
 		showCurve(marketIndex);
+		const totalCostToAMMChain = convertToNumber(marketData1.amm.totalFeeMinusDistributions
+			.sub(marketData.amm.totalFeeMinusDistributions), QUOTE_PRECISION);
+		console.log(linearApproxCostToAMM, 'vs', totalCostToAMMChain);
+		assert(linearApproxCostToAMM > totalCostToAMMChain);
+		assert(linearApproxCostToAMM/totalCostToAMMChain < 1.02);
 
 		await clearingHouse.closePosition(marketIndex);
 	});
