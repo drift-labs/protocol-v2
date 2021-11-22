@@ -53,3 +53,13 @@ pub struct MarketPosition {
     pub padding0: u128,
     pub padding1: u128,
 }
+
+impl MarketPosition {
+    pub fn is_for(&self, market_index: u64) -> bool {
+        return self.market_index == market_index && self.is_open_position();
+    }
+
+    pub fn is_open_position(&self) -> bool {
+        return self.base_asset_amount != 0;
+    }
+}

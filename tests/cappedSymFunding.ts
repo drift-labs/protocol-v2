@@ -184,19 +184,23 @@ async function cappedSymFundingScenario(
 	);
 	await clearingHouse.updateFundingPaused(true);
 
-	await clearingHouse.openPosition(
-		PositionDirection.LONG,
-		QUOTE_PRECISION.mul(new BN(longShortSizes[0])),
-		marketIndex
-	);
+	if (longShortSizes[0] !== 0) {
+		await clearingHouse.openPosition(
+			PositionDirection.LONG,
+			QUOTE_PRECISION.mul(new BN(longShortSizes[0])),
+			marketIndex
+		);
+	}
 
 	console.log('clearingHouse2.openPosition');
 	// try{
-	await clearingHouse2.openPosition(
-		PositionDirection.SHORT,
-		QUOTE_PRECISION.mul(new BN(longShortSizes[1])),
-		marketIndex
-	);
+	if (longShortSizes[1] !== 0) {
+		await clearingHouse2.openPosition(
+			PositionDirection.SHORT,
+			QUOTE_PRECISION.mul(new BN(longShortSizes[1])),
+			marketIndex
+		);
+	}
 	console.log(longShortSizes[0], longShortSizes[1]);
 	if (longShortSizes[0] != 0) {
 		assert(!userAccount.getTotalPositionValue().eq(new BN(0)));
@@ -287,9 +291,12 @@ async function cappedSymFundingScenario(
 	assert(!fundingRateShort.eq(new BN(0)));
 
 	assert(fundingRateShort.lte(fundingRateLong));
-	await clearingHouse.closePosition(marketIndex);
-
-	await clearingHouse2.closePosition(marketIndex);
+	if (longShortSizes[0] !== 0) {
+		await clearingHouse.closePosition(marketIndex);
+	}
+	if (longShortSizes[1] !== 0) {
+		await clearingHouse2.closePosition(marketIndex);
+	}
 
 	return [
 		fundingRateLong,

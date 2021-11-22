@@ -466,7 +466,7 @@ pub mod clearing_house {
         let mut market_position = user_positions
             .positions
             .iter_mut()
-            .find(|market_position| market_position.market_index == market_index);
+            .find(|market_position| market_position.is_for(market_index));
 
         // If they don't have an existing position, look into the positions account for a spot for space
         // for a new position
@@ -474,7 +474,7 @@ pub mod clearing_house {
             let available_position_index = user_positions
                 .positions
                 .iter()
-                .position(|market_position| market_position.base_asset_amount == 0);
+                .position(|market_position| !market_position.is_open_position());
 
             if available_position_index.is_none() {
                 return Err(ErrorCode::MaxNumberOfPositions.into());
@@ -816,7 +816,7 @@ pub mod clearing_house {
         let market_position = user_positions
             .positions
             .iter_mut()
-            .find(|market_position| market_position.market_index == market_index);
+            .find(|market_position| market_position.is_for(market_index));
         if market_position.is_none() {
             return Err(ErrorCode::UserHasNoPositionInMarket.into());
         }
