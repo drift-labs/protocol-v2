@@ -11,7 +11,7 @@ pub fn calculate(
     fee_structure: &FeeStructure,
     discount_token: Option<TokenAccount>,
     referrer: &Option<Account<User>>,
-) -> ClearingHouseResult<(u128, u128, u128, u128)> {
+) -> ClearingHouseResult<(u128, u128, u128, u128, u128)> {
     let fee = quote_asset_amount
         .checked_mul(fee_structure.fee_numerator)
         .ok_or_else(math_error!())?
@@ -23,15 +23,17 @@ pub fn calculate(
     let (referrer_reward, referee_discount) =
         calculate_referral_reward_and_referee_discount(fee, fee_structure, referrer)?;
 
-    let fee = fee
+    let user_fee = fee
         .checked_sub(token_discount)
-        .ok_or_else(math_error!())?
-        .checked_sub(referrer_reward)
         .ok_or_else(math_error!())?
         .checked_sub(referee_discount)
         .ok_or_else(math_error!())?;
 
-    return Ok((fee, token_discount, referrer_reward, referee_discount));
+    let fee_to_market = user_fee
+        .checked_sub(referrer_reward)
+        .ok_or_else(math_error!())?;
+
+    return Ok((user_fee, fee_to_market, token_discount, referrer_reward, referee_discount));
 }
 
 fn calculate_token_discount(

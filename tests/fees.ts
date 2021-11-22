@@ -162,8 +162,8 @@ describe('fees', () => {
 			userAccountPublicKey
 		);
 
-		assert(user.collateral.eq(new BN(9981500)));
-		assert(user.totalFeePaid.eq(new BN(18500)));
+		assert(user.collateral.eq(new BN(9981000)));
+		assert(user.totalFeePaid.eq(new BN(19000)));
 		assert(user.totalTokenDiscount.eq(new BN(500)));
 		assert(user.totalRefereeDiscount.eq(new BN(500)));
 
@@ -197,8 +197,8 @@ describe('fees', () => {
 			userAccountPublicKey
 		);
 
-		assert(user.collateral.eq(new BN(9973500)));
-		assert(user.totalFeePaid.eq(new BN(26500)));
+		assert(user.collateral.eq(new BN(9972500)));
+		assert(user.totalFeePaid.eq(new BN(27500)));
 		assert(user.totalTokenDiscount.eq(new BN(1500)));
 		assert(user.totalRefereeDiscount.eq(new BN(1000)));
 
@@ -232,8 +232,8 @@ describe('fees', () => {
 			userAccountPublicKey
 		);
 
-		assert(user.collateral.eq(new BN(9966000)));
-		assert(user.totalFeePaid.eq(new BN(34000)));
+		assert(user.collateral.eq(new BN(9964500)));
+		assert(user.totalFeePaid.eq(new BN(35500)));
 		assert(user.totalTokenDiscount.eq(new BN(3000)));
 		assert(user.totalRefereeDiscount.eq(new BN(1500)));
 
@@ -267,8 +267,8 @@ describe('fees', () => {
 			userAccountPublicKey
 		);
 
-		assert(user.collateral.eq(new BN(9959700)));
-		assert(user.totalFeePaid.eq(new BN(40300)));
+		assert(user.collateral.eq(new BN(9957750)));
+		assert(user.totalFeePaid.eq(new BN(42250)));
 		assert(user.totalTokenDiscount.eq(new BN(4800)));
 		assert(user.totalRefereeDiscount.eq(new BN(1950)));
 
@@ -291,8 +291,8 @@ describe('fees', () => {
 			userAccountPublicKey
 		);
 
-		assert(user.collateral.eq(new BN(9925400)));
-		assert(user.totalFeePaid.eq(new BN(74600)));
+		assert(user.collateral.eq(new BN(9921000)));
+		assert(user.totalFeePaid.eq(new BN(79000)));
 		assert(user.totalTokenDiscount.eq(new BN(14600)));
 		assert(user.totalRefereeDiscount.eq(new BN(4400)));
 

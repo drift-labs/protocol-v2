@@ -643,7 +643,7 @@ pub mod clearing_house {
             &user.key(),
             &ctx.accounts.authority.key(),
         )?;
-        let (fee, token_discount, referrer_reward, referee_discount) = fees::calculate(
+        let (user_fee, fee_to_market, token_discount, referrer_reward, referee_discount) = fees::calculate(
             quote_asset_amount,
             &ctx.accounts.state.fee_structure,
             discount_token,
@@ -657,22 +657,22 @@ pub mod clearing_house {
             market.amm.total_fee = market
                 .amm
                 .total_fee
-                .checked_add(fee)
+                .checked_add(fee_to_market)
                 .ok_or_else(math_error!())?;
             market.amm.total_fee_minus_distributions = market
                 .amm
                 .total_fee_minus_distributions
-                .checked_add(fee)
+                .checked_add(fee_to_market)
                 .ok_or_else(math_error!())?;
         }
 
         // Subtract the fee from user's collateral
-        user.collateral = user.collateral.checked_sub(fee).or(Some(0)).unwrap();
+        user.collateral = user.collateral.checked_sub(user_fee).or(Some(0)).unwrap();
 
         // Increment the user's total fee variables
         user.total_fee_paid = user
             .total_fee_paid
-            .checked_add(fee)
+            .checked_add(user_fee)
             .ok_or_else(math_error!())?;
         user.total_token_discount = user
             .total_token_discount
@@ -721,7 +721,7 @@ pub mod clearing_house {
             quote_asset_amount,
             mark_price_before,
             mark_price_after,
-            fee,
+            fee: user_fee,
             token_discount,
             referrer_reward,
             referee_discount,
@@ -845,7 +845,7 @@ pub mod clearing_house {
             &user.key(),
             &ctx.accounts.authority.key(),
         )?;
-        let (fee, token_discount, referrer_reward, referee_discount) = fees::calculate(
+        let (user_fee, fee_to_market, token_discount, referrer_reward, referee_discount) = fees::calculate(
             quote_asset_amount,
             &ctx.accounts.state.fee_structure,
             discount_token,
@@ -856,21 +856,21 @@ pub mod clearing_house {
         market.amm.total_fee = market
             .amm
             .total_fee
-            .checked_add(fee)
+            .checked_add(fee_to_market)
             .ok_or_else(math_error!())?;
         market.amm.total_fee_minus_distributions = market
             .amm
             .total_fee_minus_distributions
-            .checked_add(fee)
+            .checked_add(fee_to_market)
             .ok_or_else(math_error!())?;
 
         // Subtract the fee from user's collateral
-        user.collateral = user.collateral.checked_sub(fee).or(Some(0)).unwrap();
+        user.collateral = user.collateral.checked_sub(user_fee).or(Some(0)).unwrap();
 
         // Increment the user's total fee variables
         user.total_fee_paid = user
             .total_fee_paid
-            .checked_add(fee)
+            .checked_add(user_fee)
             .ok_or_else(math_error!())?;
         user.total_token_discount = user
             .total_token_discount
@@ -916,7 +916,7 @@ pub mod clearing_house {
             mark_price_before,
             mark_price_after,
             liquidation: false,
-            fee,
+            fee: user_fee,
             token_discount,
             referrer_reward,
             referee_discount,
