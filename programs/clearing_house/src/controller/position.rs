@@ -228,7 +228,6 @@ pub fn close(
     }
 
     market_position.base_asset_amount = 0;
-    market_position.market_index = 0;
 
     Ok(())
 }
