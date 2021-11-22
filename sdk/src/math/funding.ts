@@ -103,7 +103,7 @@ import { calculateMarkPrice } from './market';
 	if(largerSide.gt(ZERO)){
 		cappedAltEst = smallerSide.mul(twapSpread).div(largerSide);
 		const feePoolTopOff = feePoolSize.mul(MARK_PRICE_PRECISION.div(QUOTE_PRECISION))
-		.div(largerSide).div(AMM_RESERVE_PRECISION);
+		.mul(AMM_RESERVE_PRECISION).div(largerSide);
 		cappedAltEst = cappedAltEst.add(feePoolTopOff);
 	
 		cappedAltEst = cappedAltEst.mul(MARK_PRICE_PRECISION)
