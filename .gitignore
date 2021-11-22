@@ -10,3 +10,4 @@ sdk/src/**/*.js
 sdk/src/**/*.js.map
 .DS_STORE
 .vscode
+migrations
