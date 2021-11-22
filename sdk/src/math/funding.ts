@@ -1,6 +1,6 @@
 import { BN } from '@project-serum/anchor';
 import {
-	AMM_RESERVE_PRECISION, MARK_PRICE_PRECISION, QUOTE_PRECISION
+	AMM_RESERVE_PRECISION, MARK_PRICE_PRECISION, QUOTE_PRECISION, ZERO
 } from '../constants/numericConstants';
 import { PythClient } from '../pythClient';
 import { Market } from '../types';
@@ -100,19 +100,24 @@ import { calculateMarkPrice } from './market';
 		return [lowerboundEst, interpEst, interpEst];
 	}
 
-	cappedAltEst = smallerSide.mul(twapSpread).div(largerSide);
-	const feePoolTopOff = feePoolSize.mul(MARK_PRICE_PRECISION.div(QUOTE_PRECISION))
-	.div(largerSide.div(AMM_RESERVE_PRECISION));
-	cappedAltEst = cappedAltEst.add(feePoolTopOff);
-
-	cappedAltEst = cappedAltEst.mul(MARK_PRICE_PRECISION)
-	.mul(new BN(100))
-	.div(oracleTwapWithMantissa)
-	.mul(periodAdjustment).div(hoursInDay);
-
-	if(cappedAltEst.abs().gt(interpEst.abs())){
+	if(largerSide.gt(ZERO)){
+		cappedAltEst = smallerSide.mul(twapSpread).div(largerSide);
+		const feePoolTopOff = feePoolSize.mul(MARK_PRICE_PRECISION.div(QUOTE_PRECISION))
+		.div(largerSide).div(AMM_RESERVE_PRECISION);
+		cappedAltEst = cappedAltEst.add(feePoolTopOff);
+	
+		cappedAltEst = cappedAltEst.mul(MARK_PRICE_PRECISION)
+		.mul(new BN(100))
+		.div(oracleTwapWithMantissa)
+		.mul(periodAdjustment).div(hoursInDay);
+	
+		if(cappedAltEst.abs().gt(interpEst.abs())){
+			cappedAltEst = interpEst;
+		}
+	} else{
 		cappedAltEst = interpEst;
 	}
+
 
 	return [lowerboundEst, cappedAltEst, interpEst];
 }
