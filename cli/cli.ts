@@ -164,6 +164,21 @@ commandWithDefaultOption('initialize-market')
 		}
 	);
 
+commandWithDefaultOption('update-discount-mint')
+	.argument('<discount mint>', 'New discount mint')
+	.action(
+		async (discountMint, options: OptionValues) => {
+			await wrapActionInAdminSubscribeUnsubscribe(
+				options,
+				async (admin: Admin) => {
+					log.info(`discountMint: ${discountMint}`);
+					discountMint = new PublicKey(discountMint);
+					await admin.updateDiscountMint(discountMint);
+				}
+			);
+		}
+	);
+
 commandWithDefaultOption('update-k')
 	.argument('<market>', 'The market to adjust k for')
 	.argument('<numerator>', 'Numerator to multiply k by')
