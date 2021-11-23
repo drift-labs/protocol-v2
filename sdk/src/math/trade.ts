@@ -12,6 +12,7 @@ import {
 	calculateAmmReservesAfterSwap,
 	calculatePrice,
 	getSwapDirection,
+	AssetType,
 } from './amm';
 import { squareRootBN } from './utils';
 
@@ -47,7 +48,8 @@ export type PriceImpactUnit =
 export function calculateTradeSlippage(
 	direction: PositionDirection,
 	amount: BN,
-	market: Market
+	market: Market,
+	inputAssetType: AssetType = 'quote',
 ): [BN, BN, BN, BN] {
 	const oldPrice = calculateMarkPrice(market);
 	if (amount.eq(ZERO)) {
@@ -56,7 +58,8 @@ export function calculateTradeSlippage(
 	const [acquiredBase, acquiredQuote] = calculateTradeAcquiredAmounts(
 		direction,
 		amount,
-		market
+		market,
+		inputAssetType
 	);
 
 	const entryPrice = calculatePrice(
@@ -103,7 +106,8 @@ export function calculateTradeSlippage(
 export function calculateTradeAcquiredAmounts(
 	direction: PositionDirection,
 	amount: BN,
-	market: Market
+	market: Market,
+	inputAssetType: AssetType = 'quote',
 ): [BN, BN] {
 	if (amount.eq(ZERO)) {
 		return [ZERO, ZERO];
@@ -112,9 +116,9 @@ export function calculateTradeAcquiredAmounts(
 	const [newQuoteAssetReserve, newBaseAssetReserve] =
 		calculateAmmReservesAfterSwap(
 			market.amm,
-			'quote',
+			inputAssetType,
 			amount,
-			getSwapDirection('quote', direction)
+			getSwapDirection(inputAssetType, direction)
 		);
 
 	const acquiredBase = market.amm.baseAssetReserve.sub(newBaseAssetReserve);
