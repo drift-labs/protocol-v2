@@ -12,12 +12,12 @@ use state::{
     user::{MarketPosition, User},
 };
 
-mod context;
-mod controller;
-mod error;
-mod math;
-mod optional_accounts;
-mod state;
+pub mod context;
+pub mod controller;
+pub mod error;
+pub mod math;
+pub mod optional_accounts;
+pub mod state;
 
 #[cfg(feature = "mainnet-beta")]
 declare_id!("dammHkt7jmytvbS3nHTxQNEcP59aE57nxwV21YdqEDN");
