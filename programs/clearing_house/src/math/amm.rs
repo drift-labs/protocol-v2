@@ -98,12 +98,12 @@ pub fn update_oracle_price_twap(
     amm: &mut AMM,
     now: i64,
     oracle_price: i128,
-) -> ClearingHouseResult {
+) -> ClearingHouseResult<i128> {
     let oracle_price_twap = calculate_new_oracle_price_twap(amm, now, oracle_price)?;
     amm.last_oracle_price_twap = oracle_price_twap;
     amm.last_oracle_price_twap_ts = now;
 
-    return Ok(());
+    return Ok(oracle_price_twap);
 }
 
 pub fn calculate_new_oracle_price_twap(
