@@ -65,33 +65,6 @@ pub fn update_mark_twap(
     return Ok(mark_twap);
 }
 
-#[allow(dead_code)]
-pub fn update_oracle_mark_spread_twap(
-    amm: &mut AMM,
-    now: i64,
-    new_spread: i128,
-) -> ClearingHouseResult<i128> {
-    let since_last = cast_to_i128(max(
-        1,
-        now.checked_sub(amm.last_mark_price_twap_ts)
-            .ok_or_else(math_error!())?,
-    ))?;
-
-    let from_start = max(
-        1,
-        ONE_HOUR.checked_sub(since_last).ok_or_else(math_error!())?,
-    );
-
-    let new_twap = calculate_twap(
-        new_spread,
-        amm.last_oracle_mark_spread_twap,
-        since_last,
-        from_start,
-    )?;
-    amm.last_oracle_mark_spread_twap = new_twap;
-    return Ok(new_twap);
-}
-
 pub fn calculate_new_mark_twap(
     amm: &AMM,
     now: i64,
@@ -117,6 +90,43 @@ pub fn calculate_new_mark_twap(
         since_last,
         from_start,
     )?)?;
+
+    return Ok(new_twap);
+}
+
+pub fn update_oracle_price_twap(
+    amm: &mut AMM,
+    now: i64,
+    oracle_price: i128,
+) -> ClearingHouseResult {
+    let oracle_price_twap = calculate_new_oracle_price_twap(amm, now, oracle_price)?;
+    amm.last_oracle_price_twap = oracle_price_twap;
+    amm.last_oracle_price_twap_ts = now;
+
+    return Ok(());
+}
+
+pub fn calculate_new_oracle_price_twap(
+    amm: &AMM,
+    now: i64,
+    oracle_price: i128,
+) -> ClearingHouseResult<i128> {
+    let since_last = cast_to_i128(max(
+        1,
+        now.checked_sub(amm.last_oracle_price_twap_ts)
+            .ok_or_else(math_error!())?,
+    ))?;
+    let from_start = max(
+        1,
+        ONE_HOUR.checked_sub(since_last).ok_or_else(math_error!())?,
+    );
+
+    let new_twap = calculate_twap(
+        oracle_price,
+        amm.last_oracle_price_twap,
+        since_last,
+        from_start,
+    )?;
 
     return Ok(new_twap);
 }

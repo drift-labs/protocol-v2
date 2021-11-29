@@ -227,6 +227,12 @@ pub mod clearing_house {
             .checked_mul(bn::U192::from(amm_quote_asset_amount))
             .ok_or_else(math_error!())?;
 
+        // Verify oracle is readable
+        let (_, oracle_price_twap, _, _, _) = market
+            .amm
+            .get_oracle_price(&ctx.accounts.oracle, clock_slot)
+            .unwrap();
+
         let market = Market {
             initialized: true,
             base_asset_amount_long: 0,
@@ -250,7 +256,7 @@ pub mod clearing_house {
                 last_funding_rate: 0,
                 last_funding_rate_ts: now,
                 funding_period: amm_periodicity,
-                last_oracle_mark_spread_twap: 0,
+                last_oracle_price_twap: oracle_price_twap,
                 last_mark_price_twap: init_mark_price,
                 last_mark_price_twap_ts: now,
                 sqrt_k: amm_base_asset_amount,
@@ -259,6 +265,7 @@ pub mod clearing_house {
                 total_fee_withdrawn: 0,
                 total_fee_minus_distributions: 0,
                 minimum_trade_size: 10000000,
+                last_oracle_price_twap_ts: now,
                 padding0: 0,
                 padding1: 0,
                 padding2: 0,
@@ -266,12 +273,6 @@ pub mod clearing_house {
                 padding4: 0,
             },
         };
-
-        // Verify oracle is readable
-        market
-            .amm
-            .get_oracle_price(&ctx.accounts.oracle, clock_slot)
-            .unwrap();
 
         markets.markets[Markets::index_from_u64(market_index)] = market;
 
@@ -520,7 +521,7 @@ pub mod clearing_house {
             let market = &mut ctx.accounts.markets.load_mut()?.markets
                 [Markets::index_from_u64(market_index)];
             mark_price_before = market.amm.mark_price()?;
-            let (_, _, _oracle_mark_spread_pct_before) = amm::calculate_oracle_mark_spread_pct(
+            let (oracle_price, _, _oracle_mark_spread_pct_before) = amm::calculate_oracle_mark_spread_pct(
                 &market.amm,
                 &ctx.accounts.oracle,
                 0,
@@ -534,6 +535,10 @@ pub mod clearing_house {
                 clock_slot,
                 &ctx.accounts.state.oracle_guard_rails.validity,
             )?;
+
+            if is_oracle_valid {
+                amm::update_oracle_price_twap(&mut market.amm, now, oracle_price)?;
+            }
         }
 
         // The trade increases the the user position if
@@ -901,6 +906,16 @@ pub mod clearing_house {
             clock_slot,
             Some(mark_price_after),
         )?;
+
+        let is_oracle_valid = amm::is_oracle_valid(
+            &market.amm,
+            &ctx.accounts.oracle,
+            clock_slot,
+            &ctx.accounts.state.oracle_guard_rails.validity,
+        )?;
+        if is_oracle_valid {
+            amm::update_oracle_price_twap(&mut market.amm, now, oracle_price_after)?;
+        }
 
         // Add to the trade history account
         let trade_history_account = &mut ctx.accounts.trade_history.load_mut()?;

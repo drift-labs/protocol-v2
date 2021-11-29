@@ -221,6 +221,8 @@ export type AMM = {
 	lastFundingRateTs: BN;
 	lastMarkPriceTwap: BN;
 	lastMarkPriceTwapTs: BN;
+	lastOraclePriceTwap: BN;
+	lastOraclePriceTwapTs: BN;
 	oracle: PublicKey;
 	oracleSource: OracleSource;
 	fundingPeriod: BN;
