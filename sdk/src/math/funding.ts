@@ -30,11 +30,7 @@ import { calculateMarkPrice } from './market';
 	}
 
 	const payFreq = new BN(market.amm.fundingPeriod);
-
-	const oraclePriceData = await pythClient.getPriceData(market.amm.oracle);
-	const oracleTwapWithMantissa = new BN(
-		oraclePriceData.twap.value * MARK_PRICE_PRECISION.toNumber()
-	);
+	const oracleTwapWithMantissa = market.amm.lastOraclePriceTwap;
 
 	const now = new BN((Date.now() / 1000).toFixed(0));
 	const timeSinceLastUpdate = now.sub(market.amm.lastFundingRateTs);
