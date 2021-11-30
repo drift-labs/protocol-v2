@@ -302,9 +302,14 @@ export type Candle = {
 };
 export interface FundingPayment {
 	userPublicKey: string;
-	ts: number;
-	marketIndex: number;
-	amount: string;
+    serverTs: number;
+    marketIndex: number;
+    amount: string;
+    blockchainTs: number;
+    baseAssetAmount: string;
+    userLastCumulativeFunding: string;
+    userLastFundingRateTs: string;
+    rate:number;
 }
 
 // # Misc Types
