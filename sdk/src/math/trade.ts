@@ -49,7 +49,7 @@ export function calculateTradeSlippage(
 	direction: PositionDirection,
 	amount: BN,
 	market: Market,
-	inputAssetType: AssetType = 'quote',
+	inputAssetType: AssetType = 'quote'
 ): [BN, BN, BN, BN] {
 	const oldPrice = calculateMarkPrice(market);
 	if (amount.eq(ZERO)) {
@@ -107,7 +107,7 @@ export function calculateTradeAcquiredAmounts(
 	direction: PositionDirection,
 	amount: BN,
 	market: Market,
-	inputAssetType: AssetType = 'quote',
+	inputAssetType: AssetType = 'quote'
 ): [BN, BN] {
 	if (amount.eq(ZERO)) {
 		return [ZERO, ZERO];

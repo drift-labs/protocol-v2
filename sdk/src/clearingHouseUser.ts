@@ -224,11 +224,14 @@ export class ClearingHouseUser {
 	 * calculates average exit price for closing 100% of position
 	 * @returns : Precision MARK_PRICE_PRECISION
 	 */
-	public getPositionEstimatedExitPrice(position: UserPosition, amountToClose?: BN): BN {
+	public getPositionEstimatedExitPrice(
+		position: UserPosition,
+		amountToClose?: BN
+	): BN {
 		const market = this.clearingHouse.getMarket(position.marketIndex);
 
-		if(amountToClose){
-			if(amountToClose.eq(ZERO)){
+		if (amountToClose) {
+			if (amountToClose.eq(ZERO)) {
 				return calculateMarkPrice(market);
 			}
 			position = {
