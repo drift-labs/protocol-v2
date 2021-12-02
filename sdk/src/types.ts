@@ -266,6 +266,7 @@ export interface Trade {
 	afterPrice: number;
 	side: TradeSide;
 	size: number;
+	quoteSize: number;
 	ts: number;
 	fee: number;
 	marketIndex: number;
