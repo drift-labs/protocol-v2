@@ -411,7 +411,7 @@ export class ClearingHouseUser {
 			);
 
 		// if the position value after the trade is less than total collateral, there is no liq price
-		if (targetTotalPositionValueUSDC.lte(totalCollateralUSDC)) {
+		if (targetTotalPositionValueUSDC.lte(totalCollateralUSDC) && proposedMarketPosition.baseAssetAmount.gt(ZERO)) {
 			return new BN(-1);
 		}
 

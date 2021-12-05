@@ -28,7 +28,8 @@ export type PriceImpactUnit =
 	| 'quoteAssetAmount'
 	| 'quoteAssetAmountPeg'
 	| 'acquiredBaseAssetAmount'
-	| 'acquiredQuoteAssetAmount';
+	| 'acquiredQuoteAssetAmount'
+	| 'all';
 
 /**
  * Calculates avg/max slippage (price impact) for candidate trade
