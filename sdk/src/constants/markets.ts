@@ -30,11 +30,11 @@ export const Markets: Market[] = [
 		devnetPythOracle: 'EdVCmQ9FSPcVe5YySXDPCRmc8aDQLKJ9xvYBMZPie1Vw',
 		mainnetPythOracle: 'JBu1AL4obBcCMqKBBxhpWCNUt136ijcuMZLFvTP7iWdB',
 	},
-	// {
-	// 	symbol: 'COPE-PERP',
-	// 	baseAssetSymbol: 'COPE',
-	// 	marketIndex: new BN(3),
-	// 	devnetPythOracle: 'BAXDJUXtz6P5ARhHH1aPwgv4WENzHwzyhmLYK4daFwiM',
-	// 	mainnetPythOracle: '9xYBiDWYsh2fHzpsz3aaCnNHCKWBNtfEDLtU6kS4aFD9',
-	// },
+	{
+		symbol: 'LUNA-PERP',
+		baseAssetSymbol: 'LUNA',
+		marketIndex: new BN(3),
+		devnetPythOracle: '8PugCXTAHLM9kfLSQWe2njE5pzAgUdpPk3Nx5zSm7BD3',
+		mainnetPythOracle: '5bmWuR1dgP4avtGYMNKLuxumZTVKGgoN2BCMXWDNL9nY',
+	},
 ];
