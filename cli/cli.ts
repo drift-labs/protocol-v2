@@ -302,6 +302,70 @@ commandWithDefaultOption('repeg')
 		);
 	});
 
+commandWithDefaultOption('pause-exchange')
+	.action(async (options: OptionValues) => {
+		await wrapActionInAdminSubscribeUnsubscribe(
+			options,
+			async (admin: Admin) => {
+				const answer = await promptly.prompt(`Are you sure you want to 'pause' the exchange? y/n`);
+				if (answer !== 'y') {
+					log.info("Canceling");
+					return;
+				}
+				await admin.updateExchangePaused(true);
+				log.info(`Exchange was paused`);
+			}
+		);
+	});
+
+commandWithDefaultOption('unpause-exchange')
+	.action(async (options: OptionValues) => {
+		await wrapActionInAdminSubscribeUnsubscribe(
+			options,
+			async (admin: Admin) => {
+				const answer = await promptly.prompt(`Are you sure you want to 'unpause' the exchange? y/n`);
+				if (answer !== 'y') {
+					log.info("Canceling");
+					return;
+				}
+				await admin.updateExchangePaused(false);
+				log.info(`Exchange was unpaused`);
+			}
+		);
+	});
+
+commandWithDefaultOption('pause-funding')
+	.action(async (market, options: OptionValues) => {
+		await wrapActionInAdminSubscribeUnsubscribe(
+			options,
+			async (admin: Admin) => {
+				const answer = await promptly.prompt(`Are you sure you want to 'pause' funding? y/n`);
+				if (answer !== 'y') {
+					log.info("Canceling");
+					return;
+				}
+				await admin.updateFundingPaused(true);
+				log.info(`Funding was paused`);
+			}
+		);
+	});
+
+commandWithDefaultOption('unpause-funding')
+	.action(async (market, options: OptionValues) => {
+		await wrapActionInAdminSubscribeUnsubscribe(
+			options,
+			async (admin: Admin) => {
+				const answer = await promptly.prompt(`Are you sure you want to 'unpause' funding? y/n`);
+				if (answer !== 'y') {
+					log.info("Canceling");
+					return;
+				}
+				await admin.updateFundingPaused(false);
+				log.info(`Funding was unpaused`);
+			}
+		);
+	});
+
 commandWithDefaultOption('deposit')
 	.argument('<amount>', 'The amount to deposit')
 	.action(async (amount, options: OptionValues) => {
