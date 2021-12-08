@@ -14,7 +14,9 @@
 		"@solana/spl-token": "^0.1.8",
 		"@solana/web3.js": "^1.30.2",
 		"@types/node": "^16.7.10",
+		"colors": "^1.4.0",
 		"commander": "^8.1.0",
-		"loglevel": "^1.7.1"
+		"loglevel": "^1.7.1",
+		"promptly": "^3.2.0"
 	}
 }

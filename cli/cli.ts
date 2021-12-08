@@ -1,5 +1,7 @@
 #!/usr/bin/env node
-import { Command, OptionValues, program } from 'commander';
+import commander, { Command, OptionValues, program } from 'commander';
+const promptly = require('promptly');
+const colors = require('colors');
 import os from 'os';
 import fs from 'fs';
 import log from 'loglevel';
@@ -112,6 +114,10 @@ async function wrapActionInUserSubscribeUnsubscribe(
 	log.info(`ClearingHouse unsubscribed`);
 }
 
+function logError(msg: string) {
+	log.error(colors.red(msg));
+}
+
 commandWithDefaultOption('initialize')
 	.argument('<collateral mint>', 'The collateral mint')
 	.argument(
@@ -179,10 +185,11 @@ commandWithDefaultOption('update-discount-mint')
 		}
 	);
 
-commandWithDefaultOption('update-k')
+commandWithDefaultOption('increase-k')
 	.argument('<market>', 'The market to adjust k for')
 	.argument('<numerator>', 'Numerator to multiply k by')
 	.argument('<denominator>', 'Denominator to divide k by')
+	.option('--force', 'Skip percent change check')
 	.action(async (market, numerator, denominator, options: OptionValues) => {
 		await wrapActionInAdminSubscribeUnsubscribe(
 			options,
@@ -193,6 +200,70 @@ commandWithDefaultOption('update-k')
 				market = new BN(market);
 				numerator = new BN(numerator);
 				denominator = new BN(denominator);
+
+				if (numerator.lt(denominator)) {
+					logError("To increase k, numerator must be larger than denominator");
+					return;
+				}
+
+				const percentChange = Math.abs(numerator.toNumber() / denominator.toNumber() * 100 - 100);
+				if (percentChange > 10 && options.force !== true) {
+					logError(`Specified input would lead to ${percentChange.toFixed(2)}% change`);
+					return;
+				}
+
+				const answer = await promptly.prompt(`You are increasing k by ${percentChange}%. Are you sure you want to do this? y/n`);
+				if (answer !== 'y') {
+					log.info("Canceling");
+					return;
+				}
+
+				const amm = admin.getMarketsAccount().markets[market.toNumber()].amm;
+				const oldSqrtK = amm.sqrtK;
+				log.info(`Current sqrt k: ${oldSqrtK.toString()}`);
+
+				const newSqrtK = oldSqrtK.mul(numerator).div(denominator);
+				log.info(`New sqrt k: ${newSqrtK.toString()}`);
+
+				log.info(`Updating K`);
+				await admin.updateK(newSqrtK, market);
+				log.info(`Updated K`);
+			}
+		);
+	});
+
+commandWithDefaultOption('decrease-k')
+	.argument('<market>', 'The market to adjust k for')
+	.argument('<numerator>', 'Numerator to multiply k by')
+	.argument('<denominator>', 'Denominator to divide k by')
+	.option('--force', 'Skip percent change check')
+	.action(async (market, numerator, denominator, options: OptionValues) => {
+		await wrapActionInAdminSubscribeUnsubscribe(
+			options,
+			async (admin: Admin) => {
+				log.info(`market: ${market}`);
+				log.info(`numerator: ${numerator}`);
+				log.info(`denominator: ${denominator}`);
+				market = new BN(market);
+				numerator = new BN(numerator);
+				denominator = new BN(denominator);
+
+				if (numerator.gt(denominator)) {
+					logError("To decrease k, numerator must be less than denominator");
+					return;
+				}
+
+				const percentChange = Math.abs(numerator.toNumber() / denominator.toNumber() * 100 - 100);
+				if (percentChange > 10) {
+					logError(`Specified input would lead to ${percentChange.toFixed(2)}% change`);
+					return;
+				}
+
+				const answer = await promptly.prompt(`You are decreasing k by ${percentChange}%. Are you sure you want to do this? y/n`);
+				if (answer !== 'y' && options.force !== true) {
+					log.info("Canceling");
+					return;
+				}
 
 				const amm = admin.getMarketsAccount().markets[market.toNumber()].amm;
 				const oldSqrtK = amm.sqrtK;
