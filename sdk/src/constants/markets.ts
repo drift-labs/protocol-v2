@@ -37,4 +37,11 @@ export const Markets: Market[] = [
 		devnetPythOracle: '8PugCXTAHLM9kfLSQWe2njE5pzAgUdpPk3Nx5zSm7BD3',
 		mainnetPythOracle: '5bmWuR1dgP4avtGYMNKLuxumZTVKGgoN2BCMXWDNL9nY',
 	},
+	{
+		symbol: 'AVAX-PERP',
+		baseAssetSymbol: 'AVAX',
+		marketIndex: new BN(4),
+		devnetPythOracle: 'FVb5h1VmHPfVb1RfqZckchq18GxRv4iKt8T4eVTQAqdz',
+		mainnetPythOracle: 'Ax9ujW5B9oqcv59N8m6f1BpTBq2rGeGaBcpKjC5UYsXU',
+	},
 ];
