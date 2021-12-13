@@ -145,30 +145,32 @@ export class ClearingHouseUser {
 	 * calculates unrealized position price pnl
 	 * @returns : Precision QUOTE_PRECISION
 	 */
-	public getUnrealizedPNL(withFunding?: boolean): BN {
-		return this.getUserPositionsAccount().positions.reduce(
-			(pnl, marketPosition) => {
+	public getUnrealizedPNL(withFunding?: boolean, marketIndex?: BN): BN {
+		return this.getUserPositionsAccount()
+			.positions.filter((pos) =>
+				marketIndex ? pos.marketIndex === marketIndex : true
+			)
+			.reduce((pnl, marketPosition) => {
 				const market = this.clearingHouse.getMarket(marketPosition.marketIndex);
 				return pnl.add(
 					calculatePositionPNL(market, marketPosition, withFunding)
 				);
-			},
-			ZERO
-		);
+			}, ZERO);
 	}
 
 	/**
 	 * calculates unrealized funding payment pnl
 	 * @returns : Precision QUOTE_PRECISION
 	 */
-	public getUnrealizedFundingPNL(): BN {
-		return this.getUserPositionsAccount().positions.reduce(
-			(pnl, marketPosition) => {
+	public getUnrealizedFundingPNL(marketIndex?: BN): BN {
+		return this.getUserPositionsAccount()
+			.positions.filter((pos) =>
+				marketIndex ? pos.marketIndex === marketIndex : true
+			)
+			.reduce((pnl, marketPosition) => {
 				const market = this.clearingHouse.getMarket(marketPosition.marketIndex);
 				return pnl.add(calculatePositionFundingPNL(market, marketPosition));
-			},
-			ZERO
-		);
+			}, ZERO);
 	}
 
 	/**
@@ -411,7 +413,10 @@ export class ClearingHouseUser {
 			);
 
 		// if the position value after the trade is less than total collateral, there is no liq price
-		if (targetTotalPositionValueUSDC.lte(totalCollateralUSDC) && proposedMarketPosition.baseAssetAmount.gt(ZERO)) {
+		if (
+			targetTotalPositionValueUSDC.lte(totalCollateralUSDC) &&
+			proposedMarketPosition.baseAssetAmount.gt(ZERO)
+		) {
 			return new BN(-1);
 		}
 

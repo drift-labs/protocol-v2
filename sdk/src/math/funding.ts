@@ -43,9 +43,12 @@ export async function calculateAllEstimatedFundingRate(
 	const lastMarkPriceTwapTs = market.amm.lastMarkPriceTwapTs;
 
 	const timeSinceLastMarkChange = now.sub(lastMarkPriceTwapTs);
-	const markTwapTimeSinceLastUpdate = BN.max(secondsInHour, secondsInHour.sub(timeSinceLastMarkChange));
+	const markTwapTimeSinceLastUpdate = BN.max(
+		secondsInHour,
+		secondsInHour.sub(timeSinceLastMarkChange)
+	);
 	const baseAssetPriceWithMantissa = calculateMarkPrice(market);
-	
+
 	const markTwapWithMantissa = markTwapTimeSinceLastUpdate
 		.mul(lastMarkTwapWithMantissa)
 		.add(timeSinceLastMarkChange.mul(baseAssetPriceWithMantissa))
@@ -57,9 +60,15 @@ export async function calculateAllEstimatedFundingRate(
 	const lastOraclePriceTwapTs = market.amm.lastOraclePriceTwapTs;
 
 	const timeSinceLastOracleTwapUpdate = now.sub(lastOraclePriceTwapTs);
-	const oracleTwapTimeSinceLastUpdate = BN.max(secondsInHour, secondsInHour.sub(timeSinceLastOracleTwapUpdate));
+	const oracleTwapTimeSinceLastUpdate = BN.max(
+		secondsInHour,
+		secondsInHour.sub(timeSinceLastOracleTwapUpdate)
+	);
 	const oraclePriceData = await pythClient.getPriceData(market.amm.oracle);
-	const oraclePriceStableWithMantissa = new BN(((oraclePriceData.price + oraclePriceData.previousPrice)/2) * MARK_PRICE_PRECISION.toNumber());
+	const oraclePriceStableWithMantissa = new BN(
+		((oraclePriceData.price + oraclePriceData.previousPrice) / 2) *
+			MARK_PRICE_PRECISION.toNumber()
+	);
 
 	const oracleTwapWithMantissa = oracleTwapTimeSinceLastUpdate
 		.mul(lastOracleTwapWithMantissa)
@@ -98,17 +107,35 @@ export async function calculateAllEstimatedFundingRate(
 	if (market.baseAssetAmountLong.gt(market.baseAssetAmountShort.abs())) {
 		largerSide = market.baseAssetAmountLong.abs();
 		smallerSide = market.baseAssetAmountShort.abs();
-		if(twapSpread.gt(new BN(0))) {
-			return [markTwapWithMantissa, oracleTwapWithMantissa, lowerboundEst, interpEst, interpEst];
+		if (twapSpread.gt(new BN(0))) {
+			return [
+				markTwapWithMantissa,
+				oracleTwapWithMantissa,
+				lowerboundEst,
+				interpEst,
+				interpEst,
+			];
 		}
 	} else if (market.baseAssetAmountLong.lt(market.baseAssetAmountShort.abs())) {
 		largerSide = market.baseAssetAmountShort.abs();
 		smallerSide = market.baseAssetAmountLong.abs();
-		if(twapSpread.lt(new BN(0))){
-			return [markTwapWithMantissa, oracleTwapWithMantissa, lowerboundEst, interpEst, interpEst];
+		if (twapSpread.lt(new BN(0))) {
+			return [
+				markTwapWithMantissa,
+				oracleTwapWithMantissa,
+				lowerboundEst,
+				interpEst,
+				interpEst,
+			];
 		}
-	} else{
-		return [markTwapWithMantissa, oracleTwapWithMantissa, lowerboundEst, interpEst, interpEst];
+	} else {
+		return [
+			markTwapWithMantissa,
+			oracleTwapWithMantissa,
+			lowerboundEst,
+			interpEst,
+			interpEst,
+		];
 	}
 
 	if (largerSide.gt(ZERO)) {
@@ -119,7 +146,7 @@ export async function calculateAllEstimatedFundingRate(
 			.mul(AMM_RESERVE_PRECISION)
 			.div(largerSide);
 
-			cappedAltEst = cappedAltEst.add(feePoolTopOff);
+		cappedAltEst = cappedAltEst.add(feePoolTopOff);
 
 		cappedAltEst = cappedAltEst
 			.mul(MARK_PRICE_PRECISION)
@@ -134,8 +161,13 @@ export async function calculateAllEstimatedFundingRate(
 		cappedAltEst = interpEst;
 	}
 
-
-	return [markTwapWithMantissa, oracleTwapWithMantissa, lowerboundEst, cappedAltEst, interpEst];
+	return [
+		markTwapWithMantissa,
+		oracleTwapWithMantissa,
+		lowerboundEst,
+		cappedAltEst,
+		interpEst,
+	];
 }
 
 /**
@@ -182,11 +214,12 @@ export async function calculateLongShortFundingRate(
 	pythClient: PythClient,
 	periodAdjustment: BN = new BN(1)
 ): Promise<[BN, BN]> {
-	const [_1, _2, _, cappedAltEst, interpEst] = await calculateAllEstimatedFundingRate(
-		market,
-		pythClient,
-		periodAdjustment
-	);
+	const [_1, _2, _, cappedAltEst, interpEst] =
+		await calculateAllEstimatedFundingRate(
+			market,
+			pythClient,
+			periodAdjustment
+		);
 
 	if (market.baseAssetAmountLong.gt(market.baseAssetAmountShort)) {
 		return [cappedAltEst, interpEst];
@@ -198,29 +231,32 @@ export async function calculateLongShortFundingRate(
 }
 
 /**
- * 
- * @param market 
- * @param pythClient 
- * @param periodAdjustment 
- * @param estimationMethod 
+ *
+ * @param market
+ * @param pythClient
+ * @param periodAdjustment
+ * @param estimationMethod
  * @returns Estimated funding rate. : Precision //TODO-PRECISION
  */
- export async function calculateLongShortFundingRateAndLiveTwaps(
+export async function calculateLongShortFundingRateAndLiveTwaps(
 	market: Market,
 	pythClient: PythClient,
-	periodAdjustment: BN = new BN(1),
+	periodAdjustment: BN = new BN(1)
 ): Promise<[BN, BN, BN, BN]> {
-	const [markTwapLive, oracleTwapLive, _2, cappedAltEst, interpEst] = 
-		await calculateAllEstimatedFundingRate(market, pythClient, periodAdjustment);
+	const [markTwapLive, oracleTwapLive, _2, cappedAltEst, interpEst] =
+		await calculateAllEstimatedFundingRate(
+			market,
+			pythClient,
+			periodAdjustment
+		);
 
-	if(market.baseAssetAmountLong.gt(market.baseAssetAmountShort.abs())){
+	if (market.baseAssetAmountLong.gt(market.baseAssetAmountShort.abs())) {
 		return [markTwapLive, oracleTwapLive, cappedAltEst, interpEst];
-	} else if(market.baseAssetAmountLong.lt(market.baseAssetAmountShort.abs())){
+	} else if (market.baseAssetAmountLong.lt(market.baseAssetAmountShort.abs())) {
 		return [markTwapLive, oracleTwapLive, interpEst, cappedAltEst];
-	} else{
+	} else {
 		return [markTwapLive, oracleTwapLive, interpEst, interpEst];
 	}
-
 }
 
 /**

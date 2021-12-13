@@ -244,6 +244,9 @@ export type UserPosition = {
 	lastCumulativeFundingRate: BN;
 	marketIndex: BN;
 	quoteAssetAmount: BN;
+	unrealizedPnl?: BN;
+	unrealizedFundingPnl?: BN;
+	baseAssetValue?: BN;
 };
 
 export type UserPositionsAccount = {
@@ -259,59 +262,16 @@ export type UserAccount = {
 	totalFeePaid: BN;
 };
 
-// # UI ↔ History Server Data Types
-export interface Trade {
-	price: number;
-	beforePrice: number;
-	afterPrice: number;
-	side: TradeSide;
-	size: number;
-	quoteSize: number;
-	ts: number;
-	fee: number;
-	marketIndex: number;
-	chainTs: number;
-}
-
-export type Liquidation = {
-	ts: number;
-	chainTs: number;
-	recordId: number;
+export type UserSnapshotRecord = {
+	ts: BN;
 	userAuthority: PublicKey;
 	user: PublicKey;
-	partial: boolean;
-	baseAssetValue: number;
-	baseAssetValueClosed: number;
-	liquidationFee: number;
-	feeToLiquidator: number;
-	feeToInsuranceFund: number;
-	liquidator: PublicKey;
-	totalCollateral: number;
-	collateral: number;
-	unrealizedPnl: number;
-	marginRatio: number;
+	userPositions: UserPosition[];
+	userTotalRealizedPnl: BN;
+	userTotalUnrealizedPnl: BN;
+	userTotalUnrealizedFundingPnl: BN;
+	userCollateral: BN;
 };
-
-export type Candle = {
-	open: number;
-	close: number;
-	high: number;
-	low: number;
-	volume: number;
-	start: number;
-	end: number;
-};
-export interface FundingPayment {
-	userPublicKey: string;
-	serverTs: number;
-	marketIndex: number;
-	amount: string;
-	blockchainTs: number;
-	baseAssetAmount: string;
-	userLastCumulativeFunding: string;
-	userLastFundingRateTs: string;
-	rate: number;
-}
 
 // # Misc Types
 export interface IWallet {
