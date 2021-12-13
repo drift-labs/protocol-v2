@@ -999,6 +999,23 @@ pub mod clearing_house {
                 let market =
                     &mut markets.markets[Markets::index_from_u64(market_position.market_index)];
 
+                // Block the liquidation if the oracle is invalid or the oracle and mark are too divergent
+                let oracle_account_info = ctx
+                    .remaining_accounts
+                    .iter()
+                    .find(|account_info| account_info.key.eq(&market.amm.oracle))
+                    .ok_or(ErrorCode::OracleNotFound)?;
+                let (liquidations_blocked, oracle_price) = math::oracle::block_operation(
+                    &market.amm,
+                    &oracle_account_info,
+                    clock_slot,
+                    &state.oracle_guard_rails,
+                    None,
+                )?;
+                if liquidations_blocked {
+                    return Err(ErrorCode::LiquidationsBlockedByOracle.into());
+                }
+
                 let direction_to_close =
                     math::position::direction_to_close_position(market_position.base_asset_amount);
                 let (base_asset_value, _pnl) = math::position::calculate_base_asset_value_and_pnl(
@@ -1011,23 +1028,6 @@ pub mod clearing_house {
                 let mark_price_before = market.amm.mark_price()?;
                 controller::position::close(user, market, market_position, now)?;
                 let mark_price_after = market.amm.mark_price()?;
-
-                // Block the liquidation if the oracle is invalid or the oracle and mark are too divergent
-                let oracle_account_info = ctx
-                    .remaining_accounts
-                    .iter()
-                    .find(|account_info| account_info.key.eq(&market.amm.oracle))
-                    .ok_or(ErrorCode::OracleNotFound)?;
-                let (liquidations_blocked, oracle_price) = math::oracle::block_operation(
-                    &market.amm,
-                    &oracle_account_info,
-                    clock_slot,
-                    &state.oracle_guard_rails,
-                    Some(mark_price_after),
-                )?;
-                if liquidations_blocked {
-                    return Err(ErrorCode::LiquidationsBlockedByOracle.into());
-                }
 
                 let record_id = trade_history.next_record_id();
                 trade_history.append(TradeRecord {
@@ -1060,6 +1060,22 @@ pub mod clearing_house {
                     &mut markets.markets[Markets::index_from_u64(market_position.market_index)];
 
                 let mark_price_before = market.amm.mark_price()?;
+
+                let oracle_account_info = ctx
+                    .remaining_accounts
+                    .iter()
+                    .find(|account_info| account_info.key.eq(&market.amm.oracle))
+                    .ok_or(ErrorCode::OracleNotFound)?;
+                let (liquidations_blocked, oracle_price) = math::oracle::block_operation(
+                    &market.amm,
+                    &oracle_account_info,
+                    clock_slot,
+                    &state.oracle_guard_rails,
+                    Some(mark_price_before),
+                )?;
+                if liquidations_blocked {
+                    return Err(ErrorCode::LiquidationsBlockedByOracle.into());
+                }
 
                 let (base_asset_value, _pnl) =
                     calculate_base_asset_value_and_pnl(market_position, &market.amm)?;
@@ -1096,24 +1112,6 @@ pub mod clearing_house {
                     .unsigned_abs();
 
                 let mark_price_after = market.amm.mark_price()?;
-
-                let oracle_account_info = ctx
-                    .remaining_accounts
-                    .iter()
-                    .find(|account_info| account_info.key.eq(&market.amm.oracle))
-                    .ok_or(ErrorCode::OracleNotFound)?;
-                let (liquidations_blocked, oracle_price) = math::oracle::block_operation(
-                    &market.amm,
-                    &oracle_account_info,
-                    clock_slot,
-                    &state.oracle_guard_rails,
-                    Some(mark_price_after),
-                )?;
-
-                if liquidations_blocked {
-                    return Err(ErrorCode::LiquidationsBlockedByOracle.into());
-                }
-
                 let record_id = trade_history.next_record_id();
                 trade_history.append(TradeRecord {
                     ts: now,
