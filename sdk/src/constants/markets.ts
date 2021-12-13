@@ -44,4 +44,11 @@ export const Markets: Market[] = [
 		devnetPythOracle: 'FVb5h1VmHPfVb1RfqZckchq18GxRv4iKt8T4eVTQAqdz',
 		mainnetPythOracle: 'Ax9ujW5B9oqcv59N8m6f1BpTBq2rGeGaBcpKjC5UYsXU',
 	},
+	{
+		symbol: 'BNB-PERP',
+		baseAssetSymbol: 'BNB',
+		marketIndex: new BN(5),
+		devnetPythOracle: 'GwzBgrXb4PG59zjce24SF2b9JXbLEjJJTBkmytuEZj1b',
+		mainnetPythOracle: '4CkQJBxhU8EZ2UjhigbtdaPbpTe6mqf811fipYBFbSYN',
+	},
 ];
