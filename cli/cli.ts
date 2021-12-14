@@ -5,7 +5,7 @@ const colors = require('colors');
 import os from 'os';
 import fs from 'fs';
 import log from 'loglevel';
-import { Admin, ClearingHouseUser, initialize } from '@drift-labs/sdk';
+import { Admin, ClearingHouseUser, initialize, Markets } from '@drift-labs/sdk';
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import { Wallet } from '@project-serum/anchor';
 import BN from 'bn.js';
@@ -118,6 +118,16 @@ function logError(msg: string) {
 	log.error(colors.red(msg));
 }
 
+function marketIndexFromSymbol(symbol: string) : BN {
+	const market = Markets.filter(market => market.baseAssetSymbol === symbol)[0];
+	if (!market) {
+		const msg = `Could not find market index for ${symbol}`;
+		logError(msg);
+		throw Error(msg);
+	}
+	return market.marketIndex;
+}
+
 commandWithDefaultOption('initialize')
 	.argument('<collateral mint>', 'The collateral mint')
 	.argument(
@@ -197,7 +207,7 @@ commandWithDefaultOption('increase-k')
 				log.info(`market: ${market}`);
 				log.info(`numerator: ${numerator}`);
 				log.info(`denominator: ${denominator}`);
-				market = new BN(market);
+				market = marketIndexFromSymbol(market);
 				numerator = new BN(numerator);
 				denominator = new BN(denominator);
 
@@ -244,7 +254,7 @@ commandWithDefaultOption('decrease-k')
 				log.info(`market: ${market}`);
 				log.info(`numerator: ${numerator}`);
 				log.info(`denominator: ${denominator}`);
-				market = new BN(market);
+				market = marketIndexFromSymbol(market);
 				numerator = new BN(numerator);
 				denominator = new BN(denominator);
 
@@ -288,7 +298,7 @@ commandWithDefaultOption('repeg')
 			async (admin: Admin) => {
 				log.info(`market: ${market}`);
 				log.info(`peg: ${peg}`);
-				market = new BN(market);
+				market = marketIndexFromSymbol(market);
 				peg = new BN(peg);
 
 				const amm = admin.getMarketsAccount().markets[market.toNumber()].amm;
