@@ -345,7 +345,7 @@ commandWithDefaultOption('unpause-exchange')
 	});
 
 commandWithDefaultOption('pause-funding')
-	.action(async (market, options: OptionValues) => {
+	.action(async (options: OptionValues) => {
 		await wrapActionInAdminSubscribeUnsubscribe(
 			options,
 			async (admin: Admin) => {
@@ -361,7 +361,7 @@ commandWithDefaultOption('pause-funding')
 	});
 
 commandWithDefaultOption('unpause-funding')
-	.action(async (market, options: OptionValues) => {
+	.action(async (options: OptionValues) => {
 		await wrapActionInAdminSubscribeUnsubscribe(
 			options,
 			async (admin: Admin) => {
