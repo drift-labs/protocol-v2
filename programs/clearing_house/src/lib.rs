@@ -541,6 +541,7 @@ pub mod clearing_house {
             }
         }
 
+        let mut quote_asset_amount = quote_asset_amount;
         // The trade increases the the user position if
         // 1) the user does not have a position
         // 2) the trade is in the same direction as the user's existing position
@@ -564,6 +565,12 @@ pub mod clearing_house {
 
             let (base_asset_value, _unrealized_pnl) =
                 calculate_base_asset_value_and_pnl(market_position, &market.amm)?;
+
+            // if the quote_asset_amount is close enough in value to base_asset_value,
+            // round the quote_asset_amount to be the same as base_asset_value
+            if amm::should_round_trade(&market.amm, quote_asset_amount, base_asset_value, direction)? {
+                quote_asset_amount = base_asset_value;
+            }
 
             // we calculate what the user's position is worth if they closed to determine
             // if they are reducing or closing and reversing their position

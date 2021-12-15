@@ -4,12 +4,14 @@ use anchor_lang::prelude::AccountInfo;
 use solana_program::msg;
 
 use crate::controller::amm::SwapDirection;
+use crate::controller::position::PositionDirection;
 use crate::error::*;
 use crate::math::bn;
 use crate::math::bn::U192;
 use crate::math::casting::{cast, cast_to_i128, cast_to_u128};
 use crate::math::constants::{MARK_PRICE_PRECISION, ONE_HOUR, PRICE_TO_PEG_PRECISION_RATIO};
 use crate::math::position::_calculate_base_asset_value_and_pnl;
+use crate::math::quote_asset::asset_to_reserve_precision;
 use crate::math_error;
 use crate::state::market::{Market, AMM};
 use crate::state::state::{PriceDivergenceGuardRails, ValidityGuardRails};
@@ -326,4 +328,32 @@ pub fn adjust_k_cost(market: &mut Market, new_sqrt_k: bn::U256) -> ClearingHouse
     )?;
 
     Ok(cost)
+}
+
+pub fn should_round_trade(
+    amm: &AMM,
+    quote_asset_amount: u128,
+    base_asset_value: u128,
+    direction: PositionDirection,
+) -> ClearingHouseResult<bool> {
+    let difference = if quote_asset_amount > base_asset_value {
+        quote_asset_amount
+            .checked_sub(base_asset_value)
+            .ok_or_else(math_error!())?
+    } else {
+        base_asset_value
+            .checked_sub(quote_asset_amount)
+            .ok_or_else(math_error!())?
+    };
+
+    msg!("quote_asset_amount {}", quote_asset_amount);
+    msg!("base_asset_value {}", base_asset_value);
+    msg!("difference {}", difference);
+    let round_up = direction == PositionDirection::Short;
+    let quote_asset_reserve_amount = asset_to_reserve_precision(amm, difference, round_up)?;
+
+    msg!("quote_asset_reserve_amount {}", quote_asset_reserve_amount);
+    msg!("amm.minimum_trade_size {}", amm.minimum_trade_size);
+
+    return Ok(quote_asset_reserve_amount < amm.minimum_trade_size);
 }
