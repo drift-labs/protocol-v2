@@ -540,7 +540,7 @@ export class ClearingHouseUser {
 		// add any position we have on the opposite side of the current trade, because we can "flip" the size of this position without taking any extra leverage.
 		const oppositeSizeValueUSDC = getOppositePositionValueUSDC();
 
-		maxPositionSize = maxPositionSize.add(oppositeSizeValueUSDC);
+		maxPositionSize = maxPositionSize.add(oppositeSizeValueUSDC.mul(new BN(2)));
 
 		// subtract oneMillionth of maxPositionSize
 		// => to avoid rounding errors when taking max leverage
