@@ -260,7 +260,7 @@ describe('AMM Curve', () => {
 		marketsAccount = clearingHouse.getMarketsAccount();
 		marketData = marketsAccount.markets[marketIndex.toNumber()];
 		console.log(marketData.amm);
-		console.log()
+		console.log();
 		assert(
 			marketData.amm.totalFee.gte(marketData.amm.totalFeeMinusDistributions)
 		);
@@ -304,8 +304,8 @@ describe('AMM Curve', () => {
 			QUOTE_PRECISION.mul(new BN(100000)),
 			marketIndex
 		);
-		let marketsAccount1 = clearingHouse.getMarketsAccount();
-		let marketData1 = marketsAccount1.markets[marketIndex.toNumber()];
+		const marketsAccount1 = clearingHouse.getMarketsAccount();
+		const marketData1 = marketsAccount1.markets[marketIndex.toNumber()];
 		const ammAccountState = marketData1.amm;
 		const oldPeg = ammAccountState.pegMultiplier;
 

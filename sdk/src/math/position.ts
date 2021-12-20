@@ -1,18 +1,15 @@
-import { Market, PositionDirection, UserPosition } from '../types';
-import {
-	AMM_TO_QUOTE_PRECISION_RATIO,
-	MARK_PRICE_PRECISION,
-	PEG_PRECISION,
-	QUOTE_PRECISION,
-	ZERO,
-} from '../constants/numericConstants';
 import BN from 'bn.js';
-import { calculateAmmReservesAfterSwap, getSwapDirection } from './amm';
 import {
 	AMM_RESERVE_PRECISION,
+	AMM_TO_QUOTE_PRECISION_RATIO,
 	FUNDING_PAYMENT_PRECISION,
+	MARK_PRICE_PRECISION,
+	PEG_PRECISION,
 	PRICE_TO_QUOTE_PRECISION,
+	ZERO,
 } from '../constants/numericConstants';
+import { Market, PositionDirection, UserPosition } from '../types';
+import { calculateAmmReservesAfterSwap, getSwapDirection } from './amm';
 
 /**
  * calculateBaseAssetValue

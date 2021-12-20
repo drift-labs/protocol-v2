@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import commander, { Command, OptionValues, program } from 'commander';
+import { Command, OptionValues, program } from 'commander';
 const promptly = require('promptly');
 const colors = require('colors');
 import os from 'os';

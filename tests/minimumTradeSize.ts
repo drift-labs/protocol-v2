@@ -18,7 +18,7 @@ import { Markets } from '../sdk/src/constants/markets';
 import { mockOracle, mockUSDCMint, mockUserUSDCAccount } from './testHelpers';
 import {calculateBaseAssetValue, FeeStructure, UserAccount, UserPositionsAccount, ZERO} from '../sdk';
 
-const calculateTradeAmount = (amountOfCollateral: BN) => {
+const _calculateTradeAmount = (amountOfCollateral: BN) => {
     const ONE_MANTISSA = new BN(100000);
     const fee = ONE_MANTISSA.div(new BN(1000));
     const tradeAmount = amountOfCollateral
@@ -243,7 +243,7 @@ describe('minimum trade size', () => {
 
         const market = primaryClearingHouse.getMarket(0);
         let position = userPositions.positions[0];
-        const baseAssetValue = calculateBaseAssetValue(market, position);
+        const _baseAssetValue = calculateBaseAssetValue(market, position);
 
         await clearingHouse.openPosition(
             PositionDirection.LONG,
@@ -389,7 +389,7 @@ describe('minimum trade size', () => {
             new BN(0)
         );
 
-        const market = primaryClearingHouse.getMarket(0);
+        const _market = primaryClearingHouse.getMarket(0);
         let position = userPositions.positions[0];
 
         await clearingHouse.openPosition(
