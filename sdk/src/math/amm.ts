@@ -5,8 +5,10 @@ import {
 	PEG_PRECISION,
 	ZERO,
 } from '../constants/numericConstants';
-import { AMM, PositionDirection, SwapDirection } from '../types';
+import { calculateBaseAssetValue } from './position';
+import { AMM, PositionDirection, SwapDirection, Market } from '../types';
 import { assert } from '../assert/assert';
+import { calculatePositionPNL, calculateMarkPrice, convertToNumber } from '..';
 
 /**
  * Calculates a price given an arbitrary base and quote amount (they must have the same precision)
@@ -135,4 +137,86 @@ export function getSwapDirection(
 	}
 
 	return SwapDirection.ADD;
+}
+
+/**
+ * Helper function calculating adjust k cost
+ * @param market
+ * @param marketIndex
+ * @param numerator
+ * @param denomenator
+ * @returns cost : Precision QUOTE_ASSET_PRECISION
+ */
+export function calculateAdjustKCost(
+	market: Market,
+	marketIndex: BN,
+	numerator: BN,
+	denomenator: BN
+): BN {
+	const netUserPosition = {
+		baseAssetAmount: market.baseAssetAmount,
+		lastCumulativeFundingRate: market.amm.cumulativeFundingRate,
+		marketIndex: new BN(marketIndex),
+		quoteAssetAmount: new BN(0),
+	};
+
+	const currentValue = calculateBaseAssetValue(market, netUserPosition);
+
+	const marketNewK = Object.assign({}, market);
+	marketNewK.amm = Object.assign({}, market.amm);
+
+	marketNewK.amm.baseAssetReserve = market.amm.baseAssetReserve
+		.mul(numerator)
+		.div(denomenator);
+	marketNewK.amm.quoteAssetReserve = market.amm.quoteAssetReserve
+		.mul(numerator)
+		.div(denomenator);
+	marketNewK.amm.sqrtK = market.amm.sqrtK.mul(numerator).div(denomenator);
+
+	netUserPosition.quoteAssetAmount = currentValue;
+
+	const cost = calculatePositionPNL(marketNewK, netUserPosition);
+
+	return cost;
+}
+
+/**
+ * Helper function calculating adjust pegMultiplier (repeg) cost
+ *
+ * @param market
+ * @param marketIndex
+ * @param newPeg
+ * @returns cost : Precision QUOTE_ASSET_PRECISION
+ */
+export function calculateRepegCost(
+	market: Market,
+	marketIndex: BN,
+	newPeg: BN
+): BN {
+	const netUserPosition = {
+		baseAssetAmount: market.baseAssetAmount,
+		lastCumulativeFundingRate: market.amm.cumulativeFundingRate,
+		marketIndex: new BN(marketIndex),
+		quoteAssetAmount: new BN(0),
+	};
+
+	const currentValue = calculateBaseAssetValue(market, netUserPosition);
+	netUserPosition.quoteAssetAmount = currentValue;
+	const prevMarketPrice = calculateMarkPrice(market);
+	const marketNewPeg = Object.assign({}, market);
+	marketNewPeg.amm = Object.assign({}, market.amm);
+
+	// const marketNewPeg = JSON.parse(JSON.stringify(market));
+	marketNewPeg.amm.pegMultiplier = newPeg;
+
+	console.log(
+		'Price moves from',
+		convertToNumber(prevMarketPrice),
+		'to',
+		convertToNumber(calculateMarkPrice(marketNewPeg))
+	);
+
+	const cost = calculatePositionPNL(marketNewPeg, netUserPosition);
+
+	return cost;
 }

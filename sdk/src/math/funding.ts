@@ -1,4 +1,5 @@
 import { BN } from '@project-serum/anchor';
+import { convertToNumber } from '..';
 import {
 	AMM_RESERVE_PRECISION,
 	MARK_PRICE_PRECISION,
@@ -65,15 +66,40 @@ export async function calculateAllEstimatedFundingRate(
 		secondsInHour.sub(timeSinceLastOracleTwapUpdate)
 	);
 	const oraclePriceData = await pythClient.getPriceData(market.amm.oracle);
+
+	// verify pyth input is positive for live update
+	let oracleStablePriceNum = 0;
+	let oracleInputCount = 0;
+	if (oraclePriceData.price >= 0) {
+		oracleStablePriceNum += oraclePriceData.price;
+		oracleInputCount += 1;
+	}
+	if (oraclePriceData.previousPrice >= 0) {
+		oracleStablePriceNum += oraclePriceData.previousPrice;
+		oracleInputCount += 1;
+	}
+
+	oracleStablePriceNum = oracleStablePriceNum / oracleInputCount;
 	const oraclePriceStableWithMantissa = new BN(
-		((oraclePriceData.price + oraclePriceData.previousPrice) / 2) *
-			MARK_PRICE_PRECISION.toNumber()
+		oracleStablePriceNum * MARK_PRICE_PRECISION.toNumber()
 	);
 
-	const oracleTwapWithMantissa = oracleTwapTimeSinceLastUpdate
-		.mul(lastOracleTwapWithMantissa)
-		.add(timeSinceLastMarkChange.mul(oraclePriceStableWithMantissa))
-		.div(timeSinceLastOracleTwapUpdate.add(oracleTwapTimeSinceLastUpdate));
+	let oracleTwapWithMantissa = lastOracleTwapWithMantissa;
+
+	const oracleLiveVsTwap = oraclePriceStableWithMantissa
+		.sub(lastOracleTwapWithMantissa)
+		.abs()
+		.mul(MARK_PRICE_PRECISION)
+		.mul(new BN(100))
+		.div(lastOracleTwapWithMantissa);
+
+	// verify pyth live input is within 10% of last twap for live update
+	if (oracleLiveVsTwap.lte(MARK_PRICE_PRECISION.mul(new BN(10)))) {
+		oracleTwapWithMantissa = oracleTwapTimeSinceLastUpdate
+			.mul(lastOracleTwapWithMantissa)
+			.add(timeSinceLastMarkChange.mul(oraclePriceStableWithMantissa))
+			.div(timeSinceLastOracleTwapUpdate.add(oracleTwapTimeSinceLastUpdate));
+	}
 
 	const twapSpread = markTwapWithMantissa.sub(oracleTwapWithMantissa);
 
@@ -139,22 +165,20 @@ export async function calculateAllEstimatedFundingRate(
 	}
 
 	if (largerSide.gt(ZERO)) {
-		cappedAltEst = smallerSide.mul(twapSpread).div(largerSide);
-
+		// funding smaller flow
+		cappedAltEst = smallerSide.mul(twapSpread).div(hoursInDay);
 		const feePoolTopOff = feePoolSize
 			.mul(MARK_PRICE_PRECISION.div(QUOTE_PRECISION))
-			.mul(AMM_RESERVE_PRECISION)
-			.div(largerSide);
-
-		cappedAltEst = cappedAltEst.add(feePoolTopOff);
-
+			.mul(AMM_RESERVE_PRECISION);
+		cappedAltEst = cappedAltEst.add(feePoolTopOff).div(largerSide);
+		
 		cappedAltEst = cappedAltEst
 			.mul(MARK_PRICE_PRECISION)
 			.mul(new BN(100))
 			.div(oracleTwapWithMantissa)
-			.mul(periodAdjustment)
-			.div(hoursInDay);
-		if (cappedAltEst.abs().gt(interpEst.abs())) {
+			.mul(periodAdjustment);
+
+		if (cappedAltEst.abs().gte(interpEst.abs())) {
 			cappedAltEst = interpEst;
 		}
 	} else {

@@ -118,8 +118,10 @@ function logError(msg: string) {
 	log.error(colors.red(msg));
 }
 
-function marketIndexFromSymbol(symbol: string) : BN {
-	const market = Markets.filter(market => market.baseAssetSymbol === symbol)[0];
+function marketIndexFromSymbol(symbol: string): BN {
+	const market = Markets.filter(
+		(market) => market.baseAssetSymbol === symbol
+	)[0];
 	if (!market) {
 		const msg = `Could not find market index for ${symbol}`;
 		logError(msg);
@@ -150,14 +152,25 @@ commandWithDefaultOption('initialize')
 	);
 
 commandWithDefaultOption('initialize-market')
-	.argument('<market index>', 'Where the market will be initialized in the markets account')
+	.argument(
+		'<market index>',
+		'Where the market will be initialized in the markets account'
+	)
 	.argument('<price oracle>', 'The public key for the oracle')
 	.argument('<base asset reserve>', 'AMM base asset reserve')
 	.argument('<quote asset reserve>', 'AMM quote asset reserve')
 	.argument('<periodicity>', 'AMM quote asset reserve')
 	.argument('<peg multiplier>', 'AMM peg multiplier')
 	.action(
-		async (marketIndex, priceOracle, baseAssetReserve, quoteAssetReserve, periodicity, pegMultiplier, options: OptionValues) => {
+		async (
+			marketIndex,
+			priceOracle,
+			baseAssetReserve,
+			quoteAssetReserve,
+			periodicity,
+			pegMultiplier,
+			options: OptionValues
+		) => {
 			await wrapActionInAdminSubscribeUnsubscribe(
 				options,
 				async (admin: Admin) => {
@@ -174,7 +187,14 @@ commandWithDefaultOption('initialize-market')
 					log.info(`pegMultiplier: ${pegMultiplier}`);
 					pegMultiplier = new BN(pegMultiplier);
 					log.info(`Initializing market`);
-					await admin.initializeMarket(marketIndex, priceOracle, baseAssetReserve, quoteAssetReserve, periodicity, pegMultiplier);
+					await admin.initializeMarket(
+						marketIndex,
+						priceOracle,
+						baseAssetReserve,
+						quoteAssetReserve,
+						periodicity,
+						pegMultiplier
+					);
 				}
 			);
 		}
@@ -182,18 +202,16 @@ commandWithDefaultOption('initialize-market')
 
 commandWithDefaultOption('update-discount-mint')
 	.argument('<discount mint>', 'New discount mint')
-	.action(
-		async (discountMint, options: OptionValues) => {
-			await wrapActionInAdminSubscribeUnsubscribe(
-				options,
-				async (admin: Admin) => {
-					log.info(`discountMint: ${discountMint}`);
-					discountMint = new PublicKey(discountMint);
-					await admin.updateDiscountMint(discountMint);
-				}
-			);
-		}
-	);
+	.action(async (discountMint, options: OptionValues) => {
+		await wrapActionInAdminSubscribeUnsubscribe(
+			options,
+			async (admin: Admin) => {
+				log.info(`discountMint: ${discountMint}`);
+				discountMint = new PublicKey(discountMint);
+				await admin.updateDiscountMint(discountMint);
+			}
+		);
+	});
 
 commandWithDefaultOption('increase-k')
 	.argument('<market>', 'The market to adjust k for')
@@ -212,19 +230,25 @@ commandWithDefaultOption('increase-k')
 				denominator = new BN(denominator);
 
 				if (numerator.lt(denominator)) {
-					logError("To increase k, numerator must be larger than denominator");
+					logError('To increase k, numerator must be larger than denominator');
 					return;
 				}
 
-				const percentChange = Math.abs(numerator.toNumber() / denominator.toNumber() * 100 - 100);
+				const percentChange = Math.abs(
+					(numerator.toNumber() / denominator.toNumber()) * 100 - 100
+				);
 				if (percentChange > 10 && options.force !== true) {
-					logError(`Specified input would lead to ${percentChange.toFixed(2)}% change`);
+					logError(
+						`Specified input would lead to ${percentChange.toFixed(2)}% change`
+					);
 					return;
 				}
 
-				const answer = await promptly.prompt(`You are increasing k by ${percentChange}%. Are you sure you want to do this? y/n`);
+				const answer = await promptly.prompt(
+					`You are increasing k by ${percentChange}%. Are you sure you want to do this? y/n`
+				);
 				if (answer !== 'y') {
-					log.info("Canceling");
+					log.info('Canceling');
 					return;
 				}
 
@@ -259,19 +283,25 @@ commandWithDefaultOption('decrease-k')
 				denominator = new BN(denominator);
 
 				if (numerator.gt(denominator)) {
-					logError("To decrease k, numerator must be less than denominator");
+					logError('To decrease k, numerator must be less than denominator');
 					return;
 				}
 
-				const percentChange = Math.abs(numerator.toNumber() / denominator.toNumber() * 100 - 100);
+				const percentChange = Math.abs(
+					(numerator.toNumber() / denominator.toNumber()) * 100 - 100
+				);
 				if (percentChange > 10) {
-					logError(`Specified input would lead to ${percentChange.toFixed(2)}% change`);
+					logError(
+						`Specified input would lead to ${percentChange.toFixed(2)}% change`
+					);
 					return;
 				}
 
-				const answer = await promptly.prompt(`You are decreasing k by ${percentChange}%. Are you sure you want to do this? y/n`);
+				const answer = await promptly.prompt(
+					`You are decreasing k by ${percentChange}%. Are you sure you want to do this? y/n`
+				);
 				if (answer !== 'y' && options.force !== true) {
-					log.info("Canceling");
+					log.info('Canceling');
 					return;
 				}
 
@@ -312,69 +342,81 @@ commandWithDefaultOption('repeg')
 		);
 	});
 
-commandWithDefaultOption('pause-exchange')
-	.action(async (options: OptionValues) => {
+commandWithDefaultOption('pause-exchange').action(
+	async (options: OptionValues) => {
 		await wrapActionInAdminSubscribeUnsubscribe(
 			options,
 			async (admin: Admin) => {
-				const answer = await promptly.prompt(`Are you sure you want to 'pause' the exchange? y/n`);
+				const answer = await promptly.prompt(
+					`Are you sure you want to 'pause' the exchange? y/n`
+				);
 				if (answer !== 'y') {
-					log.info("Canceling");
+					log.info('Canceling');
 					return;
 				}
 				await admin.updateExchangePaused(true);
 				log.info(`Exchange was paused`);
 			}
 		);
-	});
+	}
+);
 
-commandWithDefaultOption('unpause-exchange')
-	.action(async (options: OptionValues) => {
+commandWithDefaultOption('unpause-exchange').action(
+	async (options: OptionValues) => {
 		await wrapActionInAdminSubscribeUnsubscribe(
 			options,
 			async (admin: Admin) => {
-				const answer = await promptly.prompt(`Are you sure you want to 'unpause' the exchange? y/n`);
+				const answer = await promptly.prompt(
+					`Are you sure you want to 'unpause' the exchange? y/n`
+				);
 				if (answer !== 'y') {
-					log.info("Canceling");
+					log.info('Canceling');
 					return;
 				}
 				await admin.updateExchangePaused(false);
 				log.info(`Exchange was unpaused`);
 			}
 		);
-	});
+	}
+);
 
-commandWithDefaultOption('pause-funding')
-	.action(async (options: OptionValues) => {
+commandWithDefaultOption('pause-funding').action(
+	async (options: OptionValues) => {
 		await wrapActionInAdminSubscribeUnsubscribe(
 			options,
 			async (admin: Admin) => {
-				const answer = await promptly.prompt(`Are you sure you want to 'pause' funding? y/n`);
+				const answer = await promptly.prompt(
+					`Are you sure you want to 'pause' funding? y/n`
+				);
 				if (answer !== 'y') {
-					log.info("Canceling");
+					log.info('Canceling');
 					return;
 				}
 				await admin.updateFundingPaused(true);
 				log.info(`Funding was paused`);
 			}
 		);
-	});
+	}
+);
 
-commandWithDefaultOption('unpause-funding')
-	.action(async (options: OptionValues) => {
+commandWithDefaultOption('unpause-funding').action(
+	async (options: OptionValues) => {
 		await wrapActionInAdminSubscribeUnsubscribe(
 			options,
 			async (admin: Admin) => {
-				const answer = await promptly.prompt(`Are you sure you want to 'unpause' funding? y/n`);
+				const answer = await promptly.prompt(
+					`Are you sure you want to 'unpause' funding? y/n`
+				);
 				if (answer !== 'y') {
-					log.info("Canceling");
+					log.info('Canceling');
 					return;
 				}
 				await admin.updateFundingPaused(false);
 				log.info(`Funding was unpaused`);
 			}
 		);
-	});
+	}
+);
 
 commandWithDefaultOption('deposit')
 	.argument('<amount>', 'The amount to deposit')

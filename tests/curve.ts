@@ -246,7 +246,10 @@ describe('AMM Curve', () => {
 		const priceBefore = calculateMarkPrice(
 			clearingHouse.getMarket(marketIndex)
 		);
-		await clearingHouse.repegAmmCurve(new BN(150.001 * PEG_PRECISION.toNumber()), marketIndex);
+		await clearingHouse.repegAmmCurve(
+			new BN(150.001 * PEG_PRECISION.toNumber()),
+			marketIndex
+		);
 		const priceAfter = calculateMarkPrice(clearingHouse.getMarket(marketIndex));
 
 		assert(newOraclePriceWithMantissa.gt(priceBefore));
@@ -281,7 +284,7 @@ describe('AMM Curve', () => {
 		const totalCostToAMMChain = showCurve(marketIndex);
 
 		assert(linearApproxCostToAMM > totalCostToAMMChain);
-		assert(linearApproxCostToAMM/totalCostToAMMChain < 1.1);
+		assert(linearApproxCostToAMM / totalCostToAMMChain < 1.1);
 
 		// const feeDist1h = calculateFeeDist(marketIndex);
 
@@ -313,8 +316,10 @@ describe('AMM Curve', () => {
 			clearingHouse.getMarket(marketIndex)
 		);
 
-		
-		await clearingHouse.repegAmmCurve(new BN(148 * PEG_PRECISION.toNumber()), marketIndex);
+		await clearingHouse.repegAmmCurve(
+			new BN(148 * PEG_PRECISION.toNumber()),
+			marketIndex
+		);
 
 		const priceAfter = calculateMarkPrice(clearingHouse.getMarket(marketIndex));
 
@@ -339,11 +344,15 @@ describe('AMM Curve', () => {
 		);
 
 		showCurve(marketIndex);
-		const totalCostToAMMChain = convertToNumber(marketData1.amm.totalFeeMinusDistributions
-			.sub(marketData.amm.totalFeeMinusDistributions), QUOTE_PRECISION);
+		const totalCostToAMMChain = convertToNumber(
+			marketData1.amm.totalFeeMinusDistributions.sub(
+				marketData.amm.totalFeeMinusDistributions
+			),
+			QUOTE_PRECISION
+		);
 		console.log(linearApproxCostToAMM, 'vs', totalCostToAMMChain);
 		assert(linearApproxCostToAMM > totalCostToAMMChain);
-		assert(linearApproxCostToAMM/totalCostToAMMChain < 1.02);
+		assert(linearApproxCostToAMM / totalCostToAMMChain < 1.02);
 
 		await clearingHouse.closePosition(marketIndex);
 	});
