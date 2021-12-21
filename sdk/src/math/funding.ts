@@ -171,7 +171,7 @@ export async function calculateAllEstimatedFundingRate(
 			.mul(MARK_PRICE_PRECISION.div(QUOTE_PRECISION))
 			.mul(AMM_RESERVE_PRECISION);
 		cappedAltEst = cappedAltEst.add(feePoolTopOff).div(largerSide);
-		
+
 		cappedAltEst = cappedAltEst
 			.mul(MARK_PRICE_PRECISION)
 			.mul(new BN(100))

@@ -4,7 +4,7 @@ import { EventEmitter } from 'events';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { ClearingHouse } from './clearingHouse';
 import { UserAccount, UserPosition, UserPositionsAccount } from './types';
-import {calculateEntryPrice} from './math/position';
+import { calculateEntryPrice } from './math/position';
 import {
 	MARK_PRICE_PRECISION,
 	AMM_TO_QUOTE_PRECISION_RATIO,
@@ -23,7 +23,7 @@ import {
 	calculatePositionFundingPNL,
 	calculatePositionPNL,
 	PositionDirection,
-	convertToNumber
+	convertToNumber,
 } from '.';
 import { getUserAccountPublicKey } from './addresses';
 
@@ -254,13 +254,15 @@ export class ClearingHouseUser {
 		}
 
 		const exitPrice = baseAssetValue
-		.mul(AMM_TO_QUOTE_PRECISION_RATIO)
-		.mul(MARK_PRICE_PRECISION)
-		.div(position.baseAssetAmount.abs())
+			.mul(AMM_TO_QUOTE_PRECISION_RATIO)
+			.mul(MARK_PRICE_PRECISION)
+			.div(position.baseAssetAmount.abs());
 
-		
 		const pnlPerBase = exitPrice.sub(entryPrice);
-		const pnl = pnlPerBase.mul(position.baseAssetAmount).div(MARK_PRICE_PRECISION).div(AMM_TO_QUOTE_PRECISION_RATIO)
+		const pnl = pnlPerBase
+			.mul(position.baseAssetAmount)
+			.div(MARK_PRICE_PRECISION)
+			.div(AMM_TO_QUOTE_PRECISION_RATIO);
 
 		return [exitPrice, pnl];
 	}
@@ -607,12 +609,12 @@ export class ClearingHouseUser {
 		const totalPositionAfterTradeExcludingTargetMarket =
 			this.getTotalPositionValueExcludingMarket(targetMarketIndex);
 		const newLeverage = currentMarketPositionAfterTrade
-		.add(totalPositionAfterTradeExcludingTargetMarket)
-		.abs()
-		.mul(TEN_THOUSAND)
-		.div(this.getTotalCollateral());
+			.add(totalPositionAfterTradeExcludingTargetMarket)
+			.abs()
+			.mul(TEN_THOUSAND)
+			.div(this.getTotalCollateral());
 
-		return newLeverage
+		return newLeverage;
 	}
 
 	/**
