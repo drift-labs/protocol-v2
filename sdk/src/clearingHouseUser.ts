@@ -98,6 +98,9 @@ export class ClearingHouseUser {
 				lastCumulativeFundingRate: ZERO,
 				marketIndex,
 				quoteAssetAmount: ZERO,
+				unrealizedPnl: ZERO,
+				unrealizedFundingPnl: ZERO,
+				baseAssetValue: ZERO,
 			}
 		);
 	}
@@ -410,6 +413,9 @@ export class ClearingHouseUser {
 			),
 			lastCumulativeFundingRate: new BN(0),
 			quoteAssetAmount: new BN(0),
+			unrealizedPnl: new BN(0),
+			unrealizedFundingPnl: new BN(0),
+			baseAssetValue: new BN(0),
 		};
 
 		const market = this.clearingHouse.getMarket(
