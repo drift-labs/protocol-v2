@@ -605,11 +605,18 @@ describe('clearing_house', () => {
 		const userPositionsAccount0: any =
 			await clearingHouse.program.account.userPositions.fetch(user0.positions);
 
-		const liqPrice = userAccount.liquidationPrice(
+		const liqPriceExact = userAccount.liquidationPrice(
 			userPositionsAccount0.positions[0],
 			new BN(0),
 			true
 		);
+
+		const liqPrice = userAccount.liquidationPriceOld(
+			userPositionsAccount0.positions[0],
+			new BN(0),
+			true
+		);
+		console.log(convertToNumber(liqPrice));
 
 		console.log(
 			'liqPrice move:',
@@ -761,11 +768,17 @@ describe('clearing_house', () => {
 		const userPositionsAccount0: any =
 			await clearingHouse.program.account.userPositions.fetch(user0.positions);
 
-		const liqPrice = userAccount.liquidationPrice(
+		const liqPriceExact = userAccount.liquidationPrice(
 			userPositionsAccount0.positions[0],
 			new BN(0),
 			false
 		);
+		const liqPrice = userAccount.liquidationPriceOld(
+			userPositionsAccount0.positions[0],
+			new BN(0),
+			false
+		);
+		console.log(convertToNumber(liqPrice));
 
 		const marketsAccount: any = clearingHouse.getMarketsAccount();
 		const marketData = marketsAccount.markets[0];
