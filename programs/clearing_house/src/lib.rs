@@ -568,7 +568,7 @@ pub mod clearing_house {
 
             // if the quote_asset_amount is close enough in value to base_asset_value,
             // round the quote_asset_amount to be the same as base_asset_value
-            if amm::should_round_trade(&market.amm, quote_asset_amount, base_asset_value, direction)? {
+            if amm::should_round_trade(&market.amm, quote_asset_amount, base_asset_value)? {
                 quote_asset_amount = base_asset_value;
             }
 

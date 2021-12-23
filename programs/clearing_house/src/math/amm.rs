@@ -4,7 +4,6 @@ use anchor_lang::prelude::AccountInfo;
 use solana_program::msg;
 
 use crate::controller::amm::SwapDirection;
-use crate::controller::position::PositionDirection;
 use crate::error::*;
 use crate::math::bn;
 use crate::math::bn::U192;
@@ -334,7 +333,6 @@ pub fn should_round_trade(
     amm: &AMM,
     quote_asset_amount: u128,
     base_asset_value: u128,
-    direction: PositionDirection,
 ) -> ClearingHouseResult<bool> {
     let difference = if quote_asset_amount > base_asset_value {
         quote_asset_amount
@@ -346,14 +344,7 @@ pub fn should_round_trade(
             .ok_or_else(math_error!())?
     };
 
-    msg!("quote_asset_amount {}", quote_asset_amount);
-    msg!("base_asset_value {}", base_asset_value);
-    msg!("difference {}", difference);
-    let round_up = direction == PositionDirection::Short;
-    let quote_asset_reserve_amount = asset_to_reserve_precision(amm, difference, round_up)?;
-
-    msg!("quote_asset_reserve_amount {}", quote_asset_reserve_amount);
-    msg!("amm.minimum_trade_size {}", amm.minimum_trade_size);
+    let quote_asset_reserve_amount = asset_to_reserve_precision(amm, difference, false)?;
 
     return Ok(quote_asset_reserve_amount < amm.minimum_trade_size);
 }
