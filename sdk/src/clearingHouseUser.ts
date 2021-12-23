@@ -540,6 +540,9 @@ export class ClearingHouseUser {
 				baseAssetAmount: proposedBaseAssetAmount,
 				lastCumulativeFundingRate: currentMarketPosition.lastCumulativeFundingRate,
 				quoteAssetAmount: new BN(0),
+				unrealizedFundingPnl: new BN(0),
+				unrealizedPnl: new BN(0),
+				baseAssetValue: new BN(0),
 			};
 	
 			const market = this.clearingHouse.getMarket(

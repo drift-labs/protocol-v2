@@ -220,3 +220,30 @@ export function calculateRepegCost(
 
 	return cost;
 }
+
+/**
+ * Helper function calculating terminal price of amm
+ *
+ * @param market
+ * @returns cost : Precision MARK_PRICE_PRECISION
+ */
+export function calculateTerminalPrice(market: Market){
+	const directionToClose = market.baseAssetAmount.gt(ZERO)
+	? PositionDirection.SHORT
+	: PositionDirection.LONG;
+
+	const [newQuoteAssetReserve, newBaseAssetReserve] =
+	calculateAmmReservesAfterSwap(
+		market.amm,
+		'base',
+		market.baseAssetAmount.abs(),
+		getSwapDirection('base', directionToClose)
+	);
+	const terminalPrice = newQuoteAssetReserve
+		.mul(MARK_PRICE_PRECISION)
+		.mul(market.amm.pegMultiplier)
+		.div(PEG_PRECISION)
+		.div(newBaseAssetReserve);
+
+	return terminalPrice
+}
