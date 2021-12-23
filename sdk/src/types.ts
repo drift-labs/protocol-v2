@@ -244,9 +244,6 @@ export type UserPosition = {
 	lastCumulativeFundingRate: BN;
 	marketIndex: BN;
 	quoteAssetAmount: BN;
-	unrealizedPnl: BN;
-	unrealizedFundingPnl: BN;
-	baseAssetValue: BN;
 };
 
 export type UserPositionsAccount = {
@@ -260,17 +257,6 @@ export type UserAccount = {
 	cumulativeDeposits: BN;
 	positions: PublicKey;
 	totalFeePaid: BN;
-};
-
-export type UserSnapshotRecord = {
-	ts: BN;
-	userAuthority: PublicKey;
-	user: PublicKey;
-	userPositions: UserPosition[];
-	userTotalRealizedPnl: BN;
-	userTotalUnrealizedPnl: BN;
-	userTotalUnrealizedFundingPnl: BN;
-	userCollateral: BN;
 };
 
 // # Misc Types
