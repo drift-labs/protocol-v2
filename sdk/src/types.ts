@@ -244,9 +244,9 @@ export type UserPosition = {
 	lastCumulativeFundingRate: BN;
 	marketIndex: BN;
 	quoteAssetAmount: BN;
-	unrealizedPnl?: BN;
-	unrealizedFundingPnl?: BN;
-	baseAssetValue?: BN;
+	unrealizedPnl: BN;
+	unrealizedFundingPnl: BN;
+	baseAssetValue: BN;
 };
 
 export type UserPositionsAccount = {
