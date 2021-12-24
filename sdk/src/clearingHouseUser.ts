@@ -588,6 +588,8 @@ export class ClearingHouseUser {
 			) {
 				return new BN(-1);
 			}
+
+			if (proposedBaseAssetAmount.eq(ZERO)) return new BN(-1);
 	
 			const eatMargin2 = priceDelt.mul(AMM_RESERVE_PRECISION).div(proposedBaseAssetAmount);
 	
