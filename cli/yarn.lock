@@ -12,7 +12,7 @@
 "@drift-labs/sdk@file:../sdk":
   version "0.1.12"
   dependencies:
-    "@project-serum/anchor" "^0.19.0"
+    "@project-serum/anchor" "0.19.1-beta.1"
     "@pythnetwork/client" "^2.4.0"
     "@solana/spl-token" "^0.1.6"
     "@solana/web3.js" "^1.22.0"
@@ -40,10 +40,10 @@
     "@ethersproject/logger" "^5.5.0"
     hash.js "1.1.7"
 
-"@project-serum/anchor@0.19.0", "@project-serum/anchor@^0.19.0":
-  version "0.19.0"
-  resolved "https://registry.yarnpkg.com/@project-serum/anchor/-/anchor-0.19.0.tgz#79f1fbe7c3134860ccbfe458a0e09daf79644885"
-  integrity sha512-cs0LBmJOrL9eJ8MRNqitnzbpCT5QEzVdJmiIjfNV5YaGn1K9vISR7DtISj3Bdl3KBdLqii4CTw1mpHdi8iXUCg==
+"@project-serum/anchor@0.19.1-beta.1":
+  version "0.19.1-beta.1"
+  resolved "https://registry.yarnpkg.com/@project-serum/anchor/-/anchor-0.19.1-beta.1.tgz#516b78432acabd8563831c3b9df4628ca34dba28"
+  integrity sha512-TzkgS5a4WUDJotmur9/pQhqeqa5W14h++ppF+oGZVoR0EkcLbW7SKpx/z80XhsHCIhWz9/1hBAkbKElXdKUUiw==
   dependencies:
     "@project-serum/borsh" "^0.2.2"
     "@solana/web3.js" "^1.17.0"

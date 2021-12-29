@@ -29,7 +29,7 @@
 		"access": "public"
 	},
 	"dependencies": {
-		"@project-serum/anchor": "^0.19.0",
+		"@project-serum/anchor": "0.19.1-beta.1",
 		"@pythnetwork/client": "^2.4.0",
 		"@solana/spl-token": "^0.1.6",
 		"@solana/web3.js": "^1.22.0",
