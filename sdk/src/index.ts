@@ -4,7 +4,6 @@ export * from './mockUSDCFaucet';
 export * from './pythClient';
 export * from './types';
 export * from './constants/markets';
-export * from './accounts/defaultHistoryAccountSubscriber';
 export * from './accounts/defaultClearingHouseAccountSubscriber';
 export * from './accounts/types';
 export * from './addresses';
