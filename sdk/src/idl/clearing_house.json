@@ -1,5 +1,5 @@
 {
-  "version": "0.0.0",
+  "version": "1.0.0",
   "name": "clearing_house",
   "instructions": [
     {
@@ -2573,197 +2573,197 @@
   ],
   "errors": [
     {
-      "code": 300,
+      "code": 6000,
       "name": "InvalidCollateralAccountAuthority",
       "msg": "Clearing house not collateral account owner"
     },
     {
-      "code": 301,
+      "code": 6001,
       "name": "InvalidInsuranceAccountAuthority",
       "msg": "Clearing house not insurance account owner"
     },
     {
-      "code": 302,
+      "code": 6002,
       "name": "InsufficientDeposit",
       "msg": "Insufficient deposit"
     },
     {
-      "code": 303,
+      "code": 6003,
       "name": "InsufficientCollateral",
       "msg": "Insufficient collateral"
     },
     {
-      "code": 304,
+      "code": 6004,
       "name": "SufficientCollateral",
       "msg": "Sufficient collateral"
     },
     {
-      "code": 305,
+      "code": 6005,
       "name": "MaxNumberOfPositions",
       "msg": "Max number of positions taken"
     },
     {
-      "code": 306,
+      "code": 6006,
       "name": "AdminControlsPricesDisabled",
       "msg": "Admin Controls Prices Disabled"
     },
     {
-      "code": 307,
+      "code": 6007,
       "name": "MarketIndexNotInitialized",
       "msg": "Market Index Not Initialized"
     },
     {
-      "code": 308,
+      "code": 6008,
       "name": "MarketIndexAlreadyInitialized",
       "msg": "Market Index Already Initialized"
     },
     {
-      "code": 309,
+      "code": 6009,
       "name": "UserAccountAndUserPositionsAccountMismatch",
       "msg": "User Account And User Positions Account Mismatch"
     },
     {
-      "code": 310,
+      "code": 6010,
       "name": "UserHasNoPositionInMarket",
       "msg": "User Has No Position In Market"
     },
     {
-      "code": 311,
+      "code": 6011,
       "name": "InvalidInitialPeg",
       "msg": "Invalid Initial Peg"
     },
     {
-      "code": 312,
+      "code": 6012,
       "name": "InvalidRepegRedundant",
       "msg": "AMM repeg already configured with amt given"
     },
     {
-      "code": 313,
+      "code": 6013,
       "name": "InvalidRepegDirection",
       "msg": "AMM repeg incorrect repeg direction"
     },
     {
-      "code": 314,
+      "code": 6014,
       "name": "InvalidRepegProfitability",
       "msg": "AMM repeg out of bounds pnl"
     },
     {
-      "code": 315,
+      "code": 6015,
       "name": "SlippageOutsideLimit",
       "msg": "Slippage Outside Limit Price"
     },
     {
-      "code": 316,
+      "code": 6016,
       "name": "TradeSizeTooSmall",
       "msg": "Trade Size Too Small"
     },
     {
-      "code": 317,
+      "code": 6017,
       "name": "InvalidUpdateK",
       "msg": "Price change too large when updating K"
     },
     {
-      "code": 318,
+      "code": 6018,
       "name": "AdminWithdrawTooLarge",
       "msg": "Admin tried to withdraw amount larger than fees collected"
     },
     {
-      "code": 319,
+      "code": 6019,
       "name": "MathError",
       "msg": "Math Error"
     },
     {
-      "code": 320,
+      "code": 6020,
       "name": "BnConversionError",
       "msg": "Conversion to u128/u64 failed with an overflow or underflow"
     },
     {
-      "code": 321,
+      "code": 6021,
       "name": "ClockUnavailable",
       "msg": "Clock unavailable"
     },
     {
-      "code": 322,
+      "code": 6022,
       "name": "UnableToLoadOracle",
       "msg": "Unable To Load Oracles"
     },
     {
-      "code": 323,
+      "code": 6023,
       "name": "OracleMarkSpreadLimit",
       "msg": "Oracle/Mark Spread Too Large"
     },
     {
-      "code": 324,
+      "code": 6024,
       "name": "HistoryAlreadyInitialized",
       "msg": "Clearing House history already initialized"
     },
     {
-      "code": 325,
+      "code": 6025,
       "name": "ExchangePaused",
       "msg": "Exchange is paused"
     },
     {
-      "code": 326,
+      "code": 6026,
       "name": "InvalidWhitelistToken",
       "msg": "Invalid whitelist token"
     },
     {
-      "code": 327,
+      "code": 6027,
       "name": "WhitelistTokenNotFound",
       "msg": "Whitelist token not found"
     },
     {
-      "code": 328,
+      "code": 6028,
       "name": "InvalidDiscountToken",
       "msg": "Invalid discount token"
     },
     {
-      "code": 329,
+      "code": 6029,
       "name": "DiscountTokenNotFound",
       "msg": "Discount token not found"
     },
     {
-      "code": 330,
+      "code": 6030,
       "name": "InvalidReferrer",
       "msg": "Invalid referrer"
     },
     {
-      "code": 331,
+      "code": 6031,
       "name": "ReferrerNotFound",
       "msg": "Referrer not found"
     },
     {
-      "code": 332,
+      "code": 6032,
       "name": "InvalidOracle",
       "msg": "InvalidOracle"
     },
     {
-      "code": 333,
+      "code": 6033,
       "name": "OracleNotFound",
       "msg": "OracleNotFound"
     },
     {
-      "code": 334,
+      "code": 6034,
       "name": "LiquidationsBlockedByOracle",
       "msg": "Liquidations Blocked By Oracle"
     },
     {
-      "code": 335,
+      "code": 6035,
       "name": "UserMaxDeposit",
       "msg": "Can not deposit more than max deposit"
     },
     {
-      "code": 336,
+      "code": 6036,
       "name": "CantDeleteUserWithCollateral",
       "msg": "Can not delete user that still has collateral"
     },
     {
-      "code": 337,
+      "code": 6037,
       "name": "InvalidFundingProfitability",
       "msg": "AMM funding out of bounds pnl"
     },
     {
-      "code": 338,
+      "code": 6038,
       "name": "CastingFailure",
       "msg": "Casting Failure"
     }

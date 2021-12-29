@@ -47,7 +47,7 @@ pub struct Initialize<'info> {
     pub insurance_vault: Box<Account<'info, TokenAccount>>,
     pub insurance_vault_authority: AccountInfo<'info>,
     #[account(zero)]
-    pub markets: Loader<'info, Markets>,
+    pub markets: AccountLoader<'info, Markets>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
@@ -62,17 +62,17 @@ pub struct InitializeHistory<'info> {
     )]
     pub state: Box<Account<'info, State>>,
     #[account(zero)]
-    pub funding_payment_history: Loader<'info, FundingPaymentHistory>,
+    pub funding_payment_history: AccountLoader<'info, FundingPaymentHistory>,
     #[account(zero)]
-    pub trade_history: Loader<'info, TradeHistory>,
+    pub trade_history: AccountLoader<'info, TradeHistory>,
     #[account(zero)]
-    pub liquidation_history: Loader<'info, LiquidationHistory>,
+    pub liquidation_history: AccountLoader<'info, LiquidationHistory>,
     #[account(zero)]
-    pub deposit_history: Loader<'info, DepositHistory>,
+    pub deposit_history: AccountLoader<'info, DepositHistory>,
     #[account(zero)]
-    pub funding_rate_history: Loader<'info, FundingRateHistory>,
+    pub funding_rate_history: AccountLoader<'info, FundingRateHistory>,
     #[account(zero)]
-    pub curve_history: Loader<'info, CurveHistory>,
+    pub curve_history: AccountLoader<'info, CurveHistory>,
 }
 
 #[derive(Accounts)]
@@ -90,7 +90,7 @@ pub struct InitializeUser<'info> {
         init,
         payer = authority,
     )]
-    pub user_positions: Loader<'info, UserPositions>,
+    pub user_positions: AccountLoader<'info, UserPositions>,
     pub authority: Signer<'info>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
@@ -110,7 +110,7 @@ pub struct DeleteUser<'info> {
         has_one = user,
         close = authority
     )]
-    pub user_positions: Loader<'info, UserPositions>,
+    pub user_positions: AccountLoader<'info, UserPositions>,
     pub authority: Signer<'info>,
 }
 
@@ -130,7 +130,7 @@ pub struct InitializeMarket<'info> {
         mut,
         constraint = &state.markets.eq(&markets.key())
     )]
-    pub markets: Loader<'info, Markets>,
+    pub markets: AccountLoader<'info, Markets>,
     pub oracle: AccountInfo<'info>,
 }
 
@@ -156,22 +156,22 @@ pub struct DepositCollateral<'info> {
     #[account(
         constraint = &state.markets.eq(&markets.key())
     )]
-    pub markets: Loader<'info, Markets>,
+    pub markets: AccountLoader<'info, Markets>,
     #[account(
         mut,
         has_one = user
     )]
-    pub user_positions: Loader<'info, UserPositions>,
+    pub user_positions: AccountLoader<'info, UserPositions>,
     #[account(
         mut,
         constraint = &state.funding_payment_history.eq(&funding_payment_history.key())
     )]
-    pub funding_payment_history: Loader<'info, FundingPaymentHistory>,
+    pub funding_payment_history: AccountLoader<'info, FundingPaymentHistory>,
     #[account(
         mut,
         constraint = &state.deposit_history.eq(&deposit_history.key())
     )]
-    pub deposit_history: Loader<'info, DepositHistory>,
+    pub deposit_history: AccountLoader<'info, DepositHistory>,
 }
 
 #[derive(Accounts)]
@@ -209,22 +209,22 @@ pub struct WithdrawCollateral<'info> {
     #[account(
         constraint = &state.markets.eq(&markets.key())
     )]
-    pub markets: Loader<'info, Markets>,
+    pub markets: AccountLoader<'info, Markets>,
     #[account(
         mut,
         has_one = user
     )]
-    pub user_positions: Loader<'info, UserPositions>,
+    pub user_positions: AccountLoader<'info, UserPositions>,
     #[account(
         mut,
         constraint = &state.funding_payment_history.eq(&funding_payment_history.key())
     )]
-    pub funding_payment_history: Loader<'info, FundingPaymentHistory>,
+    pub funding_payment_history: AccountLoader<'info, FundingPaymentHistory>,
     #[account(
         mut,
         constraint = &state.deposit_history.eq(&deposit_history.key())
     )]
-    pub deposit_history: Loader<'info, DepositHistory>,
+    pub deposit_history: AccountLoader<'info, DepositHistory>,
 }
 
 #[derive(Accounts)]
@@ -247,7 +247,7 @@ pub struct WithdrawFees<'info> {
         mut,
         constraint = &state.markets.eq(&markets.key())
     )]
-    pub markets: Loader<'info, Markets>,
+    pub markets: AccountLoader<'info, Markets>,
     #[account(mut)]
     pub recipient: Box<Account<'info, TokenAccount>>,
     pub token_program: Program<'info, Token>,
@@ -285,7 +285,7 @@ pub struct WithdrawFromInsuranceVaultToMarket<'info> {
         mut,
         constraint = &state.markets.eq(&markets.key())
     )]
-    pub markets: Loader<'info, Markets>,
+    pub markets: AccountLoader<'info, Markets>,
     pub admin: Signer<'info>,
     #[account(
         mut,
@@ -325,27 +325,27 @@ pub struct OpenPosition<'info> {
         mut,
         constraint = &state.markets.eq(&markets.key())
     )]
-    pub markets: Loader<'info, Markets>,
+    pub markets: AccountLoader<'info, Markets>,
     #[account(
         mut,
         has_one = user
     )]
-    pub user_positions: Loader<'info, UserPositions>,
+    pub user_positions: AccountLoader<'info, UserPositions>,
     #[account(
         mut,
         constraint = &state.trade_history.eq(&trade_history.key())
     )]
-    pub trade_history: Loader<'info, TradeHistory>,
+    pub trade_history: AccountLoader<'info, TradeHistory>,
     #[account(
         mut,
         constraint = &state.funding_payment_history.eq(&funding_payment_history.key())
     )]
-    pub funding_payment_history: Loader<'info, FundingPaymentHistory>,
+    pub funding_payment_history: AccountLoader<'info, FundingPaymentHistory>,
     #[account(
         mut,
         constraint = &state.funding_rate_history.eq(&funding_rate_history.key())
     )]
-    pub funding_rate_history: Loader<'info, FundingRateHistory>,
+    pub funding_rate_history: AccountLoader<'info, FundingRateHistory>,
     pub oracle: AccountInfo<'info>,
 }
 
@@ -364,27 +364,27 @@ pub struct ClosePosition<'info> {
         mut,
         constraint = &state.markets.eq(&markets.key())
     )]
-    pub markets: Loader<'info, Markets>,
+    pub markets: AccountLoader<'info, Markets>,
     #[account(
         mut,
         has_one = user
     )]
-    pub user_positions: Loader<'info, UserPositions>,
+    pub user_positions: AccountLoader<'info, UserPositions>,
     #[account(
         mut,
         constraint = &state.trade_history.eq(&trade_history.key())
     )]
-    pub trade_history: Loader<'info, TradeHistory>,
+    pub trade_history: AccountLoader<'info, TradeHistory>,
     #[account(
         mut,
         constraint = &state.funding_payment_history.eq(&funding_payment_history.key())
     )]
-    pub funding_payment_history: Loader<'info, FundingPaymentHistory>,
+    pub funding_payment_history: AccountLoader<'info, FundingPaymentHistory>,
     #[account(
         mut,
         constraint = &state.funding_rate_history.eq(&funding_rate_history.key())
     )]
-    pub funding_rate_history: Loader<'info, FundingRateHistory>,
+    pub funding_rate_history: AccountLoader<'info, FundingRateHistory>,
     pub oracle: AccountInfo<'info>,
 }
 
@@ -425,27 +425,27 @@ pub struct Liquidate<'info> {
         mut,
         constraint = &state.markets.eq(&markets.key())
     )]
-    pub markets: Loader<'info, Markets>,
+    pub markets: AccountLoader<'info, Markets>,
     #[account(
         mut,
         has_one = user
     )]
-    pub user_positions: Loader<'info, UserPositions>,
+    pub user_positions: AccountLoader<'info, UserPositions>,
     #[account(
         mut,
         constraint = &state.trade_history.eq(&trade_history.key())
     )]
-    pub trade_history: Loader<'info, TradeHistory>,
+    pub trade_history: AccountLoader<'info, TradeHistory>,
     #[account(
         mut,
         constraint = &state.liquidation_history.eq(&liquidation_history.key())
     )]
-    pub liquidation_history: Loader<'info, LiquidationHistory>,
+    pub liquidation_history: AccountLoader<'info, LiquidationHistory>,
     #[account(
         mut,
         constraint = &state.funding_payment_history.eq(&funding_payment_history.key())
     )]
-    pub funding_payment_history: Loader<'info, FundingPaymentHistory>,
+    pub funding_payment_history: AccountLoader<'info, FundingPaymentHistory>,
 }
 
 #[derive(Accounts)]
@@ -459,17 +459,17 @@ pub struct SettleFunding<'info> {
     #[account(
         constraint = &state.markets.eq(&markets.key())
     )]
-    pub markets: Loader<'info, Markets>,
+    pub markets: AccountLoader<'info, Markets>,
     #[account(
         mut,
         has_one = user
     )]
-    pub user_positions: Loader<'info, UserPositions>,
+    pub user_positions: AccountLoader<'info, UserPositions>,
     #[account(
         mut,
         constraint = &state.funding_payment_history.eq(&funding_payment_history.key())
     )]
-    pub funding_payment_history: Loader<'info, FundingPaymentHistory>,
+    pub funding_payment_history: AccountLoader<'info, FundingPaymentHistory>,
 }
 
 #[derive(Accounts)]
@@ -479,13 +479,13 @@ pub struct UpdateFundingRate<'info> {
         mut,
         constraint = &state.markets.eq(&markets.key())
     )]
-    pub markets: Loader<'info, Markets>,
+    pub markets: AccountLoader<'info, Markets>,
     pub oracle: AccountInfo<'info>,
     #[account(
         mut,
         constraint = &state.funding_rate_history.eq(&funding_rate_history.key())
     )]
-    pub funding_rate_history: Loader<'info, FundingRateHistory>,
+    pub funding_rate_history: AccountLoader<'info, FundingRateHistory>,
 }
 
 #[derive(Accounts)]
@@ -498,14 +498,14 @@ pub struct RepegCurve<'info> {
         mut,
         constraint = &state.markets.eq(&markets.key())
     )]
-    pub markets: Loader<'info, Markets>,
+    pub markets: AccountLoader<'info, Markets>,
     pub oracle: AccountInfo<'info>,
     pub admin: Signer<'info>,
     #[account(
         mut,
         constraint = &state.curve_history.eq(&curve_history.key())
     )]
-    pub curve_history: Loader<'info, CurveHistory>,
+    pub curve_history: AccountLoader<'info, CurveHistory>,
 }
 
 #[derive(Accounts)]
@@ -520,7 +520,7 @@ pub struct MoveAMMPrice<'info> {
         mut,
         constraint = &state.markets.eq(&markets.key())
     )]
-    pub markets: Loader<'info, Markets>,
+    pub markets: AccountLoader<'info, Markets>,
 }
 
 #[derive(Accounts)]
@@ -544,9 +544,9 @@ pub struct AdminUpdateK<'info> {
         mut,
         constraint = &state.markets.eq(&markets.key())
     )]
-    pub markets: Loader<'info, Markets>,
+    pub markets: AccountLoader<'info, Markets>,
     #[account(mut)]
-    pub curve_history: Loader<'info, CurveHistory>,
+    pub curve_history: AccountLoader<'info, CurveHistory>,
 }
 
 #[derive(Accounts)]
@@ -560,5 +560,5 @@ pub struct AdminUpdateMarket<'info> {
         mut,
         constraint = &state.markets.eq(&markets.key())
     )]
-    pub markets: Loader<'info, Markets>,
+    pub markets: AccountLoader<'info, Markets>,
 }

@@ -1,4 +1,5 @@
-import { BN, Provider, Wallet } from '@project-serum/anchor';
+import { BN, Provider } from '@project-serum/anchor';
+import {Wallet} from "..";
 import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import {

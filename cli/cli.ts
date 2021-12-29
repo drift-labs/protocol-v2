@@ -5,9 +5,8 @@ const colors = require('colors');
 import os from 'os';
 import fs from 'fs';
 import log from 'loglevel';
-import { Admin, ClearingHouseUser, initialize, Markets } from '@drift-labs/sdk';
+import { Admin, ClearingHouseUser, initialize, Markets, Wallet } from '@drift-labs/sdk';
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
-import { Wallet } from '@project-serum/anchor';
 import BN from 'bn.js';
 import {
 	ASSOCIATED_TOKEN_PROGRAM_ID,

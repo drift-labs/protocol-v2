@@ -42,7 +42,7 @@ export class DefaultHistoryAccountSubscriber
 		const statePublicKey = await getClearingHouseStateAccountPublicKey(
 			this.program.programId
 		);
-		const state: StateAccount = await this.program.account.state.fetch(
+		const state: any = await this.program.account.state.fetch(
 			statePublicKey
 		);
 

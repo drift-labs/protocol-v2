@@ -454,7 +454,7 @@ export class ClearingHouse {
 		collateralAccountPublicKey: PublicKey
 	): Promise<TransactionInstruction> {
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
-		const user: UserAccount = await this.program.account.user.fetch(
+		const user: any = await this.program.account.user.fetch(
 			userAccountPublicKey
 		);
 
@@ -659,7 +659,7 @@ export class ClearingHouse {
 		const liquidateeUserAccount: any = await this.program.account.user.fetch(
 			liquidateeUserAccountPublicKey
 		);
-		const liquidateePositions: UserPositionsAccount =
+		const liquidateePositions: any =
 			await this.program.account.userPositions.fetch(
 				liquidateeUserAccount.positions
 			);

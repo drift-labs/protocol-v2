@@ -14,10 +14,10 @@ cpi = ["no-entrypoint"]
 mainnet-beta=[]
 
 [dependencies]
-anchor-lang = "0.16.2"
-solana-program = "1.7.10"
+anchor-lang = "0.19.0"
+solana-program = "1.8.0"
 spl-token = { version="3.1.1", features = [ "no-entrypoint" ] }
-anchor-spl = "0.16.2"
+anchor-spl = "0.19.0"
 pyth-client = "0.2.2"
 bytemuck = { version = "1.4.0" }
 borsh = "0.9.1"
