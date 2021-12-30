@@ -1,12 +1,11 @@
 import { BN } from '@project-serum/anchor';
-import { convertToNumber } from '..';
+import { PriceData } from '@pythnetwork/client';
 import {
 	AMM_RESERVE_PRECISION,
 	MARK_PRICE_PRECISION,
 	QUOTE_PRECISION,
 	ZERO,
 } from '../constants/numericConstants';
-import { PythClient } from '../pythClient';
 import { Market } from '../types';
 import { calculateMarkPrice } from './market';
 
@@ -19,7 +18,7 @@ import { calculateMarkPrice } from './market';
  */
 export async function calculateAllEstimatedFundingRate(
 	market: Market,
-	pythClient: PythClient,
+	oraclePriceData: PriceData,
 	periodAdjustment: BN = new BN(1)
 ): Promise<[BN, BN, BN, BN, BN]> {
 	// periodAdjustment
@@ -65,7 +64,6 @@ export async function calculateAllEstimatedFundingRate(
 		secondsInHour,
 		secondsInHour.sub(timeSinceLastOracleTwapUpdate)
 	);
-	const oraclePriceData = await pythClient.getPriceData(market.amm.oracle);
 
 	// verify pyth input is positive for live update
 	let oracleStablePriceNum = 0;
@@ -197,21 +195,21 @@ export async function calculateAllEstimatedFundingRate(
 /**
  *
  * @param market
- * @param pythClient
+ * @param oraclePriceData
  * @param periodAdjustment
  * @param estimationMethod
  * @returns Estimated funding rate. : Precision //TODO-PRECISION
  */
 export async function calculateEstimatedFundingRate(
 	market: Market,
-	pythClient: PythClient,
+	oraclePriceData: PriceData,
 	periodAdjustment: BN = new BN(1),
 	estimationMethod: 'interpolated' | 'lowerbound' | 'capped'
 ): Promise<BN> {
 	const [_1, _2, lowerboundEst, cappedAltEst, interpEst] =
 		await calculateAllEstimatedFundingRate(
 			market,
-			pythClient,
+			oraclePriceData,
 			periodAdjustment
 		);
 
@@ -235,13 +233,13 @@ export async function calculateEstimatedFundingRate(
  */
 export async function calculateLongShortFundingRate(
 	market: Market,
-	pythClient: PythClient,
+	oraclePriceData: PriceData,
 	periodAdjustment: BN = new BN(1)
 ): Promise<[BN, BN]> {
 	const [_1, _2, _, cappedAltEst, interpEst] =
 		await calculateAllEstimatedFundingRate(
 			market,
-			pythClient,
+			oraclePriceData,
 			periodAdjustment
 		);
 
@@ -264,13 +262,13 @@ export async function calculateLongShortFundingRate(
  */
 export async function calculateLongShortFundingRateAndLiveTwaps(
 	market: Market,
-	pythClient: PythClient,
+	oraclePriceData: PriceData,
 	periodAdjustment: BN = new BN(1)
 ): Promise<[BN, BN, BN, BN]> {
 	const [markTwapLive, oracleTwapLive, _2, cappedAltEst, interpEst] =
 		await calculateAllEstimatedFundingRate(
 			market,
-			pythClient,
+			oraclePriceData,
 			periodAdjustment
 		);
 
