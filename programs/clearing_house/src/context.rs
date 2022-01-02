@@ -91,7 +91,31 @@ pub struct InitializeUser<'info> {
         payer = authority,
     )]
     pub user_positions: AccountLoader<'info, UserPositions>,
+    #[account(mut)]
     pub authority: Signer<'info>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(user_nonce: u8)]
+pub struct InitializeUserWithExplicitPayer<'info> {
+    #[account(
+        init,
+        seeds = [b"user", authority.key.as_ref()],
+        bump = user_nonce,
+        payer = payer
+    )]
+    pub user: Box<Account<'info, User>>,
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        init,
+        payer = payer,
+    )]
+    pub user_positions: AccountLoader<'info, UserPositions>,
+    pub authority: Signer<'info>,
+    #[account(mut)]
+    pub payer: Signer<'info>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
 }

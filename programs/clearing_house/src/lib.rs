@@ -18,6 +18,7 @@ pub mod error;
 pub mod math;
 pub mod optional_accounts;
 pub mod state;
+mod user_initialization;
 
 #[cfg(feature = "mainnet-beta")]
 declare_id!("dammHkt7jmytvbS3nHTxQNEcP59aE57nxwV21YdqEDN");
@@ -27,7 +28,6 @@ declare_id!("AsW7LnXB9UA1uec9wi9MctYTgTz7YH9snhxd16GsFaGX");
 #[program]
 pub mod clearing_house {
     use crate::math;
-    use crate::optional_accounts::get_whitelist_token;
     use crate::state::history::curve::CurveRecord;
     use crate::state::history::deposit::{DepositDirection, DepositRecord};
     use crate::state::history::liquidation::LiquidationRecord;
@@ -1408,43 +1408,29 @@ pub mod clearing_house {
         _user_nonce: u8,
         optional_accounts: InitializeUserOptionalAccounts,
     ) -> ProgramResult {
-        let user = &mut ctx.accounts.user;
+        user_initialization::initialize(
+            &ctx.accounts.state,
+            &mut ctx.accounts.user,
+            &ctx.accounts.user_positions,
+            &ctx.accounts.authority,
+            ctx.remaining_accounts,
+            optional_accounts,
+        )
+    }
 
-        if !ctx.accounts.state.whitelist_mint.eq(&Pubkey::default()) {
-            let whitelist_token = get_whitelist_token(
-                optional_accounts,
-                ctx.remaining_accounts,
-                &ctx.accounts.state.whitelist_mint,
-            )?;
-
-            if whitelist_token.is_none() {
-                return Err(ErrorCode::WhitelistTokenNotFound.into());
-            }
-
-            let whitelist_token = whitelist_token.unwrap();
-            if !whitelist_token.owner.eq(ctx.accounts.authority.key) {
-                return Err(ErrorCode::InvalidWhitelistToken.into());
-            }
-
-            if whitelist_token.amount == 0 {
-                return Err(ErrorCode::WhitelistTokenNotFound.into());
-            }
-        }
-
-        user.authority = *ctx.accounts.authority.key;
-        user.collateral = 0;
-        user.cumulative_deposits = 0;
-        user.positions = *ctx.accounts.user_positions.to_account_info().key;
-
-        user.padding0 = 0;
-        user.padding1 = 0;
-        user.padding2 = 0;
-        user.padding3 = 0;
-
-        let user_positions = &mut ctx.accounts.user_positions.load_init()?;
-        user_positions.user = *ctx.accounts.user.to_account_info().key;
-
-        Ok(())
+    pub fn initialize_user_with_explicit_payer(
+        ctx: Context<InitializeUserWithExplicitPayer>,
+        _user_nonce: u8,
+        optional_accounts: InitializeUserOptionalAccounts,
+    ) -> ProgramResult {
+        user_initialization::initialize(
+            &ctx.accounts.state,
+            &mut ctx.accounts.user,
+            &ctx.accounts.user_positions,
+            &ctx.accounts.authority,
+            ctx.remaining_accounts,
+            optional_accounts,
+        )
     }
 
     pub fn delete_user(ctx: Context<DeleteUser>) -> ProgramResult {
