@@ -51,4 +51,11 @@ export const Markets: Market[] = [
 		devnetPythOracle: 'GwzBgrXb4PG59zjce24SF2b9JXbLEjJJTBkmytuEZj1b',
 		mainnetPythOracle: '4CkQJBxhU8EZ2UjhigbtdaPbpTe6mqf811fipYBFbSYN',
 	},
+	{
+		symbol: 'MATIC-PERP',
+		baseAssetSymbol: 'MATIC',
+		marketIndex: new BN(6),
+		devnetPythOracle: 'FBirwuDFuRAu4iSGc7RGxN5koHB7EJM1wbCmyPuQoGur',
+		mainnetPythOracle: '7KVswB9vkCgeM3SHP7aGDijvdRAHK8P5wi9JXViCrtYh',
+	},
 ];
