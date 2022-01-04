@@ -156,11 +156,11 @@
           "type": "u64"
         },
         {
-          "name": "ammBaseAssetAmount",
+          "name": "ammBaseAssetReserve",
           "type": "u128"
         },
         {
-          "name": "ammQuoteAssetAmount",
+          "name": "ammQuoteAssetReserve",
           "type": "u128"
         },
         {

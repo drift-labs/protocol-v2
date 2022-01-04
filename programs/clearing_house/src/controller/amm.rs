@@ -15,35 +15,31 @@ pub enum SwapDirection {
 
 pub fn swap_quote_asset(
     amm: &mut AMM,
-    quote_asset_swap_amount: u128,
+    quote_asset_amount: u128,
     direction: SwapDirection,
     now: i64,
     precomputed_mark_price: Option<u128>,
 ) -> ClearingHouseResult<i128> {
     amm::update_mark_twap(amm, now, precomputed_mark_price)?;
+    let quote_asset_reserve_amount = asset_to_reserve_amount(quote_asset_amount, amm.peg_multiplier)?;
 
-    let scaled_quote_asset_amount = scale_to_amm_precision(quote_asset_swap_amount)?;
-    let round_up = direction == SwapDirection::Remove;
-    let unpegged_scaled_quote_asset_amount =
-        unpeg_quote_asset_amount(scaled_quote_asset_amount, amm.peg_multiplier, round_up)?;
-
-    if unpegged_scaled_quote_asset_amount < amm.minimum_trade_size {
+    if quote_asset_reserve_amount < amm.minimum_trade_size {
         return Err(ErrorCode::TradeSizeTooSmall);
     }
 
-    let initial_base_asset_amount = amm.base_asset_reserve;
-    let (new_base_asset_amount, new_quote_asset_amount) = amm::calculate_swap_output(
-        unpegged_scaled_quote_asset_amount,
+    let initial_base_asset_reserve = amm.base_asset_reserve;
+    let (new_base_asset_reserve, new_quote_asset_reserve) = amm::calculate_swap_output(
+        quote_asset_reserve_amount,
         amm.quote_asset_reserve,
         direction,
         amm.sqrt_k,
     )?;
 
-    amm.base_asset_reserve = new_base_asset_amount;
-    amm.quote_asset_reserve = new_quote_asset_amount;
+    amm.base_asset_reserve = new_base_asset_reserve;
+    amm.quote_asset_reserve = new_quote_asset_reserve;
 
-    let acquired_base_asset_amount = cast_to_i128(initial_base_asset_amount)?
-        .checked_sub(cast(new_base_asset_amount)?)
+    let acquired_base_asset_amount = cast_to_i128(initial_base_asset_reserve)?
+        .checked_sub(cast(new_base_asset_reserve)?)
         .ok_or_else(math_error!())?;
 
     return Ok(acquired_base_asset_amount);

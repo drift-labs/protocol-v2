@@ -10,24 +10,24 @@ use crate::math::bn::U192;
 use crate::math::casting::{cast, cast_to_i128, cast_to_u128};
 use crate::math::constants::{MARK_PRICE_PRECISION, PRICE_TO_PEG_PRECISION_RATIO};
 use crate::math::position::_calculate_base_asset_value_and_pnl;
-use crate::math::quote_asset::asset_to_reserve_precision;
+use crate::math::quote_asset::asset_to_reserve_amount;
 use crate::math_error;
 use crate::state::market::{Market, AMM};
 use crate::state::state::{PriceDivergenceGuardRails, ValidityGuardRails};
 
 pub fn calculate_price(
-    unpegged_quote_asset_amount: u128,
-    base_asset_amount: u128,
+    quote_asset_reserve: u128,
+    base_asset_reserve: u128,
     peg_multiplier: u128,
 ) -> ClearingHouseResult<u128> {
-    let peg_quote_asset_amount = unpegged_quote_asset_amount
+    let peg_quote_asset_amount = quote_asset_reserve
         .checked_mul(peg_multiplier)
         .ok_or_else(math_error!())?;
 
     return U192::from(peg_quote_asset_amount)
         .checked_mul(U192::from(PRICE_TO_PEG_PRECISION_RATIO))
         .ok_or_else(math_error!())?
-        .checked_div(U192::from(base_asset_amount))
+        .checked_div(U192::from(base_asset_reserve))
         .ok_or_else(math_error!())?
         .try_to_u128();
 }
@@ -348,7 +348,7 @@ pub fn should_round_trade(
             .ok_or_else(math_error!())?
     };
 
-    let quote_asset_reserve_amount = asset_to_reserve_precision(amm, difference, false)?;
+    let quote_asset_reserve_amount = asset_to_reserve_amount(difference, amm.peg_multiplier)?;
 
     return Ok(quote_asset_reserve_amount < amm.minimum_trade_size);
 }

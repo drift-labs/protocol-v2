@@ -197,8 +197,8 @@ pub mod clearing_house {
     pub fn initialize_market(
         ctx: Context<InitializeMarket>,
         market_index: u64,
-        amm_base_asset_amount: u128,
-        amm_quote_asset_amount: u128,
+        amm_base_asset_reserve: u128,
+        amm_quote_asset_reserve: u128,
         amm_periodicity: i64,
         amm_peg_multiplier: u128,
     ) -> ProgramResult {
@@ -212,19 +212,19 @@ pub mod clearing_house {
             return Err(ErrorCode::MarketIndexAlreadyInitialized.into());
         }
 
-        if amm_base_asset_amount != amm_quote_asset_amount {
+        if amm_base_asset_reserve != amm_quote_asset_reserve {
             return Err(ErrorCode::InvalidInitialPeg.into());
         }
 
         let init_mark_price = amm::calculate_price(
-            amm_quote_asset_amount,
-            amm_base_asset_amount,
+            amm_quote_asset_reserve,
+            amm_base_asset_reserve,
             amm_peg_multiplier,
         )?;
 
         // Verify there's no overflow
-        let _k = bn::U192::from(amm_base_asset_amount)
-            .checked_mul(bn::U192::from(amm_quote_asset_amount))
+        let _k = bn::U192::from(amm_base_asset_reserve)
+            .checked_mul(bn::U192::from(amm_quote_asset_reserve))
             .ok_or_else(math_error!())?;
 
         // Verify oracle is readable
@@ -247,8 +247,8 @@ pub mod clearing_house {
             amm: AMM {
                 oracle: *ctx.accounts.oracle.key,
                 oracle_source: OracleSource::Pyth,
-                base_asset_reserve: amm_base_asset_amount,
-                quote_asset_reserve: amm_quote_asset_amount,
+                base_asset_reserve: amm_base_asset_reserve,
+                quote_asset_reserve: amm_quote_asset_reserve,
                 cumulative_repeg_rebate_long: 0,
                 cumulative_repeg_rebate_short: 0,
                 cumulative_funding_rate_long: 0,
@@ -259,7 +259,7 @@ pub mod clearing_house {
                 last_oracle_price_twap: oracle_price_twap,
                 last_mark_price_twap: init_mark_price,
                 last_mark_price_twap_ts: now,
-                sqrt_k: amm_base_asset_amount,
+                sqrt_k: amm_base_asset_reserve,
                 peg_multiplier: amm_peg_multiplier,
                 total_fee: 0,
                 total_fee_withdrawn: 0,
@@ -748,18 +748,10 @@ pub mod clearing_house {
             let market =
                 &ctx.accounts.markets.load()?.markets[Markets::index_from_u64(market_index)];
 
-            let scaled_quote_asset_amount =
-                math::quote_asset::scale_to_amm_precision(quote_asset_amount)?;
-
-            let round_up = direction == PositionDirection::Short;
-            let unpegged_scaled_quote_asset_amount = math::quote_asset::unpeg_quote_asset_amount(
-                scaled_quote_asset_amount,
-                market.amm.peg_multiplier,
-                round_up,
-            )?;
+            let quote_asset_reserve_amount = math::quote_asset::asset_to_reserve_amount(quote_asset_amount, market.amm.peg_multiplier)?;
 
             let entry_price = amm::calculate_price(
-                unpegged_scaled_quote_asset_amount,
+                quote_asset_reserve_amount,
                 base_asset_amount_change,
                 market.amm.peg_multiplier,
             )?;

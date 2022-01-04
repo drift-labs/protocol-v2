@@ -37,7 +37,7 @@ pub fn _calculate_base_asset_value_and_pnl(
         amm.sqrt_k,
     )?;
 
-    let scaled_unpegged_quote_asset_amount_acquired = match swap_direction {
+    let quote_asset_reserve_change = match swap_direction {
         SwapDirection::Add => amm
             .quote_asset_reserve
             .checked_sub(new_quote_asset_reserve)
@@ -48,26 +48,25 @@ pub fn _calculate_base_asset_value_and_pnl(
             .ok_or_else(math_error!())?,
     };
 
-    let round_up = swap_direction == SwapDirection::Remove;
-    let scaled_pegged_quote_asset_amount_acquired =
-        scale_from_amm_precision(scaled_unpegged_quote_asset_amount_acquired, round_up)?;
-
-    let pegged_quote_asset_amount_acquired = peg_quote_asset_amount(
-        scaled_pegged_quote_asset_amount_acquired,
-        amm.peg_multiplier,
+    let base_asset_value = reserve_to_asset_amount(
+        quote_asset_reserve_change,
+        amm.peg_multiplier
     )?;
 
     let pnl: i128 = match swap_direction {
-        SwapDirection::Add => cast_to_i128(pegged_quote_asset_amount_acquired)?
+        SwapDirection::Add => cast_to_i128(base_asset_value)?
             .checked_sub(cast(quote_asset_amount)?)
             .ok_or_else(math_error!())?,
-
+        // base asset value is round down due to integer math
+        // subtract one from pnl so that users who are short dont get an extra +1 pnl from integer division
         SwapDirection::Remove => cast_to_i128(quote_asset_amount)?
-            .checked_sub(cast(pegged_quote_asset_amount_acquired)?)
-            .ok_or_else(math_error!())?,
+            .checked_sub(cast(base_asset_value)?)
+            .ok_or_else(math_error!())?
+            .checked_sub(1)
+            .ok_or_else(math_error!())?
     };
 
-    return Ok((pegged_quote_asset_amount_acquired, pnl));
+    return Ok((base_asset_value, pnl));
 }
 
 pub fn direction_to_close_position(base_asset_amount: i128) -> PositionDirection {

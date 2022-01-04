@@ -1,9 +1,9 @@
 import BN from 'bn.js';
 import {
-	AMM_RESERVE_PRECISION,
+	AMM_RESERVE_PRECISION, AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO,
 	AMM_TO_QUOTE_PRECISION_RATIO,
 	FUNDING_PAYMENT_PRECISION,
-	MARK_PRICE_PRECISION,
+	MARK_PRICE_PRECISION, ONE,
 	PEG_PRECISION,
 	PRICE_TO_QUOTE_PRECISION,
 	ZERO,
@@ -42,15 +42,13 @@ export function calculateBaseAssetValue(
 			return market.amm.quoteAssetReserve
 				.sub(newQuoteAssetReserve)
 				.mul(market.amm.pegMultiplier)
-				.div(PEG_PRECISION)
-				.div(AMM_TO_QUOTE_PRECISION_RATIO);
+				.div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO)
 
 		case PositionDirection.LONG:
 			return newQuoteAssetReserve
 				.sub(market.amm.quoteAssetReserve)
 				.mul(market.amm.pegMultiplier)
-				.div(PEG_PRECISION)
-				.div(AMM_TO_QUOTE_PRECISION_RATIO);
+				.div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO)
 	}
 }
 
@@ -71,21 +69,13 @@ export function calculatePositionPNL(
 		return ZERO;
 	}
 
-	const directionToClose = marketPosition.baseAssetAmount.gt(ZERO)
-		? PositionDirection.SHORT
-		: PositionDirection.LONG;
-
 	const baseAssetValue = calculateBaseAssetValue(market, marketPosition);
-	let pnlAssetAmount;
 
-	switch (directionToClose) {
-		case PositionDirection.SHORT:
-			pnlAssetAmount = baseAssetValue.sub(marketPosition.quoteAssetAmount);
-			break;
-
-		case PositionDirection.LONG:
-			pnlAssetAmount = marketPosition.quoteAssetAmount.sub(baseAssetValue);
-			break;
+	let pnl;
+	if (marketPosition.baseAssetAmount.gt(ZERO)) {
+		pnl = baseAssetValue.sub(marketPosition.quoteAssetAmount);
+	} else {
+		pnl = marketPosition.quoteAssetAmount.sub(baseAssetValue).sub(ONE);
 	}
 
 	if (withFunding) {
@@ -94,10 +84,10 @@ export function calculatePositionPNL(
 			marketPosition
 		).div(PRICE_TO_QUOTE_PRECISION);
 
-		pnlAssetAmount = pnlAssetAmount.add(fundingRatePnL);
+		pnl = pnl.add(fundingRatePnL);
 	}
 
-	return pnlAssetAmount;
+	return pnl;
 }
 
 /**

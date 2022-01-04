@@ -148,7 +148,7 @@ describe('round in favor', () => {
 			userAccountPublicKey
 		);
 
-		assert(user.collateral.eq(new BN(9974025)));
+		assert(user.collateral.eq(new BN(9999000)));
 	});
 
 	it('long', async () => {
@@ -193,6 +193,6 @@ describe('round in favor', () => {
 			userAccountPublicKey
 		);
 
-		assert(user.collateral.eq(new BN(9960975)));
+		assert(user.collateral.eq(new BN(9998999)));
 	});
 });
