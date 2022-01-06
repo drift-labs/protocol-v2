@@ -84,21 +84,23 @@ export class ClearingHouseUser {
 	}
 
 	/**
-	 * Gets the user's current position for a given market
+	 * Gets the user's current position for a given market. If the user has no position returns undefined
 	 * @param marketIndex
 	 * @returns userPosition
 	 */
-	public getUserPosition(marketIndex: BN): UserPosition {
-		return (
-			this.getUserPositionsAccount().positions.find((position) =>
-				position.marketIndex.eq(marketIndex)
-			) ?? {
-				baseAssetAmount: ZERO,
-				lastCumulativeFundingRate: ZERO,
-				marketIndex,
-				quoteAssetAmount: ZERO,
-			}
+	public getUserPosition(marketIndex: BN): UserPosition | undefined {
+		return this.getUserPositionsAccount().positions.find((position) =>
+			position.marketIndex.eq(marketIndex)
 		);
+	}
+
+	public getEmptyPosition(marketIndex: BN): UserPosition {
+		return {
+			baseAssetAmount: ZERO,
+			lastCumulativeFundingRate: ZERO,
+			marketIndex,
+			quoteAssetAmount: ZERO,
+		};
 	}
 
 	public async getUserAccountPublicKey(): Promise<PublicKey> {
@@ -208,7 +210,8 @@ export class ClearingHouseUser {
 	 * @returns : Precision QUOTE_PRECISION
 	 */
 	public getPositionValue(marketIndex: BN): BN {
-		const userPosition = this.getUserPosition(marketIndex);
+		const userPosition =
+			this.getUserPosition(marketIndex) || this.getEmptyPosition(marketIndex);
 		const market = this.clearingHouse.getMarket(userPosition.marketIndex);
 		return calculateBaseAssetValue(market, userPosition);
 	}
@@ -393,13 +396,11 @@ export class ClearingHouseUser {
 		const totalCurrentPositionValueIgnoringTargetUSDC =
 			this.getTotalPositionValueExcludingMarket(targetMarket.marketIndex);
 
-		const currentMarketPosition = this.getUserPosition(
-			targetMarket.marketIndex
-		);
+		const currentMarketPosition =
+			this.getUserPosition(targetMarket.marketIndex) ||
+			this.getEmptyPosition(targetMarket.marketIndex);
 
-		const currentMarketPositionBaseSize = currentMarketPosition
-			? currentMarketPosition.baseAssetAmount
-			: ZERO;
+		const currentMarketPositionBaseSize = currentMarketPosition.baseAssetAmount;
 
 		// calculate position for current market after trade
 		const proposedMarketPosition: UserPosition = {
@@ -520,13 +521,11 @@ export class ClearingHouseUser {
 		const totalCurrentPositionValueIgnoringTargetUSDC =
 			this.getTotalPositionValueExcludingMarket(targetMarket.marketIndex);
 
-		const currentMarketPosition = this.getUserPosition(
-			targetMarket.marketIndex
-		);
+		const currentMarketPosition =
+			this.getUserPosition(targetMarket.marketIndex) ||
+			this.getEmptyPosition(targetMarket.marketIndex);
 
-		const currentMarketPositionBaseSize = currentMarketPosition
-			? currentMarketPosition.baseAssetAmount
-			: ZERO;
+		const currentMarketPositionBaseSize = currentMarketPosition.baseAssetAmount;
 
 		const proposedBaseAssetAmount = currentMarketPositionBaseSize.add(
 			positionBaseSizeChange
@@ -617,7 +616,9 @@ export class ClearingHouseUser {
 		positionMarketIndex: BN,
 		closeQuoteAmount: BN
 	): BN {
-		const currentPosition = this.getUserPosition(positionMarketIndex);
+		const currentPosition =
+			this.getUserPosition(positionMarketIndex) ||
+			this.getEmptyPosition(positionMarketIndex);
 
 		const closeBaseAmount = currentPosition.baseAssetAmount
 			.mul(closeQuoteAmount)
@@ -664,7 +665,9 @@ export class ClearingHouseUser {
 		tradeSide: PositionDirection,
 		userMaxLeverageSetting: BN
 	): BN {
-		const currentPosition = this.getUserPosition(targetMarketIndex);
+		const currentPosition =
+			this.getUserPosition(targetMarketIndex) ||
+			this.getEmptyPosition(targetMarketIndex);
 
 		const targetSide = tradeSide === PositionDirection.SHORT ? 'short' : 'long';
 
@@ -769,13 +772,16 @@ export class ClearingHouseUser {
 		tradeQuoteAmount: BN,
 		tradeSide: PositionDirection
 	): BN {
-		const currentPosition = this.getUserPosition(targetMarketIndex);
+		const currentPosition =
+			this.getUserPosition(targetMarketIndex) ||
+			this.getEmptyPosition(targetMarketIndex);
 
 		let currentPositionQuoteAmount = this.getPositionValue(targetMarketIndex);
 
-		const currentSide = currentPosition.baseAssetAmount.isNeg()
-			? PositionDirection.SHORT
-			: PositionDirection.LONG;
+		const currentSide =
+			currentPosition && currentPosition.baseAssetAmount.isNeg()
+				? PositionDirection.SHORT
+				: PositionDirection.LONG;
 
 		if (currentSide === PositionDirection.SHORT)
 			currentPositionQuoteAmount = currentPositionQuoteAmount.neg();
@@ -823,7 +829,9 @@ export class ClearingHouseUser {
 	 * @returns positionValue : Precision QUOTE_PRECISION
 	 */
 	private getTotalPositionValueExcludingMarket(marketToIgnore: BN): BN {
-		const currentMarketPosition = this.getUserPosition(marketToIgnore);
+		const currentMarketPosition =
+			this.getUserPosition(marketToIgnore) ||
+			this.getEmptyPosition(marketToIgnore);
 
 		let currentMarketPositionValueUSDC = ZERO;
 		if (currentMarketPosition) {
