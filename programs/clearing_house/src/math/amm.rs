@@ -10,7 +10,7 @@ use crate::math::bn::U192;
 use crate::math::casting::{cast, cast_to_i128, cast_to_u128};
 use crate::math::constants::{MARK_PRICE_PRECISION, PRICE_TO_PEG_PRECISION_RATIO};
 use crate::math::position::_calculate_base_asset_value_and_pnl;
-use crate::math::quote_asset::asset_to_reserve_amount;
+use crate::math::quote_asset::{asset_to_reserve_amount, reserve_to_asset_amount};
 use crate::math_error;
 use crate::state::market::{Market, AMM};
 use crate::state::state::{PriceDivergenceGuardRails, ValidityGuardRails};
@@ -183,6 +183,25 @@ pub fn calculate_swap_output(
         .try_to_u128()?;
 
     return Ok((new_output_amount, new_input_amount));
+}
+
+pub fn calculate_quote_asset_amount_swapped(
+    quote_asset_reserve_before: u128,
+    quote_asset_reserve_after: u128,
+    swap_direction: SwapDirection,
+    peg_multiplier: u128,
+) -> ClearingHouseResult<u128> {
+    let quote_asset_reserve_change = match swap_direction {
+        SwapDirection::Add => quote_asset_reserve_before
+            .checked_sub(quote_asset_reserve_after)
+            .ok_or_else(math_error!())?,
+
+        SwapDirection::Remove => quote_asset_reserve_after
+            .checked_sub(quote_asset_reserve_before)
+            .ok_or_else(math_error!())?,
+    };
+
+    reserve_to_asset_amount(quote_asset_reserve_change, peg_multiplier)
 }
 
 pub fn calculate_oracle_mark_spread(

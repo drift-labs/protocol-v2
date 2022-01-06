@@ -1,12 +1,11 @@
 use crate::controller::amm::SwapDirection;
 use crate::controller::position::PositionDirection;
 use crate::error::*;
-use crate::math::casting::{cast, cast_to_i128};
-use crate::math::{amm, quote_asset::*};
-use crate::math_error;
+use crate::math::amm;
+use crate::math::amm::calculate_quote_asset_amount_swapped;
+use crate::math::pnl::calculate_pnl;
 use crate::state::market::AMM;
 use crate::state::user::MarketPosition;
-use solana_program::msg;
 
 pub fn calculate_base_asset_value_and_pnl(
     market_position: &MarketPosition,
@@ -37,34 +36,14 @@ pub fn _calculate_base_asset_value_and_pnl(
         amm.sqrt_k,
     )?;
 
-    let quote_asset_reserve_change = match swap_direction {
-        SwapDirection::Add => amm
-            .quote_asset_reserve
-            .checked_sub(new_quote_asset_reserve)
-            .ok_or_else(math_error!())?,
-
-        SwapDirection::Remove => new_quote_asset_reserve
-            .checked_sub(amm.quote_asset_reserve)
-            .ok_or_else(math_error!())?,
-    };
-
-    let base_asset_value = reserve_to_asset_amount(
-        quote_asset_reserve_change,
-        amm.peg_multiplier
+    let base_asset_value = calculate_quote_asset_amount_swapped(
+        amm.quote_asset_reserve,
+        new_quote_asset_reserve,
+        swap_direction,
+        amm.peg_multiplier,
     )?;
 
-    let pnl: i128 = match swap_direction {
-        SwapDirection::Add => cast_to_i128(base_asset_value)?
-            .checked_sub(cast(quote_asset_amount)?)
-            .ok_or_else(math_error!())?,
-        // base asset value is round down due to integer math
-        // subtract one from pnl so that users who are short dont get an extra +1 pnl from integer division
-        SwapDirection::Remove => cast_to_i128(quote_asset_amount)?
-            .checked_sub(cast(base_asset_value)?)
-            .ok_or_else(math_error!())?
-            .checked_sub(1)
-            .ok_or_else(math_error!())?
-    };
+    let pnl = calculate_pnl(base_asset_value, quote_asset_amount, swap_direction)?;
 
     return Ok((base_asset_value, pnl));
 }

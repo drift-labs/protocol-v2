@@ -6,7 +6,7 @@ use crate::controller::amm::SwapDirection;
 use crate::error::*;
 use crate::math::casting::{cast, cast_to_i128};
 use crate::math::collateral::calculate_updated_collateral;
-use crate::math::position::calculate_base_asset_value_and_pnl;
+use crate::math::pnl::calculate_pnl;
 use crate::math_error;
 use crate::{Market, MarketPosition, User};
 use solana_program::msg;
@@ -189,14 +189,16 @@ pub fn close(
         SwapDirection::Remove
     };
 
-    let (_base_asset_value, pnl) =
-        calculate_base_asset_value_and_pnl(&market_position, &market.amm)?;
-
-    controller::amm::swap_base_asset(
+    let base_asset_value = controller::amm::swap_base_asset(
         &mut market.amm,
         market_position.base_asset_amount.unsigned_abs(),
         swap_direction,
         now,
+    )?;
+    let pnl = calculate_pnl(
+        base_asset_value,
+        market_position.quote_asset_amount,
+        swap_direction,
     )?;
 
     user.collateral = calculate_updated_collateral(user.collateral, pnl)?;
