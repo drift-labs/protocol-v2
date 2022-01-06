@@ -12,17 +12,25 @@
     "@solana/web3.js": "1.17.0",
     "@types/bn.js": "^5.1.0",
     "@types/mocha": "^8.2.2",
+    "@typescript-eslint/eslint-plugin": "^4.28.0",
+    "@typescript-eslint/parser": "^4.28.0",
     "bn.js": "^5.2.0",
     "chai": "^4.3.4",
     "typedoc": "^0.22.7",
-    "typescript": "^4.4.4"
+    "typescript": "^4.4.4",
+    "eslint": "^7.29.0",
+    "eslint-config-prettier": "^8.3.0",
+    "eslint-plugin-prettier": "^3.4.0",
+    "prettier": "^2.4.1"
   },
   "dependencies": {
     "chai-bn": "^0.2.2",
     "csvtojson": "^2.0.10"
   },
   "scripts": {
-    "generate-docs": "typedoc"
+    "generate-docs": "typedoc",
+    "prettify": "prettier --write './sdk/src/**/*.ts' './tests/**.ts' './cli/**.ts'",
+    "lint": "eslint . --ext ts --quiet"
   },
   "engines": {
     "node": ">=12"

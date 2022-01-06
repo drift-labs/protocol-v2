@@ -2,7 +2,6 @@ import { BN } from '@project-serum/anchor';
 import {
 	AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO,
 	MARK_PRICE_PRECISION,
-	ONE,
 	PEG_PRECISION,
 	ZERO,
 } from '../constants/numericConstants';
@@ -58,7 +57,8 @@ export function calculateAmmReservesAfterSwap(
 	let newBaseAssetReserve;
 
 	if (inputAssetType === 'quote') {
-		swapAmount = swapAmount.mul(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO)
+		swapAmount = swapAmount
+			.mul(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO)
 			.div(amm.pegMultiplier);
 
 		[newQuoteAssetReserve, newBaseAssetReserve] = calculateSwapOutput(

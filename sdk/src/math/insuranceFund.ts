@@ -1,6 +1,6 @@
-import {MarketsAccount, StateAccount} from "../types";
-import BN from "bn.js";
-import {Connection} from "@solana/web3.js";
+import { MarketsAccount, StateAccount } from '../types';
+import BN from 'bn.js';
+import { Connection } from '@solana/web3.js';
 
 /**
  * In the case of a levered loss, the exchange first pays out undistributed fees and then the insurance fund.
@@ -11,12 +11,18 @@ import {Connection} from "@solana/web3.js";
  * @param state
  * @param marketsAccount
  */
-export async function calculateInsuranceFundSize(connection: Connection, state: StateAccount, marketsAccount: MarketsAccount) : Promise<BN> {
+export async function calculateInsuranceFundSize(
+	connection: Connection,
+	state: StateAccount,
+	marketsAccount: MarketsAccount
+): Promise<BN> {
 	const insuranceVaultPublicKey = state.insuranceVault;
-	const insuranceVaultAmount = new BN((await connection.getTokenAccountBalance(insuranceVaultPublicKey)).value.amount);
+	const insuranceVaultAmount = new BN(
+		(
+			await connection.getTokenAccountBalance(insuranceVaultPublicKey)
+		).value.amount
+	);
 	return marketsAccount.markets.reduce((insuranceVaultAmount, market) => {
-		return insuranceVaultAmount.add(
-			market.amm.totalFee.div(new BN(2))
-		)
+		return insuranceVaultAmount.add(market.amm.totalFee.div(new BN(2)));
 	}, insuranceVaultAmount);
 }

@@ -50,7 +50,8 @@ async function updateFundingRateHelper(
 		);
 
 		const priceSpread0 =
-			convertToNumber(ammAccountState0.lastMarkPriceTwap) - convertToNumber(ammAccountState0.lastOraclePriceTwap);
+			convertToNumber(ammAccountState0.lastMarkPriceTwap) -
+			convertToNumber(ammAccountState0.lastOraclePriceTwap);
 		const frontEndFundingCalc0 = priceSpread0 / oraclePx0.twap / (24 * 3600);
 
 		console.log(

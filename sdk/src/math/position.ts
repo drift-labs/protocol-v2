@@ -1,10 +1,11 @@
 import BN from 'bn.js';
 import {
-	AMM_RESERVE_PRECISION, AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO,
+	AMM_RESERVE_PRECISION,
+	AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO,
 	AMM_TO_QUOTE_PRECISION_RATIO,
 	FUNDING_PAYMENT_PRECISION,
-	MARK_PRICE_PRECISION, ONE,
-	PEG_PRECISION,
+	MARK_PRICE_PRECISION,
+	ONE,
 	PRICE_TO_QUOTE_PRECISION,
 	ZERO,
 } from '../constants/numericConstants';
@@ -42,13 +43,13 @@ export function calculateBaseAssetValue(
 			return market.amm.quoteAssetReserve
 				.sub(newQuoteAssetReserve)
 				.mul(market.amm.pegMultiplier)
-				.div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO)
+				.div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO);
 
 		case PositionDirection.LONG:
 			return newQuoteAssetReserve
 				.sub(market.amm.quoteAssetReserve)
 				.mul(market.amm.pegMultiplier)
-				.div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO)
+				.div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO);
 	}
 }
 
