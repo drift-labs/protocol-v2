@@ -33,7 +33,13 @@ pub fn calculate(
         .checked_sub(referrer_reward)
         .ok_or_else(math_error!())?;
 
-    return Ok((user_fee, fee_to_market, token_discount, referrer_reward, referee_discount));
+    return Ok((
+        user_fee,
+        fee_to_market,
+        token_discount,
+        referrer_reward,
+        referee_discount,
+    ));
 }
 
 fn calculate_token_discount(

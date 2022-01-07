@@ -16,12 +16,13 @@
     "@typescript-eslint/parser": "^4.28.0",
     "bn.js": "^5.2.0",
     "chai": "^4.3.4",
-    "typedoc": "^0.22.7",
-    "typescript": "^4.4.4",
     "eslint": "^7.29.0",
     "eslint-config-prettier": "^8.3.0",
     "eslint-plugin-prettier": "^3.4.0",
-    "prettier": "^2.4.1"
+    "husky": "^7.0.4",
+    "prettier": "^2.4.1",
+    "typedoc": "^0.22.7",
+    "typescript": "^4.4.4"
   },
   "dependencies": {
     "chai-bn": "^0.2.2",
@@ -29,8 +30,11 @@
   },
   "scripts": {
     "generate-docs": "typedoc",
-    "prettify": "prettier --write './sdk/src/**/*.ts' './tests/**.ts' './cli/**.ts'",
-    "lint": "eslint . --ext ts --quiet"
+    "prepare": "husky install",
+    "prettify": "prettier --check './sdk/src/**/*.ts' './tests/**.ts' './cli/**.ts'",
+    "prettify:fix": "prettier --write './sdk/src/**/*.ts' './tests/**.ts' './cli/**.ts'",
+    "lint": "eslint . --ext ts --quiet",
+    "lint:fix": "eslint . --ext ts --fix"
   },
   "engines": {
     "node": ">=12"

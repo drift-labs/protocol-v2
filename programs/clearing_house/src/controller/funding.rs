@@ -5,7 +5,7 @@ use anchor_lang::prelude::*;
 
 use crate::error::*;
 use crate::math::amm;
-use crate::math::casting::{cast, cast_to_i64, cast_to_i128};
+use crate::math::casting::{cast, cast_to_i128, cast_to_i64};
 use crate::math::collateral::calculate_updated_collateral;
 use crate::math::constants::{
     AMM_TO_QUOTE_PRECISION_RATIO_I128, FUNDING_PAYMENT_PRECISION, ONE_HOUR,

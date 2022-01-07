@@ -1,9 +1,9 @@
-use anchor_lang::prelude::*;
+use crate::context::InitializeUserOptionalAccounts;
+use crate::error::ErrorCode;
+use crate::optional_accounts::get_whitelist_token;
 use crate::state::state::State;
 use crate::state::user::{User, UserPositions};
-use crate::context::InitializeUserOptionalAccounts;
-use crate::optional_accounts::get_whitelist_token;
-use crate::error::ErrorCode;
+use anchor_lang::prelude::*;
 
 pub fn initialize(
     state: &Box<Account<State>>,
@@ -14,11 +14,8 @@ pub fn initialize(
     optional_accounts: InitializeUserOptionalAccounts,
 ) -> ProgramResult {
     if !state.whitelist_mint.eq(&Pubkey::default()) {
-        let whitelist_token = get_whitelist_token(
-            optional_accounts,
-            remaining_accounts,
-            &state.whitelist_mint,
-        )?;
+        let whitelist_token =
+            get_whitelist_token(optional_accounts, remaining_accounts, &state.whitelist_mint)?;
 
         if whitelist_token.is_none() {
             return Err(ErrorCode::WhitelistTokenNotFound.into());

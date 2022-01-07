@@ -1,5 +1,5 @@
 use crate::error::*;
-use crate::math::constants::{AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO};
+use crate::math::constants::AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO;
 use crate::math_error;
 use solana_program::msg;
 use std::ops::Div;

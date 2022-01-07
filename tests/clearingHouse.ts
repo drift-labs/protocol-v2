@@ -18,7 +18,6 @@ import {
 	QUOTE_PRECISION,
 	MAX_LEVERAGE,
 	convertToNumber,
-	findComputeUnitConsumption,
 } from '../sdk/src';
 
 import { Markets } from '../sdk/src/constants/markets';
@@ -263,11 +262,6 @@ describe('clearing_house', () => {
 
 	it('Long from 0 position', async () => {
 		// Re-Deposit USDC, assuming we have 0 balance here
-		const txSig = await clearingHouse.depositCollateral(
-			usdcAmount,
-			userUSDCAccount.publicKey
-		);
-
 		const marketIndex = new BN(0);
 		const incrementalUSDCNotionalAmount = calculateTradeAmount(usdcAmount);
 		await clearingHouse.openPosition(
