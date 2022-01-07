@@ -7,6 +7,7 @@ import { PublicKey } from '@solana/web3.js';
 
 import {
 	Admin,
+	findComputeUnitConsumption,
 	MARK_PRICE_PRECISION,
 	PositionDirection,
 	QUOTE_PRECISION,
@@ -56,7 +57,10 @@ describe('max reserves', () => {
 		clearingHouse = Admin.from(
 			connection,
 			provider.wallet,
-			chProgram.programId
+			chProgram.programId,
+			{
+				commitment: 'confirmed',
+			}
 		);
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
@@ -113,7 +117,14 @@ describe('max reserves', () => {
 			);
 		}
 		console.log('liquidate');
-		await clearingHouse.liquidate(userAccountPublicKey);
+		const txSig = await clearingHouse.liquidate(userAccountPublicKey);
+		const computeUnits = await findComputeUnitConsumption(
+			clearingHouse.program.programId,
+			connection,
+			txSig,
+			'confirmed'
+		);
+		console.log('compute units', computeUnits);
 	});
 
 	it('liquidate', async () => {
@@ -127,6 +138,13 @@ describe('max reserves', () => {
 			);
 		}
 
-		await clearingHouse.liquidate(userAccountPublicKey);
+		const txSig = await clearingHouse.liquidate(userAccountPublicKey);
+		const computeUnits = await findComputeUnitConsumption(
+			clearingHouse.program.programId,
+			connection,
+			txSig,
+			'confirmed'
+		);
+		console.log('compute units', computeUnits);
 	});
 });

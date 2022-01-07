@@ -22,5 +22,6 @@ export * from './types';
 export * from './math/utils';
 export * from './config';
 export * from './constants/numericConstants';
+export * from './util/computeUnits';
 
 export { BN };
