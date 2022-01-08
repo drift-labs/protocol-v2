@@ -10,6 +10,7 @@ import { Connection } from '@solana/web3.js';
  * @param connection
  * @param state
  * @param marketsAccount
+ * @returns Precision : QUOTE_ASSET_PRECISION
  */
 export async function calculateInsuranceFundSize(
 	connection: Connection,
