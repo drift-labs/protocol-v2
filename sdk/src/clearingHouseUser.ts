@@ -70,6 +70,13 @@ export class ClearingHouseUser {
 		return this.isSubscribed;
 	}
 
+	/**
+	 *	Forces the accountSubscriber to fetch account updates from rpc
+	 */
+	public async fetchAccounts(): Promise<void> {
+		await this.accountSubscriber.fetch();
+	}
+
 	public async unsubscribe(): Promise<void> {
 		await this.accountSubscriber.unsubscribe();
 		this.isSubscribed = false;

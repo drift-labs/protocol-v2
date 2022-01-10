@@ -91,11 +91,7 @@ describe('User Account', () => {
 		expectedMarginRatio: BN
 	) => {
 		// todo: dont hate me
-		const userAccount = ClearingHouseUser.from(
-			clearingHouse,
-			provider.wallet.publicKey
-		);
-		await userAccount.subscribe();
+		await userAccount.fetchAccounts();
 		const buyingPower = userAccount.getBuyingPower();
 		assert(buyingPower.eq(expectedBuyingPower));
 		const pnl = userAccount.getUnrealizedPNL();

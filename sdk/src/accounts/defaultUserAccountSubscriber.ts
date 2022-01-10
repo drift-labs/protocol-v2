@@ -66,6 +66,13 @@ export class DefaultUserAccountSubscriber implements UserAccountSubscriber {
 		return true;
 	}
 
+	async fetch(): Promise<void> {
+		await Promise.all([
+			this.userDataAccountSubscriber.fetch(),
+			this.userPositionsAccountSubscriber.fetch(),
+		]);
+	}
+
 	async unsubscribe(): Promise<void> {
 		if (!this.isSubscribed) {
 			return;

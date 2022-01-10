@@ -7,6 +7,7 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 	accountName: string;
 	program: Program;
 	accountPublicKey: PublicKey;
+	onChange: (data: T) => void;
 
 	public constructor(
 		accountName: string,
@@ -19,18 +20,27 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 	}
 
 	async subscribe(onChange: (data: T) => void): Promise<void> {
-		this.data = (await this.program.account[this.accountName].fetch(
-			this.accountPublicKey
-		)) as T;
-
-		onChange(this.data);
+		this.onChange = onChange;
+		await this.fetch();
 
 		this.program.account[this.accountName]
 			.subscribe(this.accountPublicKey, this.program.provider.opts.commitment)
 			.on('change', async (data: T) => {
 				this.data = data;
-				onChange(data);
+				this.onChange(data);
 			});
+	}
+
+	async fetch(): Promise<void> {
+		const newData = (await this.program.account[this.accountName].fetch(
+			this.accountPublicKey
+		)) as T;
+
+		// if data has changed trigger update
+		if (JSON.stringify(newData) !== JSON.stringify(this.data)) {
+			this.data = newData;
+			this.onChange(this.data);
+		}
 	}
 
 	unsubscribe(): Promise<void> {

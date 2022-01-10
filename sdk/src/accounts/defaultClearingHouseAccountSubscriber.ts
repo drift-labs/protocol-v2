@@ -194,6 +194,24 @@ export class DefaultClearingHouseAccountSubscriber
 		return true;
 	}
 
+	public async fetch(): Promise<void> {
+		if (!this.isSubscribed) {
+			return;
+		}
+
+		const promises = this.optionalExtraSubscriptions
+			.map((optionalSubscription) => {
+				const subscriber = `${optionalSubscription}Subscriber`;
+				return this[subscriber].fetch();
+			})
+			.concat([
+				this.stateAccountSubscriber.fetch(),
+				this.marketsAccountSubscriber.fetch(),
+			]);
+
+		await Promise.all(promises);
+	}
+
 	public async unsubscribe(): Promise<void> {
 		if (!this.isSubscribed) {
 			return;

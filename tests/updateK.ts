@@ -99,6 +99,7 @@ describe('update k', () => {
 		const newSqrtK = ammInitialBaseAssetReserve.mul(new BN(10));
 		await clearingHouse.updateK(newSqrtK, marketIndex);
 
+		await clearingHouse.fetchAccounts();
 		const markets = await clearingHouse.getMarketsAccount();
 		const newKPrice = calculateMarkPrice(clearingHouse.getMarket(marketIndex));
 
@@ -137,6 +138,7 @@ describe('update k', () => {
 			initialSOLPrice * MARK_PRICE_PRECISION.toNumber() * 44.1
 		);
 		await clearingHouse.moveAmmToPrice(marketIndex, targetPriceUp);
+		await clearingHouse.fetchAccounts();
 		const oldKPrice = calculateMarkPrice(clearingHouse.getMarket(marketIndex));
 		const ammOld = marketsOld.markets[0].amm;
 
@@ -145,6 +147,7 @@ describe('update k', () => {
 			.div(MARK_PRICE_PRECISION);
 		await clearingHouse.updateK(newSqrtK, marketIndex);
 
+		await clearingHouse.fetchAccounts();
 		const markets = await clearingHouse.getMarketsAccount();
 		const newKPrice = calculateMarkPrice(clearingHouse.getMarket(marketIndex));
 
@@ -190,6 +193,7 @@ describe('update k', () => {
 			marketIndex
 		);
 		console.log('$1 position taken');
+		await clearingHouse.fetchAccounts();
 		const marketsOld = await clearingHouse.getMarketsAccount();
 		assert(!marketsOld.markets[0].baseAssetAmount.eq(ZERO));
 
@@ -204,6 +208,8 @@ describe('update k', () => {
 			.mul(new BN(0.5 * MARK_PRICE_PRECISION.toNumber()))
 			.div(MARK_PRICE_PRECISION);
 		await clearingHouse.updateK(newSqrtK, marketIndex);
+
+		await clearingHouse.fetchAccounts();
 		const marketsKChange = await clearingHouse.getMarketsAccount();
 		const ammKChange = marketsKChange.markets[0].amm;
 
@@ -272,6 +278,7 @@ describe('update k', () => {
 			marketIndex
 		);
 		console.log('$1 position taken');
+		await clearingHouse.fetchAccounts();
 		const marketsOld = await clearingHouse.getMarketsAccount();
 		assert(!marketsOld.markets[0].baseAssetAmount.eq(ZERO));
 
@@ -286,6 +293,8 @@ describe('update k', () => {
 			.mul(new BN(1.1 * MARK_PRICE_PRECISION.toNumber()))
 			.div(MARK_PRICE_PRECISION);
 		await clearingHouse.updateK(newSqrtK, marketIndex);
+
+		await clearingHouse.fetchAccounts();
 		const marketsKChange = await clearingHouse.getMarketsAccount();
 		const ammKChange = marketsKChange.markets[0].amm;
 		const newKPrice = calculateMarkPrice(clearingHouse.getMarket(marketIndex));
@@ -295,6 +304,7 @@ describe('update k', () => {
 		await clearingHouse.closePosition(marketIndex);
 		console.log('$1 position closed');
 
+		await clearingHouse.fetchAccounts();
 		const markets = await clearingHouse.getMarketsAccount();
 		const amm = markets.markets[0].amm;
 

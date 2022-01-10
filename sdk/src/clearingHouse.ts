@@ -140,6 +140,13 @@ export class ClearingHouse {
 	}
 
 	/**
+	 *	Forces the accountSubscriber to fetch account updates from rpc
+	 */
+	public async fetchAccounts(): Promise<void> {
+		await this.accountSubscriber.fetch();
+	}
+
+	/**
 	 * Unsubscribe from all currently subscribed state accounts
 	 */
 	public async unsubscribe(): Promise<void> {
