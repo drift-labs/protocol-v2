@@ -1,5 +1,6 @@
 import {
 	AccountSubscriber,
+	NotSubscribedError,
 	UserAccountEvents,
 	UserAccountSubscriber,
 } from './types';
@@ -76,11 +77,21 @@ export class DefaultUserAccountSubscriber implements UserAccountSubscriber {
 		this.isSubscribed = false;
 	}
 
+	assertIsSubscribed(): void {
+		if (!this.isSubscribed) {
+			throw new NotSubscribedError(
+				'You must call `subscribe` before using this function'
+			);
+		}
+	}
+
 	public getUserAccount(): UserAccount {
+		this.assertIsSubscribed();
 		return this.userDataAccountSubscriber.data;
 	}
 
 	public getUserPositionsAccount(): UserPositionsAccount {
+		this.assertIsSubscribed();
 		return this.userPositionsAccountSubscriber.data;
 	}
 }
