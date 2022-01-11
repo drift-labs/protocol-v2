@@ -58,4 +58,11 @@ export const Markets: Market[] = [
 		devnetPythOracle: 'FBirwuDFuRAu4iSGc7RGxN5koHB7EJM1wbCmyPuQoGur',
 		mainnetPythOracle: '7KVswB9vkCgeM3SHP7aGDijvdRAHK8P5wi9JXViCrtYh',
 	},
+	{
+		symbol: 'ATOM-PERP',
+		baseAssetSymbol: 'ATOM',
+		marketIndex: new BN(7),
+		devnetPythOracle: '7YAze8qFUMkBnyLVdKT4TFUUFui99EwS5gfRArMcrvFk',
+		mainnetPythOracle: 'CrCpTerNqtZvqLcKqz1k13oVeXV9WkMD2zA9hBKXrsbN',
+	},
 ];
