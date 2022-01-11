@@ -601,7 +601,7 @@ export class ClearingHouseUser {
 			const direction = positionBaseSizeChange.gt(ZERO) ? PositionDirection.LONG : PositionDirection.SHORT;
 			currentPrice = calculateTradeSlippage(
 				direction,
-				positionBaseSizeChange,
+				positionBaseSizeChange.abs(),
 				this.clearingHouse.getMarket(targetMarket.marketIndex),
 				'base',
 			)[3]; // newPrice after swap
