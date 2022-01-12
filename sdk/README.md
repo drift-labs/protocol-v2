@@ -98,7 +98,7 @@ import {
 	calculateTradeSlippage,
 	MARK_PRICE_PRECISION,
 	QUOTE_PRECISION,
-} from '@drift/sdk';
+} from '@drift-labs/sdk';
 
 export const getTokenAddress = (
 	mintAddress: string,
@@ -180,7 +180,7 @@ const main = async () => {
 		clearingHouse.getMarket(solMarketInfo.marketIndex)
 	);
 
-	const formattedPrice = convertToNumber(currentMarketPrice, QUOTE_PRECISION);
+	const formattedPrice = convertToNumber(currentMarketPrice, MARK_PRICE_PRECISION);
 
 	console.log(`Current Market Price is $${formattedPrice}`);
 
