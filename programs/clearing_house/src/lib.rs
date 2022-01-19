@@ -714,11 +714,25 @@ pub mod clearing_house {
 
         // Trade fails if the trade is risk increasing and it pushes to mark price too far
         // away from the oracle price
-        let is_oracle_mark_too_divergent = amm::is_oracle_mark_too_divergent(
+        let is_oracle_mark_too_divergent_before = amm::is_oracle_mark_too_divergent(
+            oracle_mark_spread_pct_before,
+            &ctx.accounts.state.oracle_guard_rails.price_divergence,
+        )?;
+        let is_oracle_mark_too_divergent_after = amm::is_oracle_mark_too_divergent(
             oracle_mark_spread_pct_after,
             &ctx.accounts.state.oracle_guard_rails.price_divergence,
         )?;
-        if is_oracle_mark_too_divergent
+
+        // if oracle-mark divergence pushed outside limit, block trade
+        if is_oracle_mark_too_divergent_after
+            && !is_oracle_mark_too_divergent_before
+            && is_oracle_valid
+        {
+            return Err(ErrorCode::OracleMarkSpreadLimit.into());
+        }
+
+        // if oracle-mark divergence outside limit and risk-increasing, block trade
+        if is_oracle_mark_too_divergent_after
             && oracle_mark_spread_pct_after.unsigned_abs()
                 >= oracle_mark_spread_pct_before.unsigned_abs()
             && is_oracle_valid
@@ -842,6 +856,14 @@ pub mod clearing_house {
 
         // Collect data about market before trade is executed so that it can be stored in trade history
         let mark_price_before = market.amm.mark_price()?;
+        let (oracle_price, _, oracle_mark_spread_pct_before) =
+            amm::calculate_oracle_mark_spread_pct(
+                &market.amm,
+                &ctx.accounts.oracle,
+                0,
+                clock_slot,
+                Some(mark_price_before),
+            )?;
         let direction_to_close =
             math::position::direction_to_close_position(market_position.base_asset_amount);
         let (quote_asset_amount, base_asset_amount) =
@@ -906,13 +928,15 @@ pub mod clearing_house {
         // Collect data about market after trade is executed so that it can be stored in trade history
         let mark_price_after = market.amm.mark_price()?;
         let price_oracle = &ctx.accounts.oracle;
-        let (oracle_price_after, _oracle_mark_spread_after) = amm::calculate_oracle_mark_spread(
-            &market.amm,
-            price_oracle,
-            0,
-            clock_slot,
-            Some(mark_price_after),
-        )?;
+
+        let (oracle_price_after, _oracle_mark_spread_after, oracle_mark_spread_pct_after) =
+            amm::calculate_oracle_mark_spread_pct(
+                &market.amm,
+                &ctx.accounts.oracle,
+                0,
+                clock_slot,
+                Some(mark_price_after),
+            )?;
 
         let is_oracle_valid = amm::is_oracle_valid(
             &market.amm,
@@ -922,6 +946,24 @@ pub mod clearing_house {
         )?;
         if is_oracle_valid {
             amm::update_oracle_price_twap(&mut market.amm, now, oracle_price_after)?;
+        }
+
+        // Trade fails if the trade is risk increasing and it pushes to mark price too far
+        // away from the oracle price
+        let is_oracle_mark_too_divergent_before = amm::is_oracle_mark_too_divergent(
+            oracle_mark_spread_pct_after,
+            &ctx.accounts.state.oracle_guard_rails.price_divergence,
+        )?;
+        let is_oracle_mark_too_divergent_after = amm::is_oracle_mark_too_divergent(
+            oracle_mark_spread_pct_after,
+            &ctx.accounts.state.oracle_guard_rails.price_divergence,
+        )?;
+
+        // if closing position pushes outside of oracle-mark divergence limit, block trade
+        if (is_oracle_mark_too_divergent_after && !is_oracle_mark_too_divergent_before)
+            && is_oracle_valid
+        {
+            return Err(ErrorCode::OracleMarkSpreadLimit.into());
         }
 
         // Add to the trade history account
