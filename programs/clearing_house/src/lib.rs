@@ -1355,11 +1355,7 @@ pub mod clearing_house {
 
         // The admin can move fees from the insurance fund back to the protocol so that money in
         // the insurance fund can be used to make market more optimal
-        market.amm.total_fee = market
-            .amm
-            .total_fee
-            .checked_add(cast(amount)?)
-            .ok_or_else(math_error!())?;
+        // 100% goes to user fee pool (symmetric funding, repeg, and k adjustments) 
         market.amm.total_fee_minus_distributions = market
             .amm
             .total_fee_minus_distributions

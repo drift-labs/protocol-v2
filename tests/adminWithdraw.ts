@@ -150,7 +150,11 @@ describe('admin withdraw', () => {
 		assert(collateralVaultTokenAccount.amount.eq(new BN(9987562)));
 
 		market = clearingHouse.getMarketsAccount().markets[0];
+
+		// deposits go entirely to distributions for sym-funding/repeg/k-adjustments
 		console.log(market.amm.totalFee.toString());
-		console.assert(market.amm.totalFee.eq(new BN(62187)));
+		console.log(market.amm.totalFeeMinusDistributions.toString());
+		assert(market.amm.totalFee.lt(market.amm.totalFeeMinusDistributions));
+		assert(market.amm.totalFeeMinusDistributions.eq(new BN(62187)));
 	});
 });
