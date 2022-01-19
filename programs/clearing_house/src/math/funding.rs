@@ -44,18 +44,21 @@ pub fn calculate_funding_rate_long_short(
         .total_fee_minus_distributions
         .checked_sub(capped_funding_pnl.unsigned_abs())
         .ok_or_else(math_error!())?;
+    
+    // clearing house is paying part of funding imbalance
+    if capped_funding_pnl != 0 {
+        let total_fee_minus_distributions_lower_bound = market
+            .amm
+            .total_fee
+            .checked_mul(SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR)
+            .ok_or_else(math_error!())?
+            .checked_div(SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_DENOMINATOR)
+            .ok_or_else(math_error!())?;
 
-    let total_fee_minus_distributions_lower_bound = market
-        .amm
-        .total_fee
-        .checked_mul(SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR)
-        .ok_or_else(math_error!())?
-        .checked_div(SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_DENOMINATOR)
-        .ok_or_else(math_error!())?;
-
-    // makes sure the clearing house doesn't pay more than the share of fees allocated to `distributions`
-    if new_total_fee_minus_distributions < total_fee_minus_distributions_lower_bound {
-        return Err(ErrorCode::InvalidFundingProfitability.into());
+        // makes sure the clearing house doesn't pay more than the share of fees allocated to `distributions`
+        if new_total_fee_minus_distributions < total_fee_minus_distributions_lower_bound {
+            return Err(ErrorCode::InvalidFundingProfitability.into());
+        }
     }
 
     market.amm.total_fee_minus_distributions = new_total_fee_minus_distributions;
@@ -77,7 +80,7 @@ pub fn calculate_funding_rate_long_short(
 
 fn calculate_capped_funding_rate(
     market: &Market,
-    uncapped_funding_pnl: i128,
+    uncapped_funding_pnl: i128, // if negative, users would net recieve from clearinghouse
     funding_rate: i128,
 ) -> ClearingHouseResult<(i128, i128)> {
     // The funding_rate_pnl_limit is the amount of fees the clearing house can use before it hits it's lower bound
