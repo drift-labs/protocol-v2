@@ -173,7 +173,7 @@ describe('update k', () => {
 		assert(amm.sqrtK.eq(newSqrtK));
 	});
 
-	it('lower k position imbalance (AMM PROFIT)', async () => {
+	it('failure: lower k (more than 2.5%) position imbalance (AMM PROFIT)', async () => {
 		const marketIndex = Markets[0].marketIndex;
 
 		const targetPriceBack = new BN(
@@ -206,6 +206,98 @@ describe('update k', () => {
 
 		const newSqrtK = ammOld.sqrtK
 			.mul(new BN(0.5 * MARK_PRICE_PRECISION.toNumber()))
+			.div(MARK_PRICE_PRECISION);
+
+		try{
+			await clearingHouse.updateK(newSqrtK, marketIndex);
+			assert(false);
+		} catch{
+
+			await clearingHouse.fetchAccounts();
+			const marketsKChange = await clearingHouse.getMarketsAccount();
+			const ammKChange = marketsKChange.markets[0].amm;
+	
+			const newKPrice = calculateMarkPrice(clearingHouse.getMarket(marketIndex));
+	
+			console.log('$1 position closing');
+	
+			await clearingHouse.closePosition(marketIndex);
+			console.log('$1 position closed');
+	
+			const markets = await clearingHouse.getMarketsAccount();
+	
+			const amm = markets.markets[0].amm;
+	
+			const marginOfError = new BN(MARK_PRICE_PRECISION.div(new BN(1000))); // price change less than 3 decimal places
+	
+			console.log(
+				'oldSqrtK',
+				convertToNumber(ammOld.sqrtK),
+				'oldKPrice:',
+				convertToNumber(oldKPrice)
+			);
+			console.log(
+				'newSqrtK',
+				convertToNumber(newSqrtK),
+				'newKPrice:',
+				convertToNumber(newKPrice)
+			);
+	
+			assert(ammOld.sqrtK.eq(amm.sqrtK));
+			assert(newKPrice.sub(oldKPrice).abs().lt(marginOfError));
+			assert(!amm.sqrtK.eq(newSqrtK));
+	
+			console.log(
+				'realizedFeeOld',
+				convertToNumber(ammOld.totalFeeMinusDistributions, QUOTE_PRECISION),
+				'realizedFeePostK',
+				convertToNumber(ammKChange.totalFeeMinusDistributions, QUOTE_PRECISION),
+				'realizedFeePostClose',
+				convertToNumber(amm.totalFeeMinusDistributions, QUOTE_PRECISION)
+			);
+			console.log(
+				'USER getTotalCollateral',
+				convertToNumber(userAccount.getTotalCollateral(), QUOTE_PRECISION)
+			);
+	
+			// assert(amm.totalFeeMinusDistributions.lt(ammOld.totalFeeMinusDistributions));
+		}
+
+		
+	});
+	it('lower k (2%) position imbalance (AMM PROFIT)', async () => {
+		const marketIndex = Markets[0].marketIndex;
+
+		const targetPriceBack = new BN(
+			initialSOLPrice * MARK_PRICE_PRECISION.toNumber()
+		);
+
+		// const [direction, tradeSize, _] = clearingHouse.calculateTargetPriceTrade(
+		// 	marketIndex,
+		// 	targetPriceUp
+		// );
+		await clearingHouse.moveAmmToPrice(marketIndex, targetPriceBack);
+
+		console.log('taking position');
+		await clearingHouse.openPosition(
+			PositionDirection.LONG,
+			new BN(QUOTE_PRECISION),
+			marketIndex
+		);
+		console.log('$1 position taken');
+		await clearingHouse.fetchAccounts();
+		const marketsOld = await clearingHouse.getMarketsAccount();
+		assert(!marketsOld.markets[0].baseAssetAmount.eq(ZERO));
+
+		const oldKPrice = calculateMarkPrice(clearingHouse.getMarket(marketIndex));
+		const ammOld = marketsOld.markets[0].amm;
+		console.log(
+			'USER getTotalCollateral',
+			convertToNumber(userAccount.getTotalCollateral(), QUOTE_PRECISION)
+		);
+
+		const newSqrtK = ammOld.sqrtK
+			.mul(new BN(0.98 * MARK_PRICE_PRECISION.toNumber()))
 			.div(MARK_PRICE_PRECISION);
 		await clearingHouse.updateK(newSqrtK, marketIndex);
 
@@ -258,7 +350,6 @@ describe('update k', () => {
 
 		// assert(amm.totalFeeMinusDistributions.lt(ammOld.totalFeeMinusDistributions));
 	});
-
 	it('increase k position imbalance (AMM LOSS)', async () => {
 		const marketIndex = Markets[0].marketIndex;
 		const targetPriceBack = new BN(
