@@ -226,9 +226,8 @@ export async function calculateEstimatedFundingRate(
 /**
  *
  * @param market
- * @param pythClient
+ * @param oraclePriceData
  * @param periodAdjustment
- * @param estimationMethod
  * @returns Estimated funding rate. : Precision //TODO-PRECISION
  */
 export async function calculateLongShortFundingRate(
@@ -255,9 +254,8 @@ export async function calculateLongShortFundingRate(
 /**
  *
  * @param market
- * @param pythClient
+ * @param oraclePriceData
  * @param periodAdjustment
- * @param estimationMethod
  * @returns Estimated funding rate. : Precision //TODO-PRECISION
  */
 export async function calculateLongShortFundingRateAndLiveTwaps(
@@ -289,6 +287,9 @@ export async function calculateLongShortFundingRateAndLiveTwaps(
 export function calculateFundingPool(market: Market): BN {
 	// todo
 	const totalFeeLB = market.amm.totalFee.div(new BN(2));
-	const feePool = BN.max(ZERO, market.amm.totalFeeMinusDistributions.sub(totalFeeLB));
+	const feePool = BN.max(
+		ZERO,
+		market.amm.totalFeeMinusDistributions.sub(totalFeeLB)
+	);
 	return feePool;
 }
