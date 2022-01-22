@@ -99,7 +99,7 @@ export async function calculateAllEstimatedFundingRate(
 			.div(timeSinceLastOracleTwapUpdate.add(oracleTwapTimeSinceLastUpdate));
 	}
 
-	const twapSpread = markTwapWithMantissa.sub(oracleTwapWithMantissa);
+	const twapSpread = lastMarkTwapWithMantissa.sub(lastOracleTwapWithMantissa);
 
 	const twapSpreadPct = twapSpread
 		.mul(MARK_PRICE_PRECISION)
