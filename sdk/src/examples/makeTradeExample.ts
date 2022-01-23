@@ -102,10 +102,11 @@ const main = async () => {
 	// Estimate the slippage for a $5000 LONG trade
 	const solMarketAccount = clearingHouse.getMarket(solMarketInfo.marketIndex);
 
+	const longAmount = new BN(5000).mul(QUOTE_PRECISION);
 	const slippage = convertToNumber(
 		calculateTradeSlippage(
 			PositionDirection.LONG,
-			new BN(5000).mul(QUOTE_PRECISION),
+			longAmount,
 			solMarketAccount
 		)[0],
 		MARK_PRICE_PRECISION
@@ -118,7 +119,7 @@ const main = async () => {
 	// Make a $5000 LONG trade
 	await clearingHouse.openPosition(
 		PositionDirection.LONG,
-		new BN(5000).mul(QUOTE_PRECISION),
+		longAmount,
 		solMarketInfo.marketIndex
 	);
 	console.log(`LONGED $5000 SOL`);
@@ -126,7 +127,7 @@ const main = async () => {
 	// Make a $5000 LONG trade
 	await clearingHouse.openPosition(
 		PositionDirection.LONG,
-		new BN(5000).mul(QUOTE_PRECISION),
+		longAmount,
 		solMarketInfo.marketIndex
 	);
 	console.log(`LONGED $5000 worth of SOL`);
