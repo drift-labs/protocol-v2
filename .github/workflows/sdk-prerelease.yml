@@ -19,7 +19,7 @@ jobs:
           node-version: '14.x'
           registry-url: 'https://registry.npmjs.org'
       - name: Build sdk
-      - run: yarn
+        run: yarn
       - run: yarn build
       - name: Update package version
         run: npm version prerelease --preid=master
