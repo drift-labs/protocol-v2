@@ -579,34 +579,35 @@ export class ClearingHouseUser {
 
 		let priceDelt;
 		if (proposedBaseAssetAmount.lt(ZERO)) {
-			priceDelt = (tc
+			priceDelt = tc
 				.mul(thisLev)
-				.sub(tpv))
+				.sub(tpv)
 				.mul(PRICE_TO_QUOTE_PRECISION)
 				.div(thisLev.add(new BN(1)));
 		} else {
-			priceDelt = (tc
+			priceDelt = tc
 				.mul(thisLev)
-				.sub(tpv))
+				.sub(tpv)
 				.mul(PRICE_TO_QUOTE_PRECISION)
 				.div(thisLev.sub(new BN(1)));
 		}
 
 		let currentPrice;
-		if(positionBaseSizeChange.eq(ZERO)){
+		if (positionBaseSizeChange.eq(ZERO)) {
 			currentPrice = calculateMarkPrice(
 				this.clearingHouse.getMarket(targetMarket.marketIndex)
 			);
-		} else{
-			const direction = positionBaseSizeChange.gt(ZERO) ? PositionDirection.LONG : PositionDirection.SHORT;
+		} else {
+			const direction = positionBaseSizeChange.gt(ZERO)
+				? PositionDirection.LONG
+				: PositionDirection.SHORT;
 			currentPrice = calculateTradeSlippage(
 				direction,
 				positionBaseSizeChange.abs(),
 				this.clearingHouse.getMarket(targetMarket.marketIndex),
-				'base',
+				'base'
 			)[3]; // newPrice after swap
 		}
-		
 
 		// if the position value after the trade is less than total collateral, there is no liq price
 		if (
@@ -622,7 +623,7 @@ export class ClearingHouseUser {
 			.mul(AMM_RESERVE_PRECISION)
 			.div(proposedBaseAssetAmount);
 
-		if(eatMargin2.gt(currentPrice)){
+		if (eatMargin2.gt(currentPrice)) {
 			return new BN(-1);
 		}
 
