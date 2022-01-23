@@ -6,8 +6,11 @@ on:
     paths:
       - 'sdk/src/*'
 jobs:
-  build:
+  release:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./sdk
     steps:
       - uses: actions/checkout@v2
       - name: Setup node
@@ -16,7 +19,6 @@ jobs:
           node-version: '14.x'
           registry-url: 'https://registry.npmjs.org'
       - name: Build sdk
-        run: cd sdk
       - run: yarn
       - run: yarn build
       - name: Update package version
