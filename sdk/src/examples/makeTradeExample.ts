@@ -124,14 +124,6 @@ const main = async () => {
 	);
 	console.log(`LONGED $5000 SOL`);
 
-	// Make a $5000 LONG trade
-	await clearingHouse.openPosition(
-		PositionDirection.LONG,
-		longAmount,
-		solMarketInfo.marketIndex
-	);
-	console.log(`LONGED $5000 worth of SOL`);
-
 	// Reduce the position by $2000
 	const reduceAmount = new BN(2000).mul(QUOTE_PRECISION);
 	await clearingHouse.openPosition(
