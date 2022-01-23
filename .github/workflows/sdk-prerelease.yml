@@ -4,7 +4,7 @@ on:
     branches:
       - master
     paths:
-      - 'sdk/src/*'
+      - 'sdk/src/**'
 jobs:
   release:
     runs-on: ubuntu-latest
