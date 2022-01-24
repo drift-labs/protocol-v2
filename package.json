@@ -8,6 +8,7 @@
     "@project-serum/anchor": "0.19.1-beta.1",
     "@project-serum/common": "0.0.1-beta.3",
     "@project-serum/serum": "^0.13.38",
+    "@pythnetwork/client": "^2.4.0",
     "@solana/spl-token": "^0.1.6",
     "@solana/web3.js": "1.17.0",
     "@types/bn.js": "^5.1.0",
