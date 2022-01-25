@@ -82,4 +82,12 @@ export const Markets: Market[] = [
 		mainnetPythOracle: 'EcV1X1gY2yb4KXxjVQtTHTbioum2gvmPnFk4zYAt7zne',
 		launchTs: 1642629253786,
 	},
+	{
+		symbol: 'ADA-PERP',
+		baseAssetSymbol: 'ADA',
+		marketIndex: new BN(9),
+		devnetPythOracle: '8oGTURNmSQkrBS1AQ5NjB2p8qY34UVmMA9ojrw8vnHus',
+		mainnetPythOracle: '3pyn4svBbxJ9Wnn3RVeafyLWfzie6yC5eTig2S62v9SC',
+		launchTs: 1643084413000,
+	},
 ];
