@@ -1031,6 +1031,10 @@ pub mod clearing_house {
         let (total_collateral, unrealized_pnl, base_asset_value, margin_ratio) =
             calculate_margin_ratio(user, user_positions, &ctx.accounts.markets.load()?)?;
         if margin_ratio > ctx.accounts.state.margin_ratio_partial {
+            msg!("total_collateral {}", total_collateral);
+            msg!("unrealized_pnl {}", unrealized_pnl);
+            msg!("base_asset_value {}", base_asset_value);
+            msg!("margin ratio {}", margin_ratio);
             return Err(ErrorCode::SufficientCollateral.into());
         }
 
