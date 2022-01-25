@@ -58,10 +58,10 @@
     bn.js "^5.1.2"
     buffer-layout "^1.2.0"
 
-"@pythnetwork/client@^2.4.0":
-  version "2.4.0"
-  resolved "https://registry.yarnpkg.com/@pythnetwork/client/-/client-2.4.0.tgz#5bc9bb3fceb748e6a2d5f23c2da66ac66f2fb4bf"
-  integrity sha512-CRoqX7r1fjogpLNl8DwJ3ihAfi68gDbQw0nO0/FLd/MyW5s+cMWjrCJsKOrl/NoYqugHI9c8ogi8i2Hbh/IzMQ==
+"@pythnetwork/client@^2.5.1":
+  version "2.5.1"
+  resolved "https://registry.yarnpkg.com/@pythnetwork/client/-/client-2.5.1.tgz#f15c1f2394157f4a97fa8725b93ad887d534e776"
+  integrity sha512-QXt31aWuVi02yvjmNEFDKurTkeTL/BEM4Ney4uixUbkxZDSrYRUuYNXPTrylRLdT3C3DlbF858/Jt7DwtLMR2w==
   dependencies:
     "@solana/web3.js" "^1.30.2"
     assert "^2.0.0"
