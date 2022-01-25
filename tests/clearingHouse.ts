@@ -136,6 +136,7 @@ describe('clearing_house', () => {
 			periodicity
 		);
 
+		await clearingHouse.fetchAccounts();
 		const marketsAccount: any = clearingHouse.getMarketsAccount();
 
 		const marketData = marketsAccount.markets[0];
