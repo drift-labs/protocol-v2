@@ -1,5 +1,5 @@
 use std::cell::{Ref, RefMut};
-use std::cmp::max;
+use std::cmp::{max, min};
 
 use anchor_lang::prelude::*;
 
@@ -152,7 +152,13 @@ pub fn update_funding_rate(
             .checked_sub(oracle_price_twap)
             .ok_or_else(math_error!())?;
 
-        let funding_rate = price_spread
+        // clamp price divergence to 3% for funding rate calculation
+        let max_price_spread = oracle_price_twap
+            .checked_div(33)
+            .ok_or_else(math_error!())?; // 3%
+        let clamped_price_spread = max(-max_price_spread, min(price_spread, max_price_spread));
+
+        let funding_rate = clamped_price_spread
             .checked_mul(cast(FUNDING_PAYMENT_PRECISION)?)
             .ok_or_else(math_error!())?
             .checked_div(cast(period_adjustment)?)

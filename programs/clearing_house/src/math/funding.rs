@@ -91,14 +91,20 @@ fn calculate_capped_funding_rate(
         .ok_or_else(math_error!())?
         .checked_div(SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_DENOMINATOR)
         .ok_or_else(math_error!())?;
+
+    // limit to 2/3 of current fee pool per funding period
     let funding_rate_pnl_limit =
         if market.amm.total_fee_minus_distributions > total_fee_minus_distributions_lower_bound {
             -cast_to_i128(
-                market
+                (market
                     .amm
                     .total_fee_minus_distributions
                     .checked_sub(total_fee_minus_distributions_lower_bound)
-                    .ok_or_else(math_error!())?,
+                    .ok_or_else(math_error!())?)
+                .checked_mul(2)
+                .ok_or_else(math_error!())?
+                .checked_div(3)
+                .ok_or_else(math_error!())?,
             )?
         } else {
             0
