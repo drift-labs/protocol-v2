@@ -17,7 +17,7 @@ export interface AccountSubscriber<T> {
 	data?: T;
 	subscribe(onChange: (data: T) => void): Promise<void>;
 	fetch(): Promise<void>;
-	unsubscribe(): void;
+	unsubscribe(): Promise<void>;
 }
 
 export class NotSubscribedError extends Error {
