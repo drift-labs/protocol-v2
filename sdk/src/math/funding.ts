@@ -289,13 +289,6 @@ export async function calculateLongShortFundingRateAndLiveTwaps(
 export function calculateFundingPool(market: Market): BN {
 	// todo
 	const totalFeeLB = market.amm.totalFee.div(new BN(2));
-<<<<<<< HEAD
-	const feePool = BN.max(
-		ZERO,
-		market.amm.totalFeeMinusDistributions.sub(totalFeeLB)
-	);
-=======
 	const feePool = BN.max(ZERO, (market.amm.totalFeeMinusDistributions.sub(totalFeeLB)).mul(new BN(2)).div(new BN(3)));
->>>>>>> 547fd2b (sdk: update funding pool to 2/3)
 	return feePool;
 }
