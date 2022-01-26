@@ -295,7 +295,7 @@ commandWithDefaultOption('decrease-k')
 				const percentChange = Math.abs(
 					(numerator.toNumber() / denominator.toNumber()) * 100 - 100
 				);
-				if (percentChange > 10) {
+				if (percentChange > 2) {
 					logError(
 						`Specified input would lead to ${percentChange.toFixed(2)}% change`
 					);
