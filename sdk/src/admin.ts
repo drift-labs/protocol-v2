@@ -153,7 +153,7 @@ export class Admin extends ClearingHouse {
 					await this.program.account.depositHistory.createInstruction(
 						depositHistory
 					),
-					await this.program.account.curveHistory.createInstruction(
+					await this.program.account.extendedCurveHistory.createInstruction(
 						curveHistory
 					),
 				],
@@ -230,13 +230,38 @@ export class Admin extends ClearingHouse {
 		marketIndex: BN
 	): Promise<TransactionSignature> {
 		const state = this.getStateAccount();
+		const markets = this.getMarketsAccount();
+		const marketData = markets.markets[marketIndex.toNumber()];
+		const ammData = marketData.amm;
+
 		return await this.program.rpc.updateK(sqrtK, marketIndex, {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				admin: this.wallet.publicKey,
 				markets: state.markets,
-				curveHistory: state.curveHistory,
+				curveHistory: state.extendedCurveHistory,
+				oracle: ammData.oracle,
 			},
+		});
+	}
+
+	public async updateCurveHistory(): Promise<TransactionSignature> {
+		const extendedCurveHistory = anchor.web3.Keypair.generate();
+
+		const state = this.getStateAccount();
+		return await this.program.rpc.updateCurveHistory({
+			accounts: {
+				state: await this.getStatePublicKey(),
+				admin: this.wallet.publicKey,
+				curveHistory: state.curveHistory,
+				extendedCurveHistory: extendedCurveHistory.publicKey,
+			},
+			instructions: [
+				await this.program.account.extendedCurveHistory.createInstruction(
+					extendedCurveHistory
+				),
+			],
+			signers: [extendedCurveHistory],
 		});
 	}
 
@@ -289,7 +314,7 @@ export class Admin extends ClearingHouse {
 				admin: this.wallet.publicKey,
 				oracle: ammData.oracle,
 				markets: state.markets,
-				curveHistory: state.curveHistory,
+				curveHistory: state.extendedCurveHistory,
 			},
 		});
 	}

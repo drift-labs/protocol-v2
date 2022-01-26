@@ -1,7 +1,7 @@
 use anchor_lang::{prelude::*, AnchorDeserialize, AnchorSerialize};
 use anchor_spl::token::{Mint, Token, TokenAccount};
 
-use crate::state::history::curve::CurveHistory;
+use crate::state::history::curve::{CurveHistory, ExtendedCurveHistory};
 use crate::state::history::deposit::DepositHistory;
 use crate::state::history::funding_rate::FundingRateHistory;
 use crate::state::history::liquidation::LiquidationHistory;
@@ -72,7 +72,7 @@ pub struct InitializeHistory<'info> {
     #[account(zero)]
     pub funding_rate_history: AccountLoader<'info, FundingRateHistory>,
     #[account(zero)]
-    pub curve_history: AccountLoader<'info, CurveHistory>,
+    pub curve_history: AccountLoader<'info, ExtendedCurveHistory>,
 }
 
 #[derive(Accounts)]
@@ -527,9 +527,9 @@ pub struct RepegCurve<'info> {
     pub admin: Signer<'info>,
     #[account(
         mut,
-        constraint = &state.curve_history.eq(&curve_history.key())
+        constraint = &state.extended_curve_history.eq(&curve_history.key())
     )]
-    pub curve_history: AccountLoader<'info, CurveHistory>,
+    pub curve_history: AccountLoader<'info, ExtendedCurveHistory>,
 }
 
 #[derive(Accounts)]
@@ -569,8 +569,12 @@ pub struct AdminUpdateK<'info> {
         constraint = &state.markets.eq(&markets.key())
     )]
     pub markets: AccountLoader<'info, Markets>,
-    #[account(mut)]
-    pub curve_history: AccountLoader<'info, CurveHistory>,
+    pub oracle: AccountInfo<'info>,
+    #[account(
+        mut,
+        constraint = &state.extended_curve_history.eq(&curve_history.key())
+    )]
+    pub curve_history: AccountLoader<'info, ExtendedCurveHistory>,
 }
 
 #[derive(Accounts)]
@@ -585,4 +589,20 @@ pub struct AdminUpdateMarket<'info> {
         constraint = &state.markets.eq(&markets.key())
     )]
     pub markets: AccountLoader<'info, Markets>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateCurveHistory<'info> {
+    pub admin: Signer<'info>,
+    #[account(
+        mut,
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    #[account(zero)]
+    pub extended_curve_history: AccountLoader<'info, ExtendedCurveHistory>,
+    #[account(
+        constraint = &state.curve_history.eq(&curve_history.key())
+    )]
+    pub curve_history: AccountLoader<'info, CurveHistory>,
 }

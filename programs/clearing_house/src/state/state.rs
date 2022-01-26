@@ -37,6 +37,7 @@ pub struct State {
     pub discount_mint: Pubkey,
     pub oracle_guard_rails: OracleGuardRails,
     pub max_deposit: u128,
+    pub extended_curve_history: Pubkey,
 
     // upgrade-ability
     pub padding0: u128,
@@ -45,8 +46,6 @@ pub struct State {
     pub padding3: u128,
     pub padding4: u128,
     pub padding5: u128,
-    pub padding6: u128,
-    pub padding7: u128,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]

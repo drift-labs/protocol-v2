@@ -7,7 +7,6 @@ import {
 import {
 	MarketsAccount,
 	StateAccount,
-	CurveHistoryAccount,
 	DepositHistoryAccount,
 	FundingPaymentHistoryAccount,
 	FundingRateHistoryAccount,
@@ -17,6 +16,7 @@ import {
 	TradeHistoryAccount,
 	UserAccount,
 	Market,
+	ExtendedCurveHistoryAccount,
 } from './types';
 import * as anchor from '@project-serum/anchor';
 import clearingHouseIDL from './idl/clearing_house.json';
@@ -200,7 +200,7 @@ export class ClearingHouse {
 		return this.accountSubscriber.getDepositHistoryAccount();
 	}
 
-	public getCurveHistoryAccount(): CurveHistoryAccount {
+	public getCurveHistoryAccount(): ExtendedCurveHistoryAccount {
 		return this.accountSubscriber.getCurveHistoryAccount();
 	}
 

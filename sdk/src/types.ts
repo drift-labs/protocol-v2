@@ -43,9 +43,9 @@ export type DepositHistoryAccount = {
 	depositRecords: DepositRecord[];
 };
 
-export type CurveHistoryAccount = {
+export type ExtendedCurveHistoryAccount = {
 	head: BN;
-	curveRecords: CurveRecord[];
+	curveRecords: ExtendedCurveRecord[];
 };
 
 export type FundingRateHistoryAccount = {
@@ -77,7 +77,7 @@ export type DepositRecord = {
 	amount: BN;
 };
 
-export type CurveRecord = {
+export type ExtendedCurveRecord = {
 	ts: BN;
 	recordId: BN;
 	marketIndex: BN;
@@ -93,6 +93,7 @@ export type CurveRecord = {
 	baseAssetAmountShort: BN;
 	baseAssetAmount: BN;
 	openInterest: BN;
+	oraclePrice: BN;
 };
 
 export type TradeRecord = {
@@ -197,6 +198,7 @@ export type StateAccount = {
 	discountMint: PublicKey;
 	oracleGuardRails: OracleGuardRails;
 	maxDeposit: BN;
+	extendedCurveHistory: PublicKey;
 };
 
 export type MarketsAccount = {
