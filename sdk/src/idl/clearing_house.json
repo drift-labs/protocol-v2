@@ -2014,6 +2014,19 @@
           {
             "name": "oraclePrice",
             "type": "i128"
+          },
+          {
+            "name": "tradeRecord",
+            "type": "u128"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u128",
+                5
+              ]
+            }
           }
         ]
       }
