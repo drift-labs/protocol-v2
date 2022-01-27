@@ -121,7 +121,6 @@ export async function calculateAllEstimatedFundingRate(
 		.div(hoursInDay)
 		.div(MARK_PRICE_PRECISION.div(QUOTE_PRECISION));
 
-	
 	let feePoolSize = calculateFundingPool(market);
 	if (interpRateQuote.lt(new BN(0))) {
 		feePoolSize = feePoolSize.mul(new BN(-1));
@@ -289,6 +288,12 @@ export async function calculateLongShortFundingRateAndLiveTwaps(
 export function calculateFundingPool(market: Market): BN {
 	// todo
 	const totalFeeLB = market.amm.totalFee.div(new BN(2));
-	const feePool = BN.max(ZERO, (market.amm.totalFeeMinusDistributions.sub(totalFeeLB)).mul(new BN(2)).div(new BN(3)));
+	const feePool = BN.max(
+		ZERO,
+		market.amm.totalFeeMinusDistributions
+			.sub(totalFeeLB)
+			.mul(new BN(2))
+			.div(new BN(3))
+	);
 	return feePool;
 }
