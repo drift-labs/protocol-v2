@@ -84,7 +84,7 @@ convertToNumber(new BN(10500), new BN(1000)); // = 10.5
 ### Setting up an account and making a trade
 
 ```typescript
-import { BN, Provider, Wallet } from '@project-serum/anchor';
+import { BN, Provider } from '@project-serum/anchor';
 import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import {
@@ -98,6 +98,7 @@ import {
 	calculateTradeSlippage,
 	MARK_PRICE_PRECISION,
 	QUOTE_PRECISION,
+	Wallet
 } from '@drift-labs/sdk';
 
 export const getTokenAddress = (
