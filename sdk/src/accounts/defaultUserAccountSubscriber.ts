@@ -77,9 +77,11 @@ export class DefaultUserAccountSubscriber implements UserAccountSubscriber {
 		if (!this.isSubscribed) {
 			return;
 		}
-
-		await this.userDataAccountSubscriber.unsubscribe();
-		await this.userPositionsAccountSubscriber.unsubscribe();
+		
+		await Promise.all([
+			this.userDataAccountSubscriber.unsubscribe(),
+			this.userPositionsAccountSubscriber.unsubscribe(),
+		]);
 
 		this.isSubscribed = false;
 	}
