@@ -90,4 +90,12 @@ export const Markets: Market[] = [
 		mainnetPythOracle: '3pyn4svBbxJ9Wnn3RVeafyLWfzie6yC5eTig2S62v9SC',
 		launchTs: 1643084413000,
 	},
+	{
+		symbol: 'mSOL-PERP',
+		baseAssetSymbol: 'mSOL',
+		marketIndex: new BN(10),
+		devnetPythOracle: '9a6RNx3tCu1TSs6TBSfV2XRXEPEZXQ6WB7jRojZRvyeZ',
+		mainnetPythOracle: 'E4v1BBgoso9s64TQvmyownAVJbhbEPGyzA3qn4n46qj9',
+		launchTs: 1643346125000,
+	},
 ];
