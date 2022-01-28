@@ -227,7 +227,7 @@ pub mod clearing_house {
             .ok_or_else(math_error!())?;
 
         // Verify oracle is readable
-        let (_, oracle_price_twap, _, _, _) = market
+        let (oracle_price, oracle_price_twap, _, _, _) = market
             .amm
             .get_oracle_price(&ctx.accounts.oracle, clock_slot)
             .unwrap();
@@ -265,7 +265,7 @@ pub mod clearing_house {
                 total_fee_minus_distributions: 0,
                 minimum_trade_size: 10000000,
                 last_oracle_price_twap_ts: now,
-                padding0: 0,
+                last_oracle_price: oracle_price,
                 padding1: 0,
                 padding2: 0,
                 padding3: 0,
@@ -1441,6 +1441,93 @@ pub mod clearing_house {
             trade_record: 0,
             padding: [0; 5],
         });
+
+        Ok(())
+    }
+
+    #[allow(unused_must_use)]
+    #[access_control( 
+        market_initialized(&ctx.accounts.markets, market_index) &&
+        valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.markets, market_index)
+     )]
+    pub fn update_amm_oracle_twap(ctx: Context<RepegCurve>, market_index: u64) -> ProgramResult {
+        // allow update to amm's oracle twap iff price gap is reduced and thus more tame funding
+        // otherwise if oracle error or funding flip: set oracle twap to mark twap (0 gap)
+
+        let clock = Clock::get()?;
+        let now = clock.unix_timestamp;
+        let clock_slot = clock.slot;
+
+        let market =
+            &mut ctx.accounts.markets.load_mut()?.markets[Markets::index_from_u64(market_index)];
+        let price_oracle = &ctx.accounts.oracle;
+        let (oracle_price, oracle_twap, _oracle_conf, _oracle_twac, _oracle_delay) =
+            market.amm.get_oracle_price(price_oracle, clock_slot)?;
+
+        let is_oracle_valid = amm::is_oracle_valid(
+            &market.amm,
+            &ctx.accounts.oracle,
+            clock_slot,
+            &ctx.accounts.state.oracle_guard_rails.validity,
+        )?;
+
+        if is_oracle_valid {
+            let oracle_mark_gap_before = cast_to_i128(market.amm.last_mark_price_twap)?
+                .checked_sub(market.amm.last_oracle_price_twap)
+                .ok_or_else(math_error!())?;
+
+            let oracle_mark_gap_after = cast_to_i128(market.amm.last_mark_price_twap)?
+                .checked_sub(oracle_twap)
+                .ok_or_else(math_error!())?;
+
+            if (oracle_mark_gap_after > 0 && oracle_mark_gap_before < 0)
+                || (oracle_mark_gap_after < 0 && oracle_mark_gap_before > 0)
+            {
+                market.amm.last_oracle_price_twap = cast_to_i128(market.amm.last_mark_price_twap)?;
+                market.amm.last_oracle_price_twap_ts = now;
+            } else if oracle_mark_gap_after.unsigned_abs() <= oracle_mark_gap_before.unsigned_abs()
+            {
+                market.amm.last_oracle_price_twap = oracle_twap;
+                market.amm.last_oracle_price_twap_ts = now;
+            } else {
+                return Err(ErrorCode::OracleMarkSpreadLimit.into());
+            }
+        } else {
+            return Err(ErrorCode::InvalidOracle.into());
+        }
+
+        Ok(())
+    }
+
+    #[allow(unused_must_use)]
+    #[access_control( 
+        market_initialized(&ctx.accounts.markets, market_index) &&
+        valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.markets, market_index)
+     )]
+    pub fn reset_amm_oracle_twap(ctx: Context<RepegCurve>, market_index: u64) -> ProgramResult {
+        // if oracle is invalid, failsafe to reset amm oracle_twap to the mark_twap
+
+        let clock = Clock::get()?;
+        let now = clock.unix_timestamp;
+        let clock_slot = clock.slot;
+
+        let market =
+            &mut ctx.accounts.markets.load_mut()?.markets[Markets::index_from_u64(market_index)];
+        let price_oracle = &ctx.accounts.oracle;
+        let (oracle_price, oracle_twap, _oracle_conf, _oracle_twac, _oracle_delay) =
+            market.amm.get_oracle_price(price_oracle, clock_slot)?;
+
+        let is_oracle_valid = amm::is_oracle_valid(
+            &market.amm,
+            &ctx.accounts.oracle,
+            clock_slot,
+            &ctx.accounts.state.oracle_guard_rails.validity,
+        )?;
+
+        if !is_oracle_valid {
+            market.amm.last_oracle_price_twap = cast_to_i128(market.amm.last_mark_price_twap)?;
+            market.amm.last_oracle_price_twap_ts = now;
+        }
 
         Ok(())
     }

@@ -319,6 +319,25 @@ export class Admin extends ClearingHouse {
 		});
 	}
 
+	public async updateAmmOracleTwap(
+		marketIndex: BN
+	): Promise<TransactionSignature> {
+		const state = this.getStateAccount();
+		const markets = this.getMarketsAccount();
+		const marketData = markets.markets[marketIndex.toNumber()];
+		const ammData = marketData.amm;
+
+		return await this.program.rpc.updateAmmOracleTwap(marketIndex, {
+			accounts: {
+				state: await this.getStatePublicKey(),
+				admin: this.wallet.publicKey,
+				oracle: ammData.oracle,
+				markets: state.markets,
+				curveHistory: state.extendedCurveHistory,
+			},
+		});
+	}
+
 	public async withdrawFromInsuranceVault(
 		amount: BN,
 		recipient: PublicKey

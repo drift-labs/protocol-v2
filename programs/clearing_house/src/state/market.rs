@@ -81,10 +81,10 @@ pub struct AMM {
     pub total_fee_withdrawn: u128,
     pub minimum_trade_size: u128,
     pub last_oracle_price_twap_ts: i64,
+    pub last_oracle_price: i128,
 
     // upgrade-ability
-    pub padding0: u64,
-    pub padding1: u128,
+    pub padding1: u64,
     pub padding2: u128,
     pub padding3: u128,
     pub padding4: u128,
