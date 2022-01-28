@@ -855,14 +855,13 @@ pub mod clearing_house {
 
         // Collect data about market before trade is executed so that it can be stored in trade history
         let mark_price_before = market.amm.mark_price()?;
-        let (_, _, oracle_mark_spread_pct_before) =
-            amm::calculate_oracle_mark_spread_pct(
-                &market.amm,
-                &ctx.accounts.oracle,
-                0,
-                clock_slot,
-                Some(mark_price_before),
-            )?;
+        let (_, _, oracle_mark_spread_pct_before) = amm::calculate_oracle_mark_spread_pct(
+            &market.amm,
+            &ctx.accounts.oracle,
+            0,
+            clock_slot,
+            Some(mark_price_before),
+        )?;
         let direction_to_close =
             math::position::direction_to_close_position(market_position.base_asset_amount);
         let (quote_asset_amount, base_asset_amount) =
@@ -1446,7 +1445,7 @@ pub mod clearing_house {
     }
 
     #[allow(unused_must_use)]
-    #[access_control( 
+    #[access_control(
         market_initialized(&ctx.accounts.markets, market_index) &&
         valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.markets, market_index)
      )]
@@ -1500,7 +1499,7 @@ pub mod clearing_house {
     }
 
     #[allow(unused_must_use)]
-    #[access_control( 
+    #[access_control(
         market_initialized(&ctx.accounts.markets, market_index) &&
         valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.markets, market_index)
      )]
