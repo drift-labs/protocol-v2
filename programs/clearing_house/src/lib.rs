@@ -1460,7 +1460,7 @@ pub mod clearing_house {
         let market =
             &mut ctx.accounts.markets.load_mut()?.markets[Markets::index_from_u64(market_index)];
         let price_oracle = &ctx.accounts.oracle;
-        let (oracle_price, oracle_twap, _oracle_conf, _oracle_twac, _oracle_delay) =
+        let (_, oracle_twap, _oracle_conf, _oracle_twac, _oracle_delay) =
             market.amm.get_oracle_price(price_oracle, clock_slot)?;
 
         let is_oracle_valid = amm::is_oracle_valid(
@@ -1513,7 +1513,7 @@ pub mod clearing_house {
         let market =
             &mut ctx.accounts.markets.load_mut()?.markets[Markets::index_from_u64(market_index)];
         let price_oracle = &ctx.accounts.oracle;
-        let (oracle_price, oracle_twap, _oracle_conf, _oracle_twac, _oracle_delay) =
+        let (_, _, _oracle_conf, _oracle_twac, _oracle_delay) =
             market.amm.get_oracle_price(price_oracle, clock_slot)?;
 
         let is_oracle_valid = amm::is_oracle_valid(
