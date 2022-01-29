@@ -924,11 +924,11 @@ describe('clearing_house', () => {
 			new BN(0)
 		);
 
-		await setFeedPrice(anchor.workspace.Pyth, 1000, marketData.amm.oracle);
+		await setFeedPrice(anchor.workspace.Pyth, 1.2, marketData.amm.oracle);
 		// Send the price to the moon so that user has huge pnl
 		await clearingHouse.moveAmmPrice(
-			ammInitialBaseAssetAmount.div(new BN(1000)),
-			ammInitialQuoteAssetAmount,
+			ammInitialBaseAssetAmount.div(new BN(100)),
+			ammInitialQuoteAssetAmount.mul(new BN(120)),
 			new BN(0)
 		);
 
