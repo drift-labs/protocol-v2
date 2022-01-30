@@ -931,7 +931,14 @@ describe('clearing_house', () => {
 			ammInitialQuoteAssetAmount.mul(new BN(120)),
 			new BN(0)
 		);
+		try {
+			await clearingHouse.closePosition(new BN(0));
+			assert(false, 'Excess oracle-mark divergence close order not blocked!');
+		} catch {
+			assert(true);
+		}
 
+		await setFeedPrice(anchor.workspace.Pyth, 700, marketData.amm.oracle);
 		await clearingHouse.closePosition(new BN(0));
 
 		const user: any = await clearingHouse.program.account.user.fetch(

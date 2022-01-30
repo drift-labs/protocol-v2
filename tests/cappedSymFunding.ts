@@ -40,7 +40,12 @@ async function updateFundingRateHelper(
 
 		const newprice = prices[i];
 		await setFeedPrice(anchor.workspace.Pyth, newprice, priceFeedAddress);
-
+		// just to update funding trade .1 cent
+		// await clearingHouse.openPosition(
+		// 	PositionDirection.LONG,
+		// 	QUOTE_PRECISION.div(new BN(100)),
+		// 	marketIndex
+		// );
 		const marketsAccount0 = clearingHouse.getMarketsAccount();
 		const marketData0 = marketsAccount0.markets[marketIndex.toNumber()];
 		const ammAccountState0 = marketData0.amm;
@@ -117,9 +122,11 @@ async function updateFundingRateHelper(
 
 		assert(ammAccountState.lastFundingRate.abs().gte(lastFundingLong.abs()));
 		console.log(
-			convertToNumber(ammAccountState.lastFundingRate.abs()),
-			'>',
-			convertToNumber(lastFundingShort.abs())
+			convertToNumber(ammAccountState.lastFundingRate.abs()) /
+				FUNDING_PAYMENT_PRECISION.toNumber(),
+			'>=',
+			convertToNumber(lastFundingShort.abs()) /
+				FUNDING_PAYMENT_PRECISION.toNumber()
 		);
 		assert(ammAccountState.lastFundingRate.abs().gte(lastFundingShort.abs()));
 
@@ -175,7 +182,7 @@ async function cappedSymFundingScenario(
 	longShortSizes: Array<number>,
 	fees = 0
 ) {
-	const priceFeedAddress = await mockOracle(priceAction[0], -10);
+	const priceFeedAddress = await mockOracle(priceAction[1], -10);
 	const periodicity = new BN(0);
 
 	await clearingHouse.initializeMarket(
@@ -190,19 +197,14 @@ async function cappedSymFundingScenario(
 	if (fees && fees > 0) {
 		await clearingHouse.updateFundingPaused(true);
 
-		await setFeedPrice(
-			anchor.workspace.Pyth,
-			priceAction[0] * 1.11,
-			priceFeedAddress
-		);
+		console.log('spawn some fee pool');
 
 		await clearingHouse.openPosition(
 			PositionDirection.LONG,
-			QUOTE_PRECISION.mul(new BN(10000)),
+			QUOTE_PRECISION.mul(new BN(5000)),
 			marketIndex
 		);
 		await clearingHouse.closePosition(marketIndex);
-		await setFeedPrice(anchor.workspace.Pyth, priceAction[0], priceFeedAddress);
 		await clearingHouse.updateFundingPaused(false);
 	}
 
@@ -641,7 +643,7 @@ describe('capped funding', () => {
 			feeAlloced + Math.abs(fundingPnLForShortsNum) >= fundingPnLForLongsNum
 		);
 	});
-	it('capped sym funding: ($2000 long, $1000 short, oracle > mark), clamped to 5% price spread', async () => {
+	it('capped sym funding: ($2000 long, $1000 short, oracle > mark), clamped to ~3.03% price spread', async () => {
 		const marketIndex = new BN(rollingMarketNum);
 		rollingMarketNum += 1;
 
@@ -730,7 +732,7 @@ describe('capped funding', () => {
 			) < 1e-6
 		);
 	});
-	it('capped sym funding: ($20000 long, $1000 short, oracle > mark), clamped to 2% price spread, fee pool drain', async () => {
+	it('capped sym funding: ($20000 long, $1000 short, oracle > mark), clamped to ~3.03% price spread, fee pool drain', async () => {
 		const marketIndex = new BN(rollingMarketNum);
 		rollingMarketNum += 1;
 
@@ -748,7 +750,7 @@ describe('capped funding', () => {
 			userAccount2,
 			marketIndex,
 			ammInitialBaseAssetAmount,
-			[41, 44.5],
+			[41, 45.1],
 			[20000, 1000]
 		);
 
@@ -840,7 +842,7 @@ describe('capped funding', () => {
 			userAccount2,
 			marketIndex,
 			ammInitialBaseAssetAmount,
-			[41, 41.4],
+			[41, 43.8],
 			[2000, 1000]
 		);
 

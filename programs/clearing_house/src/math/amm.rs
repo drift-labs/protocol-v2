@@ -106,18 +106,18 @@ pub fn update_oracle_price_twap(
         .checked_sub(amm.last_oracle_price_twap)
         .ok_or_else(math_error!())?;
 
-    // cap new oracle update
-    let oracle_price_20pct = oracle_price.checked_div(5).ok_or_else(math_error!())?;
+    // cap new oracle update to 33% delta from twap
+    let oracle_price_33pct = oracle_price.checked_div(3).ok_or_else(math_error!())?;
 
     let capped_oracle_update_price =
-        if new_oracle_price_spread.unsigned_abs() > oracle_price_20pct.unsigned_abs() {
+        if new_oracle_price_spread.unsigned_abs() > oracle_price_33pct.unsigned_abs() {
             if oracle_price > amm.last_oracle_price_twap {
                 amm.last_oracle_price_twap
-                    .checked_add(oracle_price_20pct)
+                    .checked_add(oracle_price_33pct)
                     .ok_or_else(math_error!())?
             } else {
                 amm.last_oracle_price_twap
-                    .checked_sub(oracle_price_20pct)
+                    .checked_sub(oracle_price_33pct)
                     .ok_or_else(math_error!())?
             }
         } else {
@@ -155,35 +155,32 @@ pub fn calculate_new_oracle_price_twap(
             .ok_or_else(math_error!())?,
     );
 
-    // ensure/cap last_oracle_price within 2% of new oracle price
+    // ensure amm.last_oracle_price is proper
     let capped_last_oracle_price = if amm.last_oracle_price > 0 {
-        min(
-            oracle_price
-                .checked_mul(102)
-                .ok_or_else(math_error!())?
-                .checked_div(100)
-                .ok_or_else(math_error!())?,
-            max(
-                oracle_price
-                    .checked_mul(98)
-                    .ok_or_else(math_error!())?
-                    .checked_div(100)
-                    .ok_or_else(math_error!())?,
-                amm.last_oracle_price,
-            ),
-        )
+        amm.last_oracle_price
     } else {
         oracle_price
     };
 
-    let linearly_interpolated_oracle_price = capped_last_oracle_price
-        .checked_add(oracle_price)
-        .ok_or_else(math_error!())?
-        .checked_div(2)
+    // nudge last_oracle_price up to .1% toward oracle price
+    let capped_last_oracle_price_10bp = capped_last_oracle_price
+        .checked_div(1000)
         .ok_or_else(math_error!())?;
 
+    let interpolated_oracle_price = min(
+        capped_last_oracle_price
+            .checked_add(capped_last_oracle_price_10bp)
+            .ok_or_else(math_error!())?,
+        max(
+            capped_last_oracle_price
+                .checked_sub(capped_last_oracle_price_10bp)
+                .ok_or_else(math_error!())?,
+            oracle_price,
+        ),
+    );
+
     let new_twap = calculate_twap(
-        linearly_interpolated_oracle_price,
+        interpolated_oracle_price,
         amm.last_oracle_price_twap,
         since_last,
         from_start,
