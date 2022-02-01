@@ -91,11 +91,19 @@ export const Markets: Market[] = [
 		launchTs: 1643084413000,
 	},
 	{
-		symbol: 'mSOL-PERP',
-		baseAssetSymbol: 'mSOL',
+		symbol: 'ALGO-PERP',
+		baseAssetSymbol: 'ALGO',
 		marketIndex: new BN(10),
-		devnetPythOracle: '9a6RNx3tCu1TSs6TBSfV2XRXEPEZXQ6WB7jRojZRvyeZ',
-		mainnetPythOracle: 'E4v1BBgoso9s64TQvmyownAVJbhbEPGyzA3qn4n46qj9',
-		launchTs: 1643346125000,
+		devnetPythOracle: 'c1A946dY5NHuVda77C8XXtXytyR3wK1SCP3eA9VRfC3',
+		mainnetPythOracle: 'HqFyq1wh1xKvL7KDqqT7NJeSPdAqsDqnmBisUC2XdXAX',
+		launchTs: 1643686767000,
 	},
+	// {
+	// 	symbol: 'mSOL-PERP',
+	// 	baseAssetSymbol: 'mSOL',
+	// 	marketIndex: new BN(11), //todo
+	// 	devnetPythOracle: '9a6RNx3tCu1TSs6TBSfV2XRXEPEZXQ6WB7jRojZRvyeZ',
+	// 	mainnetPythOracle: 'E4v1BBgoso9s64TQvmyownAVJbhbEPGyzA3qn4n46qj9',
+	// 	launchTs: 1643346125000,
+	// },
 ];
