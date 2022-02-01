@@ -239,6 +239,7 @@ export type AMM = {
 	totalFeeWithdrawn: BN;
 	totalFee: BN;
 	minimumTradeSize: BN;
+	lastOraclePrice: BN;
 };
 
 // # User Account Types
