@@ -423,6 +423,36 @@ commandWithDefaultOption('unpause-funding').action(
 	}
 );
 
+commandWithDefaultOption('update-oracle-twap')
+	.argument('<market>', 'The market to update oracle twap for')
+	.action(async (market, options: OptionValues) => {
+		await wrapActionInAdminSubscribeUnsubscribe(
+			options,
+			async (admin: Admin) => {
+				log.info(`market: ${market}`);
+				market = marketIndexFromSymbol(market);
+
+				log.info(`Updating amm oracle twap`);
+				await admin.updateAmmOracleTwap(market);
+				log.info(`Updated oracle twap`);
+			}
+		);
+
+commandWithDefaultOption('reset-oracle-twap')
+	.argument('<market>', 'The market to reset oracle twap for')
+	.action(async (market, options: OptionValues) => {
+		await wrapActionInAdminSubscribeUnsubscribe(
+			options,
+			async (admin: Admin) => {
+				log.info(`market: ${market}`);
+				market = marketIndexFromSymbol(market);
+
+				log.info(`Resetting amm oracle twap`);
+				await admin.resetAmmOracleTwap(market);
+				log.info(`Reset oracle twap`);
+			}
+		);
+
 commandWithDefaultOption('deposit')
 	.argument('<amount>', 'The amount to deposit')
 	.action(async (amount, options: OptionValues) => {
