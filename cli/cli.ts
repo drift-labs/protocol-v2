@@ -437,6 +437,7 @@ commandWithDefaultOption('update-oracle-twap')
 				log.info(`Updated oracle twap`);
 			}
 		);
+	});
 
 commandWithDefaultOption('reset-oracle-twap')
 	.argument('<market>', 'The market to reset oracle twap for')
@@ -452,6 +453,7 @@ commandWithDefaultOption('reset-oracle-twap')
 				log.info(`Reset oracle twap`);
 			}
 		);
+	});
 
 commandWithDefaultOption('deposit')
 	.argument('<amount>', 'The amount to deposit')
