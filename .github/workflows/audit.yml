@@ -1,0 +1,63 @@
+name: Soteria
+
+on:
+  push:
+    branches: 
+      - master
+  pull_request:
+    branches: 
+      - master
+
+env:
+  CARGO_TERM_COLOR: always
+  SOLANA_VERSION: "1.9.5"
+  PROGRAM_PATH: "programs/clearing_house/" # Target clearing_house
+
+jobs:
+  build:
+    name: Soteria Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout changes
+        uses: actions/checkout@v2
+        
+      - name: Cache Solana Version
+        uses: actions/cache@v2
+        id: solana-cache
+        with:
+          path: |
+            ~/.rustup
+            ~/.cache/solana
+            ~/.local/share/solana
+          key: solana-v${{ env.SOLANA_VERSION }}
+          
+      - name: Cache Soteria Build
+        uses: Swatinem/rust-cache@v1
+        with:
+          target-dir: ${{ env.PROGRAM_PATH }}.coderrect/build # Cache build files for performance
+          
+      - name: Download Solana
+        if: steps.solana-cache.outputs.cache-hit != 'true' # Skip this step if matched cached version is available
+        run: |
+          echo Downloading Solana v${{ env.SOLANA_VERSION }}... 🧬
+          sh -c "$(curl -sSfL https://release.solana.com/v${{ env.SOLANA_VERSION }}/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+          export PATH="/home/runner/.local/share/solana/install/active_release/bin:$PATH"
+          echo Configuring bpf toolchain...
+          (cd /home/runner/.local/share/solana/install/active_release/bin/sdk/bpf/scripts; ./install.sh)
+        shell: bash
+
+      - name: Download Soteria # Always grab the latest version
+        run: |
+          echo Downloading Soteria... 🔬
+          sh -c "$(curl -k https://supercompiler.xyz/install)"
+          export PATH=$PWD/soteria-linux-develop/bin/:$PATH
+          echo "$PWD/soteria-linux-develop/bin" >> $GITHUB_PATH
+        shell: bash
+
+      - name: Run Soteria
+        run: |
+          echo Running Soteria... 👾
+          cd ${{ env.PROGRAM_PATH }}
+          soteria -analyzeAll .
+        shell: bash
