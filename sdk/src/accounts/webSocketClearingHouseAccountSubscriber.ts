@@ -19,6 +19,7 @@ import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { getClearingHouseStateAccountPublicKey } from '../addresses';
 import { WebSocketAccountSubscriber } from './webSocketAccountSubscriber';
+import { ClearingHouseConfigType } from '../factory/clearingHouse';
 
 export class WebSocketClearingHouseAccountSubscriber
 	implements ClearingHouseAccountSubscriber
@@ -37,7 +38,7 @@ export class WebSocketClearingHouseAccountSubscriber
 
 	optionalExtraSubscriptions: ClearingHouseAccountTypes[] = [];
 
-	type: 'websocket';
+	type: ClearingHouseConfigType = 'websocket';
 
 	private isSubscribing = false;
 	private subscriptionPromise: Promise<boolean>;

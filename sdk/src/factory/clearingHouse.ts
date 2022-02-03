@@ -9,6 +9,7 @@ import { WebSocketClearingHouseAccountSubscriber } from '../accounts/webSocketCl
 import { DefaultTxSender } from '../tx/defaultTxSender';
 import { ClearingHouseAccountSubscriber } from '../accounts/types';
 import { PollingClearingHouseAccountSubscriber } from '../accounts/pollingClearingHouseAccountSubscriber';
+import { Admin } from '../admin';
 
 export type ClearingHouseConfigType = 'websocket' | 'polling' | 'custom';
 
@@ -86,6 +87,34 @@ export function getClearingHouse(config: ClearingHouseConfig): ClearingHouse {
 
 	const txSender = config.txSender || new DefaultTxSender(provider);
 	return new ClearingHouse(
+		config.connection,
+		config.wallet,
+		program,
+		accountSubscriber,
+		txSender,
+		config.opts
+	);
+}
+
+export function getAdmin(config: ClearingHouseConfig): Admin {
+	const provider = new Provider(config.connection, config.wallet, config.opts);
+	const program = new Program(
+		clearingHouseIDL as Idl,
+		config.programID,
+		provider
+	);
+	let accountSubscriber: ClearingHouseAccountSubscriber;
+	if (config.type === 'websocket') {
+		accountSubscriber = new WebSocketClearingHouseAccountSubscriber(program);
+	} else if (config.type === 'polling') {
+		accountSubscriber = new PollingClearingHouseAccountSubscriber(
+			program,
+			(config as PollingClearingHouseConfiguration).accountLoader
+		);
+	}
+
+	const txSender = config.txSender || new DefaultTxSender(provider);
+	return new Admin(
 		config.connection,
 		config.wallet,
 		program,

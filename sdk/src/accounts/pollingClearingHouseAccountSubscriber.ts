@@ -22,6 +22,7 @@ import {
 import { getClearingHouseStateAccountPublicKey } from '../addresses';
 import { BulkAccountLoader } from './bulkAccountLoader';
 import { capitalize } from './utils';
+import { ClearingHouseConfigType } from '../factory/clearingHouse';
 
 export class PollingClearingHouseAccountSubscriber
 	implements ClearingHouseAccountSubscriber
@@ -46,7 +47,7 @@ export class PollingClearingHouseAccountSubscriber
 
 	optionalExtraSubscriptions: ClearingHouseAccountTypes[] = [];
 
-	type: 'polling';
+	type: ClearingHouseConfigType = 'polling';
 
 	private isSubscribing = false;
 	private subscriptionPromise: Promise<boolean>;

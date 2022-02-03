@@ -12,6 +12,7 @@ import { getUserAccountPublicKey } from '../addresses';
 import { UserAccount, UserPositionsAccount } from '../types';
 import { BulkAccountLoader } from './bulkAccountLoader';
 import { capitalize } from './utils';
+import { ClearingHouseConfigType } from '../factory/clearingHouse';
 
 export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 	isSubscribed: boolean;
@@ -27,7 +28,7 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 	user?: UserAccount;
 	userPositions?: UserPositionsAccount;
 
-	type: 'polling';
+	type: ClearingHouseConfigType = 'polling';
 
 	public constructor(
 		program: Program,

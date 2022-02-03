@@ -6,17 +6,18 @@ import {
 	TransactionSignature,
 } from '@solana/web3.js';
 import { FeeStructure, IWallet, OracleGuardRails, OracleSource } from './types';
-import { BN, Idl, Program, Provider } from '@project-serum/anchor';
+import { BN, Provider } from '@project-serum/anchor';
 import * as anchor from '@project-serum/anchor';
 import { getClearingHouseStateAccountPublicKeyAndNonce } from './addresses';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { ClearingHouse } from './clearingHouse';
 import { PEG_PRECISION } from './constants/numericConstants';
-import clearingHouseIDL from './idl/clearing_house.json';
-import { WebSocketClearingHouseAccountSubscriber } from './accounts/webSocketClearingHouseAccountSubscriber';
-import { DefaultTxSender } from './tx/defaultTxSender';
 import { calculateTargetPriceTrade } from './math/trade';
 import { calculateAmmReservesAfterSwap, getSwapDirection } from './math/amm';
+import {
+	getAdmin,
+	getWebSocketClearingHouseConfig,
+} from './factory/clearingHouse';
 
 export class Admin extends ClearingHouse {
 	public static from(
@@ -25,24 +26,13 @@ export class Admin extends ClearingHouse {
 		clearingHouseProgramId: PublicKey,
 		opts: ConfirmOptions = Provider.defaultOptions()
 	): Admin {
-		const provider = new Provider(connection, wallet, opts);
-		const program = new Program(
-			clearingHouseIDL as Idl,
-			clearingHouseProgramId,
-			provider
-		);
-		const accountSubscriber = new WebSocketClearingHouseAccountSubscriber(
-			program
-		);
-		const txSender = new DefaultTxSender(provider);
-		return new Admin(
+		const config = getWebSocketClearingHouseConfig(
 			connection,
 			wallet,
-			program,
-			accountSubscriber,
-			txSender,
+			clearingHouseProgramId,
 			opts
 		);
+		return getAdmin(config);
 	}
 
 	public async initialize(
