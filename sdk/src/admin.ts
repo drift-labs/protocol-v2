@@ -13,7 +13,7 @@ import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { ClearingHouse } from './clearingHouse';
 import { PEG_PRECISION } from './constants/numericConstants';
 import clearingHouseIDL from './idl/clearing_house.json';
-import { DefaultClearingHouseAccountSubscriber } from './accounts/defaultClearingHouseAccountSubscriber';
+import { WebSocketClearingHouseAccountSubscriber } from './accounts/webSocketClearingHouseAccountSubscriber';
 import { DefaultTxSender } from './tx/defaultTxSender';
 import { calculateTargetPriceTrade } from './math/trade';
 import { calculateAmmReservesAfterSwap, getSwapDirection } from './math/amm';
@@ -31,7 +31,7 @@ export class Admin extends ClearingHouse {
 			clearingHouseProgramId,
 			provider
 		);
-		const accountSubscriber = new DefaultClearingHouseAccountSubscriber(
+		const accountSubscriber = new WebSocketClearingHouseAccountSubscriber(
 			program
 		);
 		const txSender = new DefaultTxSender(provider);

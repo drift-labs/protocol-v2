@@ -20,7 +20,7 @@ import { EventEmitter } from 'events';
 import { getClearingHouseStateAccountPublicKey } from '../addresses';
 import { WebSocketAccountSubscriber } from './webSocketAccountSubscriber';
 
-export class DefaultClearingHouseAccountSubscriber
+export class WebSocketClearingHouseAccountSubscriber
 	implements ClearingHouseAccountSubscriber
 {
 	isSubscribed: boolean;
@@ -36,6 +36,8 @@ export class DefaultClearingHouseAccountSubscriber
 	liquidationHistoryAccountSubscriber?: AccountSubscriber<LiquidationHistoryAccount>;
 
 	optionalExtraSubscriptions: ClearingHouseAccountTypes[] = [];
+
+	type: 'websocket';
 
 	private isSubscribing = false;
 	private subscriptionPromise: Promise<boolean>;

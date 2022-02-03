@@ -12,6 +12,9 @@ import {
 } from '../types';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
+import { PublicKey } from '@solana/web3.js';
+import { AccountInfo } from '@solana/spl-token';
+import { ClearingHouseConfigType, ClearingHouseUserConfigType } from '..';
 
 export interface AccountSubscriber<T> {
 	data?: T;
@@ -36,6 +39,7 @@ export interface ClearingHouseAccountEvents {
 	depositHistoryAccountUpdate: (payload: DepositHistoryAccount) => void;
 	curveHistoryAccountUpdate: (payload: ExtendedCurveHistoryAccount) => void;
 	update: void;
+	error: (e: Error) => void;
 }
 
 export type ClearingHouseAccountTypes =
@@ -66,12 +70,15 @@ export interface ClearingHouseAccountSubscriber {
 	getFundingRateHistoryAccount(): FundingRateHistoryAccount;
 	getCurveHistoryAccount(): ExtendedCurveHistoryAccount;
 	getLiquidationHistoryAccount(): LiquidationHistoryAccount;
+
+	type: ClearingHouseConfigType;
 }
 
 export interface UserAccountEvents {
 	userAccountData: (payload: UserAccount) => void;
 	userPositionsData: (payload: UserPositionsAccount) => void;
 	update: void;
+	error: (e: Error) => void;
 }
 
 export interface UserAccountSubscriber {
@@ -84,4 +91,29 @@ export interface UserAccountSubscriber {
 
 	getUserAccount(): UserAccount;
 	getUserPositionsAccount(): UserPositionsAccount;
+
+	type: ClearingHouseUserConfigType;
 }
+
+export interface TokenAccountEvents {
+	tokenAccountUpdate: (payload: AccountInfo) => void;
+	update: void;
+	error: (e: Error) => void;
+}
+
+export interface TokenAccountSubscriber {
+	eventEmitter: StrictEventEmitter<EventEmitter, TokenAccountEvents>;
+	isSubscribed: boolean;
+
+	subscribe(): Promise<boolean>;
+	fetch(): Promise<void>;
+	unsubscribe(): Promise<void>;
+
+	getTokenAccount(): AccountInfo;
+}
+
+export type AccountToPoll = {
+	key: string;
+	publicKey: PublicKey;
+	eventType: string;
+};

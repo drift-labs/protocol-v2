@@ -12,7 +12,7 @@ import { getUserAccountPublicKey } from '../addresses';
 import { WebSocketAccountSubscriber } from './webSocketAccountSubscriber';
 import { UserAccount, UserPositionsAccount } from '../types';
 
-export class DefaultUserAccountSubscriber implements UserAccountSubscriber {
+export class WebSocketUserAccountSubscriber implements UserAccountSubscriber {
 	isSubscribed: boolean;
 	program: Program;
 	eventEmitter: StrictEventEmitter<EventEmitter, UserAccountEvents>;
@@ -20,6 +20,8 @@ export class DefaultUserAccountSubscriber implements UserAccountSubscriber {
 
 	userDataAccountSubscriber: AccountSubscriber<UserAccount>;
 	userPositionsAccountSubscriber: AccountSubscriber<UserPositionsAccount>;
+
+	type: 'websocket';
 
 	public constructor(program: Program, authority: PublicKey) {
 		this.isSubscribed = false;

@@ -44,16 +44,19 @@ import {
 	ClearingHouseAccountEvents,
 	ClearingHouseAccountTypes,
 } from './accounts/types';
-import { DefaultClearingHouseAccountSubscriber } from './accounts/defaultClearingHouseAccountSubscriber';
 import { TxSender } from './tx/types';
 import { DefaultTxSender } from './tx/defaultTxSender';
 import { wrapInTx } from './tx/utils';
+import {
+	getClearingHouse,
+	getWebSocketClearingHouseConfig,
+} from './factory/clearingHouse';
 
 /**
  * # ClearingHouse
  * This class is the main way to interact with Drift Protocol. It allows you to subscribe to the various accounts where the Market's state is stored, as well as: opening positions, liquidating, settling funding, depositing & withdrawing, and more.
  *
- * The default way to construct a ClearingHouse instance is using the {@link from} method. This will create an instance using the static {@link DefaultClearingHouseAccountSubscriber}, which will use a websocket for each state account subscription.
+ * The default way to construct a ClearingHouse instance is using the {@link from} method. This will create an instance using the static {@link WebSocketClearingHouseAccountSubscriber}, which will use a websocket for each state account subscription.
  * Alternatively, if you want to implement your own method of subscribing to the state accounts on the blockchain, you can implement a {@link ClearingHouseAccountSubscriber} and use it in the {@link ClearingHouse.constructor}
  */
 export class ClearingHouse {
@@ -64,33 +67,38 @@ export class ClearingHouse {
 	opts?: ConfirmOptions;
 	accountSubscriber: ClearingHouseAccountSubscriber;
 	eventEmitter: StrictEventEmitter<EventEmitter, ClearingHouseAccountEvents>;
-	isSubscribed = false;
+	_isSubscribed = false;
 	txSender: TxSender;
 
+	public get isSubscribed() {
+		return this._isSubscribed && this.accountSubscriber.isSubscribed;
+	}
+	
+	public set isSubscribed(val: boolean) {
+		this._isSubscribed = val;
+	}
+
+	/**
+	 * @deprecated You should use the getClearingHouse factory method instead
+	 * @param connection 
+	 * @param wallet 
+	 * @param clearingHouseProgramId 
+	 * @param opts 
+	 * @returns 
+	 */
 	public static from(
 		connection: Connection,
 		wallet: IWallet,
 		clearingHouseProgramId: PublicKey,
 		opts: ConfirmOptions = Provider.defaultOptions()
 	): ClearingHouse {
-		const provider = new Provider(connection, wallet, opts);
-		const program = new Program(
-			clearingHouseIDL as Idl,
-			clearingHouseProgramId,
-			provider
-		);
-		const accountSubscriber = new DefaultClearingHouseAccountSubscriber(
-			program
-		);
-		const txSender = new DefaultTxSender(provider);
-		return new ClearingHouse(
+		const config = getWebSocketClearingHouseConfig(
 			connection,
 			wallet,
-			program,
-			accountSubscriber,
-			txSender,
+			clearingHouseProgramId,
 			opts
 		);
+		return getClearingHouse(config);
 	}
 
 	public constructor(
