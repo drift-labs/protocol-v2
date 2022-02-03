@@ -1074,7 +1074,9 @@ pub mod clearing_house {
                 let (base_asset_value, base_asset_amount) =
                     controller::position::close(user, market, market_position, now)?;
                 let base_asset_amount = base_asset_amount.unsigned_abs();
-                base_asset_value_closed += base_asset_value;
+                base_asset_value_closed = base_asset_value_closed
+                    .checked_add(base_asset_value)
+                    .ok_or_else(math_error!())?;
                 let mark_price_after = market.amm.mark_price()?;
 
                 let record_id = trade_history.next_record_id();
@@ -1137,7 +1139,9 @@ pub mod clearing_house {
                             .into(),
                     )
                     .ok_or_else(math_error!())?;
-                base_asset_value_closed += base_asset_value_to_close;
+                base_asset_value_closed = base_asset_value_closed
+                    .checked_add(base_asset_value_to_close)
+                    .ok_or_else(math_error!())?;
 
                 let direction_to_reduce =
                     math::position::direction_to_close_position(market_position.base_asset_amount);
