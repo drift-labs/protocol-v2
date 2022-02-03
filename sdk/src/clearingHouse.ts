@@ -73,18 +73,18 @@ export class ClearingHouse {
 	public get isSubscribed() {
 		return this._isSubscribed && this.accountSubscriber.isSubscribed;
 	}
-	
+
 	public set isSubscribed(val: boolean) {
 		this._isSubscribed = val;
 	}
 
 	/**
 	 * @deprecated You should use the getClearingHouse factory method instead
-	 * @param connection 
-	 * @param wallet 
-	 * @param clearingHouseProgramId 
-	 * @param opts 
-	 * @returns 
+	 * @param connection
+	 * @param wallet
+	 * @param clearingHouseProgramId
+	 * @param opts
+	 * @returns
 	 */
 	public static from(
 		connection: Connection,
