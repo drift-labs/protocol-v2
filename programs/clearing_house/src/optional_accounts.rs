@@ -52,8 +52,8 @@ pub fn get_discount_token_and_referrer<'a, 'b, 'c, 'd, 'e>(
     let account_info_iter = &mut accounts.iter();
     if optional_accounts.discount_token {
         // owner, mint and is_initialized check below, so this is a `trusted account_info`
-        //#[soteria(ignore)]
         let token_account_info =
+            //#[soteria(ignore)]
             next_account_info(account_info_iter).or(Err(ErrorCode::DiscountTokenNotFound))?;
 
         if token_account_info.owner != &spl_token::id() {
