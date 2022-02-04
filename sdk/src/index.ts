@@ -1,4 +1,5 @@
-import { BN } from '@project-serum/anchor';
+import BN from 'bn.js';
+import { PublicKey } from '@solana/web3.js';
 
 export * from './mockUSDCFaucet';
 export * from './pythClient';
@@ -30,4 +31,5 @@ export * from './constants/numericConstants';
 export * from './util/computeUnits';
 export * from './util/tps';
 
-export { BN };
+
+export { BN, PublicKey };
