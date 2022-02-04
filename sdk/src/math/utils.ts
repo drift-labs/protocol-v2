@@ -1,4 +1,4 @@
-import BN from "bn.js";
+import BN from 'bn.js';
 
 export const squareRootBN = (n, closeness = new BN(1)) => {
 	// Assuming the sqrt of n as n only
