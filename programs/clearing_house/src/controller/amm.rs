@@ -44,7 +44,7 @@ pub fn swap_quote_asset(
         .checked_sub(cast(new_base_asset_reserve)?)
         .ok_or_else(math_error!())?;
 
-    return Ok(base_asset_amount);
+    Ok(base_asset_amount)
 }
 
 pub fn swap_base_asset(

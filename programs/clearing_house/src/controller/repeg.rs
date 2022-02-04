@@ -22,7 +22,7 @@ pub fn repeg(
     oracle_guard_rails: &OracleGuardRails,
 ) -> ClearingHouseResult<i128> {
     if new_peg_candidate == market.amm.peg_multiplier {
-        return Err(ErrorCode::InvalidRepegRedundant.into());
+        return Err(ErrorCode::InvalidRepegRedundant);
     }
 
     let terminal_price_before = amm::calculate_terminal_price(market)?;
@@ -60,34 +60,34 @@ pub fn repeg(
         if cast_to_u128(oracle_price)? > terminal_price_after {
             // only allow terminal up when oracle is higher
             if terminal_price_after < terminal_price_before {
-                return Err(ErrorCode::InvalidRepegDirection.into());
+                return Err(ErrorCode::InvalidRepegDirection);
             }
 
             // only push terminal up to top of oracle confidence band
             if oracle_conf_band_bottom < terminal_price_after {
-                return Err(ErrorCode::InvalidRepegProfitability.into());
+                return Err(ErrorCode::InvalidRepegProfitability);
             }
 
             // only push mark up to top of oracle confidence band
             if mark_price_after > oracle_conf_band_top {
-                return Err(ErrorCode::InvalidRepegProfitability.into());
+                return Err(ErrorCode::InvalidRepegProfitability);
             }
         }
 
         if cast_to_u128(oracle_price)? < terminal_price_after {
             // only allow terminal down when oracle is lower
             if terminal_price_after > terminal_price_before {
-                return Err(ErrorCode::InvalidRepegDirection.into());
+                return Err(ErrorCode::InvalidRepegDirection);
             }
 
             // only push terminal down to top of oracle confidence band
             if oracle_conf_band_top > terminal_price_after {
-                return Err(ErrorCode::InvalidRepegProfitability.into());
+                return Err(ErrorCode::InvalidRepegProfitability);
             }
 
             // only push mark down to bottom of oracle confidence band
             if mark_price_after < oracle_conf_band_bottom {
-                return Err(ErrorCode::InvalidRepegProfitability.into());
+                return Err(ErrorCode::InvalidRepegProfitability);
             }
         }
     }
@@ -112,7 +112,7 @@ pub fn repeg(
                 .checked_div(SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_DENOMINATOR)
                 .ok_or_else(math_error!())?
         {
-            return Err(ErrorCode::InvalidRepegProfitability.into());
+            return Err(ErrorCode::InvalidRepegProfitability);
         }
     } else {
         market.amm.total_fee_minus_distributions = market

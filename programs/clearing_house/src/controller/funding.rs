@@ -85,6 +85,7 @@ pub fn settle_funding_payment(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn update_funding_rate(
     market_index: u64,
     market: &mut Market,

@@ -8,10 +8,10 @@ pub struct FundingPaymentHistory {
 
 impl Default for FundingPaymentHistory {
     fn default() -> Self {
-        return FundingPaymentHistory {
+        FundingPaymentHistory {
             head: 0,
             funding_payment_records: [FundingPaymentRecord::default(); 1024],
-        };
+        }
     }
 }
 
@@ -29,7 +29,7 @@ impl FundingPaymentHistory {
         let prev_record_id = if self.head == 0 { 1023 } else { self.head - 1 };
         let prev_record =
             &self.funding_payment_records[FundingPaymentHistory::index_of(prev_record_id)];
-        return prev_record.record_id + 1;
+        prev_record.record_id + 1
     }
 }
 

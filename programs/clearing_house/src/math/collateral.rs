@@ -3,7 +3,7 @@ use crate::math_error;
 use solana_program::msg;
 
 pub fn calculate_updated_collateral(collateral: u128, pnl: i128) -> ClearingHouseResult<u128> {
-    return Ok(if pnl.is_negative() && pnl.unsigned_abs() > collateral {
+    Ok(if pnl.is_negative() && pnl.unsigned_abs() > collateral {
         0
     } else if pnl > 0 {
         collateral
@@ -13,5 +13,5 @@ pub fn calculate_updated_collateral(collateral: u128, pnl: i128) -> ClearingHous
         collateral
             .checked_sub(pnl.unsigned_abs())
             .ok_or_else(math_error!())?
-    });
+    })
 }

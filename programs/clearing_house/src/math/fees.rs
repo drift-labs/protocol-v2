@@ -33,13 +33,13 @@ pub fn calculate(
         .checked_sub(referrer_reward)
         .ok_or_else(math_error!())?;
 
-    return Ok((
+    Ok((
         user_fee,
         fee_to_market,
         token_discount,
         referrer_reward,
         referee_discount,
-    ));
+    ))
 }
 
 fn calculate_token_discount(
@@ -85,7 +85,7 @@ fn calculate_token_discount(
         return discount;
     }
 
-    return 0;
+    0
 }
 
 fn calculate_token_discount_for_tier(
@@ -94,12 +94,11 @@ fn calculate_token_discount_for_tier(
     discount_token: TokenAccount,
 ) -> Option<u128> {
     if discount_token.amount >= tier.minimum_balance {
-        return Some(
-            fee.checked_mul(tier.discount_numerator)?
-                .checked_div(tier.discount_denominator)?,
-        );
+        return fee
+            .checked_mul(tier.discount_numerator)?
+            .checked_div(tier.discount_denominator);
     }
-    return None;
+    None
 }
 
 fn calculate_referral_reward_and_referee_discount(
@@ -123,5 +122,5 @@ fn calculate_referral_reward_and_referee_discount(
         .checked_div(fee_structure.referral_discount.referee_discount_denominator)
         .ok_or_else(math_error!())?;
 
-    return Ok((referrer_reward, referee_discount));
+    Ok((referrer_reward, referee_discount))
 }

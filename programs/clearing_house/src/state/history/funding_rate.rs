@@ -8,10 +8,10 @@ pub struct FundingRateHistory {
 
 impl Default for FundingRateHistory {
     fn default() -> Self {
-        return FundingRateHistory {
+        FundingRateHistory {
             head: 0,
             funding_rate_records: [FundingRateRecord::default(); 1024],
-        };
+        }
     }
 }
 
@@ -28,7 +28,7 @@ impl FundingRateHistory {
     pub fn next_record_id(&self) -> u128 {
         let prev_record_id = if self.head == 0 { 1023 } else { self.head - 1 };
         let prev_record = &self.funding_rate_records[FundingRateHistory::index_of(prev_record_id)];
-        return prev_record.record_id + 1;
+        prev_record.record_id + 1
     }
 }
 

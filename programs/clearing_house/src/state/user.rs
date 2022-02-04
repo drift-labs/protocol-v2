@@ -20,18 +20,10 @@ pub struct User {
 }
 
 #[account(zero_copy)]
+#[derive(Default)]
 pub struct UserPositions {
     pub user: Pubkey,
     pub positions: [MarketPosition; 5],
-}
-
-impl Default for UserPositions {
-    fn default() -> Self {
-        return Self {
-            user: Pubkey::default(),
-            positions: [MarketPosition::default(); 5],
-        };
-    }
 }
 
 #[zero_copy]
@@ -56,10 +48,10 @@ pub struct MarketPosition {
 
 impl MarketPosition {
     pub fn is_for(&self, market_index: u64) -> bool {
-        return self.market_index == market_index && self.is_open_position();
+        self.market_index == market_index && self.is_open_position()
     }
 
     pub fn is_open_position(&self) -> bool {
-        return self.base_asset_amount != 0;
+        self.base_asset_amount != 0
     }
 }

@@ -536,7 +536,7 @@ pub struct RepegCurve<'info> {
 pub struct MoveAMMPrice<'info> {
     #[account(
         has_one = admin,
-        constraint = state.admin_controls_prices == true
+        constraint = state.admin_controls_prices
     )]
     pub state: Box<Account<'info, State>>,
     pub admin: Signer<'info>,

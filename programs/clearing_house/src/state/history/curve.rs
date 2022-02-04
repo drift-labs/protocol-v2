@@ -2,18 +2,10 @@ use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 
 #[account(zero_copy)]
+#[derive(Default)]
 pub struct CurveHistory {
     pub head: u64,
     pub curve_records: [CurveRecord; 32],
-}
-
-impl Default for CurveHistory {
-    fn default() -> Self {
-        return CurveHistory {
-            head: 0,
-            curve_records: [CurveRecord::default(); 32],
-        };
-    }
 }
 
 impl CurveHistory {
@@ -29,7 +21,7 @@ impl CurveHistory {
     pub fn next_record_id(&self) -> u128 {
         let prev_record_id = if self.head == 0 { 31 } else { self.head - 1 };
         let prev_record = &self.curve_records[CurveHistory::index_of(prev_record_id)];
-        return prev_record.record_id + 1;
+        prev_record.record_id + 1
     }
 }
 
@@ -77,10 +69,10 @@ pub struct ExtendedCurveHistory {
 
 impl Default for ExtendedCurveHistory {
     fn default() -> Self {
-        return ExtendedCurveHistory {
+        ExtendedCurveHistory {
             head: 0,
             curve_records: [ExtendedCurveRecord::default(); 1024],
-        };
+        }
     }
 }
 
@@ -97,7 +89,7 @@ impl ExtendedCurveHistory {
     pub fn next_record_id(&self) -> u128 {
         let prev_record_id = if self.head == 0 { 1023 } else { self.head - 1 };
         let prev_record = &self.curve_records[ExtendedCurveHistory::index_of(prev_record_id)];
-        return prev_record.record_id + 1;
+        prev_record.record_id + 1
     }
 }
 

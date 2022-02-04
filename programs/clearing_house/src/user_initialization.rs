@@ -6,7 +6,7 @@ use crate::state::user::{User, UserPositions};
 use anchor_lang::prelude::*;
 
 pub fn initialize(
-    state: &Box<Account<State>>,
+    state: &Account<State>,
     user: &mut Box<Account<User>>,
     user_positions: &AccountLoader<UserPositions>,
     authority: &Signer,

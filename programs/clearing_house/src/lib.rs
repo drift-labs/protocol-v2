@@ -152,7 +152,7 @@ pub mod clearing_house {
             padding5: 0,
         };
 
-        return Ok(());
+        Ok(())
     }
 
     pub fn initialize_history(ctx: Context<InitializeHistory>) -> ProgramResult {
@@ -801,7 +801,7 @@ pub mod clearing_house {
             controller::funding::update_funding_rate(
                 market_index,
                 market,
-                &price_oracle,
+                price_oracle,
                 now,
                 clock_slot,
                 funding_rate_history,
@@ -991,7 +991,7 @@ pub mod clearing_house {
         controller::funding::update_funding_rate(
             market_index,
             market,
-            &price_oracle,
+            price_oracle,
             now,
             clock_slot,
             funding_rate_history,
@@ -1058,7 +1058,7 @@ pub mod clearing_house {
                     .ok_or(ErrorCode::OracleNotFound)?;
                 let (liquidations_blocked, oracle_price) = math::oracle::block_operation(
                     &market.amm,
-                    &oracle_account_info,
+                    oracle_account_info,
                     clock_slot,
                     &state.oracle_guard_rails,
                     None,
@@ -1118,7 +1118,7 @@ pub mod clearing_house {
                     .ok_or(ErrorCode::OracleNotFound)?;
                 let (liquidations_blocked, oracle_price) = math::oracle::block_operation(
                     &market.amm,
-                    &oracle_account_info,
+                    oracle_account_info,
                     clock_slot,
                     &state.oracle_guard_rails,
                     Some(mark_price_before),
@@ -1131,13 +1131,9 @@ pub mod clearing_house {
                     calculate_base_asset_value_and_pnl(market_position, &market.amm)?;
 
                 let base_asset_value_to_close = base_asset_value
-                    .checked_mul(state.partial_liquidation_close_percentage_numerator.into())
+                    .checked_mul(state.partial_liquidation_close_percentage_numerator)
                     .ok_or_else(math_error!())?
-                    .checked_div(
-                        state
-                            .partial_liquidation_close_percentage_denominator
-                            .into(),
-                    )
+                    .checked_div(state.partial_liquidation_close_percentage_denominator)
                     .ok_or_else(math_error!())?;
                 base_asset_value_closed = base_asset_value_closed
                     .checked_add(base_asset_value_to_close)
@@ -1182,23 +1178,15 @@ pub mod clearing_house {
 
         let liquidation_fee = if is_full_liquidation {
             user.collateral
-                .checked_mul(state.full_liquidation_penalty_percentage_numerator.into())
+                .checked_mul(state.full_liquidation_penalty_percentage_numerator)
                 .ok_or_else(math_error!())?
-                .checked_div(state.full_liquidation_penalty_percentage_denominator.into())
+                .checked_div(state.full_liquidation_penalty_percentage_denominator)
                 .ok_or_else(math_error!())?
         } else {
             total_collateral
-                .checked_mul(
-                    state
-                        .partial_liquidation_penalty_percentage_numerator
-                        .into(),
-                )
+                .checked_mul(state.partial_liquidation_penalty_percentage_numerator)
                 .ok_or_else(math_error!())?
-                .checked_div(
-                    state
-                        .partial_liquidation_penalty_percentage_denominator
-                        .into(),
-                )
+                .checked_div(state.partial_liquidation_penalty_percentage_denominator)
                 .ok_or_else(math_error!())?
         };
 
@@ -1439,7 +1427,7 @@ pub mod clearing_house {
             open_interest: market.open_interest,
             total_fee: market.amm.total_fee,
             total_fee_minus_distributions: market.amm.total_fee_minus_distributions,
-            adjustment_cost: adjustment_cost,
+            adjustment_cost,
             oracle_price,
             trade_record: 0,
             padding: [0; 5],
@@ -1960,14 +1948,14 @@ fn valid_oracle_for_market(
     Ok(())
 }
 
-fn exchange_not_paused(state: &Box<Account<State>>) -> Result<()> {
+fn exchange_not_paused(state: &Account<State>) -> Result<()> {
     if state.exchange_paused {
         return Err(ErrorCode::ExchangePaused.into());
     }
     Ok(())
 }
 
-fn admin_controls_prices(state: &Box<Account<State>>) -> Result<()> {
+fn admin_controls_prices(state: &Account<State>) -> Result<()> {
     if !state.admin_controls_prices {
         return Err(ErrorCode::AdminControlsPricesDisabled.into());
     }

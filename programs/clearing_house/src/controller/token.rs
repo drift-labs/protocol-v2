@@ -21,7 +21,7 @@ pub fn send<'info>(
     };
     let cpi_program = token_program.to_account_info();
     let cpi_context = CpiContext::new_with_signer(cpi_program, cpi_accounts, signers);
-    return token::transfer(cpi_context, amount);
+    token::transfer(cpi_context, amount)
 }
 
 pub fn receive<'info>(
@@ -38,5 +38,5 @@ pub fn receive<'info>(
     };
     let cpi_program = token_program.to_account_info();
     let cpi_context = CpiContext::new(cpi_program, cpi_accounts);
-    return token::transfer(cpi_context, amount);
+    token::transfer(cpi_context, amount)
 }

@@ -24,12 +24,12 @@ pub fn calculate_price(
         .checked_mul(peg_multiplier)
         .ok_or_else(math_error!())?;
 
-    return U192::from(peg_quote_asset_amount)
+    U192::from(peg_quote_asset_amount)
         .checked_mul(U192::from(PRICE_TO_PEG_PRECISION_RATIO))
         .ok_or_else(math_error!())?
         .checked_div(U192::from(base_asset_reserve))
         .ok_or_else(math_error!())?
-        .try_to_u128();
+        .try_to_u128()
 }
 
 pub fn calculate_terminal_price(market: &mut Market) -> ClearingHouseResult<u128> {
@@ -63,7 +63,7 @@ pub fn update_mark_twap(
     amm.last_mark_price_twap = mark_twap;
     amm.last_mark_price_twap_ts = now;
 
-    return Ok(mark_twap);
+    Ok(mark_twap)
 }
 
 pub fn calculate_new_mark_twap(
@@ -94,7 +94,7 @@ pub fn calculate_new_mark_twap(
         from_start,
     )?)?;
 
-    return Ok(new_twap);
+    Ok(new_twap)
 }
 
 pub fn update_oracle_price_twap(
@@ -135,7 +135,7 @@ pub fn update_oracle_price_twap(
         oracle_price_twap = amm.last_oracle_price_twap
     }
 
-    return Ok(oracle_price_twap);
+    Ok(oracle_price_twap)
 }
 
 pub fn calculate_new_oracle_price_twap(
@@ -186,7 +186,7 @@ pub fn calculate_new_oracle_price_twap(
         from_start,
     )?;
 
-    return Ok(new_twap);
+    Ok(new_twap)
 }
 
 pub fn calculate_twap(
@@ -200,12 +200,12 @@ pub fn calculate_twap(
         .ok_or_else(math_error!())?;
     let prev_twap_99 = old_data.checked_mul(old_weight).ok_or_else(math_error!())?;
     let latest_price_01 = new_data.checked_mul(new_weight).ok_or_else(math_error!())?;
-    let new_twap = prev_twap_99
+
+    prev_twap_99
         .checked_add(latest_price_01)
         .ok_or_else(math_error!())?
         .checked_div(denominator)
-        .ok_or_else(math_error!());
-    return new_twap;
+        .ok_or_else(math_error!())
 }
 
 pub fn calculate_swap_output(
@@ -235,7 +235,7 @@ pub fn calculate_swap_output(
         .ok_or_else(math_error!())?
         .try_to_u128()?;
 
-    return Ok((new_output_amount, new_input_amount));
+    Ok((new_output_amount, new_input_amount))
 }
 
 pub fn calculate_quote_asset_amount_swapped(
@@ -362,7 +362,7 @@ pub fn calculate_oracle_mark_spread(
             .checked_sub(oracle_price)
             .ok_or_else(math_error!())?;
 
-        assert_eq!(oracle_processed > 0, true);
+        assert!(oracle_processed > 0);
 
         Ok((oracle_processed, price_spread))
     }
@@ -468,7 +468,7 @@ pub fn adjust_k_cost(market: &mut Market, new_sqrt_k: bn::U256) -> ClearingHouse
             .checked_div(bn::U256::from(1000))
             .ok_or_else(math_error!())?
     {
-        return Err(ErrorCode::InvalidUpdateK.into());
+        return Err(ErrorCode::InvalidUpdateK);
     }
 
     market.amm.sqrt_k = new_sqrt_k.try_to_u128().unwrap();
@@ -513,5 +513,5 @@ pub fn should_round_trade(
 
     let quote_asset_reserve_amount = asset_to_reserve_amount(difference, amm.peg_multiplier)?;
 
-    return Ok(quote_asset_reserve_amount < amm.minimum_trade_size);
+    Ok(quote_asset_reserve_amount < amm.minimum_trade_size)
 }

@@ -9,7 +9,7 @@ pub fn calculate_withdrawal_amounts(
     collateral_token_account: &TokenAccount,
     insurance_token_account: &TokenAccount,
 ) -> ClearingHouseResult<(u64, u64)> {
-    return Ok(if collateral_token_account.amount >= amount {
+    Ok(if collateral_token_account.amount >= amount {
         (amount, 0)
     } else if insurance_token_account.amount
         > amount
@@ -27,5 +27,5 @@ pub fn calculate_withdrawal_amounts(
             collateral_token_account.amount,
             insurance_token_account.amount,
         )
-    });
+    })
 }
