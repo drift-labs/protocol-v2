@@ -22,7 +22,7 @@ pub fn get_whitelist_token(
     let token_account_info = &accounts[0];
 
     if token_account_info.owner != &spl_token::id() {
-        return Err(ErrorCode::InvalidWhitelistToken.into());
+        return Err(ErrorCode::InvalidWhitelistToken);
     }
 
     let token_account = TokenAccount::unpack_unchecked(&token_account_info.data.borrow())
@@ -53,11 +53,11 @@ pub fn get_discount_token_and_referrer<'a, 'b, 'c, 'd, 'e>(
     if optional_accounts.discount_token {
         // owner, mint and is_initialized check below, so this is a `trusted account_info`
         //#[soteria(ignore)]
-        let token_account_info = next_account_info(account_info_iter)
-            .or(Err(ErrorCode::DiscountTokenNotFound.into()))?;
+        let token_account_info =
+            next_account_info(account_info_iter).or(Err(ErrorCode::DiscountTokenNotFound))?;
 
         if token_account_info.owner != &spl_token::id() {
-            return Err(ErrorCode::InvalidDiscountToken.into());
+            return Err(ErrorCode::InvalidDiscountToken);
         }
 
         let token_account = TokenAccount::unpack_unchecked(&token_account_info.data.borrow())
