@@ -47,16 +47,15 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 			return true;
 		}
 
-		await this.updateAccountsToPoll();
-		this.addToAccountLoader();
-		await this.fetch();
+		await this.addToAccountLoader();
+		await this.fetchIfUnloaded();
 		this.eventEmitter.emit('update');
 
 		this.isSubscribed = true;
 		return true;
 	}
 
-	async updateAccountsToPoll(): Promise<void> {
+	async addToAccountLoader(): Promise<void> {
 		if (this.accountsToPoll.size > 0) {
 			return;
 		}
@@ -81,9 +80,7 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 			publicKey: userAccount.positions,
 			eventType: 'userPositionsData',
 		});
-	}
 
-	addToAccountLoader(): void {
 		this.onAccountUpdate = (publicKey: PublicKey, buffer: Buffer) => {
 			const accountToPoll = this.accountsToPoll.get(publicKey.toString());
 			if (!accountToPoll) {
@@ -107,6 +104,20 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 
 		for (const [_, accountToPoll] of this.accountsToPoll) {
 			this.accountLoader.addAccount(accountToPoll.publicKey);
+		}
+	}
+
+	async fetchIfUnloaded(): Promise<void> {
+		let shouldFetch = false;
+		for (const [_, accountToPoll] of this.accountsToPoll) {
+			if (this[accountToPoll.key] === undefined) {
+				shouldFetch = true;
+				break;
+			}
+		}
+
+		if (shouldFetch) {
+			await this.fetch();
 		}
 	}
 
