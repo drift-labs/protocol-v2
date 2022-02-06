@@ -18,8 +18,8 @@ export class PollingTokenAccountSubscriber implements TokenAccountSubscriber {
 	publicKey: PublicKey;
 
 	accountLoader: BulkAccountLoader;
-	onAccountUpdate?: (publicKey: PublicKey, buffer: Buffer) => void;
-	onError?: (e: Error) => void;
+	callbackId?: string;
+	errorCallbackId?: string;
 
 	tokenAccount?: AccountInfo;
 
@@ -44,25 +44,24 @@ export class PollingTokenAccountSubscriber implements TokenAccountSubscriber {
 	}
 
 	addToAccountLoader(): void {
-		this.onAccountUpdate = (publicKey: PublicKey, buffer: Buffer) => {
-			if (!publicKey.equals(this.publicKey)) {
-				return;
+		if (this.callbackId) {
+			return;
+		}
+
+		this.callbackId = this.accountLoader.addAccount(
+			this.publicKey,
+			(buffer) => {
+				const tokenAccount = parseTokenAccount(buffer);
+				this.tokenAccount = tokenAccount;
+				// @ts-ignore
+				this.eventEmitter.emit('tokenAccountUpdate', tokenAccount);
+				this.eventEmitter.emit('update');
 			}
+		);
 
-			const tokenAccount = parseTokenAccount(buffer);
-			this.tokenAccount = tokenAccount;
-			// @ts-ignore
-			this.eventEmitter.emit('tokenAccountUpdate', tokenAccount);
-			this.eventEmitter.emit('update');
-		};
-		this.accountLoader.eventEmitter.on('accountUpdate', this.onAccountUpdate);
-
-		this.onError = (e) => {
-			this.eventEmitter.emit('error', e);
-		};
-		this.accountLoader.eventEmitter.on('error', this.onError);
-
-		this.accountLoader.addAccount(this.publicKey);
+		this.errorCallbackId = this.accountLoader.addErrorCallbacks((error) => {
+			this.eventEmitter.emit('error', error);
+		});
 	}
 
 	async fetch(): Promise<void> {
@@ -76,14 +75,11 @@ export class PollingTokenAccountSubscriber implements TokenAccountSubscriber {
 			return;
 		}
 
-		this.accountLoader.removeAccount(this.publicKey);
-		this.accountLoader.eventEmitter.removeListener(
-			'accountUpdate',
-			this.onAccountUpdate
-		);
-		this.onAccountUpdate = undefined;
-		this.accountLoader.eventEmitter.removeListener('error', this.onError);
-		this.onError = undefined;
+		this.accountLoader.removeAccount(this.publicKey, this.callbackId);
+		this.callbackId = undefined;
+
+		this.accountLoader.removeErrorCallbacks(this.errorCallbackId);
+		this.errorCallbackId = undefined;
 
 		this.isSubscribed = false;
 	}

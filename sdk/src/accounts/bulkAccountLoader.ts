@@ -1,10 +1,9 @@
 import { Commitment, Connection, PublicKey } from '@solana/web3.js';
-import StrictEventEmitter from 'strict-event-emitter-types';
-import { EventEmitter } from 'events';
+import { v4 as uuidv4 } from 'uuid';
 
 type AccountToLoad = {
 	publicKey: PublicKey;
-	uses: number;
+	callbacks: Map<string, (buffer: Buffer) => void>;
 };
 
 type AccountData = {
@@ -14,18 +13,13 @@ type AccountData = {
 
 const GET_MULTIPLE_ACCOUNTS_CHUNK_SIZE = 99;
 
-export interface BulkAccountLoaderEvents {
-	accountUpdate: (publicKey: PublicKey, buffer: Buffer) => void;
-	error: (e: Error) => void;
-}
-
 export class BulkAccountLoader {
 	connection: Connection;
 	commitment: Commitment;
 	pollingFrequency: number;
-	eventEmitter: StrictEventEmitter<EventEmitter, BulkAccountLoaderEvents>;
 	accountsToLoad = new Map<string, AccountToLoad>();
 	accountData = new Map<string, AccountData>();
+	errorCallbacks = new Map<string, (e) => void>();
 	intervalId?: NodeJS.Timer;
 
 	public constructor(
@@ -36,36 +30,40 @@ export class BulkAccountLoader {
 		this.connection = connection;
 		this.commitment = commitment;
 		this.pollingFrequency = pollingFrequency;
-		this.eventEmitter = new EventEmitter();
 	}
 
-	public addAccount(publicKey: PublicKey): void {
+	public addAccount(
+		publicKey: PublicKey,
+		callback: (buffer: Buffer) => void
+	): string {
 		const existingSize = this.accountsToLoad.size;
+
+		const callbackId = uuidv4();
 		const existingAccountToLoad = this.accountsToLoad.get(publicKey.toString());
-		const updatedAccountToLoad = {
-			publicKey,
-			uses: existingAccountToLoad ? existingAccountToLoad.uses + 1 : 1,
-		};
-		this.accountsToLoad.set(publicKey.toString(), updatedAccountToLoad);
+		if (existingAccountToLoad) {
+			existingAccountToLoad.callbacks.set(callbackId, callback);
+		} else {
+			const callbacks = new Map<string, (buffer: Buffer) => void>();
+			callbacks.set(callbackId, callback);
+			const newAccountToLoad = {
+				publicKey,
+				callbacks,
+			};
+			this.accountsToLoad.set(publicKey.toString(), newAccountToLoad);
+		}
 
 		if (existingSize === 0) {
 			this.startPolling();
 		}
+
+		return callbackId;
 	}
 
-	public removeAccount(publicKey: PublicKey): void {
+	public removeAccount(publicKey: PublicKey, callbackId: string): void {
 		const existingAccountToLoad = this.accountsToLoad.get(publicKey.toString());
 		if (existingAccountToLoad) {
-			if (existingAccountToLoad.uses > 1) {
-				const updatedAccountToLoad = {
-					publicKey,
-					uses: existingAccountToLoad.uses - 1,
-				};
-				this.accountsToLoad.set(
-					existingAccountToLoad.publicKey.toString(),
-					updatedAccountToLoad
-				);
-			} else {
+			existingAccountToLoad.callbacks.delete(callbackId);
+			if (existingAccountToLoad.callbacks.size === 0) {
 				this.accountsToLoad.delete(existingAccountToLoad.publicKey.toString());
 			}
 		}
@@ -73,6 +71,16 @@ export class BulkAccountLoader {
 		if (this.accountsToLoad.size === 0) {
 			this.stopPolling();
 		}
+	}
+
+	public addErrorCallbacks(callback: (error: Error) => void): string {
+		const callbackId = uuidv4();
+		this.errorCallbacks.set(callbackId, callback);
+		return callbackId;
+	}
+
+	public removeErrorCallbacks(callbackId: string): void {
+		this.errorCallbacks.delete(callbackId);
 	}
 
 	chunks<T>(array: readonly T[], size: number): T[][] {
@@ -115,7 +123,9 @@ export class BulkAccountLoader {
 				args
 			);
 		} catch (e) {
-			this.eventEmitter.emit('error', e);
+			for (const [_, callback] of this.errorCallbacks) {
+				callback(e);
+			}
 			return;
 		}
 
@@ -138,11 +148,7 @@ export class BulkAccountLoader {
 					slot: newSlot,
 					buffer: newBuffer,
 				});
-				this.eventEmitter.emit(
-					'accountUpdate',
-					accountToLoad.publicKey,
-					newBuffer
-				);
+				this.handleAccountCallbacks(accountToLoad, newBuffer);
 				continue;
 			}
 
@@ -156,12 +162,14 @@ export class BulkAccountLoader {
 					slot: newSlot,
 					buffer: newBuffer,
 				});
-				this.eventEmitter.emit(
-					'accountUpdate',
-					accountToLoad.publicKey,
-					newBuffer
-				);
+				this.handleAccountCallbacks(accountToLoad, newBuffer);
 			}
+		}
+	}
+
+	handleAccountCallbacks(accountToLoad: AccountToLoad, buffer: Buffer): void {
+		for (const [_, callback] of accountToLoad.callbacks) {
+			callback(buffer);
 		}
 	}
 

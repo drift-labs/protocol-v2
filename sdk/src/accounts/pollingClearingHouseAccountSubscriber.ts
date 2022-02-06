@@ -1,4 +1,3 @@
-import { PublicKey } from '@solana/web3.js';
 import {
 	AccountToPoll,
 	ClearingHouseAccountEvents,
@@ -33,8 +32,7 @@ export class PollingClearingHouseAccountSubscriber
 
 	accountLoader: BulkAccountLoader;
 	accountsToPoll = new Map<string, AccountToPoll>();
-	onAccountUpdate?: (publicKey: PublicKey, buffer: Buffer) => void;
-	onError?: (e: Error) => void;
+	errorCallbackId?: string;
 
 	state?: StateAccount;
 	markets?: MarketsAccount;
@@ -172,30 +170,24 @@ export class PollingClearingHouseAccountSubscriber
 	}
 
 	async addToAccountLoader(): Promise<void> {
-		this.onAccountUpdate = (publicKey: PublicKey, buffer: Buffer) => {
-			const accountToPoll = this.accountsToPoll.get(publicKey.toString());
-			if (!accountToPoll) {
-				return;
-			}
-
-			const account = this.program.account[
-				accountToPoll.key
-			].coder.accounts.decode(capitalize(accountToPoll.key), buffer);
-			this[accountToPoll.key] = account;
-			// @ts-ignore
-			this.eventEmitter.emit(accountToPoll.eventType, account);
-			this.eventEmitter.emit('update');
-		};
-		this.accountLoader.eventEmitter.on('accountUpdate', this.onAccountUpdate);
-
-		this.onError = (e) => {
-			this.eventEmitter.emit('error', e);
-		};
-		this.accountLoader.eventEmitter.on('error', this.onError);
-
 		for (const [_, accountToPoll] of this.accountsToPoll) {
-			this.accountLoader.addAccount(accountToPoll.publicKey);
+			accountToPoll.callbackId = this.accountLoader.addAccount(
+				accountToPoll.publicKey,
+				(buffer) => {
+					const account = this.program.account[
+						accountToPoll.key
+					].coder.accounts.decode(capitalize(accountToPoll.key), buffer);
+					this[accountToPoll.key] = account;
+					// @ts-ignore
+					this.eventEmitter.emit(accountToPoll.eventType, account);
+					this.eventEmitter.emit('update');
+				}
+			);
 		}
+
+		this.errorCallbackId = this.accountLoader.addErrorCallbacks((error) => {
+			this.eventEmitter.emit('error', error);
+		});
 	}
 
 	public async fetch(): Promise<void> {
@@ -216,15 +208,14 @@ export class PollingClearingHouseAccountSubscriber
 		}
 
 		for (const [_, accountToPoll] of this.accountsToPoll) {
-			this.accountLoader.removeAccount(accountToPoll.publicKey);
+			this.accountLoader.removeAccount(
+				accountToPoll.publicKey,
+				accountToPoll.callbackId
+			);
 		}
-		this.accountLoader.eventEmitter.removeListener(
-			'accountUpdate',
-			this.onAccountUpdate
-		);
-		this.onAccountUpdate = undefined;
-		this.accountLoader.eventEmitter.removeListener('error', this.onError);
-		this.onError = undefined;
+
+		this.accountLoader.removeErrorCallbacks(this.errorCallbackId);
+		this.errorCallbackId = undefined;
 
 		this.accountsToPoll.clear();
 		this.isSubscribed = false;

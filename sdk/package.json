@@ -31,7 +31,8 @@
 		"@pythnetwork/client": "^2.5.1",
 		"@solana/spl-token": "^0.1.6",
 		"@solana/web3.js": "^1.22.0",
-		"strict-event-emitter-types": "^2.0.0"
+		"strict-event-emitter-types": "^2.0.0",
+		"uuid": "^8.3.2"
 	},
 	"description": "SDK for Drift Protocol v1",
 	"engines": {
