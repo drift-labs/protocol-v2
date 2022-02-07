@@ -1,7 +1,7 @@
 import * as anchor from '@project-serum/anchor';
 
-import BN from 'bn.js';
 import buffer from 'buffer';
+import { BN } from '../sdk';
 
 const empty32Buffer = buffer.Buffer.alloc(32);
 const PKorNull = (data) =>

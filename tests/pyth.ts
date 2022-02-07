@@ -1,7 +1,7 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
 
-import BN from 'bn.js';
+import { BN } from '../sdk';
 
 import {
 	getFeedData,

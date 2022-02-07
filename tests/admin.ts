@@ -1,6 +1,6 @@
 import * as anchor from '@project-serum/anchor';
 import { Program } from '@project-serum/anchor';
-import BN from 'bn.js';
+import { BN } from '../sdk';
 import { assert } from 'chai';
 
 import {

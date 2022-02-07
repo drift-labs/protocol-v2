@@ -1,5 +1,5 @@
 import * as anchor from '@project-serum/anchor';
-import BN from 'bn.js';
+import { BN } from '../sdk';
 import {
 	QUOTE_PRECISION,
 	MARK_PRICE_PRECISION,

@@ -1,6 +1,5 @@
 import * as anchor from '@project-serum/anchor';
 import { Program } from '@project-serum/anchor';
-import BN from 'bn.js';
 // import minheap from 'minheap';
 import { assert } from 'chai';
 import {
@@ -9,6 +8,7 @@ import {
 	Liquidator,
 	PositionDirection,
 	ClearingHouseUser,
+	BN,
 } from '../sdk/src';
 import { mockOracle, mockUSDCMint } from './mockAccounts';
 import { getFeedData } from './mockPythUtils';

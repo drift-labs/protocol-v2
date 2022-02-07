@@ -1,7 +1,7 @@
 import * as anchor from '@project-serum/anchor';
 import { Program } from '@project-serum/anchor';
 import { Keypair } from '@solana/web3.js';
-import BN from 'bn.js';
+import { BN } from '../sdk';
 import { Admin, PEG_PRECISION } from '../sdk/src';
 // import { getTokenAccount } from '@project-serum/common';
 import { mockUSDCMint } from '../stress/mockAccounts';

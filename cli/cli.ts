@@ -13,7 +13,7 @@ import {
 	Wallet,
 } from '@drift-labs/sdk';
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
-import BN from 'bn.js';
+import { BN } from '@drift-labs/sdk';
 import {
 	ASSOCIATED_TOKEN_PROGRAM_ID,
 	Token,

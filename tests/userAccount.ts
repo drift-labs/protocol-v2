@@ -7,7 +7,7 @@ import {
 } from './testHelpers';
 import { Admin, ClearingHouseUser, PEG_PRECISION } from '../sdk/src';
 import { Keypair } from '@solana/web3.js';
-import BN from 'bn.js';
+import { BN } from '../sdk';
 import { assert } from 'chai';
 import { MAX_LEVERAGE, PositionDirection } from '../sdk/src';
 

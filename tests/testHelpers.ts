@@ -16,7 +16,7 @@ import {
 } from '@solana/web3.js';
 import { assert } from 'chai';
 import buffer from 'buffer';
-import BN from 'bn.js';
+import { BN } from '../sdk';
 import { ClearingHouse, ClearingHouseUser } from '../sdk/src';
 
 export async function mockOracle(
