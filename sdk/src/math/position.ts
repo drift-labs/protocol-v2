@@ -1,4 +1,4 @@
-import BN from 'bn.js';
+import { BN } from '../';
 import {
 	AMM_RESERVE_PRECISION,
 	AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO,

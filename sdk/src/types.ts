@@ -1,5 +1,5 @@
 import { PublicKey, Transaction } from '@solana/web3.js';
-import BN from 'bn.js';
+import { BN } from '.';
 
 // # Utility Types / Enums / Constants
 export class SwapDirection {

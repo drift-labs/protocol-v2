@@ -1,4 +1,4 @@
-import BN from 'bn.js';
+import { BN } from '../';
 import {
 	MARK_PRICE_PRECISION,
 	PEG_PRECISION,

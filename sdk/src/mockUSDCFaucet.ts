@@ -17,7 +17,7 @@ import {
 	TransactionInstruction,
 	TransactionSignature,
 } from '@solana/web3.js';
-import BN from 'bn.js';
+import { BN } from '.';
 import mockUSDCFaucetIDL from './idl/mock_usdc_faucet.json';
 import { IWallet } from './types';
 

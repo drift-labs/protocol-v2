@@ -1,5 +1,5 @@
 import { MarketsAccount, StateAccount } from '../types';
-import BN from 'bn.js';
+import { BN } from '../';
 import { Connection } from '@solana/web3.js';
 
 /**

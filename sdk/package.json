@@ -10,7 +10,8 @@
 		"url": "git@github.com:drift-labs/protocol-v1.git"
 	},
 	"scripts": {
-		"build": "yarn clean && tsc",
+		"lint": "eslint './**/*.{ts,tsx}' --quiet",
+		"build": "yarn clean && yarn lint && tsc",
 		"clean": "rm -rf lib",
 		"patch-and-pub": "npm version patch --force && npm publish"
 	},
@@ -33,6 +34,9 @@
 		"@solana/web3.js": "^1.22.0",
 		"strict-event-emitter-types": "^2.0.0",
 		"uuid": "^8.3.2"
+	},
+	"devDependencies": {
+		"eslint": "^7.29.0"
 	},
 	"description": "SDK for Drift Protocol v1",
 	"engines": {

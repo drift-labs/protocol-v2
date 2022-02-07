@@ -1,4 +1,4 @@
-import BN from 'bn.js';
+import { BN } from '@project-serum/anchor';
 import { PublicKey } from '@solana/web3.js';
 
 export * from './mockUSDCFaucet';
