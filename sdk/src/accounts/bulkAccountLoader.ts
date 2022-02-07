@@ -21,6 +21,9 @@ export class BulkAccountLoader {
 	accountData = new Map<string, AccountData>();
 	errorCallbacks = new Map<string, (e) => void>();
 	intervalId?: NodeJS.Timer;
+	// to handle clients spamming load
+	loadPromise?: Promise<void>;
+	loadPromiseResolver: () => void;
 
 	public constructor(
 		connection: Connection,
@@ -55,6 +58,9 @@ export class BulkAccountLoader {
 		if (existingSize === 0) {
 			this.startPolling();
 		}
+
+		// if a new account needs to be polled, remove the cached loadPromise in case client calls load immediately after
+		this.loadPromise = undefined;
 
 		return callbackId;
 	}
@@ -91,6 +97,13 @@ export class BulkAccountLoader {
 	}
 
 	public async load(): Promise<void> {
+		if (this.loadPromise) {
+			return this.loadPromise;
+		}
+		this.loadPromise = new Promise((resolver) => {
+			this.loadPromiseResolver = resolver;
+		});
+
 		const chunks = this.chunks(
 			Array.from(this.accountsToLoad.values()),
 			GET_MULTIPLE_ACCOUNTS_CHUNK_SIZE
@@ -101,6 +114,9 @@ export class BulkAccountLoader {
 				return this.loadChunk(chunk);
 			})
 		);
+
+		this.loadPromiseResolver();
+		this.loadPromise = undefined;
 	}
 
 	async loadChunk(accountsToLoad: AccountToLoad[]): Promise<void> {
