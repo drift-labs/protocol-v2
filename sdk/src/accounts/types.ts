@@ -118,3 +118,8 @@ export type AccountToPoll = {
 	eventType: string;
 	callbackId?: string;
 };
+
+export type AccountData = {
+	slot: number;
+	buffer: Buffer | undefined;
+};

@@ -1,14 +1,10 @@
 import { Commitment, Connection, PublicKey } from '@solana/web3.js';
 import { v4 as uuidv4 } from 'uuid';
+import { AccountData } from './types';
 
 type AccountToLoad = {
 	publicKey: PublicKey;
 	callbacks: Map<string, (buffer: Buffer) => void>;
-};
-
-type AccountData = {
-	slot: number;
-	buffer: Buffer | undefined;
 };
 
 const GET_MULTIPLE_ACCOUNTS_CHUNK_SIZE = 99;
