@@ -11,7 +11,7 @@
 	},
 	"scripts": {
 		"lint": "eslint './**/*.{ts,tsx}' --quiet",
-		"build": "yarn clean && yarn lint && tsc",
+		"build": "yarn clean && tsc",
 		"clean": "rm -rf lib",
 		"patch-and-pub": "npm version patch --force && npm publish"
 	},
