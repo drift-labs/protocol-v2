@@ -100,16 +100,24 @@ export class BulkAccountLoader {
 			this.loadPromiseResolver = resolver;
 		});
 
-		const chunks = this.chunks(
-			Array.from(this.accountsToLoad.values()),
-			GET_MULTIPLE_ACCOUNTS_CHUNK_SIZE
-		);
+		try {
+			const chunks = this.chunks(
+				Array.from(this.accountsToLoad.values()),
+				GET_MULTIPLE_ACCOUNTS_CHUNK_SIZE
+			);
 
-		await Promise.all(
-			chunks.map((chunk) => {
-				return this.loadChunk(chunk);
-			})
-		);
+			await Promise.all(
+				chunks.map((chunk) => {
+					return this.loadChunk(chunk);
+				})
+			);
+		} catch (e) {
+			console.error(`Error in bulkAccountLoader.load()`);
+			console.error(e);
+			for (const [_, callback] of this.errorCallbacks) {
+				callback(e);
+			}
+		}
 
 		this.loadPromiseResolver();
 		this.loadPromise = undefined;
