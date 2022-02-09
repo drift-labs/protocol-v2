@@ -10,7 +10,7 @@ The Drift Protocol Bug Bounty Program is focused on our smart contracts with a p
 
 **Smart Contracts and Blockchain**
 
-| Level      |                    |
+| Level      | Reward             |
 | ---------- | ------------------ |
 | Critical\* | up to USD $500,000 |
 | High\*\*   | USD $50,000        |
