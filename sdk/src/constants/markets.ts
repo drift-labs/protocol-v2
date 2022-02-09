@@ -98,6 +98,14 @@ export const Markets: Market[] = [
 		mainnetPythOracle: 'HqFyq1wh1xKvL7KDqqT7NJeSPdAqsDqnmBisUC2XdXAX',
 		launchTs: 1643686767000,
 	},
+	{
+		symbol: 'FTT-PERP',
+		baseAssetSymbol: 'FTT',
+		marketIndex: new BN(11),
+		devnetPythOracle: '6vivTRs5ZPeeXbjo7dfburfaYDWoXjBtdtuYgQRuGfu',
+		mainnetPythOracle: '8JPJJkmDScpcNmBRKGZuPuG2GYAveQgP3t5gFuMymwvF',
+		launchTs: 1644382122000,
+	},
 	// {
 	// 	symbol: 'mSOL-PERP',
 	// 	baseAssetSymbol: 'mSOL',
