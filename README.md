@@ -17,3 +17,7 @@ This repository provides open source access to Drift's Typescript SDK, Solana Pr
 # SDK Guide
 
 SDK docs can be found [here](./sdk/README.md)
+
+# Bug Bounty
+
+Information about the Bug Bounty can be found [here](./bug-bounty/README.md)
