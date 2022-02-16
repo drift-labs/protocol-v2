@@ -106,6 +106,14 @@ export const Markets: Market[] = [
 		mainnetPythOracle: '8JPJJkmDScpcNmBRKGZuPuG2GYAveQgP3t5gFuMymwvF',
 		launchTs: 1644382122000,
 	},
+	{
+		symbol: 'LTC-PERP',
+		baseAssetSymbol: 'LTC',
+		marketIndex: new BN(12),
+		devnetPythOracle: 'BLArYBCUYhdWiY8PCUTpvFE21iaJq85dvxLk9bYMobcU',
+		mainnetPythOracle: '8RMnV1eD55iqUFJLMguPkYBkq8DCtx81XcmAja93LvRR',
+		launchTs: 1645027429000,
+	},
 	// {
 	// 	symbol: 'mSOL-PERP',
 	// 	baseAssetSymbol: 'mSOL',
