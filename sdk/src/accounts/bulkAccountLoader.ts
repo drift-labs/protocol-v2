@@ -117,10 +117,10 @@ export class BulkAccountLoader {
 			for (const [_, callback] of this.errorCallbacks) {
 				callback(e);
 			}
+		} finally {
+			this.loadPromiseResolver();
+			this.loadPromise = undefined;
 		}
-
-		this.loadPromiseResolver();
-		this.loadPromise = undefined;
 	}
 
 	async loadChunk(accountsToLoad: AccountToLoad[]): Promise<void> {
