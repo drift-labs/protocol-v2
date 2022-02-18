@@ -24,6 +24,14 @@ impl Markets {
     pub fn index_from_u64(index: u64) -> usize {
         std::convert::TryInto::try_into(index).unwrap()
     }
+
+    pub fn get_market(&self, index: u64) -> &Market {
+        &self.markets[Markets::index_from_u64(index)]
+    }
+
+    pub fn get_market_mut(&mut self, index: u64) -> &mut Market {
+        &mut self.markets[Markets::index_from_u64(index)]
+    }
 }
 
 #[zero_copy]
@@ -79,15 +87,15 @@ pub struct AMM {
     pub total_fee: u128,
     pub total_fee_minus_distributions: u128,
     pub total_fee_withdrawn: u128,
-    pub minimum_trade_size: u128,
+    pub minimum_quote_asset_trade_size: u128,
     pub last_oracle_price_twap_ts: i64,
     pub last_oracle_price: i128,
+    pub minimum_base_asset_trade_size: u128,
 
     // upgrade-ability
     pub padding1: u64,
     pub padding2: u128,
     pub padding3: u128,
-    pub padding4: u128,
 }
 
 impl AMM {

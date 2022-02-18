@@ -1,15 +1,19 @@
+#![allow(clippy::too_many_arguments)]
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 
 use context::*;
-use controller::position::PositionDirection;
+use controller::position::{add_new_position, get_position_index, PositionDirection};
 use error::*;
-use math::{amm, bn, constants::*, fees, margin::*, position::*, withdrawal::*};
-use state::{
+use math::{amm, bn, constants::*, fees, margin::*, orders::*, position::*, withdrawal::*};
+
+use crate::state::{
     history::trade::TradeRecord,
     market::{Market, Markets, OracleSource, AMM},
+    order_state::*,
     state::*,
-    user::{MarketPosition, User},
+    user::{MarketPosition, User, UserPositions},
+    user_orders::*,
 };
 
 pub mod context;
@@ -17,6 +21,7 @@ pub mod controller;
 pub mod error;
 pub mod math;
 pub mod optional_accounts;
+pub mod order_validation;
 pub mod state;
 mod user_initialization;
 
@@ -28,12 +33,14 @@ declare_id!("AsW7LnXB9UA1uec9wi9MctYTgTz7YH9snhxd16GsFaGX");
 #[program]
 pub mod clearing_house {
     use crate::math;
+    use crate::optional_accounts::{get_discount_token, get_referrer, get_referrer_for_fill_order};
     use crate::state::history::curve::ExtendedCurveRecord;
     use crate::state::history::deposit::{DepositDirection, DepositRecord};
     use crate::state::history::liquidation::LiquidationRecord;
 
     use super::*;
     use crate::math::casting::{cast, cast_to_i128, cast_to_u128};
+    use crate::state::order_state::{OrderFillerRewardStructure, OrderState};
 
     pub fn initialize(
         ctx: Context<Initialize>,
@@ -143,13 +150,12 @@ pub mod clearing_house {
                 },
                 use_for_liquidations: true,
             },
+            order_state: Pubkey::default(),
             extended_curve_history: Pubkey::default(),
             padding0: 0,
             padding1: 0,
             padding2: 0,
             padding3: 0,
-            padding4: 0,
-            padding5: 0,
         };
 
         Ok(())
@@ -189,6 +195,33 @@ pub mod clearing_house {
         state.funding_payment_history = *funding_payment_history;
         state.liquidation_history = *liquidation_history;
         state.extended_curve_history = *extended_curve_history;
+
+        Ok(())
+    }
+
+    pub fn initialize_order_state(
+        ctx: Context<InitializeOrderState>,
+        _order_house_nonce: u8,
+    ) -> ProgramResult {
+        let state = &mut ctx.accounts.state;
+
+        if !state.order_state.eq(&Pubkey::default()) {
+            return Err(ErrorCode::OrderStateAlreadyInitialized.into());
+        }
+
+        state.order_state = ctx.accounts.order_state.key();
+        ctx.accounts.order_history.load_init()?;
+
+        **ctx.accounts.order_state = OrderState {
+            order_history: ctx.accounts.order_history.key(),
+            order_filler_reward_structure: OrderFillerRewardStructure {
+                reward_numerator: 1,
+                reward_denominator: 10,
+                time_based_reward_lower_bound: 10_000, // 1 cent
+            },
+            min_order_quote_asset_amount: 500_000, // 50 cents
+            padding: [0; 10],
+        };
 
         Ok(())
     }
@@ -263,13 +296,13 @@ pub mod clearing_house {
                 total_fee: 0,
                 total_fee_withdrawn: 0,
                 total_fee_minus_distributions: 0,
-                minimum_trade_size: 10000000,
+                minimum_quote_asset_trade_size: 10000000,
                 last_oracle_price_twap_ts: now,
                 last_oracle_price: oracle_price,
+                minimum_base_asset_trade_size: 10000000,
                 padding1: 0,
                 padding2: 0,
                 padding3: 0,
-                padding4: 0,
             },
         };
 
@@ -452,6 +485,10 @@ pub mod clearing_house {
         let now = clock.unix_timestamp;
         let clock_slot = clock.slot;
 
+        if quote_asset_amount == 0 {
+            return Err(ErrorCode::TradeSizeTooSmall.into());
+        }
+
         // Settle user's funding payments so that collateral is up to date
         let user_positions = &mut ctx.accounts.user_positions.load_mut()?;
         let funding_payment_history = &mut ctx.accounts.funding_payment_history.load_mut()?;
@@ -463,54 +500,10 @@ pub mod clearing_house {
             now,
         )?;
 
-        // Check if the user has an existing position for the market
-        let mut market_position = user_positions
-            .positions
-            .iter_mut()
-            .find(|market_position| market_position.is_for(market_index));
-
-        // If they don't have an existing position, look into the positions account for a spot for space
-        // for a new position
-        if market_position.is_none() {
-            let available_position_index = user_positions
-                .positions
-                .iter()
-                .position(|market_position| !market_position.is_open_position());
-
-            if available_position_index.is_none() {
-                return Err(ErrorCode::MaxNumberOfPositions.into());
-            }
-
-            let new_market_position = MarketPosition {
-                market_index,
-                base_asset_amount: 0,
-                quote_asset_amount: 0,
-                last_cumulative_funding_rate: 0,
-                last_cumulative_repeg_rebate: 0,
-                last_funding_rate_ts: 0,
-                stop_profit_price: 0,
-                stop_profit_amount: 0,
-                stop_loss_price: 0,
-                stop_loss_amount: 0,
-                transfer_to: Pubkey::default(),
-                padding0: 0,
-                padding1: 0,
-            };
-
-            user_positions.positions[available_position_index.unwrap()] = new_market_position;
-
-            market_position =
-                Some(&mut user_positions.positions[available_position_index.unwrap()]);
-        }
-
-        let market_position = market_position.unwrap();
-
-        // A trade is risk increasing if it increases the users leverage
-        // If a trade is risk increasing and brings the user's margin ratio below initial requirement
-        // the trade fails
-        // If a trade is risk increasing and it pushes the mark price too far away from the oracle price
-        // the trade fails
-        let mut potentially_risk_increasing = true;
+        // Get existing position or add a new position for market
+        let position_index = get_position_index(user_positions, market_index)
+            .or_else(|_| add_new_position(user_positions, market_index))?;
+        let market_position = &mut user_positions.positions[position_index];
 
         // Collect data about position/market before trade is executed so that it can be stored in trade history
         let mark_price_before: u128;
@@ -541,82 +534,31 @@ pub mod clearing_house {
             }
         }
 
-        let mut quote_asset_amount = quote_asset_amount;
+        // A trade is risk increasing if it increases the users leverage
+        // If a trade is risk increasing and brings the user's margin ratio below initial requirement
+        // the trade fails
+        // If a trade is risk increasing and it pushes the mark price too far away from the oracle price
+        // the trade fails
+        let potentially_risk_increasing;
         let base_asset_amount;
-        // The trade increases the the user position if
-        // 1) the user does not have a position
-        // 2) the trade is in the same direction as the user's existing position
-        let increase_position = market_position.base_asset_amount == 0
-            || market_position.base_asset_amount > 0 && direction == PositionDirection::Long
-            || market_position.base_asset_amount < 0 && direction == PositionDirection::Short;
-        if increase_position {
-            let market = &mut ctx.accounts.markets.load_mut()?.markets
-                [Markets::index_from_u64(market_index)];
-
-            base_asset_amount = controller::position::increase(
-                direction,
-                quote_asset_amount,
-                market,
-                market_position,
-                now,
-            )?
-            .unsigned_abs();
-        } else {
-            let market = &mut ctx.accounts.markets.load_mut()?.markets
-                [Markets::index_from_u64(market_index)];
-
-            let (base_asset_value, _unrealized_pnl) =
-                calculate_base_asset_value_and_pnl(market_position, &market.amm)?;
-
-            // if the quote_asset_amount is close enough in value to base_asset_value,
-            // round the quote_asset_amount to be the same as base_asset_value
-            if amm::should_round_trade(&market.amm, quote_asset_amount, base_asset_value)? {
-                quote_asset_amount = base_asset_value;
-            }
-
-            // we calculate what the user's position is worth if they closed to determine
-            // if they are reducing or closing and reversing their position
-            if base_asset_value > quote_asset_amount {
-                base_asset_amount = controller::position::reduce(
-                    direction,
+        let mut quote_asset_amount = quote_asset_amount;
+        {
+            let markets = &mut ctx.accounts.markets.load_mut()?;
+            let market = markets.get_market_mut(market_index);
+            let (_potentially_risk_increasing, _base_asset_amount, _quote_asset_amount) =
+                controller::position::update_position_with_quote_asset_amount(
                     quote_asset_amount,
-                    user,
-                    market,
-                    market_position,
-                    now,
-                    None,
-                )?
-                .unsigned_abs();
-
-                potentially_risk_increasing = false;
-            } else {
-                // after closing existing position, how large should trade be in opposite direction
-                let quote_asset_amount_after_close = quote_asset_amount
-                    .checked_sub(base_asset_value)
-                    .ok_or_else(math_error!())?;
-
-                // If the value of the new position is less than value of the old position, consider it risk decreasing
-                if quote_asset_amount_after_close < base_asset_value {
-                    potentially_risk_increasing = false;
-                }
-
-                let (_, base_asset_amount_closed) =
-                    controller::position::close(user, market, market_position, now)?;
-                let base_asset_amount_closed = base_asset_amount_closed.unsigned_abs();
-
-                let base_asset_amount_opened = controller::position::increase(
                     direction,
-                    quote_asset_amount_after_close,
                     market,
+                    user,
                     market_position,
+                    mark_price_before,
                     now,
-                )?
-                .unsigned_abs();
+                )?;
 
-                base_asset_amount = base_asset_amount_closed
-                    .checked_add(base_asset_amount_opened)
-                    .ok_or_else(math_error!())?;
-            }
+            potentially_risk_increasing = _potentially_risk_increasing;
+            base_asset_amount = _base_asset_amount;
+            quote_asset_amount = _quote_asset_amount;
         }
 
         // Collect data about position/market after trade is executed so that it can be stored in trade history
@@ -661,7 +603,7 @@ pub mod clearing_house {
             &ctx.accounts.authority.key(),
         )?;
         let (user_fee, fee_to_market, token_discount, referrer_reward, referee_discount) =
-            fees::calculate(
+            fees::calculate_fee_for_market_order(
                 quote_asset_amount,
                 &ctx.accounts.state.fee_structure,
                 discount_token,
@@ -763,33 +705,15 @@ pub mod clearing_house {
         });
 
         // If the user adds a limit price to their trade, check that their entry price is better than the limit price
-        if limit_price != 0 {
-            let market =
-                &ctx.accounts.markets.load()?.markets[Markets::index_from_u64(market_index)];
-
-            let quote_asset_reserve_amount = math::quote_asset::asset_to_reserve_amount(
+        if limit_price != 0
+            && !limit_price_satisfied(
+                limit_price,
                 quote_asset_amount,
-                market.amm.peg_multiplier,
-            )?;
-
-            let entry_price = amm::calculate_price(
-                quote_asset_reserve_amount,
                 base_asset_amount,
-                market.amm.peg_multiplier,
-            )?;
-
-            match direction {
-                PositionDirection::Long => {
-                    if entry_price > limit_price {
-                        return Err(ErrorCode::SlippageOutsideLimit.into());
-                    }
-                }
-                PositionDirection::Short => {
-                    if entry_price < limit_price {
-                        return Err(ErrorCode::SlippageOutsideLimit.into());
-                    }
-                }
-            }
+                direction,
+            )?
+        {
+            return Err(ErrorCode::SlippageOutsideLimit.into());
         }
 
         // Try to update the funding rate at the end of every trade
@@ -840,15 +764,8 @@ pub mod clearing_house {
             now,
         )?;
 
-        // Try to find user's position for specified market. Return Err if there is none
-        let market_position = user_positions
-            .positions
-            .iter_mut()
-            .find(|market_position| market_position.is_for(market_index));
-        if market_position.is_none() {
-            return Err(ErrorCode::UserHasNoPositionInMarket.into());
-        }
-        let market_position = market_position.unwrap();
+        let position_index = get_position_index(user_positions, market_index)?;
+        let market_position = &mut user_positions.positions[position_index];
 
         let market =
             &mut ctx.accounts.markets.load_mut()?.markets[Markets::index_from_u64(market_index)];
@@ -877,7 +794,7 @@ pub mod clearing_house {
             &ctx.accounts.authority.key(),
         )?;
         let (user_fee, fee_to_market, token_discount, referrer_reward, referee_discount) =
-            fees::calculate(
+            fees::calculate_fee_for_market_order(
                 quote_asset_amount,
                 &ctx.accounts.state.fee_structure,
                 discount_token,
@@ -997,6 +914,181 @@ pub mod clearing_house {
             funding_rate_history,
             &ctx.accounts.state.oracle_guard_rails,
             ctx.accounts.state.funding_paused,
+        )?;
+
+        Ok(())
+    }
+
+    #[allow(unused_must_use)]
+    #[access_control(
+        market_initialized(&ctx.accounts.markets, params.market_index)
+    )]
+    pub fn place_order<'info>(ctx: Context<PlaceOrder>, params: OrderParams) -> ProgramResult {
+        let account_info_iter = &mut ctx.remaining_accounts.iter();
+        let discount_token = get_discount_token(
+            params.optional_accounts.discount_token,
+            account_info_iter,
+            &ctx.accounts.state.discount_mint,
+            ctx.accounts.authority.key,
+        )?;
+        let referrer = get_referrer(
+            params.optional_accounts.referrer,
+            account_info_iter,
+            &ctx.accounts.user.key(),
+            None,
+        )?;
+
+        if params.order_type == OrderType::Market {
+            return Err(ErrorCode::MarketOrderMustBeInPlaceAndFill.into());
+        }
+
+        controller::orders::place_order(
+            &ctx.accounts.state,
+            &ctx.accounts.order_state,
+            &mut ctx.accounts.user,
+            &ctx.accounts.user_positions,
+            &ctx.accounts.markets,
+            &ctx.accounts.user_orders,
+            &ctx.accounts.funding_payment_history,
+            &ctx.accounts.order_history,
+            discount_token,
+            &referrer,
+            &Clock::get()?,
+            params,
+        )?;
+
+        Ok(())
+    }
+
+    pub fn cancel_order(ctx: Context<CancelOrder>, order_id: u128) -> ProgramResult {
+        controller::orders::cancel_order_by_order_id(
+            order_id,
+            &mut ctx.accounts.user,
+            &ctx.accounts.user_positions,
+            &ctx.accounts.markets,
+            &ctx.accounts.user_orders,
+            &ctx.accounts.funding_payment_history,
+            &ctx.accounts.order_history,
+            &Clock::get()?,
+        )?;
+
+        Ok(())
+    }
+
+    pub fn cancel_order_by_user_id(ctx: Context<CancelOrder>, user_order_id: u8) -> ProgramResult {
+        controller::orders::cancel_order_by_user_order_id(
+            user_order_id,
+            &mut ctx.accounts.user,
+            &ctx.accounts.user_positions,
+            &ctx.accounts.markets,
+            &ctx.accounts.user_orders,
+            &ctx.accounts.funding_payment_history,
+            &ctx.accounts.order_history,
+            &Clock::get()?,
+        )?;
+
+        Ok(())
+    }
+
+    #[access_control(
+        exchange_not_paused(&ctx.accounts.state)
+    )]
+    pub fn fill_order<'info>(ctx: Context<FillOrder>, order_id: u128) -> ProgramResult {
+        let account_info_iter = &mut ctx.remaining_accounts.iter();
+        let referrer = get_referrer_for_fill_order(
+            account_info_iter,
+            &ctx.accounts.user.key(),
+            order_id,
+            &ctx.accounts.user_orders,
+        )?;
+
+        let base_asset_amount = controller::orders::fill_order(
+            order_id,
+            &ctx.accounts.state,
+            &ctx.accounts.order_state,
+            &mut ctx.accounts.user,
+            &ctx.accounts.user_positions,
+            &ctx.accounts.markets,
+            &ctx.accounts.oracle,
+            &ctx.accounts.user_orders,
+            &mut ctx.accounts.filler,
+            &ctx.accounts.funding_payment_history,
+            &ctx.accounts.trade_history,
+            &ctx.accounts.order_history,
+            &ctx.accounts.funding_rate_history,
+            referrer,
+            &Clock::get()?,
+        )?;
+
+        if base_asset_amount == 0 {
+            return Err(print_error!(ErrorCode::CouldNotFillOrder)().into());
+        }
+
+        Ok(())
+    }
+
+    #[allow(unused_must_use)]
+    #[access_control(
+        exchange_not_paused(&ctx.accounts.state) &&
+        market_initialized(&ctx.accounts.markets, params.market_index) &&
+        valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.markets, params.market_index)
+    )]
+    pub fn place_and_fill_order<'info>(
+        ctx: Context<PlaceAndFillOrder>,
+        params: OrderParams,
+    ) -> ProgramResult {
+        let account_info_iter = &mut ctx.remaining_accounts.iter();
+        let discount_token = get_discount_token(
+            params.optional_accounts.discount_token,
+            account_info_iter,
+            &ctx.accounts.state.discount_mint,
+            ctx.accounts.authority.key,
+        )?;
+        let referrer = get_referrer(
+            params.optional_accounts.referrer,
+            account_info_iter,
+            &ctx.accounts.user.key(),
+            None,
+        )?;
+
+        controller::orders::place_order(
+            &ctx.accounts.state,
+            &ctx.accounts.order_state,
+            &mut ctx.accounts.user,
+            &ctx.accounts.user_positions,
+            &ctx.accounts.markets,
+            &ctx.accounts.user_orders,
+            &ctx.accounts.funding_payment_history,
+            &ctx.accounts.order_history,
+            discount_token,
+            &referrer,
+            &Clock::get()?,
+            params,
+        )?;
+
+        let order_id;
+        {
+            let order_history = &ctx.accounts.order_history.load()?;
+            order_id = order_history.last_order_id;
+        }
+
+        let user = &mut ctx.accounts.user;
+        controller::orders::fill_order(
+            order_id,
+            &ctx.accounts.state,
+            &ctx.accounts.order_state,
+            user,
+            &ctx.accounts.user_positions,
+            &ctx.accounts.markets,
+            &ctx.accounts.oracle,
+            &ctx.accounts.user_orders,
+            &mut user.clone(),
+            &ctx.accounts.funding_payment_history,
+            &ctx.accounts.trade_history,
+            &ctx.accounts.order_history,
+            &ctx.accounts.funding_rate_history,
+            referrer,
+            &Clock::get()?,
         )?;
 
         Ok(())
@@ -1553,6 +1645,15 @@ pub mod clearing_house {
         )
     }
 
+    pub fn initialize_user_orders(
+        ctx: Context<InitializeUserOrders>,
+        _user_orders_nonce: u8,
+    ) -> ProgramResult {
+        let orders = &mut ctx.accounts.user_orders.load_init()?;
+        orders.user = ctx.accounts.user.key();
+        Ok(())
+    }
+
     pub fn delete_user(ctx: Context<DeleteUser>) -> ProgramResult {
         let user = &ctx.accounts.user;
 
@@ -1840,6 +1941,14 @@ pub mod clearing_house {
         Ok(())
     }
 
+    pub fn update_order_filler_reward_structure(
+        ctx: Context<AdminUpdateOrderState>,
+        order_filler_reward_structure: OrderFillerRewardStructure,
+    ) -> ProgramResult {
+        ctx.accounts.order_state.order_filler_reward_structure = order_filler_reward_structure;
+        Ok(())
+    }
+
     pub fn update_oracle_guard_rails(
         ctx: Context<AdminUpdateState>,
         oracle_guard_rails: OracleGuardRails,
@@ -1867,14 +1976,28 @@ pub mod clearing_house {
     #[access_control(
         market_initialized(&ctx.accounts.markets, market_index)
     )]
-    pub fn update_market_minimum_trade_size(
+    pub fn update_market_minimum_quote_asset_trade_size(
         ctx: Context<AdminUpdateMarket>,
         market_index: u64,
         minimum_trade_size: u128,
     ) -> ProgramResult {
         let market =
             &mut ctx.accounts.markets.load_mut()?.markets[Markets::index_from_u64(market_index)];
-        market.amm.minimum_trade_size = minimum_trade_size;
+        market.amm.minimum_quote_asset_trade_size = minimum_trade_size;
+        Ok(())
+    }
+
+    #[access_control(
+        market_initialized(&ctx.accounts.markets, market_index)
+    )]
+    pub fn update_market_minimum_base_asset_trade_size(
+        ctx: Context<AdminUpdateMarket>,
+        market_index: u64,
+        minimum_trade_size: u128,
+    ) -> ProgramResult {
+        let market =
+            &mut ctx.accounts.markets.load_mut()?.markets[Markets::index_from_u64(market_index)];
+        market.amm.minimum_base_asset_trade_size = minimum_trade_size;
         Ok(())
     }
 

@@ -25,7 +25,7 @@ pub fn swap_quote_asset(
     let quote_asset_reserve_amount =
         asset_to_reserve_amount(quote_asset_amount, amm.peg_multiplier)?;
 
-    if quote_asset_reserve_amount < amm.minimum_trade_size {
+    if quote_asset_reserve_amount < amm.minimum_quote_asset_trade_size {
         return Err(ErrorCode::TradeSizeTooSmall);
     }
 

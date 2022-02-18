@@ -27,6 +27,7 @@ module.exports = {
 		"@typescript-eslint/no-var-requires": 0,
 		"@typescript-eslint/no-empty-function": 0,
 		"no-mixed-spaces-and-tabs": [2, "smart-tabs"],
+		"no-prototype-builtins": "off",
 		"semi": 2,
 		"no-restricted-imports": [
 			"error",

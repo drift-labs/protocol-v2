@@ -8,9 +8,12 @@ import { Program } from '@project-serum/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { PublicKey } from '@solana/web3.js';
-import { getUserAccountPublicKey } from '../addresses';
+import {
+	getUserAccountPublicKey,
+	getUserOrdersAccountPublicKey,
+} from '../addresses';
 import { WebSocketAccountSubscriber } from './webSocketAccountSubscriber';
-import { UserAccount, UserPositionsAccount } from '../types';
+import { UserAccount, UserOrdersAccount, UserPositionsAccount } from '../types';
 import { ClearingHouseConfigType } from '../factory/clearingHouse';
 
 export class WebSocketUserAccountSubscriber implements UserAccountSubscriber {
@@ -21,6 +24,7 @@ export class WebSocketUserAccountSubscriber implements UserAccountSubscriber {
 
 	userDataAccountSubscriber: AccountSubscriber<UserAccount>;
 	userPositionsAccountSubscriber: AccountSubscriber<UserPositionsAccount>;
+	userOrdersAccountSubscriber: AccountSubscriber<UserOrdersAccount>;
 
 	type: ClearingHouseConfigType = 'websocket';
 
@@ -64,6 +68,23 @@ export class WebSocketUserAccountSubscriber implements UserAccountSubscriber {
 			}
 		);
 
+		const userOrdersPublicKey = await getUserOrdersAccountPublicKey(
+			this.program.programId,
+			userPublicKey
+		);
+
+		this.userOrdersAccountSubscriber = new WebSocketAccountSubscriber(
+			'userOrders',
+			this.program,
+			userOrdersPublicKey
+		);
+		await this.userOrdersAccountSubscriber.subscribe(
+			(data: UserOrdersAccount) => {
+				this.eventEmitter.emit('userOrdersData', data);
+				this.eventEmitter.emit('update');
+			}
+		);
+
 		this.eventEmitter.emit('update');
 		this.isSubscribed = true;
 		return true;
@@ -73,6 +94,7 @@ export class WebSocketUserAccountSubscriber implements UserAccountSubscriber {
 		await Promise.all([
 			this.userDataAccountSubscriber.fetch(),
 			this.userPositionsAccountSubscriber.fetch(),
+			this.userOrdersAccountSubscriber.fetch(),
 		]);
 	}
 
@@ -84,6 +106,7 @@ export class WebSocketUserAccountSubscriber implements UserAccountSubscriber {
 		await Promise.all([
 			this.userDataAccountSubscriber.unsubscribe(),
 			this.userPositionsAccountSubscriber.unsubscribe(),
+			await this.userOrdersAccountSubscriber.unsubscribe(),
 		]);
 
 		this.isSubscribed = false;
@@ -105,5 +128,9 @@ export class WebSocketUserAccountSubscriber implements UserAccountSubscriber {
 	public getUserPositionsAccount(): UserPositionsAccount {
 		this.assertIsSubscribed();
 		return this.userPositionsAccountSubscriber.data;
+	}
+
+	public getUserOrdersAccount(): UserOrdersAccount {
+		return this.userOrdersAccountSubscriber.data;
 	}
 }

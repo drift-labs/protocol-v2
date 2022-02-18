@@ -127,6 +127,47 @@
       "args": []
     },
     {
+      "name": "initializeOrderState",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "orderState",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "orderHistory",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "orderHouseNonce",
+          "type": "u8"
+        }
+      ]
+    },
+    {
       "name": "initializeMarket",
       "accounts": [
         {
@@ -444,6 +485,335 @@
           "name": "optionalAccounts",
           "type": {
             "defined": "ManagePositionOptionalAccounts"
+          }
+        }
+      ]
+    },
+    {
+      "name": "placeOrder",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "orderState",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "markets",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "userPositions",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userOrders",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "fundingPaymentHistory",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "orderHistory",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "OrderParams"
+          }
+        }
+      ]
+    },
+    {
+      "name": "cancelOrder",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "orderState",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "markets",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "userPositions",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userOrders",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "fundingPaymentHistory",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "orderHistory",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "orderId",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "cancelOrderByUserId",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "orderState",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "markets",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "userPositions",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userOrders",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "fundingPaymentHistory",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "orderHistory",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "userOrderId",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "fillOrder",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "orderState",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "filler",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "markets",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userPositions",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userOrders",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tradeHistory",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "fundingPaymentHistory",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "fundingRateHistory",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "orderHistory",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "extendedCurveHistory",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "oracle",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "orderId",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "placeAndFillOrder",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "orderState",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "markets",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userPositions",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userOrders",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "fundingPaymentHistory",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tradeHistory",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "fundingRateHistory",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "orderHistory",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "extendedCurveHistory",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "oracle",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "OrderParams"
           }
         }
       ]
@@ -911,6 +1281,47 @@
       ]
     },
     {
+      "name": "initializeUserOrders",
+      "accounts": [
+        {
+          "name": "user",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "userOrders",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "userOrdersNonce",
+          "type": "u8"
+        }
+      ]
+    },
+    {
       "name": "deleteUser",
       "accounts": [
         {
@@ -1229,6 +1640,34 @@
       ]
     },
     {
+      "name": "updateOrderFillerRewardStructure",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "orderState",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "orderFillerRewardStructure",
+          "type": {
+            "defined": "OrderFillerRewardStructure"
+          }
+        }
+      ]
+    },
+    {
       "name": "updateOracleGuardRails",
       "accounts": [
         {
@@ -1288,7 +1727,37 @@
       ]
     },
     {
-      "name": "updateMarketMinimumTradeSize",
+      "name": "updateMarketMinimumQuoteAssetTradeSize",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "markets",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        },
+        {
+          "name": "minimumTradeSize",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "updateMarketMinimumBaseAssetTradeSize",
       "accounts": [
         {
           "name": "admin",
@@ -1619,6 +2088,64 @@
       }
     },
     {
+      "name": "OrderHistory",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "head",
+            "type": "u64"
+          },
+          {
+            "name": "lastOrderId",
+            "type": "u128"
+          },
+          {
+            "name": "orderRecords",
+            "type": {
+              "array": [
+                {
+                  "defined": "OrderRecord"
+                },
+                1024
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderState",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "orderHistory",
+            "type": "publicKey"
+          },
+          {
+            "name": "orderFillerRewardStructure",
+            "type": {
+              "defined": "OrderFillerRewardStructure"
+            }
+          },
+          {
+            "name": "minOrderQuoteAssetAmount",
+            "type": "u128"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u128",
+                10
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
       "name": "State",
       "type": {
         "kind": "struct",
@@ -1768,6 +2295,10 @@
             "type": "publicKey"
           },
           {
+            "name": "orderState",
+            "type": "publicKey"
+          },
+          {
             "name": "padding0",
             "type": "u128"
           },
@@ -1781,14 +2312,6 @@
           },
           {
             "name": "padding3",
-            "type": "u128"
-          },
-          {
-            "name": "padding4",
-            "type": "u128"
-          },
-          {
-            "name": "padding5",
             "type": "u128"
           }
         ]
@@ -1895,6 +2418,29 @@
           }
         ]
       }
+    },
+    {
+      "name": "UserOrders",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "publicKey"
+          },
+          {
+            "name": "orders",
+            "type": {
+              "array": [
+                {
+                  "defined": "Order"
+                },
+                20
+              ]
+            }
+          }
+        ]
+      }
     }
   ],
   "types": [
@@ -1912,6 +2458,106 @@
     },
     {
       "name": "ManagePositionOptionalAccounts",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "discountToken",
+            "type": "bool"
+          },
+          {
+            "name": "referrer",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "orderType",
+            "type": {
+              "defined": "OrderType"
+            }
+          },
+          {
+            "name": "direction",
+            "type": {
+              "defined": "PositionDirection"
+            }
+          },
+          {
+            "name": "userOrderId",
+            "type": "u8"
+          },
+          {
+            "name": "quoteAssetAmount",
+            "type": "u128"
+          },
+          {
+            "name": "baseAssetAmount",
+            "type": "u128"
+          },
+          {
+            "name": "price",
+            "type": "u128"
+          },
+          {
+            "name": "marketIndex",
+            "type": "u64"
+          },
+          {
+            "name": "reduceOnly",
+            "type": "bool"
+          },
+          {
+            "name": "postOnly",
+            "type": "bool"
+          },
+          {
+            "name": "immediateOrCancel",
+            "type": "bool"
+          },
+          {
+            "name": "triggerPrice",
+            "type": "u128"
+          },
+          {
+            "name": "triggerCondition",
+            "type": {
+              "defined": "OrderTriggerCondition"
+            }
+          },
+          {
+            "name": "optionalAccounts",
+            "type": {
+              "defined": "OrderParamsOptionalAccounts"
+            }
+          },
+          {
+            "name": "positionLimit",
+            "type": "u128"
+          },
+          {
+            "name": "oraclePriceOffset",
+            "type": "u128"
+          },
+          {
+            "name": "padding0",
+            "type": "bool"
+          },
+          {
+            "name": "padding1",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderParamsOptionalAccounts",
       "type": {
         "kind": "struct",
         "fields": [
@@ -2443,7 +3089,7 @@
             "type": "u128"
           },
           {
-            "name": "minimumTradeSize",
+            "name": "minimumQuoteAssetTradeSize",
             "type": "u128"
           },
           {
@@ -2453,6 +3099,10 @@
           {
             "name": "lastOraclePrice",
             "type": "i128"
+          },
+          {
+            "name": "minimumBaseAssetTradeSize",
+            "type": "u128"
           },
           {
             "name": "padding1",
@@ -2465,9 +3115,94 @@
           {
             "name": "padding3",
             "type": "u128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderRecord",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "ts",
+            "type": "i64"
           },
           {
-            "name": "padding4",
+            "name": "recordId",
+            "type": "u128"
+          },
+          {
+            "name": "user",
+            "type": "publicKey"
+          },
+          {
+            "name": "authority",
+            "type": "publicKey"
+          },
+          {
+            "name": "order",
+            "type": {
+              "defined": "Order"
+            }
+          },
+          {
+            "name": "action",
+            "type": {
+              "defined": "OrderAction"
+            }
+          },
+          {
+            "name": "filler",
+            "type": "publicKey"
+          },
+          {
+            "name": "tradeRecordId",
+            "type": "u128"
+          },
+          {
+            "name": "baseAssetAmountFilled",
+            "type": "u128"
+          },
+          {
+            "name": "quoteAssetAmountFilled",
+            "type": "u128"
+          },
+          {
+            "name": "fee",
+            "type": "u128"
+          },
+          {
+            "name": "fillerReward",
+            "type": "u128"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u64",
+                10
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderFillerRewardStructure",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "rewardNumerator",
+            "type": "u128"
+          },
+          {
+            "name": "rewardDenominator",
+            "type": "u128"
+          },
+          {
+            "name": "timeBasedRewardLowerBound",
             "type": "u128"
           }
         ]
@@ -2741,24 +3476,8 @@
             "type": "i64"
           },
           {
-            "name": "stopLossPrice",
+            "name": "openOrders",
             "type": "u128"
-          },
-          {
-            "name": "stopLossAmount",
-            "type": "u128"
-          },
-          {
-            "name": "stopProfitPrice",
-            "type": "u128"
-          },
-          {
-            "name": "stopProfitAmount",
-            "type": "u128"
-          },
-          {
-            "name": "transferTo",
-            "type": "publicKey"
           },
           {
             "name": "padding0",
@@ -2767,6 +3486,141 @@
           {
             "name": "padding1",
             "type": "u128"
+          },
+          {
+            "name": "padding2",
+            "type": "u128"
+          },
+          {
+            "name": "padding3",
+            "type": "u128"
+          },
+          {
+            "name": "padding4",
+            "type": "u128"
+          },
+          {
+            "name": "padding5",
+            "type": "u128"
+          },
+          {
+            "name": "padding6",
+            "type": "u128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Order",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "status",
+            "type": {
+              "defined": "OrderStatus"
+            }
+          },
+          {
+            "name": "orderType",
+            "type": {
+              "defined": "OrderType"
+            }
+          },
+          {
+            "name": "ts",
+            "type": "i64"
+          },
+          {
+            "name": "orderId",
+            "type": "u128"
+          },
+          {
+            "name": "userOrderId",
+            "type": "u8"
+          },
+          {
+            "name": "marketIndex",
+            "type": "u64"
+          },
+          {
+            "name": "price",
+            "type": "u128"
+          },
+          {
+            "name": "userBaseAssetAmount",
+            "type": "i128"
+          },
+          {
+            "name": "quoteAssetAmount",
+            "type": "u128"
+          },
+          {
+            "name": "baseAssetAmount",
+            "type": "u128"
+          },
+          {
+            "name": "baseAssetAmountFilled",
+            "type": "u128"
+          },
+          {
+            "name": "quoteAssetAmountFilled",
+            "type": "u128"
+          },
+          {
+            "name": "fee",
+            "type": "u128"
+          },
+          {
+            "name": "direction",
+            "type": {
+              "defined": "PositionDirection"
+            }
+          },
+          {
+            "name": "reduceOnly",
+            "type": "bool"
+          },
+          {
+            "name": "postOnly",
+            "type": "bool"
+          },
+          {
+            "name": "immediateOrCancel",
+            "type": "bool"
+          },
+          {
+            "name": "discountTier",
+            "type": {
+              "defined": "OrderDiscountTier"
+            }
+          },
+          {
+            "name": "triggerPrice",
+            "type": "u128"
+          },
+          {
+            "name": "triggerCondition",
+            "type": {
+              "defined": "OrderTriggerCondition"
+            }
+          },
+          {
+            "name": "referrer",
+            "type": "publicKey"
+          },
+          {
+            "name": "oraclePriceOffset",
+            "type": "i128"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u16",
+                3
+              ]
+            }
           }
         ]
       }
@@ -2828,6 +3682,23 @@
       }
     },
     {
+      "name": "OrderAction",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Place"
+          },
+          {
+            "name": "Cancel"
+          },
+          {
+            "name": "Fill"
+          }
+        ]
+      }
+    },
+    {
       "name": "PositionDirection",
       "type": {
         "kind": "enum",
@@ -2837,6 +3708,77 @@
           },
           {
             "name": "Short"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Init"
+          },
+          {
+            "name": "Open"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Market"
+          },
+          {
+            "name": "Limit"
+          },
+          {
+            "name": "TriggerMarket"
+          },
+          {
+            "name": "TriggerLimit"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderDiscountTier",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "None"
+          },
+          {
+            "name": "First"
+          },
+          {
+            "name": "Second"
+          },
+          {
+            "name": "Third"
+          },
+          {
+            "name": "Fourth"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderTriggerCondition",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Above"
+          },
+          {
+            "name": "Below"
           }
         ]
       }
@@ -3037,6 +3979,91 @@
       "code": 6038,
       "name": "CastingFailure",
       "msg": "Casting Failure"
+    },
+    {
+      "code": 6039,
+      "name": "InvalidOrder",
+      "msg": "Invalid Order"
+    },
+    {
+      "code": 6040,
+      "name": "UserHasNoOrder",
+      "msg": "User has no order"
+    },
+    {
+      "code": 6041,
+      "name": "OrderAmountTooSmall",
+      "msg": "Order Amount Too Small"
+    },
+    {
+      "code": 6042,
+      "name": "MaxNumberOfOrders",
+      "msg": "Max number of orders taken"
+    },
+    {
+      "code": 6043,
+      "name": "OrderDoesNotExist",
+      "msg": "Order does not exist"
+    },
+    {
+      "code": 6044,
+      "name": "OrderNotOpen",
+      "msg": "Order not open"
+    },
+    {
+      "code": 6045,
+      "name": "CouldNotFillOrder",
+      "msg": "CouldNotFillOrder"
+    },
+    {
+      "code": 6046,
+      "name": "ReduceOnlyOrderIncreasedRisk",
+      "msg": "Reduce only order increased risk"
+    },
+    {
+      "code": 6047,
+      "name": "OrderStateAlreadyInitialized",
+      "msg": "Order state already initialized"
+    },
+    {
+      "code": 6048,
+      "name": "UnableToLoadAccountLoader",
+      "msg": "Unable to load AccountLoader"
+    },
+    {
+      "code": 6049,
+      "name": "TradeSizeTooLarge",
+      "msg": "Trade Size Too Large"
+    },
+    {
+      "code": 6050,
+      "name": "UnableToWriteToRemainingAccount",
+      "msg": "Unable to write to remaining account"
+    },
+    {
+      "code": 6051,
+      "name": "UserCantReferThemselves",
+      "msg": "User cant refer themselves"
+    },
+    {
+      "code": 6052,
+      "name": "DidNotReceiveExpectedReferrer",
+      "msg": "Did not receive expected referrer"
+    },
+    {
+      "code": 6053,
+      "name": "CouldNotDeserializeReferrer",
+      "msg": "Could not deserialize referrer"
+    },
+    {
+      "code": 6054,
+      "name": "MarketOrderMustBeInPlaceAndFill",
+      "msg": "Market order must be in place and fill"
+    },
+    {
+      "code": 6055,
+      "name": "UserOrderIdAlreadyInUse",
+      "msg": "User Order Id Already In Use"
     }
   ]
 }

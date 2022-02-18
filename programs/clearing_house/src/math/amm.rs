@@ -4,11 +4,12 @@ use anchor_lang::prelude::AccountInfo;
 use solana_program::msg;
 
 use crate::controller::amm::SwapDirection;
+use crate::controller::position::PositionDirection;
 use crate::error::*;
 use crate::math::bn;
 use crate::math::bn::U192;
 use crate::math::casting::{cast, cast_to_i128, cast_to_u128};
-use crate::math::constants::{MARK_PRICE_PRECISION, PRICE_TO_PEG_PRECISION_RATIO};
+use crate::math::constants::{MARK_PRICE_PRECISION, PEG_PRECISION, PRICE_TO_PEG_PRECISION_RATIO};
 use crate::math::position::_calculate_base_asset_value_and_pnl;
 use crate::math::quote_asset::{asset_to_reserve_amount, reserve_to_asset_amount};
 use crate::math_error;
@@ -218,6 +219,10 @@ pub fn calculate_swap_output(
     let invariant = invariant_sqrt_u192
         .checked_mul(invariant_sqrt_u192)
         .ok_or_else(math_error!())?;
+
+    if direction == SwapDirection::Remove && swap_amount > input_asset_amount {
+        return Err(ErrorCode::TradeSizeTooLarge);
+    }
 
     let new_input_amount = if let SwapDirection::Add = direction {
         input_asset_amount
@@ -496,6 +501,43 @@ pub fn adjust_k_cost(market: &mut Market, new_sqrt_k: bn::U256) -> ClearingHouse
     Ok(cost)
 }
 
+pub fn calculate_max_base_asset_amount_to_trade(
+    amm: &AMM,
+    limit_price: u128,
+) -> ClearingHouseResult<(u128, PositionDirection)> {
+    let invariant_sqrt_u192 = U192::from(amm.sqrt_k);
+    let invariant = invariant_sqrt_u192
+        .checked_mul(invariant_sqrt_u192)
+        .ok_or_else(math_error!())?;
+
+    let new_base_asset_reserve_squared = invariant
+        .checked_mul(U192::from(MARK_PRICE_PRECISION))
+        .ok_or_else(math_error!())?
+        .checked_div(U192::from(limit_price))
+        .ok_or_else(math_error!())?
+        .checked_mul(U192::from(amm.peg_multiplier))
+        .ok_or_else(math_error!())?
+        .checked_div(U192::from(PEG_PRECISION))
+        .ok_or_else(math_error!())?;
+
+    let new_base_asset_reserve = new_base_asset_reserve_squared
+        .integer_sqrt()
+        .try_to_u128()?;
+
+    if new_base_asset_reserve > amm.base_asset_reserve {
+        let max_trade_amount = new_base_asset_reserve
+            .checked_sub(amm.base_asset_reserve)
+            .ok_or_else(math_error!())?;
+        Ok((max_trade_amount, PositionDirection::Short))
+    } else {
+        let max_trade_amount = amm
+            .base_asset_reserve
+            .checked_sub(new_base_asset_reserve)
+            .ok_or_else(math_error!())?;
+        Ok((max_trade_amount, PositionDirection::Long))
+    }
+}
+
 pub fn should_round_trade(
     amm: &AMM,
     quote_asset_amount: u128,
@@ -513,5 +555,5 @@ pub fn should_round_trade(
 
     let quote_asset_reserve_amount = asset_to_reserve_amount(difference, amm.peg_multiplier)?;
 
-    Ok(quote_asset_reserve_amount < amm.minimum_trade_size)
+    Ok(quote_asset_reserve_amount < amm.minimum_quote_asset_trade_size)
 }

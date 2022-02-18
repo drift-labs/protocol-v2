@@ -15,6 +15,8 @@ import {
 	FundingRateHistoryAccount,
 	LiquidationHistoryAccount,
 	MarketsAccount,
+	OrderHistoryAccount,
+	OrderStateAccount,
 	StateAccount,
 	TradeHistoryAccount,
 } from '../types';
@@ -36,12 +38,14 @@ export class PollingClearingHouseAccountSubscriber
 
 	state?: StateAccount;
 	markets?: MarketsAccount;
+	orderState?: OrderStateAccount;
 	tradeHistory?: TradeHistoryAccount;
 	depositHistory?: DepositHistoryAccount;
 	fundingPaymentHistory?: FundingPaymentHistoryAccount;
 	fundingRateHistory?: FundingRateHistoryAccount;
 	liquidationHistory?: LiquidationHistoryAccount;
 	extendedCurveHistory: ExtendedCurveHistoryAccount;
+	orderHistory?: OrderHistoryAccount;
 
 	optionalExtraSubscriptions: ClearingHouseAccountTypes[] = [];
 
@@ -114,6 +118,12 @@ export class PollingClearingHouseAccountSubscriber
 			eventType: 'marketsAccountUpdate',
 		});
 
+		this.accountsToPoll.set(state.orderState.toString(), {
+			key: 'orderState',
+			publicKey: state.orderState,
+			eventType: 'orderStateAccountUpdate',
+		});
+
 		if (this.optionalExtraSubscriptions?.includes('tradeHistoryAccount')) {
 			this.accountsToPoll.set(state.tradeHistory.toString(), {
 				key: 'tradeHistory',
@@ -165,6 +175,18 @@ export class PollingClearingHouseAccountSubscriber
 				key: 'liquidationHistory',
 				publicKey: state.liquidationHistory,
 				eventType: 'liquidationHistoryAccountUpdate',
+			});
+		}
+
+		if (this.optionalExtraSubscriptions?.includes('orderHistoryAccount')) {
+			const orderState = (await this.program.account.orderState.fetch(
+				state.orderState
+			)) as OrderStateAccount;
+
+			this.accountsToPoll.set(orderState.orderHistory.toString(), {
+				key: 'orderHistory',
+				publicKey: orderState.orderHistory,
+				eventType: 'orderHistoryAccountUpdate',
 			});
 		}
 	}
@@ -255,6 +277,11 @@ export class PollingClearingHouseAccountSubscriber
 		return this.markets;
 	}
 
+	public getOrderStateAccount(): OrderStateAccount {
+		this.assertIsSubscribed();
+		return this.orderState;
+	}
+
 	public getTradeHistoryAccount(): TradeHistoryAccount {
 		this.assertIsSubscribed();
 		this.assertOptionalIsSubscribed('tradeHistoryAccount');
@@ -289,5 +316,11 @@ export class PollingClearingHouseAccountSubscriber
 		this.assertIsSubscribed();
 		this.assertOptionalIsSubscribed('liquidationHistoryAccount');
 		return this.liquidationHistory;
+	}
+
+	public getOrderHistoryAccount(): OrderHistoryAccount {
+		this.assertIsSubscribed();
+		this.assertOptionalIsSubscribed('orderHistoryAccount');
+		return this.orderHistory;
 	}
 }

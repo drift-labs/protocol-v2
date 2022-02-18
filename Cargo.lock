@@ -382,6 +382,7 @@ dependencies = [
  "borsh",
  "bytemuck",
  "num-derive",
+ "num-integer",
  "num-traits",
  "pyth-client",
  "solana-program",
@@ -703,6 +704,16 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "num-integer"
+version = "0.1.44"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d2cc698a63b549a70bc047073d2949cce27cd1c7b0a4a862d08a8031bc2801db"
+dependencies = [
+ "autocfg",
+ "num-traits",
 ]
 
 [[package]]

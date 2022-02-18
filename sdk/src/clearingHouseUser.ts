@@ -2,8 +2,14 @@ import { PublicKey } from '@solana/web3.js';
 import { EventEmitter } from 'events';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { ClearingHouse } from './clearingHouse';
-import { UserAccount, UserPosition, UserPositionsAccount } from './types';
-import { calculateEntryPrice } from './math/position';
+import {
+	Order,
+	UserAccount,
+	UserOrdersAccount,
+	UserPosition,
+	UserPositionsAccount,
+} from './types';
+import { calculateEntryPrice, isEmptyPosition } from './math/position';
 import {
 	MARK_PRICE_PRECISION,
 	AMM_TO_QUOTE_PRECISION_RATIO,
@@ -23,6 +29,8 @@ import {
 	calculatePositionFundingPNL,
 	calculatePositionPNL,
 	PositionDirection,
+	getUserOrdersAccountPublicKey,
+	calculateNewStateAfterOrder,
 	calculateTradeSlippage,
 	BN,
 } from '.';
@@ -37,6 +45,7 @@ export class ClearingHouseUser {
 	authority: PublicKey;
 	accountSubscriber: UserAccountSubscriber;
 	userAccountPublicKey?: PublicKey;
+	userOrdersAccountPublicKey?: PublicKey;
 	_isSubscribed = false;
 	eventEmitter: StrictEventEmitter<EventEmitter, UserAccountEvents>;
 
@@ -111,6 +120,10 @@ export class ClearingHouseUser {
 		return this.accountSubscriber.getUserPositionsAccount();
 	}
 
+	public getUserOrdersAccount(): UserOrdersAccount | undefined {
+		return this.accountSubscriber.getUserOrdersAccount();
+	}
+
 	/**
 	 * Gets the user's current position for a given market. If the user has no position returns undefined
 	 * @param marketIndex
@@ -128,7 +141,28 @@ export class ClearingHouseUser {
 			lastCumulativeFundingRate: ZERO,
 			marketIndex,
 			quoteAssetAmount: ZERO,
+			openOrders: ZERO,
 		};
+	}
+
+	/**
+	 * @param orderId
+	 * @returns Order
+	 */
+	public getOrder(orderId: BN): Order | undefined {
+		return this.getUserOrdersAccount().orders.find((order) =>
+			order.orderId.eq(orderId)
+		);
+	}
+
+	/**
+	 * @param userOrderId
+	 * @returns Order
+	 */
+	public getOrderByUserOrderId(userOrderId: number): Order | undefined {
+		return this.getUserOrdersAccount().orders.find(
+			(order) => order.userOrderId === userOrderId
+		);
 	}
 
 	public async getUserAccountPublicKey(): Promise<PublicKey> {
@@ -141,6 +175,18 @@ export class ClearingHouseUser {
 			this.authority
 		);
 		return this.userAccountPublicKey;
+	}
+
+	public async getUserOrdersAccountPublicKey(): Promise<PublicKey> {
+		if (this.userOrdersAccountPublicKey) {
+			return this.userOrdersAccountPublicKey;
+		}
+
+		this.userOrdersAccountPublicKey = await getUserOrdersAccountPublicKey(
+			this.clearingHouse.program.programId,
+			await this.getUserAccountPublicKey()
+		);
+		return this.userOrdersAccountPublicKey;
 	}
 
 	public async exists(): Promise<boolean> {
@@ -438,6 +484,7 @@ export class ClearingHouseUser {
 			),
 			lastCumulativeFundingRate: new BN(0),
 			quoteAssetAmount: new BN(0),
+			openOrders: new BN(0),
 		};
 
 		const market = this.clearingHouse.getMarket(
@@ -528,14 +575,14 @@ export class ClearingHouseUser {
 		// solves formula for example calc below
 
 		/* example: assume BTC price is $40k (examine 10% up/down)
-			
-			if 10k deposit and levered 10x short BTC => BTC up $400 means:
-			1. higher base_asset_value (+$4k)
-			2. lower collateral (-$4k)
-			3. (10k - 4k)/(100k + 4k) => 6k/104k => .0576
-	
-			for 10x long, BTC down $400:
-			3. (10k - 4k) / (100k - 4k) = 6k/96k => .0625 */
+
+        if 10k deposit and levered 10x short BTC => BTC up $400 means:
+        1. higher base_asset_value (+$4k)
+        2. lower collateral (-$4k)
+        3. (10k - 4k)/(100k + 4k) => 6k/104k => .0576
+
+        for 10x long, BTC down $400:
+        3. (10k - 4k) / (100k - 4k) = 6k/96k => .0625 */
 
 		const tc = this.getTotalCollateral();
 		const tpv = this.getTotalPositionValue();
@@ -566,6 +613,7 @@ export class ClearingHouseUser {
 			lastCumulativeFundingRate:
 				currentMarketPosition.lastCumulativeFundingRate,
 			quoteAssetAmount: new BN(0),
+			openOrders: new BN(0),
 		};
 
 		const market = this.clearingHouse.getMarket(
@@ -685,21 +733,6 @@ export class ClearingHouseUser {
 
 	/**
 	 * Get the maximum trade size for a given market, taking into account the user's current leverage, positions, collateral, etc.
-	 *
-	 * To Calculate Max Quote Available:
-	 *
-	 * Case 1: SameSide
-	 * 	=> Remaining quote to get to maxLeverage
-	 *
-	 * Case 2: NOT SameSide && currentLeverage <= maxLeverage
-	 * 	=> Current opposite position x2 + remaining to get to maxLeverage
-	 *
-	 * Case 3: NOT SameSide && currentLeverage > maxLeverage && otherPositions - currentPosition > maxLeverage
-	 * 	=> strictly reduce current position size
-	 *
-	 * Case 4: NOT SameSide && currentLeverage > maxLeverage && otherPositions - currentPosition < maxLeverage
-	 * 	=> current position + remaining to get to maxLeverage
-	 *
 	 * @param marketIndex
 	 * @param tradeSide
 	 * @param userMaxLeverageSetting - leverage : Precision TEN_THOUSAND
@@ -710,27 +743,33 @@ export class ClearingHouseUser {
 		tradeSide: PositionDirection,
 		userMaxLeverageSetting: BN
 	): BN {
+		// inline function which get's the current position size on the opposite side of the target trade
+		const getOppositePositionValueUSDC = () => {
+			if (!currentPosition) return ZERO;
+
+			const side = tradeSide === PositionDirection.SHORT ? 'short' : 'long';
+
+			if (side === 'long' && currentPosition?.baseAssetAmount.isNeg()) {
+				return this.getPositionValue(targetMarketIndex);
+			} else if (
+				side === 'short' &&
+				!currentPosition?.baseAssetAmount.isNeg()
+			) {
+				return this.getPositionValue(targetMarketIndex);
+			}
+
+			return ZERO;
+		};
+
 		const currentPosition =
 			this.getUserPosition(targetMarketIndex) ||
 			this.getEmptyPosition(targetMarketIndex);
 
-		const targetSide = tradeSide === PositionDirection.SHORT ? 'short' : 'long';
-
-		const currentPositionSide = currentPosition?.baseAssetAmount.isNeg()
-			? 'short'
-			: 'long';
-
-		const targettingSameSide = !currentPosition
-			? true
-			: targetSide === currentPositionSide;
-
-		// add any position we have on the opposite side of the current trade, because we can "flip" the size of this position without taking any extra leverage.
-		const oppositeSizeValueUSDC = targettingSameSide
-			? ZERO
-			: this.getPositionValue(targetMarketIndex);
-
 		// get current leverage
 		const currentLeverage = this.getLeverage();
+
+		// remaining leverage
+		// let remainingLeverage = userMaxLeverageSetting;
 
 		const remainingLeverage = BN.max(
 			userMaxLeverageSetting.sub(currentLeverage),
@@ -745,57 +784,10 @@ export class ClearingHouseUser {
 			.mul(totalCollateral)
 			.div(TEN_THOUSAND);
 
-		if (userMaxLeverageSetting.sub(currentLeverage).gte(ZERO)) {
-			if (oppositeSizeValueUSDC.eq(ZERO)) {
-				// case 1 : Regular trade where current total position less than max, and no opposite position to account for
-				// do nothing
-			} else {
-				// case 2 : trade where current total position less than max, but need to account for flipping the current position over to the other side
-				maxPositionSize = maxPositionSize.add(
-					oppositeSizeValueUSDC.mul(new BN(2))
-				);
-			}
-		} else {
-			// current leverage is greater than max leverage - can only reduce position size
+		// add any position we have on the opposite side of the current trade, because we can "flip" the size of this position without taking any extra leverage.
+		const oppositeSizeValueUSDC = getOppositePositionValueUSDC();
 
-			if (!targettingSameSide) {
-				const currentPositionQuoteSize =
-					this.getPositionValue(targetMarketIndex);
-
-				const currentTotalQuoteSize = currentLeverage
-					.mul(totalCollateral)
-					.div(TEN_THOUSAND);
-
-				const otherPositionsTotalQuoteSize = currentTotalQuoteSize.sub(
-					currentPositionQuoteSize
-				);
-
-				const quoteValueOfMaxLeverage = userMaxLeverageSetting
-					.mul(totalCollateral)
-					.div(TEN_THOUSAND);
-
-				if (
-					otherPositionsTotalQuoteSize
-						.sub(currentPositionQuoteSize)
-						.gte(quoteValueOfMaxLeverage)
-				) {
-					// case 3: Can only reduce the current position because it will still be greater than max leverage
-
-					maxPositionSize = currentPositionQuoteSize;
-				} else {
-					// case 4: Can reduce the position, and then take extra remaining quote to get to max leverage
-
-					const allowedQuoteSizeAfterClosingCurrentPosition =
-						quoteValueOfMaxLeverage.sub(otherPositionsTotalQuoteSize);
-
-					maxPositionSize = currentPositionQuoteSize.add(
-						allowedQuoteSizeAfterClosingCurrentPosition
-					);
-				}
-			} else {
-				// do nothing if targetting same side
-			}
-		}
+		maxPositionSize = maxPositionSize.add(oppositeSizeValueUSDC.mul(new BN(2)));
 
 		// subtract oneMillionth of maxPositionSize
 		// => to avoid rounding errors when taking max leverage
@@ -840,19 +832,13 @@ export class ClearingHouseUser {
 
 		const totalPositionAfterTradeExcludingTargetMarket =
 			this.getTotalPositionValueExcludingMarket(targetMarketIndex);
+		const newLeverage = currentMarketPositionAfterTrade
+			.add(totalPositionAfterTradeExcludingTargetMarket)
+			.abs()
+			.mul(TEN_THOUSAND)
+			.div(this.getTotalCollateral());
 
-		const totalCollateral = this.getTotalCollateral();
-
-		if (totalCollateral.gt(ZERO)) {
-			const newLeverage = currentMarketPositionAfterTrade
-				.add(totalPositionAfterTradeExcludingTargetMarket)
-				.abs()
-				.mul(TEN_THOUSAND)
-				.div(totalCollateral);
-			return newLeverage;
-		} else {
-			return new BN(0);
-		}
+		return newLeverage;
 	}
 
 	/**
@@ -880,9 +866,85 @@ export class ClearingHouseUser {
 
 		let currentMarketPositionValueUSDC = ZERO;
 		if (currentMarketPosition) {
-			currentMarketPositionValueUSDC = this.getPositionValue(marketToIgnore);
+			const market = this.clearingHouse.getMarket(
+				currentMarketPosition.marketIndex
+			);
+			currentMarketPositionValueUSDC = calculateBaseAssetValue(
+				market,
+				currentMarketPosition
+			);
 		}
 
 		return this.getTotalPositionValue().sub(currentMarketPositionValueUSDC);
+	}
+
+	public canFillOrder(order: Order): boolean {
+		const userAccount = this.getUserAccount();
+		const userPositionsAccount = this.getUserPositionsAccount();
+		const userPosition = this.getUserPosition(order.marketIndex);
+		const market = this.clearingHouse.getMarket(order.marketIndex);
+
+		if (isEmptyPosition(userPosition)) {
+			return false;
+		}
+
+		const newState = calculateNewStateAfterOrder(
+			userAccount,
+			userPosition,
+			market,
+			order
+		);
+		if (newState === null) {
+			return false;
+		}
+		const [userAccountAfter, userPositionAfter, marketAfter] = newState;
+
+		const totalPositionValue = userPositionsAccount.positions.reduce(
+			(positionValue, marketPosition) => {
+				let market = this.clearingHouse.getMarket(marketPosition.marketIndex);
+				if (marketPosition.marketIndex.eq(order.marketIndex)) {
+					market = marketAfter;
+					marketPosition = userPositionAfter;
+				}
+
+				return positionValue.add(
+					calculateBaseAssetValue(market, marketPosition)
+				);
+			},
+			ZERO
+		);
+
+		if (totalPositionValue.eq(ZERO)) {
+			return true;
+		}
+
+		const unrealizedPnL = userPositionsAccount.positions.reduce(
+			(pnl, marketPosition) => {
+				let market = this.clearingHouse.getMarket(marketPosition.marketIndex);
+				pnl = pnl.add(
+					calculatePositionFundingPNL(market, marketPosition).div(
+						PRICE_TO_QUOTE_PRECISION
+					)
+				);
+
+				if (marketPosition.marketIndex.eq(order.marketIndex)) {
+					market = marketAfter;
+					marketPosition = userPositionAfter;
+				}
+
+				// update
+				return pnl.add(calculatePositionPNL(market, marketPosition, false));
+			},
+			ZERO
+		);
+		const totalCollateral = userAccountAfter.collateral.add(unrealizedPnL);
+
+		const marginRatioAfter = totalCollateral
+			.mul(TEN_THOUSAND)
+			.div(totalPositionValue);
+
+		const marginRatioInitial =
+			this.clearingHouse.getStateAccount().marginRatioInitial;
+		return marginRatioAfter.gte(marginRatioInitial);
 	}
 }

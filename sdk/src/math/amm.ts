@@ -6,9 +6,20 @@ import {
 	ZERO,
 } from '../constants/numericConstants';
 import { calculateBaseAssetValue } from './position';
-import { AMM, PositionDirection, SwapDirection, Market } from '../types';
+import {
+	AMM,
+	PositionDirection,
+	SwapDirection,
+	Market,
+	isVariant,
+} from '../types';
 import { assert } from '../assert/assert';
-import { calculatePositionPNL, calculateMarkPrice, convertToNumber } from '..';
+import {
+	calculatePositionPNL,
+	calculateMarkPrice,
+	convertToNumber,
+	squareRootBN,
+} from '..';
 
 /**
  * Calculates a price given an arbitrary base and quote amount (they must have the same precision)
@@ -114,17 +125,11 @@ export function getSwapDirection(
 	inputAssetType: AssetType,
 	positionDirection: PositionDirection
 ): SwapDirection {
-	if (
-		positionDirection === PositionDirection.LONG &&
-		inputAssetType === 'base'
-	) {
+	if (isVariant(positionDirection, 'long') && inputAssetType === 'base') {
 		return SwapDirection.REMOVE;
 	}
 
-	if (
-		positionDirection === PositionDirection.SHORT &&
-		inputAssetType === 'quote'
-	) {
+	if (isVariant(positionDirection, 'short') && inputAssetType === 'quote') {
 		return SwapDirection.REMOVE;
 	}
 
@@ -150,6 +155,7 @@ export function calculateAdjustKCost(
 		lastCumulativeFundingRate: market.amm.cumulativeFundingRate,
 		marketIndex: new BN(marketIndex),
 		quoteAssetAmount: new BN(0),
+		openOrders: new BN(0),
 	};
 
 	const currentValue = calculateBaseAssetValue(market, netUserPosition);
@@ -190,6 +196,7 @@ export function calculateRepegCost(
 		lastCumulativeFundingRate: market.amm.cumulativeFundingRate,
 		marketIndex: new BN(marketIndex),
 		quoteAssetAmount: new BN(0),
+		openOrders: new BN(0),
 	};
 
 	const currentValue = calculateBaseAssetValue(market, netUserPosition);
@@ -220,10 +227,6 @@ export function calculateRepegCost(
  * @returns cost : Precision MARK_PRICE_PRECISION
  */
 export function calculateTerminalPrice(market: Market) {
-	if (!market.initialized) {
-		return new BN(0);
-	}
-
 	const directionToClose = market.baseAssetAmount.gt(ZERO)
 		? PositionDirection.SHORT
 		: PositionDirection.LONG;
@@ -242,4 +245,34 @@ export function calculateTerminalPrice(market: Market) {
 		.div(newBaseAssetReserve);
 
 	return terminalPrice;
+}
+
+export function calculateMaxBaseAssetAmountToTrade(
+	amm: AMM,
+	limit_price: BN
+): [BN, PositionDirection] {
+	const invariant = amm.sqrtK.mul(amm.sqrtK);
+
+	const newBaseAssetReserveSquared = invariant
+		.mul(MARK_PRICE_PRECISION)
+		.mul(amm.pegMultiplier)
+		.div(limit_price)
+		.div(PEG_PRECISION);
+
+	const newBaseAssetReserve = squareRootBN(newBaseAssetReserveSquared);
+
+	if (newBaseAssetReserve.gt(amm.baseAssetReserve)) {
+		return [
+			newBaseAssetReserve.sub(amm.baseAssetReserve),
+			PositionDirection.SHORT,
+		];
+	} else if (newBaseAssetReserve.lt(amm.baseAssetReserve)) {
+		return [
+			amm.baseAssetReserve.sub(newBaseAssetReserve),
+			PositionDirection.LONG,
+		];
+	} else {
+		console.log('tradeSize Too Small');
+		return [new BN(0), PositionDirection.LONG];
+	}
 }

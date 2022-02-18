@@ -27,9 +27,7 @@ export function calculateBaseAssetValue(
 		return ZERO;
 	}
 
-	const directionToClose = userPosition.baseAssetAmount.gt(ZERO)
-		? PositionDirection.SHORT
-		: PositionDirection.LONG;
+	const directionToClose = findDirectionToClose(userPosition);
 
 	const [newQuoteAssetReserve, _] = calculateAmmReservesAfterSwap(
 		market.amm,
@@ -137,4 +135,26 @@ export function calculateEntryPrice(userPosition: UserPosition): BN {
 		.mul(AMM_TO_QUOTE_PRECISION_RATIO)
 		.div(userPosition.baseAssetAmount)
 		.abs();
+}
+
+export function findDirectionToClose(
+	userPosition: UserPosition
+): PositionDirection {
+	return userPosition.baseAssetAmount.gt(ZERO)
+		? PositionDirection.SHORT
+		: PositionDirection.LONG;
+}
+
+export function positionCurrentDirection(
+	userPosition: UserPosition
+): PositionDirection {
+	return userPosition.baseAssetAmount.gte(ZERO)
+		? PositionDirection.LONG
+		: PositionDirection.SHORT;
+}
+
+export function isEmptyPosition(userPosition: UserPosition): boolean {
+	return (
+		userPosition.baseAssetAmount.eq(ZERO) && userPosition.openOrders.eq(ZERO)
+	);
 }

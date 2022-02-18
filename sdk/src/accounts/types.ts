@@ -5,9 +5,12 @@ import {
 	FundingRateHistoryAccount,
 	LiquidationHistoryAccount,
 	MarketsAccount,
+	OrderHistoryAccount,
+	OrderStateAccount,
 	StateAccount,
 	TradeHistoryAccount,
 	UserAccount,
+	UserOrdersAccount,
 	UserPositionsAccount,
 } from '../types';
 import StrictEventEmitter from 'strict-event-emitter-types';
@@ -38,6 +41,8 @@ export interface ClearingHouseAccountEvents {
 	liquidationHistoryAccountUpdate: (payload: LiquidationHistoryAccount) => void;
 	depositHistoryAccountUpdate: (payload: DepositHistoryAccount) => void;
 	curveHistoryAccountUpdate: (payload: ExtendedCurveHistoryAccount) => void;
+	orderHistoryAccountUpdate: (payload: OrderHistoryAccount) => void;
+	orderStateAccountUpdate: (payload: OrderStateAccount) => void;
 	update: void;
 	error: (e: Error) => void;
 }
@@ -48,7 +53,8 @@ export type ClearingHouseAccountTypes =
 	| 'fundingPaymentHistoryAccount'
 	| 'fundingRateHistoryAccount'
 	| 'curveHistoryAccount'
-	| 'liquidationHistoryAccount';
+	| 'liquidationHistoryAccount'
+	| 'orderHistoryAccount';
 
 export interface ClearingHouseAccountSubscriber {
 	eventEmitter: StrictEventEmitter<EventEmitter, ClearingHouseAccountEvents>;
@@ -70,6 +76,8 @@ export interface ClearingHouseAccountSubscriber {
 	getFundingRateHistoryAccount(): FundingRateHistoryAccount;
 	getCurveHistoryAccount(): ExtendedCurveHistoryAccount;
 	getLiquidationHistoryAccount(): LiquidationHistoryAccount;
+	getOrderStateAccount(): OrderStateAccount;
+	getOrderHistoryAccount(): OrderHistoryAccount;
 
 	type: ClearingHouseConfigType;
 }
@@ -77,6 +85,7 @@ export interface ClearingHouseAccountSubscriber {
 export interface UserAccountEvents {
 	userAccountData: (payload: UserAccount) => void;
 	userPositionsData: (payload: UserPositionsAccount) => void;
+	userOrdersData: (payload: UserOrdersAccount) => void;
 	update: void;
 	error: (e: Error) => void;
 }
@@ -91,7 +100,7 @@ export interface UserAccountSubscriber {
 
 	getUserAccount(): UserAccount;
 	getUserPositionsAccount(): UserPositionsAccount;
-
+	getUserOrdersAccount(): UserOrdersAccount;
 	type: ClearingHouseUserConfigType;
 }
 

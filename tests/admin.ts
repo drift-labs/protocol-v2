@@ -8,6 +8,7 @@ import {
 	MARK_PRICE_PRECISION,
 	FeeStructure,
 	OracleGuardRails,
+	OrderFillerRewardStructure,
 } from '../sdk/src';
 import { OracleSource } from '../sdk';
 
@@ -166,6 +167,23 @@ describe('admin', () => {
 		);
 	});
 
+	it('Update order filler reward structure', async () => {
+		const newStructure: OrderFillerRewardStructure = {
+			rewardNumerator: new BN(1),
+			rewardDenominator: new BN(1),
+			timeBasedRewardLowerBound: new BN(1),
+		};
+
+		await clearingHouse.updateOrderFillerRewardStructure(newStructure);
+
+		const orderState = clearingHouse.getOrderStateAccount();
+
+		assert(
+			JSON.stringify(newStructure) ===
+				JSON.stringify(orderState.orderFillerRewardStructure)
+		);
+	});
+
 	it('Update oracle guard rails', async () => {
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
@@ -251,10 +269,10 @@ describe('admin', () => {
 		);
 	});
 
-	it('Update market minimum trade size', async () => {
+	it('Update market minimum quote asset trade size', async () => {
 		const minimumTradeSize = new BN(1);
 
-		await clearingHouse.updateMarketMinimumTradeSize(
+		await clearingHouse.updateMarketMinimumQuoteAssetTradeSize(
 			Markets[0].marketIndex,
 			minimumTradeSize
 		);
@@ -263,7 +281,22 @@ describe('admin', () => {
 			clearingHouse.getMarketsAccount().markets[
 				Markets[0].marketIndex.toNumber()
 			];
-		assert(market.amm.minimumTradeSize.eq(minimumTradeSize));
+		assert(market.amm.minimumQuoteAssetTradeSize.eq(minimumTradeSize));
+	});
+
+	it('Update market minimum base asset trade size', async () => {
+		const minimumTradeSize = new BN(2);
+
+		await clearingHouse.updateMarketMinimumBaseAssetTradeSize(
+			Markets[0].marketIndex,
+			minimumTradeSize
+		);
+
+		const market =
+			clearingHouse.getMarketsAccount().markets[
+				Markets[0].marketIndex.toNumber()
+			];
+		assert(market.amm.minimumBaseAssetTradeSize.eq(minimumTradeSize));
 	});
 
 	it('Pause funding', async () => {

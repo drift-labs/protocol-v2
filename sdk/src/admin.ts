@@ -5,10 +5,20 @@ import {
 	SYSVAR_RENT_PUBKEY,
 	TransactionSignature,
 } from '@solana/web3.js';
-import { FeeStructure, IWallet, OracleGuardRails, OracleSource } from './types';
+import {
+	FeeStructure,
+	IWallet,
+	OracleGuardRails,
+	OracleSource,
+	OrderFillerRewardStructure,
+} from './types';
 import { BN, Provider } from '@project-serum/anchor';
 import * as anchor from '@project-serum/anchor';
-import { getClearingHouseStateAccountPublicKeyAndNonce } from './addresses';
+import {
+	getClearingHouseStateAccountPublicKey,
+	getClearingHouseStateAccountPublicKeyAndNonce,
+	getOrderStateAccountPublicKeyAndNonce,
+} from './addresses';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { ClearingHouse } from './clearingHouse';
 import { PEG_PRECISION } from './constants/numericConstants';
@@ -38,7 +48,9 @@ export class Admin extends ClearingHouse {
 	public async initialize(
 		usdcMint: PublicKey,
 		adminControlsPrices: boolean
-	): Promise<[TransactionSignature, TransactionSignature]> {
+	): Promise<
+		[TransactionSignature, TransactionSignature, TransactionSignature]
+	> {
 		const stateAccountRPCResponse = await this.connection.getParsedAccountInfo(
 			await this.getStatePublicKey()
 		);
@@ -162,7 +174,40 @@ export class Admin extends ClearingHouse {
 			this.opts
 		);
 
-		return [initializeTxSig, initializeHistoryTxSig];
+		const initializeOrderStateTxSig = await this.initializeOrderState();
+
+		return [initializeTxSig, initializeHistoryTxSig, initializeOrderStateTxSig];
+	}
+
+	public async initializeOrderState(): Promise<TransactionSignature> {
+		const orderHistory = anchor.web3.Keypair.generate();
+		const [orderStatePublicKey, orderStateNonce] =
+			await getOrderStateAccountPublicKeyAndNonce(this.program.programId);
+		const clearingHouseStatePublicKey =
+			await getClearingHouseStateAccountPublicKey(this.program.programId);
+
+		const initializeOrderStateTx =
+			await this.program.transaction.initializeOrderState(orderStateNonce, {
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: clearingHouseStatePublicKey,
+					orderHistory: orderHistory.publicKey,
+					orderState: orderStatePublicKey,
+					rent: SYSVAR_RENT_PUBKEY,
+					systemProgram: anchor.web3.SystemProgram.programId,
+				},
+				instructions: [
+					await this.program.account.orderHistory.createInstruction(
+						orderHistory
+					),
+				],
+			});
+
+		return await this.txSender.send(
+			initializeOrderStateTx,
+			[orderHistory],
+			this.opts
+		);
 	}
 
 	public async initializeMarket(
@@ -508,6 +553,21 @@ export class Admin extends ClearingHouse {
 		);
 	}
 
+	public async updateOrderFillerRewardStructure(
+		orderFillerRewardStructure: OrderFillerRewardStructure
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateOrderFillerRewardStructure(
+			orderFillerRewardStructure,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					orderState: await this.getOrderStatePublicKey(),
+				},
+			}
+		);
+	}
+
 	public async updateFee(fees: FeeStructure): Promise<TransactionSignature> {
 		return await this.program.rpc.updateFee(fees, {
 			accounts: {
@@ -548,12 +608,30 @@ export class Admin extends ClearingHouse {
 		);
 	}
 
-	public async updateMarketMinimumTradeSize(
+	public async updateMarketMinimumQuoteAssetTradeSize(
 		marketIndex: BN,
 		minimumTradeSize: BN
 	): Promise<TransactionSignature> {
 		const state = this.getStateAccount();
-		return await this.program.rpc.updateMarketMinimumTradeSize(
+		return await this.program.rpc.updateMarketMinimumQuoteAssetTradeSize(
+			marketIndex,
+			minimumTradeSize,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					markets: state.markets,
+				},
+			}
+		);
+	}
+
+	public async updateMarketMinimumBaseAssetTradeSize(
+		marketIndex: BN,
+		minimumTradeSize: BN
+	): Promise<TransactionSignature> {
+		const state = this.getStateAccount();
+		return await this.program.rpc.updateMarketMinimumBaseAssetTradeSize(
 			marketIndex,
 			minimumTradeSize,
 			{

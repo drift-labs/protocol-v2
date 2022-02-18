@@ -1,32 +1,17 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
-import { BN } from '../sdk';
+import { BN, getMarketOrderParams, Wallet, ZERO } from '../sdk';
 
-import { Program, Wallet } from '@project-serum/anchor';
+import { Program } from '@project-serum/anchor';
 
 import { Keypair } from '@solana/web3.js';
 
-import {
-	Admin,
-	ClearingHouse,
-	MAX_LEVERAGE,
-	PositionDirection,
-} from '../sdk/src';
+import { Admin, ClearingHouse, PositionDirection } from '../sdk/src';
 
 import { Markets } from '../sdk/src/constants/markets';
 
 import { mockOracle, mockUSDCMint, mockUserUSDCAccount } from './testHelpers';
 import { FeeStructure } from '../sdk';
-
-const calculateTradeAmount = (amountOfCollateral: BN) => {
-	const ONE_MANTISSA = new BN(100000);
-	const fee = ONE_MANTISSA.div(new BN(1000));
-	const tradeAmount = amountOfCollateral
-		.mul(MAX_LEVERAGE)
-		.mul(ONE_MANTISSA.sub(MAX_LEVERAGE.mul(fee)))
-		.div(ONE_MANTISSA);
-	return tradeAmount;
-};
 
 describe('round in favor', () => {
 	const provider = anchor.Provider.local();
@@ -130,12 +115,15 @@ describe('round in favor', () => {
 			);
 
 		const marketIndex = new BN(0);
-		await clearingHouse.openPosition(
-			PositionDirection.SHORT,
-			calculateTradeAmount(usdcAmount),
+		const baseAssetAmount = new BN(7896402480);
+		const orderParams = getMarketOrderParams(
 			marketIndex,
-			new BN(0)
+			PositionDirection.SHORT,
+			ZERO,
+			baseAssetAmount,
+			false
 		);
+		await clearingHouse.placeAndFillOrder(orderParams);
 
 		let user: any = await primaryClearingHouse.program.account.user.fetch(
 			userAccountPublicKey
@@ -147,7 +135,7 @@ describe('round in favor', () => {
 		user = await primaryClearingHouse.program.account.user.fetch(
 			userAccountPublicKey
 		);
-		assert(user.collateral.eq(new BN(9999000)));
+		assert(user.collateral.eq(new BN(9998999)));
 	});
 
 	it('long', async () => {
@@ -174,16 +162,20 @@ describe('round in favor', () => {
 			);
 
 		const marketIndex = new BN(0);
-		await clearingHouse.openPosition(
-			PositionDirection.LONG,
-			calculateTradeAmount(usdcAmount),
+		const baseAssetAmount = new BN(7895668982);
+		const orderParams = getMarketOrderParams(
 			marketIndex,
-			new BN(0)
+			PositionDirection.LONG,
+			ZERO,
+			baseAssetAmount,
+			false
 		);
+		await clearingHouse.placeAndFillOrder(orderParams);
 
 		let user: any = await primaryClearingHouse.program.account.user.fetch(
 			userAccountPublicKey
 		);
+
 		assert(user.collateral.eq(new BN(9999000)));
 
 		await clearingHouse.closePosition(marketIndex);
@@ -191,6 +183,6 @@ describe('round in favor', () => {
 		user = await primaryClearingHouse.program.account.user.fetch(
 			userAccountPublicKey
 		);
-		assert(user.collateral.eq(new BN(9998999)));
+		assert(user.collateral.eq(new BN(9999000)));
 	});
 });

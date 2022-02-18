@@ -11,6 +11,8 @@ import {
 	FundingRateHistoryAccount,
 	LiquidationHistoryAccount,
 	MarketsAccount,
+	OrderHistoryAccount,
+	OrderStateAccount,
 	StateAccount,
 	TradeHistoryAccount,
 } from '../types';
@@ -35,6 +37,8 @@ export class WebSocketClearingHouseAccountSubscriber
 	fundingRateHistoryAccountSubscriber?: AccountSubscriber<FundingRateHistoryAccount>;
 	curveHistoryAccountSubscriber?: AccountSubscriber<ExtendedCurveHistoryAccount>;
 	liquidationHistoryAccountSubscriber?: AccountSubscriber<LiquidationHistoryAccount>;
+	orderStateAccountSubscriber?: AccountSubscriber<OrderStateAccount>;
+	orderHistoryAccountSubscriber?: AccountSubscriber<OrderHistoryAccount>;
 
 	optionalExtraSubscriptions: ClearingHouseAccountTypes[] = [];
 
@@ -95,6 +99,21 @@ export class WebSocketClearingHouseAccountSubscriber
 			this.eventEmitter.emit('update');
 		});
 
+		this.orderStateAccountSubscriber = new WebSocketAccountSubscriber(
+			'orderState',
+			this.program,
+			state.orderState
+		);
+
+		await this.orderStateAccountSubscriber.subscribe(
+			(data: OrderStateAccount) => {
+				this.eventEmitter.emit('orderStateAccountUpdate', data);
+				this.eventEmitter.emit('update');
+			}
+		);
+
+		const orderState = this.orderStateAccountSubscriber.data;
+
 		// create subscribers for other state accounts
 
 		this.tradeHistoryAccountSubscriber = new WebSocketAccountSubscriber(
@@ -132,6 +151,12 @@ export class WebSocketClearingHouseAccountSubscriber
 			'extendedCurveHistory',
 			this.program,
 			state.extendedCurveHistory
+		);
+
+		this.orderHistoryAccountSubscriber = new WebSocketAccountSubscriber(
+			'orderHistory',
+			this.program,
+			orderState.orderHistory
 		);
 
 		const extraSusbcribersToUse: {
@@ -173,6 +198,12 @@ export class WebSocketClearingHouseAccountSubscriber
 			extraSusbcribersToUse.push({
 				subscriber: this.curveHistoryAccountSubscriber,
 				eventType: 'curveHistoryAccountUpdate',
+			});
+
+		if (optionalSubscriptions?.includes('orderHistoryAccount'))
+			extraSusbcribersToUse.push({
+				subscriber: this.orderHistoryAccountSubscriber,
+				eventType: 'orderHistoryAccountUpdate',
 			});
 
 		this.optionalExtraSubscriptions = optionalSubscriptions ?? [];
@@ -222,6 +253,7 @@ export class WebSocketClearingHouseAccountSubscriber
 
 		await this.stateAccountSubscriber.unsubscribe();
 		await this.marketsAccountSubscriber.unsubscribe();
+		await this.orderStateAccountSubscriber.unsubscribe();
 
 		if (this.optionalExtraSubscriptions.includes('tradeHistoryAccount')) {
 			await this.tradeHistoryAccountSubscriber.unsubscribe();
@@ -247,6 +279,10 @@ export class WebSocketClearingHouseAccountSubscriber
 
 		if (this.optionalExtraSubscriptions.includes('liquidationHistoryAccount')) {
 			await this.liquidationHistoryAccountSubscriber.unsubscribe();
+		}
+
+		if (this.optionalExtraSubscriptions.includes('orderHistoryAccount')) {
+			await this.orderHistoryAccountSubscriber.unsubscribe();
 		}
 
 		this.isSubscribed = false;
@@ -320,5 +356,16 @@ export class WebSocketClearingHouseAccountSubscriber
 		this.assertIsSubscribed();
 		this.assertOptionalIsSubscribed('liquidationHistoryAccount');
 		return this.liquidationHistoryAccountSubscriber.data;
+	}
+
+	public getOrderHistoryAccount(): OrderHistoryAccount {
+		this.assertIsSubscribed();
+		this.assertOptionalIsSubscribed('orderHistoryAccount');
+		return this.orderHistoryAccountSubscriber.data;
+	}
+
+	public getOrderStateAccount(): OrderStateAccount {
+		this.assertIsSubscribed();
+		return this.orderStateAccountSubscriber.data;
 	}
 }

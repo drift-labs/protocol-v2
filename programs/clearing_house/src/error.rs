@@ -82,13 +82,48 @@ pub enum ErrorCode {
     InvalidFundingProfitability,
     #[msg("Casting Failure")]
     CastingFailure,
+    #[msg("Invalid Order")]
+    InvalidOrder,
+    #[msg("User has no order")]
+    UserHasNoOrder,
+    #[msg("Order Amount Too Small")]
+    OrderAmountTooSmall,
+    #[msg("Max number of orders taken")]
+    MaxNumberOfOrders,
+    #[msg("Order does not exist")]
+    OrderDoesNotExist,
+    #[msg("Order not open")]
+    OrderNotOpen,
+    #[msg("CouldNotFillOrder")]
+    CouldNotFillOrder,
+    #[msg("Reduce only order increased risk")]
+    ReduceOnlyOrderIncreasedRisk,
+    #[msg("Order state already initialized")]
+    OrderStateAlreadyInitialized,
+    #[msg("Unable to load AccountLoader")]
+    UnableToLoadAccountLoader,
+    #[msg("Trade Size Too Large")]
+    TradeSizeTooLarge,
+    #[msg("Unable to write to remaining account")]
+    UnableToWriteToRemainingAccount,
+    #[msg("User cant refer themselves")]
+    UserCantReferThemselves,
+    #[msg("Did not receive expected referrer")]
+    DidNotReceiveExpectedReferrer,
+    #[msg("Could not deserialize referrer")]
+    CouldNotDeserializeReferrer,
+    #[msg("Market order must be in place and fill")]
+    MarketOrderMustBeInPlaceAndFill,
+    #[msg("User Order Id Already In Use")]
+    UserOrderIdAlreadyInUse,
 }
 
 #[macro_export]
-macro_rules! wrap_error {
+macro_rules! print_error {
     ($err:expr) => {{
         || {
-            msg!("Error thrown at {}:{}", file!(), line!());
+            let error_code: ErrorCode = $err;
+            msg!("{:?} thrown at {}:{}", error_code, file!(), line!());
             $err
         }
     }};

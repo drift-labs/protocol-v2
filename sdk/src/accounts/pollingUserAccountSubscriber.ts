@@ -8,8 +8,11 @@ import { Program } from '@project-serum/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { PublicKey } from '@solana/web3.js';
-import { getUserAccountPublicKey } from '../addresses';
-import { UserAccount, UserPositionsAccount } from '../types';
+import {
+	getUserAccountPublicKey,
+	getUserOrdersAccountPublicKey,
+} from '../addresses';
+import { UserAccount, UserOrdersAccount, UserPositionsAccount } from '../types';
 import { BulkAccountLoader } from './bulkAccountLoader';
 import { capitalize } from './utils';
 import { ClearingHouseConfigType } from '../factory/clearingHouse';
@@ -26,6 +29,7 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 
 	user?: UserAccount;
 	userPositions?: UserPositionsAccount;
+	userOrders?: UserOrdersAccount;
 
 	type: ClearingHouseConfigType = 'polling';
 
@@ -79,6 +83,25 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 			publicKey: userAccount.positions,
 			eventType: 'userPositionsData',
 		});
+
+		const userOrdersPublicKey = await getUserOrdersAccountPublicKey(
+			this.program.programId,
+			userPublicKey
+		);
+
+		const userOrdersExist =
+			(
+				await this.program.provider.connection.getParsedAccountInfo(
+					userOrdersPublicKey
+				)
+			).value !== null;
+		if (userOrdersExist) {
+			this.accountsToPoll.set(userOrdersPublicKey.toString(), {
+				key: 'userOrders',
+				publicKey: userOrdersPublicKey,
+				eventType: 'userOrdersData',
+			});
+		}
 
 		for (const [_, accountToPoll] of this.accountsToPoll) {
 			accountToPoll.callbackId = this.accountLoader.addAccount(
@@ -162,5 +185,10 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 	public getUserPositionsAccount(): UserPositionsAccount {
 		this.assertIsSubscribed();
 		return this.userPositions;
+	}
+
+	public getUserOrdersAccount(): UserOrdersAccount {
+		this.assertIsSubscribed();
+		return this.userOrders;
 	}
 }

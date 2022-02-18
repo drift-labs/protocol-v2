@@ -38,14 +38,13 @@ pub struct State {
     pub oracle_guard_rails: OracleGuardRails,
     pub max_deposit: u128,
     pub extended_curve_history: Pubkey,
+    pub order_state: Pubkey,
 
     // upgrade-ability
     pub padding0: u128,
     pub padding1: u128,
     pub padding2: u128,
     pub padding3: u128,
-    pub padding4: u128,
-    pub padding5: u128,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
