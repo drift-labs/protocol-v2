@@ -6,7 +6,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 #[derive(Default)]
 pub struct UserOrders {
     pub user: Pubkey,
-    pub orders: [Order; 20],
+    pub orders: [Order; 32],
 }
 
 impl UserOrders {
