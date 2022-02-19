@@ -6,15 +6,6 @@ pub struct FundingPaymentHistory {
     funding_payment_records: [FundingPaymentRecord; 1024],
 }
 
-impl Default for FundingPaymentHistory {
-    fn default() -> Self {
-        FundingPaymentHistory {
-            head: 0,
-            funding_payment_records: [FundingPaymentRecord::default(); 1024],
-        }
-    }
-}
-
 impl FundingPaymentHistory {
     pub fn append(&mut self, pos: FundingPaymentRecord) {
         self.funding_payment_records[FundingPaymentHistory::index_of(self.head)] = pos;

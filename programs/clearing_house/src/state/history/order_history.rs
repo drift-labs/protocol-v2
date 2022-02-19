@@ -9,16 +9,6 @@ pub struct OrderHistory {
     order_records: [OrderRecord; 1024],
 }
 
-impl Default for OrderHistory {
-    fn default() -> Self {
-        OrderHistory {
-            head: 0,
-            last_order_id: 0,
-            order_records: [OrderRecord::default(); 1024],
-        }
-    }
-}
-
 impl OrderHistory {
     pub fn append(&mut self, record: OrderRecord) {
         self.order_records[OrderHistory::index_of(self.head)] = record;

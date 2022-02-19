@@ -7,15 +7,6 @@ pub struct DepositHistory {
     deposit_records: [DepositRecord; 1024],
 }
 
-impl Default for DepositHistory {
-    fn default() -> Self {
-        DepositHistory {
-            head: 0,
-            deposit_records: [DepositRecord::default(); 1024],
-        }
-    }
-}
-
 impl DepositHistory {
     pub fn append(&mut self, pos: DepositRecord) {
         self.deposit_records[DepositHistory::index_of(self.head)] = pos;

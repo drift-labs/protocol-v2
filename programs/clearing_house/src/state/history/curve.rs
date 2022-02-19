@@ -67,15 +67,6 @@ pub struct ExtendedCurveHistory {
     curve_records: [ExtendedCurveRecord; 1024],
 }
 
-impl Default for ExtendedCurveHistory {
-    fn default() -> Self {
-        ExtendedCurveHistory {
-            head: 0,
-            curve_records: [ExtendedCurveRecord::default(); 1024],
-        }
-    }
-}
-
 impl ExtendedCurveHistory {
     pub fn append(&mut self, pos: ExtendedCurveRecord) {
         self.curve_records[ExtendedCurveHistory::index_of(self.head)] = pos;

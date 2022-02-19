@@ -8,15 +8,6 @@ pub struct TradeHistory {
     trade_records: [TradeRecord; 1024],
 }
 
-impl Default for TradeHistory {
-    fn default() -> Self {
-        TradeHistory {
-            head: 0,
-            trade_records: [TradeRecord::default(); 1024],
-        }
-    }
-}
-
 impl TradeHistory {
     pub fn append(&mut self, pos: TradeRecord) {
         self.trade_records[TradeHistory::index_of(self.head)] = pos;

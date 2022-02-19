@@ -6,15 +6,6 @@ pub struct LiquidationHistory {
     liquidation_records: [LiquidationRecord; 1024],
 }
 
-impl Default for LiquidationHistory {
-    fn default() -> Self {
-        LiquidationHistory {
-            head: 0,
-            liquidation_records: [LiquidationRecord::default(); 1024],
-        }
-    }
-}
-
 impl LiquidationHistory {
     pub fn append(&mut self, pos: LiquidationRecord) {
         self.liquidation_records[LiquidationHistory::index_of(self.head)] = pos;
