@@ -545,7 +545,7 @@ pub mod clearing_house {
         {
             let markets = &mut ctx.accounts.markets.load_mut()?;
             let market = markets.get_market_mut(market_index);
-            let (_potentially_risk_increasing, _base_asset_amount, _quote_asset_amount) =
+            let (_potentially_risk_increasing, _, _base_asset_amount, _quote_asset_amount) =
                 controller::position::update_position_with_quote_asset_amount(
                     quote_asset_amount,
                     direction,

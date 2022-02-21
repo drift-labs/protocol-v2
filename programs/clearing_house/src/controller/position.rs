@@ -438,13 +438,14 @@ pub fn update_position_with_base_asset_amount(
     user: &mut User,
     market_position: &mut MarketPosition,
     now: i64,
-) -> ClearingHouseResult<(bool, u128, u128)> {
+) -> ClearingHouseResult<(bool, bool, u128, u128)> {
     // A trade is risk increasing if it increases the users leverage
     // If a trade is risk increasing and brings the user's margin ratio below initial requirement
     // the trade fails
     // If a trade is risk increasing and it pushes the mark price too far away from the oracle price
     // the trade fails
     let mut potentially_risk_increasing = true;
+    let mut reduce_only = false;
 
     // The trade increases the the user position if
     // 1) the user does not have a position
@@ -471,6 +472,7 @@ pub fn update_position_with_base_asset_amount(
             now,
         )?;
 
+        reduce_only = true;
         potentially_risk_increasing = false;
     } else {
         // after closing existing position, how large should trade be in opposite direction
@@ -500,6 +502,7 @@ pub fn update_position_with_base_asset_amount(
 
     Ok((
         potentially_risk_increasing,
+        reduce_only,
         base_asset_amount,
         quote_asset_amount,
     ))
@@ -513,13 +516,14 @@ pub fn update_position_with_quote_asset_amount(
     market_position: &mut MarketPosition,
     mark_price_before: u128,
     now: i64,
-) -> ClearingHouseResult<(bool, u128, u128)> {
+) -> ClearingHouseResult<(bool, bool, u128, u128)> {
     // A trade is risk increasing if it increases the users leverage
     // If a trade is risk increasing and brings the user's margin ratio below initial requirement
     // the trade fails
     // If a trade is risk increasing and it pushes the mark price too far away from the oracle price
     // the trade fails
     let mut potentially_risk_increasing = true;
+    let mut reduce_only = false;
 
     let mut quote_asset_amount = quote_asset_amount;
     let base_asset_amount;
@@ -563,6 +567,7 @@ pub fn update_position_with_quote_asset_amount(
             .unsigned_abs();
 
             potentially_risk_increasing = false;
+            reduce_only = true;
         } else {
             // after closing existing position, how large should trade be in opposite direction
             let quote_asset_amount_after_close = quote_asset_amount
@@ -595,6 +600,7 @@ pub fn update_position_with_quote_asset_amount(
 
     Ok((
         potentially_risk_increasing,
+        reduce_only,
         base_asset_amount,
         quote_asset_amount,
     ))

@@ -653,7 +653,7 @@ pub fn execute_market_order(
     let market_position = &mut user_positions.positions[position_index];
     let market = markets.get_market_mut(market_index);
 
-    let (potentially_risk_increasing, base_asset_amount, quote_asset_amount) =
+    let (potentially_risk_increasing, reduce_only, base_asset_amount, quote_asset_amount) =
         if order.base_asset_amount > 0 {
             controller::position::update_position_with_base_asset_amount(
                 order.base_asset_amount,
@@ -675,7 +675,7 @@ pub fn execute_market_order(
             )?
         };
 
-    if potentially_risk_increasing && order.reduce_only {
+    if !reduce_only && order.reduce_only {
         return Err(ErrorCode::ReduceOnlyOrderIncreasedRisk);
     }
 
@@ -768,7 +768,7 @@ pub fn execute_non_market_order(
     let position_index = get_position_index(user_positions, market_index)?;
     let market_position = &mut user_positions.positions[position_index];
 
-    let (potentially_risk_increasing, _, quote_asset_amount) =
+    let (potentially_risk_increasing, reduce_only, _, quote_asset_amount) =
         controller::position::update_position_with_base_asset_amount(
             base_asset_amount,
             order.direction,
@@ -778,7 +778,7 @@ pub fn execute_non_market_order(
             now,
         )?;
 
-    if potentially_risk_increasing && order.reduce_only {
+    if !reduce_only && order.reduce_only {
         return Err(ErrorCode::ReduceOnlyOrderIncreasedRisk);
     }
 
