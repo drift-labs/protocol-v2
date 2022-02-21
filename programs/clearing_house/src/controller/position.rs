@@ -495,6 +495,11 @@ pub fn update_position_with_base_asset_amount(
             now,
         )?;
 
+        // means position was closed and it was reduce only
+        if quote_asset_amount_opened == 0 {
+            reduce_only = true;
+        }
+
         quote_asset_amount = quote_asset_amount_closed
             .checked_add(quote_asset_amount_opened)
             .ok_or_else(math_error!())?;
@@ -591,6 +596,11 @@ pub fn update_position_with_quote_asset_amount(
                 now,
             )?
             .unsigned_abs();
+
+            // means position was closed and it was reduce only
+            if base_asset_amount_opened == 0 {
+                reduce_only = true;
+            }
 
             base_asset_amount = base_asset_amount_closed
                 .checked_add(base_asset_amount_opened)
