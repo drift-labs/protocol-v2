@@ -3,6 +3,7 @@ import {
 	NotSubscribedError,
 	UserAccountEvents,
 	UserAccountSubscriber,
+	UserPublicKeys,
 } from './types';
 import { Program } from '@project-serum/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
@@ -58,55 +59,73 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 		return true;
 	}
 
-	async addToAccountLoader(): Promise<void> {
+	async addToAccountLoader(userPublicKeys?: UserPublicKeys): Promise<void> {
 		if (this.accountsToPoll.size > 0) {
 			return;
 		}
 
-		const userPublicKey = await getUserAccountPublicKey(
-			this.program.programId,
-			this.authority
-		);
+		if (!userPublicKeys) {
+			const userPublicKey = await getUserAccountPublicKey(
+				this.program.programId,
+				this.authority
+			);
 
-		const userAccount = (await this.program.account.user.fetch(
-			userPublicKey
-		)) as UserAccount;
+			const userAccount = (await this.program.account.user.fetch(
+				userPublicKey
+			)) as UserAccount;
 
-		this.accountsToPoll.set(userPublicKey.toString(), {
-			key: 'user',
-			publicKey: userPublicKey,
-			eventType: 'userAccountData',
-		});
+			this.accountsToPoll.set(userPublicKey.toString(), {
+				key: 'user',
+				publicKey: userPublicKey,
+				eventType: 'userAccountData',
+			});
 
-		this.accountsToPoll.set(userAccount.positions.toString(), {
-			key: 'userPositions',
-			publicKey: userAccount.positions,
-			eventType: 'userPositionsData',
-		});
+			this.accountsToPoll.set(userAccount.positions.toString(), {
+				key: 'userPositions',
+				publicKey: userAccount.positions,
+				eventType: 'userPositionsData',
+			});
 
-		const userOrdersPublicKey = await getUserOrdersAccountPublicKey(
-			this.program.programId,
-			userPublicKey
-		);
+			const userOrdersPublicKey = await getUserOrdersAccountPublicKey(
+				this.program.programId,
+				userPublicKey
+			);
 
-		const userOrdersExist =
-			(
-				await this.program.provider.connection.getParsedAccountInfo(
-					userOrdersPublicKey
-				)
-			).value !== null;
-		if (userOrdersExist) {
 			this.accountsToPoll.set(userOrdersPublicKey.toString(), {
 				key: 'userOrders',
 				publicKey: userOrdersPublicKey,
 				eventType: 'userOrdersData',
 			});
+		} else {
+			this.accountsToPoll.set(userPublicKeys.user.toString(), {
+				key: 'user',
+				publicKey: userPublicKeys.user,
+				eventType: 'userAccountData',
+			});
+
+			this.accountsToPoll.set(userPublicKeys.userPositions.toString(), {
+				key: 'userPositions',
+				publicKey: userPublicKeys.userPositions,
+				eventType: 'userPositionsData',
+			});
+
+			if (userPublicKeys.userOrders) {
+				this.accountsToPoll.set(userPublicKeys.userOrders.toString(), {
+					key: 'userOrders',
+					publicKey: userPublicKeys.userOrders,
+					eventType: 'userOrdersData',
+				});
+			}
 		}
 
 		for (const [_, accountToPoll] of this.accountsToPoll) {
 			accountToPoll.callbackId = this.accountLoader.addAccount(
 				accountToPoll.publicKey,
 				(buffer) => {
+					if (!buffer) {
+						return;
+					}
+
 					const account = this.program.account[
 						accountToPoll.key
 					].coder.accounts.decode(capitalize(accountToPoll.key), buffer);

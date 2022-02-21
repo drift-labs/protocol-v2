@@ -82,6 +82,12 @@ export interface ClearingHouseAccountSubscriber {
 	type: ClearingHouseConfigType;
 }
 
+export type UserPublicKeys = {
+	user: PublicKey;
+	userPositions: PublicKey;
+	userOrders: PublicKey | undefined;
+};
+
 export interface UserAccountEvents {
 	userAccountData: (payload: UserAccount) => void;
 	userPositionsData: (payload: UserPositionsAccount) => void;
