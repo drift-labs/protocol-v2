@@ -675,6 +675,11 @@ pub fn execute_market_order(
             )?
         };
 
+    if base_asset_amount < market.amm.minimum_base_asset_trade_size {
+        msg!("base asset amount {}", base_asset_amount);
+        return Err(print_error!(ErrorCode::TradeSizeTooSmall)());
+    }
+
     if !reduce_only && order.reduce_only {
         return Err(ErrorCode::ReduceOnlyOrderIncreasedRisk);
     }
@@ -741,6 +746,11 @@ pub fn execute_non_market_order(
         base_asset_amount_market_can_execute,
         base_asset_amount_user_can_execute,
     );
+
+    if base_asset_amount < market.amm.minimum_base_asset_trade_size {
+        msg!("base asset amount too small {}", base_asset_amount);
+        return Ok((0, 0, false));
+    }
 
     let minimum_base_asset_trade_size = market.amm.minimum_base_asset_trade_size;
     let base_asset_amount_left_to_fill = order
