@@ -17,7 +17,10 @@ import { PublicKey } from '@solana/web3.js';
 import { Markets } from '../sdk/src/constants/markets';
 
 describe('admin', () => {
-	const provider = anchor.Provider.local();
+	const provider = anchor.Provider.local(undefined, {
+		commitment: 'confirmed',
+		preflightCommitment: 'confirmed',
+	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.ClearingHouse as Program;
@@ -53,6 +56,7 @@ describe('admin', () => {
 			marginRatioMaintenance
 		);
 
+		await clearingHouse.fetchAccounts();
 		const state = clearingHouse.getStateAccount();
 
 		assert(state.marginRatioInitial.eq(marginRatioInitial));
@@ -69,6 +73,7 @@ describe('admin', () => {
 			denominator
 		);
 
+		await clearingHouse.fetchAccounts();
 		const state = clearingHouse.getStateAccount();
 
 		assert(state.partialLiquidationClosePercentageNumerator.eq(numerator));
@@ -84,6 +89,7 @@ describe('admin', () => {
 			denominator
 		);
 
+		await clearingHouse.fetchAccounts();
 		const state = clearingHouse.getStateAccount();
 
 		assert(state.partialLiquidationPenaltyPercentageNumerator.eq(numerator));
@@ -101,6 +107,7 @@ describe('admin', () => {
 			denominator
 		);
 
+		await clearingHouse.fetchAccounts();
 		const state = clearingHouse.getStateAccount();
 
 		assert(state.fullLiquidationPenaltyPercentageNumerator.eq(numerator));
@@ -112,6 +119,7 @@ describe('admin', () => {
 
 		await clearingHouse.updatePartialLiquidationShareDenominator(denominator);
 
+		await clearingHouse.fetchAccounts();
 		const state = clearingHouse.getStateAccount();
 
 		assert(state.partialLiquidationLiquidatorShareDenominator.eq(denominator));
@@ -122,6 +130,7 @@ describe('admin', () => {
 
 		await clearingHouse.updateFullLiquidationShareDenominator(denominator);
 
+		await clearingHouse.fetchAccounts();
 		const state = clearingHouse.getStateAccount();
 
 		assert(state.fullLiquidationLiquidatorShareDenominator.eq(denominator));
@@ -163,6 +172,7 @@ describe('admin', () => {
 
 		await clearingHouse.updateFee(newFeeStructure);
 
+		await clearingHouse.fetchAccounts();
 		const state = clearingHouse.getStateAccount();
 
 		assert(
@@ -179,6 +189,7 @@ describe('admin', () => {
 
 		await clearingHouse.updateOrderFillerRewardStructure(newStructure);
 
+		await clearingHouse.fetchAccounts();
 		const orderState = clearingHouse.getOrderStateAccount();
 
 		assert(
@@ -203,6 +214,7 @@ describe('admin', () => {
 
 		await clearingHouse.updateOracleGuardRails(oracleGuardRails);
 
+		await clearingHouse.fetchAccounts();
 		const state = clearingHouse.getStateAccount();
 
 		assert(
@@ -216,6 +228,7 @@ describe('admin', () => {
 
 		await clearingHouse.updateDiscountMint(mint);
 
+		await clearingHouse.fetchAccounts();
 		const state = clearingHouse.getStateAccount();
 
 		assert(state.discountMint.equals(mint));
@@ -226,6 +239,7 @@ describe('admin', () => {
 
 		await clearingHouse.updateMaxDeposit(maxDeposit);
 
+		await clearingHouse.fetchAccounts();
 		const state = clearingHouse.getStateAccount();
 
 		assert(state.maxDeposit.eq(maxDeposit));
@@ -261,6 +275,7 @@ describe('admin', () => {
 			newOracleSource
 		);
 
+		await clearingHouse.fetchAccounts();
 		const market =
 			clearingHouse.getMarketsAccount().markets[
 				Markets[0].marketIndex.toNumber()
@@ -280,6 +295,7 @@ describe('admin', () => {
 			minimumTradeSize
 		);
 
+		await clearingHouse.fetchAccounts();
 		const market =
 			clearingHouse.getMarketsAccount().markets[
 				Markets[0].marketIndex.toNumber()
@@ -295,6 +311,7 @@ describe('admin', () => {
 			minimumTradeSize
 		);
 
+		await clearingHouse.fetchAccounts();
 		const market =
 			clearingHouse.getMarketsAccount().markets[
 				Markets[0].marketIndex.toNumber()
@@ -304,6 +321,7 @@ describe('admin', () => {
 
 	it('Pause funding', async () => {
 		await clearingHouse.updateFundingPaused(true);
+		await clearingHouse.fetchAccounts();
 		const state = clearingHouse.getStateAccount();
 		assert(state.fundingPaused);
 	});
@@ -312,6 +330,7 @@ describe('admin', () => {
 		let state = clearingHouse.getStateAccount();
 		assert(state.adminControlsPrices);
 		await clearingHouse.disableAdminControlsPrices();
+		await clearingHouse.fetchAccounts();
 		state = clearingHouse.getStateAccount();
 		assert(!state.adminControlsPrices);
 	});
@@ -321,6 +340,7 @@ describe('admin', () => {
 
 		await clearingHouse.updateAdmin(newAdminKey);
 
+		await clearingHouse.fetchAccounts();
 		const state = clearingHouse.getStateAccount();
 
 		assert(state.admin.equals(newAdminKey));
