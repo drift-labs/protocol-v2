@@ -20,7 +20,10 @@ import { mockOracle, mockUSDCMint, mockUserUSDCAccount } from './testHelpers';
 import { FeeStructure } from '../sdk';
 
 describe('idempotent curve', () => {
-	const provider = anchor.Provider.local();
+	const provider = anchor.Provider.local(undefined, {
+		commitment: 'confirmed',
+		preflightCommitment: 'confirmed',
+	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.ClearingHouse as Program;
@@ -45,7 +48,10 @@ describe('idempotent curve', () => {
 		primaryClearingHouse = Admin.from(
 			connection,
 			provider.wallet,
-			chProgram.programId
+			chProgram.programId,
+			{
+				commitment: 'confirmed',
+			}
 		);
 		await primaryClearingHouse.initialize(usdcMint.publicKey, true);
 		await primaryClearingHouse.subscribe();
@@ -121,7 +127,10 @@ describe('idempotent curve', () => {
 		const clearingHouse = ClearingHouse.from(
 			connection,
 			new Wallet(userKeypair),
-			chProgram.programId
+			chProgram.programId,
+			{
+				commitment: 'confirmed',
+			}
 		);
 		await clearingHouse.subscribe();
 
@@ -173,7 +182,7 @@ describe('idempotent curve', () => {
 
 		assert(user.collateral.eq(new BN(19999200)));
 		assert(userPositionsAccount.positions[0].quoteAssetAmount.eq(new BN(0)));
-		// await clearingHouse.unsubscribe();
+		await clearingHouse.unsubscribe();
 	};
 
 	const shrinkUnprofitableLong = async (chunks: number) => {
@@ -188,7 +197,10 @@ describe('idempotent curve', () => {
 		const clearingHouse = ClearingHouse.from(
 			connection,
 			new Wallet(userKeypair),
-			chProgram.programId
+			chProgram.programId,
+			{
+				commitment: 'confirmed',
+			}
 		);
 		await clearingHouse.subscribe();
 
@@ -240,7 +252,7 @@ describe('idempotent curve', () => {
 
 		assert(user.collateral.eq(new BN(4999850)));
 		assert(userPositionsAccount.positions[0].quoteAssetAmount.eq(new BN(0)));
-		// await clearingHouse.unsubscribe();
+		await clearingHouse.unsubscribe();
 	};
 
 	const shrinkProfitableShort = async (chunks: number) => {
@@ -255,7 +267,10 @@ describe('idempotent curve', () => {
 		const clearingHouse = ClearingHouse.from(
 			connection,
 			new Wallet(userKeypair),
-			chProgram.programId
+			chProgram.programId,
+			{
+				commitment: 'confirmed',
+			}
 		);
 		await clearingHouse.subscribe();
 
@@ -307,6 +322,7 @@ describe('idempotent curve', () => {
 
 		assert(user.collateral.eq(new BN(14999849)));
 		assert(userPositionsAccount.positions[0].quoteAssetAmount.eq(new BN(0)));
+		await clearingHouse.unsubscribe();
 	};
 
 	const shrinkUnrofitableShort = async (chunks: number) => {
@@ -321,7 +337,10 @@ describe('idempotent curve', () => {
 		const clearingHouse = ClearingHouse.from(
 			connection,
 			new Wallet(userKeypair),
-			chProgram.programId
+			chProgram.programId,
+			{
+				commitment: 'confirmed',
+			}
 		);
 		await clearingHouse.subscribe();
 
@@ -373,7 +392,7 @@ describe('idempotent curve', () => {
 
 		assert(user.collateral.eq(new BN(6666311)));
 		assert(userPositionsAccount.positions[0].quoteAssetAmount.eq(new BN(0)));
-		// await clearingHouse.unsubscribe();
+		await clearingHouse.unsubscribe();
 	};
 
 	it('open and shrink profitable long twice', async () => {
