@@ -169,6 +169,28 @@ pub struct InitializeUserOrders<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(user_orders_nonce: u8)]
+pub struct InitializeUserOrdersWithExplicitPayer<'info> {
+    #[account(
+        has_one = authority,
+    )]
+    pub user: Box<Account<'info, User>>,
+    #[account(
+        init,
+        seeds = [b"user_orders", user.key().as_ref()],
+        bump = user_orders_nonce,
+        payer = payer
+    )]
+    pub user_orders: AccountLoader<'info, UserOrders>,
+    pub state: Box<Account<'info, State>>,
+    pub authority: Signer<'info>,
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
 pub struct DeleteUser<'info> {
     #[account(
         mut,

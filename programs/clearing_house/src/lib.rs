@@ -1654,6 +1654,15 @@ pub mod clearing_house {
         Ok(())
     }
 
+    pub fn initialize_user_orders_with_explicit_payer(
+        ctx: Context<InitializeUserOrdersWithExplicitPayer>,
+        _user_orders_nonce: u8,
+    ) -> ProgramResult {
+        let orders = &mut ctx.accounts.user_orders.load_init()?;
+        orders.user = ctx.accounts.user.key();
+        Ok(())
+    }
+
     pub fn delete_user(ctx: Context<DeleteUser>) -> ProgramResult {
         let user = &ctx.accounts.user;
 
