@@ -1,6 +1,6 @@
 {
 	"name": "@drift-labs/sdk",
-	"version": "0.1.23-master.0",
+	"version": "0.1.23-master.1",
 	"main": "lib/index.js",
 	"types": "lib/index.d.ts",
 	"author": "crispheaney",
