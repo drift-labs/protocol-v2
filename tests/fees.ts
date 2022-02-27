@@ -19,12 +19,16 @@ import { mockOracle, mockUSDCMint, mockUserUSDCAccount } from './testHelpers';
 import { AccountInfo, Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
 describe('fees', () => {
-	const provider = anchor.Provider.local();
+	const provider = anchor.Provider.local(undefined, {
+		preflightCommitment: 'confirmed',
+		commitment: 'confirmed',
+	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.ClearingHouse as Program;
 
 	let clearingHouse: Admin;
+	let referrerClearingHouse: ClearingHouse;
 
 	let userAccountPublicKey: PublicKey;
 
@@ -56,7 +60,10 @@ describe('fees', () => {
 		clearingHouse = Admin.from(
 			connection,
 			provider.wallet,
-			chProgram.programId
+			chProgram.programId,
+			{
+				commitment: 'confirmed',
+			}
 		);
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
@@ -101,7 +108,7 @@ describe('fees', () => {
 			provider,
 			referrerKeyPair.publicKey
 		);
-		const referrerClearingHouse = ClearingHouse.from(
+		referrerClearingHouse = ClearingHouse.from(
 			connection,
 			new Wallet(referrerKeyPair),
 			chProgram.programId
@@ -117,6 +124,7 @@ describe('fees', () => {
 
 	after(async () => {
 		await clearingHouse.unsubscribe();
+		await referrerClearingHouse.unsubscribe();
 	});
 
 	it('Trade no rebate', async () => {

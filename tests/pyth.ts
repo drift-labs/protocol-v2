@@ -157,7 +157,10 @@ async function updateFundingRateHelper(
 }
 
 describe('pyth-oracle', () => {
-	const provider = anchor.Provider.local();
+	const provider = anchor.Provider.local(undefined, {
+		commitment: 'confirmed',
+		preflightCommitment: 'confirmed',
+	});
 	const connection = provider.connection;
 
 	anchor.setProvider(provider);
@@ -185,7 +188,10 @@ describe('pyth-oracle', () => {
 		clearingHouse = Admin.from(
 			connection,
 			provider.wallet,
-			chProgram.programId
+			chProgram.programId,
+			{
+				commitment: 'confirmed',
+			}
 		);
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
@@ -223,6 +229,7 @@ describe('pyth-oracle', () => {
 		await clearingHouse.unsubscribe();
 		await userAccount.unsubscribe();
 
+		await clearingHouse2.unsubscribe();
 		await userAccount2.unsubscribe();
 	});
 

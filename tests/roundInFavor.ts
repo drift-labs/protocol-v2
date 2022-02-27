@@ -148,6 +148,7 @@ describe('round in favor', () => {
 			userAccountPublicKey
 		);
 		assert(user.collateral.eq(new BN(9999000)));
+		await clearingHouse.unsubscribe();
 	});
 
 	it('long', async () => {
@@ -192,5 +193,6 @@ describe('round in favor', () => {
 			userAccountPublicKey
 		);
 		assert(user.collateral.eq(new BN(9998999)));
+		await clearingHouse.unsubscribe();
 	});
 });

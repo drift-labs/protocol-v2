@@ -32,7 +32,10 @@ describe('admin', () => {
 		clearingHouse = Admin.from(
 			connection,
 			provider.wallet,
-			chProgram.programId
+			chProgram.programId,
+			{
+				commitment: 'confirmed',
+			}
 		);
 
 		await clearingHouse.initialize(usdcMint.publicKey, true);

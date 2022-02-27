@@ -35,7 +35,10 @@ const _calculateTradeAmount = (amountOfCollateral: BN) => {
 };
 
 describe('minimum trade size', () => {
-	const provider = anchor.Provider.local();
+	const provider = anchor.Provider.local(undefined, {
+		commitment: 'confirmed',
+		preflightCommitment: 'confirmed',
+	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.ClearingHouse as Program;
@@ -57,7 +60,10 @@ describe('minimum trade size', () => {
 		primaryClearingHouse = Admin.from(
 			connection,
 			provider.wallet,
-			chProgram.programId
+			chProgram.programId,
+			{
+				commitment: 'confirmed',
+			}
 		);
 		await primaryClearingHouse.initialize(usdcMint.publicKey, true);
 		await primaryClearingHouse.subscribe();
@@ -135,7 +141,10 @@ describe('minimum trade size', () => {
 		const clearingHouse = ClearingHouse.from(
 			connection,
 			wallet,
-			chProgram.programId
+			chProgram.programId,
+			{
+				commitment: 'confirmed',
+			}
 		);
 		await clearingHouse.subscribe();
 		const [, userAccountPublicKey] =
@@ -201,6 +210,7 @@ describe('minimum trade size', () => {
 
 		assert(position.quoteAssetAmount.eq(ZERO));
 		assert(position.baseAssetAmount.eq(ZERO));
+		await clearingHouse.unsubscribe();
 	});
 
 	it('short dont round', async () => {
@@ -216,7 +226,10 @@ describe('minimum trade size', () => {
 		const clearingHouse = ClearingHouse.from(
 			connection,
 			wallet,
-			chProgram.programId
+			chProgram.programId,
+			{
+				commitment: 'confirmed',
+			}
 		);
 		await clearingHouse.subscribe();
 		const [, userAccountPublicKey] =
@@ -278,6 +291,7 @@ describe('minimum trade size', () => {
 
 		assert(position.quoteAssetAmount.gt(ZERO));
 		assert(position.baseAssetAmount.lt(ZERO));
+		await clearingHouse.unsubscribe();
 	});
 
 	it('long round', async () => {
@@ -293,7 +307,10 @@ describe('minimum trade size', () => {
 		const clearingHouse = ClearingHouse.from(
 			connection,
 			wallet,
-			chProgram.programId
+			chProgram.programId,
+			{
+				commitment: 'confirmed',
+			}
 		);
 		await clearingHouse.subscribe();
 		const [, userAccountPublicKey] =
@@ -336,7 +353,7 @@ describe('minimum trade size', () => {
 		let position = userPositions.positions[0];
 		const baseAssetValue = calculateBaseAssetValue(market, position);
 
-		const expectedBaseAssetValue = new BN(9999811);
+		const expectedBaseAssetValue = new BN(10000002);
 		assert(position.quoteAssetAmount.eq(usdcAmount));
 		assert(baseAssetValue.eq(expectedBaseAssetValue));
 
@@ -359,6 +376,7 @@ describe('minimum trade size', () => {
 
 		assert(position.quoteAssetAmount.eq(ZERO));
 		assert(position.baseAssetAmount.eq(ZERO));
+		await clearingHouse.unsubscribe();
 	});
 
 	it('short dont round', async () => {
@@ -374,7 +392,10 @@ describe('minimum trade size', () => {
 		const clearingHouse = ClearingHouse.from(
 			connection,
 			wallet,
-			chProgram.programId
+			chProgram.programId,
+			{
+				commitment: 'confirmed',
+			}
 		);
 		await clearingHouse.subscribe();
 		const [, userAccountPublicKey] =
@@ -435,5 +456,6 @@ describe('minimum trade size', () => {
 
 		assert(position.quoteAssetAmount.gt(ZERO));
 		assert(position.baseAssetAmount.gt(ZERO));
+		await clearingHouse.unsubscribe();
 	});
 });
