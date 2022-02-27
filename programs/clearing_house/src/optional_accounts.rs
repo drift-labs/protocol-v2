@@ -74,6 +74,8 @@ pub fn get_discount_token(
 ) -> ClearingHouseResult<Option<TokenAccount>> {
     let mut optional_discount_token = None;
     if expect_discount_token {
+        // owner, mint and is_initialized check below, so this is a `trusted account_info`
+        //#[soteria(ignore)]
         let token_account_info =
             next_account_info(account_info_iter).or(Err(ErrorCode::DiscountTokenNotFound))?;
 
