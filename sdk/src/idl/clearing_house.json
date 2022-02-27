@@ -1322,6 +1322,52 @@
       ]
     },
     {
+      "name": "initializeUserOrdersWithExplicitPayer",
+      "accounts": [
+        {
+          "name": "user",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "userOrders",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "userOrdersNonce",
+          "type": "u8"
+        }
+      ]
+    },
+    {
       "name": "deleteUser",
       "accounts": [
         {
