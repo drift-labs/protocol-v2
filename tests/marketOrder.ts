@@ -163,6 +163,7 @@ describe('market order', () => {
 		await clearingHouse.unsubscribe();
 		await clearingHouseUser.unsubscribe();
 		await fillerUser.unsubscribe();
+		await fillerClearingHouse.unsubscribe();
 	});
 
 	it('Fill market long order with base asset', async () => {

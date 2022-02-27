@@ -193,8 +193,10 @@ describe('order referrer', () => {
 	after(async () => {
 		await clearingHouse.unsubscribe();
 		await clearingHouseUser.unsubscribe();
+		await fillerClearingHouse.unsubscribe();
 		await fillerUser.unsubscribe();
 		await referrerUser.unsubscribe();
+		await referrerClearingHouse.unsubscribe();
 	});
 
 	it('place then fill', async () => {

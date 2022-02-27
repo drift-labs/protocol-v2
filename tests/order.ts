@@ -190,7 +190,10 @@ describe('orders', () => {
 		fillerClearingHouse = ClearingHouse.from(
 			connection,
 			new Wallet(fillerKeyPair),
-			chProgram.programId
+			chProgram.programId,
+			{
+				commitment: 'confirmed',
+			}
 		);
 		await fillerClearingHouse.subscribe();
 
@@ -215,7 +218,10 @@ describe('orders', () => {
 		whaleClearingHouse = ClearingHouse.from(
 			connection,
 			new Wallet(whaleKeyPair),
-			chProgram.programId
+			chProgram.programId,
+			{
+				commitment: 'confirmed',
+			}
 		);
 		await whaleClearingHouse.subscribe();
 
@@ -570,6 +576,7 @@ describe('orders', () => {
 		);
 		await clearingHouse.placeOrder(orderParams, discountTokenAccount.address);
 
+		await clearingHouse.fetchAccounts();
 		const userOrdersAccount = clearingHouseUser.getUserOrdersAccount();
 		const order = userOrdersAccount.orders[0];
 		const amountToFill = calculateAmountToTradeForLimit(market, order);

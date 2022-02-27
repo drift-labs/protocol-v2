@@ -177,6 +177,7 @@ describe('stop limit', () => {
 		await clearingHouse.unsubscribe();
 		await clearingHouseUser.unsubscribe();
 		await fillerUser.unsubscribe();
+		await fillerClearingHouse.unsubscribe();
 	});
 
 	it('Fill stop limit short order', async () => {
