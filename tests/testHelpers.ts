@@ -26,7 +26,12 @@ export async function mockOracle(
 	// default: create a $50 coin oracle
 	const program = anchor.workspace.Pyth;
 
-	anchor.setProvider(anchor.Provider.env());
+	anchor.setProvider(
+		anchor.Provider.local(undefined, {
+			commitment: 'confirmed',
+			preflightCommitment: 'confirmed',
+		})
+	);
 	const priceFeedAddress = await createPriceFeed({
 		oracleProgram: program,
 		initPrice: price,
@@ -197,7 +202,10 @@ export async function initUserAccounts(
 			provider.connection,
 			//@ts-ignore
 			ownerWallet,
-			chProgram.programId
+			chProgram.programId,
+			{
+				commitment: 'confirmed',
+			}
 		);
 
 		// await clearingHouse1.initialize(usdcMint.publicKey, false);

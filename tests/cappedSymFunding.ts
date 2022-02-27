@@ -214,6 +214,7 @@ async function cappedSymFundingScenario(
 	);
 	await clearingHouse.updateFundingPaused(true);
 
+	await clearingHouse.fetchAccounts();
 	if (longShortSizes[0] !== 0) {
 		await clearingHouse.openPosition(
 			PositionDirection.LONG,
@@ -223,6 +224,7 @@ async function cappedSymFundingScenario(
 	}
 
 	console.log('clearingHouse2.openPosition');
+	await clearingHouse2.fetchAccounts();
 	// try{
 	if (longShortSizes[1] !== 0) {
 		await clearingHouse2.openPosition(
@@ -232,11 +234,13 @@ async function cappedSymFundingScenario(
 		);
 	}
 	console.log(longShortSizes[0], longShortSizes[1]);
+	await userAccount.fetchAccounts();
 	if (longShortSizes[0] != 0) {
 		assert(!userAccount.getTotalPositionValue().eq(new BN(0)));
 	} else {
 		assert(userAccount.getTotalPositionValue().eq(new BN(0)));
 	}
+	await userAccount2.fetchAccounts();
 	if (longShortSizes[1] != 0) {
 		assert(!userAccount2.getTotalPositionValue().eq(new BN(0)));
 	} else {
@@ -339,7 +343,10 @@ async function cappedSymFundingScenario(
 }
 
 describe('capped funding', () => {
-	const provider = anchor.Provider.local();
+	const provider = anchor.Provider.local(undefined, {
+		commitment: 'confirmed',
+		preflightCommitment: 'confirmed',
+	});
 	const connection = provider.connection;
 
 	anchor.setProvider(provider);
@@ -369,7 +376,10 @@ describe('capped funding', () => {
 		clearingHouse = Admin.from(
 			connection,
 			provider.wallet,
-			chProgram.programId
+			chProgram.programId,
+			{
+				commitment: 'confirmed',
+			}
 		);
 
 		await clearingHouse.initialize(usdcMint.publicKey, true);
