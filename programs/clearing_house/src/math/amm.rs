@@ -259,7 +259,18 @@ pub fn calculate_quote_asset_amount_swapped(
             .ok_or_else(math_error!())?,
     };
 
-    reserve_to_asset_amount(quote_asset_reserve_change, peg_multiplier)
+    let mut quote_asset_amount =
+        reserve_to_asset_amount(quote_asset_reserve_change, peg_multiplier)?;
+
+    // when a user goes long base asset, make the base asset slightly more expensive
+    // by adding one unit of quote asset
+    if swap_direction == SwapDirection::Remove {
+        quote_asset_amount = quote_asset_amount
+            .checked_add(1)
+            .ok_or_else(math_error!())?;
+    }
+
+    Ok(quote_asset_amount)
 }
 
 pub fn calculate_oracle_mark_spread(

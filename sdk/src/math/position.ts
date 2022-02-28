@@ -47,7 +47,8 @@ export function calculateBaseAssetValue(
 			return newQuoteAssetReserve
 				.sub(market.amm.quoteAssetReserve)
 				.mul(market.amm.pegMultiplier)
-				.div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO);
+				.div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO)
+				.add(ONE);
 	}
 }
 
@@ -74,7 +75,7 @@ export function calculatePositionPNL(
 	if (marketPosition.baseAssetAmount.gt(ZERO)) {
 		pnl = baseAssetValue.sub(marketPosition.quoteAssetAmount);
 	} else {
-		pnl = marketPosition.quoteAssetAmount.sub(baseAssetValue).sub(ONE);
+		pnl = marketPosition.quoteAssetAmount.sub(baseAssetValue);
 	}
 
 	if (withFunding) {

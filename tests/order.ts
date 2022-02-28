@@ -420,7 +420,7 @@ describe('orders', () => {
 		const firstPosition = userPositionsAccount.positions[0];
 		assert(firstPosition.baseAssetAmount.eq(baseAssetAmount));
 
-		const expectedQuoteAssetAmount = new BN(1000002);
+		const expectedQuoteAssetAmount = new BN(1000003);
 		// console.log(convertToNumber(firstPosition.quoteAssetAmount, QUOTE_PRECISION),
 		//  '!=',
 		//  convertToNumber(expectedQuoteAssetAmount, QUOTE_PRECISION),

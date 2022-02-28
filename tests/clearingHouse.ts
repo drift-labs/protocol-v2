@@ -540,7 +540,7 @@ describe('clearing_house', () => {
 		);
 		assert.ok(tradeHistoryAccount.tradeRecords[2].liquidation == false);
 		assert.ok(
-			tradeHistoryAccount.tradeRecords[3].quoteAssetAmount.eq(new BN(24875000))
+			tradeHistoryAccount.tradeRecords[3].quoteAssetAmount.eq(new BN(24875001))
 		);
 		assert.ok(tradeHistoryAccount.tradeRecords[3].marketIndex.eq(new BN(0)));
 	});
@@ -697,12 +697,12 @@ describe('clearing_house', () => {
 		);
 		assert.ok(
 			tradeHistoryAccount.tradeRecords[5].baseAssetAmount.eq(
-				new BN(122540299515118)
+				new BN(122540308307591)
 			)
 		);
 		assert.ok(tradeHistoryAccount.tradeRecords[5].liquidation);
 		assert.ok(
-			tradeHistoryAccount.tradeRecords[5].quoteAssetAmount.eq(new BN(13936591))
+			tradeHistoryAccount.tradeRecords[5].quoteAssetAmount.eq(new BN(13936592))
 		);
 		assert.ok(tradeHistoryAccount.tradeRecords[5].marketIndex.eq(new BN(0)));
 
@@ -715,12 +715,12 @@ describe('clearing_house', () => {
 		assert.ok(liquidationHistory.liquidationRecords[0].partial);
 		assert.ok(
 			liquidationHistory.liquidationRecords[0].baseAssetValue.eq(
-				new BN(55746367)
+				new BN(55746368)
 			)
 		);
 		assert.ok(
 			liquidationHistory.liquidationRecords[0].baseAssetValueClosed.eq(
-				new BN(13936591)
+				new BN(13936592)
 			)
 		);
 		assert.ok(
@@ -825,7 +825,7 @@ describe('clearing_house', () => {
 		);
 		assert.ok(
 			tradeHistoryAccount.tradeRecords[6].baseAssetAmount.eq(
-				new BN(367582499847535)
+				new BN(367582491055062)
 			)
 		);
 		assert.ok(tradeHistoryAccount.tradeRecords[6].liquidation);

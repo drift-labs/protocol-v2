@@ -209,7 +209,12 @@ pub fn calculate_available_quote_asset_user_can_execute(
     let market_position = &user_positions.positions[position_index];
 
     let max_leverage = MARGIN_PRECISION
-        .checked_div(margin_ratio_initial)
+        .checked_div(
+            // add one to initial margin ratio so we don't fill exactly to max leverage
+            margin_ratio_initial
+                .checked_add(1)
+                .ok_or_else(math_error!())?,
+        )
         .ok_or_else(math_error!())?;
 
     let risk_increasing_in_same_direction = market_position.base_asset_amount == 0
@@ -220,11 +225,7 @@ pub fn calculate_available_quote_asset_user_can_execute(
         let (free_collateral, _) =
             calculate_free_collateral(user, user_positions, markets, max_leverage, None)?;
 
-        // When opening new position, user may realize -1 pnl from rounding
-        // Subtract 1 from free collateral to avoid going over initial margin requirements
         free_collateral
-            .checked_sub(if free_collateral == 0 { 0 } else { 1 })
-            .ok_or_else(math_error!())?
             .checked_mul(max_leverage)
             .ok_or_else(math_error!())?
     } else {
@@ -237,11 +238,7 @@ pub fn calculate_available_quote_asset_user_can_execute(
             Some(market_index),
         )?;
 
-        // When opening new position, user may realize -1 pnl from rounding
-        // Subtract 1 from free collateral to avoid going over initial margin requirements
         free_collateral
-            .checked_sub(if free_collateral == 0 { 0 } else { 1 })
-            .ok_or_else(math_error!())?
             .checked_mul(max_leverage)
             .ok_or_else(math_error!())?
             .checked_add(closed_position_base_asset_value)

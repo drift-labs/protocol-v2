@@ -1,4 +1,4 @@
-import { Market, PositionDirection } from '../types';
+import { isVariant, Market, PositionDirection } from '../types';
 import { BN } from '@project-serum/anchor';
 import { assert } from '../assert/assert';
 import {
@@ -6,6 +6,7 @@ import {
 	PEG_PRECISION,
 	AMM_TO_QUOTE_PRECISION_RATIO,
 	ZERO,
+	ONE,
 } from '../constants/numericConstants';
 import { calculateMarkPrice } from './market';
 import {
@@ -114,16 +115,20 @@ export function calculateTradeAcquiredAmounts(
 		return [ZERO, ZERO];
 	}
 
+	const swapDirection = getSwapDirection(inputAssetType, direction);
 	const [newQuoteAssetReserve, newBaseAssetReserve] =
 		calculateAmmReservesAfterSwap(
 			market.amm,
 			inputAssetType,
 			amount,
-			getSwapDirection(inputAssetType, direction)
+			swapDirection
 		);
 
 	const acquiredBase = market.amm.baseAssetReserve.sub(newBaseAssetReserve);
-	const acquiredQuote = market.amm.quoteAssetReserve.sub(newQuoteAssetReserve);
+	let acquiredQuote = market.amm.quoteAssetReserve.sub(newQuoteAssetReserve);
+	if (inputAssetType === 'base' && isVariant(swapDirection, 'remove')) {
+		acquiredQuote = acquiredQuote.sub(ONE);
+	}
 
 	return [acquiredBase, acquiredQuote];
 }

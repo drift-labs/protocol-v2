@@ -338,7 +338,7 @@ describe('stop limit', () => {
 		const tradeHistoryRecord = tradeHistoryAccount.tradeRecords[3];
 
 		assert.ok(tradeHistoryRecord.baseAssetAmount.eq(baseAssetAmount));
-		const expectedTradeQuoteAssetAmount = new BN(999998);
+		const expectedTradeQuoteAssetAmount = new BN(999999);
 		assert.ok(
 			tradeHistoryRecord.quoteAssetAmount.eq(expectedTradeQuoteAssetAmount)
 		);
