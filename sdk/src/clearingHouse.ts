@@ -250,12 +250,13 @@ export class ClearingHouse {
 			this.program.programId,
 			newProvider
 		);
-		const newTxSender = new DefaultTxSender(newProvider);
+
+		// Update provider for txSender with new wallet details
+		this.txSender.provider = newProvider;
 
 		this.wallet = newWallet;
 		this.provider = newProvider;
 		this.program = newProgram;
-		this.txSender = newTxSender;
 		this.userAccountPublicKey = undefined;
 		this.userAccount = undefined;
 	}
