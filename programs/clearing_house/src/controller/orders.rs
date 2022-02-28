@@ -418,13 +418,24 @@ pub fn fill_order(
         oracle_mark_spread_pct_after = _oracle_mark_spread_pct_after;
     }
 
-    // Order fails if the trade is risk increasing and it pushes to mark price too far
-    // away from the oracle price
-    let is_oracle_mark_too_divergent = amm::is_oracle_mark_too_divergent(
+    let is_oracle_mark_too_divergent_before = amm::is_oracle_mark_too_divergent(
+        oracle_mark_spread_pct_before,
+        &state.oracle_guard_rails.price_divergence,
+    )?;
+
+    let is_oracle_mark_too_divergent_after = amm::is_oracle_mark_too_divergent(
         oracle_mark_spread_pct_after,
         &state.oracle_guard_rails.price_divergence,
     )?;
-    if is_oracle_mark_too_divergent
+
+    // if oracle-mark divergence pushed outside limit, block order
+    if is_oracle_mark_too_divergent_after && !is_oracle_mark_too_divergent_before && is_oracle_valid
+    {
+        return Err(ErrorCode::OracleMarkSpreadLimit);
+    }
+
+    // if oracle-mark divergence outside limit and risk-increasing, block order
+    if is_oracle_mark_too_divergent_after
         && oracle_mark_spread_pct_after.unsigned_abs()
             >= oracle_mark_spread_pct_before.unsigned_abs()
         && is_oracle_valid
