@@ -753,9 +753,17 @@ pub fn execute_non_market_order(
         return Ok((0, 0, false));
     }
 
+    let base_asset_amount_left_to_fill_before = order
+        .base_asset_amount
+        .checked_sub(order.base_asset_amount_filled)
+        .ok_or_else(math_error!())?;
+
     let mut base_asset_amount = min(
-        base_asset_amount_market_can_execute,
-        base_asset_amount_user_can_execute,
+        min(
+            base_asset_amount_market_can_execute,
+            base_asset_amount_user_can_execute,
+        ),
+        base_asset_amount_left_to_fill_before,
     );
 
     if base_asset_amount < market.amm.minimum_base_asset_trade_size {
@@ -764,7 +772,7 @@ pub fn execute_non_market_order(
     }
 
     let minimum_base_asset_trade_size = market.amm.minimum_base_asset_trade_size;
-    let base_asset_amount_left_to_fill = order
+    let base_asset_amount_left_to_fill_after = order
         .base_asset_amount
         .checked_sub(
             order
@@ -774,11 +782,11 @@ pub fn execute_non_market_order(
         )
         .ok_or_else(math_error!())?;
 
-    if base_asset_amount_left_to_fill > 0
-        && base_asset_amount_left_to_fill < minimum_base_asset_trade_size
+    if base_asset_amount_left_to_fill_after > 0
+        && base_asset_amount_left_to_fill_after < minimum_base_asset_trade_size
     {
         base_asset_amount = base_asset_amount
-            .checked_add(base_asset_amount_left_to_fill)
+            .checked_add(base_asset_amount_left_to_fill_after)
             .ok_or_else(math_error!())?;
     }
 
