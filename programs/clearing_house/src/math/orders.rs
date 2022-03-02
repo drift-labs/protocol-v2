@@ -118,7 +118,10 @@ fn calculate_base_asset_amount_to_trade_for_trigger_market(
         }
     }
 
-    Ok(order.base_asset_amount)
+    order
+        .base_asset_amount
+        .checked_sub(order.base_asset_amount_filled)
+        .ok_or_else(math_error!())
 }
 
 fn calculate_base_asset_amount_to_trade_for_trigger_limit(
