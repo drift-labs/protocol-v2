@@ -178,18 +178,26 @@ impl AMM {
         &self,
         price_oracle: &AccountInfo,
         clock_slot: u64,
-    ) -> ClearingHouseResult<(i128, i128, u128, u128, i64)> {
-        let (oracle_px, oracle_twap, oracle_conf, oracle_twac, oracle_delay) =
-            match self.oracle_source {
-                OracleSource::Pyth => self.get_pyth_price(price_oracle, clock_slot)?,
-                OracleSource::Switchboard => (0, 0, 0, 0, 0),
-            };
-        Ok((
-            oracle_px,
-            oracle_twap,
-            oracle_conf,
-            oracle_twac,
-            oracle_delay,
-        ))
+    ) -> ClearingHouseResult<OraclePriceData> {
+        let (price, twap, confidence, twap_confidence, delay) = match self.oracle_source {
+            OracleSource::Pyth => self.get_pyth_price(price_oracle, clock_slot)?,
+            OracleSource::Switchboard => (0, 0, 0, 0, 0),
+        };
+        Ok(OraclePriceData {
+            price,
+            twap,
+            confidence,
+            twap_confidence,
+            delay,
+        })
     }
+}
+
+#[derive(Default, Clone, Copy, Debug)]
+pub struct OraclePriceData {
+    pub price: i128,
+    pub twap: i128,
+    pub confidence: u128,
+    pub twap_confidence: u128,
+    pub delay: i64,
 }

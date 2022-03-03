@@ -1,6 +1,5 @@
 use std::cmp::{max, min};
 
-use anchor_lang::prelude::AccountInfo;
 use solana_program::msg;
 
 use crate::controller::amm::SwapDirection;
@@ -9,11 +8,14 @@ use crate::error::*;
 use crate::math::bn;
 use crate::math::bn::U192;
 use crate::math::casting::{cast, cast_to_i128, cast_to_u128};
-use crate::math::constants::{MARK_PRICE_PRECISION, PEG_PRECISION, PRICE_TO_PEG_PRECISION_RATIO};
+use crate::math::constants::{
+    MARK_PRICE_PRECISION, PEG_PRECISION, PRICE_SPREAD_PRECISION, PRICE_SPREAD_PRECISION_U128,
+    PRICE_TO_PEG_PRECISION_RATIO,
+};
 use crate::math::position::_calculate_base_asset_value_and_pnl;
 use crate::math::quote_asset::{asset_to_reserve_amount, reserve_to_asset_amount};
 use crate::math_error;
-use crate::state::market::{Market, AMM};
+use crate::state::market::{Market, OraclePriceData, AMM};
 use crate::state::state::{PriceDivergenceGuardRails, ValidityGuardRails};
 
 pub fn calculate_price(
@@ -275,137 +277,97 @@ pub fn calculate_quote_asset_amount_swapped(
 
 pub fn calculate_oracle_mark_spread(
     amm: &AMM,
-    price_oracle: &AccountInfo,
     window: u32,
-    clock_slot: u64,
+    oracle_price_data: &OraclePriceData,
     precomputed_mark_price: Option<u128>,
-    normalise: bool,
 ) -> ClearingHouseResult<(i128, i128)> {
     let mark_price: i128;
-    let mark_price_1bp: i128;
-
-    let (oracle_price, oracle_twap, _oracle_conf, _oracle_twac, _oracle_delay) =
-        amm.get_oracle_price(price_oracle, clock_slot)?;
-
-    let oracle_processed: i128;
+    let oracle_price: i128;
 
     if window > 0 {
         mark_price = cast_to_i128(amm.last_mark_price_twap)?;
-        mark_price_1bp = mark_price.checked_div(10000).ok_or_else(math_error!())?;
-        let conf_int = cast_to_i128(_oracle_twac)?;
-
-        oracle_processed = if normalise {
-            if mark_price > oracle_twap {
-                min(
-                    max(
-                        mark_price
-                            .checked_sub(mark_price_1bp)
-                            .ok_or_else(math_error!())?,
-                        oracle_twap,
-                    ),
-                    oracle_twap
-                        .checked_add(conf_int)
-                        .ok_or_else(math_error!())?,
-                )
-            } else {
-                max(
-                    min(
-                        mark_price
-                            .checked_add(mark_price_1bp)
-                            .ok_or_else(math_error!())?,
-                        oracle_twap,
-                    ),
-                    oracle_twap
-                        .checked_sub(conf_int)
-                        .ok_or_else(math_error!())?,
-                )
-            }
-        } else {
-            oracle_twap
-        };
-
-        // don't use processed, only used for divergence spread check
-        let price_spread = mark_price
-            .checked_sub(oracle_twap)
-            .ok_or_else(math_error!())?;
-
-        Ok((oracle_processed, price_spread))
+        oracle_price = oracle_price_data.twap;
     } else {
         mark_price = match precomputed_mark_price {
             Some(mark_price) => cast_to_i128(mark_price)?,
             None => cast_to_i128(amm.mark_price()?)?,
         };
-
-        // normalises oracle toward mark price based on the oracle's confidence interval
-        //  if mark above oracle: use oracle+conf unless it exceeds .9999 * mark price
-        //  if mark below oracle: use oracle-conf unless it less than 1.0001 * mark price
-        //  (this guarantees more reasonable funding rates in volatile periods)
-        oracle_processed = if normalise {
-            mark_price_1bp = mark_price.checked_div(10000).ok_or_else(math_error!())?;
-            let conf_int = cast_to_i128(_oracle_conf)?;
-
-            if mark_price > oracle_price {
-                min(
-                    max(
-                        mark_price
-                            .checked_sub(mark_price_1bp)
-                            .ok_or_else(math_error!())?,
-                        oracle_price,
-                    ),
-                    oracle_price
-                        .checked_add(conf_int)
-                        .ok_or_else(math_error!())?,
-                )
-            } else {
-                max(
-                    min(
-                        mark_price
-                            .checked_add(mark_price_1bp)
-                            .ok_or_else(math_error!())?,
-                        oracle_price,
-                    ),
-                    oracle_price
-                        .checked_sub(conf_int)
-                        .ok_or_else(math_error!())?,
-                )
-            }
-        } else {
-            oracle_price
-        };
-
-        // don't use processed, only used for divergence spread check
-        let price_spread = mark_price
-            .checked_sub(oracle_price)
-            .ok_or_else(math_error!())?;
-
-        assert!(oracle_processed > 0);
-
-        Ok((oracle_processed, price_spread))
+        oracle_price = oracle_price_data.price;
     }
+
+    let price_spread = mark_price
+        .checked_sub(oracle_price)
+        .ok_or_else(math_error!())?;
+
+    Ok((oracle_price, price_spread))
+}
+
+pub fn normalise_oracle_price(
+    amm: &AMM,
+    oracle_price: &OraclePriceData,
+    precomputed_mark_price: Option<u128>,
+) -> ClearingHouseResult<i128> {
+    let OraclePriceData {
+        price: oracle_price,
+        confidence: oracle_conf,
+        ..
+    } = *oracle_price;
+
+    let mark_price = match precomputed_mark_price {
+        Some(mark_price) => cast_to_i128(mark_price)?,
+        None => cast_to_i128(amm.mark_price()?)?,
+    };
+
+    let mark_price_1bp = mark_price.checked_div(10000).ok_or_else(math_error!())?;
+    let conf_int = cast_to_i128(oracle_conf)?;
+
+    //  normalises oracle toward mark price based on the oracle’s confidence interval
+    //  if mark above oracle: use oracle+conf unless it exceeds .9999 * mark price
+    //  if mark below oracle: use oracle-conf unless it less than 1.0001 * mark price
+    //  (this guarantees more reasonable funding rates in volatile periods)
+    let normalised_price = if mark_price > oracle_price {
+        min(
+            max(
+                mark_price
+                    .checked_sub(mark_price_1bp)
+                    .ok_or_else(math_error!())?,
+                oracle_price,
+            ),
+            oracle_price
+                .checked_add(conf_int)
+                .ok_or_else(math_error!())?,
+        )
+    } else {
+        max(
+            min(
+                mark_price
+                    .checked_add(mark_price_1bp)
+                    .ok_or_else(math_error!())?,
+                oracle_price,
+            ),
+            oracle_price
+                .checked_sub(conf_int)
+                .ok_or_else(math_error!())?,
+        )
+    };
+
+    Ok(normalised_price)
 }
 
 pub fn calculate_oracle_mark_spread_pct(
     amm: &AMM,
-    price_oracle: &AccountInfo,
+    oracle_price_data: &OraclePriceData,
     window: u32,
-    clock_slot: u64,
     precomputed_mark_price: Option<u128>,
-) -> ClearingHouseResult<(i128, i128, i128)> {
-    let (oracle_price, price_spread) = calculate_oracle_mark_spread(
-        amm,
-        price_oracle,
-        window,
-        clock_slot,
-        precomputed_mark_price,
-        true,
-    )?;
-    let price_spread_pct = price_spread
-        .checked_shl(10)
+) -> ClearingHouseResult<i128> {
+    let (oracle_price, price_spread) =
+        calculate_oracle_mark_spread(amm, window, oracle_price_data, precomputed_mark_price)?;
+
+    price_spread
+        .checked_mul(PRICE_SPREAD_PRECISION)
         .ok_or_else(math_error!())?
         .checked_div(oracle_price)
-        .ok_or_else(math_error!())?;
-
-    Ok((oracle_price, price_spread, price_spread_pct))
+        .ok_or_else(math_error!())
 }
 
 pub fn is_oracle_mark_too_divergent(
@@ -414,7 +376,7 @@ pub fn is_oracle_mark_too_divergent(
 ) -> ClearingHouseResult<bool> {
     let max_divergence = oracle_guard_rails
         .mark_oracle_divergence_numerator
-        .checked_shl(10)
+        .checked_mul(PRICE_SPREAD_PRECISION_U128)
         .ok_or_else(math_error!())?
         .checked_div(oracle_guard_rails.mark_oracle_divergence_denominator)
         .ok_or_else(math_error!())?;
@@ -422,14 +384,48 @@ pub fn is_oracle_mark_too_divergent(
     Ok(price_spread_pct.unsigned_abs() > max_divergence)
 }
 
+pub fn calculate_mark_twap_spread_pct(amm: &AMM, mark_price: u128) -> ClearingHouseResult<i128> {
+    let mark_price = cast_to_i128(mark_price)?;
+    let mark_twap = cast_to_i128(amm.last_mark_price_twap)?;
+
+    let price_spread = mark_price
+        .checked_sub(mark_twap)
+        .ok_or_else(math_error!())?;
+
+    price_spread
+        .checked_mul(PRICE_SPREAD_PRECISION)
+        .ok_or_else(math_error!())?
+        .checked_div(mark_twap)
+        .ok_or_else(math_error!())
+}
+
+pub fn use_oracle_price_for_margin_calculation(
+    price_spread_pct: i128,
+    oracle_guard_rails: &PriceDivergenceGuardRails,
+) -> ClearingHouseResult<bool> {
+    let max_divergence = oracle_guard_rails
+        .mark_oracle_divergence_numerator
+        .checked_mul(PRICE_SPREAD_PRECISION_U128)
+        .ok_or_else(math_error!())?
+        .checked_div(oracle_guard_rails.mark_oracle_divergence_denominator)
+        .ok_or_else(math_error!())?
+        .checked_div(3)
+        .ok_or_else(math_error!())?;
+
+    Ok(price_spread_pct.unsigned_abs() > max_divergence)
+}
+
 pub fn is_oracle_valid(
-    amm: &AMM,
-    price_oracle: &AccountInfo,
-    clock_slot: u64,
+    oracle_price_data: &OraclePriceData,
     valid_oracle_guard_rails: &ValidityGuardRails,
 ) -> ClearingHouseResult<bool> {
-    let (oracle_price, oracle_twap, oracle_conf, oracle_twap_conf, oracle_delay) =
-        amm.get_oracle_price(price_oracle, clock_slot)?;
+    let OraclePriceData {
+        price: oracle_price,
+        twap: oracle_twap,
+        confidence: oracle_conf,
+        twap_confidence: oracle_twap_conf,
+        delay: oracle_delay,
+    } = *oracle_price_data;
 
     let is_oracle_price_nonpositive = (oracle_twap <= 0) || (oracle_price <= 0);
 

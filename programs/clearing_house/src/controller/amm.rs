@@ -52,8 +52,9 @@ pub fn swap_base_asset(
     base_asset_swap_amount: u128,
     direction: SwapDirection,
     now: i64,
+    precomputed_mark_price: Option<u128>,
 ) -> ClearingHouseResult<u128> {
-    amm::update_mark_twap(amm, now, None)?;
+    amm::update_mark_twap(amm, now, precomputed_mark_price)?;
 
     let initial_quote_asset_reserve = amm.quote_asset_reserve;
     let (new_quote_asset_reserve, new_base_asset_reserve) = amm::calculate_swap_output(

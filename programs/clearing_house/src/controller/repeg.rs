@@ -29,15 +29,10 @@ pub fn repeg(
 
     let adjustment_cost = repeg::adjust_peg_cost(market, new_peg_candidate)?;
 
-    let (oracle_price, _oracle_twap, oracle_conf, _oracle_twac, _oracle_delay) =
-        market.amm.get_oracle_price(price_oracle, clock_slot)?;
-
-    let oracle_is_valid = amm::is_oracle_valid(
-        &market.amm,
-        price_oracle,
-        clock_slot,
-        &oracle_guard_rails.validity,
-    )?;
+    let oracle_price_data = &market.amm.get_oracle_price(price_oracle, clock_slot)?;
+    let oracle_price = oracle_price_data.price;
+    let oracle_conf = oracle_price_data.confidence;
+    let oracle_is_valid = amm::is_oracle_valid(oracle_price_data, &oracle_guard_rails.validity)?;
 
     // if oracle is valid: check on size/direction of repeg
     if oracle_is_valid {

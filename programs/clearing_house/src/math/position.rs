@@ -3,9 +3,12 @@ use crate::controller::position::PositionDirection;
 use crate::error::*;
 use crate::math::amm;
 use crate::math::amm::calculate_quote_asset_amount_swapped;
+use crate::math::constants::{AMM_RESERVE_PRECISION, PRICE_TO_QUOTE_PRECISION_RATIO};
 use crate::math::pnl::calculate_pnl;
+use crate::math_error;
 use crate::state::market::AMM;
 use crate::state::user::MarketPosition;
+use solana_program::msg;
 
 pub fn calculate_base_asset_value_and_pnl(
     market_position: &MarketPosition,
@@ -44,6 +47,39 @@ pub fn _calculate_base_asset_value_and_pnl(
     )?;
 
     let pnl = calculate_pnl(base_asset_value, quote_asset_amount, swap_direction)?;
+
+    Ok((base_asset_value, pnl))
+}
+
+pub fn calculate_base_asset_value_and_pnl_with_oracle_price(
+    market_position: &MarketPosition,
+    oracle_price: i128,
+) -> ClearingHouseResult<(u128, i128)> {
+    if market_position.base_asset_amount == 0 {
+        return Ok((0, 0));
+    }
+
+    let swap_direction = swap_direction_to_close_position(market_position.base_asset_amount);
+
+    let oracle_price = if oracle_price > 0 {
+        oracle_price.unsigned_abs()
+    } else {
+        0
+    };
+
+    let base_asset_value = market_position
+        .base_asset_amount
+        .unsigned_abs()
+        .checked_mul(oracle_price)
+        .ok_or_else(math_error!())?
+        .checked_div(AMM_RESERVE_PRECISION * PRICE_TO_QUOTE_PRECISION_RATIO)
+        .ok_or_else(math_error!())?;
+
+    let pnl = calculate_pnl(
+        base_asset_value,
+        market_position.quote_asset_amount,
+        swap_direction,
+    )?;
 
     Ok((base_asset_value, pnl))
 }

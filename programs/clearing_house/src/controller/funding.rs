@@ -5,6 +5,7 @@ use anchor_lang::prelude::*;
 
 use crate::error::*;
 use crate::math::amm;
+use crate::math::amm::normalise_oracle_price;
 use crate::math::casting::{cast, cast_to_i128, cast_to_i64};
 use crate::math::collateral::calculate_updated_collateral;
 use crate::math::constants::{
@@ -94,14 +95,22 @@ pub fn update_funding_rate(
     funding_rate_history: &mut RefMut<FundingRateHistory>,
     guard_rails: &OracleGuardRails,
     funding_paused: bool,
+    precomputed_mark_price: Option<u128>,
 ) -> ClearingHouseResult {
     let time_since_last_update = now
         .checked_sub(market.amm.last_funding_rate_ts)
         .ok_or_else(math_error!())?;
 
     // Pause funding if oracle is invalid or if mark/oracle spread is too divergent
-    let (block_funding_rate_update, oracle_price) =
-        oracle::block_operation(&market.amm, price_oracle, clock_slot, guard_rails, None)?;
+    let (block_funding_rate_update, oracle_price_data) = oracle::block_operation(
+        &market.amm,
+        price_oracle,
+        clock_slot,
+        guard_rails,
+        precomputed_mark_price,
+    )?;
+    let normalised_oracle_price =
+        normalise_oracle_price(&market.amm, &oracle_price_data, precomputed_mark_price)?;
 
     // round next update time to be available on the hour
     let mut next_update_wait = market.amm.funding_period;
@@ -137,7 +146,8 @@ pub fn update_funding_rate(
     }
 
     if !funding_paused && !block_funding_rate_update && time_since_last_update >= next_update_wait {
-        let oracle_price_twap = amm::update_oracle_price_twap(&mut market.amm, now, oracle_price)?;
+        let oracle_price_twap =
+            amm::update_oracle_price_twap(&mut market.amm, now, normalised_oracle_price)?;
         let mark_price_twap = amm::update_mark_twap(&mut market.amm, now, None)?;
 
         let one_hour_i64 = cast_to_i64(ONE_HOUR)?;

@@ -20,7 +20,10 @@ import {
 } from './testHelpers';
 
 describe('max positions', () => {
-	const provider = anchor.Provider.local();
+	const provider = anchor.Provider.local(undefined, {
+		preflightCommitment: 'confirmed',
+		commitment: 'confirmed',
+	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.ClearingHouse as Program;
@@ -104,7 +107,7 @@ describe('max positions', () => {
 		const markets = clearingHouse.getMarketsAccount();
 		for (let i = 0; i < maxPositions; i++) {
 			const oracle = markets.markets[i].amm.oracle;
-			await setFeedPrice(anchor.workspace.Pyth, 0.9, oracle);
+			await setFeedPrice(anchor.workspace.Pyth, 0.83, oracle);
 			await clearingHouse.updateFundingRate(oracle, new BN(i));
 			await clearingHouse.moveAmmPrice(
 				ammInitialBaseAssetReserve.mul(new BN(118)),
@@ -121,6 +124,11 @@ describe('max positions', () => {
 			'confirmed'
 		);
 		console.log('compute units', computeUnits);
+		console.log(
+			'tx logs',
+			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
+				.logMessages
+		);
 	});
 
 	it('liquidate', async () => {
@@ -143,5 +151,10 @@ describe('max positions', () => {
 			'confirmed'
 		);
 		console.log('compute units', computeUnits);
+		console.log(
+			'tx logs',
+			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
+				.logMessages
+		);
 	});
 });

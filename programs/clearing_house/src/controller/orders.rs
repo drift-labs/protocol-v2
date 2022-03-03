@@ -22,6 +22,7 @@ use crate::state::{
 };
 
 use crate::controller;
+use crate::math::amm::normalise_oracle_price;
 use crate::math::fees::calculate_order_fee_tier;
 use crate::order_validation::validate_order;
 use crate::state::history::funding_payment::FundingPaymentHistory;
@@ -359,18 +360,20 @@ pub fn fill_order(
             .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
         let market = markets.get_market_mut(market_index);
         mark_price_before = market.amm.mark_price()?;
-        let (_oracle_price, _, _oracle_mark_spread_pct_before) =
-            amm::calculate_oracle_mark_spread_pct(&market.amm, oracle, 0, clock_slot, None)?;
-        oracle_price = _oracle_price;
-        oracle_mark_spread_pct_before = _oracle_mark_spread_pct_before;
-        is_oracle_valid = amm::is_oracle_valid(
+        let oracle_price_data = &market.amm.get_oracle_price(oracle, clock_slot)?;
+        oracle_mark_spread_pct_before = amm::calculate_oracle_mark_spread_pct(
             &market.amm,
-            oracle,
-            clock_slot,
-            &state.oracle_guard_rails.validity,
+            oracle_price_data,
+            0,
+            Some(mark_price_before),
         )?;
+        oracle_price = oracle_price_data.price;
+        let normalised_price =
+            normalise_oracle_price(&market.amm, oracle_price_data, Some(mark_price_before))?;
+        is_oracle_valid =
+            amm::is_oracle_valid(oracle_price_data, &state.oracle_guard_rails.validity)?;
         if is_oracle_valid {
-            amm::update_oracle_price_twap(&mut market.amm, now, oracle_price)?;
+            amm::update_oracle_price_twap(&mut market.amm, now, normalised_price)?;
         }
     }
 
@@ -379,6 +382,7 @@ pub fn fill_order(
     } else {
         None
     };
+
     let (base_asset_amount, quote_asset_amount, potentially_risk_increasing) = execute_order(
         state,
         user,
@@ -406,16 +410,14 @@ pub fn fill_order(
             .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
         let market = markets.get_market_mut(market_index);
         mark_price_after = market.amm.mark_price()?;
-        let (_oracle_price_after, _oracle_mark_spread_after, _oracle_mark_spread_pct_after) =
-            amm::calculate_oracle_mark_spread_pct(
-                &market.amm,
-                oracle,
-                0,
-                clock_slot,
-                Some(mark_price_after),
-            )?;
-        oracle_price_after = _oracle_price_after;
-        oracle_mark_spread_pct_after = _oracle_mark_spread_pct_after;
+        let oracle_price_data = &market.amm.get_oracle_price(oracle, clock_slot)?;
+        oracle_mark_spread_pct_after = amm::calculate_oracle_mark_spread_pct(
+            &market.amm,
+            oracle_price_data,
+            0,
+            Some(mark_price_after),
+        )?;
+        oracle_price_after = oracle_price_data.price;
     }
 
     let is_oracle_mark_too_divergent_before = amm::is_oracle_mark_too_divergent(
@@ -444,20 +446,16 @@ pub fn fill_order(
         return Err(ErrorCode::OracleMarkSpreadLimit);
     }
 
-    // Order fails if it's risk increasing and it brings the user below the initial margin ratio level
-    let (
-        _total_collateral_after,
-        _unrealized_pnl_after,
-        _base_asset_value_after,
-        margin_ratio_after,
-    ) = calculate_margin_ratio(
+    // Order fails if it's risk increasing and it brings the user collateral below the initial margin requirement
+    let meets_initial_maintenance_requirement = meets_initial_margin_requirement(
+        state,
         user,
         user_positions,
         &markets
             .load()
             .or(Err(ErrorCode::UnableToLoadAccountLoader))?,
     )?;
-    if margin_ratio_after < state.margin_ratio_initial && potentially_risk_increasing {
+    if !meets_initial_maintenance_requirement && potentially_risk_increasing {
         return Err(ErrorCode::InsufficientCollateral);
     }
 
@@ -610,6 +608,7 @@ pub fn fill_order(
             funding_rate_history,
             &state.oracle_guard_rails,
             state.funding_paused,
+            Some(mark_price_before),
         )?;
     }
 

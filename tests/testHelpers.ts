@@ -294,6 +294,19 @@ export const setFeedPrice = async (
 		accounts: { price: priceFeed },
 	});
 };
+export const setFeedTwap = async (
+	oracleProgram: Program,
+	newTwap: number,
+	priceFeed: PublicKey
+) => {
+	const info = await oracleProgram.provider.connection.getAccountInfo(
+		priceFeed
+	);
+	const data = parsePriceData(info.data);
+	await oracleProgram.rpc.setTwap(new BN(newTwap * 10 ** -data.exponent), {
+		accounts: { price: priceFeed },
+	});
+};
 export const getFeedData = async (
 	oracleProgram: Program,
 	priceFeed: PublicKey

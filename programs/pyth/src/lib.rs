@@ -43,6 +43,14 @@ pub mod pyth {
         price_oracle.agg.price = price as i64;
         Ok(())
     }
+
+    pub fn set_twap(ctx: Context<SetPrice>, twap: i64) -> ProgramResult {
+        let oracle = &ctx.accounts.price;
+        let mut price_oracle = Price::load(oracle).unwrap();
+
+        price_oracle.twap = twap;
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]

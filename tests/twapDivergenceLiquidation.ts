@@ -1,26 +1,22 @@
 import * as anchor from '@project-serum/anchor';
+import { assert } from 'chai';
 import { BN } from '../sdk';
 
 import { Program } from '@project-serum/anchor';
 
 import { PublicKey } from '@solana/web3.js';
 
-import {
-	Admin,
-	findComputeUnitConsumption,
-	MARK_PRICE_PRECISION,
-	PositionDirection,
-	QUOTE_PRECISION,
-} from '../sdk/src';
+import { Admin, MARK_PRICE_PRECISION, PositionDirection } from '../sdk/src';
 
 import {
 	mockOracle,
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	setFeedPrice,
+	setFeedTwap,
 } from './testHelpers';
 
-describe('max reserves', () => {
+describe('twap divergence liquidation', () => {
 	const provider = anchor.Provider.local(undefined, {
 		preflightCommitment: 'confirmed',
 		commitment: 'confirmed',
@@ -38,18 +34,14 @@ describe('max reserves', () => {
 
 	// ammInvariant == k == x * y
 	const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
+	const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
+		mantissaSqrtScale
+	);
+	const ammInitialBaseAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
+		mantissaSqrtScale
+	);
 
-	// MAX SQRT K WITHOUT MATH ERRORS
-	const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13)
-		.mul(mantissaSqrtScale)
-		.mul(MARK_PRICE_PRECISION);
-	const ammInitialBaseAssetReserve = new anchor.BN(5 * 10 ** 13)
-		.mul(mantissaSqrtScale)
-		.mul(MARK_PRICE_PRECISION);
-
-	const usdcAmount = new BN(QUOTE_PRECISION)
-		.mul(mantissaSqrtScale)
-		.mul(new BN(1));
+	const usdcAmount = new BN(10 * 10 ** 6);
 
 	const maxPositions = 5;
 
@@ -66,7 +58,7 @@ describe('max reserves', () => {
 			}
 		);
 		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.subscribe();
+		await clearingHouse.subscribeToAll();
 
 		for (let i = 0; i < maxPositions; i++) {
 			const oracle = await mockOracle(1);
@@ -86,13 +78,7 @@ describe('max reserves', () => {
 				usdcAmount,
 				userUSDCAccount.publicKey
 			);
-	});
 
-	after(async () => {
-		await clearingHouse.unsubscribe();
-	});
-
-	it('open max positions', async () => {
 		const usdcPerPosition = usdcAmount
 			.mul(new BN(5))
 			.div(new BN(maxPositions))
@@ -108,46 +94,30 @@ describe('max reserves', () => {
 		}
 	});
 
-	it('partial liquidate', async () => {
-		const markets = clearingHouse.getMarketsAccount();
-		for (let i = 0; i < maxPositions; i++) {
-			const oracle = markets.markets[i].amm.oracle;
-			await setFeedPrice(anchor.workspace.Pyth, 0.8, oracle);
-			await clearingHouse.updateFundingRate(oracle, new BN(i));
-			await clearingHouse.moveAmmToPrice(
-				new BN(i),
-				new BN((1 / 1.18) * MARK_PRICE_PRECISION.toNumber())
-			);
-		}
-		console.log('liquidate');
-		const txSig = await clearingHouse.liquidate(userAccountPublicKey);
-		const computeUnits = await findComputeUnitConsumption(
-			clearingHouse.program.programId,
-			connection,
-			txSig,
-			'confirmed'
-		);
-		console.log('compute units', computeUnits);
+	after(async () => {
+		await clearingHouse.unsubscribe();
 	});
 
 	it('liquidate', async () => {
 		const markets = clearingHouse.getMarketsAccount();
 		for (let i = 0; i < maxPositions; i++) {
 			const oracle = markets.markets[i].amm.oracle;
-			await setFeedPrice(anchor.workspace.Pyth, 0.1, oracle);
-			await clearingHouse.moveAmmToPrice(
-				new BN(i),
-				new BN(0.1 * MARK_PRICE_PRECISION.toNumber())
+			await setFeedPrice(anchor.workspace.Pyth, 0.85, oracle);
+			await setFeedTwap(anchor.workspace.Pyth, 100, oracle);
+			await clearingHouse.updateFundingRate(oracle, new BN(i));
+			await clearingHouse.moveAmmPrice(
+				ammInitialBaseAssetReserve.mul(new BN(201)),
+				ammInitialQuoteAssetReserve.mul(new BN(100)),
+				new BN(i)
 			);
 		}
 
-		const txSig = await clearingHouse.liquidate(userAccountPublicKey);
-		const computeUnits = await findComputeUnitConsumption(
-			clearingHouse.program.programId,
-			connection,
-			txSig,
-			'confirmed'
-		);
-		console.log('compute units', computeUnits);
+		try {
+			await clearingHouse.liquidate(userAccountPublicKey);
+		} catch (e) {
+			assert(e.message.includes('0x17a8'));
+			return;
+		}
+		assert(false);
 	});
 });

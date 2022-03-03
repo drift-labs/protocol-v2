@@ -52,7 +52,6 @@ import {
 	ClearingHouseAccountTypes,
 } from './accounts/types';
 import { TxSender } from './tx/types';
-import { DefaultTxSender } from './tx/defaultTxSender';
 import { wrapInTx } from './tx/utils';
 import {
 	getClearingHouse,
