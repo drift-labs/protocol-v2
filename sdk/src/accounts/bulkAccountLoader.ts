@@ -135,19 +135,11 @@ export class BulkAccountLoader {
 			{ commitment: this.commitment },
 		];
 
-		let rpcResponse;
-		try {
-			// @ts-ignore
-			rpcResponse = await this.connection._rpcRequest(
-				'getMultipleAccounts',
-				args
-			);
-		} catch (e) {
-			for (const [_, callback] of this.errorCallbacks) {
-				callback(e);
-			}
-			return;
-		}
+		// @ts-ignore
+		const rpcResponse = await this.connection._rpcRequest(
+			'getMultipleAccounts',
+			args
+		);
 
 		const newSlot = rpcResponse.result.context.slot;
 
