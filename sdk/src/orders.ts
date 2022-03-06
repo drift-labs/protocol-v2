@@ -3,16 +3,25 @@ import {
 	Market,
 	Order,
 	PositionDirection,
+	SwapDirection,
 	UserAccount,
 	UserPosition,
 } from './types';
-import { BN } from '.';
+import {
+	BN,
+	calculateAmmReservesAfterSwap,
+	calculateBaseAssetValue,
+	ClearingHouseUser,
+	isOrderRiskIncreasingInSameDirection,
+	TEN_THOUSAND,
+} from '.';
 import {
 	calculateMarkPrice,
 	calculateNewMarketAfterTrade,
 } from './math/market';
 import {
 	AMM_TO_QUOTE_PRECISION_RATIO,
+	TWO,
 	PEG_PRECISION,
 	ZERO,
 } from './constants/numericConstants';
@@ -32,7 +41,10 @@ export function calculateNewStateAfterOrder(
 		return null;
 	}
 
-	const baseAssetAmountToTrade = calculateAmountToTrade(market, order);
+	const baseAssetAmountToTrade = calculateBaseAssetAmountMarketCanExecute(
+		market,
+		order
+	);
 	if (baseAssetAmountToTrade.lt(market.amm.minimumBaseAssetTradeSize)) {
 		return null;
 	}
@@ -157,7 +169,10 @@ function calculateAmountSwapped(
 	};
 }
 
-function calculateAmountToTrade(market: Market, order: Order): BN {
+export function calculateBaseAssetAmountMarketCanExecute(
+	market: Market,
+	order: Order
+): BN {
 	if (isVariant(order.orderType, 'limit')) {
 		return calculateAmountToTradeForLimit(market, order);
 	} else if (isVariant(order.orderType, 'triggerLimit')) {
@@ -233,4 +248,42 @@ function isTriggerConditionSatisfied(market: Market, order: Order): boolean {
 	} else {
 		return markPrice.lt(order.triggerPrice);
 	}
+}
+
+export function calculateBaseAssetAmountUserCanExecute(
+	market: Market,
+	order: Order,
+	user: ClearingHouseUser
+): BN {
+	const maxLeverage = user.getMaxLeverage('Initial');
+	const freeCollateral = user.getFreeCollateral();
+	let quoteAssetAmount: BN;
+	if (isOrderRiskIncreasingInSameDirection(user, order)) {
+		quoteAssetAmount = freeCollateral.mul(maxLeverage).div(TEN_THOUSAND);
+	} else {
+		const position =
+			user.getUserPosition(order.marketIndex) ||
+			user.getEmptyPosition(order.marketIndex);
+		const positionValue = calculateBaseAssetValue(market, position);
+		quoteAssetAmount = freeCollateral
+			.mul(maxLeverage)
+			.div(TEN_THOUSAND)
+			.add(positionValue.mul(TWO));
+	}
+
+	if (quoteAssetAmount.lte(ZERO)) {
+		return ZERO;
+	}
+
+	const baseAssetReservesBefore = market.amm.baseAssetReserve;
+	const [_, baseAssetReservesAfter] = calculateAmmReservesAfterSwap(
+		market.amm,
+		'quote',
+		quoteAssetAmount,
+		isVariant(order.direction, 'long')
+			? SwapDirection.ADD
+			: SwapDirection.REMOVE
+	);
+
+	return baseAssetReservesBefore.sub(baseAssetReservesAfter).abs();
 }
