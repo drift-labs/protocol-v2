@@ -255,7 +255,7 @@ export function calculateBaseAssetAmountUserCanExecute(
 	order: Order,
 	user: ClearingHouseUser
 ): BN {
-	const maxLeverage = user.getMaxLeverage('Initial');
+	const maxLeverage = user.getMaxLeverage(order.marketIndex, 'Initial');
 	const freeCollateral = user.getFreeCollateral();
 	let quoteAssetAmount: BN;
 	if (isOrderRiskIncreasingInSameDirection(user, order)) {
