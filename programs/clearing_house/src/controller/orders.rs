@@ -384,7 +384,6 @@ pub fn fill_order(
     };
 
     let (base_asset_amount, quote_asset_amount, potentially_risk_increasing) = execute_order(
-        state,
         user,
         user_positions,
         order,
@@ -448,7 +447,6 @@ pub fn fill_order(
 
     // Order fails if it's risk increasing and it brings the user collateral below the initial margin requirement
     let meets_initial_maintenance_requirement = meets_initial_margin_requirement(
-        state,
         user,
         user_positions,
         &markets
@@ -616,7 +614,6 @@ pub fn fill_order(
 }
 
 pub fn execute_order(
-    state: &State,
     user: &mut User,
     user_positions: &mut RefMut<UserPositions>,
     order: &mut Order,
@@ -637,7 +634,6 @@ pub fn execute_order(
             now,
         ),
         _ => execute_non_market_order(
-            state,
             user,
             user_positions,
             order,
@@ -713,7 +709,6 @@ pub fn execute_market_order(
 }
 
 pub fn execute_non_market_order(
-    state: &State,
     user: &mut User,
     user_positions: &mut RefMut<UserPositions>,
     order: &mut Order,
@@ -725,7 +720,6 @@ pub fn execute_non_market_order(
 ) -> ClearingHouseResult<(u128, u128, bool)> {
     // Determine the base asset amount the user can fill
     let base_asset_amount_user_can_execute = calculate_base_asset_amount_user_can_execute(
-        state,
         user,
         user_positions,
         order,

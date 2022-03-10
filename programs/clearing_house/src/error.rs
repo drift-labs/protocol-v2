@@ -118,6 +118,8 @@ pub enum ErrorCode {
     UserOrderIdAlreadyInUse,
     #[msg("No positions liquidatable")]
     NoPositionsLiquidatable,
+    #[msg("Invalid Margin Ratio")]
+    InvalidMarginRatio,
 }
 
 #[macro_export]

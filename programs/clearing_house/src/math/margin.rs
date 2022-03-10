@@ -13,7 +13,7 @@ use crate::math::amm::use_oracle_price_for_margin_calculation;
 use crate::math::casting::cast_to_i128;
 use crate::math::oracle::{get_oracle_status, OracleStatus};
 use crate::math::slippage::calculate_slippage;
-use crate::state::state::{OracleGuardRails, State};
+use crate::state::state::OracleGuardRails;
 use anchor_lang::prelude::{AccountInfo, Pubkey};
 use anchor_lang::Key;
 use solana_program::clock::Slot;
@@ -22,7 +22,6 @@ use std::collections::BTreeMap;
 use std::ops::Div;
 
 pub fn meets_initial_margin_requirement(
-    state: &State,
     user: &User,
     user_positions: &RefMut<UserPositions>,
     markets: &Ref<Markets>,
@@ -43,7 +42,7 @@ pub fn meets_initial_margin_requirement(
         initial_margin_requirement = initial_margin_requirement
             .checked_add(
                 position_base_asset_value
-                    .checked_mul(state.margin_ratio_initial)
+                    .checked_mul(market.margin_ratio_initial.into())
                     .ok_or_else(math_error!())?,
             )
             .ok_or_else(math_error!())?;
@@ -92,7 +91,6 @@ pub struct MarketStatus {
 }
 
 pub fn calculate_liquidation_status(
-    state: &State,
     user: &User,
     user_positions: &RefMut<UserPositions>,
     markets: &Ref<Markets>,
@@ -182,7 +180,7 @@ pub fn calculate_liquidation_status(
                     .ok_or_else(math_error!())?;
 
                 market_partial_margin_requirement = (oracle_position_base_asset_value)
-                    .checked_mul(state.margin_ratio_partial)
+                    .checked_mul(market.margin_ratio_partial.into())
                     .ok_or_else(math_error!())?;
 
                 partial_margin_requirement = partial_margin_requirement
@@ -190,7 +188,7 @@ pub fn calculate_liquidation_status(
                     .ok_or_else(math_error!())?;
 
                 market_maintenance_margin_requirement = oracle_position_base_asset_value
-                    .checked_mul(state.margin_ratio_maintenance)
+                    .checked_mul(market.margin_ratio_maintenance.into())
                     .ok_or_else(math_error!())?;
 
                 maintenance_margin_requirement = maintenance_margin_requirement
@@ -202,7 +200,7 @@ pub fn calculate_liquidation_status(
                     .ok_or_else(math_error!())?;
 
                 market_partial_margin_requirement = (amm_position_base_asset_value)
-                    .checked_mul(state.margin_ratio_partial)
+                    .checked_mul(market.margin_ratio_partial.into())
                     .ok_or_else(math_error!())?;
 
                 partial_margin_requirement = partial_margin_requirement
@@ -210,7 +208,7 @@ pub fn calculate_liquidation_status(
                     .ok_or_else(math_error!())?;
 
                 market_maintenance_margin_requirement = amm_position_base_asset_value
-                    .checked_mul(state.margin_ratio_maintenance)
+                    .checked_mul(market.margin_ratio_maintenance.into())
                     .ok_or_else(math_error!())?;
 
                 maintenance_margin_requirement = maintenance_margin_requirement
@@ -223,7 +221,7 @@ pub fn calculate_liquidation_status(
                 .ok_or_else(math_error!())?;
 
             market_partial_margin_requirement = (amm_position_base_asset_value)
-                .checked_mul(state.margin_ratio_partial)
+                .checked_mul(market.margin_ratio_partial.into())
                 .ok_or_else(math_error!())?;
 
             partial_margin_requirement = partial_margin_requirement
@@ -231,7 +229,7 @@ pub fn calculate_liquidation_status(
                 .ok_or_else(math_error!())?;
 
             market_maintenance_margin_requirement = amm_position_base_asset_value
-                .checked_mul(state.margin_ratio_maintenance)
+                .checked_mul(market.margin_ratio_maintenance.into())
                 .ok_or_else(math_error!())?;
 
             maintenance_margin_requirement = maintenance_margin_requirement
@@ -316,7 +314,6 @@ pub fn calculate_liquidation_status(
 }
 
 pub fn calculate_free_collateral(
-    state: &State,
     user: &User,
     user_positions: &mut UserPositions,
     markets: &Markets,
@@ -342,7 +339,7 @@ pub fn calculate_free_collateral(
             initial_margin_requirement = initial_margin_requirement
                 .checked_add(
                     position_base_asset_value
-                        .checked_mul(state.margin_ratio_initial)
+                        .checked_mul(market.margin_ratio_initial.into())
                         .ok_or_else(math_error!())?,
                 )
                 .ok_or_else(math_error!())?;

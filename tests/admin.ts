@@ -5,7 +5,6 @@ import { assert } from 'chai';
 
 import {
 	Admin,
-	MARK_PRICE_PRECISION,
 	FeeStructure,
 	OracleGuardRails,
 	OrderFillerRewardStructure,
@@ -43,25 +42,36 @@ describe('admin', () => {
 
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
+		const solUsd = await mockOracle(1);
+		const periodicity = new BN(60 * 60); // 1 HOUR
+
+		await clearingHouse.initializeMarket(
+			Markets[0].marketIndex,
+			solUsd,
+			new BN(1000),
+			new BN(1000),
+			periodicity
+		);
 	});
 
 	it('Update Margin Ratio', async () => {
-		const marginRatioInitial = new BN(1);
-		const marginRatioPartial = new BN(1);
-		const marginRatioMaintenance = new BN(1);
+		const marginRatioInitial = 3000;
+		const marginRatioPartial = 2000;
+		const marginRatioMaintenance = 1000;
 
 		await clearingHouse.updateMarginRatio(
+			Markets[0].marketIndex,
 			marginRatioInitial,
 			marginRatioPartial,
 			marginRatioMaintenance
 		);
 
 		await clearingHouse.fetchAccounts();
-		const state = clearingHouse.getStateAccount();
+		const market = clearingHouse.getMarket(0);
 
-		assert(state.marginRatioInitial.eq(marginRatioInitial));
-		assert(state.marginRatioPartial.eq(marginRatioPartial));
-		assert(state.marginRatioMaintenance.eq(marginRatioMaintenance));
+		assert(market.marginRatioInitial === marginRatioInitial);
+		assert(market.marginRatioPartial === marginRatioPartial);
+		assert(market.marginRatioMaintenance === marginRatioMaintenance);
 	});
 
 	it('Update Partial Liquidation Close Percentages', async () => {
@@ -246,26 +256,6 @@ describe('admin', () => {
 	});
 
 	it('Update market oracle', async () => {
-		const solUsd = await mockOracle(1);
-		const periodicity = new BN(60 * 60); // 1 HOUR
-		const mantissaSqrtScale = new BN(
-			Math.sqrt(MARK_PRICE_PRECISION.toNumber())
-		);
-		const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
-			mantissaSqrtScale
-		);
-		const ammInitialBaseAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
-			mantissaSqrtScale
-		);
-
-		await clearingHouse.initializeMarket(
-			Markets[0].marketIndex,
-			solUsd,
-			ammInitialBaseAssetReserve,
-			ammInitialQuoteAssetReserve,
-			periodicity
-		);
-
 		const newOracle = PublicKey.default;
 		const newOracleSource = OracleSource.SWITCHBOARD;
 

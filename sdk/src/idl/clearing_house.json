@@ -211,6 +211,18 @@
         {
           "name": "ammPegMultiplier",
           "type": "u128"
+        },
+        {
+          "name": "marginRatioInitial",
+          "type": "u32"
+        },
+        {
+          "name": "marginRatioPartial",
+          "type": "u32"
+        },
+        {
+          "name": "marginRatioMaintenance",
+          "type": "u32"
         }
       ]
     },
@@ -1526,22 +1538,31 @@
         },
         {
           "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "markets",
           "isMut": true,
           "isSigner": false
         }
       ],
       "args": [
         {
+          "name": "marketIndex",
+          "type": "u64"
+        },
+        {
           "name": "marginRatioInitial",
-          "type": "u128"
+          "type": "u32"
         },
         {
           "name": "marginRatioPartial",
-          "type": "u128"
+          "type": "u32"
         },
         {
           "name": "marginRatioMaintenance",
-          "type": "u128"
+          "type": "u32"
         }
       ]
     },
@@ -3029,8 +3050,20 @@
             }
           },
           {
+            "name": "marginRatioInitial",
+            "type": "u32"
+          },
+          {
+            "name": "marginRatioPartial",
+            "type": "u32"
+          },
+          {
+            "name": "marginRatioMaintenance",
+            "type": "u32"
+          },
+          {
             "name": "padding0",
-            "type": "u128"
+            "type": "u32"
           },
           {
             "name": "padding1",
@@ -4132,6 +4165,11 @@
       "code": 6056,
       "name": "NoPositionsLiquidatable",
       "msg": "No positions liquidatable"
+    },
+    {
+      "code": 6057,
+      "name": "InvalidMarginRatio",
+      "msg": "Invalid Margin Ratio"
     }
   ]
 }

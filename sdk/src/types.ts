@@ -267,7 +267,6 @@ export type OrderStateAccount = {
 };
 
 export type MarketsAccount = {
-	accountIndex: BN;
 	markets: Market[];
 };
 
@@ -278,6 +277,9 @@ export type Market = {
 	baseAssetAmountShort: BN;
 	initialized: boolean;
 	openInterest: BN;
+	marginRatioInitial: number;
+	marginRatioMaintenance: number;
+	marginRatioPartial: number;
 };
 
 export type AMM = {
@@ -443,3 +445,5 @@ export type OrderFillerRewardStructure = {
 	rewardDenominator: BN;
 	timeBasedRewardLowerBound: BN;
 };
+
+export type MarginCategory = 'Initial' | 'Partial' | 'Maintenance';

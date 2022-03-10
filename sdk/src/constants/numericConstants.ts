@@ -7,8 +7,6 @@ export const TEN_THOUSAND = new BN(10000);
 export const BN_MAX = new BN(Number.MAX_SAFE_INTEGER);
 
 export const MAX_LEVERAGE = new BN(5);
-export const FULL_LIQUIDATION_RATIO = new BN(500);
-export const PARTIAL_LIQUIDATION_RATIO = new BN(625);
 
 export const QUOTE_PRECISION = new BN(10 ** 6);
 export const MARK_PRICE_PRECISION = new BN(10 ** 10);
@@ -23,3 +21,4 @@ export const PRICE_TO_QUOTE_PRECISION =
 	MARK_PRICE_PRECISION.div(QUOTE_PRECISION);
 export const AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO =
 	AMM_RESERVE_PRECISION.mul(PEG_PRECISION).div(QUOTE_PRECISION); // 10^10
+export const MARGIN_PRECISION = TEN_THOUSAND;

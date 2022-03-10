@@ -43,9 +43,12 @@ pub struct Market {
     pub base_asset_amount: i128, // net market bias
     pub open_interest: u128,     // number of users in a position
     pub amm: AMM,
+    pub margin_ratio_initial: u32,
+    pub margin_ratio_partial: u32,
+    pub margin_ratio_maintenance: u32,
 
     // upgrade-ability
-    pub padding0: u128,
+    pub padding0: u32,
     pub padding1: u128,
     pub padding2: u128,
     pub padding3: u128,
