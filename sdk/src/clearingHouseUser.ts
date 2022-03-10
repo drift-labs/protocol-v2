@@ -585,21 +585,21 @@ export class ClearingHouseUser {
 		);
 
 		const marketMaxLeverage = partial
-			? new BN(market.marginRatioPartial)
-			: new BN(market.marginRatioMaintenance);
+			? this.getMaxLeverage(proposedMarketPosition.marketIndex, 'Partial')
+			: this.getMaxLeverage(proposedMarketPosition.marketIndex, 'Maintenance');
 
 		let priceDelta;
 		if (proposedBaseAssetAmount.lt(ZERO)) {
 			priceDelta = freeCollateralAfterTrade
-				.mul(marketMaxLeverage)
-				.div(marketMaxLeverage.add(new BN(1)))
+				.mul(marketMaxLeverage) // precision is TEN_THOUSAND
+				.div(marketMaxLeverage.add(TEN_THOUSAND))
 				.mul(PRICE_TO_QUOTE_PRECISION)
 				.mul(AMM_RESERVE_PRECISION)
 				.div(proposedBaseAssetAmount);
 		} else {
 			priceDelta = freeCollateralAfterTrade
-				.mul(marketMaxLeverage)
-				.div(marketMaxLeverage.sub(new BN(1)))
+				.mul(marketMaxLeverage) // precision is TEN_THOUSAND
+				.div(marketMaxLeverage.sub(TEN_THOUSAND))
 				.mul(PRICE_TO_QUOTE_PRECISION)
 				.mul(AMM_RESERVE_PRECISION)
 				.div(proposedBaseAssetAmount);

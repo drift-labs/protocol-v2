@@ -682,7 +682,7 @@ describe('clearing_house', () => {
 		);
 		console.log(chInsuranceAccountToken.amount.toNumber());
 
-		assert.ok(chInsuranceAccountToken.amount.eq(new BN(38409)));
+		assert.ok(chInsuranceAccountToken.amount.eq(new BN(43230)));
 
 		const tradeHistoryAccount = clearingHouse.getTradeHistoryAccount();
 
@@ -697,12 +697,12 @@ describe('clearing_house', () => {
 		);
 		assert.ok(
 			tradeHistoryAccount.tradeRecords[5].baseAssetAmount.eq(
-				new BN(122540307509025)
+				new BN(122540270605251)
 			)
 		);
 		assert.ok(tradeHistoryAccount.tradeRecords[5].liquidation);
 		assert.ok(
-			tradeHistoryAccount.tradeRecords[5].quoteAssetAmount.eq(new BN(13934127))
+			tradeHistoryAccount.tradeRecords[5].quoteAssetAmount.eq(new BN(13837703))
 		);
 		assert.ok(tradeHistoryAccount.tradeRecords[5].marketIndex.eq(new BN(0)));
 
@@ -715,23 +715,23 @@ describe('clearing_house', () => {
 		assert.ok(liquidationHistory.liquidationRecords[0].partial);
 		assert.ok(
 			liquidationHistory.liquidationRecords[0].baseAssetValue.eq(
-				new BN(55736508)
+				new BN(55350814)
 			)
 		);
 		assert.ok(
 			liquidationHistory.liquidationRecords[0].baseAssetValueClosed.eq(
-				new BN(13934127)
+				new BN(13837703)
 			)
 		);
 		assert.ok(
-			liquidationHistory.liquidationRecords[0].liquidationFee.eq(new BN(76817))
+			liquidationHistory.liquidationRecords[0].liquidationFee.eq(new BN(86460))
 		);
 		assert.ok(
-			liquidationHistory.liquidationRecords[0].feeToLiquidator.eq(new BN(38408))
+			liquidationHistory.liquidationRecords[0].feeToLiquidator.eq(new BN(43230))
 		);
 		assert.ok(
 			liquidationHistory.liquidationRecords[0].feeToInsuranceFund.eq(
-				new BN(38409)
+				new BN(43230)
 			)
 		);
 		assert.ok(
@@ -741,7 +741,7 @@ describe('clearing_house', () => {
 		);
 		assert.ok(
 			liquidationHistory.liquidationRecords[0].totalCollateral.eq(
-				new BN(3072710)
+				new BN(3458404)
 			)
 		);
 		assert.ok(
@@ -749,11 +749,11 @@ describe('clearing_house', () => {
 		);
 		assert.ok(
 			liquidationHistory.liquidationRecords[0].unrealizedPnl.eq(
-				new BN(-6729032)
+				new BN(-6343338)
 			)
 		);
 		assert.ok(
-			liquidationHistory.liquidationRecords[0].marginRatio.eq(new BN(551))
+			liquidationHistory.liquidationRecords[0].marginRatio.eq(new BN(624))
 		);
 	});
 
@@ -810,7 +810,7 @@ describe('clearing_house', () => {
 		);
 		console.log(chInsuranceAccountToken.amount.toNumber());
 
-		assert.ok(chInsuranceAccountToken.amount.eq(new BN(2025638)));
+		assert.ok(chInsuranceAccountToken.amount.eq(new BN(2073608)));
 
 		const tradeHistoryAccount = clearingHouse.getTradeHistoryAccount();
 
@@ -825,12 +825,12 @@ describe('clearing_house', () => {
 		);
 		assert.ok(
 			tradeHistoryAccount.tradeRecords[6].baseAssetAmount.eq(
-				new BN(367582491853628)
+				new BN(367582528757402)
 			)
 		);
 		assert.ok(tradeHistoryAccount.tradeRecords[6].liquidation);
 		assert.ok(
-			tradeHistoryAccount.tradeRecords[6].quoteAssetAmount.eq(new BN(42706454))
+			tradeHistoryAccount.tradeRecords[6].quoteAssetAmount.eq(new BN(42747816))
 		);
 		assert.ok(tradeHistoryAccount.tradeRecords[6].marketIndex.eq(new BN(0)));
 
@@ -843,27 +843,27 @@ describe('clearing_house', () => {
 		assert.ok(!liquidationHistory.liquidationRecords[1].partial);
 		assert.ok(
 			liquidationHistory.liquidationRecords[1].baseAssetValue.eq(
-				new BN(42706454)
+				new BN(42747816)
 			)
 		);
 		assert.ok(
 			liquidationHistory.liquidationRecords[1].baseAssetValueClosed.eq(
-				new BN(42706454)
+				new BN(42747816)
 			)
 		);
 		assert.ok(
 			liquidationHistory.liquidationRecords[1].liquidationFee.eq(
-				new BN(2091820)
+				new BN(2137239)
 			)
 		);
 		assert.ok(
 			liquidationHistory.liquidationRecords[1].feeToLiquidator.eq(
-				new BN(104591)
+				new BN(106861)
 			)
 		);
 		assert.ok(
 			liquidationHistory.liquidationRecords[1].feeToInsuranceFund.eq(
-				new BN(1987229)
+				new BN(2030378)
 			)
 		);
 		assert.ok(
@@ -873,19 +873,19 @@ describe('clearing_house', () => {
 		);
 		assert.ok(
 			liquidationHistory.liquidationRecords[1].totalCollateral.eq(
-				new BN(2091820)
+				new BN(2137239)
 			)
 		);
 		assert.ok(
-			liquidationHistory.liquidationRecords[1].collateral.eq(new BN(8043627))
+			liquidationHistory.liquidationRecords[1].collateral.eq(new BN(8130404))
 		);
 		assert.ok(
 			liquidationHistory.liquidationRecords[1].unrealizedPnl.eq(
-				new BN(-5951807)
+				new BN(-5993165)
 			)
 		);
 		assert.ok(
-			liquidationHistory.liquidationRecords[1].marginRatio.eq(new BN(489))
+			liquidationHistory.liquidationRecords[1].marginRatio.eq(new BN(499))
 		);
 	});
 
