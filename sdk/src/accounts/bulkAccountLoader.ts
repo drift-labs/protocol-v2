@@ -20,6 +20,7 @@ export class BulkAccountLoader {
 	// to handle clients spamming load
 	loadPromise?: Promise<void>;
 	loadPromiseResolver: () => void;
+	loggingEnabled = false;
 
 	public constructor(
 		connection: Connection,
@@ -99,6 +100,10 @@ export class BulkAccountLoader {
 		this.loadPromise = new Promise((resolver) => {
 			this.loadPromiseResolver = resolver;
 		});
+
+		if (this.loggingEnabled) {
+			console.log('Loading accounts');
+		}
 
 		try {
 			const chunks = this.chunks(
@@ -195,6 +200,10 @@ export class BulkAccountLoader {
 			return;
 		}
 
+		if (this.loggingEnabled) {
+			console.log(`startPolling`);
+		}
+
 		this.intervalId = setInterval(this.load.bind(this), this.pollingFrequency);
 	}
 
@@ -202,6 +211,10 @@ export class BulkAccountLoader {
 		if (this.intervalId) {
 			clearInterval(this.intervalId);
 			this.intervalId = undefined;
+
+			if (this.loggingEnabled) {
+				console.log(`stopPolling`);
+			}
 		}
 	}
 }
