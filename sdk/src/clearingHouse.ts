@@ -258,6 +258,8 @@ export class ClearingHouse {
 		this.program = newProgram;
 		this.userAccountPublicKey = undefined;
 		this.userAccount = undefined;
+		this.userOrdersAccountPublicKey = undefined;
+		this.userOrdersExist = undefined;
 	}
 
 	public async initializeUserAccount(): Promise<
