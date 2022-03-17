@@ -241,6 +241,7 @@ pub mod clearing_house {
         amm_quote_asset_reserve: u128,
         amm_periodicity: i64,
         amm_peg_multiplier: u128,
+        oracle_source: OracleSource,
         margin_ratio_initial: u32,
         margin_ratio_partial: u32,
         margin_ratio_maintenance: u32,
@@ -273,12 +274,22 @@ pub mod clearing_house {
         // Verify oracle is readable
         let OraclePriceData {
             price: oracle_price,
-            twap: oracle_price_twap,
             ..
-        } = market
-            .amm
-            .get_oracle_price(&ctx.accounts.oracle, clock_slot)
-            .unwrap();
+        } = match oracle_source {
+            OracleSource::Pyth => market
+                .amm
+                .get_pyth_price(&ctx.accounts.oracle, clock_slot)
+                .unwrap(),
+            OracleSource::Switchboard => market
+                .amm
+                .get_switchboard_price(&ctx.accounts.oracle, clock_slot)
+                .unwrap(),
+        };
+
+        let last_oracle_price_twap = match market.amm.get_oracle_twap(&ctx.accounts.oracle)? {
+            Some(last_oracle_price_twap) => last_oracle_price_twap,
+            None => oracle_price,
+        };
 
         validate_margin(
             margin_ratio_initial,
@@ -302,7 +313,7 @@ pub mod clearing_house {
             padding4: 0,
             amm: AMM {
                 oracle: *ctx.accounts.oracle.key,
-                oracle_source: OracleSource::Pyth,
+                oracle_source,
                 base_asset_reserve: amm_base_asset_reserve,
                 quote_asset_reserve: amm_quote_asset_reserve,
                 cumulative_repeg_rebate_long: 0,
@@ -312,7 +323,7 @@ pub mod clearing_house {
                 last_funding_rate: 0,
                 last_funding_rate_ts: now,
                 funding_period: amm_periodicity,
-                last_oracle_price_twap: oracle_price_twap,
+                last_oracle_price_twap,
                 last_mark_price_twap: init_mark_price,
                 last_mark_price_twap_ts: now,
                 sqrt_k: amm_base_asset_reserve,
@@ -540,10 +551,10 @@ pub mod clearing_house {
             oracle_mark_spread_pct_before = amm::calculate_oracle_mark_spread_pct(
                 &market.amm,
                 oracle_price_data,
-                0,
                 Some(mark_price_before),
             )?;
             is_oracle_valid = amm::is_oracle_valid(
+                &market.amm,
                 oracle_price_data,
                 &ctx.accounts.state.oracle_guard_rails.validity,
             )?;
@@ -598,7 +609,6 @@ pub mod clearing_house {
             oracle_mark_spread_pct_after = amm::calculate_oracle_mark_spread_pct(
                 &market.amm,
                 oracle_price_data,
-                0,
                 Some(mark_price_after),
             )?;
             oracle_price_after = oracle_price_data.price;
@@ -796,7 +806,6 @@ pub mod clearing_house {
         let oracle_mark_spread_pct_before = amm::calculate_oracle_mark_spread_pct(
             &market.amm,
             oracle_price_data,
-            0,
             Some(mark_price_before),
         )?;
         let direction_to_close =
@@ -872,12 +881,12 @@ pub mod clearing_house {
         let oracle_mark_spread_pct_after = amm::calculate_oracle_mark_spread_pct(
             &market.amm,
             oracle_price_data,
-            0,
             Some(mark_price_after),
         )?;
         let oracle_price_after = oracle_price_data.price;
 
         let is_oracle_valid = amm::is_oracle_valid(
+            &market.amm,
             oracle_price_data,
             &ctx.accounts.state.oracle_guard_rails.validity,
         )?;
@@ -1819,20 +1828,13 @@ pub mod clearing_house {
 
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
-        let clock_slot = clock.slot;
 
         let market =
             &mut ctx.accounts.markets.load_mut()?.markets[Markets::index_from_u64(market_index)];
         let price_oracle = &ctx.accounts.oracle;
-        let oracle_price_data = &market.amm.get_oracle_price(price_oracle, clock_slot)?;
-        let oracle_twap = oracle_price_data.twap;
+        let oracle_twap = market.amm.get_oracle_twap(price_oracle)?;
 
-        let is_oracle_valid = amm::is_oracle_valid(
-            oracle_price_data,
-            &ctx.accounts.state.oracle_guard_rails.validity,
-        )?;
-
-        if is_oracle_valid {
+        if let Some(oracle_twap) = oracle_twap {
             let oracle_mark_gap_before = cast_to_i128(market.amm.last_mark_price_twap)?
                 .checked_sub(market.amm.last_oracle_price_twap)
                 .ok_or_else(math_error!())?;
@@ -1878,6 +1880,7 @@ pub mod clearing_house {
         let oracle_price_data = &market.amm.get_oracle_price(price_oracle, clock_slot)?;
 
         let is_oracle_valid = amm::is_oracle_valid(
+            &market.amm,
             oracle_price_data,
             &ctx.accounts.state.oracle_guard_rails.validity,
         )?;

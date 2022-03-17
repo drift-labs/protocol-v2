@@ -2,7 +2,9 @@ import { BN } from '@project-serum/anchor';
 import { PublicKey } from '@solana/web3.js';
 
 export * from './mockUSDCFaucet';
-export * from './pythClient';
+export * from './oracles/types';
+export * from './oracles/pythClient';
+export * from './oracles/switchboardClient';
 export * from './types';
 export * from './constants/markets';
 export * from './accounts/webSocketClearingHouseAccountSubscriber';
@@ -17,6 +19,7 @@ export * from './clearingHouseUser';
 export * from './clearingHouse';
 export * from './factory/clearingHouse';
 export * from './factory/clearingHouseUser';
+export * from './factory/oracleClient';
 export * from './math/conversion';
 export * from './math/funding';
 export * from './math/insuranceFund';

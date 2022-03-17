@@ -1,15 +1,16 @@
-import { BN } from '../';
+import { BN, OracleSource } from '../';
 
-type Market = {
+export type MarketConfig = {
 	symbol: string;
 	baseAssetSymbol: string;
 	marketIndex: BN;
 	devnetPythOracle: string;
 	mainnetPythOracle: string;
 	launchTs: number;
+	oracleSource: OracleSource;
 };
 
-export const Markets: Market[] = [
+export const Markets: MarketConfig[] = [
 	{
 		symbol: 'SOL-PERP',
 		baseAssetSymbol: 'SOL',
@@ -17,6 +18,7 @@ export const Markets: Market[] = [
 		devnetPythOracle: 'J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix',
 		mainnetPythOracle: 'H6ARHf6YXhGYeQfUzQNGk6rDNnLBQKrenN712K4AQJEG',
 		launchTs: 1635209696886,
+		oracleSource: OracleSource.PYTH,
 	},
 	{
 		symbol: 'BTC-PERP',
@@ -25,6 +27,7 @@ export const Markets: Market[] = [
 		devnetPythOracle: 'HovQMDrbAgAYPCmHVSrezcSmkMtXSSUsLDFANExrZh2J',
 		mainnetPythOracle: 'GVXRSBjFk6e6J3NbVPXohDJetcTjaeeuykUpbQF8UoMU',
 		launchTs: 1637691088868,
+		oracleSource: OracleSource.PYTH,
 	},
 	{
 		symbol: 'ETH-PERP',
@@ -33,6 +36,7 @@ export const Markets: Market[] = [
 		devnetPythOracle: 'EdVCmQ9FSPcVe5YySXDPCRmc8aDQLKJ9xvYBMZPie1Vw',
 		mainnetPythOracle: 'JBu1AL4obBcCMqKBBxhpWCNUt136ijcuMZLFvTP7iWdB',
 		launchTs: 1637691133472,
+		oracleSource: OracleSource.PYTH,
 	},
 	{
 		symbol: 'LUNA-PERP',
@@ -41,6 +45,7 @@ export const Markets: Market[] = [
 		devnetPythOracle: '8PugCXTAHLM9kfLSQWe2njE5pzAgUdpPk3Nx5zSm7BD3',
 		mainnetPythOracle: '5bmWuR1dgP4avtGYMNKLuxumZTVKGgoN2BCMXWDNL9nY',
 		launchTs: 1638821738525,
+		oracleSource: OracleSource.PYTH,
 	},
 	{
 		symbol: 'AVAX-PERP',
@@ -49,6 +54,7 @@ export const Markets: Market[] = [
 		devnetPythOracle: 'FVb5h1VmHPfVb1RfqZckchq18GxRv4iKt8T4eVTQAqdz',
 		mainnetPythOracle: 'Ax9ujW5B9oqcv59N8m6f1BpTBq2rGeGaBcpKjC5UYsXU',
 		launchTs: 1639092501080,
+		oracleSource: OracleSource.PYTH,
 	},
 	{
 		symbol: 'BNB-PERP',
@@ -57,6 +63,7 @@ export const Markets: Market[] = [
 		devnetPythOracle: 'GwzBgrXb4PG59zjce24SF2b9JXbLEjJJTBkmytuEZj1b',
 		mainnetPythOracle: '4CkQJBxhU8EZ2UjhigbtdaPbpTe6mqf811fipYBFbSYN',
 		launchTs: 1639523193012,
+		oracleSource: OracleSource.PYTH,
 	},
 	{
 		symbol: 'MATIC-PERP',
@@ -65,6 +72,7 @@ export const Markets: Market[] = [
 		devnetPythOracle: 'FBirwuDFuRAu4iSGc7RGxN5koHB7EJM1wbCmyPuQoGur',
 		mainnetPythOracle: '7KVswB9vkCgeM3SHP7aGDijvdRAHK8P5wi9JXViCrtYh',
 		launchTs: 1641488603564,
+		oracleSource: OracleSource.PYTH,
 	},
 	{
 		symbol: 'ATOM-PERP',
@@ -73,6 +81,7 @@ export const Markets: Market[] = [
 		devnetPythOracle: '7YAze8qFUMkBnyLVdKT4TFUUFui99EwS5gfRArMcrvFk',
 		mainnetPythOracle: 'CrCpTerNqtZvqLcKqz1k13oVeXV9WkMD2zA9hBKXrsbN',
 		launchTs: 1641920238195,
+		oracleSource: OracleSource.PYTH,
 	},
 	{
 		symbol: 'DOT-PERP',
@@ -81,6 +90,7 @@ export const Markets: Market[] = [
 		devnetPythOracle: '4dqq5VBpN4EwYb7wyywjjfknvMKu7m78j9mKZRXTj462',
 		mainnetPythOracle: 'EcV1X1gY2yb4KXxjVQtTHTbioum2gvmPnFk4zYAt7zne',
 		launchTs: 1642629253786,
+		oracleSource: OracleSource.PYTH,
 	},
 	{
 		symbol: 'ADA-PERP',
@@ -89,6 +99,7 @@ export const Markets: Market[] = [
 		devnetPythOracle: '8oGTURNmSQkrBS1AQ5NjB2p8qY34UVmMA9ojrw8vnHus',
 		mainnetPythOracle: '3pyn4svBbxJ9Wnn3RVeafyLWfzie6yC5eTig2S62v9SC',
 		launchTs: 1643084413000,
+		oracleSource: OracleSource.PYTH,
 	},
 	{
 		symbol: 'ALGO-PERP',
@@ -97,6 +108,7 @@ export const Markets: Market[] = [
 		devnetPythOracle: 'c1A946dY5NHuVda77C8XXtXytyR3wK1SCP3eA9VRfC3',
 		mainnetPythOracle: 'HqFyq1wh1xKvL7KDqqT7NJeSPdAqsDqnmBisUC2XdXAX',
 		launchTs: 1643686767000,
+		oracleSource: OracleSource.PYTH,
 	},
 	{
 		symbol: 'FTT-PERP',
@@ -105,6 +117,7 @@ export const Markets: Market[] = [
 		devnetPythOracle: '6vivTRs5ZPeeXbjo7dfburfaYDWoXjBtdtuYgQRuGfu',
 		mainnetPythOracle: '8JPJJkmDScpcNmBRKGZuPuG2GYAveQgP3t5gFuMymwvF',
 		launchTs: 1644382122000,
+		oracleSource: OracleSource.PYTH,
 	},
 	{
 		symbol: 'LTC-PERP',
@@ -113,6 +126,7 @@ export const Markets: Market[] = [
 		devnetPythOracle: 'BLArYBCUYhdWiY8PCUTpvFE21iaJq85dvxLk9bYMobcU',
 		mainnetPythOracle: '8RMnV1eD55iqUFJLMguPkYBkq8DCtx81XcmAja93LvRR',
 		launchTs: 1645027429000,
+		oracleSource: OracleSource.PYTH,
 	},
 	// {
 	// 	symbol: 'mSOL-PERP',

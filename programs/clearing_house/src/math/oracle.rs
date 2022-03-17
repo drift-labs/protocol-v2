@@ -45,9 +45,9 @@ pub fn get_oracle_status(
     precomputed_mark_price: Option<u128>,
 ) -> ClearingHouseResult<OracleStatus> {
     let oracle_price_data = amm.get_oracle_price(oracle_account_info, clock_slot)?;
-    let oracle_is_valid = amm::is_oracle_valid(&oracle_price_data, &guard_rails.validity)?;
+    let oracle_is_valid = amm::is_oracle_valid(amm, &oracle_price_data, &guard_rails.validity)?;
     let oracle_mark_spread_pct =
-        amm::calculate_oracle_mark_spread_pct(amm, &oracle_price_data, 0, precomputed_mark_price)?;
+        amm::calculate_oracle_mark_spread_pct(amm, &oracle_price_data, precomputed_mark_price)?;
     let is_oracle_mark_too_divergent =
         amm::is_oracle_mark_too_divergent(oracle_mark_spread_pct, &guard_rails.price_divergence)?;
 

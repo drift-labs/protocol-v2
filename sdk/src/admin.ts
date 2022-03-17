@@ -217,6 +217,7 @@ export class Admin extends ClearingHouse {
 		quoteAssetReserve: BN,
 		periodicity: BN,
 		pegMultiplier: BN = PEG_PRECISION,
+		oracleSource: OracleSource = OracleSource.PYTH,
 		marginRatioInitial = 2000,
 		marginRatioPartial = 625,
 		marginRatioMaintenance = 500
@@ -231,6 +232,7 @@ export class Admin extends ClearingHouse {
 			quoteAssetReserve,
 			periodicity,
 			pegMultiplier,
+			oracleSource,
 			marginRatioInitial,
 			marginRatioPartial,
 			marginRatioMaintenance,
