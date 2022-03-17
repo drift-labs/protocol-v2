@@ -1,14 +1,13 @@
 import {
-	loadSwitchboardProgram,
+	getSwitchboardPid,
 	SwitchboardDecimal,
 } from '@switchboard-xyz/switchboard-v2';
-import { Connection, PublicKey } from '@solana/web3.js';
+import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import { DriftEnv } from '../config';
-import { BN } from '@project-serum/anchor';
+import { BN, Provider, Program } from '@project-serum/anchor';
 import { MARK_PRICE_PRECISION, TEN } from '../constants/numericConstants';
 import { OracleClient, OraclePriceData } from './types';
-
-type Program = ReturnType<typeof loadSwitchboardProgram>;
+import { Wallet } from '../wallet';
 
 // cache switchboard program for every client object since itll always be the same
 const programMap = new Map<string, Program>();
@@ -61,10 +60,27 @@ export class SwitchboardClient implements OracleClient {
 			return programMap.get(this.env);
 		}
 
-		const program = loadSwitchboardProgram(this.env, this.connection);
+		const program = await getSwitchboardProgram(this.env, this.connection);
 		programMap.set(this.env, program);
 		return program;
 	}
+}
+
+async function getSwitchboardProgram(
+	env: DriftEnv,
+	connection: Connection
+): Promise<Program> {
+	const DEFAULT_KEYPAIR = Keypair.fromSeed(new Uint8Array(32).fill(1));
+	const programId = getSwitchboardPid(env);
+	const wallet = new Wallet(DEFAULT_KEYPAIR);
+	const provider = new Provider(connection, wallet, {});
+
+	const anchorIdl = await Program.fetchIdl(programId, provider);
+	if (!anchorIdl) {
+		throw new Error(`failed to read idl for ${env} ${programId}`);
+	}
+
+	return new Program(anchorIdl, programId, provider);
 }
 
 function convertSwitchboardDecimal(switchboardDecimal: SwitchboardDecimal): BN {
