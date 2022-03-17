@@ -128,6 +128,15 @@ export const Markets: MarketConfig[] = [
 		launchTs: 1645027429000,
 		oracleSource: OracleSource.PYTH,
 	},
+	{
+		symbol: 'XRP-PERP',
+		baseAssetSymbol: 'XRP',
+		marketIndex: new BN(13),
+		devnetPythOracle: 'WMW5xc3HypXwTnPesyUT49uLsyHwNURsWAEk39onKuk',
+		mainnetPythOracle: 'WMW5xc3HypXwTnPesyUT49uLsyHwNURsWAEk39onKuk',
+		launchTs: 1647543166000,
+		oracleSource: OracleSource.SWITCHBOARD,
+	},
 	// {
 	// 	symbol: 'mSOL-PERP',
 	// 	baseAssetSymbol: 'mSOL',
