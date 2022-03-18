@@ -15,6 +15,7 @@ use crate::math::amm::calculate_swap_output;
 use crate::math::casting::{cast, cast_to_i128, cast_to_u128};
 use crate::math::constants::{
     AMM_TO_QUOTE_PRECISION_RATIO, MARGIN_PRECISION, MARK_PRICE_PRECISION,
+    MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO,
 };
 use crate::math::margin::calculate_free_collateral;
 use crate::math::quote_asset::asset_to_reserve_amount;
@@ -45,7 +46,7 @@ pub fn calculate_base_asset_amount_market_can_execute(
     }
 }
 
-fn calculate_base_asset_amount_to_trade_for_limit(
+pub fn calculate_base_asset_amount_to_trade_for_limit(
     order: &Order,
     market: &Market,
 ) -> ClearingHouseResult<u128> {
@@ -263,4 +264,14 @@ pub fn limit_price_satisfied(
     }
 
     Ok(true)
+}
+
+pub fn calculate_quote_asset_amount_for_maker_order(
+    base_asset_amount: u128,
+    limit_price: u128,
+) -> ClearingHouseResult<u128> {
+    Ok(base_asset_amount
+        .checked_mul(limit_price)
+        .ok_or_else(math_error!())?
+        .div(MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO))
 }

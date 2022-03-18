@@ -15,7 +15,8 @@ export function getLimitOrderParams(
 	reduceOnly: boolean,
 	discountToken = false,
 	referrer = false,
-	userOrderId = 0
+	userOrderId = 0,
+	postOnly = false
 ): OrderParams {
 	return {
 		orderType: OrderType.LIMIT,
@@ -26,7 +27,7 @@ export function getLimitOrderParams(
 		baseAssetAmount,
 		price,
 		reduceOnly,
-		postOnly: false,
+		postOnly,
 		immediateOrCancel: false,
 		positionLimit: ZERO,
 		padding0: true,

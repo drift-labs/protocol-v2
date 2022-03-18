@@ -6,6 +6,7 @@ use crate::state::market::Market;
 use crate::state::order_state::OrderState;
 use crate::state::user_orders::{Order, OrderTriggerCondition, OrderType};
 
+use crate::math::orders::calculate_base_asset_amount_to_trade_for_limit;
 use solana_program::msg;
 use std::ops::Div;
 
@@ -23,11 +24,6 @@ pub fn validate_order(
 
     if order.immediate_or_cancel {
         msg!("immediate_or_cancel not supported yet");
-        return Err(ErrorCode::InvalidOrder);
-    }
-
-    if order.post_only {
-        msg!("post_only not supported yet");
         return Err(ErrorCode::InvalidOrder);
     }
 
@@ -56,6 +52,11 @@ fn validate_market_order(order: &Order, market: &Market) -> ClearingHouseResult 
         return Err(ErrorCode::InvalidOrder);
     }
 
+    if order.post_only {
+        msg!("Market order can not be post only");
+        return Err(ErrorCode::InvalidOrder);
+    }
+
     Ok(())
 }
 
@@ -81,6 +82,10 @@ fn validate_limit_order(
         return Err(ErrorCode::InvalidOrder);
     }
 
+    if order.post_only {
+        validate_post_only_order(order, market)?;
+    }
+
     let approximate_market_value = order
         .price
         .checked_mul(order.base_asset_amount)
@@ -91,6 +96,21 @@ fn validate_limit_order(
 
     if approximate_market_value < order_state.min_order_quote_asset_amount {
         msg!("Order value < $0.50 ({:?})", approximate_market_value);
+        return Err(ErrorCode::InvalidOrder);
+    }
+
+    Ok(())
+}
+
+fn validate_post_only_order(order: &Order, market: &Market) -> ClearingHouseResult {
+    let base_asset_amount_market_can_fill =
+        calculate_base_asset_amount_to_trade_for_limit(order, market)?;
+
+    if base_asset_amount_market_can_fill != 0 {
+        msg!(
+            "Post-only order can immediately fill {} base asset amount",
+            base_asset_amount_market_can_fill
+        );
         return Err(ErrorCode::InvalidOrder);
     }
 
@@ -116,6 +136,11 @@ fn validate_trigger_limit_order(
 
     if order.quote_asset_amount != 0 {
         msg!("Trigger limit order should not have a quote asset amount");
+        return Err(ErrorCode::InvalidOrder);
+    }
+
+    if order.post_only {
+        msg!("Trigger limit order can not be post only");
         return Err(ErrorCode::InvalidOrder);
     }
 
@@ -169,6 +194,11 @@ fn validate_trigger_market_order(
 
     if order.quote_asset_amount != 0 {
         msg!("Trigger market order should not have a quote asset amount");
+        return Err(ErrorCode::InvalidOrder);
+    }
+
+    if order.post_only {
+        msg!("Trigger market order can not be post only");
         return Err(ErrorCode::InvalidOrder);
     }
 

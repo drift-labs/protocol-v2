@@ -217,6 +217,7 @@ export type OrderRecord = {
 	fee: BN;
 	fillerReward: BN;
 	tradeRecordId: BN;
+	quoteAssetAmountSurplus: BN;
 };
 
 export type StateAccount = {

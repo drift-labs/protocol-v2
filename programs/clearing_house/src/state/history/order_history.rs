@@ -47,7 +47,8 @@ pub struct OrderRecord {
     pub quote_asset_amount_filled: u128,
     pub fee: u128,
     pub filler_reward: u128,
-    pub padding: [u64; 10],
+    pub quote_asset_amount_surplus: u128,
+    pub padding: [u64; 8],
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq)]
