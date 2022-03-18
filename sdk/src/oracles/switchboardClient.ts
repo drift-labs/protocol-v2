@@ -4,10 +4,11 @@ import {
 } from '@switchboard-xyz/switchboard-v2';
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import { DriftEnv } from '../config';
-import { BN, Provider, Program } from '@project-serum/anchor';
+import { BN, Provider, Program, Idl } from '@project-serum/anchor';
 import { MARK_PRICE_PRECISION, TEN } from '../constants/numericConstants';
 import { OracleClient, OraclePriceData } from './types';
 import { Wallet } from '../wallet';
+import switchboardV2Idl from '../idl/switchboard_v2.json';
 
 // cache switchboard program for every client object since itll always be the same
 const programMap = new Map<string, Program>();
@@ -75,12 +76,7 @@ async function getSwitchboardProgram(
 	const wallet = new Wallet(DEFAULT_KEYPAIR);
 	const provider = new Provider(connection, wallet, {});
 
-	const anchorIdl = await Program.fetchIdl(programId, provider);
-	if (!anchorIdl) {
-		throw new Error(`failed to read idl for ${env} ${programId}`);
-	}
-
-	return new Program(anchorIdl, programId, provider);
+	return new Program(switchboardV2Idl as Idl, programId, provider);
 }
 
 function convertSwitchboardDecimal(switchboardDecimal: SwitchboardDecimal): BN {
