@@ -9,6 +9,8 @@ type AccountToLoad = {
 
 const GET_MULTIPLE_ACCOUNTS_CHUNK_SIZE = 99;
 
+const fiveMinutes = 5 * 60 * 1000;
+
 export class BulkAccountLoader {
 	connection: Connection;
 	commitment: Commitment;
@@ -21,6 +23,7 @@ export class BulkAccountLoader {
 	loadPromise?: Promise<void>;
 	loadPromiseResolver: () => void;
 	loggingEnabled = false;
+	lastUpdate = Date.now();
 
 	public constructor(
 		connection: Connection,
@@ -125,6 +128,20 @@ export class BulkAccountLoader {
 		} finally {
 			this.loadPromiseResolver();
 			this.loadPromise = undefined;
+
+			const now = Date.now();
+			if (now - this.lastUpdate > fiveMinutes) {
+				if (this.loggingEnabled) {
+					console.log(
+						"Haven't seen updated account in five minutes. Bulk account loader creating new Connection Object"
+					);
+				}
+				this.connection = new Connection(
+					// @ts-ignore
+					this.connection._rpcEndpoint,
+					this.connection.commitment
+				);
+			}
 		}
 	}
 
@@ -166,6 +183,7 @@ export class BulkAccountLoader {
 					buffer: newBuffer,
 				});
 				this.handleAccountCallbacks(accountToLoad, newBuffer);
+				this.lastUpdate = Date.now();
 				continue;
 			}
 
@@ -180,6 +198,7 @@ export class BulkAccountLoader {
 					buffer: newBuffer,
 				});
 				this.handleAccountCallbacks(accountToLoad, newBuffer);
+				this.lastUpdate = Date.now();
 			}
 		}
 	}
