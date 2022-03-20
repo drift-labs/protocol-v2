@@ -206,7 +206,8 @@ impl AMM {
             .ok_or_else(math_error!())?;
 
         let has_sufficient_number_of_data_points =
-            aggregator_data.min_oracle_results > aggregator_data.latest_confirmed_round.num_success;
+            aggregator_data.latest_confirmed_round.num_success
+                >= aggregator_data.min_oracle_results;
 
         Ok(OraclePriceData {
             price,
