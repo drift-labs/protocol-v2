@@ -1,6 +1,8 @@
 import { BN, OracleSource } from '../';
 
 export type MarketConfig = {
+	fullName?: string;
+	category?: string[];
 	symbol: string;
 	baseAssetSymbol: string;
 	marketIndex: BN;
@@ -12,6 +14,8 @@ export type MarketConfig = {
 
 export const Markets: MarketConfig[] = [
 	{
+		fullName: 'Solana',
+		category: ['L1', 'Infra'],
 		symbol: 'SOL-PERP',
 		baseAssetSymbol: 'SOL',
 		marketIndex: new BN(0),
@@ -21,6 +25,8 @@ export const Markets: MarketConfig[] = [
 		oracleSource: OracleSource.PYTH,
 	},
 	{
+		fullName: 'Bitcoin',
+		category: ['L1', 'Payment'],
 		symbol: 'BTC-PERP',
 		baseAssetSymbol: 'BTC',
 		marketIndex: new BN(1),
@@ -30,6 +36,8 @@ export const Markets: MarketConfig[] = [
 		oracleSource: OracleSource.PYTH,
 	},
 	{
+		fullName: 'Ethereum',
+		category: ['L1', 'Infra'],
 		symbol: 'ETH-PERP',
 		baseAssetSymbol: 'ETH',
 		marketIndex: new BN(2),
@@ -39,6 +47,8 @@ export const Markets: MarketConfig[] = [
 		oracleSource: OracleSource.PYTH,
 	},
 	{
+		fullName: 'Terra',
+		category: ['L1', 'Infra'],
 		symbol: 'LUNA-PERP',
 		baseAssetSymbol: 'LUNA',
 		marketIndex: new BN(3),
@@ -49,6 +59,7 @@ export const Markets: MarketConfig[] = [
 	},
 	{
 		symbol: 'AVAX-PERP',
+		category: ['L1', 'Infra'],
 		baseAssetSymbol: 'AVAX',
 		marketIndex: new BN(4),
 		devnetPythOracle: 'FVb5h1VmHPfVb1RfqZckchq18GxRv4iKt8T4eVTQAqdz',
@@ -57,7 +68,9 @@ export const Markets: MarketConfig[] = [
 		oracleSource: OracleSource.PYTH,
 	},
 	{
+		fullName: "Binance Coin",
 		symbol: 'BNB-PERP',
+		category: ['L1', 'Exchange'],
 		baseAssetSymbol: 'BNB',
 		marketIndex: new BN(5),
 		devnetPythOracle: 'GwzBgrXb4PG59zjce24SF2b9JXbLEjJJTBkmytuEZj1b',
@@ -66,6 +79,8 @@ export const Markets: MarketConfig[] = [
 		oracleSource: OracleSource.PYTH,
 	},
 	{
+		fullName: "Polygon",
+		category: ['L1', 'Infra'],
 		symbol: 'MATIC-PERP',
 		baseAssetSymbol: 'MATIC',
 		marketIndex: new BN(6),
@@ -75,6 +90,8 @@ export const Markets: MarketConfig[] = [
 		oracleSource: OracleSource.PYTH,
 	},
 	{
+		fullName: 'Cosmos',
+		category: ['L1', 'Infra'],
 		symbol: 'ATOM-PERP',
 		baseAssetSymbol: 'ATOM',
 		marketIndex: new BN(7),
@@ -84,6 +101,7 @@ export const Markets: MarketConfig[] = [
 		oracleSource: OracleSource.PYTH,
 	},
 	{
+		fullName: "Polkadot",
 		symbol: 'DOT-PERP',
 		baseAssetSymbol: 'DOT',
 		marketIndex: new BN(8),
@@ -93,6 +111,8 @@ export const Markets: MarketConfig[] = [
 		oracleSource: OracleSource.PYTH,
 	},
 	{
+		fullName: 'Cardano',
+		category: ['L1', 'Infra'],
 		symbol: 'ADA-PERP',
 		baseAssetSymbol: 'ADA',
 		marketIndex: new BN(9),
@@ -102,6 +122,8 @@ export const Markets: MarketConfig[] = [
 		oracleSource: OracleSource.PYTH,
 	},
 	{
+		fullName: "Algorand",
+		category: ['L1', 'Infra'],
 		symbol: 'ALGO-PERP',
 		baseAssetSymbol: 'ALGO',
 		marketIndex: new BN(10),
@@ -111,6 +133,8 @@ export const Markets: MarketConfig[] = [
 		oracleSource: OracleSource.PYTH,
 	},
 	{
+		fullName: 'FTX Coin',
+		category: ['L1', 'Exchange'],
 		symbol: 'FTT-PERP',
 		baseAssetSymbol: 'FTT',
 		marketIndex: new BN(11),
@@ -120,6 +144,8 @@ export const Markets: MarketConfig[] = [
 		oracleSource: OracleSource.PYTH,
 	},
 	{
+		fullName: 'Litecoin',
+		category: ['L1', 'Payments'],
 		symbol: 'LTC-PERP',
 		baseAssetSymbol: 'LTC',
 		marketIndex: new BN(12),
@@ -129,6 +155,8 @@ export const Markets: MarketConfig[] = [
 		oracleSource: OracleSource.PYTH,
 	},
 	{
+		fullName: 'Ripple',
+		category: ['L1', 'Payments'],		
 		symbol: 'XRP-PERP',
 		baseAssetSymbol: 'XRP',
 		marketIndex: new BN(13),
