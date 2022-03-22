@@ -61,6 +61,46 @@ pub fn meets_initial_margin_requirement(
     Ok(total_collateral >= initial_margin_requirement)
 }
 
+pub fn meets_partial_margin_requirement(
+    user: &User,
+    user_positions: &RefMut<UserPositions>,
+    markets: &Ref<Markets>,
+) -> ClearingHouseResult<bool> {
+    let mut partial_margin_requirement: u128 = 0;
+    let mut unrealized_pnl: i128 = 0;
+
+    for market_position in user_positions.positions.iter() {
+        if market_position.base_asset_amount == 0 {
+            continue;
+        }
+
+        let market = markets.get_market(market_position.market_index);
+        let amm = &market.amm;
+        let (position_base_asset_value, position_unrealized_pnl) =
+            calculate_base_asset_value_and_pnl(market_position, amm)?;
+
+        partial_margin_requirement = partial_margin_requirement
+            .checked_add(
+                position_base_asset_value
+                    .checked_mul(market.margin_ratio_partial.into())
+                    .ok_or_else(math_error!())?,
+            )
+            .ok_or_else(math_error!())?;
+
+        unrealized_pnl = unrealized_pnl
+            .checked_add(position_unrealized_pnl)
+            .ok_or_else(math_error!())?;
+    }
+
+    partial_margin_requirement = partial_margin_requirement
+        .checked_div(MARGIN_PRECISION)
+        .ok_or_else(math_error!())?;
+
+    let total_collateral = calculate_updated_collateral(user.collateral, unrealized_pnl)?;
+
+    Ok(total_collateral >= partial_margin_requirement)
+}
+
 #[derive(PartialEq)]
 pub enum LiquidationType {
     NONE,

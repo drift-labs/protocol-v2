@@ -4180,6 +4180,11 @@
       "code": 6057,
       "name": "InvalidMarginRatio",
       "msg": "Invalid Margin Ratio"
+    },
+    {
+      "code": 6058,
+      "name": "CantCancelPostOnlyOrder",
+      "msg": "Cant Cancel Post Only Order"
     }
   ]
 }

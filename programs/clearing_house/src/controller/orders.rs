@@ -24,7 +24,7 @@ use crate::state::{
 use crate::controller;
 use crate::math::amm::normalise_oracle_price;
 use crate::math::fees::calculate_order_fee_tier;
-use crate::order_validation::validate_order;
+use crate::order_validation::{validate_order, validate_order_can_be_canceled};
 use crate::state::history::funding_payment::FundingPaymentHistory;
 use crate::state::history::funding_rate::FundingRateHistory;
 use crate::state::history::order_history::OrderAction;
@@ -252,6 +252,8 @@ pub fn cancel_order(
         return Err(ErrorCode::OrderNotOpen);
     }
 
+    validate_order_can_be_canceled(order, markets.get_market(order.market_index))?;
+
     // Add to the order history account
     let order_history_account = &mut order_history
         .load_mut()
@@ -453,15 +455,26 @@ pub fn fill_order(
         return Err(ErrorCode::OracleMarkSpreadLimit);
     }
 
-    // Order fails if it's risk increasing and it brings the user collateral below the initial margin requirement
-    let meets_initial_maintenance_requirement = meets_initial_margin_requirement(
-        user,
-        user_positions,
-        &markets
-            .load()
-            .or(Err(ErrorCode::UnableToLoadAccountLoader))?,
-    )?;
-    if !meets_initial_maintenance_requirement && potentially_risk_increasing {
+    // Order fails if it's risk increasing and it brings the user collateral below the margin requirement
+    let meets_maintenance_requirement = if order.post_only {
+        // for post only orders allow user to fill up to partial margin requirement
+        meets_partial_margin_requirement(
+            user,
+            user_positions,
+            &markets
+                .load()
+                .or(Err(ErrorCode::UnableToLoadAccountLoader))?,
+        )?
+    } else {
+        meets_initial_margin_requirement(
+            user,
+            user_positions,
+            &markets
+                .load()
+                .or(Err(ErrorCode::UnableToLoadAccountLoader))?,
+        )?
+    };
+    if !meets_maintenance_requirement && potentially_risk_increasing {
         return Err(ErrorCode::InsufficientCollateral);
     }
 
