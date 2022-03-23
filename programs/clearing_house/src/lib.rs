@@ -286,9 +286,9 @@ pub mod clearing_house {
                 .unwrap(),
         };
 
-        let last_oracle_price_twap = match market.amm.get_oracle_twap(&ctx.accounts.oracle)? {
-            Some(last_oracle_price_twap) => last_oracle_price_twap,
-            None => oracle_price,
+        let last_oracle_price_twap = match oracle_source {
+            OracleSource::Pyth => market.amm.get_pyth_twap(&ctx.accounts.oracle)?,
+            OracleSource::Switchboard => oracle_price,
         };
 
         validate_margin(
