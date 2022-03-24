@@ -690,6 +690,7 @@ pub fn execute_market_order(
                 market,
                 user,
                 market_position,
+                mark_price_before,
                 now,
                 None,
             )?
@@ -824,6 +825,7 @@ pub fn execute_non_market_order(
         market,
         user,
         market_position,
+        mark_price_before,
         now,
         maker_limit_price,
     )?;

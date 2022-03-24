@@ -81,6 +81,7 @@ pub fn increase(
     market: &mut Market,
     market_position: &mut MarketPosition,
     now: i64,
+    precomputed_mark_price: Option<u128>,
 ) -> ClearingHouseResult<i128> {
     if quote_asset_amount == 0 {
         return Ok(0);
@@ -114,7 +115,7 @@ pub fn increase(
         quote_asset_amount,
         swap_direction,
         now,
-        None,
+        precomputed_mark_price,
     )?;
 
     // update the position size on market and user
@@ -149,6 +150,7 @@ pub fn increase_with_base_asset_amount(
     market_position: &mut MarketPosition,
     now: i64,
     maker_limit_price: Option<u128>,
+    precomputed_mark_price: Option<u128>,
 ) -> ClearingHouseResult<(u128, u128)> {
     if base_asset_amount == 0 {
         return Ok((0, 0));
@@ -177,7 +179,7 @@ pub fn increase_with_base_asset_amount(
         base_asset_amount,
         swap_direction,
         now,
-        None,
+        precomputed_mark_price,
     )?;
 
     let (quote_asset_amount, quote_asset_amount_surplus) = match maker_limit_price {
@@ -313,6 +315,7 @@ pub fn reduce_with_base_asset_amount(
     market_position: &mut MarketPosition,
     now: i64,
     maker_limit_price: Option<u128>,
+    precomputed_mark_price: Option<u128>,
 ) -> ClearingHouseResult<(u128, u128)> {
     let swap_direction = match direction {
         PositionDirection::Long => SwapDirection::Remove,
@@ -324,7 +327,7 @@ pub fn reduce_with_base_asset_amount(
         base_asset_amount,
         swap_direction,
         now,
-        None,
+        precomputed_mark_price,
     )?;
 
     let (quote_asset_amount, quote_asset_amount_surplus) = match maker_limit_price {
@@ -488,6 +491,7 @@ pub fn update_position_with_base_asset_amount(
     market: &mut Market,
     user: &mut User,
     market_position: &mut MarketPosition,
+    mark_price_before: u128,
     now: i64,
     maker_limit_price: Option<u128>,
 ) -> ClearingHouseResult<(bool, bool, u128, u128, u128)> {
@@ -515,6 +519,7 @@ pub fn update_position_with_base_asset_amount(
             market_position,
             now,
             maker_limit_price,
+            Some(mark_price_before),
         )?;
         quote_asset_amount = _quote_asset_amount;
         quote_asset_amount_surplus = _quote_asset_amount_surplus;
@@ -527,6 +532,7 @@ pub fn update_position_with_base_asset_amount(
             market_position,
             now,
             maker_limit_price,
+            Some(mark_price_before),
         )?;
         quote_asset_amount = _quote_asset_amount;
         quote_asset_amount_surplus = _quote_asset_amount_surplus;
@@ -555,6 +561,7 @@ pub fn update_position_with_base_asset_amount(
                 market_position,
                 now,
                 maker_limit_price,
+                Some(mark_price_before),
             )?;
 
         // means position was closed and it was reduce only
@@ -612,6 +619,7 @@ pub fn update_position_with_quote_asset_amount(
             market,
             market_position,
             now,
+            Some(mark_price_before),
         )?
         .unsigned_abs();
     } else {
@@ -651,8 +659,14 @@ pub fn update_position_with_quote_asset_amount(
                 potentially_risk_increasing = false;
             }
 
-            let (_, base_asset_amount_closed, _) =
-                controller::position::close(user, market, market_position, now, None, None)?;
+            let (_, base_asset_amount_closed, _) = controller::position::close(
+                user,
+                market,
+                market_position,
+                now,
+                None,
+                Some(mark_price_before),
+            )?;
             let base_asset_amount_closed = base_asset_amount_closed.unsigned_abs();
 
             let base_asset_amount_opened = controller::position::increase(
@@ -661,6 +675,7 @@ pub fn update_position_with_quote_asset_amount(
                 market,
                 market_position,
                 now,
+                Some(mark_price_before),
             )?
             .unsigned_abs();
 
