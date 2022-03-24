@@ -17,7 +17,11 @@ import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { PublicKey } from '@solana/web3.js';
 import { AccountInfo } from '@solana/spl-token';
-import { ClearingHouseConfigType, ClearingHouseUserConfigType } from '..';
+import {
+	ClearingHouseConfigType,
+	ClearingHouseUserConfigType,
+	OraclePriceData,
+} from '..';
 
 export interface AccountSubscriber<T> {
 	data?: T;
@@ -125,6 +129,23 @@ export interface TokenAccountSubscriber {
 	unsubscribe(): Promise<void>;
 
 	getTokenAccount(): AccountInfo;
+}
+
+export interface OracleEvents {
+	oracleUpdate: (payload: OraclePriceData) => void;
+	update: void;
+	error: (e: Error) => void;
+}
+
+export interface OracleSubscriber {
+	eventEmitter: StrictEventEmitter<EventEmitter, OracleEvents>;
+	isSubscribed: boolean;
+
+	subscribe(): Promise<boolean>;
+	fetch(): Promise<void>;
+	unsubscribe(): Promise<void>;
+
+	getOraclePriceData(): OraclePriceData;
 }
 
 export type AccountToPoll = {

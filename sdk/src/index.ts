@@ -11,6 +11,7 @@ export * from './accounts/webSocketClearingHouseAccountSubscriber';
 export * from './accounts/bulkAccountLoader';
 export * from './accounts/bulkUserSubscription';
 export * from './accounts/pollingClearingHouseAccountSubscriber';
+export * from './accounts/pollingOracleSubscriber';
 export * from './accounts/pollingTokenAccountSubscriber';
 export * from './accounts/types';
 export * from './addresses';
