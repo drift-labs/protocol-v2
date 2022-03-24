@@ -92,7 +92,7 @@ describe('User Account', () => {
 	) => {
 		// todo: dont hate me
 		await userAccount.fetchAccounts();
-		const buyingPower = userAccount.getBuyingPower();
+		const buyingPower = userAccount.getBuyingPower(new BN(0));
 		assert(buyingPower.eq(expectedBuyingPower));
 		const pnl = userAccount.getUnrealizedPNL();
 		assert(pnl.eq(expectedPNL));
