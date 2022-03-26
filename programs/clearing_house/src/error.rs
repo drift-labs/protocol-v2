@@ -122,6 +122,8 @@ pub enum ErrorCode {
     InvalidMarginRatio,
     #[msg("Cant Cancel Post Only Order")]
     CantCancelPostOnlyOrder,
+    #[msg("InvalidOracleOffset")]
+    InvalidOracleOffset,
 }
 
 #[macro_export]

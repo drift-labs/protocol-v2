@@ -1,6 +1,9 @@
 use crate::controller::position::PositionDirection;
+use crate::error::{ClearingHouseResult, ErrorCode};
+use crate::math_error;
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
+use solana_program::msg;
 
 #[account(zero_copy)]
 #[derive(Default)]
@@ -40,6 +43,37 @@ pub struct Order {
     pub referrer: Pubkey,
     pub oracle_price_offset: i128,
     pub padding: [u16; 3],
+}
+
+impl Order {
+    pub fn has_oracle_price_offset(self) -> bool {
+        self.oracle_price_offset != 0
+    }
+
+    pub fn get_limit_price(self, valid_oracle_price: Option<i128>) -> ClearingHouseResult<u128> {
+        // the limit price can be hardcoded on order or derived from oracle_price + oracle_price_offset
+        let price = if self.has_oracle_price_offset() {
+            if let Some(oracle_price) = valid_oracle_price {
+                let limit_price = oracle_price
+                    .checked_add(self.oracle_price_offset)
+                    .ok_or_else(math_error!())?;
+
+                if limit_price <= 0 {
+                    msg!("Oracle offset limit price below zero: {}", limit_price);
+                    return Err(ErrorCode::InvalidOracleOffset);
+                }
+
+                limit_price.unsigned_abs()
+            } else {
+                msg!("Could not find oracle too calculate oracle offset limit price");
+                return Err(ErrorCode::OracleNotFound);
+            }
+        } else {
+            self.price
+        };
+
+        Ok(price)
+    }
 }
 
 impl Default for Order {

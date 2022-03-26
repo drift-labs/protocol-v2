@@ -34,7 +34,11 @@ declare_id!("AsW7LnXB9UA1uec9wi9MctYTgTz7YH9snhxd16GsFaGX");
 #[program]
 pub mod clearing_house {
     use crate::math;
-    use crate::optional_accounts::{get_discount_token, get_referrer, get_referrer_for_fill_order};
+    use crate::optional_accounts::{
+        get_discount_token, get_oracle_for_cancel_order_by_order_id,
+        get_oracle_for_cancel_order_by_user_order_id, get_oracle_for_place_order, get_referrer,
+        get_referrer_for_fill_order,
+    };
     use crate::state::history::curve::ExtendedCurveRecord;
     use crate::state::history::deposit::{DepositDirection, DepositRecord};
     use crate::state::history::liquidation::LiquidationRecord;
@@ -973,6 +977,8 @@ pub mod clearing_house {
             None,
         )?;
 
+        let oracle = get_oracle_for_place_order(account_info_iter, &ctx.accounts.markets, &params)?;
+
         if params.order_type == OrderType::Market {
             return Err(ErrorCode::MarketOrderMustBeInPlaceAndFill.into());
         }
@@ -990,13 +996,23 @@ pub mod clearing_house {
             &referrer,
             &Clock::get()?,
             params,
+            oracle,
         )?;
 
         Ok(())
     }
 
     pub fn cancel_order(ctx: Context<CancelOrder>, order_id: u128) -> ProgramResult {
+        let account_info_iter = &mut ctx.remaining_accounts.iter();
+        let oracle = get_oracle_for_cancel_order_by_order_id(
+            account_info_iter,
+            &ctx.accounts.user_orders,
+            &ctx.accounts.markets,
+            order_id,
+        )?;
+
         controller::orders::cancel_order_by_order_id(
+            &ctx.accounts.state,
             order_id,
             &mut ctx.accounts.user,
             &ctx.accounts.user_positions,
@@ -1005,13 +1021,23 @@ pub mod clearing_house {
             &ctx.accounts.funding_payment_history,
             &ctx.accounts.order_history,
             &Clock::get()?,
+            oracle,
         )?;
 
         Ok(())
     }
 
     pub fn cancel_order_by_user_id(ctx: Context<CancelOrder>, user_order_id: u8) -> ProgramResult {
+        let account_info_iter = &mut ctx.remaining_accounts.iter();
+        let oracle = get_oracle_for_cancel_order_by_user_order_id(
+            account_info_iter,
+            &ctx.accounts.user_orders,
+            &ctx.accounts.markets,
+            user_order_id,
+        )?;
+
         controller::orders::cancel_order_by_user_order_id(
+            &ctx.accounts.state,
             user_order_id,
             &mut ctx.accounts.user,
             &ctx.accounts.user_positions,
@@ -1020,6 +1046,7 @@ pub mod clearing_house {
             &ctx.accounts.funding_payment_history,
             &ctx.accounts.order_history,
             &Clock::get()?,
+            oracle,
         )?;
 
         Ok(())
@@ -1099,6 +1126,7 @@ pub mod clearing_house {
             &referrer,
             &Clock::get()?,
             params,
+            Some(&ctx.accounts.oracle),
         )?;
 
         let order_id;

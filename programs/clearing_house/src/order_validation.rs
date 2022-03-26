@@ -19,21 +19,17 @@ pub fn validate_order(
     order: &Order,
     market: &Market,
     order_state: &OrderState,
+    valid_oracle_price: Option<i128>,
 ) -> ClearingHouseResult {
     match order.order_type {
         OrderType::Market => validate_market_order(order, market)?,
-        OrderType::Limit => validate_limit_order(order, market, order_state)?,
+        OrderType::Limit => validate_limit_order(order, market, order_state, valid_oracle_price)?,
         OrderType::TriggerMarket => validate_trigger_market_order(order, market, order_state)?,
         OrderType::TriggerLimit => validate_trigger_limit_order(order, market, order_state)?,
     }
 
     if order.immediate_or_cancel {
         msg!("immediate_or_cancel not supported yet");
-        return Err(ErrorCode::InvalidOrder);
-    }
-
-    if order.oracle_price_offset != 0 {
-        msg!("oracle_price_offset not supported yet");
         return Err(ErrorCode::InvalidOrder);
     }
 
@@ -62,6 +58,11 @@ fn validate_market_order(order: &Order, market: &Market) -> ClearingHouseResult 
         return Err(ErrorCode::InvalidOrder);
     }
 
+    if order.has_oracle_price_offset() {
+        msg!("Market order can not have oracle offset");
+        return Err(ErrorCode::InvalidOrder);
+    }
+
     Ok(())
 }
 
@@ -69,11 +70,17 @@ fn validate_limit_order(
     order: &Order,
     market: &Market,
     order_state: &OrderState,
+    valid_oracle_price: Option<i128>,
 ) -> ClearingHouseResult {
     validate_base_asset_amount(order, market)?;
 
-    if order.price == 0 {
+    if order.price == 0 && !order.has_oracle_price_offset() {
         msg!("Limit order price == 0");
+        return Err(ErrorCode::InvalidOrder);
+    }
+
+    if order.price != 0 && order.has_oracle_price_offset() {
+        msg!("Limit order price != 0 and oracle price offset is set");
         return Err(ErrorCode::InvalidOrder);
     }
 
@@ -88,11 +95,11 @@ fn validate_limit_order(
     }
 
     if order.post_only {
-        validate_post_only_order(order, market)?;
+        validate_post_only_order(order, market, valid_oracle_price)?;
     }
 
-    let approximate_market_value = order
-        .price
+    let limit_price = order.get_limit_price(valid_oracle_price)?;
+    let approximate_market_value = limit_price
         .checked_mul(order.base_asset_amount)
         .or(Some(u128::MAX))
         .unwrap()
@@ -107,9 +114,13 @@ fn validate_limit_order(
     Ok(())
 }
 
-fn validate_post_only_order(order: &Order, market: &Market) -> ClearingHouseResult {
+fn validate_post_only_order(
+    order: &Order,
+    market: &Market,
+    valid_oracle_price: Option<i128>,
+) -> ClearingHouseResult {
     let base_asset_amount_market_can_fill =
-        calculate_base_asset_amount_to_trade_for_limit(order, market)?;
+        calculate_base_asset_amount_to_trade_for_limit(order, market, valid_oracle_price)?;
 
     if base_asset_amount_market_can_fill != 0 {
         msg!(
@@ -146,6 +157,11 @@ fn validate_trigger_limit_order(
 
     if order.post_only {
         msg!("Trigger limit order can not be post only");
+        return Err(ErrorCode::InvalidOrder);
+    }
+
+    if order.has_oracle_price_offset() {
+        msg!("Trigger limit can not have oracle offset");
         return Err(ErrorCode::InvalidOrder);
     }
 
@@ -207,6 +223,11 @@ fn validate_trigger_market_order(
         return Err(ErrorCode::InvalidOrder);
     }
 
+    if order.has_oracle_price_offset() {
+        msg!("Trigger market order can not have oracle offset");
+        return Err(ErrorCode::InvalidOrder);
+    }
+
     let approximate_market_value = order
         .trigger_price
         .checked_mul(order.base_asset_amount)
@@ -255,13 +276,17 @@ fn validate_quote_asset_amount(order: &Order, market: &Market) -> ClearingHouseR
     Ok(())
 }
 
-pub fn validate_order_can_be_canceled(order: &Order, market: &Market) -> ClearingHouseResult {
+pub fn validate_order_can_be_canceled(
+    order: &Order,
+    market: &Market,
+    valid_oracle_price: Option<i128>,
+) -> ClearingHouseResult {
     if !order.post_only {
         return Ok(());
     }
 
     let base_asset_amount_market_can_fill =
-        calculate_base_asset_amount_to_trade_for_limit(order, market)?;
+        calculate_base_asset_amount_to_trade_for_limit(order, market, valid_oracle_price)?;
 
     if base_asset_amount_market_can_fill > 0 {
         msg!(

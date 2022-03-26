@@ -2616,7 +2616,7 @@
           },
           {
             "name": "oraclePriceOffset",
-            "type": "u128"
+            "type": "i128"
           },
           {
             "name": "padding0",
@@ -4185,6 +4185,11 @@
       "code": 6058,
       "name": "CantCancelPostOnlyOrder",
       "msg": "Cant Cancel Post Only Order"
+    },
+    {
+      "code": 6059,
+      "name": "InvalidOracleOffset",
+      "msg": "InvalidOracleOffset"
     }
   ]
 }

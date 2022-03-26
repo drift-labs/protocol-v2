@@ -29,7 +29,9 @@ pub fn calculate_base_asset_amount_market_can_execute(
     valid_oracle_price: Option<i128>,
 ) -> ClearingHouseResult<u128> {
     match order.order_type {
-        OrderType::Limit => calculate_base_asset_amount_to_trade_for_limit(order, market),
+        OrderType::Limit => {
+            calculate_base_asset_amount_to_trade_for_limit(order, market, valid_oracle_price)
+        }
         OrderType::TriggerMarket => calculate_base_asset_amount_to_trade_for_trigger_market(
             order,
             market,
@@ -49,14 +51,17 @@ pub fn calculate_base_asset_amount_market_can_execute(
 pub fn calculate_base_asset_amount_to_trade_for_limit(
     order: &Order,
     market: &Market,
+    valid_oracle_price: Option<i128>,
 ) -> ClearingHouseResult<u128> {
     let base_asset_amount_to_fill = order
         .base_asset_amount
         .checked_sub(order.base_asset_amount_filled)
         .ok_or_else(math_error!())?;
 
+    let limit_price = order.get_limit_price(valid_oracle_price)?;
+
     let (max_trade_base_asset_amount, max_trade_direction) =
-        math::amm::calculate_max_base_asset_amount_to_trade(&market.amm, order.price)?;
+        math::amm::calculate_max_base_asset_amount_to_trade(&market.amm, limit_price)?;
     if max_trade_direction != order.direction || max_trade_base_asset_amount == 0 {
         return Ok(0);
     }
@@ -143,7 +148,7 @@ fn calculate_base_asset_amount_to_trade_for_trigger_limit(
         }
     }
 
-    calculate_base_asset_amount_to_trade_for_limit(order, market)
+    calculate_base_asset_amount_to_trade_for_limit(order, market, None)
 }
 
 pub fn calculate_base_asset_amount_user_can_execute(

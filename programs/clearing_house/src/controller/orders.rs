@@ -22,12 +22,13 @@ use crate::state::{
 };
 
 use crate::controller;
-use crate::math::amm::normalise_oracle_price;
+use crate::math::amm::{is_oracle_valid, normalise_oracle_price};
 use crate::math::fees::calculate_order_fee_tier;
 use crate::order_validation::{validate_order, validate_order_can_be_canceled};
 use crate::state::history::funding_payment::FundingPaymentHistory;
 use crate::state::history::funding_rate::FundingRateHistory;
 use crate::state::history::order_history::OrderAction;
+use crate::state::market::Market;
 use spl_token::state::Account as TokenAccount;
 use std::cell::RefMut;
 
@@ -44,6 +45,7 @@ pub fn place_order(
     referrer: &Option<Account<User>>,
     clock: &Clock,
     params: OrderParams,
+    oracle: Option<&AccountInfo>,
 ) -> ClearingHouseResult {
     let now = clock.unix_timestamp;
 
@@ -123,14 +125,22 @@ pub fn place_order(
             None => Pubkey::default(),
         },
         post_only: params.post_only,
+        oracle_price_offset: params.oracle_price_offset,
 
         // always false until we add support
         immediate_or_cancel: false,
-        oracle_price_offset: 0,
         padding: [0; 3],
     };
 
-    validate_order(&new_order, market, order_state)?;
+    let valid_oracle_price = get_valid_oracle_price(
+        oracle,
+        market,
+        &new_order,
+        &state.oracle_guard_rails.validity,
+        clock.slot,
+    )?;
+
+    validate_order(&new_order, market, order_state, valid_oracle_price)?;
 
     user_orders.orders[new_order_idx] = new_order;
 
@@ -157,6 +167,7 @@ pub fn place_order(
 }
 
 pub fn cancel_order_by_order_id(
+    state: &State,
     order_id: u128,
     user: &mut Box<Account<User>>,
     user_positions: &AccountLoader<UserPositions>,
@@ -165,6 +176,7 @@ pub fn cancel_order_by_order_id(
     funding_payment_history: &AccountLoader<FundingPaymentHistory>,
     order_history: &AccountLoader<OrderHistory>,
     clock: &Clock,
+    oracle: Option<&AccountInfo>,
 ) -> ClearingHouseResult {
     let user_orders = &mut user_orders
         .load_mut()
@@ -178,6 +190,7 @@ pub fn cancel_order_by_order_id(
     let order = &mut user_orders.orders[order_index];
 
     cancel_order(
+        state,
         order,
         user,
         user_positions,
@@ -185,10 +198,12 @@ pub fn cancel_order_by_order_id(
         funding_payment_history,
         order_history,
         clock,
+        oracle,
     )
 }
 
 pub fn cancel_order_by_user_order_id(
+    state: &State,
     user_order_id: u8,
     user: &mut Box<Account<User>>,
     user_positions: &AccountLoader<UserPositions>,
@@ -197,6 +212,7 @@ pub fn cancel_order_by_user_order_id(
     funding_payment_history: &AccountLoader<FundingPaymentHistory>,
     order_history: &AccountLoader<OrderHistory>,
     clock: &Clock,
+    oracle: Option<&AccountInfo>,
 ) -> ClearingHouseResult {
     let user_orders = &mut user_orders
         .load_mut()
@@ -210,6 +226,7 @@ pub fn cancel_order_by_user_order_id(
     let order = &mut user_orders.orders[order_index];
 
     cancel_order(
+        state,
         order,
         user,
         user_positions,
@@ -217,10 +234,12 @@ pub fn cancel_order_by_user_order_id(
         funding_payment_history,
         order_history,
         clock,
+        oracle,
     )
 }
 
 pub fn cancel_order(
+    state: &State,
     order: &mut Order,
     user: &mut Box<Account<User>>,
     user_positions: &AccountLoader<UserPositions>,
@@ -228,6 +247,7 @@ pub fn cancel_order(
     funding_payment_history: &AccountLoader<FundingPaymentHistory>,
     order_history: &AccountLoader<OrderHistory>,
     clock: &Clock,
+    oracle: Option<&AccountInfo>,
 ) -> ClearingHouseResult {
     let now = clock.unix_timestamp;
 
@@ -252,7 +272,20 @@ pub fn cancel_order(
         return Err(ErrorCode::OrderNotOpen);
     }
 
-    validate_order_can_be_canceled(order, markets.get_market(order.market_index))?;
+    let market = markets.get_market(order.market_index);
+    let valid_oracle_price = get_valid_oracle_price(
+        oracle,
+        market,
+        &order,
+        &state.oracle_guard_rails.validity,
+        clock.slot,
+    )?;
+
+    validate_order_can_be_canceled(
+        order,
+        markets.get_market(order.market_index),
+        valid_oracle_price,
+    )?;
 
     // Add to the order history account
     let order_history_account = &mut order_history
@@ -809,7 +842,7 @@ pub fn execute_non_market_order(
     let market_position = &mut user_positions.positions[position_index];
 
     let maker_limit_price = if order.post_only {
-        Some(order.price)
+        Some(order.get_limit_price(valid_oracle_price)?)
     } else {
         None
     };
@@ -876,4 +909,32 @@ pub fn update_order_after_trade(
     order.fee = order.fee.checked_add(fee).ok_or_else(math_error!())?;
 
     Ok(())
+}
+
+fn get_valid_oracle_price(
+    oracle: Option<&AccountInfo>,
+    market: &Market,
+    order: &Order,
+    validity_guardrails: &ValidityGuardRails,
+    slot: u64,
+) -> ClearingHouseResult<Option<i128>> {
+    let price = if let Some(oracle) = oracle {
+        let oracle_data = market.amm.get_oracle_price(oracle, slot)?;
+        let is_oracle_valid = is_oracle_valid(&market.amm, &oracle_data, validity_guardrails)?;
+        if is_oracle_valid {
+            Some(oracle_data.price)
+        } else if order.has_oracle_price_offset() {
+            msg!("Invalid oracle for order with oracle price offset");
+            return Err(print_error!(ErrorCode::InvalidOracle)());
+        } else {
+            None
+        }
+    } else if order.has_oracle_price_offset() {
+        msg!("Oracle not found for order with oracle price offset");
+        return Err(print_error!(ErrorCode::OracleNotFound)());
+    } else {
+        None
+    };
+
+    Ok(price)
 }
