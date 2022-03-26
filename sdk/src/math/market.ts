@@ -5,6 +5,7 @@ import {
 	calculatePrice,
 	getSwapDirection,
 } from './amm';
+import { OraclePriceData } from '../oracles/types';
 
 /**
  * Calculates market mark price
@@ -40,4 +41,12 @@ export function calculateNewMarketAfterTrade(
 	newMarket.amm.baseAssetReserve = newBaseAssetReserve;
 
 	return newMarket;
+}
+
+export function calculateMarkOracleSpread(
+	market: Market,
+	oraclePriceData: OraclePriceData
+): BN {
+	const markPrice = calculateMarkPrice(market);
+	return markPrice.sub(oraclePriceData.price);
 }

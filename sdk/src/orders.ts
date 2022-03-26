@@ -30,6 +30,7 @@ import {
 	findDirectionToClose,
 	positionCurrentDirection,
 } from './math/position';
+import { OraclePriceData } from '.';
 
 export function calculateNewStateAfterOrder(
 	userAccount: UserAccount,
@@ -171,10 +172,11 @@ function calculateAmountSwapped(
 
 export function calculateBaseAssetAmountMarketCanExecute(
 	market: Market,
-	order: Order
+	order: Order,
+	oraclePriceData?: OraclePriceData
 ): BN {
 	if (isVariant(order.orderType, 'limit')) {
-		return calculateAmountToTradeForLimit(market, order);
+		return calculateAmountToTradeForLimit(market, order, oraclePriceData);
 	} else if (isVariant(order.orderType, 'triggerLimit')) {
 		return calculateAmountToTradeForTriggerLimit(market, order);
 	} else if (isVariant(order.orderType, 'market')) {
@@ -187,11 +189,22 @@ export function calculateBaseAssetAmountMarketCanExecute(
 
 export function calculateAmountToTradeForLimit(
 	market: Market,
-	order: Order
+	order: Order,
+	oraclePriceData?: OraclePriceData
 ): BN {
+	let limitPrice = order.price;
+	if (!order.oraclePriceOffset.eq(ZERO)) {
+		if (!oraclePriceData) {
+			throw Error(
+				'Cant calculate limit price for oracle offset oracle without OraclePriceData'
+			);
+		}
+		limitPrice = oraclePriceData.price.add(order.oraclePriceOffset);
+	}
+
 	const [maxAmountToTrade, direction] = calculateMaxBaseAssetAmountToTrade(
 		market.amm,
-		order.price
+		limitPrice
 	);
 
 	// Check that directions are the same
