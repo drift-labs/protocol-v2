@@ -788,6 +788,46 @@ export class ClearingHouse {
 		});
 	}
 
+	public async expireOrders(
+		userAccountPublicKey: PublicKey,
+		userOrdersAccountPublicKey: PublicKey
+	): Promise<TransactionSignature> {
+		return await this.txSender.send(
+			wrapInTx(
+				await this.getExpireOrdersIx(
+					userAccountPublicKey,
+					userOrdersAccountPublicKey
+				)
+			),
+			[],
+			this.opts
+		);
+	}
+
+	public async getExpireOrdersIx(
+		userAccountPublicKey: PublicKey,
+		userOrdersAccountPublicKey: PublicKey
+	): Promise<TransactionInstruction> {
+		const fillerPublicKey = await this.getUserAccountPublicKey();
+		const userAccount: any = await this.program.account.user.fetch(
+			userAccountPublicKey
+		);
+
+		const orderState = this.getOrderStateAccount();
+		return await this.program.instruction.expireOrders({
+			accounts: {
+				state: await this.getStatePublicKey(),
+				filler: fillerPublicKey,
+				user: userAccountPublicKey,
+				authority: this.wallet.publicKey,
+				userPositions: userAccount.positions,
+				userOrders: userOrdersAccountPublicKey,
+				orderState: await this.getOrderStatePublicKey(),
+				orderHistory: orderState.orderHistory,
+			},
+		});
+	}
+
 	public async cancelOrder(
 		orderId: BN,
 		oracle?: PublicKey

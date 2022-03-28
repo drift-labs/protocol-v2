@@ -23,6 +23,8 @@ use crate::state::{
 
 use crate::controller;
 use crate::math::amm::{is_oracle_valid, normalise_oracle_price};
+use crate::math::collateral::calculate_updated_collateral;
+use crate::math::constants::QUOTE_PRECISION;
 use crate::math::fees::calculate_order_fee_tier;
 use crate::order_validation::{validate_order, validate_order_can_be_canceled};
 use crate::state::history::funding_payment::FundingPaymentHistory;
@@ -314,6 +316,88 @@ pub fn cancel_order(
     let market_position = &mut user_positions.positions[position_index];
     market_position.open_orders -= 1;
     *order = Order::default();
+
+    Ok(())
+}
+
+pub fn expire_orders(
+    user: &mut Box<Account<User>>,
+    user_positions: &AccountLoader<UserPositions>,
+    user_orders: &AccountLoader<UserOrders>,
+    filler: &mut Box<Account<User>>,
+    order_history: &AccountLoader<OrderHistory>,
+    clock: &Clock,
+) -> ClearingHouseResult {
+    let now = clock.unix_timestamp;
+    let ten_quote = 10 * QUOTE_PRECISION;
+
+    if user.collateral >= ten_quote {
+        msg!("User has more than ten quote asset, cant expire orders");
+        return Err(ErrorCode::CantExpireOrders);
+    }
+
+    let max_filler_reward = QUOTE_PRECISION / 100; // .01 quote asset
+    let filler_reward = min(user.collateral, max_filler_reward);
+
+    let user_orders = &mut user_orders
+        .load_mut()
+        .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
+
+    let expired_orders = user_orders
+        .orders
+        .iter()
+        .filter(|&order| order.status == OrderStatus::Open)
+        .count();
+    if expired_orders == 0 {
+        msg!("No orders to be expired");
+        return Err(ErrorCode::CantExpireOrders);
+    }
+
+    user.collateral = calculate_updated_collateral(user.collateral, -(filler_reward as i128))?;
+    filler.collateral = calculate_updated_collateral(filler.collateral, filler_reward as i128)?;
+
+    let filler_reward_per_order: u128 = filler_reward / (expired_orders as u128);
+
+    let user_positions = &mut user_positions
+        .load_mut()
+        .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
+    let order_history_account = &mut order_history
+        .load_mut()
+        .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
+    for order in user_orders.orders.iter_mut() {
+        if order.status == OrderStatus::Init {
+            continue;
+        }
+
+        order.fee = order
+            .fee
+            .checked_add(filler_reward_per_order)
+            .ok_or_else(math_error!())?;
+
+        // Add to the order history account
+        let record_id = order_history_account.next_record_id();
+        order_history_account.append(OrderRecord {
+            ts: now,
+            record_id,
+            order: *order,
+            user: user.key(),
+            authority: user.authority,
+            action: OrderAction::Expire,
+            filler: filler.key(),
+            trade_record_id: 0,
+            base_asset_amount_filled: 0,
+            quote_asset_amount_filled: 0,
+            filler_reward: filler_reward_per_order,
+            fee: filler_reward_per_order,
+            quote_asset_amount_surplus: 0,
+            padding: [0; 8],
+        });
+
+        *order = Order::default();
+        let position_index = get_position_index(user_positions, order.market_index)?;
+        let market_position = &mut user_positions.positions[position_index];
+        market_position.open_orders -= 1;
+    }
 
     Ok(())
 }

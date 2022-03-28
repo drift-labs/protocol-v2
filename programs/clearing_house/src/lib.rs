@@ -1052,6 +1052,18 @@ pub mod clearing_house {
         Ok(())
     }
 
+    pub fn expire_orders(ctx: Context<ExpireOrder>) -> ProgramResult {
+        controller::orders::expire_orders(
+            &mut ctx.accounts.user,
+            &ctx.accounts.user_positions,
+            &ctx.accounts.user_orders,
+            &mut ctx.accounts.filler,
+            &ctx.accounts.order_history,
+            &Clock::get()?,
+        )?;
+        Ok(())
+    }
+
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]

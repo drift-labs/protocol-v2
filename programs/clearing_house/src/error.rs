@@ -124,6 +124,8 @@ pub enum ErrorCode {
     CantCancelPostOnlyOrder,
     #[msg("InvalidOracleOffset")]
     InvalidOracleOffset,
+    #[msg("CantExpireOrders")]
+    CantExpireOrders,
 }
 
 #[macro_export]

@@ -678,6 +678,52 @@
       ]
     },
     {
+      "name": "expireOrders",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "orderState",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "filler",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userPositions",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userOrders",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "orderHistory",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "fillOrder",
       "accounts": [
         {
@@ -3800,6 +3846,9 @@
           },
           {
             "name": "Fill"
+          },
+          {
+            "name": "Expire"
           }
         ]
       }
@@ -4190,6 +4239,11 @@
       "code": 6059,
       "name": "InvalidOracleOffset",
       "msg": "InvalidOracleOffset"
+    },
+    {
+      "code": 6060,
+      "name": "CantExpireOrders",
+      "msg": "CantExpireOrders"
     }
   ]
 }

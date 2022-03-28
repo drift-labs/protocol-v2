@@ -674,6 +674,41 @@ pub struct CancelOrder<'info> {
 }
 
 #[derive(Accounts)]
+pub struct ExpireOrder<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        constraint = &state.order_state.eq(&order_state.key())
+    )]
+    pub order_state: Box<Account<'info, OrderState>>,
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        has_one = authority
+    )]
+    pub filler: Box<Account<'info, User>>,
+    #[account(
+        mut,
+        constraint = &user.positions.eq(&user_positions.key())
+    )]
+    pub user: Box<Account<'info, User>>,
+    #[account(
+        mut,
+        has_one = user
+    )]
+    pub user_positions: AccountLoader<'info, UserPositions>,
+    #[account(
+        mut,
+        has_one = user
+    )]
+    pub user_orders: AccountLoader<'info, UserOrders>,
+    #[account(
+        mut,
+        constraint = &order_state.order_history.eq(&order_history.key())
+    )]
+    pub order_history: AccountLoader<'info, OrderHistory>,
+}
+
+#[derive(Accounts)]
 pub struct ClosePosition<'info> {
     #[account(mut)]
     pub state: Box<Account<'info, State>>,

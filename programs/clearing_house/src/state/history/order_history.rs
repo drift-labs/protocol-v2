@@ -56,6 +56,7 @@ pub enum OrderAction {
     Place,
     Cancel,
     Fill,
+    Expire,
 }
 
 impl Default for OrderAction {
