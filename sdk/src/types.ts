@@ -40,7 +40,7 @@ export class OrderDiscountTier {
 export class OrderAction {
 	static readonly PLACE = { place: {} };
 	static readonly CANCEL = { cancel: {} };
-	static readonly EXPIRE = { expired: {} };
+	static readonly EXPIRE = { expire: {} };
 	static readonly FILL = { fill: {} };
 }
 
