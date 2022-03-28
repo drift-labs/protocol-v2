@@ -165,6 +165,17 @@ export const Markets: MarketConfig[] = [
 		launchTs: 1647543166000,
 		oracleSource: OracleSource.SWITCHBOARD,
 	},
+	{
+		fullName: 'Ape',
+		category: ['NFT'],
+		symbol: 'APE-PERP',
+		baseAssetSymbol: 'APE',
+		marketIndex: new BN(14),
+		devnetPublicKey: 'AwH6kBrJbkL9JTeqRd7Q59EdWh6UjPtoqoA5M4x4K2fA',
+		mainnetPublicKey: '74zeQpprjNtEghGiC3VEPsR9y4kR2GTd4Rq9YVk9tnjz',
+		launchTs: 1648475932000,
+		oracleSource: OracleSource.SWITCHBOARD,
+	},
 	// {
 	// 	symbol: 'mSOL-PERP',
 	// 	baseAssetSymbol: 'mSOL',
