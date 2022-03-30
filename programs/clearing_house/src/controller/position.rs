@@ -479,7 +479,7 @@ pub fn close(
     market_position.base_asset_amount = 0;
 
     Ok((
-        quote_asset_swapped,
+        quote_asset_amount,
         base_asset_amount,
         quote_asset_amount_surplus,
     ))
