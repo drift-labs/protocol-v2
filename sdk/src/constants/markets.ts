@@ -166,7 +166,7 @@ export const Markets: MarketConfig[] = [
 		oracleSource: OracleSource.SWITCHBOARD,
 	},
 	{
-		fullName: 'Ape',
+		fullName: 'ApeCoin',
 		category: ['NFT'],
 		symbol: 'APE-PERP',
 		baseAssetSymbol: 'APE',
@@ -176,6 +176,17 @@ export const Markets: MarketConfig[] = [
 		launchTs: 1648475932000,
 		oracleSource: OracleSource.SWITCHBOARD,
 	},
+	{
+		fullName: 'DogeCoin',
+		category: ['Meme', 'NFT'],
+		symbol: 'DOGE-PERP',
+		baseAssetSymbol: 'DOGE',
+		marketIndex: new BN(15),
+		devnetPublicKey: '4L6YhY8VvUgmqG5MvJkUJATtzB2rFqdrJwQCmFLv4Jzy',
+		mainnetPublicKey: 'FsSM3s38PX9K7Dn6eGzuE29S2Dsk1Sss1baytTQdCaQj',
+		launchTs: 1648607439000,
+		oracleSource: OracleSource.PYTH,
+	},	
 	// {
 	// 	symbol: 'mSOL-PERP',
 	// 	baseAssetSymbol: 'mSOL',
