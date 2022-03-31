@@ -393,10 +393,10 @@ pub fn expire_orders(
             padding: [0; 8],
         });
 
-        *order = Order::default();
         let position_index = get_position_index(user_positions, order.market_index)?;
         let market_position = &mut user_positions.positions[position_index];
         market_position.open_orders -= 1;
+        *order = Order::default();
     }
 
     Ok(())
