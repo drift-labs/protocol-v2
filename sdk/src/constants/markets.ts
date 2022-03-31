@@ -186,7 +186,7 @@ export const Markets: MarketConfig[] = [
 		mainnetPublicKey: 'FsSM3s38PX9K7Dn6eGzuE29S2Dsk1Sss1baytTQdCaQj',
 		launchTs: 1648607439000,
 		oracleSource: OracleSource.PYTH,
-	},	
+	},
 	// {
 	// 	symbol: 'mSOL-PERP',
 	// 	baseAssetSymbol: 'mSOL',
