@@ -9,6 +9,7 @@ type AccountToLoad = {
 
 const GET_MULTIPLE_ACCOUNTS_CHUNK_SIZE = 99;
 
+const oneMinute = 60 * 1000;
 const fiveMinutes = 5 * 60 * 1000;
 
 export class BulkAccountLoader {
@@ -104,10 +105,6 @@ export class BulkAccountLoader {
 			this.loadPromiseResolver = resolver;
 		});
 
-		if (this.loggingEnabled) {
-			console.log('Loading accounts');
-		}
-
 		try {
 			const chunks = this.chunks(
 				Array.from(this.accountsToLoad.values()),
@@ -163,6 +160,11 @@ export class BulkAccountLoader {
 			args
 		);
 
+		const oneMinuteSinceLastUpdate = Date.now() - this.lastUpdate > oneMinute;
+		if (this.loggingEnabled && oneMinuteSinceLastUpdate) {
+			console.log('rpcResponse', JSON.stringify(rpcResponse));
+		}
+
 		const newSlot = rpcResponse.result.context.slot;
 
 		for (const i in accountsToLoad) {
@@ -175,6 +177,10 @@ export class BulkAccountLoader {
 				const raw: string = rpcResponse.result.value[i].data[0];
 				const dataType = rpcResponse.result.value[i].data[1];
 				newBuffer = Buffer.from(raw, dataType);
+			}
+
+			if (this.loggingEnabled && oneMinuteSinceLastUpdate) {
+				console.log('oldRPCResponse', oldRPCResponse);
 			}
 
 			if (!oldRPCResponse) {
