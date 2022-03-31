@@ -205,6 +205,12 @@ pub struct DeleteUser<'info> {
         close = authority
     )]
     pub user_positions: AccountLoader<'info, UserPositions>,
+    #[account(
+        mut,
+        has_one = user,
+        close = authority
+    )]
+    pub user_orders: AccountLoader<'info, UserOrders>,
     pub authority: Signer<'info>,
 }
 
