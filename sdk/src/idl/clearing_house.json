@@ -1445,6 +1445,11 @@
           "isSigner": false
         },
         {
+          "name": "userOrders",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "authority",
           "isMut": false,
           "isSigner": true
