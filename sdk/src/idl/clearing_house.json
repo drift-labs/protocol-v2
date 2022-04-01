@@ -3241,8 +3241,8 @@
             "type": "u128"
           },
           {
-            "name": "padding1",
-            "type": "u64"
+            "name": "netRevenueSinceLastFunding",
+            "type": "i64"
           },
           {
             "name": "padding2",
@@ -4249,6 +4249,11 @@
       "code": 6060,
       "name": "CantExpireOrders",
       "msg": "CantExpireOrders"
+    },
+    {
+      "code": 6061,
+      "name": "InvalidRepegPriceImpact",
+      "msg": "AMM repeg mark price impact vs oracle too large"
     }
   ]
 }

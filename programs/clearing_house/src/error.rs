@@ -126,6 +126,8 @@ pub enum ErrorCode {
     InvalidOracleOffset,
     #[msg("CantExpireOrders")]
     CantExpireOrders,
+    #[msg("AMM repeg mark price impact vs oracle too large")]
+    InvalidRepegPriceImpact,
 }
 
 #[macro_export]

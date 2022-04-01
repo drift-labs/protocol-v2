@@ -899,7 +899,7 @@ describe('clearing_house', () => {
 			provider,
 			userUSDCAccount.publicKey
 		);
-		console.log(userUSDCTokenAccount.amount);
+		console.log(convertToNumber(userUSDCTokenAccount.amount, QUOTE_PRECISION));
 		await mintToInsuranceFund(userUSDCAccount, usdcMint, usdcAmount, provider);
 
 		userUSDCTokenAccount = await getTokenAccount(
@@ -907,7 +907,7 @@ describe('clearing_house', () => {
 			userUSDCAccount.publicKey
 		);
 
-		console.log(userUSDCTokenAccount.amount);
+		console.log(convertToNumber(userUSDCTokenAccount.amount, QUOTE_PRECISION));
 
 		const initialUserUSDCAmount = userUSDCTokenAccount.amount;
 
@@ -937,6 +937,24 @@ describe('clearing_house', () => {
 			userAccountPublicKey
 		);
 		assert(user.collateral.gt(initialUserUSDCAmount));
+
+		const chCollateralAccountToken0 = await getTokenAccount(
+			provider,
+			state.collateralVault
+		);
+		const chInsuranceAccountToken0 = await getTokenAccount(
+			provider,
+			state.insuranceVault
+		);
+
+		console.log(
+			'user collateral for IF based withdrawal',
+			convertToNumber(user.collateral, QUOTE_PRECISION),
+			'vault balance:',
+			convertToNumber(chCollateralAccountToken0.amount, QUOTE_PRECISION),
+			'IF balance:',
+			convertToNumber(chInsuranceAccountToken0.amount, QUOTE_PRECISION)
+		);
 
 		await clearingHouse.withdrawCollateral(
 			user.collateral,
