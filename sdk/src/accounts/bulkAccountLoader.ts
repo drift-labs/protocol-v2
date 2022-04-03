@@ -205,6 +205,10 @@ export class BulkAccountLoader {
 				});
 				this.handleAccountCallbacks(accountToLoad, newBuffer);
 				this.lastUpdate = Date.now();
+			} else if (this.loggingEnabled) {
+				console.log('unable to update account for newest slot');
+				console.log('oldBuffer', oldBuffer);
+				console.log('newBuffer', newBuffer);
 			}
 		}
 	}
