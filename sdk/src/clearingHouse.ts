@@ -21,6 +21,7 @@ import {
 	OrderParams,
 	Order,
 	ExtendedCurveHistoryAccount,
+	UserPositionsAccount,
 } from './types';
 import * as anchor from '@project-serum/anchor';
 import clearingHouseIDL from './idl/clearing_house.json';
@@ -1203,6 +1204,31 @@ export class ClearingHouse {
 				remainingAccounts: remainingAccounts,
 			}
 		);
+	}
+
+	public async closeAllPositions(
+		userPositionsAccount: UserPositionsAccount,
+		discountToken?: PublicKey,
+		referrer?: PublicKey
+	): Promise<TransactionSignature> {
+		const ixs: TransactionInstruction[] = [];
+		for (const userPosition of userPositionsAccount.positions) {
+			if (userPosition.baseAssetAmount.eq(ZERO)) {
+				continue;
+			}
+
+			ixs.push(
+				await this.getClosePositionIx(
+					userPosition.marketIndex,
+					discountToken,
+					referrer
+				)
+			);
+		}
+
+		const tx = new Transaction().add(...ixs);
+
+		return this.txSender.send(tx, [], this.opts);
 	}
 
 	public async liquidate(
