@@ -120,7 +120,7 @@ pub fn formulaic_repeg(
 
     let (
         oracle_valid,
-        direction_valid,
+        _direction_valid,
         profitability_valid,
         price_impact_valid,
         _oracle_terminal_divergence_pct_after,
