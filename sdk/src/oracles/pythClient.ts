@@ -28,7 +28,7 @@ export class PythClient {
 	): Promise<OraclePriceData> {
 		const priceData = parsePriceData(buffer);
 		return {
-			price: convertPythPrice(priceData.price, priceData.exponent),
+			price: convertPythPrice(priceData.aggregate.price, priceData.exponent),
 			slot: new BN(priceData.lastSlot.toString()),
 			confidence: convertPythPrice(priceData.confidence, priceData.exponent),
 			twap: convertPythPrice(priceData.twap.value, priceData.exponent),
