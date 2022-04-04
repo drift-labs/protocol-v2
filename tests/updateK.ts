@@ -1,6 +1,6 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
-import { BN } from '../sdk';
+import { AMM_RESERVE_PRECISION, BN, calculateTradeSlippage } from '../sdk';
 
 import { Keypair } from '@solana/web3.js';
 import { Program } from '@project-serum/anchor';
@@ -12,6 +12,7 @@ import {
 	PEG_PRECISION,
 	PositionDirection,
 	convertToNumber,
+	squareRootBN,
 } from '../sdk/src';
 
 import { Markets } from '../sdk/src/constants/markets';
@@ -109,13 +110,13 @@ describe('update k', () => {
 
 		console.log(
 			'oldSqrtK',
-			convertToNumber(ammOld.sqrtK),
+			convertToNumber(ammOld.sqrtK, AMM_RESERVE_PRECISION),
 			'oldKPrice:',
 			convertToNumber(oldKPrice)
 		);
 		console.log(
 			'newSqrtK',
-			convertToNumber(newSqrtK),
+			convertToNumber(newSqrtK, AMM_RESERVE_PRECISION),
 			'newKPrice:',
 			convertToNumber(newKPrice)
 		);
@@ -298,6 +299,12 @@ describe('update k', () => {
 		const newSqrtK = ammOld.sqrtK
 			.mul(new BN(0.98 * MARK_PRICE_PRECISION.toNumber()))
 			.div(MARK_PRICE_PRECISION);
+		const smallTradeSlipOld = calculateTradeSlippage(
+			PositionDirection.LONG,
+			QUOTE_PRECISION,
+			marketsOld.markets[0]
+		)[0];
+
 		await clearingHouse.updateK(newSqrtK, marketIndex);
 
 		await clearingHouse.fetchAccounts();
@@ -305,6 +312,20 @@ describe('update k', () => {
 		const ammKChange = marketsKChange.markets[0].amm;
 
 		const newKPrice = calculateMarkPrice(clearingHouse.getMarket(marketIndex));
+
+		const smallTradeSlip = calculateTradeSlippage(
+			PositionDirection.LONG,
+			QUOTE_PRECISION,
+			marketsKChange.markets[0]
+		)[0];
+		console.log(
+			'$1 slippage (',
+			convertToNumber(smallTradeSlipOld),
+			'->',
+			convertToNumber(smallTradeSlip),
+			')'
+		);
+		assert(smallTradeSlipOld.gte(smallTradeSlip));
 
 		console.log('$1 position closing');
 
@@ -379,8 +400,14 @@ describe('update k', () => {
 			convertToNumber(userAccount.getTotalCollateral(), QUOTE_PRECISION)
 		);
 
+		const smallTradeSlipOld = calculateTradeSlippage(
+			PositionDirection.LONG,
+			QUOTE_PRECISION,
+			marketsOld.markets[0]
+		)[0];
+
 		const newSqrtK = ammOld.sqrtK
-			.mul(new BN(1.1 * MARK_PRICE_PRECISION.toNumber()))
+			.mul(new BN(1.02 * MARK_PRICE_PRECISION.toNumber()))
 			.div(MARK_PRICE_PRECISION);
 		await clearingHouse.updateK(newSqrtK, marketIndex);
 
@@ -388,6 +415,20 @@ describe('update k', () => {
 		const marketsKChange = await clearingHouse.getMarketsAccount();
 		const ammKChange = marketsKChange.markets[0].amm;
 		const newKPrice = calculateMarkPrice(clearingHouse.getMarket(marketIndex));
+
+		const smallTradeSlip = calculateTradeSlippage(
+			PositionDirection.LONG,
+			QUOTE_PRECISION,
+			marketsKChange.markets[0]
+		)[0];
+		console.log(
+			'$1 slippage (',
+			convertToNumber(smallTradeSlipOld),
+			'->',
+			convertToNumber(smallTradeSlip),
+			')'
+		);
+		assert(smallTradeSlipOld.gte(smallTradeSlip));
 
 		console.log('$1 position closing');
 
@@ -402,13 +443,13 @@ describe('update k', () => {
 
 		console.log(
 			'oldSqrtK',
-			convertToNumber(ammOld.sqrtK),
+			convertToNumber(ammOld.sqrtK, AMM_RESERVE_PRECISION),
 			'oldKPrice:',
 			convertToNumber(oldKPrice)
 		);
 		console.log(
 			'newSqrtK',
-			convertToNumber(newSqrtK),
+			convertToNumber(newSqrtK, AMM_RESERVE_PRECISION),
 			'newKPrice:',
 			convertToNumber(newKPrice)
 		);
@@ -416,6 +457,26 @@ describe('update k', () => {
 		assert(ammOld.sqrtK.lt(amm.sqrtK));
 		assert(newKPrice.sub(oldKPrice).abs().lt(marginOfError));
 		assert(amm.sqrtK.eq(newSqrtK));
+
+		console.log(
+			'old sqrt X*Y:',
+			convertToNumber(
+				squareRootBN(ammOld.baseAssetReserve.mul(ammOld.quoteAssetReserve)),
+				AMM_RESERVE_PRECISION
+			),
+			'close sqrt X*Y:',
+			convertToNumber(
+				squareRootBN(
+					ammKChange.baseAssetReserve.mul(ammKChange.quoteAssetReserve)
+				),
+				AMM_RESERVE_PRECISION
+			),
+			'close sqrt X*Y:',
+			convertToNumber(
+				squareRootBN(amm.baseAssetReserve.mul(amm.quoteAssetReserve)),
+				AMM_RESERVE_PRECISION
+			)
+		);
 
 		console.log(
 			'realizedFeeOld',

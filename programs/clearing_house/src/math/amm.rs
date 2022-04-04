@@ -460,17 +460,17 @@ pub fn adjust_k_cost(market: &mut Market, new_sqrt_k: bn::U256) -> ClearingHouse
     let (current_net_market_value, _) =
         _calculate_base_asset_value_and_pnl(market.base_asset_amount, 0, &market.amm)?;
 
-    let ratio_scalar = bn::U256::from(MARK_PRICE_PRECISION);
+    let mark_price_precision = bn::U256::from(MARK_PRICE_PRECISION);
 
     let sqrt_k_ratio = new_sqrt_k
-        .checked_mul(ratio_scalar)
+        .checked_mul(mark_price_precision)
         .ok_or_else(math_error!())?
         .checked_div(bn::U256::from(market.amm.sqrt_k))
         .ok_or_else(math_error!())?;
 
     // if decreasing k, max decrease ratio for single transaction is 2.5%
     if sqrt_k_ratio
-        < ratio_scalar
+        < mark_price_precision
             .checked_mul(bn::U256::from(975))
             .ok_or_else(math_error!())?
             .checked_div(bn::U256::from(1000))
@@ -483,14 +483,18 @@ pub fn adjust_k_cost(market: &mut Market, new_sqrt_k: bn::U256) -> ClearingHouse
     market.amm.base_asset_reserve = bn::U256::from(market.amm.base_asset_reserve)
         .checked_mul(sqrt_k_ratio)
         .ok_or_else(math_error!())?
-        .checked_div(ratio_scalar)
+        .checked_div(mark_price_precision)
         .ok_or_else(math_error!())?
         .try_to_u128()
         .unwrap();
-    market.amm.quote_asset_reserve = bn::U256::from(market.amm.quote_asset_reserve)
-        .checked_mul(sqrt_k_ratio)
-        .ok_or_else(math_error!())?
-        .checked_div(ratio_scalar)
+
+    let invariant_sqrt_u192 = U192::from(market.amm.sqrt_k);
+    let invariant = invariant_sqrt_u192
+        .checked_mul(invariant_sqrt_u192)
+        .ok_or_else(math_error!())?;
+
+    market.amm.quote_asset_reserve = invariant
+        .checked_div(U192::from(market.amm.base_asset_reserve))
         .ok_or_else(math_error!())?
         .try_to_u128()
         .unwrap();

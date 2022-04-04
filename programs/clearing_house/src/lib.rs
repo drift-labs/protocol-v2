@@ -2176,6 +2176,21 @@ pub mod clearing_house {
             return Err(ErrorCode::InvalidUpdateK.into());
         }
 
+        let k_sqrt_check = bn::U192::from(amm.base_asset_reserve)
+            .checked_mul(bn::U192::from(amm.quote_asset_reserve))
+            .ok_or_else(math_error!())?
+            .integer_sqrt()
+            .try_to_u128()?;
+
+        let k_err = cast_to_i128(k_sqrt_check)?
+            .checked_sub(cast_to_i128(amm.sqrt_k)?)
+            .ok_or_else(math_error!())?;
+
+        if k_err.unsigned_abs() > 100 {
+            msg!("k_err={:?}, {:?} != {:?}", k_err, k_sqrt_check, amm.sqrt_k);
+            return Err(ErrorCode::InvalidUpdateK.into());
+        }
+
         let peg_multiplier_after = amm.peg_multiplier;
         let base_asset_reserve_after = amm.base_asset_reserve;
         let quote_asset_reserve_after = amm.quote_asset_reserve;
