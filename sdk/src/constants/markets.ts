@@ -187,6 +187,17 @@ export const Markets: MarketConfig[] = [
 		launchTs: 1648607439000,
 		oracleSource: OracleSource.PYTH,
 	},
+	{
+		fullName: 'Near',
+		category: ['L1', 'Infra'],
+		symbol: 'NEAR-PERP',
+		baseAssetSymbol: 'NEAR',
+		marketIndex: new BN(16),
+		devnetPublicKey: '3gnSbT7bhoTdGkFVZc1dW1PvjreWzpUNUD5ppXwv1N59',
+		mainnetPublicKey: 'ECSFWQ1bnnpqPVvoy9237t2wddZAaHisW88mYxuEHKWf',
+		launchTs: 1649105516000,
+		oracleSource: OracleSource.PYTH,
+	},
 	// {
 	// 	symbol: 'mSOL-PERP',
 	// 	baseAssetSymbol: 'mSOL',
