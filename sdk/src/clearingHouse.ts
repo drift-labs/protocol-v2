@@ -922,6 +922,51 @@ export class ClearingHouse {
 		});
 	}
 
+	public async cancelAllOrders(
+		oracles?: PublicKey[]
+	): Promise<TransactionSignature> {
+		return await this.txSender.send(
+			wrapInTx(await this.getCancelAllOrdersIx(oracles)),
+			[],
+			this.opts
+		);
+	}
+
+	public async getCancelAllOrdersIx(
+		oracles: PublicKey[]
+	): Promise<TransactionInstruction> {
+		const userAccountPublicKey = await this.getUserAccountPublicKey();
+		const userAccount = await this.getUserAccount();
+
+		const state = this.getStateAccount();
+		const orderState = this.getOrderStateAccount();
+
+		const remainingAccounts = [];
+		for (const oracle of oracles) {
+			remainingAccounts.push({
+				pubkey: oracle,
+				isWritable: false,
+				isSigner: false,
+			});
+		}
+
+		return await this.program.instruction.cancelAllOrders({
+			accounts: {
+				state: await this.getStatePublicKey(),
+				user: userAccountPublicKey,
+				authority: this.wallet.publicKey,
+				markets: state.markets,
+				userOrders: await this.getUserOrdersAccountPublicKey(),
+				userPositions: userAccount.positions,
+				fundingPaymentHistory: state.fundingPaymentHistory,
+				fundingRateHistory: state.fundingRateHistory,
+				orderState: await this.getOrderStatePublicKey(),
+				orderHistory: orderState.orderHistory,
+			},
+			remainingAccounts,
+		});
+	}
+
 	public async fillOrder(
 		userAccountPublicKey: PublicKey,
 		userOrdersAccountPublicKey: PublicKey,

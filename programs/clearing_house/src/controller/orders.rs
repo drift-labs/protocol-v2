@@ -35,6 +35,7 @@ use crate::state::history::order_history::OrderAction;
 use crate::state::market::Market;
 use spl_token::state::Account as TokenAccount;
 use std::cell::RefMut;
+use std::collections::BTreeMap;
 
 pub fn place_order(
     state: &State,
@@ -240,6 +241,57 @@ pub fn cancel_order_by_user_order_id(
         clock,
         oracle,
     )
+}
+
+pub fn cancel_all_orders(
+    state: &State,
+    user: &mut Box<Account<User>>,
+    user_positions: &AccountLoader<UserPositions>,
+    markets: &AccountLoader<Markets>,
+    user_orders: &AccountLoader<UserOrders>,
+    funding_payment_history: &AccountLoader<FundingPaymentHistory>,
+    order_history: &AccountLoader<OrderHistory>,
+    clock: &Clock,
+    remaining_accounts: &[AccountInfo],
+) -> ClearingHouseResult {
+    let user_orders = &mut user_orders
+        .load_mut()
+        .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
+
+    let mut oracle_account_infos: BTreeMap<Pubkey, &AccountInfo> = BTreeMap::new();
+    for account_info in remaining_accounts.iter() {
+        oracle_account_infos.insert(account_info.key(), account_info);
+    }
+
+    for order in user_orders.orders.iter_mut() {
+        if order.status != OrderStatus::Open {
+            continue;
+        }
+
+        let oracle = {
+            let markets = &markets
+                .load()
+                .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
+            let market = markets.get_market(order.market_index);
+            oracle_account_infos
+                .get(&market.amm.oracle)
+                .map(|oracle| *oracle)
+        };
+
+        cancel_order(
+            state,
+            order,
+            user,
+            user_positions,
+            markets,
+            funding_payment_history,
+            order_history,
+            clock,
+            oracle,
+        )?
+    }
+
+    Ok(())
 }
 
 pub fn cancel_order(

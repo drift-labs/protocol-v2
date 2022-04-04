@@ -1061,6 +1061,22 @@ pub mod clearing_house {
         Ok(())
     }
 
+    pub fn cancel_all_orders(ctx: Context<CancelOrder>) -> ProgramResult {
+        controller::orders::cancel_all_orders(
+            &ctx.accounts.state,
+            &mut ctx.accounts.user,
+            &ctx.accounts.user_positions,
+            &ctx.accounts.markets,
+            &ctx.accounts.user_orders,
+            &ctx.accounts.funding_payment_history,
+            &ctx.accounts.order_history,
+            &Clock::get()?,
+            ctx.remaining_accounts,
+        )?;
+
+        Ok(())
+    }
+
     pub fn expire_orders(ctx: Context<ExpireOrder>) -> ProgramResult {
         controller::orders::expire_orders(
             &mut ctx.accounts.user,
