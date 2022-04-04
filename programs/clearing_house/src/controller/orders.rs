@@ -135,9 +135,7 @@ pub fn place_order(
         },
         post_only: params.post_only,
         oracle_price_offset: params.oracle_price_offset,
-
-        // always false until we add support
-        immediate_or_cancel: false,
+        immediate_or_cancel: params.immediate_or_cancel,
         padding: [0; 3],
     };
 

@@ -17,7 +17,8 @@ export function getLimitOrderParams(
 	referrer = false,
 	userOrderId = 0,
 	postOnly = false,
-	oraclePriceOffset = ZERO
+	oraclePriceOffset = ZERO,
+	immediateOrCancel = false
 ): OrderParams {
 	return {
 		orderType: OrderType.LIMIT,
@@ -29,7 +30,7 @@ export function getLimitOrderParams(
 		price,
 		reduceOnly,
 		postOnly,
-		immediateOrCancel: false,
+		immediateOrCancel,
 		positionLimit: ZERO,
 		padding0: true,
 		padding1: ZERO,

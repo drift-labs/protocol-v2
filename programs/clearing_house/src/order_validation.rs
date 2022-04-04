@@ -28,11 +28,6 @@ pub fn validate_order(
         OrderType::TriggerLimit => validate_trigger_limit_order(order, market, order_state)?,
     }
 
-    if order.immediate_or_cancel {
-        msg!("immediate_or_cancel not supported yet");
-        return Err(ErrorCode::InvalidOrder);
-    }
-
     Ok(())
 }
 

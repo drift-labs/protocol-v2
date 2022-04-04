@@ -989,7 +989,13 @@ pub mod clearing_house {
         let oracle = get_oracle_for_place_order(account_info_iter, &ctx.accounts.markets, &params)?;
 
         if params.order_type == OrderType::Market {
+            msg!("market order must be in place and fill");
             return Err(ErrorCode::MarketOrderMustBeInPlaceAndFill.into());
+        }
+
+        if params.immediate_or_cancel {
+            msg!("immediate_or_cancel order must be in place and fill");
+            return Err(print_error!(ErrorCode::InvalidOrder)().into());
         }
 
         controller::orders::place_order(
@@ -1150,6 +1156,7 @@ pub mod clearing_house {
             &ctx.accounts.user.key(),
             None,
         )?;
+        let is_immediate_or_cancel = params.immediate_or_cancel;
 
         controller::orders::place_order(
             &ctx.accounts.state,
@@ -1192,6 +1199,21 @@ pub mod clearing_house {
             referrer,
             &Clock::get()?,
         )?;
+
+        if is_immediate_or_cancel {
+            controller::orders::cancel_order_by_order_id(
+                &ctx.accounts.state,
+                order_id,
+                &mut ctx.accounts.user,
+                &ctx.accounts.user_positions,
+                &ctx.accounts.markets,
+                &ctx.accounts.user_orders,
+                &ctx.accounts.funding_payment_history,
+                &ctx.accounts.order_history,
+                &Clock::get()?,
+                Some(&ctx.accounts.oracle),
+            )?;
+        }
 
         Ok(())
     }
