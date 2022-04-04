@@ -6,7 +6,12 @@ use crate::state::market::Market;
 use crate::state::order_state::OrderState;
 use crate::state::user_orders::{Order, OrderTriggerCondition, OrderType};
 
-use crate::math::orders::calculate_base_asset_amount_to_trade_for_limit;
+use crate::context::OrderParams;
+use crate::math::orders::{
+    calculate_available_quote_asset_user_can_execute,
+    calculate_base_asset_amount_to_trade_for_limit,
+};
+use crate::state::user::{MarketPosition, User, UserPositions};
 use solana_program::msg;
 use std::ops::Div;
 
@@ -292,4 +297,38 @@ pub fn validate_order_can_be_canceled(
     }
 
     Ok(())
+}
+
+pub fn get_base_asset_amount_for_order(
+    params: &OrderParams,
+    market: &Market,
+    position: &MarketPosition,
+) -> u128 {
+    // if the order isnt reduce only or it doesnt specify base asset amount, return early
+    if !params.reduce_only || params.base_asset_amount == 0 {
+        return params.base_asset_amount;
+    }
+
+    // check that order reduces existing position
+    if params.direction == PositionDirection::Long && position.base_asset_amount >= 0 {
+        return params.base_asset_amount;
+    }
+    if params.direction == PositionDirection::Short && position.base_asset_amount <= 0 {
+        return params.base_asset_amount;
+    }
+
+    // find the absolute difference between order base asset amount and order base asset amount
+    let current_position_size = position.base_asset_amount.unsigned_abs();
+    let difference = if current_position_size >= params.base_asset_amount {
+        current_position_size - params.base_asset_amount
+    } else {
+        params.base_asset_amount - current_position_size
+    };
+
+    // if it leaves less than the markets minimum base size, round the order size to be the same as current position
+    if difference <= market.amm.minimum_base_asset_trade_size {
+        current_position_size
+    } else {
+        params.base_asset_amount
+    }
 }

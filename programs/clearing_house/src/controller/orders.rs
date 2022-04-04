@@ -1,4 +1,4 @@
-use crate::controller::position::{add_new_position, get_position_index};
+use crate::controller::position::{add_new_position, get_position_index, PositionDirection};
 use crate::error::ClearingHouseResult;
 use crate::error::*;
 use crate::math::casting::cast;
@@ -28,7 +28,9 @@ use crate::math::amm::{is_oracle_valid, normalise_oracle_price};
 use crate::math::collateral::calculate_updated_collateral;
 use crate::math::constants::QUOTE_PRECISION;
 use crate::math::fees::calculate_order_fee_tier;
-use crate::order_validation::{validate_order, validate_order_can_be_canceled};
+use crate::order_validation::{
+    get_base_asset_amount_for_order, validate_order, validate_order_can_be_canceled,
+};
 use crate::state::history::funding_payment::FundingPaymentHistory;
 use crate::state::history::funding_rate::FundingRateHistory;
 use crate::state::history::order_history::OrderAction;
@@ -105,6 +107,8 @@ pub fn place_order(
     let market_position = &mut user_positions.positions[position_index];
     market_position.open_orders += 1;
 
+    let base_asset_amount = get_base_asset_amount_for_order(&params, market, market_position);
+
     let order_id = order_history_account.next_order_id();
     let new_order = Order {
         status: OrderStatus::Open,
@@ -115,7 +119,7 @@ pub fn place_order(
         market_index: params.market_index,
         price: params.price,
         user_base_asset_amount: market_position.base_asset_amount,
-        base_asset_amount: params.base_asset_amount,
+        base_asset_amount,
         quote_asset_amount: params.quote_asset_amount,
         base_asset_amount_filled: 0,
         quote_asset_amount_filled: 0,
