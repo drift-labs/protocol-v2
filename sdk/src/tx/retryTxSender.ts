@@ -8,6 +8,7 @@ import {
 	SignatureResult,
 	Transaction,
 	TransactionSignature,
+	Connection,
 } from '@solana/web3.js';
 import { Provider } from '@project-serum/anchor';
 import assert from 'assert';
@@ -24,15 +25,18 @@ export class RetryTxSender implements TxSender {
 	provider: Provider;
 	timeout: number;
 	retrySleep: number;
+	additionalConnections: Connection[];
 
 	public constructor(
 		provider: Provider,
 		timeout?: number,
-		retrySleep?: number
+		retrySleep?: number,
+		additionalConnections = new Array<Connection>()
 	) {
 		this.provider = provider;
 		this.timeout = timeout ?? DEFAULT_TIMEOUT;
 		this.retrySleep = retrySleep ?? DEFAULT_RETRY;
+		this.additionalConnections = additionalConnections;
 	}
 
 	async send(
@@ -54,6 +58,7 @@ export class RetryTxSender implements TxSender {
 
 		const txid: TransactionSignature =
 			await this.provider.connection.sendRawTransaction(rawTransaction, opts);
+		this.sendToAdditionalConnections(rawTransaction, opts);
 
 		let done = false;
 		const resolveReference: ResolveReference = {
@@ -76,6 +81,7 @@ export class RetryTxSender implements TxSender {
 							console.error(e);
 							stopWaiting();
 						});
+					this.sendToAdditionalConnections(rawTransaction, opts);
 				}
 			}
 		})();
@@ -191,6 +197,18 @@ export class RetryTxSender implements TxSender {
 		return Promise.race([promise, timeoutPromise]).then((result: T | null) => {
 			clearTimeout(timeoutId);
 			return result;
+		});
+	}
+
+	sendToAdditionalConnections(rawTx: Buffer, opts: ConfirmOptions): void {
+		this.additionalConnections.map((connection) => {
+			connection.sendRawTransaction(rawTx, opts).catch((e) => {
+				console.error(
+					// @ts-ignore
+					`error sending tx to additional connection ${connection._rpcEndpoint}`
+				);
+				console.error(e);
+			});
 		});
 	}
 }
