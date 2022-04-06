@@ -1157,6 +1157,7 @@ pub mod clearing_house {
             None,
         )?;
         let is_immediate_or_cancel = params.immediate_or_cancel;
+        let base_asset_amount_to_fill = params.base_asset_amount;
 
         controller::orders::place_order(
             &ctx.accounts.state,
@@ -1181,7 +1182,7 @@ pub mod clearing_house {
         }
 
         let user = &mut ctx.accounts.user;
-        controller::orders::fill_order(
+        let base_asset_amount_filled = controller::orders::fill_order(
             order_id,
             &ctx.accounts.state,
             &ctx.accounts.order_state,
@@ -1200,7 +1201,7 @@ pub mod clearing_house {
             &Clock::get()?,
         )?;
 
-        if is_immediate_or_cancel {
+        if is_immediate_or_cancel && base_asset_amount_to_fill != base_asset_amount_filled {
             controller::orders::cancel_order_by_order_id(
                 &ctx.accounts.state,
                 order_id,
