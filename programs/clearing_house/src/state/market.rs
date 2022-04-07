@@ -99,7 +99,7 @@ pub struct AMM {
     pub minimum_base_asset_trade_size: u128,
 
     // upgrade-ability
-    pub net_revenue_since_last_funding: i64,
+    pub padding1: u64,
     pub padding2: u128,
     pub padding3: u128,
 }

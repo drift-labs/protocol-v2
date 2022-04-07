@@ -2,12 +2,13 @@ import { BN } from '@project-serum/anchor';
 import {
 	AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO,
 	MARK_PRICE_PRECISION,
-	AMM_RESERVE_PRECISION,
 	PEG_PRECISION,
 	ZERO,
 	AMM_TO_QUOTE_PRECISION_RATIO,
 	QUOTE_PRECISION,
+	AMM_RESERVE_PRECISION,
 } from '../constants/numericConstants';
+import { calculateBaseAssetValue } from './position';
 import {
 	AMM,
 	PositionDirection,
@@ -16,7 +17,12 @@ import {
 	isVariant,
 } from '../types';
 import { assert } from '../assert/assert';
-import { squareRootBN } from '..';
+import {
+	calculatePositionPNL,
+	calculateMarkPrice,
+	convertToNumber,
+	squareRootBN,
+} from '..';
 
 /**
  * Calculates a price given an arbitrary base and quote amount (they must have the same precision)
@@ -131,6 +137,125 @@ export function getSwapDirection(
 	}
 
 	return SwapDirection.ADD;
+}
+
+/**
+ * Helper function calculating adjust k cost
+ * @param market
+ * @param marketIndex
+ * @param numerator
+ * @param denomenator
+ * @returns cost : Precision QUOTE_ASSET_PRECISION
+ */
+export function calculateAdjustKCost(
+	market: Market,
+	marketIndex: BN,
+	numerator: BN,
+	denomenator: BN
+): BN {
+	const netUserPosition = {
+		baseAssetAmount: market.baseAssetAmount,
+		lastCumulativeFundingRate: market.amm.cumulativeFundingRate,
+		marketIndex: new BN(marketIndex),
+		quoteAssetAmount: new BN(0),
+		openOrders: new BN(0),
+	};
+
+	const currentValue = calculateBaseAssetValue(market, netUserPosition);
+
+	const marketNewK = Object.assign({}, market);
+	marketNewK.amm = Object.assign({}, market.amm);
+
+	marketNewK.amm.baseAssetReserve = market.amm.baseAssetReserve
+		.mul(numerator)
+		.div(denomenator);
+	marketNewK.amm.quoteAssetReserve = market.amm.quoteAssetReserve
+		.mul(numerator)
+		.div(denomenator);
+	marketNewK.amm.sqrtK = market.amm.sqrtK.mul(numerator).div(denomenator);
+
+	netUserPosition.quoteAssetAmount = currentValue;
+
+	const cost = calculatePositionPNL(marketNewK, netUserPosition);
+
+	const p = PEG_PRECISION.mul(numerator).div(denomenator);
+	const x = market.amm.baseAssetReserve;
+	const y = market.amm.quoteAssetReserve;
+	const delta = market.baseAssetAmount;
+	const k = market.amm.sqrtK.mul(market.amm.sqrtK);
+
+	const numer1 = PEG_PRECISION.sub(p).mul(y).div(PEG_PRECISION);
+	const numer20 = k
+		.mul(p)
+		.mul(p)
+		.div(PEG_PRECISION)
+		.div(PEG_PRECISION)
+		.div(x.mul(p).div(PEG_PRECISION).add(delta));
+	const numer21 = k.div(x.add(delta));
+
+	const formulaCost = numer21
+		.sub(numer20)
+		.sub(numer1)
+		.mul(market.amm.pegMultiplier)
+		.div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO);
+	console.log(convertToNumber(formulaCost, QUOTE_PRECISION));
+
+	// p.div(p.mul(x).add(delta)).sub()
+
+	return cost;
+}
+
+/**
+ * Helper function calculating adjust pegMultiplier (repeg) cost
+ *
+ * @param market
+ * @param marketIndex
+ * @param newPeg
+ * @returns cost : Precision QUOTE_ASSET_PRECISION
+ */
+export function calculateRepegCost(
+	market: Market,
+	marketIndex: BN,
+	newPeg: BN
+): BN {
+	const netUserPosition = {
+		baseAssetAmount: market.baseAssetAmount,
+		lastCumulativeFundingRate: market.amm.cumulativeFundingRate,
+		marketIndex: new BN(marketIndex),
+		quoteAssetAmount: new BN(0),
+		openOrders: new BN(0),
+	};
+
+	const currentValue = calculateBaseAssetValue(market, netUserPosition);
+	netUserPosition.quoteAssetAmount = currentValue;
+	const prevMarketPrice = calculateMarkPrice(market);
+	const marketNewPeg = Object.assign({}, market);
+	marketNewPeg.amm = Object.assign({}, market.amm);
+
+	// const marketNewPeg = JSON.parse(JSON.stringify(market));
+	marketNewPeg.amm.pegMultiplier = newPeg;
+
+	console.log(
+		'Price moves from',
+		convertToNumber(prevMarketPrice),
+		'to',
+		convertToNumber(calculateMarkPrice(marketNewPeg))
+	);
+
+	const cost = calculatePositionPNL(marketNewPeg, netUserPosition);
+
+	const k = market.amm.sqrtK.mul(market.amm.sqrtK);
+	const newQuoteAssetReserve = k.div(
+		market.amm.baseAssetReserve.add(netUserPosition.baseAssetAmount)
+	);
+	const deltaQuoteAssetReserves = newQuoteAssetReserve.sub(
+		market.amm.quoteAssetReserve
+	);
+	const cost2 = deltaQuoteAssetReserves
+		.mul(market.amm.pegMultiplier.sub(newPeg))
+		.div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO);
+	console.log(convertToNumber(cost2, QUOTE_PRECISION));
+	return cost;
 }
 
 /**

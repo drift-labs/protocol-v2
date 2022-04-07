@@ -35,9 +35,7 @@ pub fn calculate_price(
         .try_to_u128()
 }
 
-pub fn calculate_terminal_price_and_reserves(
-    market: &Market,
-) -> ClearingHouseResult<(u128, u128, u128)> {
+pub fn calculate_terminal_price(market: &mut Market) -> ClearingHouseResult<u128> {
     let swap_direction = if market.base_asset_amount > 0 {
         SwapDirection::Add
     } else {
@@ -56,11 +54,7 @@ pub fn calculate_terminal_price_and_reserves(
         market.amm.peg_multiplier,
     )?;
 
-    Ok((
-        terminal_price,
-        new_quote_asset_amount,
-        new_base_asset_amount,
-    ))
+    Ok(terminal_price)
 }
 
 pub fn update_mark_twap(

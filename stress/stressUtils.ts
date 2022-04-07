@@ -1,5 +1,6 @@
 import * as anchor from '@project-serum/anchor';
 import { PublicKey } from '@solana/web3.js';
+import { BN } from '../sdk';
 import csv from 'csvtojson';
 import fs from 'fs';
 import {
@@ -125,7 +126,7 @@ export async function simEvent(
 				break;
 
 			case 'repeg':
-				await clearingHouse.repegAmmCurve(rand_amt, market_i);
+				await clearingHouse.repegAmmCurve(new BN(0), market_i);
 				break;
 
 			case 'close':

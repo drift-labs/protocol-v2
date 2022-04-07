@@ -1,8 +1,8 @@
-use crate::controller::position::PositionDirection;
+use crate::controller::position::{get_position_index, PositionDirection};
 use crate::error::*;
 use crate::math::constants::*;
 use crate::math::quote_asset::asset_to_reserve_amount;
-use crate::state::market::Market;
+use crate::state::market::{Market, Markets};
 use crate::state::order_state::OrderState;
 use crate::state::user_orders::{Order, OrderTriggerCondition, OrderType};
 
@@ -13,6 +13,7 @@ use crate::math::orders::{
 };
 use crate::state::user::{MarketPosition, User, UserPositions};
 use solana_program::msg;
+use std::cell::RefMut;
 use std::ops::Div;
 
 pub fn validate_order(

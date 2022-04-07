@@ -5,11 +5,10 @@ import {
 	MARK_PRICE_PRECISION,
 	PEG_PRECISION,
 	convertToNumber,
-	calculateMarkPrice,
-	calculateTargetPriceTrade,
 } from '../sdk/src';
 
 import { assert } from '../sdk/src/assert/assert';
+// import { getTokenAccount } from '@project-serum/common';
 import { mockOracle } from './mockAccounts';
 import { getFeedData, setFeedPrice } from './mockPythUtils';
 import {
@@ -49,9 +48,12 @@ export async function stress_test(
 	// todo: should be equal at init, with xeq for scale as oracle px
 	const periodicity = new BN(1); // 1 SECOND
 	const PAIR_AMT = sqrtk;
-	console.log('sqrtK:', sqrtk);
-	const ammInitialQuoteAssetAmount = new BN(PAIR_AMT).mul(MARK_PRICE_PRECISION);
-	const ammInitialBaseAssetAmount = new BN(PAIR_AMT).mul(MARK_PRICE_PRECISION);
+	const ammInitialQuoteAssetAmount = new anchor.BN(PAIR_AMT).mul(
+		MARK_PRICE_PRECISION
+	);
+	const ammInitialBaseAssetAmount = new anchor.BN(PAIR_AMT).mul(
+		MARK_PRICE_PRECISION
+	);
 
 	for (let i = 0; i < oracles.length; i++) {
 		const amtScale = pegs[i].div(PEG_PRECISION); // same slippage pct for regardless of peg levels
@@ -103,7 +105,7 @@ export async function stress_test(
 				'update_funding',
 			];
 
-			let rand_amt = new BN(Math.floor(Math.random() * 1e6));
+			let rand_amt = new BN(Math.floor(Math.random() * 1e2));
 			const user_i = Math.floor(Math.random() * user_keys.length);
 
 			const rand_i = Math.floor(Math.random() * event_kinds.length);
@@ -134,12 +136,13 @@ export async function stress_test(
 				const oraclePriceMantissa = new BN(
 					oracleData.price * PEG_PRECISION.toNumber()
 				).mul(MARK_PRICE_PRECISION.div(PEG_PRECISION));
-				const markPriceMantissa = calculateMarkPrice(marketData);
+				const markPriceMantissa = clearingHouse.calculateMarkPrice(market_i);
 
-				[randEType, rand_amt, _entry_px] = calculateTargetPriceTrade(
-					marketData,
-					oraclePriceMantissa
-				);
+				[randEType, rand_amt, _entry_px] =
+					clearingHouse.calculateTargetPriceTrade(
+						market_i,
+						oraclePriceMantissa
+					);
 
 				rand_amt = BN.min(
 					rand_amt.abs(),
@@ -212,7 +215,7 @@ export async function stress_test(
 		console.log([user_i, market_i, rand_e, rand_amt]);
 		const user_e = user_keys[user_i];
 		const userUSDCAccount = userUSDCAccounts[user_i];
-		// const user_act_info_e = userAccountInfos[user_i];
+		const user_act_info_e = userAccountInfos[user_i];
 
 		let clearingHouse_e = clearingHouses[user_i];
 		if (['move'].includes(rand_e)) {
@@ -272,7 +275,7 @@ export async function stress_test(
 
 		// const userSummary = await user_act_info_e.summary('liq');
 		// const userSummary2 = await user_act_info_e.summary('avg');
-		// const userSummary3 = await user_act_info_e.summary('last');
+		const userSummary3 = await user_act_info_e.summary('last');
 
 		const xeq_scaled =
 			ammData.pegMultiplier.toNumber() / PEG_PRECISION.toNumber();
@@ -311,9 +314,9 @@ export async function stress_test(
 
 		const stateI2 = Object.assign(
 			{},
-			state_i
+			state_i,
 			// userSummary2,
-			// userSummary3
+			userSummary3
 			// userSummary
 		);
 
