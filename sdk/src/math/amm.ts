@@ -2,8 +2,11 @@ import { BN } from '@project-serum/anchor';
 import {
 	AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO,
 	MARK_PRICE_PRECISION,
+	AMM_RESERVE_PRECISION,
 	PEG_PRECISION,
 	ZERO,
+	AMM_TO_QUOTE_PRECISION_RATIO,
+	QUOTE_PRECISION,
 } from '../constants/numericConstants';
 import {
 	AMM,
