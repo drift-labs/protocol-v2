@@ -43,10 +43,15 @@ export class BulkAccountLoader {
 		const existingSize = this.accountsToLoad.size;
 
 		const callbackId = uuidv4();
+		this.log(
+			`Adding account ${publicKey.toString()} callback id ${callbackId}`
+		);
 		const existingAccountToLoad = this.accountsToLoad.get(publicKey.toString());
 		if (existingAccountToLoad) {
+			this.log(`account already exists`);
 			existingAccountToLoad.callbacks.set(callbackId, callback);
 		} else {
+			this.log(`account doesn't already exist. creating new callback map`);
 			const callbacks = new Map<string, (buffer: Buffer) => void>();
 			callbacks.set(callbackId, callback);
 			const newAccountToLoad = {
@@ -67,6 +72,9 @@ export class BulkAccountLoader {
 	}
 
 	public removeAccount(publicKey: PublicKey, callbackId: string): void {
+		this.log(
+			`Removing account ${publicKey.toString()} callback id ${callbackId}`
+		);
 		const existingAccountToLoad = this.accountsToLoad.get(publicKey.toString());
 		if (existingAccountToLoad) {
 			existingAccountToLoad.callbacks.delete(callbackId);
@@ -99,17 +107,21 @@ export class BulkAccountLoader {
 
 	public async load(): Promise<void> {
 		if (this.loadPromise) {
+			this.log(`Load promise exists. Returning early`);
 			return this.loadPromise;
 		}
 		this.loadPromise = new Promise((resolver) => {
 			this.loadPromiseResolver = resolver;
 		});
 
+		this.log(`Loading`);
+
 		try {
 			const chunks = this.chunks(
 				Array.from(this.accountsToLoad.values()),
 				GET_MULTIPLE_ACCOUNTS_CHUNK_SIZE
 			);
+			this.log(`${chunks.length} chunks`);
 
 			await Promise.all(
 				chunks.map((chunk) => {
@@ -122,17 +134,17 @@ export class BulkAccountLoader {
 			for (const [_, callback] of this.errorCallbacks) {
 				callback(e);
 			}
+			this.log('finished error callbacks');
 		} finally {
+			this.log(`resetting load promise`);
 			this.loadPromiseResolver();
 			this.loadPromise = undefined;
 
 			const now = Date.now();
 			if (now - this.lastUpdate > fiveMinutes) {
-				if (this.loggingEnabled) {
-					console.log(
-						"Haven't seen updated account in five minutes. Bulk account loader creating new Connection Object"
-					);
-				}
+				this.log(
+					"Haven't seen updated account in five minutes. Bulk account loader creating new Connection Object"
+				);
 				this.connection = new Connection(
 					// @ts-ignore
 					this.connection._rpcEndpoint,
@@ -144,6 +156,7 @@ export class BulkAccountLoader {
 
 	async loadChunk(accountsToLoad: AccountToLoad[]): Promise<void> {
 		if (accountsToLoad.length === 0) {
+			this.log(`no accounts in chunk`);
 			return;
 		}
 
@@ -161,8 +174,8 @@ export class BulkAccountLoader {
 		);
 
 		const oneMinuteSinceLastUpdate = Date.now() - this.lastUpdate > oneMinute;
-		if (this.loggingEnabled && oneMinuteSinceLastUpdate) {
-			console.log('rpcResponse', JSON.stringify(rpcResponse));
+		if (oneMinuteSinceLastUpdate) {
+			this.log('rpcResponse ' + JSON.stringify(rpcResponse));
 		}
 
 		const newSlot = rpcResponse.result.context.slot;
@@ -179,11 +192,12 @@ export class BulkAccountLoader {
 				newBuffer = Buffer.from(raw, dataType);
 			}
 
-			if (this.loggingEnabled && oneMinuteSinceLastUpdate) {
-				console.log('oldRPCResponse', oldRPCResponse);
+			if (oneMinuteSinceLastUpdate) {
+				this.log('oldRPCResponse' + oldRPCResponse);
 			}
 
 			if (!oldRPCResponse) {
+				this.log('No old rpc response, updating account data');
 				this.accountData.set(key, {
 					slot: newSlot,
 					buffer: newBuffer,
@@ -194,29 +208,34 @@ export class BulkAccountLoader {
 			}
 
 			if (newSlot <= oldRPCResponse.slot) {
+				this.log(`new slot ${newSlot} old slot ${oldRPCResponse.slot}`);
 				continue;
 			}
 
 			const oldBuffer = oldRPCResponse.buffer;
 			if (newBuffer && (!oldBuffer || !newBuffer.equals(oldBuffer))) {
+				this.log('new buffer, updating account data');
 				this.accountData.set(key, {
 					slot: newSlot,
 					buffer: newBuffer,
 				});
 				this.handleAccountCallbacks(accountToLoad, newBuffer);
 				this.lastUpdate = Date.now();
-			} else if (this.loggingEnabled) {
-				console.log('unable to update account for newest slot');
-				console.log('oldBuffer', oldBuffer);
-				console.log('newBuffer', newBuffer);
+			} else {
+				this.log('unable to update account for newest slot');
+				this.log('oldBuffer ' + oldBuffer);
+				this.log('newBuffer ' + newBuffer);
+				this.log('buffers equal ' + newBuffer.equals(oldBuffer));
 			}
 		}
 	}
 
 	handleAccountCallbacks(accountToLoad: AccountToLoad, buffer: Buffer): void {
+		this.log('handling account callbacks');
 		for (const [_, callback] of accountToLoad.callbacks) {
 			callback(buffer);
 		}
+		this.log('finished account callbacks');
 	}
 
 	public getAccountData(publicKey: PublicKey): Buffer | undefined {
@@ -229,9 +248,7 @@ export class BulkAccountLoader {
 			return;
 		}
 
-		if (this.loggingEnabled) {
-			console.log(`startPolling`);
-		}
+		this.log('startPolling');
 
 		this.intervalId = setInterval(this.load.bind(this), this.pollingFrequency);
 	}
@@ -241,9 +258,13 @@ export class BulkAccountLoader {
 			clearInterval(this.intervalId);
 			this.intervalId = undefined;
 
-			if (this.loggingEnabled) {
-				console.log(`stopPolling`);
-			}
+			this.log('stopPolling');
+		}
+	}
+
+	public log(msg: string): void {
+		if (this.loggingEnabled) {
+			console.log(msg);
 		}
 	}
 }
