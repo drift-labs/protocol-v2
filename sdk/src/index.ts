@@ -29,7 +29,6 @@ export * from './math/position';
 export * from './math/amm';
 export * from './math/trade';
 export * from './math/orders';
-export * from './math/repeg';
 export * from './orders';
 export * from './orderParams';
 export * from './wallet';
