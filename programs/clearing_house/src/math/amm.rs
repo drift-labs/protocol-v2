@@ -96,7 +96,7 @@ pub fn calculate_new_mark_twap(
         None => amm.mark_price()?,
     };
 
-    let new_twap: u128 = cast(calculate_twap(
+    let new_twap: u128 = cast(calculate_weighted_average(
         cast(current_price)?,
         cast(amm.last_mark_price_twap)?,
         since_last,
@@ -176,7 +176,7 @@ pub fn calculate_new_oracle_price_twap(
         .checked_div(1000)
         .ok_or_else(math_error!())?;
 
-    let interpolated_oracle_price = min(
+    let mut interpolated_oracle_price = min(
         capped_last_oracle_price
             .checked_add(capped_last_oracle_price_10bp)
             .ok_or_else(math_error!())?,
@@ -188,7 +188,35 @@ pub fn calculate_new_oracle_price_twap(
         ),
     );
 
-    let new_twap = calculate_twap(
+    // if an oracle delay impacted last oracle_twap, shrink toward mark_twap
+    interpolated_oracle_price = if amm.last_mark_price_twap_ts > amm.last_oracle_price_twap_ts {
+        let since_last_valid = cast_to_i128(
+            amm.last_mark_price_twap_ts
+                .checked_sub(amm.last_oracle_price_twap_ts)
+                .ok_or_else(math_error!())?,
+        )?;
+        msg!(
+            "correcting oracle twap update (oracle previously invalid for {:?} seconds)",
+            since_last_valid
+        );
+
+        let from_start_valid = max(
+            1,
+            cast_to_i128(amm.funding_period)?
+                .checked_sub(since_last_valid)
+                .ok_or_else(math_error!())?,
+        );
+        calculate_weighted_average(
+            cast_to_i128(amm.last_mark_price_twap)?,
+            interpolated_oracle_price,
+            since_last_valid,
+            from_start_valid,
+        )?
+    } else {
+        interpolated_oracle_price
+    };
+
+    let new_twap = calculate_weighted_average(
         interpolated_oracle_price,
         amm.last_oracle_price_twap,
         since_last,
@@ -198,17 +226,15 @@ pub fn calculate_new_oracle_price_twap(
     Ok(new_twap)
 }
 
-pub fn calculate_twap(
-    new_data: i128,
-    old_data: i128,
-    new_weight: i128,
-    old_weight: i128,
+pub fn calculate_weighted_average(
+    data1: i128,
+    data2: i128,
+    weight1: i128,
+    weight2: i128,
 ) -> ClearingHouseResult<i128> {
-    let denominator = new_weight
-        .checked_add(old_weight)
-        .ok_or_else(math_error!())?;
-    let prev_twap_99 = old_data.checked_mul(old_weight).ok_or_else(math_error!())?;
-    let latest_price_01 = new_data.checked_mul(new_weight).ok_or_else(math_error!())?;
+    let denominator = weight1.checked_add(weight2).ok_or_else(math_error!())?;
+    let prev_twap_99 = data1.checked_mul(weight1).ok_or_else(math_error!())?;
+    let latest_price_01 = data2.checked_mul(weight2).ok_or_else(math_error!())?;
 
     prev_twap_99
         .checked_add(latest_price_01)
