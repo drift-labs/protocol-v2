@@ -2024,17 +2024,6 @@ pub mod clearing_house {
         Ok(())
     }
 
-    pub fn delete_user(ctx: Context<DeleteUser>) -> ProgramResult {
-        let user = &ctx.accounts.user;
-
-        // Block the delete if the user still has collateral
-        if user.collateral > 0 {
-            return Err(ErrorCode::CantDeleteUserWithCollateral.into());
-        }
-
-        Ok(())
-    }
-
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]

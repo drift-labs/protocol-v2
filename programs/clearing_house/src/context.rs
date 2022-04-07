@@ -190,30 +190,6 @@ pub struct InitializeUserOrdersWithExplicitPayer<'info> {
     pub system_program: Program<'info, System>,
 }
 
-#[derive(Accounts)]
-pub struct DeleteUser<'info> {
-    #[account(
-        mut,
-        has_one = authority,
-        constraint = &user.positions.eq(&user_positions.key()),
-        close = authority
-    )]
-    pub user: Account<'info, User>,
-    #[account(
-        mut,
-        has_one = user,
-        close = authority
-    )]
-    pub user_positions: AccountLoader<'info, UserPositions>,
-    #[account(
-        mut,
-        has_one = user,
-        close = authority
-    )]
-    pub user_orders: AccountLoader<'info, UserOrders>,
-    pub authority: Signer<'info>,
-}
-
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
 pub struct InitializeUserOptionalAccounts {
     pub whitelist_token: bool,

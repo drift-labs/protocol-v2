@@ -543,19 +543,6 @@ export class ClearingHouse {
 		return [txSig, userAccountPublicKey];
 	}
 
-	public async deleteUser(): Promise<TransactionSignature> {
-		const userAccountPublicKey = await this.getUserAccountPublicKey();
-		const user = await this.program.account.user.fetch(userAccountPublicKey);
-		const deleteUserTx = await this.program.transaction.deleteUser({
-			accounts: {
-				user: userAccountPublicKey,
-				userPositions: user.positions,
-				authority: this.wallet.publicKey,
-			},
-		});
-		return this.txSender.send(deleteUserTx, [], this.opts);
-	}
-
 	public async withdrawCollateral(
 		amount: BN,
 		collateralAccountPublicKey: PublicKey
