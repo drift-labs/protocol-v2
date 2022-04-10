@@ -24,6 +24,8 @@ import { getClearingHouseStateAccountPublicKey } from '../addresses';
 import { BulkAccountLoader } from './bulkAccountLoader';
 import { capitalize } from './utils';
 import { ClearingHouseConfigType } from '../factory/clearingHouse';
+import { PublicKey } from '@solana/web3.js';
+import { CLEARING_HOUSE_STATE_ACCOUNTS } from '../constants/accounts';
 
 export class PollingClearingHouseAccountSubscriber
 	implements ClearingHouseAccountSubscriber
@@ -98,6 +100,95 @@ export class PollingClearingHouseAccountSubscriber
 			return;
 		}
 
+		const accounts = await this.getClearingHouseAccounts();
+
+		this.accountsToPoll.set(accounts.state.toString(), {
+			key: 'state',
+			publicKey: accounts.state,
+			eventType: 'stateAccountUpdate',
+		});
+
+		this.accountsToPoll.set(accounts.markets.toString(), {
+			key: 'markets',
+			publicKey: accounts.markets,
+			eventType: 'marketsAccountUpdate',
+		});
+
+		this.accountsToPoll.set(accounts.orderState.toString(), {
+			key: 'orderState',
+			publicKey: accounts.orderState,
+			eventType: 'orderStateAccountUpdate',
+		});
+
+		if (this.optionalExtraSubscriptions?.includes('tradeHistoryAccount')) {
+			this.accountsToPoll.set(accounts.tradeHistory.toString(), {
+				key: 'tradeHistory',
+				publicKey: accounts.tradeHistory,
+				eventType: 'tradeHistoryAccountUpdate',
+			});
+		}
+
+		if (this.optionalExtraSubscriptions?.includes('depositHistoryAccount')) {
+			this.accountsToPoll.set(accounts.depositHistory.toString(), {
+				key: 'depositHistory',
+				publicKey: accounts.depositHistory,
+				eventType: 'depositHistoryAccountUpdate',
+			});
+		}
+
+		if (
+			this.optionalExtraSubscriptions?.includes('fundingPaymentHistoryAccount')
+		) {
+			this.accountsToPoll.set(accounts.fundingPaymentHistory.toString(), {
+				key: 'fundingPaymentHistory',
+				publicKey: accounts.fundingPaymentHistory,
+				eventType: 'fundingPaymentHistoryAccountUpdate',
+			});
+		}
+
+		if (
+			this.optionalExtraSubscriptions?.includes('fundingRateHistoryAccount')
+		) {
+			this.accountsToPoll.set(accounts.fundingRateHistory.toString(), {
+				key: 'fundingRateHistory',
+				publicKey: accounts.fundingRateHistory,
+				eventType: 'fundingRateHistoryAccountUpdate',
+			});
+		}
+
+		if (this.optionalExtraSubscriptions?.includes('curveHistoryAccount')) {
+			this.accountsToPoll.set(accounts.extendedCurveHistory.toString(), {
+				key: 'extendedCurveHistory',
+				publicKey: accounts.extendedCurveHistory,
+				eventType: 'curveHistoryAccountUpdate',
+			});
+		}
+
+		if (
+			this.optionalExtraSubscriptions?.includes('liquidationHistoryAccount')
+		) {
+			this.accountsToPoll.set(accounts.liquidationHistory.toString(), {
+				key: 'liquidationHistory',
+				publicKey: accounts.liquidationHistory,
+				eventType: 'liquidationHistoryAccountUpdate',
+			});
+		}
+
+		if (this.optionalExtraSubscriptions?.includes('orderHistoryAccount')) {
+			this.accountsToPoll.set(accounts.orderHistory.toString(), {
+				key: 'orderHistory',
+				publicKey: accounts.orderHistory,
+				eventType: 'orderHistoryAccountUpdate',
+			});
+		}
+	}
+
+	async getClearingHouseAccounts(): Promise<ClearingHouseAccounts> {
+		// Skip extra calls to rpc if we already know all the accounts
+		if (CLEARING_HOUSE_STATE_ACCOUNTS[this.program.programId.toString()]) {
+			return CLEARING_HOUSE_STATE_ACCOUNTS[this.program.programId.toString()];
+		}
+
 		const statePublicKey = await getClearingHouseStateAccountPublicKey(
 			this.program.programId
 		);
@@ -106,89 +197,28 @@ export class PollingClearingHouseAccountSubscriber
 			statePublicKey
 		)) as StateAccount;
 
-		this.accountsToPoll.set(statePublicKey.toString(), {
-			key: 'state',
-			publicKey: statePublicKey,
-			eventType: 'stateAccountUpdate',
-		});
-
-		this.accountsToPoll.set(state.markets.toString(), {
-			key: 'markets',
-			publicKey: state.markets,
-			eventType: 'marketsAccountUpdate',
-		});
-
-		this.accountsToPoll.set(state.orderState.toString(), {
-			key: 'orderState',
-			publicKey: state.orderState,
-			eventType: 'orderStateAccountUpdate',
-		});
-
-		if (this.optionalExtraSubscriptions?.includes('tradeHistoryAccount')) {
-			this.accountsToPoll.set(state.tradeHistory.toString(), {
-				key: 'tradeHistory',
-				publicKey: state.tradeHistory,
-				eventType: 'tradeHistoryAccountUpdate',
-			});
-		}
-
-		if (this.optionalExtraSubscriptions?.includes('depositHistoryAccount')) {
-			this.accountsToPoll.set(state.depositHistory.toString(), {
-				key: 'depositHistory',
-				publicKey: state.depositHistory,
-				eventType: 'depositHistoryAccountUpdate',
-			});
-		}
-
-		if (
-			this.optionalExtraSubscriptions?.includes('fundingPaymentHistoryAccount')
-		) {
-			this.accountsToPoll.set(state.fundingPaymentHistory.toString(), {
-				key: 'fundingPaymentHistory',
-				publicKey: state.fundingPaymentHistory,
-				eventType: 'fundingPaymentHistoryAccountUpdate',
-			});
-		}
-
-		if (
-			this.optionalExtraSubscriptions?.includes('fundingRateHistoryAccount')
-		) {
-			this.accountsToPoll.set(state.fundingRateHistory.toString(), {
-				key: 'fundingRateHistory',
-				publicKey: state.fundingRateHistory,
-				eventType: 'fundingRateHistoryAccountUpdate',
-			});
-		}
-
-		if (this.optionalExtraSubscriptions?.includes('curveHistoryAccount')) {
-			this.accountsToPoll.set(state.extendedCurveHistory.toString(), {
-				key: 'extendedCurveHistory',
-				publicKey: state.extendedCurveHistory,
-				eventType: 'curveHistoryAccountUpdate',
-			});
-		}
-
-		if (
-			this.optionalExtraSubscriptions?.includes('liquidationHistoryAccount')
-		) {
-			this.accountsToPoll.set(state.liquidationHistory.toString(), {
-				key: 'liquidationHistory',
-				publicKey: state.liquidationHistory,
-				eventType: 'liquidationHistoryAccountUpdate',
-			});
-		}
+		const accounts = {
+			state: statePublicKey,
+			markets: state.markets,
+			orderState: state.orderState,
+			tradeHistory: state.tradeHistory,
+			depositHistory: state.depositHistory,
+			fundingPaymentHistory: state.fundingPaymentHistory,
+			fundingRateHistory: state.fundingRateHistory,
+			extendedCurveHistory: state.extendedCurveHistory,
+			liquidationHistory: state.liquidationHistory,
+			orderHistory: undefined,
+		};
 
 		if (this.optionalExtraSubscriptions?.includes('orderHistoryAccount')) {
 			const orderState = (await this.program.account.orderState.fetch(
 				state.orderState
 			)) as OrderStateAccount;
 
-			this.accountsToPoll.set(orderState.orderHistory.toString(), {
-				key: 'orderHistory',
-				publicKey: orderState.orderHistory,
-				eventType: 'orderHistoryAccountUpdate',
-			});
+			accounts.orderHistory = orderState.orderHistory;
 		}
+
+		return accounts;
 	}
 
 	async addToAccountLoader(): Promise<void> {
@@ -324,3 +354,16 @@ export class PollingClearingHouseAccountSubscriber
 		return this.orderHistory;
 	}
 }
+
+type ClearingHouseAccounts = {
+	state: PublicKey;
+	markets: PublicKey;
+	orderState: PublicKey;
+	tradeHistory?: PublicKey;
+	depositHistory?: PublicKey;
+	fundingPaymentHistory?: PublicKey;
+	fundingRateHistory?: PublicKey;
+	extendedCurveHistory?: PublicKey;
+	liquidationHistory?: PublicKey;
+	orderHistory?: PublicKey;
+};
