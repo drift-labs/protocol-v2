@@ -10,6 +10,7 @@ import { DefaultTxSender } from '../tx/defaultTxSender';
 import { ClearingHouseAccountSubscriber } from '../accounts/types';
 import { PollingClearingHouseAccountSubscriber } from '../accounts/pollingClearingHouseAccountSubscriber';
 import { Admin } from '../admin';
+import { RetryTxSender } from '../tx/retryTxSender';
 
 export type ClearingHouseConfigType = 'websocket' | 'polling' | 'custom';
 
@@ -19,7 +20,7 @@ type BaseClearingHouseConfig = {
 	wallet: IWallet;
 	programID: PublicKey;
 	opts?: ConfirmOptions;
-	txSender?: TxSender;
+	txSenderConfig?: TxSenderConfig;
 };
 
 type WebSocketClearingHouseConfiguration = BaseClearingHouseConfig;
@@ -32,12 +33,28 @@ type ClearingHouseConfig =
 	| PollingClearingHouseConfiguration
 	| WebSocketClearingHouseConfiguration;
 
+export type TxSenderType = 'default' | 'retry';
+
+type BaseTxSenderConfig = {
+	type: TxSenderType;
+};
+
+type DefaultTxSenderConfig = BaseTxSenderConfig;
+
+type RetryTxSenderConfig = BaseTxSenderConfig & {
+	timeout?: number;
+	retrySleep?: number;
+	additionalConnections?: Connection[];
+};
+
+type TxSenderConfig = DefaultTxSenderConfig | RetryTxSenderConfig;
+
 export function getWebSocketClearingHouseConfig(
 	connection: Connection,
 	wallet: IWallet,
 	programID: PublicKey,
 	opts: ConfirmOptions = Provider.defaultOptions(),
-	txSender?: TxSender
+	txSenderConfig?: TxSenderConfig
 ): WebSocketClearingHouseConfiguration {
 	return {
 		type: 'websocket',
@@ -45,7 +62,7 @@ export function getWebSocketClearingHouseConfig(
 		wallet,
 		programID,
 		opts,
-		txSender,
+		txSenderConfig,
 	};
 }
 
@@ -55,7 +72,7 @@ export function getPollingClearingHouseConfig(
 	programID: PublicKey,
 	accountLoader: BulkAccountLoader,
 	opts: ConfirmOptions = Provider.defaultOptions(),
-	txSender?: TxSender
+	txSenderConfig?: TxSenderConfig
 ): PollingClearingHouseConfiguration {
 	return {
 		type: 'polling',
@@ -64,7 +81,7 @@ export function getPollingClearingHouseConfig(
 		programID,
 		accountLoader,
 		opts,
-		txSender,
+		txSenderConfig,
 	};
 }
 
@@ -85,7 +102,19 @@ export function getClearingHouse(config: ClearingHouseConfig): ClearingHouse {
 		);
 	}
 
-	const txSender = config.txSender || new DefaultTxSender(provider);
+	let txSender: TxSender;
+	if (config.txSenderConfig?.type === 'retry') {
+		const txSenderConfig = config.txSenderConfig as RetryTxSenderConfig;
+		txSender = new RetryTxSender(
+			provider,
+			txSenderConfig.timeout,
+			txSenderConfig.retrySleep,
+			txSenderConfig.additionalConnections
+		);
+	} else {
+		txSender = new DefaultTxSender(provider);
+	}
+
 	return new ClearingHouse(
 		config.connection,
 		config.wallet,
@@ -113,7 +142,18 @@ export function getAdmin(config: ClearingHouseConfig): Admin {
 		);
 	}
 
-	const txSender = config.txSender || new DefaultTxSender(provider);
+	let txSender: TxSender;
+	if (config.txSenderConfig?.type === 'retry') {
+		const txSenderConfig = config.txSenderConfig as RetryTxSenderConfig;
+		txSender = new RetryTxSender(
+			provider,
+			txSenderConfig.timeout,
+			txSenderConfig.retrySleep,
+			txSenderConfig.additionalConnections
+		);
+	} else {
+		txSender = new DefaultTxSender(provider);
+	}
 	return new Admin(
 		config.connection,
 		config.wallet,
