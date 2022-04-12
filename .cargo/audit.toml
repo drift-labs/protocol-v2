@@ -1,7 +1,7 @@
-# Args for input to cargo-audit - e.g. ignored vulns etc.
+# RUSTSEC-2022-0013 ignores as upstream dependency
 
 [advisories]
-ignore = [] # advisory IDs to ignore e.g. ["RUSTSEC-2019-0001", ...]
+ignore = ["RUSTSEC-2022-0013"] # advisory IDs to ignore e.g. ["RUSTSEC-2019-0001", ...]
 informational_warnings = ["unmaintained"] # warn for categories of informational advisories
 severity_threshold = "high" # CVSS severity ("none", "low", "medium", "high", "critical")
 
