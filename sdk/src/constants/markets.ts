@@ -198,12 +198,15 @@ export const Markets: MarketConfig[] = [
 		launchTs: 1649105516000,
 		oracleSource: OracleSource.PYTH,
 	},
-	// {
-	// 	symbol: 'mSOL-PERP',
-	// 	baseAssetSymbol: 'mSOL',
-	// 	marketIndex: new BN(11), //todo
-	// 	devnetPythOracle: '9a6RNx3tCu1TSs6TBSfV2XRXEPEZXQ6WB7jRojZRvyeZ',
-	// 	mainnetPythOracle: 'E4v1BBgoso9s64TQvmyownAVJbhbEPGyzA3qn4n46qj9',
-	// 	launchTs: 1643346125000,
-	// },
+	{
+		fullName: 'Serum',
+		category: ['DEX'],
+		symbol: 'SRM-PERP',
+		baseAssetSymbol: 'SRM',
+		marketIndex: new BN(17),
+		devnetPublicKey: '992moaMQKs32GKZ9dxi8keyM2bUmbrwBZpK4p2K6X5Vs',
+		mainnetPublicKey: '3NBReDRTLKMQEKiLD5tGcx4kXbTf88b7f2xLS9UuGjym',
+		launchTs: 1649877367000,
+		oracleSource: OracleSource.PYTH,
+	},
 ];
