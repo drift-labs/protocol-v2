@@ -136,32 +136,43 @@ export class RetryTxSender implements TxSender {
 		const start = Date.now();
 		const subscriptionCommitment = commitment || this.provider.opts.commitment;
 
-		let subscriptionId;
+		const subscriptionIds = new Array<number>();
+		const connections = [
+			this.provider.connection,
+			...this.additionalConnections,
+		];
 		let response: RpcResponseAndContext<SignatureResult> | null = null;
-		const confirmPromise = new Promise((resolve, reject) => {
-			try {
-				subscriptionId = this.provider.connection.onSignature(
-					signature,
-					(result: SignatureResult, context: Context) => {
-						subscriptionId = undefined;
-						response = {
-							context,
-							value: result,
-						};
-						resolve(null);
-					},
-					subscriptionCommitment
-				);
-			} catch (err) {
-				reject(err);
-			}
+		const promises = connections.map((connection, i) => {
+			let subscriptionId;
+			const confirmPromise = new Promise((resolve, reject) => {
+				try {
+					subscriptionId = connection.onSignature(
+						signature,
+						(result: SignatureResult, context: Context) => {
+							subscriptionIds[i] = undefined;
+							response = {
+								context,
+								value: result,
+							};
+							resolve(null);
+						},
+						subscriptionCommitment
+					);
+				} catch (err) {
+					reject(err);
+				}
+			});
+			subscriptionIds.push(subscriptionId);
+			return confirmPromise;
 		});
 
 		try {
-			await this.promiseTimeout(confirmPromise, this.timeout);
+			await this.promiseTimeout(promises, this.timeout);
 		} finally {
-			if (subscriptionId) {
-				this.provider.connection.removeSignatureListener(subscriptionId);
+			for (const [i, subscriptionId] of subscriptionIds.entries()) {
+				if (subscriptionId) {
+					connections[i].removeSignatureListener(subscriptionId);
+				}
 			}
 		}
 
@@ -188,16 +199,21 @@ export class RetryTxSender implements TxSender {
 		});
 	}
 
-	promiseTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T | null> {
+	promiseTimeout<T>(
+		promises: Promise<T>[],
+		timeoutMs: number
+	): Promise<T | null> {
 		let timeoutId: ReturnType<typeof setTimeout>;
 		const timeoutPromise: Promise<null> = new Promise((resolve) => {
 			timeoutId = setTimeout(() => resolve(null), timeoutMs);
 		});
 
-		return Promise.race([promise, timeoutPromise]).then((result: T | null) => {
-			clearTimeout(timeoutId);
-			return result;
-		});
+		return Promise.race([...promises, timeoutPromise]).then(
+			(result: T | null) => {
+				clearTimeout(timeoutId);
+				return result;
+			}
+		);
 	}
 
 	sendToAdditionalConnections(rawTx: Buffer, opts: ConfirmOptions): void {
