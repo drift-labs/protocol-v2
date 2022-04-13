@@ -215,7 +215,7 @@ export class BulkAccountLoader {
 				this.log('unable to update account for newest slot');
 				this.log('oldBuffer ' + oldBuffer);
 				this.log('newBuffer ' + newBuffer);
-				this.log('buffers equal ' + newBuffer.equals(oldBuffer));
+				this.log('buffers equal ' + newBuffer?.equals(oldBuffer));
 			}
 		}
 	}
