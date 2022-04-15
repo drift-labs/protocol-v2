@@ -4,6 +4,7 @@ use switchboard_v2::AggregatorAccountData;
 use crate::error::*;
 use crate::math::amm;
 use crate::math::casting::{cast, cast_to_i128, cast_to_i64, cast_to_u128};
+use crate::math::margin::MarginType;
 use crate::math_error;
 use crate::MARK_PRICE_PRECISION;
 use solana_program::msg;
@@ -56,6 +57,16 @@ pub struct Market {
     pub padding2: u128,
     pub padding3: u128,
     pub padding4: u128,
+}
+
+impl Market {
+    pub fn get_margin_ratio(&self, margin_type: MarginType) -> u32 {
+        match margin_type {
+            MarginType::Init => self.margin_ratio_initial,
+            MarginType::Partial => self.margin_ratio_partial,
+            MarginType::Maint => self.margin_ratio_maintenance,
+        }
+    }
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy)]
