@@ -74,9 +74,14 @@ fn validate_limit_order(
         return Err(ErrorCode::InvalidOrder);
     }
 
-    if order.price != 0 && order.has_oracle_price_offset() {
-        msg!("Limit order price != 0 and oracle price offset is set");
-        return Err(ErrorCode::InvalidOrder);
+    if order.has_oracle_price_offset() {
+        if order.post_only && order.price == 0 {
+            msg!("Limit order price must not be 0 for post only oracle offset order");
+            return Err(ErrorCode::InvalidOrder);
+        } else if !order.post_only && order.price != 0 {
+            msg!("Limit order price must be 0 for taker oracle offset order");
+            return Err(ErrorCode::InvalidOrder);
+        }
     }
 
     if order.trigger_price > 0 {

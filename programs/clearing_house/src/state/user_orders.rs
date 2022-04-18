@@ -4,6 +4,7 @@ use crate::math_error;
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::msg;
+use std::cmp::{max, min};
 
 #[account(zero_copy)]
 #[derive(Default)]
@@ -63,7 +64,15 @@ impl Order {
                     return Err(ErrorCode::InvalidOracleOffset);
                 }
 
-                limit_price.unsigned_abs()
+                // if the order is post only, a limit price must also be specified with oracle offset
+                if self.post_only {
+                    match self.direction {
+                        PositionDirection::Long => min(self.price, limit_price.unsigned_abs()),
+                        PositionDirection::Short => max(self.price, limit_price.unsigned_abs()),
+                    }
+                } else {
+                    limit_price.unsigned_abs()
+                }
             } else {
                 msg!("Could not find oracle too calculate oracle offset limit price");
                 return Err(ErrorCode::OracleNotFound);
