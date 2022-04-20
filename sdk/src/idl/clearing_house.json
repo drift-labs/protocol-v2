@@ -3833,6 +3833,23 @@
       }
     },
     {
+      "name": "MarginType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Init"
+          },
+          {
+            "name": "Partial"
+          },
+          {
+            "name": "Maint"
+          }
+        ]
+      }
+    },
+    {
       "name": "LiquidationType",
       "type": {
         "kind": "enum",
