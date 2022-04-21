@@ -200,7 +200,7 @@ export const Markets: MarketConfig[] = [
 	},
 	{
 		fullName: 'Serum',
-		category: ['DEX'],
+		category: ['Solana', 'Exchange'],
 		symbol: 'SRM-PERP',
 		baseAssetSymbol: 'SRM',
 		marketIndex: new BN(17),
@@ -208,5 +208,16 @@ export const Markets: MarketConfig[] = [
 		mainnetPublicKey: '3NBReDRTLKMQEKiLD5tGcx4kXbTf88b7f2xLS9UuGjym',
 		launchTs: 1649877367000,
 		oracleSource: OracleSource.PYTH,
+	},
+	{
+		fullName: 'StepN',
+		category: ['Solana', 'Shoe'],
+		symbol: 'GMT-PERP',
+		baseAssetSymbol: 'GMT',
+		marketIndex: new BN(18),
+		devnetPublicKey: '7GBoA2oGXMTepYjFgrdHyYVGcPs4FWskUF7S1dGzQsY9',
+		mainnetPublicKey: '81kbdwDfTNsg4d5D1BxE9FHEdxEMk8xCJUj5ujjWQyvd',
+		launchTs: 1650507526000,
+		oracleSource: OracleSource.SWITCHBOARD,
 	},
 ];
