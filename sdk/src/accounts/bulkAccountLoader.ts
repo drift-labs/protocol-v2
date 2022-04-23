@@ -257,4 +257,12 @@ export class BulkAccountLoader {
 			console.log(msg);
 		}
 	}
+
+	public updatePollingFrequency(pollingFrequency: number): void {
+		this.stopPolling();
+		this.pollingFrequency = pollingFrequency;
+		if (this.accountsToLoad.size > 0) {
+			this.startPolling();
+		}
+	}
 }
