@@ -227,4 +227,16 @@ export class RetryTxSender implements TxSender {
 			});
 		});
 	}
+
+	public addAdditionalConnection(newConnection: Connection): void {
+		const alreadyUsingConnection =
+			this.additionalConnections.filter((connection) => {
+				// @ts-ignore
+				return connection._rpcEndpoint === newConnection.rpcEndpoint;
+			}).length > 0;
+
+		if (!alreadyUsingConnection) {
+			this.additionalConnections.push(newConnection);
+		}
+	}
 }
