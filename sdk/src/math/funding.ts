@@ -43,9 +43,13 @@ export async function calculateAllEstimatedFundingRate(
 	const lastMarkPriceTwapTs = market.amm.lastMarkPriceTwapTs;
 
 	const timeSinceLastMarkChange = now.sub(lastMarkPriceTwapTs);
-	const markTwapTimeSinceLastUpdate = BN.max(
+	const markTwapTimeSinceLastUpdate = 
+		BN.max(
 		secondsInHour,
-		secondsInHour.sub(timeSinceLastMarkChange)
+		BN.max(
+			ZERO,
+			secondsInHour.sub(timeSinceLastMarkChange)
+		)
 	);
 	const baseAssetPriceWithMantissa = calculateMarkPrice(market);
 
@@ -58,6 +62,8 @@ export async function calculateAllEstimatedFundingRate(
 	// note: oracle twap depends on `when the chord is struck` (market is trade)
 	const lastOracleTwapWithMantissa = market.amm.lastOraclePriceTwap;
 	const lastOraclePriceTwapTs = market.amm.lastOraclePriceTwapTs;
+
+	const oracleInvalidDuration = BN.max(ZERO, lastMarkPriceTwapTs.sub(lastOraclePriceTwapTs));
 
 	const timeSinceLastOracleTwapUpdate = now.sub(lastOraclePriceTwapTs);
 	const oracleTwapTimeSinceLastUpdate = BN.max(
@@ -80,7 +86,8 @@ export async function calculateAllEstimatedFundingRate(
 		oracleTwapWithMantissa = oracleTwapTimeSinceLastUpdate
 			.mul(lastOracleTwapWithMantissa)
 			.add(timeSinceLastMarkChange.mul(oraclePrice))
-			.div(timeSinceLastOracleTwapUpdate.add(oracleTwapTimeSinceLastUpdate));
+			.add(oracleInvalidDuration.mul(lastMarkTwapWithMantissa))
+			.div(timeSinceLastMarkChange.add(oracleTwapTimeSinceLastUpdate).add(oracleInvalidDuration));
 	}
 
 	const twapSpread = lastMarkTwapWithMantissa.sub(lastOracleTwapWithMantissa);
