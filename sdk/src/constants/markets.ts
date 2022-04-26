@@ -220,4 +220,15 @@ export const Markets: MarketConfig[] = [
 		launchTs: 1650507526000,
 		oracleSource: OracleSource.SWITCHBOARD,
 	},
+	{
+		fullName: 'Curve DAO Token',
+		category: ['Exchange'],
+		symbol: 'CRV-PERP',
+		baseAssetSymbol: 'CRV',
+		marketIndex: new BN(19),
+		devnetPublicKey: 'AuEiE5XG5kD1NFoKgEPrWuN9CdT44A3K7yGDuiUPvh9S',
+		mainnetPublicKey: '61NzdQ9y6KhMhWxyJ8kXEe25NxdixVL1YUnGYLDMaUxH',
+		launchTs: 1651017354000,
+		oracleSource: OracleSource.SWITCHBOARD,
+	},
 ];
