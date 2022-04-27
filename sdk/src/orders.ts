@@ -305,5 +305,19 @@ export function calculateBaseAssetAmountUserCanExecute(
 			: SwapDirection.REMOVE
 	);
 
-	return baseAssetReservesBefore.sub(baseAssetReservesAfter).abs();
+	let baseAssetAmount = baseAssetReservesBefore.sub(baseAssetReservesAfter).abs();
+	if (order.reduceOnly) {
+		const position =
+			user.getUserPosition(order.marketIndex) ||
+			user.getEmptyPosition(order.marketIndex);
+		if (isVariant(order.direction, 'long') && position.baseAssetAmount.gte(ZERO)) {
+			baseAssetAmount = ZERO;
+		} else if (isVariant(order.direction, 'short') && position.baseAssetAmount.lte(ZERO)) {
+			baseAssetAmount = ZERO;
+		} else {
+			BN.min(baseAssetAmount, position.baseAssetAmount.abs());
+		}
+	}
+
+	return baseAssetAmount;
 }

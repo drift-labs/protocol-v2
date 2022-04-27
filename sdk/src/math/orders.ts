@@ -89,17 +89,20 @@ export function isOrderReduceOnly(
 		user.getEmptyPosition(order.marketIndex);
 
 	// if position is long and order is long
-	if (position.baseAssetAmount.gt(ZERO) && isVariant(order.direction, 'long')) {
+	if (
+		position.baseAssetAmount.gte(ZERO) &&
+		isVariant(order.direction, 'long')
+	) {
 		return false;
 	}
 
 	// if position is short and order is short
 	if (
-		position.baseAssetAmount.lt(ZERO) &&
+		position.baseAssetAmount.lte(ZERO) &&
 		isVariant(order.direction, 'short')
 	) {
 		return false;
 	}
 
-	return order.baseAssetAmount.abs().lte(position.baseAssetAmount.abs());
+	return true;
 }

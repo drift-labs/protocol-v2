@@ -39,7 +39,10 @@ import {
 	AMM_RESERVE_PRECISION,
 	calculateMarkPrice,
 	findComputeUnitConsumption,
+	getMarketOrderParams,
+	isVariant,
 	TEN_THOUSAND,
+	TWO,
 	ZERO,
 } from '../sdk';
 import { AccountInfo, Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
@@ -99,9 +102,11 @@ describe('orders', () => {
 
 	const marketIndex = new BN(1);
 	const marketIndexBTC = new BN(2);
+	const marketIndexEth = new BN(3);
 
 	let solUsd;
 	let btcUsd;
+	let ethUsd;
 
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
@@ -119,6 +124,7 @@ describe('orders', () => {
 		await clearingHouse.subscribeToAll();
 		solUsd = await mockOracle(1);
 		btcUsd = await mockOracle(60000);
+		ethUsd = await mockOracle(1);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
@@ -137,6 +143,14 @@ describe('orders', () => {
 			ammInitialQuoteAssetReserve.div(new BN(3000)),
 			periodicity,
 			new BN(60000000) // btc-ish price level
+		);
+
+		await clearingHouse.initializeMarket(
+			marketIndexEth,
+			ethUsd,
+			ammInitialBaseAssetReserve,
+			ammInitialQuoteAssetReserve,
+			periodicity
 		);
 
 		[, userAccountPublicKey] =
@@ -1684,5 +1698,73 @@ describe('orders', () => {
 
 		assert(whaleUserAccount.totalFeePaid.gt(fillerReward.mul(new BN(100))));
 		// ensure whale fee more than x100 filler
+	});
+
+	it('reduce only', async () => {
+		const openPositionOrderParams = getMarketOrderParams(
+			marketIndexEth,
+			PositionDirection.SHORT,
+			ZERO,
+			AMM_RESERVE_PRECISION,
+			false
+		);
+		await clearingHouse.placeAndFillOrder(openPositionOrderParams);
+
+		const reduceMarketOrderParams = getMarketOrderParams(
+			marketIndexEth,
+			PositionDirection.LONG,
+			ZERO,
+			TWO.mul(AMM_RESERVE_PRECISION),
+			true
+		);
+		await clearingHouse.placeAndFillOrder(reduceMarketOrderParams);
+
+		await clearingHouse.fetchAccounts();
+		await clearingHouseUser.fetchAccounts();
+
+		let orderHistory = clearingHouse.getOrderHistoryAccount();
+		assert(
+			orderHistory.orderRecords[orderHistory.head.toNumber() - 1]
+				.baseAssetAmountFilled,
+			AMM_RESERVE_PRECISION
+		);
+		assert(
+			isVariant(
+				clearingHouseUser.getUserOrdersAccount().orders[0].status,
+				'init'
+			)
+		);
+
+		await clearingHouse.placeAndFillOrder(openPositionOrderParams);
+		const reduceLimitOrderParams = getLimitOrderParams(
+			marketIndexEth,
+			PositionDirection.LONG,
+			TWO.mul(AMM_RESERVE_PRECISION),
+			TWO.mul(MARK_PRICE_PRECISION),
+			true
+		);
+		await clearingHouse.placeAndFillOrder(reduceLimitOrderParams);
+
+		await clearingHouse.fetchAccounts();
+		await clearingHouseUser.fetchAccounts();
+
+		orderHistory = clearingHouse.getOrderHistoryAccount();
+		assert(
+			orderHistory.orderRecords[orderHistory.head.toNumber() - 1]
+				.baseAssetAmountFilled,
+			AMM_RESERVE_PRECISION
+		);
+		assert(
+			isVariant(
+				clearingHouseUser.getUserOrdersAccount().orders[0].status,
+				'open'
+			)
+		);
+
+		assert(
+			clearingHouseUser
+				.getUserOrdersAccount()
+				.orders[0].baseAssetAmountFilled.eq(AMM_RESERVE_PRECISION)
+		);
 	});
 });

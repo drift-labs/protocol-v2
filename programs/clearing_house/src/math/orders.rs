@@ -193,10 +193,19 @@ pub fn calculate_base_asset_amount_user_can_execute(
         market.amm.sqrt_k,
     )?;
 
-    let base_asset_amount = cast_to_i128(initial_base_asset_amount)?
+    let mut base_asset_amount = cast_to_i128(initial_base_asset_amount)?
         .checked_sub(cast(new_base_asset_amount)?)
         .ok_or_else(math_error!())?
         .unsigned_abs();
+
+    if order.reduce_only && base_asset_amount != 0 {
+        let existing_position = user_positions.positions[position_index].base_asset_amount;
+        base_asset_amount = calculate_base_asset_amount_for_reduce_only_order(
+            base_asset_amount,
+            order.direction,
+            existing_position,
+        )
+    }
 
     Ok(base_asset_amount)
 }
@@ -279,4 +288,19 @@ pub fn calculate_quote_asset_amount_for_maker_order(
         .checked_mul(limit_price)
         .ok_or_else(math_error!())?
         .div(MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO))
+}
+
+pub fn calculate_base_asset_amount_for_reduce_only_order(
+    proposed_base_asset_amount: u128,
+    order_direction: PositionDirection,
+    existing_position: i128,
+) -> u128 {
+    if (order_direction == PositionDirection::Long && existing_position >= 0)
+        || (order_direction == PositionDirection::Short && existing_position <= 0)
+    {
+        msg!("Reduce only order can not reduce position");
+        0
+    } else {
+        min(proposed_base_asset_amount, existing_position.unsigned_abs())
+    }
 }
