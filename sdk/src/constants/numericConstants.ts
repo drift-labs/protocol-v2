@@ -6,6 +6,7 @@ export const TWO = new BN(2);
 export const TEN = new BN(10);
 export const TEN_THOUSAND = new BN(10000);
 export const BN_MAX = new BN(Number.MAX_SAFE_INTEGER);
+export const TEN_MILLION = TEN_THOUSAND.mul(TEN_THOUSAND);
 
 export const MAX_LEVERAGE = new BN(5);
 
@@ -23,3 +24,4 @@ export const PRICE_TO_QUOTE_PRECISION =
 export const AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO =
 	AMM_RESERVE_PRECISION.mul(PEG_PRECISION).div(QUOTE_PRECISION); // 10^10
 export const MARGIN_PRECISION = TEN_THOUSAND;
+export const BID_ASK_SPREAD_PRECISION = new BN(1000000);

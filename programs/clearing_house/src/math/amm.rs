@@ -9,14 +9,15 @@ use crate::math::bn;
 use crate::math::bn::U192;
 use crate::math::casting::{cast, cast_to_i128, cast_to_u128};
 use crate::math::constants::{
-    MARK_PRICE_PRECISION, PEG_PRECISION, PRICE_SPREAD_PRECISION, PRICE_SPREAD_PRECISION_U128,
-    PRICE_TO_PEG_PRECISION_RATIO,
+    BID_ASK_SPREAD_PRECISION, MARK_PRICE_PRECISION, PEG_PRECISION, PRICE_SPREAD_PRECISION,
+    PRICE_SPREAD_PRECISION_U128, PRICE_TO_PEG_PRECISION_RATIO,
 };
 use crate::math::position::_calculate_base_asset_value_and_pnl;
 use crate::math::quote_asset::{asset_to_reserve_amount, reserve_to_asset_amount};
 use crate::math_error;
 use crate::state::market::{Market, OraclePriceData, AMM};
 use crate::state::state::{PriceDivergenceGuardRails, ValidityGuardRails};
+use num_integer::Roots;
 
 pub fn calculate_price(
     quote_asset_reserve: u128,
@@ -301,6 +302,43 @@ pub fn calculate_quote_asset_amount_swapped(
     Ok(quote_asset_amount)
 }
 
+pub fn calculate_spread_reserves(
+    amm: &AMM,
+    direction: PositionDirection,
+) -> ClearingHouseResult<(u128, u128)> {
+    let base_spread = amm.base_spread as u128;
+    let quote_asset_reserve_delta = if base_spread > 0 {
+        amm.quote_asset_reserve
+            .checked_div(BID_ASK_SPREAD_PRECISION / (base_spread / 4))
+            .ok_or_else(math_error!())?
+    } else {
+        0_128
+    };
+
+    let quote_asset_reserve = match direction {
+        PositionDirection::Long => amm
+            .quote_asset_reserve
+            .checked_add(quote_asset_reserve_delta)
+            .ok_or_else(math_error!())?,
+        PositionDirection::Short => amm
+            .quote_asset_reserve
+            .checked_sub(quote_asset_reserve_delta)
+            .ok_or_else(math_error!())?,
+    };
+
+    let invariant_sqrt_u192 = U192::from(amm.sqrt_k);
+    let invariant = invariant_sqrt_u192
+        .checked_mul(invariant_sqrt_u192)
+        .ok_or_else(math_error!())?;
+
+    let base_asset_reserve = invariant
+        .checked_div(U192::from(quote_asset_reserve))
+        .ok_or_else(math_error!())?
+        .try_to_u128()?;
+
+    Ok((base_asset_reserve, quote_asset_reserve))
+}
+
 pub fn calculate_oracle_mark_spread(
     amm: &AMM,
     oracle_price_data: &OraclePriceData,
@@ -532,6 +570,8 @@ pub fn adjust_k_cost(market: &mut Market, new_sqrt_k: bn::U256) -> ClearingHouse
 pub fn calculate_max_base_asset_amount_to_trade(
     amm: &AMM,
     limit_price: u128,
+    direction: PositionDirection,
+    use_spread: bool,
 ) -> ClearingHouseResult<(u128, PositionDirection)> {
     let invariant_sqrt_u192 = U192::from(amm.sqrt_k);
     let invariant = invariant_sqrt_u192
@@ -552,14 +592,20 @@ pub fn calculate_max_base_asset_amount_to_trade(
         .integer_sqrt()
         .try_to_u128()?;
 
-    if new_base_asset_reserve > amm.base_asset_reserve {
+    let base_asset_reserve_before = if use_spread && amm.base_spread > 0 {
+        let (spread_base_asset_reserve, _) = calculate_spread_reserves(amm, direction)?;
+        spread_base_asset_reserve
+    } else {
+        amm.base_asset_reserve
+    };
+
+    if new_base_asset_reserve > base_asset_reserve_before {
         let max_trade_amount = new_base_asset_reserve
-            .checked_sub(amm.base_asset_reserve)
+            .checked_sub(base_asset_reserve_before)
             .ok_or_else(math_error!())?;
         Ok((max_trade_amount, PositionDirection::Short))
     } else {
-        let max_trade_amount = amm
-            .base_asset_reserve
+        let max_trade_amount = base_asset_reserve_before
             .checked_sub(new_base_asset_reserve)
             .ok_or_else(math_error!())?;
         Ok((max_trade_amount, PositionDirection::Long))

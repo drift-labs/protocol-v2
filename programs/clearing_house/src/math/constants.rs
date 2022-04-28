@@ -7,6 +7,7 @@ pub const MARGIN_PRECISION: u128 = 10_000; // expo = -4
 pub const PEG_PRECISION: u128 = 1_000; //expo = -3
 pub const PRICE_SPREAD_PRECISION: i128 = 10_000; // expo = -4
 pub const PRICE_SPREAD_PRECISION_U128: u128 = 10_000; // expo = -4
+pub const BID_ASK_SPREAD_PRECISION: u128 = 1_000_000; // expo = -6
 
 // PRECISION CONVERSIONS
 pub const PRICE_TO_PEG_PRECISION_RATIO: u128 = MARK_PRICE_PRECISION / PEG_PRECISION; // expo: 7

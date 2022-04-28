@@ -16,6 +16,7 @@ pub fn calculate_fee_for_trade(
     fee_structure: &FeeStructure,
     discount_token: Option<TokenAccount>,
     referrer: &Option<Account<User>>,
+    quote_asset_amount_surplus: u128,
 ) -> ClearingHouseResult<(u128, u128, u128, u128, u128)> {
     let fee = quote_asset_amount
         .checked_mul(fee_structure.fee_numerator)
@@ -36,6 +37,8 @@ pub fn calculate_fee_for_trade(
 
     let fee_to_market = user_fee
         .checked_sub(referrer_reward)
+        .ok_or_else(math_error!())?
+        .checked_add(quote_asset_amount_surplus)
         .ok_or_else(math_error!())?;
 
     Ok((
@@ -188,9 +191,10 @@ pub fn calculate_fee_for_order(
     referrer: &Option<Account<User>>,
     filler_is_user: bool,
     quote_asset_amount_surplus: u128,
+    is_post_only: bool,
 ) -> ClearingHouseResult<(u128, u128, u128, u128, u128, u128)> {
     // if there was a quote_asset_amount_surplus, the order was a maker order and fee_to_market comes from surplus
-    if quote_asset_amount_surplus != 0 {
+    if is_post_only {
         let fee = quote_asset_amount_surplus;
         let filler_reward: u128 = if filler_is_user {
             0
@@ -229,6 +233,8 @@ pub fn calculate_fee_for_order(
             .checked_sub(filler_reward)
             .ok_or_else(math_error!())?
             .checked_sub(referrer_reward)
+            .ok_or_else(math_error!())?
+            .checked_add(quote_asset_amount_surplus)
             .ok_or_else(math_error!())?;
 
         Ok((

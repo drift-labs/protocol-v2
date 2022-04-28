@@ -11,7 +11,7 @@ use std::ops::Div;
 use crate::controller::amm::SwapDirection;
 use crate::controller::position::get_position_index;
 use crate::controller::position::PositionDirection;
-use crate::math::amm::calculate_swap_output;
+use crate::math::amm::{calculate_spread_reserves, calculate_swap_output};
 use crate::math::casting::{cast, cast_to_i128, cast_to_u128};
 use crate::math::constants::{
     AMM_TO_QUOTE_PRECISION_RATIO, MARGIN_PRECISION, MARK_PRICE_PRECISION,
@@ -61,7 +61,12 @@ pub fn calculate_base_asset_amount_to_trade_for_limit(
     let limit_price = order.get_limit_price(valid_oracle_price)?;
 
     let (max_trade_base_asset_amount, max_trade_direction) =
-        math::amm::calculate_max_base_asset_amount_to_trade(&market.amm, limit_price)?;
+        math::amm::calculate_max_base_asset_amount_to_trade(
+            &market.amm,
+            limit_price,
+            order.direction,
+            !order.post_only,
+        )?;
     if max_trade_direction != order.direction || max_trade_base_asset_amount == 0 {
         return Ok(0);
     }
@@ -170,7 +175,7 @@ pub fn calculate_base_asset_amount_user_can_execute(
 
     let market = markets.get_market_mut(market_index);
 
-    let order_swap_direction = match order.direction {
+    let swap_direction = match order.direction {
         PositionDirection::Long => SwapDirection::Add,
         PositionDirection::Short => SwapDirection::Remove,
     };
@@ -185,16 +190,25 @@ pub fn calculate_base_asset_amount_user_can_execute(
         asset_to_reserve_amount(quote_asset_amount, market.amm.peg_multiplier)?,
     );
 
-    let initial_base_asset_amount = market.amm.base_asset_reserve;
-    let (new_base_asset_amount, _new_quote_asset_amount) = calculate_swap_output(
+    let (base_asset_reserves_before, quote_asset_reserves_before) =
+        if order.post_only || market.amm.base_spread == 0 {
+            (
+                market.amm.base_asset_reserve,
+                market.amm.quote_asset_reserve,
+            )
+        } else {
+            calculate_spread_reserves(&market.amm, order.direction)?
+        };
+
+    let (base_asset_reserves_after, _) = calculate_swap_output(
         quote_asset_reserve_amount,
-        market.amm.quote_asset_reserve,
-        order_swap_direction,
+        quote_asset_reserves_before,
+        swap_direction,
         market.amm.sqrt_k,
     )?;
 
-    let mut base_asset_amount = cast_to_i128(initial_base_asset_amount)?
-        .checked_sub(cast(new_base_asset_amount)?)
+    let mut base_asset_amount = cast_to_i128(base_asset_reserves_before)?
+        .checked_sub(cast(base_asset_reserves_after)?)
         .ok_or_else(math_error!())?
         .unsigned_abs();
 

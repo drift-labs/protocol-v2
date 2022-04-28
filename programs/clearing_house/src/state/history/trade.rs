@@ -38,7 +38,7 @@ pub struct TradeRecord {
     pub mark_price_before: u128,
     pub mark_price_after: u128,
     pub fee: u128,
-    pub referrer_reward: u128,
+    pub quote_asset_amount_surplus: u128,
     pub referee_discount: u128,
     pub token_discount: u128,
     pub liquidation: bool,

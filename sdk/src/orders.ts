@@ -11,6 +11,7 @@ import {
 	BN,
 	calculateAmmReservesAfterSwap,
 	calculateBaseAssetValue,
+	calculateSpreadReserves,
 	ClearingHouseUser,
 	isOrderRiskIncreasingInSameDirection,
 	TEN_THOUSAND,
@@ -211,7 +212,9 @@ export function calculateAmountToTradeForLimit(
 
 	const [maxAmountToTrade, direction] = calculateMaxBaseAssetAmountToTrade(
 		market.amm,
-		limitPrice
+		limitPrice,
+		order.direction,
+		!order.postOnly
 	);
 
 	// Check that directions are the same
@@ -295,24 +298,51 @@ export function calculateBaseAssetAmountUserCanExecute(
 		return ZERO;
 	}
 
-	const baseAssetReservesBefore = market.amm.baseAssetReserve;
+	const swapDirection = isVariant(order.direction, 'long')
+		? SwapDirection.ADD
+		: SwapDirection.REMOVE;
+
+	const useSpread = !order.postOnly;
+	let amm: Parameters<typeof calculateAmmReservesAfterSwap>[0];
+	if (useSpread) {
+		const { baseAssetReserve, quoteAssetReserve } = calculateSpreadReserves(
+			market.amm,
+			order.direction
+		);
+		amm = {
+			baseAssetReserve,
+			quoteAssetReserve,
+			sqrtK: market.amm.sqrtK,
+			pegMultiplier: market.amm.pegMultiplier,
+		};
+	} else {
+		amm = market.amm;
+	}
+
+	const baseAssetReservesBefore = amm.baseAssetReserve;
 	const [_, baseAssetReservesAfter] = calculateAmmReservesAfterSwap(
-		market.amm,
+		amm,
 		'quote',
 		quoteAssetAmount,
-		isVariant(order.direction, 'long')
-			? SwapDirection.ADD
-			: SwapDirection.REMOVE
+		swapDirection
 	);
 
-	let baseAssetAmount = baseAssetReservesBefore.sub(baseAssetReservesAfter).abs();
+	let baseAssetAmount = baseAssetReservesBefore
+		.sub(baseAssetReservesAfter)
+		.abs();
 	if (order.reduceOnly) {
 		const position =
 			user.getUserPosition(order.marketIndex) ||
 			user.getEmptyPosition(order.marketIndex);
-		if (isVariant(order.direction, 'long') && position.baseAssetAmount.gte(ZERO)) {
+		if (
+			isVariant(order.direction, 'long') &&
+			position.baseAssetAmount.gte(ZERO)
+		) {
 			baseAssetAmount = ZERO;
-		} else if (isVariant(order.direction, 'short') && position.baseAssetAmount.lte(ZERO)) {
+		} else if (
+			isVariant(order.direction, 'short') &&
+			position.baseAssetAmount.lte(ZERO)
+		) {
 			baseAssetAmount = ZERO;
 		} else {
 			BN.min(baseAssetAmount, position.baseAssetAmount.abs());

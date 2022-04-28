@@ -3,6 +3,7 @@ import { Market, PositionDirection } from '../types';
 import {
 	calculateAmmReservesAfterSwap,
 	calculatePrice,
+	calculateSpreadReserves,
 	getSwapDirection,
 } from './amm';
 import { OraclePriceData } from '../oracles/types';
@@ -17,6 +18,44 @@ export function calculateMarkPrice(market: Market): BN {
 	return calculatePrice(
 		market.amm.baseAssetReserve,
 		market.amm.quoteAssetReserve,
+		market.amm.pegMultiplier
+	);
+}
+
+/**
+ * Calculates market bid price
+ *
+ * @param market
+ * @return bidPrice : Precision MARK_PRICE_PRECISION
+ */
+export function calculateBidPrice(market: Market): BN {
+	const { baseAssetReserve, quoteAssetReserve } = calculateSpreadReserves(
+		market.amm,
+		PositionDirection.SHORT
+	);
+
+	return calculatePrice(
+		baseAssetReserve,
+		quoteAssetReserve,
+		market.amm.pegMultiplier
+	);
+}
+
+/**
+ * Calculates market ask price
+ *
+ * @param market
+ * @return bidPrice : Precision MARK_PRICE_PRECISION
+ */
+export function calculateAskPrice(market: Market): BN {
+	const { baseAssetReserve, quoteAssetReserve } = calculateSpreadReserves(
+		market.amm,
+		PositionDirection.LONG
+	);
+
+	return calculatePrice(
+		baseAssetReserve,
+		quoteAssetReserve,
 		market.amm.pegMultiplier
 	);
 }
@@ -48,5 +87,12 @@ export function calculateMarkOracleSpread(
 	oraclePriceData: OraclePriceData
 ): BN {
 	const markPrice = calculateMarkPrice(market);
-	return markPrice.sub(oraclePriceData.price);
+	return calculateOracleSpread(markPrice, oraclePriceData);
+}
+
+export function calculateOracleSpread(
+	price: BN,
+	oraclePriceData: OraclePriceData
+): BN {
+	return price.sub(oraclePriceData.price);
 }

@@ -1906,6 +1906,36 @@
       ]
     },
     {
+      "name": "updateMarketBaseSpread",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "markets",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        },
+        {
+          "name": "baseSpread",
+          "type": "u16"
+        }
+      ]
+    },
+    {
       "name": "updateMarketMinimumBaseAssetTradeSize",
       "accounts": [
         {
@@ -3266,8 +3296,16 @@
             "type": "u128"
           },
           {
+            "name": "baseSpread",
+            "type": "u16"
+          },
+          {
+            "name": "padding0",
+            "type": "u16"
+          },
+          {
             "name": "padding1",
-            "type": "u64"
+            "type": "u32"
           },
           {
             "name": "padding2",
@@ -3585,7 +3623,7 @@
             "type": "u128"
           },
           {
-            "name": "referrerReward",
+            "name": "quoteAssetAmountSurplus",
             "type": "u128"
           },
           {

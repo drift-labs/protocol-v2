@@ -5,7 +5,7 @@ use crate::math::position::{
     calculate_base_asset_value_and_pnl, calculate_base_asset_value_and_pnl_with_oracle_price,
 };
 use crate::math_error;
-use crate::state::market::{Markets};
+use crate::state::market::Markets;
 use crate::state::user::{User, UserPositions};
 use std::cell::{Ref, RefMut};
 
@@ -73,7 +73,12 @@ pub fn meets_initial_margin_requirement(
     markets: &Ref<Markets>,
 ) -> ClearingHouseResult<bool> {
     let (mut initial_margin_requirement, total_collateral) =
-        calculate_margin_requirement_and_total_collateral(user, user_positions, markets, MarginType::Init)?;
+        calculate_margin_requirement_and_total_collateral(
+            user,
+            user_positions,
+            markets,
+            MarginType::Init,
+        )?;
 
     initial_margin_requirement = initial_margin_requirement
         .checked_div(MARGIN_PRECISION)
@@ -88,7 +93,12 @@ pub fn meets_partial_margin_requirement(
     markets: &Ref<Markets>,
 ) -> ClearingHouseResult<bool> {
     let (mut partial_margin_requirement, total_collateral) =
-        calculate_margin_requirement_and_total_collateral(user, user_positions, markets, MarginType::Partial)?;
+        calculate_margin_requirement_and_total_collateral(
+            user,
+            user_positions,
+            markets,
+            MarginType::Partial,
+        )?;
 
     partial_margin_requirement = partial_margin_requirement
         .checked_div(MARGIN_PRECISION)

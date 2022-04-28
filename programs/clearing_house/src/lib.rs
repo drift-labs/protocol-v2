@@ -339,6 +339,8 @@ pub mod clearing_house {
                 last_oracle_price_twap_ts: now,
                 last_oracle_price: oracle_price,
                 minimum_base_asset_trade_size: 10000000,
+                base_spread: 0,
+                padding0: 0,
                 padding1: 0,
                 padding2: 0,
                 padding3: 0,
@@ -580,23 +582,30 @@ pub mod clearing_house {
         let potentially_risk_increasing;
         let base_asset_amount;
         let mut quote_asset_amount = quote_asset_amount;
+        let quote_asset_amount_surplus;
         {
             let markets = &mut ctx.accounts.markets.load_mut()?;
             let market = markets.get_market_mut(market_index);
-            let (_potentially_risk_increasing, _, _base_asset_amount, _quote_asset_amount, _) =
-                controller::position::update_position_with_quote_asset_amount(
-                    quote_asset_amount,
-                    direction,
-                    market,
-                    user,
-                    market_position,
-                    mark_price_before,
-                    now,
-                )?;
+            let (
+                _potentially_risk_increasing,
+                _,
+                _base_asset_amount,
+                _quote_asset_amount,
+                _quote_asset_amount_surplus,
+            ) = controller::position::update_position_with_quote_asset_amount(
+                quote_asset_amount,
+                direction,
+                market,
+                user,
+                market_position,
+                mark_price_before,
+                now,
+            )?;
 
             potentially_risk_increasing = _potentially_risk_increasing;
             base_asset_amount = _base_asset_amount;
             quote_asset_amount = _quote_asset_amount;
+            quote_asset_amount_surplus = _quote_asset_amount_surplus;
         }
 
         // Collect data about position/market after trade is executed so that it can be stored in trade history
@@ -639,6 +648,7 @@ pub mod clearing_house {
                 &ctx.accounts.state.fee_structure,
                 discount_token,
                 &referrer,
+                quote_asset_amount_surplus,
             )?;
 
         // Increment the clearing house's total fee variables
@@ -728,7 +738,7 @@ pub mod clearing_house {
             mark_price_after,
             fee: user_fee,
             token_discount,
-            referrer_reward,
+            quote_asset_amount_surplus,
             referee_discount,
             liquidation: false,
             market_index,
@@ -814,14 +824,16 @@ pub mod clearing_house {
         )?;
         let direction_to_close =
             math::position::direction_to_close_position(market_position.base_asset_amount);
-        let (quote_asset_amount, base_asset_amount, _) = controller::position::close(
-            user,
-            market,
-            market_position,
-            now,
-            None,
-            Some(mark_price_before),
-        )?;
+        let (quote_asset_amount, base_asset_amount, quote_asset_amount_surplus) =
+            controller::position::close(
+                user,
+                market,
+                market_position,
+                now,
+                None,
+                Some(mark_price_before),
+                true,
+            )?;
         let base_asset_amount = base_asset_amount.unsigned_abs();
 
         // Calculate the fee to charge the user
@@ -838,6 +850,7 @@ pub mod clearing_house {
                 &ctx.accounts.state.fee_structure,
                 discount_token,
                 &referrer,
+                quote_asset_amount_surplus,
             )?;
 
         // Increment the clearing house's total fee variables
@@ -935,7 +948,7 @@ pub mod clearing_house {
             liquidation: false,
             fee: user_fee,
             token_discount,
-            referrer_reward,
+            quote_asset_amount_surplus,
             referee_discount,
             market_index,
             oracle_price: oracle_price_after,
@@ -1375,7 +1388,7 @@ pub mod clearing_house {
                         .checked_div(close_position_slippage_pct.unsigned_abs())
                         .ok_or_else(math_error!())?;
 
-                    let base_asset_amount = controller::position::reduce(
+                    let (base_asset_amount, _) = controller::position::reduce(
                         direction_to_close,
                         quote_asset_amount,
                         user,
@@ -1383,6 +1396,7 @@ pub mod clearing_house {
                         market_position,
                         now,
                         Some(mark_price_before),
+                        false,
                     )?;
 
                     (quote_asset_amount, base_asset_amount)
@@ -1394,6 +1408,7 @@ pub mod clearing_house {
                         now,
                         None,
                         Some(mark_price_before),
+                        false,
                     )?;
 
                     (quote_asset_amount, base_asset_amount)
@@ -1418,7 +1433,7 @@ pub mod clearing_house {
                     mark_price_after,
                     fee: 0,
                     token_discount: 0,
-                    referrer_reward: 0,
+                    quote_asset_amount_surplus: 0,
                     referee_discount: 0,
                     liquidation: true,
                     market_index: market_position.market_index,
@@ -1583,7 +1598,7 @@ pub mod clearing_house {
                 let direction_to_reduce =
                     math::position::direction_to_close_position(market_position.base_asset_amount);
 
-                let base_asset_amount = controller::position::reduce(
+                let (base_asset_amount, _) = controller::position::reduce(
                     direction_to_reduce,
                     quote_asset_amount,
                     user,
@@ -1591,8 +1606,9 @@ pub mod clearing_house {
                     market_position,
                     now,
                     Some(mark_price_before),
-                )?
-                .unsigned_abs();
+                    false,
+                )?;
+                let base_asset_amount = base_asset_amount.unsigned_abs();
 
                 let mark_price_after = market.amm.mark_price()?;
 
@@ -1609,7 +1625,7 @@ pub mod clearing_house {
                     mark_price_after,
                     fee: 0,
                     token_discount: 0,
-                    referrer_reward: 0,
+                    quote_asset_amount_surplus: 0,
                     referee_discount: 0,
                     liquidation: true,
                     market_index: market_position.market_index,
@@ -2374,6 +2390,20 @@ pub mod clearing_house {
         let market =
             &mut ctx.accounts.markets.load_mut()?.markets[Markets::index_from_u64(market_index)];
         market.amm.minimum_quote_asset_trade_size = minimum_trade_size;
+        Ok(())
+    }
+
+    #[access_control(
+        market_initialized(&ctx.accounts.markets, market_index)
+    )]
+    pub fn update_market_base_spread(
+        ctx: Context<AdminUpdateMarket>,
+        market_index: u64,
+        base_spread: u16,
+    ) -> ProgramResult {
+        let market =
+            &mut ctx.accounts.markets.load_mut()?.markets[Markets::index_from_u64(market_index)];
+        market.amm.base_spread = base_spread;
         Ok(())
     }
 
