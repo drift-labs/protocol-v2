@@ -86,13 +86,17 @@ export class PollingClearingHouseAccountSubscriber
 		await this.updateAccountsToPoll();
 		await this.addToAccountLoader();
 		await this.fetch();
-		this.eventEmitter.emit('update');
+		const subscriptionSucceeded = this.didSubscriptionSucceed();
+
+		if (subscriptionSucceeded) {
+			this.eventEmitter.emit('update');
+		}
 
 		this.isSubscribing = false;
-		this.isSubscribed = true;
-		this.subscriptionPromiseResolver(true);
+		this.isSubscribed = subscriptionSucceeded;
+		this.subscriptionPromiseResolver(subscriptionSucceeded);
 
-		return true;
+		return subscriptionSucceeded;
 	}
 
 	async updateAccountsToPoll(): Promise<void> {
@@ -252,6 +256,17 @@ export class PollingClearingHouseAccountSubscriber
 				].coder.accounts.decode(capitalize(accountToPoll.key), buffer);
 			}
 		}
+	}
+
+	didSubscriptionSucceed(): boolean {
+		let success = true;
+		for (const [_, accountToPoll] of this.accountsToPoll) {
+			if (!this[accountToPoll.key]) {
+				success = false;
+				break;
+			}
+		}
+		return success;
 	}
 
 	public async unsubscribe(): Promise<void> {
