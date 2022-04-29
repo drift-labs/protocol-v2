@@ -2538,7 +2538,11 @@
           },
           {
             "name": "totalFeePaid",
-            "type": "u128"
+            "type": "u64"
+          },
+          {
+            "name": "totalFeeRebate",
+            "type": "u64"
           },
           {
             "name": "totalTokenDiscount",
@@ -3369,7 +3373,7 @@
           },
           {
             "name": "fee",
-            "type": "u128"
+            "type": "i128"
           },
           {
             "name": "fillerReward",
@@ -3620,7 +3624,7 @@
           },
           {
             "name": "fee",
-            "type": "u128"
+            "type": "i128"
           },
           {
             "name": "quoteAssetAmountSurplus",
@@ -3772,7 +3776,7 @@
           },
           {
             "name": "fee",
-            "type": "u128"
+            "type": "i128"
           },
           {
             "name": "direction",

@@ -33,7 +33,7 @@ pub struct Order {
     pub base_asset_amount: u128,
     pub base_asset_amount_filled: u128,
     pub quote_asset_amount_filled: u128,
-    pub fee: u128,
+    pub fee: i128,
     pub direction: PositionDirection,
     pub reduce_only: bool,
     pub post_only: bool,

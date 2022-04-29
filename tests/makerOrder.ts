@@ -175,13 +175,20 @@ describe('maker order', () => {
 		const position = clearingHouseUser.getUserPosition(marketIndex);
 		assert(position.baseAssetAmount.eq(baseAssetAmount));
 		assert(position.quoteAssetAmount.eq(new BN(1000000)));
+		assert(
+			clearingHouseUser
+				.getUserAccount()
+				.collateral.eq(usdcAmount.add(new BN(500)))
+		);
+		assert(clearingHouseUser.getUserAccount().totalFeePaid.eq(ZERO));
+		assert(clearingHouseUser.getUserAccount().totalFeeRebate.eq(new BN(500)));
 
 		await fillerClearingHouse.fetchAccounts();
 		const orderHistory = fillerClearingHouse.getOrderHistoryAccount();
 		const orderRecord = orderHistory.orderRecords[1];
 
 		assert(isVariant(orderRecord.action, 'fill'));
-		assert(orderRecord.fee.eq(ZERO));
+		assert(orderRecord.fee.eq(new BN(-500)));
 		assert(orderRecord.quoteAssetAmountSurplus.eq(new BN(499999)));
 
 		await clearingHouse.unsubscribe();
@@ -254,13 +261,20 @@ describe('maker order', () => {
 		const position = clearingHouseUser.getUserPosition(marketIndex);
 		assert(position.baseAssetAmount.abs().eq(baseAssetAmount));
 		assert(position.quoteAssetAmount.eq(new BN(1000000)));
+		assert(
+			clearingHouseUser
+				.getUserAccount()
+				.collateral.eq(usdcAmount.add(new BN(500)))
+		);
+		assert(clearingHouseUser.getUserAccount().totalFeePaid.eq(ZERO));
+		assert(clearingHouseUser.getUserAccount().totalFeeRebate.eq(new BN(500)));
 
 		await fillerClearingHouse.fetchAccounts();
 		const orderHistory = fillerClearingHouse.getOrderHistoryAccount();
 		const orderRecord = orderHistory.orderRecords[3];
 
 		assert(isVariant(orderRecord.action, 'fill'));
-		assert(orderRecord.fee.eq(ZERO));
+		assert(orderRecord.fee.eq(new BN(-500)));
 		assert(orderRecord.quoteAssetAmountSurplus.eq(new BN(999992)));
 
 		await clearingHouse.unsubscribe();

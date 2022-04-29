@@ -673,7 +673,7 @@ pub mod clearing_house {
         // Increment the user's total fee variables
         user.total_fee_paid = user
             .total_fee_paid
-            .checked_add(user_fee)
+            .checked_add(cast(user_fee)?)
             .ok_or_else(math_error!())?;
         user.total_token_discount = user
             .total_token_discount
@@ -736,7 +736,7 @@ pub mod clearing_house {
             quote_asset_amount,
             mark_price_before,
             mark_price_after,
-            fee: user_fee,
+            fee: cast(user_fee)?,
             token_discount,
             quote_asset_amount_surplus,
             referee_discount,
@@ -871,7 +871,7 @@ pub mod clearing_house {
         // Increment the user's total fee variables
         user.total_fee_paid = user
             .total_fee_paid
-            .checked_add(user_fee)
+            .checked_add(cast(user_fee)?)
             .ok_or_else(math_error!())?;
         user.total_token_discount = user
             .total_token_discount
@@ -946,7 +946,7 @@ pub mod clearing_house {
             mark_price_before,
             mark_price_after,
             liquidation: false,
-            fee: user_fee,
+            fee: cast(user_fee)?,
             token_discount,
             quote_asset_amount_surplus,
             referee_discount,

@@ -332,6 +332,7 @@ export type UserAccount = {
 	cumulativeDeposits: BN;
 	positions: PublicKey;
 	totalFeePaid: BN;
+	totalFeeRebate: BN;
 	totalTokenDiscount: BN;
 	totalReferralReward: BN;
 	totalRefereeDiscount: BN;

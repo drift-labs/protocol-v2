@@ -1,5 +1,5 @@
 use crate::error::*;
-use crate::math::casting::cast_to_u128;
+use crate::math::casting::{cast_to_i128, cast_to_u128};
 use crate::math_error;
 use crate::state::order_state::OrderFillerRewardStructure;
 use crate::state::state::{DiscountTokenTier, FeeStructure};
@@ -192,7 +192,7 @@ pub fn calculate_fee_for_order(
     filler_is_user: bool,
     quote_asset_amount_surplus: u128,
     is_post_only: bool,
-) -> ClearingHouseResult<(u128, u128, u128, u128, u128, u128)> {
+) -> ClearingHouseResult<(i128, u128, u128, u128, u128, u128)> {
     // if there was a quote_asset_amount_surplus, the order was a maker order and fee_to_market comes from surplus
     if is_post_only {
         let fee = quote_asset_amount_surplus;
@@ -201,9 +201,14 @@ pub fn calculate_fee_for_order(
         } else {
             calculate_filler_reward(fee, order_ts, now, filler_reward_structure)?
         };
-        let fee_to_market = fee.checked_sub(filler_reward).ok_or_else(math_error!())?;
+        let fee_minus_filler_reward = fee.checked_sub(filler_reward).ok_or_else(math_error!())?;
+        let rebate = min(fee_minus_filler_reward, quote_asset_amount / 2000); // max 5pbs rebate
+        let fee_to_market = fee_minus_filler_reward
+            .checked_sub(rebate)
+            .ok_or_else(math_error!())?;
+        let user_fee = -cast_to_i128(rebate)?;
 
-        Ok((0, fee_to_market, 0, filler_reward, 0, 0))
+        Ok((user_fee, fee_to_market, 0, filler_reward, 0, 0))
     } else {
         let fee = quote_asset_amount
             .checked_mul(fee_structure.fee_numerator)
@@ -238,7 +243,7 @@ pub fn calculate_fee_for_order(
             .ok_or_else(math_error!())?;
 
         Ok((
-            user_fee,
+            cast_to_i128(user_fee)?,
             fee_to_market,
             token_discount,
             filler_reward,
