@@ -17,7 +17,6 @@ use crate::math::quote_asset::{asset_to_reserve_amount, reserve_to_asset_amount}
 use crate::math_error;
 use crate::state::market::{Market, OraclePriceData, AMM};
 use crate::state::state::{PriceDivergenceGuardRails, ValidityGuardRails};
-use num_integer::Roots;
 
 pub fn calculate_price(
     quote_asset_reserve: u128,
@@ -312,7 +311,7 @@ pub fn calculate_spread_reserves(
             .checked_div(BID_ASK_SPREAD_PRECISION / (base_spread / 4))
             .ok_or_else(math_error!())?
     } else {
-        0_128
+        0
     };
 
     let quote_asset_reserve = match direction {

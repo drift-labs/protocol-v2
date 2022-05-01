@@ -4,7 +4,7 @@ use crate::controller::position::PositionDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm::{calculate_quote_asset_amount_swapped, calculate_spread_reserves};
 use crate::math::casting::{cast, cast_to_i128};
-use crate::math::constants::{AMM_RESERVE_PRECISION, PRICE_TO_PEG_PRECISION_RATIO};
+use crate::math::constants::PRICE_TO_PEG_PRECISION_RATIO;
 use crate::math::{amm, bn, quote_asset::*};
 use crate::math_error;
 use crate::state::market::AMM;

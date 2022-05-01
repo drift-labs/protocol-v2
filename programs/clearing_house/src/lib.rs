@@ -2172,7 +2172,8 @@ pub mod clearing_house {
             .ok_or_else(math_error!())?;
 
         if k_err.unsigned_abs() > 100 {
-            msg!("k_err={:?}, {:?} != {:?}", k_err, k_sqrt_check, amm.sqrt_k);
+            let sqrt_k = amm.sqrt_k;
+            msg!("k_err={:?}, {:?} != {:?}", k_err, k_sqrt_check, sqrt_k);
             return Err(ErrorCode::InvalidUpdateK.into());
         }
 
