@@ -8,7 +8,6 @@ import {
 import { Market } from '../types';
 import { calculateMarkPrice } from './market';
 import { OraclePriceData } from '../oracles/types';
-import { convertToNumber } from './conversion';
 
 /**
  *
