@@ -8,6 +8,7 @@ import {
 import { Market } from '../types';
 import { calculateMarkPrice } from './market';
 import { OraclePriceData } from '../oracles/types';
+import { convertToNumber } from './conversion';
 
 /**
  *
@@ -27,6 +28,7 @@ export async function calculateAllEstimatedFundingRate(
 	//  24 * 365.25: annualized
 	const secondsInHour = new BN(3600);
 	const hoursInDay = new BN(24);
+	const ONE = new BN(1);
 
 	if (!market.initialized) {
 		return [ZERO, ZERO, ZERO, ZERO, ZERO];
@@ -65,9 +67,12 @@ export async function calculateAllEstimatedFundingRate(
 	);
 
 	const timeSinceLastOracleTwapUpdate = now.sub(lastOraclePriceTwapTs);
-	const oracleTwapTimeSinceLastUpdate = BN.min(
-		secondsInHour,
-		BN.max(ZERO, secondsInHour.sub(timeSinceLastOracleTwapUpdate))
+	const oracleTwapTimeSinceLastUpdate = BN.max(
+		ONE,
+		BN.min(
+			secondsInHour,
+			BN.max(ONE, secondsInHour.sub(timeSinceLastOracleTwapUpdate))
+		)
 	);
 	let oracleTwapWithMantissa = lastOracleTwapWithMantissa;
 
