@@ -231,4 +231,15 @@ export const Markets: MarketConfig[] = [
 		launchTs: 1651017354000,
 		oracleSource: OracleSource.SWITCHBOARD,
 	},
+	{
+		fullName: 'Fantom',
+		category: ['L1', 'Infra'],
+		symbol: 'FTM-PERP',
+		baseAssetSymbol: 'FTM',
+		marketIndex: new BN(20),
+		devnetPublicKey: 'BTwrLU4so1oJMViWA3BTzh8YmFwiLZ6CL4U3JryG7Q5S',
+		mainnetPublicKey: '7Dn52EY5EGE8Nvvw98KVMGPWTiTGn3PF4y24TVLyXdT9',
+		launchTs: 1651559653000,
+		oracleSource: OracleSource.PYTH,
+	},
 ];
