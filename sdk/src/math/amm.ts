@@ -98,6 +98,22 @@ export function calculateAmmReservesAfterSwap(
 	return [newQuoteAssetReserve, newBaseAssetReserve];
 }
 
+export function calculateSpread(
+	amm: AMM,
+	direction: PositionDirection
+): number {
+	let spread;
+
+	// future logic
+	if (isVariant(direction, 'long')) {
+		spread = amm.baseSpread;
+	} else {
+		spread = amm.baseSpread;
+	}
+
+	return spread;
+}
+
 export function calculateSpreadReserves(
 	amm: AMM,
 	direction: PositionDirection
@@ -105,7 +121,9 @@ export function calculateSpreadReserves(
 	baseAssetReserve: BN;
 	quoteAssetReserve: BN;
 } {
-	if (amm.baseSpread === 0) {
+	const spread = calculateSpread(amm, direction);
+
+	if (spread === 0) {
 		return {
 			baseAssetReserve: amm.baseAssetReserve,
 			quoteAssetReserve: amm.quoteAssetReserve,
@@ -113,7 +131,7 @@ export function calculateSpreadReserves(
 	}
 
 	const quoteAsserReserveDelta = amm.quoteAssetReserve.div(
-		BID_ASK_SPREAD_PRECISION.div(new BN(amm.baseSpread / 4))
+		BID_ASK_SPREAD_PRECISION.div(new BN(spread / 4))
 	);
 
 	let quoteAssetReserve;
