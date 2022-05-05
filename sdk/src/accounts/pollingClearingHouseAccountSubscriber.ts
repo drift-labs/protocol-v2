@@ -85,8 +85,14 @@ export class PollingClearingHouseAccountSubscriber
 
 		await this.updateAccountsToPoll();
 		await this.addToAccountLoader();
-		await this.fetch();
-		const subscriptionSucceeded = this.didSubscriptionSucceed();
+
+		let subscriptionSucceeded = false;
+		let retries = 0;
+		while (!subscriptionSucceeded && retries < 5) {
+			await this.fetch();
+			subscriptionSucceeded = this.didSubscriptionSucceed();
+			retries++;
+		}
 
 		if (subscriptionSucceeded) {
 			this.eventEmitter.emit('update');
@@ -237,6 +243,10 @@ export class PollingClearingHouseAccountSubscriber
 					// @ts-ignore
 					this.eventEmitter.emit(accountToPoll.eventType, account);
 					this.eventEmitter.emit('update');
+
+					if (!this.isSubscribed) {
+						this.isSubscribed = this.didSubscriptionSucceed();
+					}
 				}
 			);
 		}

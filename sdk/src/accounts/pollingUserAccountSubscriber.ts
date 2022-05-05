@@ -52,9 +52,14 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 		}
 
 		await this.addToAccountLoader();
-		await this.fetchIfUnloaded();
 
-		const subscriptionSucceeded = this.didSubscriptionSucceed();
+		let subscriptionSucceeded = false;
+		let retries = 0;
+		while (!subscriptionSucceeded && retries < 5) {
+			await this.fetchIfUnloaded();
+			subscriptionSucceeded = this.didSubscriptionSucceed();
+			retries++;
+		}
 
 		if (subscriptionSucceeded) {
 			this.eventEmitter.emit('update');

@@ -36,11 +36,20 @@ export class PollingTokenAccountSubscriber implements TokenAccountSubscriber {
 		}
 
 		this.addToAccountLoader();
-		await this.fetch();
-		this.eventEmitter.emit('update');
+		let subscriptionSucceeded = false;
+		let retries = 0;
+		while (!subscriptionSucceeded && retries < 5) {
+			await this.fetch();
+			subscriptionSucceeded = this.didSubscriptionSucceed();
+			retries++;
+		}
 
-		this.isSubscribed = true;
-		return true;
+		if (subscriptionSucceeded) {
+			this.eventEmitter.emit('update');
+		}
+
+		this.isSubscribed = subscriptionSucceeded;
+		return subscriptionSucceeded;
 	}
 
 	addToAccountLoader(): void {
@@ -95,5 +104,9 @@ export class PollingTokenAccountSubscriber implements TokenAccountSubscriber {
 	public getTokenAccount(): AccountInfo {
 		this.assertIsSubscribed();
 		return this.tokenAccount;
+	}
+
+	didSubscriptionSucceed(): boolean {
+		return !!this.tokenAccount;
 	}
 }

@@ -37,11 +37,21 @@ export class PollingOracleSubscriber implements OracleSubscriber {
 		}
 
 		this.addToAccountLoader();
-		await this.fetch();
-		this.eventEmitter.emit('update');
 
-		this.isSubscribed = true;
-		return true;
+		let subscriptionSucceeded = false;
+		let retries = 0;
+		while (!subscriptionSucceeded && retries < 5) {
+			await this.fetch();
+			subscriptionSucceeded = this.didSubscriptionSucceed();
+			retries++;
+		}
+
+		if (subscriptionSucceeded) {
+			this.eventEmitter.emit('update');
+		}
+
+		this.isSubscribed = subscriptionSucceeded;
+		return subscriptionSucceeded;
 	}
 
 	addToAccountLoader(): void {
@@ -99,5 +109,9 @@ export class PollingOracleSubscriber implements OracleSubscriber {
 	public getOraclePriceData(): OraclePriceData {
 		this.assertIsSubscribed();
 		return this.oraclePriceData;
+	}
+
+	didSubscriptionSucceed(): boolean {
+		return !!this.oraclePriceData;
 	}
 }
