@@ -1,4 +1,4 @@
-use crate::error::*;
+use crate::error::ClearingHouseResult;
 use crate::math_error;
 use anchor_spl::token::TokenAccount;
 use solana_program::msg;

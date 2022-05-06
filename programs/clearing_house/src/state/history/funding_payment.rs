@@ -1,6 +1,7 @@
 use anchor_lang::prelude::*;
 
 #[account(zero_copy)]
+#[repr(packed)]
 pub struct FundingPaymentHistory {
     head: u64,
     funding_payment_records: [FundingPaymentRecord; 1024],
@@ -27,6 +28,7 @@ impl FundingPaymentHistory {
 // FundingPaymentRecord
 #[zero_copy]
 #[derive(Default)]
+#[repr(packed)]
 pub struct FundingPaymentRecord {
     pub ts: i64,
     pub record_id: u128,

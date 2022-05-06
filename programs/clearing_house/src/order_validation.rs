@@ -1,5 +1,5 @@
 use crate::controller::position::PositionDirection;
-use crate::error::*;
+use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::constants::*;
 use crate::math::quote_asset::asset_to_reserve_amount;
 use crate::state::market::Market;
@@ -104,8 +104,7 @@ fn validate_limit_order(
     let limit_price = order.get_limit_price(valid_oracle_price)?;
     let approximate_market_value = limit_price
         .checked_mul(order.base_asset_amount)
-        .or(Some(u128::MAX))
-        .unwrap()
+        .unwrap_or(u128::MAX)
         .div(AMM_RESERVE_PRECISION)
         .div(MARK_PRICE_PRECISION / QUOTE_PRECISION);
 
@@ -186,8 +185,7 @@ fn validate_trigger_limit_order(
     let approximate_market_value = order
         .price
         .checked_mul(order.base_asset_amount)
-        .or(Some(u128::MAX))
-        .unwrap()
+        .unwrap_or(u128::MAX)
         .div(AMM_RESERVE_PRECISION)
         .div(MARK_PRICE_PRECISION / QUOTE_PRECISION);
 
@@ -234,8 +232,7 @@ fn validate_trigger_market_order(
     let approximate_market_value = order
         .trigger_price
         .checked_mul(order.base_asset_amount)
-        .or(Some(u128::MAX))
-        .unwrap()
+        .unwrap_or(u128::MAX)
         .div(AMM_RESERVE_PRECISION)
         .div(MARK_PRICE_PRECISION / QUOTE_PRECISION);
 

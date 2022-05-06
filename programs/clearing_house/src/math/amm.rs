@@ -4,7 +4,7 @@ use solana_program::msg;
 
 use crate::controller::amm::SwapDirection;
 use crate::controller::position::PositionDirection;
-use crate::error::*;
+use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::bn;
 use crate::math::bn::U192;
 use crate::math::casting::{cast, cast_to_i128, cast_to_u128};

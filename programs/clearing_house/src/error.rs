@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 
 pub type ClearingHouseResult<T = ()> = std::result::Result<T, ErrorCode>;
 
-#[error]
+#[error_code]
 pub enum ErrorCode {
     #[msg("Clearing house not collateral account owner")]
     InvalidCollateralAccountAuthority,
@@ -143,7 +143,7 @@ macro_rules! print_error {
 macro_rules! math_error {
     () => {{
         || {
-            let error_code = ErrorCode::MathError;
+            let error_code = $crate::error::ErrorCode::MathError;
             msg!("Error {} thrown at {}:{}", error_code, file!(), line!());
             error_code
         }

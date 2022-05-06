@@ -6,8 +6,10 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::msg;
 use std::cmp::{max, min};
 
+// SPACE: 7168
 #[account(zero_copy)]
 #[derive(Default)]
+#[repr(packed)]
 pub struct UserOrders {
     pub user: Pubkey,
     pub orders: [Order; 32],
@@ -19,7 +21,9 @@ impl UserOrders {
     }
 }
 
+// SPACE: 7136
 #[zero_copy]
+#[repr(packed)]
 pub struct Order {
     pub status: OrderStatus,
     pub order_type: OrderType,

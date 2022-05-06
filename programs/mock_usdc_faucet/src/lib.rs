@@ -14,7 +14,7 @@ pub mod mock_usdc_faucet {
     pub fn initialize(
         ctx: Context<InitializeMockUSDCFaucet>,
         _mock_usdc_faucet_nonce: u8,
-    ) -> ProgramResult {
+    ) -> Result<()> {
         let mint_account_key = ctx.accounts.mint_account.to_account_info().key;
         let (mint_authority, mint_authority_nonce) =
             Pubkey::find_program_address(&[mint_account_key.as_ref()], ctx.program_id);
@@ -33,7 +33,7 @@ pub mod mock_usdc_faucet {
         Ok(())
     }
 
-    pub fn mint_to_user(ctx: Context<MintToUser>, amount: u64) -> ProgramResult {
+    pub fn mint_to_user(ctx: Context<MintToUser>, amount: u64) -> Result<()> {
         let mint_signature_seeds = [
             ctx.accounts.mock_usdc_faucet_state.mint.as_ref(),
             bytemuck::bytes_of(&ctx.accounts.mock_usdc_faucet_state.mint_authority_nonce),
@@ -57,10 +57,12 @@ pub struct InitializeMockUSDCFaucet<'info> {
     #[account(
         init,
         seeds = [b"mock_usdc_faucet".as_ref()],
-        bump = mock_usdc_faucet_nonce,
+        space = std::mem::size_of::<MockUSDCFaucetState>() + 8,
+        bump,
         payer = admin
     )]
     pub mock_usdc_faucet_state: Box<Account<'info, MockUSDCFaucetState>>,
+    #[account(mut)]
     pub admin: Signer<'info>,
     pub mint_account: Box<Account<'info, Mint>>,
     pub rent: Sysvar<'info, Rent>,
@@ -83,11 +85,12 @@ pub struct MintToUser<'info> {
     pub mint_account: Box<Account<'info, Mint>>,
     #[account(mut)]
     pub user_token_account: Box<Account<'info, TokenAccount>>,
+    /// CHECK: Checked by spl_token
     pub mint_authority: AccountInfo<'info>,
     pub token_program: Program<'info, Token>,
 }
 
-#[error]
+#[error_code]
 pub enum ErrorCode {
     #[msg("Program not mint authority")]
     InvalidMintAccountAuthority,

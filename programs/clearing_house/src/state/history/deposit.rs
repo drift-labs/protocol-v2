@@ -2,6 +2,7 @@ use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 
 #[account(zero_copy)]
+#[repr(packed)]
 pub struct DepositHistory {
     head: u64,
     deposit_records: [DepositRecord; 1024],
@@ -39,6 +40,7 @@ impl Default for DepositDirection {
 
 #[zero_copy]
 #[derive(Default)]
+#[repr(packed)]
 pub struct DepositRecord {
     pub ts: i64,
     pub record_id: u128,

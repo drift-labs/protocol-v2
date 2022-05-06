@@ -1,4 +1,4 @@
-use crate::error::*;
+use crate::error::ClearingHouseResult;
 use crate::math::position::_calculate_base_asset_value_and_pnl;
 use crate::state::market::Market;
 

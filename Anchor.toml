@@ -7,3 +7,4 @@ test = "./test-scripts/run-ts-mocha"
 
 [programs.localnet]
 clearing_house = "AsW7LnXB9UA1uec9wi9MctYTgTz7YH9snhxd16GsFaGX"
+pyth = "ASfdvRMCan2aoWtbDi5HLXhz2CFfgEkuDoxc57bJLKLX"

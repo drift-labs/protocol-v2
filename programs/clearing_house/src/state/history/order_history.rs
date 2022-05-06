@@ -3,6 +3,7 @@ use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 
 #[account(zero_copy)]
+#[repr(packed)]
 pub struct OrderHistory {
     head: u64,
     pub last_order_id: u128,
@@ -34,6 +35,7 @@ impl OrderHistory {
 
 #[zero_copy]
 #[derive(Default)]
+#[repr(packed)]
 pub struct OrderRecord {
     pub ts: i64,
     pub record_id: u128,

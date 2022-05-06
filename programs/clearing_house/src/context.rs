@@ -21,11 +21,13 @@ use crate::state::user_orders::{OrderTriggerCondition, OrderType, UserOrders};
     insurance_vault_nonce: u8
 )]
 pub struct Initialize<'info> {
+    #[account(mut)]
     pub admin: Signer<'info>,
     #[account(
         init,
         seeds = [b"clearing_house".as_ref()],
-        bump = clearing_house_nonce,
+        space = std::mem::size_of::<State>() + 8,
+        bump,
         payer = admin
     )]
     pub state: Box<Account<'info, State>>,
@@ -33,22 +35,24 @@ pub struct Initialize<'info> {
     #[account(
         init,
         seeds = [b"collateral_vault".as_ref()],
-        bump = collateral_vault_nonce,
+        bump,
         payer = admin,
         token::mint = collateral_mint,
         token::authority = collateral_vault_authority
     )]
     pub collateral_vault: Box<Account<'info, TokenAccount>>,
+    /// CHECK: checked in `initialize`
     pub collateral_vault_authority: AccountInfo<'info>,
     #[account(
         init,
         seeds = [b"insurance_vault".as_ref()],
-        bump = insurance_vault_nonce,
+        bump,
         payer = admin,
         token::mint = collateral_mint,
         token::authority = insurance_vault_authority
     )]
     pub insurance_vault: Box<Account<'info, TokenAccount>>,
+    /// CHECK: checked in `initialize`
     pub insurance_vault_authority: AccountInfo<'info>,
     #[account(zero)]
     pub markets: AccountLoader<'info, Markets>,
@@ -84,6 +88,7 @@ pub struct InitializeHistory<'info> {
     order_house_nonce: u8,
 )]
 pub struct InitializeOrderState<'info> {
+    #[account(mut)]
     pub admin: Signer<'info>,
     #[account(
         mut,
@@ -93,7 +98,8 @@ pub struct InitializeOrderState<'info> {
     #[account(
         init,
         seeds = [b"order_state".as_ref()],
-        bump = order_house_nonce,
+        space = std::mem::size_of::<OrderState>() + 8,
+        bump,
         payer = admin
     )]
     pub order_state: Box<Account<'info, OrderState>>,
@@ -109,7 +115,8 @@ pub struct InitializeUser<'info> {
     #[account(
         init,
         seeds = [b"user", authority.key.as_ref()],
-        bump = user_nonce,
+        space = 224 + 8,
+        bump,
         payer = authority
     )]
     pub user: Box<Account<'info, User>>,
@@ -117,6 +124,7 @@ pub struct InitializeUser<'info> {
     #[account(
         init,
         payer = authority,
+        space = 1072 + 8,
     )]
     pub user_positions: AccountLoader<'info, UserPositions>,
     #[account(mut)]
@@ -131,7 +139,8 @@ pub struct InitializeUserWithExplicitPayer<'info> {
     #[account(
         init,
         seeds = [b"user", authority.key.as_ref()],
-        bump = user_nonce,
+        space = 224 + 8,
+        bump,
         payer = payer
     )]
     pub user: Box<Account<'info, User>>,
@@ -139,6 +148,7 @@ pub struct InitializeUserWithExplicitPayer<'info> {
     #[account(
         init,
         payer = payer,
+        space = 1072 + 8,
     )]
     pub user_positions: AccountLoader<'info, UserPositions>,
     pub authority: Signer<'info>,
@@ -158,11 +168,13 @@ pub struct InitializeUserOrders<'info> {
     #[account(
         init,
         seeds = [b"user_orders", user.key().as_ref()],
-        bump = user_orders_nonce,
+        space = 7168 + 8,
+        bump,
         payer = authority
     )]
     pub user_orders: AccountLoader<'info, UserOrders>,
     pub state: Box<Account<'info, State>>,
+    #[account(mut)]
     pub authority: Signer<'info>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
@@ -178,7 +190,8 @@ pub struct InitializeUserOrdersWithExplicitPayer<'info> {
     #[account(
         init,
         seeds = [b"user_orders", user.key().as_ref()],
-        bump = user_orders_nonce,
+        space = 7168 + 8,
+        bump,
         payer = payer
     )]
     pub user_orders: AccountLoader<'info, UserOrders>,
@@ -207,6 +220,7 @@ pub struct InitializeMarket<'info> {
         constraint = &state.markets.eq(&markets.key())
     )]
     pub markets: AccountLoader<'info, Markets>,
+    /// CHECK: checked in `initialize_market`
     pub oracle: AccountInfo<'info>,
 }
 
@@ -266,6 +280,7 @@ pub struct WithdrawCollateral<'info> {
         constraint = &state.collateral_vault.eq(&collateral_vault.key())
     )]
     pub collateral_vault: Box<Account<'info, TokenAccount>>,
+    /// CHECK: withdraw fails if this isn't vault owner
     #[account(
         constraint = &state.collateral_vault_authority.eq(&collateral_vault_authority.key())
     )]
@@ -275,6 +290,7 @@ pub struct WithdrawCollateral<'info> {
         constraint = &state.insurance_vault.eq(&insurance_vault.key())
     )]
     pub insurance_vault: Box<Account<'info, TokenAccount>>,
+    /// CHECK: withdraw fails if this isn't vault owner
     #[account(
         constraint = &state.insurance_vault_authority.eq(&insurance_vault_authority.key())
     )]
@@ -315,6 +331,7 @@ pub struct WithdrawFees<'info> {
         constraint = &state.collateral_vault.eq(&collateral_vault.key())
     )]
     pub collateral_vault: Box<Account<'info, TokenAccount>>,
+    /// CHECK: withdraw fails if this isn't vault owner
     #[account(
         constraint = &state.collateral_vault_authority.eq(&collateral_vault_authority.key())
     )]
@@ -341,6 +358,7 @@ pub struct WithdrawFromInsuranceVault<'info> {
         constraint = &state.insurance_vault.eq(&insurance_vault.key())
     )]
     pub insurance_vault: Box<Account<'info, TokenAccount>>,
+    /// CHECK: withdraw fails if this isn't vault owner
     #[account(
         constraint = &state.insurance_vault_authority.eq(&insurance_vault_authority.key())
     )]
@@ -368,6 +386,7 @@ pub struct WithdrawFromInsuranceVaultToMarket<'info> {
         constraint = &state.insurance_vault.eq(&insurance_vault.key())
     )]
     pub insurance_vault: Box<Account<'info, TokenAccount>>,
+    /// CHECK: withdraw fails if this isn't vault owner
     #[account(
         constraint = &state.insurance_vault_authority.eq(&insurance_vault_authority.key())
     )]
@@ -422,6 +441,7 @@ pub struct OpenPosition<'info> {
         constraint = &state.funding_rate_history.eq(&funding_rate_history.key())
     )]
     pub funding_rate_history: AccountLoader<'info, FundingRateHistory>,
+    /// CHECK: validated in `open_position` ix constraint
     pub oracle: AccountInfo<'info>,
 }
 
@@ -483,6 +503,7 @@ pub struct FillOrder<'info> {
         constraint = &state.extended_curve_history.eq(&extended_curve_history.key())
     )]
     pub extended_curve_history: AccountLoader<'info, ExtendedCurveHistory>,
+    /// CHECK: validated in `controller::orders::fill_order`
     pub oracle: AccountInfo<'info>,
 }
 
@@ -613,6 +634,7 @@ pub struct PlaceAndFillOrder<'info> {
         constraint = &state.extended_curve_history.eq(&extended_curve_history.key())
     )]
     pub extended_curve_history: AccountLoader<'info, ExtendedCurveHistory>,
+    /// CHECK: validated in `place_order` ix constraint
     pub oracle: AccountInfo<'info>,
 }
 
@@ -726,6 +748,7 @@ pub struct ClosePosition<'info> {
         constraint = &state.funding_rate_history.eq(&funding_rate_history.key())
     )]
     pub funding_rate_history: AccountLoader<'info, FundingRateHistory>,
+    /// CHECK: validated in `close_position`ix constraint
     pub oracle: AccountInfo<'info>,
 }
 
@@ -748,6 +771,7 @@ pub struct Liquidate<'info> {
         constraint = &state.collateral_vault.eq(&collateral_vault.key())
     )]
     pub collateral_vault: Box<Account<'info, TokenAccount>>,
+    /// CHECK: transfer token will fail if wrong authority
     #[account(
         constraint = &state.collateral_vault_authority.eq(&collateral_vault_authority.key())
     )]
@@ -757,6 +781,7 @@ pub struct Liquidate<'info> {
         constraint = &state.insurance_vault.eq(&insurance_vault.key())
     )]
     pub insurance_vault: Box<Account<'info, TokenAccount>>,
+    /// CHECK: transfer token will fail if wrong authority
     #[account(
         constraint = &state.insurance_vault_authority.eq(&insurance_vault_authority.key())
     )]
@@ -821,6 +846,7 @@ pub struct UpdateFundingRate<'info> {
         constraint = &state.markets.eq(&markets.key())
     )]
     pub markets: AccountLoader<'info, Markets>,
+    /// CHECK: checked in `update_funding_rate` ix constraint
     pub oracle: AccountInfo<'info>,
     #[account(
         mut,
@@ -840,6 +866,7 @@ pub struct RepegCurve<'info> {
         constraint = &state.markets.eq(&markets.key())
     )]
     pub markets: AccountLoader<'info, Markets>,
+    /// CHECK: checked in `repeg_curve` ix constraint
     pub oracle: AccountInfo<'info>,
     pub admin: Signer<'info>,
     #[account(
@@ -900,6 +927,7 @@ pub struct AdminUpdateK<'info> {
         constraint = &state.markets.eq(&markets.key())
     )]
     pub markets: AccountLoader<'info, Markets>,
+    /// CHECK: checked in `admin_update_k` ix constraint
     pub oracle: AccountInfo<'info>,
     #[account(
         mut,

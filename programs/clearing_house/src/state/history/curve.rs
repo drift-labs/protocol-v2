@@ -3,6 +3,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 
 #[account(zero_copy)]
 #[derive(Default)]
+#[repr(packed)]
 pub struct CurveHistory {
     pub head: u64,
     pub curve_records: [CurveRecord; 32],
@@ -40,6 +41,7 @@ impl Default for Type {
 
 #[zero_copy]
 #[derive(Default)]
+#[repr(packed)]
 pub struct CurveRecord {
     pub ts: i64,
     pub record_id: u128,
@@ -62,6 +64,7 @@ pub struct CurveRecord {
 }
 
 #[account(zero_copy)]
+#[repr(packed)]
 pub struct ExtendedCurveHistory {
     pub head: u64,
     curve_records: [ExtendedCurveRecord; 1024],
@@ -86,6 +89,7 @@ impl ExtendedCurveHistory {
 
 #[zero_copy]
 #[derive(Default)]
+#[repr(packed)]
 pub struct ExtendedCurveRecord {
     pub ts: i64,
     pub record_id: u128,

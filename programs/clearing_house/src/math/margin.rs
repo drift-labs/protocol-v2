@@ -1,4 +1,4 @@
-use crate::error::*;
+use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::collateral::calculate_updated_collateral;
 use crate::math::constants::MARGIN_PRECISION;
 use crate::math::position::{

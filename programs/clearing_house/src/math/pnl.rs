@@ -1,6 +1,5 @@
 use crate::controller::amm::SwapDirection;
 use crate::error::ClearingHouseResult;
-use crate::error::*;
 use crate::math::casting::{cast, cast_to_i128};
 use crate::math_error;
 use solana_program::msg;

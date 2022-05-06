@@ -2,6 +2,7 @@ use anchor_lang::prelude::*;
 
 #[account]
 #[derive(Default)]
+#[repr(packed)]
 pub struct OrderState {
     pub order_history: Pubkey,
     pub order_filler_reward_structure: OrderFillerRewardStructure,

@@ -2,6 +2,7 @@ use anchor_lang::prelude::*;
 
 #[account]
 #[derive(Default)]
+#[repr(packed)]
 pub struct State {
     pub admin: Pubkey,
     pub exchange_paused: bool,

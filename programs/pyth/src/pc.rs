@@ -100,7 +100,9 @@ pub struct Price {
 
 impl Price {
     #[inline]
-    pub fn load<'a>(price_feed: &'a AccountInfo) -> Result<RefMut<'a, Price>, ProgramError> {
+    pub fn load<'a>(
+        price_feed: &'a AccountInfo,
+    ) -> std::result::Result<RefMut<'a, Price>, ProgramError> {
         let account_data: RefMut<'a, [u8]> =
             RefMut::map(price_feed.try_borrow_mut_data().unwrap(), |data| *data);
 

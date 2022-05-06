@@ -1,6 +1,4 @@
-use anchor_lang::prelude::AccountInfo;
 use anchor_lang::prelude::*;
-use anchor_lang::{Account, CpiContext};
 use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 
 pub fn send<'info>(
@@ -10,7 +8,7 @@ pub fn send<'info>(
     authority: &AccountInfo<'info>,
     nonce: u8,
     amount: u64,
-) -> ProgramResult {
+) -> Result<()> {
     let from_key = from.key();
     let signature_seeds = [from_key.as_ref(), bytemuck::bytes_of(&nonce)];
     let signers = &[&signature_seeds[..]];
@@ -30,7 +28,7 @@ pub fn receive<'info>(
     to: &Account<'info, TokenAccount>,
     authority: &AccountInfo<'info>,
     amount: u64,
-) -> ProgramResult {
+) -> Result<()> {
     let cpi_accounts = Transfer {
         from: from.to_account_info().clone(),
         to: to.to_account_info().clone(),

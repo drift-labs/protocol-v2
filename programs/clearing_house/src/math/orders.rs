@@ -1,4 +1,4 @@
-use crate::error::*;
+use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math;
 use crate::math_error;
 use crate::state::market::Market;

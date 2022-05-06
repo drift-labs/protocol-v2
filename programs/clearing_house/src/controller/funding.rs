@@ -3,7 +3,7 @@ use std::cmp::{max, min};
 
 use anchor_lang::prelude::*;
 
-use crate::error::*;
+use crate::error::ClearingHouseResult;
 use crate::math::amm;
 use crate::math::amm::normalise_oracle_price;
 use crate::math::casting::{cast, cast_to_i128, cast_to_i64};

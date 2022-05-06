@@ -1,4 +1,4 @@
-use crate::error::*;
+use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::bn;
 use crate::math::casting::cast_to_i128;
 use crate::math::constants::{

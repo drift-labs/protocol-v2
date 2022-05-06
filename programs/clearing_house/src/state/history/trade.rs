@@ -3,6 +3,7 @@ use anchor_lang::prelude::*;
 use crate::PositionDirection;
 
 #[account(zero_copy)]
+#[repr(packed)]
 pub struct TradeHistory {
     head: u64,
     trade_records: [TradeRecord; 1024],
@@ -27,6 +28,7 @@ impl TradeHistory {
 
 #[zero_copy]
 #[derive(Default)]
+#[repr(packed)]
 pub struct TradeRecord {
     pub ts: i64,
     pub record_id: u128,

@@ -1,4 +1,4 @@
-use crate::error::*;
+use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::constants::{MAXIMUM_MARGIN_RATIO, MINIMUM_MARGIN_RATIO};
 
 pub fn validate_margin(

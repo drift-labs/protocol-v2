@@ -12,7 +12,7 @@ pub fn initialize(
     authority: &Signer,
     remaining_accounts: &[AccountInfo],
     optional_accounts: InitializeUserOptionalAccounts,
-) -> ProgramResult {
+) -> Result<()> {
     if !state.whitelist_mint.eq(&Pubkey::default()) {
         let whitelist_token =
             get_whitelist_token(optional_accounts, remaining_accounts, &state.whitelist_mint)?;

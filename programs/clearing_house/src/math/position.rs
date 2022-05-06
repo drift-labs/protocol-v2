@@ -1,6 +1,6 @@
 use crate::controller::amm::SwapDirection;
 use crate::controller::position::PositionDirection;
-use crate::error::*;
+use crate::error::ClearingHouseResult;
 use crate::math::amm;
 use crate::math::amm::calculate_quote_asset_amount_swapped;
 use crate::math::constants::{AMM_RESERVE_PRECISION, PRICE_TO_QUOTE_PRECISION_RATIO};

@@ -1,10 +1,11 @@
 #![allow(clippy::too_many_arguments)]
+#![allow(unaligned_references)]
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 
 use context::*;
 use controller::position::{add_new_position, get_position_index, PositionDirection};
-use error::*;
+use error::ErrorCode;
 use math::{amm, bn, constants::*, fees, margin::*, orders::*, withdrawal::*};
 
 use crate::state::{
@@ -60,7 +61,7 @@ pub mod clearing_house {
         _collateral_vault_nonce: u8,
         _insurance_vault_nonce: u8,
         admin_controls_prices: bool,
-    ) -> ProgramResult {
+    ) -> Result<()> {
         let collateral_account_key = ctx.accounts.collateral_vault.to_account_info().key;
         let (collateral_account_authority, collateral_account_nonce) =
             Pubkey::find_program_address(&[collateral_account_key.as_ref()], ctx.program_id);
@@ -173,7 +174,7 @@ pub mod clearing_house {
         Ok(())
     }
 
-    pub fn initialize_history(ctx: Context<InitializeHistory>) -> ProgramResult {
+    pub fn initialize_history(ctx: Context<InitializeHistory>) -> Result<()> {
         let state = &mut ctx.accounts.state;
 
         // If all of the history account keys are set to the default, assume they haven't been initialized tet
@@ -214,7 +215,7 @@ pub mod clearing_house {
     pub fn initialize_order_state(
         ctx: Context<InitializeOrderState>,
         _order_house_nonce: u8,
-    ) -> ProgramResult {
+    ) -> Result<()> {
         let state = &mut ctx.accounts.state;
 
         if !state.order_state.eq(&Pubkey::default()) {
@@ -249,7 +250,7 @@ pub mod clearing_house {
         margin_ratio_initial: u32,
         margin_ratio_partial: u32,
         margin_ratio_maintenance: u32,
-    ) -> ProgramResult {
+    ) -> Result<()> {
         let markets = &mut ctx.accounts.markets.load_mut()?;
         let market = &markets.markets[Markets::index_from_u64(market_index)];
         let clock = Clock::get()?;
@@ -352,7 +353,7 @@ pub mod clearing_house {
         Ok(())
     }
 
-    pub fn deposit_collateral(ctx: Context<DepositCollateral>, amount: u64) -> ProgramResult {
+    pub fn deposit_collateral(ctx: Context<DepositCollateral>, amount: u64) -> Result<()> {
         let user = &mut ctx.accounts.user;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
@@ -417,7 +418,7 @@ pub mod clearing_house {
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]
-    pub fn withdraw_collateral(ctx: Context<WithdrawCollateral>, amount: u64) -> ProgramResult {
+    pub fn withdraw_collateral(ctx: Context<WithdrawCollateral>, amount: u64) -> Result<()> {
         let user = &mut ctx.accounts.user;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
@@ -517,7 +518,7 @@ pub mod clearing_house {
         market_index: u64,
         limit_price: u128,
         optional_accounts: ManagePositionOptionalAccounts,
-    ) -> ProgramResult {
+    ) -> Result<()> {
         let user = &mut ctx.accounts.user;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
@@ -668,7 +669,7 @@ pub mod clearing_house {
         }
 
         // Subtract the fee from user's collateral
-        user.collateral = user.collateral.checked_sub(user_fee).or(Some(0)).unwrap();
+        user.collateral = user.collateral.saturating_sub(user_fee);
 
         // Increment the user's total fee variables
         user.total_fee_paid = user
@@ -789,7 +790,7 @@ pub mod clearing_house {
         ctx: Context<ClosePosition>,
         market_index: u64,
         optional_accounts: ManagePositionOptionalAccounts,
-    ) -> ProgramResult {
+    ) -> Result<()> {
         let user = &mut ctx.accounts.user;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
@@ -866,7 +867,7 @@ pub mod clearing_house {
             .ok_or_else(math_error!())?;
 
         // Subtract the fee from user's collateral
-        user.collateral = user.collateral.checked_sub(user_fee).or(Some(0)).unwrap();
+        user.collateral = user.collateral.saturating_sub(user_fee);
 
         // Increment the user's total fee variables
         user.total_fee_paid = user
@@ -975,7 +976,7 @@ pub mod clearing_house {
     #[access_control(
         market_initialized(&ctx.accounts.markets, params.market_index)
     )]
-    pub fn place_order<'info>(ctx: Context<PlaceOrder>, params: OrderParams) -> ProgramResult {
+    pub fn place_order<'info>(ctx: Context<PlaceOrder>, params: OrderParams) -> Result<()> {
         let account_info_iter = &mut ctx.remaining_accounts.iter();
         let discount_token = get_discount_token(
             params.optional_accounts.discount_token,
@@ -1021,7 +1022,7 @@ pub mod clearing_house {
         Ok(())
     }
 
-    pub fn cancel_order(ctx: Context<CancelOrder>, order_id: u128) -> ProgramResult {
+    pub fn cancel_order(ctx: Context<CancelOrder>, order_id: u128) -> Result<()> {
         let account_info_iter = &mut ctx.remaining_accounts.iter();
         let oracle = get_oracle_for_cancel_order_by_order_id(
             account_info_iter,
@@ -1046,7 +1047,7 @@ pub mod clearing_house {
         Ok(())
     }
 
-    pub fn cancel_order_by_user_id(ctx: Context<CancelOrder>, user_order_id: u8) -> ProgramResult {
+    pub fn cancel_order_by_user_id(ctx: Context<CancelOrder>, user_order_id: u8) -> Result<()> {
         let account_info_iter = &mut ctx.remaining_accounts.iter();
         let oracle = get_oracle_for_cancel_order_by_user_order_id(
             account_info_iter,
@@ -1071,7 +1072,7 @@ pub mod clearing_house {
         Ok(())
     }
 
-    pub fn cancel_all_orders(ctx: Context<CancelOrder>) -> ProgramResult {
+    pub fn cancel_all_orders(ctx: Context<CancelOrder>) -> Result<()> {
         controller::orders::cancel_all_orders(
             &ctx.accounts.state,
             &mut ctx.accounts.user,
@@ -1087,7 +1088,7 @@ pub mod clearing_house {
         Ok(())
     }
 
-    pub fn expire_orders(ctx: Context<ExpireOrder>) -> ProgramResult {
+    pub fn expire_orders(ctx: Context<ExpireOrder>) -> Result<()> {
         controller::orders::expire_orders(
             &mut ctx.accounts.user,
             &ctx.accounts.user_positions,
@@ -1102,7 +1103,7 @@ pub mod clearing_house {
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]
-    pub fn fill_order<'info>(ctx: Context<FillOrder>, order_id: u128) -> ProgramResult {
+    pub fn fill_order<'info>(ctx: Context<FillOrder>, order_id: u128) -> Result<()> {
         let account_info_iter = &mut ctx.remaining_accounts.iter();
         let referrer = get_referrer_for_fill_order(
             account_info_iter,
@@ -1145,7 +1146,7 @@ pub mod clearing_house {
     pub fn place_and_fill_order<'info>(
         ctx: Context<PlaceAndFillOrder>,
         params: OrderParams,
-    ) -> ProgramResult {
+    ) -> Result<()> {
         let account_info_iter = &mut ctx.remaining_accounts.iter();
         let discount_token = get_discount_token(
             params.optional_accounts.discount_token,
@@ -1224,7 +1225,7 @@ pub mod clearing_house {
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]
-    pub fn liquidate(ctx: Context<Liquidate>) -> ProgramResult {
+    pub fn liquidate(ctx: Context<Liquidate>) -> Result<()> {
         let state = &ctx.accounts.state;
         let user = &mut ctx.accounts.user;
         let trade_history = &mut ctx.accounts.trade_history.load_mut()?;
@@ -1746,7 +1747,7 @@ pub mod clearing_house {
         base_asset_reserve: u128,
         quote_asset_reserve: u128,
         market_index: u64,
-    ) -> ProgramResult {
+    ) -> Result<()> {
         let markets = &mut ctx.accounts.markets.load_mut()?;
         let market = &mut markets.markets[Markets::index_from_u64(market_index)];
         controller::amm::move_price(&mut market.amm, base_asset_reserve, quote_asset_reserve)?;
@@ -1756,11 +1757,7 @@ pub mod clearing_house {
     #[access_control(
         market_initialized(&ctx.accounts.markets, market_index)
     )]
-    pub fn withdraw_fees(
-        ctx: Context<WithdrawFees>,
-        market_index: u64,
-        amount: u64,
-    ) -> ProgramResult {
+    pub fn withdraw_fees(ctx: Context<WithdrawFees>, market_index: u64, amount: u64) -> Result<()> {
         let state = &mut ctx.accounts.state;
         let markets = &mut ctx.accounts.markets.load_mut()?;
         let market = &mut markets.markets[Markets::index_from_u64(market_index)];
@@ -1801,7 +1798,7 @@ pub mod clearing_house {
     pub fn withdraw_from_insurance_vault(
         ctx: Context<WithdrawFromInsuranceVault>,
         amount: u64,
-    ) -> ProgramResult {
+    ) -> Result<()> {
         controller::token::send(
             &ctx.accounts.token_program,
             &ctx.accounts.insurance_vault,
@@ -1820,7 +1817,7 @@ pub mod clearing_house {
         ctx: Context<WithdrawFromInsuranceVaultToMarket>,
         market_index: u64,
         amount: u64,
-    ) -> ProgramResult {
+    ) -> Result<()> {
         let markets = &mut ctx.accounts.markets.load_mut()?;
         let market = &mut markets.markets[Markets::index_from_u64(market_index)];
 
@@ -1854,7 +1851,7 @@ pub mod clearing_house {
         ctx: Context<RepegCurve>,
         new_peg_candidate: u128,
         market_index: u64,
-    ) -> ProgramResult {
+    ) -> Result<()> {
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
         let clock_slot = clock.slot;
@@ -1921,7 +1918,7 @@ pub mod clearing_house {
         market_initialized(&ctx.accounts.markets, market_index) &&
         valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.markets, market_index)
      )]
-    pub fn update_amm_oracle_twap(ctx: Context<RepegCurve>, market_index: u64) -> ProgramResult {
+    pub fn update_amm_oracle_twap(ctx: Context<RepegCurve>, market_index: u64) -> Result<()> {
         // allow update to amm's oracle twap iff price gap is reduced and thus more tame funding
         // otherwise if oracle error or funding flip: set oracle twap to mark twap (0 gap)
 
@@ -1966,7 +1963,7 @@ pub mod clearing_house {
         market_initialized(&ctx.accounts.markets, market_index) &&
         valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.markets, market_index)
      )]
-    pub fn reset_amm_oracle_twap(ctx: Context<RepegCurve>, market_index: u64) -> ProgramResult {
+    pub fn reset_amm_oracle_twap(ctx: Context<RepegCurve>, market_index: u64) -> Result<()> {
         // if oracle is invalid, failsafe to reset amm oracle_twap to the mark_twap
 
         let clock = Clock::get()?;
@@ -1996,7 +1993,7 @@ pub mod clearing_house {
         ctx: Context<InitializeUser>,
         _user_nonce: u8,
         optional_accounts: InitializeUserOptionalAccounts,
-    ) -> ProgramResult {
+    ) -> Result<()> {
         user_initialization::initialize(
             &ctx.accounts.state,
             &mut ctx.accounts.user,
@@ -2011,7 +2008,7 @@ pub mod clearing_house {
         ctx: Context<InitializeUserWithExplicitPayer>,
         _user_nonce: u8,
         optional_accounts: InitializeUserOptionalAccounts,
-    ) -> ProgramResult {
+    ) -> Result<()> {
         user_initialization::initialize(
             &ctx.accounts.state,
             &mut ctx.accounts.user,
@@ -2025,7 +2022,7 @@ pub mod clearing_house {
     pub fn initialize_user_orders(
         ctx: Context<InitializeUserOrders>,
         _user_orders_nonce: u8,
-    ) -> ProgramResult {
+    ) -> Result<()> {
         let orders = &mut ctx.accounts.user_orders.load_init()?;
         orders.user = ctx.accounts.user.key();
         Ok(())
@@ -2034,7 +2031,7 @@ pub mod clearing_house {
     pub fn initialize_user_orders_with_explicit_payer(
         ctx: Context<InitializeUserOrdersWithExplicitPayer>,
         _user_orders_nonce: u8,
-    ) -> ProgramResult {
+    ) -> Result<()> {
         let orders = &mut ctx.accounts.user_orders.load_init()?;
         orders.user = ctx.accounts.user.key();
         Ok(())
@@ -2043,7 +2040,7 @@ pub mod clearing_house {
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]
-    pub fn settle_funding_payment(ctx: Context<SettleFunding>) -> ProgramResult {
+    pub fn settle_funding_payment(ctx: Context<SettleFunding>) -> Result<()> {
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
         controller::funding::settle_funding_payment(
@@ -2062,10 +2059,7 @@ pub mod clearing_house {
         exchange_not_paused(&ctx.accounts.state) &&
         valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.markets, market_index)
     )]
-    pub fn update_funding_rate(
-        ctx: Context<UpdateFundingRate>,
-        market_index: u64,
-    ) -> ProgramResult {
+    pub fn update_funding_rate(ctx: Context<UpdateFundingRate>, market_index: u64) -> Result<()> {
         let market =
             &mut ctx.accounts.markets.load_mut()?.markets[Markets::index_from_u64(market_index)];
         let price_oracle = &ctx.accounts.oracle;
@@ -2095,7 +2089,7 @@ pub mod clearing_house {
         valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.markets, market_index) &&
         exchange_not_paused(&ctx.accounts.state)
     )]
-    pub fn update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128, market_index: u64) -> ProgramResult {
+    pub fn update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128, market_index: u64) -> Result<()> {
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
 
@@ -2219,7 +2213,7 @@ pub mod clearing_house {
         Ok(())
     }
 
-    pub fn update_curve_history(ctx: Context<UpdateCurveHistory>) -> ProgramResult {
+    pub fn update_curve_history(ctx: Context<UpdateCurveHistory>) -> Result<()> {
         let curve_history = &ctx.accounts.curve_history.load()?;
         let extended_curve_history = &mut ctx.accounts.extended_curve_history.load_init()?;
 
@@ -2266,7 +2260,7 @@ pub mod clearing_house {
         margin_ratio_initial: u32,
         margin_ratio_partial: u32,
         margin_ratio_maintenance: u32,
-    ) -> ProgramResult {
+    ) -> Result<()> {
         validate_margin(
             margin_ratio_initial,
             margin_ratio_partial,
@@ -2285,7 +2279,7 @@ pub mod clearing_house {
         ctx: Context<AdminUpdateState>,
         numerator: u128,
         denominator: u128,
-    ) -> ProgramResult {
+    ) -> Result<()> {
         ctx.accounts
             .state
             .partial_liquidation_close_percentage_numerator = numerator;
@@ -2299,7 +2293,7 @@ pub mod clearing_house {
         ctx: Context<AdminUpdateState>,
         numerator: u128,
         denominator: u128,
-    ) -> ProgramResult {
+    ) -> Result<()> {
         ctx.accounts
             .state
             .partial_liquidation_penalty_percentage_numerator = numerator;
@@ -2313,7 +2307,7 @@ pub mod clearing_house {
         ctx: Context<AdminUpdateState>,
         numerator: u128,
         denominator: u128,
-    ) -> ProgramResult {
+    ) -> Result<()> {
         ctx.accounts
             .state
             .full_liquidation_penalty_percentage_numerator = numerator;
@@ -2326,7 +2320,7 @@ pub mod clearing_house {
     pub fn update_partial_liquidation_liquidator_share_denominator(
         ctx: Context<AdminUpdateState>,
         denominator: u64,
-    ) -> ProgramResult {
+    ) -> Result<()> {
         ctx.accounts
             .state
             .partial_liquidation_liquidator_share_denominator = denominator;
@@ -2336,14 +2330,14 @@ pub mod clearing_house {
     pub fn update_full_liquidation_liquidator_share_denominator(
         ctx: Context<AdminUpdateState>,
         denominator: u64,
-    ) -> ProgramResult {
+    ) -> Result<()> {
         ctx.accounts
             .state
             .full_liquidation_liquidator_share_denominator = denominator;
         Ok(())
     }
 
-    pub fn update_fee(ctx: Context<AdminUpdateState>, fees: FeeStructure) -> ProgramResult {
+    pub fn update_fee(ctx: Context<AdminUpdateState>, fees: FeeStructure) -> Result<()> {
         ctx.accounts.state.fee_structure = fees;
         Ok(())
     }
@@ -2351,7 +2345,7 @@ pub mod clearing_house {
     pub fn update_order_filler_reward_structure(
         ctx: Context<AdminUpdateOrderState>,
         order_filler_reward_structure: OrderFillerRewardStructure,
-    ) -> ProgramResult {
+    ) -> Result<()> {
         ctx.accounts.order_state.order_filler_reward_structure = order_filler_reward_structure;
         Ok(())
     }
@@ -2359,7 +2353,7 @@ pub mod clearing_house {
     pub fn update_oracle_guard_rails(
         ctx: Context<AdminUpdateState>,
         oracle_guard_rails: OracleGuardRails,
-    ) -> ProgramResult {
+    ) -> Result<()> {
         ctx.accounts.state.oracle_guard_rails = oracle_guard_rails;
         Ok(())
     }
@@ -2372,7 +2366,7 @@ pub mod clearing_house {
         market_index: u64,
         oracle: Pubkey,
         oracle_source: OracleSource,
-    ) -> ProgramResult {
+    ) -> Result<()> {
         let market =
             &mut ctx.accounts.markets.load_mut()?.markets[Markets::index_from_u64(market_index)];
         market.amm.oracle = oracle;
@@ -2387,7 +2381,7 @@ pub mod clearing_house {
         ctx: Context<AdminUpdateMarket>,
         market_index: u64,
         minimum_trade_size: u128,
-    ) -> ProgramResult {
+    ) -> Result<()> {
         let market =
             &mut ctx.accounts.markets.load_mut()?.markets[Markets::index_from_u64(market_index)];
         market.amm.minimum_quote_asset_trade_size = minimum_trade_size;
@@ -2401,7 +2395,7 @@ pub mod clearing_house {
         ctx: Context<AdminUpdateMarket>,
         market_index: u64,
         base_spread: u16,
-    ) -> ProgramResult {
+    ) -> Result<()> {
         let market =
             &mut ctx.accounts.markets.load_mut()?.markets[Markets::index_from_u64(market_index)];
         market.amm.base_spread = base_spread;
@@ -2415,14 +2409,14 @@ pub mod clearing_house {
         ctx: Context<AdminUpdateMarket>,
         market_index: u64,
         minimum_trade_size: u128,
-    ) -> ProgramResult {
+    ) -> Result<()> {
         let market =
             &mut ctx.accounts.markets.load_mut()?.markets[Markets::index_from_u64(market_index)];
         market.amm.minimum_base_asset_trade_size = minimum_trade_size;
         Ok(())
     }
 
-    pub fn update_admin(ctx: Context<AdminUpdateState>, admin: Pubkey) -> ProgramResult {
+    pub fn update_admin(ctx: Context<AdminUpdateState>, admin: Pubkey) -> Result<()> {
         ctx.accounts.state.admin = admin;
         Ok(())
     }
@@ -2430,7 +2424,7 @@ pub mod clearing_house {
     pub fn update_whitelist_mint(
         ctx: Context<AdminUpdateState>,
         whitelist_mint: Pubkey,
-    ) -> ProgramResult {
+    ) -> Result<()> {
         ctx.accounts.state.whitelist_mint = whitelist_mint;
         Ok(())
     }
@@ -2438,12 +2432,12 @@ pub mod clearing_house {
     pub fn update_discount_mint(
         ctx: Context<AdminUpdateState>,
         discount_mint: Pubkey,
-    ) -> ProgramResult {
+    ) -> Result<()> {
         ctx.accounts.state.discount_mint = discount_mint;
         Ok(())
     }
 
-    pub fn update_max_deposit(ctx: Context<AdminUpdateState>, max_deposit: u128) -> ProgramResult {
+    pub fn update_max_deposit(ctx: Context<AdminUpdateState>, max_deposit: u128) -> Result<()> {
         ctx.accounts.state.max_deposit = max_deposit;
         Ok(())
     }
@@ -2451,12 +2445,12 @@ pub mod clearing_house {
     pub fn update_exchange_paused(
         ctx: Context<AdminUpdateState>,
         exchange_paused: bool,
-    ) -> ProgramResult {
+    ) -> Result<()> {
         ctx.accounts.state.exchange_paused = exchange_paused;
         Ok(())
     }
 
-    pub fn disable_admin_controls_prices(ctx: Context<AdminUpdateState>) -> ProgramResult {
+    pub fn disable_admin_controls_prices(ctx: Context<AdminUpdateState>) -> Result<()> {
         ctx.accounts.state.admin_controls_prices = false;
         Ok(())
     }
@@ -2464,7 +2458,7 @@ pub mod clearing_house {
     pub fn update_funding_paused(
         ctx: Context<AdminUpdateState>,
         funding_paused: bool,
-    ) -> ProgramResult {
+    ) -> Result<()> {
         ctx.accounts.state.funding_paused = funding_paused;
         Ok(())
     }

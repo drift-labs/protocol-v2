@@ -3,7 +3,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 
 use crate::controller;
 use crate::controller::amm::SwapDirection;
-use crate::error::*;
+use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm::should_round_trade;
 use crate::math::casting::{cast, cast_to_i128};
 use crate::math::collateral::calculate_updated_collateral;
