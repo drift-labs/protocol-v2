@@ -20,7 +20,7 @@ import {
 } from './testHelpers';
 
 describe('max positions', () => {
-	const provider = anchor.Provider.local(undefined, {
+	const provider = anchor.AnchorProvider.local(undefined, {
 		preflightCommitment: 'confirmed',
 		commitment: 'confirmed',
 	});

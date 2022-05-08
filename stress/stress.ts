@@ -349,7 +349,7 @@ export async function stress_test(
 }
 
 // describe('stress-test', () => {
-// 	const provider = anchor.Provider.local();
+// 	const provider = anchor.AnchorProvider.local();
 // 	const connection = provider.connection;
 // 	anchor.setProvider(provider);
 

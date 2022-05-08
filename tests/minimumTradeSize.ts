@@ -35,7 +35,7 @@ const _calculateTradeAmount = (amountOfCollateral: BN) => {
 };
 
 describe('minimum trade size', () => {
-	const provider = anchor.Provider.local(undefined, {
+	const provider = anchor.AnchorProvider.local(undefined, {
 		commitment: 'confirmed',
 		preflightCommitment: 'confirmed',
 	});

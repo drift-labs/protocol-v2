@@ -30,7 +30,7 @@ const enumsAreEqual = (
 };
 
 describe('market order', () => {
-	const provider = anchor.Provider.local();
+	const provider = anchor.AnchorProvider.local();
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.ClearingHouse as Program;

@@ -28,7 +28,7 @@ import {
 import { BASE_PRECISION, ZERO } from '../sdk';
 
 describe('trigger orders', () => {
-	const provider = anchor.Provider.local();
+	const provider = anchor.AnchorProvider.local();
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.ClearingHouse as Program;

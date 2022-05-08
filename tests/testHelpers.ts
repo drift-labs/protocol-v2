@@ -27,7 +27,7 @@ export async function mockOracle(
 	const program = anchor.workspace.Pyth;
 
 	anchor.setProvider(
-		anchor.Provider.local(undefined, {
+		anchor.AnchorProvider.local(undefined, {
 			commitment: 'confirmed',
 			preflightCommitment: 'confirmed',
 		})

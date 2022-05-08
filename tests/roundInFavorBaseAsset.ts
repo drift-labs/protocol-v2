@@ -14,7 +14,7 @@ import { mockOracle, mockUSDCMint, mockUserUSDCAccount } from './testHelpers';
 import { FeeStructure } from '../sdk';
 
 describe('round in favor', () => {
-	const provider = anchor.Provider.local();
+	const provider = anchor.AnchorProvider.local();
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.ClearingHouse as Program;

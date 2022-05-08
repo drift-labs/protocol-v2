@@ -10,7 +10,7 @@
 	"license": "ISC",
 	"dependencies": {
 		"@drift-labs/sdk": "file:../sdk",
-		"@project-serum/anchor": "0.19.1-beta.1",
+		"@project-serum/anchor": "0.24.2",
 		"@solana/spl-token": "^0.1.8",
 		"@solana/web3.js": "^1.30.2",
 		"@types/node": "^16.7.10",

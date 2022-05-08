@@ -12,7 +12,7 @@ import {
 	OracleSource,
 	OrderFillerRewardStructure,
 } from './types';
-import { BN, Provider } from '@project-serum/anchor';
+import { BN, AnchorProvider } from '@project-serum/anchor';
 import * as anchor from '@project-serum/anchor';
 import {
 	getClearingHouseStateAccountPublicKey,
@@ -34,7 +34,7 @@ export class Admin extends ClearingHouse {
 		connection: Connection,
 		wallet: IWallet,
 		clearingHouseProgramId: PublicKey,
-		opts: ConfirmOptions = Provider.defaultOptions()
+		opts: ConfirmOptions = AnchorProvider.defaultOptions()
 	): Admin {
 		const config = getWebSocketClearingHouseConfig(
 			connection,

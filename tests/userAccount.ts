@@ -12,7 +12,7 @@ import { assert } from 'chai';
 import { MAX_LEVERAGE, PositionDirection } from '../sdk/src';
 
 describe('User Account', () => {
-	const provider = anchor.Provider.local();
+	const provider = anchor.AnchorProvider.local();
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.ClearingHouse as Program;

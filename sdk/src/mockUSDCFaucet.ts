@@ -1,5 +1,5 @@
 import * as anchor from '@project-serum/anchor';
-import { Idl, Program, Provider } from '@project-serum/anchor';
+import { AnchorProvider, Idl, Program } from '@project-serum/anchor';
 import {
 	AccountInfo,
 	ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -25,7 +25,7 @@ export class MockUSDCFaucet {
 	connection: Connection;
 	wallet: IWallet;
 	public program: Program;
-	provider: Provider;
+	provider: AnchorProvider;
 	opts?: ConfirmOptions;
 
 	public constructor(
@@ -36,8 +36,8 @@ export class MockUSDCFaucet {
 	) {
 		this.connection = connection;
 		this.wallet = wallet;
-		this.opts = opts || Provider.defaultOptions();
-		const provider = new Provider(connection, wallet, this.opts);
+		this.opts = opts || AnchorProvider.defaultOptions();
+		const provider = new AnchorProvider(connection, wallet, this.opts);
 		this.provider = provider;
 		this.program = new Program(mockUSDCFaucetIDL as Idl, programId, provider);
 	}
@@ -140,7 +140,7 @@ export class MockUSDCFaucet {
 				amount
 			);
 		const tx = new Transaction().add(createAssociatedAccountIx).add(mintToTx);
-		const txSig = await this.program.provider.send(tx, [], this.opts);
+		const txSig = await this.program.provider.sendAndConfirm(tx, [], this.opts);
 		return [associatedTokenPublicKey, txSig];
 	}
 

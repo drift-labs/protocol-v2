@@ -18,7 +18,7 @@ import { AMM_RESERVE_PRECISION } from '../sdk';
 import { AccountInfo, Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
 describe('user order id', () => {
-	const provider = anchor.Provider.local();
+	const provider = anchor.AnchorProvider.local();
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.ClearingHouse as Program;

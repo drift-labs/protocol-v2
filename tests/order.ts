@@ -55,7 +55,7 @@ const enumsAreEqual = (
 };
 
 describe('orders', () => {
-	const provider = anchor.Provider.local(undefined, {
+	const provider = anchor.AnchorProvider.local(undefined, {
 		preflightCommitment: 'confirmed',
 		commitment: 'confirmed',
 	});

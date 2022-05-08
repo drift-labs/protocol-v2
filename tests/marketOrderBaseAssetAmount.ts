@@ -19,7 +19,7 @@ import { Markets } from '../sdk/src/constants/markets';
 import { mockUSDCMint, mockUserUSDCAccount, mockOracle } from './testHelpers';
 
 describe('clearing_house', () => {
-	const provider = anchor.Provider.local();
+	const provider = anchor.AnchorProvider.local();
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.ClearingHouse as Program;

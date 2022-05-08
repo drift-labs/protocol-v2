@@ -5,12 +5,12 @@ import {
 	Transaction,
 	TransactionSignature,
 } from '@solana/web3.js';
-import { Provider } from '@project-serum/anchor';
+import { AnchorProvider } from '@project-serum/anchor';
 
 export class DefaultTxSender implements TxSender {
-	provider: Provider;
+	provider: AnchorProvider;
 
-	public constructor(provider: Provider) {
+	public constructor(provider: AnchorProvider) {
 		this.provider = provider;
 	}
 
@@ -19,6 +19,6 @@ export class DefaultTxSender implements TxSender {
 		additionalSigners?: Array<Signer>,
 		opts?: ConfirmOptions
 	): Promise<TransactionSignature> {
-		return this.provider.send(tx, additionalSigners, opts);
+		return this.provider.sendAndConfirm(tx, additionalSigners, opts);
 	}
 }

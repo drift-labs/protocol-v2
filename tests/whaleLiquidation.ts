@@ -21,7 +21,7 @@ import {
 } from './testHelpers';
 
 describe('whale liquidation', () => {
-	const provider = anchor.Provider.local(undefined, {
+	const provider = anchor.AnchorProvider.local(undefined, {
 		preflightCommitment: 'confirmed',
 		commitment: 'confirmed',
 	});

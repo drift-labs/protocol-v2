@@ -10,7 +10,7 @@ import {
 	TransactionSignature,
 	Connection,
 } from '@solana/web3.js';
-import { Provider } from '@project-serum/anchor';
+import { AnchorProvider } from '@project-serum/anchor';
 import assert from 'assert';
 import bs58 from 'bs58';
 
@@ -22,13 +22,13 @@ type ResolveReference = {
 };
 
 export class RetryTxSender implements TxSender {
-	provider: Provider;
+	provider: AnchorProvider;
 	timeout: number;
 	retrySleep: number;
 	additionalConnections: Connection[];
 
 	public constructor(
-		provider: Provider,
+		provider: AnchorProvider,
 		timeout?: number,
 		retrySleep?: number,
 		additionalConnections = new Array<Connection>()

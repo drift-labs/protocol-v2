@@ -19,7 +19,7 @@ import { mockOracle, mockUSDCMint, mockUserUSDCAccount } from './testHelpers';
 import { AccountInfo, Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
 describe('fees', () => {
-	const provider = anchor.Provider.local(undefined, {
+	const provider = anchor.AnchorProvider.local(undefined, {
 		preflightCommitment: 'confirmed',
 		commitment: 'confirmed',
 	});

@@ -2,7 +2,7 @@ import { ConfirmOptions, Connection, PublicKey } from '@solana/web3.js';
 import { IWallet } from '../types';
 import { BulkAccountLoader } from '../accounts/bulkAccountLoader';
 import { TxSender } from '../tx/types';
-import { Idl, Program, Provider } from '@project-serum/anchor';
+import { AnchorProvider, Idl, Program } from '@project-serum/anchor';
 import { ClearingHouse } from '../clearingHouse';
 import clearingHouseIDL from '../idl/clearing_house.json';
 import { WebSocketClearingHouseAccountSubscriber } from '../accounts/webSocketClearingHouseAccountSubscriber';
@@ -53,7 +53,7 @@ export function getWebSocketClearingHouseConfig(
 	connection: Connection,
 	wallet: IWallet,
 	programID: PublicKey,
-	opts: ConfirmOptions = Provider.defaultOptions(),
+	opts: ConfirmOptions = AnchorProvider.defaultOptions(),
 	txSenderConfig?: TxSenderConfig
 ): WebSocketClearingHouseConfiguration {
 	return {
@@ -71,7 +71,7 @@ export function getPollingClearingHouseConfig(
 	wallet: IWallet,
 	programID: PublicKey,
 	accountLoader: BulkAccountLoader,
-	opts: ConfirmOptions = Provider.defaultOptions(),
+	opts: ConfirmOptions = AnchorProvider.defaultOptions(),
 	txSenderConfig?: TxSenderConfig
 ): PollingClearingHouseConfiguration {
 	return {
@@ -86,7 +86,11 @@ export function getPollingClearingHouseConfig(
 }
 
 export function getClearingHouse(config: ClearingHouseConfig): ClearingHouse {
-	const provider = new Provider(config.connection, config.wallet, config.opts);
+	const provider = new AnchorProvider(
+		config.connection,
+		config.wallet,
+		config.opts
+	);
 	const program = new Program(
 		clearingHouseIDL as Idl,
 		config.programID,
@@ -126,7 +130,11 @@ export function getClearingHouse(config: ClearingHouseConfig): ClearingHouse {
 }
 
 export function getAdmin(config: ClearingHouseConfig): Admin {
-	const provider = new Provider(config.connection, config.wallet, config.opts);
+	const provider = new AnchorProvider(
+		config.connection,
+		config.wallet,
+		config.opts
+	);
 	const program = new Program(
 		clearingHouseIDL as Idl,
 		config.programID,

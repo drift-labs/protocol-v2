@@ -1,4 +1,4 @@
-import { BN, Provider } from '@project-serum/anchor';
+import { AnchorProvider, BN } from '@project-serum/anchor';
 import { Wallet } from '..';
 import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
@@ -43,7 +43,11 @@ const main = async () => {
 	const connection = new Connection(rpcAddress);
 
 	// Set up the Provider
-	const provider = new Provider(connection, wallet, Provider.defaultOptions());
+	const provider = new AnchorProvider(
+		connection,
+		wallet,
+		AnchorProvider.defaultOptions()
+	);
 
 	// Check SOL Balance
 	const lamportsBalance = await connection.getBalance(wallet.publicKey);

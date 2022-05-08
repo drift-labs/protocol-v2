@@ -16,7 +16,7 @@ import { PublicKey } from '@solana/web3.js';
 import { Markets } from '../sdk/src/constants/markets';
 
 describe('admin', () => {
-	const provider = anchor.Provider.local(undefined, {
+	const provider = anchor.AnchorProvider.local(undefined, {
 		commitment: 'confirmed',
 		preflightCommitment: 'confirmed',
 	});

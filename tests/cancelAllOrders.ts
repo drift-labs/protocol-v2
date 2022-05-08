@@ -15,7 +15,7 @@ import { mockOracle, mockUSDCMint, mockUserUSDCAccount } from './testHelpers';
 import { AMM_RESERVE_PRECISION, getLimitOrderParams, isVariant } from '../sdk';
 
 describe('cancel all orders', () => {
-	const provider = anchor.Provider.local(undefined, {
+	const provider = anchor.AnchorProvider.local(undefined, {
 		commitment: 'confirmed',
 		preflightCommitment: 'confirmed',
 	});

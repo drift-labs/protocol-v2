@@ -1,5 +1,5 @@
 import { AccountData, AccountSubscriber } from './types';
-import { Program } from '@project-serum/anchor';
+import { AnchorProvider, Program } from '@project-serum/anchor';
 import { AccountInfo, Context, PublicKey } from '@solana/web3.js';
 import { capitalize } from './utils';
 import * as Buffer from 'buffer';
@@ -36,7 +36,7 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 			(accountInfo, context) => {
 				this.handleRpcResponse(context, accountInfo);
 			},
-			this.program.provider.opts.commitment
+			(this.program.provider as AnchorProvider).opts.commitment
 		);
 	}
 
@@ -44,7 +44,7 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 		const rpcResponse =
 			await this.program.provider.connection.getAccountInfoAndContext(
 				this.accountPublicKey,
-				this.program.provider.opts.commitment
+				(this.program.provider as AnchorProvider).opts.commitment
 			);
 		this.handleRpcResponse(rpcResponse.context, rpcResponse?.value);
 	}

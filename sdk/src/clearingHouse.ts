@@ -1,4 +1,4 @@
-import { BN, Idl, Program, Provider } from '@project-serum/anchor';
+import { AnchorProvider, BN, Idl, Program } from '@project-serum/anchor';
 import {
 	ASSOCIATED_TOKEN_PROGRAM_ID,
 	Token,
@@ -71,7 +71,7 @@ export class ClearingHouse {
 	connection: Connection;
 	wallet: IWallet;
 	public program: Program;
-	provider: Provider;
+	provider: AnchorProvider;
 	opts?: ConfirmOptions;
 	accountSubscriber: ClearingHouseAccountSubscriber;
 	eventEmitter: StrictEventEmitter<EventEmitter, ClearingHouseAccountEvents>;
@@ -98,7 +98,7 @@ export class ClearingHouse {
 		connection: Connection,
 		wallet: IWallet,
 		clearingHouseProgramId: PublicKey,
-		opts: ConfirmOptions = Provider.defaultOptions()
+		opts: ConfirmOptions = AnchorProvider.defaultOptions()
 	): ClearingHouse {
 		const config = getWebSocketClearingHouseConfig(
 			connection,
@@ -245,7 +245,11 @@ export class ClearingHouse {
 	 * @param newWallet
 	 */
 	public updateWallet(newWallet: IWallet): void {
-		const newProvider = new Provider(this.connection, newWallet, this.opts);
+		const newProvider = new AnchorProvider(
+			this.connection,
+			newWallet,
+			this.opts
+		);
 		const newProgram = new Program(
 			clearingHouseIDL as Idl,
 			this.program.programId,
@@ -503,7 +507,7 @@ export class ClearingHouse {
 			.add(initializeUserOrdersAccountIx)
 			.add(depositCollateralIx);
 
-		const txSig = await this.program.provider.send(tx, [userPositionsAccount]);
+		const txSig = await this.txSender.send(tx, [userPositionsAccount]);
 
 		return [txSig, userAccountPublicKey];
 	}
@@ -538,7 +542,9 @@ export class ClearingHouse {
 			.add(initializeUserOrdersAccountIx)
 			.add(depositCollateralIx);
 
-		const txSig = await this.program.provider.send(tx, [userPositionsAccount]);
+		const txSig = await this.program.provider.sendAndConfirm(tx, [
+			userPositionsAccount,
+		]);
 
 		return [txSig, userAccountPublicKey];
 	}

@@ -24,7 +24,7 @@ import {
 } from '../sdk';
 
 describe('expire order', () => {
-	const provider = anchor.Provider.local(undefined, {
+	const provider = anchor.AnchorProvider.local(undefined, {
 		commitment: 'confirmed',
 		preflightCommitment: 'confirmed',
 	});

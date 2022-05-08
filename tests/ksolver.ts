@@ -163,7 +163,7 @@ describe('AMM Curve', () => {
 	// 	return kSqrtI;
 	// }
 
-	const provider = anchor.Provider.local();
+	const provider = anchor.AnchorProvider.local();
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.ClearingHouse as Program;

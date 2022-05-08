@@ -17,7 +17,7 @@ import {
 } from './testHelpers';
 
 describe('twap divergence liquidation', () => {
-	const provider = anchor.Provider.local(undefined, {
+	const provider = anchor.AnchorProvider.local(undefined, {
 		preflightCommitment: 'confirmed',
 		commitment: 'confirmed',
 	});

@@ -7,7 +7,7 @@ import { Keypair, PublicKey } from '@solana/web3.js';
 import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
 describe('mock_usdc_faucet', () => {
-	const provider = anchor.Provider.local();
+	const provider = anchor.AnchorProvider.local();
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const program = anchor.workspace.MockUsdcFaucet as Program;

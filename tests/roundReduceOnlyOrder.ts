@@ -16,7 +16,7 @@ import { mockOracle, mockUSDCMint, mockUserUSDCAccount } from './testHelpers';
 import { AMM_RESERVE_PRECISION, getMarketOrderParams, ONE, ZERO } from '../sdk';
 
 describe('round reduce only order', () => {
-	const provider = anchor.Provider.local();
+	const provider = anchor.AnchorProvider.local();
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.ClearingHouse as Program;

@@ -27,7 +27,7 @@ import { QUOTE_PRECISION } from '../sdk/lib';
 const ZERO = new BN(0);
 
 describe('update k', () => {
-	const provider = anchor.Provider.local();
+	const provider = anchor.AnchorProvider.local();
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.ClearingHouse as Program;

@@ -145,7 +145,7 @@ async function crank(mock = true, actions = ['liq'], chProgram?) {
 	let allOracles;
 
 	if (mock) {
-		provider = anchor.Provider.local();
+		provider = anchor.AnchorProvider.local();
 		const connection = provider.connection;
 		const chProgramMock = anchor.workspace.ClearingHouse as Program;
 		clearingHouse = ClearingHouse.from(
@@ -227,7 +227,7 @@ async function crank(mock = true, actions = ['liq'], chProgram?) {
 
 		allUsers = await clearingHouse.program.account.userAccount.all();
 	} else {
-		provider = anchor.Provider.local(); //todo
+		provider = anchor.AnchorProvider.local(); //todo
 		const connection = provider.connection;
 
 		const clearingHouse = ClearingHouse.from(

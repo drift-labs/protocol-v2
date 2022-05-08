@@ -26,7 +26,7 @@ import {
 import { AMM_RESERVE_PRECISION, calculateEntryPrice, ZERO } from '../sdk';
 
 describe('oracle offset', () => {
-	const provider = anchor.Provider.local(undefined, {
+	const provider = anchor.AnchorProvider.local(undefined, {
 		commitment: 'confirmed',
 		preflightCommitment: 'confirmed',
 	});

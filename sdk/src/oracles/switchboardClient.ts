@@ -4,7 +4,7 @@ import {
 } from '@switchboard-xyz/switchboard-v2';
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import { DriftEnv } from '../config';
-import { BN, Provider, Program, Idl } from '@project-serum/anchor';
+import { BN, Program, Idl, AnchorProvider } from '@project-serum/anchor';
 import { MARK_PRICE_PRECISION, TEN } from '../constants/numericConstants';
 import { OracleClient, OraclePriceData } from './types';
 import { Wallet } from '../wallet';
@@ -74,7 +74,7 @@ async function getSwitchboardProgram(
 	const DEFAULT_KEYPAIR = Keypair.fromSeed(new Uint8Array(32).fill(1));
 	const programId = getSwitchboardPid(env);
 	const wallet = new Wallet(DEFAULT_KEYPAIR);
-	const provider = new Provider(connection, wallet, {});
+	const provider = new AnchorProvider(connection, wallet, {});
 
 	return new Program(switchboardV2Idl as Idl, programId, provider);
 }
