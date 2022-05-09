@@ -276,13 +276,13 @@ fn validate_quote_asset_amount(order: &Order, market: &Market) -> ClearingHouseR
     Ok(())
 }
 
-pub fn validate_order_can_be_canceled(
+pub fn check_if_order_can_be_canceled(
     order: &Order,
     market: &Market,
     valid_oracle_price: Option<i128>,
-) -> ClearingHouseResult {
+) -> ClearingHouseResult<bool> {
     if !order.post_only {
-        return Ok(());
+        return Ok(true);
     }
 
     let base_asset_amount_market_can_fill =
@@ -290,9 +290,24 @@ pub fn validate_order_can_be_canceled(
 
     if base_asset_amount_market_can_fill > 0 {
         msg!(
-            "Cant cancel as post only order can be filled for {} base asset amount",
-            base_asset_amount_market_can_fill
+            "Cant cancel as post only order={:?} can be filled for {:?} base asset amount",
+            order.order_id,
+            base_asset_amount_market_can_fill,
         );
+        return Ok(false);
+    }
+
+    Ok(true)
+}
+
+pub fn validate_order_can_be_canceled(
+    order: &Order,
+    market: &Market,
+    valid_oracle_price: Option<i128>,
+) -> ClearingHouseResult {
+    let is_cancelable = check_if_order_can_be_canceled(order, market, valid_oracle_price)?;
+
+    if !is_cancelable {
         return Err(ErrorCode::CantCancelPostOnlyOrder);
     }
 

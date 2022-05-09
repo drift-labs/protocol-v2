@@ -726,7 +726,78 @@
           "isSigner": false
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "bestEffort",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "cancelOrdersByMarketAndSide",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "orderState",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "markets",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "userPositions",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userOrders",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "fundingPaymentHistory",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "orderHistory",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "bestEffort",
+          "type": "bool"
+        },
+        {
+          "name": "marketIndexOnly",
+          "type": "u64"
+        },
+        {
+          "name": "directionOnly",
+          "type": {
+            "defined": "PositionDirection"
+          }
+        }
+      ]
     },
     {
       "name": "expireOrders",
