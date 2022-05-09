@@ -4,6 +4,7 @@ import {
 	Market,
 	calculateMarkPrice,
 	calculateTargetPriceTrade,
+	ZERO,
 } from '../sdk/src';
 
 /**
@@ -32,8 +33,10 @@ export function liquidityBook(market: Market, N = 5, incrementSize = 0.1) {
 			market,
 			BN.max(targetPriceDefaultSlippage, new BN(1))
 		);
-		asksPrice.push(entryPrice);
-		asksCumSize.push(liquidity);
+		if (liquidity.gt(ZERO)) {
+			asksPrice.push(entryPrice);
+			asksCumSize.push(liquidity);
+		}
 
 		const targetPriceDefaultSlippageBid = baseAssetPriceWithMantissa
 			.mul(MARK_PRICE_PRECISION.sub(defaultSlippageBN.mul(new BN(i))))
@@ -43,8 +46,11 @@ export function liquidityBook(market: Market, N = 5, incrementSize = 0.1) {
 				market,
 				BN.max(targetPriceDefaultSlippageBid, new BN(1))
 			);
-		bidsPrice.push(entryPriceBid);
-		bidsCumSize.push(liquidityBid);
+
+		if (liquidityBid.gt(ZERO)) {
+			bidsPrice.push(entryPriceBid);
+			bidsCumSize.push(liquidityBid);
+		}
 	}
 
 	return [bidsPrice, bidsCumSize, asksPrice, asksCumSize];
