@@ -125,13 +125,16 @@ pub fn update_funding_rate(
                 .funding_period
                 .checked_div(3)
                 .ok_or_else(math_error!())?;
+
+            let two_funding_periods = market
+                .amm
+                .funding_period
+                .checked_mul(2)
+                .ok_or_else(math_error!())?;
+
             if last_update_delay > max_delay_for_next_period {
                 // too late for on the hour next period, delay to following period
-                next_update_wait = market
-                    .amm
-                    .funding_period
-                    .checked_mul(2)
-                    .ok_or_else(math_error!())?
+                next_update_wait = two_funding_periods
                     .checked_sub(last_update_delay)
                     .ok_or_else(math_error!())?;
             } else {
@@ -142,7 +145,15 @@ pub fn update_funding_rate(
                     .checked_sub(last_update_delay)
                     .ok_or_else(math_error!())?;
             }
+            
+            if next_update_wait > two_funding_periods {
+                next_update_wait = next_update_wait
+                    .checked_sub(market.amm.funding_period)
+                    .ok_or_else(math_error!())?;
+            }
         }
+
+        
     }
 
     if !funding_paused && !block_funding_rate_update && time_since_last_update >= next_update_wait {
