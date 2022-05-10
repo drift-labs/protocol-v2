@@ -26,6 +26,7 @@ export * from './math/funding';
 export * from './math/insuranceFund';
 export * from './math/market';
 export * from './math/position';
+export * from './math/oracles';
 export * from './math/amm';
 export * from './math/trade';
 export * from './math/orders';

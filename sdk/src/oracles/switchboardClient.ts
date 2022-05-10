@@ -48,11 +48,16 @@ export class SwitchboardClient implements OracleClient {
 				.stdDeviation as SwitchboardDecimal
 		);
 
+		const hasSufficientNumberOfDataPoints =
+			aggregatorAccountData.latestConfirmedRound.numSuccess >=
+			aggregatorAccountData.minOracleResults;
+
 		const slot: BN = aggregatorAccountData.latestConfirmedRound.roundOpenSlot;
 		return {
 			price,
 			slot,
 			confidence,
+			hasSufficientNumberOfDataPoints,
 		};
 	}
 

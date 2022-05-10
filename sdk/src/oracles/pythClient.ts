@@ -36,6 +36,7 @@ export class PythClient {
 				priceData.twac.value,
 				priceData.exponent
 			),
+			hasSufficientNumberOfDataPoints: true,
 		};
 	}
 }

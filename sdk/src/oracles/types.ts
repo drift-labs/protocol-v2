@@ -5,6 +5,7 @@ export type OraclePriceData = {
 	price: BN;
 	slot: BN;
 	confidence: BN;
+	hasSufficientNumberOfDataPoints: boolean;
 	twap?: BN;
 	twapConfidence?: BN;
 };

@@ -24,6 +24,7 @@ export class BulkAccountLoader {
 	loadPromise?: Promise<void>;
 	loadPromiseResolver: () => void;
 	lastTimeLoadingPromiseCleared = Date.now();
+	mostRecentSlot = 0;
 
 	public constructor(
 		connection: Connection,
@@ -158,6 +159,10 @@ export class BulkAccountLoader {
 		}
 
 		const newSlot = rpcResponse.result.context.slot;
+
+		if (newSlot > this.mostRecentSlot) {
+			this.mostRecentSlot = newSlot;
+		}
 
 		for (const i in accountsToLoad) {
 			const accountToLoad = accountsToLoad[i];
