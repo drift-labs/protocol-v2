@@ -359,7 +359,9 @@ pub fn cancel_order(
     if best_effort {
         let is_cancelable = check_if_order_can_be_canceled(
             order,
-            markets.get_market(order.market_index),
+            user,
+            user_positions,
+            markets,
             valid_oracle_price,
         )?;
 
@@ -367,11 +369,7 @@ pub fn cancel_order(
             return Ok(());
         }
     } else {
-        validate_order_can_be_canceled(
-            order,
-            markets.get_market(order.market_index),
-            valid_oracle_price,
-        )?;
+        validate_order_can_be_canceled(order, user, user_positions, markets, valid_oracle_price)?;
     }
 
     // Add to the order history account

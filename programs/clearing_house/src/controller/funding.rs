@@ -145,15 +145,13 @@ pub fn update_funding_rate(
                     .checked_sub(last_update_delay)
                     .ok_or_else(math_error!())?;
             }
-            
+
             if next_update_wait > two_funding_periods {
                 next_update_wait = next_update_wait
                     .checked_sub(market.amm.funding_period)
                     .ok_or_else(math_error!())?;
             }
         }
-
-        
     }
 
     if !funding_paused && !block_funding_rate_update && time_since_last_update >= next_update_wait {

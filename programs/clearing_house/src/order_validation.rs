@@ -2,15 +2,17 @@ use crate::controller::position::PositionDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::constants::*;
 use crate::math::quote_asset::asset_to_reserve_amount;
-use crate::state::market::Market;
+use crate::state::market::{Market, Markets};
 use crate::state::order_state::OrderState;
 use crate::state::user_orders::{Order, OrderTriggerCondition, OrderType};
 
 use crate::context::OrderParams;
 use crate::math::orders::calculate_base_asset_amount_to_trade_for_limit;
-use crate::state::user::MarketPosition;
+use crate::state::user::{MarketPosition, User, UserPositions};
 use solana_program::msg;
 
+use crate::math::margin::meets_initial_margin_requirement;
+use std::cell::{Ref, RefMut};
 use std::ops::Div;
 
 pub fn validate_order(
@@ -278,23 +280,34 @@ fn validate_quote_asset_amount(order: &Order, market: &Market) -> ClearingHouseR
 
 pub fn check_if_order_can_be_canceled(
     order: &Order,
-    market: &Market,
+    user: &User,
+    user_positions: &RefMut<UserPositions>,
+    markets: &Ref<Markets>,
     valid_oracle_price: Option<i128>,
 ) -> ClearingHouseResult<bool> {
     if !order.post_only {
         return Ok(true);
     }
 
-    let base_asset_amount_market_can_fill =
-        calculate_base_asset_amount_to_trade_for_limit(order, market, valid_oracle_price)?;
+    let base_asset_amount_market_can_fill = calculate_base_asset_amount_to_trade_for_limit(
+        order,
+        markets.get_market(order.market_index),
+        valid_oracle_price,
+    )?;
 
     if base_asset_amount_market_can_fill > 0 {
-        msg!(
-            "Cant cancel as post only order={:?} can be filled for {:?} base asset amount",
-            order.order_id,
-            base_asset_amount_market_can_fill,
-        );
-        return Ok(false);
+        let meets_initial_margin_requirement =
+            meets_initial_margin_requirement(user, user_positions, markets)?;
+
+        if meets_initial_margin_requirement {
+            msg!(
+                "Cant cancel as post only order={:?} can be filled for {:?} base asset amount",
+                order.order_id,
+                base_asset_amount_market_can_fill,
+            );
+
+            return Ok(false);
+        }
     }
 
     Ok(true)
@@ -302,10 +315,13 @@ pub fn check_if_order_can_be_canceled(
 
 pub fn validate_order_can_be_canceled(
     order: &Order,
-    market: &Market,
+    user: &User,
+    user_positions: &RefMut<UserPositions>,
+    markets: &Ref<Markets>,
     valid_oracle_price: Option<i128>,
 ) -> ClearingHouseResult {
-    let is_cancelable = check_if_order_can_be_canceled(order, market, valid_oracle_price)?;
+    let is_cancelable =
+        check_if_order_can_be_canceled(order, user, user_positions, markets, valid_oracle_price)?;
 
     if !is_cancelable {
         return Err(ErrorCode::CantCancelPostOnlyOrder);
