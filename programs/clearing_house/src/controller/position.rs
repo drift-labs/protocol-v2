@@ -731,8 +731,11 @@ fn calculate_quote_asset_amount_surplus(
     base_asset_amount: u128,
     limit_price: u128,
 ) -> ClearingHouseResult<(u128, u128)> {
-    let quote_asset_amount =
-        calculate_quote_asset_amount_for_maker_order(base_asset_amount, limit_price)?;
+    let quote_asset_amount = calculate_quote_asset_amount_for_maker_order(
+        base_asset_amount,
+        limit_price,
+        swap_direction,
+    )?;
 
     let quote_asset_amount_surplus = match swap_direction {
         SwapDirection::Remove => quote_asset_amount

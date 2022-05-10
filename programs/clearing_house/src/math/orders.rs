@@ -297,11 +297,22 @@ pub fn limit_price_satisfied(
 pub fn calculate_quote_asset_amount_for_maker_order(
     base_asset_amount: u128,
     limit_price: u128,
+    swap_direction: SwapDirection,
 ) -> ClearingHouseResult<u128> {
-    Ok(base_asset_amount
+    let mut quote_asset_amount = base_asset_amount
         .checked_mul(limit_price)
         .ok_or_else(math_error!())?
-        .div(MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO))
+        .div(MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO);
+
+    // when a user goes long base asset, make the base asset slightly more expensive
+    // by adding one unit of quote asset
+    if swap_direction == SwapDirection::Remove {
+        quote_asset_amount = quote_asset_amount
+            .checked_add(1)
+            .ok_or_else(math_error!())?;
+    }
+
+    Ok(quote_asset_amount)
 }
 
 pub fn calculate_base_asset_amount_for_reduce_only_order(
