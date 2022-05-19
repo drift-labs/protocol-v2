@@ -22,6 +22,7 @@ import {
 	Order,
 	ExtendedCurveHistoryAccount,
 	UserPositionsAccount,
+	SettlementStateAccount,
 } from './types';
 import * as anchor from '@project-serum/anchor';
 import clearingHouseIDL from './idl/clearing_house.json';
@@ -42,6 +43,7 @@ import StrictEventEmitter from 'strict-event-emitter-types';
 import {
 	getClearingHouseStateAccountPublicKey,
 	getOrderStateAccountPublicKey,
+	getSettlementStatePublicKey,
 	getUserAccountPublicKey,
 	getUserAccountPublicKeyAndNonce,
 	getUserOrdersAccountPublicKey,
@@ -56,9 +58,17 @@ import { TxSender } from './tx/types';
 import { wrapInTx } from './tx/utils';
 import {
 	getClearingHouse,
+	getPollingClearingHouseConfig,
 	getWebSocketClearingHouseConfig,
 } from './factory/clearingHouse';
 import { ZERO } from './constants/numericConstants';
+import { BulkAccountLoader } from './accounts/bulkAccountLoader';
+import { ClearingHouseUser } from './clearingHouseUser';
+import {
+	getClearingHouseUser,
+	getPollingClearingHouseUserConfig,
+} from './factory/clearingHouseUser';
+import { bulkPollingUserSubscribe } from './accounts/bulkUserSubscription';
 
 /**
  * # ClearingHouse
@@ -184,6 +194,13 @@ export class ClearingHouse {
 
 	public getStateAccount(): StateAccount {
 		return this.accountSubscriber.getStateAccount();
+	}
+
+	public async getSettlementAccount(): Promise<SettlementStateAccount> {
+		// @ts-ignore
+		return await this.program.account.settlementState.fetch(
+			await getSettlementStatePublicKey(this.program.programId)
+		);
 	}
 
 	public getMarketsAccount(): MarketsAccount {
@@ -1404,5 +1421,123 @@ export class ClearingHouse {
 
 	public triggerEvent(eventName: keyof ClearingHouseAccountEvents, data?: any) {
 		this.eventEmitter.emit(eventName, data);
+	}
+
+	public async settlePositionAndClaimCollateral(
+		collateralAccountPublicKey: PublicKey
+	): Promise<TransactionSignature> {
+		const settlePositionIx = await this.getSettlePositionIx();
+		const claimCollateralIx = await this.getClaimCollateralIx(
+			collateralAccountPublicKey
+		);
+		const tx = new Transaction().add(settlePositionIx).add(claimCollateralIx);
+
+		return this.txSender.send(tx, [], this.opts);
+	}
+
+	public async getSettlePositionIx(): Promise<TransactionInstruction> {
+		const userAccountPublicKey = await this.getUserAccountPublicKey();
+		const user: any = await this.program.account.user.fetch(
+			userAccountPublicKey
+		);
+		const state = this.getStateAccount();
+
+		const settlementState = await getSettlementStatePublicKey(
+			this.program.programId
+		);
+
+		return await this.program.instruction.settlePosition({
+			accounts: {
+				state: await this.getStatePublicKey(),
+				user: userAccountPublicKey,
+				markets: state.markets,
+				authority: this.wallet.publicKey,
+				userPositions: user.positions,
+				settlementState,
+				fundingPaymentHistory: state.fundingPaymentHistory,
+			},
+		});
+	}
+
+	public async getClaimCollateralIx(
+		collateralAccountPublicKey: PublicKey
+	): Promise<TransactionInstruction> {
+		const userAccountPublicKey = await this.getUserAccountPublicKey();
+		const state = this.getStateAccount();
+
+		const settlementState = await getSettlementStatePublicKey(
+			this.program.programId
+		);
+
+		return await this.program.instruction.claimCollateral({
+			accounts: {
+				state: await this.getStatePublicKey(),
+				user: userAccountPublicKey,
+				collateralVault: state.collateralVault,
+				collateralVaultAuthority: state.collateralVaultAuthority,
+				userCollateralAccount: collateralAccountPublicKey,
+				authority: this.wallet.publicKey,
+				tokenProgram: TOKEN_PROGRAM_ID,
+				settlementState,
+			},
+		});
+	}
+
+	public async getTotalSettlementSize(): Promise<BN> {
+		const accountLoader = new BulkAccountLoader(
+			this.connection,
+			'processed',
+			50000
+		);
+		const clearingHouse = getClearingHouse(
+			getPollingClearingHouseConfig(
+				this.connection,
+				this.wallet,
+				this.program.programId,
+				accountLoader
+			)
+		);
+
+		console.log('loading all users');
+		const programUserAccounts =
+			(await this.program.account.user.all()) as any[];
+		const userArray: ClearingHouseUser[] = [];
+		for (const programUserAccount of programUserAccounts) {
+			const user = getClearingHouseUser(
+				getPollingClearingHouseUserConfig(
+					clearingHouse,
+					programUserAccount.account.authority,
+					accountLoader
+				)
+			);
+			userArray.push(user);
+		}
+
+		console.log('subscribing all users');
+		await bulkPollingUserSubscribe(userArray, accountLoader);
+
+		console.log('calculating settlement size');
+		const settlementSize = userArray.reduce((collateralToBeSettled, user) => {
+			return collateralToBeSettled.add(
+				user.getUserAccount().forgoPositionSettlement === 0
+					? user.getSettledPositionValue()
+					: ZERO
+			);
+		}, ZERO);
+
+		for (const user of userArray) {
+			await user.unsubscribe();
+		}
+
+		return settlementSize;
+	}
+
+	public async updateUserForgoSettlement(): Promise<TransactionSignature> {
+		return await this.program.rpc.updateUserForgoSettlement({
+			accounts: {
+				authority: this.wallet.publicKey,
+				user: await this.getUserAccountPublicKey(),
+			},
+		});
 	}
 }

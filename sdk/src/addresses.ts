@@ -69,3 +69,14 @@ export async function getUserOrdersAccountPublicKey(
 		await getUserOrdersAccountPublicKeyAndNonce(programId, userAccount)
 	)[0];
 }
+
+export async function getSettlementStatePublicKey(
+	programId: PublicKey
+): Promise<PublicKey> {
+	return (
+		await anchor.web3.PublicKey.findProgramAddress(
+			[Buffer.from(anchor.utils.bytes.utf8.encode('settlement_state'))],
+			programId
+		)
+	)[0];
+}

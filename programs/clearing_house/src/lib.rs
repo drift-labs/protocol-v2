@@ -24,6 +24,7 @@ mod margin_validation;
 pub mod math;
 pub mod optional_accounts;
 pub mod order_validation;
+pub mod settlement_ratios;
 pub mod state;
 mod user_initialization;
 
@@ -50,9 +51,12 @@ pub mod clearing_house {
         calculate_mark_twap_spread_pct, is_oracle_mark_too_divergent, normalise_oracle_price,
     };
     use crate::math::casting::{cast, cast_to_i128, cast_to_u128};
+    use crate::math::position::calculated_settled_position_value;
     use crate::math::slippage::{calculate_slippage, calculate_slippage_pct};
     use crate::state::market::OraclePriceData;
     use crate::state::order_state::{OrderFillerRewardStructure, OrderState};
+    use crate::state::settlement::SettlementState;
+    use std::cmp::min;
     use std::ops::Div;
 
     pub fn initialize(
@@ -2487,6 +2491,172 @@ pub mod clearing_house {
         funding_paused: bool,
     ) -> Result<()> {
         ctx.accounts.state.funding_paused = funding_paused;
+        Ok(())
+    }
+
+    pub fn admin_update_user_forgo_settlement(
+        ctx: Context<AdminUpdateUserForgoSettlement>,
+    ) -> Result<()> {
+        ctx.accounts.user.forgo_position_settlement = 1;
+        Ok(())
+    }
+
+    pub fn update_user_forgo_settlement(ctx: Context<UpdateUserForgoSettlement>) -> Result<()> {
+        ctx.accounts.user.forgo_position_settlement = 1;
+        Ok(())
+    }
+
+    pub fn initialize_settlement_state(
+        ctx: Context<InitializeSettlementState>,
+        collateral_to_be_settled: u64,
+    ) -> Result<()> {
+        let collateral_available_to_claim = ctx.accounts.collateral_vault.amount;
+
+        **ctx.accounts.settlement_state = SettlementState {
+            total_settlement_value: collateral_to_be_settled,
+            collateral_available_to_claim,
+            collateral_claimed: 0,
+            enabled: false,
+        };
+
+        Ok(())
+    }
+
+    pub fn update_settlement_state(ctx: Context<UpdateSettlementState>) -> Result<()> {
+        let settlement_state = &mut ctx.accounts.settlement_state;
+
+        let collateral_vault = &ctx.accounts.collateral_vault;
+        let additional_collateral_available_to_claim = collateral_vault
+            .amount
+            .checked_sub(
+                settlement_state
+                    .collateral_available_to_claim
+                    .checked_sub(settlement_state.collateral_claimed)
+                    .ok_or_else(math_error!())?,
+            )
+            .ok_or_else(math_error!())?;
+
+        settlement_state.collateral_available_to_claim = min(
+            settlement_state
+                .collateral_available_to_claim
+                .checked_add(additional_collateral_available_to_claim)
+                .ok_or_else(math_error!())?,
+            settlement_state.total_settlement_value,
+        );
+
+        Ok(())
+    }
+
+    pub fn update_settlement_state_enabled(
+        ctx: Context<UpdateSettlementStateEnabled>,
+        enabled: bool,
+    ) -> Result<()> {
+        let settlement_state = &mut ctx.accounts.settlement_state;
+        settlement_state.enabled = enabled;
+        Ok(())
+    }
+
+    pub fn settle_position(ctx: Context<SettlePosition>) -> Result<()> {
+        let user = &mut ctx.accounts.user;
+        if user.forgo_position_settlement == 1 {
+            return Err(ErrorCode::UserMustForgoSettlement.into());
+        }
+
+        if !ctx.accounts.settlement_state.enabled {
+            return Err(ErrorCode::SettlementNotEnabled.into());
+        }
+
+        if user.settled_position_value != 0 {
+            return Ok(());
+        }
+
+        let user_positions = &mut ctx.accounts.user_positions.load_mut()?;
+        let markets = &ctx.accounts.markets.load()?;
+
+        let funding_payment_history = &mut ctx.accounts.funding_payment_history.load_mut()?;
+        controller::funding::settle_funding_payment(
+            user,
+            user_positions,
+            markets,
+            funding_payment_history,
+            Clock::get()?.unix_timestamp,
+        )?;
+
+        let settled_position_value =
+            calculated_settled_position_value(user, user_positions, markets)?;
+
+        user.settled_position_value = settled_position_value;
+        user.has_settled_position = 1;
+
+        Ok(())
+    }
+
+    pub fn claim_collateral(ctx: Context<ClaimCollateral>) -> Result<()> {
+        let user = &mut ctx.accounts.user;
+        let settlement_state = &mut ctx.accounts.settlement_state;
+        if user.forgo_position_settlement == 1 {
+            return Err(ErrorCode::UserMustForgoSettlement.into());
+        }
+
+        if settlement_state.collateral_available_to_claim == user.last_collateral_available_to_claim
+        {
+            return Err(ErrorCode::NoAvailableCollateralToBeClaimed.into());
+        }
+
+        if user.has_settled_position != 1 {
+            return Err(ErrorCode::MustCallSettlePositionFirst.into());
+        }
+
+        if !settlement_state.enabled {
+            return Err(ErrorCode::SettlementNotEnabled.into());
+        }
+
+        let claim_amount = user
+            .settled_position_value
+            .checked_mul(
+                settlement_state
+                    .collateral_available_to_claim
+                    .checked_sub(user.last_collateral_available_to_claim)
+                    .ok_or_else(math_error!())? as u128,
+            )
+            .ok_or_else(math_error!())?
+            .checked_div(settlement_state.total_settlement_value as u128)
+            .ok_or_else(math_error!())? as u64;
+
+        user.last_collateral_available_to_claim = settlement_state.collateral_available_to_claim;
+        user.collateral_claimed = user
+            .collateral_claimed
+            .checked_add(claim_amount)
+            .ok_or_else(math_error!())?;
+        settlement_state.collateral_claimed = settlement_state
+            .collateral_claimed
+            .checked_add(claim_amount)
+            .ok_or_else(math_error!())?;
+
+        controller::token::send(
+            &ctx.accounts.token_program,
+            &ctx.accounts.collateral_vault,
+            &ctx.accounts.user_collateral_account,
+            &ctx.accounts.collateral_vault_authority,
+            ctx.accounts.state.collateral_vault_nonce,
+            claim_amount,
+        )?;
+
+        Ok(())
+    }
+
+    pub fn transfer_from_insurance_vault_to_collateral_vault(
+        ctx: Context<TransferFromInsuranceVaultToCollateralVault>,
+    ) -> Result<()> {
+        controller::token::send(
+            &ctx.accounts.token_program,
+            &ctx.accounts.insurance_vault,
+            &ctx.accounts.collateral_vault,
+            &ctx.accounts.insurance_vault_authority,
+            ctx.accounts.state.insurance_vault_nonce,
+            ctx.accounts.insurance_vault.amount,
+        )?;
+
         Ok(())
     }
 }

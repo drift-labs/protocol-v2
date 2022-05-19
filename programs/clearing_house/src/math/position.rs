@@ -1,14 +1,17 @@
+use solana_program::msg;
+
 use crate::controller::amm::SwapDirection;
 use crate::controller::position::PositionDirection;
 use crate::error::ClearingHouseResult;
 use crate::math::amm;
 use crate::math::amm::calculate_quote_asset_amount_swapped;
+use crate::math::collateral::calculate_updated_collateral;
 use crate::math::constants::{AMM_RESERVE_PRECISION, PRICE_TO_QUOTE_PRECISION_RATIO};
 use crate::math::pnl::calculate_pnl;
 use crate::math_error;
-use crate::state::market::AMM;
-use crate::state::user::MarketPosition;
-use solana_program::msg;
+use crate::settlement_ratios::{SETTLEMENT_RATIOS, SETTLEMENT_RATIO_PRECISION};
+use crate::state::market::{Markets, AMM};
+use crate::state::user::{MarketPosition, User, UserPositions};
 
 pub fn calculate_base_asset_value_and_pnl(
     market_position: &MarketPosition,
@@ -98,4 +101,38 @@ pub fn swap_direction_to_close_position(base_asset_amount: i128) -> SwapDirectio
     } else {
         SwapDirection::Remove
     }
+}
+
+pub fn calculated_settled_position_value(
+    user: &User,
+    user_positions: &UserPositions,
+    markets: &Markets,
+) -> ClearingHouseResult<u128> {
+    let mut pnl: i128 = 0;
+
+    for market_position in user_positions.positions.iter() {
+        if market_position.base_asset_amount == 0 {
+            continue;
+        }
+
+        let market = markets.get_market(market_position.market_index);
+        let amm = &market.amm;
+        let (_, position_pnl) = calculate_base_asset_value_and_pnl(market_position, amm)?;
+
+        let position_pnl = if position_pnl > 0 {
+            position_pnl
+                .checked_mul(SETTLEMENT_RATIOS[market_position.market_index as usize])
+                .ok_or_else(math_error!())?
+                .checked_div(SETTLEMENT_RATIO_PRECISION)
+                .ok_or_else(math_error!())?
+        } else {
+            position_pnl
+        };
+
+        pnl = pnl.checked_add(position_pnl).ok_or_else(math_error!())?;
+    }
+
+    let settled_position_value = calculate_updated_collateral(user.collateral, pnl)?;
+
+    Ok(settled_position_value)
 }

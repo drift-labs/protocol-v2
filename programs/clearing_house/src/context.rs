@@ -10,6 +10,7 @@ use crate::state::history::order_history::OrderHistory;
 use crate::state::history::{funding_payment::FundingPaymentHistory, trade::TradeHistory};
 use crate::state::market::Markets;
 use crate::state::order_state::OrderState;
+use crate::state::settlement::SettlementState;
 use crate::state::state::State;
 use crate::state::user::{User, UserPositions};
 use crate::state::user_orders::{OrderTriggerCondition, OrderType, UserOrders};
@@ -964,4 +965,154 @@ pub struct UpdateCurveHistory<'info> {
         constraint = &state.curve_history.eq(&curve_history.key())
     )]
     pub curve_history: AccountLoader<'info, CurveHistory>,
+}
+
+#[derive(Accounts)]
+pub struct AdminUpdateUserForgoSettlement<'info> {
+    pub admin: Signer<'info>,
+    #[account(
+
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub user: Box<Account<'info, User>>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateUserForgoSettlement<'info> {
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        has_one = authority
+    )]
+    pub user: Box<Account<'info, User>>,
+}
+
+#[derive(Accounts)]
+pub struct InitializeSettlementState<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        init,
+        seeds = [b"settlement_state".as_ref()],
+        space = std::mem::size_of::<SettlementState>() + 8,
+        bump,
+        payer = admin
+    )]
+    pub settlement_state: Box<Account<'info, SettlementState>>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+    #[account(
+        constraint = &state.collateral_vault.eq(&collateral_vault.key())
+    )]
+    pub collateral_vault: Box<Account<'info, TokenAccount>>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateSettlementStateEnabled<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub settlement_state: Box<Account<'info, SettlementState>>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateSettlementState<'info> {
+    pub admin: Signer<'info>,
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub settlement_state: Box<Account<'info, SettlementState>>,
+    #[account(
+        constraint = &state.collateral_vault.eq(&collateral_vault.key())
+    )]
+    pub collateral_vault: Box<Account<'info, TokenAccount>>,
+}
+
+#[derive(Accounts)]
+pub struct SettlePosition<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub settlement_state: Box<Account<'info, SettlementState>>,
+    #[account(
+        mut,
+        has_one = authority,
+        constraint = &user.positions.eq(&user_positions.key())
+    )]
+    pub user: Box<Account<'info, User>>,
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        has_one = user
+    )]
+    pub user_positions: AccountLoader<'info, UserPositions>,
+    #[account(
+        constraint = &state.markets.eq(&markets.key())
+    )]
+    pub markets: AccountLoader<'info, Markets>,
+    #[account(
+        mut,
+        constraint = &state.funding_payment_history.eq(&funding_payment_history.key())
+    )]
+    pub funding_payment_history: AccountLoader<'info, FundingPaymentHistory>,
+}
+
+#[derive(Accounts)]
+pub struct ClaimCollateral<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub settlement_state: Box<Account<'info, SettlementState>>,
+    #[account(
+        mut,
+        has_one = authority,
+    )]
+    pub user: Box<Account<'info, User>>,
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        constraint = &state.collateral_vault.eq(&collateral_vault.key())
+    )]
+    pub collateral_vault: Box<Account<'info, TokenAccount>>,
+    /// CHECK: withdraw fails if this isn't vault owner
+    #[account(
+        constraint = &state.collateral_vault_authority.eq(&collateral_vault_authority.key())
+    )]
+    pub collateral_vault_authority: AccountInfo<'info>,
+    #[account(mut)]
+    pub user_collateral_account: Box<Account<'info, TokenAccount>>,
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+pub struct TransferFromInsuranceVaultToCollateralVault<'info> {
+    #[account(has_one = admin)]
+    pub state: Box<Account<'info, State>>,
+    pub admin: Signer<'info>,
+    #[account(
+        mut,
+        constraint = &state.collateral_vault.eq(&collateral_vault.key())
+    )]
+    pub collateral_vault: Box<Account<'info, TokenAccount>>,
+    #[account(
+        mut,
+        constraint = &state.insurance_vault.eq(&insurance_vault.key())
+    )]
+    pub insurance_vault: Box<Account<'info, TokenAccount>>,
+    /// CHECK: withdraw fails if this isn't vault owner
+    #[account(
+        constraint = &state.insurance_vault_authority.eq(&insurance_vault_authority.key())
+    )]
+    pub insurance_vault_authority: AccountInfo<'info>,
+    pub token_program: Program<'info, Token>,
 }

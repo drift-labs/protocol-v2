@@ -126,6 +126,14 @@ pub enum ErrorCode {
     InvalidOracleOffset,
     #[msg("CantExpireOrders")]
     CantExpireOrders,
+    #[msg("UserMustForgoSettlement")]
+    UserMustForgoSettlement,
+    #[msg("NoAvailableCollateralToBeClaimed")]
+    NoAvailableCollateralToBeClaimed,
+    #[msg("SettlementNotEnabled")]
+    SettlementNotEnabled,
+    #[msg("MustCallSettlePositionFirst")]
+    MustCallSettlePositionFirst,
 }
 
 #[macro_export]

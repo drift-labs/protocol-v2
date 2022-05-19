@@ -6,12 +6,16 @@ import {
 	isVariant,
 	MarginCategory,
 	Order,
+	SettlementStateAccount,
 	UserAccount,
 	UserOrdersAccount,
 	UserPosition,
 	UserPositionsAccount,
 } from './types';
-import { calculateEntryPrice } from './math/position';
+import {
+	calculateEntryPrice,
+	calculateSettledPositionPNL,
+} from './math/position';
 import {
 	MARK_PRICE_PRECISION,
 	AMM_TO_QUOTE_PRECISION_RATIO,
@@ -832,5 +836,64 @@ export class ClearingHouseUser {
 		}
 
 		return this.getTotalPositionValue().sub(currentMarketPositionValueUSDC);
+	}
+
+	public getClaimableCollateral(settlementState: SettlementStateAccount): BN {
+		return this.getSettledPositionValue()
+			.mul(
+				settlementState.collateralAvailableToClaim.sub(
+					this.getUserAccount().lastCollateralAvailableToClaim
+				)
+			)
+			.div(settlementState.totalSettlementValue);
+	}
+
+	public getSettledPositionValue(): BN {
+		return BN.max(
+			this.getUserAccount()
+				.collateral.add(
+					this.getUnrealizedFundingPNL().div(PRICE_TO_QUOTE_PRECISION)
+				)
+				.add(this.getSettledPositionsPNL()),
+			ZERO
+		);
+	}
+
+	public getSettledPositionsPNL(): BN {
+		return this.getUserPositionsAccount().positions.reduce(
+			(pnl, marketPosition) => {
+				const market = this.clearingHouse.getMarket(marketPosition.marketIndex);
+				return pnl.add(calculateSettledPositionPNL(market, marketPosition));
+			},
+			ZERO
+		);
+	}
+
+	public async estimateClaimableCollateral(): Promise<BN> {
+		const currentCollateralVaultBalance = new BN(
+			(
+				await this.clearingHouse.connection.getTokenAccountBalance(
+					this.clearingHouse.getStateAccount().collateralVault
+				)
+			).value.amount
+		);
+		const currentInsuranceVaultBalance = new BN(
+			(
+				await this.clearingHouse.connection.getTokenAccountBalance(
+					this.clearingHouse.getStateAccount().insuranceVault
+				)
+			).value.amount
+		);
+
+		const totalClaimableCollateral = currentCollateralVaultBalance.add(
+			currentInsuranceVaultBalance
+		);
+		const totalEstimatedSettlementValue =
+			await this.clearingHouse.getTotalSettlementSize();
+		const userSettledPositionValue = await this.getSettledPositionValue();
+
+		return totalClaimableCollateral
+			.mul(userSettledPositionValue)
+			.div(totalEstimatedSettlementValue);
 	}
 }

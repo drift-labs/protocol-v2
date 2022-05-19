@@ -25,7 +25,8 @@
   },
   "dependencies": {
     "chai-bn": "^0.2.2",
-    "csvtojson": "^2.0.10"
+    "csvtojson": "^2.0.10",
+    "json2csv": "^5.0.7"
   },
   "scripts": {
     "generate-docs": "typedoc",

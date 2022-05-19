@@ -15,11 +15,16 @@ pub struct User {
     pub total_referee_discount: u128,
     pub positions: Pubkey,
 
+    // position settlement
+    pub settled_position_value: u128,
+    pub collateral_claimed: u64,
+    pub last_collateral_available_to_claim: u64,
+    pub forgo_position_settlement: u8,
+    pub has_settled_position: u8,
+
     // upgrade-ability
-    pub padding0: u128,
     pub padding1: u128,
-    pub padding2: u128,
-    pub padding3: u128,
+    pub padding2: [u8; 14],
 }
 
 // space: 1072
