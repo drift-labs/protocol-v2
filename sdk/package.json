@@ -13,6 +13,7 @@
 		"lint": "eslint './**/*.{ts,tsx}' --quiet",
 		"build": "yarn clean && tsc",
 		"clean": "rm -rf lib",
+		"test": "mocha -r ts-node/register src/tests/**/*.ts",
 		"patch-and-pub": "npm version patch --force && npm publish"
 	},
 	"keywords": [
@@ -37,11 +38,16 @@
 		"uuid": "^8.3.2"
 	},
 	"devDependencies": {
+		"@types/chai": "^4.3.1",
+		"@types/mocha": "^9.1.1",
 		"@typescript-eslint/eslint-plugin": "^4.28.0",
 		"@typescript-eslint/parser": "^4.28.0",
+		"chai": "^4.3.6",
 		"eslint": "^7.29.0",
 		"eslint-config-prettier": "^8.3.0",
-		"eslint-plugin-prettier": "^3.4.0"
+		"eslint-plugin-prettier": "^3.4.0",
+		"mocha": "^10.0.0",
+		"ts-node": "^10.8.0"
 	},
 	"description": "SDK for Drift Protocol v1",
 	"engines": {
