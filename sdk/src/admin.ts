@@ -17,6 +17,7 @@ import * as anchor from '@project-serum/anchor';
 import {
 	getClearingHouseStateAccountPublicKey,
 	getClearingHouseStateAccountPublicKeyAndNonce,
+	getMarketPublicKey,
 	getOrderStateAccountPublicKeyAndNonce,
 	getSettlementStatePublicKey,
 	getUserAccountPublicKey,
@@ -224,9 +225,10 @@ export class Admin extends ClearingHouse {
 		marginRatioPartial = 625,
 		marginRatioMaintenance = 500
 	): Promise<TransactionSignature> {
-		if (this.getMarketsAccount().markets[marketIndex.toNumber()].initialized) {
-			throw Error(`MarketIndex ${marketIndex.toNumber()} already initialized`);
-		}
+		const marketPublicKey = await getMarketPublicKey(
+			this.program.programId,
+			marketIndex
+		);
 
 		const initializeMarketTx = await this.program.transaction.initializeMarket(
 			marketIndex,
@@ -243,7 +245,9 @@ export class Admin extends ClearingHouse {
 					state: await this.getStatePublicKey(),
 					admin: this.wallet.publicKey,
 					oracle: priceOracle,
-					markets: this.getStateAccount().markets,
+					market: marketPublicKey,
+					rent: SYSVAR_RENT_PUBKEY,
+					systemProgram: anchor.web3.SystemProgram.programId,
 				},
 			}
 		);

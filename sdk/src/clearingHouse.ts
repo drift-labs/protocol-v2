@@ -42,6 +42,7 @@ import { EventEmitter } from 'events';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import {
 	getClearingHouseStateAccountPublicKey,
+	getMarketPublicKey,
 	getOrderStateAccountPublicKey,
 	getSettlementStatePublicKey,
 	getUserAccountPublicKey,
@@ -479,6 +480,13 @@ export class ClearingHouse {
 			userPositionsAccountPublicKey = (await this.getUserAccount()).positions;
 		}
 
+		const remainingAccounts = [];
+		remainingAccounts.push({
+			pubkey: await getMarketPublicKey(this.program.programId, new BN(0)),
+			isWritable: true,
+			isSigner: false,
+		});
+
 		const state = this.getStateAccount();
 		return await this.program.instruction.depositCollateral(amount, {
 			accounts: {
@@ -493,6 +501,7 @@ export class ClearingHouse {
 				depositHistory: state.depositHistory,
 				userPositions: userPositionsAccountPublicKey,
 			},
+			remainingAccounts,
 		});
 	}
 
@@ -589,6 +598,7 @@ export class ClearingHouse {
 		);
 
 		const state = this.getStateAccount();
+
 		return await this.program.instruction.withdrawCollateral(amount, {
 			accounts: {
 				state: await this.getStatePublicKey(),

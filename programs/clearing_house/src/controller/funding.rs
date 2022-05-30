@@ -3,7 +3,11 @@ use std::cmp::{max, min};
 
 use anchor_lang::prelude::*;
 
-use crate::error::ClearingHouseResult;
+use crate::account::markets::MarketMap;
+use crate::error::{
+    ClearingHouseResult,
+    ErrorCode::{MarketNotFound, UnableToLoadMarketAccount},
+};
 use crate::math::amm;
 use crate::math::amm::normalise_oracle_price;
 use crate::math::casting::{cast, cast_to_i128, cast_to_i64};
@@ -41,6 +45,70 @@ pub fn settle_funding_payment(
         }
 
         let market = &markets.markets[Markets::index_from_u64(market_position.market_index)];
+        let amm: &AMM = &market.amm;
+
+        let amm_cumulative_funding_rate = if market_position.base_asset_amount > 0 {
+            amm.cumulative_funding_rate_long
+        } else {
+            amm.cumulative_funding_rate_short
+        };
+
+        if amm_cumulative_funding_rate != market_position.last_cumulative_funding_rate {
+            let market_funding_rate_payment =
+                calculate_funding_payment(amm_cumulative_funding_rate, market_position)?;
+
+            let record_id = funding_payment_history.next_record_id();
+            funding_payment_history.append(FundingPaymentRecord {
+                ts: now,
+                record_id,
+                user_authority: user.authority,
+                user: user_key,
+                market_index: market_position.market_index,
+                funding_payment: market_funding_rate_payment, //10e13
+                user_last_cumulative_funding: market_position.last_cumulative_funding_rate, //10e14
+                user_last_funding_rate_ts: market_position.last_funding_rate_ts,
+                amm_cumulative_funding_long: amm.cumulative_funding_rate_long, //10e14
+                amm_cumulative_funding_short: amm.cumulative_funding_rate_short, //10e14
+                base_asset_amount: market_position.base_asset_amount,          //10e13
+            });
+
+            funding_payment = funding_payment
+                .checked_add(market_funding_rate_payment)
+                .ok_or_else(math_error!())?;
+
+            market_position.last_cumulative_funding_rate = amm_cumulative_funding_rate;
+            market_position.last_funding_rate_ts = amm.last_funding_rate_ts;
+        }
+    }
+
+    let funding_payment_collateral = funding_payment
+        .checked_div(AMM_TO_QUOTE_PRECISION_RATIO_I128)
+        .ok_or_else(math_error!())?;
+
+    user.collateral = calculate_updated_collateral(user.collateral, funding_payment_collateral)?;
+
+    Ok(())
+}
+
+pub fn settle_funding_payment2(
+    user: &mut User,
+    user_positions: &mut RefMut<UserPositions>,
+    market_map: &MarketMap,
+    funding_payment_history: &mut RefMut<FundingPaymentHistory>,
+    now: UnixTimestamp,
+) -> ClearingHouseResult {
+    let user_key = user_positions.user;
+    let mut funding_payment: i128 = 0;
+    for market_position in user_positions.positions.iter_mut() {
+        if market_position.base_asset_amount == 0 {
+            continue;
+        }
+
+        let market = &market_map
+            .get(&market_position.market_index)
+            .ok_or(MarketNotFound)?
+            .load()
+            .or(Err(UnableToLoadMarketAccount))?;
         let amm: &AMM = &market.amm;
 
         let amm_cumulative_funding_rate = if market_position.base_asset_amount > 0 {

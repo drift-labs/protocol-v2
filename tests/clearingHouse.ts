@@ -1,11 +1,11 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
-import { BN } from '../sdk';
+import { BN, Market, ZERO } from '../sdk';
 
 import { Program } from '@project-serum/anchor';
 import { getTokenAccount } from '@project-serum/common';
 
-import { PublicKey } from '@solana/web3.js';
+import { PublicKey, TransactionSignature } from '@solana/web3.js';
 
 import {
 	Admin,
@@ -18,6 +18,7 @@ import {
 	QUOTE_PRECISION,
 	MAX_LEVERAGE,
 	convertToNumber,
+	getMarketPublicKey,
 } from '../sdk/src';
 
 import { Markets } from '../sdk/src/constants/markets';
@@ -42,9 +43,11 @@ const calculateTradeAmount = (amountOfCollateral: BN) => {
 
 describe('clearing_house', () => {
 	const provider = anchor.AnchorProvider.local();
+	console.log('here');
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.ClearingHouse as Program;
+	console.log('here');
 
 	let clearingHouse: Admin;
 
@@ -66,6 +69,7 @@ describe('clearing_house', () => {
 	const usdcAmount = new BN(10 * 10 ** 6);
 
 	before(async () => {
+		console.log('here');
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
@@ -85,7 +89,9 @@ describe('clearing_house', () => {
 	});
 
 	it('Initialize State', async () => {
+		console.log('here');
 		await clearingHouse.initialize(usdcMint.publicKey, true);
+
 		await clearingHouse.subscribeToAll();
 		const state = clearingHouse.getStateAccount();
 
@@ -128,39 +134,50 @@ describe('clearing_house', () => {
 		const solUsd = await mockOracle(1);
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
+		const marketIndex = Markets[0].marketIndex;
 		await clearingHouse.initializeMarket(
-			Markets[0].marketIndex,
+			marketIndex,
 			solUsd,
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,
 			periodicity
 		);
 
-		await clearingHouse.fetchAccounts();
-		const marketsAccount: any = clearingHouse.getMarketsAccount();
+		const marketPublicKey = await getMarketPublicKey(
+			clearingHouse.program.programId,
+			marketIndex
+		);
+		const market = (await clearingHouse.program.account.market2.fetch(
+			marketPublicKey
+		)) as Market;
 
-		const marketData = marketsAccount.markets[0];
-		assert.ok(marketData.initialized);
-		assert.ok(marketData.baseAssetAmount.eq(new BN(0)));
-		assert.ok(marketData.openInterest.eq(new BN(0)));
+		assert.ok(market.initialized);
+		assert.ok(market.baseAssetAmount.eq(new BN(0)));
+		assert.ok(market.openInterest.eq(new BN(0)));
 
-		const ammData = marketData.amm;
-		assert.ok(ammData.oracle.equals(solUsd));
-		assert.ok(ammData.baseAssetReserve.eq(ammInitialBaseAssetAmount));
-		assert.ok(ammData.quoteAssetReserve.eq(ammInitialQuoteAssetAmount));
-		assert.ok(ammData.cumulativeFundingRateLong.eq(new BN(0)));
-		assert.ok(ammData.cumulativeFundingRateShort.eq(new BN(0)));
-		assert.ok(ammData.fundingPeriod.eq(periodicity));
-		assert.ok(ammData.lastFundingRate.eq(new BN(0)));
-		assert.ok(!ammData.lastFundingRateTs.eq(new BN(0)));
+		const ammD = market.amm;
+		assert.ok(ammD.oracle.equals(solUsd));
+		assert.ok(ammD.baseAssetReserve.eq(ammInitialBaseAssetAmount));
+		assert.ok(ammD.quoteAssetReserve.eq(ammInitialQuoteAssetAmount));
+		assert.ok(ammD.cumulativeFundingRateLong.eq(new BN(0)));
+		assert.ok(ammD.cumulativeFundingRateShort.eq(new BN(0)));
+		assert.ok(ammD.fundingPeriod.eq(periodicity));
+		assert.ok(ammD.lastFundingRate.eq(new BN(0)));
+		assert.ok(!ammD.lastFundingRateTs.eq(new BN(0)));
 	});
 
 	it('Initialize user account and deposit collateral atomically', async () => {
-		[, userAccountPublicKey] =
+		let txSig: TransactionSignature;
+		[txSig, userAccountPublicKey] =
 			await clearingHouse.initializeUserAccountAndDepositCollateral(
 				usdcAmount,
 				userUSDCAccount.publicKey
 			);
+		console.log(
+			'tx logs',
+			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
+				.logMessages
+		);
 
 		const user: any = await clearingHouse.program.account.user.fetch(
 			userAccountPublicKey

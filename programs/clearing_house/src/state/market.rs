@@ -44,6 +44,30 @@ impl Markets {
 #[repr(packed)]
 pub struct Market {
     pub initialized: bool,
+    pub market_index: u64,
+    pub base_asset_amount_long: i128,
+    pub base_asset_amount_short: i128,
+    pub base_asset_amount: i128, // net market bias
+    pub open_interest: u128,     // number of users in a position
+    pub amm: AMM,
+    pub margin_ratio_initial: u32,
+    pub margin_ratio_partial: u32,
+    pub margin_ratio_maintenance: u32,
+
+    // upgrade-ability
+    pub padding0: u32,
+    pub padding1: u128,
+    pub padding2: u128,
+    pub padding3: u128,
+    pub padding4: u128,
+}
+
+#[account(zero_copy)]
+#[derive(Default)]
+#[repr(packed)]
+pub struct Market2 {
+    pub market_index: u64,
+    pub initialized: bool,
     pub base_asset_amount_long: i128,
     pub base_asset_amount_short: i128,
     pub base_asset_amount: i128, // net market bias

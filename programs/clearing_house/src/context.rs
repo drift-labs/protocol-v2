@@ -8,7 +8,7 @@ use crate::state::history::funding_rate::FundingRateHistory;
 use crate::state::history::liquidation::LiquidationHistory;
 use crate::state::history::order_history::OrderHistory;
 use crate::state::history::{funding_payment::FundingPaymentHistory, trade::TradeHistory};
-use crate::state::market::Markets;
+use crate::state::market::{Market, Market2, Markets};
 use crate::state::order_state::OrderState;
 use crate::state::settlement::SettlementState;
 use crate::state::state::State;
@@ -210,19 +210,26 @@ pub struct InitializeUserOptionalAccounts {
 }
 
 #[derive(Accounts)]
+#[instruction(market_index: u64)]
 pub struct InitializeMarket<'info> {
+    #[account(mut)]
     pub admin: Signer<'info>,
     #[account(
         has_one = admin
     )]
     pub state: Box<Account<'info, State>>,
     #[account(
-        mut,
-        constraint = &state.markets.eq(&markets.key())
+        init,
+        seeds = [b"market", market_index.to_le_bytes().as_ref()],
+        space = 530 + 8,
+        bump,
+        payer = admin
     )]
-    pub markets: AccountLoader<'info, Markets>,
+    pub market: AccountLoader<'info, Market2>,
     /// CHECK: checked in `initialize_market`
     pub oracle: AccountInfo<'info>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
@@ -244,10 +251,6 @@ pub struct DepositCollateral<'info> {
     #[account(mut)]
     pub user_collateral_account: Box<Account<'info, TokenAccount>>,
     pub token_program: Program<'info, Token>,
-    #[account(
-        constraint = &state.markets.eq(&markets.key())
-    )]
-    pub markets: AccountLoader<'info, Markets>,
     #[account(
         mut,
         has_one = user

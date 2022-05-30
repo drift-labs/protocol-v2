@@ -17,6 +17,7 @@ use crate::state::{
     user_orders::*,
 };
 
+mod account;
 pub mod context;
 pub mod controller;
 pub mod error;
@@ -46,6 +47,7 @@ pub mod clearing_house {
     use crate::state::history::liquidation::LiquidationRecord;
 
     use super::*;
+    use crate::account::markets::{get_market_map, WritableMarkets};
     use crate::margin_validation::validate_margin;
     use crate::math::amm::{
         calculate_mark_twap_spread_pct, is_oracle_mark_too_divergent, normalise_oracle_price,
@@ -53,10 +55,12 @@ pub mod clearing_house {
     use crate::math::casting::{cast, cast_to_i128, cast_to_u128};
     use crate::math::position::calculated_settled_position_value;
     use crate::math::slippage::{calculate_slippage, calculate_slippage_pct};
-    use crate::state::market::OraclePriceData;
+    use crate::state::market::{Market2, OraclePriceData};
     use crate::state::order_state::{OrderFillerRewardStructure, OrderState};
     use crate::state::settlement::SettlementState;
+    use solana_program::log::sol_log_compute_units;
     use std::cmp::min;
+    use std::collections::BTreeSet;
     use std::ops::Div;
 
     pub fn initialize(
@@ -255,8 +259,7 @@ pub mod clearing_house {
         margin_ratio_partial: u32,
         margin_ratio_maintenance: u32,
     ) -> Result<()> {
-        let markets = &mut ctx.accounts.markets.load_mut()?;
-        let market = &markets.markets[Markets::index_from_u64(market_index)];
+        let market = &mut ctx.accounts.market.load_init()?;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
         let clock_slot = clock.slot;
@@ -306,8 +309,9 @@ pub mod clearing_house {
             margin_ratio_maintenance,
         )?;
 
-        let market = Market {
+        **market = Market2 {
             initialized: true,
+            market_index,
             base_asset_amount_long: 0,
             base_asset_amount_short: 0,
             base_asset_amount: 0,
@@ -352,8 +356,6 @@ pub mod clearing_house {
             },
         };
 
-        markets.markets[Markets::index_from_u64(market_index)] = market;
-
         Ok(())
     }
 
@@ -378,13 +380,14 @@ pub mod clearing_house {
             .checked_add(cast(amount)?)
             .ok_or_else(math_error!())?;
 
-        let markets = &ctx.accounts.markets.load()?;
         let user_positions = &mut ctx.accounts.user_positions.load_mut()?;
+        let market_map = get_market_map(&WritableMarkets::new(), ctx.remaining_accounts)?;
+
         let funding_payment_history = &mut ctx.accounts.funding_payment_history.load_mut()?;
-        controller::funding::settle_funding_payment(
+        controller::funding::settle_funding_payment2(
             user,
             user_positions,
-            markets,
+            &market_map,
             funding_payment_history,
             now,
         )?;

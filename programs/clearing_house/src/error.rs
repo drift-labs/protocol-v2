@@ -134,6 +134,18 @@ pub enum ErrorCode {
     SettlementNotEnabled,
     #[msg("MustCallSettlePositionFirst")]
     MustCallSettlePositionFirst,
+    #[msg("CouldNotLoadMarketData")]
+    CouldNotLoadMarketData,
+    #[msg("MarketNotFound")]
+    MarketNotFound,
+    #[msg("InvalidMarketAccount")]
+    InvalidMarketAccount,
+    #[msg("UnableToLoadMarketAccount")]
+    UnableToLoadMarketAccount,
+    #[msg("UnexpectedMarket")]
+    UnexpectedMarket,
+    #[msg("MarketWrongMutability")]
+    MarketWrongMutability,
 }
 
 #[macro_export]

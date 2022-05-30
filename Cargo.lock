@@ -408,6 +408,7 @@ version = "1.0.0"
 dependencies = [
  "anchor-lang",
  "anchor-spl",
+ "arrayref",
  "borsh",
  "bytemuck",
  "num-derive",
