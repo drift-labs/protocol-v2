@@ -244,7 +244,7 @@ export class ClearingHouse {
 	 * Update the wallet to use for clearing house transactions and linked user account
 	 * @param newWallet
 	 */
-	public updateWallet(newWallet: IWallet): void {
+	public async updateWallet(newWallet: IWallet): Promise<void> {
 		const newProvider = new AnchorProvider(
 			this.connection,
 			newWallet,
@@ -263,10 +263,9 @@ export class ClearingHouse {
 		this.provider = newProvider;
 		this.program = newProgram;
 		this.userAccountPublicKey = undefined;
-		this.userAccount = undefined;
 		this.userPositionsAccountPublicKey = undefined;
 		this.userOrdersAccountPublicKey = undefined;
-		this.userOrdersExist = undefined;
+		await this.accountSubscriber.updateAuthority(newWallet.publicKey);
 	}
 
 	public async initializeUserAccount(): Promise<
@@ -392,16 +391,8 @@ export class ClearingHouse {
 		return this.userAccountPublicKey;
 	}
 
-	userAccount?: UserAccount;
-	public async getUserAccount(): Promise<UserAccount> {
-		if (this.userAccount) {
-			return this.userAccount;
-		}
-
-		this.userAccount = (await this.program.account.user.fetch(
-			await this.getUserAccountPublicKey()
-		)) as UserAccount;
-		return this.userAccount;
+	public getUserAccount(): UserAccount | undefined {
+		return this.accountSubscriber.getUserAccount();
 	}
 
 	userPositionsAccountPublicKey?: PublicKey;
@@ -438,18 +429,8 @@ export class ClearingHouse {
 		return this.userOrdersAccountPublicKey;
 	}
 
-	userOrdersExist?: boolean;
-	async userOrdersAccountExists(): Promise<boolean> {
-		if (this.userOrdersExist) {
-			return this.userOrdersExist;
-		}
-		const userOrdersAccountRPCResponse =
-			await this.connection.getParsedAccountInfo(
-				await this.getUserOrdersAccountPublicKey()
-			);
-
-		this.userOrdersExist = userOrdersAccountRPCResponse.value !== null;
-		return this.userOrdersExist;
+	userOrdersAccountExists(): boolean {
+		return this.accountSubscriber.getUserOrdersAccount() !== undefined;
 	}
 
 	public async depositCollateral(
@@ -691,7 +672,7 @@ export class ClearingHouse {
 		referrer?: PublicKey
 	): Promise<TransactionSignature> {
 		const instructions: anchor.web3.TransactionInstruction[] = [];
-		const userOrdersAccountExists = await this.userOrdersAccountExists();
+		const userOrdersAccountExists = this.userOrdersAccountExists();
 		if (!userOrdersAccountExists) {
 			instructions.push(await this.getInitializeUserOrdersInstruction());
 		}
@@ -1111,7 +1092,7 @@ export class ClearingHouse {
 		referrer?: PublicKey
 	): Promise<TransactionSignature> {
 		const instructions: anchor.web3.TransactionInstruction[] = [];
-		const userOrdersAccountExists = await this.userOrdersAccountExists();
+		const userOrdersAccountExists = this.userOrdersAccountExists();
 		if (!userOrdersAccountExists) {
 			instructions.push(await this.getInitializeUserOrdersInstruction());
 		}

@@ -19,19 +19,34 @@ import {
 	OrderStateAccount,
 	StateAccount,
 	TradeHistoryAccount,
+	UserAccount,
+	UserOrdersAccount,
+	UserPositionsAccount,
 } from '../types';
-import { getClearingHouseStateAccountPublicKey } from '../addresses';
+import {
+	getClearingHouseStateAccountPublicKey,
+	getUserAccountPublicKey,
+	getUserOrdersAccountPublicKey,
+	getUserPositionsAccountPublicKey,
+} from '../addresses';
 import { BulkAccountLoader } from './bulkAccountLoader';
 import { capitalize } from './utils';
 import { ClearingHouseConfigType } from '../factory/clearingHouse';
 import { PublicKey } from '@solana/web3.js';
 import { CLEARING_HOUSE_STATE_ACCOUNTS } from '../constants/accounts';
 
+type UserPublicKeys = {
+	userAccountPublicKey: PublicKey;
+	userPositionsAccountPublicKey: PublicKey;
+	userOrdersAccountPublicKey: PublicKey;
+};
+
 export class PollingClearingHouseAccountSubscriber
 	implements ClearingHouseAccountSubscriber
 {
 	isSubscribed: boolean;
 	program: Program;
+	authority: PublicKey;
 	eventEmitter: StrictEventEmitter<EventEmitter, ClearingHouseAccountEvents>;
 
 	accountLoader: BulkAccountLoader;
@@ -49,6 +64,10 @@ export class PollingClearingHouseAccountSubscriber
 	extendedCurveHistory: ExtendedCurveHistoryAccount;
 	orderHistory?: OrderHistoryAccount;
 
+	userAccount?: UserAccount;
+	userPositionsAccount?: UserPositionsAccount;
+	userOrdersAccount?: UserOrdersAccount;
+
 	optionalExtraSubscriptions: ClearingHouseAccountTypes[] = [];
 
 	type: ClearingHouseConfigType = 'polling';
@@ -57,11 +76,16 @@ export class PollingClearingHouseAccountSubscriber
 	private subscriptionPromise: Promise<boolean>;
 	private subscriptionPromiseResolver: (val: boolean) => void;
 
-	public constructor(program: Program, accountLoader: BulkAccountLoader) {
+	public constructor(
+		program: Program,
+		authority: PublicKey,
+		accountLoader: BulkAccountLoader
+	) {
 		this.isSubscribed = false;
 		this.program = program;
 		this.eventEmitter = new EventEmitter();
 		this.accountLoader = accountLoader;
+		this.authority = authority;
 	}
 
 	public async subscribe(
@@ -130,6 +154,8 @@ export class PollingClearingHouseAccountSubscriber
 			eventType: 'orderStateAccountUpdate',
 		});
 
+		await this.updateUserAccountsToPoll();
+
 		if (this.optionalExtraSubscriptions?.includes('tradeHistoryAccount')) {
 			this.accountsToPoll.set(accounts.tradeHistory.toString(), {
 				key: 'tradeHistory',
@@ -193,6 +219,38 @@ export class PollingClearingHouseAccountSubscriber
 		}
 	}
 
+	async updateUserAccountsToPoll(): Promise<UserPublicKeys> {
+		const {
+			userAccountPublicKey,
+			userPositionsAccountPublicKey,
+			userOrdersAccountPublicKey,
+		} = await this.getUserAccountPublicKeys();
+
+		this.accountsToPoll.set(userAccountPublicKey.toString(), {
+			key: 'userAccount',
+			publicKey: userAccountPublicKey,
+			eventType: 'userAccountUpdate',
+		});
+
+		this.accountsToPoll.set(userPositionsAccountPublicKey.toString(), {
+			key: 'userPositionsAccount',
+			publicKey: userPositionsAccountPublicKey,
+			eventType: 'userPositionsAccountUpdate',
+		});
+
+		this.accountsToPoll.set(userOrdersAccountPublicKey.toString(), {
+			key: 'userOrdersAccount',
+			publicKey: userOrdersAccountPublicKey,
+			eventType: 'userOrdersAccountUpdate',
+		});
+
+		return {
+			userAccountPublicKey,
+			userPositionsAccountPublicKey,
+			userOrdersAccountPublicKey,
+		};
+	}
+
 	async getClearingHouseAccounts(): Promise<ClearingHouseAccounts> {
 		// Skip extra calls to rpc if we already know all the accounts
 		if (CLEARING_HOUSE_STATE_ACCOUNTS[this.program.programId.toString()]) {
@@ -231,29 +289,57 @@ export class PollingClearingHouseAccountSubscriber
 		return accounts;
 	}
 
+	async getUserAccountPublicKeys(): Promise<UserPublicKeys> {
+		const userAccountPublicKey = await getUserAccountPublicKey(
+			this.program.programId,
+			this.authority
+		);
+
+		const userPositionsAccountPublicKey =
+			await getUserPositionsAccountPublicKey(
+				this.program.programId,
+				userAccountPublicKey
+			);
+
+		const userOrdersAccountPublicKey = await getUserOrdersAccountPublicKey(
+			this.program.programId,
+			userAccountPublicKey
+		);
+
+		return {
+			userAccountPublicKey,
+			userPositionsAccountPublicKey,
+			userOrdersAccountPublicKey,
+		};
+	}
+
 	async addToAccountLoader(): Promise<void> {
 		for (const [_, accountToPoll] of this.accountsToPoll) {
-			accountToPoll.callbackId = this.accountLoader.addAccount(
-				accountToPoll.publicKey,
-				(buffer) => {
-					const account = this.program.account[
-						accountToPoll.key
-					].coder.accounts.decode(capitalize(accountToPoll.key), buffer);
-					this[accountToPoll.key] = account;
-					// @ts-ignore
-					this.eventEmitter.emit(accountToPoll.eventType, account);
-					this.eventEmitter.emit('update');
-
-					if (!this.isSubscribed) {
-						this.isSubscribed = this.didSubscriptionSucceed();
-					}
-				}
-			);
+			this.addAccountToAccountLoader(accountToPoll);
 		}
 
 		this.errorCallbackId = this.accountLoader.addErrorCallbacks((error) => {
 			this.eventEmitter.emit('error', error);
 		});
+	}
+
+	addAccountToAccountLoader(accountToPoll: AccountToPoll): void {
+		accountToPoll.callbackId = this.accountLoader.addAccount(
+			accountToPoll.publicKey,
+			(buffer) => {
+				const account = this.program.account[
+					accountToPoll.key
+				].coder.accounts.decode(capitalize(accountToPoll.key), buffer);
+				this[accountToPoll.key] = account;
+				// @ts-ignore
+				this.eventEmitter.emit(accountToPoll.eventType, account);
+				this.eventEmitter.emit('update');
+
+				if (!this.isSubscribed) {
+					this.isSubscribed = this.didSubscriptionSucceed();
+				}
+			}
+		);
 	}
 
 	public async fetch(): Promise<void> {
@@ -296,6 +382,36 @@ export class PollingClearingHouseAccountSubscriber
 
 		this.accountsToPoll.clear();
 		this.isSubscribed = false;
+	}
+
+	public async updateAuthority(newAuthority: PublicKey): Promise<boolean> {
+		let userAccountPublicKeys = Object.values(
+			await this.getUserAccountPublicKeys()
+		);
+
+		// remove the old user accounts
+		for (const publicKey of userAccountPublicKeys) {
+			const accountToPoll = this.accountsToPoll.get(publicKey.toString());
+			this.accountLoader.removeAccount(
+				accountToPoll.publicKey,
+				accountToPoll.callbackId
+			);
+			this.accountsToPoll.delete(publicKey.toString());
+		}
+
+		// update authority
+		this.authority = newAuthority;
+
+		// add new user accounts
+		userAccountPublicKeys = Object.values(
+			await this.updateUserAccountsToPoll()
+		);
+		for (const publicKey of userAccountPublicKeys) {
+			const accountToPoll = this.accountsToPoll.get(publicKey.toString());
+			this.addAccountToAccountLoader(accountToPoll);
+		}
+
+		return true;
 	}
 
 	assertIsSubscribed(): void {
@@ -377,6 +493,21 @@ export class PollingClearingHouseAccountSubscriber
 		this.assertIsSubscribed();
 		this.assertOptionalIsSubscribed('orderHistoryAccount');
 		return this.orderHistory;
+	}
+
+	public getUserAccount(): UserAccount | undefined {
+		this.assertIsSubscribed();
+		return this.userAccount;
+	}
+
+	public getUserPositionsAccount(): UserPositionsAccount | undefined {
+		this.assertIsSubscribed();
+		return this.userPositionsAccount;
+	}
+
+	public getUserOrdersAccount(): UserOrdersAccount | undefined {
+		this.assertIsSubscribed();
+		return this.userOrdersAccount;
 	}
 }
 

@@ -15,19 +15,30 @@ import {
 	OrderStateAccount,
 	StateAccount,
 	TradeHistoryAccount,
+	UserAccount,
+	UserOrdersAccount,
+	UserPositionsAccount,
 } from '../types';
 import { Program } from '@project-serum/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
-import { getClearingHouseStateAccountPublicKey } from '../addresses';
+import {
+	getClearingHouseStateAccountPublicKey,
+	getUserAccountPublicKey,
+	getUserOrdersAccountPublicKey,
+	getUserPositionsAccountPublicKey,
+} from '../addresses';
 import { WebSocketAccountSubscriber } from './webSocketAccountSubscriber';
 import { ClearingHouseConfigType } from '../factory/clearingHouse';
+import { PublicKey } from '@solana/web3.js';
 
 export class WebSocketClearingHouseAccountSubscriber
 	implements ClearingHouseAccountSubscriber
 {
 	isSubscribed: boolean;
 	program: Program;
+	authority: PublicKey;
+
 	eventEmitter: StrictEventEmitter<EventEmitter, ClearingHouseAccountEvents>;
 	stateAccountSubscriber?: AccountSubscriber<StateAccount>;
 	marketsAccountSubscriber?: AccountSubscriber<MarketsAccount>;
@@ -40,6 +51,10 @@ export class WebSocketClearingHouseAccountSubscriber
 	orderStateAccountSubscriber?: AccountSubscriber<OrderStateAccount>;
 	orderHistoryAccountSubscriber?: AccountSubscriber<OrderHistoryAccount>;
 
+	userAccountSubscriber?: AccountSubscriber<UserAccount>;
+	userPositionsAccountSubscriber?: AccountSubscriber<UserPositionsAccount>;
+	userOrdersAccountSubscriber?: AccountSubscriber<UserOrdersAccount>;
+
 	optionalExtraSubscriptions: ClearingHouseAccountTypes[] = [];
 
 	type: ClearingHouseConfigType = 'websocket';
@@ -48,10 +63,11 @@ export class WebSocketClearingHouseAccountSubscriber
 	private subscriptionPromise: Promise<boolean>;
 	private subscriptionPromiseResolver: (val: boolean) => void;
 
-	public constructor(program: Program) {
+	public constructor(program: Program, authority: PublicKey) {
 		this.isSubscribed = false;
 		this.program = program;
 		this.eventEmitter = new EventEmitter();
+		this.authority = authority;
 	}
 
 	public async subscribe(
@@ -113,6 +129,9 @@ export class WebSocketClearingHouseAccountSubscriber
 		);
 
 		const orderState = this.orderStateAccountSubscriber.data;
+
+		// subscribe to user accounts
+		await this.subscribeToUserAccounts();
 
 		// create subscribers for other state accounts
 
@@ -228,6 +247,65 @@ export class WebSocketClearingHouseAccountSubscriber
 		return true;
 	}
 
+	async subscribeToUserAccounts(): Promise<boolean> {
+		const userPublicKey = await getUserAccountPublicKey(
+			this.program.programId,
+			this.authority
+		);
+		this.userAccountSubscriber = new WebSocketAccountSubscriber(
+			'user',
+			this.program,
+			userPublicKey
+		);
+		await this.userAccountSubscriber.subscribe((data: UserAccount) => {
+			this.eventEmitter.emit('userAccountUpdate', data);
+			this.eventEmitter.emit('update');
+		});
+
+		const userPositionsPublicKey = await getUserPositionsAccountPublicKey(
+			this.program.programId,
+			userPublicKey
+		);
+
+		this.userPositionsAccountSubscriber = new WebSocketAccountSubscriber(
+			'userPositions',
+			this.program,
+			userPositionsPublicKey
+		);
+
+		await this.userPositionsAccountSubscriber.subscribe(
+			(data: UserPositionsAccount) => {
+				this.eventEmitter.emit('userPositionsAccountUpdate', data);
+				this.eventEmitter.emit('update');
+			}
+		);
+
+		const userOrdersPublicKey = await getUserOrdersAccountPublicKey(
+			this.program.programId,
+			userPublicKey
+		);
+
+		this.userOrdersAccountSubscriber = new WebSocketAccountSubscriber(
+			'userOrders',
+			this.program,
+			userOrdersPublicKey
+		);
+		await this.userOrdersAccountSubscriber.subscribe(
+			(data: UserOrdersAccount) => {
+				this.eventEmitter.emit('userOrdersAccountUpdate', data);
+				this.eventEmitter.emit('update');
+			}
+		);
+
+		return true;
+	}
+
+	async unsubscribeFromUserAccounts(): Promise<void> {
+		await this.userAccountSubscriber.unsubscribe();
+		await this.userPositionsAccountSubscriber.unsubscribe();
+		await this.userOrdersAccountSubscriber.unsubscribe();
+	}
+
 	public async fetch(): Promise<void> {
 		if (!this.isSubscribed) {
 			return;
@@ -254,6 +332,8 @@ export class WebSocketClearingHouseAccountSubscriber
 		await this.stateAccountSubscriber.unsubscribe();
 		await this.marketsAccountSubscriber.unsubscribe();
 		await this.orderStateAccountSubscriber.unsubscribe();
+
+		await this.unsubscribeFromUserAccounts();
 
 		if (this.optionalExtraSubscriptions.includes('tradeHistoryAccount')) {
 			await this.tradeHistoryAccountSubscriber.unsubscribe();
@@ -286,6 +366,15 @@ export class WebSocketClearingHouseAccountSubscriber
 		}
 
 		this.isSubscribed = false;
+	}
+
+	public async updateAuthority(newAuthority: PublicKey): Promise<boolean> {
+		// unsubscribe from old user accounts
+		await this.unsubscribeFromUserAccounts();
+		// update authority
+		this.authority = newAuthority;
+		// subscribe to new user accounts
+		return this.subscribeToUserAccounts();
 	}
 
 	assertIsSubscribed(): void {
@@ -367,5 +456,20 @@ export class WebSocketClearingHouseAccountSubscriber
 	public getOrderStateAccount(): OrderStateAccount {
 		this.assertIsSubscribed();
 		return this.orderStateAccountSubscriber.data;
+	}
+
+	public getUserAccount(): UserAccount {
+		this.assertIsSubscribed();
+		return this.userAccountSubscriber.data;
+	}
+
+	public getUserPositionsAccount(): UserPositionsAccount {
+		this.assertIsSubscribed();
+		return this.userPositionsAccountSubscriber.data;
+	}
+
+	public getUserOrdersAccount(): UserOrdersAccount {
+		this.assertIsSubscribed();
+		return this.userOrdersAccountSubscriber.data;
 	}
 }
