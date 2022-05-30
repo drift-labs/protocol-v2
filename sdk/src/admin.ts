@@ -19,8 +19,6 @@ import {
 	getClearingHouseStateAccountPublicKeyAndNonce,
 	getMarketPublicKey,
 	getOrderStateAccountPublicKeyAndNonce,
-	getSettlementStatePublicKey,
-	getUserAccountPublicKey,
 } from './addresses';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { ClearingHouse } from './clearingHouse';
@@ -736,87 +734,6 @@ export class Admin extends ClearingHouse {
 			accounts: {
 				admin: this.wallet.publicKey,
 				state: await this.getStatePublicKey(),
-			},
-		});
-	}
-
-	public async transferFromInsuranceVaultToCollateralVault(): Promise<TransactionSignature> {
-		const state = await this.getStateAccount();
-		return await this.program.rpc.transferFromInsuranceVaultToCollateralVault({
-			accounts: {
-				admin: this.wallet.publicKey,
-				state: await this.getStatePublicKey(),
-				insuranceVault: state.insuranceVault,
-				insuranceVaultAuthority: state.insuranceVaultAuthority,
-				collateralVault: state.collateralVault,
-				tokenProgram: TOKEN_PROGRAM_ID,
-			},
-		});
-	}
-
-	public async adminUpdateUserForgoSettlement(
-		authority: PublicKey
-	): Promise<TransactionSignature> {
-		const user = await getUserAccountPublicKey(
-			this.program.programId,
-			authority
-		);
-
-		return await this.program.rpc.adminUpdateUserForgoSettlement({
-			accounts: {
-				admin: this.wallet.publicKey,
-				state: await this.getStatePublicKey(),
-				user: user,
-			},
-		});
-	}
-
-	public async initializeSettlementState(): Promise<TransactionSignature> {
-		const settlementState = await getSettlementStatePublicKey(
-			this.program.programId
-		);
-
-		const settlementSize = await this.getTotalSettlementSize();
-
-		return await this.program.rpc.initializeSettlementState(settlementSize, {
-			accounts: {
-				admin: this.wallet.publicKey,
-				state: await this.getStatePublicKey(),
-				settlementState: settlementState,
-				rent: SYSVAR_RENT_PUBKEY,
-				systemProgram: anchor.web3.SystemProgram.programId,
-				collateralVault: (await this.getStateAccount()).collateralVault,
-			},
-		});
-	}
-
-	public async updateSettlementState(): Promise<TransactionSignature> {
-		const settlementState = await getSettlementStatePublicKey(
-			this.program.programId
-		);
-
-		return await this.program.rpc.updateSettlementState({
-			accounts: {
-				admin: this.wallet.publicKey,
-				state: await this.getStatePublicKey(),
-				settlementState: settlementState,
-				collateralVault: (await this.getStateAccount()).collateralVault,
-			},
-		});
-	}
-
-	public async updateSettlementStateEnabled(
-		enabled: boolean
-	): Promise<TransactionSignature> {
-		const settlementState = await getSettlementStatePublicKey(
-			this.program.programId
-		);
-
-		return await this.program.rpc.updateSettlementStateEnabled(enabled, {
-			accounts: {
-				admin: this.wallet.publicKey,
-				state: await this.getStatePublicKey(),
-				settlementState: settlementState,
 			},
 		});
 	}

@@ -11,7 +11,6 @@ import {
 } from '../constants/numericConstants';
 import { Market, PositionDirection, UserPosition } from '../types';
 import { calculateAmmReservesAfterSwap, getSwapDirection } from './amm';
-import { SETTLEMENT_RATIO_PRECISION, SETTLEMENT_RATIOS } from '../settlement';
 
 /**
  * calculateBaseAssetValue
@@ -86,27 +85,6 @@ export function calculatePositionPNL(
 		).div(PRICE_TO_QUOTE_PRECISION);
 
 		pnl = pnl.add(fundingRatePnL);
-	}
-
-	return pnl;
-}
-
-export function calculateSettledPositionPNL(
-	market: Market,
-	marketPosition: UserPosition
-): BN {
-	let pnl = calculatePositionPNL(market, marketPosition);
-
-	if (pnl.gt(ZERO)) {
-		try {
-			pnl = pnl
-				.mul(new BN(SETTLEMENT_RATIOS[marketPosition.marketIndex.toNumber()]))
-				.div(SETTLEMENT_RATIO_PRECISION);
-		} catch (e) {
-			console.log(pnl.toString());
-			console.log(marketPosition.marketIndex.toNumber());
-			throw e;
-		}
 	}
 
 	return pnl;

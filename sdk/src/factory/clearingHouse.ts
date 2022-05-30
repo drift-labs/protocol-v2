@@ -98,10 +98,14 @@ export function getClearingHouse(config: ClearingHouseConfig): ClearingHouse {
 	);
 	let accountSubscriber: ClearingHouseAccountSubscriber;
 	if (config.type === 'websocket') {
-		accountSubscriber = new WebSocketClearingHouseAccountSubscriber(program);
+		accountSubscriber = new WebSocketClearingHouseAccountSubscriber(
+			program,
+			provider.wallet.publicKey
+		);
 	} else if (config.type === 'polling') {
 		accountSubscriber = new PollingClearingHouseAccountSubscriber(
 			program,
+			provider.wallet.publicKey,
 			(config as PollingClearingHouseConfiguration).accountLoader
 		);
 	}
@@ -142,10 +146,14 @@ export function getAdmin(config: ClearingHouseConfig): Admin {
 	);
 	let accountSubscriber: ClearingHouseAccountSubscriber;
 	if (config.type === 'websocket') {
-		accountSubscriber = new WebSocketClearingHouseAccountSubscriber(program);
+		accountSubscriber = new WebSocketClearingHouseAccountSubscriber(
+			program,
+			provider.wallet.publicKey
+		);
 	} else if (config.type === 'polling') {
 		accountSubscriber = new PollingClearingHouseAccountSubscriber(
 			program,
+			provider.wallet.publicKey,
 			(config as PollingClearingHouseConfiguration).accountLoader
 		);
 	}

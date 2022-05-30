@@ -47,6 +47,9 @@ export interface ClearingHouseAccountEvents {
 	curveHistoryAccountUpdate: (payload: ExtendedCurveHistoryAccount) => void;
 	orderHistoryAccountUpdate: (payload: OrderHistoryAccount) => void;
 	orderStateAccountUpdate: (payload: OrderStateAccount) => void;
+	userAccountUpdate: (payload: UserAccount) => void;
+	userPositionsAccountUpdate: (payload: UserPositionsAccount) => void;
+	userOrdersAccountUpdate: (payload: UserOrdersAccount) => void;
 	update: void;
 	error: (e: Error) => void;
 }
@@ -72,6 +75,8 @@ export interface ClearingHouseAccountSubscriber {
 	fetch(): Promise<void>;
 	unsubscribe(): Promise<void>;
 
+	updateAuthority(newAuthority: PublicKey): Promise<boolean>;
+
 	getStateAccount(): StateAccount;
 	getMarketsAccount(): MarketsAccount;
 	getTradeHistoryAccount(): TradeHistoryAccount;
@@ -82,6 +87,10 @@ export interface ClearingHouseAccountSubscriber {
 	getLiquidationHistoryAccount(): LiquidationHistoryAccount;
 	getOrderStateAccount(): OrderStateAccount;
 	getOrderHistoryAccount(): OrderHistoryAccount;
+
+	getUserAccount(): UserAccount | undefined;
+	getUserPositionsAccount(): UserPositionsAccount | undefined;
+	getUserOrdersAccount(): UserOrdersAccount | undefined;
 
 	type: ClearingHouseConfigType;
 }
