@@ -12,6 +12,7 @@ import { PublicKey } from '@solana/web3.js';
 import {
 	getUserAccountPublicKey,
 	getUserOrdersAccountPublicKey,
+	getUserPositionsAccountPublicKey,
 } from '../addresses';
 import { UserAccount, UserOrdersAccount, UserPositionsAccount } from '../types';
 import { BulkAccountLoader } from './bulkAccountLoader';
@@ -80,19 +81,20 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 				this.authority
 			);
 
-			const userAccount = (await this.program.account.user.fetch(
-				userPublicKey
-			)) as UserAccount;
-
 			this.accountsToPoll.set(userPublicKey.toString(), {
 				key: 'user',
 				publicKey: userPublicKey,
 				eventType: 'userAccountData',
 			});
 
-			this.accountsToPoll.set(userAccount.positions.toString(), {
+			const userPositionsPublicKey = await getUserPositionsAccountPublicKey(
+				this.program.programId,
+				userPublicKey
+			);
+
+			this.accountsToPoll.set(userPositionsPublicKey.toString(), {
 				key: 'userPositions',
-				publicKey: userAccount.positions,
+				publicKey: userPositionsPublicKey,
 				eventType: 'userPositionsData',
 			});
 

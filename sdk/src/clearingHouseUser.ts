@@ -37,6 +37,7 @@ import {
 	getUserOrdersAccountPublicKey,
 	calculateTradeSlippage,
 	BN,
+	getUserPositionsAccountPublicKey,
 } from '.';
 import { getUserAccountPublicKey } from './addresses';
 import {
@@ -49,6 +50,7 @@ export class ClearingHouseUser {
 	authority: PublicKey;
 	accountSubscriber: UserAccountSubscriber;
 	userAccountPublicKey?: PublicKey;
+	userPositionsAccountPublicKey?: PublicKey;
 	userOrdersAccountPublicKey?: PublicKey;
 	_isSubscribed = false;
 	eventEmitter: StrictEventEmitter<EventEmitter, UserAccountEvents>;
@@ -179,6 +181,18 @@ export class ClearingHouseUser {
 			this.authority
 		);
 		return this.userAccountPublicKey;
+	}
+
+	public async getUserPositionsAccountPublicKey(): Promise<PublicKey> {
+		if (this.userPositionsAccountPublicKey) {
+			return this.userPositionsAccountPublicKey;
+		}
+
+		this.userPositionsAccountPublicKey = await getUserPositionsAccountPublicKey(
+			this.clearingHouse.program.programId,
+			await this.getUserAccountPublicKey()
+		);
+		return this.userPositionsAccountPublicKey;
 	}
 
 	public async getUserOrdersAccountPublicKey(): Promise<PublicKey> {

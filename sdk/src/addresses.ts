@@ -48,6 +48,21 @@ export async function getUserAccountPublicKey(
 	return (await getUserAccountPublicKeyAndNonce(programId, authority))[0];
 }
 
+export async function getUserPositionsAccountPublicKey(
+	programId: PublicKey,
+	userAccount: PublicKey
+): Promise<PublicKey> {
+	return (
+		await anchor.web3.PublicKey.findProgramAddress(
+			[
+				Buffer.from(anchor.utils.bytes.utf8.encode('user_positions')),
+				userAccount.toBuffer(),
+			],
+			programId
+		)
+	)[0];
+}
+
 export async function getUserOrdersAccountPublicKeyAndNonce(
 	programId: PublicKey,
 	userAccount: PublicKey

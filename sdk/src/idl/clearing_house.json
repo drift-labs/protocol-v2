@@ -1383,7 +1383,7 @@
         {
           "name": "userPositions",
           "isMut": true,
-          "isSigner": true
+          "isSigner": false
         },
         {
           "name": "authority",
@@ -2572,25 +2572,6 @@
       }
     },
     {
-      "name": "Markets",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "markets",
-            "type": {
-              "array": [
-                {
-                  "defined": "Market"
-                },
-                64
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
       "name": "OrderHistory",
       "type": {
         "kind": "struct",
@@ -2611,6 +2592,48 @@
                   "defined": "OrderRecord"
                 },
                 1024
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "TradeHistory",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "head",
+            "type": "u64"
+          },
+          {
+            "name": "tradeRecords",
+            "type": {
+              "array": [
+                {
+                  "defined": "TradeRecord"
+                },
+                1024
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Markets",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "markets",
+            "type": {
+              "array": [
+                {
+                  "defined": "Market"
+                },
+                64
               ]
             }
           }
@@ -2845,22 +2868,22 @@
       }
     },
     {
-      "name": "TradeHistory",
+      "name": "UserOrders",
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "head",
-            "type": "u64"
+            "name": "user",
+            "type": "publicKey"
           },
           {
-            "name": "tradeRecords",
+            "name": "orders",
             "type": {
               "array": [
                 {
-                  "defined": "TradeRecord"
+                  "defined": "Order"
                 },
-                1024
+                32
               ]
             }
           }
@@ -2961,29 +2984,6 @@
                   "defined": "MarketPosition"
                 },
                 5
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "UserOrders",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "user",
-            "type": "publicKey"
-          },
-          {
-            "name": "orders",
-            "type": {
-              "array": [
-                {
-                  "defined": "Order"
-                },
-                32
               ]
             }
           }
@@ -3500,6 +3500,153 @@
       }
     },
     {
+      "name": "OrderRecord",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "ts",
+            "type": "i64"
+          },
+          {
+            "name": "recordId",
+            "type": "u128"
+          },
+          {
+            "name": "user",
+            "type": "publicKey"
+          },
+          {
+            "name": "authority",
+            "type": "publicKey"
+          },
+          {
+            "name": "order",
+            "type": {
+              "defined": "Order"
+            }
+          },
+          {
+            "name": "action",
+            "type": {
+              "defined": "OrderAction"
+            }
+          },
+          {
+            "name": "filler",
+            "type": "publicKey"
+          },
+          {
+            "name": "tradeRecordId",
+            "type": "u128"
+          },
+          {
+            "name": "baseAssetAmountFilled",
+            "type": "u128"
+          },
+          {
+            "name": "quoteAssetAmountFilled",
+            "type": "u128"
+          },
+          {
+            "name": "fee",
+            "type": "i128"
+          },
+          {
+            "name": "fillerReward",
+            "type": "u128"
+          },
+          {
+            "name": "quoteAssetAmountSurplus",
+            "type": "u128"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u64",
+                8
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "TradeRecord",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "ts",
+            "type": "i64"
+          },
+          {
+            "name": "recordId",
+            "type": "u128"
+          },
+          {
+            "name": "userAuthority",
+            "type": "publicKey"
+          },
+          {
+            "name": "user",
+            "type": "publicKey"
+          },
+          {
+            "name": "direction",
+            "type": {
+              "defined": "PositionDirection"
+            }
+          },
+          {
+            "name": "baseAssetAmount",
+            "type": "u128"
+          },
+          {
+            "name": "quoteAssetAmount",
+            "type": "u128"
+          },
+          {
+            "name": "markPriceBefore",
+            "type": "u128"
+          },
+          {
+            "name": "markPriceAfter",
+            "type": "u128"
+          },
+          {
+            "name": "fee",
+            "type": "i128"
+          },
+          {
+            "name": "quoteAssetAmountSurplus",
+            "type": "u128"
+          },
+          {
+            "name": "refereeDiscount",
+            "type": "u128"
+          },
+          {
+            "name": "tokenDiscount",
+            "type": "u128"
+          },
+          {
+            "name": "liquidation",
+            "type": "bool"
+          },
+          {
+            "name": "marketIndex",
+            "type": "u64"
+          },
+          {
+            "name": "oraclePrice",
+            "type": "i128"
+          }
+        ]
+      }
+    },
+    {
       "name": "Market",
       "type": {
         "kind": "struct",
@@ -3683,79 +3830,6 @@
           {
             "name": "padding3",
             "type": "u128"
-          }
-        ]
-      }
-    },
-    {
-      "name": "OrderRecord",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "ts",
-            "type": "i64"
-          },
-          {
-            "name": "recordId",
-            "type": "u128"
-          },
-          {
-            "name": "user",
-            "type": "publicKey"
-          },
-          {
-            "name": "authority",
-            "type": "publicKey"
-          },
-          {
-            "name": "order",
-            "type": {
-              "defined": "Order"
-            }
-          },
-          {
-            "name": "action",
-            "type": {
-              "defined": "OrderAction"
-            }
-          },
-          {
-            "name": "filler",
-            "type": "publicKey"
-          },
-          {
-            "name": "tradeRecordId",
-            "type": "u128"
-          },
-          {
-            "name": "baseAssetAmountFilled",
-            "type": "u128"
-          },
-          {
-            "name": "quoteAssetAmountFilled",
-            "type": "u128"
-          },
-          {
-            "name": "fee",
-            "type": "i128"
-          },
-          {
-            "name": "fillerReward",
-            "type": "u128"
-          },
-          {
-            "name": "quoteAssetAmountSurplus",
-            "type": "u128"
-          },
-          {
-            "name": "padding",
-            "type": {
-              "array": [
-                "u64",
-                8
-              ]
-            }
           }
         ]
       }
@@ -3945,144 +4019,6 @@
       }
     },
     {
-      "name": "TradeRecord",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "ts",
-            "type": "i64"
-          },
-          {
-            "name": "recordId",
-            "type": "u128"
-          },
-          {
-            "name": "userAuthority",
-            "type": "publicKey"
-          },
-          {
-            "name": "user",
-            "type": "publicKey"
-          },
-          {
-            "name": "direction",
-            "type": {
-              "defined": "PositionDirection"
-            }
-          },
-          {
-            "name": "baseAssetAmount",
-            "type": "u128"
-          },
-          {
-            "name": "quoteAssetAmount",
-            "type": "u128"
-          },
-          {
-            "name": "markPriceBefore",
-            "type": "u128"
-          },
-          {
-            "name": "markPriceAfter",
-            "type": "u128"
-          },
-          {
-            "name": "fee",
-            "type": "i128"
-          },
-          {
-            "name": "quoteAssetAmountSurplus",
-            "type": "u128"
-          },
-          {
-            "name": "refereeDiscount",
-            "type": "u128"
-          },
-          {
-            "name": "tokenDiscount",
-            "type": "u128"
-          },
-          {
-            "name": "liquidation",
-            "type": "bool"
-          },
-          {
-            "name": "marketIndex",
-            "type": "u64"
-          },
-          {
-            "name": "oraclePrice",
-            "type": "i128"
-          }
-        ]
-      }
-    },
-    {
-      "name": "MarketPosition",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "marketIndex",
-            "type": "u64"
-          },
-          {
-            "name": "baseAssetAmount",
-            "type": "i128"
-          },
-          {
-            "name": "quoteAssetAmount",
-            "type": "u128"
-          },
-          {
-            "name": "lastCumulativeFundingRate",
-            "type": "i128"
-          },
-          {
-            "name": "lastCumulativeRepegRebate",
-            "type": "u128"
-          },
-          {
-            "name": "lastFundingRateTs",
-            "type": "i64"
-          },
-          {
-            "name": "openOrders",
-            "type": "u128"
-          },
-          {
-            "name": "padding0",
-            "type": "u128"
-          },
-          {
-            "name": "padding1",
-            "type": "u128"
-          },
-          {
-            "name": "padding2",
-            "type": "u128"
-          },
-          {
-            "name": "padding3",
-            "type": "u128"
-          },
-          {
-            "name": "padding4",
-            "type": "u128"
-          },
-          {
-            "name": "padding5",
-            "type": "u128"
-          },
-          {
-            "name": "padding6",
-            "type": "u128"
-          }
-        ]
-      }
-    },
-    {
       "name": "Order",
       "type": {
         "kind": "struct",
@@ -4198,6 +4134,70 @@
       }
     },
     {
+      "name": "MarketPosition",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "marketIndex",
+            "type": "u64"
+          },
+          {
+            "name": "baseAssetAmount",
+            "type": "i128"
+          },
+          {
+            "name": "quoteAssetAmount",
+            "type": "u128"
+          },
+          {
+            "name": "lastCumulativeFundingRate",
+            "type": "i128"
+          },
+          {
+            "name": "lastCumulativeRepegRebate",
+            "type": "u128"
+          },
+          {
+            "name": "lastFundingRateTs",
+            "type": "i64"
+          },
+          {
+            "name": "openOrders",
+            "type": "u128"
+          },
+          {
+            "name": "padding0",
+            "type": "u128"
+          },
+          {
+            "name": "padding1",
+            "type": "u128"
+          },
+          {
+            "name": "padding2",
+            "type": "u128"
+          },
+          {
+            "name": "padding3",
+            "type": "u128"
+          },
+          {
+            "name": "padding4",
+            "type": "u128"
+          },
+          {
+            "name": "padding5",
+            "type": "u128"
+          },
+          {
+            "name": "padding6",
+            "type": "u128"
+          }
+        ]
+      }
+    },
+    {
       "name": "SwapDirection",
       "type": {
         "kind": "enum",
@@ -4212,232 +4212,15 @@
       }
     },
     {
-      "name": "Type",
+      "name": "PositionDirection",
       "type": {
         "kind": "enum",
         "variants": [
           {
-            "name": "Repeg"
+            "name": "Long"
           },
           {
-            "name": "UpdateK"
-          }
-        ]
-      }
-    },
-    {
-      "name": "DepositDirection",
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "DEPOSIT"
-          },
-          {
-            "name": "WITHDRAW"
-          }
-        ]
-      }
-    },
-    {
-      "name": "ErrorCode",
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "InvalidCollateralAccountAuthority"
-          },
-          {
-            "name": "InvalidInsuranceAccountAuthority"
-          },
-          {
-            "name": "InsufficientDeposit"
-          },
-          {
-            "name": "InsufficientCollateral"
-          },
-          {
-            "name": "SufficientCollateral"
-          },
-          {
-            "name": "MaxNumberOfPositions"
-          },
-          {
-            "name": "AdminControlsPricesDisabled"
-          },
-          {
-            "name": "MarketIndexNotInitialized"
-          },
-          {
-            "name": "MarketIndexAlreadyInitialized"
-          },
-          {
-            "name": "UserAccountAndUserPositionsAccountMismatch"
-          },
-          {
-            "name": "UserHasNoPositionInMarket"
-          },
-          {
-            "name": "InvalidInitialPeg"
-          },
-          {
-            "name": "InvalidRepegRedundant"
-          },
-          {
-            "name": "InvalidRepegDirection"
-          },
-          {
-            "name": "InvalidRepegProfitability"
-          },
-          {
-            "name": "SlippageOutsideLimit"
-          },
-          {
-            "name": "TradeSizeTooSmall"
-          },
-          {
-            "name": "InvalidUpdateK"
-          },
-          {
-            "name": "AdminWithdrawTooLarge"
-          },
-          {
-            "name": "MathError"
-          },
-          {
-            "name": "BnConversionError"
-          },
-          {
-            "name": "ClockUnavailable"
-          },
-          {
-            "name": "UnableToLoadOracle"
-          },
-          {
-            "name": "OracleMarkSpreadLimit"
-          },
-          {
-            "name": "HistoryAlreadyInitialized"
-          },
-          {
-            "name": "ExchangePaused"
-          },
-          {
-            "name": "InvalidWhitelistToken"
-          },
-          {
-            "name": "WhitelistTokenNotFound"
-          },
-          {
-            "name": "InvalidDiscountToken"
-          },
-          {
-            "name": "DiscountTokenNotFound"
-          },
-          {
-            "name": "InvalidReferrer"
-          },
-          {
-            "name": "ReferrerNotFound"
-          },
-          {
-            "name": "InvalidOracle"
-          },
-          {
-            "name": "OracleNotFound"
-          },
-          {
-            "name": "LiquidationsBlockedByOracle"
-          },
-          {
-            "name": "UserMaxDeposit"
-          },
-          {
-            "name": "CantDeleteUserWithCollateral"
-          },
-          {
-            "name": "InvalidFundingProfitability"
-          },
-          {
-            "name": "CastingFailure"
-          },
-          {
-            "name": "InvalidOrder"
-          },
-          {
-            "name": "UserHasNoOrder"
-          },
-          {
-            "name": "OrderAmountTooSmall"
-          },
-          {
-            "name": "MaxNumberOfOrders"
-          },
-          {
-            "name": "OrderDoesNotExist"
-          },
-          {
-            "name": "OrderNotOpen"
-          },
-          {
-            "name": "CouldNotFillOrder"
-          },
-          {
-            "name": "ReduceOnlyOrderIncreasedRisk"
-          },
-          {
-            "name": "OrderStateAlreadyInitialized"
-          },
-          {
-            "name": "UnableToLoadAccountLoader"
-          },
-          {
-            "name": "TradeSizeTooLarge"
-          },
-          {
-            "name": "UnableToWriteToRemainingAccount"
-          },
-          {
-            "name": "UserCantReferThemselves"
-          },
-          {
-            "name": "DidNotReceiveExpectedReferrer"
-          },
-          {
-            "name": "CouldNotDeserializeReferrer"
-          },
-          {
-            "name": "MarketOrderMustBeInPlaceAndFill"
-          },
-          {
-            "name": "UserOrderIdAlreadyInUse"
-          },
-          {
-            "name": "NoPositionsLiquidatable"
-          },
-          {
-            "name": "InvalidMarginRatio"
-          },
-          {
-            "name": "CantCancelPostOnlyOrder"
-          },
-          {
-            "name": "InvalidOracleOffset"
-          },
-          {
-            "name": "CantExpireOrders"
-          },
-          {
-            "name": "UserMustForgoSettlement"
-          },
-          {
-            "name": "NoAvailableCollateralToBeClaimed"
-          },
-          {
-            "name": "SettlementNotEnabled"
-          },
-          {
-            "name": "MustCallSettlePositionFirst"
+            "name": "Short"
           }
         ]
       }
@@ -4477,15 +4260,29 @@
       }
     },
     {
-      "name": "OracleSource",
+      "name": "Type",
       "type": {
         "kind": "enum",
         "variants": [
           {
-            "name": "Pyth"
+            "name": "Repeg"
           },
           {
-            "name": "Switchboard"
+            "name": "UpdateK"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DepositDirection",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "DEPOSIT"
+          },
+          {
+            "name": "WITHDRAW"
           }
         ]
       }
@@ -4511,15 +4308,15 @@
       }
     },
     {
-      "name": "PositionDirection",
+      "name": "OracleSource",
       "type": {
         "kind": "enum",
         "variants": [
           {
-            "name": "Long"
+            "name": "Pyth"
           },
           {
-            "name": "Short"
+            "name": "Switchboard"
           }
         ]
       }
@@ -4594,6 +4391,333 @@
           }
         ]
       }
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "InvalidCollateralAccountAuthority",
+      "msg": "Clearing house not collateral account owner"
+    },
+    {
+      "code": 6001,
+      "name": "InvalidInsuranceAccountAuthority",
+      "msg": "Clearing house not insurance account owner"
+    },
+    {
+      "code": 6002,
+      "name": "InsufficientDeposit",
+      "msg": "Insufficient deposit"
+    },
+    {
+      "code": 6003,
+      "name": "InsufficientCollateral",
+      "msg": "Insufficient collateral"
+    },
+    {
+      "code": 6004,
+      "name": "SufficientCollateral",
+      "msg": "Sufficient collateral"
+    },
+    {
+      "code": 6005,
+      "name": "MaxNumberOfPositions",
+      "msg": "Max number of positions taken"
+    },
+    {
+      "code": 6006,
+      "name": "AdminControlsPricesDisabled",
+      "msg": "Admin Controls Prices Disabled"
+    },
+    {
+      "code": 6007,
+      "name": "MarketIndexNotInitialized",
+      "msg": "Market Index Not Initialized"
+    },
+    {
+      "code": 6008,
+      "name": "MarketIndexAlreadyInitialized",
+      "msg": "Market Index Already Initialized"
+    },
+    {
+      "code": 6009,
+      "name": "UserAccountAndUserPositionsAccountMismatch",
+      "msg": "User Account And User Positions Account Mismatch"
+    },
+    {
+      "code": 6010,
+      "name": "UserHasNoPositionInMarket",
+      "msg": "User Has No Position In Market"
+    },
+    {
+      "code": 6011,
+      "name": "InvalidInitialPeg",
+      "msg": "Invalid Initial Peg"
+    },
+    {
+      "code": 6012,
+      "name": "InvalidRepegRedundant",
+      "msg": "AMM repeg already configured with amt given"
+    },
+    {
+      "code": 6013,
+      "name": "InvalidRepegDirection",
+      "msg": "AMM repeg incorrect repeg direction"
+    },
+    {
+      "code": 6014,
+      "name": "InvalidRepegProfitability",
+      "msg": "AMM repeg out of bounds pnl"
+    },
+    {
+      "code": 6015,
+      "name": "SlippageOutsideLimit",
+      "msg": "Slippage Outside Limit Price"
+    },
+    {
+      "code": 6016,
+      "name": "TradeSizeTooSmall",
+      "msg": "Trade Size Too Small"
+    },
+    {
+      "code": 6017,
+      "name": "InvalidUpdateK",
+      "msg": "Price change too large when updating K"
+    },
+    {
+      "code": 6018,
+      "name": "AdminWithdrawTooLarge",
+      "msg": "Admin tried to withdraw amount larger than fees collected"
+    },
+    {
+      "code": 6019,
+      "name": "MathError",
+      "msg": "Math Error"
+    },
+    {
+      "code": 6020,
+      "name": "BnConversionError",
+      "msg": "Conversion to u128/u64 failed with an overflow or underflow"
+    },
+    {
+      "code": 6021,
+      "name": "ClockUnavailable",
+      "msg": "Clock unavailable"
+    },
+    {
+      "code": 6022,
+      "name": "UnableToLoadOracle",
+      "msg": "Unable To Load Oracles"
+    },
+    {
+      "code": 6023,
+      "name": "OracleMarkSpreadLimit",
+      "msg": "Oracle/Mark Spread Too Large"
+    },
+    {
+      "code": 6024,
+      "name": "HistoryAlreadyInitialized",
+      "msg": "Clearing House history already initialized"
+    },
+    {
+      "code": 6025,
+      "name": "ExchangePaused",
+      "msg": "Exchange is paused"
+    },
+    {
+      "code": 6026,
+      "name": "InvalidWhitelistToken",
+      "msg": "Invalid whitelist token"
+    },
+    {
+      "code": 6027,
+      "name": "WhitelistTokenNotFound",
+      "msg": "Whitelist token not found"
+    },
+    {
+      "code": 6028,
+      "name": "InvalidDiscountToken",
+      "msg": "Invalid discount token"
+    },
+    {
+      "code": 6029,
+      "name": "DiscountTokenNotFound",
+      "msg": "Discount token not found"
+    },
+    {
+      "code": 6030,
+      "name": "InvalidReferrer",
+      "msg": "Invalid referrer"
+    },
+    {
+      "code": 6031,
+      "name": "ReferrerNotFound",
+      "msg": "Referrer not found"
+    },
+    {
+      "code": 6032,
+      "name": "InvalidOracle",
+      "msg": "InvalidOracle"
+    },
+    {
+      "code": 6033,
+      "name": "OracleNotFound",
+      "msg": "OracleNotFound"
+    },
+    {
+      "code": 6034,
+      "name": "LiquidationsBlockedByOracle",
+      "msg": "Liquidations Blocked By Oracle"
+    },
+    {
+      "code": 6035,
+      "name": "UserMaxDeposit",
+      "msg": "Can not deposit more than max deposit"
+    },
+    {
+      "code": 6036,
+      "name": "CantDeleteUserWithCollateral",
+      "msg": "Can not delete user that still has collateral"
+    },
+    {
+      "code": 6037,
+      "name": "InvalidFundingProfitability",
+      "msg": "AMM funding out of bounds pnl"
+    },
+    {
+      "code": 6038,
+      "name": "CastingFailure",
+      "msg": "Casting Failure"
+    },
+    {
+      "code": 6039,
+      "name": "InvalidOrder",
+      "msg": "Invalid Order"
+    },
+    {
+      "code": 6040,
+      "name": "UserHasNoOrder",
+      "msg": "User has no order"
+    },
+    {
+      "code": 6041,
+      "name": "OrderAmountTooSmall",
+      "msg": "Order Amount Too Small"
+    },
+    {
+      "code": 6042,
+      "name": "MaxNumberOfOrders",
+      "msg": "Max number of orders taken"
+    },
+    {
+      "code": 6043,
+      "name": "OrderDoesNotExist",
+      "msg": "Order does not exist"
+    },
+    {
+      "code": 6044,
+      "name": "OrderNotOpen",
+      "msg": "Order not open"
+    },
+    {
+      "code": 6045,
+      "name": "CouldNotFillOrder",
+      "msg": "CouldNotFillOrder"
+    },
+    {
+      "code": 6046,
+      "name": "ReduceOnlyOrderIncreasedRisk",
+      "msg": "Reduce only order increased risk"
+    },
+    {
+      "code": 6047,
+      "name": "OrderStateAlreadyInitialized",
+      "msg": "Order state already initialized"
+    },
+    {
+      "code": 6048,
+      "name": "UnableToLoadAccountLoader",
+      "msg": "Unable to load AccountLoader"
+    },
+    {
+      "code": 6049,
+      "name": "TradeSizeTooLarge",
+      "msg": "Trade Size Too Large"
+    },
+    {
+      "code": 6050,
+      "name": "UnableToWriteToRemainingAccount",
+      "msg": "Unable to write to remaining account"
+    },
+    {
+      "code": 6051,
+      "name": "UserCantReferThemselves",
+      "msg": "User cant refer themselves"
+    },
+    {
+      "code": 6052,
+      "name": "DidNotReceiveExpectedReferrer",
+      "msg": "Did not receive expected referrer"
+    },
+    {
+      "code": 6053,
+      "name": "CouldNotDeserializeReferrer",
+      "msg": "Could not deserialize referrer"
+    },
+    {
+      "code": 6054,
+      "name": "MarketOrderMustBeInPlaceAndFill",
+      "msg": "Market order must be in place and fill"
+    },
+    {
+      "code": 6055,
+      "name": "UserOrderIdAlreadyInUse",
+      "msg": "User Order Id Already In Use"
+    },
+    {
+      "code": 6056,
+      "name": "NoPositionsLiquidatable",
+      "msg": "No positions liquidatable"
+    },
+    {
+      "code": 6057,
+      "name": "InvalidMarginRatio",
+      "msg": "Invalid Margin Ratio"
+    },
+    {
+      "code": 6058,
+      "name": "CantCancelPostOnlyOrder",
+      "msg": "Cant Cancel Post Only Order"
+    },
+    {
+      "code": 6059,
+      "name": "InvalidOracleOffset",
+      "msg": "InvalidOracleOffset"
+    },
+    {
+      "code": 6060,
+      "name": "CantExpireOrders",
+      "msg": "CantExpireOrders"
+    },
+    {
+      "code": 6061,
+      "name": "UserMustForgoSettlement",
+      "msg": "UserMustForgoSettlement"
+    },
+    {
+      "code": 6062,
+      "name": "NoAvailableCollateralToBeClaimed",
+      "msg": "NoAvailableCollateralToBeClaimed"
+    },
+    {
+      "code": 6063,
+      "name": "SettlementNotEnabled",
+      "msg": "SettlementNotEnabled"
+    },
+    {
+      "code": 6064,
+      "name": "MustCallSettlePositionFirst",
+      "msg": "MustCallSettlePositionFirst"
     }
   ]
 }

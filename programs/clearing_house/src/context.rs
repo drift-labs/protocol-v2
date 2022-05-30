@@ -124,8 +124,10 @@ pub struct InitializeUser<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
         init,
-        payer = authority,
+        seeds = [b"user_positions", user.as_ref().key().as_ref()],
         space = 1072 + 8,
+        bump,
+        payer = authority
     )]
     pub user_positions: AccountLoader<'info, UserPositions>,
     #[account(mut)]

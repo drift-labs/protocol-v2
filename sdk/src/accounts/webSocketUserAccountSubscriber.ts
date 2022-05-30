@@ -11,6 +11,7 @@ import { PublicKey } from '@solana/web3.js';
 import {
 	getUserAccountPublicKey,
 	getUserOrdersAccountPublicKey,
+	getUserPositionsAccountPublicKey,
 } from '../addresses';
 import { WebSocketAccountSubscriber } from './webSocketAccountSubscriber';
 import { UserAccount, UserOrdersAccount, UserPositionsAccount } from '../types';
@@ -54,11 +55,15 @@ export class WebSocketUserAccountSubscriber implements UserAccountSubscriber {
 			this.eventEmitter.emit('update');
 		});
 
-		const userAccountData = this.userDataAccountSubscriber.data;
+		const userPositionsPublicKey = await getUserPositionsAccountPublicKey(
+			this.program.programId,
+			userPublicKey
+		);
+
 		this.userPositionsAccountSubscriber = new WebSocketAccountSubscriber(
 			'userPositions',
 			this.program,
-			userAccountData.positions
+			userPositionsPublicKey
 		);
 
 		await this.userPositionsAccountSubscriber.subscribe(
