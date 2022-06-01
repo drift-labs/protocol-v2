@@ -167,14 +167,16 @@ describe('maker order', () => {
 
 		await fillerClearingHouse.fillOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
+			await clearingHouseUser.getUserPositionsAccountPublicKey(),
 			await clearingHouseUser.getUserOrdersAccountPublicKey(),
+			clearingHouseUser.getUserPositionsAccount(),
 			order
 		);
 
 		await clearingHouseUser.fetchAccounts();
 		const position = clearingHouseUser.getUserPosition(marketIndex);
 		assert(position.baseAssetAmount.eq(baseAssetAmount));
-		assert(position.quoteAssetAmount.eq(new BN(1000000)));
+		assert(position.quoteAssetAmount.eq(new BN(1000001)));
 		assert(
 			clearingHouseUser
 				.getUserAccount()
@@ -189,7 +191,7 @@ describe('maker order', () => {
 
 		assert(isVariant(orderRecord.action, 'fill'));
 		assert(orderRecord.fee.eq(new BN(-500)));
-		assert(orderRecord.quoteAssetAmountSurplus.eq(new BN(499999)));
+		assert(orderRecord.quoteAssetAmountSurplus.eq(new BN(500000)));
 
 		await clearingHouse.unsubscribe();
 		await clearingHouseUser.unsubscribe();
@@ -253,7 +255,9 @@ describe('maker order', () => {
 
 		await fillerClearingHouse.fillOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
+			await clearingHouseUser.getUserPositionsAccountPublicKey(),
 			await clearingHouseUser.getUserOrdersAccountPublicKey(),
+			clearingHouseUser.getUserPositionsAccount(),
 			order
 		);
 

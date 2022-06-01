@@ -139,6 +139,10 @@ pub enum ErrorCode {
     UnexpectedMarket,
     #[msg("MarketWrongMutability")]
     MarketWrongMutability,
+    #[msg("UnableToWriteMarket")]
+    UnableToWriteMarket,
+    #[msg("InvalidMarketIndex")]
+    InvalidMarketIndex,
 }
 
 #[macro_export]

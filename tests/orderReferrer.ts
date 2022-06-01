@@ -18,11 +18,17 @@ import {
 } from '../sdk/src';
 
 import { mockOracle, mockUSDCMint, mockUserUSDCAccount } from './testHelpers';
-import { AMM_RESERVE_PRECISION } from '../sdk';
+import {
+	AMM_RESERVE_PRECISION,
+	getUserPositionsAccountPublicKey,
+} from '../sdk';
 import { AccountInfo, Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
 describe('order referrer', () => {
-	const provider = anchor.AnchorProvider.local();
+	const provider = anchor.AnchorProvider.local(undefined, {
+		preflightCommitment: 'confirmed',
+		commitment: 'confirmed',
+	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.ClearingHouse as Program;
@@ -31,6 +37,7 @@ describe('order referrer', () => {
 	let clearingHouseUser: ClearingHouseUser;
 
 	let userAccountPublicKey: PublicKey;
+	let userPositionsAccountPublicKey: PublicKey;
 	let userOrdersAccountPublicKey: PublicKey;
 
 	let usdcMint;
@@ -72,7 +79,10 @@ describe('order referrer', () => {
 		clearingHouse = Admin.from(
 			connection,
 			provider.wallet,
-			chProgram.programId
+			chProgram.programId,
+			{
+				commitment: 'confirmed',
+			}
 		);
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribeToAll();
@@ -103,6 +113,11 @@ describe('order referrer', () => {
 				usdcAmount,
 				userUSDCAccount.publicKey
 			);
+
+		userPositionsAccountPublicKey = await getUserPositionsAccountPublicKey(
+			clearingHouse.program.programId,
+			userAccountPublicKey
+		);
 
 		userOrdersAccountPublicKey = await getUserOrdersAccountPublicKey(
 			clearingHouse.program.programId,
@@ -149,7 +164,10 @@ describe('order referrer', () => {
 		fillerClearingHouse = ClearingHouse.from(
 			connection,
 			new Wallet(fillerKeyPair),
-			chProgram.programId
+			chProgram.programId,
+			{
+				commitment: 'confirmed',
+			}
 		);
 		await fillerClearingHouse.subscribe();
 
@@ -231,7 +249,9 @@ describe('order referrer', () => {
 
 		await fillerClearingHouse.fillOrder(
 			userAccountPublicKey,
+			userPositionsAccountPublicKey,
 			userOrdersAccountPublicKey,
+			clearingHouseUser.getUserPositionsAccount(),
 			order
 		);
 

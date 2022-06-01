@@ -11,7 +11,8 @@ use crate::math::orders::calculate_quote_asset_amount_for_maker_order;
 use crate::math::pnl::calculate_pnl;
 use crate::math::position::calculate_base_asset_value_and_pnl;
 use crate::math_error;
-use crate::{Market, MarketPosition, User, UserPositions};
+use crate::state::market::Market;
+use crate::{MarketPosition, User, UserPositions};
 use solana_program::msg;
 use std::cell::RefMut;
 

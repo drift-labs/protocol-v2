@@ -41,11 +41,6 @@
           "isSigner": false
         },
         {
-          "name": "markets",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
           "name": "rent",
           "isMut": false,
           "isSigner": false
@@ -177,7 +172,7 @@
         },
         {
           "name": "state",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -347,11 +342,6 @@
           "isSigner": false
         },
         {
-          "name": "markets",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
           "name": "userPositions",
           "isMut": true,
           "isSigner": false
@@ -391,11 +381,6 @@
           "name": "authority",
           "isMut": false,
           "isSigner": true
-        },
-        {
-          "name": "markets",
-          "isMut": true,
-          "isSigner": false
         },
         {
           "name": "userPositions",
@@ -469,11 +454,6 @@
           "isSigner": true
         },
         {
-          "name": "markets",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
           "name": "userPositions",
           "isMut": true,
           "isSigner": false
@@ -536,11 +516,6 @@
           "isSigner": true
         },
         {
-          "name": "markets",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
           "name": "userPositions",
           "isMut": true,
           "isSigner": false
@@ -548,6 +523,11 @@
         {
           "name": "userOrders",
           "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "oracle",
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -594,11 +574,6 @@
           "isSigner": true
         },
         {
-          "name": "markets",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
           "name": "userPositions",
           "isMut": true,
           "isSigner": false
@@ -606,6 +581,11 @@
         {
           "name": "userOrders",
           "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "oracle",
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -650,11 +630,6 @@
           "isSigner": true
         },
         {
-          "name": "markets",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
           "name": "userPositions",
           "isMut": true,
           "isSigner": false
@@ -662,6 +637,11 @@
         {
           "name": "userOrders",
           "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "oracle",
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -704,11 +684,6 @@
           "name": "authority",
           "isMut": false,
           "isSigner": true
-        },
-        {
-          "name": "markets",
-          "isMut": false,
-          "isSigner": false
         },
         {
           "name": "userPositions",
@@ -760,11 +735,6 @@
           "name": "authority",
           "isMut": false,
           "isSigner": true
-        },
-        {
-          "name": "markets",
-          "isMut": false,
-          "isSigner": false
         },
         {
           "name": "userPositions",
@@ -879,11 +849,6 @@
           "isSigner": false
         },
         {
-          "name": "markets",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
           "name": "userPositions",
           "isMut": true,
           "isSigner": false
@@ -953,11 +918,6 @@
           "name": "authority",
           "isMut": false,
           "isSigner": true
-        },
-        {
-          "name": "markets",
-          "isMut": true,
-          "isSigner": false
         },
         {
           "name": "userPositions",
@@ -1058,11 +1018,6 @@
           "isSigner": false
         },
         {
-          "name": "markets",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
           "name": "userPositions",
           "isMut": true,
           "isSigner": false
@@ -1099,7 +1054,7 @@
           "isSigner": true
         },
         {
-          "name": "markets",
+          "name": "market",
           "isMut": true,
           "isSigner": false
         }
@@ -1112,10 +1067,6 @@
         {
           "name": "quoteAssetReserve",
           "type": "u128"
-        },
-        {
-          "name": "marketIndex",
-          "type": "u64"
         }
       ]
     },
@@ -1143,7 +1094,7 @@
           "isSigner": false
         },
         {
-          "name": "markets",
+          "name": "market",
           "isMut": true,
           "isSigner": false
         },
@@ -1159,10 +1110,6 @@
         }
       ],
       "args": [
-        {
-          "name": "marketIndex",
-          "type": "u64"
-        },
         {
           "name": "amount",
           "type": "u64"
@@ -1219,7 +1166,7 @@
           "isSigner": false
         },
         {
-          "name": "markets",
+          "name": "market",
           "isMut": true,
           "isSigner": false
         },
@@ -1251,10 +1198,6 @@
       ],
       "args": [
         {
-          "name": "marketIndex",
-          "type": "u64"
-        },
-        {
           "name": "amount",
           "type": "u64"
         }
@@ -1269,7 +1212,7 @@
           "isSigner": false
         },
         {
-          "name": "markets",
+          "name": "market",
           "isMut": true,
           "isSigner": false
         },
@@ -1293,10 +1236,6 @@
         {
           "name": "newPegCandidate",
           "type": "u128"
-        },
-        {
-          "name": "marketIndex",
-          "type": "u64"
         }
       ]
     },
@@ -1309,7 +1248,7 @@
           "isSigner": false
         },
         {
-          "name": "markets",
+          "name": "market",
           "isMut": true,
           "isSigner": false
         },
@@ -1329,12 +1268,7 @@
           "isSigner": false
         }
       ],
-      "args": [
-        {
-          "name": "marketIndex",
-          "type": "u64"
-        }
-      ]
+      "args": []
     },
     {
       "name": "resetAmmOracleTwap",
@@ -1345,7 +1279,7 @@
           "isSigner": false
         },
         {
-          "name": "markets",
+          "name": "market",
           "isMut": true,
           "isSigner": false
         },
@@ -1365,12 +1299,7 @@
           "isSigner": false
         }
       ],
-      "args": [
-        {
-          "name": "marketIndex",
-          "type": "u64"
-        }
-      ]
+      "args": []
     },
     {
       "name": "initializeUser",
@@ -1572,7 +1501,7 @@
           "isSigner": false
         },
         {
-          "name": "markets",
+          "name": "market",
           "isMut": false,
           "isSigner": false
         },
@@ -1598,7 +1527,7 @@
           "isSigner": false
         },
         {
-          "name": "markets",
+          "name": "market",
           "isMut": true,
           "isSigner": false
         },
@@ -1634,7 +1563,7 @@
           "isSigner": false
         },
         {
-          "name": "markets",
+          "name": "market",
           "isMut": true,
           "isSigner": false
         },
@@ -1700,16 +1629,12 @@
           "isSigner": false
         },
         {
-          "name": "markets",
+          "name": "market",
           "isMut": true,
           "isSigner": false
         }
       ],
       "args": [
-        {
-          "name": "marketIndex",
-          "type": "u64"
-        },
         {
           "name": "marginRatioInitial",
           "type": "u32"
@@ -1929,16 +1854,12 @@
           "isSigner": false
         },
         {
-          "name": "markets",
+          "name": "market",
           "isMut": true,
           "isSigner": false
         }
       ],
       "args": [
-        {
-          "name": "marketIndex",
-          "type": "u64"
-        },
         {
           "name": "oracle",
           "type": "publicKey"
@@ -1965,16 +1886,12 @@
           "isSigner": false
         },
         {
-          "name": "markets",
+          "name": "market",
           "isMut": true,
           "isSigner": false
         }
       ],
       "args": [
-        {
-          "name": "marketIndex",
-          "type": "u64"
-        },
         {
           "name": "minimumTradeSize",
           "type": "u128"
@@ -1995,16 +1912,12 @@
           "isSigner": false
         },
         {
-          "name": "markets",
+          "name": "market",
           "isMut": true,
           "isSigner": false
         }
       ],
       "args": [
-        {
-          "name": "marketIndex",
-          "type": "u64"
-        },
         {
           "name": "baseSpread",
           "type": "u16"
@@ -2025,16 +1938,12 @@
           "isSigner": false
         },
         {
-          "name": "markets",
+          "name": "market",
           "isMut": true,
           "isSigner": false
         }
       ],
       "args": [
-        {
-          "name": "marketIndex",
-          "type": "u64"
-        },
         {
           "name": "minimumTradeSize",
           "type": "u128"
@@ -2383,7 +2292,7 @@
             "type": {
               "array": [
                 {
-                  "defined": "Market"
+                  "defined": "DeprecatedMarket"
                 },
                 64
               ]
@@ -2393,7 +2302,7 @@
       }
     },
     {
-      "name": "Market2",
+      "name": "Market",
       "type": {
         "kind": "struct",
         "fields": [
@@ -2404,6 +2313,12 @@
           {
             "name": "initialized",
             "type": "bool"
+          },
+          {
+            "name": "amm",
+            "type": {
+              "defined": "AMM"
+            }
           },
           {
             "name": "baseAssetAmountLong",
@@ -2420,12 +2335,6 @@
           {
             "name": "openInterest",
             "type": "u128"
-          },
-          {
-            "name": "amm",
-            "type": {
-              "defined": "AMM"
-            }
           },
           {
             "name": "marginRatioInitial",
@@ -2567,10 +2476,6 @@
             "type": "u8"
           },
           {
-            "name": "markets",
-            "type": "publicKey"
-          },
-          {
             "name": "marginRatioInitial",
             "type": "u128"
           },
@@ -2645,6 +2550,10 @@
           {
             "name": "orderState",
             "type": "publicKey"
+          },
+          {
+            "name": "numberOfMarkets",
+            "type": "u64"
           },
           {
             "name": "padding0",
@@ -3428,17 +3337,13 @@
       }
     },
     {
-      "name": "Market",
+      "name": "DeprecatedMarket",
       "type": {
         "kind": "struct",
         "fields": [
           {
             "name": "initialized",
             "type": "bool"
-          },
-          {
-            "name": "marketIndex",
-            "type": "u64"
           },
           {
             "name": "baseAssetAmountLong",
@@ -4517,6 +4422,16 @@
       "code": 6067,
       "name": "MarketWrongMutability",
       "msg": "MarketWrongMutability"
+    },
+    {
+      "code": 6068,
+      "name": "UnableToWriteMarket",
+      "msg": "UnableToWriteMarket"
+    },
+    {
+      "code": 6069,
+      "name": "InvalidMarketIndex",
+      "msg": "InvalidMarketIndex"
     }
   ]
 }

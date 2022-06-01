@@ -46,8 +46,7 @@ async function updateFundingRateHelper(
 		const newprice = prices[i];
 		setFeedPrice(anchor.workspace.Pyth, newprice, priceFeedAddress);
 
-		const marketsAccount0 = await clearingHouse.getMarketsAccount();
-		const marketData0 = marketsAccount0.markets[marketIndex.toNumber()];
+		const marketData0 = clearingHouse.getMarket(marketIndex);
 		const ammAccountState0 = marketData0.amm;
 		const oraclePx0 = await getFeedData(
 			anchor.workspace.Pyth,
@@ -85,8 +84,7 @@ async function updateFundingRateHelper(
 		const CONVERSION_SCALE =
 			FUNDING_PAYMENT_PRECISION.mul(MARK_PRICE_PRECISION);
 
-		const marketsAccount = await clearingHouse.getMarketsAccount();
-		const marketData = marketsAccount.markets[marketIndex.toNumber()];
+		const marketData = clearingHouse.getMarket(marketIndex);
 		const ammAccountState = marketData.amm;
 		const peroidicity = marketData.amm.fundingPeriod;
 
@@ -323,8 +321,7 @@ describe('pyth-oracle', () => {
 			marketIndex
 		);
 
-		const market =
-			clearingHouse.getMarketsAccount().markets[marketIndex.toNumber()];
+		const market = clearingHouse.getMarket(marketIndex);
 
 		await updateFundingRateHelper(
 			clearingHouse,
@@ -333,8 +330,7 @@ describe('pyth-oracle', () => {
 			[41.501, 41.499]
 		);
 
-		const marketNew =
-			clearingHouse.getMarketsAccount().markets[marketIndex.toNumber()];
+		const marketNew = clearingHouse.getMarket(marketIndex);
 
 		const fundingRateLong = marketNew.amm.cumulativeFundingRateLong.sub(
 			market.amm.cumulativeFundingRateLong
@@ -352,8 +348,7 @@ describe('pyth-oracle', () => {
 	it('new LONG trade above oracle-mark limit fails', async () => {
 		const marketIndex = new BN(1);
 
-		const market =
-			clearingHouse.getMarketsAccount().markets[marketIndex.toNumber()];
+		const market = clearingHouse.getMarket(marketIndex);
 		const baseAssetPriceWithMantissa = calculateMarkPrice(market);
 
 		const targetPriceDefaultSlippage = baseAssetPriceWithMantissa.add(

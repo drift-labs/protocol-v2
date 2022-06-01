@@ -1,6 +1,6 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
-import { BN, Market, ZERO } from '../sdk';
+import { BN, Market } from '../sdk';
 
 import { Program } from '@project-serum/anchor';
 import { getTokenAccount } from '@project-serum/common';
@@ -43,11 +43,9 @@ const calculateTradeAmount = (amountOfCollateral: BN) => {
 
 describe('clearing_house', () => {
 	const provider = anchor.AnchorProvider.local();
-	console.log('here');
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.ClearingHouse as Program;
-	console.log('here');
 
 	let clearingHouse: Admin;
 
@@ -69,7 +67,6 @@ describe('clearing_house', () => {
 	const usdcAmount = new BN(10 * 10 ** 6);
 
 	before(async () => {
-		console.log('here');
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
@@ -89,7 +86,6 @@ describe('clearing_house', () => {
 	});
 
 	it('Initialize State', async () => {
-		console.log('here');
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 
 		await clearingHouse.subscribeToAll();
@@ -118,9 +114,6 @@ describe('clearing_house', () => {
 		);
 		assert.ok(state.insuranceVaultNonce == expectedInsuranceAccountNonce);
 
-		const marketsAccount = clearingHouse.getMarketsAccount();
-		assert.ok(marketsAccount.markets.length == 64);
-
 		const fundingRateHistory = clearingHouse.getFundingPaymentHistoryAccount();
 		assert.ok(fundingRateHistory.head.toNumber() === 0);
 		assert.ok(fundingRateHistory.fundingPaymentRecords.length === 1024);
@@ -135,7 +128,7 @@ describe('clearing_house', () => {
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		const marketIndex = Markets[0].marketIndex;
-		await clearingHouse.initializeMarket(
+		const txSig = await clearingHouse.initializeMarket(
 			marketIndex,
 			solUsd,
 			ammInitialBaseAssetAmount,
@@ -143,11 +136,17 @@ describe('clearing_house', () => {
 			periodicity
 		);
 
+		console.log(
+			'tx logs',
+			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
+				.logMessages
+		);
+
 		const marketPublicKey = await getMarketPublicKey(
 			clearingHouse.program.programId,
 			marketIndex
 		);
-		const market = (await clearingHouse.program.account.market2.fetch(
+		const market = (await clearingHouse.program.account.market.fetch(
 			marketPublicKey
 		)) as Market;
 
@@ -156,6 +155,7 @@ describe('clearing_house', () => {
 		assert.ok(market.openInterest.eq(new BN(0)));
 
 		const ammD = market.amm;
+		console.log(ammD.oracle.toString());
 		assert.ok(ammD.oracle.equals(solUsd));
 		assert.ok(ammD.baseAssetReserve.eq(ammInitialBaseAssetAmount));
 		assert.ok(ammD.quoteAssetReserve.eq(ammInitialQuoteAssetAmount));
@@ -287,10 +287,15 @@ describe('clearing_house', () => {
 
 		const marketIndex = new BN(0);
 		const incrementalUSDCNotionalAmount = calculateTradeAmount(usdcAmount);
-		await clearingHouse.openPosition(
+		const txSig = await clearingHouse.openPosition(
 			PositionDirection.LONG,
 			incrementalUSDCNotionalAmount,
 			marketIndex
+		);
+		console.log(
+			'tx logs',
+			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
+				.logMessages
 		);
 
 		const user: any = await clearingHouse.program.account.user.fetch(
@@ -314,12 +319,12 @@ describe('clearing_house', () => {
 			)
 		);
 
-		const marketsAccount = clearingHouse.getMarketsAccount();
-
-		const market = marketsAccount.markets[0];
+		const market = clearingHouse.getMarket(0);
 		console.log(market.baseAssetAmount.toNumber());
+		console.log(market);
 
 		assert.ok(market.baseAssetAmount.eq(new BN(497450503674885)));
+		console.log(market.amm.totalFee.toString());
 		assert.ok(market.amm.totalFee.eq(new BN(49750)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(49750)));
 
@@ -435,8 +440,7 @@ describe('clearing_house', () => {
 		assert(user.totalFeePaid.eq(new BN(74625)));
 		assert(user.cumulativeDeposits.eq(usdcAmount));
 
-		const marketsAccount = clearingHouse.getMarketsAccount();
-		const market: any = marketsAccount.markets[0];
+		const market = clearingHouse.getMarket(0);
 		assert.ok(market.baseAssetAmount.eq(new BN(248737625303142)));
 		assert.ok(market.amm.totalFee.eq(new BN(74625)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(74625)));
@@ -491,8 +495,7 @@ describe('clearing_house', () => {
 			)
 		);
 
-		const marketsAccount = clearingHouse.getMarketsAccount();
-		const market: any = marketsAccount.markets[0];
+		const market = clearingHouse.getMarket(0);
 		assert.ok(market.baseAssetAmount.eq(new BN(-248762375928202)));
 		assert.ok(market.amm.totalFee.eq(new BN(124375)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(124375)));
@@ -533,8 +536,7 @@ describe('clearing_house', () => {
 		assert.ok(user.collateral.eq(new BN(9850749)));
 		assert(user.totalFeePaid.eq(new BN(149250)));
 
-		const marketsAccount = clearingHouse.getMarketsAccount();
-		const market: any = marketsAccount.markets[0];
+		const market = clearingHouse.getMarket(0);
 		assert.ok(market.baseAssetAmount.eq(new BN(0)));
 		assert.ok(market.amm.totalFee.eq(new BN(149250)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(149250)));
@@ -585,8 +587,7 @@ describe('clearing_house', () => {
 			)
 		);
 
-		const marketsAccount = clearingHouse.getMarketsAccount();
-		const market: any = marketsAccount.markets[0];
+		const market = clearingHouse.getMarket(0);
 		assert.ok(market.baseAssetAmount.eq(new BN(-490122799362653)));
 
 		const tradeHistoryAccount = clearingHouse.getTradeHistoryAccount();
@@ -648,8 +649,7 @@ describe('clearing_house', () => {
 			convertToNumber(user0.collateral, QUOTE_PRECISION)
 		);
 
-		const marketsAccount: any = clearingHouse.getMarketsAccount();
-		const marketData = marketsAccount.markets[0];
+		const marketData = clearingHouse.getMarket(0);
 		await setFeedPrice(
 			anchor.workspace.Pyth,
 			convertToNumber(liqPrice),
@@ -790,8 +790,7 @@ describe('clearing_house', () => {
 		);
 		console.log(convertToNumber(liqPrice));
 
-		const marketsAccount: any = clearingHouse.getMarketsAccount();
-		const marketData = marketsAccount.markets[0];
+		const marketData = clearingHouse.getMarket(0);
 		await setFeedPrice(
 			anchor.workspace.Pyth,
 			convertToNumber(liqPrice),
@@ -908,8 +907,9 @@ describe('clearing_house', () => {
 
 	it('Pay from insurance fund', async () => {
 		const state: any = clearingHouse.getStateAccount();
-		const marketsAccount: any = clearingHouse.getMarketsAccount();
-		const marketData = marketsAccount.markets[0];
+		const marketData = clearingHouse.getMarket(0);
+
+		console.log(clearingHouse.getUserAccount().collateral.toString());
 
 		mintToInsuranceFund(state.insuranceVault, usdcMint, usdcAmount, provider);
 		let userUSDCTokenAccount = await getTokenAccount(
@@ -917,6 +917,10 @@ describe('clearing_house', () => {
 			userUSDCAccount.publicKey
 		);
 		console.log(userUSDCTokenAccount.amount);
+		console.log(
+			(await connection.getTokenAccountBalance(userUSDCAccount.publicKey)).value
+				.uiAmount
+		);
 		await mintToInsuranceFund(userUSDCAccount, usdcMint, usdcAmount, provider);
 
 		userUSDCTokenAccount = await getTokenAccount(

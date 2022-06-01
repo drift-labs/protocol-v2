@@ -279,6 +279,7 @@ describe('idempotent curve', () => {
 				usdcAmount,
 				userUSDCAccount.publicKey
 			);
+		await clearingHouse.fetchAccounts();
 
 		const marketIndex = new BN(0);
 		await clearingHouse.openPosition(

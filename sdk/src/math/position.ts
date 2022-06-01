@@ -121,6 +121,10 @@ export function calculatePositionFundingPNL(
 	return perPositionFundingRate;
 }
 
+export function positionIsAvailable(position: UserPosition): boolean {
+	return position.baseAssetAmount.eq(ZERO) && position.openOrders.eq(ZERO);
+}
+
 /**
  *
  * @param userPosition

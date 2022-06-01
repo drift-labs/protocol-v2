@@ -113,6 +113,7 @@ describe('round in favor', () => {
 				usdcAmount,
 				userUSDCAccount.publicKey
 			);
+		await clearingHouse.fetchAccounts();
 
 		const marketIndex = new BN(0);
 		const baseAssetAmount = new BN(7896402480);
@@ -161,6 +162,7 @@ describe('round in favor', () => {
 				usdcAmount,
 				userUSDCAccount.publicKey
 			);
+		await clearingHouse.fetchAccounts();
 
 		const marketIndex = new BN(0);
 		const baseAssetAmount = new BN(7895668982);

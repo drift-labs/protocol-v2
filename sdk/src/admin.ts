@@ -19,7 +19,7 @@ import {
 	getClearingHouseStateAccountPublicKeyAndNonce,
 	getMarketPublicKey,
 	getOrderStateAccountPublicKeyAndNonce,
-} from './addresses';
+} from './addresses/pda';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { ClearingHouse } from './clearingHouse';
 import { PEG_PRECISION } from './constants/numericConstants';
@@ -83,7 +83,6 @@ export class Admin extends ClearingHouse {
 				this.program.programId
 			);
 
-		const markets = anchor.web3.Keypair.generate();
 		const depositHistory = anchor.web3.Keypair.generate();
 		const fundingRateHistory = anchor.web3.Keypair.generate();
 		const fundingPaymentHistory = anchor.web3.Keypair.generate();
@@ -109,20 +108,16 @@ export class Admin extends ClearingHouse {
 					collateralVaultAuthority: collateralVaultAuthority,
 					insuranceVault: insuranceVaultPublicKey,
 					insuranceVaultAuthority: insuranceVaultAuthority,
-					markets: markets.publicKey,
 					rent: SYSVAR_RENT_PUBKEY,
 					systemProgram: anchor.web3.SystemProgram.programId,
 					tokenProgram: TOKEN_PROGRAM_ID,
 				},
-				instructions: [
-					await this.program.account.markets.createInstruction(markets),
-				],
 			}
 		);
 
 		const initializeTxSig = await this.txSender.send(
 			initializeTx,
-			[markets],
+			[],
 			this.opts
 		);
 
@@ -257,16 +252,19 @@ export class Admin extends ClearingHouse {
 		quoteAssetReserve: BN,
 		marketIndex: BN
 	): Promise<TransactionSignature> {
-		const state = this.getStateAccount();
+		const marketPublicKey = await getMarketPublicKey(
+			this.program.programId,
+			marketIndex
+		);
+
 		return await this.program.rpc.moveAmmPrice(
 			baseAssetReserve,
 			quoteAssetReserve,
-			marketIndex,
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
 					admin: this.wallet.publicKey,
-					markets: state.markets,
+					market: marketPublicKey,
 				},
 			}
 		);
@@ -277,17 +275,13 @@ export class Admin extends ClearingHouse {
 		marketIndex: BN
 	): Promise<TransactionSignature> {
 		const state = this.getStateAccount();
-		const markets = this.getMarketsAccount();
-		const marketData = markets.markets[marketIndex.toNumber()];
-		const ammData = marketData.amm;
-
 		return await this.program.rpc.updateK(sqrtK, marketIndex, {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				admin: this.wallet.publicKey,
-				markets: state.markets,
+				market: await getMarketPublicKey(this.program.programId, marketIndex),
 				curveHistory: state.extendedCurveHistory,
-				oracle: ammData.oracle,
+				oracle: this.getMarket(marketIndex).amm.oracle,
 			},
 		});
 	}
@@ -331,16 +325,19 @@ export class Admin extends ClearingHouse {
 				getSwapDirection('quote', direction)
 			);
 
-		const state = this.getStateAccount();
+		const marketPublicKey = await getMarketPublicKey(
+			this.program.programId,
+			marketIndex
+		);
+
 		return await this.program.rpc.moveAmmPrice(
 			newBaseAssetAmount,
 			newQuoteAssetAmount,
-			marketIndex,
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
 					admin: this.wallet.publicKey,
-					markets: state.markets,
+					market: marketPublicKey,
 				},
 			}
 		);
@@ -351,16 +348,18 @@ export class Admin extends ClearingHouse {
 		marketIndex: BN
 	): Promise<TransactionSignature> {
 		const state = this.getStateAccount();
-		const markets = this.getMarketsAccount();
-		const marketData = markets.markets[marketIndex.toNumber()];
-		const ammData = marketData.amm;
+		const marketPublicKey = await getMarketPublicKey(
+			this.program.programId,
+			marketIndex
+		);
+		const ammData = this.getMarket(marketIndex).amm;
 
-		return await this.program.rpc.repegAmmCurve(newPeg, marketIndex, {
+		return await this.program.rpc.repegAmmCurve(newPeg, {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				admin: this.wallet.publicKey,
 				oracle: ammData.oracle,
-				markets: state.markets,
+				market: marketPublicKey,
 				curveHistory: state.extendedCurveHistory,
 			},
 		});
@@ -370,16 +369,18 @@ export class Admin extends ClearingHouse {
 		marketIndex: BN
 	): Promise<TransactionSignature> {
 		const state = this.getStateAccount();
-		const markets = this.getMarketsAccount();
-		const marketData = markets.markets[marketIndex.toNumber()];
-		const ammData = marketData.amm;
+		const ammData = this.getMarket(marketIndex).amm;
+		const marketPublicKey = await getMarketPublicKey(
+			this.program.programId,
+			marketIndex
+		);
 
-		return await this.program.rpc.updateAmmOracleTwap(marketIndex, {
+		return await this.program.rpc.updateAmmOracleTwap({
 			accounts: {
 				state: await this.getStatePublicKey(),
 				admin: this.wallet.publicKey,
 				oracle: ammData.oracle,
-				markets: state.markets,
+				market: marketPublicKey,
 				curveHistory: state.extendedCurveHistory,
 			},
 		});
@@ -389,16 +390,18 @@ export class Admin extends ClearingHouse {
 		marketIndex: BN
 	): Promise<TransactionSignature> {
 		const state = this.getStateAccount();
-		const markets = this.getMarketsAccount();
-		const marketData = markets.markets[marketIndex.toNumber()];
-		const ammData = marketData.amm;
+		const ammData = this.getMarket(marketIndex).amm;
+		const marketPublicKey = await getMarketPublicKey(
+			this.program.programId,
+			marketIndex
+		);
 
-		return await this.program.rpc.resetAmmOracleTwap(marketIndex, {
+		return await this.program.rpc.resetAmmOracleTwap({
 			accounts: {
 				state: await this.getStatePublicKey(),
 				admin: this.wallet.publicKey,
 				oracle: ammData.oracle,
-				markets: state.markets,
+				market: marketPublicKey,
 				curveHistory: state.extendedCurveHistory,
 			},
 		});
@@ -426,12 +429,16 @@ export class Admin extends ClearingHouse {
 		amount: BN,
 		recipient: PublicKey
 	): Promise<TransactionSignature> {
+		const marketPublicKey = await getMarketPublicKey(
+			this.program.programId,
+			marketIndex
+		);
 		const state = await this.getStateAccount();
-		return await this.program.rpc.withdrawFees(marketIndex, amount, {
+		return await this.program.rpc.withdrawFees(amount, {
 			accounts: {
 				admin: this.wallet.publicKey,
 				state: await this.getStatePublicKey(),
-				markets: state.markets,
+				market: marketPublicKey,
 				collateralVault: state.collateralVault,
 				collateralVaultAuthority: state.collateralVaultAuthority,
 				recipient: recipient,
@@ -445,21 +452,17 @@ export class Admin extends ClearingHouse {
 		amount: BN
 	): Promise<TransactionSignature> {
 		const state = await this.getStateAccount();
-		return await this.program.rpc.withdrawFromInsuranceVaultToMarket(
-			marketIndex,
-			amount,
-			{
-				accounts: {
-					admin: this.wallet.publicKey,
-					state: await this.getStatePublicKey(),
-					markets: state.markets,
-					insuranceVault: state.insuranceVault,
-					insuranceVaultAuthority: state.insuranceVaultAuthority,
-					collateralVault: state.collateralVault,
-					tokenProgram: TOKEN_PROGRAM_ID,
-				},
-			}
-		);
+		return await this.program.rpc.withdrawFromInsuranceVaultToMarket(amount, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				market: await getMarketPublicKey(this.program.programId, marketIndex),
+				insuranceVault: state.insuranceVault,
+				insuranceVaultAuthority: state.insuranceVaultAuthority,
+				collateralVault: state.collateralVault,
+				tokenProgram: TOKEN_PROGRAM_ID,
+			},
+		});
 	}
 
 	public async updateAdmin(admin: PublicKey): Promise<TransactionSignature> {
@@ -478,7 +481,6 @@ export class Admin extends ClearingHouse {
 		marginRatioMaintenance: number
 	): Promise<TransactionSignature> {
 		return await this.program.rpc.updateMarginRatio(
-			marketIndex,
 			marginRatioInitial,
 			marginRatioPartial,
 			marginRatioMaintenance,
@@ -486,7 +488,7 @@ export class Admin extends ClearingHouse {
 				accounts: {
 					admin: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
-					markets: this.getStateAccount().markets,
+					market: await getMarketPublicKey(this.program.programId, marketIndex),
 				},
 			}
 		);
@@ -496,17 +498,13 @@ export class Admin extends ClearingHouse {
 		marketIndex: BN,
 		baseSpread: number
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateMarketBaseSpread(
-			marketIndex,
-			baseSpread,
-			{
-				accounts: {
-					admin: this.wallet.publicKey,
-					state: await this.getStatePublicKey(),
-					markets: this.getStateAccount().markets,
-				},
-			}
-		);
+		return await this.program.rpc.updateMarketBaseSpread(baseSpread, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				market: await getMarketPublicKey(this.program.programId, marketIndex),
+			},
+		});
 	}
 
 	public async updatePartialLiquidationClosePercentage(
@@ -625,34 +623,26 @@ export class Admin extends ClearingHouse {
 		oracle: PublicKey,
 		oracleSource: OracleSource
 	): Promise<TransactionSignature> {
-		const state = this.getStateAccount();
-		return await this.program.rpc.updateMarketOracle(
-			marketIndex,
-			oracle,
-			oracleSource,
-			{
-				accounts: {
-					admin: this.wallet.publicKey,
-					state: await this.getStatePublicKey(),
-					markets: state.markets,
-				},
-			}
-		);
+		return await this.program.rpc.updateMarketOracle(oracle, oracleSource, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				market: await getMarketPublicKey(this.program.programId, marketIndex),
+			},
+		});
 	}
 
 	public async updateMarketMinimumQuoteAssetTradeSize(
 		marketIndex: BN,
 		minimumTradeSize: BN
 	): Promise<TransactionSignature> {
-		const state = this.getStateAccount();
 		return await this.program.rpc.updateMarketMinimumQuoteAssetTradeSize(
-			marketIndex,
 			minimumTradeSize,
 			{
 				accounts: {
 					admin: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
-					markets: state.markets,
+					market: await getMarketPublicKey(this.program.programId, marketIndex),
 				},
 			}
 		);
@@ -662,15 +652,13 @@ export class Admin extends ClearingHouse {
 		marketIndex: BN,
 		minimumTradeSize: BN
 	): Promise<TransactionSignature> {
-		const state = this.getStateAccount();
 		return await this.program.rpc.updateMarketMinimumBaseAssetTradeSize(
-			marketIndex,
 			minimumTradeSize,
 			{
 				accounts: {
 					admin: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
-					markets: state.markets,
+					market: await getMarketPublicKey(this.program.programId, marketIndex),
 				},
 			}
 		);

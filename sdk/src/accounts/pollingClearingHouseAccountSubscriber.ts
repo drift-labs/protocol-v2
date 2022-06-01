@@ -5,7 +5,7 @@ import {
 	ClearingHouseAccountTypes,
 	NotSubscribedError,
 } from './types';
-import { Program } from '@project-serum/anchor';
+import { BN, Program } from '@project-serum/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import {
@@ -14,7 +14,7 @@ import {
 	FundingPaymentHistoryAccount,
 	FundingRateHistoryAccount,
 	LiquidationHistoryAccount,
-	MarketsAccount,
+	Market,
 	OrderHistoryAccount,
 	OrderStateAccount,
 	StateAccount,
@@ -25,10 +25,11 @@ import {
 } from '../types';
 import {
 	getClearingHouseStateAccountPublicKey,
+	getMarketPublicKey,
 	getUserAccountPublicKey,
 	getUserOrdersAccountPublicKey,
 	getUserPositionsAccountPublicKey,
-} from '../addresses';
+} from '../addresses/pda';
 import { BulkAccountLoader } from './bulkAccountLoader';
 import { capitalize } from './utils';
 import { ClearingHouseConfigType } from '../factory/clearingHouse';
@@ -54,7 +55,7 @@ export class PollingClearingHouseAccountSubscriber
 	errorCallbackId?: string;
 
 	state?: StateAccount;
-	markets?: MarketsAccount;
+	market = new Map<number, Market>();
 	orderState?: OrderStateAccount;
 	tradeHistory?: TradeHistoryAccount;
 	depositHistory?: DepositHistoryAccount;
@@ -140,12 +141,6 @@ export class PollingClearingHouseAccountSubscriber
 			key: 'state',
 			publicKey: accounts.state,
 			eventType: 'stateAccountUpdate',
-		});
-
-		this.accountsToPoll.set(accounts.markets.toString(), {
-			key: 'markets',
-			publicKey: accounts.markets,
-			eventType: 'marketsAccountUpdate',
 		});
 
 		this.accountsToPoll.set(accounts.orderState.toString(), {
@@ -251,6 +246,24 @@ export class PollingClearingHouseAccountSubscriber
 		};
 	}
 
+	async updateMarketAccountsToPoll(): Promise<boolean> {
+		for (let i = 0; i < 10; i++) {
+			const marketPublicKey = await getMarketPublicKey(
+				this.program.programId,
+				new BN(i)
+			);
+
+			this.accountsToPoll.set(marketPublicKey.toString(), {
+				key: 'market2',
+				publicKey: marketPublicKey,
+				eventType: 'marketAccountUpdate',
+				mapKey: i,
+			});
+		}
+
+		return true;
+	}
+
 	async getClearingHouseAccounts(): Promise<ClearingHouseAccounts> {
 		// Skip extra calls to rpc if we already know all the accounts
 		if (CLEARING_HOUSE_STATE_ACCOUNTS[this.program.programId.toString()]) {
@@ -267,7 +280,6 @@ export class PollingClearingHouseAccountSubscriber
 
 		const accounts = {
 			state: statePublicKey,
-			markets: state.markets,
 			orderState: state.orderState,
 			tradeHistory: state.tradeHistory,
 			depositHistory: state.depositHistory,
@@ -330,7 +342,12 @@ export class PollingClearingHouseAccountSubscriber
 				const account = this.program.account[
 					accountToPoll.key
 				].coder.accounts.decode(capitalize(accountToPoll.key), buffer);
-				this[accountToPoll.key] = account;
+				if (accountToPoll.mapKey) {
+					this[accountToPoll.key].set(accountToPoll.mapKey, account);
+				} else {
+					this[accountToPoll.key] = account;
+				}
+
 				// @ts-ignore
 				this.eventEmitter.emit(accountToPoll.eventType, account);
 				this.eventEmitter.emit('update');
@@ -443,9 +460,8 @@ export class PollingClearingHouseAccountSubscriber
 		return this.state;
 	}
 
-	public getMarketsAccount(): MarketsAccount {
-		this.assertIsSubscribed();
-		return this.markets;
+	public getMarketAccount(marketIndex: BN): Market | undefined {
+		return this.market.get(marketIndex.toNumber());
 	}
 
 	public getOrderStateAccount(): OrderStateAccount {
@@ -513,7 +529,6 @@ export class PollingClearingHouseAccountSubscriber
 
 type ClearingHouseAccounts = {
 	state: PublicKey;
-	markets: PublicKey;
 	orderState: PublicKey;
 	tradeHistory?: PublicKey;
 	depositHistory?: PublicKey;

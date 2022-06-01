@@ -19,7 +19,7 @@ use crate::math::constants::{
 };
 use crate::math::margin::calculate_free_collateral;
 use crate::math::quote_asset::asset_to_reserve_amount;
-use crate::state::market::Markets;
+use crate::state::market::MarketMap;
 use crate::state::user::{User, UserPositions};
 
 pub fn calculate_base_asset_amount_market_can_execute(
@@ -160,7 +160,7 @@ pub fn calculate_base_asset_amount_user_can_execute(
     user: &mut User,
     user_positions: &mut RefMut<UserPositions>,
     order: &mut Order,
-    markets: &mut RefMut<Markets>,
+    market_map: &MarketMap,
     market_index: u64,
 ) -> ClearingHouseResult<u128> {
     let position_index = get_position_index(user_positions, market_index)?;
@@ -170,10 +170,10 @@ pub fn calculate_base_asset_amount_user_can_execute(
         order,
         position_index,
         user_positions,
-        markets,
+        market_map,
     )?;
 
-    let market = markets.get_market_mut(market_index);
+    let market = &mut market_map.get_ref_mut(&market_index)?;
 
     let swap_direction = match order.direction {
         PositionDirection::Long => SwapDirection::Add,
@@ -229,25 +229,28 @@ pub fn calculate_available_quote_asset_user_can_execute(
     order: &Order,
     position_index: usize,
     user_positions: &mut UserPositions,
-    markets: &Markets,
+    market_map: &MarketMap,
 ) -> ClearingHouseResult<u128> {
     let market_position = &user_positions.positions[position_index];
-    let market = markets.get_market(market_position.market_index);
-    let max_leverage = MARGIN_PRECISION
-        .checked_div(
-            // add one to initial margin ratio so we don't fill exactly to max leverage
-            cast_to_u128(market.margin_ratio_initial)?
-                .checked_add(1)
-                .ok_or_else(math_error!())?,
-        )
-        .ok_or_else(math_error!())?;
+    let max_leverage = {
+        let market = market_map.get_ref(&market_position.market_index)?;
+        MARGIN_PRECISION
+            .checked_div(
+                // add one to initial margin ratio so we don't fill exactly to max leverage
+                cast_to_u128(market.margin_ratio_initial)?
+                    .checked_add(1)
+                    .ok_or_else(math_error!())?,
+            )
+            .ok_or_else(math_error!())?
+    };
 
     let risk_increasing_in_same_direction = market_position.base_asset_amount == 0
         || market_position.base_asset_amount > 0 && order.direction == PositionDirection::Long
         || market_position.base_asset_amount < 0 && order.direction == PositionDirection::Short;
 
     let available_quote_asset_for_order = if risk_increasing_in_same_direction {
-        let (free_collateral, _) = calculate_free_collateral(user, user_positions, markets, None)?;
+        let (free_collateral, _) =
+            calculate_free_collateral(user, user_positions, market_map, None)?;
 
         free_collateral
             .checked_mul(max_leverage)
@@ -255,7 +258,7 @@ pub fn calculate_available_quote_asset_user_can_execute(
     } else {
         let market_index = market_position.market_index;
         let (free_collateral, closed_position_base_asset_value) =
-            calculate_free_collateral(user, user_positions, markets, Some(market_index))?;
+            calculate_free_collateral(user, user_positions, market_map, Some(market_index))?;
 
         free_collateral
             .checked_mul(max_leverage)

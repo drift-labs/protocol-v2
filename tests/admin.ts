@@ -266,10 +266,7 @@ describe('admin', () => {
 		);
 
 		await clearingHouse.fetchAccounts();
-		const market =
-			clearingHouse.getMarketsAccount().markets[
-				Markets[0].marketIndex.toNumber()
-			];
+		const market = clearingHouse.getMarket(0);
 		assert(market.amm.oracle.equals(PublicKey.default));
 		assert(
 			JSON.stringify(market.amm.oracleSource) ===
@@ -286,10 +283,7 @@ describe('admin', () => {
 		);
 
 		await clearingHouse.fetchAccounts();
-		const market =
-			clearingHouse.getMarketsAccount().markets[
-				Markets[0].marketIndex.toNumber()
-			];
+		const market = clearingHouse.getMarket(0);
 		assert(market.amm.minimumQuoteAssetTradeSize.eq(minimumTradeSize));
 	});
 
@@ -302,10 +296,7 @@ describe('admin', () => {
 		);
 
 		await clearingHouse.fetchAccounts();
-		const market =
-			clearingHouse.getMarketsAccount().markets[
-				Markets[0].marketIndex.toNumber()
-			];
+		const market = clearingHouse.getMarket(0);
 		assert(market.amm.minimumBaseAssetTradeSize.eq(minimumTradeSize));
 	});
 

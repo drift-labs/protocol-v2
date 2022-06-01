@@ -124,13 +124,7 @@ describe('cancel all orders', () => {
 			assert(isVariant(orderRecord.action, 'place'));
 		}
 
-		const markets = clearingHouse.getMarketsAccount();
-		const oracles = clearingHouseUser
-			.getUserPositionsAccount()
-			.positions.map((position) => {
-				return markets.markets[position.marketIndex.toString()].amm.oracle;
-			});
-		await clearingHouse.cancelAllOrders(oracles);
+		await clearingHouse.cancelAllOrders();
 
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
@@ -208,16 +202,8 @@ describe('cancel all orders', () => {
 			assert(isVariant(orderRecord.action, 'place'));
 		}
 
-		const markets = clearingHouse.getMarketsAccount();
-		const oracles = clearingHouseUser
-			.getUserPositionsAccount()
-			.positions.map((position) => {
-				return markets.markets[position.marketIndex.toString()].amm.oracle;
-			});
-
 		// cancel market_index=0, longs
 		await clearingHouse.cancelOrdersByMarketAndSide(
-			oracles,
 			true,
 			new BN(0),
 			PositionDirection.LONG
@@ -249,7 +235,6 @@ describe('cancel all orders', () => {
 
 		// cancel market_index=1, shorts (best effort!)
 		await clearingHouse.cancelOrdersByMarketAndSide(
-			oracles,
 			true,
 			new BN(1),
 			PositionDirection.SHORT

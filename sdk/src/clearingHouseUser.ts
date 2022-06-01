@@ -35,7 +35,7 @@ import {
 	BN,
 	getUserPositionsAccountPublicKey,
 } from '.';
-import { getUserAccountPublicKey } from './addresses';
+import { getUserAccountPublicKey } from './addresses/pda';
 import {
 	getClearingHouseUser,
 	getWebSocketClearingHouseUserConfig,
@@ -461,14 +461,12 @@ export class ClearingHouseUser {
 	 * @returns
 	 */
 	public needsToSettleFundingPayment(): boolean {
-		const marketsAccount = this.clearingHouse.getMarketsAccount();
 		for (const userPosition of this.getUserPositionsAccount().positions) {
 			if (userPosition.baseAssetAmount.eq(ZERO)) {
 				continue;
 			}
 
-			const market =
-				marketsAccount.markets[userPosition.marketIndex.toNumber()];
+			const market = this.clearingHouse.getMarket(userPosition.marketIndex);
 			if (
 				market.amm.cumulativeFundingRateLong.eq(
 					userPosition.lastCumulativeFundingRate

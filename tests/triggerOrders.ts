@@ -159,7 +159,9 @@ describe('trigger orders', () => {
 			// fill should fail since price is above trigger
 			await fillerClearingHouse.fillOrder(
 				await clearingHouseUser.getUserAccountPublicKey(),
+				await clearingHouseUser.getUserPositionsAccountPublicKey(),
 				await clearingHouseUser.getUserOrdersAccountPublicKey(),
+				clearingHouseUser.getUserPositionsAccount(),
 				order
 			);
 			assert(false);
@@ -176,7 +178,9 @@ describe('trigger orders', () => {
 
 		await fillerClearingHouse.fillOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
+			await clearingHouseUser.getUserPositionsAccountPublicKey(),
 			await clearingHouseUser.getUserOrdersAccountPublicKey(),
+			clearingHouseUser.getUserPositionsAccount(),
 			order
 		);
 
@@ -250,7 +254,9 @@ describe('trigger orders', () => {
 			// fill should fail since price is above trigger
 			await fillerClearingHouse.fillOrder(
 				await clearingHouseUser.getUserAccountPublicKey(),
+				await clearingHouseUser.getUserPositionsAccountPublicKey(),
 				await clearingHouseUser.getUserOrdersAccountPublicKey(),
+				clearingHouseUser.getUserPositionsAccount(),
 				order
 			);
 			assert(false);
@@ -267,7 +273,9 @@ describe('trigger orders', () => {
 
 		await fillerClearingHouse.fillOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
+			await clearingHouseUser.getUserPositionsAccountPublicKey(),
 			await clearingHouseUser.getUserOrdersAccountPublicKey(),
+			clearingHouseUser.getUserPositionsAccount(),
 			order
 		);
 
@@ -340,7 +348,9 @@ describe('trigger orders', () => {
 			// fill should fail since price is above trigger
 			await fillerClearingHouse.fillOrder(
 				await clearingHouseUser.getUserAccountPublicKey(),
+				await clearingHouseUser.getUserPositionsAccountPublicKey(),
 				await clearingHouseUser.getUserOrdersAccountPublicKey(),
+				clearingHouseUser.getUserPositionsAccount(),
 				order
 			);
 			assert(false);
@@ -357,7 +367,9 @@ describe('trigger orders', () => {
 
 		await fillerClearingHouse.fillOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
+			await clearingHouseUser.getUserPositionsAccountPublicKey(),
 			await clearingHouseUser.getUserOrdersAccountPublicKey(),
+			clearingHouseUser.getUserPositionsAccount(),
 			order
 		);
 
@@ -431,7 +443,9 @@ describe('trigger orders', () => {
 			// fill should fail since price is above trigger
 			await fillerClearingHouse.fillOrder(
 				await clearingHouseUser.getUserAccountPublicKey(),
+				await clearingHouseUser.getUserPositionsAccountPublicKey(),
 				await clearingHouseUser.getUserOrdersAccountPublicKey(),
+				clearingHouseUser.getUserPositionsAccount(),
 				order
 			);
 			assert(false);
@@ -448,7 +462,9 @@ describe('trigger orders', () => {
 
 		await fillerClearingHouse.fillOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
+			await clearingHouseUser.getUserPositionsAccountPublicKey(),
 			await clearingHouseUser.getUserOrdersAccountPublicKey(),
+			clearingHouseUser.getUserPositionsAccount(),
 			order
 		);
 
@@ -521,7 +537,9 @@ describe('trigger orders', () => {
 			// fill should fail since price is above trigger
 			await fillerClearingHouse.fillOrder(
 				await clearingHouseUser.getUserAccountPublicKey(),
+				await clearingHouseUser.getUserPositionsAccountPublicKey(),
 				await clearingHouseUser.getUserOrdersAccountPublicKey(),
+				clearingHouseUser.getUserPositionsAccount(),
 				order
 			);
 			assert(false);
@@ -538,7 +556,9 @@ describe('trigger orders', () => {
 
 		await fillerClearingHouse.fillOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
+			await clearingHouseUser.getUserPositionsAccountPublicKey(),
 			await clearingHouseUser.getUserOrdersAccountPublicKey(),
+			clearingHouseUser.getUserPositionsAccount(),
 			order
 		);
 
@@ -612,7 +632,9 @@ describe('trigger orders', () => {
 			// fill should fail since price is above trigger
 			await fillerClearingHouse.fillOrder(
 				await clearingHouseUser.getUserAccountPublicKey(),
+				await clearingHouseUser.getUserPositionsAccountPublicKey(),
 				await clearingHouseUser.getUserOrdersAccountPublicKey(),
+				clearingHouseUser.getUserPositionsAccount(),
 				order
 			);
 			assert(false);
@@ -629,7 +651,9 @@ describe('trigger orders', () => {
 
 		await fillerClearingHouse.fillOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
+			await clearingHouseUser.getUserPositionsAccountPublicKey(),
 			await clearingHouseUser.getUserOrdersAccountPublicKey(),
+			clearingHouseUser.getUserPositionsAccount(),
 			order
 		);
 
@@ -702,7 +726,9 @@ describe('trigger orders', () => {
 			// fill should fail since price is above trigger
 			await fillerClearingHouse.fillOrder(
 				await clearingHouseUser.getUserAccountPublicKey(),
+				await clearingHouseUser.getUserPositionsAccountPublicKey(),
 				await clearingHouseUser.getUserOrdersAccountPublicKey(),
+				clearingHouseUser.getUserPositionsAccount(),
 				order
 			);
 			assert(false);
@@ -719,7 +745,9 @@ describe('trigger orders', () => {
 
 		await fillerClearingHouse.fillOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
+			await clearingHouseUser.getUserPositionsAccountPublicKey(),
 			await clearingHouseUser.getUserOrdersAccountPublicKey(),
+			clearingHouseUser.getUserPositionsAccount(),
 			order
 		);
 
@@ -793,7 +821,9 @@ describe('trigger orders', () => {
 			// fill should fail since price is above trigger
 			await fillerClearingHouse.fillOrder(
 				await clearingHouseUser.getUserAccountPublicKey(),
+				await clearingHouseUser.getUserPositionsAccountPublicKey(),
 				await clearingHouseUser.getUserOrdersAccountPublicKey(),
+				clearingHouseUser.getUserPositionsAccount(),
 				order
 			);
 			assert(false);
@@ -810,7 +840,9 @@ describe('trigger orders', () => {
 
 		await fillerClearingHouse.fillOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
+			await clearingHouseUser.getUserPositionsAccountPublicKey(),
 			await clearingHouseUser.getUserOrdersAccountPublicKey(),
+			clearingHouseUser.getUserPositionsAccount(),
 			order
 		);
 

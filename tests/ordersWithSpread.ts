@@ -586,7 +586,9 @@ describe('amm spread: market order', () => {
 		try {
 			await clearingHouse.fillOrder(
 				await clearingHouseUser.getUserAccountPublicKey(),
+				await clearingHouseUser.getUserPositionsAccountPublicKey(),
 				await clearingHouseUser.getUserOrdersAccountPublicKey(),
+				clearingHouseUser.getUserPositionsAccount(),
 				unfilledOrder
 			);
 			assert(false);
@@ -630,7 +632,9 @@ describe('amm spread: market order', () => {
 		try {
 			await clearingHouse.fillOrder(
 				await clearingHouseUser.getUserAccountPublicKey(),
+				await clearingHouseUser.getUserPositionsAccountPublicKey(),
 				await clearingHouseUser.getUserOrdersAccountPublicKey(),
+				clearingHouseUser.getUserPositionsAccount(),
 				unfilledOrder
 			);
 			assert(false);
@@ -688,7 +692,9 @@ describe('amm spread: market order', () => {
 
 		await clearingHouse.fillOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
+			await clearingHouseUser.getUserPositionsAccountPublicKey(),
 			await clearingHouseUser.getUserOrdersAccountPublicKey(),
+			clearingHouseUser.getUserPositionsAccount(),
 			order
 		);
 
@@ -760,7 +766,9 @@ describe('amm spread: market order', () => {
 
 		await clearingHouse.fillOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
+			await clearingHouseUser.getUserPositionsAccountPublicKey(),
 			await clearingHouseUser.getUserOrdersAccountPublicKey(),
+			clearingHouseUser.getUserPositionsAccount(),
 			order
 		);
 

@@ -3,7 +3,6 @@ import { PublicKey } from '@solana/web3.js';
 export const CLEARING_HOUSE_STATE_ACCOUNTS = {
 	dammHkt7jmytvbS3nHTxQNEcP59aE57nxwV21YdqEDN: {
 		state: new PublicKey('FExhvPycCCwYnZGeDsVtLhpEQ3yEkVY2k1HuPyfLj91L'),
-		markets: new PublicKey('773hq3SbGPKVj93TXi5qV5CREuhxobywfALjS3XVHhLH'),
 		orderState: new PublicKey('4cC34bWwTPGncBaX2S6v5mH3Lj4Nb3byPMrxQSDcY985'),
 		tradeHistory: new PublicKey('FCuCXEoQppoaCYdttA7rK3HNQfYkTNEGpwuBESzYcENp'),
 		depositHistory: new PublicKey(

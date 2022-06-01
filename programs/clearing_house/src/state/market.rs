@@ -1,4 +1,12 @@
+use std::cell::{Ref, RefMut};
+use std::cmp::max;
+use std::collections::{BTreeMap, BTreeSet};
+use std::iter::Peekable;
+use std::slice::Iter;
+
 use anchor_lang::prelude::*;
+use solana_program::msg;
+use switchboard_v2::decimal::SwitchboardDecimal;
 use switchboard_v2::AggregatorAccountData;
 
 use crate::error::{ClearingHouseResult, ErrorCode};
@@ -6,49 +14,22 @@ use crate::math::amm;
 use crate::math::casting::{cast, cast_to_i128, cast_to_i64, cast_to_u128};
 use crate::math::margin::MarginType;
 use crate::math_error;
+use crate::state::user::UserPositions;
 use crate::MARK_PRICE_PRECISION;
-use solana_program::msg;
-use std::cmp::max;
-use switchboard_v2::decimal::SwitchboardDecimal;
-
-#[account(zero_copy)]
-#[repr(packed)]
-pub struct Markets {
-    pub markets: [Market; 64],
-}
-
-impl Default for Markets {
-    fn default() -> Self {
-        Markets {
-            markets: [Market::default(); 64],
-        }
-    }
-}
-
-impl Markets {
-    pub fn index_from_u64(index: u64) -> usize {
-        std::convert::TryInto::try_into(index).unwrap()
-    }
-
-    pub fn get_market(&self, index: u64) -> &Market {
-        &self.markets[Markets::index_from_u64(index)]
-    }
-
-    pub fn get_market_mut(&mut self, index: u64) -> &mut Market {
-        &mut self.markets[Markets::index_from_u64(index)]
-    }
-}
+use anchor_lang::{AccountsExit, Discriminator};
+use arrayref::array_ref;
 
 #[zero_copy]
 #[derive(Default)]
 #[repr(packed)]
-pub struct Market {
+pub struct DeprecatedMarket {
     pub initialized: bool,
-    pub market_index: u64,
     pub base_asset_amount_long: i128,
     pub base_asset_amount_short: i128,
-    pub base_asset_amount: i128, // net market bias
-    pub open_interest: u128,     // number of users in a position
+    pub base_asset_amount: i128,
+    // net market bias
+    pub open_interest: u128,
+    // number of users in a position
     pub amm: AMM,
     pub margin_ratio_initial: u32,
     pub margin_ratio_partial: u32,
@@ -65,14 +46,14 @@ pub struct Market {
 #[account(zero_copy)]
 #[derive(Default)]
 #[repr(packed)]
-pub struct Market2 {
+pub struct Market {
     pub market_index: u64,
     pub initialized: bool,
+    pub amm: AMM,
     pub base_asset_amount_long: i128,
     pub base_asset_amount_short: i128,
     pub base_asset_amount: i128, // net market bias
     pub open_interest: u128,     // number of users in a position
-    pub amm: AMM,
     pub margin_ratio_initial: u32,
     pub margin_ratio_partial: u32,
     pub margin_ratio_maintenance: u32,
@@ -83,6 +64,16 @@ pub struct Market2 {
     pub padding2: u128,
     pub padding3: u128,
     pub padding4: u128,
+}
+
+impl DeprecatedMarket {
+    pub fn get_margin_ratio(&self, margin_type: MarginType) -> u32 {
+        match margin_type {
+            MarginType::Init => self.margin_ratio_initial,
+            MarginType::Partial => self.margin_ratio_partial,
+            MarginType::Maint => self.margin_ratio_maintenance,
+        }
+    }
 }
 
 impl Market {
@@ -322,4 +313,101 @@ fn convert_switchboard_decimal(
             .checked_mul((MARK_PRICE_PRECISION / switchboard_precision) as i128)
             .ok_or_else(math_error!())
     }
+}
+
+pub type WritableMarkets = BTreeSet<u64>;
+pub type MarketOracles<'a, 'b> = BTreeMap<u64, &'a AccountInfo<'b>>;
+
+pub struct MarketMap<'a>(pub BTreeMap<u64, AccountLoader<'a, Market>>);
+
+impl MarketMap<'_> {
+    pub fn get_ref(&self, market_index: &u64) -> ClearingHouseResult<Ref<Market>> {
+        self.0
+            .get(market_index)
+            .ok_or(ErrorCode::MarketNotFound)?
+            .load()
+            .or(Err(ErrorCode::UnableToLoadMarketAccount))
+    }
+
+    pub fn get_ref_mut(&self, market_index: &u64) -> ClearingHouseResult<RefMut<Market>> {
+        self.0
+            .get(market_index)
+            .ok_or(ErrorCode::MarketNotFound)?
+            .load_mut()
+            .or(Err(ErrorCode::UnableToLoadMarketAccount))
+    }
+
+    pub fn write_accounts(
+        &self,
+        account_info_map: &WritableMarkets,
+        program_id: &Pubkey,
+    ) -> ClearingHouseResult {
+        for (market_index, account_loader) in &self.0 {
+            if account_info_map.contains(market_index) {
+                account_loader
+                    .exit(program_id)
+                    .or(Err(ErrorCode::UnableToWriteMarket))?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
+pub fn get_writable_markets_for_user_positions(user_positions: &UserPositions) -> WritableMarkets {
+    let mut writable_markets = WritableMarkets::new();
+    for position in user_positions.positions.iter() {
+        writable_markets.insert(position.market_index);
+    }
+    writable_markets
+}
+
+pub fn get_market_map<'a, 'b, 'c>(
+    writable_markets: &'a WritableMarkets,
+    market_oracles: &MarketOracles,
+    account_info_iter: &'b mut Peekable<Iter<AccountInfo<'c>>>,
+) -> ClearingHouseResult<MarketMap<'c>> {
+    let mut market_map: MarketMap = MarketMap(BTreeMap::new());
+
+    let market_discriminator: [u8; 8] = Market::discriminator();
+    while let Some(account_info) = account_info_iter.peek() {
+        let data = account_info
+            .try_borrow_data()
+            .or(Err(ErrorCode::CouldNotLoadMarketData))?;
+
+        if data.len() < std::mem::size_of::<Market>() + 8 {
+            break;
+        }
+
+        let account_discriminator = array_ref![data, 0, 8];
+        if account_discriminator != &market_discriminator {
+            break;
+        }
+        let market_index = u64::from_le_bytes(*array_ref![data, 8, 8]);
+        let is_initialized = array_ref![data, 16, 1];
+        let market_oracle = Pubkey::new(array_ref![data, 17, 32]);
+
+        let account_info = account_info_iter.next().unwrap();
+        let is_writable = account_info.is_writable;
+        let account_loader: AccountLoader<Market> =
+            AccountLoader::try_from(account_info).or(Err(ErrorCode::InvalidMarketAccount))?;
+
+        if writable_markets.contains(&market_index) && !is_writable {
+            return Err(ErrorCode::MarketWrongMutability);
+        }
+
+        if is_initialized != &[1] {
+            return Err(ErrorCode::MarketIndexNotInitialized);
+        }
+
+        if let Some(oracle_account_info) = market_oracles.get(&market_index) {
+            if !oracle_account_info.key.eq(&market_oracle) {
+                return Err(ErrorCode::InvalidOracle);
+            }
+        }
+
+        market_map.0.insert(market_index, account_loader);
+    }
+
+    Ok(market_map)
 }

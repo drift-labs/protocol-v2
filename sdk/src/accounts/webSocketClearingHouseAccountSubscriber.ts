@@ -10,7 +10,7 @@ import {
 	FundingPaymentHistoryAccount,
 	FundingRateHistoryAccount,
 	LiquidationHistoryAccount,
-	MarketsAccount,
+	Market,
 	OrderHistoryAccount,
 	OrderStateAccount,
 	StateAccount,
@@ -19,15 +19,16 @@ import {
 	UserOrdersAccount,
 	UserPositionsAccount,
 } from '../types';
-import { Program } from '@project-serum/anchor';
+import { BN, Program } from '@project-serum/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import {
 	getClearingHouseStateAccountPublicKey,
+	getMarketPublicKey,
 	getUserAccountPublicKey,
 	getUserOrdersAccountPublicKey,
 	getUserPositionsAccountPublicKey,
-} from '../addresses';
+} from '../addresses/pda';
 import { WebSocketAccountSubscriber } from './webSocketAccountSubscriber';
 import { ClearingHouseConfigType } from '../factory/clearingHouse';
 import { PublicKey } from '@solana/web3.js';
@@ -41,7 +42,7 @@ export class WebSocketClearingHouseAccountSubscriber
 
 	eventEmitter: StrictEventEmitter<EventEmitter, ClearingHouseAccountEvents>;
 	stateAccountSubscriber?: AccountSubscriber<StateAccount>;
-	marketsAccountSubscriber?: AccountSubscriber<MarketsAccount>;
+	marketAccountSubscribers = new Map<number, AccountSubscriber<Market>>();
 	tradeHistoryAccountSubscriber?: AccountSubscriber<TradeHistoryAccount>;
 	depositHistoryAccountSubscriber?: AccountSubscriber<DepositHistoryAccount>;
 	fundingPaymentHistoryAccountSubscriber?: AccountSubscriber<FundingPaymentHistoryAccount>;
@@ -104,17 +105,6 @@ export class WebSocketClearingHouseAccountSubscriber
 
 		const state = this.stateAccountSubscriber.data;
 
-		this.marketsAccountSubscriber = new WebSocketAccountSubscriber(
-			'markets',
-			this.program,
-			state.markets
-		);
-
-		await this.marketsAccountSubscriber.subscribe((data: MarketsAccount) => {
-			this.eventEmitter.emit('marketsAccountUpdate', data);
-			this.eventEmitter.emit('update');
-		});
-
 		this.orderStateAccountSubscriber = new WebSocketAccountSubscriber(
 			'orderState',
 			this.program,
@@ -132,6 +122,9 @@ export class WebSocketClearingHouseAccountSubscriber
 
 		// subscribe to user accounts
 		await this.subscribeToUserAccounts();
+
+		// subscribe to market accounts
+		await this.subscribeToMarketAccounts();
 
 		// create subscribers for other state accounts
 
@@ -247,6 +240,26 @@ export class WebSocketClearingHouseAccountSubscriber
 		return true;
 	}
 
+	async subscribeToMarketAccounts(): Promise<boolean> {
+		for (let i = 0; i < 10; i++) {
+			const marketPublicKey = await getMarketPublicKey(
+				this.program.programId,
+				new BN(i)
+			);
+			const accountSubscriber = new WebSocketAccountSubscriber<Market>(
+				'market',
+				this.program,
+				marketPublicKey
+			);
+			await accountSubscriber.subscribe((data: Market) => {
+				this.eventEmitter.emit('marketAccountUpdate', data);
+				this.eventEmitter.emit('update');
+			});
+			this.marketAccountSubscribers.set(i, accountSubscriber);
+		}
+		return true;
+	}
+
 	async subscribeToUserAccounts(): Promise<boolean> {
 		const userPublicKey = await getUserAccountPublicKey(
 			this.program.programId,
@@ -306,6 +319,12 @@ export class WebSocketClearingHouseAccountSubscriber
 		await this.userOrdersAccountSubscriber.unsubscribe();
 	}
 
+	async unsubscribeFromMarketAccounts(): Promise<void> {
+		for (const accountSubscriber of this.marketAccountSubscribers.values()) {
+			await accountSubscriber.unsubscribe();
+		}
+	}
+
 	public async fetch(): Promise<void> {
 		if (!this.isSubscribed) {
 			return;
@@ -316,10 +335,17 @@ export class WebSocketClearingHouseAccountSubscriber
 				const subscriber = `${optionalSubscription}Subscriber`;
 				return this[subscriber].fetch();
 			})
+			.concat([this.stateAccountSubscriber.fetch()])
 			.concat([
-				this.stateAccountSubscriber.fetch(),
-				this.marketsAccountSubscriber.fetch(),
-			]);
+				this.userAccountSubscriber.fetch(),
+				this.userPositionsAccountSubscriber.fetch(),
+				this.userOrdersAccountSubscriber.fetch(),
+			])
+			.concat(
+				Array.from(this.marketAccountSubscribers.values()).map((subscriber) =>
+					subscriber.fetch()
+				)
+			);
 
 		await Promise.all(promises);
 	}
@@ -330,10 +356,10 @@ export class WebSocketClearingHouseAccountSubscriber
 		}
 
 		await this.stateAccountSubscriber.unsubscribe();
-		await this.marketsAccountSubscriber.unsubscribe();
 		await this.orderStateAccountSubscriber.unsubscribe();
 
 		await this.unsubscribeFromUserAccounts();
+		await this.unsubscribeFromMarketAccounts();
 
 		if (this.optionalExtraSubscriptions.includes('tradeHistoryAccount')) {
 			await this.tradeHistoryAccountSubscriber.unsubscribe();
@@ -406,9 +432,8 @@ export class WebSocketClearingHouseAccountSubscriber
 		return this.stateAccountSubscriber.data;
 	}
 
-	public getMarketsAccount(): MarketsAccount {
-		this.assertIsSubscribed();
-		return this.marketsAccountSubscriber.data;
+	public getMarketAccount(marketIndex: BN): Market | undefined {
+		return this.marketAccountSubscribers.get(marketIndex.toNumber()).data;
 	}
 
 	public getTradeHistoryAccount(): TradeHistoryAccount {

@@ -92,8 +92,7 @@ describe('AMM Curve', () => {
 	});
 
 	const showCurve = (marketIndex) => {
-		const marketsAccount = clearingHouse.getMarketsAccount();
-		const marketData = marketsAccount.markets[marketIndex.toNumber()];
+		const marketData = clearingHouse.getMarket(marketIndex);
 		const ammAccountState = marketData.amm;
 
 		console.log(
@@ -135,20 +134,8 @@ describe('AMM Curve', () => {
 		return totalFeeNum - cumFeeNum;
 	};
 
-	// const calculateFeeDist = (marketIndex) => {
-	// 	const marketsAccount = clearingHouse.getMarketsAccount();
-	// 	const marketData = marketsAccount.markets[marketIndex.toNumber()];
-	// 	const ammAccountState = marketData.amm;
-
-	// 	const feeDist= marketData.amm.cumulativeFee.add(userAccount.getTotalCollateral());
-	// 	// console.log(convertToNumber(usdcAmount, QUOTE_PRECISION), convertToNumber(feeDist, QUOTE_PRECISION));
-
-	// 	return feeDist;
-	// };
-
 	const showBook = (marketIndex) => {
-		const market =
-			clearingHouse.getMarketsAccount().markets[marketIndex.toNumber()];
+		const market = clearingHouse.getMarket(marketIndex);
 		const currentMark = calculateMarkPrice(market);
 
 		const [bidsPrice, bidsCumSize, asksPrice, asksCumSize] = liquidityBook(
@@ -222,8 +209,7 @@ describe('AMM Curve', () => {
 	});
 
 	it('Repeg Curve LONG', async () => {
-		let marketsAccount = clearingHouse.getMarketsAccount();
-		let marketData = marketsAccount.markets[marketIndex.toNumber()];
+		let marketData = clearingHouse.getMarket(marketIndex);
 		const ammAccountState = marketData.amm;
 		assert(ammAccountState.totalFee.eq(ammAccountState.totalFee));
 
@@ -260,8 +246,7 @@ describe('AMM Curve', () => {
 		showCurve(marketIndex);
 		// showBook(marketIndex);
 
-		marketsAccount = clearingHouse.getMarketsAccount();
-		marketData = marketsAccount.markets[marketIndex.toNumber()];
+		marketData = clearingHouse.getMarket(marketIndex);
 		console.log(marketData.amm);
 		console.log();
 		assert(
@@ -307,8 +292,7 @@ describe('AMM Curve', () => {
 			QUOTE_PRECISION.mul(new BN(100000)),
 			marketIndex
 		);
-		const marketsAccount1 = clearingHouse.getMarketsAccount();
-		const marketData1 = marketsAccount1.markets[marketIndex.toNumber()];
+		const marketData1 = clearingHouse.getMarket(marketIndex);
 		const ammAccountState = marketData1.amm;
 		const oldPeg = ammAccountState.pegMultiplier;
 
@@ -327,8 +311,7 @@ describe('AMM Curve', () => {
 		assert(priceAfter.lt(priceBefore));
 		assert(newOraclePriceWithMantissa.lt(priceAfter));
 
-		const marketsAccount = clearingHouse.getMarketsAccount();
-		const marketData = marketsAccount.markets[marketIndex.toNumber()];
+		const marketData = clearingHouse.getMarket(marketIndex);
 		const newPeg = marketData.amm.pegMultiplier;
 
 		const userMarketPosition =

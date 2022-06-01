@@ -21,7 +21,8 @@ import { ClearingHouse, ClearingHouseUser } from '../sdk/src';
 
 export async function mockOracle(
 	price: number = 50 * 10e7,
-	expo = -7
+	expo = -7,
+	confidence?: number
 ): Promise<PublicKey> {
 	// default: create a $50 coin oracle
 	const program = anchor.workspace.Pyth;
@@ -36,6 +37,7 @@ export async function mockOracle(
 		oracleProgram: program,
 		initPrice: price,
 		expo: expo,
+		confidence,
 	});
 
 	const feedData = await getFeedData(program, priceFeedAddress);
@@ -255,7 +257,7 @@ export const createPriceFeed = async ({
 	confidence?: number;
 	expo?: number;
 }): Promise<PublicKey> => {
-	const conf = confidence || new BN((initPrice / 10) * 10 ** -expo);
+	const conf = new BN(confidence) || new BN((initPrice / 10) * 10 ** -expo);
 	const collateralTokenFeed = new anchor.web3.Account();
 	await oracleProgram.rpc.initialize(
 		new BN(initPrice * 10 ** -expo),

@@ -40,6 +40,7 @@ import {
 	calculateMarkPrice,
 	findComputeUnitConsumption,
 	getMarketOrderParams,
+	getUserPositionsAccountPublicKey,
 	isVariant,
 	TEN_THOUSAND,
 	TWO,
@@ -67,9 +68,11 @@ describe('orders', () => {
 	let clearingHouseUser: ClearingHouseUser;
 
 	let userAccountPublicKey: PublicKey;
+	let userPositionsAccountPublicKey: PublicKey;
 	let userOrdersAccountPublicKey: PublicKey;
 
 	let whaleAccountPublicKey: PublicKey;
+	let whalePositionsAccountPublicKey: PublicKey;
 	let whaleOrdersAccountPublicKey: PublicKey;
 
 	let usdcMint;
@@ -158,6 +161,11 @@ describe('orders', () => {
 				usdcAmount,
 				userUSDCAccount.publicKey
 			);
+
+		userPositionsAccountPublicKey = await getUserPositionsAccountPublicKey(
+			clearingHouse.program.programId,
+			userAccountPublicKey
+		);
 
 		userOrdersAccountPublicKey = await getUserOrdersAccountPublicKey(
 			clearingHouse.program.programId,
@@ -249,10 +257,17 @@ describe('orders', () => {
 			whaleClearingHouse,
 			whaleKeyPair.publicKey
 		);
+
+		whalePositionsAccountPublicKey = await getUserPositionsAccountPublicKey(
+			clearingHouse.program.programId,
+			whaleAccountPublicKey
+		);
+
 		whaleOrdersAccountPublicKey = await getUserOrdersAccountPublicKey(
 			clearingHouse.program.programId,
 			whaleAccountPublicKey
 		);
+
 		await whaleUser.subscribe();
 	});
 
@@ -283,7 +298,15 @@ describe('orders', () => {
 			true
 		);
 		// user sets reduce-only taker limit buy @ $2
-		await clearingHouse.placeOrder(orderParams, discountTokenAccount.address);
+		const txSig = await clearingHouse.placeOrder(
+			orderParams,
+			discountTokenAccount.address
+		);
+		console.log(
+			'tx logs',
+			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
+				.logMessages
+		);
 
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
@@ -327,7 +350,9 @@ describe('orders', () => {
 		try {
 			await fillerClearingHouse.fillOrder(
 				userAccountPublicKey,
+				userPositionsAccountPublicKey,
 				userOrdersAccountPublicKey,
+				clearingHouseUser.getUserPositionsAccount(),
 				order
 			);
 		} catch (e) {
@@ -392,7 +417,9 @@ describe('orders', () => {
 		let order = clearingHouseUser.getOrder(orderId);
 		await fillerClearingHouse.fillOrder(
 			userAccountPublicKey,
+			userPositionsAccountPublicKey,
 			userOrdersAccountPublicKey,
+			clearingHouseUser.getUserPositionsAccount(),
 			order
 		);
 
@@ -495,7 +522,9 @@ describe('orders', () => {
 		let order = clearingHouseUser.getOrder(orderId);
 		await fillerClearingHouse.fillOrder(
 			userAccountPublicKey,
+			userPositionsAccountPublicKey,
 			userOrdersAccountPublicKey,
+			clearingHouseUser.getUserPositionsAccount(),
 			order
 		);
 
@@ -605,7 +634,9 @@ describe('orders', () => {
 			const order = clearingHouseUser.getOrder(orderId);
 			await fillerClearingHouse.fillOrder(
 				userAccountPublicKey,
+				userPositionsAccountPublicKey,
 				userOrdersAccountPublicKey,
+				clearingHouseUser.getUserPositionsAccount(),
 				order
 			);
 			await clearingHouse.cancelOrder(orderId);
@@ -663,7 +694,9 @@ describe('orders', () => {
 		const orderId = new BN(5);
 		await fillerClearingHouse.fillOrder(
 			userAccountPublicKey,
+			userPositionsAccountPublicKey,
 			userOrdersAccountPublicKey,
+			clearingHouseUser.getUserPositionsAccount(),
 			order
 		);
 
@@ -780,7 +813,9 @@ describe('orders', () => {
 		const orderId = order.orderId;
 		await fillerClearingHouse.fillOrder(
 			userAccountPublicKey,
+			userPositionsAccountPublicKey,
 			userOrdersAccountPublicKey,
+			clearingHouseUser.getUserPositionsAccount(),
 			order
 		);
 
@@ -918,7 +953,9 @@ describe('orders', () => {
 
 		await fillerClearingHouse.fillOrder(
 			userAccountPublicKey,
+			userPositionsAccountPublicKey,
 			userOrdersAccountPublicKey,
+			clearingHouseUser.getUserPositionsAccount(),
 			order
 		);
 
@@ -1032,7 +1069,9 @@ describe('orders', () => {
 		assert(order.orderId.gte(new BN(7)));
 		await fillerClearingHouse.fillOrder(
 			userAccountPublicKey,
+			userPositionsAccountPublicKey,
 			userOrdersAccountPublicKey,
+			clearingHouseUser.getUserPositionsAccount(),
 			order
 		);
 
@@ -1177,7 +1216,9 @@ describe('orders', () => {
 
 		await fillerClearingHouse.fillOrder(
 			userAccountPublicKey,
+			userPositionsAccountPublicKey,
 			userOrdersAccountPublicKey,
+			clearingHouseUser.getUserPositionsAccount(),
 			order
 		);
 
@@ -1292,7 +1333,9 @@ describe('orders', () => {
 		const orderId = order.orderId;
 		await fillerClearingHouse.fillOrder(
 			userAccountPublicKey,
+			userPositionsAccountPublicKey,
 			userOrdersAccountPublicKey,
+			clearingHouseUser.getUserPositionsAccount(),
 			order
 		);
 
@@ -1396,7 +1439,9 @@ describe('orders', () => {
 		const orderId = order.orderId;
 		await fillerClearingHouse.fillOrder(
 			userAccountPublicKey,
+			userPositionsAccountPublicKey,
 			userOrdersAccountPublicKey,
+			clearingHouseUser.getUserPositionsAccount(),
 			order
 		);
 
@@ -1568,7 +1613,9 @@ describe('orders', () => {
 
 		await fillerClearingHouse.fillOrder(
 			userAccountPublicKey,
+			userPositionsAccountPublicKey,
 			userOrdersAccountPublicKey,
+			clearingHouseUser.getUserPositionsAccount(),
 			order
 		);
 
@@ -1627,7 +1674,9 @@ describe('orders', () => {
 		try {
 			await whaleClearingHouse.fillOrder(
 				whaleAccountPublicKey,
+				whalePositionsAccountPublicKey,
 				whaleOrdersAccountPublicKey,
+				whaleUser.getUserPositionsAccount(),
 				order
 			);
 		} catch (e) {
@@ -1667,7 +1716,9 @@ describe('orders', () => {
 
 		await fillerClearingHouse.fillOrder(
 			whaleAccountPublicKey,
+			whalePositionsAccountPublicKey,
 			whaleOrdersAccountPublicKey,
+			whaleUser.getUserPositionsAccount(),
 			order
 		);
 

@@ -226,8 +226,7 @@ describe('AMM Curve', () => {
 	});
 
 	const showBook = (marketIndex) => {
-		const market =
-			clearingHouse.getMarketsAccount().markets[marketIndex.toNumber()];
+		const market = clearingHouse.getMarket(marketIndex);
 		const currentMark = calculateMarkPrice(market);
 
 		const [bidsPrice, bidsCumSize, asksPrice, asksCumSize] = liquidityBook(

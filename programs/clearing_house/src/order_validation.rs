@@ -2,7 +2,7 @@ use crate::controller::position::PositionDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::constants::*;
 use crate::math::quote_asset::asset_to_reserve_amount;
-use crate::state::market::{Market, Markets};
+use crate::state::market::Market;
 use crate::state::order_state::OrderState;
 use crate::state::user_orders::{Order, OrderTriggerCondition, OrderType};
 
@@ -12,7 +12,8 @@ use crate::state::user::{MarketPosition, User, UserPositions};
 use solana_program::msg;
 
 use crate::math::margin::meets_initial_margin_requirement;
-use std::cell::{Ref, RefMut};
+use crate::state::market::MarketMap;
+use std::cell::RefMut;
 use std::ops::Div;
 
 pub fn validate_order(
@@ -282,22 +283,21 @@ pub fn check_if_order_can_be_canceled(
     order: &Order,
     user: &User,
     user_positions: &RefMut<UserPositions>,
-    markets: &Ref<Markets>,
+    market_map: &MarketMap,
     valid_oracle_price: Option<i128>,
 ) -> ClearingHouseResult<bool> {
     if !order.post_only {
         return Ok(true);
     }
 
-    let base_asset_amount_market_can_fill = calculate_base_asset_amount_to_trade_for_limit(
-        order,
-        markets.get_market(order.market_index),
-        valid_oracle_price,
-    )?;
+    let base_asset_amount_market_can_fill = {
+        let market = &market_map.get_ref(&order.market_index)?;
+        calculate_base_asset_amount_to_trade_for_limit(order, market, valid_oracle_price)?
+    };
 
     if base_asset_amount_market_can_fill > 0 {
         let meets_initial_margin_requirement =
-            meets_initial_margin_requirement(user, user_positions, markets)?;
+            meets_initial_margin_requirement(user, user_positions, market_map)?;
 
         if meets_initial_margin_requirement {
             msg!(
@@ -317,11 +317,16 @@ pub fn validate_order_can_be_canceled(
     order: &Order,
     user: &User,
     user_positions: &RefMut<UserPositions>,
-    markets: &Ref<Markets>,
+    market_map: &MarketMap,
     valid_oracle_price: Option<i128>,
 ) -> ClearingHouseResult {
-    let is_cancelable =
-        check_if_order_can_be_canceled(order, user, user_positions, markets, valid_oracle_price)?;
+    let is_cancelable = check_if_order_can_be_canceled(
+        order,
+        user,
+        user_positions,
+        market_map,
+        valid_oracle_price,
+    )?;
 
     if !is_cancelable {
         return Err(ErrorCode::CantCancelPostOnlyOrder);
