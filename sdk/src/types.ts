@@ -342,6 +342,11 @@ export type UserOrdersAccount = {
 	user: PublicKey;
 };
 
+export type ClearingHouseUserOrdersAccount = {
+	publicKey: PublicKey;
+	account: UserOrdersAccount;
+};
+
 export type Order = {
 	status: OrderStatus;
 	orderType: OrderType;

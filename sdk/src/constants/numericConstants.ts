@@ -10,13 +10,24 @@ export const TEN_MILLION = TEN_THOUSAND.mul(TEN_THOUSAND);
 
 export const MAX_LEVERAGE = new BN(5);
 
-export const QUOTE_PRECISION = new BN(10 ** 6);
-export const MARK_PRICE_PRECISION = new BN(10 ** 10);
-export const FUNDING_PAYMENT_PRECISION = new BN(10000);
-export const PEG_PRECISION = new BN(1000);
+export const QUOTE_PRECISION_EXP = new BN(6);
+export const MARK_PRICE_PRECISION_EXP = new BN(10);
+export const FUNDING_PAYMENT_PRECISION_EXP = new BN(4);
+export const PEG_PRECISION_EXP = new BN(3);
+export const AMM_RESERVE_PRECISION_EXP = new BN(13);
 
-export const AMM_RESERVE_PRECISION = new BN(10 ** 13);
+export const QUOTE_PRECISION = new BN(10).pow(QUOTE_PRECISION_EXP);
+export const MARK_PRICE_PRECISION = new BN(10).pow(MARK_PRICE_PRECISION_EXP);
+export const FUNDING_PAYMENT_PRECISION = new BN(10).pow(
+	FUNDING_PAYMENT_PRECISION_EXP
+);
+export const PEG_PRECISION = new BN(10).pow(PEG_PRECISION_EXP);
+
+export const AMM_RESERVE_PRECISION = new BN(10).pow(AMM_RESERVE_PRECISION_EXP);
+
 export const BASE_PRECISION = AMM_RESERVE_PRECISION;
+export const BASE_PRECISION_EXP = AMM_RESERVE_PRECISION_EXP;
+
 export const AMM_TO_QUOTE_PRECISION_RATIO =
 	AMM_RESERVE_PRECISION.div(QUOTE_PRECISION); // 10^7
 export const PRICE_TO_QUOTE_PRECISION =
