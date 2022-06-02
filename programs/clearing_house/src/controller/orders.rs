@@ -34,7 +34,7 @@ use crate::state::history::funding_payment::FundingPaymentHistory;
 use crate::state::history::funding_rate::FundingRateHistory;
 use crate::state::history::order_history::OrderAction;
 use crate::state::market::Market;
-use crate::state::market::MarketMap;
+use crate::state::market_map::MarketMap;
 use spl_token::state::Account as TokenAccount;
 use std::cell::RefMut;
 use std::collections::BTreeMap;

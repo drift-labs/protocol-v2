@@ -12,7 +12,7 @@ use crate::state::user::{MarketPosition, User, UserPositions};
 use solana_program::msg;
 
 use crate::math::margin::meets_initial_margin_requirement;
-use crate::state::market::MarketMap;
+use crate::state::market_map::MarketMap;
 use std::cell::RefMut;
 use std::ops::Div;
 
