@@ -4306,42 +4306,28 @@
     },
     {
       "code": 6061,
-      "name": "MustCallSettlePositionFirst"
-    },
-    {
-      "code": 6062,
       "name": "CouldNotLoadMarketData",
       "msg": "CouldNotLoadMarketData"
     },
     {
-      "code": 6063,
+      "code": 6062,
       "name": "MarketNotFound",
       "msg": "MarketNotFound"
     },
     {
-      "code": 6064,
+      "code": 6063,
       "name": "InvalidMarketAccount",
       "msg": "InvalidMarketAccount"
     },
     {
-      "code": 6065,
+      "code": 6064,
       "name": "UnableToLoadMarketAccount",
       "msg": "UnableToLoadMarketAccount"
     },
     {
-      "code": 6066,
-      "name": "UnexpectedMarket",
-      "msg": "UnexpectedMarket"
-    },
-    {
-      "code": 6067,
+      "code": 6065,
       "name": "MarketWrongMutability",
       "msg": "MarketWrongMutability"
-    },
-    {
-      "code": 6068,
-      "name": "UnableToWriteMarket",
-      "msg": "UnableToWriteMarket"
     }
   ]
 }
