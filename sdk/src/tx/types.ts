@@ -6,6 +6,11 @@ import {
 	TransactionSignature,
 } from '@solana/web3.js';
 
+export type TxSigAndSlot = {
+	txSig: TransactionSignature;
+	slot: number;
+};
+
 export interface TxSender {
 	provider: Provider;
 
@@ -13,5 +18,5 @@ export interface TxSender {
 		tx: Transaction,
 		additionalSigners?: Array<Signer>,
 		opts?: ConfirmOptions
-	): Promise<TransactionSignature>;
+	): Promise<TxSigAndSlot>;
 }

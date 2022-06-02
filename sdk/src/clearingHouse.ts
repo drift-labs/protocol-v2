@@ -278,7 +278,7 @@ export class ClearingHouse {
 		const tx = new Transaction()
 			.add(initializeUserAccountIx)
 			.add(initializeUserOrdersAccountIx);
-		const txSig = await this.txSender.send(tx, [], this.opts);
+		const { txSig } = await this.txSender.send(tx, [], this.opts);
 		return [txSig, userAccountPublicKey];
 	}
 
@@ -493,7 +493,8 @@ export class ClearingHouse {
 
 		const tx = new Transaction().add(depositCollateralIx);
 
-		return await this.txSender.send(tx);
+		const { txSig } = await this.txSender.send(tx);
+		return txSig;
 	}
 
 	async getDepositCollateralInstruction(
@@ -560,7 +561,7 @@ export class ClearingHouse {
 			.add(initializeUserOrdersAccountIx)
 			.add(depositCollateralIx);
 
-		const txSig = await this.txSender.send(tx, []);
+		const { txSig } = await this.txSender.send(tx, []);
 
 		return [txSig, userAccountPublicKey];
 	}
@@ -603,13 +604,14 @@ export class ClearingHouse {
 		amount: BN,
 		collateralAccountPublicKey: PublicKey
 	): Promise<TransactionSignature> {
-		return this.txSender.send(
+		const { txSig } = await this.txSender.send(
 			wrapInTx(
 				await this.getWithdrawCollateralIx(amount, collateralAccountPublicKey)
 			),
 			[],
 			this.opts
 		);
+		return txSig;
 	}
 
 	public async getWithdrawCollateralIx(
@@ -658,7 +660,7 @@ export class ClearingHouse {
 		discountToken?: PublicKey,
 		referrer?: PublicKey
 	): Promise<TransactionSignature> {
-		return await this.txSender.send(
+		const { txSig } = await this.txSender.send(
 			wrapInTx(
 				await this.getOpenPositionIx(
 					direction,
@@ -672,6 +674,7 @@ export class ClearingHouse {
 			[],
 			this.opts
 		);
+		return txSig;
 	}
 
 	public async getOpenPositionIx(
@@ -771,7 +774,8 @@ export class ClearingHouse {
 			tx.add(instruction);
 		}
 
-		return await this.txSender.send(tx, [], this.opts);
+		const { txSig } = await this.txSender.send(tx, [], this.opts);
+		return txSig;
 	}
 
 	public async placeOrder(
@@ -779,13 +783,14 @@ export class ClearingHouse {
 		discountToken?: PublicKey,
 		referrer?: PublicKey
 	): Promise<TransactionSignature> {
-		return await this.txSender.send(
+		const { txSig } = await this.txSender.send(
 			wrapInTx(
 				await this.getPlaceOrderIx(orderParams, discountToken, referrer)
 			),
 			[],
 			this.opts
 		);
+		return txSig;
 	}
 
 	public async getPlaceOrderIx(
@@ -869,7 +874,7 @@ export class ClearingHouse {
 		userAccountPublicKey: PublicKey,
 		userOrdersAccountPublicKey: PublicKey
 	): Promise<TransactionSignature> {
-		return await this.txSender.send(
+		const { txSig } = await this.txSender.send(
 			wrapInTx(
 				await this.getExpireOrdersIx(
 					userAccountPublicKey,
@@ -879,6 +884,7 @@ export class ClearingHouse {
 			[],
 			this.opts
 		);
+		return txSig;
 	}
 
 	public async getExpireOrdersIx(
@@ -907,11 +913,12 @@ export class ClearingHouse {
 	}
 
 	public async cancelOrder(orderId: BN): Promise<TransactionSignature> {
-		return await this.txSender.send(
+		const { txSig } = await this.txSender.send(
 			wrapInTx(await this.getCancelOrderIx(orderId)),
 			[],
 			this.opts
 		);
+		return txSig;
 	}
 
 	public async getCancelOrderIx(orderId: BN): Promise<TransactionInstruction> {
@@ -954,11 +961,12 @@ export class ClearingHouse {
 	public async cancelOrderByUserId(
 		userOrderId: number
 	): Promise<TransactionSignature> {
-		return await this.txSender.send(
+		const { txSig } = await this.txSender.send(
 			wrapInTx(await this.getCancelOrderByUserIdIx(userOrderId)),
 			[],
 			this.opts
 		);
+		return txSig;
 	}
 
 	public async getCancelOrderByUserIdIx(
@@ -1003,11 +1011,12 @@ export class ClearingHouse {
 	public async cancelAllOrders(
 		bestEffort?: boolean
 	): Promise<TransactionSignature> {
-		return await this.txSender.send(
+		const { txSig } = await this.txSender.send(
 			wrapInTx(await this.getCancelAllOrdersIx(bestEffort)),
 			[],
 			this.opts
 		);
+		return txSig;
 	}
 
 	public async getCancelAllOrdersIx(
@@ -1059,7 +1068,7 @@ export class ClearingHouse {
 		marketIndexOnly?: BN,
 		directionOnly?: PositionDirection
 	): Promise<TransactionSignature> {
-		return await this.txSender.send(
+		const { txSig } = await this.txSender.send(
 			wrapInTx(
 				await this.getCancelOrdersByMarketAndSideIx(
 					bestEffort,
@@ -1070,6 +1079,7 @@ export class ClearingHouse {
 			[],
 			this.opts
 		);
+		return txSig;
 	}
 
 	public async getCancelOrdersByMarketAndSideIx(
@@ -1130,7 +1140,7 @@ export class ClearingHouse {
 		userPositions: UserPositionsAccount,
 		order: Order
 	): Promise<TransactionSignature> {
-		return await this.txSender.send(
+		const { txSig } = await this.txSender.send(
 			wrapInTx(
 				await this.getFillOrderIx(
 					userAccountPublicKey,
@@ -1143,6 +1153,7 @@ export class ClearingHouse {
 			[],
 			this.opts
 		);
+		return txSig;
 	}
 
 	public async getFillOrderIx(
@@ -1236,7 +1247,8 @@ export class ClearingHouse {
 			tx.add(instruction);
 		}
 
-		return await this.txSender.send(tx, [], this.opts);
+		const { txSig } = await this.txSender.send(tx, [], this.opts);
+		return txSig;
 	}
 
 	public async placeAndFillOrder(
@@ -1244,13 +1256,14 @@ export class ClearingHouse {
 		discountToken?: PublicKey,
 		referrer?: PublicKey
 	): Promise<TransactionSignature> {
-		return await this.txSender.send(
+		const { txSig } = await this.txSender.send(
 			wrapInTx(
 				await this.getPlaceAndFillOrderIx(orderParams, discountToken, referrer)
 			),
 			[],
 			this.opts
 		);
+		return txSig;
 	}
 
 	public async getPlaceAndFillOrderIx(
@@ -1346,13 +1359,14 @@ export class ClearingHouse {
 		discountToken?: PublicKey,
 		referrer?: PublicKey
 	): Promise<TransactionSignature> {
-		return await this.txSender.send(
+		const { txSig } = await this.txSender.send(
 			wrapInTx(
 				await this.getClosePositionIx(marketIndex, discountToken, referrer)
 			),
 			[],
 			this.opts
 		);
+		return txSig;
 	}
 
 	public async getClosePositionIx(
@@ -1447,17 +1461,19 @@ export class ClearingHouse {
 
 		const tx = new Transaction().add(...ixs);
 
-		return this.txSender.send(tx, [], this.opts);
+		const { txSig } = await this.txSender.send(tx, [], this.opts);
+		return txSig;
 	}
 
 	public async liquidate(
 		liquidateeUserAccountPublicKey: PublicKey
 	): Promise<TransactionSignature> {
-		return this.txSender.send(
+		const { txSig } = await this.txSender.send(
 			wrapInTx(await this.getLiquidateIx(liquidateeUserAccountPublicKey)),
 			[],
 			this.opts
 		);
+		return txSig;
 	}
 
 	public async getLiquidateIx(
@@ -1522,11 +1538,12 @@ export class ClearingHouse {
 		oracle: PublicKey,
 		marketIndex: BN
 	): Promise<TransactionSignature> {
-		return this.txSender.send(
+		const { txSig } = await this.txSender.send(
 			wrapInTx(await this.getUpdateFundingRateIx(oracle, marketIndex)),
 			[],
 			this.opts
 		);
+		return txSig;
 	}
 
 	public async getUpdateFundingRateIx(
@@ -1548,7 +1565,7 @@ export class ClearingHouse {
 		userAccount: PublicKey,
 		userPositionsAccountPublicKey: PublicKey
 	): Promise<TransactionSignature> {
-		return this.txSender.send(
+		const { txSig } = await this.txSender.send(
 			wrapInTx(
 				await this.getSettleFundingPaymentIx(
 					userAccount,
@@ -1558,6 +1575,7 @@ export class ClearingHouse {
 			[],
 			this.opts
 		);
+		return txSig;
 	}
 
 	public async getSettleFundingPaymentIx(

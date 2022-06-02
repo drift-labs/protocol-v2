@@ -1,4 +1,4 @@
-import { TxSender } from './types';
+import { TxSender, TxSigAndSlot } from './types';
 import {
 	Commitment,
 	ConfirmOptions,
@@ -43,7 +43,7 @@ export class RetryTxSender implements TxSender {
 		tx: Transaction,
 		additionalSigners?: Array<Signer>,
 		opts?: ConfirmOptions
-	): Promise<TransactionSignature> {
+	): Promise<TxSigAndSlot> {
 		if (additionalSigners === undefined) {
 			additionalSigners = [];
 		}
@@ -86,8 +86,10 @@ export class RetryTxSender implements TxSender {
 			}
 		})();
 
+		let slot: number;
 		try {
-			await this.confirmTransaction(txid, opts.commitment);
+			const result = await this.confirmTransaction(txid, opts.commitment);
+			slot = result.context.slot;
 		} catch (e) {
 			console.error(e);
 			throw e;
@@ -95,7 +97,7 @@ export class RetryTxSender implements TxSender {
 			stopWaiting();
 		}
 
-		return txid;
+		return { txSig: txid, slot };
 	}
 
 	async prepareTx(
