@@ -33,6 +33,7 @@ import {
 	ConfirmOptions,
 	Transaction,
 	TransactionInstruction,
+	AccountMeta,
 } from '@solana/web3.js';
 
 import { MockUSDCFaucet } from './mockUSDCFaucet';
@@ -52,6 +53,7 @@ import {
 	ClearingHouseAccountSubscriber,
 	ClearingHouseAccountEvents,
 	ClearingHouseAccountTypes,
+	AccountAndSlot,
 } from './accounts/types';
 import { TxSender } from './tx/types';
 import { wrapInTx } from './tx/utils';
@@ -80,6 +82,7 @@ export class ClearingHouse {
 	eventEmitter: StrictEventEmitter<EventEmitter, ClearingHouseAccountEvents>;
 	_isSubscribed = false;
 	txSender: TxSender;
+	marketLastSlotCache = new Map<number, number>();
 
 	public get isSubscribed() {
 		return this._isSubscribed && this.accountSubscriber.isSubscribed;
@@ -414,34 +417,59 @@ export class ClearingHouse {
 		return this.accountSubscriber.getUserPositionsAccountAndSlot().account;
 	}
 
-	getUserMarketIndexes(): BN[] {
-		const userPositionsAccount = this.getUserPositionsAccount();
-		if (!userPositionsAccount) {
+	public getUserPositionsAccountAndSlot():
+		| AccountAndSlot<UserPositionsAccount>
+		| undefined {
+		return this.accountSubscriber.getUserPositionsAccountAndSlot();
+	}
+
+	getRemainingAccountsForMarketAccounts(
+		writableMarketIndex?: BN
+	): AccountMeta[] {
+		const userPositionsAccountAndSlot = this.getUserPositionsAccountAndSlot();
+		if (!userPositionsAccountAndSlot) {
 			throw Error(
 				'No user positions account found. Most likely user account does not exist or failed to fetch account'
 			);
 		}
+		const { account: userPositionsAccount, slot: lastUserPositionsSlot } =
+			userPositionsAccountAndSlot;
 
-		return userPositionsAccount.positions.reduce((markets, position) => {
-			if (!positionIsAvailable(position)) {
-				markets.push(position.marketIndex);
+		const remainingAccountMap = new Map<number, AccountMeta>();
+		for (const [marketIndexNum, slot] of this.marketLastSlotCache.entries()) {
+			// if cache has more recent slot than user positions account slot, add market to remaining accounts
+			// otherwise remove from slot
+			if (slot > lastUserPositionsSlot) {
+				remainingAccountMap.set(marketIndexNum, {
+					pubkey: this.getMarketAccount(marketIndexNum).pubkey,
+					isSigner: false,
+					isWritable: false,
+				});
+			} else {
+				this.marketLastSlotCache.delete(marketIndexNum);
 			}
-			return markets;
-		}, new Array<BN>());
-	}
-
-	async getUserMarketPublicKeys(skipMarketIndex?: BN): Promise<PublicKey[]> {
-		const marketPublicKeys = [];
-		for (const marketIndex of this.getUserMarketIndexes()) {
-			if (skipMarketIndex && marketIndex.eq(skipMarketIndex)) {
-				continue;
-			}
-
-			marketPublicKeys.push(
-				await getMarketAddress(this.program.programId, marketIndex)
-			);
 		}
-		return marketPublicKeys;
+
+		for (const position of userPositionsAccount.positions) {
+			if (!positionIsAvailable(position)) {
+				const marketIndexNum = position.marketIndex.toNumber();
+				remainingAccountMap.set(marketIndexNum, {
+					pubkey: this.getMarketAccount(marketIndexNum).pubkey,
+					isSigner: false,
+					isWritable: false,
+				});
+			}
+		}
+
+		if (writableMarketIndex) {
+			remainingAccountMap.set(writableMarketIndex.toNumber(), {
+				pubkey: this.getMarketAccount(writableMarketIndex).pubkey,
+				isSigner: false,
+				isWritable: true,
+			});
+		}
+
+		return Array.from(remainingAccountMap.values());
 	}
 
 	userOrdersAccountPublicKey?: PublicKey;
@@ -506,15 +534,9 @@ export class ClearingHouse {
 		const userPositionsAccountPublicKey =
 			await this.getUserPositionsAccountPublicKey();
 
-		const remainingAccounts = [];
+		let remainingAccounts = [];
 		if (userInitialized) {
-			(await this.getUserMarketPublicKeys()).forEach((marketPublicKey) => {
-				remainingAccounts.push({
-					pubkey: marketPublicKey,
-					isWritable: false,
-					isSigner: false,
-				});
-			});
+			remainingAccounts = this.getRemainingAccountsForMarketAccounts();
 		}
 
 		const state = this.getStateAccount();
@@ -624,14 +646,7 @@ export class ClearingHouse {
 
 		const state = this.getStateAccount();
 
-		const remainingAccounts = [];
-		(await this.getUserMarketPublicKeys()).forEach((marketPublicKey) => {
-			remainingAccounts.push({
-				pubkey: marketPublicKey,
-				isWritable: false,
-				isSigner: false,
-			});
-		});
+		const remainingAccounts = this.getRemainingAccountsForMarketAccounts();
 
 		return await this.program.instruction.withdrawCollateral(amount, {
 			accounts: {
@@ -660,7 +675,7 @@ export class ClearingHouse {
 		discountToken?: PublicKey,
 		referrer?: PublicKey
 	): Promise<TransactionSignature> {
-		const { txSig } = await this.txSender.send(
+		const { txSig, slot } = await this.txSender.send(
 			wrapInTx(
 				await this.getOpenPositionIx(
 					direction,
@@ -674,6 +689,7 @@ export class ClearingHouse {
 			[],
 			this.opts
 		);
+		this.marketLastSlotCache.set(marketIndex.toNumber(), slot);
 		return txSig;
 	}
 
@@ -693,22 +709,8 @@ export class ClearingHouse {
 			limitPrice = new BN(0); // no limit
 		}
 
-		const remainingAccounts = [
-			{
-				pubkey: await getMarketAddress(this.program.programId, marketIndex),
-				isSigner: false,
-				isWritable: true,
-			},
-		];
-		(await this.getUserMarketPublicKeys(marketIndex)).forEach(
-			(marketPublicKey) => {
-				remainingAccounts.push({
-					pubkey: marketPublicKey,
-					isWritable: false,
-					isSigner: false,
-				});
-			}
-		);
+		const remainingAccounts =
+			this.getRemainingAccountsForMarketAccounts(marketIndex);
 
 		const optionalAccounts = {
 			discountToken: false,
@@ -756,40 +758,19 @@ export class ClearingHouse {
 		);
 	}
 
-	public async initializeUserOrdersThenPlaceOrder(
-		orderParams: OrderParams,
-		discountToken?: PublicKey,
-		referrer?: PublicKey
-	): Promise<TransactionSignature> {
-		const instructions: anchor.web3.TransactionInstruction[] = [];
-		const userOrdersAccountExists = this.userOrdersAccountExists();
-		if (!userOrdersAccountExists) {
-			instructions.push(await this.getInitializeUserOrdersInstruction());
-		}
-		instructions.push(
-			await this.getPlaceOrderIx(orderParams, discountToken, referrer)
-		);
-		const tx = new Transaction();
-		for (const instruction of instructions) {
-			tx.add(instruction);
-		}
-
-		const { txSig } = await this.txSender.send(tx, [], this.opts);
-		return txSig;
-	}
-
 	public async placeOrder(
 		orderParams: OrderParams,
 		discountToken?: PublicKey,
 		referrer?: PublicKey
 	): Promise<TransactionSignature> {
-		const { txSig } = await this.txSender.send(
+		const { txSig, slot } = await this.txSender.send(
 			wrapInTx(
 				await this.getPlaceOrderIx(orderParams, discountToken, referrer)
 			),
 			[],
 			this.opts
 		);
+		this.marketLastSlotCache.set(orderParams.marketIndex.toNumber(), slot);
 		return txSig;
 	}
 
@@ -805,23 +786,9 @@ export class ClearingHouse {
 		const priceOracle = this.getMarketAccount(orderParams.marketIndex).amm
 			.oracle;
 
-		const remainingAccounts = [
-			{
-				pubkey: await getMarketAddress(
-					this.program.programId,
-					orderParams.marketIndex
-				),
-				isSigner: false,
-				isWritable: false,
-			},
-		];
-		(await this.getUserMarketPublicKeys()).forEach((marketPublicKey) => {
-			remainingAccounts.push({
-				pubkey: marketPublicKey,
-				isWritable: false,
-				isSigner: false,
-			});
-		});
+		const remainingAccounts = this.getRemainingAccountsForMarketAccounts(
+			orderParams.marketIndex
+		);
 
 		if (orderParams.optionalAccounts.discountToken) {
 			if (!discountToken) {
@@ -932,14 +899,7 @@ export class ClearingHouse {
 		const order = this.getOrder(orderId);
 		const oracle = this.getMarketAccount(order.marketIndex).amm.oracle;
 
-		const remainingAccounts = [];
-		(await this.getUserMarketPublicKeys()).forEach((marketPublicKey) => {
-			remainingAccounts.push({
-				pubkey: marketPublicKey,
-				isWritable: false,
-				isSigner: false,
-			});
-		});
+		const remainingAccounts = this.getRemainingAccountsForMarketAccounts();
 
 		return await this.program.instruction.cancelOrder(orderId, {
 			accounts: {
@@ -982,14 +942,7 @@ export class ClearingHouse {
 		const order = this.getOrderByUserId(userOrderId);
 		const oracle = this.getMarketAccount(order.marketIndex).amm.oracle;
 
-		const remainingAccounts = [];
-		(await this.getUserMarketPublicKeys()).forEach((marketPublicKey) => {
-			remainingAccounts.push({
-				pubkey: marketPublicKey,
-				isWritable: false,
-				isSigner: false,
-			});
-		});
+		const remainingAccounts = this.getRemainingAccountsForMarketAccounts();
 
 		return await this.program.instruction.cancelOrderByUserId(userOrderId, {
 			accounts: {
@@ -1029,14 +982,7 @@ export class ClearingHouse {
 		const state = this.getStateAccount();
 		const orderState = this.getOrderStateAccount();
 
-		const remainingAccounts = [];
-		(await this.getUserMarketPublicKeys()).forEach((marketPublicKey) => {
-			remainingAccounts.push({
-				pubkey: marketPublicKey,
-				isWritable: false,
-				isSigner: false,
-			});
-		});
+		const remainingAccounts = this.getRemainingAccountsForMarketAccounts();
 
 		for (const order of this.getUserOrdersAccount().orders) {
 			const oracle = this.getMarketAccount(order.marketIndex).amm.oracle;
@@ -1094,14 +1040,7 @@ export class ClearingHouse {
 		const state = this.getStateAccount();
 		const orderState = this.getOrderStateAccount();
 
-		const remainingAccounts = [];
-		(await this.getUserMarketPublicKeys()).forEach((marketPublicKey) => {
-			remainingAccounts.push({
-				pubkey: marketPublicKey,
-				isWritable: false,
-				isSigner: false,
-			});
-		});
+		const remainingAccounts = this.getRemainingAccountsForMarketAccounts();
 
 		for (const order of this.getUserOrdersAccount().orders) {
 			const oracle = this.getMarketAccount(order.marketIndex).amm.oracle;
@@ -1140,7 +1079,7 @@ export class ClearingHouse {
 		userPositions: UserPositionsAccount,
 		order: Order
 	): Promise<TransactionSignature> {
-		const { txSig } = await this.txSender.send(
+		const { txSig, slot } = await this.txSender.send(
 			wrapInTx(
 				await this.getFillOrderIx(
 					userAccountPublicKey,
@@ -1153,6 +1092,7 @@ export class ClearingHouse {
 			[],
 			this.opts
 		);
+		this.marketLastSlotCache.set(order.marketIndex.toNumber(), slot);
 		return txSig;
 	}
 
@@ -1256,13 +1196,14 @@ export class ClearingHouse {
 		discountToken?: PublicKey,
 		referrer?: PublicKey
 	): Promise<TransactionSignature> {
-		const { txSig } = await this.txSender.send(
+		const { txSig, slot } = await this.txSender.send(
 			wrapInTx(
 				await this.getPlaceAndFillOrderIx(orderParams, discountToken, referrer)
 			),
 			[],
 			this.opts
 		);
+		this.marketLastSlotCache.set(orderParams.marketIndex.toNumber(), slot);
 		return txSig;
 	}
 
@@ -1278,24 +1219,8 @@ export class ClearingHouse {
 		const priceOracle = this.getMarketAccount(orderParams.marketIndex).amm
 			.oracle;
 
-		const remainingAccounts = [
-			{
-				pubkey: await getMarketAddress(
-					this.program.programId,
-					orderParams.marketIndex
-				),
-				isSigner: false,
-				isWritable: true,
-			},
-		];
-		(await this.getUserMarketPublicKeys(orderParams.marketIndex)).forEach(
-			(marketPublicKey) => {
-				remainingAccounts.push({
-					pubkey: marketPublicKey,
-					isWritable: false,
-					isSigner: false,
-				});
-			}
+		const remainingAccounts = this.getRemainingAccountsForMarketAccounts(
+			orderParams.marketIndex
 		);
 
 		if (orderParams.optionalAccounts.discountToken) {
@@ -1380,22 +1305,8 @@ export class ClearingHouse {
 
 		const priceOracle = this.getMarketAccount(marketIndex).amm.oracle;
 
-		const remainingAccounts = [
-			{
-				pubkey: await getMarketAddress(this.program.programId, marketIndex),
-				isSigner: false,
-				isWritable: true,
-			},
-		];
-		(await this.getUserMarketPublicKeys(marketIndex)).forEach(
-			(marketPublicKey) => {
-				remainingAccounts.push({
-					pubkey: marketPublicKey,
-					isWritable: false,
-					isSigner: false,
-				});
-			}
-		);
+		const remainingAccounts =
+			this.getRemainingAccountsForMarketAccounts(marketIndex);
 
 		const optionalAccounts = {
 			discountToken: false,
