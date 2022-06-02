@@ -1,4 +1,5 @@
 import {
+	AccountAndSlot,
 	AccountToPoll,
 	ClearingHouseAccountEvents,
 	ClearingHouseAccountSubscriber,
@@ -54,20 +55,20 @@ export class PollingClearingHouseAccountSubscriber
 	accountsToPoll = new Map<string, AccountToPoll>();
 	errorCallbackId?: string;
 
-	state?: StateAccount;
-	market = new Map<number, MarketAccount>();
-	orderState?: OrderStateAccount;
-	tradeHistory?: TradeHistoryAccount;
-	depositHistory?: DepositHistoryAccount;
-	fundingPaymentHistory?: FundingPaymentHistoryAccount;
-	fundingRateHistory?: FundingRateHistoryAccount;
-	liquidationHistory?: LiquidationHistoryAccount;
-	extendedCurveHistory: ExtendedCurveHistoryAccount;
-	orderHistory?: OrderHistoryAccount;
+	state?: AccountAndSlot<StateAccount>;
+	market = new Map<number, AccountAndSlot<MarketAccount>>();
+	orderState?: AccountAndSlot<OrderStateAccount>;
+	tradeHistory?: AccountAndSlot<TradeHistoryAccount>;
+	depositHistory?: AccountAndSlot<DepositHistoryAccount>;
+	fundingPaymentHistory?: AccountAndSlot<FundingPaymentHistoryAccount>;
+	fundingRateHistory?: AccountAndSlot<FundingRateHistoryAccount>;
+	liquidationHistory?: AccountAndSlot<LiquidationHistoryAccount>;
+	extendedCurveHistory: AccountAndSlot<ExtendedCurveHistoryAccount>;
+	orderHistory?: AccountAndSlot<OrderHistoryAccount>;
 
-	userAccount?: UserAccount;
-	userPositionsAccount?: UserPositionsAccount;
-	userOrdersAccount?: UserOrdersAccount;
+	userAccount?: AccountAndSlot<UserAccount>;
+	userPositionsAccount?: AccountAndSlot<UserPositionsAccount>;
+	userOrdersAccount?: AccountAndSlot<UserOrdersAccount>;
 
 	optionalExtraSubscriptions: ClearingHouseAccountTypes[] = [];
 
@@ -338,14 +339,18 @@ export class PollingClearingHouseAccountSubscriber
 	addAccountToAccountLoader(accountToPoll: AccountToPoll): void {
 		accountToPoll.callbackId = this.accountLoader.addAccount(
 			accountToPoll.publicKey,
-			(buffer) => {
+			(buffer, slot) => {
 				const account = this.program.account[
 					accountToPoll.key
 				].coder.accounts.decode(capitalize(accountToPoll.key), buffer);
+				const accountAndSlot = {
+					account,
+					slot,
+				};
 				if (accountToPoll.mapKey) {
-					this[accountToPoll.key].set(accountToPoll.mapKey, account);
+					this[accountToPoll.key].set(accountToPoll.mapKey, accountAndSlot);
 				} else {
-					this[accountToPoll.key] = account;
+					this[accountToPoll.key] = accountAndSlot;
 				}
 
 				// @ts-ignore
@@ -362,11 +367,17 @@ export class PollingClearingHouseAccountSubscriber
 	public async fetch(): Promise<void> {
 		await this.accountLoader.load();
 		for (const [_, accountToPoll] of this.accountsToPoll) {
-			const buffer = this.accountLoader.getAccountData(accountToPoll.publicKey);
+			const { buffer, slot } = this.accountLoader.getBufferAndSlot(
+				accountToPoll.publicKey
+			);
 			if (buffer) {
-				this[accountToPoll.key] = this.program.account[
+				const account = this.program.account[
 					accountToPoll.key
 				].coder.accounts.decode(capitalize(accountToPoll.key), buffer);
+				this[accountToPoll.key] = {
+					account,
+					slot,
+				};
 			}
 		}
 	}
@@ -455,73 +466,79 @@ export class PollingClearingHouseAccountSubscriber
 		}
 	}
 
-	public getStateAccount(): StateAccount {
+	public getStateAccountAndSlot(): AccountAndSlot<StateAccount> {
 		this.assertIsSubscribed();
 		return this.state;
 	}
 
-	public getMarketAccount(marketIndex: BN): MarketAccount | undefined {
+	public getMarketAccountAndSlot(
+		marketIndex: BN
+	): AccountAndSlot<MarketAccount> | undefined {
 		return this.market.get(marketIndex.toNumber());
 	}
 
-	public getOrderStateAccount(): OrderStateAccount {
+	public getOrderStateAccountAndSlot(): AccountAndSlot<OrderStateAccount> {
 		this.assertIsSubscribed();
 		return this.orderState;
 	}
 
-	public getTradeHistoryAccount(): TradeHistoryAccount {
+	public getTradeHistoryAccountAndSlot(): AccountAndSlot<TradeHistoryAccount> {
 		this.assertIsSubscribed();
 		this.assertOptionalIsSubscribed('tradeHistoryAccount');
 		return this.tradeHistory;
 	}
 
-	public getDepositHistoryAccount(): DepositHistoryAccount {
+	public getDepositHistoryAccountAndSlot(): AccountAndSlot<DepositHistoryAccount> {
 		this.assertIsSubscribed();
 		this.assertOptionalIsSubscribed('depositHistoryAccount');
 		return this.depositHistory;
 	}
 
-	public getFundingPaymentHistoryAccount(): FundingPaymentHistoryAccount {
+	public getFundingPaymentHistoryAccountAndSlot(): AccountAndSlot<FundingPaymentHistoryAccount> {
 		this.assertIsSubscribed();
 		this.assertOptionalIsSubscribed('fundingPaymentHistoryAccount');
 		return this.fundingPaymentHistory;
 	}
 
-	public getFundingRateHistoryAccount(): FundingRateHistoryAccount {
+	public getFundingRateHistoryAccountAndSlot(): AccountAndSlot<FundingRateHistoryAccount> {
 		this.assertIsSubscribed();
 		this.assertOptionalIsSubscribed('fundingRateHistoryAccount');
 		return this.fundingRateHistory;
 	}
 
-	public getCurveHistoryAccount(): ExtendedCurveHistoryAccount {
+	public getCurveHistoryAccountAndSlot(): AccountAndSlot<ExtendedCurveHistoryAccount> {
 		this.assertIsSubscribed();
 		this.assertOptionalIsSubscribed('curveHistoryAccount');
 		return this.extendedCurveHistory;
 	}
 
-	public getLiquidationHistoryAccount(): LiquidationHistoryAccount {
+	public getLiquidationHistoryAccountAndSlot(): AccountAndSlot<LiquidationHistoryAccount> {
 		this.assertIsSubscribed();
 		this.assertOptionalIsSubscribed('liquidationHistoryAccount');
 		return this.liquidationHistory;
 	}
 
-	public getOrderHistoryAccount(): OrderHistoryAccount {
+	public getOrderHistoryAccountAndSlot(): AccountAndSlot<OrderHistoryAccount> {
 		this.assertIsSubscribed();
 		this.assertOptionalIsSubscribed('orderHistoryAccount');
 		return this.orderHistory;
 	}
 
-	public getUserAccount(): UserAccount | undefined {
+	public getUserAccountAndSlot(): AccountAndSlot<UserAccount> | undefined {
 		this.assertIsSubscribed();
 		return this.userAccount;
 	}
 
-	public getUserPositionsAccount(): UserPositionsAccount | undefined {
+	public getUserPositionsAccountAndSlot():
+		| AccountAndSlot<UserPositionsAccount>
+		| undefined {
 		this.assertIsSubscribed();
 		return this.userPositionsAccount;
 	}
 
-	public getUserOrdersAccount(): UserOrdersAccount | undefined {
+	public getUserOrdersAccountAndSlot():
+		| AccountAndSlot<UserOrdersAccount>
+		| undefined {
 		this.assertIsSubscribed();
 		return this.userOrdersAccount;
 	}

@@ -1,4 +1,5 @@
 import {
+	AccountAndSlot,
 	AccountToPoll,
 	NotSubscribedError,
 	UserAccountEvents,
@@ -29,9 +30,9 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 	accountsToPoll = new Map<string, AccountToPoll>();
 	errorCallbackId?: string;
 
-	user?: UserAccount;
-	userPositions?: UserPositionsAccount;
-	userOrders?: UserOrdersAccount;
+	userAccountAndSlot?: AccountAndSlot<UserAccount>;
+	userPositionsAccountAndSlot?: AccountAndSlot<UserPositionsAccount>;
+	userOrdersAccountAndSlot?: AccountAndSlot<UserOrdersAccount>;
 
 	type: ClearingHouseConfigType = 'polling';
 
@@ -133,7 +134,7 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 		for (const [_, accountToPoll] of this.accountsToPoll) {
 			accountToPoll.callbackId = this.accountLoader.addAccount(
 				accountToPoll.publicKey,
-				(buffer) => {
+				(buffer, slot) => {
 					if (!buffer) {
 						return;
 					}
@@ -141,7 +142,7 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 					const account = this.program.account[
 						accountToPoll.key
 					].coder.accounts.decode(capitalize(accountToPoll.key), buffer);
-					this[accountToPoll.key] = account;
+					this[accountToPoll.key] = { account, slot };
 					// @ts-ignore
 					this.eventEmitter.emit(accountToPoll.eventType, account);
 					this.eventEmitter.emit('update');
@@ -171,11 +172,14 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 	async fetch(): Promise<void> {
 		await this.accountLoader.load();
 		for (const [_, accountToPoll] of this.accountsToPoll) {
-			const buffer = this.accountLoader.getAccountData(accountToPoll.publicKey);
+			const { buffer, slot } = this.accountLoader.getBufferAndSlot(
+				accountToPoll.publicKey
+			);
 			if (buffer) {
-				this[accountToPoll.key] = this.program.account[
+				const account = this.program.account[
 					accountToPoll.key
 				].coder.accounts.decode(capitalize(accountToPoll.key), buffer);
+				this[accountToPoll.key] = { account, slot };
 			}
 		}
 	}
@@ -220,18 +224,18 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 		}
 	}
 
-	public getUserAccount(): UserAccount {
+	public getUserAccountAndSlot(): AccountAndSlot<UserAccount> {
 		this.assertIsSubscribed();
-		return this.user;
+		return this.userAccountAndSlot;
 	}
 
-	public getUserPositionsAccount(): UserPositionsAccount {
+	public getUserPositionsAccountAndSlot(): AccountAndSlot<UserPositionsAccount> {
 		this.assertIsSubscribed();
-		return this.userPositions;
+		return this.userPositionsAccountAndSlot;
 	}
 
-	public getUserOrdersAccount(): UserOrdersAccount {
+	public getUserOrdersAccountAndSlot(): AccountAndSlot<UserOrdersAccount> {
 		this.assertIsSubscribed();
-		return this.userOrders;
+		return this.userOrdersAccountAndSlot;
 	}
 }

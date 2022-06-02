@@ -25,7 +25,7 @@ import {
 import { BN } from '@project-serum/anchor';
 
 export interface AccountSubscriber<T> {
-	data?: T;
+	accountAndSlot?: AccountAndSlot<T>;
 	subscribe(onChange: (data: T) => void): Promise<void>;
 	fetch(): Promise<void>;
 	unsubscribe(): Promise<void>;
@@ -78,20 +78,24 @@ export interface ClearingHouseAccountSubscriber {
 
 	updateAuthority(newAuthority: PublicKey): Promise<boolean>;
 
-	getStateAccount(): StateAccount;
-	getMarketAccount(marketIndex: BN): MarketAccount | undefined;
-	getTradeHistoryAccount(): TradeHistoryAccount;
-	getDepositHistoryAccount(): DepositHistoryAccount;
-	getFundingPaymentHistoryAccount(): FundingPaymentHistoryAccount;
-	getFundingRateHistoryAccount(): FundingRateHistoryAccount;
-	getCurveHistoryAccount(): ExtendedCurveHistoryAccount;
-	getLiquidationHistoryAccount(): LiquidationHistoryAccount;
-	getOrderStateAccount(): OrderStateAccount;
-	getOrderHistoryAccount(): OrderHistoryAccount;
+	getStateAccountAndSlot(): AccountAndSlot<StateAccount>;
+	getMarketAccountAndSlot(
+		marketIndex: BN
+	): AccountAndSlot<MarketAccount> | undefined;
+	getTradeHistoryAccountAndSlot(): AccountAndSlot<TradeHistoryAccount>;
+	getDepositHistoryAccountAndSlot(): AccountAndSlot<DepositHistoryAccount>;
+	getFundingPaymentHistoryAccountAndSlot(): AccountAndSlot<FundingPaymentHistoryAccount>;
+	getFundingRateHistoryAccountAndSlot(): AccountAndSlot<FundingRateHistoryAccount>;
+	getCurveHistoryAccountAndSlot(): AccountAndSlot<ExtendedCurveHistoryAccount>;
+	getLiquidationHistoryAccountAndSlot(): AccountAndSlot<LiquidationHistoryAccount>;
+	getOrderStateAccountAndSlot(): AccountAndSlot<OrderStateAccount>;
+	getOrderHistoryAccountAndSlot(): AccountAndSlot<OrderHistoryAccount>;
 
-	getUserAccount(): UserAccount | undefined;
-	getUserPositionsAccount(): UserPositionsAccount | undefined;
-	getUserOrdersAccount(): UserOrdersAccount | undefined;
+	getUserAccountAndSlot(): AccountAndSlot<UserAccount> | undefined;
+	getUserPositionsAccountAndSlot():
+		| AccountAndSlot<UserPositionsAccount>
+		| undefined;
+	getUserOrdersAccountAndSlot(): AccountAndSlot<UserOrdersAccount> | undefined;
 
 	type: ClearingHouseConfigType;
 }
@@ -118,9 +122,9 @@ export interface UserAccountSubscriber {
 	fetch(): Promise<void>;
 	unsubscribe(): Promise<void>;
 
-	getUserAccount(): UserAccount;
-	getUserPositionsAccount(): UserPositionsAccount;
-	getUserOrdersAccount(): UserOrdersAccount;
+	getUserAccountAndSlot(): AccountAndSlot<UserAccount>;
+	getUserPositionsAccountAndSlot(): AccountAndSlot<UserPositionsAccount>;
+	getUserOrdersAccountAndSlot(): AccountAndSlot<UserOrdersAccount>;
 	type: ClearingHouseUserConfigType;
 }
 
@@ -138,7 +142,7 @@ export interface TokenAccountSubscriber {
 	fetch(): Promise<void>;
 	unsubscribe(): Promise<void>;
 
-	getTokenAccount(): AccountInfo;
+	getTokenAccountAndSlot(): AccountAndSlot<AccountInfo>;
 }
 
 export interface OracleEvents {
@@ -155,7 +159,7 @@ export interface OracleSubscriber {
 	fetch(): Promise<void>;
 	unsubscribe(): Promise<void>;
 
-	getOraclePriceData(): OraclePriceData;
+	getOraclePriceData(): AccountAndSlot<OraclePriceData>;
 }
 
 export type AccountToPoll = {
@@ -166,7 +170,12 @@ export type AccountToPoll = {
 	mapKey?: number;
 };
 
-export type AccountData = {
+export type BufferAndSlot = {
 	slot: number;
 	buffer: Buffer | undefined;
+};
+
+export type AccountAndSlot<T> = {
+	account: T;
+	slot: number;
 };

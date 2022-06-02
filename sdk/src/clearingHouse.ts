@@ -186,40 +186,41 @@ export class ClearingHouse {
 	}
 
 	public getStateAccount(): StateAccount {
-		return this.accountSubscriber.getStateAccount();
+		return this.accountSubscriber.getStateAccountAndSlot().account;
 	}
 
 	public getMarketAccount(marketIndex: BN | number): MarketAccount {
 		marketIndex = marketIndex instanceof BN ? marketIndex : new BN(marketIndex);
-		return this.accountSubscriber.getMarketAccount(marketIndex);
+		return this.accountSubscriber.getMarketAccountAndSlot(marketIndex).account;
 	}
 
 	public getFundingPaymentHistoryAccount(): FundingPaymentHistoryAccount {
-		return this.accountSubscriber.getFundingPaymentHistoryAccount();
+		return this.accountSubscriber.getFundingPaymentHistoryAccountAndSlot()
+			.account;
 	}
 
 	public getFundingRateHistoryAccount(): FundingRateHistoryAccount {
-		return this.accountSubscriber.getFundingRateHistoryAccount();
+		return this.accountSubscriber.getFundingRateHistoryAccountAndSlot().account;
 	}
 
 	public getTradeHistoryAccount(): TradeHistoryAccount {
-		return this.accountSubscriber.getTradeHistoryAccount();
+		return this.accountSubscriber.getTradeHistoryAccountAndSlot().account;
 	}
 
 	public getLiquidationHistoryAccount(): LiquidationHistoryAccount {
-		return this.accountSubscriber.getLiquidationHistoryAccount();
+		return this.accountSubscriber.getLiquidationHistoryAccountAndSlot().account;
 	}
 
 	public getDepositHistoryAccount(): DepositHistoryAccount {
-		return this.accountSubscriber.getDepositHistoryAccount();
+		return this.accountSubscriber.getDepositHistoryAccountAndSlot().account;
 	}
 
 	public getCurveHistoryAccount(): ExtendedCurveHistoryAccount {
-		return this.accountSubscriber.getCurveHistoryAccount();
+		return this.accountSubscriber.getCurveHistoryAccountAndSlot().account;
 	}
 
 	public getOrderHistoryAccount(): OrderHistoryAccount {
-		return this.accountSubscriber.getOrderHistoryAccount();
+		return this.accountSubscriber.getOrderHistoryAccountAndSlot().account;
 	}
 
 	orderStatePublicKey?: PublicKey;
@@ -234,7 +235,7 @@ export class ClearingHouse {
 	}
 
 	public getOrderStateAccount(): OrderStateAccount {
-		return this.accountSubscriber.getOrderStateAccount();
+		return this.accountSubscriber.getOrderStateAccountAndSlot().account;
 	}
 
 	/**
@@ -389,7 +390,7 @@ export class ClearingHouse {
 	}
 
 	public getUserAccount(): UserAccount | undefined {
-		return this.accountSubscriber.getUserAccount();
+		return this.accountSubscriber.getUserAccountAndSlot().account;
 	}
 
 	userPositionsAccountPublicKey?: PublicKey;
@@ -410,7 +411,7 @@ export class ClearingHouse {
 	}
 
 	public getUserPositionsAccount(): UserPositionsAccount | undefined {
-		return this.accountSubscriber.getUserPositionsAccount();
+		return this.accountSubscriber.getUserPositionsAccountAndSlot().account;
 	}
 
 	getUserMarketIndexes(): BN[] {
@@ -461,7 +462,7 @@ export class ClearingHouse {
 	}
 
 	public getUserOrdersAccount(): UserOrdersAccount | undefined {
-		return this.accountSubscriber.getUserOrdersAccount();
+		return this.accountSubscriber.getUserOrdersAccountAndSlot().account;
 	}
 
 	public getOrder(orderId: BN | number): Order | undefined {
@@ -478,7 +479,7 @@ export class ClearingHouse {
 	}
 
 	userOrdersAccountExists(): boolean {
-		return this.accountSubscriber.getUserOrdersAccount() !== undefined;
+		return this.accountSubscriber.getUserOrdersAccountAndSlot() !== undefined;
 	}
 
 	public async depositCollateral(

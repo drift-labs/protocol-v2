@@ -1,12 +1,12 @@
-import { AccountData, AccountSubscriber } from './types';
+import { AccountAndSlot, BufferAndSlot, AccountSubscriber } from './types';
 import { AnchorProvider, Program } from '@project-serum/anchor';
 import { AccountInfo, Context, PublicKey } from '@solana/web3.js';
 import { capitalize } from './utils';
 import * as Buffer from 'buffer';
 
 export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
-	data?: T;
-	accountData?: AccountData;
+	accountAndSlot?: AccountAndSlot<T>;
+	bufferAndSlot?: BufferAndSlot;
 	accountName: string;
 	program: Program;
 	accountPublicKey: PublicKey;
@@ -56,35 +56,42 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 			newBuffer = accountInfo.data;
 		}
 
-		if (!this.accountData) {
-			this.accountData = {
+		if (!this.bufferAndSlot) {
+			this.bufferAndSlot = {
 				buffer: newBuffer,
 				slot: newSlot,
 			};
 			if (newBuffer) {
-				this.data = this.program.account[
+				const account = this.program.account[
 					this.accountName
 				].coder.accounts.decode(capitalize(this.accountName), newBuffer);
-				this.onChange(this.data);
+				this.accountAndSlot = {
+					account,
+					slot: newSlot,
+				};
+				this.onChange(account);
 			}
 			return;
 		}
 
-		if (newSlot <= this.accountData.slot) {
+		if (newSlot <= this.bufferAndSlot.slot) {
 			return;
 		}
 
-		const oldBuffer = this.accountData.buffer;
+		const oldBuffer = this.bufferAndSlot.buffer;
 		if (newBuffer && (!oldBuffer || !newBuffer.equals(oldBuffer))) {
-			this.accountData = {
+			this.bufferAndSlot = {
 				buffer: newBuffer,
 				slot: newSlot,
 			};
-			this.data = this.program.account[this.accountName].coder.accounts.decode(
-				capitalize(this.accountName),
-				newBuffer
-			);
-			this.onChange(this.data);
+			const account = this.program.account[
+				this.accountName
+			].coder.accounts.decode(capitalize(this.accountName), newBuffer);
+			this.accountAndSlot = {
+				account,
+				slot: newSlot,
+			};
+			this.onChange(account);
 		}
 	}
 
