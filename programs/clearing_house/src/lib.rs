@@ -993,8 +993,6 @@ pub mod clearing_house {
     }
 
     pub fn place_order(ctx: Context<PlaceOrder>, params: OrderParams) -> Result<()> {
-        let account_info_iter = &mut ctx.remaining_accounts.iter().peekable();
-
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let market_map = MarketMap::load(
             &WritableMarkets::new(),
@@ -1004,13 +1002,13 @@ pub mod clearing_house {
 
         let discount_token = get_discount_token(
             params.optional_accounts.discount_token,
-            account_info_iter,
+            remaining_accounts_iter,
             &ctx.accounts.state.discount_mint,
             ctx.accounts.authority.key,
         )?;
         let referrer = get_referrer(
             params.optional_accounts.referrer,
-            account_info_iter,
+            remaining_accounts_iter,
             &ctx.accounts.user.key(),
             None,
         )?;
