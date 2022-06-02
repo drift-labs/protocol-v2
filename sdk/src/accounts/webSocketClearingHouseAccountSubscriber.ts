@@ -436,6 +436,7 @@ export class WebSocketClearingHouseAccountSubscriber
 	}
 
 	public getMarketAccount(marketIndex: BN): MarketAccount | undefined {
+		this.assertIsSubscribed();
 		return this.marketAccountSubscribers.get(marketIndex.toNumber()).data;
 	}
 
