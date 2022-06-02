@@ -23,6 +23,7 @@ use arrayref::array_ref;
 #[derive(Default)]
 pub struct Market {
     pub market_index: u64,
+    pub pubkey: Pubkey,
     pub initialized: bool,
     pub amm: AMM,
     pub base_asset_amount_long: i128,
@@ -333,8 +334,8 @@ pub fn get_market_map<'a, 'b, 'c>(
             break;
         }
         let market_index = u64::from_le_bytes(*array_ref![data, 8, 8]);
-        let is_initialized = array_ref![data, 16, 1];
-        let market_oracle = Pubkey::new(array_ref![data, 17, 32]);
+        let is_initialized = array_ref![data, 48, 1];
+        let market_oracle = Pubkey::new(array_ref![data, 49, 32]);
 
         let account_info = account_info_iter.next().unwrap();
         let is_writable = account_info.is_writable;

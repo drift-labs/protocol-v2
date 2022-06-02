@@ -270,11 +270,13 @@ export type OrderStateAccount = {
 };
 
 export type Market = {
+	initialized: boolean;
+	marketIndex: BN;
+	pubkey: PublicKey;
 	amm: AMM;
 	baseAssetAmount: BN;
 	baseAssetAmountLong: BN;
 	baseAssetAmountShort: BN;
-	initialized: boolean;
 	openInterest: BN;
 	marginRatioInitial: number;
 	marginRatioMaintenance: number;

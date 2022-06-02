@@ -250,6 +250,7 @@ pub mod clearing_house {
         margin_ratio_partial: u32,
         margin_ratio_maintenance: u32,
     ) -> Result<()> {
+        let market_pubkey = ctx.accounts.market.to_account_info().key;
         let market = &mut ctx.accounts.market.load_init()?;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
@@ -304,6 +305,7 @@ pub mod clearing_house {
         let market_index = state.number_of_markets;
         **market = Market {
             initialized: true,
+            pubkey: *market_pubkey,
             market_index,
             base_asset_amount_long: 0,
             base_asset_amount_short: 0,

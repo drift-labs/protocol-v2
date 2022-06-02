@@ -2288,6 +2288,10 @@
             "type": "u64"
           },
           {
+            "name": "pubkey",
+            "type": "publicKey"
+          },
+          {
             "name": "initialized",
             "type": "bool"
           },
@@ -3309,72 +3313,6 @@
           {
             "name": "oraclePrice",
             "type": "i128"
-          }
-        ]
-      }
-    },
-    {
-      "name": "DeprecatedMarket",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "initialized",
-            "type": "bool"
-          },
-          {
-            "name": "baseAssetAmountLong",
-            "type": "i128"
-          },
-          {
-            "name": "baseAssetAmountShort",
-            "type": "i128"
-          },
-          {
-            "name": "baseAssetAmount",
-            "type": "i128"
-          },
-          {
-            "name": "openInterest",
-            "type": "u128"
-          },
-          {
-            "name": "amm",
-            "type": {
-              "defined": "AMM"
-            }
-          },
-          {
-            "name": "marginRatioInitial",
-            "type": "u32"
-          },
-          {
-            "name": "marginRatioPartial",
-            "type": "u32"
-          },
-          {
-            "name": "marginRatioMaintenance",
-            "type": "u32"
-          },
-          {
-            "name": "padding0",
-            "type": "u32"
-          },
-          {
-            "name": "padding1",
-            "type": "u128"
-          },
-          {
-            "name": "padding2",
-            "type": "u128"
-          },
-          {
-            "name": "padding3",
-            "type": "u128"
-          },
-          {
-            "name": "padding4",
-            "type": "u128"
           }
         ]
       }
