@@ -531,17 +531,6 @@ pub fn fill_order(
     }
 
     let market_index = order.market_index;
-    {
-        let market = &market_map.get_ref(&market_index)?;
-
-        if !market.initialized {
-            return Err(ErrorCode::MarketIndexNotInitialized);
-        }
-
-        if !market.amm.oracle.eq(oracle.key) {
-            return Err(ErrorCode::InvalidOracle);
-        }
-    }
 
     let mark_price_before: u128;
     let oracle_mark_spread_pct_before: i128;
