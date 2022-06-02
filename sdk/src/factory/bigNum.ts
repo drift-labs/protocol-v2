@@ -100,7 +100,7 @@ export class BigNum {
 	public gt(bn: BigNum | BN, ignorePrecision?:boolean): boolean {
 		const comparisonVal = bn instanceof BigNum ? bn : BigNum.from(bn);
 
-		if (!ignorePrecision) {
+		if (!ignorePrecision && !comparisonVal.eq(ZERO)) {
 			assert(comparisonVal.precision.eq(this.precision), 'Trying to compare numbers with different precision. Yo can opt to ignore precision using the ignorePrecision parameter');
 		}
 
@@ -110,7 +110,7 @@ export class BigNum {
 	public lt(bn: BigNum | BN, ignorePrecision?:boolean): boolean {
 		const comparisonVal = bn instanceof BigNum ? bn : BigNum.from(bn);
 
-		if (!ignorePrecision) {
+		if (!ignorePrecision && !comparisonVal.val.eq(ZERO)) {
 			assert(comparisonVal.precision.eq(this.precision), 'Trying to compare numbers with different precision. Yo can opt to ignore precision using the ignorePrecision parameter');
 		}
 
@@ -120,7 +120,7 @@ export class BigNum {
 	public gte(bn: BigNum | BN, ignorePrecision?:boolean): boolean {
 		const comparisonVal = bn instanceof BigNum ? bn : BigNum.from(bn);
 
-		if (!ignorePrecision) {
+		if (!ignorePrecision && !comparisonVal.val.eq(ZERO)) {
 			assert(comparisonVal.precision.eq(this.precision), 'Trying to compare numbers with different precision. Yo can opt to ignore precision using the ignorePrecision parameter');
 		}
 
@@ -130,7 +130,7 @@ export class BigNum {
 	public lte(bn: BigNum | BN, ignorePrecision?:boolean): boolean {
 		const comparisonVal = bn instanceof BigNum ? bn : BigNum.from(bn);
 
-		if (!ignorePrecision) {
+		if (!ignorePrecision && !comparisonVal.val.eq(ZERO)) {
 			assert(comparisonVal.precision.eq(this.precision), 'Trying to compare numbers with different precision. Yo can opt to ignore precision using the ignorePrecision parameter');
 		}
 
@@ -140,7 +140,7 @@ export class BigNum {
 	public eq(bn: BigNum | BN, ignorePrecision?:boolean): boolean {
 		const comparisonVal = bn instanceof BigNum ? bn : BigNum.from(bn);
 
-		if (!ignorePrecision) {
+		if (!ignorePrecision && !comparisonVal.val.eq(ZERO)) {
 			assert(comparisonVal.precision.eq(this.precision), 'Trying to compare numbers with different precision. Yo can opt to ignore precision using the ignorePrecision parameter');
 		}
 
