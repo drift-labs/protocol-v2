@@ -5,7 +5,7 @@ import {
 	QUOTE_PRECISION,
 	ZERO,
 } from '../constants/numericConstants';
-import { Market } from '../types';
+import { MarketAccount } from '../types';
 import { calculateMarkPrice } from './market';
 import { OraclePriceData } from '../oracles/types';
 
@@ -17,7 +17,7 @@ import { OraclePriceData } from '../oracles/types';
  * @returns Estimated funding rate. : Precision //TODO-PRECISION
  */
 export async function calculateAllEstimatedFundingRate(
-	market: Market,
+	market: MarketAccount,
 	oraclePriceData?: OraclePriceData,
 	periodAdjustment: BN = new BN(1)
 ): Promise<[BN, BN, BN, BN, BN]> {
@@ -205,7 +205,7 @@ export async function calculateAllEstimatedFundingRate(
  * @returns Estimated funding rate. : Precision //TODO-PRECISION
  */
 export async function calculateEstimatedFundingRate(
-	market: Market,
+	market: MarketAccount,
 	oraclePriceData?: OraclePriceData,
 	periodAdjustment: BN = new BN(1),
 	estimationMethod?: 'interpolated' | 'lowerbound' | 'capped'
@@ -235,7 +235,7 @@ export async function calculateEstimatedFundingRate(
  * @returns Estimated funding rate. : Precision //TODO-PRECISION
  */
 export async function calculateLongShortFundingRate(
-	market: Market,
+	market: MarketAccount,
 	oraclePriceData?: OraclePriceData,
 	periodAdjustment: BN = new BN(1)
 ): Promise<[BN, BN]> {
@@ -263,7 +263,7 @@ export async function calculateLongShortFundingRate(
  * @returns Estimated funding rate. : Precision //TODO-PRECISION
  */
 export async function calculateLongShortFundingRateAndLiveTwaps(
-	market: Market,
+	market: MarketAccount,
 	oraclePriceData?: OraclePriceData,
 	periodAdjustment: BN = new BN(1)
 ): Promise<[BN, BN, BN, BN]> {
@@ -288,7 +288,7 @@ export async function calculateLongShortFundingRateAndLiveTwaps(
  * @param market
  * @returns Estimated fee pool size
  */
-export function calculateFundingPool(market: Market): BN {
+export function calculateFundingPool(market: MarketAccount): BN {
 	// todo
 	const totalFeeLB = market.amm.totalFee.div(new BN(2));
 	const feePool = BN.max(

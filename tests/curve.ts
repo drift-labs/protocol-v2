@@ -91,7 +91,7 @@ describe('AMM Curve', () => {
 	});
 
 	const showCurve = (marketIndex) => {
-		const marketData = clearingHouse.getMarket(marketIndex);
+		const marketData = clearingHouse.getMarketAccount(marketIndex);
 		const ammAccountState = marketData.amm;
 
 		console.log(
@@ -134,7 +134,7 @@ describe('AMM Curve', () => {
 	};
 
 	const showBook = (marketIndex) => {
-		const market = clearingHouse.getMarket(marketIndex);
+		const market = clearingHouse.getMarketAccount(marketIndex);
 		const currentMark = calculateMarkPrice(market);
 
 		const [bidsPrice, bidsCumSize, asksPrice, asksCumSize] = liquidityBook(
@@ -197,7 +197,7 @@ describe('AMM Curve', () => {
 	});
 	it('Arb back to Oracle Price Moves', async () => {
 		const [direction, quoteSize] = calculateTargetPriceTrade(
-			clearingHouse.getMarket(marketIndex),
+			clearingHouse.getMarketAccount(marketIndex),
 			new BN(initialSOLPrice).mul(MARK_PRICE_PRECISION)
 		);
 
@@ -208,7 +208,7 @@ describe('AMM Curve', () => {
 	});
 
 	it('Repeg Curve LONG', async () => {
-		let marketData = clearingHouse.getMarket(marketIndex);
+		let marketData = clearingHouse.getMarketAccount(marketIndex);
 		const ammAccountState = marketData.amm;
 		assert(ammAccountState.totalFee.eq(ammAccountState.totalFee));
 
@@ -229,13 +229,15 @@ describe('AMM Curve', () => {
 		// showBook(marketIndex);
 
 		const priceBefore = calculateMarkPrice(
-			clearingHouse.getMarket(marketIndex)
+			clearingHouse.getMarketAccount(marketIndex)
 		);
 		await clearingHouse.repegAmmCurve(
 			new BN(150.001 * PEG_PRECISION.toNumber()),
 			marketIndex
 		);
-		const priceAfter = calculateMarkPrice(clearingHouse.getMarket(marketIndex));
+		const priceAfter = calculateMarkPrice(
+			clearingHouse.getMarketAccount(marketIndex)
+		);
 
 		assert(newOraclePriceWithMantissa.gt(priceBefore));
 		assert(priceAfter.gt(priceBefore));
@@ -245,7 +247,7 @@ describe('AMM Curve', () => {
 		showCurve(marketIndex);
 		// showBook(marketIndex);
 
-		marketData = clearingHouse.getMarket(marketIndex);
+		marketData = clearingHouse.getMarketAccount(marketIndex);
 		console.log(marketData.amm);
 		console.log();
 		assert(
@@ -291,12 +293,12 @@ describe('AMM Curve', () => {
 			QUOTE_PRECISION.mul(new BN(100000)),
 			marketIndex
 		);
-		const marketData1 = clearingHouse.getMarket(marketIndex);
+		const marketData1 = clearingHouse.getMarketAccount(marketIndex);
 		const ammAccountState = marketData1.amm;
 		const oldPeg = ammAccountState.pegMultiplier;
 
 		const priceBefore = calculateMarkPrice(
-			clearingHouse.getMarket(marketIndex)
+			clearingHouse.getMarketAccount(marketIndex)
 		);
 
 		await clearingHouse.repegAmmCurve(
@@ -304,13 +306,15 @@ describe('AMM Curve', () => {
 			marketIndex
 		);
 
-		const priceAfter = calculateMarkPrice(clearingHouse.getMarket(marketIndex));
+		const priceAfter = calculateMarkPrice(
+			clearingHouse.getMarketAccount(marketIndex)
+		);
 
 		assert(newOraclePriceWithMantissa.lt(priceBefore));
 		assert(priceAfter.lt(priceBefore));
 		assert(newOraclePriceWithMantissa.lt(priceAfter));
 
-		const marketData = clearingHouse.getMarket(marketIndex);
+		const marketData = clearingHouse.getMarketAccount(marketIndex);
 		const newPeg = marketData.amm.pegMultiplier;
 
 		const userMarketPosition =

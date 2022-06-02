@@ -157,28 +157,28 @@ describe('amm spread: market order', () => {
 		const tradeAcquiredAmountsNoSpread = calculateTradeAcquiredAmounts(
 			direction,
 			baseAssetAmount,
-			clearingHouse.getMarket(0),
+			clearingHouse.getMarketAccount(0),
 			'base',
 			false
 		);
 		const tradeAcquiredAmountsWithSpread = calculateTradeAcquiredAmounts(
 			direction,
 			baseAssetAmount,
-			clearingHouse.getMarket(0),
+			clearingHouse.getMarketAccount(0),
 			'base',
 			true
 		);
 
 		const expectedQuoteAssetAmount = calculateQuoteAssetAmountSwapped(
 			tradeAcquiredAmountsWithSpread[1].abs(),
-			clearingHouse.getMarket(marketIndex).amm.pegMultiplier,
+			clearingHouse.getMarketAccount(marketIndex).amm.pegMultiplier,
 			getSwapDirection('base', direction)
 		);
 		console.log(
 			'expected quote with out spread',
 			calculateQuoteAssetAmountSwapped(
 				tradeAcquiredAmountsNoSpread[1].abs(),
-				clearingHouse.getMarket(marketIndex).amm.pegMultiplier,
+				clearingHouse.getMarketAccount(marketIndex).amm.pegMultiplier,
 				getSwapDirection('base', direction)
 			).toString()
 		);
@@ -186,7 +186,7 @@ describe('amm spread: market order', () => {
 			'expected quote with spread',
 			calculateQuoteAssetAmountSwapped(
 				tradeAcquiredAmountsWithSpread[1].abs(),
-				clearingHouse.getMarket(marketIndex).amm.pegMultiplier,
+				clearingHouse.getMarketAccount(marketIndex).amm.pegMultiplier,
 				getSwapDirection('base', direction)
 			).toString()
 		);
@@ -218,7 +218,7 @@ describe('amm spread: market order', () => {
 		const unrealizedPnl = clearingHouseUser.getUnrealizedPNL();
 		console.log('unrealized pnl', unrealizedPnl.toString());
 
-		const market = clearingHouse.getMarket(marketIndex);
+		const market = clearingHouse.getMarketAccount(marketIndex);
 		const expectedFeeToMarket = new BN(250);
 		console.log(market.amm.totalFee.toString());
 		assert(market.amm.totalFee.eq(expectedFeeToMarket));
@@ -255,27 +255,27 @@ describe('amm spread: market order', () => {
 			.getUserAccount()
 			.collateral.sub(initialCollateral);
 		console.log(pnl.toString());
-		console.log(clearingHouse.getMarket(0).amm.totalFee.toString());
-		assert(clearingHouse.getMarket(0).amm.totalFee.eq(new BN(500)));
+		console.log(clearingHouse.getMarketAccount(0).amm.totalFee.toString());
+		assert(clearingHouse.getMarketAccount(0).amm.totalFee.eq(new BN(500)));
 	});
 
 	it('Long market order quote', async () => {
 		const initialCollateral = clearingHouseUser.getUserAccount().collateral;
-		const initialAmmTotalFee = clearingHouse.getMarket(0).amm.totalFee;
+		const initialAmmTotalFee = clearingHouse.getMarketAccount(0).amm.totalFee;
 		const direction = PositionDirection.LONG;
 		const quoteAssetAmount = new BN(QUOTE_PRECISION);
 
 		const tradeAcquiredAmountsNoSpread = calculateTradeAcquiredAmounts(
 			direction,
 			quoteAssetAmount,
-			clearingHouse.getMarket(0),
+			clearingHouse.getMarketAccount(0),
 			'quote',
 			false
 		);
 		const tradeAcquiredAmountsWithSpread = calculateTradeAcquiredAmounts(
 			direction,
 			quoteAssetAmount,
-			clearingHouse.getMarket(0),
+			clearingHouse.getMarketAccount(0),
 			'quote',
 			true
 		);
@@ -341,11 +341,14 @@ describe('amm spread: market order', () => {
 			.collateral.sub(initialCollateral);
 		console.log(pnl.toString());
 		console.log(
-			clearingHouse.getMarket(0).amm.totalFee.sub(initialAmmTotalFee).toString()
+			clearingHouse
+				.getMarketAccount(0)
+				.amm.totalFee.sub(initialAmmTotalFee)
+				.toString()
 		);
 		assert(
 			clearingHouse
-				.getMarket(0)
+				.getMarketAccount(0)
 				.amm.totalFee.sub(initialAmmTotalFee)
 				.eq(new BN(500))
 		);
@@ -353,7 +356,7 @@ describe('amm spread: market order', () => {
 
 	it('short market order base', async () => {
 		const initialCollateral = clearingHouseUser.getUserAccount().collateral;
-		const initialAmmTotalFee = clearingHouse.getMarket(0).amm.totalFee;
+		const initialAmmTotalFee = clearingHouse.getMarketAccount(0).amm.totalFee;
 
 		const direction = PositionDirection.SHORT;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
@@ -361,27 +364,27 @@ describe('amm spread: market order', () => {
 		const tradeAcquiredAmountsNoSpread = calculateTradeAcquiredAmounts(
 			direction,
 			baseAssetAmount,
-			clearingHouse.getMarket(0),
+			clearingHouse.getMarketAccount(0),
 			'base',
 			false
 		);
 		const tradeAcquiredAmountsWithSpread = calculateTradeAcquiredAmounts(
 			direction,
 			baseAssetAmount,
-			clearingHouse.getMarket(0),
+			clearingHouse.getMarketAccount(0),
 			'base',
 			true
 		);
 		const expectedQuoteAssetAmount = calculateQuoteAssetAmountSwapped(
 			tradeAcquiredAmountsWithSpread[1].abs(),
-			clearingHouse.getMarket(marketIndex).amm.pegMultiplier,
+			clearingHouse.getMarketAccount(marketIndex).amm.pegMultiplier,
 			getSwapDirection('base', direction)
 		);
 		console.log(
 			'expected quote with out spread',
 			calculateQuoteAssetAmountSwapped(
 				tradeAcquiredAmountsNoSpread[1].abs(),
-				clearingHouse.getMarket(marketIndex).amm.pegMultiplier,
+				clearingHouse.getMarketAccount(marketIndex).amm.pegMultiplier,
 				getSwapDirection('base', direction)
 			).toString()
 		);
@@ -389,7 +392,7 @@ describe('amm spread: market order', () => {
 			'expected quote with spread',
 			calculateQuoteAssetAmountSwapped(
 				tradeAcquiredAmountsWithSpread[1].abs(),
-				clearingHouse.getMarket(marketIndex).amm.pegMultiplier,
+				clearingHouse.getMarketAccount(marketIndex).amm.pegMultiplier,
 				getSwapDirection('base', direction)
 			).toString()
 		);
@@ -447,11 +450,14 @@ describe('amm spread: market order', () => {
 			.collateral.sub(initialCollateral);
 		console.log(pnl.toString());
 		console.log(
-			clearingHouse.getMarket(0).amm.totalFee.sub(initialAmmTotalFee).toString()
+			clearingHouse
+				.getMarketAccount(0)
+				.amm.totalFee.sub(initialAmmTotalFee)
+				.toString()
 		);
 		assert(
 			clearingHouse
-				.getMarket(0)
+				.getMarketAccount(0)
 				.amm.totalFee.sub(initialAmmTotalFee)
 				.eq(new BN(500))
 		);
@@ -459,7 +465,7 @@ describe('amm spread: market order', () => {
 
 	it('short market order quote', async () => {
 		const initialCollateral = clearingHouseUser.getUserAccount().collateral;
-		const initialAmmTotalFee = clearingHouse.getMarket(0).amm.totalFee;
+		const initialAmmTotalFee = clearingHouse.getMarketAccount(0).amm.totalFee;
 
 		const direction = PositionDirection.SHORT;
 		const quoteAssetAmount = new BN(QUOTE_PRECISION);
@@ -467,14 +473,14 @@ describe('amm spread: market order', () => {
 		const tradeAcquiredAmountsNoSpread = calculateTradeAcquiredAmounts(
 			direction,
 			quoteAssetAmount,
-			clearingHouse.getMarket(0),
+			clearingHouse.getMarketAccount(0),
 			'quote',
 			false
 		);
 		const tradeAcquiredAmountsWithSpread = calculateTradeAcquiredAmounts(
 			direction,
 			quoteAssetAmount,
-			clearingHouse.getMarket(0),
+			clearingHouse.getMarketAccount(0),
 			'quote',
 			true
 		);
@@ -542,11 +548,14 @@ describe('amm spread: market order', () => {
 			.collateral.sub(initialCollateral);
 		console.log(pnl.toString());
 		console.log(
-			clearingHouse.getMarket(0).amm.totalFee.sub(initialAmmTotalFee).toString()
+			clearingHouse
+				.getMarketAccount(0)
+				.amm.totalFee.sub(initialAmmTotalFee)
+				.toString()
 		);
 		assert(
 			clearingHouse
-				.getMarket(0)
+				.getMarketAccount(0)
 				.amm.totalFee.sub(initialAmmTotalFee)
 				.eq(new BN(500))
 		);
@@ -555,9 +564,9 @@ describe('amm spread: market order', () => {
 	it('unable to fill bid between mark and ask price', async () => {
 		const direction = PositionDirection.LONG;
 		const baseAssetAmount = AMM_RESERVE_PRECISION;
-		const limitPrice = calculateMarkPrice(clearingHouse.getMarket(0)).add(
-			MARK_PRICE_PRECISION.div(new BN(10000))
-		); // limit price plus 1bp
+		const limitPrice = calculateMarkPrice(
+			clearingHouse.getMarketAccount(0)
+		).add(MARK_PRICE_PRECISION.div(new BN(10000))); // limit price plus 1bp
 
 		const orderParams = getLimitOrderParams(
 			marketIndex,
@@ -576,7 +585,7 @@ describe('amm spread: market order', () => {
 
 		const unfilledOrder = clearingHouseUser.getUserOrdersAccount().orders[0];
 		const expectedBaseAssetAmount = calculateBaseAssetAmountMarketCanExecute(
-			clearingHouse.getMarket(0),
+			clearingHouse.getMarketAccount(0),
 			unfilledOrder
 		);
 		assert(expectedBaseAssetAmount, ZERO);
@@ -601,9 +610,9 @@ describe('amm spread: market order', () => {
 	it('unable to fill ask between mark and bid price', async () => {
 		const direction = PositionDirection.SHORT;
 		const baseAssetAmount = AMM_RESERVE_PRECISION;
-		const limitPrice = calculateMarkPrice(clearingHouse.getMarket(0)).add(
-			MARK_PRICE_PRECISION.sub(new BN(10000))
-		); // limit price plus 1bp
+		const limitPrice = calculateMarkPrice(
+			clearingHouse.getMarketAccount(0)
+		).add(MARK_PRICE_PRECISION.sub(new BN(10000))); // limit price plus 1bp
 
 		const orderParams = getLimitOrderParams(
 			marketIndex,
@@ -622,7 +631,7 @@ describe('amm spread: market order', () => {
 
 		const unfilledOrder = clearingHouseUser.getUserOrdersAccount().orders[0];
 		const expectedBaseAssetAmount = calculateBaseAssetAmountMarketCanExecute(
-			clearingHouse.getMarket(0),
+			clearingHouse.getMarketAccount(0),
 			unfilledOrder
 		);
 		assert(expectedBaseAssetAmount, ZERO);
@@ -645,13 +654,13 @@ describe('amm spread: market order', () => {
 	});
 
 	it('fill limit order above ask', async () => {
-		const initialAmmTotalFee = clearingHouse.getMarket(0).amm.totalFee;
+		const initialAmmTotalFee = clearingHouse.getMarketAccount(0).amm.totalFee;
 
 		const direction = PositionDirection.LONG;
 		const baseAssetAmount = AMM_RESERVE_PRECISION;
-		const limitPrice = calculateMarkPrice(clearingHouse.getMarket(0)).add(
-			MARK_PRICE_PRECISION.div(new BN(1000))
-		); // limit price plus 10bp
+		const limitPrice = calculateMarkPrice(
+			clearingHouse.getMarketAccount(0)
+		).add(MARK_PRICE_PRECISION.div(new BN(1000))); // limit price plus 10bp
 
 		const orderParams = getLimitOrderParams(
 			marketIndex,
@@ -670,7 +679,7 @@ describe('amm spread: market order', () => {
 
 		const order = clearingHouseUser.getUserOrdersAccount().orders[0];
 		const expectedBaseAssetAmount = calculateBaseAssetAmountMarketCanExecute(
-			clearingHouse.getMarket(0),
+			clearingHouse.getMarketAccount(0),
 			order
 		);
 		assert(expectedBaseAssetAmount, AMM_RESERVE_PRECISION);
@@ -678,14 +687,14 @@ describe('amm spread: market order', () => {
 		const tradeAcquiredAmountsWithSpread = calculateTradeAcquiredAmounts(
 			direction,
 			baseAssetAmount,
-			clearingHouse.getMarket(0),
+			clearingHouse.getMarketAccount(0),
 			'base',
 			true
 		);
 
 		const expectedQuoteAssetAmount = calculateQuoteAssetAmountSwapped(
 			tradeAcquiredAmountsWithSpread[1].abs(),
-			clearingHouse.getMarket(marketIndex).amm.pegMultiplier,
+			clearingHouse.getMarketAccount(marketIndex).amm.pegMultiplier,
 			getSwapDirection('base', direction)
 		);
 
@@ -712,20 +721,20 @@ describe('amm spread: market order', () => {
 
 		assert(
 			clearingHouse
-				.getMarket(0)
+				.getMarketAccount(0)
 				.amm.totalFee.sub(initialAmmTotalFee)
 				.eq(new BN(500))
 		);
 	});
 
 	it('fill limit order below bid', async () => {
-		const initialAmmTotalFee = clearingHouse.getMarket(0).amm.totalFee;
+		const initialAmmTotalFee = clearingHouse.getMarketAccount(0).amm.totalFee;
 
 		const direction = PositionDirection.SHORT;
 		const baseAssetAmount = AMM_RESERVE_PRECISION;
-		const limitPrice = calculateMarkPrice(clearingHouse.getMarket(0)).sub(
-			MARK_PRICE_PRECISION.div(new BN(1000))
-		); // limit price minus 10bp
+		const limitPrice = calculateMarkPrice(
+			clearingHouse.getMarketAccount(0)
+		).sub(MARK_PRICE_PRECISION.div(new BN(1000))); // limit price minus 10bp
 
 		const orderParams = getLimitOrderParams(
 			marketIndex,
@@ -744,7 +753,7 @@ describe('amm spread: market order', () => {
 
 		const order = clearingHouseUser.getUserOrdersAccount().orders[0];
 		const expectedBaseAssetAmount = calculateBaseAssetAmountMarketCanExecute(
-			clearingHouse.getMarket(0),
+			clearingHouse.getMarketAccount(0),
 			order
 		);
 		assert(expectedBaseAssetAmount, AMM_RESERVE_PRECISION);
@@ -752,14 +761,14 @@ describe('amm spread: market order', () => {
 		const tradeAcquiredAmountsWithSpread = calculateTradeAcquiredAmounts(
 			direction,
 			baseAssetAmount,
-			clearingHouse.getMarket(0),
+			clearingHouse.getMarketAccount(0),
 			'base',
 			true
 		);
 
 		const expectedQuoteAssetAmount = calculateQuoteAssetAmountSwapped(
 			tradeAcquiredAmountsWithSpread[1].abs(),
-			clearingHouse.getMarket(marketIndex).amm.pegMultiplier,
+			clearingHouse.getMarketAccount(marketIndex).amm.pegMultiplier,
 			getSwapDirection('base', direction)
 		);
 
@@ -786,7 +795,7 @@ describe('amm spread: market order', () => {
 
 		assert(
 			clearingHouse
-				.getMarket(0)
+				.getMarketAccount(0)
 				.amm.totalFee.sub(initialAmmTotalFee)
 				.eq(new BN(500))
 		);
@@ -821,7 +830,7 @@ describe('amm spread: market order', () => {
 		const initialCollateral = clearingHouseUser.getUserAccount().collateral;
 		const direction = PositionDirection.LONG;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION.toNumber() / 10000); // ~$4 of btc
-		const market2 = clearingHouse.getMarket(marketIndex2Num);
+		const market2 = clearingHouse.getMarketAccount(marketIndex2Num);
 
 		const tradeAcquiredAmountsNoSpread = calculateTradeAcquiredAmounts(
 			direction,
@@ -840,14 +849,14 @@ describe('amm spread: market order', () => {
 
 		const expectedQuoteAssetAmount = calculateQuoteAssetAmountSwapped(
 			tradeAcquiredAmountsWithSpread[1].abs(),
-			clearingHouse.getMarket(marketIndex2Num).amm.pegMultiplier,
+			clearingHouse.getMarketAccount(marketIndex2Num).amm.pegMultiplier,
 			getSwapDirection('base', direction)
 		);
 		console.log(
 			'expected quote with out spread',
 			calculateQuoteAssetAmountSwapped(
 				tradeAcquiredAmountsNoSpread[1].abs(),
-				clearingHouse.getMarket(marketIndex2Num).amm.pegMultiplier,
+				clearingHouse.getMarketAccount(marketIndex2Num).amm.pegMultiplier,
 				getSwapDirection('base', direction)
 			).toString()
 		);
@@ -855,7 +864,7 @@ describe('amm spread: market order', () => {
 			'expected quote with spread',
 			calculateQuoteAssetAmountSwapped(
 				tradeAcquiredAmountsWithSpread[1].abs(),
-				clearingHouse.getMarket(marketIndex2Num).amm.pegMultiplier,
+				clearingHouse.getMarketAccount(marketIndex2Num).amm.pegMultiplier,
 				getSwapDirection('base', direction)
 			).toString()
 		);
@@ -939,10 +948,12 @@ describe('amm spread: market order', () => {
 		console.log('pnl', pnl.toString());
 		console.log(
 			'total fee',
-			clearingHouse.getMarket(marketIndex2Num).amm.totalFee.toString()
+			clearingHouse.getMarketAccount(marketIndex2Num).amm.totalFee.toString()
 		);
 		assert(
-			clearingHouse.getMarket(marketIndex2Num).amm.totalFee.eq(new BN(2000))
+			clearingHouse
+				.getMarketAccount(marketIndex2Num)
+				.amm.totalFee.eq(new BN(2000))
 		);
 	});
 });

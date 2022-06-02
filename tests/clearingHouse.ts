@@ -318,7 +318,7 @@ describe('clearing_house', () => {
 			)
 		);
 
-		const market = clearingHouse.getMarket(0);
+		const market = clearingHouse.getMarketAccount(0);
 		console.log(market.baseAssetAmount.toNumber());
 		console.log(market);
 
@@ -379,7 +379,7 @@ describe('clearing_house', () => {
 		try {
 			const newUSDCNotionalAmount = usdcAmount.div(new BN(2)).mul(new BN(5));
 			const marketIndex = new BN(0);
-			const market = clearingHouse.getMarket(marketIndex);
+			const market = clearingHouse.getMarketAccount(marketIndex);
 			const estTradePrice = calculateTradeSlippage(
 				PositionDirection.SHORT,
 				newUSDCNotionalAmount,
@@ -439,7 +439,7 @@ describe('clearing_house', () => {
 		assert(user.totalFeePaid.eq(new BN(74625)));
 		assert(user.cumulativeDeposits.eq(usdcAmount));
 
-		const market = clearingHouse.getMarket(0);
+		const market = clearingHouse.getMarketAccount(0);
 		assert.ok(market.baseAssetAmount.eq(new BN(248737625303142)));
 		assert.ok(market.amm.totalFee.eq(new BN(74625)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(74625)));
@@ -494,7 +494,7 @@ describe('clearing_house', () => {
 			)
 		);
 
-		const market = clearingHouse.getMarket(0);
+		const market = clearingHouse.getMarketAccount(0);
 		assert.ok(market.baseAssetAmount.eq(new BN(-248762375928202)));
 		assert.ok(market.amm.totalFee.eq(new BN(124375)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(124375)));
@@ -535,7 +535,7 @@ describe('clearing_house', () => {
 		assert.ok(user.collateral.eq(new BN(9850749)));
 		assert(user.totalFeePaid.eq(new BN(149250)));
 
-		const market = clearingHouse.getMarket(0);
+		const market = clearingHouse.getMarketAccount(0);
 		assert.ok(market.baseAssetAmount.eq(new BN(0)));
 		assert.ok(market.amm.totalFee.eq(new BN(149250)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(149250)));
@@ -586,7 +586,7 @@ describe('clearing_house', () => {
 			)
 		);
 
-		const market = clearingHouse.getMarket(0);
+		const market = clearingHouse.getMarketAccount(0);
 		assert.ok(market.baseAssetAmount.eq(new BN(-490122799362653)));
 
 		const tradeHistoryAccount = clearingHouse.getTradeHistoryAccount();
@@ -636,7 +636,9 @@ describe('clearing_house', () => {
 
 		console.log(
 			'liqPrice move:',
-			convertToNumber(calculateMarkPrice(clearingHouse.getMarket(marketIndex))),
+			convertToNumber(
+				calculateMarkPrice(clearingHouse.getMarketAccount(marketIndex))
+			),
 			'->',
 			convertToNumber(liqPrice),
 			'on position',
@@ -648,7 +650,7 @@ describe('clearing_house', () => {
 			convertToNumber(user0.collateral, QUOTE_PRECISION)
 		);
 
-		const marketData = clearingHouse.getMarket(0);
+		const marketData = clearingHouse.getMarketAccount(0);
 		await setFeedPrice(
 			anchor.workspace.Pyth,
 			convertToNumber(liqPrice),
@@ -789,7 +791,7 @@ describe('clearing_house', () => {
 		);
 		console.log(convertToNumber(liqPrice));
 
-		const marketData = clearingHouse.getMarket(0);
+		const marketData = clearingHouse.getMarketAccount(0);
 		await setFeedPrice(
 			anchor.workspace.Pyth,
 			convertToNumber(liqPrice),
@@ -906,7 +908,7 @@ describe('clearing_house', () => {
 
 	it('Pay from insurance fund', async () => {
 		const state: any = clearingHouse.getStateAccount();
-		const marketData = clearingHouse.getMarket(0);
+		const marketData = clearingHouse.getMarketAccount(0);
 
 		console.log(clearingHouse.getUserAccount().collateral.toString());
 
@@ -1002,7 +1004,7 @@ describe('clearing_house', () => {
 	it('Short order succeeds due to realiziable limit price ', async () => {
 		const newUSDCNotionalAmount = usdcAmount.div(new BN(2)).mul(new BN(5));
 		const marketIndex = new BN(0);
-		const market = clearingHouse.getMarket(marketIndex);
+		const market = clearingHouse.getMarketAccount(marketIndex);
 		const estTradePrice = calculateTradeSlippage(
 			PositionDirection.SHORT,
 			newUSDCNotionalAmount,
@@ -1022,7 +1024,7 @@ describe('clearing_house', () => {
 	it('Long order succeeds due to realiziable limit price ', async () => {
 		const newUSDCNotionalAmount = usdcAmount.div(new BN(2)).mul(new BN(5));
 		const marketIndex = new BN(0);
-		const market = clearingHouse.getMarket(marketIndex);
+		const market = clearingHouse.getMarketAccount(marketIndex);
 		const estTradePrice = calculateTradeSlippage(
 			PositionDirection.LONG,
 			newUSDCNotionalAmount,

@@ -279,7 +279,7 @@ export class Admin extends ClearingHouse {
 				admin: this.wallet.publicKey,
 				market: await getMarketPublicKey(this.program.programId, marketIndex),
 				curveHistory: state.extendedCurveHistory,
-				oracle: this.getMarket(marketIndex).amm.oracle,
+				oracle: this.getMarketAccount(marketIndex).amm.oracle,
 			},
 		});
 	}
@@ -308,7 +308,7 @@ export class Admin extends ClearingHouse {
 		marketIndex: BN,
 		targetPrice: BN
 	): Promise<TransactionSignature> {
-		const market = this.getMarket(marketIndex);
+		const market = this.getMarketAccount(marketIndex);
 
 		const [direction, tradeSize, _] = calculateTargetPriceTrade(
 			market,
@@ -350,7 +350,7 @@ export class Admin extends ClearingHouse {
 			this.program.programId,
 			marketIndex
 		);
-		const ammData = this.getMarket(marketIndex).amm;
+		const ammData = this.getMarketAccount(marketIndex).amm;
 
 		return await this.program.rpc.repegAmmCurve(newPeg, {
 			accounts: {
@@ -367,7 +367,7 @@ export class Admin extends ClearingHouse {
 		marketIndex: BN
 	): Promise<TransactionSignature> {
 		const state = this.getStateAccount();
-		const ammData = this.getMarket(marketIndex).amm;
+		const ammData = this.getMarketAccount(marketIndex).amm;
 		const marketPublicKey = await getMarketPublicKey(
 			this.program.programId,
 			marketIndex
@@ -388,7 +388,7 @@ export class Admin extends ClearingHouse {
 		marketIndex: BN
 	): Promise<TransactionSignature> {
 		const state = this.getStateAccount();
-		const ammData = this.getMarket(marketIndex).amm;
+		const ammData = this.getMarketAccount(marketIndex).amm;
 		const marketPublicKey = await getMarketPublicKey(
 			this.program.programId,
 			marketIndex

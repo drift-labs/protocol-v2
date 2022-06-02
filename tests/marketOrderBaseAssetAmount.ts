@@ -108,7 +108,7 @@ describe('clearing_house', () => {
 			userPositionsAccount.positions[0].baseAssetAmount.eq(baseAssetAmount)
 		);
 
-		const market = clearingHouse.getMarket(0);
+		const market = clearingHouse.getMarketAccount(0);
 		assert.ok(market.baseAssetAmount.eq(new BN(497450503674885)));
 		assert.ok(market.baseAssetAmountLong.eq(new BN(497450503674885)));
 		assert.ok(market.baseAssetAmountShort.eq(ZERO));
@@ -144,7 +144,7 @@ describe('clearing_house', () => {
 		try {
 			const newUSDCNotionalAmount = usdcAmount.div(new BN(2)).mul(new BN(5));
 			const marketIndex = new BN(0);
-			const market = clearingHouse.getMarket(marketIndex);
+			const market = clearingHouse.getMarketAccount(marketIndex);
 			const estTradePrice = calculateTradeSlippage(
 				PositionDirection.SHORT,
 				newUSDCNotionalAmount,
@@ -209,7 +209,7 @@ describe('clearing_house', () => {
 		assert(user.totalFeePaid.eq(new BN(74626)));
 		assert(user.cumulativeDeposits.eq(usdcAmount));
 
-		const market = clearingHouse.getMarket(0);
+		const market = clearingHouse.getMarketAccount(0);
 		console.log(market.baseAssetAmount.toString());
 		assert.ok(market.baseAssetAmount.eq(new BN(248725251837443)));
 		assert.ok(market.baseAssetAmountLong.eq(new BN(248725251837443)));
@@ -272,7 +272,7 @@ describe('clearing_house', () => {
 			)
 		);
 
-		const market = clearingHouse.getMarket(0);
+		const market = clearingHouse.getMarketAccount(0);
 		assert.ok(market.baseAssetAmount.eq(new BN(-248725251837442)));
 		assert.ok(market.baseAssetAmountLong.eq(ZERO));
 		assert.ok(market.baseAssetAmountShort.eq(new BN(-248725251837442)));
@@ -325,7 +325,7 @@ describe('clearing_house', () => {
 		assert.ok(user.collateral.eq(new BN(9850755)));
 		assert(user.totalFeePaid.eq(new BN(149242)));
 
-		const market = clearingHouse.getMarket(0);
+		const market = clearingHouse.getMarketAccount(0);
 		assert.ok(market.baseAssetAmount.eq(new BN(0)));
 		assert.ok(market.amm.totalFee.eq(new BN(149242)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(149242)));

@@ -158,7 +158,7 @@ describe('idempotent curve', () => {
 			await clearingHouse.program.account.userPositions.fetch(user.positions);
 
 		const numberOfReduces = chunks;
-		const market = clearingHouse.getMarket(marketIndex);
+		const market = clearingHouse.getMarketAccount(marketIndex);
 		const baseAssetValue = calculateBaseAssetValue(
 			market,
 			userPositionsAccount.positions[0]
@@ -228,7 +228,7 @@ describe('idempotent curve', () => {
 			await clearingHouse.program.account.userPositions.fetch(user.positions);
 
 		const numberOfReduces = chunks;
-		const market = clearingHouse.getMarket(marketIndex);
+		const market = clearingHouse.getMarketAccount(marketIndex);
 		const baseAssetValue = calculateBaseAssetValue(
 			market,
 			userPositionsAccount.positions[0]
@@ -299,7 +299,7 @@ describe('idempotent curve', () => {
 			await clearingHouse.program.account.userPositions.fetch(user.positions);
 
 		const numberOfReduces = chunks;
-		const market = clearingHouse.getMarket(marketIndex);
+		const market = clearingHouse.getMarketAccount(marketIndex);
 		const baseAssetValue = calculateBaseAssetValue(
 			market,
 			userPositionsAccount.positions[0]
@@ -369,7 +369,7 @@ describe('idempotent curve', () => {
 			await clearingHouse.program.account.userPositions.fetch(user.positions);
 
 		const numberOfReduces = chunks;
-		const market = clearingHouse.getMarket(marketIndex);
+		const market = clearingHouse.getMarketAccount(marketIndex);
 		const baseAssetValue = calculateBaseAssetValue(
 			market,
 			userPositionsAccount.positions[0]

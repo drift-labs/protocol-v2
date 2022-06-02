@@ -4,7 +4,7 @@ import {
 	FundingPaymentHistoryAccount,
 	FundingRateHistoryAccount,
 	LiquidationHistoryAccount,
-	Market,
+	MarketAccount,
 	OrderHistoryAccount,
 	OrderStateAccount,
 	StateAccount,
@@ -37,7 +37,7 @@ export class NotSubscribedError extends Error {
 
 export interface ClearingHouseAccountEvents {
 	stateAccountUpdate: (payload: StateAccount) => void;
-	marketAccountUpdate: (payload: Market) => void;
+	marketAccountUpdate: (payload: MarketAccount) => void;
 	fundingPaymentHistoryAccountUpdate: (
 		payload: FundingPaymentHistoryAccount
 	) => void;
@@ -79,7 +79,7 @@ export interface ClearingHouseAccountSubscriber {
 	updateAuthority(newAuthority: PublicKey): Promise<boolean>;
 
 	getStateAccount(): StateAccount;
-	getMarketAccount(marketIndex: BN): Market | undefined;
+	getMarketAccount(marketIndex: BN): MarketAccount | undefined;
 	getTradeHistoryAccount(): TradeHistoryAccount;
 	getDepositHistoryAccount(): DepositHistoryAccount;
 	getFundingPaymentHistoryAccount(): FundingPaymentHistoryAccount;

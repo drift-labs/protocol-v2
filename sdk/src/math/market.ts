@@ -1,5 +1,5 @@
 import { BN } from '@project-serum/anchor';
-import { Market, PositionDirection } from '../types';
+import { MarketAccount, PositionDirection } from '../types';
 import {
 	calculateAmmReservesAfterSwap,
 	calculatePrice,
@@ -14,7 +14,7 @@ import { OraclePriceData } from '../oracles/types';
  * @param market
  * @return markPrice : Precision MARK_PRICE_PRECISION
  */
-export function calculateMarkPrice(market: Market): BN {
+export function calculateMarkPrice(market: MarketAccount): BN {
 	return calculatePrice(
 		market.amm.baseAssetReserve,
 		market.amm.quoteAssetReserve,
@@ -28,7 +28,7 @@ export function calculateMarkPrice(market: Market): BN {
  * @param market
  * @return bidPrice : Precision MARK_PRICE_PRECISION
  */
-export function calculateBidPrice(market: Market): BN {
+export function calculateBidPrice(market: MarketAccount): BN {
 	const { baseAssetReserve, quoteAssetReserve } = calculateSpreadReserves(
 		market.amm,
 		PositionDirection.SHORT
@@ -47,7 +47,7 @@ export function calculateBidPrice(market: Market): BN {
  * @param market
  * @return bidPrice : Precision MARK_PRICE_PRECISION
  */
-export function calculateAskPrice(market: Market): BN {
+export function calculateAskPrice(market: MarketAccount): BN {
 	const { baseAssetReserve, quoteAssetReserve } = calculateSpreadReserves(
 		market.amm,
 		PositionDirection.LONG
@@ -63,8 +63,8 @@ export function calculateAskPrice(market: Market): BN {
 export function calculateNewMarketAfterTrade(
 	baseAssetAmount: BN,
 	direction: PositionDirection,
-	market: Market
-): Market {
+	market: MarketAccount
+): MarketAccount {
 	const [newQuoteAssetReserve, newBaseAssetReserve] =
 		calculateAmmReservesAfterSwap(
 			market.amm,
@@ -83,7 +83,7 @@ export function calculateNewMarketAfterTrade(
 }
 
 export function calculateMarkOracleSpread(
-	market: Market,
+	market: MarketAccount,
 	oraclePriceData: OraclePriceData
 ): BN {
 	const markPrice = calculateMarkPrice(market);

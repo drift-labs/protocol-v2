@@ -139,7 +139,9 @@ describe('maker order', () => {
 
 		const marketIndex = new BN(0);
 		const baseAssetAmount = BASE_PRECISION;
-		const markPrice = calculateMarkPrice(clearingHouse.getMarket(marketIndex));
+		const markPrice = calculateMarkPrice(
+			clearingHouse.getMarketAccount(marketIndex)
+		);
 		const makerOrderParams = getLimitOrderParams(
 			marketIndex,
 			PositionDirection.LONG,
@@ -226,7 +228,9 @@ describe('maker order', () => {
 
 		const marketIndex = new BN(0);
 		const baseAssetAmount = BASE_PRECISION;
-		const markPrice = calculateMarkPrice(clearingHouse.getMarket(marketIndex));
+		const markPrice = calculateMarkPrice(
+			clearingHouse.getMarketAccount(marketIndex)
+		);
 		const makerOrderParams = getLimitOrderParams(
 			marketIndex,
 			PositionDirection.SHORT,

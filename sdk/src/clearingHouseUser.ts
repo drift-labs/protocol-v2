@@ -236,7 +236,9 @@ export class ClearingHouseUser {
 	public getInitialMarginRequirement(): BN {
 		return this.getUserPositionsAccount().positions.reduce(
 			(marginRequirement, marketPosition) => {
-				const market = this.clearingHouse.getMarket(marketPosition.marketIndex);
+				const market = this.clearingHouse.getMarketAccount(
+					marketPosition.marketIndex
+				);
 				return marginRequirement.add(
 					calculateBaseAssetValue(market, marketPosition)
 						.mul(new BN(market.marginRatioInitial))
@@ -253,7 +255,9 @@ export class ClearingHouseUser {
 	public getPartialMarginRequirement(): BN {
 		return this.getUserPositionsAccount().positions.reduce(
 			(marginRequirement, marketPosition) => {
-				const market = this.clearingHouse.getMarket(marketPosition.marketIndex);
+				const market = this.clearingHouse.getMarketAccount(
+					marketPosition.marketIndex
+				);
 				return marginRequirement.add(
 					calculateBaseAssetValue(market, marketPosition)
 						.mul(new BN(market.marginRatioPartial))
@@ -274,7 +278,9 @@ export class ClearingHouseUser {
 				marketIndex ? pos.marketIndex === marketIndex : true
 			)
 			.reduce((pnl, marketPosition) => {
-				const market = this.clearingHouse.getMarket(marketPosition.marketIndex);
+				const market = this.clearingHouse.getMarketAccount(
+					marketPosition.marketIndex
+				);
 				return pnl.add(
 					calculatePositionPNL(market, marketPosition, withFunding)
 				);
@@ -291,7 +297,9 @@ export class ClearingHouseUser {
 				marketIndex ? pos.marketIndex === marketIndex : true
 			)
 			.reduce((pnl, marketPosition) => {
-				const market = this.clearingHouse.getMarket(marketPosition.marketIndex);
+				const market = this.clearingHouse.getMarketAccount(
+					marketPosition.marketIndex
+				);
 				return pnl.add(calculatePositionFundingPNL(market, marketPosition));
 			}, ZERO);
 	}
@@ -314,7 +322,9 @@ export class ClearingHouseUser {
 	getTotalPositionValue(): BN {
 		return this.getUserPositionsAccount().positions.reduce(
 			(positionValue, marketPosition) => {
-				const market = this.clearingHouse.getMarket(marketPosition.marketIndex);
+				const market = this.clearingHouse.getMarketAccount(
+					marketPosition.marketIndex
+				);
 				return positionValue.add(
 					calculateBaseAssetValue(market, marketPosition)
 				);
@@ -330,7 +340,9 @@ export class ClearingHouseUser {
 	public getPositionValue(marketIndex: BN): BN {
 		const userPosition =
 			this.getUserPosition(marketIndex) || this.getEmptyPosition(marketIndex);
-		const market = this.clearingHouse.getMarket(userPosition.marketIndex);
+		const market = this.clearingHouse.getMarketAccount(
+			userPosition.marketIndex
+		);
 		return calculateBaseAssetValue(market, userPosition);
 	}
 
@@ -354,7 +366,7 @@ export class ClearingHouseUser {
 		position: UserPosition,
 		amountToClose?: BN
 	): [BN, BN] {
-		const market = this.clearingHouse.getMarket(position.marketIndex);
+		const market = this.clearingHouse.getMarketAccount(position.marketIndex);
 
 		const entryPrice = calculateEntryPrice(position);
 
@@ -411,7 +423,7 @@ export class ClearingHouseUser {
 		marketIndex: BN | number,
 		category: MarginCategory = 'Initial'
 	): BN {
-		const market = this.clearingHouse.getMarket(marketIndex);
+		const market = this.clearingHouse.getMarketAccount(marketIndex);
 		let marginRatioCategory: number;
 
 		switch (category) {
@@ -466,7 +478,9 @@ export class ClearingHouseUser {
 				continue;
 			}
 
-			const market = this.clearingHouse.getMarket(userPosition.marketIndex);
+			const market = this.clearingHouse.getMarketAccount(
+				userPosition.marketIndex
+			);
 			if (
 				market.amm.cumulativeFundingRateLong.eq(
 					userPosition.lastCumulativeFundingRate
@@ -535,7 +549,7 @@ export class ClearingHouseUser {
 
 		if (proposedBaseAssetAmount.eq(ZERO)) return new BN(-1);
 
-		const market = this.clearingHouse.getMarket(
+		const market = this.clearingHouse.getMarketAccount(
 			proposedMarketPosition.marketIndex
 		);
 
@@ -552,7 +566,9 @@ export class ClearingHouseUser {
 			this.getUserPositionsAccount().positions.reduce(
 				(totalMarginRequirement, position) => {
 					if (!position.marketIndex.eq(marketPosition.marketIndex)) {
-						const market = this.clearingHouse.getMarket(position.marketIndex);
+						const market = this.clearingHouse.getMarketAccount(
+							position.marketIndex
+						);
 						const positionValue = calculateBaseAssetValue(market, position);
 						const marketMarginRequirement = positionValue
 							.mul(
@@ -620,7 +636,7 @@ export class ClearingHouseUser {
 		let markPriceAfterTrade;
 		if (positionBaseSizeChange.eq(ZERO)) {
 			markPriceAfterTrade = calculateMarkPrice(
-				this.clearingHouse.getMarket(marketPosition.marketIndex)
+				this.clearingHouse.getMarketAccount(marketPosition.marketIndex)
 			);
 		} else {
 			const direction = positionBaseSizeChange.gt(ZERO)
@@ -629,7 +645,7 @@ export class ClearingHouseUser {
 			markPriceAfterTrade = calculateTradeSlippage(
 				direction,
 				positionBaseSizeChange.abs(),
-				this.clearingHouse.getMarket(marketPosition.marketIndex),
+				this.clearingHouse.getMarketAccount(marketPosition.marketIndex),
 				'base'
 			)[3]; // newPrice after swap
 		}
@@ -732,7 +748,7 @@ export class ClearingHouseUser {
 			// current leverage is greater than max leverage - can only reduce position size
 
 			if (!targetingSameSide) {
-				const market = this.clearingHouse.getMarket(targetMarketIndex);
+				const market = this.clearingHouse.getMarketAccount(targetMarketIndex);
 				const marketPositionValue = this.getPositionValue(targetMarketIndex);
 				const totalCollateral = this.getTotalCollateral();
 				const marginRequirement = this.getInitialMarginRequirement();

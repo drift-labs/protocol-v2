@@ -10,7 +10,7 @@ import {
 	FundingPaymentHistoryAccount,
 	FundingRateHistoryAccount,
 	LiquidationHistoryAccount,
-	Market,
+	MarketAccount,
 	OrderHistoryAccount,
 	OrderStateAccount,
 	StateAccount,
@@ -42,7 +42,10 @@ export class WebSocketClearingHouseAccountSubscriber
 
 	eventEmitter: StrictEventEmitter<EventEmitter, ClearingHouseAccountEvents>;
 	stateAccountSubscriber?: AccountSubscriber<StateAccount>;
-	marketAccountSubscribers = new Map<number, AccountSubscriber<Market>>();
+	marketAccountSubscribers = new Map<
+		number,
+		AccountSubscriber<MarketAccount>
+	>();
 	tradeHistoryAccountSubscriber?: AccountSubscriber<TradeHistoryAccount>;
 	depositHistoryAccountSubscriber?: AccountSubscriber<DepositHistoryAccount>;
 	fundingPaymentHistoryAccountSubscriber?: AccountSubscriber<FundingPaymentHistoryAccount>;
@@ -246,12 +249,12 @@ export class WebSocketClearingHouseAccountSubscriber
 				this.program.programId,
 				new BN(i)
 			);
-			const accountSubscriber = new WebSocketAccountSubscriber<Market>(
+			const accountSubscriber = new WebSocketAccountSubscriber<MarketAccount>(
 				'market',
 				this.program,
 				marketPublicKey
 			);
-			await accountSubscriber.subscribe((data: Market) => {
+			await accountSubscriber.subscribe((data: MarketAccount) => {
 				this.eventEmitter.emit('marketAccountUpdate', data);
 				this.eventEmitter.emit('update');
 			});
@@ -432,7 +435,7 @@ export class WebSocketClearingHouseAccountSubscriber
 		return this.stateAccountSubscriber.data;
 	}
 
-	public getMarketAccount(marketIndex: BN): Market | undefined {
+	public getMarketAccount(marketIndex: BN): MarketAccount | undefined {
 		return this.marketAccountSubscribers.get(marketIndex.toNumber()).data;
 	}
 

@@ -101,7 +101,7 @@ describe('twap divergence liquidation', () => {
 
 	it('liquidate', async () => {
 		for (let i = 0; i < maxPositions; i++) {
-			const oracle = clearingHouse.getMarket(i).amm.oracle;
+			const oracle = clearingHouse.getMarketAccount(i).amm.oracle;
 			await setFeedPrice(anchor.workspace.Pyth, 0.5, oracle);
 			await setFeedTwap(anchor.workspace.Pyth, 100, oracle);
 			await clearingHouse.updateFundingRate(oracle, new BN(i));

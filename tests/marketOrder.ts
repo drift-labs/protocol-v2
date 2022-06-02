@@ -186,7 +186,7 @@ describe('market order', () => {
 		const userOrdersAccount = clearingHouseUser.getUserOrdersAccount();
 		const order = userOrdersAccount.orders[orderIndex.toString()];
 
-		const market = clearingHouse.getMarket(marketIndex);
+		const market = clearingHouse.getMarketAccount(marketIndex);
 		const expectedFeeToMarket = new BN(1000);
 		assert(market.amm.totalFee.eq(expectedFeeToMarket));
 

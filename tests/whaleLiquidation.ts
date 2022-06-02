@@ -104,7 +104,7 @@ describe('whale liquidation', () => {
 
 	it('partial liquidate', async () => {
 		for (let i = 0; i < maxPositions; i++) {
-			const oracle = clearingHouse.getMarket(i).amm.oracle;
+			const oracle = clearingHouse.getMarketAccount(i).amm.oracle;
 			await setFeedPrice(anchor.workspace.Pyth, 0.85, oracle);
 			await clearingHouse.moveAmmPrice(
 				ammInitialBaseAssetReserve.mul(new BN(10)).div(new BN(71)),
@@ -141,7 +141,7 @@ describe('whale liquidation', () => {
 
 	it('liquidate', async () => {
 		for (let i = 0; i < maxPositions; i++) {
-			const oracle = clearingHouse.getMarket(i).amm.oracle;
+			const oracle = clearingHouse.getMarketAccount(i).amm.oracle;
 			await setFeedPrice(anchor.workspace.Pyth, 0.85, oracle);
 			await clearingHouse.moveAmmPrice(
 				ammInitialBaseAssetReserve.div(new BN(5)),

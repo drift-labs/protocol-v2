@@ -14,7 +14,7 @@ import {
 	PositionDirection,
 	TradeHistoryAccount,
 	UserAccount,
-	Market,
+	MarketAccount,
 	OrderHistoryAccount,
 	OrderStateAccount,
 	OrderParams,
@@ -189,7 +189,7 @@ export class ClearingHouse {
 		return this.accountSubscriber.getStateAccount();
 	}
 
-	public getMarket(marketIndex: BN | number): Market {
+	public getMarketAccount(marketIndex: BN | number): MarketAccount {
 		marketIndex = marketIndex instanceof BN ? marketIndex : new BN(marketIndex);
 		return this.accountSubscriber.getMarketAccount(marketIndex);
 	}
@@ -727,7 +727,7 @@ export class ClearingHouse {
 			});
 		}
 
-		const priceOracle = this.getMarket(marketIndex).amm.oracle;
+		const priceOracle = this.getMarketAccount(marketIndex).amm.oracle;
 
 		const state = this.getStateAccount();
 		return await this.program.instruction.openPosition(
@@ -796,7 +796,8 @@ export class ClearingHouse {
 		const userPositionsAccountPublicKey =
 			await this.getUserPositionsAccountPublicKey();
 
-		const priceOracle = this.getMarket(orderParams.marketIndex).amm.oracle;
+		const priceOracle = this.getMarketAccount(orderParams.marketIndex).amm
+			.oracle;
 
 		const remainingAccounts = [
 			{
@@ -921,7 +922,7 @@ export class ClearingHouse {
 		const orderState = this.getOrderStateAccount();
 
 		const order = this.getOrder(orderId);
-		const oracle = this.getMarket(order.marketIndex).amm.oracle;
+		const oracle = this.getMarketAccount(order.marketIndex).amm.oracle;
 
 		const remainingAccounts = [];
 		(await this.getUserMarketPublicKeys()).forEach((marketPublicKey) => {
@@ -970,7 +971,7 @@ export class ClearingHouse {
 		const orderState = this.getOrderStateAccount();
 
 		const order = this.getOrderByUserId(userOrderId);
-		const oracle = this.getMarket(order.marketIndex).amm.oracle;
+		const oracle = this.getMarketAccount(order.marketIndex).amm.oracle;
 
 		const remainingAccounts = [];
 		(await this.getUserMarketPublicKeys()).forEach((marketPublicKey) => {
@@ -1028,7 +1029,7 @@ export class ClearingHouse {
 		});
 
 		for (const order of this.getUserOrdersAccount().orders) {
-			const oracle = this.getMarket(order.marketIndex).amm.oracle;
+			const oracle = this.getMarketAccount(order.marketIndex).amm.oracle;
 			remainingAccounts.push({
 				pubkey: oracle,
 				isWritable: false,
@@ -1092,7 +1093,7 @@ export class ClearingHouse {
 		});
 
 		for (const order of this.getUserOrdersAccount().orders) {
-			const oracle = this.getMarket(order.marketIndex).amm.oracle;
+			const oracle = this.getMarketAccount(order.marketIndex).amm.oracle;
 			remainingAccounts.push({
 				pubkey: oracle,
 				isWritable: false,
@@ -1153,7 +1154,7 @@ export class ClearingHouse {
 		const fillerPublicKey = await this.getUserAccountPublicKey();
 
 		const marketIndex = order.marketIndex;
-		const oracle = this.getMarket(marketIndex).amm.oracle;
+		const oracle = this.getMarketAccount(marketIndex).amm.oracle;
 
 		const state = this.getStateAccount();
 		const orderState = this.getOrderStateAccount();
@@ -1260,7 +1261,8 @@ export class ClearingHouse {
 		const userPositionsAccountPublicKey =
 			await this.getUserPositionsAccountPublicKey();
 
-		const priceOracle = this.getMarket(orderParams.marketIndex).amm.oracle;
+		const priceOracle = this.getMarketAccount(orderParams.marketIndex).amm
+			.oracle;
 
 		const remainingAccounts = [
 			{
@@ -1361,7 +1363,7 @@ export class ClearingHouse {
 		const userPositionsAccountPublicKey =
 			await this.getUserPositionsAccountPublicKey();
 
-		const priceOracle = this.getMarket(marketIndex).amm.oracle;
+		const priceOracle = this.getMarketAccount(marketIndex).amm.oracle;
 
 		const remainingAccounts = [
 			{
@@ -1475,7 +1477,7 @@ export class ClearingHouse {
 		const oracleAccountInfos = [];
 		for (const position of liquidateePositions.positions) {
 			if (!positionIsAvailable(position)) {
-				const market = this.getMarket(position.marketIndex);
+				const market = this.getMarketAccount(position.marketIndex);
 				const marketPublicKey = await getMarketPublicKey(
 					this.program.programId,
 					position.marketIndex

@@ -181,7 +181,7 @@ describe('minimum trade size', () => {
 			new BN(0)
 		);
 
-		const market = primaryClearingHouse.getMarket(0);
+		const market = primaryClearingHouse.getMarketAccount(0);
 		let position = userPositions.positions[0];
 		const baseAssetValue = calculateBaseAssetValue(market, position);
 
@@ -266,7 +266,7 @@ describe('minimum trade size', () => {
 			new BN(0)
 		);
 
-		const market = primaryClearingHouse.getMarket(0);
+		const market = primaryClearingHouse.getMarketAccount(0);
 		let position = userPositions.positions[0];
 		const _baseAssetValue = calculateBaseAssetValue(market, position);
 
@@ -347,7 +347,7 @@ describe('minimum trade size', () => {
 			new BN(0)
 		);
 
-		const market = primaryClearingHouse.getMarket(0);
+		const market = primaryClearingHouse.getMarketAccount(0);
 		let position = userPositions.positions[0];
 		const baseAssetValue = calculateBaseAssetValue(market, position);
 
@@ -432,7 +432,7 @@ describe('minimum trade size', () => {
 			new BN(0)
 		);
 
-		const _market = primaryClearingHouse.getMarket(0);
+		const _market = primaryClearingHouse.getMarketAccount(0);
 		let position = userPositions.positions[0];
 
 		await clearingHouse.openPosition(

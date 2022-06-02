@@ -132,7 +132,7 @@ describe('admin withdraw', () => {
 	it('Withdraw From Insurance Vault to amm', async () => {
 		const withdrawAmount = fee.div(new BN(4));
 
-		let market = clearingHouse.getMarket(0);
+		let market = clearingHouse.getMarketAccount(0);
 		assert(market.amm.totalFee.eq(fee));
 
 		await clearingHouse.withdrawFromInsuranceVaultToMarket(
@@ -146,7 +146,7 @@ describe('admin withdraw', () => {
 		);
 		assert(collateralVaultTokenAccount.amount.eq(new BN(9987562)));
 
-		market = clearingHouse.getMarket(0);
+		market = clearingHouse.getMarketAccount(0);
 
 		// deposits go entirely to distributions for sym-funding/repeg/k-adjustments
 		console.log(market.amm.totalFee.toString());

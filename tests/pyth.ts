@@ -46,7 +46,7 @@ async function updateFundingRateHelper(
 		const newprice = prices[i];
 		setFeedPrice(anchor.workspace.Pyth, newprice, priceFeedAddress);
 
-		const marketData0 = clearingHouse.getMarket(marketIndex);
+		const marketData0 = clearingHouse.getMarketAccount(marketIndex);
 		const ammAccountState0 = marketData0.amm;
 		const oraclePx0 = await getFeedData(
 			anchor.workspace.Pyth,
@@ -84,7 +84,7 @@ async function updateFundingRateHelper(
 		const CONVERSION_SCALE =
 			FUNDING_PAYMENT_PRECISION.mul(MARK_PRICE_PRECISION);
 
-		const marketData = clearingHouse.getMarket(marketIndex);
+		const marketData = clearingHouse.getMarketAccount(marketIndex);
 		const ammAccountState = marketData.amm;
 		const peroidicity = marketData.amm.fundingPeriod;
 
@@ -304,7 +304,9 @@ describe('pyth-oracle', () => {
 
 		console.log(
 			'PRICE',
-			convertToNumber(calculateMarkPrice(clearingHouse.getMarket(marketIndex)))
+			convertToNumber(
+				calculateMarkPrice(clearingHouse.getMarketAccount(marketIndex))
+			)
 		);
 
 		await clearingHouse.openPosition(
@@ -319,7 +321,7 @@ describe('pyth-oracle', () => {
 			marketIndex
 		);
 
-		const market = clearingHouse.getMarket(marketIndex);
+		const market = clearingHouse.getMarketAccount(marketIndex);
 
 		await updateFundingRateHelper(
 			clearingHouse,
@@ -328,7 +330,7 @@ describe('pyth-oracle', () => {
 			[41.501, 41.499]
 		);
 
-		const marketNew = clearingHouse.getMarket(marketIndex);
+		const marketNew = clearingHouse.getMarketAccount(marketIndex);
 
 		const fundingRateLong = marketNew.amm.cumulativeFundingRateLong.sub(
 			market.amm.cumulativeFundingRateLong
@@ -346,7 +348,7 @@ describe('pyth-oracle', () => {
 	it('new LONG trade above oracle-mark limit fails', async () => {
 		const marketIndex = new BN(1);
 
-		const market = clearingHouse.getMarket(marketIndex);
+		const market = clearingHouse.getMarketAccount(marketIndex);
 		const baseAssetPriceWithMantissa = calculateMarkPrice(market);
 
 		const targetPriceDefaultSlippage = baseAssetPriceWithMantissa.add(
@@ -361,7 +363,7 @@ describe('pyth-oracle', () => {
 		);
 		const [_directionSuc, _tradeSizeSuc, _entryPriceSuc] =
 			calculateTargetPriceTrade(
-				clearingHouse.getMarket(marketIndex),
+				clearingHouse.getMarketAccount(marketIndex),
 				BN.max(targetPriceDefaultSlippage, new BN(1))
 			);
 		// await clearingHouse.openPosition(
@@ -384,7 +386,7 @@ describe('pyth-oracle', () => {
 		);
 
 		const [_direction, tradeSize, _entryPrice] = calculateTargetPriceTrade(
-			clearingHouse.getMarket(marketIndex),
+			clearingHouse.getMarketAccount(marketIndex),
 			BN.max(targetPriceFails, new BN(1))
 		);
 

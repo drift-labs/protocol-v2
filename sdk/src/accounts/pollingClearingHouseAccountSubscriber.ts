@@ -14,7 +14,7 @@ import {
 	FundingPaymentHistoryAccount,
 	FundingRateHistoryAccount,
 	LiquidationHistoryAccount,
-	Market,
+	MarketAccount,
 	OrderHistoryAccount,
 	OrderStateAccount,
 	StateAccount,
@@ -55,7 +55,7 @@ export class PollingClearingHouseAccountSubscriber
 	errorCallbackId?: string;
 
 	state?: StateAccount;
-	market = new Map<number, Market>();
+	market = new Map<number, MarketAccount>();
 	orderState?: OrderStateAccount;
 	tradeHistory?: TradeHistoryAccount;
 	depositHistory?: DepositHistoryAccount;
@@ -460,7 +460,7 @@ export class PollingClearingHouseAccountSubscriber
 		return this.state;
 	}
 
-	public getMarketAccount(marketIndex: BN): Market | undefined {
+	public getMarketAccount(marketIndex: BN): MarketAccount | undefined {
 		return this.market.get(marketIndex.toNumber());
 	}
 

@@ -267,7 +267,7 @@ describe('order referrer', () => {
 		const expectedReferrerReward = new BN(50);
 		assert(referrerUserAccount.totalReferralReward.eq(expectedReferrerReward));
 
-		const market = clearingHouse.getMarket(marketIndex);
+		const market = clearingHouse.getMarketAccount(marketIndex);
 		const expectedFeeToMarket = new BN(760);
 		assert(market.amm.totalFee.eq(expectedFeeToMarket));
 
@@ -313,7 +313,7 @@ describe('order referrer', () => {
 		const expectedReferrerReward = new BN(100);
 		assert(referrerUserAccount.totalReferralReward.eq(expectedReferrerReward));
 
-		const market = clearingHouse.getMarket(marketIndex);
+		const market = clearingHouse.getMarketAccount(marketIndex);
 		const expectedFeeToMarket = new BN(1610);
 		assert(market.amm.totalFee.eq(expectedFeeToMarket));
 

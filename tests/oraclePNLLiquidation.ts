@@ -103,7 +103,7 @@ describe('oracle pnl liquidations', () => {
 
 	it('partial liquidate', async () => {
 		for (let i = 0; i < maxPositions; i++) {
-			const oracle = clearingHouse.getMarket(i).amm.oracle;
+			const oracle = clearingHouse.getMarketAccount(i).amm.oracle;
 			await setFeedPrice(anchor.workspace.Pyth, 0.85, oracle);
 			await clearingHouse.updateFundingRate(oracle, new BN(i));
 			await clearingHouse.moveAmmPrice(
@@ -140,7 +140,7 @@ describe('oracle pnl liquidations', () => {
 
 	it('liquidate', async () => {
 		for (let i = 0; i < maxPositions; i++) {
-			const oracle = clearingHouse.getMarket(i).amm.oracle;
+			const oracle = clearingHouse.getMarketAccount(i).amm.oracle;
 			await setFeedPrice(anchor.workspace.Pyth, 0.4334, oracle);
 			await clearingHouse.moveAmmPrice(
 				ammInitialBaseAssetReserve.mul(new BN(5)),

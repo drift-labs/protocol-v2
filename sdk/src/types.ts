@@ -269,7 +269,7 @@ export type OrderStateAccount = {
 	minOrderQuoteAssetAmount: BN;
 };
 
-export type Market = {
+export type MarketAccount = {
 	initialized: boolean;
 	marketIndex: BN;
 	pubkey: PublicKey;
