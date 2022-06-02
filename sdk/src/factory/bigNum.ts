@@ -12,15 +12,9 @@ export class BigNum {
 		val: BN | number | string,
 		precisionVal: BN | number | string = new BN(0)
 	) {
-		const bn =
-			typeof val === 'number' || typeof val === 'string' ? new BN(val) : val;
-		const precision =
-			typeof precisionVal === 'number' || typeof precisionVal === 'string'
-				? new BN(precisionVal)
-				: precisionVal;
-
-		this.val = new BN(bn);
-		this.precision = new BN(precision);
+		
+		this.val = new BN(val);
+		this.precision = new BN(precisionVal);
 	}
 
 	public add(bn: BigNum): BigNum {
@@ -36,9 +30,9 @@ export class BigNum {
 	}
 
 	public mul(bn: BigNum | BN): BigNum {
-		if (bn instanceof BN) return BigNum.from(this.val.mul(bn), this.precision);
+		const mulVal = bn instanceof BigNum ? bn : BigNum.from(bn);
 
-		return BigNum.from(this.val.mul(bn.val), this.precision.add(bn.precision));
+		return BigNum.from(this.val.mul(mulVal.val), this.precision.add(mulVal.precision));
 	}
 
 	/**
@@ -46,7 +40,7 @@ export class BigNum {
 	 * @param bn
 	 * @returns
 	 */
-	public scalarMul(bn: BigNum): BigNum {
+	public scalarMul(bn: BigNum | BN): BigNum {
 		if (bn instanceof BN) return BigNum.from(this.val.mul(bn), this.precision);
 
 		return BigNum.from(
@@ -62,12 +56,12 @@ export class BigNum {
 
 	/**
 	 * Shift precision up or down
-	 * @param bn
+	 * @param exponent
 	 * @param skipAdjustingPrecision
 	 * @returns
 	 */
-	public shift(bn: BN | number, skipAdjustingPrecision = false): BigNum {
-		const shiftVal = typeof bn === 'number' ? new BN(bn) : bn;
+	public shift(exponent: BN | number, skipAdjustingPrecision = false): BigNum {
+		const shiftVal = typeof exponent === 'number' ? new BN(exponent) : exponent;
 
 		return BigNum.from(
 			shiftVal.isNeg()
@@ -93,7 +87,7 @@ export class BigNum {
 	 * @returns
 	 */
 	public scale(numerator: BN | number, denominator: BN | number): BigNum {
-		return this.mul(new BN(numerator)).div(new BN(denominator));
+		return this.mul(BigNum.from(new BN(numerator))).div(new BN(denominator));
 	}
 
 	public toPercentage(denominator: BigNum, precision: number): string {
@@ -103,34 +97,54 @@ export class BigNum {
 			.toPrecision(precision);
 	}
 
-	public gt(bn: BigNum | BN): boolean {
-		const comparisonVal = bn instanceof BigNum ? bn.val : bn;
+	public gt(bn: BigNum | BN, ignorePrecision?:boolean): boolean {
+		const comparisonVal = bn instanceof BigNum ? bn : BigNum.from(bn);
 
-		return this.val.gt(comparisonVal);
+		if (!ignorePrecision) {
+			assert(comparisonVal.precision.eq(this.precision), 'Trying to compare numbers with different precision. Yo can opt to ignore precision using the ignorePrecision parameter');
+		}
+
+		return this.val.gt(comparisonVal.val);
 	}
 
-	public lt(bn: BigNum | BN): boolean {
-		const comparisonVal = bn instanceof BigNum ? bn.val : bn;
+	public lt(bn: BigNum | BN, ignorePrecision?:boolean): boolean {
+		const comparisonVal = bn instanceof BigNum ? bn : BigNum.from(bn);
 
-		return this.val.lt(comparisonVal);
+		if (!ignorePrecision) {
+			assert(comparisonVal.precision.eq(this.precision), 'Trying to compare numbers with different precision. Yo can opt to ignore precision using the ignorePrecision parameter');
+		}
+
+		return this.val.lt(comparisonVal.val);
 	}
 
-	public gte(bn: BigNum | BN): boolean {
-		const comparisonVal = bn instanceof BigNum ? bn.val : bn;
+	public gte(bn: BigNum | BN, ignorePrecision?:boolean): boolean {
+		const comparisonVal = bn instanceof BigNum ? bn : BigNum.from(bn);
 
-		return this.val.gte(comparisonVal);
+		if (!ignorePrecision) {
+			assert(comparisonVal.precision.eq(this.precision), 'Trying to compare numbers with different precision. Yo can opt to ignore precision using the ignorePrecision parameter');
+		}
+
+		return this.val.gte(comparisonVal.val);
 	}
 
-	public lte(bn: BigNum | BN): boolean {
-		const comparisonVal = bn instanceof BigNum ? bn.val : bn;
+	public lte(bn: BigNum | BN, ignorePrecision?:boolean): boolean {
+		const comparisonVal = bn instanceof BigNum ? bn : BigNum.from(bn);
 
-		return this.val.lte(comparisonVal);
+		if (!ignorePrecision) {
+			assert(comparisonVal.precision.eq(this.precision), 'Trying to compare numbers with different precision. Yo can opt to ignore precision using the ignorePrecision parameter');
+		}
+
+		return this.val.lte(comparisonVal.val);
 	}
 
-	public eq(bn: BigNum | BN): boolean {
-		const comparisonVal = bn instanceof BigNum ? bn.val : bn;
+	public eq(bn: BigNum | BN, ignorePrecision?:boolean): boolean {
+		const comparisonVal = bn instanceof BigNum ? bn : BigNum.from(bn);
 
-		return this.val.eq(comparisonVal);
+		if (!ignorePrecision) {
+			assert(comparisonVal.precision.eq(this.precision), 'Trying to compare numbers with different precision. Yo can opt to ignore precision using the ignorePrecision parameter');
+		}
+
+		return this.val.eq(comparisonVal.val);
 	}
 
 	public eqZero() {
@@ -314,9 +328,6 @@ export class BigNum {
 				...Array(precision - leadDigits.length).fill('0'),
 			].join('');
 		}
-
-		// need to figure out which location to put the decimal
-		//// how many digits are there after the decimal?
 
 		const decimalLocation = leftSide.length - 3 * unitNumber;
 
