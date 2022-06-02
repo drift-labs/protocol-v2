@@ -1,7 +1,7 @@
 import { BN } from '@project-serum/anchor';
 import {
 	MARK_PRICE_PRECISION,
-	Market,
+	MarketAccount,
 	calculateMarkPrice,
 	calculateTargetPriceTrade,
 	ZERO,
@@ -15,7 +15,11 @@ import {
  * @param incrementSize grouping of liquidity by pct price move
  * @returns
  */
-export function liquidityBook(market: Market, N = 5, incrementSize = 0.1) {
+export function liquidityBook(
+	market: MarketAccount,
+	N = 5,
+	incrementSize = 0.1
+) {
 	const defaultSlippageBN = new BN(
 		incrementSize * MARK_PRICE_PRECISION.toNumber()
 	);

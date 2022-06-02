@@ -1,5 +1,6 @@
 import * as anchor from '@project-serum/anchor';
 import { BN } from '../sdk';
+import { assert } from 'chai';
 
 import { Program } from '@project-serum/anchor';
 
@@ -66,14 +67,13 @@ describe('max reserves', () => {
 			}
 		);
 		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.subscribe();
+		await clearingHouse.subscribeToAll();
 
 		for (let i = 0; i < maxPositions; i++) {
 			const oracle = await mockOracle(1);
 			const periodicity = new BN(0);
 
 			await clearingHouse.initializeMarket(
-				new BN(i),
 				oracle,
 				ammInitialBaseAssetReserve,
 				ammInitialQuoteAssetReserve,
@@ -99,6 +99,7 @@ describe('max reserves', () => {
 			.mul(new BN(99))
 			.div(new BN(100));
 		for (let i = 0; i < maxPositions; i++) {
+			await clearingHouse.fetchAccounts();
 			await clearingHouse.openPosition(
 				PositionDirection.LONG,
 				usdcPerPosition,
@@ -109,16 +110,16 @@ describe('max reserves', () => {
 	});
 
 	it('partial liquidate', async () => {
-		const markets = clearingHouse.getMarketsAccount();
 		for (let i = 0; i < maxPositions; i++) {
-			const oracle = markets.markets[i].amm.oracle;
-			await setFeedPrice(anchor.workspace.Pyth, 0.8, oracle);
+			const oracle = clearingHouse.getMarketAccount(i).amm.oracle;
+			await setFeedPrice(anchor.workspace.Pyth, 0.85, oracle);
 			await clearingHouse.updateFundingRate(oracle, new BN(i));
 			await clearingHouse.moveAmmToPrice(
 				new BN(i),
-				new BN((1 / 1.18) * MARK_PRICE_PRECISION.toNumber())
+				new BN(0.85 * MARK_PRICE_PRECISION.toNumber())
 			);
 		}
+
 		console.log('liquidate');
 		const txSig = await clearingHouse.liquidate(userAccountPublicKey);
 		const computeUnits = await findComputeUnitConsumption(
@@ -128,16 +129,20 @@ describe('max reserves', () => {
 			'confirmed'
 		);
 		console.log('compute units', computeUnits);
+
+		await clearingHouse.fetchAccounts();
+		const liquidationHistory = clearingHouse.getLiquidationHistoryAccount();
+		const liquidationRecord = liquidationHistory.liquidationRecords[0];
+		assert(liquidationRecord.partial);
 	});
 
 	it('liquidate', async () => {
-		const markets = clearingHouse.getMarketsAccount();
 		for (let i = 0; i < maxPositions; i++) {
-			const oracle = markets.markets[i].amm.oracle;
-			await setFeedPrice(anchor.workspace.Pyth, 0.1, oracle);
+			const oracle = clearingHouse.getMarketAccount(i).amm.oracle;
+			await setFeedPrice(anchor.workspace.Pyth, 0.8, oracle);
 			await clearingHouse.moveAmmToPrice(
 				new BN(i),
-				new BN(0.1 * MARK_PRICE_PRECISION.toNumber())
+				new BN(0.8 * MARK_PRICE_PRECISION.toNumber())
 			);
 		}
 
@@ -149,5 +154,10 @@ describe('max reserves', () => {
 			'confirmed'
 		);
 		console.log('compute units', computeUnits);
+
+		await clearingHouse.fetchAccounts();
+		const liquidationHistory = clearingHouse.getLiquidationHistoryAccount();
+		const liquidationRecord = liquidationHistory.liquidationRecords[1];
+		assert(!liquidationRecord.partial);
 	});
 });

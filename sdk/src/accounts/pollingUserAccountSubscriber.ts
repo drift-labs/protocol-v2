@@ -13,7 +13,7 @@ import {
 	getUserAccountPublicKey,
 	getUserOrdersAccountPublicKey,
 	getUserPositionsAccountPublicKey,
-} from '../addresses';
+} from '../addresses/pda';
 import { UserAccount, UserOrdersAccount, UserPositionsAccount } from '../types';
 import { BulkAccountLoader } from './bulkAccountLoader';
 import { capitalize } from './utils';

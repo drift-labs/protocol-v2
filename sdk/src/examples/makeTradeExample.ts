@@ -96,7 +96,7 @@ const main = async () => {
 	);
 
 	const currentMarketPrice = calculateMarkPrice(
-		clearingHouse.getMarket(solMarketInfo.marketIndex)
+		clearingHouse.getMarketAccount(solMarketInfo.marketIndex)
 	);
 
 	const formattedPrice = convertToNumber(
@@ -107,7 +107,9 @@ const main = async () => {
 	console.log(`Current Market Price is $${formattedPrice}`);
 
 	// Estimate the slippage for a $5000 LONG trade
-	const solMarketAccount = clearingHouse.getMarket(solMarketInfo.marketIndex);
+	const solMarketAccount = clearingHouse.getMarketAccount(
+		solMarketInfo.marketIndex
+	);
 
 	const longAmount = new BN(5000).mul(QUOTE_PRECISION);
 	const slippage = convertToNumber(

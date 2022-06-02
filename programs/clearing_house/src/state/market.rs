@@ -1,4 +1,7 @@
 use anchor_lang::prelude::*;
+use solana_program::msg;
+use std::cmp::max;
+use switchboard_v2::decimal::SwitchboardDecimal;
 use switchboard_v2::AggregatorAccountData;
 
 use crate::error::{ClearingHouseResult, ErrorCode};
@@ -7,48 +10,18 @@ use crate::math::casting::{cast, cast_to_i128, cast_to_i64, cast_to_u128};
 use crate::math::margin::MarginType;
 use crate::math_error;
 use crate::MARK_PRICE_PRECISION;
-use solana_program::msg;
-use std::cmp::max;
-use switchboard_v2::decimal::SwitchboardDecimal;
 
 #[account(zero_copy)]
-#[repr(packed)]
-pub struct Markets {
-    pub markets: [Market; 64],
-}
-
-impl Default for Markets {
-    fn default() -> Self {
-        Markets {
-            markets: [Market::default(); 64],
-        }
-    }
-}
-
-impl Markets {
-    pub fn index_from_u64(index: u64) -> usize {
-        std::convert::TryInto::try_into(index).unwrap()
-    }
-
-    pub fn get_market(&self, index: u64) -> &Market {
-        &self.markets[Markets::index_from_u64(index)]
-    }
-
-    pub fn get_market_mut(&mut self, index: u64) -> &mut Market {
-        &mut self.markets[Markets::index_from_u64(index)]
-    }
-}
-
-#[zero_copy]
 #[derive(Default)]
-#[repr(packed)]
 pub struct Market {
+    pub market_index: u64,
+    pub pubkey: Pubkey,
     pub initialized: bool,
+    pub amm: AMM,
     pub base_asset_amount_long: i128,
     pub base_asset_amount_short: i128,
     pub base_asset_amount: i128, // net market bias
     pub open_interest: u128,     // number of users in a position
-    pub amm: AMM,
     pub margin_ratio_initial: u32,
     pub margin_ratio_partial: u32,
     pub margin_ratio_maintenance: u32,

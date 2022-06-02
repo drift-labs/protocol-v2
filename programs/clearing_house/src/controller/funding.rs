@@ -1,4 +1,4 @@
-use std::cell::{Ref, RefMut};
+use std::cell::RefMut;
 use std::cmp::{max, min};
 
 use anchor_lang::prelude::*;
@@ -16,8 +16,8 @@ use crate::math::oracle;
 use crate::math_error;
 use crate::state::history::funding_payment::{FundingPaymentHistory, FundingPaymentRecord};
 use crate::state::history::funding_rate::{FundingRateHistory, FundingRateRecord};
-use crate::state::market::AMM;
-use crate::state::market::{Market, Markets};
+use crate::state::market::{Market, AMM};
+use crate::state::market_map::MarketMap;
 use crate::state::state::OracleGuardRails;
 use crate::state::user::{User, UserPositions};
 use solana_program::clock::UnixTimestamp;
@@ -29,7 +29,7 @@ use solana_program::msg;
 pub fn settle_funding_payment(
     user: &mut User,
     user_positions: &mut RefMut<UserPositions>,
-    markets: &Ref<Markets>,
+    market_map: &MarketMap,
     funding_payment_history: &mut RefMut<FundingPaymentHistory>,
     now: UnixTimestamp,
 ) -> ClearingHouseResult {
@@ -40,7 +40,7 @@ pub fn settle_funding_payment(
             continue;
         }
 
-        let market = &markets.markets[Markets::index_from_u64(market_position.market_index)];
+        let market = &market_map.get_ref(&market_position.market_index)?;
         let amm: &AMM = &market.amm;
 
         let amm_cumulative_funding_rate = if market_position.base_asset_amount > 0 {

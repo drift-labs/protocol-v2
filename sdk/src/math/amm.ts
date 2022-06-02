@@ -15,7 +15,7 @@ import {
 	AMM,
 	PositionDirection,
 	SwapDirection,
-	Market,
+	MarketAccount,
 	isVariant,
 } from '../types';
 import { assert } from '../assert/assert';
@@ -203,7 +203,7 @@ export function getSwapDirection(
  * @returns cost : Precision QUOTE_ASSET_PRECISION
  */
 export function calculateAdjustKCost(
-	market: Market,
+	market: MarketAccount,
 	marketIndex: BN,
 	numerator: BN,
 	denomenator: BN
@@ -269,7 +269,7 @@ export function calculateAdjustKCost(
  * @returns cost : Precision QUOTE_ASSET_PRECISION
  */
 export function calculateRepegCost(
-	market: Market,
+	market: MarketAccount,
 	marketIndex: BN,
 	newPeg: BN
 ): BN {
@@ -319,7 +319,7 @@ export function calculateRepegCost(
  * @param market
  * @returns cost : Precision MARK_PRICE_PRECISION
  */
-export function calculateTerminalPrice(market: Market) {
+export function calculateTerminalPrice(market: MarketAccount) {
 	const directionToClose = market.baseAssetAmount.gt(ZERO)
 		? PositionDirection.SHORT
 		: PositionDirection.LONG;
@@ -383,7 +383,7 @@ export function calculateMaxBaseAssetAmountToTrade(
 	}
 }
 
-export function calculateBudgetedK(market: Market, cost: BN): [BN, BN] {
+export function calculateBudgetedK(market: MarketAccount, cost: BN): [BN, BN] {
 	// wolframalpha.com
 	// (1/(x+d) - p/(x*p+d))*y*d*Q = C solve for p
 	// p = (d(y*d*Q - C(x+d))) / (C*x(x+d) + y*y*d*Q)
@@ -432,7 +432,7 @@ export function calculateBudgetedK(market: Market, cost: BN): [BN, BN] {
 	return [numerator, denominator];
 }
 
-export function calculateBudgetedPeg(market: Market, cost: BN): BN {
+export function calculateBudgetedPeg(market: MarketAccount, cost: BN): BN {
 	// wolframalpha.com
 	// (1/(x+d) - p/(x*p+d))*y*d*Q = C solve for p
 	// p = (d(y*d*Q - C(x+d))) / (C*x(x+d) + y*y*d*Q)

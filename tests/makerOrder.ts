@@ -55,7 +55,6 @@ describe('maker order', () => {
 
 	const usdcAmount = new BN(10 * 10 ** 6);
 
-	const marketIndex = new BN(0);
 	let solUsd;
 
 	before(async () => {
@@ -77,7 +76,6 @@ describe('maker order', () => {
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await fillerClearingHouse.initializeMarket(
-			marketIndex,
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -141,7 +139,9 @@ describe('maker order', () => {
 
 		const marketIndex = new BN(0);
 		const baseAssetAmount = BASE_PRECISION;
-		const markPrice = calculateMarkPrice(clearingHouse.getMarket(marketIndex));
+		const markPrice = calculateMarkPrice(
+			clearingHouse.getMarketAccount(marketIndex)
+		);
 		const makerOrderParams = getLimitOrderParams(
 			marketIndex,
 			PositionDirection.LONG,
@@ -167,14 +167,16 @@ describe('maker order', () => {
 
 		await fillerClearingHouse.fillOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
+			await clearingHouseUser.getUserPositionsAccountPublicKey(),
 			await clearingHouseUser.getUserOrdersAccountPublicKey(),
+			clearingHouseUser.getUserPositionsAccount(),
 			order
 		);
 
 		await clearingHouseUser.fetchAccounts();
 		const position = clearingHouseUser.getUserPosition(marketIndex);
 		assert(position.baseAssetAmount.eq(baseAssetAmount));
-		assert(position.quoteAssetAmount.eq(new BN(1000000)));
+		assert(position.quoteAssetAmount.eq(new BN(1000001)));
 		assert(
 			clearingHouseUser
 				.getUserAccount()
@@ -189,7 +191,7 @@ describe('maker order', () => {
 
 		assert(isVariant(orderRecord.action, 'fill'));
 		assert(orderRecord.fee.eq(new BN(-500)));
-		assert(orderRecord.quoteAssetAmountSurplus.eq(new BN(499999)));
+		assert(orderRecord.quoteAssetAmountSurplus.eq(new BN(500000)));
 
 		await clearingHouse.unsubscribe();
 		await clearingHouseUser.unsubscribe();
@@ -226,7 +228,9 @@ describe('maker order', () => {
 
 		const marketIndex = new BN(0);
 		const baseAssetAmount = BASE_PRECISION;
-		const markPrice = calculateMarkPrice(clearingHouse.getMarket(marketIndex));
+		const markPrice = calculateMarkPrice(
+			clearingHouse.getMarketAccount(marketIndex)
+		);
 		const makerOrderParams = getLimitOrderParams(
 			marketIndex,
 			PositionDirection.SHORT,
@@ -253,7 +257,9 @@ describe('maker order', () => {
 
 		await fillerClearingHouse.fillOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
+			await clearingHouseUser.getUserPositionsAccountPublicKey(),
 			await clearingHouseUser.getUserOrdersAccountPublicKey(),
+			clearingHouseUser.getUserPositionsAccount(),
 			order
 		);
 

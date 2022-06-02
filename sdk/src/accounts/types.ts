@@ -4,7 +4,7 @@ import {
 	FundingPaymentHistoryAccount,
 	FundingRateHistoryAccount,
 	LiquidationHistoryAccount,
-	MarketsAccount,
+	MarketAccount,
 	OrderHistoryAccount,
 	OrderStateAccount,
 	StateAccount,
@@ -22,6 +22,7 @@ import {
 	ClearingHouseUserConfigType,
 	OraclePriceData,
 } from '..';
+import { BN } from '@project-serum/anchor';
 
 export interface AccountSubscriber<T> {
 	data?: T;
@@ -36,7 +37,7 @@ export class NotSubscribedError extends Error {
 
 export interface ClearingHouseAccountEvents {
 	stateAccountUpdate: (payload: StateAccount) => void;
-	marketsAccountUpdate: (payload: MarketsAccount) => void;
+	marketAccountUpdate: (payload: MarketAccount) => void;
 	fundingPaymentHistoryAccountUpdate: (
 		payload: FundingPaymentHistoryAccount
 	) => void;
@@ -78,7 +79,7 @@ export interface ClearingHouseAccountSubscriber {
 	updateAuthority(newAuthority: PublicKey): Promise<boolean>;
 
 	getStateAccount(): StateAccount;
-	getMarketsAccount(): MarketsAccount;
+	getMarketAccount(marketIndex: BN): MarketAccount | undefined;
 	getTradeHistoryAccount(): TradeHistoryAccount;
 	getDepositHistoryAccount(): DepositHistoryAccount;
 	getFundingPaymentHistoryAccount(): FundingPaymentHistoryAccount;
@@ -162,6 +163,7 @@ export type AccountToPoll = {
 	publicKey: PublicKey;
 	eventType: string;
 	callbackId?: string;
+	mapKey?: number;
 };
 
 export type AccountData = {

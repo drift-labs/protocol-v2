@@ -14,7 +14,6 @@ use crate::math::{amm, fees, margin::*, orders::*};
 use crate::state::{
     history::order_history::{OrderHistory, OrderRecord},
     history::trade::{TradeHistory, TradeRecord},
-    market::Markets,
     order_state::*,
     state::*,
     user::{User, UserPositions},
@@ -35,6 +34,7 @@ use crate::state::history::funding_payment::FundingPaymentHistory;
 use crate::state::history::funding_rate::FundingRateHistory;
 use crate::state::history::order_history::OrderAction;
 use crate::state::market::Market;
+use crate::state::market_map::MarketMap;
 use spl_token::state::Account as TokenAccount;
 use std::cell::RefMut;
 use std::collections::BTreeMap;
@@ -44,7 +44,7 @@ pub fn place_order(
     order_state: &OrderState,
     user: &mut Box<Account<User>>,
     user_positions: &AccountLoader<UserPositions>,
-    markets: &AccountLoader<Markets>,
+    market_map: &MarketMap,
     user_orders: &AccountLoader<UserOrders>,
     funding_payment_history: &AccountLoader<FundingPaymentHistory>,
     order_history: &AccountLoader<OrderHistory>,
@@ -62,13 +62,10 @@ pub fn place_order(
     let funding_payment_history = &mut funding_payment_history
         .load_mut()
         .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
-    let markets = &markets
-        .load()
-        .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
     controller::funding::settle_funding_payment(
         user,
         user_positions,
-        markets,
+        market_map,
         funding_payment_history,
         now,
     )?;
@@ -99,7 +96,7 @@ pub fn place_order(
     }
 
     let market_index = params.market_index;
-    let market = markets.get_market(market_index);
+    let market = &market_map.get_ref(&market_index)?;
 
     // Increment open orders for existing position
     let position_index = get_position_index(user_positions, market_index)
@@ -178,7 +175,7 @@ pub fn cancel_order_by_order_id(
     order_id: u128,
     user: &mut Box<Account<User>>,
     user_positions: &AccountLoader<UserPositions>,
-    markets: &AccountLoader<Markets>,
+    market_map: &MarketMap,
     user_orders: &AccountLoader<UserOrders>,
     funding_payment_history: &AccountLoader<FundingPaymentHistory>,
     order_history: &AccountLoader<OrderHistory>,
@@ -201,7 +198,7 @@ pub fn cancel_order_by_order_id(
         order,
         user,
         user_positions,
-        markets,
+        market_map,
         funding_payment_history,
         order_history,
         clock,
@@ -215,7 +212,7 @@ pub fn cancel_order_by_user_order_id(
     user_order_id: u8,
     user: &mut Box<Account<User>>,
     user_positions: &AccountLoader<UserPositions>,
-    markets: &AccountLoader<Markets>,
+    market_map: &MarketMap,
     user_orders: &AccountLoader<UserOrders>,
     funding_payment_history: &AccountLoader<FundingPaymentHistory>,
     order_history: &AccountLoader<OrderHistory>,
@@ -238,7 +235,7 @@ pub fn cancel_order_by_user_order_id(
         order,
         user,
         user_positions,
-        markets,
+        market_map,
         funding_payment_history,
         order_history,
         clock,
@@ -251,7 +248,7 @@ pub fn cancel_all_orders(
     state: &State,
     user: &mut Box<Account<User>>,
     user_positions: &AccountLoader<UserPositions>,
-    markets: &AccountLoader<Markets>,
+    market_map: &MarketMap,
     user_orders: &AccountLoader<UserOrders>,
     funding_payment_history: &AccountLoader<FundingPaymentHistory>,
     order_history: &AccountLoader<OrderHistory>,
@@ -288,10 +285,7 @@ pub fn cancel_all_orders(
         }
 
         let oracle = {
-            let markets = &markets
-                .load()
-                .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
-            let market = markets.get_market(order.market_index);
+            let market = market_map.get_ref(&order.market_index)?;
             oracle_account_infos.get(&market.amm.oracle).copied()
         };
 
@@ -300,7 +294,7 @@ pub fn cancel_all_orders(
             order,
             user,
             user_positions,
-            markets,
+            market_map,
             funding_payment_history,
             order_history,
             clock,
@@ -317,7 +311,7 @@ pub fn cancel_order(
     order: &mut Order,
     user: &mut Box<Account<User>>,
     user_positions: &AccountLoader<UserPositions>,
-    markets: &AccountLoader<Markets>,
+    market_map: &MarketMap,
     funding_payment_history: &AccountLoader<FundingPaymentHistory>,
     order_history: &AccountLoader<OrderHistory>,
     clock: &Clock,
@@ -332,13 +326,10 @@ pub fn cancel_order(
     let funding_payment_history = &mut funding_payment_history
         .load_mut()
         .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
-    let markets = &markets
-        .load()
-        .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
     controller::funding::settle_funding_payment(
         user,
         user_positions,
-        markets,
+        market_map,
         funding_payment_history,
         now,
     )?;
@@ -347,7 +338,7 @@ pub fn cancel_order(
         return Err(ErrorCode::OrderNotOpen);
     }
 
-    let market = markets.get_market(order.market_index);
+    let market = &market_map.get_ref(&order.market_index)?;
     let valid_oracle_price = get_valid_oracle_price(
         oracle,
         market,
@@ -361,7 +352,7 @@ pub fn cancel_order(
             order,
             user,
             user_positions,
-            markets,
+            market_map,
             valid_oracle_price,
         )?;
 
@@ -369,7 +360,13 @@ pub fn cancel_order(
             return Ok(());
         }
     } else {
-        validate_order_can_be_canceled(order, user, user_positions, markets, valid_oracle_price)?;
+        validate_order_can_be_canceled(
+            order,
+            user,
+            user_positions,
+            market_map,
+            valid_oracle_price,
+        )?;
     }
 
     // Add to the order history account
@@ -491,7 +488,7 @@ pub fn fill_order(
     order_state: &OrderState,
     user: &mut Box<Account<User>>,
     user_positions: &AccountLoader<UserPositions>,
-    markets: &AccountLoader<Markets>,
+    market_map: &MarketMap,
     oracle: &AccountInfo,
     user_orders: &AccountLoader<UserOrders>,
     filler: &mut Box<Account<User>>,
@@ -511,18 +508,13 @@ pub fn fill_order(
     let funding_payment_history = &mut funding_payment_history
         .load_mut()
         .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
-    {
-        let markets = &markets
-            .load()
-            .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
-        controller::funding::settle_funding_payment(
-            user,
-            user_positions,
-            markets,
-            funding_payment_history,
-            now,
-        )?;
-    }
+    controller::funding::settle_funding_payment(
+        user,
+        user_positions,
+        market_map,
+        funding_payment_history,
+        now,
+    )?;
 
     let user_orders = &mut user_orders
         .load_mut()
@@ -539,30 +531,13 @@ pub fn fill_order(
     }
 
     let market_index = order.market_index;
-    {
-        let markets = &markets
-            .load()
-            .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
-        let market = markets.get_market(market_index);
-
-        if !market.initialized {
-            return Err(ErrorCode::MarketIndexNotInitialized);
-        }
-
-        if !market.amm.oracle.eq(oracle.key) {
-            return Err(ErrorCode::InvalidOracle);
-        }
-    }
 
     let mark_price_before: u128;
     let oracle_mark_spread_pct_before: i128;
     let is_oracle_valid: bool;
     let oracle_price: i128;
     {
-        let markets = &mut markets
-            .load_mut()
-            .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
-        let market = markets.get_market_mut(market_index);
+        let market = &mut market_map.get_ref_mut(&market_index)?;
         mark_price_before = market.amm.mark_price()?;
         let oracle_price_data = &market.amm.get_oracle_price(oracle, clock_slot)?;
         oracle_mark_spread_pct_before = amm::calculate_oracle_mark_spread_pct(
@@ -598,9 +573,7 @@ pub fn fill_order(
         user,
         user_positions,
         order,
-        &mut markets
-            .load_mut()
-            .or(Err(ErrorCode::UnableToLoadAccountLoader))?,
+        market_map,
         market_index,
         mark_price_before,
         now,
@@ -615,10 +588,7 @@ pub fn fill_order(
     let oracle_price_after: i128;
     let oracle_mark_spread_pct_after: i128;
     {
-        let markets = &mut markets
-            .load_mut()
-            .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
-        let market = markets.get_market_mut(market_index);
+        let market = market_map.get_ref_mut(&market_index)?;
         mark_price_after = market.amm.mark_price()?;
         let oracle_price_data = &market.amm.get_oracle_price(oracle, clock_slot)?;
         oracle_mark_spread_pct_after = amm::calculate_oracle_mark_spread_pct(
@@ -658,21 +628,9 @@ pub fn fill_order(
     // Order fails if it's risk increasing and it brings the user collateral below the margin requirement
     let meets_maintenance_requirement = if order.post_only {
         // for post only orders allow user to fill up to partial margin requirement
-        meets_partial_margin_requirement(
-            user,
-            user_positions,
-            &markets
-                .load()
-                .or(Err(ErrorCode::UnableToLoadAccountLoader))?,
-        )?
+        meets_partial_margin_requirement(user, user_positions, market_map)?
     } else {
-        meets_initial_margin_requirement(
-            user,
-            user_positions,
-            &markets
-                .load()
-                .or(Err(ErrorCode::UnableToLoadAccountLoader))?,
-        )?
+        meets_initial_margin_requirement(user, user_positions, market_map)?
     };
     if !meets_maintenance_requirement && potentially_risk_increasing {
         return Err(ErrorCode::InsufficientCollateral);
@@ -695,10 +653,7 @@ pub fn fill_order(
 
     // Increment the clearing house's total fee variables
     {
-        let markets = &mut markets
-            .load_mut()
-            .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
-        let market = markets.get_market_mut(market_index);
+        let market = &mut market_map.get_ref_mut(&market_index)?;
         market.amm.total_fee = market
             .amm
             .total_fee
@@ -759,10 +714,7 @@ pub fn fill_order(
     }
 
     {
-        let markets = &mut markets
-            .load()
-            .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
-        let market = markets.get_market(market_index);
+        let market = &market_map.get_ref(&market_index)?;
         update_order_after_trade(
             order,
             market.amm.minimum_base_asset_trade_size,
@@ -828,10 +780,7 @@ pub fn fill_order(
 
     // Try to update the funding rate at the end of every trade
     {
-        let markets = &mut markets
-            .load_mut()
-            .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
-        let market = markets.get_market_mut(market_index);
+        let market = &mut market_map.get_ref_mut(&market_index)?;
         let funding_rate_history = &mut funding_rate_history
             .load_mut()
             .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
@@ -855,7 +804,7 @@ pub fn execute_order(
     user: &mut User,
     user_positions: &mut RefMut<UserPositions>,
     order: &mut Order,
-    markets: &mut RefMut<Markets>,
+    market_map: &MarketMap,
     market_index: u64,
     mark_price_before: u128,
     now: i64,
@@ -866,7 +815,7 @@ pub fn execute_order(
             user,
             user_positions,
             order,
-            markets,
+            market_map,
             market_index,
             mark_price_before,
             now,
@@ -875,7 +824,7 @@ pub fn execute_order(
             user,
             user_positions,
             order,
-            markets,
+            market_map,
             market_index,
             mark_price_before,
             now,
@@ -888,14 +837,14 @@ pub fn execute_market_order(
     user: &mut User,
     user_positions: &mut RefMut<UserPositions>,
     order: &mut Order,
-    markets: &mut RefMut<Markets>,
+    market_map: &MarketMap,
     market_index: u64,
     mark_price_before: u128,
     now: i64,
 ) -> ClearingHouseResult<(u128, u128, bool, u128)> {
     let position_index = get_position_index(user_positions, market_index)?;
     let market_position = &mut user_positions.positions[position_index];
-    let market = markets.get_market_mut(market_index);
+    let market = &mut market_map.get_ref_mut(&market_index)?;
 
     let base_asset_amount = if order.reduce_only {
         calculate_base_asset_amount_for_reduce_only_order(
@@ -968,7 +917,7 @@ pub fn execute_non_market_order(
     user: &mut User,
     user_positions: &mut RefMut<UserPositions>,
     order: &mut Order,
-    markets: &mut RefMut<Markets>,
+    market_map: &MarketMap,
     market_index: u64,
     mark_price_before: u128,
     now: i64,
@@ -979,7 +928,7 @@ pub fn execute_non_market_order(
         user,
         user_positions,
         order,
-        markets,
+        market_map,
         market_index,
     )?;
 
@@ -989,7 +938,7 @@ pub fn execute_non_market_order(
     }
 
     // Determine the base asset amount the market can fill
-    let market = markets.get_market_mut(market_index);
+    let market = &mut market_map.get_ref_mut(&market_index)?;
     let base_asset_amount_market_can_execute = calculate_base_asset_amount_market_can_execute(
         order,
         market,

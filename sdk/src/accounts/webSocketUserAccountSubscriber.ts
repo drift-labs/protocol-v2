@@ -12,7 +12,7 @@ import {
 	getUserAccountPublicKey,
 	getUserOrdersAccountPublicKey,
 	getUserPositionsAccountPublicKey,
-} from '../addresses';
+} from '../addresses/pda';
 import { WebSocketAccountSubscriber } from './webSocketAccountSubscriber';
 import { UserAccount, UserOrdersAccount, UserPositionsAccount } from '../types';
 import { ClearingHouseConfigType } from '../factory/clearingHouse';

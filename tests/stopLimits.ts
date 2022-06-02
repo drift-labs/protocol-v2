@@ -24,7 +24,11 @@ import {
 } from '../sdk/src';
 
 import { mockOracle, mockUSDCMint, mockUserUSDCAccount } from './testHelpers';
-import { AMM_RESERVE_PRECISION, ZERO } from '../sdk';
+import {
+	AMM_RESERVE_PRECISION,
+	getUserPositionsAccountPublicKey,
+	ZERO,
+} from '../sdk';
 import { AccountInfo, Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
 const enumsAreEqual = (
@@ -44,6 +48,7 @@ describe('stop limit', () => {
 	let clearingHouseUser: ClearingHouseUser;
 
 	let userAccountPublicKey: PublicKey;
+	let userPositionsAccountPublicKey: PublicKey;
 	let userOrdersAccountPublicKey: PublicKey;
 
 	let usdcMint;
@@ -68,8 +73,7 @@ describe('stop limit', () => {
 	let fillerClearingHouse: ClearingHouse;
 	let fillerUser: ClearingHouseUser;
 
-	const marketIndex = new BN(1);
-	const marketIndexBTC = new BN(2);
+	const marketIndex = new BN(0);
 	let solUsd;
 	let btcUsd;
 
@@ -90,7 +94,6 @@ describe('stop limit', () => {
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await clearingHouse.initializeMarket(
-			marketIndex,
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -98,7 +101,6 @@ describe('stop limit', () => {
 		);
 
 		await clearingHouse.initializeMarket(
-			marketIndexBTC,
 			btcUsd,
 			ammInitialBaseAssetReserve.div(new BN(3000)),
 			ammInitialQuoteAssetReserve.div(new BN(3000)),
@@ -111,6 +113,11 @@ describe('stop limit', () => {
 				usdcAmount,
 				userUSDCAccount.publicKey
 			);
+
+		userPositionsAccountPublicKey = await getUserPositionsAccountPublicKey(
+			clearingHouse.program.programId,
+			userAccountPublicKey
+		);
 
 		userOrdersAccountPublicKey = await getUserOrdersAccountPublicKey(
 			clearingHouse.program.programId,
@@ -215,7 +222,9 @@ describe('stop limit', () => {
 		let order = clearingHouseUser.getOrder(orderId);
 		await fillerClearingHouse.fillOrder(
 			userAccountPublicKey,
+			userPositionsAccountPublicKey,
 			userOrdersAccountPublicKey,
+			clearingHouseUser.getUserPositionsAccount(),
 			order
 		);
 
@@ -309,7 +318,9 @@ describe('stop limit', () => {
 		let order = clearingHouseUser.getOrder(orderId);
 		await fillerClearingHouse.fillOrder(
 			userAccountPublicKey,
+			userPositionsAccountPublicKey,
 			userOrdersAccountPublicKey,
+			clearingHouseUser.getUserPositionsAccount(),
 			order
 		);
 

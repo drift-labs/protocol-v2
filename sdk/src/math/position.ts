@@ -9,7 +9,7 @@ import {
 	PRICE_TO_QUOTE_PRECISION,
 	ZERO,
 } from '../constants/numericConstants';
-import { Market, PositionDirection, UserPosition } from '../types';
+import { MarketAccount, PositionDirection, UserPosition } from '../types';
 import { calculateAmmReservesAfterSwap, getSwapDirection } from './amm';
 
 /**
@@ -20,7 +20,7 @@ import { calculateAmmReservesAfterSwap, getSwapDirection } from './amm';
  * @returns Base Asset Value. : Precision QUOTE_PRECISION
  */
 export function calculateBaseAssetValue(
-	market: Market,
+	market: MarketAccount,
 	userPosition: UserPosition
 ): BN {
 	if (userPosition.baseAssetAmount.eq(ZERO)) {
@@ -61,7 +61,7 @@ export function calculateBaseAssetValue(
  * @returns BaseAssetAmount : Precision QUOTE_PRECISION
  */
 export function calculatePositionPNL(
-	market: Market,
+	market: MarketAccount,
 	marketPosition: UserPosition,
 	withFunding = false
 ): BN {
@@ -97,7 +97,7 @@ export function calculatePositionPNL(
  * @returns // TODO-PRECISION
  */
 export function calculatePositionFundingPNL(
-	market: Market,
+	market: MarketAccount,
 	marketPosition: UserPosition
 ): BN {
 	if (marketPosition.baseAssetAmount.eq(ZERO)) {
@@ -119,6 +119,10 @@ export function calculatePositionFundingPNL(
 		.mul(new BN(-1));
 
 	return perPositionFundingRate;
+}
+
+export function positionIsAvailable(position: UserPosition): boolean {
+	return position.baseAssetAmount.eq(ZERO) && position.openOrders.eq(ZERO);
 }
 
 /**

@@ -13,8 +13,6 @@ import {
 	PositionDirection,
 } from '../sdk/src';
 
-import { Markets } from '../sdk/src/constants/markets';
-
 import { mockOracle, mockUSDCMint, mockUserUSDCAccount } from './testHelpers';
 import {
 	calculateBaseAssetValue,
@@ -72,7 +70,6 @@ describe('minimum trade size', () => {
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await primaryClearingHouse.initializeMarket(
-			Markets[0].marketIndex,
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -153,6 +150,7 @@ describe('minimum trade size', () => {
 				userUSDCAccount.publicKey
 			);
 
+		await clearingHouse.fetchAccounts();
 		const marketIndex = new BN(0);
 		await clearingHouse.openPosition(
 			PositionDirection.SHORT,
@@ -183,11 +181,11 @@ describe('minimum trade size', () => {
 			new BN(0)
 		);
 
-		const market = primaryClearingHouse.getMarket(0);
+		const market = primaryClearingHouse.getMarketAccount(0);
 		let position = userPositions.positions[0];
 		const baseAssetValue = calculateBaseAssetValue(market, position);
 
-		const expectedBaseAssetValue = new BN(10000188);
+		const expectedBaseAssetValue = new BN(10000189);
 		assert(position.quoteAssetAmount.eq(usdcAmount));
 		assert(baseAssetValue.eq(expectedBaseAssetValue));
 
@@ -268,7 +266,7 @@ describe('minimum trade size', () => {
 			new BN(0)
 		);
 
-		const market = primaryClearingHouse.getMarket(0);
+		const market = primaryClearingHouse.getMarketAccount(0);
 		let position = userPositions.positions[0];
 		const _baseAssetValue = calculateBaseAssetValue(market, position);
 
@@ -349,11 +347,11 @@ describe('minimum trade size', () => {
 			new BN(0)
 		);
 
-		const market = primaryClearingHouse.getMarket(0);
+		const market = primaryClearingHouse.getMarketAccount(0);
 		let position = userPositions.positions[0];
 		const baseAssetValue = calculateBaseAssetValue(market, position);
 
-		const expectedBaseAssetValue = new BN(10000002);
+		const expectedBaseAssetValue = new BN(9999811);
 		assert(position.quoteAssetAmount.eq(usdcAmount));
 		assert(baseAssetValue.eq(expectedBaseAssetValue));
 
@@ -434,7 +432,7 @@ describe('minimum trade size', () => {
 			new BN(0)
 		);
 
-		const _market = primaryClearingHouse.getMarket(0);
+		const _market = primaryClearingHouse.getMarketAccount(0);
 		let position = userPositions.positions[0];
 
 		await clearingHouse.openPosition(

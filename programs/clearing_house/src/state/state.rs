@@ -21,7 +21,6 @@ pub struct State {
     pub insurance_vault: Pubkey,
     pub insurance_vault_authority: Pubkey,
     pub insurance_vault_nonce: u8,
-    pub markets: Pubkey,
     pub margin_ratio_initial: u128,
     pub margin_ratio_maintenance: u128,
     pub margin_ratio_partial: u128,
@@ -40,6 +39,7 @@ pub struct State {
     pub max_deposit: u128,
     pub extended_curve_history: Pubkey,
     pub order_state: Pubkey,
+    pub number_of_markets: u64,
 
     // upgrade-ability
     pub padding0: u128,

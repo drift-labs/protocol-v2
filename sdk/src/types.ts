@@ -260,6 +260,7 @@ export type StateAccount = {
 	maxDeposit: BN;
 	orderState: PublicKey;
 	extendedCurveHistory: PublicKey;
+	numberOfMarkets: BN;
 };
 
 export type OrderStateAccount = {
@@ -268,16 +269,14 @@ export type OrderStateAccount = {
 	minOrderQuoteAssetAmount: BN;
 };
 
-export type MarketsAccount = {
-	markets: Market[];
-};
-
-export type Market = {
+export type MarketAccount = {
+	initialized: boolean;
+	marketIndex: BN;
+	pubkey: PublicKey;
 	amm: AMM;
 	baseAssetAmount: BN;
 	baseAssetAmountLong: BN;
 	baseAssetAmountShort: BN;
-	initialized: boolean;
 	openInterest: BN;
 	marginRatioInitial: number;
 	marginRatioMaintenance: number;

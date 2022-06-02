@@ -73,7 +73,6 @@ describe('oracle offset', () => {
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await fillerClearingHouse.initializeMarket(
-			marketIndex,
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -166,7 +165,9 @@ describe('oracle offset', () => {
 
 		await fillerClearingHouse.fillOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
+			await clearingHouseUser.getUserPositionsAccountPublicKey(),
 			await clearingHouseUser.getUserOrdersAccountPublicKey(),
+			clearingHouseUser.getUserPositionsAccount(),
 			order
 		);
 
@@ -210,9 +211,9 @@ describe('oracle offset', () => {
 
 		const direction = PositionDirection.LONG;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
-		const price = ZERO;
 		const reduceOnly = false;
 		const priceOffset = MARK_PRICE_PRECISION.div(new BN(20)).neg();
+		const price = MARK_PRICE_PRECISION.add(priceOffset);
 
 		const orderParams = getLimitOrderParams(
 			marketIndex,
@@ -239,14 +240,16 @@ describe('oracle offset', () => {
 
 		await fillerClearingHouse.fillOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
+			await clearingHouseUser.getUserPositionsAccountPublicKey(),
 			await clearingHouseUser.getUserOrdersAccountPublicKey(),
+			clearingHouseUser.getUserPositionsAccount(),
 			order
 		);
 
 		await clearingHouseUser.fetchAccounts();
 		const position = clearingHouseUser.getUserPosition(marketIndex);
 		const entryPrice = calculateEntryPrice(position);
-		const expectedEntryPrice = MARK_PRICE_PRECISION.add(priceOffset);
+		const expectedEntryPrice = new BN(9500010000);
 		assert(entryPrice.eq(expectedEntryPrice));
 
 		await clearingHouse.unsubscribe();
@@ -313,7 +316,9 @@ describe('oracle offset', () => {
 
 		await fillerClearingHouse.fillOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
+			await clearingHouseUser.getUserPositionsAccountPublicKey(),
 			await clearingHouseUser.getUserOrdersAccountPublicKey(),
+			clearingHouseUser.getUserPositionsAccount(),
 			order
 		);
 
@@ -357,9 +362,9 @@ describe('oracle offset', () => {
 
 		const direction = PositionDirection.SHORT;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
-		const price = ZERO;
 		const reduceOnly = false;
 		const priceOffset = MARK_PRICE_PRECISION.div(new BN(20));
+		const price = MARK_PRICE_PRECISION.add(priceOffset);
 
 		const orderParams = getLimitOrderParams(
 			marketIndex,
@@ -386,7 +391,9 @@ describe('oracle offset', () => {
 
 		await fillerClearingHouse.fillOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
+			await clearingHouseUser.getUserPositionsAccountPublicKey(),
 			await clearingHouseUser.getUserOrdersAccountPublicKey(),
+			clearingHouseUser.getUserPositionsAccount(),
 			order
 		);
 
@@ -431,9 +438,9 @@ describe('oracle offset', () => {
 
 		const direction = PositionDirection.SHORT;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
-		const price = ZERO;
 		const reduceOnly = false;
 		const priceOffset = MARK_PRICE_PRECISION.div(new BN(20));
+		const price = MARK_PRICE_PRECISION.add(priceOffset);
 
 		const orderParams = getLimitOrderParams(
 			marketIndex,
@@ -451,10 +458,7 @@ describe('oracle offset', () => {
 
 		await clearingHouseUser.fetchAccounts();
 		const orderId = clearingHouseUser.getUserOrdersAccount().orders[0].orderId;
-		await clearingHouse.cancelOrder(
-			orderId,
-			clearingHouse.getMarket(marketIndex).amm.oracle
-		);
+		await clearingHouse.cancelOrder(orderId);
 
 		await clearingHouse.unsubscribe();
 		await clearingHouseUser.unsubscribe();
@@ -491,9 +495,9 @@ describe('oracle offset', () => {
 
 		const direction = PositionDirection.SHORT;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
-		const price = ZERO;
 		const reduceOnly = false;
 		const priceOffset = MARK_PRICE_PRECISION.div(new BN(20));
+		const price = MARK_PRICE_PRECISION.add(priceOffset);
 
 		const orderParams = getLimitOrderParams(
 			marketIndex,
@@ -510,10 +514,7 @@ describe('oracle offset', () => {
 		await clearingHouse.placeOrder(orderParams);
 
 		await clearingHouseUser.fetchAccounts();
-		await clearingHouse.cancelOrderByUserId(
-			1,
-			clearingHouse.getMarket(marketIndex).amm.oracle
-		);
+		await clearingHouse.cancelOrderByUserId(1);
 
 		await clearingHouse.unsubscribe();
 		await clearingHouseUser.unsubscribe();

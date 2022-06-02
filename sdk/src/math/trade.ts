@@ -1,4 +1,4 @@
-import { Market, PositionDirection } from '../types';
+import { MarketAccount, PositionDirection } from '../types';
 import { BN } from '@project-serum/anchor';
 import { assert } from '../assert/assert';
 import {
@@ -57,7 +57,7 @@ export type PriceImpactUnit =
 export function calculateTradeSlippage(
 	direction: PositionDirection,
 	amount: BN,
-	market: Market,
+	market: MarketAccount,
 	inputAssetType: AssetType = 'quote',
 	useSpread = true
 ): [BN, BN, BN, BN] {
@@ -145,7 +145,7 @@ export function calculateTradeSlippage(
 export function calculateTradeAcquiredAmounts(
 	direction: PositionDirection,
 	amount: BN,
-	market: Market,
+	market: MarketAccount,
 	inputAssetType: AssetType = 'quote',
 	useSpread = true
 ): [BN, BN] {
@@ -197,7 +197,7 @@ export function calculateTradeAcquiredAmounts(
  * ]
  */
 export function calculateTargetPriceTrade(
-	market: Market,
+	market: MarketAccount,
 	targetPrice: BN,
 	pct: BN = MAXPCT,
 	outputAssetType: AssetType = 'quote',

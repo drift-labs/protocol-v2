@@ -18,11 +18,17 @@ import {
 } from '../sdk/src';
 
 import { mockOracle, mockUSDCMint, mockUserUSDCAccount } from './testHelpers';
-import { AMM_RESERVE_PRECISION } from '../sdk';
+import {
+	AMM_RESERVE_PRECISION,
+	getUserPositionsAccountPublicKey,
+} from '../sdk';
 import { AccountInfo, Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
 describe('order referrer', () => {
-	const provider = anchor.AnchorProvider.local();
+	const provider = anchor.AnchorProvider.local(undefined, {
+		preflightCommitment: 'confirmed',
+		commitment: 'confirmed',
+	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.ClearingHouse as Program;
@@ -31,6 +37,7 @@ describe('order referrer', () => {
 	let clearingHouseUser: ClearingHouseUser;
 
 	let userAccountPublicKey: PublicKey;
+	let userPositionsAccountPublicKey: PublicKey;
 	let userOrdersAccountPublicKey: PublicKey;
 
 	let usdcMint;
@@ -60,8 +67,7 @@ describe('order referrer', () => {
 	let referrerClearingHouse: ClearingHouse;
 	let referrerUser: ClearingHouseUser;
 
-	const marketIndex = new BN(1);
-	const marketIndexBTC = new BN(2);
+	const marketIndex = new BN(0);
 	let solUsd;
 	let btcUsd;
 
@@ -72,7 +78,10 @@ describe('order referrer', () => {
 		clearingHouse = Admin.from(
 			connection,
 			provider.wallet,
-			chProgram.programId
+			chProgram.programId,
+			{
+				commitment: 'confirmed',
+			}
 		);
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribeToAll();
@@ -82,7 +91,6 @@ describe('order referrer', () => {
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await clearingHouse.initializeMarket(
-			marketIndex,
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -90,7 +98,6 @@ describe('order referrer', () => {
 		);
 
 		await clearingHouse.initializeMarket(
-			marketIndexBTC,
 			btcUsd,
 			ammInitialBaseAssetReserve.div(new BN(3000)),
 			ammInitialQuoteAssetReserve.div(new BN(3000)),
@@ -103,6 +110,11 @@ describe('order referrer', () => {
 				usdcAmount,
 				userUSDCAccount.publicKey
 			);
+
+		userPositionsAccountPublicKey = await getUserPositionsAccountPublicKey(
+			clearingHouse.program.programId,
+			userAccountPublicKey
+		);
 
 		userOrdersAccountPublicKey = await getUserOrdersAccountPublicKey(
 			clearingHouse.program.programId,
@@ -149,7 +161,10 @@ describe('order referrer', () => {
 		fillerClearingHouse = ClearingHouse.from(
 			connection,
 			new Wallet(fillerKeyPair),
-			chProgram.programId
+			chProgram.programId,
+			{
+				commitment: 'confirmed',
+			}
 		);
 		await fillerClearingHouse.subscribe();
 
@@ -231,7 +246,9 @@ describe('order referrer', () => {
 
 		await fillerClearingHouse.fillOrder(
 			userAccountPublicKey,
+			userPositionsAccountPublicKey,
 			userOrdersAccountPublicKey,
+			clearingHouseUser.getUserPositionsAccount(),
 			order
 		);
 
@@ -250,7 +267,7 @@ describe('order referrer', () => {
 		const expectedReferrerReward = new BN(50);
 		assert(referrerUserAccount.totalReferralReward.eq(expectedReferrerReward));
 
-		const market = clearingHouse.getMarket(marketIndex);
+		const market = clearingHouse.getMarketAccount(marketIndex);
 		const expectedFeeToMarket = new BN(760);
 		assert(market.amm.totalFee.eq(expectedFeeToMarket));
 
@@ -296,7 +313,7 @@ describe('order referrer', () => {
 		const expectedReferrerReward = new BN(100);
 		assert(referrerUserAccount.totalReferralReward.eq(expectedReferrerReward));
 
-		const market = clearingHouse.getMarket(marketIndex);
+		const market = clearingHouse.getMarketAccount(marketIndex);
 		const expectedFeeToMarket = new BN(1610);
 		assert(market.amm.totalFee.eq(expectedFeeToMarket));
 
