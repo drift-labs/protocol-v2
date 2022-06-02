@@ -126,7 +126,6 @@ pub enum ErrorCode {
     InvalidOracleOffset,
     #[msg("CantExpireOrders")]
     CantExpireOrders,
-    MustCallSettlePositionFirst,
     #[msg("CouldNotLoadMarketData")]
     CouldNotLoadMarketData,
     #[msg("MarketNotFound")]
@@ -135,12 +134,8 @@ pub enum ErrorCode {
     InvalidMarketAccount,
     #[msg("UnableToLoadMarketAccount")]
     UnableToLoadMarketAccount,
-    #[msg("UnexpectedMarket")]
-    UnexpectedMarket,
     #[msg("MarketWrongMutability")]
     MarketWrongMutability,
-    #[msg("UnableToWriteMarket")]
-    UnableToWriteMarket,
 }
 
 #[macro_export]
