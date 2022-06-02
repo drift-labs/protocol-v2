@@ -43,7 +43,6 @@ describe('cancel all orders', () => {
 
 	const usdcAmount = new BN(10 * 10 ** 6);
 
-	const marketIndex = new BN(0);
 	let solUsd;
 	let btcUsd;
 
@@ -66,7 +65,6 @@ describe('cancel all orders', () => {
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await clearingHouse.initializeMarket(
-			marketIndex,
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -75,7 +73,6 @@ describe('cancel all orders', () => {
 
 		btcUsd = await mockOracle(40000);
 		await clearingHouse.initializeMarket(
-			new BN(1),
 			btcUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,

@@ -209,7 +209,6 @@ pub struct InitializeUserOptionalAccounts {
 }
 
 #[derive(Accounts)]
-#[instruction(market_index: u64)]
 pub struct InitializeMarket<'info> {
     #[account(mut)]
     pub admin: Signer<'info>,
@@ -220,8 +219,8 @@ pub struct InitializeMarket<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
         init,
-        seeds = [b"market", market_index.to_le_bytes().as_ref()],
-        space = 530 + 8,
+        seeds = [b"market", state.number_of_markets.to_le_bytes().as_ref()],
+        space = std::mem::size_of::<Market>() + 8,
         bump,
         payer = admin
     )]

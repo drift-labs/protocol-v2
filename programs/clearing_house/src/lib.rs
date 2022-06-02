@@ -241,7 +241,6 @@ pub mod clearing_house {
 
     pub fn initialize_market(
         ctx: Context<InitializeMarket>,
-        market_index: u64,
         amm_base_asset_reserve: u128,
         amm_quote_asset_reserve: u128,
         amm_periodicity: i64,
@@ -301,6 +300,8 @@ pub mod clearing_house {
             margin_ratio_maintenance,
         )?;
 
+        let state = &mut ctx.accounts.state;
+        let market_index = state.number_of_markets;
         **market = Market {
             initialized: true,
             market_index,
@@ -348,10 +349,6 @@ pub mod clearing_house {
             },
         };
 
-        let state = &mut ctx.accounts.state;
-        if state.number_of_markets != market_index {
-            return Err(ErrorCode::InvalidMarketIndex.into());
-        }
         state.number_of_markets = state
             .number_of_markets
             .checked_add(1)

@@ -253,7 +253,6 @@ describe('pyth-oracle', () => {
 		const marketIndex = new BN(0);
 
 		await clearingHouse.initializeMarket(
-			marketIndex,
 			priceFeedAddress,
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,
@@ -275,7 +274,6 @@ describe('pyth-oracle', () => {
 		const marketIndex = new BN(1);
 
 		await clearingHouse.initializeMarket(
-			marketIndex,
 			priceFeedAddress,
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,

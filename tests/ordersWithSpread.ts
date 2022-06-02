@@ -82,7 +82,6 @@ describe('amm spread: market order', () => {
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await clearingHouse.initializeMarket(
-			marketIndex,
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -811,7 +810,6 @@ describe('amm spread: market order', () => {
 		);
 
 		await clearingHouse.initializeMarket(
-			marketIndex2,
 			btcUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,

@@ -198,10 +198,6 @@
       ],
       "args": [
         {
-          "name": "marketIndex",
-          "type": "u64"
-        },
-        {
           "name": "ammBaseAssetReserve",
           "type": "u128"
         },
@@ -2276,25 +2272,6 @@
                   "defined": "TradeRecord"
                 },
                 1024
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "Markets",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "markets",
-            "type": {
-              "array": [
-                {
-                  "defined": "DeprecatedMarket"
-                },
-                64
               ]
             }
           }
@@ -4427,11 +4404,6 @@
       "code": 6068,
       "name": "UnableToWriteMarket",
       "msg": "UnableToWriteMarket"
-    },
-    {
-      "code": 6069,
-      "name": "InvalidMarketIndex",
-      "msg": "InvalidMarketIndex"
     }
   ]
 }

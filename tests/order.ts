@@ -103,9 +103,9 @@ describe('orders', () => {
 	let fillerClearingHouse: ClearingHouse;
 	let fillerUser: ClearingHouseUser;
 
-	const marketIndex = new BN(1);
-	const marketIndexBTC = new BN(2);
-	const marketIndexEth = new BN(3);
+	const marketIndex = new BN(0);
+	const marketIndexBTC = new BN(1);
+	const marketIndexEth = new BN(2);
 
 	let solUsd;
 	let btcUsd;
@@ -132,7 +132,6 @@ describe('orders', () => {
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await clearingHouse.initializeMarket(
-			marketIndex,
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -140,7 +139,6 @@ describe('orders', () => {
 		);
 
 		await clearingHouse.initializeMarket(
-			marketIndexBTC,
 			btcUsd,
 			ammInitialBaseAssetReserve.div(new BN(3000)),
 			ammInitialQuoteAssetReserve.div(new BN(3000)),
@@ -149,7 +147,6 @@ describe('orders', () => {
 		);
 
 		await clearingHouse.initializeMarket(
-			marketIndexEth,
 			ethUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -1121,7 +1118,8 @@ describe('orders', () => {
 			'user initial leverage:',
 			convertToNumber(userLeverage0, TEN_THOUSAND)
 		);
-
+		`
+`;
 		const direction = PositionDirection.SHORT;
 
 		const market = clearingHouse.getMarket(marketIndex);
@@ -1172,6 +1170,7 @@ describe('orders', () => {
 		// 	new BN(1.55 * MARK_PRICE_PRECISION.toNumber())
 		// );
 
+		await clearingHouseUser.fetchAccounts();
 		const userOrdersAccount = clearingHouseUser.getUserOrdersAccount();
 		const order = userOrdersAccount.orders[0];
 		console.log(order.status);
@@ -1487,9 +1486,10 @@ describe('orders', () => {
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
 		const price = MARK_PRICE_PRECISION.mul(new BN(2));
 
+		await clearingHouseUser.fetchAccounts();
 		const prePosition = clearingHouseUser.getUserPosition(marketIndex);
 		console.log(prePosition);
-		assert(prePosition == undefined); // no existing position
+		assert(prePosition.baseAssetAmount.eq(ZERO)); // no existing position
 
 		const fillerUserAccount0 = fillerUser.getUserAccount();
 

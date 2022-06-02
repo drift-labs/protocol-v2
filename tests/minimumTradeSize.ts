@@ -13,8 +13,6 @@ import {
 	PositionDirection,
 } from '../sdk/src';
 
-import { Markets } from '../sdk/src/constants/markets';
-
 import { mockOracle, mockUSDCMint, mockUserUSDCAccount } from './testHelpers';
 import {
 	calculateBaseAssetValue,
@@ -72,7 +70,6 @@ describe('minimum trade size', () => {
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await primaryClearingHouse.initializeMarket(
-			Markets[0].marketIndex,
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,

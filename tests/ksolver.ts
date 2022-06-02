@@ -205,7 +205,6 @@ describe('AMM Curve', () => {
 		const periodicity = new BN(60 * 60); // 1 HOUR
 		const kSqrtNorm = normAssetAmount(kSqrt, initialSOLPriceBN);
 		await clearingHouse.initializeMarket(
-			marketIndex,
 			solUsdOracle,
 			kSqrtNorm,
 			kSqrtNorm,

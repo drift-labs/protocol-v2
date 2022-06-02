@@ -12,8 +12,6 @@ import {
 	PositionDirection,
 } from '../sdk/src';
 
-import { Markets } from '../sdk/src/constants/markets';
-
 import { mockOracle, mockUSDCMint, mockUserUSDCAccount } from './testHelpers';
 
 const calculateTradeAmount = (amountOfCollateral: BN) => {
@@ -65,7 +63,6 @@ describe('admin withdraw', () => {
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await clearingHouse.initializeMarket(
-			Markets[0].marketIndex,
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,

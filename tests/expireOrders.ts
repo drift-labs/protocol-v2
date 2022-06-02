@@ -54,7 +54,6 @@ describe('expire order', () => {
 	let fillerClearingHouse: ClearingHouse;
 	let fillerUser: ClearingHouseUser;
 
-	const marketIndex = new BN(0);
 	let solUsd;
 
 	before(async () => {
@@ -76,7 +75,6 @@ describe('expire order', () => {
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await clearingHouse.initializeMarket(
-			marketIndex,
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,

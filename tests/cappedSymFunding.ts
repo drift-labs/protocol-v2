@@ -186,7 +186,6 @@ async function cappedSymFundingScenario(
 	const periodicity = new BN(0);
 
 	await clearingHouse.initializeMarket(
-		marketIndex,
 		priceFeedAddress,
 		kSqrt,
 		kSqrt,

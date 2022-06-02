@@ -66,7 +66,6 @@ describe('twap divergence liquidation', () => {
 			const periodicity = new BN(0);
 
 			await clearingHouse.initializeMarket(
-				new BN(i),
 				oracle,
 				ammInitialBaseAssetReserve,
 				ammInitialQuoteAssetReserve,

@@ -8,8 +8,6 @@ import { PublicKey } from '@solana/web3.js';
 
 import { Admin, MARK_PRICE_PRECISION } from '../sdk/src';
 
-import { Markets } from '../sdk/src/constants/markets';
-
 import { mockOracle, mockUSDCMint, mockUserUSDCAccount } from './testHelpers';
 
 describe('delete user', () => {
@@ -52,7 +50,6 @@ describe('delete user', () => {
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await clearingHouse.initializeMarket(
-			Markets[0].marketIndex,
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,

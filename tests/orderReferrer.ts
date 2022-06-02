@@ -67,8 +67,7 @@ describe('order referrer', () => {
 	let referrerClearingHouse: ClearingHouse;
 	let referrerUser: ClearingHouseUser;
 
-	const marketIndex = new BN(1);
-	const marketIndexBTC = new BN(2);
+	const marketIndex = new BN(0);
 	let solUsd;
 	let btcUsd;
 
@@ -92,7 +91,6 @@ describe('order referrer', () => {
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await clearingHouse.initializeMarket(
-			marketIndex,
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -100,7 +98,6 @@ describe('order referrer', () => {
 		);
 
 		await clearingHouse.initializeMarket(
-			marketIndexBTC,
 			btcUsd,
 			ammInitialBaseAssetReserve.div(new BN(3000)),
 			ammInitialQuoteAssetReserve.div(new BN(3000)),

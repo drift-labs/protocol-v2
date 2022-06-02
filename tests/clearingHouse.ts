@@ -129,7 +129,6 @@ describe('clearing_house', () => {
 
 		const marketIndex = Markets[0].marketIndex;
 		const txSig = await clearingHouse.initializeMarket(
-			marketIndex,
 			solUsd,
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,

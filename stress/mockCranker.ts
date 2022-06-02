@@ -178,7 +178,6 @@ async function crank(mock = true, actions = ['liq'], chProgram?) {
 		// );
 
 		const [, _marketPublicKey] = await clearingHouse.initializeMarket(
-			new BN(0),
 			dogMoney,
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,
@@ -187,7 +186,6 @@ async function crank(mock = true, actions = ['liq'], chProgram?) {
 
 		const solUsd = await mockOracle(22, -6);
 		const [, _marketPublicKey2] = await clearingHouse.initializeMarket(
-			new BN(1),
 			solUsd,
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,

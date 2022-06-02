@@ -43,8 +43,7 @@ describe('user order id', () => {
 	let discountMint: Token;
 	let discountTokenAccount: AccountInfo;
 
-	const marketIndex = new BN(1);
-	const marketIndexBTC = new BN(2);
+	const marketIndex = new BN(0);
 	let solUsd;
 	let btcUsd;
 
@@ -65,7 +64,6 @@ describe('user order id', () => {
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await clearingHouse.initializeMarket(
-			marketIndex,
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -73,7 +71,6 @@ describe('user order id', () => {
 		);
 
 		await clearingHouse.initializeMarket(
-			marketIndexBTC,
 			btcUsd,
 			ammInitialBaseAssetReserve.div(new BN(3000)),
 			ammInitialQuoteAssetReserve.div(new BN(3000)),

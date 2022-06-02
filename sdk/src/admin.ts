@@ -207,7 +207,6 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async initializeMarket(
-		marketIndex: BN,
 		priceOracle: PublicKey,
 		baseAssetReserve: BN,
 		quoteAssetReserve: BN,
@@ -220,11 +219,10 @@ export class Admin extends ClearingHouse {
 	): Promise<TransactionSignature> {
 		const marketPublicKey = await getMarketPublicKey(
 			this.program.programId,
-			marketIndex
+			this.getStateAccount().numberOfMarkets
 		);
 
 		const initializeMarketTx = await this.program.transaction.initializeMarket(
-			marketIndex,
 			baseAssetReserve,
 			quoteAssetReserve,
 			periodicity,

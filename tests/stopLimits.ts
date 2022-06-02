@@ -73,8 +73,7 @@ describe('stop limit', () => {
 	let fillerClearingHouse: ClearingHouse;
 	let fillerUser: ClearingHouseUser;
 
-	const marketIndex = new BN(1);
-	const marketIndexBTC = new BN(2);
+	const marketIndex = new BN(0);
 	let solUsd;
 	let btcUsd;
 
@@ -95,7 +94,6 @@ describe('stop limit', () => {
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await clearingHouse.initializeMarket(
-			marketIndex,
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -103,7 +101,6 @@ describe('stop limit', () => {
 		);
 
 		await clearingHouse.initializeMarket(
-			marketIndexBTC,
 			btcUsd,
 			ammInitialBaseAssetReserve.div(new BN(3000)),
 			ammInitialQuoteAssetReserve.div(new BN(3000)),

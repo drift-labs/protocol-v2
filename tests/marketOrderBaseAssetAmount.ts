@@ -14,8 +14,6 @@ import {
 	PositionDirection,
 } from '../sdk/src';
 
-import { Markets } from '../sdk/src/constants/markets';
-
 import { mockUSDCMint, mockUserUSDCAccount, mockOracle } from './testHelpers';
 
 describe('clearing_house', () => {
@@ -62,7 +60,6 @@ describe('clearing_house', () => {
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await clearingHouse.initializeMarket(
-			Markets[0].marketIndex,
 			solUsd,
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,

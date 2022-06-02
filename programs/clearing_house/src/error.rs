@@ -141,8 +141,6 @@ pub enum ErrorCode {
     MarketWrongMutability,
     #[msg("UnableToWriteMarket")]
     UnableToWriteMarket,
-    #[msg("InvalidMarketIndex")]
-    InvalidMarketIndex,
 }
 
 #[macro_export]

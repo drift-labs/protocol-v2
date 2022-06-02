@@ -74,7 +74,6 @@ describe('max reserves', () => {
 			const periodicity = new BN(0);
 
 			await clearingHouse.initializeMarket(
-				new BN(i),
 				oracle,
 				ammInitialBaseAssetReserve,
 				ammInitialQuoteAssetReserve,

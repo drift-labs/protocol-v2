@@ -70,7 +70,6 @@ describe('AMM Curve', () => {
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await clearingHouse.initializeMarket(
-			marketIndex,
 			solUsdOracle,
 			ammInitialBaseAssetAmount.mul(PEG_PRECISION),
 			ammInitialQuoteAssetAmount.mul(PEG_PRECISION),

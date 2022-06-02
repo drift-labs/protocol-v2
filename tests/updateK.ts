@@ -70,7 +70,6 @@ describe('update k', () => {
 		});
 
 		await clearingHouse.initializeMarket(
-			Markets[0].marketIndex,
 			solUsdOracle,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,

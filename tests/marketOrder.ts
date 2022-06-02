@@ -60,8 +60,7 @@ describe('market order', () => {
 	let fillerClearingHouse: ClearingHouse;
 	let fillerUser: ClearingHouseUser;
 
-	const marketIndex = new BN(1);
-	const marketIndexBTC = new BN(2);
+	const marketIndex = new BN(0);
 	let solUsd;
 	let btcUsd;
 
@@ -82,7 +81,6 @@ describe('market order', () => {
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await clearingHouse.initializeMarket(
-			marketIndex,
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -90,7 +88,6 @@ describe('market order', () => {
 		);
 
 		await clearingHouse.initializeMarket(
-			marketIndexBTC,
 			btcUsd,
 			ammInitialBaseAssetReserve.div(new BN(3000)),
 			ammInitialQuoteAssetReserve.div(new BN(3000)),
