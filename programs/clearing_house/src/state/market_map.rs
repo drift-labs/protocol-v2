@@ -15,7 +15,7 @@ use crate::state::user::UserPositions;
 
 pub struct MarketMap<'a>(pub BTreeMap<u64, AccountLoader<'a, Market>>);
 
-impl MarketMap<'_> {
+impl<'a> MarketMap<'a> {
     pub fn get_ref(&self, market_index: &u64) -> ClearingHouseResult<Ref<Market>> {
         self.0
             .get(market_index)
@@ -32,11 +32,11 @@ impl MarketMap<'_> {
             .or(Err(ErrorCode::UnableToLoadMarketAccount))
     }
 
-    pub fn load<'a, 'b, 'c>(
-        writable_markets: &'a WritableMarkets,
+    pub fn load<'b, 'c>(
+        writable_markets: &'b WritableMarkets,
         market_oracles: &MarketOracles,
-        account_info_iter: &'b mut Peekable<Iter<AccountInfo<'c>>>,
-    ) -> ClearingHouseResult<MarketMap<'c>> {
+        account_info_iter: &'c mut Peekable<Iter<AccountInfo<'a>>>,
+    ) -> ClearingHouseResult<MarketMap<'a>> {
         let mut market_map: MarketMap = MarketMap(BTreeMap::new());
 
         let market_discriminator: [u8; 8] = Market::discriminator();
