@@ -2,6 +2,7 @@ import {
 	ClearingHouseAccountSubscriber,
 	ClearingHouseAccountEvents,
 	ClearingHouseAccountTypes,
+	AccountAndSlot,
 } from './types';
 import { AccountSubscriber, NotSubscribedError } from './types';
 import {
@@ -106,7 +107,7 @@ export class WebSocketClearingHouseAccountSubscriber
 			this.eventEmitter.emit('update');
 		});
 
-		const state = this.stateAccountSubscriber.data;
+		const state = this.stateAccountSubscriber.accountAndSlot.account;
 
 		this.orderStateAccountSubscriber = new WebSocketAccountSubscriber(
 			'orderState',
@@ -121,7 +122,7 @@ export class WebSocketClearingHouseAccountSubscriber
 			}
 		);
 
-		const orderState = this.orderStateAccountSubscriber.data;
+		const orderState = this.orderStateAccountSubscriber.accountAndSlot.account;
 
 		// subscribe to user accounts
 		await this.subscribeToUserAccounts();
@@ -430,75 +431,78 @@ export class WebSocketClearingHouseAccountSubscriber
 		}
 	}
 
-	public getStateAccount(): StateAccount {
+	public getStateAccountAndSlot(): AccountAndSlot<StateAccount> {
 		this.assertIsSubscribed();
-		return this.stateAccountSubscriber.data;
+		return this.stateAccountSubscriber.accountAndSlot;
 	}
 
-	public getMarketAccount(marketIndex: BN): MarketAccount | undefined {
+	public getMarketAccountAndSlot(
+		marketIndex: BN
+	): AccountAndSlot<MarketAccount> | undefined {
 		this.assertIsSubscribed();
-		return this.marketAccountSubscribers.get(marketIndex.toNumber()).data;
+		return this.marketAccountSubscribers.get(marketIndex.toNumber())
+			.accountAndSlot;
 	}
 
-	public getTradeHistoryAccount(): TradeHistoryAccount {
+	public getTradeHistoryAccountAndSlot(): AccountAndSlot<TradeHistoryAccount> {
 		this.assertIsSubscribed();
 		this.assertOptionalIsSubscribed('tradeHistoryAccount');
-		return this.tradeHistoryAccountSubscriber.data;
+		return this.tradeHistoryAccountSubscriber.accountAndSlot;
 	}
 
-	public getDepositHistoryAccount(): DepositHistoryAccount {
+	public getDepositHistoryAccountAndSlot(): AccountAndSlot<DepositHistoryAccount> {
 		this.assertIsSubscribed();
 		this.assertOptionalIsSubscribed('depositHistoryAccount');
-		return this.depositHistoryAccountSubscriber.data;
+		return this.depositHistoryAccountSubscriber.accountAndSlot;
 	}
 
-	public getFundingPaymentHistoryAccount(): FundingPaymentHistoryAccount {
+	public getFundingPaymentHistoryAccountAndSlot(): AccountAndSlot<FundingPaymentHistoryAccount> {
 		this.assertIsSubscribed();
 		this.assertOptionalIsSubscribed('fundingPaymentHistoryAccount');
-		return this.fundingPaymentHistoryAccountSubscriber.data;
+		return this.fundingPaymentHistoryAccountSubscriber.accountAndSlot;
 	}
 
-	public getFundingRateHistoryAccount(): FundingRateHistoryAccount {
+	public getFundingRateHistoryAccountAndSlot(): AccountAndSlot<FundingRateHistoryAccount> {
 		this.assertIsSubscribed();
 		this.assertOptionalIsSubscribed('fundingRateHistoryAccount');
-		return this.fundingRateHistoryAccountSubscriber.data;
+		return this.fundingRateHistoryAccountSubscriber.accountAndSlot;
 	}
 
-	public getCurveHistoryAccount(): ExtendedCurveHistoryAccount {
+	public getCurveHistoryAccountAndSlot(): AccountAndSlot<ExtendedCurveHistoryAccount> {
 		this.assertIsSubscribed();
 		this.assertOptionalIsSubscribed('curveHistoryAccount');
-		return this.curveHistoryAccountSubscriber.data;
+		return this.curveHistoryAccountSubscriber.accountAndSlot;
 	}
 
-	public getLiquidationHistoryAccount(): LiquidationHistoryAccount {
+	public getLiquidationHistoryAccountAndSlot(): AccountAndSlot<LiquidationHistoryAccount> {
 		this.assertIsSubscribed();
 		this.assertOptionalIsSubscribed('liquidationHistoryAccount');
-		return this.liquidationHistoryAccountSubscriber.data;
+		return this.liquidationHistoryAccountSubscriber.accountAndSlot;
 	}
 
-	public getOrderHistoryAccount(): OrderHistoryAccount {
+	public getOrderHistoryAccountAndSlot(): AccountAndSlot<OrderHistoryAccount> {
 		this.assertIsSubscribed();
 		this.assertOptionalIsSubscribed('orderHistoryAccount');
-		return this.orderHistoryAccountSubscriber.data;
+		return this.orderHistoryAccountSubscriber.accountAndSlot;
 	}
 
-	public getOrderStateAccount(): OrderStateAccount {
+	public getOrderStateAccountAndSlot(): AccountAndSlot<OrderStateAccount> {
 		this.assertIsSubscribed();
-		return this.orderStateAccountSubscriber.data;
+		return this.orderStateAccountSubscriber.accountAndSlot;
 	}
 
-	public getUserAccount(): UserAccount {
+	public getUserAccountAndSlot(): AccountAndSlot<UserAccount> {
 		this.assertIsSubscribed();
-		return this.userAccountSubscriber.data;
+		return this.userAccountSubscriber.accountAndSlot;
 	}
 
-	public getUserPositionsAccount(): UserPositionsAccount {
+	public getUserPositionsAccountAndSlot(): AccountAndSlot<UserPositionsAccount> {
 		this.assertIsSubscribed();
-		return this.userPositionsAccountSubscriber.data;
+		return this.userPositionsAccountSubscriber.accountAndSlot;
 	}
 
-	public getUserOrdersAccount(): UserOrdersAccount {
+	public getUserOrdersAccountAndSlot(): AccountAndSlot<UserOrdersAccount> {
 		this.assertIsSubscribed();
-		return this.userOrdersAccountSubscriber.data;
+		return this.userOrdersAccountSubscriber.accountAndSlot;
 	}
 }

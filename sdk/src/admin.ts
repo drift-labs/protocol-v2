@@ -115,7 +115,7 @@ export class Admin extends ClearingHouse {
 			}
 		);
 
-		const initializeTxSig = await this.txSender.send(
+		const { txSig: initializeTxSig } = await this.txSender.send(
 			initializeTx,
 			[],
 			this.opts
@@ -157,7 +157,7 @@ export class Admin extends ClearingHouse {
 				],
 			});
 
-		const initializeHistoryTxSig = await this.txSender.send(
+		const { txSig: initializeHistoryTxSig } = await this.txSender.send(
 			initializeHistoryTx,
 			[
 				depositHistory,
@@ -199,11 +199,12 @@ export class Admin extends ClearingHouse {
 				],
 			});
 
-		return await this.txSender.send(
+		const { txSig } = await this.txSender.send(
 			initializeOrderStateTx,
 			[orderHistory],
 			this.opts
 		);
+		return txSig;
 	}
 
 	public async initializeMarket(
@@ -242,7 +243,13 @@ export class Admin extends ClearingHouse {
 				},
 			}
 		);
-		return await this.txSender.send(initializeMarketTx, [], this.opts);
+		const { txSig } = await this.txSender.send(
+			initializeMarketTx,
+			[],
+			this.opts
+		);
+
+		return txSig;
 	}
 
 	public async moveAmmPrice(

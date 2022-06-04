@@ -1,4 +1,5 @@
 import {
+	AccountAndSlot,
 	AccountSubscriber,
 	NotSubscribedError,
 	UserAccountEvents,
@@ -125,17 +126,17 @@ export class WebSocketUserAccountSubscriber implements UserAccountSubscriber {
 		}
 	}
 
-	public getUserAccount(): UserAccount {
+	public getUserAccountAndSlot(): AccountAndSlot<UserAccount> {
 		this.assertIsSubscribed();
-		return this.userDataAccountSubscriber.data;
+		return this.userDataAccountSubscriber.accountAndSlot;
 	}
 
-	public getUserPositionsAccount(): UserPositionsAccount {
+	public getUserPositionsAccountAndSlot(): AccountAndSlot<UserPositionsAccount> {
 		this.assertIsSubscribed();
-		return this.userPositionsAccountSubscriber.data;
+		return this.userPositionsAccountSubscriber.accountAndSlot;
 	}
 
-	public getUserOrdersAccount(): UserOrdersAccount {
-		return this.userOrdersAccountSubscriber.data;
+	public getUserOrdersAccountAndSlot(): AccountAndSlot<UserOrdersAccount> {
+		return this.userOrdersAccountSubscriber.accountAndSlot;
 	}
 }

@@ -1,11 +1,11 @@
 import { Commitment, Connection, PublicKey } from '@solana/web3.js';
 import { v4 as uuidv4 } from 'uuid';
-import { AccountData } from './types';
+import { BufferAndSlot } from './types';
 import { promiseTimeout } from '../util/promiseTimeout';
 
 type AccountToLoad = {
 	publicKey: PublicKey;
-	callbacks: Map<string, (buffer: Buffer) => void>;
+	callbacks: Map<string, (buffer: Buffer, slot: number) => void>;
 };
 
 const GET_MULTIPLE_ACCOUNTS_CHUNK_SIZE = 99;
@@ -17,7 +17,7 @@ export class BulkAccountLoader {
 	commitment: Commitment;
 	pollingFrequency: number;
 	accountsToLoad = new Map<string, AccountToLoad>();
-	accountData = new Map<string, AccountData>();
+	bufferAndSlotMap = new Map<string, BufferAndSlot>();
 	errorCallbacks = new Map<string, (e) => void>();
 	intervalId?: NodeJS.Timer;
 	// to handle clients spamming load
@@ -38,7 +38,7 @@ export class BulkAccountLoader {
 
 	public addAccount(
 		publicKey: PublicKey,
-		callback: (buffer: Buffer) => void
+		callback: (buffer: Buffer, slot: number) => void
 	): string {
 		const existingSize = this.accountsToLoad.size;
 
@@ -47,7 +47,10 @@ export class BulkAccountLoader {
 		if (existingAccountToLoad) {
 			existingAccountToLoad.callbacks.set(callbackId, callback);
 		} else {
-			const callbacks = new Map<string, (buffer: Buffer) => void>();
+			const callbacks = new Map<
+				string,
+				(buffer: Buffer, slot: number) => void
+			>();
 			callbacks.set(callbackId, callback);
 			const newAccountToLoad = {
 				publicKey,
@@ -167,7 +170,7 @@ export class BulkAccountLoader {
 		for (const i in accountsToLoad) {
 			const accountToLoad = accountsToLoad[i];
 			const key = accountToLoad.publicKey.toString();
-			const oldRPCResponse = this.accountData.get(key);
+			const oldRPCResponse = this.bufferAndSlotMap.get(key);
 
 			let newBuffer: Buffer | undefined = undefined;
 			if (rpcResponse.result.value[i]) {
@@ -177,11 +180,11 @@ export class BulkAccountLoader {
 			}
 
 			if (!oldRPCResponse) {
-				this.accountData.set(key, {
+				this.bufferAndSlotMap.set(key, {
 					slot: newSlot,
 					buffer: newBuffer,
 				});
-				this.handleAccountCallbacks(accountToLoad, newBuffer);
+				this.handleAccountCallbacks(accountToLoad, newBuffer, newSlot);
 				continue;
 			}
 
@@ -191,24 +194,27 @@ export class BulkAccountLoader {
 
 			const oldBuffer = oldRPCResponse.buffer;
 			if (newBuffer && (!oldBuffer || !newBuffer.equals(oldBuffer))) {
-				this.accountData.set(key, {
+				this.bufferAndSlotMap.set(key, {
 					slot: newSlot,
 					buffer: newBuffer,
 				});
-				this.handleAccountCallbacks(accountToLoad, newBuffer);
+				this.handleAccountCallbacks(accountToLoad, newBuffer, newSlot);
 			}
 		}
 	}
 
-	handleAccountCallbacks(accountToLoad: AccountToLoad, buffer: Buffer): void {
+	handleAccountCallbacks(
+		accountToLoad: AccountToLoad,
+		buffer: Buffer,
+		slot: number
+	): void {
 		for (const [_, callback] of accountToLoad.callbacks) {
-			callback(buffer);
+			callback(buffer, slot);
 		}
 	}
 
-	public getAccountData(publicKey: PublicKey): Buffer | undefined {
-		const accountData = this.accountData.get(publicKey.toString());
-		return accountData?.buffer;
+	public getBufferAndSlot(publicKey: PublicKey): BufferAndSlot | undefined {
+		return this.bufferAndSlotMap.get(publicKey.toString());
 	}
 
 	public startPolling(): void {

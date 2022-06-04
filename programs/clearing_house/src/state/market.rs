@@ -13,6 +13,7 @@ use crate::MARK_PRICE_PRECISION;
 
 #[account(zero_copy)]
 #[derive(Default)]
+#[repr(packed)]
 pub struct Market {
     pub market_index: u64,
     pub pubkey: Pubkey,

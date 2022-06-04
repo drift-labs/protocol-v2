@@ -115,15 +115,15 @@ export class ClearingHouseUser {
 	}
 
 	public getUserAccount(): UserAccount {
-		return this.accountSubscriber.getUserAccount();
+		return this.accountSubscriber.getUserAccountAndSlot().account;
 	}
 
 	public getUserPositionsAccount(): UserPositionsAccount {
-		return this.accountSubscriber.getUserPositionsAccount();
+		return this.accountSubscriber.getUserPositionsAccountAndSlot().account;
 	}
 
 	public getUserOrdersAccount(): UserOrdersAccount | undefined {
-		return this.accountSubscriber.getUserOrdersAccount();
+		return this.accountSubscriber.getUserOrdersAccountAndSlot()?.account;
 	}
 
 	/**
