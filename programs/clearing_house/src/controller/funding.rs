@@ -19,23 +19,19 @@ use crate::state::history::funding_rate::{FundingRateHistory, FundingRateRecord}
 use crate::state::market::{Market, AMM};
 use crate::state::market_map::MarketMap;
 use crate::state::state::OracleGuardRails;
-use crate::state::user::{User, UserPositions};
+use crate::state::user::User;
 use solana_program::clock::UnixTimestamp;
 use solana_program::msg;
 
-/// Funding payments are settled lazily. The amm tracks its cumulative funding rate (for longs and shorts)
-/// and the user's market position tracks how much funding the user been cumulatively paid for that market.
-/// If the two values are not equal, the user owes/is owed funding.
 pub fn settle_funding_payment(
     user: &mut User,
-    user_positions: &mut RefMut<UserPositions>,
+    user_key: &Pubkey,
     market_map: &MarketMap,
     funding_payment_history: &mut RefMut<FundingPaymentHistory>,
     now: UnixTimestamp,
 ) -> ClearingHouseResult {
-    let user_key = user_positions.user;
     let mut funding_payment: i128 = 0;
-    for market_position in user_positions.positions.iter_mut() {
+    for market_position in user.positions.iter_mut() {
         if market_position.base_asset_amount == 0 {
             continue;
         }
@@ -58,7 +54,7 @@ pub fn settle_funding_payment(
                 ts: now,
                 record_id,
                 user_authority: user.authority,
-                user: user_key,
+                user: *user_key,
                 market_index: market_position.market_index,
                 funding_payment: market_funding_rate_payment, //10e13
                 user_last_cumulative_funding: market_position.last_cumulative_funding_rate, //10e14

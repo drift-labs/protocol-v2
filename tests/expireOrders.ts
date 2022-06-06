@@ -151,8 +151,7 @@ describe('expire order', () => {
 
 		try {
 			await fillerClearingHouse.expireOrders(
-				await clearingHouse.getUserAccountPublicKey(),
-				await clearingHouse.getUserOrdersAccountPublicKey()
+				await clearingHouse.getUserAccountPublicKey()
 			);
 			assert(false);
 		} catch (e) {
@@ -164,8 +163,7 @@ describe('expire order', () => {
 			userUSDCAccount.publicKey
 		);
 		await fillerClearingHouse.expireOrders(
-			await clearingHouse.getUserAccountPublicKey(),
-			await clearingHouse.getUserOrdersAccountPublicKey()
+			await clearingHouse.getUserAccountPublicKey()
 		);
 
 		await clearingHouse.fetchAccounts();
@@ -183,8 +181,7 @@ describe('expire order', () => {
 
 		try {
 			await fillerClearingHouse.expireOrders(
-				await clearingHouse.getUserAccountPublicKey(),
-				await clearingHouse.getUserOrdersAccountPublicKey()
+				await clearingHouse.getUserAccountPublicKey()
 			);
 			assert(false);
 		} catch (e) {

@@ -93,7 +93,7 @@ pub fn get_writable_markets(market_index: u64) -> WritableMarkets {
 
 pub fn get_writable_markets_for_user_positions(user_positions: &UserPositions) -> WritableMarkets {
     let mut writable_markets = WritableMarkets::new();
-    for position in user_positions.positions.iter() {
+    for position in user_positions.iter() {
         writable_markets.insert(position.market_index);
     }
     writable_markets

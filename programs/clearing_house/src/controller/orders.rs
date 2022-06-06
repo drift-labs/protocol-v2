@@ -1,79 +1,73 @@
+use std::cmp::min;
+use std::collections::BTreeMap;
+
+use anchor_lang::prelude::*;
+use solana_program::msg;
+use spl_token::state::Account as TokenAccount;
+
+use crate::account_loader::load_mut;
+use crate::context::*;
+use crate::controller;
+use crate::controller::position::PositionDirection;
 use crate::controller::position::{add_new_position, get_position_index};
 use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
-use crate::math::casting::{cast, cast_to_i128};
-use crate::math_error;
-use crate::print_error;
-use crate::state::user_orders::Order;
-use anchor_lang::prelude::*;
-use solana_program::msg;
-use std::cmp::min;
-
-use crate::context::*;
-use crate::math::{amm, fees, margin::*, orders::*};
-use crate::state::{
-    history::order_history::{OrderHistory, OrderRecord},
-    history::trade::{TradeHistory, TradeRecord},
-    order_state::*,
-    state::*,
-    user::{User, UserPositions},
-    user_orders::*,
-};
-
-use crate::controller;
-use crate::controller::position::PositionDirection;
+use crate::get_struct_values;
 use crate::math::amm::{is_oracle_valid, normalise_oracle_price};
+use crate::math::casting::{cast, cast_to_i128};
 use crate::math::collateral::calculate_updated_collateral;
 use crate::math::constants::QUOTE_PRECISION;
 use crate::math::fees::calculate_order_fee_tier;
+use crate::math::{amm, fees, margin::*, orders::*};
+use crate::math_error;
 use crate::order_validation::{
     check_if_order_can_be_canceled, get_base_asset_amount_for_order, validate_order,
     validate_order_can_be_canceled,
 };
+use crate::print_error;
 use crate::state::history::funding_payment::FundingPaymentHistory;
 use crate::state::history::funding_rate::FundingRateHistory;
 use crate::state::history::order_history::OrderAction;
 use crate::state::market::Market;
 use crate::state::market_map::MarketMap;
-use spl_token::state::Account as TokenAccount;
-use std::cell::RefMut;
-use std::collections::BTreeMap;
+use crate::state::user::User;
+use crate::state::user::{Order, OrderStatus, OrderType};
+use crate::state::{
+    history::order_history::{OrderHistory, OrderRecord},
+    history::trade::{TradeHistory, TradeRecord},
+    order_state::*,
+    state::*,
+};
 
 pub fn place_order(
     state: &State,
     order_state: &OrderState,
-    user: &mut Box<Account<User>>,
-    user_positions: &AccountLoader<UserPositions>,
+    user: &AccountLoader<User>,
     market_map: &MarketMap,
-    user_orders: &AccountLoader<UserOrders>,
     funding_payment_history: &AccountLoader<FundingPaymentHistory>,
     order_history: &AccountLoader<OrderHistory>,
     discount_token: Option<TokenAccount>,
-    referrer: &Option<Account<User>>,
+    referrer: &Option<AccountLoader<User>>,
     clock: &Clock,
     params: OrderParams,
     oracle: Option<&AccountInfo>,
 ) -> ClearingHouseResult {
     let now = clock.unix_timestamp;
 
-    let user_positions = &mut user_positions
-        .load_mut()
-        .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
+    let user_key = user.key();
+    let user = &mut load_mut(user)?;
     let funding_payment_history = &mut funding_payment_history
         .load_mut()
         .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
     controller::funding::settle_funding_payment(
         user,
-        user_positions,
+        &user_key,
         market_map,
         funding_payment_history,
         now,
     )?;
 
-    let user_orders = &mut user_orders
-        .load_mut()
-        .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
-    let new_order_idx = user_orders
+    let new_order_index = user
         .orders
         .iter()
         .position(|order| order.status.eq(&OrderStatus::Init))
@@ -84,7 +78,7 @@ pub fn place_order(
         .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
 
     if params.user_order_id > 0 {
-        let user_order_id_already_used = user_orders
+        let user_order_id_already_used = user
             .orders
             .iter()
             .position(|order| order.user_order_id == params.user_order_id);
@@ -99,12 +93,14 @@ pub fn place_order(
     let market = &market_map.get_ref(&market_index)?;
 
     // Increment open orders for existing position
-    let position_index = get_position_index(user_positions, market_index)
-        .or_else(|_| add_new_position(user_positions, market_index))?;
-    let market_position = &mut user_positions.positions[position_index];
-    market_position.open_orders += 1;
-
-    let base_asset_amount = get_base_asset_amount_for_order(&params, market, market_position);
+    let (user_base_asset_amount, order_base_asset_amount) = {
+        let position_index = get_position_index(&user.positions, market_index)
+            .or_else(|_| add_new_position(&mut user.positions, market_index))?;
+        let market_position = &mut user.positions[position_index];
+        market_position.open_orders += 1;
+        let base_asset_amount = get_base_asset_amount_for_order(&params, market, market_position);
+        (market_position.base_asset_amount, base_asset_amount)
+    };
 
     let order_id = order_history_account.next_order_id();
     let new_order = Order {
@@ -115,8 +111,8 @@ pub fn place_order(
         user_order_id: params.user_order_id,
         market_index: params.market_index,
         price: params.price,
-        user_base_asset_amount: market_position.base_asset_amount,
-        base_asset_amount,
+        user_base_asset_amount,
+        base_asset_amount: order_base_asset_amount,
         quote_asset_amount: params.quote_asset_amount,
         base_asset_amount_filled: 0,
         quote_asset_amount_filled: 0,
@@ -146,7 +142,7 @@ pub fn place_order(
 
     validate_order(&new_order, market, order_state, valid_oracle_price)?;
 
-    user_orders.orders[new_order_idx] = new_order;
+    user.orders[new_order_index] = new_order;
 
     // Add to the order history account
     let record_id = order_history_account.next_record_id();
@@ -154,7 +150,7 @@ pub fn place_order(
         ts: now,
         record_id,
         order: new_order,
-        user: user.key(),
+        user: user_key,
         authority: user.authority,
         action: OrderAction::Place,
         filler: Pubkey::default(),
@@ -173,31 +169,26 @@ pub fn place_order(
 pub fn cancel_order_by_order_id(
     state: &State,
     order_id: u128,
-    user: &mut Box<Account<User>>,
-    user_positions: &AccountLoader<UserPositions>,
+    user: &AccountLoader<User>,
     market_map: &MarketMap,
-    user_orders: &AccountLoader<UserOrders>,
     funding_payment_history: &AccountLoader<FundingPaymentHistory>,
     order_history: &AccountLoader<OrderHistory>,
     clock: &Clock,
     oracle: Option<&AccountInfo>,
 ) -> ClearingHouseResult {
-    let user_orders = &mut user_orders
-        .load_mut()
-        .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
-
-    let order_index = user_orders
+    let user_key = user.key();
+    let user = &mut load_mut(user)?;
+    let order_index = user
         .orders
         .iter()
         .position(|order| order.order_id == order_id)
         .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
-    let order = &mut user_orders.orders[order_index];
 
     cancel_order(
         state,
-        order,
+        order_index,
         user,
-        user_positions,
+        &user_key,
         market_map,
         funding_payment_history,
         order_history,
@@ -210,31 +201,26 @@ pub fn cancel_order_by_order_id(
 pub fn cancel_order_by_user_order_id(
     state: &State,
     user_order_id: u8,
-    user: &mut Box<Account<User>>,
-    user_positions: &AccountLoader<UserPositions>,
+    user: &AccountLoader<User>,
     market_map: &MarketMap,
-    user_orders: &AccountLoader<UserOrders>,
     funding_payment_history: &AccountLoader<FundingPaymentHistory>,
     order_history: &AccountLoader<OrderHistory>,
     clock: &Clock,
     oracle: Option<&AccountInfo>,
 ) -> ClearingHouseResult {
-    let user_orders = &mut user_orders
-        .load_mut()
-        .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
-
-    let order_index = user_orders
+    let user_key = user.key();
+    let user = &mut load_mut(user)?;
+    let order_index = user
         .orders
         .iter()
         .position(|order| order.user_order_id == user_order_id)
         .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
-    let order = &mut user_orders.orders[order_index];
 
     cancel_order(
         state,
-        order,
+        order_index,
         user,
-        user_positions,
+        &user_key,
         market_map,
         funding_payment_history,
         order_history,
@@ -246,10 +232,8 @@ pub fn cancel_order_by_user_order_id(
 
 pub fn cancel_all_orders(
     state: &State,
-    user: &mut Box<Account<User>>,
-    user_positions: &AccountLoader<UserPositions>,
+    user: &AccountLoader<User>,
     market_map: &MarketMap,
-    user_orders: &AccountLoader<UserOrders>,
     funding_payment_history: &AccountLoader<FundingPaymentHistory>,
     order_history: &AccountLoader<OrderHistory>,
     clock: &Clock,
@@ -258,42 +242,43 @@ pub fn cancel_all_orders(
     market_index_only: Option<u64>,
     direction_only: Option<PositionDirection>,
 ) -> ClearingHouseResult {
-    let user_orders = &mut user_orders
-        .load_mut()
-        .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
-
+    let user_key = user.key();
+    let user = &mut load_mut(user)?;
     let mut oracle_account_infos: BTreeMap<Pubkey, &AccountInfo> = BTreeMap::new();
     for account_info in remaining_accounts.iter() {
         oracle_account_infos.insert(account_info.key(), account_info);
     }
 
-    for order in user_orders.orders.iter_mut() {
-        if order.status != OrderStatus::Open {
+    for order_index in 0..user.orders.len() {
+        let (order_status, order_market_index, order_direction) =
+            get_struct_values!(user.orders[order_index], status, market_index, direction);
+
+        if order_status != OrderStatus::Open {
             continue;
         }
 
         if let Some(market_index) = market_index_only {
-            if order.market_index != market_index {
+            if order_market_index != market_index {
                 continue;
             }
         }
 
         if let Some(direction) = direction_only {
-            if order.direction != direction {
+            if order_direction != direction {
                 continue;
             }
         }
 
         let oracle = {
-            let market = market_map.get_ref(&order.market_index)?;
+            let market = market_map.get_ref(&order_market_index)?;
             oracle_account_infos.get(&market.amm.oracle).copied()
         };
 
         cancel_order(
             state,
-            order,
+            order_index,
             user,
-            user_positions,
+            &user_key,
             market_map,
             funding_payment_history,
             order_history,
@@ -308,9 +293,9 @@ pub fn cancel_all_orders(
 
 pub fn cancel_order(
     state: &State,
-    order: &mut Order,
-    user: &mut Box<Account<User>>,
-    user_positions: &AccountLoader<UserPositions>,
+    order_index: usize,
+    user: &mut User,
+    user_key: &Pubkey,
     market_map: &MarketMap,
     funding_payment_history: &AccountLoader<FundingPaymentHistory>,
     order_history: &AccountLoader<OrderHistory>,
@@ -319,54 +304,42 @@ pub fn cancel_order(
     best_effort: bool,
 ) -> ClearingHouseResult {
     let now = clock.unix_timestamp;
-
-    let user_positions = &mut user_positions
-        .load_mut()
-        .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
     let funding_payment_history = &mut funding_payment_history
         .load_mut()
         .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
     controller::funding::settle_funding_payment(
         user,
-        user_positions,
+        user_key,
         market_map,
         funding_payment_history,
         now,
     )?;
 
-    if order.status != OrderStatus::Open {
+    let (order_status, order_market_index) =
+        get_struct_values!(user.orders[order_index], status, market_index);
+
+    if order_status != OrderStatus::Open {
         return Err(ErrorCode::OrderNotOpen);
     }
 
-    let market = &market_map.get_ref(&order.market_index)?;
+    let market = &market_map.get_ref(&order_market_index)?;
     let valid_oracle_price = get_valid_oracle_price(
         oracle,
         market,
-        order,
+        &user.orders[order_index],
         &state.oracle_guard_rails.validity,
         clock.slot,
     )?;
 
     if best_effort {
-        let is_cancelable = check_if_order_can_be_canceled(
-            order,
-            user,
-            user_positions,
-            market_map,
-            valid_oracle_price,
-        )?;
+        let is_cancelable =
+            check_if_order_can_be_canceled(user, order_index, market_map, valid_oracle_price)?;
 
         if !is_cancelable {
             return Ok(());
         }
     } else {
-        validate_order_can_be_canceled(
-            order,
-            user,
-            user_positions,
-            market_map,
-            valid_oracle_price,
-        )?;
+        validate_order_can_be_canceled(user, order_index, market_map, valid_oracle_price)?;
     }
 
     // Add to the order history account
@@ -377,8 +350,8 @@ pub fn cancel_order(
     order_history_account.append(OrderRecord {
         ts: now,
         record_id,
-        order: *order,
-        user: user.key(),
+        order: user.orders[order_index],
+        user: *user_key,
         authority: user.authority,
         action: OrderAction::Cancel,
         filler: Pubkey::default(),
@@ -392,25 +365,25 @@ pub fn cancel_order(
     });
 
     // Decrement open orders for existing position
-    let position_index = get_position_index(user_positions, order.market_index)?;
-    let market_position = &mut user_positions.positions[position_index];
-    market_position.open_orders -= 1;
-    *order = Order::default();
+    let position_index = get_position_index(&user.positions, order_market_index)?;
+    user.positions[position_index].open_orders -= 1;
+    user.orders[order_index] = Order::default();
 
     Ok(())
 }
 
 pub fn expire_orders(
-    user: &mut Box<Account<User>>,
-    user_positions: &AccountLoader<UserPositions>,
-    user_orders: &AccountLoader<UserOrders>,
-    filler: &mut Box<Account<User>>,
+    user: &AccountLoader<User>,
+    filler: &AccountLoader<User>,
     order_history: &AccountLoader<OrderHistory>,
     clock: &Clock,
 ) -> ClearingHouseResult {
     let now = clock.unix_timestamp;
     let ten_quote = 10 * QUOTE_PRECISION;
 
+    let user_key = user.key();
+    let filler_key = filler.key();
+    let user = &mut load_mut(user)?;
     if user.collateral >= ten_quote {
         msg!("User has more than ten quote asset, cant expire orders");
         return Err(ErrorCode::CantExpireOrders);
@@ -419,11 +392,7 @@ pub fn expire_orders(
     let max_filler_reward = QUOTE_PRECISION / 100; // .01 quote asset
     let filler_reward = min(user.collateral, max_filler_reward);
 
-    let user_orders = &mut user_orders
-        .load_mut()
-        .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
-
-    let expired_orders = user_orders
+    let expired_orders = user
         .orders
         .iter()
         .filter(|&order| order.status == OrderStatus::Open)
@@ -434,49 +403,52 @@ pub fn expire_orders(
     }
 
     user.collateral = calculate_updated_collateral(user.collateral, -(filler_reward as i128))?;
-    filler.collateral = calculate_updated_collateral(filler.collateral, filler_reward as i128)?;
+    if filler_key != user_key {
+        let filler = &mut load_mut(filler)?;
+        filler.collateral = calculate_updated_collateral(filler.collateral, filler_reward as i128)?;
+    }
 
     let filler_reward_per_order: i128 = cast_to_i128(filler_reward)? / (expired_orders as i128);
 
-    let user_positions = &mut user_positions
-        .load_mut()
-        .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
     let order_history_account = &mut order_history
         .load_mut()
         .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
-    for order in user_orders.orders.iter_mut() {
-        if order.status == OrderStatus::Init {
-            continue;
+    for order_index in 0..user.orders.len() {
+        {
+            let order = &mut user.orders[order_index];
+            if order.status == OrderStatus::Init {
+                continue;
+            }
+
+            order.fee = order
+                .fee
+                .checked_add(filler_reward_per_order)
+                .ok_or_else(math_error!())?;
+
+            // Add to the order history account
+            let record_id = order_history_account.next_record_id();
+            order_history_account.append(OrderRecord {
+                ts: now,
+                record_id,
+                order: *order,
+                user: user_key,
+                authority: user.authority,
+                action: OrderAction::Expire,
+                filler: filler_key,
+                trade_record_id: 0,
+                base_asset_amount_filled: 0,
+                quote_asset_amount_filled: 0,
+                filler_reward: filler_reward_per_order.unsigned_abs(),
+                fee: filler_reward_per_order,
+                quote_asset_amount_surplus: 0,
+                padding: [0; 8],
+            });
         }
 
-        order.fee = order
-            .fee
-            .checked_add(filler_reward_per_order)
-            .ok_or_else(math_error!())?;
-
-        // Add to the order history account
-        let record_id = order_history_account.next_record_id();
-        order_history_account.append(OrderRecord {
-            ts: now,
-            record_id,
-            order: *order,
-            user: user.key(),
-            authority: user.authority,
-            action: OrderAction::Expire,
-            filler: filler.key(),
-            trade_record_id: 0,
-            base_asset_amount_filled: 0,
-            quote_asset_amount_filled: 0,
-            filler_reward: filler_reward_per_order.unsigned_abs(),
-            fee: filler_reward_per_order,
-            quote_asset_amount_surplus: 0,
-            padding: [0; 8],
-        });
-
-        let position_index = get_position_index(user_positions, order.market_index)?;
-        let market_position = &mut user_positions.positions[position_index];
-        market_position.open_orders -= 1;
-        *order = Order::default();
+        let position_index =
+            get_position_index(&user.positions, user.orders[order_index].market_index)?;
+        user.positions[position_index].open_orders -= 1;
+        user.orders[order_index] = Order::default();
     }
 
     Ok(())
@@ -486,51 +458,60 @@ pub fn fill_order(
     order_id: u128,
     state: &State,
     order_state: &OrderState,
-    user: &mut Box<Account<User>>,
-    user_positions: &AccountLoader<UserPositions>,
+    user: &AccountLoader<User>,
     market_map: &MarketMap,
     oracle: &AccountInfo,
-    user_orders: &AccountLoader<UserOrders>,
-    filler: &mut Box<Account<User>>,
+    filler: &AccountLoader<User>,
     funding_payment_history: &AccountLoader<FundingPaymentHistory>,
     trade_history: &AccountLoader<TradeHistory>,
     order_history: &AccountLoader<OrderHistory>,
     funding_rate_history: &AccountLoader<FundingRateHistory>,
-    referrer: Option<Account<User>>,
+    referrer: Option<AccountLoader<User>>,
     clock: &Clock,
 ) -> ClearingHouseResult<u128> {
     let now = clock.unix_timestamp;
     let clock_slot = clock.slot;
 
-    let user_positions = &mut user_positions
-        .load_mut()
-        .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
+    let filler_key = filler.key();
+    let user_key = user.key();
+    let user = &mut load_mut(user)?;
     let funding_payment_history = &mut funding_payment_history
         .load_mut()
         .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
     controller::funding::settle_funding_payment(
         user,
-        user_positions,
+        &user_key,
         market_map,
         funding_payment_history,
         now,
     )?;
 
-    let user_orders = &mut user_orders
-        .load_mut()
-        .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
-    let order_index = user_orders
+    let order_index = user
         .orders
         .iter()
         .position(|order| order.order_id == order_id)
         .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
-    let order = &mut user_orders.orders[order_index];
 
-    if order.status != OrderStatus::Open {
+    let (
+        order_status,
+        market_index,
+        order_post_only,
+        order_ts,
+        order_discount_tier,
+        order_direction,
+    ) = get_struct_values!(
+        user.orders[order_index],
+        status,
+        market_index,
+        post_only,
+        ts,
+        discount_tier,
+        direction
+    );
+
+    if order_status != OrderStatus::Open {
         return Err(ErrorCode::OrderNotOpen);
     }
-
-    let market_index = order.market_index;
 
     let mark_price_before: u128;
     let oracle_mark_spread_pct_before: i128;
@@ -571,8 +552,7 @@ pub fn fill_order(
         quote_asset_amount_surplus,
     ) = execute_order(
         user,
-        user_positions,
-        order,
+        order_index,
         market_map,
         market_index,
         mark_price_before,
@@ -626,29 +606,28 @@ pub fn fill_order(
     }
 
     // Order fails if it's risk increasing and it brings the user collateral below the margin requirement
-    let meets_maintenance_requirement = if order.post_only {
+    let meets_maintenance_requirement = if order_post_only {
         // for post only orders allow user to fill up to partial margin requirement
-        meets_partial_margin_requirement(user, user_positions, market_map)?
+        meets_partial_margin_requirement(user, market_map)?
     } else {
-        meets_initial_margin_requirement(user, user_positions, market_map)?
+        meets_initial_margin_requirement(user, market_map)?
     };
     if !meets_maintenance_requirement && potentially_risk_increasing {
         return Err(ErrorCode::InsufficientCollateral);
     }
 
-    let discount_tier = order.discount_tier;
     let (user_fee, fee_to_market, token_discount, filler_reward, referrer_reward, referee_discount) =
         fees::calculate_fee_for_order(
             quote_asset_amount,
             &state.fee_structure,
             &order_state.order_filler_reward_structure,
-            &discount_tier,
-            order.ts,
+            &order_discount_tier,
+            order_ts,
             now,
             &referrer,
-            filler.key() == user.key(),
+            filler_key == user_key,
             quote_asset_amount_surplus,
-            order.post_only,
+            order_post_only,
         )?;
 
     // Increment the clearing house's total fee variables
@@ -697,26 +676,27 @@ pub fn fill_order(
         .checked_add(referee_discount)
         .ok_or_else(math_error!())?;
 
-    filler.collateral = filler
-        .collateral
-        .checked_add(cast(filler_reward)?)
-        .ok_or_else(math_error!())?;
+    if filler_key != user_key {
+        let filler = &mut load_mut(filler)?;
+        filler.collateral = filler
+            .collateral
+            .checked_add(cast(filler_reward)?)
+            .ok_or_else(math_error!())?;
+    }
 
     // Update the referrer's collateral with their reward
-    if let Some(mut referrer) = referrer {
+    if let Some(referrer) = referrer {
+        let referrer = &mut load_mut(&referrer)?;
         referrer.total_referral_reward = referrer
             .total_referral_reward
             .checked_add(referrer_reward)
             .ok_or_else(math_error!())?;
-        referrer
-            .exit(&crate::ID)
-            .or(Err(ErrorCode::UnableToWriteToRemainingAccount))?;
     }
 
     {
         let market = &market_map.get_ref(&market_index)?;
         update_order_after_trade(
-            order,
+            &mut user.orders[order_index],
             market.amm.minimum_base_asset_trade_size,
             base_asset_amount,
             quote_asset_amount,
@@ -732,8 +712,8 @@ pub fn fill_order(
         ts: now,
         record_id: trade_record_id,
         user_authority: user.authority,
-        user: *user.to_account_info().key,
-        direction: order.direction,
+        user: user_key,
+        direction: order_direction,
         base_asset_amount,
         quote_asset_amount,
         mark_price_before,
@@ -754,11 +734,11 @@ pub fn fill_order(
     order_history_account.append(OrderRecord {
         ts: now,
         record_id,
-        order: *order,
-        user: user.key(),
+        order: user.orders[order_index],
+        user: user_key,
         authority: user.authority,
         action: OrderAction::Fill,
-        filler: filler.key(),
+        filler: filler_key,
         trade_record_id,
         base_asset_amount_filled: base_asset_amount,
         quote_asset_amount_filled: quote_asset_amount,
@@ -768,13 +748,19 @@ pub fn fill_order(
         padding: [0; 8],
     });
 
+    let (order_base_asset_amount, order_base_asset_amount_filled, order_type) = get_struct_values!(
+        user.orders[order_index],
+        base_asset_amount,
+        base_asset_amount_filled,
+        order_type
+    );
+
     // Cant reset order until after its been logged in order history
-    if order.base_asset_amount == order.base_asset_amount_filled
-        || order.order_type == OrderType::Market
+    if order_base_asset_amount == order_base_asset_amount_filled || order_type == OrderType::Market
     {
-        *order = Order::default();
-        let position_index = get_position_index(user_positions, market_index)?;
-        let market_position = &mut user_positions.positions[position_index];
+        user.orders[order_index] = Order::default();
+        let position_index = get_position_index(&user.positions, market_index)?;
+        let market_position = &mut user.positions[position_index];
         market_position.open_orders -= 1;
     }
 
@@ -802,19 +788,18 @@ pub fn fill_order(
 
 pub fn execute_order(
     user: &mut User,
-    user_positions: &mut RefMut<UserPositions>,
-    order: &mut Order,
+    order_index: usize,
     market_map: &MarketMap,
     market_index: u64,
     mark_price_before: u128,
     now: i64,
     value_oracle_price: Option<i128>,
 ) -> ClearingHouseResult<(u128, u128, bool, u128)> {
-    match order.order_type {
+    let order_type = user.orders[order_index].order_type;
+    match order_type {
         OrderType::Market => execute_market_order(
             user,
-            user_positions,
-            order,
+            order_index,
             market_map,
             market_index,
             mark_price_before,
@@ -822,8 +807,7 @@ pub fn execute_order(
         ),
         _ => execute_non_market_order(
             user,
-            user_positions,
-            order,
+            order_index,
             market_map,
             market_index,
             mark_price_before,
@@ -835,25 +819,38 @@ pub fn execute_order(
 
 pub fn execute_market_order(
     user: &mut User,
-    user_positions: &mut RefMut<UserPositions>,
-    order: &mut Order,
+    order_index: usize,
     market_map: &MarketMap,
     market_index: u64,
     mark_price_before: u128,
     now: i64,
 ) -> ClearingHouseResult<(u128, u128, bool, u128)> {
-    let position_index = get_position_index(user_positions, market_index)?;
-    let market_position = &mut user_positions.positions[position_index];
+    let position_index = get_position_index(&user.positions, market_index)?;
     let market = &mut market_map.get_ref_mut(&market_index)?;
 
-    let base_asset_amount = if order.reduce_only {
+    let (
+        order_direction,
+        order_price,
+        order_reduce_only,
+        order_base_asset_amount,
+        order_quote_asset_amount,
+    ) = get_struct_values!(
+        user.orders[order_index],
+        direction,
+        price,
+        reduce_only,
+        base_asset_amount,
+        quote_asset_amount
+    );
+
+    let base_asset_amount = if order_reduce_only {
         calculate_base_asset_amount_for_reduce_only_order(
-            order.base_asset_amount,
-            order.direction,
-            market_position.base_asset_amount,
+            order_base_asset_amount,
+            order_direction,
+            user.positions[position_index].base_asset_amount,
         )
     } else {
-        order.base_asset_amount
+        order_base_asset_amount
     };
 
     let (
@@ -862,24 +859,25 @@ pub fn execute_market_order(
         base_asset_amount,
         quote_asset_amount,
         quote_asset_amount_surplus,
-    ) = if order.base_asset_amount > 0 {
+    ) = if order_base_asset_amount > 0 {
+        let direction = user.orders[order_index].direction;
         controller::position::update_position_with_base_asset_amount(
             base_asset_amount,
-            order.direction,
+            direction,
             market,
             user,
-            market_position,
+            position_index,
             mark_price_before,
             now,
             None,
         )?
     } else {
         controller::position::update_position_with_quote_asset_amount(
-            order.quote_asset_amount,
-            order.direction,
+            order_quote_asset_amount,
+            order_direction,
             market,
             user,
-            market_position,
+            position_index,
             mark_price_before,
             now,
         )?
@@ -890,16 +888,16 @@ pub fn execute_market_order(
         return Err(print_error!(ErrorCode::TradeSizeTooSmall)());
     }
 
-    if !reduce_only && order.reduce_only {
+    if !reduce_only && order_reduce_only {
         return Err(ErrorCode::ReduceOnlyOrderIncreasedRisk);
     }
 
-    if order.price > 0
+    if order_price > 0
         && !limit_price_satisfied(
-            order.price,
+            order_price,
             quote_asset_amount,
             base_asset_amount,
-            order.direction,
+            order_direction,
         )?
     {
         return Err(ErrorCode::SlippageOutsideLimit);
@@ -915,8 +913,7 @@ pub fn execute_market_order(
 
 pub fn execute_non_market_order(
     user: &mut User,
-    user_positions: &mut RefMut<UserPositions>,
-    order: &mut Order,
+    order_index: usize,
     market_map: &MarketMap,
     market_index: u64,
     mark_price_before: u128,
@@ -924,13 +921,8 @@ pub fn execute_non_market_order(
     valid_oracle_price: Option<i128>,
 ) -> ClearingHouseResult<(u128, u128, bool, u128)> {
     // Determine the base asset amount the user can fill
-    let base_asset_amount_user_can_execute = calculate_base_asset_amount_user_can_execute(
-        user,
-        user_positions,
-        order,
-        market_map,
-        market_index,
-    )?;
+    let base_asset_amount_user_can_execute =
+        calculate_base_asset_amount_user_can_execute(user, order_index, market_map, market_index)?;
 
     if base_asset_amount_user_can_execute == 0 {
         msg!("User cant execute order");
@@ -940,7 +932,7 @@ pub fn execute_non_market_order(
     // Determine the base asset amount the market can fill
     let market = &mut market_map.get_ref_mut(&market_index)?;
     let base_asset_amount_market_can_execute = calculate_base_asset_amount_market_can_execute(
-        order,
+        &user.orders[order_index],
         market,
         Some(mark_price_before),
         valid_oracle_price,
@@ -961,12 +953,25 @@ pub fn execute_non_market_order(
         return Ok((0, 0, false, 0));
     }
 
+    let (
+        order_direction,
+        order_reduce_only,
+        order_post_only,
+        order_base_asset_amount,
+        order_base_asset_amount_filled,
+    ) = get_struct_values!(
+        user.orders[order_index],
+        direction,
+        reduce_only,
+        post_only,
+        base_asset_amount,
+        base_asset_amount_filled
+    );
+
     let minimum_base_asset_trade_size = market.amm.minimum_base_asset_trade_size;
-    let base_asset_amount_left_to_fill = order
-        .base_asset_amount
+    let base_asset_amount_left_to_fill = order_base_asset_amount
         .checked_sub(
-            order
-                .base_asset_amount_filled
+            order_base_asset_amount_filled
                 .checked_add(base_asset_amount)
                 .ok_or_else(math_error!())?,
         )
@@ -984,11 +989,10 @@ pub fn execute_non_market_order(
         return Ok((0, 0, false, 0));
     }
 
-    let position_index = get_position_index(user_positions, market_index)?;
-    let market_position = &mut user_positions.positions[position_index];
+    let position_index = get_position_index(&user.positions, market_index)?;
 
-    let maker_limit_price = if order.post_only {
-        Some(order.get_limit_price(valid_oracle_price)?)
+    let maker_limit_price = if order_post_only {
+        Some(user.orders[order_index].get_limit_price(valid_oracle_price)?)
     } else {
         None
     };
@@ -1000,16 +1004,16 @@ pub fn execute_non_market_order(
         quote_asset_amount_surplus,
     ) = controller::position::update_position_with_base_asset_amount(
         base_asset_amount,
-        order.direction,
+        order_direction,
         market,
         user,
-        market_position,
+        position_index,
         mark_price_before,
         now,
         maker_limit_price,
     )?;
 
-    if !reduce_only && order.reduce_only {
+    if !reduce_only && order_reduce_only {
         return Err(ErrorCode::ReduceOnlyOrderIncreasedRisk);
     }
 

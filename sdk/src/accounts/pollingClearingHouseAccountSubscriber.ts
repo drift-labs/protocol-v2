@@ -21,15 +21,11 @@ import {
 	StateAccount,
 	TradeHistoryAccount,
 	UserAccount,
-	UserOrdersAccount,
-	UserPositionsAccount,
 } from '../types';
 import {
 	getClearingHouseStateAccountPublicKey,
 	getMarketPublicKey,
 	getUserAccountPublicKey,
-	getUserOrdersAccountPublicKey,
-	getUserPositionsAccountPublicKey,
 } from '../addresses/pda';
 import { BulkAccountLoader } from './bulkAccountLoader';
 import { capitalize } from './utils';
@@ -39,8 +35,6 @@ import { CLEARING_HOUSE_STATE_ACCOUNTS } from '../constants/accounts';
 
 type UserPublicKeys = {
 	userAccountPublicKey: PublicKey;
-	userPositionsAccountPublicKey: PublicKey;
-	userOrdersAccountPublicKey: PublicKey;
 };
 
 export class PollingClearingHouseAccountSubscriber
@@ -67,8 +61,6 @@ export class PollingClearingHouseAccountSubscriber
 	orderHistory?: AccountAndSlot<OrderHistoryAccount>;
 
 	userAccount?: AccountAndSlot<UserAccount>;
-	userPositionsAccount?: AccountAndSlot<UserPositionsAccount>;
-	userOrdersAccount?: AccountAndSlot<UserOrdersAccount>;
 
 	optionalExtraSubscriptions: ClearingHouseAccountTypes[] = [];
 
@@ -216,11 +208,7 @@ export class PollingClearingHouseAccountSubscriber
 	}
 
 	async updateUserAccountsToPoll(): Promise<UserPublicKeys> {
-		const {
-			userAccountPublicKey,
-			userPositionsAccountPublicKey,
-			userOrdersAccountPublicKey,
-		} = await this.getUserAccountPublicKeys();
+		const { userAccountPublicKey } = await this.getUserAccountPublicKeys();
 
 		this.accountsToPoll.set(userAccountPublicKey.toString(), {
 			key: 'userAccount',
@@ -228,22 +216,8 @@ export class PollingClearingHouseAccountSubscriber
 			eventType: 'userAccountUpdate',
 		});
 
-		this.accountsToPoll.set(userPositionsAccountPublicKey.toString(), {
-			key: 'userPositionsAccount',
-			publicKey: userPositionsAccountPublicKey,
-			eventType: 'userPositionsAccountUpdate',
-		});
-
-		this.accountsToPoll.set(userOrdersAccountPublicKey.toString(), {
-			key: 'userOrdersAccount',
-			publicKey: userOrdersAccountPublicKey,
-			eventType: 'userOrdersAccountUpdate',
-		});
-
 		return {
 			userAccountPublicKey,
-			userPositionsAccountPublicKey,
-			userOrdersAccountPublicKey,
 		};
 	}
 
@@ -308,21 +282,8 @@ export class PollingClearingHouseAccountSubscriber
 			this.authority
 		);
 
-		const userPositionsAccountPublicKey =
-			await getUserPositionsAccountPublicKey(
-				this.program.programId,
-				userAccountPublicKey
-			);
-
-		const userOrdersAccountPublicKey = await getUserOrdersAccountPublicKey(
-			this.program.programId,
-			userAccountPublicKey
-		);
-
 		return {
 			userAccountPublicKey,
-			userPositionsAccountPublicKey,
-			userOrdersAccountPublicKey,
 		};
 	}
 
@@ -527,20 +488,6 @@ export class PollingClearingHouseAccountSubscriber
 	public getUserAccountAndSlot(): AccountAndSlot<UserAccount> | undefined {
 		this.assertIsSubscribed();
 		return this.userAccount;
-	}
-
-	public getUserPositionsAccountAndSlot():
-		| AccountAndSlot<UserPositionsAccount>
-		| undefined {
-		this.assertIsSubscribed();
-		return this.userPositionsAccount;
-	}
-
-	public getUserOrdersAccountAndSlot():
-		| AccountAndSlot<UserOrdersAccount>
-		| undefined {
-		this.assertIsSubscribed();
-		return this.userOrdersAccount;
 	}
 }
 

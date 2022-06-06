@@ -1,16 +1,14 @@
-use crate::error::{ClearingHouseResult, ErrorCode};
-use crate::math;
-use crate::math_error;
-use crate::state::market::Market;
-use crate::state::user_orders::{Order, OrderTriggerCondition, OrderType};
-use solana_program::msg;
-use std::cell::RefMut;
 use std::cmp::min;
 use std::ops::Div;
+
+use solana_program::msg;
 
 use crate::controller::amm::SwapDirection;
 use crate::controller::position::get_position_index;
 use crate::controller::position::PositionDirection;
+use crate::error::{ClearingHouseResult, ErrorCode};
+use crate::get_struct_values;
+use crate::math;
 use crate::math::amm::{calculate_spread_reserves, calculate_swap_output};
 use crate::math::casting::{cast, cast_to_i128, cast_to_u128};
 use crate::math::constants::{
@@ -19,8 +17,10 @@ use crate::math::constants::{
 };
 use crate::math::margin::calculate_free_collateral;
 use crate::math::quote_asset::asset_to_reserve_amount;
+use crate::math_error;
+use crate::state::market::Market;
 use crate::state::market_map::MarketMap;
-use crate::state::user::{User, UserPositions};
+use crate::state::user::{Order, OrderTriggerCondition, OrderType, User};
 
 pub fn calculate_base_asset_amount_market_can_execute(
     order: &Order,
@@ -157,25 +157,26 @@ fn calculate_base_asset_amount_to_trade_for_trigger_limit(
 }
 
 pub fn calculate_base_asset_amount_user_can_execute(
-    user: &mut User,
-    user_positions: &mut RefMut<UserPositions>,
-    order: &mut Order,
+    user: &User,
+    order_index: usize,
     market_map: &MarketMap,
     market_index: u64,
 ) -> ClearingHouseResult<u128> {
-    let position_index = get_position_index(user_positions, market_index)?;
+    let position_index = get_position_index(&user.positions, market_index)?;
+
+    let (order_direction, order_post_only, order_reduce_only) =
+        get_struct_values!(user.orders[order_index], direction, post_only, reduce_only);
 
     let quote_asset_amount = calculate_available_quote_asset_user_can_execute(
         user,
-        order,
+        order_index,
         position_index,
-        user_positions,
         market_map,
     )?;
 
     let market = &mut market_map.get_ref_mut(&market_index)?;
 
-    let swap_direction = match order.direction {
+    let swap_direction = match order_direction {
         PositionDirection::Long => SwapDirection::Add,
         PositionDirection::Short => SwapDirection::Remove,
     };
@@ -191,13 +192,13 @@ pub fn calculate_base_asset_amount_user_can_execute(
     );
 
     let (base_asset_reserves_before, quote_asset_reserves_before) =
-        if order.post_only || market.amm.base_spread == 0 {
+        if order_post_only || market.amm.base_spread == 0 {
             (
                 market.amm.base_asset_reserve,
                 market.amm.quote_asset_reserve,
             )
         } else {
-            calculate_spread_reserves(&market.amm, order.direction)?
+            calculate_spread_reserves(&market.amm, order_direction)?
         };
 
     let (base_asset_reserves_after, _) = calculate_swap_output(
@@ -212,11 +213,11 @@ pub fn calculate_base_asset_amount_user_can_execute(
         .ok_or_else(math_error!())?
         .unsigned_abs();
 
-    if order.reduce_only && base_asset_amount != 0 {
-        let existing_position = user_positions.positions[position_index].base_asset_amount;
+    if order_reduce_only && base_asset_amount != 0 {
+        let existing_position = user.positions[position_index].base_asset_amount;
         base_asset_amount = calculate_base_asset_amount_for_reduce_only_order(
             base_asset_amount,
-            order.direction,
+            order_direction,
             existing_position,
         )
     }
@@ -226,14 +227,21 @@ pub fn calculate_base_asset_amount_user_can_execute(
 
 pub fn calculate_available_quote_asset_user_can_execute(
     user: &User,
-    order: &Order,
+    order_index: usize,
     position_index: usize,
-    user_positions: &mut UserPositions,
     market_map: &MarketMap,
 ) -> ClearingHouseResult<u128> {
-    let market_position = &user_positions.positions[position_index];
+    let (existing_base_asset_amount, market_index) = {
+        let market_position = &user.positions[position_index];
+        (
+            market_position.base_asset_amount,
+            market_position.market_index,
+        )
+    };
+    let order_direction = user.orders[order_index].direction;
+
     let max_leverage = {
-        let market = market_map.get_ref(&market_position.market_index)?;
+        let market = market_map.get_ref(&market_index)?;
         MARGIN_PRECISION
             .checked_div(
                 // add one to initial margin ratio so we don't fill exactly to max leverage
@@ -244,21 +252,19 @@ pub fn calculate_available_quote_asset_user_can_execute(
             .ok_or_else(math_error!())?
     };
 
-    let risk_increasing_in_same_direction = market_position.base_asset_amount == 0
-        || market_position.base_asset_amount > 0 && order.direction == PositionDirection::Long
-        || market_position.base_asset_amount < 0 && order.direction == PositionDirection::Short;
+    let risk_increasing_in_same_direction = existing_base_asset_amount == 0
+        || existing_base_asset_amount > 0 && order_direction == PositionDirection::Long
+        || existing_base_asset_amount < 0 && order_direction == PositionDirection::Short;
 
     let available_quote_asset_for_order = if risk_increasing_in_same_direction {
-        let (free_collateral, _) =
-            calculate_free_collateral(user, user_positions, market_map, None)?;
+        let (free_collateral, _) = calculate_free_collateral(user, market_map, None)?;
 
         free_collateral
             .checked_mul(max_leverage)
             .ok_or_else(math_error!())?
     } else {
-        let market_index = market_position.market_index;
         let (free_collateral, closed_position_base_asset_value) =
-            calculate_free_collateral(user, user_positions, market_map, Some(market_index))?;
+            calculate_free_collateral(user, market_map, Some(market_index))?;
 
         free_collateral
             .checked_mul(max_leverage)

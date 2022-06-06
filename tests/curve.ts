@@ -1,7 +1,7 @@
 import * as anchor from '@project-serum/anchor';
 import { Program } from '@project-serum/anchor';
 import { Keypair } from '@solana/web3.js';
-import { BN } from '../sdk';
+import { BASE_PRECISION, BN } from '../sdk';
 import {
 	Admin,
 	MARK_PRICE_PRECISION,
@@ -11,7 +11,6 @@ import {
 	calculateTargetPriceTrade,
 	ClearingHouseUser,
 	PositionDirection,
-	convertBaseAssetAmountToNumber,
 	convertToNumber,
 } from '../sdk/src';
 
@@ -96,9 +95,9 @@ describe('AMM Curve', () => {
 
 		console.log(
 			'baseAssetAmountShort',
-			convertBaseAssetAmountToNumber(marketData.baseAssetAmountShort),
+			convertToNumber(marketData.baseAssetAmountShort, BASE_PRECISION),
 			'baseAssetAmountLong',
-			convertBaseAssetAmountToNumber(marketData.baseAssetAmountLong)
+			convertToNumber(marketData.baseAssetAmountLong, BASE_PRECISION)
 		);
 
 		console.log(
@@ -256,13 +255,13 @@ describe('AMM Curve', () => {
 
 		const newPeg = marketData.amm.pegMultiplier;
 
-		const userMarketPosition =
-			userAccount.getUserPositionsAccount().positions[0];
-		const linearApproxCostToAMM = convertBaseAssetAmountToNumber(
+		const userMarketPosition = userAccount.getUserAccount().positions[0];
+		const linearApproxCostToAMM = convertToNumber(
 			newPeg
 				.sub(oldPeg)
 				.mul(userMarketPosition.baseAssetAmount)
-				.div(PEG_PRECISION)
+				.div(PEG_PRECISION),
+			BASE_PRECISION
 		);
 
 		// console.log('cur user position:', convertBaseAssetAmountToNumber(userMarketPosition.baseAssetAmount));
@@ -317,16 +316,16 @@ describe('AMM Curve', () => {
 		const marketData = clearingHouse.getMarketAccount(marketIndex);
 		const newPeg = marketData.amm.pegMultiplier;
 
-		const userMarketPosition =
-			userAccount.getUserPositionsAccount().positions[0];
+		const userMarketPosition = userAccount.getUserAccount().positions[0];
 
 		console.log('\n post repeg: \n --------');
 
-		const linearApproxCostToAMM = convertBaseAssetAmountToNumber(
+		const linearApproxCostToAMM = convertToNumber(
 			newPeg
 				.sub(oldPeg)
 				.mul(userMarketPosition.baseAssetAmount)
-				.div(PEG_PRECISION)
+				.div(PEG_PRECISION),
+			BASE_PRECISION
 		);
 
 		showCurve(marketIndex);

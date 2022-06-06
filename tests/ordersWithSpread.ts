@@ -223,8 +223,7 @@ describe('amm spread: market order', () => {
 		console.log(market.amm.totalFee.toString());
 		assert(market.amm.totalFee.eq(expectedFeeToMarket));
 
-		const userPositionsAccount = clearingHouseUser.getUserPositionsAccount();
-		const firstPosition = userPositionsAccount.positions[0];
+		const firstPosition = clearingHouse.getUserAccount().positions[0];
 		assert(firstPosition.baseAssetAmount.eq(baseAssetAmount));
 		assert(firstPosition.quoteAssetAmount.eq(expectedQuoteAssetAmount));
 
@@ -583,7 +582,7 @@ describe('amm spread: market order', () => {
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
 
-		const unfilledOrder = clearingHouseUser.getUserOrdersAccount().orders[0];
+		const unfilledOrder = clearingHouseUser.getUserAccount().orders[0];
 		const expectedBaseAssetAmount = calculateBaseAssetAmountMarketCanExecute(
 			clearingHouse.getMarketAccount(0),
 			unfilledOrder
@@ -594,9 +593,7 @@ describe('amm spread: market order', () => {
 		try {
 			await clearingHouse.fillOrder(
 				await clearingHouseUser.getUserAccountPublicKey(),
-				await clearingHouseUser.getUserPositionsAccountPublicKey(),
-				await clearingHouseUser.getUserOrdersAccountPublicKey(),
-				clearingHouseUser.getUserPositionsAccount(),
+				clearingHouseUser.getUserAccount(),
 				unfilledOrder
 			);
 			assert(false);
@@ -629,7 +626,7 @@ describe('amm spread: market order', () => {
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
 
-		const unfilledOrder = clearingHouseUser.getUserOrdersAccount().orders[0];
+		const unfilledOrder = clearingHouseUser.getUserAccount().orders[0];
 		const expectedBaseAssetAmount = calculateBaseAssetAmountMarketCanExecute(
 			clearingHouse.getMarketAccount(0),
 			unfilledOrder
@@ -640,9 +637,7 @@ describe('amm spread: market order', () => {
 		try {
 			await clearingHouse.fillOrder(
 				await clearingHouseUser.getUserAccountPublicKey(),
-				await clearingHouseUser.getUserPositionsAccountPublicKey(),
-				await clearingHouseUser.getUserOrdersAccountPublicKey(),
-				clearingHouseUser.getUserPositionsAccount(),
+				clearingHouseUser.getUserAccount(),
 				unfilledOrder
 			);
 			assert(false);
@@ -677,7 +672,7 @@ describe('amm spread: market order', () => {
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
 
-		const order = clearingHouseUser.getUserOrdersAccount().orders[0];
+		const order = clearingHouseUser.getUserAccount().orders[0];
 		const expectedBaseAssetAmount = calculateBaseAssetAmountMarketCanExecute(
 			clearingHouse.getMarketAccount(0),
 			order
@@ -700,17 +695,14 @@ describe('amm spread: market order', () => {
 
 		await clearingHouse.fillOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
-			await clearingHouseUser.getUserPositionsAccountPublicKey(),
-			await clearingHouseUser.getUserOrdersAccountPublicKey(),
-			clearingHouseUser.getUserPositionsAccount(),
+			clearingHouseUser.getUserAccount(),
 			order
 		);
 
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
 
-		const userPositionsAccount = clearingHouseUser.getUserPositionsAccount();
-		const firstPosition = userPositionsAccount.positions[0];
+		const firstPosition = clearingHouseUser.getUserAccount().positions[0];
 		assert(firstPosition.baseAssetAmount.eq(baseAssetAmount));
 		assert(firstPosition.quoteAssetAmount.eq(expectedQuoteAssetAmount));
 
@@ -751,7 +743,7 @@ describe('amm spread: market order', () => {
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
 
-		const order = clearingHouseUser.getUserOrdersAccount().orders[0];
+		const order = clearingHouseUser.getUserAccount().orders[0];
 		const expectedBaseAssetAmount = calculateBaseAssetAmountMarketCanExecute(
 			clearingHouse.getMarketAccount(0),
 			order
@@ -774,17 +766,14 @@ describe('amm spread: market order', () => {
 
 		await clearingHouse.fillOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
-			await clearingHouseUser.getUserPositionsAccountPublicKey(),
-			await clearingHouseUser.getUserOrdersAccountPublicKey(),
-			clearingHouseUser.getUserPositionsAccount(),
+			clearingHouseUser.getUserAccount(),
 			order
 		);
 
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
 
-		const userPositionsAccount = clearingHouseUser.getUserPositionsAccount();
-		const firstPosition = userPositionsAccount.positions[0];
+		const firstPosition = clearingHouseUser.getUserAccount().positions[0];
 		assert(firstPosition.baseAssetAmount.abs().eq(baseAssetAmount));
 		assert(firstPosition.quoteAssetAmount.eq(expectedQuoteAssetAmount));
 
@@ -897,8 +886,11 @@ describe('amm spread: market order', () => {
 		console.log('unrealized pnl', unrealizedPnl.toString());
 
 		const expectedFeeToMarket = new BN(1000);
-		const userPositionsAccount = clearingHouseUser.getUserPositionsAccount();
-		const firstPosition = userPositionsAccount.positions[0];
+		const firstPosition = clearingHouseUser.getUserAccount().positions[0];
+		console.log(
+			convertToNumber(firstPosition.baseAssetAmount),
+			convertToNumber(baseAssetAmount)
+		);
 		assert(firstPosition.baseAssetAmount.eq(baseAssetAmount));
 		console.log(
 			convertToNumber(firstPosition.quoteAssetAmount),

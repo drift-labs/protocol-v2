@@ -11,7 +11,6 @@ import {
 	MARK_PRICE_PRECISION,
 	ClearingHouse,
 	PositionDirection,
-	getUserOrdersAccountPublicKey,
 	ClearingHouseUser,
 	Wallet,
 	OrderRecord,
@@ -24,11 +23,7 @@ import {
 } from '../sdk/src';
 
 import { mockOracle, mockUSDCMint, mockUserUSDCAccount } from './testHelpers';
-import {
-	AMM_RESERVE_PRECISION,
-	getUserPositionsAccountPublicKey,
-	ZERO,
-} from '../sdk';
+import { AMM_RESERVE_PRECISION, ZERO } from '../sdk';
 import { AccountInfo, Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
 const enumsAreEqual = (
@@ -48,8 +43,6 @@ describe('stop limit', () => {
 	let clearingHouseUser: ClearingHouseUser;
 
 	let userAccountPublicKey: PublicKey;
-	let userPositionsAccountPublicKey: PublicKey;
-	let userOrdersAccountPublicKey: PublicKey;
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -113,16 +106,6 @@ describe('stop limit', () => {
 				usdcAmount,
 				userUSDCAccount.publicKey
 			);
-
-		userPositionsAccountPublicKey = await getUserPositionsAccountPublicKey(
-			clearingHouse.program.programId,
-			userAccountPublicKey
-		);
-
-		userOrdersAccountPublicKey = await getUserOrdersAccountPublicKey(
-			clearingHouse.program.programId,
-			userAccountPublicKey
-		);
 
 		clearingHouseUser = ClearingHouseUser.from(
 			clearingHouse,
@@ -222,9 +205,7 @@ describe('stop limit', () => {
 		let order = clearingHouseUser.getOrder(orderId);
 		await fillerClearingHouse.fillOrder(
 			userAccountPublicKey,
-			userPositionsAccountPublicKey,
-			userOrdersAccountPublicKey,
-			clearingHouseUser.getUserPositionsAccount(),
+			clearingHouseUser.getUserAccount(),
 			order
 		);
 
@@ -232,8 +213,7 @@ describe('stop limit', () => {
 		await clearingHouseUser.fetchAccounts();
 		await fillerUser.fetchAccounts();
 
-		const userOrdersAccount = clearingHouseUser.getUserOrdersAccount();
-		order = userOrdersAccount.orders[orderIndex.toString()];
+		order = clearingHouseUser.getUserAccount().orders[orderIndex.toString()];
 
 		assert(order.baseAssetAmount.eq(new BN(0)));
 		assert(order.price.eq(new BN(0)));
@@ -241,8 +221,7 @@ describe('stop limit', () => {
 		assert(enumsAreEqual(order.direction, PositionDirection.LONG));
 		assert(enumsAreEqual(order.status, OrderStatus.INIT));
 
-		const userPositionsAccount = clearingHouseUser.getUserPositionsAccount();
-		const firstPosition = userPositionsAccount.positions[0];
+		const firstPosition = clearingHouseUser.getUserAccount().positions[0];
 		const expectedBaseAssetAmount = new BN(0);
 		assert(firstPosition.baseAssetAmount.eq(expectedBaseAssetAmount));
 
@@ -318,9 +297,7 @@ describe('stop limit', () => {
 		let order = clearingHouseUser.getOrder(orderId);
 		await fillerClearingHouse.fillOrder(
 			userAccountPublicKey,
-			userPositionsAccountPublicKey,
-			userOrdersAccountPublicKey,
-			clearingHouseUser.getUserPositionsAccount(),
+			clearingHouseUser.getUserAccount(),
 			order
 		);
 
@@ -328,8 +305,7 @@ describe('stop limit', () => {
 		await clearingHouseUser.fetchAccounts();
 		await fillerUser.fetchAccounts();
 
-		const userOrdersAccount = clearingHouseUser.getUserOrdersAccount();
-		order = userOrdersAccount.orders[orderIndex.toString()];
+		order = clearingHouseUser.getUserAccount().orders[orderIndex.toString()];
 
 		assert(order.baseAssetAmount.eq(new BN(0)));
 		assert(order.price.eq(new BN(0)));
@@ -337,8 +313,7 @@ describe('stop limit', () => {
 		assert(enumsAreEqual(order.direction, PositionDirection.LONG));
 		assert(enumsAreEqual(order.status, OrderStatus.INIT));
 
-		const userPositionsAccount = clearingHouseUser.getUserPositionsAccount();
-		const firstPosition = userPositionsAccount.positions[0];
+		const firstPosition = clearingHouseUser.getUserAccount().positions[0];
 		const expectedBaseAssetAmount = new BN(0);
 		assert(firstPosition.baseAssetAmount.eq(expectedBaseAssetAmount));
 

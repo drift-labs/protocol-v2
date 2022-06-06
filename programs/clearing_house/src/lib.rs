@@ -5,7 +5,7 @@ use anchor_lang::prelude::*;
 use borsh::BorshSerialize;
 
 use context::*;
-use controller::position::{add_new_position, get_position_index, PositionDirection};
+use controller::position::PositionDirection;
 use error::ErrorCode;
 use math::{amm, bn, constants::*, fees, margin::*, orders::*, withdrawal::*};
 
@@ -15,19 +15,19 @@ use crate::state::{
     market::{OracleSource, AMM},
     order_state::*,
     state::*,
-    user::{MarketPosition, User, UserPositions},
-    user_orders::*,
+    user::*,
 };
 
+mod account_loader;
 pub mod context;
 pub mod controller;
 pub mod error;
+pub mod macros;
 mod margin_validation;
 pub mod math;
 pub mod optional_accounts;
 pub mod order_validation;
 pub mod state;
-mod user_initialization;
 
 #[cfg(feature = "mainnet-beta")]
 declare_id!("dammHkt7jmytvbS3nHTxQNEcP59aE57nxwV21YdqEDN");
@@ -37,13 +37,17 @@ declare_id!("AsW7LnXB9UA1uec9wi9MctYTgTz7YH9snhxd16GsFaGX");
 #[program]
 pub mod clearing_house {
     use std::ops::Div;
+    use std::option::Option::Some;
 
+    use crate::account_loader::{load, load_mut};
+    use crate::controller::position::{add_new_position, get_position_index};
     use crate::margin_validation::validate_margin;
     use crate::math;
     use crate::math::amm::{
         calculate_mark_twap_spread_pct, is_oracle_mark_too_divergent, normalise_oracle_price,
     };
     use crate::math::casting::{cast, cast_to_i128, cast_to_u128};
+    use crate::math::collateral::calculate_updated_collateral;
     use crate::math::slippage::{calculate_slippage, calculate_slippage_pct};
     use crate::optional_accounts::{get_discount_token, get_referrer, get_referrer_for_fill_order};
     use crate::state::history::curve::ExtendedCurveRecord;
@@ -55,6 +59,7 @@ pub mod clearing_house {
         MarketMap, MarketOracles, WritableMarkets,
     };
     use crate::state::order_state::{OrderFillerRewardStructure, OrderState};
+    use crate::state::user::OrderType;
 
     use super::*;
 
@@ -361,7 +366,12 @@ pub mod clearing_house {
     }
 
     pub fn deposit_collateral(ctx: Context<DepositCollateral>, amount: u64) -> Result<()> {
-        let user = &mut ctx.accounts.user;
+        let user_key = ctx.accounts.user.key();
+        let user = &mut ctx
+            .accounts
+            .user
+            .load_mut()
+            .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
 
@@ -381,7 +391,6 @@ pub mod clearing_house {
             .checked_add(cast(amount)?)
             .ok_or_else(math_error!())?;
 
-        let user_positions = &mut ctx.accounts.user_positions.load_mut()?;
         let market_map = MarketMap::load(
             &WritableMarkets::new(),
             &MarketOracles::new(),
@@ -391,7 +400,7 @@ pub mod clearing_house {
         let funding_payment_history = &mut ctx.accounts.funding_payment_history.load_mut()?;
         controller::funding::settle_funding_payment(
             user,
-            user_positions,
+            &user_key,
             &market_map,
             funding_payment_history,
             now,
@@ -411,7 +420,7 @@ pub mod clearing_house {
             ts: now,
             record_id,
             user_authority: user.authority,
-            user: user.to_account_info().key(),
+            user: user_key,
             direction: DepositDirection::DEPOSIT,
             collateral_before,
             cumulative_deposits_before,
@@ -431,14 +440,14 @@ pub mod clearing_house {
         exchange_not_paused(&ctx.accounts.state)
     )]
     pub fn withdraw_collateral(ctx: Context<WithdrawCollateral>, amount: u64) -> Result<()> {
-        let user = &mut ctx.accounts.user;
+        let user_key = ctx.accounts.user.key();
+        let user = &mut load_mut(&ctx.accounts.user)?;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
 
         let collateral_before = user.collateral;
         let cumulative_deposits_before = user.cumulative_deposits;
 
-        let user_positions = &mut ctx.accounts.user_positions.load_mut()?;
         let market_map = MarketMap::load(
             &WritableMarkets::new(),
             &MarketOracles::new(),
@@ -448,7 +457,7 @@ pub mod clearing_house {
         let funding_payment_history = &mut ctx.accounts.funding_payment_history.load_mut()?;
         controller::funding::settle_funding_payment(
             user,
-            user_positions,
+            &user_key,
             &market_map,
             funding_payment_history,
             now,
@@ -482,7 +491,7 @@ pub mod clearing_house {
             .checked_sub(cast(insurance_account_withdrawal)?)
             .ok_or_else(math_error!())?;
 
-        if !meets_initial_margin_requirement(user, user_positions, &market_map)? {
+        if !meets_initial_margin_requirement(user, &market_map)? {
             return Err(ErrorCode::InsufficientCollateral.into());
         }
 
@@ -512,7 +521,7 @@ pub mod clearing_house {
             ts: now,
             record_id,
             user_authority: user.authority,
-            user: user.to_account_info().key(),
+            user: user_key,
             direction: DepositDirection::WITHDRAW,
             collateral_before,
             cumulative_deposits_before,
@@ -534,7 +543,8 @@ pub mod clearing_house {
         limit_price: u128,
         optional_accounts: ManagePositionOptionalAccounts,
     ) -> Result<()> {
-        let user = &mut ctx.accounts.user;
+        let user_key = ctx.accounts.user.key();
+        let user = &mut load_mut(&ctx.accounts.user)?;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
         let clock_slot = clock.slot;
@@ -551,20 +561,18 @@ pub mod clearing_house {
         }
 
         // Settle user's funding payments so that collateral is up to date
-        let user_positions = &mut ctx.accounts.user_positions.load_mut()?;
         let funding_payment_history = &mut ctx.accounts.funding_payment_history.load_mut()?;
         controller::funding::settle_funding_payment(
             user,
-            user_positions,
+            &user_key,
             &market_map,
             funding_payment_history,
             now,
         )?;
 
         // Get existing position or add a new position for market
-        let position_index = get_position_index(user_positions, market_index)
-            .or_else(|_| add_new_position(user_positions, market_index))?;
-        let market_position = &mut user_positions.positions[position_index];
+        let position_index = get_position_index(&user.positions, market_index)
+            .or_else(|_| add_new_position(&mut user.positions, market_index))?;
 
         // Collect data about position/market before trade is executed so that it can be stored in trade history
         let mark_price_before: u128;
@@ -618,7 +626,7 @@ pub mod clearing_house {
                 direction,
                 market,
                 user,
-                market_position,
+                position_index,
                 mark_price_before,
                 now,
             )?;
@@ -648,8 +656,7 @@ pub mod clearing_house {
         }
 
         // Trade fails if it's risk increasing and it brings the user below the initial margin ratio level
-        let meets_initial_margin_requirement =
-            meets_initial_margin_requirement(user, user_positions, &market_map)?;
+        let meets_initial_margin_requirement = meets_initial_margin_requirement(user, &market_map)?;
         if !meets_initial_margin_requirement && potentially_risk_increasing {
             return Err(ErrorCode::InsufficientCollateral.into());
         }
@@ -659,7 +666,7 @@ pub mod clearing_house {
             optional_accounts,
             remaining_accounts_iter,
             &ctx.accounts.state.discount_mint,
-            &user.key(),
+            &user_key,
             &ctx.accounts.authority.key(),
         )?;
         let (user_fee, fee_to_market, token_discount, referrer_reward, referee_discount) =
@@ -704,13 +711,12 @@ pub mod clearing_house {
             .ok_or_else(math_error!())?;
 
         // Update the referrer's collateral with their reward
-        if referrer.is_some() {
-            let mut referrer = referrer.unwrap();
+        if let Some(referrer) = referrer {
+            let referrer = &mut load_mut(&referrer)?;
             referrer.total_referral_reward = referrer
                 .total_referral_reward
                 .checked_add(referrer_reward)
                 .ok_or_else(math_error!())?;
-            referrer.exit(ctx.program_id)?;
         }
 
         // Trade fails if the trade is risk increasing and it pushes to mark price too far
@@ -749,7 +755,7 @@ pub mod clearing_house {
             ts: now,
             record_id,
             user_authority: *ctx.accounts.authority.to_account_info().key,
-            user: *user.to_account_info().key,
+            user: user_key,
             direction,
             base_asset_amount,
             quote_asset_amount,
@@ -805,7 +811,8 @@ pub mod clearing_house {
         market_index: u64,
         optional_accounts: ManagePositionOptionalAccounts,
     ) -> Result<()> {
-        let user = &mut ctx.accounts.user;
+        let user_key = ctx.accounts.user.key();
+        let user = &mut load_mut(&ctx.accounts.user)?;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
         let clock_slot = clock.slot;
@@ -818,18 +825,16 @@ pub mod clearing_house {
         )?;
 
         // Settle user's funding payments so that collateral is up to date
-        let user_positions = &mut ctx.accounts.user_positions.load_mut()?;
         let funding_payment_history = &mut ctx.accounts.funding_payment_history.load_mut()?;
         controller::funding::settle_funding_payment(
             user,
-            user_positions,
+            &user_key,
             &market_map,
             funding_payment_history,
             now,
         )?;
 
-        let position_index = get_position_index(user_positions, market_index)?;
-        let market_position = &mut user_positions.positions[position_index];
+        let position_index = get_position_index(&user.positions, market_index)?;
 
         let market = &mut market_map.get_ref_mut(&market_index)?;
 
@@ -843,26 +848,28 @@ pub mod clearing_house {
             oracle_price_data,
             Some(mark_price_before),
         )?;
+
+        let existing_base_asset_amount = user.positions[position_index].base_asset_amount;
         let direction_to_close =
-            math::position::direction_to_close_position(market_position.base_asset_amount);
-        let (quote_asset_amount, base_asset_amount, quote_asset_amount_surplus) =
+            math::position::direction_to_close_position(existing_base_asset_amount);
+        let (quote_asset_amount, base_asset_amount, quote_asset_amount_surplus, pnl) =
             controller::position::close(
-                user,
                 market,
-                market_position,
+                &mut user.positions[position_index],
                 now,
                 None,
                 Some(mark_price_before),
                 true,
             )?;
         let base_asset_amount = base_asset_amount.unsigned_abs();
+        user.collateral = calculate_updated_collateral(user.collateral, pnl)?;
 
         // Calculate the fee to charge the user
         let (discount_token, referrer) = optional_accounts::get_discount_token_and_referrer(
             optional_accounts,
             remaining_accounts_iter,
             &ctx.accounts.state.discount_mint,
-            &user.key(),
+            &user_key,
             &ctx.accounts.authority.key(),
         )?;
         let (user_fee, fee_to_market, token_discount, referrer_reward, referee_discount) =
@@ -904,13 +911,12 @@ pub mod clearing_house {
             .ok_or_else(math_error!())?;
 
         // Update the referrer's collateral with their reward
-        if referrer.is_some() {
-            let mut referrer = referrer.unwrap();
+        if let Some(referrer) = referrer {
+            let referrer = &mut load_mut(&referrer)?;
             referrer.total_referral_reward = referrer
                 .total_referral_reward
                 .checked_add(referrer_reward)
                 .ok_or_else(math_error!())?;
-            referrer.exit(ctx.program_id)?;
         }
 
         // Collect data about market after trade is executed so that it can be stored in trade history
@@ -960,7 +966,7 @@ pub mod clearing_house {
             ts: now,
             record_id,
             user_authority: *ctx.accounts.authority.to_account_info().key,
-            user: *user.to_account_info().key,
+            user: user_key,
             direction: direction_to_close,
             base_asset_amount,
             quote_asset_amount,
@@ -1028,10 +1034,8 @@ pub mod clearing_house {
         controller::orders::place_order(
             &ctx.accounts.state,
             &ctx.accounts.order_state,
-            &mut ctx.accounts.user,
-            &ctx.accounts.user_positions,
+            &ctx.accounts.user,
             &market_map,
-            &ctx.accounts.user_orders,
             &ctx.accounts.funding_payment_history,
             &ctx.accounts.order_history,
             discount_token,
@@ -1046,18 +1050,13 @@ pub mod clearing_house {
 
     pub fn cancel_order(ctx: Context<CancelOrder>, order_id: u128) -> Result<()> {
         let market_oracles = {
-            let user_orders = &ctx
-                .accounts
-                .user_orders
-                .load()
-                .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
-
-            let order_index = user_orders
+            let user = &load(&ctx.accounts.user)?;
+            let order_index = user
                 .orders
                 .iter()
                 .position(|order| order.order_id == order_id)
                 .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
-            let order = &user_orders.orders[order_index];
+            let order = &user.orders[order_index];
 
             &get_market_oracles(order.market_index, &ctx.accounts.oracle)
         };
@@ -1074,10 +1073,8 @@ pub mod clearing_house {
         controller::orders::cancel_order_by_order_id(
             &ctx.accounts.state,
             order_id,
-            &mut ctx.accounts.user,
-            &ctx.accounts.user_positions,
+            &ctx.accounts.user,
             &market_map,
-            &ctx.accounts.user_orders,
             &ctx.accounts.funding_payment_history,
             &ctx.accounts.order_history,
             &Clock::get()?,
@@ -1089,18 +1086,14 @@ pub mod clearing_house {
 
     pub fn cancel_order_by_user_id(ctx: Context<CancelOrder>, user_order_id: u8) -> Result<()> {
         let market_oracles = {
-            let user_orders = &ctx
-                .accounts
-                .user_orders
-                .load()
-                .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
+            let user = &load(&ctx.accounts.user)?;
 
-            let order_index = user_orders
+            let order_index = user
                 .orders
                 .iter()
                 .position(|order| order.user_order_id == user_order_id)
                 .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
-            let order = &user_orders.orders[order_index];
+            let order = &user.orders[order_index];
 
             &get_market_oracles(order.market_index, &ctx.accounts.oracle)
         };
@@ -1115,10 +1108,8 @@ pub mod clearing_house {
         controller::orders::cancel_order_by_user_order_id(
             &ctx.accounts.state,
             user_order_id,
-            &mut ctx.accounts.user,
-            &ctx.accounts.user_positions,
+            &ctx.accounts.user,
             &market_map,
-            &ctx.accounts.user_orders,
             &ctx.accounts.funding_payment_history,
             &ctx.accounts.order_history,
             &Clock::get()?,
@@ -1137,10 +1128,8 @@ pub mod clearing_house {
 
         controller::orders::cancel_all_orders(
             &ctx.accounts.state,
-            &mut ctx.accounts.user,
-            &ctx.accounts.user_positions,
+            &ctx.accounts.user,
             &market_map,
-            &ctx.accounts.user_orders,
             &ctx.accounts.funding_payment_history,
             &ctx.accounts.order_history,
             &Clock::get()?,
@@ -1167,10 +1156,8 @@ pub mod clearing_house {
 
         controller::orders::cancel_all_orders(
             &ctx.accounts.state,
-            &mut ctx.accounts.user,
-            &ctx.accounts.user_positions,
+            &ctx.accounts.user,
             &market_map,
-            &ctx.accounts.user_orders,
             &ctx.accounts.funding_payment_history,
             &ctx.accounts.order_history,
             &Clock::get()?,
@@ -1185,10 +1172,8 @@ pub mod clearing_house {
 
     pub fn expire_orders(ctx: Context<ExpireOrder>) -> Result<()> {
         controller::orders::expire_orders(
-            &mut ctx.accounts.user,
-            &ctx.accounts.user_positions,
-            &ctx.accounts.user_orders,
-            &mut ctx.accounts.filler,
+            &ctx.accounts.user,
+            &ctx.accounts.filler,
             &ctx.accounts.order_history,
             &Clock::get()?,
         )?;
@@ -1200,18 +1185,13 @@ pub mod clearing_house {
     )]
     pub fn fill_order<'info>(ctx: Context<FillOrder>, order_id: u128) -> Result<()> {
         let (writable_markets, market_oracles) = {
-            let user_orders = &ctx
-                .accounts
-                .user_orders
-                .load()
-                .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
-
-            let order_index = user_orders
+            let user = &load(&ctx.accounts.user)?;
+            let order_index = user
                 .orders
                 .iter()
                 .position(|order| order.order_id == order_id)
                 .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
-            let order = &user_orders.orders[order_index];
+            let order = &user.orders[order_index];
 
             (
                 &get_writable_markets(order.market_index),
@@ -1227,19 +1207,17 @@ pub mod clearing_house {
             remaining_accounts_iter,
             &ctx.accounts.user.key(),
             order_id,
-            &ctx.accounts.user_orders,
+            &ctx.accounts.user,
         )?;
 
         let base_asset_amount = controller::orders::fill_order(
             order_id,
             &ctx.accounts.state,
             &ctx.accounts.order_state,
-            &mut ctx.accounts.user,
-            &ctx.accounts.user_positions,
+            &ctx.accounts.user,
             &market_map,
             &ctx.accounts.oracle,
-            &ctx.accounts.user_orders,
-            &mut ctx.accounts.filler,
+            &ctx.accounts.filler,
             &ctx.accounts.funding_payment_history,
             &ctx.accounts.trade_history,
             &ctx.accounts.order_history,
@@ -1287,10 +1265,8 @@ pub mod clearing_house {
         controller::orders::place_order(
             &ctx.accounts.state,
             &ctx.accounts.order_state,
-            &mut ctx.accounts.user,
-            &ctx.accounts.user_positions,
+            &ctx.accounts.user,
             &market_map,
-            &ctx.accounts.user_orders,
             &ctx.accounts.funding_payment_history,
             &ctx.accounts.order_history,
             discount_token,
@@ -1312,11 +1288,9 @@ pub mod clearing_house {
             &ctx.accounts.state,
             &ctx.accounts.order_state,
             user,
-            &ctx.accounts.user_positions,
             &market_map,
             &ctx.accounts.oracle,
-            &ctx.accounts.user_orders,
-            &mut user.clone(),
+            &user.clone(),
             &ctx.accounts.funding_payment_history,
             &ctx.accounts.trade_history,
             &ctx.accounts.order_history,
@@ -1329,10 +1303,8 @@ pub mod clearing_house {
             controller::orders::cancel_order_by_order_id(
                 &ctx.accounts.state,
                 order_id,
-                &mut ctx.accounts.user,
-                &ctx.accounts.user_positions,
+                &ctx.accounts.user,
                 &market_map,
-                &ctx.accounts.user_orders,
                 &ctx.accounts.funding_payment_history,
                 &ctx.accounts.order_history,
                 &Clock::get()?,
@@ -1348,16 +1320,16 @@ pub mod clearing_house {
     )]
     pub fn liquidate(ctx: Context<Liquidate>) -> Result<()> {
         let state = &ctx.accounts.state;
-        let user = &mut ctx.accounts.user;
+        let user_key = ctx.accounts.user.key();
+        let user = &mut load_mut(&ctx.accounts.user)?;
         let trade_history = &mut ctx.accounts.trade_history.load_mut()?;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
         let clock_slot = clock.slot;
 
-        let user_positions = &mut ctx.accounts.user_positions.load_mut()?;
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let market_map = MarketMap::load(
-            &get_writable_markets_for_user_positions(user_positions),
+            &get_writable_markets_for_user_positions(&user.positions),
             &MarketOracles::new(), // oracles validated in calculate liquidation status
             remaining_accounts_iter,
         )?;
@@ -1366,7 +1338,7 @@ pub mod clearing_house {
         let funding_payment_history = &mut ctx.accounts.funding_payment_history.load_mut()?;
         controller::funding::settle_funding_payment(
             user,
-            user_positions,
+            &user_key,
             &market_map,
             funding_payment_history,
             now,
@@ -1383,7 +1355,6 @@ pub mod clearing_house {
             margin_ratio,
         } = calculate_liquidation_status(
             user,
-            user_positions,
             &market_map,
             remaining_accounts_iter,
             &ctx.accounts.state.oracle_guard_rails,
@@ -1441,18 +1412,16 @@ pub mod clearing_house {
                     }
                 }
 
-                let market_position = &mut user_positions
-                    .positions
-                    .iter_mut()
-                    .find(|position| position.market_index == market_status.market_index)
-                    .unwrap();
+                let position_index =
+                    get_position_index(&user.positions, market_status.market_index)?;
+                let existing_base_asset_amount = user.positions[position_index].base_asset_amount;
 
                 let mark_price_before_i128 = cast_to_i128(mark_price_before)?;
                 let close_position_slippage = match market_status.close_position_slippage {
                     Some(close_position_slippage) => close_position_slippage,
                     None => calculate_slippage(
                         market_status.base_asset_value,
-                        market_position.base_asset_amount.unsigned_abs(),
+                        existing_base_asset_amount.unsigned_abs(),
                         mark_price_before_i128,
                     )?,
                 };
@@ -1493,7 +1462,7 @@ pub mod clearing_house {
                     if oracle_status.oracle_mark_spread_pct.unsigned_abs()
                         < oracle_mark_divergence_after_close.unsigned_abs()
                     {
-                        let market_index = market_position.market_index;
+                        let market_index = market_status.market_index;
                         msg!(
                             "oracle_mark_divergence_after_close {} for market {}",
                             oracle_mark_divergence_after_close,
@@ -1504,10 +1473,10 @@ pub mod clearing_house {
                 }
 
                 let direction_to_close =
-                    math::position::direction_to_close_position(market_position.base_asset_amount);
+                    math::position::direction_to_close_position(existing_base_asset_amount);
 
                 // just reduce position if position is too big
-                let (quote_asset_amount, base_asset_amount) = if close_slippage_pct_too_large {
+                let (quote_asset_amount, base_asset_amount, pnl) = if close_slippage_pct_too_large {
                     let quote_asset_amount = market_status
                         .base_asset_value
                         .checked_mul(MAX_LIQUIDATION_SLIPPAGE_U128)
@@ -1515,31 +1484,31 @@ pub mod clearing_house {
                         .checked_div(close_position_slippage_pct.unsigned_abs())
                         .ok_or_else(math_error!())?;
 
-                    let (base_asset_amount, _) = controller::position::reduce(
+                    let (base_asset_amount, _, pnl) = controller::position::reduce(
                         direction_to_close,
                         quote_asset_amount,
-                        user,
                         market,
-                        market_position,
+                        &mut user.positions[position_index],
                         now,
                         Some(mark_price_before),
                         false,
                     )?;
 
-                    (quote_asset_amount, base_asset_amount)
+                    (quote_asset_amount, base_asset_amount, pnl)
                 } else {
-                    let (quote_asset_amount, base_asset_amount, _) = controller::position::close(
-                        user,
-                        market,
-                        market_position,
-                        now,
-                        None,
-                        Some(mark_price_before),
-                        false,
-                    )?;
-
-                    (quote_asset_amount, base_asset_amount)
+                    let (quote_asset_amount, base_asset_amount, _, pnl) =
+                        controller::position::close(
+                            market,
+                            &mut user.positions[position_index],
+                            now,
+                            None,
+                            Some(mark_price_before),
+                            false,
+                        )?;
+                    (quote_asset_amount, base_asset_amount, pnl)
                 };
+
+                user.collateral = calculate_updated_collateral(user.collateral, pnl)?;
 
                 let base_asset_amount = base_asset_amount.unsigned_abs();
                 base_asset_value_closed = base_asset_value_closed
@@ -1552,7 +1521,7 @@ pub mod clearing_house {
                     ts: now,
                     record_id,
                     user_authority: user.authority,
-                    user: *user.to_account_info().key,
+                    user: user_key,
                     direction: direction_to_close,
                     base_asset_amount,
                     quote_asset_amount,
@@ -1563,7 +1532,7 @@ pub mod clearing_house {
                     quote_asset_amount_surplus: 0,
                     referee_discount: 0,
                     liquidation: true,
-                    market_index: market_position.market_index,
+                    market_index: market_status.market_index,
                     oracle_price: market_status.oracle_status.price_data.price,
                 });
 
@@ -1635,11 +1604,9 @@ pub mod clearing_house {
                     }
                 }
 
-                let market_position = &mut user_positions
-                    .positions
-                    .iter_mut()
-                    .find(|position| position.market_index == market_status.market_index)
-                    .unwrap();
+                let position_index =
+                    get_position_index(&user.positions, market_status.market_index)?;
+                let existing_base_asset_amount = user.positions[position_index].base_asset_amount;
 
                 let mut quote_asset_amount = market_status
                     .base_asset_value
@@ -1653,7 +1620,7 @@ pub mod clearing_house {
                     Some(close_position_slippage) => close_position_slippage.div(4),
                     None => calculate_slippage(
                         market_status.base_asset_value,
-                        market_position.base_asset_amount.unsigned_abs(),
+                        existing_base_asset_amount.unsigned_abs(),
                         mark_price_before_i128,
                     )?
                     .div(4),
@@ -1662,14 +1629,16 @@ pub mod clearing_house {
                 let reduce_position_slippage_pct =
                     calculate_slippage_pct(reduce_position_slippage, mark_price_before_i128)?;
 
-                msg!(
-                    "reduce_position_slippage_pct {}",
-                    reduce_position_slippage_pct
-                );
-
                 let reduce_slippage_pct_too_large = reduce_position_slippage_pct
                     > MAX_LIQUIDATION_SLIPPAGE
                     || reduce_position_slippage_pct < -MAX_LIQUIDATION_SLIPPAGE;
+
+                if reduce_slippage_pct_too_large {
+                    msg!(
+                        "reduce_position_slippage_pct {}",
+                        reduce_position_slippage_pct
+                    );
+                }
 
                 let oracle_mark_divergence_after_reduce = if !reduce_slippage_pct_too_large {
                     oracle_status
@@ -1722,18 +1691,18 @@ pub mod clearing_house {
                     .ok_or_else(math_error!())?;
 
                 let direction_to_reduce =
-                    math::position::direction_to_close_position(market_position.base_asset_amount);
+                    math::position::direction_to_close_position(existing_base_asset_amount);
 
-                let (base_asset_amount, _) = controller::position::reduce(
+                let (base_asset_amount, _, pnl) = controller::position::reduce(
                     direction_to_reduce,
                     quote_asset_amount,
-                    user,
                     market,
-                    market_position,
+                    &mut user.positions[position_index],
                     now,
                     Some(mark_price_before),
                     false,
                 )?;
+                user.collateral = calculate_updated_collateral(collateral, pnl)?;
                 let base_asset_amount = base_asset_amount.unsigned_abs();
 
                 let mark_price_after = market.amm.mark_price()?;
@@ -1743,7 +1712,7 @@ pub mod clearing_house {
                     ts: now,
                     record_id,
                     user_authority: user.authority,
-                    user: *user.to_account_info().key,
+                    user: user_key,
                     direction: direction_to_reduce,
                     base_asset_amount,
                     quote_asset_amount,
@@ -1754,7 +1723,7 @@ pub mod clearing_house {
                     quote_asset_amount_surplus: 0,
                     referee_discount: 0,
                     liquidation: true,
-                    market_index: market_position.market_index,
+                    market_index: market_status.market_index,
                     oracle_price: market_status.oracle_status.price_data.price,
                 });
 
@@ -1818,12 +1787,21 @@ pub mod clearing_house {
             .checked_sub(fee_to_liquidator)
             .ok_or_else(math_error!())?;
 
+        let liquidate_key = ctx.accounts.liquidator.key();
         if fee_to_liquidator > 0 {
-            let liquidator = &mut ctx.accounts.liquidator;
-            liquidator.collateral = liquidator
-                .collateral
-                .checked_add(cast(fee_to_liquidator)?)
-                .ok_or_else(math_error!())?;
+            // handle edge case where user liquidates themselves
+            if liquidate_key.eq(&user_key) {
+                user.collateral = user
+                    .collateral
+                    .checked_add(cast(fee_to_liquidator)?)
+                    .ok_or_else(math_error!())?;
+            } else {
+                let liquidator = &mut load_mut(&ctx.accounts.liquidator)?;
+                liquidator.collateral = liquidator
+                    .collateral
+                    .checked_add(cast(fee_to_liquidator)?)
+                    .ok_or_else(math_error!())?;
+            };
         }
 
         if fee_to_insurance_fund > 0 {
@@ -1843,7 +1821,7 @@ pub mod clearing_house {
         liquidation_history.append(LiquidationRecord {
             ts: now,
             record_id,
-            user: user.to_account_info().key(),
+            user: user_key,
             user_authority: user.authority,
             partial: !is_full_liquidation,
             base_asset_value,
@@ -1851,7 +1829,7 @@ pub mod clearing_house {
             liquidation_fee,
             fee_to_liquidator,
             fee_to_insurance_fund,
-            liquidator: ctx.accounts.liquidator.to_account_info().key(),
+            liquidator: ctx.accounts.liquidator.as_ref().key(),
             total_collateral,
             collateral,
             unrealized_pnl,
@@ -2102,51 +2080,13 @@ pub mod clearing_house {
         Ok(())
     }
 
-    pub fn initialize_user(
-        ctx: Context<InitializeUser>,
-        _user_nonce: u8,
-        optional_accounts: InitializeUserOptionalAccounts,
-    ) -> Result<()> {
-        user_initialization::initialize(
-            &ctx.accounts.state,
-            &mut ctx.accounts.user,
-            &ctx.accounts.user_positions,
-            &ctx.accounts.authority,
-            ctx.remaining_accounts,
-            optional_accounts,
-        )
-    }
-
-    pub fn initialize_user_with_explicit_payer(
-        ctx: Context<InitializeUserWithExplicitPayer>,
-        _user_nonce: u8,
-        optional_accounts: InitializeUserOptionalAccounts,
-    ) -> Result<()> {
-        user_initialization::initialize(
-            &ctx.accounts.state,
-            &mut ctx.accounts.user,
-            &ctx.accounts.user_positions,
-            &ctx.accounts.authority,
-            ctx.remaining_accounts,
-            optional_accounts,
-        )
-    }
-
-    pub fn initialize_user_orders(
-        ctx: Context<InitializeUserOrders>,
-        _user_orders_nonce: u8,
-    ) -> Result<()> {
-        let orders = &mut ctx.accounts.user_orders.load_init()?;
-        orders.user = ctx.accounts.user.key();
-        Ok(())
-    }
-
-    pub fn initialize_user_orders_with_explicit_payer(
-        ctx: Context<InitializeUserOrdersWithExplicitPayer>,
-        _user_orders_nonce: u8,
-    ) -> Result<()> {
-        let orders = &mut ctx.accounts.user_orders.load_init()?;
-        orders.user = ctx.accounts.user.key();
+    pub fn initialize_user(ctx: Context<InitializeUser>) -> Result<()> {
+        let mut user = ctx
+            .accounts
+            .user
+            .load_init()
+            .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
+        user.authority = ctx.accounts.authority.key();
         Ok(())
     }
 
@@ -2164,9 +2104,11 @@ pub mod clearing_house {
             remaining_accounts_iter,
         )?;
 
+        let user_key = ctx.accounts.user.key();
+        let user = &mut load_mut(&ctx.accounts.user)?;
         controller::funding::settle_funding_payment(
-            &mut ctx.accounts.user,
-            &mut ctx.accounts.user_positions.load_mut()?,
+            user,
+            &user_key,
             &market_map,
             &mut ctx.accounts.funding_payment_history.load_mut()?,
             now,

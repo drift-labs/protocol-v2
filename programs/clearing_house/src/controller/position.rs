@@ -12,9 +12,9 @@ use crate::math::pnl::calculate_pnl;
 use crate::math::position::calculate_base_asset_value_and_pnl;
 use crate::math_error;
 use crate::state::market::Market;
-use crate::{MarketPosition, User, UserPositions};
+use crate::state::user::{User, UserPositions};
+use crate::MarketPosition;
 use solana_program::msg;
-use std::cell::RefMut;
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq)]
 pub enum PositionDirection {
@@ -30,11 +30,10 @@ impl Default for PositionDirection {
 }
 
 pub fn add_new_position(
-    user_positions: &mut RefMut<UserPositions>,
+    user_positions: &mut UserPositions,
     market_index: u64,
 ) -> ClearingHouseResult<usize> {
     let new_position_index = user_positions
-        .positions
         .iter()
         .position(|market_position| market_position.is_available())
         .ok_or(ErrorCode::MaxNumberOfPositions)?;
@@ -56,18 +55,17 @@ pub fn add_new_position(
         padding6: 0,
     };
 
-    user_positions.positions[new_position_index] = new_market_position;
+    user_positions[new_position_index] = new_market_position;
 
     Ok(new_position_index)
 }
 
 pub fn get_position_index(
-    user_positions: &mut RefMut<UserPositions>,
+    user_positions: &UserPositions,
     market_index: u64,
 ) -> ClearingHouseResult<usize> {
     let position_index = user_positions
-        .positions
-        .iter_mut()
+        .iter()
         .position(|market_position| market_position.is_for(market_index));
 
     match position_index {
@@ -232,13 +230,12 @@ pub fn increase_with_base_asset_amount(
 pub fn reduce(
     direction: PositionDirection,
     quote_asset_swap_amount: u128,
-    user: &mut User,
     market: &mut Market,
     market_position: &mut MarketPosition,
     now: i64,
     precomputed_mark_price: Option<u128>,
     use_spread: bool,
-) -> ClearingHouseResult<(i128, u128)> {
+) -> ClearingHouseResult<(i128, u128, i128)> {
     let swap_direction = match direction {
         PositionDirection::Long => SwapDirection::Add,
         PositionDirection::Short => SwapDirection::Remove,
@@ -307,21 +304,18 @@ pub fn reduce(
             .ok_or_else(math_error!())?
     };
 
-    user.collateral = calculate_updated_collateral(user.collateral, pnl)?;
-
-    Ok((base_asset_swapped, quote_asset_amount_surplus))
+    Ok((base_asset_swapped, quote_asset_amount_surplus, pnl))
 }
 
 pub fn reduce_with_base_asset_amount(
     direction: PositionDirection,
     base_asset_amount: u128,
-    user: &mut User,
     market: &mut Market,
     market_position: &mut MarketPosition,
     now: i64,
     maker_limit_price: Option<u128>,
     precomputed_mark_price: Option<u128>,
-) -> ClearingHouseResult<(u128, u128)> {
+) -> ClearingHouseResult<(u128, u128, i128)> {
     let swap_direction = match direction {
         PositionDirection::Long => SwapDirection::Remove,
         PositionDirection::Short => SwapDirection::Add,
@@ -405,23 +399,20 @@ pub fn reduce_with_base_asset_amount(
             .ok_or_else(math_error!())?
     };
 
-    user.collateral = calculate_updated_collateral(user.collateral, pnl)?;
-
-    Ok((quote_asset_amount, quote_asset_amount_surplus))
+    Ok((quote_asset_amount, quote_asset_amount_surplus, pnl))
 }
 
 pub fn close(
-    user: &mut User,
     market: &mut Market,
     market_position: &mut MarketPosition,
     now: i64,
     maker_limit_price: Option<u128>,
     precomputed_mark_price: Option<u128>,
     use_spread: bool,
-) -> ClearingHouseResult<(u128, i128, u128)> {
+) -> ClearingHouseResult<(u128, i128, u128, i128)> {
     // If user has no base asset, return early
     if market_position.base_asset_amount == 0 {
-        return Ok((0, 0, 0));
+        return Ok((0, 0, 0, 0));
     }
 
     let swap_direction = if market_position.base_asset_amount > 0 {
@@ -455,7 +446,6 @@ pub fn close(
         swap_direction,
     )?;
 
-    user.collateral = calculate_updated_collateral(user.collateral, pnl)?;
     market_position.last_cumulative_funding_rate = 0;
     market_position.last_funding_rate_ts = 0;
 
@@ -490,6 +480,7 @@ pub fn close(
         quote_asset_amount,
         base_asset_amount,
         quote_asset_amount_surplus,
+        pnl,
     ))
 }
 
@@ -498,7 +489,7 @@ pub fn update_position_with_base_asset_amount(
     direction: PositionDirection,
     market: &mut Market,
     user: &mut User,
-    market_position: &mut MarketPosition,
+    position_index: usize,
     mark_price_before: u128,
     now: i64,
     maker_limit_price: Option<u128>,
@@ -516,52 +507,55 @@ pub fn update_position_with_base_asset_amount(
     // 2) the trade is in the same direction as the user's existing position
     let quote_asset_amount;
     let quote_asset_amount_surplus;
-    let increase_position = market_position.base_asset_amount == 0
-        || market_position.base_asset_amount > 0 && direction == PositionDirection::Long
-        || market_position.base_asset_amount < 0 && direction == PositionDirection::Short;
+    let pnl;
+    let existing_base_asset_amount = user.positions[position_index].base_asset_amount;
+    let increase_position = existing_base_asset_amount == 0
+        || existing_base_asset_amount > 0 && direction == PositionDirection::Long
+        || existing_base_asset_amount < 0 && direction == PositionDirection::Short;
     if increase_position {
         let (_quote_asset_amount, _quote_asset_amount_surplus) = increase_with_base_asset_amount(
             direction,
             base_asset_amount,
             market,
-            market_position,
+            &mut user.positions[position_index],
             now,
             maker_limit_price,
             Some(mark_price_before),
         )?;
         quote_asset_amount = _quote_asset_amount;
         quote_asset_amount_surplus = _quote_asset_amount_surplus;
-    } else if market_position.base_asset_amount.unsigned_abs() > base_asset_amount {
-        let (_quote_asset_amount, _quote_asset_amount_surplus) = reduce_with_base_asset_amount(
-            direction,
-            base_asset_amount,
-            user,
-            market,
-            market_position,
-            now,
-            maker_limit_price,
-            Some(mark_price_before),
-        )?;
+        pnl = 0_i128;
+    } else if existing_base_asset_amount.unsigned_abs() > base_asset_amount {
+        let (_quote_asset_amount, _quote_asset_amount_surplus, _pnl) =
+            reduce_with_base_asset_amount(
+                direction,
+                base_asset_amount,
+                market,
+                &mut user.positions[position_index],
+                now,
+                maker_limit_price,
+                Some(mark_price_before),
+            )?;
         quote_asset_amount = _quote_asset_amount;
         quote_asset_amount_surplus = _quote_asset_amount_surplus;
+        pnl = _pnl;
 
         reduce_only = true;
         potentially_risk_increasing = false;
     } else {
         // after closing existing position, how large should trade be in opposite direction
         let base_asset_amount_after_close = base_asset_amount
-            .checked_sub(market_position.base_asset_amount.unsigned_abs())
+            .checked_sub(existing_base_asset_amount.unsigned_abs())
             .ok_or_else(math_error!())?;
 
         // If the value of the new position is less than value of the old position, consider it risk decreasing
-        if base_asset_amount_after_close < market_position.base_asset_amount.unsigned_abs() {
+        if base_asset_amount_after_close < existing_base_asset_amount.unsigned_abs() {
             potentially_risk_increasing = false;
         }
 
-        let (quote_asset_amount_closed, _, quote_asset_amount_surplus_closed) = close(
-            user,
+        let (quote_asset_amount_closed, _, quote_asset_amount_surplus_closed, _pnl) = close(
             market,
-            market_position,
+            &mut user.positions[position_index],
             now,
             maker_limit_price,
             None,
@@ -573,7 +567,7 @@ pub fn update_position_with_base_asset_amount(
                 direction,
                 base_asset_amount_after_close,
                 market,
-                market_position,
+                &mut user.positions[position_index],
                 now,
                 maker_limit_price,
                 Some(mark_price_before),
@@ -591,7 +585,11 @@ pub fn update_position_with_base_asset_amount(
         quote_asset_amount_surplus = quote_asset_amount_surplus_closed
             .checked_add(quote_asset_amount_surplus_opened)
             .ok_or_else(math_error!())?;
+
+        pnl = _pnl;
     }
+
+    user.collateral = calculate_updated_collateral(user.collateral, pnl)?;
 
     Ok((
         potentially_risk_increasing,
@@ -607,7 +605,7 @@ pub fn update_position_with_quote_asset_amount(
     direction: PositionDirection,
     market: &mut Market,
     user: &mut User,
-    market_position: &mut MarketPosition,
+    position_index: usize,
     mark_price_before: u128,
     now: i64,
 ) -> ClearingHouseResult<(bool, bool, u128, u128, u128)> {
@@ -622,13 +620,16 @@ pub fn update_position_with_quote_asset_amount(
     let mut quote_asset_amount = quote_asset_amount;
     let base_asset_amount;
     let quote_asset_amount_surplus;
+    let pnl;
     // The trade increases the the user position if
     // 1) the user does not have a position
     // 2) the trade is in the same direction as the user's existing position
-    let increase_position = market_position.base_asset_amount == 0
-        || market_position.base_asset_amount > 0 && direction == PositionDirection::Long
-        || market_position.base_asset_amount < 0 && direction == PositionDirection::Short;
+    let existing_base_asset_amount = user.positions[position_index].base_asset_amount;
+    let increase_position = existing_base_asset_amount == 0
+        || existing_base_asset_amount > 0 && direction == PositionDirection::Long
+        || existing_base_asset_amount < 0 && direction == PositionDirection::Short;
     if increase_position {
+        let market_position = &mut user.positions[position_index];
         let (_base_asset_amount, _quote_asset_amount_surplus) = controller::position::increase(
             direction,
             quote_asset_amount,
@@ -639,7 +640,9 @@ pub fn update_position_with_quote_asset_amount(
         )?;
         base_asset_amount = _base_asset_amount.unsigned_abs();
         quote_asset_amount_surplus = _quote_asset_amount_surplus;
+        pnl = 0_i128;
     } else {
+        let market_position = &mut user.positions[position_index];
         let (base_asset_value, _unrealized_pnl) =
             calculate_base_asset_value_and_pnl(market_position, &market.amm)?;
 
@@ -652,19 +655,20 @@ pub fn update_position_with_quote_asset_amount(
         // we calculate what the user's position is worth if they closed to determine
         // if they are reducing or closing and reversing their position
         if base_asset_value > quote_asset_amount {
-            let (_base_asset_amount, _quote_asset_amount_surplus) = controller::position::reduce(
-                direction,
-                quote_asset_amount,
-                user,
-                market,
-                market_position,
-                now,
-                Some(mark_price_before),
-                true,
-            )?;
+            let (_base_asset_amount, _quote_asset_amount_surplus, _pnl) =
+                controller::position::reduce(
+                    direction,
+                    quote_asset_amount,
+                    market,
+                    market_position,
+                    now,
+                    Some(mark_price_before),
+                    true,
+                )?;
 
             base_asset_amount = _base_asset_amount.unsigned_abs();
             quote_asset_amount_surplus = _quote_asset_amount_surplus;
+            pnl = _pnl;
 
             potentially_risk_increasing = false;
             reduce_only = true;
@@ -679,9 +683,8 @@ pub fn update_position_with_quote_asset_amount(
                 potentially_risk_increasing = false;
             }
 
-            let (_, base_asset_amount_closed, quote_asset_amount_surplus_closed) =
+            let (_, base_asset_amount_closed, quote_asset_amount_surplus_closed, _pnl) =
                 controller::position::close(
-                    user,
                     market,
                     market_position,
                     now,
@@ -714,8 +717,12 @@ pub fn update_position_with_quote_asset_amount(
             quote_asset_amount_surplus = quote_asset_amount_surplus_closed
                 .checked_add(quote_asset_amount_surplus_opened)
                 .ok_or_else(math_error!())?;
+
+            pnl = _pnl;
         }
     }
+
+    user.collateral = calculate_updated_collateral(user.collateral, pnl)?;
 
     Ok((
         potentially_risk_increasing,

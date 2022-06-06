@@ -267,11 +267,6 @@
           "isSigner": false
         },
         {
-          "name": "userPositions",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
           "name": "fundingPaymentHistory",
           "isMut": true,
           "isSigner": false
@@ -338,11 +333,6 @@
           "isSigner": false
         },
         {
-          "name": "userPositions",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
           "name": "fundingPaymentHistory",
           "isMut": true,
           "isSigner": false
@@ -377,11 +367,6 @@
           "name": "authority",
           "isMut": false,
           "isSigner": true
-        },
-        {
-          "name": "userPositions",
-          "isMut": true,
-          "isSigner": false
         },
         {
           "name": "tradeHistory",
@@ -450,11 +435,6 @@
           "isSigner": true
         },
         {
-          "name": "userPositions",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
           "name": "tradeHistory",
           "isMut": true,
           "isSigner": false
@@ -503,23 +483,13 @@
         },
         {
           "name": "user",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
           "name": "authority",
           "isMut": false,
           "isSigner": true
-        },
-        {
-          "name": "userPositions",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "userOrders",
-          "isMut": true,
-          "isSigner": false
         },
         {
           "name": "oracle",
@@ -561,23 +531,13 @@
         },
         {
           "name": "user",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
           "name": "authority",
           "isMut": false,
           "isSigner": true
-        },
-        {
-          "name": "userPositions",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "userOrders",
-          "isMut": true,
-          "isSigner": false
         },
         {
           "name": "oracle",
@@ -617,23 +577,13 @@
         },
         {
           "name": "user",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
           "name": "authority",
           "isMut": false,
           "isSigner": true
-        },
-        {
-          "name": "userPositions",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "userOrders",
-          "isMut": true,
-          "isSigner": false
         },
         {
           "name": "oracle",
@@ -673,23 +623,13 @@
         },
         {
           "name": "user",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
           "name": "authority",
           "isMut": false,
           "isSigner": true
-        },
-        {
-          "name": "userPositions",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "userOrders",
-          "isMut": true,
-          "isSigner": false
         },
         {
           "name": "fundingPaymentHistory",
@@ -724,23 +664,13 @@
         },
         {
           "name": "user",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
           "name": "authority",
           "isMut": false,
           "isSigner": true
-        },
-        {
-          "name": "userPositions",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "userOrders",
-          "isMut": true,
-          "isSigner": false
         },
         {
           "name": "fundingPaymentHistory",
@@ -799,16 +729,6 @@
           "isSigner": false
         },
         {
-          "name": "userPositions",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "userOrders",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
           "name": "orderHistory",
           "isMut": true,
           "isSigner": false
@@ -841,16 +761,6 @@
         },
         {
           "name": "user",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "userPositions",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "userOrders",
           "isMut": true,
           "isSigner": false
         },
@@ -914,16 +824,6 @@
           "name": "authority",
           "isMut": false,
           "isSigner": true
-        },
-        {
-          "name": "userPositions",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "userOrders",
-          "isMut": true,
-          "isSigner": false
         },
         {
           "name": "fundingPaymentHistory",
@@ -1011,11 +911,6 @@
         {
           "name": "tokenProgram",
           "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "userPositions",
-          "isMut": true,
           "isSigner": false
         },
         {
@@ -1311,58 +1206,6 @@
           "isSigner": false
         },
         {
-          "name": "userPositions",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "rent",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "userNonce",
-          "type": "u8"
-        },
-        {
-          "name": "optionalAccounts",
-          "type": {
-            "defined": "InitializeUserOptionalAccounts"
-          }
-        }
-      ]
-    },
-    {
-      "name": "initializeUserWithExplicitPayer",
-      "accounts": [
-        {
-          "name": "user",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "userPositions",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
           "name": "authority",
           "isMut": false,
           "isSigner": true
@@ -1383,105 +1226,7 @@
           "isSigner": false
         }
       ],
-      "args": [
-        {
-          "name": "userNonce",
-          "type": "u8"
-        },
-        {
-          "name": "optionalAccounts",
-          "type": {
-            "defined": "InitializeUserOptionalAccounts"
-          }
-        }
-      ]
-    },
-    {
-      "name": "initializeUserOrders",
-      "accounts": [
-        {
-          "name": "user",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "userOrders",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "rent",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "userOrdersNonce",
-          "type": "u8"
-        }
-      ]
-    },
-    {
-      "name": "initializeUserOrdersWithExplicitPayer",
-      "accounts": [
-        {
-          "name": "user",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "userOrders",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "payer",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "rent",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "userOrdersNonce",
-          "type": "u8"
-        }
-      ]
+      "args": []
     },
     {
       "name": "settleFundingPayment",
@@ -1499,11 +1244,6 @@
         {
           "name": "market",
           "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "userPositions",
-          "isMut": true,
           "isSigner": false
         },
         {
@@ -2556,29 +2296,6 @@
       }
     },
     {
-      "name": "UserOrders",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "user",
-            "type": "publicKey"
-          },
-          {
-            "name": "orders",
-            "type": {
-              "array": [
-                {
-                  "defined": "Order"
-                },
-                32
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
       "name": "User",
       "type": {
         "kind": "struct",
@@ -2617,38 +2334,6 @@
           },
           {
             "name": "positions",
-            "type": "publicKey"
-          },
-          {
-            "name": "padding0",
-            "type": "u128"
-          },
-          {
-            "name": "padding1",
-            "type": "u128"
-          },
-          {
-            "name": "padding2",
-            "type": "u128"
-          },
-          {
-            "name": "padding3",
-            "type": "u128"
-          }
-        ]
-      }
-    },
-    {
-      "name": "UserPositions",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "user",
-            "type": "publicKey"
-          },
-          {
-            "name": "positions",
             "type": {
               "array": [
                 {
@@ -2657,24 +2342,23 @@
                 5
               ]
             }
+          },
+          {
+            "name": "orders",
+            "type": {
+              "array": [
+                {
+                  "defined": "Order"
+                },
+                32
+              ]
+            }
           }
         ]
       }
     }
   ],
   "types": [
-    {
-      "name": "InitializeUserOptionalAccounts",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "whitelistToken",
-            "type": "bool"
-          }
-        ]
-      }
-    },
     {
       "name": "ManagePositionOptionalAccounts",
       "type": {
@@ -3624,6 +3308,70 @@
       }
     },
     {
+      "name": "MarketPosition",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "marketIndex",
+            "type": "u64"
+          },
+          {
+            "name": "baseAssetAmount",
+            "type": "i128"
+          },
+          {
+            "name": "quoteAssetAmount",
+            "type": "u128"
+          },
+          {
+            "name": "lastCumulativeFundingRate",
+            "type": "i128"
+          },
+          {
+            "name": "lastCumulativeRepegRebate",
+            "type": "u128"
+          },
+          {
+            "name": "lastFundingRateTs",
+            "type": "i64"
+          },
+          {
+            "name": "openOrders",
+            "type": "u128"
+          },
+          {
+            "name": "padding0",
+            "type": "u128"
+          },
+          {
+            "name": "padding1",
+            "type": "u128"
+          },
+          {
+            "name": "padding2",
+            "type": "u128"
+          },
+          {
+            "name": "padding3",
+            "type": "u128"
+          },
+          {
+            "name": "padding4",
+            "type": "u128"
+          },
+          {
+            "name": "padding5",
+            "type": "u128"
+          },
+          {
+            "name": "padding6",
+            "type": "u128"
+          }
+        ]
+      }
+    },
+    {
       "name": "Order",
       "type": {
         "kind": "struct",
@@ -3734,70 +3482,6 @@
                 3
               ]
             }
-          }
-        ]
-      }
-    },
-    {
-      "name": "MarketPosition",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "marketIndex",
-            "type": "u64"
-          },
-          {
-            "name": "baseAssetAmount",
-            "type": "i128"
-          },
-          {
-            "name": "quoteAssetAmount",
-            "type": "u128"
-          },
-          {
-            "name": "lastCumulativeFundingRate",
-            "type": "i128"
-          },
-          {
-            "name": "lastCumulativeRepegRebate",
-            "type": "u128"
-          },
-          {
-            "name": "lastFundingRateTs",
-            "type": "i64"
-          },
-          {
-            "name": "openOrders",
-            "type": "u128"
-          },
-          {
-            "name": "padding0",
-            "type": "u128"
-          },
-          {
-            "name": "padding1",
-            "type": "u128"
-          },
-          {
-            "name": "padding2",
-            "type": "u128"
-          },
-          {
-            "name": "padding3",
-            "type": "u128"
-          },
-          {
-            "name": "padding4",
-            "type": "u128"
-          },
-          {
-            "name": "padding5",
-            "type": "u128"
-          },
-          {
-            "name": "padding6",
-            "type": "u128"
           }
         ]
       }
@@ -4251,81 +3935,76 @@
     },
     {
       "code": 6050,
-      "name": "UnableToWriteToRemainingAccount",
-      "msg": "Unable to write to remaining account"
-    },
-    {
-      "code": 6051,
       "name": "UserCantReferThemselves",
       "msg": "User cant refer themselves"
     },
     {
-      "code": 6052,
+      "code": 6051,
       "name": "DidNotReceiveExpectedReferrer",
       "msg": "Did not receive expected referrer"
     },
     {
-      "code": 6053,
+      "code": 6052,
       "name": "CouldNotDeserializeReferrer",
       "msg": "Could not deserialize referrer"
     },
     {
-      "code": 6054,
+      "code": 6053,
       "name": "MarketOrderMustBeInPlaceAndFill",
       "msg": "Market order must be in place and fill"
     },
     {
-      "code": 6055,
+      "code": 6054,
       "name": "UserOrderIdAlreadyInUse",
       "msg": "User Order Id Already In Use"
     },
     {
-      "code": 6056,
+      "code": 6055,
       "name": "NoPositionsLiquidatable",
       "msg": "No positions liquidatable"
     },
     {
-      "code": 6057,
+      "code": 6056,
       "name": "InvalidMarginRatio",
       "msg": "Invalid Margin Ratio"
     },
     {
-      "code": 6058,
+      "code": 6057,
       "name": "CantCancelPostOnlyOrder",
       "msg": "Cant Cancel Post Only Order"
     },
     {
-      "code": 6059,
+      "code": 6058,
       "name": "InvalidOracleOffset",
       "msg": "InvalidOracleOffset"
     },
     {
-      "code": 6060,
+      "code": 6059,
       "name": "CantExpireOrders",
       "msg": "CantExpireOrders"
     },
     {
-      "code": 6061,
+      "code": 6060,
       "name": "CouldNotLoadMarketData",
       "msg": "CouldNotLoadMarketData"
     },
     {
-      "code": 6062,
+      "code": 6061,
       "name": "MarketNotFound",
       "msg": "MarketNotFound"
     },
     {
-      "code": 6063,
+      "code": 6062,
       "name": "InvalidMarketAccount",
       "msg": "InvalidMarketAccount"
     },
     {
-      "code": 6064,
+      "code": 6063,
       "name": "UnableToLoadMarketAccount",
       "msg": "UnableToLoadMarketAccount"
     },
     {
-      "code": 6065,
+      "code": 6064,
       "name": "MarketWrongMutability",
       "msg": "MarketWrongMutability"
     }

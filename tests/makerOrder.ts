@@ -167,9 +167,7 @@ describe('maker order', () => {
 
 		await fillerClearingHouse.fillOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
-			await clearingHouseUser.getUserPositionsAccountPublicKey(),
-			await clearingHouseUser.getUserOrdersAccountPublicKey(),
-			clearingHouseUser.getUserPositionsAccount(),
+			clearingHouseUser.getUserAccount(),
 			order
 		);
 
@@ -257,9 +255,7 @@ describe('maker order', () => {
 
 		await fillerClearingHouse.fillOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
-			await clearingHouseUser.getUserPositionsAccountPublicKey(),
-			await clearingHouseUser.getUserOrdersAccountPublicKey(),
-			clearingHouseUser.getUserPositionsAccount(),
+			clearingHouseUser.getUserAccount(),
 			order
 		);
 

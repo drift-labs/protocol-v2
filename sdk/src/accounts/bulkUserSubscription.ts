@@ -21,8 +21,6 @@ export async function bulkPollingUserSubscribe(
 	for (const user of users) {
 		authorityToKeys.set(user.authority.toString(), {
 			user: await user.getUserAccountPublicKey(),
-			userPositions: await user.getUserPositionsAccountPublicKey(),
-			userOrders: await user.getUserOrdersAccountPublicKey(),
 		});
 	}
 

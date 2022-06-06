@@ -11,17 +11,13 @@ import {
 	MARK_PRICE_PRECISION,
 	ClearingHouse,
 	PositionDirection,
-	getUserOrdersAccountPublicKey,
 	ClearingHouseUser,
 	Wallet,
 	getLimitOrderParams,
 } from '../sdk/src';
 
 import { mockOracle, mockUSDCMint, mockUserUSDCAccount } from './testHelpers';
-import {
-	AMM_RESERVE_PRECISION,
-	getUserPositionsAccountPublicKey,
-} from '../sdk';
+import { AMM_RESERVE_PRECISION } from '../sdk';
 import { AccountInfo, Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
 describe('order referrer', () => {
@@ -37,8 +33,6 @@ describe('order referrer', () => {
 	let clearingHouseUser: ClearingHouseUser;
 
 	let userAccountPublicKey: PublicKey;
-	let userPositionsAccountPublicKey: PublicKey;
-	let userOrdersAccountPublicKey: PublicKey;
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -110,16 +104,6 @@ describe('order referrer', () => {
 				usdcAmount,
 				userUSDCAccount.publicKey
 			);
-
-		userPositionsAccountPublicKey = await getUserPositionsAccountPublicKey(
-			clearingHouse.program.programId,
-			userAccountPublicKey
-		);
-
-		userOrdersAccountPublicKey = await getUserOrdersAccountPublicKey(
-			clearingHouse.program.programId,
-			userAccountPublicKey
-		);
 
 		clearingHouseUser = ClearingHouseUser.from(
 			clearingHouse,
@@ -240,15 +224,13 @@ describe('order referrer', () => {
 		const orderIndex = new BN(0);
 
 		await clearingHouse.fetchAccounts();
-		const userOrdersAccount = clearingHouseUser.getUserOrdersAccount();
-		const order = userOrdersAccount.orders[orderIndex.toString()];
+		const order =
+			clearingHouseUser.getUserAccount().orders[orderIndex.toString()];
 		assert(order.referrer.equals(referrerUserAccountPublicKey));
 
 		await fillerClearingHouse.fillOrder(
 			userAccountPublicKey,
-			userPositionsAccountPublicKey,
-			userOrdersAccountPublicKey,
-			clearingHouseUser.getUserPositionsAccount(),
+			clearingHouseUser.getUserAccount(),
 			order
 		);
 
@@ -277,8 +259,7 @@ describe('order referrer', () => {
 		assert(userAccount.totalTokenDiscount.eq(expectedTokenDiscount));
 		assert(userAccount.totalRefereeDiscount.eq(expectedRefereeDiscount));
 
-		const userPositionsAccount = clearingHouseUser.getUserPositionsAccount();
-		const firstPosition = userPositionsAccount.positions[0];
+		const firstPosition = clearingHouseUser.getUserAccount().positions[0];
 		assert(firstPosition.baseAssetAmount.eq(baseAssetAmount));
 	});
 

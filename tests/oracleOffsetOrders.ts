@@ -165,9 +165,7 @@ describe('oracle offset', () => {
 
 		await fillerClearingHouse.fillOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
-			await clearingHouseUser.getUserPositionsAccountPublicKey(),
-			await clearingHouseUser.getUserOrdersAccountPublicKey(),
-			clearingHouseUser.getUserPositionsAccount(),
+			clearingHouse.getUserAccount(),
 			order
 		);
 
@@ -240,9 +238,7 @@ describe('oracle offset', () => {
 
 		await fillerClearingHouse.fillOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
-			await clearingHouseUser.getUserPositionsAccountPublicKey(),
-			await clearingHouseUser.getUserOrdersAccountPublicKey(),
-			clearingHouseUser.getUserPositionsAccount(),
+			clearingHouseUser.getUserAccount(),
 			order
 		);
 
@@ -316,9 +312,7 @@ describe('oracle offset', () => {
 
 		await fillerClearingHouse.fillOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
-			await clearingHouseUser.getUserPositionsAccountPublicKey(),
-			await clearingHouseUser.getUserOrdersAccountPublicKey(),
-			clearingHouseUser.getUserPositionsAccount(),
+			clearingHouseUser.getUserAccount(),
 			order
 		);
 
@@ -391,9 +385,7 @@ describe('oracle offset', () => {
 
 		await fillerClearingHouse.fillOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
-			await clearingHouseUser.getUserPositionsAccountPublicKey(),
-			await clearingHouseUser.getUserOrdersAccountPublicKey(),
-			clearingHouseUser.getUserPositionsAccount(),
+			clearingHouseUser.getUserAccount(),
 			order
 		);
 
@@ -457,7 +449,7 @@ describe('oracle offset', () => {
 		await clearingHouse.placeOrder(orderParams);
 
 		await clearingHouseUser.fetchAccounts();
-		const orderId = clearingHouseUser.getUserOrdersAccount().orders[0].orderId;
+		const orderId = clearingHouseUser.getUserAccount().orders[0].orderId;
 		await clearingHouse.cancelOrder(orderId);
 
 		await clearingHouse.unsubscribe();

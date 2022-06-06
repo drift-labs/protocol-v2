@@ -8,7 +8,6 @@ import {
 	BN,
 	MARK_PRICE_PRECISION,
 	PositionDirection,
-	getUserOrdersAccountPublicKey,
 	ClearingHouseUser,
 	getLimitOrderParams,
 } from '../sdk/src';
@@ -83,11 +82,6 @@ describe('user order id', () => {
 			userUSDCAccount.publicKey
 		);
 
-		await getUserOrdersAccountPublicKey(
-			clearingHouse.program.programId,
-			await clearingHouse.getUserAccountPublicKey()
-		);
-
 		clearingHouseUser = ClearingHouseUser.from(
 			clearingHouse,
 			provider.wallet.publicKey
@@ -145,8 +139,7 @@ describe('user order id', () => {
 
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
-		const userOrdersAccount = clearingHouseUser.getUserOrdersAccount();
-		const order = userOrdersAccount.orders[0];
+		const order = clearingHouseUser.getUserAccount().orders[0];
 
 		assert(order.userOrderId === userOrderId);
 	});
@@ -182,8 +175,7 @@ describe('user order id', () => {
 
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
-		const userOrdersAccount = clearingHouseUser.getUserOrdersAccount();
-		const order = userOrdersAccount.orders[0];
+		const order = clearingHouseUser.getUserAccount().orders[0];
 
 		assert(order.userOrderId === 0);
 	});

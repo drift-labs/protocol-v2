@@ -8,7 +8,6 @@ import {
 	BN,
 	MARK_PRICE_PRECISION,
 	PositionDirection,
-	getUserOrdersAccountPublicKey,
 	ClearingHouseUser,
 } from '../sdk/src';
 
@@ -78,11 +77,6 @@ describe('round reduce only order', () => {
 			userUSDCAccount.publicKey
 		);
 
-		await getUserOrdersAccountPublicKey(
-			clearingHouse.program.programId,
-			await clearingHouse.getUserAccountPublicKey()
-		);
-
 		clearingHouseUser = ClearingHouseUser.from(
 			clearingHouse,
 			provider.wallet.publicKey
@@ -124,7 +118,8 @@ describe('round reduce only order', () => {
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
 
-		const positionsAccount = clearingHouseUser.getUserPositionsAccount();
-		assert(positionsAccount.positions[0].baseAssetAmount.eq(ZERO));
+		assert(
+			clearingHouse.getUserAccount().positions[0].baseAssetAmount.eq(ZERO)
+		);
 	});
 });

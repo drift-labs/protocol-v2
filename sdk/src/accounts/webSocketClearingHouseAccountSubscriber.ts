@@ -17,8 +17,6 @@ import {
 	StateAccount,
 	TradeHistoryAccount,
 	UserAccount,
-	UserOrdersAccount,
-	UserPositionsAccount,
 } from '../types';
 import { BN, Program } from '@project-serum/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
@@ -27,8 +25,6 @@ import {
 	getClearingHouseStateAccountPublicKey,
 	getMarketPublicKey,
 	getUserAccountPublicKey,
-	getUserOrdersAccountPublicKey,
-	getUserPositionsAccountPublicKey,
 } from '../addresses/pda';
 import { WebSocketAccountSubscriber } from './webSocketAccountSubscriber';
 import { ClearingHouseConfigType } from '../factory/clearingHouse';
@@ -57,8 +53,6 @@ export class WebSocketClearingHouseAccountSubscriber
 	orderHistoryAccountSubscriber?: AccountSubscriber<OrderHistoryAccount>;
 
 	userAccountSubscriber?: AccountSubscriber<UserAccount>;
-	userPositionsAccountSubscriber?: AccountSubscriber<UserPositionsAccount>;
-	userOrdersAccountSubscriber?: AccountSubscriber<UserOrdersAccount>;
 
 	optionalExtraSubscriptions: ClearingHouseAccountTypes[] = [];
 
@@ -279,48 +273,11 @@ export class WebSocketClearingHouseAccountSubscriber
 			this.eventEmitter.emit('update');
 		});
 
-		const userPositionsPublicKey = await getUserPositionsAccountPublicKey(
-			this.program.programId,
-			userPublicKey
-		);
-
-		this.userPositionsAccountSubscriber = new WebSocketAccountSubscriber(
-			'userPositions',
-			this.program,
-			userPositionsPublicKey
-		);
-
-		await this.userPositionsAccountSubscriber.subscribe(
-			(data: UserPositionsAccount) => {
-				this.eventEmitter.emit('userPositionsAccountUpdate', data);
-				this.eventEmitter.emit('update');
-			}
-		);
-
-		const userOrdersPublicKey = await getUserOrdersAccountPublicKey(
-			this.program.programId,
-			userPublicKey
-		);
-
-		this.userOrdersAccountSubscriber = new WebSocketAccountSubscriber(
-			'userOrders',
-			this.program,
-			userOrdersPublicKey
-		);
-		await this.userOrdersAccountSubscriber.subscribe(
-			(data: UserOrdersAccount) => {
-				this.eventEmitter.emit('userOrdersAccountUpdate', data);
-				this.eventEmitter.emit('update');
-			}
-		);
-
 		return true;
 	}
 
 	async unsubscribeFromUserAccounts(): Promise<void> {
 		await this.userAccountSubscriber.unsubscribe();
-		await this.userPositionsAccountSubscriber.unsubscribe();
-		await this.userOrdersAccountSubscriber.unsubscribe();
 	}
 
 	async unsubscribeFromMarketAccounts(): Promise<void> {
@@ -340,11 +297,7 @@ export class WebSocketClearingHouseAccountSubscriber
 				return this[subscriber].fetch();
 			})
 			.concat([this.stateAccountSubscriber.fetch()])
-			.concat([
-				this.userAccountSubscriber.fetch(),
-				this.userPositionsAccountSubscriber.fetch(),
-				this.userOrdersAccountSubscriber.fetch(),
-			])
+			.concat([this.userAccountSubscriber.fetch()])
 			.concat(
 				Array.from(this.marketAccountSubscribers.values()).map((subscriber) =>
 					subscriber.fetch()
@@ -494,15 +447,5 @@ export class WebSocketClearingHouseAccountSubscriber
 	public getUserAccountAndSlot(): AccountAndSlot<UserAccount> {
 		this.assertIsSubscribed();
 		return this.userAccountSubscriber.accountAndSlot;
-	}
-
-	public getUserPositionsAccountAndSlot(): AccountAndSlot<UserPositionsAccount> {
-		this.assertIsSubscribed();
-		return this.userPositionsAccountSubscriber.accountAndSlot;
-	}
-
-	public getUserOrdersAccountAndSlot(): AccountAndSlot<UserOrdersAccount> {
-		this.assertIsSubscribed();
-		return this.userOrdersAccountSubscriber.accountAndSlot;
 	}
 }

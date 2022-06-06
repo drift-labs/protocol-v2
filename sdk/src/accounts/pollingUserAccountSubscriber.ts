@@ -10,12 +10,8 @@ import { Program } from '@project-serum/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { PublicKey } from '@solana/web3.js';
-import {
-	getUserAccountPublicKey,
-	getUserOrdersAccountPublicKey,
-	getUserPositionsAccountPublicKey,
-} from '../addresses/pda';
-import { UserAccount, UserOrdersAccount, UserPositionsAccount } from '../types';
+import { getUserAccountPublicKey } from '../addresses/pda';
+import { UserAccount } from '../types';
 import { BulkAccountLoader } from './bulkAccountLoader';
 import { capitalize } from './utils';
 import { ClearingHouseConfigType } from '../factory/clearingHouse';
@@ -31,8 +27,6 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 	errorCallbackId?: string;
 
 	userAccountAndSlot?: AccountAndSlot<UserAccount>;
-	userPositionsAccountAndSlot?: AccountAndSlot<UserPositionsAccount>;
-	userOrdersAccountAndSlot?: AccountAndSlot<UserOrdersAccount>;
 
 	type: ClearingHouseConfigType = 'polling';
 
@@ -85,50 +79,14 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 			this.accountsToPoll.set(userPublicKey.toString(), {
 				key: 'user',
 				publicKey: userPublicKey,
-				eventType: 'userAccountData',
-			});
-
-			const userPositionsPublicKey = await getUserPositionsAccountPublicKey(
-				this.program.programId,
-				userPublicKey
-			);
-
-			this.accountsToPoll.set(userPositionsPublicKey.toString(), {
-				key: 'userPositions',
-				publicKey: userPositionsPublicKey,
-				eventType: 'userPositionsData',
-			});
-
-			const userOrdersPublicKey = await getUserOrdersAccountPublicKey(
-				this.program.programId,
-				userPublicKey
-			);
-
-			this.accountsToPoll.set(userOrdersPublicKey.toString(), {
-				key: 'userOrders',
-				publicKey: userOrdersPublicKey,
-				eventType: 'userOrdersData',
+				eventType: 'userAccountUpdate',
 			});
 		} else {
 			this.accountsToPoll.set(userPublicKeys.user.toString(), {
 				key: 'user',
 				publicKey: userPublicKeys.user,
-				eventType: 'userAccountData',
+				eventType: 'userAccountUpdate',
 			});
-
-			this.accountsToPoll.set(userPublicKeys.userPositions.toString(), {
-				key: 'userPositions',
-				publicKey: userPublicKeys.userPositions,
-				eventType: 'userPositionsData',
-			});
-
-			if (userPublicKeys.userOrders) {
-				this.accountsToPoll.set(userPublicKeys.userOrders.toString(), {
-					key: 'userOrders',
-					publicKey: userPublicKeys.userOrders,
-					eventType: 'userOrdersData',
-				});
-			}
 		}
 
 		for (const [_, accountToPoll] of this.accountsToPoll) {
@@ -187,8 +145,7 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 	didSubscriptionSucceed(): boolean {
 		let success = true;
 		for (const [_, accountToPoll] of this.accountsToPoll) {
-			// userOrders may not exist
-			if (accountToPoll.key !== 'userOrders' && !this[accountToPoll.key]) {
+			if (!this[accountToPoll.key]) {
 				success = false;
 				break;
 			}
@@ -227,15 +184,5 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 	public getUserAccountAndSlot(): AccountAndSlot<UserAccount> {
 		this.assertIsSubscribed();
 		return this.userAccountAndSlot;
-	}
-
-	public getUserPositionsAccountAndSlot(): AccountAndSlot<UserPositionsAccount> {
-		this.assertIsSubscribed();
-		return this.userPositionsAccountAndSlot;
-	}
-
-	public getUserOrdersAccountAndSlot(): AccountAndSlot<UserOrdersAccount> {
-		this.assertIsSubscribed();
-		return this.userOrdersAccountAndSlot;
 	}
 }

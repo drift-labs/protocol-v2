@@ -10,8 +10,6 @@ import {
 	StateAccount,
 	TradeHistoryAccount,
 	UserAccount,
-	UserOrdersAccount,
-	UserPositionsAccount,
 } from '../types';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
@@ -49,8 +47,6 @@ export interface ClearingHouseAccountEvents {
 	orderHistoryAccountUpdate: (payload: OrderHistoryAccount) => void;
 	orderStateAccountUpdate: (payload: OrderStateAccount) => void;
 	userAccountUpdate: (payload: UserAccount) => void;
-	userPositionsAccountUpdate: (payload: UserPositionsAccount) => void;
-	userOrdersAccountUpdate: (payload: UserOrdersAccount) => void;
 	update: void;
 	error: (e: Error) => void;
 }
@@ -92,24 +88,16 @@ export interface ClearingHouseAccountSubscriber {
 	getOrderHistoryAccountAndSlot(): AccountAndSlot<OrderHistoryAccount>;
 
 	getUserAccountAndSlot(): AccountAndSlot<UserAccount> | undefined;
-	getUserPositionsAccountAndSlot():
-		| AccountAndSlot<UserPositionsAccount>
-		| undefined;
-	getUserOrdersAccountAndSlot(): AccountAndSlot<UserOrdersAccount> | undefined;
 
 	type: ClearingHouseConfigType;
 }
 
 export type UserPublicKeys = {
 	user: PublicKey;
-	userPositions: PublicKey;
-	userOrders: PublicKey | undefined;
 };
 
 export interface UserAccountEvents {
-	userAccountData: (payload: UserAccount) => void;
-	userPositionsData: (payload: UserPositionsAccount) => void;
-	userOrdersData: (payload: UserOrdersAccount) => void;
+	userAccountUpdate: (payload: UserAccount) => void;
 	update: void;
 	error: (e: Error) => void;
 }
@@ -123,8 +111,6 @@ export interface UserAccountSubscriber {
 	unsubscribe(): Promise<void>;
 
 	getUserAccountAndSlot(): AccountAndSlot<UserAccount>;
-	getUserPositionsAccountAndSlot(): AccountAndSlot<UserPositionsAccount>;
-	getUserOrdersAccountAndSlot(): AccountAndSlot<UserOrdersAccount>;
 	type: ClearingHouseUserConfigType;
 }
 

@@ -7,9 +7,7 @@ import {
 	MarginCategory,
 	Order,
 	UserAccount,
-	UserOrdersAccount,
 	UserPosition,
-	UserPositionsAccount,
 } from './types';
 import { calculateEntryPrice } from './math/position';
 import {
@@ -30,10 +28,8 @@ import {
 	calculatePositionFundingPNL,
 	calculatePositionPNL,
 	PositionDirection,
-	getUserOrdersAccountPublicKey,
 	calculateTradeSlippage,
 	BN,
-	getUserPositionsAccountPublicKey,
 } from '.';
 import { getUserAccountPublicKey } from './addresses/pda';
 import {
@@ -46,8 +42,6 @@ export class ClearingHouseUser {
 	authority: PublicKey;
 	accountSubscriber: UserAccountSubscriber;
 	userAccountPublicKey?: PublicKey;
-	userPositionsAccountPublicKey?: PublicKey;
-	userOrdersAccountPublicKey?: PublicKey;
 	_isSubscribed = false;
 	eventEmitter: StrictEventEmitter<EventEmitter, UserAccountEvents>;
 
@@ -118,21 +112,13 @@ export class ClearingHouseUser {
 		return this.accountSubscriber.getUserAccountAndSlot().account;
 	}
 
-	public getUserPositionsAccount(): UserPositionsAccount {
-		return this.accountSubscriber.getUserPositionsAccountAndSlot().account;
-	}
-
-	public getUserOrdersAccount(): UserOrdersAccount | undefined {
-		return this.accountSubscriber.getUserOrdersAccountAndSlot()?.account;
-	}
-
 	/**
 	 * Gets the user's current position for a given market. If the user has no position returns undefined
 	 * @param marketIndex
 	 * @returns userPosition
 	 */
 	public getUserPosition(marketIndex: BN): UserPosition | undefined {
-		return this.getUserPositionsAccount().positions.find((position) =>
+		return this.getUserAccount().positions.find((position) =>
 			position.marketIndex.eq(marketIndex)
 		);
 	}
@@ -152,7 +138,7 @@ export class ClearingHouseUser {
 	 * @returns Order
 	 */
 	public getOrder(orderId: BN): Order | undefined {
-		return this.getUserOrdersAccount().orders.find((order) =>
+		return this.getUserAccount().orders.find((order) =>
 			order.orderId.eq(orderId)
 		);
 	}
@@ -162,7 +148,7 @@ export class ClearingHouseUser {
 	 * @returns Order
 	 */
 	public getOrderByUserOrderId(userOrderId: number): Order | undefined {
-		return this.getUserOrdersAccount().orders.find(
+		return this.getUserAccount().orders.find(
 			(order) => order.userOrderId === userOrderId
 		);
 	}
@@ -177,30 +163,6 @@ export class ClearingHouseUser {
 			this.authority
 		);
 		return this.userAccountPublicKey;
-	}
-
-	public async getUserPositionsAccountPublicKey(): Promise<PublicKey> {
-		if (this.userPositionsAccountPublicKey) {
-			return this.userPositionsAccountPublicKey;
-		}
-
-		this.userPositionsAccountPublicKey = await getUserPositionsAccountPublicKey(
-			this.clearingHouse.program.programId,
-			await this.getUserAccountPublicKey()
-		);
-		return this.userPositionsAccountPublicKey;
-	}
-
-	public async getUserOrdersAccountPublicKey(): Promise<PublicKey> {
-		if (this.userOrdersAccountPublicKey) {
-			return this.userOrdersAccountPublicKey;
-		}
-
-		this.userOrdersAccountPublicKey = await getUserOrdersAccountPublicKey(
-			this.clearingHouse.program.programId,
-			await this.getUserAccountPublicKey()
-		);
-		return this.userOrdersAccountPublicKey;
 	}
 
 	public async exists(): Promise<boolean> {
@@ -234,7 +196,7 @@ export class ClearingHouseUser {
 	}
 
 	public getInitialMarginRequirement(): BN {
-		return this.getUserPositionsAccount().positions.reduce(
+		return this.getUserAccount().positions.reduce(
 			(marginRequirement, marketPosition) => {
 				const market = this.clearingHouse.getMarketAccount(
 					marketPosition.marketIndex
@@ -253,7 +215,7 @@ export class ClearingHouseUser {
 	 * @returns The partial margin requirement in USDC. : QUOTE_PRECISION
 	 */
 	public getPartialMarginRequirement(): BN {
-		return this.getUserPositionsAccount().positions.reduce(
+		return this.getUserAccount().positions.reduce(
 			(marginRequirement, marketPosition) => {
 				const market = this.clearingHouse.getMarketAccount(
 					marketPosition.marketIndex
@@ -273,7 +235,7 @@ export class ClearingHouseUser {
 	 * @returns : Precision QUOTE_PRECISION
 	 */
 	public getUnrealizedPNL(withFunding?: boolean, marketIndex?: BN): BN {
-		return this.getUserPositionsAccount()
+		return this.getUserAccount()
 			.positions.filter((pos) =>
 				marketIndex ? pos.marketIndex === marketIndex : true
 			)
@@ -292,7 +254,7 @@ export class ClearingHouseUser {
 	 * @returns : Precision QUOTE_PRECISION
 	 */
 	public getUnrealizedFundingPNL(marketIndex?: BN): BN {
-		return this.getUserPositionsAccount()
+		return this.getUserAccount()
 			.positions.filter((pos) =>
 				marketIndex ? pos.marketIndex === marketIndex : true
 			)
@@ -320,7 +282,7 @@ export class ClearingHouseUser {
 	 * @returns : Precision QUOTE_PRECISION
 	 */
 	getTotalPositionValue(): BN {
-		return this.getUserPositionsAccount().positions.reduce(
+		return this.getUserAccount().positions.reduce(
 			(positionValue, marketPosition) => {
 				const market = this.clearingHouse.getMarketAccount(
 					marketPosition.marketIndex
@@ -473,7 +435,7 @@ export class ClearingHouseUser {
 	 * @returns
 	 */
 	public needsToSettleFundingPayment(): boolean {
-		for (const userPosition of this.getUserPositionsAccount().positions) {
+		for (const userPosition of this.getUserAccount().positions) {
 			if (userPosition.baseAssetAmount.eq(ZERO)) {
 				continue;
 			}
@@ -563,7 +525,7 @@ export class ClearingHouseUser {
 			totalPositionValueExcludingTargetMarket.add(proposedMarketPositionValue);
 
 		const marginRequirementExcludingTargetMarket =
-			this.getUserPositionsAccount().positions.reduce(
+			this.getUserAccount().positions.reduce(
 				(totalMarginRequirement, position) => {
 					if (!position.marketIndex.eq(marketPosition.marketIndex)) {
 						const market = this.clearingHouse.getMarketAccount(

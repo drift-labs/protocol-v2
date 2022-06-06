@@ -183,8 +183,8 @@ describe('market order', () => {
 		await clearingHouseUser.fetchAccounts();
 		await fillerUser.fetchAccounts();
 
-		const userOrdersAccount = clearingHouseUser.getUserOrdersAccount();
-		const order = userOrdersAccount.orders[orderIndex.toString()];
+		const order =
+			clearingHouseUser.getUserAccount().orders[orderIndex.toString()];
 
 		const market = clearingHouse.getMarketAccount(marketIndex);
 		const expectedFeeToMarket = new BN(1000);
@@ -194,8 +194,7 @@ describe('market order', () => {
 		assert(order.price.eq(new BN(0)));
 		assert(order.marketIndex.eq(new BN(0)));
 
-		const userPositionsAccount = clearingHouseUser.getUserPositionsAccount();
-		const firstPosition = userPositionsAccount.positions[0];
+		const firstPosition = clearingHouseUser.getUserAccount().positions[0];
 		assert(firstPosition.baseAssetAmount.eq(baseAssetAmount));
 
 		const expectedQuoteAssetAmount = new BN(1000003);
@@ -249,8 +248,7 @@ describe('market order', () => {
 		await clearingHouseUser.fetchAccounts();
 		await fillerUser.fetchAccounts();
 
-		const userPositionsAccount = clearingHouseUser.getUserPositionsAccount();
-		const firstPosition = userPositionsAccount.positions[0];
+		const firstPosition = clearingHouseUser.getUserAccount().positions[0];
 		assert(firstPosition.baseAssetAmount.eq(ZERO));
 
 		assert(firstPosition.quoteAssetAmount.eq(ZERO));
@@ -303,8 +301,7 @@ describe('market order', () => {
 		await clearingHouseUser.fetchAccounts();
 		await fillerUser.fetchAccounts();
 
-		const userPositionsAccount = clearingHouseUser.getUserPositionsAccount();
-		const firstPosition = userPositionsAccount.positions[0];
+		const firstPosition = clearingHouseUser.getUserAccount().positions[0];
 		const baseAssetAmount = new BN(9999999999961);
 		assert(firstPosition.baseAssetAmount.eq(baseAssetAmount));
 		assert(firstPosition.quoteAssetAmount.eq(quoteAssetAmount));
@@ -356,8 +353,7 @@ describe('market order', () => {
 		await clearingHouseUser.fetchAccounts();
 		await fillerUser.fetchAccounts();
 
-		const userPositionsAccount = clearingHouseUser.getUserPositionsAccount();
-		const firstPosition = userPositionsAccount.positions[0];
+		const firstPosition = clearingHouseUser.getUserAccount().positions[0];
 		assert(firstPosition.baseAssetAmount.eq(ZERO));
 		assert(firstPosition.quoteAssetAmount.eq(ZERO));
 

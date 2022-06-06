@@ -15,7 +15,7 @@ import {
 	getLimitOrderParams,
 	isVariant,
 	PEG_PRECISION,
-} from '../sdk';
+} from '../sdk/src';
 
 describe('cancel all orders', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -131,8 +131,7 @@ describe('cancel all orders', () => {
 			assert(isVariant(orderRecord.action, 'cancel'));
 		}
 
-		const orderAccount = clearingHouseUser.getUserOrdersAccount();
-		for (const order of orderAccount.orders) {
+		for (const order of clearingHouse.getUserAccount().orders) {
 			assert(isVariant(order.status, 'init'));
 		}
 	});
@@ -214,9 +213,8 @@ describe('cancel all orders', () => {
 			assert(isVariant(orderRecord.action, 'cancel'));
 		}
 
-		const orderAccount = clearingHouseUser.getUserOrdersAccount();
 		let count = 0;
-		for (const order of orderAccount.orders) {
+		for (const order of clearingHouse.getUserAccount().orders) {
 			if (!isVariant(order.status, 'init') && order.marketIndex.eq(new BN(0))) {
 				assert(isVariant(order.status, 'open'));
 				assert(isVariant(order.direction, 'short'));
@@ -237,9 +235,8 @@ describe('cancel all orders', () => {
 			PositionDirection.SHORT
 		);
 
-		const orderAccount2 = clearingHouseUser.getUserOrdersAccount();
 		let count2 = 0;
-		for (const order of orderAccount2.orders) {
+		for (const order of clearingHouse.getUserAccount().orders) {
 			if (!isVariant(order.status, 'init') && order.marketIndex.eq(new BN(1))) {
 				console.log(convertToNumber(order.price));
 				assert(isVariant(order.status, 'open'));

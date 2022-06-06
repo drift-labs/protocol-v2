@@ -120,7 +120,7 @@ describe('twap divergence liquidation', () => {
 			console.log('tx logs', logs);
 		} catch (e) {
 			console.log(e);
-			assert(e.message.includes('0x17a8'));
+			assert(e.message.includes('0x17a7'));
 			return;
 		}
 		assert(false);

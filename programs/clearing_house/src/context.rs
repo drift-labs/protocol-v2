@@ -11,8 +11,7 @@ use crate::state::history::{funding_payment::FundingPaymentHistory, trade::Trade
 use crate::state::market::Market;
 use crate::state::order_state::OrderState;
 use crate::state::state::State;
-use crate::state::user::{User, UserPositions};
-use crate::state::user_orders::{OrderTriggerCondition, OrderType, UserOrders};
+use crate::state::user::{OrderTriggerCondition, OrderType, User};
 
 #[derive(Accounts)]
 #[instruction(
@@ -108,104 +107,21 @@ pub struct InitializeOrderState<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(user_nonce: u8)]
 pub struct InitializeUser<'info> {
     #[account(
         init,
         seeds = [b"user", authority.key.as_ref()],
-        space = 224 + 8,
-        bump,
-        payer = authority
-    )]
-    pub user: Box<Account<'info, User>>,
-    pub state: Box<Account<'info, State>>,
-    #[account(
-        init,
-        seeds = [b"user_positions", user.as_ref().key().as_ref()],
-        space = 1072 + 8,
-        bump,
-        payer = authority
-    )]
-    pub user_positions: AccountLoader<'info, UserPositions>,
-    #[account(mut)]
-    pub authority: Signer<'info>,
-    pub rent: Sysvar<'info, Rent>,
-    pub system_program: Program<'info, System>,
-}
-
-#[derive(Accounts)]
-#[instruction(user_nonce: u8)]
-pub struct InitializeUserWithExplicitPayer<'info> {
-    #[account(
-        init,
-        seeds = [b"user", authority.key.as_ref()],
-        space = 224 + 8,
+        space = std::mem::size_of::<User>() + 8,
         bump,
         payer = payer
     )]
-    pub user: Box<Account<'info, User>>,
-    pub state: Box<Account<'info, State>>,
-    #[account(
-        init,
-        payer = payer,
-        space = 1072 + 8,
-    )]
-    pub user_positions: AccountLoader<'info, UserPositions>,
-    pub authority: Signer<'info>,
-    #[account(mut)]
-    pub payer: Signer<'info>,
-    pub rent: Sysvar<'info, Rent>,
-    pub system_program: Program<'info, System>,
-}
-
-#[derive(Accounts)]
-#[instruction(user_orders_nonce: u8)]
-pub struct InitializeUserOrders<'info> {
-    #[account(
-        has_one = authority,
-    )]
-    pub user: Box<Account<'info, User>>,
-    #[account(
-        init,
-        seeds = [b"user_orders", user.key().as_ref()],
-        space = 7168 + 8,
-        bump,
-        payer = authority
-    )]
-    pub user_orders: AccountLoader<'info, UserOrders>,
-    pub state: Box<Account<'info, State>>,
-    #[account(mut)]
-    pub authority: Signer<'info>,
-    pub rent: Sysvar<'info, Rent>,
-    pub system_program: Program<'info, System>,
-}
-
-#[derive(Accounts)]
-#[instruction(user_orders_nonce: u8)]
-pub struct InitializeUserOrdersWithExplicitPayer<'info> {
-    #[account(
-        has_one = authority,
-    )]
-    pub user: Box<Account<'info, User>>,
-    #[account(
-        init,
-        seeds = [b"user_orders", user.key().as_ref()],
-        space = 7168 + 8,
-        bump,
-        payer = payer
-    )]
-    pub user_orders: AccountLoader<'info, UserOrders>,
+    pub user: AccountLoader<'info, User>,
     pub state: Box<Account<'info, State>>,
     pub authority: Signer<'info>,
     #[account(mut)]
     pub payer: Signer<'info>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
-}
-
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
-pub struct InitializeUserOptionalAccounts {
-    pub whitelist_token: bool,
 }
 
 #[derive(Accounts)]
@@ -238,9 +154,8 @@ pub struct DepositCollateral<'info> {
     #[account(
         mut,
         has_one = authority,
-        constraint = &user.positions.eq(&user_positions.key())
     )]
-    pub user: Box<Account<'info, User>>,
+    pub user: AccountLoader<'info, User>,
     pub authority: Signer<'info>,
     #[account(
         mut,
@@ -250,11 +165,6 @@ pub struct DepositCollateral<'info> {
     #[account(mut)]
     pub user_collateral_account: Box<Account<'info, TokenAccount>>,
     pub token_program: Program<'info, Token>,
-    #[account(
-        mut,
-        has_one = user
-    )]
-    pub user_positions: AccountLoader<'info, UserPositions>,
     #[account(
         mut,
         constraint = &state.funding_payment_history.eq(&funding_payment_history.key())
@@ -274,9 +184,8 @@ pub struct WithdrawCollateral<'info> {
     #[account(
         mut,
         has_one = authority,
-        constraint = &user.positions.eq(&user_positions.key())
     )]
-    pub user: Box<Account<'info, User>>,
+    pub user: AccountLoader<'info, User>,
     pub authority: Signer<'info>,
     #[account(
         mut,
@@ -301,11 +210,6 @@ pub struct WithdrawCollateral<'info> {
     #[account(mut)]
     pub user_collateral_account: Box<Account<'info, TokenAccount>>,
     pub token_program: Program<'info, Token>,
-    #[account(
-        mut,
-        has_one = user
-    )]
-    pub user_positions: AccountLoader<'info, UserPositions>,
     #[account(
         mut,
         constraint = &state.funding_payment_history.eq(&funding_payment_history.key())
@@ -405,15 +309,9 @@ pub struct OpenPosition<'info> {
     #[account(
         mut,
         has_one = authority,
-        constraint = &user.positions.eq(&user_positions.key())
     )]
-    pub user: Box<Account<'info, User>>,
+    pub user: AccountLoader<'info, User>,
     pub authority: Signer<'info>,
-    #[account(
-        mut,
-        has_one = user
-    )]
-    pub user_positions: AccountLoader<'info, UserPositions>,
     #[account(
         mut,
         constraint = &state.trade_history.eq(&trade_history.key())
@@ -445,22 +343,9 @@ pub struct FillOrder<'info> {
         mut,
         has_one = authority
     )]
-    pub filler: Box<Account<'info, User>>,
-    #[account(
-        mut,
-        constraint = &user.positions.eq(&user_positions.key())
-    )]
-    pub user: Box<Account<'info, User>>,
-    #[account(
-        mut,
-        has_one = user
-    )]
-    pub user_positions: AccountLoader<'info, UserPositions>,
-    #[account(
-        mut,
-        has_one = user
-    )]
-    pub user_orders: AccountLoader<'info, UserOrders>,
+    pub filler: AccountLoader<'info, User>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
     #[account(
         mut,
         constraint = &state.trade_history.eq(&trade_history.key())
@@ -498,21 +383,11 @@ pub struct PlaceOrder<'info> {
     )]
     pub order_state: Box<Account<'info, OrderState>>,
     #[account(
+        mut,
         has_one = authority,
-        constraint = &user.positions.eq(&user_positions.key())
     )]
-    pub user: Box<Account<'info, User>>,
+    pub user: AccountLoader<'info, User>,
     pub authority: Signer<'info>,
-    #[account(
-        mut,
-        has_one = user
-    )]
-    pub user_positions: AccountLoader<'info, UserPositions>,
-    #[account(
-        mut,
-        has_one = user
-    )]
-    pub user_orders: AccountLoader<'info, UserOrders>,
     /// CHECK: validated in `place_order` when market_map is created
     pub oracle: AccountInfo<'info>,
     #[account(
@@ -571,20 +446,9 @@ pub struct PlaceAndFillOrder<'info> {
     #[account(
         mut,
         has_one = authority,
-        constraint = &user.positions.eq(&user_positions.key())
     )]
-    pub user: Box<Account<'info, User>>,
+    pub user: AccountLoader<'info, User>,
     pub authority: Signer<'info>,
-    #[account(
-        mut,
-        has_one = user
-    )]
-    pub user_positions: AccountLoader<'info, UserPositions>,
-    #[account(
-        mut,
-        has_one = user
-    )]
-    pub user_orders: AccountLoader<'info, UserOrders>,
     #[account(
         mut,
         constraint = &state.funding_payment_history.eq(&funding_payment_history.key())
@@ -622,21 +486,11 @@ pub struct CancelOrder<'info> {
     )]
     pub order_state: Box<Account<'info, OrderState>>,
     #[account(
+        mut,
         has_one = authority,
-        constraint = &user.positions.eq(&user_positions.key())
     )]
-    pub user: Box<Account<'info, User>>,
+    pub user: AccountLoader<'info, User>,
     pub authority: Signer<'info>,
-    #[account(
-        mut,
-        has_one = user
-    )]
-    pub user_positions: AccountLoader<'info, UserPositions>,
-    #[account(
-        mut,
-        has_one = user
-    )]
-    pub user_orders: AccountLoader<'info, UserOrders>,
     /// CHECK: validated in `cancel_order` when market_map is created
     pub oracle: AccountInfo<'info>,
     #[account(
@@ -659,21 +513,11 @@ pub struct CancelAllOrders<'info> {
     )]
     pub order_state: Box<Account<'info, OrderState>>,
     #[account(
+        mut,
         has_one = authority,
-        constraint = &user.positions.eq(&user_positions.key())
     )]
-    pub user: Box<Account<'info, User>>,
+    pub user: AccountLoader<'info, User>,
     pub authority: Signer<'info>,
-    #[account(
-        mut,
-        has_one = user
-    )]
-    pub user_positions: AccountLoader<'info, UserPositions>,
-    #[account(
-        mut,
-        has_one = user
-    )]
-    pub user_orders: AccountLoader<'info, UserOrders>,
     #[account(
         mut,
         constraint = &state.funding_payment_history.eq(&funding_payment_history.key())
@@ -696,24 +540,11 @@ pub struct ExpireOrder<'info> {
     pub authority: Signer<'info>,
     #[account(
         mut,
-        has_one = authority
+        has_one = authority,
     )]
-    pub filler: Box<Account<'info, User>>,
-    #[account(
-        mut,
-        constraint = &user.positions.eq(&user_positions.key())
-    )]
-    pub user: Box<Account<'info, User>>,
-    #[account(
-        mut,
-        has_one = user
-    )]
-    pub user_positions: AccountLoader<'info, UserPositions>,
-    #[account(
-        mut,
-        has_one = user
-    )]
-    pub user_orders: AccountLoader<'info, UserOrders>,
+    pub filler: AccountLoader<'info, User>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
     #[account(
         mut,
         constraint = &order_state.order_history.eq(&order_history.key())
@@ -728,15 +559,9 @@ pub struct ClosePosition<'info> {
     #[account(
         mut,
         has_one = authority,
-        constraint = &user.positions.eq(&user_positions.key())
     )]
-    pub user: Box<Account<'info, User>>,
+    pub user: AccountLoader<'info, User>,
     pub authority: Signer<'info>,
-    #[account(
-        mut,
-        has_one = user
-    )]
-    pub user_positions: AccountLoader<'info, UserPositions>,
     #[account(
         mut,
         constraint = &state.trade_history.eq(&trade_history.key())
@@ -762,14 +587,11 @@ pub struct Liquidate<'info> {
     pub authority: Signer<'info>,
     #[account(
         mut,
-        has_one = authority
+        has_one = authority,
     )]
-    pub liquidator: Box<Account<'info, User>>,
-    #[account(
-        mut,
-        constraint = &user.positions.eq(&user_positions.key())
-    )]
-    pub user: Box<Account<'info, User>>,
+    pub liquidator: AccountLoader<'info, User>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
     #[account(
         mut,
         constraint = &state.collateral_vault.eq(&collateral_vault.key())
@@ -793,11 +615,6 @@ pub struct Liquidate<'info> {
     pub token_program: Program<'info, Token>,
     #[account(
         mut,
-        has_one = user
-    )]
-    pub user_positions: AccountLoader<'info, UserPositions>,
-    #[account(
-        mut,
         constraint = &state.trade_history.eq(&trade_history.key())
     )]
     pub trade_history: AccountLoader<'info, TradeHistory>,
@@ -816,17 +633,9 @@ pub struct Liquidate<'info> {
 #[derive(Accounts)]
 pub struct SettleFunding<'info> {
     pub state: Box<Account<'info, State>>,
-    #[account(
-        mut,
-        constraint = &user.positions.eq(&user_positions.key())
-    )]
-    pub user: Box<Account<'info, User>>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
     pub market: AccountLoader<'info, Market>,
-    #[account(
-        mut,
-        has_one = user
-    )]
-    pub user_positions: AccountLoader<'info, UserPositions>,
     #[account(
         mut,
         constraint = &state.funding_payment_history.eq(&funding_payment_history.key())

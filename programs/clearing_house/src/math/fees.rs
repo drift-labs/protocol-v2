@@ -3,9 +3,9 @@ use crate::math::casting::{cast_to_i128, cast_to_u128};
 use crate::math_error;
 use crate::state::order_state::OrderFillerRewardStructure;
 use crate::state::state::{DiscountTokenTier, FeeStructure};
+use crate::state::user::OrderDiscountTier;
 use crate::state::user::User;
-use crate::state::user_orders::OrderDiscountTier;
-use anchor_lang::prelude::Account;
+use anchor_lang::prelude::AccountLoader;
 use num_integer::Roots;
 use solana_program::msg;
 use spl_token::state::Account as TokenAccount;
@@ -15,7 +15,7 @@ pub fn calculate_fee_for_trade(
     quote_asset_amount: u128,
     fee_structure: &FeeStructure,
     discount_token: Option<TokenAccount>,
-    referrer: &Option<Account<User>>,
+    referrer: &Option<AccountLoader<User>>,
     quote_asset_amount_surplus: u128,
 ) -> ClearingHouseResult<(u128, u128, u128, u128, u128)> {
     let fee = quote_asset_amount
@@ -119,7 +119,7 @@ fn belongs_to_tier(tier: &DiscountTokenTier, discount_token: TokenAccount) -> bo
 fn calculate_referral_reward_and_referee_discount(
     fee: u128,
     fee_structure: &FeeStructure,
-    referrer: &Option<Account<User>>,
+    referrer: &Option<AccountLoader<User>>,
 ) -> ClearingHouseResult<(u128, u128)> {
     if referrer.is_none() {
         return Ok((0, 0));
@@ -188,7 +188,7 @@ pub fn calculate_fee_for_order(
     order_fee_tier: &OrderDiscountTier,
     order_ts: i64,
     now: i64,
-    referrer: &Option<Account<User>>,
+    referrer: &Option<AccountLoader<User>>,
     filler_is_user: bool,
     quote_asset_amount_surplus: u128,
     is_post_only: bool,

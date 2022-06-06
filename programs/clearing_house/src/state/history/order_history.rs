@@ -1,4 +1,4 @@
-use crate::state::user_orders::Order;
+use crate::state::user::Order;
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 

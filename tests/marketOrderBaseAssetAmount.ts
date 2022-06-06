@@ -97,15 +97,16 @@ describe('clearing_house', () => {
 		assert(user.totalFeePaid.eq(new BN(49750)));
 		assert(user.cumulativeDeposits.eq(usdcAmount));
 
-		const userPositionsAccount: any =
-			await clearingHouse.program.account.userPositions.fetch(user.positions);
-
 		assert.ok(
-			userPositionsAccount.positions[0].quoteAssetAmount.eq(new BN(49750001))
+			clearingHouse
+				.getUserAccount()
+				.positions[0].quoteAssetAmount.eq(new BN(49750001))
 		);
-		console.log(userPositionsAccount.positions[0].baseAssetAmount);
+		console.log(clearingHouse.getUserAccount().positions[0].baseAssetAmount);
 		assert.ok(
-			userPositionsAccount.positions[0].baseAssetAmount.eq(baseAssetAmount)
+			clearingHouse
+				.getUserAccount()
+				.positions[0].baseAssetAmount.eq(baseAssetAmount)
 		);
 
 		const market = clearingHouse.getMarketAccount(0);
@@ -192,16 +193,18 @@ describe('clearing_house', () => {
 		const user: any = await clearingHouse.program.account.user.fetch(
 			userAccountPublicKey
 		);
-		const userPositionsAccount: any =
-			await clearingHouse.program.account.userPositions.fetch(user.positions);
 		assert.ok(
-			userPositionsAccount.positions[0].quoteAssetAmount.eq(new BN(24875001))
+			clearingHouse
+				.getUserAccount()
+				.positions[0].quoteAssetAmount.eq(new BN(24875001))
 		);
-		console.log(userPositionsAccount.positions[0].baseAssetAmount.toNumber());
+		console.log(
+			clearingHouse.getUserAccount().positions[0].baseAssetAmount.toNumber()
+		);
 		assert.ok(
-			userPositionsAccount.positions[0].baseAssetAmount.eq(
-				new BN(248725251837443)
-			)
+			clearingHouse
+				.getUserAccount()
+				.positions[0].baseAssetAmount.eq(new BN(248725251837443))
 		);
 		console.log(user.collateral.toString());
 		console.log(user.totalFeePaid.toString());
@@ -257,19 +260,21 @@ describe('clearing_house', () => {
 		const user: any = await clearingHouse.program.account.user.fetch(
 			userAccountPublicKey
 		);
-		const userPositionsAccount: any =
-			await clearingHouse.program.account.userPositions.fetch(user.positions);
 
 		assert.ok(user.collateral.eq(new BN(9875627)));
 		assert(user.totalFeePaid.eq(new BN(124371)));
 		assert.ok(
-			userPositionsAccount.positions[0].quoteAssetAmount.eq(new BN(24871287))
+			clearingHouse
+				.getUserAccount()
+				.positions[0].quoteAssetAmount.eq(new BN(24871287))
 		);
-		console.log(userPositionsAccount.positions[0].baseAssetAmount.toString());
+		console.log(
+			clearingHouse.getUserAccount().positions[0].baseAssetAmount.toString()
+		);
 		assert.ok(
-			userPositionsAccount.positions[0].baseAssetAmount.eq(
-				new BN(-248725251837442)
-			)
+			clearingHouse
+				.getUserAccount()
+				.positions[0].baseAssetAmount.eq(new BN(-248725251837442))
 		);
 
 		const market = clearingHouse.getMarketAccount(0);
@@ -318,10 +323,13 @@ describe('clearing_house', () => {
 		const user: any = await clearingHouse.program.account.user.fetch(
 			userAccountPublicKey
 		);
-		const userPositionsAccount: any =
-			await clearingHouse.program.account.userPositions.fetch(user.positions);
-		assert.ok(userPositionsAccount.positions[0].quoteAssetAmount.eq(new BN(0)));
-		assert.ok(userPositionsAccount.positions[0].baseAssetAmount.eq(new BN(0)));
+
+		assert.ok(
+			clearingHouse.getUserAccount().positions[0].quoteAssetAmount.eq(new BN(0))
+		);
+		assert.ok(
+			clearingHouse.getUserAccount().positions[0].baseAssetAmount.eq(new BN(0))
+		);
 		assert.ok(user.collateral.eq(new BN(9850755)));
 		assert(user.totalFeePaid.eq(new BN(149242)));
 

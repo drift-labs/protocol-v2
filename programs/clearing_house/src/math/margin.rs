@@ -5,8 +5,7 @@ use crate::math::position::{
     calculate_base_asset_value_and_pnl, calculate_base_asset_value_and_pnl_with_oracle_price,
 };
 use crate::math_error;
-use crate::state::user::{User, UserPositions};
-use std::cell::RefMut;
+use crate::state::user::User;
 
 use crate::math::amm::use_oracle_price_for_margin_calculation;
 use crate::math::casting::cast_to_i128;
@@ -32,14 +31,13 @@ pub enum MarginType {
 
 pub fn calculate_margin_requirement_and_total_collateral(
     user: &User,
-    user_positions: &UserPositions,
     market_map: &MarketMap,
     margin_type: MarginType,
 ) -> ClearingHouseResult<(u128, u128)> {
     let mut margin_requirement: u128 = 0;
     let mut unrealized_pnl: i128 = 0;
 
-    for market_position in user_positions.positions.iter() {
+    for market_position in user.positions.iter() {
         if market_position.base_asset_amount == 0 {
             continue;
         }
@@ -71,16 +69,10 @@ pub fn calculate_margin_requirement_and_total_collateral(
 
 pub fn meets_initial_margin_requirement(
     user: &User,
-    user_positions: &RefMut<UserPositions>,
     market_map: &MarketMap,
 ) -> ClearingHouseResult<bool> {
     let (mut initial_margin_requirement, total_collateral) =
-        calculate_margin_requirement_and_total_collateral(
-            user,
-            user_positions,
-            market_map,
-            MarginType::Init,
-        )?;
+        calculate_margin_requirement_and_total_collateral(user, market_map, MarginType::Init)?;
 
     initial_margin_requirement = initial_margin_requirement
         .checked_div(MARGIN_PRECISION)
@@ -91,16 +83,10 @@ pub fn meets_initial_margin_requirement(
 
 pub fn meets_partial_margin_requirement(
     user: &User,
-    user_positions: &RefMut<UserPositions>,
     market_map: &MarketMap,
 ) -> ClearingHouseResult<bool> {
     let (mut partial_margin_requirement, total_collateral) =
-        calculate_margin_requirement_and_total_collateral(
-            user,
-            user_positions,
-            market_map,
-            MarginType::Partial,
-        )?;
+        calculate_margin_requirement_and_total_collateral(user, market_map, MarginType::Partial)?;
 
     partial_margin_requirement = partial_margin_requirement
         .checked_div(MARGIN_PRECISION)
@@ -140,7 +126,6 @@ pub struct MarketStatus {
 
 pub fn calculate_liquidation_status(
     user: &User,
-    user_positions: &RefMut<UserPositions>,
     market_map: &MarketMap,
     account_info_iter: &mut Peekable<Iter<AccountInfo>>,
     oracle_guard_rails: &OracleGuardRails,
@@ -158,7 +143,7 @@ pub fn calculate_liquidation_status(
         oracle_account_infos.insert(account_info.key(), account_info);
     }
 
-    for (i, market_position) in user_positions.positions.iter().enumerate() {
+    for (i, market_position) in user.positions.iter().enumerate() {
         if market_position.base_asset_amount == 0 {
             continue;
         }
@@ -363,7 +348,6 @@ pub fn calculate_liquidation_status(
 
 pub fn calculate_free_collateral(
     user: &User,
-    user_positions: &mut UserPositions,
     market_map: &MarketMap,
     market_to_close: Option<u64>,
 ) -> ClearingHouseResult<(u128, u128)> {
@@ -371,7 +355,7 @@ pub fn calculate_free_collateral(
     let mut initial_margin_requirement: u128 = 0;
     let mut unrealized_pnl: i128 = 0;
 
-    for market_position in user_positions.positions.iter() {
+    for market_position in user.positions.iter() {
         if market_position.base_asset_amount == 0 {
             continue;
         }

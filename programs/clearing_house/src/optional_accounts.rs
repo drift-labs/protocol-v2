@@ -1,8 +1,8 @@
-use crate::context::{InitializeUserOptionalAccounts, ManagePositionOptionalAccounts};
+use crate::account_loader::load;
+use crate::context::ManagePositionOptionalAccounts;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::state::user::User;
-use crate::state::user_orders::UserOrders;
-use anchor_lang::prelude::{Account, AccountLoader};
+use anchor_lang::prelude::AccountLoader;
 use anchor_lang::prelude::{AccountInfo, Pubkey};
 use solana_program::account_info::next_account_info;
 use spl_token::solana_program::program_pack::{IsInitialized, Pack};
@@ -10,45 +10,13 @@ use spl_token::state::Account as TokenAccount;
 use std::iter::Peekable;
 use std::slice::Iter;
 
-pub fn get_whitelist_token(
-    optional_accounts: InitializeUserOptionalAccounts,
-    accounts: &[AccountInfo],
-    whitelist_mint: &Pubkey,
-) -> ClearingHouseResult<Option<TokenAccount>> {
-    if !optional_accounts.whitelist_token {
-        return Ok(None);
-    }
-
-    if accounts.len() != 1 {
-        return Err(ErrorCode::WhitelistTokenNotFound);
-    }
-    let token_account_info = &accounts[0];
-
-    if token_account_info.owner != &spl_token::id() {
-        return Err(ErrorCode::InvalidWhitelistToken);
-    }
-
-    let token_account = TokenAccount::unpack_unchecked(&token_account_info.data.borrow())
-        .or(Err(ErrorCode::InvalidWhitelistToken))?;
-
-    if !token_account.is_initialized() {
-        return Err(ErrorCode::InvalidWhitelistToken);
-    }
-
-    if !token_account.mint.eq(whitelist_mint) {
-        return Err(ErrorCode::InvalidWhitelistToken);
-    }
-
-    Ok(Some(token_account))
-}
-
 pub fn get_discount_token_and_referrer<'a, 'b, 'c, 'd, 'e>(
     optional_accounts: ManagePositionOptionalAccounts,
     account_info_iter: &'a mut Peekable<Iter<AccountInfo<'b>>>,
     discount_mint: &'c Pubkey,
     user_public_key: &'d Pubkey,
     authority_public_key: &'e Pubkey,
-) -> ClearingHouseResult<(Option<TokenAccount>, Option<Account<'b, User>>)> {
+) -> ClearingHouseResult<(Option<TokenAccount>, Option<AccountLoader<'b, User>>)> {
     let optional_discount_token = get_discount_token(
         optional_accounts.discount_token,
         account_info_iter,
@@ -111,7 +79,7 @@ pub fn get_referrer<'a, 'b, 'c, 'd>(
     account_info_iter: &'a mut Peekable<Iter<AccountInfo<'b>>>,
     user_public_key: &'c Pubkey,
     expected_referrer: Option<&'d Pubkey>,
-) -> ClearingHouseResult<Option<Account<'b, User>>> {
+) -> ClearingHouseResult<Option<AccountLoader<'b, User>>> {
     let mut optional_referrer = None;
     if expect_referrer {
         let referrer_account_info =
@@ -129,7 +97,7 @@ pub fn get_referrer<'a, 'b, 'c, 'd>(
             }
         }
 
-        let user_account: Account<User> = Account::try_from(referrer_account_info)
+        let user_account: AccountLoader<User> = AccountLoader::try_from(referrer_account_info)
             .or(Err(ErrorCode::CouldNotDeserializeReferrer))?;
 
         optional_referrer = Some(user_account);
@@ -142,17 +110,15 @@ pub fn get_referrer_for_fill_order<'a, 'b, 'c>(
     account_info_iter: &'a mut Peekable<Iter<AccountInfo<'b>>>,
     user_public_key: &'c Pubkey,
     order_id: u128,
-    user_orders: &AccountLoader<UserOrders>,
-) -> ClearingHouseResult<Option<Account<'b, User>>> {
-    let user_orders = &user_orders
-        .load()
-        .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
-    let order_index = user_orders
+    user: &AccountLoader<User>,
+) -> ClearingHouseResult<Option<AccountLoader<'b, User>>> {
+    let user = &load(user)?;
+    let order_index = user
         .orders
         .iter()
         .position(|order| order.order_id == order_id)
         .ok_or(ErrorCode::OrderDoesNotExist)?;
-    let order = &user_orders.orders[order_index];
+    let order = &user.orders[order_index];
     let mut referrer = None;
     if !order.referrer.eq(&Pubkey::default()) {
         referrer = get_referrer(

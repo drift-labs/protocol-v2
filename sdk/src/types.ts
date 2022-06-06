@@ -320,31 +320,17 @@ export type UserPosition = {
 	openOrders: BN;
 };
 
-export type UserPositionsAccount = {
-	positions: UserPosition[];
-	user: PublicKey;
-};
-
 export type UserAccount = {
 	authority: PublicKey;
 	collateral: BN;
 	cumulativeDeposits: BN;
-	positions: PublicKey;
 	totalFeePaid: BN;
 	totalFeeRebate: BN;
 	totalTokenDiscount: BN;
 	totalReferralReward: BN;
 	totalRefereeDiscount: BN;
-};
-
-export type UserOrdersAccount = {
+	positions: UserPosition[];
 	orders: Order[];
-	user: PublicKey;
-};
-
-export type ClearingHouseUserOrdersAccount = {
-	publicKey: PublicKey;
-	account: UserOrdersAccount;
 };
 
 export type Order = {
