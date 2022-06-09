@@ -11,18 +11,23 @@ import {
 	EventMap,
 	EventData,
 	LogProvider,
+	EventSubscriberEvents,
 } from './types';
 import { TxEventCache } from './txEventCache';
 import { EventList } from './eventList';
+import { PollingLogProvider } from './pollingLogProvider';
+import { fetchLogs } from './fetchLogs';
 import { WebSocketLogProvider } from './webSocketLogProvider';
+import { EventEmitter } from 'events';
+import StrictEventEmitter from 'strict-event-emitter-types';
 
 export class EventSubscriber {
-	private subscriptionId: number;
 	private eventListMap: Map<EventType, EventList<EventType, EventData>>;
 	private txEventCache: TxEventCache;
 	private awaitTxPromises = new Map<string, Promise<void>>();
 	private awaitTxResolver = new Map<string, () => void>();
 	private logProvider: LogProvider;
+	public eventEmitter: StrictEventEmitter<EventEmitter, EventSubscriberEvents>;
 
 	public constructor(
 		private connection: Connection,
@@ -41,12 +46,21 @@ export class EventSubscriber {
 				)
 			);
 		}
-
-		this.logProvider = new WebSocketLogProvider(
-			this.connection,
-			this.program.programId,
-			options.commitment
-		);
+		this.eventEmitter = new EventEmitter();
+		if (this.options.logProviderConfig.type === 'websocket') {
+			this.logProvider = new WebSocketLogProvider(
+				this.connection,
+				this.program.programId,
+				this.options.commitment
+			);
+		} else {
+			this.logProvider = new PollingLogProvider(
+				this.connection,
+				this.program.programId,
+				options.commitment,
+				this.options.logProviderConfig.frequency
+			);
+		}
 	}
 
 	public subscribe(): boolean {
@@ -54,29 +68,72 @@ export class EventSubscriber {
 			return true;
 		}
 
+		this.fetchPreviousTx().catch((e) => {
+			console.error('Error fetching previous txs in event subscriber');
+			console.error(e);
+		});
+
 		return this.logProvider.subscribe((txSig, slot, logs) => {
-			if (this.txEventCache.has(txSig)) {
-				return;
-			}
-
-			const events = this.parseEventsFromLogs(txSig, slot, logs);
-			for (const event of events) {
-				this.eventListMap.get(event.type).insert(event);
-			}
-
-			if (this.awaitTxPromises.has(txSig)) {
-				this.awaitTxPromises.delete(txSig);
-				this.awaitTxResolver.get(txSig)();
-				this.awaitTxResolver.delete(txSig);
-			}
-
-			this.txEventCache.add(txSig, events);
+			this.handleTxLogs(txSig, slot, logs);
 		});
 	}
 
+	private handleTxLogs(
+		txSig: TransactionSignature,
+		slot: number,
+		logs: string[]
+	): void {
+		if (this.txEventCache.has(txSig)) {
+			return;
+		}
+
+		const events = this.parseEventsFromLogs(txSig, slot, logs);
+		for (const event of events) {
+			this.eventListMap.get(event.type).insert(event);
+			this.eventEmitter.emit('newEvent', event);
+		}
+
+		if (this.awaitTxPromises.has(txSig)) {
+			this.awaitTxPromises.delete(txSig);
+			this.awaitTxResolver.get(txSig)();
+			this.awaitTxResolver.delete(txSig);
+		}
+
+		this.txEventCache.add(txSig, events);
+	}
+
+	private async fetchPreviousTx(): Promise<void> {
+		if (!this.options.untilTx) {
+			return;
+		}
+
+		let txFetched = 0;
+		let beforeTx: TransactionSignature = undefined;
+		const untilTx: TransactionSignature = this.options.untilTx;
+		while (txFetched < this.options.maxTx) {
+			const response = await fetchLogs(
+				this.connection,
+				this.program.programId,
+				this.options.commitment === 'finalized' ? 'finalized' : 'confirmed',
+				beforeTx,
+				untilTx
+			);
+
+			if (response === undefined) {
+				break;
+			}
+
+			txFetched += response.transactionLogs.length;
+			beforeTx = response.earliestTx;
+
+			for (const { txSig, slot, logs } of response.transactionLogs) {
+				this.handleTxLogs(txSig, slot, logs);
+			}
+		}
+	}
+
 	public async unsubscribe(): Promise<boolean> {
-		await this.connection.removeOnLogsListener(this.subscriptionId);
-		this.subscriptionId = undefined;
+		await this.logProvider.unsubscribe();
 		return true;
 	}
 

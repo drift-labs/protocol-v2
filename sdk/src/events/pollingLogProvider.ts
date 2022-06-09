@@ -1,13 +1,12 @@
 import { LogProvider, logProviderCallback } from './types';
 import {
 	Commitment,
-	ConfirmedSignatureInfo,
 	Connection,
 	Finality,
-	LogsCallback,
 	PublicKey,
 	TransactionSignature,
 } from '@solana/web3.js';
+import { fetchLogs } from './fetchLogs';
 
 export class PollingLogProvider implements LogProvider {
 	private finality: Finality;
@@ -32,26 +31,25 @@ export class PollingLogProvider implements LogProvider {
 			this.mutex = 1;
 
 			try {
-				const signatures = await this.connection.getSignaturesForAddress(
+				const response = await fetchLogs(
+					this.connection,
 					this.programId,
-					{
-						until: this.mostRecentSeenTx,
-					},
-					this.finality
+					this.finality,
+					undefined,
+					this.mostRecentSeenTx
 				);
 
-				const sortedSignatures = signatures.sort((a, b) =>
-					a.slot < b.slot ? -1 : 1
-				);
-
-				if (sortedSignatures.length === 0) {
+				if (response === undefined) {
 					return;
 				}
 
-				const chunkedSignatures = this.chunk(sortedSignatures, 100);
+				const { mostRecentTx, transactionLogs } = response;
 
-				this.mostRecentSeenTx =
-					sortedSignatures[sortedSignatures.length - 1].signature;
+				for (const { txSig, slot, logs } of transactionLogs) {
+					callback(txSig, slot, logs);
+				}
+
+				this.mostRecentSeenTx = mostRecentTx;
 			} catch (e) {
 				console.error('PollingLogProvider threw an Error');
 				console.error(e);
@@ -59,25 +57,8 @@ export class PollingLogProvider implements LogProvider {
 				this.mutex = 0;
 			}
 		}, this.frequency);
-	}
 
-	chunk<T>(array: readonly T[], size: number): T[][] {
-		return new Array(Math.ceil(array.length / size))
-			.fill(null)
-			.map((_, index) => index * size)
-			.map((begin) => array.slice(begin, begin + size));
-	}
-
-	fetchLogs(
-		confirmedSignatures: ConfirmedSignatureInfo[],
-		callback: LogsCallback
-	): void {
-		this.connection.getTransactions(
-			confirmedSignatures.map(
-				(confirmedSignature) => confirmedSignature.signature
-			),
-			this.finality
-		);
+		return true;
 	}
 
 	public isSubscribed(): boolean {
