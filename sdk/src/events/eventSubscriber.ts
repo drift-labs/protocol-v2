@@ -133,8 +133,7 @@ export class EventSubscriber {
 	}
 
 	public async unsubscribe(): Promise<boolean> {
-		await this.logProvider.unsubscribe();
-		return true;
+		return await this.logProvider.unsubscribe();
 	}
 
 	private parseEventsFromLogs(

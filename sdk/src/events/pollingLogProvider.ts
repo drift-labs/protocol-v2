@@ -24,6 +24,10 @@ export class PollingLogProvider implements LogProvider {
 	}
 
 	public subscribe(callback: logProviderCallback): boolean {
+		if (this.intervalId) {
+			return true;
+		}
+
 		this.intervalId = setInterval(async () => {
 			if (this.mutex === 1) {
 				return;
@@ -66,7 +70,7 @@ export class PollingLogProvider implements LogProvider {
 	}
 
 	public async unsubscribe(): Promise<boolean> {
-		if (this.intervalId) {
+		if (this.intervalId !== undefined) {
 			clearInterval(this.intervalId);
 			this.intervalId = undefined;
 		}

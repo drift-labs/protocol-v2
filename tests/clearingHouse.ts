@@ -1,6 +1,6 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
-import { BN } from '../sdk';
+import { BN, MarketAccount } from '../sdk';
 
 import { Program } from '@project-serum/anchor';
 import { getTokenAccount } from '@project-serum/common';
@@ -143,7 +143,7 @@ describe('clearing_house', () => {
 		);
 		const market = (await clearingHouse.program.account.market.fetch(
 			marketPublicKey
-		)) as Market;
+		)) as MarketAccount;
 
 		assert.ok(market.initialized);
 		assert.ok(market.baseAssetAmount.eq(new BN(0)));

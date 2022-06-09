@@ -1033,58 +1033,6 @@ pub mod clearing_house {
         Ok(())
     }
 
-    pub fn cancel_all_orders(ctx: Context<CancelAllOrders>, best_effort: bool) -> Result<()> {
-        let market_map = MarketMap::load(
-            &WritableMarkets::new(),
-            &MarketOracles::new(),
-            &mut ctx.remaining_accounts.iter().peekable(),
-        )?;
-
-        controller::orders::cancel_all_orders(
-            &ctx.accounts.state,
-            &ctx.accounts.user,
-            &market_map,
-            &Clock::get()?,
-            ctx.remaining_accounts,
-            best_effort,
-            None,
-            None,
-        )?;
-
-        Ok(())
-    }
-
-    pub fn cancel_orders_by_market_and_side(
-        ctx: Context<CancelAllOrders>,
-        best_effort: bool,
-        market_index_only: u64,
-        direction_only: PositionDirection,
-    ) -> Result<()> {
-        let market_map = MarketMap::load(
-            &WritableMarkets::new(),
-            &MarketOracles::new(),
-            &mut ctx.remaining_accounts.iter().peekable(),
-        )?;
-
-        controller::orders::cancel_all_orders(
-            &ctx.accounts.state,
-            &ctx.accounts.user,
-            &market_map,
-            &Clock::get()?,
-            ctx.remaining_accounts,
-            best_effort,
-            Some(market_index_only),
-            Some(direction_only),
-        )?;
-
-        Ok(())
-    }
-
-    pub fn expire_orders(ctx: Context<ExpireOrder>) -> Result<()> {
-        controller::orders::expire_orders(&ctx.accounts.user, &ctx.accounts.filler)?;
-        Ok(())
-    }
-
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]
