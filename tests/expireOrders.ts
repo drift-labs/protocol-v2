@@ -13,6 +13,7 @@ import {
 	PositionDirection,
 	ClearingHouseUser,
 	Wallet,
+	EventSubscriber,
 } from '../sdk/src';
 
 import { mockOracle, mockUSDCMint, mockUserUSDCAccount } from './testHelpers';
@@ -34,6 +35,8 @@ describe('expire order', () => {
 
 	let clearingHouse: Admin;
 	let clearingHouseUser: ClearingHouseUser;
+	const eventSubscriber = new EventSubscriber(connection, chProgram);
+	eventSubscriber.subscribe();
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -123,6 +126,7 @@ describe('expire order', () => {
 		await clearingHouseUser.unsubscribe();
 		await fillerUser.unsubscribe();
 		await fillerClearingHouse.unsubscribe();
+		await eventSubscriber.unsubscribe();
 	});
 
 	it('Open and cancel orders', async () => {
@@ -143,9 +147,8 @@ describe('expire order', () => {
 		}
 
 		await clearingHouse.fetchAccounts();
-		let orderHistory = clearingHouse.getOrderHistoryAccount();
 		for (let i = 0; i < 32; i++) {
-			const orderRecord = orderHistory.orderRecords[i];
+			const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[i].data;
 			assert(isVariant(orderRecord.action, 'place'));
 		}
 
@@ -170,11 +173,6 @@ describe('expire order', () => {
 		await fillerClearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
 		await fillerUser.fetchAccounts();
-		orderHistory = clearingHouse.getOrderHistoryAccount();
-		for (let i = 32; i < 64; i++) {
-			const orderRecord = orderHistory.orderRecords[i];
-			assert(isVariant(orderRecord.action, 'expire'));
-		}
 
 		assert(clearingHouseUser.getUserAccount().collateral.eq(new BN(990000)));
 		assert(fillerUser.getUserAccount().collateral.eq(new BN(10010000)));

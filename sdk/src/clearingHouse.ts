@@ -2,20 +2,13 @@ import { AnchorProvider, BN, Idl, Program } from '@project-serum/anchor';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import {
 	StateAccount,
-	DepositHistoryAccount,
-	FundingPaymentHistoryAccount,
-	FundingRateHistoryAccount,
 	IWallet,
-	LiquidationHistoryAccount,
 	PositionDirection,
-	TradeHistoryAccount,
 	UserAccount,
 	MarketAccount,
-	OrderHistoryAccount,
 	OrderStateAccount,
 	OrderParams,
 	Order,
-	ExtendedCurveHistoryAccount,
 } from './types';
 import * as anchor from '@project-serum/anchor';
 import clearingHouseIDL from './idl/clearing_house.json';
@@ -124,7 +117,7 @@ export class ClearingHouse {
 
 	/**
 	 *
-	 * @param optionalSubscriptions - Optional extra accounts to subcribe to. Always subscribes to base clearing house state and market account state by default. You should only subscribe to optional extra accounts if required, to avoid overloading your RPC.
+	 * @param optionalSubscriptions - Optional extra accounts to subscribe to. Always subscribes to base clearing house state and market account state by default. You should only subscribe to optional extra accounts if required, to avoid overloading your RPC.
 	 * @returns Promise<boolean> : SubscriptionSuccess
 	 */
 	public async subscribe(
@@ -185,35 +178,6 @@ export class ClearingHouse {
 	public getMarketAccount(marketIndex: BN | number): MarketAccount {
 		marketIndex = marketIndex instanceof BN ? marketIndex : new BN(marketIndex);
 		return this.accountSubscriber.getMarketAccountAndSlot(marketIndex).account;
-	}
-
-	public getFundingPaymentHistoryAccount(): FundingPaymentHistoryAccount {
-		return this.accountSubscriber.getFundingPaymentHistoryAccountAndSlot()
-			.account;
-	}
-
-	public getFundingRateHistoryAccount(): FundingRateHistoryAccount {
-		return this.accountSubscriber.getFundingRateHistoryAccountAndSlot().account;
-	}
-
-	public getTradeHistoryAccount(): TradeHistoryAccount {
-		return this.accountSubscriber.getTradeHistoryAccountAndSlot().account;
-	}
-
-	public getLiquidationHistoryAccount(): LiquidationHistoryAccount {
-		return this.accountSubscriber.getLiquidationHistoryAccountAndSlot().account;
-	}
-
-	public getDepositHistoryAccount(): DepositHistoryAccount {
-		return this.accountSubscriber.getDepositHistoryAccountAndSlot().account;
-	}
-
-	public getCurveHistoryAccount(): ExtendedCurveHistoryAccount {
-		return this.accountSubscriber.getCurveHistoryAccountAndSlot().account;
-	}
-
-	public getOrderHistoryAccount(): OrderHistoryAccount {
-		return this.accountSubscriber.getOrderHistoryAccountAndSlot().account;
 	}
 
 	orderStatePublicKey?: PublicKey;

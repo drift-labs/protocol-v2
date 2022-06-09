@@ -114,22 +114,22 @@ describe('cancel all orders', () => {
 			await clearingHouse.placeOrder(orderParams);
 		}
 
-		await clearingHouse.fetchAccounts();
-		let orderHistory = clearingHouse.getOrderHistoryAccount();
-		for (let i = 0; i < 32; i++) {
-			const orderRecord = orderHistory.orderRecords[i];
-			assert(isVariant(orderRecord.action, 'place'));
-		}
+		// await clearingHouse.fetchAccounts();
+		// let orderHistory = clearingHouse.getOrderHistoryAccount();
+		// for (let i = 0; i < 32; i++) {
+		// 	const orderRecord = orderHistory.orderRecords[i];
+		// 	assert(isVariant(orderRecord.action, 'place'));
+		// }
 
 		await clearingHouse.cancelAllOrders();
 
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
-		orderHistory = clearingHouse.getOrderHistoryAccount();
-		for (let i = 32; i < 64; i++) {
-			const orderRecord = orderHistory.orderRecords[i];
-			assert(isVariant(orderRecord.action, 'cancel'));
-		}
+		// orderHistory = clearingHouse.getOrderHistoryAccount();
+		// for (let i = 32; i < 64; i++) {
+		// 	const orderRecord = orderHistory.orderRecords[i];
+		// 	assert(isVariant(orderRecord.action, 'cancel'));
+		// }
 
 		for (const order of clearingHouse.getUserAccount().orders) {
 			assert(isVariant(order.status, 'init'));

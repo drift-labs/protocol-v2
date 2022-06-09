@@ -109,7 +109,7 @@ pub fn get_referrer<'a, 'b, 'c, 'd>(
 pub fn get_referrer_for_fill_order<'a, 'b, 'c>(
     account_info_iter: &'a mut Peekable<Iter<AccountInfo<'b>>>,
     user_public_key: &'c Pubkey,
-    order_id: u128,
+    order_id: u64,
     user: &AccountLoader<User>,
 ) -> ClearingHouseResult<Option<AccountLoader<'b, User>>> {
     let user = &load(user)?;

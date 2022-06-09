@@ -8,6 +8,7 @@ import { PublicKey } from '@solana/web3.js';
 
 import {
 	Admin,
+	EventSubscriber,
 	findComputeUnitConsumption,
 	MARK_PRICE_PRECISION,
 	PositionDirection,
@@ -31,6 +32,8 @@ describe('max reserves', () => {
 	const chProgram = anchor.workspace.ClearingHouse as Program;
 
 	let clearingHouse: Admin;
+	const eventSubscriber = new EventSubscriber(connection, chProgram);
+	eventSubscriber.subscribe();
 
 	let userAccountPublicKey: PublicKey;
 
@@ -90,6 +93,7 @@ describe('max reserves', () => {
 
 	after(async () => {
 		await clearingHouse.unsubscribe();
+		await eventSubscriber.unsubscribe();
 	});
 
 	it('open max positions', async () => {
@@ -131,8 +135,8 @@ describe('max reserves', () => {
 		console.log('compute units', computeUnits);
 
 		await clearingHouse.fetchAccounts();
-		const liquidationHistory = clearingHouse.getLiquidationHistoryAccount();
-		const liquidationRecord = liquidationHistory.liquidationRecords[0];
+		const liquidationRecord =
+			eventSubscriber.getEventsArray('LiquidationRecord')[0].data;
 		assert(liquidationRecord.partial);
 	});
 
@@ -156,8 +160,8 @@ describe('max reserves', () => {
 		console.log('compute units', computeUnits);
 
 		await clearingHouse.fetchAccounts();
-		const liquidationHistory = clearingHouse.getLiquidationHistoryAccount();
-		const liquidationRecord = liquidationHistory.liquidationRecords[1];
+		const liquidationRecord =
+			eventSubscriber.getEventsArray('LiquidationRecord')[0].data;
 		assert(!liquidationRecord.partial);
 	});
 });

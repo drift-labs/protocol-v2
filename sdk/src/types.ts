@@ -281,6 +281,7 @@ export type MarketAccount = {
 	marginRatioInitial: number;
 	marginRatioMaintenance: number;
 	marginRatioPartial: number;
+	nextTradeRecordId: BN;
 };
 
 export type AMM = {

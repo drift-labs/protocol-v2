@@ -4,7 +4,6 @@ use anchor_lang::prelude::*;
 #[derive(Default)]
 #[repr(packed)]
 pub struct OrderState {
-    pub order_history: Pubkey,
     pub order_filler_reward_structure: OrderFillerRewardStructure,
     pub min_order_quote_asset_amount: u128, // minimum est. quote_asset_amount for place_order to succeed
     pub padding: [u128; 10],

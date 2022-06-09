@@ -64,8 +64,6 @@ export interface ClearingHouseAccountSubscriber {
 	eventEmitter: StrictEventEmitter<EventEmitter, ClearingHouseAccountEvents>;
 	isSubscribed: boolean;
 
-	optionalExtraSubscriptions: ClearingHouseAccountTypes[];
-
 	subscribe(
 		optionalSubscriptions?: ClearingHouseAccountTypes[]
 	): Promise<boolean>;
@@ -78,14 +76,7 @@ export interface ClearingHouseAccountSubscriber {
 	getMarketAccountAndSlot(
 		marketIndex: BN
 	): AccountAndSlot<MarketAccount> | undefined;
-	getTradeHistoryAccountAndSlot(): AccountAndSlot<TradeHistoryAccount>;
-	getDepositHistoryAccountAndSlot(): AccountAndSlot<DepositHistoryAccount>;
-	getFundingPaymentHistoryAccountAndSlot(): AccountAndSlot<FundingPaymentHistoryAccount>;
-	getFundingRateHistoryAccountAndSlot(): AccountAndSlot<FundingRateHistoryAccount>;
-	getCurveHistoryAccountAndSlot(): AccountAndSlot<ExtendedCurveHistoryAccount>;
-	getLiquidationHistoryAccountAndSlot(): AccountAndSlot<LiquidationHistoryAccount>;
 	getOrderStateAccountAndSlot(): AccountAndSlot<OrderStateAccount>;
-	getOrderHistoryAccountAndSlot(): AccountAndSlot<OrderHistoryAccount>;
 
 	getUserAccountAndSlot(): AccountAndSlot<UserAccount> | undefined;
 

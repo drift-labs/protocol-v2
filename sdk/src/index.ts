@@ -22,6 +22,7 @@ export * from './factory/clearingHouse';
 export * from './factory/clearingHouseUser';
 export * from './factory/oracleClient';
 export * from './factory/bigNum';
+export * from './events/eventSubscriber';
 export * from './math/conversion';
 export * from './math/funding';
 export * from './math/market';

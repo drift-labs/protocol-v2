@@ -2,12 +2,6 @@ use anchor_lang::{prelude::*, AnchorDeserialize, AnchorSerialize};
 use anchor_spl::token::{Mint, Token, TokenAccount};
 
 use crate::controller::position::PositionDirection;
-use crate::state::history::curve::{CurveHistory, ExtendedCurveHistory};
-use crate::state::history::deposit::DepositHistory;
-use crate::state::history::funding_rate::FundingRateHistory;
-use crate::state::history::liquidation::LiquidationHistory;
-use crate::state::history::order_history::OrderHistory;
-use crate::state::history::{funding_payment::FundingPaymentHistory, trade::TradeHistory};
 use crate::state::market::Market;
 use crate::state::order_state::OrderState;
 use crate::state::state::State;
@@ -59,28 +53,6 @@ pub struct Initialize<'info> {
 }
 
 #[derive(Accounts)]
-pub struct InitializeHistory<'info> {
-    pub admin: Signer<'info>,
-    #[account(
-        mut,
-        has_one = admin
-    )]
-    pub state: Box<Account<'info, State>>,
-    #[account(zero)]
-    pub funding_payment_history: AccountLoader<'info, FundingPaymentHistory>,
-    #[account(zero)]
-    pub trade_history: AccountLoader<'info, TradeHistory>,
-    #[account(zero)]
-    pub liquidation_history: AccountLoader<'info, LiquidationHistory>,
-    #[account(zero)]
-    pub deposit_history: AccountLoader<'info, DepositHistory>,
-    #[account(zero)]
-    pub funding_rate_history: AccountLoader<'info, FundingRateHistory>,
-    #[account(zero)]
-    pub curve_history: AccountLoader<'info, ExtendedCurveHistory>,
-}
-
-#[derive(Accounts)]
 #[instruction(
     order_house_nonce: u8,
 )]
@@ -100,8 +72,6 @@ pub struct InitializeOrderState<'info> {
         payer = admin
     )]
     pub order_state: Box<Account<'info, OrderState>>,
-    #[account(zero)]
-    pub order_history: AccountLoader<'info, OrderHistory>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
 }
@@ -165,16 +135,6 @@ pub struct DepositCollateral<'info> {
     #[account(mut)]
     pub user_collateral_account: Box<Account<'info, TokenAccount>>,
     pub token_program: Program<'info, Token>,
-    #[account(
-        mut,
-        constraint = &state.funding_payment_history.eq(&funding_payment_history.key())
-    )]
-    pub funding_payment_history: AccountLoader<'info, FundingPaymentHistory>,
-    #[account(
-        mut,
-        constraint = &state.deposit_history.eq(&deposit_history.key())
-    )]
-    pub deposit_history: AccountLoader<'info, DepositHistory>,
 }
 
 #[derive(Accounts)]
@@ -210,16 +170,6 @@ pub struct WithdrawCollateral<'info> {
     #[account(mut)]
     pub user_collateral_account: Box<Account<'info, TokenAccount>>,
     pub token_program: Program<'info, Token>,
-    #[account(
-        mut,
-        constraint = &state.funding_payment_history.eq(&funding_payment_history.key())
-    )]
-    pub funding_payment_history: AccountLoader<'info, FundingPaymentHistory>,
-    #[account(
-        mut,
-        constraint = &state.deposit_history.eq(&deposit_history.key())
-    )]
-    pub deposit_history: AccountLoader<'info, DepositHistory>,
 }
 
 #[derive(Accounts)]
@@ -312,21 +262,6 @@ pub struct OpenPosition<'info> {
     )]
     pub user: AccountLoader<'info, User>,
     pub authority: Signer<'info>,
-    #[account(
-        mut,
-        constraint = &state.trade_history.eq(&trade_history.key())
-    )]
-    pub trade_history: AccountLoader<'info, TradeHistory>,
-    #[account(
-        mut,
-        constraint = &state.funding_payment_history.eq(&funding_payment_history.key())
-    )]
-    pub funding_payment_history: AccountLoader<'info, FundingPaymentHistory>,
-    #[account(
-        mut,
-        constraint = &state.funding_rate_history.eq(&funding_rate_history.key())
-    )]
-    pub funding_rate_history: AccountLoader<'info, FundingRateHistory>,
     /// CHECK: validated in `open_position` ix constraint
     pub oracle: AccountInfo<'info>,
 }
@@ -346,31 +281,6 @@ pub struct FillOrder<'info> {
     pub filler: AccountLoader<'info, User>,
     #[account(mut)]
     pub user: AccountLoader<'info, User>,
-    #[account(
-        mut,
-        constraint = &state.trade_history.eq(&trade_history.key())
-    )]
-    pub trade_history: AccountLoader<'info, TradeHistory>,
-    #[account(
-        mut,
-        constraint = &state.funding_payment_history.eq(&funding_payment_history.key())
-    )]
-    pub funding_payment_history: AccountLoader<'info, FundingPaymentHistory>,
-    #[account(
-        mut,
-        constraint = &state.funding_rate_history.eq(&funding_rate_history.key())
-    )]
-    pub funding_rate_history: AccountLoader<'info, FundingRateHistory>,
-    #[account(
-        mut,
-        constraint = &order_state.order_history.eq(&order_history.key())
-    )]
-    pub order_history: AccountLoader<'info, OrderHistory>,
-    #[account(
-        mut,
-        constraint = &state.extended_curve_history.eq(&extended_curve_history.key())
-    )]
-    pub extended_curve_history: AccountLoader<'info, ExtendedCurveHistory>,
     /// CHECK: validated in `controller::orders::fill_order`
     pub oracle: AccountInfo<'info>,
 }
@@ -390,16 +300,6 @@ pub struct PlaceOrder<'info> {
     pub authority: Signer<'info>,
     /// CHECK: validated in `place_order` when market_map is created
     pub oracle: AccountInfo<'info>,
-    #[account(
-        mut,
-        constraint = &state.funding_payment_history.eq(&funding_payment_history.key())
-    )]
-    pub funding_payment_history: AccountLoader<'info, FundingPaymentHistory>,
-    #[account(
-        mut,
-        constraint = &order_state.order_history.eq(&order_history.key())
-    )]
-    pub order_history: AccountLoader<'info, OrderHistory>,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
@@ -449,31 +349,6 @@ pub struct PlaceAndFillOrder<'info> {
     )]
     pub user: AccountLoader<'info, User>,
     pub authority: Signer<'info>,
-    #[account(
-        mut,
-        constraint = &state.funding_payment_history.eq(&funding_payment_history.key())
-    )]
-    pub funding_payment_history: AccountLoader<'info, FundingPaymentHistory>,
-    #[account(
-        mut,
-        constraint = &state.trade_history.eq(&trade_history.key())
-    )]
-    pub trade_history: AccountLoader<'info, TradeHistory>,
-    #[account(
-        mut,
-        constraint = &state.funding_rate_history.eq(&funding_rate_history.key())
-    )]
-    pub funding_rate_history: AccountLoader<'info, FundingRateHistory>,
-    #[account(
-        mut,
-        constraint = &order_state.order_history.eq(&order_history.key())
-    )]
-    pub order_history: AccountLoader<'info, OrderHistory>,
-    #[account(
-        mut,
-        constraint = &state.extended_curve_history.eq(&extended_curve_history.key())
-    )]
-    pub extended_curve_history: AccountLoader<'info, ExtendedCurveHistory>,
     /// CHECK: validated in `place_order` ix constraint
     pub oracle: AccountInfo<'info>,
 }
@@ -493,16 +368,6 @@ pub struct CancelOrder<'info> {
     pub authority: Signer<'info>,
     /// CHECK: validated in `cancel_order` when market_map is created
     pub oracle: AccountInfo<'info>,
-    #[account(
-        mut,
-        constraint = &state.funding_payment_history.eq(&funding_payment_history.key())
-    )]
-    pub funding_payment_history: AccountLoader<'info, FundingPaymentHistory>,
-    #[account(
-        mut,
-        constraint = &order_state.order_history.eq(&order_history.key())
-    )]
-    pub order_history: AccountLoader<'info, OrderHistory>,
 }
 
 #[derive(Accounts)]
@@ -518,16 +383,6 @@ pub struct CancelAllOrders<'info> {
     )]
     pub user: AccountLoader<'info, User>,
     pub authority: Signer<'info>,
-    #[account(
-        mut,
-        constraint = &state.funding_payment_history.eq(&funding_payment_history.key())
-    )]
-    pub funding_payment_history: AccountLoader<'info, FundingPaymentHistory>,
-    #[account(
-        mut,
-        constraint = &order_state.order_history.eq(&order_history.key())
-    )]
-    pub order_history: AccountLoader<'info, OrderHistory>,
 }
 
 #[derive(Accounts)]
@@ -545,11 +400,6 @@ pub struct ExpireOrder<'info> {
     pub filler: AccountLoader<'info, User>,
     #[account(mut)]
     pub user: AccountLoader<'info, User>,
-    #[account(
-        mut,
-        constraint = &order_state.order_history.eq(&order_history.key())
-    )]
-    pub order_history: AccountLoader<'info, OrderHistory>,
 }
 
 #[derive(Accounts)]
@@ -562,21 +412,6 @@ pub struct ClosePosition<'info> {
     )]
     pub user: AccountLoader<'info, User>,
     pub authority: Signer<'info>,
-    #[account(
-        mut,
-        constraint = &state.trade_history.eq(&trade_history.key())
-    )]
-    pub trade_history: AccountLoader<'info, TradeHistory>,
-    #[account(
-        mut,
-        constraint = &state.funding_payment_history.eq(&funding_payment_history.key())
-    )]
-    pub funding_payment_history: AccountLoader<'info, FundingPaymentHistory>,
-    #[account(
-        mut,
-        constraint = &state.funding_rate_history.eq(&funding_rate_history.key())
-    )]
-    pub funding_rate_history: AccountLoader<'info, FundingRateHistory>,
     /// CHECK: validated in `close_position`ix constraint
     pub oracle: AccountInfo<'info>,
 }
@@ -613,21 +448,6 @@ pub struct Liquidate<'info> {
     )]
     pub insurance_vault_authority: AccountInfo<'info>,
     pub token_program: Program<'info, Token>,
-    #[account(
-        mut,
-        constraint = &state.trade_history.eq(&trade_history.key())
-    )]
-    pub trade_history: AccountLoader<'info, TradeHistory>,
-    #[account(
-        mut,
-        constraint = &state.liquidation_history.eq(&liquidation_history.key())
-    )]
-    pub liquidation_history: AccountLoader<'info, LiquidationHistory>,
-    #[account(
-        mut,
-        constraint = &state.funding_payment_history.eq(&funding_payment_history.key())
-    )]
-    pub funding_payment_history: AccountLoader<'info, FundingPaymentHistory>,
 }
 
 #[derive(Accounts)]
@@ -636,11 +456,6 @@ pub struct SettleFunding<'info> {
     #[account(mut)]
     pub user: AccountLoader<'info, User>,
     pub market: AccountLoader<'info, Market>,
-    #[account(
-        mut,
-        constraint = &state.funding_payment_history.eq(&funding_payment_history.key())
-    )]
-    pub funding_payment_history: AccountLoader<'info, FundingPaymentHistory>,
 }
 
 #[derive(Accounts)]
@@ -650,11 +465,6 @@ pub struct UpdateFundingRate<'info> {
     pub market: AccountLoader<'info, Market>,
     /// CHECK: checked in `update_funding_rate` ix constraint
     pub oracle: AccountInfo<'info>,
-    #[account(
-        mut,
-        constraint = &state.funding_rate_history.eq(&funding_rate_history.key())
-    )]
-    pub funding_rate_history: AccountLoader<'info, FundingRateHistory>,
 }
 
 #[derive(Accounts)]
@@ -668,11 +478,6 @@ pub struct RepegCurve<'info> {
     /// CHECK: checked in `repeg_curve` ix constraint
     pub oracle: AccountInfo<'info>,
     pub admin: Signer<'info>,
-    #[account(
-        mut,
-        constraint = &state.extended_curve_history.eq(&curve_history.key())
-    )]
-    pub curve_history: AccountLoader<'info, ExtendedCurveHistory>,
 }
 
 #[derive(Accounts)]
@@ -722,11 +527,6 @@ pub struct AdminUpdateK<'info> {
     pub market: AccountLoader<'info, Market>,
     /// CHECK: checked in `admin_update_k` ix constraint
     pub oracle: AccountInfo<'info>,
-    #[account(
-        mut,
-        constraint = &state.extended_curve_history.eq(&curve_history.key())
-    )]
-    pub curve_history: AccountLoader<'info, ExtendedCurveHistory>,
 }
 
 #[derive(Accounts)]
@@ -738,20 +538,4 @@ pub struct AdminUpdateMarket<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub market: AccountLoader<'info, Market>,
-}
-
-#[derive(Accounts)]
-pub struct UpdateCurveHistory<'info> {
-    pub admin: Signer<'info>,
-    #[account(
-        mut,
-        has_one = admin
-    )]
-    pub state: Box<Account<'info, State>>,
-    #[account(zero)]
-    pub extended_curve_history: AccountLoader<'info, ExtendedCurveHistory>,
-    #[account(
-        constraint = &state.curve_history.eq(&curve_history.key())
-    )]
-    pub curve_history: AccountLoader<'info, CurveHistory>,
 }

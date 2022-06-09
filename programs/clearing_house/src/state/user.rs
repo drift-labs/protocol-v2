@@ -20,6 +20,7 @@ pub struct User {
     pub total_token_discount: u128,
     pub total_referral_reward: u128,
     pub total_referee_discount: u128,
+    pub next_order_id: u64,
     pub positions: [MarketPosition; 5],
     pub orders: [Order; 32],
 }
@@ -70,11 +71,12 @@ pub type UserPositions = [MarketPosition; 5];
 // SPACE: 7136
 #[zero_copy]
 #[repr(packed)]
+#[derive(AnchorSerialize, AnchorDeserialize)]
 pub struct Order {
     pub status: OrderStatus,
     pub order_type: OrderType,
     pub ts: i64,
-    pub order_id: u128,
+    pub order_id: u64,
     pub user_order_id: u8,
     pub market_index: u64,
     pub price: u128,
