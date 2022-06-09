@@ -69,43 +69,6 @@ export type CandleResolution =
 	| 'W'
 	| 'M';
 
-// # ClearingHouse Account Types
-export type TradeHistoryAccount = {
-	head: BN;
-	tradeRecords: TradeRecord[];
-};
-
-export type DepositHistoryAccount = {
-	head: BN;
-	depositRecords: DepositRecord[];
-};
-
-export type ExtendedCurveHistoryAccount = {
-	head: BN;
-	curveRecords: ExtendedCurveRecord[];
-};
-
-export type FundingRateHistoryAccount = {
-	head: BN;
-	fundingRateRecords: FundingRateRecord[];
-};
-
-export type FundingPaymentHistoryAccount = {
-	head: BN;
-	fundingPaymentRecords: FundingPaymentRecord[];
-};
-
-export type LiquidationHistoryAccount = {
-	head: BN;
-	liquidationRecords: LiquidationRecord[];
-};
-
-export type OrderHistoryAccount = {
-	head: BN;
-	lastOrderId: BN;
-	orderRecords: OrderRecord[];
-};
-
 export type DepositRecord = {
 	ts: BN;
 	recordId: BN;
@@ -120,7 +83,7 @@ export type DepositRecord = {
 	amount: BN;
 };
 
-export type ExtendedCurveRecord = {
+export type CurveRecord = {
 	ts: BN;
 	recordId: BN;
 	marketIndex: BN;
@@ -236,13 +199,6 @@ export type StateAccount = {
 	marginRatioInitial: BN;
 	marginRatioMaintenance: BN;
 	marginRatioPartial: BN;
-	markets: PublicKey;
-	curveHistory: PublicKey;
-	depositHistory: PublicKey;
-	fundingRateHistory: PublicKey;
-	fundingPaymentHistory: PublicKey;
-	tradeHistory: PublicKey;
-	liquidationHistory: PublicKey;
 	partialLiquidationClosePercentageNumerator: BN;
 	partialLiquidationClosePercentageDenominator: BN;
 	partialLiquidationPenaltyPercentageNumerator: BN;
@@ -259,12 +215,10 @@ export type StateAccount = {
 	oracleGuardRails: OracleGuardRails;
 	maxDeposit: BN;
 	orderState: PublicKey;
-	extendedCurveHistory: PublicKey;
 	numberOfMarkets: BN;
 };
 
 export type OrderStateAccount = {
-	orderHistory: PublicKey;
 	orderFillerRewardStructure: OrderFillerRewardStructure;
 	minOrderQuoteAssetAmount: BN;
 };
@@ -281,6 +235,7 @@ export type MarketAccount = {
 	marginRatioInitial: number;
 	marginRatioMaintenance: number;
 	marginRatioPartial: number;
+	nextTradeRecordId: BN;
 };
 
 export type AMM = {

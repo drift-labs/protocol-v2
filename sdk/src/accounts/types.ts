@@ -1,14 +1,7 @@
 import {
-	DepositHistoryAccount,
-	ExtendedCurveHistoryAccount,
-	FundingPaymentHistoryAccount,
-	FundingRateHistoryAccount,
-	LiquidationHistoryAccount,
 	MarketAccount,
-	OrderHistoryAccount,
 	OrderStateAccount,
 	StateAccount,
-	TradeHistoryAccount,
 	UserAccount,
 } from '../types';
 import StrictEventEmitter from 'strict-event-emitter-types';
@@ -36,39 +29,17 @@ export class NotSubscribedError extends Error {
 export interface ClearingHouseAccountEvents {
 	stateAccountUpdate: (payload: StateAccount) => void;
 	marketAccountUpdate: (payload: MarketAccount) => void;
-	fundingPaymentHistoryAccountUpdate: (
-		payload: FundingPaymentHistoryAccount
-	) => void;
-	fundingRateHistoryAccountUpdate: (payload: FundingRateHistoryAccount) => void;
-	tradeHistoryAccountUpdate: (payload: TradeHistoryAccount) => void;
-	liquidationHistoryAccountUpdate: (payload: LiquidationHistoryAccount) => void;
-	depositHistoryAccountUpdate: (payload: DepositHistoryAccount) => void;
-	curveHistoryAccountUpdate: (payload: ExtendedCurveHistoryAccount) => void;
-	orderHistoryAccountUpdate: (payload: OrderHistoryAccount) => void;
 	orderStateAccountUpdate: (payload: OrderStateAccount) => void;
 	userAccountUpdate: (payload: UserAccount) => void;
 	update: void;
 	error: (e: Error) => void;
 }
 
-export type ClearingHouseAccountTypes =
-	| 'tradeHistoryAccount'
-	| 'depositHistoryAccount'
-	| 'fundingPaymentHistoryAccount'
-	| 'fundingRateHistoryAccount'
-	| 'curveHistoryAccount'
-	| 'liquidationHistoryAccount'
-	| 'orderHistoryAccount';
-
 export interface ClearingHouseAccountSubscriber {
 	eventEmitter: StrictEventEmitter<EventEmitter, ClearingHouseAccountEvents>;
 	isSubscribed: boolean;
 
-	optionalExtraSubscriptions: ClearingHouseAccountTypes[];
-
-	subscribe(
-		optionalSubscriptions?: ClearingHouseAccountTypes[]
-	): Promise<boolean>;
+	subscribe(): Promise<boolean>;
 	fetch(): Promise<void>;
 	unsubscribe(): Promise<void>;
 
@@ -78,14 +49,7 @@ export interface ClearingHouseAccountSubscriber {
 	getMarketAccountAndSlot(
 		marketIndex: BN
 	): AccountAndSlot<MarketAccount> | undefined;
-	getTradeHistoryAccountAndSlot(): AccountAndSlot<TradeHistoryAccount>;
-	getDepositHistoryAccountAndSlot(): AccountAndSlot<DepositHistoryAccount>;
-	getFundingPaymentHistoryAccountAndSlot(): AccountAndSlot<FundingPaymentHistoryAccount>;
-	getFundingRateHistoryAccountAndSlot(): AccountAndSlot<FundingRateHistoryAccount>;
-	getCurveHistoryAccountAndSlot(): AccountAndSlot<ExtendedCurveHistoryAccount>;
-	getLiquidationHistoryAccountAndSlot(): AccountAndSlot<LiquidationHistoryAccount>;
 	getOrderStateAccountAndSlot(): AccountAndSlot<OrderStateAccount>;
-	getOrderHistoryAccountAndSlot(): AccountAndSlot<OrderHistoryAccount>;
 
 	getUserAccountAndSlot(): AccountAndSlot<UserAccount> | undefined;
 

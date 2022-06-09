@@ -3,23 +3,15 @@ import {
 	AccountToPoll,
 	ClearingHouseAccountEvents,
 	ClearingHouseAccountSubscriber,
-	ClearingHouseAccountTypes,
 	NotSubscribedError,
 } from './types';
 import { BN, Program } from '@project-serum/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import {
-	DepositHistoryAccount,
-	ExtendedCurveHistoryAccount,
-	FundingPaymentHistoryAccount,
-	FundingRateHistoryAccount,
-	LiquidationHistoryAccount,
 	MarketAccount,
-	OrderHistoryAccount,
 	OrderStateAccount,
 	StateAccount,
-	TradeHistoryAccount,
 	UserAccount,
 } from '../types';
 import {
@@ -31,8 +23,6 @@ import { BulkAccountLoader } from './bulkAccountLoader';
 import { capitalize } from './utils';
 import { ClearingHouseConfigType } from '../factory/clearingHouse';
 import { PublicKey } from '@solana/web3.js';
-import { CLEARING_HOUSE_STATE_ACCOUNTS } from '../constants/accounts';
-
 type UserPublicKeys = {
 	userAccountPublicKey: PublicKey;
 };
@@ -52,17 +42,7 @@ export class PollingClearingHouseAccountSubscriber
 	state?: AccountAndSlot<StateAccount>;
 	market = new Map<number, AccountAndSlot<MarketAccount>>();
 	orderState?: AccountAndSlot<OrderStateAccount>;
-	tradeHistory?: AccountAndSlot<TradeHistoryAccount>;
-	depositHistory?: AccountAndSlot<DepositHistoryAccount>;
-	fundingPaymentHistory?: AccountAndSlot<FundingPaymentHistoryAccount>;
-	fundingRateHistory?: AccountAndSlot<FundingRateHistoryAccount>;
-	liquidationHistory?: AccountAndSlot<LiquidationHistoryAccount>;
-	extendedCurveHistory: AccountAndSlot<ExtendedCurveHistoryAccount>;
-	orderHistory?: AccountAndSlot<OrderHistoryAccount>;
-
 	userAccount?: AccountAndSlot<UserAccount>;
-
-	optionalExtraSubscriptions: ClearingHouseAccountTypes[] = [];
 
 	type: ClearingHouseConfigType = 'polling';
 
@@ -82,9 +62,7 @@ export class PollingClearingHouseAccountSubscriber
 		this.authority = authority;
 	}
 
-	public async subscribe(
-		optionalSubscriptions?: ClearingHouseAccountTypes[]
-	): Promise<boolean> {
+	public async subscribe(): Promise<boolean> {
 		if (this.isSubscribed) {
 			return true;
 		}
@@ -92,8 +70,6 @@ export class PollingClearingHouseAccountSubscriber
 		if (this.isSubscribing) {
 			return await this.subscriptionPromise;
 		}
-
-		this.optionalExtraSubscriptions = optionalSubscriptions;
 
 		this.isSubscribing = true;
 
@@ -143,68 +119,7 @@ export class PollingClearingHouseAccountSubscriber
 		});
 
 		await this.updateUserAccountsToPoll();
-
-		if (this.optionalExtraSubscriptions?.includes('tradeHistoryAccount')) {
-			this.accountsToPoll.set(accounts.tradeHistory.toString(), {
-				key: 'tradeHistory',
-				publicKey: accounts.tradeHistory,
-				eventType: 'tradeHistoryAccountUpdate',
-			});
-		}
-
-		if (this.optionalExtraSubscriptions?.includes('depositHistoryAccount')) {
-			this.accountsToPoll.set(accounts.depositHistory.toString(), {
-				key: 'depositHistory',
-				publicKey: accounts.depositHistory,
-				eventType: 'depositHistoryAccountUpdate',
-			});
-		}
-
-		if (
-			this.optionalExtraSubscriptions?.includes('fundingPaymentHistoryAccount')
-		) {
-			this.accountsToPoll.set(accounts.fundingPaymentHistory.toString(), {
-				key: 'fundingPaymentHistory',
-				publicKey: accounts.fundingPaymentHistory,
-				eventType: 'fundingPaymentHistoryAccountUpdate',
-			});
-		}
-
-		if (
-			this.optionalExtraSubscriptions?.includes('fundingRateHistoryAccount')
-		) {
-			this.accountsToPoll.set(accounts.fundingRateHistory.toString(), {
-				key: 'fundingRateHistory',
-				publicKey: accounts.fundingRateHistory,
-				eventType: 'fundingRateHistoryAccountUpdate',
-			});
-		}
-
-		if (this.optionalExtraSubscriptions?.includes('curveHistoryAccount')) {
-			this.accountsToPoll.set(accounts.extendedCurveHistory.toString(), {
-				key: 'extendedCurveHistory',
-				publicKey: accounts.extendedCurveHistory,
-				eventType: 'curveHistoryAccountUpdate',
-			});
-		}
-
-		if (
-			this.optionalExtraSubscriptions?.includes('liquidationHistoryAccount')
-		) {
-			this.accountsToPoll.set(accounts.liquidationHistory.toString(), {
-				key: 'liquidationHistory',
-				publicKey: accounts.liquidationHistory,
-				eventType: 'liquidationHistoryAccountUpdate',
-			});
-		}
-
-		if (this.optionalExtraSubscriptions?.includes('orderHistoryAccount')) {
-			this.accountsToPoll.set(accounts.orderHistory.toString(), {
-				key: 'orderHistory',
-				publicKey: accounts.orderHistory,
-				eventType: 'orderHistoryAccountUpdate',
-			});
-		}
+		await this.updateMarketAccountsToPoll();
 	}
 
 	async updateUserAccountsToPoll(): Promise<UserPublicKeys> {
@@ -229,7 +144,7 @@ export class PollingClearingHouseAccountSubscriber
 			);
 
 			this.accountsToPoll.set(marketPublicKey.toString(), {
-				key: 'market2',
+				key: 'market',
 				publicKey: marketPublicKey,
 				eventType: 'marketAccountUpdate',
 				mapKey: i,
@@ -240,11 +155,6 @@ export class PollingClearingHouseAccountSubscriber
 	}
 
 	async getClearingHouseAccounts(): Promise<ClearingHouseAccounts> {
-		// Skip extra calls to rpc if we already know all the accounts
-		if (CLEARING_HOUSE_STATE_ACCOUNTS[this.program.programId.toString()]) {
-			return CLEARING_HOUSE_STATE_ACCOUNTS[this.program.programId.toString()];
-		}
-
 		const statePublicKey = await getClearingHouseStateAccountPublicKey(
 			this.program.programId
 		);
@@ -256,22 +166,7 @@ export class PollingClearingHouseAccountSubscriber
 		const accounts = {
 			state: statePublicKey,
 			orderState: state.orderState,
-			tradeHistory: state.tradeHistory,
-			depositHistory: state.depositHistory,
-			fundingPaymentHistory: state.fundingPaymentHistory,
-			fundingRateHistory: state.fundingRateHistory,
-			extendedCurveHistory: state.extendedCurveHistory,
-			liquidationHistory: state.liquidationHistory,
-			orderHistory: undefined,
 		};
-
-		if (this.optionalExtraSubscriptions?.includes('orderHistoryAccount')) {
-			const orderState = (await this.program.account.orderState.fetch(
-				state.orderState
-			)) as OrderStateAccount;
-
-			accounts.orderHistory = orderState.orderHistory;
-		}
 
 		return accounts;
 	}
@@ -411,22 +306,6 @@ export class PollingClearingHouseAccountSubscriber
 		}
 	}
 
-	assertOptionalIsSubscribed(
-		optionalSubscription: ClearingHouseAccountTypes
-	): void {
-		if (!this.isSubscribed) {
-			throw new NotSubscribedError(
-				'You must call `subscribe` before using this function'
-			);
-		}
-
-		if (!this.optionalExtraSubscriptions.includes(optionalSubscription)) {
-			throw new NotSubscribedError(
-				`You need to subscribe to the optional Clearing House account "${optionalSubscription}" to use this method`
-			);
-		}
-	}
-
 	public getStateAccountAndSlot(): AccountAndSlot<StateAccount> {
 		this.assertIsSubscribed();
 		return this.state;
@@ -443,48 +322,6 @@ export class PollingClearingHouseAccountSubscriber
 		return this.orderState;
 	}
 
-	public getTradeHistoryAccountAndSlot(): AccountAndSlot<TradeHistoryAccount> {
-		this.assertIsSubscribed();
-		this.assertOptionalIsSubscribed('tradeHistoryAccount');
-		return this.tradeHistory;
-	}
-
-	public getDepositHistoryAccountAndSlot(): AccountAndSlot<DepositHistoryAccount> {
-		this.assertIsSubscribed();
-		this.assertOptionalIsSubscribed('depositHistoryAccount');
-		return this.depositHistory;
-	}
-
-	public getFundingPaymentHistoryAccountAndSlot(): AccountAndSlot<FundingPaymentHistoryAccount> {
-		this.assertIsSubscribed();
-		this.assertOptionalIsSubscribed('fundingPaymentHistoryAccount');
-		return this.fundingPaymentHistory;
-	}
-
-	public getFundingRateHistoryAccountAndSlot(): AccountAndSlot<FundingRateHistoryAccount> {
-		this.assertIsSubscribed();
-		this.assertOptionalIsSubscribed('fundingRateHistoryAccount');
-		return this.fundingRateHistory;
-	}
-
-	public getCurveHistoryAccountAndSlot(): AccountAndSlot<ExtendedCurveHistoryAccount> {
-		this.assertIsSubscribed();
-		this.assertOptionalIsSubscribed('curveHistoryAccount');
-		return this.extendedCurveHistory;
-	}
-
-	public getLiquidationHistoryAccountAndSlot(): AccountAndSlot<LiquidationHistoryAccount> {
-		this.assertIsSubscribed();
-		this.assertOptionalIsSubscribed('liquidationHistoryAccount');
-		return this.liquidationHistory;
-	}
-
-	public getOrderHistoryAccountAndSlot(): AccountAndSlot<OrderHistoryAccount> {
-		this.assertIsSubscribed();
-		this.assertOptionalIsSubscribed('orderHistoryAccount');
-		return this.orderHistory;
-	}
-
 	public getUserAccountAndSlot(): AccountAndSlot<UserAccount> | undefined {
 		this.assertIsSubscribed();
 		return this.userAccount;
@@ -494,11 +331,4 @@ export class PollingClearingHouseAccountSubscriber
 type ClearingHouseAccounts = {
 	state: PublicKey;
 	orderState: PublicKey;
-	tradeHistory?: PublicKey;
-	depositHistory?: PublicKey;
-	fundingPaymentHistory?: PublicKey;
-	fundingRateHistory?: PublicKey;
-	extendedCurveHistory?: PublicKey;
-	liquidationHistory?: PublicKey;
-	orderHistory?: PublicKey;
 };

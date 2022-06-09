@@ -11,7 +11,6 @@ use math::{amm, bn, constants::*, fees, margin::*, orders::*, withdrawal::*};
 
 use crate::state::market::Market;
 use crate::state::{
-    history::trade::TradeRecord,
     market::{OracleSource, AMM},
     order_state::*,
     state::*,
@@ -50,9 +49,9 @@ pub mod clearing_house {
     use crate::math::collateral::calculate_updated_collateral;
     use crate::math::slippage::{calculate_slippage, calculate_slippage_pct};
     use crate::optional_accounts::{get_discount_token, get_referrer, get_referrer_for_fill_order};
-    use crate::state::history::curve::ExtendedCurveRecord;
-    use crate::state::history::deposit::{DepositDirection, DepositRecord};
-    use crate::state::history::liquidation::LiquidationRecord;
+    use crate::state::events::TradeRecord;
+    use crate::state::events::{CurveRecord, DepositRecord};
+    use crate::state::events::{DepositDirection, LiquidationRecord};
     use crate::state::market::{Market, OraclePriceData};
     use crate::state::market_map::{
         get_market_oracles, get_writable_markets, get_writable_markets_for_user_positions,
@@ -97,12 +96,6 @@ pub mod clearing_house {
             collateral_vault: *collateral_account_key,
             collateral_vault_authority: collateral_account_authority,
             collateral_vault_nonce: collateral_account_nonce,
-            deposit_history: Pubkey::default(),
-            trade_history: Pubkey::default(),
-            funding_rate_history: Pubkey::default(),
-            funding_payment_history: Pubkey::default(),
-            liquidation_history: Pubkey::default(),
-            curve_history: Pubkey::default(),
             insurance_vault: *insurance_account_key,
             insurance_vault_authority: insurance_account_authority,
             insurance_vault_nonce: insurance_account_nonce,
@@ -169,51 +162,12 @@ pub mod clearing_house {
                 use_for_liquidations: true,
             },
             order_state: Pubkey::default(),
-            extended_curve_history: Pubkey::default(),
             number_of_markets: 0,
             padding0: 0,
             padding1: 0,
             padding2: 0,
             padding3: 0,
         };
-
-        Ok(())
-    }
-
-    pub fn initialize_history(ctx: Context<InitializeHistory>) -> Result<()> {
-        let state = &mut ctx.accounts.state;
-
-        // If all of the history account keys are set to the default, assume they haven't been initialized tet
-        if !state.deposit_history.eq(&Pubkey::default())
-            && !state.trade_history.eq(&Pubkey::default())
-            && !state.liquidation_history.eq(&Pubkey::default())
-            && !state.funding_payment_history.eq(&Pubkey::default())
-            && !state.funding_rate_history.eq(&Pubkey::default())
-            && !state.curve_history.eq(&Pubkey::default())
-        {
-            return Err(ErrorCode::HistoryAlreadyInitialized.into());
-        }
-
-        ctx.accounts.deposit_history.load_init()?;
-        ctx.accounts.trade_history.load_init()?;
-        ctx.accounts.funding_payment_history.load_init()?;
-        ctx.accounts.funding_rate_history.load_init()?;
-        ctx.accounts.liquidation_history.load_init()?;
-        ctx.accounts.curve_history.load_init()?;
-
-        let deposit_history = ctx.accounts.deposit_history.to_account_info().key;
-        let trade_history = ctx.accounts.trade_history.to_account_info().key;
-        let funding_payment_history = ctx.accounts.funding_payment_history.to_account_info().key;
-        let funding_rate_history = ctx.accounts.funding_rate_history.to_account_info().key;
-        let liquidation_history = ctx.accounts.liquidation_history.to_account_info().key;
-        let extended_curve_history = ctx.accounts.curve_history.to_account_info().key;
-
-        state.deposit_history = *deposit_history;
-        state.trade_history = *trade_history;
-        state.funding_rate_history = *funding_rate_history;
-        state.funding_payment_history = *funding_payment_history;
-        state.liquidation_history = *liquidation_history;
-        state.extended_curve_history = *extended_curve_history;
 
         Ok(())
     }
@@ -229,10 +183,8 @@ pub mod clearing_house {
         }
 
         state.order_state = ctx.accounts.order_state.key();
-        ctx.accounts.order_history.load_init()?;
 
         **ctx.accounts.order_state = OrderState {
-            order_history: ctx.accounts.order_history.key(),
             order_filler_reward_structure: OrderFillerRewardStructure {
                 reward_numerator: 1,
                 reward_denominator: 10,
@@ -320,6 +272,9 @@ pub mod clearing_house {
             margin_ratio_initial, // unit is 20% (+2 decimal places)
             margin_ratio_partial,
             margin_ratio_maintenance,
+            next_trade_record_id: 1,
+            next_funding_rate_record_id: 1,
+            next_curve_record_id: 1,
             padding0: 0,
             padding1: 0,
             padding2: 0,
@@ -397,14 +352,7 @@ pub mod clearing_house {
             &mut ctx.remaining_accounts.iter().peekable(),
         )?;
 
-        let funding_payment_history = &mut ctx.accounts.funding_payment_history.load_mut()?;
-        controller::funding::settle_funding_payment(
-            user,
-            &user_key,
-            &market_map,
-            funding_payment_history,
-            now,
-        )?;
+        controller::funding::settle_funding_payment(user, &user_key, &market_map, now)?;
 
         controller::token::receive(
             &ctx.accounts.token_program,
@@ -414,18 +362,16 @@ pub mod clearing_house {
             amount,
         )?;
 
-        let deposit_history = &mut ctx.accounts.deposit_history.load_mut()?;
-        let record_id = deposit_history.next_record_id();
-        deposit_history.append(DepositRecord {
+        let deposit_record = DepositRecord {
             ts: now,
-            record_id,
             user_authority: user.authority,
             user: user_key,
             direction: DepositDirection::DEPOSIT,
             collateral_before,
             cumulative_deposits_before,
             amount,
-        });
+        };
+        emit!(deposit_record);
 
         if ctx.accounts.state.max_deposit > 0
             && user.cumulative_deposits > cast(ctx.accounts.state.max_deposit)?
@@ -454,14 +400,7 @@ pub mod clearing_house {
             &mut ctx.remaining_accounts.iter().peekable(),
         )?;
 
-        let funding_payment_history = &mut ctx.accounts.funding_payment_history.load_mut()?;
-        controller::funding::settle_funding_payment(
-            user,
-            &user_key,
-            &market_map,
-            funding_payment_history,
-            now,
-        )?;
+        controller::funding::settle_funding_payment(user, &user_key, &market_map, now)?;
 
         if cast_to_u128(amount)? > user.collateral {
             return Err(ErrorCode::InsufficientCollateral.into());
@@ -515,18 +454,16 @@ pub mod clearing_house {
             )?;
         }
 
-        let deposit_history = &mut ctx.accounts.deposit_history.load_mut()?;
-        let record_id = deposit_history.next_record_id();
-        deposit_history.append(DepositRecord {
+        let deposit_record = DepositRecord {
             ts: now,
-            record_id,
             user_authority: user.authority,
             user: user_key,
             direction: DepositDirection::WITHDRAW,
             collateral_before,
             cumulative_deposits_before,
             amount: amount_withdraw,
-        });
+        };
+        emit!(deposit_record);
 
         Ok(())
     }
@@ -561,20 +498,13 @@ pub mod clearing_house {
         }
 
         // Settle user's funding payments so that collateral is up to date
-        let funding_payment_history = &mut ctx.accounts.funding_payment_history.load_mut()?;
-        controller::funding::settle_funding_payment(
-            user,
-            &user_key,
-            &market_map,
-            funding_payment_history,
-            now,
-        )?;
+        controller::funding::settle_funding_payment(user, &user_key, &market_map, now)?;
 
         // Get existing position or add a new position for market
         let position_index = get_position_index(&user.positions, market_index)
             .or_else(|_| add_new_position(&mut user.positions, market_index))?;
 
-        // Collect data about position/market before trade is executed so that it can be stored in trade history
+        // Collect data about position/market before trade is executed so that it can be stored in trade record
         let mark_price_before: u128;
         let oracle_mark_spread_pct_before: i128;
         let is_oracle_valid: bool;
@@ -637,7 +567,7 @@ pub mod clearing_house {
             quote_asset_amount_surplus = _quote_asset_amount_surplus;
         }
 
-        // Collect data about position/market after trade is executed so that it can be stored in trade history
+        // Collect data about position/market after trade is executed so that it can be stored in trade record
         let mark_price_after: u128;
         let oracle_price_after: i128;
         let oracle_mark_spread_pct_after: i128;
@@ -748,27 +678,29 @@ pub mod clearing_house {
             return Err(ErrorCode::OracleMarkSpreadLimit.into());
         }
 
-        // Add to the trade history account
-        let trade_history_account = &mut ctx.accounts.trade_history.load_mut()?;
-        let record_id = trade_history_account.next_record_id();
-        trade_history_account.append(TradeRecord {
-            ts: now,
-            record_id,
-            user_authority: *ctx.accounts.authority.to_account_info().key,
-            user: user_key,
-            direction,
-            base_asset_amount,
-            quote_asset_amount,
-            mark_price_before,
-            mark_price_after,
-            fee: cast(user_fee)?,
-            token_discount,
-            quote_asset_amount_surplus,
-            referee_discount,
-            liquidation: false,
-            market_index,
-            oracle_price: oracle_price_after,
-        });
+        // emit trade record
+        {
+            let market = &mut market_map.get_ref_mut(&market_index)?;
+            let trade_record = TradeRecord {
+                ts: now,
+                record_id: get_then_update_id!(market, next_trade_record_id),
+                user_authority: *ctx.accounts.authority.to_account_info().key,
+                user: user_key,
+                direction,
+                base_asset_amount,
+                quote_asset_amount,
+                mark_price_before,
+                mark_price_after,
+                fee: cast(user_fee)?,
+                token_discount,
+                quote_asset_amount_surplus,
+                referee_discount,
+                liquidation: false,
+                market_index,
+                oracle_price: oracle_price_after,
+            };
+            emit!(trade_record);
+        }
 
         // If the user adds a limit price to their trade, check that their entry price is better than the limit price
         if limit_price != 0
@@ -786,14 +718,12 @@ pub mod clearing_house {
         {
             let market = &mut market_map.get_ref_mut(&market_index)?;
             let price_oracle = &ctx.accounts.oracle;
-            let funding_rate_history = &mut ctx.accounts.funding_rate_history.load_mut()?;
             controller::funding::update_funding_rate(
                 market_index,
                 market,
                 price_oracle,
                 now,
                 clock_slot,
-                funding_rate_history,
                 &ctx.accounts.state.oracle_guard_rails,
                 ctx.accounts.state.funding_paused,
                 Some(mark_price_before),
@@ -825,20 +755,13 @@ pub mod clearing_house {
         )?;
 
         // Settle user's funding payments so that collateral is up to date
-        let funding_payment_history = &mut ctx.accounts.funding_payment_history.load_mut()?;
-        controller::funding::settle_funding_payment(
-            user,
-            &user_key,
-            &market_map,
-            funding_payment_history,
-            now,
-        )?;
+        controller::funding::settle_funding_payment(user, &user_key, &market_map, now)?;
 
         let position_index = get_position_index(&user.positions, market_index)?;
 
         let market = &mut market_map.get_ref_mut(&market_index)?;
 
-        // Collect data about market before trade is executed so that it can be stored in trade history
+        // Collect data about market before trade is executed so that it can be stored in trade record
         let mark_price_before = market.amm.mark_price()?;
         let oracle_price_data = &market
             .amm
@@ -919,7 +842,7 @@ pub mod clearing_house {
                 .ok_or_else(math_error!())?;
         }
 
-        // Collect data about market after trade is executed so that it can be stored in trade history
+        // Collect data about market after trade is executed so that it can be stored in trade record
         let mark_price_after = market.amm.mark_price()?;
         let price_oracle = &ctx.accounts.oracle;
 
@@ -959,12 +882,10 @@ pub mod clearing_house {
             return Err(ErrorCode::OracleMarkSpreadLimit.into());
         }
 
-        // Add to the trade history account
-        let trade_history_account = &mut ctx.accounts.trade_history.load_mut()?;
-        let record_id = trade_history_account.next_record_id();
-        trade_history_account.append(TradeRecord {
+        // emit trade record
+        let trade_record = TradeRecord {
             ts: now,
-            record_id,
+            record_id: get_then_update_id!(market, next_trade_record_id),
             user_authority: *ctx.accounts.authority.to_account_info().key,
             user: user_key,
             direction: direction_to_close,
@@ -979,17 +900,16 @@ pub mod clearing_house {
             referee_discount,
             market_index,
             oracle_price: oracle_price_after,
-        });
+        };
+        emit!(trade_record);
 
         // Try to update the funding rate at the end of every trade
-        let funding_rate_history = &mut ctx.accounts.funding_rate_history.load_mut()?;
         controller::funding::update_funding_rate(
             market_index,
             market,
             price_oracle,
             now,
             clock_slot,
-            funding_rate_history,
             &ctx.accounts.state.oracle_guard_rails,
             ctx.accounts.state.funding_paused,
             Some(mark_price_before),
@@ -1036,8 +956,6 @@ pub mod clearing_house {
             &ctx.accounts.order_state,
             &ctx.accounts.user,
             &market_map,
-            &ctx.accounts.funding_payment_history,
-            &ctx.accounts.order_history,
             discount_token,
             &referrer,
             &Clock::get()?,
@@ -1048,7 +966,7 @@ pub mod clearing_house {
         Ok(())
     }
 
-    pub fn cancel_order(ctx: Context<CancelOrder>, order_id: u128) -> Result<()> {
+    pub fn cancel_order(ctx: Context<CancelOrder>, order_id: u64) -> Result<()> {
         let market_oracles = {
             let user = &load(&ctx.accounts.user)?;
             let order_index = user
@@ -1075,8 +993,6 @@ pub mod clearing_house {
             order_id,
             &ctx.accounts.user,
             &market_map,
-            &ctx.accounts.funding_payment_history,
-            &ctx.accounts.order_history,
             &Clock::get()?,
             oracle,
         )?;
@@ -1110,8 +1026,6 @@ pub mod clearing_house {
             user_order_id,
             &ctx.accounts.user,
             &market_map,
-            &ctx.accounts.funding_payment_history,
-            &ctx.accounts.order_history,
             &Clock::get()?,
             oracle,
         )?;
@@ -1119,71 +1033,10 @@ pub mod clearing_house {
         Ok(())
     }
 
-    pub fn cancel_all_orders(ctx: Context<CancelAllOrders>, best_effort: bool) -> Result<()> {
-        let market_map = MarketMap::load(
-            &WritableMarkets::new(),
-            &MarketOracles::new(),
-            &mut ctx.remaining_accounts.iter().peekable(),
-        )?;
-
-        controller::orders::cancel_all_orders(
-            &ctx.accounts.state,
-            &ctx.accounts.user,
-            &market_map,
-            &ctx.accounts.funding_payment_history,
-            &ctx.accounts.order_history,
-            &Clock::get()?,
-            ctx.remaining_accounts,
-            best_effort,
-            None,
-            None,
-        )?;
-
-        Ok(())
-    }
-
-    pub fn cancel_orders_by_market_and_side(
-        ctx: Context<CancelAllOrders>,
-        best_effort: bool,
-        market_index_only: u64,
-        direction_only: PositionDirection,
-    ) -> Result<()> {
-        let market_map = MarketMap::load(
-            &WritableMarkets::new(),
-            &MarketOracles::new(),
-            &mut ctx.remaining_accounts.iter().peekable(),
-        )?;
-
-        controller::orders::cancel_all_orders(
-            &ctx.accounts.state,
-            &ctx.accounts.user,
-            &market_map,
-            &ctx.accounts.funding_payment_history,
-            &ctx.accounts.order_history,
-            &Clock::get()?,
-            ctx.remaining_accounts,
-            best_effort,
-            Some(market_index_only),
-            Some(direction_only),
-        )?;
-
-        Ok(())
-    }
-
-    pub fn expire_orders(ctx: Context<ExpireOrder>) -> Result<()> {
-        controller::orders::expire_orders(
-            &ctx.accounts.user,
-            &ctx.accounts.filler,
-            &ctx.accounts.order_history,
-            &Clock::get()?,
-        )?;
-        Ok(())
-    }
-
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]
-    pub fn fill_order<'info>(ctx: Context<FillOrder>, order_id: u128) -> Result<()> {
+    pub fn fill_order<'info>(ctx: Context<FillOrder>, order_id: u64) -> Result<()> {
         let (writable_markets, market_oracles) = {
             let user = &load(&ctx.accounts.user)?;
             let order_index = user
@@ -1218,10 +1071,6 @@ pub mod clearing_house {
             &market_map,
             &ctx.accounts.oracle,
             &ctx.accounts.filler,
-            &ctx.accounts.funding_payment_history,
-            &ctx.accounts.trade_history,
-            &ctx.accounts.order_history,
-            &ctx.accounts.funding_rate_history,
             referrer,
             &Clock::get()?,
         )?;
@@ -1267,8 +1116,6 @@ pub mod clearing_house {
             &ctx.accounts.order_state,
             &ctx.accounts.user,
             &market_map,
-            &ctx.accounts.funding_payment_history,
-            &ctx.accounts.order_history,
             discount_token,
             &referrer,
             &Clock::get()?,
@@ -1276,13 +1123,16 @@ pub mod clearing_house {
             Some(&ctx.accounts.oracle),
         )?;
 
-        let order_id;
-        {
-            let order_history = &ctx.accounts.order_history.load()?;
-            order_id = order_history.last_order_id;
-        }
-
         let user = &mut ctx.accounts.user;
+        let order_id = {
+            let user = load(user)?;
+            if user.next_order_id == 1 {
+                u64::MAX
+            } else {
+                user.next_order_id - 1
+            }
+        };
+
         let base_asset_amount_filled = controller::orders::fill_order(
             order_id,
             &ctx.accounts.state,
@@ -1291,10 +1141,6 @@ pub mod clearing_house {
             &market_map,
             &ctx.accounts.oracle,
             &user.clone(),
-            &ctx.accounts.funding_payment_history,
-            &ctx.accounts.trade_history,
-            &ctx.accounts.order_history,
-            &ctx.accounts.funding_rate_history,
             referrer,
             &Clock::get()?,
         )?;
@@ -1305,8 +1151,6 @@ pub mod clearing_house {
                 order_id,
                 &ctx.accounts.user,
                 &market_map,
-                &ctx.accounts.funding_payment_history,
-                &ctx.accounts.order_history,
                 &Clock::get()?,
                 Some(&ctx.accounts.oracle),
             )?;
@@ -1322,7 +1166,6 @@ pub mod clearing_house {
         let state = &ctx.accounts.state;
         let user_key = ctx.accounts.user.key();
         let user = &mut load_mut(&ctx.accounts.user)?;
-        let trade_history = &mut ctx.accounts.trade_history.load_mut()?;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
         let clock_slot = clock.slot;
@@ -1335,14 +1178,7 @@ pub mod clearing_house {
         )?;
 
         // Settle user's funding payments so that collateral is up to date
-        let funding_payment_history = &mut ctx.accounts.funding_payment_history.load_mut()?;
-        controller::funding::settle_funding_payment(
-            user,
-            &user_key,
-            &market_map,
-            funding_payment_history,
-            now,
-        )?;
+        controller::funding::settle_funding_payment(user, &user_key, &market_map, now)?;
 
         let LiquidationStatus {
             liquidation_type,
@@ -1516,10 +1352,9 @@ pub mod clearing_house {
                     .ok_or_else(math_error!())?;
                 let mark_price_after = market.amm.mark_price()?;
 
-                let record_id = trade_history.next_record_id();
-                trade_history.append(TradeRecord {
+                let trade_record = TradeRecord {
                     ts: now,
-                    record_id,
+                    record_id: get_then_update_id!(market, next_trade_record_id),
                     user_authority: user.authority,
                     user: user_key,
                     direction: direction_to_close,
@@ -1534,7 +1369,8 @@ pub mod clearing_house {
                     liquidation: true,
                     market_index: market_status.market_index,
                     oracle_price: market_status.oracle_status.price_data.price,
-                });
+                };
+                emit!(trade_record);
 
                 margin_requirement = margin_requirement
                     .checked_sub(
@@ -1707,10 +1543,9 @@ pub mod clearing_house {
 
                 let mark_price_after = market.amm.mark_price()?;
 
-                let record_id = trade_history.next_record_id();
-                trade_history.append(TradeRecord {
+                let trade_record = TradeRecord {
                     ts: now,
-                    record_id,
+                    record_id: get_then_update_id!(market, next_trade_record_id),
                     user_authority: user.authority,
                     user: user_key,
                     direction: direction_to_reduce,
@@ -1725,7 +1560,8 @@ pub mod clearing_house {
                     liquidation: true,
                     market_index: market_status.market_index,
                     oracle_price: market_status.oracle_status.price_data.price,
-                });
+                };
+                emit!(trade_record);
 
                 margin_requirement = margin_requirement
                     .checked_sub(
@@ -1815,12 +1651,8 @@ pub mod clearing_house {
             )?;
         }
 
-        let liquidation_history = &mut ctx.accounts.liquidation_history.load_mut()?;
-        let record_id = liquidation_history.next_record_id();
-
-        liquidation_history.append(LiquidationRecord {
+        emit!(LiquidationRecord {
             ts: now,
-            record_id,
             user: user_key,
             user_authority: user.authority,
             partial: !is_full_liquidation,
@@ -1977,11 +1809,9 @@ pub mod clearing_house {
         let quote_asset_reserve_after = market.amm.quote_asset_reserve;
         let sqrt_k_after = market.amm.sqrt_k;
 
-        let curve_history = &mut ctx.accounts.curve_history.load_mut()?;
-        let record_id = curve_history.next_record_id();
-        curve_history.append(ExtendedCurveRecord {
+        emit!(CurveRecord {
             ts: now,
-            record_id,
+            record_id: get_then_update_id!(market, next_curve_record_id),
             market_index: market.market_index,
             peg_multiplier_before,
             base_asset_reserve_before,
@@ -2000,7 +1830,6 @@ pub mod clearing_house {
             adjustment_cost,
             oracle_price,
             trade_record: 0,
-            padding: [0; 5],
         });
 
         Ok(())
@@ -2087,6 +1916,7 @@ pub mod clearing_house {
             .load_init()
             .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
         user.authority = ctx.accounts.authority.key();
+        user.next_order_id = 1;
         Ok(())
     }
 
@@ -2106,13 +1936,7 @@ pub mod clearing_house {
 
         let user_key = ctx.accounts.user.key();
         let user = &mut load_mut(&ctx.accounts.user)?;
-        controller::funding::settle_funding_payment(
-            user,
-            &user_key,
-            &market_map,
-            &mut ctx.accounts.funding_payment_history.load_mut()?,
-            now,
-        )?;
+        controller::funding::settle_funding_payment(user, &user_key, &market_map, now)?;
         Ok(())
     }
 
@@ -2129,14 +1953,12 @@ pub mod clearing_house {
         let now = clock.unix_timestamp;
         let clock_slot = clock.slot;
 
-        let funding_rate_history = &mut ctx.accounts.funding_rate_history.load_mut()?;
         controller::funding::update_funding_rate(
             market_index,
             market,
             price_oracle,
             now,
             clock_slot,
-            funding_rate_history,
             &ctx.accounts.state.oracle_guard_rails,
             ctx.accounts.state.funding_paused,
             None,
@@ -2245,11 +2067,9 @@ pub mod clearing_house {
             ..
         } = amm.get_oracle_price(&ctx.accounts.oracle, 0)?;
 
-        let curve_history = &mut ctx.accounts.curve_history.load_mut()?;
-        let record_id = curve_history.next_record_id();
-        curve_history.append(ExtendedCurveRecord {
+        emit!(CurveRecord {
             ts: now,
-            record_id,
+            record_id: get_then_update_id!(market, next_curve_record_id),
             market_index,
             peg_multiplier_before,
             base_asset_reserve_before,
@@ -2268,47 +2088,8 @@ pub mod clearing_house {
             total_fee_minus_distributions,
             oracle_price,
             trade_record: 0,
-            padding: [0; 5],
         });
 
-        Ok(())
-    }
-
-    pub fn update_curve_history(ctx: Context<UpdateCurveHistory>) -> Result<()> {
-        let curve_history = &ctx.accounts.curve_history.load()?;
-        let extended_curve_history = &mut ctx.accounts.extended_curve_history.load_init()?;
-
-        for old_record in curve_history.curve_records.iter() {
-            if old_record.record_id != 0 {
-                let new_record = ExtendedCurveRecord {
-                    ts: old_record.ts,
-                    record_id: old_record.record_id,
-                    market_index: old_record.market_index,
-                    peg_multiplier_before: old_record.peg_multiplier_before,
-                    base_asset_reserve_before: old_record.base_asset_reserve_before,
-                    quote_asset_reserve_before: old_record.quote_asset_reserve_before,
-                    sqrt_k_before: old_record.sqrt_k_before,
-                    peg_multiplier_after: old_record.peg_multiplier_after,
-                    base_asset_reserve_after: old_record.base_asset_reserve_after,
-                    quote_asset_reserve_after: old_record.quote_asset_reserve_after,
-                    sqrt_k_after: old_record.sqrt_k_after,
-                    base_asset_amount_long: old_record.base_asset_amount_long,
-                    base_asset_amount_short: old_record.base_asset_amount_short,
-                    base_asset_amount: old_record.base_asset_amount,
-                    open_interest: old_record.open_interest,
-                    total_fee: old_record.total_fee,
-                    total_fee_minus_distributions: old_record.total_fee_minus_distributions,
-                    adjustment_cost: old_record.adjustment_cost,
-                    oracle_price: 0,
-                    trade_record: 0,
-                    padding: [0; 5],
-                };
-                extended_curve_history.append(new_record);
-            }
-        }
-
-        let state = &mut ctx.accounts.state;
-        state.extended_curve_history = ctx.accounts.extended_curve_history.key();
         Ok(())
     }
 

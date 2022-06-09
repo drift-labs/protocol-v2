@@ -49,9 +49,7 @@ export class Admin extends ClearingHouse {
 	public async initialize(
 		usdcMint: PublicKey,
 		adminControlsPrices: boolean
-	): Promise<
-		[TransactionSignature, TransactionSignature, TransactionSignature]
-	> {
+	): Promise<[TransactionSignature, TransactionSignature]> {
 		const stateAccountRPCResponse = await this.connection.getParsedAccountInfo(
 			await this.getStatePublicKey()
 		);
@@ -82,13 +80,6 @@ export class Admin extends ClearingHouse {
 				[insuranceVaultPublicKey.toBuffer()],
 				this.program.programId
 			);
-
-		const depositHistory = anchor.web3.Keypair.generate();
-		const fundingRateHistory = anchor.web3.Keypair.generate();
-		const fundingPaymentHistory = anchor.web3.Keypair.generate();
-		const tradeHistory = anchor.web3.Keypair.generate();
-		const liquidationHistory = anchor.web3.Keypair.generate();
-		const curveHistory = anchor.web3.Keypair.generate();
 
 		const [clearingHouseStatePublicKey, clearingHouseNonce] =
 			await getClearingHouseStateAccountPublicKeyAndNonce(
@@ -121,62 +112,12 @@ export class Admin extends ClearingHouse {
 			this.opts
 		);
 
-		const initializeHistoryTx =
-			await this.program.transaction.initializeHistory({
-				accounts: {
-					admin: this.wallet.publicKey,
-					state: clearingHouseStatePublicKey,
-					depositHistory: depositHistory.publicKey,
-					fundingRateHistory: fundingRateHistory.publicKey,
-					fundingPaymentHistory: fundingPaymentHistory.publicKey,
-					tradeHistory: tradeHistory.publicKey,
-					liquidationHistory: liquidationHistory.publicKey,
-					curveHistory: curveHistory.publicKey,
-					rent: SYSVAR_RENT_PUBKEY,
-					systemProgram: anchor.web3.SystemProgram.programId,
-				},
-				instructions: [
-					await this.program.account.fundingRateHistory.createInstruction(
-						fundingRateHistory
-					),
-					await this.program.account.fundingPaymentHistory.createInstruction(
-						fundingPaymentHistory
-					),
-					await this.program.account.tradeHistory.createInstruction(
-						tradeHistory
-					),
-					await this.program.account.liquidationHistory.createInstruction(
-						liquidationHistory
-					),
-					await this.program.account.depositHistory.createInstruction(
-						depositHistory
-					),
-					await this.program.account.extendedCurveHistory.createInstruction(
-						curveHistory
-					),
-				],
-			});
-
-		const { txSig: initializeHistoryTxSig } = await this.txSender.send(
-			initializeHistoryTx,
-			[
-				depositHistory,
-				fundingPaymentHistory,
-				tradeHistory,
-				liquidationHistory,
-				fundingRateHistory,
-				curveHistory,
-			],
-			this.opts
-		);
-
 		const initializeOrderStateTxSig = await this.initializeOrderState();
 
-		return [initializeTxSig, initializeHistoryTxSig, initializeOrderStateTxSig];
+		return [initializeTxSig, initializeOrderStateTxSig];
 	}
 
 	public async initializeOrderState(): Promise<TransactionSignature> {
-		const orderHistory = anchor.web3.Keypair.generate();
 		const [orderStatePublicKey, orderStateNonce] =
 			await getOrderStateAccountPublicKeyAndNonce(this.program.programId);
 		const clearingHouseStatePublicKey =
@@ -187,21 +128,15 @@ export class Admin extends ClearingHouse {
 				accounts: {
 					admin: this.wallet.publicKey,
 					state: clearingHouseStatePublicKey,
-					orderHistory: orderHistory.publicKey,
 					orderState: orderStatePublicKey,
 					rent: SYSVAR_RENT_PUBKEY,
 					systemProgram: anchor.web3.SystemProgram.programId,
 				},
-				instructions: [
-					await this.program.account.orderHistory.createInstruction(
-						orderHistory
-					),
-				],
 			});
 
 		const { txSig } = await this.txSender.send(
 			initializeOrderStateTx,
-			[orderHistory],
+			[],
 			this.opts
 		);
 		return txSig;
@@ -279,35 +214,13 @@ export class Admin extends ClearingHouse {
 		sqrtK: BN,
 		marketIndex: BN
 	): Promise<TransactionSignature> {
-		const state = this.getStateAccount();
 		return await this.program.rpc.updateK(sqrtK, marketIndex, {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				admin: this.wallet.publicKey,
 				market: await getMarketPublicKey(this.program.programId, marketIndex),
-				curveHistory: state.extendedCurveHistory,
 				oracle: this.getMarketAccount(marketIndex).amm.oracle,
 			},
-		});
-	}
-
-	public async updateCurveHistory(): Promise<TransactionSignature> {
-		const extendedCurveHistory = anchor.web3.Keypair.generate();
-
-		const state = this.getStateAccount();
-		return await this.program.rpc.updateCurveHistory({
-			accounts: {
-				state: await this.getStatePublicKey(),
-				admin: this.wallet.publicKey,
-				curveHistory: state.curveHistory,
-				extendedCurveHistory: extendedCurveHistory.publicKey,
-			},
-			instructions: [
-				await this.program.account.extendedCurveHistory.createInstruction(
-					extendedCurveHistory
-				),
-			],
-			signers: [extendedCurveHistory],
 		});
 	}
 
@@ -352,7 +265,6 @@ export class Admin extends ClearingHouse {
 		newPeg: BN,
 		marketIndex: BN
 	): Promise<TransactionSignature> {
-		const state = this.getStateAccount();
 		const marketPublicKey = await getMarketPublicKey(
 			this.program.programId,
 			marketIndex
@@ -365,7 +277,6 @@ export class Admin extends ClearingHouse {
 				admin: this.wallet.publicKey,
 				oracle: ammData.oracle,
 				market: marketPublicKey,
-				curveHistory: state.extendedCurveHistory,
 			},
 		});
 	}
@@ -373,7 +284,6 @@ export class Admin extends ClearingHouse {
 	public async updateAmmOracleTwap(
 		marketIndex: BN
 	): Promise<TransactionSignature> {
-		const state = this.getStateAccount();
 		const ammData = this.getMarketAccount(marketIndex).amm;
 		const marketPublicKey = await getMarketPublicKey(
 			this.program.programId,
@@ -386,7 +296,6 @@ export class Admin extends ClearingHouse {
 				admin: this.wallet.publicKey,
 				oracle: ammData.oracle,
 				market: marketPublicKey,
-				curveHistory: state.extendedCurveHistory,
 			},
 		});
 	}
@@ -394,7 +303,6 @@ export class Admin extends ClearingHouse {
 	public async resetAmmOracleTwap(
 		marketIndex: BN
 	): Promise<TransactionSignature> {
-		const state = this.getStateAccount();
 		const ammData = this.getMarketAccount(marketIndex).amm;
 		const marketPublicKey = await getMarketPublicKey(
 			this.program.programId,
@@ -407,7 +315,6 @@ export class Admin extends ClearingHouse {
 				admin: this.wallet.publicKey,
 				oracle: ammData.oracle,
 				market: marketPublicKey,
-				curveHistory: state.extendedCurveHistory,
 			},
 		});
 	}

@@ -76,52 +76,6 @@
       ]
     },
     {
-      "name": "initializeHistory",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "fundingPaymentHistory",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "tradeHistory",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "liquidationHistory",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "depositHistory",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "fundingRateHistory",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "curveHistory",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": []
-    },
-    {
       "name": "initializeOrderState",
       "accounts": [
         {
@@ -136,11 +90,6 @@
         },
         {
           "name": "orderState",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "orderHistory",
           "isMut": true,
           "isSigner": false
         },
@@ -265,16 +214,6 @@
           "name": "tokenProgram",
           "isMut": false,
           "isSigner": false
-        },
-        {
-          "name": "fundingPaymentHistory",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "depositHistory",
-          "isMut": true,
-          "isSigner": false
         }
       ],
       "args": [
@@ -331,16 +270,6 @@
           "name": "tokenProgram",
           "isMut": false,
           "isSigner": false
-        },
-        {
-          "name": "fundingPaymentHistory",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "depositHistory",
-          "isMut": true,
-          "isSigner": false
         }
       ],
       "args": [
@@ -367,21 +296,6 @@
           "name": "authority",
           "isMut": false,
           "isSigner": true
-        },
-        {
-          "name": "tradeHistory",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "fundingPaymentHistory",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "fundingRateHistory",
-          "isMut": true,
-          "isSigner": false
         },
         {
           "name": "oracle",
@@ -435,21 +349,6 @@
           "isSigner": true
         },
         {
-          "name": "tradeHistory",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "fundingPaymentHistory",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "fundingRateHistory",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
           "name": "oracle",
           "isMut": false,
           "isSigner": false
@@ -495,16 +394,6 @@
           "name": "oracle",
           "isMut": false,
           "isSigner": false
-        },
-        {
-          "name": "fundingPaymentHistory",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "orderHistory",
-          "isMut": true,
-          "isSigner": false
         }
       ],
       "args": [
@@ -543,22 +432,12 @@
           "name": "oracle",
           "isMut": false,
           "isSigner": false
-        },
-        {
-          "name": "fundingPaymentHistory",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "orderHistory",
-          "isMut": true,
-          "isSigner": false
         }
       ],
       "args": [
         {
           "name": "orderId",
-          "type": "u128"
+          "type": "u64"
         }
       ]
     },
@@ -589,16 +468,6 @@
           "name": "oracle",
           "isMut": false,
           "isSigner": false
-        },
-        {
-          "name": "fundingPaymentHistory",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "orderHistory",
-          "isMut": true,
-          "isSigner": false
         }
       ],
       "args": [
@@ -607,134 +476,6 @@
           "type": "u8"
         }
       ]
-    },
-    {
-      "name": "cancelAllOrders",
-      "accounts": [
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "orderState",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "user",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "fundingPaymentHistory",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "orderHistory",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "bestEffort",
-          "type": "bool"
-        }
-      ]
-    },
-    {
-      "name": "cancelOrdersByMarketAndSide",
-      "accounts": [
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "orderState",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "user",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "fundingPaymentHistory",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "orderHistory",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "bestEffort",
-          "type": "bool"
-        },
-        {
-          "name": "marketIndexOnly",
-          "type": "u64"
-        },
-        {
-          "name": "directionOnly",
-          "type": {
-            "defined": "PositionDirection"
-          }
-        }
-      ]
-    },
-    {
-      "name": "expireOrders",
-      "accounts": [
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "orderState",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "filler",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "user",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "orderHistory",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": []
     },
     {
       "name": "fillOrder",
@@ -765,31 +506,6 @@
           "isSigner": false
         },
         {
-          "name": "tradeHistory",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "fundingPaymentHistory",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "fundingRateHistory",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "orderHistory",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "extendedCurveHistory",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
           "name": "oracle",
           "isMut": false,
           "isSigner": false
@@ -798,7 +514,7 @@
       "args": [
         {
           "name": "orderId",
-          "type": "u128"
+          "type": "u64"
         }
       ]
     },
@@ -824,31 +540,6 @@
           "name": "authority",
           "isMut": false,
           "isSigner": true
-        },
-        {
-          "name": "fundingPaymentHistory",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "tradeHistory",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "fundingRateHistory",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "orderHistory",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "extendedCurveHistory",
-          "isMut": true,
-          "isSigner": false
         },
         {
           "name": "oracle",
@@ -911,21 +602,6 @@
         {
           "name": "tokenProgram",
           "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "tradeHistory",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "liquidationHistory",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "fundingPaymentHistory",
-          "isMut": true,
           "isSigner": false
         }
       ],
@@ -1116,11 +792,6 @@
           "name": "admin",
           "isMut": false,
           "isSigner": true
-        },
-        {
-          "name": "curveHistory",
-          "isMut": true,
-          "isSigner": false
         }
       ],
       "args": [
@@ -1152,11 +823,6 @@
           "name": "admin",
           "isMut": false,
           "isSigner": true
-        },
-        {
-          "name": "curveHistory",
-          "isMut": true,
-          "isSigner": false
         }
       ],
       "args": []
@@ -1183,11 +849,6 @@
           "name": "admin",
           "isMut": false,
           "isSigner": true
-        },
-        {
-          "name": "curveHistory",
-          "isMut": true,
-          "isSigner": false
         }
       ],
       "args": []
@@ -1245,11 +906,6 @@
           "name": "market",
           "isMut": false,
           "isSigner": false
-        },
-        {
-          "name": "fundingPaymentHistory",
-          "isMut": true,
-          "isSigner": false
         }
       ],
       "args": []
@@ -1270,11 +926,6 @@
         {
           "name": "oracle",
           "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "fundingRateHistory",
-          "isMut": true,
           "isSigner": false
         }
       ],
@@ -1307,11 +958,6 @@
           "name": "oracle",
           "isMut": false,
           "isSigner": false
-        },
-        {
-          "name": "curveHistory",
-          "isMut": true,
-          "isSigner": false
         }
       ],
       "args": [
@@ -1324,32 +970,6 @@
           "type": "u64"
         }
       ]
-    },
-    {
-      "name": "updateCurveHistory",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "extendedCurveHistory",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "curveHistory",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": []
     },
     {
       "name": "updateMarginRatio",
@@ -1831,194 +1451,6 @@
   ],
   "accounts": [
     {
-      "name": "CurveHistory",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "head",
-            "type": "u64"
-          },
-          {
-            "name": "curveRecords",
-            "type": {
-              "array": [
-                {
-                  "defined": "CurveRecord"
-                },
-                32
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "ExtendedCurveHistory",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "head",
-            "type": "u64"
-          },
-          {
-            "name": "curveRecords",
-            "type": {
-              "array": [
-                {
-                  "defined": "ExtendedCurveRecord"
-                },
-                1024
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "DepositHistory",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "head",
-            "type": "u64"
-          },
-          {
-            "name": "depositRecords",
-            "type": {
-              "array": [
-                {
-                  "defined": "DepositRecord"
-                },
-                1024
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "FundingPaymentHistory",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "head",
-            "type": "u64"
-          },
-          {
-            "name": "fundingPaymentRecords",
-            "type": {
-              "array": [
-                {
-                  "defined": "FundingPaymentRecord"
-                },
-                1024
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "FundingRateHistory",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "head",
-            "type": "u64"
-          },
-          {
-            "name": "fundingRateRecords",
-            "type": {
-              "array": [
-                {
-                  "defined": "FundingRateRecord"
-                },
-                1024
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "LiquidationHistory",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "head",
-            "type": "u64"
-          },
-          {
-            "name": "liquidationRecords",
-            "type": {
-              "array": [
-                {
-                  "defined": "LiquidationRecord"
-                },
-                1024
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "OrderHistory",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "head",
-            "type": "u64"
-          },
-          {
-            "name": "lastOrderId",
-            "type": "u128"
-          },
-          {
-            "name": "orderRecords",
-            "type": {
-              "array": [
-                {
-                  "defined": "OrderRecord"
-                },
-                1024
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "TradeHistory",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "head",
-            "type": "u64"
-          },
-          {
-            "name": "tradeRecords",
-            "type": {
-              "array": [
-                {
-                  "defined": "TradeRecord"
-                },
-                1024
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
       "name": "Market",
       "type": {
         "kind": "struct",
@@ -2070,6 +1502,18 @@
             "type": "u32"
           },
           {
+            "name": "nextTradeRecordId",
+            "type": "u64"
+          },
+          {
+            "name": "nextFundingRateRecordId",
+            "type": "u64"
+          },
+          {
+            "name": "nextCurveRecordId",
+            "type": "u64"
+          },
+          {
             "name": "padding0",
             "type": "u32"
           },
@@ -2097,10 +1541,6 @@
       "type": {
         "kind": "struct",
         "fields": [
-          {
-            "name": "orderHistory",
-            "type": "publicKey"
-          },
           {
             "name": "orderFillerRewardStructure",
             "type": {
@@ -2159,30 +1599,6 @@
           {
             "name": "collateralVaultNonce",
             "type": "u8"
-          },
-          {
-            "name": "depositHistory",
-            "type": "publicKey"
-          },
-          {
-            "name": "tradeHistory",
-            "type": "publicKey"
-          },
-          {
-            "name": "fundingPaymentHistory",
-            "type": "publicKey"
-          },
-          {
-            "name": "fundingRateHistory",
-            "type": "publicKey"
-          },
-          {
-            "name": "liquidationHistory",
-            "type": "publicKey"
-          },
-          {
-            "name": "curveHistory",
-            "type": "publicKey"
           },
           {
             "name": "insuranceVault",
@@ -2265,10 +1681,6 @@
             "type": "u128"
           },
           {
-            "name": "extendedCurveHistory",
-            "type": "publicKey"
-          },
-          {
             "name": "orderState",
             "type": "publicKey"
           },
@@ -2331,6 +1743,10 @@
           {
             "name": "totalRefereeDiscount",
             "type": "u128"
+          },
+          {
+            "name": "nextOrderId",
+            "type": "u64"
           },
           {
             "name": "positions",
@@ -2471,532 +1887,6 @@
           {
             "name": "referrer",
             "type": "bool"
-          }
-        ]
-      }
-    },
-    {
-      "name": "CurveRecord",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "ts",
-            "type": "i64"
-          },
-          {
-            "name": "recordId",
-            "type": "u128"
-          },
-          {
-            "name": "marketIndex",
-            "type": "u64"
-          },
-          {
-            "name": "pegMultiplierBefore",
-            "type": "u128"
-          },
-          {
-            "name": "baseAssetReserveBefore",
-            "type": "u128"
-          },
-          {
-            "name": "quoteAssetReserveBefore",
-            "type": "u128"
-          },
-          {
-            "name": "sqrtKBefore",
-            "type": "u128"
-          },
-          {
-            "name": "pegMultiplierAfter",
-            "type": "u128"
-          },
-          {
-            "name": "baseAssetReserveAfter",
-            "type": "u128"
-          },
-          {
-            "name": "quoteAssetReserveAfter",
-            "type": "u128"
-          },
-          {
-            "name": "sqrtKAfter",
-            "type": "u128"
-          },
-          {
-            "name": "baseAssetAmountLong",
-            "type": "u128"
-          },
-          {
-            "name": "baseAssetAmountShort",
-            "type": "u128"
-          },
-          {
-            "name": "baseAssetAmount",
-            "type": "i128"
-          },
-          {
-            "name": "openInterest",
-            "type": "u128"
-          },
-          {
-            "name": "totalFee",
-            "type": "u128"
-          },
-          {
-            "name": "totalFeeMinusDistributions",
-            "type": "u128"
-          },
-          {
-            "name": "adjustmentCost",
-            "type": "i128"
-          }
-        ]
-      }
-    },
-    {
-      "name": "ExtendedCurveRecord",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "ts",
-            "type": "i64"
-          },
-          {
-            "name": "recordId",
-            "type": "u128"
-          },
-          {
-            "name": "marketIndex",
-            "type": "u64"
-          },
-          {
-            "name": "pegMultiplierBefore",
-            "type": "u128"
-          },
-          {
-            "name": "baseAssetReserveBefore",
-            "type": "u128"
-          },
-          {
-            "name": "quoteAssetReserveBefore",
-            "type": "u128"
-          },
-          {
-            "name": "sqrtKBefore",
-            "type": "u128"
-          },
-          {
-            "name": "pegMultiplierAfter",
-            "type": "u128"
-          },
-          {
-            "name": "baseAssetReserveAfter",
-            "type": "u128"
-          },
-          {
-            "name": "quoteAssetReserveAfter",
-            "type": "u128"
-          },
-          {
-            "name": "sqrtKAfter",
-            "type": "u128"
-          },
-          {
-            "name": "baseAssetAmountLong",
-            "type": "u128"
-          },
-          {
-            "name": "baseAssetAmountShort",
-            "type": "u128"
-          },
-          {
-            "name": "baseAssetAmount",
-            "type": "i128"
-          },
-          {
-            "name": "openInterest",
-            "type": "u128"
-          },
-          {
-            "name": "totalFee",
-            "type": "u128"
-          },
-          {
-            "name": "totalFeeMinusDistributions",
-            "type": "u128"
-          },
-          {
-            "name": "adjustmentCost",
-            "type": "i128"
-          },
-          {
-            "name": "oraclePrice",
-            "type": "i128"
-          },
-          {
-            "name": "tradeRecord",
-            "type": "u128"
-          },
-          {
-            "name": "padding",
-            "type": {
-              "array": [
-                "u128",
-                5
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "DepositRecord",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "ts",
-            "type": "i64"
-          },
-          {
-            "name": "recordId",
-            "type": "u128"
-          },
-          {
-            "name": "userAuthority",
-            "type": "publicKey"
-          },
-          {
-            "name": "user",
-            "type": "publicKey"
-          },
-          {
-            "name": "direction",
-            "type": {
-              "defined": "DepositDirection"
-            }
-          },
-          {
-            "name": "collateralBefore",
-            "type": "u128"
-          },
-          {
-            "name": "cumulativeDepositsBefore",
-            "type": "i128"
-          },
-          {
-            "name": "amount",
-            "type": "u64"
-          }
-        ]
-      }
-    },
-    {
-      "name": "FundingPaymentRecord",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "ts",
-            "type": "i64"
-          },
-          {
-            "name": "recordId",
-            "type": "u128"
-          },
-          {
-            "name": "userAuthority",
-            "type": "publicKey"
-          },
-          {
-            "name": "user",
-            "type": "publicKey"
-          },
-          {
-            "name": "marketIndex",
-            "type": "u64"
-          },
-          {
-            "name": "fundingPayment",
-            "type": "i128"
-          },
-          {
-            "name": "baseAssetAmount",
-            "type": "i128"
-          },
-          {
-            "name": "userLastCumulativeFunding",
-            "type": "i128"
-          },
-          {
-            "name": "userLastFundingRateTs",
-            "type": "i64"
-          },
-          {
-            "name": "ammCumulativeFundingLong",
-            "type": "i128"
-          },
-          {
-            "name": "ammCumulativeFundingShort",
-            "type": "i128"
-          }
-        ]
-      }
-    },
-    {
-      "name": "FundingRateRecord",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "ts",
-            "type": "i64"
-          },
-          {
-            "name": "recordId",
-            "type": "u128"
-          },
-          {
-            "name": "marketIndex",
-            "type": "u64"
-          },
-          {
-            "name": "fundingRate",
-            "type": "i128"
-          },
-          {
-            "name": "cumulativeFundingRateLong",
-            "type": "i128"
-          },
-          {
-            "name": "cumulativeFundingRateShort",
-            "type": "i128"
-          },
-          {
-            "name": "oraclePriceTwap",
-            "type": "i128"
-          },
-          {
-            "name": "markPriceTwap",
-            "type": "u128"
-          }
-        ]
-      }
-    },
-    {
-      "name": "LiquidationRecord",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "ts",
-            "type": "i64"
-          },
-          {
-            "name": "recordId",
-            "type": "u128"
-          },
-          {
-            "name": "userAuthority",
-            "type": "publicKey"
-          },
-          {
-            "name": "user",
-            "type": "publicKey"
-          },
-          {
-            "name": "partial",
-            "type": "bool"
-          },
-          {
-            "name": "baseAssetValue",
-            "type": "u128"
-          },
-          {
-            "name": "baseAssetValueClosed",
-            "type": "u128"
-          },
-          {
-            "name": "liquidationFee",
-            "type": "u128"
-          },
-          {
-            "name": "feeToLiquidator",
-            "type": "u64"
-          },
-          {
-            "name": "feeToInsuranceFund",
-            "type": "u64"
-          },
-          {
-            "name": "liquidator",
-            "type": "publicKey"
-          },
-          {
-            "name": "totalCollateral",
-            "type": "u128"
-          },
-          {
-            "name": "collateral",
-            "type": "u128"
-          },
-          {
-            "name": "unrealizedPnl",
-            "type": "i128"
-          },
-          {
-            "name": "marginRatio",
-            "type": "u128"
-          }
-        ]
-      }
-    },
-    {
-      "name": "OrderRecord",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "ts",
-            "type": "i64"
-          },
-          {
-            "name": "recordId",
-            "type": "u128"
-          },
-          {
-            "name": "user",
-            "type": "publicKey"
-          },
-          {
-            "name": "authority",
-            "type": "publicKey"
-          },
-          {
-            "name": "order",
-            "type": {
-              "defined": "Order"
-            }
-          },
-          {
-            "name": "action",
-            "type": {
-              "defined": "OrderAction"
-            }
-          },
-          {
-            "name": "filler",
-            "type": "publicKey"
-          },
-          {
-            "name": "tradeRecordId",
-            "type": "u128"
-          },
-          {
-            "name": "baseAssetAmountFilled",
-            "type": "u128"
-          },
-          {
-            "name": "quoteAssetAmountFilled",
-            "type": "u128"
-          },
-          {
-            "name": "fee",
-            "type": "i128"
-          },
-          {
-            "name": "fillerReward",
-            "type": "u128"
-          },
-          {
-            "name": "quoteAssetAmountSurplus",
-            "type": "u128"
-          },
-          {
-            "name": "padding",
-            "type": {
-              "array": [
-                "u64",
-                8
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "TradeRecord",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "ts",
-            "type": "i64"
-          },
-          {
-            "name": "recordId",
-            "type": "u128"
-          },
-          {
-            "name": "userAuthority",
-            "type": "publicKey"
-          },
-          {
-            "name": "user",
-            "type": "publicKey"
-          },
-          {
-            "name": "direction",
-            "type": {
-              "defined": "PositionDirection"
-            }
-          },
-          {
-            "name": "baseAssetAmount",
-            "type": "u128"
-          },
-          {
-            "name": "quoteAssetAmount",
-            "type": "u128"
-          },
-          {
-            "name": "markPriceBefore",
-            "type": "u128"
-          },
-          {
-            "name": "markPriceAfter",
-            "type": "u128"
-          },
-          {
-            "name": "fee",
-            "type": "i128"
-          },
-          {
-            "name": "quoteAssetAmountSurplus",
-            "type": "u128"
-          },
-          {
-            "name": "refereeDiscount",
-            "type": "u128"
-          },
-          {
-            "name": "tokenDiscount",
-            "type": "u128"
-          },
-          {
-            "name": "liquidation",
-            "type": "bool"
-          },
-          {
-            "name": "marketIndex",
-            "type": "u64"
-          },
-          {
-            "name": "oraclePrice",
-            "type": "i128"
           }
         ]
       }
@@ -3394,7 +2284,7 @@
           },
           {
             "name": "orderId",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "userOrderId",
@@ -3549,20 +2439,6 @@
       }
     },
     {
-      "name": "Type",
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "Repeg"
-          },
-          {
-            "name": "UpdateK"
-          }
-        ]
-      }
-    },
-    {
       "name": "DepositDirection",
       "type": {
         "kind": "enum",
@@ -3680,6 +2556,486 @@
           }
         ]
       }
+    }
+  ],
+  "events": [
+    {
+      "name": "DepositRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "userAuthority",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "user",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "direction",
+          "type": {
+            "defined": "DepositDirection"
+          },
+          "index": false
+        },
+        {
+          "name": "collateralBefore",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "cumulativeDepositsBefore",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "amount",
+          "type": "u64",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "TradeRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "recordId",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "userAuthority",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "user",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "direction",
+          "type": {
+            "defined": "PositionDirection"
+          },
+          "index": false
+        },
+        {
+          "name": "baseAssetAmount",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "quoteAssetAmount",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "markPriceBefore",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "markPriceAfter",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "fee",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "quoteAssetAmountSurplus",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "refereeDiscount",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "tokenDiscount",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "liquidation",
+          "type": "bool",
+          "index": false
+        },
+        {
+          "name": "marketIndex",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "oraclePrice",
+          "type": "i128",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "FundingPaymentRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "userAuthority",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "user",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "marketIndex",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "fundingPayment",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "baseAssetAmount",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "userLastCumulativeFunding",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "userLastFundingRateTs",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "ammCumulativeFundingLong",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "ammCumulativeFundingShort",
+          "type": "i128",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "FundingRateRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "recordId",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "marketIndex",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "fundingRate",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "cumulativeFundingRateLong",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "cumulativeFundingRateShort",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "oraclePriceTwap",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "markPriceTwap",
+          "type": "u128",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "CurveRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "recordId",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "marketIndex",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "pegMultiplierBefore",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "baseAssetReserveBefore",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "quoteAssetReserveBefore",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "sqrtKBefore",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "pegMultiplierAfter",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "baseAssetReserveAfter",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "quoteAssetReserveAfter",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "sqrtKAfter",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "baseAssetAmountLong",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "baseAssetAmountShort",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "baseAssetAmount",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "openInterest",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "totalFee",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "totalFeeMinusDistributions",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "adjustmentCost",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "oraclePrice",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "tradeRecord",
+          "type": "u128",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "LiquidationRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "userAuthority",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "user",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "partial",
+          "type": "bool",
+          "index": false
+        },
+        {
+          "name": "baseAssetValue",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "baseAssetValueClosed",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "liquidationFee",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "feeToLiquidator",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "feeToInsuranceFund",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "liquidator",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "totalCollateral",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "collateral",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "unrealizedPnl",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "marginRatio",
+          "type": "u128",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "OrderRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "user",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "authority",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "order",
+          "type": {
+            "defined": "Order"
+          },
+          "index": false
+        },
+        {
+          "name": "action",
+          "type": {
+            "defined": "OrderAction"
+          },
+          "index": false
+        },
+        {
+          "name": "filler",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "tradeRecordId",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "baseAssetAmountFilled",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "quoteAssetAmountFilled",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "fee",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "fillerReward",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "quoteAssetAmountSurplus",
+          "type": "u128",
+          "index": false
+        }
+      ]
     }
   ],
   "errors": [
@@ -3805,206 +3161,201 @@
     },
     {
       "code": 6024,
-      "name": "HistoryAlreadyInitialized",
-      "msg": "Clearing House history already initialized"
-    },
-    {
-      "code": 6025,
       "name": "ExchangePaused",
       "msg": "Exchange is paused"
     },
     {
-      "code": 6026,
+      "code": 6025,
       "name": "InvalidWhitelistToken",
       "msg": "Invalid whitelist token"
     },
     {
-      "code": 6027,
+      "code": 6026,
       "name": "WhitelistTokenNotFound",
       "msg": "Whitelist token not found"
     },
     {
-      "code": 6028,
+      "code": 6027,
       "name": "InvalidDiscountToken",
       "msg": "Invalid discount token"
     },
     {
-      "code": 6029,
+      "code": 6028,
       "name": "DiscountTokenNotFound",
       "msg": "Discount token not found"
     },
     {
-      "code": 6030,
+      "code": 6029,
       "name": "InvalidReferrer",
       "msg": "Invalid referrer"
     },
     {
-      "code": 6031,
+      "code": 6030,
       "name": "ReferrerNotFound",
       "msg": "Referrer not found"
     },
     {
-      "code": 6032,
+      "code": 6031,
       "name": "InvalidOracle",
       "msg": "InvalidOracle"
     },
     {
-      "code": 6033,
+      "code": 6032,
       "name": "OracleNotFound",
       "msg": "OracleNotFound"
     },
     {
-      "code": 6034,
+      "code": 6033,
       "name": "LiquidationsBlockedByOracle",
       "msg": "Liquidations Blocked By Oracle"
     },
     {
-      "code": 6035,
+      "code": 6034,
       "name": "UserMaxDeposit",
       "msg": "Can not deposit more than max deposit"
     },
     {
-      "code": 6036,
+      "code": 6035,
       "name": "CantDeleteUserWithCollateral",
       "msg": "Can not delete user that still has collateral"
     },
     {
-      "code": 6037,
+      "code": 6036,
       "name": "InvalidFundingProfitability",
       "msg": "AMM funding out of bounds pnl"
     },
     {
-      "code": 6038,
+      "code": 6037,
       "name": "CastingFailure",
       "msg": "Casting Failure"
     },
     {
-      "code": 6039,
+      "code": 6038,
       "name": "InvalidOrder",
       "msg": "Invalid Order"
     },
     {
-      "code": 6040,
+      "code": 6039,
       "name": "UserHasNoOrder",
       "msg": "User has no order"
     },
     {
-      "code": 6041,
+      "code": 6040,
       "name": "OrderAmountTooSmall",
       "msg": "Order Amount Too Small"
     },
     {
-      "code": 6042,
+      "code": 6041,
       "name": "MaxNumberOfOrders",
       "msg": "Max number of orders taken"
     },
     {
-      "code": 6043,
+      "code": 6042,
       "name": "OrderDoesNotExist",
       "msg": "Order does not exist"
     },
     {
-      "code": 6044,
+      "code": 6043,
       "name": "OrderNotOpen",
       "msg": "Order not open"
     },
     {
-      "code": 6045,
+      "code": 6044,
       "name": "CouldNotFillOrder",
       "msg": "CouldNotFillOrder"
     },
     {
-      "code": 6046,
+      "code": 6045,
       "name": "ReduceOnlyOrderIncreasedRisk",
       "msg": "Reduce only order increased risk"
     },
     {
-      "code": 6047,
+      "code": 6046,
       "name": "OrderStateAlreadyInitialized",
       "msg": "Order state already initialized"
     },
     {
-      "code": 6048,
+      "code": 6047,
       "name": "UnableToLoadAccountLoader",
       "msg": "Unable to load AccountLoader"
     },
     {
-      "code": 6049,
+      "code": 6048,
       "name": "TradeSizeTooLarge",
       "msg": "Trade Size Too Large"
     },
     {
-      "code": 6050,
+      "code": 6049,
       "name": "UserCantReferThemselves",
       "msg": "User cant refer themselves"
     },
     {
-      "code": 6051,
+      "code": 6050,
       "name": "DidNotReceiveExpectedReferrer",
       "msg": "Did not receive expected referrer"
     },
     {
-      "code": 6052,
+      "code": 6051,
       "name": "CouldNotDeserializeReferrer",
       "msg": "Could not deserialize referrer"
     },
     {
-      "code": 6053,
+      "code": 6052,
       "name": "MarketOrderMustBeInPlaceAndFill",
       "msg": "Market order must be in place and fill"
     },
     {
-      "code": 6054,
+      "code": 6053,
       "name": "UserOrderIdAlreadyInUse",
       "msg": "User Order Id Already In Use"
     },
     {
-      "code": 6055,
+      "code": 6054,
       "name": "NoPositionsLiquidatable",
       "msg": "No positions liquidatable"
     },
     {
-      "code": 6056,
+      "code": 6055,
       "name": "InvalidMarginRatio",
       "msg": "Invalid Margin Ratio"
     },
     {
-      "code": 6057,
+      "code": 6056,
       "name": "CantCancelPostOnlyOrder",
       "msg": "Cant Cancel Post Only Order"
     },
     {
-      "code": 6058,
+      "code": 6057,
       "name": "InvalidOracleOffset",
       "msg": "InvalidOracleOffset"
     },
     {
-      "code": 6059,
+      "code": 6058,
       "name": "CantExpireOrders",
       "msg": "CantExpireOrders"
     },
     {
-      "code": 6060,
+      "code": 6059,
       "name": "CouldNotLoadMarketData",
       "msg": "CouldNotLoadMarketData"
     },
     {
-      "code": 6061,
+      "code": 6060,
       "name": "MarketNotFound",
       "msg": "MarketNotFound"
     },
     {
-      "code": 6062,
+      "code": 6061,
       "name": "InvalidMarketAccount",
       "msg": "InvalidMarketAccount"
     },
     {
-      "code": 6063,
+      "code": 6062,
       "name": "UnableToLoadMarketAccount",
       "msg": "UnableToLoadMarketAccount"
     },
     {
-      "code": 6064,
+      "code": 6063,
       "name": "MarketWrongMutability",
       "msg": "MarketWrongMutability"
     }

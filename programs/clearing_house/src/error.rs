@@ -52,8 +52,6 @@ pub enum ErrorCode {
     UnableToLoadOracle,
     #[msg("Oracle/Mark Spread Too Large")]
     OracleMarkSpreadLimit,
-    #[msg("Clearing House history already initialized")]
-    HistoryAlreadyInitialized,
     #[msg("Exchange is paused")]
     ExchangePaused,
     #[msg("Invalid whitelist token")]

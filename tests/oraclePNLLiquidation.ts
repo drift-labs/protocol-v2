@@ -8,6 +8,7 @@ import { PublicKey } from '@solana/web3.js';
 
 import {
 	Admin,
+	EventSubscriber,
 	findComputeUnitConsumption,
 	MARK_PRICE_PRECISION,
 	PositionDirection,
@@ -28,6 +29,8 @@ describe('oracle pnl liquidations', () => {
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.ClearingHouse as Program;
+	const eventSubscriber = new EventSubscriber(connection, chProgram);
+	eventSubscriber.subscribe();
 
 	let clearingHouse: Admin;
 
@@ -62,7 +65,7 @@ describe('oracle pnl liquidations', () => {
 			}
 		);
 		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.subscribeToAll();
+		await clearingHouse.subscribe();
 
 		for (let i = 0; i < maxPositions; i++) {
 			const oracle = await mockOracle(1);
@@ -99,6 +102,7 @@ describe('oracle pnl liquidations', () => {
 
 	after(async () => {
 		await clearingHouse.unsubscribe();
+		await eventSubscriber.unsubscribe();
 	});
 
 	it('partial liquidate', async () => {
@@ -128,8 +132,8 @@ describe('oracle pnl liquidations', () => {
 		const joinedLogs = logs.join(' ');
 
 		await clearingHouse.fetchAccounts();
-		const liquidationHistory = clearingHouse.getLiquidationHistoryAccount();
-		const liquidationRecord = liquidationHistory.liquidationRecords[0];
+		const liquidationRecord =
+			eventSubscriber.getEventsArray('LiquidationRecord')[0].data;
 		assert(liquidationRecord.partial);
 		assert(joinedLogs.includes('Using oracle pnl for market 0'));
 		assert(joinedLogs.includes('Using oracle pnl for market 1'));
@@ -164,8 +168,8 @@ describe('oracle pnl liquidations', () => {
 		const joinedLogs = logs.join(' ');
 
 		await clearingHouse.fetchAccounts();
-		const liquidationHistory = clearingHouse.getLiquidationHistoryAccount();
-		const liquidationRecord = liquidationHistory.liquidationRecords[1];
+		const liquidationRecord =
+			eventSubscriber.getEventsArray('LiquidationRecord')[0].data;
 		assert(!liquidationRecord.partial);
 		assert(joinedLogs.includes('Using oracle pnl for market 0'));
 		assert(joinedLogs.includes('Using oracle pnl for market 1'));

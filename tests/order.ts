@@ -14,7 +14,6 @@ import {
 	ClearingHouseUser,
 	OrderStatus,
 	OrderDiscountTier,
-	OrderRecord,
 	OrderAction,
 	OrderTriggerCondition,
 	calculateTargetPriceTrade,
@@ -24,6 +23,7 @@ import {
 	calculateTradeSlippage,
 	getLimitOrderParams,
 	getTriggerMarketOrderParams,
+	EventSubscriber,
 } from '../sdk/src';
 
 import { calculateAmountToTradeForLimit } from '../sdk/src/orders';
@@ -64,6 +64,8 @@ describe('orders', () => {
 
 	let clearingHouse: Admin;
 	let clearingHouseUser: ClearingHouseUser;
+	const eventSubscriber = new EventSubscriber(connection, chProgram);
+	eventSubscriber.subscribe();
 
 	let userAccountPublicKey: PublicKey;
 
@@ -118,7 +120,7 @@ describe('orders', () => {
 			}
 		);
 		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.subscribeToAll();
+		await clearingHouse.subscribe();
 		solUsd = await mockOracle(1);
 		btcUsd = await mockOracle(60000);
 		ethUsd = await mockOracle(1);
@@ -250,6 +252,8 @@ describe('orders', () => {
 
 		await whaleClearingHouse.unsubscribe();
 		await whaleUser.unsubscribe();
+
+		await eventSubscriber.unsubscribe();
 	});
 
 	it('Open long limit order', async () => {
@@ -299,10 +303,7 @@ describe('orders', () => {
 		const expectedOpenOrders = new BN(1);
 		assert(position.openOrders.eq(expectedOpenOrders));
 
-		const orderHistoryAccount = clearingHouse.getOrderHistoryAccount();
-		const orderRecord: OrderRecord = orderHistoryAccount.orderRecords[0];
-		const expectedRecordId = new BN(1);
-		assert(orderRecord.recordId.eq(expectedRecordId));
+		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0].data;
 		assert(orderRecord.ts.gt(ZERO));
 		assert(orderRecord.order.orderId.eq(expectedOrderId));
 		assert(enumsAreEqual(orderRecord.action, OrderAction.PLACE));
@@ -348,11 +349,8 @@ describe('orders', () => {
 		const expectedOpenOrders = new BN(0);
 		assert(position.openOrders.eq(expectedOpenOrders));
 
-		const orderHistoryAccount = clearingHouse.getOrderHistoryAccount();
-		const orderRecord: OrderRecord = orderHistoryAccount.orderRecords[1];
-		const expectedRecordId = new BN(2);
+		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0].data;
 		const expectedOrderId = new BN(1);
-		assert(orderRecord.recordId.eq(expectedRecordId));
 		assert(orderRecord.ts.gt(ZERO));
 		assert(orderRecord.order.orderId.eq(expectedOrderId));
 		assert(enumsAreEqual(orderRecord.action, OrderAction.CANCEL));
@@ -429,22 +427,15 @@ describe('orders', () => {
 		//  );
 		assert(firstPosition.quoteAssetAmount.eq(expectedQuoteAssetAmount));
 
-		const tradeHistoryAccount = clearingHouse.getTradeHistoryAccount();
-		const tradeHistoryRecord = tradeHistoryAccount.tradeRecords[0];
-
-		assert.ok(tradeHistoryAccount.head.toNumber() === 1);
+		const tradeHistoryRecord =
+			eventSubscriber.getEventsArray('TradeRecord')[0].data;
 		assert.ok(tradeHistoryRecord.baseAssetAmount.eq(baseAssetAmount));
 		assert.ok(tradeHistoryRecord.quoteAssetAmount.eq(expectedQuoteAssetAmount));
 
-		const orderHistoryAccount = clearingHouse.getOrderHistoryAccount();
-		const orderRecord: OrderRecord = orderHistoryAccount.orderRecords[3];
-		const expectedRecordId = new BN(4);
-		const expectedOrderId = new BN(2);
+		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0].data;
 		const expectedTradeRecordId = new BN(1);
 		const expectedFee = new BN(950);
-		assert(orderRecord.recordId.eq(expectedRecordId));
 		assert(orderRecord.ts.gt(ZERO));
-		assert(orderRecord.order.orderId.eq(expectedOrderId));
 		assert(orderRecord.fee.eq(expectedFee));
 		assert(orderRecord.order.fee.eq(expectedFee));
 		assert(enumsAreEqual(orderRecord.action, OrderAction.FILL));
@@ -458,6 +449,7 @@ describe('orders', () => {
 		assert(orderRecord.baseAssetAmountFilled.eq(baseAssetAmount));
 		assert(orderRecord.quoteAssetAmountFilled.eq(expectedQuoteAssetAmount));
 		assert(orderRecord.fillerReward.eq(expectedFillerReward));
+		console.log(orderRecord.tradeRecordId.toString());
 		assert(orderRecord.tradeRecordId.eq(expectedTradeRecordId));
 	});
 
@@ -527,10 +519,9 @@ describe('orders', () => {
 		const expectedQuoteAssetAmount = new BN(0);
 		assert(firstPosition.quoteAssetAmount.eq(expectedQuoteAssetAmount));
 
-		const tradeHistoryAccount = clearingHouse.getTradeHistoryAccount();
-		const tradeHistoryRecord = tradeHistoryAccount.tradeRecords[1];
+		const tradeHistoryRecord =
+			eventSubscriber.getEventsArray('TradeRecord')[0].data;
 
-		assert.ok(tradeHistoryAccount.head.toNumber() === 2);
 		assert.ok(tradeHistoryRecord.baseAssetAmount.eq(baseAssetAmount));
 		const expectedTradeQuoteAssetAmount = new BN(1000002);
 		assert.ok(
@@ -538,12 +529,9 @@ describe('orders', () => {
 		);
 		assert.ok(tradeHistoryRecord.markPriceBefore.gt(triggerPrice));
 
-		const orderHistoryAccount = clearingHouse.getOrderHistoryAccount();
-		const orderRecord: OrderRecord = orderHistoryAccount.orderRecords[5];
-		const expectedRecordId = new BN(6);
+		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0].data;
 		const expectedOrderId = new BN(3);
 		const expectedTradeRecordId = new BN(2);
-		assert(orderRecord.recordId.eq(expectedRecordId));
 		assert(orderRecord.ts.gt(ZERO));
 		assert(orderRecord.order.orderId.eq(expectedOrderId));
 		assert(enumsAreEqual(orderRecord.action, OrderAction.FILL));
@@ -1692,12 +1680,8 @@ describe('orders', () => {
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
 
-		let orderHistory = clearingHouse.getOrderHistoryAccount();
-		assert(
-			orderHistory.orderRecords[orderHistory.head.toNumber() - 1]
-				.baseAssetAmountFilled,
-			AMM_RESERVE_PRECISION
-		);
+		let orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0].data;
+		assert(orderRecord.baseAssetAmountFilled.eq(AMM_RESERVE_PRECISION));
 		assert(
 			isVariant(clearingHouseUser.getUserAccount().orders[0].status, 'init')
 		);
@@ -1715,12 +1699,8 @@ describe('orders', () => {
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
 
-		orderHistory = clearingHouse.getOrderHistoryAccount();
-		assert(
-			orderHistory.orderRecords[orderHistory.head.toNumber() - 1]
-				.baseAssetAmountFilled,
-			AMM_RESERVE_PRECISION
-		);
+		orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0].data;
+		assert(orderRecord.baseAssetAmountFilled.eq(AMM_RESERVE_PRECISION));
 		assert(
 			isVariant(clearingHouseUser.getUserAccount().orders[0].status, 'open')
 		);

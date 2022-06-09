@@ -13,6 +13,7 @@ import {
 	PositionDirection,
 	ClearingHouseUser,
 	Wallet,
+	EventSubscriber,
 } from '../sdk/src';
 
 import {
@@ -40,6 +41,8 @@ describe('maker order', () => {
 
 	let fillerClearingHouse: Admin;
 	let fillerClearingHouseUser: ClearingHouseUser;
+	const eventSubscriber = new EventSubscriber(connection, chProgram);
+	eventSubscriber.subscribe();
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -70,7 +73,7 @@ describe('maker order', () => {
 			}
 		);
 		await fillerClearingHouse.initialize(usdcMint.publicKey, true);
-		await fillerClearingHouse.subscribeToAll();
+		await fillerClearingHouse.subscribe();
 		solUsd = await mockOracle(1);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
@@ -106,6 +109,7 @@ describe('maker order', () => {
 	after(async () => {
 		await fillerClearingHouse.unsubscribe();
 		await fillerClearingHouseUser.unsubscribe();
+		await eventSubscriber.unsubscribe();
 	});
 
 	it('long', async () => {
@@ -184,8 +188,7 @@ describe('maker order', () => {
 		assert(clearingHouseUser.getUserAccount().totalFeeRebate.eq(new BN(500)));
 
 		await fillerClearingHouse.fetchAccounts();
-		const orderHistory = fillerClearingHouse.getOrderHistoryAccount();
-		const orderRecord = orderHistory.orderRecords[1];
+		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0].data;
 
 		assert(isVariant(orderRecord.action, 'fill'));
 		assert(orderRecord.fee.eq(new BN(-500)));
@@ -272,8 +275,7 @@ describe('maker order', () => {
 		assert(clearingHouseUser.getUserAccount().totalFeeRebate.eq(new BN(500)));
 
 		await fillerClearingHouse.fetchAccounts();
-		const orderHistory = fillerClearingHouse.getOrderHistoryAccount();
-		const orderRecord = orderHistory.orderRecords[3];
+		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0].data;
 
 		assert(isVariant(orderRecord.action, 'fill'));
 		assert(orderRecord.fee.eq(new BN(-500)));

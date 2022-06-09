@@ -8,6 +8,7 @@ import { PublicKey } from '@solana/web3.js';
 
 import {
 	Admin,
+	EventSubscriber,
 	findComputeUnitConsumption,
 	MARK_PRICE_PRECISION,
 	PositionDirection,
@@ -30,6 +31,8 @@ describe('whale liquidation', () => {
 	const chProgram = anchor.workspace.ClearingHouse as Program;
 
 	let clearingHouse: Admin;
+	const eventSubscriber = new EventSubscriber(connection, chProgram);
+	eventSubscriber.subscribe();
 
 	let userAccountPublicKey: PublicKey;
 
@@ -62,7 +65,7 @@ describe('whale liquidation', () => {
 			}
 		);
 		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.subscribeToAll();
+		await clearingHouse.subscribe();
 
 		for (let i = 0; i < maxPositions; i++) {
 			const oracle = await mockOracle(1);
@@ -100,6 +103,7 @@ describe('whale liquidation', () => {
 
 	after(async () => {
 		await clearingHouse.unsubscribe();
+		await clearingHouse.unsubscribe();
 	});
 
 	it('partial liquidate', async () => {
@@ -127,8 +131,8 @@ describe('whale liquidation', () => {
 				.logMessages
 		);
 
-		const liquidationHistory = clearingHouse.getLiquidationHistoryAccount();
-		const liquidationRecord = liquidationHistory.liquidationRecords[0];
+		const liquidationRecord =
+			eventSubscriber.getEventsArray('LiquidationRecord')[0].data;
 
 		assert(liquidationRecord.partial);
 		// 15% of position closed
@@ -164,15 +168,16 @@ describe('whale liquidation', () => {
 				.logMessages
 		);
 
-		const liquidationHistory = clearingHouse.getLiquidationHistoryAccount();
-		const liquidationRecord = liquidationHistory.liquidationRecords[1];
+		await eventSubscriber.awaitTx(txSig);
+		const liquidationRecord =
+			eventSubscriber.getEventsArray('LiquidationRecord')[0].data;
 
 		assert(!liquidationRecord.partial);
 		// 41% of position closed
 		assert(liquidationRecord.baseAssetValue.eq(new BN(10249423566)));
 		assert(liquidationRecord.baseAssetValueClosed.eq(new BN(4180276391)));
 		// 41% of total collateral taken
-		assert(liquidationRecord.totalCollateral.eq(new BN(256476943)));
-		assert(liquidationRecord.liquidationFee.eq(new BN(104605344)));
+		assert(liquidationRecord.totalCollateral.eq(new BN(444063242)));
+		assert(liquidationRecord.liquidationFee.eq(new BN(181113314)));
 	});
 });

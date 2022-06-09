@@ -78,7 +78,7 @@ describe('order referrer', () => {
 			}
 		);
 		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.subscribeToAll();
+		await clearingHouse.subscribe();
 		solUsd = await mockOracle(1);
 		btcUsd = await mockOracle(60000);
 

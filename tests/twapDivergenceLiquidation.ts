@@ -58,7 +58,7 @@ describe('twap divergence liquidation', () => {
 			}
 		);
 		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.subscribeToAll();
+		await clearingHouse.subscribe();
 
 		for (let i = 0; i < maxPositions; i++) {
 			// make invalid
@@ -120,7 +120,7 @@ describe('twap divergence liquidation', () => {
 			console.log('tx logs', logs);
 		} catch (e) {
 			console.log(e);
-			assert(e.message.includes('0x17a7'));
+			assert(e.message.includes('0x17a6'));
 			return;
 		}
 		assert(false);

@@ -13,9 +13,9 @@ import {
 	PositionDirection,
 	ClearingHouseUser,
 	Wallet,
-	OrderRecord,
 	OrderAction,
 	getMarketOrderParams,
+	EventSubscriber,
 } from '../sdk/src';
 
 import { mockOracle, mockUSDCMint, mockUserUSDCAccount } from './testHelpers';
@@ -37,6 +37,8 @@ describe('market order', () => {
 
 	let clearingHouse: Admin;
 	let clearingHouseUser: ClearingHouseUser;
+	const eventSubscriber = new EventSubscriber(connection, chProgram);
+	eventSubscriber.subscribe();
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -74,7 +76,7 @@ describe('market order', () => {
 			chProgram.programId
 		);
 		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.subscribeToAll();
+		await clearingHouse.subscribe();
 		solUsd = await mockOracle(1);
 		btcUsd = await mockOracle(60000);
 
@@ -161,6 +163,7 @@ describe('market order', () => {
 		await clearingHouseUser.unsubscribe();
 		await fillerUser.unsubscribe();
 		await fillerClearingHouse.unsubscribe();
+		await eventSubscriber.unsubscribe();
 	});
 
 	it('Fill market long order with base asset', async () => {
@@ -200,20 +203,16 @@ describe('market order', () => {
 		const expectedQuoteAssetAmount = new BN(1000003);
 		assert(firstPosition.quoteAssetAmount.eq(expectedQuoteAssetAmount));
 
-		const tradeHistoryAccount = clearingHouse.getTradeHistoryAccount();
-		const tradeHistoryRecord = tradeHistoryAccount.tradeRecords[0];
+		const tradeHistoryRecord =
+			eventSubscriber.getEventsArray('TradeRecord')[0].data;
 
-		assert.ok(tradeHistoryAccount.head.toNumber() === 1);
 		assert.ok(tradeHistoryRecord.baseAssetAmount.eq(baseAssetAmount));
 		assert.ok(tradeHistoryRecord.quoteAssetAmount.eq(expectedQuoteAssetAmount));
 
-		const orderHistoryAccount = clearingHouse.getOrderHistoryAccount();
-		const orderRecord: OrderRecord = orderHistoryAccount.orderRecords[1];
-		const expectedRecordId = new BN(2);
+		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0].data;
 		const expectedOrderId = new BN(1);
 		const expectedTradeRecordId = new BN(1);
 		const expectedFee = new BN(1000);
-		assert(orderRecord.recordId.eq(expectedRecordId));
 		assert(orderRecord.ts.gt(ZERO));
 		assert(orderRecord.order.orderId.eq(expectedOrderId));
 		assert(orderRecord.fee.eq(expectedFee));
@@ -253,20 +252,17 @@ describe('market order', () => {
 
 		assert(firstPosition.quoteAssetAmount.eq(ZERO));
 
-		const tradeHistoryAccount = clearingHouse.getTradeHistoryAccount();
-		const tradeHistoryRecord = tradeHistoryAccount.tradeRecords[1];
+		const tradeHistoryRecord =
+			eventSubscriber.getEventsArray('TradeRecord')[0].data;
 
 		assert.ok(tradeHistoryRecord.baseAssetAmount.eq(baseAssetAmount));
 		const expectedQuoteAssetAmount = new BN(1000002);
 		assert.ok(tradeHistoryRecord.quoteAssetAmount.eq(expectedQuoteAssetAmount));
 
-		const orderHistoryAccount = clearingHouse.getOrderHistoryAccount();
-		const orderRecord: OrderRecord = orderHistoryAccount.orderRecords[3];
-		const expectedRecordId = new BN(4);
+		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0].data;
 		const expectedOrderId = new BN(2);
 		const expectedTradeRecordId = new BN(2);
 		const expectedFee = new BN(1000);
-		assert(orderRecord.recordId.eq(expectedRecordId));
 		assert(orderRecord.ts.gt(ZERO));
 		assert(orderRecord.order.orderId.eq(expectedOrderId));
 		assert(orderRecord.fee.eq(expectedFee));
@@ -306,19 +302,16 @@ describe('market order', () => {
 		assert(firstPosition.baseAssetAmount.eq(baseAssetAmount));
 		assert(firstPosition.quoteAssetAmount.eq(quoteAssetAmount));
 
-		const tradeHistoryAccount = clearingHouse.getTradeHistoryAccount();
-		const tradeHistoryRecord = tradeHistoryAccount.tradeRecords[2];
+		const tradeHistoryRecord =
+			eventSubscriber.getEventsArray('TradeRecord')[0].data;
 
 		assert.ok(tradeHistoryRecord.baseAssetAmount.eq(baseAssetAmount));
 		assert.ok(tradeHistoryRecord.quoteAssetAmount.eq(quoteAssetAmount));
 
-		const orderHistoryAccount = clearingHouse.getOrderHistoryAccount();
-		const orderRecord: OrderRecord = orderHistoryAccount.orderRecords[5];
-		const expectedRecordId = new BN(6);
+		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0].data;
 		const expectedOrderId = new BN(3);
 		const expectedTradeRecordId = new BN(3);
 		const expectedFee = new BN(1000);
-		assert(orderRecord.recordId.eq(expectedRecordId));
 		assert(orderRecord.ts.gt(ZERO));
 		assert(orderRecord.order.orderId.eq(expectedOrderId));
 		assert(orderRecord.fee.eq(expectedFee));
@@ -357,20 +350,17 @@ describe('market order', () => {
 		assert(firstPosition.baseAssetAmount.eq(ZERO));
 		assert(firstPosition.quoteAssetAmount.eq(ZERO));
 
-		const tradeHistoryAccount = clearingHouse.getTradeHistoryAccount();
-		const tradeHistoryRecord = tradeHistoryAccount.tradeRecords[3];
+		const tradeHistoryRecord =
+			eventSubscriber.getEventsArray('TradeRecord')[0].data;
 
 		const baseAssetAmount = new BN(9999999999961);
 		assert.ok(tradeHistoryRecord.baseAssetAmount.eq(baseAssetAmount));
 		assert.ok(tradeHistoryRecord.quoteAssetAmount.eq(quoteAssetAmount));
 
-		const orderHistoryAccount = clearingHouse.getOrderHistoryAccount();
-		const orderRecord: OrderRecord = orderHistoryAccount.orderRecords[7];
-		const expectedRecordId = new BN(8);
+		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0].data;
 		const expectedOrderId = new BN(4);
 		const expectedTradeRecordId = new BN(4);
 		const expectedFee = new BN(1000);
-		assert(orderRecord.recordId.eq(expectedRecordId));
 		assert(orderRecord.ts.gt(ZERO));
 		assert(orderRecord.order.orderId.eq(expectedOrderId));
 		assert(orderRecord.fee.eq(expectedFee));

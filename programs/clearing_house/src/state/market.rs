@@ -26,6 +26,9 @@ pub struct Market {
     pub margin_ratio_initial: u32,
     pub margin_ratio_partial: u32,
     pub margin_ratio_maintenance: u32,
+    pub next_trade_record_id: u64,
+    pub next_funding_rate_record_id: u64,
+    pub next_curve_record_id: u64,
 
     // upgrade-ability
     pub padding0: u32,
