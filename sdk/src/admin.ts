@@ -214,13 +214,11 @@ export class Admin extends ClearingHouse {
 		sqrtK: BN,
 		marketIndex: BN
 	): Promise<TransactionSignature> {
-		const state = this.getStateAccount();
 		return await this.program.rpc.updateK(sqrtK, marketIndex, {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				admin: this.wallet.publicKey,
 				market: await getMarketPublicKey(this.program.programId, marketIndex),
-				curveHistory: state.extendedCurveHistory,
 				oracle: this.getMarketAccount(marketIndex).amm.oracle,
 			},
 		});
@@ -267,7 +265,6 @@ export class Admin extends ClearingHouse {
 		newPeg: BN,
 		marketIndex: BN
 	): Promise<TransactionSignature> {
-		const state = this.getStateAccount();
 		const marketPublicKey = await getMarketPublicKey(
 			this.program.programId,
 			marketIndex
@@ -280,7 +277,6 @@ export class Admin extends ClearingHouse {
 				admin: this.wallet.publicKey,
 				oracle: ammData.oracle,
 				market: marketPublicKey,
-				curveHistory: state.extendedCurveHistory,
 			},
 		});
 	}
@@ -288,7 +284,6 @@ export class Admin extends ClearingHouse {
 	public async updateAmmOracleTwap(
 		marketIndex: BN
 	): Promise<TransactionSignature> {
-		const state = this.getStateAccount();
 		const ammData = this.getMarketAccount(marketIndex).amm;
 		const marketPublicKey = await getMarketPublicKey(
 			this.program.programId,
@@ -301,7 +296,6 @@ export class Admin extends ClearingHouse {
 				admin: this.wallet.publicKey,
 				oracle: ammData.oracle,
 				market: marketPublicKey,
-				curveHistory: state.extendedCurveHistory,
 			},
 		});
 	}
@@ -309,7 +303,6 @@ export class Admin extends ClearingHouse {
 	public async resetAmmOracleTwap(
 		marketIndex: BN
 	): Promise<TransactionSignature> {
-		const state = this.getStateAccount();
 		const ammData = this.getMarketAccount(marketIndex).amm;
 		const marketPublicKey = await getMarketPublicKey(
 			this.program.programId,
@@ -322,7 +315,6 @@ export class Admin extends ClearingHouse {
 				admin: this.wallet.publicKey,
 				oracle: ammData.oracle,
 				market: marketPublicKey,
-				curveHistory: state.extendedCurveHistory,
 			},
 		});
 	}

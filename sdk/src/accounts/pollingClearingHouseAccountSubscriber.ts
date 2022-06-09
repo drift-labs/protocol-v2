@@ -23,8 +23,6 @@ import { BulkAccountLoader } from './bulkAccountLoader';
 import { capitalize } from './utils';
 import { ClearingHouseConfigType } from '../factory/clearingHouse';
 import { PublicKey } from '@solana/web3.js';
-import { CLEARING_HOUSE_STATE_ACCOUNTS } from '../constants/accounts';
-
 type UserPublicKeys = {
 	userAccountPublicKey: PublicKey;
 };
@@ -157,11 +155,6 @@ export class PollingClearingHouseAccountSubscriber
 	}
 
 	async getClearingHouseAccounts(): Promise<ClearingHouseAccounts> {
-		// Skip extra calls to rpc if we already know all the accounts
-		if (CLEARING_HOUSE_STATE_ACCOUNTS[this.program.programId.toString()]) {
-			return CLEARING_HOUSE_STATE_ACCOUNTS[this.program.programId.toString()];
-		}
-
 		const statePublicKey = await getClearingHouseStateAccountPublicKey(
 			this.program.programId
 		);

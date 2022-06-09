@@ -3034,16 +3034,6 @@
           "name": "quoteAssetAmountSurplus",
           "type": "u128",
           "index": false
-        },
-        {
-          "name": "padding",
-          "type": {
-            "array": [
-              "u64",
-              8
-            ]
-          },
-          "index": false
         }
       ]
     }

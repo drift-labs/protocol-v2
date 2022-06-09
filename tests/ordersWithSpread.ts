@@ -78,7 +78,7 @@ describe('amm spread: market order', () => {
 			}
 		);
 		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.subscribeToAll();
+		await clearingHouse.subscribe();
 		solUsd = await mockOracle(1);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR

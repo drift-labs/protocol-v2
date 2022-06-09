@@ -134,7 +134,6 @@ pub fn place_order(
         filler_reward: 0,
         fee: 0,
         quote_asset_amount_surplus: 0,
-        padding: [0; 8],
     });
 
     Ok(())
@@ -249,7 +248,6 @@ pub fn cancel_order(
         filler_reward: 0,
         fee: 0,
         quote_asset_amount_surplus: 0,
-        padding: [0; 8],
     });
 
     // Decrement open orders for existing position
@@ -535,7 +533,6 @@ pub fn fill_order(
         filler_reward,
         fee: user_fee,
         quote_asset_amount_surplus,
-        padding: [0; 8],
     });
 
     let (order_base_asset_amount, order_base_asset_amount_filled, order_type) = get_struct_values!(
