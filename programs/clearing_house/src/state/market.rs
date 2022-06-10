@@ -21,8 +21,7 @@ pub struct Market {
     pub amm: AMM,
     pub base_asset_amount_long: i128,
     pub base_asset_amount_short: i128,
-    pub base_asset_amount: i128, // net market bias
-    pub open_interest: u128,     // number of users in a position
+    pub open_interest: u128, // number of users in a position
     pub margin_ratio_initial: u32,
     pub margin_ratio_partial: u32,
     pub margin_ratio_maintenance: u32,
@@ -73,6 +72,7 @@ pub struct AMM {
     pub cumulative_repeg_rebate_short: u128,
     pub cumulative_funding_rate_long: i128,
     pub cumulative_funding_rate_short: i128,
+    pub cumulative_funding_rate_lp: i128,
     pub last_funding_rate: i128,
     pub last_funding_rate_ts: i64,
     pub funding_period: i64,
@@ -86,9 +86,24 @@ pub struct AMM {
     pub total_fee_withdrawn: u128,
     pub minimum_quote_asset_trade_size: u128,
     pub last_oracle_price_twap_ts: i64,
+    pub last_oracle_normalised_price: i128,
     pub last_oracle_price: i128,
+    pub last_oracle_conf: u64,
+    pub last_oracle_delay: i64,
+    pub last_oracle_mark_spread_pct: i128,
     pub minimum_base_asset_trade_size: u128,
     pub base_spread: u16,
+
+    pub last_bid_price_twap: u128,
+    pub last_ask_price_twap: u128,
+    pub net_base_asset_amount: i128,
+    pub quote_asset_amount_long: u128,
+    pub quote_asset_amount_short: u128,
+    pub mark_std: u64,
+    pub long_intensity_count: u16,
+    pub long_intensity_volume: u64,
+    pub short_intensity_count: u16,
+    pub short_intensity_volume: u64,
 
     pub padding0: u16,
     pub padding1: u32,

@@ -21,7 +21,7 @@ pub fn calculate_funding_rate_long_short(
 ) -> ClearingHouseResult<(i128, i128)> {
     // Calculate the funding payment owed by the net_market_position if funding is not capped
     // If the net market position owes funding payment, the clearing house receives payment
-    let net_market_position = market.base_asset_amount;
+    let net_market_position = market.amm.net_base_asset_amount;
     let net_market_position_funding_payment =
         calculate_funding_payment_in_quote_precision(funding_rate, net_market_position)?;
     let uncapped_funding_pnl = -net_market_position_funding_payment;

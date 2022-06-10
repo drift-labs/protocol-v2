@@ -100,9 +100,6 @@ pub fn update_funding_rate(
         guard_rails,
         precomputed_mark_price,
     )?;
-    let normalised_oracle_price =
-        normalise_oracle_price(&market.amm, &oracle_price_data, precomputed_mark_price)?;
-
     // round next update time to be available on the hour
     let mut next_update_wait = market.amm.funding_period;
     if market.amm.funding_period > 1 {
@@ -146,15 +143,18 @@ pub fn update_funding_rate(
     }
 
     if !funding_paused && !block_funding_rate_update && time_since_last_update >= next_update_wait {
-        let oracle_price_twap =
-            amm::update_oracle_price_twap(&mut market.amm, now, normalised_oracle_price)?;
+        let oracle_price_twap = amm::update_oracle_price_twap(
+            &mut market.amm,
+            now,
+            &oracle_price_data,
+            precomputed_mark_price,
+        )?;
         let mark_price_twap = amm::update_mark_twap(&mut market.amm, now, None)?;
 
-        let one_hour_i64 = cast_to_i64(ONE_HOUR)?;
         let period_adjustment = (24_i64)
-            .checked_mul(one_hour_i64)
+            .checked_mul(ONE_HOUR)
             .ok_or_else(math_error!())?
-            .checked_div(max(one_hour_i64, market.amm.funding_period))
+            .checked_div(max(ONE_HOUR, market.amm.funding_period))
             .ok_or_else(math_error!())?;
         // funding period = 1 hour, window = 1 day
         // low periodicity => quickly updating/settled funding rates => lower funding rate payment per interval

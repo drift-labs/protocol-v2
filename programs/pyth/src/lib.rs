@@ -18,6 +18,8 @@ pub mod pyth {
 
         price_oracle.agg.price = price;
         price_oracle.agg.conf = conf;
+        price_oracle.agg.conf = 0;
+        price_oracle.valid_slot = 228506959; //todo just turned 1->2 for negative delay
 
         price_oracle.twap = price;
         price_oracle.expo = expo;

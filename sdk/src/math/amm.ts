@@ -209,7 +209,7 @@ export function calculateAdjustKCost(
 	denomenator: BN
 ): BN {
 	const netUserPosition = {
-		baseAssetAmount: market.baseAssetAmount,
+		baseAssetAmount: market.amm.netBaseAssetAmount,
 		lastCumulativeFundingRate: market.amm.cumulativeFundingRate,
 		marketIndex: new BN(marketIndex),
 		quoteAssetAmount: new BN(0),
@@ -236,7 +236,7 @@ export function calculateAdjustKCost(
 	const p = PEG_PRECISION.mul(numerator).div(denomenator);
 	const x = market.amm.baseAssetReserve;
 	const y = market.amm.quoteAssetReserve;
-	const delta = market.baseAssetAmount;
+	const delta = market.amm.netBaseAssetAmount;
 	const k = market.amm.sqrtK.mul(market.amm.sqrtK);
 
 	const numer1 = PEG_PRECISION.sub(p).mul(y).div(PEG_PRECISION);
@@ -274,7 +274,7 @@ export function calculateRepegCost(
 	newPeg: BN
 ): BN {
 	const netUserPosition = {
-		baseAssetAmount: market.baseAssetAmount,
+		baseAssetAmount: market.amm.netBaseAssetAmount,
 		lastCumulativeFundingRate: market.amm.cumulativeFundingRate,
 		marketIndex: new BN(marketIndex),
 		quoteAssetAmount: new BN(0),
@@ -320,7 +320,7 @@ export function calculateRepegCost(
  * @returns cost : Precision MARK_PRICE_PRECISION
  */
 export function calculateTerminalPrice(market: MarketAccount) {
-	const directionToClose = market.baseAssetAmount.gt(ZERO)
+	const directionToClose = market.amm.netBaseAssetAmount.gt(ZERO)
 		? PositionDirection.SHORT
 		: PositionDirection.LONG;
 
@@ -328,7 +328,7 @@ export function calculateTerminalPrice(market: MarketAccount) {
 		calculateAmmReservesAfterSwap(
 			market.amm,
 			'base',
-			market.baseAssetAmount.abs(),
+			market.amm.netBaseAssetAmount.abs(),
 			getSwapDirection('base', directionToClose)
 		);
 
@@ -395,7 +395,7 @@ export function calculateBudgetedK(market: MarketAccount, cost: BN): [BN, BN] {
 	const x = market.amm.baseAssetReserve;
 	const y = market.amm.quoteAssetReserve;
 
-	const d = market.baseAssetAmount;
+	const d = market.amm.netBaseAssetAmount;
 	const Q = market.amm.pegMultiplier;
 
 	const C = cost.mul(new BN(-1));
@@ -444,7 +444,7 @@ export function calculateBudgetedPeg(market: MarketAccount, cost: BN): BN {
 	const x = market.amm.baseAssetReserve;
 	const y = market.amm.quoteAssetReserve;
 
-	const d = market.baseAssetAmount;
+	const d = market.amm.netBaseAssetAmount;
 	const Q = market.amm.pegMultiplier;
 
 	const C = cost.mul(new BN(-1));

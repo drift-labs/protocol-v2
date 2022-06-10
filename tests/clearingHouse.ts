@@ -146,7 +146,7 @@ describe('clearing_house', () => {
 		)) as Market;
 
 		assert.ok(market.initialized);
-		assert.ok(market.baseAssetAmount.eq(new BN(0)));
+		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(0)));
 		assert.ok(market.openInterest.eq(new BN(0)));
 
 		const ammD = market.amm;
@@ -280,10 +280,10 @@ describe('clearing_house', () => {
 		assert.ok(user.positions[0].baseAssetAmount.eq(new BN(497450503674885)));
 
 		const market = clearingHouse.getMarketAccount(0);
-		console.log(market.baseAssetAmount.toNumber());
+		console.log(market.amm.netBaseAssetAmount.toNumber());
 		console.log(market);
 
-		assert.ok(market.baseAssetAmount.eq(new BN(497450503674885)));
+		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(497450503674885)));
 		console.log(market.amm.totalFee.toString());
 		assert.ok(market.amm.totalFee.eq(new BN(49750)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(49750)));
@@ -387,7 +387,7 @@ describe('clearing_house', () => {
 		assert(user.cumulativeDeposits.eq(usdcAmount));
 
 		const market = clearingHouse.getMarketAccount(0);
-		assert.ok(market.baseAssetAmount.eq(new BN(248737625303142)));
+		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(248737625303142)));
 		assert.ok(market.amm.totalFee.eq(new BN(74625)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(74625)));
 
@@ -424,7 +424,7 @@ describe('clearing_house', () => {
 		assert.ok(user.positions[0].baseAssetAmount.eq(new BN(-248762375928202)));
 
 		const market = clearingHouse.getMarketAccount(0);
-		assert.ok(market.baseAssetAmount.eq(new BN(-248762375928202)));
+		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(-248762375928202)));
 		assert.ok(market.amm.totalFee.eq(new BN(124375)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(124375)));
 
@@ -454,7 +454,7 @@ describe('clearing_house', () => {
 		assert(user.totalFeePaid.eq(new BN(149250)));
 
 		const market = clearingHouse.getMarketAccount(0);
-		assert.ok(market.baseAssetAmount.eq(new BN(0)));
+		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(0)));
 		assert.ok(market.amm.totalFee.eq(new BN(149250)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(149250)));
 
@@ -489,7 +489,7 @@ describe('clearing_house', () => {
 		assert.ok(user.positions[0].baseAssetAmount.eq(new BN(-490122799362653)));
 
 		const market = clearingHouse.getMarketAccount(0);
-		assert.ok(market.baseAssetAmount.eq(new BN(-490122799362653)));
+		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(-490122799362653)));
 
 		await eventSubscriber.awaitTx(txSig);
 		const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0].data;
