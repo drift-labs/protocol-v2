@@ -450,7 +450,7 @@ pub fn calculate_spread_reserves(
     }
 
     // inventory scale
-    let max_inventory_scale = 2 * MARK_PRICE_PRECISION;
+    let max_inventory_scale = 20 * MARK_PRICE_PRECISION;
     if amm.total_fee_minus_distributions > 0 {
         let effective_leverage =
             if amm.net_base_asset_amount > 0 && direction == PositionDirection::Long {
@@ -496,7 +496,11 @@ pub fn calculate_spread_reserves(
             .ok_or_else(math_error!())?;
     }
 
-    msg!("spread: {:?}", spread);
+    msg!(
+        "spread: {:?}, base_spread/2: {:?}",
+        spread,
+        (amm.base_spread / 2)
+    );
 
     let quote_asset_reserve_delta = if spread > 0 {
         amm.quote_asset_reserve

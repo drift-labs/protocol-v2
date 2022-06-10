@@ -26,6 +26,8 @@ import {
 	squareRootBN,
 } from '..';
 
+import { OraclePriceData } from '../oracles/types';
+
 /**
  * Calculates a price given an arbitrary base and quote amount (they must have the same precision)
  *
@@ -101,8 +103,11 @@ export function calculateAmmReservesAfterSwap(
 export function calculateSpread(
 	amm: AMM,
 	direction: PositionDirection
+	// oraclePriceData: OraclePriceData
 ): number {
 	let spread;
+
+	// let oracleMarkSpreadPct = oraclePriceData.price.sub(calculateMarkPrice(AMM));
 
 	// future logic
 	if (isVariant(direction, 'long')) {
@@ -117,11 +122,16 @@ export function calculateSpread(
 export function calculateSpreadReserves(
 	amm: AMM,
 	direction: PositionDirection
+	// oraclePriceData: OraclePriceData
 ): {
 	baseAssetReserve: BN;
 	quoteAssetReserve: BN;
 } {
-	const spread = calculateSpread(amm, direction);
+	const spread = calculateSpread(
+		amm,
+		direction
+		// oraclePriceData
+	);
 
 	if (spread === 0) {
 		return {
