@@ -131,10 +131,7 @@ describe('User Account', () => {
 	});
 
 	it('After Deposit', async () => {
-		await clearingHouse.depositCollateral(
-			usdcAmount,
-			userUSDCAccount.publicKey
-		);
+		await clearingHouse.deposit(usdcAmount, userUSDCAccount.publicKey);
 
 		const expectedBuyingPower = new BN(usdcAmount).mul(MAX_LEVERAGE);
 		const expectedFreeCollateral = new BN(20000000);

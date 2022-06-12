@@ -204,10 +204,7 @@ describe('pyth-oracle', () => {
 		);
 		await userAccount.subscribe();
 
-		await clearingHouse.depositCollateral(
-			usdcAmount,
-			userUSDCAccount.publicKey
-		);
+		await clearingHouse.deposit(usdcAmount, userUSDCAccount.publicKey);
 
 		// create <NUM_USERS> users with 10k that collectively do <NUM_EVENTS> actions
 		const [_userUSDCAccounts, _user_keys, clearingHouses, userAccountInfos] =

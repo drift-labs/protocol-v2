@@ -14,6 +14,7 @@ use crate::math_error;
 pub struct User {
     pub authority: Pubkey,
     pub collateral: u128,
+    pub bank_balances: [UserBankBalance; 8],
     pub cumulative_deposits: i128,
     pub total_fee_paid: u64,
     pub total_fee_rebate: u64,
@@ -23,6 +24,53 @@ pub struct User {
     pub next_order_id: u64,
     pub positions: [MarketPosition; 5],
     pub orders: [Order; 32],
+}
+
+impl User {
+    pub fn get_bank_balance_mut(&mut self, bank_index: u64) -> Option<&mut UserBankBalance> {
+        // first bank balance is always quote asset, which is
+        if bank_index == 0 {
+            return Some(&mut self.bank_balances[0]);
+        }
+
+        self.bank_balances
+            .iter_mut()
+            .find(|bank_balance| bank_balance.bank_index == bank_index)
+    }
+
+    pub fn get_next_available_bank_balance(&mut self) -> Option<&mut UserBankBalance> {
+        let mut next_available_balance = None;
+
+        for (i, bank_balance) in self.bank_balances.iter_mut().enumerate() {
+            if i != 0 && bank_balance.bank_index == 0 {
+                next_available_balance = Some(bank_balance);
+                break;
+            }
+        }
+
+        next_available_balance
+    }
+}
+
+#[zero_copy]
+#[derive(Default)]
+#[repr(packed)]
+pub struct UserBankBalance {
+    pub bank_index: u64,
+    pub balance_type: BankBalanceType,
+    pub balance: u128,
+}
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq)]
+pub enum BankBalanceType {
+    Deposit,
+    Borrow,
+}
+
+impl Default for BankBalanceType {
+    fn default() -> Self {
+        BankBalanceType::Deposit
+    }
 }
 
 // SPACE: 1040

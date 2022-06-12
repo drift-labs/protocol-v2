@@ -1,12 +1,15 @@
 import * as anchor from '@project-serum/anchor';
-import { Program, Provider } from '@project-serum/anchor';
+import { AnchorProvider, Program, Provider } from '@project-serum/anchor';
 import {
 	AccountLayout,
+	ASSOCIATED_TOKEN_PROGRAM_ID,
 	MintLayout,
 	Token,
 	TOKEN_PROGRAM_ID,
+	NATIVE_MINT,
 } from '@solana/spl-token';
 import {
+	Connection,
 	Keypair,
 	PublicKey,
 	sendAndConfirmTransaction,
@@ -16,7 +19,7 @@ import {
 } from '@solana/web3.js';
 import { assert } from 'chai';
 import buffer from 'buffer';
-import { BN } from '../sdk';
+import { BN, Wallet } from '../sdk';
 import { ClearingHouse, ClearingHouseUser } from '../sdk/src';
 
 export async function mockOracle(
@@ -138,6 +141,121 @@ export async function mockUserUSDCAccount(
 		}
 	);
 	return userUSDCAccount;
+}
+
+export async function createFundedKeyPair(
+	connection: Connection
+): Promise<Keypair> {
+	const userKeyPair = new Keypair();
+	await connection.requestAirdrop(userKeyPair.publicKey, 10 ** 9);
+	return userKeyPair;
+}
+
+export async function createUSDCAccountForUser(
+	provider: AnchorProvider,
+	userKeyPair: Keypair,
+	usdcMint: Keypair,
+	usdcAmount: BN
+): Promise<PublicKey> {
+	const userUSDCAccount = await mockUserUSDCAccount(
+		usdcMint,
+		usdcAmount,
+		provider,
+		userKeyPair.publicKey
+	);
+	return userUSDCAccount.publicKey;
+}
+
+export async function initializeAndSubscribeClearingHouse(
+	connection: Connection,
+	program: Program,
+	userKeyPair: Keypair
+): Promise<ClearingHouse> {
+	const clearingHouse = ClearingHouse.from(
+		connection,
+		new Wallet(userKeyPair),
+		program.programId,
+		{
+			commitment: 'confirmed',
+		}
+	);
+	await clearingHouse.subscribe();
+	await clearingHouse.initializeUserAccount();
+	return clearingHouse;
+}
+
+export async function createUserWithUSDCAccount(
+	provider: AnchorProvider,
+	usdcMint: Keypair,
+	chProgram: Program,
+	usdcAmount: BN
+): Promise<[ClearingHouse, PublicKey, Keypair]> {
+	const userKeyPair = await createFundedKeyPair(provider.connection);
+	const usdcAccount = await createUSDCAccountForUser(
+		provider,
+		userKeyPair,
+		usdcMint,
+		usdcAmount
+	);
+	const clearingHouse = await initializeAndSubscribeClearingHouse(
+		provider.connection,
+		chProgram,
+		userKeyPair
+	);
+
+	return [clearingHouse, usdcAccount, userKeyPair];
+}
+
+export async function createWSolTokenAccountForUser(
+	provider: AnchorProvider,
+	userKeypair: Keypair | Wallet,
+	amount: BN
+): Promise<PublicKey> {
+	await provider.connection.requestAirdrop(
+		userKeypair.publicKey,
+		amount.toNumber() +
+			(await Token.getMinBalanceRentForExemptAccount(provider.connection))
+	);
+	return await Token.createWrappedNativeAccount(
+		provider.connection,
+		TOKEN_PROGRAM_ID,
+		userKeypair.publicKey,
+		// @ts-ignore
+		userKeypair,
+		amount.toNumber()
+	);
+}
+
+export async function createUserWithWSOLAccount(
+	provider: AnchorProvider,
+	usdcMint: Keypair,
+	chProgram: Program,
+	amount: BN
+): Promise<[ClearingHouse, PublicKey, Keypair]> {
+	const userKeyPair = await createFundedKeyPair(provider.connection);
+	const usdcAccount = await createWSolTokenAccountForUser(
+		provider,
+		userKeyPair,
+		amount
+	);
+	const clearingHouse = await initializeAndSubscribeClearingHouse(
+		provider.connection,
+		chProgram,
+		userKeyPair
+	);
+
+	return [clearingHouse, usdcAccount, userKeyPair];
+}
+
+export async function printTxLogs(
+	connection: Connection,
+	txSig: TransactionSignature
+): Promise<void> {
+	console.log(
+		'tx logs',
+		(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
+			.logMessages
+	);
 }
 
 export async function mintToInsuranceFund(

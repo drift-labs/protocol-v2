@@ -250,10 +250,7 @@ describe('clearing_house', () => {
 
 	it('Long from 0 position', async () => {
 		// Re-Deposit USDC, assuming we have 0 balance here
-		await clearingHouse.depositCollateral(
-			usdcAmount,
-			userUSDCAccount.publicKey
-		);
+		await clearingHouse.deposit(usdcAmount, userUSDCAccount.publicKey);
 
 		const marketIndex = new BN(0);
 		const incrementalUSDCNotionalAmount = calculateTradeAmount(usdcAmount);
@@ -728,7 +725,7 @@ describe('clearing_house', () => {
 
 		const initialUserUSDCAmount = userUSDCTokenAccount.amount;
 
-		await clearingHouse.depositCollateral(
+		await clearingHouse.deposit(
 			initialUserUSDCAmount,
 			userUSDCAccount.publicKey
 		);

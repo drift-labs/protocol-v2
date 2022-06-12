@@ -15,6 +15,9 @@ export const MARK_PRICE_PRECISION_EXP = new BN(10);
 export const FUNDING_PAYMENT_PRECISION_EXP = new BN(4);
 export const PEG_PRECISION_EXP = new BN(3);
 export const AMM_RESERVE_PRECISION_EXP = new BN(13);
+export const BANK_INTEREST_PRECISION = new BN(1000000);
+export const BANK_RATE_PRECISION = new BN(1000000);
+export const BANK_WEIGHT_PRECISION = new BN(100);
 
 export const QUOTE_PRECISION = new BN(10).pow(QUOTE_PRECISION_EXP);
 export const MARK_PRICE_PRECISION = new BN(10).pow(MARK_PRICE_PRECISION_EXP);

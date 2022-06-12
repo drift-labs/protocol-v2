@@ -8,14 +8,10 @@ use context::*;
 use controller::position::PositionDirection;
 use error::ErrorCode;
 use math::{amm, bn, constants::*, fees, margin::*, orders::*, withdrawal::*};
+use state::oracle::{get_oracle_price, OraclePriceData, OracleSource};
 
 use crate::state::market::Market;
-use crate::state::{
-    market::{OracleSource, AMM},
-    order_state::*,
-    state::*,
-    user::*,
-};
+use crate::state::{market::AMM, order_state::*, state::*, user::*};
 
 mod account_loader;
 pub mod context;
@@ -49,33 +45,29 @@ pub mod clearing_house {
     use crate::math::collateral::calculate_updated_collateral;
     use crate::math::slippage::{calculate_slippage, calculate_slippage_pct};
     use crate::optional_accounts::{get_discount_token, get_referrer, get_referrer_for_fill_order};
+    use crate::state::bank::Bank;
     use crate::state::events::TradeRecord;
     use crate::state::events::{CurveRecord, DepositRecord};
     use crate::state::events::{DepositDirection, LiquidationRecord};
-    use crate::state::market::{Market, OraclePriceData};
+    use crate::state::market::Market;
     use crate::state::market_map::{
         get_market_oracles, get_writable_markets, get_writable_markets_for_user_positions,
         MarketMap, MarketOracles, WritableMarkets,
     };
+    use crate::state::oracle::OraclePriceData;
     use crate::state::order_state::{OrderFillerRewardStructure, OrderState};
     use crate::state::user::OrderType;
 
     use super::*;
 
-    pub fn initialize(
-        ctx: Context<Initialize>,
-        _clearing_house_nonce: u8,
-        _collateral_vault_nonce: u8,
-        _insurance_vault_nonce: u8,
-        admin_controls_prices: bool,
-    ) -> Result<()> {
+    pub fn initialize(ctx: Context<Initialize>, admin_controls_prices: bool) -> Result<()> {
         let collateral_account_key = ctx.accounts.collateral_vault.to_account_info().key;
         let (collateral_account_authority, collateral_account_nonce) =
             Pubkey::find_program_address(&[collateral_account_key.as_ref()], ctx.program_id);
 
         // clearing house must be authority of collateral vault
         if ctx.accounts.collateral_vault.owner != collateral_account_authority {
-            return Err(ErrorCode::InvalidCollateralAccountAuthority.into());
+            // return Err(ErrorCode::InvalidLendingPoolAuthority.into());
         }
 
         let insurance_account_key = ctx.accounts.insurance_vault.to_account_info().key;
@@ -163,10 +155,118 @@ pub mod clearing_house {
             },
             order_state: Pubkey::default(),
             number_of_markets: 0,
+            number_of_banks: 0,
             padding0: 0,
             padding1: 0,
             padding2: 0,
             padding3: 0,
+        };
+
+        Ok(())
+    }
+
+    pub fn initialize_bank(
+        ctx: Context<InitializeBank>,
+        optimal_utilization: u128,
+        optimal_borrow_rate: u128,
+        max_borrow_rate: u128,
+        oracle_source: OracleSource,
+        initial_asset_weight: u128,
+        maintenance_asset_weight: u128,
+    ) -> Result<()> {
+        let state = &mut ctx.accounts.state;
+        let bank_pubkey = ctx.accounts.bank.key();
+
+        let (vault_authority, vault_authority_nonce) = Pubkey::find_program_address(
+            &[
+                b"bank_vault_authority".as_ref(),
+                state.number_of_banks.to_le_bytes().as_ref(),
+            ],
+            ctx.program_id,
+        );
+
+        // clearing house must be authority of collateral vault
+        if ctx.accounts.bank_vault.owner != vault_authority {
+            return Err(ErrorCode::InvalidBankAuthority.into());
+        }
+
+        let bank_index = get_then_update_id!(state, number_of_banks);
+        if bank_index == 0 {
+            validate!(
+                initial_asset_weight == BANK_WEIGHT_PRECISION,
+                ErrorCode::InvalidBankInitialization,
+                "For quote asset bank, initial weight must be {}",
+                BANK_WEIGHT_PRECISION
+            )?;
+
+            validate!(
+                maintenance_asset_weight == BANK_WEIGHT_PRECISION,
+                ErrorCode::InvalidBankInitialization,
+                "For quote asset bank, maintenance weight must be {}",
+                BANK_WEIGHT_PRECISION
+            )?;
+
+            validate!(
+                ctx.accounts.oracle.key == &Pubkey::default(),
+                ErrorCode::InvalidBankInitialization,
+                "For quote asset bank, oracle must be default public key"
+            )?;
+
+            validate!(
+                oracle_source == OracleSource::QuoteAsset,
+                ErrorCode::InvalidBankInitialization,
+                "For quote asset bank, oracle source must be QuoteAsset"
+            )?;
+        } else {
+            validate!(
+                initial_asset_weight > 0 && initial_asset_weight < BANK_WEIGHT_PRECISION,
+                ErrorCode::InvalidBankInitialization,
+                "Initial asset weight must be between 0 {}",
+                BANK_WEIGHT_PRECISION
+            )?;
+
+            validate!(
+                maintenance_asset_weight > 0 && maintenance_asset_weight < BANK_WEIGHT_PRECISION,
+                ErrorCode::InvalidBankInitialization,
+                "Maintenance asset weight must be between 0 {}",
+                BANK_WEIGHT_PRECISION
+            )?;
+
+            let oracle_price = get_oracle_price(
+                &oracle_source,
+                &ctx.accounts.oracle,
+                cast(Clock::get()?.unix_timestamp)?,
+            );
+
+            validate!(
+                oracle_price.is_ok(),
+                ErrorCode::InvalidBankInitialization,
+                "Unable to read oracle price for {}",
+                ctx.accounts.oracle.key,
+            )?;
+        }
+
+        **ctx.accounts.bank = Bank {
+            bank_index,
+            pubkey: bank_pubkey,
+            mint: ctx.accounts.bank_mint.key(),
+            vault: *ctx.accounts.bank_vault.to_account_info().key,
+            vault_authority,
+            vault_authority_nonce,
+            decimals: ctx.accounts.bank_mint.decimals,
+            optimal_utilization,
+            optimal_borrow_rate,
+            max_borrow_rate,
+            deposit_balance: 0,
+            borrow_balance: 0,
+            cumulative_deposit_interest: BANK_INTEREST_PRECISION,
+            cumulative_borrow_interest: BANK_INTEREST_PRECISION,
+            last_updated: cast(Clock::get()?.unix_timestamp)
+                .or(Err(ErrorCode::UnableToCastUnixTime))?,
+            oracle_source,
+            oracle: ctx.accounts.oracle.key(),
+            initial_asset_weight,
+            maintenance_asset_weight,
         };
 
         Ok(())
@@ -246,11 +346,13 @@ pub mod clearing_house {
                 .amm
                 .get_switchboard_price(&ctx.accounts.oracle, clock_slot)
                 .unwrap(),
+            OracleSource::QuoteAsset => panic!(),
         };
 
         let last_oracle_price_twap = match oracle_source {
             OracleSource::Pyth => market.amm.get_pyth_twap(&ctx.accounts.oracle)?,
             OracleSource::Switchboard => oracle_price,
+            OracleSource::QuoteAsset => panic!(),
         };
 
         validate_margin(
@@ -320,13 +422,9 @@ pub mod clearing_house {
         Ok(())
     }
 
-    pub fn deposit_collateral(ctx: Context<DepositCollateral>, amount: u64) -> Result<()> {
+    pub fn deposit(ctx: Context<Deposit>, amount: u64) -> Result<()> {
         let user_key = ctx.accounts.user.key();
-        let user = &mut ctx
-            .accounts
-            .user
-            .load_mut()
-            .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
+        let user = &mut load_mut(&ctx.accounts.user)?;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
 
@@ -334,17 +432,22 @@ pub mod clearing_house {
             return Err(ErrorCode::InsufficientDeposit.into());
         }
 
-        let collateral_before = user.collateral;
-        let cumulative_deposits_before = user.cumulative_deposits;
+        let bank = &mut ctx.accounts.bank;
+        controller::bank_balance::update_bank_cumulative_interest(bank, now)?;
 
-        user.collateral = user
-            .collateral
-            .checked_add(cast(amount)?)
-            .ok_or_else(math_error!())?;
-        user.cumulative_deposits = user
-            .cumulative_deposits
-            .checked_add(cast(amount)?)
-            .ok_or_else(math_error!())?;
+        let user_bank_balance = match user.get_bank_balance_mut(bank.bank_index) {
+            Some(user_bank_balance) => user_bank_balance,
+            None => user
+                .get_next_available_bank_balance()
+                .ok_or(ErrorCode::NoUserBankBalanceAvailable)?,
+        };
+
+        controller::bank_balance::update_bank_balances(
+            amount as u128,
+            &BankBalanceType::Deposit,
+            bank,
+            user_bank_balance,
+        )?;
 
         let market_map = MarketMap::load(
             &WritableMarkets::new(),
@@ -356,8 +459,8 @@ pub mod clearing_house {
 
         controller::token::receive(
             &ctx.accounts.token_program,
-            &ctx.accounts.user_collateral_account,
-            &ctx.accounts.collateral_vault,
+            &ctx.accounts.user_token_account,
+            &ctx.accounts.bank_vault,
             &ctx.accounts.authority,
             amount,
         )?;
@@ -367,17 +470,10 @@ pub mod clearing_house {
             user_authority: user.authority,
             user: user_key,
             direction: DepositDirection::DEPOSIT,
-            collateral_before,
-            cumulative_deposits_before,
             amount,
+            bank_index: bank.bank_index,
         };
         emit!(deposit_record);
-
-        if ctx.accounts.state.max_deposit > 0
-            && user.cumulative_deposits > cast(ctx.accounts.state.max_deposit)?
-        {
-            return Err(ErrorCode::UserMaxDeposit.into());
-        }
 
         Ok(())
     }
@@ -459,9 +555,8 @@ pub mod clearing_house {
             user_authority: user.authority,
             user: user_key,
             direction: DepositDirection::WITHDRAW,
-            collateral_before,
-            cumulative_deposits_before,
             amount: amount_withdraw,
+            bank_index: 0,
         };
         emit!(deposit_record);
 

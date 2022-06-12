@@ -33,6 +33,7 @@ pub struct State {
     pub max_deposit: u128,
     pub order_state: Pubkey,
     pub number_of_markets: u64,
+    pub number_of_banks: u64,
 
     // upgrade-ability
     pub padding0: u128,

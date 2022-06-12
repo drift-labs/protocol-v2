@@ -2,17 +2,13 @@ use anchor_lang::{prelude::*, AnchorDeserialize, AnchorSerialize};
 use anchor_spl::token::{Mint, Token, TokenAccount};
 
 use crate::controller::position::PositionDirection;
+use crate::state::bank::Bank;
 use crate::state::market::Market;
 use crate::state::order_state::OrderState;
 use crate::state::state::State;
 use crate::state::user::{OrderTriggerCondition, OrderType, User};
 
 #[derive(Accounts)]
-#[instruction(
-    clearing_house_nonce: u8,
-    collateral_vault_nonce: u8,
-    insurance_vault_nonce: u8
-)]
 pub struct Initialize<'info> {
     #[account(mut)]
     pub admin: Signer<'info>,
@@ -77,6 +73,46 @@ pub struct InitializeOrderState<'info> {
 }
 
 #[derive(Accounts)]
+pub struct InitializeBank<'info> {
+    #[account(
+        init,
+        seeds = [b"bank", state.number_of_banks.to_le_bytes().as_ref()],
+        space = std::mem::size_of::<Bank>() + 8,
+        bump,
+        payer = admin
+    )]
+    pub bank: Box<Account<'info, Bank>>,
+    pub bank_mint: Box<Account<'info, Mint>>,
+    #[account(
+        init,
+        seeds = [b"bank_vault".as_ref(), state.number_of_banks.to_le_bytes().as_ref()],
+        bump,
+        payer = admin,
+        token::mint = bank_mint,
+        token::authority = bank_vault_authority
+    )]
+    pub bank_vault: Box<Account<'info, TokenAccount>>,
+    #[account(
+        seeds = [b"bank_vault_authority".as_ref(), state.number_of_banks.to_le_bytes().as_ref()],
+        bump,
+    )]
+    /// CHECK: this is the pda for the bank vault
+    pub bank_vault_authority: AccountInfo<'info>,
+    #[account(
+        mut,
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    /// CHECK: checked in `initialize_bank`
+    pub oracle: AccountInfo<'info>,
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
 pub struct InitializeUser<'info> {
     #[account(
         init,
@@ -118,9 +154,10 @@ pub struct InitializeMarket<'info> {
 }
 
 #[derive(Accounts)]
-pub struct DepositCollateral<'info> {
-    #[account(mut)]
+pub struct Deposit<'info> {
     pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub bank: Box<Account<'info, Bank>>,
     #[account(
         mut,
         has_one = authority,
@@ -129,11 +166,14 @@ pub struct DepositCollateral<'info> {
     pub authority: Signer<'info>,
     #[account(
         mut,
-        constraint = &state.collateral_vault.eq(&collateral_vault.key())
+        constraint = &bank.vault.eq(&bank_vault.key())
     )]
-    pub collateral_vault: Box<Account<'info, TokenAccount>>,
-    #[account(mut)]
-    pub user_collateral_account: Box<Account<'info, TokenAccount>>,
+    pub bank_vault: Box<Account<'info, TokenAccount>>,
+    #[account(
+        mut,
+        constraint = &bank.mint.eq(&user_token_account.mint)
+    )]
+    pub user_token_account: Box<Account<'info, TokenAccount>>,
     pub token_program: Program<'info, Token>,
 }
 

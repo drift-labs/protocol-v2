@@ -167,10 +167,7 @@ describe('AMM Curve', () => {
 	};
 
 	it('After Deposit', async () => {
-		await clearingHouse.depositCollateral(
-			usdcAmount,
-			userUSDCAccount.publicKey
-		);
+		await clearingHouse.deposit(usdcAmount, userUSDCAccount.publicKey);
 
 		showBook(marketIndex);
 	});

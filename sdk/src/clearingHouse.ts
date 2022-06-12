@@ -9,6 +9,8 @@ import {
 	OrderStateAccount,
 	OrderParams,
 	Order,
+	BankAccount,
+	UserBankBalance,
 } from './types';
 import * as anchor from '@project-serum/anchor';
 import clearingHouseIDL from './idl/clearing_house.json';
@@ -27,6 +29,7 @@ import { MockUSDCFaucet } from './mockUSDCFaucet';
 import { EventEmitter } from 'events';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import {
+	getBankPublicKey,
 	getClearingHouseStateAccountPublicKey,
 	getMarketPublicKey,
 	getOrderStateAccountPublicKey,
@@ -158,6 +161,11 @@ export class ClearingHouse {
 		return this.accountSubscriber.getMarketAccountAndSlot(marketIndex).account;
 	}
 
+	public getBankAccount(bankIndex: BN | number): BankAccount | undefined {
+		bankIndex = bankIndex instanceof BN ? bankIndex : new BN(bankIndex);
+		return this.accountSubscriber.getBankAccountAndSlot(bankIndex).account;
+	}
+
 	orderStatePublicKey?: PublicKey;
 	public async getOrderStatePublicKey(): Promise<PublicKey> {
 		if (this.orderStatePublicKey) {
@@ -258,6 +266,15 @@ export class ClearingHouse {
 		return this.accountSubscriber.getUserAccountAndSlot();
 	}
 
+	public getUserBankBalance(
+		bankIndex: number | BN
+	): UserBankBalance | undefined {
+		const bankIndexBN = bankIndex instanceof BN ? bankIndex : new BN(bankIndex);
+		return this.getUserAccount().bankBalances.find((bankBalance) =>
+			bankBalance.bankIndex.eq(bankIndexBN)
+		);
+	}
+
 	getRemainingAccountsForMarketAccounts(
 		writableMarketIndex?: BN
 	): AccountMeta[] {
@@ -320,12 +337,14 @@ export class ClearingHouse {
 		);
 	}
 
-	public async depositCollateral(
+	public async deposit(
 		amount: BN,
+		bankIndex: BN,
 		collateralAccountPublicKey: PublicKey
 	): Promise<TransactionSignature> {
-		const depositCollateralIx = await this.getDepositCollateralInstruction(
+		const depositCollateralIx = await this.getDepositInstruction(
 			amount,
+			bankIndex,
 			collateralAccountPublicKey
 		);
 
@@ -335,9 +354,10 @@ export class ClearingHouse {
 		return txSig;
 	}
 
-	async getDepositCollateralInstruction(
+	async getDepositInstruction(
 		amount: BN,
-		collateralAccountPublicKey: PublicKey,
+		bankIndex: BN,
+		userTokenAccount: PublicKey,
 		userInitialized = true
 	): Promise<TransactionInstruction> {
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
@@ -347,13 +367,15 @@ export class ClearingHouse {
 			remainingAccounts = this.getRemainingAccountsForMarketAccounts();
 		}
 
-		const state = this.getStateAccount();
-		return await this.program.instruction.depositCollateral(amount, {
+		const bank = this.getBankAccount(bankIndex);
+
+		return await this.program.instruction.deposit(amount, {
 			accounts: {
 				state: await this.getStatePublicKey(),
+				bank: bank.pubkey,
+				bankVault: bank.vault,
 				user: userAccountPublicKey,
-				collateralVault: state.collateralVault,
-				userCollateralAccount: collateralAccountPublicKey,
+				userTokenAccount: userTokenAccount,
 				authority: this.wallet.publicKey,
 				tokenProgram: TOKEN_PROGRAM_ID,
 			},
@@ -364,19 +386,20 @@ export class ClearingHouse {
 	/**
 	 * Creates the Clearing House User account for a user, and deposits some initial collateral
 	 * @param amount
-	 * @param collateralAccountPublicKey
+	 * @param userTokenAccount
 	 * @returns
 	 */
 	public async initializeUserAccountAndDepositCollateral(
 		amount: BN,
-		collateralAccountPublicKey: PublicKey
+		userTokenAccount: PublicKey
 	): Promise<[TransactionSignature, PublicKey]> {
 		const [userAccountPublicKey, initializeUserAccountIx] =
 			await this.getInitializeUserInstructions();
 
-		const depositCollateralIx = await this.getDepositCollateralInstruction(
+		const depositCollateralIx = await this.getDepositInstruction(
 			amount,
-			collateralAccountPublicKey,
+			new BN(0),
+			userTokenAccount,
 			false
 		);
 
@@ -402,8 +425,9 @@ export class ClearingHouse {
 		const [userAccountPublicKey, initializeUserAccountIx] =
 			await this.getInitializeUserInstructions();
 
-		const depositCollateralIx = await this.getDepositCollateralInstruction(
+		const depositCollateralIx = await this.getDepositInstruction(
 			amount,
+			new BN(0),
 			associateTokenPublicKey,
 			false
 		);

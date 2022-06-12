@@ -128,10 +128,7 @@ describe('update k', () => {
 	});
 
 	it('increase k base/quote imbalance (FREE)', async () => {
-		await clearingHouse.depositCollateral(
-			usdcAmount,
-			userUSDCAccount.publicKey
-		);
+		await clearingHouse.deposit(usdcAmount, userUSDCAccount.publicKey);
 
 		const marketIndex = Markets[0].marketIndex;
 

@@ -1,6 +1,7 @@
+use std::cmp::max;
+
 use anchor_lang::prelude::*;
 use solana_program::msg;
-use std::cmp::max;
 use switchboard_v2::decimal::SwitchboardDecimal;
 use switchboard_v2::AggregatorAccountData;
 
@@ -9,6 +10,7 @@ use crate::math::amm;
 use crate::math::casting::{cast, cast_to_i128, cast_to_i64, cast_to_u128};
 use crate::math::margin::MarginType;
 use crate::math_error;
+use crate::state::oracle::{OraclePriceData, OracleSource};
 use crate::MARK_PRICE_PRECISION;
 
 #[account(zero_copy)]
@@ -45,19 +47,6 @@ impl Market {
             MarginType::Partial => self.margin_ratio_partial,
             MarginType::Maint => self.margin_ratio_maintenance,
         }
-    }
-}
-
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy)]
-pub enum OracleSource {
-    Pyth,
-    Switchboard,
-}
-
-impl Default for OracleSource {
-    // UpOnly
-    fn default() -> Self {
-        OracleSource::Pyth
     }
 }
 
@@ -113,6 +102,7 @@ impl AMM {
         match self.oracle_source {
             OracleSource::Pyth => self.get_pyth_price(price_oracle, clock_slot),
             OracleSource::Switchboard => self.get_switchboard_price(price_oracle, clock_slot),
+            OracleSource::QuoteAsset => panic!(),
         }
     }
 
@@ -213,6 +203,7 @@ impl AMM {
         match self.oracle_source {
             OracleSource::Pyth => Ok(Some(self.get_pyth_twap(price_oracle)?)),
             OracleSource::Switchboard => Ok(None),
+            OracleSource::QuoteAsset => panic!(),
         }
     }
 
@@ -247,14 +238,6 @@ impl AMM {
 
         Ok(oracle_twap_scaled)
     }
-}
-
-#[derive(Default, Clone, Copy, Debug)]
-pub struct OraclePriceData {
-    pub price: i128,
-    pub confidence: u128,
-    pub delay: i64,
-    pub has_sufficient_number_of_data_points: bool,
 }
 
 /// Given a decimal number represented as a mantissa (the digits) plus an
