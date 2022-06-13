@@ -301,38 +301,38 @@ fn calculate_base_swap_output_with_spread(
 
 pub fn formulaic_update_k(
     market: &mut Market,
-    oracle_price_data: &OraclePriceData,
+    _oracle_price_data: &OraclePriceData,
     funding_imbalance_cost: i128,
-    now: i64,
-    market_index: u64,
-    trade_record: Option<u128>,
+    // now: i64,
+    // market_index: u64,
+    // trade_record: Option<u128>,
     mark_price: u128,
 ) -> ClearingHouseResult {
-    let peg_multiplier_before = market.amm.peg_multiplier;
-    let base_asset_reserve_before = market.amm.base_asset_reserve;
-    let quote_asset_reserve_before = market.amm.quote_asset_reserve;
-    let sqrt_k_before = market.amm.sqrt_k;
+    // let peg_multiplier_before = market.amm.peg_multiplier;
+    // let base_asset_reserve_before = market.amm.base_asset_reserve;
+    // let quote_asset_reserve_before = market.amm.quote_asset_reserve;
+    // let sqrt_k_before = market.amm.sqrt_k;
 
     let funding_imbalance_cost_i64 = cast_to_i64(funding_imbalance_cost)?;
 
     // calculate budget
-    let budget = 0;
-    // let budget = if funding_imbalance_cost_i64 < 0 {
-    //     // negative cost is period revenue, give back half in k increase
-    //     funding_imbalance_cost_i64
-    //         .checked_div(2)
-    //         .ok_or_else(math_error!())?
-    //         .abs()
-    // } else if market.amm.net_revenue_since_last_funding < funding_imbalance_cost_i64 {
-    //     // cost exceeded period revenue, take back half in k decrease
-    //     max(0, market.amm.net_revenue_since_last_funding)
-    //         .checked_sub(funding_imbalance_cost_i64)
-    //         .ok_or_else(math_error!())?
-    //         .checked_div(2)
-    //         .ok_or_else(math_error!())?
-    // } else {
-    //     0
-    // };
+    // let budget = 0;
+    let budget = if funding_imbalance_cost_i64 < 0 {
+        // negative cost is period revenue, give back half in k increase
+        funding_imbalance_cost_i64
+            .checked_div(2)
+            .ok_or_else(math_error!())?
+            .abs()
+    } else if market.amm.net_revenue_since_last_funding < funding_imbalance_cost_i64 {
+        // cost exceeded period revenue, take back half in k decrease
+        max(0, market.amm.net_revenue_since_last_funding)
+            .checked_sub(funding_imbalance_cost_i64)
+            .ok_or_else(math_error!())?
+            .checked_div(2)
+            .ok_or_else(math_error!())?
+    } else {
+        0
+    };
 
     if budget != 0 {
         // single k scale is capped by .1% increase and .09% decrease (regardless of budget)
@@ -355,10 +355,10 @@ pub fn formulaic_update_k(
             // todo: do actual k adj here
             amm::update_k(market, &update_k_result)?;
 
-            let peg_multiplier_after = market.amm.peg_multiplier;
-            let base_asset_reserve_after = market.amm.base_asset_reserve;
-            let quote_asset_reserve_after = market.amm.quote_asset_reserve;
-            let sqrt_k_after = market.amm.sqrt_k;
+            // let peg_multiplier_after = market.amm.peg_multiplier;
+            // let base_asset_reserve_after = market.amm.base_asset_reserve;
+            // let quote_asset_reserve_after = market.amm.quote_asset_reserve;
+            // let sqrt_k_after = market.amm.sqrt_k;
         }
     }
     Ok(())

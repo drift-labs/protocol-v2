@@ -4,10 +4,7 @@
 use anchor_lang::prelude::*;
 use borsh::BorshSerialize;
 
-use crate::math::amm::{
-    calculate_mark_twap_spread_pct, get_update_k_result, is_oracle_mark_too_divergent,
-    normalise_oracle_price,
-};
+use crate::math::amm::get_update_k_result;
 use crate::state::market::Market;
 use crate::state::{
     market::{OracleSource, AMM},
@@ -46,7 +43,9 @@ pub mod clearing_house {
     use crate::margin_validation::validate_margin;
     use crate::math;
     use crate::math::amm::{
-        calculate_mark_twap_spread_pct, is_oracle_mark_too_divergent, normalise_oracle_price,
+        calculate_mark_twap_spread_pct,
+        is_oracle_mark_too_divergent,
+        //  normalise_oracle_price,
     };
     use crate::math::casting::{cast, cast_to_i128, cast_to_u128};
     use crate::math::collateral::calculate_updated_collateral;
@@ -306,6 +305,9 @@ pub mod clearing_house {
                 total_fee: 0,
                 total_fee_withdrawn: 0,
                 total_fee_minus_distributions: 0,
+                total_mm_fee: 0,
+                total_exchange_fee: 0,
+                net_revenue_since_last_funding: 0,
                 minimum_quote_asset_trade_size: 10000000,
                 last_oracle_price_twap_ts: now,
                 last_oracle_normalised_price: oracle_price,
@@ -2050,14 +2052,14 @@ pub mod clearing_house {
     )]
     pub fn update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
         let clock = Clock::get()?;
-        let now = clock.unix_timestamp;
+        let _now = clock.unix_timestamp;
 
         let market = &mut ctx.accounts.market.load_mut()?;
 
-        let base_asset_amount_long = market.base_asset_amount_long.unsigned_abs();
-        let base_asset_amount_short = market.base_asset_amount_short.unsigned_abs();
-        let base_asset_amount = market.amm.net_base_asset_amount;
-        let open_interest = market.open_interest;
+        // let base_asset_amount_long = market.base_asset_amount_long.unsigned_abs();
+        // let base_asset_amount_short = market.base_asset_amount_short.unsigned_abs();
+        // let base_asset_amount = market.amm.net_base_asset_amount;
+        // let open_interest = market.open_interest;
 
         let price_before = math::amm::calculate_price(
             market.amm.quote_asset_reserve,
@@ -2065,10 +2067,10 @@ pub mod clearing_house {
             market.amm.peg_multiplier,
         )?;
 
-        let peg_multiplier_before = market.amm.peg_multiplier;
-        let base_asset_reserve_before = market.amm.base_asset_reserve;
-        let quote_asset_reserve_before = market.amm.quote_asset_reserve;
-        let sqrt_k_before = market.amm.sqrt_k;
+        // let peg_multiplier_before = market.amm.peg_multiplier;
+        // let base_asset_reserve_before = market.amm.base_asset_reserve;
+        // let quote_asset_reserve_before = market.amm.quote_asset_reserve;
+        // let sqrt_k_before = market.amm.sqrt_k;
 
         let new_sqrt_k_u192 = bn::U192::from(sqrt_k);
 

@@ -1,14 +1,13 @@
 use crate::error::*;
-use crate::math::casting::{cast_to_i128, cast_to_u128};
-use std::cell::RefMut;
+use crate::math::casting::cast_to_i128;
 
 use crate::error::ErrorCode;
 use crate::math::repeg;
-use crate::math::{amm, bn, quote_asset::*};
+use crate::math::{amm, bn};
 use crate::math_error;
 use crate::state::market::{Market, OraclePriceData};
 use crate::state::state::OracleGuardRails;
-use std::cmp::min;
+// use std::cmp::min;
 
 use anchor_lang::prelude::AccountInfo;
 use solana_program::msg;
@@ -78,8 +77,8 @@ pub fn prepeg(
     oracle_price_data: &OraclePriceData,
     is_oracle_valid: bool,
     fee_budget: u128,
-    now: i64,
-    market_index: u64,
+    _now: i64,
+    // market_index: u64,
     // _trade_record: u128,
 ) -> ClearingHouseResult<i128> {
     // if !is_oracle_valid {
@@ -90,10 +89,10 @@ pub fn prepeg(
     //     return Ok(0);
     // }
 
-    let peg_multiplier_before = market.amm.peg_multiplier;
-    let base_asset_reserve_before = market.amm.base_asset_reserve;
-    let quote_asset_reserve_before = market.amm.quote_asset_reserve;
-    let sqrt_k_before = market.amm.sqrt_k;
+    // let peg_multiplier_before = market.amm.peg_multiplier;
+    // let base_asset_reserve_before = market.amm.base_asset_reserve;
+    // let quote_asset_reserve_before = market.amm.quote_asset_reserve;
+    // let sqrt_k_before = market.amm.sqrt_k;
 
     // let target_price = cast_to_u128(oracle_price_data.price)?;
     let target_price =

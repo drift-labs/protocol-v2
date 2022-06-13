@@ -9,11 +9,21 @@ use crate::math::bn;
 use crate::math::bn::U192;
 use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64};
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, AMM_TO_QUOTE_PRECISION_RATIO,
-    AMM_TO_QUOTE_PRECISION_RATIO_I128, BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128,
-    K_BPS_DECREASE_MAX, K_BPS_INCREASE_MAX, K_BPS_UPDATE_SCALE, MARK_PRICE_PRECISION,
-    MARK_PRICE_PRECISION_I128, MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128, ONE_HOUR,
-    PEG_PRECISION, PRICE_TO_PEG_PRECISION_RATIO, QUOTE_PRECISION,
+    // AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, AMM_TO_QUOTE_PRECISION_RATIO,
+    // AMM_TO_QUOTE_PRECISION_RATIO_I128,
+    BID_ASK_SPREAD_PRECISION,
+    BID_ASK_SPREAD_PRECISION_I128,
+    K_BPS_DECREASE_MAX,
+    K_BPS_INCREASE_MAX,
+    K_BPS_UPDATE_SCALE,
+    MARK_PRICE_PRECISION,
+    // MARK_PRICE_PRECISION_I128,
+    MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128,
+    // ONE_HOUR,
+    ONE_HOUR_I128,
+    PEG_PRECISION,
+    PRICE_TO_PEG_PRECISION_RATIO,
+    // QUOTE_PRECISION,
 };
 use crate::math::position::_calculate_base_asset_value_and_pnl;
 use crate::math::quote_asset::{asset_to_reserve_amount, reserve_to_asset_amount};
@@ -262,12 +272,11 @@ pub fn update_amm_mark_std(
             .ok_or_else(math_error!())?,
     ))?;
 
-    let ONE_HOUR_i128 = cast_to_i128(ONE_HOUR)?;
     amm.mark_std = calculate_rolling_sum(
         amm.mark_std,
         cast_to_u64(price_change)?,
         since_last,
-        ONE_HOUR_i128,
+        ONE_HOUR_I128,
     )?;
 
     Ok(true)
@@ -291,31 +300,30 @@ pub fn update_amm_long_short_intensity(
         (0_u64, cast_to_u64(quote_asset_amount)?)
     };
 
-    let ONE_HOUR_i128 = cast_to_i128(ONE_HOUR)?;
     amm.long_intensity_count = (calculate_rolling_sum(
         cast_to_u64(amm.long_intensity_count)?,
         cast_to_u64(long_quote_amount != 0)?,
         since_last,
-        ONE_HOUR_i128,
+        ONE_HOUR_I128,
     )?) as u16;
     amm.long_intensity_volume = calculate_rolling_sum(
         amm.long_intensity_volume,
         long_quote_amount,
         since_last,
-        ONE_HOUR_i128,
+        ONE_HOUR_I128,
     )?;
 
     amm.short_intensity_count = (calculate_rolling_sum(
         cast_to_u64(amm.short_intensity_count)?,
         cast_to_u64(short_quote_amount != 0)?,
         since_last,
-        ONE_HOUR_i128,
+        ONE_HOUR_I128,
     )?) as u16;
     amm.short_intensity_volume = calculate_rolling_sum(
         amm.short_intensity_volume,
         short_quote_amount,
         since_last,
-        ONE_HOUR_i128,
+        ONE_HOUR_I128,
     )?;
 
     Ok(true)
@@ -615,7 +623,7 @@ pub fn calculate_oracle_mark_spread_pct(
         Some(mark_price) => (mark_price),
         None => (amm.mark_price()?),
     };
-    let (oracle_price, price_spread) =
+    let (_oracle_price, price_spread) =
         calculate_oracle_mark_spread(amm, oracle_price_data, Some(mark_price))?;
 
     price_spread

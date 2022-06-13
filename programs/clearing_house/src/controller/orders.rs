@@ -14,8 +14,8 @@ use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
 use crate::get_struct_values;
 use crate::get_then_update_id;
-use crate::math::amm::{is_oracle_valid, normalise_oracle_price};
-use crate::math::casting::{cast, cast_to_i128};
+use crate::math::amm::is_oracle_valid;
+use crate::math::casting::cast;
 use crate::math::collateral::calculate_updated_collateral;
 use crate::math::constants::QUOTE_PRECISION;
 use crate::math::fees::calculate_order_fee_tier;
@@ -442,7 +442,6 @@ pub fn fill_order(
             is_oracle_valid,
             prepeg_budget,
             now,
-            market_index,
         )?;
         let mark_price_after_prepeg = market.amm.mark_price()?;
 

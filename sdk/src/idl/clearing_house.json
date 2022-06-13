@@ -2070,6 +2070,18 @@
             "type": "u128"
           },
           {
+            "name": "totalMmFee",
+            "type": "u128"
+          },
+          {
+            "name": "totalExchangeFee",
+            "type": "u128"
+          },
+          {
+            "name": "netRevenueSinceLastFunding",
+            "type": "i64"
+          },
+          {
             "name": "totalFeeWithdrawn",
             "type": "u128"
           },
