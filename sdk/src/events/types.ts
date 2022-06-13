@@ -13,7 +13,10 @@ export type EventSubscriptionOptions = {
 	order?: EventSubscriptionOrder;
 	commitment?: Commitment;
 	maxTx?: number;
-	logProviderConfig: LogProviderConfig;
+	logProviderConfig?: LogProviderConfig;
+	// when the subscription starts, client might want to backtrack and fetch old tx's
+	// this specifies how far to backtrack
+	untilTx?: TransactionSignature;
 };
 
 export const DefaultEventSubscriptionOptions: EventSubscriptionOptions = {
@@ -55,6 +58,10 @@ export type EventMap = {
 export type EventType = keyof EventMap;
 export type EventData = EventMap[EventType];
 
+export interface EventSubscriberEvents {
+	newEvent: (event: Event<EventType, EventMap[EventType]>) => void;
+}
+
 export function clientSortFn(): 'before' {
 	return 'before';
 }
@@ -84,6 +91,7 @@ export type WebSocketLogProviderConfig = {
 
 export type PollingLogProviderConfig = {
 	type: 'polling';
+	frequency: number;
 };
 
 export type LogProviderConfig =

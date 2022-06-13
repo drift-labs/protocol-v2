@@ -1058,58 +1058,6 @@ pub mod clearing_house {
         Ok(())
     }
 
-    pub fn cancel_all_orders(ctx: Context<CancelAllOrders>, best_effort: bool) -> Result<()> {
-        let market_map = MarketMap::load(
-            &WritableMarkets::new(),
-            &MarketOracles::new(),
-            &mut ctx.remaining_accounts.iter().peekable(),
-        )?;
-
-        controller::orders::cancel_all_orders(
-            &ctx.accounts.state,
-            &ctx.accounts.user,
-            &market_map,
-            &Clock::get()?,
-            ctx.remaining_accounts,
-            best_effort,
-            None,
-            None,
-        )?;
-
-        Ok(())
-    }
-
-    pub fn cancel_orders_by_market_and_side(
-        ctx: Context<CancelAllOrders>,
-        best_effort: bool,
-        market_index_only: u64,
-        direction_only: PositionDirection,
-    ) -> Result<()> {
-        let market_map = MarketMap::load(
-            &WritableMarkets::new(),
-            &MarketOracles::new(),
-            &mut ctx.remaining_accounts.iter().peekable(),
-        )?;
-
-        controller::orders::cancel_all_orders(
-            &ctx.accounts.state,
-            &ctx.accounts.user,
-            &market_map,
-            &Clock::get()?,
-            ctx.remaining_accounts,
-            best_effort,
-            Some(market_index_only),
-            Some(direction_only),
-        )?;
-
-        Ok(())
-    }
-
-    pub fn expire_orders(ctx: Context<ExpireOrder>) -> Result<()> {
-        controller::orders::expire_orders(&ctx.accounts.user, &ctx.accounts.filler)?;
-        Ok(())
-    }
-
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]
@@ -2052,14 +2000,14 @@ pub mod clearing_house {
     )]
     pub fn update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
         let clock = Clock::get()?;
-        let _now = clock.unix_timestamp;
+        let now = clock.unix_timestamp;
 
         let market = &mut ctx.accounts.market.load_mut()?;
 
-        // let base_asset_amount_long = market.base_asset_amount_long.unsigned_abs();
-        // let base_asset_amount_short = market.base_asset_amount_short.unsigned_abs();
-        // let base_asset_amount = market.amm.net_base_asset_amount;
-        // let open_interest = market.open_interest;
+        let base_asset_amount_long = market.base_asset_amount_long.unsigned_abs();
+        let base_asset_amount_short = market.base_asset_amount_short.unsigned_abs();
+        let base_asset_amount = market.amm.net_base_asset_amount;
+        let open_interest = market.open_interest;
 
         let price_before = math::amm::calculate_price(
             market.amm.quote_asset_reserve,
@@ -2067,10 +2015,10 @@ pub mod clearing_house {
             market.amm.peg_multiplier,
         )?;
 
-        // let peg_multiplier_before = market.amm.peg_multiplier;
-        // let base_asset_reserve_before = market.amm.base_asset_reserve;
-        // let quote_asset_reserve_before = market.amm.quote_asset_reserve;
-        // let sqrt_k_before = market.amm.sqrt_k;
+        let peg_multiplier_before = market.amm.peg_multiplier;
+        let base_asset_reserve_before = market.amm.base_asset_reserve;
+        let quote_asset_reserve_before = market.amm.quote_asset_reserve;
+        let sqrt_k_before = market.amm.sqrt_k;
 
         let new_sqrt_k_u192 = bn::U192::from(sqrt_k);
 
@@ -2136,18 +2084,41 @@ pub mod clearing_house {
             return Err(ErrorCode::InvalidUpdateK.into());
         }
 
-        // let peg_multiplier_after = amm.peg_multiplier;
-        // let base_asset_reserve_after = amm.base_asset_reserve;
-        // let quote_asset_reserve_after = amm.quote_asset_reserve;
-        // let sqrt_k_after = amm.sqrt_k;
+        let peg_multiplier_after = amm.peg_multiplier;
+        let base_asset_reserve_after = amm.base_asset_reserve;
+        let quote_asset_reserve_after = amm.quote_asset_reserve;
+        let sqrt_k_after = amm.sqrt_k;
 
-        // let total_fee = amm.total_fee;
-        // let total_fee_minus_distributions = amm.total_fee_minus_distributions;
+        let total_fee = amm.total_fee;
+        let total_fee_minus_distributions = amm.total_fee_minus_distributions;
 
-        // let OraclePriceData {
-        //     price: oracle_price,
-        //     ..
-        // } = amm.get_oracle_price(&ctx.accounts.oracle, 0)?;
+        let OraclePriceData {
+            price: oracle_price,
+            ..
+        } = amm.get_oracle_price(&ctx.accounts.oracle, 0)?;
+
+        emit!(CurveRecord {
+            ts: now,
+            record_id: get_then_update_id!(market, next_curve_record_id),
+            market_index: market.market_index,
+            peg_multiplier_before,
+            base_asset_reserve_before,
+            quote_asset_reserve_before,
+            sqrt_k_before,
+            peg_multiplier_after,
+            base_asset_reserve_after,
+            quote_asset_reserve_after,
+            sqrt_k_after,
+            base_asset_amount_long,
+            base_asset_amount_short,
+            base_asset_amount,
+            open_interest,
+            adjustment_cost,
+            total_fee,
+            total_fee_minus_distributions,
+            oracle_price,
+            trade_record: 0,
+        });
 
         Ok(())
     }

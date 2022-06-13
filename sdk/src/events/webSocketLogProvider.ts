@@ -10,6 +10,10 @@ export class WebSocketLogProvider implements LogProvider {
 	) {}
 
 	public subscribe(callback: logProviderCallback): boolean {
+		if (this.subscriptionId) {
+			return true;
+		}
+
 		this.subscriptionId = this.connection.onLogs(
 			this.programId,
 			(logs, ctx) => {
@@ -25,7 +29,7 @@ export class WebSocketLogProvider implements LogProvider {
 	}
 
 	public async unsubscribe(): Promise<boolean> {
-		if (this.subscriptionId) {
+		if (this.subscriptionId !== undefined) {
 			await this.connection.removeOnLogsListener(this.subscriptionId);
 			this.subscriptionId = undefined;
 		}

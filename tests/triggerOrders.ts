@@ -62,7 +62,7 @@ describe('trigger orders', () => {
 			chProgram.programId
 		);
 		await fillerClearingHouse.initialize(usdcMint.publicKey, true);
-		await fillerClearingHouse.subscribeToAll();
+		await fillerClearingHouse.subscribe();
 		solUsd = await mockOracle(1);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR

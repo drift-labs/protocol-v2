@@ -70,7 +70,7 @@ describe('max reserves', () => {
 			}
 		);
 		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.subscribeToAll();
+		await clearingHouse.subscribe();
 
 		for (let i = 0; i < maxPositions; i++) {
 			const oracle = await mockOracle(1);

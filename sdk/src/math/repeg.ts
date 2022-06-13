@@ -129,7 +129,7 @@ export function calculateBudgetedPeg(amm: AMM, cost: BN, targetPrice: BN): BN {
 
 	// todo: assumes k = x * y
 	// otherwise use: (y(1-p) + (kp^2/(x*p+d)) - k/(x+d)) * Q = C solve for p
-	let targetPeg = targetPrice
+	const targetPeg = targetPrice
 		.mul(amm.baseAssetReserve)
 		.div(amm.quoteAssetReserve)
 		.div(MARK_PRICE_PRECISION.div(PEG_PRECISION));

@@ -1,6 +1,6 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
-import { BN, getMarketOrderParams, getOracleClient, ONE, ZERO } from '../sdk';
+import { BN, getMarketOrderParams, ONE, ZERO } from '../sdk';
 
 import { Program } from '@project-serum/anchor';
 
@@ -67,7 +67,7 @@ describe('clearing_house', () => {
 		);
 
 		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.subscribeToAll();
+		await clearingHouse.subscribe();
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 		solUsd = await mockOracle(1);
@@ -101,14 +101,14 @@ describe('clearing_house', () => {
 		const market0 = clearingHouse.getMarketAccount(0);
 
 		await setFeedPrice(anchor.workspace.Pyth, 1.01, solUsd);
-		let curPrice = (await getFeedData(anchor.workspace.Pyth, solUsd)).price;
+		const curPrice = (await getFeedData(anchor.workspace.Pyth, solUsd)).price;
 		console.log('new oracle price:', curPrice);
 		const oraclePriceData = await getOraclePriceData(
 			anchor.workspace.Pyth,
 			solUsd
 		);
 
-		const [pctAvgSlippage, pctMaxSlippage, entryPrice, newPrice] =
+		const [_pctAvgSlippage, _pctMaxSlippage, _entryPrice, newPrice] =
 			calculateTradeSlippage(
 				PositionDirection.LONG,
 				baseAssetAmount,
@@ -126,7 +126,7 @@ describe('clearing_house', () => {
 			baseAssetAmount,
 			false
 		);
-		let txSig = await clearingHouse.placeAndFillOrder(orderParams);
+		const txSig = await clearingHouse.placeAndFillOrder(orderParams);
 		console.log(
 			'tx logs',
 			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
@@ -185,14 +185,14 @@ describe('clearing_house', () => {
 		const baseAssetAmount = new BN(497450503674885 / 50);
 		const market0 = clearingHouse.getMarketAccount(0);
 		await setFeedPrice(anchor.workspace.Pyth, 1.0281, solUsd);
-		let curPrice = (await getFeedData(anchor.workspace.Pyth, solUsd)).price;
+		const curPrice = (await getFeedData(anchor.workspace.Pyth, solUsd)).price;
 		console.log('new oracle price:', curPrice);
 
 		const oraclePriceData = await getOraclePriceData(
 			anchor.workspace.Pyth,
 			solUsd
 		);
-		const [pctAvgSlippage, pctMaxSlippage, entryPrice, newPrice] =
+		const [_pctAvgSlippage, _pctMaxSlippage, _entryPrice, newPrice] =
 			calculateTradeSlippage(
 				PositionDirection.LONG,
 				baseAssetAmount,
@@ -209,7 +209,7 @@ describe('clearing_house', () => {
 			baseAssetAmount,
 			false
 		);
-		let txSig = await clearingHouse.placeAndFillOrder(orderParams);
+		const txSig = await clearingHouse.placeAndFillOrder(orderParams);
 		console.log(
 			'tx logs',
 			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
@@ -257,13 +257,13 @@ describe('clearing_house', () => {
 		);
 
 		await setFeedPrice(anchor.workspace.Pyth, 1.02234232, solUsd);
-		let curPrice = (await getFeedData(anchor.workspace.Pyth, solUsd)).price;
+		const curPrice = (await getFeedData(anchor.workspace.Pyth, solUsd)).price;
 		console.log('new oracle price:', curPrice);
 		const oraclePriceData = await getOraclePriceData(
 			anchor.workspace.Pyth,
 			solUsd
 		);
-		const [pctAvgSlippage, pctMaxSlippage, entryPrice, newPrice] =
+		const [_pctAvgSlippage, _pctMaxSlippage, _entryPrice, newPrice] =
 			calculateTradeSlippage(
 				PositionDirection.SHORT,
 				baseAssetAmount,
@@ -273,7 +273,7 @@ describe('clearing_house', () => {
 			);
 
 		console.log('after trade est. mark price:', convertToNumber(newPrice));
-		let txSig = await clearingHouse.placeAndFillOrder(orderParams);
+		const txSig = await clearingHouse.placeAndFillOrder(orderParams);
 		console.log(
 			'tx logs',
 			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta

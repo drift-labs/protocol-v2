@@ -1,5 +1,4 @@
 use std::cmp::min;
-use std::collections::BTreeMap;
 
 use anchor_lang::prelude::*;
 use solana_program::msg;
@@ -8,7 +7,6 @@ use spl_token::state::Account as TokenAccount;
 use crate::account_loader::load_mut;
 use crate::context::*;
 use crate::controller;
-use crate::controller::position::PositionDirection;
 use crate::controller::position::{add_new_position, get_position_index};
 use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
@@ -16,8 +14,6 @@ use crate::get_struct_values;
 use crate::get_then_update_id;
 use crate::math::amm::is_oracle_valid;
 use crate::math::casting::cast;
-use crate::math::collateral::calculate_updated_collateral;
-use crate::math::constants::QUOTE_PRECISION;
 use crate::math::fees::calculate_order_fee_tier;
 use crate::math::{amm, fees, margin::*, orders::*, repeg};
 use crate::math_error;
@@ -138,7 +134,6 @@ pub fn place_order(
         filler_reward: 0,
         fee: 0,
         quote_asset_amount_surplus: 0,
-        padding: [0; 8],
     });
 
     Ok(())
@@ -200,63 +195,6 @@ pub fn cancel_order_by_user_order_id(
     )
 }
 
-pub fn cancel_all_orders(
-    state: &State,
-    user: &AccountLoader<User>,
-    market_map: &MarketMap,
-    clock: &Clock,
-    remaining_accounts: &[AccountInfo],
-    best_effort: bool,
-    market_index_only: Option<u64>,
-    direction_only: Option<PositionDirection>,
-) -> ClearingHouseResult {
-    let user_key = user.key();
-    let user = &mut load_mut(user)?;
-    let mut oracle_account_infos: BTreeMap<Pubkey, &AccountInfo> = BTreeMap::new();
-    for account_info in remaining_accounts.iter() {
-        oracle_account_infos.insert(account_info.key(), account_info);
-    }
-
-    for order_index in 0..user.orders.len() {
-        let (order_status, order_market_index, order_direction) =
-            get_struct_values!(user.orders[order_index], status, market_index, direction);
-
-        if order_status != OrderStatus::Open {
-            continue;
-        }
-
-        if let Some(market_index) = market_index_only {
-            if order_market_index != market_index {
-                continue;
-            }
-        }
-
-        if let Some(direction) = direction_only {
-            if order_direction != direction {
-                continue;
-            }
-        }
-
-        let oracle = {
-            let market = market_map.get_ref(&order_market_index)?;
-            oracle_account_infos.get(&market.amm.oracle).copied()
-        };
-
-        cancel_order(
-            state,
-            order_index,
-            user,
-            &user_key,
-            market_map,
-            clock,
-            oracle,
-            best_effort,
-        )?
-    }
-
-    Ok(())
-}
-
 pub fn cancel_order(
     state: &State,
     order_index: usize,
@@ -310,63 +248,12 @@ pub fn cancel_order(
         filler_reward: 0,
         fee: 0,
         quote_asset_amount_surplus: 0,
-        padding: [0; 8],
     });
 
     // Decrement open orders for existing position
     let position_index = get_position_index(&user.positions, order_market_index)?;
     user.positions[position_index].open_orders -= 1;
     user.orders[order_index] = Order::default();
-
-    Ok(())
-}
-
-pub fn expire_orders(
-    user: &AccountLoader<User>,
-    filler: &AccountLoader<User>,
-) -> ClearingHouseResult {
-    let ten_quote = 10 * QUOTE_PRECISION;
-
-    let user_key = user.key();
-    let filler_key = filler.key();
-    let user = &mut load_mut(user)?;
-    if user.collateral >= ten_quote {
-        msg!("User has more than ten quote asset, cant expire orders");
-        return Err(ErrorCode::CantExpireOrders);
-    }
-
-    let max_filler_reward = QUOTE_PRECISION / 100; // .01 quote asset
-    let filler_reward = min(user.collateral, max_filler_reward);
-
-    let expired_orders = user
-        .orders
-        .iter()
-        .filter(|&order| order.status == OrderStatus::Open)
-        .count();
-    if expired_orders == 0 {
-        msg!("No orders to be expired");
-        return Err(ErrorCode::CantExpireOrders);
-    }
-
-    user.collateral = calculate_updated_collateral(user.collateral, -(filler_reward as i128))?;
-    if filler_key != user_key {
-        let filler = &mut load_mut(filler)?;
-        filler.collateral = calculate_updated_collateral(filler.collateral, filler_reward as i128)?;
-    }
-
-    for order_index in 0..user.orders.len() {
-        {
-            let order = &mut user.orders[order_index];
-            if order.status == OrderStatus::Init {
-                continue;
-            }
-        }
-
-        let position_index =
-            get_position_index(&user.positions, user.orders[order_index].market_index)?;
-        user.positions[position_index].open_orders -= 1;
-        user.orders[order_index] = Order::default();
-    }
 
     Ok(())
 }
@@ -667,7 +554,6 @@ pub fn fill_order(
         filler_reward,
         fee: user_fee,
         quote_asset_amount_surplus,
-        padding: [0; 8],
     });
 
     let (order_base_asset_amount, order_base_asset_amount_filled, order_type) = get_struct_values!(

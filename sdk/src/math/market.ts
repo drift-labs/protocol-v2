@@ -3,7 +3,7 @@ import { MarketAccount, PositionDirection } from '../types';
 import {
 	calculateAmmReservesAfterSwap,
 	calculatePrice,
-	calculateSpreadReserves,
+	// calculateSpreadReserves,
 	calculatePrepegSpreadReserves,
 	getSwapDirection,
 	calculatePrepegAMM,
