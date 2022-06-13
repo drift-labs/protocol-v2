@@ -16,7 +16,7 @@ import {
 } from '@solana/web3.js';
 import { assert } from 'chai';
 import buffer from 'buffer';
-import { BN } from '../sdk';
+import { BN, MARK_PRICE_PRECISION, OraclePriceData } from '../sdk';
 import { ClearingHouse, ClearingHouseUser } from '../sdk/src';
 
 export async function mockOracle(
@@ -318,6 +318,25 @@ export const getFeedData = async (
 	);
 	return parsePriceData(info.data);
 };
+
+export const getOraclePriceData = async (
+	oracleProgram: Program,
+	priceFeed: PublicKey
+): Promise<OraclePriceData> => {
+	const info = await oracleProgram.provider.connection.getAccountInfo(
+		priceFeed
+	);
+	const interData = parsePriceData(info.data);
+	const oraclePriceData: OraclePriceData = {
+		price: new BN(interData.price * MARK_PRICE_PRECISION.toNumber()),
+		slot: new BN(interData.currentSlot.toString()),
+		confidence: new BN(interData.confidence * MARK_PRICE_PRECISION.toNumber()),
+		hasSufficientNumberOfDataPoints: true,
+	};
+
+	return oraclePriceData;
+};
+
 // https://github.com/nodejs/node/blob/v14.17.0/lib/internal/errors.js#L758
 const ERR_BUFFER_OUT_OF_BOUNDS = () =>
 	new Error('Attempt to access memory outside buffer bounds');

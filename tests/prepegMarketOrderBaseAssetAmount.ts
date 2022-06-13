@@ -1,6 +1,6 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
-import { BN, getMarketOrderParams, ONE, ZERO } from '../sdk';
+import { BN, getMarketOrderParams, getOracleClient, ONE, ZERO } from '../sdk';
 
 import { Program } from '@project-serum/anchor';
 
@@ -23,6 +23,7 @@ import {
 	mockUserUSDCAccount,
 	mockUSDCMint,
 	setFeedPrice,
+	getOraclePriceData,
 } from './testHelpers';
 
 describe('clearing_house', () => {
@@ -99,18 +100,25 @@ describe('clearing_house', () => {
 		const baseAssetAmount = new BN(497450503674885);
 		const market0 = clearingHouse.getMarketAccount(0);
 
+		await setFeedPrice(anchor.workspace.Pyth, 1.01, solUsd);
+		let curPrice = (await getFeedData(anchor.workspace.Pyth, solUsd)).price;
+		console.log('new oracle price:', curPrice);
+		const oraclePriceData = await getOraclePriceData(
+			anchor.workspace.Pyth,
+			solUsd
+		);
+
 		const [pctAvgSlippage, pctMaxSlippage, entryPrice, newPrice] =
 			calculateTradeSlippage(
 				PositionDirection.LONG,
 				baseAssetAmount,
 				market0,
-				'base'
+				'base',
+				oraclePriceData
 			);
 
 		console.log('after trade est. mark price:', convertToNumber(newPrice));
-		await setFeedPrice(anchor.workspace.Pyth, 1.01, solUsd);
-		let curPrice = (await getFeedData(anchor.workspace.Pyth, solUsd)).price;
-		console.log('new oracle price:', curPrice);
+
 		const orderParams = getMarketOrderParams(
 			marketIndex,
 			PositionDirection.LONG,
@@ -127,7 +135,7 @@ describe('clearing_house', () => {
 		const market = clearingHouse.getMarketAccount(0);
 		console.log(
 			'after trade mark price:',
-			convertToNumber(calculateMarkPrice(market))
+			convertToNumber(calculateMarkPrice(market, oraclePriceData))
 		);
 		// curPrice = (await getFeedData(anchor.workspace.Pyth, solUsd)).price;
 		// console.log('price:', curPrice);
@@ -176,19 +184,24 @@ describe('clearing_house', () => {
 		const marketIndex = new BN(0);
 		const baseAssetAmount = new BN(497450503674885 / 50);
 		const market0 = clearingHouse.getMarketAccount(0);
+		await setFeedPrice(anchor.workspace.Pyth, 1.0281, solUsd);
+		let curPrice = (await getFeedData(anchor.workspace.Pyth, solUsd)).price;
+		console.log('new oracle price:', curPrice);
 
+		const oraclePriceData = await getOraclePriceData(
+			anchor.workspace.Pyth,
+			solUsd
+		);
 		const [pctAvgSlippage, pctMaxSlippage, entryPrice, newPrice] =
 			calculateTradeSlippage(
 				PositionDirection.LONG,
 				baseAssetAmount,
 				market0,
-				'base'
+				'base',
+				oraclePriceData
 			);
-
 		console.log('after trade est. mark price:', convertToNumber(newPrice));
-		await setFeedPrice(anchor.workspace.Pyth, 1.0281, solUsd);
-		let curPrice = (await getFeedData(anchor.workspace.Pyth, solUsd)).price;
-		console.log('new oracle price:', curPrice);
+
 		const orderParams = getMarketOrderParams(
 			marketIndex,
 			PositionDirection.LONG,
@@ -205,7 +218,7 @@ describe('clearing_house', () => {
 		const market = clearingHouse.getMarketAccount(0);
 		console.log(
 			'after trade mark price:',
-			convertToNumber(calculateMarkPrice(market))
+			convertToNumber(calculateMarkPrice(market, oraclePriceData))
 		);
 		// curPrice = (await getFeedData(anchor.workspace.Pyth, solUsd)).price;
 		// console.log('price:', curPrice);
@@ -243,19 +256,23 @@ describe('clearing_house', () => {
 			false
 		);
 
+		await setFeedPrice(anchor.workspace.Pyth, 1.02234232, solUsd);
+		let curPrice = (await getFeedData(anchor.workspace.Pyth, solUsd)).price;
+		console.log('new oracle price:', curPrice);
+		const oraclePriceData = await getOraclePriceData(
+			anchor.workspace.Pyth,
+			solUsd
+		);
 		const [pctAvgSlippage, pctMaxSlippage, entryPrice, newPrice] =
 			calculateTradeSlippage(
 				PositionDirection.SHORT,
 				baseAssetAmount,
 				market0,
-				'base'
+				'base',
+				oraclePriceData
 			);
 
 		console.log('after trade est. mark price:', convertToNumber(newPrice));
-		await setFeedPrice(anchor.workspace.Pyth, 1.02234232, solUsd);
-		let curPrice = (await getFeedData(anchor.workspace.Pyth, solUsd)).price;
-		console.log('new oracle price:', curPrice);
-
 		let txSig = await clearingHouse.placeAndFillOrder(orderParams);
 		console.log(
 			'tx logs',
@@ -266,7 +283,7 @@ describe('clearing_house', () => {
 		const market = clearingHouse.getMarketAccount(0);
 		console.log(
 			'after trade mark price:',
-			convertToNumber(calculateMarkPrice(market))
+			convertToNumber(calculateMarkPrice(market, oraclePriceData))
 		);
 
 		const user: any = await clearingHouse.program.account.user.fetch(
