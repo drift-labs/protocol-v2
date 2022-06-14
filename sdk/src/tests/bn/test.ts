@@ -135,6 +135,11 @@ describe('BigNum Tests', () => {
 
 		expect(val1.toString()).to.equal('143300000000000');
 		expect(val1.print()).to.equal('14.3300000000000');
+
+		const baseAmountVal2 = '34.1';
+		const val2 = BigNum.fromPrint(baseAmountVal2, BASE_PRECISION_EXP);
+
+		expect(val2.printShort()).to.equal('34.1');
 	});
 
 	it('is immutable', () => {
@@ -202,5 +207,20 @@ describe('BigNum Tests', () => {
 		expect(val3.toPercentage(val2, 4)).to.equal('33.33');
 		expect(val4.toPercentage(val2, 4)).to.equal('25.00');
 		expect(val.toPercentage(val5, 6)).to.equal('14.2857');
+	});
+
+	it('can print without unnecessary trailing zeroes', () => {
+		const rawQuoteValue = 1;
+		const entryPriceNum = 40;
+		const val = BigNum.from(rawQuoteValue * 10 ** 8)
+			.shift(AMM_RESERVE_PRECISION_EXP)
+			.div(BigNum.from(entryPriceNum * 10 ** 8));
+
+		expect(val.toString()).to.equal('250000000000');
+		expect(val.printShort()).to.equal('0.025');
+
+		const val2 = BigNum.from(10000, 4);
+		expect(val2.print()).to.equal('1.0000');
+		expect(val2.printShort()).to.equal('1');
 	});
 });

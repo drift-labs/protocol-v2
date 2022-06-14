@@ -12,7 +12,6 @@ export class BigNum {
 		val: BN | number | string,
 		precisionVal: BN | number | string = new BN(0)
 	) {
-		
 		this.val = new BN(val);
 		this.precision = new BN(precisionVal);
 	}
@@ -32,7 +31,10 @@ export class BigNum {
 	public mul(bn: BigNum | BN): BigNum {
 		const mulVal = bn instanceof BigNum ? bn : BigNum.from(bn);
 
-		return BigNum.from(this.val.mul(mulVal.val), this.precision.add(mulVal.precision));
+		return BigNum.from(
+			this.val.mul(mulVal.val),
+			this.precision.add(mulVal.precision)
+		);
 	}
 
 	/**
@@ -97,51 +99,66 @@ export class BigNum {
 			.toPrecision(precision);
 	}
 
-	public gt(bn: BigNum | BN, ignorePrecision?:boolean): boolean {
+	public gt(bn: BigNum | BN, ignorePrecision?: boolean): boolean {
 		const comparisonVal = bn instanceof BigNum ? bn : BigNum.from(bn);
 
 		if (!ignorePrecision && !comparisonVal.eq(ZERO)) {
-			assert(comparisonVal.precision.eq(this.precision), 'Trying to compare numbers with different precision. Yo can opt to ignore precision using the ignorePrecision parameter');
+			assert(
+				comparisonVal.precision.eq(this.precision),
+				'Trying to compare numbers with different precision. Yo can opt to ignore precision using the ignorePrecision parameter'
+			);
 		}
 
 		return this.val.gt(comparisonVal.val);
 	}
 
-	public lt(bn: BigNum | BN, ignorePrecision?:boolean): boolean {
+	public lt(bn: BigNum | BN, ignorePrecision?: boolean): boolean {
 		const comparisonVal = bn instanceof BigNum ? bn : BigNum.from(bn);
 
 		if (!ignorePrecision && !comparisonVal.val.eq(ZERO)) {
-			assert(comparisonVal.precision.eq(this.precision), 'Trying to compare numbers with different precision. Yo can opt to ignore precision using the ignorePrecision parameter');
+			assert(
+				comparisonVal.precision.eq(this.precision),
+				'Trying to compare numbers with different precision. Yo can opt to ignore precision using the ignorePrecision parameter'
+			);
 		}
 
 		return this.val.lt(comparisonVal.val);
 	}
 
-	public gte(bn: BigNum | BN, ignorePrecision?:boolean): boolean {
+	public gte(bn: BigNum | BN, ignorePrecision?: boolean): boolean {
 		const comparisonVal = bn instanceof BigNum ? bn : BigNum.from(bn);
 
 		if (!ignorePrecision && !comparisonVal.val.eq(ZERO)) {
-			assert(comparisonVal.precision.eq(this.precision), 'Trying to compare numbers with different precision. Yo can opt to ignore precision using the ignorePrecision parameter');
+			assert(
+				comparisonVal.precision.eq(this.precision),
+				'Trying to compare numbers with different precision. Yo can opt to ignore precision using the ignorePrecision parameter'
+			);
 		}
 
 		return this.val.gte(comparisonVal.val);
 	}
 
-	public lte(bn: BigNum | BN, ignorePrecision?:boolean): boolean {
+	public lte(bn: BigNum | BN, ignorePrecision?: boolean): boolean {
 		const comparisonVal = bn instanceof BigNum ? bn : BigNum.from(bn);
 
 		if (!ignorePrecision && !comparisonVal.val.eq(ZERO)) {
-			assert(comparisonVal.precision.eq(this.precision), 'Trying to compare numbers with different precision. Yo can opt to ignore precision using the ignorePrecision parameter');
+			assert(
+				comparisonVal.precision.eq(this.precision),
+				'Trying to compare numbers with different precision. Yo can opt to ignore precision using the ignorePrecision parameter'
+			);
 		}
 
 		return this.val.lte(comparisonVal.val);
 	}
 
-	public eq(bn: BigNum | BN, ignorePrecision?:boolean): boolean {
+	public eq(bn: BigNum | BN, ignorePrecision?: boolean): boolean {
 		const comparisonVal = bn instanceof BigNum ? bn : BigNum.from(bn);
 
 		if (!ignorePrecision && !comparisonVal.val.eq(ZERO)) {
-			assert(comparisonVal.precision.eq(this.precision), 'Trying to compare numbers with different precision. Yo can opt to ignore precision using the ignorePrecision parameter');
+			assert(
+				comparisonVal.precision.eq(this.precision),
+				'Trying to compare numbers with different precision. Yo can opt to ignore precision using the ignorePrecision parameter'
+			);
 		}
 
 		return this.val.eq(comparisonVal.val);
@@ -194,6 +211,23 @@ export class BigNum {
 			printString = printString.slice(0, printString.length - 1);
 
 		return printString;
+	}
+
+	/**
+	 * Print and remove unnecessary trailing zeroes
+	 * @returns
+	 */
+	public printShort(
+		useTradePrecision?: boolean,
+		precisionOverride?: number
+	): string {
+		const printVal = precisionOverride
+			? this.toPrecision(precisionOverride)
+			: useTradePrecision
+			? this.toTradePrecision()
+			: this.print();
+
+		return printVal.replace(/0+$/g, '').replace(/\.$/, '').replace(/,$/, '');
 	}
 
 	public debug() {
