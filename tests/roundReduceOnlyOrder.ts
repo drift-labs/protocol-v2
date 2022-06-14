@@ -8,7 +8,6 @@ import {
 	BN,
 	MARK_PRICE_PRECISION,
 	PositionDirection,
-	getUserOrdersAccountPublicKey,
 	ClearingHouseUser,
 } from '../sdk/src';
 
@@ -38,8 +37,7 @@ describe('round reduce only order', () => {
 
 	const usdcAmount = new BN(10 * 10 ** 6);
 
-	const marketIndex = new BN(1);
-	const marketIndexBTC = new BN(2);
+	const marketIndex = new BN(0);
 	let solUsd;
 	let btcUsd;
 
@@ -53,14 +51,13 @@ describe('round reduce only order', () => {
 			chProgram.programId
 		);
 		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.subscribeToAll();
+		await clearingHouse.subscribe();
 		solUsd = await mockOracle(1);
 		btcUsd = await mockOracle(60000);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await clearingHouse.initializeMarket(
-			marketIndex,
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -68,7 +65,6 @@ describe('round reduce only order', () => {
 		);
 
 		await clearingHouse.initializeMarket(
-			marketIndexBTC,
 			btcUsd,
 			ammInitialBaseAssetReserve.div(new BN(3000)),
 			ammInitialQuoteAssetReserve.div(new BN(3000)),
@@ -79,11 +75,6 @@ describe('round reduce only order', () => {
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
-		);
-
-		await getUserOrdersAccountPublicKey(
-			clearingHouse.program.programId,
-			await clearingHouse.getUserAccountPublicKey()
 		);
 
 		clearingHouseUser = ClearingHouseUser.from(
@@ -127,7 +118,8 @@ describe('round reduce only order', () => {
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
 
-		const positionsAccount = clearingHouseUser.getUserPositionsAccount();
-		assert(positionsAccount.positions[0].baseAssetAmount.eq(ZERO));
+		assert(
+			clearingHouse.getUserAccount().positions[0].baseAssetAmount.eq(ZERO)
+		);
 	});
 });

@@ -11,7 +11,6 @@ import {
 	MARK_PRICE_PRECISION,
 	ClearingHouse,
 	PositionDirection,
-	getUserOrdersAccountPublicKey,
 	ClearingHouseUser,
 	Wallet,
 	OrderRecord,
@@ -21,6 +20,7 @@ import {
 	OrderStatus,
 	OrderType,
 	getTriggerLimitOrderParams,
+	EventSubscriber,
 } from '../sdk/src';
 
 import { mockOracle, mockUSDCMint, mockUserUSDCAccount } from './testHelpers';
@@ -42,9 +42,10 @@ describe('stop limit', () => {
 
 	let clearingHouse: Admin;
 	let clearingHouseUser: ClearingHouseUser;
+	const eventSubscriber = new EventSubscriber(connection, chProgram);
+	eventSubscriber.subscribe();
 
 	let userAccountPublicKey: PublicKey;
-	let userOrdersAccountPublicKey: PublicKey;
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -68,8 +69,7 @@ describe('stop limit', () => {
 	let fillerClearingHouse: ClearingHouse;
 	let fillerUser: ClearingHouseUser;
 
-	const marketIndex = new BN(1);
-	const marketIndexBTC = new BN(2);
+	const marketIndex = new BN(0);
 	let solUsd;
 	let btcUsd;
 
@@ -83,14 +83,13 @@ describe('stop limit', () => {
 			chProgram.programId
 		);
 		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.subscribeToAll();
+		await clearingHouse.subscribe();
 		solUsd = await mockOracle(1);
 		btcUsd = await mockOracle(60000);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await clearingHouse.initializeMarket(
-			marketIndex,
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -98,7 +97,6 @@ describe('stop limit', () => {
 		);
 
 		await clearingHouse.initializeMarket(
-			marketIndexBTC,
 			btcUsd,
 			ammInitialBaseAssetReserve.div(new BN(3000)),
 			ammInitialQuoteAssetReserve.div(new BN(3000)),
@@ -111,11 +109,6 @@ describe('stop limit', () => {
 				usdcAmount,
 				userUSDCAccount.publicKey
 			);
-
-		userOrdersAccountPublicKey = await getUserOrdersAccountPublicKey(
-			clearingHouse.program.programId,
-			userAccountPublicKey
-		);
 
 		clearingHouseUser = ClearingHouseUser.from(
 			clearingHouse,
@@ -178,6 +171,7 @@ describe('stop limit', () => {
 		await clearingHouseUser.unsubscribe();
 		await fillerUser.unsubscribe();
 		await fillerClearingHouse.unsubscribe();
+		await eventSubscriber.unsubscribe();
 	});
 
 	it('Fill stop limit short order', async () => {
@@ -215,7 +209,7 @@ describe('stop limit', () => {
 		let order = clearingHouseUser.getOrder(orderId);
 		await fillerClearingHouse.fillOrder(
 			userAccountPublicKey,
-			userOrdersAccountPublicKey,
+			clearingHouseUser.getUserAccount(),
 			order
 		);
 
@@ -223,8 +217,7 @@ describe('stop limit', () => {
 		await clearingHouseUser.fetchAccounts();
 		await fillerUser.fetchAccounts();
 
-		const userOrdersAccount = clearingHouseUser.getUserOrdersAccount();
-		order = userOrdersAccount.orders[orderIndex.toString()];
+		order = clearingHouseUser.getUserAccount().orders[orderIndex.toString()];
 
 		assert(order.baseAssetAmount.eq(new BN(0)));
 		assert(order.price.eq(new BN(0)));
@@ -232,18 +225,16 @@ describe('stop limit', () => {
 		assert(enumsAreEqual(order.direction, PositionDirection.LONG));
 		assert(enumsAreEqual(order.status, OrderStatus.INIT));
 
-		const userPositionsAccount = clearingHouseUser.getUserPositionsAccount();
-		const firstPosition = userPositionsAccount.positions[0];
+		const firstPosition = clearingHouseUser.getUserAccount().positions[0];
 		const expectedBaseAssetAmount = new BN(0);
 		assert(firstPosition.baseAssetAmount.eq(expectedBaseAssetAmount));
 
 		const expectedQuoteAssetAmount = new BN(0);
 		assert(firstPosition.quoteAssetAmount.eq(expectedQuoteAssetAmount));
 
-		const tradeHistoryAccount = clearingHouse.getTradeHistoryAccount();
-		const tradeHistoryRecord = tradeHistoryAccount.tradeRecords[1];
+		const tradeHistoryRecord =
+			eventSubscriber.getEventsArray('TradeRecord')[0].data;
 
-		assert.ok(tradeHistoryAccount.head.toNumber() === 2);
 		assert.ok(tradeHistoryRecord.baseAssetAmount.eq(baseAssetAmount));
 		const expectedTradeQuoteAssetAmount = new BN(1000002);
 		assert.ok(
@@ -251,12 +242,9 @@ describe('stop limit', () => {
 		);
 		assert.ok(tradeHistoryRecord.markPriceBefore.gt(triggerPrice));
 
-		const orderHistoryAccount = clearingHouse.getOrderHistoryAccount();
-		const orderRecord: OrderRecord = orderHistoryAccount.orderRecords[3];
-		const expectedRecordId = new BN(4);
+		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0].data;
 		const expectedOrderId = new BN(2);
 		const expectedTradeRecordId = new BN(2);
-		assert(orderRecord.recordId.eq(expectedRecordId));
 		assert(orderRecord.ts.gt(ZERO));
 		assert(orderRecord.order.orderId.eq(expectedOrderId));
 		assert(enumsAreEqual(orderRecord.action, OrderAction.FILL));
@@ -309,7 +297,7 @@ describe('stop limit', () => {
 		let order = clearingHouseUser.getOrder(orderId);
 		await fillerClearingHouse.fillOrder(
 			userAccountPublicKey,
-			userOrdersAccountPublicKey,
+			clearingHouseUser.getUserAccount(),
 			order
 		);
 
@@ -317,8 +305,7 @@ describe('stop limit', () => {
 		await clearingHouseUser.fetchAccounts();
 		await fillerUser.fetchAccounts();
 
-		const userOrdersAccount = clearingHouseUser.getUserOrdersAccount();
-		order = userOrdersAccount.orders[orderIndex.toString()];
+		order = clearingHouseUser.getUserAccount().orders[orderIndex.toString()];
 
 		assert(order.baseAssetAmount.eq(new BN(0)));
 		assert(order.price.eq(new BN(0)));
@@ -326,16 +313,15 @@ describe('stop limit', () => {
 		assert(enumsAreEqual(order.direction, PositionDirection.LONG));
 		assert(enumsAreEqual(order.status, OrderStatus.INIT));
 
-		const userPositionsAccount = clearingHouseUser.getUserPositionsAccount();
-		const firstPosition = userPositionsAccount.positions[0];
+		const firstPosition = clearingHouseUser.getUserAccount().positions[0];
 		const expectedBaseAssetAmount = new BN(0);
 		assert(firstPosition.baseAssetAmount.eq(expectedBaseAssetAmount));
 
 		const expectedQuoteAssetAmount = new BN(0);
 		assert(firstPosition.quoteAssetAmount.eq(expectedQuoteAssetAmount));
 
-		const tradeHistoryAccount = clearingHouse.getTradeHistoryAccount();
-		const tradeHistoryRecord = tradeHistoryAccount.tradeRecords[3];
+		const tradeHistoryRecord =
+			eventSubscriber.getEventsArray('TradeRecord')[0].data;
 
 		assert.ok(tradeHistoryRecord.baseAssetAmount.eq(baseAssetAmount));
 		const expectedTradeQuoteAssetAmount = new BN(999999);
@@ -344,12 +330,10 @@ describe('stop limit', () => {
 		);
 		assert.ok(tradeHistoryRecord.markPriceBefore.lt(triggerPrice));
 
-		const orderHistoryAccount = clearingHouse.getOrderHistoryAccount();
-		const orderRecord: OrderRecord = orderHistoryAccount.orderRecords[7];
-		const expectedRecordId = new BN(8);
+		const orderRecord: OrderRecord =
+			eventSubscriber.getEventsArray('OrderRecord')[0].data;
 		const expectedOrderId = new BN(4);
 		const expectedTradeRecordId = new BN(4);
-		assert(orderRecord.recordId.eq(expectedRecordId));
 		assert(orderRecord.ts.gt(ZERO));
 		assert(orderRecord.order.orderId.eq(expectedOrderId));
 		assert(enumsAreEqual(orderRecord.action, OrderAction.FILL));

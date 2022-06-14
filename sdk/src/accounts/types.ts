@@ -1,17 +1,8 @@
 import {
-	DepositHistoryAccount,
-	ExtendedCurveHistoryAccount,
-	FundingPaymentHistoryAccount,
-	FundingRateHistoryAccount,
-	LiquidationHistoryAccount,
-	MarketsAccount,
-	OrderHistoryAccount,
+	MarketAccount,
 	OrderStateAccount,
 	StateAccount,
-	TradeHistoryAccount,
 	UserAccount,
-	UserOrdersAccount,
-	UserPositionsAccount,
 } from '../types';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
@@ -22,9 +13,10 @@ import {
 	ClearingHouseUserConfigType,
 	OraclePriceData,
 } from '..';
+import { BN } from '@project-serum/anchor';
 
 export interface AccountSubscriber<T> {
-	data?: T;
+	accountAndSlot?: AccountAndSlot<T>;
 	subscribe(onChange: (data: T) => void): Promise<void>;
 	fetch(): Promise<void>;
 	unsubscribe(): Promise<void>;
@@ -36,66 +28,40 @@ export class NotSubscribedError extends Error {
 
 export interface ClearingHouseAccountEvents {
 	stateAccountUpdate: (payload: StateAccount) => void;
-	marketsAccountUpdate: (payload: MarketsAccount) => void;
-	fundingPaymentHistoryAccountUpdate: (
-		payload: FundingPaymentHistoryAccount
-	) => void;
-	fundingRateHistoryAccountUpdate: (payload: FundingRateHistoryAccount) => void;
-	tradeHistoryAccountUpdate: (payload: TradeHistoryAccount) => void;
-	liquidationHistoryAccountUpdate: (payload: LiquidationHistoryAccount) => void;
-	depositHistoryAccountUpdate: (payload: DepositHistoryAccount) => void;
-	curveHistoryAccountUpdate: (payload: ExtendedCurveHistoryAccount) => void;
-	orderHistoryAccountUpdate: (payload: OrderHistoryAccount) => void;
+	marketAccountUpdate: (payload: MarketAccount) => void;
 	orderStateAccountUpdate: (payload: OrderStateAccount) => void;
+	userAccountUpdate: (payload: UserAccount) => void;
 	update: void;
 	error: (e: Error) => void;
 }
-
-export type ClearingHouseAccountTypes =
-	| 'tradeHistoryAccount'
-	| 'depositHistoryAccount'
-	| 'fundingPaymentHistoryAccount'
-	| 'fundingRateHistoryAccount'
-	| 'curveHistoryAccount'
-	| 'liquidationHistoryAccount'
-	| 'orderHistoryAccount';
 
 export interface ClearingHouseAccountSubscriber {
 	eventEmitter: StrictEventEmitter<EventEmitter, ClearingHouseAccountEvents>;
 	isSubscribed: boolean;
 
-	optionalExtraSubscriptions: ClearingHouseAccountTypes[];
-
-	subscribe(
-		optionalSubscriptions?: ClearingHouseAccountTypes[]
-	): Promise<boolean>;
+	subscribe(): Promise<boolean>;
 	fetch(): Promise<void>;
 	unsubscribe(): Promise<void>;
 
-	getStateAccount(): StateAccount;
-	getMarketsAccount(): MarketsAccount;
-	getTradeHistoryAccount(): TradeHistoryAccount;
-	getDepositHistoryAccount(): DepositHistoryAccount;
-	getFundingPaymentHistoryAccount(): FundingPaymentHistoryAccount;
-	getFundingRateHistoryAccount(): FundingRateHistoryAccount;
-	getCurveHistoryAccount(): ExtendedCurveHistoryAccount;
-	getLiquidationHistoryAccount(): LiquidationHistoryAccount;
-	getOrderStateAccount(): OrderStateAccount;
-	getOrderHistoryAccount(): OrderHistoryAccount;
+	updateAuthority(newAuthority: PublicKey): Promise<boolean>;
+
+	getStateAccountAndSlot(): AccountAndSlot<StateAccount>;
+	getMarketAccountAndSlot(
+		marketIndex: BN
+	): AccountAndSlot<MarketAccount> | undefined;
+	getOrderStateAccountAndSlot(): AccountAndSlot<OrderStateAccount>;
+
+	getUserAccountAndSlot(): AccountAndSlot<UserAccount> | undefined;
 
 	type: ClearingHouseConfigType;
 }
 
 export type UserPublicKeys = {
 	user: PublicKey;
-	userPositions: PublicKey;
-	userOrders: PublicKey | undefined;
 };
 
 export interface UserAccountEvents {
-	userAccountData: (payload: UserAccount) => void;
-	userPositionsData: (payload: UserPositionsAccount) => void;
-	userOrdersData: (payload: UserOrdersAccount) => void;
+	userAccountUpdate: (payload: UserAccount) => void;
 	update: void;
 	error: (e: Error) => void;
 }
@@ -108,9 +74,7 @@ export interface UserAccountSubscriber {
 	fetch(): Promise<void>;
 	unsubscribe(): Promise<void>;
 
-	getUserAccount(): UserAccount;
-	getUserPositionsAccount(): UserPositionsAccount;
-	getUserOrdersAccount(): UserOrdersAccount;
+	getUserAccountAndSlot(): AccountAndSlot<UserAccount>;
 	type: ClearingHouseUserConfigType;
 }
 
@@ -128,7 +92,7 @@ export interface TokenAccountSubscriber {
 	fetch(): Promise<void>;
 	unsubscribe(): Promise<void>;
 
-	getTokenAccount(): AccountInfo;
+	getTokenAccountAndSlot(): AccountAndSlot<AccountInfo>;
 }
 
 export interface OracleEvents {
@@ -145,7 +109,7 @@ export interface OracleSubscriber {
 	fetch(): Promise<void>;
 	unsubscribe(): Promise<void>;
 
-	getOraclePriceData(): OraclePriceData;
+	getOraclePriceData(): AccountAndSlot<OraclePriceData>;
 }
 
 export type AccountToPoll = {
@@ -153,9 +117,15 @@ export type AccountToPoll = {
 	publicKey: PublicKey;
 	eventType: string;
 	callbackId?: string;
+	mapKey?: number;
 };
 
-export type AccountData = {
+export type BufferAndSlot = {
 	slot: number;
 	buffer: Buffer | undefined;
+};
+
+export type AccountAndSlot<T> = {
+	account: T;
+	slot: number;
 };

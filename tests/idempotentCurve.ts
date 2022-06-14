@@ -14,8 +14,6 @@ import {
 	PositionDirection,
 } from '../sdk/src';
 
-import { Markets } from '../sdk/src/constants/markets';
-
 import { mockOracle, mockUSDCMint, mockUserUSDCAccount } from './testHelpers';
 import { FeeStructure } from '../sdk';
 
@@ -60,7 +58,6 @@ describe('idempotent curve', () => {
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await primaryClearingHouse.initializeMarket(
-			Markets[0].marketIndex,
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -134,11 +131,10 @@ describe('idempotent curve', () => {
 		);
 		await clearingHouse.subscribe();
 
-		const [, userAccountPublicKey] =
-			await clearingHouse.initializeUserAccountAndDepositCollateral(
-				usdcAmount,
-				userUSDCAccount.publicKey
-			);
+		await clearingHouse.initializeUserAccountAndDepositCollateral(
+			usdcAmount,
+			userUSDCAccount.publicKey
+		);
 
 		const marketIndex = new BN(0);
 		await clearingHouse.openPosition(
@@ -154,17 +150,11 @@ describe('idempotent curve', () => {
 			new BN(0)
 		);
 
-		let user: any = await clearingHouse.program.account.user.fetch(
-			userAccountPublicKey
-		);
-		let userPositionsAccount: any =
-			await clearingHouse.program.account.userPositions.fetch(user.positions);
-
 		const numberOfReduces = chunks;
-		const market = clearingHouse.getMarket(marketIndex);
+		const market = clearingHouse.getMarketAccount(marketIndex);
 		const baseAssetValue = calculateBaseAssetValue(
 			market,
-			userPositionsAccount.positions[0]
+			clearingHouse.getUserAccount().positions[0]
 		);
 		for (let i = 0; i < numberOfReduces - 1; i++) {
 			await clearingHouse.openPosition(
@@ -176,12 +166,11 @@ describe('idempotent curve', () => {
 		}
 		await clearingHouse.closePosition(new BN(0));
 
-		user = await clearingHouse.program.account.user.fetch(userAccountPublicKey);
-		userPositionsAccount =
-			await clearingHouse.program.account.userPositions.fetch(user.positions);
-
-		assert(user.collateral.eq(new BN(19999200)));
-		assert(userPositionsAccount.positions[0].quoteAssetAmount.eq(new BN(0)));
+		await clearingHouse.fetchAccounts();
+		assert(clearingHouse.getUserAccount().collateral.eq(new BN(19999200)));
+		assert(
+			clearingHouse.getUserAccount().positions[0].quoteAssetAmount.eq(new BN(0))
+		);
 		await clearingHouse.unsubscribe();
 	};
 
@@ -204,11 +193,10 @@ describe('idempotent curve', () => {
 		);
 		await clearingHouse.subscribe();
 
-		const [, userAccountPublicKey] =
-			await clearingHouse.initializeUserAccountAndDepositCollateral(
-				usdcAmount,
-				userUSDCAccount.publicKey
-			);
+		await clearingHouse.initializeUserAccountAndDepositCollateral(
+			usdcAmount,
+			userUSDCAccount.publicKey
+		);
 
 		const marketIndex = new BN(0);
 		await clearingHouse.openPosition(
@@ -224,17 +212,11 @@ describe('idempotent curve', () => {
 			new BN(0)
 		);
 
-		let user: any = await clearingHouse.program.account.user.fetch(
-			userAccountPublicKey
-		);
-		let userPositionsAccount: any =
-			await clearingHouse.program.account.userPositions.fetch(user.positions);
-
 		const numberOfReduces = chunks;
-		const market = clearingHouse.getMarket(marketIndex);
+		const market = clearingHouse.getMarketAccount(marketIndex);
 		const baseAssetValue = calculateBaseAssetValue(
 			market,
-			userPositionsAccount.positions[0]
+			clearingHouse.getUserAccount().positions[0]
 		);
 		for (let i = 0; i < numberOfReduces - 1; i++) {
 			await clearingHouse.openPosition(
@@ -246,12 +228,12 @@ describe('idempotent curve', () => {
 		}
 		await clearingHouse.closePosition(new BN(0));
 
-		user = await clearingHouse.program.account.user.fetch(userAccountPublicKey);
-		userPositionsAccount =
-			await clearingHouse.program.account.userPositions.fetch(user.positions);
+		await clearingHouse.fetchAccounts();
 
-		assert(user.collateral.eq(new BN(4999850)));
-		assert(userPositionsAccount.positions[0].quoteAssetAmount.eq(new BN(0)));
+		assert(clearingHouse.getUserAccount().collateral.eq(new BN(4999850)));
+		assert(
+			clearingHouse.getUserAccount().positions[0].quoteAssetAmount.eq(new BN(0))
+		);
 		await clearingHouse.unsubscribe();
 	};
 
@@ -274,11 +256,11 @@ describe('idempotent curve', () => {
 		);
 		await clearingHouse.subscribe();
 
-		const [, userAccountPublicKey] =
-			await clearingHouse.initializeUserAccountAndDepositCollateral(
-				usdcAmount,
-				userUSDCAccount.publicKey
-			);
+		await clearingHouse.initializeUserAccountAndDepositCollateral(
+			usdcAmount,
+			userUSDCAccount.publicKey
+		);
+		await clearingHouse.fetchAccounts();
 
 		const marketIndex = new BN(0);
 		await clearingHouse.openPosition(
@@ -294,17 +276,11 @@ describe('idempotent curve', () => {
 			new BN(0)
 		);
 
-		let user: any = await clearingHouse.program.account.user.fetch(
-			userAccountPublicKey
-		);
-		let userPositionsAccount: any =
-			await clearingHouse.program.account.userPositions.fetch(user.positions);
-
 		const numberOfReduces = chunks;
-		const market = clearingHouse.getMarket(marketIndex);
+		const market = clearingHouse.getMarketAccount(marketIndex);
 		const baseAssetValue = calculateBaseAssetValue(
 			market,
-			userPositionsAccount.positions[0]
+			clearingHouse.getUserAccount().positions[0]
 		);
 		for (let i = 0; i < numberOfReduces - 1; i++) {
 			await clearingHouse.openPosition(
@@ -316,12 +292,11 @@ describe('idempotent curve', () => {
 		}
 		await clearingHouse.closePosition(new BN(0));
 
-		user = await clearingHouse.program.account.user.fetch(userAccountPublicKey);
-		userPositionsAccount =
-			await clearingHouse.program.account.userPositions.fetch(user.positions);
-
-		assert(user.collateral.eq(new BN(14999849)));
-		assert(userPositionsAccount.positions[0].quoteAssetAmount.eq(new BN(0)));
+		await clearingHouse.fetchAccounts();
+		assert(clearingHouse.getUserAccount().collateral.eq(new BN(14999849)));
+		assert(
+			clearingHouse.getUserAccount().positions[0].quoteAssetAmount.eq(new BN(0))
+		);
 		await clearingHouse.unsubscribe();
 	};
 
@@ -344,11 +319,10 @@ describe('idempotent curve', () => {
 		);
 		await clearingHouse.subscribe();
 
-		const [, userAccountPublicKey] =
-			await clearingHouse.initializeUserAccountAndDepositCollateral(
-				usdcAmount,
-				userUSDCAccount.publicKey
-			);
+		await clearingHouse.initializeUserAccountAndDepositCollateral(
+			usdcAmount,
+			userUSDCAccount.publicKey
+		);
 
 		const marketIndex = new BN(0);
 		await clearingHouse.openPosition(
@@ -364,17 +338,11 @@ describe('idempotent curve', () => {
 			new BN(0)
 		);
 
-		let user: any = await clearingHouse.program.account.user.fetch(
-			userAccountPublicKey
-		);
-		let userPositionsAccount: any =
-			await clearingHouse.program.account.userPositions.fetch(user.positions);
-
 		const numberOfReduces = chunks;
-		const market = clearingHouse.getMarket(marketIndex);
+		const market = clearingHouse.getMarketAccount(marketIndex);
 		const baseAssetValue = calculateBaseAssetValue(
 			market,
-			userPositionsAccount.positions[0]
+			clearingHouse.getUserAccount().positions[0]
 		);
 		for (let i = 0; i < numberOfReduces - 1; i++) {
 			await clearingHouse.openPosition(
@@ -386,12 +354,11 @@ describe('idempotent curve', () => {
 		}
 		await clearingHouse.closePosition(new BN(0));
 
-		user = await clearingHouse.program.account.user.fetch(userAccountPublicKey);
-		userPositionsAccount =
-			await clearingHouse.program.account.userPositions.fetch(user.positions);
-
-		assert(user.collateral.eq(new BN(6666311)));
-		assert(userPositionsAccount.positions[0].quoteAssetAmount.eq(new BN(0)));
+		await clearingHouse.fetchAccounts();
+		assert(clearingHouse.getUserAccount().collateral.eq(new BN(6666311)));
+		assert(
+			clearingHouse.getUserAccount().positions[0].quoteAssetAmount.eq(new BN(0))
+		);
 		await clearingHouse.unsubscribe();
 	};
 

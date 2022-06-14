@@ -59,7 +59,6 @@ export async function stress_test(
 		const amtScale = pegs[i].div(PEG_PRECISION); // same slippage pct for regardless of peg levels
 
 		const [, _marketPublicKey] = await clearingHouse.initializeMarket(
-			new BN(i + marketOffset),
 			oracles[i],
 			ammInitialBaseAssetAmount.div(amtScale),
 			ammInitialQuoteAssetAmount.div(amtScale),

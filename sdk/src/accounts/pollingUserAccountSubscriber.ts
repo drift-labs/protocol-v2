@@ -1,4 +1,5 @@
 import {
+	AccountAndSlot,
 	AccountToPoll,
 	NotSubscribedError,
 	UserAccountEvents,
@@ -9,11 +10,8 @@ import { Program } from '@project-serum/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { PublicKey } from '@solana/web3.js';
-import {
-	getUserAccountPublicKey,
-	getUserOrdersAccountPublicKey,
-} from '../addresses';
-import { UserAccount, UserOrdersAccount, UserPositionsAccount } from '../types';
+import { getUserAccountPublicKey } from '../addresses/pda';
+import { UserAccount } from '../types';
 import { BulkAccountLoader } from './bulkAccountLoader';
 import { capitalize } from './utils';
 import { ClearingHouseConfigType } from '../factory/clearingHouse';
@@ -28,9 +26,7 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 	accountsToPoll = new Map<string, AccountToPoll>();
 	errorCallbackId?: string;
 
-	user?: UserAccount;
-	userPositions?: UserPositionsAccount;
-	userOrders?: UserOrdersAccount;
+	userAccountAndSlot?: AccountAndSlot<UserAccount>;
 
 	type: ClearingHouseConfigType = 'polling';
 
@@ -80,58 +76,23 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 				this.authority
 			);
 
-			const userAccount = (await this.program.account.user.fetch(
-				userPublicKey
-			)) as UserAccount;
-
 			this.accountsToPoll.set(userPublicKey.toString(), {
 				key: 'user',
 				publicKey: userPublicKey,
-				eventType: 'userAccountData',
-			});
-
-			this.accountsToPoll.set(userAccount.positions.toString(), {
-				key: 'userPositions',
-				publicKey: userAccount.positions,
-				eventType: 'userPositionsData',
-			});
-
-			const userOrdersPublicKey = await getUserOrdersAccountPublicKey(
-				this.program.programId,
-				userPublicKey
-			);
-
-			this.accountsToPoll.set(userOrdersPublicKey.toString(), {
-				key: 'userOrders',
-				publicKey: userOrdersPublicKey,
-				eventType: 'userOrdersData',
+				eventType: 'userAccountUpdate',
 			});
 		} else {
 			this.accountsToPoll.set(userPublicKeys.user.toString(), {
 				key: 'user',
 				publicKey: userPublicKeys.user,
-				eventType: 'userAccountData',
+				eventType: 'userAccountUpdate',
 			});
-
-			this.accountsToPoll.set(userPublicKeys.userPositions.toString(), {
-				key: 'userPositions',
-				publicKey: userPublicKeys.userPositions,
-				eventType: 'userPositionsData',
-			});
-
-			if (userPublicKeys.userOrders) {
-				this.accountsToPoll.set(userPublicKeys.userOrders.toString(), {
-					key: 'userOrders',
-					publicKey: userPublicKeys.userOrders,
-					eventType: 'userOrdersData',
-				});
-			}
 		}
 
 		for (const [_, accountToPoll] of this.accountsToPoll) {
 			accountToPoll.callbackId = this.accountLoader.addAccount(
 				accountToPoll.publicKey,
-				(buffer) => {
+				(buffer, slot) => {
 					if (!buffer) {
 						return;
 					}
@@ -139,7 +100,7 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 					const account = this.program.account[
 						accountToPoll.key
 					].coder.accounts.decode(capitalize(accountToPoll.key), buffer);
-					this[accountToPoll.key] = account;
+					this[accountToPoll.key] = { account, slot };
 					// @ts-ignore
 					this.eventEmitter.emit(accountToPoll.eventType, account);
 					this.eventEmitter.emit('update');
@@ -169,11 +130,14 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 	async fetch(): Promise<void> {
 		await this.accountLoader.load();
 		for (const [_, accountToPoll] of this.accountsToPoll) {
-			const buffer = this.accountLoader.getAccountData(accountToPoll.publicKey);
+			const { buffer, slot } = this.accountLoader.getBufferAndSlot(
+				accountToPoll.publicKey
+			);
 			if (buffer) {
-				this[accountToPoll.key] = this.program.account[
+				const account = this.program.account[
 					accountToPoll.key
 				].coder.accounts.decode(capitalize(accountToPoll.key), buffer);
+				this[accountToPoll.key] = { account, slot };
 			}
 		}
 	}
@@ -181,8 +145,7 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 	didSubscriptionSucceed(): boolean {
 		let success = true;
 		for (const [_, accountToPoll] of this.accountsToPoll) {
-			// userOrders may not exist
-			if (accountToPoll.key !== 'userOrders' && !this[accountToPoll.key]) {
+			if (!this[accountToPoll.key]) {
 				success = false;
 				break;
 			}
@@ -218,18 +181,8 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 		}
 	}
 
-	public getUserAccount(): UserAccount {
+	public getUserAccountAndSlot(): AccountAndSlot<UserAccount> {
 		this.assertIsSubscribed();
-		return this.user;
-	}
-
-	public getUserPositionsAccount(): UserPositionsAccount {
-		this.assertIsSubscribed();
-		return this.userPositions;
-	}
-
-	public getUserOrdersAccount(): UserOrdersAccount {
-		this.assertIsSubscribed();
-		return this.userOrders;
+		return this.userAccountAndSlot;
 	}
 }

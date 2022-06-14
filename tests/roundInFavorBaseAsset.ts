@@ -8,8 +8,6 @@ import { Keypair } from '@solana/web3.js';
 
 import { Admin, ClearingHouse, PositionDirection } from '../sdk/src';
 
-import { Markets } from '../sdk/src/constants/markets';
-
 import { mockOracle, mockUSDCMint, mockUserUSDCAccount } from './testHelpers';
 import { FeeStructure } from '../sdk';
 
@@ -44,7 +42,6 @@ describe('round in favor', () => {
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await primaryClearingHouse.initializeMarket(
-			Markets[0].marketIndex,
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -113,6 +110,7 @@ describe('round in favor', () => {
 				usdcAmount,
 				userUSDCAccount.publicKey
 			);
+		await clearingHouse.fetchAccounts();
 
 		const marketIndex = new BN(0);
 		const baseAssetAmount = new BN(7896402480);
@@ -161,6 +159,7 @@ describe('round in favor', () => {
 				usdcAmount,
 				userUSDCAccount.publicKey
 			);
+		await clearingHouse.fetchAccounts();
 
 		const marketIndex = new BN(0);
 		const baseAssetAmount = new BN(7895668982);

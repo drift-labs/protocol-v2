@@ -46,7 +46,6 @@ describe('admin', () => {
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await clearingHouse.initializeMarket(
-			Markets[0].marketIndex,
 			solUsd,
 			new BN(1000),
 			new BN(1000),
@@ -67,7 +66,7 @@ describe('admin', () => {
 		);
 
 		await clearingHouse.fetchAccounts();
-		const market = clearingHouse.getMarket(0);
+		const market = clearingHouse.getMarketAccount(0);
 
 		assert(market.marginRatioInitial === marginRatioInitial);
 		assert(market.marginRatioPartial === marginRatioPartial);
@@ -266,10 +265,7 @@ describe('admin', () => {
 		);
 
 		await clearingHouse.fetchAccounts();
-		const market =
-			clearingHouse.getMarketsAccount().markets[
-				Markets[0].marketIndex.toNumber()
-			];
+		const market = clearingHouse.getMarketAccount(0);
 		assert(market.amm.oracle.equals(PublicKey.default));
 		assert(
 			JSON.stringify(market.amm.oracleSource) ===
@@ -286,10 +282,7 @@ describe('admin', () => {
 		);
 
 		await clearingHouse.fetchAccounts();
-		const market =
-			clearingHouse.getMarketsAccount().markets[
-				Markets[0].marketIndex.toNumber()
-			];
+		const market = clearingHouse.getMarketAccount(0);
 		assert(market.amm.minimumQuoteAssetTradeSize.eq(minimumTradeSize));
 	});
 
@@ -302,10 +295,7 @@ describe('admin', () => {
 		);
 
 		await clearingHouse.fetchAccounts();
-		const market =
-			clearingHouse.getMarketsAccount().markets[
-				Markets[0].marketIndex.toNumber()
-			];
+		const market = clearingHouse.getMarketAccount(0);
 		assert(market.amm.minimumBaseAssetTradeSize.eq(minimumTradeSize));
 	});
 

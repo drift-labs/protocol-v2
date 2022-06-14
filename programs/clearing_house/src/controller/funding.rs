@@ -1,9 +1,11 @@
-use std::cell::{Ref, RefMut};
 use std::cmp::{max, min};
 
 use anchor_lang::prelude::*;
+use solana_program::clock::UnixTimestamp;
+use solana_program::msg;
 
 use crate::error::ClearingHouseResult;
+use crate::get_then_update_id;
 use crate::math::amm;
 use crate::math::amm::normalise_oracle_price;
 use crate::math::casting::{cast, cast_to_i128, cast_to_i64};
@@ -14,33 +16,25 @@ use crate::math::constants::{
 use crate::math::funding::{calculate_funding_payment, calculate_funding_rate_long_short};
 use crate::math::oracle;
 use crate::math_error;
-use crate::state::history::funding_payment::{FundingPaymentHistory, FundingPaymentRecord};
-use crate::state::history::funding_rate::{FundingRateHistory, FundingRateRecord};
-use crate::state::market::AMM;
-use crate::state::market::{Market, Markets};
+use crate::state::events::{FundingPaymentRecord, FundingRateRecord};
+use crate::state::market::{Market, AMM};
+use crate::state::market_map::MarketMap;
 use crate::state::state::OracleGuardRails;
-use crate::state::user::{User, UserPositions};
-use solana_program::clock::UnixTimestamp;
-use solana_program::msg;
+use crate::state::user::User;
 
-/// Funding payments are settled lazily. The amm tracks its cumulative funding rate (for longs and shorts)
-/// and the user's market position tracks how much funding the user been cumulatively paid for that market.
-/// If the two values are not equal, the user owes/is owed funding.
 pub fn settle_funding_payment(
     user: &mut User,
-    user_positions: &mut RefMut<UserPositions>,
-    markets: &Ref<Markets>,
-    funding_payment_history: &mut RefMut<FundingPaymentHistory>,
+    user_key: &Pubkey,
+    market_map: &MarketMap,
     now: UnixTimestamp,
 ) -> ClearingHouseResult {
-    let user_key = user_positions.user;
     let mut funding_payment: i128 = 0;
-    for market_position in user_positions.positions.iter_mut() {
+    for market_position in user.positions.iter_mut() {
         if market_position.base_asset_amount == 0 {
             continue;
         }
 
-        let market = &markets.markets[Markets::index_from_u64(market_position.market_index)];
+        let market = &market_map.get_ref(&market_position.market_index)?;
         let amm: &AMM = &market.amm;
 
         let amm_cumulative_funding_rate = if market_position.base_asset_amount > 0 {
@@ -53,12 +47,10 @@ pub fn settle_funding_payment(
             let market_funding_rate_payment =
                 calculate_funding_payment(amm_cumulative_funding_rate, market_position)?;
 
-            let record_id = funding_payment_history.next_record_id();
-            funding_payment_history.append(FundingPaymentRecord {
+            emit!(FundingPaymentRecord {
                 ts: now,
-                record_id,
                 user_authority: user.authority,
-                user: user_key,
+                user: *user_key,
                 market_index: market_position.market_index,
                 funding_payment: market_funding_rate_payment, //10e13
                 user_last_cumulative_funding: market_position.last_cumulative_funding_rate, //10e14
@@ -92,7 +84,6 @@ pub fn update_funding_rate(
     price_oracle: &AccountInfo,
     now: UnixTimestamp,
     clock_slot: u64,
-    funding_rate_history: &mut RefMut<FundingRateHistory>,
     guard_rails: &OracleGuardRails,
     funding_paused: bool,
     precomputed_mark_price: Option<u128>,
@@ -201,10 +192,9 @@ pub fn update_funding_rate(
         market.amm.last_funding_rate = funding_rate;
         market.amm.last_funding_rate_ts = now;
 
-        let record_id = funding_rate_history.next_record_id();
-        funding_rate_history.append(FundingRateRecord {
+        emit!(FundingRateRecord {
             ts: now,
-            record_id,
+            record_id: get_then_update_id!(market, next_funding_rate_record_id),
             market_index,
             funding_rate,
             cumulative_funding_rate_long: market.amm.cumulative_funding_rate_long,

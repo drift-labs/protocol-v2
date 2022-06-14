@@ -58,14 +58,14 @@ describe('twap divergence liquidation', () => {
 			}
 		);
 		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.subscribeToAll();
+		await clearingHouse.subscribe();
 
 		for (let i = 0; i < maxPositions; i++) {
-			const oracle = await mockOracle(1);
+			// make invalid
+			const oracle = await mockOracle(1, -7, 2147483647);
 			const periodicity = new BN(0);
 
 			await clearingHouse.initializeMarket(
-				new BN(i),
 				oracle,
 				ammInitialBaseAssetReserve,
 				ammInitialQuoteAssetReserve,
@@ -85,6 +85,7 @@ describe('twap divergence liquidation', () => {
 			.mul(new BN(99))
 			.div(new BN(100));
 		for (let i = 0; i < maxPositions; i++) {
+			await clearingHouse.fetchAccounts();
 			await clearingHouse.openPosition(
 				PositionDirection.LONG,
 				usdcPerPosition,
@@ -99,10 +100,9 @@ describe('twap divergence liquidation', () => {
 	});
 
 	it('liquidate', async () => {
-		const markets = clearingHouse.getMarketsAccount();
 		for (let i = 0; i < maxPositions; i++) {
-			const oracle = markets.markets[i].amm.oracle;
-			await setFeedPrice(anchor.workspace.Pyth, 0.85, oracle);
+			const oracle = clearingHouse.getMarketAccount(i).amm.oracle;
+			await setFeedPrice(anchor.workspace.Pyth, 0.5, oracle);
 			await setFeedTwap(anchor.workspace.Pyth, 100, oracle);
 			await clearingHouse.updateFundingRate(oracle, new BN(i));
 			await clearingHouse.moveAmmPrice(
@@ -113,9 +113,14 @@ describe('twap divergence liquidation', () => {
 		}
 
 		try {
-			await clearingHouse.liquidate(userAccountPublicKey);
+			const txSig = await clearingHouse.liquidate(userAccountPublicKey);
+			const logs = (
+				await connection.getTransaction(txSig, { commitment: 'confirmed' })
+			).meta.logMessages;
+			console.log('tx logs', logs);
 		} catch (e) {
-			assert(e.message.includes('0x17a8'));
+			console.log(e);
+			assert(e.message.includes('0x17a6'));
 			return;
 		}
 		assert(false);

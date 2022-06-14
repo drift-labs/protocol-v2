@@ -1,4 +1,9 @@
-import { NotSubscribedError, OracleEvents, OracleSubscriber } from './types';
+import {
+	AccountAndSlot,
+	NotSubscribedError,
+	OracleEvents,
+	OracleSubscriber,
+} from './types';
 import { Program } from '@project-serum/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
@@ -17,7 +22,7 @@ export class PollingOracleSubscriber implements OracleSubscriber {
 	callbackId?: string;
 	errorCallbackId?: string;
 
-	oraclePriceData?: OraclePriceData;
+	oraclePriceData?: AccountAndSlot<OraclePriceData>;
 
 	public constructor(
 		publicKey: PublicKey,
@@ -61,10 +66,10 @@ export class PollingOracleSubscriber implements OracleSubscriber {
 
 		this.callbackId = this.accountLoader.addAccount(
 			this.publicKey,
-			async (buffer) => {
+			async (buffer, slot) => {
 				const oraclePriceData =
 					await this.oracleClient.getOraclePriceDataFromBuffer(buffer);
-				this.oraclePriceData = oraclePriceData;
+				this.oraclePriceData = { account: oraclePriceData, slot };
 				// @ts-ignore
 				this.eventEmitter.emit('oracleUpdate', oraclePriceData);
 				this.eventEmitter.emit('update');
@@ -78,10 +83,13 @@ export class PollingOracleSubscriber implements OracleSubscriber {
 
 	async fetch(): Promise<void> {
 		await this.accountLoader.load();
-		const buffer = this.accountLoader.getAccountData(this.publicKey);
-		this.oraclePriceData = await this.oracleClient.getOraclePriceDataFromBuffer(
-			buffer
+		const { buffer, slot } = this.accountLoader.getBufferAndSlot(
+			this.publicKey
 		);
+		this.oraclePriceData = {
+			account: await this.oracleClient.getOraclePriceDataFromBuffer(buffer),
+			slot,
+		};
 	}
 
 	async unsubscribe(): Promise<void> {
@@ -106,7 +114,7 @@ export class PollingOracleSubscriber implements OracleSubscriber {
 		}
 	}
 
-	public getOraclePriceData(): OraclePriceData {
+	public getOraclePriceData(): AccountAndSlot<OraclePriceData> {
 		this.assertIsSubscribed();
 		return this.oraclePriceData;
 	}

@@ -6,33 +6,10 @@ import { Program, Wallet } from '@project-serum/anchor';
 
 import { Keypair } from '@solana/web3.js';
 
-import {
-	Admin,
-	ClearingHouse,
-	MAX_LEVERAGE,
-	PositionDirection,
-} from '../sdk/src';
-
-import { Markets } from '../sdk/src/constants/markets';
+import { Admin, ClearingHouse, PositionDirection } from '../sdk/src';
 
 import { mockOracle, mockUSDCMint, mockUserUSDCAccount } from './testHelpers';
-import {
-	calculateBaseAssetValue,
-	FeeStructure,
-	UserAccount,
-	UserPositionsAccount,
-	ZERO,
-} from '../sdk';
-
-const _calculateTradeAmount = (amountOfCollateral: BN) => {
-	const ONE_MANTISSA = new BN(100000);
-	const fee = ONE_MANTISSA.div(new BN(1000));
-	const tradeAmount = amountOfCollateral
-		.mul(MAX_LEVERAGE)
-		.mul(ONE_MANTISSA.sub(MAX_LEVERAGE.mul(fee)))
-		.div(ONE_MANTISSA);
-	return tradeAmount;
-};
+import { calculateBaseAssetValue, FeeStructure, ZERO } from '../sdk';
 
 describe('minimum trade size', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -72,7 +49,6 @@ describe('minimum trade size', () => {
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await primaryClearingHouse.initializeMarket(
-			Markets[0].marketIndex,
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -147,12 +123,12 @@ describe('minimum trade size', () => {
 			}
 		);
 		await clearingHouse.subscribe();
-		const [, userAccountPublicKey] =
-			await clearingHouse.initializeUserAccountAndDepositCollateral(
-				usdcAmount,
-				userUSDCAccount.publicKey
-			);
+		await clearingHouse.initializeUserAccountAndDepositCollateral(
+			usdcAmount,
+			userUSDCAccount.publicKey
+		);
 
+		await clearingHouse.fetchAccounts();
 		const marketIndex = new BN(0);
 		await clearingHouse.openPosition(
 			PositionDirection.SHORT,
@@ -161,16 +137,7 @@ describe('minimum trade size', () => {
 			new BN(0)
 		);
 
-		let user: UserAccount =
-			await primaryClearingHouse.program.account.user.fetch(
-				userAccountPublicKey
-			);
-		assert(user.collateral.eq(usdcAmount));
-
-		let userPositions: UserPositionsAccount =
-			await primaryClearingHouse.program.account.userPositions.fetch(
-				user.positions
-			);
+		assert(clearingHouse.getUserAccount().collateral.eq(usdcAmount));
 
 		// make price slightly worse so we need to round trade amount
 		const newBaseAssetReserve = ammInitialBaseAssetReserve
@@ -183,11 +150,11 @@ describe('minimum trade size', () => {
 			new BN(0)
 		);
 
-		const market = primaryClearingHouse.getMarket(0);
-		let position = userPositions.positions[0];
+		const market = primaryClearingHouse.getMarketAccount(0);
+		let position = clearingHouse.getUserAccount().positions[0];
 		const baseAssetValue = calculateBaseAssetValue(market, position);
 
-		const expectedBaseAssetValue = new BN(10000188);
+		const expectedBaseAssetValue = new BN(10000189);
 		assert(position.quoteAssetAmount.eq(usdcAmount));
 		assert(baseAssetValue.eq(expectedBaseAssetValue));
 
@@ -198,15 +165,8 @@ describe('minimum trade size', () => {
 			new BN(0)
 		);
 
-		user = await primaryClearingHouse.program.account.user.fetch(
-			userAccountPublicKey
-		);
-
-		userPositions =
-			await primaryClearingHouse.program.account.userPositions.fetch(
-				user.positions
-			);
-		position = userPositions.positions[0];
+		await clearingHouse.fetchAccounts();
+		position = clearingHouse.getUserAccount().positions[0];
 
 		assert(position.quoteAssetAmount.eq(ZERO));
 		assert(position.baseAssetAmount.eq(ZERO));
@@ -232,11 +192,10 @@ describe('minimum trade size', () => {
 			}
 		);
 		await clearingHouse.subscribe();
-		const [, userAccountPublicKey] =
-			await clearingHouse.initializeUserAccountAndDepositCollateral(
-				usdcAmount,
-				userUSDCAccount.publicKey
-			);
+		await clearingHouse.initializeUserAccountAndDepositCollateral(
+			usdcAmount,
+			userUSDCAccount.publicKey
+		);
 
 		const marketIndex = new BN(0);
 		await clearingHouse.openPosition(
@@ -246,16 +205,8 @@ describe('minimum trade size', () => {
 			new BN(0)
 		);
 
-		let user: UserAccount =
-			await primaryClearingHouse.program.account.user.fetch(
-				userAccountPublicKey
-			);
-		assert(user.collateral.eq(usdcAmount));
-
-		let userPositions: UserPositionsAccount =
-			await primaryClearingHouse.program.account.userPositions.fetch(
-				user.positions
-			);
+		await clearingHouse.fetchAccounts();
+		assert(clearingHouse.getUserAccount().collateral.eq(usdcAmount));
 
 		// make price much worse
 		const newBaseAssetReserve = ammInitialBaseAssetReserve
@@ -268,10 +219,6 @@ describe('minimum trade size', () => {
 			new BN(0)
 		);
 
-		const market = primaryClearingHouse.getMarket(0);
-		let position = userPositions.positions[0];
-		const _baseAssetValue = calculateBaseAssetValue(market, position);
-
 		await clearingHouse.openPosition(
 			PositionDirection.LONG,
 			usdcAmount,
@@ -279,15 +226,8 @@ describe('minimum trade size', () => {
 			new BN(0)
 		);
 
-		user = await primaryClearingHouse.program.account.user.fetch(
-			userAccountPublicKey
-		);
-
-		userPositions =
-			await primaryClearingHouse.program.account.userPositions.fetch(
-				user.positions
-			);
-		position = userPositions.positions[0];
+		await clearingHouse.fetchAccounts();
+		const position = clearingHouse.getUserAccount().positions[0];
 
 		assert(position.quoteAssetAmount.gt(ZERO));
 		assert(position.baseAssetAmount.lt(ZERO));
@@ -313,11 +253,11 @@ describe('minimum trade size', () => {
 			}
 		);
 		await clearingHouse.subscribe();
-		const [, userAccountPublicKey] =
-			await clearingHouse.initializeUserAccountAndDepositCollateral(
-				usdcAmount,
-				userUSDCAccount.publicKey
-			);
+
+		await clearingHouse.initializeUserAccountAndDepositCollateral(
+			usdcAmount,
+			userUSDCAccount.publicKey
+		);
 
 		const marketIndex = new BN(0);
 		await clearingHouse.openPosition(
@@ -327,16 +267,8 @@ describe('minimum trade size', () => {
 			new BN(0)
 		);
 
-		let user: UserAccount =
-			await primaryClearingHouse.program.account.user.fetch(
-				userAccountPublicKey
-			);
-		assert(user.collateral.eq(usdcAmount));
-
-		let userPositions: UserPositionsAccount =
-			await primaryClearingHouse.program.account.userPositions.fetch(
-				user.positions
-			);
+		await clearingHouse.fetchAccounts();
+		assert(clearingHouse.getUserAccount().collateral.eq(usdcAmount));
 
 		// make price slightly worse so we need to round trade amount
 		const newQuoteAssetReserve = ammInitialBaseAssetReserve
@@ -349,11 +281,12 @@ describe('minimum trade size', () => {
 			new BN(0)
 		);
 
-		const market = primaryClearingHouse.getMarket(0);
-		let position = userPositions.positions[0];
+		await clearingHouse.fetchAccounts();
+		const market = primaryClearingHouse.getMarketAccount(0);
+		let position = clearingHouse.getUserAccount().positions[0];
 		const baseAssetValue = calculateBaseAssetValue(market, position);
 
-		const expectedBaseAssetValue = new BN(10000002);
+		const expectedBaseAssetValue = new BN(9999811);
 		assert(position.quoteAssetAmount.eq(usdcAmount));
 		assert(baseAssetValue.eq(expectedBaseAssetValue));
 
@@ -364,15 +297,8 @@ describe('minimum trade size', () => {
 			new BN(0)
 		);
 
-		user = await primaryClearingHouse.program.account.user.fetch(
-			userAccountPublicKey
-		);
-
-		userPositions =
-			await primaryClearingHouse.program.account.userPositions.fetch(
-				user.positions
-			);
-		position = userPositions.positions[0];
+		await clearingHouse.fetchAccounts();
+		position = clearingHouse.getUserAccount().positions[0];
 
 		assert(position.quoteAssetAmount.eq(ZERO));
 		assert(position.baseAssetAmount.eq(ZERO));
@@ -398,11 +324,11 @@ describe('minimum trade size', () => {
 			}
 		);
 		await clearingHouse.subscribe();
-		const [, userAccountPublicKey] =
-			await clearingHouse.initializeUserAccountAndDepositCollateral(
-				usdcAmount,
-				userUSDCAccount.publicKey
-			);
+
+		await clearingHouse.initializeUserAccountAndDepositCollateral(
+			usdcAmount,
+			userUSDCAccount.publicKey
+		);
 
 		const marketIndex = new BN(0);
 		await clearingHouse.openPosition(
@@ -412,16 +338,7 @@ describe('minimum trade size', () => {
 			new BN(0)
 		);
 
-		let user: UserAccount =
-			await primaryClearingHouse.program.account.user.fetch(
-				userAccountPublicKey
-			);
-		assert(user.collateral.eq(usdcAmount));
-
-		let userPositions: UserPositionsAccount =
-			await primaryClearingHouse.program.account.userPositions.fetch(
-				user.positions
-			);
+		assert(clearingHouse.getUserAccount().collateral.eq(usdcAmount));
 
 		// make price better so we dont need to round trade amount
 		const newQuoteAssetReserve = ammInitialBaseAssetReserve
@@ -434,9 +351,6 @@ describe('minimum trade size', () => {
 			new BN(0)
 		);
 
-		const _market = primaryClearingHouse.getMarket(0);
-		let position = userPositions.positions[0];
-
 		await clearingHouse.openPosition(
 			PositionDirection.SHORT,
 			usdcAmount,
@@ -444,16 +358,8 @@ describe('minimum trade size', () => {
 			new BN(0)
 		);
 
-		user = await primaryClearingHouse.program.account.user.fetch(
-			userAccountPublicKey
-		);
-
-		userPositions =
-			await primaryClearingHouse.program.account.userPositions.fetch(
-				user.positions
-			);
-		position = userPositions.positions[0];
-
+		await clearingHouse.fetchAccounts();
+		const position = clearingHouse.getUserAccount().positions[0];
 		assert(position.quoteAssetAmount.gt(ZERO));
 		assert(position.baseAssetAmount.gt(ZERO));
 		await clearingHouse.unsubscribe();

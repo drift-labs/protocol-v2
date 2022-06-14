@@ -205,7 +205,6 @@ describe('AMM Curve', () => {
 		const periodicity = new BN(60 * 60); // 1 HOUR
 		const kSqrtNorm = normAssetAmount(kSqrt, initialSOLPriceBN);
 		await clearingHouse.initializeMarket(
-			marketIndex,
 			solUsdOracle,
 			kSqrtNorm,
 			kSqrtNorm,
@@ -226,8 +225,7 @@ describe('AMM Curve', () => {
 	});
 
 	const showBook = (marketIndex) => {
-		const market =
-			clearingHouse.getMarketsAccount().markets[marketIndex.toNumber()];
+		const market = clearingHouse.getMarketAccount(marketIndex);
 		const currentMark = calculateMarkPrice(market);
 
 		const [bidsPrice, bidsCumSize, asksPrice, asksCumSize] = liquidityBook(
@@ -277,7 +275,7 @@ describe('AMM Curve', () => {
 		const avgSlippageCenter = calculateTradeSlippage(
 			PositionDirection.LONG,
 			new BN(MAX_USER_TRADE * MARK_PRICE_PRECISION.toNumber()),
-			clearingHouse.getMarket(0)
+			clearingHouse.getMarketAccount(0)
 		)[0];
 		showBook(marketIndex);
 
@@ -286,7 +284,7 @@ describe('AMM Curve', () => {
 		);
 
 		const [_direction, tradeSize, _] = calculateTargetPriceTrade(
-			clearingHouse.getMarket(marketIndex),
+			clearingHouse.getMarketAccount(marketIndex),
 			targetPriceUp
 		);
 
@@ -295,7 +293,7 @@ describe('AMM Curve', () => {
 		const avgSlippage25PctOut = calculateTradeSlippage(
 			PositionDirection.LONG,
 			new BN(MAX_USER_TRADE * MARK_PRICE_PRECISION.toNumber()),
-			clearingHouse.getMarket(0)
+			clearingHouse.getMarketAccount(0)
 		)[0];
 
 		showBook(marketIndex);

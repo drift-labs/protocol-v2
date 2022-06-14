@@ -1,4 +1,5 @@
 import {
+	AccountAndSlot,
 	AccountSubscriber,
 	NotSubscribedError,
 	UserAccountEvents,
@@ -8,12 +9,9 @@ import { Program } from '@project-serum/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { PublicKey } from '@solana/web3.js';
-import {
-	getUserAccountPublicKey,
-	getUserOrdersAccountPublicKey,
-} from '../addresses';
+import { getUserAccountPublicKey } from '../addresses/pda';
 import { WebSocketAccountSubscriber } from './webSocketAccountSubscriber';
-import { UserAccount, UserOrdersAccount, UserPositionsAccount } from '../types';
+import { UserAccount } from '../types';
 import { ClearingHouseConfigType } from '../factory/clearingHouse';
 
 export class WebSocketUserAccountSubscriber implements UserAccountSubscriber {
@@ -23,8 +21,6 @@ export class WebSocketUserAccountSubscriber implements UserAccountSubscriber {
 	authority: PublicKey;
 
 	userDataAccountSubscriber: AccountSubscriber<UserAccount>;
-	userPositionsAccountSubscriber: AccountSubscriber<UserPositionsAccount>;
-	userOrdersAccountSubscriber: AccountSubscriber<UserOrdersAccount>;
 
 	type: ClearingHouseConfigType = 'websocket';
 
@@ -50,40 +46,9 @@ export class WebSocketUserAccountSubscriber implements UserAccountSubscriber {
 			userPublicKey
 		);
 		await this.userDataAccountSubscriber.subscribe((data: UserAccount) => {
-			this.eventEmitter.emit('userAccountData', data);
+			this.eventEmitter.emit('userAccountUpdate', data);
 			this.eventEmitter.emit('update');
 		});
-
-		const userAccountData = this.userDataAccountSubscriber.data;
-		this.userPositionsAccountSubscriber = new WebSocketAccountSubscriber(
-			'userPositions',
-			this.program,
-			userAccountData.positions
-		);
-
-		await this.userPositionsAccountSubscriber.subscribe(
-			(data: UserPositionsAccount) => {
-				this.eventEmitter.emit('userPositionsData', data);
-				this.eventEmitter.emit('update');
-			}
-		);
-
-		const userOrdersPublicKey = await getUserOrdersAccountPublicKey(
-			this.program.programId,
-			userPublicKey
-		);
-
-		this.userOrdersAccountSubscriber = new WebSocketAccountSubscriber(
-			'userOrders',
-			this.program,
-			userOrdersPublicKey
-		);
-		await this.userOrdersAccountSubscriber.subscribe(
-			(data: UserOrdersAccount) => {
-				this.eventEmitter.emit('userOrdersData', data);
-				this.eventEmitter.emit('update');
-			}
-		);
 
 		this.eventEmitter.emit('update');
 		this.isSubscribed = true;
@@ -91,11 +56,7 @@ export class WebSocketUserAccountSubscriber implements UserAccountSubscriber {
 	}
 
 	async fetch(): Promise<void> {
-		await Promise.all([
-			this.userDataAccountSubscriber.fetch(),
-			this.userPositionsAccountSubscriber.fetch(),
-			this.userOrdersAccountSubscriber.fetch(),
-		]);
+		await Promise.all([this.userDataAccountSubscriber.fetch()]);
 	}
 
 	async unsubscribe(): Promise<void> {
@@ -103,11 +64,7 @@ export class WebSocketUserAccountSubscriber implements UserAccountSubscriber {
 			return;
 		}
 
-		await Promise.all([
-			this.userDataAccountSubscriber.unsubscribe(),
-			this.userPositionsAccountSubscriber.unsubscribe(),
-			await this.userOrdersAccountSubscriber.unsubscribe(),
-		]);
+		await Promise.all([this.userDataAccountSubscriber.unsubscribe()]);
 
 		this.isSubscribed = false;
 	}
@@ -120,17 +77,8 @@ export class WebSocketUserAccountSubscriber implements UserAccountSubscriber {
 		}
 	}
 
-	public getUserAccount(): UserAccount {
+	public getUserAccountAndSlot(): AccountAndSlot<UserAccount> {
 		this.assertIsSubscribed();
-		return this.userDataAccountSubscriber.data;
-	}
-
-	public getUserPositionsAccount(): UserPositionsAccount {
-		this.assertIsSubscribed();
-		return this.userPositionsAccountSubscriber.data;
-	}
-
-	public getUserOrdersAccount(): UserOrdersAccount {
-		return this.userOrdersAccountSubscriber.data;
+		return this.userDataAccountSubscriber.accountAndSlot;
 	}
 }

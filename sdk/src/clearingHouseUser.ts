@@ -6,16 +6,10 @@ import {
 	isVariant,
 	MarginCategory,
 	Order,
-	SettlementStateAccount,
 	UserAccount,
-	UserOrdersAccount,
 	UserPosition,
-	UserPositionsAccount,
 } from './types';
-import {
-	calculateEntryPrice,
-	calculateSettledPositionPNL,
-} from './math/position';
+import { calculateEntryPrice } from './math/position';
 import {
 	MARK_PRICE_PRECISION,
 	AMM_TO_QUOTE_PRECISION_RATIO,
@@ -34,11 +28,10 @@ import {
 	calculatePositionFundingPNL,
 	calculatePositionPNL,
 	PositionDirection,
-	getUserOrdersAccountPublicKey,
 	calculateTradeSlippage,
 	BN,
 } from '.';
-import { getUserAccountPublicKey } from './addresses';
+import { getUserAccountPublicKey } from './addresses/pda';
 import {
 	getClearingHouseUser,
 	getWebSocketClearingHouseUserConfig,
@@ -49,7 +42,6 @@ export class ClearingHouseUser {
 	authority: PublicKey;
 	accountSubscriber: UserAccountSubscriber;
 	userAccountPublicKey?: PublicKey;
-	userOrdersAccountPublicKey?: PublicKey;
 	_isSubscribed = false;
 	eventEmitter: StrictEventEmitter<EventEmitter, UserAccountEvents>;
 
@@ -117,15 +109,7 @@ export class ClearingHouseUser {
 	}
 
 	public getUserAccount(): UserAccount {
-		return this.accountSubscriber.getUserAccount();
-	}
-
-	public getUserPositionsAccount(): UserPositionsAccount {
-		return this.accountSubscriber.getUserPositionsAccount();
-	}
-
-	public getUserOrdersAccount(): UserOrdersAccount | undefined {
-		return this.accountSubscriber.getUserOrdersAccount();
+		return this.accountSubscriber.getUserAccountAndSlot().account;
 	}
 
 	/**
@@ -134,7 +118,7 @@ export class ClearingHouseUser {
 	 * @returns userPosition
 	 */
 	public getUserPosition(marketIndex: BN): UserPosition | undefined {
-		return this.getUserPositionsAccount().positions.find((position) =>
+		return this.getUserAccount().positions.find((position) =>
 			position.marketIndex.eq(marketIndex)
 		);
 	}
@@ -154,7 +138,7 @@ export class ClearingHouseUser {
 	 * @returns Order
 	 */
 	public getOrder(orderId: BN): Order | undefined {
-		return this.getUserOrdersAccount().orders.find((order) =>
+		return this.getUserAccount().orders.find((order) =>
 			order.orderId.eq(orderId)
 		);
 	}
@@ -164,7 +148,7 @@ export class ClearingHouseUser {
 	 * @returns Order
 	 */
 	public getOrderByUserOrderId(userOrderId: number): Order | undefined {
-		return this.getUserOrdersAccount().orders.find(
+		return this.getUserAccount().orders.find(
 			(order) => order.userOrderId === userOrderId
 		);
 	}
@@ -179,18 +163,6 @@ export class ClearingHouseUser {
 			this.authority
 		);
 		return this.userAccountPublicKey;
-	}
-
-	public async getUserOrdersAccountPublicKey(): Promise<PublicKey> {
-		if (this.userOrdersAccountPublicKey) {
-			return this.userOrdersAccountPublicKey;
-		}
-
-		this.userOrdersAccountPublicKey = await getUserOrdersAccountPublicKey(
-			this.clearingHouse.program.programId,
-			await this.getUserAccountPublicKey()
-		);
-		return this.userOrdersAccountPublicKey;
 	}
 
 	public async exists(): Promise<boolean> {
@@ -224,9 +196,11 @@ export class ClearingHouseUser {
 	}
 
 	public getInitialMarginRequirement(): BN {
-		return this.getUserPositionsAccount().positions.reduce(
+		return this.getUserAccount().positions.reduce(
 			(marginRequirement, marketPosition) => {
-				const market = this.clearingHouse.getMarket(marketPosition.marketIndex);
+				const market = this.clearingHouse.getMarketAccount(
+					marketPosition.marketIndex
+				);
 				return marginRequirement.add(
 					calculateBaseAssetValue(market, marketPosition)
 						.mul(new BN(market.marginRatioInitial))
@@ -241,9 +215,11 @@ export class ClearingHouseUser {
 	 * @returns The partial margin requirement in USDC. : QUOTE_PRECISION
 	 */
 	public getPartialMarginRequirement(): BN {
-		return this.getUserPositionsAccount().positions.reduce(
+		return this.getUserAccount().positions.reduce(
 			(marginRequirement, marketPosition) => {
-				const market = this.clearingHouse.getMarket(marketPosition.marketIndex);
+				const market = this.clearingHouse.getMarketAccount(
+					marketPosition.marketIndex
+				);
 				return marginRequirement.add(
 					calculateBaseAssetValue(market, marketPosition)
 						.mul(new BN(market.marginRatioPartial))
@@ -259,12 +235,14 @@ export class ClearingHouseUser {
 	 * @returns : Precision QUOTE_PRECISION
 	 */
 	public getUnrealizedPNL(withFunding?: boolean, marketIndex?: BN): BN {
-		return this.getUserPositionsAccount()
+		return this.getUserAccount()
 			.positions.filter((pos) =>
 				marketIndex ? pos.marketIndex === marketIndex : true
 			)
 			.reduce((pnl, marketPosition) => {
-				const market = this.clearingHouse.getMarket(marketPosition.marketIndex);
+				const market = this.clearingHouse.getMarketAccount(
+					marketPosition.marketIndex
+				);
 				return pnl.add(
 					calculatePositionPNL(market, marketPosition, withFunding)
 				);
@@ -276,12 +254,14 @@ export class ClearingHouseUser {
 	 * @returns : Precision QUOTE_PRECISION
 	 */
 	public getUnrealizedFundingPNL(marketIndex?: BN): BN {
-		return this.getUserPositionsAccount()
+		return this.getUserAccount()
 			.positions.filter((pos) =>
 				marketIndex ? pos.marketIndex === marketIndex : true
 			)
 			.reduce((pnl, marketPosition) => {
-				const market = this.clearingHouse.getMarket(marketPosition.marketIndex);
+				const market = this.clearingHouse.getMarketAccount(
+					marketPosition.marketIndex
+				);
 				return pnl.add(calculatePositionFundingPNL(market, marketPosition));
 			}, ZERO);
 	}
@@ -302,9 +282,11 @@ export class ClearingHouseUser {
 	 * @returns : Precision QUOTE_PRECISION
 	 */
 	getTotalPositionValue(): BN {
-		return this.getUserPositionsAccount().positions.reduce(
+		return this.getUserAccount().positions.reduce(
 			(positionValue, marketPosition) => {
-				const market = this.clearingHouse.getMarket(marketPosition.marketIndex);
+				const market = this.clearingHouse.getMarketAccount(
+					marketPosition.marketIndex
+				);
 				return positionValue.add(
 					calculateBaseAssetValue(market, marketPosition)
 				);
@@ -320,7 +302,9 @@ export class ClearingHouseUser {
 	public getPositionValue(marketIndex: BN): BN {
 		const userPosition =
 			this.getUserPosition(marketIndex) || this.getEmptyPosition(marketIndex);
-		const market = this.clearingHouse.getMarket(userPosition.marketIndex);
+		const market = this.clearingHouse.getMarketAccount(
+			userPosition.marketIndex
+		);
 		return calculateBaseAssetValue(market, userPosition);
 	}
 
@@ -344,7 +328,7 @@ export class ClearingHouseUser {
 		position: UserPosition,
 		amountToClose?: BN
 	): [BN, BN] {
-		const market = this.clearingHouse.getMarket(position.marketIndex);
+		const market = this.clearingHouse.getMarketAccount(position.marketIndex);
 
 		const entryPrice = calculateEntryPrice(position);
 
@@ -401,7 +385,7 @@ export class ClearingHouseUser {
 		marketIndex: BN | number,
 		category: MarginCategory = 'Initial'
 	): BN {
-		const market = this.clearingHouse.getMarket(marketIndex);
+		const market = this.clearingHouse.getMarketAccount(marketIndex);
 		let marginRatioCategory: number;
 
 		switch (category) {
@@ -451,14 +435,14 @@ export class ClearingHouseUser {
 	 * @returns
 	 */
 	public needsToSettleFundingPayment(): boolean {
-		const marketsAccount = this.clearingHouse.getMarketsAccount();
-		for (const userPosition of this.getUserPositionsAccount().positions) {
+		for (const userPosition of this.getUserAccount().positions) {
 			if (userPosition.baseAssetAmount.eq(ZERO)) {
 				continue;
 			}
 
-			const market =
-				marketsAccount.markets[userPosition.marketIndex.toNumber()];
+			const market = this.clearingHouse.getMarketAccount(
+				userPosition.marketIndex
+			);
 			if (
 				market.amm.cumulativeFundingRateLong.eq(
 					userPosition.lastCumulativeFundingRate
@@ -527,7 +511,7 @@ export class ClearingHouseUser {
 
 		if (proposedBaseAssetAmount.eq(ZERO)) return new BN(-1);
 
-		const market = this.clearingHouse.getMarket(
+		const market = this.clearingHouse.getMarketAccount(
 			proposedMarketPosition.marketIndex
 		);
 
@@ -541,10 +525,12 @@ export class ClearingHouseUser {
 			totalPositionValueExcludingTargetMarket.add(proposedMarketPositionValue);
 
 		const marginRequirementExcludingTargetMarket =
-			this.getUserPositionsAccount().positions.reduce(
+			this.getUserAccount().positions.reduce(
 				(totalMarginRequirement, position) => {
 					if (!position.marketIndex.eq(marketPosition.marketIndex)) {
-						const market = this.clearingHouse.getMarket(position.marketIndex);
+						const market = this.clearingHouse.getMarketAccount(
+							position.marketIndex
+						);
 						const positionValue = calculateBaseAssetValue(market, position);
 						const marketMarginRequirement = positionValue
 							.mul(
@@ -612,7 +598,7 @@ export class ClearingHouseUser {
 		let markPriceAfterTrade;
 		if (positionBaseSizeChange.eq(ZERO)) {
 			markPriceAfterTrade = calculateMarkPrice(
-				this.clearingHouse.getMarket(marketPosition.marketIndex)
+				this.clearingHouse.getMarketAccount(marketPosition.marketIndex)
 			);
 		} else {
 			const direction = positionBaseSizeChange.gt(ZERO)
@@ -621,7 +607,7 @@ export class ClearingHouseUser {
 			markPriceAfterTrade = calculateTradeSlippage(
 				direction,
 				positionBaseSizeChange.abs(),
-				this.clearingHouse.getMarket(marketPosition.marketIndex),
+				this.clearingHouse.getMarketAccount(marketPosition.marketIndex),
 				'base'
 			)[3]; // newPrice after swap
 		}
@@ -724,7 +710,7 @@ export class ClearingHouseUser {
 			// current leverage is greater than max leverage - can only reduce position size
 
 			if (!targetingSameSide) {
-				const market = this.clearingHouse.getMarket(targetMarketIndex);
+				const market = this.clearingHouse.getMarketAccount(targetMarketIndex);
 				const marketPositionValue = this.getPositionValue(targetMarketIndex);
 				const totalCollateral = this.getTotalCollateral();
 				const marginRequirement = this.getInitialMarginRequirement();
@@ -836,64 +822,5 @@ export class ClearingHouseUser {
 		}
 
 		return this.getTotalPositionValue().sub(currentMarketPositionValueUSDC);
-	}
-
-	public getClaimableCollateral(settlementState: SettlementStateAccount): BN {
-		return this.getSettledPositionValue()
-			.mul(
-				settlementState.collateralAvailableToClaim.sub(
-					this.getUserAccount().lastCollateralAvailableToClaim
-				)
-			)
-			.div(settlementState.totalSettlementValue);
-	}
-
-	public getSettledPositionValue(): BN {
-		return BN.max(
-			this.getUserAccount()
-				.collateral.add(
-					this.getUnrealizedFundingPNL().div(PRICE_TO_QUOTE_PRECISION)
-				)
-				.add(this.getSettledPositionsPNL()),
-			ZERO
-		);
-	}
-
-	public getSettledPositionsPNL(): BN {
-		return this.getUserPositionsAccount().positions.reduce(
-			(pnl, marketPosition) => {
-				const market = this.clearingHouse.getMarket(marketPosition.marketIndex);
-				return pnl.add(calculateSettledPositionPNL(market, marketPosition));
-			},
-			ZERO
-		);
-	}
-
-	public async estimateClaimableCollateral(): Promise<BN> {
-		const currentCollateralVaultBalance = new BN(
-			(
-				await this.clearingHouse.connection.getTokenAccountBalance(
-					this.clearingHouse.getStateAccount().collateralVault
-				)
-			).value.amount
-		);
-		const currentInsuranceVaultBalance = new BN(
-			(
-				await this.clearingHouse.connection.getTokenAccountBalance(
-					this.clearingHouse.getStateAccount().insuranceVault
-				)
-			).value.amount
-		);
-
-		const totalClaimableCollateral = currentCollateralVaultBalance.add(
-			currentInsuranceVaultBalance
-		);
-		const totalEstimatedSettlementValue =
-			await this.clearingHouse.getTotalSettlementSize();
-		const userSettledPositionValue = await this.getSettledPositionValue();
-
-		return totalClaimableCollateral
-			.mul(userSettledPositionValue)
-			.div(totalEstimatedSettlementValue);
 	}
 }

@@ -1,5 +1,6 @@
 import { PublicKey } from '@solana/web3.js';
 import * as anchor from '@project-serum/anchor';
+import { BN } from '@project-serum/anchor';
 
 export async function getClearingHouseStateAccountPublicKeyAndNonce(
 	programId: PublicKey
@@ -48,34 +49,16 @@ export async function getUserAccountPublicKey(
 	return (await getUserAccountPublicKeyAndNonce(programId, authority))[0];
 }
 
-export async function getUserOrdersAccountPublicKeyAndNonce(
+export async function getMarketPublicKey(
 	programId: PublicKey,
-	userAccount: PublicKey
-): Promise<[PublicKey, number]> {
-	return anchor.web3.PublicKey.findProgramAddress(
-		[
-			Buffer.from(anchor.utils.bytes.utf8.encode('user_orders')),
-			userAccount.toBuffer(),
-		],
-		programId
-	);
-}
-
-export async function getUserOrdersAccountPublicKey(
-	programId: PublicKey,
-	userAccount: PublicKey
-): Promise<PublicKey> {
-	return (
-		await getUserOrdersAccountPublicKeyAndNonce(programId, userAccount)
-	)[0];
-}
-
-export async function getSettlementStatePublicKey(
-	programId: PublicKey
+	marketIndex: BN
 ): Promise<PublicKey> {
 	return (
 		await anchor.web3.PublicKey.findProgramAddress(
-			[Buffer.from(anchor.utils.bytes.utf8.encode('settlement_state'))],
+			[
+				Buffer.from(anchor.utils.bytes.utf8.encode('market')),
+				marketIndex.toArrayLike(Buffer, 'le', 8),
+			],
 			programId
 		)
 	)[0];

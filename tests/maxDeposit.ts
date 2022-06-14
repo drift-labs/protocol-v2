@@ -3,7 +3,6 @@ import { Program } from '@project-serum/anchor';
 import { BN } from '../sdk';
 import { assert } from 'chai';
 import { Admin, MARK_PRICE_PRECISION } from '../sdk/src';
-import { Markets } from '../sdk/src/constants/markets';
 import { mockOracle, mockUSDCMint, mockUserUSDCAccount } from './testHelpers';
 
 describe('max deposit', () => {
@@ -44,7 +43,6 @@ describe('max deposit', () => {
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await clearingHouse.initializeMarket(
-			Markets[0].marketIndex,
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,

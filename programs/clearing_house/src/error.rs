@@ -52,8 +52,6 @@ pub enum ErrorCode {
     UnableToLoadOracle,
     #[msg("Oracle/Mark Spread Too Large")]
     OracleMarkSpreadLimit,
-    #[msg("Clearing House history already initialized")]
-    HistoryAlreadyInitialized,
     #[msg("Exchange is paused")]
     ExchangePaused,
     #[msg("Invalid whitelist token")]
@@ -104,8 +102,6 @@ pub enum ErrorCode {
     UnableToLoadAccountLoader,
     #[msg("Trade Size Too Large")]
     TradeSizeTooLarge,
-    #[msg("Unable to write to remaining account")]
-    UnableToWriteToRemainingAccount,
     #[msg("User cant refer themselves")]
     UserCantReferThemselves,
     #[msg("Did not receive expected referrer")]
@@ -126,14 +122,16 @@ pub enum ErrorCode {
     InvalidOracleOffset,
     #[msg("CantExpireOrders")]
     CantExpireOrders,
-    #[msg("UserMustForgoSettlement")]
-    UserMustForgoSettlement,
-    #[msg("NoAvailableCollateralToBeClaimed")]
-    NoAvailableCollateralToBeClaimed,
-    #[msg("SettlementNotEnabled")]
-    SettlementNotEnabled,
-    #[msg("MustCallSettlePositionFirst")]
-    MustCallSettlePositionFirst,
+    #[msg("CouldNotLoadMarketData")]
+    CouldNotLoadMarketData,
+    #[msg("MarketNotFound")]
+    MarketNotFound,
+    #[msg("InvalidMarketAccount")]
+    InvalidMarketAccount,
+    #[msg("UnableToLoadMarketAccount")]
+    UnableToLoadMarketAccount,
+    #[msg("MarketWrongMutability")]
+    MarketWrongMutability,
 }
 
 #[macro_export]

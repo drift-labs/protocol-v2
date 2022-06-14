@@ -46,8 +46,8 @@ async function updateFundingRateHelper(
 		// 	QUOTE_PRECISION.div(new BN(100)),
 		// 	marketIndex
 		// );
-		const marketsAccount0 = clearingHouse.getMarketsAccount();
-		const marketData0 = marketsAccount0.markets[marketIndex.toNumber()];
+		await clearingHouse.fetchAccounts();
+		const marketData0 = clearingHouse.getMarketAccount(marketIndex);
 		const ammAccountState0 = marketData0.amm;
 		const oraclePx0 = await getFeedData(
 			anchor.workspace.Pyth,
@@ -89,8 +89,8 @@ async function updateFundingRateHelper(
 		const CONVERSION_SCALE =
 			FUNDING_PAYMENT_PRECISION.mul(MARK_PRICE_PRECISION);
 
-		const marketsAccount = clearingHouse.getMarketsAccount();
-		const marketData = marketsAccount.markets[marketIndex.toNumber()];
+		await clearingHouse.fetchAccounts();
+		const marketData = clearingHouse.getMarketAccount(marketIndex);
 		const ammAccountState = marketData.amm;
 		const peroidicity = marketData.amm.fundingPeriod;
 
@@ -186,7 +186,6 @@ async function cappedSymFundingScenario(
 	const periodicity = new BN(0);
 
 	await clearingHouse.initializeMarket(
-		marketIndex,
 		priceFeedAddress,
 		kSqrt,
 		kSqrt,
@@ -210,7 +209,9 @@ async function cappedSymFundingScenario(
 
 	console.log(
 		'PRICE',
-		convertToNumber(calculateMarkPrice(clearingHouse.getMarket(marketIndex)))
+		convertToNumber(
+			calculateMarkPrice(clearingHouse.getMarketAccount(marketIndex))
+		)
 	);
 	await clearingHouse.updateFundingPaused(true);
 
@@ -247,13 +248,8 @@ async function cappedSymFundingScenario(
 		assert(userAccount2.getTotalPositionValue().eq(new BN(0)));
 	}
 
-	// } catch(e){
-	// }
-	console.log('clearingHouse.getMarketsAccount');
-
-	const market = await clearingHouse.getMarketsAccount().markets[
-		marketIndex.toNumber()
-	];
+	await clearingHouse.fetchAccounts();
+	const market = clearingHouse.getMarketAccount(marketIndex);
 
 	await clearingHouse.updateFundingPaused(false);
 
@@ -265,9 +261,8 @@ async function cappedSymFundingScenario(
 		priceAction.slice(1)
 	);
 
-	const marketNew = await clearingHouse.getMarketsAccount().markets[
-		marketIndex.toNumber()
-	];
+	clearingHouse.fetchAccounts();
+	const marketNew = await clearingHouse.getMarketAccount(marketIndex);
 
 	const fundingRateLong = marketNew.amm.cumulativeFundingRateLong; //.sub(prevFRL);
 	const fundingRateShort = marketNew.amm.cumulativeFundingRateShort; //.sub(prevFRS);
@@ -677,9 +672,8 @@ describe('capped funding', () => {
 		);
 
 		//ensure it was clamped :)
-		const marketNew = await clearingHouse.getMarketsAccount().markets[
-			marketIndex.toNumber()
-		];
+		await clearingHouse.fetchAccounts();
+		const marketNew = clearingHouse.getMarketAccount(marketIndex);
 		const clampedFundingRatePct = new BN(
 			(0.03 * MARK_PRICE_PRECISION.toNumber()) / 24
 		).mul(FUNDING_PAYMENT_PRECISION);
@@ -701,6 +695,8 @@ describe('capped funding', () => {
 		);
 
 		assert(fundingRateShort.abs().eq(fundingRateLong.abs()));
+		console.log(fundingRateShort.abs().toString());
+		console.log(clampedFundingRate.toString());
 		assert(fundingRateShort.abs().lt(clampedFundingRate));
 		assert(fundingRateLong.lt(new BN(0)));
 		assert(fundingRateShort.lt(new BN(0)));
@@ -765,9 +761,8 @@ describe('capped funding', () => {
 		);
 
 		//ensure it was clamped :)
-		const marketNew = await clearingHouse.getMarketsAccount().markets[
-			marketIndex.toNumber()
-		];
+		await clearingHouse.fetchAccounts();
+		const marketNew = clearingHouse.getMarketAccount(marketIndex);
 		const clampedFundingRatePct = new BN(
 			(0.03 * MARK_PRICE_PRECISION.toNumber()) / 24
 		).mul(FUNDING_PAYMENT_PRECISION);

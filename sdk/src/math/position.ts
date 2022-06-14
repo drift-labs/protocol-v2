@@ -9,9 +9,8 @@ import {
 	PRICE_TO_QUOTE_PRECISION,
 	ZERO,
 } from '../constants/numericConstants';
-import { Market, PositionDirection, UserPosition } from '../types';
+import { MarketAccount, PositionDirection, UserPosition } from '../types';
 import { calculateAmmReservesAfterSwap, getSwapDirection } from './amm';
-import { SETTLEMENT_RATIO_PRECISION, SETTLEMENT_RATIOS } from '../settlement';
 
 /**
  * calculateBaseAssetValue
@@ -21,7 +20,7 @@ import { SETTLEMENT_RATIO_PRECISION, SETTLEMENT_RATIOS } from '../settlement';
  * @returns Base Asset Value. : Precision QUOTE_PRECISION
  */
 export function calculateBaseAssetValue(
-	market: Market,
+	market: MarketAccount,
 	userPosition: UserPosition
 ): BN {
 	if (userPosition.baseAssetAmount.eq(ZERO)) {
@@ -62,7 +61,7 @@ export function calculateBaseAssetValue(
  * @returns BaseAssetAmount : Precision QUOTE_PRECISION
  */
 export function calculatePositionPNL(
-	market: Market,
+	market: MarketAccount,
 	marketPosition: UserPosition,
 	withFunding = false
 ): BN {
@@ -91,27 +90,6 @@ export function calculatePositionPNL(
 	return pnl;
 }
 
-export function calculateSettledPositionPNL(
-	market: Market,
-	marketPosition: UserPosition
-): BN {
-	let pnl = calculatePositionPNL(market, marketPosition);
-
-	if (pnl.gt(ZERO)) {
-		try {
-			pnl = pnl
-				.mul(new BN(SETTLEMENT_RATIOS[marketPosition.marketIndex.toNumber()]))
-				.div(SETTLEMENT_RATIO_PRECISION);
-		} catch (e) {
-			console.log(pnl.toString());
-			console.log(marketPosition.marketIndex.toNumber());
-			throw e;
-		}
-	}
-
-	return pnl;
-}
-
 /**
  *
  * @param market
@@ -119,7 +97,7 @@ export function calculateSettledPositionPNL(
  * @returns // TODO-PRECISION
  */
 export function calculatePositionFundingPNL(
-	market: Market,
+	market: MarketAccount,
 	marketPosition: UserPosition
 ): BN {
 	if (marketPosition.baseAssetAmount.eq(ZERO)) {
@@ -141,6 +119,10 @@ export function calculatePositionFundingPNL(
 		.mul(new BN(-1));
 
 	return perPositionFundingRate;
+}
+
+export function positionIsAvailable(position: UserPosition): boolean {
+	return position.baseAssetAmount.eq(ZERO) && position.openOrders.eq(ZERO);
 }
 
 /**

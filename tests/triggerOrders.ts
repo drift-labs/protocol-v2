@@ -50,7 +50,6 @@ describe('trigger orders', () => {
 
 	const usdcAmount = new BN(10 * 10 ** 6);
 
-	const marketIndex = new BN(0);
 	let solUsd;
 
 	before(async () => {
@@ -63,13 +62,12 @@ describe('trigger orders', () => {
 			chProgram.programId
 		);
 		await fillerClearingHouse.initialize(usdcMint.publicKey, true);
-		await fillerClearingHouse.subscribeToAll();
+		await fillerClearingHouse.subscribe();
 		solUsd = await mockOracle(1);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await fillerClearingHouse.initializeMarket(
-			marketIndex,
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -159,7 +157,7 @@ describe('trigger orders', () => {
 			// fill should fail since price is above trigger
 			await fillerClearingHouse.fillOrder(
 				await clearingHouseUser.getUserAccountPublicKey(),
-				await clearingHouseUser.getUserOrdersAccountPublicKey(),
+				clearingHouseUser.getUserAccount(),
 				order
 			);
 			assert(false);
@@ -176,16 +174,14 @@ describe('trigger orders', () => {
 
 		await fillerClearingHouse.fillOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
-			await clearingHouseUser.getUserOrdersAccountPublicKey(),
+			clearingHouseUser.getUserAccount(),
 			order
 		);
 
 		await clearingHouseUser.fetchAccounts();
 
 		assert(
-			clearingHouseUser
-				.getUserPositionsAccount()
-				.positions[0].baseAssetAmount.eq(ZERO)
+			clearingHouseUser.getUserAccount().positions[0].baseAssetAmount.eq(ZERO)
 		);
 
 		await clearingHouse.unsubscribe();
@@ -250,7 +246,7 @@ describe('trigger orders', () => {
 			// fill should fail since price is above trigger
 			await fillerClearingHouse.fillOrder(
 				await clearingHouseUser.getUserAccountPublicKey(),
-				await clearingHouseUser.getUserOrdersAccountPublicKey(),
+				clearingHouseUser.getUserAccount(),
 				order
 			);
 			assert(false);
@@ -267,16 +263,14 @@ describe('trigger orders', () => {
 
 		await fillerClearingHouse.fillOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
-			await clearingHouseUser.getUserOrdersAccountPublicKey(),
+			clearingHouseUser.getUserAccount(),
 			order
 		);
 
 		await clearingHouseUser.fetchAccounts();
 
 		assert(
-			clearingHouseUser
-				.getUserPositionsAccount()
-				.positions[0].baseAssetAmount.eq(ZERO)
+			clearingHouseUser.getUserAccount().positions[0].baseAssetAmount.eq(ZERO)
 		);
 
 		await clearingHouse.unsubscribe();
@@ -340,7 +334,7 @@ describe('trigger orders', () => {
 			// fill should fail since price is above trigger
 			await fillerClearingHouse.fillOrder(
 				await clearingHouseUser.getUserAccountPublicKey(),
-				await clearingHouseUser.getUserOrdersAccountPublicKey(),
+				clearingHouseUser.getUserAccount(),
 				order
 			);
 			assert(false);
@@ -357,16 +351,14 @@ describe('trigger orders', () => {
 
 		await fillerClearingHouse.fillOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
-			await clearingHouseUser.getUserOrdersAccountPublicKey(),
+			clearingHouseUser.getUserAccount(),
 			order
 		);
 
 		await clearingHouseUser.fetchAccounts();
 
 		assert(
-			clearingHouseUser
-				.getUserPositionsAccount()
-				.positions[0].baseAssetAmount.eq(ZERO)
+			clearingHouseUser.getUserAccount().positions[0].baseAssetAmount.eq(ZERO)
 		);
 
 		await clearingHouse.unsubscribe();
@@ -431,7 +423,7 @@ describe('trigger orders', () => {
 			// fill should fail since price is above trigger
 			await fillerClearingHouse.fillOrder(
 				await clearingHouseUser.getUserAccountPublicKey(),
-				await clearingHouseUser.getUserOrdersAccountPublicKey(),
+				clearingHouseUser.getUserAccount(),
 				order
 			);
 			assert(false);
@@ -448,16 +440,14 @@ describe('trigger orders', () => {
 
 		await fillerClearingHouse.fillOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
-			await clearingHouseUser.getUserOrdersAccountPublicKey(),
+			clearingHouseUser.getUserAccount(),
 			order
 		);
 
 		await clearingHouseUser.fetchAccounts();
 
 		assert(
-			clearingHouseUser
-				.getUserPositionsAccount()
-				.positions[0].baseAssetAmount.eq(ZERO)
+			clearingHouseUser.getUserAccount().positions[0].baseAssetAmount.eq(ZERO)
 		);
 
 		await clearingHouse.unsubscribe();
@@ -521,7 +511,7 @@ describe('trigger orders', () => {
 			// fill should fail since price is above trigger
 			await fillerClearingHouse.fillOrder(
 				await clearingHouseUser.getUserAccountPublicKey(),
-				await clearingHouseUser.getUserOrdersAccountPublicKey(),
+				clearingHouseUser.getUserAccount(),
 				order
 			);
 			assert(false);
@@ -538,16 +528,14 @@ describe('trigger orders', () => {
 
 		await fillerClearingHouse.fillOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
-			await clearingHouseUser.getUserOrdersAccountPublicKey(),
+			clearingHouseUser.getUserAccount(),
 			order
 		);
 
 		await clearingHouseUser.fetchAccounts();
 
 		assert(
-			clearingHouseUser
-				.getUserPositionsAccount()
-				.positions[0].baseAssetAmount.eq(ZERO)
+			clearingHouseUser.getUserAccount().positions[0].baseAssetAmount.eq(ZERO)
 		);
 
 		await clearingHouse.unsubscribe();
@@ -612,7 +600,7 @@ describe('trigger orders', () => {
 			// fill should fail since price is above trigger
 			await fillerClearingHouse.fillOrder(
 				await clearingHouseUser.getUserAccountPublicKey(),
-				await clearingHouseUser.getUserOrdersAccountPublicKey(),
+				clearingHouseUser.getUserAccount(),
 				order
 			);
 			assert(false);
@@ -629,16 +617,14 @@ describe('trigger orders', () => {
 
 		await fillerClearingHouse.fillOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
-			await clearingHouseUser.getUserOrdersAccountPublicKey(),
+			clearingHouseUser.getUserAccount(),
 			order
 		);
 
 		await clearingHouseUser.fetchAccounts();
 
 		assert(
-			clearingHouseUser
-				.getUserPositionsAccount()
-				.positions[0].baseAssetAmount.eq(ZERO)
+			clearingHouseUser.getUserAccount().positions[0].baseAssetAmount.eq(ZERO)
 		);
 
 		await clearingHouse.unsubscribe();
@@ -702,7 +688,7 @@ describe('trigger orders', () => {
 			// fill should fail since price is above trigger
 			await fillerClearingHouse.fillOrder(
 				await clearingHouseUser.getUserAccountPublicKey(),
-				await clearingHouseUser.getUserOrdersAccountPublicKey(),
+				clearingHouseUser.getUserAccount(),
 				order
 			);
 			assert(false);
@@ -719,16 +705,14 @@ describe('trigger orders', () => {
 
 		await fillerClearingHouse.fillOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
-			await clearingHouseUser.getUserOrdersAccountPublicKey(),
+			clearingHouseUser.getUserAccount(),
 			order
 		);
 
 		await clearingHouseUser.fetchAccounts();
 
 		assert(
-			clearingHouseUser
-				.getUserPositionsAccount()
-				.positions[0].baseAssetAmount.eq(ZERO)
+			clearingHouseUser.getUserAccount().positions[0].baseAssetAmount.eq(ZERO)
 		);
 
 		await clearingHouse.unsubscribe();
@@ -793,7 +777,7 @@ describe('trigger orders', () => {
 			// fill should fail since price is above trigger
 			await fillerClearingHouse.fillOrder(
 				await clearingHouseUser.getUserAccountPublicKey(),
-				await clearingHouseUser.getUserOrdersAccountPublicKey(),
+				clearingHouseUser.getUserAccount(),
 				order
 			);
 			assert(false);
@@ -810,16 +794,14 @@ describe('trigger orders', () => {
 
 		await fillerClearingHouse.fillOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
-			await clearingHouseUser.getUserOrdersAccountPublicKey(),
+			clearingHouseUser.getUserAccount(),
 			order
 		);
 
 		await clearingHouseUser.fetchAccounts();
 
 		assert(
-			clearingHouseUser
-				.getUserPositionsAccount()
-				.positions[0].baseAssetAmount.eq(ZERO)
+			clearingHouseUser.getUserAccount().positions[0].baseAssetAmount.eq(ZERO)
 		);
 
 		await clearingHouse.unsubscribe();

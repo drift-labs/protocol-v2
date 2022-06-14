@@ -1,6 +1,6 @@
 import {
 	isVariant,
-	Market,
+	MarketAccount,
 	Order,
 	PositionDirection,
 	SwapDirection,
@@ -36,9 +36,9 @@ import { OraclePriceData } from '.';
 export function calculateNewStateAfterOrder(
 	userAccount: UserAccount,
 	userPosition: UserPosition,
-	market: Market,
+	market: MarketAccount,
 	order: Order
-): [UserAccount, UserPosition, Market] | null {
+): [UserAccount, UserPosition, MarketAccount] | null {
 	if (isVariant(order.status, 'init')) {
 		return null;
 	}
@@ -155,8 +155,8 @@ export function calculateNewStateAfterOrder(
 }
 
 function calculateAmountSwapped(
-	marketBefore: Market,
-	marketAfter: Market
+	marketBefore: MarketAccount,
+	marketAfter: MarketAccount
 ): { quoteAssetAmountSwapped: BN; baseAssetAmountSwapped: BN } {
 	return {
 		quoteAssetAmountSwapped: marketBefore.amm.quoteAssetReserve
@@ -172,7 +172,7 @@ function calculateAmountSwapped(
 }
 
 export function calculateBaseAssetAmountMarketCanExecute(
-	market: Market,
+	market: MarketAccount,
 	order: Order,
 	oraclePriceData?: OraclePriceData
 ): BN {
@@ -189,7 +189,7 @@ export function calculateBaseAssetAmountMarketCanExecute(
 }
 
 export function calculateAmountToTradeForLimit(
-	market: Market,
+	market: MarketAccount,
 	order: Order,
 	oraclePriceData?: OraclePriceData
 ): BN {
@@ -229,7 +229,7 @@ export function calculateAmountToTradeForLimit(
 }
 
 export function calculateAmountToTradeForTriggerLimit(
-	market: Market,
+	market: MarketAccount,
 	order: Order
 ): BN {
 	if (order.baseAssetAmountFilled.eq(ZERO)) {
@@ -256,7 +256,7 @@ function isSameDirection(
 }
 
 function calculateAmountToTradeForTriggerMarket(
-	market: Market,
+	market: MarketAccount,
 	order: Order
 ): BN {
 	return isTriggerConditionSatisfied(market, order)
@@ -264,7 +264,10 @@ function calculateAmountToTradeForTriggerMarket(
 		: ZERO;
 }
 
-function isTriggerConditionSatisfied(market: Market, order: Order): boolean {
+function isTriggerConditionSatisfied(
+	market: MarketAccount,
+	order: Order
+): boolean {
 	const markPrice = calculateMarkPrice(market);
 	if (isVariant(order.triggerCondition, 'above')) {
 		return markPrice.gt(order.triggerPrice);
@@ -274,7 +277,7 @@ function isTriggerConditionSatisfied(market: Market, order: Order): boolean {
 }
 
 export function calculateBaseAssetAmountUserCanExecute(
-	market: Market,
+	market: MarketAccount,
 	order: Order,
 	user: ClearingHouseUser
 ): BN {

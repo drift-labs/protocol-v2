@@ -5,21 +5,22 @@ use crate::math::position::{
     calculate_base_asset_value_and_pnl, calculate_base_asset_value_and_pnl_with_oracle_price,
 };
 use crate::math_error;
-use crate::state::market::Markets;
-use crate::state::user::{User, UserPositions};
-use std::cell::{Ref, RefMut};
+use crate::state::user::User;
 
 use crate::math::amm::use_oracle_price_for_margin_calculation;
 use crate::math::casting::cast_to_i128;
 use crate::math::oracle::{get_oracle_status, OracleStatus};
 use crate::math::slippage::calculate_slippage;
+use crate::state::market_map::MarketMap;
 use crate::state::state::OracleGuardRails;
 use anchor_lang::prelude::{AccountInfo, Pubkey};
 use anchor_lang::Key;
 use solana_program::clock::Slot;
 use solana_program::msg;
 use std::collections::BTreeMap;
+use std::iter::Peekable;
 use std::ops::Div;
+use std::slice::Iter;
 
 #[derive(Copy, Clone)]
 pub enum MarginType {
@@ -30,19 +31,18 @@ pub enum MarginType {
 
 pub fn calculate_margin_requirement_and_total_collateral(
     user: &User,
-    user_positions: &UserPositions,
-    markets: &Markets,
+    market_map: &MarketMap,
     margin_type: MarginType,
 ) -> ClearingHouseResult<(u128, u128)> {
     let mut margin_requirement: u128 = 0;
     let mut unrealized_pnl: i128 = 0;
 
-    for market_position in user_positions.positions.iter() {
+    for market_position in user.positions.iter() {
         if market_position.base_asset_amount == 0 {
             continue;
         }
 
-        let market = markets.get_market(market_position.market_index);
+        let market = &market_map.get_ref(&market_position.market_index)?;
         let amm = &market.amm;
         let (position_base_asset_value, position_unrealized_pnl) =
             calculate_base_asset_value_and_pnl(market_position, amm)?;
@@ -69,16 +69,10 @@ pub fn calculate_margin_requirement_and_total_collateral(
 
 pub fn meets_initial_margin_requirement(
     user: &User,
-    user_positions: &RefMut<UserPositions>,
-    markets: &Ref<Markets>,
+    market_map: &MarketMap,
 ) -> ClearingHouseResult<bool> {
     let (mut initial_margin_requirement, total_collateral) =
-        calculate_margin_requirement_and_total_collateral(
-            user,
-            user_positions,
-            markets,
-            MarginType::Init,
-        )?;
+        calculate_margin_requirement_and_total_collateral(user, market_map, MarginType::Init)?;
 
     initial_margin_requirement = initial_margin_requirement
         .checked_div(MARGIN_PRECISION)
@@ -89,16 +83,10 @@ pub fn meets_initial_margin_requirement(
 
 pub fn meets_partial_margin_requirement(
     user: &User,
-    user_positions: &RefMut<UserPositions>,
-    markets: &Ref<Markets>,
+    market_map: &MarketMap,
 ) -> ClearingHouseResult<bool> {
     let (mut partial_margin_requirement, total_collateral) =
-        calculate_margin_requirement_and_total_collateral(
-            user,
-            user_positions,
-            markets,
-            MarginType::Partial,
-        )?;
+        calculate_margin_requirement_and_total_collateral(user, market_map, MarginType::Partial)?;
 
     partial_margin_requirement = partial_margin_requirement
         .checked_div(MARGIN_PRECISION)
@@ -138,9 +126,8 @@ pub struct MarketStatus {
 
 pub fn calculate_liquidation_status(
     user: &User,
-    user_positions: &RefMut<UserPositions>,
-    markets: &Ref<Markets>,
-    remaining_accounts: &[AccountInfo],
+    market_map: &MarketMap,
+    account_info_iter: &mut Peekable<Iter<AccountInfo>>,
     oracle_guard_rails: &OracleGuardRails,
     clock_slot: Slot,
 ) -> ClearingHouseResult<LiquidationStatus> {
@@ -152,16 +139,16 @@ pub fn calculate_liquidation_status(
     let mut market_statuses = [MarketStatus::default(); 5];
 
     let mut oracle_account_infos: BTreeMap<Pubkey, &AccountInfo> = BTreeMap::new();
-    for account_info in remaining_accounts.iter() {
+    for account_info in account_info_iter {
         oracle_account_infos.insert(account_info.key(), account_info);
     }
 
-    for (i, market_position) in user_positions.positions.iter().enumerate() {
+    for (i, market_position) in user.positions.iter().enumerate() {
         if market_position.base_asset_amount == 0 {
             continue;
         }
 
-        let market = markets.get_market(market_position.market_index);
+        let market = market_map.get_ref(&market_position.market_index)?;
         let amm = &market.amm;
         let (amm_position_base_asset_value, amm_position_unrealized_pnl) =
             calculate_base_asset_value_and_pnl(market_position, amm)?;
@@ -361,20 +348,19 @@ pub fn calculate_liquidation_status(
 
 pub fn calculate_free_collateral(
     user: &User,
-    user_positions: &mut UserPositions,
-    markets: &Markets,
+    market_map: &MarketMap,
     market_to_close: Option<u64>,
 ) -> ClearingHouseResult<(u128, u128)> {
     let mut closed_position_base_asset_value: u128 = 0;
     let mut initial_margin_requirement: u128 = 0;
     let mut unrealized_pnl: i128 = 0;
 
-    for market_position in user_positions.positions.iter() {
+    for market_position in user.positions.iter() {
         if market_position.base_asset_amount == 0 {
             continue;
         }
 
-        let market = markets.get_market(market_position.market_index);
+        let market = &market_map.get_ref(&market_position.market_index)?;
         let amm = &market.amm;
         let (position_base_asset_value, position_unrealized_pnl) =
             calculate_base_asset_value_and_pnl(market_position, amm)?;

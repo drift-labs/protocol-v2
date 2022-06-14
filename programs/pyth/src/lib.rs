@@ -11,13 +11,13 @@ declare_id!("ASfdvRMCan2aoWtbDi5HLXhz2CFfgEkuDoxc57bJLKLX");
 pub mod pyth {
     use super::*;
 
-    pub fn initialize(ctx: Context<Initialize>, price: i64, expo: i32, _conf: u64) -> Result<()> {
+    pub fn initialize(ctx: Context<Initialize>, price: i64, expo: i32, conf: u64) -> Result<()> {
         let oracle = &ctx.accounts.price;
 
         let mut price_oracle = Price::load(oracle).unwrap();
 
         price_oracle.agg.price = price;
-        price_oracle.agg.conf = 0;
+        price_oracle.agg.conf = conf;
 
         price_oracle.twap = price;
         price_oracle.expo = expo;

@@ -6,7 +6,6 @@ import { AnchorProvider, Idl, Program } from '@project-serum/anchor';
 import { ClearingHouse } from '../clearingHouse';
 import clearingHouseIDL from '../idl/clearing_house.json';
 import { WebSocketClearingHouseAccountSubscriber } from '../accounts/webSocketClearingHouseAccountSubscriber';
-import { DefaultTxSender } from '../tx/defaultTxSender';
 import { ClearingHouseAccountSubscriber } from '../accounts/types';
 import { PollingClearingHouseAccountSubscriber } from '../accounts/pollingClearingHouseAccountSubscriber';
 import { Admin } from '../admin';
@@ -33,13 +32,11 @@ type ClearingHouseConfig =
 	| PollingClearingHouseConfiguration
 	| WebSocketClearingHouseConfiguration;
 
-export type TxSenderType = 'default' | 'retry';
+export type TxSenderType = 'retry';
 
 type BaseTxSenderConfig = {
 	type: TxSenderType;
 };
-
-type DefaultTxSenderConfig = BaseTxSenderConfig;
 
 type RetryTxSenderConfig = BaseTxSenderConfig & {
 	timeout?: number;
@@ -47,7 +44,7 @@ type RetryTxSenderConfig = BaseTxSenderConfig & {
 	additionalConnections?: Connection[];
 };
 
-type TxSenderConfig = DefaultTxSenderConfig | RetryTxSenderConfig;
+type TxSenderConfig = RetryTxSenderConfig;
 
 export function getWebSocketClearingHouseConfig(
 	connection: Connection,
@@ -98,16 +95,20 @@ export function getClearingHouse(config: ClearingHouseConfig): ClearingHouse {
 	);
 	let accountSubscriber: ClearingHouseAccountSubscriber;
 	if (config.type === 'websocket') {
-		accountSubscriber = new WebSocketClearingHouseAccountSubscriber(program);
+		accountSubscriber = new WebSocketClearingHouseAccountSubscriber(
+			program,
+			provider.wallet.publicKey
+		);
 	} else if (config.type === 'polling') {
 		accountSubscriber = new PollingClearingHouseAccountSubscriber(
 			program,
+			provider.wallet.publicKey,
 			(config as PollingClearingHouseConfiguration).accountLoader
 		);
 	}
 
 	let txSender: TxSender;
-	if (config.txSenderConfig?.type === 'retry') {
+	if (config.txSenderConfig) {
 		const txSenderConfig = config.txSenderConfig as RetryTxSenderConfig;
 		txSender = new RetryTxSender(
 			provider,
@@ -116,7 +117,7 @@ export function getClearingHouse(config: ClearingHouseConfig): ClearingHouse {
 			txSenderConfig.additionalConnections
 		);
 	} else {
-		txSender = new DefaultTxSender(provider);
+		txSender = new RetryTxSender(provider);
 	}
 
 	return new ClearingHouse(
@@ -142,16 +143,20 @@ export function getAdmin(config: ClearingHouseConfig): Admin {
 	);
 	let accountSubscriber: ClearingHouseAccountSubscriber;
 	if (config.type === 'websocket') {
-		accountSubscriber = new WebSocketClearingHouseAccountSubscriber(program);
+		accountSubscriber = new WebSocketClearingHouseAccountSubscriber(
+			program,
+			provider.wallet.publicKey
+		);
 	} else if (config.type === 'polling') {
 		accountSubscriber = new PollingClearingHouseAccountSubscriber(
 			program,
+			provider.wallet.publicKey,
 			(config as PollingClearingHouseConfiguration).accountLoader
 		);
 	}
 
 	let txSender: TxSender;
-	if (config.txSenderConfig?.type === 'retry') {
+	if (config.txSenderConfig) {
 		const txSenderConfig = config.txSenderConfig as RetryTxSenderConfig;
 		txSender = new RetryTxSender(
 			provider,
@@ -160,8 +165,9 @@ export function getAdmin(config: ClearingHouseConfig): Admin {
 			txSenderConfig.additionalConnections
 		);
 	} else {
-		txSender = new DefaultTxSender(provider);
+		txSender = new RetryTxSender(provider);
 	}
+
 	return new Admin(
 		config.connection,
 		config.wallet,

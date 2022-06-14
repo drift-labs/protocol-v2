@@ -8,7 +8,6 @@ import {
 	BN,
 	MARK_PRICE_PRECISION,
 	PositionDirection,
-	getUserOrdersAccountPublicKey,
 	ClearingHouseUser,
 	getLimitOrderParams,
 } from '../sdk/src';
@@ -43,8 +42,7 @@ describe('user order id', () => {
 	let discountMint: Token;
 	let discountTokenAccount: AccountInfo;
 
-	const marketIndex = new BN(1);
-	const marketIndexBTC = new BN(2);
+	const marketIndex = new BN(0);
 	let solUsd;
 	let btcUsd;
 
@@ -58,14 +56,13 @@ describe('user order id', () => {
 			chProgram.programId
 		);
 		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.subscribeToAll();
+		await clearingHouse.subscribe();
 		solUsd = await mockOracle(1);
 		btcUsd = await mockOracle(60000);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await clearingHouse.initializeMarket(
-			marketIndex,
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -73,7 +70,6 @@ describe('user order id', () => {
 		);
 
 		await clearingHouse.initializeMarket(
-			marketIndexBTC,
 			btcUsd,
 			ammInitialBaseAssetReserve.div(new BN(3000)),
 			ammInitialQuoteAssetReserve.div(new BN(3000)),
@@ -84,11 +80,6 @@ describe('user order id', () => {
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
-		);
-
-		await getUserOrdersAccountPublicKey(
-			clearingHouse.program.programId,
-			await clearingHouse.getUserAccountPublicKey()
 		);
 
 		clearingHouseUser = ClearingHouseUser.from(
@@ -148,8 +139,7 @@ describe('user order id', () => {
 
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
-		const userOrdersAccount = clearingHouseUser.getUserOrdersAccount();
-		const order = userOrdersAccount.orders[0];
+		const order = clearingHouseUser.getUserAccount().orders[0];
 
 		assert(order.userOrderId === userOrderId);
 	});
@@ -185,8 +175,7 @@ describe('user order id', () => {
 
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
-		const userOrdersAccount = clearingHouseUser.getUserOrdersAccount();
-		const order = userOrdersAccount.orders[0];
+		const order = clearingHouseUser.getUserAccount().orders[0];
 
 		assert(order.userOrderId === 0);
 	});

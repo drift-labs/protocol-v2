@@ -1,4 +1,5 @@
 import {
+	AccountAndSlot,
 	NotSubscribedError,
 	TokenAccountEvents,
 	TokenAccountSubscriber,
@@ -21,7 +22,7 @@ export class PollingTokenAccountSubscriber implements TokenAccountSubscriber {
 	callbackId?: string;
 	errorCallbackId?: string;
 
-	tokenAccount?: AccountInfo;
+	tokenAccountAndSlot?: AccountAndSlot<AccountInfo>;
 
 	public constructor(publicKey: PublicKey, accountLoader: BulkAccountLoader) {
 		this.isSubscribed = false;
@@ -59,9 +60,9 @@ export class PollingTokenAccountSubscriber implements TokenAccountSubscriber {
 
 		this.callbackId = this.accountLoader.addAccount(
 			this.publicKey,
-			(buffer) => {
+			(buffer, slot: number) => {
 				const tokenAccount = parseTokenAccount(buffer);
-				this.tokenAccount = tokenAccount;
+				this.tokenAccountAndSlot = { account: tokenAccount, slot };
 				// @ts-ignore
 				this.eventEmitter.emit('tokenAccountUpdate', tokenAccount);
 				this.eventEmitter.emit('update');
@@ -75,8 +76,10 @@ export class PollingTokenAccountSubscriber implements TokenAccountSubscriber {
 
 	async fetch(): Promise<void> {
 		await this.accountLoader.load();
-		const buffer = this.accountLoader.getAccountData(this.publicKey);
-		this.tokenAccount = parseTokenAccount(buffer);
+		const { buffer, slot } = this.accountLoader.getBufferAndSlot(
+			this.publicKey
+		);
+		this.tokenAccountAndSlot = { account: parseTokenAccount(buffer), slot };
 	}
 
 	async unsubscribe(): Promise<void> {
@@ -101,12 +104,12 @@ export class PollingTokenAccountSubscriber implements TokenAccountSubscriber {
 		}
 	}
 
-	public getTokenAccount(): AccountInfo {
+	public getTokenAccountAndSlot(): AccountAndSlot<AccountInfo> {
 		this.assertIsSubscribed();
-		return this.tokenAccount;
+		return this.tokenAccountAndSlot;
 	}
 
 	didSubscriptionSucceed(): boolean {
-		return !!this.tokenAccount;
+		return !!this.tokenAccountAndSlot;
 	}
 }
