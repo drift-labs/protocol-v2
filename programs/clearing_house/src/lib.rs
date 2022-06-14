@@ -289,6 +289,7 @@ pub mod clearing_house {
                 oracle_source,
                 base_asset_reserve: amm_base_asset_reserve,
                 quote_asset_reserve: amm_quote_asset_reserve,
+                terminal_quote_asset_reserve: amm_quote_asset_reserve,
                 cumulative_repeg_rebate_long: 0,
                 cumulative_repeg_rebate_short: 0,
                 cumulative_funding_rate_long: 0,

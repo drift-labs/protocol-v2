@@ -87,25 +87,34 @@ export function calculateTradeSlippage(
 		useSpread
 	);
 
-	const entryPrice = calculatePrice(
-		acquiredBase,
-		acquiredQuote,
-		market.amm.pegMultiplier
-	).mul(new BN(-1));
-
 	let amm: Parameters<typeof calculateAmmReservesAfterSwap>[0];
 	if (useSpread && market.amm.baseSpread > 0) {
-		const { baseAssetReserve, quoteAssetReserve, newPeg } =
+		const { baseAssetReserve, quoteAssetReserve, sqrtK, newPeg } =
 			calculatePrepegSpreadReserves(market.amm, direction, oraclePriceData);
 		amm = {
 			baseAssetReserve,
 			quoteAssetReserve,
-			sqrtK: market.amm.sqrtK,
+			sqrtK: sqrtK,
 			pegMultiplier: newPeg,
 		};
 	} else {
 		amm = market.amm;
 	}
+
+	const entryPrice = calculatePrice(
+		acquiredBase,
+		acquiredQuote,
+		amm.pegMultiplier
+	).mul(new BN(-1));
+
+	// console.log(
+	// 	'entryPrice:',
+	// 	entryPrice.toString(),
+	// 	'(',
+	// 	acquiredBase.toString(),
+	// 	acquiredQuote.toString(),
+	// 	')'
+	// );
 
 	const newPrice = calculatePrice(
 		amm.baseAssetReserve.sub(acquiredBase),
@@ -114,6 +123,13 @@ export function calculateTradeSlippage(
 	);
 
 	if (direction == PositionDirection.SHORT) {
+		// console.log(
+		// 	'new price lower',
+		// 	newPrice.toString(),
+		// 	'<',
+		// 	oldPrice.toString(),
+		// 	'for a short'
+		// );
 		assert(newPrice.lt(oldPrice));
 	} else {
 		assert(oldPrice.lt(newPrice));
@@ -160,12 +176,12 @@ export function calculateTradeAcquiredAmounts(
 
 	let amm: Parameters<typeof calculateAmmReservesAfterSwap>[0];
 	if (useSpread && market.amm.baseSpread > 0) {
-		const { baseAssetReserve, quoteAssetReserve, newPeg } =
+		const { baseAssetReserve, quoteAssetReserve, sqrtK, newPeg } =
 			calculatePrepegSpreadReserves(market.amm, direction, oraclePriceData);
 		amm = {
 			baseAssetReserve,
 			quoteAssetReserve,
-			sqrtK: market.amm.sqrtK,
+			sqrtK: sqrtK,
 			pegMultiplier: newPeg,
 		};
 	} else {
@@ -235,7 +251,7 @@ export function calculateTargetPriceTrade(
 	let peg = market.amm.pegMultiplier;
 
 	if (useSpread && market.amm.baseSpread > 0) {
-		const { baseAssetReserve, quoteAssetReserve, newPeg } =
+		const { baseAssetReserve, quoteAssetReserve, sqrtK, newPeg } =
 			calculatePrepegSpreadReserves(market.amm, direction, oraclePriceData);
 		baseAssetReserveBefore = baseAssetReserve;
 		quoteAssetReserveBefore = quoteAssetReserve;

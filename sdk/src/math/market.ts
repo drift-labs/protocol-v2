@@ -58,7 +58,7 @@ export function calculateAskPrice(
 	market: MarketAccount,
 	oraclePriceData: OraclePriceData
 ): BN {
-	const { baseAssetReserve, quoteAssetReserve, newPeg } =
+	const { baseAssetReserve, quoteAssetReserve, sqrtK, newPeg } =
 		calculatePrepegSpreadReserves(
 			market.amm,
 			PositionDirection.LONG,

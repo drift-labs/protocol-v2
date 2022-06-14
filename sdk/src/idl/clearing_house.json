@@ -1907,6 +1907,10 @@
             "type": "u128"
           },
           {
+            "name": "terminalQuoteAssetReserve",
+            "type": "u128"
+          },
+          {
             "name": "cumulativeRepegRebateLong",
             "type": "u128"
           },

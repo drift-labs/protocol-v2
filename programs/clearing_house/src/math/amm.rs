@@ -11,13 +11,14 @@ use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64};
 use crate::math::constants::{
     // AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, AMM_TO_QUOTE_PRECISION_RATIO,
     // AMM_TO_QUOTE_PRECISION_RATIO_I128,
+    AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO,
     BID_ASK_SPREAD_PRECISION,
     BID_ASK_SPREAD_PRECISION_I128,
     K_BPS_DECREASE_MAX,
     K_BPS_INCREASE_MAX,
     K_BPS_UPDATE_SCALE,
     MARK_PRICE_PRECISION,
-    // MARK_PRICE_PRECISION_I128,
+    MARK_PRICE_PRECISION_I128,
     MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128,
     // ONE_HOUR,
     ONE_HOUR_I128,
@@ -458,25 +459,51 @@ pub fn calculate_spread_reserves(
     }
 
     // inventory scale
-    let max_inventory_scale = 20 * MARK_PRICE_PRECISION;
+    let MAX_INVENTORY_SKEW = 5 * MARK_PRICE_PRECISION;
     if amm.total_fee_minus_distributions > 0 {
+        let net_cost_basis = cast_to_i128(
+            amm.quote_asset_amount_long
+                .checked_sub(amm.quote_asset_amount_short)
+                .ok_or_else(math_error!())?,
+        )?;
+
+        let net_base_asset_value = cast_to_i128(
+            amm.quote_asset_reserve
+                .checked_sub(amm.terminal_quote_asset_reserve)
+                .ok_or_else(math_error!())?
+                .checked_mul(amm.peg_multiplier)
+                .ok_or_else(math_error!())?
+                .checked_div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO)
+                .ok_or_else(math_error!())?,
+        )?;
+
+        let local_base_asset_value = amm
+            .net_base_asset_amount
+            .checked_mul(cast_to_i128(amm.mark_price()?)?)
+            .ok_or_else(math_error!())?
+            .checked_div(MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128)
+            .ok_or_else(math_error!())?;
+
+        let net_pnl = net_base_asset_value
+            .checked_sub(net_cost_basis)
+            .ok_or_else(math_error!())?;
+        let local_pnl = local_base_asset_value
+            .checked_sub(net_cost_basis)
+            .ok_or_else(math_error!())?;
+
         let effective_leverage =
             if amm.net_base_asset_amount > 0 && direction == PositionDirection::Long {
-                (amm.quote_asset_amount_long
-                    .checked_sub(amm.quote_asset_amount_short)
-                    .ok_or_else(math_error!())?)
-                .checked_mul(MARK_PRICE_PRECISION)
-                .ok_or_else(math_error!())?
-                .checked_div(amm.total_fee_minus_distributions)
-                .ok_or_else(math_error!())?
+                cast_to_u128(local_pnl.checked_sub(net_pnl).ok_or_else(math_error!())?)?
+                    .checked_mul(MARK_PRICE_PRECISION)
+                    .ok_or_else(math_error!())?
+                    .checked_div(amm.total_fee_minus_distributions)
+                    .ok_or_else(math_error!())?
             } else if amm.net_base_asset_amount < 0 && direction == PositionDirection::Short {
-                (amm.quote_asset_amount_short
-                    .checked_sub(amm.quote_asset_amount_long)
-                    .ok_or_else(math_error!())?)
-                .checked_mul(MARK_PRICE_PRECISION)
-                .ok_or_else(math_error!())?
-                .checked_div(amm.total_fee_minus_distributions)
-                .ok_or_else(math_error!())?
+                cast_to_u128((local_pnl.checked_sub(net_pnl).ok_or_else(math_error!())?))?
+                    .checked_mul(MARK_PRICE_PRECISION)
+                    .ok_or_else(math_error!())?
+                    .checked_div(amm.total_fee_minus_distributions)
+                    .ok_or_else(math_error!())?
             } else {
                 MARK_PRICE_PRECISION
             };
@@ -489,8 +516,10 @@ pub fn calculate_spread_reserves(
         );
 
         let effective_leverage_capped = min(
-            max_inventory_scale,
-            max(MARK_PRICE_PRECISION, effective_leverage),
+            MAX_INVENTORY_SKEW,
+            MARK_PRICE_PRECISION
+                .checked_add(effective_leverage)
+                .ok_or_else(math_error!())?,
         );
 
         spread = spread
@@ -500,7 +529,7 @@ pub fn calculate_spread_reserves(
             .ok_or_else(math_error!())?;
     } else {
         spread = spread
-            .checked_mul(max_inventory_scale / MARK_PRICE_PRECISION)
+            .checked_mul(MAX_INVENTORY_SKEW / MARK_PRICE_PRECISION)
             .ok_or_else(math_error!())?;
     }
 
@@ -538,6 +567,11 @@ pub fn calculate_spread_reserves(
         .checked_div(U192::from(quote_asset_reserve))
         .ok_or_else(math_error!())?
         .try_to_u128()?;
+
+    msg!(
+        "spread price: {:?}",
+        calculate_price(quote_asset_reserve, base_asset_reserve, amm.peg_multiplier,)
+    );
 
     Ok((base_asset_reserve, quote_asset_reserve))
 }
@@ -896,6 +930,21 @@ pub fn update_k(market: &mut Market, update_k_result: &UpdateKResult) -> Clearin
     market.amm.sqrt_k = update_k_result.sqrt_k;
     market.amm.base_asset_reserve = update_k_result.base_asset_reserve;
     market.amm.quote_asset_reserve = update_k_result.quote_asset_reserve;
+
+    let swap_direction = if market.amm.net_base_asset_amount > 0 {
+        SwapDirection::Add
+    } else {
+        SwapDirection::Remove
+    };
+    let (new_terminal_quote_reserve, _new_terminal_base_reserve) = calculate_swap_output(
+        market.amm.net_base_asset_amount.unsigned_abs(),
+        market.amm.base_asset_reserve,
+        swap_direction,
+        market.amm.sqrt_k,
+    )?;
+
+    market.amm.terminal_quote_asset_reserve = new_terminal_quote_reserve;
+
     Ok(())
 }
 

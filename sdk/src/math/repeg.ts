@@ -29,7 +29,7 @@ export function calculateAdjustKCost(
 	const d = amm.netBaseAssetAmount;
 	const Q = amm.pegMultiplier;
 
-	const quoteScale = y.mul(d).mul(Q);
+	const quoteScale = y.mul(d).mul(Q); //.div(AMM_RESERVE_PRECISION);
 
 	const p = numerator.mul(MARK_PRICE_PRECISION).div(denomenator);
 
@@ -40,7 +40,9 @@ export function calculateAdjustKCost(
 				.mul(p)
 				.div(MARK_PRICE_PRECISION)
 				.div(x.mul(p).div(MARK_PRICE_PRECISION).add(d))
-		);
+		)
+		.div(AMM_TO_QUOTE_PRECISION_RATIO)
+		.div(PEG_PRECISION);
 
 	return cost.mul(new BN(-1));
 }
@@ -53,8 +55,10 @@ export function calculateAdjustKCost(
  * @returns cost : Precision QUOTE_ASSET_PRECISION
  */
 export function calculateRepegCost(amm: AMM, newPeg: BN): BN {
-	const dqar = amm.quoteAssetAmountLong.sub(amm.quoteAssetAmountShort);
-	const cost = dqar.mul(amm.pegMultiplier.sub(newPeg)).div(PEG_PRECISION);
+	// const dqar = amm.quoteAssetAmountLong.sub(amm.quoteAssetAmountShort);
+	const dqar = amm.quoteAssetReserve.sub(amm.terminalQuoteAssetReserve);
+	const cost = dqar.mul(newPeg.sub(amm.pegMultiplier)).div(PEG_PRECISION);
+	// console.log('dqar cost', dqar, cost);
 	return cost;
 }
 
@@ -75,13 +79,13 @@ export function calculateBudgetedK(amm: AMM, cost: BN): [BN, BN] {
 
 	const C = cost.mul(new BN(-1));
 
-	console.log(
-		convertToNumber(x, AMM_RESERVE_PRECISION),
-		convertToNumber(y, AMM_RESERVE_PRECISION),
-		convertToNumber(d, AMM_RESERVE_PRECISION),
-		Q.toNumber() / 1e3,
-		C.toNumber() / 1e6
-	);
+	// console.log(
+	// 	convertToNumber(x, AMM_RESERVE_PRECISION),
+	// 	convertToNumber(y, AMM_RESERVE_PRECISION),
+	// 	convertToNumber(d, AMM_RESERVE_PRECISION),
+	// 	Q.toNumber() / 1e3,
+	// 	C.toNumber() / 1e6
+	// );
 
 	const numer1 = y.mul(d).mul(Q).div(AMM_RESERVE_PRECISION).div(PEG_PRECISION);
 	const numer2 = C.mul(x.add(d)).div(QUOTE_PRECISION);
@@ -97,8 +101,8 @@ export function calculateBudgetedK(amm: AMM, cost: BN): [BN, BN] {
 		.div(AMM_RESERVE_PRECISION)
 		.div(PEG_PRECISION);
 
-	console.log('numers:', convertToNumber(numer1), convertToNumber(numer2));
-	console.log('denoms:', convertToNumber(denom1), convertToNumber(denom2));
+	// console.log('numers:', numer1.toString(), numer2.toString());
+	// console.log('denoms:', denom1.toString(), denom2.toString());
 
 	const numerator = d
 		.mul(numer1.sub(numer2))
@@ -109,7 +113,7 @@ export function calculateBudgetedK(amm: AMM, cost: BN): [BN, BN] {
 		.add(denom2)
 		.div(AMM_RESERVE_PRECISION)
 		.div(AMM_TO_QUOTE_PRECISION_RATIO);
-	console.log(numerator, denominator);
+	// console.log(numerator, denominator);
 	// const p = (numerator).div(denominator);
 
 	// const formulaCost = numer21
@@ -146,10 +150,20 @@ export function calculateBudgetedPeg(amm: AMM, cost: BN, targetPrice: BN): BN {
 	const deltaQuoteAssetReserves = y.sub(k.div(x.add(d)));
 	const pegChangeDirection = targetPeg.sub(Q);
 
-	const useTargetPeg =
-		(deltaQuoteAssetReserves.gt(ZERO) && pegChangeDirection.gt(ZERO)) ||
-		(deltaQuoteAssetReserves.lt(ZERO) && pegChangeDirection.lt(ZERO));
+	// console.log(
+	// 	'budget peg target qar?',
+	// 	y.toString(),
+	// 	k.div(x.add(d)).toString()
+	// );
 
+	const useTargetPeg =
+		(deltaQuoteAssetReserves.lt(ZERO) && pegChangeDirection.gt(ZERO)) ||
+		(deltaQuoteAssetReserves.gt(ZERO) && pegChangeDirection.lt(ZERO));
+	// console.log(
+	// 	'budget peg target?',
+	// 	deltaQuoteAssetReserves.toString(),
+	// 	useTargetPeg
+	// );
 	if (deltaQuoteAssetReserves.eq(ZERO) || useTargetPeg) {
 		return targetPeg;
 	}

@@ -7,6 +7,7 @@ import {
 	BID_ASK_SPREAD_PRECISION,
 	ONE,
 	QUOTE_PRECISION,
+	AMM_TO_QUOTE_PRECISION_RATIO,
 } from '../constants/numericConstants';
 import {
 	AMM,
@@ -42,20 +43,27 @@ export function calculatePrepeg(
 	const totalFeeLB = amm.totalFee.div(new BN(2));
 	const budget = BN.max(ZERO, amm.totalFeeMinusDistributions.sub(totalFeeLB));
 
-	if (prePegCost > budget) {
+	if (prePegCost.gt(budget)) {
 		const deficit = budget.sub(prePegCost);
 		[pKNumer, pKDenom] = calculateBudgetedK(amm, deficit);
+		pKNumer = BN.max(pKDenom.mul(new BN(975)).div(new BN(1000)), pKNumer);
 		const deficitMadeup = calculateAdjustKCost(amm, pKNumer, pKDenom);
 		prePegCost = budget.add(deficitMadeup);
+		// console.log(
+		// 	'prepeg budget',
+		// 	budget.toString(),
+		// 	'+',
+		// 	deficitMadeup.toString()
+		// );
 		newPeg = calculateBudgetedPeg(amm, prePegCost, targetPrice);
 	}
-	console.log(
-		'PREPEG RESULTS:',
-		convertToNumber(prePegCost, QUOTE_PRECISION),
-		pKNumer.toNumber(),
-		pKDenom.toNumber(),
-		newPeg.toNumber() / 1000
-	);
+	// console.log(
+	// 	'PREPEG RESULTS:',
+	// 	convertToNumber(prePegCost, QUOTE_PRECISION),
+	// 	pKNumer.toNumber(),
+	// 	pKDenom.toNumber(),
+	// 	newPeg.toNumber() / 1000
+	// );
 
 	return [prePegCost, pKNumer, pKDenom, newPeg];
 }
@@ -76,6 +84,20 @@ export function calculatePrepegAMM(
 	newAmm.quoteAssetReserve = invariant.div(newAmm.baseAssetReserve);
 	newAmm.pegMultiplier = newPeg;
 
+	const directionToClose = amm.netBaseAssetAmount.gt(ZERO)
+		? PositionDirection.SHORT
+		: PositionDirection.LONG;
+
+	const [newQuoteAssetReserve, _newBaseAssetReserve] =
+		calculateAmmReservesAfterSwap(
+			newAmm,
+			'base',
+			amm.netBaseAssetAmount.abs(),
+			getSwapDirection('base', directionToClose)
+		);
+
+	newAmm.terminalQuoteAssetReserve = newQuoteAssetReserve;
+
 	newAmm.totalFeeMinusDistributions =
 		newAmm.totalFeeMinusDistributions.sub(prepegCost);
 
@@ -86,7 +108,7 @@ export function calculatePrepegSpreadReserves(
 	amm: AMM,
 	direction: PositionDirection,
 	oraclePriceData: OraclePriceData
-): { baseAssetReserve: BN; quoteAssetReserve: BN; newPeg: BN } {
+): { baseAssetReserve: BN; quoteAssetReserve: BN; sqrtK: BN; newPeg: BN } {
 	const newAmm = calculatePrepegAMM(amm, oraclePriceData);
 	const dirReserves = calculateSpreadReserves(
 		newAmm,
@@ -96,6 +118,7 @@ export function calculatePrepegSpreadReserves(
 	const result = {
 		baseAssetReserve: dirReserves.baseAssetReserve,
 		quoteAssetReserve: dirReserves.quoteAssetReserve,
+		sqrtK: newAmm.sqrtK,
 		newPeg: newAmm.pegMultiplier,
 	};
 
@@ -114,7 +137,7 @@ export function calculateBidAskPrice(
 	);
 	const bidReserves = calculateSpreadReserves(
 		newAmm,
-		PositionDirection.LONG,
+		PositionDirection.SHORT,
 		oraclePriceData
 	);
 
@@ -210,7 +233,7 @@ export function calculateSpread(
 	direction: PositionDirection,
 	oraclePriceData: OraclePriceData
 ): number {
-	let spread = amm.baseSpread;
+	let spread = amm.baseSpread / 2;
 
 	const markPrice = calculatePrice(
 		amm.baseAssetReserve,
@@ -234,22 +257,61 @@ export function calculateSpread(
 	}
 
 	// inventory skew
-	const MAX_INVENTORY_SKEW = 20;
+	const MAX_INVENTORY_SKEW = 5;
 	if (
 		(amm.netBaseAssetAmount.gt(ZERO) && isVariant(direction, 'long')) ||
-		(amm.netBaseAssetAmount.lt(ZERO) && isVariant(direction, 'short'))
+		(amm.netBaseAssetAmount.lt(ZERO) && isVariant(direction, 'short')) ||
+		amm.totalFeeMinusDistributions.eq(ZERO)
 	) {
-		const netCostBasis = amm.quoteAssetAmountLong
-			.sub(amm.quoteAssetAmountShort)
-			.abs();
+		const netCostBasis = amm.quoteAssetAmountLong.sub(
+			amm.quoteAssetAmountShort
+		);
+		// console.log(
+		// 	'amm.netBaseAssetAmount:',
+		// 	amm.netBaseAssetAmount.toString(),
+		// 	'terminalQuoteAssetReserve:',
+		// 	amm.terminalQuoteAssetReserve.toString(),
+		// 	'quoteAssetReserve:',
+		// 	amm.quoteAssetReserve.toString(),
+		// 	'pegMultiplier:',
+		// 	amm.pegMultiplier.toString()
+		// );
+		const netBaseAssetValue = amm.quoteAssetReserve
+			.sub(amm.terminalQuoteAssetReserve)
+			.mul(amm.pegMultiplier)
+			.div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO);
+
+		const localBaseAssetValue = amm.netBaseAssetAmount
+			.mul(markPrice)
+			.div(AMM_TO_QUOTE_PRECISION_RATIO.mul(MARK_PRICE_PRECISION));
+		// console.log(
+		// 	'localBAV:',
+		// 	localBaseAssetValue.toString(),
+		// 	'netBAV:',
+		// 	netBaseAssetValue.toString(),
+		// 	'netCostBasis:',
+		// 	netCostBasis.toString()
+		// );
+		const netPnl = netBaseAssetValue.sub(netCostBasis);
+		const localPnl = localBaseAssetValue.sub(netCostBasis);
+
+		// console.log(
+		// 	'localPnl:',
+		// 	localPnl.toString(),
+		// 	'netPnl:',
+		// 	netPnl.toString(),
+		// 	'netCostBasis:',
+		// 	netCostBasis.toString()
+		// );
 
 		let effectiveLeverage = MAX_INVENTORY_SKEW;
 		if (amm.totalFeeMinusDistributions.gt(ZERO)) {
 			effectiveLeverage =
-				netCostBasis.toNumber() / amm.totalFeeMinusDistributions.toNumber();
+				localPnl.sub(netPnl).toNumber() /
+				amm.totalFeeMinusDistributions.toNumber();
 		}
 
-		spread *= Math.min(MAX_INVENTORY_SKEW, Math.max(1, effectiveLeverage));
+		spread *= Math.min(MAX_INVENTORY_SKEW, 1 + effectiveLeverage);
 	}
 
 	return spread;
@@ -273,7 +335,7 @@ export function calculateSpreadReserves(
 	}
 
 	const quoteAsserReserveDelta = amm.quoteAssetReserve.div(
-		BID_ASK_SPREAD_PRECISION.div(new BN(spread / 4))
+		BID_ASK_SPREAD_PRECISION.div(new BN(spread / 2))
 	);
 
 	let quoteAssetReserve;

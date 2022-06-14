@@ -147,13 +147,13 @@ pub fn prepeg(
 
         assert_eq!(adjustment_cost < 0, true);
 
-        let (terminal_price_before, terminal_quote_reserves, _terminal_base_reserves) =
-            amm::calculate_terminal_price_and_reserves(market)?;
+        // let (terminal_price_before, terminal_quote_reserves, _terminal_base_reserves) =
+        //     amm::calculate_terminal_price_and_reserves(market)?;
 
         let (new_peg_candidate, adjustment_cost_2, repegged_market) =
             repeg::calculate_budgeted_peg(
                 market,
-                terminal_quote_reserves,
+                market.amm.terminal_quote_asset_reserve,
                 repeg_budget
                     .checked_add(adjustment_cost.unsigned_abs())
                     .ok_or_else(math_error!())?,
@@ -165,36 +165,36 @@ pub fn prepeg(
             new_peg_candidate,
             adjustment_cost_2,
         );
-        let (oracle_valid, _direction_valid, profitability_valid, price_impact_valid) =
-            repeg::calculate_repeg_validity(
-                &repegged_market,
-                oracle_price_data,
-                is_oracle_valid,
-                terminal_price_before,
-            )?;
-        msg!(
-            "repeg validity: {:?} {:?} {:?}",
-            oracle_valid,
-            profitability_valid,
-            price_impact_valid,
-        );
+        // let (oracle_valid, _direction_valid, profitability_valid, price_impact_valid) =
+        //     repeg::calculate_repeg_validity(
+        //         &repegged_market,
+        //         oracle_price_data,
+        //         is_oracle_valid,
+        //         terminal_price_before,
+        //     )?;
+        // msg!(
+        //     "repeg validity: {:?} {:?} {:?}",
+        //     oracle_valid,
+        //     profitability_valid,
+        //     price_impact_valid,
+        // );
         // any budgeted direction valid for formulaic
-        if oracle_valid && profitability_valid && price_impact_valid {
-            let cost_applied = apply_cost_to_market(market, adjustment_cost)?;
-            msg!(
-                "suboptimal_peg_cost: {:?} was applied: {:?}",
-                adjustment_cost,
-                cost_applied
-            );
-            if cost_applied {
-                market.amm.peg_multiplier = new_peg_candidate;
-                // let peg_multiplier_after = market.amm.peg_multiplier;
-                // let base_asset_reserve_after = market.amm.base_asset_reserve;
-                // let quote_asset_reserve_after = market.amm.quote_asset_reserve;
-                // let sqrt_k_after = market.amm.sqrt_k;
-            }
+        // if oracle_valid && profitability_valid && price_impact_valid {
+        let cost_applied = apply_cost_to_market(market, adjustment_cost_2)?;
+        msg!(
+            "suboptimal_peg_cost: {:?} was applied: {:?}",
+            adjustment_cost_2,
+            cost_applied
+        );
+        if cost_applied {
+            market.amm.peg_multiplier = new_peg_candidate;
+            // let peg_multiplier_after = market.amm.peg_multiplier;
+            // let base_asset_reserve_after = market.amm.base_asset_reserve;
+            // let quote_asset_reserve_after = market.amm.quote_asset_reserve;
+            // let sqrt_k_after = market.amm.sqrt_k;
         }
-        return Ok(adjustment_cost);
+        // }
+        return Ok(adjustment_cost_2);
     } else {
         market.amm.peg_multiplier = optimal_peg_market.amm.peg_multiplier;
         msg!(

@@ -267,6 +267,7 @@ export type AMM = {
 	netBaseAssetAmount: BN;
 	quoteAssetAmountLong: BN;
 	quoteAssetAmountShort: BN;
+	terminalQuoteAssetReserve: BN;
 };
 
 // # User Account Types

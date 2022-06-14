@@ -14,6 +14,8 @@ import {
 	PositionDirection,
 	EventSubscriber,
 	convertToNumber,
+	findComputeUnitConsumption,
+	calculateBidAskPrice,
 } from '../sdk/src';
 
 import {
@@ -81,7 +83,7 @@ describe('clearing_house', () => {
 			undefined,
 			1000
 		);
-		await clearingHouse.updateMarketBaseSpread(new BN(0), 500);
+		await clearingHouse.updateMarketBaseSpread(new BN(0), 2000);
 
 		[, userAccountPublicKey] =
 			await clearingHouse.initializeUserAccountAndDepositCollateral(
@@ -100,7 +102,7 @@ describe('clearing_house', () => {
 		const baseAssetAmount = new BN(497450503674885);
 		const market0 = clearingHouse.getMarketAccount(0);
 
-		await setFeedPrice(anchor.workspace.Pyth, 1.01, solUsd);
+		// await setFeedPrice(anchor.workspace.Pyth, 1.01, solUsd);
 		const curPrice = (await getFeedData(anchor.workspace.Pyth, solUsd)).price;
 		console.log('new oracle price:', curPrice);
 		const oraclePriceData = await getOraclePriceData(
@@ -117,8 +119,16 @@ describe('clearing_house', () => {
 				oraclePriceData
 			);
 
-		console.log('after trade est. mark price:', convertToNumber(newPrice));
+		const [bid, ask] = calculateBidAskPrice(market0.amm, oraclePriceData);
 
+		console.log(
+			'bid/ask:',
+			convertToNumber(bid),
+			'/',
+			convertToNumber(ask),
+			'after trade est. mark price:',
+			convertToNumber(newPrice)
+		);
 		const orderParams = getMarketOrderParams(
 			marketIndex,
 			PositionDirection.LONG,
@@ -127,6 +137,13 @@ describe('clearing_house', () => {
 			false
 		);
 		const txSig = await clearingHouse.placeAndFillOrder(orderParams);
+		const computeUnits = await findComputeUnitConsumption(
+			clearingHouse.program.programId,
+			connection,
+			txSig,
+			'confirmed'
+		);
+		console.log('compute units', computeUnits);
 		console.log(
 			'tx logs',
 			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
@@ -200,7 +217,16 @@ describe('clearing_house', () => {
 				'base',
 				oraclePriceData
 			);
-		console.log('after trade est. mark price:', convertToNumber(newPrice));
+		const [bid, ask] = calculateBidAskPrice(market0.amm, oraclePriceData);
+
+		console.log(
+			'bid/ask:',
+			convertToNumber(bid),
+			'/',
+			convertToNumber(ask),
+			'after trade est. mark price:',
+			convertToNumber(newPrice)
+		);
 
 		const orderParams = getMarketOrderParams(
 			marketIndex,
@@ -210,6 +236,13 @@ describe('clearing_house', () => {
 			false
 		);
 		const txSig = await clearingHouse.placeAndFillOrder(orderParams);
+		const computeUnits = await findComputeUnitConsumption(
+			clearingHouse.program.programId,
+			connection,
+			txSig,
+			'confirmed'
+		);
+		console.log('compute units', computeUnits);
 		console.log(
 			'tx logs',
 			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
@@ -272,8 +305,24 @@ describe('clearing_house', () => {
 				oraclePriceData
 			);
 
-		console.log('after trade est. mark price:', convertToNumber(newPrice));
+		const [bid, ask] = calculateBidAskPrice(market0.amm, oraclePriceData);
+
+		console.log(
+			'bid/ask:',
+			convertToNumber(bid),
+			'/',
+			convertToNumber(ask),
+			'after trade est. mark price:',
+			convertToNumber(newPrice)
+		);
 		const txSig = await clearingHouse.placeAndFillOrder(orderParams);
+		const computeUnits = await findComputeUnitConsumption(
+			clearingHouse.program.programId,
+			connection,
+			txSig,
+			'confirmed'
+		);
+		console.log('compute units', computeUnits);
 		console.log(
 			'tx logs',
 			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
