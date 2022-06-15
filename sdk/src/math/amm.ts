@@ -46,15 +46,17 @@ export function calculatePrepeg(
 	if (prePegCost.gt(budget)) {
 		const deficit = budget.sub(prePegCost);
 		[pKNumer, pKDenom] = calculateBudgetedK(amm, deficit);
-		pKNumer = BN.max(pKDenom.mul(new BN(975)).div(new BN(1000)), pKNumer);
+		pKNumer = BN.max(pKDenom.mul(new BN(978)).div(new BN(1000)), pKNumer);
 		const deficitMadeup = calculateAdjustKCost(amm, pKNumer, pKDenom);
 		prePegCost = budget.add(deficitMadeup);
+
 		// console.log(
 		// 	'prepeg budget',
 		// 	budget.toString(),
 		// 	'+',
 		// 	deficitMadeup.toString()
 		// );
+		// todo: use a k updated amm here:
 		newPeg = calculateBudgetedPeg(amm, prePegCost, targetPrice);
 	}
 	// console.log(
