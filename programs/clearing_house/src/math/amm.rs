@@ -505,7 +505,7 @@ pub fn calculate_spread_reserves(
                     .checked_div(amm.total_fee_minus_distributions)
                     .ok_or_else(math_error!())?
             } else {
-                MARK_PRICE_PRECISION
+                0
             };
 
         msg!(
