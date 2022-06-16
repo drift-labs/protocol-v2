@@ -204,8 +204,6 @@ pub fn prepeg(
         prepeg_cost = optimal_peg_cost;
     }
 
-    amm::calculate_spreads(&mut market.amm);
-
     Ok(prepeg_cost)
 }
 

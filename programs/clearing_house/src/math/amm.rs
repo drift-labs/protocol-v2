@@ -463,6 +463,7 @@ pub fn calculate_spreads(amm: &mut AMM) -> ClearingHouseResult<(u128, u128)> {
 
     // oracle retreat
     // if mark - oracle < 0 (mark below oracle) and user going long then increase spread
+    // msg!("amm.last_oracle_mark_spread_pct: {:?}", amm.last_oracle_mark_spread_pct);
     if amm.last_oracle_mark_spread_pct < 0 {
         long_spread = max(long_spread, amm.last_oracle_mark_spread_pct.unsigned_abs());
     } else {
@@ -522,14 +523,14 @@ pub fn calculate_spreads(amm: &mut AMM) -> ClearingHouseResult<(u128, u128)> {
                 .checked_add(effective_leverage)
                 .ok_or_else(math_error!())?,
         );
-        if amm.net_base_asset_amount < 0 {
+        if amm.net_base_asset_amount > 0 {
             long_spread = long_spread
                 .checked_mul(effective_leverage_capped)
                 .ok_or_else(math_error!())?
                 .checked_div(MARK_PRICE_PRECISION)
                 .ok_or_else(math_error!())?;
         } else {
-            short_spread = long_spread
+            short_spread = short_spread
                 .checked_mul(effective_leverage_capped)
                 .ok_or_else(math_error!())?
                 .checked_div(MARK_PRICE_PRECISION)

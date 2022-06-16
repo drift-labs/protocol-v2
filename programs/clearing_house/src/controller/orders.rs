@@ -347,6 +347,9 @@ pub fn fill_order(
                 Some(mark_price_after_prepeg),
             )?;
         }
+
+        amm::calculate_spreads(&mut market.amm)?;
+
         // Err(ErrorCode::InvalidUpdateK.into());
         // msg!("PREPEGGED: from {:?}", mark_price_before);
     }
