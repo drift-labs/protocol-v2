@@ -9,7 +9,7 @@ use crate::math::amm;
 use crate::math::casting::{cast, cast_to_i128, cast_to_i64, cast_to_u128};
 use crate::math::margin::MarginType;
 use crate::math_error;
-use crate::MARK_PRICE_PRECISION;
+use crate::{BID_ASK_SPREAD_PRECISION, MARK_PRICE_PRECISION};
 
 #[account(zero_copy)]
 #[derive(Default)]
@@ -98,6 +98,9 @@ pub struct AMM {
     pub minimum_base_asset_trade_size: u128,
     pub base_spread: u16,
 
+    pub long_spread: u128,
+    pub short_spread: u128,
+
     pub last_bid_price_twap: u128,
     pub last_ask_price_twap: u128,
     pub net_base_asset_amount: i128,
@@ -122,6 +125,22 @@ impl AMM {
             self.base_asset_reserve,
             self.peg_multiplier,
         )
+    }
+
+    pub fn bid_ask_price(&self, mark_price: u128) -> ClearingHouseResult<(u128, u128)> {
+        let ask_price = mark_price
+            .checked_mul(BID_ASK_SPREAD_PRECISION + self.long_spread)
+            .ok_or_else(math_error!())?
+            .checked_div(BID_ASK_SPREAD_PRECISION)
+            .ok_or_else(math_error!())?;
+
+        let bid_price = mark_price
+            .checked_mul(BID_ASK_SPREAD_PRECISION + self.short_spread)
+            .ok_or_else(math_error!())?
+            .checked_div(BID_ASK_SPREAD_PRECISION)
+            .ok_or_else(math_error!())?;
+
+        Ok((bid_price, ask_price))
     }
 
     pub fn get_oracle_price(

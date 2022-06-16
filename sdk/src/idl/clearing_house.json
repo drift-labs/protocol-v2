@@ -2023,6 +2023,14 @@
             "type": "u16"
           },
           {
+            "name": "longSpread",
+            "type": "u128"
+          },
+          {
+            "name": "shortSpread",
+            "type": "u128"
+          },
+          {
             "name": "lastBidPriceTwap",
             "type": "u128"
           },

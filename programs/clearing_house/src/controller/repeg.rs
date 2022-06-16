@@ -114,7 +114,7 @@ pub fn prepeg(
     //     repeg::calculate_repeg_pool_budget(market, mark_price, oracle_price_data)?;
     // let repeg_budget = min(fee_budget, repeg_pool_budget);
     let (optimal_peg_market, optimal_peg_cost) = repeg::adjust_peg_cost(market, optimal_peg)?;
-
+    let prepeg_cost: i128;
     if optimal_peg_cost > 0 && repeg_budget < optimal_peg_cost.unsigned_abs() {
         msg!(
             "optimal repeg cost {:?} exceeds budget: {:?}",
@@ -150,20 +150,19 @@ pub fn prepeg(
         // let (terminal_price_before, terminal_quote_reserves, _terminal_base_reserves) =
         //     amm::calculate_terminal_price_and_reserves(market)?;
 
-        let (new_peg_candidate, adjustment_cost_2, repegged_market) =
-            repeg::calculate_budgeted_peg(
-                market,
-                market.amm.terminal_quote_asset_reserve,
-                repeg_budget
-                    .checked_add(adjustment_cost.unsigned_abs())
-                    .ok_or_else(math_error!())?,
-                mark_price,
-                oracle_price_data,
-            )?;
+        let (new_peg_candidate, _prepeg_cost, repegged_market) = repeg::calculate_budgeted_peg(
+            market,
+            market.amm.terminal_quote_asset_reserve,
+            repeg_budget
+                .checked_add(adjustment_cost.unsigned_abs())
+                .ok_or_else(math_error!())?,
+            mark_price,
+            oracle_price_data,
+        )?;
         msg!(
             "new_peg_candidate {:?} costs {:?}",
             new_peg_candidate,
-            adjustment_cost_2,
+            _prepeg_cost,
         );
         // let (oracle_valid, _direction_valid, profitability_valid, price_impact_valid) =
         //     repeg::calculate_repeg_validity(
@@ -180,10 +179,10 @@ pub fn prepeg(
         // );
         // any budgeted direction valid for formulaic
         // if oracle_valid && profitability_valid && price_impact_valid {
-        let cost_applied = apply_cost_to_market(market, adjustment_cost_2)?;
+        let cost_applied = apply_cost_to_market(market, _prepeg_cost)?;
         msg!(
-            "suboptimal_peg_cost: {:?} was applied: {:?}",
-            adjustment_cost_2,
+            "prepeg_cost: {:?} was applied: {:?}",
+            _prepeg_cost,
             cost_applied
         );
         if cost_applied {
@@ -193,8 +192,8 @@ pub fn prepeg(
             // let quote_asset_reserve_after = market.amm.quote_asset_reserve;
             // let sqrt_k_after = market.amm.sqrt_k;
         }
+        prepeg_cost = _prepeg_cost;
         // }
-        return Ok(adjustment_cost_2);
     } else {
         market.amm.peg_multiplier = optimal_peg_market.amm.peg_multiplier;
         msg!(
@@ -202,8 +201,12 @@ pub fn prepeg(
             optimal_peg_cost,
             repeg_budget
         ); // assert_eq!(false, true);
-        Ok(optimal_peg_cost)
+        prepeg_cost = optimal_peg_cost;
     }
+
+    amm::calculate_spreads(&mut market.amm);
+
+    Ok(prepeg_cost)
 }
 
 pub fn apply_cost_to_market(market: &mut Market, cost: i128) -> ClearingHouseResult<bool> {

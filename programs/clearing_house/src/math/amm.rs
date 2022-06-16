@@ -76,17 +76,34 @@ pub fn update_mark_twap(
     now: i64,
     precomputed_mark_price: Option<u128>,
 ) -> ClearingHouseResult<u128> {
-    let mark_twap = calculate_new_mark_twap(amm, now, precomputed_mark_price)?;
+    let mark_price = match precomputed_mark_price {
+        Some(mark_price) => mark_price,
+        None => amm.mark_price()?,
+    };
+    let (bid_price, ask_price) = amm.bid_ask_price(mark_price)?;
+
+    let mark_twap = calculate_new_twap(amm, now, mark_price, amm.last_mark_price_twap)?;
     amm.last_mark_price_twap = mark_twap;
+
+    // todo calculate the mark +/- spread
+    let bid_twap = calculate_new_twap(amm, now, bid_price, amm.last_bid_price_twap)?;
+    amm.last_bid_price_twap = bid_twap;
+
+    let ask_twap = calculate_new_twap(amm, now, ask_price, amm.last_ask_price_twap)?;
+    amm.last_ask_price_twap = ask_twap;
+
     amm.last_mark_price_twap_ts = now;
 
-    Ok(mark_twap)
+    let mid_twap = bid_twap.checked_add(ask_twap).ok_or_else(math_error!())? / 2;
+
+    Ok(mid_twap)
 }
 
-pub fn calculate_new_mark_twap(
+pub fn calculate_new_twap(
     amm: &AMM,
     now: i64,
-    precomputed_mark_price: Option<u128>,
+    current_price: u128,
+    last_twap: u128,
 ) -> ClearingHouseResult<u128> {
     let since_last = cast_to_i128(max(
         1,
@@ -99,14 +116,10 @@ pub fn calculate_new_mark_twap(
             .checked_sub(since_last)
             .ok_or_else(math_error!())?,
     );
-    let current_price = match precomputed_mark_price {
-        Some(mark_price) => mark_price,
-        None => amm.mark_price()?,
-    };
 
     let new_twap: u128 = cast(calculate_weighted_average(
         cast(current_price)?,
-        cast(amm.last_mark_price_twap)?,
+        cast(last_twap)?,
         since_last,
         from_start,
     )?)?;
@@ -444,18 +457,16 @@ pub fn calculate_terminal_price_and_reserves(
     ))
 }
 
-pub fn calculate_spread_reserves(
-    amm: &AMM,
-    direction: PositionDirection,
-) -> ClearingHouseResult<(u128, u128)> {
-    let mut spread = (amm.base_spread / 2) as u128;
+pub fn calculate_spreads(amm: &mut AMM) -> ClearingHouseResult<(u128, u128)> {
+    let mut long_spread = (amm.base_spread / 2) as u128;
+    let mut short_spread = (amm.base_spread / 2) as u128;
 
     // oracle retreat
     // if mark - oracle < 0 (mark below oracle) and user going long then increase spread
-    if (amm.last_oracle_mark_spread_pct < 0 && direction == PositionDirection::Long)
-        || (amm.last_oracle_mark_spread_pct > 0 && direction == PositionDirection::Short)
-    {
-        spread = max(spread, amm.last_oracle_mark_spread_pct.unsigned_abs());
+    if amm.last_oracle_mark_spread_pct < 0 {
+        long_spread = max(long_spread, amm.last_oracle_mark_spread_pct.unsigned_abs());
+    } else {
+        short_spread = max(short_spread, amm.last_oracle_mark_spread_pct.unsigned_abs());
     }
 
     // inventory scale
@@ -492,21 +503,11 @@ pub fn calculate_spread_reserves(
             .ok_or_else(math_error!())?;
 
         let effective_leverage =
-            if amm.net_base_asset_amount > 0 && direction == PositionDirection::Long {
-                cast_to_u128(local_pnl.checked_sub(net_pnl).ok_or_else(math_error!())?)?
-                    .checked_mul(MARK_PRICE_PRECISION)
-                    .ok_or_else(math_error!())?
-                    .checked_div(amm.total_fee_minus_distributions)
-                    .ok_or_else(math_error!())?
-            } else if amm.net_base_asset_amount < 0 && direction == PositionDirection::Short {
-                cast_to_u128((local_pnl.checked_sub(net_pnl).ok_or_else(math_error!())?))?
-                    .checked_mul(MARK_PRICE_PRECISION)
-                    .ok_or_else(math_error!())?
-                    .checked_div(amm.total_fee_minus_distributions)
-                    .ok_or_else(math_error!())?
-            } else {
-                0
-            };
+            cast_to_u128((local_pnl.checked_sub(net_pnl).ok_or_else(math_error!())?))?
+                .checked_mul(MARK_PRICE_PRECISION)
+                .ok_or_else(math_error!())?
+                .checked_div(amm.total_fee_minus_distributions)
+                .ok_or_else(math_error!())?;
 
         msg!(
             "effective leverage: {:?} long/short quote: {:?}/{:?}",
@@ -521,23 +522,49 @@ pub fn calculate_spread_reserves(
                 .checked_add(effective_leverage)
                 .ok_or_else(math_error!())?,
         );
-
-        spread = spread
-            .checked_mul(effective_leverage_capped)
-            .ok_or_else(math_error!())?
-            .checked_div(MARK_PRICE_PRECISION)
-            .ok_or_else(math_error!())?;
+        if amm.net_base_asset_amount < 0 {
+            long_spread = long_spread
+                .checked_mul(effective_leverage_capped)
+                .ok_or_else(math_error!())?
+                .checked_div(MARK_PRICE_PRECISION)
+                .ok_or_else(math_error!())?;
+        } else {
+            short_spread = long_spread
+                .checked_mul(effective_leverage_capped)
+                .ok_or_else(math_error!())?
+                .checked_div(MARK_PRICE_PRECISION)
+                .ok_or_else(math_error!())?;
+        }
     } else {
-        spread = spread
+        long_spread = long_spread
+            .checked_mul(MAX_INVENTORY_SKEW / MARK_PRICE_PRECISION)
+            .ok_or_else(math_error!())?;
+        short_spread = short_spread
             .checked_mul(MAX_INVENTORY_SKEW / MARK_PRICE_PRECISION)
             .ok_or_else(math_error!())?;
     }
 
     msg!(
-        "spread: {:?}, base_spread/2: {:?}",
-        spread,
+        "long_spread: {:?}, short_spread: {:?}, base_spread/2: {:?}",
+        long_spread,
+        short_spread,
         (amm.base_spread / 2)
     );
+
+    amm.long_spread = long_spread;
+    amm.short_spread = short_spread;
+
+    Ok((long_spread, short_spread))
+}
+
+pub fn calculate_spread_reserves(
+    amm: &AMM,
+    direction: PositionDirection,
+) -> ClearingHouseResult<(u128, u128)> {
+    let spread = match direction {
+        PositionDirection::Long => amm.long_spread,
+        PositionDirection::Short => amm.short_spread,
+    };
 
     let quote_asset_reserve_delta = if spread > 0 {
         amm.quote_asset_reserve

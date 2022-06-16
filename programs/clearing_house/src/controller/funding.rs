@@ -149,7 +149,7 @@ pub fn update_funding_rate(
             &oracle_price_data,
             precomputed_mark_price,
         )?;
-        let mark_price_twap = amm::update_mark_twap(&mut market.amm, now, None)?;
+        let mid_price_twap = amm::update_mark_twap(&mut market.amm, now, None)?;
 
         let period_adjustment = (24_i64)
             .checked_mul(ONE_HOUR)
@@ -158,7 +158,7 @@ pub fn update_funding_rate(
             .ok_or_else(math_error!())?;
         // funding period = 1 hour, window = 1 day
         // low periodicity => quickly updating/settled funding rates => lower funding rate payment per interval
-        let price_spread = cast_to_i128(mark_price_twap)?
+        let price_spread = cast_to_i128(mid_price_twap)?
             .checked_sub(oracle_price_twap)
             .ok_or_else(math_error!())?;
 
@@ -199,7 +199,7 @@ pub fn update_funding_rate(
             funding_rate,
             cumulative_funding_rate_long: market.amm.cumulative_funding_rate_long,
             cumulative_funding_rate_short: market.amm.cumulative_funding_rate_short,
-            mark_price_twap,
+            mark_price_twap: mid_price_twap,
             oracle_price_twap,
         });
     }

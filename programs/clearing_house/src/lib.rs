@@ -318,6 +318,8 @@ pub mod clearing_house {
                 last_oracle_mark_spread_pct: 0, // todo
                 minimum_base_asset_trade_size: 10000000,
                 base_spread: 0,
+                long_spread: 0,
+                short_spread: 0,
                 last_bid_price_twap: init_mark_price,
                 last_ask_price_twap: init_mark_price,
                 net_base_asset_amount: 0,
