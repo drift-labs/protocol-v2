@@ -1002,6 +1002,32 @@
       ]
     },
     {
+      "name": "updateCurveUpdateIntensity",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "curveUpdateIntensity",
+          "type": "u8"
+        }
+      ]
+    },
+    {
       "name": "updatePartialLiquidationClosePercentage",
       "accounts": [
         {
@@ -2055,6 +2081,10 @@
             "type": "u64"
           },
           {
+            "name": "longIntensityTime",
+            "type": "i64"
+          },
+          {
             "name": "longIntensityCount",
             "type": "u16"
           },
@@ -2063,12 +2093,20 @@
             "type": "u64"
           },
           {
+            "name": "shortIntensityTime",
+            "type": "i64"
+          },
+          {
             "name": "shortIntensityCount",
             "type": "u16"
           },
           {
             "name": "shortIntensityVolume",
             "type": "u64"
+          },
+          {
+            "name": "curveUpdateIntensity",
+            "type": "u8"
           },
           {
             "name": "padding0",
@@ -2467,235 +2505,15 @@
       }
     },
     {
-      "name": "ErrorCode",
+      "name": "PositionDirection",
       "type": {
         "kind": "enum",
         "variants": [
           {
-            "name": "InvalidCollateralAccountAuthority"
+            "name": "Long"
           },
           {
-            "name": "InvalidInsuranceAccountAuthority"
-          },
-          {
-            "name": "InsufficientDeposit"
-          },
-          {
-            "name": "InsufficientCollateral"
-          },
-          {
-            "name": "SufficientCollateral"
-          },
-          {
-            "name": "MaxNumberOfPositions"
-          },
-          {
-            "name": "AdminControlsPricesDisabled"
-          },
-          {
-            "name": "MarketIndexNotInitialized"
-          },
-          {
-            "name": "MarketIndexAlreadyInitialized"
-          },
-          {
-            "name": "UserAccountAndUserPositionsAccountMismatch"
-          },
-          {
-            "name": "UserHasNoPositionInMarket"
-          },
-          {
-            "name": "InvalidInitialPeg"
-          },
-          {
-            "name": "InvalidRepegRedundant"
-          },
-          {
-            "name": "InvalidRepegDirection"
-          },
-          {
-            "name": "InvalidRepegProfitability"
-          },
-          {
-            "name": "SlippageOutsideLimit"
-          },
-          {
-            "name": "TradeSizeTooSmall"
-          },
-          {
-            "name": "InvalidUpdateK"
-          },
-          {
-            "name": "AdminWithdrawTooLarge"
-          },
-          {
-            "name": "MathError"
-          },
-          {
-            "name": "BnConversionError"
-          },
-          {
-            "name": "ClockUnavailable"
-          },
-          {
-            "name": "UnableToLoadOracle"
-          },
-          {
-            "name": "OracleMarkSpreadLimit"
-          },
-          {
-            "name": "ExchangePaused"
-          },
-          {
-            "name": "InvalidWhitelistToken"
-          },
-          {
-            "name": "WhitelistTokenNotFound"
-          },
-          {
-            "name": "InvalidDiscountToken"
-          },
-          {
-            "name": "DiscountTokenNotFound"
-          },
-          {
-            "name": "InvalidReferrer"
-          },
-          {
-            "name": "ReferrerNotFound"
-          },
-          {
-            "name": "InvalidOracle"
-          },
-          {
-            "name": "OracleNotFound"
-          },
-          {
-            "name": "LiquidationsBlockedByOracle"
-          },
-          {
-            "name": "UserMaxDeposit"
-          },
-          {
-            "name": "CantDeleteUserWithCollateral"
-          },
-          {
-            "name": "InvalidFundingProfitability"
-          },
-          {
-            "name": "CastingFailure"
-          },
-          {
-            "name": "InvalidOrder"
-          },
-          {
-            "name": "UserHasNoOrder"
-          },
-          {
-            "name": "OrderAmountTooSmall"
-          },
-          {
-            "name": "MaxNumberOfOrders"
-          },
-          {
-            "name": "OrderDoesNotExist"
-          },
-          {
-            "name": "OrderNotOpen"
-          },
-          {
-            "name": "CouldNotFillOrder"
-          },
-          {
-            "name": "ReduceOnlyOrderIncreasedRisk"
-          },
-          {
-            "name": "OrderStateAlreadyInitialized"
-          },
-          {
-            "name": "UnableToLoadAccountLoader"
-          },
-          {
-            "name": "TradeSizeTooLarge"
-          },
-          {
-            "name": "UserCantReferThemselves"
-          },
-          {
-            "name": "DidNotReceiveExpectedReferrer"
-          },
-          {
-            "name": "CouldNotDeserializeReferrer"
-          },
-          {
-            "name": "MarketOrderMustBeInPlaceAndFill"
-          },
-          {
-            "name": "UserOrderIdAlreadyInUse"
-          },
-          {
-            "name": "NoPositionsLiquidatable"
-          },
-          {
-            "name": "InvalidMarginRatio"
-          },
-          {
-            "name": "CantCancelPostOnlyOrder"
-          },
-          {
-            "name": "InvalidOracleOffset"
-          },
-          {
-            "name": "CantExpireOrders"
-          },
-          {
-            "name": "CouldNotLoadMarketData"
-          },
-          {
-            "name": "MarketNotFound"
-          },
-          {
-            "name": "InvalidMarketAccount"
-          },
-          {
-            "name": "UnableToLoadMarketAccount"
-          },
-          {
-            "name": "MarketWrongMutability"
-          }
-        ]
-      }
-    },
-    {
-      "name": "DepositDirection",
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "DEPOSIT"
-          },
-          {
-            "name": "WITHDRAW"
-          }
-        ]
-      }
-    },
-    {
-      "name": "OrderAction",
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "Place"
-          },
-          {
-            "name": "Cancel"
-          },
-          {
-            "name": "Fill"
-          },
-          {
-            "name": "Expire"
+            "name": "Short"
           }
         ]
       }
@@ -2735,6 +2553,40 @@
       }
     },
     {
+      "name": "DepositDirection",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "DEPOSIT"
+          },
+          {
+            "name": "WITHDRAW"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderAction",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Place"
+          },
+          {
+            "name": "Cancel"
+          },
+          {
+            "name": "Fill"
+          },
+          {
+            "name": "Expire"
+          }
+        ]
+      }
+    },
+    {
       "name": "OracleSource",
       "type": {
         "kind": "enum",
@@ -2744,20 +2596,6 @@
           },
           {
             "name": "Switchboard"
-          }
-        ]
-      }
-    },
-    {
-      "name": "PositionDirection",
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "Long"
-          },
-          {
-            "name": "Short"
           }
         ]
       }
@@ -3312,6 +3150,328 @@
           "index": false
         }
       ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "InvalidCollateralAccountAuthority",
+      "msg": "Clearing house not collateral account owner"
+    },
+    {
+      "code": 6001,
+      "name": "InvalidInsuranceAccountAuthority",
+      "msg": "Clearing house not insurance account owner"
+    },
+    {
+      "code": 6002,
+      "name": "InsufficientDeposit",
+      "msg": "Insufficient deposit"
+    },
+    {
+      "code": 6003,
+      "name": "InsufficientCollateral",
+      "msg": "Insufficient collateral"
+    },
+    {
+      "code": 6004,
+      "name": "SufficientCollateral",
+      "msg": "Sufficient collateral"
+    },
+    {
+      "code": 6005,
+      "name": "MaxNumberOfPositions",
+      "msg": "Max number of positions taken"
+    },
+    {
+      "code": 6006,
+      "name": "AdminControlsPricesDisabled",
+      "msg": "Admin Controls Prices Disabled"
+    },
+    {
+      "code": 6007,
+      "name": "MarketIndexNotInitialized",
+      "msg": "Market Index Not Initialized"
+    },
+    {
+      "code": 6008,
+      "name": "MarketIndexAlreadyInitialized",
+      "msg": "Market Index Already Initialized"
+    },
+    {
+      "code": 6009,
+      "name": "UserAccountAndUserPositionsAccountMismatch",
+      "msg": "User Account And User Positions Account Mismatch"
+    },
+    {
+      "code": 6010,
+      "name": "UserHasNoPositionInMarket",
+      "msg": "User Has No Position In Market"
+    },
+    {
+      "code": 6011,
+      "name": "InvalidInitialPeg",
+      "msg": "Invalid Initial Peg"
+    },
+    {
+      "code": 6012,
+      "name": "InvalidRepegRedundant",
+      "msg": "AMM repeg already configured with amt given"
+    },
+    {
+      "code": 6013,
+      "name": "InvalidRepegDirection",
+      "msg": "AMM repeg incorrect repeg direction"
+    },
+    {
+      "code": 6014,
+      "name": "InvalidRepegProfitability",
+      "msg": "AMM repeg out of bounds pnl"
+    },
+    {
+      "code": 6015,
+      "name": "SlippageOutsideLimit",
+      "msg": "Slippage Outside Limit Price"
+    },
+    {
+      "code": 6016,
+      "name": "TradeSizeTooSmall",
+      "msg": "Trade Size Too Small"
+    },
+    {
+      "code": 6017,
+      "name": "InvalidUpdateK",
+      "msg": "Price change too large when updating K"
+    },
+    {
+      "code": 6018,
+      "name": "AdminWithdrawTooLarge",
+      "msg": "Admin tried to withdraw amount larger than fees collected"
+    },
+    {
+      "code": 6019,
+      "name": "MathError",
+      "msg": "Math Error"
+    },
+    {
+      "code": 6020,
+      "name": "BnConversionError",
+      "msg": "Conversion to u128/u64 failed with an overflow or underflow"
+    },
+    {
+      "code": 6021,
+      "name": "ClockUnavailable",
+      "msg": "Clock unavailable"
+    },
+    {
+      "code": 6022,
+      "name": "UnableToLoadOracle",
+      "msg": "Unable To Load Oracles"
+    },
+    {
+      "code": 6023,
+      "name": "OracleMarkSpreadLimit",
+      "msg": "Oracle/Mark Spread Too Large"
+    },
+    {
+      "code": 6024,
+      "name": "ExchangePaused",
+      "msg": "Exchange is paused"
+    },
+    {
+      "code": 6025,
+      "name": "InvalidWhitelistToken",
+      "msg": "Invalid whitelist token"
+    },
+    {
+      "code": 6026,
+      "name": "WhitelistTokenNotFound",
+      "msg": "Whitelist token not found"
+    },
+    {
+      "code": 6027,
+      "name": "InvalidDiscountToken",
+      "msg": "Invalid discount token"
+    },
+    {
+      "code": 6028,
+      "name": "DiscountTokenNotFound",
+      "msg": "Discount token not found"
+    },
+    {
+      "code": 6029,
+      "name": "InvalidReferrer",
+      "msg": "Invalid referrer"
+    },
+    {
+      "code": 6030,
+      "name": "ReferrerNotFound",
+      "msg": "Referrer not found"
+    },
+    {
+      "code": 6031,
+      "name": "InvalidOracle",
+      "msg": "InvalidOracle"
+    },
+    {
+      "code": 6032,
+      "name": "OracleNotFound",
+      "msg": "OracleNotFound"
+    },
+    {
+      "code": 6033,
+      "name": "LiquidationsBlockedByOracle",
+      "msg": "Liquidations Blocked By Oracle"
+    },
+    {
+      "code": 6034,
+      "name": "UserMaxDeposit",
+      "msg": "Can not deposit more than max deposit"
+    },
+    {
+      "code": 6035,
+      "name": "CantDeleteUserWithCollateral",
+      "msg": "Can not delete user that still has collateral"
+    },
+    {
+      "code": 6036,
+      "name": "InvalidFundingProfitability",
+      "msg": "AMM funding out of bounds pnl"
+    },
+    {
+      "code": 6037,
+      "name": "CastingFailure",
+      "msg": "Casting Failure"
+    },
+    {
+      "code": 6038,
+      "name": "InvalidOrder",
+      "msg": "Invalid Order"
+    },
+    {
+      "code": 6039,
+      "name": "UserHasNoOrder",
+      "msg": "User has no order"
+    },
+    {
+      "code": 6040,
+      "name": "OrderAmountTooSmall",
+      "msg": "Order Amount Too Small"
+    },
+    {
+      "code": 6041,
+      "name": "MaxNumberOfOrders",
+      "msg": "Max number of orders taken"
+    },
+    {
+      "code": 6042,
+      "name": "OrderDoesNotExist",
+      "msg": "Order does not exist"
+    },
+    {
+      "code": 6043,
+      "name": "OrderNotOpen",
+      "msg": "Order not open"
+    },
+    {
+      "code": 6044,
+      "name": "CouldNotFillOrder",
+      "msg": "CouldNotFillOrder"
+    },
+    {
+      "code": 6045,
+      "name": "ReduceOnlyOrderIncreasedRisk",
+      "msg": "Reduce only order increased risk"
+    },
+    {
+      "code": 6046,
+      "name": "OrderStateAlreadyInitialized",
+      "msg": "Order state already initialized"
+    },
+    {
+      "code": 6047,
+      "name": "UnableToLoadAccountLoader",
+      "msg": "Unable to load AccountLoader"
+    },
+    {
+      "code": 6048,
+      "name": "TradeSizeTooLarge",
+      "msg": "Trade Size Too Large"
+    },
+    {
+      "code": 6049,
+      "name": "UserCantReferThemselves",
+      "msg": "User cant refer themselves"
+    },
+    {
+      "code": 6050,
+      "name": "DidNotReceiveExpectedReferrer",
+      "msg": "Did not receive expected referrer"
+    },
+    {
+      "code": 6051,
+      "name": "CouldNotDeserializeReferrer",
+      "msg": "Could not deserialize referrer"
+    },
+    {
+      "code": 6052,
+      "name": "MarketOrderMustBeInPlaceAndFill",
+      "msg": "Market order must be in place and fill"
+    },
+    {
+      "code": 6053,
+      "name": "UserOrderIdAlreadyInUse",
+      "msg": "User Order Id Already In Use"
+    },
+    {
+      "code": 6054,
+      "name": "NoPositionsLiquidatable",
+      "msg": "No positions liquidatable"
+    },
+    {
+      "code": 6055,
+      "name": "InvalidMarginRatio",
+      "msg": "Invalid Margin Ratio"
+    },
+    {
+      "code": 6056,
+      "name": "CantCancelPostOnlyOrder",
+      "msg": "Cant Cancel Post Only Order"
+    },
+    {
+      "code": 6057,
+      "name": "InvalidOracleOffset",
+      "msg": "InvalidOracleOffset"
+    },
+    {
+      "code": 6058,
+      "name": "CantExpireOrders",
+      "msg": "CantExpireOrders"
+    },
+    {
+      "code": 6059,
+      "name": "CouldNotLoadMarketData",
+      "msg": "CouldNotLoadMarketData"
+    },
+    {
+      "code": 6060,
+      "name": "MarketNotFound",
+      "msg": "MarketNotFound"
+    },
+    {
+      "code": 6061,
+      "name": "InvalidMarketAccount",
+      "msg": "InvalidMarketAccount"
+    },
+    {
+      "code": 6062,
+      "name": "UnableToLoadMarketAccount",
+      "msg": "UnableToLoadMarketAccount"
+    },
+    {
+      "code": 6063,
+      "name": "MarketWrongMutability",
+      "msg": "MarketWrongMutability"
     }
   ]
 }

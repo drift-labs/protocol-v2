@@ -326,10 +326,13 @@ pub mod clearing_house {
                 quote_asset_amount_long: 0,
                 quote_asset_amount_short: 0,
                 mark_std: 0,
+                long_intensity_time: amm_periodicity, // conservatively set init to funding period
                 long_intensity_count: 0,
                 long_intensity_volume: 0,
+                short_intensity_time: amm_periodicity, 
                 short_intensity_count: 0,
                 short_intensity_volume: 0,
+                curve_update_intensity: 0,
                 padding0: 0,
                 padding1: 0,
                 padding2: 0,
@@ -2148,6 +2151,18 @@ pub mod clearing_house {
         Ok(())
     }
 
+    #[access_control(
+        market_initialized(&ctx.accounts.market)
+    )]
+    pub fn update_curve_update_intensity(
+        ctx: Context<AdminUpdateMarket>,
+        curve_update_intensity: u8,
+    ) -> Result<()> {
+        let market = &mut ctx.accounts.market.load_mut()?;
+        market.amm.curve_update_intensity = curve_update_intensity;
+        Ok(())
+    }
+
     pub fn update_partial_liquidation_close_percentage(
         ctx: Context<AdminUpdateState>,
         numerator: u128,
@@ -2356,3 +2371,5 @@ fn admin_controls_prices(state: &Account<State>) -> Result<()> {
     }
     Ok(())
 }
+
+

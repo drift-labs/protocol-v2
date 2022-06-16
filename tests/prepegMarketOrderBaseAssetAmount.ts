@@ -84,6 +84,7 @@ describe('clearing_house', () => {
 			1000
 		);
 		await clearingHouse.updateMarketBaseSpread(new BN(0), 2000);
+		await clearingHouse.updateCurveUpdateIntensity(new BN(0), 100);
 
 		[, userAccountPublicKey] =
 			await clearingHouse.initializeUserAccountAndDepositCollateral(

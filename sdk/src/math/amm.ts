@@ -74,6 +74,9 @@ export function calculatePrepegAMM(
 	amm: AMM,
 	oraclePriceData: OraclePriceData
 ): AMM {
+	if (amm.curveUpdateIntensity == 0) {
+		return amm;
+	}
 	const newAmm = Object.assign({}, amm);
 	const [prepegCost, pKNumer, pkDenom, newPeg] = calculatePrepeg(
 		amm,
@@ -235,6 +238,10 @@ export function calculateSpread(
 	direction: PositionDirection,
 	oraclePriceData: OraclePriceData
 ): number {
+	if (amm.baseSpread == 0) {
+		return 0;
+	}
+
 	let spread = amm.baseSpread / 2;
 
 	const markPrice = calculatePrice(

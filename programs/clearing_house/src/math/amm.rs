@@ -786,7 +786,7 @@ pub fn calculate_budgeted_k_scale(
     mark_price: u128,
 ) -> ClearingHouseResult<(u128, u128)> {
     // 0 - 100
-    let curve_update_intensity = 100_u8; //cast_to_i128(min(market.amm.curve_update_intensity, 100_u8))?;
+    let curve_update_intensity = cast_to_i128(min(market.amm.curve_update_intensity, 100_u8))?;
 
     if curve_update_intensity == 0 {
         return Ok((1, 1));

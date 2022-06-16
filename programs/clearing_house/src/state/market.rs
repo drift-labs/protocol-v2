@@ -107,10 +107,17 @@ pub struct AMM {
     pub quote_asset_amount_long: u128,
     pub quote_asset_amount_short: u128,
     pub mark_std: u64,
+
+    pub long_intensity_time: i64,
     pub long_intensity_count: u16,
     pub long_intensity_volume: u64,
+
+    pub short_intensity_time: i64,
     pub short_intensity_count: u16,
     pub short_intensity_volume: u64,
+
+    // upgrade-ability
+    pub curve_update_intensity: u8,    
 
     pub padding0: u16,
     pub padding1: u32,
