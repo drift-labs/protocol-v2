@@ -238,11 +238,11 @@ export function calculateSpread(
 	direction: PositionDirection,
 	oraclePriceData: OraclePriceData
 ): number {
-	if (amm.baseSpread == 0) {
-		return 0;
-	}
-
 	let spread = amm.baseSpread / 2;
+
+	if (amm.baseSpread == 0 || amm.curveUpdateIntensity == 0) {
+		return spread;
+	}
 
 	const markPrice = calculatePrice(
 		amm.baseAssetReserve,
@@ -250,7 +250,7 @@ export function calculateSpread(
 		amm.pegMultiplier
 	);
 
-	const targetPrice = oraclePriceData.price;
+	const targetPrice = oraclePriceData?.price || markPrice;
 
 	const targetMarkSpreadPct = markPrice
 		.sub(targetPrice)
