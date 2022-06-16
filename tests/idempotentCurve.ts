@@ -14,7 +14,12 @@ import {
 	PositionDirection,
 } from '../sdk/src';
 
-import { mockOracle, mockUSDCMint, mockUserUSDCAccount } from './testHelpers';
+import {
+	initializeQuoteAssetBank,
+	mockOracle,
+	mockUSDCMint,
+	mockUserUSDCAccount,
+} from './testHelpers';
 import { FeeStructure } from '../sdk';
 
 describe('idempotent curve', () => {
@@ -53,6 +58,8 @@ describe('idempotent curve', () => {
 		);
 		await primaryClearingHouse.initialize(usdcMint.publicKey, true);
 		await primaryClearingHouse.subscribe();
+
+		await initializeQuoteAssetBank(primaryClearingHouse, usdcMint.publicKey);
 
 		const solUsd = await mockOracle(1);
 		const periodicity = new BN(60 * 60); // 1 HOUR
@@ -167,7 +174,7 @@ describe('idempotent curve', () => {
 		await clearingHouse.closePosition(new BN(0));
 
 		await clearingHouse.fetchAccounts();
-		assert(clearingHouse.getUserAccount().collateral.eq(new BN(19999200)));
+		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(19999200)));
 		assert(
 			clearingHouse.getUserAccount().positions[0].quoteAssetAmount.eq(new BN(0))
 		);
@@ -230,7 +237,7 @@ describe('idempotent curve', () => {
 
 		await clearingHouse.fetchAccounts();
 
-		assert(clearingHouse.getUserAccount().collateral.eq(new BN(4999850)));
+		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(4999850)));
 		assert(
 			clearingHouse.getUserAccount().positions[0].quoteAssetAmount.eq(new BN(0))
 		);
@@ -293,7 +300,7 @@ describe('idempotent curve', () => {
 		await clearingHouse.closePosition(new BN(0));
 
 		await clearingHouse.fetchAccounts();
-		assert(clearingHouse.getUserAccount().collateral.eq(new BN(14999849)));
+		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(14999849)));
 		assert(
 			clearingHouse.getUserAccount().positions[0].quoteAssetAmount.eq(new BN(0))
 		);
@@ -355,7 +362,7 @@ describe('idempotent curve', () => {
 		await clearingHouse.closePosition(new BN(0));
 
 		await clearingHouse.fetchAccounts();
-		assert(clearingHouse.getUserAccount().collateral.eq(new BN(6666311)));
+		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(6666311)));
 		assert(
 			clearingHouse.getUserAccount().positions[0].quoteAssetAmount.eq(new BN(0))
 		);

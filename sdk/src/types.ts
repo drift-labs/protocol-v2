@@ -7,6 +7,11 @@ export class SwapDirection {
 	static readonly REMOVE = { remove: {} };
 }
 
+export class BankBalanceType {
+	static readonly DEPOSIT = { deposit: {} };
+	static readonly BORROW = { borrow: {} };
+}
+
 export class PositionDirection {
 	static readonly LONG = { long: {} };
 	static readonly SHORT = { short: {} };
@@ -15,6 +20,7 @@ export class PositionDirection {
 export class OracleSource {
 	static readonly PYTH = { pyth: {} };
 	static readonly SWITCHBOARD = { switchboard: {} };
+	static readonly QUOTE_ASSET = { quoteAsset: {} };
 }
 
 export class OrderType {
@@ -189,10 +195,6 @@ export type StateAccount = {
 	fundingPaused: boolean;
 	exchangePaused: boolean;
 	adminControlsPrices: boolean;
-	collateralMint: PublicKey;
-	collateralVault: PublicKey;
-	collateralVaultAuthority: PublicKey;
-	collateralVaultNonce: number;
 	insuranceVault: PublicKey;
 	insuranceVaultAuthority: PublicKey;
 	insuranceVaultNonce: number;
@@ -216,6 +218,7 @@ export type StateAccount = {
 	maxDeposit: BN;
 	orderState: PublicKey;
 	numberOfMarkets: BN;
+	numberOfBanks: BN;
 };
 
 export type OrderStateAccount = {
@@ -236,6 +239,29 @@ export type MarketAccount = {
 	marginRatioMaintenance: number;
 	marginRatioPartial: number;
 	nextTradeRecordId: BN;
+};
+
+export type BankAccount = {
+	bankIndex: BN;
+	pubkey: PublicKey;
+	mint: PublicKey;
+	vault: PublicKey;
+	vaultAuthority: PublicKey;
+	vaultAuthorityNonce: number;
+	decimals: number;
+	optimalUtilization: BN;
+	optimalBorrowRate: BN;
+	maxBorrowRate: BN;
+	cumulativeDepositInterest: BN;
+	cumulativeBorrowInterest: BN;
+	depositBalance: BN;
+	borrowBalance: BN;
+	lastUpdated: BN;
+	oracle: PublicKey;
+	initialAssetWeight: BN;
+	maintenanceAssetWeight: BN;
+	initialLiabilityWeight: BN;
+	initialMaintenanceWeight: BN;
 };
 
 export type AMM = {
@@ -277,6 +303,7 @@ export type UserPosition = {
 
 export type UserAccount = {
 	authority: PublicKey;
+	bankBalances: UserBankBalance[];
 	collateral: BN;
 	cumulativeDeposits: BN;
 	totalFeePaid: BN;
@@ -286,6 +313,12 @@ export type UserAccount = {
 	totalRefereeDiscount: BN;
 	positions: UserPosition[];
 	orders: Order[];
+};
+
+export type UserBankBalance = {
+	bankIndex: BN;
+	balanceType: BankBalanceType;
+	balance: BN;
 };
 
 export type Order = {

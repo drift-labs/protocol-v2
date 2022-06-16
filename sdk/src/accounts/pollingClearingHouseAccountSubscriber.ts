@@ -9,6 +9,7 @@ import { BN, Program } from '@project-serum/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import {
+	BankAccount,
 	MarketAccount,
 	OrderStateAccount,
 	StateAccount,
@@ -16,6 +17,7 @@ import {
 } from '../types';
 import {
 	getClearingHouseStateAccountPublicKey,
+	getBankPublicKey,
 	getMarketPublicKey,
 	getUserAccountPublicKey,
 } from '../addresses/pda';
@@ -41,6 +43,7 @@ export class PollingClearingHouseAccountSubscriber
 
 	state?: AccountAndSlot<StateAccount>;
 	market = new Map<number, AccountAndSlot<MarketAccount>>();
+	bank = new Map<number, AccountAndSlot<BankAccount>>();
 	orderState?: AccountAndSlot<OrderStateAccount>;
 	userAccount?: AccountAndSlot<UserAccount>;
 
@@ -120,6 +123,7 @@ export class PollingClearingHouseAccountSubscriber
 
 		await this.updateUserAccountsToPoll();
 		await this.updateMarketAccountsToPoll();
+		await this.updateBankAccountsToPoll();
 	}
 
 	async updateUserAccountsToPoll(): Promise<UserPublicKeys> {
@@ -147,6 +151,24 @@ export class PollingClearingHouseAccountSubscriber
 				key: 'market',
 				publicKey: marketPublicKey,
 				eventType: 'marketAccountUpdate',
+				mapKey: i,
+			});
+		}
+
+		return true;
+	}
+
+	async updateBankAccountsToPoll(): Promise<boolean> {
+		for (let i = 0; i < 10; i++) {
+			const bankPublicKey = await getBankPublicKey(
+				this.program.programId,
+				new BN(i)
+			);
+
+			this.accountsToPoll.set(bankPublicKey.toString(), {
+				key: 'bank',
+				publicKey: bankPublicKey,
+				eventType: 'bankAccountUpdate',
 				mapKey: i,
 			});
 		}
@@ -315,6 +337,12 @@ export class PollingClearingHouseAccountSubscriber
 		marketIndex: BN
 	): AccountAndSlot<MarketAccount> | undefined {
 		return this.market.get(marketIndex.toNumber());
+	}
+
+	public getBankAccountAndSlot(
+		bankIndex: BN
+	): AccountAndSlot<BankAccount> | undefined {
+		return this.bank.get(bankIndex.toNumber());
 	}
 
 	public getOrderStateAccountAndSlot(): AccountAndSlot<OrderStateAccount> {

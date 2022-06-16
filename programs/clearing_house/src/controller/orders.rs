@@ -7,6 +7,7 @@ use spl_token::state::Account as TokenAccount;
 use crate::account_loader::load_mut;
 use crate::context::*;
 use crate::controller;
+use crate::controller::bank_balance::update_bank_balances;
 use crate::controller::position::{add_new_position, get_position_index};
 use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
@@ -22,11 +23,13 @@ use crate::order_validation::{
     validate_order_can_be_canceled,
 };
 use crate::print_error;
+use crate::state::bank_map::BankMap;
 use crate::state::events::OrderAction;
 use crate::state::events::{OrderRecord, TradeRecord};
 use crate::state::market::Market;
 use crate::state::market_map::MarketMap;
-use crate::state::user::User;
+use crate::state::oracle_map::OracleMap;
+use crate::state::user::{BankBalanceType, User};
 use crate::state::user::{Order, OrderStatus, OrderType};
 use crate::state::{order_state::*, state::*};
 
@@ -144,6 +147,8 @@ pub fn cancel_order_by_order_id(
     order_id: u64,
     user: &AccountLoader<User>,
     market_map: &MarketMap,
+    bank_map: &BankMap,
+    oracle_map: &mut OracleMap,
     clock: &Clock,
     oracle: Option<&AccountInfo>,
 ) -> ClearingHouseResult {
@@ -161,6 +166,8 @@ pub fn cancel_order_by_order_id(
         user,
         &user_key,
         market_map,
+        bank_map,
+        oracle_map,
         clock,
         oracle,
         false,
@@ -172,6 +179,8 @@ pub fn cancel_order_by_user_order_id(
     user_order_id: u8,
     user: &AccountLoader<User>,
     market_map: &MarketMap,
+    bank_map: &BankMap,
+    oracle_map: &mut OracleMap,
     clock: &Clock,
     oracle: Option<&AccountInfo>,
 ) -> ClearingHouseResult {
@@ -189,6 +198,8 @@ pub fn cancel_order_by_user_order_id(
         user,
         &user_key,
         market_map,
+        bank_map,
+        oracle_map,
         clock,
         oracle,
         false,
@@ -201,6 +212,8 @@ pub fn cancel_order(
     user: &mut User,
     user_key: &Pubkey,
     market_map: &MarketMap,
+    bank_map: &BankMap,
+    oracle_map: &mut OracleMap,
     clock: &Clock,
     oracle: Option<&AccountInfo>,
     best_effort: bool,
@@ -225,14 +238,27 @@ pub fn cancel_order(
     )?;
 
     if best_effort {
-        let is_cancelable =
-            check_if_order_can_be_canceled(user, order_index, market_map, valid_oracle_price)?;
+        let is_cancelable = check_if_order_can_be_canceled(
+            user,
+            order_index,
+            market_map,
+            bank_map,
+            oracle_map,
+            valid_oracle_price,
+        )?;
 
         if !is_cancelable {
             return Ok(());
         }
     } else {
-        validate_order_can_be_canceled(user, order_index, market_map, valid_oracle_price)?;
+        validate_order_can_be_canceled(
+            user,
+            order_index,
+            market_map,
+            bank_map,
+            oracle_map,
+            valid_oracle_price,
+        )?;
     }
 
     emit!(OrderRecord {
@@ -264,6 +290,8 @@ pub fn fill_order(
     order_state: &OrderState,
     user: &AccountLoader<User>,
     market_map: &MarketMap,
+    bank_map: &mut BankMap,
+    oracle_map: &mut OracleMap,
     oracle: &AccountInfo,
     filler: &AccountLoader<User>,
     referrer: Option<AccountLoader<User>>,
@@ -345,6 +373,8 @@ pub fn fill_order(
         user,
         order_index,
         market_map,
+        bank_map,
+        oracle_map,
         market_index,
         mark_price_before,
         now,
@@ -399,9 +429,9 @@ pub fn fill_order(
     // Order fails if it's risk increasing and it brings the user collateral below the margin requirement
     let meets_maintenance_requirement = if order_post_only {
         // for post only orders allow user to fill up to partial margin requirement
-        meets_partial_margin_requirement(user, market_map)?
+        meets_partial_margin_requirement(user, market_map, bank_map, oracle_map)?
     } else {
-        meets_initial_margin_requirement(user, market_map)?
+        meets_initial_margin_requirement(user, market_map, bank_map, oracle_map)?
     };
     if !meets_maintenance_requirement && potentially_risk_increasing {
         return Err(ErrorCode::InsufficientCollateral);
@@ -437,13 +467,22 @@ pub fn fill_order(
     }
 
     // Update user's collateral based on fee/rebate
-    user.collateral = if user_fee >= 0 {
-        user.collateral.saturating_sub(user_fee.unsigned_abs())
-    } else {
-        user.collateral
-            .checked_add(user_fee.unsigned_abs())
-            .ok_or_else(math_error!())?
-    };
+    {
+        let bank = &mut bank_map.get_quote_asset_bank_mut()?;
+        let user_bank_balance = user.get_quote_asset_bank_balance_mut();
+
+        update_bank_balances(
+            user_fee.unsigned_abs(),
+            if user_fee < 0 {
+                &BankBalanceType::Deposit
+            } else {
+                &BankBalanceType::Borrow
+            },
+            bank,
+            user_bank_balance,
+            true,
+        )?;
+    }
 
     // Increment the user's total fee variables
     if user_fee > 0 {
@@ -469,10 +508,16 @@ pub fn fill_order(
 
     if filler_key != user_key {
         let filler = &mut load_mut(filler)?;
-        filler.collateral = filler
-            .collateral
-            .checked_add(cast(filler_reward)?)
-            .ok_or_else(math_error!())?;
+        let bank = &mut bank_map.get_quote_asset_bank_mut()?;
+        let filler_bank_balance = filler.get_quote_asset_bank_balance_mut();
+
+        update_bank_balances(
+            filler_reward,
+            &BankBalanceType::Deposit,
+            bank,
+            filler_bank_balance,
+            true,
+        )?;
     }
 
     // Update the referrer's collateral with their reward
@@ -573,6 +618,8 @@ pub fn execute_order(
     user: &mut User,
     order_index: usize,
     market_map: &MarketMap,
+    bank_map: &mut BankMap,
+    oracle_map: &mut OracleMap,
     market_index: u64,
     mark_price_before: u128,
     now: i64,
@@ -584,6 +631,7 @@ pub fn execute_order(
             user,
             order_index,
             market_map,
+            bank_map,
             market_index,
             mark_price_before,
             now,
@@ -592,6 +640,8 @@ pub fn execute_order(
             user,
             order_index,
             market_map,
+            bank_map,
+            oracle_map,
             market_index,
             mark_price_before,
             now,
@@ -604,6 +654,7 @@ pub fn execute_market_order(
     user: &mut User,
     order_index: usize,
     market_map: &MarketMap,
+    bank_map: &mut BankMap,
     market_index: u64,
     mark_price_before: u128,
     now: i64,
@@ -642,6 +693,7 @@ pub fn execute_market_order(
         base_asset_amount,
         quote_asset_amount,
         quote_asset_amount_surplus,
+        pnl,
     ) = if order_base_asset_amount > 0 {
         let direction = user.orders[order_index].direction;
         controller::position::update_position_with_base_asset_amount(
@@ -665,6 +717,23 @@ pub fn execute_market_order(
             now,
         )?
     };
+
+    {
+        let bank = &mut bank_map.get_quote_asset_bank_mut()?;
+        let user_bank_balance = user.get_quote_asset_bank_balance_mut();
+
+        update_bank_balances(
+            pnl.unsigned_abs(),
+            if pnl > 0 {
+                &BankBalanceType::Deposit
+            } else {
+                &BankBalanceType::Borrow
+            },
+            bank,
+            user_bank_balance,
+            true,
+        )?;
+    }
 
     if base_asset_amount < market.amm.minimum_base_asset_trade_size {
         msg!("base asset amount {}", base_asset_amount);
@@ -698,14 +767,22 @@ pub fn execute_non_market_order(
     user: &mut User,
     order_index: usize,
     market_map: &MarketMap,
+    bank_map: &mut BankMap,
+    oracle_map: &mut OracleMap,
     market_index: u64,
     mark_price_before: u128,
     now: i64,
     valid_oracle_price: Option<i128>,
 ) -> ClearingHouseResult<(u128, u128, bool, u128)> {
     // Determine the base asset amount the user can fill
-    let base_asset_amount_user_can_execute =
-        calculate_base_asset_amount_user_can_execute(user, order_index, market_map, market_index)?;
+    let base_asset_amount_user_can_execute = calculate_base_asset_amount_user_can_execute(
+        user,
+        order_index,
+        market_map,
+        bank_map,
+        oracle_map,
+        market_index,
+    )?;
 
     if base_asset_amount_user_can_execute == 0 {
         msg!("User cant execute order");
@@ -785,6 +862,7 @@ pub fn execute_non_market_order(
         _,
         quote_asset_amount,
         quote_asset_amount_surplus,
+        pnl,
     ) = controller::position::update_position_with_base_asset_amount(
         base_asset_amount,
         order_direction,
@@ -795,6 +873,23 @@ pub fn execute_non_market_order(
         now,
         maker_limit_price,
     )?;
+
+    {
+        let bank = &mut bank_map.get_quote_asset_bank_mut()?;
+        let user_bank_balance = user.get_quote_asset_bank_balance_mut();
+
+        update_bank_balances(
+            pnl.unsigned_abs(),
+            if pnl > 0 {
+                &BankBalanceType::Deposit
+            } else {
+                &BankBalanceType::Borrow
+            },
+            bank,
+            user_bank_balance,
+            true,
+        )?;
+    }
 
     if !reduce_only && order_reduce_only {
         return Err(ErrorCode::ReduceOnlyOrderIncreasedRisk);

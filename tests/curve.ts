@@ -1,7 +1,7 @@
 import * as anchor from '@project-serum/anchor';
 import { Program } from '@project-serum/anchor';
 import { Keypair } from '@solana/web3.js';
-import { BASE_PRECISION, BN } from '../sdk';
+import { BASE_PRECISION, BN, QUOTE_ASSET_BANK_INDEX } from '../sdk';
 import {
 	Admin,
 	MARK_PRICE_PRECISION,
@@ -19,6 +19,7 @@ import { liquidityBook } from './liquidityBook';
 import { assert } from '../sdk/src/assert/assert';
 import {
 	createPriceFeed,
+	initializeQuoteAssetBank,
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	setFeedPrice,
@@ -61,6 +62,8 @@ describe('AMM Curve', () => {
 
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
+
+		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
 
 		solUsdOracle = await createPriceFeed({
 			oracleProgram: anchor.workspace.Pyth,
@@ -167,8 +170,9 @@ describe('AMM Curve', () => {
 	};
 
 	it('After Deposit', async () => {
-		await clearingHouse.depositCollateral(
+		await clearingHouse.deposit(
 			usdcAmount,
+			QUOTE_ASSET_BANK_INDEX,
 			userUSDCAccount.publicKey
 		);
 

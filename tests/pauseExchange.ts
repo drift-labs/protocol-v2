@@ -117,10 +117,7 @@ describe('admin withdraw', () => {
 
 	it('Block withdrawal', async () => {
 		try {
-			await clearingHouse.withdrawCollateral(
-				usdcAmount,
-				userUSDCAccount.publicKey
-			);
+			await clearingHouse.withdraw(usdcAmount, userUSDCAccount.publicKey);
 		} catch (e) {
 			assert(e.msg, 'Exchange is paused');
 			return;

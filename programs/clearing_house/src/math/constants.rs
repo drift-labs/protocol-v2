@@ -1,6 +1,7 @@
 // PRECISIONS
 pub const AMM_RESERVE_PRECISION: u128 = 10_000_000_000_000; //expo = -13;
 pub const MARK_PRICE_PRECISION: u128 = 10_000_000_000; //expo = -10
+pub const MARK_PRICE_PRECISION_I128: i128 = 10_000_000_000; //expo = -10
 pub const QUOTE_PRECISION: u128 = 1_000_000; // expo = -6
 pub const FUNDING_PAYMENT_PRECISION: u128 = 10_000; // expo = -4
 pub const MARGIN_PRECISION: u128 = 10_000; // expo = -4
@@ -8,6 +9,10 @@ pub const PEG_PRECISION: u128 = 1_000; //expo = -3
 pub const PRICE_SPREAD_PRECISION: i128 = 10_000; // expo = -4
 pub const PRICE_SPREAD_PRECISION_U128: u128 = 10_000; // expo = -4
 pub const BID_ASK_SPREAD_PRECISION: u128 = 1_000_000; // expo = -6
+pub const BANK_INTEREST_PRECISION: u128 = 1_000_000; // expo = -6
+pub const BANK_CUMULATIVE_INTEREST_PRECISION: u128 = 10_000_000_000; // expo = -10
+pub const BANK_UTILIZATION_PRECISION: u128 = 1_000_000; // expo = -6
+pub const BANK_WEIGHT_PRECISION: u128 = 100; // expo = -2
 
 // PRECISION CONVERSIONS
 pub const PRICE_TO_PEG_PRECISION_RATIO: u128 = MARK_PRICE_PRECISION / PEG_PRECISION; // expo: 7
@@ -31,6 +36,7 @@ pub const UPDATE_K_ALLOWED_PRICE_CHANGE: u128 = MARK_PRICE_PRECISION / 100_000; 
 
 // TIME PERIODS
 pub const ONE_HOUR: i128 = 3600;
+pub const ONE_YEAR: u128 = 31536000;
 
 // FEES
 pub const DEFAULT_FEE_NUMERATOR: u128 = 10;
@@ -58,3 +64,6 @@ pub const MAX_LIQUIDATION_SLIPPAGE_U128: u128 = 100; // expo = -2
 pub const MAX_MARK_TWAP_DIVERGENCE: u128 = 5_000; // expo = -3
 pub const MAXIMUM_MARGIN_RATIO: u32 = MARGIN_PRECISION as u32;
 pub const MINIMUM_MARGIN_RATIO: u32 = MARGIN_PRECISION as u32 / 50;
+
+// BANK
+pub const QUOTE_ASSET_BANK_INDEX: u64 = 0;

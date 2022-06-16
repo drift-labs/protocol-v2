@@ -1,5 +1,5 @@
 import * as anchor from '@project-serum/anchor';
-import { Program, Provider } from '@project-serum/anchor';
+import { AnchorProvider, Program, Provider } from '@project-serum/anchor';
 import {
 	AccountLayout,
 	MintLayout,
@@ -7,6 +7,7 @@ import {
 	TOKEN_PROGRAM_ID,
 } from '@solana/spl-token';
 import {
+	Connection,
 	Keypair,
 	PublicKey,
 	sendAndConfirmTransaction,
@@ -16,8 +17,15 @@ import {
 } from '@solana/web3.js';
 import { assert } from 'chai';
 import buffer from 'buffer';
-import { BN } from '../sdk';
-import { ClearingHouse, ClearingHouseUser } from '../sdk/src';
+import { BN, Wallet } from '../sdk';
+import {
+	Admin,
+	BANK_RATE_PRECISION,
+	BANK_WEIGHT_PRECISION,
+	ClearingHouse,
+	ClearingHouseUser,
+	OracleSource,
+} from '../sdk/src';
 
 export async function mockOracle(
 	price: number = 50 * 10e7,
@@ -138,6 +146,158 @@ export async function mockUserUSDCAccount(
 		}
 	);
 	return userUSDCAccount;
+}
+
+export async function mintUSDCToUser(
+	fakeUSDCMint: Keypair,
+	userUSDCAccount: PublicKey,
+	usdcMintAmount: BN,
+	provider: Provider
+): Promise<void> {
+	const tx = new Transaction();
+	const mintToUserAccountTx = await Token.createMintToInstruction(
+		TOKEN_PROGRAM_ID,
+		fakeUSDCMint.publicKey,
+		userUSDCAccount,
+		provider.wallet.publicKey,
+		[],
+		usdcMintAmount.toNumber()
+	);
+	tx.add(mintToUserAccountTx);
+
+	await sendAndConfirmTransaction(
+		provider.connection,
+		tx,
+		// @ts-ignore
+		[provider.wallet.payer],
+		{
+			skipPreflight: false,
+			commitment: 'recent',
+			preflightCommitment: 'recent',
+		}
+	);
+}
+
+export async function createFundedKeyPair(
+	connection: Connection
+): Promise<Keypair> {
+	const userKeyPair = new Keypair();
+	await connection.requestAirdrop(userKeyPair.publicKey, 10 ** 9);
+	return userKeyPair;
+}
+
+export async function createUSDCAccountForUser(
+	provider: AnchorProvider,
+	userKeyPair: Keypair,
+	usdcMint: Keypair,
+	usdcAmount: BN
+): Promise<PublicKey> {
+	const userUSDCAccount = await mockUserUSDCAccount(
+		usdcMint,
+		usdcAmount,
+		provider,
+		userKeyPair.publicKey
+	);
+	return userUSDCAccount.publicKey;
+}
+
+export async function initializeAndSubscribeClearingHouse(
+	connection: Connection,
+	program: Program,
+	userKeyPair: Keypair
+): Promise<ClearingHouse> {
+	const clearingHouse = ClearingHouse.from(
+		connection,
+		new Wallet(userKeyPair),
+		program.programId,
+		{
+			commitment: 'confirmed',
+		}
+	);
+	await clearingHouse.subscribe();
+	await clearingHouse.initializeUserAccount();
+	return clearingHouse;
+}
+
+export async function createUserWithUSDCAccount(
+	provider: AnchorProvider,
+	usdcMint: Keypair,
+	chProgram: Program,
+	usdcAmount: BN
+): Promise<[ClearingHouse, PublicKey, Keypair]> {
+	const userKeyPair = await createFundedKeyPair(provider.connection);
+	const usdcAccount = await createUSDCAccountForUser(
+		provider,
+		userKeyPair,
+		usdcMint,
+		usdcAmount
+	);
+	const clearingHouse = await initializeAndSubscribeClearingHouse(
+		provider.connection,
+		chProgram,
+		userKeyPair
+	);
+
+	return [clearingHouse, usdcAccount, userKeyPair];
+}
+
+export async function createWSolTokenAccountForUser(
+	provider: AnchorProvider,
+	userKeypair: Keypair | Wallet,
+	amount: BN
+): Promise<PublicKey> {
+	await provider.connection.requestAirdrop(
+		userKeypair.publicKey,
+		amount.toNumber() +
+			(await Token.getMinBalanceRentForExemptAccount(provider.connection))
+	);
+	return await Token.createWrappedNativeAccount(
+		provider.connection,
+		TOKEN_PROGRAM_ID,
+		userKeypair.publicKey,
+		// @ts-ignore
+		provider.wallet.payer,
+		amount.toNumber()
+	);
+}
+
+export async function createUserWithUSDCAndWSOLAccount(
+	provider: AnchorProvider,
+	usdcMint: Keypair,
+	chProgram: Program,
+	solAmount: BN,
+	usdcAmount: BN
+): Promise<[ClearingHouse, PublicKey, PublicKey, Keypair]> {
+	const userKeyPair = await createFundedKeyPair(provider.connection);
+	const solAccount = await createWSolTokenAccountForUser(
+		provider,
+		userKeyPair,
+		solAmount
+	);
+	const usdcAccount = await createUSDCAccountForUser(
+		provider,
+		userKeyPair,
+		usdcMint,
+		usdcAmount
+	);
+	const clearingHouse = await initializeAndSubscribeClearingHouse(
+		provider.connection,
+		chProgram,
+		userKeyPair
+	);
+
+	return [clearingHouse, solAccount, usdcAccount, userKeyPair];
+}
+
+export async function printTxLogs(
+	connection: Connection,
+	txSig: TransactionSignature
+): Promise<void> {
+	console.log(
+		'tx logs',
+		(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
+			.logMessages
+	);
 }
 
 export async function mintToInsuranceFund(
@@ -545,3 +705,41 @@ const parsePriceInfo = (data, exponent) => {
 		publishSlot,
 	};
 };
+
+export function sleep(ms) {
+	return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export async function getTokenAmountAsBN(
+	connection: Connection,
+	tokenAccount: PublicKey
+): Promise<BN> {
+	return new BN(
+		(await connection.getTokenAccountBalance(tokenAccount)).value.amount
+	);
+}
+
+export async function initializeQuoteAssetBank(
+	admin: Admin,
+	usdcMint: PublicKey
+): Promise<void> {
+	const optimalUtilization = BANK_RATE_PRECISION.div(new BN(2)); // 50% utilization
+	const optimalRate = BANK_RATE_PRECISION;
+	const maxRate = BANK_RATE_PRECISION;
+	const initialAssetWeight = BANK_WEIGHT_PRECISION;
+	const maintenanceAssetWeight = BANK_WEIGHT_PRECISION;
+	const initialLiabilityWeight = BANK_WEIGHT_PRECISION;
+	const maintenanceLiabilityWeight = BANK_WEIGHT_PRECISION;
+	await admin.initializeBank(
+		usdcMint,
+		optimalUtilization,
+		optimalRate,
+		maxRate,
+		PublicKey.default,
+		OracleSource.QUOTE_ASSET,
+		initialAssetWeight,
+		maintenanceAssetWeight,
+		initialLiabilityWeight,
+		maintenanceLiabilityWeight
+	);
+}

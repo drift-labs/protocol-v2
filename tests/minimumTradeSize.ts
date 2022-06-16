@@ -8,7 +8,12 @@ import { Keypair } from '@solana/web3.js';
 
 import { Admin, ClearingHouse, PositionDirection } from '../sdk/src';
 
-import { mockOracle, mockUSDCMint, mockUserUSDCAccount } from './testHelpers';
+import {
+	initializeQuoteAssetBank,
+	mockOracle,
+	mockUSDCMint,
+	mockUserUSDCAccount,
+} from './testHelpers';
 import { calculateBaseAssetValue, FeeStructure, ZERO } from '../sdk';
 
 describe('minimum trade size', () => {
@@ -44,6 +49,8 @@ describe('minimum trade size', () => {
 		);
 		await primaryClearingHouse.initialize(usdcMint.publicKey, true);
 		await primaryClearingHouse.subscribe();
+
+		await initializeQuoteAssetBank(primaryClearingHouse, usdcMint.publicKey);
 
 		const solUsd = await mockOracle(63000);
 		const periodicity = new BN(60 * 60); // 1 HOUR
@@ -137,7 +144,7 @@ describe('minimum trade size', () => {
 			new BN(0)
 		);
 
-		assert(clearingHouse.getUserAccount().collateral.eq(usdcAmount));
+		assert(clearingHouse.getQuoteAssetTokenAmount().eq(usdcAmount));
 
 		// make price slightly worse so we need to round trade amount
 		const newBaseAssetReserve = ammInitialBaseAssetReserve
@@ -206,7 +213,7 @@ describe('minimum trade size', () => {
 		);
 
 		await clearingHouse.fetchAccounts();
-		assert(clearingHouse.getUserAccount().collateral.eq(usdcAmount));
+		assert(clearingHouse.getQuoteAssetTokenAmount().eq(usdcAmount));
 
 		// make price much worse
 		const newBaseAssetReserve = ammInitialBaseAssetReserve
@@ -268,7 +275,7 @@ describe('minimum trade size', () => {
 		);
 
 		await clearingHouse.fetchAccounts();
-		assert(clearingHouse.getUserAccount().collateral.eq(usdcAmount));
+		assert(clearingHouse.getQuoteAssetTokenAmount().eq(usdcAmount));
 
 		// make price slightly worse so we need to round trade amount
 		const newQuoteAssetReserve = ammInitialBaseAssetReserve
@@ -338,7 +345,7 @@ describe('minimum trade size', () => {
 			new BN(0)
 		);
 
-		assert(clearingHouse.getUserAccount().collateral.eq(usdcAmount));
+		assert(clearingHouse.getQuoteAssetTokenAmount().eq(usdcAmount));
 
 		// make price better so we dont need to round trade amount
 		const newQuoteAssetReserve = ammInitialBaseAssetReserve

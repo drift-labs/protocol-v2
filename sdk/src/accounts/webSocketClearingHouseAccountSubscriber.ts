@@ -5,6 +5,7 @@ import {
 } from './types';
 import { AccountSubscriber, NotSubscribedError } from './types';
 import {
+	BankAccount,
 	MarketAccount,
 	OrderStateAccount,
 	StateAccount,
@@ -15,8 +16,10 @@ import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import {
 	getClearingHouseStateAccountPublicKey,
+	getBankPublicKey,
 	getMarketPublicKey,
 	getUserAccountPublicKey,
+	getOrderStateAccountPublicKey,
 } from '../addresses/pda';
 import { WebSocketAccountSubscriber } from './webSocketAccountSubscriber';
 import { ClearingHouseConfigType } from '../factory/clearingHouse';
@@ -35,6 +38,7 @@ export class WebSocketClearingHouseAccountSubscriber
 		number,
 		AccountSubscriber<MarketAccount>
 	>();
+	bankAccountSubscribers = new Map<number, AccountSubscriber<BankAccount>>();
 	orderStateAccountSubscriber?: AccountSubscriber<OrderStateAccount>;
 
 	userAccountSubscriber?: AccountSubscriber<UserAccount>;
@@ -82,12 +86,14 @@ export class WebSocketClearingHouseAccountSubscriber
 			this.eventEmitter.emit('update');
 		});
 
-		const state = this.stateAccountSubscriber.accountAndSlot.account;
+		const orderStatePublicKey = await getOrderStateAccountPublicKey(
+			this.program.programId
+		);
 
 		this.orderStateAccountSubscriber = new WebSocketAccountSubscriber(
 			'orderState',
 			this.program,
-			state.orderState
+			orderStatePublicKey
 		);
 
 		await this.orderStateAccountSubscriber.subscribe(
@@ -102,6 +108,9 @@ export class WebSocketClearingHouseAccountSubscriber
 
 		// subscribe to market accounts
 		await this.subscribeToMarketAccounts();
+
+		// subscribe to bank accounts
+		await this.subscribeToBankAccounts();
 
 		this.eventEmitter.emit('update');
 
@@ -128,6 +137,26 @@ export class WebSocketClearingHouseAccountSubscriber
 				this.eventEmitter.emit('update');
 			});
 			this.marketAccountSubscribers.set(i, accountSubscriber);
+		}
+		return true;
+	}
+
+	async subscribeToBankAccounts(): Promise<boolean> {
+		for (let i = 0; i < 5; i++) {
+			const bankPublicKey = await getBankPublicKey(
+				this.program.programId,
+				new BN(i)
+			);
+			const accountSubscriber = new WebSocketAccountSubscriber<BankAccount>(
+				'bank',
+				this.program,
+				bankPublicKey
+			);
+			await accountSubscriber.subscribe((data: BankAccount) => {
+				this.eventEmitter.emit('bankAccountUpdate', data);
+				this.eventEmitter.emit('update');
+			});
+			this.bankAccountSubscribers.set(i, accountSubscriber);
 		}
 		return true;
 	}
@@ -160,6 +189,12 @@ export class WebSocketClearingHouseAccountSubscriber
 		}
 	}
 
+	async unsubscribeFromBankAccounts(): Promise<void> {
+		for (const accountSubscriber of this.bankAccountSubscribers.values()) {
+			await accountSubscriber.unsubscribe();
+		}
+	}
+
 	public async fetch(): Promise<void> {
 		if (!this.isSubscribed) {
 			return;
@@ -169,11 +204,17 @@ export class WebSocketClearingHouseAccountSubscriber
 			this.stateAccountSubscriber.fetch(),
 			this.orderStateAccountSubscriber.fetch(),
 			this.userAccountSubscriber.fetch(),
-		].concat(
-			Array.from(this.marketAccountSubscribers.values()).map((subscriber) =>
-				subscriber.fetch()
+		]
+			.concat(
+				Array.from(this.marketAccountSubscribers.values()).map((subscriber) =>
+					subscriber.fetch()
+				)
 			)
-		);
+			.concat(
+				Array.from(this.bankAccountSubscribers.values()).map((subscriber) =>
+					subscriber.fetch()
+				)
+			);
 
 		await Promise.all(promises);
 	}
@@ -188,6 +229,7 @@ export class WebSocketClearingHouseAccountSubscriber
 
 		await this.unsubscribeFromUserAccounts();
 		await this.unsubscribeFromMarketAccounts();
+		await this.unsubscribeFromBankAccounts();
 
 		this.isSubscribed = false;
 	}
@@ -225,6 +267,13 @@ export class WebSocketClearingHouseAccountSubscriber
 	public getOrderStateAccountAndSlot(): AccountAndSlot<OrderStateAccount> {
 		this.assertIsSubscribed();
 		return this.orderStateAccountSubscriber.accountAndSlot;
+	}
+
+	public getBankAccountAndSlot(
+		bankIndex: BN
+	): AccountAndSlot<BankAccount> | undefined {
+		this.assertIsSubscribed();
+		return this.bankAccountSubscribers.get(bankIndex.toNumber()).accountAndSlot;
 	}
 
 	public getUserAccountAndSlot(): AccountAndSlot<UserAccount> {

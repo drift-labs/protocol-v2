@@ -16,17 +16,7 @@
           "isSigner": false
         },
         {
-          "name": "collateralMint",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "collateralVault",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "collateralVaultAuthority",
+          "name": "quoteAssetMint",
           "isMut": false,
           "isSigner": false
         },
@@ -58,20 +48,99 @@
       ],
       "args": [
         {
-          "name": "clearingHouseNonce",
-          "type": "u8"
-        },
-        {
-          "name": "collateralVaultNonce",
-          "type": "u8"
-        },
-        {
-          "name": "insuranceVaultNonce",
-          "type": "u8"
-        },
-        {
           "name": "adminControlsPrices",
           "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "initializeBank",
+      "accounts": [
+        {
+          "name": "bank",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "bankMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "bankVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "bankVaultAuthority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "oracle",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "optimalUtilization",
+          "type": "u128"
+        },
+        {
+          "name": "optimalBorrowRate",
+          "type": "u128"
+        },
+        {
+          "name": "maxBorrowRate",
+          "type": "u128"
+        },
+        {
+          "name": "oracleSource",
+          "type": {
+            "defined": "OracleSource"
+          }
+        },
+        {
+          "name": "initialAssetWeight",
+          "type": "u128"
+        },
+        {
+          "name": "maintenanceAssetWeight",
+          "type": "u128"
+        },
+        {
+          "name": "initialLiabilityWeight",
+          "type": "u128"
+        },
+        {
+          "name": "maintenanceLiabilityWeight",
+          "type": "u128"
         }
       ]
     },
@@ -183,11 +252,11 @@
       ]
     },
     {
-      "name": "depositCollateral",
+      "name": "deposit",
       "accounts": [
         {
           "name": "state",
-          "isMut": true,
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -201,12 +270,12 @@
           "isSigner": true
         },
         {
-          "name": "collateralVault",
+          "name": "bankVault",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "userCollateralAccount",
+          "name": "userTokenAccount",
           "isMut": true,
           "isSigner": false
         },
@@ -218,17 +287,25 @@
       ],
       "args": [
         {
+          "name": "bankIndex",
+          "type": "u64"
+        },
+        {
           "name": "amount",
           "type": "u64"
+        },
+        {
+          "name": "reduceOnly",
+          "type": "bool"
         }
       ]
     },
     {
-      "name": "withdrawCollateral",
+      "name": "withdraw",
       "accounts": [
         {
           "name": "state",
-          "isMut": true,
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -242,27 +319,17 @@
           "isSigner": true
         },
         {
-          "name": "collateralVault",
+          "name": "bankVault",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "collateralVaultAuthority",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "insuranceVault",
+          "name": "bankVaultAuthority",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "insuranceVaultAuthority",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "userCollateralAccount",
+          "name": "userTokenAccount",
           "isMut": true,
           "isSigner": false
         },
@@ -274,10 +341,29 @@
       ],
       "args": [
         {
+          "name": "bankIndex",
+          "type": "u64"
+        },
+        {
           "name": "amount",
           "type": "u64"
+        },
+        {
+          "name": "reduceOnly",
+          "type": "bool"
         }
       ]
+    },
+    {
+      "name": "updateBankCumulativeInterest",
+      "accounts": [
+        {
+          "name": "bank",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
     },
     {
       "name": "openPosition",
@@ -580,23 +666,18 @@
           "isSigner": false
         },
         {
-          "name": "collateralVault",
+          "name": "bankVault",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "collateralVaultAuthority",
-          "isMut": false,
+          "name": "bankVaultAuthority",
+          "isMut": true,
           "isSigner": false
         },
         {
           "name": "insuranceVault",
           "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "insuranceVaultAuthority",
-          "isMut": false,
           "isSigner": false
         },
         {
@@ -651,13 +732,18 @@
           "isSigner": true
         },
         {
-          "name": "collateralVault",
+          "name": "bank",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "bankVault",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "collateralVaultAuthority",
-          "isMut": false,
+          "name": "bankVaultAuthority",
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -753,7 +839,7 @@
           "isSigner": false
         },
         {
-          "name": "collateralVault",
+          "name": "bankVault",
           "isMut": true,
           "isSigner": false
         },
@@ -1370,27 +1456,6 @@
       ]
     },
     {
-      "name": "updateMaxDeposit",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "maxDeposit",
-          "type": "u128"
-        }
-      ]
-    },
-    {
       "name": "updateExchangePaused",
       "accounts": [
         {
@@ -1450,6 +1515,100 @@
     }
   ],
   "accounts": [
+    {
+      "name": "Bank",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bankIndex",
+            "type": "u64"
+          },
+          {
+            "name": "pubkey",
+            "type": "publicKey"
+          },
+          {
+            "name": "oracle",
+            "type": "publicKey"
+          },
+          {
+            "name": "oracleSource",
+            "type": {
+              "defined": "OracleSource"
+            }
+          },
+          {
+            "name": "mint",
+            "type": "publicKey"
+          },
+          {
+            "name": "vault",
+            "type": "publicKey"
+          },
+          {
+            "name": "vaultAuthority",
+            "type": "publicKey"
+          },
+          {
+            "name": "vaultAuthorityNonce",
+            "type": "u8"
+          },
+          {
+            "name": "decimals",
+            "type": "u8"
+          },
+          {
+            "name": "optimalUtilization",
+            "type": "u128"
+          },
+          {
+            "name": "optimalBorrowRate",
+            "type": "u128"
+          },
+          {
+            "name": "maxBorrowRate",
+            "type": "u128"
+          },
+          {
+            "name": "depositBalance",
+            "type": "u128"
+          },
+          {
+            "name": "borrowBalance",
+            "type": "u128"
+          },
+          {
+            "name": "cumulativeDepositInterest",
+            "type": "u128"
+          },
+          {
+            "name": "cumulativeBorrowInterest",
+            "type": "u128"
+          },
+          {
+            "name": "lastUpdated",
+            "type": "u64"
+          },
+          {
+            "name": "initialAssetWeight",
+            "type": "u128"
+          },
+          {
+            "name": "maintenanceAssetWeight",
+            "type": "u128"
+          },
+          {
+            "name": "initialLiabilityWeight",
+            "type": "u128"
+          },
+          {
+            "name": "maintenanceLiabilityWeight",
+            "type": "u128"
+          }
+        ]
+      }
+    },
     {
       "name": "Market",
       "type": {
@@ -1585,22 +1744,6 @@
             "type": "bool"
           },
           {
-            "name": "collateralMint",
-            "type": "publicKey"
-          },
-          {
-            "name": "collateralVault",
-            "type": "publicKey"
-          },
-          {
-            "name": "collateralVaultAuthority",
-            "type": "publicKey"
-          },
-          {
-            "name": "collateralVaultNonce",
-            "type": "u8"
-          },
-          {
             "name": "insuranceVault",
             "type": "publicKey"
           },
@@ -1677,15 +1820,15 @@
             }
           },
           {
-            "name": "maxDeposit",
-            "type": "u128"
-          },
-          {
             "name": "orderState",
             "type": "publicKey"
           },
           {
             "name": "numberOfMarkets",
+            "type": "u64"
+          },
+          {
+            "name": "numberOfBanks",
             "type": "u64"
           },
           {
@@ -1721,8 +1864,15 @@
             "type": "u128"
           },
           {
-            "name": "cumulativeDeposits",
-            "type": "i128"
+            "name": "bankBalances",
+            "type": {
+              "array": [
+                {
+                  "defined": "UserBankBalance"
+                },
+                8
+              ]
+            }
           },
           {
             "name": "totalFeePaid",
@@ -2198,6 +2348,28 @@
       }
     },
     {
+      "name": "UserBankBalance",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bankIndex",
+            "type": "u64"
+          },
+          {
+            "name": "balanceType",
+            "type": {
+              "defined": "BankBalanceType"
+            }
+          },
+          {
+            "name": "balance",
+            "type": "u128"
+          }
+        ]
+      }
+    },
+    {
       "name": "MarketPosition",
       "type": {
         "kind": "struct",
@@ -2405,18 +2577,18 @@
       }
     },
     {
-      "name": "MarginType",
+      "name": "MarginRequirementType",
       "type": {
         "kind": "enum",
         "variants": [
           {
-            "name": "Init"
+            "name": "Initial"
           },
           {
             "name": "Partial"
           },
           {
-            "name": "Maint"
+            "name": "Maintenance"
           }
         ]
       }
@@ -2482,6 +2654,23 @@
           },
           {
             "name": "Switchboard"
+          },
+          {
+            "name": "QuoteAsset"
+          }
+        ]
+      }
+    },
+    {
+      "name": "BankBalanceType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Deposit"
+          },
+          {
+            "name": "Borrow"
           }
         ]
       }
@@ -2585,17 +2774,12 @@
           "index": false
         },
         {
-          "name": "collateralBefore",
-          "type": "u128",
-          "index": false
-        },
-        {
-          "name": "cumulativeDepositsBefore",
-          "type": "i128",
-          "index": false
-        },
-        {
           "name": "amount",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "bankIndex",
           "type": "u64",
           "index": false
         }
@@ -3041,8 +3225,8 @@
   "errors": [
     {
       "code": 6000,
-      "name": "InvalidCollateralAccountAuthority",
-      "msg": "Clearing house not collateral account owner"
+      "name": "InvalidBankAuthority",
+      "msg": "Invalid Bank Authority"
     },
     {
       "code": 6001,
@@ -3358,6 +3542,61 @@
       "code": 6063,
       "name": "MarketWrongMutability",
       "msg": "MarketWrongMutability"
+    },
+    {
+      "code": 6064,
+      "name": "UnableToCastUnixTime",
+      "msg": "UnableToCastUnixTime"
+    },
+    {
+      "code": 6065,
+      "name": "NoUserBankBalanceAvailable",
+      "msg": "NoUserBankBalanceAvailable"
+    },
+    {
+      "code": 6066,
+      "name": "InvalidBankInitialization",
+      "msg": "InvalidBankInitialization"
+    },
+    {
+      "code": 6067,
+      "name": "CouldNotLoadBankData",
+      "msg": "CouldNotLoadBankData"
+    },
+    {
+      "code": 6068,
+      "name": "BankNotFound",
+      "msg": "BankNotFound"
+    },
+    {
+      "code": 6069,
+      "name": "InvalidBankAccount",
+      "msg": "InvalidBankAccount"
+    },
+    {
+      "code": 6070,
+      "name": "UnableToLoadBankAccount",
+      "msg": "UnableToLoadBankAccount"
+    },
+    {
+      "code": 6071,
+      "name": "BankWrongMutability",
+      "msg": "BankWrongMutability"
+    },
+    {
+      "code": 6072,
+      "name": "BankInterestNotUpToDate",
+      "msg": "BankInterestNotUpToDate"
+    },
+    {
+      "code": 6073,
+      "name": "BankInsufficientDeposits",
+      "msg": "BankInsufficientDeposits"
+    },
+    {
+      "code": 6074,
+      "name": "UserMustSettleTheirOwnPositiveUnsettledPNL",
+      "msg": "UserMustSettleTheirOwnPositiveUnsettledPNL"
     }
   ]
 }

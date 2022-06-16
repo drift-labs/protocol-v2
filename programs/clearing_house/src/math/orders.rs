@@ -18,8 +18,10 @@ use crate::math::constants::{
 use crate::math::margin::calculate_free_collateral;
 use crate::math::quote_asset::asset_to_reserve_amount;
 use crate::math_error;
+use crate::state::bank_map::BankMap;
 use crate::state::market::Market;
 use crate::state::market_map::MarketMap;
+use crate::state::oracle_map::OracleMap;
 use crate::state::user::{Order, OrderTriggerCondition, OrderType, User};
 
 pub fn calculate_base_asset_amount_market_can_execute(
@@ -160,6 +162,8 @@ pub fn calculate_base_asset_amount_user_can_execute(
     user: &User,
     order_index: usize,
     market_map: &MarketMap,
+    bank_map: &BankMap,
+    oracle_map: &mut OracleMap,
     market_index: u64,
 ) -> ClearingHouseResult<u128> {
     let position_index = get_position_index(&user.positions, market_index)?;
@@ -172,6 +176,8 @@ pub fn calculate_base_asset_amount_user_can_execute(
         order_index,
         position_index,
         market_map,
+        bank_map,
+        oracle_map,
     )?;
 
     let market = &mut market_map.get_ref_mut(&market_index)?;
@@ -230,6 +236,8 @@ pub fn calculate_available_quote_asset_user_can_execute(
     order_index: usize,
     position_index: usize,
     market_map: &MarketMap,
+    bank_map: &BankMap,
+    oracle_map: &mut OracleMap,
 ) -> ClearingHouseResult<u128> {
     let (existing_base_asset_amount, market_index) = {
         let market_position = &user.positions[position_index];
@@ -257,14 +265,15 @@ pub fn calculate_available_quote_asset_user_can_execute(
         || existing_base_asset_amount < 0 && order_direction == PositionDirection::Short;
 
     let available_quote_asset_for_order = if risk_increasing_in_same_direction {
-        let (free_collateral, _) = calculate_free_collateral(user, market_map, None)?;
+        let (free_collateral, _) =
+            calculate_free_collateral(user, market_map, bank_map, oracle_map, None)?;
 
         free_collateral
             .checked_mul(max_leverage)
             .ok_or_else(math_error!())?
     } else {
         let (free_collateral, closed_position_base_asset_value) =
-            calculate_free_collateral(user, market_map, Some(market_index))?;
+            calculate_free_collateral(user, market_map, bank_map, oracle_map, Some(market_index))?;
 
         free_collateral
             .checked_mul(max_leverage)

@@ -17,6 +17,9 @@ import * as anchor from '@project-serum/anchor';
 import {
 	getClearingHouseStateAccountPublicKey,
 	getClearingHouseStateAccountPublicKeyAndNonce,
+	getBankVaultAuthorityPublicKey,
+	getBankPublicKey,
+	getBankVaultPublicKey,
 	getMarketPublicKey,
 	getOrderStateAccountPublicKeyAndNonce,
 } from './addresses/pda';
@@ -57,46 +60,27 @@ export class Admin extends ClearingHouse {
 			throw new Error('Clearing house already initialized');
 		}
 
-		const [collateralVaultPublicKey, collateralVaultNonce] =
-			await PublicKey.findProgramAddress(
-				[Buffer.from(anchor.utils.bytes.utf8.encode('collateral_vault'))],
-				this.program.programId
-			);
+		const [insuranceVaultPublicKey] = await PublicKey.findProgramAddress(
+			[Buffer.from(anchor.utils.bytes.utf8.encode('insurance_vault'))],
+			this.program.programId
+		);
 
-		const [collateralVaultAuthority, _collateralVaultAuthorityNonce] =
-			await PublicKey.findProgramAddress(
-				[collateralVaultPublicKey.toBuffer()],
-				this.program.programId
-			);
+		const [insuranceVaultAuthority] = await PublicKey.findProgramAddress(
+			[insuranceVaultPublicKey.toBuffer()],
+			this.program.programId
+		);
 
-		const [insuranceVaultPublicKey, insuranceVaultNonce] =
-			await PublicKey.findProgramAddress(
-				[Buffer.from(anchor.utils.bytes.utf8.encode('insurance_vault'))],
-				this.program.programId
-			);
-
-		const [insuranceVaultAuthority, _insuranceVaultAuthorityNonce] =
-			await PublicKey.findProgramAddress(
-				[insuranceVaultPublicKey.toBuffer()],
-				this.program.programId
-			);
-
-		const [clearingHouseStatePublicKey, clearingHouseNonce] =
+		const [clearingHouseStatePublicKey] =
 			await getClearingHouseStateAccountPublicKeyAndNonce(
 				this.program.programId
 			);
 		const initializeTx = await this.program.transaction.initialize(
-			clearingHouseNonce,
-			collateralVaultNonce,
-			insuranceVaultNonce,
 			adminControlsPrices,
 			{
 				accounts: {
 					admin: this.wallet.publicKey,
 					state: clearingHouseStatePublicKey,
-					collateralMint: usdcMint,
-					collateralVault: collateralVaultPublicKey,
-					collateralVaultAuthority: collateralVaultAuthority,
+					quoteAssetMint: usdcMint,
 					insuranceVault: insuranceVaultPublicKey,
 					insuranceVaultAuthority: insuranceVaultAuthority,
 					rent: SYSVAR_RENT_PUBKEY,
@@ -115,6 +99,61 @@ export class Admin extends ClearingHouse {
 		const initializeOrderStateTxSig = await this.initializeOrderState();
 
 		return [initializeTxSig, initializeOrderStateTxSig];
+	}
+
+	public async initializeBank(
+		mint: PublicKey,
+		optimalUtilization: BN,
+		optimalRate: BN,
+		maxRate: BN,
+		oracle: PublicKey,
+		oracleSource: OracleSource,
+		initialAssetWeight: BN,
+		maintenanceAssetWeight: BN,
+		initialLiabilityWeight: BN,
+		maintenanceLiabilityWeight: BN
+	): Promise<TransactionSignature> {
+		const bankIndex = this.getStateAccount().numberOfBanks;
+		const bank = await getBankPublicKey(this.program.programId, bankIndex);
+
+		const bankVault = await getBankVaultPublicKey(
+			this.program.programId,
+			bankIndex
+		);
+
+		const bankVaultAuthority = await getBankVaultAuthorityPublicKey(
+			this.program.programId,
+			bankIndex
+		);
+
+		const initializeTx = await this.program.transaction.initializeBank(
+			optimalUtilization,
+			optimalRate,
+			maxRate,
+			oracleSource,
+			initialAssetWeight,
+			maintenanceAssetWeight,
+			initialLiabilityWeight,
+			maintenanceLiabilityWeight,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					bank,
+					bankVault,
+					bankVaultAuthority,
+					bankMint: mint,
+					oracle,
+					rent: SYSVAR_RENT_PUBKEY,
+					systemProgram: anchor.web3.SystemProgram.programId,
+					tokenProgram: TOKEN_PROGRAM_ID,
+				},
+			}
+		);
+
+		const { txSig } = await this.txSender.send(initializeTx, [], this.opts);
+
+		return txSig;
 	}
 
 	public async initializeOrderState(): Promise<TransactionSignature> {
@@ -345,14 +384,15 @@ export class Admin extends ClearingHouse {
 			this.program.programId,
 			marketIndex
 		);
-		const state = await this.getStateAccount();
+		const bank = this.getQuoteAssetBankAccount();
 		return await this.program.rpc.withdrawFees(amount, {
 			accounts: {
 				admin: this.wallet.publicKey,
 				state: await this.getStatePublicKey(),
 				market: marketPublicKey,
-				collateralVault: state.collateralVault,
-				collateralVaultAuthority: state.collateralVaultAuthority,
+				bank: bank.pubkey,
+				bankVault: bank.vault,
+				bankVaultAuthority: bank.vaultAuthority,
 				recipient: recipient,
 				tokenProgram: TOKEN_PROGRAM_ID,
 			},
@@ -371,7 +411,7 @@ export class Admin extends ClearingHouse {
 				market: await getMarketPublicKey(this.program.programId, marketIndex),
 				insuranceVault: state.insuranceVault,
 				insuranceVaultAuthority: state.insuranceVaultAuthority,
-				collateralVault: state.collateralVault,
+				bankVault: this.getQuoteAssetBankAccount().vault,
 				tokenProgram: TOKEN_PROGRAM_ID,
 			},
 		});

@@ -17,6 +17,7 @@ import {
 } from '../sdk/src';
 
 import {
+	initializeQuoteAssetBank,
 	mockOracle,
 	mockUSDCMint,
 	mockUserUSDCAccount,
@@ -74,6 +75,7 @@ describe('maker order', () => {
 		);
 		await fillerClearingHouse.initialize(usdcMint.publicKey, true);
 		await fillerClearingHouse.subscribe();
+		await initializeQuoteAssetBank(fillerClearingHouse, usdcMint.publicKey);
 		solUsd = await mockOracle(1);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
@@ -175,14 +177,13 @@ describe('maker order', () => {
 			order
 		);
 
+		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
 		const position = clearingHouseUser.getUserPosition(marketIndex);
 		assert(position.baseAssetAmount.eq(baseAssetAmount));
 		assert(position.quoteAssetAmount.eq(new BN(1000001)));
 		assert(
-			clearingHouseUser
-				.getUserAccount()
-				.collateral.eq(usdcAmount.add(new BN(500)))
+			clearingHouse.getQuoteAssetTokenAmount().eq(usdcAmount.add(new BN(500)))
 		);
 		assert(clearingHouseUser.getUserAccount().totalFeePaid.eq(ZERO));
 		assert(clearingHouseUser.getUserAccount().totalFeeRebate.eq(new BN(500)));
@@ -262,14 +263,13 @@ describe('maker order', () => {
 			order
 		);
 
+		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
 		const position = clearingHouseUser.getUserPosition(marketIndex);
 		assert(position.baseAssetAmount.abs().eq(baseAssetAmount));
 		assert(position.quoteAssetAmount.eq(new BN(1000000)));
 		assert(
-			clearingHouseUser
-				.getUserAccount()
-				.collateral.eq(usdcAmount.add(new BN(500)))
+			clearingHouse.getQuoteAssetTokenAmount().eq(usdcAmount.add(new BN(500)))
 		);
 		assert(clearingHouseUser.getUserAccount().totalFeePaid.eq(ZERO));
 		assert(clearingHouseUser.getUserAccount().totalFeeRebate.eq(new BN(500)));

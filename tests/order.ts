@@ -33,6 +33,7 @@ import {
 	mockUserUSDCAccount,
 	mockUSDCMint,
 	setFeedPrice,
+	initializeQuoteAssetBank,
 } from './testHelpers';
 import {
 	AMM_RESERVE_PRECISION,
@@ -121,6 +122,7 @@ describe('orders', () => {
 		);
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
+		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
 		solUsd = await mockOracle(1);
 		btcUsd = await mockOracle(60000);
 		ethUsd = await mockOracle(1);
@@ -390,17 +392,19 @@ describe('orders', () => {
 
 		order = clearingHouseUser.getUserAccount().orders[orderIndex.toString()];
 
-		const fillerUserAccount = fillerUser.getUserAccount();
 		const expectedFillerReward = new BN(95);
 		console.log(
 			'FillerReward: $',
 			convertToNumber(
-				fillerUserAccount.collateral.sub(usdcAmount),
+				fillerClearingHouse.getQuoteAssetTokenAmount().sub(usdcAmount),
 				QUOTE_PRECISION
 			)
 		);
 		assert(
-			fillerUserAccount.collateral.sub(usdcAmount).eq(expectedFillerReward)
+			fillerClearingHouse
+				.getQuoteAssetTokenAmount()
+				.sub(usdcAmount)
+				.eq(expectedFillerReward)
 		);
 
 		const market = clearingHouse.getMarketAccount(marketIndex);
@@ -485,17 +489,19 @@ describe('orders', () => {
 
 		order = clearingHouseUser.getUserAccount().orders[orderIndex.toString()];
 
-		const fillerUserAccount = fillerUser.getUserAccount();
 		const expectedFillerReward = new BN(190);
 		console.log(
 			'FillerReward: $',
 			convertToNumber(
-				fillerUserAccount.collateral.sub(usdcAmount),
+				fillerClearingHouse.getQuoteAssetTokenAmount().sub(usdcAmount),
 				QUOTE_PRECISION
 			)
 		);
 		assert(
-			fillerUserAccount.collateral.sub(usdcAmount).eq(expectedFillerReward)
+			fillerClearingHouse
+				.getQuoteAssetTokenAmount()
+				.sub(usdcAmount)
+				.eq(expectedFillerReward)
 		);
 
 		const market = clearingHouse.getMarketAccount(marketIndex);
@@ -671,18 +677,6 @@ describe('orders', () => {
 		const amountToFill2 = calculateAmountToTradeForLimit(market2, order2);
 		assert(amountToFill2.eq(ZERO));
 
-		const userAccount = clearingHouseUser.getUserAccount();
-		const userNetGain = clearingHouseUser
-			.getTotalCollateral()
-			.add(userAccount.totalFeePaid)
-			.sub(userAccount.cumulativeDeposits);
-
-		assert(userNetGain.lte(ZERO)); // ensure no funny business
-		console.log(
-			'user net gain:',
-			convertToNumber(userNetGain, QUOTE_PRECISION)
-		);
-
 		await clearingHouse.cancelOrder(orderId);
 	});
 
@@ -761,14 +755,7 @@ describe('orders', () => {
 		const newMarket1 = clearingHouse.getMarketAccount(marketIndex);
 		const newMarkPrice1 = calculateMarkPrice(newMarket1); // 0 liquidity at current mark price
 
-		const userAccount = clearingHouseUser.getUserAccount();
 		const userLeverage = clearingHouseUser.getLeverage();
-		const userNetGain = clearingHouseUser
-			.getTotalCollateral()
-			.add(userAccount.totalFeePaid)
-			.sub(userAccount.cumulativeDeposits);
-
-		assert(userNetGain.lte(ZERO)); // ensure no funny business
 		console.log(
 			'mark price:',
 			convertToNumber(newMarkPrice1, MARK_PRICE_PRECISION),
@@ -779,9 +766,7 @@ describe('orders', () => {
 			'\n',
 			'user leverage:',
 			convertToNumber(userLeverage, TEN_THOUSAND),
-			'\n',
-			'user net gain:',
-			convertToNumber(userNetGain, QUOTE_PRECISION)
+			'\n'
 		);
 		// await clearingHouse.closePosition(marketIndex);
 		await clearingHouse.cancelOrder(orderId);
@@ -856,12 +841,7 @@ describe('orders', () => {
 		const newMarketPriceMove = clearingHouse.getMarketAccount(marketIndex);
 		const newMarkPricePriceMove = calculateMarkPrice(newMarketPriceMove);
 
-		const userAccountPriceMove = clearingHouseUser.getUserAccount();
 		const userLeveragePriceMove = clearingHouseUser.getLeverage();
-		const userNetGainPriceMove = clearingHouseUser
-			.getTotalCollateral()
-			.add(userAccountPriceMove.totalFeePaid)
-			.sub(userAccountPriceMove.cumulativeDeposits);
 
 		console.log(
 			'ON PRICE MOVE:\n',
@@ -877,9 +857,7 @@ describe('orders', () => {
 			'\n',
 			'user leverage:',
 			convertToNumber(userLeveragePriceMove, TEN_THOUSAND),
-			'\n',
-			'user net gain:',
-			convertToNumber(userNetGainPriceMove, QUOTE_PRECISION)
+			'\n'
 		);
 
 		await fillerClearingHouse.fillOrder(
@@ -896,12 +874,7 @@ describe('orders', () => {
 		const newMarket1 = clearingHouse.getMarketAccount(marketIndex);
 		const newMarkPrice1 = calculateMarkPrice(newMarket1); // 0 liquidity at current mark price
 
-		const userAccount = clearingHouseUser.getUserAccount();
 		const userLeverage = clearingHouseUser.getLeverage();
-		const userNetGain = clearingHouseUser
-			.getTotalCollateral()
-			.add(userAccount.totalFeePaid)
-			.sub(userAccount.cumulativeDeposits);
 		const postPosition = clearingHouseUser.getUserPosition(marketIndex);
 
 		console.log(
@@ -919,9 +892,7 @@ describe('orders', () => {
 			'\n',
 			'user leverage:',
 			convertToNumber(userLeverage, TEN_THOUSAND),
-			'\n',
-			'user net gain:',
-			convertToNumber(userNetGain, QUOTE_PRECISION)
+			'\n'
 		);
 
 		// assert(userNetGain.lte(ZERO)); // ensure no funny business
@@ -1008,12 +979,7 @@ describe('orders', () => {
 		const newMarket1 = clearingHouse.getMarketAccount(marketIndex);
 		const newMarkPrice1 = calculateMarkPrice(newMarket1); // 0 liquidity at current mark price
 
-		const userAccount = clearingHouseUser.getUserAccount();
 		const userLeverage = clearingHouseUser.getLeverage();
-		const userNetGain = clearingHouseUser
-			.getTotalCollateral()
-			.add(userAccount.totalFeePaid)
-			.sub(userAccount.cumulativeDeposits);
 
 		// assert(userNetGain.lte(ZERO)); // ensure no funny business
 		console.log(
@@ -1026,15 +992,13 @@ describe('orders', () => {
 			'\n',
 			'user leverage:',
 			convertToNumber(userLeverage, TEN_THOUSAND),
-			'\n',
-			'user net gain:',
-			convertToNumber(userNetGain, QUOTE_PRECISION)
+			'\n'
 		);
 		// await clearingHouse.closePosition(marketIndex);
 		await clearingHouse.cancelOrder(orderId);
 	});
 
-	it('When in Max leverage long, fill limit long order to flip to max leverage short', async () => {
+	it('When in Max leverage long, fill limit short order to flip to max leverage short', async () => {
 		// determining max leverage short is harder than max leverage long
 		// (using linear assumptions since it is smaller base amt)
 
@@ -1045,8 +1009,6 @@ describe('orders', () => {
 			'user initial leverage:',
 			convertToNumber(userLeverage0, TEN_THOUSAND)
 		);
-		`
-`;
 		const direction = PositionDirection.SHORT;
 
 		const market = clearingHouse.getMarketAccount(marketIndex);
@@ -1112,12 +1074,7 @@ describe('orders', () => {
 		const newMarketPriceMove = clearingHouse.getMarketAccount(marketIndex);
 		const newMarkPricePriceMove = calculateMarkPrice(newMarketPriceMove);
 
-		const userAccountPriceMove = clearingHouseUser.getUserAccount();
 		const userLeveragePriceMove = clearingHouseUser.getLeverage();
-		const userNetGainPriceMove = clearingHouseUser
-			.getTotalCollateral()
-			.add(userAccountPriceMove.totalFeePaid)
-			.sub(userAccountPriceMove.cumulativeDeposits);
 
 		console.log(
 			'ON PRICE MOVE:\n',
@@ -1133,9 +1090,7 @@ describe('orders', () => {
 			'\n',
 			'user leverage:',
 			convertToNumber(userLeveragePriceMove, TEN_THOUSAND),
-			'\n',
-			'user net gain:',
-			convertToNumber(userNetGainPriceMove, QUOTE_PRECISION)
+			'\n'
 		);
 
 		await fillerClearingHouse.fillOrder(
@@ -1152,12 +1107,7 @@ describe('orders', () => {
 		const newMarket1 = clearingHouse.getMarketAccount(marketIndex);
 		const newMarkPrice1 = calculateMarkPrice(newMarket1); // 0 liquidity at current mark price
 
-		const userAccount = clearingHouseUser.getUserAccount();
 		const userLeverage = clearingHouseUser.getLeverage();
-		const userNetGain = clearingHouseUser
-			.getTotalCollateral()
-			.add(userAccount.totalFeePaid)
-			.sub(userAccount.cumulativeDeposits);
 		const postPosition = clearingHouseUser.getUserPosition(marketIndex);
 
 		console.log(
@@ -1175,10 +1125,9 @@ describe('orders', () => {
 			'\n',
 			'user leverage:',
 			convertToNumber(userLeverage, TEN_THOUSAND),
-			'\n',
-			'user net gain:',
-			convertToNumber(userNetGain, QUOTE_PRECISION)
+			'\n'
 		);
+
 		await clearingHouse.closePosition(marketIndex);
 		await clearingHouse.cancelOrder(order.orderId);
 
@@ -1407,7 +1356,8 @@ describe('orders', () => {
 		console.log(prePosition);
 		assert(prePosition.baseAssetAmount.eq(ZERO)); // no existing position
 
-		const fillerUserAccount0 = fillerUser.getUserAccount();
+		const fillerCollateralBefore =
+			fillerClearingHouse.getQuoteAssetTokenAmount();
 
 		const orderParams = getLimitOrderParams(
 			marketIndex,
@@ -1443,9 +1393,8 @@ describe('orders', () => {
 		assert(postPosition.baseAssetAmount.eq(baseAssetAmount)); // 100% filled
 
 		// zero filler reward
-		const fillerUserAccount = fillerUser.getUserAccount();
-		const fillerReward = fillerUserAccount0.collateral.sub(
-			fillerUserAccount.collateral
+		const fillerReward = fillerCollateralBefore.sub(
+			fillerClearingHouse.getQuoteAssetTokenAmount()
 		);
 		console.log(
 			'FillerReward: $',
@@ -1473,7 +1422,8 @@ describe('orders', () => {
 		console.log(prePosition.baseAssetAmount.toString());
 		// assert(prePosition==undefined); // no existing position
 
-		const fillerUserAccount0 = fillerUser.getUserAccount();
+		const fillerCollateralBefore =
+			fillerClearingHouse.getQuoteAssetTokenAmount();
 
 		const orderParams = getLimitOrderParams(
 			marketIndex,
@@ -1544,10 +1494,9 @@ describe('orders', () => {
 		assert(postPosition2.baseAssetAmount.eq(baseAssetAmount)); // 100% filled
 
 		// other part filler reward
-		const fillerUserAccount = fillerUser.getUserAccount();
-		const fillerReward = fillerUserAccount.collateral.sub(
-			fillerUserAccount0.collateral
-		);
+		const fillerReward = fillerClearingHouse
+			.getQuoteAssetTokenAmount()
+			.sub(fillerCollateralBefore);
 		console.log(
 			'FillerReward: $',
 			convertToNumber(fillerReward, QUOTE_PRECISION)
@@ -1621,7 +1570,8 @@ describe('orders', () => {
 
 		const orderIndex = new BN(0);
 		const order = whaleUser.getUserAccount().orders[orderIndex.toString()];
-		const fillerUserAccountBefore = fillerUser.getUserAccount();
+		const fillerCollateralBefore =
+			fillerClearingHouse.getQuoteAssetTokenAmount();
 
 		await fillerClearingHouse.fillOrder(
 			whaleAccountPublicKey,
@@ -1639,18 +1589,18 @@ describe('orders', () => {
 			convertToNumber(whaleUserAccount.totalFeePaid, QUOTE_PRECISION)
 		);
 
-		const fillerUserAccount = fillerUser.getUserAccount();
 		const expectedFillerReward = new BN(1e6 / 100); //1 cent
-		const fillerReward = fillerUserAccount.collateral.sub(
-			fillerUserAccountBefore.collateral
-		);
+		const fillerReward = fillerClearingHouse
+			.getQuoteAssetTokenAmount()
+			.sub(fillerCollateralBefore);
 		console.log(
 			'FillerReward: $',
 			convertToNumber(fillerReward, QUOTE_PRECISION)
 		);
 		assert(
-			fillerUserAccount.collateral
-				.sub(fillerUserAccountBefore.collateral)
+			fillerClearingHouse
+				.getQuoteAssetTokenAmount()
+				.sub(fillerCollateralBefore)
 				.eq(expectedFillerReward)
 		);
 

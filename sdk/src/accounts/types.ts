@@ -1,4 +1,5 @@
 import {
+	BankAccount,
 	MarketAccount,
 	OrderStateAccount,
 	StateAccount,
@@ -29,6 +30,7 @@ export class NotSubscribedError extends Error {
 export interface ClearingHouseAccountEvents {
 	stateAccountUpdate: (payload: StateAccount) => void;
 	marketAccountUpdate: (payload: MarketAccount) => void;
+	bankAccountUpdate: (payload: BankAccount) => void;
 	orderStateAccountUpdate: (payload: OrderStateAccount) => void;
 	userAccountUpdate: (payload: UserAccount) => void;
 	update: void;
@@ -49,6 +51,7 @@ export interface ClearingHouseAccountSubscriber {
 	getMarketAccountAndSlot(
 		marketIndex: BN
 	): AccountAndSlot<MarketAccount> | undefined;
+	getBankAccountAndSlot(bankIndex: BN): AccountAndSlot<BankAccount> | undefined;
 	getOrderStateAccountAndSlot(): AccountAndSlot<OrderStateAccount>;
 
 	getUserAccountAndSlot(): AccountAndSlot<UserAccount> | undefined;
