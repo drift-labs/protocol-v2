@@ -9,7 +9,8 @@ use crate::math::casting::{cast, cast_to_i128, cast_to_i64};
 use crate::math::constants::PRICE_TO_PEG_PRECISION_RATIO;
 use crate::math::{amm, bn, quote_asset::*};
 use crate::math_error;
-use crate::state::market::{Market, OraclePriceData, AMM};
+use crate::state::market::{Market, AMM};
+use crate::state::oracle::OraclePriceData;
 use std::cmp::max;
 
 use crate::controller::repeg::apply_cost_to_market;

@@ -4,23 +4,21 @@
 use anchor_lang::prelude::*;
 use borsh::BorshSerialize;
 
-use crate::math::amm::get_update_k_result;
-use crate::state::market::Market;
-use crate::state::{
-    market::{OracleSource, AMM},
-    order_state::*,
-    state::*,
-    user::*,
-};
 use context::*;
 use controller::position::PositionDirection;
 use error::ErrorCode;
-use math::{amm, bn, constants::*, fees, margin::*, orders::*, withdrawal::*};
+use math::{amm, bn, constants::*, fees, margin::*, orders::*};
+use state::oracle::{get_oracle_price, OracleSource};
+
+use crate::math::amm::get_update_k_result;
+use crate::state::market::Market;
+use crate::state::{market::AMM, order_state::*, state::*, user::*};
 
 mod account_loader;
 pub mod context;
 pub mod controller;
 pub mod error;
+pub mod ids;
 pub mod macros;
 mod margin_validation;
 pub mod math;
@@ -47,39 +45,30 @@ pub mod clearing_house {
         is_oracle_mark_too_divergent,
         //  normalise_oracle_price,
     };
-    use crate::math::casting::{cast, cast_to_i128, cast_to_u128};
-    use crate::math::collateral::calculate_updated_collateral;
+    use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64};
     use crate::math::slippage::{calculate_slippage, calculate_slippage_pct};
     use crate::optional_accounts::{get_discount_token, get_referrer, get_referrer_for_fill_order};
+    use crate::state::bank::Bank;
     use crate::state::events::TradeRecord;
     use crate::state::events::{CurveRecord, DepositRecord};
     use crate::state::events::{DepositDirection, LiquidationRecord};
-    use crate::state::market::{Market, OraclePriceData};
+    use crate::state::market::Market;
     use crate::state::market_map::{
         get_market_oracles, get_writable_markets, get_writable_markets_for_user_positions,
         MarketMap, MarketOracles, WritableMarkets,
     };
+    use crate::state::oracle::OraclePriceData;
     use crate::state::order_state::{OrderFillerRewardStructure, OrderState};
     use crate::state::user::OrderType;
 
     use super::*;
+    use crate::controller::bank_balance::update_bank_balances;
+    use crate::math::bank_balance::get_token_amount;
+    use crate::state::bank_map::{get_writable_banks, BankMap};
+    use crate::state::oracle_map::OracleMap;
+    use std::cmp::min;
 
-    pub fn initialize(
-        ctx: Context<Initialize>,
-        _clearing_house_nonce: u8,
-        _collateral_vault_nonce: u8,
-        _insurance_vault_nonce: u8,
-        admin_controls_prices: bool,
-    ) -> Result<()> {
-        let collateral_account_key = ctx.accounts.collateral_vault.to_account_info().key;
-        let (collateral_account_authority, collateral_account_nonce) =
-            Pubkey::find_program_address(&[collateral_account_key.as_ref()], ctx.program_id);
-
-        // clearing house must be authority of collateral vault
-        if ctx.accounts.collateral_vault.owner != collateral_account_authority {
-            return Err(ErrorCode::InvalidCollateralAccountAuthority.into());
-        }
-
+    pub fn initialize(ctx: Context<Initialize>, admin_controls_prices: bool) -> Result<()> {
         let insurance_account_key = ctx.accounts.insurance_vault.to_account_info().key;
         let (insurance_account_authority, insurance_account_nonce) =
             Pubkey::find_program_address(&[insurance_account_key.as_ref()], ctx.program_id);
@@ -94,10 +83,6 @@ pub mod clearing_house {
             funding_paused: false,
             exchange_paused: false,
             admin_controls_prices,
-            collateral_mint: *ctx.accounts.collateral_mint.to_account_info().key,
-            collateral_vault: *collateral_account_key,
-            collateral_vault_authority: collateral_account_authority,
-            collateral_vault_nonce: collateral_account_nonce,
             insurance_vault: *insurance_account_key,
             insurance_vault_authority: insurance_account_authority,
             insurance_vault_nonce: insurance_account_nonce,
@@ -150,7 +135,6 @@ pub mod clearing_house {
             },
             whitelist_mint: Pubkey::default(),
             discount_mint: Pubkey::default(),
-            max_deposit: 0,
             oracle_guard_rails: OracleGuardRails {
                 price_divergence: PriceDivergenceGuardRails {
                     mark_oracle_divergence_numerator: 1,
@@ -165,10 +149,163 @@ pub mod clearing_house {
             },
             order_state: Pubkey::default(),
             number_of_markets: 0,
+            number_of_banks: 0,
             padding0: 0,
             padding1: 0,
             padding2: 0,
             padding3: 0,
+        };
+
+        Ok(())
+    }
+
+    pub fn initialize_bank(
+        ctx: Context<InitializeBank>,
+        optimal_utilization: u128,
+        optimal_borrow_rate: u128,
+        max_borrow_rate: u128,
+        oracle_source: OracleSource,
+        initial_asset_weight: u128,
+        maintenance_asset_weight: u128,
+        initial_liability_weight: u128,
+        maintenance_liability_weight: u128,
+    ) -> Result<()> {
+        let state = &mut ctx.accounts.state;
+        let bank_pubkey = ctx.accounts.bank.key();
+
+        let (vault_authority, vault_authority_nonce) = Pubkey::find_program_address(
+            &[
+                b"bank_vault_authority".as_ref(),
+                state.number_of_banks.to_le_bytes().as_ref(),
+            ],
+            ctx.program_id,
+        );
+
+        // clearing house must be authority of collateral vault
+        if ctx.accounts.bank_vault.owner != vault_authority {
+            return Err(ErrorCode::InvalidBankAuthority.into());
+        }
+
+        let bank_index = get_then_update_id!(state, number_of_banks);
+        if bank_index == 0 {
+            validate!(
+                initial_asset_weight == BANK_WEIGHT_PRECISION,
+                ErrorCode::InvalidBankInitialization,
+                "For quote asset bank, initial asset weight must be {}",
+                BANK_WEIGHT_PRECISION
+            )?;
+
+            validate!(
+                maintenance_asset_weight == BANK_WEIGHT_PRECISION,
+                ErrorCode::InvalidBankInitialization,
+                "For quote asset bank, maintenance asset weight must be {}",
+                BANK_WEIGHT_PRECISION
+            )?;
+
+            validate!(
+                initial_liability_weight == BANK_WEIGHT_PRECISION,
+                ErrorCode::InvalidBankInitialization,
+                "For quote asset bank, initial liability weight must be {}",
+                BANK_WEIGHT_PRECISION
+            )?;
+
+            validate!(
+                maintenance_liability_weight == BANK_WEIGHT_PRECISION,
+                ErrorCode::InvalidBankInitialization,
+                "For quote asset bank, maintenance liability weight must be {}",
+                BANK_WEIGHT_PRECISION
+            )?;
+
+            validate!(
+                ctx.accounts.oracle.key == &Pubkey::default(),
+                ErrorCode::InvalidBankInitialization,
+                "For quote asset bank, oracle must be default public key"
+            )?;
+
+            validate!(
+                oracle_source == OracleSource::QuoteAsset,
+                ErrorCode::InvalidBankInitialization,
+                "For quote asset bank, oracle source must be QuoteAsset"
+            )?;
+
+            validate!(
+                ctx.accounts.bank_mint.decimals == 6,
+                ErrorCode::InvalidBankInitialization,
+                "For quote asset bank, mint decimals must be 6"
+            )?;
+        } else {
+            validate!(
+                initial_asset_weight > 0 && initial_asset_weight < BANK_WEIGHT_PRECISION,
+                ErrorCode::InvalidBankInitialization,
+                "Initial asset weight must be between 0 {}",
+                BANK_WEIGHT_PRECISION
+            )?;
+
+            validate!(
+                maintenance_asset_weight > 0 && maintenance_asset_weight < BANK_WEIGHT_PRECISION,
+                ErrorCode::InvalidBankInitialization,
+                "Maintenance asset weight must be between 0 {}",
+                BANK_WEIGHT_PRECISION
+            )?;
+
+            validate!(
+                initial_liability_weight > BANK_WEIGHT_PRECISION,
+                ErrorCode::InvalidBankInitialization,
+                "Initial liability weight must be greater than {}",
+                BANK_WEIGHT_PRECISION
+            )?;
+
+            validate!(
+                maintenance_liability_weight > BANK_WEIGHT_PRECISION,
+                ErrorCode::InvalidBankInitialization,
+                "Maintenance liability weight must be greater than {}",
+                BANK_WEIGHT_PRECISION
+            )?;
+
+            validate!(
+                ctx.accounts.bank_mint.decimals >= 6,
+                ErrorCode::InvalidBankInitialization,
+                "Mint decimals must be greater than or equal to 6"
+            )?;
+
+            let oracle_price = get_oracle_price(
+                &oracle_source,
+                &ctx.accounts.oracle,
+                cast(Clock::get()?.unix_timestamp)?,
+            );
+
+            validate!(
+                oracle_price.is_ok(),
+                ErrorCode::InvalidBankInitialization,
+                "Unable to read oracle price for {}",
+                ctx.accounts.oracle.key,
+            )?;
+        }
+
+        let bank = &mut ctx.accounts.bank.load_init()?;
+        **bank = Bank {
+            bank_index,
+            pubkey: bank_pubkey,
+            mint: ctx.accounts.bank_mint.key(),
+            vault: *ctx.accounts.bank_vault.to_account_info().key,
+            vault_authority,
+            vault_authority_nonce,
+            decimals: ctx.accounts.bank_mint.decimals,
+            optimal_utilization,
+            optimal_borrow_rate,
+            max_borrow_rate,
+            deposit_balance: 0,
+            borrow_balance: 0,
+            cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_borrow_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            last_updated: cast(Clock::get()?.unix_timestamp)
+                .or(Err(ErrorCode::UnableToCastUnixTime))?,
+            oracle_source,
+            oracle: ctx.accounts.oracle.key(),
+            initial_asset_weight,
+            maintenance_asset_weight,
+            initial_liability_weight,
+            maintenance_liability_weight,
         };
 
         Ok(())
@@ -250,11 +387,13 @@ pub mod clearing_house {
                 .amm
                 .get_switchboard_price(&ctx.accounts.oracle, clock_slot)
                 .unwrap(),
+            OracleSource::QuoteAsset => panic!(),
         };
 
         let last_oracle_price_twap = match oracle_source {
             OracleSource::Pyth => market.amm.get_pyth_twap(&ctx.accounts.oracle)?,
             OracleSource::Switchboard => oracle_price,
+            OracleSource::QuoteAsset => panic!(),
         };
 
         validate_margin(
@@ -329,7 +468,7 @@ pub mod clearing_house {
                 long_intensity_time: amm_periodicity, // conservatively set init to funding period
                 long_intensity_count: 0,
                 long_intensity_volume: 0,
-                short_intensity_time: amm_periodicity, 
+                short_intensity_time: amm_periodicity,
                 short_intensity_count: 0,
                 short_intensity_volume: 0,
                 curve_update_intensity: 0,
@@ -348,44 +487,65 @@ pub mod clearing_house {
         Ok(())
     }
 
-    pub fn deposit_collateral(ctx: Context<DepositCollateral>, amount: u64) -> Result<()> {
+    pub fn deposit(
+        ctx: Context<Deposit>,
+        bank_index: u64,
+        amount: u64,
+        reduce_only: bool,
+    ) -> Result<()> {
         let user_key = ctx.accounts.user.key();
-        let user = &mut ctx
-            .accounts
-            .user
-            .load_mut()
-            .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
+        let user = &mut load_mut(&ctx.accounts.user)?;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
+
+        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+        let _oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let bank_map = BankMap::load(&get_writable_banks(bank_index), remaining_accounts_iter)?;
+
+        let market_map = MarketMap::load(
+            &WritableMarkets::new(),
+            &MarketOracles::new(),
+            remaining_accounts_iter,
+        )?;
 
         if amount == 0 {
             return Err(ErrorCode::InsufficientDeposit.into());
         }
 
-        let collateral_before = user.collateral;
-        let cumulative_deposits_before = user.cumulative_deposits;
+        let bank = &mut bank_map.get_ref_mut(&bank_index)?;
+        controller::bank_balance::update_bank_cumulative_interest(bank, now)?;
 
-        user.collateral = user
-            .collateral
-            .checked_add(cast(amount)?)
-            .ok_or_else(math_error!())?;
-        user.cumulative_deposits = user
-            .cumulative_deposits
-            .checked_add(cast(amount)?)
-            .ok_or_else(math_error!())?;
+        let user_bank_balance = match user.get_bank_balance_mut(bank.bank_index) {
+            Some(user_bank_balance) => user_bank_balance,
+            None => user.add_bank_balance(bank_index, BankBalanceType::Deposit)?,
+        };
 
-        let market_map = MarketMap::load(
-            &WritableMarkets::new(),
-            &MarketOracles::new(),
-            &mut ctx.remaining_accounts.iter().peekable(),
+        // if reduce only, have to compare ix amount to current borrow amount
+        let amount = if reduce_only && user_bank_balance.balance_type == BankBalanceType::Borrow {
+            let borrow_token_amount = get_token_amount(
+                user_bank_balance.balance,
+                bank,
+                &user_bank_balance.balance_type,
+            )?;
+            min(borrow_token_amount as u64, amount)
+        } else {
+            amount
+        };
+
+        controller::bank_balance::update_bank_balances(
+            amount as u128,
+            &BankBalanceType::Deposit,
+            bank,
+            user_bank_balance,
+            false,
         )?;
 
         controller::funding::settle_funding_payment(user, &user_key, &market_map, now)?;
 
         controller::token::receive(
             &ctx.accounts.token_program,
-            &ctx.accounts.user_collateral_account,
-            &ctx.accounts.collateral_vault,
+            &ctx.accounts.user_token_account,
+            &ctx.accounts.bank_vault,
             &ctx.accounts.authority,
             amount,
         )?;
@@ -395,17 +555,10 @@ pub mod clearing_house {
             user_authority: user.authority,
             user: user_key,
             direction: DepositDirection::DEPOSIT,
-            collateral_before,
-            cumulative_deposits_before,
             amount,
+            bank_index,
         };
         emit!(deposit_record);
-
-        if ctx.accounts.state.max_deposit > 0
-            && user.cumulative_deposits > cast(ctx.accounts.state.max_deposit)?
-        {
-            return Err(ErrorCode::UserMaxDeposit.into());
-        }
 
         Ok(())
     }
@@ -413,86 +566,95 @@ pub mod clearing_house {
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]
-    pub fn withdraw_collateral(ctx: Context<WithdrawCollateral>, amount: u64) -> Result<()> {
+    pub fn withdraw(
+        ctx: Context<Withdraw>,
+        bank_index: u64,
+        amount: u64,
+        reduce_only: bool,
+    ) -> Result<()> {
         let user_key = ctx.accounts.user.key();
         let user = &mut load_mut(&ctx.accounts.user)?;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
 
-        let collateral_before = user.collateral;
-        let cumulative_deposits_before = user.cumulative_deposits;
-
+        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let bank_map = BankMap::load(&get_writable_banks(bank_index), remaining_accounts_iter)?;
         let market_map = MarketMap::load(
             &WritableMarkets::new(),
             &MarketOracles::new(),
-            &mut ctx.remaining_accounts.iter().peekable(),
+            remaining_accounts_iter,
         )?;
 
         controller::funding::settle_funding_payment(user, &user_key, &market_map, now)?;
 
-        if cast_to_u128(amount)? > user.collateral {
-            return Err(ErrorCode::InsufficientCollateral.into());
-        }
+        let amount = {
+            let bank = &mut bank_map.get_ref_mut(&bank_index)?;
+            controller::bank_balance::update_bank_cumulative_interest(bank, now)?;
 
-        let (collateral_account_withdrawal, insurance_account_withdrawal) =
-            calculate_withdrawal_amounts(
-                amount,
-                &ctx.accounts.collateral_vault,
-                &ctx.accounts.insurance_vault,
+            let user_bank_balance = match user.get_bank_balance_mut(bank.bank_index) {
+                Some(user_bank_balance) => user_bank_balance,
+                None => user.add_bank_balance(bank_index, BankBalanceType::Deposit)?,
+            };
+
+            // if reduce only, have to compare ix amount to current deposit amount
+            let amount =
+                if reduce_only && user_bank_balance.balance_type == BankBalanceType::Deposit {
+                    let borrow_token_amount = get_token_amount(
+                        user_bank_balance.balance,
+                        bank,
+                        &user_bank_balance.balance_type,
+                    )?;
+                    min(borrow_token_amount as u64, amount)
+                } else {
+                    amount
+                };
+
+            controller::bank_balance::update_bank_balances(
+                amount as u128,
+                &BankBalanceType::Borrow,
+                bank,
+                user_bank_balance,
+                false,
             )?;
 
-        // amount_withdrawn can be less than amount if there is an insufficient balance in collateral and insurance vault
-        let amount_withdraw = collateral_account_withdrawal
-            .checked_add(insurance_account_withdrawal)
-            .ok_or_else(math_error!())?;
+            amount
+        };
 
-        user.cumulative_deposits = user
-            .cumulative_deposits
-            .checked_sub(cast(amount_withdraw)?)
-            .ok_or_else(math_error!())?;
-
-        user.collateral = user
-            .collateral
-            .checked_sub(cast(collateral_account_withdrawal)?)
-            .ok_or_else(math_error!())?
-            .checked_sub(cast(insurance_account_withdrawal)?)
-            .ok_or_else(math_error!())?;
-
-        if !meets_initial_margin_requirement(user, &market_map)? {
+        if !meets_initial_margin_requirement(user, &market_map, &bank_map, &mut oracle_map)? {
             return Err(ErrorCode::InsufficientCollateral.into());
         }
 
-        controller::token::send(
+        let bank = bank_map.get_ref(&bank_index)?;
+        controller::token::send_from_bank_vault(
             &ctx.accounts.token_program,
-            &ctx.accounts.collateral_vault,
-            &ctx.accounts.user_collateral_account,
-            &ctx.accounts.collateral_vault_authority,
-            ctx.accounts.state.collateral_vault_nonce,
-            collateral_account_withdrawal,
+            &ctx.accounts.bank_vault,
+            &ctx.accounts.user_token_account,
+            &ctx.accounts.bank_vault_authority,
+            bank_index,
+            bank.vault_authority_nonce,
+            amount,
         )?;
-
-        if insurance_account_withdrawal > 0 {
-            controller::token::send(
-                &ctx.accounts.token_program,
-                &ctx.accounts.insurance_vault,
-                &ctx.accounts.user_collateral_account,
-                &ctx.accounts.insurance_vault_authority,
-                ctx.accounts.state.insurance_vault_nonce,
-                insurance_account_withdrawal,
-            )?;
-        }
 
         let deposit_record = DepositRecord {
             ts: now,
             user_authority: user.authority,
             user: user_key,
             direction: DepositDirection::WITHDRAW,
-            collateral_before,
-            cumulative_deposits_before,
-            amount: amount_withdraw,
+            amount,
+            bank_index,
         };
         emit!(deposit_record);
 
+        Ok(())
+    }
+
+    pub fn update_bank_cumulative_interest(
+        ctx: Context<UpdateBankCumulativeInterest>,
+    ) -> Result<()> {
+        let bank = &mut load_mut(&ctx.accounts.bank)?;
+        let now = Clock::get()?.unix_timestamp;
+        controller::bank_balance::update_bank_cumulative_interest(bank, now)?;
         Ok(())
     }
 
@@ -515,6 +677,11 @@ pub mod clearing_house {
         let clock_slot = clock.slot;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let bank_map = BankMap::load(
+            &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
+            remaining_accounts_iter,
+        )?;
         let market_map = MarketMap::load(
             &get_writable_markets(market_index),
             &get_market_oracles(market_index, &ctx.accounts.oracle),
@@ -571,6 +738,7 @@ pub mod clearing_house {
         let base_asset_amount;
         let mut quote_asset_amount = quote_asset_amount;
         let quote_asset_amount_surplus;
+        let pnl;
         {
             let market = &mut market_map.get_ref_mut(&market_index)?;
             let (
@@ -579,6 +747,7 @@ pub mod clearing_house {
                 _base_asset_amount,
                 _quote_asset_amount,
                 _quote_asset_amount_surplus,
+                _pnl,
             ) = controller::position::update_position_with_quote_asset_amount(
                 quote_asset_amount,
                 direction,
@@ -593,6 +762,7 @@ pub mod clearing_house {
             base_asset_amount = _base_asset_amount;
             quote_asset_amount = _quote_asset_amount;
             quote_asset_amount_surplus = _quote_asset_amount_surplus;
+            pnl = _pnl;
         }
 
         // Collect data about position/market after trade is executed so that it can be stored in trade record
@@ -614,7 +784,8 @@ pub mod clearing_house {
         }
 
         // Trade fails if it's risk increasing and it brings the user below the initial margin ratio level
-        let meets_initial_margin_requirement = meets_initial_margin_requirement(user, &market_map)?;
+        let meets_initial_margin_requirement =
+            meets_initial_margin_requirement(user, &market_map, &bank_map, &mut oracle_map)?;
         if !meets_initial_margin_requirement && potentially_risk_increasing {
             return Err(ErrorCode::InsufficientCollateral.into());
         }
@@ -651,8 +822,31 @@ pub mod clearing_house {
                 .ok_or_else(math_error!())?;
         }
 
-        // Subtract the fee from user's collateral
-        user.collateral = user.collateral.saturating_sub(user_fee);
+        // Update user balance to account for fee and pnl
+        {
+            let bank = &mut bank_map.get_quote_asset_bank_mut()?;
+            let user_bank_balance = user.get_quote_asset_bank_balance_mut();
+
+            update_bank_balances(
+                user_fee,
+                &BankBalanceType::Borrow,
+                bank,
+                user_bank_balance,
+                true,
+            )?;
+
+            update_bank_balances(
+                pnl.unsigned_abs(),
+                if pnl > 0 {
+                    &BankBalanceType::Deposit
+                } else {
+                    &BankBalanceType::Borrow
+                },
+                bank,
+                user_bank_balance,
+                true,
+            )?;
+        }
 
         // Increment the user's total fee variables
         user.total_fee_paid = user
@@ -776,6 +970,11 @@ pub mod clearing_house {
         let clock_slot = clock.slot;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+        let _oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let bank_map = BankMap::load(
+            &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
+            remaining_accounts_iter,
+        )?;
         let market_map = MarketMap::load(
             &get_writable_markets(market_index),
             &get_market_oracles(market_index, &ctx.accounts.oracle),
@@ -813,7 +1012,6 @@ pub mod clearing_house {
                 true,
             )?;
         let base_asset_amount = base_asset_amount.unsigned_abs();
-        user.collateral = calculate_updated_collateral(user.collateral, pnl)?;
 
         // Calculate the fee to charge the user
         let (discount_token, referrer) = optional_accounts::get_discount_token_and_referrer(
@@ -844,8 +1042,31 @@ pub mod clearing_house {
             .checked_add(fee_to_market)
             .ok_or_else(math_error!())?;
 
-        // Subtract the fee from user's collateral
-        user.collateral = user.collateral.saturating_sub(user_fee);
+        // Update user balance to account for fee and pnl
+        {
+            let bank = &mut bank_map.get_quote_asset_bank_mut()?;
+            let user_bank_balance = user.get_quote_asset_bank_balance_mut();
+
+            update_bank_balances(
+                user_fee,
+                &BankBalanceType::Borrow,
+                bank,
+                user_bank_balance,
+                true,
+            )?;
+
+            update_bank_balances(
+                pnl.unsigned_abs(),
+                if pnl > 0 {
+                    &BankBalanceType::Deposit
+                } else {
+                    &BankBalanceType::Borrow
+                },
+                bank,
+                user_bank_balance,
+                true,
+            )?;
+        }
 
         // Increment the user's total fee variables
         user.total_fee_paid = user
@@ -951,6 +1172,8 @@ pub mod clearing_house {
 
     pub fn place_order(ctx: Context<PlaceOrder>, params: OrderParams) -> Result<()> {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+        let _oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
+        let _bank_map = BankMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
         let market_map = MarketMap::load(
             &WritableMarkets::new(),
             &get_market_oracles(params.market_index, &ctx.accounts.oracle),
@@ -1011,6 +1234,8 @@ pub mod clearing_house {
         };
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
+        let bank_map = BankMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
         let market_map = MarketMap::load(
             &WritableMarkets::new(),
             market_oracles,
@@ -1024,6 +1249,8 @@ pub mod clearing_house {
             order_id,
             &ctx.accounts.user,
             &market_map,
+            &bank_map,
+            &mut oracle_map,
             &Clock::get()?,
             oracle,
         )?;
@@ -1045,6 +1272,8 @@ pub mod clearing_house {
             &get_market_oracles(order.market_index, &ctx.accounts.oracle)
         };
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
+        let bank_map = BankMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
         let market_map = MarketMap::load(
             &WritableMarkets::new(),
             market_oracles,
@@ -1057,6 +1286,8 @@ pub mod clearing_house {
             user_order_id,
             &ctx.accounts.user,
             &market_map,
+            &bank_map,
+            &mut oracle_map,
             &Clock::get()?,
             oracle,
         )?;
@@ -1084,6 +1315,11 @@ pub mod clearing_house {
         };
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
+        let mut bank_map = BankMap::load(
+            &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
+            remaining_accounts_iter,
+        )?;
         let market_map =
             MarketMap::load(writable_markets, market_oracles, remaining_accounts_iter)?;
 
@@ -1100,6 +1336,8 @@ pub mod clearing_house {
             &ctx.accounts.order_state,
             &ctx.accounts.user,
             &market_map,
+            &mut bank_map,
+            &mut oracle_map,
             &ctx.accounts.oracle,
             &ctx.accounts.filler,
             referrer,
@@ -1121,6 +1359,11 @@ pub mod clearing_house {
         params: OrderParams,
     ) -> Result<()> {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
+        let mut bank_map = BankMap::load(
+            &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
+            remaining_accounts_iter,
+        )?;
         let market_map = MarketMap::load(
             &get_writable_markets(params.market_index),
             &get_market_oracles(params.market_index, &ctx.accounts.oracle),
@@ -1170,6 +1413,8 @@ pub mod clearing_house {
             &ctx.accounts.order_state,
             user,
             &market_map,
+            &mut bank_map,
+            &mut oracle_map,
             &ctx.accounts.oracle,
             &user.clone(),
             referrer,
@@ -1182,6 +1427,8 @@ pub mod clearing_house {
                 order_id,
                 &ctx.accounts.user,
                 &market_map,
+                &bank_map,
+                &mut oracle_map,
                 &Clock::get()?,
                 Some(&ctx.accounts.oracle),
             )?;
@@ -1202,6 +1449,11 @@ pub mod clearing_house {
         let clock_slot = clock.slot;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let bank_map = BankMap::load(
+            &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
+            remaining_accounts_iter,
+        )?;
         let market_map = MarketMap::load(
             &get_writable_markets_for_user_positions(&user.positions),
             &MarketOracles::new(), // oracles validated in calculate liquidation status
@@ -1223,13 +1475,23 @@ pub mod clearing_house {
         } = calculate_liquidation_status(
             user,
             &market_map,
-            remaining_accounts_iter,
+            &bank_map,
+            &mut oracle_map,
             &ctx.accounts.state.oracle_guard_rails,
             clock_slot,
         )?;
 
         // Verify that the user is in liquidation territory
-        let collateral = user.collateral;
+        let collateral = {
+            let bank = bank_map.get_quote_asset_bank()?;
+            let user_bank_balance = user.get_quote_asset_bank_balance_mut();
+            get_token_amount(
+                user_bank_balance.balance,
+                &bank,
+                &user_bank_balance.balance_type,
+            )?
+        };
+
         if liquidation_type == LiquidationType::NONE {
             msg!("total_collateral {}", total_collateral);
             msg!("adjusted_total_collateral {}", adjusted_total_collateral);
@@ -1375,7 +1637,22 @@ pub mod clearing_house {
                     (quote_asset_amount, base_asset_amount, pnl)
                 };
 
-                user.collateral = calculate_updated_collateral(user.collateral, pnl)?;
+                {
+                    let bank = &mut bank_map.get_quote_asset_bank_mut()?;
+                    let user_bank_balance = user.get_quote_asset_bank_balance_mut();
+
+                    update_bank_balances(
+                        pnl.unsigned_abs(),
+                        if pnl > 0 {
+                            &BankBalanceType::Deposit
+                        } else {
+                            &BankBalanceType::Borrow
+                        },
+                        bank,
+                        user_bank_balance,
+                        true,
+                    )?;
+                }
 
                 let base_asset_amount = base_asset_amount.unsigned_abs();
                 base_asset_value_closed = base_asset_value_closed
@@ -1569,7 +1846,24 @@ pub mod clearing_house {
                     Some(mark_price_before),
                     false,
                 )?;
-                user.collateral = calculate_updated_collateral(collateral, pnl)?;
+
+                {
+                    let bank = &mut bank_map.get_quote_asset_bank_mut()?;
+                    let user_bank_balance = user.get_quote_asset_bank_balance_mut();
+
+                    update_bank_balances(
+                        pnl.unsigned_abs(),
+                        if pnl > 0 {
+                            &BankBalanceType::Deposit
+                        } else {
+                            &BankBalanceType::Borrow
+                        },
+                        bank,
+                        user_bank_balance,
+                        true,
+                    )?;
+                }
+
                 let base_asset_amount = base_asset_amount.unsigned_abs();
 
                 let mark_price_after = market.amm.mark_price()?;
@@ -1629,16 +1923,19 @@ pub mod clearing_house {
             return Err(print_error!(ErrorCode::NoPositionsLiquidatable)().into());
         }
 
-        let (withdrawal_amount, _) = calculate_withdrawal_amounts(
-            cast(liquidation_fee)?,
-            &ctx.accounts.collateral_vault,
-            &ctx.accounts.insurance_vault,
-        )?;
+        let withdrawal_amount = cast_to_u64(liquidation_fee)?;
 
-        user.collateral = user
-            .collateral
-            .checked_sub(liquidation_fee)
-            .ok_or_else(math_error!())?;
+        {
+            let bank = &mut bank_map.get_quote_asset_bank_mut()?;
+            let user_bank_balance = user.get_quote_asset_bank_balance_mut();
+            update_bank_balances(
+                liquidation_fee,
+                &BankBalanceType::Borrow,
+                bank,
+                user_bank_balance,
+                true,
+            )?;
+        }
 
         let fee_to_liquidator = if is_full_liquidation {
             withdrawal_amount
@@ -1656,30 +1953,41 @@ pub mod clearing_house {
 
         let liquidate_key = ctx.accounts.liquidator.key();
         if fee_to_liquidator > 0 {
+            let bank = &mut bank_map.get_quote_asset_bank_mut()?;
             // handle edge case where user liquidates themselves
             if liquidate_key.eq(&user_key) {
-                user.collateral = user
-                    .collateral
-                    .checked_add(cast(fee_to_liquidator)?)
-                    .ok_or_else(math_error!())?;
+                let user_bank_balance = user.get_quote_asset_bank_balance_mut();
+                update_bank_balances(
+                    fee_to_liquidator as u128,
+                    &BankBalanceType::Deposit,
+                    bank,
+                    user_bank_balance,
+                    true,
+                )?;
             } else {
                 let liquidator = &mut load_mut(&ctx.accounts.liquidator)?;
-                liquidator.collateral = liquidator
-                    .collateral
-                    .checked_add(cast(fee_to_liquidator)?)
-                    .ok_or_else(math_error!())?;
+                let user_bank_balance = liquidator.get_quote_asset_bank_balance_mut();
+                update_bank_balances(
+                    fee_to_liquidator as u128,
+                    &BankBalanceType::Deposit,
+                    bank,
+                    user_bank_balance,
+                    true,
+                )?;
             };
         }
 
         if fee_to_insurance_fund > 0 {
-            controller::token::send(
+            let bank = bank_map.get_quote_asset_bank()?;
+            controller::token::send_from_bank_vault(
                 &ctx.accounts.token_program,
-                &ctx.accounts.collateral_vault,
+                &ctx.accounts.bank_vault,
                 &ctx.accounts.insurance_vault,
-                &ctx.accounts.collateral_vault_authority,
-                ctx.accounts.state.collateral_vault_nonce,
+                &ctx.accounts.bank_vault_authority,
+                0,
+                bank.vault_authority_nonce,
                 fee_to_insurance_fund,
-            )?;
+            )?
         }
 
         emit!(LiquidationRecord {
@@ -1722,7 +2030,6 @@ pub mod clearing_house {
         market_initialized(&ctx.accounts.market)
     )]
     pub fn withdraw_fees(ctx: Context<WithdrawFees>, amount: u64) -> Result<()> {
-        let state = &mut ctx.accounts.state;
         let market = &mut ctx.accounts.market.load_mut()?;
 
         // A portion of fees must always remain in protocol to be used to keep markets optimal
@@ -1740,12 +2047,14 @@ pub mod clearing_house {
             return Err(ErrorCode::AdminWithdrawTooLarge.into());
         }
 
-        controller::token::send(
+        let bank = ctx.accounts.bank.load()?;
+        controller::token::send_from_bank_vault(
             &ctx.accounts.token_program,
-            &ctx.accounts.collateral_vault,
+            &ctx.accounts.bank_vault,
             &ctx.accounts.recipient,
-            &ctx.accounts.collateral_vault_authority,
-            state.collateral_vault_nonce,
+            &ctx.accounts.bank_vault_authority,
+            0,
+            bank.vault_authority_nonce,
             amount,
         )?;
 
@@ -1762,7 +2071,7 @@ pub mod clearing_house {
         ctx: Context<WithdrawFromInsuranceVault>,
         amount: u64,
     ) -> Result<()> {
-        controller::token::send(
+        controller::token::send_from_insurance_vault(
             &ctx.accounts.token_program,
             &ctx.accounts.insurance_vault,
             &ctx.accounts.recipient,
@@ -1791,10 +2100,10 @@ pub mod clearing_house {
             .checked_add(cast(amount)?)
             .ok_or_else(math_error!())?;
 
-        controller::token::send(
+        controller::token::send_from_insurance_vault(
             &ctx.accounts.token_program,
             &ctx.accounts.insurance_vault,
-            &ctx.accounts.collateral_vault,
+            &ctx.accounts.bank_vault,
             &ctx.accounts.insurance_vault_authority,
             ctx.accounts.state.insurance_vault_nonce,
             amount,
@@ -2317,11 +2626,6 @@ pub mod clearing_house {
         Ok(())
     }
 
-    pub fn update_max_deposit(ctx: Context<AdminUpdateState>, max_deposit: u128) -> Result<()> {
-        ctx.accounts.state.max_deposit = max_deposit;
-        Ok(())
-    }
-
     pub fn update_exchange_paused(
         ctx: Context<AdminUpdateState>,
         exchange_paused: bool,
@@ -2371,5 +2675,3 @@ fn admin_controls_prices(state: &Account<State>) -> Result<()> {
     }
     Ok(())
 }
-
-

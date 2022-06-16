@@ -151,10 +151,10 @@ pub fn update_funding_rate(
         )?;
         let mid_price_twap = amm::update_mark_twap(&mut market.amm, now, None)?;
 
-        let period_adjustment = (24_i64)
+        let period_adjustment = (24_i128)
             .checked_mul(ONE_HOUR)
             .ok_or_else(math_error!())?
-            .checked_div(max(ONE_HOUR, market.amm.funding_period))
+            .checked_div(max(ONE_HOUR, market.amm.funding_period as i128))
             .ok_or_else(math_error!())?;
         // funding period = 1 hour, window = 1 day
         // low periodicity => quickly updating/settled funding rates => lower funding rate payment per interval

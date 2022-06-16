@@ -63,3 +63,48 @@ export async function getMarketPublicKey(
 		)
 	)[0];
 }
+
+export async function getBankPublicKey(
+	programId: PublicKey,
+	bankIndex: BN
+): Promise<PublicKey> {
+	return (
+		await anchor.web3.PublicKey.findProgramAddress(
+			[
+				Buffer.from(anchor.utils.bytes.utf8.encode('bank')),
+				bankIndex.toArrayLike(Buffer, 'le', 8),
+			],
+			programId
+		)
+	)[0];
+}
+
+export async function getBankVaultPublicKey(
+	programId: PublicKey,
+	bankIndex: BN
+): Promise<PublicKey> {
+	return (
+		await anchor.web3.PublicKey.findProgramAddress(
+			[
+				Buffer.from(anchor.utils.bytes.utf8.encode('bank_vault')),
+				bankIndex.toArrayLike(Buffer, 'le', 8),
+			],
+			programId
+		)
+	)[0];
+}
+
+export async function getBankVaultAuthorityPublicKey(
+	programId: PublicKey,
+	bankIndex: BN
+): Promise<PublicKey> {
+	return (
+		await anchor.web3.PublicKey.findProgramAddress(
+			[
+				Buffer.from(anchor.utils.bytes.utf8.encode('bank_vault_authority')),
+				bankIndex.toArrayLike(Buffer, 'le', 8),
+			],
+			programId
+		)
+	)[0];
+}

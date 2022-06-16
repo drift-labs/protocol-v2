@@ -1,6 +1,7 @@
 // PRECISIONS
 pub const AMM_RESERVE_PRECISION: u128 = 10_000_000_000_000; //expo = -13;
 pub const MARK_PRICE_PRECISION: u128 = 10_000_000_000; //expo = -10
+pub const MARK_PRICE_PRECISION_I128: i128 = 10_000_000_000; //expo = -10
 pub const QUOTE_PRECISION: u128 = 1_000_000; // expo = -6
 pub const FUNDING_PAYMENT_PRECISION: u128 = 10_000; // expo = -4
 pub const MARGIN_PRECISION: u128 = 10_000; // expo = -4
@@ -11,7 +12,11 @@ pub const BID_ASK_SPREAD_PRECISION: u128 = 1_000_000; // expo = -6
 pub const BID_ASK_SPREAD_PRECISION_I128: i128 = (BID_ASK_SPREAD_PRECISION) as i128;
 
 pub const AMM_RESERVE_PRECISION_I128: i128 = (AMM_RESERVE_PRECISION) as i128;
-pub const MARK_PRICE_PRECISION_I128: i128 = 10_000_000_000; //expo = -10
+// pub const MARK_PRICE_PRECISION_I128: i128 = 10_000_000_000; //expo = -10
+pub const BANK_INTEREST_PRECISION: u128 = 1_000_000; // expo = -6
+pub const BANK_CUMULATIVE_INTEREST_PRECISION: u128 = 10_000_000_000; // expo = -10
+pub const BANK_UTILIZATION_PRECISION: u128 = 1_000_000; // expo = -6
+pub const BANK_WEIGHT_PRECISION: u128 = 100; // expo = -2
 
 // PRECISION CONVERSIONS
 pub const PRICE_TO_PEG_PRECISION_RATIO: u128 = MARK_PRICE_PRECISION / PEG_PRECISION; // expo: 7
@@ -42,8 +47,10 @@ pub const SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_DENOMINATOR: u128 = 2;
 pub const UPDATE_K_ALLOWED_PRICE_CHANGE: u128 = MARK_PRICE_PRECISION / 100_000; //.00001
 
 // TIME PERIODS
-pub const ONE_HOUR: i64 = 3600;
+// pub const ONE_HOUR: i64 = 3600;
+pub const ONE_HOUR: i128 = 3600;
 pub const ONE_HOUR_I128: i128 = ONE_HOUR as i128;
+pub const ONE_YEAR: u128 = 31536000;
 pub const TWENTYFOUR_HOUR: i64 = 3600 * 24;
 
 // FEES
@@ -83,3 +90,5 @@ pub const PEG_BPS_UPDATE_SCALE: u128 = 1_000_000; // expo = -6 (represents 100%)
                                                   // hardcoded scale bounds for a single repeg update. scaled by market curve_update_intensity
 pub const PEG_BPS_DECREASE_MAX: u128 = 1000; // 10 bps decrease
 pub const PEG_BPS_INCREASE_MAX: u128 = 1000; // 10 bps increase
+                                             // BANK
+pub const QUOTE_ASSET_BANK_INDEX: u64 = 0;

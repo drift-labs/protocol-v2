@@ -1,4 +1,5 @@
 pub mod amm;
+pub mod bank_balance;
 pub mod bn;
 pub mod casting;
 pub mod collateral;

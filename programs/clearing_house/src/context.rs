@@ -2,17 +2,13 @@ use anchor_lang::{prelude::*, AnchorDeserialize, AnchorSerialize};
 use anchor_spl::token::{Mint, Token, TokenAccount};
 
 use crate::controller::position::PositionDirection;
+use crate::state::bank::Bank;
 use crate::state::market::Market;
 use crate::state::order_state::OrderState;
 use crate::state::state::State;
 use crate::state::user::{OrderTriggerCondition, OrderType, User};
 
 #[derive(Accounts)]
-#[instruction(
-    clearing_house_nonce: u8,
-    collateral_vault_nonce: u8,
-    insurance_vault_nonce: u8
-)]
 pub struct Initialize<'info> {
     #[account(mut)]
     pub admin: Signer<'info>,
@@ -24,24 +20,13 @@ pub struct Initialize<'info> {
         payer = admin
     )]
     pub state: Box<Account<'info, State>>,
-    pub collateral_mint: Box<Account<'info, Mint>>,
-    #[account(
-        init,
-        seeds = [b"collateral_vault".as_ref()],
-        bump,
-        payer = admin,
-        token::mint = collateral_mint,
-        token::authority = collateral_vault_authority
-    )]
-    pub collateral_vault: Box<Account<'info, TokenAccount>>,
-    /// CHECK: checked in `initialize`
-    pub collateral_vault_authority: AccountInfo<'info>,
+    pub quote_asset_mint: Box<Account<'info, Mint>>,
     #[account(
         init,
         seeds = [b"insurance_vault".as_ref()],
         bump,
         payer = admin,
-        token::mint = collateral_mint,
+        token::mint = quote_asset_mint,
         token::authority = insurance_vault_authority
     )]
     pub insurance_vault: Box<Account<'info, TokenAccount>>,
@@ -74,6 +59,46 @@ pub struct InitializeOrderState<'info> {
     pub order_state: Box<Account<'info, OrderState>>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct InitializeBank<'info> {
+    #[account(
+        init,
+        seeds = [b"bank", state.number_of_banks.to_le_bytes().as_ref()],
+        space = std::mem::size_of::<Bank>() + 8,
+        bump,
+        payer = admin
+    )]
+    pub bank: AccountLoader<'info, Bank>,
+    pub bank_mint: Box<Account<'info, Mint>>,
+    #[account(
+        init,
+        seeds = [b"bank_vault".as_ref(), state.number_of_banks.to_le_bytes().as_ref()],
+        bump,
+        payer = admin,
+        token::mint = bank_mint,
+        token::authority = bank_vault_authority
+    )]
+    pub bank_vault: Box<Account<'info, TokenAccount>>,
+    #[account(
+        seeds = [b"bank_vault_authority".as_ref(), state.number_of_banks.to_le_bytes().as_ref()],
+        bump,
+    )]
+    /// CHECK: this is the pda for the bank vault
+    pub bank_vault_authority: AccountInfo<'info>,
+    #[account(
+        mut,
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    /// CHECK: checked in `initialize_bank`
+    pub oracle: AccountInfo<'info>,
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+    pub token_program: Program<'info, Token>,
 }
 
 #[derive(Accounts)]
@@ -118,8 +143,8 @@ pub struct InitializeMarket<'info> {
 }
 
 #[derive(Accounts)]
-pub struct DepositCollateral<'info> {
-    #[account(mut)]
+#[instruction(bank_index: u64,)]
+pub struct Deposit<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
         mut,
@@ -129,17 +154,21 @@ pub struct DepositCollateral<'info> {
     pub authority: Signer<'info>,
     #[account(
         mut,
-        constraint = &state.collateral_vault.eq(&collateral_vault.key())
+        seeds = [b"bank_vault".as_ref(), bank_index.to_le_bytes().as_ref()],
+        bump,
     )]
-    pub collateral_vault: Box<Account<'info, TokenAccount>>,
-    #[account(mut)]
-    pub user_collateral_account: Box<Account<'info, TokenAccount>>,
+    pub bank_vault: Box<Account<'info, TokenAccount>>,
+    #[account(
+        mut,
+        constraint = &bank_vault.mint.eq(&user_token_account.mint)
+    )]
+    pub user_token_account: Box<Account<'info, TokenAccount>>,
     pub token_program: Program<'info, Token>,
 }
 
 #[derive(Accounts)]
-pub struct WithdrawCollateral<'info> {
-    #[account(mut)]
+#[instruction(bank_index: u64,)]
+pub struct Withdraw<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
         mut,
@@ -149,27 +178,29 @@ pub struct WithdrawCollateral<'info> {
     pub authority: Signer<'info>,
     #[account(
         mut,
-        constraint = &state.collateral_vault.eq(&collateral_vault.key())
+        seeds = [b"bank_vault".as_ref(), bank_index.to_le_bytes().as_ref()],
+        bump,
     )]
-    pub collateral_vault: Box<Account<'info, TokenAccount>>,
-    /// CHECK: withdraw fails if this isn't vault owner
-    #[account(
-        constraint = &state.collateral_vault_authority.eq(&collateral_vault_authority.key())
-    )]
-    pub collateral_vault_authority: AccountInfo<'info>,
+    pub bank_vault: Box<Account<'info, TokenAccount>>,
     #[account(
         mut,
-        constraint = &state.insurance_vault.eq(&insurance_vault.key())
+        seeds = [b"bank_vault_authority".as_ref(), bank_index.to_le_bytes().as_ref()],
+        bump,
     )]
-    pub insurance_vault: Box<Account<'info, TokenAccount>>,
-    /// CHECK: withdraw fails if this isn't vault owner
+    /// CHECK: this is the pda for the bank vault
+    pub bank_vault_authority: AccountInfo<'info>,
     #[account(
-        constraint = &state.insurance_vault_authority.eq(&insurance_vault_authority.key())
+        mut,
+        constraint = &bank_vault.mint.eq(&user_token_account.mint)
     )]
-    pub insurance_vault_authority: AccountInfo<'info>,
-    #[account(mut)]
-    pub user_collateral_account: Box<Account<'info, TokenAccount>>,
+    pub user_token_account: Box<Account<'info, TokenAccount>>,
     pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateBankCumulativeInterest<'info> {
+    #[account(mut)]
+    pub bank: AccountLoader<'info, Bank>,
 }
 
 #[derive(Accounts)]
@@ -180,18 +211,29 @@ pub struct WithdrawFees<'info> {
     pub state: Box<Account<'info, State>>,
     pub admin: Signer<'info>,
     #[account(
-        mut,
-        constraint = &state.collateral_vault.eq(&collateral_vault.key())
+        seeds = [b"bank", 0_u64.to_le_bytes().as_ref()],
+        bump,
     )]
-    pub collateral_vault: Box<Account<'info, TokenAccount>>,
-    /// CHECK: withdraw fails if this isn't vault owner
+    pub bank: AccountLoader<'info, Bank>,
     #[account(
-        constraint = &state.collateral_vault_authority.eq(&collateral_vault_authority.key())
+        mut,
+        seeds = [b"bank_vault".as_ref(), 0_u64.to_le_bytes().as_ref()],
+        bump,
     )]
-    pub collateral_vault_authority: AccountInfo<'info>,
+    pub bank_vault: Box<Account<'info, TokenAccount>>,
+    #[account(
+        mut,
+        seeds = [b"bank_vault_authority".as_ref(), 0_u64.to_le_bytes().as_ref()],
+        bump,
+    )]
+    /// CHECK: this is the pda for the bank vault
+    pub bank_vault_authority: AccountInfo<'info>,
     #[account(mut)]
     pub market: AccountLoader<'info, Market>,
-    #[account(mut)]
+    #[account(
+        mut,
+        token::mint = bank_vault.mint
+    )]
     pub recipient: Box<Account<'info, TokenAccount>>,
     pub token_program: Program<'info, Token>,
 }
@@ -213,7 +255,10 @@ pub struct WithdrawFromInsuranceVault<'info> {
         constraint = &state.insurance_vault_authority.eq(&insurance_vault_authority.key())
     )]
     pub insurance_vault_authority: AccountInfo<'info>,
-    #[account(mut)]
+    #[account(
+        mut,
+        token::mint = insurance_vault.mint
+    )]
     pub recipient: Box<Account<'info, TokenAccount>>,
     pub token_program: Program<'info, Token>,
 }
@@ -240,9 +285,11 @@ pub struct WithdrawFromInsuranceVaultToMarket<'info> {
     pub insurance_vault_authority: AccountInfo<'info>,
     #[account(
         mut,
-        constraint = &state.collateral_vault.eq(&collateral_vault.key())
+        seeds = [b"bank_vault".as_ref(), 0_u64.to_le_bytes().as_ref()],
+        bump,
+        token::mint = insurance_vault.mint
     )]
-    pub collateral_vault: Box<Account<'info, TokenAccount>>,
+    pub bank_vault: Box<Account<'info, TokenAccount>>,
     pub token_program: Program<'info, Token>,
 }
 
@@ -429,24 +476,22 @@ pub struct Liquidate<'info> {
     pub user: AccountLoader<'info, User>,
     #[account(
         mut,
-        constraint = &state.collateral_vault.eq(&collateral_vault.key())
+        seeds = [b"bank_vault".as_ref(), 0_u64.to_le_bytes().as_ref()],
+        bump,
     )]
-    pub collateral_vault: Box<Account<'info, TokenAccount>>,
-    /// CHECK: transfer token will fail if wrong authority
+    pub bank_vault: Box<Account<'info, TokenAccount>>,
     #[account(
-        constraint = &state.collateral_vault_authority.eq(&collateral_vault_authority.key())
+        mut,
+        seeds = [b"bank_vault_authority".as_ref(), 0_u64.to_le_bytes().as_ref()],
+        bump,
     )]
-    pub collateral_vault_authority: AccountInfo<'info>,
+    /// CHECK: this is the pda for the bank vault
+    pub bank_vault_authority: AccountInfo<'info>,
     #[account(
         mut,
         constraint = &state.insurance_vault.eq(&insurance_vault.key())
     )]
     pub insurance_vault: Box<Account<'info, TokenAccount>>,
-    /// CHECK: transfer token will fail if wrong authority
-    #[account(
-        constraint = &state.insurance_vault_authority.eq(&insurance_vault_authority.key())
-    )]
-    pub insurance_vault_authority: AccountInfo<'info>,
     pub token_program: Program<'info, Token>,
 }
 

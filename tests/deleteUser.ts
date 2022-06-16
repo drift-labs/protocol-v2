@@ -89,10 +89,7 @@ describe('delete user', () => {
 		);
 		assert(userPositionsAccountInfo.lamports !== 0);
 
-		await clearingHouse.withdrawCollateral(
-			usdcAmount,
-			userUSDCAccount.publicKey
-		);
+		await clearingHouse.withdraw(usdcAmount, userUSDCAccount.publicKey);
 		await clearingHouse.deleteUser();
 
 		userAccountInfo = await connection.getAccountInfo(userAccountPublicKey);

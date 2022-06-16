@@ -1,6 +1,6 @@
-use crate::error::{ClearingHouseResult, ErrorCode};
+use crate::error::ClearingHouseResult;
 use crate::math::collateral::calculate_updated_collateral;
-use crate::math::constants::MARGIN_PRECISION;
+use crate::math::constants::{BANK_WEIGHT_PRECISION, MARGIN_PRECISION};
 use crate::math::position::{
     calculate_base_asset_value_and_pnl, calculate_base_asset_value_and_pnl_with_oracle_price,
 };
@@ -8,35 +8,74 @@ use crate::math_error;
 use crate::state::user::User;
 
 use crate::math::amm::use_oracle_price_for_margin_calculation;
+use crate::math::bank_balance::get_balance_value;
 use crate::math::casting::cast_to_i128;
 use crate::math::oracle::{get_oracle_status, OracleStatus};
 use crate::math::slippage::calculate_slippage;
+use crate::state::bank_map::BankMap;
 use crate::state::market_map::MarketMap;
+use crate::state::oracle_map::OracleMap;
 use crate::state::state::OracleGuardRails;
-use anchor_lang::prelude::{AccountInfo, Pubkey};
-use anchor_lang::Key;
+use crate::state::user::BankBalanceType;
 use solana_program::clock::Slot;
 use solana_program::msg;
-use std::collections::BTreeMap;
-use std::iter::Peekable;
 use std::ops::Div;
-use std::slice::Iter;
 
 #[derive(Copy, Clone)]
-pub enum MarginType {
-    Init,
+pub enum MarginRequirementType {
+    Initial,
     Partial,
-    Maint,
+    Maintenance,
 }
 
 pub fn calculate_margin_requirement_and_total_collateral(
     user: &User,
     market_map: &MarketMap,
-    margin_type: MarginType,
+    margin_requirement_type: MarginRequirementType,
+    bank_map: &BankMap,
+    oracle_map: &mut OracleMap,
 ) -> ClearingHouseResult<(u128, u128)> {
+    let mut total_collateral: u128 = 0;
     let mut margin_requirement: u128 = 0;
     let mut unrealized_pnl: i128 = 0;
 
+    for user_bank_balance in user.bank_balances.iter() {
+        if user_bank_balance.balance == 0 {
+            continue;
+        }
+
+        let bank = &bank_map.get_ref(&user_bank_balance.bank_index)?;
+
+        let oracle_price_data = oracle_map.get_price_data(&bank.oracle)?;
+        let balance_value = get_balance_value(user_bank_balance, bank, oracle_price_data)?;
+
+        match user_bank_balance.balance_type {
+            BankBalanceType::Deposit => {
+                total_collateral = total_collateral
+                    .checked_add(
+                        balance_value
+                            .checked_mul(bank.get_asset_weight(&margin_requirement_type))
+                            .ok_or_else(math_error!())?
+                            .checked_div(BANK_WEIGHT_PRECISION)
+                            .ok_or_else(math_error!())?,
+                    )
+                    .ok_or_else(math_error!())?;
+            }
+            BankBalanceType::Borrow => {
+                margin_requirement = margin_requirement
+                    .checked_add(
+                        balance_value
+                            .checked_mul(bank.get_liability_weight(&margin_requirement_type))
+                            .ok_or_else(math_error!())?
+                            .checked_div(BANK_WEIGHT_PRECISION)
+                            .ok_or_else(math_error!())?,
+                    )
+                    .ok_or_else(math_error!())?;
+            }
+        }
+    }
+
+    let mut perp_margin_requirements: u128 = 0;
     for market_position in user.positions.iter() {
         if market_position.base_asset_amount == 0 {
             continue;
@@ -47,9 +86,9 @@ pub fn calculate_margin_requirement_and_total_collateral(
         let (position_base_asset_value, position_unrealized_pnl) =
             calculate_base_asset_value_and_pnl(market_position, amm)?;
 
-        let margin_ratio = market.get_margin_ratio(margin_type);
+        let margin_ratio = market.get_margin_ratio(margin_requirement_type);
 
-        margin_requirement = margin_requirement
+        perp_margin_requirements = perp_margin_requirements
             .checked_add(
                 position_base_asset_value
                     .checked_mul(margin_ratio.into())
@@ -62,7 +101,15 @@ pub fn calculate_margin_requirement_and_total_collateral(
             .ok_or_else(math_error!())?;
     }
 
-    let total_collateral = calculate_updated_collateral(user.collateral, unrealized_pnl)?;
+    margin_requirement = margin_requirement
+        .checked_add(
+            perp_margin_requirements
+                .checked_div(MARGIN_PRECISION)
+                .ok_or_else(math_error!())?,
+        )
+        .ok_or_else(math_error!())?;
+
+    let total_collateral = calculate_updated_collateral(total_collateral, unrealized_pnl)?;
 
     Ok((margin_requirement, total_collateral))
 }
@@ -70,23 +117,34 @@ pub fn calculate_margin_requirement_and_total_collateral(
 pub fn meets_initial_margin_requirement(
     user: &User,
     market_map: &MarketMap,
+    bank_map: &BankMap,
+    oracle_map: &mut OracleMap,
 ) -> ClearingHouseResult<bool> {
-    let (mut initial_margin_requirement, total_collateral) =
-        calculate_margin_requirement_and_total_collateral(user, market_map, MarginType::Init)?;
+    let (margin_requirement, margin) = calculate_margin_requirement_and_total_collateral(
+        user,
+        market_map,
+        MarginRequirementType::Initial,
+        bank_map,
+        oracle_map,
+    )?;
 
-    initial_margin_requirement = initial_margin_requirement
-        .checked_div(MARGIN_PRECISION)
-        .ok_or_else(math_error!())?;
-
-    Ok(total_collateral >= initial_margin_requirement)
+    Ok(margin >= margin_requirement)
 }
 
 pub fn meets_partial_margin_requirement(
     user: &User,
     market_map: &MarketMap,
+    bank_map: &BankMap,
+    oracle_map: &mut OracleMap,
 ) -> ClearingHouseResult<bool> {
     let (mut partial_margin_requirement, total_collateral) =
-        calculate_margin_requirement_and_total_collateral(user, market_map, MarginType::Partial)?;
+        calculate_margin_requirement_and_total_collateral(
+            user,
+            market_map,
+            MarginRequirementType::Partial,
+            bank_map,
+            oracle_map,
+        )?;
 
     partial_margin_requirement = partial_margin_requirement
         .checked_div(MARGIN_PRECISION)
@@ -127,10 +185,12 @@ pub struct MarketStatus {
 pub fn calculate_liquidation_status(
     user: &User,
     market_map: &MarketMap,
-    account_info_iter: &mut Peekable<Iter<AccountInfo>>,
+    bank_map: &BankMap,
+    oracle_map: &mut OracleMap,
     oracle_guard_rails: &OracleGuardRails,
     clock_slot: Slot,
 ) -> ClearingHouseResult<LiquidationStatus> {
+    let mut deposit_value: u128 = 0;
     let mut partial_margin_requirement: u128 = 0;
     let mut maintenance_margin_requirement: u128 = 0;
     let mut base_asset_value: u128 = 0;
@@ -138,9 +198,30 @@ pub fn calculate_liquidation_status(
     let mut adjusted_unrealized_pnl: i128 = 0;
     let mut market_statuses = [MarketStatus::default(); 5];
 
-    let mut oracle_account_infos: BTreeMap<Pubkey, &AccountInfo> = BTreeMap::new();
-    for account_info in account_info_iter {
-        oracle_account_infos.insert(account_info.key(), account_info);
+    for user_bank_balance in user.bank_balances.iter() {
+        if user_bank_balance.balance == 0 {
+            continue;
+        }
+
+        let bank = &bank_map.get_ref(&user_bank_balance.bank_index)?;
+
+        let oracle_price_data = oracle_map.get_price_data(&bank.oracle)?;
+        let balance_value = get_balance_value(user_bank_balance, bank, oracle_price_data)?;
+
+        match user_bank_balance.balance_type {
+            BankBalanceType::Deposit => {
+                deposit_value = deposit_value
+                    .checked_add(
+                        balance_value
+                            .checked_mul(bank.get_asset_weight(&MarginRequirementType::Maintenance))
+                            .ok_or_else(math_error!())?
+                            .checked_div(BANK_WEIGHT_PRECISION)
+                            .ok_or_else(math_error!())?,
+                    )
+                    .ok_or_else(math_error!())?;
+            }
+            BankBalanceType::Borrow => panic!(),
+        }
     }
 
     for (i, market_position) in user.positions.iter().enumerate() {
@@ -161,15 +242,13 @@ pub fn calculate_liquidation_status(
             .ok_or_else(math_error!())?;
 
         // Block the liquidation if the oracle is invalid or the oracle and mark are too divergent
-        let oracle_account_info = oracle_account_infos
-            .get(&market.amm.oracle)
-            .ok_or(ErrorCode::OracleNotFound)?;
+        let oracle_account_info = oracle_map.get_account_info(&market.amm.oracle)?;
 
         let mark_price_before = market.amm.mark_price()?;
 
         let oracle_status = get_oracle_status(
             &market.amm,
-            oracle_account_info,
+            &oracle_account_info,
             clock_slot,
             oracle_guard_rails,
             Some(mark_price_before),
@@ -290,9 +369,9 @@ pub fn calculate_liquidation_status(
         .checked_div(MARGIN_PRECISION)
         .ok_or_else(math_error!())?;
 
-    let total_collateral = calculate_updated_collateral(user.collateral, unrealized_pnl)?;
+    let total_collateral = calculate_updated_collateral(deposit_value, unrealized_pnl)?;
     let adjusted_total_collateral =
-        calculate_updated_collateral(user.collateral, adjusted_unrealized_pnl)?;
+        calculate_updated_collateral(deposit_value, adjusted_unrealized_pnl)?;
 
     let requires_partial_liquidation = adjusted_total_collateral < partial_margin_requirement;
     let requires_full_liquidation = adjusted_total_collateral < maintenance_margin_requirement;
@@ -349,11 +428,40 @@ pub fn calculate_liquidation_status(
 pub fn calculate_free_collateral(
     user: &User,
     market_map: &MarketMap,
+    bank_map: &BankMap,
+    oracle_map: &mut OracleMap,
     market_to_close: Option<u64>,
 ) -> ClearingHouseResult<(u128, u128)> {
     let mut closed_position_base_asset_value: u128 = 0;
     let mut initial_margin_requirement: u128 = 0;
     let mut unrealized_pnl: i128 = 0;
+
+    let mut deposit_value = 0_u128;
+    for user_bank_balance in user.bank_balances.iter() {
+        if user_bank_balance.balance == 0 {
+            continue;
+        }
+
+        let bank = &bank_map.get_ref(&user_bank_balance.bank_index)?;
+
+        let oracle_price_data = oracle_map.get_price_data(&bank.oracle)?;
+        let balance_value = get_balance_value(user_bank_balance, bank, oracle_price_data)?;
+
+        match user_bank_balance.balance_type {
+            BankBalanceType::Deposit => {
+                deposit_value = deposit_value
+                    .checked_add(
+                        balance_value
+                            .checked_mul(bank.get_asset_weight(&MarginRequirementType::Initial))
+                            .ok_or_else(math_error!())?
+                            .checked_div(BANK_WEIGHT_PRECISION)
+                            .ok_or_else(math_error!())?,
+                    )
+                    .ok_or_else(math_error!())?;
+            }
+            BankBalanceType::Borrow => panic!(),
+        }
+    }
 
     for market_position in user.positions.iter() {
         if market_position.base_asset_amount == 0 {
@@ -386,7 +494,7 @@ pub fn calculate_free_collateral(
         .checked_div(MARGIN_PRECISION)
         .ok_or_else(math_error!())?;
 
-    let total_collateral = calculate_updated_collateral(user.collateral, unrealized_pnl)?;
+    let total_collateral = calculate_updated_collateral(deposit_value, unrealized_pnl)?;
 
     let free_collateral = if initial_margin_requirement < total_collateral {
         total_collateral

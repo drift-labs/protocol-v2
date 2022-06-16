@@ -4,10 +4,11 @@ import {
 	createPriceFeed,
 	mockUSDCMint,
 	mockUserUSDCAccount,
+	initializeQuoteAssetBank,
 } from './testHelpers';
 import { Admin, ClearingHouseUser, PEG_PRECISION } from '../sdk/src';
 import { Keypair } from '@solana/web3.js';
-import { BN } from '../sdk';
+import { BN, QUOTE_ASSET_BANK_INDEX } from '../sdk';
 import { assert } from 'chai';
 import { MAX_LEVERAGE, PositionDirection } from '../sdk/src';
 
@@ -53,6 +54,8 @@ describe('User Account', () => {
 
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
+
+		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
 
 		solUsdOracle = await createPriceFeed({
 			oracleProgram: anchor.workspace.Pyth,
@@ -131,8 +134,9 @@ describe('User Account', () => {
 	});
 
 	it('After Deposit', async () => {
-		await clearingHouse.depositCollateral(
+		await clearingHouse.deposit(
 			usdcAmount,
+			QUOTE_ASSET_BANK_INDEX,
 			userUSDCAccount.publicKey
 		);
 

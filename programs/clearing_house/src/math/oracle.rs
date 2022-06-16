@@ -1,9 +1,11 @@
-use crate::error::ClearingHouseResult;
-use crate::math::amm;
-use crate::state::market::{OraclePriceData, AMM};
-use crate::state::state::OracleGuardRails;
 use anchor_lang::prelude::AccountInfo;
 use solana_program::clock::Slot;
+
+use crate::error::ClearingHouseResult;
+use crate::math::amm;
+use crate::state::market::AMM;
+use crate::state::oracle::OraclePriceData;
+use crate::state::state::OracleGuardRails;
 
 pub fn block_operation(
     amm: &AMM,

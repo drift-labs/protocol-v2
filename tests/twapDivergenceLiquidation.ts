@@ -14,6 +14,7 @@ import {
 	mockUserUSDCAccount,
 	setFeedPrice,
 	setFeedTwap,
+	initializeQuoteAssetBank,
 } from './testHelpers';
 
 describe('twap divergence liquidation', () => {
@@ -59,6 +60,8 @@ describe('twap divergence liquidation', () => {
 		);
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
+
+		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
 
 		for (let i = 0; i < maxPositions; i++) {
 			// make invalid

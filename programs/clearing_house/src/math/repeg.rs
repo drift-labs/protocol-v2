@@ -24,7 +24,8 @@ use crate::math::constants::{
 };
 use crate::math::position::_calculate_base_asset_value_and_pnl;
 use crate::math_error;
-use crate::state::market::{Market, OraclePriceData, AMM};
+use crate::state::market::{Market, AMM};
+use crate::state::oracle::OraclePriceData;
 use std::cmp::{max, min};
 
 use crate::state::state::OracleGuardRails;
@@ -438,7 +439,7 @@ pub fn calculate_expected_excess_funding_payment(
 
     let period_adjustment = cast_to_i128(
         TWENTYFOUR_HOUR
-            .checked_div(max(ONE_HOUR, market.amm.funding_period))
+            .checked_div(max(ONE_HOUR as i64, market.amm.funding_period))
             .ok_or_else(math_error!())?,
     )?;
 

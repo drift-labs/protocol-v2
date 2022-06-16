@@ -9,8 +9,10 @@ use crate::math::constants::*;
 use crate::math::margin::meets_initial_margin_requirement;
 use crate::math::orders::calculate_base_asset_amount_to_trade_for_limit;
 use crate::math::quote_asset::asset_to_reserve_amount;
+use crate::state::bank_map::BankMap;
 use crate::state::market::Market;
 use crate::state::market_map::MarketMap;
+use crate::state::oracle_map::OracleMap;
 use crate::state::order_state::OrderState;
 use crate::state::user::{MarketPosition, Order, OrderTriggerCondition, OrderType, User};
 
@@ -281,6 +283,8 @@ pub fn check_if_order_can_be_canceled(
     user: &User,
     order_index: usize,
     market_map: &MarketMap,
+    bank_map: &BankMap,
+    oracle_map: &mut OracleMap,
     valid_oracle_price: Option<i128>,
 ) -> ClearingHouseResult<bool> {
     if !user.orders[order_index].post_only {
@@ -297,7 +301,8 @@ pub fn check_if_order_can_be_canceled(
     };
 
     if base_asset_amount_market_can_fill > 0 {
-        let meets_initial_margin_requirement = meets_initial_margin_requirement(user, market_map)?;
+        let meets_initial_margin_requirement =
+            meets_initial_margin_requirement(user, market_map, bank_map, oracle_map)?;
 
         if meets_initial_margin_requirement {
             msg!(
@@ -317,10 +322,18 @@ pub fn validate_order_can_be_canceled(
     user: &User,
     order_index: usize,
     market_map: &MarketMap,
+    bank_map: &BankMap,
+    oracle_map: &mut OracleMap,
     valid_oracle_price: Option<i128>,
 ) -> ClearingHouseResult {
-    let is_cancelable =
-        check_if_order_can_be_canceled(user, order_index, market_map, valid_oracle_price)?;
+    let is_cancelable = check_if_order_can_be_canceled(
+        user,
+        order_index,
+        market_map,
+        bank_map,
+        oracle_map,
+        valid_oracle_price,
+    )?;
 
     if !is_cancelable {
         return Err(ErrorCode::CantCancelPostOnlyOrder);

@@ -5,7 +5,8 @@ use crate::error::ErrorCode;
 use crate::math::repeg;
 use crate::math::{amm, bn};
 use crate::math_error;
-use crate::state::market::{Market, OraclePriceData};
+use crate::state::market::Market;
+use crate::state::oracle::OraclePriceData;
 use crate::state::state::OracleGuardRails;
 // use std::cmp::min;
 

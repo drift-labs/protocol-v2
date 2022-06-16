@@ -6,7 +6,6 @@ use crate::controller::amm::SwapDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm::should_round_trade;
 use crate::math::casting::{cast, cast_to_i128};
-use crate::math::collateral::calculate_updated_collateral;
 use crate::math::orders::calculate_quote_asset_amount_for_maker_order;
 use crate::math::pnl::calculate_pnl;
 use crate::math::position::calculate_base_asset_value_and_pnl;
@@ -518,7 +517,7 @@ pub fn update_position_with_base_asset_amount(
     mark_price_before: u128,
     now: i64,
     maker_limit_price: Option<u128>,
-) -> ClearingHouseResult<(bool, bool, u128, u128, u128)> {
+) -> ClearingHouseResult<(bool, bool, u128, u128, u128, i128)> {
     // A trade is risk increasing if it increases the users leverage
     // If a trade is risk increasing and brings the user's margin ratio below initial requirement
     // the trade fails
@@ -614,14 +613,13 @@ pub fn update_position_with_base_asset_amount(
         pnl = _pnl;
     }
 
-    user.collateral = calculate_updated_collateral(user.collateral, pnl)?;
-
     Ok((
         potentially_risk_increasing,
         reduce_only,
         base_asset_amount,
         quote_asset_amount,
         quote_asset_amount_surplus,
+        pnl,
     ))
 }
 
@@ -633,7 +631,7 @@ pub fn update_position_with_quote_asset_amount(
     position_index: usize,
     mark_price_before: u128,
     now: i64,
-) -> ClearingHouseResult<(bool, bool, u128, u128, u128)> {
+) -> ClearingHouseResult<(bool, bool, u128, u128, u128, i128)> {
     // A trade is risk increasing if it increases the users leverage
     // If a trade is risk increasing and brings the user's margin ratio below initial requirement
     // the trade fails
@@ -747,14 +745,13 @@ pub fn update_position_with_quote_asset_amount(
         }
     }
 
-    user.collateral = calculate_updated_collateral(user.collateral, pnl)?;
-
     Ok((
         potentially_risk_increasing,
         reduce_only,
         base_asset_amount,
         quote_asset_amount,
         quote_asset_amount_surplus,
+        pnl,
     ))
 }
 
