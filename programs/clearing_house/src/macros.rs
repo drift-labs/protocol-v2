@@ -1,7 +1,3 @@
-use crate::error::ErrorCode::MathError;
-use crate::math_error;
-use solana_program::msg;
-
 #[macro_export]
 macro_rules! get_struct_values {
     ($struct:expr, $($property: ident),+) => {{
@@ -26,7 +22,7 @@ macro_rules! validate {
         if ($assert) {
             Ok(())
         } else {
-            let error_code = $crate::error::ErrorCode::MathError;
+            let error_code: ErrorCode = $err;
             msg!("Error {} thrown at {}:{}", error_code, file!(), line!());
             msg!($($arg)*);
             Err(error_code)
@@ -36,7 +32,7 @@ macro_rules! validate {
         if ($assert) {
             Ok(())
         } else {
-            let error_code = $crate::error::ErrorCode::MathError;
+            let error_code: ErrorCode = $err;
             msg!("Error {} thrown at {}:{}", error_code, file!(), line!());
             Err(error_code)
         }

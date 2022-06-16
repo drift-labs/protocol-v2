@@ -22,6 +22,7 @@ import {
 } from '../sdk/src';
 
 import {
+	initializeQuoteAssetBank,
 	mockOracle,
 	mockUSDCMint,
 	mockUserUSDCAccount,
@@ -79,6 +80,9 @@ describe('amm spread: market order', () => {
 		);
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
+
+		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
+
 		solUsd = await mockOracle(1);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
@@ -153,7 +157,7 @@ describe('amm spread: market order', () => {
 	});
 
 	it('Long market order base', async () => {
-		const initialCollateral = clearingHouseUser.getUserAccount().collateral;
+		const initialCollateral = clearingHouse.getQuoteAssetTokenAmount();
 		const direction = PositionDirection.LONG;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
 
@@ -251,16 +255,14 @@ describe('amm spread: market order', () => {
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
 
-		const pnl = clearingHouseUser
-			.getUserAccount()
-			.collateral.sub(initialCollateral);
+		const pnl = clearingHouse.getQuoteAssetTokenAmount().sub(initialCollateral);
 		console.log(pnl.toString());
 		console.log(clearingHouse.getMarketAccount(0).amm.totalFee.toString());
 		assert(clearingHouse.getMarketAccount(0).amm.totalFee.eq(new BN(500)));
 	});
 
 	it('Long market order quote', async () => {
-		const initialCollateral = clearingHouseUser.getUserAccount().collateral;
+		const initialCollateral = clearingHouse.getQuoteAssetTokenAmount();
 		const initialAmmTotalFee = clearingHouse.getMarketAccount(0).amm.totalFee;
 		const direction = PositionDirection.LONG;
 		const quoteAssetAmount = new BN(QUOTE_PRECISION);
@@ -354,7 +356,7 @@ describe('amm spread: market order', () => {
 	});
 
 	it('short market order base', async () => {
-		const initialCollateral = clearingHouseUser.getUserAccount().collateral;
+		const initialCollateral = clearingHouse.getQuoteAssetTokenAmount();
 		const initialAmmTotalFee = clearingHouse.getMarketAccount(0).amm.totalFee;
 
 		const direction = PositionDirection.SHORT;
@@ -462,7 +464,7 @@ describe('amm spread: market order', () => {
 	});
 
 	it('short market order quote', async () => {
-		const initialCollateral = clearingHouseUser.getUserAccount().collateral;
+		const initialCollateral = clearingHouse.getQuoteAssetTokenAmount();
 		const initialAmmTotalFee = clearingHouse.getMarketAccount(0).amm.totalFee;
 
 		const direction = PositionDirection.SHORT;
@@ -575,6 +577,7 @@ describe('amm spread: market order', () => {
 			false,
 			1
 		);
+
 		await clearingHouse.placeOrder(orderParams);
 
 		await clearingHouse.fetchAccounts();
@@ -691,11 +694,15 @@ describe('amm spread: market order', () => {
 			getSwapDirection('base', direction)
 		);
 
-		await clearingHouse.fillOrder(
-			await clearingHouseUser.getUserAccountPublicKey(),
-			clearingHouseUser.getUserAccount(),
-			order
-		);
+		try {
+			await clearingHouse.fillOrder(
+				await clearingHouseUser.getUserAccountPublicKey(),
+				clearingHouseUser.getUserAccount(),
+				order
+			);
+		} catch (e) {
+			console.error(e);
+		}
 
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
@@ -814,7 +821,7 @@ describe('amm spread: market order', () => {
 		);
 
 		await clearingHouse.updateMarketBaseSpread(marketIndex2, 500);
-		const initialCollateral = clearingHouseUser.getUserAccount().collateral;
+		const initialCollateral = clearingHouse.getQuoteAssetTokenAmount();
 		const direction = PositionDirection.LONG;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION.toNumber() / 10000); // ~$4 of btc
 		const market2 = clearingHouse.getMarketAccount(marketIndex2Num);

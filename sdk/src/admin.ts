@@ -121,7 +121,9 @@ export class Admin extends ClearingHouse {
 		oracle: PublicKey,
 		oracleSource: OracleSource,
 		initialAssetWeight: BN,
-		maintenanceAssetWeight: BN
+		maintenanceAssetWeight: BN,
+		initialLiabilityWeight: BN,
+		maintenanceLiabilityWeight: BN
 	): Promise<TransactionSignature> {
 		const bankIndex = this.getStateAccount().numberOfBanks;
 		const bank = await getBankPublicKey(this.program.programId, bankIndex);
@@ -143,6 +145,8 @@ export class Admin extends ClearingHouse {
 			oracleSource,
 			initialAssetWeight,
 			maintenanceAssetWeight,
+			initialLiabilityWeight,
+			maintenanceLiabilityWeight,
 			{
 				accounts: {
 					admin: this.wallet.publicKey,
@@ -392,14 +396,15 @@ export class Admin extends ClearingHouse {
 			this.program.programId,
 			marketIndex
 		);
-		const state = await this.getStateAccount();
+		const bank = this.getQuoteAssetBankAccount();
 		return await this.program.rpc.withdrawFees(amount, {
 			accounts: {
 				admin: this.wallet.publicKey,
 				state: await this.getStatePublicKey(),
 				market: marketPublicKey,
-				collateralVault: state.collateralVault,
-				collateralVaultAuthority: state.collateralVaultAuthority,
+				bank: bank.pubkey,
+				bankVault: bank.vault,
+				bankVaultAuthority: bank.vaultAuthority,
 				recipient: recipient,
 				tokenProgram: TOKEN_PROGRAM_ID,
 			},
@@ -418,7 +423,7 @@ export class Admin extends ClearingHouse {
 				market: await getMarketPublicKey(this.program.programId, marketIndex),
 				insuranceVault: state.insuranceVault,
 				insuranceVaultAuthority: state.insuranceVaultAuthority,
-				collateralVault: state.collateralVault,
+				bankVault: this.getQuoteAssetBankAccount().vault,
 				tokenProgram: TOKEN_PROGRAM_ID,
 			},
 		});

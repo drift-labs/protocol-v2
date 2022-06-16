@@ -1,7 +1,7 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
 
-import { BN } from '../sdk';
+import { BN, QUOTE_ASSET_BANK_INDEX } from '../sdk';
 
 import {
 	getFeedData,
@@ -9,6 +9,7 @@ import {
 	mockUserUSDCAccount,
 	mockUSDCMint,
 	setFeedPrice,
+	initializeQuoteAssetBank,
 } from './testHelpers';
 
 import {
@@ -194,6 +195,8 @@ describe('pyth-oracle', () => {
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
 
+		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
+
 		const price = 50000;
 		await mockOracle(price, -6);
 
@@ -204,7 +207,11 @@ describe('pyth-oracle', () => {
 		);
 		await userAccount.subscribe();
 
-		await clearingHouse.deposit(usdcAmount, userUSDCAccount.publicKey);
+		await clearingHouse.deposit(
+			usdcAmount,
+			QUOTE_ASSET_BANK_INDEX,
+			userUSDCAccount.publicKey
+		);
 
 		// create <NUM_USERS> users with 10k that collectively do <NUM_EVENTS> actions
 		const [_userUSDCAccounts, _user_keys, clearingHouses, userAccountInfos] =

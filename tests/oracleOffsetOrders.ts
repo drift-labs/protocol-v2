@@ -22,6 +22,7 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	setFeedPrice,
+	initializeQuoteAssetBank,
 } from './testHelpers';
 import { AMM_RESERVE_PRECISION, calculateEntryPrice, ZERO } from '../sdk';
 
@@ -68,6 +69,7 @@ describe('oracle offset', () => {
 		);
 		await fillerClearingHouse.initialize(usdcMint.publicKey, true);
 		await fillerClearingHouse.subscribe();
+		await initializeQuoteAssetBank(fillerClearingHouse, usdcMint.publicKey);
 		solUsd = await mockOracle(1);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR

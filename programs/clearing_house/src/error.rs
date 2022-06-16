@@ -138,6 +138,22 @@ pub enum ErrorCode {
     NoUserBankBalanceAvailable,
     #[msg("InvalidBankInitialization")]
     InvalidBankInitialization,
+    #[msg("CouldNotLoadBankData")]
+    CouldNotLoadBankData,
+    #[msg("BankNotFound")]
+    BankNotFound,
+    #[msg("InvalidBankAccount")]
+    InvalidBankAccount,
+    #[msg("UnableToLoadBankAccount")]
+    UnableToLoadBankAccount,
+    #[msg("BankWrongMutability")]
+    BankWrongMutability,
+    #[msg("BankInterestNotUpToDate")]
+    BankInterestNotUpToDate,
+    #[msg("BankInsufficientDeposits")]
+    BankInsufficientDeposits,
+    #[msg("UserMustSettleTheirOwnPositiveUnsettledPNL")]
+    UserMustSettleTheirOwnPositiveUnsettledPNL,
 }
 
 #[macro_export]

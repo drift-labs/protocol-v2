@@ -8,7 +8,12 @@ import { Keypair } from '@solana/web3.js';
 
 import { Admin, ClearingHouse, PositionDirection } from '../sdk/src';
 
-import { mockOracle, mockUSDCMint, mockUserUSDCAccount } from './testHelpers';
+import {
+	initializeQuoteAssetBank,
+	mockOracle,
+	mockUSDCMint,
+	mockUserUSDCAccount,
+} from './testHelpers';
 import { FeeStructure } from '../sdk';
 
 describe('round in favor', () => {
@@ -37,6 +42,8 @@ describe('round in favor', () => {
 		);
 		await primaryClearingHouse.initialize(usdcMint.publicKey, true);
 		await primaryClearingHouse.subscribe();
+
+		await initializeQuoteAssetBank(primaryClearingHouse, usdcMint.publicKey);
 
 		const solUsd = await mockOracle(63000);
 		const periodicity = new BN(60 * 60); // 1 HOUR
@@ -105,11 +112,10 @@ describe('round in favor', () => {
 			chProgram.programId
 		);
 		await clearingHouse.subscribe();
-		const [, userAccountPublicKey] =
-			await clearingHouse.initializeUserAccountAndDepositCollateral(
-				usdcAmount,
-				userUSDCAccount.publicKey
-			);
+		await clearingHouse.initializeUserAccountAndDepositCollateral(
+			usdcAmount,
+			userUSDCAccount.publicKey
+		);
 		await clearingHouse.fetchAccounts();
 
 		const marketIndex = new BN(0);
@@ -123,17 +129,13 @@ describe('round in favor', () => {
 		);
 		await clearingHouse.placeAndFillOrder(orderParams);
 
-		let user: any = await primaryClearingHouse.program.account.user.fetch(
-			userAccountPublicKey
-		);
-		assert(user.collateral.eq(new BN(9999000)));
+		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9999000)));
 
+		await clearingHouse.fetchAccounts();
 		await clearingHouse.closePosition(marketIndex);
 
-		user = await primaryClearingHouse.program.account.user.fetch(
-			userAccountPublicKey
-		);
-		assert(user.collateral.eq(new BN(9998999)));
+		await clearingHouse.fetchAccounts();
+		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9998999)));
 		await clearingHouse.unsubscribe();
 	});
 
@@ -154,11 +156,10 @@ describe('round in favor', () => {
 		);
 		await clearingHouse.subscribe();
 
-		const [, userAccountPublicKey] =
-			await clearingHouse.initializeUserAccountAndDepositCollateral(
-				usdcAmount,
-				userUSDCAccount.publicKey
-			);
+		await clearingHouse.initializeUserAccountAndDepositCollateral(
+			usdcAmount,
+			userUSDCAccount.publicKey
+		);
 		await clearingHouse.fetchAccounts();
 
 		const marketIndex = new BN(0);
@@ -172,18 +173,11 @@ describe('round in favor', () => {
 		);
 		await clearingHouse.placeAndFillOrder(orderParams);
 
-		let user: any = await primaryClearingHouse.program.account.user.fetch(
-			userAccountPublicKey
-		);
-
-		assert(user.collateral.eq(new BN(9999000)));
+		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9999000)));
 
 		await clearingHouse.closePosition(marketIndex);
 
-		user = await primaryClearingHouse.program.account.user.fetch(
-			userAccountPublicKey
-		);
-		assert(user.collateral.eq(new BN(9998999)));
+		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9998999)));
 		await clearingHouse.unsubscribe();
 	});
 });

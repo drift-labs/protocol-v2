@@ -261,6 +261,11 @@ export type BankAccount = {
 	depositBalance: BN;
 	borrowBalance: BN;
 	lastUpdated: BN;
+	oracle: PublicKey;
+	initialAssetWeight: BN;
+	maintenanceAssetWeight: BN;
+	initialLiabilityWeight: BN;
+	initialMaintenanceWeight: BN;
 };
 
 export type AMM = {

@@ -1,7 +1,6 @@
 use anchor_lang::prelude::*;
 
 use crate::error::ClearingHouseResult;
-use crate::error::ErrorCode::UnableToLoadOracle;
 use crate::math::casting::{cast, cast_to_i128, cast_to_i64, cast_to_u128};
 use crate::math::constants::{MARK_PRICE_PRECISION, MARK_PRICE_PRECISION_I128};
 use crate::math_error;

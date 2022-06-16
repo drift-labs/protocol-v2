@@ -8,7 +8,7 @@ use switchboard_v2::AggregatorAccountData;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm;
 use crate::math::casting::{cast, cast_to_i128, cast_to_i64, cast_to_u128};
-use crate::math::margin::MarginType;
+use crate::math::margin::MarginRequirementType;
 use crate::math_error;
 use crate::state::oracle::{OraclePriceData, OracleSource};
 use crate::MARK_PRICE_PRECISION;
@@ -41,11 +41,11 @@ pub struct Market {
 }
 
 impl Market {
-    pub fn get_margin_ratio(&self, margin_type: MarginType) -> u32 {
+    pub fn get_margin_ratio(&self, margin_type: MarginRequirementType) -> u32 {
         match margin_type {
-            MarginType::Init => self.margin_ratio_initial,
-            MarginType::Partial => self.margin_ratio_partial,
-            MarginType::Maint => self.margin_ratio_maintenance,
+            MarginRequirementType::Initial => self.margin_ratio_initial,
+            MarginRequirementType::Partial => self.margin_ratio_partial,
+            MarginRequirementType::Maintenance => self.margin_ratio_maintenance,
         }
     }
 }

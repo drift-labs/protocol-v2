@@ -29,7 +29,6 @@ import { MockUSDCFaucet } from './mockUSDCFaucet';
 import { EventEmitter } from 'events';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import {
-	getBankPublicKey,
 	getClearingHouseStateAccountPublicKey,
 	getMarketPublicKey,
 	getOrderStateAccountPublicKey,
@@ -46,9 +45,9 @@ import {
 	getClearingHouse,
 	getWebSocketClearingHouseConfig,
 } from './factory/clearingHouse';
-import { ZERO } from './constants/numericConstants';
+import { QUOTE_ASSET_BANK_INDEX, ZERO } from './constants/numericConstants';
 import { positionIsAvailable } from './math/position';
-import { getMarketAddress } from './addresses/marketAddresses';
+import { getTokenAmount } from './math/bankBalance';
 
 /**
  * # ClearingHouse
@@ -166,6 +165,11 @@ export class ClearingHouse {
 		return this.accountSubscriber.getBankAccountAndSlot(bankIndex).account;
 	}
 
+	public getQuoteAssetBankAccount(): BankAccount {
+		return this.accountSubscriber.getBankAccountAndSlot(QUOTE_ASSET_BANK_INDEX)
+			.account;
+	}
+
 	orderStatePublicKey?: PublicKey;
 	public async getOrderStatePublicKey(): Promise<PublicKey> {
 		if (this.orderStatePublicKey) {
@@ -275,9 +279,20 @@ export class ClearingHouse {
 		);
 	}
 
-	getRemainingAccountsForMarketAccounts(
-		writableMarketIndex?: BN
-	): AccountMeta[] {
+	public getQuoteAssetTokenAmount(): BN {
+		const bank = this.getBankAccount(QUOTE_ASSET_BANK_INDEX);
+		const userBankBalance = this.getUserBankBalance(QUOTE_ASSET_BANK_INDEX);
+		return getTokenAmount(
+			userBankBalance.balance,
+			bank,
+			userBankBalance.balanceType
+		);
+	}
+
+	getRemainingAccounts(params: {
+		writableMarketIndex?: BN;
+		writableBankIndex?: BN;
+	}): AccountMeta[] {
 		const userAccountAndSlot = this.getUserAccountAndSlot();
 		if (!userAccountAndSlot) {
 			throw Error(
@@ -287,13 +302,21 @@ export class ClearingHouse {
 		const { account: userAccount, slot: lastUserPositionsSlot } =
 			userAccountAndSlot;
 
-		const remainingAccountMap = new Map<number, AccountMeta>();
+		const oracleAccountMap = new Map<string, AccountMeta>();
+		const bankAccountMap = new Map<number, AccountMeta>();
+		const marketAccountMap = new Map<number, AccountMeta>();
 		for (const [marketIndexNum, slot] of this.marketLastSlotCache.entries()) {
 			// if cache has more recent slot than user positions account slot, add market to remaining accounts
 			// otherwise remove from slot
 			if (slot > lastUserPositionsSlot) {
-				remainingAccountMap.set(marketIndexNum, {
-					pubkey: this.getMarketAccount(marketIndexNum).pubkey,
+				const marketAccount = this.getMarketAccount(marketIndexNum);
+				marketAccountMap.set(marketIndexNum, {
+					pubkey: marketAccount.pubkey,
+					isSigner: false,
+					isWritable: false,
+				});
+				oracleAccountMap.set(marketAccount.amm.oracle.toString(), {
+					pubkey: marketAccount.amm.oracle,
 					isSigner: false,
 					isWritable: false,
 				});
@@ -305,23 +328,75 @@ export class ClearingHouse {
 		for (const position of userAccount.positions) {
 			if (!positionIsAvailable(position)) {
 				const marketIndexNum = position.marketIndex.toNumber();
-				remainingAccountMap.set(marketIndexNum, {
-					pubkey: this.getMarketAccount(marketIndexNum).pubkey,
+				const marketAccount = this.getMarketAccount(marketIndexNum);
+				marketAccountMap.set(marketIndexNum, {
+					pubkey: marketAccount.pubkey,
+					isSigner: false,
+					isWritable: false,
+				});
+				oracleAccountMap.set(marketAccount.pubkey.toString(), {
+					pubkey: marketAccount.amm.oracle,
 					isSigner: false,
 					isWritable: false,
 				});
 			}
 		}
 
-		if (writableMarketIndex) {
-			remainingAccountMap.set(writableMarketIndex.toNumber(), {
-				pubkey: this.getMarketAccount(writableMarketIndex).pubkey,
+		if (params.writableMarketIndex) {
+			const marketAccount = this.getMarketAccount(
+				params.writableMarketIndex.toNumber()
+			);
+			marketAccountMap.set(params.writableMarketIndex.toNumber(), {
+				pubkey: marketAccount.pubkey,
 				isSigner: false,
 				isWritable: true,
 			});
+			oracleAccountMap.set(marketAccount.amm.oracle.toString(), {
+				pubkey: marketAccount.amm.oracle,
+				isSigner: false,
+				isWritable: false,
+			});
 		}
 
-		return Array.from(remainingAccountMap.values());
+		for (const userBankBalance of userAccount.bankBalances) {
+			if (!userBankBalance.balance.eq(ZERO)) {
+				const bankAccount = this.getBankAccount(userBankBalance.bankIndex);
+				bankAccountMap.set(userBankBalance.bankIndex.toNumber(), {
+					pubkey: bankAccount.pubkey,
+					isSigner: false,
+					isWritable: false,
+				});
+				if (!bankAccount.bankIndex.eq(ZERO)) {
+					oracleAccountMap.set(bankAccount.oracle.toString(), {
+						pubkey: bankAccount.oracle,
+						isSigner: false,
+						isWritable: false,
+					});
+				}
+			}
+		}
+
+		if (params.writableBankIndex) {
+			const bankAccount = this.getBankAccount(params.writableBankIndex);
+			bankAccountMap.set(params.writableBankIndex.toNumber(), {
+				pubkey: bankAccount.pubkey,
+				isSigner: false,
+				isWritable: true,
+			});
+			if (!bankAccount.bankIndex.eq(ZERO)) {
+				oracleAccountMap.set(bankAccount.oracle.toString(), {
+					pubkey: bankAccount.oracle,
+					isSigner: false,
+					isWritable: false,
+				});
+			}
+		}
+
+		return [
+			...oracleAccountMap.values(),
+			...bankAccountMap.values(),
+			...marketAccountMap.values(),
+		];
 	}
 
 	public getOrder(orderId: BN | number): Order | undefined {
@@ -340,12 +415,15 @@ export class ClearingHouse {
 	public async deposit(
 		amount: BN,
 		bankIndex: BN,
-		collateralAccountPublicKey: PublicKey
+		collateralAccountPublicKey: PublicKey,
+		reduceOnly = false
 	): Promise<TransactionSignature> {
 		const depositCollateralIx = await this.getDepositInstruction(
 			amount,
 			bankIndex,
-			collateralAccountPublicKey
+			collateralAccountPublicKey,
+			true,
+			reduceOnly
 		);
 
 		const tx = new Transaction().add(depositCollateralIx);
@@ -358,29 +436,45 @@ export class ClearingHouse {
 		amount: BN,
 		bankIndex: BN,
 		userTokenAccount: PublicKey,
-		userInitialized = true
+		userInitialized = true,
+		reduceOnly = false
 	): Promise<TransactionInstruction> {
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 
 		let remainingAccounts = [];
 		if (userInitialized) {
-			remainingAccounts = this.getRemainingAccountsForMarketAccounts();
+			remainingAccounts = this.getRemainingAccounts({
+				writableBankIndex: bankIndex,
+			});
+		} else {
+			remainingAccounts = [
+				{
+					pubkey: this.getQuoteAssetBankAccount().pubkey,
+					isSigner: false,
+					isWritable: true,
+				},
+			];
 		}
 
 		const bank = this.getBankAccount(bankIndex);
 
-		return await this.program.instruction.deposit(amount, {
-			accounts: {
-				state: await this.getStatePublicKey(),
-				bank: bank.pubkey,
-				bankVault: bank.vault,
-				user: userAccountPublicKey,
-				userTokenAccount: userTokenAccount,
-				authority: this.wallet.publicKey,
-				tokenProgram: TOKEN_PROGRAM_ID,
-			},
-			remainingAccounts,
-		});
+		return await this.program.instruction.deposit(
+			bankIndex,
+			amount,
+			reduceOnly,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					bank: bank.pubkey,
+					bankVault: bank.vault,
+					user: userAccountPublicKey,
+					userTokenAccount: userTokenAccount,
+					authority: this.wallet.publicKey,
+					tokenProgram: TOKEN_PROGRAM_ID,
+				},
+				remainingAccounts,
+			}
+		);
 	}
 
 	/**
@@ -443,13 +537,20 @@ export class ClearingHouse {
 		return [txSig, userAccountPublicKey];
 	}
 
-	public async withdrawCollateral(
+	public async withdraw(
 		amount: BN,
-		collateralAccountPublicKey: PublicKey
+		bankIndex: BN,
+		userTokenAccount: PublicKey,
+		reduceOnly = false
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.txSender.send(
 			wrapInTx(
-				await this.getWithdrawCollateralIx(amount, collateralAccountPublicKey)
+				await this.getWithdrawIx(
+					amount,
+					bankIndex,
+					userTokenAccount,
+					reduceOnly
+				)
 			),
 			[],
 			this.opts
@@ -457,29 +558,59 @@ export class ClearingHouse {
 		return txSig;
 	}
 
-	public async getWithdrawCollateralIx(
+	public async getWithdrawIx(
 		amount: BN,
-		collateralAccountPublicKey: PublicKey
+		bankIndex: BN,
+		userTokenAccount: PublicKey,
+		reduceOnly = false
 	): Promise<TransactionInstruction> {
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 
-		const state = this.getStateAccount();
+		const remainingAccounts = this.getRemainingAccounts({
+			writableBankIndex: bankIndex,
+		});
 
-		const remainingAccounts = this.getRemainingAccountsForMarketAccounts();
+		const bank = this.getBankAccount(bankIndex);
 
-		return await this.program.instruction.withdrawCollateral(amount, {
+		return await this.program.instruction.withdraw(
+			bankIndex,
+			amount,
+			reduceOnly,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					bank: bank.pubkey,
+					bankVault: bank.vault,
+					bankVaultAuthority: bank.vaultAuthority,
+					user: userAccountPublicKey,
+					userTokenAccount: userTokenAccount,
+					authority: this.wallet.publicKey,
+					tokenProgram: TOKEN_PROGRAM_ID,
+				},
+				remainingAccounts,
+			}
+		);
+	}
+
+	public async updateBankCumulativeInterest(
+		bankIndex: BN
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.txSender.send(
+			wrapInTx(await this.updateBankCumulativeInterestIx(bankIndex)),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async updateBankCumulativeInterestIx(
+		bankIndex: BN
+	): Promise<TransactionInstruction> {
+		const bank = this.getBankAccount(bankIndex);
+		return await this.program.instruction.updateBankCumulativeInterest({
 			accounts: {
-				state: await this.getStatePublicKey(),
-				user: userAccountPublicKey,
-				collateralVault: state.collateralVault,
-				collateralVaultAuthority: state.collateralVaultAuthority,
-				insuranceVault: state.insuranceVault,
-				insuranceVaultAuthority: state.insuranceVaultAuthority,
-				userCollateralAccount: collateralAccountPublicKey,
-				authority: this.wallet.publicKey,
-				tokenProgram: TOKEN_PROGRAM_ID,
+				bank: bank.pubkey,
 			},
-			remainingAccounts,
 		});
 	}
 
@@ -523,8 +654,10 @@ export class ClearingHouse {
 			limitPrice = new BN(0); // no limit
 		}
 
-		const remainingAccounts =
-			this.getRemainingAccountsForMarketAccounts(marketIndex);
+		const remainingAccounts = this.getRemainingAccounts({
+			writableBankIndex: QUOTE_ASSET_BANK_INDEX,
+			writableMarketIndex: marketIndex,
+		});
 
 		const optionalAccounts = {
 			discountToken: false,
@@ -592,9 +725,9 @@ export class ClearingHouse {
 		const priceOracle = this.getMarketAccount(orderParams.marketIndex).amm
 			.oracle;
 
-		const remainingAccounts = this.getRemainingAccountsForMarketAccounts(
-			orderParams.marketIndex
-		);
+		const remainingAccounts = this.getRemainingAccounts({
+			writableMarketIndex: orderParams.marketIndex,
+		});
 
 		if (orderParams.optionalAccounts.discountToken) {
 			if (!discountToken) {
@@ -678,7 +811,7 @@ export class ClearingHouse {
 		const order = this.getOrder(orderId);
 		const oracle = this.getMarketAccount(order.marketIndex).amm.oracle;
 
-		const remainingAccounts = this.getRemainingAccountsForMarketAccounts();
+		const remainingAccounts = this.getRemainingAccounts({});
 
 		return await this.program.instruction.cancelOrder(orderId, {
 			accounts: {
@@ -711,7 +844,7 @@ export class ClearingHouse {
 		const order = this.getOrderByUserId(userOrderId);
 		const oracle = this.getMarketAccount(order.marketIndex).amm.oracle;
 
-		const remainingAccounts = this.getRemainingAccountsForMarketAccounts();
+		const remainingAccounts = this.getRemainingAccounts({});
 
 		return await this.program.instruction.cancelOrderByUserId(userOrderId, {
 			accounts: {
@@ -741,7 +874,7 @@ export class ClearingHouse {
 	): Promise<TransactionInstruction> {
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 
-		const remainingAccounts = this.getRemainingAccountsForMarketAccounts();
+		const remainingAccounts = this.getRemainingAccounts({});
 
 		for (const order of this.getUserAccount().orders) {
 			const oracle = this.getMarketAccount(order.marketIndex).amm.oracle;
@@ -789,7 +922,7 @@ export class ClearingHouse {
 	): Promise<TransactionInstruction> {
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 
-		const remainingAccounts = this.getRemainingAccountsForMarketAccounts();
+		const remainingAccounts = this.getRemainingAccounts({});
 
 		for (const order of this.getUserAccount().orders) {
 			const oracle = this.getMarketAccount(order.marketIndex).amm.oracle;
@@ -840,36 +973,55 @@ export class ClearingHouse {
 		const fillerPublicKey = await this.getUserAccountPublicKey();
 
 		const marketIndex = order.marketIndex;
-		const oracle = this.getMarketAccount(marketIndex).amm.oracle;
+		const marketAccount = this.getMarketAccount(marketIndex);
+		const oracle = marketAccount.amm.oracle;
 
-		const remainingAccounts = [
+		const bankAccountInfos = [
 			{
-				pubkey: await getMarketAddress(
-					this.program.programId,
-					order.marketIndex
-				),
+				pubkey: this.getQuoteAssetBankAccount().pubkey,
 				isSigner: false,
 				isWritable: true,
 			},
 		];
-		for (const position of userAccount.positions) {
-			if (
-				position.marketIndex.eq(order.marketIndex) ||
-				positionIsAvailable(position)
-			) {
-				continue;
-			}
-
-			const marketPublicKey = await getMarketPublicKey(
-				this.program.programId,
-				position.marketIndex
-			);
-			remainingAccounts.push({
-				pubkey: marketPublicKey,
+		const marketAccountInfos = [
+			{
+				pubkey: marketAccount.pubkey,
+				isWritable: true,
+				isSigner: false,
+			},
+		];
+		const oracleAccountInfos = [
+			{
+				pubkey: marketAccount.amm.oracle,
 				isWritable: false,
 				isSigner: false,
-			});
+			},
+		];
+		for (const position of userAccount.positions) {
+			if (
+				!positionIsAvailable(position) &&
+				!position.marketIndex.eq(order.marketIndex)
+			) {
+				const market = this.getMarketAccount(position.marketIndex);
+				const marketPublicKey = await getMarketPublicKey(
+					this.program.programId,
+					position.marketIndex
+				);
+				marketAccountInfos.push({
+					pubkey: marketPublicKey,
+					isWritable: false,
+					isSigner: false,
+				});
+				oracleAccountInfos.push({
+					pubkey: market.amm.oracle,
+					isWritable: false,
+					isSigner: false,
+				});
+			}
 		}
+		const remainingAccounts = oracleAccountInfos.concat(
+			bankAccountInfos.concat(marketAccountInfos)
+		);
 
 		if (!order.referrer.equals(PublicKey.default)) {
 			remainingAccounts.push({
@@ -919,9 +1071,10 @@ export class ClearingHouse {
 		const priceOracle = this.getMarketAccount(orderParams.marketIndex).amm
 			.oracle;
 
-		const remainingAccounts = this.getRemainingAccountsForMarketAccounts(
-			orderParams.marketIndex
-		);
+		const remainingAccounts = this.getRemainingAccounts({
+			writableMarketIndex: orderParams.marketIndex,
+			writableBankIndex: QUOTE_ASSET_BANK_INDEX,
+		});
 
 		if (orderParams.optionalAccounts.discountToken) {
 			if (!discountToken) {
@@ -994,8 +1147,10 @@ export class ClearingHouse {
 
 		const priceOracle = this.getMarketAccount(marketIndex).amm.oracle;
 
-		const remainingAccounts =
-			this.getRemainingAccountsForMarketAccounts(marketIndex);
+		const remainingAccounts = this.getRemainingAccounts({
+			writableMarketIndex: marketIndex,
+			writableBankIndex: QUOTE_ASSET_BANK_INDEX,
+		});
 
 		const optionalAccounts = {
 			discountToken: false,
@@ -1078,6 +1233,13 @@ export class ClearingHouse {
 			liquidateeUserAccountPublicKey
 		)) as UserAccount;
 
+		const bankAccountInfos = [
+			{
+				pubkey: this.getQuoteAssetBankAccount().pubkey,
+				isSigner: false,
+				isWritable: true,
+			},
+		];
 		const marketAccountInfos = [];
 		const oracleAccountInfos = [];
 		for (const position of liquidateeUserAccount.positions) {
@@ -1099,19 +1261,21 @@ export class ClearingHouse {
 				});
 			}
 		}
-		const remainingAccounts = marketAccountInfos.concat(oracleAccountInfos);
+		const remainingAccounts = oracleAccountInfos.concat(
+			bankAccountInfos.concat(marketAccountInfos)
+		);
 
 		const state = this.getStateAccount();
+		const quoteAssetBankAccount = this.getQuoteAssetBankAccount();
 		return await this.program.instruction.liquidate({
 			accounts: {
 				state: await this.getStatePublicKey(),
 				authority: this.wallet.publicKey,
 				user: liquidateeUserAccountPublicKey,
 				liquidator: userAccountPublicKey,
-				collateralVault: state.collateralVault,
-				collateralVaultAuthority: state.collateralVaultAuthority,
+				bankVault: quoteAssetBankAccount.vault,
+				bankVaultAuthority: quoteAssetBankAccount.vaultAuthority,
 				insuranceVault: state.insuranceVault,
-				insuranceVaultAuthority: state.insuranceVaultAuthority,
 				tokenProgram: TOKEN_PROGRAM_ID,
 			},
 			remainingAccounts: remainingAccounts,

@@ -13,7 +13,12 @@ import {
 	PositionDirection,
 } from '../sdk/src';
 
-import { mockOracle, mockUSDCMint, mockUserUSDCAccount } from './testHelpers';
+import {
+	mockOracle,
+	mockUSDCMint,
+	mockUserUSDCAccount,
+	initializeQuoteAssetBank,
+} from './testHelpers';
 import { AccountInfo, Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
 describe('fees', () => {
@@ -65,6 +70,8 @@ describe('fees', () => {
 		);
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
+
+		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
 
 		const solUsd = await mockOracle(1);
 		const periodicity = new BN(60 * 60); // 1 HOUR
@@ -138,7 +145,7 @@ describe('fees', () => {
 			userAccountPublicKey
 		);
 
-		assert(user.collateral.eq(new BN(9990000)));
+		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9990000)));
 		assert(user.totalFeePaid.eq(new BN(10000)));
 		assert(user.totalTokenDiscount.eq(new BN(0)));
 		assert(user.totalRefereeDiscount.eq(new BN(0)));
@@ -167,7 +174,7 @@ describe('fees', () => {
 			userAccountPublicKey
 		);
 
-		assert(user.collateral.eq(new BN(9981000)));
+		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9981000)));
 		assert(user.totalFeePaid.eq(new BN(19000)));
 		assert(user.totalTokenDiscount.eq(new BN(500)));
 		assert(user.totalRefereeDiscount.eq(new BN(500)));
@@ -202,7 +209,7 @@ describe('fees', () => {
 			userAccountPublicKey
 		);
 
-		assert(user.collateral.eq(new BN(9972500)));
+		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9972500)));
 		assert(user.totalFeePaid.eq(new BN(27500)));
 		assert(user.totalTokenDiscount.eq(new BN(1500)));
 		assert(user.totalRefereeDiscount.eq(new BN(1000)));
@@ -237,7 +244,7 @@ describe('fees', () => {
 			userAccountPublicKey
 		);
 
-		assert(user.collateral.eq(new BN(9964500)));
+		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9964500)));
 		assert(user.totalFeePaid.eq(new BN(35500)));
 		assert(user.totalTokenDiscount.eq(new BN(3000)));
 		assert(user.totalRefereeDiscount.eq(new BN(1500)));
@@ -272,7 +279,7 @@ describe('fees', () => {
 			userAccountPublicKey
 		);
 
-		assert(user.collateral.eq(new BN(9957750)));
+		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9957750)));
 		assert(user.totalFeePaid.eq(new BN(42250)));
 		assert(user.totalTokenDiscount.eq(new BN(4800)));
 		assert(user.totalRefereeDiscount.eq(new BN(1950)));
@@ -296,7 +303,7 @@ describe('fees', () => {
 			userAccountPublicKey
 		);
 
-		assert(user.collateral.eq(new BN(9921000)));
+		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9921000)));
 		assert(user.totalFeePaid.eq(new BN(79000)));
 		assert(user.totalTokenDiscount.eq(new BN(14600)));
 		assert(user.totalRefereeDiscount.eq(new BN(4400)));

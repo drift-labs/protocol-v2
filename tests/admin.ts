@@ -11,7 +11,11 @@ import {
 } from '../sdk/src';
 import { OracleSource } from '../sdk';
 
-import { mockOracle, mockUSDCMint } from './testHelpers';
+import {
+	mockOracle,
+	mockUSDCMint,
+	initializeQuoteAssetBank,
+} from './testHelpers';
 import { PublicKey } from '@solana/web3.js';
 import { Markets } from '../sdk/src/constants/markets';
 
@@ -42,6 +46,9 @@ describe('admin', () => {
 
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
+
+		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
+
 		const solUsd = await mockOracle(1);
 		const periodicity = new BN(60 * 60); // 1 HOUR
 

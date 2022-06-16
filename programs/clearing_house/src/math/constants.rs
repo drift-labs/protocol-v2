@@ -10,6 +10,7 @@ pub const PRICE_SPREAD_PRECISION: i128 = 10_000; // expo = -4
 pub const PRICE_SPREAD_PRECISION_U128: u128 = 10_000; // expo = -4
 pub const BID_ASK_SPREAD_PRECISION: u128 = 1_000_000; // expo = -6
 pub const BANK_INTEREST_PRECISION: u128 = 1_000_000; // expo = -6
+pub const BANK_CUMULATIVE_INTEREST_PRECISION: u128 = 10_000_000_000; // expo = -10
 pub const BANK_UTILIZATION_PRECISION: u128 = 1_000_000; // expo = -6
 pub const BANK_WEIGHT_PRECISION: u128 = 100; // expo = -2
 
@@ -63,3 +64,6 @@ pub const MAX_LIQUIDATION_SLIPPAGE_U128: u128 = 100; // expo = -2
 pub const MAX_MARK_TWAP_DIVERGENCE: u128 = 5_000; // expo = -3
 pub const MAXIMUM_MARGIN_RATIO: u32 = MARGIN_PRECISION as u32;
 pub const MINIMUM_MARGIN_RATIO: u32 = MARGIN_PRECISION as u32 / 50;
+
+// BANK
+pub const QUOTE_ASSET_BANK_INDEX: u64 = 0;

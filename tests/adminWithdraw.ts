@@ -12,7 +12,12 @@ import {
 	PositionDirection,
 } from '../sdk/src';
 
-import { mockOracle, mockUSDCMint, mockUserUSDCAccount } from './testHelpers';
+import {
+	mockOracle,
+	mockUSDCMint,
+	mockUserUSDCAccount,
+	initializeQuoteAssetBank,
+} from './testHelpers';
 
 const calculateTradeAmount = (amountOfCollateral: BN) => {
 	const ONE_MANTISSA = new BN(100000);
@@ -58,6 +63,8 @@ describe('admin withdraw', () => {
 		);
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
+
+		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
 
 		const solUsd = await mockOracle(1);
 		const periodicity = new BN(60 * 60); // 1 HOUR

@@ -30,7 +30,6 @@ pub struct State {
     pub whitelist_mint: Pubkey,
     pub discount_mint: Pubkey,
     pub oracle_guard_rails: OracleGuardRails,
-    pub max_deposit: u128,
     pub order_state: Pubkey,
     pub number_of_markets: u64,
     pub number_of_banks: u64,

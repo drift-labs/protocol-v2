@@ -1,9 +1,10 @@
 use crate::error::{ClearingHouseResult, ErrorCode};
-use crate::math::casting::cast_to_u64;
-use crate::math::constants::{BANK_UTILIZATION_PRECISION, ONE_YEAR};
+use crate::math::casting::{cast, cast_to_u64};
+use crate::math::constants::{BANK_INTEREST_PRECISION, BANK_UTILIZATION_PRECISION, ONE_YEAR};
 use crate::math_error;
 use crate::state::bank::Bank;
-use crate::state::user::BankBalanceType;
+use crate::state::oracle::OraclePriceData;
+use crate::state::user::{BankBalanceType, UserBankBalance};
 use solana_program::msg;
 
 pub fn get_bank_balance(
@@ -12,7 +13,7 @@ pub fn get_bank_balance(
     balance_type: &BankBalanceType,
 ) -> ClearingHouseResult<u128> {
     let precision_increase = 10_u128.pow(
-        12_u8
+        16_u8
             .checked_sub(bank.decimals)
             .ok_or_else(math_error!())?
             .into(),
@@ -42,7 +43,7 @@ pub fn get_token_amount(
     balance_type: &BankBalanceType,
 ) -> ClearingHouseResult<u128> {
     let precision_decrease = 10_u128.pow(
-        12_u8
+        16_u8
             .checked_sub(bank.decimals)
             .ok_or_else(math_error!())?
             .into(),
@@ -53,44 +54,34 @@ pub fn get_token_amount(
         BankBalanceType::Borrow => bank.cumulative_borrow_interest,
     };
 
-    let mut token_amount = balance
+    let token_amount = balance
         .checked_mul(cumulative_interest)
         .ok_or_else(math_error!())?
         .checked_div(precision_decrease)
         .ok_or_else(math_error!())?;
 
-    if token_amount != 0 && balance_type == &BankBalanceType::Borrow {
-        token_amount = token_amount.checked_add(1).ok_or_else(math_error!())?;
-    }
-
     Ok(token_amount)
 }
 
-pub fn get_bank_deposit_token_amount(bank: &Bank) -> ClearingHouseResult<u128> {
-    get_token_amount(bank.deposit_balance, bank, &BankBalanceType::Deposit)
+pub struct InterestAccumulated {
+    pub borrow_interest: u128,
+    pub deposit_interest: u128,
 }
 
-pub fn get_bank_borrow_token_amount(bank: &Bank) -> ClearingHouseResult<u128> {
-    get_token_amount(bank.borrow_balance, bank, &BankBalanceType::Borrow)
-}
-
-pub struct CumulativeInterestDelta {
-    pub borrow_delta: u128,
-    pub deposit_delta: u128,
-}
-
-pub fn get_cumulative_interest_delta(
+pub fn calculate_accumulated_interest(
     bank: &Bank,
     now: i64,
-) -> ClearingHouseResult<CumulativeInterestDelta> {
-    let deposit_token_amount = get_bank_deposit_token_amount(bank)?;
-    let borrow_token_amount = get_bank_borrow_token_amount(bank)?;
+) -> ClearingHouseResult<InterestAccumulated> {
+    let deposit_token_amount =
+        get_token_amount(bank.deposit_balance, bank, &BankBalanceType::Deposit)?;
+    let borrow_token_amount =
+        get_token_amount(bank.borrow_balance, bank, &BankBalanceType::Borrow)?;
 
     let utilization = borrow_token_amount
         .checked_mul(BANK_UTILIZATION_PRECISION)
         .ok_or_else(math_error!())?
         .checked_div(deposit_token_amount)
-        .or_else(|| {
+        .or({
             if deposit_token_amount == 0 && borrow_token_amount == 0 {
                 Some(0_u128)
             } else {
@@ -100,7 +91,14 @@ pub fn get_cumulative_interest_delta(
         })
         .unwrap();
 
-    let interest_rate = if utilization > bank.optimal_utilization {
+    if utilization == 0 {
+        return Ok(InterestAccumulated {
+            borrow_interest: 0,
+            deposit_interest: 0,
+        });
+    }
+
+    let borrow_rate = if utilization > bank.optimal_utilization {
         let surplus_utilization = utilization
             .checked_sub(bank.optimal_utilization)
             .ok_or_else(math_error!())?;
@@ -147,32 +145,58 @@ pub fn get_cumulative_interest_delta(
         .checked_sub(bank.last_updated)
         .ok_or_else(math_error!())?;
 
-    let borrow_interest = interest_rate
+    // To save some compute units, have to multiply the rate by the `time_since_last_update` here
+    // and then divide out by ONE_YEAR when calculating interest accumulated below
+    let modified_borrow_rate = borrow_rate
         .checked_mul(time_since_last_update as u128)
         .ok_or_else(math_error!())?;
 
-    let deposit_interest = borrow_interest
+    let modified_deposit_rate = modified_borrow_rate
         .checked_mul(utilization)
         .ok_or_else(math_error!())?
         .checked_div(BANK_UTILIZATION_PRECISION)
         .ok_or_else(math_error!())?;
 
-    let borrow_delta = bank
+    let borrow_interest = bank
         .cumulative_borrow_interest
-        .checked_mul(borrow_interest)
+        .checked_mul(modified_borrow_rate)
         .ok_or_else(math_error!())?
         .checked_div(ONE_YEAR)
+        .ok_or_else(math_error!())?
+        .checked_div(BANK_INTEREST_PRECISION)
+        .ok_or_else(math_error!())?
+        .checked_add(1)
         .ok_or_else(math_error!())?;
 
-    let deposit_delta = bank
+    let deposit_interest = bank
         .cumulative_deposit_interest
-        .checked_mul(deposit_interest)
+        .checked_mul(modified_deposit_rate)
         .ok_or_else(math_error!())?
         .checked_div(ONE_YEAR)
+        .ok_or_else(math_error!())?
+        .checked_div(BANK_INTEREST_PRECISION)
         .ok_or_else(math_error!())?;
 
-    Ok(CumulativeInterestDelta {
-        borrow_delta,
-        deposit_delta,
+    Ok(InterestAccumulated {
+        borrow_interest,
+        deposit_interest,
     })
+}
+
+pub fn get_balance_value(
+    bank_balance: &UserBankBalance,
+    bank: &Bank,
+    oracle_price_data: &OraclePriceData,
+) -> ClearingHouseResult<u128> {
+    let token_amount = get_token_amount(bank_balance.balance, bank, &bank_balance.balance_type)?;
+
+    let precision_decrease = 10_u128.pow(10_u32 + (bank.decimals - 6) as u32);
+
+    let value = token_amount
+        .checked_mul(cast(oracle_price_data.price)?)
+        .ok_or_else(math_error!())?
+        .checked_div(precision_decrease)
+        .ok_or_else(math_error!())?;
+
+    Ok(value)
 }

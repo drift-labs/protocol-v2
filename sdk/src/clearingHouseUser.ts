@@ -20,6 +20,7 @@ import {
 	AMM_RESERVE_PRECISION,
 	PRICE_TO_QUOTE_PRECISION,
 	MARGIN_PRECISION,
+	BANK_WEIGHT_PRECISION,
 } from './constants/numericConstants';
 import { UserAccountSubscriber, UserAccountEvents } from './accounts/types';
 import {
@@ -36,6 +37,7 @@ import {
 	getClearingHouseUser,
 	getWebSocketClearingHouseUserConfig,
 } from './factory/clearingHouseUser';
+import { getTokenAmount } from './math/bankBalance';
 
 export class ClearingHouseUser {
 	clearingHouse: ClearingHouse;
@@ -272,8 +274,32 @@ export class ClearingHouseUser {
 	 */
 	public getTotalCollateral(): BN {
 		return (
-			this.getUserAccount().collateral.add(this.getUnrealizedPNL(true)) ??
-			new BN(0)
+			this.getUserAccount()
+				.bankBalances.reduce((totalAssetValue, bankBalance) => {
+					if (
+						bankBalance.balance.eq(ZERO) ||
+						isVariant(bankBalance.balanceType, 'borrow')
+					) {
+						return totalAssetValue;
+					}
+
+					// Todo this needs to account for whether it's based on initial or maintenance requirements
+					const bankAccount = this.clearingHouse.getBankAccount(
+						bankBalance.bankIndex
+					);
+
+					const tokenAmount = getTokenAmount(
+						bankBalance.balance,
+						bankAccount,
+						bankBalance.balanceType
+					);
+					return totalAssetValue.add(
+						tokenAmount
+							.mul(bankAccount.initialAssetWeight)
+							.div(BANK_WEIGHT_PRECISION)
+					);
+				}, ZERO)
+				.add(this.getUnrealizedPNL(true)) ?? new BN(0)
 		);
 	}
 

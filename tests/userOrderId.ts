@@ -12,7 +12,12 @@ import {
 	getLimitOrderParams,
 } from '../sdk/src';
 
-import { mockOracle, mockUSDCMint, mockUserUSDCAccount } from './testHelpers';
+import {
+	initializeQuoteAssetBank,
+	mockOracle,
+	mockUSDCMint,
+	mockUserUSDCAccount,
+} from './testHelpers';
 import { AMM_RESERVE_PRECISION } from '../sdk';
 import { AccountInfo, Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
@@ -57,6 +62,7 @@ describe('user order id', () => {
 		);
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
+		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
 		solUsd = await mockOracle(1);
 		btcUsd = await mockOracle(60000);
 
