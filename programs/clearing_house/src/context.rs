@@ -20,24 +20,13 @@ pub struct Initialize<'info> {
         payer = admin
     )]
     pub state: Box<Account<'info, State>>,
-    pub collateral_mint: Box<Account<'info, Mint>>,
-    #[account(
-        init,
-        seeds = [b"collateral_vault".as_ref()],
-        bump,
-        payer = admin,
-        token::mint = collateral_mint,
-        token::authority = collateral_vault_authority
-    )]
-    pub collateral_vault: Box<Account<'info, TokenAccount>>,
-    /// CHECK: checked in `initialize`
-    pub collateral_vault_authority: AccountInfo<'info>,
+    pub quote_asset_mint: Box<Account<'info, Mint>>,
     #[account(
         init,
         seeds = [b"insurance_vault".as_ref()],
         bump,
         payer = admin,
-        token::mint = collateral_mint,
+        token::mint = quote_asset_mint,
         token::authority = insurance_vault_authority
     )]
     pub insurance_vault: Box<Account<'info, TokenAccount>>,
@@ -241,7 +230,10 @@ pub struct WithdrawFees<'info> {
     pub bank_vault_authority: AccountInfo<'info>,
     #[account(mut)]
     pub market: AccountLoader<'info, Market>,
-    #[account(mut)]
+    #[account(
+        mut,
+        token::mint = bank_vault.mint
+    )]
     pub recipient: Box<Account<'info, TokenAccount>>,
     pub token_program: Program<'info, Token>,
 }
@@ -263,7 +255,10 @@ pub struct WithdrawFromInsuranceVault<'info> {
         constraint = &state.insurance_vault_authority.eq(&insurance_vault_authority.key())
     )]
     pub insurance_vault_authority: AccountInfo<'info>,
-    #[account(mut)]
+    #[account(
+        mut,
+        token::mint = insurance_vault.mint
+    )]
     pub recipient: Box<Account<'info, TokenAccount>>,
     pub token_program: Program<'info, Token>,
 }
@@ -292,6 +287,7 @@ pub struct WithdrawFromInsuranceVaultToMarket<'info> {
         mut,
         seeds = [b"bank_vault".as_ref(), 0_u64.to_le_bytes().as_ref()],
         bump,
+        token::mint = insurance_vault.mint
     )]
     pub bank_vault: Box<Account<'info, TokenAccount>>,
     pub token_program: Program<'info, Token>,

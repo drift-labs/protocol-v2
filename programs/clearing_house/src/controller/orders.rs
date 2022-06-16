@@ -15,7 +15,6 @@ use crate::get_struct_values;
 use crate::get_then_update_id;
 use crate::math::amm::{is_oracle_valid, normalise_oracle_price};
 use crate::math::casting::cast;
-use crate::math::constants::QUOTE_ASSET_BANK_INDEX;
 use crate::math::fees::calculate_order_fee_tier;
 use crate::math::{amm, fees, margin::*, orders::*};
 use crate::math_error;
@@ -469,7 +468,7 @@ pub fn fill_order(
 
     // Update user's collateral based on fee/rebate
     {
-        let bank = &mut bank_map.get_ref_mut(&QUOTE_ASSET_BANK_INDEX)?;
+        let bank = &mut bank_map.get_quote_asset_bank_mut()?;
         let user_bank_balance = user.get_quote_asset_bank_balance_mut();
 
         update_bank_balances(
@@ -509,7 +508,7 @@ pub fn fill_order(
 
     if filler_key != user_key {
         let filler = &mut load_mut(filler)?;
-        let bank = &mut bank_map.get_ref_mut(&QUOTE_ASSET_BANK_INDEX)?;
+        let bank = &mut bank_map.get_quote_asset_bank_mut()?;
         let filler_bank_balance = filler.get_quote_asset_bank_balance_mut();
 
         update_bank_balances(
@@ -720,7 +719,7 @@ pub fn execute_market_order(
     };
 
     {
-        let bank = &mut bank_map.get_ref_mut(&QUOTE_ASSET_BANK_INDEX)?;
+        let bank = &mut bank_map.get_quote_asset_bank_mut()?;
         let user_bank_balance = user.get_quote_asset_bank_balance_mut();
 
         update_bank_balances(
@@ -876,7 +875,7 @@ pub fn execute_non_market_order(
     )?;
 
     {
-        let bank = &mut bank_map.get_ref_mut(&QUOTE_ASSET_BANK_INDEX)?;
+        let bank = &mut bank_map.get_quote_asset_bank_mut()?;
         let user_bank_balance = user.get_quote_asset_bank_balance_mut();
 
         update_bank_balances(

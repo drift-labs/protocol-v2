@@ -146,10 +146,10 @@ describe('admin withdraw', () => {
 			new BN(0),
 			withdrawAmount
 		);
-		const clearingHouseState = clearingHouse.getStateAccount();
+
 		const collateralVaultTokenAccount = await getTokenAccount(
 			provider,
-			clearingHouseState.collateralVault
+			clearingHouse.getQuoteAssetBankAccount().vault
 		);
 		assert(collateralVaultTokenAccount.amount.eq(new BN(9987562)));
 

@@ -66,15 +66,6 @@ pub mod clearing_house {
     use std::cmp::min;
 
     pub fn initialize(ctx: Context<Initialize>, admin_controls_prices: bool) -> Result<()> {
-        let collateral_account_key = ctx.accounts.collateral_vault.to_account_info().key;
-        let (collateral_account_authority, collateral_account_nonce) =
-            Pubkey::find_program_address(&[collateral_account_key.as_ref()], ctx.program_id);
-
-        // clearing house must be authority of collateral vault
-        if ctx.accounts.collateral_vault.owner != collateral_account_authority {
-            // return Err(ErrorCode::InvalidLendingPoolAuthority.into());
-        }
-
         let insurance_account_key = ctx.accounts.insurance_vault.to_account_info().key;
         let (insurance_account_authority, insurance_account_nonce) =
             Pubkey::find_program_address(&[insurance_account_key.as_ref()], ctx.program_id);
@@ -89,10 +80,6 @@ pub mod clearing_house {
             funding_paused: false,
             exchange_paused: false,
             admin_controls_prices,
-            collateral_mint: *ctx.accounts.collateral_mint.to_account_info().key,
-            collateral_vault: *collateral_account_key,
-            collateral_vault_authority: collateral_account_authority,
-            collateral_vault_nonce: collateral_account_nonce,
             insurance_vault: *insurance_account_key,
             insurance_vault_authority: insurance_account_authority,
             insurance_vault_nonce: insurance_account_nonce,
@@ -618,7 +605,7 @@ pub mod clearing_house {
         }
 
         let bank = bank_map.get_ref(&bank_index)?;
-        controller::token::send(
+        controller::token::send_from_bank_vault(
             &ctx.accounts.token_program,
             &ctx.accounts.bank_vault,
             &ctx.accounts.user_token_account,
@@ -817,7 +804,7 @@ pub mod clearing_house {
 
         // Update user balance to account for fee and pnl
         {
-            let bank = &mut bank_map.get_ref_mut(&QUOTE_ASSET_BANK_INDEX)?;
+            let bank = &mut bank_map.get_quote_asset_bank_mut()?;
             let user_bank_balance = user.get_quote_asset_bank_balance_mut();
 
             update_bank_balances(
@@ -1038,7 +1025,7 @@ pub mod clearing_house {
 
         // Update user balance to account for fee and pnl
         {
-            let bank = &mut bank_map.get_ref_mut(&QUOTE_ASSET_BANK_INDEX)?;
+            let bank = &mut bank_map.get_quote_asset_bank_mut()?;
             let user_bank_balance = user.get_quote_asset_bank_balance_mut();
 
             update_bank_balances(
@@ -1489,7 +1476,7 @@ pub mod clearing_house {
 
         // Verify that the user is in liquidation territory
         let collateral = {
-            let bank = bank_map.get_ref(&QUOTE_ASSET_BANK_INDEX)?;
+            let bank = bank_map.get_quote_asset_bank()?;
             let user_bank_balance = user.get_quote_asset_bank_balance_mut();
             get_token_amount(
                 user_bank_balance.balance,
@@ -1644,7 +1631,7 @@ pub mod clearing_house {
                 };
 
                 {
-                    let bank = &mut bank_map.get_ref_mut(&QUOTE_ASSET_BANK_INDEX)?;
+                    let bank = &mut bank_map.get_quote_asset_bank_mut()?;
                     let user_bank_balance = user.get_quote_asset_bank_balance_mut();
 
                     update_bank_balances(
@@ -1854,7 +1841,7 @@ pub mod clearing_house {
                 )?;
 
                 {
-                    let bank = &mut bank_map.get_ref_mut(&QUOTE_ASSET_BANK_INDEX)?;
+                    let bank = &mut bank_map.get_quote_asset_bank_mut()?;
                     let user_bank_balance = user.get_quote_asset_bank_balance_mut();
 
                     update_bank_balances(
@@ -1932,7 +1919,7 @@ pub mod clearing_house {
         let withdrawal_amount = cast_to_u64(liquidation_fee)?;
 
         {
-            let bank = &mut bank_map.get_ref_mut(&QUOTE_ASSET_BANK_INDEX)?;
+            let bank = &mut bank_map.get_quote_asset_bank_mut()?;
             let user_bank_balance = user.get_quote_asset_bank_balance_mut();
             update_bank_balances(
                 liquidation_fee,
@@ -1959,7 +1946,7 @@ pub mod clearing_house {
 
         let liquidate_key = ctx.accounts.liquidator.key();
         if fee_to_liquidator > 0 {
-            let bank = &mut bank_map.get_ref_mut(&QUOTE_ASSET_BANK_INDEX)?;
+            let bank = &mut bank_map.get_quote_asset_bank_mut()?;
             // handle edge case where user liquidates themselves
             if liquidate_key.eq(&user_key) {
                 let user_bank_balance = user.get_quote_asset_bank_balance_mut();
@@ -1984,8 +1971,8 @@ pub mod clearing_house {
         }
 
         if fee_to_insurance_fund > 0 {
-            let bank = bank_map.get_ref(&QUOTE_ASSET_BANK_INDEX)?;
-            controller::token::send(
+            let bank = bank_map.get_quote_asset_bank()?;
+            controller::token::send_from_bank_vault(
                 &ctx.accounts.token_program,
                 &ctx.accounts.bank_vault,
                 &ctx.accounts.insurance_vault,
@@ -2054,7 +2041,7 @@ pub mod clearing_house {
         }
 
         let bank = ctx.accounts.bank.load()?;
-        controller::token::send(
+        controller::token::send_from_bank_vault(
             &ctx.accounts.token_program,
             &ctx.accounts.bank_vault,
             &ctx.accounts.recipient,

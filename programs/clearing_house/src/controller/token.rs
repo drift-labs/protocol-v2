@@ -22,7 +22,7 @@ pub fn send_from_insurance_vault<'info>(
     token::transfer(cpi_context, amount)
 }
 
-pub fn send<'info>(
+pub fn send_from_bank_vault<'info>(
     token_program: &Program<'info, Token>,
     from: &Account<'info, TokenAccount>,
     to: &Account<'info, TokenAccount>,

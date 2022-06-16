@@ -7,6 +7,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::iter::Peekable;
 use std::slice::Iter;
 
+use crate::math::constants::QUOTE_ASSET_BANK_INDEX;
 use crate::state::oracle_map::OracleMap;
 use anchor_lang::Discriminator;
 use arrayref::array_ref;
@@ -28,6 +29,14 @@ impl<'a> BankMap<'a> {
             .ok_or(ErrorCode::BankNotFound)?
             .load_mut()
             .or(Err(ErrorCode::UnableToLoadBankAccount))
+    }
+
+    pub fn get_quote_asset_bank(&self) -> ClearingHouseResult<Ref<Bank>> {
+        self.get_ref(&QUOTE_ASSET_BANK_INDEX)
+    }
+
+    pub fn get_quote_asset_bank_mut(&self) -> ClearingHouseResult<RefMut<Bank>> {
+        self.get_ref_mut(&QUOTE_ASSET_BANK_INDEX)
     }
 
     pub fn load<'b, 'c, 'd>(
@@ -64,7 +73,9 @@ impl<'a> BankMap<'a> {
                 return Err(ErrorCode::BankWrongMutability);
             }
 
-            if !oracle_map.contains(&oracle) {}
+            if !oracle_map.contains(&oracle) {
+                return Err(ErrorCode::OracleNotFound);
+            }
 
             market_map.0.insert(bank_index, account_loader);
         }

@@ -16,17 +16,7 @@
           "isSigner": false
         },
         {
-          "name": "collateralMint",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "collateralVault",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "collateralVaultAuthority",
+          "name": "quoteAssetMint",
           "isMut": false,
           "isSigner": false
         },
@@ -1752,22 +1742,6 @@
           {
             "name": "adminControlsPrices",
             "type": "bool"
-          },
-          {
-            "name": "collateralMint",
-            "type": "publicKey"
-          },
-          {
-            "name": "collateralVault",
-            "type": "publicKey"
-          },
-          {
-            "name": "collateralVaultAuthority",
-            "type": "publicKey"
-          },
-          {
-            "name": "collateralVaultNonce",
-            "type": "u8"
           },
           {
             "name": "insuranceVault",

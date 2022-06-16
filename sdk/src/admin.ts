@@ -60,16 +60,6 @@ export class Admin extends ClearingHouse {
 			throw new Error('Clearing house already initialized');
 		}
 
-		const [collateralVaultPublicKey] = await PublicKey.findProgramAddress(
-			[Buffer.from(anchor.utils.bytes.utf8.encode('collateral_vault'))],
-			this.program.programId
-		);
-
-		const [collateralVaultAuthority] = await PublicKey.findProgramAddress(
-			[collateralVaultPublicKey.toBuffer()],
-			this.program.programId
-		);
-
 		const [insuranceVaultPublicKey] = await PublicKey.findProgramAddress(
 			[Buffer.from(anchor.utils.bytes.utf8.encode('insurance_vault'))],
 			this.program.programId
@@ -90,9 +80,7 @@ export class Admin extends ClearingHouse {
 				accounts: {
 					admin: this.wallet.publicKey,
 					state: clearingHouseStatePublicKey,
-					collateralMint: usdcMint,
-					collateralVault: collateralVaultPublicKey,
-					collateralVaultAuthority: collateralVaultAuthority,
+					quoteAssetMint: usdcMint,
 					insuranceVault: insuranceVaultPublicKey,
 					insuranceVaultAuthority: insuranceVaultAuthority,
 					rent: SYSVAR_RENT_PUBKEY,

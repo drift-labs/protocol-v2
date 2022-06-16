@@ -32,18 +32,22 @@ pub fn update_bank_cumulative_interest(bank: &mut Bank, now: i64) -> ClearingHou
     Ok(())
 }
 
+// TODO get rid of weird update_against_market once we handle unrealized pnl
 pub fn update_bank_balances(
     mut token_amount: u128,
-    update_type: &BankBalanceType,
+    update_direction: &BankBalanceType,
     bank: &mut Bank,
     user_bank_balance: &mut UserBankBalance,
     update_against_market: bool,
 ) -> ClearingHouseResult {
-    if update_type == &user_bank_balance.balance_type {
-        let balance_delta = get_bank_balance(token_amount, bank, update_type)?;
+    let increase_user_existing_balance = update_direction == &user_bank_balance.balance_type;
+    if increase_user_existing_balance {
+        let balance_delta = get_bank_balance(token_amount, bank, update_direction)?;
         increase_user_bank_balance(balance_delta, user_bank_balance)?;
-        if !(update_against_market && update_type == &BankBalanceType::Borrow) {
-            increase_bank_balance(balance_delta, bank, update_type)?;
+
+        // Dont modify bank balance if user is updating against market and it's a deposit balance
+        if !(update_against_market && update_direction == &BankBalanceType::Deposit) {
+            increase_bank_balance(balance_delta, bank, update_direction)?;
         }
     } else {
         let current_token_amount = get_token_amount(
@@ -52,7 +56,9 @@ pub fn update_bank_balances(
             &user_bank_balance.balance_type,
         )?;
 
-        if current_token_amount != 0 {
+        let reduce_user_existing_balance = current_token_amount != 0;
+        if reduce_user_existing_balance {
+            // determine how much to reduce balance based on size of current token amount
             let (token_delta, balance_delta) = if current_token_amount > token_amount {
                 let balance_delta =
                     get_bank_balance(token_amount, bank, &user_bank_balance.balance_type)?;
@@ -61,9 +67,10 @@ pub fn update_bank_balances(
                 (current_token_amount, user_bank_balance.balance)
             };
 
-            if !(update_against_market && user_bank_balance.balance_type == BankBalanceType::Borrow)
+            // Dont modify bank balance if user is updating against market and it's a deposit balance
+            if !(update_against_market
+                && user_bank_balance.balance_type == BankBalanceType::Deposit)
             {
-                // must update the bank balance first as next line modifies the user bank balance
                 decrease_bank_balance(balance_delta, bank, &user_bank_balance.balance_type)?;
             }
             decrease_user_bank_balance(balance_delta, user_bank_balance)?;
@@ -73,11 +80,11 @@ pub fn update_bank_balances(
         }
 
         if token_amount > 0 {
-            user_bank_balance.balance_type = *update_type;
-            let balance_delta = get_bank_balance(token_amount, bank, update_type)?;
+            user_bank_balance.balance_type = *update_direction;
+            let balance_delta = get_bank_balance(token_amount, bank, update_direction)?;
             increase_user_bank_balance(balance_delta, user_bank_balance)?;
-            if !(update_against_market && update_type == &BankBalanceType::Borrow) {
-                increase_bank_balance(balance_delta, bank, update_type)?;
+            if !(update_against_market && update_direction == &BankBalanceType::Deposit) {
+                increase_bank_balance(balance_delta, bank, update_direction)?;
             }
         }
     }
@@ -87,7 +94,7 @@ pub fn update_bank_balances(
         *user_bank_balance = UserBankBalance::default();
     }
 
-    if let BankBalanceType::Borrow = update_type {
+    if let BankBalanceType::Borrow = update_direction {
         let deposit_token_amount =
             get_token_amount(bank.deposit_balance, bank, &BankBalanceType::Deposit)?;
         let borrow_token_amount =

@@ -195,10 +195,6 @@ export type StateAccount = {
 	fundingPaused: boolean;
 	exchangePaused: boolean;
 	adminControlsPrices: boolean;
-	collateralMint: PublicKey;
-	collateralVault: PublicKey;
-	collateralVaultAuthority: PublicKey;
-	collateralVaultNonce: number;
 	insuranceVault: PublicKey;
 	insuranceVaultAuthority: PublicKey;
 	insuranceVaultNonce: number;
