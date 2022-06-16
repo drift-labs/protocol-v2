@@ -470,12 +470,8 @@ pub mod clearing_house {
         let now = clock.unix_timestamp;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
-        let bank_map = BankMap::load(
-            &get_writable_banks(bank_index),
-            &oracle_map,
-            remaining_accounts_iter,
-        )?;
+        let _oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let bank_map = BankMap::load(&get_writable_banks(bank_index), remaining_accounts_iter)?;
 
         let market_map = MarketMap::load(
             &WritableMarkets::new(),
@@ -554,11 +550,7 @@ pub mod clearing_house {
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
-        let bank_map = BankMap::load(
-            &get_writable_banks(bank_index),
-            &oracle_map,
-            remaining_accounts_iter,
-        )?;
+        let bank_map = BankMap::load(&get_writable_banks(bank_index), remaining_accounts_iter)?;
         let market_map = MarketMap::load(
             &WritableMarkets::new(),
             &MarketOracles::new(),
@@ -659,7 +651,6 @@ pub mod clearing_house {
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
         let bank_map = BankMap::load(
             &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
-            &oracle_map,
             remaining_accounts_iter,
         )?;
         let market_map = MarketMap::load(
@@ -950,10 +941,9 @@ pub mod clearing_house {
         let clock_slot = clock.slot;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let _oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
         let bank_map = BankMap::load(
             &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
-            &oracle_map,
             remaining_accounts_iter,
         )?;
         let market_map = MarketMap::load(
@@ -1150,12 +1140,8 @@ pub mod clearing_house {
 
     pub fn place_order(ctx: Context<PlaceOrder>, params: OrderParams) -> Result<()> {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
-        let _bank_map = BankMap::load(
-            &WritableMarkets::new(),
-            &oracle_map,
-            remaining_accounts_iter,
-        )?;
+        let _oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
+        let _bank_map = BankMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
         let market_map = MarketMap::load(
             &WritableMarkets::new(),
             &get_market_oracles(params.market_index, &ctx.accounts.oracle),
@@ -1217,11 +1203,7 @@ pub mod clearing_house {
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
-        let bank_map = BankMap::load(
-            &WritableMarkets::new(),
-            &oracle_map,
-            remaining_accounts_iter,
-        )?;
+        let bank_map = BankMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
         let market_map = MarketMap::load(
             &WritableMarkets::new(),
             market_oracles,
@@ -1259,11 +1241,7 @@ pub mod clearing_house {
         };
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
-        let bank_map = BankMap::load(
-            &WritableMarkets::new(),
-            &oracle_map,
-            remaining_accounts_iter,
-        )?;
+        let bank_map = BankMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
         let market_map = MarketMap::load(
             &WritableMarkets::new(),
             market_oracles,
@@ -1308,7 +1286,6 @@ pub mod clearing_house {
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
         let mut bank_map = BankMap::load(
             &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
-            &oracle_map,
             remaining_accounts_iter,
         )?;
         let market_map =
@@ -1353,7 +1330,6 @@ pub mod clearing_house {
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
         let mut bank_map = BankMap::load(
             &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
-            &oracle_map,
             remaining_accounts_iter,
         )?;
         let market_map = MarketMap::load(
@@ -1444,7 +1420,6 @@ pub mod clearing_house {
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
         let bank_map = BankMap::load(
             &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
-            &oracle_map,
             remaining_accounts_iter,
         )?;
         let market_map = MarketMap::load(

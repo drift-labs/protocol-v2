@@ -1,6 +1,6 @@
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::state::bank::Bank;
-use anchor_lang::prelude::{AccountInfo, AccountLoader, Pubkey};
+use anchor_lang::prelude::{AccountInfo, AccountLoader};
 use std::cell::{Ref, RefMut};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -8,7 +8,6 @@ use std::iter::Peekable;
 use std::slice::Iter;
 
 use crate::math::constants::QUOTE_ASSET_BANK_INDEX;
-use crate::state::oracle_map::OracleMap;
 use anchor_lang::Discriminator;
 use arrayref::array_ref;
 
@@ -39,9 +38,8 @@ impl<'a> BankMap<'a> {
         self.get_ref_mut(&QUOTE_ASSET_BANK_INDEX)
     }
 
-    pub fn load<'b, 'c, 'd>(
+    pub fn load<'b, 'c>(
         writable_banks: &'b WritableBanks,
-        oracle_map: &'d OracleMap,
         account_info_iter: &'c mut Peekable<Iter<AccountInfo<'a>>>,
     ) -> ClearingHouseResult<BankMap<'a>> {
         let mut market_map: BankMap = BankMap(BTreeMap::new());
@@ -62,7 +60,6 @@ impl<'a> BankMap<'a> {
             }
 
             let bank_index = u64::from_le_bytes(*array_ref![data, 8, 8]);
-            let oracle = Pubkey::new(array_ref![data, 49, 32]);
 
             let account_info = account_info_iter.next().unwrap();
             let is_writable = account_info.is_writable;
@@ -71,10 +68,6 @@ impl<'a> BankMap<'a> {
 
             if writable_banks.contains(&bank_index) && !is_writable {
                 return Err(ErrorCode::BankWrongMutability);
-            }
-
-            if !oracle_map.contains(&oracle) {
-                return Err(ErrorCode::OracleNotFound);
             }
 
             market_map.0.insert(bank_index, account_loader);
