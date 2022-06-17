@@ -168,9 +168,9 @@ describe('clearing_house', () => {
 		// curPrice = (await getFeedData(anchor.workspace.Pyth, solUsd)).price;
 		// console.log('price:', curPrice);
 
-		const user: any = await clearingHouse.program.account.user.fetch(
-			userAccountPublicKey
-		);
+		// const user: any = await clearingHouse.program.account.user.fetch(
+		// 	userAccountPublicKey
+		// );
 
 		// assert(user.collateral.eq(new BN(9950250)));
 		// assert(user.totalFeePaid.eq(new BN(49750)));
@@ -267,9 +267,9 @@ describe('clearing_house', () => {
 		// curPrice = (await getFeedData(anchor.workspace.Pyth, solUsd)).price;
 		// console.log('price:', curPrice);
 
-		const user: any = await clearingHouse.program.account.user.fetch(
-			userAccountPublicKey
-		);
+		// const user: any = await clearingHouse.program.account.user.fetch(
+		// 	userAccountPublicKey
+		// );
 
 		// assert(user.collateral.eq(new BN(9950250)));
 		// assert(user.totalFeePaid.eq(new BN(49750)));

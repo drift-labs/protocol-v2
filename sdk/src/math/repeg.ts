@@ -9,7 +9,7 @@ import {
 	// ZERO,
 } from '../constants/numericConstants';
 import { AMM } from '../types';
-import { convertToNumber } from '..';
+// import { convertToNumber } from '..';
 /**
  * Helper function calculating adjust k cost
  * @param amm

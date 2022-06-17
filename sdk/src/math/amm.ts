@@ -6,7 +6,7 @@ import {
 	ZERO,
 	BID_ASK_SPREAD_PRECISION,
 	ONE,
-	QUOTE_PRECISION,
+	// QUOTE_PRECISION,
 	AMM_TO_QUOTE_PRECISION_RATIO,
 } from '../constants/numericConstants';
 import {
@@ -17,7 +17,7 @@ import {
 	isVariant,
 } from '../types';
 import { assert } from '../assert/assert';
-import { squareRootBN, convertToNumber } from '..';
+import { squareRootBN } from '..';
 
 import { OraclePriceData } from '../oracles/types';
 import {
