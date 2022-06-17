@@ -8,7 +8,7 @@ use crate::math_error;
 use crate::state::market::Market;
 use crate::state::oracle::OraclePriceData;
 use crate::state::state::OracleGuardRails;
-// use std::cmp::min;
+use std::cmp::min;
 
 use anchor_lang::prelude::AccountInfo;
 use solana_program::msg;
@@ -82,6 +82,13 @@ pub fn prepeg(
     // market_index: u64,
     // _trade_record: u128,
 ) -> ClearingHouseResult<i128> {
+    // 0-100
+    let curve_update_intensity = cast_to_i128(min(market.amm.curve_update_intensity, 100_u8))?;
+
+    // return early
+    if curve_update_intensity == 0 {
+        return Ok(0);
+    }
     // if !is_oracle_valid {
     //     msg!(
     //         "skipping formulaic_repeg: invalid oracle (oracle delay = {:?})",

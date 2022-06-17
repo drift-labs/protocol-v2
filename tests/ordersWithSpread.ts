@@ -959,7 +959,7 @@ describe('amm spread: market order', () => {
 		assert(
 			clearingHouse
 				.getMarketAccount(marketIndex2Num)
-				.amm.totalFee.eq(new BN(1999)) // todo: ROUNDING ISSUE? was 2000 before
+				.amm.totalFee.eq(new BN(2000))
 		);
 	});
 });

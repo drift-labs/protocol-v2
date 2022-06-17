@@ -250,16 +250,16 @@ describe('admin', () => {
 		assert(state.discountMint.equals(mint));
 	});
 
-	it('Update max deposit', async () => {
-		const maxDeposit = new BN(10);
+	// it('Update max deposit', async () => {
+	// 	const maxDeposit = new BN(10);
 
-		await clearingHouse.updateMaxDeposit(maxDeposit);
+	// 	await clearingHouse.updateMaxDeposit(maxDeposit);
 
-		await clearingHouse.fetchAccounts();
-		const state = clearingHouse.getStateAccount();
+	// 	await clearingHouse.fetchAccounts();
+	// 	const state = clearingHouse.getStateAccount();
 
-		assert(state.maxDeposit.eq(maxDeposit));
-	});
+	// 	assert(state.maxDeposit.eq(maxDeposit));
+	// });
 
 	it('Update market oracle', async () => {
 		const newOracle = PublicKey.default;
