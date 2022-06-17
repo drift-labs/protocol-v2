@@ -12,6 +12,7 @@ type BaseClearingHouseUserConfig = {
 	type: ClearingHouseUserConfigType;
 	clearingHouse: ClearingHouse;
 	authority: PublicKey;
+	userId: number;
 };
 
 type WebSocketClearingHouseUserConfig = BaseClearingHouseUserConfig;
@@ -26,25 +27,29 @@ type ClearingHouseUserConfig =
 
 export function getWebSocketClearingHouseUserConfig(
 	clearingHouse: ClearingHouse,
-	authority: PublicKey
+	authority: PublicKey,
+	userId = 0
 ): WebSocketClearingHouseUserConfig {
 	return {
 		type: 'websocket',
 		clearingHouse,
 		authority,
+		userId,
 	};
 }
 
 export function getPollingClearingHouseUserConfig(
 	clearingHouse: ClearingHouse,
 	authority: PublicKey,
-	accountLoader: BulkAccountLoader
+	accountLoader: BulkAccountLoader,
+	userId = 0
 ): PollingClearingHouseUserConfig {
 	return {
 		type: 'polling',
 		clearingHouse,
 		authority,
 		accountLoader,
+		userId,
 	};
 }
 

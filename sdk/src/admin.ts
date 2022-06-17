@@ -38,13 +38,16 @@ export class Admin extends ClearingHouse {
 		connection: Connection,
 		wallet: IWallet,
 		clearingHouseProgramId: PublicKey,
-		opts: ConfirmOptions = AnchorProvider.defaultOptions()
+		opts: ConfirmOptions = AnchorProvider.defaultOptions(),
+		userId = 0
 	): Admin {
 		const config = getWebSocketClearingHouseConfig(
 			connection,
 			wallet,
 			clearingHouseProgramId,
-			opts
+			opts,
+			undefined,
+			userId
 		);
 		return getAdmin(config);
 	}

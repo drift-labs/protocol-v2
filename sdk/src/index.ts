@@ -7,6 +7,7 @@ export * from './oracles/pythClient';
 export * from './oracles/switchboardClient';
 export * from './types';
 export * from './constants/markets';
+export * from './accounts/fetch';
 export * from './accounts/webSocketClearingHouseAccountSubscriber';
 export * from './accounts/bulkAccountLoader';
 export * from './accounts/bulkUserSubscription';

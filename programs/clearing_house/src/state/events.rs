@@ -12,6 +12,8 @@ pub struct DepositRecord {
     pub direction: DepositDirection,
     pub amount: u64,
     pub bank_index: u64,
+    pub from: Option<Pubkey>,
+    pub to: Option<Pubkey>,
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq)]

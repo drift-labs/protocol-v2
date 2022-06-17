@@ -48,6 +48,7 @@ import {
 import { QUOTE_ASSET_BANK_INDEX, ZERO } from './constants/numericConstants';
 import { positionIsAvailable } from './math/position';
 import { getTokenAmount } from './math/bankBalance';
+import { DEFAULT_USER_NAME, encodeName } from './userName';
 
 /**
  * # ClearingHouse
@@ -62,6 +63,7 @@ export class ClearingHouse {
 	public program: Program;
 	provider: AnchorProvider;
 	opts?: ConfirmOptions;
+	userId: number;
 	accountSubscriber: ClearingHouseAccountSubscriber;
 	eventEmitter: StrictEventEmitter<EventEmitter, ClearingHouseAccountEvents>;
 	_isSubscribed = false;
@@ -82,19 +84,23 @@ export class ClearingHouse {
 	 * @param wallet
 	 * @param clearingHouseProgramId
 	 * @param opts
+	 * @param userId
 	 * @returns
 	 */
 	public static from(
 		connection: Connection,
 		wallet: IWallet,
 		clearingHouseProgramId: PublicKey,
-		opts: ConfirmOptions = AnchorProvider.defaultOptions()
+		opts: ConfirmOptions = AnchorProvider.defaultOptions(),
+		userId = 0
 	): ClearingHouse {
 		const config = getWebSocketClearingHouseConfig(
 			connection,
 			wallet,
 			clearingHouseProgramId,
-			opts
+			opts,
+			undefined,
+			userId
 		);
 		return getClearingHouse(config);
 	}
@@ -105,7 +111,8 @@ export class ClearingHouse {
 		program: Program,
 		accountSubscriber: ClearingHouseAccountSubscriber,
 		txSender: TxSender,
-		opts: ConfirmOptions
+		opts: ConfirmOptions,
+		userId = 0
 	) {
 		this.connection = connection;
 		this.wallet = wallet;
@@ -114,6 +121,7 @@ export class ClearingHouse {
 		this.accountSubscriber = accountSubscriber;
 		this.eventEmitter = this.accountSubscriber.eventEmitter;
 		this.txSender = txSender;
+		this.userId = userId;
 	}
 
 	/**
@@ -189,7 +197,7 @@ export class ClearingHouse {
 	 * Update the wallet to use for clearing house transactions and linked user account
 	 * @param newWallet
 	 */
-	public async updateWallet(newWallet: IWallet): Promise<void> {
+	public async updateWallet(newWallet: IWallet, userId = 0): Promise<void> {
 		const newProvider = new AnchorProvider(
 			this.connection,
 			newWallet,
@@ -208,30 +216,41 @@ export class ClearingHouse {
 		this.provider = newProvider;
 		this.program = newProgram;
 		this.userAccountPublicKey = undefined;
+		this.userId = userId;
 		await this.accountSubscriber.updateAuthority(newWallet.publicKey);
 	}
 
-	public async initializeUserAccount(): Promise<
-		[TransactionSignature, PublicKey]
-	> {
+	public async updateUserId(userId: number): Promise<void> {
+		this.userAccountPublicKey = undefined;
+		this.userId = userId;
+		await this.accountSubscriber.updateUserId(userId);
+	}
+
+	public async initializeUserAccount(
+		userId = 0,
+		name = DEFAULT_USER_NAME
+	): Promise<[TransactionSignature, PublicKey]> {
 		const [userAccountPublicKey, initializeUserAccountIx] =
-			await this.getInitializeUserInstructions();
+			await this.getInitializeUserInstructions(userId, name);
 
 		const tx = new Transaction().add(initializeUserAccountIx);
 		const { txSig } = await this.txSender.send(tx, [], this.opts);
 		return [txSig, userAccountPublicKey];
 	}
 
-	async getInitializeUserInstructions(): Promise<
-		[PublicKey, TransactionInstruction]
-	> {
+	async getInitializeUserInstructions(
+		userId = 0,
+		name = DEFAULT_USER_NAME
+	): Promise<[PublicKey, TransactionInstruction]> {
 		const userAccountPublicKey = await getUserAccountPublicKey(
 			this.program.programId,
-			this.wallet.publicKey
+			this.wallet.publicKey,
+			userId
 		);
 
+		const nameBuffer = encodeName(name);
 		const initializeUserAccountIx =
-			await this.program.instruction.initializeUser({
+			await this.program.instruction.initializeUser(userId, nameBuffer, {
 				accounts: {
 					user: userAccountPublicKey,
 					authority: this.wallet.publicKey,
@@ -257,7 +276,8 @@ export class ClearingHouse {
 
 		this.userAccountPublicKey = await getUserAccountPublicKey(
 			this.program.programId,
-			this.wallet.publicKey
+			this.wallet.publicKey,
+			this.userId
 		);
 		return this.userAccountPublicKey;
 	}
@@ -479,16 +499,20 @@ export class ClearingHouse {
 
 	/**
 	 * Creates the Clearing House User account for a user, and deposits some initial collateral
+	 * @param userId
+	 * @param name
 	 * @param amount
 	 * @param userTokenAccount
 	 * @returns
 	 */
 	public async initializeUserAccountAndDepositCollateral(
 		amount: BN,
-		userTokenAccount: PublicKey
+		userTokenAccount: PublicKey,
+		userId = 0,
+		name = DEFAULT_USER_NAME
 	): Promise<[TransactionSignature, PublicKey]> {
 		const [userAccountPublicKey, initializeUserAccountIx] =
-			await this.getInitializeUserInstructions();
+			await this.getInitializeUserInstructions(userId, name);
 
 		const depositCollateralIx = await this.getDepositInstruction(
 			amount,
@@ -507,6 +531,8 @@ export class ClearingHouse {
 	}
 
 	public async initializeUserAccountForDevnet(
+		userId = 0,
+		name = DEFAULT_USER_NAME,
 		mockUSDCFaucet: MockUSDCFaucet,
 		amount: BN
 	): Promise<[TransactionSignature, PublicKey]> {
@@ -517,7 +543,7 @@ export class ClearingHouse {
 			);
 
 		const [userAccountPublicKey, initializeUserAccountIx] =
-			await this.getInitializeUserInstructions();
+			await this.getInitializeUserInstructions(userId, name);
 
 		const depositCollateralIx = await this.getDepositInstruction(
 			amount,
@@ -590,6 +616,45 @@ export class ClearingHouse {
 				remainingAccounts,
 			}
 		);
+	}
+
+	public async transferDeposit(
+		amount: BN,
+		bankIndex: BN,
+		toUserId: number
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.txSender.send(
+			wrapInTx(await this.getTransferDepositIx(amount, bankIndex, toUserId)),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getTransferDepositIx(
+		amount: BN,
+		bankIndex: BN,
+		toUserId: number
+	): Promise<TransactionInstruction> {
+		const fromUser = await this.getUserAccountPublicKey();
+		const toUser = await getUserAccountPublicKey(
+			this.program.programId,
+			this.wallet.publicKey,
+			toUserId
+		);
+
+		const remainingAccounts = this.getRemainingAccounts({
+			writableBankIndex: bankIndex,
+		});
+
+		return await this.program.instruction.transferDeposit(bankIndex, amount, {
+			accounts: {
+				authority: this.wallet.publicKey,
+				fromUser,
+				toUser,
+			},
+			remainingAccounts,
+		});
 	}
 
 	public async updateBankCumulativeInterest(
