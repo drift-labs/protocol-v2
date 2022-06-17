@@ -203,4 +203,48 @@ describe('BigNum Tests', () => {
 		expect(val4.toPercentage(val2, 4)).to.equal('25.00');
 		expect(val.toPercentage(val5, 6)).to.equal('14.2857');
 	});
+
+	it('can print without unnecessary trailing zeroes', () => {
+		const rawQuoteValue = 1;
+		const entryPriceNum = 40;
+		const val = BigNum.from(rawQuoteValue * 10 ** 8)
+			.shift(AMM_RESERVE_PRECISION_EXP)
+			.div(BigNum.from(entryPriceNum * 10 ** 8));
+
+		expect(val.toString()).to.equal('250000000000');
+		expect(val.printShort()).to.equal('0.025');
+
+		const val2 = BigNum.from(10000, 4);
+		expect(val2.print()).to.equal('1.0000');
+		expect(val2.printShort()).to.equal('1');
+	});
+
+	it('can pretty print', () => {
+		const val = BigNum.from('123');
+		expect(val.prettyPrint()).to.equal('123');
+
+		const val2 = BigNum.from('1234');
+		expect(val2.prettyPrint()).to.equal('1,234');
+
+		const val3 = BigNum.from('123456');
+		expect(val3.prettyPrint()).to.equal('123,456');
+
+		const val4 = BigNum.from('1234567');
+		expect(val4.prettyPrint()).to.equal('1,234,567');
+
+		const val5 = BigNum.from('12345678');
+		expect(val5.prettyPrint()).to.equal('12,345,678');
+
+		const val6 = BigNum.from('123456', 3);
+		expect(val6.prettyPrint()).to.equal('123.456');
+
+		const val7 = BigNum.from('123456789', 3);
+		expect(val7.prettyPrint()).to.equal('123,456.789');
+
+		const val8 = BigNum.from('1000000000000', 6);
+		expect(val8.prettyPrint()).to.equal('1,000,000');
+
+		const val9 = BigNum.from('1000000000123', 6);
+		expect(val9.prettyPrint()).to.equal('1,000,000.000123');
+	});
 });
