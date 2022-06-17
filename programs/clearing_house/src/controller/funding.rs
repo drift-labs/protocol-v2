@@ -7,8 +7,8 @@ use solana_program::msg;
 use crate::error::ClearingHouseResult;
 use crate::get_then_update_id;
 use crate::math::amm;
-use crate::math::amm::normalise_oracle_price;
-use crate::math::casting::{cast, cast_to_i128, cast_to_i64};
+// use crate::math::amm::normalise_oracle_price;
+use crate::math::casting::{cast, cast_to_i128};
 use crate::math::collateral::calculate_updated_collateral;
 use crate::math::constants::{
     AMM_TO_QUOTE_PRECISION_RATIO_I128, FUNDING_PAYMENT_PRECISION, ONE_HOUR,
@@ -100,9 +100,6 @@ pub fn update_funding_rate(
         guard_rails,
         precomputed_mark_price,
     )?;
-    let normalised_oracle_price =
-        normalise_oracle_price(&market.amm, &oracle_price_data, precomputed_mark_price)?;
-
     // round next update time to be available on the hour
     let mut next_update_wait = market.amm.funding_period;
     if market.amm.funding_period > 1 {
@@ -146,19 +143,22 @@ pub fn update_funding_rate(
     }
 
     if !funding_paused && !block_funding_rate_update && time_since_last_update >= next_update_wait {
-        let oracle_price_twap =
-            amm::update_oracle_price_twap(&mut market.amm, now, normalised_oracle_price)?;
-        let mark_price_twap = amm::update_mark_twap(&mut market.amm, now, None)?;
+        let oracle_price_twap = amm::update_oracle_price_twap(
+            &mut market.amm,
+            now,
+            &oracle_price_data,
+            precomputed_mark_price,
+        )?;
+        let mid_price_twap = amm::update_mark_twap(&mut market.amm, now, None)?;
 
-        let one_hour_i64 = cast_to_i64(ONE_HOUR)?;
-        let period_adjustment = (24_i64)
-            .checked_mul(one_hour_i64)
+        let period_adjustment = (24_i128)
+            .checked_mul(ONE_HOUR)
             .ok_or_else(math_error!())?
-            .checked_div(max(one_hour_i64, market.amm.funding_period))
+            .checked_div(max(ONE_HOUR, market.amm.funding_period as i128))
             .ok_or_else(math_error!())?;
         // funding period = 1 hour, window = 1 day
         // low periodicity => quickly updating/settled funding rates => lower funding rate payment per interval
-        let price_spread = cast_to_i128(mark_price_twap)?
+        let price_spread = cast_to_i128(mid_price_twap)?
             .checked_sub(oracle_price_twap)
             .ok_or_else(math_error!())?;
 
@@ -199,7 +199,7 @@ pub fn update_funding_rate(
             funding_rate,
             cumulative_funding_rate_long: market.amm.cumulative_funding_rate_long,
             cumulative_funding_rate_short: market.amm.cumulative_funding_rate_short,
-            mark_price_twap,
+            mark_price_twap: mid_price_twap,
             oracle_price_twap,
         });
     }

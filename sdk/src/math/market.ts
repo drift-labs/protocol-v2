@@ -3,8 +3,10 @@ import { MarketAccount, PositionDirection } from '../types';
 import {
 	calculateAmmReservesAfterSwap,
 	calculatePrice,
-	calculateSpreadReserves,
+	// calculateSpreadReserves,
+	calculatePrepegSpreadReserves,
 	getSwapDirection,
+	calculatePrepegAMM,
 } from './amm';
 import { OraclePriceData } from '../oracles/types';
 
@@ -14,11 +16,15 @@ import { OraclePriceData } from '../oracles/types';
  * @param market
  * @return markPrice : Precision MARK_PRICE_PRECISION
  */
-export function calculateMarkPrice(market: MarketAccount): BN {
+export function calculateMarkPrice(
+	market: MarketAccount,
+	oraclePriceData: OraclePriceData
+): BN {
+	const newAmm = calculatePrepegAMM(market.amm, oraclePriceData);
 	return calculatePrice(
-		market.amm.baseAssetReserve,
-		market.amm.quoteAssetReserve,
-		market.amm.pegMultiplier
+		newAmm.baseAssetReserve,
+		newAmm.quoteAssetReserve,
+		newAmm.pegMultiplier
 	);
 }
 
@@ -28,17 +34,18 @@ export function calculateMarkPrice(market: MarketAccount): BN {
  * @param market
  * @return bidPrice : Precision MARK_PRICE_PRECISION
  */
-export function calculateBidPrice(market: MarketAccount): BN {
-	const { baseAssetReserve, quoteAssetReserve } = calculateSpreadReserves(
-		market.amm,
-		PositionDirection.SHORT
-	);
+export function calculateBidPrice(
+	market: MarketAccount,
+	oraclePriceData: OraclePriceData
+): BN {
+	const { baseAssetReserve, quoteAssetReserve, newPeg } =
+		calculatePrepegSpreadReserves(
+			market.amm,
+			PositionDirection.SHORT,
+			oraclePriceData
+		);
 
-	return calculatePrice(
-		baseAssetReserve,
-		quoteAssetReserve,
-		market.amm.pegMultiplier
-	);
+	return calculatePrice(baseAssetReserve, quoteAssetReserve, newPeg);
 }
 
 /**
@@ -47,17 +54,18 @@ export function calculateBidPrice(market: MarketAccount): BN {
  * @param market
  * @return bidPrice : Precision MARK_PRICE_PRECISION
  */
-export function calculateAskPrice(market: MarketAccount): BN {
-	const { baseAssetReserve, quoteAssetReserve } = calculateSpreadReserves(
-		market.amm,
-		PositionDirection.LONG
-	);
+export function calculateAskPrice(
+	market: MarketAccount,
+	oraclePriceData: OraclePriceData
+): BN {
+	const { baseAssetReserve, quoteAssetReserve, _sqrtK, newPeg } =
+		calculatePrepegSpreadReserves(
+			market.amm,
+			PositionDirection.LONG,
+			oraclePriceData
+		);
 
-	return calculatePrice(
-		baseAssetReserve,
-		quoteAssetReserve,
-		market.amm.pegMultiplier
-	);
+	return calculatePrice(baseAssetReserve, quoteAssetReserve, newPeg);
 }
 
 export function calculateNewMarketAfterTrade(

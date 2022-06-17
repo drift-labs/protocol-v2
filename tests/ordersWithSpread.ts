@@ -166,6 +166,7 @@ describe('amm spread: market order', () => {
 			baseAssetAmount,
 			clearingHouse.getMarketAccount(0),
 			'base',
+			undefined,
 			false
 		);
 		const tradeAcquiredAmountsWithSpread = calculateTradeAcquiredAmounts(
@@ -173,6 +174,7 @@ describe('amm spread: market order', () => {
 			baseAssetAmount,
 			clearingHouse.getMarketAccount(0),
 			'base',
+			undefined,
 			true
 		);
 
@@ -232,6 +234,11 @@ describe('amm spread: market order', () => {
 
 		const firstPosition = clearingHouse.getUserAccount().positions[0];
 		assert(firstPosition.baseAssetAmount.eq(baseAssetAmount));
+		console.log(
+			'expectedQuoteAssetAmount:',
+			firstPosition.quoteAssetAmount.toString(),
+			expectedQuoteAssetAmount.toString()
+		);
 		assert(firstPosition.quoteAssetAmount.eq(expectedQuoteAssetAmount));
 
 		const tradeHistoryRecord =
@@ -272,6 +279,7 @@ describe('amm spread: market order', () => {
 			quoteAssetAmount,
 			clearingHouse.getMarketAccount(0),
 			'quote',
+			undefined,
 			false
 		);
 		const tradeAcquiredAmountsWithSpread = calculateTradeAcquiredAmounts(
@@ -279,6 +287,7 @@ describe('amm spread: market order', () => {
 			quoteAssetAmount,
 			clearingHouse.getMarketAccount(0),
 			'quote',
+			undefined,
 			true
 		);
 		console.log(
@@ -831,6 +840,7 @@ describe('amm spread: market order', () => {
 			baseAssetAmount,
 			market2,
 			'base',
+			undefined,
 			false
 		);
 		const tradeAcquiredAmountsWithSpread = calculateTradeAcquiredAmounts(
@@ -838,6 +848,7 @@ describe('amm spread: market order', () => {
 			baseAssetAmount,
 			market2,
 			'base',
+			undefined,
 			true
 		);
 

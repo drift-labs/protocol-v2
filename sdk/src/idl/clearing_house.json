@@ -1094,10 +1094,6 @@
         {
           "name": "sqrtK",
           "type": "u128"
-        },
-        {
-          "name": "marketIndex",
-          "type": "u64"
         }
       ]
     },
@@ -1132,6 +1128,32 @@
         {
           "name": "marginRatioMaintenance",
           "type": "u32"
+        }
+      ]
+    },
+    {
+      "name": "updateCurveUpdateIntensity",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "curveUpdateIntensity",
+          "type": "u8"
         }
       ]
     },
@@ -1685,10 +1707,6 @@
             "type": "i128"
           },
           {
-            "name": "baseAssetAmount",
-            "type": "i128"
-          },
-          {
             "name": "openInterest",
             "type": "u128"
           },
@@ -2122,6 +2140,10 @@
             "type": "u128"
           },
           {
+            "name": "terminalQuoteAssetReserve",
+            "type": "u128"
+          },
+          {
             "name": "cumulativeRepegRebateLong",
             "type": "u128"
           },
@@ -2135,6 +2157,10 @@
           },
           {
             "name": "cumulativeFundingRateShort",
+            "type": "i128"
+          },
+          {
+            "name": "cumulativeFundingRateLp",
             "type": "i128"
           },
           {
@@ -2178,6 +2204,18 @@
             "type": "u128"
           },
           {
+            "name": "totalMmFee",
+            "type": "u128"
+          },
+          {
+            "name": "totalExchangeFee",
+            "type": "u128"
+          },
+          {
+            "name": "netRevenueSinceLastFunding",
+            "type": "i64"
+          },
+          {
             "name": "totalFeeWithdrawn",
             "type": "u128"
           },
@@ -2190,7 +2228,23 @@
             "type": "i64"
           },
           {
+            "name": "lastOracleNormalisedPrice",
+            "type": "i128"
+          },
+          {
             "name": "lastOraclePrice",
+            "type": "i128"
+          },
+          {
+            "name": "lastOracleConf",
+            "type": "u64"
+          },
+          {
+            "name": "lastOracleDelay",
+            "type": "i64"
+          },
+          {
+            "name": "lastOracleMarkSpreadPct",
             "type": "i128"
           },
           {
@@ -2200,6 +2254,66 @@
           {
             "name": "baseSpread",
             "type": "u16"
+          },
+          {
+            "name": "longSpread",
+            "type": "u128"
+          },
+          {
+            "name": "shortSpread",
+            "type": "u128"
+          },
+          {
+            "name": "lastBidPriceTwap",
+            "type": "u128"
+          },
+          {
+            "name": "lastAskPriceTwap",
+            "type": "u128"
+          },
+          {
+            "name": "netBaseAssetAmount",
+            "type": "i128"
+          },
+          {
+            "name": "quoteAssetAmountLong",
+            "type": "u128"
+          },
+          {
+            "name": "quoteAssetAmountShort",
+            "type": "u128"
+          },
+          {
+            "name": "markStd",
+            "type": "u64"
+          },
+          {
+            "name": "longIntensityTime",
+            "type": "i64"
+          },
+          {
+            "name": "longIntensityCount",
+            "type": "u16"
+          },
+          {
+            "name": "longIntensityVolume",
+            "type": "u64"
+          },
+          {
+            "name": "shortIntensityTime",
+            "type": "i64"
+          },
+          {
+            "name": "shortIntensityCount",
+            "type": "u16"
+          },
+          {
+            "name": "shortIntensityVolume",
+            "type": "u64"
+          },
+          {
+            "name": "curveUpdateIntensity",
+            "type": "u8"
           },
           {
             "name": "padding0",

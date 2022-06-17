@@ -10,6 +10,7 @@ use error::ErrorCode;
 use math::{amm, bn, constants::*, fees, margin::*, orders::*};
 use state::oracle::{get_oracle_price, OracleSource};
 
+use crate::math::amm::get_update_k_result;
 use crate::state::market::Market;
 use crate::state::{market::AMM, order_state::*, state::*, user::*};
 
@@ -40,7 +41,9 @@ pub mod clearing_house {
     use crate::margin_validation::validate_margin;
     use crate::math;
     use crate::math::amm::{
-        calculate_mark_twap_spread_pct, is_oracle_mark_too_divergent, normalise_oracle_price,
+        calculate_mark_twap_spread_pct,
+        is_oracle_mark_too_divergent,
+        //  normalise_oracle_price,
     };
     use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64};
     use crate::math::slippage::{calculate_slippage, calculate_slippage_pct};
@@ -372,6 +375,8 @@ pub mod clearing_house {
         // Verify oracle is readable
         let OraclePriceData {
             price: oracle_price,
+            confidence: oracle_conf,
+            delay: oracle_delay,
             ..
         } = match oracle_source {
             OracleSource::Pyth => market
@@ -405,7 +410,7 @@ pub mod clearing_house {
             market_index,
             base_asset_amount_long: 0,
             base_asset_amount_short: 0,
-            base_asset_amount: 0,
+            // base_asset_amount: 0,
             open_interest: 0,
             margin_ratio_initial, // unit is 20% (+2 decimal places)
             margin_ratio_partial,
@@ -423,10 +428,12 @@ pub mod clearing_house {
                 oracle_source,
                 base_asset_reserve: amm_base_asset_reserve,
                 quote_asset_reserve: amm_quote_asset_reserve,
+                terminal_quote_asset_reserve: amm_quote_asset_reserve,
                 cumulative_repeg_rebate_long: 0,
                 cumulative_repeg_rebate_short: 0,
                 cumulative_funding_rate_long: 0,
                 cumulative_funding_rate_short: 0,
+                cumulative_funding_rate_lp: 0,
                 last_funding_rate: 0,
                 last_funding_rate_ts: now,
                 funding_period: amm_periodicity,
@@ -438,11 +445,33 @@ pub mod clearing_house {
                 total_fee: 0,
                 total_fee_withdrawn: 0,
                 total_fee_minus_distributions: 0,
+                total_mm_fee: 0,
+                total_exchange_fee: 0,
+                net_revenue_since_last_funding: 0,
                 minimum_quote_asset_trade_size: 10000000,
                 last_oracle_price_twap_ts: now,
+                last_oracle_normalised_price: oracle_price,
                 last_oracle_price: oracle_price,
+                last_oracle_conf: oracle_conf as u64,
+                last_oracle_delay: oracle_delay,
+                last_oracle_mark_spread_pct: 0, // todo
                 minimum_base_asset_trade_size: 10000000,
                 base_spread: 0,
+                long_spread: 0,
+                short_spread: 0,
+                last_bid_price_twap: init_mark_price,
+                last_ask_price_twap: init_mark_price,
+                net_base_asset_amount: 0,
+                quote_asset_amount_long: 0,
+                quote_asset_amount_short: 0,
+                mark_std: 0,
+                long_intensity_time: amm_periodicity, // conservatively set init to funding period
+                long_intensity_count: 0,
+                long_intensity_volume: 0,
+                short_intensity_time: amm_periodicity,
+                short_intensity_count: 0,
+                short_intensity_volume: 0,
+                curve_update_intensity: 0,
                 padding0: 0,
                 padding1: 0,
                 padding2: 0,
@@ -783,12 +812,12 @@ pub mod clearing_house {
                 &ctx.accounts.state.oracle_guard_rails.validity,
             )?;
             if is_oracle_valid {
-                let normalised_oracle_price = normalise_oracle_price(
-                    &market.amm,
+                amm::update_oracle_price_twap(
+                    &mut market.amm,
+                    now,
                     oracle_price_data,
                     Some(mark_price_before),
                 )?;
-                amm::update_oracle_price_twap(&mut market.amm, now, normalised_oracle_price)?;
             }
         }
 
@@ -1171,9 +1200,12 @@ pub mod clearing_house {
             &ctx.accounts.state.oracle_guard_rails.validity,
         )?;
         if is_oracle_valid {
-            let normalised_oracle_price =
-                normalise_oracle_price(&market.amm, oracle_price_data, Some(mark_price_before))?;
-            amm::update_oracle_price_twap(&mut market.amm, now, normalised_oracle_price)?;
+            amm::update_oracle_price_twap(
+                &mut market.amm,
+                now,
+                oracle_price_data,
+                Some(mark_price_before),
+            )?;
         }
 
         // Trade fails if the trade is risk increasing and it pushes to mark price too far
@@ -2223,7 +2255,7 @@ pub mod clearing_house {
             sqrt_k_after,
             base_asset_amount_long: market.base_asset_amount_long.unsigned_abs(),
             base_asset_amount_short: market.base_asset_amount_short.unsigned_abs(),
-            base_asset_amount: market.base_asset_amount,
+            base_asset_amount: market.amm.net_base_asset_amount,
             open_interest: market.open_interest,
             total_fee: market.amm.total_fee,
             total_fee_minus_distributions: market.amm.total_fee_minus_distributions,
@@ -2379,7 +2411,7 @@ pub mod clearing_house {
         valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.market) &&
         exchange_not_paused(&ctx.accounts.state)
     )]
-    pub fn update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128, market_index: u64) -> Result<()> {
+    pub fn update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
 
@@ -2387,7 +2419,7 @@ pub mod clearing_house {
 
         let base_asset_amount_long = market.base_asset_amount_long.unsigned_abs();
         let base_asset_amount_short = market.base_asset_amount_short.unsigned_abs();
-        let base_asset_amount = market.base_asset_amount;
+        let base_asset_amount = market.amm.net_base_asset_amount;
         let open_interest = market.open_interest;
 
         let price_before = math::amm::calculate_price(
@@ -2401,7 +2433,13 @@ pub mod clearing_house {
         let quote_asset_reserve_before = market.amm.quote_asset_reserve;
         let sqrt_k_before = market.amm.sqrt_k;
 
-        let adjustment_cost = math::amm::adjust_k_cost(market, bn::U256::from(sqrt_k))?;
+        let new_sqrt_k_u192 = bn::U192::from(sqrt_k);
+
+        let update_k_result = get_update_k_result(market, new_sqrt_k_u192)?;
+
+        let adjustment_cost = math::amm::adjust_k_cost(market, &update_k_result)?;
+
+        math::amm::update_k(market, &update_k_result);
 
         if adjustment_cost > 0 {
             let max_cost = market
@@ -2455,8 +2493,7 @@ pub mod clearing_house {
             .ok_or_else(math_error!())?;
 
         if k_err.unsigned_abs() > 100 {
-            let sqrt_k = amm.sqrt_k;
-            msg!("k_err={:?}, {:?} != {:?}", k_err, k_sqrt_check, sqrt_k);
+            msg!("k_err={:?}, {:?} != {:?}", k_err, k_sqrt_check, amm.sqrt_k);
             return Err(ErrorCode::InvalidUpdateK.into());
         }
 
@@ -2476,7 +2513,7 @@ pub mod clearing_house {
         emit!(CurveRecord {
             ts: now,
             record_id: get_then_update_id!(market, next_curve_record_id),
-            market_index,
+            market_index: market.market_index,
             peg_multiplier_before,
             base_asset_reserve_before,
             quote_asset_reserve_before,
@@ -2518,6 +2555,18 @@ pub mod clearing_house {
         market.margin_ratio_initial = margin_ratio_initial;
         market.margin_ratio_partial = margin_ratio_partial;
         market.margin_ratio_maintenance = margin_ratio_maintenance;
+        Ok(())
+    }
+
+    #[access_control(
+        market_initialized(&ctx.accounts.market)
+    )]
+    pub fn update_curve_update_intensity(
+        ctx: Context<AdminUpdateMarket>,
+        curve_update_intensity: u8,
+    ) -> Result<()> {
+        let market = &mut ctx.accounts.market.load_mut()?;
+        market.amm.curve_update_intensity = curve_update_intensity;
         Ok(())
     }
 

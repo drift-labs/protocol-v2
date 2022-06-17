@@ -7,10 +7,24 @@ use crate::controller::position::PositionDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::bn;
 use crate::math::bn::U192;
-use crate::math::casting::{cast, cast_to_i128, cast_to_u128};
+use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64};
 use crate::math::constants::{
-    BID_ASK_SPREAD_PRECISION, MARK_PRICE_PRECISION, PEG_PRECISION, PRICE_SPREAD_PRECISION,
-    PRICE_SPREAD_PRECISION_U128, PRICE_TO_PEG_PRECISION_RATIO,
+    // AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, AMM_TO_QUOTE_PRECISION_RATIO,
+    // AMM_TO_QUOTE_PRECISION_RATIO_I128,
+    AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO,
+    BID_ASK_SPREAD_PRECISION,
+    BID_ASK_SPREAD_PRECISION_I128,
+    K_BPS_DECREASE_MAX,
+    K_BPS_INCREASE_MAX,
+    K_BPS_UPDATE_SCALE,
+    MARK_PRICE_PRECISION,
+    MARK_PRICE_PRECISION_I128,
+    MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128,
+    // ONE_HOUR,
+    ONE_HOUR_I128,
+    PEG_PRECISION,
+    PRICE_TO_PEG_PRECISION_RATIO,
+    // QUOTE_PRECISION,
 };
 use crate::math::position::_calculate_base_asset_value_and_pnl;
 use crate::math::quote_asset::{asset_to_reserve_amount, reserve_to_asset_amount};
@@ -37,13 +51,13 @@ pub fn calculate_price(
 }
 
 pub fn calculate_terminal_price(market: &mut Market) -> ClearingHouseResult<u128> {
-    let swap_direction = if market.base_asset_amount > 0 {
+    let swap_direction = if market.amm.net_base_asset_amount > 0 {
         SwapDirection::Add
     } else {
         SwapDirection::Remove
     };
     let (new_quote_asset_amount, new_base_asset_amount) = calculate_swap_output(
-        market.base_asset_amount.unsigned_abs(),
+        market.amm.net_base_asset_amount.unsigned_abs(),
         market.amm.base_asset_reserve,
         swap_direction,
         market.amm.sqrt_k,
@@ -63,17 +77,34 @@ pub fn update_mark_twap(
     now: i64,
     precomputed_mark_price: Option<u128>,
 ) -> ClearingHouseResult<u128> {
-    let mark_twap = calculate_new_mark_twap(amm, now, precomputed_mark_price)?;
+    let mark_price = match precomputed_mark_price {
+        Some(mark_price) => mark_price,
+        None => amm.mark_price()?,
+    };
+    let (bid_price, ask_price) = amm.bid_ask_price(mark_price)?;
+
+    let mark_twap = calculate_new_twap(amm, now, mark_price, amm.last_mark_price_twap)?;
     amm.last_mark_price_twap = mark_twap;
+
+    // todo calculate the mark +/- spread
+    let bid_twap = calculate_new_twap(amm, now, bid_price, amm.last_bid_price_twap)?;
+    amm.last_bid_price_twap = bid_twap;
+
+    let ask_twap = calculate_new_twap(amm, now, ask_price, amm.last_ask_price_twap)?;
+    amm.last_ask_price_twap = ask_twap;
+
     amm.last_mark_price_twap_ts = now;
 
-    Ok(mark_twap)
+    let mid_twap = bid_twap.checked_add(ask_twap).ok_or_else(math_error!())? / 2;
+
+    Ok(mid_twap)
 }
 
-pub fn calculate_new_mark_twap(
+pub fn calculate_new_twap(
     amm: &AMM,
     now: i64,
-    precomputed_mark_price: Option<u128>,
+    current_price: u128,
+    last_twap: u128,
 ) -> ClearingHouseResult<u128> {
     let since_last = cast_to_i128(max(
         1,
@@ -86,14 +117,10 @@ pub fn calculate_new_mark_twap(
             .checked_sub(since_last)
             .ok_or_else(math_error!())?,
     );
-    let current_price = match precomputed_mark_price {
-        Some(mark_price) => mark_price,
-        None => amm.mark_price()?,
-    };
 
     let new_twap: u128 = cast(calculate_weighted_average(
         cast(current_price)?,
-        cast(amm.last_mark_price_twap)?,
+        cast(last_twap)?,
         since_last,
         from_start,
     )?)?;
@@ -104,8 +131,11 @@ pub fn calculate_new_mark_twap(
 pub fn update_oracle_price_twap(
     amm: &mut AMM,
     now: i64,
-    oracle_price: i128,
+    oracle_price_data: &OraclePriceData,
+    precomputed_mark_price: Option<u128>,
 ) -> ClearingHouseResult<i128> {
+    let oracle_price = normalise_oracle_price(amm, oracle_price_data, precomputed_mark_price)?;
+
     let new_oracle_price_spread = oracle_price
         .checked_sub(amm.last_oracle_price_twap)
         .ok_or_else(math_error!())?;
@@ -132,7 +162,15 @@ pub fn update_oracle_price_twap(
     let oracle_price_twap: i128;
     if capped_oracle_update_price > 0 && oracle_price > 0 {
         oracle_price_twap = calculate_new_oracle_price_twap(amm, now, capped_oracle_update_price)?;
-        amm.last_oracle_price = capped_oracle_update_price;
+
+        //amm.last_oracle_mark_spread = precomputed_mark_price
+        amm.last_oracle_normalised_price = capped_oracle_update_price;
+        amm.last_oracle_price = oracle_price_data.price;
+        amm.last_oracle_conf = oracle_price_data.confidence as u64;
+        amm.last_oracle_delay = oracle_price_data.delay;
+        amm.last_oracle_mark_spread_pct =
+            calculate_oracle_mark_spread_pct(amm, oracle_price_data, precomputed_mark_price)?;
+
         amm.last_oracle_price_twap = oracle_price_twap;
         amm.last_oracle_price_twap_ts = now;
     } else {
@@ -238,6 +276,96 @@ pub fn calculate_weighted_average(
         .ok_or_else(math_error!())
 }
 
+pub fn update_amm_mark_std(
+    amm: &mut AMM,
+    now: i64,
+    price_change: u128,
+) -> ClearingHouseResult<bool> {
+    let since_last = cast_to_i128(max(
+        1,
+        now.checked_sub(amm.last_mark_price_twap_ts)
+            .ok_or_else(math_error!())?,
+    ))?;
+
+    amm.mark_std = calculate_rolling_sum(
+        amm.mark_std,
+        cast_to_u64(price_change)?,
+        since_last,
+        ONE_HOUR_I128,
+    )?;
+
+    Ok(true)
+}
+
+pub fn update_amm_long_short_intensity(
+    amm: &mut AMM,
+    now: i64,
+    quote_asset_amount: u128,
+    direction: PositionDirection,
+) -> ClearingHouseResult<bool> {
+    let since_last = cast_to_i128(max(
+        1,
+        now.checked_sub(amm.last_mark_price_twap_ts)
+            .ok_or_else(math_error!())?,
+    ))?;
+
+    let (long_quote_amount, short_quote_amount) = if direction == PositionDirection::Long {
+        (cast_to_u64(quote_asset_amount)?, 0_u64)
+    } else {
+        (0_u64, cast_to_u64(quote_asset_amount)?)
+    };
+
+    amm.long_intensity_count = (calculate_rolling_sum(
+        cast_to_u64(amm.long_intensity_count)?,
+        cast_to_u64(long_quote_amount != 0)?,
+        since_last,
+        ONE_HOUR_I128,
+    )?) as u16;
+    amm.long_intensity_volume = calculate_rolling_sum(
+        amm.long_intensity_volume,
+        long_quote_amount,
+        since_last,
+        ONE_HOUR_I128,
+    )?;
+
+    amm.short_intensity_count = (calculate_rolling_sum(
+        cast_to_u64(amm.short_intensity_count)?,
+        cast_to_u64(short_quote_amount != 0)?,
+        since_last,
+        ONE_HOUR_I128,
+    )?) as u16;
+    amm.short_intensity_volume = calculate_rolling_sum(
+        amm.short_intensity_volume,
+        short_quote_amount,
+        since_last,
+        ONE_HOUR_I128,
+    )?;
+
+    Ok(true)
+}
+
+pub fn calculate_rolling_sum(
+    data1: u64,
+    data2: u64,
+    weight1_numer: i128,
+    weight1_denom: i128,
+) -> ClearingHouseResult<u64> {
+    // assumes that missing times are zeros (e.g. handle NaN as 0)
+
+    let prev_twap_99 = data1
+        .checked_mul(cast_to_u64(max(
+            0,
+            weight1_denom
+                .checked_sub(weight1_numer)
+                .ok_or_else(math_error!())?,
+        ))?)
+        .ok_or_else(math_error!())?
+        .checked_div(cast_to_u64(weight1_denom)?)
+        .ok_or_else(math_error!())?;
+
+    prev_twap_99.checked_add(data2).ok_or_else(math_error!())
+}
+
 pub fn calculate_swap_output(
     swap_amount: u128,
     input_asset_amount: u128,
@@ -302,14 +430,149 @@ pub fn calculate_quote_asset_amount_swapped(
     Ok(quote_asset_amount)
 }
 
+pub fn calculate_terminal_price_and_reserves(
+    market: &Market,
+) -> ClearingHouseResult<(u128, u128, u128)> {
+    let swap_direction = if market.amm.net_base_asset_amount > 0 {
+        SwapDirection::Add
+    } else {
+        SwapDirection::Remove
+    };
+    let (new_quote_asset_amount, new_base_asset_amount) = calculate_swap_output(
+        market.amm.net_base_asset_amount.unsigned_abs(),
+        market.amm.base_asset_reserve,
+        swap_direction,
+        market.amm.sqrt_k,
+    )?;
+
+    let terminal_price = calculate_price(
+        new_quote_asset_amount,
+        new_base_asset_amount,
+        market.amm.peg_multiplier,
+    )?;
+
+    Ok((
+        terminal_price,
+        new_quote_asset_amount,
+        new_base_asset_amount,
+    ))
+}
+
+pub fn calculate_spreads(amm: &mut AMM) -> ClearingHouseResult<(u128, u128)> {
+    let mut long_spread = (amm.base_spread / 2) as u128;
+    let mut short_spread = (amm.base_spread / 2) as u128;
+
+    if amm.curve_update_intensity > 0 {
+        // oracle retreat
+        // if mark - oracle < 0 (mark below oracle) and user going long then increase spread
+        // msg!("amm.last_oracle_mark_spread_pct: {:?}", amm.last_oracle_mark_spread_pct);
+        if amm.last_oracle_mark_spread_pct < 0 {
+            long_spread = max(long_spread, amm.last_oracle_mark_spread_pct.unsigned_abs());
+        } else {
+            short_spread = max(short_spread, amm.last_oracle_mark_spread_pct.unsigned_abs());
+        }
+
+        // inventory scale
+        let MAX_INVENTORY_SKEW = 5 * MARK_PRICE_PRECISION;
+        if amm.total_fee_minus_distributions > 0 {
+            let net_cost_basis = cast_to_i128(
+                amm.quote_asset_amount_long
+                    .checked_sub(amm.quote_asset_amount_short)
+                    .ok_or_else(math_error!())?,
+            )?;
+
+            let net_base_asset_value = cast_to_i128(
+                amm.quote_asset_reserve
+                    .checked_sub(amm.terminal_quote_asset_reserve)
+                    .ok_or_else(math_error!())?
+                    .checked_mul(amm.peg_multiplier)
+                    .ok_or_else(math_error!())?
+                    .checked_div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO)
+                    .ok_or_else(math_error!())?,
+            )?;
+
+            let local_base_asset_value = amm
+                .net_base_asset_amount
+                .checked_mul(cast_to_i128(amm.mark_price()?)?)
+                .ok_or_else(math_error!())?
+                .checked_div(MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128)
+                .ok_or_else(math_error!())?;
+
+            let net_pnl = net_base_asset_value
+                .checked_sub(net_cost_basis)
+                .ok_or_else(math_error!())?;
+            let local_pnl = local_base_asset_value
+                .checked_sub(net_cost_basis)
+                .ok_or_else(math_error!())?;
+
+            let effective_leverage =
+                cast_to_u128((local_pnl.checked_sub(net_pnl).ok_or_else(math_error!())?))?
+                    .checked_mul(MARK_PRICE_PRECISION)
+                    .ok_or_else(math_error!())?
+                    .checked_div(amm.total_fee_minus_distributions)
+                    .ok_or_else(math_error!())?;
+
+            msg!(
+                "effective leverage: {:?} long/short quote: {:?}/{:?}",
+                effective_leverage,
+                amm.quote_asset_amount_long,
+                amm.quote_asset_amount_short
+            );
+
+            let effective_leverage_capped = min(
+                MAX_INVENTORY_SKEW,
+                MARK_PRICE_PRECISION
+                    .checked_add(effective_leverage)
+                    .ok_or_else(math_error!())?,
+            );
+            if amm.net_base_asset_amount > 0 {
+                long_spread = long_spread
+                    .checked_mul(effective_leverage_capped)
+                    .ok_or_else(math_error!())?
+                    .checked_div(MARK_PRICE_PRECISION)
+                    .ok_or_else(math_error!())?;
+            } else {
+                short_spread = short_spread
+                    .checked_mul(effective_leverage_capped)
+                    .ok_or_else(math_error!())?
+                    .checked_div(MARK_PRICE_PRECISION)
+                    .ok_or_else(math_error!())?;
+            }
+        } else {
+            long_spread = long_spread
+                .checked_mul(MAX_INVENTORY_SKEW / MARK_PRICE_PRECISION)
+                .ok_or_else(math_error!())?;
+            short_spread = short_spread
+                .checked_mul(MAX_INVENTORY_SKEW / MARK_PRICE_PRECISION)
+                .ok_or_else(math_error!())?;
+        }
+    }
+
+    msg!(
+        "long_spread: {:?}, short_spread: {:?}, base_spread/2: {:?}",
+        long_spread,
+        short_spread,
+        (amm.base_spread / 2)
+    );
+
+    amm.long_spread = long_spread;
+    amm.short_spread = short_spread;
+
+    Ok((long_spread, short_spread))
+}
+
 pub fn calculate_spread_reserves(
     amm: &AMM,
     direction: PositionDirection,
 ) -> ClearingHouseResult<(u128, u128)> {
-    let base_spread = amm.base_spread as u128;
-    let quote_asset_reserve_delta = if base_spread > 0 {
+    let spread = match direction {
+        PositionDirection::Long => amm.long_spread,
+        PositionDirection::Short => amm.short_spread,
+    };
+
+    let quote_asset_reserve_delta = if spread > 0 {
         amm.quote_asset_reserve
-            .checked_div(BID_ASK_SPREAD_PRECISION / (base_spread / 4))
+            .checked_div(BID_ASK_SPREAD_PRECISION / (spread / 2))
             .ok_or_else(math_error!())?
     } else {
         0
@@ -335,6 +598,11 @@ pub fn calculate_spread_reserves(
         .checked_div(U192::from(quote_asset_reserve))
         .ok_or_else(math_error!())?
         .try_to_u128()?;
+
+    msg!(
+        "spread price: {:?}",
+        calculate_price(quote_asset_reserve, base_asset_reserve, amm.peg_multiplier,)
+    );
 
     Ok((base_asset_reserve, quote_asset_reserve))
 }
@@ -416,13 +684,17 @@ pub fn calculate_oracle_mark_spread_pct(
     oracle_price_data: &OraclePriceData,
     precomputed_mark_price: Option<u128>,
 ) -> ClearingHouseResult<i128> {
-    let (oracle_price, price_spread) =
-        calculate_oracle_mark_spread(amm, oracle_price_data, precomputed_mark_price)?;
+    let mark_price = match precomputed_mark_price {
+        Some(mark_price) => (mark_price),
+        None => (amm.mark_price()?),
+    };
+    let (_oracle_price, price_spread) =
+        calculate_oracle_mark_spread(amm, oracle_price_data, Some(mark_price))?;
 
     price_spread
-        .checked_mul(PRICE_SPREAD_PRECISION)
+        .checked_mul(BID_ASK_SPREAD_PRECISION_I128)
         .ok_or_else(math_error!())?
-        .checked_div(oracle_price)
+        .checked_div(cast_to_i128(mark_price)?) // todo? better for spread logic
         .ok_or_else(math_error!())
 }
 
@@ -432,7 +704,7 @@ pub fn is_oracle_mark_too_divergent(
 ) -> ClearingHouseResult<bool> {
     let max_divergence = oracle_guard_rails
         .mark_oracle_divergence_numerator
-        .checked_mul(PRICE_SPREAD_PRECISION_U128)
+        .checked_mul(BID_ASK_SPREAD_PRECISION)
         .ok_or_else(math_error!())?
         .checked_div(oracle_guard_rails.mark_oracle_divergence_denominator)
         .ok_or_else(math_error!())?;
@@ -449,7 +721,7 @@ pub fn calculate_mark_twap_spread_pct(amm: &AMM, mark_price: u128) -> ClearingHo
         .ok_or_else(math_error!())?;
 
     price_spread
-        .checked_mul(PRICE_SPREAD_PRECISION)
+        .checked_mul(BID_ASK_SPREAD_PRECISION_I128)
         .ok_or_else(math_error!())?
         .checked_div(mark_twap)
         .ok_or_else(math_error!())
@@ -461,7 +733,7 @@ pub fn use_oracle_price_for_margin_calculation(
 ) -> ClearingHouseResult<bool> {
     let max_divergence = oracle_guard_rails
         .mark_oracle_divergence_numerator
-        .checked_mul(PRICE_SPREAD_PRECISION_U128)
+        .checked_mul(BID_ASK_SPREAD_PRECISION)
         .ok_or_else(math_error!())?
         .checked_div(oracle_guard_rails.mark_oracle_divergence_denominator)
         .ok_or_else(math_error!())?
@@ -511,60 +783,200 @@ pub fn is_oracle_valid(
         || is_conf_too_large))
 }
 
+pub fn calculate_budgeted_k_scale(
+    market: &mut Market,
+    budget: i128,
+    mark_price: u128,
+) -> ClearingHouseResult<(u128, u128)> {
+    // 0 - 100
+    let curve_update_intensity = cast_to_i128(min(market.amm.curve_update_intensity, 100_u8))?;
+
+    if curve_update_intensity == 0 {
+        return Ok((1, 1));
+    }
+
+    let mark_div_budget = cast_to_i128(mark_price)?
+        .checked_div(budget)
+        .ok_or_else(math_error!())?;
+
+    let net_position = market.amm.net_base_asset_amount;
+    let one_div_net_position = MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128
+        .checked_div(net_position)
+        .ok_or_else(math_error!())?;
+    let base_asset_reserve = cast_to_i128(market.amm.base_asset_reserve)?;
+
+    let mut numerator = mark_div_budget
+        .checked_add(one_div_net_position)
+        .ok_or_else(math_error!())?
+        .checked_add(
+            MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128
+                .checked_div(base_asset_reserve)
+                .ok_or_else(math_error!())?,
+        )
+        .ok_or_else(math_error!())?;
+
+    let mut denominator = mark_div_budget
+        .checked_sub(one_div_net_position)
+        .ok_or_else(math_error!())?
+        .checked_sub(
+            base_asset_reserve
+                .checked_mul(one_div_net_position)
+                .ok_or_else(math_error!())?
+                .checked_div(net_position)
+                .ok_or_else(math_error!())?,
+        )
+        .ok_or_else(math_error!())?;
+
+    if numerator < 0 && denominator < 0 {
+        numerator = numerator.abs();
+        denominator = denominator.abs();
+    }
+
+    assert!((numerator > 0 && denominator > 0));
+
+    if budget < 0 && numerator > denominator {
+        assert!(false);
+    }
+
+    let (numerator, denominator) = if numerator > denominator {
+        let k_pct_upper_bound = K_BPS_UPDATE_SCALE + (K_BPS_INCREASE_MAX); // * curve_update_intensity / 100);
+
+        let current_pct_change = numerator
+            .checked_mul(1000)
+            .ok_or_else(math_error!())?
+            .checked_div(denominator)
+            .ok_or_else(math_error!())?;
+
+        let maximum_pct_change = k_pct_upper_bound
+            .checked_mul(1000)
+            .ok_or_else(math_error!())?
+            .checked_div(K_BPS_UPDATE_SCALE)
+            .ok_or_else(math_error!())?;
+
+        if current_pct_change > maximum_pct_change {
+            (k_pct_upper_bound, K_BPS_UPDATE_SCALE)
+        } else {
+            (numerator, denominator)
+        }
+    } else {
+        let k_pct_lower_bound = K_BPS_UPDATE_SCALE - (K_BPS_DECREASE_MAX); // * curve_update_intensity / 100);
+
+        let current_pct_change = numerator
+            .checked_mul(1000)
+            .ok_or_else(math_error!())?
+            .checked_div(denominator)
+            .ok_or_else(math_error!())?;
+
+        let maximum_pct_change = k_pct_lower_bound
+            .checked_mul(1000)
+            .ok_or_else(math_error!())?
+            .checked_div(K_BPS_UPDATE_SCALE)
+            .ok_or_else(math_error!())?;
+
+        if current_pct_change < maximum_pct_change {
+            (k_pct_lower_bound, K_BPS_UPDATE_SCALE)
+        } else {
+            (numerator, denominator)
+        }
+    };
+
+    Ok((cast_to_u128(numerator)?, cast_to_u128(denominator)?))
+}
+
 /// To find the cost of adjusting k, compare the the net market value before and after adjusting k
 /// Increasing k costs the protocol money because it reduces slippage and improves the exit price for net market position
 /// Decreasing k costs the protocol money because it increases slippage and hurts the exit price for net market position
-pub fn adjust_k_cost(market: &mut Market, new_sqrt_k: bn::U256) -> ClearingHouseResult<i128> {
+pub fn adjust_k_cost(
+    market: &mut Market,
+    update_k_result: &UpdateKResult,
+) -> ClearingHouseResult<i128> {
+    let mut market_clone = *market;
+
     // Find the net market value before adjusting k
-    let (current_net_market_value, _) =
-        _calculate_base_asset_value_and_pnl(market.base_asset_amount, 0, &market.amm)?;
+    let (current_net_market_value, _) = _calculate_base_asset_value_and_pnl(
+        market_clone.amm.net_base_asset_amount,
+        0,
+        &market_clone.amm,
+    )?;
 
-    let mark_price_precision = bn::U256::from(MARK_PRICE_PRECISION);
+    update_k(&mut market_clone, update_k_result)?;
 
+    let (_new_net_market_value, cost) = _calculate_base_asset_value_and_pnl(
+        market_clone.amm.net_base_asset_amount,
+        current_net_market_value,
+        &market_clone.amm,
+    )?;
+    Ok(cost)
+}
+pub struct UpdateKResult {
+    pub sqrt_k: u128,
+    pub base_asset_reserve: u128,
+    pub quote_asset_reserve: u128,
+}
+
+pub fn get_update_k_result(
+    market: &Market,
+    new_sqrt_k: bn::U192,
+) -> ClearingHouseResult<UpdateKResult> {
+    let sqrt_k_ratio_precision = bn::U192::from(10_000);
+
+    let old_sqrt_k = bn::U192::from(market.amm.sqrt_k);
     let sqrt_k_ratio = new_sqrt_k
-        .checked_mul(mark_price_precision)
+        .checked_mul(sqrt_k_ratio_precision)
         .ok_or_else(math_error!())?
-        .checked_div(bn::U256::from(market.amm.sqrt_k))
+        .checked_div(old_sqrt_k)
         .ok_or_else(math_error!())?;
 
     // if decreasing k, max decrease ratio for single transaction is 2.5%
-    if sqrt_k_ratio
-        < mark_price_precision
-            .checked_mul(bn::U256::from(975))
-            .ok_or_else(math_error!())?
-            .checked_div(bn::U256::from(1000))
-            .ok_or_else(math_error!())?
-    {
+    if sqrt_k_ratio < U192::from(9750) {
         return Err(ErrorCode::InvalidUpdateK);
     }
 
-    market.amm.sqrt_k = new_sqrt_k.try_to_u128().unwrap();
-    market.amm.base_asset_reserve = bn::U256::from(market.amm.base_asset_reserve)
+    let sqrt_k = new_sqrt_k.try_to_u128().unwrap();
+    let base_asset_reserve = bn::U192::from(market.amm.base_asset_reserve)
         .checked_mul(sqrt_k_ratio)
         .ok_or_else(math_error!())?
-        .checked_div(mark_price_precision)
+        .checked_div(sqrt_k_ratio_precision)
         .ok_or_else(math_error!())?
-        .try_to_u128()
-        .unwrap();
+        .try_to_u128()?;
 
-    let invariant_sqrt_u192 = U192::from(market.amm.sqrt_k);
+    let invariant_sqrt_u192 = U192::from(sqrt_k);
     let invariant = invariant_sqrt_u192
         .checked_mul(invariant_sqrt_u192)
         .ok_or_else(math_error!())?;
 
-    market.amm.quote_asset_reserve = invariant
-        .checked_div(U192::from(market.amm.base_asset_reserve))
+    let quote_asset_reserve = invariant
+        .checked_div(U192::from(base_asset_reserve))
         .ok_or_else(math_error!())?
-        .try_to_u128()
-        .unwrap();
+        .try_to_u128()?;
 
-    let (_new_net_market_value, cost) = _calculate_base_asset_value_and_pnl(
-        market.base_asset_amount,
-        current_net_market_value,
-        &market.amm,
+    Ok(UpdateKResult {
+        sqrt_k,
+        base_asset_reserve,
+        quote_asset_reserve,
+    })
+}
+
+pub fn update_k(market: &mut Market, update_k_result: &UpdateKResult) -> ClearingHouseResult {
+    market.amm.sqrt_k = update_k_result.sqrt_k;
+    market.amm.base_asset_reserve = update_k_result.base_asset_reserve;
+    market.amm.quote_asset_reserve = update_k_result.quote_asset_reserve;
+
+    let swap_direction = if market.amm.net_base_asset_amount > 0 {
+        SwapDirection::Add
+    } else {
+        SwapDirection::Remove
+    };
+    let (new_terminal_quote_reserve, _new_terminal_base_reserve) = calculate_swap_output(
+        market.amm.net_base_asset_amount.unsigned_abs(),
+        market.amm.base_asset_reserve,
+        swap_direction,
+        market.amm.sqrt_k,
     )?;
 
-    Ok(cost)
+    market.amm.terminal_quote_asset_reserve = new_terminal_quote_reserve;
+
+    Ok(())
 }
 
 pub fn calculate_max_base_asset_amount_to_trade(

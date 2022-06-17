@@ -11,7 +11,7 @@ use crate::math::casting::{cast, cast_to_i128, cast_to_i64, cast_to_u128};
 use crate::math::margin::MarginRequirementType;
 use crate::math_error;
 use crate::state::oracle::{OraclePriceData, OracleSource};
-use crate::MARK_PRICE_PRECISION;
+use crate::{BID_ASK_SPREAD_PRECISION, MARK_PRICE_PRECISION};
 
 #[account(zero_copy)]
 #[derive(Default)]
@@ -23,8 +23,7 @@ pub struct Market {
     pub amm: AMM,
     pub base_asset_amount_long: i128,
     pub base_asset_amount_short: i128,
-    pub base_asset_amount: i128, // net market bias
-    pub open_interest: u128,     // number of users in a position
+    pub open_interest: u128, // number of users in a position
     pub margin_ratio_initial: u32,
     pub margin_ratio_partial: u32,
     pub margin_ratio_maintenance: u32,
@@ -58,10 +57,12 @@ pub struct AMM {
     pub oracle_source: OracleSource,
     pub base_asset_reserve: u128,
     pub quote_asset_reserve: u128,
+    pub terminal_quote_asset_reserve: u128,
     pub cumulative_repeg_rebate_long: u128,
     pub cumulative_repeg_rebate_short: u128,
     pub cumulative_funding_rate_long: i128,
     pub cumulative_funding_rate_short: i128,
+    pub cumulative_funding_rate_lp: i128,
     pub last_funding_rate: i128,
     pub last_funding_rate_ts: i64,
     pub funding_period: i64,
@@ -72,12 +73,40 @@ pub struct AMM {
     pub peg_multiplier: u128,
     pub total_fee: u128,
     pub total_fee_minus_distributions: u128,
+    pub total_mm_fee: u128,
+    pub total_exchange_fee: u128,
+    pub net_revenue_since_last_funding: i64,
     pub total_fee_withdrawn: u128,
     pub minimum_quote_asset_trade_size: u128,
     pub last_oracle_price_twap_ts: i64,
+    pub last_oracle_normalised_price: i128,
     pub last_oracle_price: i128,
+    pub last_oracle_conf: u64,
+    pub last_oracle_delay: i64,
+    pub last_oracle_mark_spread_pct: i128,
     pub minimum_base_asset_trade_size: u128,
     pub base_spread: u16,
+
+    pub long_spread: u128,
+    pub short_spread: u128,
+
+    pub last_bid_price_twap: u128,
+    pub last_ask_price_twap: u128,
+    pub net_base_asset_amount: i128,
+    pub quote_asset_amount_long: u128,
+    pub quote_asset_amount_short: u128,
+    pub mark_std: u64,
+
+    pub long_intensity_time: i64,
+    pub long_intensity_count: u16,
+    pub long_intensity_volume: u64,
+
+    pub short_intensity_time: i64,
+    pub short_intensity_count: u16,
+    pub short_intensity_volume: u64,
+
+    // upgrade-ability
+    pub curve_update_intensity: u8,
 
     pub padding0: u16,
     pub padding1: u32,
@@ -92,6 +121,22 @@ impl AMM {
             self.base_asset_reserve,
             self.peg_multiplier,
         )
+    }
+
+    pub fn bid_ask_price(&self, mark_price: u128) -> ClearingHouseResult<(u128, u128)> {
+        let ask_price = mark_price
+            .checked_mul(BID_ASK_SPREAD_PRECISION + self.long_spread)
+            .ok_or_else(math_error!())?
+            .checked_div(BID_ASK_SPREAD_PRECISION)
+            .ok_or_else(math_error!())?;
+
+        let bid_price = mark_price
+            .checked_mul(BID_ASK_SPREAD_PRECISION + self.short_spread)
+            .ok_or_else(math_error!())?
+            .checked_div(BID_ASK_SPREAD_PRECISION)
+            .ok_or_else(math_error!())?;
+
+        Ok((bid_price, ask_price))
     }
 
     pub fn get_oracle_price(

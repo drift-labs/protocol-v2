@@ -366,6 +366,9 @@ describe('orders', () => {
 		const direction = PositionDirection.LONG;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
 		const price = MARK_PRICE_PRECISION.mul(new BN(2));
+		const market0 = clearingHouse.getMarketAccount(marketIndex);
+
+		console.log('markPrice:', calculateMarkPrice(market0).toString());
 
 		const orderParams = getLimitOrderParams(
 			marketIndex,
@@ -408,6 +411,8 @@ describe('orders', () => {
 		);
 
 		const market = clearingHouse.getMarketAccount(marketIndex);
+		console.log('markPrice After:', calculateMarkPrice(market).toString());
+
 		const expectedFeeToMarket = new BN(855);
 		assert(market.amm.totalFee.eq(expectedFeeToMarket));
 
@@ -462,6 +467,9 @@ describe('orders', () => {
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
 		const triggerPrice = MARK_PRICE_PRECISION;
 		const triggerCondition = OrderTriggerCondition.ABOVE;
+		const market0 = clearingHouse.getMarketAccount(marketIndex);
+
+		console.log('markPrice:', calculateMarkPrice(market0).toString());
 
 		const orderParams = getTriggerMarketOrderParams(
 			marketIndex,
@@ -477,10 +485,23 @@ describe('orders', () => {
 		const orderIndex = new BN(0);
 		await clearingHouseUser.fetchAccounts();
 		let order = clearingHouseUser.getOrder(orderId);
-		await fillerClearingHouse.fillOrder(
+		const txSig = await fillerClearingHouse.fillOrder(
 			userAccountPublicKey,
 			clearingHouseUser.getUserAccount(),
 			order
+		);
+
+		const computeUnits = await findComputeUnitConsumption(
+			clearingHouse.program.programId,
+			connection,
+			txSig,
+			'confirmed'
+		);
+		console.log('compute units', computeUnits);
+		console.log(
+			'tx logs',
+			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
+				.logMessages
 		);
 
 		await clearingHouse.fetchAccounts();
@@ -505,11 +526,19 @@ describe('orders', () => {
 		);
 
 		const market = clearingHouse.getMarketAccount(marketIndex);
+		console.log('markPrice after:', calculateMarkPrice(market).toString());
+
 		const expectedFeeToMarket = new BN(1710);
 		assert(market.amm.totalFee.eq(expectedFeeToMarket));
 
 		const userAccount = clearingHouseUser.getUserAccount();
 		const expectedTokenDiscount = new BN(100);
+		console.log(
+			userAccount.totalTokenDiscount.toString(),
+			'=',
+			expectedTokenDiscount.toString()
+		);
+
 		assert(userAccount.totalTokenDiscount.eq(expectedTokenDiscount));
 
 		assert(order.baseAssetAmount.eq(new BN(0)));
@@ -530,6 +559,12 @@ describe('orders', () => {
 
 		assert.ok(tradeHistoryRecord.baseAssetAmount.eq(baseAssetAmount));
 		const expectedTradeQuoteAssetAmount = new BN(1000002);
+		console.log(
+			'expectedTradeQuoteAssetAmount check:',
+			tradeHistoryRecord.quoteAssetAmount,
+			'=',
+			expectedTradeQuoteAssetAmount.toString()
+		);
 		assert.ok(
 			tradeHistoryRecord.quoteAssetAmount.eq(expectedTradeQuoteAssetAmount)
 		);
@@ -582,11 +617,15 @@ describe('orders', () => {
 		try {
 			await clearingHouseUser.fetchAccounts();
 			const order = clearingHouseUser.getOrder(orderId);
+			console.log(order);
 			await fillerClearingHouse.fillOrder(
 				userAccountPublicKey,
 				clearingHouseUser.getUserAccount(),
 				order
 			);
+			const order2 = clearingHouseUser.getOrder(orderId);
+			console.log(order2);
+
 			await clearingHouse.cancelOrder(orderId);
 		} catch (e) {
 			await clearingHouse.cancelOrder(orderId);

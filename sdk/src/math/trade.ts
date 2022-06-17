@@ -17,10 +17,12 @@ import {
 	calculatePrice,
 	getSwapDirection,
 	AssetType,
-	calculateSpreadReserves,
+	// calculateSpreadReserves,
+	calculatePrepegSpreadReserves,
 } from './amm';
 import { squareRootBN } from './utils';
 import { isVariant } from '../types';
+import { OraclePriceData } from '../oracles/types';
 
 const MAXPCT = new BN(1000); //percentage units are [0,1000] => [0,1]
 
@@ -59,18 +61,19 @@ export function calculateTradeSlippage(
 	amount: BN,
 	market: MarketAccount,
 	inputAssetType: AssetType = 'quote',
+	oraclePriceData: OraclePriceData,
 	useSpread = true
 ): [BN, BN, BN, BN] {
 	let oldPrice: BN;
 
 	if (useSpread && market.amm.baseSpread > 0) {
 		if (isVariant(direction, 'long')) {
-			oldPrice = calculateAskPrice(market);
+			oldPrice = calculateAskPrice(market, oraclePriceData);
 		} else {
-			oldPrice = calculateBidPrice(market);
+			oldPrice = calculateBidPrice(market, oraclePriceData);
 		}
 	} else {
-		oldPrice = calculateMarkPrice(market);
+		oldPrice = calculateMarkPrice(market, oraclePriceData);
 	}
 	if (amount.eq(ZERO)) {
 		return [ZERO, ZERO, oldPrice, oldPrice];
@@ -80,30 +83,38 @@ export function calculateTradeSlippage(
 		amount,
 		market,
 		inputAssetType,
+		oraclePriceData,
 		useSpread
 	);
 
-	const entryPrice = calculatePrice(
-		acquiredBase,
-		acquiredQuote,
-		market.amm.pegMultiplier
-	).mul(new BN(-1));
-
 	let amm: Parameters<typeof calculateAmmReservesAfterSwap>[0];
 	if (useSpread && market.amm.baseSpread > 0) {
-		const { baseAssetReserve, quoteAssetReserve } = calculateSpreadReserves(
-			market.amm,
-			direction
-		);
+		const { baseAssetReserve, quoteAssetReserve, sqrtK, newPeg } =
+			calculatePrepegSpreadReserves(market.amm, direction, oraclePriceData);
 		amm = {
 			baseAssetReserve,
 			quoteAssetReserve,
-			sqrtK: market.amm.sqrtK,
-			pegMultiplier: market.amm.pegMultiplier,
+			sqrtK: sqrtK,
+			pegMultiplier: newPeg,
 		};
 	} else {
 		amm = market.amm;
 	}
+
+	const entryPrice = calculatePrice(
+		acquiredBase,
+		acquiredQuote,
+		amm.pegMultiplier
+	).mul(new BN(-1));
+
+	// console.log(
+	// 	'entryPrice:',
+	// 	entryPrice.toString(),
+	// 	'(',
+	// 	acquiredBase.toString(),
+	// 	acquiredQuote.toString(),
+	// 	')'
+	// );
 
 	const newPrice = calculatePrice(
 		amm.baseAssetReserve.sub(acquiredBase),
@@ -112,6 +123,13 @@ export function calculateTradeSlippage(
 	);
 
 	if (direction == PositionDirection.SHORT) {
+		// console.log(
+		// 	'new price lower',
+		// 	newPrice.toString(),
+		// 	'<',
+		// 	oldPrice.toString(),
+		// 	'for a short'
+		// );
 		assert(newPrice.lt(oldPrice));
 	} else {
 		assert(oldPrice.lt(newPrice));
@@ -147,6 +165,7 @@ export function calculateTradeAcquiredAmounts(
 	amount: BN,
 	market: MarketAccount,
 	inputAssetType: AssetType = 'quote',
+	oraclePriceData: OraclePriceData,
 	useSpread = true
 ): [BN, BN] {
 	if (amount.eq(ZERO)) {
@@ -157,15 +176,13 @@ export function calculateTradeAcquiredAmounts(
 
 	let amm: Parameters<typeof calculateAmmReservesAfterSwap>[0];
 	if (useSpread && market.amm.baseSpread > 0) {
-		const { baseAssetReserve, quoteAssetReserve } = calculateSpreadReserves(
-			market.amm,
-			direction
-		);
+		const { baseAssetReserve, quoteAssetReserve, sqrtK, newPeg } =
+			calculatePrepegSpreadReserves(market.amm, direction, oraclePriceData);
 		amm = {
 			baseAssetReserve,
 			quoteAssetReserve,
-			sqrtK: market.amm.sqrtK,
-			pegMultiplier: market.amm.pegMultiplier,
+			sqrtK: sqrtK,
+			pegMultiplier: newPeg,
 		};
 	} else {
 		amm = market.amm;
@@ -201,15 +218,16 @@ export function calculateTargetPriceTrade(
 	targetPrice: BN,
 	pct: BN = MAXPCT,
 	outputAssetType: AssetType = 'quote',
+	oraclePriceData: OraclePriceData,
 	useSpread = true
 ): [PositionDirection, BN, BN, BN] {
 	assert(market.amm.baseAssetReserve.gt(ZERO));
 	assert(targetPrice.gt(ZERO));
 	assert(pct.lte(MAXPCT) && pct.gt(ZERO));
 
-	const markPriceBefore = calculateMarkPrice(market);
-	const bidPriceBefore = calculateBidPrice(market);
-	const askPriceBefore = calculateAskPrice(market);
+	const markPriceBefore = calculateMarkPrice(market, oraclePriceData);
+	const bidPriceBefore = calculateBidPrice(market, oraclePriceData);
+	const askPriceBefore = calculateAskPrice(market, oraclePriceData);
 
 	let direction;
 	if (targetPrice.gt(markPriceBefore)) {
@@ -230,19 +248,19 @@ export function calculateTargetPriceTrade(
 	let baseAssetReserveBefore: BN;
 	let quoteAssetReserveBefore: BN;
 
+	let peg = market.amm.pegMultiplier;
+
 	if (useSpread && market.amm.baseSpread > 0) {
-		const { baseAssetReserve, quoteAssetReserve } = calculateSpreadReserves(
-			market.amm,
-			direction
-		);
+		const { baseAssetReserve, quoteAssetReserve, _sqrtK, newPeg } =
+			calculatePrepegSpreadReserves(market.amm, direction, oraclePriceData);
 		baseAssetReserveBefore = baseAssetReserve;
 		quoteAssetReserveBefore = quoteAssetReserve;
+		peg = newPeg;
 	} else {
 		baseAssetReserveBefore = market.amm.baseAssetReserve;
 		quoteAssetReserveBefore = market.amm.quoteAssetReserve;
 	}
 
-	const peg = market.amm.pegMultiplier;
 	const invariant = market.amm.sqrtK.mul(market.amm.sqrtK);
 	const k = invariant.mul(MARK_PRICE_PRECISION);
 

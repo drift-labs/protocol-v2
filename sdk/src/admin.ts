@@ -429,6 +429,25 @@ export class Admin extends ClearingHouse {
 		});
 	}
 
+	public async updateCurveUpdateIntensity(
+		marketIndex: BN,
+		curveUpdateIntensity: number
+	): Promise<TransactionSignature> {
+		// assert(curveUpdateIntensity >= 0 && curveUpdateIntensity <= 100);
+		// assert(Number.isInteger(curveUpdateIntensity));
+
+		return await this.program.rpc.updateCurveUpdateIntensity(
+			curveUpdateIntensity,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					market: await getMarketPublicKey(this.program.programId, marketIndex),
+				},
+			}
+		);
+	}
+
 	public async updateMarginRatio(
 		marketIndex: BN,
 		marginRatioInitial: number,

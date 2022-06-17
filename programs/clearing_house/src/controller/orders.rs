@@ -13,10 +13,10 @@ use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
 use crate::get_struct_values;
 use crate::get_then_update_id;
-use crate::math::amm::{is_oracle_valid, normalise_oracle_price};
+use crate::math::amm::is_oracle_valid;
 use crate::math::casting::cast;
 use crate::math::fees::calculate_order_fee_tier;
-use crate::math::{amm, fees, margin::*, orders::*};
+use crate::math::{amm, fees, margin::*, orders::*, repeg};
 use crate::math_error;
 use crate::order_validation::{
     check_if_order_can_be_canceled, get_base_asset_amount_for_order, validate_order,
@@ -338,24 +338,48 @@ pub fn fill_order(
     let oracle_price: i128;
     {
         let market = &mut market_map.get_ref_mut(&market_index)?;
-        mark_price_before = market.amm.mark_price()?;
         let oracle_price_data = &market.amm.get_oracle_price(oracle, clock_slot)?;
-        oracle_mark_spread_pct_before = amm::calculate_oracle_mark_spread_pct(
-            &market.amm,
-            oracle_price_data,
-            Some(mark_price_before),
-        )?;
-        oracle_price = oracle_price_data.price;
-        let normalised_price =
-            normalise_oracle_price(&market.amm, oracle_price_data, Some(mark_price_before))?;
+
+        let prepeg_budget = repeg::calculate_fee_pool(market)?;
+
+        mark_price_before = market.amm.mark_price()?;
+
         is_oracle_valid = amm::is_oracle_valid(
             &market.amm,
             oracle_price_data,
             &state.oracle_guard_rails.validity,
         )?;
+
+        controller::repeg::prepeg(
+            market,
+            mark_price_before,
+            &oracle_price_data,
+            is_oracle_valid,
+            prepeg_budget,
+            now,
+        )?;
+        let mark_price_after_prepeg = market.amm.mark_price()?;
+
+        oracle_mark_spread_pct_before = amm::calculate_oracle_mark_spread_pct(
+            &market.amm,
+            oracle_price_data,
+            Some(mark_price_after_prepeg),
+        )?;
+        oracle_price = oracle_price_data.price;
+
         if is_oracle_valid {
-            amm::update_oracle_price_twap(&mut market.amm, now, normalised_price)?;
+            amm::update_oracle_price_twap(
+                &mut market.amm,
+                now,
+                oracle_price_data,
+                Some(mark_price_after_prepeg),
+            )?;
         }
+
+        amm::calculate_spreads(&mut market.amm)?;
+
+        // Err(ErrorCode::InvalidUpdateK.into());
+        // msg!("PREPEGGED: from {:?}", mark_price_before);
     }
 
     let valid_oracle_price = if is_oracle_valid {

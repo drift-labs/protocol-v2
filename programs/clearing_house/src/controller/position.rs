@@ -122,8 +122,9 @@ pub fn increase(
         .base_asset_amount
         .checked_add(base_asset_acquired)
         .ok_or_else(math_error!())?;
-    market.base_asset_amount = market
-        .base_asset_amount
+    market.amm.net_base_asset_amount = market
+        .amm
+        .net_base_asset_amount
         .checked_add(base_asset_acquired)
         .ok_or_else(math_error!())?;
 
@@ -132,10 +133,20 @@ pub fn increase(
             .base_asset_amount_long
             .checked_add(base_asset_acquired)
             .ok_or_else(math_error!())?;
+        market.amm.quote_asset_amount_long = market
+            .amm
+            .quote_asset_amount_long
+            .checked_add(quote_asset_amount)
+            .ok_or_else(math_error!())?;
     } else {
         market.base_asset_amount_short = market
             .base_asset_amount_short
             .checked_add(base_asset_acquired)
+            .ok_or_else(math_error!())?;
+        market.amm.quote_asset_amount_short = market
+            .amm
+            .quote_asset_amount_short
+            .checked_add(quote_asset_amount)
             .ok_or_else(math_error!())?;
     }
 
@@ -206,8 +217,9 @@ pub fn increase_with_base_asset_amount(
         .base_asset_amount
         .checked_add(base_asset_amount)
         .ok_or_else(math_error!())?;
-    market.base_asset_amount = market
-        .base_asset_amount
+    market.amm.net_base_asset_amount = market
+        .amm
+        .net_base_asset_amount
         .checked_add(base_asset_amount)
         .ok_or_else(math_error!())?;
 
@@ -216,10 +228,20 @@ pub fn increase_with_base_asset_amount(
             .base_asset_amount_long
             .checked_add(base_asset_amount)
             .ok_or_else(math_error!())?;
+        market.amm.quote_asset_amount_long = market
+            .amm
+            .quote_asset_amount_long
+            .checked_add(quote_asset_amount)
+            .ok_or_else(math_error!())?;
     } else {
         market.base_asset_amount_short = market
             .base_asset_amount_short
             .checked_add(base_asset_amount)
+            .ok_or_else(math_error!())?;
+        market.amm.quote_asset_amount_short = market
+            .amm
+            .quote_asset_amount_short
+            .checked_add(quote_asset_amount)
             .ok_or_else(math_error!())?;
     }
 
@@ -259,8 +281,9 @@ pub fn reduce(
         .open_interest
         .checked_sub(cast(market_position.base_asset_amount == 0)?)
         .ok_or_else(math_error!())?;
-    market.base_asset_amount = market
-        .base_asset_amount
+    market.amm.net_base_asset_amount = market
+        .amm
+        .net_base_asset_amount
         .checked_add(base_asset_swapped)
         .ok_or_else(math_error!())?;
 
@@ -354,8 +377,9 @@ pub fn reduce_with_base_asset_amount(
         .open_interest
         .checked_sub(cast(market_position.base_asset_amount == 0)?)
         .ok_or_else(math_error!())?;
-    market.base_asset_amount = market
-        .base_asset_amount
+    market.amm.net_base_asset_amount = market
+        .amm
+        .net_base_asset_amount
         .checked_add(base_asset_amount)
         .ok_or_else(math_error!())?;
 
@@ -455,8 +479,9 @@ pub fn close(
 
     market_position.quote_asset_amount = 0;
 
-    market.base_asset_amount = market
-        .base_asset_amount
+    market.amm.net_base_asset_amount = market
+        .amm
+        .net_base_asset_amount
         .checked_sub(market_position.base_asset_amount)
         .ok_or_else(math_error!())?;
 

@@ -292,6 +292,11 @@ export type AMM = {
 	minimumBaseAssetTradeSize: BN;
 	lastOraclePrice: BN;
 	baseSpread: number;
+	curveUpdateIntensity: number;
+	netBaseAssetAmount: BN;
+	quoteAssetAmountLong: BN;
+	quoteAssetAmountShort: BN;
+	terminalQuoteAssetReserve: BN;
 };
 
 // # User Account Types
