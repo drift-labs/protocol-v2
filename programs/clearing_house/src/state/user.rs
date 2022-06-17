@@ -15,6 +15,8 @@ use std::fmt::{Display, Formatter, Result};
 #[repr(packed)]
 pub struct User {
     pub authority: Pubkey,
+    pub user_id: u8,
+    pub name: [u8; 32],
     pub collateral: u128,
     pub bank_balances: [UserBankBalance; 8],
     pub total_fee_paid: u64,

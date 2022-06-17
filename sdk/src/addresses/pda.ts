@@ -34,19 +34,27 @@ export async function getClearingHouseStateAccountPublicKey(
 
 export async function getUserAccountPublicKeyAndNonce(
 	programId: PublicKey,
-	authority: PublicKey
+	authority: PublicKey,
+	userId = 0
 ): Promise<[PublicKey, number]> {
 	return anchor.web3.PublicKey.findProgramAddress(
-		[Buffer.from(anchor.utils.bytes.utf8.encode('user')), authority.toBuffer()],
+		[
+			Buffer.from(anchor.utils.bytes.utf8.encode('user')),
+			authority.toBuffer(),
+			Uint8Array.from([userId]),
+		],
 		programId
 	);
 }
 
 export async function getUserAccountPublicKey(
 	programId: PublicKey,
-	authority: PublicKey
+	authority: PublicKey,
+	userId = 0
 ): Promise<PublicKey> {
-	return (await getUserAccountPublicKeyAndNonce(programId, authority))[0];
+	return (
+		await getUserAccountPublicKeyAndNonce(programId, authority, userId)
+	)[0];
 }
 
 export async function getMarketPublicKey(

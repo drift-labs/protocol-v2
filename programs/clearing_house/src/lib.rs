@@ -528,6 +528,8 @@ pub mod clearing_house {
             direction: DepositDirection::DEPOSIT,
             amount,
             bank_index,
+            from: None,
+            to: None,
         };
         emit!(deposit_record);
 
@@ -614,6 +616,96 @@ pub mod clearing_house {
             direction: DepositDirection::WITHDRAW,
             amount,
             bank_index,
+            from: None,
+            to: None,
+        };
+        emit!(deposit_record);
+
+        Ok(())
+    }
+
+    pub fn transfer_deposit(
+        ctx: Context<TransferDeposit>,
+        bank_index: u64,
+        amount: u64,
+    ) -> Result<()> {
+        let authority_key = ctx.accounts.authority.key;
+        let to_user_key = ctx.accounts.to_user.key();
+        let from_user_key = ctx.accounts.from_user.key();
+        let clock = Clock::get()?;
+
+        let to_user = &mut load_mut(&ctx.accounts.to_user)?;
+        let from_user = &mut load_mut(&ctx.accounts.from_user)?;
+
+        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let bank_map = BankMap::load(&get_writable_banks(bank_index), remaining_accounts_iter)?;
+        let market_map = MarketMap::load(
+            &WritableMarkets::new(),
+            &MarketOracles::new(),
+            remaining_accounts_iter,
+        )?;
+
+        let bank = &mut bank_map.get_ref_mut(&bank_index)?;
+        controller::bank_balance::update_bank_cumulative_interest(bank, clock.unix_timestamp)?;
+
+        {
+            let from_user_bank_balance = match from_user.get_bank_balance_mut(bank.bank_index) {
+                Some(user_bank_balance) => user_bank_balance,
+                None => from_user.add_bank_balance(bank_index, BankBalanceType::Deposit)?,
+            };
+
+            controller::bank_balance::update_bank_balances(
+                amount as u128,
+                &BankBalanceType::Borrow,
+                bank,
+                from_user_bank_balance,
+                false,
+            )?;
+        }
+
+        validate!(
+            meets_initial_margin_requirement(from_user, &market_map, &bank_map, &mut oracle_map)?,
+            ErrorCode::InsufficientCollateral,
+            "From user does not meet initial margin requirement"
+        )?;
+
+        let deposit_record = DepositRecord {
+            ts: clock.unix_timestamp,
+            user_authority: *authority_key,
+            user: from_user_key,
+            direction: DepositDirection::WITHDRAW,
+            amount,
+            bank_index,
+            from: None,
+            to: Some(to_user_key),
+        };
+        emit!(deposit_record);
+
+        {
+            let to_user_bank_balance = match to_user.get_bank_balance_mut(bank.bank_index) {
+                Some(user_bank_balance) => user_bank_balance,
+                None => to_user.add_bank_balance(bank_index, BankBalanceType::Deposit)?,
+            };
+
+            controller::bank_balance::update_bank_balances(
+                amount as u128,
+                &BankBalanceType::Deposit,
+                bank,
+                to_user_bank_balance,
+                false,
+            )?;
+        }
+
+        let deposit_record = DepositRecord {
+            ts: clock.unix_timestamp,
+            user_authority: *authority_key,
+            user: to_user_key,
+            direction: DepositDirection::DEPOSIT,
+            amount,
+            bank_index,
+            from: Some(from_user_key),
+            to: None,
         };
         emit!(deposit_record);
 
@@ -2217,13 +2309,19 @@ pub mod clearing_house {
         Ok(())
     }
 
-    pub fn initialize_user(ctx: Context<InitializeUser>) -> Result<()> {
+    pub fn initialize_user(
+        ctx: Context<InitializeUser>,
+        user_id: u8,
+        name: [u8; 32],
+    ) -> Result<()> {
         let mut user = ctx
             .accounts
             .user
             .load_init()
             .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
         user.authority = ctx.accounts.authority.key();
+        user.user_id = user_id;
+        user.name = name;
         user.next_order_id = 1;
         Ok(())
     }

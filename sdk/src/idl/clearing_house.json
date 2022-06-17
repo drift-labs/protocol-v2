@@ -355,6 +355,36 @@
       ]
     },
     {
+      "name": "transferDeposit",
+      "accounts": [
+        {
+          "name": "fromUser",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "toUser",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "bankIndex",
+          "type": "u64"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "updateBankCumulativeInterest",
       "accounts": [
         {
@@ -973,7 +1003,21 @@
           "isSigner": false
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "userId",
+          "type": "u8"
+        },
+        {
+          "name": "name",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
     },
     {
       "name": "settleFundingPayment",
@@ -1858,6 +1902,19 @@
           {
             "name": "authority",
             "type": "publicKey"
+          },
+          {
+            "name": "userId",
+            "type": "u8"
+          },
+          {
+            "name": "name",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
           },
           {
             "name": "collateral",
@@ -2782,6 +2839,20 @@
           "name": "bankIndex",
           "type": "u64",
           "index": false
+        },
+        {
+          "name": "from",
+          "type": {
+            "option": "publicKey"
+          },
+          "index": false
+        },
+        {
+          "name": "to",
+          "type": {
+            "option": "publicKey"
+          },
+          "index": false
         }
       ]
     },
@@ -3550,51 +3621,56 @@
     },
     {
       "code": 6065,
+      "name": "CouldNotFindBankBalance",
+      "msg": "CouldNotFindBankBalance"
+    },
+    {
+      "code": 6066,
       "name": "NoUserBankBalanceAvailable",
       "msg": "NoUserBankBalanceAvailable"
     },
     {
-      "code": 6066,
+      "code": 6067,
       "name": "InvalidBankInitialization",
       "msg": "InvalidBankInitialization"
     },
     {
-      "code": 6067,
+      "code": 6068,
       "name": "CouldNotLoadBankData",
       "msg": "CouldNotLoadBankData"
     },
     {
-      "code": 6068,
+      "code": 6069,
       "name": "BankNotFound",
       "msg": "BankNotFound"
     },
     {
-      "code": 6069,
+      "code": 6070,
       "name": "InvalidBankAccount",
       "msg": "InvalidBankAccount"
     },
     {
-      "code": 6070,
+      "code": 6071,
       "name": "UnableToLoadBankAccount",
       "msg": "UnableToLoadBankAccount"
     },
     {
-      "code": 6071,
+      "code": 6072,
       "name": "BankWrongMutability",
       "msg": "BankWrongMutability"
     },
     {
-      "code": 6072,
+      "code": 6073,
       "name": "BankInterestNotUpToDate",
       "msg": "BankInterestNotUpToDate"
     },
     {
-      "code": 6073,
+      "code": 6074,
       "name": "BankInsufficientDeposits",
       "msg": "BankInsufficientDeposits"
     },
     {
-      "code": 6074,
+      "code": 6075,
       "name": "UserMustSettleTheirOwnPositiveUnsettledPNL",
       "msg": "UserMustSettleTheirOwnPositiveUnsettledPNL"
     }
