@@ -87,6 +87,8 @@ export type DepositRecord = {
 	collateralBefore: BN;
 	cumulativeDepositsBefore: BN;
 	amount: BN;
+	from?: PublicKey;
+	to?: PublicKey;
 };
 
 export type CurveRecord = {
@@ -303,6 +305,8 @@ export type UserPosition = {
 
 export type UserAccount = {
 	authority: PublicKey;
+	name: number[];
+	userId: number;
 	bankBalances: UserBankBalance[];
 	collateral: BN;
 	cumulativeDeposits: BN;

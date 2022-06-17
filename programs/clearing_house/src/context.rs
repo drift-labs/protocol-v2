@@ -102,10 +102,13 @@ pub struct InitializeBank<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(
+    user_id: u8,
+)]
 pub struct InitializeUser<'info> {
     #[account(
         init,
-        seeds = [b"user", authority.key.as_ref()],
+        seeds = [b"user", authority.key.as_ref(), user_id.to_le_bytes().as_ref()],
         space = std::mem::size_of::<User>() + 8,
         bump,
         payer = payer
@@ -195,6 +198,22 @@ pub struct Withdraw<'info> {
     )]
     pub user_token_account: Box<Account<'info, TokenAccount>>,
     pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+#[instruction(bank_index: u64,)]
+pub struct TransferDeposit<'info> {
+    #[account(
+        mut,
+        has_one = authority,
+    )]
+    pub from_user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        has_one = authority,
+    )]
+    pub to_user: AccountLoader<'info, User>,
+    pub authority: Signer<'info>,
 }
 
 #[derive(Accounts)]

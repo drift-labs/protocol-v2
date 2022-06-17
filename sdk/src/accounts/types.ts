@@ -46,6 +46,7 @@ export interface ClearingHouseAccountSubscriber {
 	unsubscribe(): Promise<void>;
 
 	updateAuthority(newAuthority: PublicKey): Promise<boolean>;
+	updateUserId(userId: number): Promise<boolean>;
 
 	getStateAccountAndSlot(): AccountAndSlot<StateAccount>;
 	getMarketAccountAndSlot(

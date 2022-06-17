@@ -31,6 +31,7 @@ export class WebSocketClearingHouseAccountSubscriber
 	isSubscribed: boolean;
 	program: Program;
 	authority: PublicKey;
+	userId: number;
 
 	eventEmitter: StrictEventEmitter<EventEmitter, ClearingHouseAccountEvents>;
 	stateAccountSubscriber?: AccountSubscriber<StateAccount>;
@@ -49,11 +50,12 @@ export class WebSocketClearingHouseAccountSubscriber
 	private subscriptionPromise: Promise<boolean>;
 	private subscriptionPromiseResolver: (val: boolean) => void;
 
-	public constructor(program: Program, authority: PublicKey) {
+	public constructor(program: Program, authority: PublicKey, userId: number) {
 		this.isSubscribed = false;
 		this.program = program;
 		this.eventEmitter = new EventEmitter();
 		this.authority = authority;
+		this.userId = userId;
 	}
 
 	public async subscribe(): Promise<boolean> {
@@ -164,7 +166,8 @@ export class WebSocketClearingHouseAccountSubscriber
 	async subscribeToUserAccounts(): Promise<boolean> {
 		const userPublicKey = await getUserAccountPublicKey(
 			this.program.programId,
-			this.authority
+			this.authority,
+			this.userId
 		);
 		this.userAccountSubscriber = new WebSocketAccountSubscriber(
 			'user',
@@ -239,6 +242,15 @@ export class WebSocketClearingHouseAccountSubscriber
 		await this.unsubscribeFromUserAccounts();
 		// update authority
 		this.authority = newAuthority;
+		// subscribe to new user accounts
+		return this.subscribeToUserAccounts();
+	}
+
+	public async updateUserId(userId: number): Promise<boolean> {
+		// unsubscribe from old user accounts
+		await this.unsubscribeFromUserAccounts();
+		// update authority
+		this.userId = userId;
 		// subscribe to new user accounts
 		return this.subscribeToUserAccounts();
 	}

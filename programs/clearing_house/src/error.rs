@@ -134,6 +134,8 @@ pub enum ErrorCode {
     MarketWrongMutability,
     #[msg("UnableToCastUnixTime")]
     UnableToCastUnixTime,
+    #[msg("CouldNotFindBankBalance")]
+    CouldNotFindBankBalance,
     #[msg("NoUserBankBalanceAvailable")]
     NoUserBankBalanceAvailable,
     #[msg("InvalidBankInitialization")]

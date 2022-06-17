@@ -35,6 +35,7 @@ export class PollingClearingHouseAccountSubscriber
 	isSubscribed: boolean;
 	program: Program;
 	authority: PublicKey;
+	userId: number;
 	eventEmitter: StrictEventEmitter<EventEmitter, ClearingHouseAccountEvents>;
 
 	accountLoader: BulkAccountLoader;
@@ -56,13 +57,15 @@ export class PollingClearingHouseAccountSubscriber
 	public constructor(
 		program: Program,
 		authority: PublicKey,
-		accountLoader: BulkAccountLoader
+		accountLoader: BulkAccountLoader,
+		userId: number
 	) {
 		this.isSubscribed = false;
 		this.program = program;
 		this.eventEmitter = new EventEmitter();
 		this.accountLoader = accountLoader;
 		this.authority = authority;
+		this.userId = userId;
 	}
 
 	public async subscribe(): Promise<boolean> {
@@ -196,7 +199,8 @@ export class PollingClearingHouseAccountSubscriber
 	async getUserAccountPublicKeys(): Promise<UserPublicKeys> {
 		const userAccountPublicKey = await getUserAccountPublicKey(
 			this.program.programId,
-			this.authority
+			this.authority,
+			this.userId
 		);
 
 		return {
@@ -307,6 +311,36 @@ export class PollingClearingHouseAccountSubscriber
 
 		// update authority
 		this.authority = newAuthority;
+
+		// add new user accounts
+		userAccountPublicKeys = Object.values(
+			await this.updateUserAccountsToPoll()
+		);
+		for (const publicKey of userAccountPublicKeys) {
+			const accountToPoll = this.accountsToPoll.get(publicKey.toString());
+			this.addAccountToAccountLoader(accountToPoll);
+		}
+
+		return true;
+	}
+
+	public async updateUserId(newUserId: number): Promise<boolean> {
+		let userAccountPublicKeys = Object.values(
+			await this.getUserAccountPublicKeys()
+		);
+
+		// remove the old user accounts
+		for (const publicKey of userAccountPublicKeys) {
+			const accountToPoll = this.accountsToPoll.get(publicKey.toString());
+			this.accountLoader.removeAccount(
+				accountToPoll.publicKey,
+				accountToPoll.callbackId
+			);
+			this.accountsToPoll.delete(publicKey.toString());
+		}
+
+		// update authority
+		this.userId = newUserId;
 
 		// add new user accounts
 		userAccountPublicKeys = Object.values(
