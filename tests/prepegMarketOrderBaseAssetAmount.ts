@@ -154,7 +154,14 @@ describe('clearing_house', () => {
 				.logMessages
 		);
 		const market = clearingHouse.getMarketAccount(0);
+
+		const [bid1, ask1] = calculateBidAskPrice(market.amm, oraclePriceData);
+
 		console.log(
+			'after trade bid/ask:',
+			convertToNumber(bid1),
+			'/',
+			convertToNumber(ask1),
 			'after trade mark price:',
 			convertToNumber(calculateMarkPrice(market, oraclePriceData))
 		);

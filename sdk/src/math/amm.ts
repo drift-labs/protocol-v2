@@ -37,7 +37,9 @@ export function calculatePrepeg(
 	let newPeg = targetPrice
 		.mul(amm.baseAssetReserve)
 		.div(amm.quoteAssetReserve)
+		.add(MARK_PRICE_PRECISION.div(PEG_PRECISION).div(new BN(2)))
 		.div(MARK_PRICE_PRECISION.div(PEG_PRECISION));
+	// console.log('NEW PEG:', newPeg.toString());
 	let prePegCost = calculateRepegCost(amm, newPeg);
 
 	const totalFeeLB = amm.totalFee.div(new BN(2));

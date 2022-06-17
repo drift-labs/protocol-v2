@@ -170,6 +170,8 @@ pub fn calculate_peg_from_target_price(
         .ok_or_else(math_error!())?
         .checked_div(bn::U192::from(quote_asset_reserve))
         .ok_or_else(math_error!())?
+        .checked_add(bn::U192::from(PRICE_TO_PEG_PRECISION_RATIO / 2))
+        .ok_or_else(math_error!())?
         .checked_div(bn::U192::from(PRICE_TO_PEG_PRECISION_RATIO))
         .ok_or_else(math_error!())?
         .try_to_u128()?;
