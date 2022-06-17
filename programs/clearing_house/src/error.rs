@@ -4,8 +4,8 @@ pub type ClearingHouseResult<T = ()> = std::result::Result<T, ErrorCode>;
 
 #[error_code]
 pub enum ErrorCode {
-    #[msg("Clearing house not collateral account owner")]
-    InvalidCollateralAccountAuthority,
+    #[msg("Invalid Bank Authority")]
+    InvalidBankAuthority,
     #[msg("Clearing house not insurance account owner")]
     InvalidInsuranceAccountAuthority,
     #[msg("Insufficient deposit")]
@@ -132,6 +132,30 @@ pub enum ErrorCode {
     UnableToLoadMarketAccount,
     #[msg("MarketWrongMutability")]
     MarketWrongMutability,
+    #[msg("UnableToCastUnixTime")]
+    UnableToCastUnixTime,
+    #[msg("CouldNotFindBankBalance")]
+    CouldNotFindBankBalance,
+    #[msg("NoUserBankBalanceAvailable")]
+    NoUserBankBalanceAvailable,
+    #[msg("InvalidBankInitialization")]
+    InvalidBankInitialization,
+    #[msg("CouldNotLoadBankData")]
+    CouldNotLoadBankData,
+    #[msg("BankNotFound")]
+    BankNotFound,
+    #[msg("InvalidBankAccount")]
+    InvalidBankAccount,
+    #[msg("UnableToLoadBankAccount")]
+    UnableToLoadBankAccount,
+    #[msg("BankWrongMutability")]
+    BankWrongMutability,
+    #[msg("BankInterestNotUpToDate")]
+    BankInterestNotUpToDate,
+    #[msg("BankInsufficientDeposits")]
+    BankInsufficientDeposits,
+    #[msg("UserMustSettleTheirOwnPositiveUnsettledPNL")]
+    UserMustSettleTheirOwnPositiveUnsettledPNL,
 }
 
 #[macro_export]

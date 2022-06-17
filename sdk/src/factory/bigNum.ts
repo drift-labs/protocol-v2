@@ -7,6 +7,7 @@ export class BigNum {
 	precision: BN;
 
 	static delim = '.';
+	static spacer = ',';
 
 	constructor(
 		val: BN | number | string,
@@ -213,6 +214,33 @@ export class BigNum {
 		return printString;
 	}
 
+	public prettyPrint(): string {
+		const [leftSide, rightSide] = this.printShort().split(BigNum.delim);
+
+		let formattedLeftSide = leftSide;
+
+		const isNeg = formattedLeftSide.includes('-');
+		if (isNeg) {
+			formattedLeftSide = formattedLeftSide.replace('-', '');
+		}
+
+		let index = formattedLeftSide.length - 3;
+
+		while (index >= 1) {
+			const formattedLeftSideArray = formattedLeftSide.split('');
+
+			formattedLeftSideArray.splice(index, 0, BigNum.spacer);
+
+			formattedLeftSide = formattedLeftSideArray.join('');
+
+			index -= 3;
+		}
+
+		return `${isNeg ? '-' : ''}${formattedLeftSide}${
+			rightSide ? `${BigNum.delim}${rightSide}` : ''
+		}`;
+	}
+
 	/**
 	 * Print and remove unnecessary trailing zeroes
 	 * @returns
@@ -327,14 +355,10 @@ export class BigNum {
 	}
 
 	public toNotional(): string {
-		const num = Number(this.print());
-
-		return `${num < 0 ? `-` : ``}$${(
-			Math.round(Math.abs(num) * 100) / 100
-		).toLocaleString(undefined, {
-			maximumFractionDigits: 2,
-			minimumFractionDigits: 2,
-		})}`;
+		return `${this.lt(BigNum.zero()) ? `-` : ``}$${this.prettyPrint().replace(
+			'-',
+			''
+		)}`;
 	}
 
 	public toMillified(precision = 3): string {
@@ -385,6 +409,14 @@ export class BigNum {
 		};
 	}
 
+	public isNeg() {
+		return this.lt(ZERO, true);
+	}
+
+	public isPos() {
+		return !this.isNeg();
+	}
+
 	static fromJSON(json: { val: string; precision: string }) {
 		return BigNum.from(new BN(json.val), new BN(json.precision));
 	}
@@ -407,7 +439,7 @@ export class BigNum {
 	}
 
 	/**
-	 * Create a BigNum instance from a pretty-printed BigNum
+	 * Create a BigNum instance from a printed BigNum
 	 * @param val
 	 * @param precisionOverride
 	 * @returns

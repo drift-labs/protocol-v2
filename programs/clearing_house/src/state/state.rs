@@ -8,10 +8,6 @@ pub struct State {
     pub exchange_paused: bool,
     pub funding_paused: bool,
     pub admin_controls_prices: bool,
-    pub collateral_mint: Pubkey,
-    pub collateral_vault: Pubkey,
-    pub collateral_vault_authority: Pubkey,
-    pub collateral_vault_nonce: u8,
     pub insurance_vault: Pubkey,
     pub insurance_vault_authority: Pubkey,
     pub insurance_vault_nonce: u8,
@@ -30,9 +26,9 @@ pub struct State {
     pub whitelist_mint: Pubkey,
     pub discount_mint: Pubkey,
     pub oracle_guard_rails: OracleGuardRails,
-    pub max_deposit: u128,
     pub order_state: Pubkey,
     pub number_of_markets: u64,
+    pub number_of_banks: u64,
 
     // upgrade-ability
     pub padding0: u128,

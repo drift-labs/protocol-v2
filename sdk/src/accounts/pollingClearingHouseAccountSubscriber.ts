@@ -9,6 +9,7 @@ import { BN, Program } from '@project-serum/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import {
+	BankAccount,
 	MarketAccount,
 	OrderStateAccount,
 	StateAccount,
@@ -16,6 +17,7 @@ import {
 } from '../types';
 import {
 	getClearingHouseStateAccountPublicKey,
+	getBankPublicKey,
 	getMarketPublicKey,
 	getUserAccountPublicKey,
 } from '../addresses/pda';
@@ -33,6 +35,7 @@ export class PollingClearingHouseAccountSubscriber
 	isSubscribed: boolean;
 	program: Program;
 	authority: PublicKey;
+	userId: number;
 	eventEmitter: StrictEventEmitter<EventEmitter, ClearingHouseAccountEvents>;
 
 	accountLoader: BulkAccountLoader;
@@ -41,6 +44,7 @@ export class PollingClearingHouseAccountSubscriber
 
 	state?: AccountAndSlot<StateAccount>;
 	market = new Map<number, AccountAndSlot<MarketAccount>>();
+	bank = new Map<number, AccountAndSlot<BankAccount>>();
 	orderState?: AccountAndSlot<OrderStateAccount>;
 	userAccount?: AccountAndSlot<UserAccount>;
 
@@ -53,13 +57,15 @@ export class PollingClearingHouseAccountSubscriber
 	public constructor(
 		program: Program,
 		authority: PublicKey,
-		accountLoader: BulkAccountLoader
+		accountLoader: BulkAccountLoader,
+		userId: number
 	) {
 		this.isSubscribed = false;
 		this.program = program;
 		this.eventEmitter = new EventEmitter();
 		this.accountLoader = accountLoader;
 		this.authority = authority;
+		this.userId = userId;
 	}
 
 	public async subscribe(): Promise<boolean> {
@@ -120,6 +126,7 @@ export class PollingClearingHouseAccountSubscriber
 
 		await this.updateUserAccountsToPoll();
 		await this.updateMarketAccountsToPoll();
+		await this.updateBankAccountsToPoll();
 	}
 
 	async updateUserAccountsToPoll(): Promise<UserPublicKeys> {
@@ -154,6 +161,24 @@ export class PollingClearingHouseAccountSubscriber
 		return true;
 	}
 
+	async updateBankAccountsToPoll(): Promise<boolean> {
+		for (let i = 0; i < 10; i++) {
+			const bankPublicKey = await getBankPublicKey(
+				this.program.programId,
+				new BN(i)
+			);
+
+			this.accountsToPoll.set(bankPublicKey.toString(), {
+				key: 'bank',
+				publicKey: bankPublicKey,
+				eventType: 'bankAccountUpdate',
+				mapKey: i,
+			});
+		}
+
+		return true;
+	}
+
 	async getClearingHouseAccounts(): Promise<ClearingHouseAccounts> {
 		const statePublicKey = await getClearingHouseStateAccountPublicKey(
 			this.program.programId
@@ -174,7 +199,8 @@ export class PollingClearingHouseAccountSubscriber
 	async getUserAccountPublicKeys(): Promise<UserPublicKeys> {
 		const userAccountPublicKey = await getUserAccountPublicKey(
 			this.program.programId,
-			this.authority
+			this.authority,
+			this.userId
 		);
 
 		return {
@@ -298,6 +324,36 @@ export class PollingClearingHouseAccountSubscriber
 		return true;
 	}
 
+	public async updateUserId(newUserId: number): Promise<boolean> {
+		let userAccountPublicKeys = Object.values(
+			await this.getUserAccountPublicKeys()
+		);
+
+		// remove the old user accounts
+		for (const publicKey of userAccountPublicKeys) {
+			const accountToPoll = this.accountsToPoll.get(publicKey.toString());
+			this.accountLoader.removeAccount(
+				accountToPoll.publicKey,
+				accountToPoll.callbackId
+			);
+			this.accountsToPoll.delete(publicKey.toString());
+		}
+
+		// update authority
+		this.userId = newUserId;
+
+		// add new user accounts
+		userAccountPublicKeys = Object.values(
+			await this.updateUserAccountsToPoll()
+		);
+		for (const publicKey of userAccountPublicKeys) {
+			const accountToPoll = this.accountsToPoll.get(publicKey.toString());
+			this.addAccountToAccountLoader(accountToPoll);
+		}
+
+		return true;
+	}
+
 	assertIsSubscribed(): void {
 		if (!this.isSubscribed) {
 			throw new NotSubscribedError(
@@ -315,6 +371,12 @@ export class PollingClearingHouseAccountSubscriber
 		marketIndex: BN
 	): AccountAndSlot<MarketAccount> | undefined {
 		return this.market.get(marketIndex.toNumber());
+	}
+
+	public getBankAccountAndSlot(
+		bankIndex: BN
+	): AccountAndSlot<BankAccount> | undefined {
+		return this.bank.get(bankIndex.toNumber());
 	}
 
 	public getOrderStateAccountAndSlot(): AccountAndSlot<OrderStateAccount> {

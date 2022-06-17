@@ -4,17 +4,21 @@ use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::msg;
 
-use crate::controller::position::PositionDirection;
-use crate::error::ClearingHouseResult;
+use crate::controller::position::{get_position_index, PositionDirection};
+use crate::error::{ClearingHouseResult, ErrorCode};
+use crate::math::constants::QUOTE_ASSET_BANK_INDEX;
 use crate::math_error;
+use std::fmt::{Display, Formatter, Result};
 
 #[account(zero_copy)]
 #[derive(Default)]
 #[repr(packed)]
 pub struct User {
     pub authority: Pubkey,
+    pub user_id: u8,
+    pub name: [u8; 32],
     pub collateral: u128,
-    pub cumulative_deposits: i128,
+    pub bank_balances: [UserBankBalance; 8],
     pub total_fee_paid: u64,
     pub total_fee_rebate: u64,
     pub total_token_discount: u128,
@@ -25,7 +29,91 @@ pub struct User {
     pub orders: [Order; 32],
 }
 
-// SPACE: 1040
+impl User {
+    pub fn get_bank_balance_mut(&mut self, bank_index: u64) -> Option<&mut UserBankBalance> {
+        // first bank balance is always quote asset, which is
+        if bank_index == 0 {
+            return Some(&mut self.bank_balances[0]);
+        }
+
+        self.bank_balances
+            .iter_mut()
+            .find(|bank_balance| bank_balance.bank_index == bank_index)
+    }
+
+    pub fn get_quote_asset_bank_balance_mut(&mut self) -> &mut UserBankBalance {
+        self.get_bank_balance_mut(QUOTE_ASSET_BANK_INDEX).unwrap()
+    }
+
+    pub fn get_next_available_bank_balance(&mut self) -> Option<&mut UserBankBalance> {
+        let mut next_available_balance = None;
+
+        for (i, bank_balance) in self.bank_balances.iter_mut().enumerate() {
+            if i != 0 && bank_balance.bank_index == 0 {
+                next_available_balance = Some(bank_balance);
+                break;
+            }
+        }
+
+        next_available_balance
+    }
+
+    pub fn add_bank_balance(
+        &mut self,
+        bank_index: u64,
+        balance_type: BankBalanceType,
+    ) -> ClearingHouseResult<&mut UserBankBalance> {
+        let next_balance = self
+            .get_next_available_bank_balance()
+            .ok_or(ErrorCode::NoUserBankBalanceAvailable)?;
+
+        *next_balance = UserBankBalance {
+            bank_index,
+            balance_type,
+            balance: 0,
+        };
+
+        Ok(next_balance)
+    }
+
+    pub fn get_position_mut(
+        &mut self,
+        market_index: u64,
+    ) -> ClearingHouseResult<&mut MarketPosition> {
+        Ok(&mut self.positions[get_position_index(&self.positions, market_index)?])
+    }
+}
+
+#[zero_copy]
+#[derive(Default)]
+#[repr(packed)]
+pub struct UserBankBalance {
+    pub bank_index: u64,
+    pub balance_type: BankBalanceType,
+    pub balance: u128,
+}
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq)]
+pub enum BankBalanceType {
+    Deposit,
+    Borrow,
+}
+
+impl Display for BankBalanceType {
+    fn fmt(&self, f: &mut Formatter) -> Result {
+        match self {
+            BankBalanceType::Deposit => write!(f, "BankBalanceType::Deposit"),
+            BankBalanceType::Borrow => write!(f, "BankBalanceType::Borrow"),
+        }
+    }
+}
+
+impl Default for BankBalanceType {
+    fn default() -> Self {
+        BankBalanceType::Deposit
+    }
+}
+
 #[zero_copy]
 #[derive(Default)]
 #[repr(packed)]

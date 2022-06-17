@@ -1,6 +1,11 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
-import { AMM_RESERVE_PRECISION, BN, calculateTradeSlippage } from '../sdk';
+import {
+	AMM_RESERVE_PRECISION,
+	BN,
+	calculateTradeSlippage,
+	QUOTE_ASSET_BANK_INDEX,
+} from '../sdk';
 
 import { Keypair } from '@solana/web3.js';
 import { Program } from '@project-serum/anchor';
@@ -21,6 +26,7 @@ import {
 	createPriceFeed,
 	mockUSDCMint,
 	mockUserUSDCAccount,
+	initializeQuoteAssetBank,
 } from './testHelpers';
 import { QUOTE_PRECISION } from '../sdk/lib';
 
@@ -61,6 +67,8 @@ describe('update k', () => {
 		);
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
+
+		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
@@ -128,8 +136,9 @@ describe('update k', () => {
 	});
 
 	it('increase k base/quote imbalance (FREE)', async () => {
-		await clearingHouse.depositCollateral(
+		await clearingHouse.deposit(
 			usdcAmount,
+			QUOTE_ASSET_BANK_INDEX,
 			userUSDCAccount.publicKey
 		);
 

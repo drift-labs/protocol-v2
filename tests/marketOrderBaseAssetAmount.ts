@@ -15,7 +15,12 @@ import {
 	EventSubscriber,
 } from '../sdk/src';
 
-import { mockUSDCMint, mockUserUSDCAccount, mockOracle } from './testHelpers';
+import {
+	mockUSDCMint,
+	mockUserUSDCAccount,
+	mockOracle,
+	initializeQuoteAssetBank,
+} from './testHelpers';
 
 describe('clearing_house', () => {
 	const provider = anchor.AnchorProvider.local();
@@ -59,6 +64,8 @@ describe('clearing_house', () => {
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
 
+		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
+
 		const solUsd = await mockOracle(1);
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
@@ -97,9 +104,8 @@ describe('clearing_house', () => {
 			userAccountPublicKey
 		);
 
-		assert(user.collateral.eq(new BN(9950250)));
+		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9950250)));
 		assert(user.totalFeePaid.eq(new BN(49750)));
-		assert(user.cumulativeDeposits.eq(usdcAmount));
 
 		assert.ok(
 			clearingHouse
@@ -200,11 +206,8 @@ describe('clearing_house', () => {
 				.getUserAccount()
 				.positions[0].baseAssetAmount.eq(new BN(248725251837443))
 		);
-		console.log(user.collateral.toString());
-		console.log(user.totalFeePaid.toString());
-		assert.ok(user.collateral.eq(new BN(9926611)));
+		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9926611)));
 		assert(user.totalFeePaid.eq(new BN(74626)));
-		assert(user.cumulativeDeposits.eq(usdcAmount));
 
 		const market = clearingHouse.getMarketAccount(0);
 		console.log(market.baseAssetAmount.toString());
@@ -246,7 +249,7 @@ describe('clearing_house', () => {
 			userAccountPublicKey
 		);
 
-		assert.ok(user.collateral.eq(new BN(9875627)));
+		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9875627)));
 		assert(user.totalFeePaid.eq(new BN(124371)));
 		assert.ok(
 			clearingHouse
@@ -306,7 +309,7 @@ describe('clearing_house', () => {
 		assert.ok(
 			clearingHouse.getUserAccount().positions[0].baseAssetAmount.eq(new BN(0))
 		);
-		assert.ok(user.collateral.eq(new BN(9850755)));
+		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9850755)));
 		assert(user.totalFeePaid.eq(new BN(149242)));
 
 		const market = clearingHouse.getMarketAccount(0);

@@ -1,8 +1,6 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
 
-import { BN } from '../sdk';
-
 import {
 	getFeedData,
 	initUserAccounts,
@@ -10,9 +8,12 @@ import {
 	mockUserUSDCAccount,
 	mockUSDCMint,
 	setFeedPrice,
+	initializeQuoteAssetBank,
 } from './testHelpers';
 import {
 	Admin,
+	BN,
+	QUOTE_ASSET_BANK_INDEX,
 	MARK_PRICE_PRECISION,
 	FUNDING_PAYMENT_PRECISION,
 	PEG_PRECISION,
@@ -23,7 +24,7 @@ import {
 	AMM_RESERVE_PRECISION,
 	calculateMarkPrice,
 	convertToNumber,
-} from '../sdk';
+} from '../sdk/src';
 
 import { Program } from '@project-serum/anchor';
 
@@ -380,6 +381,8 @@ describe('capped funding', () => {
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
 
+		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
+
 		await clearingHouse.initializeUserAccount();
 		userAccount = ClearingHouseUser.from(
 			clearingHouse,
@@ -387,8 +390,9 @@ describe('capped funding', () => {
 		);
 		await userAccount.subscribe();
 
-		await clearingHouse.depositCollateral(
+		await clearingHouse.deposit(
 			usdcAmount,
+			QUOTE_ASSET_BANK_INDEX,
 			userUSDCAccount.publicKey
 		);
 
@@ -398,12 +402,6 @@ describe('capped funding', () => {
 
 		clearingHouse2 = clearingHouses[0];
 		userAccount2 = userAccountInfos[0];
-
-		// await clearingHouse.depositCollateral(
-		// 	await userAccount2.getUserAccountPublicKey(),
-		// 	usdcAmount,
-		// 	userUSDCAccounts[1].publicKey
-		// );
 	});
 
 	after(async () => {

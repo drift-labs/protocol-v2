@@ -10,9 +10,10 @@ pub struct DepositRecord {
     pub user_authority: Pubkey,
     pub user: Pubkey,
     pub direction: DepositDirection,
-    pub collateral_before: u128,
-    pub cumulative_deposits_before: i128,
     pub amount: u64,
+    pub bank_index: u64,
+    pub from: Option<Pubkey>,
+    pub to: Option<Pubkey>,
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq)]

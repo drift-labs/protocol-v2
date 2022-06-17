@@ -15,6 +15,7 @@ import {
 } from '../sdk/src';
 
 import {
+	initializeQuoteAssetBank,
 	mockOracle,
 	mockUSDCMint,
 	mockUserUSDCAccount,
@@ -66,6 +67,8 @@ describe('oracle pnl liquidations', () => {
 		);
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
+
+		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
 
 		for (let i = 0; i < maxPositions; i++) {
 			const oracle = await mockOracle(1);

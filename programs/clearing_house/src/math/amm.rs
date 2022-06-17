@@ -15,7 +15,8 @@ use crate::math::constants::{
 use crate::math::position::_calculate_base_asset_value_and_pnl;
 use crate::math::quote_asset::{asset_to_reserve_amount, reserve_to_asset_amount};
 use crate::math_error;
-use crate::state::market::{Market, OraclePriceData, AMM};
+use crate::state::market::{Market, AMM};
+use crate::state::oracle::OraclePriceData;
 use crate::state::state::{PriceDivergenceGuardRails, ValidityGuardRails};
 
 pub fn calculate_price(
