@@ -45,6 +45,7 @@ pub fn add_new_position(
         last_cumulative_repeg_rebate: 0,
         last_funding_rate_ts: 0,
         open_orders: 0,
+        unsettled_pnl: 0,
         padding0: 0,
         padding1: 0,
         padding2: 0,

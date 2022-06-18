@@ -12,11 +12,11 @@ use crate::math::bank_balance::get_balance_value;
 use crate::math::casting::cast_to_i128;
 use crate::math::oracle::{get_oracle_status, OracleStatus};
 use crate::math::slippage::calculate_slippage;
+use crate::state::bank::BankBalanceType;
 use crate::state::bank_map::BankMap;
 use crate::state::market_map::MarketMap;
 use crate::state::oracle_map::OracleMap;
 use crate::state::state::OracleGuardRails;
-use crate::state::user::BankBalanceType;
 use solana_program::clock::Slot;
 use solana_program::msg;
 use std::ops::Div;
@@ -38,6 +38,7 @@ pub fn calculate_margin_requirement_and_total_collateral(
     let mut total_collateral: u128 = 0;
     let mut margin_requirement: u128 = 0;
     let mut unrealized_pnl: i128 = 0;
+    let mut unsettled_pnl: i128 = 0;
 
     for user_bank_balance in user.bank_balances.iter() {
         if user_bank_balance.balance == 0 {
@@ -99,6 +100,10 @@ pub fn calculate_margin_requirement_and_total_collateral(
         unrealized_pnl = unrealized_pnl
             .checked_add(position_unrealized_pnl)
             .ok_or_else(math_error!())?;
+
+        unsettled_pnl = unsettled_pnl
+            .checked_add(unsettled_pnl)
+            .ok_or_else(math_error!())?;
     }
 
     margin_requirement = margin_requirement
@@ -109,7 +114,10 @@ pub fn calculate_margin_requirement_and_total_collateral(
         )
         .ok_or_else(math_error!())?;
 
-    let total_collateral = calculate_updated_collateral(total_collateral, unrealized_pnl)?;
+    let total_collateral = calculate_updated_collateral(
+        calculate_updated_collateral(total_collateral, unrealized_pnl)?,
+        unsettled_pnl,
+    )?;
 
     Ok((margin_requirement, total_collateral))
 }
@@ -194,6 +202,7 @@ pub fn calculate_liquidation_status(
     let mut partial_margin_requirement: u128 = 0;
     let mut maintenance_margin_requirement: u128 = 0;
     let mut base_asset_value: u128 = 0;
+    let mut unsettled_pnl: i128 = 0;
     let mut unrealized_pnl: i128 = 0;
     let mut adjusted_unrealized_pnl: i128 = 0;
     let mut market_statuses = [MarketStatus::default(); 5];
@@ -239,6 +248,9 @@ pub fn calculate_liquidation_status(
             .ok_or_else(math_error!())?;
         unrealized_pnl = unrealized_pnl
             .checked_add(amm_position_unrealized_pnl)
+            .ok_or_else(math_error!())?;
+        unsettled_pnl = unsettled_pnl
+            .checked_add(unsettled_pnl)
             .ok_or_else(math_error!())?;
 
         // Block the liquidation if the oracle is invalid or the oracle and mark are too divergent
@@ -369,9 +381,14 @@ pub fn calculate_liquidation_status(
         .checked_div(MARGIN_PRECISION)
         .ok_or_else(math_error!())?;
 
-    let total_collateral = calculate_updated_collateral(deposit_value, unrealized_pnl)?;
-    let adjusted_total_collateral =
-        calculate_updated_collateral(deposit_value, adjusted_unrealized_pnl)?;
+    let total_collateral = calculate_updated_collateral(
+        calculate_updated_collateral(deposit_value, unrealized_pnl)?,
+        unsettled_pnl,
+    )?;
+    let adjusted_total_collateral = calculate_updated_collateral(
+        calculate_updated_collateral(deposit_value, adjusted_unrealized_pnl)?,
+        unsettled_pnl,
+    )?;
 
     let requires_partial_liquidation = adjusted_total_collateral < partial_margin_requirement;
     let requires_full_liquidation = adjusted_total_collateral < maintenance_margin_requirement;

@@ -262,6 +262,12 @@ describe('clearing_house', () => {
 				.logMessages
 		);
 
+		await clearingHouse.settlePNL(
+			await clearingHouse.getUserAccountPublicKey(),
+			clearingHouse.getUserAccount(),
+			marketIndex
+		);
+
 		const user: any = await clearingHouse.program.account.user.fetch(
 			userAccountPublicKey
 		);
@@ -367,7 +373,11 @@ describe('clearing_house', () => {
 			marketIndex
 		);
 
-		console.log(clearingHouse.getQuoteAssetTokenAmount().toString());
+		await clearingHouse.settlePNL(
+			await clearingHouse.getUserAccountPublicKey(),
+			clearingHouse.getUserAccount(),
+			marketIndex
+		);
 
 		await clearingHouse.fetchAccounts();
 		const user = clearingHouse.getUserAccount();
@@ -408,6 +418,12 @@ describe('clearing_house', () => {
 			new BN(0)
 		);
 
+		await clearingHouse.settlePNL(
+			await clearingHouse.getUserAccountPublicKey(),
+			clearingHouse.getUserAccount(),
+			new BN(0)
+		);
+
 		await clearingHouse.fetchAccounts();
 		const user = clearingHouse.getUserAccount();
 
@@ -438,7 +454,14 @@ describe('clearing_house', () => {
 	});
 
 	it('Close position', async () => {
-		const txSig = await clearingHouse.closePosition(new BN(0));
+		const marketIndex = new BN(0);
+		const txSig = await clearingHouse.closePosition(marketIndex);
+
+		await clearingHouse.settlePNL(
+			await clearingHouse.getUserAccountPublicKey(),
+			clearingHouse.getUserAccount(),
+			marketIndex
+		);
 
 		const user: any = await clearingHouse.program.account.user.fetch(
 			userAccountPublicKey
@@ -478,6 +501,12 @@ describe('clearing_house', () => {
 		const txSig = await clearingHouse.openPosition(
 			PositionDirection.SHORT,
 			incrementalUSDCNotionalAmount,
+			new BN(0)
+		);
+
+		await clearingHouse.settlePNL(
+			await clearingHouse.getUserAccountPublicKey(),
+			clearingHouse.getUserAccount(),
 			new BN(0)
 		);
 
@@ -557,6 +586,12 @@ describe('clearing_house', () => {
 		// having the user liquidate themsevles because I'm too lazy to create a separate liquidator account
 		const txSig = await clearingHouse.liquidate(userAccountPublicKey);
 
+		await clearingHouse.settlePNL(
+			await clearingHouse.getUserAccountPublicKey(),
+			clearingHouse.getUserAccount(),
+			new BN(0)
+		);
+
 		await clearingHouse.fetchAccounts();
 		console.log(
 			'collateral + pnl post liq:',
@@ -632,7 +667,6 @@ describe('clearing_house', () => {
 			false
 		);
 		console.log(convertToNumber(liqPrice));
-
 		const marketData = clearingHouse.getMarketAccount(0);
 		await setFeedPrice(
 			anchor.workspace.Pyth,
@@ -644,6 +678,13 @@ describe('clearing_house', () => {
 
 		// having the user liquidate themsevles because I'm too lazy to create a separate liquidator account
 		const txSig = await clearingHouse.liquidate(userAccountPublicKey);
+
+		await clearingHouse.settlePNL(
+			await clearingHouse.getUserAccountPublicKey(),
+			clearingHouse.getUserAccount(),
+			new BN(0)
+		);
+
 		const state: any = clearingHouse.getStateAccount();
 		const user: any = await clearingHouse.program.account.user.fetch(
 			userAccountPublicKey

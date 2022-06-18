@@ -7,9 +7,7 @@ use solana_program::msg;
 use crate::error::ClearingHouseResult;
 use crate::get_then_update_id;
 use crate::math::amm;
-// use crate::math::amm::normalise_oracle_price;
 use crate::math::casting::{cast, cast_to_i128};
-use crate::math::collateral::calculate_updated_collateral;
 use crate::math::constants::{
     AMM_TO_QUOTE_PRECISION_RATIO_I128, FUNDING_PAYMENT_PRECISION, ONE_HOUR,
 };
@@ -28,7 +26,6 @@ pub fn settle_funding_payment(
     market_map: &MarketMap,
     now: UnixTimestamp,
 ) -> ClearingHouseResult {
-    let mut funding_payment: i128 = 0;
     for market_position in user.positions.iter_mut() {
         if market_position.base_asset_amount == 0 {
             continue;
@@ -44,15 +41,17 @@ pub fn settle_funding_payment(
         };
 
         if amm_cumulative_funding_rate != market_position.last_cumulative_funding_rate {
-            let market_funding_rate_payment =
-                calculate_funding_payment(amm_cumulative_funding_rate, market_position)?;
+            let market_funding_payment =
+                calculate_funding_payment(amm_cumulative_funding_rate, market_position)?
+                    .checked_div(AMM_TO_QUOTE_PRECISION_RATIO_I128)
+                    .ok_or_else(math_error!())?;
 
             emit!(FundingPaymentRecord {
                 ts: now,
                 user_authority: user.authority,
                 user: *user_key,
                 market_index: market_position.market_index,
-                funding_payment: market_funding_rate_payment, //10e13
+                funding_payment: market_funding_payment, //10e13
                 user_last_cumulative_funding: market_position.last_cumulative_funding_rate, //10e14
                 user_last_funding_rate_ts: market_position.last_funding_rate_ts,
                 amm_cumulative_funding_long: amm.cumulative_funding_rate_long, //10e14
@@ -60,20 +59,14 @@ pub fn settle_funding_payment(
                 base_asset_amount: market_position.base_asset_amount,          //10e13
             });
 
-            funding_payment = funding_payment
-                .checked_add(market_funding_rate_payment)
-                .ok_or_else(math_error!())?;
-
             market_position.last_cumulative_funding_rate = amm_cumulative_funding_rate;
             market_position.last_funding_rate_ts = amm.last_funding_rate_ts;
+            market_position.unsettled_pnl = market_position
+                .unsettled_pnl
+                .checked_add(market_funding_payment)
+                .ok_or_else(math_error!())?;
         }
     }
-
-    let funding_payment_collateral = funding_payment
-        .checked_div(AMM_TO_QUOTE_PRECISION_RATIO_I128)
-        .ok_or_else(math_error!())?;
-
-    user.collateral = calculate_updated_collateral(user.collateral, funding_payment_collateral)?;
 
     Ok(())
 }

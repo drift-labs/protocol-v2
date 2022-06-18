@@ -201,6 +201,14 @@ pub struct Withdraw<'info> {
 }
 
 #[derive(Accounts)]
+pub struct SettlePNL<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
 #[instruction(bank_index: u64,)]
 pub struct TransferDeposit<'info> {
     #[account(

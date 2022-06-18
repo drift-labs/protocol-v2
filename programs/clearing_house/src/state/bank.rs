@@ -1,6 +1,12 @@
+use std::fmt;
+use std::fmt::{Display, Formatter};
+
+use anchor_lang::prelude::*;
+use borsh::{BorshDeserialize, BorshSerialize};
+
+use crate::error::ClearingHouseResult;
 use crate::math::margin::MarginRequirementType;
 use crate::state::oracle::OracleSource;
-use anchor_lang::prelude::*;
 
 #[account(zero_copy)]
 #[derive(Default)]
@@ -45,4 +51,37 @@ impl Bank {
             MarginRequirementType::Maintenance => self.maintenance_liability_weight,
         }
     }
+}
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq)]
+pub enum BankBalanceType {
+    Deposit,
+    Borrow,
+}
+
+impl Display for BankBalanceType {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self {
+            BankBalanceType::Deposit => write!(f, "BankBalanceType::Deposit"),
+            BankBalanceType::Borrow => write!(f, "BankBalanceType::Borrow"),
+        }
+    }
+}
+
+impl Default for BankBalanceType {
+    fn default() -> Self {
+        BankBalanceType::Deposit
+    }
+}
+
+pub trait BankBalance {
+    fn balance_type(&self) -> &BankBalanceType;
+
+    fn balance(&self) -> u128;
+
+    fn increase_balance(&mut self, delta: u128) -> ClearingHouseResult;
+
+    fn decrease_balance(&mut self, delta: u128) -> ClearingHouseResult;
+
+    fn update_balance_type(&mut self, balance_type: BankBalanceType) -> ClearingHouseResult;
 }

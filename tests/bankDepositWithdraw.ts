@@ -647,6 +647,6 @@ describe('bank deposit and withdraw', () => {
 
 		const userBalanceAfter =
 			secondUserClearingHouse.getUserBankBalance(bankIndex);
-		assert(userBalanceAfter === undefined);
+		assert(userBalanceAfter.balance.eq(ZERO));
 	});
 });
