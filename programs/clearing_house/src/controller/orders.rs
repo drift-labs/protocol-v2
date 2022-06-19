@@ -525,7 +525,7 @@ pub fn fill_order(
 
         filler.positions[position_index].unsettled_pnl = filler.positions[position_index]
             .unsettled_pnl
-            .checked_add(cast(filler_reward)?) // negative fee is rebate, so subtract to increase pnl
+            .checked_add(cast(filler_reward)?)
             .ok_or_else(math_error!())?;
     }
 

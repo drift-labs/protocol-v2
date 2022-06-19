@@ -259,6 +259,12 @@ describe('amm spread: market order', () => {
 
 		await clearingHouse.closePosition(marketIndex);
 
+		await clearingHouse.settlePNL(
+			await clearingHouse.getUserAccountPublicKey(),
+			clearingHouse.getUserAccount(),
+			marketIndex
+		);
+
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
 
@@ -343,12 +349,16 @@ describe('amm spread: market order', () => {
 
 		await clearingHouse.closePosition(marketIndex);
 
+		await clearingHouse.settlePNL(
+			await clearingHouse.getUserAccountPublicKey(),
+			clearingHouse.getUserAccount(),
+			marketIndex
+		);
+
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
 
-		const pnl = clearingHouseUser
-			.getUserAccount()
-			.collateral.sub(initialCollateral);
+		const pnl = clearingHouse.getQuoteAssetTokenAmount().sub(initialCollateral);
 		console.log(pnl.toString());
 		console.log(
 			clearingHouse
@@ -451,12 +461,16 @@ describe('amm spread: market order', () => {
 
 		await clearingHouse.closePosition(marketIndex);
 
+		await clearingHouse.settlePNL(
+			await clearingHouse.getUserAccountPublicKey(),
+			clearingHouse.getUserAccount(),
+			marketIndex
+		);
+
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
 
-		const pnl = clearingHouseUser
-			.getUserAccount()
-			.collateral.sub(initialCollateral);
+		const pnl = clearingHouse.getQuoteAssetTokenAmount().sub(initialCollateral);
 		console.log(pnl.toString());
 		console.log(
 			clearingHouse
@@ -548,12 +562,17 @@ describe('amm spread: market order', () => {
 
 		await clearingHouse.closePosition(marketIndex);
 
+		await clearingHouse.settlePNL(
+			await clearingHouse.getUserAccountPublicKey(),
+			clearingHouse.getUserAccount(),
+			marketIndex
+		);
+
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
 
-		const pnl = clearingHouseUser
-			.getUserAccount()
-			.collateral.sub(initialCollateral);
+		const pnl = clearingHouse.getQuoteAssetTokenAmount().sub(initialCollateral);
+
 		console.log(pnl.toString());
 		console.log(
 			clearingHouse
@@ -944,13 +963,17 @@ describe('amm spread: market order', () => {
 			await clearingHouse.placeAndFillOrder(orderParams);
 		}
 		await clearingHouse.closePosition(marketIndex2); // close rest
+		await clearingHouse.settlePNL(
+			await clearingHouse.getUserAccountPublicKey(),
+			clearingHouse.getUserAccount(),
+			marketIndex
+		);
 
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
 
-		const pnl = clearingHouseUser
-			.getUserAccount()
-			.collateral.sub(initialCollateral);
+		const pnl = clearingHouse.getQuoteAssetTokenAmount().sub(initialCollateral);
+
 		console.log('pnl', pnl.toString());
 		console.log(
 			'total fee',

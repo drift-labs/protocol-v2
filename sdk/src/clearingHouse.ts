@@ -1279,6 +1279,30 @@ export class ClearingHouse {
 		return txSig;
 	}
 
+	public async settlePNLs(
+		users: {
+			settleeUserAccountPublicKey: PublicKey;
+			settleeUserAccount: UserAccount;
+		}[],
+		marketIndex: BN
+	): Promise<TransactionSignature> {
+		const ixs = [];
+		for (const { settleeUserAccountPublicKey, settleeUserAccount } of users) {
+			ixs.push(
+				await this.settlePNLIx(
+					settleeUserAccountPublicKey,
+					settleeUserAccount,
+					marketIndex
+				)
+			);
+		}
+
+		const tx = new Transaction().add(...ixs);
+
+		const { txSig } = await this.txSender.send(tx, [], this.opts);
+		return txSig;
+	}
+
 	public async settlePNL(
 		settleeUserAccountPublicKey: PublicKey,
 		settleeUserAccount: UserAccount,

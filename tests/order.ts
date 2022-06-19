@@ -34,6 +34,7 @@ import {
 	mockUSDCMint,
 	setFeedPrice,
 	initializeQuoteAssetBank,
+	printTxLogs,
 } from './testHelpers';
 import {
 	AMM_RESERVE_PRECISION,
@@ -389,6 +390,22 @@ describe('orders', () => {
 			order
 		);
 
+		await fillerClearingHouse.settlePNLs(
+			[
+				{
+					settleeUserAccountPublicKey:
+						await clearingHouse.getUserAccountPublicKey(),
+					settleeUserAccount: clearingHouse.getUserAccount(),
+				},
+				{
+					settleeUserAccountPublicKey:
+						await fillerClearingHouse.getUserAccountPublicKey(),
+					settleeUserAccount: fillerClearingHouse.getUserAccount(),
+				},
+			],
+			marketIndex
+		);
+
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
 		await fillerUser.fetchAccounts();
@@ -502,6 +519,22 @@ describe('orders', () => {
 			'tx logs',
 			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
 				.logMessages
+		);
+
+		await fillerClearingHouse.settlePNLs(
+			[
+				{
+					settleeUserAccountPublicKey:
+						await clearingHouse.getUserAccountPublicKey(),
+					settleeUserAccount: clearingHouse.getUserAccount(),
+				},
+				{
+					settleeUserAccountPublicKey:
+						await fillerClearingHouse.getUserAccountPublicKey(),
+					settleeUserAccount: fillerClearingHouse.getUserAccount(),
+				},
+			],
+			marketIndex
 		);
 
 		await clearingHouse.fetchAccounts();
@@ -1410,12 +1443,19 @@ describe('orders', () => {
 			orderParams,
 			discountTokenAccount.address
 		);
+
 		const computeUnits = await findComputeUnitConsumption(
 			clearingHouse.program.programId,
 			connection,
 			txSig
 		);
 		console.log('placeAndFill compute units', computeUnits[0]);
+
+		await clearingHouse.settlePNL(
+			await clearingHouse.getUserAccountPublicKey(),
+			clearingHouse.getUserAccount(),
+			marketIndex
+		);
 
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
@@ -1521,6 +1561,18 @@ describe('orders', () => {
 			order
 		);
 
+		await fillerClearingHouse.settlePNL(
+			await fillerClearingHouse.getUserAccountPublicKey(),
+			fillerClearingHouse.getUserAccount(),
+			marketIndex
+		);
+
+		await clearingHouse.settlePNL(
+			await clearingHouse.getUserAccountPublicKey(),
+			clearingHouse.getUserAccount(),
+			marketIndex
+		);
+
 		await clearingHouseUser.fetchAccounts();
 		const postPosition2 = clearingHouseUser.getUserPosition(marketIndex);
 		console.log(
@@ -1618,6 +1670,18 @@ describe('orders', () => {
 			order
 		);
 
+		await fillerClearingHouse.settlePNL(
+			await fillerClearingHouse.getUserAccountPublicKey(),
+			fillerClearingHouse.getUserAccount(),
+			marketIndex
+		);
+
+		await clearingHouse.settlePNL(
+			await clearingHouse.getUserAccountPublicKey(),
+			clearingHouse.getUserAccount(),
+			marketIndex
+		);
+
 		await whaleClearingHouse.fetchAccounts();
 		await whaleUser.fetchAccounts();
 		await fillerUser.fetchAccounts();
@@ -1684,6 +1748,18 @@ describe('orders', () => {
 			true
 		);
 		await clearingHouse.placeAndFillOrder(reduceLimitOrderParams);
+
+		await fillerClearingHouse.settlePNL(
+			await fillerClearingHouse.getUserAccountPublicKey(),
+			fillerClearingHouse.getUserAccount(),
+			marketIndex
+		);
+
+		await clearingHouse.settlePNL(
+			await clearingHouse.getUserAccountPublicKey(),
+			clearingHouse.getUserAccount(),
+			marketIndex
+		);
 
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
