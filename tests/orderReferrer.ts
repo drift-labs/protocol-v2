@@ -240,6 +240,22 @@ describe('order referrer', () => {
 			order
 		);
 
+		await fillerClearingHouse.settlePNLs(
+			[
+				{
+					settleeUserAccountPublicKey:
+						await clearingHouse.getUserAccountPublicKey(),
+					settleeUserAccount: clearingHouse.getUserAccount(),
+				},
+				{
+					settleeUserAccountPublicKey:
+						await fillerClearingHouse.getUserAccountPublicKey(),
+					settleeUserAccount: fillerClearingHouse.getUserAccount(),
+				},
+			],
+			marketIndex
+		);
+
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
 		await fillerUser.fetchAccounts();
