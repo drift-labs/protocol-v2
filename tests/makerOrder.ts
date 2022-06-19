@@ -182,8 +182,9 @@ describe('maker order', () => {
 		const position = clearingHouseUser.getUserPosition(marketIndex);
 		assert(position.baseAssetAmount.eq(baseAssetAmount));
 		assert(position.quoteAssetAmount.eq(new BN(1000001)));
+		assert(clearingHouse.getQuoteAssetTokenAmount().eq(usdcAmount));
 		assert(
-			clearingHouse.getQuoteAssetTokenAmount().eq(usdcAmount.add(new BN(500)))
+			clearingHouse.getUserAccount().positions[0].unsettledPnl.eq(new BN(500))
 		);
 		assert(clearingHouseUser.getUserAccount().totalFeePaid.eq(ZERO));
 		assert(clearingHouseUser.getUserAccount().totalFeeRebate.eq(new BN(500)));
@@ -268,8 +269,9 @@ describe('maker order', () => {
 		const position = clearingHouseUser.getUserPosition(marketIndex);
 		assert(position.baseAssetAmount.abs().eq(baseAssetAmount));
 		assert(position.quoteAssetAmount.eq(new BN(1000000)));
+		assert(clearingHouse.getQuoteAssetTokenAmount().eq(usdcAmount));
 		assert(
-			clearingHouse.getQuoteAssetTokenAmount().eq(usdcAmount.add(new BN(500)))
+			clearingHouse.getUserAccount().positions[0].unsettledPnl.eq(new BN(500))
 		);
 		assert(clearingHouseUser.getUserAccount().totalFeePaid.eq(ZERO));
 		assert(clearingHouseUser.getUserAccount().totalFeeRebate.eq(new BN(500)));

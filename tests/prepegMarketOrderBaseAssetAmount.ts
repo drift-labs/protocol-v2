@@ -346,9 +346,6 @@ describe('clearing_house', () => {
 			convertToNumber(calculateMarkPrice(market, oraclePriceData))
 		);
 
-		const user: any = await clearingHouse.program.account.user.fetch(
-			userAccountPublicKey
-		);
 		// assert.ok(
 		// 	clearingHouse
 		// 		.getUserAccount()
@@ -362,8 +359,6 @@ describe('clearing_house', () => {
 		// 		.getUserAccount()
 		// 		.positions[0].baseAssetAmount.eq(new BN(248725251837443))
 		// );
-		console.log(user.collateral.toString());
-		console.log(user.totalFeePaid.toString());
 		// assert.ok(user.collateral.eq(new BN(9926611)));
 		// assert(user.totalFeePaid.eq(new BN(74626)));
 		// assert(user.cumulativeDeposits.eq(usdcAmount));

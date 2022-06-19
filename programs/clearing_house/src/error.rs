@@ -156,6 +156,8 @@ pub enum ErrorCode {
     BankInsufficientDeposits,
     #[msg("UserMustSettleTheirOwnPositiveUnsettledPNL")]
     UserMustSettleTheirOwnPositiveUnsettledPNL,
+    #[msg("CantUpdatePNLPoolBalanceType")]
+    CantUpdatePNLPoolBalanceType,
 }
 
 #[macro_export]

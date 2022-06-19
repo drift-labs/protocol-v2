@@ -33,10 +33,12 @@ declare_id!("AsW7LnXB9UA1uec9wi9MctYTgTz7YH9snhxd16GsFaGX");
 
 #[program]
 pub mod clearing_house {
+    use std::cmp::min;
     use std::ops::Div;
     use std::option::Option::Some;
 
     use crate::account_loader::{load, load_mut};
+    use crate::controller::bank_balance::update_bank_balances;
     use crate::controller::position::{add_new_position, get_position_index};
     use crate::margin_validation::validate_margin;
     use crate::math;
@@ -45,28 +47,26 @@ pub mod clearing_house {
         is_oracle_mark_too_divergent,
         //  normalise_oracle_price,
     };
+    use crate::math::bank_balance::get_token_amount;
     use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64};
     use crate::math::slippage::{calculate_slippage, calculate_slippage_pct};
     use crate::optional_accounts::{get_discount_token, get_referrer, get_referrer_for_fill_order};
-    use crate::state::bank::Bank;
+    use crate::state::bank::{Bank, BankBalance, BankBalanceType};
+    use crate::state::bank_map::{get_writable_banks, BankMap};
     use crate::state::events::TradeRecord;
     use crate::state::events::{CurveRecord, DepositRecord};
     use crate::state::events::{DepositDirection, LiquidationRecord};
-    use crate::state::market::Market;
+    use crate::state::market::{Market, PNLPool};
     use crate::state::market_map::{
         get_market_oracles, get_writable_markets, get_writable_markets_for_user_positions,
         MarketMap, MarketOracles, WritableMarkets,
     };
     use crate::state::oracle::OraclePriceData;
+    use crate::state::oracle_map::OracleMap;
     use crate::state::order_state::{OrderFillerRewardStructure, OrderState};
     use crate::state::user::OrderType;
 
     use super::*;
-    use crate::controller::bank_balance::update_bank_balances;
-    use crate::math::bank_balance::get_token_amount;
-    use crate::state::bank_map::{get_writable_banks, BankMap};
-    use crate::state::oracle_map::OracleMap;
-    use std::cmp::min;
 
     pub fn initialize(ctx: Context<Initialize>, admin_controls_prices: bool) -> Result<()> {
         let insurance_account_key = ctx.accounts.insurance_vault.to_account_info().key;
@@ -418,6 +418,7 @@ pub mod clearing_house {
             next_trade_record_id: 1,
             next_funding_rate_record_id: 1,
             next_curve_record_id: 1,
+            pnl_pool: PNLPool { balance: 0 },
             padding0: 0,
             padding1: 0,
             padding2: 0,
@@ -537,7 +538,6 @@ pub mod clearing_house {
             &BankBalanceType::Deposit,
             bank,
             user_bank_balance,
-            false,
         )?;
 
         controller::funding::settle_funding_payment(user, &user_key, &market_map, now)?;
@@ -617,7 +617,6 @@ pub mod clearing_house {
                 &BankBalanceType::Borrow,
                 bank,
                 user_bank_balance,
-                false,
             )?;
 
             amount
@@ -689,7 +688,6 @@ pub mod clearing_house {
                 &BankBalanceType::Borrow,
                 bank,
                 from_user_bank_balance,
-                false,
             )?;
         }
 
@@ -722,7 +720,6 @@ pub mod clearing_house {
                 &BankBalanceType::Deposit,
                 bank,
                 to_user_bank_balance,
-                false,
             )?;
         }
 
@@ -915,30 +912,12 @@ pub mod clearing_house {
         }
 
         // Update user balance to account for fee and pnl
-        {
-            let bank = &mut bank_map.get_quote_asset_bank_mut()?;
-            let user_bank_balance = user.get_quote_asset_bank_balance_mut();
-
-            update_bank_balances(
-                user_fee,
-                &BankBalanceType::Borrow,
-                bank,
-                user_bank_balance,
-                true,
-            )?;
-
-            update_bank_balances(
-                pnl.unsigned_abs(),
-                if pnl > 0 {
-                    &BankBalanceType::Deposit
-                } else {
-                    &BankBalanceType::Borrow
-                },
-                bank,
-                user_bank_balance,
-                true,
-            )?;
-        }
+        user.positions[position_index].unsettled_pnl = user.positions[position_index]
+            .unsettled_pnl
+            .checked_add(pnl)
+            .ok_or_else(math_error!())?
+            .checked_sub(cast(user_fee)?)
+            .ok_or_else(math_error!())?;
 
         // Increment the user's total fee variables
         user.total_fee_paid = user
@@ -1063,7 +1042,7 @@ pub mod clearing_house {
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let _oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
-        let bank_map = BankMap::load(
+        let _bank_map = BankMap::load(
             &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
             remaining_accounts_iter,
         )?;
@@ -1135,30 +1114,12 @@ pub mod clearing_house {
             .ok_or_else(math_error!())?;
 
         // Update user balance to account for fee and pnl
-        {
-            let bank = &mut bank_map.get_quote_asset_bank_mut()?;
-            let user_bank_balance = user.get_quote_asset_bank_balance_mut();
-
-            update_bank_balances(
-                user_fee,
-                &BankBalanceType::Borrow,
-                bank,
-                user_bank_balance,
-                true,
-            )?;
-
-            update_bank_balances(
-                pnl.unsigned_abs(),
-                if pnl > 0 {
-                    &BankBalanceType::Deposit
-                } else {
-                    &BankBalanceType::Borrow
-                },
-                bank,
-                user_bank_balance,
-                true,
-            )?;
-        }
+        user.positions[position_index].unsettled_pnl = user.positions[position_index]
+            .unsettled_pnl
+            .checked_add(pnl)
+            .ok_or_else(math_error!())?
+            .checked_sub(cast(user_fee)?)
+            .ok_or_else(math_error!())?;
 
         // Increment the user's total fee variables
         user.total_fee_paid = user
@@ -1532,6 +1493,96 @@ pub mod clearing_house {
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]
+    pub fn settle_pnl(ctx: Context<SettlePNL>, market_index: u64) -> Result<()> {
+        let clock = Clock::get()?;
+        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+        let _oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let bank_map = BankMap::load(
+            &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
+            remaining_accounts_iter,
+        )?;
+        let market_map = MarketMap::load(
+            &get_writable_markets(market_index),
+            &MarketOracles::new(),
+            remaining_accounts_iter,
+        )?;
+
+        let market = &mut market_map.get_ref_mut(&market_index)?;
+        let user = &mut load_mut(&ctx.accounts.user)?;
+        let position_index = get_position_index(&user.positions, market_index)?;
+        let bank = &mut bank_map.get_quote_asset_bank_mut()?;
+
+        let user_unsettled_pnl = user.positions[position_index].unsettled_pnl;
+        if user_unsettled_pnl == 0 {
+            msg!("User has no unsettled pnl for market {}", market_index);
+            return Ok(());
+        }
+
+        if user_unsettled_pnl > 0 {
+            validate!(
+                user.authority.eq(&ctx.accounts.authority.key()),
+                ErrorCode::UserMustSettleTheirOwnPositiveUnsettledPNL,
+                "User must settle their own unsettled pnl when its positive",
+            )?;
+
+            let pnl_pool_token_amount = get_token_amount(
+                market.pnl_pool.balance(),
+                bank,
+                market.pnl_pool.balance_type(),
+            )?;
+            if pnl_pool_token_amount == 0 {
+                msg!("The market does not have pnl pool {}", market_index);
+                return Ok(());
+            }
+
+            let pnl_to_settle = min(cast_to_u128(user_unsettled_pnl)?, pnl_pool_token_amount);
+
+            update_bank_balances(
+                pnl_to_settle,
+                &BankBalanceType::Deposit,
+                bank,
+                user.get_quote_asset_bank_balance_mut(),
+            )?;
+
+            update_bank_balances(
+                pnl_to_settle,
+                &BankBalanceType::Borrow,
+                bank,
+                &mut market.pnl_pool,
+            )?;
+
+            let user_position = &mut user.positions[position_index];
+            user_position.unsettled_pnl = user_position
+                .unsettled_pnl
+                .checked_sub(cast_to_i128(pnl_to_settle)?)
+                .ok_or_else(math_error!())?;
+        } else {
+            // TODO handle socialized loss
+            let pnl_to_settle = user_unsettled_pnl.unsigned_abs();
+            update_bank_balances(
+                pnl_to_settle,
+                &BankBalanceType::Deposit,
+                bank,
+                &mut market.pnl_pool,
+            )?;
+
+            update_bank_balances(
+                pnl_to_settle,
+                &BankBalanceType::Borrow,
+                bank,
+                user.get_quote_asset_bank_balance_mut(),
+            )?;
+
+            let user_position = &mut user.positions[position_index];
+            user_position.unsettled_pnl = 0;
+        };
+
+        Ok(())
+    }
+
+    #[access_control(
+        exchange_not_paused(&ctx.accounts.state)
+    )]
     pub fn liquidate(ctx: Context<Liquidate>) -> Result<()> {
         let state = &ctx.accounts.state;
         let user_key = ctx.accounts.user.key();
@@ -1729,22 +1780,10 @@ pub mod clearing_house {
                     (quote_asset_amount, base_asset_amount, pnl)
                 };
 
-                {
-                    let bank = &mut bank_map.get_quote_asset_bank_mut()?;
-                    let user_bank_balance = user.get_quote_asset_bank_balance_mut();
-
-                    update_bank_balances(
-                        pnl.unsigned_abs(),
-                        if pnl > 0 {
-                            &BankBalanceType::Deposit
-                        } else {
-                            &BankBalanceType::Borrow
-                        },
-                        bank,
-                        user_bank_balance,
-                        true,
-                    )?;
-                }
+                user.positions[position_index].unsettled_pnl = user.positions[position_index]
+                    .unsettled_pnl
+                    .checked_add(pnl)
+                    .ok_or_else(math_error!())?;
 
                 let base_asset_amount = base_asset_amount.unsigned_abs();
                 base_asset_value_closed = base_asset_value_closed
@@ -1939,22 +1978,10 @@ pub mod clearing_house {
                     false,
                 )?;
 
-                {
-                    let bank = &mut bank_map.get_quote_asset_bank_mut()?;
-                    let user_bank_balance = user.get_quote_asset_bank_balance_mut();
-
-                    update_bank_balances(
-                        pnl.unsigned_abs(),
-                        if pnl > 0 {
-                            &BankBalanceType::Deposit
-                        } else {
-                            &BankBalanceType::Borrow
-                        },
-                        bank,
-                        user_bank_balance,
-                        true,
-                    )?;
-                }
+                user.positions[position_index].unsettled_pnl = user.positions[position_index]
+                    .unsettled_pnl
+                    .checked_add(pnl)
+                    .ok_or_else(math_error!())?;
 
                 let base_asset_amount = base_asset_amount.unsigned_abs();
 
@@ -2017,18 +2044,6 @@ pub mod clearing_house {
 
         let withdrawal_amount = cast_to_u64(liquidation_fee)?;
 
-        {
-            let bank = &mut bank_map.get_quote_asset_bank_mut()?;
-            let user_bank_balance = user.get_quote_asset_bank_balance_mut();
-            update_bank_balances(
-                liquidation_fee,
-                &BankBalanceType::Borrow,
-                bank,
-                user_bank_balance,
-                true,
-            )?;
-        }
-
         let fee_to_liquidator = if is_full_liquidation {
             withdrawal_amount
                 .checked_div(state.full_liquidation_liquidator_share_denominator)
@@ -2054,7 +2069,6 @@ pub mod clearing_house {
                     &BankBalanceType::Deposit,
                     bank,
                     user_bank_balance,
-                    true,
                 )?;
             } else {
                 let liquidator = &mut load_mut(&ctx.accounts.liquidator)?;
@@ -2064,9 +2078,19 @@ pub mod clearing_house {
                     &BankBalanceType::Deposit,
                     bank,
                     user_bank_balance,
-                    true,
                 )?;
             };
+        }
+
+        {
+            let bank = &mut bank_map.get_quote_asset_bank_mut()?;
+            let user_bank_balance = user.get_quote_asset_bank_balance_mut();
+            update_bank_balances(
+                liquidation_fee,
+                &BankBalanceType::Borrow,
+                bank,
+                user_bank_balance,
+            )?;
         }
 
         if fee_to_insurance_fund > 0 {

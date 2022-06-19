@@ -76,11 +76,8 @@ pub fn prepeg(
     market: &mut Market,
     mark_price: u128,
     oracle_price_data: &OraclePriceData,
-    is_oracle_valid: bool,
     fee_budget: u128,
     _now: i64,
-    // market_index: u64,
-    // _trade_record: u128,
 ) -> ClearingHouseResult<i128> {
     // 0-100
     let curve_update_intensity = cast_to_i128(min(market.amm.curve_update_intensity, 100_u8))?;
@@ -153,12 +150,12 @@ pub fn prepeg(
             deficit
         );
 
-        assert_eq!(adjustment_cost < 0, true);
+        assert!(adjustment_cost < 0);
 
         // let (terminal_price_before, terminal_quote_reserves, _terminal_base_reserves) =
         //     amm::calculate_terminal_price_and_reserves(market)?;
 
-        let (new_peg_candidate, _prepeg_cost, repegged_market) = repeg::calculate_budgeted_peg(
+        let (new_peg_candidate, _prepeg_cost, _repegged_market) = repeg::calculate_budgeted_peg(
             market,
             market.amm.terminal_quote_asset_reserve,
             repeg_budget

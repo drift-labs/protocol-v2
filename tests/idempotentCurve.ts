@@ -173,8 +173,18 @@ describe('idempotent curve', () => {
 		}
 		await clearingHouse.closePosition(new BN(0));
 
+		await clearingHouse.settlePNL(
+			await clearingHouse.getUserAccountPublicKey(),
+			clearingHouse.getUserAccount(),
+			marketIndex
+		);
+
 		await clearingHouse.fetchAccounts();
-		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(19999200)));
+		assert(
+			clearingHouse
+				.getUserAccount()
+				.positions[0].unsettledPnl.eq(new BN(9999200))
+		);
 		assert(
 			clearingHouse.getUserAccount().positions[0].quoteAssetAmount.eq(new BN(0))
 		);
@@ -234,6 +244,12 @@ describe('idempotent curve', () => {
 			);
 		}
 		await clearingHouse.closePosition(new BN(0));
+
+		await clearingHouse.settlePNL(
+			await clearingHouse.getUserAccountPublicKey(),
+			clearingHouse.getUserAccount(),
+			marketIndex
+		);
 
 		await clearingHouse.fetchAccounts();
 
@@ -299,6 +315,12 @@ describe('idempotent curve', () => {
 		}
 		await clearingHouse.closePosition(new BN(0));
 
+		await clearingHouse.settlePNL(
+			await clearingHouse.getUserAccountPublicKey(),
+			clearingHouse.getUserAccount(),
+			marketIndex
+		);
+
 		await clearingHouse.fetchAccounts();
 		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(14999849)));
 		assert(
@@ -360,6 +382,12 @@ describe('idempotent curve', () => {
 			);
 		}
 		await clearingHouse.closePosition(new BN(0));
+
+		await clearingHouse.settlePNL(
+			await clearingHouse.getUserAccountPublicKey(),
+			clearingHouse.getUserAccount(),
+			marketIndex
+		);
 
 		await clearingHouse.fetchAccounts();
 		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(6666311)));

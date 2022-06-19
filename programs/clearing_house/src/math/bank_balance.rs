@@ -1,11 +1,12 @@
+use solana_program::msg;
+
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::casting::{cast, cast_to_u64};
 use crate::math::constants::{BANK_INTEREST_PRECISION, BANK_UTILIZATION_PRECISION, ONE_YEAR};
 use crate::math_error;
-use crate::state::bank::Bank;
+use crate::state::bank::{Bank, BankBalanceType};
 use crate::state::oracle::OraclePriceData;
-use crate::state::user::{BankBalanceType, UserBankBalance};
-use solana_program::msg;
+use crate::state::user::UserBankBalance;
 
 pub fn get_bank_balance(
     token_amount: u128,

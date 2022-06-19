@@ -8,7 +8,7 @@ use crate::controller::position::{get_position_index, PositionDirection};
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::constants::QUOTE_ASSET_BANK_INDEX;
 use crate::math_error;
-use std::fmt::{Display, Formatter, Result};
+use crate::state::bank::{BankBalance, BankBalanceType};
 
 #[account(zero_copy)]
 #[derive(Default)]
@@ -17,7 +17,6 @@ pub struct User {
     pub authority: Pubkey,
     pub user_id: u8,
     pub name: [u8; 32],
-    pub collateral: u128,
     pub bank_balances: [UserBankBalance; 8],
     pub total_fee_paid: u64,
     pub total_fee_rebate: u64,
@@ -93,24 +92,28 @@ pub struct UserBankBalance {
     pub balance: u128,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq)]
-pub enum BankBalanceType {
-    Deposit,
-    Borrow,
-}
-
-impl Display for BankBalanceType {
-    fn fmt(&self, f: &mut Formatter) -> Result {
-        match self {
-            BankBalanceType::Deposit => write!(f, "BankBalanceType::Deposit"),
-            BankBalanceType::Borrow => write!(f, "BankBalanceType::Borrow"),
-        }
+impl BankBalance for UserBankBalance {
+    fn balance_type(&self) -> &BankBalanceType {
+        &self.balance_type
     }
-}
 
-impl Default for BankBalanceType {
-    fn default() -> Self {
-        BankBalanceType::Deposit
+    fn balance(&self) -> u128 {
+        self.balance
+    }
+
+    fn increase_balance(&mut self, delta: u128) -> ClearingHouseResult {
+        self.balance = self.balance.checked_add(delta).ok_or_else(math_error!())?;
+        Ok(())
+    }
+
+    fn decrease_balance(&mut self, delta: u128) -> ClearingHouseResult {
+        self.balance = self.balance.checked_sub(delta).ok_or_else(math_error!())?;
+        Ok(())
+    }
+
+    fn update_balance_type(&mut self, balance_type: BankBalanceType) -> ClearingHouseResult {
+        self.balance_type = balance_type;
+        Ok(())
     }
 }
 
@@ -125,6 +128,7 @@ pub struct MarketPosition {
     pub last_cumulative_repeg_rebate: u128,
     pub last_funding_rate_ts: i64,
     pub open_orders: u128,
+    pub unsettled_pnl: i128,
 
     // upgrade-ability
     pub padding0: u128,
@@ -138,11 +142,12 @@ pub struct MarketPosition {
 
 impl MarketPosition {
     pub fn is_for(&self, market_index: u64) -> bool {
-        self.market_index == market_index && (self.is_open_position() || self.has_open_order())
+        self.market_index == market_index
+            && (self.is_open_position() || self.has_open_order() || self.has_unsettled_pnl())
     }
 
     pub fn is_available(&self) -> bool {
-        !self.is_open_position() && !self.has_open_order()
+        !self.is_open_position() && !self.has_open_order() && !self.has_unsettled_pnl()
     }
 
     pub fn is_open_position(&self) -> bool {
@@ -151,6 +156,10 @@ impl MarketPosition {
 
     pub fn has_open_order(&self) -> bool {
         self.open_orders != 0
+    }
+
+    pub fn has_unsettled_pnl(&self) -> bool {
+        self.unsettled_pnl != 0
     }
 }
 

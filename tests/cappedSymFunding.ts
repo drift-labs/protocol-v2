@@ -205,6 +205,11 @@ async function cappedSymFundingScenario(
 			marketIndex
 		);
 		await clearingHouse.closePosition(marketIndex);
+		await clearingHouse.settlePNL(
+			await clearingHouse.getUserAccountPublicKey(),
+			clearingHouse.getUserAccount(),
+			marketIndex
+		);
 		await clearingHouse.updateFundingPaused(false);
 	}
 
@@ -323,9 +328,19 @@ async function cappedSymFundingScenario(
 	assert(fundingRateShort.lte(fundingRateLong));
 	if (longShortSizes[0] !== 0) {
 		await clearingHouse.closePosition(marketIndex);
+		await clearingHouse.settlePNL(
+			await clearingHouse.getUserAccountPublicKey(),
+			clearingHouse.getUserAccount(),
+			marketIndex
+		);
 	}
 	if (longShortSizes[1] !== 0) {
 		await clearingHouse2.closePosition(marketIndex);
+		await clearingHouse2.settlePNL(
+			await clearingHouse2.getUserAccountPublicKey(),
+			clearingHouse2.getUserAccount(),
+			marketIndex
+		);
 	}
 
 	return [

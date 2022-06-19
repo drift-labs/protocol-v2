@@ -673,6 +673,32 @@
       ]
     },
     {
+      "name": "settlePnl",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "liquidate",
       "accounts": [
         {
@@ -1735,6 +1761,12 @@
             "type": "u64"
           },
           {
+            "name": "pnlPool",
+            "type": {
+              "defined": "PNLPool"
+            }
+          },
+          {
             "name": "padding0",
             "type": "u32"
           },
@@ -1935,10 +1967,6 @@
             }
           },
           {
-            "name": "collateral",
-            "type": "u128"
-          },
-          {
             "name": "bankBalances",
             "type": {
               "array": [
@@ -2112,6 +2140,18 @@
           {
             "name": "referrer",
             "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PNLPool",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "balance",
+            "type": "u128"
           }
         ]
       }
@@ -2574,6 +2614,10 @@
             "type": "u128"
           },
           {
+            "name": "unsettledPnl",
+            "type": "i128"
+          },
+          {
             "name": "padding0",
             "type": "u128"
           },
@@ -2782,6 +2826,20 @@
       }
     },
     {
+      "name": "BankBalanceType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Deposit"
+          },
+          {
+            "name": "Borrow"
+          }
+        ]
+      }
+    },
+    {
       "name": "DepositDirection",
       "type": {
         "kind": "enum",
@@ -2828,20 +2886,6 @@
           },
           {
             "name": "QuoteAsset"
-          }
-        ]
-      }
-    },
-    {
-      "name": "BankBalanceType",
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "Deposit"
-          },
-          {
-            "name": "Borrow"
           }
         ]
       }
@@ -3787,6 +3831,11 @@
       "code": 6075,
       "name": "UserMustSettleTheirOwnPositiveUnsettledPNL",
       "msg": "UserMustSettleTheirOwnPositiveUnsettledPNL"
+    },
+    {
+      "code": 6076,
+      "name": "CantUpdatePNLPoolBalanceType",
+      "msg": "CantUpdatePNLPoolBalanceType"
     }
   ]
 }

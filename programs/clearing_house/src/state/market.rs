@@ -10,6 +10,7 @@ use crate::math::amm;
 use crate::math::casting::{cast, cast_to_i128, cast_to_i64, cast_to_u128};
 use crate::math::margin::MarginRequirementType;
 use crate::math_error;
+use crate::state::bank::{BankBalance, BankBalanceType};
 use crate::state::oracle::{OraclePriceData, OracleSource};
 use crate::{BID_ASK_SPREAD_PRECISION, MARK_PRICE_PRECISION};
 
@@ -30,6 +31,7 @@ pub struct Market {
     pub next_trade_record_id: u64,
     pub next_funding_rate_record_id: u64,
     pub next_curve_record_id: u64,
+    pub pnl_pool: PNLPool,
 
     // upgrade-ability
     pub padding0: u32,
@@ -46,6 +48,36 @@ impl Market {
             MarginRequirementType::Partial => self.margin_ratio_partial,
             MarginRequirementType::Maintenance => self.margin_ratio_maintenance,
         }
+    }
+}
+
+#[zero_copy]
+#[derive(Default)]
+pub struct PNLPool {
+    pub balance: u128,
+}
+
+impl BankBalance for PNLPool {
+    fn balance_type(&self) -> &BankBalanceType {
+        &BankBalanceType::Deposit
+    }
+
+    fn balance(&self) -> u128 {
+        self.balance
+    }
+
+    fn increase_balance(&mut self, delta: u128) -> ClearingHouseResult {
+        self.balance = self.balance.checked_add(delta).ok_or_else(math_error!())?;
+        Ok(())
+    }
+
+    fn decrease_balance(&mut self, delta: u128) -> ClearingHouseResult {
+        self.balance = self.balance.checked_add(delta).ok_or_else(math_error!())?;
+        Ok(())
+    }
+
+    fn update_balance_type(&mut self, _balance_type: BankBalanceType) -> ClearingHouseResult {
+        Err(ErrorCode::CantUpdatePNLPoolBalanceType)
     }
 }
 

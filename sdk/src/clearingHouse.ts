@@ -1279,6 +1279,125 @@ export class ClearingHouse {
 		return txSig;
 	}
 
+	public async settlePNLs(
+		users: {
+			settleeUserAccountPublicKey: PublicKey;
+			settleeUserAccount: UserAccount;
+		}[],
+		marketIndex: BN
+	): Promise<TransactionSignature> {
+		const ixs = [];
+		for (const { settleeUserAccountPublicKey, settleeUserAccount } of users) {
+			ixs.push(
+				await this.settlePNLIx(
+					settleeUserAccountPublicKey,
+					settleeUserAccount,
+					marketIndex
+				)
+			);
+		}
+
+		const tx = new Transaction().add(...ixs);
+
+		const { txSig } = await this.txSender.send(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async settlePNL(
+		settleeUserAccountPublicKey: PublicKey,
+		settleeUserAccount: UserAccount,
+		marketIndex: BN
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.txSender.send(
+			wrapInTx(
+				await this.settlePNLIx(
+					settleeUserAccountPublicKey,
+					settleeUserAccount,
+					marketIndex
+				)
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async settlePNLIx(
+		settleeUserAccountPublicKey: PublicKey,
+		settleeUserAccount: UserAccount,
+		marketIndex: BN
+	): Promise<TransactionInstruction> {
+		const marketAccountMap = new Map<number, AccountMeta>();
+		const oracleAccountMap = new Map<string, AccountMeta>();
+		const bankAccountMap = new Map<number, AccountMeta>();
+		for (const position of settleeUserAccount.positions) {
+			if (!positionIsAvailable(position)) {
+				const market = this.getMarketAccount(position.marketIndex);
+				marketAccountMap.set(position.marketIndex.toNumber(), {
+					pubkey: market.pubkey,
+					isWritable: false,
+					isSigner: false,
+				});
+				oracleAccountMap.set(market.amm.oracle.toString(), {
+					pubkey: market.amm.oracle,
+					isWritable: false,
+					isSigner: false,
+				});
+			}
+		}
+
+		for (const userBankBalance of settleeUserAccount.bankBalances) {
+			if (!userBankBalance.balance.eq(ZERO)) {
+				const bankAccount = this.getBankAccount(userBankBalance.bankIndex);
+				bankAccountMap.set(userBankBalance.bankIndex.toNumber(), {
+					pubkey: bankAccount.pubkey,
+					isSigner: false,
+					isWritable: false,
+				});
+				if (!bankAccount.bankIndex.eq(ZERO)) {
+					oracleAccountMap.set(bankAccount.oracle.toString(), {
+						pubkey: bankAccount.oracle,
+						isSigner: false,
+						isWritable: false,
+					});
+				}
+			}
+		}
+
+		const marketAccount = this.getMarketAccount(marketIndex.toNumber());
+		marketAccountMap.set(marketIndex.toNumber(), {
+			pubkey: marketAccount.pubkey,
+			isSigner: false,
+			isWritable: true,
+		});
+		oracleAccountMap.set(marketAccount.amm.oracle.toString(), {
+			pubkey: marketAccount.amm.oracle,
+			isSigner: false,
+			isWritable: false,
+		});
+
+		bankAccountMap.set(QUOTE_ASSET_BANK_INDEX.toNumber(), {
+			pubkey: this.getBankAccount(QUOTE_ASSET_BANK_INDEX).pubkey,
+			isSigner: false,
+			isWritable: true,
+		});
+
+		const remainingAccounts = [
+			...oracleAccountMap.values(),
+			...bankAccountMap.values(),
+			...marketAccountMap.values(),
+		];
+
+		return await this.program.instruction.settlePnl(marketIndex, {
+			accounts: {
+				state: await this.getStatePublicKey(),
+				authority: this.wallet.publicKey,
+				user: settleeUserAccountPublicKey,
+			},
+			remainingAccounts: remainingAccounts,
+		});
+	}
+
 	public async liquidate(
 		liquidateeUserAccountPublicKey: PublicKey
 	): Promise<TransactionSignature> {

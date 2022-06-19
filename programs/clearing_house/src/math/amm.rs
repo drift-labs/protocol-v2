@@ -9,22 +9,10 @@ use crate::math::bn;
 use crate::math::bn::U192;
 use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64};
 use crate::math::constants::{
-    // AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, AMM_TO_QUOTE_PRECISION_RATIO,
-    // AMM_TO_QUOTE_PRECISION_RATIO_I128,
-    AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO,
-    BID_ASK_SPREAD_PRECISION,
-    BID_ASK_SPREAD_PRECISION_I128,
-    K_BPS_DECREASE_MAX,
-    K_BPS_INCREASE_MAX,
-    K_BPS_UPDATE_SCALE,
-    MARK_PRICE_PRECISION,
-    MARK_PRICE_PRECISION_I128,
-    MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128,
-    // ONE_HOUR,
-    ONE_HOUR_I128,
-    PEG_PRECISION,
-    PRICE_TO_PEG_PRECISION_RATIO,
-    // QUOTE_PRECISION,
+    AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO, BID_ASK_SPREAD_PRECISION,
+    BID_ASK_SPREAD_PRECISION_I128, K_BPS_DECREASE_MAX, K_BPS_INCREASE_MAX, K_BPS_UPDATE_SCALE,
+    MARK_PRICE_PRECISION, MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128, ONE_HOUR_I128,
+    PEG_PRECISION, PRICE_TO_PEG_PRECISION_RATIO,
 };
 use crate::math::position::_calculate_base_asset_value_and_pnl;
 use crate::math::quote_asset::{asset_to_reserve_amount, reserve_to_asset_amount};
@@ -473,7 +461,7 @@ pub fn calculate_spreads(amm: &mut AMM) -> ClearingHouseResult<(u128, u128)> {
         }
 
         // inventory scale
-        let MAX_INVENTORY_SKEW = 5 * MARK_PRICE_PRECISION;
+        let max_invetory_skew = 5 * MARK_PRICE_PRECISION;
         if amm.total_fee_minus_distributions > 0 {
             let net_cost_basis = cast_to_i128(
                 amm.quote_asset_amount_long
@@ -506,7 +494,7 @@ pub fn calculate_spreads(amm: &mut AMM) -> ClearingHouseResult<(u128, u128)> {
                 .ok_or_else(math_error!())?;
 
             let effective_leverage =
-                cast_to_u128((local_pnl.checked_sub(net_pnl).ok_or_else(math_error!())?))?
+                cast_to_u128(local_pnl.checked_sub(net_pnl).ok_or_else(math_error!())?)?
                     .checked_mul(MARK_PRICE_PRECISION)
                     .ok_or_else(math_error!())?
                     .checked_div(amm.total_fee_minus_distributions)
@@ -520,7 +508,7 @@ pub fn calculate_spreads(amm: &mut AMM) -> ClearingHouseResult<(u128, u128)> {
             );
 
             let effective_leverage_capped = min(
-                MAX_INVENTORY_SKEW,
+                max_invetory_skew,
                 MARK_PRICE_PRECISION
                     .checked_add(effective_leverage)
                     .ok_or_else(math_error!())?,
@@ -540,10 +528,10 @@ pub fn calculate_spreads(amm: &mut AMM) -> ClearingHouseResult<(u128, u128)> {
             }
         } else {
             long_spread = long_spread
-                .checked_mul(MAX_INVENTORY_SKEW / MARK_PRICE_PRECISION)
+                .checked_mul(max_invetory_skew / MARK_PRICE_PRECISION)
                 .ok_or_else(math_error!())?;
             short_spread = short_spread
-                .checked_mul(MAX_INVENTORY_SKEW / MARK_PRICE_PRECISION)
+                .checked_mul(max_invetory_skew / MARK_PRICE_PRECISION)
                 .ok_or_else(math_error!())?;
         }
     }
@@ -834,9 +822,9 @@ pub fn calculate_budgeted_k_scale(
 
     assert!((numerator > 0 && denominator > 0));
 
-    if budget < 0 && numerator > denominator {
-        assert!(false);
-    }
+    assert!(budget >= 0);
+
+    assert!(numerator <= denominator);
 
     let (numerator, denominator) = if numerator > denominator {
         let k_pct_upper_bound = K_BPS_UPDATE_SCALE + (K_BPS_INCREASE_MAX); // * curve_update_intensity / 100);

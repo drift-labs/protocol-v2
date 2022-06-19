@@ -306,6 +306,7 @@ export type UserPosition = {
 	marketIndex: BN;
 	quoteAssetAmount: BN;
 	openOrders: BN;
+	unsettledPnl: BN;
 };
 
 export type UserAccount = {

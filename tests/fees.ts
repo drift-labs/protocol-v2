@@ -141,6 +141,12 @@ describe('fees', () => {
 			discountTokenAccount.address
 		);
 
+		await clearingHouse.settlePNL(
+			await clearingHouse.getUserAccountPublicKey(),
+			clearingHouse.getUserAccount(),
+			marketIndex
+		);
+
 		const user: any = await clearingHouse.program.account.user.fetch(
 			userAccountPublicKey
 		);
@@ -168,6 +174,12 @@ describe('fees', () => {
 			new BN(0),
 			discountTokenAccount.address,
 			referrerUserAccountPublicKey
+		);
+
+		await clearingHouse.settlePNL(
+			await clearingHouse.getUserAccountPublicKey(),
+			clearingHouse.getUserAccount(),
+			marketIndex
 		);
 
 		const user: any = await clearingHouse.program.account.user.fetch(
@@ -205,6 +217,12 @@ describe('fees', () => {
 			referrerUserAccountPublicKey
 		);
 
+		await clearingHouse.settlePNL(
+			await clearingHouse.getUserAccountPublicKey(),
+			clearingHouse.getUserAccount(),
+			marketIndex
+		);
+
 		const user: any = await clearingHouse.program.account.user.fetch(
 			userAccountPublicKey
 		);
@@ -238,6 +256,12 @@ describe('fees', () => {
 			new BN(0),
 			discountTokenAccount.address,
 			referrerUserAccountPublicKey
+		);
+
+		await clearingHouse.settlePNL(
+			await clearingHouse.getUserAccountPublicKey(),
+			clearingHouse.getUserAccount(),
+			marketIndex
 		);
 
 		const user: any = await clearingHouse.program.account.user.fetch(
@@ -275,6 +299,12 @@ describe('fees', () => {
 			referrerUserAccountPublicKey
 		);
 
+		await clearingHouse.settlePNL(
+			await clearingHouse.getUserAccountPublicKey(),
+			clearingHouse.getUserAccount(),
+			marketIndex
+		);
+
 		const user: any = await clearingHouse.program.account.user.fetch(
 			userAccountPublicKey
 		);
@@ -297,6 +327,12 @@ describe('fees', () => {
 			marketIndex,
 			discountTokenAccount.address,
 			referrerUserAccountPublicKey
+		);
+
+		await clearingHouse.settlePNL(
+			await clearingHouse.getUserAccountPublicKey(),
+			clearingHouse.getUserAccount(),
+			marketIndex
 		);
 
 		const user: any = await clearingHouse.program.account.user.fetch(

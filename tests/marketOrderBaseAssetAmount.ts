@@ -99,6 +99,11 @@ describe('clearing_house', () => {
 			false
 		);
 		await clearingHouse.placeAndFillOrder(orderParams);
+		await clearingHouse.settlePNL(
+			await clearingHouse.getUserAccountPublicKey(),
+			clearingHouse.getUserAccount(),
+			marketIndex
+		);
 
 		const user: any = await clearingHouse.program.account.user.fetch(
 			userAccountPublicKey
@@ -189,6 +194,11 @@ describe('clearing_house', () => {
 			false
 		);
 		await clearingHouse.placeAndFillOrder(orderParams);
+		await clearingHouse.settlePNL(
+			await clearingHouse.getUserAccountPublicKey(),
+			clearingHouse.getUserAccount(),
+			marketIndex
+		);
 
 		const user: any = await clearingHouse.program.account.user.fetch(
 			userAccountPublicKey
@@ -244,6 +254,11 @@ describe('clearing_house', () => {
 			false
 		);
 		await clearingHouse.placeAndFillOrder(orderParams);
+		await clearingHouse.settlePNL(
+			await clearingHouse.getUserAccountPublicKey(),
+			clearingHouse.getUserAccount(),
+			marketIndex
+		);
 
 		const user: any = await clearingHouse.program.account.user.fetch(
 			userAccountPublicKey
@@ -298,6 +313,11 @@ describe('clearing_house', () => {
 			true
 		);
 		await clearingHouse.placeAndFillOrder(orderParams);
+		await clearingHouse.settlePNL(
+			await clearingHouse.getUserAccountPublicKey(),
+			clearingHouse.getUserAccount(),
+			marketIndex
+		);
 
 		const user: any = await clearingHouse.program.account.user.fetch(
 			userAccountPublicKey

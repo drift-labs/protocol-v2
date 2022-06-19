@@ -7,7 +7,6 @@ use spl_token::state::Account as TokenAccount;
 use crate::account_loader::load_mut;
 use crate::context::*;
 use crate::controller;
-use crate::controller::bank_balance::update_bank_balances;
 use crate::controller::position::{add_new_position, get_position_index};
 use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
@@ -29,7 +28,7 @@ use crate::state::events::{OrderRecord, TradeRecord};
 use crate::state::market::Market;
 use crate::state::market_map::MarketMap;
 use crate::state::oracle_map::OracleMap;
-use crate::state::user::{BankBalanceType, User};
+use crate::state::user::User;
 use crate::state::user::{Order, OrderStatus, OrderType};
 use crate::state::{order_state::*, state::*};
 
@@ -353,8 +352,7 @@ pub fn fill_order(
         controller::repeg::prepeg(
             market,
             mark_price_before,
-            &oracle_price_data,
-            is_oracle_valid,
+            oracle_price_data,
             prepeg_budget,
             now,
         )?;
@@ -490,22 +488,12 @@ pub fn fill_order(
             .ok_or_else(math_error!())?;
     }
 
-    // Update user's collateral based on fee/rebate
     {
-        let bank = &mut bank_map.get_quote_asset_bank_mut()?;
-        let user_bank_balance = user.get_quote_asset_bank_balance_mut();
-
-        update_bank_balances(
-            user_fee.unsigned_abs(),
-            if user_fee < 0 {
-                &BankBalanceType::Deposit
-            } else {
-                &BankBalanceType::Borrow
-            },
-            bank,
-            user_bank_balance,
-            true,
-        )?;
+        let position_index = get_position_index(&user.positions, market_index)?;
+        user.positions[position_index].unsettled_pnl = user.positions[position_index]
+            .unsettled_pnl
+            .checked_sub(user_fee) // negative fee is rebate, so subtract to increase pnl
+            .ok_or_else(math_error!())?;
     }
 
     // Increment the user's total fee variables
@@ -532,16 +520,13 @@ pub fn fill_order(
 
     if filler_key != user_key {
         let filler = &mut load_mut(filler)?;
-        let bank = &mut bank_map.get_quote_asset_bank_mut()?;
-        let filler_bank_balance = filler.get_quote_asset_bank_balance_mut();
+        let position_index = get_position_index(&filler.positions, market_index)
+            .or_else(|_| add_new_position(&mut filler.positions, market_index))?;
 
-        update_bank_balances(
-            filler_reward,
-            &BankBalanceType::Deposit,
-            bank,
-            filler_bank_balance,
-            true,
-        )?;
+        filler.positions[position_index].unsettled_pnl = filler.positions[position_index]
+            .unsettled_pnl
+            .checked_add(cast(filler_reward)?)
+            .ok_or_else(math_error!())?;
     }
 
     // Update the referrer's collateral with their reward
@@ -655,7 +640,6 @@ pub fn execute_order(
             user,
             order_index,
             market_map,
-            bank_map,
             market_index,
             mark_price_before,
             now,
@@ -678,7 +662,6 @@ pub fn execute_market_order(
     user: &mut User,
     order_index: usize,
     market_map: &MarketMap,
-    bank_map: &mut BankMap,
     market_index: u64,
     mark_price_before: u128,
     now: i64,
@@ -742,22 +725,10 @@ pub fn execute_market_order(
         )?
     };
 
-    {
-        let bank = &mut bank_map.get_quote_asset_bank_mut()?;
-        let user_bank_balance = user.get_quote_asset_bank_balance_mut();
-
-        update_bank_balances(
-            pnl.unsigned_abs(),
-            if pnl > 0 {
-                &BankBalanceType::Deposit
-            } else {
-                &BankBalanceType::Borrow
-            },
-            bank,
-            user_bank_balance,
-            true,
-        )?;
-    }
+    user.positions[position_index].unsettled_pnl = user.positions[position_index]
+        .unsettled_pnl
+        .checked_add(pnl)
+        .ok_or_else(math_error!())?;
 
     if base_asset_amount < market.amm.minimum_base_asset_trade_size {
         msg!("base asset amount {}", base_asset_amount);
@@ -898,22 +869,10 @@ pub fn execute_non_market_order(
         maker_limit_price,
     )?;
 
-    {
-        let bank = &mut bank_map.get_quote_asset_bank_mut()?;
-        let user_bank_balance = user.get_quote_asset_bank_balance_mut();
-
-        update_bank_balances(
-            pnl.unsigned_abs(),
-            if pnl > 0 {
-                &BankBalanceType::Deposit
-            } else {
-                &BankBalanceType::Borrow
-            },
-            bank,
-            user_bank_balance,
-            true,
-        )?;
-    }
+    user.positions[position_index].unsettled_pnl = user.positions[position_index]
+        .unsettled_pnl
+        .checked_add(pnl)
+        .ok_or_else(math_error!())?;
 
     if !reduce_only && order_reduce_only {
         return Err(ErrorCode::ReduceOnlyOrderIncreasedRisk);
