@@ -252,6 +252,20 @@ export class ClearingHouseUser {
 	}
 
 	/**
+	 * calculates unrealized position price pnl
+	 * @returns : Precision QUOTE_PRECISION
+	 */
+	public getUnsettledPNL(marketIndex?: BN): BN {
+		return this.getUserAccount()
+			.positions.filter((pos) =>
+				marketIndex ? pos.marketIndex === marketIndex : true
+			)
+			.reduce((pnl, marketPosition) => {
+				return pnl.add(marketPosition.unsettledPnl);
+			}, ZERO);
+	}
+
+	/**
 	 * calculates unrealized funding payment pnl
 	 * @returns : Precision QUOTE_PRECISION
 	 */
@@ -273,34 +287,33 @@ export class ClearingHouseUser {
 	 * @returns : Precision QUOTE_PRECISION
 	 */
 	public getTotalCollateral(): BN {
-		return (
-			this.getUserAccount()
-				.bankBalances.reduce((totalAssetValue, bankBalance) => {
-					if (
-						bankBalance.balance.eq(ZERO) ||
-						isVariant(bankBalance.balanceType, 'borrow')
-					) {
-						return totalAssetValue;
-					}
+		return this.getUserAccount()
+			.bankBalances.reduce((totalAssetValue, bankBalance) => {
+				if (
+					bankBalance.balance.eq(ZERO) ||
+					isVariant(bankBalance.balanceType, 'borrow')
+				) {
+					return totalAssetValue;
+				}
 
-					// Todo this needs to account for whether it's based on initial or maintenance requirements
-					const bankAccount = this.clearingHouse.getBankAccount(
-						bankBalance.bankIndex
-					);
+				// Todo this needs to account for whether it's based on initial or maintenance requirements
+				const bankAccount = this.clearingHouse.getBankAccount(
+					bankBalance.bankIndex
+				);
 
-					const tokenAmount = getTokenAmount(
-						bankBalance.balance,
-						bankAccount,
-						bankBalance.balanceType
-					);
-					return totalAssetValue.add(
-						tokenAmount
-							.mul(bankAccount.initialAssetWeight)
-							.div(BANK_WEIGHT_PRECISION)
-					);
-				}, ZERO)
-				.add(this.getUnrealizedPNL(true)) ?? new BN(0)
-		);
+				const tokenAmount = getTokenAmount(
+					bankBalance.balance,
+					bankAccount,
+					bankBalance.balanceType
+				);
+				return totalAssetValue.add(
+					tokenAmount
+						.mul(bankAccount.initialAssetWeight)
+						.div(BANK_WEIGHT_PRECISION)
+				);
+			}, ZERO)
+			.add(this.getUnrealizedPNL(true))
+			.add(this.getUnsettledPNL());
 	}
 
 	/**

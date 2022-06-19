@@ -921,7 +921,7 @@ describe('amm spread: market order', () => {
 		console.log('unrealized pnl', unrealizedPnl.toString());
 
 		const expectedFeeToMarket = new BN(1000);
-		const firstPosition = clearingHouseUser.getUserAccount().positions[0];
+		const firstPosition = clearingHouse.getUserAccount().positions[1];
 		console.log(
 			convertToNumber(firstPosition.baseAssetAmount),
 			convertToNumber(baseAssetAmount)

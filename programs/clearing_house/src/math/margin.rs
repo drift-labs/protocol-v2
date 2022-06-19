@@ -78,6 +78,10 @@ pub fn calculate_margin_requirement_and_total_collateral(
 
     let mut perp_margin_requirements: u128 = 0;
     for market_position in user.positions.iter() {
+        unsettled_pnl = unsettled_pnl
+            .checked_add(market_position.unsettled_pnl)
+            .ok_or_else(math_error!())?;
+
         if market_position.base_asset_amount == 0 {
             continue;
         }
@@ -99,10 +103,6 @@ pub fn calculate_margin_requirement_and_total_collateral(
 
         unrealized_pnl = unrealized_pnl
             .checked_add(position_unrealized_pnl)
-            .ok_or_else(math_error!())?;
-
-        unsettled_pnl = unsettled_pnl
-            .checked_add(unsettled_pnl)
             .ok_or_else(math_error!())?;
     }
 
@@ -234,6 +234,10 @@ pub fn calculate_liquidation_status(
     }
 
     for (i, market_position) in user.positions.iter().enumerate() {
+        unsettled_pnl = unsettled_pnl
+            .checked_add(market_position.unsettled_pnl)
+            .ok_or_else(math_error!())?;
+
         if market_position.base_asset_amount == 0 {
             continue;
         }
@@ -248,9 +252,6 @@ pub fn calculate_liquidation_status(
             .ok_or_else(math_error!())?;
         unrealized_pnl = unrealized_pnl
             .checked_add(amm_position_unrealized_pnl)
-            .ok_or_else(math_error!())?;
-        unsettled_pnl = unsettled_pnl
-            .checked_add(unsettled_pnl)
             .ok_or_else(math_error!())?;
 
         // Block the liquidation if the oracle is invalid or the oracle and mark are too divergent
@@ -452,6 +453,7 @@ pub fn calculate_free_collateral(
     let mut closed_position_base_asset_value: u128 = 0;
     let mut initial_margin_requirement: u128 = 0;
     let mut unrealized_pnl: i128 = 0;
+    let mut unsettled_pnl: i128 = 0;
 
     let mut deposit_value = 0_u128;
     for user_bank_balance in user.bank_balances.iter() {
@@ -481,6 +483,10 @@ pub fn calculate_free_collateral(
     }
 
     for market_position in user.positions.iter() {
+        unsettled_pnl = unsettled_pnl
+            .checked_add(market_position.unsettled_pnl)
+            .ok_or_else(math_error!())?;
+
         if market_position.base_asset_amount == 0 {
             continue;
         }
@@ -511,7 +517,10 @@ pub fn calculate_free_collateral(
         .checked_div(MARGIN_PRECISION)
         .ok_or_else(math_error!())?;
 
-    let total_collateral = calculate_updated_collateral(deposit_value, unrealized_pnl)?;
+    let total_collateral = calculate_updated_collateral(
+        calculate_updated_collateral(deposit_value, unrealized_pnl)?,
+        unsettled_pnl,
+    )?;
 
     let free_collateral = if initial_margin_requirement < total_collateral {
         total_collateral
