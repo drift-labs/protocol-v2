@@ -1527,7 +1527,7 @@ pub mod clearing_house {
 
             let pnl_pool_token_amount = get_token_amount(
                 market.pnl_pool.balance(),
-                &bank,
+                bank,
                 market.pnl_pool.balance_type(),
             )?;
             if pnl_pool_token_amount == 0 {

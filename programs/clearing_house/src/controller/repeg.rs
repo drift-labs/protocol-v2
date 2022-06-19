@@ -150,7 +150,7 @@ pub fn prepeg(
             deficit
         );
 
-        assert_eq!(adjustment_cost < 0, true);
+        assert!(adjustment_cost < 0);
 
         // let (terminal_price_before, terminal_quote_reserves, _terminal_base_reserves) =
         //     amm::calculate_terminal_price_and_reserves(market)?;

@@ -352,7 +352,7 @@ pub fn fill_order(
         controller::repeg::prepeg(
             market,
             mark_price_before,
-            &oracle_price_data,
+            oracle_price_data,
             prepeg_budget,
             now,
         )?;

@@ -822,9 +822,9 @@ pub fn calculate_budgeted_k_scale(
 
     assert!((numerator > 0 && denominator > 0));
 
-    if budget < 0 && numerator > denominator {
-        assert!(false);
-    }
+    assert!(budget >= 0);
+
+    assert!(numerator <= denominator);
 
     let (numerator, denominator) = if numerator > denominator {
         let k_pct_upper_bound = K_BPS_UPDATE_SCALE + (K_BPS_INCREASE_MAX); // * curve_update_intensity / 100);

@@ -346,9 +346,6 @@ describe('clearing_house', () => {
 			convertToNumber(calculateMarkPrice(market, oraclePriceData))
 		);
 
-		const user: any = await clearingHouse.program.account.user.fetch(
-			userAccountPublicKey
-		);
 		// assert.ok(
 		// 	clearingHouse
 		// 		.getUserAccount()

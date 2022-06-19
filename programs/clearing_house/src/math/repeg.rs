@@ -305,7 +305,7 @@ pub fn calculate_budgeted_peg(
             .checked_div(MARK_PRICE_PRECISION / PEG_PRECISION)
             .ok_or_else(math_error!())?;
 
-        let new_budget_peg = if delta_peg_sign > 0 {
+        if delta_peg_sign > 0 {
             market
                 .amm
                 .peg_multiplier
@@ -317,8 +317,7 @@ pub fn calculate_budgeted_peg(
                 .peg_multiplier
                 .checked_sub(delta_peg_precision)
                 .ok_or_else(math_error!())?
-        };
-        new_budget_peg
+        }
     };
 
     // avoid overshooting past target price w/ budget
