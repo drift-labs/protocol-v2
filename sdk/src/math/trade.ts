@@ -251,7 +251,7 @@ export function calculateTargetPriceTrade(
 	let peg = market.amm.pegMultiplier;
 
 	if (useSpread && market.amm.baseSpread > 0) {
-		const { baseAssetReserve, quoteAssetReserve, sqrtK, newPeg } =
+		const { baseAssetReserve, quoteAssetReserve, newPeg } =
 			calculatePrepegSpreadReserves(market.amm, direction, oraclePriceData);
 		baseAssetReserveBefore = baseAssetReserve;
 		quoteAssetReserveBefore = quoteAssetReserve;
