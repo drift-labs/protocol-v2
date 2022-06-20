@@ -341,7 +341,7 @@ pub fn fill_order(
 
         let prepeg_budget = repeg::calculate_fee_pool(market)?;
 
-        mark_price_before = market.amm.mark_price()?;
+        let mark_price_prefore = market.amm.mark_price()?;
 
         is_oracle_valid = amm::is_oracle_valid(
             &market.amm,
@@ -351,17 +351,17 @@ pub fn fill_order(
 
         controller::repeg::prepeg(
             market,
-            mark_price_before,
+            mark_price_prefore,
             oracle_price_data,
             prepeg_budget,
             // now,
         )?;
-        let mark_price_after_prepeg = market.amm.mark_price()?;
+        let mark_price_before = market.amm.mark_price()?;
 
         oracle_mark_spread_pct_before = amm::calculate_oracle_mark_spread_pct(
             &market.amm,
             oracle_price_data,
-            Some(mark_price_after_prepeg),
+            Some(mark_price_before),
         )?;
         oracle_price = oracle_price_data.price;
 
@@ -370,14 +370,11 @@ pub fn fill_order(
                 &mut market.amm,
                 now,
                 oracle_price_data,
-                Some(mark_price_after_prepeg),
+                Some(mark_price_before),
             )?;
         }
 
         amm::calculate_spreads(&mut market.amm)?;
-
-        // Err(ErrorCode::InvalidUpdateK.into());
-        // msg!("PREPEGGED: from {:?}", mark_price_before);
     }
 
     let valid_oracle_price = if is_oracle_valid {
