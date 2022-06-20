@@ -43,6 +43,7 @@ import { OraclePriceData } from './oracles/types';
 export class ClearingHouseUser {
 	clearingHouse: ClearingHouse;
 	authority: PublicKey;
+	userId: number;
 	accountSubscriber: UserAccountSubscriber;
 	userAccountPublicKey?: PublicKey;
 	_isSubscribed = false;
@@ -64,14 +65,16 @@ export class ClearingHouseUser {
 	 */
 	public static from(
 		clearingHouse: ClearingHouse,
-		authority: PublicKey
+		authority: PublicKey,
+		userId = 0
 	): ClearingHouseUser {
 		if (clearingHouse.accountSubscriber.type !== 'websocket')
 			throw 'This method only works for clearing houses with a websocket account listener. Try using the getClearingHouseUser factory method to initialize a ClearingHouseUser instead';
 
 		const config = getWebSocketClearingHouseUserConfig(
 			clearingHouse,
-			authority
+			authority,
+			userId
 		);
 		return getClearingHouseUser(config);
 	}
@@ -79,12 +82,14 @@ export class ClearingHouseUser {
 	public constructor(
 		clearingHouse: ClearingHouse,
 		authority: PublicKey,
-		accountSubscriber: UserAccountSubscriber
+		accountSubscriber: UserAccountSubscriber,
+		userId: number
 	) {
 		this.clearingHouse = clearingHouse;
 		this.authority = authority;
 		this.accountSubscriber = accountSubscriber;
 		this.eventEmitter = this.accountSubscriber.eventEmitter;
+		this.userId = userId;
 	}
 
 	/**

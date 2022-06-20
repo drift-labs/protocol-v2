@@ -60,19 +60,22 @@ export function getClearingHouseUser(
 	if (config.type === 'websocket') {
 		accountSubscriber = new WebSocketUserAccountSubscriber(
 			config.clearingHouse.program,
-			config.authority
+			config.authority,
+			config.userId
 		);
 	} else if (config.type === 'polling') {
 		accountSubscriber = new PollingUserAccountSubscriber(
 			config.clearingHouse.program,
 			config.authority,
-			(config as PollingClearingHouseUserConfig).accountLoader
+			(config as PollingClearingHouseUserConfig).accountLoader,
+			config.userId
 		);
 	}
 
 	return new ClearingHouseUser(
 		config.clearingHouse,
 		config.authority,
-		accountSubscriber
+		accountSubscriber,
+		config.userId
 	);
 }

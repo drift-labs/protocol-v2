@@ -102,13 +102,15 @@ export function getClearingHouse(config: ClearingHouseConfig): ClearingHouse {
 	if (config.type === 'websocket') {
 		accountSubscriber = new WebSocketClearingHouseAccountSubscriber(
 			program,
-			provider.wallet.publicKey
+			provider.wallet.publicKey,
+			config.userId
 		);
 	} else if (config.type === 'polling') {
 		accountSubscriber = new PollingClearingHouseAccountSubscriber(
 			program,
 			provider.wallet.publicKey,
-			(config as PollingClearingHouseConfiguration).accountLoader
+			(config as PollingClearingHouseConfiguration).accountLoader,
+			config.userId
 		);
 	}
 
@@ -151,13 +153,15 @@ export function getAdmin(config: ClearingHouseConfig): Admin {
 	if (config.type === 'websocket') {
 		accountSubscriber = new WebSocketClearingHouseAccountSubscriber(
 			program,
-			provider.wallet.publicKey
+			provider.wallet.publicKey,
+			config.userId
 		);
 	} else if (config.type === 'polling') {
 		accountSubscriber = new PollingClearingHouseAccountSubscriber(
 			program,
 			provider.wallet.publicKey,
-			(config as PollingClearingHouseConfiguration).accountLoader
+			(config as PollingClearingHouseConfiguration).accountLoader,
+			config.userId
 		);
 	}
 
