@@ -48,7 +48,10 @@ export async function calculateAllEstimatedFundingRate(
 		secondsInHour,
 		BN.max(ZERO, secondsInHour.sub(timeSinceLastMarkChange))
 	);
-	const baseAssetPriceWithMantissa = calculateMarkPrice(market);
+	const baseAssetPriceWithMantissa = calculateMarkPrice(
+		market,
+		oraclePriceData
+	);
 
 	const markTwapWithMantissa = markTwapTimeSinceLastUpdate
 		.mul(lastMarkTwapWithMantissa)

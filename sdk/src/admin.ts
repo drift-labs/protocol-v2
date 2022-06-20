@@ -256,7 +256,7 @@ export class Admin extends ClearingHouse {
 		sqrtK: BN,
 		marketIndex: BN
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateK(sqrtK, marketIndex, {
+		return await this.program.rpc.updateK(sqrtK, {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				admin: this.wallet.publicKey,
@@ -274,7 +274,10 @@ export class Admin extends ClearingHouse {
 
 		const [direction, tradeSize, _] = calculateTargetPriceTrade(
 			market,
-			targetPrice
+			targetPrice,
+			new BN(1000),
+			'quote',
+			undefined //todo
 		);
 
 		const [newQuoteAssetAmount, newBaseAssetAmount] =

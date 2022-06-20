@@ -441,7 +441,8 @@ export function calculateMaxBaseAssetAmountToTrade(
 	amm: AMM,
 	limit_price: BN,
 	direction: PositionDirection,
-	useSpread: boolean
+	useSpread: boolean,
+	oraclePriceData?: OraclePriceData
 ): [BN, PositionDirection] {
 	const invariant = amm.sqrtK.mul(amm.sqrtK);
 
@@ -457,7 +458,8 @@ export function calculateMaxBaseAssetAmountToTrade(
 	if (useSpread) {
 		baseAssetReserveBefore = calculateSpreadReserves(
 			amm,
-			direction
+			direction,
+			oraclePriceData
 		).baseAssetReserve;
 	} else {
 		baseAssetReserveBefore = amm.baseAssetReserve;

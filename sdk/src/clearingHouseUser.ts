@@ -38,6 +38,7 @@ import {
 	getWebSocketClearingHouseUserConfig,
 } from './factory/clearingHouseUser';
 import { getTokenAmount } from './math/bankBalance';
+import { OraclePriceData } from './oracles/types';
 
 export class ClearingHouseUser {
 	clearingHouse: ClearingHouse;
@@ -132,6 +133,7 @@ export class ClearingHouseUser {
 			marketIndex,
 			quoteAssetAmount: ZERO,
 			openOrders: ZERO,
+			unsettledPnl: ZERO,
 		};
 	}
 
@@ -365,7 +367,8 @@ export class ClearingHouseUser {
 	 */
 	public getPositionEstimatedExitPriceAndPnl(
 		position: UserPosition,
-		amountToClose?: BN
+		amountToClose?: BN,
+		oraclePriceData?: OraclePriceData
 	): [BN, BN] {
 		const market = this.clearingHouse.getMarketAccount(position.marketIndex);
 
@@ -373,7 +376,7 @@ export class ClearingHouseUser {
 
 		if (amountToClose) {
 			if (amountToClose.eq(ZERO)) {
-				return [calculateMarkPrice(market), ZERO];
+				return [calculateMarkPrice(market, oraclePriceData), ZERO];
 			}
 			position = {
 				baseAssetAmount: amountToClose,
@@ -508,7 +511,8 @@ export class ClearingHouseUser {
 	public liquidationPrice(
 		marketPosition: Pick<UserPosition, 'marketIndex'>,
 		positionBaseSizeChange: BN = ZERO,
-		partial = false
+		partial = false,
+		oraclePriceData?: OraclePriceData
 	): BN {
 		// solves formula for example canBeLiquidated below
 
@@ -546,6 +550,7 @@ export class ClearingHouseUser {
 				currentMarketPosition.lastCumulativeFundingRate,
 			quoteAssetAmount: new BN(0),
 			openOrders: new BN(0),
+			unsettledPnl: new BN(0),
 		};
 
 		if (proposedBaseAssetAmount.eq(ZERO)) return new BN(-1);
@@ -637,7 +642,8 @@ export class ClearingHouseUser {
 		let markPriceAfterTrade;
 		if (positionBaseSizeChange.eq(ZERO)) {
 			markPriceAfterTrade = calculateMarkPrice(
-				this.clearingHouse.getMarketAccount(marketPosition.marketIndex)
+				this.clearingHouse.getMarketAccount(marketPosition.marketIndex),
+				oraclePriceData
 			);
 		} else {
 			const direction = positionBaseSizeChange.gt(ZERO)
@@ -647,7 +653,8 @@ export class ClearingHouseUser {
 				direction,
 				positionBaseSizeChange.abs(),
 				this.clearingHouse.getMarketAccount(marketPosition.marketIndex),
-				'base'
+				'base',
+				oraclePriceData
 			)[3]; // newPrice after swap
 		}
 

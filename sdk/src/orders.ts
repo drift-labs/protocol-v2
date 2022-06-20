@@ -266,9 +266,10 @@ function calculateAmountToTradeForTriggerMarket(
 
 function isTriggerConditionSatisfied(
 	market: MarketAccount,
-	order: Order
+	order: Order,
+	oraclePriceData?: OraclePriceData
 ): boolean {
-	const markPrice = calculateMarkPrice(market);
+	const markPrice = calculateMarkPrice(market, oraclePriceData);
 	if (isVariant(order.triggerCondition, 'above')) {
 		return markPrice.gt(order.triggerPrice);
 	} else {
@@ -279,7 +280,8 @@ function isTriggerConditionSatisfied(
 export function calculateBaseAssetAmountUserCanExecute(
 	market: MarketAccount,
 	order: Order,
-	user: ClearingHouseUser
+	user: ClearingHouseUser,
+	oraclePriceData?: OraclePriceData
 ): BN {
 	const maxLeverage = user.getMaxLeverage(order.marketIndex, 'Initial');
 	const freeCollateral = user.getFreeCollateral();
@@ -310,7 +312,8 @@ export function calculateBaseAssetAmountUserCanExecute(
 	if (useSpread) {
 		const { baseAssetReserve, quoteAssetReserve } = calculateSpreadReserves(
 			market.amm,
-			order.direction
+			order.direction,
+			oraclePriceData
 		);
 		amm = {
 			baseAssetReserve,

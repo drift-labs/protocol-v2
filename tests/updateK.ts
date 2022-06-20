@@ -144,12 +144,14 @@ describe('update k', () => {
 
 		const marketIndex = Markets[0].marketIndex;
 
-		const marketOld = clearingHouse.getMarketAccount(0);
 		const targetPriceUp = new BN(
 			initialSOLPrice * MARK_PRICE_PRECISION.toNumber() * 44.1
 		);
 		await clearingHouse.moveAmmToPrice(marketIndex, targetPriceUp);
 		await clearingHouse.fetchAccounts();
+
+		const marketOld = clearingHouse.getMarketAccount(0);
+
 		const oldKPrice = calculateMarkPrice(
 			clearingHouse.getMarketAccount(marketIndex)
 		);
@@ -158,7 +160,13 @@ describe('update k', () => {
 		const newSqrtK = ammOld.sqrtK
 			.mul(new BN(1.000132325235 * MARK_PRICE_PRECISION.toNumber()))
 			.div(MARK_PRICE_PRECISION);
+
 		await clearingHouse.updateK(newSqrtK, marketIndex);
+		// console.log(
+		// 	'tx logs',
+		// 	(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
+		// 		.logMessages
+		// );
 
 		await clearingHouse.fetchAccounts();
 		const newKPrice = calculateMarkPrice(
@@ -167,17 +175,25 @@ describe('update k', () => {
 
 		const amm = clearingHouse.getMarketAccount(0).amm;
 
-		const marginOfError = new BN(100);
+		const marginOfError = new BN(MARK_PRICE_PRECISION.div(new BN(1000))); // price change less than 3 decimal places
 
 		console.log(
 			'oldSqrtK',
 			convertToNumber(ammOld.sqrtK),
+			'baa/qaa:',
+			ammOld.baseAssetReserve.toString(),
+			'/',
+			ammOld.quoteAssetReserve.toString(),
 			'oldKPrice:',
 			convertToNumber(oldKPrice)
 		);
 		console.log(
 			'newSqrtK',
 			convertToNumber(newSqrtK),
+			'baa/qaa:',
+			amm.baseAssetReserve.toString(),
+			'/',
+			amm.quoteAssetReserve.toString(),
 			'newKPrice:',
 			convertToNumber(newKPrice)
 		);
@@ -209,7 +225,7 @@ describe('update k', () => {
 		console.log('$1 position taken');
 		await clearingHouse.fetchAccounts();
 		const marketOld = clearingHouse.getMarketAccount(0);
-		assert(!marketOld.baseAssetAmount.eq(ZERO));
+		assert(!marketOld.amm.netBaseAssetAmount.eq(ZERO));
 
 		const oldKPrice = calculateMarkPrice(
 			clearingHouse.getMarketAccount(marketIndex)
@@ -300,7 +316,7 @@ describe('update k', () => {
 		console.log('$1 position taken');
 		await clearingHouse.fetchAccounts();
 		const marketOld = await clearingHouse.getMarketAccount(0);
-		assert(!marketOld.baseAssetAmount.eq(ZERO));
+		assert(!marketOld.amm.netBaseAssetAmount.eq(ZERO));
 
 		const oldKPrice = calculateMarkPrice(
 			clearingHouse.getMarketAccount(marketIndex)
@@ -406,7 +422,7 @@ describe('update k', () => {
 		console.log('$1 position taken');
 		await clearingHouse.fetchAccounts();
 		const marketOld = await clearingHouse.getMarketAccount(0);
-		assert(!marketOld.baseAssetAmount.eq(ZERO));
+		assert(!marketOld.amm.netBaseAssetAmount.eq(ZERO));
 
 		const oldKPrice = calculateMarkPrice(
 			clearingHouse.getMarketAccount(marketIndex)

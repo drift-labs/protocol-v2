@@ -906,7 +906,7 @@ pub fn get_update_k_result(
     market: &Market,
     new_sqrt_k: bn::U192,
 ) -> ClearingHouseResult<UpdateKResult> {
-    let sqrt_k_ratio_precision = bn::U192::from(10_000);
+    let sqrt_k_ratio_precision = bn::U192::from(100_000_000);
 
     let old_sqrt_k = bn::U192::from(market.amm.sqrt_k);
     let sqrt_k_ratio = new_sqrt_k
@@ -916,7 +916,7 @@ pub fn get_update_k_result(
         .ok_or_else(math_error!())?;
 
     // if decreasing k, max decrease ratio for single transaction is 2.5%
-    if sqrt_k_ratio < U192::from(9750) {
+    if sqrt_k_ratio < U192::from(97_500_000) {
         return Err(ErrorCode::InvalidUpdateK);
     }
 

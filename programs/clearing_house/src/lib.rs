@@ -2503,6 +2503,12 @@ pub mod clearing_house {
             .gt(&UPDATE_K_ALLOWED_PRICE_CHANGE);
 
         if price_change_too_large {
+            msg!(
+                "{:?} -> {:?} (> {:?})",
+                price_before,
+                price_after,
+                UPDATE_K_ALLOWED_PRICE_CHANGE
+            );
             return Err(ErrorCode::InvalidUpdateK.into());
         }
 

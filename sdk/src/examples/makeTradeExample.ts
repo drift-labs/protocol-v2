@@ -96,7 +96,8 @@ const main = async () => {
 	);
 
 	const currentMarketPrice = calculateMarkPrice(
-		clearingHouse.getMarketAccount(solMarketInfo.marketIndex)
+		clearingHouse.getMarketAccount(solMarketInfo.marketIndex),
+		undefined
 	);
 
 	const formattedPrice = convertToNumber(
@@ -116,7 +117,9 @@ const main = async () => {
 		calculateTradeSlippage(
 			PositionDirection.LONG,
 			longAmount,
-			solMarketAccount
+			solMarketAccount,
+			'quote',
+			undefined
 		)[0],
 		MARK_PRICE_PRECISION
 	);
