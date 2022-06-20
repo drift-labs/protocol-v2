@@ -3,6 +3,7 @@ import {
 	MainnetMarkets,
 	MarketConfig,
 } from './constants/markets';
+import { BankConfig, DevnetBanks, MainnetBanks } from './constants/banks';
 
 type DriftConfig = {
 	ENV: DriftEnv;
@@ -10,6 +11,7 @@ type DriftConfig = {
 	CLEARING_HOUSE_PROGRAM_ID: string;
 	USDC_MINT_ADDRESS: string;
 	MARKETS: MarketConfig[];
+	BANKS: BankConfig[];
 };
 
 export type DriftEnv = 'devnet' | 'mainnet-beta';
@@ -21,6 +23,7 @@ export const configs: { [key in DriftEnv]: DriftConfig } = {
 		CLEARING_HOUSE_PROGRAM_ID: '4kApqj1TdRVxK8kPEJ2SDs8aGq53YPnDA4cVxTUuqRkK',
 		USDC_MINT_ADDRESS: '8zGuJQqwhZafTah7Uc7Z4tXRnguqkn5KLFAP8oV6PHe2',
 		MARKETS: DevnetMarkets,
+		BANKS: DevnetBanks,
 	},
 	'mainnet-beta': {
 		ENV: 'mainnet-beta',
@@ -28,6 +31,7 @@ export const configs: { [key in DriftEnv]: DriftConfig } = {
 		CLEARING_HOUSE_PROGRAM_ID: 'dammHkt7jmytvbS3nHTxQNEcP59aE57nxwV21YdqEDN',
 		USDC_MINT_ADDRESS: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
 		MARKETS: MainnetMarkets,
+		BANKS: MainnetBanks,
 	},
 };
 
