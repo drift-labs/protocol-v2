@@ -822,12 +822,13 @@ pub fn calculate_budgeted_k_scale(
 
     assert!((numerator > 0 && denominator > 0));
 
-    assert!(budget >= 0);
+    // assert!(budget >= 0);
 
-    assert!(numerator <= denominator);
+    // assert!(numerator <= denominator);
 
     let (numerator, denominator) = if numerator > denominator {
-        let k_pct_upper_bound = K_BPS_UPDATE_SCALE + (K_BPS_INCREASE_MAX); // * curve_update_intensity / 100);
+        let k_pct_upper_bound =
+            K_BPS_UPDATE_SCALE + (K_BPS_INCREASE_MAX) * curve_update_intensity / 100;
 
         let current_pct_change = numerator
             .checked_mul(1000)
@@ -847,7 +848,8 @@ pub fn calculate_budgeted_k_scale(
             (numerator, denominator)
         }
     } else {
-        let k_pct_lower_bound = K_BPS_UPDATE_SCALE - (K_BPS_DECREASE_MAX); // * curve_update_intensity / 100);
+        let k_pct_lower_bound =
+            K_BPS_UPDATE_SCALE - (K_BPS_DECREASE_MAX) * curve_update_intensity / 100;
 
         let current_pct_change = numerator
             .checked_mul(1000)

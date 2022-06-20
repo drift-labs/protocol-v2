@@ -55,6 +55,7 @@ describe('clearing_house', () => {
 
 	const usdcAmount = new BN(10 * 10 ** 6);
 	let solUsd;
+	const mockOracles = [];
 
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
@@ -76,7 +77,7 @@ describe('clearing_house', () => {
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 		solUsd = await mockOracle(1);
-
+		mockOracles.push(solUsd);
 		await clearingHouse.initializeMarket(
 			solUsd,
 			ammInitialBaseAssetAmount,
@@ -88,6 +89,23 @@ describe('clearing_house', () => {
 		);
 		await clearingHouse.updateMarketBaseSpread(new BN(0), 2000);
 		await clearingHouse.updateCurveUpdateIntensity(new BN(0), 100);
+
+		for (let i = 1; i <= 4; i++) {
+			// init more markets
+			const thisUsd = await mockOracle(i);
+			mockOracles.push(thisUsd);
+			await clearingHouse.initializeMarket(
+				thisUsd,
+				ammInitialBaseAssetAmount,
+				ammInitialQuoteAssetAmount,
+				periodicity,
+				new BN(1_000 * i),
+				undefined,
+				1000
+			);
+			await clearingHouse.updateMarketBaseSpread(new BN(i), 2000);
+			await clearingHouse.updateCurveUpdateIntensity(new BN(i), 100);
+		}
 
 		[, userAccountPublicKey] =
 			await clearingHouse.initializeUserAccountAndDepositCollateral(
@@ -384,6 +402,68 @@ describe('clearing_house', () => {
 		assert.ok(tradeRecord.liquidation == false);
 		// assert.ok(tradeRecord.quoteAssetAmount.eq(new BN(24876237)));
 		assert.ok(tradeRecord.marketIndex.eq(new BN(0)));
+	});
+
+	it('Many market prepegs, long position', async () => {
+		for (let i = 1; i <= 4; i++) {
+			const thisUsd = mockOracles[i];
+			const marketIndex = new BN(i);
+			const baseAssetAmount = new BN(0.025 * 10e13);
+			const market0 = clearingHouse.getMarketAccount(i);
+			const orderParams = getMarketOrderParams(
+				marketIndex,
+				PositionDirection.LONG,
+				ZERO,
+				baseAssetAmount,
+				false
+			);
+
+			const curPrice = (await getFeedData(anchor.workspace.Pyth, thisUsd))
+				.price;
+			console.log('new oracle price:', curPrice);
+			const oraclePriceData = await getOraclePriceData(
+				anchor.workspace.Pyth,
+				thisUsd
+			);
+			const [_pctAvgSlippage, _pctMaxSlippage, _entryPrice, newPrice] =
+				calculateTradeSlippage(
+					PositionDirection.SHORT,
+					baseAssetAmount,
+					market0,
+					'base',
+					oraclePriceData
+				);
+
+			const [bid, ask] = calculateBidAskPrice(market0.amm, oraclePriceData);
+
+			console.log(
+				'bid/ask:',
+				convertToNumber(bid),
+				'/',
+				convertToNumber(ask),
+				'after trade est. mark price:',
+				convertToNumber(newPrice)
+			);
+			const txSig = await clearingHouse.placeAndFillOrder(orderParams);
+			const computeUnits = await findComputeUnitConsumption(
+				clearingHouse.program.programId,
+				connection,
+				txSig,
+				'confirmed'
+			);
+			console.log('compute units', computeUnits);
+			console.log(
+				'tx logs',
+				(await connection.getTransaction(txSig, { commitment: 'confirmed' }))
+					.meta.logMessages
+			);
+
+			const market = clearingHouse.getMarketAccount(i);
+			console.log(
+				'after trade mark price:',
+				convertToNumber(calculateMarkPrice(market, oraclePriceData))
+			);
+		}
 	});
 
 	// it('Reverse long position', async () => {

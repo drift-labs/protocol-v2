@@ -3,7 +3,7 @@ use crate::math::casting::cast_to_i128;
 
 use crate::error::ErrorCode;
 use crate::math::repeg;
-use crate::math::{amm, bn};
+use crate::math::{amm};
 use crate::math_error;
 use crate::state::market::Market;
 use crate::state::oracle::OraclePriceData;
@@ -77,7 +77,7 @@ pub fn prepeg(
     mark_price: u128,
     oracle_price_data: &OraclePriceData,
     fee_budget: u128,
-    _now: i64,
+    // _now: i64,
 ) -> ClearingHouseResult<i128> {
     // 0-100
     let curve_update_intensity = cast_to_i128(min(market.amm.curve_update_intensity, 100_u8))?;
@@ -120,94 +120,98 @@ pub fn prepeg(
     // let repeg_budget = min(fee_budget, repeg_pool_budget);
     let (optimal_peg_market, optimal_peg_cost) = repeg::adjust_peg_cost(market, optimal_peg)?;
     let prepeg_cost: i128;
-    if optimal_peg_cost > 0 && repeg_budget < optimal_peg_cost.unsigned_abs() {
-        msg!(
-            "optimal repeg cost {:?} exceeds budget: {:?}",
-            optimal_peg_cost,
-            repeg_budget
-        );
-        let deficit = optimal_peg_cost
-            .checked_sub(cast_to_i128(repeg_budget)?)
-            .ok_or_else(math_error!())?;
+    // if optimal_peg_cost > 0 && repeg_budget < optimal_peg_cost.unsigned_abs() {
+    //     msg!(
+    //         "optimal repeg cost {:?} exceeds budget: {:?}",
+    //         optimal_peg_cost,
+    //         repeg_budget
+    //     );
+    //     let deficit = optimal_peg_cost
+    //         .checked_sub(cast_to_i128(repeg_budget)?)
+    //         .ok_or_else(math_error!())?;
 
-        let (k_scale_numerator, k_scale_denominator) =
-            amm::calculate_budgeted_k_scale(market, -deficit, mark_price)?;
+    //     // let (k_scale_numerator, k_scale_denominator) =
+    //     //     amm::calculate_budgeted_k_scale(market, -deficit, mark_price)?;
+    //     let (k_scale_numerator, k_scale_denominator) = (1000, 1000);
 
-        let new_sqrt_k = bn::U192::from(market.amm.sqrt_k)
-            .checked_mul(bn::U192::from(k_scale_numerator))
-            .ok_or_else(math_error!())?
-            .checked_div(bn::U192::from(k_scale_denominator))
-            .ok_or_else(math_error!())?;
+    //     // let (k_scale_numerator, k_scale_denominator) = (975, 1000);
 
-        let update_k_result = amm::get_update_k_result(market, new_sqrt_k)?;
-        let adjustment_cost = amm::adjust_k_cost(market, &update_k_result)?;
-        amm::update_k(market, &update_k_result)?;
-        msg!(
-            "adjusting k by {:?}/{:?} to save {:?} (but attempted to save: {:?}",
-            k_scale_numerator,
-            k_scale_denominator,
-            adjustment_cost,
-            deficit
-        );
+    //     // let new_sqrt_k = bn::U192::from(market.amm.sqrt_k)
+    //     //     .checked_mul(bn::U192::from(k_scale_numerator))
+    //     //     .ok_or_else(math_error!())?
+    //     //     .checked_div(bn::U192::from(k_scale_denominator))
+    //     //     .ok_or_else(math_error!())?;
 
-        assert!(adjustment_cost < 0);
+    //     // let update_k_result = amm::get_update_k_result(market, new_sqrt_k)?;
+    //     // let adjustment_cost = amm::adjust_k_cost(market, &update_k_result)?;
+    //     // amm::update_k(market, &update_k_result)?;
+    //     let adjustment_cost: i128 = 0;
+    //     msg!(
+    //         "adjusting k by {:?}/{:?} to save {:?} (but attempted to save: {:?}",
+    //         k_scale_numerator,
+    //         k_scale_denominator,
+    //         adjustment_cost,
+    //         deficit
+    //     );
 
-        // let (terminal_price_before, terminal_quote_reserves, _terminal_base_reserves) =
-        //     amm::calculate_terminal_price_and_reserves(market)?;
+    //     assert!(adjustment_cost <= 0);
 
-        let (new_peg_candidate, _prepeg_cost, _repegged_market) = repeg::calculate_budgeted_peg(
-            market,
-            market.amm.terminal_quote_asset_reserve,
-            repeg_budget
-                .checked_add(adjustment_cost.unsigned_abs())
-                .ok_or_else(math_error!())?,
-            mark_price,
-            oracle_price_data,
-        )?;
-        msg!(
-            "new_peg_candidate {:?} costs {:?}",
-            new_peg_candidate,
-            _prepeg_cost,
-        );
-        // let (oracle_valid, _direction_valid, profitability_valid, price_impact_valid) =
-        //     repeg::calculate_repeg_validity(
-        //         &repegged_market,
-        //         oracle_price_data,
-        //         is_oracle_valid,
-        //         terminal_price_before,
-        //     )?;
-        // msg!(
-        //     "repeg validity: {:?} {:?} {:?}",
-        //     oracle_valid,
-        //     profitability_valid,
-        //     price_impact_valid,
-        // );
-        // any budgeted direction valid for formulaic
-        // if oracle_valid && profitability_valid && price_impact_valid {
-        let cost_applied = apply_cost_to_market(market, _prepeg_cost)?;
-        msg!(
-            "prepeg_cost: {:?} was applied: {:?}",
-            _prepeg_cost,
-            cost_applied
-        );
-        if cost_applied {
-            market.amm.peg_multiplier = new_peg_candidate;
-            // let peg_multiplier_after = market.amm.peg_multiplier;
-            // let base_asset_reserve_after = market.amm.base_asset_reserve;
-            // let quote_asset_reserve_after = market.amm.quote_asset_reserve;
-            // let sqrt_k_after = market.amm.sqrt_k;
-        }
-        prepeg_cost = _prepeg_cost;
-        // }
-    } else {
-        market.amm.peg_multiplier = optimal_peg_market.amm.peg_multiplier;
-        msg!(
-            "optimal repeg cost {:?} below budget: {:?}",
-            optimal_peg_cost,
-            repeg_budget
-        ); // assert_eq!(false, true);
-        prepeg_cost = optimal_peg_cost;
-    }
+    //     // let (terminal_price_before, terminal_quote_reserves, _terminal_base_reserves) =
+    //     //     amm::calculate_terminal_price_and_reserves(market)?;
+
+    //     let (new_peg_candidate, _prepeg_cost, _repegged_market) = repeg::calculate_budgeted_peg(
+    //         market,
+    //         market.amm.terminal_quote_asset_reserve,
+    //         repeg_budget
+    //             .checked_add(adjustment_cost.unsigned_abs())
+    //             .ok_or_else(math_error!())?,
+    //         // mark_price,
+    //         optimal_peg,
+    //     )?;
+    //     msg!(
+    //         "new_peg_candidate {:?} costs {:?}",
+    //         new_peg_candidate,
+    //         _prepeg_cost,
+    //     );
+    //     // let (oracle_valid, _direction_valid, profitability_valid, price_impact_valid) =
+    //     //     repeg::calculate_repeg_validity(
+    //     //         &repegged_market,
+    //     //         oracle_price_data,
+    //     //         is_oracle_valid,
+    //     //         terminal_price_before,
+    //     //     )?;
+    //     // msg!(
+    //     //     "repeg validity: {:?} {:?} {:?}",
+    //     //     oracle_valid,
+    //     //     profitability_valid,
+    //     //     price_impact_valid,
+    //     // );
+    //     // any budgeted direction valid for formulaic
+    //     // if oracle_valid && profitability_valid && price_impact_valid {
+    //     let cost_applied = apply_cost_to_market(market, _prepeg_cost)?;
+    //     msg!(
+    //         "prepeg_cost: {:?} was applied: {:?}",
+    //         _prepeg_cost,
+    //         cost_applied
+    //     );
+    //     if cost_applied {
+    //         market.amm.peg_multiplier = new_peg_candidate;
+    //         // let peg_multiplier_after = market.amm.peg_multiplier;
+    //         // let base_asset_reserve_after = market.amm.base_asset_reserve;
+    //         // let quote_asset_reserve_after = market.amm.quote_asset_reserve;
+    //         // let sqrt_k_after = market.amm.sqrt_k;
+    //     }
+    //     prepeg_cost = _prepeg_cost;
+    //     // }
+    // } else {
+    market.amm.peg_multiplier = optimal_peg_market.amm.peg_multiplier;
+    msg!(
+        "optimal repeg cost {:?} below budget: {:?}",
+        optimal_peg_cost,
+        repeg_budget
+    ); // assert_eq!(false, true);
+    prepeg_cost = optimal_peg_cost;
+    // }
 
     Ok(prepeg_cost)
 }

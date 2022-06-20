@@ -238,22 +238,57 @@ pub fn calculate_amm_target_price(
     Ok(target_price)
 }
 
-pub fn calculate_budgeted_peg(
-    market: &mut Market,
-    terminal_quote_reserves: u128,
-    budget: u128,
-    current_price: u128,
+pub fn calculate_prepeg_market(
+    market: &Market,
     oracle_price_data: &OraclePriceData,
-) -> ClearingHouseResult<(u128, i128, Market)> {
-    let target_price = calculate_amm_target_price(&market.amm, current_price, oracle_price_data)?;
+    fee_budget: u128,
+) -> ClearingHouseResult<AMM> {
+    let target_price =
+        calculate_amm_target_price(&market.amm, market.amm.mark_price()?, oracle_price_data)?;
+
     let optimal_peg = calculate_peg_from_target_price(
         market.amm.quote_asset_reserve,
         market.amm.base_asset_reserve,
         target_price,
     )?;
 
+    let (capped_candidate_peg, _candidate_cost, repegged_market) = calculate_budgeted_peg(
+        market,
+        market.amm.terminal_quote_asset_reserve,
+        fee_budget,
+        optimal_peg,
+    )?;
+
+    // msg!(
+    //     "[OPTIMAL PREPEG AMM for marging system]
+    //     target_price: {:?}, optimal_peg: {:?},
+    //     calc'd peg: {:?}
+    //     ",
+    //     target_price,
+    //     optimal_peg,
+    //     capped_candidate_peg,
+    // );
+
+    Ok(repegged_market.amm)
+}
+
+pub fn calculate_budgeted_peg(
+    market: &Market,
+    terminal_quote_reserves: u128,
+    budget: u128,
+    // current_price: u128,
+    optimal_peg: u128,
+) -> ClearingHouseResult<(u128, i128, Market)> {
+    // let target_price = calculate_amm_target_price(&market.amm, current_price, oracle_price_data)?;
+    // let optimal_peg = calculate_peg_from_target_price(
+    //     market.amm.quote_asset_reserve,
+    //     market.amm.base_asset_reserve,
+    //     target_price,
+    // )?;
+
     // 0-100
     let curve_update_intensity = cast_to_i128(min(market.amm.curve_update_intensity, 100_u8))?;
+    let current_peg = market.amm.peg_multiplier;
 
     // return early
     if optimal_peg == market.amm.peg_multiplier || curve_update_intensity == 0 {
@@ -321,8 +356,8 @@ pub fn calculate_budgeted_peg(
     };
 
     // avoid overshooting past target price w/ budget
-    let candidate_peg: u128 = if (current_price > target_price && full_budget_peg < optimal_peg)
-        || (current_price < target_price && full_budget_peg > optimal_peg)
+    let candidate_peg: u128 = if (current_peg > optimal_peg && full_budget_peg < optimal_peg)
+        || (current_peg < optimal_peg && full_budget_peg > optimal_peg)
     {
         optimal_peg
     } else {

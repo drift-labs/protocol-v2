@@ -354,7 +354,7 @@ pub fn fill_order(
             mark_price_before,
             oracle_price_data,
             prepeg_budget,
-            now,
+            // now,
         )?;
         let mark_price_after_prepeg = market.amm.mark_price()?;
 

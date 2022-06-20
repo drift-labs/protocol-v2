@@ -9,8 +9,14 @@ import {
 	PRICE_TO_QUOTE_PRECISION,
 	ZERO,
 } from '../constants/numericConstants';
+import { OraclePriceData } from '../oracles/types';
 import { MarketAccount, PositionDirection, UserPosition } from '../types';
-import { calculateAmmReservesAfterSwap, getSwapDirection } from './amm';
+import {
+	calculatePrepegAMM,
+	calculatePrepegSpreadReserves,
+	calculateAmmReservesAfterSwap,
+	getSwapDirection,
+} from './amm';
 
 /**
  * calculateBaseAssetValue
@@ -21,16 +27,35 @@ import { calculateAmmReservesAfterSwap, getSwapDirection } from './amm';
  */
 export function calculateBaseAssetValue(
 	market: MarketAccount,
-	userPosition: UserPosition
+	userPosition: UserPosition,
+	oraclePriceData: OraclePriceData
 ): BN {
 	if (userPosition.baseAssetAmount.eq(ZERO)) {
 		return ZERO;
 	}
 
 	const directionToClose = findDirectionToClose(userPosition);
+	let prepegAmm: Parameters<typeof calculateAmmReservesAfterSwap>[0];
+
+	if (market.amm.baseSpread > 0) {
+		const { baseAssetReserve, quoteAssetReserve, sqrtK, newPeg } =
+			calculatePrepegSpreadReserves(
+				market.amm,
+				directionToClose,
+				oraclePriceData
+			);
+		prepegAmm = {
+			baseAssetReserve,
+			quoteAssetReserve,
+			sqrtK: sqrtK,
+			pegMultiplier: newPeg,
+		};
+	} else {
+		prepegAmm = calculatePrepegAMM(market.amm, oraclePriceData);
+	}
 
 	const [newQuoteAssetReserve, _] = calculateAmmReservesAfterSwap(
-		market.amm,
+		prepegAmm,
 		'base',
 		userPosition.baseAssetAmount.abs(),
 		getSwapDirection('base', directionToClose)
@@ -38,15 +63,15 @@ export function calculateBaseAssetValue(
 
 	switch (directionToClose) {
 		case PositionDirection.SHORT:
-			return market.amm.quoteAssetReserve
+			return prepegAmm.quoteAssetReserve
 				.sub(newQuoteAssetReserve)
-				.mul(market.amm.pegMultiplier)
+				.mul(prepegAmm.pegMultiplier)
 				.div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO);
 
 		case PositionDirection.LONG:
 			return newQuoteAssetReserve
-				.sub(market.amm.quoteAssetReserve)
-				.mul(market.amm.pegMultiplier)
+				.sub(prepegAmm.quoteAssetReserve)
+				.mul(prepegAmm.pegMultiplier)
 				.div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO)
 				.add(ONE);
 	}
@@ -63,13 +88,18 @@ export function calculateBaseAssetValue(
 export function calculatePositionPNL(
 	market: MarketAccount,
 	marketPosition: UserPosition,
-	withFunding = false
+	withFunding = false,
+	oraclePriceData?: OraclePriceData
 ): BN {
 	if (marketPosition.baseAssetAmount.eq(ZERO)) {
 		return ZERO;
 	}
 
-	const baseAssetValue = calculateBaseAssetValue(market, marketPosition);
+	const baseAssetValue = calculateBaseAssetValue(
+		market,
+		marketPosition,
+		oraclePriceData
+	);
 
 	let pnl;
 	if (marketPosition.baseAssetAmount.gt(ZERO)) {
