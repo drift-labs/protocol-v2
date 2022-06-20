@@ -17,7 +17,6 @@ import {
 	initializeQuoteAssetBank,
 } from './testHelpers';
 import { PublicKey } from '@solana/web3.js';
-import { Markets } from '../sdk/src/constants/markets';
 
 describe('admin', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -66,7 +65,7 @@ describe('admin', () => {
 		const marginRatioMaintenance = 1000;
 
 		await clearingHouse.updateMarginRatio(
-			Markets[0].marketIndex,
+			new BN(0),
 			marginRatioInitial,
 			marginRatioPartial,
 			marginRatioMaintenance
@@ -266,7 +265,7 @@ describe('admin', () => {
 		const newOracleSource = OracleSource.SWITCHBOARD;
 
 		await clearingHouse.updateMarketOracle(
-			Markets[0].marketIndex,
+			new BN(0),
 			newOracle,
 			newOracleSource
 		);
@@ -284,7 +283,7 @@ describe('admin', () => {
 		const minimumTradeSize = new BN(1);
 
 		await clearingHouse.updateMarketMinimumQuoteAssetTradeSize(
-			Markets[0].marketIndex,
+			new BN(0),
 			minimumTradeSize
 		);
 
@@ -297,7 +296,7 @@ describe('admin', () => {
 		const minimumTradeSize = new BN(2);
 
 		await clearingHouse.updateMarketMinimumBaseAssetTradeSize(
-			Markets[0].marketIndex,
+			new BN(0),
 			minimumTradeSize
 		);
 

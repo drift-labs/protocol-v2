@@ -20,8 +20,6 @@ import {
 	squareRootBN,
 } from '../sdk/src';
 
-import { Markets } from '../sdk/src/constants/markets';
-
 import {
 	createPriceFeed,
 	mockUSDCMint,
@@ -99,7 +97,7 @@ describe('update k', () => {
 	});
 
 	it('increase k (FREE)', async () => {
-		const marketIndex = Markets[0].marketIndex;
+		const marketIndex = new BN(0);
 
 		const oldKPrice = calculateMarkPrice(
 			clearingHouse.getMarketAccount(marketIndex)
@@ -142,7 +140,7 @@ describe('update k', () => {
 			userUSDCAccount.publicKey
 		);
 
-		const marketIndex = Markets[0].marketIndex;
+		const marketIndex = new BN(0);
 
 		const targetPriceUp = new BN(
 			initialSOLPrice * MARK_PRICE_PRECISION.toNumber() * 44.1
@@ -204,7 +202,7 @@ describe('update k', () => {
 	});
 
 	it('failure: lower k (more than 2.5%) position imbalance (AMM PROFIT)', async () => {
-		const marketIndex = Markets[0].marketIndex;
+		const marketIndex = new BN(0);
 
 		const targetPriceBack = new BN(
 			initialSOLPrice * MARK_PRICE_PRECISION.toNumber()
@@ -295,7 +293,7 @@ describe('update k', () => {
 		}
 	});
 	it('lower k (2%) position imbalance (AMM PROFIT)', async () => {
-		const marketIndex = Markets[0].marketIndex;
+		const marketIndex = new BN(0);
 
 		const targetPriceBack = new BN(
 			initialSOLPrice * MARK_PRICE_PRECISION.toNumber()
@@ -402,7 +400,7 @@ describe('update k', () => {
 		// assert(amm.totalFeeMinusDistributions.lt(ammOld.totalFeeMinusDistributions));
 	});
 	it('increase k position imbalance (AMM LOSS)', async () => {
-		const marketIndex = Markets[0].marketIndex;
+		const marketIndex = new BN(0);
 		const targetPriceBack = new BN(
 			initialSOLPrice * MARK_PRICE_PRECISION.toNumber()
 		);

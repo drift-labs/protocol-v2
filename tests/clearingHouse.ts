@@ -23,8 +23,6 @@ import {
 	QUOTE_ASSET_BANK_INDEX,
 } from '../sdk/src';
 
-import { Markets } from '../sdk/src/constants/markets';
-
 import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
@@ -117,7 +115,7 @@ describe('clearing_house', () => {
 		const solUsd = await mockOracle(1);
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		const marketIndex = Markets[0].marketIndex;
+		const marketIndex = new BN(0);
 		const txSig = await clearingHouse.initializeMarket(
 			solUsd,
 			ammInitialBaseAssetAmount,

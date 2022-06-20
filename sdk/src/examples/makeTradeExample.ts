@@ -7,7 +7,6 @@ import {
 	ClearingHouse,
 	ClearingHouseUser,
 	initialize,
-	Markets,
 	PositionDirection,
 	convertToNumber,
 	calculateTradeSlippage,
@@ -91,7 +90,7 @@ const main = async () => {
 	await user.subscribe();
 
 	// Get current price
-	const solMarketInfo = Markets.find(
+	const solMarketInfo = sdkConfig.MARKETS.find(
 		(market) => market.baseAssetSymbol === 'SOL'
 	);
 
