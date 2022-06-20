@@ -163,9 +163,9 @@ export class ClearingHouse {
 		return this.accountSubscriber.getStateAccountAndSlot().account;
 	}
 
-	public getMarketAccount(marketIndex: BN | number): MarketAccount {
+	public getMarketAccount(marketIndex: BN | number): MarketAccount | undefined {
 		marketIndex = marketIndex instanceof BN ? marketIndex : new BN(marketIndex);
-		return this.accountSubscriber.getMarketAccountAndSlot(marketIndex).account;
+		return this.accountSubscriber.getMarketAccountAndSlot(marketIndex)?.account;
 	}
 
 	public getBankAccount(bankIndex: BN | number): BankAccount | undefined {
