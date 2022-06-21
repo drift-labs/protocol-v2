@@ -23,6 +23,7 @@ import {
  * = market value of closing entire position
  * @param market
  * @param userPosition
+ * @param oraclePriceData
  * @returns Base Asset Value. : Precision QUOTE_PRECISION
  */
 export function calculateBaseAssetValue(

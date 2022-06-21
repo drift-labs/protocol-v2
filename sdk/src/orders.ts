@@ -292,7 +292,11 @@ export function calculateBaseAssetAmountUserCanExecute(
 		const position =
 			user.getUserPosition(order.marketIndex) ||
 			user.getEmptyPosition(order.marketIndex);
-		const positionValue = calculateBaseAssetValue(market, position);
+		const positionValue = calculateBaseAssetValue(
+			market,
+			position,
+			oraclePriceData
+		);
 		quoteAssetAmount = freeCollateral
 			.mul(maxLeverage)
 			.div(TEN_THOUSAND)
