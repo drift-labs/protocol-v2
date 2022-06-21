@@ -536,7 +536,7 @@ export class ClearingHouseUser {
 		marketPosition: Pick<UserPosition, 'marketIndex'>,
 		positionBaseSizeChange: BN = ZERO,
 		partial = false,
-		oraclePriceData?: OraclePriceData
+		oraclePriceData: OraclePriceData
 	): BN {
 		// solves formula for example canBeLiquidated below
 
@@ -702,7 +702,8 @@ export class ClearingHouseUser {
 	 */
 	public liquidationPriceAfterClose(
 		positionMarketIndex: BN,
-		closeQuoteAmount: BN
+		closeQuoteAmount: BN,
+		oraclePriceData: OraclePriceData
 	): BN {
 		const currentPosition =
 			this.getUserPosition(positionMarketIndex) ||
@@ -722,7 +723,9 @@ export class ClearingHouseUser {
 			{
 				marketIndex: positionMarketIndex,
 			},
-			closeBaseAmount
+			closeBaseAmount,
+			true,
+			oraclePriceData
 		);
 	}
 
