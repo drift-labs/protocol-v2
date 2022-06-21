@@ -27,7 +27,7 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 	accountsToPoll = new Map<string, AccountToPoll>();
 	errorCallbackId?: string;
 
-	userAccountAndSlot?: AccountAndSlot<UserAccount>;
+	user?: AccountAndSlot<UserAccount>;
 
 	type: ClearingHouseConfigType = 'polling';
 
@@ -187,6 +187,6 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 
 	public getUserAccountAndSlot(): AccountAndSlot<UserAccount> {
 		this.assertIsSubscribed();
-		return this.userAccountAndSlot;
+		return this.user;
 	}
 }
