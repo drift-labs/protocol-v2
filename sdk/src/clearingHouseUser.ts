@@ -243,11 +243,7 @@ export class ClearingHouseUser {
 	 * calculates unrealized position price pnl
 	 * @returns : Precision QUOTE_PRECISION
 	 */
-	public getUnrealizedPNL(
-		withFunding?: boolean,
-		marketIndex?: BN,
-		oraclePriceData?: OraclePriceData
-	): BN {
+	public getUnrealizedPNL(withFunding?: boolean, marketIndex?: BN): BN {
 		return this.getUserAccount()
 			.positions.filter((pos) =>
 				marketIndex ? pos.marketIndex === marketIndex : true
@@ -261,7 +257,7 @@ export class ClearingHouseUser {
 						market,
 						marketPosition,
 						withFunding,
-						oraclePriceData
+						this.getOracleDataForMarket(market.marketIndex)
 					)
 				);
 			}, ZERO);
@@ -302,7 +298,7 @@ export class ClearingHouseUser {
 	 * calculates TotalCollateral: collateral + unrealized pnl
 	 * @returns : Precision QUOTE_PRECISION
 	 */
-	public getTotalCollateral(oraclePriceData?: OraclePriceData): BN {
+	public getTotalCollateral(): BN {
 		return this.getUserAccount()
 			.bankBalances.reduce((totalAssetValue, bankBalance) => {
 				if (
@@ -328,7 +324,7 @@ export class ClearingHouseUser {
 						.div(BANK_WEIGHT_PRECISION)
 				);
 			}, ZERO)
-			.add(this.getUnrealizedPNL(true, undefined, oraclePriceData))
+			.add(this.getUnrealizedPNL(true))
 			.add(this.getUnsettledPNL());
 	}
 
@@ -356,7 +352,7 @@ export class ClearingHouseUser {
 	 */
 	public getPositionValue(
 		marketIndex: BN,
-		oraclePriceData?: OraclePriceData
+		oraclePriceData: OraclePriceData
 	): BN {
 		const userPosition =
 			this.getUserPosition(marketIndex) || this.getEmptyPosition(marketIndex);
@@ -384,12 +380,13 @@ export class ClearingHouseUser {
 	 */
 	public getPositionEstimatedExitPriceAndPnl(
 		position: UserPosition,
-		amountToClose?: BN,
-		oraclePriceData?: OraclePriceData
+		amountToClose?: BN
 	): [BN, BN] {
 		const market = this.clearingHouse.getMarketAccount(position.marketIndex);
 
 		const entryPrice = calculateEntryPrice(position);
+
+		const oraclePriceData = this.getOracleDataForMarket(position.marketIndex);
 
 		if (amountToClose) {
 			if (amountToClose.eq(ZERO)) {
@@ -482,13 +479,11 @@ export class ClearingHouseUser {
 			return BN_MAX;
 		}
 
-		return this.getTotalCollateral(oraclePriceData)
-			.mul(TEN_THOUSAND)
-			.div(totalPositionValue);
+		return this.getTotalCollateral().mul(TEN_THOUSAND).div(totalPositionValue);
 	}
 
 	public canBeLiquidated(oraclePriceData?: OraclePriceData): [boolean, BN] {
-		const totalCollateral = this.getTotalCollateral(oraclePriceData);
+		const totalCollateral = this.getTotalCollateral();
 		const partialMaintenanceRequirement =
 			this.getPartialMarginRequirement(oraclePriceData);
 		const marginRatio = this.getMarginRatio(oraclePriceData);
@@ -550,7 +545,7 @@ export class ClearingHouseUser {
         for 10x long, BTC down $400:
         3. (10k - 4k) / (100k - 4k) = 6k/96k => .0625 */
 
-		const totalCollateral = this.getTotalCollateral(oraclePriceData);
+		const totalCollateral = this.getTotalCollateral();
 
 		// calculate the total position value ignoring any value from the target market of the trade
 		const totalPositionValueExcludingTargetMarket =
@@ -768,10 +763,12 @@ export class ClearingHouseUser {
 			? true
 			: targetSide === currentPositionSide;
 
+		const oracleData = this.getOracleDataForMarket(targetMarketIndex);
+
 		// add any position we have on the opposite side of the current trade, because we can "flip" the size of this position without taking any extra leverage.
 		const oppositeSizeValueUSDC = targetingSameSide
 			? ZERO
-			: this.getPositionValue(targetMarketIndex);
+			: this.getPositionValue(targetMarketIndex, oracleData);
 
 		let maxPositionSize = this.getBuyingPower(targetMarketIndex);
 		if (maxPositionSize.gte(ZERO)) {
@@ -789,7 +786,10 @@ export class ClearingHouseUser {
 
 			if (!targetingSameSide) {
 				const market = this.clearingHouse.getMarketAccount(targetMarketIndex);
-				const marketPositionValue = this.getPositionValue(targetMarketIndex);
+				const marketPositionValue = this.getPositionValue(
+					targetMarketIndex,
+					oracleData
+				);
 				const totalCollateral = this.getTotalCollateral();
 				const marginRequirement = this.getInitialMarginRequirement();
 				const marginFreedByClosing = marketPositionValue
@@ -838,7 +838,12 @@ export class ClearingHouseUser {
 			this.getUserPosition(targetMarketIndex) ||
 			this.getEmptyPosition(targetMarketIndex);
 
-		let currentPositionQuoteAmount = this.getPositionValue(targetMarketIndex);
+		const oracleData = this.getOracleDataForMarket(targetMarketIndex);
+
+		let currentPositionQuoteAmount = this.getPositionValue(
+			targetMarketIndex,
+			oracleData
+		);
 
 		const currentSide =
 			currentPosition && currentPosition.baseAssetAmount.isNeg()
@@ -894,11 +899,33 @@ export class ClearingHouseUser {
 			this.getUserPosition(marketToIgnore) ||
 			this.getEmptyPosition(marketToIgnore);
 
+		const oracleData = this.getOracleDataForMarket(marketToIgnore);
+
 		let currentMarketPositionValueUSDC = ZERO;
 		if (currentMarketPosition) {
-			currentMarketPositionValueUSDC = this.getPositionValue(marketToIgnore);
+			currentMarketPositionValueUSDC = this.getPositionValue(
+				marketToIgnore,
+				oracleData
+			);
 		}
 
 		return this.getTotalPositionValue().sub(currentMarketPositionValueUSDC);
+	}
+
+	private getOracleDataForMarket(marketIndex: BN): OraclePriceData {
+		const oracleKey =
+			this.clearingHouse.getMarketAccount(marketIndex).amm.oracle;
+		const oracleData =
+			this.clearingHouse.getOraclePriceDataAndSlot(oracleKey).data;
+
+		return oracleData;
+	}
+	private getOracleDataForBank(bankIndex: BN): OraclePriceData {
+		const oracleKey = this.clearingHouse.getBankAccount(bankIndex).oracle;
+
+		const oracleData =
+			this.clearingHouse.getOraclePriceDataAndSlot(oracleKey).data;
+
+		return oracleData;
 	}
 }

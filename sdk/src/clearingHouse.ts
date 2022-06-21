@@ -1509,16 +1509,10 @@ export class ClearingHouse {
 	}
 
 	public async settleFundingPayment(
-		userAccount: PublicKey,
-		userPositionsAccountPublicKey: PublicKey
+		userAccount: PublicKey
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.txSender.send(
-			wrapInTx(
-				await this.getSettleFundingPaymentIx(
-					userAccount,
-					userPositionsAccountPublicKey
-				)
-			),
+			wrapInTx(await this.getSettleFundingPaymentIx(userAccount)),
 			[],
 			this.opts
 		);
@@ -1526,16 +1520,16 @@ export class ClearingHouse {
 	}
 
 	public async getSettleFundingPaymentIx(
-		userAccount: PublicKey,
-		userPositionsAccountPublicKey: PublicKey
+		userAccount: PublicKey
 	): Promise<TransactionInstruction> {
-		const liquidateePositions: any =
-			await this.program.account.userPositions.fetch(
-				userPositionsAccountPublicKey
-			);
+		const user = (await this.program.account.user.fetch(
+			userAccount
+		)) as UserAccount;
+
+		const userPositions = user.positions;
 
 		const remainingAccounts = [];
-		for (const position of liquidateePositions.positions) {
+		for (const position of userPositions) {
 			if (!positionIsAvailable(position)) {
 				const marketPublicKey = await getMarketPublicKey(
 					this.program.programId,
@@ -1553,7 +1547,6 @@ export class ClearingHouse {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				user: userAccount,
-				userPositions: userPositionsAccountPublicKey,
 			},
 			remainingAccounts,
 		});
@@ -1561,5 +1554,12 @@ export class ClearingHouse {
 
 	public triggerEvent(eventName: keyof ClearingHouseAccountEvents, data?: any) {
 		this.eventEmitter.emit(eventName, data);
+	}
+
+	public getOracleDataForMarket(marketIndex: BN): OraclePriceData {
+		const oracleKey = this.getMarketAccount(marketIndex).amm.oracle;
+		const oracleData = this.getOraclePriceDataAndSlot(oracleKey).data;
+
+		return oracleData;
 	}
 }
