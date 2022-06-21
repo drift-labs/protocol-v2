@@ -34,7 +34,11 @@ describe('AMM Curve', () => {
 	const clearingHouse = Admin.from(
 		connection,
 		provider.wallet,
-		chProgram.programId
+		chProgram.programId,
+		undefined,
+		0,
+		[new BN(0)],
+		[new BN(0)]
 	);
 
 	const ammInitialQuoteAssetAmount = new anchor.BN(10 ** 8).mul(

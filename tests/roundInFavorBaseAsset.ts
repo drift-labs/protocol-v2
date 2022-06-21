@@ -1,6 +1,6 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
-import { BN, getMarketOrderParams, Wallet, ZERO } from '../sdk';
+import { BN, getMarketOrderParams, OracleSource, Wallet, ZERO } from '../sdk';
 
 import { Program } from '@project-serum/anchor';
 
@@ -32,20 +32,34 @@ describe('round in favor', () => {
 
 	const usdcAmount = new BN(9999 * 10 ** 3);
 
+	let marketIndexes;
+	let bankIndexes;
+	let oracleInfos;
+
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
+
+		const solUsd = await mockOracle(63000);
+
+		marketIndexes = [new BN(0)];
+		bankIndexes = [new BN(0)];
+		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
 
 		primaryClearingHouse = Admin.from(
 			connection,
 			provider.wallet,
-			chProgram.programId
+			chProgram.programId,
+			undefined,
+			0,
+			marketIndexes,
+			bankIndexes,
+			oracleInfos
 		);
 		await primaryClearingHouse.initialize(usdcMint.publicKey, true);
 		await primaryClearingHouse.subscribe();
 
 		await initializeQuoteAssetBank(primaryClearingHouse, usdcMint.publicKey);
 
-		const solUsd = await mockOracle(63000);
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await primaryClearingHouse.initializeMarket(
@@ -109,7 +123,12 @@ describe('round in favor', () => {
 		const clearingHouse = ClearingHouse.from(
 			connection,
 			wallet,
-			chProgram.programId
+			chProgram.programId,
+			undefined,
+			0,
+			marketIndexes,
+			bankIndexes,
+			oracleInfos
 		);
 		await clearingHouse.subscribe();
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
@@ -154,7 +173,12 @@ describe('round in favor', () => {
 		const clearingHouse = ClearingHouse.from(
 			connection,
 			wallet,
-			chProgram.programId
+			chProgram.programId,
+			undefined,
+			0,
+			marketIndexes,
+			bankIndexes,
+			oracleInfos
 		);
 		await clearingHouse.subscribe();
 

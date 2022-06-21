@@ -26,7 +26,7 @@ import {
 	setFeedPrice,
 	initializeQuoteAssetBank,
 } from './testHelpers';
-import { BASE_PRECISION, ZERO } from '../sdk';
+import { BASE_PRECISION, OracleSource, ZERO } from '../sdk';
 
 describe('trigger orders', () => {
 	const provider = anchor.AnchorProvider.local();
@@ -53,19 +53,37 @@ describe('trigger orders', () => {
 
 	let solUsd;
 
+	let marketIndexes;
+	let bankIndexes;
+	let oracleInfos;
+
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
+		solUsd = await mockOracle(1);
+		marketIndexes = [new BN(0)];
+		bankIndexes = [new BN(0)];
+		oracleInfos = [
+			{
+				publicKey: solUsd,
+				source: OracleSource.PYTH,
+			},
+		];
+
 		fillerClearingHouse = Admin.from(
 			connection,
 			provider.wallet,
-			chProgram.programId
+			chProgram.programId,
+			undefined,
+			0,
+			marketIndexes,
+			bankIndexes,
+			oracleInfos
 		);
 		await fillerClearingHouse.initialize(usdcMint.publicKey, true);
 		await fillerClearingHouse.subscribe();
 		await initializeQuoteAssetBank(fillerClearingHouse, usdcMint.publicKey);
-		solUsd = await mockOracle(1);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
@@ -115,7 +133,12 @@ describe('trigger orders', () => {
 		const clearingHouse = ClearingHouse.from(
 			connection,
 			wallet,
-			chProgram.programId
+			chProgram.programId,
+			undefined,
+			0,
+			marketIndexes,
+			bankIndexes,
+			oracleInfos
 		);
 		await clearingHouse.subscribe();
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
@@ -203,7 +226,12 @@ describe('trigger orders', () => {
 		const clearingHouse = ClearingHouse.from(
 			connection,
 			wallet,
-			chProgram.programId
+			chProgram.programId,
+			undefined,
+			0,
+			marketIndexes,
+			bankIndexes,
+			oracleInfos
 		);
 		await clearingHouse.subscribe();
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
@@ -292,7 +320,12 @@ describe('trigger orders', () => {
 		const clearingHouse = ClearingHouse.from(
 			connection,
 			wallet,
-			chProgram.programId
+			chProgram.programId,
+			undefined,
+			0,
+			marketIndexes,
+			bankIndexes,
+			oracleInfos
 		);
 		await clearingHouse.subscribe();
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
@@ -380,7 +413,12 @@ describe('trigger orders', () => {
 		const clearingHouse = ClearingHouse.from(
 			connection,
 			wallet,
-			chProgram.programId
+			chProgram.programId,
+			undefined,
+			0,
+			marketIndexes,
+			bankIndexes,
+			oracleInfos
 		);
 		await clearingHouse.subscribe();
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
@@ -469,7 +507,12 @@ describe('trigger orders', () => {
 		const clearingHouse = ClearingHouse.from(
 			connection,
 			wallet,
-			chProgram.programId
+			chProgram.programId,
+			undefined,
+			0,
+			marketIndexes,
+			bankIndexes,
+			oracleInfos
 		);
 		await clearingHouse.subscribe();
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
@@ -557,7 +600,12 @@ describe('trigger orders', () => {
 		const clearingHouse = ClearingHouse.from(
 			connection,
 			wallet,
-			chProgram.programId
+			chProgram.programId,
+			undefined,
+			0,
+			marketIndexes,
+			bankIndexes,
+			oracleInfos
 		);
 		await clearingHouse.subscribe();
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
@@ -646,7 +694,12 @@ describe('trigger orders', () => {
 		const clearingHouse = ClearingHouse.from(
 			connection,
 			wallet,
-			chProgram.programId
+			chProgram.programId,
+			undefined,
+			0,
+			marketIndexes,
+			bankIndexes,
+			oracleInfos
 		);
 		await clearingHouse.subscribe();
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
@@ -734,7 +787,12 @@ describe('trigger orders', () => {
 		const clearingHouse = ClearingHouse.from(
 			connection,
 			wallet,
-			chProgram.programId
+			chProgram.programId,
+			undefined,
+			0,
+			marketIndexes,
+			bankIndexes,
+			oracleInfos
 		);
 		await clearingHouse.subscribe();
 		await clearingHouse.initializeUserAccountAndDepositCollateral(

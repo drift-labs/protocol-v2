@@ -8,7 +8,7 @@ import {
 } from './testHelpers';
 import { Admin, ClearingHouseUser, PEG_PRECISION } from '../sdk/src';
 import { Keypair } from '@solana/web3.js';
-import { BN, QUOTE_ASSET_BANK_INDEX } from '../sdk';
+import { BN, OracleSource, QUOTE_ASSET_BANK_INDEX } from '../sdk';
 import { assert } from 'chai';
 import { MAX_LEVERAGE, PositionDirection } from '../sdk/src';
 
@@ -18,11 +18,7 @@ describe('User Account', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.ClearingHouse as Program;
 
-	const clearingHouse = Admin.from(
-		connection,
-		provider.wallet,
-		chProgram.programId
-	);
+	let clearingHouse;
 
 	const ammInitialQuoteAssetAmount = new anchor.BN(2 * 10 ** 12).mul(
 		new BN(10 ** 6)
@@ -52,15 +48,27 @@ describe('User Account', () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
+		solUsdOracle = await createPriceFeed({
+			oracleProgram: anchor.workspace.Pyth,
+			initPrice: initialSOLPrice,
+		});
+
+		clearingHouse = Admin.from(
+			connection,
+			provider.wallet,
+			chProgram.programId,
+			undefined,
+			0,
+			[new BN(0)],
+			[new BN(0)],
+			[{ publicKey: solUsdOracle, source: OracleSource.PYTH }]
+		);
+
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
 
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
 
-		solUsdOracle = await createPriceFeed({
-			oracleProgram: anchor.workspace.Pyth,
-			initPrice: initialSOLPrice,
-		});
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await clearingHouse.initializeMarket(

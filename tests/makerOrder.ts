@@ -28,6 +28,7 @@ import {
 	calculateMarkPrice,
 	getLimitOrderParams,
 	isVariant,
+	OracleSource,
 	ZERO,
 } from '../sdk';
 
@@ -60,10 +61,19 @@ describe('maker order', () => {
 	const usdcAmount = new BN(10 * 10 ** 6);
 
 	let solUsd;
+	let marketIndexes;
+	let bankIndexes;
+	let oracleInfos;
 
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
+
+		solUsd = await mockOracle(1);
+
+		marketIndexes = [new BN(0)];
+		bankIndexes = [new BN(0)];
+		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
 
 		fillerClearingHouse = Admin.from(
 			connection,
@@ -71,12 +81,15 @@ describe('maker order', () => {
 			chProgram.programId,
 			{
 				commitment: 'confirmed',
-			}
+			},
+			0,
+			marketIndexes,
+			bankIndexes,
+			oracleInfos
 		);
 		await fillerClearingHouse.initialize(usdcMint.publicKey, true);
 		await fillerClearingHouse.subscribe();
 		await initializeQuoteAssetBank(fillerClearingHouse, usdcMint.publicKey);
-		solUsd = await mockOracle(1);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
@@ -130,7 +143,11 @@ describe('maker order', () => {
 			chProgram.programId,
 			{
 				commitment: 'confirmed',
-			}
+			},
+			0,
+			marketIndexes,
+			bankIndexes,
+			oracleInfos
 		);
 		await clearingHouse.subscribe();
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
@@ -216,7 +233,11 @@ describe('maker order', () => {
 			chProgram.programId,
 			{
 				commitment: 'confirmed',
-			}
+			},
+			0,
+			marketIndexes,
+			bankIndexes,
+			oracleInfos
 		);
 		await clearingHouse.subscribe();
 		await clearingHouse.initializeUserAccountAndDepositCollateral(

@@ -14,7 +14,9 @@ export async function initUserAccounts(
 	NUM_USERS,
 	usdcMint,
 	usdcAmount,
-	provider: anchor.Provider
+	provider: anchor.Provider,
+	marketIndexes: BN[],
+	bankIndexes: BN[]
 ) {
 	const user_keys = [];
 	const userUSDCAccounts = [];
@@ -43,7 +45,11 @@ export async function initUserAccounts(
 			provider.connection,
 			//@ts-ignore
 			ownerWallet,
-			chProgram.programId
+			chProgram.programId,
+			undefined,
+			0,
+			marketIndexes,
+			bankIndexes
 		);
 
 		// await clearingHouse1.initialize(usdcMint.publicKey, false);

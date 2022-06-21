@@ -39,13 +39,20 @@ describe('subaccounts', () => {
 		usdcMint = await mockUSDCMint(provider);
 		usdcAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
+		const marketIndexes = [new BN(0)];
+		const bankIndexes = [new BN(0)];
+
 		clearingHouse = Admin.from(
 			connection,
 			provider.wallet,
 			chProgram.programId,
 			{
 				commitment: 'confirmed',
-			}
+			},
+			0,
+			marketIndexes,
+			bankIndexes,
+			[]
 		);
 
 		await clearingHouse.initialize(usdcMint.publicKey, true);

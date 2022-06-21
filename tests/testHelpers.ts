@@ -355,7 +355,10 @@ export async function initUserAccounts(
 	NUM_USERS: number,
 	usdcMint: Keypair,
 	usdcAmount: BN,
-	provider: Provider
+	provider: Provider,
+	marketIndexes: BN[],
+	bankIndexes: BN[],
+	oracleInfos: BN[]
 ) {
 	const user_keys = [];
 	const userUSDCAccounts = [];
@@ -387,7 +390,11 @@ export async function initUserAccounts(
 			chProgram.programId,
 			{
 				commitment: 'confirmed',
-			}
+			},
+			0,
+			marketIndexes,
+			bankIndexes,
+			oracleInfos
 		);
 
 		// await clearingHouse1.initialize(usdcMint.publicKey, false);
