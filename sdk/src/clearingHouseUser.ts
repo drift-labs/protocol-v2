@@ -428,7 +428,7 @@ export class ClearingHouseUser {
 	 * @returns : Precision TEN_THOUSAND
 	 */
 	public getLeverage(oraclePriceData?: OraclePriceData): BN {
-		const totalCollateral = this.getTotalCollateral(oraclePriceData);
+		const totalCollateral = this.getTotalCollateral();
 		const totalPositionValue = this.getTotalPositionValue(oraclePriceData);
 		if (totalPositionValue.eq(ZERO) && totalCollateral.eq(ZERO)) {
 			return ZERO;
