@@ -14,6 +14,7 @@ use crate::state::market::Market;
 use crate::state::user::{User, UserPositions};
 use crate::MarketPosition;
 use solana_program::msg;
+use std::cmp::min;
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq)]
 pub enum PositionDirection {
@@ -799,4 +800,70 @@ fn calculate_quote_asset_amount_surplus(
     };
 
     Ok((quote_asset_amount, quote_asset_amount_surplus))
+}
+
+fn update_unsettled_pnl(
+    market_position: &mut MarketPosition,
+    market: &mut Market,
+    unsettled_pnl: i128,
+) -> ClearingHouseResult<(i128)> {
+    let new_user_unsettled_pnl = market_position
+        .unsettled_pnl
+        .checked_add(unsettled_pnl)
+        .ok_or_else(math_error!())?;
+
+    // update market state
+    if unsettled_pnl > 0 {
+        if market_position.unsettled_pnl >= 0 {
+            // increase profit
+            market.unsettled_profit = market
+                .unsettled_profit
+                .checked_add(unsettled_pnl.unsigned_abs())
+                .ok_or_else(math_error!())?;
+        } else {
+            // decrease loss
+            market.unsettled_loss = market
+                .unsettled_loss
+                .checked_sub(min(
+                    unsettled_pnl.unsigned_abs(),
+                    market_position.unsettled_pnl.unsigned_abs(),
+                ))
+                .ok_or_else(math_error!())?;
+
+            if new_user_unsettled_pnl > 0 {
+                market.unsettled_profit = market
+                    .unsettled_profit
+                    .checked_add(new_user_unsettled_pnl.unsigned_abs())
+                    .ok_or_else(math_error!())?;
+            }
+        }
+    } else {
+        if market_position.unsettled_pnl >= 0 {
+            // decrease profit
+            market.unsettled_profit = market
+                .unsettled_profit
+                .checked_sub(min(
+                    unsettled_pnl.unsigned_abs(),
+                    market_position.unsettled_pnl.unsigned_abs(),
+                ))
+                .ok_or_else(math_error!())?;
+
+            if new_user_unsettled_pnl < 0 {
+                market.unsettled_loss = market
+                    .unsettled_loss
+                    .checked_add(new_user_unsettled_pnl.unsigned_abs())
+                    .ok_or_else(math_error!())?;
+            }
+        } else {
+            // increase loss
+            market.unsettled_loss = market
+                .unsettled_loss
+                .checked_add(unsettled_pnl.unsigned_abs())
+                .ok_or_else(math_error!())?;
+        }
+    }
+
+    // update user state
+    market_position.unsettled_pnl = new_user_unsettled_pnl;
+    Ok(new_user_unsettled_pnl)
 }

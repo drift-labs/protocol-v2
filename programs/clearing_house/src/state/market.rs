@@ -32,6 +32,8 @@ pub struct Market {
     pub next_funding_rate_record_id: u64,
     pub next_curve_record_id: u64,
     pub pnl_pool: PNLPool,
+    pub unsettled_profit: u128,
+    pub unsettled_loss: u128,
 
     // upgrade-ability
     pub padding0: u32,
