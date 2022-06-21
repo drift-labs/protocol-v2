@@ -46,7 +46,7 @@ export class PollingClearingHouseAccountSubscriber
 	market = new Map<number, AccountAndSlot<MarketAccount>>();
 	bank = new Map<number, AccountAndSlot<BankAccount>>();
 	orderState?: AccountAndSlot<OrderStateAccount>;
-	userAccount?: AccountAndSlot<UserAccount>;
+	user?: AccountAndSlot<UserAccount>;
 
 	type: ClearingHouseConfigType = 'polling';
 
@@ -387,7 +387,7 @@ export class PollingClearingHouseAccountSubscriber
 
 	public getUserAccountAndSlot(): AccountAndSlot<UserAccount> | undefined {
 		this.assertIsSubscribed();
-		return this.userAccount;
+		return this.user;
 	}
 }
 
