@@ -178,7 +178,6 @@ export type LiquidationRecord = {
 
 export type OrderRecord = {
 	ts: BN;
-	recordId: BN;
 	order: Order;
 	user: PublicKey;
 	authority: PublicKey;
