@@ -1767,6 +1767,14 @@
             }
           },
           {
+            "name": "unsettledProfit",
+            "type": "u128"
+          },
+          {
+            "name": "unsettledLoss",
+            "type": "u128"
+          },
+          {
             "name": "padding0",
             "type": "u32"
           },

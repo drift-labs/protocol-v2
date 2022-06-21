@@ -236,7 +236,7 @@ describe('stop limit', () => {
 		assert(firstPosition.baseAssetAmount.eq(expectedBaseAssetAmount));
 
 		const expectedQuoteAssetAmount = new BN(0);
-		assert(firstPosition.quoteAssetAmount.eq(expectedQuoteAssetAmount));
+		assert(firstPosition.quoteEntryAmount.eq(expectedQuoteAssetAmount));
 
 		const tradeHistoryRecord =
 			eventSubscriber.getEventsArray('TradeRecord')[0].data;
@@ -324,7 +324,7 @@ describe('stop limit', () => {
 		assert(firstPosition.baseAssetAmount.eq(expectedBaseAssetAmount));
 
 		const expectedQuoteAssetAmount = new BN(0);
-		assert(firstPosition.quoteAssetAmount.eq(expectedQuoteAssetAmount));
+		assert(firstPosition.quoteEntryAmount.eq(expectedQuoteAssetAmount));
 
 		const tradeHistoryRecord =
 			eventSubscriber.getEventsArray('TradeRecord')[0].data;

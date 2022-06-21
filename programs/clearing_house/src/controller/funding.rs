@@ -4,6 +4,7 @@ use anchor_lang::prelude::*;
 use solana_program::clock::UnixTimestamp;
 use solana_program::msg;
 
+use crate::controller::position::update_unsettled_pnl;
 use crate::error::ClearingHouseResult;
 use crate::get_then_update_id;
 use crate::math::amm;
@@ -31,7 +32,7 @@ pub fn settle_funding_payment(
             continue;
         }
 
-        let market = &market_map.get_ref(&market_position.market_index)?;
+        let market = &mut market_map.get_ref_mut(&market_position.market_index)?;
         let amm: &AMM = &market.amm;
 
         let amm_cumulative_funding_rate = if market_position.base_asset_amount > 0 {
@@ -61,10 +62,11 @@ pub fn settle_funding_payment(
 
             market_position.last_cumulative_funding_rate = amm_cumulative_funding_rate;
             market_position.last_funding_rate_ts = amm.last_funding_rate_ts;
-            market_position.unsettled_pnl = market_position
-                .unsettled_pnl
-                .checked_add(market_funding_payment)
-                .ok_or_else(math_error!())?;
+            // market_position.unsettled_pnl = market_position
+            //     .unsettled_pnl
+            //     .checked_add(market_funding_payment)
+            //     .ok_or_else(math_error!())?;
+            update_unsettled_pnl(market_position, market, market_funding_payment)?;
         }
     }
 
