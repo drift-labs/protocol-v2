@@ -305,6 +305,7 @@ export type UserPosition = {
 	lastCumulativeFundingRate: BN;
 	marketIndex: BN;
 	quoteAssetAmount: BN;
+	quoteEntryAmount: BN;
 	openOrders: BN;
 	unsettledPnl: BN;
 };

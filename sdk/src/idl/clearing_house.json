@@ -2172,6 +2172,34 @@
             }
           },
           {
+            "name": "lastOraclePrice",
+            "type": "i128"
+          },
+          {
+            "name": "lastOracleConf",
+            "type": "u64"
+          },
+          {
+            "name": "lastOracleDelay",
+            "type": "i64"
+          },
+          {
+            "name": "lastOracleNormalisedPrice",
+            "type": "i128"
+          },
+          {
+            "name": "lastOraclePriceTwap",
+            "type": "i128"
+          },
+          {
+            "name": "lastOraclePriceTwapTs",
+            "type": "i64"
+          },
+          {
+            "name": "lastOracleMarkSpreadPct",
+            "type": "i128"
+          },
+          {
             "name": "baseAssetReserve",
             "type": "u128"
           },
@@ -2180,28 +2208,28 @@
             "type": "u128"
           },
           {
+            "name": "sqrtK",
+            "type": "u128"
+          },
+          {
+            "name": "pegMultiplier",
+            "type": "u128"
+          },
+          {
             "name": "terminalQuoteAssetReserve",
             "type": "u128"
           },
           {
-            "name": "cumulativeRepegRebateLong",
+            "name": "netBaseAssetAmount",
+            "type": "i128"
+          },
+          {
+            "name": "quoteAssetAmountLong",
             "type": "u128"
           },
           {
-            "name": "cumulativeRepegRebateShort",
+            "name": "quoteAssetAmountShort",
             "type": "u128"
-          },
-          {
-            "name": "cumulativeFundingRateLong",
-            "type": "i128"
-          },
-          {
-            "name": "cumulativeFundingRateShort",
-            "type": "i128"
-          },
-          {
-            "name": "cumulativeFundingRateLp",
-            "type": "i128"
           },
           {
             "name": "lastFundingRate",
@@ -2216,8 +2244,28 @@
             "type": "i64"
           },
           {
-            "name": "lastOraclePriceTwap",
+            "name": "cumulativeFundingRateLong",
             "type": "i128"
+          },
+          {
+            "name": "cumulativeFundingRateShort",
+            "type": "i128"
+          },
+          {
+            "name": "cumulativeFundingRateLp",
+            "type": "i128"
+          },
+          {
+            "name": "cumulativeRepegRebateLong",
+            "type": "u128"
+          },
+          {
+            "name": "cumulativeRepegRebateShort",
+            "type": "u128"
+          },
+          {
+            "name": "markStd",
+            "type": "u64"
           },
           {
             "name": "lastMarkPriceTwap",
@@ -2228,64 +2276,8 @@
             "type": "i64"
           },
           {
-            "name": "sqrtK",
-            "type": "u128"
-          },
-          {
-            "name": "pegMultiplier",
-            "type": "u128"
-          },
-          {
-            "name": "totalFee",
-            "type": "u128"
-          },
-          {
-            "name": "totalFeeMinusDistributions",
-            "type": "u128"
-          },
-          {
-            "name": "totalMmFee",
-            "type": "u128"
-          },
-          {
-            "name": "totalExchangeFee",
-            "type": "u128"
-          },
-          {
-            "name": "netRevenueSinceLastFunding",
-            "type": "i64"
-          },
-          {
-            "name": "totalFeeWithdrawn",
-            "type": "u128"
-          },
-          {
             "name": "minimumQuoteAssetTradeSize",
             "type": "u128"
-          },
-          {
-            "name": "lastOraclePriceTwapTs",
-            "type": "i64"
-          },
-          {
-            "name": "lastOracleNormalisedPrice",
-            "type": "i128"
-          },
-          {
-            "name": "lastOraclePrice",
-            "type": "i128"
-          },
-          {
-            "name": "lastOracleConf",
-            "type": "u64"
-          },
-          {
-            "name": "lastOracleDelay",
-            "type": "i64"
-          },
-          {
-            "name": "lastOracleMarkSpreadPct",
-            "type": "i128"
           },
           {
             "name": "minimumBaseAssetTradeSize",
@@ -2312,36 +2304,12 @@
             "type": "u128"
           },
           {
-            "name": "netBaseAssetAmount",
-            "type": "i128"
-          },
-          {
-            "name": "quoteAssetAmountLong",
-            "type": "u128"
-          },
-          {
-            "name": "quoteAssetAmountShort",
-            "type": "u128"
-          },
-          {
-            "name": "markStd",
-            "type": "u64"
-          },
-          {
-            "name": "longIntensityTime",
-            "type": "i64"
-          },
-          {
             "name": "longIntensityCount",
             "type": "u16"
           },
           {
             "name": "longIntensityVolume",
             "type": "u64"
-          },
-          {
-            "name": "shortIntensityTime",
-            "type": "i64"
           },
           {
             "name": "shortIntensityCount",
@@ -2354,6 +2322,36 @@
           {
             "name": "curveUpdateIntensity",
             "type": "u8"
+          },
+          {
+            "name": "totalFee",
+            "type": "u128"
+          },
+          {
+            "name": "totalMmFee",
+            "type": "u128"
+          },
+          {
+            "name": "totalExchangeFee",
+            "type": "u128"
+          },
+          {
+            "name": "totalFeeMinusDistributions",
+            "type": "u128"
+          },
+          {
+            "name": "totalFeeWithdrawn",
+            "type": "u128"
+          },
+          {
+            "name": "netRevenueSinceLastFunding",
+            "type": "i64"
+          },
+          {
+            "name": "pnlPool",
+            "type": {
+              "defined": "PNLPool"
+            }
           },
           {
             "name": "padding0",
@@ -2595,6 +2593,10 @@
           },
           {
             "name": "quoteAssetAmount",
+            "type": "u128"
+          },
+          {
+            "name": "quoteEntryAmount",
             "type": "u128"
           },
           {

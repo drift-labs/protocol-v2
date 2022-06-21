@@ -41,6 +41,7 @@ pub fn add_new_position(
         market_index,
         base_asset_amount: 0,
         quote_asset_amount: 0,
+        quote_entry_amount: 0,
         last_cumulative_funding_rate: 0,
         last_cumulative_repeg_rebate: 0,
         last_funding_rate_ts: 0,
@@ -101,6 +102,11 @@ pub fn increase(
 
     market_position.quote_asset_amount = market_position
         .quote_asset_amount
+        .checked_add(quote_asset_amount)
+        .ok_or_else(math_error!())?;
+
+    market_position.quote_entry_amount = market_position
+        .quote_entry_amount
         .checked_add(quote_asset_amount)
         .ok_or_else(math_error!())?;
 
@@ -206,6 +212,10 @@ pub fn increase_with_base_asset_amount(
 
     market_position.quote_asset_amount = market_position
         .quote_asset_amount
+        .checked_add(quote_asset_amount)
+        .ok_or_else(math_error!())?;
+    market_position.quote_entry_amount = market_position
+        .quote_entry_amount
         .checked_add(quote_asset_amount)
         .ok_or_else(math_error!())?;
 
@@ -317,6 +327,11 @@ pub fn reduce(
         .checked_sub(initial_quote_asset_amount_closed)
         .ok_or_else(math_error!())?;
 
+    market_position.quote_entry_amount = market_position
+        .quote_entry_amount
+        .checked_add(initial_quote_asset_amount_closed)
+        .ok_or_else(math_error!())?;
+
     let pnl = if market_position.base_asset_amount > 0 {
         cast_to_i128(quote_asset_swap_amount)?
             .checked_sub(cast(initial_quote_asset_amount_closed)?)
@@ -413,6 +428,11 @@ pub fn reduce_with_base_asset_amount(
         .checked_sub(initial_quote_asset_amount_closed)
         .ok_or_else(math_error!())?;
 
+    market_position.quote_entry_amount = market_position
+        .quote_entry_amount
+        .checked_add(initial_quote_asset_amount_closed)
+        .ok_or_else(math_error!())?;
+
     let pnl = if PositionDirection::Short == direction {
         cast_to_i128(quote_asset_amount)?
             .checked_sub(cast(initial_quote_asset_amount_closed)?)
@@ -479,6 +499,7 @@ pub fn close(
         .ok_or_else(math_error!())?;
 
     market_position.quote_asset_amount = 0;
+    market_position.quote_entry_amount = 0;
 
     market.amm.net_base_asset_amount = market
         .amm

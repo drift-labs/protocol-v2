@@ -4,6 +4,7 @@
 use anchor_lang::prelude::*;
 use borsh::BorshSerialize;
 
+use crate::math::position::calculate_base_asset_value_and_pnl;
 use context::*;
 use controller::position::PositionDirection;
 use error::ErrorCode;
@@ -466,13 +467,12 @@ pub mod clearing_house {
                 quote_asset_amount_long: 0,
                 quote_asset_amount_short: 0,
                 mark_std: 0,
-                long_intensity_time: amm_periodicity, // conservatively set init to funding period
                 long_intensity_count: 0,
                 long_intensity_volume: 0,
-                short_intensity_time: amm_periodicity,
                 short_intensity_count: 0,
                 short_intensity_volume: 0,
                 curve_update_intensity: 0,
+                pnl_pool: PNLPool { balance: 0 },
                 padding0: 0,
                 padding1: 0,
                 padding2: 0,
@@ -1512,7 +1512,31 @@ pub mod clearing_house {
         let position_index = get_position_index(&user.positions, market_index)?;
         let bank = &mut bank_map.get_quote_asset_bank_mut()?;
 
-        let user_unsettled_pnl = user.positions[position_index].unsettled_pnl;
+        let market_position = &mut user.positions[position_index];
+
+        // update user cost basis (if at a loss)
+        let (_amm_position_base_asset_value, amm_position_unrealized_pnl) =
+            calculate_base_asset_value_and_pnl(market_position, &market.amm)?;
+
+        if amm_position_unrealized_pnl < 0 {
+            if market_position.base_asset_amount > 0 {
+                market_position.quote_asset_amount = market_position
+                    .quote_asset_amount
+                    .checked_sub(amm_position_unrealized_pnl.unsigned_abs())
+                    .ok_or_else(math_error!())?;
+            } else {
+                market_position.quote_asset_amount = market_position
+                    .quote_asset_amount
+                    .checked_add(amm_position_unrealized_pnl.unsigned_abs())
+                    .ok_or_else(math_error!())?;
+            }
+            market_position.unsettled_pnl = market_position
+                .unsettled_pnl
+                .checked_add(amm_position_unrealized_pnl)
+                .ok_or_else(math_error!())?;
+        }
+
+        let user_unsettled_pnl = market_position.unsettled_pnl;
         if user_unsettled_pnl == 0 {
             msg!("User has no unsettled pnl for market {}", market_index);
             return Ok(());
@@ -1558,16 +1582,48 @@ pub mod clearing_house {
                 .ok_or_else(math_error!())?;
         } else {
             // TODO handle socialized loss
-            let pnl_to_settle = user_unsettled_pnl.unsigned_abs();
+            let amm_pnl_pool_token_amount = cast_to_i128(get_token_amount(
+                market.amm.pnl_pool.balance(),
+                bank,
+                market.amm.pnl_pool.balance_type(),
+            )?)?;
+
+            // TODO parameterize?
+            let fraction_for_amm = 100; // up to 1% of user_unsettled_pnl for amm
+            let pnl_to_settle_to_amm = min(
+                cast_to_i128(market.amm.total_fee_minus_distributions)?
+                    .checked_sub(amm_pnl_pool_token_amount)
+                    .ok_or_else(math_error!())?,
+                user_unsettled_pnl
+                    .abs()
+                    .checked_div(fraction_for_amm)
+                    .ok_or_else(math_error!())?,
+            );
+
             update_bank_balances(
-                pnl_to_settle,
+                pnl_to_settle_to_amm.unsigned_abs(),
+                if pnl_to_settle_to_amm > 0 {
+                    &BankBalanceType::Deposit
+                } else {
+                    &BankBalanceType::Borrow
+                },
+                bank,
+                &mut market.amm.pnl_pool,
+            )?;
+
+            let pnl_to_settle_to_market = user_unsettled_pnl
+                .checked_sub(pnl_to_settle_to_amm)
+                .ok_or_else(math_error!())?;
+
+            update_bank_balances(
+                pnl_to_settle_to_market.unsigned_abs(),
                 &BankBalanceType::Deposit,
                 bank,
                 &mut market.pnl_pool,
             )?;
 
             update_bank_balances(
-                pnl_to_settle,
+                user_unsettled_pnl.unsigned_abs(),
                 &BankBalanceType::Borrow,
                 bank,
                 user.get_quote_asset_bank_balance_mut(),

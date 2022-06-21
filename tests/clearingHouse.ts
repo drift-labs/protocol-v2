@@ -184,7 +184,7 @@ describe('clearing_house', () => {
 
 		assert.ok(user.positions.length == 5);
 		assert.ok(user.positions[0].baseAssetAmount.toNumber() === 0);
-		assert.ok(user.positions[0].quoteAssetAmount.toNumber() === 0);
+		assert.ok(user.positions[0].quoteEntryAmount.toNumber() === 0);
 		assert.ok(user.positions[0].lastCumulativeFundingRate.toNumber() === 0);
 
 		await eventSubscriber.awaitTx(txSig);
@@ -273,7 +273,7 @@ describe('clearing_house', () => {
 		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9950250)));
 		assert(user.totalFeePaid.eq(new BN(49750)));
 
-		assert.ok(user.positions[0].quoteAssetAmount.eq(new BN(49750000)));
+		assert.ok(user.positions[0].quoteEntryAmount.eq(new BN(49750000)));
 		console.log(user.positions[0].baseAssetAmount);
 		assert.ok(user.positions[0].baseAssetAmount.eq(new BN(497450503674885)));
 
@@ -380,7 +380,7 @@ describe('clearing_house', () => {
 		await clearingHouse.fetchAccounts();
 		const user = clearingHouse.getUserAccount();
 
-		assert.ok(user.positions[0].quoteAssetAmount.eq(new BN(24876238)));
+		assert.ok(user.positions[0].quoteEntryAmount.eq(new BN(24876238)));
 		console.log(user.positions[0].baseAssetAmount.toNumber());
 		assert.ok(user.positions[0].baseAssetAmount.eq(new BN(248737625303142)));
 
@@ -427,7 +427,7 @@ describe('clearing_house', () => {
 
 		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9875625)));
 		assert(user.totalFeePaid.eq(new BN(124375)));
-		assert.ok(user.positions[0].quoteAssetAmount.eq(new BN(24875000)));
+		assert.ok(user.positions[0].quoteEntryAmount.eq(new BN(24875000)));
 		console.log(user.positions[0].baseAssetAmount.toString());
 		assert.ok(user.positions[0].baseAssetAmount.eq(new BN(-248762375928202)));
 
@@ -464,7 +464,7 @@ describe('clearing_house', () => {
 		const user: any = await clearingHouse.program.account.user.fetch(
 			userAccountPublicKey
 		);
-		assert.ok(user.positions[0].quoteAssetAmount.eq(new BN(0)));
+		assert.ok(user.positions[0].quoteEntryAmount.eq(new BN(0)));
 		assert.ok(user.positions[0].baseAssetAmount.eq(new BN(0)));
 		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9850749)));
 		assert(user.totalFeePaid.eq(new BN(149250)));
@@ -509,7 +509,7 @@ describe('clearing_house', () => {
 		);
 
 		user = await clearingHouse.program.account.user.fetch(userAccountPublicKey);
-		assert.ok(user.positions[0].quoteAssetAmount.eq(new BN(49007476)));
+		assert.ok(user.positions[0].quoteEntryAmount.eq(new BN(49007476)));
 		assert.ok(user.positions[0].baseAssetAmount.eq(new BN(-490122799362653)));
 
 		const market = clearingHouse.getMarketAccount(0);
@@ -609,9 +609,9 @@ describe('clearing_house', () => {
 				.lt(user0.positions[0].baseAssetAmount.abs())
 		);
 		assert.ok(
-			user.positions[0].quoteAssetAmount
+			user.positions[0].quoteEntryAmount
 				.abs()
-				.lt(user0.positions[0].quoteAssetAmount.abs())
+				.lt(user0.positions[0].quoteEntryAmount.abs())
 		);
 
 		const chInsuranceAccountToken = await getTokenAccount(
@@ -691,7 +691,7 @@ describe('clearing_house', () => {
 			convertToNumber(user.positions[0].baseAssetAmount, AMM_RESERVE_PRECISION)
 		);
 		assert.ok(user.positions[0].baseAssetAmount.eq(new BN(0)));
-		assert.ok(user.positions[0].quoteAssetAmount.eq(new BN(0)));
+		assert.ok(user.positions[0].quoteEntryAmount.eq(new BN(0)));
 		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(106964)));
 		assert.ok(user.positions[0].lastCumulativeFundingRate.eq(new BN(0)));
 

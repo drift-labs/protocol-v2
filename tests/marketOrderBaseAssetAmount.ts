@@ -115,7 +115,7 @@ describe('clearing_house', () => {
 		assert.ok(
 			clearingHouse
 				.getUserAccount()
-				.positions[0].quoteAssetAmount.eq(new BN(49750001))
+				.positions[0].quoteEntryAmount.eq(new BN(49750001))
 		);
 		console.log(clearingHouse.getUserAccount().positions[0].baseAssetAmount);
 		assert.ok(
@@ -206,7 +206,7 @@ describe('clearing_house', () => {
 		assert.ok(
 			clearingHouse
 				.getUserAccount()
-				.positions[0].quoteAssetAmount.eq(new BN(24875001))
+				.positions[0].quoteEntryAmount.eq(new BN(24875001))
 		);
 		console.log(
 			clearingHouse.getUserAccount().positions[0].baseAssetAmount.toNumber()
@@ -269,7 +269,7 @@ describe('clearing_house', () => {
 		assert.ok(
 			clearingHouse
 				.getUserAccount()
-				.positions[0].quoteAssetAmount.eq(new BN(24871287))
+				.positions[0].quoteEntryAmount.eq(new BN(24871287))
 		);
 		console.log(
 			clearingHouse.getUserAccount().positions[0].baseAssetAmount.toString()
@@ -324,7 +324,7 @@ describe('clearing_house', () => {
 		);
 
 		assert.ok(
-			clearingHouse.getUserAccount().positions[0].quoteAssetAmount.eq(new BN(0))
+			clearingHouse.getUserAccount().positions[0].quoteEntryAmount.eq(new BN(0))
 		);
 		assert.ok(
 			clearingHouse.getUserAccount().positions[0].baseAssetAmount.eq(new BN(0))
