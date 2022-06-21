@@ -231,7 +231,6 @@ export class PollingClearingHouseAccountSubscriber
 					slot,
 				};
 				if (accountToPoll.mapKey != undefined) {
-
 					this[accountToPoll.key].set(accountToPoll.mapKey, accountAndSlot);
 				} else {
 					this[accountToPoll.key] = accountAndSlot;
@@ -272,14 +271,9 @@ export class PollingClearingHouseAccountSubscriber
 	}
 
 	didSubscriptionSucceed(): boolean {
-		let success = true;
-		for (const [_, accountToPoll] of this.accountsToPoll) {
-			if (!this[accountToPoll.key]) {
-				success = false;
-				break;
-			}
-		}
-		return success;
+		if (this.state) return true;
+
+		return false;
 	}
 
 	public async unsubscribe(): Promise<void> {
