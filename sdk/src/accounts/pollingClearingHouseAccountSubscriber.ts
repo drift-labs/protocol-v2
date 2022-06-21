@@ -133,7 +133,7 @@ export class PollingClearingHouseAccountSubscriber
 		const { userAccountPublicKey } = await this.getUserAccountPublicKeys();
 
 		this.accountsToPoll.set(userAccountPublicKey.toString(), {
-			key: 'userAccount',
+			key: 'user',
 			publicKey: userAccountPublicKey,
 			eventType: 'userAccountUpdate',
 		});
@@ -222,6 +222,7 @@ export class PollingClearingHouseAccountSubscriber
 		accountToPoll.callbackId = this.accountLoader.addAccount(
 			accountToPoll.publicKey,
 			(buffer, slot) => {
+				if (!buffer) return;
 				const account = this.program.account[
 					accountToPoll.key
 				].coder.accounts.decode(capitalize(accountToPoll.key), buffer);
@@ -229,7 +230,8 @@ export class PollingClearingHouseAccountSubscriber
 					account,
 					slot,
 				};
-				if (accountToPoll.mapKey) {
+				if (accountToPoll.mapKey != undefined) {
+
 					this[accountToPoll.key].set(accountToPoll.mapKey, accountAndSlot);
 				} else {
 					this[accountToPoll.key] = accountAndSlot;
@@ -256,10 +258,15 @@ export class PollingClearingHouseAccountSubscriber
 				const account = this.program.account[
 					accountToPoll.key
 				].coder.accounts.decode(capitalize(accountToPoll.key), buffer);
-				this[accountToPoll.key] = {
-					account,
-					slot,
-				};
+
+				if (accountToPoll.mapKey != undefined) {
+					this[accountToPoll.key].set(accountToPoll.mapKey, { account, slot });
+				} else {
+					this[accountToPoll.key] = {
+						account,
+						slot,
+					};
+				}
 			}
 		}
 	}
