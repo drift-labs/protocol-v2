@@ -1,6 +1,6 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
-import { BN, isVariant, MarketAccount, ZERO } from '../sdk';
+import { BN, isVariant, MarketAccount, OracleSource, ZERO } from '../sdk';
 
 import { Program } from '@project-serum/anchor';
 import { getTokenAccount } from '@project-serum/common';
@@ -59,6 +59,8 @@ describe('clearing_house', () => {
 	let usdcMint;
 	let userUSDCAccount;
 
+	let solUsd;
+
 	// ammInvariant == k == x * y
 	const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
 	const ammInitialQuoteAssetAmount = new anchor.BN(5 * 10 ** 13).mul(
@@ -74,13 +76,19 @@ describe('clearing_house', () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
+		solUsd = await mockOracle(1);
+
 		clearingHouse = Admin.from(
 			connection,
 			provider.wallet,
 			chProgram.programId,
 			{
 				commitment: 'confirmed',
-			}
+			},
+			0,
+			[new BN(0)],
+			[new BN(0)],
+			[{ publicKey: solUsd, source: OracleSource.PYTH }]
 		);
 	});
 
@@ -112,7 +120,6 @@ describe('clearing_house', () => {
 	});
 
 	it('Initialize Market', async () => {
-		const solUsd = await mockOracle(1);
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		const marketIndex = new BN(0);

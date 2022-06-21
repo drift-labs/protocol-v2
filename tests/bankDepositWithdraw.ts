@@ -16,6 +16,7 @@ import {
 	OracleSource,
 	BANK_WEIGHT_PRECISION,
 	BANK_CUMULATIVE_INTEREST_PRECISION,
+	OracleInfo,
 } from '../sdk/src';
 
 import {
@@ -61,18 +62,35 @@ describe('bank deposit and withdraw', () => {
 	const usdcAmount = new BN(10 * 10 ** 6);
 	const solAmount = new BN(1 * 10 ** 9);
 
+	let marketIndexes: BN[];
+	let bankIndexes: BN[];
+	let oracleInfos: OracleInfo[];
+
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
 		await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
-		admin = Admin.from(connection, provider.wallet, chProgram.programId, {
-			commitment: 'confirmed',
-		});
+		solOracle = await mockOracle(30);
+
+		marketIndexes = [];
+		bankIndexes = [new BN(0), new BN(1)];
+		oracleInfos = [{ publicKey: solOracle, source: OracleSource.PYTH }];
+
+		admin = Admin.from(
+			connection,
+			provider.wallet,
+			chProgram.programId,
+			{
+				commitment: 'confirmed',
+			},
+			0,
+			marketIndexes,
+			bankIndexes,
+			oracleInfos
+		);
 
 		await admin.initialize(usdcMint.publicKey, true);
 		await admin.subscribe();
-
-		solOracle = await mockOracle(30);
 	});
 
 	after(async () => {
@@ -179,7 +197,10 @@ describe('bank deposit and withdraw', () => {
 				provider,
 				usdcMint,
 				chProgram,
-				usdcAmount
+				usdcAmount,
+				marketIndexes,
+				bankIndexes,
+				oracleInfos
 			);
 
 		const bankIndex = new BN(0);
@@ -221,7 +242,10 @@ describe('bank deposit and withdraw', () => {
 			usdcMint,
 			chProgram,
 			solAmount,
-			ZERO
+			ZERO,
+			marketIndexes,
+			bankIndexes,
+			oracleInfos
 		);
 
 		const bankIndex = new BN(1);

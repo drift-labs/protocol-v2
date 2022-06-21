@@ -22,7 +22,7 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
-import { AMM_RESERVE_PRECISION } from '../sdk';
+import { AMM_RESERVE_PRECISION, OracleSource } from '../sdk';
 import { AccountInfo, Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
 describe('order referrer', () => {
@@ -74,19 +74,31 @@ describe('order referrer', () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
+		solUsd = await mockOracle(1);
+		btcUsd = await mockOracle(60000);
+
+		const marketIndexes = [new BN(0), new BN(1)];
+		const bankIndexes = [new BN(0)];
+		const oracleInfos = [
+			{ publicKey: solUsd, source: OracleSource.PYTH },
+			{ publicKey: btcUsd, source: OracleSource.PYTH },
+		];
+
 		clearingHouse = Admin.from(
 			connection,
 			provider.wallet,
 			chProgram.programId,
 			{
 				commitment: 'confirmed',
-			}
+			},
+			0,
+			marketIndexes,
+			bankIndexes,
+			oracleInfos
 		);
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
-		solUsd = await mockOracle(1);
-		btcUsd = await mockOracle(60000);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
@@ -154,7 +166,11 @@ describe('order referrer', () => {
 			chProgram.programId,
 			{
 				commitment: 'confirmed',
-			}
+			},
+			0,
+			marketIndexes,
+			bankIndexes,
+			oracleInfos
 		);
 		await fillerClearingHouse.subscribe();
 
@@ -179,7 +195,12 @@ describe('order referrer', () => {
 		referrerClearingHouse = ClearingHouse.from(
 			connection,
 			new Wallet(referrerKeyPair),
-			chProgram.programId
+			chProgram.programId,
+			undefined,
+			0,
+			marketIndexes,
+			bankIndexes,
+			oracleInfos
 		);
 		await referrerClearingHouse.subscribe();
 

@@ -1,5 +1,5 @@
 import {
-	AccountAndSlot,
+	DataAndSlot,
 	AccountToPoll,
 	NotSubscribedError,
 	UserAccountEvents,
@@ -27,7 +27,7 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 	accountsToPoll = new Map<string, AccountToPoll>();
 	errorCallbackId?: string;
 
-	user?: AccountAndSlot<UserAccount>;
+	user?: DataAndSlot<UserAccount>;
 
 	type: ClearingHouseConfigType = 'polling';
 
@@ -185,7 +185,7 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 		}
 	}
 
-	public getUserAccountAndSlot(): AccountAndSlot<UserAccount> {
+	public getUserAccountAndSlot(): DataAndSlot<UserAccount> {
 		this.assertIsSubscribed();
 		return this.user;
 	}

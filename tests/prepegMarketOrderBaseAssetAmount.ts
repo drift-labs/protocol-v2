@@ -1,6 +1,6 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
-import { BN, getMarketOrderParams, ONE, ZERO } from '../sdk';
+import { BN, getMarketOrderParams, ONE, OracleSource, ZERO } from '../sdk';
 
 import { Program } from '@project-serum/anchor';
 
@@ -29,7 +29,7 @@ import {
 	initializeQuoteAssetBank,
 } from './testHelpers';
 
-describe('clearing_house', () => {
+describe('prepeg', () => {
 	const provider = anchor.AnchorProvider.local();
 	const connection = provider.connection;
 	anchor.setProvider(provider);
@@ -54,6 +54,10 @@ describe('clearing_house', () => {
 	);
 
 	const usdcAmount = new BN(10 * 10 ** 6);
+
+	let marketIndexes;
+	let bankIndexes;
+	let oracleInfos;
 	let solUsd;
 	const mockOracles = [];
 
@@ -61,13 +65,31 @@ describe('clearing_house', () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
+		solUsd = await mockOracle(1);
+		mockOracles.push(solUsd);
+		for (let i = 1; i <= 4; i++) {
+			// init more oracles
+			const thisUsd = await mockOracle(i);
+			mockOracles.push(thisUsd);
+		}
+
+		bankIndexes = [new BN(0)];
+		marketIndexes = mockOracles.map((_, i) => new BN(i));
+		oracleInfos = mockOracles.map((oracle) => {
+			return { publicKey: oracle, source: OracleSource.PYTH };
+		});
+
 		clearingHouse = Admin.from(
 			connection,
 			provider.wallet,
 			chProgram.programId,
 			{
 				commitment: 'confirmed',
-			}
+			},
+			0,
+			marketIndexes,
+			bankIndexes,
+			oracleInfos
 		);
 
 		await clearingHouse.initialize(usdcMint.publicKey, true);
@@ -76,8 +98,6 @@ describe('clearing_house', () => {
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
-		solUsd = await mockOracle(1);
-		mockOracles.push(solUsd);
 		await clearingHouse.initializeMarket(
 			solUsd,
 			ammInitialBaseAssetAmount,
@@ -92,8 +112,7 @@ describe('clearing_house', () => {
 
 		for (let i = 1; i <= 4; i++) {
 			// init more markets
-			const thisUsd = await mockOracle(i);
-			mockOracles.push(thisUsd);
+			const thisUsd = mockOracles[i];
 			await clearingHouse.initializeMarket(
 				thisUsd,
 				ammInitialBaseAssetAmount,

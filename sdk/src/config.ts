@@ -2,8 +2,16 @@ import {
 	DevnetMarkets,
 	MainnetMarkets,
 	MarketConfig,
+	Markets,
 } from './constants/markets';
-import { BankConfig, DevnetBanks, MainnetBanks } from './constants/banks';
+import {
+	BankConfig,
+	Banks,
+	DevnetBanks,
+	MainnetBanks,
+} from './constants/banks';
+import { BN } from '@project-serum/anchor';
+import { OracleInfo } from './oracles/types';
 
 type DriftConfig = {
 	ENV: DriftEnv;
@@ -58,3 +66,35 @@ export const initialize = (props: {
 
 	return currentConfig;
 };
+
+export function getMarketsBanksAndOraclesForSubscription(env: DriftEnv): {
+	marketIndexes: BN[];
+	bankIndexes: BN[];
+	oracleInfos: OracleInfo[];
+} {
+	const marketIndexes = [];
+	const bankIndexes = [];
+	const oracleInfos = new Map<string, OracleInfo>();
+
+	for (const market of Markets[env]) {
+		marketIndexes.push(market.marketIndex);
+		oracleInfos.set(market.oracle.toString(), {
+			publicKey: market.oracle,
+			source: market.oracleSource,
+		});
+	}
+
+	for (const bank of Banks[env]) {
+		bankIndexes.push(bank.bankIndex);
+		oracleInfos.set(bank.oracle.toString(), {
+			publicKey: bank.oracle,
+			source: bank.oracleSource,
+		});
+	}
+
+	return {
+		marketIndexes,
+		bankIndexes,
+		oracleInfos: Array.from(oracleInfos.values()),
+	};
+}

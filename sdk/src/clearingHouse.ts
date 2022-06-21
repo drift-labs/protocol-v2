@@ -37,7 +37,7 @@ import {
 import {
 	ClearingHouseAccountSubscriber,
 	ClearingHouseAccountEvents,
-	AccountAndSlot,
+	DataAndSlot,
 } from './accounts/types';
 import { TxSender } from './tx/types';
 import { wrapInTx } from './tx/utils';
@@ -49,6 +49,7 @@ import { QUOTE_ASSET_BANK_INDEX, ZERO } from './constants/numericConstants';
 import { positionIsAvailable } from './math/position';
 import { getTokenAmount } from './math/bankBalance';
 import { DEFAULT_USER_NAME, encodeName } from './userName';
+import { OracleInfo, OraclePriceData } from './oracles/types';
 
 /**
  * # ClearingHouse
@@ -85,6 +86,9 @@ export class ClearingHouse {
 	 * @param clearingHouseProgramId
 	 * @param opts
 	 * @param userId
+	 * @param marketsIndexes
+	 * @param bankIndexes
+	 * @param oracleInfos
 	 * @returns
 	 */
 	public static from(
@@ -92,7 +96,10 @@ export class ClearingHouse {
 		wallet: IWallet,
 		clearingHouseProgramId: PublicKey,
 		opts: ConfirmOptions = AnchorProvider.defaultOptions(),
-		userId = 0
+		userId = 0,
+		marketsIndexes: BN[] = [],
+		bankIndexes: BN[] = [],
+		oracleInfos: OracleInfo[] = []
 	): ClearingHouse {
 		const config = getWebSocketClearingHouseConfig(
 			connection,
@@ -100,8 +107,12 @@ export class ClearingHouse {
 			clearingHouseProgramId,
 			opts,
 			undefined,
-			userId
+			userId,
+			marketsIndexes,
+			bankIndexes,
+			oracleInfos
 		);
+
 		return getClearingHouse(config);
 	}
 
@@ -160,22 +171,28 @@ export class ClearingHouse {
 	}
 
 	public getStateAccount(): StateAccount {
-		return this.accountSubscriber.getStateAccountAndSlot().account;
+		return this.accountSubscriber.getStateAccountAndSlot().data;
 	}
 
 	public getMarketAccount(marketIndex: BN | number): MarketAccount | undefined {
 		marketIndex = marketIndex instanceof BN ? marketIndex : new BN(marketIndex);
-		return this.accountSubscriber.getMarketAccountAndSlot(marketIndex)?.account;
+		return this.accountSubscriber.getMarketAccountAndSlot(marketIndex)?.data;
 	}
 
 	public getBankAccount(bankIndex: BN | number): BankAccount | undefined {
 		bankIndex = bankIndex instanceof BN ? bankIndex : new BN(bankIndex);
-		return this.accountSubscriber.getBankAccountAndSlot(bankIndex).account;
+		return this.accountSubscriber.getBankAccountAndSlot(bankIndex).data;
 	}
 
 	public getQuoteAssetBankAccount(): BankAccount {
 		return this.accountSubscriber.getBankAccountAndSlot(QUOTE_ASSET_BANK_INDEX)
-			.account;
+			.data;
+	}
+
+	public getOraclePriceDataAndSlot(
+		oraclePublicKey: PublicKey
+	): DataAndSlot<OraclePriceData> | undefined {
+		return this.accountSubscriber.getOraclePriceDataAndSlot(oraclePublicKey);
 	}
 
 	orderStatePublicKey?: PublicKey;
@@ -190,7 +207,7 @@ export class ClearingHouse {
 	}
 
 	public getOrderStateAccount(): OrderStateAccount {
-		return this.accountSubscriber.getOrderStateAccountAndSlot().account;
+		return this.accountSubscriber.getOrderStateAccountAndSlot().data;
 	}
 
 	/**
@@ -283,10 +300,10 @@ export class ClearingHouse {
 	}
 
 	public getUserAccount(): UserAccount | undefined {
-		return this.accountSubscriber.getUserAccountAndSlot().account;
+		return this.accountSubscriber.getUserAccountAndSlot().data;
 	}
 
-	public getUserAccountAndSlot(): AccountAndSlot<UserAccount> | undefined {
+	public getUserAccountAndSlot(): DataAndSlot<UserAccount> | undefined {
 		return this.accountSubscriber.getUserAccountAndSlot();
 	}
 
@@ -319,7 +336,7 @@ export class ClearingHouse {
 				'No user account found. Most likely user account does not exist or failed to fetch account'
 			);
 		}
-		const { account: userAccount, slot: lastUserPositionsSlot } =
+		const { data: userAccount, slot: lastUserPositionsSlot } =
 			userAccountAndSlot;
 
 		const oracleAccountMap = new Map<string, AccountMeta>();

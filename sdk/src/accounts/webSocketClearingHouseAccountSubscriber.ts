@@ -1,7 +1,7 @@
 import {
 	ClearingHouseAccountSubscriber,
 	ClearingHouseAccountEvents,
-	AccountAndSlot,
+	DataAndSlot,
 } from './types';
 import { AccountSubscriber, NotSubscribedError } from './types';
 import {
@@ -24,6 +24,10 @@ import {
 import { WebSocketAccountSubscriber } from './webSocketAccountSubscriber';
 import { ClearingHouseConfigType } from '../factory/clearingHouse';
 import { PublicKey } from '@solana/web3.js';
+import { OracleInfo, OraclePriceData } from '../oracles/types';
+import { OracleClientCache } from '../oracles/oracleClientCache';
+import * as Buffer from 'buffer';
+import { QUOTE_ORACLE_PRICE_DATA } from '../oracles/quoteAssetOracleClient';
 
 export class WebSocketClearingHouseAccountSubscriber
 	implements ClearingHouseAccountSubscriber
@@ -32,6 +36,10 @@ export class WebSocketClearingHouseAccountSubscriber
 	program: Program;
 	authority: PublicKey;
 	userId: number;
+	marketIndexes: BN[];
+	bankIndexes: BN[];
+	oracleInfos: OracleInfo[];
+	oracleClientCache = new OracleClientCache();
 
 	eventEmitter: StrictEventEmitter<EventEmitter, ClearingHouseAccountEvents>;
 	stateAccountSubscriber?: AccountSubscriber<StateAccount>;
@@ -40,6 +48,7 @@ export class WebSocketClearingHouseAccountSubscriber
 		AccountSubscriber<MarketAccount>
 	>();
 	bankAccountSubscribers = new Map<number, AccountSubscriber<BankAccount>>();
+	oracleSubscribers = new Map<string, AccountSubscriber<OraclePriceData>>();
 	orderStateAccountSubscriber?: AccountSubscriber<OrderStateAccount>;
 
 	userAccountSubscriber?: AccountSubscriber<UserAccount>;
@@ -50,12 +59,22 @@ export class WebSocketClearingHouseAccountSubscriber
 	private subscriptionPromise: Promise<boolean>;
 	private subscriptionPromiseResolver: (val: boolean) => void;
 
-	public constructor(program: Program, authority: PublicKey, userId: number) {
+	public constructor(
+		program: Program,
+		authority: PublicKey,
+		userId: number,
+		marketIndexes: BN[],
+		bankIndexes: BN[],
+		oracleInfos: OracleInfo[]
+	) {
 		this.isSubscribed = false;
 		this.program = program;
 		this.eventEmitter = new EventEmitter();
 		this.authority = authority;
 		this.userId = userId;
+		this.marketIndexes = marketIndexes;
+		this.bankIndexes = bankIndexes;
+		this.oracleInfos = oracleInfos;
 	}
 
 	public async subscribe(): Promise<boolean> {
@@ -114,6 +133,9 @@ export class WebSocketClearingHouseAccountSubscriber
 		// subscribe to bank accounts
 		await this.subscribeToBankAccounts();
 
+		// subscribe to oracles
+		await this.subscribeToOracles();
+
 		this.eventEmitter.emit('update');
 
 		this.isSubscribing = false;
@@ -124,42 +146,91 @@ export class WebSocketClearingHouseAccountSubscriber
 	}
 
 	async subscribeToMarketAccounts(): Promise<boolean> {
-		for (let i = 0; i < 10; i++) {
-			const marketPublicKey = await getMarketPublicKey(
-				this.program.programId,
-				new BN(i)
-			);
-			const accountSubscriber = new WebSocketAccountSubscriber<MarketAccount>(
-				'market',
-				this.program,
-				marketPublicKey
-			);
-			await accountSubscriber.subscribe((data: MarketAccount) => {
-				this.eventEmitter.emit('marketAccountUpdate', data);
-				this.eventEmitter.emit('update');
-			});
-			this.marketAccountSubscribers.set(i, accountSubscriber);
+		for (const marketIndex of this.marketIndexes) {
+			await this.subscribeToMarketAccount(marketIndex);
 		}
 		return true;
 	}
 
+	async subscribeToMarketAccount(marketIndex: BN): Promise<boolean> {
+		const marketPublicKey = await getMarketPublicKey(
+			this.program.programId,
+			marketIndex
+		);
+		const accountSubscriber = new WebSocketAccountSubscriber<MarketAccount>(
+			'market',
+			this.program,
+			marketPublicKey
+		);
+		await accountSubscriber.subscribe((data: MarketAccount) => {
+			this.eventEmitter.emit('marketAccountUpdate', data);
+			this.eventEmitter.emit('update');
+		});
+		this.marketAccountSubscribers.set(
+			marketIndex.toNumber(),
+			accountSubscriber
+		);
+		return true;
+	}
+
 	async subscribeToBankAccounts(): Promise<boolean> {
-		for (let i = 0; i < 5; i++) {
-			const bankPublicKey = await getBankPublicKey(
-				this.program.programId,
-				new BN(i)
-			);
-			const accountSubscriber = new WebSocketAccountSubscriber<BankAccount>(
-				'bank',
-				this.program,
-				bankPublicKey
-			);
-			await accountSubscriber.subscribe((data: BankAccount) => {
-				this.eventEmitter.emit('bankAccountUpdate', data);
-				this.eventEmitter.emit('update');
-			});
-			this.bankAccountSubscribers.set(i, accountSubscriber);
+		for (const bankIndex of this.bankIndexes) {
+			await this.subscribeToBankAccount(bankIndex);
 		}
+		return true;
+	}
+
+	async subscribeToBankAccount(bankIndex: BN): Promise<boolean> {
+		const bankPublicKey = await getBankPublicKey(
+			this.program.programId,
+			bankIndex
+		);
+		const accountSubscriber = new WebSocketAccountSubscriber<BankAccount>(
+			'bank',
+			this.program,
+			bankPublicKey
+		);
+		await accountSubscriber.subscribe((data: BankAccount) => {
+			this.eventEmitter.emit('bankAccountUpdate', data);
+			this.eventEmitter.emit('update');
+		});
+		this.bankAccountSubscribers.set(bankIndex.toNumber(), accountSubscriber);
+		return true;
+	}
+
+	async subscribeToOracles(): Promise<boolean> {
+		for (const oracleInfo of this.oracleInfos) {
+			if (!oracleInfo.publicKey.equals(PublicKey.default)) {
+				await this.subscribeToOracle(oracleInfo);
+			}
+		}
+
+		return true;
+	}
+
+	async subscribeToOracle(oracleInfo: OracleInfo): Promise<boolean> {
+		const client = this.oracleClientCache.get(
+			oracleInfo.source,
+			this.program.provider.connection
+		);
+		const accountSubscriber = new WebSocketAccountSubscriber<OraclePriceData>(
+			'oracle',
+			this.program,
+			oracleInfo.publicKey,
+			(buffer: Buffer) => {
+				return client.getOraclePriceDataFromBuffer(buffer);
+			}
+		);
+
+		await accountSubscriber.subscribe((data: OraclePriceData) => {
+			this.eventEmitter.emit('oraclePriceUpdate', oracleInfo.publicKey, data);
+			this.eventEmitter.emit('update');
+		});
+
+		this.oracleSubscribers.set(
+			oracleInfo.publicKey.toString(),
+			accountSubscriber
+		);
 		return true;
 	}
 
@@ -194,6 +265,12 @@ export class WebSocketClearingHouseAccountSubscriber
 
 	async unsubscribeFromBankAccounts(): Promise<void> {
 		for (const accountSubscriber of this.bankAccountSubscribers.values()) {
+			await accountSubscriber.unsubscribe();
+		}
+	}
+
+	async unsubscribeFromOracles(): Promise<void> {
+		for (const accountSubscriber of this.oracleSubscribers.values()) {
 			await accountSubscriber.unsubscribe();
 		}
 	}
@@ -233,6 +310,7 @@ export class WebSocketClearingHouseAccountSubscriber
 		await this.unsubscribeFromUserAccounts();
 		await this.unsubscribeFromMarketAccounts();
 		await this.unsubscribeFromBankAccounts();
+		await this.unsubscribeFromOracles();
 
 		this.isSubscribed = false;
 	}
@@ -255,6 +333,32 @@ export class WebSocketClearingHouseAccountSubscriber
 		return this.subscribeToUserAccounts();
 	}
 
+	async addBank(bankIndex: BN): Promise<boolean> {
+		if (this.bankAccountSubscribers.has(bankIndex.toNumber())) {
+			return true;
+		}
+		return this.subscribeToBankAccount(bankIndex);
+	}
+
+	async addMarket(marketIndex: BN): Promise<boolean> {
+		if (this.marketAccountSubscribers.has(marketIndex.toNumber())) {
+			return true;
+		}
+		return this.subscribeToMarketAccount(marketIndex);
+	}
+
+	async addOracle(oracleInfo: OracleInfo): Promise<boolean> {
+		if (this.oracleSubscribers.has(oracleInfo.publicKey.toString())) {
+			return true;
+		}
+
+		if (oracleInfo.publicKey.equals(PublicKey.default)) {
+			return true;
+		}
+
+		return this.subscribeToOracle(oracleInfo);
+	}
+
 	assertIsSubscribed(): void {
 		if (!this.isSubscribed) {
 			throw new NotSubscribedError(
@@ -263,33 +367,46 @@ export class WebSocketClearingHouseAccountSubscriber
 		}
 	}
 
-	public getStateAccountAndSlot(): AccountAndSlot<StateAccount> {
+	public getStateAccountAndSlot(): DataAndSlot<StateAccount> {
 		this.assertIsSubscribed();
-		return this.stateAccountSubscriber.accountAndSlot;
+		return this.stateAccountSubscriber.dataAndSlot;
 	}
 
 	public getMarketAccountAndSlot(
 		marketIndex: BN
-	): AccountAndSlot<MarketAccount> | undefined {
+	): DataAndSlot<MarketAccount> | undefined {
 		this.assertIsSubscribed();
 		return this.marketAccountSubscribers.get(marketIndex.toNumber())
-			.accountAndSlot;
+			.dataAndSlot;
 	}
 
-	public getOrderStateAccountAndSlot(): AccountAndSlot<OrderStateAccount> {
+	public getOrderStateAccountAndSlot(): DataAndSlot<OrderStateAccount> {
 		this.assertIsSubscribed();
-		return this.orderStateAccountSubscriber.accountAndSlot;
+		return this.orderStateAccountSubscriber.dataAndSlot;
 	}
 
 	public getBankAccountAndSlot(
 		bankIndex: BN
-	): AccountAndSlot<BankAccount> | undefined {
+	): DataAndSlot<BankAccount> | undefined {
 		this.assertIsSubscribed();
-		return this.bankAccountSubscribers.get(bankIndex.toNumber()).accountAndSlot;
+		return this.bankAccountSubscribers.get(bankIndex.toNumber()).dataAndSlot;
 	}
 
-	public getUserAccountAndSlot(): AccountAndSlot<UserAccount> {
+	public getOraclePriceDataAndSlot(
+		oraclePublicKey: PublicKey
+	): DataAndSlot<OraclePriceData> | undefined {
 		this.assertIsSubscribed();
-		return this.userAccountSubscriber.accountAndSlot;
+		if (oraclePublicKey.equals(PublicKey.default)) {
+			return {
+				data: QUOTE_ORACLE_PRICE_DATA,
+				slot: 0,
+			};
+		}
+		return this.oracleSubscribers.get(oraclePublicKey.toString()).dataAndSlot;
+	}
+
+	public getUserAccountAndSlot(): DataAndSlot<UserAccount> {
+		this.assertIsSubscribed();
+		return this.userAccountSubscriber.dataAndSlot;
 	}
 }

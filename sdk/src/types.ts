@@ -84,8 +84,7 @@ export type DepositRecord = {
 		deposit?: any;
 		withdraw?: any;
 	};
-	collateralBefore: BN;
-	cumulativeDepositsBefore: BN;
+	bankIndex: BN;
 	amount: BN;
 	from?: PublicKey;
 	to?: PublicKey;

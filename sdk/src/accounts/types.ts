@@ -1,6 +1,7 @@
 import {
 	BankAccount,
 	MarketAccount,
+	OracleSource,
 	OrderStateAccount,
 	StateAccount,
 	UserAccount,
@@ -12,12 +13,13 @@ import { AccountInfo } from '@solana/spl-token';
 import {
 	ClearingHouseConfigType,
 	ClearingHouseUserConfigType,
+	OracleInfo,
 	OraclePriceData,
 } from '..';
 import { BN } from '@project-serum/anchor';
 
 export interface AccountSubscriber<T> {
-	accountAndSlot?: AccountAndSlot<T>;
+	dataAndSlot?: DataAndSlot<T>;
 	subscribe(onChange: (data: T) => void): Promise<void>;
 	fetch(): Promise<void>;
 	unsubscribe(): Promise<void>;
@@ -31,6 +33,7 @@ export interface ClearingHouseAccountEvents {
 	stateAccountUpdate: (payload: StateAccount) => void;
 	marketAccountUpdate: (payload: MarketAccount) => void;
 	bankAccountUpdate: (payload: BankAccount) => void;
+	oraclePriceUpdate: (publicKey: PublicKey, data: OraclePriceData) => void;
 	orderStateAccountUpdate: (payload: OrderStateAccount) => void;
 	userAccountUpdate: (payload: UserAccount) => void;
 	update: void;
@@ -48,14 +51,21 @@ export interface ClearingHouseAccountSubscriber {
 	updateAuthority(newAuthority: PublicKey): Promise<boolean>;
 	updateUserId(userId: number): Promise<boolean>;
 
-	getStateAccountAndSlot(): AccountAndSlot<StateAccount>;
+	addMarket(marketIndex: BN): Promise<boolean>;
+	addBank(bankIndex: BN): Promise<boolean>;
+	addOracle(oracleInfo: OracleInfo): Promise<boolean>;
+
+	getStateAccountAndSlot(): DataAndSlot<StateAccount>;
 	getMarketAccountAndSlot(
 		marketIndex: BN
-	): AccountAndSlot<MarketAccount> | undefined;
-	getBankAccountAndSlot(bankIndex: BN): AccountAndSlot<BankAccount> | undefined;
-	getOrderStateAccountAndSlot(): AccountAndSlot<OrderStateAccount>;
+	): DataAndSlot<MarketAccount> | undefined;
+	getBankAccountAndSlot(bankIndex: BN): DataAndSlot<BankAccount> | undefined;
+	getOraclePriceDataAndSlot(
+		oraclePublicKey: PublicKey
+	): DataAndSlot<OraclePriceData> | undefined;
+	getOrderStateAccountAndSlot(): DataAndSlot<OrderStateAccount>;
 
-	getUserAccountAndSlot(): AccountAndSlot<UserAccount> | undefined;
+	getUserAccountAndSlot(): DataAndSlot<UserAccount> | undefined;
 
 	type: ClearingHouseConfigType;
 }
@@ -78,7 +88,7 @@ export interface UserAccountSubscriber {
 	fetch(): Promise<void>;
 	unsubscribe(): Promise<void>;
 
-	getUserAccountAndSlot(): AccountAndSlot<UserAccount>;
+	getUserAccountAndSlot(): DataAndSlot<UserAccount>;
 	type: ClearingHouseUserConfigType;
 }
 
@@ -96,7 +106,7 @@ export interface TokenAccountSubscriber {
 	fetch(): Promise<void>;
 	unsubscribe(): Promise<void>;
 
-	getTokenAccountAndSlot(): AccountAndSlot<AccountInfo>;
+	getTokenAccountAndSlot(): DataAndSlot<AccountInfo>;
 }
 
 export interface OracleEvents {
@@ -113,7 +123,7 @@ export interface OracleSubscriber {
 	fetch(): Promise<void>;
 	unsubscribe(): Promise<void>;
 
-	getOraclePriceData(): AccountAndSlot<OraclePriceData>;
+	getOraclePriceData(): DataAndSlot<OraclePriceData>;
 }
 
 export type AccountToPoll = {
@@ -124,12 +134,18 @@ export type AccountToPoll = {
 	mapKey?: number;
 };
 
+export type OraclesToPoll = {
+	publicKey: PublicKey;
+	source: OracleSource;
+	callbackId?: string;
+};
+
 export type BufferAndSlot = {
 	slot: number;
 	buffer: Buffer | undefined;
 };
 
-export type AccountAndSlot<T> = {
-	account: T;
+export type DataAndSlot<T> = {
+	data: T;
 	slot: number;
 };

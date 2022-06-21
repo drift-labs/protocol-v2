@@ -1,5 +1,5 @@
 import {
-	AccountAndSlot,
+	DataAndSlot,
 	NotSubscribedError,
 	OracleEvents,
 	OracleSubscriber,
@@ -22,7 +22,7 @@ export class PollingOracleSubscriber implements OracleSubscriber {
 	callbackId?: string;
 	errorCallbackId?: string;
 
-	oraclePriceData?: AccountAndSlot<OraclePriceData>;
+	oraclePriceData?: DataAndSlot<OraclePriceData>;
 
 	public constructor(
 		publicKey: PublicKey,
@@ -69,7 +69,7 @@ export class PollingOracleSubscriber implements OracleSubscriber {
 			async (buffer, slot) => {
 				const oraclePriceData =
 					await this.oracleClient.getOraclePriceDataFromBuffer(buffer);
-				this.oraclePriceData = { account: oraclePriceData, slot };
+				this.oraclePriceData = { data: oraclePriceData, slot };
 				// @ts-ignore
 				this.eventEmitter.emit('oracleUpdate', oraclePriceData);
 				this.eventEmitter.emit('update');
@@ -87,7 +87,7 @@ export class PollingOracleSubscriber implements OracleSubscriber {
 			this.publicKey
 		);
 		this.oraclePriceData = {
-			account: await this.oracleClient.getOraclePriceDataFromBuffer(buffer),
+			data: await this.oracleClient.getOraclePriceDataFromBuffer(buffer),
 			slot,
 		};
 	}
@@ -114,7 +114,7 @@ export class PollingOracleSubscriber implements OracleSubscriber {
 		}
 	}
 
-	public getOraclePriceData(): AccountAndSlot<OraclePriceData> {
+	public getOraclePriceData(): DataAndSlot<OraclePriceData> {
 		this.assertIsSubscribed();
 		return this.oraclePriceData;
 	}

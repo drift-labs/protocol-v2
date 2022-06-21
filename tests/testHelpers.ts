@@ -17,7 +17,7 @@ import {
 } from '@solana/web3.js';
 import { assert } from 'chai';
 import buffer from 'buffer';
-import { BN, Wallet, OraclePriceData } from '../sdk';
+import { BN, Wallet, OraclePriceData, OracleInfo } from '../sdk';
 import {
 	Admin,
 	BANK_RATE_PRECISION,
@@ -205,7 +205,10 @@ export async function createUSDCAccountForUser(
 export async function initializeAndSubscribeClearingHouse(
 	connection: Connection,
 	program: Program,
-	userKeyPair: Keypair
+	userKeyPair: Keypair,
+	marketIndexes: BN[],
+	bankIndexes: BN[],
+	oracleInfos: OracleInfo[] = []
 ): Promise<ClearingHouse> {
 	const clearingHouse = ClearingHouse.from(
 		connection,
@@ -213,7 +216,11 @@ export async function initializeAndSubscribeClearingHouse(
 		program.programId,
 		{
 			commitment: 'confirmed',
-		}
+		},
+		0,
+		marketIndexes,
+		bankIndexes,
+		oracleInfos
 	);
 	await clearingHouse.subscribe();
 	await clearingHouse.initializeUserAccount();
@@ -224,7 +231,10 @@ export async function createUserWithUSDCAccount(
 	provider: AnchorProvider,
 	usdcMint: Keypair,
 	chProgram: Program,
-	usdcAmount: BN
+	usdcAmount: BN,
+	marketIndexes: BN[],
+	bankIndexes: BN[],
+	oracleInfos: OracleInfo[] = []
 ): Promise<[ClearingHouse, PublicKey, Keypair]> {
 	const userKeyPair = await createFundedKeyPair(provider.connection);
 	const usdcAccount = await createUSDCAccountForUser(
@@ -236,7 +246,10 @@ export async function createUserWithUSDCAccount(
 	const clearingHouse = await initializeAndSubscribeClearingHouse(
 		provider.connection,
 		chProgram,
-		userKeyPair
+		userKeyPair,
+		marketIndexes,
+		bankIndexes,
+		oracleInfos
 	);
 
 	return [clearingHouse, usdcAccount, userKeyPair];
@@ -267,7 +280,10 @@ export async function createUserWithUSDCAndWSOLAccount(
 	usdcMint: Keypair,
 	chProgram: Program,
 	solAmount: BN,
-	usdcAmount: BN
+	usdcAmount: BN,
+	marketIndexes: BN[],
+	bankIndexes: BN[],
+	oracleInfos: OracleInfo[] = []
 ): Promise<[ClearingHouse, PublicKey, PublicKey, Keypair]> {
 	const userKeyPair = await createFundedKeyPair(provider.connection);
 	const solAccount = await createWSolTokenAccountForUser(
@@ -284,7 +300,10 @@ export async function createUserWithUSDCAndWSOLAccount(
 	const clearingHouse = await initializeAndSubscribeClearingHouse(
 		provider.connection,
 		chProgram,
-		userKeyPair
+		userKeyPair,
+		marketIndexes,
+		bankIndexes,
+		oracleInfos
 	);
 
 	return [clearingHouse, solAccount, usdcAccount, userKeyPair];

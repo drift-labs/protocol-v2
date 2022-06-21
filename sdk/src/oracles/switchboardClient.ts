@@ -1,25 +1,18 @@
-import {
-	getSwitchboardPid,
-	SwitchboardDecimal,
-} from '@switchboard-xyz/switchboard-v2';
+import { SwitchboardDecimal } from '@switchboard-xyz/switchboard-v2';
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
-import { DriftEnv } from '../config';
 import { BN, Program, Idl, AnchorProvider } from '@project-serum/anchor';
 import { MARK_PRICE_PRECISION, TEN } from '../constants/numericConstants';
 import { OracleClient, OraclePriceData } from './types';
 import { Wallet } from '../wallet';
 import switchboardV2Idl from '../idl/switchboard_v2.json';
 
-// cache switchboard program for every client object since itll always be the same
-const programMap = new Map<string, Program>();
+let program: Program | undefined;
 
 export class SwitchboardClient implements OracleClient {
 	connection: Connection;
-	env: DriftEnv;
 
-	public constructor(connection: Connection, env: DriftEnv) {
+	public constructor(connection: Connection) {
 		this.connection = connection;
-		this.env = env;
 	}
 
 	public async getOraclePriceData(
@@ -29,10 +22,8 @@ export class SwitchboardClient implements OracleClient {
 		return this.getOraclePriceDataFromBuffer(accountInfo.data);
 	}
 
-	public async getOraclePriceDataFromBuffer(
-		buffer: Buffer
-	): Promise<OraclePriceData> {
-		const program = await this.getProgram();
+	public getOraclePriceDataFromBuffer(buffer: Buffer): OraclePriceData {
+		const program = this.getProgram();
 
 		const aggregatorAccountData =
 			program.account.aggregatorAccountData.coder.accounts.decode(
@@ -61,23 +52,19 @@ export class SwitchboardClient implements OracleClient {
 		};
 	}
 
-	public async getProgram(): Promise<Program> {
-		if (programMap.has(this.env)) {
-			return programMap.get(this.env);
+	public getProgram(): Program {
+		if (program) {
+			return program;
 		}
 
-		const program = await getSwitchboardProgram(this.env, this.connection);
-		programMap.set(this.env, program);
+		program = getSwitchboardProgram(this.connection);
 		return program;
 	}
 }
 
-async function getSwitchboardProgram(
-	env: DriftEnv,
-	connection: Connection
-): Promise<Program> {
+function getSwitchboardProgram(connection: Connection): Program {
 	const DEFAULT_KEYPAIR = Keypair.fromSeed(new Uint8Array(32).fill(1));
-	const programId = getSwitchboardPid(env);
+	const programId = PublicKey.default;
 	const wallet = new Wallet(DEFAULT_KEYPAIR);
 	const provider = new AnchorProvider(connection, wallet, {});
 

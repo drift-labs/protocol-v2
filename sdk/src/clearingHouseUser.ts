@@ -117,7 +117,7 @@ export class ClearingHouseUser {
 	}
 
 	public getUserAccount(): UserAccount {
-		return this.accountSubscriber.getUserAccountAndSlot().account;
+		return this.accountSubscriber.getUserAccountAndSlot().data;
 	}
 
 	/**

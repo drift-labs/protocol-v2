@@ -1,26 +1,29 @@
-import { AccountAndSlot, BufferAndSlot, AccountSubscriber } from './types';
+import { DataAndSlot, BufferAndSlot, AccountSubscriber } from './types';
 import { AnchorProvider, Program } from '@project-serum/anchor';
 import { AccountInfo, Context, PublicKey } from '@solana/web3.js';
 import { capitalize } from './utils';
 import * as Buffer from 'buffer';
 
 export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
-	accountAndSlot?: AccountAndSlot<T>;
+	dataAndSlot?: DataAndSlot<T>;
 	bufferAndSlot?: BufferAndSlot;
 	accountName: string;
 	program: Program;
 	accountPublicKey: PublicKey;
+	decodeBufferFn: (buffer: Buffer) => T;
 	onChange: (data: T) => void;
 	listenerId?: number;
 
 	public constructor(
 		accountName: string,
 		program: Program,
-		accountPublicKey: PublicKey
+		accountPublicKey: PublicKey,
+		decodeBuffer?: (buffer: Buffer) => T
 	) {
 		this.accountName = accountName;
 		this.program = program;
 		this.accountPublicKey = accountPublicKey;
+		this.decodeBufferFn = decodeBuffer;
 	}
 
 	async subscribe(onChange: (data: T) => void): Promise<void> {
@@ -62,11 +65,9 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 				slot: newSlot,
 			};
 			if (newBuffer) {
-				const account = this.program.account[
-					this.accountName
-				].coder.accounts.decode(capitalize(this.accountName), newBuffer);
-				this.accountAndSlot = {
-					account,
+				const account = this.decodeBuffer(newBuffer);
+				this.dataAndSlot = {
+					data: account,
 					slot: newSlot,
 				};
 				this.onChange(account);
@@ -84,14 +85,23 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 				buffer: newBuffer,
 				slot: newSlot,
 			};
-			const account = this.program.account[
-				this.accountName
-			].coder.accounts.decode(capitalize(this.accountName), newBuffer);
-			this.accountAndSlot = {
-				account,
+			const account = this.decodeBuffer(newBuffer);
+			this.dataAndSlot = {
+				data: account,
 				slot: newSlot,
 			};
 			this.onChange(account);
+		}
+	}
+
+	decodeBuffer(buffer: Buffer): T {
+		if (this.decodeBufferFn) {
+			return this.decodeBufferFn(buffer);
+		} else {
+			return this.program.account[this.accountName].coder.accounts.decode(
+				capitalize(this.accountName),
+				buffer
+			);
 		}
 	}
 
