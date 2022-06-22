@@ -71,7 +71,7 @@ export interface EventSubscriberEvents {
 export type SortFn = (
 	currentRecord: Event<EventType, EventData>,
 	newRecord: Event<EventType, EventData>
-) => 'before' | 'after';
+) => 'less than' | 'greater than';
 
 export type logProviderCallback = (
 	txSig: TransactionSignature,
