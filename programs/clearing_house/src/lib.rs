@@ -375,7 +375,7 @@ pub mod clearing_house {
         // Verify oracle is readable
         let OraclePriceData {
             price: oracle_price,
-            confidence: oracle_conf,
+            // confidence: oracle_conf,
             delay: oracle_delay,
             ..
         } = match oracle_source {
@@ -453,7 +453,7 @@ pub mod clearing_house {
                 last_oracle_price_twap_ts: now,
                 last_oracle_normalised_price: oracle_price,
                 last_oracle_price: oracle_price,
-                last_oracle_conf: oracle_conf as u64,
+                last_oracle_conf_pct: 0,
                 last_oracle_delay: oracle_delay,
                 last_oracle_mark_spread_pct: 0, // todo
                 minimum_base_asset_trade_size: 10000000,
