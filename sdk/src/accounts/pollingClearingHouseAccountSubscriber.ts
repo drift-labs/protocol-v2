@@ -341,10 +341,13 @@ export class PollingClearingHouseAccountSubscriber
 				].coder.accounts.decode(capitalize(accountToPoll.key), buffer);
 
 				if (accountToPoll.mapKey != undefined) {
-					this[accountToPoll.key].set(accountToPoll.mapKey, { account, slot });
+					this[accountToPoll.key].set(accountToPoll.mapKey, {
+						data: account,
+						slot,
+					});
 				} else {
 					this[accountToPoll.key] = {
-						account,
+						data: account,
 						slot,
 					};
 				}
