@@ -90,7 +90,7 @@ export function calculatePositionPNL(
 	market: MarketAccount,
 	marketPosition: UserPosition,
 	withFunding = false,
-	oraclePriceData?: OraclePriceData
+	oraclePriceData: OraclePriceData
 ): BN {
 	if (marketPosition.baseAssetAmount.eq(ZERO)) {
 		return ZERO;
