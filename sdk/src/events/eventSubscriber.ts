@@ -5,8 +5,6 @@ import {
 	EventSubscriptionOptions,
 	EventType,
 	Events,
-	clientSortFn,
-	defaultBlockchainSortFn,
 	Event,
 	EventMap,
 	EventData,
@@ -20,6 +18,7 @@ import { fetchLogs } from './fetchLogs';
 import { WebSocketLogProvider } from './webSocketLogProvider';
 import { EventEmitter } from 'events';
 import StrictEventEmitter from 'strict-event-emitter-types';
+import { getSortFn } from './sort';
 
 export class EventSubscriber {
 	private eventListMap: Map<EventType, EventList<EventType, EventData>>;
@@ -42,7 +41,7 @@ export class EventSubscriber {
 				eventType,
 				new EventList<EventType, EventData>(
 					this.options.maxEventsPerType,
-					options.order === 'client' ? clientSortFn : defaultBlockchainSortFn
+					getSortFn(options.order, eventType)
 				)
 			);
 		}

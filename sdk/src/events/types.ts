@@ -2,10 +2,10 @@ import { Commitment, TransactionSignature } from '@solana/web3.js';
 import {
 	DepositRecord,
 	FundingPaymentRecord,
-	TradeRecord,
+	FundingRateRecord,
 	LiquidationRecord,
 	OrderRecord,
-	FundingRateRecord,
+	TradeRecord,
 } from '../index';
 
 export type EventSubscriptionOptions = {
@@ -65,16 +65,10 @@ export interface EventSubscriberEvents {
 	newEvent: (event: Event<EventType, EventMap[EventType]>) => void;
 }
 
-export function clientSortFn(): 'before' {
-	return 'before';
-}
-
-export function defaultBlockchainSortFn(
+export type SortFn = (
 	currentRecord: Event<EventType, EventData>,
 	newRecord: Event<EventType, EventData>
-): 'before' | 'after' {
-	return currentRecord.slot <= newRecord.slot ? 'before' : 'after';
-}
+) => 'before' | 'after';
 
 export type logProviderCallback = (
 	txSig: TransactionSignature,
