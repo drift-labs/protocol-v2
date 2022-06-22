@@ -1,4 +1,10 @@
-import { Event, EventType, EventMap } from './types';
+import {
+	Event,
+	EventType,
+	EventMap,
+	EventSubscriptionOrderDirection,
+	SortFn,
+} from './types';
 
 class Node<Type extends EventType, Data extends EventMap[Type]> {
 	constructor(
@@ -15,11 +21,8 @@ export class EventList<Type extends EventType, Data extends EventMap[Type]> {
 
 	public constructor(
 		public maxSize: number,
-		private sortFn: (
-			currentNode: Event<Type, Data>,
-			newNode: Event<Type, Data>
-		) => 'before' | 'after',
-		private orderDirection: 'asc' | 'desc'
+		private sortFn: SortFn,
+		private orderDirection: EventSubscriptionOrderDirection
 	) {}
 
 	public insert(event: Event<Type, Data>): void {
@@ -32,7 +35,7 @@ export class EventList<Type extends EventType, Data extends EventMap[Type]> {
 
 		if (
 			this.sortFn(this.head.event, newNode.event) ===
-			(this.orderDirection === 'asc' ? 'before' : 'after')
+			(this.orderDirection === 'asc' ? 'less than' : 'greater than')
 		) {
 			this.head.prev = newNode;
 			newNode.next = this.head;
@@ -42,7 +45,7 @@ export class EventList<Type extends EventType, Data extends EventMap[Type]> {
 			while (
 				currentNode.next !== undefined &&
 				this.sortFn(currentNode.next.event, newNode.event) !==
-					(this.orderDirection === 'asc' ? 'before' : 'after')
+					(this.orderDirection === 'asc' ? 'less than' : 'greater than')
 			) {
 				currentNode = currentNode.next;
 			}

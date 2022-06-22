@@ -3,40 +3,48 @@ import {
 	EventData,
 	EventMap,
 	EventSubscriptionOrderBy,
+	EventSubscriptionOrderDirection,
 	EventType,
 	SortFn,
 } from './types';
 
-function clientSortFn(): 'before' {
-	return 'before';
+function clientSortAscFn(): 'less than' {
+	return 'less than';
+}
+
+function clientSortDescFn(): 'greater than' {
+	return 'greater than';
 }
 
 function defaultBlockchainSortFn(
 	currentRecord: Event<EventType, EventData>,
 	newRecord: Event<EventType, EventData>
-): 'before' | 'after' {
-	return currentRecord.slot <= newRecord.slot ? 'before' : 'after';
+): 'less than' | 'greater than' {
+	return currentRecord.slot <= newRecord.slot ? 'less than' : 'greater than';
 }
 
 function tradeRecordSortFn(
 	currentRecord: Event<'TradeRecord', EventMap['TradeRecord']>,
 	newRecord: Event<'TradeRecord', EventMap['TradeRecord']>
-): 'before' | 'after' {
+): 'less than' | 'greater than' {
 	if (!currentRecord.data.marketIndex.eq(newRecord.data.marketIndex)) {
-		return currentRecord.data.ts.lte(newRecord.data.ts) ? 'before' : 'after';
+		return currentRecord.data.ts.lte(newRecord.data.ts)
+			? 'less than'
+			: 'greater than';
 	}
 
 	return currentRecord.data.recordId.lte(newRecord.data.recordId)
-		? 'before'
-		: 'after';
+		? 'less than'
+		: 'greater than';
 }
 
 export function getSortFn(
-	order: EventSubscriptionOrderBy,
+	orderBy: EventSubscriptionOrderBy,
+	orderDir: EventSubscriptionOrderDirection,
 	eventType: EventType
 ): SortFn {
-	if (order === 'client') {
-		return clientSortFn;
+	if (orderBy === 'client') {
+		return orderDir === 'asc' ? clientSortAscFn : clientSortDescFn;
 	}
 
 	switch (eventType) {
