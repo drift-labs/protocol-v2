@@ -741,8 +741,7 @@ export class ClearingHouseUser {
 	 */
 	public liquidationPriceAfterClose(
 		positionMarketIndex: BN,
-		closeQuoteAmount: BN,
-		oraclePriceData: OraclePriceData
+		closeQuoteAmount: BN
 	): BN {
 		const currentPosition =
 			this.getUserPosition(positionMarketIndex) ||
@@ -764,7 +763,7 @@ export class ClearingHouseUser {
 			},
 			closeBaseAmount,
 			true,
-			oraclePriceData
+			this.getOracleDataForMarket(positionMarketIndex)
 		);
 	}
 
