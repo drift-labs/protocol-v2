@@ -333,8 +333,45 @@ export class ClearingHouseUser {
 		);
 	}
 
+	public getCollateralValue(bankIndex?: BN): BN {
+		return this.getUserAccount().bankBalances.reduce(
+			(totalAssetValue, bankBalance) => {
+				if (
+					bankBalance.balance.eq(ZERO) ||
+					(bankIndex !== undefined && !bankBalance.bankIndex.eq(bankIndex))
+				) {
+					return totalAssetValue;
+				}
+
+				// Todo this needs to account for whether it's based on initial or maintenance requirements
+				const bankAccount: BankAccount = this.clearingHouse.getBankAccount(
+					bankBalance.bankIndex
+				);
+
+				let tokenAmount = getTokenAmount(
+					bankBalance.balance,
+					bankAccount,
+					bankBalance.balanceType
+				);
+
+				if (isVariant(bankBalance.balanceType, 'borrow')) {
+					tokenAmount = tokenAmount.mul(new BN(-1));
+				}
+
+				return totalAssetValue.add(
+					tokenAmount
+						.mul(this.getOracleDataForBank(bankAccount.bankIndex).price)
+						.div(BANK_WEIGHT_PRECISION)
+						.div(MARK_PRICE_PRECISION)
+				);
+			},
+			ZERO
+		);
+	}
+
 	/**
 	 * calculates TotalCollateral: collateral + unrealized pnl
+	 * TODO: rename to total equity (for perpetuals swaps)
 	 * @returns : Precision QUOTE_PRECISION
 	 */
 	public getTotalCollateral(): BN {
