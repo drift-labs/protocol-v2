@@ -326,6 +326,7 @@ export class ClearingHouseUser {
 						.mul(this.getOracleDataForBank(bankAccount.bankIndex).price)
 						.mul(bankAccount.initialLiabilityWeight)
 						.div(BANK_WEIGHT_PRECISION)
+						.div(MARK_PRICE_PRECISION)
 				);
 			},
 			ZERO
@@ -361,6 +362,7 @@ export class ClearingHouseUser {
 						.mul(this.getOracleDataForBank(bankAccount.bankIndex).price)
 						.mul(bankAccount.initialAssetWeight)
 						.div(BANK_WEIGHT_PRECISION)
+						.div(MARK_PRICE_PRECISION)
 				);
 			}, ZERO)
 			.add(this.getUnrealizedPNL(true))
