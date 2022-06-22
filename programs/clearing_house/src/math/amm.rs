@@ -463,19 +463,17 @@ pub fn calculate_spreads(amm: &mut AMM) -> ClearingHouseResult<(u128, u128)> {
         // inventory scale
         let max_invetory_skew = 5 * MARK_PRICE_PRECISION;
         if amm.total_fee_minus_distributions > 0 {
-            let net_cost_basis = cast_to_i128(
-                amm.quote_asset_amount_long)?
-                    .checked_sub(cast_to_i128(amm.quote_asset_amount_short)?)
-                    .ok_or_else(math_error!())?;
+            let net_cost_basis = cast_to_i128(amm.quote_asset_amount_long)?
+                .checked_sub(cast_to_i128(amm.quote_asset_amount_short)?)
+                .ok_or_else(math_error!())?;
 
-            let net_base_asset_value = cast_to_i128(
-                amm.quote_asset_reserve)?
-                    .checked_sub(cast_to_i128(amm.terminal_quote_asset_reserve)?)
-                    .ok_or_else(math_error!())?
-                    .checked_mul(cast_to_i128(amm.peg_multiplier)?)
-                    .ok_or_else(math_error!())?
-                    .checked_div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128)
-                    .ok_or_else(math_error!())?;
+            let net_base_asset_value = cast_to_i128(amm.quote_asset_reserve)?
+                .checked_sub(cast_to_i128(amm.terminal_quote_asset_reserve)?)
+                .ok_or_else(math_error!())?
+                .checked_mul(cast_to_i128(amm.peg_multiplier)?)
+                .ok_or_else(math_error!())?
+                .checked_div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128)
+                .ok_or_else(math_error!())?;
 
             let local_base_asset_value = amm
                 .net_base_asset_amount
@@ -491,12 +489,14 @@ pub fn calculate_spreads(amm: &mut AMM) -> ClearingHouseResult<(u128, u128)> {
                 .checked_sub(net_cost_basis)
                 .ok_or_else(math_error!())?;
 
-            let effective_leverage =
-                cast_to_u128(max(0, local_pnl.checked_sub(net_pnl).ok_or_else(math_error!())?))?
-                    .checked_mul(MARK_PRICE_PRECISION)
-                    .ok_or_else(math_error!())?
-                    .checked_div(amm.total_fee_minus_distributions)
-                    .ok_or_else(math_error!())?;
+            let effective_leverage = cast_to_u128(max(
+                0,
+                local_pnl.checked_sub(net_pnl).ok_or_else(math_error!())?,
+            ))?
+            .checked_mul(MARK_PRICE_PRECISION)
+            .ok_or_else(math_error!())?
+            .checked_div(amm.total_fee_minus_distributions)
+            .ok_or_else(math_error!())?;
 
             msg!(
                 "effective leverage: {:?} long/short quote: {:?}/{:?}",
