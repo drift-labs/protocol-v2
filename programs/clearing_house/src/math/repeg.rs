@@ -252,7 +252,7 @@ pub fn calculate_prepeg_market(
         target_price,
     )?;
 
-    let (capped_candidate_peg, _candidate_cost, repegged_market) = calculate_budgeted_peg(
+    let (_capped_candidate_peg, _candidate_cost, repegged_market) = calculate_budgeted_peg(
         market,
         market.amm.terminal_quote_asset_reserve,
         fee_budget,

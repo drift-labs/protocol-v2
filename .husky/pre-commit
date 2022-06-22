@@ -2,6 +2,7 @@
 . "$(dirname "$0")/_/husky.sh"
 
 cargo fmt -- --check
-cargo +nightly clippy
+cargo +nightly clippy -- -D warnings
 yarn prettify
 yarn lint
+cd sdk && yarn build

@@ -119,7 +119,6 @@ pub fn prepeg(
     //     repeg::calculate_repeg_pool_budget(market, mark_price, oracle_price_data)?;
     // let repeg_budget = min(fee_budget, repeg_pool_budget);
     let (optimal_peg_market, optimal_peg_cost) = repeg::adjust_peg_cost(market, optimal_peg)?;
-    let prepeg_cost: i128;
     // if optimal_peg_cost > 0 && repeg_budget < optimal_peg_cost.unsigned_abs() {
     //     msg!(
     //         "optimal repeg cost {:?} exceeds budget: {:?}",
@@ -210,7 +209,7 @@ pub fn prepeg(
         optimal_peg_cost,
         repeg_budget
     ); // assert_eq!(false, true);
-    prepeg_cost = optimal_peg_cost;
+    let prepeg_cost = optimal_peg_cost;
     // }
 
     Ok(prepeg_cost)
