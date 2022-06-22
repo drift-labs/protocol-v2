@@ -1,9 +1,10 @@
 import {
-	AccountAndSlot,
+	DataAndSlot,
 	AccountToPoll,
 	ClearingHouseAccountEvents,
 	ClearingHouseAccountSubscriber,
 	NotSubscribedError,
+	OraclesToPoll,
 } from './types';
 import { BN, Program } from '@project-serum/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
@@ -25,6 +26,9 @@ import { BulkAccountLoader } from './bulkAccountLoader';
 import { capitalize } from './utils';
 import { ClearingHouseConfigType } from '../factory/clearingHouse';
 import { PublicKey } from '@solana/web3.js';
+import { OracleInfo, OraclePriceData } from '../oracles/types';
+import { OracleClientCache } from '../oracles/oracleClientCache';
+import { QUOTE_ORACLE_PRICE_DATA } from '../oracles/quoteAssetOracleClient';
 type UserPublicKeys = {
 	userAccountPublicKey: PublicKey;
 };
@@ -36,17 +40,24 @@ export class PollingClearingHouseAccountSubscriber
 	program: Program;
 	authority: PublicKey;
 	userId: number;
+	marketIndexes: BN[];
+	bankIndexes: BN[];
+	oracleInfos: OracleInfo[];
+	oracleClientCache = new OracleClientCache();
+
 	eventEmitter: StrictEventEmitter<EventEmitter, ClearingHouseAccountEvents>;
 
 	accountLoader: BulkAccountLoader;
 	accountsToPoll = new Map<string, AccountToPoll>();
+	oraclesToPoll = new Map<string, OraclesToPoll>();
 	errorCallbackId?: string;
 
-	state?: AccountAndSlot<StateAccount>;
-	market = new Map<number, AccountAndSlot<MarketAccount>>();
-	bank = new Map<number, AccountAndSlot<BankAccount>>();
-	orderState?: AccountAndSlot<OrderStateAccount>;
-	userAccount?: AccountAndSlot<UserAccount>;
+	state?: DataAndSlot<StateAccount>;
+	market = new Map<number, DataAndSlot<MarketAccount>>();
+	bank = new Map<number, DataAndSlot<BankAccount>>();
+	oracles = new Map<string, DataAndSlot<OraclePriceData>>();
+	orderState?: DataAndSlot<OrderStateAccount>;
+	user?: DataAndSlot<UserAccount>;
 
 	type: ClearingHouseConfigType = 'polling';
 
@@ -58,7 +69,10 @@ export class PollingClearingHouseAccountSubscriber
 		program: Program,
 		authority: PublicKey,
 		accountLoader: BulkAccountLoader,
-		userId: number
+		userId: number,
+		marketIndexes: BN[],
+		bankIndexes: BN[],
+		oracleInfos: OracleInfo[]
 	) {
 		this.isSubscribed = false;
 		this.program = program;
@@ -66,6 +80,9 @@ export class PollingClearingHouseAccountSubscriber
 		this.accountLoader = accountLoader;
 		this.authority = authority;
 		this.userId = userId;
+		this.marketIndexes = marketIndexes;
+		this.bankIndexes = bankIndexes;
+		this.oracleInfos = oracleInfos;
 	}
 
 	public async subscribe(): Promise<boolean> {
@@ -84,6 +101,7 @@ export class PollingClearingHouseAccountSubscriber
 		});
 
 		await this.updateAccountsToPoll();
+		await this.updateOraclesToPoll();
 		await this.addToAccountLoader();
 
 		let subscriptionSucceeded = false;
@@ -133,7 +151,7 @@ export class PollingClearingHouseAccountSubscriber
 		const { userAccountPublicKey } = await this.getUserAccountPublicKeys();
 
 		this.accountsToPoll.set(userAccountPublicKey.toString(), {
-			key: 'userAccount',
+			key: 'user',
 			publicKey: userAccountPublicKey,
 			eventType: 'userAccountUpdate',
 		});
@@ -144,37 +162,66 @@ export class PollingClearingHouseAccountSubscriber
 	}
 
 	async updateMarketAccountsToPoll(): Promise<boolean> {
-		for (let i = 0; i < 10; i++) {
-			const marketPublicKey = await getMarketPublicKey(
-				this.program.programId,
-				new BN(i)
-			);
-
-			this.accountsToPoll.set(marketPublicKey.toString(), {
-				key: 'market',
-				publicKey: marketPublicKey,
-				eventType: 'marketAccountUpdate',
-				mapKey: i,
-			});
+		for (const marketIndex of this.marketIndexes) {
+			await this.addMarketAccountToPoll(marketIndex);
 		}
+		return true;
+	}
+
+	async addMarketAccountToPoll(marketIndex: BN): Promise<boolean> {
+		const marketPublicKey = await getMarketPublicKey(
+			this.program.programId,
+			marketIndex
+		);
+
+		this.accountsToPoll.set(marketPublicKey.toString(), {
+			key: 'market',
+			publicKey: marketPublicKey,
+			eventType: 'marketAccountUpdate',
+			mapKey: marketIndex.toNumber(),
+		});
 
 		return true;
 	}
 
 	async updateBankAccountsToPoll(): Promise<boolean> {
-		for (let i = 0; i < 10; i++) {
-			const bankPublicKey = await getBankPublicKey(
-				this.program.programId,
-				new BN(i)
-			);
-
-			this.accountsToPoll.set(bankPublicKey.toString(), {
-				key: 'bank',
-				publicKey: bankPublicKey,
-				eventType: 'bankAccountUpdate',
-				mapKey: i,
-			});
+		for (const bankIndex of this.bankIndexes) {
+			await this.addBankAccountToPoll(bankIndex);
 		}
+
+		return true;
+	}
+
+	async addBankAccountToPoll(bankIndex: BN): Promise<boolean> {
+		const bankPublicKey = await getBankPublicKey(
+			this.program.programId,
+			bankIndex
+		);
+
+		this.accountsToPoll.set(bankPublicKey.toString(), {
+			key: 'bank',
+			publicKey: bankPublicKey,
+			eventType: 'bankAccountUpdate',
+			mapKey: bankIndex.toNumber(),
+		});
+		return true;
+	}
+
+	updateOraclesToPoll(): boolean {
+		for (const oracleInfo of this.oracleInfos) {
+			if (!oracleInfo.publicKey.equals(PublicKey.default)) {
+				this.addOracleToPoll(oracleInfo);
+			}
+		}
+
+		return true;
+	}
+
+	addOracleToPoll(oracleInfo: OracleInfo): boolean {
+		this.oraclesToPoll.set(oracleInfo.publicKey.toString(), {
+			publicKey: oracleInfo.publicKey,
+			source: oracleInfo.source,
+		});
 
 		return true;
 	}
@@ -213,6 +260,10 @@ export class PollingClearingHouseAccountSubscriber
 			this.addAccountToAccountLoader(accountToPoll);
 		}
 
+		for (const [_, oracleToPoll] of this.oraclesToPoll) {
+			this.addOracleToAccountLoader(oracleToPoll);
+		}
+
 		this.errorCallbackId = this.accountLoader.addErrorCallbacks((error) => {
 			this.eventEmitter.emit('error', error);
 		});
@@ -221,18 +272,20 @@ export class PollingClearingHouseAccountSubscriber
 	addAccountToAccountLoader(accountToPoll: AccountToPoll): void {
 		accountToPoll.callbackId = this.accountLoader.addAccount(
 			accountToPoll.publicKey,
-			(buffer, slot) => {
+			(buffer: Buffer, slot: number) => {
+				if (!buffer) return;
+
 				const account = this.program.account[
 					accountToPoll.key
 				].coder.accounts.decode(capitalize(accountToPoll.key), buffer);
-				const accountAndSlot = {
-					account,
+				const dataAndSlot = {
+					data: account,
 					slot,
 				};
-				if (accountToPoll.mapKey) {
-					this[accountToPoll.key].set(accountToPoll.mapKey, accountAndSlot);
+				if (accountToPoll.mapKey != undefined) {
+					this[accountToPoll.key].set(accountToPoll.mapKey, dataAndSlot);
 				} else {
-					this[accountToPoll.key] = accountAndSlot;
+					this[accountToPoll.key] = dataAndSlot;
 				}
 
 				// @ts-ignore
@@ -242,6 +295,36 @@ export class PollingClearingHouseAccountSubscriber
 				if (!this.isSubscribed) {
 					this.isSubscribed = this.didSubscriptionSucceed();
 				}
+			}
+		);
+	}
+
+	addOracleToAccountLoader(oracleToPoll: OraclesToPoll): void {
+		const oracleClient = this.oracleClientCache.get(
+			oracleToPoll.source,
+			this.program.provider.connection
+		);
+
+		oracleToPoll.callbackId = this.accountLoader.addAccount(
+			oracleToPoll.publicKey,
+			(buffer: Buffer, slot: number) => {
+				if (!buffer) return;
+
+				const oraclePriceData =
+					oracleClient.getOraclePriceDataFromBuffer(buffer);
+				const dataAndSlot = {
+					data: oraclePriceData,
+					slot,
+				};
+
+				this.oracles.set(oracleToPoll.publicKey.toString(), dataAndSlot);
+
+				this.eventEmitter.emit(
+					'oraclePriceUpdate',
+					oracleToPoll.publicKey,
+					oraclePriceData
+				);
+				this.eventEmitter.emit('update');
 			}
 		);
 	}
@@ -256,23 +339,44 @@ export class PollingClearingHouseAccountSubscriber
 				const account = this.program.account[
 					accountToPoll.key
 				].coder.accounts.decode(capitalize(accountToPoll.key), buffer);
-				this[accountToPoll.key] = {
-					account,
+
+				if (accountToPoll.mapKey != undefined) {
+					this[accountToPoll.key].set(accountToPoll.mapKey, {
+						data: account,
+						slot,
+					});
+				} else {
+					this[accountToPoll.key] = {
+						data: account,
+						slot,
+					};
+				}
+			}
+		}
+
+		for (const [_, oracleToPoll] of this.oraclesToPoll) {
+			const { buffer, slot } = this.accountLoader.getBufferAndSlot(
+				oracleToPoll.publicKey
+			);
+			if (buffer) {
+				const oracleClient = this.oracleClientCache.get(
+					oracleToPoll.source,
+					this.program.provider.connection
+				);
+				const oraclePriceData =
+					oracleClient.getOraclePriceDataFromBuffer(buffer);
+				this.oracles.set(oracleToPoll.publicKey.toString(), {
+					data: oraclePriceData,
 					slot,
-				};
+				});
 			}
 		}
 	}
 
 	didSubscriptionSucceed(): boolean {
-		let success = true;
-		for (const [_, accountToPoll] of this.accountsToPoll) {
-			if (!this[accountToPoll.key]) {
-				success = false;
-				break;
-			}
-		}
-		return success;
+		if (this.state) return true;
+
+		return false;
 	}
 
 	public async unsubscribe(): Promise<void> {
@@ -287,10 +391,18 @@ export class PollingClearingHouseAccountSubscriber
 			);
 		}
 
+		for (const [_, oracleToPoll] of this.oraclesToPoll) {
+			this.accountLoader.removeAccount(
+				oracleToPoll.publicKey,
+				oracleToPoll.callbackId
+			);
+		}
+
 		this.accountLoader.removeErrorCallbacks(this.errorCallbackId);
 		this.errorCallbackId = undefined;
 
 		this.accountsToPoll.clear();
+		this.oraclesToPoll.clear();
 		this.isSubscribed = false;
 	}
 
@@ -354,6 +466,33 @@ export class PollingClearingHouseAccountSubscriber
 		return true;
 	}
 
+	async addBank(bankIndex: BN): Promise<boolean> {
+		await this.addBankAccountToPoll(bankIndex);
+		const accountToPoll = this.accountsToPoll.get(bankIndex.toString());
+		this.addAccountToAccountLoader(accountToPoll);
+		return true;
+	}
+
+	async addMarket(marketIndex: BN): Promise<boolean> {
+		await this.addMarketAccountToPoll(marketIndex);
+		const accountToPoll = this.accountsToPoll.get(marketIndex.toString());
+		this.addAccountToAccountLoader(accountToPoll);
+		return true;
+	}
+
+	async addOracle(oracleInfo: OracleInfo): Promise<boolean> {
+		if (oracleInfo.publicKey.equals(PublicKey.default)) {
+			return true;
+		}
+
+		this.addOracleToPoll(oracleInfo);
+		const oracleToPoll = this.oraclesToPoll.get(
+			oracleInfo.publicKey.toString()
+		);
+		this.addOracleToAccountLoader(oracleToPoll);
+		return true;
+	}
+
 	assertIsSubscribed(): void {
 		if (!this.isSubscribed) {
 			throw new NotSubscribedError(
@@ -362,31 +501,45 @@ export class PollingClearingHouseAccountSubscriber
 		}
 	}
 
-	public getStateAccountAndSlot(): AccountAndSlot<StateAccount> {
+	public getStateAccountAndSlot(): DataAndSlot<StateAccount> {
 		this.assertIsSubscribed();
 		return this.state;
 	}
 
 	public getMarketAccountAndSlot(
 		marketIndex: BN
-	): AccountAndSlot<MarketAccount> | undefined {
+	): DataAndSlot<MarketAccount> | undefined {
 		return this.market.get(marketIndex.toNumber());
 	}
 
 	public getBankAccountAndSlot(
 		bankIndex: BN
-	): AccountAndSlot<BankAccount> | undefined {
+	): DataAndSlot<BankAccount> | undefined {
 		return this.bank.get(bankIndex.toNumber());
 	}
 
-	public getOrderStateAccountAndSlot(): AccountAndSlot<OrderStateAccount> {
+	public getOrderStateAccountAndSlot(): DataAndSlot<OrderStateAccount> {
 		this.assertIsSubscribed();
 		return this.orderState;
 	}
 
-	public getUserAccountAndSlot(): AccountAndSlot<UserAccount> | undefined {
+	public getUserAccountAndSlot(): DataAndSlot<UserAccount> | undefined {
 		this.assertIsSubscribed();
-		return this.userAccount;
+		return this.user;
+	}
+
+	public getOraclePriceDataAndSlot(
+		oraclePublicKey: PublicKey
+	): DataAndSlot<OraclePriceData> | undefined {
+		this.assertIsSubscribed();
+		if (oraclePublicKey.equals(PublicKey.default)) {
+			return {
+				data: QUOTE_ORACLE_PRICE_DATA,
+				slot: 0,
+			};
+		}
+
+		return this.oracles.get(oraclePublicKey.toString());
 	}
 }
 

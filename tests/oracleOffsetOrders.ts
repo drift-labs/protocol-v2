@@ -24,7 +24,12 @@ import {
 	setFeedPrice,
 	initializeQuoteAssetBank,
 } from './testHelpers';
-import { AMM_RESERVE_PRECISION, calculateEntryPrice, ZERO } from '../sdk';
+import {
+	AMM_RESERVE_PRECISION,
+	calculateEntryPrice,
+	OracleSource,
+	ZERO,
+} from '../sdk';
 
 describe('oracle offset', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -55,9 +60,18 @@ describe('oracle offset', () => {
 	const marketIndex = new BN(0);
 	let solUsd;
 
+	let marketIndexes;
+	let bankIndexes;
+	let oracleInfos;
+
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
+
+		solUsd = await mockOracle(1);
+		marketIndexes = [new BN(0)];
+		bankIndexes = [new BN(0)];
+		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
 
 		fillerClearingHouse = Admin.from(
 			connection,
@@ -65,12 +79,15 @@ describe('oracle offset', () => {
 			chProgram.programId,
 			{
 				commitment: 'confirmed',
-			}
+			},
+			0,
+			marketIndexes,
+			bankIndexes,
+			oracleInfos
 		);
 		await fillerClearingHouse.initialize(usdcMint.publicKey, true);
 		await fillerClearingHouse.subscribe();
 		await initializeQuoteAssetBank(fillerClearingHouse, usdcMint.publicKey);
-		solUsd = await mockOracle(1);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
@@ -123,7 +140,11 @@ describe('oracle offset', () => {
 			chProgram.programId,
 			{
 				commitment: 'confirmed',
-			}
+			},
+			0,
+			marketIndexes,
+			bankIndexes,
+			oracleInfos
 		);
 		await clearingHouse.subscribe();
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
@@ -196,7 +217,11 @@ describe('oracle offset', () => {
 			chProgram.programId,
 			{
 				commitment: 'confirmed',
-			}
+			},
+			0,
+			marketIndexes,
+			bankIndexes,
+			oracleInfos
 		);
 		await clearingHouse.subscribe();
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
@@ -270,7 +295,11 @@ describe('oracle offset', () => {
 			chProgram.programId,
 			{
 				commitment: 'confirmed',
-			}
+			},
+			0,
+			marketIndexes,
+			bankIndexes,
+			oracleInfos
 		);
 		await clearingHouse.subscribe();
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
@@ -343,7 +372,11 @@ describe('oracle offset', () => {
 			chProgram.programId,
 			{
 				commitment: 'confirmed',
-			}
+			},
+			0,
+			marketIndexes,
+			bankIndexes,
+			oracleInfos
 		);
 		await clearingHouse.subscribe();
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
@@ -417,7 +450,11 @@ describe('oracle offset', () => {
 			chProgram.programId,
 			{
 				commitment: 'confirmed',
-			}
+			},
+			0,
+			marketIndexes,
+			bankIndexes,
+			oracleInfos
 		);
 		await clearingHouse.subscribe();
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
@@ -474,7 +511,11 @@ describe('oracle offset', () => {
 			chProgram.programId,
 			{
 				commitment: 'confirmed',
-			}
+			},
+			0,
+			marketIndexes,
+			bankIndexes,
+			oracleInfos
 		);
 		await clearingHouse.subscribe();
 		await clearingHouse.initializeUserAccountAndDepositCollateral(

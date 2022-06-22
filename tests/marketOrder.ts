@@ -24,7 +24,7 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
-import { AMM_RESERVE_PRECISION, ZERO } from '../sdk';
+import { AMM_RESERVE_PRECISION, OracleSource, ZERO } from '../sdk';
 import { AccountInfo, Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
 const enumsAreEqual = (
@@ -75,16 +75,29 @@ describe('market order', () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
+		solUsd = await mockOracle(1);
+		btcUsd = await mockOracle(60000);
+
+		const marketIndexes = [new BN(0), new BN(1)];
+		const bankIndexes = [new BN(0)];
+		const oracleInfos = [
+			{ publicKey: solUsd, source: OracleSource.PYTH },
+			{ publicKey: btcUsd, source: OracleSource.PYTH },
+		];
+
 		clearingHouse = Admin.from(
 			connection,
 			provider.wallet,
-			chProgram.programId
+			chProgram.programId,
+			undefined,
+			0,
+			marketIndexes,
+			bankIndexes,
+			oracleInfos
 		);
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
-		solUsd = await mockOracle(1);
-		btcUsd = await mockOracle(60000);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
@@ -148,7 +161,12 @@ describe('market order', () => {
 		fillerClearingHouse = ClearingHouse.from(
 			connection,
 			new Wallet(fillerKeyPair),
-			chProgram.programId
+			chProgram.programId,
+			undefined,
+			0,
+			marketIndexes,
+			bankIndexes,
+			oracleInfos
 		);
 		await fillerClearingHouse.subscribe();
 

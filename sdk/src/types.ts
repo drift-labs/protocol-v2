@@ -84,8 +84,7 @@ export type DepositRecord = {
 		deposit?: any;
 		withdraw?: any;
 	};
-	collateralBefore: BN;
-	cumulativeDepositsBefore: BN;
+	bankIndex: BN;
 	amount: BN;
 	from?: PublicKey;
 	to?: PublicKey;
@@ -178,7 +177,6 @@ export type LiquidationRecord = {
 
 export type OrderRecord = {
 	ts: BN;
-	recordId: BN;
 	order: Order;
 	user: PublicKey;
 	authority: PublicKey;
@@ -263,7 +261,7 @@ export type BankAccount = {
 	initialAssetWeight: BN;
 	maintenanceAssetWeight: BN;
 	initialLiabilityWeight: BN;
-	initialMaintenanceWeight: BN;
+	maintenanceLiabilityWeight: BN;
 };
 
 export type AMM = {

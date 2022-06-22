@@ -33,6 +33,7 @@ import {
 	calculateMarkPrice,
 	getLimitOrderParams,
 	getSwapDirection,
+	OracleSource,
 } from '../sdk';
 
 describe('amm spread: market order', () => {
@@ -70,20 +71,28 @@ describe('amm spread: market order', () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
+		solUsd = await mockOracle(1);
+
+		const marketIndexes = [new BN(0)];
+		const bankIndexes = [new BN(0)];
+		const oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
+
 		clearingHouse = Admin.from(
 			connection,
 			provider.wallet,
 			chProgram.programId,
 			{
 				commitment: 'confirmed',
-			}
+			},
+			0,
+			marketIndexes,
+			bankIndexes,
+			oracleInfos
 		);
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
 
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
-
-		solUsd = await mockOracle(1);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 

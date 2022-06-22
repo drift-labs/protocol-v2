@@ -66,7 +66,10 @@ describe('fees', () => {
 			chProgram.programId,
 			{
 				commitment: 'confirmed',
-			}
+			},
+			0,
+			[new BN(0)],
+			[new BN(0)]
 		);
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
@@ -115,7 +118,11 @@ describe('fees', () => {
 		referrerClearingHouse = ClearingHouse.from(
 			connection,
 			new Wallet(referrerKeyPair),
-			chProgram.programId
+			chProgram.programId,
+			undefined,
+			0,
+			[new BN(0)],
+			[new BN(0)]
 		);
 		await referrerClearingHouse.subscribe();
 

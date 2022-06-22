@@ -41,6 +41,7 @@ import {
 	findComputeUnitConsumption,
 	getMarketOrderParams,
 	isVariant,
+	OracleSource,
 	TEN_THOUSAND,
 	TWO,
 	ZERO,
@@ -112,20 +113,33 @@ describe('orders', () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
+		solUsd = await mockOracle(1);
+		btcUsd = await mockOracle(60000);
+		ethUsd = await mockOracle(1);
+
+		const marketIndexes = [marketIndex, marketIndexBTC, marketIndexEth];
+		const bankIndexes = [new BN(0)];
+		const oracleInfos = [
+			{ publicKey: solUsd, source: OracleSource.PYTH },
+			{ publicKey: btcUsd, source: OracleSource.PYTH },
+			{ publicKey: ethUsd, source: OracleSource.PYTH },
+		];
+
 		clearingHouse = Admin.from(
 			connection,
 			provider.wallet,
 			chProgram.programId,
 			{
 				commitment: 'confirmed',
-			}
+			},
+			0,
+			marketIndexes,
+			bankIndexes,
+			oracleInfos
 		);
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
-		solUsd = await mockOracle(1);
-		btcUsd = await mockOracle(60000);
-		ethUsd = await mockOracle(1);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
@@ -200,7 +214,11 @@ describe('orders', () => {
 			chProgram.programId,
 			{
 				commitment: 'confirmed',
-			}
+			},
+			0,
+			marketIndexes,
+			bankIndexes,
+			oracleInfos
 		);
 		await fillerClearingHouse.subscribe();
 
@@ -228,7 +246,11 @@ describe('orders', () => {
 			chProgram.programId,
 			{
 				commitment: 'confirmed',
-			}
+			},
+			0,
+			marketIndexes,
+			bankIndexes,
+			oracleInfos
 		);
 		await whaleClearingHouse.subscribe();
 

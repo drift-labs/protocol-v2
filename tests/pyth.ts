@@ -184,21 +184,24 @@ describe('pyth-oracle', () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
+		const price = 50000;
+		await mockOracle(price, -6);
+
 		clearingHouse = Admin.from(
 			connection,
 			provider.wallet,
 			chProgram.programId,
 			{
 				commitment: 'confirmed',
-			}
+			},
+			0,
+			[new BN(0)],
+			[new BN(0)]
 		);
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
 
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
-
-		const price = 50000;
-		await mockOracle(price, -6);
 
 		await clearingHouse.initializeUserAccount();
 		userAccount = ClearingHouseUser.from(
@@ -215,7 +218,14 @@ describe('pyth-oracle', () => {
 
 		// create <NUM_USERS> users with 10k that collectively do <NUM_EVENTS> actions
 		const [_userUSDCAccounts, _user_keys, clearingHouses, userAccountInfos] =
-			await initUserAccounts(1, usdcMint, usdcAmount, provider);
+			await initUserAccounts(
+				1,
+				usdcMint,
+				usdcAmount,
+				provider,
+				[new BN(0)],
+				[new BN(0)]
+			);
 
 		clearingHouse2 = clearingHouses[0];
 		userAccount2 = userAccountInfos[0];

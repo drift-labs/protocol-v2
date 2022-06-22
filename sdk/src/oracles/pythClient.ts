@@ -1,19 +1,14 @@
-import { parsePriceData, PriceData } from '@pythnetwork/client';
+import { parsePriceData } from '@pythnetwork/client';
 import { Connection, PublicKey } from '@solana/web3.js';
-import { OraclePriceData } from './types';
+import { OracleClient, OraclePriceData } from './types';
 import { BN } from '@project-serum/anchor';
 import { MARK_PRICE_PRECISION, TEN } from '../constants/numericConstants';
 
-export class PythClient {
+export class PythClient implements OracleClient {
 	private connection: Connection;
 
 	public constructor(connection: Connection) {
 		this.connection = connection;
-	}
-
-	public async getPriceData(pricePublicKey: PublicKey): Promise<PriceData> {
-		const account = await this.connection.getAccountInfo(pricePublicKey);
-		return parsePriceData(account.data);
 	}
 
 	public async getOraclePriceData(
@@ -23,9 +18,7 @@ export class PythClient {
 		return this.getOraclePriceDataFromBuffer(accountInfo.data);
 	}
 
-	public async getOraclePriceDataFromBuffer(
-		buffer: Buffer
-	): Promise<OraclePriceData> {
+	public getOraclePriceDataFromBuffer(buffer: Buffer): OraclePriceData {
 		const priceData = parsePriceData(buffer);
 		return {
 			price: convertPythPrice(priceData.aggregate.price, priceData.exponent),

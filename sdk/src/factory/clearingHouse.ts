@@ -2,7 +2,7 @@ import { ConfirmOptions, Connection, PublicKey } from '@solana/web3.js';
 import { IWallet } from '../types';
 import { BulkAccountLoader } from '../accounts/bulkAccountLoader';
 import { TxSender } from '../tx/types';
-import { AnchorProvider, Idl, Program } from '@project-serum/anchor';
+import { AnchorProvider, BN, Idl, Program } from '@project-serum/anchor';
 import { ClearingHouse } from '../clearingHouse';
 import clearingHouseIDL from '../idl/clearing_house.json';
 import { WebSocketClearingHouseAccountSubscriber } from '../accounts/webSocketClearingHouseAccountSubscriber';
@@ -10,6 +10,7 @@ import { ClearingHouseAccountSubscriber } from '../accounts/types';
 import { PollingClearingHouseAccountSubscriber } from '../accounts/pollingClearingHouseAccountSubscriber';
 import { Admin } from '../admin';
 import { RetryTxSender } from '../tx/retryTxSender';
+import { OracleInfo } from '../oracles/types';
 
 export type ClearingHouseConfigType = 'websocket' | 'polling' | 'custom';
 
@@ -21,6 +22,9 @@ type BaseClearingHouseConfig = {
 	opts?: ConfirmOptions;
 	txSenderConfig?: TxSenderConfig;
 	userId?: number;
+	marketIndexes: BN[];
+	bankIndexes: BN[];
+	oracleInfos: OracleInfo[];
 };
 
 type WebSocketClearingHouseConfiguration = BaseClearingHouseConfig;
@@ -53,7 +57,10 @@ export function getWebSocketClearingHouseConfig(
 	programID: PublicKey,
 	opts: ConfirmOptions = AnchorProvider.defaultOptions(),
 	txSenderConfig?: TxSenderConfig,
-	userId?: number
+	userId?: number,
+	marketIndexes: BN[] = [],
+	bankIndexes: BN[] = [],
+	oracleInfos: OracleInfo[] = []
 ): WebSocketClearingHouseConfiguration {
 	return {
 		type: 'websocket',
@@ -63,6 +70,9 @@ export function getWebSocketClearingHouseConfig(
 		opts,
 		txSenderConfig,
 		userId,
+		marketIndexes,
+		bankIndexes,
+		oracleInfos,
 	};
 }
 
@@ -73,7 +83,10 @@ export function getPollingClearingHouseConfig(
 	accountLoader: BulkAccountLoader,
 	opts: ConfirmOptions = AnchorProvider.defaultOptions(),
 	txSenderConfig?: TxSenderConfig,
-	userId?: number
+	userId?: number,
+	marketIndexes: BN[] = [],
+	bankIndexes: BN[] = [],
+	oracleInfos: OracleInfo[] = []
 ): PollingClearingHouseConfiguration {
 	return {
 		type: 'polling',
@@ -84,6 +97,9 @@ export function getPollingClearingHouseConfig(
 		opts,
 		txSenderConfig,
 		userId,
+		marketIndexes,
+		bankIndexes,
+		oracleInfos,
 	};
 }
 
@@ -103,14 +119,20 @@ export function getClearingHouse(config: ClearingHouseConfig): ClearingHouse {
 		accountSubscriber = new WebSocketClearingHouseAccountSubscriber(
 			program,
 			provider.wallet.publicKey,
-			config.userId
+			config.userId,
+			config.marketIndexes,
+			config.bankIndexes,
+			config.oracleInfos
 		);
 	} else if (config.type === 'polling') {
 		accountSubscriber = new PollingClearingHouseAccountSubscriber(
 			program,
 			provider.wallet.publicKey,
 			(config as PollingClearingHouseConfiguration).accountLoader,
-			config.userId
+			config.userId,
+			config.marketIndexes,
+			config.bankIndexes,
+			config.oracleInfos
 		);
 	}
 
@@ -154,14 +176,20 @@ export function getAdmin(config: ClearingHouseConfig): Admin {
 		accountSubscriber = new WebSocketClearingHouseAccountSubscriber(
 			program,
 			provider.wallet.publicKey,
-			config.userId
+			config.userId,
+			config.marketIndexes,
+			config.bankIndexes,
+			config.oracleInfos
 		);
 	} else if (config.type === 'polling') {
 		accountSubscriber = new PollingClearingHouseAccountSubscriber(
 			program,
 			provider.wallet.publicKey,
 			(config as PollingClearingHouseConfiguration).accountLoader,
-			config.userId
+			config.userId,
+			config.marketIndexes,
+			config.bankIndexes,
+			config.oracleInfos
 		);
 	}
 

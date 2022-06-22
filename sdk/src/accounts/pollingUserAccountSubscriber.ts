@@ -1,5 +1,5 @@
 import {
-	AccountAndSlot,
+	DataAndSlot,
 	AccountToPoll,
 	NotSubscribedError,
 	UserAccountEvents,
@@ -27,7 +27,7 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 	accountsToPoll = new Map<string, AccountToPoll>();
 	errorCallbackId?: string;
 
-	userAccountAndSlot?: AccountAndSlot<UserAccount>;
+	user?: DataAndSlot<UserAccount>;
 
 	type: ClearingHouseConfigType = 'polling';
 
@@ -104,7 +104,7 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 					const account = this.program.account[
 						accountToPoll.key
 					].coder.accounts.decode(capitalize(accountToPoll.key), buffer);
-					this[accountToPoll.key] = { account, slot };
+					this[accountToPoll.key] = { data: account, slot };
 					// @ts-ignore
 					this.eventEmitter.emit(accountToPoll.eventType, account);
 					this.eventEmitter.emit('update');
@@ -141,7 +141,7 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 				const account = this.program.account[
 					accountToPoll.key
 				].coder.accounts.decode(capitalize(accountToPoll.key), buffer);
-				this[accountToPoll.key] = { account, slot };
+				this[accountToPoll.key] = { data: account, slot };
 			}
 		}
 	}
@@ -185,8 +185,8 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 		}
 	}
 
-	public getUserAccountAndSlot(): AccountAndSlot<UserAccount> {
+	public getUserAccountAndSlot(): DataAndSlot<UserAccount> {
 		this.assertIsSubscribed();
-		return this.userAccountAndSlot;
+		return this.user;
 	}
 }

@@ -40,7 +40,11 @@ describe('admin', () => {
 			chProgram.programId,
 			{
 				commitment: 'confirmed',
-			}
+			},
+			0,
+			[new BN(0)],
+			[new BN(0)],
+			[]
 		);
 
 		await clearingHouse.initialize(usdcMint.publicKey, true);

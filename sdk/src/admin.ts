@@ -32,6 +32,7 @@ import {
 	getAdmin,
 	getWebSocketClearingHouseConfig,
 } from './factory/clearingHouse';
+import { OracleInfo } from './oracles/types';
 
 export class Admin extends ClearingHouse {
 	public static from(
@@ -39,7 +40,10 @@ export class Admin extends ClearingHouse {
 		wallet: IWallet,
 		clearingHouseProgramId: PublicKey,
 		opts: ConfirmOptions = AnchorProvider.defaultOptions(),
-		userId = 0
+		userId = 0,
+		marketsIndexes: BN[] = [],
+		bankIndexes: BN[] = [],
+		oracleInfos: OracleInfo[] = []
 	): Admin {
 		const config = getWebSocketClearingHouseConfig(
 			connection,
@@ -47,8 +51,12 @@ export class Admin extends ClearingHouse {
 			clearingHouseProgramId,
 			opts,
 			undefined,
-			userId
+			userId,
+			marketsIndexes,
+			bankIndexes,
+			oracleInfos
 		);
+
 		return getAdmin(config);
 	}
 
@@ -156,6 +164,12 @@ export class Admin extends ClearingHouse {
 
 		const { txSig } = await this.txSender.send(initializeTx, [], this.opts);
 
+		await this.accountSubscriber.addBank(bankIndex);
+		await this.accountSubscriber.addOracle({
+			source: oracleSource,
+			publicKey: oracle,
+		});
+
 		return txSig;
 	}
 
@@ -225,6 +239,14 @@ export class Admin extends ClearingHouse {
 			[],
 			this.opts
 		);
+
+		await this.accountSubscriber.addMarket(
+			this.getStateAccount().numberOfMarkets
+		);
+		await this.accountSubscriber.addOracle({
+			source: oracleSource,
+			publicKey: priceOracle,
+		});
 
 		return txSig;
 	}

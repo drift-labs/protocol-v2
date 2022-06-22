@@ -1,6 +1,6 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
-import { BN, getMarketOrderParams, ONE, ZERO } from '../sdk';
+import { BN, getMarketOrderParams, ONE, OracleSource, ZERO } from '../sdk';
 
 import { Program } from '@project-serum/anchor';
 
@@ -48,9 +48,18 @@ describe('clearing_house', () => {
 
 	const usdcAmount = new BN(10 * 10 ** 6);
 
+	let marketIndexes;
+	let bankIndexes;
+	let oracleInfos;
+
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
+
+		const solUsd = await mockOracle(1);
+		marketIndexes = [new BN(0)];
+		bankIndexes = [new BN(0)];
+		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
 
 		clearingHouse = Admin.from(
 			connection,
@@ -58,15 +67,17 @@ describe('clearing_house', () => {
 			chProgram.programId,
 			{
 				commitment: 'confirmed',
-			}
+			},
+			0,
+			marketIndexes,
+			bankIndexes,
+			oracleInfos
 		);
 
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
 
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
-
-		const solUsd = await mockOracle(1);
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await clearingHouse.initializeMarket(

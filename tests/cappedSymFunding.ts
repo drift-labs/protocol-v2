@@ -384,13 +384,18 @@ describe('capped funding', () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
+		const bankIndexes = [new BN(0)];
+		const marketIndexes = Array.from({ length: 15 }, (_, i) => new BN(i));
 		clearingHouse = Admin.from(
 			connection,
 			provider.wallet,
 			chProgram.programId,
 			{
 				commitment: 'confirmed',
-			}
+			},
+			0,
+			marketIndexes,
+			bankIndexes
 		);
 
 		await clearingHouse.initialize(usdcMint.publicKey, true);
@@ -413,7 +418,15 @@ describe('capped funding', () => {
 
 		// create <NUM_USERS> users with 10k that collectively do <NUM_EVENTS> actions
 		const [_userUSDCAccounts, _user_keys, clearingHouses, userAccountInfos] =
-			await initUserAccounts(1, usdcMint, usdcAmount, provider);
+			await initUserAccounts(
+				1,
+				usdcMint,
+				usdcAmount,
+				provider,
+				marketIndexes,
+				bankIndexes,
+				[]
+			);
 
 		clearingHouse2 = clearingHouses[0];
 		userAccount2 = userAccountInfos[0];

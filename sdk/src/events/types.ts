@@ -2,15 +2,17 @@ import { Commitment, TransactionSignature } from '@solana/web3.js';
 import {
 	DepositRecord,
 	FundingPaymentRecord,
-	TradeRecord,
+	FundingRateRecord,
 	LiquidationRecord,
 	OrderRecord,
+	TradeRecord,
 } from '../index';
 
 export type EventSubscriptionOptions = {
 	eventTypes?: EventType[];
 	maxEventsPerType?: number;
-	order?: EventSubscriptionOrder;
+	orderBy?: EventSubscriptionOrderBy;
+	orderDir?: EventSubscriptionOrderDirection;
 	commitment?: Commitment;
 	maxTx?: number;
 	logProviderConfig?: LogProviderConfig;
@@ -26,9 +28,11 @@ export const DefaultEventSubscriptionOptions: EventSubscriptionOptions = {
 		'FundingPaymentRecord',
 		'LiquidationRecord',
 		'OrderRecord',
+		'FundingRateRecord',
 	],
 	maxEventsPerType: 4096,
-	order: 'blockchain',
+	orderBy: 'blockchain',
+	orderDir: 'asc',
 	commitment: 'confirmed',
 	maxTx: 4096,
 	logProviderConfig: {
@@ -37,7 +41,8 @@ export const DefaultEventSubscriptionOptions: EventSubscriptionOptions = {
 };
 
 // Whether we sort events based on order blockchain produced events or client receives events
-export type EventSubscriptionOrder = 'blockchain' | 'client';
+export type EventSubscriptionOrderBy = 'blockchain' | 'client';
+export type EventSubscriptionOrderDirection = 'asc' | 'desc';
 
 export type Event<Type extends EventType, Data extends EventMap[Type]> = {
 	txSig: TransactionSignature;
@@ -53,6 +58,7 @@ export type EventMap = {
 	TradeRecord: TradeRecord;
 	FundingPaymentRecord: FundingPaymentRecord;
 	LiquidationRecord: LiquidationRecord;
+	FundingRateRecord: FundingRateRecord;
 	OrderRecord: OrderRecord;
 };
 export type EventType = keyof EventMap;
@@ -62,16 +68,10 @@ export interface EventSubscriberEvents {
 	newEvent: (event: Event<EventType, EventMap[EventType]>) => void;
 }
 
-export function clientSortFn(): 'before' {
-	return 'before';
-}
-
-export function defaultBlockchainSortFn(
+export type SortFn = (
 	currentRecord: Event<EventType, EventData>,
 	newRecord: Event<EventType, EventData>
-): 'before' | 'after' {
-	return currentRecord.slot <= newRecord.slot ? 'before' : 'after';
-}
+) => 'before' | 'after';
 
 export type logProviderCallback = (
 	txSig: TransactionSignature,

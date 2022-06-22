@@ -53,7 +53,11 @@ describe('round in favor', () => {
 		primaryClearingHouse = Admin.from(
 			connection,
 			provider.wallet,
-			chProgram.programId
+			chProgram.programId,
+			undefined,
+			0,
+			[new BN(0)],
+			[new BN(0)]
 		);
 		await primaryClearingHouse.initialize(usdcMint.publicKey, true);
 		await primaryClearingHouse.subscribe();
@@ -124,7 +128,11 @@ describe('round in favor', () => {
 		const clearingHouse = ClearingHouse.from(
 			connection,
 			wallet,
-			chProgram.programId
+			chProgram.programId,
+			undefined,
+			0,
+			[new BN(0)],
+			[new BN(0)]
 		);
 		await clearingHouse.subscribe();
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
@@ -163,7 +171,11 @@ describe('round in favor', () => {
 		const clearingHouse = ClearingHouse.from(
 			connection,
 			wallet,
-			chProgram.programId
+			chProgram.programId,
+			undefined,
+			0,
+			[new BN(0)],
+			[new BN(0)]
 		);
 		await clearingHouse.subscribe();
 

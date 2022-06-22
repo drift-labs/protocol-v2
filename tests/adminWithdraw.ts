@@ -59,7 +59,11 @@ describe('admin withdraw', () => {
 		clearingHouse = Admin.from(
 			connection,
 			provider.wallet,
-			chProgram.programId
+			chProgram.programId,
+			undefined,
+			0,
+			[new BN(0)],
+			[new BN(0)]
 		);
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();

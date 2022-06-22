@@ -54,7 +54,10 @@ describe('idempotent curve', () => {
 			chProgram.programId,
 			{
 				commitment: 'confirmed',
-			}
+			},
+			0,
+			[new BN(0)],
+			[new BN(0)]
 		);
 		await primaryClearingHouse.initialize(usdcMint.publicKey, true);
 		await primaryClearingHouse.subscribe();
@@ -134,7 +137,10 @@ describe('idempotent curve', () => {
 			chProgram.programId,
 			{
 				commitment: 'confirmed',
-			}
+			},
+			0,
+			[new BN(0)],
+			[new BN(0)]
 		);
 		await clearingHouse.subscribe();
 
@@ -206,7 +212,10 @@ describe('idempotent curve', () => {
 			chProgram.programId,
 			{
 				commitment: 'confirmed',
-			}
+			},
+			0,
+			[new BN(0)],
+			[new BN(0)]
 		);
 		await clearingHouse.subscribe();
 
@@ -275,7 +284,10 @@ describe('idempotent curve', () => {
 			chProgram.programId,
 			{
 				commitment: 'confirmed',
-			}
+			},
+			0,
+			[new BN(0)],
+			[new BN(0)]
 		);
 		await clearingHouse.subscribe();
 
@@ -344,7 +356,10 @@ describe('idempotent curve', () => {
 			chProgram.programId,
 			{
 				commitment: 'confirmed',
-			}
+			},
+			0,
+			[new BN(0)],
+			[new BN(0)]
 		);
 		await clearingHouse.subscribe();
 

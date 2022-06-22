@@ -1,5 +1,5 @@
 import {
-	AccountAndSlot,
+	DataAndSlot,
 	AccountSubscriber,
 	NotSubscribedError,
 	UserAccountEvents,
@@ -80,8 +80,8 @@ export class WebSocketUserAccountSubscriber implements UserAccountSubscriber {
 		}
 	}
 
-	public getUserAccountAndSlot(): AccountAndSlot<UserAccount> {
+	public getUserAccountAndSlot(): DataAndSlot<UserAccount> {
 		this.assertIsSubscribed();
-		return this.userDataAccountSubscriber.accountAndSlot;
+		return this.userDataAccountSubscriber.dataAndSlot;
 	}
 }

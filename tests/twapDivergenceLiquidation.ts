@@ -56,7 +56,10 @@ describe('twap divergence liquidation', () => {
 			chProgram.programId,
 			{
 				commitment: 'confirmed',
-			}
+			},
+			0,
+			[new BN(0), new BN(1), new BN(2), new BN(3), new BN(4)],
+			[new BN(0)]
 		);
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();

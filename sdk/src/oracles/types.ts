@@ -1,5 +1,6 @@
 import { BN } from '@project-serum/anchor';
 import { PublicKey } from '@solana/web3.js';
+import { OracleSource } from '../types';
 
 export type OraclePriceData = {
 	price: BN;
@@ -10,7 +11,12 @@ export type OraclePriceData = {
 	twapConfidence?: BN;
 };
 
+export type OracleInfo = {
+	publicKey: PublicKey;
+	source: OracleSource;
+};
+
 export interface OracleClient {
-	getOraclePriceDataFromBuffer(buffer: Buffer): Promise<OraclePriceData>;
+	getOraclePriceDataFromBuffer(buffer: Buffer): OraclePriceData;
 	getOraclePriceData(publicKey: PublicKey): Promise<OraclePriceData>;
 }
