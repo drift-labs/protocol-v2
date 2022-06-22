@@ -41,7 +41,8 @@ export class EventSubscriber {
 				eventType,
 				new EventList<EventType, EventData>(
 					this.options.maxEventsPerType,
-					getSortFn(options.order, eventType)
+					getSortFn(options.orderBy, eventType),
+					this.options.orderDir
 				)
 			);
 		}

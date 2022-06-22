@@ -2,7 +2,7 @@ import {
 	Event,
 	EventData,
 	EventMap,
-	EventSubscriptionOrder,
+	EventSubscriptionOrderBy,
 	EventType,
 	SortFn,
 } from './types';
@@ -32,7 +32,7 @@ function tradeRecordSortFn(
 }
 
 export function getSortFn(
-	order: EventSubscriptionOrder,
+	order: EventSubscriptionOrderBy,
 	eventType: EventType
 ): SortFn {
 	if (order === 'client') {

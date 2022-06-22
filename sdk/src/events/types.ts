@@ -11,7 +11,8 @@ import {
 export type EventSubscriptionOptions = {
 	eventTypes?: EventType[];
 	maxEventsPerType?: number;
-	order?: EventSubscriptionOrder;
+	orderBy?: EventSubscriptionOrderBy;
+	orderDir?: EventSubscriptionOrderDirection;
 	commitment?: Commitment;
 	maxTx?: number;
 	logProviderConfig?: LogProviderConfig;
@@ -30,7 +31,8 @@ export const DefaultEventSubscriptionOptions: EventSubscriptionOptions = {
 		'FundingRateRecord',
 	],
 	maxEventsPerType: 4096,
-	order: 'blockchain',
+	orderBy: 'blockchain',
+	orderDir: 'asc',
 	commitment: 'confirmed',
 	maxTx: 4096,
 	logProviderConfig: {
@@ -39,7 +41,8 @@ export const DefaultEventSubscriptionOptions: EventSubscriptionOptions = {
 };
 
 // Whether we sort events based on order blockchain produced events or client receives events
-export type EventSubscriptionOrder = 'blockchain' | 'client';
+export type EventSubscriptionOrderBy = 'blockchain' | 'client';
+export type EventSubscriptionOrderDirection = 'asc' | 'desc';
 
 export type Event<Type extends EventType, Data extends EventMap[Type]> = {
 	txSig: TransactionSignature;

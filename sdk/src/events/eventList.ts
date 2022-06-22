@@ -18,7 +18,8 @@ export class EventList<Type extends EventType, Data extends EventMap[Type]> {
 		private sortFn: (
 			currentNode: Event<Type, Data>,
 			newNode: Event<Type, Data>
-		) => 'before' | 'after'
+		) => 'before' | 'after',
+		private orderDirection: 'asc' | 'desc'
 	) {}
 
 	public insert(event: Event<Type, Data>): void {
@@ -29,7 +30,10 @@ export class EventList<Type extends EventType, Data extends EventMap[Type]> {
 			return;
 		}
 
-		if (this.sortFn(this.head.event, newNode.event) === 'before') {
+		if (
+			this.sortFn(this.head.event, newNode.event) ===
+			(this.orderDirection === 'asc' ? 'before' : 'after')
+		) {
 			this.head.prev = newNode;
 			newNode.next = this.head;
 			this.head = newNode;
@@ -37,7 +41,8 @@ export class EventList<Type extends EventType, Data extends EventMap[Type]> {
 			let currentNode = this.head;
 			while (
 				currentNode.next !== undefined &&
-				this.sortFn(currentNode.next.event, newNode.event) !== 'before'
+				this.sortFn(currentNode.next.event, newNode.event) !==
+					(this.orderDirection === 'asc' ? 'before' : 'after')
 			) {
 				currentNode = currentNode.next;
 			}
