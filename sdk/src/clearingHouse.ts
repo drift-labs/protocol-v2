@@ -1,3 +1,4 @@
+import { BankConfig } from './constants/banks';
 import { AnchorProvider, BN, Idl, Program } from '@project-serum/anchor';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import {
@@ -524,6 +525,7 @@ export class ClearingHouse {
 	 */
 	public async initializeUserAccountAndDepositCollateral(
 		amount: BN,
+		bank: BankConfig,
 		userTokenAccount: PublicKey,
 		userId = 0,
 		name = DEFAULT_USER_NAME
@@ -533,7 +535,7 @@ export class ClearingHouse {
 
 		const depositCollateralIx = await this.getDepositInstruction(
 			amount,
-			new BN(0),
+			bank.bankIndex,
 			userTokenAccount,
 			false
 		);
