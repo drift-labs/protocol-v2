@@ -13,6 +13,7 @@ import {
 	MARK_PRICE_PRECISION,
 	QUOTE_PRECISION,
 } from '..';
+import { Banks } from '../constants/banks';
 
 export const getTokenAddress = (
 	mintAddress: string,
@@ -80,6 +81,7 @@ const main = async () => {
 		const depositAmount = new BN(10000).mul(QUOTE_PRECISION);
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
 			depositAmount,
+			Banks['devnet'][0],
 			await getTokenAddress(
 				usdcTokenAddress.toString(),
 				wallet.publicKey.toString()

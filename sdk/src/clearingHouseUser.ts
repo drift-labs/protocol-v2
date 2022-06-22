@@ -361,7 +361,6 @@ export class ClearingHouseUser {
 				return totalAssetValue.add(
 					tokenAmount
 						.mul(this.getOracleDataForBank(bankAccount.bankIndex).price)
-						.div(BANK_WEIGHT_PRECISION)
 						.div(MARK_PRICE_PRECISION)
 				);
 			},
