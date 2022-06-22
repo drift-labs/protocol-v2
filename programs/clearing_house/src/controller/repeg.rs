@@ -2,8 +2,8 @@ use crate::error::*;
 use crate::math::casting::cast_to_i128;
 
 use crate::error::ErrorCode;
+use crate::math::amm;
 use crate::math::repeg;
-use crate::math::{amm};
 use crate::math_error;
 use crate::state::market::Market;
 use crate::state::oracle::OraclePriceData;

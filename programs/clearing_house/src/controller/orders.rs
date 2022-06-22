@@ -356,7 +356,7 @@ pub fn fill_order(
             prepeg_budget,
             // now,
         )?;
-        let mark_price_before = market.amm.mark_price()?;
+        mark_price_before = market.amm.mark_price()?;
 
         oracle_mark_spread_pct_before = amm::calculate_oracle_mark_spread_pct(
             &market.amm,
