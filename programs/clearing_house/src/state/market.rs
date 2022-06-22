@@ -91,7 +91,7 @@ pub struct AMM {
     pub oracle: Pubkey,
     pub oracle_source: OracleSource,
     pub last_oracle_price: i128,
-    pub last_oracle_conf: u64,
+    pub last_oracle_conf_pct: u64,
     pub last_oracle_delay: i64,
     pub last_oracle_normalised_price: i128,
     pub last_oracle_price_twap: i128,
@@ -124,12 +124,6 @@ pub struct AMM {
 
     // trade constraints
     pub minimum_quote_asset_trade_size: u128,
-    pub last_oracle_price_twap_ts: i64,
-    pub last_oracle_normalised_price: i128,
-    pub last_oracle_price: i128,
-    pub last_oracle_conf_pct: u64,
-    pub last_oracle_delay: i64,
-    pub last_oracle_mark_spread_pct: i128,
     pub minimum_base_asset_trade_size: u128,
 
     // market making
