@@ -261,7 +261,7 @@ export type BankAccount = {
 	initialAssetWeight: BN;
 	maintenanceAssetWeight: BN;
 	initialLiabilityWeight: BN;
-	initialMaintenanceWeight: BN;
+	maintenanceLiabilityWeight: BN;
 };
 
 export type AMM = {

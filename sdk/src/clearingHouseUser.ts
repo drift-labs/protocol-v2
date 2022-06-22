@@ -31,6 +31,7 @@ import {
 	PositionDirection,
 	calculateTradeSlippage,
 	BN,
+	BankAccount,
 } from '.';
 import { getUserAccountPublicKey } from './addresses/pda';
 import {
@@ -205,8 +206,8 @@ export class ClearingHouseUser {
 	}
 
 	public getInitialMarginRequirement(oraclePriceData?: OraclePriceData): BN {
-		return this.getUserAccount().positions.reduce(
-			(marginRequirement, marketPosition) => {
+		return this.getUserAccount()
+			.positions.reduce((marginRequirement, marketPosition) => {
 				const market = this.clearingHouse.getMarketAccount(
 					marketPosition.marketIndex
 				);
@@ -215,17 +216,16 @@ export class ClearingHouseUser {
 						.mul(new BN(market.marginRatioInitial))
 						.div(MARGIN_PRECISION)
 				);
-			},
-			ZERO
-		);
+			}, ZERO)
+			.add(this.getTotalLiability());
 	}
 
 	/**
 	 * @returns The partial margin requirement in USDC. : QUOTE_PRECISION
 	 */
 	public getPartialMarginRequirement(oraclePriceData?: OraclePriceData): BN {
-		return this.getUserAccount().positions.reduce(
-			(marginRequirement, marketPosition) => {
+		return this.getUserAccount()
+			.positions.reduce((marginRequirement, marketPosition) => {
 				const market = this.clearingHouse.getMarketAccount(
 					marketPosition.marketIndex
 				);
@@ -234,9 +234,8 @@ export class ClearingHouseUser {
 						.mul(new BN(market.marginRatioPartial))
 						.div(MARGIN_PRECISION)
 				);
-			},
-			ZERO
-		);
+			}, ZERO)
+			.add(this.getTotalLiability());
 	}
 
 	/**
@@ -294,6 +293,37 @@ export class ClearingHouseUser {
 			}, ZERO);
 	}
 
+	public getTotalLiability(): BN {
+		return this.getUserAccount().bankBalances.reduce(
+			(totalAssetValue, bankBalance) => {
+				if (
+					bankBalance.balance.eq(ZERO) ||
+					isVariant(bankBalance.balanceType, 'deposit')
+				) {
+					return totalAssetValue;
+				}
+
+				// Todo this needs to account for whether it's based on initial or maintenance requirements
+				const bankAccount: BankAccount = this.clearingHouse.getBankAccount(
+					bankBalance.bankIndex
+				);
+
+				const tokenAmount = getTokenAmount(
+					bankBalance.balance,
+					bankAccount,
+					bankBalance.balanceType
+				);
+				return totalAssetValue.add(
+					tokenAmount
+						.mul(this.getOracleDataForBank(bankAccount.bankIndex).price)
+						.mul(bankAccount.initialLiabilityWeight)
+						.div(BANK_WEIGHT_PRECISION)
+				);
+			},
+			ZERO
+		);
+	}
+
 	/**
 	 * calculates TotalCollateral: collateral + unrealized pnl
 	 * @returns : Precision QUOTE_PRECISION
@@ -309,7 +339,7 @@ export class ClearingHouseUser {
 				}
 
 				// Todo this needs to account for whether it's based on initial or maintenance requirements
-				const bankAccount = this.clearingHouse.getBankAccount(
+				const bankAccount: BankAccount = this.clearingHouse.getBankAccount(
 					bankBalance.bankIndex
 				);
 
@@ -320,6 +350,7 @@ export class ClearingHouseUser {
 				);
 				return totalAssetValue.add(
 					tokenAmount
+						.mul(this.getOracleDataForBank(bankAccount.bankIndex).price)
 						.mul(bankAccount.initialAssetWeight)
 						.div(BANK_WEIGHT_PRECISION)
 				);
