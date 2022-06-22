@@ -525,8 +525,8 @@ export class ClearingHouse {
 	 */
 	public async initializeUserAccountAndDepositCollateral(
 		amount: BN,
-		bank: BankConfig,
 		userTokenAccount: PublicKey,
+		bankIndex = new BN(0),
 		userId = 0,
 		name = DEFAULT_USER_NAME
 	): Promise<[TransactionSignature, PublicKey]> {
@@ -535,7 +535,7 @@ export class ClearingHouse {
 
 		const depositCollateralIx = await this.getDepositInstruction(
 			amount,
-			bank.bankIndex,
+			bankIndex,
 			userTokenAccount,
 			false
 		);
