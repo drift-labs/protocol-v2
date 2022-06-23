@@ -13,7 +13,7 @@
 		"lint": "eslint './**/*.{ts,tsx}' --quiet",
 		"build": "yarn clean && tsc",
 		"clean": "rm -rf lib",
-		"test": "mocha -r ts-node/register src/tests/**/*.ts",
+		"test": "mocha -r ts-node/register tests/**/*.ts",
 		"patch-and-pub": "npm version patch --force && npm publish"
 	},
 	"keywords": [
