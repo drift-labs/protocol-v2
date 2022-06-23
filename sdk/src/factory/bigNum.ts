@@ -355,10 +355,12 @@ export class BigNum {
 	}
 
 	public toNotional(): string {
-		return `${this.lt(BigNum.zero()) ? `-` : ``}$${this.prettyPrint().replace(
-			'-',
-			''
-		)}`;
+		return `${this.lt(BigNum.zero()) ? `-` : ``}$${BigNum.fromPrint(
+			this.toFixed(2),
+			new BN(2)
+		)
+			.prettyPrint()
+			.replace('-', '')}`;
 	}
 
 	public toMillified(precision = 3): string {
