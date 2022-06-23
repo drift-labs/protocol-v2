@@ -13,6 +13,7 @@ import {
 	MARK_PRICE_PRECISION,
 	QUOTE_PRECISION,
 } from '..';
+import { Banks } from '../constants/banks';
 
 export const getTokenAddress = (
 	mintAddress: string,
@@ -83,7 +84,8 @@ const main = async () => {
 			await getTokenAddress(
 				usdcTokenAddress.toString(),
 				wallet.publicKey.toString()
-			)
+			),
+			Banks['devnet'][0].bankIndex
 		);
 	}
 

@@ -118,8 +118,9 @@ pub fn prepeg(
     let repeg_budget = fee_budget;
     //     repeg::calculate_repeg_pool_budget(market, mark_price, oracle_price_data)?;
     // let repeg_budget = min(fee_budget, repeg_pool_budget);
-    let (optimal_peg_market, optimal_peg_cost) = repeg::adjust_peg_cost(market, optimal_peg)?;
+    let (_optimal_peg_market, optimal_peg_cost) = repeg::adjust_peg_cost(market, optimal_peg)?;
     let prepeg_cost: i128;
+    let new_peg: u128;
     if optimal_peg_cost > 0 && repeg_budget < optimal_peg_cost.unsigned_abs() {
         msg!(
             "optimal repeg cost {:?} exceeds budget: {:?}",
@@ -188,29 +189,33 @@ pub fn prepeg(
         // );
         // any budgeted direction valid for formulaic
         // if oracle_valid && profitability_valid && price_impact_valid {
-        let cost_applied = apply_cost_to_market(market, _prepeg_cost)?;
-        msg!(
-            "prepeg_cost: {:?} was applied: {:?}",
-            _prepeg_cost,
-            cost_applied
-        );
-        if cost_applied {
-            market.amm.peg_multiplier = new_peg_candidate;
-            // let peg_multiplier_after = market.amm.peg_multiplier;
-            // let base_asset_reserve_after = market.amm.base_asset_reserve;
-            // let quote_asset_reserve_after = market.amm.quote_asset_reserve;
-            // let sqrt_k_after = market.amm.sqrt_k;
-        }
-        prepeg_cost = _prepeg_cost;
         // }
+        prepeg_cost = _prepeg_cost;
+        new_peg = new_peg_candidate;
     } else {
-        market.amm.peg_multiplier = optimal_peg_market.amm.peg_multiplier;
+        // market.amm.peg_multiplier = optimal_peg_market.amm.peg_multiplier;
         msg!(
             "optimal repeg cost {:?} below budget: {:?}",
             optimal_peg_cost,
             repeg_budget
         ); // assert_eq!(false, true);
         prepeg_cost = optimal_peg_cost;
+        new_peg = optimal_peg;
+    }
+
+    let cost_applied = apply_cost_to_market(market, prepeg_cost)?;
+
+    if cost_applied {
+        msg!(
+            "prepeg_cost: {:?} was applied: {:?}",
+            prepeg_cost,
+            cost_applied
+        );
+        market.amm.peg_multiplier = new_peg;
+        // let peg_multiplier_after = market.amm.peg_multiplier;
+        // let base_asset_reserve_after = market.amm.base_asset_reserve;
+        // let quote_asset_reserve_after = market.amm.quote_asset_reserve;
+        // let sqrt_k_after = market.amm.sqrt_k;
     }
 
     Ok(prepeg_cost)

@@ -334,8 +334,44 @@ export class ClearingHouseUser {
 		);
 	}
 
+	public getCollateralValue(bankIndex?: BN): BN {
+		return this.getUserAccount().bankBalances.reduce(
+			(totalAssetValue, bankBalance) => {
+				if (
+					bankBalance.balance.eq(ZERO) ||
+					(bankIndex !== undefined && !bankBalance.bankIndex.eq(bankIndex))
+				) {
+					return totalAssetValue;
+				}
+
+				// Todo this needs to account for whether it's based on initial or maintenance requirements
+				const bankAccount: BankAccount = this.clearingHouse.getBankAccount(
+					bankBalance.bankIndex
+				);
+
+				let tokenAmount = getTokenAmount(
+					bankBalance.balance,
+					bankAccount,
+					bankBalance.balanceType
+				);
+
+				if (isVariant(bankBalance.balanceType, 'borrow')) {
+					tokenAmount = tokenAmount.mul(new BN(-1));
+				}
+
+				return totalAssetValue.add(
+					tokenAmount
+						.mul(this.getOracleDataForBank(bankAccount.bankIndex).price)
+						.div(MARK_PRICE_PRECISION)
+				);
+			},
+			ZERO
+		);
+	}
+
 	/**
 	 * calculates TotalCollateral: collateral + unrealized pnl
+	 * TODO: rename to total equity (for perpetuals swaps)
 	 * @returns : Precision QUOTE_PRECISION
 	 */
 	public getTotalCollateral(): BN {
@@ -575,8 +611,7 @@ export class ClearingHouseUser {
 	public liquidationPrice(
 		marketPosition: Pick<UserPosition, 'marketIndex'>,
 		positionBaseSizeChange: BN = ZERO,
-		partial = false,
-		oraclePriceData: OraclePriceData
+		partial = false
 	): BN {
 		// solves formula for example canBeLiquidated below
 
@@ -627,7 +662,7 @@ export class ClearingHouseUser {
 		const proposedMarketPositionValue = calculateBaseAssetValue(
 			market,
 			proposedMarketPosition,
-			oraclePriceData
+			this.getOracleDataForMarket(market.marketIndex)
 		);
 
 		// total position value after trade
@@ -644,7 +679,7 @@ export class ClearingHouseUser {
 						const positionValue = calculateBaseAssetValue(
 							market,
 							position,
-							oraclePriceData
+							this.getOracleDataForMarket(market.marketIndex)
 						);
 						const marketMarginRequirement = positionValue
 							.mul(
@@ -713,7 +748,7 @@ export class ClearingHouseUser {
 		if (positionBaseSizeChange.eq(ZERO)) {
 			markPriceAfterTrade = calculateMarkPrice(
 				this.clearingHouse.getMarketAccount(marketPosition.marketIndex),
-				oraclePriceData
+				this.getOracleDataForMarket(marketPosition.marketIndex)
 			);
 		} else {
 			const direction = positionBaseSizeChange.gt(ZERO)
@@ -724,7 +759,7 @@ export class ClearingHouseUser {
 				positionBaseSizeChange.abs(),
 				this.clearingHouse.getMarketAccount(marketPosition.marketIndex),
 				'base',
-				oraclePriceData
+				this.getOracleDataForMarket(marketPosition.marketIndex)
 			)[3]; // newPrice after swap
 		}
 
@@ -764,8 +799,7 @@ export class ClearingHouseUser {
 				marketIndex: positionMarketIndex,
 			},
 			closeBaseAmount,
-			true,
-			this.getOracleDataForMarket(positionMarketIndex)
+			true
 		);
 	}
 

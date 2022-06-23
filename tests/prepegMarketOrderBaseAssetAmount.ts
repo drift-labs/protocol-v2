@@ -16,6 +16,7 @@ import {
 	convertToNumber,
 	findComputeUnitConsumption,
 	calculateBidAskPrice,
+	calculatePrepegAMM,
 } from '../sdk/src';
 
 import {
@@ -257,6 +258,14 @@ describe('prepeg', () => {
 			anchor.workspace.Pyth,
 			solUsd
 		);
+
+		const prepegAMM = calculatePrepegAMM(market0.amm, oraclePriceData);
+		assert(prepegAMM.pegMultiplier.eq(new BN(1003)));
+		const estDist = prepegAMM.totalFee.sub(
+			prepegAMM.totalFeeMinusDistributions
+		);
+		console.log('est distribution:', estDist.toString());
+
 		const [_pctAvgSlippage, _pctMaxSlippage, _entryPrice, newPrice] =
 			calculateTradeSlippage(
 				PositionDirection.LONG,
@@ -297,10 +306,26 @@ describe('prepeg', () => {
 				.logMessages
 		);
 		const market = clearingHouse.getMarketAccount(0);
+		const [bid1, ask1] = calculateBidAskPrice(market.amm, oraclePriceData);
 		console.log(
+			'after trade bid/ask:',
+			convertToNumber(bid1),
+			'/',
+			convertToNumber(ask1),
 			'after trade mark price:',
 			convertToNumber(calculateMarkPrice(market, oraclePriceData))
 		);
+
+		assert(market.amm.pegMultiplier.eq(new BN(1003)));
+		const actualDist = market.amm.totalFee.sub(
+			market.amm.totalFeeMinusDistributions
+		);
+		console.log('actual distribution:', actualDist.toString());
+
+		console.log(prepegAMM.sqrtK.toString(), '!=', market.amm.sqrtK.toString());
+		assert(prepegAMM.sqrtK.eq(market.amm.sqrtK));
+		assert(actualDist.sub(estDist).abs().lte(new BN(1)));
+
 		// curPrice = (await getFeedData(anchor.workspace.Pyth, solUsd)).price;
 		// console.log('price:', curPrice);
 
@@ -378,7 +403,12 @@ describe('prepeg', () => {
 		);
 
 		const market = clearingHouse.getMarketAccount(0);
+		const [bid1, ask1] = calculateBidAskPrice(market.amm, oraclePriceData);
 		console.log(
+			'after trade bid/ask:',
+			convertToNumber(bid1),
+			'/',
+			convertToNumber(ask1),
 			'after trade mark price:',
 			convertToNumber(calculateMarkPrice(market, oraclePriceData))
 		);
@@ -478,10 +508,16 @@ describe('prepeg', () => {
 			);
 
 			const market = clearingHouse.getMarketAccount(i);
+			const [bid1, ask1] = calculateBidAskPrice(market.amm, oraclePriceData);
 			console.log(
+				'after trade bid/ask:',
+				convertToNumber(bid1),
+				'/',
+				convertToNumber(ask1),
 				'after trade mark price:',
 				convertToNumber(calculateMarkPrice(market, oraclePriceData))
 			);
+			console.log('----');
 		}
 	});
 });
