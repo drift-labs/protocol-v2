@@ -838,31 +838,29 @@ pub fn update_unsettled_pnl(
                     .ok_or_else(math_error!())?;
             }
         }
-    } else {
-        if market_position.unsettled_pnl > 0 {
-            // decrease profit
-            market.unsettled_profit = market
-                .unsettled_profit
-                .checked_sub(min(
-                    unsettled_pnl.unsigned_abs(),
-                    market_position.unsettled_pnl.unsigned_abs(),
-                ))
-                .ok_or_else(math_error!())?;
+    } else if market_position.unsettled_pnl > 0 {
+        // decrease profit
+        market.unsettled_profit = market
+            .unsettled_profit
+            .checked_sub(min(
+                unsettled_pnl.unsigned_abs(),
+                market_position.unsettled_pnl.unsigned_abs(),
+            ))
+            .ok_or_else(math_error!())?;
 
-            if new_user_unsettled_pnl < 0 {
-                // increase loss
-                market.unsettled_loss = market
-                    .unsettled_loss
-                    .checked_add(new_user_unsettled_pnl.unsigned_abs())
-                    .ok_or_else(math_error!())?;
-            }
-        } else {
+        if new_user_unsettled_pnl < 0 {
             // increase loss
             market.unsettled_loss = market
                 .unsettled_loss
-                .checked_add(unsettled_pnl.unsigned_abs())
+                .checked_add(new_user_unsettled_pnl.unsigned_abs())
                 .ok_or_else(math_error!())?;
         }
+    } else {
+        // increase loss
+        market.unsettled_loss = market
+            .unsettled_loss
+            .checked_add(unsettled_pnl.unsigned_abs())
+            .ok_or_else(math_error!())?;
     }
 
     // update user state

@@ -62,10 +62,6 @@ pub fn settle_funding_payment(
 
             market_position.last_cumulative_funding_rate = amm_cumulative_funding_rate;
             market_position.last_funding_rate_ts = amm.last_funding_rate_ts;
-            // market_position.unsettled_pnl = market_position
-            //     .unsettled_pnl
-            //     .checked_add(market_funding_payment)
-            //     .ok_or_else(math_error!())?;
             update_unsettled_pnl(market_position, market, market_funding_payment)?;
         }
     }

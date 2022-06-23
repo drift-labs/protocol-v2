@@ -912,6 +912,7 @@ pub mod clearing_house {
                 .checked_add(fee_to_market)
                 .ok_or_else(math_error!())?;
 
+            // Update user balance to account for fee and pnl
             controller::position::update_unsettled_pnl(
                 &mut user.positions[position_index],
                 market,
@@ -920,15 +921,6 @@ pub mod clearing_house {
                     .ok_or_else(math_error!())?,
             );
         }
-
-        // Update user balance to account for fee and pnl
-        // user.positions[position_index].unsettled_pnl = user.positions[position_index]
-        //     .unsettled_pnl
-        //     .checked_add(pnl)
-        //     .ok_or_else(math_error!())?
-        //     .checked_sub(cast(user_fee)?)
-        //     .ok_or_else(math_error!())?;
-
         // Increment the user's total fee variables
         user.total_fee_paid = user
             .total_fee_paid
@@ -1131,11 +1123,6 @@ pub mod clearing_house {
                 .checked_sub(cast(user_fee)?)
                 .ok_or_else(math_error!())?,
         )?;
-        // user.positions[position_index].unsettled_pnl = user.positions[position_index]
-        //     .unsettled_pnl
-        //     .checked_add(pnl)
-        //     .checked_sub(cast(user_fee)?)
-        //     .ok_or_else(math_error!())?;
 
         // Increment the user's total fee variables
         user.total_fee_paid = user
@@ -1546,10 +1533,7 @@ pub mod clearing_house {
                     .checked_add(amm_position_unrealized_pnl.unsigned_abs())
                     .ok_or_else(math_error!())?;
             }
-            // market_position.unsettled_pnl = market_position
-            //     .unsettled_pnl
-            //     .checked_add(amm_position_unrealized_pnl)
-            //     .ok_or_else(math_error!())?;
+
             controller::position::update_unsettled_pnl(
                 market_position,
                 market,
@@ -1597,10 +1581,6 @@ pub mod clearing_house {
             )?;
 
             let user_position = &mut user.positions[position_index];
-            // user_position.unsettled_pnl = user_position
-            //     .unsettled_pnl
-            //     .checked_sub(cast_to_i128(pnl_to_settle)?)
-            //     .ok_or_else(math_error!())?;
             controller::position::update_unsettled_pnl(
                 user_position,
                 market,
@@ -1862,10 +1842,6 @@ pub mod clearing_house {
                     (quote_asset_amount, base_asset_amount, pnl)
                 };
 
-                // user.positions[position_index].unsettled_pnl = user.positions[position_index]
-                //     .unsettled_pnl
-                //     .checked_add(pnl)
-                //     .ok_or_else(math_error!())?;
                 controller::position::update_unsettled_pnl(
                     &mut user.positions[position_index],
                     market,
@@ -2065,10 +2041,6 @@ pub mod clearing_house {
                     false,
                 )?;
 
-                // user.positions[position_index].unsettled_pnl = user.positions[position_index]
-                //     .unsettled_pnl
-                //     .checked_add(pnl)
-                //     .ok_or_else(math_error!())?;
                 controller::position::update_unsettled_pnl(
                     &mut user.positions[position_index],
                     market,
