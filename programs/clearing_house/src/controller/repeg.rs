@@ -108,97 +108,14 @@ pub fn prepeg(
         target_price,
     )?;
 
-    // msg!(
-    //     "target_price: {:?}, optimal_peg: {:?}",
-    //     target_price,
-    //     optimal_peg
-    // );
-    // assert_eq!(false, true);
-    // max budget for single repeg what larger of pool budget and user fee budget
-    let repeg_budget = fee_budget;
-    //     repeg::calculate_repeg_pool_budget(market, mark_price, oracle_price_data)?;
-    // let repeg_budget = min(fee_budget, repeg_pool_budget);
-    let (_optimal_peg_market, optimal_peg_cost) =
-        repeg::adjust_peg_cost_cheap(market, optimal_peg)?;
-    let prepeg_cost: i128;
-    let new_peg: u128;
-    if optimal_peg_cost > 0 && repeg_budget < optimal_peg_cost.unsigned_abs() {
-        // msg!(
-        //     "optimal repeg cost {:?} exceeds budget: {:?}",
-        //     optimal_peg_cost,
-        //     repeg_budget
-        // );
-        // let deficit = optimal_peg_cost
-        //     .checked_sub(cast_to_i128(repeg_budget)?)
-        //     .ok_or_else(math_error!())?;
-
-        // let (k_scale_numerator, k_scale_denominator) =
-        //     amm::calculate_budgeted_k_scale(market, -deficit, mark_price)?;
-        let (k_scale_numerator, k_scale_denominator) = (999, 1000);
-
-        // let (k_scale_numerator, k_scale_denominator) = (975, 1000);
-
-        let new_sqrt_k = bn::U192::from(market.amm.sqrt_k)
-            .checked_mul(bn::U192::from(k_scale_numerator))
-            .ok_or_else(math_error!())?
-            .checked_div(bn::U192::from(k_scale_denominator))
-            .ok_or_else(math_error!())?;
-
-        let update_k_result = amm::get_update_k_result(market, new_sqrt_k)?;
-        let adjustment_cost = amm::adjust_k_cost(market, &update_k_result)?;
-        amm::update_k(market, &update_k_result)?;
-        // let adjustment_cost: i128 = 0;
-        // msg!(
-        //     "adjusting k by {:?}/{:?} to save {:?} (but attempted to save: {:?}",
-        //     k_scale_numerator,
-        //     k_scale_denominator,
-        //     adjustment_cost,
-        //     deficit
-        // );
-
-        // assert!(adjustment_cost <= 0);
-
-        // let (terminal_price_before, terminal_quote_reserves, _terminal_base_reserves) =
-        //     amm::calculate_terminal_price_and_reserves(market)?;
-
-        let (new_peg_candidate, _prepeg_cost, _repegged_market) = repeg::calculate_budgeted_peg(
-            market,
-            market.amm.terminal_quote_asset_reserve,
-            repeg_budget
-                .checked_add(adjustment_cost.unsigned_abs())
-                .ok_or_else(math_error!())?,
-            // mark_price,
-            optimal_peg,
-        )?;
-        // s
-        // let (oracle_valid, _direction_valid, profitability_valid, price_impact_valid) =
-        //     repeg::calculate_repeg_validity(
-        //         &repegged_market,
-        //         oracle_price_data,
-        //         is_oracle_valid,
-        //         terminal_price_before,
-        //     )?;
-        // msg!(
-        //     "repeg validity: {:?} {:?} {:?}",
-        //     oracle_valid,
-        //     profitability_valid,
-        //     price_impact_valid,
-        // );
-        // any budgeted direction valid for formulaic
-        // if oracle_valid && profitability_valid && price_impact_valid {
-        // }
-        prepeg_cost = _prepeg_cost;
-        new_peg = new_peg_candidate;
-    } else {
-        // market.amm.peg_multiplier = optimal_peg_market.amm.peg_multiplier;
-        // msg!(
-        //     "optimal repeg cost {:?} below budget: {:?}",
-        //     optimal_peg_cost,
-        //     repeg_budget
-        // ); // assert_eq!(false, true);
-        prepeg_cost = optimal_peg_cost;
-        new_peg = optimal_peg;
-    }
+    let (repegged_market, prepeg_cost) = repeg::adjust_prepeg(market, optimal_peg, fee_budget)?;
+    
+    market.amm.base_asset_reserve = repegged_market.amm.base_asset_reserve;
+    market.amm.quote_asset_reserve = repegged_market.amm.quote_asset_reserve;
+    market.amm.sqrt_k = repegged_market.amm.sqrt_k;
+    market.amm.terminal_quote_asset_reserve = repegged_market.amm.terminal_quote_asset_reserve;
+    market.amm.peg_multiplier = repegged_market.amm.peg_multiplier;
+    market.amm.total_fee_minus_distributions = repegged_market.amm.total_fee_minus_distributions;
 
     let cost_applied = apply_cost_to_market(market, prepeg_cost)?;
 
@@ -208,7 +125,8 @@ pub fn prepeg(
         //     prepeg_cost,
         //     cost_applied
         // );
-        market.amm.peg_multiplier = new_peg;
+        // market.amm.peg_multiplier = new_peg;
+        // market = &mut repegged_market;
         // let peg_multiplier_after = market.amm.peg_multiplier;
         // let base_asset_reserve_after = market.amm.base_asset_reserve;
         // let quote_asset_reserve_after = market.amm.quote_asset_reserve;
@@ -243,11 +161,11 @@ pub fn apply_cost_to_market(market: &mut Market, cost: i128) -> ClearingHouseRes
             .ok_or_else(math_error!())?;
     }
 
-    // market.amm.net_revenue_since_last_funding = market
-    //     .amm
-    //     .net_revenue_since_last_funding
-    //     .checked_add(cost as i64)
-    //     .ok_or_else(math_error!())?;
+    market.amm.net_revenue_since_last_funding = market
+        .amm
+        .net_revenue_since_last_funding
+        .checked_add(cost as i64)
+        .ok_or_else(math_error!())?;
 
     Ok(true)
 }

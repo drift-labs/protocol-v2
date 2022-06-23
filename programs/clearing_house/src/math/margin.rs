@@ -90,7 +90,6 @@ pub fn calculate_margin_requirement_and_total_collateral(
         let market = &market_map.get_ref(&market_position.market_index)?;
         let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
         let prepeg_budget = repeg::calculate_fee_pool(market)?;
-
         let prepeg_amm = repeg::calculate_prepeg_market(market, oracle_price_data, prepeg_budget)?;
 
         let (position_base_asset_value, position_unrealized_pnl) =

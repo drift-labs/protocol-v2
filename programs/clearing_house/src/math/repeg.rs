@@ -253,12 +253,14 @@ pub fn calculate_prepeg_market(
         target_price,
     )?;
 
-    let (_capped_candidate_peg, _candidate_cost, repegged_market) = calculate_budgeted_peg(
-        market,
-        market.amm.terminal_quote_asset_reserve,
-        fee_budget,
-        optimal_peg,
-    )?;
+    let (repegged_market, _cost) = adjust_prepeg(market, optimal_peg, fee_budget)?;
+
+    // let (_capped_candidate_peg, _candidate_cost, repegged_market) = calculate_budgeted_peg(
+    //     market,
+    //     market.amm.terminal_quote_asset_reserve,
+    //     fee_budget,
+    //     optimal_peg,
+    // )?;
     // let mut market_clone = *market;
     // market_clone.amm.peg_multiplier = optimal_peg;
     // Ok(market_clone.amm)
@@ -438,7 +440,7 @@ pub fn adjust_peg_cost(
 pub fn adjust_prepeg(
     market: &Market,
     optimal_peg: u128,
-    budget: i128,
+    budget: u128,
 ) -> ClearingHouseResult<(Market, i128)> {
     if optimal_peg == market.amm.peg_multiplier {
         return Ok((*market, 0));
@@ -454,19 +456,50 @@ pub fn adjust_prepeg(
         .checked_div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128)
         .ok_or_else(math_error!())?;
 
-    let budget_delta_peg = budget.checked_div(per_peg_cost).ok_or_else(math_error!())?;
-    let budget_delta_peg_magnitude = budget_delta_peg.unsigned_abs();
+    let budget_I128 = cast_to_i128(budget)?;
+
+    let mut budget_delta_peg = budget_I128
+        .checked_div(per_peg_cost)
+        .ok_or_else(math_error!())?;
+    let mut budget_delta_peg_magnitude = budget_delta_peg.unsigned_abs();
 
     let cost: i128;
     let new_peg: u128;
+    let mut market_clone = *market;
     if (budget_delta_peg > 0 && delta_peg < 0 || budget_delta_peg < 0 && delta_peg > 0)
         || (budget_delta_peg_magnitude > delta_peg.unsigned_abs())
     {
+        // use optimal peg
         cost = per_peg_cost
             .checked_mul(delta_peg)
             .ok_or_else(math_error!())?;
         new_peg = optimal_peg;
     } else {
+        // use full budget peg
+
+        // let (k_scale_numerator, k_scale_denominator) = (999, 1000);
+        let new_sqrt_k = market
+            .amm
+            .sqrt_k
+            .checked_sub(
+                market
+                    .amm
+                    .sqrt_k
+                    .checked_div(1000)
+                    .ok_or_else(math_error!())?,
+            )
+            .ok_or_else(math_error!())?;
+
+        let update_k_result = amm::get_update_k_result(&market_clone, bn::U192::from(new_sqrt_k))?;
+        let adjustment_cost = amm::adjust_k_cost(&mut market_clone, &update_k_result)?;
+        amm::update_k(&mut market_clone, &update_k_result)?;
+
+        let mut budget_delta_peg = budget_I128
+            .checked_add(adjustment_cost.abs())
+            .ok_or_else(math_error!())?
+            .checked_div(per_peg_cost)
+            .ok_or_else(math_error!())?;
+        let mut budget_delta_peg_magnitude = budget_delta_peg.unsigned_abs();
         new_peg = if budget_delta_peg > 0 {
             market
                 .amm
@@ -480,10 +513,9 @@ pub fn adjust_prepeg(
                 .checked_sub(budget_delta_peg_magnitude)
                 .ok_or_else(math_error!())?
         };
-        cost = budget;
+        cost = budget_I128;
     }
 
-    let mut market_clone = *market;
     market_clone.amm.peg_multiplier = new_peg;
 
     Ok((market_clone, cost))
