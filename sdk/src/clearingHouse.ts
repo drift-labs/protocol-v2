@@ -1,4 +1,3 @@
-import { BankConfig } from './constants/banks';
 import { AnchorProvider, BN, Idl, Program } from '@project-serum/anchor';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import {

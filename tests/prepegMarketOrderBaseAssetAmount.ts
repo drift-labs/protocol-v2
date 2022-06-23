@@ -16,6 +16,7 @@ import {
 	convertToNumber,
 	findComputeUnitConsumption,
 	calculateBidAskPrice,
+	calculatePrepegAMM,
 } from '../sdk/src';
 
 import {
@@ -257,6 +258,14 @@ describe('prepeg', () => {
 			anchor.workspace.Pyth,
 			solUsd
 		);
+
+		const prepegAMM = calculatePrepegAMM(market0.amm, oraclePriceData);
+		assert(prepegAMM.pegMultiplier.eq(new BN(1003)));
+		const estDist = prepegAMM.totalFee.sub(
+			prepegAMM.totalFeeMinusDistributions
+		);
+		console.log('est distribution:', estDist.toString());
+
 		const [_pctAvgSlippage, _pctMaxSlippage, _entryPrice, newPrice] =
 			calculateTradeSlippage(
 				PositionDirection.LONG,
@@ -297,10 +306,26 @@ describe('prepeg', () => {
 				.logMessages
 		);
 		const market = clearingHouse.getMarketAccount(0);
+		const [bid1, ask1] = calculateBidAskPrice(market.amm, oraclePriceData);
 		console.log(
+			'after trade bid/ask:',
+			convertToNumber(bid1),
+			'/',
+			convertToNumber(ask1),
 			'after trade mark price:',
 			convertToNumber(calculateMarkPrice(market, oraclePriceData))
 		);
+
+		assert(market.amm.pegMultiplier.eq(new BN(1003)));
+		const actualDist = market.amm.totalFee.sub(
+			market.amm.totalFeeMinusDistributions
+		);
+		console.log('actual distribution:', actualDist.toString());
+
+		console.log(prepegAMM.sqrtK.toString(), '!=', market.amm.sqrtK.toString());
+		assert(prepegAMM.sqrtK.eq(market.amm.sqrtK));
+		assert(actualDist.sub(estDist).abs().lte(new BN(1)));
+
 		// curPrice = (await getFeedData(anchor.workspace.Pyth, solUsd)).price;
 		// console.log('price:', curPrice);
 
@@ -378,7 +403,12 @@ describe('prepeg', () => {
 		);
 
 		const market = clearingHouse.getMarketAccount(0);
+		const [bid1, ask1] = calculateBidAskPrice(market.amm, oraclePriceData);
 		console.log(
+			'after trade bid/ask:',
+			convertToNumber(bid1),
+			'/',
+			convertToNumber(ask1),
 			'after trade mark price:',
 			convertToNumber(calculateMarkPrice(market, oraclePriceData))
 		);
@@ -478,108 +508,16 @@ describe('prepeg', () => {
 			);
 
 			const market = clearingHouse.getMarketAccount(i);
+			const [bid1, ask1] = calculateBidAskPrice(market.amm, oraclePriceData);
 			console.log(
+				'after trade bid/ask:',
+				convertToNumber(bid1),
+				'/',
+				convertToNumber(ask1),
 				'after trade mark price:',
 				convertToNumber(calculateMarkPrice(market, oraclePriceData))
 			);
+			console.log('----');
 		}
 	});
-
-	// it('Reverse long position', async () => {
-	// 	const marketIndex = new BN(0);
-	// 	const baseAssetAmount = new BN(497450503674885);
-	// 	const orderParams = getMarketOrderParams(
-	// 		marketIndex,
-	// 		PositionDirection.SHORT,
-	// 		ZERO,
-	// 		baseAssetAmount,
-	// 		false
-	// 	);
-	// 	await clearingHouse.placeAndFillOrder(orderParams);
-
-	// 	const user: any = await clearingHouse.program.account.user.fetch(
-	// 		userAccountPublicKey
-	// 	);
-
-	// 	// assert.ok(user.collateral.eq(new BN(9875627)));
-	// 	assert(user.totalFeePaid.eq(new BN(124371)));
-	// 	assert.ok(
-	// 		clearingHouse
-	// 			.getUserAccount()
-	// 			.positions[0].quoteAssetAmount.eq(new BN(24871287))
-	// 	);
-	// 	console.log(
-	// 		clearingHouse.getUserAccount().positions[0].baseAssetAmount.toString()
-	// 	);
-	// 	assert.ok(
-	// 		clearingHouse
-	// 			.getUserAccount()
-	// 			.positions[0].baseAssetAmount.eq(new BN(-248725251837442))
-	// 	);
-
-	// 	const market = clearingHouse.getMarketAccount(0);
-	// 	assert.ok(market.amm.netBaseAssetAmount.eq(new BN(-248725251837442)));
-	// 	assert.ok(market.baseAssetAmountLong.eq(ZERO));
-	// 	assert.ok(market.baseAssetAmountShort.eq(new BN(-248725251837442)));
-	// 	assert.ok(market.openInterest.eq(ONE));
-	// 	assert.ok(market.amm.totalFee.eq(new BN(124371)));
-	// 	assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(124371)));
-
-	// 	const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0].data;
-
-	// 	assert.ok(tradeRecord.user.equals(userAccountPublicKey));
-	// 	assert.ok(tradeRecord.recordId.eq(new BN(3)));
-	// 	assert.ok(
-	// 		JSON.stringify(tradeRecord.direction) ===
-	// 			JSON.stringify(PositionDirection.SHORT)
-	// 	);
-	// 	console.log(tradeRecord.baseAssetAmount.toNumber());
-	// 	assert.ok(tradeRecord.baseAssetAmount.eq(new BN(497450503674885)));
-	// 	assert.ok(tradeRecord.quoteAssetAmount.eq(new BN(49745049)));
-	// 	assert.ok(tradeRecord.marketIndex.eq(new BN(0)));
-	// });
-
-	// it('Close position', async () => {
-	// 	const marketIndex = new BN(0);
-	// 	const baseAssetAmount = new BN(248725251837442);
-	// 	const orderParams = getMarketOrderParams(
-	// 		marketIndex,
-	// 		PositionDirection.LONG,
-	// 		ZERO,
-	// 		baseAssetAmount,
-	// 		true
-	// 	);
-	// 	await clearingHouse.placeAndFillOrder(orderParams);
-
-	// 	const user: any = await clearingHouse.program.account.user.fetch(
-	// 		userAccountPublicKey
-	// 	);
-
-	// 	assert.ok(
-	// 		clearingHouse.getUserAccount().positions[0].quoteAssetAmount.eq(new BN(0))
-	// 	);
-	// 	assert.ok(
-	// 		clearingHouse.getUserAccount().positions[0].baseAssetAmount.eq(new BN(0))
-	// 	);
-	// 	assert.ok(user.collateral.eq(new BN(9850755)));
-	// 	assert(user.totalFeePaid.eq(new BN(149242)));
-
-	// 	const market = clearingHouse.getMarketAccount(0);
-	// 	assert.ok(market.amm.netBaseAssetAmount.eq(new BN(0)));
-	// 	assert.ok(market.amm.totalFee.eq(new BN(149242)));
-	// 	assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(149242)));
-
-	// 	const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0].data;
-
-	// 	assert.ok(tradeRecord.user.equals(userAccountPublicKey));
-	// 	assert.ok(tradeRecord.recordId.eq(new BN(4)));
-	// 	assert.ok(
-	// 		JSON.stringify(tradeRecord.direction) ===
-	// 			JSON.stringify(PositionDirection.LONG)
-	// 	);
-	// 	assert.ok(tradeRecord.baseAssetAmount.eq(new BN(248725251837442)));
-	// 	assert.ok(tradeRecord.liquidation == false);
-	// 	assert.ok(tradeRecord.quoteAssetAmount.eq(new BN(24871288)));
-	// 	assert.ok(tradeRecord.marketIndex.eq(new BN(0)));
-	// });
 });
