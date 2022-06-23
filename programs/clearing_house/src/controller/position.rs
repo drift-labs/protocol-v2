@@ -54,7 +54,6 @@ pub fn add_new_position(
         padding3: 0,
         padding4: 0,
         padding5: 0,
-        padding6: 0,
     };
 
     user_positions[new_position_index] = new_market_position;

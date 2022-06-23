@@ -124,7 +124,6 @@ pub struct MarketPosition {
     pub market_index: u64,
     pub base_asset_amount: i128,
     pub quote_asset_amount: u128,
-    pub quote_entry_amount: u128,
     pub last_cumulative_funding_rate: i128,
     pub last_cumulative_repeg_rebate: u128,
     pub last_funding_rate_ts: i64,
@@ -132,13 +131,13 @@ pub struct MarketPosition {
     pub unsettled_pnl: i128,
 
     // upgrade-ability
+    pub quote_entry_amount: u128,
     pub padding0: u128,
     pub padding1: u128,
     pub padding2: u128,
     pub padding3: u128,
     pub padding4: u128,
     pub padding5: u128,
-    pub padding6: u128,
 }
 
 impl MarketPosition {
