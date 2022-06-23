@@ -430,7 +430,7 @@ pub fn reduce_with_base_asset_amount(
 
     market_position.quote_entry_amount = market_position
         .quote_entry_amount
-        .checked_add(initial_quote_asset_amount_closed)
+        .checked_sub(initial_quote_asset_amount_closed)
         .ok_or_else(math_error!())?;
 
     let pnl = if PositionDirection::Short == direction {
