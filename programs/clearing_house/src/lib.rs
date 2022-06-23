@@ -916,9 +916,7 @@ pub mod clearing_house {
             controller::position::update_unsettled_pnl(
                 &mut user.positions[position_index],
                 market,
-                (pnl)
-                    .checked_sub(cast(user_fee)?)
-                    .ok_or_else(math_error!())?,
+                pnl.checked_sub(cast(user_fee)?).ok_or_else(math_error!())?,
             );
         }
         // Increment the user's total fee variables
@@ -1119,9 +1117,7 @@ pub mod clearing_house {
         controller::position::update_unsettled_pnl(
             &mut user.positions[position_index],
             market,
-            (pnl)
-                .checked_sub(cast(user_fee)?)
-                .ok_or_else(math_error!())?,
+            pnl.checked_sub(cast(user_fee)?).ok_or_else(math_error!())?,
         )?;
 
         // Increment the user's total fee variables
