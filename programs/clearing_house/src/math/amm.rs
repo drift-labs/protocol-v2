@@ -446,7 +446,7 @@ pub fn calculate_terminal_price_and_reserves(
     ))
 }
 
-pub fn calculate_spreads(amm: &mut AMM) -> ClearingHouseResult<(u128, u128)> {
+pub fn calculate_spreads(amm: &mut AMM, mark_price: u128) -> ClearingHouseResult<(u128, u128)> {
     let mut long_spread = (amm.base_spread / 2) as u128;
     let mut short_spread = (amm.base_spread / 2) as u128;
 
@@ -477,7 +477,7 @@ pub fn calculate_spreads(amm: &mut AMM) -> ClearingHouseResult<(u128, u128)> {
 
             let local_base_asset_value = amm
                 .net_base_asset_amount
-                .checked_mul(cast_to_i128(amm.mark_price()?)?)
+                .checked_mul(cast_to_i128(mark_price)?)
                 .ok_or_else(math_error!())?
                 .checked_div(MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128)
                 .ok_or_else(math_error!())?;
@@ -498,12 +498,12 @@ pub fn calculate_spreads(amm: &mut AMM) -> ClearingHouseResult<(u128, u128)> {
             .checked_div(amm.total_fee_minus_distributions)
             .ok_or_else(math_error!())?;
 
-            msg!(
-                "effective leverage: {:?} long/short quote: {:?}/{:?}",
-                effective_leverage,
-                amm.quote_asset_amount_long,
-                amm.quote_asset_amount_short
-            );
+            // msg!(
+            //     "effective leverage: {:?} long/short quote: {:?}/{:?}",
+            //     effective_leverage,
+            //     amm.quote_asset_amount_long,
+            //     amm.quote_asset_amount_short
+            // );
 
             let effective_leverage_capped = min(
                 max_invetory_skew,
@@ -511,6 +511,8 @@ pub fn calculate_spreads(amm: &mut AMM) -> ClearingHouseResult<(u128, u128)> {
                     .checked_add(effective_leverage)
                     .ok_or_else(math_error!())?,
             );
+
+            // let effective_leverage_capped = 0;
             if amm.net_base_asset_amount > 0 {
                 long_spread = long_spread
                     .checked_mul(effective_leverage_capped)
@@ -534,12 +536,12 @@ pub fn calculate_spreads(amm: &mut AMM) -> ClearingHouseResult<(u128, u128)> {
         }
     }
 
-    msg!(
-        "long_spread: {:?}, short_spread: {:?}, base_spread/2: {:?}",
-        long_spread,
-        short_spread,
-        (amm.base_spread / 2)
-    );
+    // msg!(
+    //     "long_spread: {:?}, short_spread: {:?}, base_spread/2: {:?}",
+    //     long_spread,
+    //     short_spread,
+    //     (amm.base_spread / 2)
+    // );
 
     amm.long_spread = long_spread;
     amm.short_spread = short_spread;
@@ -585,10 +587,10 @@ pub fn calculate_spread_reserves(
         .ok_or_else(math_error!())?
         .try_to_u128()?;
 
-    msg!(
-        "spread price: {:?}",
-        calculate_price(quote_asset_reserve, base_asset_reserve, amm.peg_multiplier,)
-    );
+    // msg!(
+    //     "spread price: {:?}",
+    //     calculate_price(quote_asset_reserve, base_asset_reserve, amm.peg_multiplier,)
+    // );
 
     Ok((base_asset_reserve, quote_asset_reserve))
 }

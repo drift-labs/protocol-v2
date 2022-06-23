@@ -5,6 +5,7 @@ use crate::math::bn;
 // use crate::math::bn_operations::{multiply_i128, multiply_u128};
 use crate::math::casting::{cast_to_i128, cast_to_u128};
 use crate::math::constants::{
+    AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128,
     // AMM_RESERVE_PRECISION,
     // AMM_RESERVE_PRECISION_I128,
     AMM_TO_QUOTE_PRECISION_RATIO,
@@ -243,8 +244,8 @@ pub fn calculate_prepeg_market(
     oracle_price_data: &OraclePriceData,
     fee_budget: u128,
 ) -> ClearingHouseResult<AMM> {
-    let target_price =
-        calculate_amm_target_price(&market.amm, market.amm.mark_price()?, oracle_price_data)?;
+    let target_price = cast_to_u128(oracle_price_data.price)?;
+    // calculate_amm_target_price(&market.amm, market.amm.mark_price()?, oracle_price_data)?;
 
     let optimal_peg = calculate_peg_from_target_price(
         market.amm.quote_asset_reserve,
@@ -258,6 +259,9 @@ pub fn calculate_prepeg_market(
         fee_budget,
         optimal_peg,
     )?;
+    // let mut market_clone = *market;
+    // market_clone.amm.peg_multiplier = optimal_peg;
+    // Ok(market_clone.amm)
 
     // msg!(
     //     "[OPTIMAL PREPEG AMM for marging system]
@@ -393,10 +397,13 @@ pub fn calculate_budgeted_peg(
     // };
 
     let capped_candidate_peg = candidate_peg;
-
-    let (repegged_market, candidate_cost) = adjust_peg_cost(market, capped_candidate_peg)?;
-
+    let (repegged_market, candidate_cost) = adjust_peg_cost_cheap(market, candidate_peg)?;
     Ok((capped_candidate_peg, candidate_cost, repegged_market))
+
+    // TODO making it cheaper
+    // let mut market_clone = *market;
+    // market_clone.amm.peg_multiplier = candidate_peg;
+    // Ok((candidate_peg, cast_to_i128(budget)?, market_clone))
 }
 
 pub fn adjust_peg_cost(
@@ -424,6 +431,87 @@ pub fn adjust_peg_cost(
     } else {
         0_i128
     };
+
+    Ok((market_clone, cost))
+}
+
+pub fn adjust_prepeg(
+    market: &Market,
+    optimal_peg: u128,
+    budget: i128,
+) -> ClearingHouseResult<(Market, i128)> {
+    if optimal_peg == market.amm.peg_multiplier {
+        return Ok((*market, 0));
+    }
+
+    let delta_peg = cast_to_i128(optimal_peg)?
+        .checked_sub(cast_to_i128(market.amm.peg_multiplier)?)
+        .ok_or_else(math_error!())?;
+
+    let per_peg_cost = cast_to_i128(market.amm.quote_asset_reserve)?
+        .checked_sub(cast_to_i128(market.amm.terminal_quote_asset_reserve)?)
+        .ok_or_else(math_error!())?
+        .checked_div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128)
+        .ok_or_else(math_error!())?;
+
+    let budget_delta_peg = budget.checked_div(per_peg_cost).ok_or_else(math_error!())?;
+    let budget_delta_peg_magnitude = budget_delta_peg.unsigned_abs();
+
+    let cost: i128;
+    let new_peg: u128;
+    if (budget_delta_peg > 0 && delta_peg < 0 || budget_delta_peg < 0 && delta_peg > 0)
+        || (budget_delta_peg_magnitude > delta_peg.unsigned_abs())
+    {
+        cost = per_peg_cost
+            .checked_mul(delta_peg)
+            .ok_or_else(math_error!())?;
+        new_peg = optimal_peg;
+    } else {
+        new_peg = if budget_delta_peg > 0 {
+            market
+                .amm
+                .peg_multiplier
+                .checked_add(budget_delta_peg_magnitude)
+                .ok_or_else(math_error!())?
+        } else {
+            market
+                .amm
+                .peg_multiplier
+                .checked_sub(budget_delta_peg_magnitude)
+                .ok_or_else(math_error!())?
+        };
+        cost = budget;
+    }
+
+    let mut market_clone = *market;
+    market_clone.amm.peg_multiplier = new_peg;
+
+    Ok((market_clone, cost))
+}
+
+pub fn adjust_peg_cost_cheap(
+    market: &Market,
+    new_peg_candidate: u128,
+) -> ClearingHouseResult<(Market, i128)> {
+    let mut market_clone = *market;
+
+    let delta_peg = cast_to_i128(new_peg_candidate)?
+        .checked_sub(cast_to_i128(market.amm.peg_multiplier)?)
+        .ok_or_else(math_error!())?;
+
+    let cost = if new_peg_candidate != market_clone.amm.peg_multiplier {
+        cast_to_i128(market.amm.quote_asset_reserve)?
+            .checked_sub(cast_to_i128(market.amm.terminal_quote_asset_reserve)?)
+            .ok_or_else(math_error!())?
+            .checked_mul(delta_peg)
+            .ok_or_else(math_error!())?
+            .checked_div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128)
+            .ok_or_else(math_error!())?
+    } else {
+        0
+    };
+
+    market_clone.amm.peg_multiplier = new_peg_candidate;
 
     Ok((market_clone, cost))
 }

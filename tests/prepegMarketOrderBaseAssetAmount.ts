@@ -316,6 +316,7 @@ describe('prepeg', () => {
 			convertToNumber(calculateMarkPrice(market, oraclePriceData))
 		);
 
+		console.log(market.amm.pegMultiplier.toString());
 		assert(market.amm.pegMultiplier.eq(new BN(1003)));
 		const actualDist = market.amm.totalFee.sub(
 			market.amm.totalFeeMinusDistributions
@@ -453,7 +454,7 @@ describe('prepeg', () => {
 		assert.ok(tradeRecord.marketIndex.eq(new BN(0)));
 	});
 
-	it('Many market prepegs, long position', async () => {
+	it('Many market balanced prepegs, long position', async () => {
 		for (let i = 1; i <= 4; i++) {
 			const thisUsd = mockOracles[i];
 			const marketIndex = new BN(i);
@@ -519,5 +520,48 @@ describe('prepeg', () => {
 			);
 			console.log('----');
 		}
+	});
+
+	it('Many market expensive prepeg margin', async () => {
+		const user = clearingHouse.getUserAccount();
+
+		// todo cheapen margin peg enough to make this work w/ 5 positions
+		for (let i = 1; i <= 3; i++) {
+			console.log(
+				'user market',
+				user.positions[i].marketIndex.toString(),
+				' base position',
+				'=',
+				user.positions[i].baseAssetAmount.toNumber() / 1e13
+			);
+			const thisUsd = mockOracles[i];
+			const curPrice = (await getFeedData(anchor.workspace.Pyth, thisUsd))
+				.price;
+			await setFeedPrice(anchor.workspace.Pyth, curPrice * 1.01, thisUsd);
+		}
+		const curPrice = (await getFeedData(anchor.workspace.Pyth, mockOracles[0]))
+			.price;
+		await setFeedPrice(anchor.workspace.Pyth, curPrice * 1.01, mockOracles[0]);
+
+		const orderParams = getMarketOrderParams(
+			new BN(0),
+			PositionDirection.SHORT,
+			ZERO,
+			user.positions[0].baseAssetAmount.div(new BN(2)),
+			false
+		);
+		const txSig = await clearingHouse.placeAndFillOrder(orderParams);
+		const computeUnits = await findComputeUnitConsumption(
+			clearingHouse.program.programId,
+			connection,
+			txSig,
+			'confirmed'
+		);
+		console.log('compute units', computeUnits);
+		console.log(
+			'tx logs',
+			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
+				.logMessages
+		);
 	});
 });

@@ -22,7 +22,7 @@ import { squareRootBN } from '..';
 import { OraclePriceData } from '../oracles/types';
 import {
 	calculateRepegCost,
-	calculateBudgetedK,
+	// calculateBudgetedK,
 	calculateAdjustKCost,
 	calculateBudgetedPeg,
 } from './repeg';
@@ -46,11 +46,11 @@ export function calculatePrepeg(
 	const budget = BN.max(ZERO, amm.totalFeeMinusDistributions.sub(totalFeeLB));
 
 	if (prePegCost.gt(budget)) {
-		const deficit = budget.sub(prePegCost);
-		[pKNumer, pKDenom] = calculateBudgetedK(amm, deficit);
-		if (pKNumer.mul(new BN(1000)).lt(pKDenom.mul(new BN(978)))) {
-			[pKNumer, pKDenom] = [new BN(978), new BN(1000)];
-		}
+		// const deficit = budget.sub(prePegCost);
+		[pKNumer, pKDenom] = [new BN(999), new BN(1000)]; //calculateBudgetedK(amm, deficit);
+		// if (pKNumer.mul(new BN(1000)).lt(pKDenom.mul(new BN(978)))) {
+		// 	[pKNumer, pKDenom] = [new BN(978), new BN(1000)];
+		// }
 		const deficitMadeup = calculateAdjustKCost(amm, pKNumer, pKDenom);
 		assert(deficitMadeup.lte(new BN(0)));
 		prePegCost = budget.add(deficitMadeup.abs());
