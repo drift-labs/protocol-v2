@@ -130,6 +130,11 @@ pub struct MarketPosition {
     pub open_orders: u128,
     pub unsettled_pnl: i128,
 
+    // lp stuff
+    pub lp_tokens: u128,
+    pub last_total_fee_minus_distributions: u128,
+    pub last_net_base_asset_amount: i128,
+
     // upgrade-ability
     pub padding0: u128,
     pub padding1: u128,

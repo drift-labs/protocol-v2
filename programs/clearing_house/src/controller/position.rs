@@ -46,6 +46,11 @@ pub fn add_new_position(
         last_funding_rate_ts: 0,
         open_orders: 0,
         unsettled_pnl: 0,
+
+        lp_tokens: 0,
+        last_total_fee_minus_distributions: 0,
+        last_net_base_asset_amount: 0,
+
         padding0: 0,
         padding1: 0,
         padding2: 0,

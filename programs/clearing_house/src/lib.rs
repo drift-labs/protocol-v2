@@ -751,6 +751,77 @@ pub mod clearing_house {
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]
+    pub fn add_liquidity<'info>(
+        ctx: Context<OpenPosition>,
+        quote_asset_amount: u128,
+        market_index: u64,
+    ) -> Result<()> {
+        let user_key = ctx.accounts.user.key();
+        let user = &mut load_mut(&ctx.accounts.user)?;
+        let clock = Clock::get()?;
+        let now = clock.unix_timestamp;
+        let clock_slot = clock.slot;
+
+        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let bank_map = BankMap::load(
+            &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
+            remaining_accounts_iter,
+        )?;
+        let market_map = MarketMap::load(
+            &get_writable_markets(market_index),
+            &get_market_oracles(market_index, &ctx.accounts.oracle),
+            remaining_accounts_iter,
+        )?;
+        let mut market = market_map.get_ref_mut(&market_index)?;
+
+        // TODO: margin requirements
+
+        // Get existing position or add a new position for market
+        let position_index = get_position_index(&user.positions, market_index)
+            .or_else(|_| add_new_position(&mut user.positions, market_index))?;
+        let lp_position = &mut user.positions[position_index];
+
+        // distribute lp tokens to lp
+        let user_lp_tokens = quote_asset_amount * AMM_TO_QUOTE_PRECISION_RATIO
+            / 2
+            / (market.amm.peg_multiplier / PEG_PRECISION); // todo: change from peg to mark price?
+
+        // update market state
+        let total_lp_tokens = market.amm.sqrt_k;
+        let reserve_scale = (total_lp_tokens + user_lp_tokens) / total_lp_tokens;
+
+        market.amm.base_asset_reserve = market
+            .amm
+            .base_asset_reserve
+            .checked_mul(reserve_scale)
+            .ok_or_else(math_error!())?;
+
+        market.amm.quote_asset_reserve = market
+            .amm
+            .base_asset_reserve
+            .checked_mul(reserve_scale)
+            .ok_or_else(math_error!())?;
+
+        market.amm.sqrt_k = market
+            .amm
+            .sqrt_k
+            .checked_add(user_lp_tokens)
+            .ok_or_else(math_error!())?;
+
+        // update lp position
+        lp_position.lp_tokens = user_lp_tokens;
+        lp_position.last_net_base_asset_amount = market.amm.net_base_asset_amount;
+        lp_position.last_total_fee_minus_distributions = market.amm.total_fee_minus_distributions;
+        lp_position.last_cumulative_funding_rate = market.amm.cumulative_funding_rate_lp;
+
+        Ok(())
+    }
+
+    #[allow(unused_must_use)]
+    #[access_control(
+        exchange_not_paused(&ctx.accounts.state)
+    )]
     pub fn open_position<'info>(
         ctx: Context<OpenPosition>,
         direction: PositionDirection,
