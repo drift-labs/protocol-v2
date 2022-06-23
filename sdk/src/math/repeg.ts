@@ -57,7 +57,10 @@ export function calculateAdjustKCost(
 export function calculateRepegCost(amm: AMM, newPeg: BN): BN {
 	// const dqar = amm.quoteAssetAmountLong.sub(amm.quoteAssetAmountShort);
 	const dqar = amm.quoteAssetReserve.sub(amm.terminalQuoteAssetReserve);
-	const cost = dqar.mul(newPeg.sub(amm.pegMultiplier)).div(PEG_PRECISION);
+	const cost = dqar
+		.mul(newPeg.sub(amm.pegMultiplier))
+		.div(AMM_TO_QUOTE_PRECISION_RATIO)
+		.div(PEG_PRECISION);
 	// console.log('dqar cost', dqar, cost);
 	return cost;
 }

@@ -39,7 +39,7 @@ export function calculatePrepeg(
 		.div(amm.quoteAssetReserve)
 		.add(MARK_PRICE_PRECISION.div(PEG_PRECISION).div(new BN(2)))
 		.div(MARK_PRICE_PRECISION.div(PEG_PRECISION));
-	// console.log('NEW PEG:', newPeg.toString());
+	// console.log('NEW PEG1:', newPeg.toString(), amm.quoteAssetReserve.toString());
 	let prePegCost = calculateRepegCost(amm, newPeg);
 
 	const totalFeeLB = amm.totalFee.div(new BN(2));
@@ -48,9 +48,12 @@ export function calculatePrepeg(
 	if (prePegCost.gt(budget)) {
 		const deficit = budget.sub(prePegCost);
 		[pKNumer, pKDenom] = calculateBudgetedK(amm, deficit);
-		pKNumer = BN.max(pKDenom.mul(new BN(978)).div(new BN(1000)), pKNumer);
+		if (pKNumer.mul(new BN(1000)).lt(pKDenom.mul(new BN(978)))) {
+			[pKNumer, pKDenom] = [new BN(978), new BN(1000)];
+		}
 		const deficitMadeup = calculateAdjustKCost(amm, pKNumer, pKDenom);
-		prePegCost = budget.add(deficitMadeup);
+		assert(deficitMadeup.lte(new BN(0)));
+		prePegCost = budget.add(deficitMadeup.abs());
 
 		// console.log(
 		// 	'prepeg budget',
@@ -58,12 +61,39 @@ export function calculatePrepeg(
 		// 	'+',
 		// 	deficitMadeup.toString()
 		// );
-		// todo: use a k updated amm here:
-		newPeg = calculateBudgetedPeg(amm, prePegCost, targetPrice);
+
+		const newAmm = Object.assign({}, amm);
+		newAmm.baseAssetReserve = newAmm.baseAssetReserve.mul(pKNumer).div(pKDenom);
+		newAmm.sqrtK = newAmm.sqrtK.mul(pKNumer).div(pKDenom);
+		const invariant = newAmm.sqrtK.mul(newAmm.sqrtK);
+		newAmm.quoteAssetReserve = invariant.div(newAmm.baseAssetReserve);
+		const directionToClose = amm.netBaseAssetAmount.gt(ZERO)
+			? PositionDirection.SHORT
+			: PositionDirection.LONG;
+
+		const [newQuoteAssetReserve, _newBaseAssetReserve] =
+			calculateAmmReservesAfterSwap(
+				newAmm,
+				'base',
+				amm.netBaseAssetAmount.abs(),
+				getSwapDirection('base', directionToClose)
+			);
+
+		newAmm.terminalQuoteAssetReserve = newQuoteAssetReserve;
+
+		// todo: use a k updated amm here or default?:
+		newPeg = calculateBudgetedPeg(newAmm, prePegCost, targetPrice);
+		// console.log(
+		// 	'NEW PEG2:',
+		// 	newPeg.toString(),
+		// 	newAmm.quoteAssetReserve.toString()
+		// );
+		prePegCost = calculateRepegCost(newAmm, newPeg);
 	}
 	// console.log(
 	// 	'PREPEG RESULTS:',
-	// 	convertToNumber(prePegCost, QUOTE_PRECISION),
+	// 	prePegCost.toString(),
+	// 	// convertToNumber(prePegCost, QUOTE_PRECISION),
 	// 	pKNumer.toNumber(),
 	// 	pKDenom.toNumber(),
 	// 	newPeg.toNumber() / 1000
@@ -80,13 +110,13 @@ export function calculatePrepegAMM(
 		return amm;
 	}
 	const newAmm = Object.assign({}, amm);
-	const [prepegCost, pKNumer, pkDenom, newPeg] = calculatePrepeg(
+	const [prepegCost, pKNumer, pKDenom, newPeg] = calculatePrepeg(
 		amm,
 		oraclePriceData
 	);
 
-	newAmm.baseAssetReserve = newAmm.baseAssetReserve.mul(pKNumer).div(pkDenom);
-	newAmm.sqrtK = newAmm.sqrtK.mul(pKNumer).div(pkDenom);
+	newAmm.baseAssetReserve = newAmm.baseAssetReserve.mul(pKNumer).div(pKDenom);
+	newAmm.sqrtK = newAmm.sqrtK.mul(pKNumer).div(pKDenom);
 	const invariant = newAmm.sqrtK.mul(newAmm.sqrtK);
 	newAmm.quoteAssetReserve = invariant.div(newAmm.baseAssetReserve);
 	newAmm.pegMultiplier = newPeg;
