@@ -233,4 +233,167 @@ describe('update amm', () => {
 		assert(actualDist.sub(estDist).abs().lte(new BN(1))); // cost is near equal
 		assert(market.amm.sqrtK.eq(market0.amm.sqrtK)); // k was same
 	});
+
+	it('Many market balanced prepegs, long position', async () => {
+		for (let i = 0; i <= 4; i++) {
+			const thisUsd = mockOracles[i];
+			const marketIndex = new BN(i);
+			const baseAssetAmount = new BN(31.02765 * 10e13);
+			const market0 = clearingHouse.getMarketAccount(i);
+			const orderParams = getMarketOrderParams(
+				marketIndex,
+				PositionDirection.LONG,
+				ZERO,
+				baseAssetAmount,
+				false
+			);
+
+			const curPrice = (await getFeedData(anchor.workspace.Pyth, thisUsd))
+				.price;
+			console.log('new oracle price:', curPrice);
+			const oraclePriceData = await getOraclePriceData(
+				anchor.workspace.Pyth,
+				thisUsd
+			);
+			const [_pctAvgSlippage, _pctMaxSlippage, _entryPrice, newPrice] =
+				calculateTradeSlippage(
+					PositionDirection.LONG,
+					baseAssetAmount,
+					market0,
+					'base',
+					oraclePriceData
+				);
+
+			const [bid, ask] = calculateBidAskPrice(market0.amm, oraclePriceData);
+
+			console.log(
+				'bid/ask:',
+				convertToNumber(bid),
+				'/',
+				convertToNumber(ask),
+				'after trade est. mark price:',
+				convertToNumber(newPrice)
+			);
+			const txSig = await clearingHouse.placeAndFillOrder(orderParams);
+			const computeUnits = await findComputeUnitConsumption(
+				clearingHouse.program.programId,
+				connection,
+				txSig,
+				'confirmed'
+			);
+			console.log('compute units', computeUnits);
+			console.log(
+				'tx logs',
+				(await connection.getTransaction(txSig, { commitment: 'confirmed' }))
+					.meta.logMessages
+			);
+
+			const market = clearingHouse.getMarketAccount(i);
+			const [bid1, ask1] = calculateBidAskPrice(market.amm, oraclePriceData);
+			console.log(
+				'after trade bid/ask:',
+				convertToNumber(bid1),
+				'/',
+				convertToNumber(ask1),
+				'after trade mark price:',
+				convertToNumber(calculateMarkPrice(market, oraclePriceData))
+			);
+			console.log('----');
+		}
+	});
+
+	it('update AMM (unbalanced)', async () => {
+		console.log('hi');
+		const marketIndex = new BN(0);
+		const baseAssetAmount = new BN(497450503674885 / 50);
+		const market0 = clearingHouse.getMarketAccount(0);
+		await setFeedPrice(anchor.workspace.Pyth, 1.203, solUsd);
+		const curPrice = (await getFeedData(anchor.workspace.Pyth, solUsd)).price;
+		console.log('new oracle price:', curPrice);
+
+		const oraclePriceData = await getOraclePriceData(
+			anchor.workspace.Pyth,
+			solUsd
+		);
+
+		const prepegAMM = calculatePrepegAMM(market0.amm, oraclePriceData);
+		console.log(prepegAMM.pegMultiplier.toString());
+		assert(prepegAMM.pegMultiplier.eq(new BN(1006)));
+		const estDist = prepegAMM.totalFee.sub(
+			prepegAMM.totalFeeMinusDistributions
+		);
+		console.log('est distribution:', estDist.toString());
+
+		const [_pctAvgSlippage, _pctMaxSlippage, _entryPrice, newPrice] =
+			calculateTradeSlippage(
+				PositionDirection.LONG,
+				baseAssetAmount,
+				market0,
+				'base',
+				oraclePriceData
+			);
+		const [bid, ask] = calculateBidAskPrice(market0.amm, oraclePriceData);
+
+		console.log(
+			'bid/ask:',
+			convertToNumber(bid),
+			'/',
+			convertToNumber(ask),
+			'after trade est. mark price:',
+			convertToNumber(newPrice)
+		);
+		const txSig = await clearingHouse.updateAMM(marketIndex);
+		const computeUnits = await findComputeUnitConsumption(
+			clearingHouse.program.programId,
+			connection,
+			txSig,
+			'confirmed'
+		);
+		console.log('compute units', computeUnits);
+		console.log(
+			'tx logs',
+			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
+				.logMessages
+		);
+		const market = clearingHouse.getMarketAccount(0);
+		const [bid1, ask1] = calculateBidAskPrice(market.amm, oraclePriceData);
+		console.log(
+			'after trade bid/ask:',
+			convertToNumber(market.amm.sqrtK),
+			'/',
+			convertToNumber(ask1),
+			'after trade mark price:',
+			convertToNumber(calculateMarkPrice(market, oraclePriceData))
+		);
+		assert(bid1.lt(ask1));
+		assert(ask1.gt(oraclePriceData.price));
+		assert(bid1.lt(oraclePriceData.price));
+
+		console.log(market.amm.pegMultiplier.toString());
+		assert(market.amm.pegMultiplier.eq(new BN(1006)));
+		const actualDist = market.amm.totalFee.sub(
+			market.amm.totalFeeMinusDistributions
+		);
+		console.log('actual distribution:', actualDist.toString());
+
+		console.log(prepegAMM.sqrtK.toString(), '==', market.amm.sqrtK.toString());
+		const marketInvariant = market.amm.sqrtK.mul(market.amm.sqrtK);
+
+		// check k math good
+		assert(
+			marketInvariant
+				.div(market.amm.baseAssetReserve)
+				.eq(market.amm.quoteAssetReserve)
+		);
+		assert(
+			marketInvariant
+				.div(market.amm.quoteAssetReserve)
+				.eq(market.amm.baseAssetReserve)
+		);
+
+		// check prepeg and post trade worked as expected
+		assert(prepegAMM.sqrtK.eq(market.amm.sqrtK)); // predicted k = post trade k
+		assert(actualDist.sub(estDist).abs().lte(new BN(1))); // cost is near equal
+		assert(market.amm.sqrtK.lt(market0.amm.sqrtK)); // k was lowered
+	});
 });
