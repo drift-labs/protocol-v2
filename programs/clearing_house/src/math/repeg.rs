@@ -496,7 +496,7 @@ pub fn adjust_prepeg(
 
         // equivalent to (but cheaper than) scaling down by .1%
         // let (k_scale_numerator, k_scale_denominator) = (999, 1000);
-        let adjustment_cost: i128  = if adjust_k {
+        let adjustment_cost: i128 = if adjust_k {
             let new_sqrt_k = market
                 .amm
                 .sqrt_k
@@ -509,7 +509,8 @@ pub fn adjust_prepeg(
                 )
                 .ok_or_else(math_error!())?;
 
-            let update_k_result = amm::get_update_k_result(&market_clone, bn::U192::from(new_sqrt_k))?;
+            let update_k_result =
+                amm::get_update_k_result(&market_clone, bn::U192::from(new_sqrt_k))?;
             let adjustment_cost = amm::adjust_k_cost(&mut market_clone, &update_k_result)?;
             amm::update_k(&mut market_clone, &update_k_result)?;
             adjustment_cost
