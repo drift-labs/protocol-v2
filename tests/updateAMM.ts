@@ -139,7 +139,7 @@ describe('update amm', () => {
 		await eventSubscriber.unsubscribe();
 	});
 
-	it('update AMM', async () => {
+	it('update AMM (balanced)', async () => {
 		console.log('hi');
 		const marketIndex = new BN(0);
 		const baseAssetAmount = new BN(497450503674885 / 50);
@@ -179,14 +179,6 @@ describe('update amm', () => {
 			'after trade est. mark price:',
 			convertToNumber(newPrice)
 		);
-
-		// const orderParams = getMarketOrderParams(
-		// 	marketIndex,
-		// 	PositionDirection.LONG,
-		// 	ZERO,
-		// 	baseAssetAmount,
-		// 	false
-		// );
 		const txSig = await clearingHouse.updateAMM(marketIndex);
 		const computeUnits = await findComputeUnitConsumption(
 			clearingHouse.program.programId,
@@ -239,6 +231,6 @@ describe('update amm', () => {
 		// check prepeg and post trade worked as expected
 		assert(prepegAMM.sqrtK.eq(market.amm.sqrtK)); // predicted k = post trade k
 		assert(actualDist.sub(estDist).abs().lte(new BN(1))); // cost is near equal
-		assert(market.amm.sqrtK.lt(market0.amm.sqrtK)); // k was lowered
+		assert(market.amm.sqrtK.eq(market0.amm.sqrtK)); // k was same
 	});
 });
