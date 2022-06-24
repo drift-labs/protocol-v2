@@ -509,10 +509,76 @@ pub fn adjust_prepeg(
                 )
                 .ok_or_else(math_error!())?;
 
-            let update_k_result =
-                amm::get_update_k_result(&market_clone, bn::U192::from(new_sqrt_k))?;
-            let adjustment_cost = amm::adjust_k_cost(&mut market_clone, &update_k_result)?;
-            amm::update_k(&mut market_clone, &update_k_result)?;
+            let new_base_asset_reserve = market
+                .amm
+                .base_asset_reserve
+                .checked_sub(
+                    market
+                        .amm
+                        .base_asset_reserve
+                        .checked_div(1000)
+                        .ok_or_else(math_error!())?,
+                )
+                .ok_or_else(math_error!())?;
+            let new_quote_asset_reserve = market
+                .amm
+                .quote_asset_reserve
+                .checked_sub(
+                    market
+                        .amm
+                        .quote_asset_reserve
+                        .checked_div(1000)
+                        .ok_or_else(math_error!())?,
+                )
+                .ok_or_else(math_error!())?;
+            // let update_k_result =
+            //     amm::get_update_k_result(&market_clone, bn::U192::from(new_sqrt_k))?;
+
+            let update_k_result = amm::UpdateKResult {
+                sqrt_k: new_sqrt_k,
+                base_asset_reserve: new_base_asset_reserve,
+                quote_asset_reserve: new_quote_asset_reserve,
+            };
+
+            // let terminal_base = if market.amm.net_base_asset_amount > 0 {
+            //     market
+            //         .amm
+            //         .base_asset_reserve
+            //         .checked_add(market.amm.net_base_asset_amount.unsigned_abs())
+            //         .ok_or_else(math_error!())?
+            // } else {
+            //     market
+            //         .amm
+            //         .base_asset_reserve
+            //         .checked_sub(market.amm.net_base_asset_amount.unsigned_abs())
+            //         .ok_or_else(math_error!())?
+            // };
+
+            // let adjustment_cost: i128 = cast_to_i128(
+            //     market
+            //         .amm
+            //         .quote_asset_reserve
+            //         .checked_mul(market.amm.peg_multiplier)
+            //         .ok_or_else(math_error!())?
+            //         .checked_div(terminal_base)
+            //         .ok_or_else(math_error!())?
+            //         .checked_mul(market.amm.net_base_asset_amount.unsigned_abs())
+            //         .ok_or_else(math_error!())?
+            //         .checked_sub(
+            //             new_quote_asset_reserve
+            //                 .checked_mul(market.amm.peg_multiplier)
+            //                 .ok_or_else(math_error!())?
+            //                 .checked_div(terminal_base)
+            //                 .ok_or_else(math_error!())?
+            //                 .checked_mul(market.amm.net_base_asset_amount.unsigned_abs())
+            //                 .ok_or_else(math_error!())?,
+            //         )
+            //         .ok_or_else(math_error!())?,
+            // )?;
+
+            let adjustment_cost =
+                amm::adjust_k_cost_and_update(&mut market_clone, &update_k_result)?;
+            // amm::update_k(&mut market_clone, &update_k_result)?;
             adjustment_cost
         } else {
             0

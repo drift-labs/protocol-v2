@@ -898,6 +898,28 @@ pub fn adjust_k_cost(
     )?;
     Ok(cost)
 }
+
+/// To find the cost of adjusting k, compare the the net market value before and after adjusting k
+/// Increasing k costs the protocol money because it reduces slippage and improves the exit price for net market position
+/// Decreasing k costs the protocol money because it increases slippage and hurts the exit price for net market position
+pub fn adjust_k_cost_and_update(
+    market: &mut Market,
+    update_k_result: &UpdateKResult,
+) -> ClearingHouseResult<i128> {
+    // Find the net market value before adjusting k
+    let (current_net_market_value, _) =
+        _calculate_base_asset_value_and_pnl(market.amm.net_base_asset_amount, 0, &market.amm)?;
+
+    update_k(market, update_k_result)?;
+
+    let (_new_net_market_value, cost) = _calculate_base_asset_value_and_pnl(
+        market.amm.net_base_asset_amount,
+        current_net_market_value,
+        &market.amm,
+    )?;
+    Ok(cost)
+}
+
 pub struct UpdateKResult {
     pub sqrt_k: u128,
     pub base_asset_reserve: u128,
