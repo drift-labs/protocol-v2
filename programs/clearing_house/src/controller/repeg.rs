@@ -109,17 +109,20 @@ pub fn prepeg(
     )?;
 
     let (repegged_market, prepeg_cost) = repeg::adjust_prepeg(market, optimal_peg, fee_budget)?;
-    
-    market.amm.base_asset_reserve = repegged_market.amm.base_asset_reserve;
-    market.amm.quote_asset_reserve = repegged_market.amm.quote_asset_reserve;
-    market.amm.sqrt_k = repegged_market.amm.sqrt_k;
-    market.amm.terminal_quote_asset_reserve = repegged_market.amm.terminal_quote_asset_reserve;
-    market.amm.peg_multiplier = repegged_market.amm.peg_multiplier;
-    market.amm.total_fee_minus_distributions = repegged_market.amm.total_fee_minus_distributions;
-
+    // msg!(
+    //     "prepeg_cost: {:?}, repegged_market peg: {:?}",
+    //     prepeg_cost,
+    //     repegged_market.amm.peg_multiplier
+    // );
     let cost_applied = apply_cost_to_market(market, prepeg_cost)?;
 
     if cost_applied {
+        market.amm.base_asset_reserve = repegged_market.amm.base_asset_reserve;
+        market.amm.quote_asset_reserve = repegged_market.amm.quote_asset_reserve;
+        market.amm.sqrt_k = repegged_market.amm.sqrt_k;
+        market.amm.terminal_quote_asset_reserve = repegged_market.amm.terminal_quote_asset_reserve;
+        market.amm.peg_multiplier = repegged_market.amm.peg_multiplier;
+
         // msg!(
         //     "prepeg_cost: {:?} was applied: {:?}",
         //     prepeg_cost,

@@ -272,7 +272,7 @@ pub fn calculate_prepeg_market(
     //     ",
     //     target_price,
     //     optimal_peg,
-    //     capped_candidate_peg,
+    //     repegged_market.amm.peg_multiplier,
     // );
 
     Ok(repegged_market.amm)
@@ -443,6 +443,7 @@ pub fn adjust_prepeg(
     budget: u128,
 ) -> ClearingHouseResult<(Market, i128)> {
     if optimal_peg == market.amm.peg_multiplier {
+        // msg!("RETURN adjust_prepeg EARLY");
         return Ok((*market, 0));
     }
 
@@ -456,9 +457,11 @@ pub fn adjust_prepeg(
         .checked_div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128)
         .ok_or_else(math_error!())?;
 
-    let budget_I128 = cast_to_i128(budget)?;
+    let budget_i128 = cast_to_i128(budget)?;
 
-    let mut budget_delta_peg = budget_I128
+    let mut budget_delta_peg = budget_i128
+        // .checked_mul(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128)
+        // .ok_or_else(math_error!())?
         .checked_div(per_peg_cost)
         .ok_or_else(math_error!())?;
     let mut budget_delta_peg_magnitude = budget_delta_peg.unsigned_abs();
@@ -473,10 +476,13 @@ pub fn adjust_prepeg(
         cost = per_peg_cost
             .checked_mul(delta_peg)
             .ok_or_else(math_error!())?;
+        // .checked_div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128)
+        // .ok_or_else(math_error!())?;
         new_peg = optimal_peg;
     } else {
         // use full budget peg
 
+        // equivalent to (but cheaper than) scaling down by .1%
         // let (k_scale_numerator, k_scale_denominator) = (999, 1000);
         let new_sqrt_k = market
             .amm
@@ -494,11 +500,21 @@ pub fn adjust_prepeg(
         let adjustment_cost = amm::adjust_k_cost(&mut market_clone, &update_k_result)?;
         amm::update_k(&mut market_clone, &update_k_result)?;
 
-        let mut budget_delta_peg = budget_I128
+        let mut budget_delta_peg = budget_i128
             .checked_add(adjustment_cost.abs())
             .ok_or_else(math_error!())?
+            // .checked_mul(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128)
+            // .ok_or_else(math_error!())?
             .checked_div(per_peg_cost)
             .ok_or_else(math_error!())?;
+
+        // msg!(
+        //     "per_peg_cost: {:?}, budget: {:?}, budget_delta_peg: {:?}",
+        //     per_peg_cost,
+        //     budget_I128,
+        //     budget_delta_peg
+        // );
+
         let mut budget_delta_peg_magnitude = budget_delta_peg.unsigned_abs();
         new_peg = if budget_delta_peg > 0 {
             market
@@ -513,7 +529,11 @@ pub fn adjust_prepeg(
                 .checked_sub(budget_delta_peg_magnitude)
                 .ok_or_else(math_error!())?
         };
-        cost = budget_I128;
+        cost = budget_delta_peg
+            .checked_mul(per_peg_cost)
+            .ok_or_else(math_error!())?;
+        // .checked_div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128)
+        // .ok_or_else(math_error!())?;
     }
 
     market_clone.amm.peg_multiplier = new_peg;
