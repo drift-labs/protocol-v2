@@ -148,7 +148,7 @@ describe('expire order', () => {
 
 		await clearingHouse.fetchAccounts();
 		for (let i = 0; i < 32; i++) {
-			const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[i].data;
+			const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[i];
 			assert(isVariant(orderRecord.action, 'place'));
 		}
 

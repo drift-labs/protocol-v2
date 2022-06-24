@@ -3837,8 +3837,5 @@
       "name": "CantUpdatePNLPoolBalanceType",
       "msg": "CantUpdatePNLPoolBalanceType"
     }
-  ],
-  "metadata": {
-    "address": "4kApqj1TdRVxK8kPEJ2SDs8aGq53YPnDA4cVxTUuqRkK"
-  }
+  ]
 }

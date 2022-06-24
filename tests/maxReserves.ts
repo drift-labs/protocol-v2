@@ -142,7 +142,7 @@ describe('max reserves', () => {
 
 		await clearingHouse.fetchAccounts();
 		const liquidationRecord =
-			eventSubscriber.getEventsArray('LiquidationRecord')[0].data;
+			eventSubscriber.getEventsArray('LiquidationRecord')[0];
 		assert(liquidationRecord.partial);
 	});
 
@@ -167,7 +167,7 @@ describe('max reserves', () => {
 
 		await clearingHouse.fetchAccounts();
 		const liquidationRecord =
-			eventSubscriber.getEventsArray('LiquidationRecord')[0].data;
+			eventSubscriber.getEventsArray('LiquidationRecord')[0];
 		assert(!liquidationRecord.partial);
 	});
 });

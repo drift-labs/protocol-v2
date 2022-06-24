@@ -207,7 +207,7 @@ describe('maker order', () => {
 		assert(clearingHouseUser.getUserAccount().totalFeeRebate.eq(new BN(500)));
 
 		await fillerClearingHouse.fetchAccounts();
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0].data;
+		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 
 		assert(isVariant(orderRecord.action, 'fill'));
 		assert(orderRecord.fee.eq(new BN(-500)));
@@ -298,7 +298,7 @@ describe('maker order', () => {
 		assert(clearingHouseUser.getUserAccount().totalFeeRebate.eq(new BN(500)));
 
 		await fillerClearingHouse.fetchAccounts();
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0].data;
+		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 
 		assert(isVariant(orderRecord.action, 'fill'));
 		assert(orderRecord.fee.eq(new BN(-500)));

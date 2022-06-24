@@ -262,8 +262,7 @@ describe('stop limit', () => {
 		const expectedQuoteAssetAmount = new BN(0);
 		assert(firstPosition.quoteAssetAmount.eq(expectedQuoteAssetAmount));
 
-		const tradeHistoryRecord =
-			eventSubscriber.getEventsArray('TradeRecord')[0].data;
+		const tradeHistoryRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
 
 		assert.ok(tradeHistoryRecord.baseAssetAmount.eq(baseAssetAmount));
 		const expectedTradeQuoteAssetAmount = new BN(1000002);
@@ -272,7 +271,7 @@ describe('stop limit', () => {
 		);
 		assert.ok(tradeHistoryRecord.markPriceBefore.gt(triggerPrice));
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0].data;
+		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 		const expectedOrderId = new BN(2);
 		const expectedTradeRecordId = new BN(2);
 		assert(orderRecord.ts.gt(ZERO));
@@ -350,8 +349,7 @@ describe('stop limit', () => {
 		const expectedQuoteAssetAmount = new BN(0);
 		assert(firstPosition.quoteAssetAmount.eq(expectedQuoteAssetAmount));
 
-		const tradeHistoryRecord =
-			eventSubscriber.getEventsArray('TradeRecord')[0].data;
+		const tradeHistoryRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
 
 		assert.ok(tradeHistoryRecord.baseAssetAmount.eq(baseAssetAmount));
 		const expectedTradeQuoteAssetAmount = new BN(999999);
@@ -361,7 +359,7 @@ describe('stop limit', () => {
 		assert.ok(tradeHistoryRecord.markPriceBefore.lt(triggerPrice));
 
 		const orderRecord: OrderRecord =
-			eventSubscriber.getEventsArray('OrderRecord')[0].data;
+			eventSubscriber.getEventsArray('OrderRecord')[0];
 		const expectedOrderId = new BN(4);
 		const expectedTradeRecordId = new BN(4);
 		assert(orderRecord.ts.gt(ZERO));

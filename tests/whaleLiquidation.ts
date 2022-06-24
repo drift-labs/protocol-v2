@@ -138,7 +138,7 @@ describe('whale liquidation', () => {
 		);
 
 		const liquidationRecord =
-			eventSubscriber.getEventsArray('LiquidationRecord')[0].data;
+			eventSubscriber.getEventsArray('LiquidationRecord')[0];
 
 		assert(liquidationRecord.partial);
 		// 15% of position closed
@@ -176,7 +176,7 @@ describe('whale liquidation', () => {
 
 		await eventSubscriber.awaitTx(txSig);
 		const liquidationRecord =
-			eventSubscriber.getEventsArray('LiquidationRecord')[0].data;
+			eventSubscriber.getEventsArray('LiquidationRecord')[0];
 
 		assert(!liquidationRecord.partial);
 		// 41% of position closed
