@@ -805,7 +805,7 @@ pub fn adjust_k_cost_and_update(
 ) -> ClearingHouseResult<i128> {
     // Find the net market value before adjusting k
     let current_net_market_value =
-    _calculate_base_asset_value(market.amm.net_base_asset_amount, &market.amm)?;
+        _calculate_base_asset_value(market.amm.net_base_asset_amount, &market.amm)?;
 
     update_k(market, update_k_result)?;
 

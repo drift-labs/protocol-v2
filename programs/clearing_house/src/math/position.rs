@@ -76,7 +76,6 @@ pub fn _calculate_base_asset_value(
         amm.peg_multiplier,
     )?;
 
-
     Ok(base_asset_value)
 }
 

@@ -403,7 +403,6 @@ pub fn update_spreads(amm: &mut AMM, mark_price: u128) -> ClearingHouseResult<(u
     Ok((long_spread, short_spread))
 }
 
-
 pub fn formulaic_update_k(
     market: &mut Market,
     _oracle_price_data: &OraclePriceData,

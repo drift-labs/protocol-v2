@@ -94,8 +94,6 @@ pub fn calculate_margin_requirement_and_total_collateral(
         let (position_base_asset_value, position_unrealized_pnl) =
             calculate_base_asset_value_and_pnl(market_position, &prepeg_amm)?;
 
-
-
         // let mark_price_before = market.amm.mark_price()?;
         // let (amm_position_base_asset_value, amm_position_unrealized_pnl) =
         //     calculate_base_asset_value_and_pnl(market_position, &market.amm)?;
@@ -108,10 +106,10 @@ pub fn calculate_margin_requirement_and_total_collateral(
 
         // let oracle_exit_price = oracle_price_data
         //         .price;
-                // .checked_add(exit_slippage)
-                // .ok_or_else(math_error!())?;
+        // .checked_add(exit_slippage)
+        // .ok_or_else(math_error!())?;
 
-        // let (oracle_position_base_asset_value, oracle_position_unrealized_pnl) = 
+        // let (oracle_position_base_asset_value, oracle_position_unrealized_pnl) =
         //     calculate_base_asset_value_and_pnl_with_oracle_price(market_position, oracle_exit_price)?;
 
         // // give user the worse of the two
