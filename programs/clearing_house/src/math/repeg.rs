@@ -253,7 +253,7 @@ pub fn calculate_prepeg_market(
         target_price,
     )?;
 
-    let (repegged_market, _cost) = adjust_prepeg(market, optimal_peg, fee_budget)?;
+    let (repegged_market, _cost) = adjust_prepeg(market, optimal_peg, fee_budget, false)?;
 
     // let (_capped_candidate_peg, _candidate_cost, repegged_market) = calculate_budgeted_peg(
     //     market,
@@ -441,6 +441,7 @@ pub fn adjust_prepeg(
     market: &Market,
     optimal_peg: u128,
     budget: u128,
+    adjust_k: bool,
 ) -> ClearingHouseResult<(Market, i128)> {
     let curve_update_intensity = cast_to_i128(min(market.amm.curve_update_intensity, 100_u8))?;
     // let current_peg = market.amm.peg_multiplier;
@@ -495,22 +496,27 @@ pub fn adjust_prepeg(
 
         // equivalent to (but cheaper than) scaling down by .1%
         // let (k_scale_numerator, k_scale_denominator) = (999, 1000);
-        let new_sqrt_k = market
-            .amm
-            .sqrt_k
-            .checked_sub(
-                market
-                    .amm
-                    .sqrt_k
-                    .checked_div(1000)
-                    .ok_or_else(math_error!())?,
-            )
-            .ok_or_else(math_error!())?;
+        let adjustment_cost: i128  = if adjust_k {
+            let new_sqrt_k = market
+                .amm
+                .sqrt_k
+                .checked_sub(
+                    market
+                        .amm
+                        .sqrt_k
+                        .checked_div(1000)
+                        .ok_or_else(math_error!())?,
+                )
+                .ok_or_else(math_error!())?;
 
-        let update_k_result = amm::get_update_k_result(&market_clone, bn::U192::from(new_sqrt_k))?;
-        let adjustment_cost = amm::adjust_k_cost(&mut market_clone, &update_k_result)?;
-        amm::update_k(&mut market_clone, &update_k_result)?;
-
+            let update_k_result = amm::get_update_k_result(&market_clone, bn::U192::from(new_sqrt_k))?;
+            let adjustment_cost = amm::adjust_k_cost(&mut market_clone, &update_k_result)?;
+            amm::update_k(&mut market_clone, &update_k_result)?;
+            adjustment_cost
+        } else {
+            0
+        };
+        // let adjustment_cost: i128 = 0;
         budget_delta_peg = budget_i128
             .checked_add(adjustment_cost.abs())
             .ok_or_else(math_error!())?

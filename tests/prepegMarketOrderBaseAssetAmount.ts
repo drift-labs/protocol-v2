@@ -530,7 +530,7 @@ describe('prepeg', () => {
 		const user = clearingHouse.getUserAccount();
 
 		// todo cheapen margin peg enough to make this work w/ 5 positions
-		for (let i = 1; i <= 3; i++) {
+		for (let i = 1; i <= 4; i++) {
 			console.log(
 				'user market',
 				user.positions[i].marketIndex.toString(),

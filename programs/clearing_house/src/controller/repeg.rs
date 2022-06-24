@@ -108,7 +108,7 @@ pub fn prepeg(
         target_price,
     )?;
 
-    let (repegged_market, prepeg_cost) = repeg::adjust_prepeg(market, optimal_peg, fee_budget)?;
+    let (repegged_market, prepeg_cost) = repeg::adjust_prepeg(market, optimal_peg, fee_budget, true)?;
     // msg!(
     //     "prepeg_cost: {:?}, repegged_market peg: {:?}",
     //     prepeg_cost,
