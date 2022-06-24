@@ -462,7 +462,7 @@ pub fn adjust_prepeg(
         .ok_or_else(math_error!())?;
 
     let budget_i128 = cast_to_i128(budget)?;
-    
+
     let mut market_clone = *market;
     let mut budget_delta_peg: i128 = 0;
     let mut budget_delta_peg_magnitude: u128 = 0;
@@ -471,14 +471,16 @@ pub fn adjust_prepeg(
 
     if per_peg_cost != 0 {
         budget_delta_peg = budget_i128
-        // .checked_mul(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128)
-        // .ok_or_else(math_error!())?
-        .checked_div(per_peg_cost)
-        .ok_or_else(math_error!())?;
+            // .checked_mul(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128)
+            // .ok_or_else(math_error!())?
+            .checked_div(per_peg_cost)
+            .ok_or_else(math_error!())?;
         budget_delta_peg_magnitude = budget_delta_peg.unsigned_abs();
     }
 
-    if (per_peg_cost == 0 || budget_delta_peg > 0 && delta_peg < 0 || budget_delta_peg < 0 && delta_peg > 0)
+    if (per_peg_cost == 0
+        || budget_delta_peg > 0 && delta_peg < 0
+        || budget_delta_peg < 0 && delta_peg > 0)
         || (budget_delta_peg_magnitude > delta_peg.unsigned_abs())
     {
         // use optimal peg
