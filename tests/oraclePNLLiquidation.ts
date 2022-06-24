@@ -139,7 +139,7 @@ describe('oracle pnl liquidations', () => {
 
 		await clearingHouse.fetchAccounts();
 		const liquidationRecord =
-			eventSubscriber.getEventsArray('LiquidationRecord')[0].data;
+			eventSubscriber.getEventsArray('LiquidationRecord')[0];
 		assert(liquidationRecord.partial);
 		assert(joinedLogs.includes('Using oracle pnl for market 0'));
 		assert(joinedLogs.includes('Using oracle pnl for market 1'));
@@ -175,7 +175,7 @@ describe('oracle pnl liquidations', () => {
 
 		await clearingHouse.fetchAccounts();
 		const liquidationRecord =
-			eventSubscriber.getEventsArray('LiquidationRecord')[0].data;
+			eventSubscriber.getEventsArray('LiquidationRecord')[0];
 		assert(!liquidationRecord.partial);
 		assert(joinedLogs.includes('Using oracle pnl for market 0'));
 		assert(joinedLogs.includes('Using oracle pnl for market 1'));

@@ -117,7 +117,7 @@ describe('subaccounts', () => {
 			provider.wallet.publicKey,
 			0
 		);
-		const withdrawRecord = depositRecords[1].data;
+		const withdrawRecord = depositRecords[1];
 		assert(isVariant(withdrawRecord.direction, 'withdraw'));
 		assert(withdrawRecord.to.equals(toUser));
 		assert(withdrawRecord.from === null);
@@ -127,7 +127,7 @@ describe('subaccounts', () => {
 			provider.wallet.publicKey,
 			1
 		);
-		const depositRecord = depositRecords[0].data;
+		const depositRecord = depositRecords[0];
 		assert(isVariant(depositRecord.direction, 'deposit'));
 		assert(depositRecord.to === null);
 		assert(depositRecord.from.equals(fromUser));

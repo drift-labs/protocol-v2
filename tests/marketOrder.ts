@@ -227,13 +227,12 @@ describe('market order', () => {
 		const expectedQuoteAssetAmount = new BN(1000003);
 		assert(firstPosition.quoteAssetAmount.eq(expectedQuoteAssetAmount));
 
-		const tradeHistoryRecord =
-			eventSubscriber.getEventsArray('TradeRecord')[0].data;
+		const tradeHistoryRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
 
 		assert.ok(tradeHistoryRecord.baseAssetAmount.eq(baseAssetAmount));
 		assert.ok(tradeHistoryRecord.quoteAssetAmount.eq(expectedQuoteAssetAmount));
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0].data;
+		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 		const expectedOrderId = new BN(1);
 		const expectedTradeRecordId = new BN(1);
 		const expectedFee = new BN(1000);
@@ -276,14 +275,13 @@ describe('market order', () => {
 
 		assert(firstPosition.quoteAssetAmount.eq(ZERO));
 
-		const tradeHistoryRecord =
-			eventSubscriber.getEventsArray('TradeRecord')[0].data;
+		const tradeHistoryRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
 
 		assert.ok(tradeHistoryRecord.baseAssetAmount.eq(baseAssetAmount));
 		const expectedQuoteAssetAmount = new BN(1000002);
 		assert.ok(tradeHistoryRecord.quoteAssetAmount.eq(expectedQuoteAssetAmount));
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0].data;
+		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 		const expectedOrderId = new BN(2);
 		const expectedTradeRecordId = new BN(2);
 		const expectedFee = new BN(1000);
@@ -326,13 +324,12 @@ describe('market order', () => {
 		assert(firstPosition.baseAssetAmount.eq(baseAssetAmount));
 		assert(firstPosition.quoteAssetAmount.eq(quoteAssetAmount));
 
-		const tradeHistoryRecord =
-			eventSubscriber.getEventsArray('TradeRecord')[0].data;
+		const tradeHistoryRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
 
 		assert.ok(tradeHistoryRecord.baseAssetAmount.eq(baseAssetAmount));
 		assert.ok(tradeHistoryRecord.quoteAssetAmount.eq(quoteAssetAmount));
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0].data;
+		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 		const expectedOrderId = new BN(3);
 		const expectedTradeRecordId = new BN(3);
 		const expectedFee = new BN(1000);
@@ -374,14 +371,13 @@ describe('market order', () => {
 		assert(firstPosition.baseAssetAmount.eq(ZERO));
 		assert(firstPosition.quoteAssetAmount.eq(ZERO));
 
-		const tradeHistoryRecord =
-			eventSubscriber.getEventsArray('TradeRecord')[0].data;
+		const tradeHistoryRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
 
 		const baseAssetAmount = new BN(9999999999961);
 		assert.ok(tradeHistoryRecord.baseAssetAmount.eq(baseAssetAmount));
 		assert.ok(tradeHistoryRecord.quoteAssetAmount.eq(quoteAssetAmount));
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0].data;
+		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 		const expectedOrderId = new BN(4);
 		const expectedTradeRecordId = new BN(4);
 		const expectedFee = new BN(1000);
