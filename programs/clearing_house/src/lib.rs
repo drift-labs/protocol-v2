@@ -34,7 +34,6 @@ declare_id!("4kApqj1TdRVxK8kPEJ2SDs8aGq53YPnDA4cVxTUuqRkK");
 #[program]
 pub mod clearing_house {
     use std::cmp::min;
-    use std::convert::TryInto;
     use std::ops::Div;
     use std::option::Option::Some;
 
