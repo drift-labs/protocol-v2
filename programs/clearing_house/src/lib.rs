@@ -34,18 +34,21 @@ declare_id!("4kApqj1TdRVxK8kPEJ2SDs8aGq53YPnDA4cVxTUuqRkK");
 #[program]
 pub mod clearing_house {
     use std::cmp::min;
+    use std::convert::TryInto;
     use std::ops::Div;
     use std::option::Option::Some;
 
     use crate::account_loader::{load, load_mut};
+    use crate::controller::amm::SwapDirection;
     use crate::controller::bank_balance::update_bank_balances;
     use crate::controller::position::{add_new_position, get_position_index};
     use crate::margin_validation::validate_margin;
     use crate::math;
     use crate::math::amm::{
         calculate_mark_twap_spread_pct,
-        is_oracle_mark_too_divergent,
+        calculate_swap_output,
         //  normalise_oracle_price,
+        is_oracle_mark_too_divergent,
     };
     use crate::math::bank_balance::get_token_amount;
     use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64};
@@ -751,23 +754,121 @@ pub mod clearing_house {
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]
+    pub fn remove_liquidity<'info>(
+        ctx: Context<OpenPosition>,
+        lp_tokens_to_burn: u128,
+        market_index: u64,
+    ) -> Result<()> {
+        let user = &mut load_mut(&ctx.accounts.user)?;
+        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+
+        let market_map = MarketMap::load(
+            &get_writable_markets(market_index),
+            &get_market_oracles(market_index, &ctx.accounts.oracle),
+            remaining_accounts_iter,
+        )?;
+        let mut market = market_map.get_ref_mut(&market_index)?;
+
+        let position_index = get_position_index(&user.positions, market_index)?;
+        let lp_position = &mut user.positions[position_index];
+
+        validate!(
+            lp_position.lp_tokens <= lp_tokens_to_burn,
+            ErrorCode::InsufficientLPTokens,
+            "Trying to burn more lp tokens than the user has",
+        )?;
+
+        let total_lp_tokens = market.amm.sqrt_k;
+
+        let lp_share = |v: i128| -> Result<i128> {
+            let _sign: i128 = if v > 0 { 1 } else { -1 };
+            let lp_v =
+                cast_to_i128(v.unsigned_abs() * lp_tokens_to_burn / total_lp_tokens)? * _sign;
+
+            Ok(lp_v)
+        };
+
+        // todo: add ok_or_else(math_error) to all these
+        let net_base_asset_amount_delta = market
+            .amm
+            .net_base_asset_amount
+            .checked_sub(lp_position.last_net_base_asset_amount)
+            .ok_or_else(math_error!())?;
+
+        if net_base_asset_amount_delta != 0 {
+            let base_asset_amount = lp_share(net_base_asset_amount_delta)?;
+
+            let swap_direction = match net_base_asset_amount_delta > 0 {
+                true => SwapDirection::Remove,
+                false => SwapDirection::Add,
+            };
+
+            let (new_quote_asset_reserve, _) = calculate_swap_output(
+                net_base_asset_amount_delta.unsigned_abs(),
+                market.amm.base_asset_reserve,
+                swap_direction,
+                market.amm.sqrt_k,
+            )?;
+
+            // avoid overflow - note: sign doesnt matter
+            let net_quote_asset_amount_delta =
+                if new_quote_asset_reserve > market.amm.quote_asset_reserve {
+                    new_quote_asset_reserve - market.amm.quote_asset_reserve
+                } else {
+                    market.amm.quote_asset_reserve - new_quote_asset_reserve
+                };
+            let quote_asset_amount = net_quote_asset_amount_delta * lp_tokens_to_burn
+                / total_lp_tokens
+                * market.amm.peg_multiplier
+                / AMM_TO_QUOTE_PRECISION_RATIO;
+
+            lp_position.quote_asset_amount = quote_asset_amount;
+            lp_position.base_asset_amount = base_asset_amount;
+        }
+
+        // todo: ... pay the lp ...
+        // give them fees
+        let fee_delta = cast_to_i128(market.amm.total_fee_minus_distributions)?
+            - cast_to_i128(lp_position.last_total_fee_minus_distributions)?;
+        let lp_fee_amount = lp_share(fee_delta)?;
+
+        // give them the funding
+        let funding_delta =
+            market.amm.cumulative_funding_rate_lp - lp_position.last_cumulative_funding_rate;
+        let funding_payment = lp_share(funding_delta)?;
+
+        // update market
+        let reserve_scale = (total_lp_tokens - lp_tokens_to_burn) / total_lp_tokens;
+        market.amm.base_asset_reserve = market.amm.base_asset_reserve * reserve_scale;
+        market.amm.quote_asset_reserve = market.amm.quote_asset_reserve * reserve_scale;
+        market.amm.sqrt_k -= lp_tokens_to_burn;
+
+        Ok(())
+    }
+
+    #[allow(unused_must_use)]
+    #[access_control(
+        exchange_not_paused(&ctx.accounts.state)
+    )]
     pub fn add_liquidity<'info>(
         ctx: Context<OpenPosition>,
         quote_asset_amount: u128,
         market_index: u64,
     ) -> Result<()> {
-        let user_key = ctx.accounts.user.key();
         let user = &mut load_mut(&ctx.accounts.user)?;
-        let clock = Clock::get()?;
-        let now = clock.unix_timestamp;
-        let clock_slot = clock.slot;
+        // let clock = Clock::get()?;
+        // let user_key = ctx.accounts.user.key();
+        // let now = clock.unix_timestamp;
+        // let clock_slot = clock.slot;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
-        let bank_map = BankMap::load(
-            &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
-            remaining_accounts_iter,
-        )?;
+
+        // let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        // let bank_map = BankMap::load(
+        //     &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
+        //     remaining_accounts_iter,
+        // )?;
+
         let market_map = MarketMap::load(
             &get_writable_markets(market_index),
             &get_market_oracles(market_index, &ctx.accounts.oracle),

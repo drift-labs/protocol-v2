@@ -98,32 +98,43 @@ describe('liquidity providing', () => {
         await clearingHouseUser.unsubscribe();
 	});
 
+    // adds lp when 
+    //      fresh-init market [x]
+    //      non-fresh-init market 
 	it('provides liquidity', async () => {
 		const marketAccount = clearingHouse.getMarketAccount(0);
 		var market = await chProgram.account.market.fetch(marketAccount.pubkey);
-		console.log(market.amm.sqrtK.toString())
+		const prevSqrtK: BN = market.amm.sqrtK
 
-        await chProgram.methods.addLiquidity(
-            new BN(100), 
-            new BN(0), 
-        )
-        .accounts({
-            state: await clearingHouse.getStatePublicKey(),
-            user: await clearingHouse.getUserAccountPublicKey(), 
-            authority: clearingHouse.wallet.publicKey, 
-            oracle: clearingHouse.getMarketAccount(0).amm.oracle
-        })
-        .remainingAccounts(clearingHouse.getRemainingAccounts({
-            writableBankIndex: QUOTE_ASSET_BANK_INDEX,
-            writableMarketIndex: new BN(0),
-        }))
-        .rpc()
+        await chProgram.methods
+            .addLiquidity(
+                new BN(100), 
+                new BN(0), 
+            )
+            .accounts({
+                state: await clearingHouse.getStatePublicKey(),
+                user: await clearingHouse.getUserAccountPublicKey(), 
+                authority: clearingHouse.wallet.publicKey, 
+                oracle: clearingHouse.getMarketAccount(0).amm.oracle
+            })
+            .remainingAccounts([{
+                pubkey: marketAccount.pubkey, 
+                isSigner: false, 
+                isWritable: true, 
+            }])
+            .rpc()
 
 		var market = await chProgram.account.market.fetch(marketAccount.pubkey);
-		console.log(market.amm.sqrtK.toString())
+        assert(prevSqrtK.lt(market.amm.sqrtK)) // k increases = more liquidity 
 
         let user = await chProgram.account.user.fetch(await clearingHouse.getUserAccountPublicKey())
         console.log(user.positions[0].lpTokens.toString())
-		console.log(user.positions[0])
+
+        assert(user.positions[0].lpTokens.gt(new BN(0)))
+    });
+
+    it('removes liquidity', async () => {
+        
+        
     });
 });

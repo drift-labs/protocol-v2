@@ -4,6 +4,8 @@ pub type ClearingHouseResult<T = ()> = std::result::Result<T, ErrorCode>;
 
 #[error_code]
 pub enum ErrorCode {
+    #[msg("Insufficient LP tokens")]
+    InsufficientLPTokens,
     #[msg("Invalid Bank Authority")]
     InvalidBankAuthority,
     #[msg("Clearing house not insurance account owner")]
