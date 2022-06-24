@@ -54,7 +54,7 @@ describe('prepeg', () => {
 		mantissaSqrtScale
 	);
 
-	const usdcAmount = new BN(10 * 10 ** 6);
+	const usdcAmount = new BN(10000 * 10 ** 6);
 
 	let marketIndexes;
 	let bankIndexes;
@@ -327,6 +327,21 @@ describe('prepeg', () => {
 		console.log('actual distribution:', actualDist.toString());
 
 		console.log(prepegAMM.sqrtK.toString(), '==', market.amm.sqrtK.toString());
+		const marketInvariant = market.amm.sqrtK.mul(market.amm.sqrtK);
+
+		// check k math good
+		assert(
+			marketInvariant
+				.div(market.amm.baseAssetReserve)
+				.eq(market.amm.quoteAssetReserve)
+		);
+		assert(
+			marketInvariant
+				.div(market.amm.quoteAssetReserve)
+				.eq(market.amm.baseAssetReserve)
+		);
+
+		// check prepeg and post trade worked as expected
 		assert(prepegAMM.sqrtK.eq(market.amm.sqrtK)); // predicted k = post trade k
 		assert(actualDist.sub(estDist).abs().lte(new BN(1))); // cost is near equal
 		assert(market.amm.sqrtK.lt(market0.amm.sqrtK)); // k was lowered
@@ -462,7 +477,7 @@ describe('prepeg', () => {
 		for (let i = 1; i <= 4; i++) {
 			const thisUsd = mockOracles[i];
 			const marketIndex = new BN(i);
-			const baseAssetAmount = new BN(0.025 * 10e13);
+			const baseAssetAmount = new BN(31.02765 * 10e13);
 			const market0 = clearingHouse.getMarketAccount(i);
 			const orderParams = getMarketOrderParams(
 				marketIndex,
@@ -481,7 +496,7 @@ describe('prepeg', () => {
 			);
 			const [_pctAvgSlippage, _pctMaxSlippage, _entryPrice, newPrice] =
 				calculateTradeSlippage(
-					PositionDirection.SHORT,
+					PositionDirection.LONG,
 					baseAssetAmount,
 					market0,
 					'base',
@@ -541,7 +556,7 @@ describe('prepeg', () => {
 			const thisUsd = mockOracles[i];
 			const curPrice = (await getFeedData(anchor.workspace.Pyth, thisUsd))
 				.price;
-			await setFeedPrice(anchor.workspace.Pyth, curPrice * 1.01, thisUsd);
+			await setFeedPrice(anchor.workspace.Pyth, curPrice * 1.03, thisUsd);
 		}
 		const curPrice = (await getFeedData(anchor.workspace.Pyth, mockOracles[0]))
 			.price;

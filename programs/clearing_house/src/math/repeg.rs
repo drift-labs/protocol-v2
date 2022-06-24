@@ -576,10 +576,10 @@ pub fn adjust_prepeg(
             //         .ok_or_else(math_error!())?,
             // )?;
 
-            let adjustment_cost =
-                amm::adjust_k_cost_and_update(&mut market_clone, &update_k_result)?;
+            // let adjustment_cost =
+            amm::adjust_k_cost_and_update(&mut market_clone, &update_k_result)?
             // amm::update_k(&mut market_clone, &update_k_result)?;
-            adjustment_cost
+            // adjustment_cost
         } else {
             0
         };

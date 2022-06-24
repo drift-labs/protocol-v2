@@ -14,7 +14,7 @@ use crate::math::constants::{
     MARK_PRICE_PRECISION, MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128, ONE_HOUR_I128,
     PEG_PRECISION, PRICE_TO_PEG_PRECISION_RATIO,
 };
-use crate::math::position::_calculate_base_asset_value_and_pnl;
+use crate::math::position::{_calculate_base_asset_value, _calculate_base_asset_value_and_pnl};
 use crate::math::quote_asset::{asset_to_reserve_amount, reserve_to_asset_amount};
 use crate::math_error;
 use crate::state::market::{Market, AMM};
@@ -446,109 +446,6 @@ pub fn calculate_terminal_price_and_reserves(
     ))
 }
 
-pub fn calculate_spreads(amm: &mut AMM, mark_price: u128) -> ClearingHouseResult<(u128, u128)> {
-    let mut long_spread = (amm.base_spread / 2) as u128;
-    let mut short_spread = (amm.base_spread / 2) as u128;
-
-    if amm.curve_update_intensity > 0 {
-        // oracle retreat
-        // if mark - oracle < 0 (mark below oracle) and user going long then increase spread
-        // msg!("amm.last_oracle_mark_spread_pct: {:?}", amm.last_oracle_mark_spread_pct);
-        if amm.last_oracle_mark_spread_pct < 0 {
-            long_spread = max(long_spread, amm.last_oracle_mark_spread_pct.unsigned_abs());
-        } else {
-            short_spread = max(short_spread, amm.last_oracle_mark_spread_pct.unsigned_abs());
-        }
-
-        // inventory scale
-        let max_invetory_skew = 5 * MARK_PRICE_PRECISION;
-        if amm.total_fee_minus_distributions > 0 {
-            let net_cost_basis = cast_to_i128(amm.quote_asset_amount_long)?
-                .checked_sub(cast_to_i128(amm.quote_asset_amount_short)?)
-                .ok_or_else(math_error!())?;
-
-            let net_base_asset_value = cast_to_i128(amm.quote_asset_reserve)?
-                .checked_sub(cast_to_i128(amm.terminal_quote_asset_reserve)?)
-                .ok_or_else(math_error!())?
-                .checked_mul(cast_to_i128(amm.peg_multiplier)?)
-                .ok_or_else(math_error!())?
-                .checked_div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128)
-                .ok_or_else(math_error!())?;
-
-            let local_base_asset_value = amm
-                .net_base_asset_amount
-                .checked_mul(cast_to_i128(mark_price)?)
-                .ok_or_else(math_error!())?
-                .checked_div(MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128)
-                .ok_or_else(math_error!())?;
-
-            let net_pnl = net_base_asset_value
-                .checked_sub(net_cost_basis)
-                .ok_or_else(math_error!())?;
-            let local_pnl = local_base_asset_value
-                .checked_sub(net_cost_basis)
-                .ok_or_else(math_error!())?;
-
-            let effective_leverage = cast_to_u128(max(
-                0,
-                local_pnl.checked_sub(net_pnl).ok_or_else(math_error!())?,
-            ))?
-            .checked_mul(MARK_PRICE_PRECISION)
-            .ok_or_else(math_error!())?
-            .checked_div(amm.total_fee_minus_distributions)
-            .ok_or_else(math_error!())?;
-
-            // msg!(
-            //     "effective leverage: {:?} long/short quote: {:?}/{:?}",
-            //     effective_leverage,
-            //     amm.quote_asset_amount_long,
-            //     amm.quote_asset_amount_short
-            // );
-
-            let effective_leverage_capped = min(
-                max_invetory_skew,
-                MARK_PRICE_PRECISION
-                    .checked_add(effective_leverage)
-                    .ok_or_else(math_error!())?,
-            );
-
-            // let effective_leverage_capped = 0;
-            if amm.net_base_asset_amount > 0 {
-                long_spread = long_spread
-                    .checked_mul(effective_leverage_capped)
-                    .ok_or_else(math_error!())?
-                    .checked_div(MARK_PRICE_PRECISION)
-                    .ok_or_else(math_error!())?;
-            } else {
-                short_spread = short_spread
-                    .checked_mul(effective_leverage_capped)
-                    .ok_or_else(math_error!())?
-                    .checked_div(MARK_PRICE_PRECISION)
-                    .ok_or_else(math_error!())?;
-            }
-        } else {
-            long_spread = long_spread
-                .checked_mul(max_invetory_skew / MARK_PRICE_PRECISION)
-                .ok_or_else(math_error!())?;
-            short_spread = short_spread
-                .checked_mul(max_invetory_skew / MARK_PRICE_PRECISION)
-                .ok_or_else(math_error!())?;
-        }
-    }
-
-    // msg!(
-    //     "long_spread: {:?}, short_spread: {:?}, base_spread/2: {:?}",
-    //     long_spread,
-    //     short_spread,
-    //     (amm.base_spread / 2)
-    // );
-
-    amm.long_spread = long_spread;
-    amm.short_spread = short_spread;
-
-    Ok((long_spread, short_spread))
-}
-
 pub fn calculate_spread_reserves(
     amm: &AMM,
     direction: PositionDirection,
@@ -907,8 +804,8 @@ pub fn adjust_k_cost_and_update(
     update_k_result: &UpdateKResult,
 ) -> ClearingHouseResult<i128> {
     // Find the net market value before adjusting k
-    let (current_net_market_value, _) =
-        _calculate_base_asset_value_and_pnl(market.amm.net_base_asset_amount, 0, &market.amm)?;
+    let current_net_market_value =
+    _calculate_base_asset_value(market.amm.net_base_asset_amount, &market.amm)?;
 
     update_k(market, update_k_result)?;
 
