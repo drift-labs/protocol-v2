@@ -1501,6 +1501,8 @@ pub mod clearing_house {
         let now = clock.unix_timestamp;
 
         let oracle_map = OracleMap::load(remaining_accounts_iter, clock_slot)?;
+        let _bank_map = BankMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
+
         let market_map = MarketMap::load(
             &get_writable_markets(market_index),
             &get_market_oracles(market_index, &ctx.accounts.oracle),
@@ -1553,8 +1555,9 @@ pub mod clearing_house {
 
             controller::amm::update_spreads(&mut market.amm, mark_price_before)?;
             market.amm.last_update_slot = clock_slot;
+
+            Ok(())
         }
-        Ok(())
     }
 
     #[access_control(

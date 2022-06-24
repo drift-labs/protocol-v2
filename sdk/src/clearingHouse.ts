@@ -894,7 +894,8 @@ export class ClearingHouse {
 		const remainingAccounts = this.getRemainingAccounts({
 			writableMarketIndex: marketIndex,
 		});
-		const priceOracle = this.getMarketAccount(marketIndex).amm.oracle;
+		const marketAccount = this.getMarketAccount(marketIndex);
+		const priceOracle = marketAccount.amm.oracle;
 		console.log('remainingAccounts:', remainingAccounts);
 		return await this.program.instruction.updateAmm(marketIndex, {
 			accounts: {
