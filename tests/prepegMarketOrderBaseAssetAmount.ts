@@ -309,12 +309,15 @@ describe('prepeg', () => {
 		const [bid1, ask1] = calculateBidAskPrice(market.amm, oraclePriceData);
 		console.log(
 			'after trade bid/ask:',
-			convertToNumber(bid1),
+			convertToNumber(market.amm.sqrtK),
 			'/',
 			convertToNumber(ask1),
 			'after trade mark price:',
 			convertToNumber(calculateMarkPrice(market, oraclePriceData))
 		);
+		assert(bid1.lt(ask1));
+		assert(ask1.gt(oraclePriceData.price));
+		assert(bid1.lt(oraclePriceData.price));
 
 		console.log(market.amm.pegMultiplier.toString());
 		assert(market.amm.pegMultiplier.eq(new BN(1003)));
@@ -323,9 +326,10 @@ describe('prepeg', () => {
 		);
 		console.log('actual distribution:', actualDist.toString());
 
-		console.log(prepegAMM.sqrtK.toString(), '!=', market.amm.sqrtK.toString());
-		assert(prepegAMM.sqrtK.eq(market.amm.sqrtK));
-		assert(actualDist.sub(estDist).abs().lte(new BN(1)));
+		console.log(prepegAMM.sqrtK.toString(), '==', market.amm.sqrtK.toString());
+		assert(prepegAMM.sqrtK.eq(market.amm.sqrtK)); // predicted k = post trade k
+		assert(actualDist.sub(estDist).abs().lte(new BN(1))); // cost is near equal
+		assert(market.amm.sqrtK.lt(market0.amm.sqrtK)); // k was lowered
 
 		// curPrice = (await getFeedData(anchor.workspace.Pyth, solUsd)).price;
 		// console.log('price:', curPrice);
