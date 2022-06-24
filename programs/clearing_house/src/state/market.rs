@@ -89,6 +89,7 @@ pub struct AMM {
     pub oracle_source: OracleSource,
     pub base_asset_reserve: u128,
     pub quote_asset_reserve: u128,
+    // CHRIS COMMENT: do we not need terminal base because they're terminal quote and base are equal
     pub terminal_quote_asset_reserve: u128,
     pub cumulative_repeg_rebate_long: u128,
     pub cumulative_repeg_rebate_short: u128,
@@ -162,6 +163,9 @@ impl AMM {
             .checked_div(BID_ASK_SPREAD_PRECISION)
             .ok_or_else(math_error!())?;
 
+        // CHRIS COMMENT
+        // is this supposed to be BID_ASK_SPREAD_PRECISION - self.short_spread?
+        // otherwise the ask and the bid price are always above the mark price
         let bid_price = mark_price
             .checked_mul(BID_ASK_SPREAD_PRECISION + self.short_spread)
             .ok_or_else(math_error!())?

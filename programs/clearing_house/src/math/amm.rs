@@ -146,12 +146,13 @@ pub fn update_oracle_price_twap(
             oracle_price
         };
 
+    // CHRIS COMMENT: I think we might want to throw an error if this if block condition isn't true
+    // failing silently here might lead to weird behavior upstream?
     // sanity check
     let oracle_price_twap: i128;
     if capped_oracle_update_price > 0 && oracle_price > 0 {
         oracle_price_twap = calculate_new_oracle_price_twap(amm, now, capped_oracle_update_price)?;
 
-        //amm.last_oracle_mark_spread = precomputed_mark_price
         amm.last_oracle_normalised_price = capped_oracle_update_price;
         amm.last_oracle_price = oracle_price_data.price;
         amm.last_oracle_conf = oracle_price_data.confidence as u64;
@@ -264,6 +265,7 @@ pub fn calculate_weighted_average(
         .ok_or_else(math_error!())
 }
 
+// CHRIS COMMENT: how do you know this works?
 pub fn update_amm_mark_std(
     amm: &mut AMM,
     now: i64,

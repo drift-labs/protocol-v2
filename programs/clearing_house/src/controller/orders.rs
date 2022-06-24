@@ -341,6 +341,7 @@ pub fn fill_order(
 
         let prepeg_budget = repeg::calculate_fee_pool(market)?;
 
+        // prefore?
         let mark_price_prefore = market.amm.mark_price()?;
 
         is_oracle_valid = amm::is_oracle_valid(
@@ -374,6 +375,7 @@ pub fn fill_order(
             )?;
         }
 
+        // should be in the controller and should be update_spreads since it mutates the amm?
         amm::calculate_spreads(&mut market.amm)?;
     }
 

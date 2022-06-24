@@ -142,6 +142,10 @@ pub fn update_funding_rate(
             &oracle_price_data,
             precomputed_mark_price,
         )?;
+
+        // CHRIS COMMENT:
+        // it's confusing you call update_mark_twap and get the mid_price back.
+        // also why dont we pass in precomputed mark price here?
         let mid_price_twap = amm::update_mark_twap(&mut market.amm, now, None)?;
 
         let period_adjustment = (24_i128)
@@ -192,6 +196,7 @@ pub fn update_funding_rate(
             funding_rate,
             cumulative_funding_rate_long: market.amm.cumulative_funding_rate_long,
             cumulative_funding_rate_short: market.amm.cumulative_funding_rate_short,
+            // CHRIS COMMENT: should we change this name to mid price twap?
             mark_price_twap: mid_price_twap,
             oracle_price_twap,
         });

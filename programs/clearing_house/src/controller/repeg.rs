@@ -144,6 +144,7 @@ pub fn prepeg(
             .ok_or_else(math_error!())?;
 
         let update_k_result = amm::get_update_k_result(market, new_sqrt_k)?;
+
         let adjustment_cost = amm::adjust_k_cost(market, &update_k_result)?;
         amm::update_k(market, &update_k_result)?;
         // let adjustment_cost: i128 = 0;

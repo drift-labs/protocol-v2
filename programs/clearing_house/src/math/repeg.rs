@@ -170,6 +170,7 @@ pub fn calculate_peg_from_target_price(
         .ok_or_else(math_error!())?
         .checked_div(bn::U192::from(quote_asset_reserve))
         .ok_or_else(math_error!())?
+        // CHRIS COMMENT why do you add this?
         .checked_add(bn::U192::from(PRICE_TO_PEG_PRECISION_RATIO / 2))
         .ok_or_else(math_error!())?
         .checked_div(bn::U192::from(PRICE_TO_PEG_PRECISION_RATIO))
@@ -194,6 +195,7 @@ pub fn calculate_amm_target_price(
 
     let delay_penalty = max(
         0,
+        // CHRIS COMMENT: why can this delay a i128? (shouldnt it be >= 0)
         oracle_price_data
             .delay
             .checked_mul(max(
