@@ -673,6 +673,32 @@
       ]
     },
     {
+      "name": "updateAmm",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "oracle",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "settlePnl",
       "accounts": [
         {
@@ -2356,6 +2382,10 @@
             "type": "u8"
           },
           {
+            "name": "lastUpdateSlot",
+            "type": "u64"
+          },
+          {
             "name": "padding0",
             "type": "u16"
           },
@@ -3837,8 +3867,5 @@
       "name": "CantUpdatePNLPoolBalanceType",
       "msg": "CantUpdatePNLPoolBalanceType"
     }
-  ],
-  "metadata": {
-    "address": "4kApqj1TdRVxK8kPEJ2SDs8aGq53YPnDA4cVxTUuqRkK"
-  }
+  ]
 }

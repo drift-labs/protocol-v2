@@ -879,6 +879,35 @@ export class ClearingHouse {
 		});
 	}
 
+	public async updateAMM(marketIndex: BN): Promise<TransactionSignature> {
+		const { txSig } = await this.txSender.send(
+			wrapInTx(await this.getUpdateAMMIx(marketIndex)),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getUpdateAMMIx(
+		marketIndex: BN
+	): Promise<TransactionInstruction> {
+		const remainingAccounts = this.getRemainingAccounts({
+			writableMarketIndex: marketIndex,
+		});
+		const priceOracle = this.getMarketAccount(marketIndex).amm.oracle;
+		console.log('remainingAccounts:', remainingAccounts);
+		return await this.program.instruction.updateAmm(marketIndex, {
+			accounts: {
+				state: await this.getStatePublicKey(),
+				// user: userAccountPublicKey,
+				authority: this.wallet.publicKey,
+				orderState: await this.getOrderStatePublicKey(),
+				oracle: priceOracle,
+			},
+			remainingAccounts,
+		});
+	}
+
 	public async cancelOrder(orderId: BN): Promise<TransactionSignature> {
 		const { txSig } = await this.txSender.send(
 			wrapInTx(await this.getCancelOrderIx(orderId)),

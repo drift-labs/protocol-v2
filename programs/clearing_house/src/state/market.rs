@@ -140,6 +140,8 @@ pub struct AMM {
     // upgrade-ability
     pub curve_update_intensity: u8,
 
+    pub last_update_slot: u64,
+
     pub padding0: u16,
     pub padding1: u32,
     pub padding2: u128,

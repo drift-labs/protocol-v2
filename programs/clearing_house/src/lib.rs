@@ -7,7 +7,7 @@ use borsh::BorshSerialize;
 use context::*;
 use controller::position::PositionDirection;
 use error::ErrorCode;
-use math::{amm, bn, constants::*, fees, margin::*, orders::*};
+use math::{amm, bn, constants::*, fees, margin::*, orders::*, repeg};
 use state::oracle::{get_oracle_price, OracleSource};
 
 use crate::math::amm::get_update_k_result;
@@ -473,6 +473,7 @@ pub mod clearing_house {
                 short_intensity_count: 0,
                 short_intensity_volume: 0,
                 curve_update_intensity: 0,
+                last_update_slot: clock_slot,
                 padding0: 0,
                 padding1: 0,
                 padding2: 0,
@@ -1487,6 +1488,72 @@ pub mod clearing_house {
             )?;
         }
 
+        Ok(())
+    }
+
+    #[access_control(
+        exchange_not_paused(&ctx.accounts.state)
+    )]
+    pub fn update_amm(ctx: Context<UpdateAMM>, market_index: u64) -> Result<()> {
+        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+        let clock = Clock::get()?;
+        let clock_slot = clock.slot;
+        let now = clock.unix_timestamp;
+
+        let oracle_map = OracleMap::load(remaining_accounts_iter, clock_slot)?;
+        let market_map = MarketMap::load(
+            &get_writable_markets(market_index),
+            &get_market_oracles(market_index, &ctx.accounts.oracle),
+            remaining_accounts_iter,
+        )?;
+
+        let oracle = &ctx.accounts.oracle;
+
+        let mark_price_before: u128;
+        let oracle_mark_spread_pct_before: i128;
+        let is_oracle_valid: bool;
+        // let oracle_price: i128;
+        {
+            let market = &mut market_map.get_ref_mut(&market_index)?;
+            let oracle_price_data = &market.amm.get_oracle_price(oracle, clock_slot)?;
+
+            let prepeg_budget = repeg::calculate_fee_pool(market)?;
+            let state = &ctx.accounts.state;
+
+            is_oracle_valid = amm::is_oracle_valid(
+                &market.amm,
+                oracle_price_data,
+                &state.oracle_guard_rails.validity,
+            )?;
+
+            controller::repeg::prepeg(
+                market,
+                // mark_price_prefore,
+                oracle_price_data,
+                prepeg_budget,
+                // now,
+            )?;
+            mark_price_before = market.amm.mark_price()?;
+
+            // oracle_mark_spread_pct_before = amm::calculate_oracle_mark_spread_pct(
+            //     &market.amm,
+            //     oracle_price_data,
+            //     Some(mark_price_before),
+            // )?;
+            // oracle_price = oracle_price_data.price;
+
+            if is_oracle_valid {
+                amm::update_oracle_price_twap(
+                    &mut market.amm,
+                    now,
+                    oracle_price_data,
+                    Some(mark_price_before),
+                )?;
+            }
+
+            controller::amm::update_spreads(&mut market.amm, mark_price_before)?;
+            market.amm.last_update_slot = clock_slot;
+        }
         Ok(())
     }
 

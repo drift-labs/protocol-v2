@@ -5,13 +5,16 @@ use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm::{
     calculate_quote_asset_amount_swapped, calculate_spread_reserves, get_update_k_result,
 };
-use crate::math::casting::{cast, cast_to_i128, cast_to_i64};
-use crate::math::constants::PRICE_TO_PEG_PRECISION_RATIO;
+use crate::math::casting::{cast, cast_to_i128, cast_to_i64, cast_to_u128};
+use crate::math::constants::{
+    AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128, MARK_PRICE_PRECISION,
+    MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128, PRICE_TO_PEG_PRECISION_RATIO,
+};
 use crate::math::{amm, bn, quote_asset::*};
 use crate::math_error;
 use crate::state::market::{Market, AMM};
 use crate::state::oracle::OraclePriceData;
-use std::cmp::max;
+use std::cmp::{max, min};
 
 use crate::controller::repeg::apply_cost_to_market;
 
