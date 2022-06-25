@@ -8,7 +8,9 @@ use crate::math::amm::{
 use crate::math::casting::{cast, cast_to_i128, cast_to_i64, cast_to_u128};
 use crate::math::constants::{
     AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128, MARK_PRICE_PRECISION,
-    MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128, PRICE_TO_PEG_PRECISION_RATIO,
+    // MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128, 
+    PRICE_TO_PEG_PRECISION_RATIO,
+    PEG_PRECISION
 };
 use crate::math::{amm, bn, quote_asset::*};
 use crate::math_error;
@@ -320,9 +322,9 @@ pub fn update_spreads(amm: &mut AMM, mark_price: u128) -> ClearingHouseResult<(u
         // inventory scale
         let max_invetory_skew = 5 * MARK_PRICE_PRECISION;
         if amm.total_fee_minus_distributions > 0 {
-            let net_cost_basis = cast_to_i128(amm.quote_asset_amount_long)?
-                .checked_sub(cast_to_i128(amm.quote_asset_amount_short)?)
-                .ok_or_else(math_error!())?;
+        //     let net_cost_basis = cast_to_i128(amm.quote_asset_amount_long)?
+        //         .checked_sub(cast_to_i128(amm.quote_asset_amount_short)?)
+        //         .ok_or_else(math_error!())?;
 
             let net_base_asset_value = cast_to_i128(amm.quote_asset_reserve)?
                 .checked_sub(cast_to_i128(amm.terminal_quote_asset_reserve)?)
@@ -334,21 +336,25 @@ pub fn update_spreads(amm: &mut AMM, mark_price: u128) -> ClearingHouseResult<(u
 
             let local_base_asset_value = amm
                 .net_base_asset_amount
-                .checked_mul(cast_to_i128(mark_price)?)
+                .checked_mul(cast_to_i128(
+                    mark_price
+                    .checked_div(MARK_PRICE_PRECISION / PEG_PRECISION)
+                    .ok_or_else(math_error!())?
+                )?)
                 .ok_or_else(math_error!())?
-                .checked_div(MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128)
+                .checked_div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128)
                 .ok_or_else(math_error!())?;
 
-            let net_pnl = net_base_asset_value
-                .checked_sub(net_cost_basis)
-                .ok_or_else(math_error!())?;
-            let local_pnl = local_base_asset_value
-                .checked_sub(net_cost_basis)
-                .ok_or_else(math_error!())?;
+        //     let net_pnl = net_base_asset_value
+        //         .checked_sub(net_cost_basis)
+        //         .ok_or_else(math_error!())?;
+        //     let local_pnl = local_base_asset_value
+        //         .checked_sub(net_cost_basis)
+        //         .ok_or_else(math_error!())?;
 
             let effective_leverage = cast_to_u128(max(
                 0,
-                local_pnl.checked_sub(net_pnl).ok_or_else(math_error!())?,
+                local_base_asset_value.checked_sub(net_base_asset_value).ok_or_else(math_error!())?,
             ))?
             .checked_mul(MARK_PRICE_PRECISION)
             .ok_or_else(math_error!())?
@@ -372,15 +378,11 @@ pub fn update_spreads(amm: &mut AMM, mark_price: u128) -> ClearingHouseResult<(u
             // let effective_leverage_capped = 0;
             if amm.net_base_asset_amount > 0 {
                 long_spread = long_spread
-                    .checked_mul(effective_leverage_capped)
-                    .ok_or_else(math_error!())?
-                    .checked_div(MARK_PRICE_PRECISION)
+                    .checked_mul(effective_leverage_capped / MARK_PRICE_PRECISION)
                     .ok_or_else(math_error!())?;
             } else {
                 short_spread = short_spread
-                    .checked_mul(effective_leverage_capped)
-                    .ok_or_else(math_error!())?
-                    .checked_div(MARK_PRICE_PRECISION)
+                    .checked_mul(effective_leverage_capped / MARK_PRICE_PRECISION)
                     .ok_or_else(math_error!())?;
             }
         } else {

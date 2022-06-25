@@ -879,9 +879,12 @@ export class ClearingHouse {
 		});
 	}
 
-	public async updateAMM(marketIndex: BN): Promise<TransactionSignature> {
+	public async updateAMM(marketIndexes: BN[]): Promise<TransactionSignature> {
+		for (let i = marketIndexes.length; i < 5; i++) {
+			marketIndexes.push(new BN(100));
+		}
 		const { txSig } = await this.txSender.send(
-			wrapInTx(await this.getUpdateAMMIx(marketIndex)),
+			wrapInTx(await this.getUpdateAMMIx(marketIndexes)),
 			[],
 			this.opts
 		);
@@ -889,21 +892,54 @@ export class ClearingHouse {
 	}
 
 	public async getUpdateAMMIx(
-		marketIndex: BN
+		marketIndexes: BN[]
 	): Promise<TransactionInstruction> {
-		const remainingAccounts = this.getRemainingAccounts({
-			writableMarketIndex: marketIndex,
-		});
-		const marketAccount = this.getMarketAccount(marketIndex);
-		const priceOracle = marketAccount.amm.oracle;
+		// const remainingAccounts = this.getRemainingAccounts({
+		// 	writableMarketIndex: marketIndex,
+		// });
+		// const marketAccount = this.getMarketAccount(marketIndex);
+		// const priceOracle = marketAccount.amm.oracle;
+
+		const bankAccountInfos = [
+			{
+				pubkey: this.getQuoteAssetBankAccount().pubkey,
+				isSigner: false,
+				isWritable: true,
+			},
+		];
+		const marketAccountInfos = [];
+		const oracleAccountInfos = [];
+		for (const marketIndex of marketIndexes) {
+			if (!marketIndex.eq(new BN(100))) {
+				const market = this.getMarketAccount(marketIndex);
+				const marketPublicKey = await getMarketPublicKey(
+					this.program.programId,
+					marketIndex
+				);
+				marketAccountInfos.push({
+					pubkey: marketPublicKey,
+					isWritable: true,
+					isSigner: false,
+				});
+				oracleAccountInfos.push({
+					pubkey: market.amm.oracle,
+					isWritable: false,
+					isSigner: false,
+				});
+			}
+		}
+		const remainingAccounts = oracleAccountInfos.concat(
+			bankAccountInfos.concat(marketAccountInfos)
+		);
+
 		console.log('remainingAccounts:', remainingAccounts);
-		return await this.program.instruction.updateAmm(marketIndex, {
+		return await this.program.instruction.updateAmm(marketIndexes, {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				// user: userAccountPublicKey,
 				authority: this.wallet.publicKey,
 				orderState: await this.getOrderStatePublicKey(),
-				oracle: priceOracle,
+				// oracle: priceOracle,
 			},
 			remainingAccounts,
 		});

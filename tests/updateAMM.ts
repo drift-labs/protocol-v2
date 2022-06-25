@@ -179,7 +179,7 @@ describe('update amm', () => {
 			'after trade est. mark price:',
 			convertToNumber(newPrice)
 		);
-		const txSig = await clearingHouse.updateAMM(marketIndex);
+		const txSig = await clearingHouse.updateAMM([marketIndex]);
 		const computeUnits = await findComputeUnitConsumption(
 			clearingHouse.program.programId,
 			connection,
@@ -342,7 +342,13 @@ describe('update amm', () => {
 			'after trade est. mark price:',
 			convertToNumber(newPrice)
 		);
-		const txSig = await clearingHouse.updateAMM(marketIndex);
+		const txSig = await clearingHouse.updateAMM([
+			new BN(0),
+			new BN(1),
+			new BN(2),
+			new BN(3),
+			new BN(4),
+		]);
 		const computeUnits = await findComputeUnitConsumption(
 			clearingHouse.program.programId,
 			connection,

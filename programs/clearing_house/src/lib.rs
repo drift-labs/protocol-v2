@@ -59,7 +59,7 @@ pub mod clearing_house {
     use crate::state::market::{Market, PNLPool};
     use crate::state::market_map::{
         get_market_oracles, get_writable_markets, get_writable_markets_for_user_positions,
-        MarketMap, MarketOracles, WritableMarkets,
+        get_writable_markets_list, MarketMap, MarketOracles, WritableMarkets,
     };
     use crate::state::oracle::OraclePriceData;
     use crate::state::oracle_map::OracleMap;
@@ -1494,30 +1494,45 @@ pub mod clearing_house {
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]
-    pub fn update_amm(ctx: Context<UpdateAMM>, market_index: u64) -> Result<()> {
+    pub fn update_amm(ctx: Context<UpdateAMM>, market_indexes: [u64; 5]) -> Result<()> {
+        // ~60k compute units
+
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let clock = Clock::get()?;
         let clock_slot = clock.slot;
         let now = clock.unix_timestamp;
+        // let user = &mut load_mut(&ctx.accounts.user)?;
 
-        let oracle_map = OracleMap::load(remaining_accounts_iter, clock_slot)?;
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock_slot)?;
         let _bank_map = BankMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
 
+        // let market_map = MarketMap::load(
+        //     &get_writable_markets_for_user_positions(&user.positions),
+        //     &MarketOracles::new(), // oracles validated in calculate liquidation status
+        //     remaining_accounts_iter,
+        // )?;
         let market_map = MarketMap::load(
-            &get_writable_markets(market_index),
-            &get_market_oracles(market_index, &ctx.accounts.oracle),
+            &get_writable_markets_list(market_indexes),
+            // &get_market_oracles(market_index, &ctx.accounts.oracle),
+            &MarketOracles::new(),
             remaining_accounts_iter,
         )?;
 
-        let oracle = &ctx.accounts.oracle;
+        // let oracle = &ctx.accounts.oracle;
 
-        let mark_price_before: u128;
-        let oracle_mark_spread_pct_before: i128;
-        let is_oracle_valid: bool;
-        // let oracle_price: i128;
-        {
+        for market_index in market_indexes.iter() {
+            if *market_index == 100 {
+                continue; //todo
+            }
+
+            let mark_price_before: u128;
+            let oracle_mark_spread_pct_before: i128;
+            let is_oracle_valid: bool;
+            // let oracle_price: i128;
+
             let market = &mut market_map.get_ref_mut(&market_index)?;
-            let oracle_price_data = &market.amm.get_oracle_price(oracle, clock_slot)?;
+            let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
+            // let oracle_price_data = &market.amm.get_oracle_price(oracle, clock_slot)?;
 
             let prepeg_budget = repeg::calculate_fee_pool(market)?;
             let state = &ctx.accounts.state;
@@ -1553,11 +1568,11 @@ pub mod clearing_house {
                 )?;
             }
 
+            // 15k compute units below
             controller::amm::update_spreads(&mut market.amm, mark_price_before)?;
             market.amm.last_update_slot = clock_slot;
-
-            Ok(())
         }
+        Ok(())
     }
 
     #[access_control(

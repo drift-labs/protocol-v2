@@ -91,6 +91,17 @@ pub fn get_writable_markets(market_index: u64) -> WritableMarkets {
     writable_markets
 }
 
+pub fn get_writable_markets_list(market_indexes: [u64; 5]) -> WritableMarkets {
+    let mut writable_markets = WritableMarkets::new();
+    for market_index in market_indexes.iter() {
+        if *market_index == 100 {
+            continue; // todo
+        }
+        writable_markets.insert(*market_index);
+    }
+    writable_markets
+}
+
 pub fn get_writable_markets_for_user_positions(user_positions: &UserPositions) -> WritableMarkets {
     let mut writable_markets = WritableMarkets::new();
     for position in user_positions.iter() {

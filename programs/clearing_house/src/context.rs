@@ -214,8 +214,8 @@ pub struct UpdateAMM<'info> {
     #[account(mut)]
     // pub user: AccountLoader<'info, User>,
     pub authority: Signer<'info>,
-    /// CHECK: validated in `update_amm` ix constraint
-    pub oracle: AccountInfo<'info>,
+    // CHECK: validated in `update_amm` ix constraint
+    // pub oracle: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
