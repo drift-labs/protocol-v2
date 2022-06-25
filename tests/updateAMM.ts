@@ -1,10 +1,10 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
-import { BN, getMarketOrderParams, ONE, OracleSource, ZERO } from '../sdk';
+import { BN, getMarketOrderParams, OracleSource, ZERO } from '../sdk';
 
 import { Program } from '@project-serum/anchor';
 
-import { PublicKey } from '@solana/web3.js';
+// import { PublicKey } from '@solana/web3.js';
 
 import {
 	Admin,
@@ -40,7 +40,7 @@ describe('update amm', () => {
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
 
-	let userAccountPublicKey: PublicKey;
+	// let userAccountPublicKey: PublicKeys;
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -140,7 +140,7 @@ describe('update amm', () => {
 	});
 
 	it('update AMM (balanced)', async () => {
-		console.log('hi');
+		// console.log('hi');
 		const marketIndex = new BN(0);
 		const baseAssetAmount = new BN(497450503674885 / 50);
 		const market0 = clearingHouse.getMarketAccount(0);
@@ -303,8 +303,8 @@ describe('update amm', () => {
 	});
 
 	it('update AMM (unbalanced)', async () => {
-		console.log('hi');
-		const marketIndex = new BN(0);
+		// console.log('hi');
+		// const marketIndex = new BN(0);
 		const baseAssetAmount = new BN(497450503674885 / 50);
 		const market0 = clearingHouse.getMarketAccount(0);
 		await setFeedPrice(anchor.workspace.Pyth, 1.203, solUsd);

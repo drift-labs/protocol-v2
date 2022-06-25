@@ -1525,19 +1525,19 @@ pub mod clearing_house {
                 continue; //todo
             }
 
-            let mark_price_before: u128;
-            let oracle_mark_spread_pct_before: i128;
-            let is_oracle_valid: bool;
+            // let mark_price_before: u128;
+            // let _oracle_mark_spread_pct_before: i128;
+            // let is_oracle_valid: bool;
             // let oracle_price: i128;
 
-            let market = &mut market_map.get_ref_mut(&market_index)?;
+            let market = &mut market_map.get_ref_mut(market_index)?;
             let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
             // let oracle_price_data = &market.amm.get_oracle_price(oracle, clock_slot)?;
 
             let prepeg_budget = repeg::calculate_fee_pool(market)?;
             let state = &ctx.accounts.state;
 
-            is_oracle_valid = amm::is_oracle_valid(
+            let is_oracle_valid = amm::is_oracle_valid(
                 &market.amm,
                 oracle_price_data,
                 &state.oracle_guard_rails.validity,
@@ -1550,7 +1550,7 @@ pub mod clearing_house {
                 prepeg_budget,
                 // now,
             )?;
-            mark_price_before = market.amm.mark_price()?;
+            let mark_price_before = market.amm.mark_price()?;
 
             // oracle_mark_spread_pct_before = amm::calculate_oracle_mark_spread_pct(
             //     &market.amm,
