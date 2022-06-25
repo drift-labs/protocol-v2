@@ -33,7 +33,6 @@ import {
 	BN,
 	BankAccount,
 } from '.';
-import { getUserAccountPublicKey } from './addresses/pda';
 import {
 	getClearingHouseUser,
 	getWebSocketClearingHouseUserConfig,
@@ -43,10 +42,8 @@ import { OraclePriceData } from './oracles/types';
 
 export class ClearingHouseUser {
 	clearingHouse: ClearingHouse;
-	authority: PublicKey;
-	userId: number;
+	userAccountPublicKey: PublicKey;
 	accountSubscriber: UserAccountSubscriber;
-	userAccountPublicKey?: PublicKey;
 	_isSubscribed = false;
 	eventEmitter: StrictEventEmitter<EventEmitter, UserAccountEvents>;
 
@@ -61,36 +58,32 @@ export class ClearingHouseUser {
 	/**
 	 * @deprecated You should use getClearingHouseUser factory method instead
 	 * @param clearingHouse
-	 * @param authority
+	 * @param userAccountPublicKey
 	 * @returns
 	 */
 	public static from(
 		clearingHouse: ClearingHouse,
-		authority: PublicKey,
-		userId = 0
+		userAccountPublicKey: PublicKey
 	): ClearingHouseUser {
 		if (clearingHouse.accountSubscriber.type !== 'websocket')
 			throw 'This method only works for clearing houses with a websocket account listener. Try using the getClearingHouseUser factory method to initialize a ClearingHouseUser instead';
 
 		const config = getWebSocketClearingHouseUserConfig(
 			clearingHouse,
-			authority,
-			userId
+			userAccountPublicKey
 		);
 		return getClearingHouseUser(config);
 	}
 
 	public constructor(
 		clearingHouse: ClearingHouse,
-		authority: PublicKey,
-		accountSubscriber: UserAccountSubscriber,
-		userId: number
+		userAccountPublicKey: PublicKey,
+		accountSubscriber: UserAccountSubscriber
 	) {
 		this.clearingHouse = clearingHouse;
-		this.authority = authority;
+		this.userAccountPublicKey = userAccountPublicKey;
 		this.accountSubscriber = accountSubscriber;
 		this.eventEmitter = this.accountSubscriber.eventEmitter;
-		this.userId = userId;
 	}
 
 	/**
@@ -163,23 +156,14 @@ export class ClearingHouseUser {
 		);
 	}
 
-	public async getUserAccountPublicKey(): Promise<PublicKey> {
-		if (this.userAccountPublicKey) {
-			return this.userAccountPublicKey;
-		}
-
-		this.userAccountPublicKey = await getUserAccountPublicKey(
-			this.clearingHouse.program.programId,
-			this.authority
-		);
+	public getUserAccountPublicKey(): PublicKey {
 		return this.userAccountPublicKey;
 	}
 
 	public async exists(): Promise<boolean> {
-		const userAccountPublicKey = await this.getUserAccountPublicKey();
 		const userAccountRPCResponse =
 			await this.clearingHouse.connection.getParsedAccountInfo(
-				userAccountPublicKey
+				this.userAccountPublicKey
 			);
 		return userAccountRPCResponse.value !== null;
 	}

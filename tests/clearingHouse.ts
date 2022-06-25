@@ -540,7 +540,7 @@ describe('clearing_house', () => {
 
 		userAccount = ClearingHouseUser.from(
 			clearingHouse,
-			provider.wallet.publicKey
+			await clearingHouse.getUserAccountPublicKey()
 		);
 		await userAccount.subscribe();
 

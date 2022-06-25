@@ -334,7 +334,9 @@ describe('orders', () => {
 		assert(
 			orderRecord.user.equals(await clearingHouseUser.getUserAccountPublicKey())
 		);
-		assert(orderRecord.authority.equals(clearingHouseUser.authority));
+		assert(
+			orderRecord.authority.equals(clearingHouseUser.getUserAccount().authority)
+		);
 	});
 
 	it('Fail to fill reduce only order', async () => {
@@ -381,7 +383,9 @@ describe('orders', () => {
 		assert(
 			orderRecord.user.equals(await clearingHouseUser.getUserAccountPublicKey())
 		);
-		assert(orderRecord.authority.equals(clearingHouseUser.authority));
+		assert(
+			orderRecord.authority.equals(clearingHouseUser.getUserAccount().authority)
+		);
 	});
 
 	it('Fill limit long order', async () => {
@@ -488,7 +492,9 @@ describe('orders', () => {
 		assert(
 			orderRecord.user.equals(await clearingHouseUser.getUserAccountPublicKey())
 		);
-		assert(orderRecord.authority.equals(clearingHouseUser.authority));
+		assert(
+			orderRecord.authority.equals(clearingHouseUser.getUserAccount().authority)
+		);
 		assert(
 			orderRecord.filler.equals(await fillerUser.getUserAccountPublicKey())
 		);
@@ -631,7 +637,9 @@ describe('orders', () => {
 		assert(
 			orderRecord.user.equals(await clearingHouseUser.getUserAccountPublicKey())
 		);
-		assert(orderRecord.authority.equals(clearingHouseUser.authority));
+		assert(
+			orderRecord.authority.equals(clearingHouseUser.getUserAccount().authority)
+		);
 		assert(
 			orderRecord.filler.equals(await fillerUser.getUserAccountPublicKey())
 		);

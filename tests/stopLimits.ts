@@ -281,7 +281,9 @@ describe('stop limit', () => {
 		assert(
 			orderRecord.user.equals(await clearingHouseUser.getUserAccountPublicKey())
 		);
-		assert(orderRecord.authority.equals(clearingHouseUser.authority));
+		assert(
+			orderRecord.authority.equals(clearingHouseUser.getUserAccount().authority)
+		);
 		assert(
 			orderRecord.filler.equals(await fillerUser.getUserAccountPublicKey())
 		);
@@ -369,7 +371,9 @@ describe('stop limit', () => {
 		assert(
 			orderRecord.user.equals(await clearingHouseUser.getUserAccountPublicKey())
 		);
-		assert(orderRecord.authority.equals(clearingHouseUser.authority));
+		assert(
+			orderRecord.authority.equals(clearingHouseUser.getUserAccount().authority)
+		);
 		assert(
 			orderRecord.filler.equals(await fillerUser.getUserAccountPublicKey())
 		);

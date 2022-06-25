@@ -244,7 +244,9 @@ describe('market order', () => {
 		assert(
 			orderRecord.user.equals(await clearingHouseUser.getUserAccountPublicKey())
 		);
-		assert(orderRecord.authority.equals(clearingHouseUser.authority));
+		assert(
+			orderRecord.authority.equals(clearingHouseUser.getUserAccount().authority)
+		);
 		assert(orderRecord.baseAssetAmountFilled.eq(baseAssetAmount));
 		assert(orderRecord.quoteAssetAmountFilled.eq(expectedQuoteAssetAmount));
 		assert(orderRecord.fillerReward.eq(ZERO));
@@ -293,7 +295,9 @@ describe('market order', () => {
 		assert(
 			orderRecord.user.equals(await clearingHouseUser.getUserAccountPublicKey())
 		);
-		assert(orderRecord.authority.equals(clearingHouseUser.authority));
+		assert(
+			orderRecord.authority.equals(clearingHouseUser.getUserAccount().authority)
+		);
 		assert(orderRecord.baseAssetAmountFilled.eq(baseAssetAmount));
 		assert(orderRecord.quoteAssetAmountFilled.eq(expectedQuoteAssetAmount));
 		assert(orderRecord.fillerReward.eq(ZERO));
@@ -341,7 +345,9 @@ describe('market order', () => {
 		assert(
 			orderRecord.user.equals(await clearingHouseUser.getUserAccountPublicKey())
 		);
-		assert(orderRecord.authority.equals(clearingHouseUser.authority));
+		assert(
+			orderRecord.authority.equals(clearingHouseUser.getUserAccount().authority)
+		);
 		assert(orderRecord.baseAssetAmountFilled.eq(baseAssetAmount));
 		assert(orderRecord.quoteAssetAmountFilled.eq(quoteAssetAmount));
 		assert(orderRecord.fillerReward.eq(ZERO));
@@ -389,7 +395,9 @@ describe('market order', () => {
 		assert(
 			orderRecord.user.equals(await clearingHouseUser.getUserAccountPublicKey())
 		);
-		assert(orderRecord.authority.equals(clearingHouseUser.authority));
+		assert(
+			orderRecord.authority.equals(clearingHouseUser.getUserAccount().authority)
+		);
 		assert(orderRecord.baseAssetAmountFilled.eq(baseAssetAmount));
 		assert(orderRecord.quoteAssetAmountFilled.eq(quoteAssetAmount));
 		assert(orderRecord.fillerReward.eq(ZERO));

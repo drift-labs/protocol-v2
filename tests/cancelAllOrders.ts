@@ -87,7 +87,7 @@ describe('cancel all orders', () => {
 
 		clearingHouseUser = ClearingHouseUser.from(
 			clearingHouse,
-			provider.wallet.publicKey
+			await clearingHouse.getUserAccountPublicKey()
 		);
 		await clearingHouseUser.subscribe();
 	});

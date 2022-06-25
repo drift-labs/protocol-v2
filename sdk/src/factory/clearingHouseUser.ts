@@ -11,8 +11,7 @@ export type ClearingHouseUserConfigType = 'websocket' | 'polling' | 'custom';
 type BaseClearingHouseUserConfig = {
 	type: ClearingHouseUserConfigType;
 	clearingHouse: ClearingHouse;
-	authority: PublicKey;
-	userId: number;
+	userAccountPublicKey: PublicKey;
 };
 
 type WebSocketClearingHouseUserConfig = BaseClearingHouseUserConfig;
@@ -27,29 +26,25 @@ type ClearingHouseUserConfig =
 
 export function getWebSocketClearingHouseUserConfig(
 	clearingHouse: ClearingHouse,
-	authority: PublicKey,
-	userId = 0
+	userAccountPublicKey: PublicKey
 ): WebSocketClearingHouseUserConfig {
 	return {
 		type: 'websocket',
 		clearingHouse,
-		authority,
-		userId,
+		userAccountPublicKey,
 	};
 }
 
 export function getPollingClearingHouseUserConfig(
 	clearingHouse: ClearingHouse,
-	authority: PublicKey,
-	accountLoader: BulkAccountLoader,
-	userId = 0
+	userAccountPublicKey: PublicKey,
+	accountLoader: BulkAccountLoader
 ): PollingClearingHouseUserConfig {
 	return {
 		type: 'polling',
 		clearingHouse,
-		authority,
+		userAccountPublicKey,
 		accountLoader,
-		userId,
 	};
 }
 
@@ -60,22 +55,19 @@ export function getClearingHouseUser(
 	if (config.type === 'websocket') {
 		accountSubscriber = new WebSocketUserAccountSubscriber(
 			config.clearingHouse.program,
-			config.authority,
-			config.userId
+			config.userAccountPublicKey
 		);
 	} else if (config.type === 'polling') {
 		accountSubscriber = new PollingUserAccountSubscriber(
 			config.clearingHouse.program,
-			config.authority,
-			(config as PollingClearingHouseUserConfig).accountLoader,
-			config.userId
+			config.userAccountPublicKey,
+			(config as PollingClearingHouseUserConfig).accountLoader
 		);
 	}
 
 	return new ClearingHouseUser(
 		config.clearingHouse,
-		config.authority,
-		accountSubscriber,
-		config.userId
+		config.userAccountPublicKey,
+		accountSubscriber
 	);
 }

@@ -71,7 +71,10 @@ const main = async () => {
 	await clearingHouse.subscribe();
 
 	// Set up Clearing House user client
-	const user = ClearingHouseUser.from(clearingHouse, wallet.publicKey);
+	const user = ClearingHouseUser.from(
+		clearingHouse,
+		await clearingHouse.getUserAccountPublicKey()
+	);
 
 	//// Check if clearing house account exists for the current wallet
 	const userAccountExists = await user.exists();
