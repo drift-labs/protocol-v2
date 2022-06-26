@@ -538,10 +538,10 @@ describe('clearing_house', () => {
 	it('Partial Liquidation', async () => {
 		const marketIndex = new BN(0);
 
-		userAccount = ClearingHouseUser.from(
+		userAccount = new ClearingHouseUser({
 			clearingHouse,
-			await clearingHouse.getUserAccountPublicKey()
-		);
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
 		await userAccount.subscribe();
 
 		const user0: any = await clearingHouse.program.account.user.fetch(

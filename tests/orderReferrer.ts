@@ -123,10 +123,10 @@ describe('order referrer', () => {
 				userUSDCAccount.publicKey
 			);
 
-		clearingHouseUser = ClearingHouseUser.from(
+		clearingHouseUser = new ClearingHouseUser({
 			clearingHouse,
-			provider.wallet.publicKey
-		);
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
 		await clearingHouseUser.subscribe();
 
 		discountMint = await Token.createMint(
@@ -179,10 +179,10 @@ describe('order referrer', () => {
 			fillerUSDCAccount.publicKey
 		);
 
-		fillerUser = ClearingHouseUser.from(
-			fillerClearingHouse,
-			fillerKeyPair.publicKey
-		);
+		fillerUser = new ClearingHouseUser({
+			clearingHouse: fillerClearingHouse,
+			userAccountPublicKey: await fillerClearingHouse.getUserAccountPublicKey(),
+		});
 		await fillerUser.subscribe();
 
 		provider.connection.requestAirdrop(referrerKeyPair.publicKey, 10 ** 9);
@@ -209,10 +209,11 @@ describe('order referrer', () => {
 			referrerUSDCAccount.publicKey
 		);
 
-		referrerUser = ClearingHouseUser.from(
-			referrerClearingHouse,
-			referrerKeyPair.publicKey
-		);
+		referrerUser = new ClearingHouseUser({
+			clearingHouse: referrerClearingHouse,
+			userAccountPublicKey:
+				await referrerClearingHouse.getUserAccountPublicKey(),
+		});
 		await referrerUser.subscribe();
 	});
 

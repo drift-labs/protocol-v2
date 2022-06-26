@@ -171,10 +171,10 @@ describe('orders', () => {
 				userUSDCAccount.publicKey
 			);
 
-		clearingHouseUser = ClearingHouseUser.from(
+		clearingHouseUser = new ClearingHouseUser({
 			clearingHouse,
-			provider.wallet.publicKey
-		);
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
 		await clearingHouseUser.subscribe();
 
 		discountMint = await Token.createMint(
@@ -227,10 +227,10 @@ describe('orders', () => {
 			fillerUSDCAccount.publicKey
 		);
 
-		fillerUser = ClearingHouseUser.from(
-			fillerClearingHouse,
-			fillerKeyPair.publicKey
-		);
+		fillerUser = new ClearingHouseUser({
+			clearingHouse: fillerClearingHouse,
+			userAccountPublicKey: await fillerClearingHouse.getUserAccountPublicKey(),
+		});
 		await fillerUser.subscribe();
 
 		provider.connection.requestAirdrop(whaleKeyPair.publicKey, 10 ** 9);
@@ -260,10 +260,10 @@ describe('orders', () => {
 				whaleUSDCAccount.publicKey
 			);
 
-		whaleUser = ClearingHouseUser.from(
-			whaleClearingHouse,
-			whaleKeyPair.publicKey
-		);
+		whaleUser = new ClearingHouseUser({
+			clearingHouse: whaleClearingHouse,
+			userAccountPublicKey: await whaleClearingHouse.getUserAccountPublicKey(),
+		});
 
 		await whaleUser.subscribe();
 	});

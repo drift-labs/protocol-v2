@@ -103,10 +103,10 @@ describe('oracle offset', () => {
 			userUSDCAccount.publicKey
 		);
 
-		fillerClearingHouseUser = ClearingHouseUser.from(
-			fillerClearingHouse,
-			provider.wallet.publicKey
-		);
+		fillerClearingHouseUser = new ClearingHouseUser({
+			clearingHouse: fillerClearingHouse,
+			userAccountPublicKey: await fillerClearingHouse.getUserAccountPublicKey(),
+		});
 		await fillerClearingHouseUser.subscribe();
 	});
 
@@ -151,10 +151,10 @@ describe('oracle offset', () => {
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		const clearingHouseUser = ClearingHouseUser.from(
+		const clearingHouseUser = new ClearingHouseUser({
 			clearingHouse,
-			keypair.publicKey
-		);
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
 		await clearingHouseUser.subscribe();
 
 		const direction = PositionDirection.LONG;
@@ -228,10 +228,10 @@ describe('oracle offset', () => {
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		const clearingHouseUser = ClearingHouseUser.from(
+		const clearingHouseUser = new ClearingHouseUser({
 			clearingHouse,
-			keypair.publicKey
-		);
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
 		await clearingHouseUser.subscribe();
 
 		const direction = PositionDirection.LONG;
@@ -306,10 +306,10 @@ describe('oracle offset', () => {
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		const clearingHouseUser = ClearingHouseUser.from(
+		const clearingHouseUser = new ClearingHouseUser({
 			clearingHouse,
-			keypair.publicKey
-		);
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
 		await clearingHouseUser.subscribe();
 
 		const direction = PositionDirection.SHORT;
@@ -383,10 +383,10 @@ describe('oracle offset', () => {
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		const clearingHouseUser = ClearingHouseUser.from(
+		const clearingHouseUser = new ClearingHouseUser({
 			clearingHouse,
-			keypair.publicKey
-		);
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
 		await clearingHouseUser.subscribe();
 
 		const direction = PositionDirection.SHORT;
@@ -461,10 +461,10 @@ describe('oracle offset', () => {
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		const clearingHouseUser = ClearingHouseUser.from(
+		const clearingHouseUser = new ClearingHouseUser({
 			clearingHouse,
-			keypair.publicKey
-		);
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
 		await clearingHouseUser.subscribe();
 
 		const direction = PositionDirection.SHORT;
@@ -522,10 +522,10 @@ describe('oracle offset', () => {
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		const clearingHouseUser = ClearingHouseUser.from(
+		const clearingHouseUser = new ClearingHouseUser({
 			clearingHouse,
-			keypair.publicKey
-		);
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
 		await clearingHouseUser.subscribe();
 
 		const direction = PositionDirection.SHORT;

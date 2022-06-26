@@ -68,10 +68,10 @@ export async function initUserAccounts(
 			);
 
 		// const userAccount = 0;
-		const userAccount = ClearingHouseUser.from(
-			clearingHouse1,
-			ownerWallet.publicKey
-		);
+		const userAccount = new ClearingHouseUser({
+			clearingHouse: clearingHouse1,
+			userAccountPublicKey: await clearingHouse1.getUserAccountPublicKey(),
+		});
 		await userAccount.subscribe();
 
 		userAccountInfos.push(userAccount);

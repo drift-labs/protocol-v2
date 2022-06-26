@@ -33,12 +33,11 @@ import {
 	BN,
 	BankAccount,
 } from '.';
-import {
-	getClearingHouseUser,
-	getWebSocketClearingHouseUserConfig,
-} from './factory/clearingHouseUser';
 import { getTokenAmount } from './math/bankBalance';
 import { OraclePriceData } from './oracles/types';
+import { ClearingHouseUserConfig } from './clearingHouseUserConfig';
+import { PollingUserAccountSubscriber } from './accounts/pollingUserAccountSubscriber';
+import { WebSocketUserAccountSubscriber } from './accounts/webSocketUserAccountSubscriber';
 
 export class ClearingHouseUser {
 	clearingHouse: ClearingHouse;
@@ -55,35 +54,21 @@ export class ClearingHouseUser {
 		this._isSubscribed = val;
 	}
 
-	/**
-	 * @deprecated You should use getClearingHouseUser factory method instead
-	 * @param clearingHouse
-	 * @param userAccountPublicKey
-	 * @returns
-	 */
-	public static from(
-		clearingHouse: ClearingHouse,
-		userAccountPublicKey: PublicKey
-	): ClearingHouseUser {
-		if (clearingHouse.accountSubscriber.type !== 'websocket')
-			throw 'This method only works for clearing houses with a websocket account listener. Try using the getClearingHouseUser factory method to initialize a ClearingHouseUser instead';
-
-		const config = getWebSocketClearingHouseUserConfig(
-			clearingHouse,
-			userAccountPublicKey
-		);
-		return getClearingHouseUser(config);
-	}
-
-	public constructor(
-		clearingHouse: ClearingHouse,
-		userAccountPublicKey: PublicKey,
-		accountSubscriber: UserAccountSubscriber
-	) {
-		this.clearingHouse = clearingHouse;
-		this.userAccountPublicKey = userAccountPublicKey;
-		this.accountSubscriber = accountSubscriber;
-		this.eventEmitter = this.accountSubscriber.eventEmitter;
+	public constructor(config: ClearingHouseUserConfig) {
+		this.clearingHouse = config.clearingHouse;
+		this.userAccountPublicKey = config.userAccountPublicKey;
+		if (config.accountSubscription?.type === 'polling') {
+			this.accountSubscriber = new PollingUserAccountSubscriber(
+				config.clearingHouse.program,
+				config.userAccountPublicKey,
+				config.accountSubscription.accountLoader
+			);
+		} else {
+			this.accountSubscriber = new WebSocketUserAccountSubscriber(
+				config.clearingHouse.program,
+				config.userAccountPublicKey
+			);
+		}
 	}
 
 	/**

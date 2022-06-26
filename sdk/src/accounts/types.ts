@@ -10,12 +10,7 @@ import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { PublicKey } from '@solana/web3.js';
 import { AccountInfo } from '@solana/spl-token';
-import {
-	ClearingHouseConfigType,
-	ClearingHouseUserConfigType,
-	OracleInfo,
-	OraclePriceData,
-} from '..';
+import { ClearingHouseConfigType, OracleInfo, OraclePriceData } from '..';
 import { BN } from '@project-serum/anchor';
 
 export interface AccountSubscriber<T> {
@@ -89,7 +84,6 @@ export interface UserAccountSubscriber {
 	unsubscribe(): Promise<void>;
 
 	getUserAccountAndSlot(): DataAndSlot<UserAccount>;
-	type: ClearingHouseUserConfigType;
 }
 
 export interface TokenAccountEvents {

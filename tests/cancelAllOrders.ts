@@ -85,10 +85,10 @@ describe('cancel all orders', () => {
 			userUSDCAccount.publicKey
 		);
 
-		clearingHouseUser = ClearingHouseUser.from(
+		clearingHouseUser = new ClearingHouseUser({
 			clearingHouse,
-			await clearingHouse.getUserAccountPublicKey()
-		);
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
 		await clearingHouseUser.subscribe();
 	});
 

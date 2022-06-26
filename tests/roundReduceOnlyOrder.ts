@@ -77,10 +77,10 @@ describe('round reduce only order', () => {
 			userUSDCAccount.publicKey
 		);
 
-		clearingHouseUser = ClearingHouseUser.from(
+		clearingHouseUser = new ClearingHouseUser({
 			clearingHouse,
-			provider.wallet.publicKey
-		);
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
 		await clearingHouseUser.subscribe();
 	});
 

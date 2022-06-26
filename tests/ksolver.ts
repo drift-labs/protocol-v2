@@ -212,10 +212,10 @@ describe('AMM Curve', () => {
 			initialSOLPriceBN
 		);
 		await clearingHouse.initializeUserAccount();
-		userAccount = ClearingHouseUser.from(
+		userAccount = new ClearingHouseUser({
 			clearingHouse,
-			provider.wallet.publicKey
-		);
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
 		await userAccount.subscribe();
 	});
 

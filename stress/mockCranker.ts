@@ -247,10 +247,10 @@ async function crank(mock = true, actions = ['liq'], chProgram?) {
 			);
 			await clearingHouse1.subscribe();
 			clearingHouses.push(clearingHouse1);
-			const userAccount = ClearingHouseUser.from(
-				clearingHouse1,
-				ownerWallet.publicKey
-			);
+			const userAccount = new ClearingHouseUser({
+				clearingHouse: clearingHouse1,
+				userAccountPublicKey: await clearingHouse1.getUserAccountPublicKey(),
+			});
 			await userAccount.subscribe();
 			userAccountInfos.push(userAccount);
 		}

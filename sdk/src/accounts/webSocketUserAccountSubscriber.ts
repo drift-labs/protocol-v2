@@ -9,7 +9,6 @@ import { Program } from '@project-serum/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { PublicKey } from '@solana/web3.js';
-import { getUserAccountPublicKey } from '../addresses/pda';
 import { WebSocketAccountSubscriber } from './webSocketAccountSubscriber';
 import { UserAccount } from '../types';
 import { ClearingHouseConfigType } from '../factory/clearingHouse';

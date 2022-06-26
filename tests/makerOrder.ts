@@ -105,10 +105,10 @@ describe('maker order', () => {
 			userUSDCAccount.publicKey
 		);
 
-		fillerClearingHouseUser = ClearingHouseUser.from(
-			fillerClearingHouse,
-			provider.wallet.publicKey
-		);
+		fillerClearingHouseUser = new ClearingHouseUser({
+			clearingHouse: fillerClearingHouse,
+			userAccountPublicKey: await fillerClearingHouse.getUserAccountPublicKey(),
+		});
 		await fillerClearingHouseUser.subscribe();
 	});
 
@@ -154,10 +154,10 @@ describe('maker order', () => {
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		const clearingHouseUser = ClearingHouseUser.from(
+		const clearingHouseUser = new ClearingHouseUser({
 			clearingHouse,
-			keypair.publicKey
-		);
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
 		await clearingHouseUser.subscribe();
 
 		const marketIndex = new BN(0);
@@ -244,10 +244,10 @@ describe('maker order', () => {
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		const clearingHouseUser = ClearingHouseUser.from(
+		const clearingHouseUser = new ClearingHouseUser({
 			clearingHouse,
-			keypair.publicKey
-		);
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
 		await clearingHouseUser.subscribe();
 
 		const marketIndex = new BN(0);

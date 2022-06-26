@@ -89,10 +89,10 @@ describe('expire order', () => {
 			userUSDCAccount.publicKey
 		);
 
-		clearingHouseUser = ClearingHouseUser.from(
+		clearingHouseUser = new ClearingHouseUser({
 			clearingHouse,
-			provider.wallet.publicKey
-		);
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
 		await clearingHouseUser.subscribe();
 
 		provider.connection.requestAirdrop(fillerKeyPair.publicKey, 10 ** 9);
@@ -114,10 +114,10 @@ describe('expire order', () => {
 			fillerUSDCAccount.publicKey
 		);
 
-		fillerUser = ClearingHouseUser.from(
-			fillerClearingHouse,
-			fillerKeyPair.publicKey
-		);
+		fillerUser = new ClearingHouseUser({
+			clearingHouse: fillerClearingHouse,
+			userAccountPublicKey: await fillerClearingHouse.getUserAccountPublicKey(),
+		});
 		await fillerUser.subscribe();
 	});
 

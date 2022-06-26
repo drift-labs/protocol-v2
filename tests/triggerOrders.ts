@@ -99,10 +99,10 @@ describe('trigger orders', () => {
 			userUSDCAccount.publicKey
 		);
 
-		fillerClearingHouseUser = ClearingHouseUser.from(
-			fillerClearingHouse,
-			provider.wallet.publicKey
-		);
+		fillerClearingHouseUser = new ClearingHouseUser({
+			clearingHouse: fillerClearingHouse,
+			userAccountPublicKey: await fillerClearingHouse.getUserAccountPublicKey(),
+		});
 		await fillerClearingHouseUser.subscribe();
 	});
 
@@ -145,10 +145,10 @@ describe('trigger orders', () => {
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		const clearingHouseUser = ClearingHouseUser.from(
+		const clearingHouseUser = new ClearingHouseUser({
 			clearingHouse,
-			keypair.publicKey
-		);
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
 		await clearingHouseUser.subscribe();
 
 		const marketIndex = new BN(0);
@@ -238,10 +238,10 @@ describe('trigger orders', () => {
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		const clearingHouseUser = ClearingHouseUser.from(
+		const clearingHouseUser = new ClearingHouseUser({
 			clearingHouse,
-			keypair.publicKey
-		);
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
 		await clearingHouseUser.subscribe();
 
 		const marketIndex = new BN(0);
@@ -332,10 +332,10 @@ describe('trigger orders', () => {
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		const clearingHouseUser = ClearingHouseUser.from(
+		const clearingHouseUser = new ClearingHouseUser({
 			clearingHouse,
-			keypair.publicKey
-		);
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
 		await clearingHouseUser.subscribe();
 
 		const marketIndex = new BN(0);
@@ -425,10 +425,10 @@ describe('trigger orders', () => {
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		const clearingHouseUser = ClearingHouseUser.from(
+		const clearingHouseUser = new ClearingHouseUser({
 			clearingHouse,
-			keypair.publicKey
-		);
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
 		await clearingHouseUser.subscribe();
 
 		const marketIndex = new BN(0);
@@ -519,10 +519,10 @@ describe('trigger orders', () => {
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		const clearingHouseUser = ClearingHouseUser.from(
+		const clearingHouseUser = new ClearingHouseUser({
 			clearingHouse,
-			keypair.publicKey
-		);
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
 		await clearingHouseUser.subscribe();
 
 		const marketIndex = new BN(0);
@@ -612,10 +612,10 @@ describe('trigger orders', () => {
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		const clearingHouseUser = ClearingHouseUser.from(
+		const clearingHouseUser = new ClearingHouseUser({
 			clearingHouse,
-			keypair.publicKey
-		);
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
 		await clearingHouseUser.subscribe();
 
 		const marketIndex = new BN(0);
@@ -706,10 +706,10 @@ describe('trigger orders', () => {
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		const clearingHouseUser = ClearingHouseUser.from(
+		const clearingHouseUser = new ClearingHouseUser({
 			clearingHouse,
-			keypair.publicKey
-		);
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
 		await clearingHouseUser.subscribe();
 
 		const marketIndex = new BN(0);
@@ -799,10 +799,10 @@ describe('trigger orders', () => {
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		const clearingHouseUser = ClearingHouseUser.from(
+		const clearingHouseUser = new ClearingHouseUser({
 			clearingHouse,
-			keypair.publicKey
-		);
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
 		await clearingHouseUser.subscribe();
 
 		const marketIndex = new BN(0);

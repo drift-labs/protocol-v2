@@ -135,10 +135,10 @@ describe('stop limit', () => {
 				userUSDCAccount.publicKey
 			);
 
-		clearingHouseUser = ClearingHouseUser.from(
+		clearingHouseUser = new ClearingHouseUser({
 			clearingHouse,
-			provider.wallet.publicKey
-		);
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
 		await clearingHouseUser.subscribe();
 
 		discountMint = await Token.createMint(
@@ -189,10 +189,10 @@ describe('stop limit', () => {
 			fillerUSDCAccount.publicKey
 		);
 
-		fillerUser = ClearingHouseUser.from(
-			fillerClearingHouse,
-			fillerKeyPair.publicKey
-		);
+		fillerUser = new ClearingHouseUser({
+			clearingHouse: fillerClearingHouse,
+			userAccountPublicKey: await fillerClearingHouse.getUserAccountPublicKey(),
+		});
 		await fillerUser.subscribe();
 	});
 
