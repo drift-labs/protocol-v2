@@ -29,6 +29,7 @@ import {
 import { Program } from '@project-serum/anchor';
 
 import { Keypair, PublicKey } from '@solana/web3.js';
+import { OracleSource } from '../sdk';
 
 async function updateFundingRateHelper(
 	clearingHouse: ClearingHouse,
@@ -193,6 +194,10 @@ async function cappedSymFundingScenario(
 		periodicity,
 		new BN(priceAction[0] * PEG_PRECISION.toNumber())
 	);
+	await clearingHouse2.accountSubscriber.addOracle({
+		source: OracleSource.PYTH,
+		publicKey: priceFeedAddress,
+	});
 
 	if (fees && fees > 0) {
 		await clearingHouse.updateFundingPaused(true);
