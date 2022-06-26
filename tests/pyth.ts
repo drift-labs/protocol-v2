@@ -195,7 +195,7 @@ describe('pyth-oracle', () => {
 				commitment: 'confirmed',
 			},
 			0,
-			[new BN(0)],
+			[new BN(0), new BN(1)],
 			[new BN(0)]
 		);
 		await clearingHouse.initialize(usdcMint.publicKey, true);
@@ -223,7 +223,7 @@ describe('pyth-oracle', () => {
 				usdcMint,
 				usdcAmount,
 				provider,
-				[new BN(0)],
+				[new BN(0), new BN(1)],
 				[new BN(0)]
 			);
 
