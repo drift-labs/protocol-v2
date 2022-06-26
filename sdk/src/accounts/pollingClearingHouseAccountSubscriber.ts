@@ -24,7 +24,6 @@ import {
 } from '../addresses/pda';
 import { BulkAccountLoader } from './bulkAccountLoader';
 import { capitalize } from './utils';
-import { ClearingHouseConfigType } from '../factory/clearingHouse';
 import { PublicKey } from '@solana/web3.js';
 import { OracleInfo, OraclePriceData } from '../oracles/types';
 import { OracleClientCache } from '../oracles/oracleClientCache';
@@ -58,8 +57,6 @@ export class PollingClearingHouseAccountSubscriber
 	oracles = new Map<string, DataAndSlot<OraclePriceData>>();
 	orderState?: DataAndSlot<OrderStateAccount>;
 	user?: DataAndSlot<UserAccount>;
-
-	type: ClearingHouseConfigType = 'polling';
 
 	private isSubscribing = false;
 	private subscriptionPromise: Promise<boolean>;

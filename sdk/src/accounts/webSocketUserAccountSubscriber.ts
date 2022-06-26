@@ -11,7 +11,6 @@ import { EventEmitter } from 'events';
 import { PublicKey } from '@solana/web3.js';
 import { WebSocketAccountSubscriber } from './webSocketAccountSubscriber';
 import { UserAccount } from '../types';
-import { ClearingHouseConfigType } from '../factory/clearingHouse';
 
 export class WebSocketUserAccountSubscriber implements UserAccountSubscriber {
 	isSubscribed: boolean;
@@ -20,8 +19,6 @@ export class WebSocketUserAccountSubscriber implements UserAccountSubscriber {
 	userAccountPublicKey: PublicKey;
 
 	userDataAccountSubscriber: AccountSubscriber<UserAccount>;
-
-	type: ClearingHouseConfigType = 'websocket';
 
 	public constructor(program: Program, userAccountPublicKey: PublicKey) {
 		this.isSubscribed = false;

@@ -63,11 +63,11 @@ const main = async () => {
 	const clearingHousePublicKey = new PublicKey(
 		sdkConfig.CLEARING_HOUSE_PROGRAM_ID
 	);
-	const clearingHouse = ClearingHouse.from(
+	const clearingHouse = new ClearingHouse({
 		connection,
-		provider.wallet,
-		clearingHousePublicKey
-	);
+		wallet: provider.wallet,
+		programID: clearingHousePublicKey,
+	});
 	await clearingHouse.subscribe();
 
 	// Set up Clearing House user client

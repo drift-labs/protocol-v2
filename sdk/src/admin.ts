@@ -1,18 +1,15 @@
 import {
-	ConfirmOptions,
-	Connection,
 	PublicKey,
 	SYSVAR_RENT_PUBKEY,
 	TransactionSignature,
 } from '@solana/web3.js';
 import {
 	FeeStructure,
-	IWallet,
 	OracleGuardRails,
 	OracleSource,
 	OrderFillerRewardStructure,
 } from './types';
-import { BN, AnchorProvider } from '@project-serum/anchor';
+import { BN } from '@project-serum/anchor';
 import * as anchor from '@project-serum/anchor';
 import {
 	getClearingHouseStateAccountPublicKey,
@@ -28,38 +25,8 @@ import { ClearingHouse } from './clearingHouse';
 import { PEG_PRECISION } from './constants/numericConstants';
 import { calculateTargetPriceTrade } from './math/trade';
 import { calculateAmmReservesAfterSwap, getSwapDirection } from './math/amm';
-import {
-	getAdmin,
-	getWebSocketClearingHouseConfig,
-} from './factory/clearingHouse';
-import { OracleInfo } from './oracles/types';
 
 export class Admin extends ClearingHouse {
-	public static from(
-		connection: Connection,
-		wallet: IWallet,
-		clearingHouseProgramId: PublicKey,
-		opts: ConfirmOptions = AnchorProvider.defaultOptions(),
-		userId = 0,
-		marketsIndexes: BN[] = [],
-		bankIndexes: BN[] = [],
-		oracleInfos: OracleInfo[] = []
-	): Admin {
-		const config = getWebSocketClearingHouseConfig(
-			connection,
-			wallet,
-			clearingHouseProgramId,
-			opts,
-			undefined,
-			userId,
-			marketsIndexes,
-			bankIndexes,
-			oracleInfos
-		);
-
-		return getAdmin(config);
-	}
-
 	public async initialize(
 		usdcMint: PublicKey,
 		adminControlsPrices: boolean

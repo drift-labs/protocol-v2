@@ -20,7 +20,6 @@ export * from './admin';
 export * from './clearingHouseUser';
 export * from './clearingHouseUserConfig';
 export * from './clearingHouse';
-export * from './factory/clearingHouse';
 export * from './factory/oracleClient';
 export * from './factory/bigNum';
 export * from './events/types';

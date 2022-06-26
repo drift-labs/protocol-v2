@@ -12,7 +12,6 @@ import { PublicKey } from '@solana/web3.js';
 import { UserAccount } from '../types';
 import { BulkAccountLoader } from './bulkAccountLoader';
 import { capitalize } from './utils';
-import { ClearingHouseConfigType } from '../factory/clearingHouse';
 
 export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 	isSubscribed: boolean;
@@ -25,8 +24,6 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 	errorCallbackId?: string;
 
 	user?: DataAndSlot<UserAccount>;
-
-	type: ClearingHouseConfigType = 'polling';
 
 	public constructor(
 		program: Program,

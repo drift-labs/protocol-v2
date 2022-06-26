@@ -41,22 +41,19 @@ import {
 } from './accounts/types';
 import { TxSender } from './tx/types';
 import { wrapInTx } from './tx/utils';
-import {
-	getClearingHouse,
-	getWebSocketClearingHouseConfig,
-} from './factory/clearingHouse';
 import { QUOTE_ASSET_BANK_INDEX, ZERO } from './constants/numericConstants';
 import { positionIsAvailable } from './math/position';
 import { getTokenAmount } from './math/bankBalance';
 import { DEFAULT_USER_NAME, encodeName } from './userName';
-import { OracleInfo, OraclePriceData } from './oracles/types';
+import { OraclePriceData } from './oracles/types';
+import { ClearingHouseConfig } from './clearingHouseConfig';
+import { PollingClearingHouseAccountSubscriber } from './accounts/pollingClearingHouseAccountSubscriber';
+import { WebSocketClearingHouseAccountSubscriber } from './accounts/webSocketClearingHouseAccountSubscriber';
+import { RetryTxSender } from './tx/retryTxSender';
 
 /**
  * # ClearingHouse
  * This class is the main way to interact with Drift Protocol. It allows you to subscribe to the various accounts where the Market's state is stored, as well as: opening positions, liquidating, settling funding, depositing & withdrawing, and more.
- *
- * The default way to construct a ClearingHouse instance is using the {@link from} method. This will create an instance using the static {@link WebSocketClearingHouseAccountSubscriber}, which will use a websocket for each state account subscription.
- * Alternatively, if you want to implement your own method of subscribing to the state accounts on the blockchain, you can implement a {@link ClearingHouseAccountSubscriber} and use it in the {@link ClearingHouse.constructor}
  */
 export class ClearingHouse {
 	connection: Connection;
@@ -79,60 +76,48 @@ export class ClearingHouse {
 		this._isSubscribed = val;
 	}
 
-	/**
-	 * @deprecated You should use the getClearingHouse factory method instead
-	 * @param connection
-	 * @param wallet
-	 * @param clearingHouseProgramId
-	 * @param opts
-	 * @param userId
-	 * @param marketsIndexes
-	 * @param bankIndexes
-	 * @param oracleInfos
-	 * @returns
-	 */
-	public static from(
-		connection: Connection,
-		wallet: IWallet,
-		clearingHouseProgramId: PublicKey,
-		opts: ConfirmOptions = AnchorProvider.defaultOptions(),
-		userId = 0,
-		marketsIndexes: BN[] = [],
-		bankIndexes: BN[] = [],
-		oracleInfos: OracleInfo[] = []
-	): ClearingHouse {
-		const config = getWebSocketClearingHouseConfig(
-			connection,
-			wallet,
-			clearingHouseProgramId,
-			opts,
-			undefined,
-			userId,
-			marketsIndexes,
-			bankIndexes,
-			oracleInfos
+	public constructor(config: ClearingHouseConfig) {
+		this.connection = config.connection;
+		this.wallet = config.wallet;
+		this.opts = config.opts || AnchorProvider.defaultOptions();
+		this.provider = new AnchorProvider(
+			config.connection,
+			config.wallet,
+			this.opts
 		);
-
-		return getClearingHouse(config);
-	}
-
-	public constructor(
-		connection: Connection,
-		wallet: IWallet,
-		program: Program,
-		accountSubscriber: ClearingHouseAccountSubscriber,
-		txSender: TxSender,
-		opts: ConfirmOptions,
-		userId = 0
-	) {
-		this.connection = connection;
-		this.wallet = wallet;
-		this.opts = opts;
-		this.program = program;
-		this.accountSubscriber = accountSubscriber;
+		this.program = new Program(
+			clearingHouseIDL as Idl,
+			config.programID,
+			this.provider
+		);
+		this.userId = config.userId ?? 0;
+		if (config.accountSubscription?.type === 'polling') {
+			this.accountSubscriber = new PollingClearingHouseAccountSubscriber(
+				this.program,
+				this.wallet.publicKey,
+				config.accountSubscription.accountLoader,
+				this.userId,
+				config.marketIndexes ?? [],
+				config.bankIndexes ?? [],
+				config.oracleInfos ?? []
+			);
+		} else {
+			this.accountSubscriber = new WebSocketClearingHouseAccountSubscriber(
+				this.program,
+				this.wallet.publicKey,
+				this.userId,
+				config.marketIndexes ?? [],
+				config.bankIndexes ?? [],
+				config.oracleInfos ?? []
+			);
+		}
 		this.eventEmitter = this.accountSubscriber.eventEmitter;
-		this.txSender = txSender;
-		this.userId = userId;
+		this.txSender = new RetryTxSender(
+			this.provider,
+			config.txSenderConfig?.timeout,
+			config.txSenderConfig?.retrySleep,
+			config.txSenderConfig?.additionalConnections
+		);
 	}
 
 	/**

@@ -25,11 +25,11 @@ describe('mock_usdc_faucet', () => {
 	const mintAmount = new BN(10);
 
 	before(async () => {
-		clearingHouse = Admin.from(
+		clearingHouse = new Admin({
 			connection,
-			provider.wallet,
-			chProgram.programId
-		);
+			wallet: provider.wallet,
+			programID: chProgram.programId,
+		});
 
 		userAccount = new ClearingHouseUser({
 			clearingHouse,

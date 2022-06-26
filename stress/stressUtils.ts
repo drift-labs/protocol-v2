@@ -41,16 +41,14 @@ export async function initUserAccounts(
 
 		const chProgram = anchor.workspace.ClearingHouse as anchor.Program; // this.program-ify
 
-		const clearingHouse1 = ClearingHouse.from(
-			provider.connection,
+		const clearingHouse1 = new ClearingHouse({
+			connection: provider.connection,
 			//@ts-ignore
-			ownerWallet,
-			chProgram.programId,
-			undefined,
-			0,
+			wallet: ownerWallet,
+			programID: chProgram.programId,
 			marketIndexes,
-			bankIndexes
-		);
+			bankIndexes,
+		});
 
 		// await clearingHouse1.initialize(usdcMint.publicKey, false);
 		await clearingHouse1.subscribe();

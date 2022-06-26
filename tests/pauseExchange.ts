@@ -1,6 +1,6 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
-import { BN } from '../sdk';
+import { BN, QUOTE_ASSET_BANK_INDEX } from '../sdk';
 
 import { Program } from '@project-serum/anchor';
 
@@ -38,11 +38,11 @@ describe('admin withdraw', () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
-		clearingHouse = Admin.from(
+		clearingHouse = new Admin({
 			connection,
-			provider.wallet,
-			chProgram.programId
-		);
+			wallet: provider.wallet,
+			programID: chProgram.programId,
+		});
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
 
@@ -117,7 +117,11 @@ describe('admin withdraw', () => {
 
 	it('Block withdrawal', async () => {
 		try {
-			await clearingHouse.withdraw(usdcAmount, userUSDCAccount.publicKey);
+			await clearingHouse.withdraw(
+				usdcAmount,
+				QUOTE_ASSET_BANK_INDEX,
+				userUSDCAccount.publicKey
+			);
 		} catch (e) {
 			assert(e.msg, 'Exchange is paused');
 			return;

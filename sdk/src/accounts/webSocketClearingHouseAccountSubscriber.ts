@@ -22,7 +22,6 @@ import {
 	getOrderStateAccountPublicKey,
 } from '../addresses/pda';
 import { WebSocketAccountSubscriber } from './webSocketAccountSubscriber';
-import { ClearingHouseConfigType } from '../factory/clearingHouse';
 import { PublicKey } from '@solana/web3.js';
 import { OracleInfo, OraclePriceData } from '../oracles/types';
 import { OracleClientCache } from '../oracles/oracleClientCache';
@@ -52,8 +51,6 @@ export class WebSocketClearingHouseAccountSubscriber
 	orderStateAccountSubscriber?: AccountSubscriber<OrderStateAccount>;
 
 	userAccountSubscriber?: AccountSubscriber<UserAccount>;
-
-	type: ClearingHouseConfigType = 'websocket';
 
 	private isSubscribing = false;
 	private subscriptionPromise: Promise<boolean>;
