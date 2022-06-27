@@ -758,7 +758,7 @@ pub mod clearing_house {
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]
-    pub fn remove_liquidity<'info>(ctx: Context<OpenPosition>, market_index: u64) -> Result<()> {
+    pub fn remove_liquidity<'info>(ctx: Context<AddRemoveLiquidity>, market_index: u64) -> Result<()> {
         let user = &mut load_mut(&ctx.accounts.user)?;
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
 
@@ -922,7 +922,7 @@ pub mod clearing_house {
         exchange_not_paused(&ctx.accounts.state)
     )]
     pub fn add_liquidity<'info>(
-        ctx: Context<OpenPosition>,
+        ctx: Context<AddRemoveLiquidity>,
         quote_asset_amount: u128,
         market_index: u64,
     ) -> Result<()> {

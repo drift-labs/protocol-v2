@@ -326,6 +326,21 @@ pub struct ManagePositionOptionalAccounts {
     pub referrer: bool,
 }
 
+
+#[derive(Accounts)]
+pub struct AddRemoveLiquidity<'info> {
+    #[account(mut)]
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        mut,
+        has_one = authority,
+    )]
+    pub user: AccountLoader<'info, User>,
+    pub authority: Signer<'info>,
+    /// CHECK: validated in `open_position` ix constraint
+    pub oracle: AccountInfo<'info>,
+}
+
 #[derive(Accounts)]
 pub struct OpenPosition<'info> {
     #[account(mut)]
