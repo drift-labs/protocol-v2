@@ -28,21 +28,6 @@ impl Default for PositionDirection {
     }
 }
 
-pub fn get_proportion(value: i128, numerator: u128, denominator: u128) -> Result<i128> {
-    let _sign: i128 = if value > 0 { 1 } else { -1 };
-    let proportional_value = cast_to_i128(
-        value
-            .unsigned_abs()
-            .checked_mul(numerator)
-            .ok_or_else(math_error!())?
-            .checked_div(denominator)
-            .ok_or_else(math_error!())?,
-    )?
-    .checked_mul(_sign)
-    .ok_or_else(math_error!())?;
-    Ok(proportional_value)
-}
-
 pub fn add_new_position(
     user_positions: &mut UserPositions,
     market_index: u64,

@@ -14,7 +14,7 @@ use crate::math::amm::get_update_k_result;
 use crate::state::market::Market;
 use crate::state::{market::AMM, order_state::*, state::*, user::*};
 
-use crate::controller::position::get_proportion;
+use crate::math::lp::get_proportion;
 use std::borrow::Borrow;
 
 mod account_loader;
