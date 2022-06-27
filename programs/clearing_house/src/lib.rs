@@ -16,6 +16,7 @@ use crate::state::{market::AMM, order_state::*, state::*, user::*};
 
 use crate::math::lp::get_proportion;
 use std::borrow::Borrow;
+use std::convert::TryInto;
 
 mod account_loader;
 pub mod context;
@@ -758,7 +759,10 @@ pub mod clearing_house {
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]
-    pub fn remove_liquidity<'info>(ctx: Context<AddRemoveLiquidity>, market_index: u64) -> Result<()> {
+    pub fn remove_liquidity<'info>(
+        ctx: Context<AddRemoveLiquidity>,
+        market_index: u64,
+    ) -> Result<()> {
         let user = &mut load_mut(&ctx.accounts.user)?;
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
 
@@ -827,12 +831,14 @@ pub mod clearing_house {
                 };
             let quote_asset_amount = reserve_to_asset_amount(
                 get_proportion(
-                    net_quote_asset_amount_delta,
+                    net_quote_asset_amount_delta.try_into().unwrap(),
                     lp_tokens_to_burn,
                     total_lp_tokens,
-                )?,
+                )?
+                .try_into()
+                .unwrap(),
                 market.amm.peg_multiplier,
-            );
+            )?;
 
             // give market position
             lp_position.quote_asset_amount = quote_asset_amount;

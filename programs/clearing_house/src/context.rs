@@ -326,7 +326,6 @@ pub struct ManagePositionOptionalAccounts {
     pub referrer: bool,
 }
 
-
 #[derive(Accounts)]
 pub struct AddRemoveLiquidity<'info> {
     #[account(mut)]
