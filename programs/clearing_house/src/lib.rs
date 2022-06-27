@@ -55,6 +55,7 @@ pub mod clearing_house {
     };
     use crate::math::bank_balance::get_token_amount;
     use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64};
+    use crate::math::quote_asset::reserve_to_asset_amount;
     use crate::math::slippage::{calculate_slippage, calculate_slippage_pct};
     use crate::optional_accounts::{get_discount_token, get_referrer, get_referrer_for_fill_order};
     use crate::state::bank::{Bank, BankBalance, BankBalanceType};
@@ -824,15 +825,14 @@ pub mod clearing_house {
                         .checked_sub(new_quote_asset_reserve)
                         .ok_or_else(math_error!())?
                 };
-            let quote_asset_amount = net_quote_asset_amount_delta
-                .checked_mul(lp_tokens_to_burn)
-                .ok_or_else(math_error!())?
-                .checked_div(total_lp_tokens)
-                .ok_or_else(math_error!())?
-                .checked_mul(market.amm.peg_multiplier)
-                .ok_or_else(math_error!())?
-                .checked_div(AMM_TO_QUOTE_PRECISION_RATIO)
-                .ok_or_else(math_error!())?;
+            let quote_asset_amount = reserve_to_asset_amount(
+                get_proportion(
+                    net_quote_asset_amount_delta,
+                    lp_tokens_to_burn,
+                    total_lp_tokens,
+                )?,
+                market.amm.peg_multiplier,
+            );
 
             // give market position
             lp_position.quote_asset_amount = quote_asset_amount;
