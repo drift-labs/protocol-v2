@@ -13,6 +13,8 @@ use state::oracle::{get_oracle_price, OracleSource};
 use crate::math::amm::get_update_k_result;
 use crate::state::market::Market;
 use crate::state::{market::AMM, order_state::*, state::*, user::*};
+
+use crate::controller::position::get_proportion;
 use std::borrow::Borrow;
 
 mod account_loader;
@@ -784,13 +786,6 @@ pub mod clearing_house {
             return Ok(());
         }
 
-        let lp_share = |v: i128| -> Result<i128> {
-            let _sign: i128 = if v > 0 { 1 } else { -1 };
-            let lp_v =
-                cast_to_i128(v.unsigned_abs() * lp_tokens_to_burn / total_lp_tokens)? * _sign;
-            Ok(lp_v)
-        };
-
         // todo: add ok_or_else(math_error) to all these
         let net_base_asset_amount_delta = lp_position
             .last_net_base_asset_amount
@@ -798,7 +793,11 @@ pub mod clearing_house {
             .ok_or_else(math_error!())?;
 
         if net_base_asset_amount_delta != 0 {
-            let base_asset_amount = lp_share(net_base_asset_amount_delta)?;
+            let base_asset_amount = get_proportion(
+                net_base_asset_amount_delta,
+                lp_tokens_to_burn,
+                total_lp_tokens,
+            )?;
 
             let swap_direction = match net_base_asset_amount_delta > 0 {
                 true => SwapDirection::Remove,
@@ -844,11 +843,18 @@ pub mod clearing_house {
             lp_position.base_asset_amount = 0;
         }
 
-        // todo: ... pay the lp ... (bank balance?)
         // give them fees
         let fee_delta = cast_to_i128(market.amm.total_fee_minus_distributions)?
-            - cast_to_i128(lp_position.last_total_fee_minus_distributions)?;
-        let lp_fee_amount = lp_share(fee_delta)?;
+            .checked_sub(cast_to_i128(
+                lp_position.last_total_fee_minus_distributions,
+            )?)
+            .ok_or_else(math_error!())?;
+        let lp_fee_amount = get_proportion(fee_delta, lp_tokens_to_burn, total_lp_tokens)?;
+
+        lp_position.unsettled_pnl = lp_position
+            .unsettled_pnl
+            .checked_add(lp_fee_amount)
+            .ok_or_else(math_error!())?;
 
         // give them the funding
         let funding_delta = market
@@ -856,8 +862,12 @@ pub mod clearing_house {
             .cumulative_funding_rate_lp
             .checked_sub(lp_position.last_cumulative_funding_rate)
             .ok_or_else(math_error!())?;
+        let funding_payment = get_proportion(funding_delta, lp_tokens_to_burn, total_lp_tokens)?;
 
-        let funding_payment = lp_share(funding_delta)?;
+        lp_position.unsettled_pnl = lp_position
+            .unsettled_pnl
+            .checked_add(funding_payment)
+            .ok_or_else(math_error!())?;
 
         // update lp position => market position
         lp_position.lp_tokens = 0;
@@ -944,10 +954,16 @@ pub mod clearing_house {
             .or_else(|_| add_new_position(&mut user.positions, market_index))?;
         let lp_position = &mut user.positions[position_index];
 
+        // user cannot have an open position
+        validate!(
+            lp_position.base_asset_amount == 0,
+            ErrorCode::CantLPWithMarketPosition
+        )?;
+
         // distribute lp tokens to lp
-        let user_lp_tokens = quote_asset_amount * AMM_TO_QUOTE_PRECISION_RATIO
+        let user_lp_tokens = quote_asset_amount * AMM_TO_QUOTE_PRECISION_RATIO * PEG_PRECISION
             / 2
-            / (market.amm.peg_multiplier / PEG_PRECISION); // todo: change from peg to mark price?
+            / market.amm.peg_multiplier; // todo: change from peg to mark price?
 
         // update market state
         let new_sqrt_k = market

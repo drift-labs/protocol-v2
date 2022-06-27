@@ -173,7 +173,7 @@ pub fn update_funding_rate(
         let (funding_rate_long, funding_rate_short) =
             calculate_funding_rate_long_short(market, funding_rate)?;
 
-        // lp funding 
+        // lp funding
         let amm_net_position = -market.amm.net_base_asset_amount;
         let funding_rate_lp = if amm_net_position < 0 {
             calculate_funding_payment_in_quote_precision(funding_rate_short, amm_net_position)?
