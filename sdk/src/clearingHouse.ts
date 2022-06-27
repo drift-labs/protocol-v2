@@ -903,6 +903,7 @@ export class ClearingHouse {
 
 		const marketIndexes = [];
 		const userPositions = user.positions;
+		let isInPosition = false;
 		for (const position of userPositions) {
 			// console.log(position);
 			if (!positionIsAvailable(position)) {
@@ -911,12 +912,16 @@ export class ClearingHouse {
 				// 	position.marketIndex
 				// );
 				marketIndexes.push(position.marketIndex);
+				if (orderParams.marketIndex.eq(position.marketIndex)) {
+					isInPosition = true;
+				}
 			}
 		}
 
-		if (!marketIndexes.includes(orderParams.marketIndex)) {
+		if (!isInPosition) {
 			marketIndexes.push(orderParams.marketIndex);
 		}
+		// console.log(marketIndexes);
 
 		const instr0 = ComputeBudgetProgram.requestUnits({
 			units: 400000,

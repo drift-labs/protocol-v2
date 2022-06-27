@@ -235,12 +235,16 @@ describe('prepeg', () => {
 				.getUserAccount()
 				.positions[0].quoteAssetAmount.gt(new BN(49750001))
 		);
-		console.log(clearingHouse.getUserAccount().positions[0].baseAssetAmount);
+		console.log(
+			clearingHouse.getUserAccount().positions[0].baseAssetAmount.toString()
+		);
 		assert.ok(
 			clearingHouse
 				.getUserAccount()
 				.positions[0].baseAssetAmount.eq(baseAssetAmount)
 		);
+
+		console.log('sqrtK:', market.amm.sqrtK.toString());
 
 		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(497450503674885)));
 		assert.ok(market.baseAssetAmountLong.eq(new BN(497450503674885)));
@@ -266,6 +270,7 @@ describe('prepeg', () => {
 		const marketIndex = new BN(0);
 		const baseAssetAmount = new BN(497450503674885 / 50);
 		const market0 = clearingHouse.getMarketAccount(0);
+
 		await setFeedPrice(anchor.workspace.Pyth, 1.0281, solUsd);
 		const curPrice = (await getFeedData(anchor.workspace.Pyth, solUsd)).price;
 		console.log('new oracle price:', curPrice);
@@ -308,9 +313,9 @@ describe('prepeg', () => {
 			baseAssetAmount,
 			false
 		);
-		const _txSig0 = await clearingHouse.updateAMMs([new BN(0)]);
+		// const _txSig0 = await clearingHouse.updateAMMs([new BN(0)]);
 
-		const txSig = await clearingHouse.placeAndFillOrder(orderParams);
+		const txSig = await clearingHouse.updateAndPlaceAndFillOrder(orderParams);
 		const computeUnits = await findComputeUnitConsumption(
 			clearingHouse.program.programId,
 			connection,
@@ -361,7 +366,7 @@ describe('prepeg', () => {
 
 		// check prepeg and post trade worked as expected
 		assert(prepegAMM.sqrtK.eq(market.amm.sqrtK)); // predicted k = post trade k
-		assert(actualDist.sub(estDist).abs().lte(new BN(1))); // cost is near equal
+		assert(actualDist.sub(estDist).abs().lte(new BN(4))); // cost is near equal
 		assert(market.amm.sqrtK.lt(market0.amm.sqrtK)); // k was lowered
 
 		// curPrice = (await getFeedData(anchor.workspace.Pyth, solUsd)).price;
@@ -426,9 +431,9 @@ describe('prepeg', () => {
 			'after trade est. mark price:',
 			convertToNumber(newPrice)
 		);
-		const _txSig0 = await clearingHouse.updateAMMs([new BN(0)]);
+		// const _txSig0 = await clearingHouse.updateAMMs([new BN(0)]);
 
-		const txSig = await clearingHouse.placeAndFillOrder(orderParams);
+		const txSig = await clearingHouse.updateAndPlaceAndFillOrder(orderParams);
 		const computeUnits = await findComputeUnitConsumption(
 			clearingHouse.program.programId,
 			connection,
@@ -533,16 +538,16 @@ describe('prepeg', () => {
 				'after trade est. mark price:',
 				convertToNumber(newPrice)
 			);
-			const _txSig0 = await clearingHouse.updateAMMs([
-				new BN(0),
-				new BN(1),
-				new BN(2),
-				new BN(3),
-				// new BN(4),
-			]);
-			const _txSig00 = await clearingHouse.updateAMMs([new BN(4)]);
+			// const _txSig0 = await clearingHouse.updateAMMs([
+			// 	new BN(0),
+			// 	new BN(1),
+			// 	new BN(2),
+			// 	new BN(3),
+			// 	// new BN(4),
+			// ]);
+			// const _txSig00 = await clearingHouse.updateAMMs([new BN(4)]);
 
-			const txSig = await clearingHouse.placeAndFillOrder(orderParams);
+			const txSig = await clearingHouse.updateAndPlaceAndFillOrder(orderParams);
 			const computeUnits = await findComputeUnitConsumption(
 				clearingHouse.program.programId,
 				connection,
@@ -598,16 +603,16 @@ describe('prepeg', () => {
 			user.positions[0].baseAssetAmount.div(new BN(2)),
 			false
 		);
-		const _txSig0 = await clearingHouse.updateAMMs([
-			new BN(0),
-			new BN(1),
-			new BN(2),
-			new BN(3),
-			// new BN(4),
-		]);
-		const _txSig00 = await clearingHouse.updateAMMs([new BN(4)]);
+		// const _txSig0 = await clearingHouse.updateAMMs([
+		// 	new BN(0),
+		// 	new BN(1),
+		// 	new BN(2),
+		// 	new BN(3),
+		// 	// new BN(4),
+		// ]);
+		// const _txSig00 = await clearingHouse.updateAMMs([new BN(4)]);
 
-		const txSig = await clearingHouse.placeAndFillOrder(orderParams);
+		const txSig = await clearingHouse.updateAndPlaceAndFillOrder(orderParams);
 		const computeUnits = await findComputeUnitConsumption(
 			clearingHouse.program.programId,
 			connection,
