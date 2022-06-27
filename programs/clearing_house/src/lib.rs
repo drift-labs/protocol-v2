@@ -52,14 +52,14 @@ pub mod clearing_house {
     use crate::math::slippage::{calculate_slippage, calculate_slippage_pct};
     use crate::optional_accounts::{get_discount_token, get_referrer, get_referrer_for_fill_order};
     use crate::state::bank::{Bank, BankBalance, BankBalanceType};
-    use crate::state::bank_map::{get_writable_banks, BankMap};
+    use crate::state::bank_map::{get_writable_banks, BankMap, WritableBanks};
     use crate::state::events::TradeRecord;
     use crate::state::events::{CurveRecord, DepositRecord};
     use crate::state::events::{DepositDirection, LiquidationRecord};
     use crate::state::market::{Market, PNLPool};
     use crate::state::market_map::{
         get_market_oracles, get_writable_markets, get_writable_markets_for_user_positions,
-        get_writable_markets_list, MarketMap, MarketOracles, WritableMarkets,
+        get_writable_markets_list, MarketMap, MarketOracles, WritableMarkets
     };
     use crate::state::oracle::OraclePriceData;
     use crate::state::oracle_map::OracleMap;
@@ -1227,7 +1227,7 @@ pub mod clearing_house {
     pub fn place_order(ctx: Context<PlaceOrder>, params: OrderParams) -> Result<()> {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let _oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
-        let _bank_map = BankMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
+        let _bank_map = BankMap::load(&WritableBanks::new(), remaining_accounts_iter)?;
         let market_map = MarketMap::load(
             &WritableMarkets::new(),
             &get_market_oracles(params.market_index, &ctx.accounts.oracle),
@@ -1494,8 +1494,8 @@ pub mod clearing_house {
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]
-    pub fn update_amm(ctx: Context<UpdateAMM>, market_indexes: [u64; 5]) -> Result<()> {
-        // ~60k compute units
+    pub fn update_amms(ctx: Context<UpdateAMM>, market_indexes: [u64; 5]) -> Result<()> {
+        // up to ~60k compute units (per amm) worst case
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let clock = Clock::get()?;

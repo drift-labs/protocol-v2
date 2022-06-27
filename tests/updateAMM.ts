@@ -182,7 +182,7 @@ describe('update amm', () => {
 			'after trade est. mark price:',
 			convertToNumber(newPrice)
 		);
-		const txSig = await clearingHouse.updateAMM([marketIndex]);
+		const txSig = await clearingHouse.updateAMMs([marketIndex]);
 		const computeUnits = await findComputeUnitConsumption(
 			clearingHouse.program.programId,
 			connection,
@@ -279,7 +279,7 @@ describe('update amm', () => {
 				'after trade est. mark price:',
 				convertToNumber(newPrice)
 			);
-			const txSig = await clearingHouse.placeAndFillOrder(orderParams);
+			const txSig = await clearingHouse.updateAndPlaceAndFillOrder(orderParams);
 			const computeUnits = await findComputeUnitConsumption(
 				clearingHouse.program.programId,
 				connection,
@@ -365,46 +365,68 @@ describe('update amm', () => {
 		}
 
 		// bulk market update number 1
-		const txSig = await clearingHouse.updateAMM([
-			new BN(0),
-			new BN(1),
-			new BN(2),
-			new BN(3),
-			// new BN(4),
-		]);
-		const computeUnits = await findComputeUnitConsumption(
-			clearingHouse.program.programId,
-			connection,
-			txSig,
-			'confirmed'
-		);
-		console.log('compute units', computeUnits);
-		assert(computeUnits[0] < 200000);
-		console.log(
-			'tx logs',
-			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
-				.logMessages
-		);
+		// const txSig = await clearingHouse.updateAMMs([
+		// 	new BN(0),
+		// 	new BN(1),
+		// 	new BN(2),
+		// 	// new BN(3),
+		// 	// new BN(4),
+		// ]);
+		// const computeUnits = await findComputeUnitConsumption(
+		// 	clearingHouse.program.programId,
+		// 	connection,
+		// 	txSig,
+		// 	'confirmed'
+		// );
 
-		// TODO bulk market update number 2
-		const txSig2 = await clearingHouse.updateAMM([
-			// new BN(0),
-			// new BN(1),
-			// new BN(2),
-			// new BN(3),
+		// console.log(
+		// 	'tx logs',
+		// 	(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
+		// 		.logMessages
+		// );
+		// console.log('compute units', computeUnits);
+		// assert(computeUnits[0] < 200000);
+		// // TODO bulk market update number 2
+		// const txSig2 = await clearingHouse.updateAMMs([
+		// 	// new BN(0),
+		// 	// new BN(1),
+		// 	// new BN(2),
+		// 	new BN(3),
+		// 	new BN(4),
+		// ]);
+		// const computeUnits2 = await findComputeUnitConsumption(
+		// 	clearingHouse.program.programId,
+		// 	connection,
+		// 	txSig,
+		// 	'confirmed'
+		// );
+		// console.log('compute units', computeUnits2);
+		// assert(computeUnits2[0] < 200000);
+		// console.log(
+		// 	'tx logs',
+		// 	(await connection.getTransaction(txSig2, { commitment: 'confirmed' }))
+		// 		.meta.logMessages
+		// );
+
+		const orderParams = getMarketOrderParams(
 			new BN(4),
-		]);
-		const computeUnits2 = await findComputeUnitConsumption(
-			clearingHouse.program.programId,
-			connection,
-			txSig,
-			'confirmed'
+			PositionDirection.SHORT,
+			ZERO,
+			AMM_RESERVE_PRECISION,
+			false
 		);
-		console.log('compute units', computeUnits2);
-		assert(computeUnits2[0] < 200000);
+		const txSig3 = await clearingHouse.updateAndPlaceAndFillOrder(orderParams);
+		// const computeUnits3 = await findComputeUnitConsumption(
+		// 	clearingHouse.program.programId,
+		// 	connection,
+		// 	txSig3,
+		// 	'confirmed'
+		// );
+		// console.log('compute units', computeUnits3);
+		// assert(computeUnits3[0] < 400000);
 		console.log(
 			'tx logs',
-			(await connection.getTransaction(txSig2, { commitment: 'confirmed' }))
+			(await connection.getTransaction(txSig3, { commitment: 'confirmed' }))
 				.meta.logMessages
 		);
 

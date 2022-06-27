@@ -4,7 +4,7 @@ import { BN, getMarketOrderParams, ONE, OracleSource, ZERO } from '../sdk';
 
 import { Program } from '@project-serum/anchor';
 
-import { PublicKey, Transaction } from '@solana/web3.js';
+import { PublicKey, Transaction, ComputeBudgetProgram } from '@solana/web3.js';
 import {
 	Admin,
 	MARK_PRICE_PRECISION,
@@ -177,9 +177,13 @@ describe('prepeg', () => {
 			baseAssetAmount,
 			false
 		);
-		const instr1 = await clearingHouse.getUpdateAMMIx([new BN(0)]);
+		const instr0 = ComputeBudgetProgram.requestUnits({
+			units: 400000,
+			additionalFee: 0,
+		});
+		const instr1 = await clearingHouse.getUpdateAMMsIx([new BN(0)]);
 		const instr2 = await clearingHouse.getPlaceAndFillOrderIx(orderParams);
-		const transaction = new Transaction().add(instr1).add(instr2);
+		const transaction = new Transaction().add(instr0).add(instr1).add(instr2);
 
 		const { txSig, slot } = await clearingHouse.txSender.send(
 			transaction,

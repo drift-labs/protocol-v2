@@ -23,6 +23,7 @@ import {
 	Transaction,
 	TransactionInstruction,
 	AccountMeta,
+	ComputeBudgetProgram,
 } from '@solana/web3.js';
 
 import { MockUSDCFaucet } from './mockUSDCFaucet';
@@ -879,19 +880,56 @@ export class ClearingHouse {
 		});
 	}
 
-	public async updateAMM(marketIndexes: BN[]): Promise<TransactionSignature> {
+	public async updateAMMs(marketIndexes: BN[]): Promise<TransactionSignature> {
 		// for (let i = marketIndexes.length; i < 5; i++) {
 		// 	marketIndexes.push(new BN(100));
 		// }
 		const { txSig } = await this.txSender.send(
-			wrapInTx(await this.getUpdateAMMIx(marketIndexes)),
+			wrapInTx(await this.getUpdateAMMsIx(marketIndexes)),
 			[],
 			this.opts
 		);
 		return txSig;
 	}
 
-	public async getUpdateAMMIx(
+	public async updateAndPlaceAndFillOrder(
+		orderParams: OrderParams
+	): Promise<TransactionSignature> {
+		const userAccountPublicKey = await this.getUserAccountPublicKey();
+
+		const user = (await this.program.account.user.fetch(
+			userAccountPublicKey
+		)) as UserAccount;
+
+		const marketIndexes = [];
+		const userPositions = user.positions;
+		for (const position of userPositions) {
+			// console.log(position);
+			if (!positionIsAvailable(position)) {
+				// const marketPublicKey = await getMarketPublicKey(
+				// 	this.program.programId,
+				// 	position.marketIndex
+				// );
+				marketIndexes.push(position.marketIndex);
+			}
+		}
+
+		if (!marketIndexes.includes(orderParams.marketIndex)) {
+			marketIndexes.push(orderParams.marketIndex);
+		}
+
+		const instr0 = ComputeBudgetProgram.requestUnits({
+			units: 400000,
+			additionalFee: 0,
+		});
+		const instr1 = await this.getUpdateAMMsIx(marketIndexes);
+		const instr2 = await this.getPlaceAndFillOrderIx(orderParams);
+		const transaction = new Transaction().add(instr0).add(instr1).add(instr2);
+		const { txSig } = await this.txSender.send(transaction, [], this.opts);
+		return txSig;
+	}
+
+	public async getUpdateAMMsIx(
 		marketIndexes: BN[]
 	): Promise<TransactionInstruction> {
 		for (let i = marketIndexes.length; i < 5; i++) {
@@ -915,12 +953,8 @@ export class ClearingHouse {
 		for (const marketIndex of marketIndexes) {
 			if (!marketIndex.eq(new BN(100))) {
 				const market = this.getMarketAccount(marketIndex);
-				const marketPublicKey = await getMarketPublicKey(
-					this.program.programId,
-					marketIndex
-				);
 				marketAccountInfos.push({
-					pubkey: marketPublicKey,
+					pubkey: market.pubkey,
 					isWritable: true,
 					isSigner: false,
 				});
@@ -936,7 +970,7 @@ export class ClearingHouse {
 		);
 
 		// console.log('remainingAccounts:', remainingAccounts);
-		return await this.program.instruction.updateAmm(marketIndexes, {
+		return await this.program.instruction.updateAmms(marketIndexes, {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				// user: userAccountPublicKey,

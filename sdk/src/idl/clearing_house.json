@@ -673,7 +673,7 @@
       ]
     },
     {
-      "name": "updateAmm",
+      "name": "updateAmms",
       "accounts": [
         {
           "name": "state",
