@@ -1,10 +1,11 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
-import { BN, ClearingHouseUser, QUOTE_ASSET_BANK_INDEX, QUOTE_PRECISION } from '../sdk';
+import { BN, ClearingHouseUser, OracleSource, QUOTE_ASSET_BANK_INDEX, QUOTE_PRECISION, Wallet } from '../sdk';
       
 import { Program } from '@project-serum/anchor';
 
 import { PublicKey } from '@solana/web3.js';
+import * as web3 from '@solana/web3.js'; 
 
 import {
 	Admin,
@@ -52,7 +53,10 @@ describe('liquidity providing', () => {
 
 	const usdcAmount = new BN(30 * 10 ** 8);
 
+    let traderClearingHouse: Admin;
+    let traderUser: ClearingHouseUser; 
     let clearingHouseUser: ClearingHouseUser;
+
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
@@ -71,9 +75,15 @@ describe('liquidity providing', () => {
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
 
+
+		let solusdc = await mockOracle(1);
+        const oracleInfos = [
+            { publicKey: solusdc, source: OracleSource.PYTH }
+        ]; 
+
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
 		await clearingHouse.initializeMarket(
-			await mockOracle(1),
+            solusdc, 
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			new BN(0)
@@ -87,12 +97,50 @@ describe('liquidity providing', () => {
 
         clearingHouseUser = ClearingHouseUser.from(clearingHouse, provider.wallet.publicKey)
         clearingHouseUser.subscribe()
+
+        // setup a new user to trade against lp
+        let traderKp = new web3.Keypair(); 
+        const sig = await provider.connection.requestAirdrop(traderKp.publicKey, 10**9);
+        await provider.connection.confirmTransaction(sig)
+        let traderUSDCAccount = await mockUserUSDCAccount(
+            usdcMint, 
+            usdcAmount, 
+            provider, 
+            traderKp.publicKey
+        );
+        
+        traderClearingHouse = ClearingHouse.from(
+            provider.connection, 
+            new Wallet(traderKp), 
+            chProgram.programId, 
+            {
+                commitment: 'confirmed'
+            }, 
+            0, 
+			[new BN(0), new BN(1), new BN(2), new BN(3), new BN(4)],
+			[new BN(0)], 
+            oracleInfos
+        )
+        await traderClearingHouse.subscribe(); 
+
+        let traderAccountPk = await traderClearingHouse.initializeUserAccountAndDepositCollateral(
+            usdcAmount,
+            traderUSDCAccount.publicKey,
+        )
+
+        traderUser = ClearingHouseUser.from(
+            traderClearingHouse, 
+            traderKp.publicKey
+        );
+        await traderUser.subscribe()
 	});
 
 	after(async () => {
 		await clearingHouse.unsubscribe();
 		await eventSubscriber.unsubscribe();
         await clearingHouseUser.unsubscribe();
+        await traderClearingHouse.unsubscribe();
+        await traderUser.unsubscribe(); 
 	});
 
     // adds lp when 
@@ -108,7 +156,7 @@ describe('liquidity providing', () => {
         console.log('adding liquidity...')
         await chProgram.methods
             .addLiquidity(
-                new BN(100), 
+                new BN(100 * 1e6), 
                 new BN(0), 
             )
             .accounts({
@@ -126,6 +174,10 @@ describe('liquidity providing', () => {
 
 		//var market = await chProgram.account.market.fetch(market.pubkey);
 		market = clearingHouse.getMarketAccount(0);
+        console.log(market.amm.sqrtK.toString())
+        console.log(market.amm.baseAssetReserve.toString())
+        console.log(market.amm.quoteAssetReserve.toString())
+
         assert(prevSqrtK.lt(market.amm.sqrtK)) // k increases = more liquidity 
         assert(prevqar.lt(market.amm.quoteAssetReserve));
         assert(prevbar.lt(market.amm.baseAssetReserve));
@@ -161,6 +213,7 @@ describe('liquidity providing', () => {
 
         // rounding off by one :(
         console.log('asset reserves:')
+        console.log(prevSqrtK.toString(), market.amm.sqrtK.toString());
         console.log(prevbar.toString(), market.amm.baseAssetReserve.toString());
         console.log(prevqar.toString(), market.amm.quoteAssetReserve.toString());
         
@@ -179,7 +232,7 @@ describe('liquidity providing', () => {
         console.log('adding liquidity...')
         await chProgram.methods
             .addLiquidity(
-                new BN(100), 
+                new BN(100 * 1e6), 
                 new BN(0), 
             )
             .accounts({
@@ -196,7 +249,7 @@ describe('liquidity providing', () => {
             .rpc()
     
         // some user goes long (lp should get a short)
-        await clearingHouse.openPosition(
+        await traderClearingHouse.openPosition(
             PositionDirection.LONG,
             new BN(100 * 1e6),
             new BN(0)
@@ -227,14 +280,10 @@ describe('liquidity providing', () => {
         assert(lp_token_amount.eq(new BN(0)))
         assert(prevSqrtK.eq(market.amm.sqrtK))
 
-        // rounding off by one :(
-        console.log('asset reserves:')
-        console.log(prevbar.toString(), market.amm.baseAssetReserve.toString());
-        console.log(prevqar.toString(), market.amm.quoteAssetReserve.toString());
-        
-        //assert(prevbar.eq(market.amm.baseAssetReserve))
-        //assert(prevqar.eq(market.amm.quoteAssetReserve))
-        //assert(prevSqrtK.eq(market.amm.sqrtK))
+        assert(user.positions[0].baseAssetAmount.lt(new BN(0))) // lp is short )
+        assert(!user.positions[0].quoteAssetAmount.eq(new BN(0)))
+        assert(user.positions[0].lpTokens.eq(new BN(0))) // tokens are burned 
+
     });
   
 });

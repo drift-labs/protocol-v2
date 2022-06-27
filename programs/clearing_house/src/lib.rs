@@ -13,6 +13,7 @@ use state::oracle::{get_oracle_price, OracleSource};
 use crate::math::amm::get_update_k_result;
 use crate::state::market::Market;
 use crate::state::{market::AMM, order_state::*, state::*, user::*};
+use std::borrow::Borrow;
 
 mod account_loader;
 pub mod context;
@@ -33,6 +34,7 @@ declare_id!("4kApqj1TdRVxK8kPEJ2SDs8aGq53YPnDA4cVxTUuqRkK");
 
 #[program]
 pub mod clearing_house {
+    use std::borrow::BorrowMut;
     use std::cmp::min;
     use std::ops::Div;
     use std::option::Option::Some;
@@ -753,10 +755,7 @@ pub mod clearing_house {
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]
-    pub fn remove_liquidity<'info>(
-        ctx: Context<OpenPosition>,
-        market_index: u64,
-    ) -> Result<()> {
+    pub fn remove_liquidity<'info>(ctx: Context<OpenPosition>, market_index: u64) -> Result<()> {
         let user = &mut load_mut(&ctx.accounts.user)?;
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
 
@@ -769,12 +768,12 @@ pub mod clearing_house {
 
         let position_index = get_position_index(&user.positions, market_index)?;
         let lp_position = &mut user.positions[position_index];
-        
-        // todo: impl not burning all the tokens 
-        // todo: settle fcn with no burning 
-        let lp_tokens_to_burn = lp_position.lp_tokens; 
+
+        // todo: impl not burning all the tokens
+        // todo: settle fcn with no burning
+        let lp_tokens_to_burn = lp_position.lp_tokens;
         let total_lp_tokens = market.amm.sqrt_k;
-        
+
         validate!(
             lp_position.lp_tokens <= lp_tokens_to_burn,
             ErrorCode::InsufficientLPTokens,
@@ -793,9 +792,9 @@ pub mod clearing_house {
         };
 
         // todo: add ok_or_else(math_error) to all these
-        let net_base_asset_amount_delta = 
-            market.amm.net_base_asset_amount
-            .checked_sub(lp_position.last_net_base_asset_amount)
+        let net_base_asset_amount_delta = lp_position
+            .last_net_base_asset_amount
+            .checked_sub(market.amm.net_base_asset_amount)
             .ok_or_else(math_error!())?;
 
         if net_base_asset_amount_delta != 0 {
@@ -816,68 +815,94 @@ pub mod clearing_house {
             // avoid overflow - note: sign doesnt matter
             let net_quote_asset_amount_delta =
                 if new_quote_asset_reserve > market.amm.quote_asset_reserve {
-                    new_quote_asset_reserve - market.amm.quote_asset_reserve
+                    new_quote_asset_reserve
+                        .checked_sub(market.amm.quote_asset_reserve)
+                        .ok_or_else(math_error!())?
                 } else {
-                    market.amm.quote_asset_reserve - new_quote_asset_reserve
+                    market
+                        .amm
+                        .quote_asset_reserve
+                        .checked_sub(new_quote_asset_reserve)
+                        .ok_or_else(math_error!())?
                 };
-            let quote_asset_amount = net_quote_asset_amount_delta * lp_tokens_to_burn
-                / total_lp_tokens
-                * market.amm.peg_multiplier
-                / AMM_TO_QUOTE_PRECISION_RATIO;
+            let quote_asset_amount = net_quote_asset_amount_delta
+                .checked_mul(lp_tokens_to_burn)
+                .ok_or_else(math_error!())?
+                .checked_div(total_lp_tokens)
+                .ok_or_else(math_error!())?
+                .checked_mul(market.amm.peg_multiplier)
+                .ok_or_else(math_error!())?
+                .checked_div(AMM_TO_QUOTE_PRECISION_RATIO)
+                .ok_or_else(math_error!())?;
 
+            // give market position
             lp_position.quote_asset_amount = quote_asset_amount;
             lp_position.base_asset_amount = base_asset_amount;
-        } else { 
+        } else {
             // zero these out so last_cum_fund doesnt matter for settling
-            lp_position.quote_asset_amount = 0; 
-            lp_position.base_asset_amount = 0; 
+            lp_position.quote_asset_amount = 0;
+            lp_position.base_asset_amount = 0;
         }
 
         // todo: ... pay the lp ... (bank balance?)
         // give them fees
-        let fee_delta = 
-            cast_to_i128(market.amm.total_fee_minus_distributions)?
+        let fee_delta = cast_to_i128(market.amm.total_fee_minus_distributions)?
             - cast_to_i128(lp_position.last_total_fee_minus_distributions)?;
         let lp_fee_amount = lp_share(fee_delta)?;
 
         // give them the funding
-        let funding_delta =
-            market.amm.cumulative_funding_rate_lp 
-            - lp_position.last_cumulative_funding_rate;
+        let funding_delta = market
+            .amm
+            .cumulative_funding_rate_lp
+            .checked_sub(lp_position.last_cumulative_funding_rate)
+            .ok_or_else(math_error!())?;
+
         let funding_payment = lp_share(funding_delta)?;
 
-        // update lp position => market position 
+        // update lp position => market position
         lp_position.lp_tokens = 0;
         lp_position.last_cumulative_funding_rate = if lp_position.base_asset_amount > 0 {
             market.amm.cumulative_funding_rate_long
-        } else { 
+        } else {
             market.amm.cumulative_funding_rate_short
         };
 
-        // update market
-        let reserve_scale = 
-            (
-                total_lp_tokens 
-                - lp_tokens_to_burn
-            ) 
-            * AMM_RESERVE_PRECISION 
-            / total_lp_tokens;
-
-        market.amm.base_asset_reserve = market.amm.base_asset_reserve
-            .checked_mul(reserve_scale)
-            .ok_or_else(math_error!())?
-            .checked_div(AMM_RESERVE_PRECISION)
-            .ok_or_else(math_error!())?;
-
-        market.amm.quote_asset_reserve = market.amm.quote_asset_reserve
-            .checked_mul(reserve_scale)
-            .ok_or_else(math_error!())?
-            .checked_div(AMM_RESERVE_PRECISION)
-            .ok_or_else(math_error!())?;
-
-        market.amm.sqrt_k = market.amm.sqrt_k
+        // update market state
+        let new_sqrt_k = market
+            .amm
+            .sqrt_k
             .checked_sub(lp_tokens_to_burn)
             .ok_or_else(math_error!())?;
+        let new_sqrt_k_u192 = bn::U192::from(new_sqrt_k);
+
+        let update_k_result = get_update_k_result(market.borrow(), new_sqrt_k_u192)?;
+        math::amm::update_k(market.borrow_mut(), &update_k_result);
+
+        //// update market
+        //let reserve_scale =
+        //total_lp_tokens
+        //.checked_sub(lp_tokens_to_burn)
+        //.ok_or_else(math_error!())?
+        //.checked_mul(AMM_RESERVE_PRECISION)
+        //.ok_or_else(math_error!())?
+        //.checked_div(total_lp_tokens)
+        //.ok_or_else(math_error!())?;
+
+        //market.amm.base_asset_reserve = market.amm.base_asset_reserve
+        //.checked_mul(reserve_scale)
+        //.ok_or_else(math_error!())?
+        //.checked_div(AMM_RESERVE_PRECISION)
+        //.ok_or_else(math_error!())?;
+
+        //market.amm.quote_asset_reserve = market.amm.quote_asset_reserve
+        //.checked_mul(reserve_scale)
+        //.ok_or_else(math_error!())?
+        //.checked_div(AMM_RESERVE_PRECISION)
+        //.ok_or_else(math_error!())?;
+
+        //market.amm.sqrt_k = market.amm.sqrt_k
+        //.checked_sub(lp_tokens_to_burn)
+        //.ok_or_else(math_error!())?;
 
         Ok(())
     }
@@ -904,7 +929,7 @@ pub mod clearing_house {
         //     &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
         //     remaining_accounts_iter,
         // )?;
-    
+
         let market_map = MarketMap::load(
             &get_writable_markets(market_index),
             &get_market_oracles(market_index, &ctx.accounts.oracle),
@@ -913,7 +938,7 @@ pub mod clearing_house {
         let mut market = market_map.get_ref_mut(&market_index)?;
 
         // TODO: margin requirements
-        // only 1x leverage fn 
+        // only 1x leverage fn
 
         let position_index = get_position_index(&user.positions, market_index)
             .or_else(|_| add_new_position(&mut user.positions, market_index))?;
@@ -925,24 +950,41 @@ pub mod clearing_house {
             / (market.amm.peg_multiplier / PEG_PRECISION); // todo: change from peg to mark price?
 
         // update market state
-        let total_lp_tokens = market.amm.sqrt_k;
-        let reserve_scale = ((total_lp_tokens + user_lp_tokens) * AMM_RESERVE_PRECISION) / total_lp_tokens;
-
-        market.amm.base_asset_reserve = market.amm.base_asset_reserve
-            .checked_mul(reserve_scale)
-            .ok_or_else(math_error!())?
-            .checked_div(AMM_RESERVE_PRECISION)
-            .ok_or_else(math_error!())?;
-
-        market.amm.quote_asset_reserve = market.amm.quote_asset_reserve
-            .checked_mul(reserve_scale)
-            .ok_or_else(math_error!())?
-            .checked_div(AMM_RESERVE_PRECISION)
-            .ok_or_else(math_error!())?;
-
-        market.amm.sqrt_k = market.amm.sqrt_k
+        let new_sqrt_k = market
+            .amm
+            .sqrt_k
             .checked_add(user_lp_tokens)
             .ok_or_else(math_error!())?;
+        let new_sqrt_k_u192 = bn::U192::from(new_sqrt_k);
+
+        let update_k_result = get_update_k_result(market.borrow(), new_sqrt_k_u192)?;
+        math::amm::update_k(market.borrow_mut(), &update_k_result);
+
+        //let total_lp_tokens = market.amm.sqrt_k;
+        //let reserve_scale =
+        //((total_lp_tokens + user_lp_tokens) * AMM_RESERVE_PRECISION) / total_lp_tokens;
+
+        //market.amm.base_asset_reserve = market
+        //.amm
+        //.base_asset_reserve
+        //.checked_mul(reserve_scale)
+        //.ok_or_else(math_error!())?
+        //.checked_div(AMM_RESERVE_PRECISION)
+        //.ok_or_else(math_error!())?;
+
+        //market.amm.quote_asset_reserve = market
+        //.amm
+        //.quote_asset_reserve
+        //.checked_mul(reserve_scale)
+        //.ok_or_else(math_error!())?
+        //.checked_div(AMM_RESERVE_PRECISION)
+        //.ok_or_else(math_error!())?;
+
+        //market.amm.sqrt_k = market
+        //.amm
+        //.sqrt_k
+        //.checked_add(user_lp_tokens)
+        //.ok_or_else(math_error!())?;
 
         // update lp position
         lp_position.lp_tokens = user_lp_tokens;
