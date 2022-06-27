@@ -210,18 +210,18 @@ export async function initializeAndSubscribeClearingHouse(
 	bankIndexes: BN[],
 	oracleInfos: OracleInfo[] = []
 ): Promise<ClearingHouse> {
-	const clearingHouse = ClearingHouse.from(
+	const clearingHouse = new ClearingHouse({
 		connection,
-		new Wallet(userKeyPair),
-		program.programId,
-		{
+		wallet: new Wallet(userKeyPair),
+		programID: program.programId,
+		opts: {
 			commitment: 'confirmed',
 		},
-		0,
+		activeUserId: 0,
 		marketIndexes,
 		bankIndexes,
-		oracleInfos
-	);
+		oracleInfos,
+	});
 	await clearingHouse.subscribe();
 	await clearingHouse.initializeUserAccount();
 	return clearingHouse;
@@ -358,7 +358,7 @@ export async function initUserAccounts(
 	provider: Provider,
 	marketIndexes: BN[],
 	bankIndexes: BN[],
-	oracleInfos: BN[]
+	oracleInfos: OracleInfo[]
 ) {
 	const user_keys = [];
 	const userUSDCAccounts = [];
@@ -383,19 +383,19 @@ export async function initUserAccounts(
 
 		const chProgram = anchor.workspace.ClearingHouse as anchor.Program; // this.program-ify
 
-		const clearingHouse1 = ClearingHouse.from(
-			provider.connection,
+		const clearingHouse1 = new ClearingHouse({
+			connection: provider.connection,
 			//@ts-ignore
-			ownerWallet,
-			chProgram.programId,
-			{
+			wallet: ownerWallet,
+			programID: chProgram.programId,
+			opts: {
 				commitment: 'confirmed',
 			},
-			0,
+			activeUserId: 0,
 			marketIndexes,
 			bankIndexes,
-			oracleInfos
-		);
+			oracleInfos,
+		});
 
 		// await clearingHouse1.initialize(usdcMint.publicKey, false);
 		await clearingHouse1.subscribe();
@@ -413,10 +413,10 @@ export async function initUserAccounts(
 			);
 
 		// const userAccount = 0;
-		const userAccount = ClearingHouseUser.from(
-			clearingHouse1,
-			ownerWallet.publicKey
-		);
+		const userAccount = new ClearingHouseUser({
+			clearingHouse: clearingHouse1,
+			userAccountPublicKey: await clearingHouse1.getUserAccountPublicKey(),
+		});
 		await userAccount.subscribe();
 
 		userAccountInfos.push(userAccount);

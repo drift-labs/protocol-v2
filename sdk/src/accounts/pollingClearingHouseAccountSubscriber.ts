@@ -20,26 +20,19 @@ import {
 	getClearingHouseStateAccountPublicKey,
 	getBankPublicKey,
 	getMarketPublicKey,
-	getUserAccountPublicKey,
 } from '../addresses/pda';
 import { BulkAccountLoader } from './bulkAccountLoader';
 import { capitalize } from './utils';
-import { ClearingHouseConfigType } from '../factory/clearingHouse';
 import { PublicKey } from '@solana/web3.js';
 import { OracleInfo, OraclePriceData } from '../oracles/types';
 import { OracleClientCache } from '../oracles/oracleClientCache';
 import { QUOTE_ORACLE_PRICE_DATA } from '../oracles/quoteAssetOracleClient';
-type UserPublicKeys = {
-	userAccountPublicKey: PublicKey;
-};
 
 export class PollingClearingHouseAccountSubscriber
 	implements ClearingHouseAccountSubscriber
 {
 	isSubscribed: boolean;
 	program: Program;
-	authority: PublicKey;
-	userId: number;
 	marketIndexes: BN[];
 	bankIndexes: BN[];
 	oracleInfos: OracleInfo[];
@@ -59,17 +52,13 @@ export class PollingClearingHouseAccountSubscriber
 	orderState?: DataAndSlot<OrderStateAccount>;
 	user?: DataAndSlot<UserAccount>;
 
-	type: ClearingHouseConfigType = 'polling';
-
 	private isSubscribing = false;
 	private subscriptionPromise: Promise<boolean>;
 	private subscriptionPromiseResolver: (val: boolean) => void;
 
 	public constructor(
 		program: Program,
-		authority: PublicKey,
 		accountLoader: BulkAccountLoader,
-		userId: number,
 		marketIndexes: BN[],
 		bankIndexes: BN[],
 		oracleInfos: OracleInfo[]
@@ -78,8 +67,6 @@ export class PollingClearingHouseAccountSubscriber
 		this.program = program;
 		this.eventEmitter = new EventEmitter();
 		this.accountLoader = accountLoader;
-		this.authority = authority;
-		this.userId = userId;
 		this.marketIndexes = marketIndexes;
 		this.bankIndexes = bankIndexes;
 		this.oracleInfos = oracleInfos;
@@ -142,23 +129,8 @@ export class PollingClearingHouseAccountSubscriber
 			eventType: 'orderStateAccountUpdate',
 		});
 
-		await this.updateUserAccountsToPoll();
 		await this.updateMarketAccountsToPoll();
 		await this.updateBankAccountsToPoll();
-	}
-
-	async updateUserAccountsToPoll(): Promise<UserPublicKeys> {
-		const { userAccountPublicKey } = await this.getUserAccountPublicKeys();
-
-		this.accountsToPoll.set(userAccountPublicKey.toString(), {
-			key: 'user',
-			publicKey: userAccountPublicKey,
-			eventType: 'userAccountUpdate',
-		});
-
-		return {
-			userAccountPublicKey,
-		};
 	}
 
 	async updateMarketAccountsToPoll(): Promise<boolean> {
@@ -241,18 +213,6 @@ export class PollingClearingHouseAccountSubscriber
 		};
 
 		return accounts;
-	}
-
-	async getUserAccountPublicKeys(): Promise<UserPublicKeys> {
-		const userAccountPublicKey = await getUserAccountPublicKey(
-			this.program.programId,
-			this.authority,
-			this.userId
-		);
-
-		return {
-			userAccountPublicKey,
-		};
 	}
 
 	async addToAccountLoader(): Promise<void> {
@@ -406,66 +366,6 @@ export class PollingClearingHouseAccountSubscriber
 		this.isSubscribed = false;
 	}
 
-	public async updateAuthority(newAuthority: PublicKey): Promise<boolean> {
-		let userAccountPublicKeys = Object.values(
-			await this.getUserAccountPublicKeys()
-		);
-
-		// remove the old user accounts
-		for (const publicKey of userAccountPublicKeys) {
-			const accountToPoll = this.accountsToPoll.get(publicKey.toString());
-			this.accountLoader.removeAccount(
-				accountToPoll.publicKey,
-				accountToPoll.callbackId
-			);
-			this.accountsToPoll.delete(publicKey.toString());
-		}
-
-		// update authority
-		this.authority = newAuthority;
-
-		// add new user accounts
-		userAccountPublicKeys = Object.values(
-			await this.updateUserAccountsToPoll()
-		);
-		for (const publicKey of userAccountPublicKeys) {
-			const accountToPoll = this.accountsToPoll.get(publicKey.toString());
-			this.addAccountToAccountLoader(accountToPoll);
-		}
-
-		return true;
-	}
-
-	public async updateUserId(newUserId: number): Promise<boolean> {
-		let userAccountPublicKeys = Object.values(
-			await this.getUserAccountPublicKeys()
-		);
-
-		// remove the old user accounts
-		for (const publicKey of userAccountPublicKeys) {
-			const accountToPoll = this.accountsToPoll.get(publicKey.toString());
-			this.accountLoader.removeAccount(
-				accountToPoll.publicKey,
-				accountToPoll.callbackId
-			);
-			this.accountsToPoll.delete(publicKey.toString());
-		}
-
-		// update authority
-		this.userId = newUserId;
-
-		// add new user accounts
-		userAccountPublicKeys = Object.values(
-			await this.updateUserAccountsToPoll()
-		);
-		for (const publicKey of userAccountPublicKeys) {
-			const accountToPoll = this.accountsToPoll.get(publicKey.toString());
-			this.addAccountToAccountLoader(accountToPoll);
-		}
-
-		return true;
-	}
-
 	async addBank(bankIndex: BN): Promise<boolean> {
 		await this.addBankAccountToPoll(bankIndex);
 		const accountToPoll = this.accountsToPoll.get(bankIndex.toString());
@@ -521,11 +421,6 @@ export class PollingClearingHouseAccountSubscriber
 	public getOrderStateAccountAndSlot(): DataAndSlot<OrderStateAccount> {
 		this.assertIsSubscribed();
 		return this.orderState;
-	}
-
-	public getUserAccountAndSlot(): DataAndSlot<UserAccount> | undefined {
-		this.assertIsSubscribed();
-		return this.user;
 	}
 
 	public getOraclePriceDataAndSlot(

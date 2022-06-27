@@ -78,18 +78,18 @@ describe('clearing_house', () => {
 
 		solUsd = await mockOracle(1);
 
-		clearingHouse = Admin.from(
+		clearingHouse = new Admin({
 			connection,
-			provider.wallet,
-			chProgram.programId,
-			{
+			wallet: provider.wallet,
+			programID: chProgram.programId,
+			opts: {
 				commitment: 'confirmed',
 			},
-			0,
-			[new BN(0)],
-			[new BN(0)],
-			[{ publicKey: solUsd, source: OracleSource.PYTH }]
-		);
+			activeUserId: 0,
+			marketIndexes: [new BN(0)],
+			bankIndexes: [new BN(0)],
+			oracleInfos: [{ publicKey: solUsd, source: OracleSource.PYTH }],
+		});
 	});
 
 	after(async () => {
@@ -538,10 +538,10 @@ describe('clearing_house', () => {
 	it('Partial Liquidation', async () => {
 		const marketIndex = new BN(0);
 
-		userAccount = ClearingHouseUser.from(
+		userAccount = new ClearingHouseUser({
 			clearingHouse,
-			provider.wallet.publicKey
-		);
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
 		await userAccount.subscribe();
 
 		const user0: any = await clearingHouse.program.account.user.fetch(

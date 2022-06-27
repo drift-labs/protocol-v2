@@ -22,7 +22,11 @@ import {
 	MARGIN_PRECISION,
 	BANK_WEIGHT_PRECISION,
 } from './constants/numericConstants';
-import { UserAccountSubscriber, UserAccountEvents } from './accounts/types';
+import {
+	UserAccountSubscriber,
+	UserAccountEvents,
+	DataAndSlot,
+} from './accounts/types';
 import {
 	calculateMarkPrice,
 	calculateBaseAssetValue,
@@ -33,20 +37,16 @@ import {
 	BN,
 	BankAccount,
 } from '.';
-import { getUserAccountPublicKey } from './addresses/pda';
-import {
-	getClearingHouseUser,
-	getWebSocketClearingHouseUserConfig,
-} from './factory/clearingHouseUser';
 import { getTokenAmount } from './math/bankBalance';
 import { OraclePriceData } from './oracles/types';
+import { ClearingHouseUserConfig } from './clearingHouseUserConfig';
+import { PollingUserAccountSubscriber } from './accounts/pollingUserAccountSubscriber';
+import { WebSocketUserAccountSubscriber } from './accounts/webSocketUserAccountSubscriber';
 
 export class ClearingHouseUser {
 	clearingHouse: ClearingHouse;
-	authority: PublicKey;
-	userId: number;
+	userAccountPublicKey: PublicKey;
 	accountSubscriber: UserAccountSubscriber;
-	userAccountPublicKey?: PublicKey;
 	_isSubscribed = false;
 	eventEmitter: StrictEventEmitter<EventEmitter, UserAccountEvents>;
 
@@ -58,39 +58,21 @@ export class ClearingHouseUser {
 		this._isSubscribed = val;
 	}
 
-	/**
-	 * @deprecated You should use getClearingHouseUser factory method instead
-	 * @param clearingHouse
-	 * @param authority
-	 * @returns
-	 */
-	public static from(
-		clearingHouse: ClearingHouse,
-		authority: PublicKey,
-		userId = 0
-	): ClearingHouseUser {
-		if (clearingHouse.accountSubscriber.type !== 'websocket')
-			throw 'This method only works for clearing houses with a websocket account listener. Try using the getClearingHouseUser factory method to initialize a ClearingHouseUser instead';
-
-		const config = getWebSocketClearingHouseUserConfig(
-			clearingHouse,
-			authority,
-			userId
-		);
-		return getClearingHouseUser(config);
-	}
-
-	public constructor(
-		clearingHouse: ClearingHouse,
-		authority: PublicKey,
-		accountSubscriber: UserAccountSubscriber,
-		userId: number
-	) {
-		this.clearingHouse = clearingHouse;
-		this.authority = authority;
-		this.accountSubscriber = accountSubscriber;
-		this.eventEmitter = this.accountSubscriber.eventEmitter;
-		this.userId = userId;
+	public constructor(config: ClearingHouseUserConfig) {
+		this.clearingHouse = config.clearingHouse;
+		this.userAccountPublicKey = config.userAccountPublicKey;
+		if (config.accountSubscription?.type === 'polling') {
+			this.accountSubscriber = new PollingUserAccountSubscriber(
+				config.clearingHouse.program,
+				config.userAccountPublicKey,
+				config.accountSubscription.accountLoader
+			);
+		} else {
+			this.accountSubscriber = new WebSocketUserAccountSubscriber(
+				config.clearingHouse.program,
+				config.userAccountPublicKey
+			);
+		}
 	}
 
 	/**
@@ -98,9 +80,6 @@ export class ClearingHouseUser {
 	 * @returns SusbcriptionSuccess result
 	 */
 	public async subscribe(): Promise<boolean> {
-		// Clearing house should already be subscribed, but await for the subscription just incase to avoid race condition
-		await this.clearingHouse.subscribe();
-
 		this.isSubscribed = await this.accountSubscriber.subscribe();
 		return this.isSubscribed;
 	}
@@ -119,6 +98,10 @@ export class ClearingHouseUser {
 
 	public getUserAccount(): UserAccount {
 		return this.accountSubscriber.getUserAccountAndSlot().data;
+	}
+
+	public getUserAccountAndSlot(): DataAndSlot<UserAccount> | undefined {
+		return this.accountSubscriber.getUserAccountAndSlot();
 	}
 
 	/**
@@ -163,23 +146,14 @@ export class ClearingHouseUser {
 		);
 	}
 
-	public async getUserAccountPublicKey(): Promise<PublicKey> {
-		if (this.userAccountPublicKey) {
-			return this.userAccountPublicKey;
-		}
-
-		this.userAccountPublicKey = await getUserAccountPublicKey(
-			this.clearingHouse.program.programId,
-			this.authority
-		);
+	public getUserAccountPublicKey(): PublicKey {
 		return this.userAccountPublicKey;
 	}
 
 	public async exists(): Promise<boolean> {
-		const userAccountPublicKey = await this.getUserAccountPublicKey();
 		const userAccountRPCResponse =
 			await this.clearingHouse.connection.getParsedAccountInfo(
-				userAccountPublicKey
+				this.userAccountPublicKey
 			);
 		return userAccountRPCResponse.value !== null;
 	}

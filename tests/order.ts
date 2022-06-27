@@ -125,18 +125,18 @@ describe('orders', () => {
 			{ publicKey: ethUsd, source: OracleSource.PYTH },
 		];
 
-		clearingHouse = Admin.from(
+		clearingHouse = new Admin({
 			connection,
-			provider.wallet,
-			chProgram.programId,
-			{
+			wallet: provider.wallet,
+			programID: chProgram.programId,
+			opts: {
 				commitment: 'confirmed',
 			},
-			0,
+			activeUserId: 0,
 			marketIndexes,
 			bankIndexes,
-			oracleInfos
-		);
+			oracleInfos,
+		});
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
@@ -171,10 +171,10 @@ describe('orders', () => {
 				userUSDCAccount.publicKey
 			);
 
-		clearingHouseUser = ClearingHouseUser.from(
+		clearingHouseUser = new ClearingHouseUser({
 			clearingHouse,
-			provider.wallet.publicKey
-		);
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
 		await clearingHouseUser.subscribe();
 
 		discountMint = await Token.createMint(
@@ -208,18 +208,18 @@ describe('orders', () => {
 			provider,
 			fillerKeyPair.publicKey
 		);
-		fillerClearingHouse = ClearingHouse.from(
+		fillerClearingHouse = new ClearingHouse({
 			connection,
-			new Wallet(fillerKeyPair),
-			chProgram.programId,
-			{
+			wallet: new Wallet(fillerKeyPair),
+			programID: chProgram.programId,
+			opts: {
 				commitment: 'confirmed',
 			},
-			0,
+			activeUserId: 0,
 			marketIndexes,
 			bankIndexes,
-			oracleInfos
-		);
+			oracleInfos,
+		});
 		await fillerClearingHouse.subscribe();
 
 		await fillerClearingHouse.initializeUserAccountAndDepositCollateral(
@@ -227,10 +227,10 @@ describe('orders', () => {
 			fillerUSDCAccount.publicKey
 		);
 
-		fillerUser = ClearingHouseUser.from(
-			fillerClearingHouse,
-			fillerKeyPair.publicKey
-		);
+		fillerUser = new ClearingHouseUser({
+			clearingHouse: fillerClearingHouse,
+			userAccountPublicKey: await fillerClearingHouse.getUserAccountPublicKey(),
+		});
 		await fillerUser.subscribe();
 
 		provider.connection.requestAirdrop(whaleKeyPair.publicKey, 10 ** 9);
@@ -240,18 +240,17 @@ describe('orders', () => {
 			provider,
 			whaleKeyPair.publicKey
 		);
-		whaleClearingHouse = ClearingHouse.from(
+		whaleClearingHouse = new Admin({
 			connection,
-			new Wallet(whaleKeyPair),
-			chProgram.programId,
-			{
+			wallet: new Wallet(whaleKeyPair),
+			programID: chProgram.programId,
+			opts: {
 				commitment: 'confirmed',
 			},
-			0,
 			marketIndexes,
 			bankIndexes,
-			oracleInfos
-		);
+			oracleInfos,
+		});
 		await whaleClearingHouse.subscribe();
 
 		[, whaleAccountPublicKey] =
@@ -260,10 +259,10 @@ describe('orders', () => {
 				whaleUSDCAccount.publicKey
 			);
 
-		whaleUser = ClearingHouseUser.from(
-			whaleClearingHouse,
-			whaleKeyPair.publicKey
-		);
+		whaleUser = new ClearingHouseUser({
+			clearingHouse: whaleClearingHouse,
+			userAccountPublicKey: await whaleClearingHouse.getUserAccountPublicKey(),
+		});
 
 		await whaleUser.subscribe();
 	});
@@ -334,7 +333,9 @@ describe('orders', () => {
 		assert(
 			orderRecord.user.equals(await clearingHouseUser.getUserAccountPublicKey())
 		);
-		assert(orderRecord.authority.equals(clearingHouseUser.authority));
+		assert(
+			orderRecord.authority.equals(clearingHouseUser.getUserAccount().authority)
+		);
 	});
 
 	it('Fail to fill reduce only order', async () => {
@@ -381,7 +382,9 @@ describe('orders', () => {
 		assert(
 			orderRecord.user.equals(await clearingHouseUser.getUserAccountPublicKey())
 		);
-		assert(orderRecord.authority.equals(clearingHouseUser.authority));
+		assert(
+			orderRecord.authority.equals(clearingHouseUser.getUserAccount().authority)
+		);
 	});
 
 	it('Fill limit long order', async () => {
@@ -488,7 +491,9 @@ describe('orders', () => {
 		assert(
 			orderRecord.user.equals(await clearingHouseUser.getUserAccountPublicKey())
 		);
-		assert(orderRecord.authority.equals(clearingHouseUser.authority));
+		assert(
+			orderRecord.authority.equals(clearingHouseUser.getUserAccount().authority)
+		);
 		assert(
 			orderRecord.filler.equals(await fillerUser.getUserAccountPublicKey())
 		);
@@ -631,7 +636,9 @@ describe('orders', () => {
 		assert(
 			orderRecord.user.equals(await clearingHouseUser.getUserAccountPublicKey())
 		);
-		assert(orderRecord.authority.equals(clearingHouseUser.authority));
+		assert(
+			orderRecord.authority.equals(clearingHouseUser.getUserAccount().authority)
+		);
 		assert(
 			orderRecord.filler.equals(await fillerUser.getUserAccountPublicKey())
 		);

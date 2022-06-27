@@ -57,6 +57,21 @@ export async function getUserAccountPublicKey(
 	)[0];
 }
 
+export function getUserAccountPublicKeySync(
+	programId: PublicKey,
+	authority: PublicKey,
+	userId = 0
+): PublicKey {
+	return anchor.web3.PublicKey.findProgramAddressSync(
+		[
+			Buffer.from(anchor.utils.bytes.utf8.encode('user')),
+			authority.toBuffer(),
+			Uint8Array.from([userId]),
+		],
+		programId
+	)[0];
+}
+
 export async function getMarketPublicKey(
 	programId: PublicKey,
 	marketIndex: BN
