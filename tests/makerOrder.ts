@@ -82,7 +82,7 @@ describe('maker order', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			userId: 0,
+			activeUserId: 0,
 			marketIndexes,
 			bankIndexes,
 			oracleInfos,
@@ -144,7 +144,7 @@ describe('maker order', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			userId: 0,
+			activeUserId: 0,
 			marketIndexes,
 			bankIndexes,
 			oracleInfos,
@@ -234,7 +234,7 @@ describe('maker order', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			userId: 0,
+			activeUserId: 0,
 			marketIndexes,
 			bankIndexes,
 			oracleInfos,

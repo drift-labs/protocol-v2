@@ -83,7 +83,7 @@ describe('bank deposit and withdraw', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			userId: 0,
+			activeUserId: 0,
 			marketIndexes,
 			bankIndexes,
 			oracleInfos,

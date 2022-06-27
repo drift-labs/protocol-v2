@@ -68,7 +68,7 @@ describe('clearing_house', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			userId: 0,
+			activeUserId: 0,
 			marketIndexes,
 			bankIndexes,
 			oracleInfos,

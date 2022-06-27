@@ -52,7 +52,7 @@ describe('round in favor', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			userId: 0,
+			activeUserId: 0,
 			marketIndexes,
 			bankIndexes,
 			oracleInfos,
@@ -129,7 +129,7 @@ describe('round in favor', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			userId: 0,
+			activeUserId: 0,
 			marketIndexes,
 			bankIndexes,
 			oracleInfos,
@@ -181,7 +181,7 @@ describe('round in favor', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			userId: 0,
+			activeUserId: 0,
 			marketIndexes,
 			bankIndexes,
 			oracleInfos,

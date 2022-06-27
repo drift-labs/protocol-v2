@@ -78,7 +78,7 @@ describe('trigger orders', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			userId: 0,
+			activeUserId: 0,
 			marketIndexes,
 			bankIndexes,
 			oracleInfos,
@@ -139,7 +139,7 @@ describe('trigger orders', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			userId: 0,
+			activeUserId: 0,
 			marketIndexes,
 			bankIndexes,
 			oracleInfos,
@@ -234,7 +234,7 @@ describe('trigger orders', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			userId: 0,
+			activeUserId: 0,
 			marketIndexes,
 			bankIndexes,
 			oracleInfos,
@@ -330,7 +330,7 @@ describe('trigger orders', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			userId: 0,
+			activeUserId: 0,
 			marketIndexes,
 			bankIndexes,
 			oracleInfos,
@@ -425,7 +425,7 @@ describe('trigger orders', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			userId: 0,
+			activeUserId: 0,
 			marketIndexes,
 			bankIndexes,
 			oracleInfos,
@@ -521,7 +521,7 @@ describe('trigger orders', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			userId: 0,
+			activeUserId: 0,
 			marketIndexes,
 			bankIndexes,
 			oracleInfos,
@@ -616,7 +616,7 @@ describe('trigger orders', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			userId: 0,
+			activeUserId: 0,
 			marketIndexes,
 			bankIndexes,
 			oracleInfos,
@@ -712,7 +712,7 @@ describe('trigger orders', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			userId: 0,
+			activeUserId: 0,
 			marketIndexes,
 			bankIndexes,
 			oracleInfos,
@@ -807,7 +807,7 @@ describe('trigger orders', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			userId: 0,
+			activeUserId: 0,
 			marketIndexes,
 			bankIndexes,
 			oracleInfos,

@@ -43,9 +43,6 @@ export interface ClearingHouseAccountSubscriber {
 	fetch(): Promise<void>;
 	unsubscribe(): Promise<void>;
 
-	updateAuthority(newAuthority: PublicKey): Promise<boolean>;
-	updateUserId(userId: number): Promise<boolean>;
-
 	addMarket(marketIndex: BN): Promise<boolean>;
 	addBank(bankIndex: BN): Promise<boolean>;
 	addOracle(oracleInfo: OracleInfo): Promise<boolean>;
@@ -59,8 +56,6 @@ export interface ClearingHouseAccountSubscriber {
 		oraclePublicKey: PublicKey
 	): DataAndSlot<OraclePriceData> | undefined;
 	getOrderStateAccountAndSlot(): DataAndSlot<OrderStateAccount>;
-
-	getUserAccountAndSlot(): DataAndSlot<UserAccount> | undefined;
 }
 
 export interface UserAccountEvents {

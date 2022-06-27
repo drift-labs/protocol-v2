@@ -60,7 +60,7 @@ describe('User Account', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			userId: 0,
+			activeUserId: 0,
 			marketIndexes: [new BN(0)],
 			bankIndexes: [new BN(0)],
 			oracleInfos: [{ publicKey: solUsdOracle, source: OracleSource.PYTH }],

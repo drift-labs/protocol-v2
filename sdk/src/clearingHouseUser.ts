@@ -22,7 +22,11 @@ import {
 	MARGIN_PRECISION,
 	BANK_WEIGHT_PRECISION,
 } from './constants/numericConstants';
-import { UserAccountSubscriber, UserAccountEvents } from './accounts/types';
+import {
+	UserAccountSubscriber,
+	UserAccountEvents,
+	DataAndSlot,
+} from './accounts/types';
 import {
 	calculateMarkPrice,
 	calculateBaseAssetValue,
@@ -76,9 +80,6 @@ export class ClearingHouseUser {
 	 * @returns SusbcriptionSuccess result
 	 */
 	public async subscribe(): Promise<boolean> {
-		// Clearing house should already be subscribed, but await for the subscription just incase to avoid race condition
-		await this.clearingHouse.subscribe();
-
 		this.isSubscribed = await this.accountSubscriber.subscribe();
 		return this.isSubscribed;
 	}
@@ -97,6 +98,10 @@ export class ClearingHouseUser {
 
 	public getUserAccount(): UserAccount {
 		return this.accountSubscriber.getUserAccountAndSlot().data;
+	}
+
+	public getUserAccountAndSlot(): DataAndSlot<UserAccount> | undefined {
+		return this.accountSubscriber.getUserAccountAndSlot();
 	}
 
 	/**

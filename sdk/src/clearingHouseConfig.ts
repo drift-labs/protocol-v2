@@ -11,7 +11,8 @@ export type ClearingHouseConfig = {
 	accountSubscription?: ClearingHouseSubscriptionConfig;
 	opts?: ConfirmOptions;
 	txSenderConfig?: TxSenderConfig;
-	userId?: number;
+	userIds?: number[];
+	activeUserId?: number;
 	marketIndexes?: BN[];
 	bankIndexes?: BN[];
 	oracleInfos?: OracleInfo[];

@@ -194,7 +194,7 @@ describe('pyth-oracle', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			userId: 0,
+			activeUserId: 0,
 			marketIndexes: [new BN(0), new BN(1)],
 			bankIndexes: [new BN(0)],
 		});

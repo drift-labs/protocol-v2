@@ -217,7 +217,7 @@ export async function initializeAndSubscribeClearingHouse(
 		opts: {
 			commitment: 'confirmed',
 		},
-		userId: 0,
+		activeUserId: 0,
 		marketIndexes,
 		bankIndexes,
 		oracleInfos,
@@ -391,7 +391,7 @@ export async function initUserAccounts(
 			opts: {
 				commitment: 'confirmed',
 			},
-			userId: 0,
+			activeUserId: 0,
 			marketIndexes,
 			bankIndexes,
 			oracleInfos,

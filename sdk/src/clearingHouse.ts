@@ -33,6 +33,7 @@ import {
 	getMarketPublicKey,
 	getOrderStateAccountPublicKey,
 	getUserAccountPublicKey,
+	getUserAccountPublicKeySync,
 } from './addresses/pda';
 import {
 	ClearingHouseAccountSubscriber,
@@ -50,6 +51,8 @@ import { ClearingHouseConfig } from './clearingHouseConfig';
 import { PollingClearingHouseAccountSubscriber } from './accounts/pollingClearingHouseAccountSubscriber';
 import { WebSocketClearingHouseAccountSubscriber } from './accounts/webSocketClearingHouseAccountSubscriber';
 import { RetryTxSender } from './tx/retryTxSender';
+import { ClearingHouseUser } from './clearingHouseUser';
+import { ClearingHouseUserAccountSubscriptionConfig } from './clearingHouseUserConfig';
 
 /**
  * # ClearingHouse
@@ -61,7 +64,9 @@ export class ClearingHouse {
 	public program: Program;
 	provider: AnchorProvider;
 	opts?: ConfirmOptions;
-	userId: number;
+	users = new Map<number, ClearingHouseUser>();
+	activeUserId: number;
+	userAccountSubscriptionConfig: ClearingHouseUserAccountSubscriptionConfig;
 	accountSubscriber: ClearingHouseAccountSubscriber;
 	eventEmitter: StrictEventEmitter<EventEmitter, ClearingHouseAccountEvents>;
 	_isSubscribed = false;
@@ -90,13 +95,24 @@ export class ClearingHouse {
 			config.programID,
 			this.provider
 		);
-		this.userId = config.userId ?? 0;
+
+		const userIds = config.userIds ?? [0];
+		this.activeUserId = config.activeUserId ?? userIds[0];
+		this.userAccountSubscriptionConfig =
+			config.accountSubscription?.type === 'polling'
+				? {
+						type: 'polling',
+						accountLoader: config.accountSubscription.accountLoader,
+				  }
+				: {
+						type: 'websocket',
+				  };
+		this.createUsers(userIds, this.userAccountSubscriptionConfig);
+
 		if (config.accountSubscription?.type === 'polling') {
 			this.accountSubscriber = new PollingClearingHouseAccountSubscriber(
 				this.program,
-				this.wallet.publicKey,
 				config.accountSubscription.accountLoader,
-				this.userId,
 				config.marketIndexes ?? [],
 				config.bankIndexes ?? [],
 				config.oracleInfos ?? []
@@ -104,8 +120,6 @@ export class ClearingHouse {
 		} else {
 			this.accountSubscriber = new WebSocketClearingHouseAccountSubscriber(
 				this.program,
-				this.wallet.publicKey,
-				this.userId,
 				config.marketIndexes ?? [],
 				config.bankIndexes ?? [],
 				config.oracleInfos ?? []
@@ -120,28 +134,68 @@ export class ClearingHouse {
 		);
 	}
 
-	/**
-	 *
-	 * @returns Promise<boolean> : SubscriptionSuccess
-	 */
+	createUsers(
+		userIds: number[],
+		accountSubscriptionConfig: ClearingHouseUserAccountSubscriptionConfig
+	): void {
+		for (const userId of userIds) {
+			const user = this.createUser(userId, accountSubscriptionConfig);
+			this.users.set(userId, user);
+		}
+	}
+
+	createUser(
+		userId: number,
+		accountSubscriptionConfig: ClearingHouseUserAccountSubscriptionConfig
+	): ClearingHouseUser {
+		const userAccountPublicKey = getUserAccountPublicKeySync(
+			this.program.programId,
+			this.wallet.publicKey,
+			userId
+		);
+
+		return new ClearingHouseUser({
+			clearingHouse: this,
+			userAccountPublicKey,
+			accountSubscription: accountSubscriptionConfig,
+		});
+	}
+
 	public async subscribe(): Promise<boolean> {
-		this.isSubscribed = await this.accountSubscriber.subscribe();
+		const subscribePromises = this.subscribeUsers().concat(
+			this.accountSubscriber.subscribe()
+		);
+		this.isSubscribed = (await Promise.all(subscribePromises)).reduce(
+			(success, prevSuccess) => success && prevSuccess
+		);
 		return this.isSubscribed;
+	}
+
+	subscribeUsers(): Promise<boolean>[] {
+		return [...this.users.values()].map((user) => user.subscribe());
 	}
 
 	/**
 	 *	Forces the accountSubscriber to fetch account updates from rpc
 	 */
 	public async fetchAccounts(): Promise<void> {
-		await this.accountSubscriber.fetch();
+		await Promise.all(
+			[...this.users.values()]
+				.map((user) => user.fetchAccounts())
+				.concat(this.accountSubscriber.fetch())
+		);
 	}
 
-	/**
-	 * Unsubscribe from all currently subscribed state accounts
-	 */
 	public async unsubscribe(): Promise<void> {
-		await this.accountSubscriber.unsubscribe();
+		const unsubscribePromises = this.unsubscribeUsers().concat(
+			this.accountSubscriber.unsubscribe()
+		);
+		await Promise.all(unsubscribePromises);
 		this.isSubscribed = false;
+	}
+
+	unsubscribeUsers(): Promise<void>[] {
+		return [...this.users.values()].map((user) => user.unsubscribe());
 	}
 
 	statePublicKey?: PublicKey;
@@ -198,8 +252,14 @@ export class ClearingHouse {
 	/**
 	 * Update the wallet to use for clearing house transactions and linked user account
 	 * @param newWallet
+	 * @param userIds
+	 * @param activeUserId
 	 */
-	public async updateWallet(newWallet: IWallet, userId = 0): Promise<void> {
+	public async updateWallet(
+		newWallet: IWallet,
+		userIds = [0],
+		activeUserId = 0
+	): Promise<void> {
 		const newProvider = new AnchorProvider(
 			this.connection,
 			newWallet,
@@ -217,15 +277,31 @@ export class ClearingHouse {
 		this.wallet = newWallet;
 		this.provider = newProvider;
 		this.program = newProgram;
-		this.userAccountPublicKey = undefined;
-		this.userId = userId;
-		await this.accountSubscriber.updateAuthority(newWallet.publicKey);
+
+		if (this.isSubscribed) {
+			await Promise.all(this.unsubscribeUsers());
+		}
+		this.users.clear();
+		this.createUsers(userIds, this.userAccountSubscriptionConfig);
+		if (this.isSubscribed) {
+			await Promise.all(this.subscribeUsers());
+		}
+
+		this.activeUserId = activeUserId;
 	}
 
-	public async updateUserId(userId: number): Promise<void> {
-		this.userAccountPublicKey = undefined;
-		this.userId = userId;
-		await this.accountSubscriber.updateUserId(userId);
+	public async switchActiveUser(userId: number): Promise<void> {
+		this.activeUserId = userId;
+	}
+
+	public async addUser(userId: number): Promise<void> {
+		if (this.users.has(userId)) {
+			return;
+		}
+
+		const user = this.createUser(userId, this.userAccountSubscriptionConfig);
+		await user.subscribe();
+		this.users.set(userId, user);
 	}
 
 	public async initializeUserAccount(
@@ -266,30 +342,30 @@ export class ClearingHouse {
 		return [userAccountPublicKey, initializeUserAccountIx];
 	}
 
-	userAccountPublicKey?: PublicKey;
-	/**
-	 * Get the address for the Clearing House User's account. NOT the user's wallet address.
-	 * @returns
-	 */
-	public async getUserAccountPublicKey(): Promise<PublicKey> {
-		if (this.userAccountPublicKey) {
-			return this.userAccountPublicKey;
+	public getUser(userId?: number): ClearingHouseUser {
+		userId = userId ?? this.activeUserId;
+		if (!this.users.has(userId)) {
+			throw new Error(`Clearing House has no user for user id ${userId}`);
 		}
-
-		this.userAccountPublicKey = await getUserAccountPublicKey(
-			this.program.programId,
-			this.wallet.publicKey,
-			this.userId
-		);
-		return this.userAccountPublicKey;
+		return this.users.get(userId);
 	}
 
-	public getUserAccount(): UserAccount | undefined {
-		return this.accountSubscriber.getUserAccountAndSlot().data;
+	public getUsers(): ClearingHouseUser[] {
+		return [...this.users.values()];
 	}
 
-	public getUserAccountAndSlot(): DataAndSlot<UserAccount> | undefined {
-		return this.accountSubscriber.getUserAccountAndSlot();
+	public async getUserAccountPublicKey(): Promise<PublicKey> {
+		return this.getUser().userAccountPublicKey;
+	}
+
+	public getUserAccount(userId?: number): UserAccount | undefined {
+		return this.getUser(userId).getUserAccount();
+	}
+
+	public getUserAccountAndSlot(
+		userId?: number
+	): DataAndSlot<UserAccount> | undefined {
+		return this.getUser(userId).getUserAccountAndSlot();
 	}
 
 	public getUserBankBalance(
@@ -624,10 +700,13 @@ export class ClearingHouse {
 	public async transferDeposit(
 		amount: BN,
 		bankIndex: BN,
+		fromUserId: number,
 		toUserId: number
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.txSender.send(
-			wrapInTx(await this.getTransferDepositIx(amount, bankIndex, toUserId)),
+			wrapInTx(
+				await this.getTransferDepositIx(amount, bankIndex, fromUserId, toUserId)
+			),
 			[],
 			this.opts
 		);
@@ -637,9 +716,14 @@ export class ClearingHouse {
 	public async getTransferDepositIx(
 		amount: BN,
 		bankIndex: BN,
+		fromUserId: number,
 		toUserId: number
 	): Promise<TransactionInstruction> {
-		const fromUser = await this.getUserAccountPublicKey();
+		const fromUser = await getUserAccountPublicKey(
+			this.program.programId,
+			this.wallet.publicKey,
+			fromUserId
+		);
 		const toUser = await getUserAccountPublicKey(
 			this.program.programId,
 			this.wallet.publicKey,

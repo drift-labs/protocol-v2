@@ -8,7 +8,7 @@ export type ClearingHouseUserConfig = {
 	userAccountPublicKey: PublicKey;
 };
 
-type ClearingHouseUserAccountSubscriptionConfig =
+export type ClearingHouseUserAccountSubscriptionConfig =
 	| {
 			type: 'websocket';
 	  }

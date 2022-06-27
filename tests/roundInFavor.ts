@@ -57,7 +57,7 @@ describe('round in favor', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			userId: 0,
+			activeUserId: 0,
 			marketIndexes: [new BN(0)],
 			bankIndexes: [new BN(0)],
 		});
@@ -134,7 +134,7 @@ describe('round in favor', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			userId: 0,
+			activeUserId: 0,
 			marketIndexes: [new BN(0), new BN(1), new BN(2), new BN(3), new BN(4)],
 			bankIndexes: [new BN(0)],
 		});
@@ -179,7 +179,7 @@ describe('round in favor', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			userId: 0,
+			activeUserId: 0,
 			marketIndexes: [new BN(0), new BN(1), new BN(2), new BN(3), new BN(4)],
 			bankIndexes: [new BN(0)],
 		});

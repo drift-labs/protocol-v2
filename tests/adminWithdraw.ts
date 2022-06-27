@@ -63,7 +63,7 @@ describe('admin withdraw', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			userId: 0,
+			activeUserId: 0,
 			marketIndexes: [new BN(0)],
 			bankIndexes: [new BN(0)],
 		});

@@ -85,7 +85,7 @@ describe('clearing_house', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			userId: 0,
+			activeUserId: 0,
 			marketIndexes: [new BN(0)],
 			bankIndexes: [new BN(0)],
 			oracleInfos: [{ publicKey: solUsd, source: OracleSource.PYTH }],
