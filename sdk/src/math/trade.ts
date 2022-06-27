@@ -122,17 +122,11 @@ export function calculateTradeSlippage(
 		amm.pegMultiplier
 	);
 
+	console.log('oldNew Price', oldPrice.toString(), newPrice.toString());
 	if (direction == PositionDirection.SHORT) {
-		// console.log(
-		// 	'new price lower',
-		// 	newPrice.toString(),
-		// 	'<',
-		// 	oldPrice.toString(),
-		// 	'for a short'
-		// );
-		assert(newPrice.lt(oldPrice));
+		assert(newPrice.lte(oldPrice));
 	} else {
-		assert(oldPrice.lt(newPrice));
+		assert(oldPrice.lte(newPrice));
 	}
 
 	const pctMaxSlippage = newPrice

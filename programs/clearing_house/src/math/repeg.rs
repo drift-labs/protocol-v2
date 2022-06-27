@@ -456,7 +456,7 @@ pub fn adjust_prepeg(
         .checked_sub(cast_to_i128(market.amm.peg_multiplier)?)
         .ok_or_else(math_error!())?;
 
-    let per_peg_cost = cast_to_i128(market.amm.quote_asset_reserve)?
+    let mut per_peg_cost = cast_to_i128(market.amm.quote_asset_reserve)?
         .checked_sub(cast_to_i128(market.amm.terminal_quote_asset_reserve)?)
         .ok_or_else(math_error!())?
         .checked_div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128)
@@ -497,6 +497,10 @@ pub fn adjust_prepeg(
         // equivalent to (but cheaper than) scaling down by .1%
         // let (k_scale_numerator, k_scale_denominator) = (999, 1000);
         let adjustment_cost: i128 = if adjust_k {
+
+
+            // TODO can be off by 1?
+
             let new_sqrt_k = market
                 .amm
                 .sqrt_k
@@ -577,7 +581,14 @@ pub fn adjust_prepeg(
             // )?;
 
             // let adjustment_cost =
-            amm::adjust_k_cost_and_update(&mut market_clone, &update_k_result)?
+            let _adjustment_cost =
+                amm::adjust_k_cost_and_update(&mut market_clone, &update_k_result)?;
+            per_peg_cost = cast_to_i128(market_clone.amm.quote_asset_reserve)?
+                .checked_sub(cast_to_i128(market_clone.amm.terminal_quote_asset_reserve)?)
+                .ok_or_else(math_error!())?
+                .checked_div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128)
+                .ok_or_else(math_error!())?;
+            _adjustment_cost
             // amm::update_k(&mut market_clone, &update_k_result)?;
             // adjustment_cost
         } else {
