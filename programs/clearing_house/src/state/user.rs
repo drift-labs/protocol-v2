@@ -148,7 +148,7 @@ pub struct MarketPosition {
 impl MarketPosition {
     pub fn is_for(&self, market_index: u64) -> bool {
         self.market_index == market_index
-            && (self.is_open_position() || self.has_open_order() || self.has_unsettled_pnl())
+            && (self.is_lp() || self.is_open_position() || self.has_open_order() || self.has_unsettled_pnl())
     }
 
     pub fn is_available(&self) -> bool {
@@ -161,6 +161,10 @@ impl MarketPosition {
 
     pub fn has_open_order(&self) -> bool {
         self.open_orders != 0
+    }
+    
+    pub fn is_lp(&self) -> bool {
+        self.lp_tokens > 0
     }
 
     pub fn has_unsettled_pnl(&self) -> bool {

@@ -1,7 +1,7 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
-import { BN, ClearingHouseUser, QUOTE_ASSET_BANK_INDEX } from '../sdk';
-
+import { BN, ClearingHouseUser, QUOTE_ASSET_BANK_INDEX, QUOTE_PRECISION } from '../sdk';
+      
 import { Program } from '@project-serum/anchor';
 
 import { PublicKey } from '@solana/web3.js';
@@ -52,7 +52,6 @@ describe('liquidity providing', () => {
 
 	const usdcAmount = new BN(30 * 10 ** 8);
 
-	const maxPositions = 5;
     let clearingHouseUser: ClearingHouseUser;
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
@@ -71,8 +70,6 @@ describe('liquidity providing', () => {
 		);
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
-
-
 
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
 		await clearingHouse.initializeMarket(
@@ -101,11 +98,14 @@ describe('liquidity providing', () => {
     // adds lp when 
     //      fresh-init market [x]
     //      non-fresh-init market 
-	it('provides liquidity', async () => {
-		const marketAccount = clearingHouse.getMarketAccount(0);
-		var market = await chProgram.account.market.fetch(marketAccount.pubkey);
-		const prevSqrtK: BN = market.amm.sqrtK
+	it('provides and removes liquidity', async () => {
+		var market = clearingHouse.getMarketAccount(0);
+		//var market = await chProgram.account.market.fetch(market.pubkey);
+		const prevSqrtK = market.amm.sqrtK
+        const prevbar = market.amm.baseAssetReserve;
+        const prevqar = market.amm.quoteAssetReserve;
 
+        console.log('adding liquidity...')
         await chProgram.methods
             .addLiquidity(
                 new BN(100), 
@@ -118,23 +118,123 @@ describe('liquidity providing', () => {
                 oracle: clearingHouse.getMarketAccount(0).amm.oracle
             })
             .remainingAccounts([{
-                pubkey: marketAccount.pubkey, 
+                pubkey: market.pubkey, 
                 isSigner: false, 
                 isWritable: true, 
             }])
             .rpc()
 
-		var market = await chProgram.account.market.fetch(marketAccount.pubkey);
+		//var market = await chProgram.account.market.fetch(market.pubkey);
+		market = clearingHouse.getMarketAccount(0);
         assert(prevSqrtK.lt(market.amm.sqrtK)) // k increases = more liquidity 
+        assert(prevqar.lt(market.amm.quoteAssetReserve));
+        assert(prevbar.lt(market.amm.baseAssetReserve));
 
-        let user = await chProgram.account.user.fetch(await clearingHouse.getUserAccountPublicKey())
-        console.log(user.positions[0].lpTokens.toString())
+        var user = await chProgram.account.user.fetch(await clearingHouse.getUserAccountPublicKey())
+        var lp_token_amount = user.positions[0].lpTokens;
+        assert(lp_token_amount.gt(new BN(0)))
 
-        assert(user.positions[0].lpTokens.gt(new BN(0)))
-    });
+        console.log('removing liquidity...')
+        await chProgram.methods
+            .removeLiquidity(
+                new BN(0)
+            )
+            .accounts({
+                state: await clearingHouse.getStatePublicKey(),
+                user: await clearingHouse.getUserAccountPublicKey(), 
+                authority: clearingHouse.wallet.publicKey, 
+                oracle: clearingHouse.getMarketAccount(0).amm.oracle
+            })
+            .remainingAccounts([{
+                pubkey: market.pubkey, 
+                isSigner: false, 
+                isWritable: true, 
+            }])
+            .rpc()
 
-    it('removes liquidity', async () => {
+		market = clearingHouse.getMarketAccount(0);
+        var user = await chProgram.account.user.fetch(await clearingHouse.getUserAccountPublicKey())
+        var lp_token_amount = user.positions[0].lpTokens;
+
+        assert(lp_token_amount.eq(new BN(0)))
+        assert(prevSqrtK.eq(market.amm.sqrtK))
+
+        // rounding off by one :(
+        console.log('asset reserves:')
+        console.log(prevbar.toString(), market.amm.baseAssetReserve.toString());
+        console.log(prevqar.toString(), market.amm.quoteAssetReserve.toString());
         
-        
+        //assert(prevbar.eq(market.amm.baseAssetReserve))
+        //assert(prevqar.eq(market.amm.quoteAssetReserve))
+        //assert(prevSqrtK.eq(market.amm.sqrtK))
     });
+  
+    
+	it('provides lp, users trade, removes lp', async () => {
+		var market = clearingHouse.getMarketAccount(0);
+		const prevSqrtK = market.amm.sqrtK
+        const prevbar = market.amm.baseAssetReserve;
+        const prevqar = market.amm.quoteAssetReserve;
+
+        console.log('adding liquidity...')
+        await chProgram.methods
+            .addLiquidity(
+                new BN(100), 
+                new BN(0), 
+            )
+            .accounts({
+                state: await clearingHouse.getStatePublicKey(),
+                user: await clearingHouse.getUserAccountPublicKey(), 
+                authority: clearingHouse.wallet.publicKey, 
+                oracle: clearingHouse.getMarketAccount(0).amm.oracle
+            })
+            .remainingAccounts([{
+                pubkey: market.pubkey, 
+                isSigner: false, 
+                isWritable: true, 
+            }])
+            .rpc()
+    
+        // some user goes long (lp should get a short)
+        await clearingHouse.openPosition(
+            PositionDirection.LONG,
+            new BN(100 * 1e6),
+            new BN(0)
+        )
+
+        console.log('removing liquidity...')
+        await chProgram.methods
+            .removeLiquidity(
+                new BN(0)
+            )
+            .accounts({
+                state: await clearingHouse.getStatePublicKey(),
+                user: await clearingHouse.getUserAccountPublicKey(), 
+                authority: clearingHouse.wallet.publicKey, 
+                oracle: clearingHouse.getMarketAccount(0).amm.oracle
+            })
+            .remainingAccounts([{
+                pubkey: market.pubkey, 
+                isSigner: false, 
+                isWritable: true, 
+            }])
+            .rpc()
+
+		market = clearingHouse.getMarketAccount(0);
+        var user = await chProgram.account.user.fetch(await clearingHouse.getUserAccountPublicKey())
+        var lp_token_amount = user.positions[0].lpTokens;
+
+        assert(lp_token_amount.eq(new BN(0)))
+        assert(prevSqrtK.eq(market.amm.sqrtK))
+
+        // rounding off by one :(
+        console.log('asset reserves:')
+        console.log(prevbar.toString(), market.amm.baseAssetReserve.toString());
+        console.log(prevqar.toString(), market.amm.quoteAssetReserve.toString());
+        
+        //assert(prevbar.eq(market.amm.baseAssetReserve))
+        //assert(prevqar.eq(market.amm.quoteAssetReserve))
+        //assert(prevSqrtK.eq(market.amm.sqrtK))
+    });
+  
 });

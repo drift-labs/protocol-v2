@@ -755,7 +755,6 @@ pub mod clearing_house {
     )]
     pub fn remove_liquidity<'info>(
         ctx: Context<OpenPosition>,
-        lp_tokens_to_burn: u128,
         market_index: u64,
     ) -> Result<()> {
         let user = &mut load_mut(&ctx.accounts.user)?;
@@ -770,27 +769,32 @@ pub mod clearing_house {
 
         let position_index = get_position_index(&user.positions, market_index)?;
         let lp_position = &mut user.positions[position_index];
-
+        
+        // todo: impl not burning all the tokens 
+        // todo: settle fcn with no burning 
+        let lp_tokens_to_burn = lp_position.lp_tokens; 
+        let total_lp_tokens = market.amm.sqrt_k;
+        
         validate!(
             lp_position.lp_tokens <= lp_tokens_to_burn,
             ErrorCode::InsufficientLPTokens,
             "Trying to burn more lp tokens than the user has",
         )?;
 
-        let total_lp_tokens = market.amm.sqrt_k;
+        if lp_tokens_to_burn == 0 {
+            return Ok(());
+        }
 
         let lp_share = |v: i128| -> Result<i128> {
             let _sign: i128 = if v > 0 { 1 } else { -1 };
             let lp_v =
                 cast_to_i128(v.unsigned_abs() * lp_tokens_to_burn / total_lp_tokens)? * _sign;
-
             Ok(lp_v)
         };
 
         // todo: add ok_or_else(math_error) to all these
-        let net_base_asset_amount_delta = market
-            .amm
-            .net_base_asset_amount
+        let net_base_asset_amount_delta = 
+            market.amm.net_base_asset_amount
             .checked_sub(lp_position.last_net_base_asset_amount)
             .ok_or_else(math_error!())?;
 
@@ -823,24 +827,57 @@ pub mod clearing_house {
 
             lp_position.quote_asset_amount = quote_asset_amount;
             lp_position.base_asset_amount = base_asset_amount;
+        } else { 
+            // zero these out so last_cum_fund doesnt matter for settling
+            lp_position.quote_asset_amount = 0; 
+            lp_position.base_asset_amount = 0; 
         }
 
-        // todo: ... pay the lp ...
+        // todo: ... pay the lp ... (bank balance?)
         // give them fees
-        let fee_delta = cast_to_i128(market.amm.total_fee_minus_distributions)?
+        let fee_delta = 
+            cast_to_i128(market.amm.total_fee_minus_distributions)?
             - cast_to_i128(lp_position.last_total_fee_minus_distributions)?;
         let lp_fee_amount = lp_share(fee_delta)?;
 
         // give them the funding
         let funding_delta =
-            market.amm.cumulative_funding_rate_lp - lp_position.last_cumulative_funding_rate;
+            market.amm.cumulative_funding_rate_lp 
+            - lp_position.last_cumulative_funding_rate;
         let funding_payment = lp_share(funding_delta)?;
 
+        // update lp position => market position 
+        lp_position.lp_tokens = 0;
+        lp_position.last_cumulative_funding_rate = if lp_position.base_asset_amount > 0 {
+            market.amm.cumulative_funding_rate_long
+        } else { 
+            market.amm.cumulative_funding_rate_short
+        };
+
         // update market
-        let reserve_scale = (total_lp_tokens - lp_tokens_to_burn) / total_lp_tokens;
-        market.amm.base_asset_reserve = market.amm.base_asset_reserve * reserve_scale;
-        market.amm.quote_asset_reserve = market.amm.quote_asset_reserve * reserve_scale;
-        market.amm.sqrt_k -= lp_tokens_to_burn;
+        let reserve_scale = 
+            (
+                total_lp_tokens 
+                - lp_tokens_to_burn
+            ) 
+            * AMM_RESERVE_PRECISION 
+            / total_lp_tokens;
+
+        market.amm.base_asset_reserve = market.amm.base_asset_reserve
+            .checked_mul(reserve_scale)
+            .ok_or_else(math_error!())?
+            .checked_div(AMM_RESERVE_PRECISION)
+            .ok_or_else(math_error!())?;
+
+        market.amm.quote_asset_reserve = market.amm.quote_asset_reserve
+            .checked_mul(reserve_scale)
+            .ok_or_else(math_error!())?
+            .checked_div(AMM_RESERVE_PRECISION)
+            .ok_or_else(math_error!())?;
+
+        market.amm.sqrt_k = market.amm.sqrt_k
+            .checked_sub(lp_tokens_to_burn)
+            .ok_or_else(math_error!())?;
 
         Ok(())
     }
@@ -867,7 +904,7 @@ pub mod clearing_house {
         //     &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
         //     remaining_accounts_iter,
         // )?;
-
+    
         let market_map = MarketMap::load(
             &get_writable_markets(market_index),
             &get_market_oracles(market_index, &ctx.accounts.oracle),
@@ -876,8 +913,8 @@ pub mod clearing_house {
         let mut market = market_map.get_ref_mut(&market_index)?;
 
         // TODO: margin requirements
+        // only 1x leverage fn 
 
-        // Get existing position or add a new position for market
         let position_index = get_position_index(&user.positions, market_index)
             .or_else(|_| add_new_position(&mut user.positions, market_index))?;
         let lp_position = &mut user.positions[position_index];
@@ -889,23 +926,21 @@ pub mod clearing_house {
 
         // update market state
         let total_lp_tokens = market.amm.sqrt_k;
-        let reserve_scale = (total_lp_tokens + user_lp_tokens) / total_lp_tokens;
+        let reserve_scale = ((total_lp_tokens + user_lp_tokens) * AMM_RESERVE_PRECISION) / total_lp_tokens;
 
-        market.amm.base_asset_reserve = market
-            .amm
-            .base_asset_reserve
+        market.amm.base_asset_reserve = market.amm.base_asset_reserve
             .checked_mul(reserve_scale)
+            .ok_or_else(math_error!())?
+            .checked_div(AMM_RESERVE_PRECISION)
             .ok_or_else(math_error!())?;
 
-        market.amm.quote_asset_reserve = market
-            .amm
-            .base_asset_reserve
+        market.amm.quote_asset_reserve = market.amm.quote_asset_reserve
             .checked_mul(reserve_scale)
+            .ok_or_else(math_error!())?
+            .checked_div(AMM_RESERVE_PRECISION)
             .ok_or_else(math_error!())?;
 
-        market.amm.sqrt_k = market
-            .amm
-            .sqrt_k
+        market.amm.sqrt_k = market.amm.sqrt_k
             .checked_add(user_lp_tokens)
             .ok_or_else(math_error!())?;
 
