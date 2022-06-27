@@ -15,7 +15,7 @@ import {
 	convertToNumber,
 	findComputeUnitConsumption,
 	calculateBidAskPrice,
-	calculatePrepegAMM,
+	calculateUpdatedAMM,
 } from '../sdk/src';
 
 import {
@@ -275,7 +275,7 @@ describe('prepeg', () => {
 			solUsd
 		);
 
-		const prepegAMM = calculatePrepegAMM(market0.amm, oraclePriceData);
+		const prepegAMM = calculateUpdatedAMM(market0.amm, oraclePriceData);
 		assert(prepegAMM.pegMultiplier.eq(new BN(1003)));
 		const estDist = prepegAMM.totalFee.sub(
 			prepegAMM.totalFeeMinusDistributions
@@ -308,7 +308,7 @@ describe('prepeg', () => {
 			baseAssetAmount,
 			false
 		);
-		const _txSig0 = await clearingHouse.updateAMM([new BN(0)]);
+		const _txSig0 = await clearingHouse.updateAMMs([new BN(0)]);
 
 		const txSig = await clearingHouse.placeAndFillOrder(orderParams);
 		const computeUnits = await findComputeUnitConsumption(
@@ -426,7 +426,7 @@ describe('prepeg', () => {
 			'after trade est. mark price:',
 			convertToNumber(newPrice)
 		);
-		const _txSig0 = await clearingHouse.updateAMM([new BN(0)]);
+		const _txSig0 = await clearingHouse.updateAMMs([new BN(0)]);
 
 		const txSig = await clearingHouse.placeAndFillOrder(orderParams);
 		const computeUnits = await findComputeUnitConsumption(
@@ -533,14 +533,14 @@ describe('prepeg', () => {
 				'after trade est. mark price:',
 				convertToNumber(newPrice)
 			);
-			const _txSig0 = await clearingHouse.updateAMM([
+			const _txSig0 = await clearingHouse.updateAMMs([
 				new BN(0),
 				new BN(1),
 				new BN(2),
 				new BN(3),
 				// new BN(4),
 			]);
-			const _txSig00 = await clearingHouse.updateAMM([new BN(4)]);
+			const _txSig00 = await clearingHouse.updateAMMs([new BN(4)]);
 
 			const txSig = await clearingHouse.placeAndFillOrder(orderParams);
 			const computeUnits = await findComputeUnitConsumption(
@@ -598,14 +598,14 @@ describe('prepeg', () => {
 			user.positions[0].baseAssetAmount.div(new BN(2)),
 			false
 		);
-		const _txSig0 = await clearingHouse.updateAMM([
+		const _txSig0 = await clearingHouse.updateAMMs([
 			new BN(0),
 			new BN(1),
 			new BN(2),
 			new BN(3),
 			// new BN(4),
 		]);
-		const _txSig00 = await clearingHouse.updateAMM([new BN(4)]);
+		const _txSig00 = await clearingHouse.updateAMMs([new BN(4)]);
 
 		const txSig = await clearingHouse.placeAndFillOrder(orderParams);
 		const computeUnits = await findComputeUnitConsumption(

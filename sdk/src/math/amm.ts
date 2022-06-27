@@ -26,7 +26,7 @@ import {
 	calculateAdjustKCost,
 	calculateBudgetedPeg,
 } from './repeg';
-export function calculatePrepeg(
+export function calculateNewAmm(
 	amm: AMM,
 	oraclePriceData: OraclePriceData
 ): [BN, BN, BN, BN] {
@@ -102,7 +102,7 @@ export function calculatePrepeg(
 	return [prePegCost, pKNumer, pKDenom, newPeg];
 }
 
-export function calculatePrepegAMM(
+export function calculateUpdatedAMM(
 	amm: AMM,
 	oraclePriceData: OraclePriceData
 ): AMM {
@@ -110,7 +110,7 @@ export function calculatePrepegAMM(
 		return amm;
 	}
 	const newAmm = Object.assign({}, amm);
-	const [prepegCost, pKNumer, pKDenom, newPeg] = calculatePrepeg(
+	const [prepegCost, pKNumer, pKDenom, newPeg] = calculateNewAmm(
 		amm,
 		oraclePriceData
 	);
@@ -141,12 +141,12 @@ export function calculatePrepegAMM(
 	return newAmm;
 }
 
-export function calculatePrepegSpreadReserves(
+export function calculateUpdatedAMMSpreadReserves(
 	amm: AMM,
 	direction: PositionDirection,
 	oraclePriceData: OraclePriceData
 ): { baseAssetReserve: BN; quoteAssetReserve: BN; sqrtK: BN; newPeg: BN } {
-	const newAmm = calculatePrepegAMM(amm, oraclePriceData);
+	const newAmm = calculateUpdatedAMM(amm, oraclePriceData);
 	const dirReserves = calculateSpreadReserves(
 		newAmm,
 		direction,
@@ -166,7 +166,7 @@ export function calculateBidAskPrice(
 	amm: AMM,
 	oraclePriceData: OraclePriceData
 ): [BN, BN] {
-	const newAmm = calculatePrepegAMM(amm, oraclePriceData);
+	const newAmm = calculateUpdatedAMM(amm, oraclePriceData);
 	const askReserves = calculateSpreadReserves(
 		newAmm,
 		PositionDirection.LONG,

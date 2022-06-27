@@ -59,7 +59,7 @@ pub mod clearing_house {
     use crate::state::market::{Market, PNLPool};
     use crate::state::market_map::{
         get_market_oracles, get_writable_markets, get_writable_markets_for_user_positions,
-        get_writable_markets_list, MarketMap, MarketOracles, WritableMarkets
+        get_writable_markets_list, MarketMap, MarketOracles, WritableMarkets,
     };
     use crate::state::oracle::OraclePriceData;
     use crate::state::oracle_map::OracleMap;
@@ -1543,7 +1543,7 @@ pub mod clearing_house {
                 &state.oracle_guard_rails.validity,
             )?;
 
-            controller::repeg::prepeg(
+            controller::repeg::update_amm(
                 market,
                 // mark_price_prefore,
                 oracle_price_data,
@@ -2803,6 +2803,8 @@ pub mod clearing_house {
     ) -> Result<()> {
         let market = &mut ctx.accounts.market.load_mut()?;
         market.amm.base_spread = base_spread;
+        market.amm.long_spread = (base_spread / 2) as u128;
+        market.amm.short_spread = (base_spread / 2) as u128;
         Ok(())
     }
 

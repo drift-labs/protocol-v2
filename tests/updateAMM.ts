@@ -17,7 +17,7 @@ import {
 	convertToNumber,
 	findComputeUnitConsumption,
 	calculateBidAskPrice,
-	calculatePrepegAMM,
+	calculateUpdatedAMM,
 } from '../sdk/src';
 
 import {
@@ -156,7 +156,7 @@ describe('update amm', () => {
 			solUsd
 		);
 
-		const prepegAMM = calculatePrepegAMM(market0.amm, oraclePriceData);
+		const prepegAMM = calculateUpdatedAMM(market0.amm, oraclePriceData);
 		console.log(prepegAMM.pegMultiplier.toString());
 		assert(prepegAMM.pegMultiplier.eq(new BN(1003)));
 		const estDist = prepegAMM.totalFee.sub(
@@ -335,7 +335,7 @@ describe('update amm', () => {
 				thisUsd
 			);
 
-			const prepegAMM = calculatePrepegAMM(market0.amm, oraclePriceData);
+			const prepegAMM = calculateUpdatedAMM(market0.amm, oraclePriceData);
 			prepegAMMs.push(prepegAMM);
 			console.log('market', i, ':', prepegAMM.pegMultiplier.toString());
 			// assert(prepegAMM.pegMultiplier.eq(new BN(1006)));

@@ -253,7 +253,7 @@ pub fn calculate_prepeg_market(
         target_price,
     )?;
 
-    let (repegged_market, _cost) = adjust_prepeg(market, optimal_peg, fee_budget, false)?;
+    let (repegged_market, _cost) = adjust_amm(market, optimal_peg, fee_budget, false)?;
 
     // let (_capped_candidate_peg, _candidate_cost, repegged_market) = calculate_budgeted_peg(
     //     market,
@@ -437,7 +437,7 @@ pub fn adjust_peg_cost(
     Ok((market_clone, cost))
 }
 
-pub fn adjust_prepeg(
+pub fn adjust_amm(
     market: &Market,
     optimal_peg: u128,
     budget: u128,
@@ -497,8 +497,6 @@ pub fn adjust_prepeg(
         // equivalent to (but cheaper than) scaling down by .1%
         // let (k_scale_numerator, k_scale_denominator) = (999, 1000);
         let adjustment_cost: i128 = if adjust_k {
-
-
             // TODO can be off by 1?
 
             let new_sqrt_k = market

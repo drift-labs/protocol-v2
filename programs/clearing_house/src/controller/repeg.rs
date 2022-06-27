@@ -72,7 +72,7 @@ pub fn repeg(
     Ok(adjustment_cost)
 }
 
-pub fn prepeg(
+pub fn update_amm(
     market: &mut Market,
     // mark_price: u128,
     oracle_price_data: &OraclePriceData,
@@ -108,14 +108,14 @@ pub fn prepeg(
         target_price,
     )?;
 
-    let (repegged_market, prepeg_cost) =
-        repeg::adjust_prepeg(market, optimal_peg, fee_budget, true)?;
+    let (repegged_market, amm_update_cost) =
+        repeg::adjust_amm(market, optimal_peg, fee_budget, true)?;
     // msg!(
     //     "prepeg_cost: {:?}, repegged_market peg: {:?}",
     //     prepeg_cost,
     //     repegged_market.amm.peg_multiplier
     // );
-    let cost_applied = apply_cost_to_market(market, prepeg_cost)?;
+    let cost_applied = apply_cost_to_market(market, amm_update_cost)?;
 
     if cost_applied {
         market.amm.base_asset_reserve = repegged_market.amm.base_asset_reserve;
@@ -137,7 +137,7 @@ pub fn prepeg(
         // let sqrt_k_after = market.amm.sqrt_k;
     }
 
-    Ok(prepeg_cost)
+    Ok(amm_update_cost)
 }
 
 pub fn apply_cost_to_market(market: &mut Market, cost: i128) -> ClearingHouseResult<bool> {

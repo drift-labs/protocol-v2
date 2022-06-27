@@ -339,18 +339,14 @@ pub fn fill_order(
     {
         let market = &mut market_map.get_ref_mut(&market_index)?;
         validate!(
-            clock_slot == market.amm.last_update_slot,
+            (clock_slot == market.amm.last_update_slot || market.amm.curve_update_intensity == 0),
             ErrorCode::AMMNotUpdatedInSameSlot,
             "AMM must be updated in a prior instruction within same slot"
         )?;
-        
+
         oracle_mark_spread_pct_before = market.amm.last_oracle_mark_spread_pct;
 
         let oracle_price_data = &market.amm.get_oracle_price(oracle, clock_slot)?;
-
-        // let prepeg_budget = repeg::calculate_fee_pool(market)?;
-
-        // // let mark_price_prefore = market.amm.mark_price()?;
 
         is_oracle_valid = amm::is_oracle_valid(
             &market.amm,
@@ -358,13 +354,6 @@ pub fn fill_order(
             &state.oracle_guard_rails.validity,
         )?;
 
-        // controller::repeg::prepeg(
-        //     market,
-        //     // mark_price_prefore,
-        //     oracle_price_data,
-        //     prepeg_budget,
-        //     // now,
-        // )?;
         mark_price_before = market.amm.mark_price()?;
 
         // oracle_mark_spread_pct_before = amm::calculate_oracle_mark_spread_pct(

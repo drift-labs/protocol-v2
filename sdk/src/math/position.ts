@@ -12,8 +12,8 @@ import {
 import { OraclePriceData } from '../oracles/types';
 import { MarketAccount, PositionDirection, UserPosition } from '../types';
 import {
-	calculatePrepegAMM,
-	calculatePrepegSpreadReserves,
+	calculateUpdatedAMM,
+	calculateUpdatedAMMSpreadReserves,
 	calculateAmmReservesAfterSwap,
 	getSwapDirection,
 } from './amm';
@@ -40,7 +40,7 @@ export function calculateBaseAssetValue(
 
 	if (market.amm.baseSpread > 0) {
 		const { baseAssetReserve, quoteAssetReserve, sqrtK, newPeg } =
-			calculatePrepegSpreadReserves(
+			calculateUpdatedAMMSpreadReserves(
 				market.amm,
 				directionToClose,
 				oraclePriceData
@@ -52,7 +52,7 @@ export function calculateBaseAssetValue(
 			pegMultiplier: newPeg,
 		};
 	} else {
-		prepegAmm = calculatePrepegAMM(market.amm, oraclePriceData);
+		prepegAmm = calculateUpdatedAMM(market.amm, oraclePriceData);
 	}
 
 	const [newQuoteAssetReserve, _] = calculateAmmReservesAfterSwap(

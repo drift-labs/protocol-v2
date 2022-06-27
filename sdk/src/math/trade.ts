@@ -18,7 +18,7 @@ import {
 	getSwapDirection,
 	AssetType,
 	// calculateSpreadReserves,
-	calculatePrepegSpreadReserves,
+	calculateUpdatedAMMSpreadReserves,
 } from './amm';
 import { squareRootBN } from './utils';
 import { isVariant } from '../types';
@@ -90,7 +90,7 @@ export function calculateTradeSlippage(
 	let amm: Parameters<typeof calculateAmmReservesAfterSwap>[0];
 	if (useSpread && market.amm.baseSpread > 0) {
 		const { baseAssetReserve, quoteAssetReserve, sqrtK, newPeg } =
-			calculatePrepegSpreadReserves(market.amm, direction, oraclePriceData);
+			calculateUpdatedAMMSpreadReserves(market.amm, direction, oraclePriceData);
 		amm = {
 			baseAssetReserve,
 			quoteAssetReserve,
@@ -171,7 +171,7 @@ export function calculateTradeAcquiredAmounts(
 	let amm: Parameters<typeof calculateAmmReservesAfterSwap>[0];
 	if (useSpread && market.amm.baseSpread > 0) {
 		const { baseAssetReserve, quoteAssetReserve, sqrtK, newPeg } =
-			calculatePrepegSpreadReserves(market.amm, direction, oraclePriceData);
+			calculateUpdatedAMMSpreadReserves(market.amm, direction, oraclePriceData);
 		amm = {
 			baseAssetReserve,
 			quoteAssetReserve,
@@ -246,7 +246,7 @@ export function calculateTargetPriceTrade(
 
 	if (useSpread && market.amm.baseSpread > 0) {
 		const { baseAssetReserve, quoteAssetReserve, newPeg } =
-			calculatePrepegSpreadReserves(market.amm, direction, oraclePriceData);
+			calculateUpdatedAMMSpreadReserves(market.amm, direction, oraclePriceData);
 		baseAssetReserveBefore = baseAssetReserve;
 		quoteAssetReserveBefore = quoteAssetReserve;
 		peg = newPeg;
