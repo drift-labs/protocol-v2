@@ -173,13 +173,12 @@ pub fn update_funding_rate(
         let (funding_rate_long, funding_rate_short) =
             calculate_funding_rate_long_short(market, funding_rate)?;
 
-        // lp funding is applied to current position
-        let market_net_position = -market.amm.net_base_asset_amount;
-        let funding_rate_lp = if market_net_position < 0 {
-            calculate_funding_payment_in_quote_precision(funding_rate_short, market_net_position)?
+        // lp funding 
+        let amm_net_position = -market.amm.net_base_asset_amount;
+        let funding_rate_lp = if amm_net_position < 0 {
+            calculate_funding_payment_in_quote_precision(funding_rate_short, amm_net_position)?
         } else {
-            // market_net_position > 0
-            calculate_funding_payment_in_quote_precision(funding_rate_long, market_net_position)?
+            calculate_funding_payment_in_quote_precision(funding_rate_long, amm_net_position)?
         };
         market.amm.cumulative_funding_rate_lp = market
             .amm
