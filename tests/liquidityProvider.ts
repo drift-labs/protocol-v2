@@ -184,6 +184,7 @@ describe('liquidity providing', () => {
 
         var user = await chProgram.account.user.fetch(await clearingHouse.getUserAccountPublicKey())
         var lp_token_amount = user.positions[0].lpTokens;
+        console.log(lp_token_amount.toString())
         assert(lp_token_amount.gt(new BN(0)))
 
         console.log('removing liquidity...')

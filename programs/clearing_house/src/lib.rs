@@ -908,14 +908,21 @@ pub mod clearing_house {
 
         // user cannot have an open position
         validate!(
-            lp_position.base_asset_amount == 0,
+            !lp_position.is_open_position()
+                && !lp_position.is_lp()
+                && !lp_position.has_open_order(),
             ErrorCode::CantLPWithMarketPosition
         )?;
 
-        // distribute lp tokens to lp
-        let user_lp_tokens = quote_asset_amount * AMM_TO_QUOTE_PRECISION_RATIO * PEG_PRECISION
+        // create lp position
+        let user_lp_tokens = quote_asset_amount * AMM_TO_QUOTE_PRECISION_RATIO
             / 2
-            / market.amm.peg_multiplier; // todo: change from peg to mark price?
+            / (market.amm.peg_multiplier / PEG_PRECISION); // todo: change from peg to mark price?
+
+        lp_position.lp_tokens = user_lp_tokens;
+        lp_position.last_net_base_asset_amount = market.amm.net_base_asset_amount;
+        lp_position.last_total_fee_minus_distributions = market.amm.total_fee_minus_distributions;
+        lp_position.last_cumulative_funding_rate = market.amm.cumulative_funding_rate_lp;
 
         // update market state
         let new_sqrt_k = market
@@ -953,12 +960,6 @@ pub mod clearing_house {
         //.sqrt_k
         //.checked_add(user_lp_tokens)
         //.ok_or_else(math_error!())?;
-
-        // update lp position
-        lp_position.lp_tokens = 0;
-        lp_position.last_net_base_asset_amount = market.amm.net_base_asset_amount;
-        lp_position.last_total_fee_minus_distributions = market.amm.total_fee_minus_distributions;
-        lp_position.last_cumulative_funding_rate = market.amm.cumulative_funding_rate_lp;
 
         Ok(())
     }
