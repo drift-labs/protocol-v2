@@ -4,8 +4,7 @@ import { BN, getMarketOrderParams, ONE, OracleSource, ZERO } from '../sdk';
 
 import { Program } from '@project-serum/anchor';
 
-import { PublicKey } from '@solana/web3.js';
-
+import { PublicKey, Transaction } from '@solana/web3.js';
 import {
 	Admin,
 	MARK_PRICE_PRECISION,
@@ -178,7 +177,17 @@ describe('prepeg', () => {
 			baseAssetAmount,
 			false
 		);
-		const txSig = await clearingHouse.placeAndFillOrder(orderParams);
+		const instr1 = await clearingHouse.getUpdateAMMIx([new BN(0)]);
+		const instr2 = await clearingHouse.getPlaceAndFillOrderIx(orderParams);
+		const transaction = new Transaction().add(instr1).add(instr2);
+
+		const { txSig, slot } = await clearingHouse.txSender.send(
+			transaction,
+			[],
+			clearingHouse.opts
+		);
+		console.log('slot:', slot.toString());
+
 		const computeUnits = await findComputeUnitConsumption(
 			clearingHouse.program.programId,
 			connection,
@@ -214,6 +223,9 @@ describe('prepeg', () => {
 		// assert(user.totalFeePaid.eq(new BN(49750)));
 		// assert(user.cumulativeDeposits.eq(usdcAmount));
 
+		console.log(
+			clearingHouse.getUserAccount().positions[0].quoteAssetAmount.toString()
+		);
 		assert.ok(
 			clearingHouse
 				.getUserAccount()
@@ -292,6 +304,8 @@ describe('prepeg', () => {
 			baseAssetAmount,
 			false
 		);
+		const _txSig0 = await clearingHouse.updateAMM([new BN(0)]);
+
 		const txSig = await clearingHouse.placeAndFillOrder(orderParams);
 		const computeUnits = await findComputeUnitConsumption(
 			clearingHouse.program.programId,
@@ -408,6 +422,8 @@ describe('prepeg', () => {
 			'after trade est. mark price:',
 			convertToNumber(newPrice)
 		);
+		const _txSig0 = await clearingHouse.updateAMM([new BN(0)]);
+
 		const txSig = await clearingHouse.placeAndFillOrder(orderParams);
 		const computeUnits = await findComputeUnitConsumption(
 			clearingHouse.program.programId,
@@ -513,6 +529,15 @@ describe('prepeg', () => {
 				'after trade est. mark price:',
 				convertToNumber(newPrice)
 			);
+			const _txSig0 = await clearingHouse.updateAMM([
+				new BN(0),
+				new BN(1),
+				new BN(2),
+				new BN(3),
+				// new BN(4),
+			]);
+			const _txSig00 = await clearingHouse.updateAMM([new BN(4)]);
+
 			const txSig = await clearingHouse.placeAndFillOrder(orderParams);
 			const computeUnits = await findComputeUnitConsumption(
 				clearingHouse.program.programId,
@@ -569,6 +594,15 @@ describe('prepeg', () => {
 			user.positions[0].baseAssetAmount.div(new BN(2)),
 			false
 		);
+		const _txSig0 = await clearingHouse.updateAMM([
+			new BN(0),
+			new BN(1),
+			new BN(2),
+			new BN(3),
+			// new BN(4),
+		]);
+		const _txSig00 = await clearingHouse.updateAMM([new BN(4)]);
+
 		const txSig = await clearingHouse.placeAndFillOrder(orderParams);
 		const computeUnits = await findComputeUnitConsumption(
 			clearingHouse.program.programId,

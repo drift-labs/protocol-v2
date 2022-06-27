@@ -3866,6 +3866,11 @@
       "code": 6076,
       "name": "CantUpdatePNLPoolBalanceType",
       "msg": "CantUpdatePNLPoolBalanceType"
+    },
+    {
+      "code": 6077,
+      "name": "AMMNotUpdatedInSameSlot",
+      "msg": "AMMNotUpdatedInSameSlot"
     }
   ]
 }

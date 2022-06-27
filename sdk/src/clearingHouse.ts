@@ -880,9 +880,9 @@ export class ClearingHouse {
 	}
 
 	public async updateAMM(marketIndexes: BN[]): Promise<TransactionSignature> {
-		for (let i = marketIndexes.length; i < 5; i++) {
-			marketIndexes.push(new BN(100));
-		}
+		// for (let i = marketIndexes.length; i < 5; i++) {
+		// 	marketIndexes.push(new BN(100));
+		// }
 		const { txSig } = await this.txSender.send(
 			wrapInTx(await this.getUpdateAMMIx(marketIndexes)),
 			[],
@@ -894,6 +894,9 @@ export class ClearingHouse {
 	public async getUpdateAMMIx(
 		marketIndexes: BN[]
 	): Promise<TransactionInstruction> {
+		for (let i = marketIndexes.length; i < 5; i++) {
+			marketIndexes.push(new BN(100));
+		}
 		// const remainingAccounts = this.getRemainingAccounts({
 		// 	writableMarketIndex: marketIndex,
 		// });
@@ -932,7 +935,7 @@ export class ClearingHouse {
 			bankAccountInfos.concat(marketAccountInfos)
 		);
 
-		console.log('remainingAccounts:', remainingAccounts);
+		// console.log('remainingAccounts:', remainingAccounts);
 		return await this.program.instruction.updateAmm(marketIndexes, {
 			accounts: {
 				state: await this.getStatePublicKey(),

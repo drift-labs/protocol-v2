@@ -21,6 +21,8 @@ use crate::state::state::OracleGuardRails;
 use solana_program::clock::Slot;
 use solana_program::msg;
 use std::ops::Div;
+use crate::error::ErrorCode;
+use crate::validate;
 
 #[derive(Copy, Clone)]
 pub enum MarginRequirementType {
@@ -89,10 +91,18 @@ pub fn calculate_margin_requirement_and_total_collateral(
 
         let market = &market_map.get_ref(&market_position.market_index)?;
         let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
-        let prepeg_budget = repeg::calculate_fee_pool(market)?;
-        let prepeg_amm = repeg::calculate_prepeg_market(market, oracle_price_data, prepeg_budget)?;
+        // let prepeg_budget = repeg::calculate_fee_pool(market)?;
+        // let prepeg_amm = repeg::calculate_prepeg_market(market, oracle_price_data, prepeg_budget)?;
+
+
+        validate!(
+            oracle_map.slot == market.amm.last_update_slot,
+            ErrorCode::AMMNotUpdatedInSameSlot,
+            "AMM must be updated in a prior instruction within same slot"
+        )?;
+
         let (position_base_asset_value, position_unrealized_pnl) =
-            calculate_base_asset_value_and_pnl(market_position, &prepeg_amm)?;
+            calculate_base_asset_value_and_pnl(market_position, &market.amm)?;
 
         // let mark_price_before = market.amm.mark_price()?;
         // let (amm_position_base_asset_value, amm_position_unrealized_pnl) =

@@ -31,6 +31,7 @@ use crate::state::oracle_map::OracleMap;
 use crate::state::user::User;
 use crate::state::user::{Order, OrderStatus, OrderType};
 use crate::state::{order_state::*, state::*};
+use crate::validate;
 
 pub fn place_order(
     state: &State,
@@ -337,11 +338,19 @@ pub fn fill_order(
     let oracle_price: i128;
     {
         let market = &mut market_map.get_ref_mut(&market_index)?;
+        validate!(
+            clock_slot == market.amm.last_update_slot,
+            ErrorCode::AMMNotUpdatedInSameSlot,
+            "AMM must be updated in a prior instruction within same slot"
+        )?;
+        
+        oracle_mark_spread_pct_before = market.amm.last_oracle_mark_spread_pct;
+
         let oracle_price_data = &market.amm.get_oracle_price(oracle, clock_slot)?;
 
-        let prepeg_budget = repeg::calculate_fee_pool(market)?;
+        // let prepeg_budget = repeg::calculate_fee_pool(market)?;
 
-        // let mark_price_prefore = market.amm.mark_price()?;
+        // // let mark_price_prefore = market.amm.mark_price()?;
 
         is_oracle_valid = amm::is_oracle_valid(
             &market.amm,
@@ -349,32 +358,32 @@ pub fn fill_order(
             &state.oracle_guard_rails.validity,
         )?;
 
-        controller::repeg::prepeg(
-            market,
-            // mark_price_prefore,
-            oracle_price_data,
-            prepeg_budget,
-            // now,
-        )?;
+        // controller::repeg::prepeg(
+        //     market,
+        //     // mark_price_prefore,
+        //     oracle_price_data,
+        //     prepeg_budget,
+        //     // now,
+        // )?;
         mark_price_before = market.amm.mark_price()?;
 
-        oracle_mark_spread_pct_before = amm::calculate_oracle_mark_spread_pct(
-            &market.amm,
-            oracle_price_data,
-            Some(mark_price_before),
-        )?;
+        // oracle_mark_spread_pct_before = amm::calculate_oracle_mark_spread_pct(
+        //     &market.amm,
+        //     oracle_price_data,
+        //     Some(mark_price_before),
+        // )?;
         oracle_price = oracle_price_data.price;
 
-        if is_oracle_valid {
-            amm::update_oracle_price_twap(
-                &mut market.amm,
-                now,
-                oracle_price_data,
-                Some(mark_price_before),
-            )?;
-        }
+        // if is_oracle_valid {
+        //     amm::update_oracle_price_twap(
+        //         &mut market.amm,
+        //         now,
+        //         oracle_price_data,
+        //         Some(mark_price_before),
+        //     )?;
+        // }
 
-        controller::amm::update_spreads(&mut market.amm, mark_price_before)?;
+        // controller::amm::update_spreads(&mut market.amm, mark_price_before)?;
     }
 
     let valid_oracle_price = if is_oracle_valid {
