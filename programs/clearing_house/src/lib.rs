@@ -41,7 +41,6 @@ pub mod clearing_house {
     use std::option::Option::Some;
 
     use crate::account_loader::{load, load_mut};
-    use crate::controller::amm::SwapDirection;
     use crate::controller::bank_balance::update_bank_balances;
     use crate::controller::lp::settle_lp_position;
     use crate::controller::position::{add_new_position, get_position_index};
@@ -49,13 +48,11 @@ pub mod clearing_house {
     use crate::math;
     use crate::math::amm::{
         calculate_mark_twap_spread_pct,
-        calculate_swap_output,
         //  normalise_oracle_price,
         is_oracle_mark_too_divergent,
     };
     use crate::math::bank_balance::get_token_amount;
     use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64};
-    use crate::math::quote_asset::reserve_to_asset_amount;
     use crate::math::slippage::{calculate_slippage, calculate_slippage_pct};
     use crate::optional_accounts::{get_discount_token, get_referrer, get_referrer_for_fill_order};
     use crate::state::bank::{Bank, BankBalance, BankBalanceType};
