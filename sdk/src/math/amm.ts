@@ -48,7 +48,7 @@ export function calculatePrepeg(
 	if (prePegCost.gt(budget)) {
 		const deficit = budget.sub(prePegCost);
 		[pKNumer, pKDenom] = calculateBudgetedK(amm, deficit);
-		if (pKNumer.mul(new BN(1000)).lt(pKDenom.mul(new BN(978)))) {
+		if (pKNumer.mul(new BN(1000)).lte(pKDenom.mul(new BN(978)))) {
 			[pKNumer, pKDenom] = [new BN(978), new BN(1000)];
 		}
 		const deficitMadeup = calculateAdjustKCost(amm, pKNumer, pKDenom);
