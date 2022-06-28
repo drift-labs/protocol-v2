@@ -1,7 +1,7 @@
 use crate::error::ClearingHouseResult;
 use crate::math::casting::{cast_to_i128, cast_to_u128};
 use crate::math_error;
-use crate::state::order_state::OrderFillerRewardStructure;
+use crate::state::state::OrderFillerRewardStructure;
 use crate::state::state::{DiscountTokenTier, FeeStructure};
 use crate::state::user::OrderDiscountTier;
 use crate::state::user::User;

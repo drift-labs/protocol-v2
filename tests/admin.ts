@@ -208,11 +208,12 @@ describe('admin', () => {
 		await clearingHouse.updateOrderFillerRewardStructure(newStructure);
 
 		await clearingHouse.fetchAccounts();
-		const orderState = clearingHouse.getOrderStateAccount();
 
 		assert(
 			JSON.stringify(newStructure) ===
-				JSON.stringify(orderState.orderFillerRewardStructure)
+				JSON.stringify(
+					clearingHouse.getStateAccount().orderFillerRewardStructure
+				)
 		);
 	});
 

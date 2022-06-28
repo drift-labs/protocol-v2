@@ -145,42 +145,6 @@
       ]
     },
     {
-      "name": "initializeOrderState",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "orderState",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "rent",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "orderHouseNonce",
-          "type": "u8"
-        }
-      ]
-    },
-    {
       "name": "initializeMarket",
       "accounts": [
         {
@@ -492,11 +456,6 @@
           "isSigner": false
         },
         {
-          "name": "orderState",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
           "name": "user",
           "isMut": true,
           "isSigner": false
@@ -526,11 +485,6 @@
       "accounts": [
         {
           "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "orderState",
           "isMut": false,
           "isSigner": false
         },
@@ -566,11 +520,6 @@
           "isSigner": false
         },
         {
-          "name": "orderState",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
           "name": "user",
           "isMut": true,
           "isSigner": false
@@ -598,11 +547,6 @@
       "accounts": [
         {
           "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "orderState",
           "isMut": false,
           "isSigner": false
         },
@@ -639,11 +583,6 @@
       "accounts": [
         {
           "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "orderState",
           "isMut": false,
           "isSigner": false
         },
@@ -1333,11 +1272,6 @@
         },
         {
           "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "orderState",
           "isMut": true,
           "isSigner": false
         }
@@ -1790,33 +1724,6 @@
       }
     },
     {
-      "name": "OrderState",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "orderFillerRewardStructure",
-            "type": {
-              "defined": "OrderFillerRewardStructure"
-            }
-          },
-          {
-            "name": "minOrderQuoteAssetAmount",
-            "type": "u128"
-          },
-          {
-            "name": "padding",
-            "type": {
-              "array": [
-                "u128",
-                10
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
       "name": "State",
       "type": {
         "kind": "struct",
@@ -1914,16 +1821,22 @@
             }
           },
           {
-            "name": "orderState",
-            "type": "publicKey"
-          },
-          {
             "name": "numberOfMarkets",
             "type": "u64"
           },
           {
             "name": "numberOfBanks",
             "type": "u64"
+          },
+          {
+            "name": "orderFillerRewardStructure",
+            "type": {
+              "defined": "OrderFillerRewardStructure"
+            }
+          },
+          {
+            "name": "minOrderQuoteAssetAmount",
+            "type": "u128"
           },
           {
             "name": "padding0",
@@ -2375,26 +2288,6 @@
       }
     },
     {
-      "name": "OrderFillerRewardStructure",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "rewardNumerator",
-            "type": "u128"
-          },
-          {
-            "name": "rewardDenominator",
-            "type": "u128"
-          },
-          {
-            "name": "timeBasedRewardLowerBound",
-            "type": "u128"
-          }
-        ]
-      }
-    },
-    {
       "name": "OracleGuardRails",
       "type": {
         "kind": "struct",
@@ -2553,6 +2446,26 @@
           },
           {
             "name": "refereeDiscountDenominator",
+            "type": "u128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderFillerRewardStructure",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "rewardNumerator",
+            "type": "u128"
+          },
+          {
+            "name": "rewardDenominator",
+            "type": "u128"
+          },
+          {
+            "name": "timeBasedRewardLowerBound",
             "type": "u128"
           }
         ]
@@ -3684,156 +3597,151 @@
     },
     {
       "code": 6046,
-      "name": "OrderStateAlreadyInitialized",
-      "msg": "Order state already initialized"
-    },
-    {
-      "code": 6047,
       "name": "UnableToLoadAccountLoader",
       "msg": "Unable to load AccountLoader"
     },
     {
-      "code": 6048,
+      "code": 6047,
       "name": "TradeSizeTooLarge",
       "msg": "Trade Size Too Large"
     },
     {
-      "code": 6049,
+      "code": 6048,
       "name": "UserCantReferThemselves",
       "msg": "User cant refer themselves"
     },
     {
-      "code": 6050,
+      "code": 6049,
       "name": "DidNotReceiveExpectedReferrer",
       "msg": "Did not receive expected referrer"
     },
     {
-      "code": 6051,
+      "code": 6050,
       "name": "CouldNotDeserializeReferrer",
       "msg": "Could not deserialize referrer"
     },
     {
-      "code": 6052,
+      "code": 6051,
       "name": "MarketOrderMustBeInPlaceAndFill",
       "msg": "Market order must be in place and fill"
     },
     {
-      "code": 6053,
+      "code": 6052,
       "name": "UserOrderIdAlreadyInUse",
       "msg": "User Order Id Already In Use"
     },
     {
-      "code": 6054,
+      "code": 6053,
       "name": "NoPositionsLiquidatable",
       "msg": "No positions liquidatable"
     },
     {
-      "code": 6055,
+      "code": 6054,
       "name": "InvalidMarginRatio",
       "msg": "Invalid Margin Ratio"
     },
     {
-      "code": 6056,
+      "code": 6055,
       "name": "CantCancelPostOnlyOrder",
       "msg": "Cant Cancel Post Only Order"
     },
     {
-      "code": 6057,
+      "code": 6056,
       "name": "InvalidOracleOffset",
       "msg": "InvalidOracleOffset"
     },
     {
-      "code": 6058,
+      "code": 6057,
       "name": "CantExpireOrders",
       "msg": "CantExpireOrders"
     },
     {
-      "code": 6059,
+      "code": 6058,
       "name": "CouldNotLoadMarketData",
       "msg": "CouldNotLoadMarketData"
     },
     {
-      "code": 6060,
+      "code": 6059,
       "name": "MarketNotFound",
       "msg": "MarketNotFound"
     },
     {
-      "code": 6061,
+      "code": 6060,
       "name": "InvalidMarketAccount",
       "msg": "InvalidMarketAccount"
     },
     {
-      "code": 6062,
+      "code": 6061,
       "name": "UnableToLoadMarketAccount",
       "msg": "UnableToLoadMarketAccount"
     },
     {
-      "code": 6063,
+      "code": 6062,
       "name": "MarketWrongMutability",
       "msg": "MarketWrongMutability"
     },
     {
-      "code": 6064,
+      "code": 6063,
       "name": "UnableToCastUnixTime",
       "msg": "UnableToCastUnixTime"
     },
     {
-      "code": 6065,
+      "code": 6064,
       "name": "CouldNotFindBankBalance",
       "msg": "CouldNotFindBankBalance"
     },
     {
-      "code": 6066,
+      "code": 6065,
       "name": "NoUserBankBalanceAvailable",
       "msg": "NoUserBankBalanceAvailable"
     },
     {
-      "code": 6067,
+      "code": 6066,
       "name": "InvalidBankInitialization",
       "msg": "InvalidBankInitialization"
     },
     {
-      "code": 6068,
+      "code": 6067,
       "name": "CouldNotLoadBankData",
       "msg": "CouldNotLoadBankData"
     },
     {
-      "code": 6069,
+      "code": 6068,
       "name": "BankNotFound",
       "msg": "BankNotFound"
     },
     {
-      "code": 6070,
+      "code": 6069,
       "name": "InvalidBankAccount",
       "msg": "InvalidBankAccount"
     },
     {
-      "code": 6071,
+      "code": 6070,
       "name": "UnableToLoadBankAccount",
       "msg": "UnableToLoadBankAccount"
     },
     {
-      "code": 6072,
+      "code": 6071,
       "name": "BankWrongMutability",
       "msg": "BankWrongMutability"
     },
     {
-      "code": 6073,
+      "code": 6072,
       "name": "BankInterestNotUpToDate",
       "msg": "BankInterestNotUpToDate"
     },
     {
-      "code": 6074,
+      "code": 6073,
       "name": "BankInsufficientDeposits",
       "msg": "BankInsufficientDeposits"
     },
     {
-      "code": 6075,
+      "code": 6074,
       "name": "UserMustSettleTheirOwnPositiveUnsettledPNL",
       "msg": "UserMustSettleTheirOwnPositiveUnsettledPNL"
     },
     {
-      "code": 6076,
+      "code": 6075,
       "name": "CantUpdatePNLPoolBalanceType",
       "msg": "CantUpdatePNLPoolBalanceType"
     }

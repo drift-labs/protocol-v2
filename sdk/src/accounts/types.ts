@@ -2,7 +2,6 @@ import {
 	BankAccount,
 	MarketAccount,
 	OracleSource,
-	OrderStateAccount,
 	StateAccount,
 	UserAccount,
 } from '../types';
@@ -29,7 +28,6 @@ export interface ClearingHouseAccountEvents {
 	marketAccountUpdate: (payload: MarketAccount) => void;
 	bankAccountUpdate: (payload: BankAccount) => void;
 	oraclePriceUpdate: (publicKey: PublicKey, data: OraclePriceData) => void;
-	orderStateAccountUpdate: (payload: OrderStateAccount) => void;
 	userAccountUpdate: (payload: UserAccount) => void;
 	update: void;
 	error: (e: Error) => void;
@@ -55,7 +53,6 @@ export interface ClearingHouseAccountSubscriber {
 	getOraclePriceDataAndSlot(
 		oraclePublicKey: PublicKey
 	): DataAndSlot<OraclePriceData> | undefined;
-	getOrderStateAccountAndSlot(): DataAndSlot<OrderStateAccount>;
 }
 
 export interface UserAccountEvents {

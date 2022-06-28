@@ -28,13 +28,12 @@ use crate::state::events::{OrderRecord, TradeRecord};
 use crate::state::market::Market;
 use crate::state::market_map::MarketMap;
 use crate::state::oracle_map::OracleMap;
+use crate::state::state::*;
 use crate::state::user::User;
 use crate::state::user::{Order, OrderStatus, OrderType};
-use crate::state::{order_state::*, state::*};
 
 pub fn place_order(
     state: &State,
-    order_state: &OrderState,
     user: &AccountLoader<User>,
     market_map: &MarketMap,
     discount_token: Option<TokenAccount>,
@@ -118,7 +117,7 @@ pub fn place_order(
         clock.slot,
     )?;
 
-    validate_order(&new_order, market, order_state, valid_oracle_price)?;
+    validate_order(&new_order, market, state, valid_oracle_price)?;
 
     user.orders[new_order_index] = new_order;
 
@@ -286,7 +285,6 @@ pub fn cancel_order(
 pub fn fill_order(
     order_id: u64,
     state: &State,
-    order_state: &OrderState,
     user: &AccountLoader<User>,
     market_map: &MarketMap,
     bank_map: &mut BankMap,
@@ -460,7 +458,7 @@ pub fn fill_order(
         fees::calculate_fee_for_order(
             quote_asset_amount,
             &state.fee_structure,
-            &order_state.order_filler_reward_structure,
+            &state.order_filler_reward_structure,
             &order_discount_tier,
             order_ts,
             now,

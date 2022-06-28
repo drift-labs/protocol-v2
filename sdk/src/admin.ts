@@ -12,13 +12,11 @@ import {
 import { BN } from '@project-serum/anchor';
 import * as anchor from '@project-serum/anchor';
 import {
-	getClearingHouseStateAccountPublicKey,
 	getClearingHouseStateAccountPublicKeyAndNonce,
 	getBankVaultAuthorityPublicKey,
 	getBankPublicKey,
 	getBankVaultPublicKey,
 	getMarketPublicKey,
-	getOrderStateAccountPublicKeyAndNonce,
 } from './addresses/pda';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { ClearingHouse } from './clearingHouse';
@@ -30,7 +28,7 @@ export class Admin extends ClearingHouse {
 	public async initialize(
 		usdcMint: PublicKey,
 		adminControlsPrices: boolean
-	): Promise<[TransactionSignature, TransactionSignature]> {
+	): Promise<[TransactionSignature]> {
 		const stateAccountRPCResponse = await this.connection.getParsedAccountInfo(
 			await this.getStatePublicKey()
 		);
@@ -74,9 +72,7 @@ export class Admin extends ClearingHouse {
 			this.opts
 		);
 
-		const initializeOrderStateTxSig = await this.initializeOrderState();
-
-		return [initializeTxSig, initializeOrderStateTxSig];
+		return [initializeTxSig];
 	}
 
 	public async initializeBank(
@@ -137,31 +133,6 @@ export class Admin extends ClearingHouse {
 			publicKey: oracle,
 		});
 
-		return txSig;
-	}
-
-	public async initializeOrderState(): Promise<TransactionSignature> {
-		const [orderStatePublicKey, orderStateNonce] =
-			await getOrderStateAccountPublicKeyAndNonce(this.program.programId);
-		const clearingHouseStatePublicKey =
-			await getClearingHouseStateAccountPublicKey(this.program.programId);
-
-		const initializeOrderStateTx =
-			await this.program.transaction.initializeOrderState(orderStateNonce, {
-				accounts: {
-					admin: this.wallet.publicKey,
-					state: clearingHouseStatePublicKey,
-					orderState: orderStatePublicKey,
-					rent: SYSVAR_RENT_PUBKEY,
-					systemProgram: anchor.web3.SystemProgram.programId,
-				},
-			});
-
-		const { txSig } = await this.txSender.send(
-			initializeOrderStateTx,
-			[],
-			this.opts
-		);
 		return txSig;
 	}
 
@@ -558,7 +529,6 @@ export class Admin extends ClearingHouse {
 				accounts: {
 					admin: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
-					orderState: await this.getOrderStatePublicKey(),
 				},
 			}
 		);

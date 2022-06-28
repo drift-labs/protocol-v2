@@ -6,7 +6,6 @@ import {
 	PositionDirection,
 	UserAccount,
 	MarketAccount,
-	OrderStateAccount,
 	OrderParams,
 	Order,
 	BankAccount,
@@ -31,7 +30,6 @@ import StrictEventEmitter from 'strict-event-emitter-types';
 import {
 	getClearingHouseStateAccountPublicKey,
 	getMarketPublicKey,
-	getOrderStateAccountPublicKey,
 	getUserAccountPublicKey,
 	getUserAccountPublicKeySync,
 } from './addresses/pda';
@@ -232,21 +230,6 @@ export class ClearingHouse {
 		oraclePublicKey: PublicKey
 	): DataAndSlot<OraclePriceData> | undefined {
 		return this.accountSubscriber.getOraclePriceDataAndSlot(oraclePublicKey);
-	}
-
-	orderStatePublicKey?: PublicKey;
-	public async getOrderStatePublicKey(): Promise<PublicKey> {
-		if (this.orderStatePublicKey) {
-			return this.orderStatePublicKey;
-		}
-		this.orderStatePublicKey = await getOrderStateAccountPublicKey(
-			this.program.programId
-		);
-		return this.orderStatePublicKey;
-	}
-
-	public getOrderStateAccount(): OrderStateAccount {
-		return this.accountSubscriber.getOrderStateAccountAndSlot().data;
 	}
 
 	/**
@@ -914,7 +897,6 @@ export class ClearingHouse {
 				state: await this.getStatePublicKey(),
 				user: userAccountPublicKey,
 				authority: this.wallet.publicKey,
-				orderState: await this.getOrderStatePublicKey(),
 				oracle: priceOracle,
 			},
 			remainingAccounts,
@@ -943,7 +925,6 @@ export class ClearingHouse {
 				filler: fillerPublicKey,
 				user: userAccountPublicKey,
 				authority: this.wallet.publicKey,
-				orderState: await this.getOrderStatePublicKey(),
 			},
 		});
 	}
@@ -970,7 +951,6 @@ export class ClearingHouse {
 				state: await this.getStatePublicKey(),
 				user: userAccountPublicKey,
 				authority: this.wallet.publicKey,
-				orderState: await this.getOrderStatePublicKey(),
 				oracle,
 			},
 			remainingAccounts,
@@ -1003,7 +983,6 @@ export class ClearingHouse {
 				state: await this.getStatePublicKey(),
 				user: userAccountPublicKey,
 				authority: this.wallet.publicKey,
-				orderState: await this.getOrderStatePublicKey(),
 				oracle,
 			},
 			remainingAccounts,
@@ -1042,7 +1021,6 @@ export class ClearingHouse {
 				state: await this.getStatePublicKey(),
 				user: userAccountPublicKey,
 				authority: this.wallet.publicKey,
-				orderState: await this.getOrderStatePublicKey(),
 			},
 			remainingAccounts,
 		});
@@ -1094,7 +1072,6 @@ export class ClearingHouse {
 					state: await this.getStatePublicKey(),
 					user: userAccountPublicKey,
 					authority: this.wallet.publicKey,
-					orderState: await this.getOrderStatePublicKey(),
 				},
 				remainingAccounts,
 			}
@@ -1190,7 +1167,6 @@ export class ClearingHouse {
 				filler: fillerPublicKey,
 				user: userAccountPublicKey,
 				authority: this.wallet.publicKey,
-				orderState: await this.getOrderStatePublicKey(),
 				oracle: oracle,
 			},
 			remainingAccounts,
@@ -1261,7 +1237,6 @@ export class ClearingHouse {
 				state: await this.getStatePublicKey(),
 				user: userAccountPublicKey,
 				authority: this.wallet.publicKey,
-				orderState: await this.getOrderStatePublicKey(),
 				oracle: priceOracle,
 			},
 			remainingAccounts,

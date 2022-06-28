@@ -12,7 +12,7 @@ use state::oracle::{get_oracle_price, OracleSource};
 
 use crate::math::amm::get_update_k_result;
 use crate::state::market::Market;
-use crate::state::{market::AMM, order_state::*, state::*, user::*};
+use crate::state::{market::AMM, state::*, user::*};
 
 mod account_loader;
 pub mod context;
@@ -63,7 +63,7 @@ pub mod clearing_house {
     };
     use crate::state::oracle::OraclePriceData;
     use crate::state::oracle_map::OracleMap;
-    use crate::state::order_state::{OrderFillerRewardStructure, OrderState};
+    use crate::state::state::OrderFillerRewardStructure;
     use crate::state::user::OrderType;
 
     use super::*;
@@ -147,9 +147,14 @@ pub mod clearing_house {
                 },
                 use_for_liquidations: true,
             },
-            order_state: Pubkey::default(),
             number_of_markets: 0,
             number_of_banks: 0,
+            order_filler_reward_structure: OrderFillerRewardStructure {
+                reward_numerator: 1,
+                reward_denominator: 10,
+                time_based_reward_lower_bound: 10_000, // 1 cent
+            },
+            min_order_quote_asset_amount: 500_000, // 50 cents
             padding0: 0,
             padding1: 0,
             padding2: 0,
@@ -306,31 +311,6 @@ pub mod clearing_house {
             maintenance_asset_weight,
             initial_liability_weight,
             maintenance_liability_weight,
-        };
-
-        Ok(())
-    }
-
-    pub fn initialize_order_state(
-        ctx: Context<InitializeOrderState>,
-        _order_house_nonce: u8,
-    ) -> Result<()> {
-        let state = &mut ctx.accounts.state;
-
-        if !state.order_state.eq(&Pubkey::default()) {
-            return Err(ErrorCode::OrderStateAlreadyInitialized.into());
-        }
-
-        state.order_state = ctx.accounts.order_state.key();
-
-        **ctx.accounts.order_state = OrderState {
-            order_filler_reward_structure: OrderFillerRewardStructure {
-                reward_numerator: 1,
-                reward_denominator: 10,
-                time_based_reward_lower_bound: 10_000, // 1 cent
-            },
-            min_order_quote_asset_amount: 500_000, // 50 cents
-            padding: [0; 10],
         };
 
         Ok(())
@@ -1260,7 +1240,6 @@ pub mod clearing_house {
 
         controller::orders::place_order(
             &ctx.accounts.state,
-            &ctx.accounts.order_state,
             &ctx.accounts.user,
             &market_map,
             discount_token,
@@ -1386,7 +1365,6 @@ pub mod clearing_house {
         let base_asset_amount = controller::orders::fill_order(
             order_id,
             &ctx.accounts.state,
-            &ctx.accounts.order_state,
             &ctx.accounts.user,
             &market_map,
             &mut bank_map,
@@ -1440,7 +1418,6 @@ pub mod clearing_house {
 
         controller::orders::place_order(
             &ctx.accounts.state,
-            &ctx.accounts.order_state,
             &ctx.accounts.user,
             &market_map,
             discount_token,
@@ -1463,7 +1440,6 @@ pub mod clearing_house {
         let base_asset_amount_filled = controller::orders::fill_order(
             order_id,
             &ctx.accounts.state,
-            &ctx.accounts.order_state,
             user,
             &market_map,
             &mut bank_map,
@@ -2668,10 +2644,10 @@ pub mod clearing_house {
     }
 
     pub fn update_order_filler_reward_structure(
-        ctx: Context<AdminUpdateOrderState>,
+        ctx: Context<AdminUpdateState>,
         order_filler_reward_structure: OrderFillerRewardStructure,
     ) -> Result<()> {
-        ctx.accounts.order_state.order_filler_reward_structure = order_filler_reward_structure;
+        ctx.accounts.state.order_filler_reward_structure = order_filler_reward_structure;
         Ok(())
     }
 

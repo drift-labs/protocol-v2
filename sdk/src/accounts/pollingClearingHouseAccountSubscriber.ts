@@ -12,7 +12,6 @@ import { EventEmitter } from 'events';
 import {
 	BankAccount,
 	MarketAccount,
-	OrderStateAccount,
 	StateAccount,
 	UserAccount,
 } from '../types';
@@ -49,7 +48,6 @@ export class PollingClearingHouseAccountSubscriber
 	market = new Map<number, DataAndSlot<MarketAccount>>();
 	bank = new Map<number, DataAndSlot<BankAccount>>();
 	oracles = new Map<string, DataAndSlot<OraclePriceData>>();
-	orderState?: DataAndSlot<OrderStateAccount>;
 	user?: DataAndSlot<UserAccount>;
 
 	private isSubscribing = false;
@@ -121,12 +119,6 @@ export class PollingClearingHouseAccountSubscriber
 			key: 'state',
 			publicKey: accounts.state,
 			eventType: 'stateAccountUpdate',
-		});
-
-		this.accountsToPoll.set(accounts.orderState.toString(), {
-			key: 'orderState',
-			publicKey: accounts.orderState,
-			eventType: 'orderStateAccountUpdate',
 		});
 
 		await this.updateMarketAccountsToPoll();
@@ -203,13 +195,8 @@ export class PollingClearingHouseAccountSubscriber
 			this.program.programId
 		);
 
-		const state = (await this.program.account.state.fetch(
-			statePublicKey
-		)) as StateAccount;
-
 		const accounts = {
 			state: statePublicKey,
-			orderState: state.orderState,
 		};
 
 		return accounts;
@@ -418,11 +405,6 @@ export class PollingClearingHouseAccountSubscriber
 		return this.bank.get(bankIndex.toNumber());
 	}
 
-	public getOrderStateAccountAndSlot(): DataAndSlot<OrderStateAccount> {
-		this.assertIsSubscribed();
-		return this.orderState;
-	}
-
 	public getOraclePriceDataAndSlot(
 		oraclePublicKey: PublicKey
 	): DataAndSlot<OraclePriceData> | undefined {
@@ -440,5 +422,4 @@ export class PollingClearingHouseAccountSubscriber
 
 type ClearingHouseAccounts = {
 	state: PublicKey;
-	orderState: PublicKey;
 };
