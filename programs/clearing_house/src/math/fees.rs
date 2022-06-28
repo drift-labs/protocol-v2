@@ -11,111 +11,6 @@ use solana_program::msg;
 use spl_token::state::Account as TokenAccount;
 use std::cmp::{max, min};
 
-pub fn calculate_fee_for_trade(
-    quote_asset_amount: u128,
-    fee_structure: &FeeStructure,
-    discount_token: Option<TokenAccount>,
-    referrer: &Option<AccountLoader<User>>,
-    quote_asset_amount_surplus: u128,
-) -> ClearingHouseResult<(u128, u128, u128, u128, u128)> {
-    let fee = quote_asset_amount
-        .checked_mul(fee_structure.fee_numerator)
-        .ok_or_else(math_error!())?
-        .checked_div(fee_structure.fee_denominator)
-        .ok_or_else(math_error!())?;
-
-    let token_discount = calculate_token_discount(fee, fee_structure, discount_token);
-
-    let (referrer_reward, referee_discount) =
-        calculate_referral_reward_and_referee_discount(fee, fee_structure, referrer)?;
-
-    let user_fee = fee
-        .checked_sub(token_discount)
-        .ok_or_else(math_error!())?
-        .checked_sub(referee_discount)
-        .ok_or_else(math_error!())?;
-
-    let fee_to_market = user_fee
-        .checked_sub(referrer_reward)
-        .ok_or_else(math_error!())?
-        .checked_add(quote_asset_amount_surplus)
-        .ok_or_else(math_error!())?;
-
-    Ok((
-        user_fee,
-        fee_to_market,
-        token_discount,
-        referrer_reward,
-        referee_discount,
-    ))
-}
-
-fn calculate_token_discount(
-    fee: u128,
-    fee_structure: &FeeStructure,
-    discount_token: Option<TokenAccount>,
-) -> u128 {
-    if discount_token.is_none() {
-        return 0;
-    }
-
-    let discount_token = discount_token.unwrap();
-
-    if let Some(discount) = try_to_calculate_token_discount_for_tier(
-        fee,
-        &fee_structure.discount_token_tiers.first_tier,
-        discount_token,
-    ) {
-        return discount;
-    }
-
-    if let Some(discount) = try_to_calculate_token_discount_for_tier(
-        fee,
-        &fee_structure.discount_token_tiers.second_tier,
-        discount_token,
-    ) {
-        return discount;
-    }
-
-    if let Some(discount) = try_to_calculate_token_discount_for_tier(
-        fee,
-        &fee_structure.discount_token_tiers.third_tier,
-        discount_token,
-    ) {
-        return discount;
-    }
-
-    if let Some(discount) = try_to_calculate_token_discount_for_tier(
-        fee,
-        &fee_structure.discount_token_tiers.fourth_tier,
-        discount_token,
-    ) {
-        return discount;
-    }
-
-    0
-}
-
-fn try_to_calculate_token_discount_for_tier(
-    fee: u128,
-    tier: &DiscountTokenTier,
-    discount_token: TokenAccount,
-) -> Option<u128> {
-    if belongs_to_tier(tier, discount_token) {
-        return calculate_token_discount_for_tier(fee, tier);
-    }
-    None
-}
-
-fn calculate_token_discount_for_tier(fee: u128, tier: &DiscountTokenTier) -> Option<u128> {
-    fee.checked_mul(tier.discount_numerator)?
-        .checked_div(tier.discount_denominator)
-}
-
-fn belongs_to_tier(tier: &DiscountTokenTier, discount_token: TokenAccount) -> bool {
-    discount_token.amount >= tier.minimum_balance
-}
-
 fn calculate_referral_reward_and_referee_discount(
     fee: u128,
     fee_structure: &FeeStructure,
@@ -277,6 +172,15 @@ fn calculate_token_discount_for_limit_order(
                 .ok_or_else(math_error!())
         }
     }
+}
+
+fn calculate_token_discount_for_tier(fee: u128, tier: &DiscountTokenTier) -> Option<u128> {
+    fee.checked_mul(tier.discount_numerator)?
+        .checked_div(tier.discount_denominator)
+}
+
+fn belongs_to_tier(tier: &DiscountTokenTier, discount_token: TokenAccount) -> bool {
+    discount_token.amount >= tier.minimum_balance
 }
 
 fn calculate_filler_reward(

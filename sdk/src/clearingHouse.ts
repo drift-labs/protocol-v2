@@ -41,7 +41,7 @@ import {
 import { TxSender } from './tx/types';
 import { wrapInTx } from './tx/utils';
 import { QUOTE_ASSET_BANK_INDEX, ZERO } from './constants/numericConstants';
-import { positionIsAvailable } from './math/position';
+import { findDirectionToClose, positionIsAvailable } from './math/position';
 import { getTokenAmount } from './math/bankBalance';
 import { DEFAULT_USER_NAME, encodeName } from './userName';
 import { OraclePriceData } from './oracles/types';
@@ -51,6 +51,7 @@ import { WebSocketClearingHouseAccountSubscriber } from './accounts/webSocketCle
 import { RetryTxSender } from './tx/retryTxSender';
 import { ClearingHouseUser } from './clearingHouseUser';
 import { ClearingHouseUserAccountSubscriptionConfig } from './clearingHouseUserConfig';
+import { getMarketOrderParams } from './orderParams';
 
 /**
  * # ClearingHouse
@@ -757,80 +758,17 @@ export class ClearingHouse {
 		discountToken?: PublicKey,
 		referrer?: PublicKey
 	): Promise<TransactionSignature> {
-		const { txSig, slot } = await this.txSender.send(
-			wrapInTx(
-				await this.getOpenPositionIx(
-					direction,
-					amount,
-					marketIndex,
-					limitPrice,
-					discountToken,
-					referrer
-				)
+		return await this.placeAndFillOrder(
+			getMarketOrderParams(
+				marketIndex,
+				direction,
+				amount,
+				ZERO,
+				false,
+				limitPrice
 			),
-			[],
-			this.opts
-		);
-		this.marketLastSlotCache.set(marketIndex.toNumber(), slot);
-		return txSig;
-	}
-
-	public async getOpenPositionIx(
-		direction: PositionDirection,
-		amount: BN,
-		marketIndex: BN,
-		limitPrice?: BN,
-		discountToken?: PublicKey,
-		referrer?: PublicKey
-	): Promise<TransactionInstruction> {
-		const userAccountPublicKey = await this.getUserAccountPublicKey();
-
-		if (limitPrice == undefined) {
-			limitPrice = new BN(0); // no limit
-		}
-
-		const remainingAccounts = this.getRemainingAccounts({
-			writableBankIndex: QUOTE_ASSET_BANK_INDEX,
-			writableMarketIndex: marketIndex,
-		});
-
-		const optionalAccounts = {
-			discountToken: false,
-			referrer: false,
-		};
-		if (discountToken) {
-			optionalAccounts.discountToken = true;
-			remainingAccounts.push({
-				pubkey: discountToken,
-				isWritable: false,
-				isSigner: false,
-			});
-		}
-		if (referrer) {
-			optionalAccounts.referrer = true;
-			remainingAccounts.push({
-				pubkey: referrer,
-				isWritable: true,
-				isSigner: false,
-			});
-		}
-
-		const priceOracle = this.getMarketAccount(marketIndex).amm.oracle;
-		return await this.program.instruction.openPosition(
-			direction,
-			amount,
-			marketIndex,
-			limitPrice,
-			optionalAccounts,
-			{
-				accounts: {
-					state: await this.getStatePublicKey(),
-					user: userAccountPublicKey,
-					authority: this.wallet.publicKey,
-					oracle: priceOracle,
-				},
-				remainingAccounts: remainingAccounts,
-			}
+			discountToken,
+			referrer
 		);
 	}
 
@@ -1255,90 +1193,22 @@ export class ClearingHouse {
 		discountToken?: PublicKey,
 		referrer?: PublicKey
 	): Promise<TransactionSignature> {
-		const { txSig } = await this.txSender.send(
-			wrapInTx(
-				await this.getClosePositionIx(marketIndex, discountToken, referrer)
+		const userPosition = this.getUser().getUserPosition(marketIndex);
+		if (!userPosition) {
+			throw Error(`No position in market ${marketIndex.toString()}`);
+		}
+
+		return await this.placeAndFillOrder(
+			getMarketOrderParams(
+				marketIndex,
+				findDirectionToClose(userPosition),
+				ZERO,
+				userPosition.baseAssetAmount,
+				true
 			),
-			[],
-			this.opts
+			discountToken,
+			referrer
 		);
-		return txSig;
-	}
-
-	public async getClosePositionIx(
-		marketIndex: BN,
-		discountToken?: PublicKey,
-		referrer?: PublicKey
-	): Promise<TransactionInstruction> {
-		const userAccountPublicKey = await this.getUserAccountPublicKey();
-
-		const priceOracle = this.getMarketAccount(marketIndex).amm.oracle;
-
-		const remainingAccounts = this.getRemainingAccounts({
-			writableMarketIndex: marketIndex,
-			writableBankIndex: QUOTE_ASSET_BANK_INDEX,
-		});
-
-		const optionalAccounts = {
-			discountToken: false,
-			referrer: false,
-		};
-
-		if (discountToken) {
-			optionalAccounts.discountToken = true;
-			remainingAccounts.push({
-				pubkey: discountToken,
-				isWritable: false,
-				isSigner: false,
-			});
-		}
-		if (referrer) {
-			optionalAccounts.referrer = true;
-			remainingAccounts.push({
-				pubkey: referrer,
-				isWritable: true,
-				isSigner: false,
-			});
-		}
-
-		return await this.program.instruction.closePosition(
-			marketIndex,
-			optionalAccounts,
-			{
-				accounts: {
-					state: await this.getStatePublicKey(),
-					user: userAccountPublicKey,
-					authority: this.wallet.publicKey,
-					oracle: priceOracle,
-				},
-				remainingAccounts: remainingAccounts,
-			}
-		);
-	}
-
-	public async closeAllPositions(
-		discountToken?: PublicKey,
-		referrer?: PublicKey
-	): Promise<TransactionSignature> {
-		const ixs: TransactionInstruction[] = [];
-		for (const userPosition of this.getUserAccount().positions) {
-			if (userPosition.baseAssetAmount.eq(ZERO)) {
-				continue;
-			}
-
-			ixs.push(
-				await this.getClosePositionIx(
-					userPosition.marketIndex,
-					discountToken,
-					referrer
-				)
-			);
-		}
-
-		const tx = new Transaction().add(...ixs);
-
-		const { txSig } = await this.txSender.send(tx, [], this.opts);
-		return txSig;
 	}
 
 	public async settlePNLs(

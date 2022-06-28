@@ -295,26 +295,6 @@ pub struct WithdrawFromInsuranceVaultToMarket<'info> {
     pub token_program: Program<'info, Token>,
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
-pub struct ManagePositionOptionalAccounts {
-    pub discount_token: bool,
-    pub referrer: bool,
-}
-
-#[derive(Accounts)]
-pub struct OpenPosition<'info> {
-    #[account(mut)]
-    pub state: Box<Account<'info, State>>,
-    #[account(
-        mut,
-        has_one = authority,
-    )]
-    pub user: AccountLoader<'info, User>,
-    pub authority: Signer<'info>,
-    /// CHECK: validated in `open_position` ix constraint
-    pub oracle: AccountInfo<'info>,
-}
-
 #[derive(Accounts)]
 pub struct FillOrder<'info> {
     pub state: Box<Account<'info, State>>,
@@ -425,20 +405,6 @@ pub struct ExpireOrder<'info> {
     pub filler: AccountLoader<'info, User>,
     #[account(mut)]
     pub user: AccountLoader<'info, User>,
-}
-
-#[derive(Accounts)]
-pub struct ClosePosition<'info> {
-    #[account(mut)]
-    pub state: Box<Account<'info, State>>,
-    #[account(
-        mut,
-        has_one = authority,
-    )]
-    pub user: AccountLoader<'info, User>,
-    pub authority: Signer<'info>,
-    /// CHECK: validated in `close_position`ix constraint
-    pub oracle: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
