@@ -10,6 +10,7 @@ use crate::state::user::User;
 use crate::math::amm::use_oracle_price_for_margin_calculation;
 use crate::math::bank_balance::get_balance_value;
 use crate::math::casting::cast_to_i128;
+use crate::math::lp::get_lp_market_position;
 use crate::math::oracle::{get_oracle_status, OracleStatus};
 use crate::math::repeg;
 use crate::math::slippage::calculate_slippage;
@@ -78,7 +79,17 @@ pub fn calculate_margin_requirement_and_total_collateral(
     }
 
     let mut perp_margin_requirements: u128 = 0;
-    for market_position in user.positions.iter() {
+    for mut market_position in user.positions.iter() {
+        let market = &market_map.get_ref(&market_position.market_index)?;
+
+        // rust borrowing -- kinda dirty
+        let _market_position = if market_position.is_lp() {
+            get_lp_market_position(market_position, market_position.lp_tokens, &market.amm)?
+        } else {
+            *market_position
+        };
+        market_position = &_market_position;
+
         unsettled_pnl = unsettled_pnl
             .checked_add(market_position.unsettled_pnl)
             .ok_or_else(math_error!())?;
@@ -87,7 +98,6 @@ pub fn calculate_margin_requirement_and_total_collateral(
             continue;
         }
 
-        let market = &market_map.get_ref(&market_position.market_index)?;
         let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
         let prepeg_budget = repeg::calculate_fee_pool(market)?;
 

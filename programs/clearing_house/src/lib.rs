@@ -759,7 +759,6 @@ pub mod clearing_house {
         exchange_not_paused(&ctx.accounts.state)
     )]
     pub fn settle_lp<'info>(ctx: Context<AddRemoveLiquidity>, market_index: u64) -> Result<()> {
-        // settle = settle full position
         let user = &mut load_mut(&ctx.accounts.user)?;
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
 
@@ -768,10 +767,13 @@ pub mod clearing_house {
             &get_market_oracles(market_index, &ctx.accounts.oracle),
             remaining_accounts_iter,
         )?;
-        let mut market = market_map.get_ref_mut(&market_index)?;
+        let market = market_map.get_ref_mut(&market_index)?;
 
         let position_index = get_position_index(&user.positions, market_index)?;
         let lp_position = &mut user.positions[position_index];
+
+        // settle the full lp
+        settle_lp_position(lp_position, lp_position.lp_tokens, &market.amm)?;
 
         Ok(())
     }
@@ -807,7 +809,7 @@ pub mod clearing_house {
         )?;
 
         // settle the lp first
-        settle_lp_position(lp_position, lp_tokens_to_burn, &mut market.amm)?;
+        settle_lp_position(lp_position, lp_tokens_to_burn, &market.amm)?;
 
         // transform lp_position into a market position
         lp_position.lp_tokens = lp_position
@@ -899,9 +901,6 @@ pub mod clearing_house {
         )?;
         let mut market = market_map.get_ref_mut(&market_index)?;
 
-        // TODO: margin requirements
-        // only 1x leverage fn
-
         let position_index = get_position_index(&user.positions, market_index)
             .or_else(|_| add_new_position(&mut user.positions, market_index))?;
         let lp_position = &mut user.positions[position_index];
@@ -913,6 +912,9 @@ pub mod clearing_house {
                 && !lp_position.has_open_order(),
             ErrorCode::CantLPWithMarketPosition
         )?;
+
+        // TODO: margin requirements
+        // only 1x leverage fn
 
         // create lp position
         let user_lp_tokens = quote_asset_amount * AMM_TO_QUOTE_PRECISION_RATIO
