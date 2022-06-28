@@ -23,6 +23,8 @@ use solana_program::clock::Slot;
 use solana_program::msg;
 use std::ops::Div;
 
+use super::constants::{AMM_TO_QUOTE_PRECISION_RATIO, PEG_PRECISION};
+
 #[derive(Copy, Clone)]
 pub enum MarginRequirementType {
     Initial,
@@ -84,6 +86,27 @@ pub fn calculate_margin_requirement_and_total_collateral(
 
         // rust borrowing -- kinda dirty
         let _market_position = if market_position.is_lp() {
+            // add lp margin requirements - both lp_margin + virtual market position
+            let lp_margin_req = market_position
+                .lp_tokens
+                .checked_mul(2)
+                .ok_or_else(math_error!())?
+                .checked_mul(market.amm.peg_multiplier)
+                .ok_or_else(math_error!())?
+                .checked_div(PEG_PRECISION)
+                .ok_or_else(math_error!())?
+                .checked_div(AMM_TO_QUOTE_PRECISION_RATIO)
+                .ok_or_else(math_error!())?;
+
+            msg!(
+                "lp margin req for {} tokens: {}",
+                market_position.lp_tokens,
+                lp_margin_req / 1_000_000
+            );
+            margin_requirement = margin_requirement
+                .checked_add(lp_margin_req)
+                .ok_or_else(math_error!())?;
+
             get_lp_market_position(market_position, market_position.lp_tokens, &market.amm)?
         } else {
             *market_position
@@ -176,7 +199,7 @@ pub fn meets_partial_margin_requirement(
     Ok(total_collateral >= partial_margin_requirement)
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Eq)]
 pub enum LiquidationType {
     NONE,
     PARTIAL,

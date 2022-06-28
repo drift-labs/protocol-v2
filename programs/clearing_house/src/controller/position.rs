@@ -15,7 +15,7 @@ use crate::state::user::{User, UserPositions};
 use crate::MarketPosition;
 use solana_program::msg;
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
 pub enum PositionDirection {
     Long,
     Short,

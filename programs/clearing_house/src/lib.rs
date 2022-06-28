@@ -839,32 +839,6 @@ pub mod clearing_house {
         let update_k_result = get_update_k_result(market.borrow(), new_sqrt_k_u192)?;
         math::amm::update_k(market.borrow_mut(), &update_k_result);
 
-        //// update market
-        //let reserve_scale =
-        //total_lp_tokens
-        //.checked_sub(lp_tokens_to_burn)
-        //.ok_or_else(math_error!())?
-        //.checked_mul(AMM_RESERVE_PRECISION)
-        //.ok_or_else(math_error!())?
-        //.checked_div(total_lp_tokens)
-        //.ok_or_else(math_error!())?;
-
-        //market.amm.base_asset_reserve = market.amm.base_asset_reserve
-        //.checked_mul(reserve_scale)
-        //.ok_or_else(math_error!())?
-        //.checked_div(AMM_RESERVE_PRECISION)
-        //.ok_or_else(math_error!())?;
-
-        //market.amm.quote_asset_reserve = market.amm.quote_asset_reserve
-        //.checked_mul(reserve_scale)
-        //.ok_or_else(math_error!())?
-        //.checked_div(AMM_RESERVE_PRECISION)
-        //.ok_or_else(math_error!())?;
-
-        //market.amm.sqrt_k = market.amm.sqrt_k
-        //.checked_sub(lp_tokens_to_burn)
-        //.ok_or_else(math_error!())?;
-
         Ok(())
     }
 
@@ -878,18 +852,14 @@ pub mod clearing_house {
         market_index: u64,
     ) -> Result<()> {
         let user = &mut load_mut(&ctx.accounts.user)?;
-        // let clock = Clock::get()?;
-        // let user_key = ctx.accounts.user.key();
-        // let now = clock.unix_timestamp;
-        // let clock_slot = clock.slot;
-
+        let clock = Clock::get()?;
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
 
-        // let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
-        // let bank_map = BankMap::load(
-        //     &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
-        //     remaining_accounts_iter,
-        // )?;
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let bank_map = BankMap::load(
+            &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
+            remaining_accounts_iter,
+        )?;
 
         let market_map = MarketMap::load(
             &get_writable_markets(market_index),
@@ -898,25 +868,21 @@ pub mod clearing_house {
         )?;
         let mut market = market_map.get_ref_mut(&market_index)?;
 
-        let position_index = get_position_index(&user.positions, market_index)
-            .or_else(|_| add_new_position(&mut user.positions, market_index))?;
+        // cannot have market position or lp
+        validate!(
+            get_position_index(&user.positions, market_index).is_err(),
+            ErrorCode::CantLPWithMarketPosition
+        );
+
+        let position_index = add_new_position(&mut user.positions, market_index)?;
         let lp_position = &mut user.positions[position_index];
 
-        // user cannot have an open position
-        validate!(
-            !lp_position.is_open_position()
-                && !lp_position.is_lp()
-                && !lp_position.has_open_order(),
-            ErrorCode::CantLPWithMarketPosition
-        )?;
-
-        // TODO: margin requirements
-        // only 1x leverage fn
-
         // create lp position
+        // TODO: change from peg to mark price?
         let user_lp_tokens = quote_asset_amount * AMM_TO_QUOTE_PRECISION_RATIO
+            / PEG_PRECISION
             / 2
-            / (market.amm.peg_multiplier / PEG_PRECISION); // todo: change from peg to mark price?
+            / market.amm.peg_multiplier;
 
         lp_position.lp_tokens = user_lp_tokens;
         lp_position.last_net_base_asset_amount = market.amm.net_base_asset_amount;
@@ -934,31 +900,12 @@ pub mod clearing_house {
         let update_k_result = get_update_k_result(market.borrow(), new_sqrt_k_u192)?;
         math::amm::update_k(market.borrow_mut(), &update_k_result);
 
-        //let total_lp_tokens = market.amm.sqrt_k;
-        //let reserve_scale =
-        //((total_lp_tokens + user_lp_tokens) * AMM_RESERVE_PRECISION) / total_lp_tokens;
-
-        //market.amm.base_asset_reserve = market
-        //.amm
-        //.base_asset_reserve
-        //.checked_mul(reserve_scale)
-        //.ok_or_else(math_error!())?
-        //.checked_div(AMM_RESERVE_PRECISION)
-        //.ok_or_else(math_error!())?;
-
-        //market.amm.quote_asset_reserve = market
-        //.amm
-        //.quote_asset_reserve
-        //.checked_mul(reserve_scale)
-        //.ok_or_else(math_error!())?
-        //.checked_div(AMM_RESERVE_PRECISION)
-        //.ok_or_else(math_error!())?;
-
-        //market.amm.sqrt_k = market
-        //.amm
-        //.sqrt_k
-        //.checked_add(user_lp_tokens)
-        //.ok_or_else(math_error!())?;
+        // check margin requirements
+        validate!(
+            meets_initial_margin_requirement(user, &market_map, &bank_map, &mut oracle_map)?,
+            ErrorCode::InsufficientCollateral,
+            "User does not meet initial margin requirement"
+        )?;
 
         Ok(())
     }
@@ -1916,9 +1863,13 @@ pub mod clearing_house {
                 let close_position_slippage_pct =
                     calculate_slippage_pct(close_position_slippage, mark_price_before_i128)?;
 
-                let close_slippage_pct_too_large = close_position_slippage_pct
-                    > MAX_LIQUIDATION_SLIPPAGE
-                    || close_position_slippage_pct < -MAX_LIQUIDATION_SLIPPAGE;
+                let close_slippage_pct_too_large = !(-MAX_LIQUIDATION_SLIPPAGE
+                    ..=MAX_LIQUIDATION_SLIPPAGE)
+                    .contains(&close_position_slippage_pct);
+
+                //close_position_slippage_pct
+                //> MAX_LIQUIDATION_SLIPPAGE
+                //|| close_position_slippage_pct < -MAX_LIQUIDATION_SLIPPAGE;
 
                 let oracle_mark_divergence_after_close = if !close_slippage_pct_too_large {
                     oracle_status
@@ -2120,9 +2071,13 @@ pub mod clearing_house {
                 let reduce_position_slippage_pct =
                     calculate_slippage_pct(reduce_position_slippage, mark_price_before_i128)?;
 
-                let reduce_slippage_pct_too_large = reduce_position_slippage_pct
-                    > MAX_LIQUIDATION_SLIPPAGE
-                    || reduce_position_slippage_pct < -MAX_LIQUIDATION_SLIPPAGE;
+                let reduce_slippage_pct_too_large = !(-MAX_LIQUIDATION_SLIPPAGE
+                    ..=MAX_LIQUIDATION_SLIPPAGE)
+                    .contains(&reduce_position_slippage_pct);
+
+                //reduce_position_slippage_pct
+                //> MAX_LIQUIDATION_SLIPPAGE
+                //|| reduce_position_slippage_pct < -MAX_LIQUIDATION_SLIPPAGE;
 
                 if reduce_slippage_pct_too_large {
                     msg!(
