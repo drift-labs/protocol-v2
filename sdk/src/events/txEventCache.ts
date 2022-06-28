@@ -1,9 +1,9 @@
-import { EventData, Event, EventType } from './types';
+import { WrappedEvent, EventType } from './types';
 
 class Node {
 	constructor(
 		public key: string,
-		public value: Event<EventType, EventData>[],
+		public value: WrappedEvent<EventType>[],
 		public next?: Node,
 		public prev?: Node
 	) {}
@@ -18,7 +18,7 @@ export class TxEventCache {
 
 	constructor(public maxTx = 1024) {}
 
-	public add(key: string, events: Event<EventType, EventData>[]): void {
+	public add(key: string, events: WrappedEvent<EventType>[]): void {
 		const existingNode = this.cacheMap[key];
 		if (existingNode) {
 			this.detach(existingNode);
@@ -47,7 +47,7 @@ export class TxEventCache {
 		return this.cacheMap.hasOwnProperty(key);
 	}
 
-	public get(key: string): Event<EventType, EventData>[] | undefined {
+	public get(key: string): WrappedEvent<EventType>[] | undefined {
 		return this.cacheMap[key]?.value;
 	}
 

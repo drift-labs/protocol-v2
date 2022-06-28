@@ -1,5 +1,4 @@
 use crate::account_loader::load;
-use crate::context::ManagePositionOptionalAccounts;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::state::user::User;
 use anchor_lang::prelude::AccountLoader;
@@ -9,30 +8,6 @@ use spl_token::solana_program::program_pack::{IsInitialized, Pack};
 use spl_token::state::Account as TokenAccount;
 use std::iter::Peekable;
 use std::slice::Iter;
-
-pub fn get_discount_token_and_referrer<'a, 'b, 'c, 'd, 'e>(
-    optional_accounts: ManagePositionOptionalAccounts,
-    account_info_iter: &'a mut Peekable<Iter<AccountInfo<'b>>>,
-    discount_mint: &'c Pubkey,
-    user_public_key: &'d Pubkey,
-    authority_public_key: &'e Pubkey,
-) -> ClearingHouseResult<(Option<TokenAccount>, Option<AccountLoader<'b, User>>)> {
-    let optional_discount_token = get_discount_token(
-        optional_accounts.discount_token,
-        account_info_iter,
-        discount_mint,
-        authority_public_key,
-    )?;
-
-    let optional_referrer = get_referrer(
-        optional_accounts.referrer,
-        account_info_iter,
-        user_public_key,
-        None,
-    )?;
-
-    Ok((optional_discount_token, optional_referrer))
-}
 
 pub fn get_discount_token(
     expect_discount_token: bool,

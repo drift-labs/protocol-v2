@@ -48,17 +48,17 @@ describe('idempotent curve', () => {
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
 
-		primaryClearingHouse = Admin.from(
+		primaryClearingHouse = new Admin({
 			connection,
-			provider.wallet,
-			chProgram.programId,
-			{
+			wallet: provider.wallet,
+			programID: chProgram.programId,
+			opts: {
 				commitment: 'confirmed',
 			},
-			0,
-			[new BN(0)],
-			[new BN(0)]
-		);
+			activeUserId: 0,
+			marketIndexes: [new BN(0)],
+			bankIndexes: [new BN(0)],
+		});
 		await primaryClearingHouse.initialize(usdcMint.publicKey, true);
 		await primaryClearingHouse.subscribe();
 
@@ -131,17 +131,17 @@ describe('idempotent curve', () => {
 			provider,
 			userKeypair.publicKey
 		);
-		const clearingHouse = ClearingHouse.from(
+		const clearingHouse = new ClearingHouse({
 			connection,
-			new Wallet(userKeypair),
-			chProgram.programId,
-			{
+			wallet: new Wallet(userKeypair),
+			programID: chProgram.programId,
+			opts: {
 				commitment: 'confirmed',
 			},
-			0,
-			[new BN(0)],
-			[new BN(0)]
-		);
+			activeUserId: 0,
+			marketIndexes: [new BN(0)],
+			bankIndexes: [new BN(0)],
+		});
 		await clearingHouse.subscribe();
 
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
@@ -206,17 +206,17 @@ describe('idempotent curve', () => {
 			provider,
 			userKeypair.publicKey
 		);
-		const clearingHouse = ClearingHouse.from(
+		const clearingHouse = new ClearingHouse({
 			connection,
-			new Wallet(userKeypair),
-			chProgram.programId,
-			{
+			wallet: new Wallet(userKeypair),
+			programID: chProgram.programId,
+			opts: {
 				commitment: 'confirmed',
 			},
-			0,
-			[new BN(0)],
-			[new BN(0)]
-		);
+			activeUserId: 0,
+			marketIndexes: [new BN(0)],
+			bankIndexes: [new BN(0)],
+		});
 		await clearingHouse.subscribe();
 
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
@@ -278,17 +278,17 @@ describe('idempotent curve', () => {
 			provider,
 			userKeypair.publicKey
 		);
-		const clearingHouse = ClearingHouse.from(
+		const clearingHouse = new ClearingHouse({
 			connection,
-			new Wallet(userKeypair),
-			chProgram.programId,
-			{
+			wallet: new Wallet(userKeypair),
+			programID: chProgram.programId,
+			opts: {
 				commitment: 'confirmed',
 			},
-			0,
-			[new BN(0)],
-			[new BN(0)]
-		);
+			activeUserId: 0,
+			marketIndexes: [new BN(0)],
+			bankIndexes: [new BN(0)],
+		});
 		await clearingHouse.subscribe();
 
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
@@ -350,17 +350,17 @@ describe('idempotent curve', () => {
 			provider,
 			userKeypair.publicKey
 		);
-		const clearingHouse = ClearingHouse.from(
+		const clearingHouse = new ClearingHouse({
 			connection,
-			new Wallet(userKeypair),
-			chProgram.programId,
-			{
+			wallet: new Wallet(userKeypair),
+			programID: chProgram.programId,
+			opts: {
 				commitment: 'confirmed',
 			},
-			0,
-			[new BN(0)],
-			[new BN(0)]
-		);
+			activeUserId: 0,
+			marketIndexes: [new BN(0)],
+			bankIndexes: [new BN(0)],
+		});
 		await clearingHouse.subscribe();
 
 		await clearingHouse.initializeUserAccountAndDepositCollateral(

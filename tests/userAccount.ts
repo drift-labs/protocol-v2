@@ -53,17 +53,18 @@ describe('User Account', () => {
 			initPrice: initialSOLPrice,
 		});
 
-		clearingHouse = Admin.from(
+		clearingHouse = new Admin({
 			connection,
-			provider.wallet,
-			chProgram.programId,
-			undefined,
-			0,
-			[new BN(0)],
-			[new BN(0)],
-			[{ publicKey: solUsdOracle, source: OracleSource.PYTH }]
-		);
-
+			wallet: provider.wallet,
+			programID: chProgram.programId,
+			opts: {
+				commitment: 'confirmed',
+			},
+			activeUserId: 0,
+			marketIndexes: [new BN(0)],
+			bankIndexes: [new BN(0)],
+			oracleInfos: [{ publicKey: solUsdOracle, source: OracleSource.PYTH }],
+		});
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
 
@@ -80,10 +81,10 @@ describe('User Account', () => {
 		);
 
 		await clearingHouse.initializeUserAccount();
-		userAccount = ClearingHouseUser.from(
+		userAccount = new ClearingHouseUser({
 			clearingHouse,
-			provider.wallet.publicKey
-		);
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
 		await userAccount.subscribe();
 	});
 

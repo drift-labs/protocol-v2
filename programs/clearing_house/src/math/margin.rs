@@ -12,7 +12,7 @@ use crate::math::amm::use_oracle_price_for_margin_calculation;
 use crate::math::bank_balance::get_balance_value;
 use crate::math::casting::cast_to_i128;
 use crate::math::oracle::{get_oracle_status, OracleStatus};
-use crate::math::repeg;
+// use crate::math::repeg;
 use crate::math::slippage::calculate_slippage;
 use crate::state::bank::BankBalanceType;
 use crate::state::bank_map::BankMap;
@@ -90,7 +90,7 @@ pub fn calculate_margin_requirement_and_total_collateral(
         }
 
         let market = &market_map.get_ref(&market_position.market_index)?;
-        let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
+        let _oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
         // let prepeg_budget = repeg::calculate_fee_pool(market)?;
         // let prepeg_amm = repeg::calculate_prepeg_market(market, oracle_price_data, prepeg_budget)?;
 

@@ -4,7 +4,6 @@ use anchor_spl::token::{Mint, Token, TokenAccount};
 use crate::controller::position::PositionDirection;
 use crate::state::bank::Bank;
 use crate::state::market::Market;
-use crate::state::order_state::OrderState;
 use crate::state::state::State;
 use crate::state::user::{OrderTriggerCondition, OrderType, User};
 
@@ -35,30 +34,6 @@ pub struct Initialize<'info> {
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
-}
-
-#[derive(Accounts)]
-#[instruction(
-    order_house_nonce: u8,
-)]
-pub struct InitializeOrderState<'info> {
-    #[account(mut)]
-    pub admin: Signer<'info>,
-    #[account(
-        mut,
-        has_one = admin
-    )]
-    pub state: Box<Account<'info, State>>,
-    #[account(
-        init,
-        seeds = [b"order_state".as_ref()],
-        space = std::mem::size_of::<OrderState>() + 8,
-        bump,
-        payer = admin
-    )]
-    pub order_state: Box<Account<'info, OrderState>>,
-    pub rent: Sysvar<'info, Rent>,
-    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
@@ -330,33 +305,9 @@ pub struct WithdrawFromInsuranceVaultToMarket<'info> {
     pub token_program: Program<'info, Token>,
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
-pub struct ManagePositionOptionalAccounts {
-    pub discount_token: bool,
-    pub referrer: bool,
-}
-
-#[derive(Accounts)]
-pub struct OpenPosition<'info> {
-    #[account(mut)]
-    pub state: Box<Account<'info, State>>,
-    #[account(
-        mut,
-        has_one = authority,
-    )]
-    pub user: AccountLoader<'info, User>,
-    pub authority: Signer<'info>,
-    /// CHECK: validated in `open_position` ix constraint
-    pub oracle: AccountInfo<'info>,
-}
-
 #[derive(Accounts)]
 pub struct FillOrder<'info> {
     pub state: Box<Account<'info, State>>,
-    #[account(
-        constraint = &state.order_state.eq(&order_state.key())
-    )]
-    pub order_state: Box<Account<'info, OrderState>>,
     pub authority: Signer<'info>,
     #[account(
         mut,
@@ -372,10 +323,6 @@ pub struct FillOrder<'info> {
 #[derive(Accounts)]
 pub struct PlaceOrder<'info> {
     pub state: Box<Account<'info, State>>,
-    #[account(
-        constraint = &state.order_state.eq(&order_state.key())
-    )]
-    pub order_state: Box<Account<'info, OrderState>>,
     #[account(
         mut,
         has_one = authority,
@@ -424,10 +371,6 @@ pub struct OrderParamsOptionalAccounts {
 pub struct PlaceAndFillOrder<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
-        constraint = &state.order_state.eq(&order_state.key())
-    )]
-    pub order_state: Box<Account<'info, OrderState>>,
-    #[account(
         mut,
         has_one = authority,
     )]
@@ -440,10 +383,6 @@ pub struct PlaceAndFillOrder<'info> {
 #[derive(Accounts)]
 pub struct CancelOrder<'info> {
     pub state: Box<Account<'info, State>>,
-    #[account(
-        constraint = &state.order_state.eq(&order_state.key())
-    )]
-    pub order_state: Box<Account<'info, OrderState>>,
     #[account(
         mut,
         has_one = authority,
@@ -458,10 +397,6 @@ pub struct CancelOrder<'info> {
 pub struct CancelAllOrders<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
-        constraint = &state.order_state.eq(&order_state.key())
-    )]
-    pub order_state: Box<Account<'info, OrderState>>,
-    #[account(
         mut,
         has_one = authority,
     )]
@@ -472,10 +407,6 @@ pub struct CancelAllOrders<'info> {
 #[derive(Accounts)]
 pub struct ExpireOrder<'info> {
     pub state: Box<Account<'info, State>>,
-    #[account(
-        constraint = &state.order_state.eq(&order_state.key())
-    )]
-    pub order_state: Box<Account<'info, OrderState>>,
     pub authority: Signer<'info>,
     #[account(
         mut,
@@ -484,20 +415,6 @@ pub struct ExpireOrder<'info> {
     pub filler: AccountLoader<'info, User>,
     #[account(mut)]
     pub user: AccountLoader<'info, User>,
-}
-
-#[derive(Accounts)]
-pub struct ClosePosition<'info> {
-    #[account(mut)]
-    pub state: Box<Account<'info, State>>,
-    #[account(
-        mut,
-        has_one = authority,
-    )]
-    pub user: AccountLoader<'info, User>,
-    pub authority: Signer<'info>,
-    /// CHECK: validated in `close_position`ix constraint
-    pub oracle: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
@@ -582,20 +499,6 @@ pub struct AdminUpdateState<'info> {
         has_one = admin
     )]
     pub state: Box<Account<'info, State>>,
-}
-
-#[derive(Accounts)]
-pub struct AdminUpdateOrderState<'info> {
-    pub admin: Signer<'info>,
-    #[account(
-        has_one = admin
-    )]
-    pub state: Box<Account<'info, State>>,
-    #[account(
-        mut,
-        constraint = &state.order_state.eq(&order_state.key())
-    )]
-    pub order_state: Box<Account<'info, OrderState>>,
 }
 
 #[derive(Accounts)]

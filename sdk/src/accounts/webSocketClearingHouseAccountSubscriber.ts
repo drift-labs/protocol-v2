@@ -4,13 +4,7 @@ import {
 	DataAndSlot,
 } from './types';
 import { AccountSubscriber, NotSubscribedError } from './types';
-import {
-	BankAccount,
-	MarketAccount,
-	OrderStateAccount,
-	StateAccount,
-	UserAccount,
-} from '../types';
+import { BankAccount, MarketAccount, StateAccount } from '../types';
 import { BN, Program } from '@project-serum/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
@@ -18,11 +12,8 @@ import {
 	getClearingHouseStateAccountPublicKey,
 	getBankPublicKey,
 	getMarketPublicKey,
-	getUserAccountPublicKey,
-	getOrderStateAccountPublicKey,
 } from '../addresses/pda';
 import { WebSocketAccountSubscriber } from './webSocketAccountSubscriber';
-import { ClearingHouseConfigType } from '../factory/clearingHouse';
 import { PublicKey } from '@solana/web3.js';
 import { OracleInfo, OraclePriceData } from '../oracles/types';
 import { OracleClientCache } from '../oracles/oracleClientCache';
@@ -34,8 +25,6 @@ export class WebSocketClearingHouseAccountSubscriber
 {
 	isSubscribed: boolean;
 	program: Program;
-	authority: PublicKey;
-	userId: number;
 	marketIndexes: BN[];
 	bankIndexes: BN[];
 	oracleInfos: OracleInfo[];
@@ -49,11 +38,6 @@ export class WebSocketClearingHouseAccountSubscriber
 	>();
 	bankAccountSubscribers = new Map<number, AccountSubscriber<BankAccount>>();
 	oracleSubscribers = new Map<string, AccountSubscriber<OraclePriceData>>();
-	orderStateAccountSubscriber?: AccountSubscriber<OrderStateAccount>;
-
-	userAccountSubscriber?: AccountSubscriber<UserAccount>;
-
-	type: ClearingHouseConfigType = 'websocket';
 
 	private isSubscribing = false;
 	private subscriptionPromise: Promise<boolean>;
@@ -61,8 +45,6 @@ export class WebSocketClearingHouseAccountSubscriber
 
 	public constructor(
 		program: Program,
-		authority: PublicKey,
-		userId: number,
 		marketIndexes: BN[],
 		bankIndexes: BN[],
 		oracleInfos: OracleInfo[]
@@ -70,8 +52,6 @@ export class WebSocketClearingHouseAccountSubscriber
 		this.isSubscribed = false;
 		this.program = program;
 		this.eventEmitter = new EventEmitter();
-		this.authority = authority;
-		this.userId = userId;
 		this.marketIndexes = marketIndexes;
 		this.bankIndexes = bankIndexes;
 		this.oracleInfos = oracleInfos;
@@ -106,26 +86,6 @@ export class WebSocketClearingHouseAccountSubscriber
 			this.eventEmitter.emit('stateAccountUpdate', data);
 			this.eventEmitter.emit('update');
 		});
-
-		const orderStatePublicKey = await getOrderStateAccountPublicKey(
-			this.program.programId
-		);
-
-		this.orderStateAccountSubscriber = new WebSocketAccountSubscriber(
-			'orderState',
-			this.program,
-			orderStatePublicKey
-		);
-
-		await this.orderStateAccountSubscriber.subscribe(
-			(data: OrderStateAccount) => {
-				this.eventEmitter.emit('orderStateAccountUpdate', data);
-				this.eventEmitter.emit('update');
-			}
-		);
-
-		// subscribe to user accounts
-		await this.subscribeToUserAccounts();
 
 		// subscribe to market accounts
 		await this.subscribeToMarketAccounts();
@@ -234,29 +194,6 @@ export class WebSocketClearingHouseAccountSubscriber
 		return true;
 	}
 
-	async subscribeToUserAccounts(): Promise<boolean> {
-		const userPublicKey = await getUserAccountPublicKey(
-			this.program.programId,
-			this.authority,
-			this.userId
-		);
-		this.userAccountSubscriber = new WebSocketAccountSubscriber(
-			'user',
-			this.program,
-			userPublicKey
-		);
-		await this.userAccountSubscriber.subscribe((data: UserAccount) => {
-			this.eventEmitter.emit('userAccountUpdate', data);
-			this.eventEmitter.emit('update');
-		});
-
-		return true;
-	}
-
-	async unsubscribeFromUserAccounts(): Promise<void> {
-		await this.userAccountSubscriber.unsubscribe();
-	}
-
 	async unsubscribeFromMarketAccounts(): Promise<void> {
 		for (const accountSubscriber of this.marketAccountSubscribers.values()) {
 			await accountSubscriber.unsubscribe();
@@ -280,11 +217,7 @@ export class WebSocketClearingHouseAccountSubscriber
 			return;
 		}
 
-		const promises = [
-			this.stateAccountSubscriber.fetch(),
-			this.orderStateAccountSubscriber.fetch(),
-			this.userAccountSubscriber.fetch(),
-		]
+		const promises = [this.stateAccountSubscriber.fetch()]
 			.concat(
 				Array.from(this.marketAccountSubscribers.values()).map((subscriber) =>
 					subscriber.fetch()
@@ -305,32 +238,12 @@ export class WebSocketClearingHouseAccountSubscriber
 		}
 
 		await this.stateAccountSubscriber.unsubscribe();
-		await this.orderStateAccountSubscriber.unsubscribe();
 
-		await this.unsubscribeFromUserAccounts();
 		await this.unsubscribeFromMarketAccounts();
 		await this.unsubscribeFromBankAccounts();
 		await this.unsubscribeFromOracles();
 
 		this.isSubscribed = false;
-	}
-
-	public async updateAuthority(newAuthority: PublicKey): Promise<boolean> {
-		// unsubscribe from old user accounts
-		await this.unsubscribeFromUserAccounts();
-		// update authority
-		this.authority = newAuthority;
-		// subscribe to new user accounts
-		return this.subscribeToUserAccounts();
-	}
-
-	public async updateUserId(userId: number): Promise<boolean> {
-		// unsubscribe from old user accounts
-		await this.unsubscribeFromUserAccounts();
-		// update authority
-		this.userId = userId;
-		// subscribe to new user accounts
-		return this.subscribeToUserAccounts();
 	}
 
 	async addBank(bankIndex: BN): Promise<boolean> {
@@ -380,11 +293,6 @@ export class WebSocketClearingHouseAccountSubscriber
 			.dataAndSlot;
 	}
 
-	public getOrderStateAccountAndSlot(): DataAndSlot<OrderStateAccount> {
-		this.assertIsSubscribed();
-		return this.orderStateAccountSubscriber.dataAndSlot;
-	}
-
 	public getBankAccountAndSlot(
 		bankIndex: BN
 	): DataAndSlot<BankAccount> | undefined {
@@ -403,10 +311,5 @@ export class WebSocketClearingHouseAccountSubscriber
 			};
 		}
 		return this.oracleSubscribers.get(oraclePublicKey.toString()).dataAndSlot;
-	}
-
-	public getUserAccountAndSlot(): DataAndSlot<UserAccount> {
-		this.assertIsSubscribed();
-		return this.userAccountSubscriber.dataAndSlot;
 	}
 }

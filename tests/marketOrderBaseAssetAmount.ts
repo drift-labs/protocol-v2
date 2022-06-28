@@ -61,18 +61,18 @@ describe('clearing_house', () => {
 		bankIndexes = [new BN(0)];
 		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
 
-		clearingHouse = Admin.from(
+		clearingHouse = new Admin({
 			connection,
-			provider.wallet,
-			chProgram.programId,
-			{
+			wallet: provider.wallet,
+			programID: chProgram.programId,
+			opts: {
 				commitment: 'confirmed',
 			},
-			0,
+			activeUserId: 0,
 			marketIndexes,
 			bankIndexes,
-			oracleInfos
-		);
+			oracleInfos,
+		});
 
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
@@ -143,7 +143,7 @@ describe('clearing_house', () => {
 		assert.ok(market.amm.totalFee.eq(new BN(49750)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(49750)));
 
-		const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0].data;
+		const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
 		assert.ok(tradeRecord.user.equals(userAccountPublicKey));
 		assert.ok(tradeRecord.recordId.eq(new BN(1)));
 		assert.ok(
@@ -239,7 +239,7 @@ describe('clearing_house', () => {
 		assert.ok(market.amm.totalFee.eq(new BN(74626)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(74626)));
 
-		const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0].data;
+		const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
 
 		assert.ok(tradeRecord.user.equals(userAccountPublicKey));
 		assert.ok(tradeRecord.recordId.eq(new BN(2)));
@@ -299,7 +299,7 @@ describe('clearing_house', () => {
 		assert.ok(market.amm.totalFee.eq(new BN(124371)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(124371)));
 
-		const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0].data;
+		const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
 
 		assert.ok(tradeRecord.user.equals(userAccountPublicKey));
 		assert.ok(tradeRecord.recordId.eq(new BN(3)));
@@ -348,7 +348,7 @@ describe('clearing_house', () => {
 		assert.ok(market.amm.totalFee.eq(new BN(149242)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(149242)));
 
-		const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0].data;
+		const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
 
 		assert.ok(tradeRecord.user.equals(userAccountPublicKey));
 		assert.ok(tradeRecord.recordId.eq(new BN(4)));

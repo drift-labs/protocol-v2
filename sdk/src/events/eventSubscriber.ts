@@ -4,10 +4,8 @@ import {
 	DefaultEventSubscriptionOptions,
 	EventSubscriptionOptions,
 	EventType,
-	Events,
-	Event,
+	WrappedEvents,
 	EventMap,
-	EventData,
 	LogProvider,
 	EventSubscriberEvents,
 } from './types';
@@ -21,7 +19,7 @@ import StrictEventEmitter from 'strict-event-emitter-types';
 import { getSortFn } from './sort';
 
 export class EventSubscriber {
-	private eventListMap: Map<EventType, EventList<EventType, EventData>>;
+	private eventListMap: Map<EventType, EventList<EventType>>;
 	private txEventCache: TxEventCache;
 	private awaitTxPromises = new Map<string, Promise<void>>();
 	private awaitTxResolver = new Map<string, () => void>();
@@ -35,11 +33,12 @@ export class EventSubscriber {
 	) {
 		this.options = Object.assign({}, DefaultEventSubscriptionOptions, options);
 		this.txEventCache = new TxEventCache(this.options.maxTx);
-		this.eventListMap = new Map<EventType, EventList<EventType, EventData>>();
+		this.eventListMap = new Map<EventType, EventList<EventType>>();
 		for (const eventType of this.options.eventTypes) {
 			this.eventListMap.set(
 				eventType,
-				new EventList<EventType, EventData>(
+				new EventList(
+					eventType,
 					this.options.maxEventsPerType,
 					getSortFn(this.options.orderBy, this.options.orderDir, eventType),
 					this.options.orderDir
@@ -87,10 +86,10 @@ export class EventSubscriber {
 			return;
 		}
 
-		const events = this.parseEventsFromLogs(txSig, slot, logs);
-		for (const event of events) {
-			this.eventListMap.get(event.type).insert(event);
-			this.eventEmitter.emit('newEvent', event);
+		const wrappedEvents = this.parseEventsFromLogs(txSig, slot, logs);
+		for (const wrappedEvent of wrappedEvents) {
+			this.eventListMap.get(wrappedEvent.eventType).insert(wrappedEvent);
+			this.eventEmitter.emit('newEvent', wrappedEvent);
 		}
 
 		if (this.awaitTxPromises.has(txSig)) {
@@ -99,7 +98,7 @@ export class EventSubscriber {
 			this.awaitTxResolver.delete(txSig);
 		}
 
-		this.txEventCache.add(txSig, events);
+		this.txEventCache.add(txSig, wrappedEvents);
 	}
 
 	private async fetchPreviousTx(): Promise<void> {
@@ -140,18 +139,16 @@ export class EventSubscriber {
 		txSig: TransactionSignature,
 		slot: number,
 		logs: string[]
-	): Events {
+	): WrappedEvents {
 		const records = [];
 		// @ts-ignore
 		this.program._events._eventParser.parseLogs(logs, (event) => {
 			const expectRecordType = this.eventListMap.has(event.name);
 			if (expectRecordType) {
-				records.push({
-					txSig,
-					slot,
-					type: event.name,
-					data: event.data,
-				});
+				event.data.txSig = txSig;
+				event.data.slot = slot;
+				event.data.eventType = event.name;
+				records.push(event.data);
 			}
 		});
 		return records;
@@ -173,10 +170,10 @@ export class EventSubscriber {
 		return promise;
 	}
 
-	public getEventList<Type extends keyof EventMap, Data extends EventMap[Type]>(
+	public getEventList<Type extends keyof EventMap>(
 		eventType: Type
-	): EventList<Type, Data> {
-		return this.eventListMap.get(eventType) as EventList<Type, Data>;
+	): EventList<Type> {
+		return this.eventListMap.get(eventType) as EventList<Type>;
 	}
 
 	/**
@@ -185,13 +182,13 @@ export class EventSubscriber {
 	 *
 	 * @param eventType
 	 */
-	public getEventsArray<Type extends EventType, Data extends EventMap[Type]>(
+	public getEventsArray<Type extends EventType>(
 		eventType: Type
-	): Event<Type, Data>[] {
-		return this.eventListMap.get(eventType).toArray() as Event<Type, Data>[];
+	): EventMap[Type][] {
+		return this.eventListMap.get(eventType).toArray() as EventMap[Type][];
 	}
 
-	public getEventsByTx(txSig: TransactionSignature): Events | undefined {
+	public getEventsByTx(txSig: TransactionSignature): WrappedEvents | undefined {
 		return this.txEventCache.get(txSig);
 	}
 }

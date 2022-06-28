@@ -168,11 +168,11 @@ describe('AMM Curve', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.ClearingHouse as Program;
 
-	const clearingHouse = Admin.from(
+	const clearingHouse = new Admin({
 		connection,
-		provider.wallet,
-		chProgram.programId
-	);
+		wallet: provider.wallet,
+		programID: chProgram.programId,
+	});
 
 	const kSqrt = new anchor.BN(2 * 10 ** 12);
 
@@ -212,10 +212,10 @@ describe('AMM Curve', () => {
 			initialSOLPriceBN
 		);
 		await clearingHouse.initializeUserAccount();
-		userAccount = ClearingHouseUser.from(
+		userAccount = new ClearingHouseUser({
 			clearingHouse,
-			provider.wallet.publicKey
-		);
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
 		await userAccount.subscribe();
 	});
 

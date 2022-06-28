@@ -34,18 +34,17 @@ describe('admin', () => {
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
 
-		clearingHouse = Admin.from(
+		clearingHouse = new Admin({
 			connection,
-			provider.wallet,
-			chProgram.programId,
-			{
+			wallet: provider.wallet,
+			programID: chProgram.programId,
+			opts: {
 				commitment: 'confirmed',
 			},
-			0,
-			[new BN(0)],
-			[new BN(0)],
-			[]
-		);
+			activeUserId: 0,
+			marketIndexes: [new BN(0)],
+			bankIndexes: [new BN(0)],
+		});
 
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
@@ -209,11 +208,12 @@ describe('admin', () => {
 		await clearingHouse.updateOrderFillerRewardStructure(newStructure);
 
 		await clearingHouse.fetchAccounts();
-		const orderState = clearingHouse.getOrderStateAccount();
 
 		assert(
 			JSON.stringify(newStructure) ===
-				JSON.stringify(orderState.orderFillerRewardStructure)
+				JSON.stringify(
+					clearingHouse.getStateAccount().orderFillerRewardStructure
+				)
 		);
 	});
 

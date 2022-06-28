@@ -1,31 +1,31 @@
 import {
-	Event,
 	EventType,
 	EventMap,
 	EventSubscriptionOrderDirection,
 	SortFn,
 } from './types';
 
-class Node<Type extends EventType, Data extends EventMap[Type]> {
+class Node<Type extends EventType, Event extends EventMap[Type]> {
 	constructor(
-		public event: Event<Type, Data>,
-		public next?: Node<Type, Data>,
-		public prev?: Node<Type, Data>
+		public event: Event,
+		public next?: Node<Type, Event>,
+		public prev?: Node<Type, Event>
 	) {}
 }
 
-export class EventList<Type extends EventType, Data extends EventMap[Type]> {
+export class EventList<Type extends EventType> {
 	size = 0;
-	head?: Node<Type, Data>;
-	tail?: Node<Type, Data>;
+	head?: Node<Type, EventMap[Type]>;
+	tail?: Node<Type, EventMap[Type]>;
 
 	public constructor(
+		public eventType: Type,
 		public maxSize: number,
 		private sortFn: SortFn,
 		private orderDirection: EventSubscriptionOrderDirection
 	) {}
 
-	public insert(event: Event<Type, Data>): void {
+	public insert(event: EventMap[Type]): void {
 		this.size++;
 		const newNode = new Node(event);
 		if (this.head === undefined) {
@@ -80,7 +80,7 @@ export class EventList<Type extends EventType, Data extends EventMap[Type]> {
 		this.size--;
 	}
 
-	toArray(): Event<Type, Data>[] {
+	toArray(): EventMap[Type][] {
 		return Array.from(this);
 	}
 

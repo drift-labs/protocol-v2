@@ -4,24 +4,20 @@ import {
 	NotSubscribedError,
 	UserAccountEvents,
 	UserAccountSubscriber,
-	UserPublicKeys,
 } from './types';
 import { Program } from '@project-serum/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { PublicKey } from '@solana/web3.js';
-import { getUserAccountPublicKey } from '../addresses/pda';
 import { UserAccount } from '../types';
 import { BulkAccountLoader } from './bulkAccountLoader';
 import { capitalize } from './utils';
-import { ClearingHouseConfigType } from '../factory/clearingHouse';
 
 export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 	isSubscribed: boolean;
 	program: Program;
 	eventEmitter: StrictEventEmitter<EventEmitter, UserAccountEvents>;
-	authority: PublicKey;
-	userId: number;
+	userAccountPublicKey: PublicKey;
 
 	accountLoader: BulkAccountLoader;
 	accountsToPoll = new Map<string, AccountToPoll>();
@@ -29,20 +25,15 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 
 	user?: DataAndSlot<UserAccount>;
 
-	type: ClearingHouseConfigType = 'polling';
-
 	public constructor(
 		program: Program,
-		authority: PublicKey,
-		accountLoader: BulkAccountLoader,
-		userId: number
+		userAccountPublicKey: PublicKey,
+		accountLoader: BulkAccountLoader
 	) {
 		this.isSubscribed = false;
 		this.program = program;
-		this.authority = authority;
 		this.accountLoader = accountLoader;
 		this.eventEmitter = new EventEmitter();
-		this.userId = userId;
 	}
 
 	async subscribe(): Promise<boolean> {
@@ -68,30 +59,16 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 		return subscriptionSucceeded;
 	}
 
-	async addToAccountLoader(userPublicKeys?: UserPublicKeys): Promise<void> {
+	async addToAccountLoader(): Promise<void> {
 		if (this.accountsToPoll.size > 0) {
 			return;
 		}
 
-		if (!userPublicKeys) {
-			const userPublicKey = await getUserAccountPublicKey(
-				this.program.programId,
-				this.authority,
-				this.userId
-			);
-
-			this.accountsToPoll.set(userPublicKey.toString(), {
-				key: 'user',
-				publicKey: userPublicKey,
-				eventType: 'userAccountUpdate',
-			});
-		} else {
-			this.accountsToPoll.set(userPublicKeys.user.toString(), {
-				key: 'user',
-				publicKey: userPublicKeys.user,
-				eventType: 'userAccountUpdate',
-			});
-		}
+		this.accountsToPoll.set(this.userAccountPublicKey.toString(), {
+			key: 'user',
+			publicKey: this.userAccountPublicKey,
+			eventType: 'userAccountUpdate',
+		});
 
 		for (const [_, accountToPoll] of this.accountsToPoll) {
 			accountToPoll.callbackId = this.accountLoader.addAccount(
