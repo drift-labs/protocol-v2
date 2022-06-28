@@ -881,6 +881,58 @@ export class ClearingHouse {
 	}
 
 	public async updateAndPlaceAndFillOrder(
+		orderParams: OrderParams
+		// discountToken?: PublicKey,
+		// referrer?: PublicKey
+	): Promise<TransactionSignature> {
+		const userAccountPublicKey = await this.getUserAccountPublicKey();
+
+		const user = (await this.program.account.user.fetch(
+			userAccountPublicKey
+		)) as UserAccount;
+
+		const marketIndexes = [];
+		const userPositions = user.positions;
+		let isInPosition = false;
+		for (const position of userPositions) {
+			// console.log(position);
+			if (!positionIsAvailable(position)) {
+				// const marketPublicKey = await getMarketPublicKey(
+				// 	this.program.programId,
+				// 	position.marketIndex
+				// );
+				marketIndexes.push(position.marketIndex);
+				if (orderParams.marketIndex.eq(position.marketIndex)) {
+					isInPosition = true;
+				}
+			}
+		}
+
+		if (!isInPosition) {
+			marketIndexes.push(orderParams.marketIndex);
+		}
+		// console.log(marketIndexes);
+
+		const instr0 = ComputeBudgetProgram.requestUnits({
+			units: 400000,
+			additionalFee: 0,
+		});
+		const instr2 = await this.getPlaceAndFillOrderIx(
+			orderParams
+			// marketIndexes
+		);
+		const transaction = new Transaction().add(instr0).add(instr2);
+		const { txSig, slot } = await this.txSender.send(
+			transaction,
+			[],
+			this.opts
+		);
+
+		this.marketLastSlotCache.set(orderParams.marketIndex.toNumber(), slot);
+		return txSig;
+	}
+
+	public async updateAndPlaceAndFillOrder2(
 		orderParams: OrderParams,
 		computeUnits = 400000 // can be up to 1.4M
 	): Promise<TransactionSignature> {
@@ -935,13 +987,13 @@ export class ClearingHouse {
 		// const marketAccount = this.getMarketAccount(marketIndex);
 		// const priceOracle = marketAccount.amm.oracle;
 
-		const bankAccountInfos = [
-			{
-				pubkey: this.getQuoteAssetBankAccount().pubkey,
-				isSigner: false,
-				isWritable: true,
-			},
-		];
+		// const bankAccountInfos = [
+		// 	{
+		// 		pubkey: this.getQuoteAssetBankAccount().pubkey,
+		// 		isSigner: false,
+		// 		isWritable: true,
+		// 	},
+		// ];
 		const marketAccountInfos = [];
 		const oracleAccountInfos = [];
 		for (const marketIndex of marketIndexes) {
@@ -1249,6 +1301,12 @@ export class ClearingHouse {
 			writableBankIndex: QUOTE_ASSET_BANK_INDEX,
 		});
 
+		// marketAccountInfos.push({
+		// 	pubkey: market.pubkey,
+		// 	isWritable: false,
+		// 	isSigner: false,
+		// });
+
 		if (orderParams.optionalAccounts.discountToken) {
 			if (!discountToken) {
 				throw Error(
@@ -1277,15 +1335,19 @@ export class ClearingHouse {
 			});
 		}
 
-		return await this.program.instruction.placeAndFillOrder(orderParams, {
-			accounts: {
-				state: await this.getStatePublicKey(),
-				user: userAccountPublicKey,
-				authority: this.wallet.publicKey,
-				oracle: priceOracle,
-			},
-			remainingAccounts,
-		});
+		return await this.program.instruction.placeAndFillOrder(
+			orderParams,
+			// marketIndexes,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					user: userAccountPublicKey,
+					authority: this.wallet.publicKey,
+					oracle: priceOracle,
+				},
+				remainingAccounts,
+			}
+		);
 	}
 
 	/**

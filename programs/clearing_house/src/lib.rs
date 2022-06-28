@@ -58,6 +58,7 @@ pub mod clearing_house {
     use crate::state::market::{Market, PNLPool};
     use crate::state::market_map::{
         get_market_oracles, get_writable_markets, get_writable_markets_for_user_positions,
+        get_writable_markets_for_user_positions_and_trade,
         get_writable_markets_list, MarketMap, MarketOracles, WritableMarkets,
     };
     use crate::state::oracle::OraclePriceData;
@@ -912,6 +913,7 @@ pub mod clearing_house {
     pub fn place_and_fill_order<'info>(
         ctx: Context<PlaceAndFillOrder>,
         params: OrderParams,
+        // market_indexes: [u64; 5]
     ) -> Result<()> {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
@@ -919,7 +921,8 @@ pub mod clearing_house {
             &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
             remaining_accounts_iter,
         )?;
-        let market_map = MarketMap::load(
+        let mut market_map = MarketMap::load(
+            // &get_writable_markets_for_user_positions_and_trade(&load(&ctx.accounts.user)?.positions, params.market_index),
             &get_writable_markets(params.market_index),
             &get_market_oracles(params.market_index, &ctx.accounts.oracle),
             remaining_accounts_iter,
@@ -939,6 +942,15 @@ pub mod clearing_house {
         )?;
         let is_immediate_or_cancel = params.immediate_or_cancel;
         let base_asset_amount_to_fill = params.base_asset_amount;
+        msg!("START WITH update_amms");
+
+        controller::repeg::update_amms(
+            &mut market_map,
+            &mut oracle_map,
+            &ctx.accounts.state,
+            &Clock::get()?,
+        )?;
+        msg!("DONE WITH update_amms");
 
         controller::orders::place_order(
             &ctx.accounts.state,
@@ -950,6 +962,7 @@ pub mod clearing_house {
             params,
             Some(&ctx.accounts.oracle),
         )?;
+        msg!("DONE WITH place_order");
 
         let user = &mut ctx.accounts.user;
         let order_id = {
@@ -997,27 +1010,18 @@ pub mod clearing_house {
         // up to ~60k compute units (per amm) worst case
 
         let clock = Clock::get()?;
-        let clock_slot = clock.slot;
-        let now = clock.unix_timestamp;
 
         let state = &ctx.accounts.state;
-        
+
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = &mut OracleMap::load(remaining_accounts_iter, clock_slot)?;
-        let mut market_map = &mut MarketMap::load(
+        let oracle_map = &mut OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let market_map = &mut MarketMap::load(
             &get_writable_markets_list(market_indexes),
             &MarketOracles::new(),
             remaining_accounts_iter,
         )?;
 
-        controller::repeg::update_amms(
-            market_map,
-            oracle_map,
-            market_indexes, //todo: already have market_map?
-            state,
-            clock_slot,
-            now,
-        )?;
+        controller::repeg::update_amms(market_map, oracle_map, state, &clock)?;
 
         Ok(())
     }

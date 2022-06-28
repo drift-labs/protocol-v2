@@ -2,8 +2,11 @@ use std::cell::{Ref, RefMut};
 use std::collections::{BTreeMap, BTreeSet};
 use std::iter::Peekable;
 use std::slice::Iter;
+use solana_program::msg;
 
 use anchor_lang::accounts::account_loader::AccountLoader;
+use crate::account_loader::{load};
+
 use anchor_lang::prelude::{AccountInfo, Pubkey};
 
 use anchor_lang::Discriminator;
@@ -11,12 +14,13 @@ use arrayref::array_ref;
 
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::state::market::Market;
-use crate::state::user::UserPositions;
+use crate::state::user::{User, UserPositions};
 
 pub struct MarketMap<'a>(pub BTreeMap<u64, AccountLoader<'a, Market>>);
 
 impl<'a> MarketMap<'a> {
     pub fn get_ref(&self, market_index: &u64) -> ClearingHouseResult<Ref<Market>> {
+        msg!("GET_REF MARKET_MAP");
         self.0
             .get(market_index)
             .ok_or(ErrorCode::MarketNotFound)?
@@ -25,6 +29,8 @@ impl<'a> MarketMap<'a> {
     }
 
     pub fn get_ref_mut(&self, market_index: &u64) -> ClearingHouseResult<RefMut<Market>> {
+        msg!("GET_REF_MUT MARKET_MAP");
+
         self.0
             .get(market_index)
             .ok_or(ErrorCode::MarketNotFound)?
@@ -107,6 +113,19 @@ pub fn get_writable_markets_for_user_positions(user_positions: &UserPositions) -
     for position in user_positions.iter() {
         writable_markets.insert(position.market_index);
     }
+    writable_markets
+}
+
+pub fn get_writable_markets_for_user_positions_and_trade(
+    user_positions: &UserPositions,
+    market_index: u64,
+) -> WritableMarkets {
+    let mut writable_markets = WritableMarkets::new();
+    for position in user_positions.iter() {
+        writable_markets.insert(position.market_index);
+    }
+    writable_markets.insert(market_index);
+
     writable_markets
 }
 

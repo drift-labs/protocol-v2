@@ -291,7 +291,12 @@ describe('update amm', () => {
 				'after trade est. mark price:',
 				convertToNumber(newPrice)
 			);
-			const txSig = await clearingHouse.updateAndPlaceAndFillOrder(orderParams);
+			let txSig;
+			try {
+				txSig = await clearingHouse.updateAndPlaceAndFillOrder(orderParams);
+			} catch (e) {
+				console.error(e);
+			}
 			const computeUnits = await findComputeUnitConsumption(
 				clearingHouse.program.programId,
 				connection,
