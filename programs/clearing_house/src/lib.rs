@@ -837,7 +837,7 @@ pub mod clearing_house {
         let new_sqrt_k_u192 = bn::U192::from(new_sqrt_k);
 
         let update_k_result = get_update_k_result(market.borrow(), new_sqrt_k_u192)?;
-        math::amm::update_k(market.borrow_mut(), &update_k_result);
+        math::amm::update_k(&mut market, &update_k_result);
 
         Ok(())
     }

@@ -166,7 +166,7 @@ describe('liquidity providing', () => {
 
 		console.log('adding liquidity...');
 		await chProgram.methods
-			.addLiquidity(new BN(100 * 1e6), new BN(0))
+			.addLiquidity(new BN(117 * 1e6), new BN(0))
 			.accounts({
 				state: await clearingHouse.getStatePublicKey(),
 				user: await clearingHouse.getUserAccountPublicKey(),
@@ -184,23 +184,38 @@ describe('liquidity providing', () => {
 
 		//var market = await chProgram.account.market.fetch(market.pubkey);
 		market = clearingHouse.getMarketAccount(0);
-		console.log(market.amm.sqrtK.toString());
-		console.log(market.amm.baseAssetReserve.toString());
-		console.log(market.amm.quoteAssetReserve.toString());
+		console.log(
+			'sqrtK:',
+			prevSqrtK.toString(),
+			'->',
+			market.amm.sqrtK.toString()
+		);
+		console.log(
+			'baseAssetReserve:',
+			prevbar.toString(),
+			'->',
+			market.amm.baseAssetReserve.toString()
+		);
+		console.log(
+			'quoteAssetReserve:',
+			prevqar.toString(),
+			'->',
+			market.amm.quoteAssetReserve.toString()
+		);
 
 		assert(prevSqrtK.lt(market.amm.sqrtK)); // k increases = more liquidity
 		assert(prevqar.lt(market.amm.quoteAssetReserve));
 		assert(prevbar.lt(market.amm.baseAssetReserve));
 
-		var user = await chProgram.account.user.fetch(
+		const user0 = await chProgram.account.user.fetch(
 			await clearingHouse.getUserAccountPublicKey()
 		);
-		var lp_token_amount = user.positions[0].lpTokens;
-		console.log(lp_token_amount.toString());
-		assert(lp_token_amount.gt(new BN(0)));
+		const lpTokenAmount0 = user0.positions[0].lpTokens;
+		console.log('lpTokenAmount0:', lpTokenAmount0.toString());
+		assert(lpTokenAmount0.gt(new BN(0)));
 
 		console.log('removing liquidity...');
-		await chProgram.methods
+		const txSig = await chProgram.methods
 			.removeLiquidity(new BN(0))
 			.accounts({
 				state: await clearingHouse.getStatePublicKey(),
@@ -216,15 +231,19 @@ describe('liquidity providing', () => {
 				},
 			])
 			.rpc();
+		console.log(
+			'tx logs',
+			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
+				.logMessages
+		);
 
 		market = clearingHouse.getMarketAccount(0);
-		var user = await chProgram.account.user.fetch(
+		const user = await chProgram.account.user.fetch(
 			await clearingHouse.getUserAccountPublicKey()
 		);
-		var lp_token_amount = user.positions[0].lpTokens;
+		const lp_token_amount = user.positions[0].lpTokens;
 
 		assert(lp_token_amount.eq(new BN(0)));
-		assert(prevSqrtK.eq(market.amm.sqrtK));
 
 		// rounding off by one :(
 		console.log('asset reserves:');
@@ -232,8 +251,9 @@ describe('liquidity providing', () => {
 		console.log(prevbar.toString(), market.amm.baseAssetReserve.toString());
 		console.log(prevqar.toString(), market.amm.quoteAssetReserve.toString());
 
-		//assert(prevbar.eq(market.amm.baseAssetReserve))
-		//assert(prevqar.eq(market.amm.quoteAssetReserve))
+		assert(prevSqrtK.eq(market.amm.sqrtK));
+		assert(prevbar.sub(market.amm.baseAssetReserve).abs().lt(new BN(10000)));
+		assert(prevqar.sub(market.amm.quoteAssetReserve).abs().lt(new BN(10000)));
 		//assert(prevSqrtK.eq(market.amm.sqrtK))
 	});
 
