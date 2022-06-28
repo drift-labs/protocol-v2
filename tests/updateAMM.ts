@@ -81,18 +81,30 @@ describe('update amm', () => {
 			return { publicKey: oracle, source: OracleSource.PYTH };
 		});
 
-		clearingHouse = Admin.from(
+		// 	clearingHouse = new Admin({
+		// 		connection,
+		// 		provider.wallet,
+		// 		chProgram.programId,
+		// 		{
+		// 			commitment: 'confirmed',
+		// 		},
+		// 		0,
+		// 		marketIndexes,
+		// 		bankIndexes,
+		// 		oracleInfos
+		// });
+		clearingHouse = new Admin({
 			connection,
-			provider.wallet,
-			chProgram.programId,
-			{
+			wallet: provider.wallet,
+			programID: chProgram.programId,
+			opts: {
 				commitment: 'confirmed',
 			},
-			0,
-			marketIndexes,
-			bankIndexes,
-			oracleInfos
-		);
+			activeUserId: 0,
+			marketIndexes: marketIndexes,
+			bankIndexes: bankIndexes,
+			oracleInfos: oracleInfos,
+		});
 
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 

@@ -7,7 +7,10 @@ use crate::math::repeg;
 use crate::math_error;
 use crate::state::market::Market;
 use crate::state::oracle::OraclePriceData;
-use crate::state::state::OracleGuardRails;
+use crate::state::state::{State, OracleGuardRails};
+use crate::state::market_map::MarketMap;
+use crate::state::oracle_map::OracleMap;
+use crate::controller::amm::update_spreads;
 use std::cmp::min;
 
 use anchor_lang::prelude::AccountInfo;
@@ -72,12 +75,45 @@ pub fn repeg(
     Ok(adjustment_cost)
 }
 
+
+
+pub fn update_amms(
+    market_map: &mut MarketMap,
+    oracle_map: &mut OracleMap,
+    market_indexes: [u64; 5],
+    state: &State,
+    clock_slot: u64,
+    now: i64,
+) -> ClearingHouseResult<i128> {
+        // up to ~60k compute units (per amm) worst case
+        for market_index in market_indexes.iter() {
+            if *market_index == 100 {
+                continue; //todo
+            }
+            let market = &mut market_map.get_ref_mut(market_index)?;
+            let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
+
+            update_amm(
+                market,
+                oracle_price_data,
+                state,
+                now,
+                clock_slot
+            )?;
+        }
+
+        Ok(0)
+    }
+    
+
 pub fn update_amm(
     market: &mut Market,
     // mark_price: u128,
     oracle_price_data: &OraclePriceData,
-    fee_budget: u128,
-    // _now: i64,
+    // fee_budget: u128,
+    state: &State,
+    now: i64,
+    clock_slot: u64,
 ) -> ClearingHouseResult<i128> {
     // 0-100
     let curve_update_intensity = cast_to_i128(min(market.amm.curve_update_intensity, 100_u8))?;
@@ -86,6 +122,12 @@ pub fn update_amm(
     if curve_update_intensity == 0 {
         return Ok(0);
     }
+
+    // let clock = Clock::get()?;
+    // let clock_slot = clock.slot;
+    // let now = clock.unix_timestamp;
+    let fee_budget = repeg::calculate_fee_pool(market)?;
+
     // if !is_oracle_valid {
     //     msg!(
     //         "skipping formulaic_repeg: invalid oracle (oracle delay = {:?})",
@@ -136,6 +178,28 @@ pub fn update_amm(
         // let quote_asset_reserve_after = market.amm.quote_asset_reserve;
         // let sqrt_k_after = market.amm.sqrt_k;
     }
+
+
+    let is_oracle_valid = amm::is_oracle_valid(
+        &market.amm,
+        oracle_price_data,
+        &state.oracle_guard_rails.validity,
+    )?; 
+
+    let mark_price_before = market.amm.mark_price()?;
+
+    if is_oracle_valid {
+        amm::update_oracle_price_twap(
+            &mut market.amm,
+            now,
+            oracle_price_data,
+            Some(mark_price_before),
+        )?;
+    }
+
+    // 15k compute units below
+    update_spreads(&mut market.amm, mark_price_before)?;
+    market.amm.last_update_slot = clock_slot;
 
     Ok(amm_update_cost)
 }

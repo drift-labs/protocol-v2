@@ -881,7 +881,8 @@ export class ClearingHouse {
 	}
 
 	public async updateAndPlaceAndFillOrder(
-		orderParams: OrderParams
+		orderParams: OrderParams,
+		computeUnits = 400000 // can be up to 1.4M
 	): Promise<TransactionSignature> {
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 
@@ -912,7 +913,7 @@ export class ClearingHouse {
 		// console.log(marketIndexes);
 
 		const instr0 = ComputeBudgetProgram.requestUnits({
-			units: 400000,
+			units: computeUnits,
 			additionalFee: 0,
 		});
 		const instr1 = await this.getUpdateAMMsIx(marketIndexes);
@@ -958,9 +959,7 @@ export class ClearingHouse {
 				});
 			}
 		}
-		const remainingAccounts = oracleAccountInfos.concat(
-			bankAccountInfos.concat(marketAccountInfos)
-		);
+		const remainingAccounts = oracleAccountInfos.concat(marketAccountInfos);
 
 		// console.log('remainingAccounts:', remainingAccounts);
 		return await this.program.instruction.updateAmms(marketIndexes, {

@@ -6,7 +6,7 @@ use borsh::BorshSerialize;
 
 use context::*;
 use error::ErrorCode;
-use math::{amm, bn, constants::*, margin::*, repeg};
+use math::{amm, bn, constants::*, margin::*};
 use state::oracle::{get_oracle_price, OracleSource};
 
 use crate::math::amm::get_update_k_result;
@@ -996,81 +996,29 @@ pub mod clearing_house {
     pub fn update_amms(ctx: Context<UpdateAMM>, market_indexes: [u64; 5]) -> Result<()> {
         // up to ~60k compute units (per amm) worst case
 
-        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let clock = Clock::get()?;
         let clock_slot = clock.slot;
         let now = clock.unix_timestamp;
-        // let user = &mut load_mut(&ctx.accounts.user)?;
 
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock_slot)?;
-        let _bank_map = BankMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
-
-        // let market_map = MarketMap::load(
-        //     &get_writable_markets_for_user_positions(&user.positions),
-        //     &MarketOracles::new(), // oracles validated in calculate liquidation status
-        //     remaining_accounts_iter,
-        // )?;
-        let market_map = MarketMap::load(
+        let state = &ctx.accounts.state;
+        
+        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+        let mut oracle_map = &mut OracleMap::load(remaining_accounts_iter, clock_slot)?;
+        let mut market_map = &mut MarketMap::load(
             &get_writable_markets_list(market_indexes),
-            // &get_market_oracles(market_index, &ctx.accounts.oracle),
             &MarketOracles::new(),
             remaining_accounts_iter,
         )?;
 
-        // let oracle = &ctx.accounts.oracle;
+        controller::repeg::update_amms(
+            market_map,
+            oracle_map,
+            market_indexes, //todo: already have market_map?
+            state,
+            clock_slot,
+            now,
+        )?;
 
-        for market_index in market_indexes.iter() {
-            if *market_index == 100 {
-                continue; //todo
-            }
-
-            // let mark_price_before: u128;
-            // let _oracle_mark_spread_pct_before: i128;
-            // let is_oracle_valid: bool;
-            // let oracle_price: i128;
-
-            let market = &mut market_map.get_ref_mut(market_index)?;
-            let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
-            // let oracle_price_data = &market.amm.get_oracle_price(oracle, clock_slot)?;
-
-            let prepeg_budget = repeg::calculate_fee_pool(market)?;
-            let state = &ctx.accounts.state;
-
-            let is_oracle_valid = amm::is_oracle_valid(
-                &market.amm,
-                oracle_price_data,
-                &state.oracle_guard_rails.validity,
-            )?;
-
-            controller::repeg::update_amm(
-                market,
-                // mark_price_prefore,
-                oracle_price_data,
-                prepeg_budget,
-                // now,
-            )?;
-            let mark_price_before = market.amm.mark_price()?;
-
-            // oracle_mark_spread_pct_before = amm::calculate_oracle_mark_spread_pct(
-            //     &market.amm,
-            //     oracle_price_data,
-            //     Some(mark_price_before),
-            // )?;
-            // oracle_price = oracle_price_data.price;
-
-            if is_oracle_valid {
-                amm::update_oracle_price_twap(
-                    &mut market.amm,
-                    now,
-                    oracle_price_data,
-                    Some(mark_price_before),
-                )?;
-            }
-
-            // 15k compute units below
-            controller::amm::update_spreads(&mut market.amm, mark_price_before)?;
-            market.amm.last_update_slot = clock_slot;
-        }
         Ok(())
     }
 
