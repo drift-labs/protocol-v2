@@ -73,6 +73,7 @@ export class ClearingHouseUser {
 				config.userAccountPublicKey
 			);
 		}
+		this.eventEmitter = this.accountSubscriber.eventEmitter;
 	}
 
 	/**
