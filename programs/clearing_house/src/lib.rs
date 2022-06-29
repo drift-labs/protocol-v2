@@ -58,7 +58,8 @@ pub mod clearing_house {
     use crate::state::market::{Market, PNLPool};
     use crate::state::market_map::{
         get_market_oracles, get_writable_markets, get_writable_markets_for_user_positions,
-        get_writable_markets_list, MarketMap, MarketOracles, WritableMarkets,
+        get_writable_markets_for_user_positions_and_order, get_writable_markets_list, MarketMap,
+        MarketOracles, WritableMarkets,
     };
     use crate::state::oracle::OraclePriceData;
     use crate::state::oracle_map::OracleMap;
@@ -483,7 +484,7 @@ pub mod clearing_house {
         let bank_map = BankMap::load(&get_writable_banks(bank_index), remaining_accounts_iter)?;
 
         let mut market_map = MarketMap::load(
-            &WritableMarkets::new(),
+            &get_writable_markets_for_user_positions(&user.positions),
             &MarketOracles::new(),
             remaining_accounts_iter,
         )?;
@@ -961,8 +962,10 @@ pub mod clearing_house {
             remaining_accounts_iter,
         )?;
         let mut market_map = MarketMap::load(
-            // &get_writable_markets_for_user_positions_and_order(&load(&ctx.accounts.user)?.positions, params.market_index),
-            &get_writable_markets(params.market_index),
+            &get_writable_markets_for_user_positions_and_order(
+                &load(&ctx.accounts.user)?.positions,
+                params.market_index,
+            ),
             &get_market_oracles(params.market_index, &ctx.accounts.oracle),
             remaining_accounts_iter,
         )?;
