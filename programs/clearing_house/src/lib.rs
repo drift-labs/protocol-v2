@@ -900,6 +900,7 @@ pub mod clearing_house {
         });
         validate!(can_lp, ErrorCode::CantLPWithMarketPosition);
 
+        // TODO: should we always be adding a new position?
         let position_index = add_new_position(&mut user.positions, market_index)?;
         let lp_position = &mut user.positions[position_index];
 

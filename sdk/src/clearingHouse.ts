@@ -1,4 +1,3 @@
-import { BankConfig } from './constants/banks';
 import { AnchorProvider, BN, Idl, Program } from '@project-serum/anchor';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import {
@@ -695,6 +694,74 @@ export class ClearingHouse {
 			accounts: {
 				bank: bank.pubkey,
 			},
+		});
+	}
+
+	public async removeLiquidity(marketIndex: BN): Promise<TransactionSignature> {
+		const { txSig, slot } = await this.txSender.send(
+			wrapInTx(await this.getRemoveLiquidityIx(marketIndex)),
+			[],
+			this.opts
+		);
+		this.marketLastSlotCache.set(marketIndex.toNumber(), slot);
+		return txSig;
+	}
+
+	public async getRemoveLiquidityIx(
+		marketIndex: BN
+	): Promise<TransactionInstruction> {
+		const userAccountPublicKey = await this.getUserAccountPublicKey();
+
+		const remainingAccounts = this.getRemainingAccounts({
+			writableBankIndex: QUOTE_ASSET_BANK_INDEX,
+			writableMarketIndex: marketIndex,
+		});
+
+		const priceOracle = this.getMarketAccount(marketIndex).amm.oracle;
+		return this.program.instruction.removeLiquidity(marketIndex, {
+			accounts: {
+				state: await this.getStatePublicKey(),
+				user: userAccountPublicKey,
+				authority: this.wallet.publicKey,
+				oracle: priceOracle,
+			},
+			remainingAccounts: remainingAccounts,
+		});
+	}
+
+	public async addLiquidity(
+		amount: BN,
+		marketIndex: BN
+	): Promise<TransactionSignature> {
+		const { txSig, slot } = await this.txSender.send(
+			wrapInTx(await this.getAddLiquidityIx(amount, marketIndex)),
+			[],
+			this.opts
+		);
+		this.marketLastSlotCache.set(marketIndex.toNumber(), slot);
+		return txSig;
+	}
+
+	public async getAddLiquidityIx(
+		amount: BN,
+		marketIndex: BN
+	): Promise<TransactionInstruction> {
+		const userAccountPublicKey = await this.getUserAccountPublicKey();
+
+		const remainingAccounts = this.getRemainingAccounts({
+			writableBankIndex: QUOTE_ASSET_BANK_INDEX,
+			writableMarketIndex: marketIndex,
+		});
+
+		const priceOracle = this.getMarketAccount(marketIndex).amm.oracle;
+		return this.program.instruction.addLiquidity(amount, marketIndex, {
+			accounts: {
+				state: await this.getStatePublicKey(),
+				user: userAccountPublicKey,
+				authority: this.wallet.publicKey,
+				oracle: priceOracle,
+			},
+			remainingAccounts: remainingAccounts,
 		});
 	}
 
