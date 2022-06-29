@@ -77,7 +77,6 @@ export type CandleResolution =
 
 export type DepositRecord = {
 	ts: BN;
-	recordId: BN;
 	userAuthority: PublicKey;
 	user: PublicKey;
 	direction: {
