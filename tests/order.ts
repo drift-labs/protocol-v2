@@ -1748,7 +1748,7 @@ describe('orders', () => {
 			false
 		);
 		await clearingHouse.placeAndFillOrder(openPositionOrderParams);
-
+		console.log('1');
 		const reduceMarketOrderParams = getMarketOrderParams(
 			marketIndexEth,
 			PositionDirection.LONG,
@@ -1759,6 +1759,7 @@ describe('orders', () => {
 		await clearingHouse.placeAndFillOrder(reduceMarketOrderParams);
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
+		console.log('2');
 
 		let orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 		assert(orderRecord.baseAssetAmountFilled.eq(AMM_RESERVE_PRECISION));
@@ -1774,13 +1775,17 @@ describe('orders', () => {
 			TWO.mul(MARK_PRICE_PRECISION),
 			true
 		);
+		console.log('3');
+
 		await clearingHouse.placeAndFillOrder(reduceLimitOrderParams);
+		console.log('4');
 
 		await clearingHouse.settlePNL(
 			await clearingHouse.getUserAccountPublicKey(),
 			clearingHouse.getUserAccount(),
 			marketIndex
 		);
+		console.log('5');
 
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();

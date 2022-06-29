@@ -720,8 +720,6 @@ export class ClearingHouse {
 			writableBankIndex: bankIndex,
 		});
 
-		const state = this.getStateAccount();
-
 		return await this.program.instruction.transferDeposit(bankIndex, amount, {
 			accounts: {
 				authority: this.wallet.publicKey,
@@ -1440,7 +1438,7 @@ export class ClearingHouse {
 				const market = this.getMarketAccount(position.marketIndex);
 				marketAccountMap.set(position.marketIndex.toNumber(), {
 					pubkey: market.pubkey,
-					isWritable: false,
+					isWritable: true, // TODO
 					isSigner: false,
 				});
 				oracleAccountMap.set(market.amm.oracle.toString(), {
