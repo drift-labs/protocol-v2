@@ -4,9 +4,8 @@ use crate::math::amm;
 use crate::math::bn;
 use crate::math::casting::{cast_to_i128, cast_to_u128};
 use crate::math::constants::{
-    AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128, AMM_TO_QUOTE_PRECISION_RATIO,
-    AMM_TO_QUOTE_PRECISION_RATIO_I128, MARK_PRICE_PRECISION, MARK_PRICE_PRECISION_I128, ONE_HOUR,
-    PEG_PRECISION, PRICE_TO_PEG_PRECISION_RATIO, QUOTE_PRECISION,
+    AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128, AMM_TO_QUOTE_PRECISION_RATIO_I128,
+    MARK_PRICE_PRECISION_I128, ONE_HOUR, PRICE_TO_PEG_PRECISION_RATIO,
     SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_DENOMINATOR,
     SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR, TWENTYFOUR_HOUR,
 };
@@ -244,95 +243,6 @@ pub fn calculate_prepeg_market(
     Ok(repegged_market.amm)
 }
 
-pub fn calculate_budgeted_peg(
-    market: &Market,
-    terminal_quote_reserves: u128,
-    budget: u128,
-    optimal_peg: u128,
-) -> ClearingHouseResult<(u128, i128, Market)> {
-    // 0-100
-    let curve_update_intensity = cast_to_i128(min(market.amm.curve_update_intensity, 100_u8))?;
-    let current_peg = market.amm.peg_multiplier;
-
-    // return early
-    if optimal_peg == market.amm.peg_multiplier || curve_update_intensity == 0 {
-        return Ok((market.amm.peg_multiplier, 0, *market));
-    }
-
-    let delta_peg_sign = if market.amm.quote_asset_reserve > terminal_quote_reserves {
-        1
-    } else {
-        -1
-    };
-
-    let optimal_peg_sign = if optimal_peg > market.amm.peg_multiplier {
-        1
-    } else {
-        -1
-    };
-
-    // use optimal peg when cost <=0
-    let use_optimal_peg = market.amm.quote_asset_reserve == terminal_quote_reserves
-        || delta_peg_sign != optimal_peg_sign;
-
-    let full_budget_peg: u128 = if use_optimal_peg {
-        optimal_peg
-    } else {
-        let delta_quote_asset_reserves = if delta_peg_sign > 0 {
-            market
-                .amm
-                .quote_asset_reserve
-                .checked_sub(terminal_quote_reserves)
-                .ok_or_else(math_error!())?
-        } else {
-            terminal_quote_reserves
-                .checked_sub(market.amm.quote_asset_reserve)
-                .ok_or_else(math_error!())?
-        };
-
-        let delta_peg_multiplier = budget
-            .checked_mul(MARK_PRICE_PRECISION)
-            .ok_or_else(math_error!())?
-            .checked_div(
-                delta_quote_asset_reserves
-                    .checked_div(AMM_TO_QUOTE_PRECISION_RATIO)
-                    .ok_or_else(math_error!())?,
-            )
-            .ok_or_else(math_error!())?;
-
-        let delta_peg_precision = delta_peg_multiplier
-            .checked_div(MARK_PRICE_PRECISION / PEG_PRECISION)
-            .ok_or_else(math_error!())?;
-
-        if delta_peg_sign > 0 {
-            market
-                .amm
-                .peg_multiplier
-                .checked_add(delta_peg_precision)
-                .ok_or_else(math_error!())?
-        } else {
-            market
-                .amm
-                .peg_multiplier
-                .checked_sub(delta_peg_precision)
-                .ok_or_else(math_error!())?
-        }
-    };
-
-    // avoid overshooting past target price w/ budget
-    let candidate_peg: u128 = if (current_peg > optimal_peg && full_budget_peg < optimal_peg)
-        || (current_peg < optimal_peg && full_budget_peg > optimal_peg)
-    {
-        optimal_peg
-    } else {
-        full_budget_peg
-    };
-
-    let capped_candidate_peg = candidate_peg;
-    let (repegged_market, candidate_cost) = adjust_peg_cost_cheap(market, candidate_peg)?;
-    Ok((capped_candidate_peg, candidate_cost, repegged_market))
-}
-
 pub fn adjust_peg_cost(
     market: &Market,
     new_peg_candidate: u128,
@@ -458,14 +368,14 @@ pub fn adjust_amm(
                 quote_asset_reserve: new_quote_asset_reserve,
             };
 
-            let _adjustment_cost =
+            let adjustment_cost =
                 amm::adjust_k_cost_and_update(&mut market_clone, &update_k_result)?;
             per_peg_cost = cast_to_i128(market_clone.amm.quote_asset_reserve)?
                 .checked_sub(cast_to_i128(market_clone.amm.terminal_quote_asset_reserve)?)
                 .ok_or_else(math_error!())?
                 .checked_div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128)
                 .ok_or_else(math_error!())?;
-            _adjustment_cost
+            adjustment_cost
         } else {
             0
         };
@@ -497,61 +407,6 @@ pub fn adjust_amm(
     market_clone.amm.peg_multiplier = new_peg;
 
     Ok((market_clone, cost))
-}
-
-pub fn adjust_peg_cost_cheap(
-    market: &Market,
-    new_peg_candidate: u128,
-) -> ClearingHouseResult<(Market, i128)> {
-    let mut market_clone = *market;
-
-    let delta_peg = cast_to_i128(new_peg_candidate)?
-        .checked_sub(cast_to_i128(market.amm.peg_multiplier)?)
-        .ok_or_else(math_error!())?;
-
-    let cost = if new_peg_candidate != market_clone.amm.peg_multiplier {
-        cast_to_i128(market.amm.quote_asset_reserve)?
-            .checked_sub(cast_to_i128(market.amm.terminal_quote_asset_reserve)?)
-            .ok_or_else(math_error!())?
-            .checked_mul(delta_peg)
-            .ok_or_else(math_error!())?
-            .checked_div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128)
-            .ok_or_else(math_error!())?
-    } else {
-        0
-    };
-
-    market_clone.amm.peg_multiplier = new_peg_candidate;
-
-    Ok((market_clone, cost))
-}
-
-pub fn calculate_repeg_pool_budget(
-    market: &Market,
-    mark_price: u128,
-    oracle_price_data: &OraclePriceData,
-) -> ClearingHouseResult<u128> {
-    let fee_pool = calculate_fee_pool(market)?;
-    let expected_excess_funding_payment =
-        calculate_expected_excess_funding_payment(market, oracle_price_data.price, mark_price)?;
-
-    // for a single repeg, utilize the lesser of:
-    // 1) 1 QUOTE (for soft launch)
-    // 2) 1/10th the expected_excess_funding_payment
-    // 3) 1/100th of the fee pool (for funding/repeg)
-
-    let max_budget_quote = QUOTE_PRECISION;
-    let pool_budget = min(
-        max_budget_quote,
-        min(
-            cast_to_u128(max(0, expected_excess_funding_payment))?
-                .checked_div(10)
-                .ok_or_else(math_error!())?,
-            fee_pool.checked_div(100).ok_or_else(math_error!())?,
-        ),
-    );
-
-    Ok(pool_budget)
 }
 
 pub fn calculate_expected_excess_funding_payment(

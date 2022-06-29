@@ -962,7 +962,7 @@ pub mod clearing_house {
             remaining_accounts_iter,
         )?;
         let mut market_map = MarketMap::load(
-            // &get_writable_markets_for_user_positions_and_trade(&load(&ctx.accounts.user)?.positions, params.market_index),
+            // &get_writable_markets_for_user_positions_and_order(&load(&ctx.accounts.user)?.positions, params.market_index),
             &get_writable_markets(params.market_index),
             &get_market_oracles(params.market_index, &ctx.accounts.oracle),
             remaining_accounts_iter,

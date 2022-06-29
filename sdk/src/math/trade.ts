@@ -17,7 +17,6 @@ import {
 	calculatePrice,
 	getSwapDirection,
 	AssetType,
-	// calculateSpreadReserves,
 	calculateUpdatedAMMSpreadReserves,
 } from './amm';
 import { squareRootBN } from './utils';
@@ -122,7 +121,6 @@ export function calculateTradeSlippage(
 		amm.pegMultiplier
 	);
 
-	console.log('oldNew Price', oldPrice.toString(), newPrice.toString());
 	if (direction == PositionDirection.SHORT) {
 		assert(newPrice.lte(oldPrice));
 	} else {

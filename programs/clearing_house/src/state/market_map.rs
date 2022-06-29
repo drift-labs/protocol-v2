@@ -110,7 +110,7 @@ pub fn get_writable_markets_for_user_positions(user_positions: &UserPositions) -
     writable_markets
 }
 
-pub fn get_writable_markets_for_user_positions_and_trade(
+pub fn get_writable_markets_for_user_positions_and_order(
     user_positions: &UserPositions,
     market_index: u64,
 ) -> WritableMarkets {
