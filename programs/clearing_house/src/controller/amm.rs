@@ -311,9 +311,21 @@ pub fn update_spreads(amm: &mut AMM, mark_price: u128) -> ClearingHouseResult<(u
         // oracle retreat
         // if mark - oracle < 0 (mark below oracle) and user going long then increase spread
         if amm.last_oracle_mark_spread_pct < 0 {
-            long_spread = max(long_spread, amm.last_oracle_mark_spread_pct.unsigned_abs());
+            long_spread = max(
+                long_spread,
+                amm.last_oracle_mark_spread_pct
+                    .unsigned_abs()
+                    .checked_add(amm.last_oracle_conf_pct as u128)
+                    .ok_or_else(math_error!())?,
+            );
         } else {
-            short_spread = max(short_spread, amm.last_oracle_mark_spread_pct.unsigned_abs());
+            short_spread = max(
+                short_spread,
+                amm.last_oracle_mark_spread_pct
+                    .unsigned_abs()
+                    .checked_add(amm.last_oracle_conf_pct as u128)
+                    .ok_or_else(math_error!())?,
+            );
         }
 
         // inventory scale
