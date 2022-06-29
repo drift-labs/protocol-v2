@@ -353,24 +353,7 @@ pub fn fill_order(
         )?;
 
         mark_price_before = market.amm.mark_price()?;
-
-        // oracle_mark_spread_pct_before = amm::calculate_oracle_mark_spread_pct(
-        //     &market.amm,
-        //     oracle_price_data,
-        //     Some(mark_price_before),
-        // )?;
         oracle_price = oracle_price_data.price;
-
-        // if is_oracle_valid {
-        //     amm::update_oracle_price_twap(
-        //         &mut market.amm,
-        //         now,
-        //         oracle_price_data,
-        //         Some(mark_price_before),
-        //     )?;
-        // }
-
-        // controller::amm::update_spreads(&mut market.amm, mark_price_before)?;
     }
 
     let valid_oracle_price = if is_oracle_valid {

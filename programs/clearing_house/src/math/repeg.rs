@@ -2,26 +2,13 @@
 use crate::error::*;
 use crate::math::amm;
 use crate::math::bn;
-// use crate::math::bn_operations::{multiply_i128, multiply_u128};
 use crate::math::casting::{cast_to_i128, cast_to_u128};
 use crate::math::constants::{
-    AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128,
-    // AMM_RESERVE_PRECISION,
-    // AMM_RESERVE_PRECISION_I128,
-    AMM_TO_QUOTE_PRECISION_RATIO,
-    AMM_TO_QUOTE_PRECISION_RATIO_I128,
-    // FUNDING_EXCESS_TO_QUOTE_RATIO,
-    MARK_PRICE_PRECISION,
-    MARK_PRICE_PRECISION_I128,
-    ONE_HOUR,
-    // PEG_BPS_DECREASE_MAX, PEG_BPS_INCREASE_MAX,
-    // PEG_BPS_UPDATE_SCALE,
-    PEG_PRECISION,
-    PRICE_TO_PEG_PRECISION_RATIO,
-    QUOTE_PRECISION,
+    AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128, AMM_TO_QUOTE_PRECISION_RATIO,
+    AMM_TO_QUOTE_PRECISION_RATIO_I128, MARK_PRICE_PRECISION, MARK_PRICE_PRECISION_I128, ONE_HOUR,
+    PEG_PRECISION, PRICE_TO_PEG_PRECISION_RATIO, QUOTE_PRECISION,
     SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_DENOMINATOR,
-    SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR,
-    TWENTYFOUR_HOUR,
+    SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR, TWENTYFOUR_HOUR,
 };
 use crate::math::position::_calculate_base_asset_value_and_pnl;
 use crate::math_error;
@@ -245,7 +232,6 @@ pub fn calculate_prepeg_market(
     fee_budget: u128,
 ) -> ClearingHouseResult<AMM> {
     let target_price = cast_to_u128(oracle_price_data.price)?;
-    // calculate_amm_target_price(&market.amm, market.amm.mark_price()?, oracle_price_data)?;
 
     let optimal_peg = calculate_peg_from_target_price(
         market.amm.quote_asset_reserve,
@@ -255,26 +241,6 @@ pub fn calculate_prepeg_market(
 
     let (repegged_market, _cost) = adjust_amm(market, optimal_peg, fee_budget, false)?;
 
-    // let (_capped_candidate_peg, _candidate_cost, repegged_market) = calculate_budgeted_peg(
-    //     market,
-    //     market.amm.terminal_quote_asset_reserve,
-    //     fee_budget,
-    //     optimal_peg,
-    // )?;
-    // let mut market_clone = *market;
-    // market_clone.amm.peg_multiplier = optimal_peg;
-    // Ok(market_clone.amm)
-
-    // msg!(
-    //     "[OPTIMAL PREPEG AMM for marging system]
-    //     target_price: {:?}, optimal_peg: {:?},
-    //     calc'd peg: {:?}
-    //     ",
-    //     target_price,
-    //     optimal_peg,
-    //     repegged_market.amm.peg_multiplier,
-    // );
-
     Ok(repegged_market.amm)
 }
 
@@ -282,16 +248,8 @@ pub fn calculate_budgeted_peg(
     market: &Market,
     terminal_quote_reserves: u128,
     budget: u128,
-    // current_price: u128,
     optimal_peg: u128,
 ) -> ClearingHouseResult<(u128, i128, Market)> {
-    // let target_price = calculate_amm_target_price(&market.amm, current_price, oracle_price_data)?;
-    // let optimal_peg = calculate_peg_from_target_price(
-    //     market.amm.quote_asset_reserve,
-    //     market.amm.base_asset_reserve,
-    //     target_price,
-    // )?;
-
     // 0-100
     let curve_update_intensity = cast_to_i128(min(market.amm.curve_update_intensity, 100_u8))?;
     let current_peg = market.amm.peg_multiplier;
@@ -370,42 +328,9 @@ pub fn calculate_budgeted_peg(
         full_budget_peg
     };
 
-    // add bounds to single update
-    // let capped_candidate_peg = if candidate_peg > market.amm.peg_multiplier {
-    //     let peg_upper_bound = market
-    //         .amm
-    //         .peg_multiplier
-    //         .checked_add(
-    //             multiply_u128(market.amm.peg_multiplier, PEG_BPS_INCREASE_MAX)
-    //                 .ok_or_else(math_error!())?
-    //                 .checked_div(PEG_BPS_UPDATE_SCALE)
-    //                 .ok_or_else(math_error!())?,
-    //         )
-    //         .ok_or_else(math_error!())?;
-    //     min(candidate_peg, peg_upper_bound)
-    // } else {
-    //     let peg_lower_bound = market
-    //         .amm
-    //         .peg_multiplier
-    //         .checked_sub(
-    //             multiply_u128(market.amm.peg_multiplier, PEG_BPS_DECREASE_MAX)
-    //                 .ok_or_else(math_error!())?
-    //                 .checked_div(PEG_BPS_UPDATE_SCALE)
-    //                 .ok_or_else(math_error!())?,
-    //         )
-    //         .ok_or_else(math_error!())?;
-
-    //     max(candidate_peg, peg_lower_bound)
-    // };
-
     let capped_candidate_peg = candidate_peg;
     let (repegged_market, candidate_cost) = adjust_peg_cost_cheap(market, candidate_peg)?;
     Ok((capped_candidate_peg, candidate_cost, repegged_market))
-
-    // TODO making it cheaper
-    // let mut market_clone = *market;
-    // market_clone.amm.peg_multiplier = candidate_peg;
-    // Ok((candidate_peg, cast_to_i128(budget)?, market_clone))
 }
 
 pub fn adjust_peg_cost(
@@ -444,11 +369,9 @@ pub fn adjust_amm(
     adjust_k: bool,
 ) -> ClearingHouseResult<(Market, i128)> {
     let curve_update_intensity = cast_to_i128(min(market.amm.curve_update_intensity, 100_u8))?;
-    // let current_peg = market.amm.peg_multiplier;
 
     // return early
     if optimal_peg == market.amm.peg_multiplier || curve_update_intensity == 0 {
-        // msg!("RETURN adjust_prepeg EARLY");
         return Ok((*market, 0));
     }
 
@@ -472,8 +395,6 @@ pub fn adjust_amm(
 
     if per_peg_cost != 0 {
         budget_delta_peg = budget_i128
-            // .checked_mul(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128)
-            // .ok_or_else(math_error!())?
             .checked_div(per_peg_cost)
             .ok_or_else(math_error!())?;
         budget_delta_peg_magnitude = budget_delta_peg.unsigned_abs();
@@ -488,14 +409,11 @@ pub fn adjust_amm(
         cost = per_peg_cost
             .checked_mul(delta_peg)
             .ok_or_else(math_error!())?;
-        // .checked_div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128)
-        // .ok_or_else(math_error!())?;
         new_peg = optimal_peg;
     } else {
         // use full budget peg
 
         // equivalent to (but cheaper than) scaling down by .1%
-        // let (k_scale_numerator, k_scale_denominator) = (999, 1000);
         let adjustment_cost: i128 = if adjust_k {
             // TODO can be off by 1?
 
@@ -533,8 +451,6 @@ pub fn adjust_amm(
                         .ok_or_else(math_error!())?,
                 )
                 .ok_or_else(math_error!())?;
-            // let update_k_result =
-            //     amm::get_update_k_result(&market_clone, bn::U192::from(new_sqrt_k))?;
 
             let update_k_result = amm::UpdateKResult {
                 sqrt_k: new_sqrt_k,
@@ -542,43 +458,6 @@ pub fn adjust_amm(
                 quote_asset_reserve: new_quote_asset_reserve,
             };
 
-            // let terminal_base = if market.amm.net_base_asset_amount > 0 {
-            //     market
-            //         .amm
-            //         .base_asset_reserve
-            //         .checked_add(market.amm.net_base_asset_amount.unsigned_abs())
-            //         .ok_or_else(math_error!())?
-            // } else {
-            //     market
-            //         .amm
-            //         .base_asset_reserve
-            //         .checked_sub(market.amm.net_base_asset_amount.unsigned_abs())
-            //         .ok_or_else(math_error!())?
-            // };
-
-            // let adjustment_cost: i128 = cast_to_i128(
-            //     market
-            //         .amm
-            //         .quote_asset_reserve
-            //         .checked_mul(market.amm.peg_multiplier)
-            //         .ok_or_else(math_error!())?
-            //         .checked_div(terminal_base)
-            //         .ok_or_else(math_error!())?
-            //         .checked_mul(market.amm.net_base_asset_amount.unsigned_abs())
-            //         .ok_or_else(math_error!())?
-            //         .checked_sub(
-            //             new_quote_asset_reserve
-            //                 .checked_mul(market.amm.peg_multiplier)
-            //                 .ok_or_else(math_error!())?
-            //                 .checked_div(terminal_base)
-            //                 .ok_or_else(math_error!())?
-            //                 .checked_mul(market.amm.net_base_asset_amount.unsigned_abs())
-            //                 .ok_or_else(math_error!())?,
-            //         )
-            //         .ok_or_else(math_error!())?,
-            // )?;
-
-            // let adjustment_cost =
             let _adjustment_cost =
                 amm::adjust_k_cost_and_update(&mut market_clone, &update_k_result)?;
             per_peg_cost = cast_to_i128(market_clone.amm.quote_asset_reserve)?
@@ -587,26 +466,14 @@ pub fn adjust_amm(
                 .checked_div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128)
                 .ok_or_else(math_error!())?;
             _adjustment_cost
-            // amm::update_k(&mut market_clone, &update_k_result)?;
-            // adjustment_cost
         } else {
             0
         };
-        // let adjustment_cost: i128 = 0;
         budget_delta_peg = budget_i128
             .checked_add(adjustment_cost.abs())
             .ok_or_else(math_error!())?
-            // .checked_mul(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128)
-            // .ok_or_else(math_error!())?
             .checked_div(per_peg_cost)
             .ok_or_else(math_error!())?;
-
-        // msg!(
-        //     "per_peg_cost: {:?}, budget: {:?}, budget_delta_peg: {:?}",
-        //     per_peg_cost,
-        //     budget_I128,
-        //     budget_delta_peg
-        // );
 
         budget_delta_peg_magnitude = budget_delta_peg.unsigned_abs();
         new_peg = if budget_delta_peg > 0 {
@@ -625,8 +492,6 @@ pub fn adjust_amm(
         cost = budget_delta_peg
             .checked_mul(per_peg_cost)
             .ok_or_else(math_error!())?;
-        // .checked_div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128)
-        // .ok_or_else(math_error!())?;
     }
 
     market_clone.amm.peg_multiplier = new_peg;

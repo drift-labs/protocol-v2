@@ -484,11 +484,6 @@ pub fn calculate_spread_reserves(
         .ok_or_else(math_error!())?
         .try_to_u128()?;
 
-    // msg!(
-    //     "spread price: {:?}",
-    //     calculate_price(quote_asset_reserve, base_asset_reserve, amm.peg_multiplier,)
-    // );
-
     Ok((base_asset_reserve, quote_asset_reserve))
 }
 

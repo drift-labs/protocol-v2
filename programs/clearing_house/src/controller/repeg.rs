@@ -98,9 +98,7 @@ pub fn update_amms(
 
 pub fn update_amm(
     market: &mut Market,
-    // mark_price: u128,
     oracle_price_data: &OraclePriceData,
-    // fee_budget: u128,
     state: &State,
     now: i64,
     clock_slot: u64,
@@ -113,27 +111,8 @@ pub fn update_amm(
         return Ok(0);
     }
 
-    // let clock = Clock::get()?;
-    // let clock_slot = clock.slot;
-    // let now = clock.unix_timestamp;
     let fee_budget = repeg::calculate_fee_pool(market)?;
-
-    // if !is_oracle_valid {
-    //     msg!(
-    //         "skipping formulaic_repeg: invalid oracle (oracle delay = {:?})",
-    //         oracle_price_data.delay
-    //     );
-    //     return Ok(0);
-    // }
-
-    // let peg_multiplier_before = market.amm.peg_multiplier;
-    // let base_asset_reserve_before = market.amm.base_asset_reserve;
-    // let quote_asset_reserve_before = market.amm.quote_asset_reserve;
-    // let sqrt_k_before = market.amm.sqrt_k;
-
     let target_price = cast_to_u128(oracle_price_data.price)?;
-    // let target_price =
-    //     repeg::calculate_amm_target_price(&market.amm, mark_price, oracle_price_data)?;
     let optimal_peg = repeg::calculate_peg_from_target_price(
         market.amm.quote_asset_reserve,
         market.amm.base_asset_reserve,
@@ -142,11 +121,6 @@ pub fn update_amm(
 
     let (repegged_market, amm_update_cost) =
         repeg::adjust_amm(market, optimal_peg, fee_budget, true)?;
-    // msg!(
-    //     "prepeg_cost: {:?}, repegged_market peg: {:?}",
-    //     prepeg_cost,
-    //     repegged_market.amm.peg_multiplier
-    // );
     let cost_applied = apply_cost_to_market(market, amm_update_cost)?;
 
     if cost_applied {
@@ -155,18 +129,6 @@ pub fn update_amm(
         market.amm.sqrt_k = repegged_market.amm.sqrt_k;
         market.amm.terminal_quote_asset_reserve = repegged_market.amm.terminal_quote_asset_reserve;
         market.amm.peg_multiplier = repegged_market.amm.peg_multiplier;
-
-        // msg!(
-        //     "prepeg_cost: {:?} was applied: {:?}",
-        //     prepeg_cost,
-        //     cost_applied
-        // );
-        // market.amm.peg_multiplier = new_peg;
-        // market = &mut repegged_market;
-        // let peg_multiplier_after = market.amm.peg_multiplier;
-        // let base_asset_reserve_after = market.amm.base_asset_reserve;
-        // let quote_asset_reserve_after = market.amm.quote_asset_reserve;
-        // let sqrt_k_after = market.amm.sqrt_k;
     }
 
     let is_oracle_valid = amm::is_oracle_valid(

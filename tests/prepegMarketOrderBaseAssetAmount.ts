@@ -313,7 +313,6 @@ describe('prepeg', () => {
 			baseAssetAmount,
 			false
 		);
-		// const _txSig0 = await clearingHouse.updateAMMs([new BN(0)]);
 
 		const txSig = await clearingHouse.placeAndFillOrder(orderParams);
 		const computeUnits = await findComputeUnitConsumption(
@@ -431,7 +430,6 @@ describe('prepeg', () => {
 			'after trade est. mark price:',
 			convertToNumber(newPrice)
 		);
-		// const _txSig0 = await clearingHouse.updateAMMs([new BN(0)]);
 
 		const txSig = await clearingHouse.placeAndFillOrder(orderParams);
 		const computeUnits = await findComputeUnitConsumption(
@@ -538,15 +536,6 @@ describe('prepeg', () => {
 				'after trade est. mark price:',
 				convertToNumber(newPrice)
 			);
-			// const _txSig0 = await clearingHouse.updateAMMs([
-			// 	new BN(0),
-			// 	new BN(1),
-			// 	new BN(2),
-			// 	new BN(3),
-			// 	// new BN(4),
-			// ]);
-			// const _txSig00 = await clearingHouse.updateAMMs([new BN(4)]);
-
 			const txSig = await clearingHouse.placeAndFillOrder(orderParams);
 			const computeUnits = await findComputeUnitConsumption(
 				clearingHouse.program.programId,
@@ -603,14 +592,6 @@ describe('prepeg', () => {
 			user.positions[0].baseAssetAmount.div(new BN(2)),
 			false
 		);
-		// const _txSig0 = await clearingHouse.updateAMMs([
-		// 	new BN(0),
-		// 	new BN(1),
-		// 	new BN(2),
-		// 	new BN(3),
-		// 	// new BN(4),
-		// ]);
-		// const _txSig00 = await clearingHouse.updateAMMs([new BN(4)]);
 
 		const txSig = await clearingHouse.placeAndFillOrder(orderParams);
 		const computeUnits = await findComputeUnitConsumption(

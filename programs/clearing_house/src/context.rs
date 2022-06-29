@@ -186,11 +186,7 @@ pub struct SettlePNL<'info> {
 #[derive(Accounts)]
 pub struct UpdateAMM<'info> {
     pub state: Box<Account<'info, State>>,
-    #[account(mut)]
-    // pub user: AccountLoader<'info, User>,
     pub authority: Signer<'info>,
-    // CHECK: validated in `update_amm` ix constraint
-    // pub oracle: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
