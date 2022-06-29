@@ -344,7 +344,7 @@ pub fn fill_order(
 
         oracle_mark_spread_pct_before = market.amm.last_oracle_mark_spread_pct;
 
-        let oracle_price_data = &market.amm.get_oracle_price(oracle, clock_slot)?;
+        let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
 
         is_oracle_valid = amm::is_oracle_valid(
             &market.amm,
@@ -389,7 +389,7 @@ pub fn fill_order(
     {
         let market = market_map.get_ref_mut(&market_index)?;
         mark_price_after = market.amm.mark_price()?;
-        let oracle_price_data = &market.amm.get_oracle_price(oracle, clock_slot)?;
+        let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
         oracle_mark_spread_pct_after = amm::calculate_oracle_mark_spread_pct(
             &market.amm,
             oracle_price_data,
