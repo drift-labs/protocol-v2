@@ -289,13 +289,18 @@ pub fn adjust_amm(
         .checked_sub(cast_to_i128(market.amm.peg_multiplier)?)
         .ok_or_else(math_error!())?;
 
-    let mut per_peg_cost = cast_to_i128(market.amm.quote_asset_reserve)?
-        .checked_sub(cast_to_i128(market.amm.terminal_quote_asset_reserve)?)
-        .ok_or_else(math_error!())?
-        .checked_div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128)
-        .ok_or_else(math_error!())?
-        .checked_add(1)
-        .ok_or_else(math_error!())?;
+    let mut per_peg_cost =
+        if market.amm.quote_asset_reserve != market.amm.terminal_quote_asset_reserve {
+            cast_to_i128(market.amm.quote_asset_reserve)?
+                .checked_sub(cast_to_i128(market.amm.terminal_quote_asset_reserve)?)
+                .ok_or_else(math_error!())?
+                .checked_div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128)
+                .ok_or_else(math_error!())?
+                .checked_add(1)
+                .ok_or_else(math_error!())?
+        } else {
+            0
+        };
 
     let budget_i128 = cast_to_i128(budget)?;
 

@@ -2116,7 +2116,7 @@
             "type": "i128"
           },
           {
-            "name": "lastOracleConf",
+            "name": "lastOracleConfPct",
             "type": "u64"
           },
           {
