@@ -761,6 +761,13 @@ pub mod clearing_house {
         let user = &mut load_mut(&ctx.accounts.user)?;
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
 
+        // here for remaining_accounts js sdk fcn to still work - probs want to remove later
+        let _oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let _bank_map = BankMap::load(
+            &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
+            remaining_accounts_iter,
+        )?;
+
         let market_map = MarketMap::load(
             &get_writable_markets(market_index),
             &get_market_oracles(market_index, &ctx.accounts.oracle),
@@ -768,10 +775,10 @@ pub mod clearing_house {
         )?;
         let market = market_map.get_ref_mut(&market_index)?;
 
-        let position_index = get_position_index(&user.positions, market_index)?;
+        let position_index = get_position_index_lp(&user.positions, market_index)?;
         let lp_position = &mut user.positions[position_index];
 
-        // settle the full lp
+        // settle the full lp position
         settle_lp_position(lp_position, lp_position.lp_tokens, &market.amm)?;
 
         Ok(())
