@@ -8,7 +8,7 @@ export async function fetchUserAccounts(
 	program: Program,
 	authority: PublicKey,
 	limit = 8
-): Promise<UserAccount[]> {
+): Promise<(UserAccount | undefined)[]> {
 	const userAccountPublicKeys = new Array<PublicKey>();
 	for (let i = 0; i < limit; i++) {
 		userAccountPublicKeys.push(
@@ -22,6 +22,9 @@ export async function fetchUserAccounts(
 	);
 
 	return accountInfos.map((accountInfo) => {
+		if (!accountInfo) {
+			return undefined;
+		}
 		return program.account.user.coder.accounts.decode(
 			'User',
 			accountInfo.data
