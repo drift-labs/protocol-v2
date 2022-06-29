@@ -82,7 +82,7 @@ pub fn update_amms(
     oracle_map: &mut OracleMap,
     state: &State,
     clock: &Clock,
-) -> ClearingHouseResult<i128> {
+) -> Result<()> {
     // up to ~60k compute units (per amm) worst case
     let clock_slot = clock.slot;
     let now = clock.unix_timestamp;
@@ -93,7 +93,7 @@ pub fn update_amms(
         update_amm(market, oracle_price_data, state, now, clock_slot)?;
     }
 
-    Ok(0)
+    Ok(())
 }
 
 pub fn update_amm(
