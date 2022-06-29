@@ -415,7 +415,8 @@ export class ClearingHouse {
 				marketAccountMap.set(marketIndexNum, {
 					pubkey: marketAccount.pubkey,
 					isSigner: false,
-					isWritable: false,
+					// isWritable: false, // TODO
+					isWritable: true,
 				});
 				oracleAccountMap.set(marketAccount.pubkey.toString(), {
 					pubkey: marketAccount.amm.oracle,

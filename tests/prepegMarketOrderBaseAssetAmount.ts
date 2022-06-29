@@ -315,7 +315,7 @@ describe('prepeg', () => {
 		);
 		// const _txSig0 = await clearingHouse.updateAMMs([new BN(0)]);
 
-		const txSig = await clearingHouse.updateAndPlaceAndFillOrder(orderParams);
+		const txSig = await clearingHouse.placeAndFillOrder(orderParams);
 		const computeUnits = await findComputeUnitConsumption(
 			clearingHouse.program.programId,
 			connection,
@@ -433,7 +433,7 @@ describe('prepeg', () => {
 		);
 		// const _txSig0 = await clearingHouse.updateAMMs([new BN(0)]);
 
-		const txSig = await clearingHouse.updateAndPlaceAndFillOrder(orderParams);
+		const txSig = await clearingHouse.placeAndFillOrder(orderParams);
 		const computeUnits = await findComputeUnitConsumption(
 			clearingHouse.program.programId,
 			connection,
@@ -547,7 +547,7 @@ describe('prepeg', () => {
 			// ]);
 			// const _txSig00 = await clearingHouse.updateAMMs([new BN(4)]);
 
-			const txSig = await clearingHouse.updateAndPlaceAndFillOrder(orderParams);
+			const txSig = await clearingHouse.placeAndFillOrder(orderParams);
 			const computeUnits = await findComputeUnitConsumption(
 				clearingHouse.program.programId,
 				connection,
@@ -612,7 +612,7 @@ describe('prepeg', () => {
 		// ]);
 		// const _txSig00 = await clearingHouse.updateAMMs([new BN(4)]);
 
-		const txSig = await clearingHouse.updateAndPlaceAndFillOrder(orderParams);
+		const txSig = await clearingHouse.placeAndFillOrder(orderParams);
 		const computeUnits = await findComputeUnitConsumption(
 			clearingHouse.program.programId,
 			connection,

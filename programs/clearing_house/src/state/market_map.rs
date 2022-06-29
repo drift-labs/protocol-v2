@@ -1,11 +1,8 @@
+use anchor_lang::accounts::account_loader::AccountLoader;
 use std::cell::{Ref, RefMut};
 use std::collections::{BTreeMap, BTreeSet};
 use std::iter::Peekable;
 use std::slice::Iter;
-use solana_program::msg;
-
-use anchor_lang::accounts::account_loader::AccountLoader;
-use crate::account_loader::{load};
 
 use anchor_lang::prelude::{AccountInfo, Pubkey};
 
@@ -14,13 +11,12 @@ use arrayref::array_ref;
 
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::state::market::Market;
-use crate::state::user::{User, UserPositions};
+use crate::state::user::UserPositions;
 
 pub struct MarketMap<'a>(pub BTreeMap<u64, AccountLoader<'a, Market>>);
 
 impl<'a> MarketMap<'a> {
     pub fn get_ref(&self, market_index: &u64) -> ClearingHouseResult<Ref<Market>> {
-        msg!("GET_REF MARKET_MAP");
         self.0
             .get(market_index)
             .ok_or(ErrorCode::MarketNotFound)?
@@ -29,8 +25,6 @@ impl<'a> MarketMap<'a> {
     }
 
     pub fn get_ref_mut(&self, market_index: &u64) -> ClearingHouseResult<RefMut<Market>> {
-        msg!("GET_REF_MUT MARKET_MAP");
-
         self.0
             .get(market_index)
             .ok_or(ErrorCode::MarketNotFound)?

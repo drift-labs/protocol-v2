@@ -293,7 +293,7 @@ describe('update amm', () => {
 			);
 			let txSig;
 			try {
-				txSig = await clearingHouse.updateAndPlaceAndFillOrder(orderParams);
+				txSig = await clearingHouse.placeAndFillOrder(orderParams);
 			} catch (e) {
 				console.error(e);
 			}
@@ -432,7 +432,7 @@ describe('update amm', () => {
 			AMM_RESERVE_PRECISION,
 			false
 		);
-		const txSig3 = await clearingHouse.updateAndPlaceAndFillOrder(orderParams);
+		const txSig3 = await clearingHouse.placeAndFillOrder(orderParams);
 		// const computeUnits3 = await findComputeUnitConsumption(
 		// 	clearingHouse.program.programId,
 		// 	connection,

@@ -58,7 +58,6 @@ pub mod clearing_house {
     use crate::state::market::{Market, PNLPool};
     use crate::state::market_map::{
         get_market_oracles, get_writable_markets, get_writable_markets_for_user_positions,
-        get_writable_markets_for_user_positions_and_trade,
         get_writable_markets_list, MarketMap, MarketOracles, WritableMarkets,
     };
     use crate::state::oracle::OraclePriceData;
@@ -913,7 +912,6 @@ pub mod clearing_house {
     pub fn place_and_fill_order<'info>(
         ctx: Context<PlaceAndFillOrder>,
         params: OrderParams,
-        // market_indexes: [u64; 5]
     ) -> Result<()> {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
@@ -942,7 +940,6 @@ pub mod clearing_house {
         )?;
         let is_immediate_or_cancel = params.immediate_or_cancel;
         let base_asset_amount_to_fill = params.base_asset_amount;
-        msg!("START WITH update_amms");
 
         controller::repeg::update_amms(
             &mut market_map,
@@ -950,7 +947,6 @@ pub mod clearing_house {
             &ctx.accounts.state,
             &Clock::get()?,
         )?;
-        msg!("DONE WITH update_amms");
 
         controller::orders::place_order(
             &ctx.accounts.state,
@@ -962,7 +958,6 @@ pub mod clearing_house {
             params,
             Some(&ctx.accounts.oracle),
         )?;
-        msg!("DONE WITH place_order");
 
         let user = &mut ctx.accounts.user;
         let order_id = {

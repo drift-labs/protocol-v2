@@ -2,7 +2,6 @@ use crate::error::{ClearingHouseResult, ErrorCode};
 use anchor_lang::prelude::AccountLoader;
 use anchor_lang::{Owner, ZeroCopy};
 use std::cell::{Ref, RefMut};
-use solana_program::msg;
 
 pub fn load<'a, T: ZeroCopy + Owner>(
     account_loader: &'a AccountLoader<T>,
@@ -15,7 +14,6 @@ pub fn load<'a, T: ZeroCopy + Owner>(
 pub fn load_mut<'a, T: ZeroCopy + Owner>(
     account_loader: &'a AccountLoader<T>,
 ) -> ClearingHouseResult<RefMut<'a, T>> {
-    msg!("LOADED MUT");
     account_loader
         .load_mut()
         .or(Err(ErrorCode::UnableToLoadAccountLoader))
