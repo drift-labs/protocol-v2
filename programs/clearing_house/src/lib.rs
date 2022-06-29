@@ -43,7 +43,9 @@ pub mod clearing_house {
     use crate::account_loader::{load, load_mut};
     use crate::controller::bank_balance::update_bank_balances;
     use crate::controller::lp::settle_lp_position;
-    use crate::controller::position::{add_new_position, get_position_index};
+    use crate::controller::position::{
+        add_new_position, get_position_index, get_position_index_lp,
+    };
     use crate::margin_validation::validate_margin;
     use crate::math;
     use crate::math::amm::{
@@ -784,7 +786,15 @@ pub mod clearing_house {
         market_index: u64,
     ) -> Result<()> {
         let user = &mut load_mut(&ctx.accounts.user)?;
+        let clock = Clock::get()?;
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+
+        // here for remaining_accounts js sdk fcn to still work - probs want to remove later
+        let _oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let _bank_map = BankMap::load(
+            &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
+            remaining_accounts_iter,
+        )?;
 
         let market_map = MarketMap::load(
             &get_writable_markets(market_index),
@@ -793,11 +803,17 @@ pub mod clearing_house {
         )?;
         let mut market = market_map.get_ref_mut(&market_index)?;
 
-        let position_index = get_position_index(&user.positions, market_index)?;
+        // need position_lp bc could get incorrect account otherwise (old account with unsettled_pnl)
+        let position_index = get_position_index_lp(&user.positions, market_index)?;
         let lp_position = &mut user.positions[position_index];
 
         // tmp -- they can only burn everything
         let lp_tokens_to_burn = lp_position.lp_tokens;
+        msg!("burning {} tokens", lp_tokens_to_burn);
+
+        if lp_tokens_to_burn == 0 {
+            return Ok(());
+        }
 
         validate!(
             lp_position.lp_tokens <= lp_tokens_to_burn,
@@ -866,39 +882,62 @@ pub mod clearing_house {
             &get_market_oracles(market_index, &ctx.accounts.oracle),
             remaining_accounts_iter,
         )?;
-        let mut market = market_map.get_ref_mut(&market_index)?;
 
-        // cannot have market position or lp
-        validate!(
-            get_position_index(&user.positions, market_index).is_err(),
-            ErrorCode::CantLPWithMarketPosition
-        );
+        // cannot have open lp, open order, or open position before lping
+        let can_lp = !user.positions.iter().any(|market_position| {
+            market_position.market_index == market_index
+                && (market_position.is_lp()
+                    || market_position.has_open_order()
+                    || market_position.is_open_position())
+        });
+        validate!(can_lp, ErrorCode::CantLPWithMarketPosition);
 
         let position_index = add_new_position(&mut user.positions, market_index)?;
         let lp_position = &mut user.positions[position_index];
 
+        let (
+            peg_multiplier,
+            net_base_asset_amount,
+            total_fee_minus_distributions,
+            cumulative_funding_rate_lp,
+            sqrt_k,
+        ) = get_struct_values!(
+            market_map.get_ref(&market_index)?.amm,
+            peg_multiplier,
+            net_base_asset_amount,
+            total_fee_minus_distributions,
+            cumulative_funding_rate_lp,
+            sqrt_k
+        );
+
         // create lp position
         // TODO: change from peg to mark price?
-        let user_lp_tokens = quote_asset_amount * AMM_TO_QUOTE_PRECISION_RATIO
-            / PEG_PRECISION
-            / 2
-            / market.amm.peg_multiplier;
+        let user_lp_tokens = quote_asset_amount
+            .checked_mul(AMM_TO_QUOTE_PRECISION_RATIO)
+            .ok_or_else(math_error!())?
+            .checked_div(PEG_PRECISION)
+            .ok_or_else(math_error!())?
+            .checked_div(2)
+            .ok_or_else(math_error!())?
+            .checked_div(peg_multiplier)
+            .ok_or_else(math_error!())?;
 
         lp_position.lp_tokens = user_lp_tokens;
-        lp_position.last_net_base_asset_amount = market.amm.net_base_asset_amount;
-        lp_position.last_total_fee_minus_distributions = market.amm.total_fee_minus_distributions;
-        lp_position.last_cumulative_funding_rate = market.amm.cumulative_funding_rate_lp;
+        lp_position.last_net_base_asset_amount = net_base_asset_amount;
+        lp_position.last_total_fee_minus_distributions = total_fee_minus_distributions;
+        lp_position.last_cumulative_funding_rate = cumulative_funding_rate_lp;
 
         // update market state
-        let new_sqrt_k = market
-            .amm
-            .sqrt_k
+        let new_sqrt_k = sqrt_k
             .checked_add(user_lp_tokens)
             .ok_or_else(math_error!())?;
         let new_sqrt_k_u192 = bn::U192::from(new_sqrt_k);
 
-        let update_k_result = get_update_k_result(market.borrow(), new_sqrt_k_u192)?;
-        math::amm::update_k(market.borrow_mut(), &update_k_result);
+        {
+            let mut market = market_map.get_ref_mut(&market_index)?;
+            let update_k_result = get_update_k_result(market.borrow(), new_sqrt_k_u192)?;
+            math::amm::update_k(market.borrow_mut(), &update_k_result);
+        }
 
         // check margin requirements
         validate!(

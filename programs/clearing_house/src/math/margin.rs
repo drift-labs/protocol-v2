@@ -87,7 +87,7 @@ pub fn calculate_margin_requirement_and_total_collateral(
         // rust borrowing -- kinda dirty
         let _market_position = if market_position.is_lp() {
             // add lp margin requirements - both lp_margin + virtual market position
-            let lp_margin_req = market_position
+            let mut lp_margin_req = market_position
                 .lp_tokens
                 .checked_mul(2)
                 .ok_or_else(math_error!())?
@@ -98,15 +98,19 @@ pub fn calculate_margin_requirement_and_total_collateral(
                 .checked_div(AMM_TO_QUOTE_PRECISION_RATIO)
                 .ok_or_else(math_error!())?;
 
+            lp_margin_req = std::cmp::max(1, lp_margin_req);
+
             msg!(
                 "lp margin req for {} tokens: {}",
                 market_position.lp_tokens,
-                lp_margin_req / 1_000_000
+                lp_margin_req
             );
+
             margin_requirement = margin_requirement
                 .checked_add(lp_margin_req)
                 .ok_or_else(math_error!())?;
 
+            // market position if lp was settled
             get_lp_market_position(market_position, market_position.lp_tokens, &market.amm)?
         } else {
             *market_position

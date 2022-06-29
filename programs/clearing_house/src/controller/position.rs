@@ -65,6 +65,20 @@ pub fn add_new_position(
     Ok(new_position_index)
 }
 
+pub fn get_position_index_lp(
+    user_positions: &UserPositions,
+    market_index: u64,
+) -> ClearingHouseResult<usize> {
+    let position_index = user_positions.iter().position(|market_position| {
+        market_position.is_for(market_index) && market_position.is_lp()
+    });
+
+    match position_index {
+        Some(position_index) => Ok(position_index),
+        None => Err(ErrorCode::UserHasNoPositionInMarket),
+    }
+}
+
 pub fn get_position_index(
     user_positions: &UserPositions,
     market_index: u64,

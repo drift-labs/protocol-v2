@@ -9,10 +9,10 @@ use crate::math::bn;
 use crate::math::bn::U192;
 use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64};
 use crate::math::constants::{
-    AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128, BID_ASK_SPREAD_PRECISION,
+    AMM_RESERVE_PRECISION, AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128, BID_ASK_SPREAD_PRECISION,
     BID_ASK_SPREAD_PRECISION_I128, K_BPS_DECREASE_MAX, K_BPS_INCREASE_MAX, K_BPS_UPDATE_SCALE,
     MARK_PRICE_PRECISION, MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128, ONE_HOUR_I128,
-    PEG_PRECISION, PRICE_TO_PEG_PRECISION_RATIO,AMM_RESERVE_PRECISION,
+    PEG_PRECISION, PRICE_TO_PEG_PRECISION_RATIO,
 };
 use crate::math::position::_calculate_base_asset_value_and_pnl;
 use crate::math::quote_asset::{asset_to_reserve_amount, reserve_to_asset_amount};
@@ -926,7 +926,7 @@ pub fn get_update_k_result(
 
     let sqrt_k = new_sqrt_k.try_to_u128().unwrap();
     // msg!("sqrt_k_ratio: {:?}", sqrt_k_ratio);
-    let mut base_asset_reserve = bn::U192::from(market.amm.base_asset_reserve)
+    let base_asset_reserve = bn::U192::from(market.amm.base_asset_reserve)
         .checked_mul(sqrt_k_ratio)
         .ok_or_else(math_error!())?
         .checked_div(sqrt_k_ratio_precision)
@@ -939,9 +939,7 @@ pub fn get_update_k_result(
     //     // .checked_add(market.amm.base_asset_reserve / 100_000_000 / 2)
     //     .checked_add(market.amm.base_asset_reserve / AMM_RESERVE_PRECISION)
     //     .ok_or_else(math_error!())?;
-    // } 
-
-
+    // }
 
     let invariant_sqrt_u192 = U192::from(sqrt_k);
     let invariant = invariant_sqrt_u192

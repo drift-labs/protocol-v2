@@ -53,6 +53,7 @@ pub fn get_lp_market_position(
         .last_net_base_asset_amount
         .checked_sub(amm.net_base_asset_amount)
         .ok_or_else(math_error!())?;
+    msg!("net baa delta: {}", net_base_asset_amount_delta);
 
     if net_base_asset_amount_delta != 0 {
         let base_asset_amount = get_proportion(
@@ -83,7 +84,14 @@ pub fn get_lp_market_position(
                 .checked_sub(new_quote_asset_reserve)
                 .ok_or_else(math_error!())?
         };
-        let quote_asset_amount = reserve_to_asset_amount(
+
+        //msg!("delta: {}", net_quote_asset_amount_delta);
+        //msg!("{} {}", lp_tokens_to_settle, total_lp_tokens);
+        //msg!("quote portion: {}", quote_portion);
+
+        // when qar delta is very small => converting to quote precision
+        // results in zero -- user position will have non-zero base with zero quote
+        let mut quote_asset_amount = reserve_to_asset_amount(
             cast_to_u128(get_proportion(
                 cast_to_i128(net_quote_asset_amount_delta)?,
                 lp_tokens_to_settle,
@@ -91,6 +99,7 @@ pub fn get_lp_market_position(
             )?)?,
             amm.peg_multiplier,
         )?;
+        quote_asset_amount = max(1, quote_asset_amount);
 
         market_position.quote_asset_amount = quote_asset_amount;
         market_position.base_asset_amount = base_asset_amount;
@@ -98,6 +107,7 @@ pub fn get_lp_market_position(
 
     // give them fees (without losing money)
     // TODO: should we subtract from total_fee_minus_distributions ?
+    // -- if we do, lps could lose money on change in fees if we dont max(0, ...)
     let fee_delta = max(
         0,
         cast_to_i128(amm.total_fee_minus_distributions)?
