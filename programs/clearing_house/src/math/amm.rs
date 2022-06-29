@@ -122,7 +122,12 @@ pub fn update_oracle_price_twap(
     oracle_price_data: &OraclePriceData,
     precomputed_mark_price: Option<u128>,
 ) -> ClearingHouseResult<i128> {
-    let oracle_price = normalise_oracle_price(amm, oracle_price_data, precomputed_mark_price)?;
+    let mark_price = match precomputed_mark_price {
+        Some(mark_price) => mark_price,
+        None => amm.mark_price()?,
+    };
+
+    let oracle_price = normalise_oracle_price(amm, oracle_price_data, Some(mark_price))?;
 
     let new_oracle_price_spread = oracle_price
         .checked_sub(amm.last_oracle_price_twap)
@@ -154,7 +159,12 @@ pub fn update_oracle_price_twap(
         //amm.last_oracle_mark_spread = precomputed_mark_price
         amm.last_oracle_normalised_price = capped_oracle_update_price;
         amm.last_oracle_price = oracle_price_data.price;
-        amm.last_oracle_conf = oracle_price_data.confidence as u64;
+        amm.last_oracle_conf_pct = oracle_price_data
+            .confidence
+            .checked_mul(BID_ASK_SPREAD_PRECISION)
+            .ok_or_else(math_error!())?
+            .checked_div(mark_price)
+            .ok_or_else(math_error!())? as u64;
         amm.last_oracle_delay = oracle_price_data.delay;
         amm.last_oracle_mark_spread_pct =
             calculate_oracle_mark_spread_pct(amm, oracle_price_data, precomputed_mark_price)?;
