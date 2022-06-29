@@ -8,6 +8,7 @@ import {
 	Admin,
 	MARK_PRICE_PRECISION,
 	AMM_RESERVE_PRECISION,
+	QUOTE_PRECISION,
 	calculateMarkPrice,
 	calculateTradeSlippage,
 	PositionDirection,
@@ -28,6 +29,39 @@ import {
 	getOraclePriceData,
 	initializeQuoteAssetBank,
 } from './testHelpers';
+
+async function feePoolInjection(fees, marketIndex, clearingHouse) {
+	let market0 = clearingHouse.getMarketAccount(marketIndex);
+	await clearingHouse.updateCurveUpdateIntensity(marketIndex, 0);
+	const connection = anchor.AnchorProvider.local().connection;
+
+	while (market0.amm.totalFeeMinusDistributions.lt(fees)) {
+		const tx = await clearingHouse.openPosition(
+			PositionDirection.LONG,
+			QUOTE_PRECISION.mul(new BN(9000)),
+			marketIndex
+		);
+		console.log(
+			'tx logs',
+			(await connection.getTransaction(tx, { commitment: 'confirmed' })).meta
+				.logMessages
+		);
+		await clearingHouse.closePosition(marketIndex);
+		await clearingHouse.settlePNL(
+			await clearingHouse.getUserAccountPublicKey(),
+			clearingHouse.getUserAccount(),
+			marketIndex
+		);
+		market0 = clearingHouse.getMarketAccount(marketIndex);
+		console.log(
+			market0.amm.totalFeeMinusDistributions.toString(),
+			'<',
+			fees.toString()
+		);
+	}
+
+	await clearingHouse.updateCurveUpdateIntensity(marketIndex, 100);
+}
 
 describe('update amm', () => {
 	const provider = anchor.AnchorProvider.local();
@@ -138,7 +172,7 @@ describe('update amm', () => {
 		await eventSubscriber.unsubscribe();
 	});
 
-	it('update AMM (balanced)', async () => {
+	it('update AMM (balanced) move peg up to oracle', async () => {
 		// console.log('hi');
 		const marketIndex = new BN(0);
 		const baseAssetAmount = new BN(
@@ -235,6 +269,179 @@ describe('update amm', () => {
 		assert(market.amm.sqrtK.eq(market0.amm.sqrtK)); // k was same
 	});
 
+	it('update AMM (balanced) move peg down to oracle', async () => {
+		// console.log('hi');
+		const marketIndex = new BN(1);
+		const baseAssetAmount = new BN(
+			(49.7450503674885 * AMM_RESERVE_PRECISION.toNumber()) / 50
+		);
+		const market0 = clearingHouse.getMarketAccount(1);
+		await setFeedPrice(anchor.workspace.Pyth, 0.9378, mockOracles[1]);
+		const curPrice = (await getFeedData(anchor.workspace.Pyth, mockOracles[1]))
+			.price;
+		console.log('new oracle price:', curPrice);
+
+		const oraclePriceData = await getOraclePriceData(
+			anchor.workspace.Pyth,
+			mockOracles[1]
+		);
+
+		const prepegAMM = calculateUpdatedAMM(market0.amm, oraclePriceData);
+		console.log(prepegAMM.pegMultiplier.toString());
+		assert(prepegAMM.pegMultiplier.eq(new BN(938)));
+		const estDist = prepegAMM.totalFee.sub(
+			prepegAMM.totalFeeMinusDistributions
+		);
+		console.log('est distribution:', estDist.toString());
+
+		const [_pctAvgSlippage, _pctMaxSlippage, _entryPrice, newPrice] =
+			calculateTradeSlippage(
+				PositionDirection.LONG,
+				baseAssetAmount,
+				market0,
+				'base',
+				oraclePriceData
+			);
+		const [bid, ask] = calculateBidAskPrice(market0.amm, oraclePriceData);
+
+		console.log(
+			'bid/ask:',
+			convertToNumber(bid),
+			'/',
+			convertToNumber(ask),
+			'after trade est. mark price:',
+			convertToNumber(newPrice)
+		);
+		const txSig = await clearingHouse.updateAMMs([marketIndex]);
+		const computeUnits = await findComputeUnitConsumption(
+			clearingHouse.program.programId,
+			connection,
+			txSig,
+			'confirmed'
+		);
+		console.log('compute units', computeUnits);
+		console.log(
+			'tx logs',
+			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
+				.logMessages
+		);
+		const market = clearingHouse.getMarketAccount(1);
+		const [bid1, ask1] = calculateBidAskPrice(market.amm, oraclePriceData);
+		console.log(
+			'after trade bid/ask:',
+			convertToNumber(bid1),
+			'/',
+			convertToNumber(ask1),
+			'after trade mark price:',
+			convertToNumber(calculateMarkPrice(market, oraclePriceData))
+		);
+		assert(bid1.lt(ask1));
+		assert(ask1.gt(oraclePriceData.price));
+		assert(bid1.lt(oraclePriceData.price));
+
+		console.log(market.amm.pegMultiplier.toString());
+		assert(market.amm.pegMultiplier.eq(new BN(938)));
+		const actualDist = market.amm.totalFee.sub(
+			market.amm.totalFeeMinusDistributions
+		);
+		console.log('actual distribution:', actualDist.toString());
+
+		console.log(prepegAMM.sqrtK.toString(), '==', market.amm.sqrtK.toString());
+		const marketInvariant = market.amm.sqrtK.mul(market.amm.sqrtK);
+
+		// check k math good
+		assert(
+			marketInvariant
+				.div(market.amm.baseAssetReserve)
+				.eq(market.amm.quoteAssetReserve)
+		);
+		assert(
+			marketInvariant
+				.div(market.amm.quoteAssetReserve)
+				.eq(market.amm.baseAssetReserve)
+		);
+
+		// check prepeg and post trade worked as expected
+		assert(prepegAMM.sqrtK.eq(market.amm.sqrtK)); // predicted k = post trade k
+		assert(actualDist.sub(estDist).abs().lte(new BN(1))); // cost is near equal
+		assert(market.amm.sqrtK.eq(market0.amm.sqrtK)); // k was same
+	});
+
+	it('update AMM (imbalanced, oracle > peg, sufficient fees)', async () => {
+		const marketIndex = 1;
+
+		await feePoolInjection(
+			new BN(250 * QUOTE_PRECISION.toNumber()),
+			new BN(1),
+			clearingHouse
+		);
+		const market = clearingHouse.getMarketAccount(marketIndex);
+
+		const oraclePriceData = await getOraclePriceData(
+			anchor.workspace.Pyth,
+			mockOracles[marketIndex]
+		);
+
+		const baseAssetAmount = new BN(1.02765 * AMM_RESERVE_PRECISION.toNumber());
+		const orderParams = getMarketOrderParams(
+			new BN(marketIndex),
+			PositionDirection.LONG,
+			ZERO,
+			baseAssetAmount,
+			false
+		);
+		const [_pctAvgSlippage, _pctMaxSlippage, _entryPrice, newPrice] =
+			calculateTradeSlippage(
+				PositionDirection.LONG,
+				baseAssetAmount,
+				market,
+				'base',
+				oraclePriceData
+			);
+
+		const [bid, ask] = calculateBidAskPrice(market.amm, oraclePriceData);
+
+		console.log(
+			'bid/ask:',
+			convertToNumber(bid),
+			'/',
+			convertToNumber(ask),
+			'after trade est. mark price:',
+			convertToNumber(newPrice)
+		);
+		let txSig;
+		try {
+			txSig = await clearingHouse.placeAndFillOrder(orderParams);
+		} catch (e) {
+			console.error(e);
+		}
+
+		console.log(
+			'tx logs',
+			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
+				.logMessages
+		);
+
+		await setFeedPrice(anchor.workspace.Pyth, 1.9378, mockOracles[marketIndex]);
+		const curPrice = (
+			await getFeedData(anchor.workspace.Pyth, mockOracles[marketIndex])
+		).price;
+		console.log('new oracle price:', curPrice);
+
+		const _txSig2 = await clearingHouse.updateAMMs([new BN(marketIndex)]);
+		const market2 = clearingHouse.getMarketAccount(marketIndex);
+		console.log(
+			'market2.amm.pegMultiplier = ',
+			market2.amm.pegMultiplier.toString()
+		);
+		assert(market2.amm.pegMultiplier.eq(new BN(1937)));
+		assert(
+			market2.amm.totalFeeMinusDistributions.gte(
+				market.amm.totalFeeMinusDistributions.div(new BN(2))
+			)
+		);
+	});
+
 	it('Many market balanced prepegs, long position', async () => {
 		for (let i = 0; i <= 4; i++) {
 			const thisUsd = mockOracles[i];
@@ -310,14 +517,12 @@ describe('update amm', () => {
 		}
 	});
 
-	it('update AMM (unbalanced)', async () => {
-		// console.log('hi');
-		// const marketIndex = new BN(0);
-		// const baseAssetAmount = new BN(497450503674885 / 50);
-
+	it('update AMMs (unbalanced, oracle > peg, cost > 0 and insufficient fees)', async () => {
 		const prepegAMMs = [];
 		const market0s = [];
 
+		const tradeDirection = PositionDirection.SHORT;
+		const tradeSize = AMM_RESERVE_PRECISION;
 		for (let i = 0; i <= 4; i++) {
 			const thisUsd = mockOracles[i];
 			const marketIndex = new BN(i);
@@ -369,9 +574,9 @@ describe('update amm', () => {
 
 		const orderParams = getMarketOrderParams(
 			new BN(4),
-			PositionDirection.SHORT,
+			tradeDirection,
 			ZERO,
-			AMM_RESERVE_PRECISION,
+			tradeSize,
 			false
 		);
 		const txSig3 = await clearingHouse.placeAndFillOrder(orderParams);
@@ -468,7 +673,10 @@ describe('update amm', () => {
 			); // cost is near equal
 
 			assert(prepegAMM.pegMultiplier.eq(market.amm.pegMultiplier));
-			assert(market.amm.sqrtK.lt(market0.amm.sqrtK)); // k was lowered
+
+			if (i != 1) {
+				assert(market.amm.sqrtK.lt(market0.amm.sqrtK)); // k was lowered
+			}
 		}
 	});
 });
