@@ -207,6 +207,7 @@ pub struct TransferDeposit<'info> {
     )]
     pub to_user: AccountLoader<'info, User>,
     pub authority: Signer<'info>,
+    pub state: Box<Account<'info, State>>,
 }
 
 #[derive(Accounts)]

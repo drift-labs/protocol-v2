@@ -720,11 +720,14 @@ export class ClearingHouse {
 			writableBankIndex: bankIndex,
 		});
 
+		const state = this.getStateAccount();
+
 		return await this.program.instruction.transferDeposit(bankIndex, amount, {
 			accounts: {
 				authority: this.wallet.publicKey,
 				fromUser,
 				toUser,
+				state: await this.getStatePublicKey(),
 			},
 			remainingAccounts,
 		});
