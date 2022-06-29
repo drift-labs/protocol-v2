@@ -806,7 +806,7 @@ pub fn update_unsettled_pnl(
     market_position: &mut MarketPosition,
     market: &mut Market,
     unsettled_pnl: i128,
-) -> ClearingHouseResult<i128> {
+) -> ClearingHouseResult<()> {
     let new_user_unsettled_pnl = market_position
         .unsettled_pnl
         .checked_add(unsettled_pnl)
@@ -865,5 +865,5 @@ pub fn update_unsettled_pnl(
 
     // update user state
     market_position.unsettled_pnl = new_user_unsettled_pnl;
-    Ok(new_user_unsettled_pnl)
+    Ok(())
 }

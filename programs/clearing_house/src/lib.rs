@@ -917,7 +917,7 @@ pub mod clearing_house {
                 &mut user.positions[position_index],
                 market,
                 pnl.checked_sub(cast(user_fee)?).ok_or_else(math_error!())?,
-            );
+            )?;
         }
         // Increment the user's total fee variables
         user.total_fee_paid = user
