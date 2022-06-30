@@ -360,94 +360,6 @@
       "args": []
     },
     {
-      "name": "openPosition",
-      "accounts": [
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "user",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "oracle",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "direction",
-          "type": {
-            "defined": "PositionDirection"
-          }
-        },
-        {
-          "name": "quoteAssetAmount",
-          "type": "u128"
-        },
-        {
-          "name": "marketIndex",
-          "type": "u64"
-        },
-        {
-          "name": "limitPrice",
-          "type": "u128"
-        },
-        {
-          "name": "optionalAccounts",
-          "type": {
-            "defined": "ManagePositionOptionalAccounts"
-          }
-        }
-      ]
-    },
-    {
-      "name": "closePosition",
-      "accounts": [
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "user",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "oracle",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "marketIndex",
-          "type": "u64"
-        },
-        {
-          "name": "optionalAccounts",
-          "type": {
-            "defined": "ManagePositionOptionalAccounts"
-          }
-        }
-      ]
-    },
-    {
       "name": "placeOrder",
       "accounts": [
         {
@@ -1941,22 +1853,6 @@
     }
   ],
   "types": [
-    {
-      "name": "ManagePositionOptionalAccounts",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "discountToken",
-            "type": "bool"
-          },
-          {
-            "name": "referrer",
-            "type": "bool"
-          }
-        ]
-      }
-    },
     {
       "name": "OrderParams",
       "type": {
