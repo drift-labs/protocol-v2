@@ -169,8 +169,28 @@ export class BigNum {
 		return this.val.eq(ZERO);
 	}
 
+	public gtZero() {
+		return this.val.gt(ZERO);
+	}
+
+	public ltZero() {
+		return this.val.lt(ZERO);
+	}
+
+	public gteZero() {
+		return this.val.gte(ZERO);
+	}
+
+	public lteZero() {
+		return this.val.lte(ZERO);
+	}
+
 	public abs(): BigNum {
 		return new BigNum(this.val.abs(), this.precision);
+	}
+
+	public neg(): BigNum {
+		return new BigNum(this.val.neg(), this.precision);
 	}
 
 	public toString = (base?: number | 'hex', length?: number): string =>
