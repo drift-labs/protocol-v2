@@ -158,6 +158,8 @@ pub enum ErrorCode {
     UserMustSettleTheirOwnPositiveUnsettledPNL,
     #[msg("CantUpdatePNLPoolBalanceType")]
     CantUpdatePNLPoolBalanceType,
+    #[msg("InsufficientCollateralForSettlingPNL")]
+    InsufficientCollateralForSettlingPNL,
 }
 
 #[macro_export]
