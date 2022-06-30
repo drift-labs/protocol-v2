@@ -70,6 +70,7 @@ describe('AMM Curve', () => {
 		await clearingHouse.subscribe();
 
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
+		await clearingHouse.updateOrderAuctionTime(new BN(0));
 
 		solUsdOracle = await createPriceFeed({
 			oracleProgram: anchor.workspace.Pyth,

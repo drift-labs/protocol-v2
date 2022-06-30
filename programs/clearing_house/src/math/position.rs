@@ -5,11 +5,15 @@ use crate::controller::position::PositionDirection;
 use crate::error::ClearingHouseResult;
 use crate::math::amm;
 use crate::math::amm::calculate_quote_asset_amount_swapped;
-use crate::math::constants::{AMM_RESERVE_PRECISION, PRICE_TO_QUOTE_PRECISION_RATIO};
+use crate::math::constants::{
+    AMM_RESERVE_PRECISION, AMM_TO_QUOTE_PRECISION_RATIO, MARK_PRICE_PRECISION,
+    PRICE_TO_QUOTE_PRECISION_RATIO,
+};
 use crate::math::pnl::calculate_pnl;
 use crate::math_error;
 use crate::state::market::AMM;
 use crate::state::user::MarketPosition;
+use std::ops::Div;
 
 pub fn calculate_base_asset_value_and_pnl(
     market_position: &MarketPosition,
@@ -99,4 +103,17 @@ pub fn swap_direction_to_close_position(base_asset_amount: i128) -> SwapDirectio
     } else {
         SwapDirection::Remove
     }
+}
+
+pub fn calculate_entry_price(
+    quote_asset_amount: u128,
+    base_asset_amount: u128,
+) -> ClearingHouseResult<u128> {
+    let price = quote_asset_amount
+        .checked_mul(MARK_PRICE_PRECISION * AMM_TO_QUOTE_PRECISION_RATIO)
+        .ok_or_else(math_error!())?
+        .checked_div(base_asset_amount)
+        .ok_or_else(math_error!())?;
+
+    Ok(price)
 }

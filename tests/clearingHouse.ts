@@ -103,6 +103,7 @@ describe('clearing_house', () => {
 
 		await clearingHouse.subscribe();
 		const state = clearingHouse.getStateAccount();
+		await clearingHouse.updateOrderAuctionTime(new BN(0));
 
 		assert.ok(state.admin.equals(provider.wallet.publicKey));
 
@@ -768,13 +769,14 @@ describe('clearing_house', () => {
 			newUSDCNotionalAmount,
 			market
 		)[2];
-
 		await clearingHouse.openPosition(
 			PositionDirection.SHORT,
 			newUSDCNotionalAmount,
 			marketIndex,
 			estTradePrice
 		);
+
+		await clearingHouse.fetchAccounts();
 
 		await clearingHouse.closePosition(marketIndex);
 	});
@@ -795,6 +797,8 @@ describe('clearing_house', () => {
 			marketIndex,
 			estTradePrice
 		);
+
+		await clearingHouse.fetchAccounts();
 
 		await clearingHouse.closePosition(marketIndex);
 	});

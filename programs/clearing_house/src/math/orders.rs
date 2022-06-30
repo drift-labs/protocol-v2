@@ -16,6 +16,7 @@ use crate::math::constants::{
     MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO,
 };
 use crate::math::margin::calculate_free_collateral;
+use crate::math::position::calculate_entry_price;
 use crate::math::quote_asset::asset_to_reserve_amount;
 use crate::math_error;
 use crate::state::bank_map::BankMap;
@@ -291,10 +292,7 @@ pub fn limit_price_satisfied(
     base_asset_amount: u128,
     direction: PositionDirection,
 ) -> ClearingHouseResult<bool> {
-    let price = quote_asset_amount
-        .checked_mul(MARK_PRICE_PRECISION * AMM_TO_QUOTE_PRECISION_RATIO)
-        .ok_or_else(math_error!())?
-        .div(base_asset_amount);
+    let price = calculate_entry_price(quote_asset_amount, base_asset_amount)?;
 
     match direction {
         PositionDirection::Long => {

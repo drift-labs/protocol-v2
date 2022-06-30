@@ -112,3 +112,15 @@ pub fn get_referrer_for_fill_order<'a, 'b, 'c>(
 
     Ok(referrer)
 }
+
+pub fn get_maker<'a>(
+    account_info_iter: &mut Peekable<Iter<AccountInfo<'a>>>,
+) -> ClearingHouseResult<AccountLoader<'a, User>> {
+    let maker_account_info =
+        next_account_info(account_info_iter).or(Err(ErrorCode::MakerNotFound))?;
+
+    let maker: AccountLoader<User> =
+        AccountLoader::try_from(maker_account_info).or(Err(ErrorCode::CouldNotDeserializeMaker))?;
+
+    Ok(maker)
+}

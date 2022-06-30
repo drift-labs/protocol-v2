@@ -7,14 +7,24 @@ use spl_token::state::Account as TokenAccount;
 use crate::account_loader::load_mut;
 use crate::context::*;
 use crate::controller;
+use crate::controller::amm::SwapDirection;
+use crate::controller::position::PositionDirection;
 use crate::controller::position::{add_new_position, get_position_index};
 use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
 use crate::get_struct_values;
 use crate::get_then_update_id;
-use crate::math::amm::is_oracle_valid;
+use crate::math::amm::{
+    calculate_price, calculate_spread_reserves, calculate_swap_output, is_oracle_valid,
+};
+use crate::math::auction::{
+    calculate_auction_end_price, calculate_auction_fill_amount, calculate_auction_price,
+    calculate_auction_start_price, does_auction_satisfy_maker_order,
+};
 use crate::math::casting::cast;
+use crate::math::constants::MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO;
 use crate::math::fees::calculate_order_fee_tier;
+use crate::math::position::calculate_entry_price;
 use crate::math::{amm, fees, margin::*, orders::*, repeg};
 use crate::math_error;
 use crate::order_validation::{
@@ -31,6 +41,7 @@ use crate::state::oracle_map::OracleMap;
 use crate::state::state::*;
 use crate::state::user::User;
 use crate::state::user::{Order, OrderStatus, OrderType};
+use crate::validate;
 
 pub fn place_order(
     state: &State,
@@ -43,7 +54,6 @@ pub fn place_order(
     oracle: Option<&AccountInfo>,
 ) -> ClearingHouseResult {
     let now = clock.unix_timestamp;
-
     let user_key = user.key();
     let user = &mut load_mut(user)?;
     controller::funding::settle_funding_payment(user, &user_key, market_map, now)?;
@@ -80,6 +90,15 @@ pub fn place_order(
         (market_position.base_asset_amount, base_asset_amount)
     };
 
+    let (auction_start_price, auction_end_price) = if !params.post_only {
+        let auction_start_price = calculate_auction_start_price(market, params.direction)?;
+        let auction_end_price =
+            calculate_auction_end_price(market, params.direction, order_base_asset_amount)?;
+        (auction_start_price, auction_end_price)
+    } else {
+        (0_u128, 0_u128)
+    };
+
     let new_order = Order {
         status: OrderStatus::Open,
         order_type: params.order_type,
@@ -106,6 +125,8 @@ pub fn place_order(
         post_only: params.post_only,
         oracle_price_offset: params.oracle_price_offset,
         immediate_or_cancel: params.immediate_or_cancel,
+        auction_start_price,
+        auction_end_price,
         padding: [0; 3],
     };
 
@@ -325,9 +346,11 @@ pub fn fill_order(
         direction
     );
 
-    if order_status != OrderStatus::Open {
-        return Err(ErrorCode::OrderNotOpen);
-    }
+    validate!(
+        order_status == OrderStatus::Open,
+        ErrorCode::OrderNotOpen,
+        "Order not open"
+    )?;
 
     let mark_price_before: u128;
     let oracle_mark_spread_pct_before: i128;
@@ -380,6 +403,9 @@ pub fn fill_order(
     } else {
         None
     };
+
+    let time_since_order_placed = now.checked_sub(order_ts).ok_or_else(math_error!())?;
+    let auction_complete = time_since_order_placed >= state.order_auction_duration;
 
     let (
         base_asset_amount,
@@ -616,6 +642,41 @@ pub fn fill_order(
     }
 
     Ok(base_asset_amount)
+}
+
+pub fn fill_taker_against_maker(
+    market_map: &MarketMap,
+    market_index: u64,
+    taker: &mut User,
+    taker_order_index: usize,
+    maker: &mut User,
+    maker_order_index: usize,
+    now: i64,
+    auction_duration: i64,
+) -> ClearingHouseResult {
+    let auction_price =
+        calculate_auction_price(&taker.orders[taker_order_index], now, auction_duration)?;
+
+    let auction_price_satisfies_maker =
+        does_auction_satisfy_maker_order(&maker.orders[maker_order_index], auction_price);
+
+    validate!(
+        auction_price_satisfies_maker,
+        ErrorCode::AuctionPriceDoesNotSatisfyMaker,
+        "Auction price does not satisfy maker",
+    )?;
+
+    let (base_asset_amount, quote_asset_amount) = calculate_auction_fill_amount(
+        auction_price,
+        &maker.orders[maker_order_index],
+        &taker.orders[taker_order_index],
+    )?;
+
+    {
+        let taker_order = &mut taker.orders[taker_order_index];
+    }
+
+    Ok(())
 }
 
 pub fn execute_order(

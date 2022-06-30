@@ -49,7 +49,9 @@ pub mod clearing_house {
     use crate::math::bank_balance::get_token_amount;
     use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64};
     use crate::math::slippage::{calculate_slippage, calculate_slippage_pct};
-    use crate::optional_accounts::{get_discount_token, get_referrer, get_referrer_for_fill_order};
+    use crate::optional_accounts::{
+        get_discount_token, get_maker, get_referrer, get_referrer_for_fill_order,
+    };
     use crate::state::bank::{Bank, BankBalance, BankBalanceType};
     use crate::state::bank_map::{get_writable_banks, BankMap};
     use crate::state::events::TradeRecord;
@@ -63,7 +65,6 @@ pub mod clearing_house {
     use crate::state::oracle::OraclePriceData;
     use crate::state::oracle_map::OracleMap;
     use crate::state::state::OrderFillerRewardStructure;
-    use crate::state::user::OrderType;
 
     use super::*;
 
@@ -154,6 +155,7 @@ pub mod clearing_house {
                 time_based_reward_lower_bound: 10_000, // 1 cent
             },
             min_order_quote_asset_amount: 500_000, // 50 cents
+            order_auction_duration: 5,             // 5 seconds
             padding0: 0,
             padding1: 0,
             padding2: 0,
@@ -730,11 +732,13 @@ pub mod clearing_house {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let _oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
         let _bank_map = BankMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
-        let market_map = MarketMap::load(
+        let mut market_map = MarketMap::load(
             &WritableMarkets::new(),
             &get_market_oracles(params.market_index, &ctx.accounts.oracle),
             remaining_accounts_iter,
         )?;
+
+        for (key, market) in market_map.0.iter_mut() {}
 
         let discount_token = get_discount_token(
             params.optional_accounts.discount_token,
@@ -750,11 +754,6 @@ pub mod clearing_house {
         )?;
 
         let oracle = Some(&ctx.accounts.oracle);
-
-        if params.order_type == OrderType::Market {
-            msg!("market order must be in place and fill");
-            return Err(ErrorCode::MarketOrderMustBeInPlaceAndFill.into());
-        }
 
         if params.immediate_or_cancel {
             msg!("immediate_or_cancel order must be in place and fill");
@@ -853,13 +852,17 @@ pub mod clearing_house {
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]
-    pub fn fill_order<'info>(ctx: Context<FillOrder>, order_id: u64) -> Result<()> {
+    pub fn fill_order<'info>(
+        ctx: Context<FillOrder>,
+        taker_order_id: u64,
+        maker_order_id: Option<u64>,
+    ) -> Result<()> {
         let (writable_markets, market_oracles) = {
             let user = &load(&ctx.accounts.user)?;
             let order_index = user
                 .orders
                 .iter()
-                .position(|order| order.order_id == order_id)
+                .position(|order| order.order_id == taker_order_id)
                 .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
             let order = &user.orders[order_index];
 
@@ -878,15 +881,20 @@ pub mod clearing_house {
         let market_map =
             MarketMap::load(writable_markets, market_oracles, remaining_accounts_iter)?;
 
+        let maker = match maker_order_id {
+            Some(_) => Some(get_maker(remaining_accounts_iter)?),
+            None => None,
+        };
+
         let referrer = get_referrer_for_fill_order(
             remaining_accounts_iter,
             &ctx.accounts.user.key(),
-            order_id,
+            taker_order_id,
             &ctx.accounts.user,
         )?;
 
         let base_asset_amount = controller::orders::fill_order(
-            order_id,
+            taker_order_id,
             &ctx.accounts.state,
             &ctx.accounts.user,
             &market_map,
@@ -2271,6 +2279,20 @@ pub mod clearing_house {
         funding_paused: bool,
     ) -> Result<()> {
         ctx.accounts.state.funding_paused = funding_paused;
+        Ok(())
+    }
+
+    pub fn update_order_auction_time(
+        ctx: Context<AdminUpdateState>,
+        order_auction_time: i64,
+    ) -> Result<()> {
+        validate!(
+            order_auction_time > 0 || order_auction_time < 100,
+            ErrorCode::DefaultError,
+            "invalid auction time",
+        )?;
+
+        ctx.accounts.state.order_auction_duration = order_auction_time;
         Ok(())
     }
 }

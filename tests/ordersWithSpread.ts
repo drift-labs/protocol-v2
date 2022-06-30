@@ -26,6 +26,7 @@ import {
 	mockOracle,
 	mockUSDCMint,
 	mockUserUSDCAccount,
+	printTxLogs,
 	setFeedPrice,
 } from './testHelpers';
 import {
@@ -93,6 +94,7 @@ describe('amm spread: market order', () => {
 		await clearingHouse.subscribe();
 
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
+		await clearingHouse.updateOrderAuctionTime(new BN(0));
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
@@ -707,6 +709,12 @@ describe('amm spread: market order', () => {
 		await clearingHouseUser.fetchAccounts();
 
 		const order = clearingHouseUser.getUserAccount().orders[0];
+
+		console.log(order.baseAssetAmount.toString());
+		console.log(
+			clearingHouseUser.getUserAccount().positions[0].baseAssetAmount.toString()
+		);
+
 		const expectedBaseAssetAmount = calculateBaseAssetAmountMarketCanExecute(
 			clearingHouse.getMarketAccount(0),
 			order
@@ -727,20 +735,21 @@ describe('amm spread: market order', () => {
 			getSwapDirection('base', direction)
 		);
 
-		try {
-			await clearingHouse.fillOrder(
-				await clearingHouseUser.getUserAccountPublicKey(),
-				clearingHouseUser.getUserAccount(),
-				order
-			);
-		} catch (e) {
-			console.error(e);
-		}
+		const txSig = await clearingHouse.fillOrder(
+			await clearingHouseUser.getUserAccountPublicKey(),
+			clearingHouseUser.getUserAccount(),
+			order
+		);
+		await printTxLogs(connection, txSig);
 
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
 
+		const firstOrder = clearingHouseUser.getUserAccount().orders[0];
 		const firstPosition = clearingHouseUser.getUserAccount().positions[0];
+		console.log(firstOrder.baseAssetAmount.toString());
+		console.log(firstPosition.baseAssetAmount.toString());
+
 		assert(firstPosition.baseAssetAmount.eq(baseAssetAmount));
 		assert(firstPosition.quoteAssetAmount.eq(expectedQuoteAssetAmount));
 
@@ -782,6 +791,12 @@ describe('amm spread: market order', () => {
 		await clearingHouseUser.fetchAccounts();
 
 		const order = clearingHouseUser.getUserAccount().orders[0];
+
+		console.log(order.baseAssetAmount.toString());
+		console.log(
+			clearingHouseUser.getUserAccount().positions[0].baseAssetAmount.toString()
+		);
+
 		const expectedBaseAssetAmount = calculateBaseAssetAmountMarketCanExecute(
 			clearingHouse.getMarketAccount(0),
 			order
@@ -802,16 +817,21 @@ describe('amm spread: market order', () => {
 			getSwapDirection('base', direction)
 		);
 
-		await clearingHouse.fillOrder(
+		const txSig = await clearingHouse.fillOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
 			clearingHouseUser.getUserAccount(),
 			order
 		);
+		await printTxLogs(connection, txSig);
 
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
 
+		const firstOrder = clearingHouseUser.getUserAccount().orders[0];
 		const firstPosition = clearingHouseUser.getUserAccount().positions[0];
+		console.log(firstOrder.baseAssetAmount.toString());
+		console.log(firstPosition.baseAssetAmount.toString());
+
 		assert(firstPosition.baseAssetAmount.abs().eq(baseAssetAmount));
 		assert(firstPosition.quoteAssetAmount.eq(expectedQuoteAssetAmount));
 

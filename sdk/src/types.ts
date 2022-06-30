@@ -348,6 +348,8 @@ export type Order = {
 	postOnly: boolean;
 	immediateOrCancel: boolean;
 	oraclePriceOffset: BN;
+	auctionStartPrice: BN;
+	auctionEndPrice: BN;
 };
 
 export type OrderParams = {

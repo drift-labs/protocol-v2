@@ -1,5 +1,6 @@
 // PRECISIONS
 pub const AMM_RESERVE_PRECISION: u128 = 10_000_000_000_000; //expo = -13;
+pub const BASE_PRECISION: u128 = AMM_RESERVE_PRECISION; //expo = -13;
 pub const MARK_PRICE_PRECISION: u128 = 10_000_000_000; //expo = -10
 pub const MARK_PRICE_PRECISION_I128: i128 = 10_000_000_000; //expo = -10
 pub const QUOTE_PRECISION: u128 = 1_000_000; // expo = -6

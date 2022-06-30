@@ -30,6 +30,7 @@ pub struct State {
     pub number_of_banks: u64,
     pub order_filler_reward_structure: OrderFillerRewardStructure,
     pub min_order_quote_asset_amount: u128, // minimum est. quote_asset_amount for place_order to succeed
+    pub order_auction_duration: i64,
 
     // upgrade-ability
     pub padding0: u128,

@@ -156,6 +156,18 @@ pub enum ErrorCode {
     UserMustSettleTheirOwnPositiveUnsettledPNL,
     #[msg("CantUpdatePNLPoolBalanceType")]
     CantUpdatePNLPoolBalanceType,
+    #[msg("AuctionNotComplete")]
+    AuctionNotComplete,
+    #[msg("MakerNotFound")]
+    MakerNotFound,
+    #[msg("MakerOrderNotFound")]
+    MakerOrderNotFound,
+    #[msg("CouldNotDeserializeMaker")]
+    CouldNotDeserializeMaker,
+    #[msg("AuctionPriceDoesNotSatisfyMaker")]
+    AuctionPriceDoesNotSatisfyMaker,
+    #[msg("DefaultError")]
+    DefaultError,
 }
 
 #[macro_export]

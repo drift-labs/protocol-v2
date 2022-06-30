@@ -1,4 +1,5 @@
 pub mod amm;
+pub mod auction;
 pub mod bank_balance;
 pub mod bn;
 pub mod casting;

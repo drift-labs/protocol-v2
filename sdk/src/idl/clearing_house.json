@@ -360,94 +360,6 @@
       "args": []
     },
     {
-      "name": "openPosition",
-      "accounts": [
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "user",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "oracle",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "direction",
-          "type": {
-            "defined": "PositionDirection"
-          }
-        },
-        {
-          "name": "quoteAssetAmount",
-          "type": "u128"
-        },
-        {
-          "name": "marketIndex",
-          "type": "u64"
-        },
-        {
-          "name": "limitPrice",
-          "type": "u128"
-        },
-        {
-          "name": "optionalAccounts",
-          "type": {
-            "defined": "ManagePositionOptionalAccounts"
-          }
-        }
-      ]
-    },
-    {
-      "name": "closePosition",
-      "accounts": [
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "user",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "oracle",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "marketIndex",
-          "type": "u64"
-        },
-        {
-          "name": "optionalAccounts",
-          "type": {
-            "defined": "ManagePositionOptionalAccounts"
-          }
-        }
-      ]
-    },
-    {
       "name": "placeOrder",
       "accounts": [
         {
@@ -573,8 +485,14 @@
       ],
       "args": [
         {
-          "name": "orderId",
+          "name": "takerOrderId",
           "type": "u64"
+        },
+        {
+          "name": "makerOrderId",
+          "type": {
+            "option": "u64"
+          }
         }
       ]
     },
@@ -1538,6 +1456,27 @@
           "type": "bool"
         }
       ]
+    },
+    {
+      "name": "updateOrderAuctionTime",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "orderAuctionTime",
+          "type": "i64"
+        }
+      ]
     }
   ],
   "accounts": [
@@ -1839,6 +1778,10 @@
             "type": "u128"
           },
           {
+            "name": "orderAuctionDuration",
+            "type": "i64"
+          },
+          {
             "name": "padding0",
             "type": "u128"
           },
@@ -1941,22 +1884,6 @@
     }
   ],
   "types": [
-    {
-      "name": "ManagePositionOptionalAccounts",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "discountToken",
-            "type": "bool"
-          },
-          {
-            "name": "referrer",
-            "type": "bool"
-          }
-        ]
-      }
-    },
     {
       "name": "OrderParams",
       "type": {
@@ -2663,6 +2590,14 @@
           {
             "name": "oraclePriceOffset",
             "type": "i128"
+          },
+          {
+            "name": "auctionStartPrice",
+            "type": "u128"
+          },
+          {
+            "name": "auctionEndPrice",
+            "type": "u128"
           },
           {
             "name": "padding",
@@ -3744,6 +3679,36 @@
       "code": 6075,
       "name": "CantUpdatePNLPoolBalanceType",
       "msg": "CantUpdatePNLPoolBalanceType"
+    },
+    {
+      "code": 6076,
+      "name": "AuctionNotComplete",
+      "msg": "AuctionNotComplete"
+    },
+    {
+      "code": 6077,
+      "name": "MakerNotFound",
+      "msg": "MakerNotFound"
+    },
+    {
+      "code": 6078,
+      "name": "MakerOrderNotFound",
+      "msg": "MakerOrderNotFound"
+    },
+    {
+      "code": 6079,
+      "name": "CouldNotDeserializeMaker",
+      "msg": "CouldNotDeserializeMaker"
+    },
+    {
+      "code": 6080,
+      "name": "AuctionPriceDoesNotSatisfyMaker",
+      "msg": "AuctionPriceDoesNotSatisfyMaker"
+    },
+    {
+      "code": 6081,
+      "name": "DefaultError",
+      "msg": "DefaultError"
     }
   ]
 }

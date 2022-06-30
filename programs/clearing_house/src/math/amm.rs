@@ -356,7 +356,7 @@ pub fn calculate_rolling_sum(
 
 pub fn calculate_swap_output(
     swap_amount: u128,
-    input_asset_amount: u128,
+    input_asset_reserve: u128,
     direction: SwapDirection,
     invariant_sqrt: u128,
 ) -> ClearingHouseResult<(u128, u128)> {
@@ -365,27 +365,27 @@ pub fn calculate_swap_output(
         .checked_mul(invariant_sqrt_u192)
         .ok_or_else(math_error!())?;
 
-    if direction == SwapDirection::Remove && swap_amount > input_asset_amount {
+    if direction == SwapDirection::Remove && swap_amount > input_asset_reserve {
         return Err(ErrorCode::TradeSizeTooLarge);
     }
 
-    let new_input_amount = if let SwapDirection::Add = direction {
-        input_asset_amount
+    let new_input_asset_reserve = if let SwapDirection::Add = direction {
+        input_asset_reserve
             .checked_add(swap_amount)
             .ok_or_else(math_error!())?
     } else {
-        input_asset_amount
+        input_asset_reserve
             .checked_sub(swap_amount)
             .ok_or_else(math_error!())?
     };
 
-    let new_input_amount_u192 = U192::from(new_input_amount);
-    let new_output_amount = invariant
+    let new_input_amount_u192 = U192::from(new_input_asset_reserve);
+    let new_output_asset_reserve = invariant
         .checked_div(new_input_amount_u192)
         .ok_or_else(math_error!())?
         .try_to_u128()?;
 
-    Ok((new_output_amount, new_input_amount))
+    Ok((new_output_asset_reserve, new_input_asset_reserve))
 }
 
 pub fn calculate_quote_asset_amount_swapped(

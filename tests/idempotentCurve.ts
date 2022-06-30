@@ -63,6 +63,7 @@ describe('idempotent curve', () => {
 		await primaryClearingHouse.subscribe();
 
 		await initializeQuoteAssetBank(primaryClearingHouse, usdcMint.publicKey);
+		await primaryClearingHouse.updateOrderAuctionTime(new BN(0));
 
 		const solUsd = await mockOracle(1);
 		const periodicity = new BN(60 * 60); // 1 HOUR

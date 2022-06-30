@@ -407,6 +407,7 @@ describe('capped funding', () => {
 		await clearingHouse.subscribe();
 
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
+		await clearingHouse.updateOrderAuctionTime(new BN(0));
 
 		await clearingHouse.initializeUserAccount();
 		userAccount = new ClearingHouseUser({

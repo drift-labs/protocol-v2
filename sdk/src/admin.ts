@@ -661,4 +661,13 @@ export class Admin extends ClearingHouse {
 			},
 		});
 	}
+
+	public async updateOrderAuctionTime(time: BN): Promise<TransactionSignature> {
+		return await this.program.rpc.updateOrderAuctionTime(time, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+			},
+		});
+	}
 }

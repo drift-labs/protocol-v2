@@ -242,8 +242,8 @@ fn calculate_base_swap_output_without_spread(
     ))
 }
 
-fn calculate_base_swap_output_with_spread(
-    amm: &mut AMM,
+pub fn calculate_base_swap_output_with_spread(
+    amm: &AMM,
     base_asset_swap_amount: u128,
     direction: SwapDirection,
 ) -> ClearingHouseResult<(u128, u128, u128, u128)> {
