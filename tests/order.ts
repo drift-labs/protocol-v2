@@ -125,18 +125,18 @@ describe('orders', () => {
 			{ publicKey: ethUsd, source: OracleSource.PYTH },
 		];
 
-		clearingHouse = Admin.from(
+		clearingHouse = new Admin({
 			connection,
-			provider.wallet,
-			chProgram.programId,
-			{
+			wallet: provider.wallet,
+			programID: chProgram.programId,
+			opts: {
 				commitment: 'confirmed',
 			},
-			0,
+			activeUserId: 0,
 			marketIndexes,
 			bankIndexes,
-			oracleInfos
-		);
+			oracleInfos,
+		});
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
@@ -171,10 +171,10 @@ describe('orders', () => {
 				userUSDCAccount.publicKey
 			);
 
-		clearingHouseUser = ClearingHouseUser.from(
+		clearingHouseUser = new ClearingHouseUser({
 			clearingHouse,
-			provider.wallet.publicKey
-		);
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
 		await clearingHouseUser.subscribe();
 
 		discountMint = await Token.createMint(
@@ -208,18 +208,18 @@ describe('orders', () => {
 			provider,
 			fillerKeyPair.publicKey
 		);
-		fillerClearingHouse = ClearingHouse.from(
+		fillerClearingHouse = new ClearingHouse({
 			connection,
-			new Wallet(fillerKeyPair),
-			chProgram.programId,
-			{
+			wallet: new Wallet(fillerKeyPair),
+			programID: chProgram.programId,
+			opts: {
 				commitment: 'confirmed',
 			},
-			0,
+			activeUserId: 0,
 			marketIndexes,
 			bankIndexes,
-			oracleInfos
-		);
+			oracleInfos,
+		});
 		await fillerClearingHouse.subscribe();
 
 		await fillerClearingHouse.initializeUserAccountAndDepositCollateral(
@@ -227,10 +227,10 @@ describe('orders', () => {
 			fillerUSDCAccount.publicKey
 		);
 
-		fillerUser = ClearingHouseUser.from(
-			fillerClearingHouse,
-			fillerKeyPair.publicKey
-		);
+		fillerUser = new ClearingHouseUser({
+			clearingHouse: fillerClearingHouse,
+			userAccountPublicKey: await fillerClearingHouse.getUserAccountPublicKey(),
+		});
 		await fillerUser.subscribe();
 
 		provider.connection.requestAirdrop(whaleKeyPair.publicKey, 10 ** 9);
@@ -240,18 +240,17 @@ describe('orders', () => {
 			provider,
 			whaleKeyPair.publicKey
 		);
-		whaleClearingHouse = ClearingHouse.from(
+		whaleClearingHouse = new Admin({
 			connection,
-			new Wallet(whaleKeyPair),
-			chProgram.programId,
-			{
+			wallet: new Wallet(whaleKeyPair),
+			programID: chProgram.programId,
+			opts: {
 				commitment: 'confirmed',
 			},
-			0,
 			marketIndexes,
 			bankIndexes,
-			oracleInfos
-		);
+			oracleInfos,
+		});
 		await whaleClearingHouse.subscribe();
 
 		[, whaleAccountPublicKey] =
@@ -260,10 +259,10 @@ describe('orders', () => {
 				whaleUSDCAccount.publicKey
 			);
 
-		whaleUser = ClearingHouseUser.from(
-			whaleClearingHouse,
-			whaleKeyPair.publicKey
-		);
+		whaleUser = new ClearingHouseUser({
+			clearingHouse: whaleClearingHouse,
+			userAccountPublicKey: await whaleClearingHouse.getUserAccountPublicKey(),
+		});
 
 		await whaleUser.subscribe();
 	});
@@ -327,14 +326,16 @@ describe('orders', () => {
 		const expectedOpenOrders = new BN(1);
 		assert(position.openOrders.eq(expectedOpenOrders));
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0].data;
+		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 		assert(orderRecord.ts.gt(ZERO));
 		assert(orderRecord.order.orderId.eq(expectedOrderId));
 		assert(enumsAreEqual(orderRecord.action, OrderAction.PLACE));
 		assert(
 			orderRecord.user.equals(await clearingHouseUser.getUserAccountPublicKey())
 		);
-		assert(orderRecord.authority.equals(clearingHouseUser.authority));
+		assert(
+			orderRecord.authority.equals(clearingHouseUser.getUserAccount().authority)
+		);
 	});
 
 	it('Fail to fill reduce only order', async () => {
@@ -373,7 +374,7 @@ describe('orders', () => {
 		const expectedOpenOrders = new BN(0);
 		assert(position.openOrders.eq(expectedOpenOrders));
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0].data;
+		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 		const expectedOrderId = new BN(1);
 		assert(orderRecord.ts.gt(ZERO));
 		assert(orderRecord.order.orderId.eq(expectedOrderId));
@@ -381,7 +382,9 @@ describe('orders', () => {
 		assert(
 			orderRecord.user.equals(await clearingHouseUser.getUserAccountPublicKey())
 		);
-		assert(orderRecord.authority.equals(clearingHouseUser.authority));
+		assert(
+			orderRecord.authority.equals(clearingHouseUser.getUserAccount().authority)
+		);
 	});
 
 	it('Fill limit long order', async () => {
@@ -474,12 +477,11 @@ describe('orders', () => {
 		//  );
 		assert(firstPosition.quoteEntryAmount.eq(expectedQuoteAssetAmount));
 
-		const tradeHistoryRecord =
-			eventSubscriber.getEventsArray('TradeRecord')[0].data;
+		const tradeHistoryRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
 		assert.ok(tradeHistoryRecord.baseAssetAmount.eq(baseAssetAmount));
 		assert.ok(tradeHistoryRecord.quoteAssetAmount.eq(expectedQuoteAssetAmount));
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0].data;
+		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 		const expectedTradeRecordId = new BN(1);
 		const expectedFee = new BN(950);
 		assert(orderRecord.ts.gt(ZERO));
@@ -489,7 +491,9 @@ describe('orders', () => {
 		assert(
 			orderRecord.user.equals(await clearingHouseUser.getUserAccountPublicKey())
 		);
-		assert(orderRecord.authority.equals(clearingHouseUser.authority));
+		assert(
+			orderRecord.authority.equals(clearingHouseUser.getUserAccount().authority)
+		);
 		assert(
 			orderRecord.filler.equals(await fillerUser.getUserAccountPublicKey())
 		);
@@ -608,8 +612,7 @@ describe('orders', () => {
 		const expectedQuoteAssetAmount = new BN(0);
 		assert(firstPosition.quoteEntryAmount.eq(expectedQuoteAssetAmount));
 
-		const tradeHistoryRecord =
-			eventSubscriber.getEventsArray('TradeRecord')[0].data;
+		const tradeHistoryRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
 
 		assert.ok(tradeHistoryRecord.baseAssetAmount.eq(baseAssetAmount));
 		const expectedTradeQuoteAssetAmount = new BN(1000002);
@@ -624,7 +627,7 @@ describe('orders', () => {
 		);
 		assert.ok(tradeHistoryRecord.markPriceBefore.gt(triggerPrice));
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0].data;
+		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 		const expectedOrderId = new BN(3);
 		const expectedTradeRecordId = new BN(2);
 		assert(orderRecord.ts.gt(ZERO));
@@ -633,7 +636,9 @@ describe('orders', () => {
 		assert(
 			orderRecord.user.equals(await clearingHouseUser.getUserAccountPublicKey())
 		);
-		assert(orderRecord.authority.equals(clearingHouseUser.authority));
+		assert(
+			orderRecord.authority.equals(clearingHouseUser.getUserAccount().authority)
+		);
 		assert(
 			orderRecord.filler.equals(await fillerUser.getUserAccountPublicKey())
 		);
@@ -1743,7 +1748,7 @@ describe('orders', () => {
 			false
 		);
 		await clearingHouse.placeAndFillOrder(openPositionOrderParams);
-
+		console.log('1');
 		const reduceMarketOrderParams = getMarketOrderParams(
 			marketIndexEth,
 			PositionDirection.LONG,
@@ -1754,8 +1759,9 @@ describe('orders', () => {
 		await clearingHouse.placeAndFillOrder(reduceMarketOrderParams);
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
+		console.log('2');
 
-		let orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0].data;
+		let orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 		assert(orderRecord.baseAssetAmountFilled.eq(AMM_RESERVE_PRECISION));
 		assert(
 			isVariant(clearingHouseUser.getUserAccount().orders[0].status, 'init')
@@ -1769,18 +1775,22 @@ describe('orders', () => {
 			TWO.mul(MARK_PRICE_PRECISION),
 			true
 		);
+		console.log('3');
+
 		await clearingHouse.placeAndFillOrder(reduceLimitOrderParams);
+		console.log('4');
 
 		await clearingHouse.settlePNL(
 			await clearingHouse.getUserAccountPublicKey(),
 			clearingHouse.getUserAccount(),
 			marketIndex
 		);
+		console.log('5');
 
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
 
-		orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0].data;
+		orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 		assert(orderRecord.baseAssetAmountFilled.eq(AMM_RESERVE_PRECISION));
 		assert(
 			isVariant(clearingHouseUser.getUserAccount().orders[0].status, 'open')

@@ -15,12 +15,12 @@ describe('stress-test', () => {
 	const chProgram = anchor.workspace.ClearingHouse as Program; // this.program-ify
 	let usdcMint: Keypair;
 
-	const clearingHouse = Admin.from(
+	const clearingHouse = new Admin({
 		connection,
 		//@ts-ignore
-		provider.wallet,
-		chProgram.programId
-	);
+		wallet: provider.wallet,
+		programID: chProgram.programId,
+	});
 
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);

@@ -78,18 +78,18 @@ describe('clearing_house', () => {
 
 		solUsd = await mockOracle(1);
 
-		clearingHouse = Admin.from(
+		clearingHouse = new Admin({
 			connection,
-			provider.wallet,
-			chProgram.programId,
-			{
+			wallet: provider.wallet,
+			programID: chProgram.programId,
+			opts: {
 				commitment: 'confirmed',
 			},
-			0,
-			[new BN(0)],
-			[new BN(0)],
-			[{ publicKey: solUsd, source: OracleSource.PYTH }]
-		);
+			activeUserId: 0,
+			marketIndexes: [new BN(0)],
+			bankIndexes: [new BN(0)],
+			oracleInfos: [{ publicKey: solUsd, source: OracleSource.PYTH }],
+		});
 	});
 
 	after(async () => {
@@ -195,8 +195,7 @@ describe('clearing_house', () => {
 		assert.ok(user.positions[0].lastCumulativeFundingRate.toNumber() === 0);
 
 		await eventSubscriber.awaitTx(txSig);
-		const depositRecord =
-			eventSubscriber.getEventsArray('DepositRecord')[0].data;
+		const depositRecord = eventSubscriber.getEventsArray('DepositRecord')[0];
 
 		assert.ok(depositRecord.userAuthority.equals(provider.wallet.publicKey));
 		assert.ok(depositRecord.user.equals(userAccountPublicKey));
@@ -233,8 +232,7 @@ describe('clearing_house', () => {
 		assert.ok(userUSDCtoken.eq(usdcAmount));
 
 		await eventSubscriber.awaitTx(txSig);
-		const depositRecord =
-			eventSubscriber.getEventsArray('DepositRecord')[0].data;
+		const depositRecord = eventSubscriber.getEventsArray('DepositRecord')[0];
 
 		assert.ok(depositRecord.userAuthority.equals(provider.wallet.publicKey));
 		assert.ok(depositRecord.user.equals(userAccountPublicKey));
@@ -294,7 +292,7 @@ describe('clearing_house', () => {
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(49750)));
 
 		await eventSubscriber.awaitTx(txSig);
-		const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0].data;
+		const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
 
 		assert.ok(tradeRecord.user.equals(userAccountPublicKey));
 		assert.ok(tradeRecord.recordId.eq(new BN(1)));
@@ -425,7 +423,7 @@ describe('clearing_house', () => {
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(74625)));
 
 		await eventSubscriber.awaitTx(txSig);
-		const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0].data;
+		const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
 		assert.ok(tradeRecord.user.equals(userAccountPublicKey));
 		assert.ok(tradeRecord.recordId.eq(new BN(2)));
 		assert.ok(
@@ -488,7 +486,7 @@ describe('clearing_house', () => {
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(124375)));
 
 		await eventSubscriber.awaitTx(txSig);
-		const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0].data;
+		const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
 		assert.ok(tradeRecord.user.equals(userAccountPublicKey));
 		assert.ok(tradeRecord.recordId.eq(new BN(3)));
 		assert.ok(
@@ -526,7 +524,7 @@ describe('clearing_house', () => {
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(149250)));
 
 		await eventSubscriber.awaitTx(txSig);
-		const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0].data;
+		const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
 
 		assert.ok(tradeRecord.user.equals(userAccountPublicKey));
 		assert.ok(tradeRecord.recordId.eq(new BN(4)));
@@ -567,7 +565,7 @@ describe('clearing_house', () => {
 		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(-490122799362653)));
 
 		await eventSubscriber.awaitTx(txSig);
-		const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0].data;
+		const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
 
 		assert.ok(tradeRecord.user.equals(userAccountPublicKey));
 		assert.ok(tradeRecord.recordId.eq(new BN(5)));
@@ -584,10 +582,10 @@ describe('clearing_house', () => {
 	it('Partial Liquidation', async () => {
 		const marketIndex = new BN(0);
 
-		userAccount = ClearingHouseUser.from(
+		userAccount = new ClearingHouseUser({
 			clearingHouse,
-			provider.wallet.publicKey
-		);
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
 		await userAccount.subscribe();
 
 		const user0: any = await clearingHouse.program.account.user.fetch(
@@ -674,7 +672,7 @@ describe('clearing_house', () => {
 		assert.ok(chInsuranceAccountToken.amount.eq(new BN(43230)));
 
 		await eventSubscriber.awaitTx(txSig);
-		const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0].data;
+		const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
 
 		assert.ok(tradeRecord.user.equals(userAccountPublicKey));
 		assert.ok(tradeRecord.recordId.eq(new BN(6)));
@@ -688,8 +686,7 @@ describe('clearing_house', () => {
 		assert.ok(tradeRecord.marketIndex.eq(new BN(0)));
 
 		const liquidationRecord =
-			eventSubscriber.getEventsArray('LiquidationRecord')[0].data;
-		console.log(liquidationRecord.collateral.toString());
+			eventSubscriber.getEventsArray('LiquidationRecord')[0];
 		assert.ok(liquidationRecord.user.equals(userAccountPublicKey));
 		assert.ok(liquidationRecord.partial);
 		assert.ok(liquidationRecord.baseAssetValue.eq(new BN(55350814)));
@@ -778,7 +775,7 @@ describe('clearing_house', () => {
 		assert.ok(chInsuranceAccountToken.amount.eq(new BN(2075558)));
 
 		await eventSubscriber.awaitTx(txSig);
-		const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0].data;
+		const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
 
 		assert.ok(tradeRecord.user.equals(userAccountPublicKey));
 		assert.ok(tradeRecord.recordId.eq(new BN(7)));
@@ -792,9 +789,7 @@ describe('clearing_house', () => {
 		assert.ok(tradeRecord.marketIndex.eq(new BN(0)));
 
 		const liquidationRecord =
-			eventSubscriber.getEventsArray('LiquidationRecord')[0].data;
-		console.log(liquidationRecord.collateral.toString());
-		console.log(liquidationRecord.unrealizedPnl.toString());
+			eventSubscriber.getEventsArray('LiquidationRecord')[0];
 		assert.ok(liquidationRecord.user.equals(userAccountPublicKey));
 		assert.ok(!liquidationRecord.partial);
 		assert.ok(liquidationRecord.baseAssetValue.eq(new BN(42788993)));

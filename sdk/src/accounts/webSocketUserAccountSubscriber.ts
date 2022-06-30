@@ -9,28 +9,22 @@ import { Program } from '@project-serum/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { PublicKey } from '@solana/web3.js';
-import { getUserAccountPublicKey } from '../addresses/pda';
 import { WebSocketAccountSubscriber } from './webSocketAccountSubscriber';
 import { UserAccount } from '../types';
-import { ClearingHouseConfigType } from '../factory/clearingHouse';
 
 export class WebSocketUserAccountSubscriber implements UserAccountSubscriber {
 	isSubscribed: boolean;
 	program: Program;
 	eventEmitter: StrictEventEmitter<EventEmitter, UserAccountEvents>;
-	authority: PublicKey;
-	userId: number;
+	userAccountPublicKey: PublicKey;
 
 	userDataAccountSubscriber: AccountSubscriber<UserAccount>;
 
-	type: ClearingHouseConfigType = 'websocket';
-
-	public constructor(program: Program, authority: PublicKey, userId: number) {
+	public constructor(program: Program, userAccountPublicKey: PublicKey) {
 		this.isSubscribed = false;
 		this.program = program;
-		this.authority = authority;
+		this.userAccountPublicKey = userAccountPublicKey;
 		this.eventEmitter = new EventEmitter();
-		this.userId = userId;
 	}
 
 	async subscribe(): Promise<boolean> {
@@ -38,15 +32,10 @@ export class WebSocketUserAccountSubscriber implements UserAccountSubscriber {
 			return true;
 		}
 
-		const userPublicKey = await getUserAccountPublicKey(
-			this.program.programId,
-			this.authority,
-			this.userId
-		);
 		this.userDataAccountSubscriber = new WebSocketAccountSubscriber(
 			'user',
 			this.program,
-			userPublicKey
+			this.userAccountPublicKey
 		);
 		await this.userDataAccountSubscriber.subscribe((data: UserAccount) => {
 			this.eventEmitter.emit('userAccountUpdate', data);

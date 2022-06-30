@@ -84,18 +84,18 @@ describe('order referrer', () => {
 			{ publicKey: btcUsd, source: OracleSource.PYTH },
 		];
 
-		clearingHouse = Admin.from(
+		clearingHouse = new Admin({
 			connection,
-			provider.wallet,
-			chProgram.programId,
-			{
+			wallet: provider.wallet,
+			programID: chProgram.programId,
+			opts: {
 				commitment: 'confirmed',
 			},
-			0,
+			activeUserId: 0,
 			marketIndexes,
 			bankIndexes,
-			oracleInfos
-		);
+			oracleInfos,
+		});
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
@@ -123,10 +123,10 @@ describe('order referrer', () => {
 				userUSDCAccount.publicKey
 			);
 
-		clearingHouseUser = ClearingHouseUser.from(
+		clearingHouseUser = new ClearingHouseUser({
 			clearingHouse,
-			provider.wallet.publicKey
-		);
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
 		await clearingHouseUser.subscribe();
 
 		discountMint = await Token.createMint(
@@ -160,18 +160,18 @@ describe('order referrer', () => {
 			provider,
 			fillerKeyPair.publicKey
 		);
-		fillerClearingHouse = ClearingHouse.from(
+		fillerClearingHouse = new Admin({
 			connection,
-			new Wallet(fillerKeyPair),
-			chProgram.programId,
-			{
+			wallet: new Wallet(fillerKeyPair),
+			programID: chProgram.programId,
+			opts: {
 				commitment: 'confirmed',
 			},
-			0,
+			activeUserId: 0,
 			marketIndexes,
 			bankIndexes,
-			oracleInfos
-		);
+			oracleInfos,
+		});
 		await fillerClearingHouse.subscribe();
 
 		await fillerClearingHouse.initializeUserAccountAndDepositCollateral(
@@ -179,10 +179,10 @@ describe('order referrer', () => {
 			fillerUSDCAccount.publicKey
 		);
 
-		fillerUser = ClearingHouseUser.from(
-			fillerClearingHouse,
-			fillerKeyPair.publicKey
-		);
+		fillerUser = new ClearingHouseUser({
+			clearingHouse: fillerClearingHouse,
+			userAccountPublicKey: await fillerClearingHouse.getUserAccountPublicKey(),
+		});
 		await fillerUser.subscribe();
 
 		provider.connection.requestAirdrop(referrerKeyPair.publicKey, 10 ** 9);
@@ -192,16 +192,18 @@ describe('order referrer', () => {
 			provider,
 			referrerKeyPair.publicKey
 		);
-		referrerClearingHouse = ClearingHouse.from(
+		referrerClearingHouse = new Admin({
 			connection,
-			new Wallet(referrerKeyPair),
-			chProgram.programId,
-			undefined,
-			0,
+			wallet: new Wallet(referrerKeyPair),
+			programID: chProgram.programId,
+			opts: {
+				commitment: 'confirmed',
+			},
+			activeUserId: 0,
 			marketIndexes,
 			bankIndexes,
-			oracleInfos
-		);
+			oracleInfos,
+		});
 		await referrerClearingHouse.subscribe();
 
 		await referrerClearingHouse.initializeUserAccountAndDepositCollateral(
@@ -209,10 +211,11 @@ describe('order referrer', () => {
 			referrerUSDCAccount.publicKey
 		);
 
-		referrerUser = ClearingHouseUser.from(
-			referrerClearingHouse,
-			referrerKeyPair.publicKey
-		);
+		referrerUser = new ClearingHouseUser({
+			clearingHouse: referrerClearingHouse,
+			userAccountPublicKey:
+				await referrerClearingHouse.getUserAccountPublicKey(),
+		});
 		await referrerUser.subscribe();
 	});
 

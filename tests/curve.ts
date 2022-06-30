@@ -31,15 +31,17 @@ describe('AMM Curve', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.ClearingHouse as Program;
 
-	const clearingHouse = Admin.from(
+	const clearingHouse = new Admin({
 		connection,
-		provider.wallet,
-		chProgram.programId,
-		undefined,
-		0,
-		[new BN(0)],
-		[new BN(0)]
-	);
+		wallet: provider.wallet,
+		programID: chProgram.programId,
+		opts: {
+			commitment: 'confirmed',
+		},
+		activeUserId: 0,
+		marketIndexes: [new BN(0)],
+		bankIndexes: [new BN(0)],
+	});
 
 	const ammInitialQuoteAssetAmount = new anchor.BN(10 ** 8).mul(
 		new BN(10 ** 10)
@@ -84,10 +86,10 @@ describe('AMM Curve', () => {
 		);
 
 		await clearingHouse.initializeUserAccount();
-		userAccount = ClearingHouseUser.from(
+		userAccount = new ClearingHouseUser({
 			clearingHouse,
-			provider.wallet.publicKey
-		);
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
 		await userAccount.subscribe();
 	});
 

@@ -76,18 +76,18 @@ describe('bank deposit and withdraw', () => {
 		bankIndexes = [new BN(0), new BN(1)];
 		oracleInfos = [{ publicKey: solOracle, source: OracleSource.PYTH }];
 
-		admin = Admin.from(
+		admin = new Admin({
 			connection,
-			provider.wallet,
-			chProgram.programId,
-			{
+			wallet: provider.wallet,
+			programID: chProgram.programId,
+			opts: {
 				commitment: 'confirmed',
 			},
-			0,
+			activeUserId: 0,
 			marketIndexes,
 			bankIndexes,
-			oracleInfos
-		);
+			oracleInfos,
+		});
 
 		await admin.initialize(usdcMint.publicKey, true);
 		await admin.subscribe();

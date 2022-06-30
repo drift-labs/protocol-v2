@@ -147,6 +147,7 @@ pub struct AMM {
     pub total_fee_withdrawn: u128,
     pub net_revenue_since_last_funding: i64,
     pub pnl_pool: PNLPool,
+    pub last_update_slot: u64,
 
     pub padding0: u16,
     pub padding1: u32,
@@ -171,7 +172,7 @@ impl AMM {
             .ok_or_else(math_error!())?;
 
         let bid_price = mark_price
-            .checked_mul(BID_ASK_SPREAD_PRECISION + self.short_spread)
+            .checked_mul(BID_ASK_SPREAD_PRECISION - self.short_spread)
             .ok_or_else(math_error!())?
             .checked_div(BID_ASK_SPREAD_PRECISION)
             .ok_or_else(math_error!())?;

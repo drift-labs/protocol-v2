@@ -6,14 +6,13 @@ use borsh::BorshSerialize;
 
 use crate::math::position::calculate_base_asset_value_and_pnl;
 use context::*;
-use controller::position::PositionDirection;
 use error::ErrorCode;
-use math::{amm, bn, constants::*, fees, margin::*, orders::*};
+use math::{amm, bn, constants::*, margin::*};
 use state::oracle::{get_oracle_price, OracleSource};
 
 use crate::math::amm::get_update_k_result;
 use crate::state::market::Market;
-use crate::state::{market::AMM, order_state::*, state::*, user::*};
+use crate::state::{market::AMM, state::*, user::*};
 
 mod account_loader;
 pub mod context;
@@ -40,7 +39,7 @@ pub mod clearing_house {
 
     use crate::account_loader::{load, load_mut};
     use crate::controller::bank_balance::update_bank_balances;
-    use crate::controller::position::{add_new_position, get_position_index};
+    use crate::controller::position::get_position_index;
     use crate::margin_validation::validate_margin;
     use crate::math;
     use crate::math::amm::{
@@ -53,18 +52,19 @@ pub mod clearing_house {
     use crate::math::slippage::{calculate_slippage, calculate_slippage_pct};
     use crate::optional_accounts::{get_discount_token, get_referrer, get_referrer_for_fill_order};
     use crate::state::bank::{Bank, BankBalance, BankBalanceType};
-    use crate::state::bank_map::{get_writable_banks, BankMap};
+    use crate::state::bank_map::{get_writable_banks, BankMap, WritableBanks};
     use crate::state::events::TradeRecord;
     use crate::state::events::{CurveRecord, DepositRecord};
     use crate::state::events::{DepositDirection, LiquidationRecord};
     use crate::state::market::{Market, PNLPool};
     use crate::state::market_map::{
         get_market_oracles, get_writable_markets, get_writable_markets_for_user_positions,
-        MarketMap, MarketOracles, WritableMarkets,
+        get_writable_markets_for_user_positions_and_order, get_writable_markets_list, MarketMap,
+        MarketOracles, WritableMarkets,
     };
     use crate::state::oracle::OraclePriceData;
     use crate::state::oracle_map::OracleMap;
-    use crate::state::order_state::{OrderFillerRewardStructure, OrderState};
+    use crate::state::state::OrderFillerRewardStructure;
     use crate::state::user::OrderType;
 
     use super::*;
@@ -148,9 +148,14 @@ pub mod clearing_house {
                 },
                 use_for_liquidations: true,
             },
-            order_state: Pubkey::default(),
             number_of_markets: 0,
             number_of_banks: 0,
+            order_filler_reward_structure: OrderFillerRewardStructure {
+                reward_numerator: 1,
+                reward_denominator: 10,
+                time_based_reward_lower_bound: 10_000, // 1 cent
+            },
+            min_order_quote_asset_amount: 500_000, // 50 cents
             padding0: 0,
             padding1: 0,
             padding2: 0,
@@ -312,31 +317,6 @@ pub mod clearing_house {
         Ok(())
     }
 
-    pub fn initialize_order_state(
-        ctx: Context<InitializeOrderState>,
-        _order_house_nonce: u8,
-    ) -> Result<()> {
-        let state = &mut ctx.accounts.state;
-
-        if !state.order_state.eq(&Pubkey::default()) {
-            return Err(ErrorCode::OrderStateAlreadyInitialized.into());
-        }
-
-        state.order_state = ctx.accounts.order_state.key();
-
-        **ctx.accounts.order_state = OrderState {
-            order_filler_reward_structure: OrderFillerRewardStructure {
-                reward_numerator: 1,
-                reward_denominator: 10,
-                time_based_reward_lower_bound: 10_000, // 1 cent
-            },
-            min_order_quote_asset_amount: 500_000, // 50 cents
-            padding: [0; 10],
-        };
-
-        Ok(())
-    }
-
     pub fn initialize_market(
         ctx: Context<InitializeMarket>,
         amm_base_asset_reserve: u128,
@@ -376,7 +356,6 @@ pub mod clearing_house {
         // Verify oracle is readable
         let OraclePriceData {
             price: oracle_price,
-            // confidence: oracle_conf,
             delay: oracle_delay,
             ..
         } = match oracle_source {
@@ -475,6 +454,7 @@ pub mod clearing_house {
                 short_intensity_volume: 0,
                 curve_update_intensity: 0,
                 pnl_pool: PNLPool { balance: 0 },
+                last_update_slot: clock_slot,
                 padding0: 0,
                 padding1: 0,
                 padding2: 0,
@@ -502,11 +482,11 @@ pub mod clearing_house {
         let now = clock.unix_timestamp;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let _oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
         let bank_map = BankMap::load(&get_writable_banks(bank_index), remaining_accounts_iter)?;
 
-        let market_map = MarketMap::load(
-            &WritableMarkets::new(),
+        let mut market_map = MarketMap::load(
+            &get_writable_markets_for_user_positions(&user.positions),
             &MarketOracles::new(),
             remaining_accounts_iter,
         )?;
@@ -514,6 +494,13 @@ pub mod clearing_house {
         if amount == 0 {
             return Err(ErrorCode::InsufficientDeposit.into());
         }
+
+        controller::repeg::update_amms(
+            &mut market_map,
+            &mut oracle_map,
+            &ctx.accounts.state,
+            &Clock::get()?,
+        )?;
 
         let bank = &mut bank_map.get_ref_mut(&bank_index)?;
         controller::bank_balance::update_bank_cumulative_interest(bank, now)?;
@@ -584,10 +571,17 @@ pub mod clearing_house {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
         let bank_map = BankMap::load(&get_writable_banks(bank_index), remaining_accounts_iter)?;
-        let market_map = MarketMap::load(
+        let mut market_map = MarketMap::load(
             &WritableMarkets::new(),
             &MarketOracles::new(),
             remaining_accounts_iter,
+        )?;
+
+        controller::repeg::update_amms(
+            &mut market_map,
+            &mut oracle_map,
+            &ctx.accounts.state,
+            &Clock::get()?,
         )?;
 
         controller::funding::settle_funding_payment(user, &user_key, &market_map, now)?;
@@ -670,10 +664,17 @@ pub mod clearing_house {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
         let bank_map = BankMap::load(&get_writable_banks(bank_index), remaining_accounts_iter)?;
-        let market_map = MarketMap::load(
+        let mut market_map = MarketMap::load(
             &WritableMarkets::new(),
             &MarketOracles::new(),
             remaining_accounts_iter,
+        )?;
+
+        controller::repeg::update_amms(
+            &mut market_map,
+            &mut oracle_map,
+            &ctx.accounts.state,
+            &Clock::get()?,
         )?;
 
         let bank = &mut bank_map.get_ref_mut(&bank_index)?;
@@ -749,483 +750,10 @@ pub mod clearing_house {
         Ok(())
     }
 
-    #[allow(unused_must_use)]
-    #[access_control(
-        exchange_not_paused(&ctx.accounts.state)
-    )]
-    pub fn open_position<'info>(
-        ctx: Context<OpenPosition>,
-        direction: PositionDirection,
-        quote_asset_amount: u128,
-        market_index: u64,
-        limit_price: u128,
-        optional_accounts: ManagePositionOptionalAccounts,
-    ) -> Result<()> {
-        let user_key = ctx.accounts.user.key();
-        let user = &mut load_mut(&ctx.accounts.user)?;
-        let clock = Clock::get()?;
-        let now = clock.unix_timestamp;
-        let clock_slot = clock.slot;
-
-        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
-        let bank_map = BankMap::load(
-            &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
-            remaining_accounts_iter,
-        )?;
-        let market_map = MarketMap::load(
-            &get_writable_markets(market_index),
-            &get_market_oracles(market_index, &ctx.accounts.oracle),
-            remaining_accounts_iter,
-        )?;
-
-        if quote_asset_amount == 0 {
-            return Err(ErrorCode::TradeSizeTooSmall.into());
-        }
-
-        // Settle user's funding payments so that collateral is up to date
-        controller::funding::settle_funding_payment(user, &user_key, &market_map, now)?;
-
-        // Get existing position or add a new position for market
-        let position_index = get_position_index(&user.positions, market_index)
-            .or_else(|_| add_new_position(&mut user.positions, market_index))?;
-
-        // Collect data about position/market before trade is executed so that it can be stored in trade record
-        let mark_price_before: u128;
-        let oracle_mark_spread_pct_before: i128;
-        let is_oracle_valid: bool;
-        {
-            let market = &mut market_map.get_ref_mut(&market_index)?;
-            mark_price_before = market.amm.mark_price()?;
-            let oracle_price_data = &market
-                .amm
-                .get_oracle_price(&ctx.accounts.oracle, clock_slot)?;
-            oracle_mark_spread_pct_before = amm::calculate_oracle_mark_spread_pct(
-                &market.amm,
-                oracle_price_data,
-                Some(mark_price_before),
-            )?;
-            is_oracle_valid = amm::is_oracle_valid(
-                &market.amm,
-                oracle_price_data,
-                &ctx.accounts.state.oracle_guard_rails.validity,
-            )?;
-            if is_oracle_valid {
-                amm::update_oracle_price_twap(
-                    &mut market.amm,
-                    now,
-                    oracle_price_data,
-                    Some(mark_price_before),
-                )?;
-            }
-        }
-
-        // A trade is risk increasing if it increases the users leverage
-        // If a trade is risk increasing and brings the user's margin ratio below initial requirement
-        // the trade fails
-        // If a trade is risk increasing and it pushes the mark price too far away from the oracle price
-        // the trade fails
-        let potentially_risk_increasing;
-        let base_asset_amount;
-        let mut quote_asset_amount = quote_asset_amount;
-        let quote_asset_amount_surplus;
-        let pnl;
-        {
-            let market = &mut market_map.get_ref_mut(&market_index)?;
-            let (
-                _potentially_risk_increasing,
-                _,
-                _base_asset_amount,
-                _quote_asset_amount,
-                _quote_asset_amount_surplus,
-                _pnl,
-            ) = controller::position::update_position_with_quote_asset_amount(
-                quote_asset_amount,
-                direction,
-                market,
-                user,
-                position_index,
-                mark_price_before,
-                now,
-            )?;
-
-            potentially_risk_increasing = _potentially_risk_increasing;
-            base_asset_amount = _base_asset_amount;
-            quote_asset_amount = _quote_asset_amount;
-            quote_asset_amount_surplus = _quote_asset_amount_surplus;
-            pnl = _pnl;
-        }
-
-        // Collect data about position/market after trade is executed so that it can be stored in trade record
-        let mark_price_after: u128;
-        let oracle_price_after: i128;
-        let oracle_mark_spread_pct_after: i128;
-        {
-            let market = &market_map.get_ref(&market_index)?;
-            mark_price_after = market.amm.mark_price()?;
-            let oracle_price_data = &market
-                .amm
-                .get_oracle_price(&ctx.accounts.oracle, clock_slot)?;
-            oracle_mark_spread_pct_after = amm::calculate_oracle_mark_spread_pct(
-                &market.amm,
-                oracle_price_data,
-                Some(mark_price_after),
-            )?;
-            oracle_price_after = oracle_price_data.price;
-        }
-
-        // Trade fails if it's risk increasing and it brings the user below the initial margin ratio level
-        let meets_initial_margin_requirement =
-            meets_initial_margin_requirement(user, &market_map, &bank_map, &mut oracle_map)?;
-        if !meets_initial_margin_requirement && potentially_risk_increasing {
-            return Err(ErrorCode::InsufficientCollateral.into());
-        }
-
-        // Calculate the fee to charge the user
-        let (discount_token, referrer) = optional_accounts::get_discount_token_and_referrer(
-            optional_accounts,
-            remaining_accounts_iter,
-            &ctx.accounts.state.discount_mint,
-            &user_key,
-            &ctx.accounts.authority.key(),
-        )?;
-        let (user_fee, fee_to_market, token_discount, referrer_reward, referee_discount) =
-            fees::calculate_fee_for_trade(
-                quote_asset_amount,
-                &ctx.accounts.state.fee_structure,
-                discount_token,
-                &referrer,
-                quote_asset_amount_surplus,
-            )?;
-
-        // Increment the clearing house's total fee variables
-        {
-            let market = &mut market_map.get_ref_mut(&market_index)?;
-            market.amm.total_fee = market
-                .amm
-                .total_fee
-                .checked_add(fee_to_market)
-                .ok_or_else(math_error!())?;
-            market.amm.total_fee_minus_distributions = market
-                .amm
-                .total_fee_minus_distributions
-                .checked_add(fee_to_market)
-                .ok_or_else(math_error!())?;
-
-            // Update user balance to account for fee and pnl
-            controller::position::update_unsettled_pnl(
-                &mut user.positions[position_index],
-                market,
-                pnl.checked_sub(cast(user_fee)?).ok_or_else(math_error!())?,
-            )?;
-        }
-        // Increment the user's total fee variables
-        user.total_fee_paid = user
-            .total_fee_paid
-            .checked_add(cast(user_fee)?)
-            .ok_or_else(math_error!())?;
-        user.total_token_discount = user
-            .total_token_discount
-            .checked_add(token_discount)
-            .ok_or_else(math_error!())?;
-        user.total_referee_discount = user
-            .total_referee_discount
-            .checked_add(referee_discount)
-            .ok_or_else(math_error!())?;
-
-        // Update the referrer's collateral with their reward
-        if let Some(referrer) = referrer {
-            let referrer = &mut load_mut(&referrer)?;
-            referrer.total_referral_reward = referrer
-                .total_referral_reward
-                .checked_add(referrer_reward)
-                .ok_or_else(math_error!())?;
-        }
-
-        // Trade fails if the trade is risk increasing and it pushes to mark price too far
-        // away from the oracle price
-        let is_oracle_mark_too_divergent_before = amm::is_oracle_mark_too_divergent(
-            oracle_mark_spread_pct_before,
-            &ctx.accounts.state.oracle_guard_rails.price_divergence,
-        )?;
-        let is_oracle_mark_too_divergent_after = amm::is_oracle_mark_too_divergent(
-            oracle_mark_spread_pct_after,
-            &ctx.accounts.state.oracle_guard_rails.price_divergence,
-        )?;
-
-        // if oracle-mark divergence pushed outside limit, block trade
-        if is_oracle_mark_too_divergent_after
-            && !is_oracle_mark_too_divergent_before
-            && is_oracle_valid
-        {
-            return Err(ErrorCode::OracleMarkSpreadLimit.into());
-        }
-
-        // if oracle-mark divergence outside limit and risk-increasing, block trade
-        if is_oracle_mark_too_divergent_after
-            && oracle_mark_spread_pct_after.unsigned_abs()
-                >= oracle_mark_spread_pct_before.unsigned_abs()
-            && is_oracle_valid
-            && potentially_risk_increasing
-        {
-            return Err(ErrorCode::OracleMarkSpreadLimit.into());
-        }
-
-        // emit trade record
-        {
-            let market = &mut market_map.get_ref_mut(&market_index)?;
-            let trade_record = TradeRecord {
-                ts: now,
-                record_id: get_then_update_id!(market, next_trade_record_id),
-                user_authority: *ctx.accounts.authority.to_account_info().key,
-                user: user_key,
-                direction,
-                base_asset_amount,
-                quote_asset_amount,
-                mark_price_before,
-                mark_price_after,
-                fee: cast(user_fee)?,
-                token_discount,
-                quote_asset_amount_surplus,
-                referee_discount,
-                liquidation: false,
-                market_index,
-                oracle_price: oracle_price_after,
-            };
-            emit!(trade_record);
-        }
-
-        // If the user adds a limit price to their trade, check that their entry price is better than the limit price
-        if limit_price != 0
-            && !limit_price_satisfied(
-                limit_price,
-                quote_asset_amount,
-                base_asset_amount,
-                direction,
-            )?
-        {
-            return Err(ErrorCode::SlippageOutsideLimit.into());
-        }
-
-        // Try to update the funding rate at the end of every trade
-        {
-            let market = &mut market_map.get_ref_mut(&market_index)?;
-            let price_oracle = &ctx.accounts.oracle;
-            controller::funding::update_funding_rate(
-                market_index,
-                market,
-                price_oracle,
-                now,
-                clock_slot,
-                &ctx.accounts.state.oracle_guard_rails,
-                ctx.accounts.state.funding_paused,
-                Some(mark_price_before),
-            )?;
-        }
-
-        Ok(())
-    }
-
-    #[access_control(
-        exchange_not_paused(&ctx.accounts.state)
-    )]
-    pub fn close_position(
-        ctx: Context<ClosePosition>,
-        market_index: u64,
-        optional_accounts: ManagePositionOptionalAccounts,
-    ) -> Result<()> {
-        let user_key = ctx.accounts.user.key();
-        let user = &mut load_mut(&ctx.accounts.user)?;
-        let clock = Clock::get()?;
-        let now = clock.unix_timestamp;
-        let clock_slot = clock.slot;
-
-        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let _oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
-        let _bank_map = BankMap::load(
-            &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
-            remaining_accounts_iter,
-        )?;
-        let market_map = MarketMap::load(
-            &get_writable_markets(market_index),
-            &get_market_oracles(market_index, &ctx.accounts.oracle),
-            remaining_accounts_iter,
-        )?;
-
-        // Settle user's funding payments so that collateral is up to date
-        controller::funding::settle_funding_payment(user, &user_key, &market_map, now)?;
-
-        let position_index = get_position_index(&user.positions, market_index)?;
-
-        let market = &mut market_map.get_ref_mut(&market_index)?;
-
-        // Collect data about market before trade is executed so that it can be stored in trade record
-        let mark_price_before = market.amm.mark_price()?;
-        let oracle_price_data = &market
-            .amm
-            .get_oracle_price(&ctx.accounts.oracle, clock_slot)?;
-        let oracle_mark_spread_pct_before = amm::calculate_oracle_mark_spread_pct(
-            &market.amm,
-            oracle_price_data,
-            Some(mark_price_before),
-        )?;
-
-        let existing_base_asset_amount = user.positions[position_index].base_asset_amount;
-        let direction_to_close =
-            math::position::direction_to_close_position(existing_base_asset_amount);
-        let (quote_asset_amount, base_asset_amount, quote_asset_amount_surplus, pnl) =
-            controller::position::close(
-                market,
-                &mut user.positions[position_index],
-                now,
-                None,
-                Some(mark_price_before),
-                true,
-            )?;
-        let base_asset_amount = base_asset_amount.unsigned_abs();
-
-        // Calculate the fee to charge the user
-        let (discount_token, referrer) = optional_accounts::get_discount_token_and_referrer(
-            optional_accounts,
-            remaining_accounts_iter,
-            &ctx.accounts.state.discount_mint,
-            &user_key,
-            &ctx.accounts.authority.key(),
-        )?;
-        let (user_fee, fee_to_market, token_discount, referrer_reward, referee_discount) =
-            fees::calculate_fee_for_trade(
-                quote_asset_amount,
-                &ctx.accounts.state.fee_structure,
-                discount_token,
-                &referrer,
-                quote_asset_amount_surplus,
-            )?;
-
-        // Increment the clearing house's total fee variables
-        market.amm.total_fee = market
-            .amm
-            .total_fee
-            .checked_add(fee_to_market)
-            .ok_or_else(math_error!())?;
-        market.amm.total_fee_minus_distributions = market
-            .amm
-            .total_fee_minus_distributions
-            .checked_add(fee_to_market)
-            .ok_or_else(math_error!())?;
-
-        // Update user balance to account for fee and pnl
-        controller::position::update_unsettled_pnl(
-            &mut user.positions[position_index],
-            market,
-            pnl.checked_sub(cast(user_fee)?).ok_or_else(math_error!())?,
-        )?;
-
-        // Increment the user's total fee variables
-        user.total_fee_paid = user
-            .total_fee_paid
-            .checked_add(cast(user_fee)?)
-            .ok_or_else(math_error!())?;
-        user.total_token_discount = user
-            .total_token_discount
-            .checked_add(token_discount)
-            .ok_or_else(math_error!())?;
-        user.total_referee_discount = user
-            .total_referee_discount
-            .checked_add(referee_discount)
-            .ok_or_else(math_error!())?;
-
-        // Update the referrer's collateral with their reward
-        if let Some(referrer) = referrer {
-            let referrer = &mut load_mut(&referrer)?;
-            referrer.total_referral_reward = referrer
-                .total_referral_reward
-                .checked_add(referrer_reward)
-                .ok_or_else(math_error!())?;
-        }
-
-        // Collect data about market after trade is executed so that it can be stored in trade record
-        let mark_price_after = market.amm.mark_price()?;
-        let price_oracle = &ctx.accounts.oracle;
-
-        let oracle_mark_spread_pct_after = amm::calculate_oracle_mark_spread_pct(
-            &market.amm,
-            oracle_price_data,
-            Some(mark_price_after),
-        )?;
-        let oracle_price_after = oracle_price_data.price;
-
-        let is_oracle_valid = amm::is_oracle_valid(
-            &market.amm,
-            oracle_price_data,
-            &ctx.accounts.state.oracle_guard_rails.validity,
-        )?;
-        if is_oracle_valid {
-            amm::update_oracle_price_twap(
-                &mut market.amm,
-                now,
-                oracle_price_data,
-                Some(mark_price_before),
-            )?;
-        }
-
-        // Trade fails if the trade is risk increasing and it pushes to mark price too far
-        // away from the oracle price
-        let is_oracle_mark_too_divergent_before = amm::is_oracle_mark_too_divergent(
-            oracle_mark_spread_pct_before,
-            &ctx.accounts.state.oracle_guard_rails.price_divergence,
-        )?;
-        let is_oracle_mark_too_divergent_after = amm::is_oracle_mark_too_divergent(
-            oracle_mark_spread_pct_after,
-            &ctx.accounts.state.oracle_guard_rails.price_divergence,
-        )?;
-
-        // if closing position pushes outside of oracle-mark divergence limit, block trade
-        if (is_oracle_mark_too_divergent_after && !is_oracle_mark_too_divergent_before)
-            && is_oracle_valid
-        {
-            return Err(ErrorCode::OracleMarkSpreadLimit.into());
-        }
-
-        // emit trade record
-        let trade_record = TradeRecord {
-            ts: now,
-            record_id: get_then_update_id!(market, next_trade_record_id),
-            user_authority: *ctx.accounts.authority.to_account_info().key,
-            user: user_key,
-            direction: direction_to_close,
-            base_asset_amount,
-            quote_asset_amount,
-            mark_price_before,
-            mark_price_after,
-            liquidation: false,
-            fee: cast(user_fee)?,
-            token_discount,
-            quote_asset_amount_surplus,
-            referee_discount,
-            market_index,
-            oracle_price: oracle_price_after,
-        };
-        emit!(trade_record);
-
-        // Try to update the funding rate at the end of every trade
-        controller::funding::update_funding_rate(
-            market_index,
-            market,
-            price_oracle,
-            now,
-            clock_slot,
-            &ctx.accounts.state.oracle_guard_rails,
-            ctx.accounts.state.funding_paused,
-            Some(mark_price_before),
-        )?;
-
-        Ok(())
-    }
-
     pub fn place_order(ctx: Context<PlaceOrder>, params: OrderParams) -> Result<()> {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let _oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
-        let _bank_map = BankMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
+        let _bank_map = BankMap::load(&WritableBanks::new(), remaining_accounts_iter)?;
         let market_map = MarketMap::load(
             &WritableMarkets::new(),
             &get_market_oracles(params.market_index, &ctx.accounts.oracle),
@@ -1259,7 +787,6 @@ pub mod clearing_house {
 
         controller::orders::place_order(
             &ctx.accounts.state,
-            &ctx.accounts.order_state,
             &ctx.accounts.user,
             &market_map,
             discount_token,
@@ -1288,10 +815,17 @@ pub mod clearing_house {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
         let bank_map = BankMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
-        let market_map = MarketMap::load(
+        let mut market_map = MarketMap::load(
             &WritableMarkets::new(),
             market_oracles,
             remaining_accounts_iter,
+        )?;
+
+        controller::repeg::update_amms(
+            &mut market_map,
+            &mut oracle_map,
+            &ctx.accounts.state,
+            &Clock::get()?,
         )?;
 
         let oracle = Some(&ctx.accounts.oracle);
@@ -1326,10 +860,17 @@ pub mod clearing_house {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
         let bank_map = BankMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
-        let market_map = MarketMap::load(
+        let mut market_map = MarketMap::load(
             &WritableMarkets::new(),
             market_oracles,
             remaining_accounts_iter,
+        )?;
+
+        controller::repeg::update_amms(
+            &mut market_map,
+            &mut oracle_map,
+            &ctx.accounts.state,
+            &Clock::get()?,
         )?;
 
         let oracle = Some(&ctx.accounts.oracle);
@@ -1372,8 +913,15 @@ pub mod clearing_house {
             &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
             remaining_accounts_iter,
         )?;
-        let market_map =
+        let mut market_map =
             MarketMap::load(writable_markets, market_oracles, remaining_accounts_iter)?;
+
+        controller::repeg::update_amms(
+            &mut market_map,
+            &mut oracle_map,
+            &ctx.accounts.state,
+            &Clock::get()?,
+        )?;
 
         let referrer = get_referrer_for_fill_order(
             remaining_accounts_iter,
@@ -1385,7 +933,6 @@ pub mod clearing_house {
         let base_asset_amount = controller::orders::fill_order(
             order_id,
             &ctx.accounts.state,
-            &ctx.accounts.order_state,
             &ctx.accounts.user,
             &market_map,
             &mut bank_map,
@@ -1416,8 +963,11 @@ pub mod clearing_house {
             &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
             remaining_accounts_iter,
         )?;
-        let market_map = MarketMap::load(
-            &get_writable_markets(params.market_index),
+        let mut market_map = MarketMap::load(
+            &get_writable_markets_for_user_positions_and_order(
+                &load(&ctx.accounts.user)?.positions,
+                params.market_index,
+            ),
             &get_market_oracles(params.market_index, &ctx.accounts.oracle),
             remaining_accounts_iter,
         )?;
@@ -1437,9 +987,15 @@ pub mod clearing_house {
         let is_immediate_or_cancel = params.immediate_or_cancel;
         let base_asset_amount_to_fill = params.base_asset_amount;
 
+        controller::repeg::update_amms(
+            &mut market_map,
+            &mut oracle_map,
+            &ctx.accounts.state,
+            &Clock::get()?,
+        )?;
+
         controller::orders::place_order(
             &ctx.accounts.state,
-            &ctx.accounts.order_state,
             &ctx.accounts.user,
             &market_map,
             discount_token,
@@ -1462,7 +1018,6 @@ pub mod clearing_house {
         let base_asset_amount_filled = controller::orders::fill_order(
             order_id,
             &ctx.accounts.state,
-            &ctx.accounts.order_state,
             user,
             &market_map,
             &mut bank_map,
@@ -1492,6 +1047,29 @@ pub mod clearing_house {
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]
+    pub fn update_amms(ctx: Context<UpdateAMM>, market_indexes: [u64; 5]) -> Result<()> {
+        // up to ~60k compute units (per amm) worst case
+
+        let clock = Clock::get()?;
+
+        let state = &ctx.accounts.state;
+
+        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+        let oracle_map = &mut OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let market_map = &mut MarketMap::load(
+            &get_writable_markets_list(market_indexes),
+            &MarketOracles::new(),
+            remaining_accounts_iter,
+        )?;
+
+        controller::repeg::update_amms(market_map, oracle_map, state, &clock)?;
+
+        Ok(())
+    }
+
+    #[access_control(
+        exchange_not_paused(&ctx.accounts.state)
+    )]
     pub fn settle_pnl(ctx: Context<SettlePNL>, market_index: u64) -> Result<()> {
         let clock = Clock::get()?;
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
@@ -1500,10 +1078,17 @@ pub mod clearing_house {
             &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
             remaining_accounts_iter,
         )?;
-        let market_map = MarketMap::load(
+        let mut market_map = MarketMap::load(
             &get_writable_markets(market_index),
             &MarketOracles::new(),
             remaining_accounts_iter,
+        )?;
+
+        controller::repeg::update_amms(
+            &mut market_map,
+            &mut oracle_map,
+            &ctx.accounts.state,
+            &Clock::get()?,
         )?;
 
         let user = &mut load_mut(&ctx.accounts.user)?;
@@ -1672,10 +1257,17 @@ pub mod clearing_house {
             &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
             remaining_accounts_iter,
         )?;
-        let market_map = MarketMap::load(
+        let mut market_map = MarketMap::load(
             &get_writable_markets_for_user_positions(&user.positions),
             &MarketOracles::new(), // oracles validated in calculate liquidation status
             remaining_accounts_iter,
+        )?;
+
+        controller::repeg::update_amms(
+            &mut market_map,
+            &mut oracle_map,
+            &ctx.accounts.state,
+            &clock,
         )?;
 
         // Settle user's funding payments so that collateral is up to date
@@ -2565,6 +2157,12 @@ pub mod clearing_house {
                 .ok_or_else(math_error!())?;
         }
 
+        market.amm.net_revenue_since_last_funding = market
+            .amm
+            .net_revenue_since_last_funding
+            .checked_add(adjustment_cost as i64)
+            .ok_or_else(math_error!())?;
+
         let amm = &market.amm;
 
         let price_after = math::amm::calculate_price(
@@ -2745,10 +2343,10 @@ pub mod clearing_house {
     }
 
     pub fn update_order_filler_reward_structure(
-        ctx: Context<AdminUpdateOrderState>,
+        ctx: Context<AdminUpdateState>,
         order_filler_reward_structure: OrderFillerRewardStructure,
     ) -> Result<()> {
-        ctx.accounts.order_state.order_filler_reward_structure = order_filler_reward_structure;
+        ctx.accounts.state.order_filler_reward_structure = order_filler_reward_structure;
         Ok(())
     }
 
@@ -2795,6 +2393,8 @@ pub mod clearing_house {
     ) -> Result<()> {
         let market = &mut ctx.accounts.market.load_mut()?;
         market.amm.base_spread = base_spread;
+        market.amm.long_spread = (base_spread / 2) as u128;
+        market.amm.short_spread = (base_spread / 2) as u128;
         Ok(())
     }
 

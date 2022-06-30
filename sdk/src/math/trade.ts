@@ -17,8 +17,7 @@ import {
 	calculatePrice,
 	getSwapDirection,
 	AssetType,
-	// calculateSpreadReserves,
-	calculatePrepegSpreadReserves,
+	calculateUpdatedAMMSpreadReserves,
 } from './amm';
 import { squareRootBN } from './utils';
 import { isVariant } from '../types';
@@ -90,7 +89,7 @@ export function calculateTradeSlippage(
 	let amm: Parameters<typeof calculateAmmReservesAfterSwap>[0];
 	if (useSpread && market.amm.baseSpread > 0) {
 		const { baseAssetReserve, quoteAssetReserve, sqrtK, newPeg } =
-			calculatePrepegSpreadReserves(market.amm, direction, oraclePriceData);
+			calculateUpdatedAMMSpreadReserves(market.amm, direction, oraclePriceData);
 		amm = {
 			baseAssetReserve,
 			quoteAssetReserve,
@@ -123,16 +122,9 @@ export function calculateTradeSlippage(
 	);
 
 	if (direction == PositionDirection.SHORT) {
-		// console.log(
-		// 	'new price lower',
-		// 	newPrice.toString(),
-		// 	'<',
-		// 	oldPrice.toString(),
-		// 	'for a short'
-		// );
-		assert(newPrice.lt(oldPrice));
+		assert(newPrice.lte(oldPrice));
 	} else {
-		assert(oldPrice.lt(newPrice));
+		assert(oldPrice.lte(newPrice));
 	}
 
 	const pctMaxSlippage = newPrice
@@ -177,7 +169,7 @@ export function calculateTradeAcquiredAmounts(
 	let amm: Parameters<typeof calculateAmmReservesAfterSwap>[0];
 	if (useSpread && market.amm.baseSpread > 0) {
 		const { baseAssetReserve, quoteAssetReserve, sqrtK, newPeg } =
-			calculatePrepegSpreadReserves(market.amm, direction, oraclePriceData);
+			calculateUpdatedAMMSpreadReserves(market.amm, direction, oraclePriceData);
 		amm = {
 			baseAssetReserve,
 			quoteAssetReserve,
@@ -252,7 +244,7 @@ export function calculateTargetPriceTrade(
 
 	if (useSpread && market.amm.baseSpread > 0) {
 		const { baseAssetReserve, quoteAssetReserve, newPeg } =
-			calculatePrepegSpreadReserves(market.amm, direction, oraclePriceData);
+			calculateUpdatedAMMSpreadReserves(market.amm, direction, oraclePriceData);
 		baseAssetReserveBefore = baseAssetReserve;
 		quoteAssetReserveBefore = quoteAssetReserve;
 		peg = newPeg;

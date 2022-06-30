@@ -13,20 +13,20 @@ use crate::state::bank_map::BankMap;
 use crate::state::market::Market;
 use crate::state::market_map::MarketMap;
 use crate::state::oracle_map::OracleMap;
-use crate::state::order_state::OrderState;
+use crate::state::state::State;
 use crate::state::user::{MarketPosition, Order, OrderTriggerCondition, OrderType, User};
 
 pub fn validate_order(
     order: &Order,
     market: &Market,
-    order_state: &OrderState,
+    state: &State,
     valid_oracle_price: Option<i128>,
 ) -> ClearingHouseResult {
     match order.order_type {
         OrderType::Market => validate_market_order(order, market)?,
-        OrderType::Limit => validate_limit_order(order, market, order_state, valid_oracle_price)?,
-        OrderType::TriggerMarket => validate_trigger_market_order(order, market, order_state)?,
-        OrderType::TriggerLimit => validate_trigger_limit_order(order, market, order_state)?,
+        OrderType::Limit => validate_limit_order(order, market, state, valid_oracle_price)?,
+        OrderType::TriggerMarket => validate_trigger_market_order(order, market, state)?,
+        OrderType::TriggerLimit => validate_trigger_limit_order(order, market, state)?,
     }
 
     Ok(())
@@ -70,7 +70,7 @@ fn validate_market_order(order: &Order, market: &Market) -> ClearingHouseResult 
 fn validate_limit_order(
     order: &Order,
     market: &Market,
-    order_state: &OrderState,
+    state: &State,
     valid_oracle_price: Option<i128>,
 ) -> ClearingHouseResult {
     validate_base_asset_amount(order, market)?;
@@ -111,7 +111,7 @@ fn validate_limit_order(
         .div(AMM_RESERVE_PRECISION)
         .div(MARK_PRICE_PRECISION / QUOTE_PRECISION);
 
-    if approximate_market_value < order_state.min_order_quote_asset_amount {
+    if approximate_market_value < state.min_order_quote_asset_amount {
         msg!("Order value < $0.50 ({:?})", approximate_market_value);
         return Err(ErrorCode::InvalidOrder);
     }
@@ -141,7 +141,7 @@ fn validate_post_only_order(
 fn validate_trigger_limit_order(
     order: &Order,
     market: &Market,
-    order_state: &OrderState,
+    state: &State,
 ) -> ClearingHouseResult {
     validate_base_asset_amount(order, market)?;
 
@@ -192,7 +192,7 @@ fn validate_trigger_limit_order(
         .div(AMM_RESERVE_PRECISION)
         .div(MARK_PRICE_PRECISION / QUOTE_PRECISION);
 
-    if approximate_market_value < order_state.min_order_quote_asset_amount {
+    if approximate_market_value < state.min_order_quote_asset_amount {
         msg!("Order value < $0.50 ({:?})", approximate_market_value);
         return Err(ErrorCode::InvalidOrder);
     }
@@ -203,7 +203,7 @@ fn validate_trigger_limit_order(
 fn validate_trigger_market_order(
     order: &Order,
     market: &Market,
-    order_state: &OrderState,
+    state: &State,
 ) -> ClearingHouseResult {
     validate_base_asset_amount(order, market)?;
 
@@ -240,7 +240,7 @@ fn validate_trigger_market_order(
         .div(MARK_PRICE_PRECISION / QUOTE_PRECISION);
 
     // decide min trade size ($10?)
-    if approximate_market_value < order_state.min_order_quote_asset_amount {
+    if approximate_market_value < state.min_order_quote_asset_amount {
         msg!("Order value < $0.50 ({:?})", approximate_market_value);
         return Err(ErrorCode::InvalidOrder);
     }

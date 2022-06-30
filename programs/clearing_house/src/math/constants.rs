@@ -1,18 +1,15 @@
 // PRECISIONS
 pub const AMM_RESERVE_PRECISION: u128 = 10_000_000_000_000; //expo = -13;
-pub const MARK_PRICE_PRECISION: u128 = 10_000_000_000; //expo = -10
-pub const MARK_PRICE_PRECISION_I128: i128 = 10_000_000_000; //expo = -10
+pub const MARK_PRICE_PRECISION: u128 = 10_000_000_000; //expo = -10;
+pub const MARK_PRICE_PRECISION_I128: i128 = MARK_PRICE_PRECISION as i128;
 pub const QUOTE_PRECISION: u128 = 1_000_000; // expo = -6
 pub const FUNDING_PAYMENT_PRECISION: u128 = 10_000; // expo = -4
 pub const MARGIN_PRECISION: u128 = 10_000; // expo = -4
 pub const PEG_PRECISION: u128 = 1_000; //expo = -3
-                                       // pub const PRICE_SPREAD_PRECISION: i128 = 10_000; // expo = -4
-                                       // pub const PRICE_SPREAD_PRECISION_U128: u128 = 10_000; // expo = -4
 pub const BID_ASK_SPREAD_PRECISION: u128 = 1_000_000; // expo = -6
 pub const BID_ASK_SPREAD_PRECISION_I128: i128 = (BID_ASK_SPREAD_PRECISION) as i128;
 
 pub const AMM_RESERVE_PRECISION_I128: i128 = (AMM_RESERVE_PRECISION) as i128;
-// pub const MARK_PRICE_PRECISION_I128: i128 = 10_000_000_000; //expo = -10
 pub const BANK_INTEREST_PRECISION: u128 = 1_000_000; // expo = -6
 pub const BANK_CUMULATIVE_INTEREST_PRECISION: u128 = 10_000_000_000; // expo = -10
 pub const BANK_UTILIZATION_PRECISION: u128 = 1_000_000; // expo = -6

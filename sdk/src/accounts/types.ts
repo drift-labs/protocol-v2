@@ -2,7 +2,6 @@ import {
 	BankAccount,
 	MarketAccount,
 	OracleSource,
-	OrderStateAccount,
 	StateAccount,
 	UserAccount,
 } from '../types';
@@ -10,12 +9,7 @@ import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { PublicKey } from '@solana/web3.js';
 import { AccountInfo } from '@solana/spl-token';
-import {
-	ClearingHouseConfigType,
-	ClearingHouseUserConfigType,
-	OracleInfo,
-	OraclePriceData,
-} from '..';
+import { OracleInfo, OraclePriceData } from '..';
 import { BN } from '@project-serum/anchor';
 
 export interface AccountSubscriber<T> {
@@ -34,7 +28,6 @@ export interface ClearingHouseAccountEvents {
 	marketAccountUpdate: (payload: MarketAccount) => void;
 	bankAccountUpdate: (payload: BankAccount) => void;
 	oraclePriceUpdate: (publicKey: PublicKey, data: OraclePriceData) => void;
-	orderStateAccountUpdate: (payload: OrderStateAccount) => void;
 	userAccountUpdate: (payload: UserAccount) => void;
 	update: void;
 	error: (e: Error) => void;
@@ -48,9 +41,6 @@ export interface ClearingHouseAccountSubscriber {
 	fetch(): Promise<void>;
 	unsubscribe(): Promise<void>;
 
-	updateAuthority(newAuthority: PublicKey): Promise<boolean>;
-	updateUserId(userId: number): Promise<boolean>;
-
 	addMarket(marketIndex: BN): Promise<boolean>;
 	addBank(bankIndex: BN): Promise<boolean>;
 	addOracle(oracleInfo: OracleInfo): Promise<boolean>;
@@ -63,16 +53,7 @@ export interface ClearingHouseAccountSubscriber {
 	getOraclePriceDataAndSlot(
 		oraclePublicKey: PublicKey
 	): DataAndSlot<OraclePriceData> | undefined;
-	getOrderStateAccountAndSlot(): DataAndSlot<OrderStateAccount>;
-
-	getUserAccountAndSlot(): DataAndSlot<UserAccount> | undefined;
-
-	type: ClearingHouseConfigType;
 }
-
-export type UserPublicKeys = {
-	user: PublicKey;
-};
 
 export interface UserAccountEvents {
 	userAccountUpdate: (payload: UserAccount) => void;
@@ -89,7 +70,6 @@ export interface UserAccountSubscriber {
 	unsubscribe(): Promise<void>;
 
 	getUserAccountAndSlot(): DataAndSlot<UserAccount>;
-	type: ClearingHouseUserConfigType;
 }
 
 export interface TokenAccountEvents {

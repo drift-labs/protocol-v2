@@ -39,17 +39,17 @@ describe('minimum trade size', () => {
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
 
-		primaryClearingHouse = Admin.from(
+		primaryClearingHouse = new Admin({
 			connection,
-			provider.wallet,
-			chProgram.programId,
-			{
+			wallet: provider.wallet,
+			programID: chProgram.programId,
+			opts: {
 				commitment: 'confirmed',
 			},
-			0,
-			[new BN(0)],
-			[new BN(0)]
-		);
+			activeUserId: 0,
+			marketIndexes: [new BN(0)],
+			bankIndexes: [new BN(0)],
+		});
 		await primaryClearingHouse.initialize(usdcMint.publicKey, true);
 		await primaryClearingHouse.subscribe();
 
@@ -124,17 +124,17 @@ describe('minimum trade size', () => {
 			provider,
 			keypair.publicKey
 		);
-		const clearingHouse = ClearingHouse.from(
+		const clearingHouse = new ClearingHouse({
 			connection,
 			wallet,
-			chProgram.programId,
-			{
+			programID: chProgram.programId,
+			opts: {
 				commitment: 'confirmed',
 			},
-			0,
-			[new BN(0)],
-			[new BN(0)]
-		);
+			activeUserId: 0,
+			marketIndexes: [new BN(0)],
+			bankIndexes: [new BN(0)],
+		});
 		await clearingHouse.subscribe();
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
@@ -196,17 +196,17 @@ describe('minimum trade size', () => {
 			provider,
 			keypair.publicKey
 		);
-		const clearingHouse = ClearingHouse.from(
+		const clearingHouse = new ClearingHouse({
 			connection,
 			wallet,
-			chProgram.programId,
-			{
+			programID: chProgram.programId,
+			opts: {
 				commitment: 'confirmed',
 			},
-			0,
-			[new BN(0)],
-			[new BN(0)]
-		);
+			activeUserId: 0,
+			marketIndexes: [new BN(0)],
+			bankIndexes: [new BN(0)],
+		});
 		await clearingHouse.subscribe();
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
@@ -260,17 +260,17 @@ describe('minimum trade size', () => {
 			provider,
 			keypair.publicKey
 		);
-		const clearingHouse = ClearingHouse.from(
+		const clearingHouse = new ClearingHouse({
 			connection,
 			wallet,
-			chProgram.programId,
-			{
+			programID: chProgram.programId,
+			opts: {
 				commitment: 'confirmed',
 			},
-			0,
-			[new BN(0)],
-			[new BN(0)]
-		);
+			activeUserId: 0,
+			marketIndexes: [new BN(0)],
+			bankIndexes: [new BN(0)],
+		});
 		await clearingHouse.subscribe();
 
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
@@ -334,17 +334,17 @@ describe('minimum trade size', () => {
 			provider,
 			keypair.publicKey
 		);
-		const clearingHouse = ClearingHouse.from(
+		const clearingHouse = new ClearingHouse({
 			connection,
 			wallet,
-			chProgram.programId,
-			{
+			programID: chProgram.programId,
+			opts: {
 				commitment: 'confirmed',
 			},
-			0,
-			[new BN(0)],
-			[new BN(0)]
-		);
+			activeUserId: 0,
+			marketIndexes: [new BN(0)],
+			bankIndexes: [new BN(0)],
+		});
 		await clearingHouse.subscribe();
 
 		await clearingHouse.initializeUserAccountAndDepositCollateral(

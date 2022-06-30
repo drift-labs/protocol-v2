@@ -1,11 +1,11 @@
 import { BN } from '@project-serum/anchor';
 import { expect } from 'chai';
-import { BigNum } from '../../factory/bigNum';
+import { BigNum } from '../../src/factory/bigNum';
 import {
 	AMM_RESERVE_PRECISION_EXP,
 	BASE_PRECISION_EXP,
 	TEN_THOUSAND,
-} from './../../constants/numericConstants';
+} from '../../src/constants/numericConstants';
 // if you used the '@types/mocha' method to install mocha type definitions, uncomment the following line
 // import 'mocha';
 

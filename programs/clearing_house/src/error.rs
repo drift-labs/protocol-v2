@@ -96,8 +96,6 @@ pub enum ErrorCode {
     CouldNotFillOrder,
     #[msg("Reduce only order increased risk")]
     ReduceOnlyOrderIncreasedRisk,
-    #[msg("Order state already initialized")]
-    OrderStateAlreadyInitialized,
     #[msg("Unable to load AccountLoader")]
     UnableToLoadAccountLoader,
     #[msg("Trade Size Too Large")]
@@ -160,6 +158,8 @@ pub enum ErrorCode {
     CantUpdatePNLPoolBalanceType,
     #[msg("InsufficientCollateralForSettlingPNL")]
     InsufficientCollateralForSettlingPNL,
+    #[msg("AMMNotUpdatedInSameSlot")]
+    AMMNotUpdatedInSameSlot,
 }
 
 #[macro_export]

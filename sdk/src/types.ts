@@ -77,7 +77,6 @@ export type CandleResolution =
 
 export type DepositRecord = {
 	ts: BN;
-	recordId: BN;
 	userAuthority: PublicKey;
 	user: PublicKey;
 	direction: {
@@ -216,12 +215,8 @@ export type StateAccount = {
 	discountMint: PublicKey;
 	oracleGuardRails: OracleGuardRails;
 	maxDeposit: BN;
-	orderState: PublicKey;
 	numberOfMarkets: BN;
 	numberOfBanks: BN;
-};
-
-export type OrderStateAccount = {
 	orderFillerRewardStructure: OrderFillerRewardStructure;
 	minOrderQuoteAssetAmount: BN;
 };

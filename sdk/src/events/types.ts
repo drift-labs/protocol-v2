@@ -44,33 +44,35 @@ export const DefaultEventSubscriptionOptions: EventSubscriptionOptions = {
 export type EventSubscriptionOrderBy = 'blockchain' | 'client';
 export type EventSubscriptionOrderDirection = 'asc' | 'desc';
 
-export type Event<Type extends EventType, Data extends EventMap[Type]> = {
+export type Event<T> = T & {
 	txSig: TransactionSignature;
 	slot: number;
-	type: Type;
-	data: Data;
 };
 
-export type Events = Event<EventType, EventData>[];
+export type WrappedEvent<Type extends EventType> = EventMap[Type] & {
+	eventType: Type;
+};
+
+export type WrappedEvents = WrappedEvent<EventType>[];
 
 export type EventMap = {
-	DepositRecord: DepositRecord;
-	TradeRecord: TradeRecord;
-	FundingPaymentRecord: FundingPaymentRecord;
-	LiquidationRecord: LiquidationRecord;
-	FundingRateRecord: FundingRateRecord;
-	OrderRecord: OrderRecord;
+	DepositRecord: Event<DepositRecord>;
+	TradeRecord: Event<TradeRecord>;
+	FundingPaymentRecord: Event<FundingPaymentRecord>;
+	LiquidationRecord: Event<LiquidationRecord>;
+	FundingRateRecord: Event<FundingRateRecord>;
+	OrderRecord: Event<OrderRecord>;
 };
+
 export type EventType = keyof EventMap;
-export type EventData = EventMap[EventType];
 
 export interface EventSubscriberEvents {
-	newEvent: (event: Event<EventType, EventMap[EventType]>) => void;
+	newEvent: (event: WrappedEvent<EventType>) => void;
 }
 
 export type SortFn = (
-	currentRecord: Event<EventType, EventData>,
-	newRecord: Event<EventType, EventData>
+	currentRecord: EventMap[EventType],
+	newRecord: EventMap[EventType]
 ) => 'less than' | 'greater than';
 
 export type logProviderCallback = (
