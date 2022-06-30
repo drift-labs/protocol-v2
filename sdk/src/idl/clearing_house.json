@@ -1640,7 +1640,7 @@
           {
             "name": "pnlPool",
             "type": {
-              "defined": "PNLPool"
+              "defined": "PoolBalance"
             }
           },
           {
@@ -1993,7 +1993,7 @@
       }
     },
     {
-      "name": "PNLPool",
+      "name": "PoolBalance",
       "type": {
         "kind": "struct",
         "fields": [
@@ -2196,9 +2196,9 @@
             "type": "i64"
           },
           {
-            "name": "pnlPool",
+            "name": "feePool",
             "type": {
-              "defined": "PNLPool"
+              "defined": "PoolBalance"
             }
           },
           {
@@ -3683,8 +3683,8 @@
     },
     {
       "code": 6075,
-      "name": "CantUpdatePNLPoolBalanceType",
-      "msg": "CantUpdatePNLPoolBalanceType"
+      "name": "CantUpdatePoolBalanceType",
+      "msg": "CantUpdatePoolBalanceType"
     },
     {
       "code": 6076,

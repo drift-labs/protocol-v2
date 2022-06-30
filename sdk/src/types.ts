@@ -234,7 +234,7 @@ export type MarketAccount = {
 	marginRatioMaintenance: number;
 	marginRatioPartial: number;
 	nextTradeRecordId: BN;
-	pnlPool: PnlPool;
+	pnlPool: PoolBalance;
 };
 
 export type BankAccount = {
@@ -260,10 +260,8 @@ export type BankAccount = {
 	maintenanceLiabilityWeight: BN;
 };
 
-export type PnlPool = {
+export type PoolBalance = {
 	balance: BN;
-	// balanceType: BankBalanceType;
-	// balance: BN;
 };
 
 export type AMM = {
@@ -297,7 +295,7 @@ export type AMM = {
 	quoteAssetAmountLong: BN;
 	quoteAssetAmountShort: BN;
 	terminalQuoteAssetReserve: BN;
-	pnlPool: PnlPool;
+	feePool: PoolBalance;
 };
 
 // # User Account Types

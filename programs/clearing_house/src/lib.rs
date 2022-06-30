@@ -56,7 +56,7 @@ pub mod clearing_house {
     use crate::state::events::TradeRecord;
     use crate::state::events::{CurveRecord, DepositRecord};
     use crate::state::events::{DepositDirection, LiquidationRecord};
-    use crate::state::market::{Market, PNLPool};
+    use crate::state::market::{Market, PoolBalance};
     use crate::state::market_map::{
         get_market_oracles, get_writable_markets, get_writable_markets_for_user_positions,
         get_writable_markets_for_user_positions_and_order, get_writable_markets_list, MarketMap,
@@ -398,7 +398,7 @@ pub mod clearing_house {
             next_trade_record_id: 1,
             next_funding_rate_record_id: 1,
             next_curve_record_id: 1,
-            pnl_pool: PNLPool { balance: 0 },
+            pnl_pool: PoolBalance { balance: 0 },
             unsettled_loss: 0,
             unsettled_profit: 0,
             padding0: 0,
@@ -453,7 +453,7 @@ pub mod clearing_house {
                 short_intensity_count: 0,
                 short_intensity_volume: 0,
                 curve_update_intensity: 0,
-                pnl_pool: PNLPool { balance: 0 },
+                fee_pool: PoolBalance { balance: 0 },
                 last_update_slot: clock_slot,
                 padding0: 0,
                 padding1: 0,
@@ -1131,7 +1131,7 @@ pub mod clearing_house {
         let _amm_pnl_pool_token_amount = cast_to_i128(get_token_amount(
             user_quote_bank_balance,
             bank,
-            market.amm.pnl_pool.balance_type(),
+            market.amm.fee_pool.balance_type(),
         )?)?;
 
         let user_unsettled_pnl = market_position.unsettled_pnl;
@@ -1182,9 +1182,9 @@ pub mod clearing_house {
         } else {
             // TODO handle socialized loss
             let amm_pnl_pool_token_amount = cast_to_i128(get_token_amount(
-                market.amm.pnl_pool.balance(),
+                market.amm.fee_pool.balance(),
                 bank,
-                market.amm.pnl_pool.balance_type(),
+                market.amm.fee_pool.balance_type(),
             )?)?;
 
             // TODO parameterize?
@@ -1207,7 +1207,7 @@ pub mod clearing_house {
                     &BankBalanceType::Borrow
                 },
                 bank,
-                &mut market.amm.pnl_pool,
+                &mut market.amm.fee_pool,
             )?;
 
             let pnl_to_settle_to_market = user_unsettled_pnl // negative

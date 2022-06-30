@@ -31,7 +31,7 @@ pub struct Market {
     pub next_trade_record_id: u64,
     pub next_funding_rate_record_id: u64,
     pub next_curve_record_id: u64,
-    pub pnl_pool: PNLPool,
+    pub pnl_pool: PoolBalance,
     pub unsettled_profit: u128,
     pub unsettled_loss: u128,
 
@@ -55,11 +55,11 @@ impl Market {
 
 #[zero_copy]
 #[derive(Default)]
-pub struct PNLPool {
+pub struct PoolBalance {
     pub balance: u128,
 }
 
-impl BankBalance for PNLPool {
+impl BankBalance for PoolBalance {
     fn balance_type(&self) -> &BankBalanceType {
         &BankBalanceType::Deposit
     }
@@ -79,7 +79,7 @@ impl BankBalance for PNLPool {
     }
 
     fn update_balance_type(&mut self, _balance_type: BankBalanceType) -> ClearingHouseResult {
-        Err(ErrorCode::CantUpdatePNLPoolBalanceType)
+        Err(ErrorCode::CantUpdatePoolBalanceType)
     }
 }
 
@@ -146,7 +146,7 @@ pub struct AMM {
     pub total_fee_minus_distributions: u128,
     pub total_fee_withdrawn: u128,
     pub net_revenue_since_last_funding: i64,
-    pub pnl_pool: PNLPool,
+    pub fee_pool: PoolBalance,
     pub last_update_slot: u64,
 
     pub padding0: u16,

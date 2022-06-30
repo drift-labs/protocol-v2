@@ -223,8 +223,8 @@ describe('clearing_house', () => {
 
 		const market0 = clearingHouse.getMarketAccount(marketIndex);
 		console.log(
-			'market0.amm.pnlPool.balance:',
-			market0.amm.pnlPool.balance.toString(),
+			'market0.amm.feePool.balance:',
+			market0.amm.feePool.balance.toString(),
 			'market0.amm.totalFeeMinusDistributions:',
 			market0.amm.totalFeeMinusDistributions.toString()
 		);
@@ -270,8 +270,8 @@ describe('clearing_house', () => {
 		console.log(
 			'market.pnlPool.balance:',
 			market.pnlPool.balance.toString(),
-			'market.amm.pnlPool.balance:',
-			market.amm.pnlPool.balance.toString(),
+			'market.amm.feePool.balance:',
+			market.amm.feePool.balance.toString(),
 			'market.amm.totalFeeMinusDistributions:',
 			market.amm.totalFeeMinusDistributions.toString()
 		);
@@ -313,7 +313,7 @@ describe('clearing_house', () => {
 		assert(
 			newTokenAmount
 				.add(market.pnlPool.balance)
-				.add(market.amm.pnlPool.balance)
+				.add(market.amm.feePool.balance)
 				.eq(ogTokenAmount)
 		);
 
@@ -358,8 +358,8 @@ describe('clearing_house', () => {
 
 		const market0 = clearingHouse.getMarketAccount(marketIndex);
 		console.log(
-			'market0.amm.pnlPool.balance:',
-			market0.amm.pnlPool.balance.toString(),
+			'market0.amm.feePool.balance:',
+			market0.amm.feePool.balance.toString(),
 			'market0.amm.totalFeeMinusDistributions:',
 			market0.amm.totalFeeMinusDistributions.toString()
 		);
@@ -406,8 +406,8 @@ describe('clearing_house', () => {
 		console.log(
 			'market.pnlPool.balance:',
 			market.pnlPool.balance.toString(),
-			'market.amm.pnlPool.balance:',
-			market.amm.pnlPool.balance.toString(),
+			'market.amm.feePool.balance:',
+			market.amm.feePool.balance.toString(),
 			'market.amm.totalFeeMinusDistributions:',
 			market.amm.totalFeeMinusDistributions.toString()
 		);
@@ -447,7 +447,7 @@ describe('clearing_house', () => {
 		assert(
 			newTokenAmount
 				.add(market.pnlPool.balance)
-				.add(market.amm.pnlPool.balance)
+				.add(market.amm.feePool.balance)
 				.eq(new BN(10000000))
 		);
 
