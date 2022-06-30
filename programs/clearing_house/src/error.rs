@@ -156,6 +156,8 @@ pub enum ErrorCode {
     UserMustSettleTheirOwnPositiveUnsettledPNL,
     #[msg("CantUpdatePNLPoolBalanceType")]
     CantUpdatePNLPoolBalanceType,
+    #[msg("AMMNotUpdatedInSameSlot")]
+    AMMNotUpdatedInSameSlot,
 }
 
 #[macro_export]

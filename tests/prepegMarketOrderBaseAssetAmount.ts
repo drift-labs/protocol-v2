@@ -5,7 +5,6 @@ import { BN, getMarketOrderParams, ONE, OracleSource, ZERO } from '../sdk';
 import { Program } from '@project-serum/anchor';
 
 import { PublicKey } from '@solana/web3.js';
-
 import {
 	Admin,
 	MARK_PRICE_PRECISION,
@@ -16,7 +15,7 @@ import {
 	convertToNumber,
 	findComputeUnitConsumption,
 	calculateBidAskPrice,
-	calculatePrepegAMM,
+	calculateUpdatedAMM,
 } from '../sdk/src';
 
 import {
@@ -54,7 +53,7 @@ describe('prepeg', () => {
 		mantissaSqrtScale
 	);
 
-	const usdcAmount = new BN(10 * 10 ** 6);
+	const usdcAmount = new BN(10000 * 10 ** 6);
 
 	let marketIndexes;
 	let bankIndexes;
@@ -179,6 +178,7 @@ describe('prepeg', () => {
 			false
 		);
 		const txSig = await clearingHouse.placeAndFillOrder(orderParams);
+
 		const computeUnits = await findComputeUnitConsumption(
 			clearingHouse.program.programId,
 			connection,
@@ -214,17 +214,24 @@ describe('prepeg', () => {
 		// assert(user.totalFeePaid.eq(new BN(49750)));
 		// assert(user.cumulativeDeposits.eq(usdcAmount));
 
+		console.log(
+			clearingHouse.getUserAccount().positions[0].quoteAssetAmount.toString()
+		);
 		assert.ok(
 			clearingHouse
 				.getUserAccount()
 				.positions[0].quoteAssetAmount.gt(new BN(49750001))
 		);
-		console.log(clearingHouse.getUserAccount().positions[0].baseAssetAmount);
+		console.log(
+			clearingHouse.getUserAccount().positions[0].baseAssetAmount.toString()
+		);
 		assert.ok(
 			clearingHouse
 				.getUserAccount()
 				.positions[0].baseAssetAmount.eq(baseAssetAmount)
 		);
+
+		console.log('sqrtK:', market.amm.sqrtK.toString());
 
 		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(497450503674885)));
 		assert.ok(market.baseAssetAmountLong.eq(new BN(497450503674885)));
@@ -250,6 +257,7 @@ describe('prepeg', () => {
 		const marketIndex = new BN(0);
 		const baseAssetAmount = new BN(497450503674885 / 50);
 		const market0 = clearingHouse.getMarketAccount(0);
+
 		await setFeedPrice(anchor.workspace.Pyth, 1.0281, solUsd);
 		const curPrice = (await getFeedData(anchor.workspace.Pyth, solUsd)).price;
 		console.log('new oracle price:', curPrice);
@@ -259,7 +267,7 @@ describe('prepeg', () => {
 			solUsd
 		);
 
-		const prepegAMM = calculatePrepegAMM(market0.amm, oraclePriceData);
+		const prepegAMM = calculateUpdatedAMM(market0.amm, oraclePriceData);
 		assert(prepegAMM.pegMultiplier.eq(new BN(1003)));
 		const estDist = prepegAMM.totalFee.sub(
 			prepegAMM.totalFeeMinusDistributions
@@ -292,6 +300,7 @@ describe('prepeg', () => {
 			baseAssetAmount,
 			false
 		);
+
 		const txSig = await clearingHouse.placeAndFillOrder(orderParams);
 		const computeUnits = await findComputeUnitConsumption(
 			clearingHouse.program.programId,
@@ -309,22 +318,42 @@ describe('prepeg', () => {
 		const [bid1, ask1] = calculateBidAskPrice(market.amm, oraclePriceData);
 		console.log(
 			'after trade bid/ask:',
-			convertToNumber(bid1),
+			convertToNumber(market.amm.sqrtK),
 			'/',
 			convertToNumber(ask1),
 			'after trade mark price:',
 			convertToNumber(calculateMarkPrice(market, oraclePriceData))
 		);
+		assert(bid1.lt(ask1));
+		assert(ask1.gt(oraclePriceData.price));
+		assert(bid1.lt(oraclePriceData.price));
 
+		console.log(market.amm.pegMultiplier.toString());
 		assert(market.amm.pegMultiplier.eq(new BN(1003)));
 		const actualDist = market.amm.totalFee.sub(
 			market.amm.totalFeeMinusDistributions
 		);
 		console.log('actual distribution:', actualDist.toString());
 
-		console.log(prepegAMM.sqrtK.toString(), '!=', market.amm.sqrtK.toString());
-		assert(prepegAMM.sqrtK.eq(market.amm.sqrtK));
-		assert(actualDist.sub(estDist).abs().lte(new BN(1)));
+		console.log(prepegAMM.sqrtK.toString(), '==', market.amm.sqrtK.toString());
+		const marketInvariant = market.amm.sqrtK.mul(market.amm.sqrtK);
+
+		// check k math good
+		assert(
+			marketInvariant
+				.div(market.amm.baseAssetReserve)
+				.eq(market.amm.quoteAssetReserve)
+		);
+		assert(
+			marketInvariant
+				.div(market.amm.quoteAssetReserve)
+				.eq(market.amm.baseAssetReserve)
+		);
+
+		// check prepeg and post trade worked as expected
+		assert(prepegAMM.sqrtK.eq(market.amm.sqrtK)); // predicted k = post trade k
+		assert(actualDist.sub(estDist).abs().lte(new BN(4))); // cost is near equal
+		assert(market.amm.sqrtK.lt(market0.amm.sqrtK)); // k was lowered
 
 		// curPrice = (await getFeedData(anchor.workspace.Pyth, solUsd)).price;
 		// console.log('price:', curPrice);
@@ -388,6 +417,7 @@ describe('prepeg', () => {
 			'after trade est. mark price:',
 			convertToNumber(newPrice)
 		);
+
 		const txSig = await clearingHouse.placeAndFillOrder(orderParams);
 		const computeUnits = await findComputeUnitConsumption(
 			clearingHouse.program.programId,
@@ -453,11 +483,11 @@ describe('prepeg', () => {
 		assert.ok(tradeRecord.marketIndex.eq(new BN(0)));
 	});
 
-	it('Many market prepegs, long position', async () => {
+	it('Many market balanced prepegs, long position', async () => {
 		for (let i = 1; i <= 4; i++) {
 			const thisUsd = mockOracles[i];
 			const marketIndex = new BN(i);
-			const baseAssetAmount = new BN(0.025 * 10e13);
+			const baseAssetAmount = new BN(31.02765 * 10e13);
 			const market0 = clearingHouse.getMarketAccount(i);
 			const orderParams = getMarketOrderParams(
 				marketIndex,
@@ -476,7 +506,7 @@ describe('prepeg', () => {
 			);
 			const [_pctAvgSlippage, _pctMaxSlippage, _entryPrice, newPrice] =
 				calculateTradeSlippage(
-					PositionDirection.SHORT,
+					PositionDirection.LONG,
 					baseAssetAmount,
 					market0,
 					'base',
@@ -519,5 +549,49 @@ describe('prepeg', () => {
 			);
 			console.log('----');
 		}
+	});
+
+	it('Many market expensive prepeg margin', async () => {
+		const user = clearingHouse.getUserAccount();
+
+		// todo cheapen margin peg enough to make this work w/ 5 positions
+		for (let i = 1; i <= 4; i++) {
+			console.log(
+				'user market',
+				user.positions[i].marketIndex.toString(),
+				' base position',
+				'=',
+				user.positions[i].baseAssetAmount.toNumber() / 1e13
+			);
+			const thisUsd = mockOracles[i];
+			const curPrice = (await getFeedData(anchor.workspace.Pyth, thisUsd))
+				.price;
+			await setFeedPrice(anchor.workspace.Pyth, curPrice * 1.03, thisUsd);
+		}
+		const curPrice = (await getFeedData(anchor.workspace.Pyth, mockOracles[0]))
+			.price;
+		await setFeedPrice(anchor.workspace.Pyth, curPrice * 1.01, mockOracles[0]);
+
+		const orderParams = getMarketOrderParams(
+			new BN(0),
+			PositionDirection.SHORT,
+			ZERO,
+			user.positions[0].baseAssetAmount.div(new BN(2)),
+			false
+		);
+
+		const txSig = await clearingHouse.placeAndFillOrder(orderParams);
+		const computeUnits = await findComputeUnitConsumption(
+			clearingHouse.program.programId,
+			connection,
+			txSig,
+			'confirmed'
+		);
+		console.log('compute units', computeUnits);
+		console.log(
+			'tx logs',
+			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
+				.logMessages
+		);
 	});
 });

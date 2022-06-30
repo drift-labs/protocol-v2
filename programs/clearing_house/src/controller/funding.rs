@@ -4,6 +4,7 @@ use anchor_lang::prelude::*;
 use solana_program::clock::UnixTimestamp;
 use solana_program::msg;
 
+use crate::controller::amm::formulaic_update_k;
 use crate::error::ClearingHouseResult;
 use crate::get_then_update_id;
 use crate::math::amm;
@@ -84,14 +85,17 @@ pub fn update_funding_rate(
     let time_since_last_update = now
         .checked_sub(market.amm.last_funding_rate_ts)
         .ok_or_else(math_error!())?;
-
+    let mark_price = match precomputed_mark_price {
+        Some(mark_price) => mark_price,
+        None => market.amm.mark_price()?,
+    };
     // Pause funding if oracle is invalid or if mark/oracle spread is too divergent
     let (block_funding_rate_update, oracle_price_data) = oracle::block_operation(
         &market.amm,
         price_oracle,
         clock_slot,
         guard_rails,
-        precomputed_mark_price,
+        Some(mark_price),
     )?;
     // round next update time to be available on the hour
     let mut next_update_wait = market.amm.funding_period;
@@ -167,8 +171,18 @@ pub fn update_funding_rate(
             .checked_div(cast(period_adjustment)?)
             .ok_or_else(math_error!())?;
 
-        let (funding_rate_long, funding_rate_short) =
+        let (funding_rate_long, funding_rate_short, funding_imbalance_cost) =
             calculate_funding_rate_long_short(market, funding_rate)?;
+
+        formulaic_update_k(
+            market,
+            &oracle_price_data,
+            funding_imbalance_cost,
+            // now,
+            // market_index,
+            // trade_record_id,
+            mark_price,
+        )?;
 
         market.amm.cumulative_funding_rate_long = market
             .amm

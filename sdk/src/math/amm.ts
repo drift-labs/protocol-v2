@@ -22,11 +22,10 @@ import { squareRootBN } from '..';
 import { OraclePriceData } from '../oracles/types';
 import {
 	calculateRepegCost,
-	calculateBudgetedK,
 	calculateAdjustKCost,
 	calculateBudgetedPeg,
 } from './repeg';
-export function calculatePrepeg(
+export function calculateNewAmm(
 	amm: AMM,
 	oraclePriceData: OraclePriceData
 ): [BN, BN, BN, BN] {
@@ -39,29 +38,16 @@ export function calculatePrepeg(
 		.div(amm.quoteAssetReserve)
 		.add(MARK_PRICE_PRECISION.div(PEG_PRECISION).div(new BN(2)))
 		.div(MARK_PRICE_PRECISION.div(PEG_PRECISION));
-	// console.log('NEW PEG1:', newPeg.toString(), amm.quoteAssetReserve.toString());
 	let prePegCost = calculateRepegCost(amm, newPeg);
 
 	const totalFeeLB = amm.totalFee.div(new BN(2));
 	const budget = BN.max(ZERO, amm.totalFeeMinusDistributions.sub(totalFeeLB));
 
 	if (prePegCost.gt(budget)) {
-		const deficit = budget.sub(prePegCost);
-		[pKNumer, pKDenom] = calculateBudgetedK(amm, deficit);
-		if (pKNumer.mul(new BN(1000)).lte(pKDenom.mul(new BN(978)))) {
-			[pKNumer, pKDenom] = [new BN(978), new BN(1000)];
-		}
+		[pKNumer, pKDenom] = [new BN(999), new BN(1000)];
 		const deficitMadeup = calculateAdjustKCost(amm, pKNumer, pKDenom);
 		assert(deficitMadeup.lte(new BN(0)));
 		prePegCost = budget.add(deficitMadeup.abs());
-
-		// console.log(
-		// 	'prepeg budget',
-		// 	budget.toString(),
-		// 	'+',
-		// 	deficitMadeup.toString()
-		// );
-
 		const newAmm = Object.assign({}, amm);
 		newAmm.baseAssetReserve = newAmm.baseAssetReserve.mul(pKNumer).div(pKDenom);
 		newAmm.sqrtK = newAmm.sqrtK.mul(pKNumer).div(pKDenom);
@@ -81,28 +67,14 @@ export function calculatePrepeg(
 
 		newAmm.terminalQuoteAssetReserve = newQuoteAssetReserve;
 
-		// todo: use a k updated amm here or default?:
 		newPeg = calculateBudgetedPeg(newAmm, prePegCost, targetPrice);
-		// console.log(
-		// 	'NEW PEG2:',
-		// 	newPeg.toString(),
-		// 	newAmm.quoteAssetReserve.toString()
-		// );
 		prePegCost = calculateRepegCost(newAmm, newPeg);
 	}
-	// console.log(
-	// 	'PREPEG RESULTS:',
-	// 	prePegCost.toString(),
-	// 	// convertToNumber(prePegCost, QUOTE_PRECISION),
-	// 	pKNumer.toNumber(),
-	// 	pKDenom.toNumber(),
-	// 	newPeg.toNumber() / 1000
-	// );
 
 	return [prePegCost, pKNumer, pKDenom, newPeg];
 }
 
-export function calculatePrepegAMM(
+export function calculateUpdatedAMM(
 	amm: AMM,
 	oraclePriceData: OraclePriceData
 ): AMM {
@@ -110,7 +82,7 @@ export function calculatePrepegAMM(
 		return amm;
 	}
 	const newAmm = Object.assign({}, amm);
-	const [prepegCost, pKNumer, pKDenom, newPeg] = calculatePrepeg(
+	const [prepegCost, pKNumer, pKDenom, newPeg] = calculateNewAmm(
 		amm,
 		oraclePriceData
 	);
@@ -141,12 +113,12 @@ export function calculatePrepegAMM(
 	return newAmm;
 }
 
-export function calculatePrepegSpreadReserves(
+export function calculateUpdatedAMMSpreadReserves(
 	amm: AMM,
 	direction: PositionDirection,
 	oraclePriceData: OraclePriceData
 ): { baseAssetReserve: BN; quoteAssetReserve: BN; sqrtK: BN; newPeg: BN } {
-	const newAmm = calculatePrepegAMM(amm, oraclePriceData);
+	const newAmm = calculateUpdatedAMM(amm, oraclePriceData);
 	const dirReserves = calculateSpreadReserves(
 		newAmm,
 		direction,
@@ -166,7 +138,7 @@ export function calculateBidAskPrice(
 	amm: AMM,
 	oraclePriceData: OraclePriceData
 ): [BN, BN] {
-	const newAmm = calculatePrepegAMM(amm, oraclePriceData);
+	const newAmm = calculateUpdatedAMM(amm, oraclePriceData);
 	const askReserves = calculateSpreadReserves(
 		newAmm,
 		PositionDirection.LONG,

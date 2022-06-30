@@ -1,9 +1,9 @@
+use anchor_lang::accounts::account_loader::AccountLoader;
 use std::cell::{Ref, RefMut};
 use std::collections::{BTreeMap, BTreeSet};
 use std::iter::Peekable;
 use std::slice::Iter;
 
-use anchor_lang::accounts::account_loader::AccountLoader;
 use anchor_lang::prelude::{AccountInfo, Pubkey};
 
 use anchor_lang::Discriminator;
@@ -91,11 +91,35 @@ pub fn get_writable_markets(market_index: u64) -> WritableMarkets {
     writable_markets
 }
 
+pub fn get_writable_markets_list(market_indexes: [u64; 5]) -> WritableMarkets {
+    let mut writable_markets = WritableMarkets::new();
+    for market_index in market_indexes.iter() {
+        if *market_index == 100 {
+            continue; // todo
+        }
+        writable_markets.insert(*market_index);
+    }
+    writable_markets
+}
+
 pub fn get_writable_markets_for_user_positions(user_positions: &UserPositions) -> WritableMarkets {
     let mut writable_markets = WritableMarkets::new();
     for position in user_positions.iter() {
         writable_markets.insert(position.market_index);
     }
+    writable_markets
+}
+
+pub fn get_writable_markets_for_user_positions_and_order(
+    user_positions: &UserPositions,
+    market_index: u64,
+) -> WritableMarkets {
+    let mut writable_markets = WritableMarkets::new();
+    for position in user_positions.iter() {
+        writable_markets.insert(position.market_index);
+    }
+    writable_markets.insert(market_index);
+
     writable_markets
 }
 

@@ -184,6 +184,12 @@ pub struct SettlePNL<'info> {
 }
 
 #[derive(Accounts)]
+pub struct UpdateAMM<'info> {
+    pub state: Box<Account<'info, State>>,
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
 #[instruction(bank_index: u64,)]
 pub struct TransferDeposit<'info> {
     #[account(
@@ -197,6 +203,7 @@ pub struct TransferDeposit<'info> {
     )]
     pub to_user: AccountLoader<'info, User>,
     pub authority: Signer<'info>,
+    pub state: Box<Account<'info, State>>,
 }
 
 #[derive(Accounts)]

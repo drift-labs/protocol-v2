@@ -52,6 +52,33 @@ pub fn _calculate_base_asset_value_and_pnl(
     Ok((base_asset_value, pnl))
 }
 
+pub fn _calculate_base_asset_value(
+    base_asset_amount: i128,
+    amm: &AMM,
+) -> ClearingHouseResult<u128> {
+    if base_asset_amount == 0 {
+        return Ok(0);
+    }
+
+    let swap_direction = swap_direction_to_close_position(base_asset_amount);
+
+    let (new_quote_asset_reserve, _new_base_asset_reserve) = amm::calculate_swap_output(
+        base_asset_amount.unsigned_abs(),
+        amm.base_asset_reserve,
+        swap_direction,
+        amm.sqrt_k,
+    )?;
+
+    let base_asset_value = calculate_quote_asset_amount_swapped(
+        amm.quote_asset_reserve,
+        new_quote_asset_reserve,
+        swap_direction,
+        amm.peg_multiplier,
+    )?;
+
+    Ok(base_asset_value)
+}
+
 pub fn calculate_base_asset_value_and_pnl_with_oracle_price(
     market_position: &MarketPosition,
     oracle_price: i128,

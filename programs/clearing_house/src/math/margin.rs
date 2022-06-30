@@ -7,17 +7,19 @@ use crate::math::position::{
 use crate::math_error;
 use crate::state::user::User;
 
+use crate::error::ErrorCode;
 use crate::math::amm::use_oracle_price_for_margin_calculation;
 use crate::math::bank_balance::get_balance_value;
 use crate::math::casting::cast_to_i128;
 use crate::math::oracle::{get_oracle_status, OracleStatus};
-use crate::math::repeg;
+// use crate::math::repeg;
 use crate::math::slippage::calculate_slippage;
 use crate::state::bank::BankBalanceType;
 use crate::state::bank_map::BankMap;
 use crate::state::market_map::MarketMap;
 use crate::state::oracle_map::OracleMap;
 use crate::state::state::OracleGuardRails;
+use crate::validate;
 use solana_program::clock::Slot;
 use solana_program::msg;
 use std::ops::Div;
@@ -88,13 +90,45 @@ pub fn calculate_margin_requirement_and_total_collateral(
         }
 
         let market = &market_map.get_ref(&market_position.market_index)?;
-        let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
-        let prepeg_budget = repeg::calculate_fee_pool(market)?;
 
-        let prepeg_amm = repeg::calculate_prepeg_market(market, oracle_price_data, prepeg_budget)?;
+        validate!(
+            (oracle_map.slot == market.amm.last_update_slot
+                || market.amm.curve_update_intensity == 0),
+            ErrorCode::AMMNotUpdatedInSameSlot,
+            "AMM must be updated in a prior instruction within same slot"
+        )?;
 
         let (position_base_asset_value, position_unrealized_pnl) =
-            calculate_base_asset_value_and_pnl(market_position, &prepeg_amm)?;
+            calculate_base_asset_value_and_pnl(market_position, &market.amm)?;
+
+        // let mark_price_before = market.amm.mark_price()?;
+        // let (amm_position_base_asset_value, amm_position_unrealized_pnl) =
+        //     calculate_base_asset_value_and_pnl(market_position, &market.amm)?;
+
+        // let exit_slippage = calculate_slippage(
+        //     amm_position_base_asset_value,
+        //     market_position.base_asset_amount.unsigned_abs(),
+        //     cast_to_i128(mark_price_before)?,
+        // )?;
+
+        // let oracle_exit_price = oracle_price_data
+        //         .price;
+        // .checked_add(exit_slippage)
+        // .ok_or_else(math_error!())?;
+
+        // let (oracle_position_base_asset_value, oracle_position_unrealized_pnl) =
+        //     calculate_base_asset_value_and_pnl_with_oracle_price(market_position, oracle_exit_price)?;
+
+        // // give user the worse of the two
+        // let position_base_asset_value: u128;
+        // let position_unrealized_pnl: i128;
+        // if oracle_position_unrealized_pnl < amm_position_unrealized_pnl {
+        //     position_unrealized_pnl = amm_position_unrealized_pnl;
+        //     position_base_asset_value = amm_position_base_asset_value;
+        // } else {
+        //     position_unrealized_pnl = amm_position_unrealized_pnl;
+        //     position_base_asset_value = amm_position_base_asset_value;
+        // }
 
         let margin_ratio = market.get_margin_ratio(margin_requirement_type);
 

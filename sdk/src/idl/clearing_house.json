@@ -335,6 +335,11 @@
           "name": "authority",
           "isMut": false,
           "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
         }
       ],
       "args": [
@@ -519,6 +524,32 @@
           "name": "params",
           "type": {
             "defined": "OrderParams"
+          }
+        }
+      ]
+    },
+    {
+      "name": "updateAmms",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndexes",
+          "type": {
+            "array": [
+              "u64",
+              5
+            ]
           }
         }
       ]
@@ -2085,7 +2116,7 @@
             "type": "i128"
           },
           {
-            "name": "lastOracleConf",
+            "name": "lastOracleConfPct",
             "type": "u64"
           },
           {
@@ -2163,6 +2194,10 @@
           {
             "name": "curveUpdateIntensity",
             "type": "u8"
+          },
+          {
+            "name": "lastUpdateSlot",
+            "type": "u64"
           },
           {
             "name": "padding0",
@@ -3640,6 +3675,11 @@
       "code": 6075,
       "name": "CantUpdatePNLPoolBalanceType",
       "msg": "CantUpdatePNLPoolBalanceType"
+    },
+    {
+      "code": 6076,
+      "name": "AMMNotUpdatedInSameSlot",
+      "msg": "AMMNotUpdatedInSameSlot"
     }
   ]
 }

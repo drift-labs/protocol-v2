@@ -113,7 +113,7 @@ pub struct AMM {
     pub last_oracle_price_twap_ts: i64,
     pub last_oracle_normalised_price: i128,
     pub last_oracle_price: i128,
-    pub last_oracle_conf: u64,
+    pub last_oracle_conf_pct: u64,
     pub last_oracle_delay: i64,
     pub last_oracle_mark_spread_pct: i128,
     pub minimum_base_asset_trade_size: u128,
@@ -140,6 +140,8 @@ pub struct AMM {
     // upgrade-ability
     pub curve_update_intensity: u8,
 
+    pub last_update_slot: u64,
+
     pub padding0: u16,
     pub padding1: u32,
     pub padding2: u128,
@@ -163,7 +165,7 @@ impl AMM {
             .ok_or_else(math_error!())?;
 
         let bid_price = mark_price
-            .checked_mul(BID_ASK_SPREAD_PRECISION + self.short_spread)
+            .checked_mul(BID_ASK_SPREAD_PRECISION - self.short_spread)
             .ok_or_else(math_error!())?
             .checked_div(BID_ASK_SPREAD_PRECISION)
             .ok_or_else(math_error!())?;
