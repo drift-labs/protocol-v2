@@ -370,11 +370,15 @@ pub fn update_spreads(amm: &mut AMM, mark_price: u128) -> ClearingHouseResult<(u
 
             if amm.net_base_asset_amount > 0 {
                 long_spread = long_spread
-                    .checked_mul(effective_leverage_capped / MARK_PRICE_PRECISION)
+                    .checked_mul(effective_leverage_capped)
+                    .ok_or_else(math_error!())?
+                    .checked_div(MARK_PRICE_PRECISION)
                     .ok_or_else(math_error!())?;
             } else {
                 short_spread = short_spread
-                    .checked_mul(effective_leverage_capped / MARK_PRICE_PRECISION)
+                    .checked_mul(effective_leverage_capped)
+                    .ok_or_else(math_error!())?
+                    .checked_div(MARK_PRICE_PRECISION)
                     .ok_or_else(math_error!())?;
             }
         } else {
