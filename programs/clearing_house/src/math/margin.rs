@@ -10,7 +10,7 @@ use crate::state::user::User;
 use crate::math::amm::use_oracle_price_for_margin_calculation;
 use crate::math::bank_balance::get_balance_value;
 use crate::math::casting::cast_to_i128;
-use crate::math::lp::get_lp_market_position;
+use crate::math::lp::{get_lp_market_position, SettleResult};
 use crate::math::oracle::{get_oracle_status, OracleStatus};
 use crate::math::repeg;
 use crate::math::slippage::calculate_slippage;
@@ -111,7 +111,15 @@ pub fn calculate_margin_requirement_and_total_collateral(
                 .ok_or_else(math_error!())?;
 
             // market position if lp was settled
-            get_lp_market_position(market_position, market_position.lp_tokens, &market.amm)?
+            let (market_position, settle_result) =
+                get_lp_market_position(market_position, market_position.lp_tokens, &market.amm)?;
+            if settle_result == SettleResult::DidNotRecieveMarketPosition {
+                margin_requirement = margin_requirement
+                    .checked_add(1)
+                    .ok_or_else(math_error!())?;
+            }
+
+            market_position
         } else {
             *market_position
         };

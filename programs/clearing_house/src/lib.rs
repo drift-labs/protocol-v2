@@ -55,6 +55,7 @@ pub mod clearing_house {
     };
     use crate::math::bank_balance::get_token_amount;
     use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64};
+    use crate::math::lp::SettleResult;
     use crate::math::slippage::{calculate_slippage, calculate_slippage_pct};
     use crate::optional_accounts::{get_discount_token, get_referrer, get_referrer_for_fill_order};
     use crate::state::bank::{Bank, BankBalance, BankBalanceType};
@@ -771,7 +772,8 @@ pub mod clearing_house {
 
         let market_map = MarketMap::load(
             &get_writable_markets(market_index),
-            &get_market_oracles(market_index, &ctx.accounts.oracle),
+            &MarketOracles::new(),
+            //&get_market_oracles(market_index, &ctx.accounts.oracle),
             remaining_accounts_iter,
         )?;
         let market = market_map.get_ref(&market_index)?;
@@ -830,7 +832,12 @@ pub mod clearing_house {
         )?;
 
         // settle the lp first
-        settle_lp_position(lp_position, lp_tokens_to_burn, &market.amm)?;
+        let settle_result = settle_lp_position(lp_position, lp_tokens_to_burn, &market.amm)?;
+
+        if settle_result == SettleResult::DidNotRecieveMarketPosition {
+            msg!("warning: unable to fully remove lp due to market position size being too small");
+            return Ok(());
+        }
 
         // transform lp_position into a market position
         lp_position.lp_tokens = lp_position
@@ -850,6 +857,10 @@ pub mod clearing_house {
             .amm
             .net_base_asset_amount
             .checked_add(lp_position.base_asset_amount)
+            .ok_or_else(math_error!())?;
+        market.open_interest = market
+            .open_interest
+            .checked_add(1)
             .ok_or_else(math_error!())?;
 
         // update market state
@@ -891,18 +902,16 @@ pub mod clearing_house {
             remaining_accounts_iter,
         )?;
 
-        // cannot have open lp, open order, or open position before lping
-        let can_lp = !user.positions.iter().any(|market_position| {
-            market_position.market_index == market_index
-                && (market_position.is_lp()
-                    || market_position.has_open_order()
-                    || market_position.is_open_position())
-        });
-        validate!(can_lp, ErrorCode::CantLPWithMarketPosition);
-
-        // TODO: should we always be adding a new position?
-        let position_index = add_new_position(&mut user.positions, market_index)?;
+        let position_index = get_position_index(&user.positions, market_index)
+            .or_else(|_| add_new_position(&mut user.positions, market_index))?;
         let lp_position = &mut user.positions[position_index];
+
+        validate!(
+            !(lp_position.is_lp()
+                || lp_position.has_open_order()
+                || lp_position.is_open_position()),
+            ErrorCode::CantLPWithMarketPosition
+        )?;
 
         let (
             peg_multiplier,
