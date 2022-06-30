@@ -229,7 +229,7 @@ describe('market order', () => {
 		assert(firstPosition.baseAssetAmount.eq(baseAssetAmount));
 
 		const expectedQuoteAssetAmount = new BN(1000003);
-		assert(firstPosition.quoteAssetAmount.eq(expectedQuoteAssetAmount));
+		assert(firstPosition.quoteEntryAmount.eq(expectedQuoteAssetAmount));
 
 		const tradeHistoryRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
 
@@ -279,7 +279,7 @@ describe('market order', () => {
 		const firstPosition = clearingHouseUser.getUserAccount().positions[0];
 		assert(firstPosition.baseAssetAmount.eq(ZERO));
 
-		assert(firstPosition.quoteAssetAmount.eq(ZERO));
+		assert(firstPosition.quoteEntryAmount.eq(ZERO));
 
 		const tradeHistoryRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
 
@@ -330,7 +330,7 @@ describe('market order', () => {
 		const firstPosition = clearingHouseUser.getUserAccount().positions[0];
 		const baseAssetAmount = new BN(9999999999961);
 		assert(firstPosition.baseAssetAmount.eq(baseAssetAmount));
-		assert(firstPosition.quoteAssetAmount.eq(quoteAssetAmount));
+		assert(firstPosition.quoteEntryAmount.eq(quoteAssetAmount));
 
 		const tradeHistoryRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
 
@@ -379,7 +379,7 @@ describe('market order', () => {
 
 		const firstPosition = clearingHouseUser.getUserAccount().positions[0];
 		assert(firstPosition.baseAssetAmount.eq(ZERO));
-		assert(firstPosition.quoteAssetAmount.eq(ZERO));
+		assert(firstPosition.quoteEntryAmount.eq(ZERO));
 
 		const tradeHistoryRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
 

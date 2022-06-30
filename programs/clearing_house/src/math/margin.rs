@@ -161,6 +161,53 @@ pub fn calculate_margin_requirement_and_total_collateral(
     Ok((margin_requirement, total_collateral))
 }
 
+pub fn calculate_net_quote_balance(
+    user: &User,
+    margin_requirement_type: MarginRequirementType,
+    bank_map: &BankMap,
+    oracle_map: &mut OracleMap,
+) -> ClearingHouseResult<i128> {
+    let mut net_quote_balance: i128 = 0;
+
+    for user_bank_balance in user.bank_balances.iter() {
+        if user_bank_balance.balance == 0 {
+            continue;
+        }
+
+        let bank = &bank_map.get_ref(&user_bank_balance.bank_index)?;
+
+        let oracle_price_data = oracle_map.get_price_data(&bank.oracle)?;
+        let balance_value = get_balance_value(user_bank_balance, bank, oracle_price_data)?;
+
+        match user_bank_balance.balance_type {
+            BankBalanceType::Deposit => {
+                net_quote_balance = net_quote_balance
+                    .checked_add(cast_to_i128(
+                        balance_value
+                            .checked_mul(bank.get_asset_weight(&margin_requirement_type))
+                            .ok_or_else(math_error!())?
+                            .checked_div(BANK_WEIGHT_PRECISION)
+                            .ok_or_else(math_error!())?,
+                    )?)
+                    .ok_or_else(math_error!())?;
+            }
+            BankBalanceType::Borrow => {
+                net_quote_balance = net_quote_balance
+                    .checked_sub(cast_to_i128(
+                        balance_value
+                            .checked_mul(bank.get_liability_weight(&margin_requirement_type))
+                            .ok_or_else(math_error!())?
+                            .checked_div(BANK_WEIGHT_PRECISION)
+                            .ok_or_else(math_error!())?,
+                    )?)
+                    .ok_or_else(math_error!())?;
+            }
+        }
+    }
+
+    Ok(net_quote_balance)
+}
+
 pub fn meets_initial_margin_requirement(
     user: &User,
     market_map: &MarketMap,

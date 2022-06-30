@@ -167,7 +167,7 @@ pub fn update_oracle_price_twap(
             .ok_or_else(math_error!())? as u64;
         amm.last_oracle_delay = oracle_price_data.delay;
         amm.last_oracle_mark_spread_pct =
-            calculate_oracle_mark_spread_pct(amm, oracle_price_data, precomputed_mark_price)?;
+            calculate_oracle_mark_spread_pct(amm, oracle_price_data, Some(mark_price))?;
 
         amm.last_oracle_price_twap = oracle_price_twap;
         amm.last_oracle_price_twap_ts = now;

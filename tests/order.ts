@@ -475,7 +475,7 @@ describe('orders', () => {
 		//  '!=',
 		//  convertToNumber(expectedQuoteAssetAmount, QUOTE_PRECISION),
 		//  );
-		assert(firstPosition.quoteAssetAmount.eq(expectedQuoteAssetAmount));
+		assert(firstPosition.quoteEntryAmount.eq(expectedQuoteAssetAmount));
 
 		const tradeHistoryRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
 		assert.ok(tradeHistoryRecord.baseAssetAmount.eq(baseAssetAmount));
@@ -610,7 +610,7 @@ describe('orders', () => {
 		assert(firstPosition.baseAssetAmount.eq(expectedBaseAssetAmount));
 
 		const expectedQuoteAssetAmount = new BN(0);
-		assert(firstPosition.quoteAssetAmount.eq(expectedQuoteAssetAmount));
+		assert(firstPosition.quoteEntryAmount.eq(expectedQuoteAssetAmount));
 
 		const tradeHistoryRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
 

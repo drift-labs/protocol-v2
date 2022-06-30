@@ -60,7 +60,7 @@ export function calculateTradeSlippage(
 	amount: BN,
 	market: MarketAccount,
 	inputAssetType: AssetType = 'quote',
-	oraclePriceData: OraclePriceData,
+	oraclePriceData?: OraclePriceData,
 	useSpread = true
 ): [BN, BN, BN, BN] {
 	let oldPrice: BN;
@@ -210,7 +210,7 @@ export function calculateTargetPriceTrade(
 	targetPrice: BN,
 	pct: BN = MAXPCT,
 	outputAssetType: AssetType = 'quote',
-	oraclePriceData: OraclePriceData,
+	oraclePriceData?: OraclePriceData,
 	useSpread = true
 ): [PositionDirection, BN, BN, BN] {
 	assert(market.amm.baseAssetReserve.gt(ZERO));

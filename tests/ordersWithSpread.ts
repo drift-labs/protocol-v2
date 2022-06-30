@@ -245,10 +245,10 @@ describe('amm spread: market order', () => {
 		assert(firstPosition.baseAssetAmount.eq(baseAssetAmount));
 		console.log(
 			'expectedQuoteAssetAmount:',
-			firstPosition.quoteAssetAmount.toString(),
+			firstPosition.quoteEntryAmount.toString(),
 			expectedQuoteAssetAmount.toString()
 		);
-		assert(firstPosition.quoteAssetAmount.eq(expectedQuoteAssetAmount));
+		assert(firstPosition.quoteEntryAmount.eq(expectedQuoteAssetAmount));
 
 		const tradeHistoryRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
 
@@ -742,7 +742,7 @@ describe('amm spread: market order', () => {
 
 		const firstPosition = clearingHouseUser.getUserAccount().positions[0];
 		assert(firstPosition.baseAssetAmount.eq(baseAssetAmount));
-		assert(firstPosition.quoteAssetAmount.eq(expectedQuoteAssetAmount));
+		assert(firstPosition.quoteEntryAmount.eq(expectedQuoteAssetAmount));
 
 		await clearingHouse.closePosition(marketIndex);
 
@@ -813,7 +813,7 @@ describe('amm spread: market order', () => {
 
 		const firstPosition = clearingHouseUser.getUserAccount().positions[0];
 		assert(firstPosition.baseAssetAmount.abs().eq(baseAssetAmount));
-		assert(firstPosition.quoteAssetAmount.eq(expectedQuoteAssetAmount));
+		assert(firstPosition.quoteEntryAmount.eq(expectedQuoteAssetAmount));
 
 		await clearingHouse.closePosition(marketIndex);
 
@@ -936,7 +936,7 @@ describe('amm spread: market order', () => {
 			convertToNumber(firstPosition.quoteAssetAmount),
 			convertToNumber(expectedQuoteAssetAmount)
 		);
-		assert(firstPosition.quoteAssetAmount.eq(expectedQuoteAssetAmount)); //todo
+		assert(firstPosition.quoteEntryAmount.eq(expectedQuoteAssetAmount)); //todo
 
 		const tradeHistoryRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
 

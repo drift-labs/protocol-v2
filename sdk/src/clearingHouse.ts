@@ -1337,7 +1337,7 @@ export class ClearingHouse {
 		}
 
 		for (const userBankBalance of settleeUserAccount.bankBalances) {
-			if (!userBankBalance.balance.eq(ZERO)) {
+			if (!userBankBalance.balance.eq(QUOTE_ASSET_BANK_INDEX)) {
 				const bankAccount = this.getBankAccount(userBankBalance.bankIndex);
 				bankAccountMap.set(userBankBalance.bankIndex.toNumber(), {
 					pubkey: bankAccount.pubkey,

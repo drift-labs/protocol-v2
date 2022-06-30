@@ -168,7 +168,7 @@ describe('minimum trade size', () => {
 		const baseAssetValue = calculateBaseAssetValue(market, position);
 
 		const expectedBaseAssetValue = new BN(10000189);
-		assert(position.quoteAssetAmount.eq(usdcAmount));
+		assert(position.quoteEntryAmount.eq(usdcAmount));
 		assert(baseAssetValue.eq(expectedBaseAssetValue));
 
 		await clearingHouse.openPosition(
@@ -181,7 +181,7 @@ describe('minimum trade size', () => {
 		await clearingHouse.fetchAccounts();
 		position = clearingHouse.getUserAccount().positions[0];
 
-		assert(position.quoteAssetAmount.eq(ZERO));
+		assert(position.quoteEntryAmount.eq(ZERO));
 		assert(position.baseAssetAmount.eq(ZERO));
 		await clearingHouse.unsubscribe();
 	});
@@ -245,7 +245,7 @@ describe('minimum trade size', () => {
 		await clearingHouse.fetchAccounts();
 		const position = clearingHouse.getUserAccount().positions[0];
 
-		assert(position.quoteAssetAmount.gt(ZERO));
+		assert(position.quoteEntryAmount.gt(ZERO));
 		assert(position.baseAssetAmount.lt(ZERO));
 		await clearingHouse.unsubscribe();
 	});
@@ -306,7 +306,7 @@ describe('minimum trade size', () => {
 		const baseAssetValue = calculateBaseAssetValue(market, position);
 
 		const expectedBaseAssetValue = new BN(9999811);
-		assert(position.quoteAssetAmount.eq(usdcAmount));
+		assert(position.quoteEntryAmount.eq(usdcAmount));
 		assert(baseAssetValue.eq(expectedBaseAssetValue));
 
 		await clearingHouse.openPosition(
@@ -319,7 +319,7 @@ describe('minimum trade size', () => {
 		await clearingHouse.fetchAccounts();
 		position = clearingHouse.getUserAccount().positions[0];
 
-		assert(position.quoteAssetAmount.eq(ZERO));
+		assert(position.quoteEntryAmount.eq(ZERO));
 		assert(position.baseAssetAmount.eq(ZERO));
 		await clearingHouse.unsubscribe();
 	});
@@ -382,7 +382,7 @@ describe('minimum trade size', () => {
 
 		await clearingHouse.fetchAccounts();
 		const position = clearingHouse.getUserAccount().positions[0];
-		assert(position.quoteAssetAmount.gt(ZERO));
+		assert(position.quoteEntryAmount.gt(ZERO));
 		assert(position.baseAssetAmount.gt(ZERO));
 		await clearingHouse.unsubscribe();
 	});

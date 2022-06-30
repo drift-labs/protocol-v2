@@ -32,6 +32,8 @@ pub struct Market {
     pub next_funding_rate_record_id: u64,
     pub next_curve_record_id: u64,
     pub pnl_pool: PNLPool,
+    pub unsettled_profit: u128,
+    pub unsettled_loss: u128,
 
     // upgrade-ability
     pub padding0: u32,
@@ -72,7 +74,7 @@ impl BankBalance for PNLPool {
     }
 
     fn decrease_balance(&mut self, delta: u128) -> ClearingHouseResult {
-        self.balance = self.balance.checked_add(delta).ok_or_else(math_error!())?;
+        self.balance = self.balance.checked_sub(delta).ok_or_else(math_error!())?;
         Ok(())
     }
 
@@ -85,61 +87,66 @@ impl BankBalance for PNLPool {
 #[derive(Default)]
 #[repr(packed)]
 pub struct AMM {
+    // oracle
     pub oracle: Pubkey,
     pub oracle_source: OracleSource,
-    pub base_asset_reserve: u128,
-    pub quote_asset_reserve: u128,
-    pub terminal_quote_asset_reserve: u128,
-    pub cumulative_repeg_rebate_long: u128,
-    pub cumulative_repeg_rebate_short: u128,
-    pub cumulative_funding_rate_long: i128,
-    pub cumulative_funding_rate_short: i128,
-    pub cumulative_funding_rate_lp: i128,
-    pub last_funding_rate: i128,
-    pub last_funding_rate_ts: i64,
-    pub funding_period: i64,
-    pub last_oracle_price_twap: i128,
-    pub last_mark_price_twap: u128,
-    pub last_mark_price_twap_ts: i64,
-    pub sqrt_k: u128,
-    pub peg_multiplier: u128,
-    pub total_fee: u128,
-    pub total_fee_minus_distributions: u128,
-    pub total_mm_fee: u128,
-    pub total_exchange_fee: u128,
-    pub net_revenue_since_last_funding: i64,
-    pub total_fee_withdrawn: u128,
-    pub minimum_quote_asset_trade_size: u128,
-    pub last_oracle_price_twap_ts: i64,
-    pub last_oracle_normalised_price: i128,
     pub last_oracle_price: i128,
     pub last_oracle_conf_pct: u64,
     pub last_oracle_delay: i64,
+    pub last_oracle_normalised_price: i128,
+    pub last_oracle_price_twap: i128,
+    pub last_oracle_price_twap_ts: i64,
     pub last_oracle_mark_spread_pct: i128,
-    pub minimum_base_asset_trade_size: u128,
-    pub base_spread: u16,
 
-    pub long_spread: u128,
-    pub short_spread: u128,
+    pub base_asset_reserve: u128,
+    pub quote_asset_reserve: u128,
+    pub sqrt_k: u128,
+    pub peg_multiplier: u128,
 
-    pub last_bid_price_twap: u128,
-    pub last_ask_price_twap: u128,
+    pub terminal_quote_asset_reserve: u128,
     pub net_base_asset_amount: i128,
     pub quote_asset_amount_long: u128,
     pub quote_asset_amount_short: u128,
-    pub mark_std: u64,
 
-    pub long_intensity_time: i64,
+    // funding
+    pub last_funding_rate: i128,
+    pub last_funding_rate_ts: i64,
+    pub funding_period: i64,
+    pub cumulative_funding_rate_long: i128,
+    pub cumulative_funding_rate_short: i128,
+    pub cumulative_funding_rate_lp: i128,
+    pub cumulative_repeg_rebate_long: u128,
+    pub cumulative_repeg_rebate_short: u128,
+
+    pub mark_std: u64,
+    pub last_mark_price_twap: u128,
+    pub last_mark_price_twap_ts: i64,
+
+    // trade constraints
+    pub minimum_quote_asset_trade_size: u128,
+    pub minimum_base_asset_trade_size: u128,
+
+    // market making
+    pub base_spread: u16,
+    pub long_spread: u128,
+    pub short_spread: u128,
+    pub last_bid_price_twap: u128,
+    pub last_ask_price_twap: u128,
+
     pub long_intensity_count: u16,
     pub long_intensity_volume: u64,
-
-    pub short_intensity_time: i64,
     pub short_intensity_count: u16,
     pub short_intensity_volume: u64,
-
-    // upgrade-ability
     pub curve_update_intensity: u8,
 
+    // fee tracking
+    pub total_fee: u128,
+    pub total_mm_fee: u128,
+    pub total_exchange_fee: u128,
+    pub total_fee_minus_distributions: u128,
+    pub total_fee_withdrawn: u128,
+    pub net_revenue_since_last_funding: i64,
+    pub pnl_pool: PNLPool,
     pub last_update_slot: u64,
 
     pub padding0: u16,

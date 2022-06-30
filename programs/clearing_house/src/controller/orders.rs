@@ -467,14 +467,26 @@ pub fn fill_order(
             .net_revenue_since_last_funding
             .checked_add(fee_to_market as i64)
             .ok_or_else(math_error!())?;
-    }
 
-    {
         let position_index = get_position_index(&user.positions, market_index)?;
-        user.positions[position_index].unsettled_pnl = user.positions[position_index]
-            .unsettled_pnl
-            .checked_sub(user_fee) // negative fee is rebate, so subtract to increase pnl
-            .ok_or_else(math_error!())?;
+
+        controller::position::update_unsettled_pnl(
+            &mut user.positions[position_index],
+            market,
+            -user_fee,
+        )?;
+
+        if filler_key != user_key {
+            let filler = &mut load_mut(filler)?;
+            let position_index = get_position_index(&filler.positions, market_index)
+                .or_else(|_| add_new_position(&mut filler.positions, market_index))?;
+
+            controller::position::update_unsettled_pnl(
+                &mut filler.positions[position_index],
+                market,
+                cast(filler_reward)?,
+            )?;
+        }
     }
 
     // Increment the user's total fee variables
@@ -498,17 +510,6 @@ pub fn fill_order(
         .total_referee_discount
         .checked_add(referee_discount)
         .ok_or_else(math_error!())?;
-
-    if filler_key != user_key {
-        let filler = &mut load_mut(filler)?;
-        let position_index = get_position_index(&filler.positions, market_index)
-            .or_else(|_| add_new_position(&mut filler.positions, market_index))?;
-
-        filler.positions[position_index].unsettled_pnl = filler.positions[position_index]
-            .unsettled_pnl
-            .checked_add(cast(filler_reward)?)
-            .ok_or_else(math_error!())?;
-    }
 
     // Update the referrer's collateral with their reward
     if let Some(referrer) = referrer {
@@ -706,10 +707,7 @@ pub fn execute_market_order(
         )?
     };
 
-    user.positions[position_index].unsettled_pnl = user.positions[position_index]
-        .unsettled_pnl
-        .checked_add(pnl)
-        .ok_or_else(math_error!())?;
+    controller::position::update_unsettled_pnl(&mut user.positions[position_index], market, pnl)?;
 
     if base_asset_amount < market.amm.minimum_base_asset_trade_size {
         msg!("base asset amount {}", base_asset_amount);
@@ -850,10 +848,7 @@ pub fn execute_non_market_order(
         maker_limit_price,
     )?;
 
-    user.positions[position_index].unsettled_pnl = user.positions[position_index]
-        .unsettled_pnl
-        .checked_add(pnl)
-        .ok_or_else(math_error!())?;
+    controller::position::update_unsettled_pnl(&mut user.positions[position_index], market, pnl)?;
 
     if !reduce_only && order_reduce_only {
         return Err(ErrorCode::ReduceOnlyOrderIncreasedRisk);

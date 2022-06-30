@@ -198,7 +198,7 @@ describe('maker order', () => {
 		await clearingHouseUser.fetchAccounts();
 		const position = clearingHouseUser.getUserPosition(marketIndex);
 		assert(position.baseAssetAmount.eq(baseAssetAmount));
-		assert(position.quoteAssetAmount.eq(new BN(1000001)));
+		assert(position.quoteEntryAmount.eq(new BN(1000001)));
 		assert(clearingHouse.getQuoteAssetTokenAmount().eq(usdcAmount));
 		assert(
 			clearingHouse.getUserAccount().positions[0].unsettledPnl.eq(new BN(500))
@@ -289,7 +289,7 @@ describe('maker order', () => {
 		await clearingHouseUser.fetchAccounts();
 		const position = clearingHouseUser.getUserPosition(marketIndex);
 		assert(position.baseAssetAmount.abs().eq(baseAssetAmount));
-		assert(position.quoteAssetAmount.eq(new BN(1000000)));
+		assert(position.quoteEntryAmount.eq(new BN(1000000)));
 		assert(clearingHouse.getQuoteAssetTokenAmount().eq(usdcAmount));
 		assert(
 			clearingHouse.getUserAccount().positions[0].unsettledPnl.eq(new BN(500))
