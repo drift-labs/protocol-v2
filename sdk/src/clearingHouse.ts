@@ -498,14 +498,16 @@ export class ClearingHouse {
 		amount: BN,
 		bankIndex: BN,
 		collateralAccountPublicKey: PublicKey,
+		userId?: number,
 		reduceOnly = false
 	): Promise<TransactionSignature> {
 		const depositCollateralIx = await this.getDepositInstruction(
 			amount,
 			bankIndex,
 			collateralAccountPublicKey,
-			true,
-			reduceOnly
+			userId,
+			reduceOnly,
+			true
 		);
 
 		const tx = new Transaction().add(depositCollateralIx);
@@ -518,10 +520,17 @@ export class ClearingHouse {
 		amount: BN,
 		bankIndex: BN,
 		userTokenAccount: PublicKey,
-		userInitialized = true,
-		reduceOnly = false
+		userId?: number,
+		reduceOnly = false,
+		userInitialized = true
 	): Promise<TransactionInstruction> {
-		const userAccountPublicKey = await this.getUserAccountPublicKey();
+		const userAccountPublicKey = userId
+			? await getUserAccountPublicKey(
+					this.program.programId,
+					this.wallet.publicKey,
+					userId
+			  )
+			: await this.getUserAccountPublicKey();
 
 		let remainingAccounts = [];
 		if (userInitialized) {
@@ -581,6 +590,8 @@ export class ClearingHouse {
 			amount,
 			bankIndex,
 			userTokenAccount,
+			userId,
+			false,
 			false
 		);
 
@@ -612,6 +623,8 @@ export class ClearingHouse {
 			amount,
 			new BN(0),
 			associateTokenPublicKey,
+			userId,
+			false,
 			false
 		);
 
