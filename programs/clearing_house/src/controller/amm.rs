@@ -3,7 +3,8 @@ use solana_program::msg;
 use crate::controller::position::PositionDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm::{
-    calculate_quote_asset_amount_swapped, calculate_spread_reserves, get_update_k_result,
+    calculate_quote_asset_amount_swapped, calculate_spread_reserves, get_spread_reserves,
+    get_update_k_result,
 };
 use crate::math::casting::{cast, cast_to_i128, cast_to_i64, cast_to_u128};
 use crate::math::constants::{
@@ -95,14 +96,13 @@ fn calculate_quote_swap_output_with_spread(
     }
 
     // first do the swap with spread reserves to figure out how much base asset is acquired
-    let (base_asset_reserve_with_spread, quote_asset_reserve_with_spread) =
-        calculate_spread_reserves(
-            amm,
-            match direction {
-                SwapDirection::Add => PositionDirection::Long,
-                SwapDirection::Remove => PositionDirection::Short,
-            },
-        )?;
+    let (base_asset_reserve_with_spread, quote_asset_reserve_with_spread) = get_spread_reserves(
+        amm,
+        match direction {
+            SwapDirection::Add => PositionDirection::Long,
+            SwapDirection::Remove => PositionDirection::Short,
+        },
+    )?;
 
     let (new_base_asset_reserve_with_spread, _) = amm::calculate_swap_output(
         quote_asset_reserve_amount,
@@ -251,14 +251,13 @@ fn calculate_base_swap_output_with_spread(
     direction: SwapDirection,
 ) -> ClearingHouseResult<(u128, u128, u128, u128)> {
     // first do the swap with spread reserves to figure out how much base asset is acquired
-    let (base_asset_reserve_with_spread, quote_asset_reserve_with_spread) =
-        calculate_spread_reserves(
-            amm,
-            match direction {
-                SwapDirection::Add => PositionDirection::Short,
-                SwapDirection::Remove => PositionDirection::Long,
-            },
-        )?;
+    let (base_asset_reserve_with_spread, quote_asset_reserve_with_spread) = get_spread_reserves(
+        amm,
+        match direction {
+            SwapDirection::Add => PositionDirection::Short,
+            SwapDirection::Remove => PositionDirection::Long,
+        },
+    )?;
 
     let (new_quote_asset_reserve_with_spread, _) = amm::calculate_swap_output(
         base_asset_swap_amount,
@@ -393,6 +392,16 @@ pub fn update_spreads(amm: &mut AMM, mark_price: u128) -> ClearingHouseResult<(u
 
     amm.long_spread = long_spread;
     amm.short_spread = short_spread;
+
+    let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
+        calculate_spread_reserves(amm, PositionDirection::Long)?;
+    let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
+        calculate_spread_reserves(amm, PositionDirection::Short)?;
+
+    amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
+    amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
+    amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
+    amm.bid_quote_asset_reserve = new_bid_quote_asset_reserve;
 
     Ok((long_spread, short_spread))
 }

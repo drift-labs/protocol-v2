@@ -106,31 +106,30 @@ pub fn update_amm(
     // 0-100
     let curve_update_intensity = cast_to_i128(min(market.amm.curve_update_intensity, 100_u8))?;
 
-    // return early
-    if curve_update_intensity == 0 {
-        return Ok(0);
+    let mut amm_update_cost = 0;
+    if curve_update_intensity > 0 {
+        let fee_budget = repeg::calculate_fee_pool(market)?;
+        let target_price = cast_to_u128(oracle_price_data.price)?;
+        let optimal_peg = repeg::calculate_peg_from_target_price(
+            market.amm.quote_asset_reserve,
+            market.amm.base_asset_reserve,
+            target_price,
+        )?;
+
+        let (repegged_market, _amm_update_cost) =
+            repeg::adjust_amm(market, optimal_peg, fee_budget, true)?;
+        let cost_applied = apply_cost_to_market(market, _amm_update_cost)?;
+
+        if cost_applied {
+            market.amm.base_asset_reserve = repegged_market.amm.base_asset_reserve;
+            market.amm.quote_asset_reserve = repegged_market.amm.quote_asset_reserve;
+            market.amm.sqrt_k = repegged_market.amm.sqrt_k;
+            market.amm.terminal_quote_asset_reserve =
+                repegged_market.amm.terminal_quote_asset_reserve;
+            market.amm.peg_multiplier = repegged_market.amm.peg_multiplier;
+            amm_update_cost = _amm_update_cost;
+        }
     }
-
-    let fee_budget = repeg::calculate_fee_pool(market)?;
-    let target_price = cast_to_u128(oracle_price_data.price)?;
-    let optimal_peg = repeg::calculate_peg_from_target_price(
-        market.amm.quote_asset_reserve,
-        market.amm.base_asset_reserve,
-        target_price,
-    )?;
-
-    let (repegged_market, amm_update_cost) =
-        repeg::adjust_amm(market, optimal_peg, fee_budget, true)?;
-    let cost_applied = apply_cost_to_market(market, amm_update_cost)?;
-
-    if cost_applied {
-        market.amm.base_asset_reserve = repegged_market.amm.base_asset_reserve;
-        market.amm.quote_asset_reserve = repegged_market.amm.quote_asset_reserve;
-        market.amm.sqrt_k = repegged_market.amm.sqrt_k;
-        market.amm.terminal_quote_asset_reserve = repegged_market.amm.terminal_quote_asset_reserve;
-        market.amm.peg_multiplier = repegged_market.amm.peg_multiplier;
-    }
-
     let is_oracle_valid = amm::is_oracle_valid(
         &market.amm,
         oracle_price_data,

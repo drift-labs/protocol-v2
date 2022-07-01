@@ -412,6 +412,10 @@ pub mod clearing_house {
                 base_asset_reserve: amm_base_asset_reserve,
                 quote_asset_reserve: amm_quote_asset_reserve,
                 terminal_quote_asset_reserve: amm_quote_asset_reserve,
+                ask_base_asset_reserve: amm_base_asset_reserve,
+                ask_quote_asset_reserve: amm_quote_asset_reserve,
+                bid_base_asset_reserve: amm_base_asset_reserve,
+                bid_quote_asset_reserve: amm_quote_asset_reserve,
                 cumulative_repeg_rebate_long: 0,
                 cumulative_repeg_rebate_short: 0,
                 cumulative_funding_rate_long: 0,
@@ -1106,7 +1110,7 @@ pub mod clearing_house {
 
         // update user cost basis (if at a loss)
         let (_amm_position_base_asset_value, amm_position_unrealized_pnl) =
-            calculate_base_asset_value_and_pnl(market_position, &market.amm)?;
+            calculate_base_asset_value_and_pnl(market_position, &market.amm, true)?;
 
         if amm_position_unrealized_pnl < 0 {
             if market_position.base_asset_amount > 0 {

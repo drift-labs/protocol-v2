@@ -255,6 +255,7 @@ pub fn adjust_peg_cost(
             market_clone.amm.net_base_asset_amount,
             0,
             &market_clone.amm,
+            false,
         )?;
 
         market_clone.amm.peg_multiplier = new_peg_candidate;
@@ -263,6 +264,7 @@ pub fn adjust_peg_cost(
             market_clone.amm.net_base_asset_amount,
             current_net_market_value,
             &market_clone.amm,
+            false,
         )?;
         cost
     } else {

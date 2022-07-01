@@ -690,7 +690,7 @@ pub fn update_position_with_quote_asset_amount(
     } else {
         let market_position = &mut user.positions[position_index];
         let (base_asset_value, _unrealized_pnl) =
-            calculate_base_asset_value_and_pnl(market_position, &market.amm)?;
+            calculate_base_asset_value_and_pnl(market_position, &market.amm, true)?;
 
         // if the quote_asset_amount is close enough in value to base_asset_value,
         // round the quote_asset_amount to be the same as base_asset_value

@@ -456,6 +456,18 @@ pub fn calculate_terminal_price_and_reserves(
     ))
 }
 
+pub fn get_spread_reserves(
+    amm: &AMM,
+    direction: PositionDirection,
+) -> ClearingHouseResult<(u128, u128)> {
+    let (base_asset_reserve, quote_asset_reserve) = match direction {
+        PositionDirection::Long => (amm.ask_base_asset_reserve, amm.ask_quote_asset_reserve),
+        PositionDirection::Short => (amm.bid_base_asset_reserve, amm.bid_quote_asset_reserve),
+    };
+
+    Ok((base_asset_reserve, quote_asset_reserve))
+}
+
 pub fn calculate_spread_reserves(
     amm: &AMM,
     direction: PositionDirection,
@@ -789,6 +801,7 @@ pub fn adjust_k_cost(
         market_clone.amm.net_base_asset_amount,
         0,
         &market_clone.amm,
+        false,
     )?;
 
     update_k(&mut market_clone, update_k_result)?;
@@ -797,6 +810,7 @@ pub fn adjust_k_cost(
         market_clone.amm.net_base_asset_amount,
         current_net_market_value,
         &market_clone.amm,
+        false,
     )?;
     Ok(cost)
 }
@@ -810,7 +824,7 @@ pub fn adjust_k_cost_and_update(
 ) -> ClearingHouseResult<i128> {
     // Find the net market value before adjusting k
     let current_net_market_value =
-        _calculate_base_asset_value(market.amm.net_base_asset_amount, &market.amm)?;
+        _calculate_base_asset_value(market.amm.net_base_asset_amount, &market.amm, false)?;
 
     update_k(market, update_k_result)?;
 
@@ -818,6 +832,7 @@ pub fn adjust_k_cost_and_update(
         market.amm.net_base_asset_amount,
         current_net_market_value,
         &market.amm,
+        false,
     )?;
     Ok(cost)
 }
@@ -919,7 +934,7 @@ pub fn calculate_max_base_asset_amount_to_trade(
         .try_to_u128()?;
 
     let base_asset_reserve_before = if use_spread && amm.base_spread > 0 {
-        let (spread_base_asset_reserve, _) = calculate_spread_reserves(amm, direction)?;
+        let (spread_base_asset_reserve, _) = get_spread_reserves(amm, direction)?;
         spread_base_asset_reserve
     } else {
         amm.base_asset_reserve
@@ -956,4 +971,33 @@ pub fn should_round_trade(
     let quote_asset_reserve_amount = asset_to_reserve_amount(difference, amm.peg_multiplier)?;
 
     Ok(quote_asset_reserve_amount < amm.minimum_quote_asset_trade_size)
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::math::constants::{AMM_RESERVE_PRECISION, MARK_PRICE_PRECISION, QUOTE_PRECISION};
+
+    #[test]
+    fn calc_mark_std_tests() {
+        let prev = 1656682258;
+        let now = prev + 3600;
+        let mut amm = AMM {
+            // base_asset_reserve: 2 * AMM_RESERVE_PRECISION,
+            mark_std: MARK_PRICE_PRECISION as u64,
+            last_mark_price_twap_ts: prev,
+            ..AMM::default()
+        };
+        let old_mark_std = amm.mark_std;
+        update_amm_mark_std(&mut amm, now, MARK_PRICE_PRECISION * 23);
+        assert_eq!(amm.mark_std, (MARK_PRICE_PRECISION * 23) as u64);
+
+        amm.mark_std = MARK_PRICE_PRECISION as u64;
+        amm.last_mark_price_twap_ts = now - 60;
+        update_amm_mark_std(&mut amm, now, MARK_PRICE_PRECISION * 2);
+
+        //     let expected_out = (MARK_PRICE_PRECISION*2/3600 + (MARK_PRICE_PRECISION - MARK_PRICE_PRECISION/3600)
+        // ) as u64;
+        //     assert_eq!(amm.mark_std, expected_out);
+    }
 }

@@ -2144,6 +2144,22 @@
             "type": "u128"
           },
           {
+            "name": "askBaseAssetReserve",
+            "type": "u128"
+          },
+          {
+            "name": "askQuoteAssetReserve",
+            "type": "u128"
+          },
+          {
+            "name": "bidBaseAssetReserve",
+            "type": "u128"
+          },
+          {
+            "name": "bidQuoteAssetReserve",
+            "type": "u128"
+          },
+          {
             "name": "lastBidPriceTwap",
             "type": "u128"
           },
