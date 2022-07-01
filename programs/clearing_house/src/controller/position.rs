@@ -198,7 +198,7 @@ pub fn update_position_and_market(
                 .ok_or_else(math_error!())?;
         }
     } else if reduced_position || closed_position {
-        if new_base_asset_amount > 0 {
+        if position.base_asset_amount > 0 {
             market.base_asset_amount_long = market
                 .base_asset_amount_long
                 .checked_add(delta.base_asset_amount)
@@ -1495,8 +1495,8 @@ mod test {
         };
         let mut market = Market {
             amm: AMM {
-                net_base_asset_amount: 10,
-                quote_asset_amount_long: 10,
+                net_base_asset_amount: 11,
+                quote_asset_amount_long: 11,
                 ..AMM::default()
             },
             open_interest: 2,
@@ -1514,10 +1514,10 @@ mod test {
         assert_eq!(existing_position.last_funding_rate_ts, 0);
 
         assert_eq!(market.open_interest, 1);
-        assert_eq!(market.base_asset_amount_long, 0);
+        assert_eq!(market.base_asset_amount_long, 1);
         assert_eq!(market.base_asset_amount_short, 0);
-        assert_eq!(market.amm.net_base_asset_amount, 0);
-        assert_eq!(market.amm.quote_asset_amount_long, 0);
+        assert_eq!(market.amm.net_base_asset_amount, 1);
+        assert_eq!(market.amm.quote_asset_amount_long, 1);
         assert_eq!(market.amm.quote_asset_amount_short, 0);
     }
 
@@ -1535,7 +1535,13 @@ mod test {
             quote_asset_amount: 5,
         };
         let mut market = Market {
-            amm: AMM::default(),
+            amm: AMM {
+                net_base_asset_amount: 11,
+                quote_asset_amount_long: 11,
+                ..AMM::default()
+            },
+            open_interest: 2,
+            base_asset_amount_long: 11,
             ..Market::default()
         };
 
@@ -1547,6 +1553,13 @@ mod test {
         assert_eq!(pnl, -5);
         assert_eq!(existing_position.last_cumulative_funding_rate, 0);
         assert_eq!(existing_position.last_funding_rate_ts, 0);
+
+        assert_eq!(market.open_interest, 1);
+        assert_eq!(market.base_asset_amount_long, 1);
+        assert_eq!(market.base_asset_amount_short, 0);
+        assert_eq!(market.amm.net_base_asset_amount, 1);
+        assert_eq!(market.amm.quote_asset_amount_long, 1);
+        assert_eq!(market.amm.quote_asset_amount_short, 0);
     }
 
     #[test]
@@ -1563,7 +1576,13 @@ mod test {
             quote_asset_amount: 5,
         };
         let mut market = Market {
-            amm: AMM::default(),
+            amm: AMM {
+                net_base_asset_amount: -11,
+                quote_asset_amount_short: 11,
+                ..AMM::default()
+            },
+            open_interest: 2,
+            base_asset_amount_short: -11,
             ..Market::default()
         };
 
@@ -1575,6 +1594,13 @@ mod test {
         assert_eq!(pnl, 5);
         assert_eq!(existing_position.last_cumulative_funding_rate, 0);
         assert_eq!(existing_position.last_funding_rate_ts, 0);
+
+        assert_eq!(market.open_interest, 1);
+        assert_eq!(market.base_asset_amount_long, 0);
+        assert_eq!(market.base_asset_amount_short, -1);
+        assert_eq!(market.amm.net_base_asset_amount, -1);
+        assert_eq!(market.amm.quote_asset_amount_long, 0);
+        assert_eq!(market.amm.quote_asset_amount_short, 1);
     }
 
     #[test]
@@ -1591,7 +1617,13 @@ mod test {
             quote_asset_amount: 15,
         };
         let mut market = Market {
-            amm: AMM::default(),
+            amm: AMM {
+                net_base_asset_amount: -11,
+                quote_asset_amount_short: 11,
+                ..AMM::default()
+            },
+            open_interest: 2,
+            base_asset_amount_short: -11,
             ..Market::default()
         };
 
@@ -1603,5 +1635,12 @@ mod test {
         assert_eq!(pnl, -5);
         assert_eq!(existing_position.last_cumulative_funding_rate, 0);
         assert_eq!(existing_position.last_funding_rate_ts, 0);
+
+        assert_eq!(market.open_interest, 1);
+        assert_eq!(market.base_asset_amount_long, 0);
+        assert_eq!(market.base_asset_amount_short, -1);
+        assert_eq!(market.amm.net_base_asset_amount, -1);
+        assert_eq!(market.amm.quote_asset_amount_long, 0);
+        assert_eq!(market.amm.quote_asset_amount_short, 1);
     }
 }
