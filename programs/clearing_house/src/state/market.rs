@@ -130,6 +130,11 @@ pub struct AMM {
     pub base_spread: u16,
     pub long_spread: u128,
     pub short_spread: u128,
+    pub ask_base_asset_reserve: u128,
+    pub ask_quote_asset_reserve: u128,
+    pub bid_base_asset_reserve: u128,
+    pub bid_quote_asset_reserve: u128,
+
     pub last_bid_price_twap: u128,
     pub last_ask_price_twap: u128,
 
