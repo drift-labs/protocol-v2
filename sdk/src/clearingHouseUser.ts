@@ -122,6 +122,7 @@ export class ClearingHouseUser {
 			lastCumulativeFundingRate: ZERO,
 			marketIndex,
 			quoteAssetAmount: ZERO,
+			quoteEntryAmount: ZERO,
 			openOrders: ZERO,
 			unsettledPnl: ZERO,
 		};
@@ -622,6 +623,7 @@ export class ClearingHouseUser {
 			lastCumulativeFundingRate:
 				currentMarketPosition.lastCumulativeFundingRate,
 			quoteAssetAmount: new BN(0),
+			quoteEntryAmount: new BN(0),
 			openOrders: new BN(0),
 			unsettledPnl: new BN(0),
 		};

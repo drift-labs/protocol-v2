@@ -154,8 +154,12 @@ pub enum ErrorCode {
     BankInsufficientDeposits,
     #[msg("UserMustSettleTheirOwnPositiveUnsettledPNL")]
     UserMustSettleTheirOwnPositiveUnsettledPNL,
-    #[msg("CantUpdatePNLPoolBalanceType")]
-    CantUpdatePNLPoolBalanceType,
+    #[msg("CantUpdatePoolBalanceType")]
+    CantUpdatePoolBalanceType,
+    #[msg("InsufficientCollateralForSettlingPNL")]
+    InsufficientCollateralForSettlingPNL,
+    #[msg("AMMNotUpdatedInSameSlot")]
+    AMMNotUpdatedInSameSlot,
     #[msg("AuctionNotComplete")]
     AuctionNotComplete,
     #[msg("MakerNotFound")]

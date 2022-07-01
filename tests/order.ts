@@ -476,7 +476,7 @@ describe('orders', () => {
 		//  '!=',
 		//  convertToNumber(expectedQuoteAssetAmount, QUOTE_PRECISION),
 		//  );
-		assert(firstPosition.quoteAssetAmount.eq(expectedQuoteAssetAmount));
+		assert(firstPosition.quoteEntryAmount.eq(expectedQuoteAssetAmount));
 
 		const tradeHistoryRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
 		assert.ok(tradeHistoryRecord.baseAssetAmount.eq(baseAssetAmount));
@@ -611,7 +611,7 @@ describe('orders', () => {
 		assert(firstPosition.baseAssetAmount.eq(expectedBaseAssetAmount));
 
 		const expectedQuoteAssetAmount = new BN(0);
-		assert(firstPosition.quoteAssetAmount.eq(expectedQuoteAssetAmount));
+		assert(firstPosition.quoteEntryAmount.eq(expectedQuoteAssetAmount));
 
 		const tradeHistoryRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
 
@@ -1617,9 +1617,17 @@ describe('orders', () => {
 			.sub(fillerCollateralBefore);
 		console.log(
 			'FillerReward: $',
-			convertToNumber(fillerReward, QUOTE_PRECISION)
+			convertToNumber(fillerReward, QUOTE_PRECISION),
+			convertToNumber(
+				fillerUser.getUserAccount().positions[0].unsettledPnl,
+				QUOTE_PRECISION
+			)
 		);
-		assert(fillerReward.gt(new BN(0)));
+		assert(
+			fillerReward
+				.add(fillerUser.getUserAccount().positions[0].unsettledPnl)
+				.gt(new BN(0))
+		);
 		await clearingHouse.closePosition(marketIndex);
 	});
 
@@ -1724,17 +1732,14 @@ describe('orders', () => {
 		const expectedFillerReward = new BN(1e6 / 100); //1 cent
 		const fillerReward = fillerClearingHouse
 			.getQuoteAssetTokenAmount()
-			.sub(fillerCollateralBefore);
+			.sub(fillerCollateralBefore)
+			.add(fillerUser.getUserAccount().positions[0].unsettledPnl)
+			.sub(fillerUnsettledPNLBefore);
 		console.log(
 			'FillerReward: $',
 			convertToNumber(fillerReward, QUOTE_PRECISION)
 		);
-		assert(
-			fillerClearingHouse
-				.getQuoteAssetTokenAmount()
-				.sub(fillerCollateralBefore.add(fillerUnsettledPNLBefore))
-				.eq(expectedFillerReward)
-		);
+		assert(fillerReward.eq(expectedFillerReward));
 
 		assert(whaleUserAccount.totalFeePaid.gt(fillerReward.mul(new BN(100))));
 		// ensure whale fee more than x100 filler
@@ -1749,7 +1754,7 @@ describe('orders', () => {
 			false
 		);
 		await clearingHouse.placeAndFillOrder(openPositionOrderParams);
-
+		console.log('1');
 		const reduceMarketOrderParams = getMarketOrderParams(
 			marketIndexEth,
 			PositionDirection.LONG,
@@ -1760,6 +1765,7 @@ describe('orders', () => {
 		await clearingHouse.placeAndFillOrder(reduceMarketOrderParams);
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
+		console.log('2');
 
 		let orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 		assert(orderRecord.baseAssetAmountFilled.eq(AMM_RESERVE_PRECISION));
@@ -1775,13 +1781,17 @@ describe('orders', () => {
 			TWO.mul(MARK_PRICE_PRECISION),
 			true
 		);
+		console.log('3');
+
 		await clearingHouse.placeAndFillOrder(reduceLimitOrderParams);
+		console.log('4');
 
 		await clearingHouse.settlePNL(
 			await clearingHouse.getUserAccountPublicKey(),
 			clearingHouse.getUserAccount(),
 			marketIndex
 		);
+		console.log('5');
 
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();

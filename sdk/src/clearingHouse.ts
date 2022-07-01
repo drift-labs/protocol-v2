@@ -414,7 +414,8 @@ export class ClearingHouse {
 				marketAccountMap.set(marketIndexNum, {
 					pubkey: marketAccount.pubkey,
 					isSigner: false,
-					isWritable: false,
+					// isWritable: false, // TODO
+					isWritable: true,
 				});
 				oracleAccountMap.set(marketAccount.pubkey.toString(), {
 					pubkey: marketAccount.amm.oracle,
@@ -498,14 +499,16 @@ export class ClearingHouse {
 		amount: BN,
 		bankIndex: BN,
 		collateralAccountPublicKey: PublicKey,
+		userId?: number,
 		reduceOnly = false
 	): Promise<TransactionSignature> {
 		const depositCollateralIx = await this.getDepositInstruction(
 			amount,
 			bankIndex,
 			collateralAccountPublicKey,
-			true,
-			reduceOnly
+			userId,
+			reduceOnly,
+			true
 		);
 
 		const tx = new Transaction().add(depositCollateralIx);
@@ -518,10 +521,17 @@ export class ClearingHouse {
 		amount: BN,
 		bankIndex: BN,
 		userTokenAccount: PublicKey,
-		userInitialized = true,
-		reduceOnly = false
+		userId?: number,
+		reduceOnly = false,
+		userInitialized = true
 	): Promise<TransactionInstruction> {
-		const userAccountPublicKey = await this.getUserAccountPublicKey();
+		const userAccountPublicKey = userId
+			? await getUserAccountPublicKey(
+					this.program.programId,
+					this.wallet.publicKey,
+					userId
+			  )
+			: await this.getUserAccountPublicKey();
 
 		let remainingAccounts = [];
 		if (userInitialized) {
@@ -581,6 +591,8 @@ export class ClearingHouse {
 			amount,
 			bankIndex,
 			userTokenAccount,
+			userId,
+			false,
 			false
 		);
 
@@ -612,6 +624,8 @@ export class ClearingHouse {
 			amount,
 			new BN(0),
 			associateTokenPublicKey,
+			userId,
+			false,
 			false
 		);
 
@@ -723,6 +737,7 @@ export class ClearingHouse {
 				authority: this.wallet.publicKey,
 				fromUser,
 				toUser,
+				state: await this.getStatePublicKey(),
 			},
 			remainingAccounts,
 		});
@@ -864,6 +879,49 @@ export class ClearingHouse {
 				user: userAccountPublicKey,
 				authority: this.wallet.publicKey,
 			},
+		});
+	}
+
+	public async updateAMMs(marketIndexes: BN[]): Promise<TransactionSignature> {
+		const { txSig } = await this.txSender.send(
+			wrapInTx(await this.getUpdateAMMsIx(marketIndexes)),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getUpdateAMMsIx(
+		marketIndexes: BN[]
+	): Promise<TransactionInstruction> {
+		for (let i = marketIndexes.length; i < 5; i++) {
+			marketIndexes.push(new BN(100));
+		}
+		const marketAccountInfos = [];
+		const oracleAccountInfos = [];
+		for (const marketIndex of marketIndexes) {
+			if (!marketIndex.eq(new BN(100))) {
+				const market = this.getMarketAccount(marketIndex);
+				marketAccountInfos.push({
+					pubkey: market.pubkey,
+					isWritable: true,
+					isSigner: false,
+				});
+				oracleAccountInfos.push({
+					pubkey: market.amm.oracle,
+					isWritable: false,
+					isSigner: false,
+				});
+			}
+		}
+		const remainingAccounts = oracleAccountInfos.concat(marketAccountInfos);
+
+		return await this.program.instruction.updateAmms(marketIndexes, {
+			accounts: {
+				state: await this.getStatePublicKey(),
+				authority: this.wallet.publicKey,
+			},
+			remainingAccounts,
 		});
 	}
 
@@ -1267,7 +1325,7 @@ export class ClearingHouse {
 				const market = this.getMarketAccount(position.marketIndex);
 				marketAccountMap.set(position.marketIndex.toNumber(), {
 					pubkey: market.pubkey,
-					isWritable: false,
+					isWritable: true, // TODO
 					isSigner: false,
 				});
 				oracleAccountMap.set(market.amm.oracle.toString(), {
@@ -1279,7 +1337,7 @@ export class ClearingHouse {
 		}
 
 		for (const userBankBalance of settleeUserAccount.bankBalances) {
-			if (!userBankBalance.balance.eq(ZERO)) {
+			if (!userBankBalance.balance.eq(QUOTE_ASSET_BANK_INDEX)) {
 				const bankAccount = this.getBankAccount(userBankBalance.bankIndex);
 				bankAccountMap.set(userBankBalance.bankIndex.toNumber(), {
 					pubkey: bankAccount.pubkey,

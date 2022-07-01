@@ -19,7 +19,7 @@ use crate::math::auction::{
 };
 use crate::math::casting::cast;
 use crate::math::fees::calculate_order_fee_tier;
-use crate::math::{amm, fees, margin::*, orders::*, repeg};
+use crate::math::{amm, fees, margin::*, orders::*};
 use crate::math_error;
 use crate::order_validation::{
     check_if_order_can_be_canceled, get_base_asset_amount_for_order, validate_order,
@@ -352,11 +352,15 @@ pub fn fill_order(
     let oracle_price: i128;
     {
         let market = &mut market_map.get_ref_mut(&market_index)?;
-        let oracle_price_data = &market.amm.get_oracle_price(oracle, clock_slot)?;
+        validate!(
+            (clock_slot == market.amm.last_update_slot || market.amm.curve_update_intensity == 0),
+            ErrorCode::AMMNotUpdatedInSameSlot,
+            "AMM must be updated in a prior instruction within same slot"
+        )?;
 
-        let prepeg_budget = repeg::calculate_fee_pool(market)?;
+        oracle_mark_spread_pct_before = market.amm.last_oracle_mark_spread_pct;
 
-        let mark_price_prefore = market.amm.mark_price()?;
+        let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
 
         is_oracle_valid = amm::is_oracle_valid(
             &market.amm,
@@ -364,32 +368,8 @@ pub fn fill_order(
             &state.oracle_guard_rails.validity,
         )?;
 
-        controller::repeg::prepeg(
-            market,
-            mark_price_prefore,
-            oracle_price_data,
-            prepeg_budget,
-            // now,
-        )?;
         mark_price_before = market.amm.mark_price()?;
-
-        oracle_mark_spread_pct_before = amm::calculate_oracle_mark_spread_pct(
-            &market.amm,
-            oracle_price_data,
-            Some(mark_price_before),
-        )?;
         oracle_price = oracle_price_data.price;
-
-        if is_oracle_valid {
-            amm::update_oracle_price_twap(
-                &mut market.amm,
-                now,
-                oracle_price_data,
-                Some(mark_price_before),
-            )?;
-        }
-
-        amm::calculate_spreads(&mut market.amm)?;
     }
 
     let valid_oracle_price = if is_oracle_valid {
@@ -425,7 +405,7 @@ pub fn fill_order(
     {
         let market = market_map.get_ref_mut(&market_index)?;
         mark_price_after = market.amm.mark_price()?;
-        let oracle_price_data = &market.amm.get_oracle_price(oracle, clock_slot)?;
+        let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
         oracle_mark_spread_pct_after = amm::calculate_oracle_mark_spread_pct(
             &market.amm,
             oracle_price_data,
@@ -498,14 +478,31 @@ pub fn fill_order(
             .total_fee_minus_distributions
             .checked_add(fee_to_market)
             .ok_or_else(math_error!())?;
-    }
-
-    {
-        let position_index = get_position_index(&user.positions, market_index)?;
-        user.positions[position_index].unsettled_pnl = user.positions[position_index]
-            .unsettled_pnl
-            .checked_sub(user_fee) // negative fee is rebate, so subtract to increase pnl
+        market.amm.net_revenue_since_last_funding = market
+            .amm
+            .net_revenue_since_last_funding
+            .checked_add(fee_to_market as i64)
             .ok_or_else(math_error!())?;
+
+        let position_index = get_position_index(&user.positions, market_index)?;
+
+        controller::position::update_unsettled_pnl(
+            &mut user.positions[position_index],
+            market,
+            -user_fee,
+        )?;
+
+        if filler_key != user_key {
+            let filler = &mut load_mut(filler)?;
+            let position_index = get_position_index(&filler.positions, market_index)
+                .or_else(|_| add_new_position(&mut filler.positions, market_index))?;
+
+            controller::position::update_unsettled_pnl(
+                &mut filler.positions[position_index],
+                market,
+                cast(filler_reward)?,
+            )?;
+        }
     }
 
     // Increment the user's total fee variables
@@ -529,17 +526,6 @@ pub fn fill_order(
         .total_referee_discount
         .checked_add(referee_discount)
         .ok_or_else(math_error!())?;
-
-    if filler_key != user_key {
-        let filler = &mut load_mut(filler)?;
-        let position_index = get_position_index(&filler.positions, market_index)
-            .or_else(|_| add_new_position(&mut filler.positions, market_index))?;
-
-        filler.positions[position_index].unsettled_pnl = filler.positions[position_index]
-            .unsettled_pnl
-            .checked_add(cast(filler_reward)?)
-            .ok_or_else(math_error!())?;
-    }
 
     // Update the referrer's collateral with their reward
     if let Some(referrer) = referrer {
@@ -772,10 +758,7 @@ pub fn execute_market_order(
         )?
     };
 
-    user.positions[position_index].unsettled_pnl = user.positions[position_index]
-        .unsettled_pnl
-        .checked_add(pnl)
-        .ok_or_else(math_error!())?;
+    controller::position::update_unsettled_pnl(&mut user.positions[position_index], market, pnl)?;
 
     if base_asset_amount < market.amm.minimum_base_asset_trade_size {
         msg!("base asset amount {}", base_asset_amount);
@@ -916,10 +899,7 @@ pub fn execute_non_market_order(
         maker_limit_price,
     )?;
 
-    user.positions[position_index].unsettled_pnl = user.positions[position_index]
-        .unsettled_pnl
-        .checked_add(pnl)
-        .ok_or_else(math_error!())?;
+    controller::position::update_unsettled_pnl(&mut user.positions[position_index], market, pnl)?;
 
     if !reduce_only && order_reduce_only {
         return Err(ErrorCode::ReduceOnlyOrderIncreasedRisk);

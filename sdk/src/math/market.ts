@@ -3,10 +3,9 @@ import { MarketAccount, PositionDirection } from '../types';
 import {
 	calculateAmmReservesAfterSwap,
 	calculatePrice,
-	// calculateSpreadReserves,
-	calculatePrepegSpreadReserves,
+	calculateUpdatedAMMSpreadReserves,
 	getSwapDirection,
-	calculatePrepegAMM,
+	calculateUpdatedAMM,
 } from './amm';
 import { OraclePriceData } from '../oracles/types';
 
@@ -20,7 +19,7 @@ export function calculateMarkPrice(
 	market: MarketAccount,
 	oraclePriceData: OraclePriceData
 ): BN {
-	const newAmm = calculatePrepegAMM(market.amm, oraclePriceData);
+	const newAmm = calculateUpdatedAMM(market.amm, oraclePriceData);
 	return calculatePrice(
 		newAmm.baseAssetReserve,
 		newAmm.quoteAssetReserve,
@@ -39,7 +38,7 @@ export function calculateBidPrice(
 	oraclePriceData: OraclePriceData
 ): BN {
 	const { baseAssetReserve, quoteAssetReserve, newPeg } =
-		calculatePrepegSpreadReserves(
+		calculateUpdatedAMMSpreadReserves(
 			market.amm,
 			PositionDirection.SHORT,
 			oraclePriceData
@@ -59,7 +58,7 @@ export function calculateAskPrice(
 	oraclePriceData: OraclePriceData
 ): BN {
 	const { baseAssetReserve, quoteAssetReserve, newPeg } =
-		calculatePrepegSpreadReserves(
+		calculateUpdatedAMMSpreadReserves(
 			market.amm,
 			PositionDirection.LONG,
 			oraclePriceData

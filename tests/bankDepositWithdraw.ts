@@ -607,6 +607,7 @@ describe('bank deposit and withdraw', () => {
 			depositAmount,
 			bankIndex,
 			secondUserClearingHouseUSDCAccount,
+			undefined,
 			true
 		);
 		await printTxLogs(connection, txSig);

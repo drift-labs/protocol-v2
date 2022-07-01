@@ -335,6 +335,11 @@
           "name": "authority",
           "isMut": false,
           "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
         }
       ],
       "args": [
@@ -487,12 +492,6 @@
         {
           "name": "takerOrderId",
           "type": "u64"
-        },
-        {
-          "name": "makerOrderId",
-          "type": {
-            "option": "u64"
-          }
         }
       ]
     },
@@ -525,6 +524,32 @@
           "name": "params",
           "type": {
             "defined": "OrderParams"
+          }
+        }
+      ]
+    },
+    {
+      "name": "updateAmms",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndexes",
+          "type": {
+            "array": [
+              "u64",
+              5
+            ]
           }
         }
       ]
@@ -1636,8 +1661,16 @@
           {
             "name": "pnlPool",
             "type": {
-              "defined": "PNLPool"
+              "defined": "PoolBalance"
             }
+          },
+          {
+            "name": "unsettledProfit",
+            "type": "u128"
+          },
+          {
+            "name": "unsettledLoss",
+            "type": "u128"
           },
           {
             "name": "padding0",
@@ -1985,7 +2018,7 @@
       }
     },
     {
-      "name": "PNLPool",
+      "name": "PoolBalance",
       "type": {
         "kind": "struct",
         "fields": [
@@ -2012,6 +2045,34 @@
             }
           },
           {
+            "name": "lastOraclePrice",
+            "type": "i128"
+          },
+          {
+            "name": "lastOracleConfPct",
+            "type": "u64"
+          },
+          {
+            "name": "lastOracleDelay",
+            "type": "i64"
+          },
+          {
+            "name": "lastOracleNormalisedPrice",
+            "type": "i128"
+          },
+          {
+            "name": "lastOraclePriceTwap",
+            "type": "i128"
+          },
+          {
+            "name": "lastOraclePriceTwapTs",
+            "type": "i64"
+          },
+          {
+            "name": "lastOracleMarkSpreadPct",
+            "type": "i128"
+          },
+          {
             "name": "baseAssetReserve",
             "type": "u128"
           },
@@ -2020,28 +2081,28 @@
             "type": "u128"
           },
           {
+            "name": "sqrtK",
+            "type": "u128"
+          },
+          {
+            "name": "pegMultiplier",
+            "type": "u128"
+          },
+          {
             "name": "terminalQuoteAssetReserve",
             "type": "u128"
           },
           {
-            "name": "cumulativeRepegRebateLong",
+            "name": "netBaseAssetAmount",
+            "type": "i128"
+          },
+          {
+            "name": "quoteAssetAmountLong",
             "type": "u128"
           },
           {
-            "name": "cumulativeRepegRebateShort",
+            "name": "quoteAssetAmountShort",
             "type": "u128"
-          },
-          {
-            "name": "cumulativeFundingRateLong",
-            "type": "i128"
-          },
-          {
-            "name": "cumulativeFundingRateShort",
-            "type": "i128"
-          },
-          {
-            "name": "cumulativeFundingRateLp",
-            "type": "i128"
           },
           {
             "name": "lastFundingRate",
@@ -2056,8 +2117,28 @@
             "type": "i64"
           },
           {
-            "name": "lastOraclePriceTwap",
+            "name": "cumulativeFundingRateLong",
             "type": "i128"
+          },
+          {
+            "name": "cumulativeFundingRateShort",
+            "type": "i128"
+          },
+          {
+            "name": "cumulativeFundingRateLp",
+            "type": "i128"
+          },
+          {
+            "name": "cumulativeRepegRebateLong",
+            "type": "u128"
+          },
+          {
+            "name": "cumulativeRepegRebateShort",
+            "type": "u128"
+          },
+          {
+            "name": "markStd",
+            "type": "u64"
           },
           {
             "name": "lastMarkPriceTwap",
@@ -2068,64 +2149,8 @@
             "type": "i64"
           },
           {
-            "name": "sqrtK",
-            "type": "u128"
-          },
-          {
-            "name": "pegMultiplier",
-            "type": "u128"
-          },
-          {
-            "name": "totalFee",
-            "type": "u128"
-          },
-          {
-            "name": "totalFeeMinusDistributions",
-            "type": "u128"
-          },
-          {
-            "name": "totalMmFee",
-            "type": "u128"
-          },
-          {
-            "name": "totalExchangeFee",
-            "type": "u128"
-          },
-          {
-            "name": "netRevenueSinceLastFunding",
-            "type": "i64"
-          },
-          {
-            "name": "totalFeeWithdrawn",
-            "type": "u128"
-          },
-          {
             "name": "minimumQuoteAssetTradeSize",
             "type": "u128"
-          },
-          {
-            "name": "lastOraclePriceTwapTs",
-            "type": "i64"
-          },
-          {
-            "name": "lastOracleNormalisedPrice",
-            "type": "i128"
-          },
-          {
-            "name": "lastOraclePrice",
-            "type": "i128"
-          },
-          {
-            "name": "lastOracleConf",
-            "type": "u64"
-          },
-          {
-            "name": "lastOracleDelay",
-            "type": "i64"
-          },
-          {
-            "name": "lastOracleMarkSpreadPct",
-            "type": "i128"
           },
           {
             "name": "minimumBaseAssetTradeSize",
@@ -2152,36 +2177,12 @@
             "type": "u128"
           },
           {
-            "name": "netBaseAssetAmount",
-            "type": "i128"
-          },
-          {
-            "name": "quoteAssetAmountLong",
-            "type": "u128"
-          },
-          {
-            "name": "quoteAssetAmountShort",
-            "type": "u128"
-          },
-          {
-            "name": "markStd",
-            "type": "u64"
-          },
-          {
-            "name": "longIntensityTime",
-            "type": "i64"
-          },
-          {
             "name": "longIntensityCount",
             "type": "u16"
           },
           {
             "name": "longIntensityVolume",
             "type": "u64"
-          },
-          {
-            "name": "shortIntensityTime",
-            "type": "i64"
           },
           {
             "name": "shortIntensityCount",
@@ -2194,6 +2195,40 @@
           {
             "name": "curveUpdateIntensity",
             "type": "u8"
+          },
+          {
+            "name": "totalFee",
+            "type": "u128"
+          },
+          {
+            "name": "totalMmFee",
+            "type": "u128"
+          },
+          {
+            "name": "totalExchangeFee",
+            "type": "u128"
+          },
+          {
+            "name": "totalFeeMinusDistributions",
+            "type": "u128"
+          },
+          {
+            "name": "totalFeeWithdrawn",
+            "type": "u128"
+          },
+          {
+            "name": "netRevenueSinceLastFunding",
+            "type": "i64"
+          },
+          {
+            "name": "feePool",
+            "type": {
+              "defined": "PoolBalance"
+            }
+          },
+          {
+            "name": "lastUpdateSlot",
+            "type": "u64"
           },
           {
             "name": "padding0",
@@ -2435,6 +2470,10 @@
           },
           {
             "name": "quoteAssetAmount",
+            "type": "u128"
+          },
+          {
+            "name": "quoteEntryAmount",
             "type": "u128"
           },
           {
@@ -3677,36 +3716,46 @@
     },
     {
       "code": 6075,
-      "name": "CantUpdatePNLPoolBalanceType",
-      "msg": "CantUpdatePNLPoolBalanceType"
+      "name": "CantUpdatePoolBalanceType",
+      "msg": "CantUpdatePoolBalanceType"
     },
     {
       "code": 6076,
+      "name": "InsufficientCollateralForSettlingPNL",
+      "msg": "InsufficientCollateralForSettlingPNL"
+    },
+    {
+      "code": 6077,
+      "name": "AMMNotUpdatedInSameSlot",
+      "msg": "AMMNotUpdatedInSameSlot"
+    },
+    {
+      "code": 6078,
       "name": "AuctionNotComplete",
       "msg": "AuctionNotComplete"
     },
     {
-      "code": 6077,
+      "code": 6079,
       "name": "MakerNotFound",
       "msg": "MakerNotFound"
     },
     {
-      "code": 6078,
+      "code": 6080,
       "name": "MakerOrderNotFound",
       "msg": "MakerOrderNotFound"
     },
     {
-      "code": 6079,
+      "code": 6081,
       "name": "CouldNotDeserializeMaker",
       "msg": "CouldNotDeserializeMaker"
     },
     {
-      "code": 6080,
+      "code": 6082,
       "name": "AuctionPriceDoesNotSatisfyMaker",
       "msg": "AuctionPriceDoesNotSatisfyMaker"
     },
     {
-      "code": 6081,
+      "code": 6083,
       "name": "DefaultError",
       "msg": "DefaultError"
     }
