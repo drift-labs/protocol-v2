@@ -220,7 +220,6 @@ describe('liquidity providing', () => {
 		const prevqar = market.amm.quoteAssetReserve;
 
 		console.log('adding liquidity...');
-
 		const txsig = await clearingHouse.addLiquidity(usdcAmount, new BN(0));
 
 		console.log(
@@ -409,5 +408,24 @@ describe('liquidity providing', () => {
 		await traderClearingHouse.closePosition(new BN(0));
 
 		console.log('done!');
+	});
+
+	it('adds additional liquidity to an already open lp', async () => {
+		console.log('adding liquidity...');
+		let lp_amount = new BN(300 * 1e6);
+		const txsig = await clearingHouse.addLiquidity(lp_amount, new BN(0));
+		console.log(
+			'tx logs',
+			(await connection.getTransaction(txsig, { commitment: 'confirmed' })).meta
+				.logMessages
+		);
+		let init_user = clearingHouseUser.getUserAccount();
+
+		await clearingHouse.addLiquidity(lp_amount, new BN(0));
+		let user = clearingHouseUser.getUserAccount();
+
+		let init_tokens = init_user.positions[0].lpTokens;
+		let tokens = user.positions[0].lpTokens;
+		assert(init_tokens.lt(tokens));
 	});
 });

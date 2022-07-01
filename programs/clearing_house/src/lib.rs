@@ -14,8 +14,6 @@ use crate::math::amm::get_update_k_result;
 use crate::state::market::Market;
 use crate::state::{market::AMM, state::*, user::*};
 
-use std::borrow::Borrow;
-
 mod account_loader;
 pub mod context;
 pub mod controller;
@@ -35,7 +33,6 @@ declare_id!("4kApqj1TdRVxK8kPEJ2SDs8aGq53YPnDA4cVxTUuqRkK");
 
 #[program]
 pub mod clearing_house {
-    use std::borrow::BorrowMut;
     use std::cmp::min;
     use std::ops::Div;
     use std::option::Option::Some;
@@ -877,7 +874,7 @@ pub mod clearing_house {
             .ok_or_else(math_error!())?;
         let new_sqrt_k_u192 = bn::U192::from(new_sqrt_k);
 
-        let update_k_result = get_update_k_result(market.borrow(), new_sqrt_k_u192)?;
+        let update_k_result = get_update_k_result(&market, new_sqrt_k_u192)?;
         math::amm::update_k(&mut market, &update_k_result);
 
         Ok(())
@@ -913,9 +910,7 @@ pub mod clearing_house {
         let lp_position = &mut user.positions[position_index];
 
         validate!(
-            !(lp_position.is_lp()
-                || lp_position.has_open_order()
-                || lp_position.is_open_position()),
+            !(lp_position.has_open_order() || lp_position.is_open_position()),
             ErrorCode::CantLPWithMarketPosition
         )?;
 
@@ -946,10 +941,23 @@ pub mod clearing_house {
             .checked_div(peg_multiplier)
             .ok_or_else(math_error!())?;
 
-        lp_position.lp_tokens = user_lp_tokens;
-        lp_position.last_net_base_asset_amount = net_base_asset_amount;
-        lp_position.last_total_fee_minus_distributions = total_fee_minus_distributions;
-        lp_position.last_cumulative_funding_rate = cumulative_funding_rate_lp;
+        // settle the LP first if adding to position
+        if lp_position.is_lp() {
+            // update current stats
+            let mut market = market_map.get_ref_mut(&market_index)?;
+            settle_lp_position(lp_position, lp_position.lp_tokens, &mut market.amm)?;
+        } else {
+            // init position
+            lp_position.last_net_base_asset_amount = net_base_asset_amount;
+            lp_position.last_total_fee_minus_distributions = total_fee_minus_distributions;
+            lp_position.last_cumulative_funding_rate = cumulative_funding_rate_lp;
+        }
+
+        // add token balance
+        lp_position.lp_tokens = lp_position
+            .lp_tokens
+            .checked_add(user_lp_tokens)
+            .ok_or_else(math_error!())?;
 
         // update market state
         let new_sqrt_k = sqrt_k
@@ -959,8 +967,8 @@ pub mod clearing_house {
 
         {
             let mut market = market_map.get_ref_mut(&market_index)?;
-            let update_k_result = get_update_k_result(market.borrow(), new_sqrt_k_u192)?;
-            math::amm::update_k(market.borrow_mut(), &update_k_result);
+            let update_k_result = get_update_k_result(&market, new_sqrt_k_u192)?;
+            math::amm::update_k(&mut market, &update_k_result);
         }
 
         // check margin requirements
