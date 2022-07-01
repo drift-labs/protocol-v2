@@ -88,22 +88,23 @@ describe('liquidity providing', () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
-		clearingHouse = Admin.from(
-			connection,
-			provider.wallet,
-			chProgram.programId,
-			{
-				commitment: 'confirmed',
-			},
-			0,
-			[new BN(0), new BN(1), new BN(2), new BN(3), new BN(4)],
-			[new BN(0)]
-		);
-		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.subscribe();
-
 		const solusdc = await mockOracle(1, -7); // make invalid
 		const oracleInfos = [{ publicKey: solusdc, source: OracleSource.PYTH }];
+
+		clearingHouse = new Admin({
+			connection,
+			wallet: provider.wallet,
+			programID: chProgram.programId,
+			opts: {
+				commitment: 'confirmed',
+			},
+			activeUserId: 0,
+			marketIndexes: [new BN(0), new BN(1), new BN(2), new BN(3), new BN(4)],
+			bankIndexes: [new BN(0)],
+			oracleInfos,
+		});
+		await clearingHouse.initialize(usdcMint.publicKey, true);
+		await clearingHouse.subscribe();
 
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
 		await clearingHouse.initializeMarket(
@@ -118,11 +119,12 @@ describe('liquidity providing', () => {
 			userUSDCAccount.publicKey
 		);
 
-		clearingHouseUser = ClearingHouseUser.from(
+		clearingHouseUser = new ClearingHouseUser({
 			clearingHouse,
-			provider.wallet.publicKey
-		);
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
 		clearingHouseUser.subscribe();
+
 		// setup a new user to trade against lp
 		const traderKp2 = new web3.Keypair();
 		const sig2 = await provider.connection.requestAirdrop(
@@ -136,30 +138,30 @@ describe('liquidity providing', () => {
 			provider,
 			traderKp2.publicKey
 		);
-
-		traderClearingHouse2 = ClearingHouse.from(
-			provider.connection,
-			new Wallet(traderKp2),
-			chProgram.programId,
-			{
+		traderClearingHouse2 = new Admin({
+			connection,
+			wallet: new Wallet(traderKp2),
+			programID: chProgram.programId,
+			opts: {
 				commitment: 'confirmed',
 			},
-			0,
-			[new BN(0), new BN(1), new BN(2), new BN(3), new BN(4)],
-			[new BN(0)],
-			oracleInfos
-		);
-		await traderClearingHouse2.subscribe();
+			activeUserId: 0,
+			marketIndexes: [new BN(0), new BN(1), new BN(2), new BN(3), new BN(4)],
+			bankIndexes: [new BN(0)],
+			oracleInfos,
+		});
 
+		await traderClearingHouse2.subscribe();
 		await traderClearingHouse2.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			traderUSDCAccount2.publicKey
 		);
 
-		traderUser2 = ClearingHouseUser.from(
-			traderClearingHouse2,
-			traderKp2.publicKey
-		);
+		traderUser2 = new ClearingHouseUser({
+			clearingHouse: traderClearingHouse2,
+			userAccountPublicKey:
+				await traderClearingHouse2.getUserAccountPublicKey(),
+		});
 		await traderUser2.subscribe();
 
 		// setup a new user to trade against lp
@@ -176,29 +178,29 @@ describe('liquidity providing', () => {
 			traderKp.publicKey
 		);
 
-		traderClearingHouse = ClearingHouse.from(
-			provider.connection,
-			new Wallet(traderKp),
-			chProgram.programId,
-			{
+		traderClearingHouse = new Admin({
+			connection,
+			wallet: new Wallet(traderKp),
+			programID: chProgram.programId,
+			opts: {
 				commitment: 'confirmed',
 			},
-			0,
-			[new BN(0), new BN(1), new BN(2), new BN(3), new BN(4)],
-			[new BN(0)],
-			oracleInfos
-		);
-		await traderClearingHouse.subscribe();
+			activeUserId: 0,
+			marketIndexes: [new BN(0), new BN(1), new BN(2), new BN(3), new BN(4)],
+			bankIndexes: [new BN(0)],
+			oracleInfos,
+		});
 
+		await traderClearingHouse.subscribe();
 		await traderClearingHouse.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			traderUSDCAccount.publicKey
 		);
 
-		traderUser = ClearingHouseUser.from(
-			traderClearingHouse,
-			traderKp.publicKey
-		);
+		traderUser = new ClearingHouseUser({
+			clearingHouse: traderClearingHouse,
+			userAccountPublicKey: await traderClearingHouse.getUserAccountPublicKey(),
+		});
 		await traderUser.subscribe();
 	});
 
