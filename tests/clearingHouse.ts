@@ -208,16 +208,12 @@ describe('clearing_house', () => {
 	});
 
 	it('Withdraw Collateral', async () => {
-		//try {
 		const txSig = await clearingHouse.withdraw(
 			usdcAmount,
 			QUOTE_ASSET_BANK_INDEX,
 			userUSDCAccount.publicKey,
 			true
 		);
-		//} catch (e) {
-		//console.error(e)
-		//}
 
 		await clearingHouse.fetchAccounts();
 		assert(clearingHouse.getQuoteAssetTokenAmount().eq(ZERO));
