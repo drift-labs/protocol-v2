@@ -71,16 +71,18 @@ describe('trigger orders', () => {
 			},
 		];
 
-		fillerClearingHouse = Admin.from(
+		fillerClearingHouse = new Admin({
 			connection,
-			provider.wallet,
-			chProgram.programId,
-			undefined,
-			0,
+			wallet: provider.wallet,
+			programID: chProgram.programId,
+			opts: {
+				commitment: 'confirmed',
+			},
+			activeUserId: 0,
 			marketIndexes,
 			bankIndexes,
-			oracleInfos
-		);
+			oracleInfos,
+		});
 		await fillerClearingHouse.initialize(usdcMint.publicKey, true);
 		await fillerClearingHouse.subscribe();
 		await initializeQuoteAssetBank(fillerClearingHouse, usdcMint.publicKey);
@@ -99,10 +101,10 @@ describe('trigger orders', () => {
 			userUSDCAccount.publicKey
 		);
 
-		fillerClearingHouseUser = ClearingHouseUser.from(
-			fillerClearingHouse,
-			provider.wallet.publicKey
-		);
+		fillerClearingHouseUser = new ClearingHouseUser({
+			clearingHouse: fillerClearingHouse,
+			userAccountPublicKey: await fillerClearingHouse.getUserAccountPublicKey(),
+		});
 		await fillerClearingHouseUser.subscribe();
 	});
 
@@ -130,25 +132,27 @@ describe('trigger orders', () => {
 			provider,
 			keypair.publicKey
 		);
-		const clearingHouse = ClearingHouse.from(
+		const clearingHouse = new ClearingHouse({
 			connection,
-			wallet,
-			chProgram.programId,
-			undefined,
-			0,
+			wallet: wallet,
+			programID: chProgram.programId,
+			opts: {
+				commitment: 'confirmed',
+			},
+			activeUserId: 0,
 			marketIndexes,
 			bankIndexes,
-			oracleInfos
-		);
+			oracleInfos,
+		});
 		await clearingHouse.subscribe();
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		const clearingHouseUser = ClearingHouseUser.from(
+		const clearingHouseUser = new ClearingHouseUser({
 			clearingHouse,
-			keypair.publicKey
-		);
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
 		await clearingHouseUser.subscribe();
 
 		const marketIndex = new BN(0);
@@ -223,25 +227,27 @@ describe('trigger orders', () => {
 			provider,
 			keypair.publicKey
 		);
-		const clearingHouse = ClearingHouse.from(
+		const clearingHouse = new ClearingHouse({
 			connection,
-			wallet,
-			chProgram.programId,
-			undefined,
-			0,
+			wallet: wallet,
+			programID: chProgram.programId,
+			opts: {
+				commitment: 'confirmed',
+			},
+			activeUserId: 0,
 			marketIndexes,
 			bankIndexes,
-			oracleInfos
-		);
+			oracleInfos,
+		});
 		await clearingHouse.subscribe();
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		const clearingHouseUser = ClearingHouseUser.from(
+		const clearingHouseUser = new ClearingHouseUser({
 			clearingHouse,
-			keypair.publicKey
-		);
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
 		await clearingHouseUser.subscribe();
 
 		const marketIndex = new BN(0);
@@ -317,25 +323,27 @@ describe('trigger orders', () => {
 			provider,
 			keypair.publicKey
 		);
-		const clearingHouse = ClearingHouse.from(
+		const clearingHouse = new ClearingHouse({
 			connection,
-			wallet,
-			chProgram.programId,
-			undefined,
-			0,
+			wallet: wallet,
+			programID: chProgram.programId,
+			opts: {
+				commitment: 'confirmed',
+			},
+			activeUserId: 0,
 			marketIndexes,
 			bankIndexes,
-			oracleInfos
-		);
+			oracleInfos,
+		});
 		await clearingHouse.subscribe();
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		const clearingHouseUser = ClearingHouseUser.from(
+		const clearingHouseUser = new ClearingHouseUser({
 			clearingHouse,
-			keypair.publicKey
-		);
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
 		await clearingHouseUser.subscribe();
 
 		const marketIndex = new BN(0);
@@ -410,25 +418,27 @@ describe('trigger orders', () => {
 			provider,
 			keypair.publicKey
 		);
-		const clearingHouse = ClearingHouse.from(
+		const clearingHouse = new ClearingHouse({
 			connection,
-			wallet,
-			chProgram.programId,
-			undefined,
-			0,
+			wallet: wallet,
+			programID: chProgram.programId,
+			opts: {
+				commitment: 'confirmed',
+			},
+			activeUserId: 0,
 			marketIndexes,
 			bankIndexes,
-			oracleInfos
-		);
+			oracleInfos,
+		});
 		await clearingHouse.subscribe();
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		const clearingHouseUser = ClearingHouseUser.from(
+		const clearingHouseUser = new ClearingHouseUser({
 			clearingHouse,
-			keypair.publicKey
-		);
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
 		await clearingHouseUser.subscribe();
 
 		const marketIndex = new BN(0);
@@ -504,25 +514,27 @@ describe('trigger orders', () => {
 			provider,
 			keypair.publicKey
 		);
-		const clearingHouse = ClearingHouse.from(
+		const clearingHouse = new ClearingHouse({
 			connection,
-			wallet,
-			chProgram.programId,
-			undefined,
-			0,
+			wallet: wallet,
+			programID: chProgram.programId,
+			opts: {
+				commitment: 'confirmed',
+			},
+			activeUserId: 0,
 			marketIndexes,
 			bankIndexes,
-			oracleInfos
-		);
+			oracleInfos,
+		});
 		await clearingHouse.subscribe();
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		const clearingHouseUser = ClearingHouseUser.from(
+		const clearingHouseUser = new ClearingHouseUser({
 			clearingHouse,
-			keypair.publicKey
-		);
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
 		await clearingHouseUser.subscribe();
 
 		const marketIndex = new BN(0);
@@ -597,25 +609,27 @@ describe('trigger orders', () => {
 			provider,
 			keypair.publicKey
 		);
-		const clearingHouse = ClearingHouse.from(
+		const clearingHouse = new ClearingHouse({
 			connection,
-			wallet,
-			chProgram.programId,
-			undefined,
-			0,
+			wallet: wallet,
+			programID: chProgram.programId,
+			opts: {
+				commitment: 'confirmed',
+			},
+			activeUserId: 0,
 			marketIndexes,
 			bankIndexes,
-			oracleInfos
-		);
+			oracleInfos,
+		});
 		await clearingHouse.subscribe();
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		const clearingHouseUser = ClearingHouseUser.from(
+		const clearingHouseUser = new ClearingHouseUser({
 			clearingHouse,
-			keypair.publicKey
-		);
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
 		await clearingHouseUser.subscribe();
 
 		const marketIndex = new BN(0);
@@ -691,25 +705,27 @@ describe('trigger orders', () => {
 			provider,
 			keypair.publicKey
 		);
-		const clearingHouse = ClearingHouse.from(
+		const clearingHouse = new ClearingHouse({
 			connection,
-			wallet,
-			chProgram.programId,
-			undefined,
-			0,
+			wallet: wallet,
+			programID: chProgram.programId,
+			opts: {
+				commitment: 'confirmed',
+			},
+			activeUserId: 0,
 			marketIndexes,
 			bankIndexes,
-			oracleInfos
-		);
+			oracleInfos,
+		});
 		await clearingHouse.subscribe();
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		const clearingHouseUser = ClearingHouseUser.from(
+		const clearingHouseUser = new ClearingHouseUser({
 			clearingHouse,
-			keypair.publicKey
-		);
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
 		await clearingHouseUser.subscribe();
 
 		const marketIndex = new BN(0);
@@ -784,25 +800,27 @@ describe('trigger orders', () => {
 			provider,
 			keypair.publicKey
 		);
-		const clearingHouse = ClearingHouse.from(
+		const clearingHouse = new ClearingHouse({
 			connection,
-			wallet,
-			chProgram.programId,
-			undefined,
-			0,
+			wallet: wallet,
+			programID: chProgram.programId,
+			opts: {
+				commitment: 'confirmed',
+			},
+			activeUserId: 0,
 			marketIndexes,
 			bankIndexes,
-			oracleInfos
-		);
+			oracleInfos,
+		});
 		await clearingHouse.subscribe();
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		const clearingHouseUser = ClearingHouseUser.from(
+		const clearingHouseUser = new ClearingHouseUser({
 			clearingHouse,
-			keypair.publicKey
-		);
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
 		await clearingHouseUser.subscribe();
 
 		const marketIndex = new BN(0);

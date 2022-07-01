@@ -77,18 +77,18 @@ describe('amm spread: market order', () => {
 		const bankIndexes = [new BN(0)];
 		const oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
 
-		clearingHouse = Admin.from(
+		clearingHouse = new Admin({
 			connection,
-			provider.wallet,
-			chProgram.programId,
-			{
+			wallet: provider.wallet,
+			programID: chProgram.programId,
+			opts: {
 				commitment: 'confirmed',
 			},
-			0,
+			activeUserId: 0,
 			marketIndexes,
 			bankIndexes,
-			oracleInfos
-		);
+			oracleInfos,
+		});
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
 
@@ -143,10 +143,10 @@ describe('amm spread: market order', () => {
 			userUSDCAccount.publicKey
 		);
 
-		clearingHouseUser = ClearingHouseUser.from(
+		clearingHouseUser = new ClearingHouseUser({
 			clearingHouse,
-			provider.wallet.publicKey
-		);
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
 		await clearingHouseUser.subscribe();
 	});
 
@@ -245,13 +245,12 @@ describe('amm spread: market order', () => {
 		assert(firstPosition.baseAssetAmount.eq(baseAssetAmount));
 		console.log(
 			'expectedQuoteAssetAmount:',
-			firstPosition.quoteAssetAmount.toString(),
+			firstPosition.quoteEntryAmount.toString(),
 			expectedQuoteAssetAmount.toString()
 		);
-		assert(firstPosition.quoteAssetAmount.eq(expectedQuoteAssetAmount));
+		assert(firstPosition.quoteEntryAmount.eq(expectedQuoteAssetAmount));
 
-		const tradeHistoryRecord =
-			eventSubscriber.getEventsArray('TradeRecord')[0].data;
+		const tradeHistoryRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
 
 		assert.ok(tradeHistoryRecord.baseAssetAmount.eq(baseAssetAmount));
 		assert.ok(tradeHistoryRecord.quoteAssetAmount.eq(expectedQuoteAssetAmount));
@@ -263,7 +262,7 @@ describe('amm spread: market order', () => {
 			tradeHistoryRecord.quoteAssetAmountSurplus.toString()
 		);
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0].data;
+		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 		assert(orderRecord.quoteAssetAmountSurplus.eq(expectedFeeToMarket));
 
 		await clearingHouse.closePosition(marketIndex);
@@ -342,8 +341,7 @@ describe('amm spread: market order', () => {
 		const unrealizedPnl = clearingHouseUser.getUnrealizedPNL();
 		console.log('unrealized pnl', unrealizedPnl.toString());
 
-		const tradeHistoryRecord =
-			eventSubscriber.getEventsArray('TradeRecord')[0].data;
+		const tradeHistoryRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
 
 		assert.ok(tradeHistoryRecord.baseAssetAmount.eq(expectedBaseAssetAmount));
 		assert.ok(tradeHistoryRecord.quoteAssetAmount.eq(quoteAssetAmount));
@@ -353,7 +351,7 @@ describe('amm spread: market order', () => {
 			tradeHistoryRecord.quoteAssetAmountSurplus.toString()
 		);
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0].data;
+		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 		assert(orderRecord.quoteAssetAmountSurplus.eq(new BN(250)));
 
 		await clearingHouse.closePosition(marketIndex);
@@ -453,8 +451,7 @@ describe('amm spread: market order', () => {
 		const unrealizedPnl = clearingHouseUser.getUnrealizedPNL();
 		console.log('unrealized pnl', unrealizedPnl.toString());
 
-		const tradeHistoryRecord =
-			eventSubscriber.getEventsArray('TradeRecord')[0].data;
+		const tradeHistoryRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
 
 		assert.ok(tradeHistoryRecord.baseAssetAmount.eq(baseAssetAmount));
 		assert.ok(tradeHistoryRecord.quoteAssetAmount.eq(expectedQuoteAssetAmount));
@@ -464,7 +461,7 @@ describe('amm spread: market order', () => {
 			tradeHistoryRecord.quoteAssetAmountSurplus.toString()
 		);
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0].data;
+		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 		console.log(orderRecord.quoteAssetAmountSurplus.toString());
 		assert(orderRecord.quoteAssetAmountSurplus.eq(new BN(250)));
 
@@ -554,8 +551,7 @@ describe('amm spread: market order', () => {
 		const unrealizedPnl = clearingHouseUser.getUnrealizedPNL();
 		console.log('unrealized pnl', unrealizedPnl.toString());
 
-		const tradeHistoryRecord =
-			eventSubscriber.getEventsArray('TradeRecord')[0].data;
+		const tradeHistoryRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
 
 		assert.ok(tradeHistoryRecord.baseAssetAmount.eq(expectedBaseAssetAmount));
 		assert.ok(tradeHistoryRecord.quoteAssetAmount.eq(quoteAssetAmount));
@@ -565,7 +561,7 @@ describe('amm spread: market order', () => {
 			tradeHistoryRecord.quoteAssetAmountSurplus.toString()
 		);
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0].data;
+		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 		console.log(orderRecord.quoteAssetAmountSurplus.toString());
 		assert(orderRecord.quoteAssetAmountSurplus.eq(new BN(250)));
 
@@ -746,7 +742,7 @@ describe('amm spread: market order', () => {
 
 		const firstPosition = clearingHouseUser.getUserAccount().positions[0];
 		assert(firstPosition.baseAssetAmount.eq(baseAssetAmount));
-		assert(firstPosition.quoteAssetAmount.eq(expectedQuoteAssetAmount));
+		assert(firstPosition.quoteEntryAmount.eq(expectedQuoteAssetAmount));
 
 		await clearingHouse.closePosition(marketIndex);
 
@@ -817,7 +813,7 @@ describe('amm spread: market order', () => {
 
 		const firstPosition = clearingHouseUser.getUserAccount().positions[0];
 		assert(firstPosition.baseAssetAmount.abs().eq(baseAssetAmount));
-		assert(firstPosition.quoteAssetAmount.eq(expectedQuoteAssetAmount));
+		assert(firstPosition.quoteEntryAmount.eq(expectedQuoteAssetAmount));
 
 		await clearingHouse.closePosition(marketIndex);
 
@@ -940,10 +936,9 @@ describe('amm spread: market order', () => {
 			convertToNumber(firstPosition.quoteAssetAmount),
 			convertToNumber(expectedQuoteAssetAmount)
 		);
-		assert(firstPosition.quoteAssetAmount.eq(expectedQuoteAssetAmount)); //todo
+		assert(firstPosition.quoteEntryAmount.eq(expectedQuoteAssetAmount)); //todo
 
-		const tradeHistoryRecord =
-			eventSubscriber.getEventsArray('TradeRecord')[0].data;
+		const tradeHistoryRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
 
 		assert.ok(tradeHistoryRecord.baseAssetAmount.eq(baseAssetAmount));
 		assert.ok(tradeHistoryRecord.quoteAssetAmount.eq(expectedQuoteAssetAmount));
@@ -955,7 +950,7 @@ describe('amm spread: market order', () => {
 			tradeHistoryRecord.quoteAssetAmountSurplus.toString()
 		);
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0].data;
+		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 		assert(orderRecord.quoteAssetAmountSurplus.eq(expectedFeeToMarket));
 
 		const numCloses = 10;

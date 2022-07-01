@@ -1,12 +1,12 @@
 import {
-	Event,
-	EventData,
 	EventMap,
 	EventSubscriptionOrderBy,
 	EventSubscriptionOrderDirection,
 	EventType,
 	SortFn,
+	Event,
 } from './types';
+import { TradeRecord } from '../types';
 
 function clientSortAscFn(): 'less than' {
 	return 'less than';
@@ -17,23 +17,21 @@ function clientSortDescFn(): 'greater than' {
 }
 
 function defaultBlockchainSortFn(
-	currentRecord: Event<EventType, EventData>,
-	newRecord: Event<EventType, EventData>
+	currentEvent: EventMap[EventType],
+	newEvent: EventMap[EventType]
 ): 'less than' | 'greater than' {
-	return currentRecord.slot <= newRecord.slot ? 'less than' : 'greater than';
+	return currentEvent.slot <= newEvent.slot ? 'less than' : 'greater than';
 }
 
 function tradeRecordSortFn(
-	currentRecord: Event<'TradeRecord', EventMap['TradeRecord']>,
-	newRecord: Event<'TradeRecord', EventMap['TradeRecord']>
+	currentEvent: Event<TradeRecord>,
+	newEvent: Event<TradeRecord>
 ): 'less than' | 'greater than' {
-	if (!currentRecord.data.marketIndex.eq(newRecord.data.marketIndex)) {
-		return currentRecord.data.ts.lte(newRecord.data.ts)
-			? 'less than'
-			: 'greater than';
+	if (!currentEvent.marketIndex.eq(newEvent.marketIndex)) {
+		return currentEvent.ts.lte(newEvent.ts) ? 'less than' : 'greater than';
 	}
 
-	return currentRecord.data.recordId.lte(newRecord.data.recordId)
+	return currentEvent.recordId.lte(newEvent.recordId)
 		? 'less than'
 		: 'greater than';
 }

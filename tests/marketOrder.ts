@@ -85,16 +85,18 @@ describe('market order', () => {
 			{ publicKey: btcUsd, source: OracleSource.PYTH },
 		];
 
-		clearingHouse = Admin.from(
+		clearingHouse = new Admin({
 			connection,
-			provider.wallet,
-			chProgram.programId,
-			undefined,
-			0,
+			wallet: provider.wallet,
+			programID: chProgram.programId,
+			opts: {
+				commitment: 'confirmed',
+			},
+			activeUserId: 0,
 			marketIndexes,
 			bankIndexes,
-			oracleInfos
-		);
+			oracleInfos,
+		});
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
@@ -121,10 +123,10 @@ describe('market order', () => {
 			userUSDCAccount.publicKey
 		);
 
-		clearingHouseUser = ClearingHouseUser.from(
+		clearingHouseUser = new ClearingHouseUser({
 			clearingHouse,
-			provider.wallet.publicKey
-		);
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
 		await clearingHouseUser.subscribe();
 
 		discountMint = await Token.createMint(
@@ -158,16 +160,18 @@ describe('market order', () => {
 			provider,
 			fillerKeyPair.publicKey
 		);
-		fillerClearingHouse = ClearingHouse.from(
+		fillerClearingHouse = new ClearingHouse({
 			connection,
-			new Wallet(fillerKeyPair),
-			chProgram.programId,
-			undefined,
-			0,
+			wallet: new Wallet(fillerKeyPair),
+			programID: chProgram.programId,
+			opts: {
+				commitment: 'confirmed',
+			},
+			activeUserId: 0,
 			marketIndexes,
 			bankIndexes,
-			oracleInfos
-		);
+			oracleInfos,
+		});
 		await fillerClearingHouse.subscribe();
 
 		await fillerClearingHouse.initializeUserAccountAndDepositCollateral(
@@ -175,10 +179,10 @@ describe('market order', () => {
 			fillerUSDCAccount.publicKey
 		);
 
-		fillerUser = ClearingHouseUser.from(
-			fillerClearingHouse,
-			fillerKeyPair.publicKey
-		);
+		fillerUser = new ClearingHouseUser({
+			clearingHouse: fillerClearingHouse,
+			userAccountPublicKey: await fillerClearingHouse.getUserAccountPublicKey(),
+		});
 		await fillerUser.subscribe();
 	});
 
@@ -225,15 +229,14 @@ describe('market order', () => {
 		assert(firstPosition.baseAssetAmount.eq(baseAssetAmount));
 
 		const expectedQuoteAssetAmount = new BN(1000003);
-		assert(firstPosition.quoteAssetAmount.eq(expectedQuoteAssetAmount));
+		assert(firstPosition.quoteEntryAmount.eq(expectedQuoteAssetAmount));
 
-		const tradeHistoryRecord =
-			eventSubscriber.getEventsArray('TradeRecord')[0].data;
+		const tradeHistoryRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
 
 		assert.ok(tradeHistoryRecord.baseAssetAmount.eq(baseAssetAmount));
 		assert.ok(tradeHistoryRecord.quoteAssetAmount.eq(expectedQuoteAssetAmount));
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0].data;
+		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 		const expectedOrderId = new BN(1);
 		const expectedTradeRecordId = new BN(1);
 		const expectedFee = new BN(1000);
@@ -245,7 +248,9 @@ describe('market order', () => {
 		assert(
 			orderRecord.user.equals(await clearingHouseUser.getUserAccountPublicKey())
 		);
-		assert(orderRecord.authority.equals(clearingHouseUser.authority));
+		assert(
+			orderRecord.authority.equals(clearingHouseUser.getUserAccount().authority)
+		);
 		assert(orderRecord.baseAssetAmountFilled.eq(baseAssetAmount));
 		assert(orderRecord.quoteAssetAmountFilled.eq(expectedQuoteAssetAmount));
 		assert(orderRecord.fillerReward.eq(ZERO));
@@ -274,16 +279,15 @@ describe('market order', () => {
 		const firstPosition = clearingHouseUser.getUserAccount().positions[0];
 		assert(firstPosition.baseAssetAmount.eq(ZERO));
 
-		assert(firstPosition.quoteAssetAmount.eq(ZERO));
+		assert(firstPosition.quoteEntryAmount.eq(ZERO));
 
-		const tradeHistoryRecord =
-			eventSubscriber.getEventsArray('TradeRecord')[0].data;
+		const tradeHistoryRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
 
 		assert.ok(tradeHistoryRecord.baseAssetAmount.eq(baseAssetAmount));
 		const expectedQuoteAssetAmount = new BN(1000002);
 		assert.ok(tradeHistoryRecord.quoteAssetAmount.eq(expectedQuoteAssetAmount));
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0].data;
+		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 		const expectedOrderId = new BN(2);
 		const expectedTradeRecordId = new BN(2);
 		const expectedFee = new BN(1000);
@@ -295,7 +299,9 @@ describe('market order', () => {
 		assert(
 			orderRecord.user.equals(await clearingHouseUser.getUserAccountPublicKey())
 		);
-		assert(orderRecord.authority.equals(clearingHouseUser.authority));
+		assert(
+			orderRecord.authority.equals(clearingHouseUser.getUserAccount().authority)
+		);
 		assert(orderRecord.baseAssetAmountFilled.eq(baseAssetAmount));
 		assert(orderRecord.quoteAssetAmountFilled.eq(expectedQuoteAssetAmount));
 		assert(orderRecord.fillerReward.eq(ZERO));
@@ -324,15 +330,14 @@ describe('market order', () => {
 		const firstPosition = clearingHouseUser.getUserAccount().positions[0];
 		const baseAssetAmount = new BN(9999999999961);
 		assert(firstPosition.baseAssetAmount.eq(baseAssetAmount));
-		assert(firstPosition.quoteAssetAmount.eq(quoteAssetAmount));
+		assert(firstPosition.quoteEntryAmount.eq(quoteAssetAmount));
 
-		const tradeHistoryRecord =
-			eventSubscriber.getEventsArray('TradeRecord')[0].data;
+		const tradeHistoryRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
 
 		assert.ok(tradeHistoryRecord.baseAssetAmount.eq(baseAssetAmount));
 		assert.ok(tradeHistoryRecord.quoteAssetAmount.eq(quoteAssetAmount));
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0].data;
+		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 		const expectedOrderId = new BN(3);
 		const expectedTradeRecordId = new BN(3);
 		const expectedFee = new BN(1000);
@@ -344,7 +349,9 @@ describe('market order', () => {
 		assert(
 			orderRecord.user.equals(await clearingHouseUser.getUserAccountPublicKey())
 		);
-		assert(orderRecord.authority.equals(clearingHouseUser.authority));
+		assert(
+			orderRecord.authority.equals(clearingHouseUser.getUserAccount().authority)
+		);
 		assert(orderRecord.baseAssetAmountFilled.eq(baseAssetAmount));
 		assert(orderRecord.quoteAssetAmountFilled.eq(quoteAssetAmount));
 		assert(orderRecord.fillerReward.eq(ZERO));
@@ -372,16 +379,15 @@ describe('market order', () => {
 
 		const firstPosition = clearingHouseUser.getUserAccount().positions[0];
 		assert(firstPosition.baseAssetAmount.eq(ZERO));
-		assert(firstPosition.quoteAssetAmount.eq(ZERO));
+		assert(firstPosition.quoteEntryAmount.eq(ZERO));
 
-		const tradeHistoryRecord =
-			eventSubscriber.getEventsArray('TradeRecord')[0].data;
+		const tradeHistoryRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
 
 		const baseAssetAmount = new BN(9999999999961);
 		assert.ok(tradeHistoryRecord.baseAssetAmount.eq(baseAssetAmount));
 		assert.ok(tradeHistoryRecord.quoteAssetAmount.eq(quoteAssetAmount));
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0].data;
+		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 		const expectedOrderId = new BN(4);
 		const expectedTradeRecordId = new BN(4);
 		const expectedFee = new BN(1000);
@@ -393,7 +399,9 @@ describe('market order', () => {
 		assert(
 			orderRecord.user.equals(await clearingHouseUser.getUserAccountPublicKey())
 		);
-		assert(orderRecord.authority.equals(clearingHouseUser.authority));
+		assert(
+			orderRecord.authority.equals(clearingHouseUser.getUserAccount().authority)
+		);
 		assert(orderRecord.baseAssetAmountFilled.eq(baseAssetAmount));
 		assert(orderRecord.quoteAssetAmountFilled.eq(quoteAssetAmount));
 		assert(orderRecord.fillerReward.eq(ZERO));

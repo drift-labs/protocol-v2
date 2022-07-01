@@ -77,7 +77,6 @@ export type CandleResolution =
 
 export type DepositRecord = {
 	ts: BN;
-	recordId: BN;
 	userAuthority: PublicKey;
 	user: PublicKey;
 	direction: {
@@ -216,12 +215,8 @@ export type StateAccount = {
 	discountMint: PublicKey;
 	oracleGuardRails: OracleGuardRails;
 	maxDeposit: BN;
-	orderState: PublicKey;
 	numberOfMarkets: BN;
 	numberOfBanks: BN;
-};
-
-export type OrderStateAccount = {
 	orderFillerRewardStructure: OrderFillerRewardStructure;
 	minOrderQuoteAssetAmount: BN;
 };
@@ -239,6 +234,7 @@ export type MarketAccount = {
 	marginRatioMaintenance: number;
 	marginRatioPartial: number;
 	nextTradeRecordId: BN;
+	pnlPool: PoolBalance;
 };
 
 export type BankAccount = {
@@ -262,6 +258,10 @@ export type BankAccount = {
 	maintenanceAssetWeight: BN;
 	initialLiabilityWeight: BN;
 	maintenanceLiabilityWeight: BN;
+};
+
+export type PoolBalance = {
+	balance: BN;
 };
 
 export type AMM = {
@@ -295,6 +295,7 @@ export type AMM = {
 	quoteAssetAmountLong: BN;
 	quoteAssetAmountShort: BN;
 	terminalQuoteAssetReserve: BN;
+	feePool: PoolBalance;
 };
 
 // # User Account Types
@@ -303,6 +304,7 @@ export type UserPosition = {
 	lastCumulativeFundingRate: BN;
 	marketIndex: BN;
 	quoteAssetAmount: BN;
+	quoteEntryAmount: BN;
 	openOrders: BN;
 	unsettledPnl: BN;
 };

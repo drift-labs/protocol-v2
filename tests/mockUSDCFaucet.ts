@@ -24,17 +24,17 @@ describe('mock_usdc_faucet', () => {
 
 	const mintAmount = new BN(10);
 
-	before(() => {
-		clearingHouse = Admin.from(
+	before(async () => {
+		clearingHouse = new Admin({
 			connection,
-			provider.wallet,
-			chProgram.programId
-		);
+			wallet: provider.wallet,
+			programID: chProgram.programId,
+		});
 
-		userAccount = ClearingHouseUser.from(
+		userAccount = new ClearingHouseUser({
 			clearingHouse,
-			provider.wallet.publicKey
-		);
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
 	});
 
 	after(async () => {

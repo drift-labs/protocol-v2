@@ -29,6 +29,7 @@ import {
 import { Program } from '@project-serum/anchor';
 
 import { Keypair, PublicKey } from '@solana/web3.js';
+import { OracleSource } from '../sdk';
 
 async function updateFundingRateHelper(
 	clearingHouse: ClearingHouse,
@@ -193,6 +194,10 @@ async function cappedSymFundingScenario(
 		periodicity,
 		new BN(priceAction[0] * PEG_PRECISION.toNumber())
 	);
+	await clearingHouse2.accountSubscriber.addOracle({
+		source: OracleSource.PYTH,
+		publicKey: priceFeedAddress,
+	});
 
 	if (fees && fees > 0) {
 		await clearingHouse.updateFundingPaused(true);
@@ -386,17 +391,17 @@ describe('capped funding', () => {
 
 		const bankIndexes = [new BN(0)];
 		const marketIndexes = Array.from({ length: 15 }, (_, i) => new BN(i));
-		clearingHouse = Admin.from(
+		clearingHouse = new Admin({
 			connection,
-			provider.wallet,
-			chProgram.programId,
-			{
+			wallet: provider.wallet,
+			programID: chProgram.programId,
+			opts: {
 				commitment: 'confirmed',
 			},
-			0,
+			activeUserId: 0,
 			marketIndexes,
-			bankIndexes
-		);
+			bankIndexes,
+		});
 
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
@@ -404,10 +409,10 @@ describe('capped funding', () => {
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
 
 		await clearingHouse.initializeUserAccount();
-		userAccount = ClearingHouseUser.from(
+		userAccount = new ClearingHouseUser({
 			clearingHouse,
-			provider.wallet.publicKey
-		);
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
 		await userAccount.subscribe();
 
 		await clearingHouse.deposit(

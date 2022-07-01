@@ -78,18 +78,18 @@ describe('clearing_house', () => {
 
 		solUsd = await mockOracle(1);
 
-		clearingHouse = Admin.from(
+		clearingHouse = new Admin({
 			connection,
-			provider.wallet,
-			chProgram.programId,
-			{
+			wallet: provider.wallet,
+			programID: chProgram.programId,
+			opts: {
 				commitment: 'confirmed',
 			},
-			0,
-			[new BN(0)],
-			[new BN(0)],
-			[{ publicKey: solUsd, source: OracleSource.PYTH }]
-		);
+			activeUserId: 0,
+			marketIndexes: [new BN(0)],
+			bankIndexes: [new BN(0)],
+			oracleInfos: [{ publicKey: solUsd, source: OracleSource.PYTH }],
+		});
 	});
 
 	after(async () => {
@@ -191,12 +191,11 @@ describe('clearing_house', () => {
 
 		assert.ok(user.positions.length == 5);
 		assert.ok(user.positions[0].baseAssetAmount.toNumber() === 0);
-		assert.ok(user.positions[0].quoteAssetAmount.toNumber() === 0);
+		assert.ok(user.positions[0].quoteEntryAmount.toNumber() === 0);
 		assert.ok(user.positions[0].lastCumulativeFundingRate.toNumber() === 0);
 
 		await eventSubscriber.awaitTx(txSig);
-		const depositRecord =
-			eventSubscriber.getEventsArray('DepositRecord')[0].data;
+		const depositRecord = eventSubscriber.getEventsArray('DepositRecord')[0];
 
 		assert.ok(depositRecord.userAuthority.equals(provider.wallet.publicKey));
 		assert.ok(depositRecord.user.equals(userAccountPublicKey));
@@ -233,8 +232,7 @@ describe('clearing_house', () => {
 		assert.ok(userUSDCtoken.eq(usdcAmount));
 
 		await eventSubscriber.awaitTx(txSig);
-		const depositRecord =
-			eventSubscriber.getEventsArray('DepositRecord')[0].data;
+		const depositRecord = eventSubscriber.getEventsArray('DepositRecord')[0];
 
 		assert.ok(depositRecord.userAuthority.equals(provider.wallet.publicKey));
 		assert.ok(depositRecord.user.equals(userAccountPublicKey));
@@ -280,7 +278,7 @@ describe('clearing_house', () => {
 		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9950250)));
 		assert(user.totalFeePaid.eq(new BN(49750)));
 
-		assert.ok(user.positions[0].quoteAssetAmount.eq(new BN(49750000)));
+		assert.ok(user.positions[0].quoteEntryAmount.eq(new BN(49750000)));
 		console.log(user.positions[0].baseAssetAmount);
 		assert.ok(user.positions[0].baseAssetAmount.eq(new BN(497450503674885)));
 
@@ -294,7 +292,7 @@ describe('clearing_house', () => {
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(49750)));
 
 		await eventSubscriber.awaitTx(txSig);
-		const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0].data;
+		const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
 
 		assert.ok(tradeRecord.user.equals(userAccountPublicKey));
 		assert.ok(tradeRecord.recordId.eq(new BN(1)));
@@ -378,6 +376,13 @@ describe('clearing_house', () => {
 			marketIndex
 		);
 
+		await clearingHouse.fetchAccounts();
+		const user0 = clearingHouse.getUserAccount();
+		console.log(
+			'before unsettledPnl:',
+			user0.positions[0].unsettledPnl.toString()
+		);
+
 		await clearingHouse.settlePNL(
 			await clearingHouse.getUserAccountPublicKey(),
 			clearingHouse.getUserAccount(),
@@ -386,13 +391,30 @@ describe('clearing_house', () => {
 
 		await clearingHouse.fetchAccounts();
 		const user = clearingHouse.getUserAccount();
+		console.log(
+			'after unsettledPnl:',
+			user.positions[0].unsettledPnl.toString()
+		);
+		console.log(
+			'quoteAssetAmount:',
+			user.positions[0].quoteAssetAmount.toNumber()
+		);
+		console.log(
+			'quoteEntryAmount:',
+			user.positions[0].quoteEntryAmount.toNumber()
+		);
 
-		assert.ok(user.positions[0].quoteAssetAmount.eq(new BN(24876238)));
+		assert.ok(user.positions[0].quoteAssetAmount.eq(new BN(24875000)));
+		assert.ok(user.positions[0].quoteEntryAmount.eq(new BN(24876238)));
 		console.log(user.positions[0].baseAssetAmount.toNumber());
 		assert.ok(user.positions[0].baseAssetAmount.eq(new BN(248737625303142)));
 
 		console.log(clearingHouse.getQuoteAssetTokenAmount().toString());
-		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9926613)));
+		assert.ok(
+			clearingHouse
+				.getQuoteAssetTokenAmount()
+				.eq(new BN(9926613 - (24876238 - 24875000)))
+		);
 		assert(user.totalFeePaid.eq(new BN(74625)));
 
 		const market = clearingHouse.getMarketAccount(0);
@@ -401,14 +423,14 @@ describe('clearing_house', () => {
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(74625)));
 
 		await eventSubscriber.awaitTx(txSig);
-		const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0].data;
+		const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
 		assert.ok(tradeRecord.user.equals(userAccountPublicKey));
 		assert.ok(tradeRecord.recordId.eq(new BN(2)));
 		assert.ok(
 			JSON.stringify(tradeRecord.direction) ===
 				JSON.stringify(PositionDirection.SHORT)
 		);
-		console.log(tradeRecord.baseAssetAmount.toNumber());
+		// console.log(tradeRecord.baseAssetAmount.toNumber());
 		assert.ok(tradeRecord.baseAssetAmount.eq(new BN(248712878371743)));
 		assert.ok(tradeRecord.liquidation == false);
 		assert.ok(tradeRecord.quoteAssetAmount.eq(new BN(24875000)));
@@ -423,6 +445,13 @@ describe('clearing_house', () => {
 			new BN(0)
 		);
 
+		await clearingHouse.fetchAccounts();
+		const user0 = clearingHouse.getUserAccount();
+		console.log(
+			'before unsettledPnl:',
+			user0.positions[0].unsettledPnl.toString()
+		);
+
 		await clearingHouse.settlePNL(
 			await clearingHouse.getUserAccountPublicKey(),
 			clearingHouse.getUserAccount(),
@@ -431,10 +460,23 @@ describe('clearing_house', () => {
 
 		await clearingHouse.fetchAccounts();
 		const user = clearingHouse.getUserAccount();
-
-		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9875625)));
+		console.log(
+			'after unsettledPnl:',
+			user.positions[0].unsettledPnl.toString()
+		);
+		console.log(
+			'quoteAssetAmount:',
+			user.positions[0].quoteAssetAmount.toNumber()
+		);
+		console.log(
+			'quoteEntryAmount:',
+			user.positions[0].quoteEntryAmount.toNumber()
+		);
+		console.log(clearingHouse.getQuoteAssetTokenAmount().toString());
+		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9875625 - 1)));
 		assert(user.totalFeePaid.eq(new BN(124375)));
-		assert.ok(user.positions[0].quoteAssetAmount.eq(new BN(24875000)));
+		assert.ok(user.positions[0].quoteEntryAmount.eq(new BN(24875000)));
+		assert.ok(user.positions[0].quoteAssetAmount.eq(new BN(24875000 + 1)));
 		console.log(user.positions[0].baseAssetAmount.toString());
 		assert.ok(user.positions[0].baseAssetAmount.eq(new BN(-248762375928202)));
 
@@ -444,7 +486,7 @@ describe('clearing_house', () => {
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(124375)));
 
 		await eventSubscriber.awaitTx(txSig);
-		const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0].data;
+		const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
 		assert.ok(tradeRecord.user.equals(userAccountPublicKey));
 		assert.ok(tradeRecord.recordId.eq(new BN(3)));
 		assert.ok(
@@ -471,7 +513,7 @@ describe('clearing_house', () => {
 		const user: any = await clearingHouse.program.account.user.fetch(
 			userAccountPublicKey
 		);
-		assert.ok(user.positions[0].quoteAssetAmount.eq(new BN(0)));
+		assert.ok(user.positions[0].quoteEntryAmount.eq(new BN(0)));
 		assert.ok(user.positions[0].baseAssetAmount.eq(new BN(0)));
 		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9850749)));
 		assert(user.totalFeePaid.eq(new BN(149250)));
@@ -482,7 +524,7 @@ describe('clearing_house', () => {
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(149250)));
 
 		await eventSubscriber.awaitTx(txSig);
-		const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0].data;
+		const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
 
 		assert.ok(tradeRecord.user.equals(userAccountPublicKey));
 		assert.ok(tradeRecord.recordId.eq(new BN(4)));
@@ -516,14 +558,14 @@ describe('clearing_house', () => {
 		);
 
 		user = await clearingHouse.program.account.user.fetch(userAccountPublicKey);
-		assert.ok(user.positions[0].quoteAssetAmount.eq(new BN(49007476)));
+		assert.ok(user.positions[0].quoteEntryAmount.eq(new BN(49007476)));
 		assert.ok(user.positions[0].baseAssetAmount.eq(new BN(-490122799362653)));
 
 		const market = clearingHouse.getMarketAccount(0);
 		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(-490122799362653)));
 
 		await eventSubscriber.awaitTx(txSig);
-		const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0].data;
+		const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
 
 		assert.ok(tradeRecord.user.equals(userAccountPublicKey));
 		assert.ok(tradeRecord.recordId.eq(new BN(5)));
@@ -540,10 +582,10 @@ describe('clearing_house', () => {
 	it('Partial Liquidation', async () => {
 		const marketIndex = new BN(0);
 
-		userAccount = ClearingHouseUser.from(
+		userAccount = new ClearingHouseUser({
 			clearingHouse,
-			provider.wallet.publicKey
-		);
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
 		await userAccount.subscribe();
 
 		const user0: any = await clearingHouse.program.account.user.fetch(
@@ -616,9 +658,9 @@ describe('clearing_house', () => {
 				.lt(user0.positions[0].baseAssetAmount.abs())
 		);
 		assert.ok(
-			user.positions[0].quoteAssetAmount
+			user.positions[0].quoteEntryAmount
 				.abs()
-				.lt(user0.positions[0].quoteAssetAmount.abs())
+				.lt(user0.positions[0].quoteEntryAmount.abs())
 		);
 
 		const chInsuranceAccountToken = await getTokenAccount(
@@ -630,7 +672,7 @@ describe('clearing_house', () => {
 		assert.ok(chInsuranceAccountToken.amount.eq(new BN(43230)));
 
 		await eventSubscriber.awaitTx(txSig);
-		const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0].data;
+		const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
 
 		assert.ok(tradeRecord.user.equals(userAccountPublicKey));
 		assert.ok(tradeRecord.recordId.eq(new BN(6)));
@@ -644,7 +686,7 @@ describe('clearing_house', () => {
 		assert.ok(tradeRecord.marketIndex.eq(new BN(0)));
 
 		const liquidationRecord =
-			eventSubscriber.getEventsArray('LiquidationRecord')[0].data;
+			eventSubscriber.getEventsArray('LiquidationRecord')[0];
 		assert.ok(liquidationRecord.user.equals(userAccountPublicKey));
 		assert.ok(liquidationRecord.partial);
 		assert.ok(liquidationRecord.baseAssetValue.eq(new BN(55350814)));
@@ -654,8 +696,8 @@ describe('clearing_house', () => {
 		assert.ok(liquidationRecord.feeToInsuranceFund.eq(new BN(43230)));
 		assert.ok(liquidationRecord.liquidator.equals(userAccountPublicKey));
 		assert.ok(liquidationRecord.totalCollateral.eq(new BN(3458404)));
-		assert.ok(liquidationRecord.collateral.eq(new BN(9801742)));
-		assert.ok(liquidationRecord.unrealizedPnl.eq(new BN(-6343338)));
+		assert.ok(liquidationRecord.collateral.eq(new BN(9801742 - 1)));
+		assert.ok(liquidationRecord.unrealizedPnl.eq(new BN(-6343338 + 1)));
 		assert.ok(liquidationRecord.marginRatio.eq(new BN(624)));
 	});
 
@@ -684,10 +726,32 @@ describe('clearing_house', () => {
 		// having the user liquidate themsevles because I'm too lazy to create a separate liquidator account
 		const txSig = await clearingHouse.liquidate(userAccountPublicKey);
 
+		await clearingHouse.fetchAccounts();
+		const user01 = clearingHouse.getUserAccount();
+		console.log(
+			'before unsettledPnl:',
+			user01.positions[0].unsettledPnl.toString()
+		);
+
 		await clearingHouse.settlePNL(
 			await clearingHouse.getUserAccountPublicKey(),
 			clearingHouse.getUserAccount(),
 			new BN(0)
+		);
+
+		await clearingHouse.fetchAccounts();
+		const user1 = clearingHouse.getUserAccount();
+		console.log(
+			'after unsettledPnl:',
+			user1.positions[0].unsettledPnl.toString()
+		);
+		console.log(
+			'quoteAssetAmount:',
+			user1.positions[0].quoteAssetAmount.toNumber()
+		);
+		console.log(
+			'quoteEntryAmount:',
+			user1.positions[0].quoteEntryAmount.toNumber()
 		);
 
 		const state: any = clearingHouse.getStateAccount();
@@ -698,7 +762,7 @@ describe('clearing_house', () => {
 			convertToNumber(user.positions[0].baseAssetAmount, AMM_RESERVE_PRECISION)
 		);
 		assert.ok(user.positions[0].baseAssetAmount.eq(new BN(0)));
-		assert.ok(user.positions[0].quoteAssetAmount.eq(new BN(0)));
+		assert.ok(user.positions[0].quoteEntryAmount.eq(new BN(0)));
 		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(106964)));
 		assert.ok(user.positions[0].lastCumulativeFundingRate.eq(new BN(0)));
 
@@ -711,7 +775,7 @@ describe('clearing_house', () => {
 		assert.ok(chInsuranceAccountToken.amount.eq(new BN(2075558)));
 
 		await eventSubscriber.awaitTx(txSig);
-		const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0].data;
+		const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
 
 		assert.ok(tradeRecord.user.equals(userAccountPublicKey));
 		assert.ok(tradeRecord.recordId.eq(new BN(7)));
@@ -725,7 +789,7 @@ describe('clearing_house', () => {
 		assert.ok(tradeRecord.marketIndex.eq(new BN(0)));
 
 		const liquidationRecord =
-			eventSubscriber.getEventsArray('LiquidationRecord')[0].data;
+			eventSubscriber.getEventsArray('LiquidationRecord')[0];
 		assert.ok(liquidationRecord.user.equals(userAccountPublicKey));
 		assert.ok(!liquidationRecord.partial);
 		assert.ok(liquidationRecord.baseAssetValue.eq(new BN(42788993)));
@@ -735,8 +799,8 @@ describe('clearing_house', () => {
 		assert.ok(liquidationRecord.feeToInsuranceFund.eq(new BN(2032328)));
 		assert.ok(liquidationRecord.liquidator.equals(userAccountPublicKey));
 		assert.ok(liquidationRecord.totalCollateral.eq(new BN(2139292)));
-		assert.ok(liquidationRecord.collateral.eq(new BN(8173634)));
-		assert.ok(liquidationRecord.unrealizedPnl.eq(new BN(-6034342)));
+		assert.ok(liquidationRecord.collateral.eq(new BN(3415174)));
+		assert.ok(liquidationRecord.unrealizedPnl.eq(new BN(-1275882)));
 		assert.ok(liquidationRecord.marginRatio.eq(new BN(499)));
 	});
 

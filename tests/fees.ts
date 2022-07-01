@@ -60,17 +60,17 @@ describe('fees', () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
-		clearingHouse = Admin.from(
+		clearingHouse = new Admin({
 			connection,
-			provider.wallet,
-			chProgram.programId,
-			{
+			wallet: provider.wallet,
+			programID: chProgram.programId,
+			opts: {
 				commitment: 'confirmed',
 			},
-			0,
-			[new BN(0)],
-			[new BN(0)]
-		);
+			activeUserId: 0,
+			marketIndexes: [new BN(0)],
+			bankIndexes: [new BN(0)],
+		});
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
 
@@ -115,15 +115,17 @@ describe('fees', () => {
 			provider,
 			referrerKeyPair.publicKey
 		);
-		referrerClearingHouse = ClearingHouse.from(
+		referrerClearingHouse = new ClearingHouse({
 			connection,
-			new Wallet(referrerKeyPair),
-			chProgram.programId,
-			undefined,
-			0,
-			[new BN(0)],
-			[new BN(0)]
-		);
+			wallet: new Wallet(referrerKeyPair),
+			programID: chProgram.programId,
+			opts: {
+				commitment: 'confirmed',
+			},
+			activeUserId: 0,
+			marketIndexes: [new BN(0)],
+			bankIndexes: [new BN(0)],
+		});
 		await referrerClearingHouse.subscribe();
 
 		[, referrerUserAccountPublicKey] =

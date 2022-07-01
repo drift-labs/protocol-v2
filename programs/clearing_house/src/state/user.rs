@@ -124,6 +124,7 @@ pub struct MarketPosition {
     pub market_index: u64,
     pub base_asset_amount: i128,
     pub quote_asset_amount: u128,
+    pub quote_entry_amount: u128,
     pub last_cumulative_funding_rate: i128,
     pub last_cumulative_repeg_rebate: u128,
     pub last_funding_rate_ts: i64,

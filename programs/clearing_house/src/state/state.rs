@@ -26,9 +26,10 @@ pub struct State {
     pub whitelist_mint: Pubkey,
     pub discount_mint: Pubkey,
     pub oracle_guard_rails: OracleGuardRails,
-    pub order_state: Pubkey,
     pub number_of_markets: u64,
     pub number_of_banks: u64,
+    pub order_filler_reward_structure: OrderFillerRewardStructure,
+    pub min_order_quote_asset_amount: u128, // minimum est. quote_asset_amount for place_order to succeed
 
     // upgrade-ability
     pub padding0: u128,
@@ -86,4 +87,11 @@ pub struct ReferralDiscount {
     pub referrer_reward_denominator: u128,
     pub referee_discount_numerator: u128,
     pub referee_discount_denominator: u128,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
+pub struct OrderFillerRewardStructure {
+    pub reward_numerator: u128,
+    pub reward_denominator: u128,
+    pub time_based_reward_lower_bound: u128, // minimum filler reward for time-based reward
 }

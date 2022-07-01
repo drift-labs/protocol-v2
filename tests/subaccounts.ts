@@ -42,18 +42,17 @@ describe('subaccounts', () => {
 		const marketIndexes = [new BN(0)];
 		const bankIndexes = [new BN(0)];
 
-		clearingHouse = Admin.from(
+		clearingHouse = new Admin({
 			connection,
-			provider.wallet,
-			chProgram.programId,
-			{
+			wallet: provider.wallet,
+			programID: chProgram.programId,
+			opts: {
 				commitment: 'confirmed',
 			},
-			0,
+			activeUserId: 0,
 			marketIndexes,
 			bankIndexes,
-			[]
-		);
+		});
 
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
@@ -78,7 +77,8 @@ describe('subaccounts', () => {
 		const userId = 1;
 		const name = 'LIL PERP';
 		await clearingHouse.initializeUserAccount(1, name);
-		await clearingHouse.updateUserId(1);
+		await clearingHouse.addUser(1);
+		await clearingHouse.switchActiveUser(1);
 
 		assert(clearingHouse.getUserAccount().userId === userId);
 		assert(decodeName(clearingHouse.getUserAccount().name) === name);
@@ -103,9 +103,10 @@ describe('subaccounts', () => {
 		const txSig = await clearingHouse.transferDeposit(
 			usdcAmount,
 			QUOTE_ASSET_BANK_INDEX,
+			1,
 			0
 		);
-		await clearingHouse.updateUserId(0);
+		await clearingHouse.switchActiveUser(0);
 
 		assert(clearingHouse.getQuoteAssetTokenAmount().eq(usdcAmount));
 
@@ -117,7 +118,7 @@ describe('subaccounts', () => {
 			provider.wallet.publicKey,
 			0
 		);
-		const withdrawRecord = depositRecords[1].data;
+		const withdrawRecord = depositRecords[1];
 		assert(isVariant(withdrawRecord.direction, 'withdraw'));
 		assert(withdrawRecord.to.equals(toUser));
 		assert(withdrawRecord.from === null);
@@ -127,7 +128,7 @@ describe('subaccounts', () => {
 			provider.wallet.publicKey,
 			1
 		);
-		const depositRecord = depositRecords[0].data;
+		const depositRecord = depositRecords[0];
 		assert(isVariant(depositRecord.direction, 'deposit'));
 		assert(depositRecord.to === null);
 		assert(depositRecord.from.equals(fromUser));

@@ -38,3 +38,16 @@ macro_rules! validate {
         }
     }};
 }
+
+#[macro_export]
+macro_rules! dlog {
+    ($($variable: expr),+) => {{
+        $(
+            msg!("{}: {}", stringify!($variable), $variable);
+        )+
+    }};
+    ($($arg:tt)+) => {{
+            #[cfg(not(feature = "mainnet-beta"))]
+            msg!($($arg)+);
+    }};
+}

@@ -57,17 +57,17 @@ describe('oracle pnl liquidations', () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
-		clearingHouse = Admin.from(
+		clearingHouse = new Admin({
 			connection,
-			provider.wallet,
-			chProgram.programId,
-			{
+			wallet: provider.wallet,
+			programID: chProgram.programId,
+			opts: {
 				commitment: 'confirmed',
 			},
-			0,
-			[new BN(0), new BN(1), new BN(2), new BN(3), new BN(4)],
-			[new BN(0)]
-		);
+			activeUserId: 0,
+			marketIndexes: [new BN(0), new BN(1), new BN(2), new BN(3), new BN(4)],
+			bankIndexes: [new BN(0)],
+		});
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
 
@@ -139,7 +139,7 @@ describe('oracle pnl liquidations', () => {
 
 		await clearingHouse.fetchAccounts();
 		const liquidationRecord =
-			eventSubscriber.getEventsArray('LiquidationRecord')[0].data;
+			eventSubscriber.getEventsArray('LiquidationRecord')[0];
 		assert(liquidationRecord.partial);
 		assert(joinedLogs.includes('Using oracle pnl for market 0'));
 		assert(joinedLogs.includes('Using oracle pnl for market 1'));
@@ -175,7 +175,7 @@ describe('oracle pnl liquidations', () => {
 
 		await clearingHouse.fetchAccounts();
 		const liquidationRecord =
-			eventSubscriber.getEventsArray('LiquidationRecord')[0].data;
+			eventSubscriber.getEventsArray('LiquidationRecord')[0];
 		assert(!liquidationRecord.partial);
 		assert(joinedLogs.includes('Using oracle pnl for market 0'));
 		assert(joinedLogs.includes('Using oracle pnl for market 1'));

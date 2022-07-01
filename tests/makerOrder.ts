@@ -75,18 +75,18 @@ describe('maker order', () => {
 		bankIndexes = [new BN(0)];
 		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
 
-		fillerClearingHouse = Admin.from(
+		fillerClearingHouse = new Admin({
 			connection,
-			provider.wallet,
-			chProgram.programId,
-			{
+			wallet: provider.wallet,
+			programID: chProgram.programId,
+			opts: {
 				commitment: 'confirmed',
 			},
-			0,
+			activeUserId: 0,
 			marketIndexes,
 			bankIndexes,
-			oracleInfos
-		);
+			oracleInfos,
+		});
 		await fillerClearingHouse.initialize(usdcMint.publicKey, true);
 		await fillerClearingHouse.subscribe();
 		await initializeQuoteAssetBank(fillerClearingHouse, usdcMint.publicKey);
@@ -105,10 +105,10 @@ describe('maker order', () => {
 			userUSDCAccount.publicKey
 		);
 
-		fillerClearingHouseUser = ClearingHouseUser.from(
-			fillerClearingHouse,
-			provider.wallet.publicKey
-		);
+		fillerClearingHouseUser = new ClearingHouseUser({
+			clearingHouse: fillerClearingHouse,
+			userAccountPublicKey: await fillerClearingHouse.getUserAccountPublicKey(),
+		});
 		await fillerClearingHouseUser.subscribe();
 	});
 
@@ -137,27 +137,27 @@ describe('maker order', () => {
 			provider,
 			keypair.publicKey
 		);
-		const clearingHouse = ClearingHouse.from(
+		const clearingHouse = new ClearingHouse({
 			connection,
 			wallet,
-			chProgram.programId,
-			{
+			programID: chProgram.programId,
+			opts: {
 				commitment: 'confirmed',
 			},
-			0,
+			activeUserId: 0,
 			marketIndexes,
 			bankIndexes,
-			oracleInfos
-		);
+			oracleInfos,
+		});
 		await clearingHouse.subscribe();
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		const clearingHouseUser = ClearingHouseUser.from(
+		const clearingHouseUser = new ClearingHouseUser({
 			clearingHouse,
-			keypair.publicKey
-		);
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
 		await clearingHouseUser.subscribe();
 
 		const marketIndex = new BN(0);
@@ -198,7 +198,7 @@ describe('maker order', () => {
 		await clearingHouseUser.fetchAccounts();
 		const position = clearingHouseUser.getUserPosition(marketIndex);
 		assert(position.baseAssetAmount.eq(baseAssetAmount));
-		assert(position.quoteAssetAmount.eq(new BN(1000001)));
+		assert(position.quoteEntryAmount.eq(new BN(1000001)));
 		assert(clearingHouse.getQuoteAssetTokenAmount().eq(usdcAmount));
 		assert(
 			clearingHouse.getUserAccount().positions[0].unsettledPnl.eq(new BN(500))
@@ -207,7 +207,7 @@ describe('maker order', () => {
 		assert(clearingHouseUser.getUserAccount().totalFeeRebate.eq(new BN(500)));
 
 		await fillerClearingHouse.fetchAccounts();
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0].data;
+		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 
 		assert(isVariant(orderRecord.action, 'fill'));
 		assert(orderRecord.fee.eq(new BN(-500)));
@@ -227,27 +227,27 @@ describe('maker order', () => {
 			provider,
 			keypair.publicKey
 		);
-		const clearingHouse = ClearingHouse.from(
+		const clearingHouse = new ClearingHouse({
 			connection,
 			wallet,
-			chProgram.programId,
-			{
+			programID: chProgram.programId,
+			opts: {
 				commitment: 'confirmed',
 			},
-			0,
+			activeUserId: 0,
 			marketIndexes,
 			bankIndexes,
-			oracleInfos
-		);
+			oracleInfos,
+		});
 		await clearingHouse.subscribe();
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		const clearingHouseUser = ClearingHouseUser.from(
+		const clearingHouseUser = new ClearingHouseUser({
 			clearingHouse,
-			keypair.publicKey
-		);
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
 		await clearingHouseUser.subscribe();
 
 		const marketIndex = new BN(0);
@@ -289,7 +289,7 @@ describe('maker order', () => {
 		await clearingHouseUser.fetchAccounts();
 		const position = clearingHouseUser.getUserPosition(marketIndex);
 		assert(position.baseAssetAmount.abs().eq(baseAssetAmount));
-		assert(position.quoteAssetAmount.eq(new BN(1000000)));
+		assert(position.quoteEntryAmount.eq(new BN(1000000)));
 		assert(clearingHouse.getQuoteAssetTokenAmount().eq(usdcAmount));
 		assert(
 			clearingHouse.getUserAccount().positions[0].unsettledPnl.eq(new BN(500))
@@ -298,7 +298,7 @@ describe('maker order', () => {
 		assert(clearingHouseUser.getUserAccount().totalFeeRebate.eq(new BN(500)));
 
 		await fillerClearingHouse.fetchAccounts();
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0].data;
+		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 
 		assert(isVariant(orderRecord.action, 'fill'));
 		assert(orderRecord.fee.eq(new BN(-500)));

@@ -50,15 +50,17 @@ describe('round in favor', () => {
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
 
-		primaryClearingHouse = Admin.from(
+		primaryClearingHouse = new Admin({
 			connection,
-			provider.wallet,
-			chProgram.programId,
-			undefined,
-			0,
-			[new BN(0)],
-			[new BN(0)]
-		);
+			wallet: provider.wallet,
+			programID: chProgram.programId,
+			opts: {
+				commitment: 'confirmed',
+			},
+			activeUserId: 0,
+			marketIndexes: [new BN(0)],
+			bankIndexes: [new BN(0)],
+		});
 		await primaryClearingHouse.initialize(usdcMint.publicKey, true);
 		await primaryClearingHouse.subscribe();
 
@@ -125,15 +127,17 @@ describe('round in favor', () => {
 			provider,
 			keypair.publicKey
 		);
-		const clearingHouse = ClearingHouse.from(
+		const clearingHouse = new ClearingHouse({
 			connection,
-			wallet,
-			chProgram.programId,
-			undefined,
-			0,
-			[new BN(0)],
-			[new BN(0)]
-		);
+			wallet: wallet,
+			programID: chProgram.programId,
+			opts: {
+				commitment: 'confirmed',
+			},
+			activeUserId: 0,
+			marketIndexes: [new BN(0), new BN(1), new BN(2), new BN(3), new BN(4)],
+			bankIndexes: [new BN(0)],
+		});
 		await clearingHouse.subscribe();
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
@@ -168,15 +172,17 @@ describe('round in favor', () => {
 			provider,
 			keypair.publicKey
 		);
-		const clearingHouse = ClearingHouse.from(
+		const clearingHouse = new ClearingHouse({
 			connection,
-			wallet,
-			chProgram.programId,
-			undefined,
-			0,
-			[new BN(0)],
-			[new BN(0)]
-		);
+			wallet: wallet,
+			programID: chProgram.programId,
+			opts: {
+				commitment: 'confirmed',
+			},
+			activeUserId: 0,
+			marketIndexes: [new BN(0), new BN(1), new BN(2), new BN(3), new BN(4)],
+			bankIndexes: [new BN(0)],
+		});
 		await clearingHouse.subscribe();
 
 		await clearingHouse.initializeUserAccountAndDepositCollateral(

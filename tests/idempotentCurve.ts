@@ -48,17 +48,17 @@ describe('idempotent curve', () => {
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
 
-		primaryClearingHouse = Admin.from(
+		primaryClearingHouse = new Admin({
 			connection,
-			provider.wallet,
-			chProgram.programId,
-			{
+			wallet: provider.wallet,
+			programID: chProgram.programId,
+			opts: {
 				commitment: 'confirmed',
 			},
-			0,
-			[new BN(0)],
-			[new BN(0)]
-		);
+			activeUserId: 0,
+			marketIndexes: [new BN(0)],
+			bankIndexes: [new BN(0)],
+		});
 		await primaryClearingHouse.initialize(usdcMint.publicKey, true);
 		await primaryClearingHouse.subscribe();
 
@@ -131,17 +131,17 @@ describe('idempotent curve', () => {
 			provider,
 			userKeypair.publicKey
 		);
-		const clearingHouse = ClearingHouse.from(
+		const clearingHouse = new ClearingHouse({
 			connection,
-			new Wallet(userKeypair),
-			chProgram.programId,
-			{
+			wallet: new Wallet(userKeypair),
+			programID: chProgram.programId,
+			opts: {
 				commitment: 'confirmed',
 			},
-			0,
-			[new BN(0)],
-			[new BN(0)]
-		);
+			activeUserId: 0,
+			marketIndexes: [new BN(0)],
+			bankIndexes: [new BN(0)],
+		});
 		await clearingHouse.subscribe();
 
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
@@ -192,7 +192,7 @@ describe('idempotent curve', () => {
 				.positions[0].unsettledPnl.eq(new BN(9999200))
 		);
 		assert(
-			clearingHouse.getUserAccount().positions[0].quoteAssetAmount.eq(new BN(0))
+			clearingHouse.getUserAccount().positions[0].quoteEntryAmount.eq(new BN(0))
 		);
 		await clearingHouse.unsubscribe();
 	};
@@ -206,17 +206,17 @@ describe('idempotent curve', () => {
 			provider,
 			userKeypair.publicKey
 		);
-		const clearingHouse = ClearingHouse.from(
+		const clearingHouse = new ClearingHouse({
 			connection,
-			new Wallet(userKeypair),
-			chProgram.programId,
-			{
+			wallet: new Wallet(userKeypair),
+			programID: chProgram.programId,
+			opts: {
 				commitment: 'confirmed',
 			},
-			0,
-			[new BN(0)],
-			[new BN(0)]
-		);
+			activeUserId: 0,
+			marketIndexes: [new BN(0)],
+			bankIndexes: [new BN(0)],
+		});
 		await clearingHouse.subscribe();
 
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
@@ -264,7 +264,7 @@ describe('idempotent curve', () => {
 
 		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(4999850)));
 		assert(
-			clearingHouse.getUserAccount().positions[0].quoteAssetAmount.eq(new BN(0))
+			clearingHouse.getUserAccount().positions[0].quoteEntryAmount.eq(new BN(0))
 		);
 		await clearingHouse.unsubscribe();
 	};
@@ -278,17 +278,17 @@ describe('idempotent curve', () => {
 			provider,
 			userKeypair.publicKey
 		);
-		const clearingHouse = ClearingHouse.from(
+		const clearingHouse = new ClearingHouse({
 			connection,
-			new Wallet(userKeypair),
-			chProgram.programId,
-			{
+			wallet: new Wallet(userKeypair),
+			programID: chProgram.programId,
+			opts: {
 				commitment: 'confirmed',
 			},
-			0,
-			[new BN(0)],
-			[new BN(0)]
-		);
+			activeUserId: 0,
+			marketIndexes: [new BN(0)],
+			bankIndexes: [new BN(0)],
+		});
 		await clearingHouse.subscribe();
 
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
@@ -336,7 +336,7 @@ describe('idempotent curve', () => {
 		await clearingHouse.fetchAccounts();
 		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(14999849)));
 		assert(
-			clearingHouse.getUserAccount().positions[0].quoteAssetAmount.eq(new BN(0))
+			clearingHouse.getUserAccount().positions[0].quoteEntryAmount.eq(new BN(0))
 		);
 		await clearingHouse.unsubscribe();
 	};
@@ -350,17 +350,17 @@ describe('idempotent curve', () => {
 			provider,
 			userKeypair.publicKey
 		);
-		const clearingHouse = ClearingHouse.from(
+		const clearingHouse = new ClearingHouse({
 			connection,
-			new Wallet(userKeypair),
-			chProgram.programId,
-			{
+			wallet: new Wallet(userKeypair),
+			programID: chProgram.programId,
+			opts: {
 				commitment: 'confirmed',
 			},
-			0,
-			[new BN(0)],
-			[new BN(0)]
-		);
+			activeUserId: 0,
+			marketIndexes: [new BN(0)],
+			bankIndexes: [new BN(0)],
+		});
 		await clearingHouse.subscribe();
 
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
@@ -407,7 +407,7 @@ describe('idempotent curve', () => {
 		await clearingHouse.fetchAccounts();
 		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(6666311)));
 		assert(
-			clearingHouse.getUserAccount().positions[0].quoteAssetAmount.eq(new BN(0))
+			clearingHouse.getUserAccount().positions[0].quoteEntryAmount.eq(new BN(0))
 		);
 		await clearingHouse.unsubscribe();
 	};
