@@ -6,7 +6,6 @@ import {
 	calculatePrice,
 	ClearingHouseUser,
 	OracleSource,
-	PEG_PRECISION,
 	SwapDirection,
 	Wallet,
 } from '../sdk';
@@ -32,7 +31,7 @@ import {
 import { setFeedPrice } from '../stress/mockPythUtils';
 
 async function price_post_swap(trader_position, market) {
-	let price = calculatePrice(
+	const price = calculatePrice(
 		market.amm.baseAssetReserve,
 		market.amm.quoteAssetReserve,
 		market.amm.pegMultiplier
@@ -44,14 +43,14 @@ async function price_post_swap(trader_position, market) {
 	} else {
 		swap_direction = SwapDirection.REMOVE;
 	}
-	let [new_qaa, new_baa] = calculateAmmReservesAfterSwap(
+	const [new_qaa, new_baa] = calculateAmmReservesAfterSwap(
 		market.amm,
 		'base',
 		trader_position.baseAssetAmount.abs(),
 		swap_direction
 	);
-	let _new_price = calculatePrice(new_baa, new_qaa, market.amm.pegMultiplier);
-	let new_price = _new_price.toNumber() / MARK_PRICE_PRECISION.toNumber();
+	const _new_price = calculatePrice(new_baa, new_qaa, market.amm.pegMultiplier);
+	const new_price = _new_price.toNumber() / MARK_PRICE_PRECISION.toNumber();
 	console.log('post trade price:', new_price);
 	await setFeedPrice(anchor.workspace.Pyth, new_price, market.amm.oracle);
 }
@@ -228,10 +227,10 @@ describe('liquidity providing', () => {
 
 		console.log('adding liquidity...');
 
-		let peg = market.amm.pegMultiplier.div(PEG_PRECISION).toNumber();
-		let sqrt_k = market.amm.sqrtK.div(new BN(1e13)).toNumber();
-		let full_amm = new BN(sqrt_k * peg * 2).mul(new BN(1e6));
-		let _lp_amount = full_amm.div(new BN(8));
+		//let peg = market.amm.pegMultiplier.div(PEG_PRECISION).toNumber();
+		//let sqrt_k = market.amm.sqrtK.div(new BN(1e13)).toNumber();
+		//let full_amm = new BN(sqrt_k * peg * 2).mul(new BN(1e6));
+		//let _lp_amount = full_amm.div(new BN(8));
 
 		const txsig = await clearingHouse.addLiquidity(usdcAmount, new BN(0));
 
@@ -310,7 +309,7 @@ describe('liquidity providing', () => {
 		//let res = await provider.simulate(tx);
 		//console.log(res)
 
-		let sig = await clearingHouse.addLiquidity(usdcAmount, new BN(0));
+		const sig = await clearingHouse.addLiquidity(usdcAmount, new BN(0));
 		console.log(
 			'tx logs',
 			(await connection.getTransaction(sig, { commitment: 'confirmed' })).meta
@@ -350,11 +349,11 @@ describe('liquidity providing', () => {
 		console.log('closing trader...');
 		let market = clearingHouse.getMarketAccount(new BN(0));
 
-		let trader = traderClearingHouse.getUserAccount();
+		const trader = traderClearingHouse.getUserAccount();
 		console.log(
 			trader.positions[0].baseAssetAmount.div(new BN(1e13)).toString()
 		);
-		let trader_position = trader.positions[0];
+		const trader_position = trader.positions[0];
 
 		console.log('closing trader...');
 		await price_post_swap(trader_position, market);
@@ -374,7 +373,7 @@ describe('liquidity providing', () => {
 
 	it('provides lp, users shorts, removes lp, lp has long', async () => {
 		console.log('adding liquidity...');
-		let txsig = await clearingHouse.addLiquidity(usdcAmount, new BN(0));
+		const txsig = await clearingHouse.addLiquidity(usdcAmount, new BN(0));
 		console.log(
 			'tx logs',
 			(await connection.getTransaction(txsig, { commitment: 'confirmed' })).meta
@@ -386,15 +385,11 @@ describe('liquidity providing', () => {
 
 		// some user goes long (lp should get a short)
 		console.log('user trading...');
-		try {
-			await traderClearingHouse.openPosition(
-				PositionDirection.SHORT,
-				new BN(115 * 1e5),
-				new BN(0)
-			);
-		} catch (e) {
-			console.error(e);
-		}
+		await traderClearingHouse.openPosition(
+			PositionDirection.SHORT,
+			new BN(115 * 1e5),
+			new BN(0)
+		);
 
 		console.log('removing liquidity...');
 		const txSig = await clearingHouse.removeLiquidity(new BN(0));
@@ -426,7 +421,7 @@ describe('liquidity providing', () => {
 		await clearingHouse.closePosition(new BN(0)); // close lp position
 
 		console.log('closing trader...');
-		let trader_user = traderClearingHouse.getUserAccount();
+		const trader_user = traderClearingHouse.getUserAccount();
 		market = clearingHouse.getMarketAccount(new BN(0));
 		console.log(trader_user.positions[0]);
 		await price_post_swap(trader_user.positions[0], market);
