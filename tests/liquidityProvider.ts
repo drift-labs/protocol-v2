@@ -389,7 +389,7 @@ describe('liquidity providing', () => {
 		try {
 			await traderClearingHouse.openPosition(
 				PositionDirection.SHORT,
-				new BN(13 * 1e6),
+				new BN(115 * 1e5),
 				new BN(0)
 			);
 		} catch (e) {
