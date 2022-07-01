@@ -16,7 +16,7 @@ pub struct DepositRecord {
     pub to: Option<Pubkey>,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq)]
 pub enum DepositDirection {
     DEPOSIT,
     WITHDRAW,
@@ -133,7 +133,7 @@ pub struct OrderRecord {
     pub quote_asset_amount_surplus: u128,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq)]
 pub enum OrderAction {
     Place,
     Cancel,

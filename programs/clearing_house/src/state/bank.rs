@@ -53,7 +53,7 @@ impl Bank {
     }
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq)]
 pub enum BankBalanceType {
     Deposit,
     Borrow,

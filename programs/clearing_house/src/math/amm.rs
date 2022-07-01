@@ -9,8 +9,8 @@ use crate::math::bn;
 use crate::math::bn::U192;
 use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64};
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION, BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128,
-    K_BPS_DECREASE_MAX, K_BPS_INCREASE_MAX, K_BPS_UPDATE_SCALE, MARK_PRICE_PRECISION,
+    BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128, K_BPS_DECREASE_MAX,
+    K_BPS_INCREASE_MAX, K_BPS_UPDATE_SCALE, MARK_PRICE_PRECISION,
     MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128, ONE_HOUR_I128, PEG_PRECISION,
     PRICE_TO_PEG_PRECISION_RATIO,
 };
@@ -832,40 +832,27 @@ pub fn get_update_k_result(
     market: &Market,
     new_sqrt_k: bn::U192,
 ) -> ClearingHouseResult<UpdateKResult> {
-    let sqrt_k_ratio_precision = bn::U192::from(AMM_RESERVE_PRECISION);
+    let sqrt_k_ratio_precision = bn::U192::from(100_000_000);
 
     let old_sqrt_k = bn::U192::from(market.amm.sqrt_k);
-    let mut sqrt_k_ratio = new_sqrt_k
+    let sqrt_k_ratio = new_sqrt_k
         .checked_mul(sqrt_k_ratio_precision)
         .ok_or_else(math_error!())?
         .checked_div(old_sqrt_k)
         .ok_or_else(math_error!())?;
 
     // if decreasing k, max decrease ratio for single transaction is 2.5%
-    if sqrt_k_ratio < U192::from(975_000_000_000_u128) {
+    if sqrt_k_ratio < U192::from(97_500_000) {
         return Err(ErrorCode::InvalidUpdateK);
     }
 
-    if sqrt_k_ratio < sqrt_k_ratio_precision {
-        sqrt_k_ratio = sqrt_k_ratio + 1;
-    }
-
     let sqrt_k = new_sqrt_k.try_to_u128().unwrap();
-    // msg!("sqrt_k_ratio: {:?}", sqrt_k_ratio);
     let base_asset_reserve = bn::U192::from(market.amm.base_asset_reserve)
         .checked_mul(sqrt_k_ratio)
         .ok_or_else(math_error!())?
         .checked_div(sqrt_k_ratio_precision)
         .ok_or_else(math_error!())?
         .try_to_u128()?;
-    // msg!("market.amm.base_asset_reserve: {:?} -> {:?}", market.amm.base_asset_reserve, base_asset_reserve);
-
-    // if sqrt_k_ratio < sqrt_k_ratio_precision {
-    //     base_asset_reserve = base_asset_reserve
-    //     // .checked_add(market.amm.base_asset_reserve / 100_000_000 / 2)
-    //     .checked_add(market.amm.base_asset_reserve / AMM_RESERVE_PRECISION)
-    //     .ok_or_else(math_error!())?;
-    // }
 
     let invariant_sqrt_u192 = U192::from(sqrt_k);
     let invariant = invariant_sqrt_u192

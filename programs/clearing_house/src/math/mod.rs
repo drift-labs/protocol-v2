@@ -6,7 +6,6 @@ pub mod collateral;
 pub mod constants;
 pub mod fees;
 pub mod funding;
-pub mod lp;
 pub mod margin;
 pub mod oracle;
 pub mod orders;

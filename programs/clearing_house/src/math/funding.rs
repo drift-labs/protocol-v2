@@ -226,7 +226,7 @@ fn calculate_funding_rate_from_pnl_limit(
         .ok_or_else(math_error!())
 }
 
-pub fn calculate_funding_payment_in_quote_precision(
+fn calculate_funding_payment_in_quote_precision(
     funding_rate_delta: i128,
     base_asset_amount: i128,
 ) -> ClearingHouseResult<i128> {

@@ -14,8 +14,6 @@ use crate::math::amm::get_update_k_result;
 use crate::state::market::Market;
 use crate::state::{market::AMM, state::*, user::*};
 
-use std::borrow::Borrow;
-
 mod account_loader;
 pub mod context;
 pub mod controller;
@@ -35,27 +33,22 @@ declare_id!("4kApqj1TdRVxK8kPEJ2SDs8aGq53YPnDA4cVxTUuqRkK");
 
 #[program]
 pub mod clearing_house {
-    use std::borrow::BorrowMut;
     use std::cmp::min;
     use std::ops::Div;
     use std::option::Option::Some;
 
     use crate::account_loader::{load, load_mut};
     use crate::controller::bank_balance::update_bank_balances;
-    use crate::controller::lp::settle_lp_position;
-    use crate::controller::position::{
-        add_new_position, get_position_index, get_position_index_lp,
-    };
+    use crate::controller::position::get_position_index;
     use crate::margin_validation::validate_margin;
     use crate::math;
     use crate::math::amm::{
         calculate_mark_twap_spread_pct,
-        //  normalise_oracle_price,
         is_oracle_mark_too_divergent,
+        //  normalise_oracle_price,
     };
     use crate::math::bank_balance::get_token_amount;
     use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64};
-    use crate::math::lp::SettleResult;
     use crate::math::slippage::{calculate_slippage, calculate_slippage_pct};
     use crate::optional_accounts::{get_discount_token, get_referrer, get_referrer_for_fill_order};
     use crate::state::bank::{Bank, BankBalance, BankBalanceType};
@@ -757,219 +750,6 @@ pub mod clearing_house {
         Ok(())
     }
 
-    #[allow(unused_must_use)]
-    #[access_control(
-        exchange_not_paused(&ctx.accounts.state)
-    )]
-    pub fn settle_lp<'info>(ctx: Context<AddRemoveLiquidity>, market_index: u64) -> Result<()> {
-        let user = &mut load_mut(&ctx.accounts.user)?;
-        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-
-        // here for remaining_accounts js sdk fcn to still work - probs want to remove later
-        let clock = Clock::get()?;
-        let _oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
-        let _bank_map = BankMap::load(
-            &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
-            remaining_accounts_iter,
-        )?;
-
-        let market_map = MarketMap::load(
-            &get_writable_markets(market_index),
-            &MarketOracles::new(),
-            //&get_market_oracles(market_index, &ctx.accounts.oracle),
-            remaining_accounts_iter,
-        )?;
-        let market = market_map.get_ref(&market_index)?;
-
-        let position_index = get_position_index_lp(&user.positions, market_index)?;
-        let lp_position = &mut user.positions[position_index];
-
-        // settle the full lp position
-        settle_lp_position(lp_position, lp_position.lp_tokens, &market.amm)?;
-
-        Ok(())
-    }
-
-    #[allow(unused_must_use)]
-    #[access_control(
-        exchange_not_paused(&ctx.accounts.state)
-    )]
-    pub fn remove_liquidity<'info>(
-        ctx: Context<AddRemoveLiquidity>,
-        market_index: u64,
-    ) -> Result<()> {
-        let user = &mut load_mut(&ctx.accounts.user)?;
-        let clock = Clock::get()?;
-        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-
-        // here for remaining_accounts js sdk fcn to still work - probs want to remove later
-        let _oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
-        let _bank_map = BankMap::load(
-            &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
-            remaining_accounts_iter,
-        )?;
-
-        let market_map = MarketMap::load(
-            &get_writable_markets(market_index),
-            &get_market_oracles(market_index, &ctx.accounts.oracle),
-            remaining_accounts_iter,
-        )?;
-        let mut market = market_map.get_ref_mut(&market_index)?;
-
-        // need position_lp bc could get incorrect account otherwise (old account with unsettled_pnl)
-        let position_index = get_position_index_lp(&user.positions, market_index)?;
-        let lp_position = &mut user.positions[position_index];
-
-        // tmp -- they can only burn everything
-        let lp_tokens_to_burn = lp_position.lp_tokens;
-        msg!("burning {} tokens", lp_tokens_to_burn);
-
-        if lp_tokens_to_burn == 0 {
-            return Ok(());
-        }
-
-        validate!(
-            lp_position.lp_tokens <= lp_tokens_to_burn,
-            ErrorCode::InsufficientLPTokens,
-            "Trying to burn more lp tokens than the user has",
-        )?;
-
-        // settle the lp first
-        let settle_result = settle_lp_position(lp_position, lp_tokens_to_burn, &market.amm)?;
-
-        if settle_result == SettleResult::DidNotRecieveMarketPosition {
-            msg!("warning: unable to fully remove lp due to market position size being too small");
-            return Ok(());
-        }
-
-        // transform lp_position into a market position
-        lp_position.lp_tokens = lp_position
-            .lp_tokens
-            .checked_sub(lp_tokens_to_burn)
-            .ok_or_else(math_error!())?; // burn tokens
-
-        // update funding rate to the markets position
-        lp_position.last_cumulative_funding_rate = if lp_position.base_asset_amount > 0 {
-            market.amm.cumulative_funding_rate_long
-        } else {
-            market.amm.cumulative_funding_rate_short
-        };
-
-        // track new position in the market
-        market.amm.net_base_asset_amount = market
-            .amm
-            .net_base_asset_amount
-            .checked_add(lp_position.base_asset_amount)
-            .ok_or_else(math_error!())?;
-        market.open_interest = market
-            .open_interest
-            .checked_add(1)
-            .ok_or_else(math_error!())?;
-
-        // update market state
-        let new_sqrt_k = market
-            .amm
-            .sqrt_k
-            .checked_sub(lp_tokens_to_burn)
-            .ok_or_else(math_error!())?;
-        let new_sqrt_k_u192 = bn::U192::from(new_sqrt_k);
-
-        let update_k_result = get_update_k_result(market.borrow(), new_sqrt_k_u192)?;
-        math::amm::update_k(&mut market, &update_k_result);
-
-        Ok(())
-    }
-
-    #[allow(unused_must_use)]
-    #[access_control(
-        exchange_not_paused(&ctx.accounts.state)
-    )]
-    pub fn add_liquidity<'info>(
-        ctx: Context<AddRemoveLiquidity>,
-        quote_asset_amount: u128,
-        market_index: u64,
-    ) -> Result<()> {
-        let user = &mut load_mut(&ctx.accounts.user)?;
-        let clock = Clock::get()?;
-        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
-        let bank_map = BankMap::load(
-            &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
-            remaining_accounts_iter,
-        )?;
-
-        let market_map = MarketMap::load(
-            &get_writable_markets(market_index),
-            &get_market_oracles(market_index, &ctx.accounts.oracle),
-            remaining_accounts_iter,
-        )?;
-
-        let position_index = get_position_index(&user.positions, market_index)
-            .or_else(|_| add_new_position(&mut user.positions, market_index))?;
-        let lp_position = &mut user.positions[position_index];
-
-        validate!(
-            !(lp_position.is_lp()
-                || lp_position.has_open_order()
-                || lp_position.is_open_position()),
-            ErrorCode::CantLPWithMarketPosition
-        )?;
-
-        let (
-            peg_multiplier,
-            net_base_asset_amount,
-            total_fee_minus_distributions,
-            cumulative_funding_rate_lp,
-            sqrt_k,
-        ) = get_struct_values!(
-            market_map.get_ref(&market_index)?.amm,
-            peg_multiplier,
-            net_base_asset_amount,
-            total_fee_minus_distributions,
-            cumulative_funding_rate_lp,
-            sqrt_k
-        );
-
-        // create lp position
-        // TODO: change from peg to mark price?
-        let user_lp_tokens = quote_asset_amount
-            .checked_mul(AMM_TO_QUOTE_PRECISION_RATIO)
-            .ok_or_else(math_error!())?
-            .checked_div(PEG_PRECISION)
-            .ok_or_else(math_error!())?
-            .checked_div(2)
-            .ok_or_else(math_error!())?
-            .checked_div(peg_multiplier)
-            .ok_or_else(math_error!())?;
-
-        lp_position.lp_tokens = user_lp_tokens;
-        lp_position.last_net_base_asset_amount = net_base_asset_amount;
-        lp_position.last_total_fee_minus_distributions = total_fee_minus_distributions;
-        lp_position.last_cumulative_funding_rate = cumulative_funding_rate_lp;
-
-        // update market state
-        let new_sqrt_k = sqrt_k
-            .checked_add(user_lp_tokens)
-            .ok_or_else(math_error!())?;
-        let new_sqrt_k_u192 = bn::U192::from(new_sqrt_k);
-
-        {
-            let mut market = market_map.get_ref_mut(&market_index)?;
-            let update_k_result = get_update_k_result(market.borrow(), new_sqrt_k_u192)?;
-            math::amm::update_k(market.borrow_mut(), &update_k_result);
-        }
-
-        // check margin requirements
-        validate!(
-            meets_initial_margin_requirement(user, &market_map, &bank_map, &mut oracle_map)?,
-            ErrorCode::InsufficientCollateral,
-            "User does not meet initial margin requirement"
-        )?;
-
-        Ok(())
-    }
-
     pub fn place_order(ctx: Context<PlaceOrder>, params: OrderParams) -> Result<()> {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let _oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
@@ -1587,13 +1367,9 @@ pub mod clearing_house {
                 let close_position_slippage_pct =
                     calculate_slippage_pct(close_position_slippage, mark_price_before_i128)?;
 
-                let close_slippage_pct_too_large = !(-MAX_LIQUIDATION_SLIPPAGE
-                    ..=MAX_LIQUIDATION_SLIPPAGE)
-                    .contains(&close_position_slippage_pct);
-
-                //close_position_slippage_pct
-                //> MAX_LIQUIDATION_SLIPPAGE
-                //|| close_position_slippage_pct < -MAX_LIQUIDATION_SLIPPAGE;
+                let close_slippage_pct_too_large = close_position_slippage_pct
+                    > MAX_LIQUIDATION_SLIPPAGE
+                    || close_position_slippage_pct < -MAX_LIQUIDATION_SLIPPAGE;
 
                 let oracle_mark_divergence_after_close = if !close_slippage_pct_too_large {
                     oracle_status
@@ -1796,13 +1572,9 @@ pub mod clearing_house {
                 let reduce_position_slippage_pct =
                     calculate_slippage_pct(reduce_position_slippage, mark_price_before_i128)?;
 
-                let reduce_slippage_pct_too_large = !(-MAX_LIQUIDATION_SLIPPAGE
-                    ..=MAX_LIQUIDATION_SLIPPAGE)
-                    .contains(&reduce_position_slippage_pct);
-
-                //reduce_position_slippage_pct
-                //> MAX_LIQUIDATION_SLIPPAGE
-                //|| reduce_position_slippage_pct < -MAX_LIQUIDATION_SLIPPAGE;
+                let reduce_slippage_pct_too_large = reduce_position_slippage_pct
+                    > MAX_LIQUIDATION_SLIPPAGE
+                    || reduce_position_slippage_pct < -MAX_LIQUIDATION_SLIPPAGE;
 
                 if reduce_slippage_pct_too_large {
                     msg!(
