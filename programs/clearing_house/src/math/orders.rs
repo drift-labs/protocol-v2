@@ -11,10 +11,7 @@ use crate::get_struct_values;
 use crate::math;
 use crate::math::amm::{calculate_spread_reserves, calculate_swap_output};
 use crate::math::casting::{cast, cast_to_i128, cast_to_u128};
-use crate::math::constants::{
-    AMM_TO_QUOTE_PRECISION_RATIO, MARGIN_PRECISION, MARK_PRICE_PRECISION,
-    MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO,
-};
+use crate::math::constants::{MARGIN_PRECISION, MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO};
 use crate::math::margin::calculate_free_collateral;
 use crate::math::position::calculate_entry_price;
 use crate::math::quote_asset::asset_to_reserve_amount;

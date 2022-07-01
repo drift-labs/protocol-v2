@@ -7,24 +7,18 @@ use spl_token::state::Account as TokenAccount;
 use crate::account_loader::load_mut;
 use crate::context::*;
 use crate::controller;
-use crate::controller::amm::SwapDirection;
-use crate::controller::position::PositionDirection;
 use crate::controller::position::{add_new_position, get_position_index};
 use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
 use crate::get_struct_values;
 use crate::get_then_update_id;
-use crate::math::amm::{
-    calculate_price, calculate_spread_reserves, calculate_swap_output, is_oracle_valid,
-};
+use crate::math::amm::is_oracle_valid;
 use crate::math::auction::{
-    calculate_auction_end_price, calculate_auction_fill_amount, calculate_auction_price,
-    calculate_auction_start_price, does_auction_satisfy_maker_order,
+    calculate_auction_end_price, calculate_auction_price, calculate_auction_start_price,
+    does_auction_satisfy_maker_order,
 };
 use crate::math::casting::cast;
-use crate::math::constants::MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO;
 use crate::math::fees::calculate_order_fee_tier;
-use crate::math::position::calculate_entry_price;
 use crate::math::{amm, fees, margin::*, orders::*, repeg};
 use crate::math_error;
 use crate::order_validation::{
@@ -404,9 +398,6 @@ pub fn fill_order(
         None
     };
 
-    let time_since_order_placed = now.checked_sub(order_ts).ok_or_else(math_error!())?;
-    let auction_complete = time_since_order_placed >= state.order_auction_duration;
-
     let (
         base_asset_amount,
         quote_asset_amount,
@@ -645,8 +636,8 @@ pub fn fill_order(
 }
 
 pub fn fill_taker_against_maker(
-    market_map: &MarketMap,
-    market_index: u64,
+    // market_map: &MarketMap,
+    // market_index: u64,
     taker: &mut User,
     taker_order_index: usize,
     maker: &mut User,
@@ -666,15 +657,15 @@ pub fn fill_taker_against_maker(
         "Auction price does not satisfy maker",
     )?;
 
-    let (base_asset_amount, quote_asset_amount) = calculate_auction_fill_amount(
-        auction_price,
-        &maker.orders[maker_order_index],
-        &taker.orders[taker_order_index],
-    )?;
-
-    {
-        let taker_order = &mut taker.orders[taker_order_index];
-    }
+    // let (base_asset_amount, quote_asset_amount) = calculate_auction_fill_amount(
+    //     auction_price,
+    //     &maker.orders[maker_order_index],
+    //     &taker.orders[taker_order_index],
+    // )?;
+    //
+    // {
+    //     let taker_order = &mut taker.orders[taker_order_index];
+    // }
 
     Ok(())
 }

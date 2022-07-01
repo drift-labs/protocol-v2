@@ -8,12 +8,13 @@ use crate::math::amm::should_round_trade;
 use crate::math::casting::{cast, cast_to_i128};
 use crate::math::orders::calculate_quote_asset_amount_for_maker_order;
 use crate::math::pnl::calculate_pnl;
-use crate::math::position::calculate_base_asset_value_and_pnl;
+use crate::math::position::{calculate_base_asset_value_and_pnl, swap_direction_to_close_position};
 use crate::math_error;
 use crate::state::market::Market;
 use crate::state::user::{User, UserPositions};
 use crate::MarketPosition;
 use solana_program::msg;
+use std::cmp::min;
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq)]
 pub enum PositionDirection {
@@ -72,6 +73,222 @@ pub fn get_position_index(
         Some(position_index) => Ok(position_index),
         None => Err(ErrorCode::UserHasNoPositionInMarket),
     }
+}
+
+pub struct PositionDelta {
+    quote_asset_amount: u128,
+    base_asset_amount: i128,
+}
+
+pub fn update_position_and_market(
+    position: &mut MarketPosition,
+    market: &mut Market,
+    delta: &PositionDelta,
+) -> ClearingHouseResult<i128> {
+    let new_position = position.base_asset_amount == 0;
+    let increasing_position =
+        new_position || position.base_asset_amount.signum() == delta.base_asset_amount.signum();
+
+    let (new_quote_asset_amount, new_base_asset_amount, pnl) = if !increasing_position {
+        let base_asset_amount_before_unsigned = position.base_asset_amount.unsigned_abs();
+        let delta_base_asset_amount_unsigned = delta.base_asset_amount.unsigned_abs();
+
+        let closed_position_entry_value = position
+            .quote_asset_amount
+            .checked_mul(min(
+                delta_base_asset_amount_unsigned,
+                base_asset_amount_before_unsigned,
+            ))
+            .ok_or_else(math_error!())?
+            .checked_div(base_asset_amount_before_unsigned)
+            .ok_or_else(math_error!())?;
+
+        let closed_position_exit_value = delta
+            .quote_asset_amount
+            .checked_mul(min(
+                delta_base_asset_amount_unsigned,
+                base_asset_amount_before_unsigned,
+            ))
+            .ok_or_else(math_error!())?
+            .checked_div(delta_base_asset_amount_unsigned)
+            .ok_or_else(math_error!())?;
+
+        let pnl = calculate_pnl(
+            closed_position_exit_value,
+            closed_position_entry_value,
+            swap_direction_to_close_position(position.base_asset_amount),
+        )?;
+
+        let new_base_asset_amount = position
+            .base_asset_amount
+            .checked_add(delta.base_asset_amount)
+            .ok_or_else(math_error!())?;
+
+        let new_quote_asset_amount = if delta.quote_asset_amount > closed_position_exit_value {
+            delta
+                .quote_asset_amount
+                .checked_sub(closed_position_exit_value)
+                .ok_or_else(math_error!())?
+        } else {
+            position
+                .quote_asset_amount
+                .checked_sub(closed_position_entry_value)
+                .ok_or_else(math_error!())?
+        };
+
+        (new_quote_asset_amount, new_base_asset_amount, pnl)
+    } else {
+        let new_quote_asset_amount = position
+            .quote_asset_amount
+            .checked_add(delta.quote_asset_amount)
+            .ok_or_else(math_error!())?;
+        let new_base_asset_amount = position
+            .base_asset_amount
+            .checked_add(delta.base_asset_amount)
+            .ok_or_else(math_error!())?;
+
+        (new_quote_asset_amount, new_base_asset_amount, 0_i128)
+    };
+
+    let reduced_position = !increasing_position
+        && position.base_asset_amount.signum() == new_base_asset_amount.signum();
+    let closed_position = new_base_asset_amount == 0;
+    let flipped_position = position.base_asset_amount.signum() != new_base_asset_amount.signum();
+
+    // Update Market
+    market.amm.net_base_asset_amount = market
+        .amm
+        .net_base_asset_amount
+        .checked_add(delta.base_asset_amount)
+        .ok_or_else(math_error!())?;
+
+    // Update Market open interest
+    if new_position {
+        market.open_interest = market
+            .open_interest
+            .checked_add(1)
+            .ok_or_else(math_error!())?;
+    } else if closed_position {
+        market.open_interest = market
+            .open_interest
+            .checked_sub(1)
+            .ok_or_else(math_error!())?;
+    }
+
+    if increasing_position {
+        if new_base_asset_amount > 0 {
+            market.base_asset_amount_long = market
+                .base_asset_amount_long
+                .checked_add(delta.base_asset_amount)
+                .ok_or_else(math_error!())?;
+            market.amm.quote_asset_amount_long = market
+                .amm
+                .quote_asset_amount_long
+                .checked_add(delta.quote_asset_amount)
+                .ok_or_else(math_error!())?;
+        } else {
+            market.base_asset_amount_short = market
+                .base_asset_amount_short
+                .checked_add(delta.base_asset_amount)
+                .ok_or_else(math_error!())?;
+            market.amm.quote_asset_amount_short = market
+                .amm
+                .quote_asset_amount_short
+                .checked_add(delta.quote_asset_amount)
+                .ok_or_else(math_error!())?;
+        }
+    } else if reduced_position || closed_position {
+        if new_base_asset_amount > 0 {
+            market.base_asset_amount_long = market
+                .base_asset_amount_long
+                .checked_add(delta.base_asset_amount)
+                .ok_or_else(math_error!())?;
+            market.amm.quote_asset_amount_long = market
+                .amm
+                .quote_asset_amount_long
+                .checked_sub(
+                    position
+                        .quote_asset_amount
+                        .checked_sub(new_quote_asset_amount)
+                        .ok_or_else(math_error!())?,
+                )
+                .ok_or_else(math_error!())?;
+        } else {
+            market.base_asset_amount_short = market
+                .base_asset_amount_short
+                .checked_add(delta.base_asset_amount)
+                .ok_or_else(math_error!())?;
+            market.amm.quote_asset_amount_short = market
+                .amm
+                .quote_asset_amount_short
+                .checked_sub(
+                    position
+                        .quote_asset_amount
+                        .checked_sub(new_quote_asset_amount)
+                        .ok_or_else(math_error!())?,
+                )
+                .ok_or_else(math_error!())?;
+        }
+    } else if flipped_position {
+        if new_base_asset_amount > 0 {
+            market.base_asset_amount_short = market
+                .base_asset_amount_short
+                .checked_sub(position.base_asset_amount)
+                .ok_or_else(math_error!())?;
+            market.base_asset_amount_long = market
+                .base_asset_amount_long
+                .checked_add(new_base_asset_amount)
+                .ok_or_else(math_error!())?;
+
+            market.amm.quote_asset_amount_short = market
+                .amm
+                .quote_asset_amount_short
+                .checked_sub(position.quote_asset_amount)
+                .ok_or_else(math_error!())?;
+            market.amm.quote_asset_amount_long = market
+                .amm
+                .quote_asset_amount_long
+                .checked_add(new_quote_asset_amount)
+                .ok_or_else(math_error!())?;
+        } else {
+            market.base_asset_amount_long = market
+                .base_asset_amount_long
+                .checked_sub(position.base_asset_amount)
+                .ok_or_else(math_error!())?;
+            market.base_asset_amount_short = market
+                .base_asset_amount_short
+                .checked_add(new_base_asset_amount)
+                .ok_or_else(math_error!())?;
+
+            market.amm.quote_asset_amount_long = market
+                .amm
+                .quote_asset_amount_long
+                .checked_sub(position.quote_asset_amount)
+                .ok_or_else(math_error!())?;
+            market.amm.quote_asset_amount_short = market
+                .amm
+                .quote_asset_amount_short
+                .checked_add(new_quote_asset_amount)
+                .ok_or_else(math_error!())?;
+        }
+    }
+
+    // Update user position
+    if closed_position {
+        position.last_cumulative_funding_rate = 0;
+        position.last_funding_rate_ts = 0;
+    } else if new_position || flipped_position {
+        if new_base_asset_amount > 0 {
+            position.last_cumulative_funding_rate = market.amm.cumulative_funding_rate_long;
+        } else {
+            position.last_cumulative_funding_rate = market.amm.cumulative_funding_rate_short;
+        }
+    }
+
+    position.quote_asset_amount = new_quote_asset_amount;
+    position.base_asset_amount = new_base_asset_amount;
+
+    Ok(pnl)
 }
 
 pub fn increase(
@@ -778,4 +995,613 @@ fn calculate_quote_asset_amount_surplus(
     };
 
     Ok((quote_asset_amount, quote_asset_amount_surplus))
+}
+
+#[cfg(test)]
+mod test {
+    use crate::controller::position::{update_position_and_market, PositionDelta};
+    use crate::state::market::{Market, AMM};
+    use crate::state::user::MarketPosition;
+
+    #[test]
+    fn increase_long_from_no_position() {
+        let mut existing_position = MarketPosition::default();
+        let position_delta = PositionDelta {
+            base_asset_amount: 1,
+            quote_asset_amount: 1,
+        };
+        let mut market = Market {
+            amm: AMM {
+                cumulative_funding_rate_long: 1,
+                ..AMM::default()
+            },
+            open_interest: 0,
+            ..Market::default()
+        };
+
+        let pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
+            .unwrap();
+
+        assert_eq!(existing_position.base_asset_amount, 1);
+        assert_eq!(existing_position.quote_asset_amount, 1);
+        assert_eq!(pnl, 0);
+        assert_eq!(existing_position.last_cumulative_funding_rate, 1);
+
+        assert_eq!(market.open_interest, 1);
+        assert_eq!(market.base_asset_amount_long, 1);
+        assert_eq!(market.base_asset_amount_short, 0);
+        assert_eq!(market.amm.net_base_asset_amount, 1);
+        assert_eq!(market.amm.quote_asset_amount_long, 1);
+        assert_eq!(market.amm.quote_asset_amount_short, 0);
+    }
+
+    #[test]
+    fn increase_short_from_no_position() {
+        let mut existing_position = MarketPosition::default();
+        let position_delta = PositionDelta {
+            base_asset_amount: -1,
+            quote_asset_amount: 1,
+        };
+        let mut market = Market {
+            amm: AMM {
+                cumulative_funding_rate_short: 1,
+                ..AMM::default()
+            },
+            open_interest: 0,
+            ..Market::default()
+        };
+
+        let pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
+            .unwrap();
+
+        assert_eq!(existing_position.base_asset_amount, -1);
+        assert_eq!(existing_position.quote_asset_amount, 1);
+        assert_eq!(pnl, 0);
+        assert_eq!(existing_position.last_cumulative_funding_rate, 1);
+
+        assert_eq!(market.open_interest, 1);
+        assert_eq!(market.base_asset_amount_long, 0);
+        assert_eq!(market.base_asset_amount_short, -1);
+        assert_eq!(market.amm.net_base_asset_amount, -1);
+        assert_eq!(market.amm.quote_asset_amount_long, 0);
+        assert_eq!(market.amm.quote_asset_amount_short, 1);
+    }
+
+    #[test]
+    fn increase_long() {
+        let mut existing_position = MarketPosition {
+            base_asset_amount: 1,
+            quote_asset_amount: 1,
+            last_cumulative_funding_rate: 1,
+            ..MarketPosition::default()
+        };
+        let position_delta = PositionDelta {
+            base_asset_amount: 1,
+            quote_asset_amount: 1,
+        };
+        let mut market = Market {
+            amm: AMM {
+                net_base_asset_amount: 1,
+                quote_asset_amount_long: 1,
+                ..AMM::default()
+            },
+            base_asset_amount_long: 1,
+            base_asset_amount_short: 0,
+            open_interest: 1,
+            ..Market::default()
+        };
+
+        let pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
+            .unwrap();
+
+        assert_eq!(existing_position.base_asset_amount, 2);
+        assert_eq!(existing_position.quote_asset_amount, 2);
+        assert_eq!(pnl, 0);
+        assert_eq!(existing_position.last_cumulative_funding_rate, 1);
+
+        assert_eq!(market.open_interest, 1);
+        assert_eq!(market.base_asset_amount_long, 2);
+        assert_eq!(market.base_asset_amount_short, 0);
+        assert_eq!(market.amm.net_base_asset_amount, 2);
+        assert_eq!(market.amm.quote_asset_amount_long, 2);
+        assert_eq!(market.amm.quote_asset_amount_short, 0);
+    }
+
+    #[test]
+    fn increase_short() {
+        let mut existing_position = MarketPosition {
+            base_asset_amount: -1,
+            quote_asset_amount: 1,
+            last_cumulative_funding_rate: 1,
+            ..MarketPosition::default()
+        };
+        let position_delta = PositionDelta {
+            base_asset_amount: -1,
+            quote_asset_amount: 1,
+        };
+        let mut market = Market {
+            amm: AMM {
+                net_base_asset_amount: -1,
+                quote_asset_amount_long: 0,
+                quote_asset_amount_short: 1,
+                ..AMM::default()
+            },
+            open_interest: 1,
+            base_asset_amount_short: -1,
+            base_asset_amount_long: 0,
+            ..Market::default()
+        };
+
+        let pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
+            .unwrap();
+
+        assert_eq!(existing_position.base_asset_amount, -2);
+        assert_eq!(existing_position.quote_asset_amount, 2);
+        assert_eq!(pnl, 0);
+        assert_eq!(existing_position.last_cumulative_funding_rate, 1);
+
+        assert_eq!(market.open_interest, 1);
+        assert_eq!(market.base_asset_amount_long, 0);
+        assert_eq!(market.base_asset_amount_short, -2);
+        assert_eq!(market.amm.net_base_asset_amount, -2);
+        assert_eq!(market.amm.quote_asset_amount_long, 0);
+        assert_eq!(market.amm.quote_asset_amount_short, 2);
+    }
+
+    #[test]
+    fn reduce_long_profitable() {
+        let mut existing_position = MarketPosition {
+            base_asset_amount: 10,
+            quote_asset_amount: 10,
+            last_cumulative_funding_rate: 1,
+            ..MarketPosition::default()
+        };
+        let position_delta = PositionDelta {
+            base_asset_amount: -1,
+            quote_asset_amount: 5,
+        };
+        let mut market = Market {
+            amm: AMM {
+                net_base_asset_amount: 10,
+                quote_asset_amount_long: 10,
+                quote_asset_amount_short: 0,
+                ..AMM::default()
+            },
+            open_interest: 1,
+            base_asset_amount_long: 10,
+            base_asset_amount_short: 0,
+            ..Market::default()
+        };
+
+        let pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
+            .unwrap();
+
+        assert_eq!(existing_position.base_asset_amount, 9);
+        assert_eq!(existing_position.quote_asset_amount, 9);
+        assert_eq!(pnl, 4);
+        assert_eq!(existing_position.last_cumulative_funding_rate, 1);
+
+        assert_eq!(market.open_interest, 1);
+        assert_eq!(market.base_asset_amount_long, 9);
+        assert_eq!(market.base_asset_amount_short, 0);
+        assert_eq!(market.amm.net_base_asset_amount, 9);
+        assert_eq!(market.amm.quote_asset_amount_long, 9);
+        assert_eq!(market.amm.quote_asset_amount_short, 0);
+    }
+
+    #[test]
+    fn reduce_long_unprofitable() {
+        let mut existing_position = MarketPosition {
+            base_asset_amount: 10,
+            quote_asset_amount: 100,
+            last_cumulative_funding_rate: 1,
+            ..MarketPosition::default()
+        };
+        let position_delta = PositionDelta {
+            base_asset_amount: -1,
+            quote_asset_amount: 5,
+        };
+        let mut market = Market {
+            amm: AMM {
+                net_base_asset_amount: 10,
+                quote_asset_amount_long: 100,
+                quote_asset_amount_short: 0,
+                ..AMM::default()
+            },
+            open_interest: 1,
+            base_asset_amount_long: 10,
+            base_asset_amount_short: 0,
+            ..Market::default()
+        };
+
+        let pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
+            .unwrap();
+
+        assert_eq!(existing_position.base_asset_amount, 9);
+        assert_eq!(existing_position.quote_asset_amount, 90);
+        assert_eq!(pnl, -5);
+        assert_eq!(existing_position.last_cumulative_funding_rate, 1);
+
+        assert_eq!(market.open_interest, 1);
+        assert_eq!(market.base_asset_amount_long, 9);
+        assert_eq!(market.base_asset_amount_short, 0);
+        assert_eq!(market.amm.net_base_asset_amount, 9);
+        assert_eq!(market.amm.quote_asset_amount_long, 90);
+        assert_eq!(market.amm.quote_asset_amount_short, 0);
+    }
+
+    #[test]
+    fn flip_long_to_short_profitable() {
+        let mut existing_position = MarketPosition {
+            base_asset_amount: 10,
+            quote_asset_amount: 10,
+            last_cumulative_funding_rate: 1,
+            ..MarketPosition::default()
+        };
+        let position_delta = PositionDelta {
+            base_asset_amount: -11,
+            quote_asset_amount: 22,
+        };
+        let mut market = Market {
+            amm: AMM {
+                net_base_asset_amount: 10,
+                quote_asset_amount_long: 10,
+                quote_asset_amount_short: 0,
+                cumulative_funding_rate_short: 2,
+                ..AMM::default()
+            },
+            open_interest: 1,
+            base_asset_amount_long: 10,
+            base_asset_amount_short: 0,
+            ..Market::default()
+        };
+
+        let pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
+            .unwrap();
+
+        assert_eq!(existing_position.base_asset_amount, -1);
+        assert_eq!(existing_position.quote_asset_amount, 2);
+        assert_eq!(pnl, 10);
+        assert_eq!(existing_position.last_cumulative_funding_rate, 2);
+
+        assert_eq!(market.open_interest, 1);
+        assert_eq!(market.base_asset_amount_long, 0);
+        assert_eq!(market.base_asset_amount_short, -1);
+        assert_eq!(market.amm.net_base_asset_amount, -1);
+        assert_eq!(market.amm.quote_asset_amount_long, 0);
+        assert_eq!(market.amm.quote_asset_amount_short, 2);
+    }
+
+    #[test]
+    fn flip_long_to_short_unprofitable() {
+        let mut existing_position = MarketPosition {
+            base_asset_amount: 10,
+            quote_asset_amount: 10,
+            last_cumulative_funding_rate: 1,
+            ..MarketPosition::default()
+        };
+        let position_delta = PositionDelta {
+            base_asset_amount: -11,
+            quote_asset_amount: 10,
+        };
+        let mut market = Market {
+            amm: AMM {
+                net_base_asset_amount: 10,
+                quote_asset_amount_long: 10,
+                quote_asset_amount_short: 0,
+                cumulative_funding_rate_short: 2,
+                ..AMM::default()
+            },
+            open_interest: 1,
+            base_asset_amount_long: 10,
+            base_asset_amount_short: 0,
+            ..Market::default()
+        };
+
+        let pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
+            .unwrap();
+
+        assert_eq!(existing_position.base_asset_amount, -1);
+        assert_eq!(existing_position.quote_asset_amount, 1);
+        assert_eq!(pnl, -1);
+        assert_eq!(existing_position.last_cumulative_funding_rate, 2);
+
+        assert_eq!(market.open_interest, 1);
+        assert_eq!(market.base_asset_amount_long, 0);
+        assert_eq!(market.base_asset_amount_short, -1);
+        assert_eq!(market.amm.net_base_asset_amount, -1);
+        assert_eq!(market.amm.quote_asset_amount_long, 0);
+        assert_eq!(market.amm.quote_asset_amount_short, 1);
+    }
+
+    #[test]
+    fn reduce_short_profitable() {
+        let mut existing_position = MarketPosition {
+            base_asset_amount: -10,
+            quote_asset_amount: 100,
+            last_cumulative_funding_rate: 1,
+            ..MarketPosition::default()
+        };
+        let position_delta = PositionDelta {
+            base_asset_amount: 1,
+            quote_asset_amount: 5,
+        };
+        let mut market = Market {
+            amm: AMM {
+                net_base_asset_amount: -10,
+                quote_asset_amount_long: 0,
+                quote_asset_amount_short: 100,
+                ..AMM::default()
+            },
+            open_interest: 1,
+            base_asset_amount_long: 0,
+            base_asset_amount_short: -10,
+            ..Market::default()
+        };
+
+        let pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
+            .unwrap();
+
+        assert_eq!(existing_position.base_asset_amount, -9);
+        assert_eq!(existing_position.quote_asset_amount, 90);
+        assert_eq!(pnl, 5);
+        assert_eq!(existing_position.last_cumulative_funding_rate, 1);
+
+        assert_eq!(market.open_interest, 1);
+        assert_eq!(market.base_asset_amount_long, 0);
+        assert_eq!(market.base_asset_amount_short, -9);
+        assert_eq!(market.amm.net_base_asset_amount, -9);
+        assert_eq!(market.amm.quote_asset_amount_long, 0);
+        assert_eq!(market.amm.quote_asset_amount_short, 90);
+    }
+
+    #[test]
+    fn decrease_short_unprofitable() {
+        let mut existing_position = MarketPosition {
+            base_asset_amount: -10,
+            quote_asset_amount: 100,
+            last_cumulative_funding_rate: 1,
+            ..MarketPosition::default()
+        };
+        let position_delta = PositionDelta {
+            base_asset_amount: 1,
+            quote_asset_amount: 15,
+        };
+        let mut market = Market {
+            amm: AMM {
+                net_base_asset_amount: -10,
+                quote_asset_amount_long: 0,
+                quote_asset_amount_short: 100,
+                ..AMM::default()
+            },
+            open_interest: 1,
+            base_asset_amount_long: 0,
+            base_asset_amount_short: -10,
+            ..Market::default()
+        };
+
+        let pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
+            .unwrap();
+
+        assert_eq!(existing_position.base_asset_amount, -9);
+        assert_eq!(existing_position.quote_asset_amount, 90);
+        assert_eq!(pnl, -5);
+        assert_eq!(existing_position.last_cumulative_funding_rate, 1);
+
+        assert_eq!(market.open_interest, 1);
+        assert_eq!(market.base_asset_amount_long, 0);
+        assert_eq!(market.base_asset_amount_short, -9);
+        assert_eq!(market.amm.net_base_asset_amount, -9);
+        assert_eq!(market.amm.quote_asset_amount_long, 0);
+        assert_eq!(market.amm.quote_asset_amount_short, 90);
+    }
+
+    #[test]
+    fn flip_short_to_long_profitable() {
+        let mut existing_position = MarketPosition {
+            base_asset_amount: -10,
+            quote_asset_amount: 100,
+            last_cumulative_funding_rate: 1,
+            ..MarketPosition::default()
+        };
+        let position_delta = PositionDelta {
+            base_asset_amount: 11,
+            quote_asset_amount: 60,
+        };
+        let mut market = Market {
+            amm: AMM {
+                net_base_asset_amount: -10,
+                quote_asset_amount_long: 0,
+                quote_asset_amount_short: 100,
+                cumulative_funding_rate_long: 2,
+                ..AMM::default()
+            },
+            open_interest: 1,
+            base_asset_amount_long: 0,
+            base_asset_amount_short: -10,
+            ..Market::default()
+        };
+
+        let pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
+            .unwrap();
+
+        assert_eq!(existing_position.base_asset_amount, 1);
+        assert_eq!(existing_position.quote_asset_amount, 6);
+        assert_eq!(pnl, 46);
+        assert_eq!(existing_position.last_cumulative_funding_rate, 2);
+
+        assert_eq!(market.open_interest, 1);
+        assert_eq!(market.base_asset_amount_long, 1);
+        assert_eq!(market.base_asset_amount_short, 0);
+        assert_eq!(market.amm.net_base_asset_amount, 1);
+        assert_eq!(market.amm.quote_asset_amount_long, 6);
+        assert_eq!(market.amm.quote_asset_amount_short, 0);
+    }
+
+    #[test]
+    fn flip_short_to_long_unprofitable() {
+        let mut existing_position = MarketPosition {
+            base_asset_amount: -10,
+            quote_asset_amount: 100,
+            last_cumulative_funding_rate: 1,
+            ..MarketPosition::default()
+        };
+        let position_delta = PositionDelta {
+            base_asset_amount: 11,
+            quote_asset_amount: 120,
+        };
+        let mut market = Market {
+            amm: AMM {
+                net_base_asset_amount: -10,
+                quote_asset_amount_long: 0,
+                quote_asset_amount_short: 100,
+                cumulative_funding_rate_long: 2,
+                ..AMM::default()
+            },
+            open_interest: 1,
+            base_asset_amount_long: 0,
+            base_asset_amount_short: -10,
+            ..Market::default()
+        };
+
+        let pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
+            .unwrap();
+
+        assert_eq!(existing_position.base_asset_amount, 1);
+        assert_eq!(existing_position.quote_asset_amount, 11);
+        assert_eq!(pnl, -9);
+        assert_eq!(existing_position.last_cumulative_funding_rate, 2);
+
+        assert_eq!(market.open_interest, 1);
+        assert_eq!(market.base_asset_amount_long, 1);
+        assert_eq!(market.base_asset_amount_short, 0);
+        assert_eq!(market.amm.net_base_asset_amount, 1);
+        assert_eq!(market.amm.quote_asset_amount_long, 11);
+        assert_eq!(market.amm.quote_asset_amount_short, 0);
+    }
+
+    #[test]
+    fn close_long_profitable() {
+        let mut existing_position = MarketPosition {
+            base_asset_amount: 10,
+            quote_asset_amount: 10,
+            last_cumulative_funding_rate: 1,
+            last_funding_rate_ts: 1,
+            ..MarketPosition::default()
+        };
+        let position_delta = PositionDelta {
+            base_asset_amount: -10,
+            quote_asset_amount: 15,
+        };
+        let mut market = Market {
+            amm: AMM {
+                net_base_asset_amount: 10,
+                quote_asset_amount_long: 10,
+                ..AMM::default()
+            },
+            open_interest: 2,
+            base_asset_amount_long: 11,
+            ..Market::default()
+        };
+
+        let pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
+            .unwrap();
+
+        assert_eq!(existing_position.base_asset_amount, 0);
+        assert_eq!(existing_position.quote_asset_amount, 0);
+        assert_eq!(pnl, 5);
+        assert_eq!(existing_position.last_cumulative_funding_rate, 0);
+        assert_eq!(existing_position.last_funding_rate_ts, 0);
+
+        assert_eq!(market.open_interest, 1);
+        assert_eq!(market.base_asset_amount_long, 0);
+        assert_eq!(market.base_asset_amount_short, 0);
+        assert_eq!(market.amm.net_base_asset_amount, 0);
+        assert_eq!(market.amm.quote_asset_amount_long, 0);
+        assert_eq!(market.amm.quote_asset_amount_short, 0);
+    }
+
+    #[test]
+    fn close_long_unprofitable() {
+        let mut existing_position = MarketPosition {
+            base_asset_amount: 10,
+            quote_asset_amount: 10,
+            last_cumulative_funding_rate: 1,
+            last_funding_rate_ts: 1,
+            ..MarketPosition::default()
+        };
+        let position_delta = PositionDelta {
+            base_asset_amount: -10,
+            quote_asset_amount: 5,
+        };
+        let mut market = Market {
+            amm: AMM::default(),
+            ..Market::default()
+        };
+
+        let pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
+            .unwrap();
+
+        assert_eq!(existing_position.base_asset_amount, 0);
+        assert_eq!(existing_position.quote_asset_amount, 0);
+        assert_eq!(pnl, -5);
+        assert_eq!(existing_position.last_cumulative_funding_rate, 0);
+        assert_eq!(existing_position.last_funding_rate_ts, 0);
+    }
+
+    #[test]
+    fn close_short_profitable() {
+        let mut existing_position = MarketPosition {
+            base_asset_amount: -10,
+            quote_asset_amount: 10,
+            last_cumulative_funding_rate: 1,
+            last_funding_rate_ts: 1,
+            ..MarketPosition::default()
+        };
+        let position_delta = PositionDelta {
+            base_asset_amount: 10,
+            quote_asset_amount: 5,
+        };
+        let mut market = Market {
+            amm: AMM::default(),
+            ..Market::default()
+        };
+
+        let pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
+            .unwrap();
+
+        assert_eq!(existing_position.base_asset_amount, 0);
+        assert_eq!(existing_position.quote_asset_amount, 0);
+        assert_eq!(pnl, 5);
+        assert_eq!(existing_position.last_cumulative_funding_rate, 0);
+        assert_eq!(existing_position.last_funding_rate_ts, 0);
+    }
+
+    #[test]
+    fn close_short_unprofitable() {
+        let mut existing_position = MarketPosition {
+            base_asset_amount: -10,
+            quote_asset_amount: 10,
+            last_cumulative_funding_rate: 1,
+            last_funding_rate_ts: 1,
+            ..MarketPosition::default()
+        };
+        let position_delta = PositionDelta {
+            base_asset_amount: 10,
+            quote_asset_amount: 15,
+        };
+        let mut market = Market {
+            amm: AMM::default(),
+            ..Market::default()
+        };
+
+        let pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
+            .unwrap();
+
+        assert_eq!(existing_position.base_asset_amount, 0);
+        assert_eq!(existing_position.quote_asset_amount, 0);
+        assert_eq!(pnl, -5);
+        assert_eq!(existing_position.last_cumulative_funding_rate, 0);
+        assert_eq!(existing_position.last_funding_rate_ts, 0);
+    }
 }
