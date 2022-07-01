@@ -11,9 +11,8 @@ use crate::error::ErrorCode;
 use crate::math::amm::use_oracle_price_for_margin_calculation;
 use crate::math::bank_balance::get_balance_value;
 use crate::math::casting::cast_to_i128;
-use crate::math::lp::{get_lp_market_position, SettleResult};
+use crate::math::lp::get_lp_market_position_margin;
 use crate::math::oracle::{get_oracle_status, OracleStatus};
-// use crate::math::repeg;
 use crate::math::slippage::calculate_slippage;
 use crate::state::bank::BankBalanceType;
 use crate::state::bank_map::BankMap;
@@ -24,8 +23,6 @@ use crate::validate;
 use solana_program::clock::Slot;
 use solana_program::msg;
 use std::ops::Div;
-
-use super::constants::{AMM_TO_QUOTE_PRECISION_RATIO, PEG_PRECISION};
 
 #[derive(Copy, Clone)]
 pub enum MarginRequirementType {
@@ -86,43 +83,9 @@ pub fn calculate_margin_requirement_and_total_collateral(
     for mut market_position in user.positions.iter() {
         // rust borrowing -- kinda dirty
         let _market_position = if market_position.is_lp() {
-            let market = &market_map.get_ref(&market_position.market_index)?;
-
-            // add lp margin requirements - both lp_margin + virtual market position
-            let mut lp_margin_req = market_position
-                .lp_tokens
-                .checked_mul(2)
-                .ok_or_else(math_error!())?
-                .checked_mul(market.amm.peg_multiplier)
-                .ok_or_else(math_error!())?
-                .checked_div(PEG_PRECISION)
-                .ok_or_else(math_error!())?
-                .checked_div(AMM_TO_QUOTE_PRECISION_RATIO)
-                .ok_or_else(math_error!())?;
-
-            lp_margin_req = std::cmp::max(1, lp_margin_req);
-
-            msg!(
-                "lp margin req for {} tokens: {}",
-                market_position.lp_tokens,
-                lp_margin_req
-            );
-
-            margin_requirement = margin_requirement
-                .checked_add(lp_margin_req)
-                .ok_or_else(math_error!())?;
-
             // market position if lp was settled
-            let (market_position, settle_result) =
-                get_lp_market_position(market_position, market_position.lp_tokens, &market.amm)?;
-
-            if settle_result == SettleResult::DidNotRecieveMarketPosition {
-                margin_requirement = margin_requirement
-                    .checked_add(1)
-                    .ok_or_else(math_error!())?;
-            }
-
-            market_position
+            let market = &market_map.get_ref(&market_position.market_index)?;
+            get_lp_market_position_margin(market_position, market_position.lp_tokens, &market.amm)?
         } else {
             *market_position
         };

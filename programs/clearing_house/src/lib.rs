@@ -783,13 +783,12 @@ pub mod clearing_house {
             //&get_market_oracles(market_index, &ctx.accounts.oracle),
             remaining_accounts_iter,
         )?;
-        let market = market_map.get_ref(&market_index)?;
+        let mut market = market_map.get_ref_mut(&market_index)?;
 
         let position_index = get_position_index_lp(&user.positions, market_index)?;
         let lp_position = &mut user.positions[position_index];
 
-        // settle the full lp position
-        settle_lp_position(lp_position, lp_position.lp_tokens, &market.amm)?;
+        settle_lp_position(lp_position, lp_position.lp_tokens, &mut market.amm)?;
 
         Ok(())
     }
@@ -838,7 +837,7 @@ pub mod clearing_house {
         )?;
 
         // settle the lp first
-        let settle_result = settle_lp_position(lp_position, lp_tokens_to_burn, &market.amm)?;
+        let settle_result = settle_lp_position(lp_position, lp_tokens_to_burn, &mut market.amm)?;
 
         if settle_result == SettleResult::DidNotRecieveMarketPosition {
             msg!("warning: unable to fully remove lp due to market position size being too small");
