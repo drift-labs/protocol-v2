@@ -69,7 +69,6 @@ pub fn get_lp_market_position(
         .last_net_base_asset_amount
         .checked_sub(amm.net_base_asset_amount)
         .ok_or_else(math_error!())?;
-    msg!("net baa delta: {}", net_base_asset_amount_delta);
 
     if net_base_asset_amount_delta != 0 {
         let base_asset_amount = get_proportion(
@@ -101,10 +100,6 @@ pub fn get_lp_market_position(
                 .ok_or_else(math_error!())?
         };
 
-        //msg!("delta: {}", net_quote_asset_amount_delta);
-        //msg!("{} {}", lp_tokens_to_settle, total_lp_tokens);
-        //msg!("quote portion: {}", quote_portion);
-
         // when qar delta is very small => converting to quote precision
         // results in zero -- user position will have non-zero base with zero quote
         let quote_asset_amount = reserve_to_asset_amount(
@@ -118,16 +113,7 @@ pub fn get_lp_market_position(
 
         let min_qaa = amm.minimum_quote_asset_trade_size;
         let min_baa = amm.minimum_base_asset_trade_size;
-        //let min_qaa = 100;
-        //let min_baa = 100;
 
-        msg!(
-            "baa, qaa: {} {} (min: {} {})",
-            base_asset_amount,
-            quote_asset_amount,
-            min_baa,
-            min_qaa
-        );
         if base_asset_amount.unsigned_abs() >= min_baa && quote_asset_amount >= min_qaa {
             market_position.quote_asset_amount = quote_asset_amount;
             market_position.base_asset_amount = base_asset_amount;

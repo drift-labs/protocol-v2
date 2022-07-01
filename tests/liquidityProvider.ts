@@ -72,13 +72,6 @@ describe('liquidity providing', () => {
 	let userUSDCAccount: web3.Keypair;
 
 	// ammInvariant == k == x * y
-	//const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
-	//const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
-	//mantissaSqrtScale
-	//);
-	//const ammInitialBaseAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
-	//mantissaSqrtScale
-	//);
 	const ammInitialBaseAssetReserve = new BN(200).mul(new BN(1e13));
 	const ammInitialQuoteAssetReserve = new BN(200).mul(new BN(1e13));
 
@@ -227,11 +220,6 @@ describe('liquidity providing', () => {
 
 		console.log('adding liquidity...');
 
-		//let peg = market.amm.pegMultiplier.div(PEG_PRECISION).toNumber();
-		//let sqrt_k = market.amm.sqrtK.div(new BN(1e13)).toNumber();
-		//let full_amm = new BN(sqrt_k * peg * 2).mul(new BN(1e6));
-		//let _lp_amount = full_amm.div(new BN(8));
-
 		const txsig = await clearingHouse.addLiquidity(usdcAmount, new BN(0));
 
 		console.log(
@@ -283,7 +271,6 @@ describe('liquidity providing', () => {
 		console.log('lp token amount:', lp_token_amount.toString());
 		assert(lp_token_amount.eq(new BN(0)));
 
-		// rounding off by one :(
 		console.log('asset reserves:');
 		console.log(prevSqrtK.toString(), market.amm.sqrtK.toString());
 		console.log(prevbar.toString(), market.amm.baseAssetReserve.toString());
@@ -304,10 +291,6 @@ describe('liquidity providing', () => {
 
 	it('provides lp, users longs, removes lp, lp has short', async () => {
 		console.log('adding liquidity...');
-		//let ix = await clearingHouse.getAddLiquidityIx(new BN(117 * 1e6), new BN(0));
-		//let tx = new web3.Transaction().add(ix)
-		//let res = await provider.simulate(tx);
-		//console.log(res)
 
 		const sig = await clearingHouse.addLiquidity(usdcAmount, new BN(0));
 		console.log(
@@ -341,10 +324,9 @@ describe('liquidity providing', () => {
 		const lp_token_amount = lp_position.lpTokens;
 
 		assert(lp_token_amount.eq(new BN(0)));
-		assert(user.positions[0].baseAssetAmount.lt(new BN(0))); // lp is short )
+		assert(user.positions[0].baseAssetAmount.lt(new BN(0))); // lp is short
 		assert(!user.positions[0].quoteAssetAmount.eq(new BN(0)));
 		assert(user.positions[0].lpTokens.eq(new BN(0))); // tokens are burned
-		//console.log(user)
 
 		console.log('closing trader...');
 		let market = clearingHouse.getMarketAccount(new BN(0));
@@ -366,8 +348,6 @@ describe('liquidity providing', () => {
 		await price_post_swap(user.positions[0], market);
 		await clearingHouse.closePosition(new BN(0)); // close lp position
 
-		//// TODO: this guy cant close for some reason (errors out)
-		//let sig = await traderClearingHouse2.closePosition(new BN(0));
 		console.log('done!');
 	});
 
@@ -429,50 +409,4 @@ describe('liquidity providing', () => {
 
 		console.log('done!');
 	});
-
-	//it('provides lp, users shorts, settles lp for pnl', async () => {
-	//console.log('adding liquidity...');
-	//console.log(
-	//clearingHouse.getUserAccount().positions[0]
-	//)
-	//const txSig = await clearingHouse.addLiquidity(usdcAmount, new BN(0));
-	//console.log(
-	//'tx logs',
-	//(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
-	//.logMessages
-	//);
-
-	//let user = clearingHouseUser.getUserAccount();
-	//console.log(user.positions[0].lpTokens.toString());
-
-	//// some user goes long (lp should get a short)
-	//console.log('user trading...');
-	//await traderClearingHouse2.openPosition(
-	//PositionDirection.LONG,
-	//new BN(13 * 1e6),
-	//new BN(0)
-	//);
-
-	//console.log('settling lp...');
-	//await clearingHouse.settleLP(
-	//await clearingHouse.getUserAccountPublicKey(),
-	//new BN(0)
-	//)
-
-	//user = clearingHouseUser.getUserAccount();
-	//const lp_position = user.positions[0];
-	//const lp_token_amount = lp_position.lpTokens;
-
-	//console.log(
-	//lp_position.baseAssetAmount.toString(),
-	//lp_position.quoteAssetAmount.toString()
-	//);
-
-	//assert(lp_token_amount.eq(new BN(0)));
-	//assert(lp_position.baseAssetAmount.gt(new BN(0))); // lp is long
-	//assert(!lp_position.quoteAssetAmount.eq(new BN(0)));
-	//assert(lp_position.lpTokens.eq(new BN(0))); // tokens are burned
-
-	//await traderClearingHouse2.closePosition(new BN(0))
-	//});
 });

@@ -822,7 +822,6 @@ pub mod clearing_house {
 
         // tmp -- they can only burn everything
         let lp_tokens_to_burn = lp_position.lp_tokens;
-        msg!("burning {} tokens", lp_tokens_to_burn);
 
         if lp_tokens_to_burn == 0 {
             return Ok(());
