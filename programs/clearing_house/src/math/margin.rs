@@ -84,10 +84,11 @@ pub fn calculate_margin_requirement_and_total_collateral(
 
     let mut perp_margin_requirements: u128 = 0;
     for mut market_position in user.positions.iter() {
-        let market = &market_map.get_ref(&market_position.market_index)?;
 
         // rust borrowing -- kinda dirty
         let _market_position = if market_position.is_lp() {
+            let market = &market_map.get_ref(&market_position.market_index)?;
+            
             // add lp margin requirements - both lp_margin + virtual market position
             let mut lp_margin_req = market_position
                 .lp_tokens
