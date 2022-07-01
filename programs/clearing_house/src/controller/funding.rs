@@ -13,7 +13,10 @@ use crate::math::casting::{cast, cast_to_i128};
 use crate::math::constants::{
     AMM_TO_QUOTE_PRECISION_RATIO_I128, FUNDING_PAYMENT_PRECISION, ONE_HOUR,
 };
-use crate::math::funding::{calculate_funding_payment, calculate_funding_rate_long_short};
+use crate::math::funding::{
+    calculate_funding_payment, calculate_funding_payment_in_quote_precision,
+    calculate_funding_rate_long_short,
+};
 use crate::math::oracle;
 use crate::math_error;
 use crate::state::events::{FundingPaymentRecord, FundingRateRecord};
@@ -171,6 +174,19 @@ pub fn update_funding_rate(
 
         let (funding_rate_long, funding_rate_short, funding_imbalance_cost) =
             calculate_funding_rate_long_short(market, funding_rate)?;
+
+        // lp funding
+        let amm_net_position = -market.amm.net_base_asset_amount;
+        let funding_rate_lp = if amm_net_position < 0 {
+            calculate_funding_payment_in_quote_precision(funding_rate_short, amm_net_position)?
+        } else {
+            calculate_funding_payment_in_quote_precision(funding_rate_long, amm_net_position)?
+        };
+        market.amm.cumulative_funding_rate_lp = market
+            .amm
+            .cumulative_funding_rate_lp
+            .checked_add(funding_rate_lp)
+            .ok_or_else(math_error!())?;
 
         formulaic_update_k(
             market,

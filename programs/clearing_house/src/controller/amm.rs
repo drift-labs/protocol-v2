@@ -18,7 +18,7 @@ use std::cmp::{max, min};
 
 use crate::controller::repeg::apply_cost_to_market;
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum SwapDirection {
     Add,
     Remove,

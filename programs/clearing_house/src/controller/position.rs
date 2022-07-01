@@ -16,7 +16,7 @@ use crate::MarketPosition;
 use solana_program::msg;
 use std::cmp::min;
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
 pub enum PositionDirection {
     Long,
     Short,
@@ -48,6 +48,11 @@ pub fn add_new_position(
         last_funding_rate_ts: 0,
         open_orders: 0,
         unsettled_pnl: 0,
+
+        lp_tokens: 0,
+        last_total_fee_minus_distributions: 0,
+        last_net_base_asset_amount: 0,
+
         padding0: 0,
         padding1: 0,
         padding2: 0,
@@ -60,6 +65,34 @@ pub fn add_new_position(
     user_positions[new_position_index] = new_market_position;
 
     Ok(new_position_index)
+}
+
+pub fn get_position_index_lp(
+    user_positions: &UserPositions,
+    market_index: u64,
+) -> ClearingHouseResult<usize> {
+    let position_index = user_positions.iter().position(|market_position| {
+        market_position.is_for(market_index) && market_position.is_lp()
+    });
+
+    match position_index {
+        Some(position_index) => Ok(position_index),
+        None => Err(ErrorCode::UserHasNoPositionInMarket),
+    }
+}
+
+pub fn get_position_index_market_position(
+    user_positions: &UserPositions,
+    market_index: u64,
+) -> ClearingHouseResult<usize> {
+    let position_index = user_positions.iter().position(|market_position| {
+        market_position.is_for(market_index) && market_position.is_open_position()
+    });
+
+    match position_index {
+        Some(position_index) => Ok(position_index),
+        None => Err(ErrorCode::UserHasNoPositionInMarket),
+    }
 }
 
 pub fn get_position_index(

@@ -131,6 +131,11 @@ pub struct MarketPosition {
     pub open_orders: u128,
     pub unsettled_pnl: i128,
 
+    // lp stuff
+    pub lp_tokens: u128,
+    pub last_total_fee_minus_distributions: u128,
+    pub last_net_base_asset_amount: i128,
+
     // upgrade-ability
     pub padding0: u128,
     pub padding1: u128,
@@ -143,12 +148,14 @@ pub struct MarketPosition {
 
 impl MarketPosition {
     pub fn is_for(&self, market_index: u64) -> bool {
-        self.market_index == market_index
-            && (self.is_open_position() || self.has_open_order() || self.has_unsettled_pnl())
+        self.market_index == market_index && !self.is_available()
     }
 
     pub fn is_available(&self) -> bool {
-        !self.is_open_position() && !self.has_open_order() && !self.has_unsettled_pnl()
+        !self.is_open_position()
+            && !self.has_open_order()
+            && !self.has_unsettled_pnl()
+            && !self.is_lp()
     }
 
     pub fn is_open_position(&self) -> bool {
@@ -157,6 +164,10 @@ impl MarketPosition {
 
     pub fn has_open_order(&self) -> bool {
         self.open_orders != 0
+    }
+
+    pub fn is_lp(&self) -> bool {
+        self.lp_tokens > 0
     }
 
     pub fn has_unsettled_pnl(&self) -> bool {
@@ -265,13 +276,13 @@ impl Default for Order {
     }
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
 pub enum OrderStatus {
     Init,
     Open,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
 pub enum OrderType {
     Market,
     Limit,
@@ -279,7 +290,7 @@ pub enum OrderType {
     TriggerLimit,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
 pub enum OrderDiscountTier {
     None,
     First,
@@ -288,7 +299,7 @@ pub enum OrderDiscountTier {
     Fourth,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
 pub enum OrderTriggerCondition {
     Above,
     Below,
