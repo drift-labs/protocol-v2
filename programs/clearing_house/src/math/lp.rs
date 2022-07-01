@@ -1,7 +1,7 @@
 use crate::error::ClearingHouseResult;
 use crate::math::casting::{cast_to_i128, cast_to_u128};
 use crate::math_error;
-use crate::state::market::{self, AMM};
+use crate::state::market::AMM;
 use crate::state::user::MarketPosition;
 use solana_program::msg;
 
