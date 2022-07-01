@@ -4,6 +4,7 @@ wallet = "~/.config/solana/id.json"
 
 [scripts]
 test = "./test-scripts/run-ts-mocha"
+lint = "yarn prettify:fix && cargo fmt"
 
 [programs.localnet]
 clearing_house = "4kApqj1TdRVxK8kPEJ2SDs8aGq53YPnDA4cVxTUuqRkK"

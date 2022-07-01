@@ -26,6 +26,12 @@ pub fn settle_lp_position(
         .checked_add(lp_metrics.funding_payment)
         .ok_or_else(math_error!())?;
 
+    // update amm metrics
+    amm.total_fee_minus_distributions = amm
+        .total_fee_minus_distributions
+        .checked_sub(cast_to_u128(lp_metrics.fee_payment)?)
+        .ok_or_else(math_error!())?;
+
     // give market position if size is large enough
     // otherwise reduce upnl by 1 to account for small position loss
     if lp_metrics.settle_result == SettleResult::RecievedMarketPosition {
@@ -41,12 +47,6 @@ pub fn settle_lp_position(
     }
     lp_position.last_total_fee_minus_distributions = amm.total_fee_minus_distributions;
     lp_position.last_cumulative_funding_rate = amm.cumulative_funding_rate_lp;
-
-    // update amm metrics
-    amm.total_fee_minus_distributions = amm
-        .total_fee_minus_distributions
-        .checked_sub(cast_to_u128(lp_metrics.fee_payment)?)
-        .ok_or_else(math_error!())?;
 
     Ok(lp_metrics.settle_result)
 }

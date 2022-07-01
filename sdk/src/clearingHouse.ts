@@ -846,11 +846,12 @@ export class ClearingHouse {
 			...marketAccountMap.values(),
 		];
 
-		return this.program.instruction.settlePnl(marketIndex, {
+		return this.program.instruction.settleLp(marketIndex, {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				authority: this.wallet.publicKey,
 				user: settleeUserAccountPublicKey,
+				oracle: this.getMarketAccount(marketIndex).amm.oracle,
 			},
 			remainingAccounts: remainingAccounts,
 		});

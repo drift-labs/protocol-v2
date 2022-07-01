@@ -303,6 +303,18 @@ pub struct WithdrawFromInsuranceVaultToMarket<'info> {
 }
 
 #[derive(Accounts)]
+pub struct SettleLP<'info> {
+    // TODO: maybe reuse settleLP context
+    #[account(mut)]
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
+    pub authority: Signer<'info>,
+    /// CHECK: validated in `open_position` ix constraint
+    pub oracle: AccountInfo<'info>, // TODO: remove
+}
+
+#[derive(Accounts)]
 pub struct AddRemoveLiquidity<'info> {
     #[account(mut)]
     pub state: Box<Account<'info, State>>,
@@ -313,7 +325,7 @@ pub struct AddRemoveLiquidity<'info> {
     pub user: AccountLoader<'info, User>,
     pub authority: Signer<'info>,
     /// CHECK: validated in `open_position` ix constraint
-    pub oracle: AccountInfo<'info>,
+    pub oracle: AccountInfo<'info>, // TODO: remove
 }
 
 #[derive(Accounts)]
