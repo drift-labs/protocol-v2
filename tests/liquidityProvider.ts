@@ -16,7 +16,6 @@ import * as web3 from '@solana/web3.js';
 
 import {
 	Admin,
-	ClearingHouse,
 	EventSubscriber,
 	MARK_PRICE_PRECISION,
 	PositionDirection,

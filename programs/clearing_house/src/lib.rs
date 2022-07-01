@@ -864,6 +864,7 @@ pub mod clearing_house {
             .net_base_asset_amount
             .checked_add(lp_position.base_asset_amount)
             .ok_or_else(math_error!())?;
+
         market.open_interest = market
             .open_interest
             .checked_add(1)
