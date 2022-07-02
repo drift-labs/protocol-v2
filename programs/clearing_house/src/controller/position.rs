@@ -747,6 +747,121 @@ pub fn close(
     ))
 }
 
+// pub fn update_position_with_base_asset_amount(
+//     base_asset_amount: u128,
+//     direction: PositionDirection,
+//     market: &mut Market,
+//     user: &mut User,
+//     position_index: usize,
+//     mark_price_before: u128,
+//     now: i64,
+//     maker_limit_price: Option<u128>,
+// ) -> ClearingHouseResult<(bool, bool, u128, u128, u128, i128)> {
+//     // A trade is risk increasing if it increases the users leverage
+//     // If a trade is risk increasing and brings the user's margin ratio below initial requirement
+//     // the trade fails
+//     // If a trade is risk increasing and it pushes the mark price too far away from the oracle price
+//     // the trade fails
+//     let mut potentially_risk_increasing = true;
+//     let mut reduce_only = false;
+//
+//     // The trade increases the the user position if
+//     // 1) the user does not have a position
+//     // 2) the trade is in the same direction as the user's existing position
+//     let quote_asset_amount;
+//     let quote_asset_amount_surplus;
+//     let pnl;
+//     let existing_base_asset_amount = user.positions[position_index].base_asset_amount;
+//     let increase_position = existing_base_asset_amount == 0
+//         || existing_base_asset_amount > 0 && direction == PositionDirection::Long
+//         || existing_base_asset_amount < 0 && direction == PositionDirection::Short;
+//     if increase_position {
+//         let (_quote_asset_amount, _quote_asset_amount_surplus) = increase_with_base_asset_amount(
+//             direction,
+//             base_asset_amount,
+//             market,
+//             &mut user.positions[position_index],
+//             now,
+//             maker_limit_price,
+//             Some(mark_price_before),
+//         )?;
+//         quote_asset_amount = _quote_asset_amount;
+//         quote_asset_amount_surplus = _quote_asset_amount_surplus;
+//         pnl = 0_i128;
+//     } else if existing_base_asset_amount.unsigned_abs() > base_asset_amount {
+//         let (_quote_asset_amount, _quote_asset_amount_surplus, _pnl) =
+//             reduce_with_base_asset_amount(
+//                 direction,
+//                 base_asset_amount,
+//                 market,
+//                 &mut user.positions[position_index],
+//                 now,
+//                 maker_limit_price,
+//                 Some(mark_price_before),
+//             )?;
+//         quote_asset_amount = _quote_asset_amount;
+//         quote_asset_amount_surplus = _quote_asset_amount_surplus;
+//         pnl = _pnl;
+//
+//         reduce_only = true;
+//         potentially_risk_increasing = false;
+//     } else {
+//         // after closing existing position, how large should trade be in opposite direction
+//         let base_asset_amount_after_close = base_asset_amount
+//             .checked_sub(existing_base_asset_amount.unsigned_abs())
+//             .ok_or_else(math_error!())?;
+//
+//         // If the value of the new position is less than value of the old position, consider it risk decreasing
+//         if base_asset_amount_after_close < existing_base_asset_amount.unsigned_abs() {
+//             potentially_risk_increasing = false;
+//         }
+//
+//         let (quote_asset_amount_closed, _, quote_asset_amount_surplus_closed, _pnl) = close(
+//             market,
+//             &mut user.positions[position_index],
+//             now,
+//             maker_limit_price,
+//             None,
+//             true,
+//         )?;
+//
+//         let (quote_asset_amount_opened, quote_asset_amount_surplus_opened) =
+//             increase_with_base_asset_amount(
+//                 direction,
+//                 base_asset_amount_after_close,
+//                 market,
+//                 &mut user.positions[position_index],
+//                 now,
+//                 maker_limit_price,
+//                 Some(mark_price_before),
+//             )?;
+//
+//         // means position was closed and it was reduce only
+//         if quote_asset_amount_opened == 0 {
+//             reduce_only = true;
+//         }
+//
+//         quote_asset_amount = quote_asset_amount_closed
+//             .checked_add(quote_asset_amount_opened)
+//             .ok_or_else(math_error!())?;
+//
+//         quote_asset_amount_surplus = quote_asset_amount_surplus_closed
+//             .checked_add(quote_asset_amount_surplus_opened)
+//             .ok_or_else(math_error!())?;
+//
+//         pnl = _pnl;
+//     }
+//
+//     Ok((
+//         potentially_risk_increasing,
+//         reduce_only,
+//         base_asset_amount,
+//         quote_asset_amount,
+//         quote_asset_amount_surplus,
+//         pnl,
+//     ))
+// }
+
 pub fn update_position_with_base_asset_amount(
     base_asset_amount: u128,
     direction: PositionDirection,
@@ -757,100 +872,49 @@ pub fn update_position_with_base_asset_amount(
     now: i64,
     maker_limit_price: Option<u128>,
 ) -> ClearingHouseResult<(bool, bool, u128, u128, u128, i128)> {
-    // A trade is risk increasing if it increases the users leverage
-    // If a trade is risk increasing and brings the user's margin ratio below initial requirement
-    // the trade fails
-    // If a trade is risk increasing and it pushes the mark price too far away from the oracle price
-    // the trade fails
-    let mut potentially_risk_increasing = true;
-    let mut reduce_only = false;
+    let swap_direction = match direction {
+        PositionDirection::Long => SwapDirection::Remove,
+        PositionDirection::Short => SwapDirection::Add,
+    };
 
-    // The trade increases the the user position if
-    // 1) the user does not have a position
-    // 2) the trade is in the same direction as the user's existing position
-    let quote_asset_amount;
-    let quote_asset_amount_surplus;
-    let pnl;
-    let existing_base_asset_amount = user.positions[position_index].base_asset_amount;
-    let increase_position = existing_base_asset_amount == 0
-        || existing_base_asset_amount > 0 && direction == PositionDirection::Long
-        || existing_base_asset_amount < 0 && direction == PositionDirection::Short;
-    if increase_position {
-        let (_quote_asset_amount, _quote_asset_amount_surplus) = increase_with_base_asset_amount(
-            direction,
+    let (quote_asset_swapped, quote_asset_amount_surplus) = controller::amm::swap_base_asset(
+        &mut market.amm,
+        base_asset_amount,
+        swap_direction,
+        now,
+        Some(mark_price_before),
+        maker_limit_price.is_none(),
+    )?;
+
+    let (quote_asset_amount, quote_asset_amount_surplus) = match maker_limit_price {
+        Some(limit_price) => calculate_quote_asset_amount_surplus(
+            swap_direction,
+            quote_asset_swapped,
             base_asset_amount,
-            market,
-            &mut user.positions[position_index],
-            now,
-            maker_limit_price,
-            Some(mark_price_before),
-        )?;
-        quote_asset_amount = _quote_asset_amount;
-        quote_asset_amount_surplus = _quote_asset_amount_surplus;
-        pnl = 0_i128;
-    } else if existing_base_asset_amount.unsigned_abs() > base_asset_amount {
-        let (_quote_asset_amount, _quote_asset_amount_surplus, _pnl) =
-            reduce_with_base_asset_amount(
-                direction,
-                base_asset_amount,
-                market,
-                &mut user.positions[position_index],
-                now,
-                maker_limit_price,
-                Some(mark_price_before),
-            )?;
-        quote_asset_amount = _quote_asset_amount;
-        quote_asset_amount_surplus = _quote_asset_amount_surplus;
-        pnl = _pnl;
+            limit_price,
+        )?,
+        None => (quote_asset_swapped, quote_asset_amount_surplus),
+    };
 
-        reduce_only = true;
-        potentially_risk_increasing = false;
-    } else {
-        // after closing existing position, how large should trade be in opposite direction
-        let base_asset_amount_after_close = base_asset_amount
-            .checked_sub(existing_base_asset_amount.unsigned_abs())
-            .ok_or_else(math_error!())?;
+    let position_delta = PositionDelta {
+        quote_asset_amount,
+        base_asset_amount: match direction {
+            PositionDirection::Long => cast_to_i128(base_asset_amount)?,
+            PositionDirection::Short => -cast_to_i128(base_asset_amount)?,
+        },
+    };
 
-        // If the value of the new position is less than value of the old position, consider it risk decreasing
-        if base_asset_amount_after_close < existing_base_asset_amount.unsigned_abs() {
-            potentially_risk_increasing = false;
-        }
+    let base_asset_amount_before = user.positions[position_index].base_asset_amount;
 
-        let (quote_asset_amount_closed, _, quote_asset_amount_surplus_closed, _pnl) = close(
-            market,
-            &mut user.positions[position_index],
-            now,
-            maker_limit_price,
-            None,
-            true,
-        )?;
+    let potentially_risk_increasing = base_asset_amount_before == 0
+        || base_asset_amount_before.signum() == position_delta.base_asset_amount.signum()
+        || base_asset_amount_before.abs() < position_delta.base_asset_amount.abs();
 
-        let (quote_asset_amount_opened, quote_asset_amount_surplus_opened) =
-            increase_with_base_asset_amount(
-                direction,
-                base_asset_amount_after_close,
-                market,
-                &mut user.positions[position_index],
-                now,
-                maker_limit_price,
-                Some(mark_price_before),
-            )?;
+    let reduce_only = !potentially_risk_increasing
+        && base_asset_amount_before.signum() != position_delta.base_asset_amount.signum();
 
-        // means position was closed and it was reduce only
-        if quote_asset_amount_opened == 0 {
-            reduce_only = true;
-        }
-
-        quote_asset_amount = quote_asset_amount_closed
-            .checked_add(quote_asset_amount_opened)
-            .ok_or_else(math_error!())?;
-
-        quote_asset_amount_surplus = quote_asset_amount_surplus_closed
-            .checked_add(quote_asset_amount_surplus_opened)
-            .ok_or_else(math_error!())?;
-
-        pnl = _pnl;
-    }
+    let pnl =
+        update_position_and_market(&mut user.positions[position_index], market, &position_delta)?;
 
     Ok((
         potentially_risk_increasing,
