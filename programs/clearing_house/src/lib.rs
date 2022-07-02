@@ -1117,9 +1117,19 @@ pub mod clearing_house {
                     .quote_asset_amount
                     .checked_sub(amm_position_unrealized_pnl.unsigned_abs())
                     .ok_or_else(math_error!())?;
+                market.amm.quote_asset_amount_long = market
+                    .amm
+                    .quote_asset_amount_long
+                    .checked_sub(amm_position_unrealized_pnl.unsigned_abs())
+                    .ok_or_else(math_error!())?;
             } else {
                 market_position.quote_asset_amount = market_position
                     .quote_asset_amount
+                    .checked_add(amm_position_unrealized_pnl.unsigned_abs())
+                    .ok_or_else(math_error!())?;
+                market.amm.quote_asset_amount_short = market
+                    .amm
+                    .quote_asset_amount_short
                     .checked_add(amm_position_unrealized_pnl.unsigned_abs())
                     .ok_or_else(math_error!())?;
             }

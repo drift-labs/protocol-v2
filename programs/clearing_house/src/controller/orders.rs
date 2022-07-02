@@ -84,14 +84,15 @@ pub fn place_order(
         (market_position.base_asset_amount, base_asset_amount)
     };
 
-    let (auction_start_price, auction_end_price) = if !params.post_only {
-        let auction_start_price = calculate_auction_start_price(market, params.direction)?;
-        let auction_end_price =
-            calculate_auction_end_price(market, params.direction, order_base_asset_amount)?;
-        (auction_start_price, auction_end_price)
-    } else {
-        (0_u128, 0_u128)
-    };
+    let (auction_start_price, auction_end_price) =
+        if params.base_asset_amount > 0 && !params.post_only {
+            let auction_start_price = calculate_auction_start_price(market, params.direction)?;
+            let auction_end_price =
+                calculate_auction_end_price(market, params.direction, order_base_asset_amount)?;
+            (auction_start_price, auction_end_price)
+        } else {
+            (0_u128, 0_u128)
+        };
 
     let new_order = Order {
         status: OrderStatus::Open,

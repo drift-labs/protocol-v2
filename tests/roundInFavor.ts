@@ -65,7 +65,7 @@ describe('round in favor', () => {
 		await primaryClearingHouse.subscribe();
 
 		await initializeQuoteAssetBank(primaryClearingHouse, usdcMint.publicKey);
-		await clearingHouse.updateOrderAuctionTime(new BN(0));
+		await primaryClearingHouse.updateOrderAuctionTime(new BN(0));
 
 		const solUsd = await mockOracle(63000);
 		const periodicity = new BN(60 * 60); // 1 HOUR

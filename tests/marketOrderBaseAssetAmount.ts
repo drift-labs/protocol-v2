@@ -223,7 +223,7 @@ describe('clearing_house', () => {
 		assert.ok(
 			clearingHouse
 				.getUserAccount()
-				.positions[0].quoteEntryAmount.eq(new BN(24875002))
+				.positions[0].quoteEntryAmount.eq(new BN(24875001))
 		);
 		console.log(
 			clearingHouse.getUserAccount().positions[0].baseAssetAmount.toNumber()
@@ -282,12 +282,12 @@ describe('clearing_house', () => {
 			userAccountPublicKey
 		);
 
-		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9875626)));
+		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9874390)));
 		assert(user.totalFeePaid.eq(new BN(124371)));
 		assert.ok(
 			clearingHouse
 				.getUserAccount()
-				.positions[0].quoteEntryAmount.eq(new BN(24871287))
+				.positions[0].quoteEntryAmount.eq(new BN(24872525))
 		);
 		console.log(
 			clearingHouse.getUserAccount().positions[0].baseAssetAmount.toString()
@@ -316,7 +316,8 @@ describe('clearing_house', () => {
 		);
 		console.log(tradeRecord.baseAssetAmount.toNumber());
 		assert.ok(tradeRecord.baseAssetAmount.eq(new BN(497450503674885)));
-		assert.ok(tradeRecord.quoteAssetAmount.eq(new BN(49745049)));
+		console.log(tradeRecord.quoteAssetAmount.toString());
+		assert.ok(tradeRecord.quoteAssetAmount.eq(new BN(49745050)));
 		assert.ok(tradeRecord.marketIndex.eq(new BN(0)));
 	});
 
@@ -347,7 +348,8 @@ describe('clearing_house', () => {
 		assert.ok(
 			clearingHouse.getUserAccount().positions[0].baseAssetAmount.eq(new BN(0))
 		);
-		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9850755)));
+
+		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9850756)));
 		assert(user.totalFeePaid.eq(new BN(149242)));
 
 		const market = clearingHouse.getMarketAccount(0);
