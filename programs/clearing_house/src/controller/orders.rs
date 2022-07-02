@@ -324,22 +324,8 @@ pub fn fill_order(
         .position(|order| order.order_id == order_id)
         .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
 
-    let (
-        order_status,
-        market_index,
-        order_post_only,
-        order_ts,
-        order_discount_tier,
-        order_direction,
-    ) = get_struct_values!(
-        user.orders[order_index],
-        status,
-        market_index,
-        post_only,
-        ts,
-        discount_tier,
-        direction
-    );
+    let (order_status, market_index) =
+        get_struct_values!(user.orders[order_index], status, market_index);
 
     validate!(
         order_status == OrderStatus::Open,
@@ -379,12 +365,8 @@ pub fn fill_order(
         None
     };
 
-    let (
-        base_asset_amount,
-        quote_asset_amount,
-        potentially_risk_increasing,
-        quote_asset_amount_surplus,
-    ) = execute_order(
+    let (base_asset_amount, potentially_risk_increasing) = fulfill_order_with_amm(
+        state,
         user,
         order_index,
         market_map,
@@ -394,6 +376,10 @@ pub fn fill_order(
         mark_price_before,
         now,
         valid_oracle_price,
+        &user_key,
+        &filler_key,
+        filler,
+        &referrer,
     )?;
 
     if base_asset_amount == 0 {
@@ -401,7 +387,6 @@ pub fn fill_order(
     }
 
     let mark_price_after: u128;
-    let oracle_price_after: i128;
     let oracle_mark_spread_pct_after: i128;
     {
         let market = market_map.get_ref_mut(&market_index)?;
@@ -412,7 +397,6 @@ pub fn fill_order(
             oracle_price_data,
             Some(mark_price_after),
         )?;
-        oracle_price_after = oracle_price_data.price;
     }
 
     let is_oracle_mark_too_divergent_before = amm::is_oracle_mark_too_divergent(
@@ -442,166 +426,10 @@ pub fn fill_order(
     }
 
     // Order fails if it's risk increasing and it brings the user collateral below the margin requirement
-    let meets_maintenance_requirement = if order_post_only {
-        // for post only orders allow user to fill up to partial margin requirement
-        meets_partial_margin_requirement(user, market_map, bank_map, oracle_map)?
-    } else {
-        meets_initial_margin_requirement(user, market_map, bank_map, oracle_map)?
-    };
+    let meets_maintenance_requirement =
+        meets_initial_margin_requirement(user, market_map, bank_map, oracle_map)?;
     if !meets_maintenance_requirement && potentially_risk_increasing {
         return Err(ErrorCode::InsufficientCollateral);
-    }
-
-    let (user_fee, fee_to_market, token_discount, filler_reward, referrer_reward, referee_discount) =
-        fees::calculate_fee_for_order(
-            quote_asset_amount,
-            &state.fee_structure,
-            &state.order_filler_reward_structure,
-            &order_discount_tier,
-            order_ts,
-            now,
-            &referrer,
-            filler_key == user_key,
-            quote_asset_amount_surplus,
-            order_post_only,
-        )?;
-
-    // Increment the clearing house's total fee variables
-    {
-        let market = &mut market_map.get_ref_mut(&market_index)?;
-        market.amm.total_fee = market
-            .amm
-            .total_fee
-            .checked_add(fee_to_market)
-            .ok_or_else(math_error!())?;
-        market.amm.total_fee_minus_distributions = market
-            .amm
-            .total_fee_minus_distributions
-            .checked_add(fee_to_market)
-            .ok_or_else(math_error!())?;
-        market.amm.net_revenue_since_last_funding = market
-            .amm
-            .net_revenue_since_last_funding
-            .checked_add(fee_to_market as i64)
-            .ok_or_else(math_error!())?;
-
-        let position_index = get_position_index(&user.positions, market_index)?;
-
-        controller::position::update_unsettled_pnl(
-            &mut user.positions[position_index],
-            market,
-            -user_fee,
-        )?;
-
-        if filler_key != user_key {
-            let filler = &mut load_mut(filler)?;
-            let position_index = get_position_index(&filler.positions, market_index)
-                .or_else(|_| add_new_position(&mut filler.positions, market_index))?;
-
-            controller::position::update_unsettled_pnl(
-                &mut filler.positions[position_index],
-                market,
-                cast(filler_reward)?,
-            )?;
-        }
-    }
-
-    // Increment the user's total fee variables
-    if user_fee > 0 {
-        user.total_fee_paid = user
-            .total_fee_paid
-            .checked_add(cast(user_fee.unsigned_abs())?)
-            .ok_or_else(math_error!())?;
-    } else {
-        user.total_fee_rebate = user
-            .total_fee_rebate
-            .checked_add(cast(user_fee.unsigned_abs())?)
-            .ok_or_else(math_error!())?;
-    }
-
-    user.total_token_discount = user
-        .total_token_discount
-        .checked_add(token_discount)
-        .ok_or_else(math_error!())?;
-    user.total_referee_discount = user
-        .total_referee_discount
-        .checked_add(referee_discount)
-        .ok_or_else(math_error!())?;
-
-    // Update the referrer's collateral with their reward
-    if let Some(referrer) = referrer {
-        let referrer = &mut load_mut(&referrer)?;
-        referrer.total_referral_reward = referrer
-            .total_referral_reward
-            .checked_add(referrer_reward)
-            .ok_or_else(math_error!())?;
-    }
-
-    {
-        let market = &market_map.get_ref(&market_index)?;
-        update_order_after_trade(
-            &mut user.orders[order_index],
-            market.amm.minimum_base_asset_trade_size,
-            base_asset_amount,
-            quote_asset_amount,
-            user_fee,
-        )?;
-    }
-
-    let trade_record_id = {
-        let market = &mut market_map.get_ref_mut(&market_index)?;
-        let record_id = get_then_update_id!(market, next_trade_record_id);
-        let trade_record = TradeRecord {
-            ts: now,
-            record_id,
-            user_authority: user.authority,
-            user: user_key,
-            direction: order_direction,
-            base_asset_amount,
-            quote_asset_amount,
-            mark_price_before,
-            mark_price_after,
-            fee: user_fee,
-            token_discount,
-            quote_asset_amount_surplus,
-            referee_discount,
-            liquidation: false,
-            market_index,
-            oracle_price: oracle_price_after,
-        };
-        emit!(trade_record);
-        record_id
-    };
-
-    emit!(OrderRecord {
-        ts: now,
-        order: user.orders[order_index],
-        user: user_key,
-        authority: user.authority,
-        action: OrderAction::Fill,
-        filler: filler_key,
-        trade_record_id,
-        base_asset_amount_filled: base_asset_amount,
-        quote_asset_amount_filled: quote_asset_amount,
-        filler_reward,
-        fee: user_fee,
-        quote_asset_amount_surplus,
-    });
-
-    let (order_base_asset_amount, order_base_asset_amount_filled, order_type) = get_struct_values!(
-        user.orders[order_index],
-        base_asset_amount,
-        base_asset_amount_filled,
-        order_type
-    );
-
-    // Cant reset order until after its logged
-    if order_base_asset_amount == order_base_asset_amount_filled || order_type == OrderType::Market
-    {
-        user.orders[order_index] = Order::default();
-        let position_index = get_position_index(&user.positions, market_index)?;
-        let market_position = &mut user.positions[position_index];
-        market_position.open_orders -= 1;
     }
 
     // Try to update the funding rate at the end of every trade
@@ -690,6 +518,215 @@ pub fn execute_order(
             value_oracle_price,
         ),
     }
+}
+
+pub fn fulfill_order_with_amm(
+    state: &State,
+    user: &mut User,
+    order_index: usize,
+    market_map: &MarketMap,
+    bank_map: &mut BankMap,
+    oracle_map: &mut OracleMap,
+    market_index: u64,
+    mark_price_before: u128,
+    now: i64,
+    value_oracle_price: Option<i128>,
+    user_key: &Pubkey,
+    filler_key: &Pubkey,
+    filler: &AccountLoader<User>,
+    referrer: &Option<AccountLoader<User>>,
+) -> ClearingHouseResult<(u128, bool)> {
+    let order_type = user.orders[order_index].order_type;
+    let (
+        base_asset_amount,
+        quote_asset_amount,
+        potentially_risk_increasing,
+        quote_asset_amount_surplus,
+    ) = match order_type {
+        OrderType::Market => execute_market_order(
+            user,
+            order_index,
+            market_map,
+            market_index,
+            mark_price_before,
+            now,
+        )?,
+        _ => execute_non_market_order(
+            user,
+            order_index,
+            market_map,
+            bank_map,
+            oracle_map,
+            market_index,
+            mark_price_before,
+            now,
+            value_oracle_price,
+        )?,
+    };
+
+    let (order_post_only, order_ts, order_discount_tier, order_direction) = get_struct_values!(
+        user.orders[order_index],
+        post_only,
+        ts,
+        discount_tier,
+        direction
+    );
+
+    let (user_fee, fee_to_market, token_discount, filler_reward, referrer_reward, referee_discount) =
+        fees::calculate_fee_for_order(
+            quote_asset_amount,
+            &state.fee_structure,
+            &state.order_filler_reward_structure,
+            &order_discount_tier,
+            order_ts,
+            now,
+            referrer,
+            filler_key == user_key,
+            quote_asset_amount_surplus,
+            order_post_only,
+        )?;
+
+    // Increment the clearing house's total fee variables
+    {
+        let market = &mut market_map.get_ref_mut(&market_index)?;
+        market.amm.total_fee = market
+            .amm
+            .total_fee
+            .checked_add(fee_to_market)
+            .ok_or_else(math_error!())?;
+        market.amm.total_fee_minus_distributions = market
+            .amm
+            .total_fee_minus_distributions
+            .checked_add(fee_to_market)
+            .ok_or_else(math_error!())?;
+        market.amm.net_revenue_since_last_funding = market
+            .amm
+            .net_revenue_since_last_funding
+            .checked_add(fee_to_market as i64)
+            .ok_or_else(math_error!())?;
+
+        let position_index = get_position_index(&user.positions, market_index)?;
+
+        controller::position::update_unsettled_pnl(
+            &mut user.positions[position_index],
+            market,
+            -user_fee,
+        )?;
+
+        if filler_key != user_key {
+            let filler = &mut load_mut(filler)?;
+            let position_index = get_position_index(&filler.positions, market_index)
+                .or_else(|_| add_new_position(&mut filler.positions, market_index))?;
+
+            controller::position::update_unsettled_pnl(
+                &mut filler.positions[position_index],
+                market,
+                cast(filler_reward)?,
+            )?;
+        }
+    }
+
+    // Increment the user's total fee variables
+    if user_fee > 0 {
+        user.total_fee_paid = user
+            .total_fee_paid
+            .checked_add(cast(user_fee.unsigned_abs())?)
+            .ok_or_else(math_error!())?;
+    } else {
+        user.total_fee_rebate = user
+            .total_fee_rebate
+            .checked_add(cast(user_fee.unsigned_abs())?)
+            .ok_or_else(math_error!())?;
+    }
+
+    user.total_token_discount = user
+        .total_token_discount
+        .checked_add(token_discount)
+        .ok_or_else(math_error!())?;
+    user.total_referee_discount = user
+        .total_referee_discount
+        .checked_add(referee_discount)
+        .ok_or_else(math_error!())?;
+
+    // Update the referrer's collateral with their reward
+    if let Some(referrer) = referrer {
+        let referrer = &mut load_mut(referrer)?;
+        referrer.total_referral_reward = referrer
+            .total_referral_reward
+            .checked_add(referrer_reward)
+            .ok_or_else(math_error!())?;
+    }
+
+    {
+        let market = &market_map.get_ref(&market_index)?;
+        update_order_after_trade(
+            &mut user.orders[order_index],
+            market.amm.minimum_base_asset_trade_size,
+            base_asset_amount,
+            quote_asset_amount,
+            user_fee,
+        )?;
+    }
+
+    let trade_record_id = {
+        let market = &mut market_map.get_ref_mut(&market_index)?;
+        let mark_price_after = market.amm.mark_price()?;
+        let oracle_price_after = oracle_map.get_price_data(&market.amm.oracle)?.price;
+        let record_id = get_then_update_id!(market, next_trade_record_id);
+        let trade_record = TradeRecord {
+            ts: now,
+            record_id,
+            user_authority: user.authority,
+            user: *user_key,
+            direction: order_direction,
+            base_asset_amount,
+            quote_asset_amount,
+            mark_price_before,
+            mark_price_after,
+            fee: user_fee,
+            token_discount,
+            quote_asset_amount_surplus,
+            referee_discount,
+            liquidation: false,
+            market_index,
+            oracle_price: oracle_price_after,
+        };
+        emit!(trade_record);
+        record_id
+    };
+
+    emit!(OrderRecord {
+        ts: now,
+        order: user.orders[order_index],
+        user: *user_key,
+        authority: user.authority,
+        action: OrderAction::Fill,
+        filler: *filler_key,
+        trade_record_id,
+        base_asset_amount_filled: base_asset_amount,
+        quote_asset_amount_filled: quote_asset_amount,
+        filler_reward,
+        fee: user_fee,
+        quote_asset_amount_surplus,
+    });
+
+    let (order_base_asset_amount, order_base_asset_amount_filled, order_type) = get_struct_values!(
+        user.orders[order_index],
+        base_asset_amount,
+        base_asset_amount_filled,
+        order_type
+    );
+
+    // Cant reset order until after its logged
+    if order_base_asset_amount == order_base_asset_amount_filled || order_type == OrderType::Market
+    {
+        user.orders[order_index] = Order::default();
+        let position_index = get_position_index(&user.positions, market_index)?;
+        let market_position = &mut user.positions[position_index];
+        market_position.open_orders -= 1;
+    }
+
+    Ok((base_asset_amount, potentially_risk_increasing))
 }
 
 pub fn execute_market_order(
