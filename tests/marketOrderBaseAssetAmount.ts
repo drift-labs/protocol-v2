@@ -20,6 +20,7 @@ import {
 	mockUserUSDCAccount,
 	mockOracle,
 	initializeQuoteAssetBank,
+	printTxLogs,
 } from './testHelpers';
 
 describe('clearing_house', () => {
@@ -110,17 +111,18 @@ describe('clearing_house', () => {
 			false
 		);
 		await clearingHouse.placeAndFillOrder(orderParams);
-		await clearingHouse.settlePNL(
+		const txSig = await clearingHouse.settlePNL(
 			await clearingHouse.getUserAccountPublicKey(),
 			clearingHouse.getUserAccount(),
 			marketIndex
 		);
+		await printTxLogs(connection, txSig);
 
 		const user: any = await clearingHouse.program.account.user.fetch(
 			userAccountPublicKey
 		);
 
-		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9950250)));
+		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9950249)));
 		assert(user.totalFeePaid.eq(new BN(49750)));
 
 		assert.ok(
@@ -204,7 +206,9 @@ describe('clearing_house', () => {
 			baseAssetAmount,
 			false
 		);
-		await clearingHouse.placeAndFillOrder(orderParams);
+		const txSig = await clearingHouse.placeAndFillOrder(orderParams);
+		await printTxLogs(connection, txSig);
+
 		await clearingHouse.settlePNL(
 			await clearingHouse.getUserAccountPublicKey(),
 			clearingHouse.getUserAccount(),
@@ -217,7 +221,7 @@ describe('clearing_house', () => {
 		assert.ok(
 			clearingHouse
 				.getUserAccount()
-				.positions[0].quoteEntryAmount.eq(new BN(24875001))
+				.positions[0].quoteEntryAmount.eq(new BN(24875002))
 		);
 		console.log(
 			clearingHouse.getUserAccount().positions[0].baseAssetAmount.toNumber()
@@ -227,7 +231,8 @@ describe('clearing_house', () => {
 				.getUserAccount()
 				.positions[0].baseAssetAmount.eq(new BN(248725251837443))
 		);
-		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9926611)));
+
+		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9925372)));
 		assert(user.totalFeePaid.eq(new BN(74626)));
 
 		const market = clearingHouse.getMarketAccount(0);
@@ -275,7 +280,7 @@ describe('clearing_house', () => {
 			userAccountPublicKey
 		);
 
-		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9875627)));
+		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9875626)));
 		assert(user.totalFeePaid.eq(new BN(124371)));
 		assert.ok(
 			clearingHouse
