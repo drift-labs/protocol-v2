@@ -29,7 +29,7 @@ pub mod state;
 #[cfg(feature = "mainnet-beta")]
 declare_id!("dammHkt7jmytvbS3nHTxQNEcP59aE57nxwV21YdqEDN");
 #[cfg(not(feature = "mainnet-beta"))]
-declare_id!("4kApqj1TdRVxK8kPEJ2SDs8aGq53YPnDA4cVxTUuqRkK");
+declare_id!("Eqa21pSiUCR7e796As4mLK9ypo4sfu159mdUDiwY3dtx");
 
 #[program]
 pub mod clearing_house {
@@ -412,6 +412,10 @@ pub mod clearing_house {
                 base_asset_reserve: amm_base_asset_reserve,
                 quote_asset_reserve: amm_quote_asset_reserve,
                 terminal_quote_asset_reserve: amm_quote_asset_reserve,
+                ask_base_asset_reserve: amm_base_asset_reserve,
+                ask_quote_asset_reserve: amm_quote_asset_reserve,
+                bid_base_asset_reserve: amm_base_asset_reserve,
+                bid_quote_asset_reserve: amm_quote_asset_reserve,
                 cumulative_repeg_rebate_long: 0,
                 cumulative_repeg_rebate_short: 0,
                 cumulative_funding_rate_long: 0,
@@ -1105,7 +1109,7 @@ pub mod clearing_house {
 
         // update user cost basis (if at a loss)
         let (_amm_position_base_asset_value, amm_position_unrealized_pnl) =
-            calculate_base_asset_value_and_pnl(market_position, &market.amm)?;
+            calculate_base_asset_value_and_pnl(market_position, &market.amm, true)?;
 
         if amm_position_unrealized_pnl < 0 {
             if market_position.base_asset_amount > 0 {

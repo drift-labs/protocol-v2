@@ -780,7 +780,9 @@ export class ClearingHouse {
 				amount,
 				ZERO,
 				false,
-				limitPrice
+				limitPrice,
+				discountToken !== undefined,
+				referrer !== undefined
 			),
 			discountToken,
 			referrer
@@ -1262,7 +1264,10 @@ export class ClearingHouse {
 				findDirectionToClose(userPosition),
 				ZERO,
 				userPosition.baseAssetAmount,
-				true
+				true,
+				undefined,
+				discountToken !== undefined,
+				referrer !== undefined
 			),
 			discountToken,
 			referrer

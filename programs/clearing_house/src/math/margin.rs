@@ -99,36 +99,7 @@ pub fn calculate_margin_requirement_and_total_collateral(
         )?;
 
         let (position_base_asset_value, position_unrealized_pnl) =
-            calculate_base_asset_value_and_pnl(market_position, &market.amm)?;
-
-        // let mark_price_before = market.amm.mark_price()?;
-        // let (amm_position_base_asset_value, amm_position_unrealized_pnl) =
-        //     calculate_base_asset_value_and_pnl(market_position, &market.amm)?;
-
-        // let exit_slippage = calculate_slippage(
-        //     amm_position_base_asset_value,
-        //     market_position.base_asset_amount.unsigned_abs(),
-        //     cast_to_i128(mark_price_before)?,
-        // )?;
-
-        // let oracle_exit_price = oracle_price_data
-        //         .price;
-        // .checked_add(exit_slippage)
-        // .ok_or_else(math_error!())?;
-
-        // let (oracle_position_base_asset_value, oracle_position_unrealized_pnl) =
-        //     calculate_base_asset_value_and_pnl_with_oracle_price(market_position, oracle_exit_price)?;
-
-        // // give user the worse of the two
-        // let position_base_asset_value: u128;
-        // let position_unrealized_pnl: i128;
-        // if oracle_position_unrealized_pnl < amm_position_unrealized_pnl {
-        //     position_unrealized_pnl = amm_position_unrealized_pnl;
-        //     position_base_asset_value = amm_position_base_asset_value;
-        // } else {
-        //     position_unrealized_pnl = amm_position_unrealized_pnl;
-        //     position_base_asset_value = amm_position_base_asset_value;
-        // }
+            calculate_base_asset_value_and_pnl(market_position, &market.amm, true)?;
 
         let margin_ratio = market.get_margin_ratio(margin_requirement_type);
 
@@ -331,7 +302,7 @@ pub fn calculate_liquidation_status(
         let market = market_map.get_ref(&market_position.market_index)?;
         let amm = &market.amm;
         let (amm_position_base_asset_value, amm_position_unrealized_pnl) =
-            calculate_base_asset_value_and_pnl(market_position, amm)?;
+            calculate_base_asset_value_and_pnl(market_position, amm, true)?;
 
         base_asset_value = base_asset_value
             .checked_add(amm_position_base_asset_value)
@@ -580,7 +551,7 @@ pub fn calculate_free_collateral(
         let market = &market_map.get_ref(&market_position.market_index)?;
         let amm = &market.amm;
         let (position_base_asset_value, position_unrealized_pnl) =
-            calculate_base_asset_value_and_pnl(market_position, amm)?;
+            calculate_base_asset_value_and_pnl(market_position, amm, true)?;
 
         if market_to_close.is_some() && market_to_close.unwrap() == market_position.market_index {
             closed_position_base_asset_value = position_base_asset_value;
