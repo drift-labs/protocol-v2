@@ -14,7 +14,7 @@ use crate::math::constants::{
     MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128, ONE_HOUR_I128, PEG_PRECISION,
     PRICE_TO_PEG_PRECISION_RATIO,
 };
-use crate::math::position::{_calculate_base_asset_value, _calculate_base_asset_value_and_pnl};
+use crate::math::position::{_calculate_base_asset_value_and_pnl, calculate_base_asset_value};
 use crate::math::quote_asset::{asset_to_reserve_amount, reserve_to_asset_amount};
 use crate::math_error;
 use crate::state::market::{Market, AMM};
@@ -824,7 +824,7 @@ pub fn adjust_k_cost_and_update(
 ) -> ClearingHouseResult<i128> {
     // Find the net market value before adjusting k
     let current_net_market_value =
-        _calculate_base_asset_value(market.amm.net_base_asset_amount, &market.amm, false)?;
+        calculate_base_asset_value(market.amm.net_base_asset_amount, &market.amm, false)?;
 
     update_k(market, update_k_result)?;
 

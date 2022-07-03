@@ -246,18 +246,6 @@ pub fn calculate_available_quote_asset_user_can_execute(
     };
     let order_direction = user.orders[order_index].direction;
 
-    let max_leverage = {
-        let market = market_map.get_ref(&market_index)?;
-        MARGIN_PRECISION
-            .checked_div(
-                // add one to initial margin ratio so we don't fill exactly to max leverage
-                cast_to_u128(market.margin_ratio_initial)?
-                    .checked_add(1)
-                    .ok_or_else(math_error!())?,
-            )
-            .ok_or_else(math_error!())?
-    };
-
     let risk_increasing_in_same_direction = existing_base_asset_amount == 0
         || existing_base_asset_amount > 0 && order_direction == PositionDirection::Long
         || existing_base_asset_amount < 0 && order_direction == PositionDirection::Short;
@@ -266,15 +254,31 @@ pub fn calculate_available_quote_asset_user_can_execute(
         let (free_collateral, _) =
             calculate_free_collateral(user, market_map, bank_map, oracle_map, None)?;
 
+        let market = market_map.get_ref(&market_index)?;
         free_collateral
-            .checked_mul(max_leverage)
+            .checked_mul(MARGIN_PRECISION)
+            .ok_or_else(math_error!())?
+            .checked_div(
+                // add one to initial margin ratio so we don't fill exactly to max leverage
+                cast_to_u128(market.margin_ratio_initial)?
+                    .checked_add(1)
+                    .ok_or_else(math_error!())?,
+            )
             .ok_or_else(math_error!())?
     } else {
         let (free_collateral, closed_position_base_asset_value) =
             calculate_free_collateral(user, market_map, bank_map, oracle_map, Some(market_index))?;
 
+        let market = market_map.get_ref(&market_index)?;
         free_collateral
-            .checked_mul(max_leverage)
+            .checked_mul(MARGIN_PRECISION)
+            .ok_or_else(math_error!())?
+            .checked_div(
+                // add one to initial margin ratio so we don't fill exactly to max leverage
+                cast_to_u128(market.margin_ratio_initial)?
+                    .checked_add(1)
+                    .ok_or_else(math_error!())?,
+            )
             .ok_or_else(math_error!())?
             .checked_add(closed_position_base_asset_value)
             .ok_or_else(math_error!())?

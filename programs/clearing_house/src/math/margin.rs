@@ -2,7 +2,8 @@ use crate::error::ClearingHouseResult;
 use crate::math::collateral::calculate_updated_collateral;
 use crate::math::constants::{BANK_WEIGHT_PRECISION, MARGIN_PRECISION};
 use crate::math::position::{
-    calculate_base_asset_value_and_pnl, calculate_base_asset_value_and_pnl_with_oracle_price,
+    calculate_base_asset_value, calculate_base_asset_value_and_pnl,
+    calculate_base_asset_value_and_pnl_with_oracle_price, calculate_position_pnl,
 };
 use crate::math_error;
 use crate::state::user::User;
@@ -85,7 +86,7 @@ pub fn calculate_margin_requirement_and_total_collateral(
             .checked_add(market_position.unsettled_pnl)
             .ok_or_else(math_error!())?;
 
-        if market_position.base_asset_amount == 0 {
+        if market_position.base_asset_amount == 0 && !market_position.has_open_order() {
             continue;
         }
 
@@ -98,14 +99,17 @@ pub fn calculate_margin_requirement_and_total_collateral(
             "AMM must be updated in a prior instruction within same slot"
         )?;
 
-        let (position_base_asset_value, position_unrealized_pnl) =
-            calculate_base_asset_value_and_pnl(market_position, &market.amm, true)?;
+        let worst_case_base_asset_amount = market_position.worst_case_base_asset_amount()?;
+        let worse_case_base_asset_value =
+            calculate_base_asset_value(worst_case_base_asset_amount, &market.amm, false)?;
+
+        let position_unrealized_pnl = calculate_position_pnl(market_position, &market.amm, false)?;
 
         let margin_ratio = market.get_margin_ratio(margin_requirement_type);
 
         perp_margin_requirements = perp_margin_requirements
             .checked_add(
-                position_base_asset_value
+                worse_case_base_asset_value
                     .checked_mul(margin_ratio.into())
                     .ok_or_else(math_error!())?,
             )

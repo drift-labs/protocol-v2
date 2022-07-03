@@ -27,6 +27,20 @@ pub fn calculate_base_asset_value_and_pnl(
     )
 }
 
+pub fn calculate_position_pnl(
+    market_position: &MarketPosition,
+    amm: &AMM,
+    use_spread: bool,
+) -> ClearingHouseResult<i128> {
+    let (_, pnl) = _calculate_base_asset_value_and_pnl(
+        market_position.base_asset_amount,
+        market_position.quote_asset_amount,
+        amm,
+        use_spread,
+    )?;
+    Ok(pnl)
+}
+
 pub fn _calculate_base_asset_value_and_pnl(
     base_asset_amount: i128,
     quote_asset_amount: u128,
@@ -37,13 +51,13 @@ pub fn _calculate_base_asset_value_and_pnl(
         return Ok((0, 0));
     }
     let swap_direction = swap_direction_to_close_position(base_asset_amount);
-    let base_asset_value = _calculate_base_asset_value(base_asset_amount, amm, use_spread)?;
+    let base_asset_value = calculate_base_asset_value(base_asset_amount, amm, use_spread)?;
     let pnl = calculate_pnl(base_asset_value, quote_asset_amount, swap_direction)?;
 
     Ok((base_asset_value, pnl))
 }
 
-pub fn _calculate_base_asset_value(
+pub fn calculate_base_asset_value(
     base_asset_amount: i128,
     amm: &AMM,
     use_spread: bool,

@@ -130,6 +130,8 @@ pub struct MarketPosition {
     pub last_funding_rate_ts: i64,
     pub open_orders: u128,
     pub unsettled_pnl: i128,
+    pub open_bids: i128,
+    pub open_asks: i128,
 
     // upgrade-ability
     pub padding0: u128,
@@ -137,8 +139,6 @@ pub struct MarketPosition {
     pub padding2: u128,
     pub padding3: u128,
     pub padding4: u128,
-    pub padding5: u128,
-    pub padding6: u128,
 }
 
 impl MarketPosition {
@@ -156,11 +156,34 @@ impl MarketPosition {
     }
 
     pub fn has_open_order(&self) -> bool {
-        self.open_orders != 0
+        self.open_orders != 0 || self.open_bids != 0 || self.open_asks != 0
     }
 
     pub fn has_unsettled_pnl(&self) -> bool {
         self.unsettled_pnl != 0
+    }
+
+    pub fn worst_case_base_asset_amount(&self) -> ClearingHouseResult<i128> {
+        let base_asset_amount_all_bids_fill = self
+            .base_asset_amount
+            .checked_add(self.open_bids)
+            .ok_or_else(math_error!())?;
+        let base_asset_amount_all_asks_fill = self
+            .base_asset_amount
+            .checked_add(self.open_asks)
+            .ok_or_else(math_error!())?;
+
+        if base_asset_amount_all_bids_fill
+            .checked_abs()
+            .ok_or_else(math_error!())?
+            > base_asset_amount_all_asks_fill
+                .checked_abs()
+                .ok_or_else(math_error!())?
+        {
+            Ok(base_asset_amount_all_bids_fill)
+        } else {
+            Ok(base_asset_amount_all_asks_fill)
+        }
     }
 }
 
@@ -234,6 +257,12 @@ impl Order {
         };
 
         Ok(price)
+    }
+
+    pub fn get_base_asset_amount_unfilled(&self) -> ClearingHouseResult<u128> {
+        self.base_asset_amount
+            .checked_sub(self.base_asset_amount_filled)
+            .ok_or_else(math_error!())
     }
 }
 

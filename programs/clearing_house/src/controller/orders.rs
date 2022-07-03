@@ -7,7 +7,10 @@ use spl_token::state::Account as TokenAccount;
 use crate::account_loader::load_mut;
 use crate::context::*;
 use crate::controller;
-use crate::controller::position::{add_new_position, get_position_index};
+use crate::controller::position;
+use crate::controller::position::{
+    add_new_position, decrease_open_bids_and_asks, get_position_index, increase_open_bids_and_asks,
+};
 use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
 use crate::get_struct_values;
@@ -81,6 +84,7 @@ pub fn place_order(
         let market_position = &mut user.positions[position_index];
         market_position.open_orders += 1;
         let base_asset_amount = get_base_asset_amount_for_order(&params, market, market_position);
+        increase_open_bids_and_asks(market_position, &params.direction, base_asset_amount)?;
         (market_position.base_asset_amount, base_asset_amount)
     };
 
@@ -235,8 +239,8 @@ pub fn cancel_order(
     let now = clock.unix_timestamp;
     controller::funding::settle_funding_payment(user, user_key, market_map, now)?;
 
-    let (order_status, order_market_index) =
-        get_struct_values!(user.orders[order_index], status, market_index);
+    let (order_status, order_market_index, order_direction) =
+        get_struct_values!(user.orders[order_index], status, market_index, direction);
 
     if order_status != OrderStatus::Open {
         return Err(ErrorCode::OrderNotOpen);
@@ -292,6 +296,15 @@ pub fn cancel_order(
 
     // Decrement open orders for existing position
     let position_index = get_position_index(&user.positions, order_market_index)?;
+    let base_asset_amount_unfilled = user.orders[order_index].get_base_asset_amount_unfilled()?;
+    // have to check that base_asset_amount is set until we remove support for orders w quote
+    if user.orders[order_index].base_asset_amount != 0 {
+        position::decrease_open_bids_and_asks(
+            &mut user.positions[position_index],
+            &order_direction,
+            base_asset_amount_unfilled,
+        )?;
+    }
     user.positions[position_index].open_orders -= 1;
     user.orders[order_index] = Order::default();
 
@@ -586,6 +599,7 @@ pub fn fulfill_order_with_amm(
             order_post_only,
         )?;
 
+    let position_index = get_position_index(&user.positions, market_index)?;
     // Increment the clearing house's total fee variables
     {
         let market = &mut market_map.get_ref_mut(&market_index)?;
@@ -604,8 +618,6 @@ pub fn fulfill_order_with_amm(
             .net_revenue_since_last_funding
             .checked_add(fee_to_market as i64)
             .ok_or_else(math_error!())?;
-
-        let position_index = get_position_index(&user.positions, market_index)?;
 
         controller::position::update_unsettled_pnl(
             &mut user.positions[position_index],
@@ -666,6 +678,14 @@ pub fn fulfill_order_with_amm(
             quote_asset_amount,
             user_fee,
         )?;
+
+        if user.orders[order_index].base_asset_amount != 0 {
+            decrease_open_bids_and_asks(
+                &mut user.positions[position_index],
+                &order_direction,
+                base_asset_amount,
+            )?;
+        }
     }
 
     let trade_record_id = {

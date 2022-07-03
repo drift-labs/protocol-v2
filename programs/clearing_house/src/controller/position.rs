@@ -1,5 +1,8 @@
+use std::cmp::min;
+
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
+use solana_program::msg;
 
 use crate::controller;
 use crate::controller::amm::SwapDirection;
@@ -13,8 +16,6 @@ use crate::math_error;
 use crate::state::market::Market;
 use crate::state::user::{User, UserPositions};
 use crate::MarketPosition;
-use solana_program::msg;
-use std::cmp::min;
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq)]
 pub enum PositionDirection {
@@ -40,21 +41,7 @@ pub fn add_new_position(
 
     let new_market_position = MarketPosition {
         market_index,
-        base_asset_amount: 0,
-        quote_asset_amount: 0,
-        quote_entry_amount: 0,
-        last_cumulative_funding_rate: 0,
-        last_cumulative_repeg_rebate: 0,
-        last_funding_rate_ts: 0,
-        open_orders: 0,
-        unsettled_pnl: 0,
-        padding0: 0,
-        padding1: 0,
-        padding2: 0,
-        padding3: 0,
-        padding4: 0,
-        padding5: 0,
-        padding6: 0,
+        ..MarketPosition::default()
     };
 
     user_positions[new_position_index] = new_market_position;
@@ -1943,4 +1930,50 @@ mod test {
         assert_eq!(market.amm.quote_asset_amount_long, 0);
         assert_eq!(market.amm.quote_asset_amount_short, 1);
     }
+}
+
+pub fn increase_open_bids_and_asks(
+    position: &mut MarketPosition,
+    direction: &PositionDirection,
+    base_asset_amount_unfilled: u128,
+) -> ClearingHouseResult {
+    match direction {
+        PositionDirection::Long => {
+            position.open_bids = position
+                .open_bids
+                .checked_add(cast(base_asset_amount_unfilled)?)
+                .ok_or_else(math_error!())?;
+        }
+        PositionDirection::Short => {
+            position.open_asks = position
+                .open_asks
+                .checked_sub(cast(base_asset_amount_unfilled)?)
+                .ok_or_else(math_error!())?;
+        }
+    }
+
+    Ok(())
+}
+
+pub fn decrease_open_bids_and_asks(
+    position: &mut MarketPosition,
+    direction: &PositionDirection,
+    base_asset_amount_unfilled: u128,
+) -> ClearingHouseResult {
+    match direction {
+        PositionDirection::Long => {
+            position.open_bids = position
+                .open_bids
+                .checked_sub(cast(base_asset_amount_unfilled)?)
+                .ok_or_else(math_error!())?;
+        }
+        PositionDirection::Short => {
+            position.open_asks = position
+                .open_asks
+                .checked_add(cast(base_asset_amount_unfilled)?)
+                .ok_or_else(math_error!())?;
+        }
+    }
+
+    Ok(())
 }
