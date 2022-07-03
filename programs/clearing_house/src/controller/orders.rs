@@ -44,6 +44,8 @@ pub fn place_order(
     state: &State,
     user: &AccountLoader<User>,
     market_map: &MarketMap,
+    bank_map: &BankMap,
+    oracle_map: &mut OracleMap,
     discount_token: Option<TokenAccount>,
     referrer: &Option<AccountLoader<User>>,
     clock: &Clock,
@@ -77,10 +79,14 @@ pub fn place_order(
     let market_index = params.market_index;
     let market = &market_map.get_ref(&market_index)?;
 
+    let position_index = get_position_index(&user.positions, market_index)
+        .or_else(|_| add_new_position(&mut user.positions, market_index))?;
+
+    let worst_case_base_asset_amount_before =
+        user.positions[position_index].worst_case_base_asset_amount()?;
+
     // Increment open orders for existing position
     let (user_base_asset_amount, order_base_asset_amount) = {
-        let position_index = get_position_index(&user.positions, market_index)
-            .or_else(|_| add_new_position(&mut user.positions, market_index))?;
         let market_position = &mut user.positions[position_index];
         market_position.open_orders += 1;
         let base_asset_amount = get_base_asset_amount_for_order(&params, market, market_position);
@@ -140,6 +146,18 @@ pub fn place_order(
     validate_order(&new_order, market, state, valid_oracle_price)?;
 
     user.orders[new_order_index] = new_order;
+
+    let worst_case_base_asset_amount_after =
+        user.positions[position_index].worst_case_base_asset_amount()?;
+
+    // Order fails if it's risk increasing and it brings the user collateral below the margin requirement
+    let risk_increasing = worst_case_base_asset_amount_after.unsigned_abs()
+        > worst_case_base_asset_amount_before.unsigned_abs();
+    let meets_initial_maintenance_requirement =
+        meets_initial_margin_requirement(user, market_map, bank_map, oracle_map)?;
+    if !meets_initial_maintenance_requirement && risk_increasing {
+        return Err(ErrorCode::InsufficientCollateral);
+    }
 
     // emit order record
     emit!(OrderRecord {
@@ -436,13 +454,6 @@ pub fn fill_order(
         && potentially_risk_increasing
     {
         return Err(ErrorCode::OracleMarkSpreadLimit);
-    }
-
-    // Order fails if it's risk increasing and it brings the user collateral below the margin requirement
-    let meets_maintenance_requirement =
-        meets_initial_margin_requirement(user, market_map, bank_map, oracle_map)?;
-    if !meets_maintenance_requirement && potentially_risk_increasing {
-        return Err(ErrorCode::InsufficientCollateral);
     }
 
     // Try to update the funding rate at the end of every trade

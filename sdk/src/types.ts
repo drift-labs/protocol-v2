@@ -307,6 +307,8 @@ export type UserPosition = {
 	quoteEntryAmount: BN;
 	openOrders: BN;
 	unsettledPnl: BN;
+	openBids: BN;
+	openAsks: BN;
 };
 
 export type UserAccount = {
