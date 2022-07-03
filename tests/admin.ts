@@ -297,17 +297,17 @@ describe('admin', () => {
 		assert(market.amm.minimumQuoteAssetTradeSize.eq(minimumTradeSize));
 	});
 
-	it('Update market minimum base asset trade size', async () => {
-		const minimumTradeSize = new BN(2);
+	it('Update market base asset step size', async () => {
+		const stepSize = new BN(2);
 
-		await clearingHouse.updateMarketMinimumBaseAssetTradeSize(
+		await clearingHouse.updateMarketBaseAssetAmountStepSize(
 			new BN(0),
-			minimumTradeSize
+			stepSize
 		);
 
 		await clearingHouse.fetchAccounts();
 		const market = clearingHouse.getMarketAccount(0);
-		assert(market.amm.minimumBaseAssetTradeSize.eq(minimumTradeSize));
+		assert(market.amm.baseAssetAmountStepSize.eq(stepSize));
 	});
 
 	it('Pause funding', async () => {

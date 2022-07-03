@@ -24,6 +24,7 @@ import {
 	getLimitOrderParams,
 	getTriggerMarketOrderParams,
 	EventSubscriber,
+	standardizeBaseAssetAmount,
 } from '../sdk/src';
 
 import { calculateAmountToTradeForLimit } from '../sdk/src/orders';
@@ -889,10 +890,14 @@ describe('orders', () => {
 		const order = clearingHouseUser.getUserAccount().orders[0];
 		const amountToFill = calculateAmountToTradeForLimit(market, order);
 
+		const standardizedBaseAssetAmount = standardizeBaseAssetAmount(
+			baseAssetAmount,
+			clearingHouse.getMarketAccount(marketIndex).amm.baseAssetAmountStepSize
+		);
 		assert(
 			clearingHouseUser
 				.getUserPosition(marketIndex)
-				.openAsks.eq(baseAssetAmount.neg())
+				.openAsks.eq(standardizedBaseAssetAmount.neg())
 		);
 		assert(clearingHouseUser.getUserPosition(marketIndex).openBids.eq(ZERO));
 
@@ -1083,7 +1088,7 @@ describe('orders', () => {
 
 		const market = clearingHouse.getMarketAccount(marketIndex);
 		const limitPrice = calculateMarkPrice(market); // 0 liquidity at current mark price
-		const baseAssetAmount = new BN(377119103971921);
+		const baseAssetAmount = new BN(377119100000000);
 		//long 50 base amount at $1 with ~$10 collateral (max leverage = 5x)
 
 		const [newDirection, amountToPrice, _entryPrice, newMarkPrice] =
@@ -1323,7 +1328,7 @@ describe('orders', () => {
 		assert(postPosition.baseAssetAmount.lt(ZERO));
 	});
 
-	it('Round up when residual base_asset_fill left is <= minimum tick size (LONG BTC)', async () => {
+	it('Base amount unfilled >= step size for tiny trade (LONG BTC)', async () => {
 		//todo, partial fill wont work on order too large
 		const userLeverage0 = clearingHouseUser.getLeverage();
 		const userTotalCollatearl = clearingHouseUser.getTotalCollateral();
@@ -1392,8 +1397,6 @@ describe('orders', () => {
 
 		console.log(convertToNumber(amountToFill, AMM_RESERVE_PRECISION));
 
-		const prePosition = clearingHouseUser.getUserPosition(marketIndexBTC);
-
 		const orderId = order.orderId;
 		await fillerClearingHouse.fillOrder(
 			userAccountPublicKey,
@@ -1405,39 +1408,20 @@ describe('orders', () => {
 		await clearingHouseUser.fetchAccounts();
 		await fillerUser.fetchAccounts();
 
-		const newMarket1 = clearingHouse.getMarketAccount(marketIndexBTC);
-		const newMarkPrice1 = calculateMarkPrice(newMarket1);
+		const orderAfter = clearingHouseUser.getOrder(orderId);
+		const baseAssetAmountUnfilled = orderAfter.baseAssetAmount.sub(
+			orderAfter.baseAssetAmountFilled
+		);
+		const stepSize =
+			clearingHouse.getMarketAccount(marketIndexBTC).amm
+				.baseAssetAmountStepSize;
 
-		const postPosition = clearingHouseUser.getUserPosition(marketIndexBTC);
-		console.log(
-			'User position: ',
-			convertToNumber(prePosition.baseAssetAmount, AMM_RESERVE_PRECISION),
-			'->',
-			convertToNumber(postPosition.baseAssetAmount, AMM_RESERVE_PRECISION)
-		);
+		assert(baseAssetAmountUnfilled.eq(stepSize));
 
-		console.log(
-			'assert: ',
-			convertToNumber(newMarkPrice1),
-			'<',
-			convertToNumber(limitPrice)
-		);
-		assert(newMarkPrice1.gt(limitPrice)); // rounded up long pushes price slightly above limit
-		assert(
-			postPosition.baseAssetAmount.abs().gt(prePosition.baseAssetAmount.abs())
-		);
 		await clearingHouse.closePosition(marketIndexBTC);
-
-		// ensure order no longer exists
-		try {
-			await clearingHouse.cancelOrder(orderId);
-		} catch (e) {
-			return;
-		}
-
-		assert(false);
+		await clearingHouse.cancelOrder(orderId);
 	});
-	it('Round up when residual base_asset_fill left is <= minimum tick size (SHORT BTC)', async () => {
+	it('Base amount unfilled >= step size for tiny trade (SHORT BTC)', async () => {
 		//todo, partial fill wont work on order too large
 		const userLeverage0 = clearingHouseUser.getLeverage();
 		console.log(
@@ -1502,8 +1486,6 @@ describe('orders', () => {
 
 		console.log(convertToNumber(amountToFill, AMM_RESERVE_PRECISION));
 
-		const prePosition = clearingHouseUser.getUserPosition(marketIndexBTC);
-
 		const orderId = order.orderId;
 		await fillerClearingHouse.fillOrder(
 			userAccountPublicKey,
@@ -1515,37 +1497,18 @@ describe('orders', () => {
 		await clearingHouseUser.fetchAccounts();
 		await fillerUser.fetchAccounts();
 
-		const newMarket1 = clearingHouse.getMarketAccount(marketIndexBTC);
-		const newMarkPrice1 = calculateMarkPrice(newMarket1);
-		console.log(
-			'assert: ',
-			convertToNumber(newMarkPrice1),
-			'>',
-			convertToNumber(limitPrice)
+		const orderAfter = clearingHouseUser.getOrder(orderId);
+		const baseAssetAmountUnfilled = orderAfter.baseAssetAmount.sub(
+			orderAfter.baseAssetAmountFilled
 		);
-		assert(newMarkPrice1.lt(limitPrice)); // rounded up long pushes price slightly above limit
+		const stepSize =
+			clearingHouse.getMarketAccount(marketIndexBTC).amm
+				.baseAssetAmountStepSize;
 
-		const postPosition = clearingHouseUser.getUserPosition(marketIndexBTC);
-		console.log(
-			'User position: ',
-			convertToNumber(prePosition.baseAssetAmount, AMM_RESERVE_PRECISION),
-			'->',
-			convertToNumber(postPosition.baseAssetAmount, AMM_RESERVE_PRECISION)
-		);
-		assert(
-			postPosition.baseAssetAmount.abs().gt(prePosition.baseAssetAmount.abs())
-		);
+		assert(baseAssetAmountUnfilled.eq(stepSize));
 
 		await clearingHouse.closePosition(marketIndexBTC);
-
-		// ensure order no longer exists
-		try {
-			await clearingHouse.cancelOrder(orderId);
-		} catch (e) {
-			return;
-		}
-
-		assert(false);
+		await clearingHouse.cancelOrder(orderId);
 	});
 
 	it('PlaceAndFill LONG Order 100% filled', async () => {

@@ -71,9 +71,10 @@ pub fn calculate_base_asset_amount_to_trade_for_limit(
         return Ok(0);
     }
 
-    let base_asset_amount_to_trade = min(base_asset_amount_to_fill, max_trade_base_asset_amount);
-
-    Ok(base_asset_amount_to_trade)
+    standardize_base_asset_amount(
+        min(base_asset_amount_to_fill, max_trade_base_asset_amount),
+        market.amm.base_asset_amount_step_size,
+    )
 }
 
 fn calculate_base_asset_amount_to_trade_for_trigger_market(
@@ -128,10 +129,13 @@ fn calculate_base_asset_amount_to_trade_for_trigger_market(
         }
     }
 
-    order
-        .base_asset_amount
-        .checked_sub(order.base_asset_amount_filled)
-        .ok_or_else(math_error!())
+    standardize_base_asset_amount(
+        order
+            .base_asset_amount
+            .checked_sub(order.base_asset_amount_filled)
+            .ok_or_else(math_error!())?,
+        market.amm.base_asset_amount_step_size,
+    )
 }
 
 fn calculate_base_asset_amount_to_trade_for_trigger_limit(
@@ -226,7 +230,7 @@ pub fn calculate_base_asset_amount_user_can_execute(
         )
     }
 
-    Ok(base_asset_amount)
+    standardize_base_asset_amount(base_asset_amount, market.amm.base_asset_amount_step_size)
 }
 
 pub fn calculate_available_quote_asset_user_can_execute(
@@ -344,5 +348,56 @@ pub fn calculate_base_asset_amount_for_reduce_only_order(
         0
     } else {
         min(proposed_base_asset_amount, existing_position.unsigned_abs())
+    }
+}
+
+pub fn standardize_base_asset_amount(
+    base_asset_amount: u128,
+    step_size: u128,
+) -> ClearingHouseResult<u128> {
+    let remainder = base_asset_amount
+        .checked_rem_euclid(step_size)
+        .ok_or_else(math_error!())?;
+
+    base_asset_amount
+        .checked_sub(remainder)
+        .ok_or_else(math_error!())
+}
+
+#[cfg(test)]
+mod test {
+
+    pub mod standardize_base_asset_amount {
+        use crate::math::orders::standardize_base_asset_amount;
+
+        #[test]
+        fn remainder_less_than_half_minimum_size() {
+            let base_asset_amount: u128 = 200001;
+            let minimum_size: u128 = 100000;
+
+            let result = standardize_base_asset_amount(base_asset_amount, minimum_size).unwrap();
+
+            assert_eq!(result, 200000);
+        }
+
+        #[test]
+        fn remainder_more_than_half_minimum_size() {
+            let base_asset_amount: u128 = 250001;
+            let minimum_size: u128 = 100000;
+
+            let result = standardize_base_asset_amount(base_asset_amount, minimum_size).unwrap();
+
+            assert_eq!(result, 200000);
+        }
+
+        #[test]
+        fn zero() {
+            let base_asset_amount: u128 = 0;
+            let minimum_size: u128 = 100000;
+
+            let result = standardize_base_asset_amount(base_asset_amount, minimum_size).unwrap();
+
+            assert_eq!(result, 0);
+        }
     }
 }

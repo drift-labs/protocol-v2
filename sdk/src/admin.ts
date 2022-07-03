@@ -584,12 +584,12 @@ export class Admin extends ClearingHouse {
 		);
 	}
 
-	public async updateMarketMinimumBaseAssetTradeSize(
+	public async updateMarketBaseAssetAmountStepSize(
 		marketIndex: BN,
-		minimumTradeSize: BN
+		stepSize: BN
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateMarketMinimumBaseAssetTradeSize(
-			minimumTradeSize,
+		return await this.program.rpc.updateMarketBaseAssetAmountStepSize(
+			stepSize,
 			{
 				accounts: {
 					admin: this.wallet.publicKey,

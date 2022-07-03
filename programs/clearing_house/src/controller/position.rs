@@ -1168,6 +1168,29 @@ pub fn update_unsettled_pnl(
     Ok(())
 }
 
+pub fn decrease_open_bids_and_asks(
+    position: &mut MarketPosition,
+    direction: &PositionDirection,
+    base_asset_amount_unfilled: u128,
+) -> ClearingHouseResult {
+    match direction {
+        PositionDirection::Long => {
+            position.open_bids = position
+                .open_bids
+                .checked_sub(cast(base_asset_amount_unfilled)?)
+                .ok_or_else(math_error!())?;
+        }
+        PositionDirection::Short => {
+            position.open_asks = position
+                .open_asks
+                .checked_add(cast(base_asset_amount_unfilled)?)
+                .ok_or_else(math_error!())?;
+        }
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod test {
     use crate::controller::position::{update_position_and_market, PositionDelta};
@@ -1948,29 +1971,6 @@ pub fn increase_open_bids_and_asks(
             position.open_asks = position
                 .open_asks
                 .checked_sub(cast(base_asset_amount_unfilled)?)
-                .ok_or_else(math_error!())?;
-        }
-    }
-
-    Ok(())
-}
-
-pub fn decrease_open_bids_and_asks(
-    position: &mut MarketPosition,
-    direction: &PositionDirection,
-    base_asset_amount_unfilled: u128,
-) -> ClearingHouseResult {
-    match direction {
-        PositionDirection::Long => {
-            position.open_bids = position
-                .open_bids
-                .checked_sub(cast(base_asset_amount_unfilled)?)
-                .ok_or_else(math_error!())?;
-        }
-        PositionDirection::Short => {
-            position.open_asks = position
-                .open_asks
-                .checked_add(cast(base_asset_amount_unfilled)?)
                 .ok_or_else(math_error!())?;
         }
     }

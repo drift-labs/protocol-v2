@@ -254,8 +254,8 @@ fn validate_base_asset_amount(order: &Order, market: &Market) -> ClearingHouseRe
         return Err(ErrorCode::InvalidOrder);
     }
 
-    if order.base_asset_amount < market.amm.minimum_base_asset_trade_size {
-        msg!("Order base_asset_amount smaller than market minimum_base_asset_trade_size");
+    if order.base_asset_amount < market.amm.base_asset_amount_step_size {
+        msg!("Order base_asset_amount smaller than market base asset amount step size");
         return Err(ErrorCode::InvalidOrder);
     }
 
@@ -346,30 +346,31 @@ pub fn get_base_asset_amount_for_order(
     params: &OrderParams,
     market: &Market,
     position: &MarketPosition,
+    base_asset_amount: u128,
 ) -> u128 {
     // if the order isnt reduce only or it doesnt specify base asset amount, return early
-    if !params.reduce_only || params.base_asset_amount == 0 {
-        return params.base_asset_amount;
+    if !params.reduce_only || base_asset_amount == 0 {
+        return base_asset_amount;
     }
 
     // check that order reduces existing position
     if params.direction == PositionDirection::Long && position.base_asset_amount >= 0 {
-        return params.base_asset_amount;
+        return base_asset_amount;
     }
     if params.direction == PositionDirection::Short && position.base_asset_amount <= 0 {
-        return params.base_asset_amount;
+        return base_asset_amount;
     }
 
     // find the absolute difference between order base asset amount and order base asset amount
     let current_position_size = position.base_asset_amount.unsigned_abs();
-    let difference = if current_position_size >= params.base_asset_amount {
-        current_position_size - params.base_asset_amount
+    let difference = if current_position_size >= base_asset_amount {
+        current_position_size - base_asset_amount
     } else {
-        params.base_asset_amount - current_position_size
+        base_asset_amount - current_position_size
     };
 
-    // if it leaves less than the markets minimum base size, round the order size to be the same as current position
-    if difference <= market.amm.minimum_base_asset_trade_size {
+    // if it leaves less than the markets base asset step size, round the order size to be the same as current position
+    if difference <= market.amm.base_asset_amount_step_size {
         current_position_size
     } else {
         params.base_asset_amount

@@ -14,6 +14,7 @@ import {
 	calculateSpreadReserves,
 	ClearingHouseUser,
 	isOrderRiskIncreasingInSameDirection,
+	standardizeBaseAssetAmount,
 	TEN_THOUSAND,
 } from '.';
 import {
@@ -47,7 +48,7 @@ export function calculateNewStateAfterOrder(
 		market,
 		order
 	);
-	if (baseAssetAmountToTrade.lt(market.amm.minimumBaseAssetTradeSize)) {
+	if (baseAssetAmountToTrade.lt(market.amm.baseAssetAmountStepSize)) {
 		return null;
 	}
 
@@ -217,15 +218,20 @@ export function calculateAmountToTradeForLimit(
 		!order.postOnly
 	);
 
+	const baseAssetAmount = standardizeBaseAssetAmount(
+		maxAmountToTrade,
+		market.amm.baseAssetAmountStepSize
+	);
+
 	// Check that directions are the same
 	const sameDirection = isSameDirection(direction, order.direction);
 	if (!sameDirection) {
 		return ZERO;
 	}
 
-	return maxAmountToTrade.gt(order.baseAssetAmount)
+	return baseAssetAmount.gt(order.baseAssetAmount)
 		? order.baseAssetAmount
-		: maxAmountToTrade;
+		: baseAssetAmount;
 }
 
 export function calculateAmountToTradeForTriggerLimit(

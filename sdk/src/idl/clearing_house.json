@@ -1336,7 +1336,7 @@
       ]
     },
     {
-      "name": "updateMarketMinimumBaseAssetTradeSize",
+      "name": "updateMarketBaseAssetAmountStepSize",
       "accounts": [
         {
           "name": "admin",
@@ -2153,7 +2153,7 @@
             "type": "u128"
           },
           {
-            "name": "minimumBaseAssetTradeSize",
+            "name": "baseAssetAmountStepSize",
             "type": "u128"
           },
           {

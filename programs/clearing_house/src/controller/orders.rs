@@ -89,7 +89,17 @@ pub fn place_order(
     let (user_base_asset_amount, order_base_asset_amount) = {
         let market_position = &mut user.positions[position_index];
         market_position.open_orders += 1;
-        let base_asset_amount = get_base_asset_amount_for_order(&params, market, market_position);
+
+        let standardized_base_asset_amount = standardize_base_asset_amount(
+            params.base_asset_amount,
+            market.amm.base_asset_amount_step_size,
+        )?;
+        let base_asset_amount = get_base_asset_amount_for_order(
+            &params,
+            market,
+            market_position,
+            standardized_base_asset_amount,
+        );
         increase_open_bids_and_asks(market_position, &params.direction, base_asset_amount)?;
         (market_position.base_asset_amount, base_asset_amount)
     };
@@ -682,9 +692,9 @@ pub fn fulfill_order_with_amm(
 
     {
         let market = &market_map.get_ref(&market_index)?;
-        update_order_after_trade(
+        update_order_after_fill(
             &mut user.orders[order_index],
-            market.amm.minimum_base_asset_trade_size,
+            market.amm.base_asset_amount_step_size,
             base_asset_amount,
             quote_asset_amount,
             user_fee,
@@ -829,7 +839,7 @@ pub fn execute_market_order(
 
     controller::position::update_unsettled_pnl(&mut user.positions[position_index], market, pnl)?;
 
-    if base_asset_amount < market.amm.minimum_base_asset_trade_size {
+    if base_asset_amount < market.amm.base_asset_amount_step_size {
         msg!("base asset amount {}", base_asset_amount);
         return Err(print_error!(ErrorCode::TradeSizeTooSmall)());
     }
@@ -897,12 +907,12 @@ pub fn execute_non_market_order(
         return Ok((0, 0, false, 0));
     }
 
-    let mut base_asset_amount = min(
+    let base_asset_amount = min(
         base_asset_amount_market_can_execute,
         base_asset_amount_user_can_execute,
     );
 
-    if base_asset_amount < market.amm.minimum_base_asset_trade_size {
+    if base_asset_amount < market.amm.base_asset_amount_step_size {
         msg!("base asset amount too small {}", base_asset_amount);
         return Ok((0, 0, false, 0));
     }
@@ -922,7 +932,6 @@ pub fn execute_non_market_order(
         base_asset_amount_filled
     );
 
-    let minimum_base_asset_trade_size = market.amm.minimum_base_asset_trade_size;
     let base_asset_amount_left_to_fill = order_base_asset_amount
         .checked_sub(
             order_base_asset_amount_filled
@@ -931,12 +940,10 @@ pub fn execute_non_market_order(
         )
         .ok_or_else(math_error!())?;
 
-    if base_asset_amount_left_to_fill > 0
-        && base_asset_amount_left_to_fill < minimum_base_asset_trade_size
+    if base_asset_amount_left_to_fill != 0
+        && base_asset_amount_left_to_fill < market.amm.base_asset_amount_step_size
     {
-        base_asset_amount = base_asset_amount
-            .checked_add(base_asset_amount_left_to_fill)
-            .ok_or_else(math_error!())?;
+        return Err(ErrorCode::OrderAmountTooSmall);
     }
 
     if base_asset_amount == 0 {
@@ -982,7 +989,7 @@ pub fn execute_non_market_order(
     ))
 }
 
-pub fn update_order_after_trade(
+pub fn update_order_after_fill(
     order: &mut Order,
     minimum_base_asset_trade_size: u128,
     base_asset_amount: u128,

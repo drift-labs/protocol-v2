@@ -442,7 +442,7 @@ pub mod clearing_house {
                 last_oracle_conf_pct: 0,
                 last_oracle_delay: oracle_delay,
                 last_oracle_mark_spread_pct: 0, // todo
-                minimum_base_asset_trade_size: 10000000,
+                base_asset_amount_step_size: 10000000,
                 base_spread: 0,
                 long_spread: 0,
                 short_spread: 0,
@@ -2418,12 +2418,12 @@ pub mod clearing_house {
     #[access_control(
         market_initialized(&ctx.accounts.market)
     )]
-    pub fn update_market_minimum_base_asset_trade_size(
+    pub fn update_market_base_asset_amount_step_size(
         ctx: Context<AdminUpdateMarket>,
         minimum_trade_size: u128,
     ) -> Result<()> {
         let market = &mut ctx.accounts.market.load_mut()?;
-        market.amm.minimum_base_asset_trade_size = minimum_trade_size;
+        market.amm.base_asset_amount_step_size = minimum_trade_size;
         Ok(())
     }
 

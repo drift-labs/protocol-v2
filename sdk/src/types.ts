@@ -287,7 +287,7 @@ export type AMM = {
 	totalFeeWithdrawn: BN;
 	totalFee: BN;
 	minimumQuoteAssetTradeSize: BN;
-	minimumBaseAssetTradeSize: BN;
+	baseAssetAmountStepSize: BN;
 	lastOraclePrice: BN;
 	baseSpread: number;
 	curveUpdateIntensity: number;
