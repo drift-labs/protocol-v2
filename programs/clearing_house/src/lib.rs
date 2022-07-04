@@ -785,7 +785,7 @@ pub mod clearing_house {
         let position_index = get_position_index_lp(&user.positions, market_index)?;
         let lp_position = &mut user.positions[position_index];
 
-        settle_lp_position(lp_position, lp_position.lp_tokens, &mut market.amm)?;
+        settle_lp_position(lp_position, lp_position.lp_tokens, &mut market)?;
 
         Ok(())
     }
@@ -820,24 +820,23 @@ pub mod clearing_house {
         let position_index = get_position_index_lp(&user.positions, market_index)?;
         let lp_position = &mut user.positions[position_index];
 
-        // tmp -- they can only burn everything
-        let lp_tokens_to_burn = lp_position.lp_tokens;
+        let lp_tokens_to_burn = lp_position.lp_tokens; // tmp
 
         if lp_tokens_to_burn == 0 {
             return Ok(());
         }
 
         validate!(
-            lp_position.lp_tokens <= lp_tokens_to_burn,
+            lp_position.lp_tokens >= lp_tokens_to_burn,
             ErrorCode::InsufficientLPTokens,
             "Trying to burn more lp tokens than the user has",
         )?;
 
         // settle the lp first
-        let settle_result = settle_lp_position(lp_position, lp_tokens_to_burn, &mut market.amm)?;
+        let settle_result = settle_lp_position(lp_position, lp_tokens_to_burn, &mut market)?;
 
         if settle_result == SettleResult::DidNotRecieveMarketPosition {
-            msg!("warning: unable to fully remove lp due to market position size being too small");
+            msg!("warning: unable to burn lp tokens due to market position size being too small");
             return Ok(());
         }
 
@@ -910,7 +909,8 @@ pub mod clearing_house {
         let lp_position = &mut user.positions[position_index];
 
         validate!(
-            !(lp_position.has_open_order() || lp_position.is_open_position()),
+            !(lp_position.has_open_order() || lp_position.is_open_position())
+                || lp_position.is_lp(),
             ErrorCode::CantLPWithMarketPosition
         )?;
 
@@ -945,7 +945,7 @@ pub mod clearing_house {
         if lp_position.is_lp() {
             // update current stats
             let mut market = market_map.get_ref_mut(&market_index)?;
-            settle_lp_position(lp_position, lp_position.lp_tokens, &mut market.amm)?;
+            settle_lp_position(lp_position, lp_position.lp_tokens, &mut market)?;
         } else {
             // init position
             lp_position.last_net_base_asset_amount = net_base_asset_amount;

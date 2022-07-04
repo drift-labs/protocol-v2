@@ -403,7 +403,6 @@ describe('liquidity providing', () => {
 		console.log('closing trader...');
 		const trader_user = traderClearingHouse.getUserAccount();
 		market = clearingHouse.getMarketAccount(new BN(0));
-		console.log(trader_user.positions[0]);
 		await price_post_swap(trader_user.positions[0], market);
 		await traderClearingHouse.closePosition(new BN(0));
 
@@ -459,13 +458,15 @@ describe('liquidity providing', () => {
 		const post_upnl = position.unsettledPnl;
 
 		// they got the market position + upnl
+		console.log(baa.toString(), post_baa.toString());
+		console.log(qaa.toString(), post_qaa.toString());
+		console.log(upnl.toString(), post_upnl.toString());
 		assert(!post_baa.eq(baa));
 		assert(post_qaa.gt(qaa));
 		assert(!post_upnl.eq(upnl));
 
 		// other sht was updated
 		const market = clearingHouse.getMarketAccount(new BN(0));
-
 		assert(market.amm.netBaseAssetAmount.eq(position.lastNetBaseAssetAmount));
 		assert(
 			market.amm.totalFeeMinusDistributions.eq(
@@ -473,6 +474,61 @@ describe('liquidity providing', () => {
 			)
 		);
 
+		const _txSig = await clearingHouse.removeLiquidity(new BN(0));
+
 		console.log('done!');
 	});
+
+	it('trys to add lp with market position', async () => {
+		try {
+			await clearingHouse.addLiquidity(usdcAmount, new BN(0));
+			assert(false, 'added liquidity with a market position');
+		} catch (e) {
+			assert(e.message.includes('0x17bf'));
+		}
+
+		console.log('closing lp...');
+		const user2 = clearingHouse.getUserAccount();
+		const market = clearingHouse.getMarketAccount(new BN(0));
+		await price_post_swap(user2.positions[0], market);
+		await clearingHouse.closePosition(new BN(0));
+	});
+
+	//it('lp burns half of their position', async () => {
+
+	//console.log('adding liquidity...');
+	//await clearingHouse.addLiquidity(usdcAmount, new BN(0));
+
+	//let user = clearingHouse.getUserAccount();
+	//let lptokens = user.positions[0].lpTokens;
+	//console.log('got {} lp tokens', lptokens.toString())
+
+	//console.log('user trading...');
+	//await traderClearingHouse.openPosition(
+	//PositionDirection.SHORT,
+	//new BN(115 * 1e5),
+	//new BN(0)
+	//);
+
+	//console.log('burning...');
+	//let lpTokensToBurn = lptokens.div(new BN(2))
+	//try {
+	//await clearingHouse.removeLiquidity(
+	//lpTokensToBurn,
+	//new BN(0)
+	//)
+	//} catch (e) {
+	//console.error(e)
+	//}
+
+	//user = clearingHouse.getUserAccount();
+	//console.log(
+	//lptokens.toString(),
+	//lpTokensToBurn.toString(),
+	//user.positions[0].lpTokens.toString()
+	//)
+	//assert.ok(lptokens.sub(lpTokensToBurn).eq(user.positions[0].lpTokens))
+
+	//console.log('done!');
+	//});
 });
