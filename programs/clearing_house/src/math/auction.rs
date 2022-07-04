@@ -87,18 +87,29 @@ pub fn calculate_auction_price(
             .checked_add(price_delta)
             .ok_or_else(math_error!())?,
         PositionDirection::Short => order
-            .auction_end_price
-            .checked_add(price_delta)
+            .auction_start_price
+            .checked_sub(price_delta)
             .ok_or_else(math_error!())?,
     };
 
     Ok(price)
 }
 
-pub fn does_auction_satisfy_maker_order(order: &Order, auction_price: u128) -> bool {
-    match order.direction {
-        PositionDirection::Long => auction_price <= order.price,
-        PositionDirection::Short => auction_price >= order.price,
+pub fn does_auction_satisfy_maker_order(
+    maker_order: &Order,
+    taker_order: &Order,
+    auction_price: u128,
+) -> bool {
+    // TODO more conditions to check?
+    if maker_order.direction == taker_order.direction
+        || maker_order.market_index != taker_order.market_index
+    {
+        return false;
+    }
+
+    match maker_order.direction {
+        PositionDirection::Long => auction_price <= maker_order.price,
+        PositionDirection::Short => auction_price >= maker_order.price,
     }
 }
 
@@ -122,6 +133,8 @@ pub fn calculate_auction_fill_amount(
         maker_base_asset_amount_unfilled,
     );
 
+    println!("base_asset_amount_to_fill {}", base_asset_amount_to_fill);
+
     // TODO: should round up taker/maker quote asset amount based on who is going long/short
     let quote_asset_amount = base_asset_amount_to_fill
         .checked_mul(auction_price)
@@ -130,6 +143,16 @@ pub fn calculate_auction_fill_amount(
         .ok_or_else(math_error!())?;
 
     Ok((base_asset_amount_to_fill, quote_asset_amount))
+}
+
+pub fn is_auction_complete(
+    order_ts: i64,
+    auction_duration: i64,
+    now: i64,
+) -> ClearingHouseResult<bool> {
+    let time_elapsed = now.checked_sub(order_ts).ok_or_else(math_error!())?;
+
+    Ok(time_elapsed >= auction_duration)
 }
 
 #[cfg(test)]

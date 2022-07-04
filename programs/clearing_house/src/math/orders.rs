@@ -4,8 +4,8 @@ use std::ops::Div;
 use solana_program::msg;
 
 use crate::controller::amm::SwapDirection;
-use crate::controller::position::get_position_index;
 use crate::controller::position::PositionDirection;
+use crate::controller::position::{get_position_index, PositionDelta};
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::get_struct_values;
 use crate::math;
@@ -362,6 +362,20 @@ pub fn standardize_base_asset_amount(
     base_asset_amount
         .checked_sub(remainder)
         .ok_or_else(math_error!())
+}
+
+pub fn get_position_delta_for_fill(
+    base_asset_amount: u128,
+    quote_asset_amount: u128,
+    direction: PositionDirection,
+) -> ClearingHouseResult<PositionDelta> {
+    Ok(PositionDelta {
+        quote_asset_amount,
+        base_asset_amount: match direction {
+            PositionDirection::Long => cast_to_i128(base_asset_amount)?,
+            PositionDirection::Short => -cast_to_i128(base_asset_amount)?,
+        },
+    })
 }
 
 #[cfg(test)]

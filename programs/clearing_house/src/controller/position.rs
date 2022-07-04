@@ -64,8 +64,8 @@ pub fn get_position_index(
 }
 
 pub struct PositionDelta {
-    quote_asset_amount: u128,
-    base_asset_amount: i128,
+    pub quote_asset_amount: u128,
+    pub base_asset_amount: i128,
 }
 
 pub fn update_position_and_market(

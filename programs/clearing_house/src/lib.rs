@@ -50,7 +50,9 @@ pub mod clearing_house {
     use crate::math::bank_balance::get_token_amount;
     use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64};
     use crate::math::slippage::{calculate_slippage, calculate_slippage_pct};
-    use crate::optional_accounts::{get_discount_token, get_referrer, get_referrer_for_fill_order};
+    use crate::optional_accounts::{
+        get_discount_token, get_maker, get_referrer, get_referrer_for_fill_order,
+    };
     use crate::state::bank::{Bank, BankBalance, BankBalanceType};
     use crate::state::bank_map::{get_writable_banks, BankMap, WritableBanks};
     use crate::state::events::TradeRecord;
@@ -895,7 +897,7 @@ pub mod clearing_house {
     pub fn fill_order<'info>(
         ctx: Context<FillOrder>,
         taker_order_id: u64,
-        // maker_order_id: Option<u64>,
+        maker_order_id: Option<u64>,
     ) -> Result<()> {
         let (writable_markets, market_oracles) = {
             let user = &load(&ctx.accounts.user)?;
@@ -921,6 +923,11 @@ pub mod clearing_house {
         let mut market_map =
             MarketMap::load(writable_markets, market_oracles, remaining_accounts_iter)?;
 
+        let maker = match maker_order_id {
+            Some(_) => Some(get_maker(remaining_accounts_iter)?),
+            None => None,
+        };
+
         controller::repeg::update_amms(
             &mut market_map,
             &mut oracle_map,
@@ -945,6 +952,8 @@ pub mod clearing_house {
             &ctx.accounts.oracle,
             &ctx.accounts.filler,
             referrer,
+            maker,
+            maker_order_id,
             &Clock::get()?,
         )?;
 
@@ -1032,6 +1041,8 @@ pub mod clearing_house {
             &ctx.accounts.oracle,
             &user.clone(),
             referrer,
+            None,
+            None,
             &Clock::get()?,
         )?;
 

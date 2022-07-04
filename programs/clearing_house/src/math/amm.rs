@@ -976,7 +976,7 @@ pub fn should_round_trade(
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::math::constants::{AMM_RESERVE_PRECISION, MARK_PRICE_PRECISION, QUOTE_PRECISION};
+    use crate::math::constants::MARK_PRICE_PRECISION;
 
     #[test]
     fn calc_mark_std_tests() {
@@ -989,7 +989,7 @@ mod test {
             ..AMM::default()
         };
         let old_mark_std = amm.mark_std;
-        update_amm_mark_std(&mut amm, now, MARK_PRICE_PRECISION * 23);
+        update_amm_mark_std(&mut amm, now, MARK_PRICE_PRECISION * 23)?;
         assert_eq!(amm.mark_std, (MARK_PRICE_PRECISION * 23) as u64);
 
         amm.mark_std = MARK_PRICE_PRECISION as u64;

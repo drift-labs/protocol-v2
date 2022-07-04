@@ -170,6 +170,10 @@ pub enum ErrorCode {
     CouldNotDeserializeMaker,
     #[msg("AuctionPriceDoesNotSatisfyMaker")]
     AuctionPriceDoesNotSatisfyMaker,
+    #[msg("MakerCantFulfillOwnOrder")]
+    MakerCantFulfillOwnOrder,
+    #[msg("MakerOrderMustBePostOnly")]
+    MakerOrderMustBePostOnly,
     #[msg("DefaultError")]
     DefaultError,
 }

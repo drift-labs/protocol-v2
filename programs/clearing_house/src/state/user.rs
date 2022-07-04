@@ -81,6 +81,13 @@ impl User {
     ) -> ClearingHouseResult<&mut MarketPosition> {
         Ok(&mut self.positions[get_position_index(&self.positions, market_index)?])
     }
+
+    pub fn get_order_index(&self, order_id: u64) -> ClearingHouseResult<usize> {
+        self.orders
+            .iter()
+            .position(|order| order.order_id == order_id)
+            .ok_or(ErrorCode::OrderDoesNotExist)
+    }
 }
 
 #[zero_copy]

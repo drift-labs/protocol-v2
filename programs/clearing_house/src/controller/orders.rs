@@ -10,6 +10,7 @@ use crate::controller;
 use crate::controller::position;
 use crate::controller::position::{
     add_new_position, decrease_open_bids_and_asks, get_position_index, increase_open_bids_and_asks,
+    update_position_and_market,
 };
 use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
@@ -17,8 +18,8 @@ use crate::get_struct_values;
 use crate::get_then_update_id;
 use crate::math::amm::is_oracle_valid;
 use crate::math::auction::{
-    calculate_auction_end_price, calculate_auction_price, calculate_auction_start_price,
-    does_auction_satisfy_maker_order,
+    calculate_auction_end_price, calculate_auction_fill_amount, calculate_auction_price,
+    calculate_auction_start_price, does_auction_satisfy_maker_order, is_auction_complete,
 };
 use crate::math::casting::cast;
 use crate::math::fees::calculate_order_fee_tier;
@@ -349,6 +350,8 @@ pub fn fill_order(
     oracle: &AccountInfo,
     filler: &AccountLoader<User>,
     referrer: Option<AccountLoader<User>>,
+    maker: Option<AccountLoader<User>>,
+    maker_order_id: Option<u64>,
     clock: &Clock,
 ) -> ClearingHouseResult<u128> {
     let now = clock.unix_timestamp;
@@ -365,8 +368,8 @@ pub fn fill_order(
         .position(|order| order.order_id == order_id)
         .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
 
-    let (order_status, market_index) =
-        get_struct_values!(user.orders[order_index], status, market_index);
+    let (order_status, market_index, order_ts) =
+        get_struct_values!(user.orders[order_index], status, market_index, ts);
 
     validate!(
         order_status == OrderStatus::Open,
@@ -406,22 +409,56 @@ pub fn fill_order(
         None
     };
 
-    let (base_asset_amount, potentially_risk_increasing) = fulfill_order_with_amm(
-        state,
-        user,
-        order_index,
-        market_map,
-        bank_map,
-        oracle_map,
-        market_index,
-        mark_price_before,
-        now,
-        valid_oracle_price,
-        &user_key,
-        &filler_key,
-        filler,
-        &referrer,
-    )?;
+    let (base_asset_amount, potentially_risk_increasing) =
+        if is_auction_complete(order_ts, state.order_auction_duration, clock.unix_timestamp)? {
+            fulfill_order_with_amm(
+                state,
+                user,
+                order_index,
+                market_map,
+                bank_map,
+                oracle_map,
+                market_index,
+                mark_price_before,
+                now,
+                valid_oracle_price,
+                &user_key,
+                &filler_key,
+                filler,
+                &referrer,
+            )?
+        } else {
+            let maker = maker.ok_or(ErrorCode::MakerNotFound)?;
+            let maker_key = maker.key();
+            let maker = &mut load_mut(&maker)?;
+            let maker_order_id = maker_order_id.ok_or(ErrorCode::MakerOrderNotFound)?;
+            let maker_order_index = maker
+                .get_order_index(maker_order_id)
+                .map_err(|e| print_error!(e)())?;
+
+            validate!(
+                maker_key != user_key,
+                ErrorCode::MakerCantFulfillOwnOrder,
+                "Maker can not fill their own order"
+            )?;
+
+            validate!(
+                maker.orders[maker_order_index].post_only,
+                ErrorCode::MakerOrderMustBePostOnly,
+                "Maker order must be post only"
+            )?;
+
+            let market = &mut market_map.get_ref_mut(&market_index)?;
+            fulfill_order_with_maker_order(
+                market,
+                user,
+                order_index,
+                maker,
+                maker_order_index,
+                state.order_auction_duration,
+                now,
+            )?
+        };
 
     if base_asset_amount == 0 {
         return Ok(0);
@@ -482,41 +519,6 @@ pub fn fill_order(
     }
 
     Ok(base_asset_amount)
-}
-
-pub fn fill_taker_against_maker(
-    // market_map: &MarketMap,
-    // market_index: u64,
-    taker: &mut User,
-    taker_order_index: usize,
-    maker: &mut User,
-    maker_order_index: usize,
-    now: i64,
-    auction_duration: i64,
-) -> ClearingHouseResult {
-    let auction_price =
-        calculate_auction_price(&taker.orders[taker_order_index], now, auction_duration)?;
-
-    let auction_price_satisfies_maker =
-        does_auction_satisfy_maker_order(&maker.orders[maker_order_index], auction_price);
-
-    validate!(
-        auction_price_satisfies_maker,
-        ErrorCode::AuctionPriceDoesNotSatisfyMaker,
-        "Auction price does not satisfy maker",
-    )?;
-
-    // let (base_asset_amount, quote_asset_amount) = calculate_auction_fill_amount(
-    //     auction_price,
-    //     &maker.orders[maker_order_index],
-    //     &taker.orders[taker_order_index],
-    // )?;
-    //
-    // {
-    //     let taker_order = &mut taker.orders[taker_order_index];
-    // }
-
-    Ok(())
 }
 
 pub fn execute_order(
@@ -768,6 +770,71 @@ pub fn fulfill_order_with_amm(
     }
 
     Ok((base_asset_amount, potentially_risk_increasing))
+}
+
+pub fn fulfill_order_with_maker_order(
+    market: &mut Market,
+    taker: &mut User,
+    taker_order_index: usize,
+    maker: &mut User,
+    maker_order_index: usize,
+    auction_duration: i64,
+    now: i64,
+) -> ClearingHouseResult<(u128, bool)> {
+    let auction_price =
+        calculate_auction_price(&taker.orders[taker_order_index], now, auction_duration)?;
+
+    let maker_satisfied = does_auction_satisfy_maker_order(
+        &maker.orders[maker_order_index],
+        &taker.orders[taker_order_index],
+        auction_price,
+    );
+
+    if !maker_satisfied {
+        return Ok((0_u128, false));
+    }
+
+    let (base_asset_amount, quote_asset_amount) = calculate_auction_fill_amount(
+        auction_price,
+        &maker.orders[maker_order_index],
+        &taker.orders[taker_order_index],
+    )?;
+
+    let maker_position_index = get_position_index(
+        &maker.positions,
+        maker.orders[maker_order_index].market_index,
+    )?;
+
+    let maker_position_delta = get_position_delta_for_fill(
+        base_asset_amount,
+        quote_asset_amount,
+        maker.orders[maker_order_index].direction,
+    )?;
+
+    update_position_and_market(
+        &mut maker.positions[maker_position_index],
+        market,
+        &maker_position_delta,
+    )?;
+
+    let taker_position_index = get_position_index(
+        &taker.positions,
+        taker.orders[maker_order_index].market_index,
+    )?;
+
+    let taker_position_delta = get_position_delta_for_fill(
+        base_asset_amount,
+        quote_asset_amount,
+        taker.orders[maker_order_index].direction,
+    )?;
+
+    update_position_and_market(
+        &mut taker.positions[taker_position_index],
+        market,
+        &taker_position_delta,
+    )?;
+
+    Ok((base_asset_amount, false))
 }
 
 pub fn execute_market_order(
@@ -1051,4 +1118,724 @@ fn get_valid_oracle_price(
     };
 
     Ok(price)
+}
+
+#[cfg(test)]
+mod tests {
+
+    pub mod fulfill_order_with_maker_order {
+        use crate::controller::orders::fulfill_order_with_maker_order;
+        use crate::controller::position::PositionDirection;
+        use crate::math::constants::{
+            BASE_PRECISION, BASE_PRECISION_I128, MARK_PRICE_PRECISION, QUOTE_PRECISION,
+        };
+        use crate::state::market::Market;
+        use crate::state::user::{MarketPosition, Order, OrderType, User};
+
+        fn get_positions(order: MarketPosition) -> [MarketPosition; 5] {
+            let mut positions = [MarketPosition::default(); 5];
+            positions[0] = order;
+            positions
+        }
+
+        fn get_orders(order: Order) -> [Order; 32] {
+            let mut orders = [Order::default(); 32];
+            orders[0] = order;
+            orders
+        }
+
+        #[test]
+        fn long_taker_order_fulfilled_start_of_auction() {
+            let mut taker = User {
+                orders: get_orders(Order {
+                    market_index: 0,
+                    order_type: OrderType::Market,
+                    direction: PositionDirection::Long,
+                    base_asset_amount: 1 * BASE_PRECISION,
+                    ts: 0,
+                    auction_start_price: 100 * MARK_PRICE_PRECISION,
+                    auction_end_price: 200 * MARK_PRICE_PRECISION,
+                    ..Order::default()
+                }),
+                positions: get_positions(MarketPosition {
+                    market_index: 0,
+                    open_orders: 1,
+                    open_bids: 100 * BASE_PRECISION_I128,
+                    ..MarketPosition::default()
+                }),
+                ..User::default()
+            };
+
+            let mut maker = User {
+                orders: get_orders(Order {
+                    market_index: 0,
+                    post_only: true,
+                    order_type: OrderType::Limit,
+                    direction: PositionDirection::Short,
+                    base_asset_amount: 1 * BASE_PRECISION,
+                    ts: 0,
+                    price: 100 * MARK_PRICE_PRECISION,
+                    ..Order::default()
+                }),
+                positions: get_positions(MarketPosition {
+                    market_index: 0,
+                    open_orders: 1,
+                    open_bids: 100 * BASE_PRECISION_I128,
+                    ..MarketPosition::default()
+                }),
+                ..User::default()
+            };
+
+            let mut market = Market::default();
+
+            let now = 1_i64;
+            let auction_duration = 5_i64;
+
+            fulfill_order_with_maker_order(
+                &mut market,
+                &mut taker,
+                0,
+                &mut maker,
+                0,
+                auction_duration,
+                now,
+            )
+            .unwrap();
+
+            let taker_position = &taker.positions[0];
+            assert_eq!(taker_position.base_asset_amount, 1 * BASE_PRECISION_I128);
+            assert_eq!(taker_position.quote_asset_amount, 120 * QUOTE_PRECISION);
+            assert_eq!(taker_position.quote_entry_amount, 120 * QUOTE_PRECISION);
+
+            let maker_position = &maker.positions[0];
+            assert_eq!(maker_position.base_asset_amount, -1 * BASE_PRECISION_I128);
+            assert_eq!(maker_position.quote_asset_amount, 120 * QUOTE_PRECISION);
+            assert_eq!(maker_position.quote_entry_amount, 120 * QUOTE_PRECISION);
+
+            assert_eq!(market.amm.net_base_asset_amount, 0);
+            assert_eq!(market.base_asset_amount_long, BASE_PRECISION_I128);
+            assert_eq!(market.base_asset_amount_short, -BASE_PRECISION_I128);
+            assert_eq!(market.amm.quote_asset_amount_long, 120 * QUOTE_PRECISION);
+            assert_eq!(market.amm.quote_asset_amount_short, 120 * QUOTE_PRECISION);
+        }
+
+        #[test]
+        fn long_taker_order_fulfilled_middle_of_auction() {
+            let mut taker = User {
+                orders: get_orders(Order {
+                    market_index: 0,
+                    order_type: OrderType::Market,
+                    direction: PositionDirection::Long,
+                    base_asset_amount: 1 * BASE_PRECISION,
+                    ts: 0,
+                    auction_start_price: 100 * MARK_PRICE_PRECISION,
+                    auction_end_price: 200 * MARK_PRICE_PRECISION,
+                    ..Order::default()
+                }),
+                positions: get_positions(MarketPosition {
+                    market_index: 0,
+                    open_orders: 1,
+                    open_bids: 100 * BASE_PRECISION_I128,
+                    ..MarketPosition::default()
+                }),
+                ..User::default()
+            };
+
+            let mut maker = User {
+                orders: get_orders(Order {
+                    market_index: 0,
+                    post_only: true,
+                    order_type: OrderType::Limit,
+                    direction: PositionDirection::Short,
+                    base_asset_amount: 1 * BASE_PRECISION,
+                    ts: 0,
+                    price: 100 * MARK_PRICE_PRECISION,
+                    ..Order::default()
+                }),
+                positions: get_positions(MarketPosition {
+                    market_index: 0,
+                    open_orders: 1,
+                    open_bids: 100 * BASE_PRECISION_I128,
+                    ..MarketPosition::default()
+                }),
+                ..User::default()
+            };
+
+            let mut market = Market::default();
+
+            let now = 3_i64;
+            let auction_duration = 5_i64;
+
+            fulfill_order_with_maker_order(
+                &mut market,
+                &mut taker,
+                0,
+                &mut maker,
+                0,
+                auction_duration,
+                now,
+            )
+            .unwrap();
+
+            let taker_position = &taker.positions[0];
+            assert_eq!(taker_position.base_asset_amount, 1 * BASE_PRECISION_I128);
+            assert_eq!(taker_position.quote_asset_amount, 160 * QUOTE_PRECISION);
+            assert_eq!(taker_position.quote_entry_amount, 160 * QUOTE_PRECISION);
+
+            let maker_position = &maker.positions[0];
+            assert_eq!(maker_position.base_asset_amount, -1 * BASE_PRECISION_I128);
+            assert_eq!(maker_position.quote_asset_amount, 160 * QUOTE_PRECISION);
+            assert_eq!(maker_position.quote_entry_amount, 160 * QUOTE_PRECISION);
+
+            assert_eq!(market.amm.net_base_asset_amount, 0);
+            assert_eq!(market.base_asset_amount_long, BASE_PRECISION_I128);
+            assert_eq!(market.base_asset_amount_short, -BASE_PRECISION_I128);
+            assert_eq!(market.amm.quote_asset_amount_long, 160 * QUOTE_PRECISION);
+            assert_eq!(market.amm.quote_asset_amount_short, 160 * QUOTE_PRECISION);
+        }
+
+        #[test]
+        fn short_taker_order_fulfilled_start_of_auction() {
+            let mut taker = User {
+                orders: get_orders(Order {
+                    market_index: 0,
+                    order_type: OrderType::Market,
+                    direction: PositionDirection::Short,
+                    base_asset_amount: 1 * BASE_PRECISION,
+                    ts: 0,
+                    auction_start_price: 200 * MARK_PRICE_PRECISION,
+                    auction_end_price: 100 * MARK_PRICE_PRECISION,
+                    ..Order::default()
+                }),
+                positions: get_positions(MarketPosition {
+                    market_index: 0,
+                    open_orders: 1,
+                    open_bids: 100 * BASE_PRECISION_I128,
+                    ..MarketPosition::default()
+                }),
+                ..User::default()
+            };
+
+            let mut maker = User {
+                orders: get_orders(Order {
+                    market_index: 0,
+                    post_only: true,
+                    order_type: OrderType::Limit,
+                    direction: PositionDirection::Long,
+                    base_asset_amount: 1 * BASE_PRECISION,
+                    ts: 0,
+                    price: 200 * MARK_PRICE_PRECISION,
+                    ..Order::default()
+                }),
+                positions: get_positions(MarketPosition {
+                    market_index: 0,
+                    open_orders: 1,
+                    open_bids: 100 * BASE_PRECISION_I128,
+                    ..MarketPosition::default()
+                }),
+                ..User::default()
+            };
+
+            let mut market = Market::default();
+
+            let now = 1_i64;
+            let auction_duration = 5_i64;
+
+            fulfill_order_with_maker_order(
+                &mut market,
+                &mut taker,
+                0,
+                &mut maker,
+                0,
+                auction_duration,
+                now,
+            )
+            .unwrap();
+
+            let taker_position = &taker.positions[0];
+            assert_eq!(taker_position.base_asset_amount, -1 * BASE_PRECISION_I128);
+            assert_eq!(taker_position.quote_asset_amount, 180 * QUOTE_PRECISION);
+            assert_eq!(taker_position.quote_entry_amount, 180 * QUOTE_PRECISION);
+
+            let maker_position = &maker.positions[0];
+            assert_eq!(maker_position.base_asset_amount, 1 * BASE_PRECISION_I128);
+            assert_eq!(maker_position.quote_asset_amount, 180 * QUOTE_PRECISION);
+            assert_eq!(maker_position.quote_entry_amount, 180 * QUOTE_PRECISION);
+
+            assert_eq!(market.amm.net_base_asset_amount, 0);
+            assert_eq!(market.base_asset_amount_long, BASE_PRECISION_I128);
+            assert_eq!(market.base_asset_amount_short, -BASE_PRECISION_I128);
+            assert_eq!(market.amm.quote_asset_amount_long, 180 * QUOTE_PRECISION);
+            assert_eq!(market.amm.quote_asset_amount_short, 180 * QUOTE_PRECISION);
+        }
+
+        #[test]
+        fn short_taker_orde_fulfilled_middle_of_auction() {
+            let mut taker = User {
+                orders: get_orders(Order {
+                    market_index: 0,
+                    order_type: OrderType::Market,
+                    direction: PositionDirection::Short,
+                    base_asset_amount: 1 * BASE_PRECISION,
+                    ts: 0,
+                    auction_start_price: 200 * MARK_PRICE_PRECISION,
+                    auction_end_price: 100 * MARK_PRICE_PRECISION,
+                    ..Order::default()
+                }),
+                positions: get_positions(MarketPosition {
+                    market_index: 0,
+                    open_orders: 1,
+                    open_bids: 100 * BASE_PRECISION_I128,
+                    ..MarketPosition::default()
+                }),
+                ..User::default()
+            };
+
+            let mut maker = User {
+                orders: get_orders(Order {
+                    market_index: 0,
+                    post_only: true,
+                    order_type: OrderType::Limit,
+                    direction: PositionDirection::Long,
+                    base_asset_amount: 1 * BASE_PRECISION,
+                    ts: 0,
+                    price: 200 * MARK_PRICE_PRECISION,
+                    ..Order::default()
+                }),
+                positions: get_positions(MarketPosition {
+                    market_index: 0,
+                    open_orders: 1,
+                    open_bids: 100 * BASE_PRECISION_I128,
+                    ..MarketPosition::default()
+                }),
+                ..User::default()
+            };
+
+            let mut market = Market::default();
+
+            let now = 3_i64;
+            let auction_duration = 5_i64;
+
+            fulfill_order_with_maker_order(
+                &mut market,
+                &mut taker,
+                0,
+                &mut maker,
+                0,
+                auction_duration,
+                now,
+            )
+            .unwrap();
+
+            let taker_position = &taker.positions[0];
+            assert_eq!(taker_position.base_asset_amount, -1 * BASE_PRECISION_I128);
+            assert_eq!(taker_position.quote_asset_amount, 140 * QUOTE_PRECISION);
+            assert_eq!(taker_position.quote_entry_amount, 140 * QUOTE_PRECISION);
+
+            let maker_position = &maker.positions[0];
+            assert_eq!(maker_position.base_asset_amount, 1 * BASE_PRECISION_I128);
+            assert_eq!(maker_position.quote_asset_amount, 140 * QUOTE_PRECISION);
+            assert_eq!(maker_position.quote_entry_amount, 140 * QUOTE_PRECISION);
+
+            assert_eq!(market.amm.net_base_asset_amount, 0);
+            assert_eq!(market.base_asset_amount_long, BASE_PRECISION_I128);
+            assert_eq!(market.base_asset_amount_short, -BASE_PRECISION_I128);
+            assert_eq!(market.amm.quote_asset_amount_long, 140 * QUOTE_PRECISION);
+            assert_eq!(market.amm.quote_asset_amount_short, 140 * QUOTE_PRECISION);
+        }
+
+        #[test]
+        fn long_taker_order_auction_price_does_not_satisfy_maker() {
+            let mut taker = User {
+                orders: get_orders(Order {
+                    market_index: 0,
+                    order_type: OrderType::Market,
+                    direction: PositionDirection::Long,
+                    base_asset_amount: 1 * BASE_PRECISION,
+                    ts: 0,
+                    auction_start_price: 100 * MARK_PRICE_PRECISION,
+                    auction_end_price: 200 * MARK_PRICE_PRECISION,
+                    ..Order::default()
+                }),
+                positions: get_positions(MarketPosition {
+                    market_index: 0,
+                    open_orders: 1,
+                    open_bids: 100 * BASE_PRECISION_I128,
+                    ..MarketPosition::default()
+                }),
+                ..User::default()
+            };
+
+            let mut maker = User {
+                orders: get_orders(Order {
+                    market_index: 0,
+                    post_only: true,
+                    order_type: OrderType::Limit,
+                    direction: PositionDirection::Short,
+                    base_asset_amount: 1 * BASE_PRECISION,
+                    ts: 0,
+                    price: 201 * MARK_PRICE_PRECISION,
+                    ..Order::default()
+                }),
+                positions: get_positions(MarketPosition {
+                    market_index: 0,
+                    open_orders: 1,
+                    open_bids: 100 * BASE_PRECISION_I128,
+                    ..MarketPosition::default()
+                }),
+                ..User::default()
+            };
+
+            let mut market = Market::default();
+
+            let now = 1_i64;
+            let auction_duration = 5_i64;
+
+            let (base_asset_amount, _) = fulfill_order_with_maker_order(
+                &mut market,
+                &mut taker,
+                0,
+                &mut maker,
+                0,
+                auction_duration,
+                now,
+            )
+            .unwrap();
+
+            assert_eq!(base_asset_amount, 0);
+        }
+
+        #[test]
+        fn short_taker_order_auction_price_does_not_satisfy_maker() {
+            let mut taker = User {
+                orders: get_orders(Order {
+                    market_index: 0,
+                    order_type: OrderType::Market,
+                    direction: PositionDirection::Short,
+                    base_asset_amount: 1 * BASE_PRECISION,
+                    ts: 0,
+                    auction_start_price: 200 * MARK_PRICE_PRECISION,
+                    auction_end_price: 100 * MARK_PRICE_PRECISION,
+                    ..Order::default()
+                }),
+                positions: get_positions(MarketPosition {
+                    market_index: 0,
+                    open_orders: 1,
+                    open_bids: 100 * BASE_PRECISION_I128,
+                    ..MarketPosition::default()
+                }),
+                ..User::default()
+            };
+
+            let mut maker = User {
+                orders: get_orders(Order {
+                    market_index: 0,
+                    post_only: true,
+                    order_type: OrderType::Limit,
+                    direction: PositionDirection::Long,
+                    base_asset_amount: 1 * BASE_PRECISION,
+                    ts: 0,
+                    price: 99 * MARK_PRICE_PRECISION,
+                    ..Order::default()
+                }),
+                positions: get_positions(MarketPosition {
+                    market_index: 0,
+                    open_orders: 1,
+                    open_bids: 100 * BASE_PRECISION_I128,
+                    ..MarketPosition::default()
+                }),
+                ..User::default()
+            };
+
+            let mut market = Market::default();
+
+            let now = 1_i64;
+            let auction_duration = 5_i64;
+
+            let (base_asset_amount, _) = fulfill_order_with_maker_order(
+                &mut market,
+                &mut taker,
+                0,
+                &mut maker,
+                0,
+                auction_duration,
+                now,
+            )
+            .unwrap();
+
+            assert_eq!(base_asset_amount, 0);
+        }
+
+        #[test]
+        fn maker_taker_same_direction() {
+            let mut taker = User {
+                orders: get_orders(Order {
+                    market_index: 0,
+                    order_type: OrderType::Market,
+                    direction: PositionDirection::Short,
+                    base_asset_amount: 1 * BASE_PRECISION,
+                    ts: 0,
+                    auction_start_price: 200 * MARK_PRICE_PRECISION,
+                    auction_end_price: 100 * MARK_PRICE_PRECISION,
+                    ..Order::default()
+                }),
+                positions: get_positions(MarketPosition {
+                    market_index: 0,
+                    open_orders: 1,
+                    open_bids: 100 * BASE_PRECISION_I128,
+                    ..MarketPosition::default()
+                }),
+                ..User::default()
+            };
+
+            let mut maker = User {
+                orders: get_orders(Order {
+                    market_index: 0,
+                    post_only: true,
+                    order_type: OrderType::Limit,
+                    direction: PositionDirection::Short,
+                    base_asset_amount: 1 * BASE_PRECISION,
+                    ts: 0,
+                    price: 200 * MARK_PRICE_PRECISION,
+                    ..Order::default()
+                }),
+                positions: get_positions(MarketPosition {
+                    market_index: 0,
+                    open_orders: 1,
+                    open_bids: 100 * BASE_PRECISION_I128,
+                    ..MarketPosition::default()
+                }),
+                ..User::default()
+            };
+
+            let mut market = Market::default();
+
+            let now = 1_i64;
+            let auction_duration = 5_i64;
+
+            let (base_asset_amount, _) = fulfill_order_with_maker_order(
+                &mut market,
+                &mut taker,
+                0,
+                &mut maker,
+                0,
+                auction_duration,
+                now,
+            )
+            .unwrap();
+
+            assert_eq!(base_asset_amount, 0);
+        }
+
+        #[test]
+        fn maker_taker_different_market_index() {
+            let mut taker = User {
+                orders: get_orders(Order {
+                    market_index: 1,
+                    order_type: OrderType::Market,
+                    direction: PositionDirection::Short,
+                    base_asset_amount: 1 * BASE_PRECISION,
+                    ts: 0,
+                    auction_start_price: 200 * MARK_PRICE_PRECISION,
+                    auction_end_price: 100 * MARK_PRICE_PRECISION,
+                    ..Order::default()
+                }),
+                positions: get_positions(MarketPosition {
+                    market_index: 0,
+                    open_orders: 1,
+                    open_bids: 100 * BASE_PRECISION_I128,
+                    ..MarketPosition::default()
+                }),
+                ..User::default()
+            };
+
+            let mut maker = User {
+                orders: get_orders(Order {
+                    market_index: 0,
+                    post_only: true,
+                    order_type: OrderType::Limit,
+                    direction: PositionDirection::Long,
+                    base_asset_amount: 1 * BASE_PRECISION,
+                    ts: 0,
+                    price: 200 * MARK_PRICE_PRECISION,
+                    ..Order::default()
+                }),
+                positions: get_positions(MarketPosition {
+                    market_index: 0,
+                    open_orders: 1,
+                    open_bids: 100 * BASE_PRECISION_I128,
+                    ..MarketPosition::default()
+                }),
+                ..User::default()
+            };
+
+            let mut market = Market::default();
+
+            let now = 1_i64;
+            let auction_duration = 5_i64;
+
+            let (base_asset_amount, _) = fulfill_order_with_maker_order(
+                &mut market,
+                &mut taker,
+                0,
+                &mut maker,
+                0,
+                auction_duration,
+                now,
+            )
+            .unwrap();
+
+            assert_eq!(base_asset_amount, 0);
+        }
+
+        #[test]
+        fn long_taker_order_bigger_than_maker() {
+            let mut taker = User {
+                orders: get_orders(Order {
+                    market_index: 0,
+                    order_type: OrderType::Market,
+                    direction: PositionDirection::Long,
+                    base_asset_amount: 100 * BASE_PRECISION,
+                    ts: 0,
+                    auction_start_price: 100 * MARK_PRICE_PRECISION,
+                    auction_end_price: 200 * MARK_PRICE_PRECISION,
+                    ..Order::default()
+                }),
+                positions: get_positions(MarketPosition {
+                    market_index: 0,
+                    open_orders: 1,
+                    open_bids: 100 * BASE_PRECISION_I128,
+                    ..MarketPosition::default()
+                }),
+                ..User::default()
+            };
+
+            let mut maker = User {
+                orders: get_orders(Order {
+                    market_index: 0,
+                    post_only: true,
+                    order_type: OrderType::Limit,
+                    direction: PositionDirection::Short,
+                    base_asset_amount: 1 * BASE_PRECISION,
+                    ts: 0,
+                    price: 100 * MARK_PRICE_PRECISION,
+                    ..Order::default()
+                }),
+                positions: get_positions(MarketPosition {
+                    market_index: 0,
+                    open_orders: 1,
+                    open_bids: 100 * BASE_PRECISION_I128,
+                    ..MarketPosition::default()
+                }),
+                ..User::default()
+            };
+
+            let mut market = Market::default();
+
+            let now = 1_i64;
+            let auction_duration = 5_i64;
+
+            fulfill_order_with_maker_order(
+                &mut market,
+                &mut taker,
+                0,
+                &mut maker,
+                0,
+                auction_duration,
+                now,
+            )
+            .unwrap();
+
+            let taker_position = &taker.positions[0];
+            assert_eq!(taker_position.base_asset_amount, 1 * BASE_PRECISION_I128);
+            assert_eq!(taker_position.quote_asset_amount, 120 * QUOTE_PRECISION);
+            assert_eq!(taker_position.quote_entry_amount, 120 * QUOTE_PRECISION);
+
+            let maker_position = &maker.positions[0];
+            assert_eq!(maker_position.base_asset_amount, -1 * BASE_PRECISION_I128);
+            assert_eq!(maker_position.quote_asset_amount, 120 * QUOTE_PRECISION);
+            assert_eq!(maker_position.quote_entry_amount, 120 * QUOTE_PRECISION);
+
+            assert_eq!(market.amm.net_base_asset_amount, 0);
+            assert_eq!(market.base_asset_amount_long, BASE_PRECISION_I128);
+            assert_eq!(market.base_asset_amount_short, -BASE_PRECISION_I128);
+            assert_eq!(market.amm.quote_asset_amount_long, 120 * QUOTE_PRECISION);
+            assert_eq!(market.amm.quote_asset_amount_short, 120 * QUOTE_PRECISION);
+        }
+
+        #[test]
+        fn long_taker_order_smaller_than_maker() {
+            let mut taker = User {
+                orders: get_orders(Order {
+                    market_index: 0,
+                    order_type: OrderType::Market,
+                    direction: PositionDirection::Long,
+                    base_asset_amount: 1 * BASE_PRECISION,
+                    ts: 0,
+                    auction_start_price: 100 * MARK_PRICE_PRECISION,
+                    auction_end_price: 200 * MARK_PRICE_PRECISION,
+                    ..Order::default()
+                }),
+                positions: get_positions(MarketPosition {
+                    market_index: 0,
+                    open_orders: 1,
+                    open_bids: 100 * BASE_PRECISION_I128,
+                    ..MarketPosition::default()
+                }),
+                ..User::default()
+            };
+
+            let mut maker = User {
+                orders: get_orders(Order {
+                    market_index: 0,
+                    post_only: true,
+                    order_type: OrderType::Limit,
+                    direction: PositionDirection::Short,
+                    base_asset_amount: 100 * BASE_PRECISION,
+                    ts: 0,
+                    price: 100 * MARK_PRICE_PRECISION,
+                    ..Order::default()
+                }),
+                positions: get_positions(MarketPosition {
+                    market_index: 0,
+                    open_orders: 1,
+                    open_bids: 100 * BASE_PRECISION_I128,
+                    ..MarketPosition::default()
+                }),
+                ..User::default()
+            };
+
+            let mut market = Market::default();
+
+            let now = 1_i64;
+            let auction_duration = 5_i64;
+
+            fulfill_order_with_maker_order(
+                &mut market,
+                &mut taker,
+                0,
+                &mut maker,
+                0,
+                auction_duration,
+                now,
+            )
+            .unwrap();
+
+            let taker_position = &taker.positions[0];
+            assert_eq!(taker_position.base_asset_amount, 1 * BASE_PRECISION_I128);
+            assert_eq!(taker_position.quote_asset_amount, 120 * QUOTE_PRECISION);
+            assert_eq!(taker_position.quote_entry_amount, 120 * QUOTE_PRECISION);
+
+            let maker_position = &maker.positions[0];
+            assert_eq!(maker_position.base_asset_amount, -1 * BASE_PRECISION_I128);
+            assert_eq!(maker_position.quote_asset_amount, 120 * QUOTE_PRECISION);
+            assert_eq!(maker_position.quote_entry_amount, 120 * QUOTE_PRECISION);
+
+            assert_eq!(market.amm.net_base_asset_amount, 0);
+            assert_eq!(market.base_asset_amount_long, BASE_PRECISION_I128);
+            assert_eq!(market.base_asset_amount_short, -BASE_PRECISION_I128);
+            assert_eq!(market.amm.quote_asset_amount_long, 120 * QUOTE_PRECISION);
+            assert_eq!(market.amm.quote_asset_amount_short, 120 * QUOTE_PRECISION);
+        }
+    }
 }
