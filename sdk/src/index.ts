@@ -45,5 +45,6 @@ export * from './util/computeUnits';
 export * from './util/tps';
 export * from './math/bankBalance';
 export * from './constants/banks';
+export * from './clearingHouseConfig';
 
 export { BN, PublicKey };
