@@ -1,3 +1,20 @@
+use crate::math::constants::{
+    DEFAULT_DISCOUNT_TOKEN_FIRST_TIER_DISCOUNT_DENOMINATOR,
+    DEFAULT_DISCOUNT_TOKEN_FIRST_TIER_DISCOUNT_NUMERATOR,
+    DEFAULT_DISCOUNT_TOKEN_FIRST_TIER_MINIMUM_BALANCE,
+    DEFAULT_DISCOUNT_TOKEN_FOURTH_TIER_DISCOUNT_DENOMINATOR,
+    DEFAULT_DISCOUNT_TOKEN_FOURTH_TIER_DISCOUNT_NUMERATOR,
+    DEFAULT_DISCOUNT_TOKEN_FOURTH_TIER_MINIMUM_BALANCE,
+    DEFAULT_DISCOUNT_TOKEN_SECOND_TIER_DISCOUNT_DENOMINATOR,
+    DEFAULT_DISCOUNT_TOKEN_SECOND_TIER_DISCOUNT_NUMERATOR,
+    DEFAULT_DISCOUNT_TOKEN_SECOND_TIER_MINIMUM_BALANCE,
+    DEFAULT_DISCOUNT_TOKEN_THIRD_TIER_DISCOUNT_DENOMINATOR,
+    DEFAULT_DISCOUNT_TOKEN_THIRD_TIER_DISCOUNT_NUMERATOR,
+    DEFAULT_DISCOUNT_TOKEN_THIRD_TIER_MINIMUM_BALANCE, DEFAULT_FEE_DENOMINATOR,
+    DEFAULT_FEE_NUMERATOR, DEFAULT_REFEREE_DISCOUNT_DENOMINATOR,
+    DEFAULT_REFEREE_DISCOUNT_NUMERATOR, DEFAULT_REFERRER_REWARD_DENOMINATOR,
+    DEFAULT_REFERRER_REWARD_NUMERATOR,
+};
 use anchor_lang::prelude::*;
 
 #[account]
@@ -70,42 +87,42 @@ pub struct FeeStructure {
 impl Default for FeeStructure {
     fn default() -> Self {
         FeeStructure {
-            fee_numerator: 0,
-            fee_denominator: 1,
+            fee_numerator: DEFAULT_FEE_NUMERATOR,
+            fee_denominator: DEFAULT_FEE_DENOMINATOR,
+            maker_rebate_numerator: 3, // 60% of taker fee
+            maker_rebate_denominator: 5,
             discount_token_tiers: DiscountTokenTiers {
                 first_tier: DiscountTokenTier {
-                    minimum_balance: 0,
-                    discount_numerator: 0,
-                    discount_denominator: 1,
+                    minimum_balance: DEFAULT_DISCOUNT_TOKEN_FIRST_TIER_MINIMUM_BALANCE,
+                    discount_numerator: DEFAULT_DISCOUNT_TOKEN_FIRST_TIER_DISCOUNT_NUMERATOR,
+                    discount_denominator: DEFAULT_DISCOUNT_TOKEN_FIRST_TIER_DISCOUNT_DENOMINATOR,
                 },
                 second_tier: DiscountTokenTier {
-                    minimum_balance: 0,
-                    discount_numerator: 0,
-                    discount_denominator: 1,
+                    minimum_balance: DEFAULT_DISCOUNT_TOKEN_SECOND_TIER_MINIMUM_BALANCE,
+                    discount_numerator: DEFAULT_DISCOUNT_TOKEN_SECOND_TIER_DISCOUNT_NUMERATOR,
+                    discount_denominator: DEFAULT_DISCOUNT_TOKEN_SECOND_TIER_DISCOUNT_DENOMINATOR,
                 },
                 third_tier: DiscountTokenTier {
-                    minimum_balance: 0,
-                    discount_numerator: 0,
-                    discount_denominator: 1,
+                    minimum_balance: DEFAULT_DISCOUNT_TOKEN_THIRD_TIER_MINIMUM_BALANCE,
+                    discount_numerator: DEFAULT_DISCOUNT_TOKEN_THIRD_TIER_DISCOUNT_NUMERATOR,
+                    discount_denominator: DEFAULT_DISCOUNT_TOKEN_THIRD_TIER_DISCOUNT_DENOMINATOR,
                 },
                 fourth_tier: DiscountTokenTier {
-                    minimum_balance: 0,
-                    discount_numerator: 0,
-                    discount_denominator: 1,
+                    minimum_balance: DEFAULT_DISCOUNT_TOKEN_FOURTH_TIER_MINIMUM_BALANCE,
+                    discount_numerator: DEFAULT_DISCOUNT_TOKEN_FOURTH_TIER_DISCOUNT_NUMERATOR,
+                    discount_denominator: DEFAULT_DISCOUNT_TOKEN_FOURTH_TIER_DISCOUNT_DENOMINATOR,
                 },
             },
             referral_discount: ReferralDiscount {
-                referrer_reward_numerator: 0,
-                referrer_reward_denominator: 1,
-                referee_discount_numerator: 0,
-                referee_discount_denominator: 1,
+                referrer_reward_numerator: DEFAULT_REFERRER_REWARD_NUMERATOR,
+                referrer_reward_denominator: DEFAULT_REFERRER_REWARD_DENOMINATOR,
+                referee_discount_numerator: DEFAULT_REFEREE_DISCOUNT_NUMERATOR,
+                referee_discount_denominator: DEFAULT_REFEREE_DISCOUNT_DENOMINATOR,
             },
-            maker_rebate_numerator: 0,
-            maker_rebate_denominator: 1,
             filler_reward_structure: OrderFillerRewardStructure {
-                reward_numerator: 0,
-                reward_denominator: 1,
-                time_based_reward_lower_bound: 1,
+                reward_numerator: 1,
+                reward_denominator: 10,
+                time_based_reward_lower_bound: 10_000, // 1 cent
             },
         }
     }

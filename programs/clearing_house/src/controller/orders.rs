@@ -452,7 +452,6 @@ pub fn fill_order(
                 maker,
                 maker_order_index,
                 None,
-                None,
                 now,
                 state.order_auction_duration,
                 &state.fee_structure,
@@ -779,7 +778,6 @@ pub fn fulfill_order_with_maker_order(
     maker: &mut User,
     maker_order_index: usize,
     filler: Option<&mut User>,
-    referrer: Option<&mut User>,
     auction_duration: i64,
     now: i64,
     fee_structure: &FeeStructure,
@@ -848,23 +846,14 @@ pub fn fulfill_order_with_maker_order(
         &taker_position_delta,
     )?;
 
-    let (
-        taker_fee,
-        fee_to_market,
-        token_discount,
-        filler_reward,
-        referrer_reward,
-        referee_discount,
-        maker_rebate,
-    ) = fees::calculate_fee_for_taker_and_maker(
-        quote_asset_amount,
-        fee_structure,
-        &taker.orders[taker_order_index].discount_tier,
-        taker.orders[taker_order_index].ts,
-        now,
-        referrer.is_some(),
-        filler.is_some(),
-    )?;
+    let (taker_fee, maker_rebate, fee_to_market, filler_reward) =
+        fees::calculate_fee_for_taker_and_maker(
+            quote_asset_amount,
+            fee_structure,
+            taker.orders[taker_order_index].ts,
+            now,
+            filler.is_some(),
+        )?;
 
     // Increment the markets house's total fee variables
     market.amm.total_fee = market
@@ -894,15 +883,6 @@ pub fn fulfill_order_with_maker_order(
         .checked_add(cast(taker_fee)?)
         .ok_or_else(math_error!())?;
 
-    taker.total_token_discount = taker
-        .total_token_discount
-        .checked_add(token_discount)
-        .ok_or_else(math_error!())?;
-    taker.total_referee_discount = taker
-        .total_referee_discount
-        .checked_add(referee_discount)
-        .ok_or_else(math_error!())?;
-
     controller::position::update_unsettled_pnl(
         &mut maker.positions[maker_position_index],
         market,
@@ -913,13 +893,6 @@ pub fn fulfill_order_with_maker_order(
         .total_fee_rebate
         .checked_add(cast(maker_rebate)?)
         .ok_or_else(math_error!())?;
-
-    if let Some(referrer) = referrer {
-        referrer.total_referral_reward = referrer
-            .total_referral_reward
-            .checked_add(referrer_reward)
-            .ok_or_else(math_error!())?;
-    }
 
     if let Some(filler) = filler {
         let filler_position_index = get_position_index(&filler.positions, market.market_index)
@@ -1353,7 +1326,6 @@ mod tests {
                 &mut maker,
                 0,
                 None,
-                None,
                 auction_duration,
                 now,
                 &fee_structure,
@@ -1449,7 +1421,6 @@ mod tests {
                 0,
                 &mut maker,
                 0,
-                None,
                 None,
                 auction_duration,
                 now,
@@ -1547,7 +1518,6 @@ mod tests {
                 &mut maker,
                 0,
                 None,
-                None,
                 auction_duration,
                 now,
                 &fee_structure,
@@ -1643,7 +1613,6 @@ mod tests {
                 0,
                 &mut maker,
                 0,
-                None,
                 None,
                 auction_duration,
                 now,
@@ -1741,7 +1710,6 @@ mod tests {
                 &mut maker,
                 0,
                 None,
-                None,
                 auction_duration,
                 now,
                 &fee_structure,
@@ -1806,7 +1774,6 @@ mod tests {
                 0,
                 &mut maker,
                 0,
-                None,
                 None,
                 auction_duration,
                 now,
@@ -1873,7 +1840,6 @@ mod tests {
                 &mut maker,
                 0,
                 None,
-                None,
                 auction_duration,
                 now,
                 &fee_structure,
@@ -1939,7 +1905,6 @@ mod tests {
                 &mut maker,
                 0,
                 None,
-                None,
                 auction_duration,
                 now,
                 &fee_structure,
@@ -2004,7 +1969,6 @@ mod tests {
                 0,
                 &mut maker,
                 0,
-                None,
                 None,
                 auction_duration,
                 now,
@@ -2084,7 +2048,6 @@ mod tests {
                 0,
                 &mut maker,
                 0,
-                None,
                 None,
                 auction_duration,
                 now,

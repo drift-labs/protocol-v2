@@ -99,49 +99,7 @@ pub mod clearing_house {
             full_liquidation_penalty_percentage_denominator: 1,
             partial_liquidation_liquidator_share_denominator: 2,
             full_liquidation_liquidator_share_denominator: 20,
-            fee_structure: FeeStructure {
-                fee_numerator: DEFAULT_FEE_NUMERATOR,
-                fee_denominator: DEFAULT_FEE_DENOMINATOR,
-                maker_rebate_numerator: 8, // 80% of taker fee
-                maker_rebate_denominator: 10,
-                discount_token_tiers: DiscountTokenTiers {
-                    first_tier: DiscountTokenTier {
-                        minimum_balance: DEFAULT_DISCOUNT_TOKEN_FIRST_TIER_MINIMUM_BALANCE,
-                        discount_numerator: DEFAULT_DISCOUNT_TOKEN_FIRST_TIER_DISCOUNT_NUMERATOR,
-                        discount_denominator:
-                            DEFAULT_DISCOUNT_TOKEN_FIRST_TIER_DISCOUNT_DENOMINATOR,
-                    },
-                    second_tier: DiscountTokenTier {
-                        minimum_balance: DEFAULT_DISCOUNT_TOKEN_SECOND_TIER_MINIMUM_BALANCE,
-                        discount_numerator: DEFAULT_DISCOUNT_TOKEN_SECOND_TIER_DISCOUNT_NUMERATOR,
-                        discount_denominator:
-                            DEFAULT_DISCOUNT_TOKEN_SECOND_TIER_DISCOUNT_DENOMINATOR,
-                    },
-                    third_tier: DiscountTokenTier {
-                        minimum_balance: DEFAULT_DISCOUNT_TOKEN_THIRD_TIER_MINIMUM_BALANCE,
-                        discount_numerator: DEFAULT_DISCOUNT_TOKEN_THIRD_TIER_DISCOUNT_NUMERATOR,
-                        discount_denominator:
-                            DEFAULT_DISCOUNT_TOKEN_THIRD_TIER_DISCOUNT_DENOMINATOR,
-                    },
-                    fourth_tier: DiscountTokenTier {
-                        minimum_balance: DEFAULT_DISCOUNT_TOKEN_FOURTH_TIER_MINIMUM_BALANCE,
-                        discount_numerator: DEFAULT_DISCOUNT_TOKEN_FOURTH_TIER_DISCOUNT_NUMERATOR,
-                        discount_denominator:
-                            DEFAULT_DISCOUNT_TOKEN_FOURTH_TIER_DISCOUNT_DENOMINATOR,
-                    },
-                },
-                referral_discount: ReferralDiscount {
-                    referrer_reward_numerator: DEFAULT_REFERRER_REWARD_NUMERATOR,
-                    referrer_reward_denominator: DEFAULT_REFERRER_REWARD_DENOMINATOR,
-                    referee_discount_numerator: DEFAULT_REFEREE_DISCOUNT_NUMERATOR,
-                    referee_discount_denominator: DEFAULT_REFEREE_DISCOUNT_DENOMINATOR,
-                },
-                filler_reward_structure: OrderFillerRewardStructure {
-                    reward_numerator: 1,
-                    reward_denominator: 10,
-                    time_based_reward_lower_bound: 10_000, // 1 cent
-                },
-            },
+            fee_structure: FeeStructure::default(),
             whitelist_mint: Pubkey::default(),
             discount_mint: Pubkey::default(),
             oracle_guard_rails: OracleGuardRails {
