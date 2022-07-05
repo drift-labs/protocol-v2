@@ -728,7 +728,9 @@ describe('capped funding', () => {
 		assert(fundingRateShort.abs().eq(fundingRateLong.abs()));
 		console.log(fundingRateShort.abs().toString());
 		console.log(clampedFundingRate.toString());
-		assert(fundingRateShort.abs().gt(clampedFundingRate));
+		assert(
+			fundingRateShort.abs().sub(clampedFundingRate).abs().lt(new BN(1000))
+		);
 		assert(fundingRateLong.lt(new BN(0)));
 		assert(fundingRateShort.lt(new BN(0)));
 
@@ -815,7 +817,10 @@ describe('capped funding', () => {
 		);
 
 		assert(fundingRateShort.abs().gt(fundingRateLong.abs()));
-		assert(fundingRateShort.abs().gt(clampedFundingRate));
+		// assert(fundingRateShort.abs().gt(clampedFundingRate));
+		assert(
+			fundingRateShort.abs().sub(clampedFundingRate).abs().lt(new BN(1000))
+		);
 		assert(fundingRateLong.lt(new BN(0)));
 		assert(fundingRateShort.lt(new BN(0)));
 
