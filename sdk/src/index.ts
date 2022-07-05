@@ -44,5 +44,6 @@ export * from './tx/retryTxSender';
 export * from './util/computeUnits';
 export * from './util/tps';
 export * from './math/bankBalance';
+export * from './constants/banks';
 
 export { BN, PublicKey };
