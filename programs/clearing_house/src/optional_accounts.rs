@@ -1,9 +1,11 @@
 use crate::account_loader::load;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::state::user::User;
+use crate::validate;
 use anchor_lang::prelude::AccountLoader;
 use anchor_lang::prelude::{AccountInfo, Pubkey};
 use solana_program::account_info::next_account_info;
+use solana_program::msg;
 use spl_token::solana_program::program_pack::{IsInitialized, Pack};
 use spl_token::state::Account as TokenAccount;
 use std::iter::Peekable;
@@ -118,6 +120,11 @@ pub fn get_maker<'a>(
 ) -> ClearingHouseResult<AccountLoader<'a, User>> {
     let maker_account_info =
         next_account_info(account_info_iter).or(Err(ErrorCode::MakerNotFound))?;
+
+    validate!(
+        maker_account_info.is_writable,
+        ErrorCode::MakerMustBeWritable
+    )?;
 
     let maker: AccountLoader<User> =
         AccountLoader::try_from(maker_account_info).or(Err(ErrorCode::CouldNotDeserializeMaker))?;

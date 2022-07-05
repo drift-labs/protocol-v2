@@ -164,6 +164,8 @@ pub enum ErrorCode {
     AuctionNotComplete,
     #[msg("MakerNotFound")]
     MakerNotFound,
+    #[msg("MakerMustBeWritable")]
+    MakerMustBeWritable,
     #[msg("MakerOrderNotFound")]
     MakerOrderNotFound,
     #[msg("CouldNotDeserializeMaker")]
