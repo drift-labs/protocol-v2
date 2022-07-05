@@ -127,8 +127,6 @@ pub fn update_oracle_price_twap(
         None => amm.mark_price()?,
     };
 
-    // assert_ne!(mark_price, 0);
-
     let oracle_price = normalise_oracle_price(amm, oracle_price_data, Some(mark_price))?;
 
     let new_oracle_price_spread = oracle_price
@@ -197,10 +195,8 @@ pub fn calculate_new_oracle_price_twap(
             .ok_or_else(math_error!())?,
     );
 
-    let mut interpolated_oracle_price = oracle_price;
-
     // if an oracle delay impacted last oracle_twap, shrink toward mark_twap
-    interpolated_oracle_price = if amm.last_mark_price_twap_ts > amm.last_oracle_price_twap_ts {
+    let interpolated_oracle_price = if amm.last_mark_price_twap_ts > amm.last_oracle_price_twap_ts {
         let since_last_valid = cast_to_i128(
             amm.last_mark_price_twap_ts
                 .checked_sub(amm.last_oracle_price_twap_ts)
@@ -219,12 +215,12 @@ pub fn calculate_new_oracle_price_twap(
         );
         calculate_weighted_average(
             cast_to_i128(amm.last_mark_price_twap)?,
-            interpolated_oracle_price,
+            oracle_price,
             since_last_valid,
             from_start_valid,
         )?
     } else {
-        interpolated_oracle_price
+        oracle_price
     };
 
     let new_twap = calculate_weighted_average(
@@ -1003,7 +999,7 @@ mod test {
             price: (34 * MARK_PRICE_PRECISION) as i128,
             confidence: MARK_PRICE_PRECISION / 100,
             delay: 1,
-            has_sufficient_number_of_data_points: true, // ..OraclePriceData::default()
+            has_sufficient_number_of_data_points: true,
         };
 
         let _new_oracle_twap =
@@ -1021,7 +1017,7 @@ mod test {
             price: (31 * MARK_PRICE_PRECISION) as i128,
             confidence: 0,
             delay: 2,
-            has_sufficient_number_of_data_points: true, // ..OraclePriceData::default()
+            has_sufficient_number_of_data_points: true,
         };
         // let old_oracle_twap_2 = amm.last_oracle_price_twap;
         let _new_oracle_twap_2 =

@@ -551,7 +551,6 @@ mod test {
         assert_eq!(repegged_market.amm.peg_multiplier, optimal_peg);
 
         let post_price = repegged_market.amm.mark_price().unwrap();
-        assert_eq!(post_price - prev_price, 15934564582252); // todo?
-                                                             // 15934564582252/1e4 - 1615699103 (is this the slippage cost?)
+        assert_eq!(post_price - prev_price, 15934564582252); // todo: (15934564582252/1e4 - 1615699103 is the slippage cost?)
     }
 }
