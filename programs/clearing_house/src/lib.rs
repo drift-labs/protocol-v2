@@ -102,6 +102,8 @@ pub mod clearing_house {
             fee_structure: FeeStructure {
                 fee_numerator: DEFAULT_FEE_NUMERATOR,
                 fee_denominator: DEFAULT_FEE_DENOMINATOR,
+                maker_rebate_numerator: 8, // 80% of taker fee
+                maker_rebate_denominator: 10,
                 discount_token_tiers: DiscountTokenTiers {
                     first_tier: DiscountTokenTier {
                         minimum_balance: DEFAULT_DISCOUNT_TOKEN_FIRST_TIER_MINIMUM_BALANCE,
@@ -134,6 +136,11 @@ pub mod clearing_house {
                     referee_discount_numerator: DEFAULT_REFEREE_DISCOUNT_NUMERATOR,
                     referee_discount_denominator: DEFAULT_REFEREE_DISCOUNT_DENOMINATOR,
                 },
+                filler_reward_structure: OrderFillerRewardStructure {
+                    reward_numerator: 1,
+                    reward_denominator: 10,
+                    time_based_reward_lower_bound: 10_000, // 1 cent
+                },
             },
             whitelist_mint: Pubkey::default(),
             discount_mint: Pubkey::default(),
@@ -151,17 +158,10 @@ pub mod clearing_house {
             },
             number_of_markets: 0,
             number_of_banks: 0,
-            order_filler_reward_structure: OrderFillerRewardStructure {
-                reward_numerator: 1,
-                reward_denominator: 10,
-                time_based_reward_lower_bound: 10_000, // 1 cent
-            },
             min_order_quote_asset_amount: 500_000, // 50 cents
             order_auction_duration: 5,             // 5 seconds
             padding0: 0,
             padding1: 0,
-            padding2: 0,
-            padding3: 0,
         };
 
         Ok(())
@@ -1504,6 +1504,8 @@ pub mod clearing_house {
                     liquidation: true,
                     market_index: market_status.market_index,
                     oracle_price: market_status.oracle_status.price_data.price,
+                    maker_authority: None,
+                    maker: None,
                 };
                 emit!(trade_record);
 
@@ -1701,6 +1703,8 @@ pub mod clearing_house {
                     liquidation: true,
                     market_index: market_status.market_index,
                     oracle_price: market_status.oracle_status.price_data.price,
+                    maker_authority: None,
+                    maker: None,
                 };
                 emit!(trade_record);
 
@@ -2374,7 +2378,7 @@ pub mod clearing_house {
         ctx: Context<AdminUpdateState>,
         order_filler_reward_structure: OrderFillerRewardStructure,
     ) -> Result<()> {
-        ctx.accounts.state.order_filler_reward_structure = order_filler_reward_structure;
+        ctx.accounts.state.fee_structure.filler_reward_structure = order_filler_reward_structure;
         Ok(())
     }
 

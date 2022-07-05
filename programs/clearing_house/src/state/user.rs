@@ -125,7 +125,7 @@ impl BankBalance for UserBankBalance {
 }
 
 #[zero_copy]
-#[derive(Default)]
+#[derive(Default, Debug)]
 #[repr(packed)]
 pub struct MarketPosition {
     pub market_index: u64,
@@ -199,7 +199,7 @@ pub type UserPositions = [MarketPosition; 5];
 // SPACE: 7136
 #[zero_copy]
 #[repr(packed)]
-#[derive(AnchorSerialize, AnchorDeserialize)]
+#[derive(AnchorSerialize, AnchorDeserialize, PartialEq, Debug)]
 pub struct Order {
     pub status: OrderStatus,
     pub order_type: OrderType,
@@ -305,13 +305,13 @@ impl Default for Order {
     }
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug)]
 pub enum OrderStatus {
     Init,
     Open,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug)]
 pub enum OrderType {
     Market,
     Limit,
@@ -319,7 +319,7 @@ pub enum OrderType {
     TriggerLimit,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug)]
 pub enum OrderDiscountTier {
     None,
     First,
@@ -328,7 +328,7 @@ pub enum OrderDiscountTier {
     Fourth,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug)]
 pub enum OrderTriggerCondition {
     Above,
     Below,

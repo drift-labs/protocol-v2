@@ -47,6 +47,8 @@ pub struct TradeRecord {
     pub liquidation: bool,
     pub market_index: u64,
     pub oracle_price: i128,
+    pub maker_authority: Option<Pubkey>,
+    pub maker: Option<Pubkey>,
 }
 
 #[event]

@@ -28,15 +28,12 @@ pub struct State {
     pub oracle_guard_rails: OracleGuardRails,
     pub number_of_markets: u64,
     pub number_of_banks: u64,
-    pub order_filler_reward_structure: OrderFillerRewardStructure,
     pub min_order_quote_asset_amount: u128, // minimum est. quote_asset_amount for place_order to succeed
     pub order_auction_duration: i64,
 
     // upgrade-ability
     pub padding0: u128,
     pub padding1: u128,
-    pub padding2: u128,
-    pub padding3: u128,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
@@ -59,12 +56,59 @@ pub struct ValidityGuardRails {
     pub too_volatile_ratio: i128,
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct FeeStructure {
     pub fee_numerator: u128,
     pub fee_denominator: u128,
     pub discount_token_tiers: DiscountTokenTiers,
     pub referral_discount: ReferralDiscount,
+    pub maker_rebate_numerator: u128,
+    pub maker_rebate_denominator: u128,
+    pub filler_reward_structure: OrderFillerRewardStructure,
+}
+
+impl Default for FeeStructure {
+    fn default() -> Self {
+        FeeStructure {
+            fee_numerator: 0,
+            fee_denominator: 1,
+            discount_token_tiers: DiscountTokenTiers {
+                first_tier: DiscountTokenTier {
+                    minimum_balance: 0,
+                    discount_numerator: 0,
+                    discount_denominator: 1,
+                },
+                second_tier: DiscountTokenTier {
+                    minimum_balance: 0,
+                    discount_numerator: 0,
+                    discount_denominator: 1,
+                },
+                third_tier: DiscountTokenTier {
+                    minimum_balance: 0,
+                    discount_numerator: 0,
+                    discount_denominator: 1,
+                },
+                fourth_tier: DiscountTokenTier {
+                    minimum_balance: 0,
+                    discount_numerator: 0,
+                    discount_denominator: 1,
+                },
+            },
+            referral_discount: ReferralDiscount {
+                referrer_reward_numerator: 0,
+                referrer_reward_denominator: 1,
+                referee_discount_numerator: 0,
+                referee_discount_denominator: 1,
+            },
+            maker_rebate_numerator: 0,
+            maker_rebate_denominator: 1,
+            filler_reward_structure: OrderFillerRewardStructure {
+                reward_numerator: 0,
+                reward_denominator: 1,
+                time_based_reward_lower_bound: 1,
+            },
+        }
+    }
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]

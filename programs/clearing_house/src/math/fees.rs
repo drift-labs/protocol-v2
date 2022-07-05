@@ -4,8 +4,6 @@ use crate::math_error;
 use crate::state::state::OrderFillerRewardStructure;
 use crate::state::state::{DiscountTokenTier, FeeStructure};
 use crate::state::user::OrderDiscountTier;
-use crate::state::user::User;
-use anchor_lang::prelude::AccountLoader;
 use num_integer::Roots;
 use solana_program::msg;
 use spl_token::state::Account as TokenAccount;
@@ -14,12 +12,7 @@ use std::cmp::{max, min};
 fn calculate_referral_reward_and_referee_discount(
     fee: u128,
     fee_structure: &FeeStructure,
-    referrer: &Option<AccountLoader<User>>,
 ) -> ClearingHouseResult<(u128, u128)> {
-    if referrer.is_none() {
-        return Ok((0, 0));
-    }
-
     let referrer_reward = fee
         .checked_mul(fee_structure.referral_discount.referrer_reward_numerator)
         .ok_or_else(math_error!())?
@@ -79,22 +72,21 @@ pub fn calculate_order_fee_tier(
 pub fn calculate_fee_for_order(
     quote_asset_amount: u128,
     fee_structure: &FeeStructure,
-    filler_reward_structure: &OrderFillerRewardStructure,
     order_fee_tier: &OrderDiscountTier,
     order_ts: i64,
     now: i64,
-    referrer: &Option<AccountLoader<User>>,
-    filler_is_user: bool,
+    has_referrer: bool,
+    reward_filler: bool,
     quote_asset_amount_surplus: u128,
     is_post_only: bool,
 ) -> ClearingHouseResult<(i128, u128, u128, u128, u128, u128)> {
     // if there was a quote_asset_amount_surplus, the order was a maker order and fee_to_market comes from surplus
     if is_post_only {
         let fee = quote_asset_amount_surplus;
-        let filler_reward: u128 = if filler_is_user {
+        let filler_reward: u128 = if !reward_filler {
             0
         } else {
-            calculate_filler_reward(fee, order_ts, now, filler_reward_structure)?
+            calculate_filler_reward(fee, order_ts, now, &fee_structure.filler_reward_structure)?
         };
         let fee_minus_filler_reward = fee.checked_sub(filler_reward).ok_or_else(math_error!())?;
         let rebate = min(fee_minus_filler_reward, quote_asset_amount / 2000); // max 5pbs rebate
@@ -114,8 +106,11 @@ pub fn calculate_fee_for_order(
         let token_discount =
             calculate_token_discount_for_limit_order(fee, fee_structure, order_fee_tier)?;
 
-        let (referrer_reward, referee_discount) =
-            calculate_referral_reward_and_referee_discount(fee, fee_structure, referrer)?;
+        let (referrer_reward, referee_discount) = if has_referrer {
+            calculate_referral_reward_and_referee_discount(fee, fee_structure)?
+        } else {
+            (0, 0)
+        };
 
         let user_fee = fee
             .checked_sub(referee_discount)
@@ -123,10 +118,15 @@ pub fn calculate_fee_for_order(
             .checked_sub(token_discount)
             .ok_or_else(math_error!())?;
 
-        let filler_reward: u128 = if filler_is_user {
+        let filler_reward: u128 = if !reward_filler {
             0
         } else {
-            calculate_filler_reward(user_fee, order_ts, now, filler_reward_structure)?
+            calculate_filler_reward(
+                user_fee,
+                order_ts,
+                now,
+                &fee_structure.filler_reward_structure,
+            )?
         };
 
         let fee_to_market = user_fee
@@ -216,4 +216,65 @@ fn calculate_filler_reward(
     let fee = min(size_filler_reward, time_filler_reward);
 
     Ok(fee)
+}
+
+pub fn calculate_fee_for_taker_and_maker(
+    quote_asset_amount: u128,
+    fee_structure: &FeeStructure,
+    order_fee_tier: &OrderDiscountTier,
+    order_ts: i64,
+    now: i64,
+    has_referrer: bool,
+    reward_filler: bool,
+) -> ClearingHouseResult<(i128, u128, u128, u128, u128, u128, u128)> {
+    let fee = quote_asset_amount
+        .checked_mul(fee_structure.fee_numerator)
+        .ok_or_else(math_error!())?
+        .checked_div(fee_structure.fee_denominator)
+        .ok_or_else(math_error!())?;
+
+    let maker_rebate = fee
+        .checked_mul(fee_structure.maker_rebate_numerator)
+        .ok_or_else(math_error!())?
+        .checked_div(fee_structure.maker_rebate_denominator)
+        .ok_or_else(math_error!())?;
+
+    let token_discount =
+        calculate_token_discount_for_limit_order(fee, fee_structure, order_fee_tier)?;
+
+    let (referrer_reward, referee_discount) = if has_referrer {
+        calculate_referral_reward_and_referee_discount(fee, fee_structure)?
+    } else {
+        (0_u128, 0_u128)
+    };
+
+    let taker_fee = fee
+        .checked_sub(referee_discount)
+        .ok_or_else(math_error!())?
+        .checked_sub(token_discount)
+        .ok_or_else(math_error!())?;
+
+    let filler_reward: u128 = if !reward_filler {
+        0
+    } else {
+        calculate_filler_reward(fee, order_ts, now, &fee_structure.filler_reward_structure)?
+    };
+
+    let fee_to_market = taker_fee
+        .checked_sub(filler_reward)
+        .ok_or_else(math_error!())?
+        .checked_sub(referrer_reward)
+        .ok_or_else(math_error!())?
+        .checked_sub(maker_rebate)
+        .ok_or_else(math_error!())?;
+
+    Ok((
+        cast_to_i128(taker_fee)?,
+        fee_to_market,
+        token_discount,
+        filler_reward,
+        referrer_reward,
+        referee_discount,
+        maker_rebate,
+    ))
 }

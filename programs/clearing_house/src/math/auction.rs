@@ -133,8 +133,6 @@ pub fn calculate_auction_fill_amount(
         maker_base_asset_amount_unfilled,
     );
 
-    println!("base_asset_amount_to_fill {}", base_asset_amount_to_fill);
-
     // TODO: should round up taker/maker quote asset amount based on who is going long/short
     let quote_asset_amount = base_asset_amount_to_fill
         .checked_mul(auction_price)

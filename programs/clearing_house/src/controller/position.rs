@@ -17,7 +17,7 @@ use crate::state::market::Market;
 use crate::state::user::{User, UserPositions};
 use crate::MarketPosition;
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug)]
 pub enum PositionDirection {
     Long,
     Short,

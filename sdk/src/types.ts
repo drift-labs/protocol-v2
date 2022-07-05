@@ -217,7 +217,6 @@ export type StateAccount = {
 	maxDeposit: BN;
 	numberOfMarkets: BN;
 	numberOfBanks: BN;
-	orderFillerRewardStructure: OrderFillerRewardStructure;
 	minOrderQuoteAssetAmount: BN;
 };
 
@@ -421,6 +420,9 @@ export type FeeStructure = {
 		refereeDiscountNumerator: BN;
 		refereeDiscountDenominator: BN;
 	};
+	makerRebateNumerator: BN;
+	makerRebateDenominator: BN;
+	fillerRewardStructure: OrderFillerRewardStructure;
 };
 
 export type OracleGuardRails = {

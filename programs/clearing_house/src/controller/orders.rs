@@ -430,11 +430,6 @@ pub fn fill_order(
         } else {
             let maker = maker.ok_or(ErrorCode::MakerNotFound)?;
             let maker_key = maker.key();
-            let maker = &mut load_mut(&maker)?;
-            let maker_order_id = maker_order_id.ok_or(ErrorCode::MakerOrderNotFound)?;
-            let maker_order_index = maker
-                .get_order_index(maker_order_id)
-                .map_err(|e| print_error!(e)())?;
 
             validate!(
                 maker_key != user_key,
@@ -442,21 +437,25 @@ pub fn fill_order(
                 "Maker can not fill their own order"
             )?;
 
-            validate!(
-                maker.orders[maker_order_index].post_only,
-                ErrorCode::MakerOrderMustBePostOnly,
-                "Maker order must be post only"
-            )?;
+            let maker = &mut load_mut(&maker)?;
+            let maker_order_id = maker_order_id.ok_or(ErrorCode::MakerOrderNotFound)?;
+            let maker_order_index = maker
+                .get_order_index(maker_order_id)
+                .map_err(|e| print_error!(e)())?;
 
             let market = &mut market_map.get_ref_mut(&market_index)?;
+
             fulfill_order_with_maker_order(
                 market,
                 user,
                 order_index,
                 maker,
                 maker_order_index,
-                state.order_auction_duration,
+                None,
+                None,
                 now,
+                state.order_auction_duration,
+                &state.fee_structure,
             )?
         };
 
@@ -612,12 +611,11 @@ pub fn fulfill_order_with_amm(
         fees::calculate_fee_for_order(
             quote_asset_amount,
             &state.fee_structure,
-            &state.order_filler_reward_structure,
             &order_discount_tier,
             order_ts,
             now,
-            referrer,
-            filler_key == user_key,
+            referrer.is_some(),
+            filler_key != user_key,
             quote_asset_amount_surplus,
             order_post_only,
         )?;
@@ -733,6 +731,8 @@ pub fn fulfill_order_with_amm(
             liquidation: false,
             market_index,
             oracle_price: oracle_price_after,
+            maker_authority: None,
+            maker: None,
         };
         emit!(trade_record);
         record_id
@@ -778,9 +778,23 @@ pub fn fulfill_order_with_maker_order(
     taker_order_index: usize,
     maker: &mut User,
     maker_order_index: usize,
+    filler: Option<&mut User>,
+    referrer: Option<&mut User>,
     auction_duration: i64,
     now: i64,
+    fee_structure: &FeeStructure,
 ) -> ClearingHouseResult<(u128, bool)> {
+    if maker.orders[maker_order_index].market_index != taker.orders[taker_order_index].market_index
+    {
+        msg!("Maker and taker orders in different markets");
+        return Ok((0_u128, false));
+    }
+
+    if maker.orders[maker_order_index].direction == taker.orders[taker_order_index].direction {
+        msg!("Maker and taker orders have the same direction");
+        return Ok((0_u128, false));
+    }
+
     let auction_price =
         calculate_auction_price(&taker.orders[taker_order_index], now, auction_duration)?;
 
@@ -833,6 +847,134 @@ pub fn fulfill_order_with_maker_order(
         market,
         &taker_position_delta,
     )?;
+
+    let (
+        taker_fee,
+        fee_to_market,
+        token_discount,
+        filler_reward,
+        referrer_reward,
+        referee_discount,
+        maker_rebate,
+    ) = fees::calculate_fee_for_taker_and_maker(
+        quote_asset_amount,
+        fee_structure,
+        &taker.orders[taker_order_index].discount_tier,
+        taker.orders[taker_order_index].ts,
+        now,
+        referrer.is_some(),
+        filler.is_some(),
+    )?;
+
+    // Increment the markets house's total fee variables
+    market.amm.total_fee = market
+        .amm
+        .total_fee
+        .checked_add(fee_to_market)
+        .ok_or_else(math_error!())?;
+    market.amm.total_fee_minus_distributions = market
+        .amm
+        .total_fee_minus_distributions
+        .checked_add(fee_to_market)
+        .ok_or_else(math_error!())?;
+    market.amm.net_revenue_since_last_funding = market
+        .amm
+        .net_revenue_since_last_funding
+        .checked_add(fee_to_market as i64)
+        .ok_or_else(math_error!())?;
+
+    controller::position::update_unsettled_pnl(
+        &mut taker.positions[taker_position_index],
+        market,
+        -cast(taker_fee)?,
+    )?;
+
+    taker.total_fee_paid = taker
+        .total_fee_paid
+        .checked_add(cast(taker_fee)?)
+        .ok_or_else(math_error!())?;
+
+    taker.total_token_discount = taker
+        .total_token_discount
+        .checked_add(token_discount)
+        .ok_or_else(math_error!())?;
+    taker.total_referee_discount = taker
+        .total_referee_discount
+        .checked_add(referee_discount)
+        .ok_or_else(math_error!())?;
+
+    controller::position::update_unsettled_pnl(
+        &mut maker.positions[maker_position_index],
+        market,
+        cast(maker_rebate)?,
+    )?;
+
+    maker.total_fee_rebate = maker
+        .total_fee_rebate
+        .checked_add(cast(maker_rebate)?)
+        .ok_or_else(math_error!())?;
+
+    if let Some(referrer) = referrer {
+        referrer.total_referral_reward = referrer
+            .total_referral_reward
+            .checked_add(referrer_reward)
+            .ok_or_else(math_error!())?;
+    }
+
+    if let Some(filler) = filler {
+        let filler_position_index = get_position_index(&filler.positions, market.market_index)
+            .or_else(|_| add_new_position(&mut filler.positions, market.market_index))?;
+
+        controller::position::update_unsettled_pnl(
+            &mut filler.positions[filler_position_index],
+            market,
+            cast(filler_reward)?,
+        )?;
+    }
+
+    update_order_after_fill(
+        &mut taker.orders[taker_order_index],
+        market.amm.base_asset_amount_step_size,
+        base_asset_amount,
+        quote_asset_amount,
+        cast(taker_fee)?,
+    )?;
+
+    decrease_open_bids_and_asks(
+        &mut taker.positions[taker_position_index],
+        &taker.orders[taker_order_index].direction,
+        base_asset_amount,
+    )?;
+
+    update_order_after_fill(
+        &mut maker.orders[maker_order_index],
+        market.amm.base_asset_amount_step_size,
+        base_asset_amount,
+        quote_asset_amount,
+        -cast(maker_rebate)?,
+    )?;
+
+    decrease_open_bids_and_asks(
+        &mut maker.positions[maker_position_index],
+        &maker.orders[maker_order_index].direction,
+        base_asset_amount,
+    )?;
+
+    if taker.orders[taker_order_index].base_asset_amount
+        == taker.orders[taker_order_index].base_asset_amount_filled
+    {
+        taker.orders[taker_order_index] = Order::default();
+        let market_position = &mut taker.positions[taker_position_index];
+        market_position.open_orders -= 1;
+    }
+
+    if maker.orders[maker_order_index].base_asset_amount
+        == maker.orders[maker_order_index].base_asset_amount_filled
+    {
+        maker.orders[maker_order_index] = Order::default();
+        let market_position = &mut maker.positions[maker_position_index];
+        market_position.open_orders -= 1;
+    }
 
     Ok((base_asset_amount, false))
 }
@@ -1130,6 +1272,7 @@ mod tests {
             BASE_PRECISION, BASE_PRECISION_I128, MARK_PRICE_PRECISION, QUOTE_PRECISION,
         };
         use crate::state::market::Market;
+        use crate::state::state::FeeStructure;
         use crate::state::user::{MarketPosition, Order, OrderType, User};
 
         fn get_positions(order: MarketPosition) -> [MarketPosition; 5] {
@@ -1142,6 +1285,16 @@ mod tests {
             let mut orders = [Order::default(); 32];
             orders[0] = order;
             orders
+        }
+
+        fn get_fee_structure() -> FeeStructure {
+            FeeStructure {
+                fee_numerator: 5,
+                fee_denominator: 10000,
+                maker_rebate_numerator: 3,
+                maker_rebate_denominator: 5,
+                ..FeeStructure::default()
+            }
         }
 
         #[test]
@@ -1160,7 +1313,7 @@ mod tests {
                 positions: get_positions(MarketPosition {
                     market_index: 0,
                     open_orders: 1,
-                    open_bids: 100 * BASE_PRECISION_I128,
+                    open_bids: 1 * BASE_PRECISION_I128,
                     ..MarketPosition::default()
                 }),
                 ..User::default()
@@ -1180,7 +1333,7 @@ mod tests {
                 positions: get_positions(MarketPosition {
                     market_index: 0,
                     open_orders: 1,
-                    open_bids: 100 * BASE_PRECISION_I128,
+                    open_asks: -1 * BASE_PRECISION_I128,
                     ..MarketPosition::default()
                 }),
                 ..User::default()
@@ -1191,14 +1344,19 @@ mod tests {
             let now = 1_i64;
             let auction_duration = 5_i64;
 
+            let fee_structure = get_fee_structure();
+
             fulfill_order_with_maker_order(
                 &mut market,
                 &mut taker,
                 0,
                 &mut maker,
                 0,
+                None,
+                None,
                 auction_duration,
                 now,
+                &fee_structure,
             )
             .unwrap();
 
@@ -1206,17 +1364,34 @@ mod tests {
             assert_eq!(taker_position.base_asset_amount, 1 * BASE_PRECISION_I128);
             assert_eq!(taker_position.quote_asset_amount, 120 * QUOTE_PRECISION);
             assert_eq!(taker_position.quote_entry_amount, 120 * QUOTE_PRECISION);
+            assert_eq!(taker_position.unsettled_pnl, -60000);
+            assert_eq!(taker_position.open_bids, 0);
+            assert_eq!(taker_position.open_orders, 0);
+            assert_eq!(taker.total_fee_paid, 60000);
+            assert_eq!(taker.total_referee_discount, 0);
+            assert_eq!(taker.total_token_discount, 0);
+            assert_eq!(taker.orders[0], Order::default());
 
             let maker_position = &maker.positions[0];
             assert_eq!(maker_position.base_asset_amount, -1 * BASE_PRECISION_I128);
             assert_eq!(maker_position.quote_asset_amount, 120 * QUOTE_PRECISION);
             assert_eq!(maker_position.quote_entry_amount, 120 * QUOTE_PRECISION);
+            assert_eq!(maker_position.unsettled_pnl, 36000);
+            assert_eq!(maker_position.open_orders, 0);
+            assert_eq!(maker_position.open_asks, 0);
+            assert_eq!(maker.total_fee_rebate, 36000);
+            assert_eq!(maker.orders[0], Order::default());
 
             assert_eq!(market.amm.net_base_asset_amount, 0);
             assert_eq!(market.base_asset_amount_long, BASE_PRECISION_I128);
             assert_eq!(market.base_asset_amount_short, -BASE_PRECISION_I128);
             assert_eq!(market.amm.quote_asset_amount_long, 120 * QUOTE_PRECISION);
             assert_eq!(market.amm.quote_asset_amount_short, 120 * QUOTE_PRECISION);
+            assert_eq!(market.amm.total_fee, 24000);
+            assert_eq!(market.amm.total_fee_minus_distributions, 24000);
+            assert_eq!(market.amm.net_revenue_since_last_funding, 24000);
+            assert_eq!(market.unsettled_profit, 36000);
+            assert_eq!(market.unsettled_loss, 60000);
         }
 
         #[test]
@@ -1235,7 +1410,7 @@ mod tests {
                 positions: get_positions(MarketPosition {
                     market_index: 0,
                     open_orders: 1,
-                    open_bids: 100 * BASE_PRECISION_I128,
+                    open_bids: 1 * BASE_PRECISION_I128,
                     ..MarketPosition::default()
                 }),
                 ..User::default()
@@ -1255,7 +1430,7 @@ mod tests {
                 positions: get_positions(MarketPosition {
                     market_index: 0,
                     open_orders: 1,
-                    open_bids: 100 * BASE_PRECISION_I128,
+                    open_asks: -1 * BASE_PRECISION_I128,
                     ..MarketPosition::default()
                 }),
                 ..User::default()
@@ -1266,14 +1441,19 @@ mod tests {
             let now = 3_i64;
             let auction_duration = 5_i64;
 
+            let fee_structure = get_fee_structure();
+
             fulfill_order_with_maker_order(
                 &mut market,
                 &mut taker,
                 0,
                 &mut maker,
                 0,
+                None,
+                None,
                 auction_duration,
                 now,
+                &fee_structure,
             )
             .unwrap();
 
@@ -1281,17 +1461,34 @@ mod tests {
             assert_eq!(taker_position.base_asset_amount, 1 * BASE_PRECISION_I128);
             assert_eq!(taker_position.quote_asset_amount, 160 * QUOTE_PRECISION);
             assert_eq!(taker_position.quote_entry_amount, 160 * QUOTE_PRECISION);
+            assert_eq!(taker_position.unsettled_pnl, -80000);
+            assert_eq!(taker_position.open_bids, 0);
+            assert_eq!(taker_position.open_orders, 0);
+            assert_eq!(taker.total_fee_paid, 80000);
+            assert_eq!(taker.total_referee_discount, 0);
+            assert_eq!(taker.total_token_discount, 0);
+            assert_eq!(taker.orders[0], Order::default());
 
             let maker_position = &maker.positions[0];
             assert_eq!(maker_position.base_asset_amount, -1 * BASE_PRECISION_I128);
             assert_eq!(maker_position.quote_asset_amount, 160 * QUOTE_PRECISION);
             assert_eq!(maker_position.quote_entry_amount, 160 * QUOTE_PRECISION);
+            assert_eq!(maker_position.unsettled_pnl, 48000);
+            assert_eq!(maker_position.open_orders, 0);
+            assert_eq!(maker_position.open_asks, 0);
+            assert_eq!(maker.total_fee_rebate, 48000);
+            assert_eq!(maker.orders[0], Order::default());
 
             assert_eq!(market.amm.net_base_asset_amount, 0);
             assert_eq!(market.base_asset_amount_long, BASE_PRECISION_I128);
             assert_eq!(market.base_asset_amount_short, -BASE_PRECISION_I128);
             assert_eq!(market.amm.quote_asset_amount_long, 160 * QUOTE_PRECISION);
             assert_eq!(market.amm.quote_asset_amount_short, 160 * QUOTE_PRECISION);
+            assert_eq!(market.amm.total_fee, 32000);
+            assert_eq!(market.amm.total_fee_minus_distributions, 32000);
+            assert_eq!(market.amm.net_revenue_since_last_funding, 32000);
+            assert_eq!(market.unsettled_profit, 48000);
+            assert_eq!(market.unsettled_loss, 80000);
         }
 
         #[test]
@@ -1310,7 +1507,7 @@ mod tests {
                 positions: get_positions(MarketPosition {
                     market_index: 0,
                     open_orders: 1,
-                    open_bids: 100 * BASE_PRECISION_I128,
+                    open_asks: -1 * BASE_PRECISION_I128,
                     ..MarketPosition::default()
                 }),
                 ..User::default()
@@ -1330,7 +1527,7 @@ mod tests {
                 positions: get_positions(MarketPosition {
                     market_index: 0,
                     open_orders: 1,
-                    open_bids: 100 * BASE_PRECISION_I128,
+                    open_bids: 1 * BASE_PRECISION_I128,
                     ..MarketPosition::default()
                 }),
                 ..User::default()
@@ -1341,14 +1538,19 @@ mod tests {
             let now = 1_i64;
             let auction_duration = 5_i64;
 
+            let fee_structure = get_fee_structure();
+
             fulfill_order_with_maker_order(
                 &mut market,
                 &mut taker,
                 0,
                 &mut maker,
                 0,
+                None,
+                None,
                 auction_duration,
                 now,
+                &fee_structure,
             )
             .unwrap();
 
@@ -1356,21 +1558,38 @@ mod tests {
             assert_eq!(taker_position.base_asset_amount, -1 * BASE_PRECISION_I128);
             assert_eq!(taker_position.quote_asset_amount, 180 * QUOTE_PRECISION);
             assert_eq!(taker_position.quote_entry_amount, 180 * QUOTE_PRECISION);
+            assert_eq!(taker_position.unsettled_pnl, -90000);
+            assert_eq!(taker_position.open_asks, 0);
+            assert_eq!(taker_position.open_orders, 0);
+            assert_eq!(taker.total_fee_paid, 90000);
+            assert_eq!(taker.total_referee_discount, 0);
+            assert_eq!(taker.total_token_discount, 0);
+            assert_eq!(taker.orders[0], Order::default());
 
             let maker_position = &maker.positions[0];
             assert_eq!(maker_position.base_asset_amount, 1 * BASE_PRECISION_I128);
             assert_eq!(maker_position.quote_asset_amount, 180 * QUOTE_PRECISION);
             assert_eq!(maker_position.quote_entry_amount, 180 * QUOTE_PRECISION);
+            assert_eq!(maker_position.unsettled_pnl, 54000);
+            assert_eq!(maker_position.open_orders, 0);
+            assert_eq!(maker_position.open_bids, 0);
+            assert_eq!(maker.total_fee_rebate, 54000);
+            assert_eq!(maker.orders[0], Order::default());
 
             assert_eq!(market.amm.net_base_asset_amount, 0);
             assert_eq!(market.base_asset_amount_long, BASE_PRECISION_I128);
             assert_eq!(market.base_asset_amount_short, -BASE_PRECISION_I128);
             assert_eq!(market.amm.quote_asset_amount_long, 180 * QUOTE_PRECISION);
             assert_eq!(market.amm.quote_asset_amount_short, 180 * QUOTE_PRECISION);
+            assert_eq!(market.amm.total_fee, 36000);
+            assert_eq!(market.amm.total_fee_minus_distributions, 36000);
+            assert_eq!(market.amm.net_revenue_since_last_funding, 36000);
+            assert_eq!(market.unsettled_profit, 54000);
+            assert_eq!(market.unsettled_loss, 90000);
         }
 
         #[test]
-        fn short_taker_orde_fulfilled_middle_of_auction() {
+        fn short_taker_order_fulfilled_middle_of_auction() {
             let mut taker = User {
                 orders: get_orders(Order {
                     market_index: 0,
@@ -1385,7 +1604,7 @@ mod tests {
                 positions: get_positions(MarketPosition {
                     market_index: 0,
                     open_orders: 1,
-                    open_bids: 100 * BASE_PRECISION_I128,
+                    open_asks: -1 * BASE_PRECISION_I128,
                     ..MarketPosition::default()
                 }),
                 ..User::default()
@@ -1405,7 +1624,7 @@ mod tests {
                 positions: get_positions(MarketPosition {
                     market_index: 0,
                     open_orders: 1,
-                    open_bids: 100 * BASE_PRECISION_I128,
+                    open_bids: 1 * BASE_PRECISION_I128,
                     ..MarketPosition::default()
                 }),
                 ..User::default()
@@ -1416,14 +1635,19 @@ mod tests {
             let now = 3_i64;
             let auction_duration = 5_i64;
 
+            let fee_structure = get_fee_structure();
+
             fulfill_order_with_maker_order(
                 &mut market,
                 &mut taker,
                 0,
                 &mut maker,
                 0,
+                None,
+                None,
                 auction_duration,
                 now,
+                &fee_structure,
             )
             .unwrap();
 
@@ -1431,17 +1655,34 @@ mod tests {
             assert_eq!(taker_position.base_asset_amount, -1 * BASE_PRECISION_I128);
             assert_eq!(taker_position.quote_asset_amount, 140 * QUOTE_PRECISION);
             assert_eq!(taker_position.quote_entry_amount, 140 * QUOTE_PRECISION);
+            assert_eq!(taker_position.unsettled_pnl, -70000);
+            assert_eq!(taker_position.open_asks, 0);
+            assert_eq!(taker_position.open_orders, 0);
+            assert_eq!(taker.total_fee_paid, 70000);
+            assert_eq!(taker.total_referee_discount, 0);
+            assert_eq!(taker.total_token_discount, 0);
+            assert_eq!(taker.orders[0], Order::default());
 
             let maker_position = &maker.positions[0];
             assert_eq!(maker_position.base_asset_amount, 1 * BASE_PRECISION_I128);
             assert_eq!(maker_position.quote_asset_amount, 140 * QUOTE_PRECISION);
             assert_eq!(maker_position.quote_entry_amount, 140 * QUOTE_PRECISION);
+            assert_eq!(maker_position.unsettled_pnl, 42000);
+            assert_eq!(maker_position.open_orders, 0);
+            assert_eq!(maker_position.open_bids, 0);
+            assert_eq!(maker.total_fee_rebate, 42000);
+            assert_eq!(maker.orders[0], Order::default());
 
             assert_eq!(market.amm.net_base_asset_amount, 0);
             assert_eq!(market.base_asset_amount_long, BASE_PRECISION_I128);
             assert_eq!(market.base_asset_amount_short, -BASE_PRECISION_I128);
             assert_eq!(market.amm.quote_asset_amount_long, 140 * QUOTE_PRECISION);
             assert_eq!(market.amm.quote_asset_amount_short, 140 * QUOTE_PRECISION);
+            assert_eq!(market.amm.total_fee, 28000);
+            assert_eq!(market.amm.total_fee_minus_distributions, 28000);
+            assert_eq!(market.amm.net_revenue_since_last_funding, 28000);
+            assert_eq!(market.unsettled_profit, 42000);
+            assert_eq!(market.unsettled_loss, 70000);
         }
 
         #[test]
@@ -1491,14 +1732,19 @@ mod tests {
             let now = 1_i64;
             let auction_duration = 5_i64;
 
+            let fee_structure = FeeStructure::default();
+
             let (base_asset_amount, _) = fulfill_order_with_maker_order(
                 &mut market,
                 &mut taker,
                 0,
                 &mut maker,
                 0,
+                None,
+                None,
                 auction_duration,
                 now,
+                &fee_structure,
             )
             .unwrap();
 
@@ -1552,14 +1798,19 @@ mod tests {
             let now = 1_i64;
             let auction_duration = 5_i64;
 
+            let fee_structure = FeeStructure::default();
+
             let (base_asset_amount, _) = fulfill_order_with_maker_order(
                 &mut market,
                 &mut taker,
                 0,
                 &mut maker,
                 0,
+                None,
+                None,
                 auction_duration,
                 now,
+                &fee_structure,
             )
             .unwrap();
 
@@ -1613,14 +1864,19 @@ mod tests {
             let now = 1_i64;
             let auction_duration = 5_i64;
 
+            let fee_structure = FeeStructure::default();
+
             let (base_asset_amount, _) = fulfill_order_with_maker_order(
                 &mut market,
                 &mut taker,
                 0,
                 &mut maker,
                 0,
+                None,
+                None,
                 auction_duration,
                 now,
+                &fee_structure,
             )
             .unwrap();
 
@@ -1674,14 +1930,19 @@ mod tests {
             let now = 1_i64;
             let auction_duration = 5_i64;
 
+            let fee_structure = FeeStructure::default();
+
             let (base_asset_amount, _) = fulfill_order_with_maker_order(
                 &mut market,
                 &mut taker,
                 0,
                 &mut maker,
                 0,
+                None,
+                None,
                 auction_duration,
                 now,
+                &fee_structure,
             )
             .unwrap();
 
@@ -1724,7 +1985,7 @@ mod tests {
                 positions: get_positions(MarketPosition {
                     market_index: 0,
                     open_orders: 1,
-                    open_bids: 100 * BASE_PRECISION_I128,
+                    open_asks: -1 * BASE_PRECISION_I128,
                     ..MarketPosition::default()
                 }),
                 ..User::default()
@@ -1735,14 +1996,19 @@ mod tests {
             let now = 1_i64;
             let auction_duration = 5_i64;
 
+            let fee_structure = FeeStructure::default();
+
             fulfill_order_with_maker_order(
                 &mut market,
                 &mut taker,
                 0,
                 &mut maker,
                 0,
+                None,
+                None,
                 auction_duration,
                 now,
+                &fee_structure,
             )
             .unwrap();
 
@@ -1810,14 +2076,19 @@ mod tests {
             let now = 1_i64;
             let auction_duration = 5_i64;
 
+            let fee_structure = FeeStructure::default();
+
             fulfill_order_with_maker_order(
                 &mut market,
                 &mut taker,
                 0,
                 &mut maker,
                 0,
+                None,
+                None,
                 auction_duration,
                 now,
+                &fee_structure,
             )
             .unwrap();
 

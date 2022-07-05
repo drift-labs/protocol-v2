@@ -213,7 +213,7 @@ describe('admin', () => {
 		assert(
 			JSON.stringify(newStructure) ===
 				JSON.stringify(
-					clearingHouse.getStateAccount().orderFillerRewardStructure
+					clearingHouse.getStateAccount().feeStructure.fillerRewardStructure
 				)
 		);
 	});
