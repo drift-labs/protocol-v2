@@ -33,6 +33,10 @@ pub fn settle_lp_position(
             .quote_asset_amount
             .checked_add(lp_metrics.quote_asset_amount)
             .ok_or_else(math_error!())?;
+        lp_position.quote_entry_amount = lp_position
+            .quote_entry_amount
+            .checked_add(lp_metrics.quote_asset_amount)
+            .ok_or_else(math_error!())?;
         lp_position.last_net_base_asset_amount = amm.net_base_asset_amount;
     }
     lp_position.last_total_fee_minus_distributions = amm.total_fee_minus_distributions;

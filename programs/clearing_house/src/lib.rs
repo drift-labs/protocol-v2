@@ -758,7 +758,6 @@ pub mod clearing_house {
         Ok(())
     }
 
-    #[allow(unused_must_use)]
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]
@@ -766,18 +765,9 @@ pub mod clearing_house {
         let user = &mut load_mut(&ctx.accounts.user)?;
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
 
-        // here for remaining_accounts js sdk fcn to still work - probs want to remove later
-        let clock = Clock::get()?;
-        let _oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
-        let _bank_map = BankMap::load(
-            &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
-            remaining_accounts_iter,
-        )?;
-
         let market_map = MarketMap::load(
             &get_writable_markets(market_index),
             &MarketOracles::new(),
-            //&get_market_oracles(market_index, &ctx.accounts.oracle),
             remaining_accounts_iter,
         )?;
         let mut market = market_map.get_ref_mut(&market_index)?;
@@ -790,7 +780,6 @@ pub mod clearing_house {
         Ok(())
     }
 
-    #[allow(unused_must_use)]
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]
@@ -799,19 +788,11 @@ pub mod clearing_house {
         market_index: u64,
     ) -> Result<()> {
         let user = &mut load_mut(&ctx.accounts.user)?;
-        let clock = Clock::get()?;
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-
-        // here for remaining_accounts js sdk fcn to still work - probs want to remove later
-        let _oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
-        let _bank_map = BankMap::load(
-            &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
-            remaining_accounts_iter,
-        )?;
 
         let market_map = MarketMap::load(
             &get_writable_markets(market_index),
-            &get_market_oracles(market_index, &ctx.accounts.oracle),
+            &MarketOracles::new(),
             remaining_accounts_iter,
         )?;
         let mut market = market_map.get_ref_mut(&market_index)?;
@@ -836,6 +817,7 @@ pub mod clearing_house {
         let settle_result = settle_lp_position(lp_position, lp_tokens_to_burn, &mut market)?;
 
         if settle_result == SettleResult::DidNotRecieveMarketPosition {
+            // TODO: decide whether to throw error here
             msg!("warning: unable to burn lp tokens due to market position size being too small");
             return Ok(());
         }
@@ -854,11 +836,37 @@ pub mod clearing_house {
         };
 
         // track new position in the market
+        // TODO: probably want to refactor all this into one fcn (auction PR fcn?)
         market.amm.net_base_asset_amount = market
             .amm
             .net_base_asset_amount
             .checked_add(lp_position.base_asset_amount)
             .ok_or_else(math_error!())?;
+
+        let base_asset_acquired = lp_position.base_asset_amount;
+        let quote_asset_amount = lp_position.quote_asset_amount;
+
+        if lp_position.base_asset_amount > 0 {
+            market.base_asset_amount_long = market
+                .base_asset_amount_long
+                .checked_add(base_asset_acquired)
+                .ok_or_else(math_error!())?;
+            market.amm.quote_asset_amount_long = market
+                .amm
+                .quote_asset_amount_long
+                .checked_add(quote_asset_amount)
+                .ok_or_else(math_error!())?;
+        } else {
+            market.base_asset_amount_short = market
+                .base_asset_amount_short
+                .checked_add(base_asset_acquired)
+                .ok_or_else(math_error!())?;
+            market.amm.quote_asset_amount_short = market
+                .amm
+                .quote_asset_amount_short
+                .checked_add(quote_asset_amount)
+                .ok_or_else(math_error!())?;
+        }
 
         market.open_interest = market
             .open_interest
@@ -874,12 +882,11 @@ pub mod clearing_house {
         let new_sqrt_k_u192 = bn::U192::from(new_sqrt_k);
 
         let update_k_result = get_update_k_result(&market, new_sqrt_k_u192)?;
-        math::amm::update_k(&mut market, &update_k_result);
+        math::amm::update_k(&mut market, &update_k_result)?;
 
         Ok(())
     }
 
-    #[allow(unused_must_use)]
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]
@@ -897,10 +904,9 @@ pub mod clearing_house {
             &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
             remaining_accounts_iter,
         )?;
-
         let market_map = MarketMap::load(
             &get_writable_markets(market_index),
-            &get_market_oracles(market_index, &ctx.accounts.oracle),
+            &MarketOracles::new(), // TODO
             remaining_accounts_iter,
         )?;
 
@@ -968,7 +974,7 @@ pub mod clearing_house {
         {
             let mut market = market_map.get_ref_mut(&market_index)?;
             let update_k_result = get_update_k_result(&market, new_sqrt_k_u192)?;
-            math::amm::update_k(&mut market, &update_k_result);
+            math::amm::update_k(&mut market, &update_k_result)?;
         }
 
         // check margin requirements

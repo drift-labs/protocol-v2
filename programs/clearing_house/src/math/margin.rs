@@ -80,16 +80,27 @@ pub fn calculate_margin_requirement_and_total_collateral(
     }
 
     let mut perp_margin_requirements: u128 = 0;
-    for mut market_position in user.positions.iter() {
-        // rust borrowing -- kinda dirty
-        let _market_position = if market_position.is_lp() {
+    for market_position in user.positions.iter() {
+        let lp_market_position = if market_position.is_lp() {
             // market position if lp was settled
             let market = &market_map.get_ref(&market_position.market_index)?;
-            get_lp_market_position_margin(market_position, market_position.lp_tokens, &market.amm)?
+            let (lp_market_position, lp_margin_requirement) =
+                get_lp_market_position_margin(market_position, &market.amm)?;
+
+            // add margin req
+            margin_requirement = margin_requirement
+                .checked_add(lp_margin_requirement)
+                .ok_or_else(math_error!())?;
+
+            Some(lp_market_position)
         } else {
-            *market_position
+            None
         };
-        market_position = &_market_position;
+
+        let market_position = match lp_market_position.as_ref() {
+            Some(lp_market_position) => lp_market_position,
+            None => market_position,
+        };
 
         unsettled_pnl = unsettled_pnl
             .checked_add(market_position.unsettled_pnl)

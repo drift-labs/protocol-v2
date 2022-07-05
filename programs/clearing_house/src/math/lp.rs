@@ -123,19 +123,11 @@ pub fn get_lp_metrics(
 
 pub fn get_lp_market_position_margin(
     lp_position: &MarketPosition,
-    lp_tokens_to_settle: u128,
     amm: &AMM,
-) -> ClearingHouseResult<MarketPosition> {
-    if lp_position.lp_tokens != lp_tokens_to_settle {
-        panic!("not implemented yet...");
-    }
-
+) -> ClearingHouseResult<(MarketPosition, u128)> {
     // clone bc its only temporary
     let mut market_position = *lp_position;
-
-    if lp_tokens_to_settle == 0 {
-        return Ok(market_position);
-    }
+    let lp_tokens_to_settle = lp_position.lp_tokens; // settle full amount for margin
 
     let lp_metrics = get_lp_metrics(&market_position, lp_tokens_to_settle, amm)?;
 
@@ -165,8 +157,8 @@ pub fn get_lp_market_position_margin(
             .ok_or_else(math_error!())?;
     }
 
-    // add additional lp margin requirements
-    let lp_margin_req = max(
+    // additional lp margin requirements for holding lp tokens
+    let lp_margin_requirement = max(
         1,
         market_position
             .lp_tokens
@@ -179,12 +171,8 @@ pub fn get_lp_market_position_margin(
             .checked_div(AMM_TO_QUOTE_PRECISION_RATIO)
             .ok_or_else(math_error!())?,
     );
-    market_position.unsettled_pnl = market_position
-        .unsettled_pnl
-        .checked_sub(cast_to_i128(lp_margin_req)?)
-        .ok_or_else(math_error!())?;
 
-    Ok(market_position)
+    Ok((market_position, lp_margin_requirement))
 }
 
 pub fn get_proportion(
@@ -192,7 +180,7 @@ pub fn get_proportion(
     numerator: u128,
     denominator: u128,
 ) -> ClearingHouseResult<i128> {
-    let _sign: i128 = if value > 0 { 1 } else { -1 };
+    let sign: i128 = if value > 0 { 1 } else { -1 };
     let proportional_value = cast_to_i128(
         value
             .unsigned_abs()
@@ -201,7 +189,7 @@ pub fn get_proportion(
             .checked_div(denominator)
             .ok_or_else(math_error!())?,
     )?
-    .checked_mul(_sign)
+    .checked_mul(sign)
     .ok_or_else(math_error!())?;
     Ok(proportional_value)
 }

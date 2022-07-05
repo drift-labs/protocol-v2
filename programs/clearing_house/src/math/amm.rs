@@ -866,21 +866,12 @@ pub fn get_update_k_result(
     }
 
     let sqrt_k = new_sqrt_k.try_to_u128().unwrap();
-    // msg!("sqrt_k_ratio: {:?}", sqrt_k_ratio);
     let base_asset_reserve = bn::U192::from(market.amm.base_asset_reserve)
         .checked_mul(sqrt_k_ratio)
         .ok_or_else(math_error!())?
         .checked_div(sqrt_k_ratio_precision)
         .ok_or_else(math_error!())?
         .try_to_u128()?;
-    // msg!("market.amm.base_asset_reserve: {:?} -> {:?}", market.amm.base_asset_reserve, base_asset_reserve);
-
-    // if sqrt_k_ratio < sqrt_k_ratio_precision {
-    //     base_asset_reserve = base_asset_reserve
-    //     // .checked_add(market.amm.base_asset_reserve / 100_000_000 / 2)
-    //     .checked_add(market.amm.base_asset_reserve / AMM_RESERVE_PRECISION)
-    //     .ok_or_else(math_error!())?;
-    // }
 
     let invariant_sqrt_u192 = U192::from(sqrt_k);
     let invariant = invariant_sqrt_u192

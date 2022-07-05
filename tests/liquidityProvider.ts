@@ -426,6 +426,7 @@ describe('liquidity providing', () => {
 
 		const init_tokens = init_user.positions[0].lpTokens;
 		const tokens = user.positions[0].lpTokens;
+		console.log(init_tokens.toString(), tokens.toString());
 		assert(init_tokens.lt(tokens));
 	});
 
