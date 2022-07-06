@@ -612,6 +612,18 @@ describe('update amm', () => {
 			const market0 = market0s[i];
 
 			console.log(market.amm.pegMultiplier.toString());
+			if (i == 0) {
+				assert(market.amm.pegMultiplier.eq(new BN(1008)));
+			} else if (i == 1) {
+				assert(market.amm.pegMultiplier.eq(new BN(1976)));
+			} else if (i == 2) {
+				assert(market.amm.pegMultiplier.eq(new BN(2011)));
+			} else if (i == 3) {
+				assert(market.amm.pegMultiplier.eq(new BN(3016)));
+			} else if (i == 4) {
+				assert(market.amm.pegMultiplier.eq(new BN(4022)));
+			}
+
 			assert(market.amm.pegMultiplier.gt(market0.amm.pegMultiplier));
 			// assert(market.amm.pegMultiplier.eq(new BN(1006)));
 			const actualDist = market.amm.totalFee.sub(

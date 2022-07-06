@@ -470,7 +470,7 @@ pub fn calculate_expected_excess_funding_payment(
 }
 
 pub fn calculate_fee_pool(market: &Market) -> ClearingHouseResult<u128> {
-    let total_fee_minus_distributions_lower_bound = total_fee_lower_bound(market)?;
+    let total_fee_minus_distributions_lower_bound = get_total_fee_lower_bound(market)?;
 
     let fee_pool =
         if market.amm.total_fee_minus_distributions > total_fee_minus_distributions_lower_bound {
@@ -486,16 +486,17 @@ pub fn calculate_fee_pool(market: &Market) -> ClearingHouseResult<u128> {
     Ok(fee_pool)
 }
 
-pub fn total_fee_lower_bound(market: &Market) -> ClearingHouseResult<u128> {
-    let total_fee_lb = market
+pub fn get_total_fee_lower_bound(market: &Market) -> ClearingHouseResult<u128> {
+    // market to retain half of exchange fees
+    let total_fee_lower_bound = market
         .amm
-        .total_fee
+        .total_exchange_fee
         .checked_mul(SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR)
         .ok_or_else(math_error!())?
         .checked_div(SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_DENOMINATOR)
         .ok_or_else(math_error!())?;
 
-    Ok(total_fee_lb)
+    Ok(total_fee_lower_bound)
 }
 
 #[cfg(test)]

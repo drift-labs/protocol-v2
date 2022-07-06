@@ -1110,7 +1110,7 @@ pub mod clearing_house {
 
         // update user cost basis (if at a loss)
         let (_amm_position_base_asset_value, amm_position_unrealized_pnl) =
-            calculate_base_asset_value_and_pnl(market_position, &market.amm, true)?;
+            calculate_base_asset_value_and_pnl(market_position, &market.amm, false)?;
 
         if amm_position_unrealized_pnl < 0 {
             if market_position.base_asset_amount > 0 {

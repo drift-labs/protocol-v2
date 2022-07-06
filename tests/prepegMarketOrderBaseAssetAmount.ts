@@ -329,7 +329,7 @@ describe('prepeg', () => {
 		assert(bid1.lt(oraclePriceData.price));
 
 		console.log(market.amm.pegMultiplier.toString());
-		assert(market.amm.pegMultiplier.eq(new BN(1003)));
+		assert(market.amm.pegMultiplier.eq(new BN(1005)));
 		const actualDist = market.amm.totalFee.sub(
 			market.amm.totalFeeMinusDistributions
 		);
