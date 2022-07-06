@@ -15,9 +15,7 @@ use crate::error::ErrorCode;
 use crate::get_struct_values;
 use crate::get_then_update_id;
 use crate::math::amm::is_oracle_valid;
-use crate::math::auction::{
-    calculate_auction_end_price, calculate_auction_price, calculate_auction_start_price,
-};
+use crate::math::auction::{calculate_auction_end_price, calculate_auction_start_price};
 use crate::math::casting::cast;
 use crate::math::fees::calculate_order_fee_tier;
 use crate::math::fulfillment::determine_fulfillment_method;
@@ -146,6 +144,7 @@ pub fn place_order(
         immediate_or_cancel: params.immediate_or_cancel,
         auction_start_price,
         auction_end_price,
+        auction_duration: state.order_auction_duration,
         padding: [0; 3],
     };
 
@@ -157,7 +156,7 @@ pub fn place_order(
         clock.slot,
     )?;
 
-    validate_order(&new_order, market, state, valid_oracle_price)?;
+    validate_order(&new_order, market, state, valid_oracle_price, now)?;
 
     user.orders[new_order_index] = new_order;
 
@@ -295,6 +294,7 @@ pub fn cancel_order(
             bank_map,
             oracle_map,
             valid_oracle_price,
+            now,
         )?;
 
         if !is_cancelable {
@@ -308,6 +308,7 @@ pub fn cancel_order(
             bank_map,
             oracle_map,
             valid_oracle_price,
+            now,
         )?;
     }
 
@@ -411,12 +412,8 @@ pub fn fill_order(
         None
     };
 
-    let fulfillment_method = determine_fulfillment_method(
-        &user.orders[order_index],
-        maker.is_some(),
-        state.order_auction_duration,
-        now,
-    )?;
+    let fulfillment_method =
+        determine_fulfillment_method(&user.orders[order_index], maker.is_some(), now)?;
 
     let (base_asset_amount, potentially_risk_increasing) = match fulfillment_method {
         FulfillmentMethod::AMM => fulfill_order_with_amm(
@@ -460,7 +457,6 @@ pub fn fill_order(
                 maker_order_index,
                 None,
                 now,
-                state.order_auction_duration,
                 &state.fee_structure,
             )?
         }
@@ -780,7 +776,6 @@ pub fn fulfill_order_with_maker_order(
     second_user: &mut User,
     second_user_order_index: usize,
     filler: Option<&mut User>,
-    auction_duration: i64,
     now: i64,
     fee_structure: &FeeStructure,
 ) -> ClearingHouseResult<(u128, bool)> {
@@ -798,12 +793,11 @@ pub fn fulfill_order_with_maker_order(
         return Ok((0_u128, false));
     }
 
-    let taker_price =
-        calculate_auction_price(&taker.orders[taker_order_index], now, auction_duration)?;
+    let taker_price = taker.orders[taker_order_index].get_limit_price(None, now)?;
     let taker_base_asset_amount =
         taker.orders[taker_order_index].get_base_asset_amount_unfilled()?;
 
-    let maker_price = maker.orders[maker_order_index].price;
+    let maker_price = maker.orders[maker_order_index].get_limit_price(None, now)?;
     let maker_direction = &maker.orders[maker_order_index].direction;
     let maker_base_asset_amount =
         maker.orders[maker_order_index].get_base_asset_amount_unfilled()?;
@@ -1077,6 +1071,7 @@ pub fn execute_non_market_order(
         market,
         Some(mark_price_before),
         valid_oracle_price,
+        now,
     )?;
 
     if base_asset_amount == 0 {
@@ -1125,7 +1120,7 @@ pub fn execute_non_market_order(
     let position_index = get_position_index(&user.positions, market_index)?;
 
     let maker_limit_price = if order_post_only {
-        Some(user.orders[order_index].get_limit_price(valid_oracle_price)?)
+        Some(user.orders[order_index].get_limit_price(valid_oracle_price, now)?)
     } else {
         None
     };
@@ -1271,6 +1266,7 @@ mod tests {
                     ts: 0,
                     auction_start_price: 100 * MARK_PRICE_PRECISION,
                     auction_end_price: 200 * MARK_PRICE_PRECISION,
+                    auction_duration: 5,
                     ..Order::default()
                 }),
                 positions: get_positions(MarketPosition {
@@ -1305,7 +1301,6 @@ mod tests {
             let mut market = Market::default();
 
             let now = 1_i64;
-            let auction_duration = 5_i64;
 
             let fee_structure = get_fee_structure();
 
@@ -1316,7 +1311,6 @@ mod tests {
                 &mut maker,
                 0,
                 None,
-                auction_duration,
                 now,
                 &fee_structure,
             )
@@ -1367,6 +1361,7 @@ mod tests {
                     ts: 0,
                     auction_start_price: 100 * MARK_PRICE_PRECISION,
                     auction_end_price: 200 * MARK_PRICE_PRECISION,
+                    auction_duration: 5,
                     ..Order::default()
                 }),
                 positions: get_positions(MarketPosition {
@@ -1401,7 +1396,6 @@ mod tests {
             let mut market = Market::default();
 
             let now = 3_i64;
-            let auction_duration = 5_i64;
 
             let fee_structure = get_fee_structure();
 
@@ -1412,7 +1406,6 @@ mod tests {
                 &mut maker,
                 0,
                 None,
-                auction_duration,
                 now,
                 &fee_structure,
             )
@@ -1463,6 +1456,7 @@ mod tests {
                     ts: 0,
                     auction_start_price: 200 * MARK_PRICE_PRECISION,
                     auction_end_price: 100 * MARK_PRICE_PRECISION,
+                    auction_duration: 5,
                     ..Order::default()
                 }),
                 positions: get_positions(MarketPosition {
@@ -1497,7 +1491,6 @@ mod tests {
             let mut market = Market::default();
 
             let now = 1_i64;
-            let auction_duration = 5_i64;
 
             let fee_structure = get_fee_structure();
 
@@ -1508,7 +1501,6 @@ mod tests {
                 &mut maker,
                 0,
                 None,
-                auction_duration,
                 now,
                 &fee_structure,
             )
@@ -1559,6 +1551,7 @@ mod tests {
                     ts: 0,
                     auction_start_price: 200 * MARK_PRICE_PRECISION,
                     auction_end_price: 100 * MARK_PRICE_PRECISION,
+                    auction_duration: 5,
                     ..Order::default()
                 }),
                 positions: get_positions(MarketPosition {
@@ -1593,7 +1586,6 @@ mod tests {
             let mut market = Market::default();
 
             let now = 3_i64;
-            let auction_duration = 5_i64;
 
             let fee_structure = get_fee_structure();
 
@@ -1604,7 +1596,6 @@ mod tests {
                 &mut maker,
                 0,
                 None,
-                auction_duration,
                 now,
                 &fee_structure,
             )
@@ -1655,6 +1646,7 @@ mod tests {
                     ts: 0,
                     auction_start_price: 100 * MARK_PRICE_PRECISION,
                     auction_end_price: 200 * MARK_PRICE_PRECISION,
+                    auction_duration: 5,
                     ..Order::default()
                 }),
                 positions: get_positions(MarketPosition {
@@ -1689,7 +1681,6 @@ mod tests {
             let mut market = Market::default();
 
             let now = 1_i64;
-            let auction_duration = 5_i64;
 
             let fee_structure = FeeStructure::default();
 
@@ -1700,7 +1691,6 @@ mod tests {
                 &mut maker,
                 0,
                 None,
-                auction_duration,
                 now,
                 &fee_structure,
             )
@@ -1720,6 +1710,7 @@ mod tests {
                     ts: 0,
                     auction_start_price: 200 * MARK_PRICE_PRECISION,
                     auction_end_price: 100 * MARK_PRICE_PRECISION,
+                    auction_duration: 5,
                     ..Order::default()
                 }),
                 positions: get_positions(MarketPosition {
@@ -1754,7 +1745,6 @@ mod tests {
             let mut market = Market::default();
 
             let now = 1_i64;
-            let auction_duration = 5_i64;
 
             let fee_structure = FeeStructure::default();
 
@@ -1765,7 +1755,6 @@ mod tests {
                 &mut maker,
                 0,
                 None,
-                auction_duration,
                 now,
                 &fee_structure,
             )
@@ -1785,6 +1774,7 @@ mod tests {
                     ts: 0,
                     auction_start_price: 200 * MARK_PRICE_PRECISION,
                     auction_end_price: 100 * MARK_PRICE_PRECISION,
+                    auction_duration: 5,
                     ..Order::default()
                 }),
                 positions: get_positions(MarketPosition {
@@ -1819,7 +1809,6 @@ mod tests {
             let mut market = Market::default();
 
             let now = 1_i64;
-            let auction_duration = 5_i64;
 
             let fee_structure = FeeStructure::default();
 
@@ -1830,7 +1819,6 @@ mod tests {
                 &mut maker,
                 0,
                 None,
-                auction_duration,
                 now,
                 &fee_structure,
             )
@@ -1850,6 +1838,7 @@ mod tests {
                     ts: 0,
                     auction_start_price: 200 * MARK_PRICE_PRECISION,
                     auction_end_price: 100 * MARK_PRICE_PRECISION,
+                    auction_duration: 5,
                     ..Order::default()
                 }),
                 positions: get_positions(MarketPosition {
@@ -1870,6 +1859,7 @@ mod tests {
                     base_asset_amount: 1 * BASE_PRECISION,
                     ts: 0,
                     price: 200 * MARK_PRICE_PRECISION,
+                    auction_duration: 5,
                     ..Order::default()
                 }),
                 positions: get_positions(MarketPosition {
@@ -1884,7 +1874,6 @@ mod tests {
             let mut market = Market::default();
 
             let now = 1_i64;
-            let auction_duration = 5_i64;
 
             let fee_structure = FeeStructure::default();
 
@@ -1895,7 +1884,6 @@ mod tests {
                 &mut maker,
                 0,
                 None,
-                auction_duration,
                 now,
                 &fee_structure,
             )
@@ -1915,6 +1903,7 @@ mod tests {
                     ts: 0,
                     auction_start_price: 100 * MARK_PRICE_PRECISION,
                     auction_end_price: 200 * MARK_PRICE_PRECISION,
+                    auction_duration: 5,
                     ..Order::default()
                 }),
                 positions: get_positions(MarketPosition {
@@ -1960,7 +1949,6 @@ mod tests {
                 &mut maker,
                 0,
                 None,
-                auction_duration,
                 now,
                 &fee_structure,
             )
@@ -1994,6 +1982,7 @@ mod tests {
                     ts: 0,
                     auction_start_price: 100 * MARK_PRICE_PRECISION,
                     auction_end_price: 200 * MARK_PRICE_PRECISION,
+                    auction_duration: 5,
                     ..Order::default()
                 }),
                 positions: get_positions(MarketPosition {
@@ -2039,7 +2028,6 @@ mod tests {
                 &mut maker,
                 0,
                 None,
-                auction_duration,
                 now,
                 &fee_structure,
             )

@@ -52,32 +52,31 @@ pub fn calculate_auction_end_price(
     Ok(auction_end_price)
 }
 
-pub fn calculate_auction_price(
-    order: &Order,
-    now: i64,
-    auction_duration: i64,
-) -> ClearingHouseResult<u128> {
+pub fn calculate_auction_price(order: &Order, now: i64) -> ClearingHouseResult<u128> {
     let time_elapsed = now
         .checked_sub(order.ts)
         .ok_or_else(math_error!())?
         .unsigned_abs();
+
+    let delta_numerator = min(time_elapsed, cast(order.auction_duration)?);
+    let delta_denominator = order.auction_duration;
 
     let price_delta = match order.direction {
         PositionDirection::Long => order
             .auction_end_price
             .checked_sub(order.auction_start_price)
             .ok_or_else(math_error!())?
-            .checked_mul(cast(time_elapsed)?)
+            .checked_mul(cast(delta_numerator)?)
             .ok_or_else(math_error!())?
-            .checked_div(cast(auction_duration)?)
+            .checked_div(cast(delta_denominator)?)
             .ok_or_else(math_error!())?,
         PositionDirection::Short => order
             .auction_start_price
             .checked_sub(order.auction_end_price)
             .ok_or_else(math_error!())?
-            .checked_mul(cast(time_elapsed)?)
+            .checked_mul(cast(delta_numerator)?)
             .ok_or_else(math_error!())?
-            .checked_div(cast(auction_duration)?)
+            .checked_div(cast(delta_denominator)?)
             .ok_or_else(math_error!())?,
     };
 
@@ -145,12 +144,12 @@ pub fn calculate_auction_fill_amount(
 
 pub fn is_auction_complete(
     order_ts: i64,
-    auction_duration: i64,
+    auction_duration: u8,
     now: i64,
 ) -> ClearingHouseResult<bool> {
     let time_elapsed = now.checked_sub(order_ts).ok_or_else(math_error!())?;
 
-    Ok(time_elapsed >= auction_duration)
+    Ok(time_elapsed >= cast(auction_duration)?)
 }
 
 #[cfg(test)]

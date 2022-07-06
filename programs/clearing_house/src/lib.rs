@@ -2442,7 +2442,7 @@ pub mod clearing_house {
 
     pub fn update_order_auction_time(
         ctx: Context<AdminUpdateState>,
-        order_auction_time: i64,
+        order_auction_time: u8,
     ) -> Result<()> {
         validate!(
             order_auction_time > 0 || order_auction_time < 100,

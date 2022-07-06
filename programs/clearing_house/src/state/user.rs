@@ -6,6 +6,7 @@ use solana_program::msg;
 
 use crate::controller::position::{get_position_index, PositionDirection};
 use crate::error::{ClearingHouseResult, ErrorCode};
+use crate::math::auction::calculate_auction_price;
 use crate::math::constants::QUOTE_ASSET_BANK_INDEX;
 use crate::math_error;
 use crate::state::bank::{BankBalance, BankBalanceType};
@@ -196,7 +197,6 @@ impl MarketPosition {
 
 pub type UserPositions = [MarketPosition; 5];
 
-// SPACE: 7136
 #[zero_copy]
 #[repr(packed)]
 #[derive(AnchorSerialize, AnchorDeserialize, PartialEq, Debug)]
@@ -225,6 +225,7 @@ pub struct Order {
     pub oracle_price_offset: i128,
     pub auction_start_price: u128,
     pub auction_end_price: u128,
+    pub auction_duration: u8,
     pub padding: [u16; 3],
 }
 
@@ -233,7 +234,11 @@ impl Order {
         self.oracle_price_offset != 0
     }
 
-    pub fn get_limit_price(self, valid_oracle_price: Option<i128>) -> ClearingHouseResult<u128> {
+    pub fn get_limit_price(
+        &self,
+        valid_oracle_price: Option<i128>,
+        now: i64,
+    ) -> ClearingHouseResult<u128> {
         // the limit price can be hardcoded on order or derived from oracle_price + oracle_price_offset
         let price = if self.has_oracle_price_offset() {
             if let Some(oracle_price) = valid_oracle_price {
@@ -259,6 +264,8 @@ impl Order {
                 msg!("Could not find oracle too calculate oracle offset limit price");
                 return Err(crate::error::ErrorCode::OracleNotFound);
             }
+        } else if self.order_type == OrderType::Market {
+            calculate_auction_price(self, now)?
         } else {
             self.price
         };
@@ -300,6 +307,7 @@ impl Default for Order {
             oracle_price_offset: 0,
             auction_start_price: 0,
             auction_end_price: 0,
+            auction_duration: 0,
             padding: [0; 3],
         }
     }

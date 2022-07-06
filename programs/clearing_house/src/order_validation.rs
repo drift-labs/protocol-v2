@@ -21,10 +21,11 @@ pub fn validate_order(
     market: &Market,
     state: &State,
     valid_oracle_price: Option<i128>,
+    now: i64,
 ) -> ClearingHouseResult {
     match order.order_type {
         OrderType::Market => validate_market_order(order, market)?,
-        OrderType::Limit => validate_limit_order(order, market, state, valid_oracle_price)?,
+        OrderType::Limit => validate_limit_order(order, market, state, valid_oracle_price, now)?,
         OrderType::TriggerMarket => validate_trigger_market_order(order, market, state)?,
         OrderType::TriggerLimit => validate_trigger_limit_order(order, market, state)?,
     }
@@ -72,6 +73,7 @@ fn validate_limit_order(
     market: &Market,
     state: &State,
     valid_oracle_price: Option<i128>,
+    now: i64,
 ) -> ClearingHouseResult {
     validate_base_asset_amount(order, market)?;
 
@@ -101,10 +103,10 @@ fn validate_limit_order(
     }
 
     if order.post_only {
-        validate_post_only_order(order, market, valid_oracle_price)?;
+        validate_post_only_order(order, market, valid_oracle_price, now)?;
     }
 
-    let limit_price = order.get_limit_price(valid_oracle_price)?;
+    let limit_price = order.get_limit_price(valid_oracle_price, now)?;
     let approximate_market_value = limit_price
         .checked_mul(order.base_asset_amount)
         .unwrap_or(u128::MAX)
@@ -123,9 +125,10 @@ fn validate_post_only_order(
     order: &Order,
     market: &Market,
     valid_oracle_price: Option<i128>,
+    now: i64,
 ) -> ClearingHouseResult {
     let base_asset_amount_market_can_fill =
-        calculate_base_asset_amount_to_trade_for_limit(order, market, valid_oracle_price)?;
+        calculate_base_asset_amount_to_trade_for_limit(order, market, valid_oracle_price, now)?;
 
     if base_asset_amount_market_can_fill != 0 {
         msg!(
@@ -286,6 +289,7 @@ pub fn check_if_order_can_be_canceled(
     bank_map: &BankMap,
     oracle_map: &mut OracleMap,
     valid_oracle_price: Option<i128>,
+    now: i64,
 ) -> ClearingHouseResult<bool> {
     if !user.orders[order_index].post_only {
         return Ok(true);
@@ -297,6 +301,7 @@ pub fn check_if_order_can_be_canceled(
             &user.orders[order_index],
             market,
             valid_oracle_price,
+            now,
         )?
     };
 
@@ -325,6 +330,7 @@ pub fn validate_order_can_be_canceled(
     bank_map: &BankMap,
     oracle_map: &mut OracleMap,
     valid_oracle_price: Option<i128>,
+    now: i64,
 ) -> ClearingHouseResult {
     let is_cancelable = check_if_order_can_be_canceled(
         user,
@@ -333,6 +339,7 @@ pub fn validate_order_can_be_canceled(
         bank_map,
         oracle_map,
         valid_oracle_price,
+        now,
     )?;
 
     if !is_cancelable {
