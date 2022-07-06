@@ -7,6 +7,13 @@ export class SwapDirection {
 	static readonly REMOVE = { remove: {} };
 }
 
+export class SettleResult {
+	static readonly RECIEVED_MARKET_POSITION = { recievedMarketPosition: {} };
+	static readonly DID_NOT_RECIEVE_MARKET_POSITION = {
+		didNotRecieveMarketPosition: {},
+	};
+}
+
 export class BankBalanceType {
 	static readonly DEPOSIT = { deposit: {} };
 	static readonly BORROW = { borrow: {} };
@@ -281,6 +288,7 @@ export type AMM = {
 	pegMultiplier: BN;
 	cumulativeFundingRateLong: BN;
 	cumulativeFundingRateShort: BN;
+	cumulativeFundingRateLp: BN;
 	cumulativeRepegRebateLong: BN;
 	cumulativeRepegRebateShort: BN;
 	totalFeeMinusDistributions: BN;
@@ -307,6 +315,9 @@ export type UserPosition = {
 	quoteEntryAmount: BN;
 	openOrders: BN;
 	unsettledPnl: BN;
+	lpTokens: BN;
+	lastTotalFeeMinusDistributions: BN;
+	lastNetBaseAssetAmount: BN;
 };
 
 export type UserAccount = {

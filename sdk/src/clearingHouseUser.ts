@@ -13,6 +13,7 @@ import { calculateEntryPrice } from './math/position';
 import {
 	MARK_PRICE_PRECISION,
 	AMM_TO_QUOTE_PRECISION_RATIO,
+	AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO,
 	ZERO,
 	TEN_THOUSAND,
 	BN_MAX,
@@ -36,13 +37,15 @@ import {
 	calculateTradeSlippage,
 	BN,
 	BankAccount,
+	SwapDirection,
+	calculateSwapOutput,
+	SettleResult,
 } from '.';
 import { getTokenAmount } from './math/bankBalance';
 import { OraclePriceData } from './oracles/types';
 import { ClearingHouseUserConfig } from './clearingHouseUserConfig';
 import { PollingUserAccountSubscriber } from './accounts/pollingUserAccountSubscriber';
 import { WebSocketUserAccountSubscriber } from './accounts/webSocketUserAccountSubscriber';
-
 export class ClearingHouseUser {
 	clearingHouse: ClearingHouse;
 	userAccountPublicKey: PublicKey;
@@ -125,6 +128,9 @@ export class ClearingHouseUser {
 			quoteEntryAmount: ZERO,
 			openOrders: ZERO,
 			unsettledPnl: ZERO,
+			lpTokens: ZERO,
+			lastTotalFeeMinusDistributions: ZERO,
+			lastNetBaseAssetAmount: ZERO,
 		};
 	}
 
@@ -158,6 +164,92 @@ export class ClearingHouseUser {
 				this.userAccountPublicKey
 			);
 		return userAccountRPCResponse.value !== null;
+	}
+
+	/**
+	 * calculates the market position if the lp position was settled
+	 * @returns : userPosition
+	 */
+	public getSettledLPPosition(marketIndex: BN): [UserPosition, SettleResult] {
+		const userPosition = this.getUserPosition(marketIndex);
+		const market = this.clearingHouse.getMarketAccount(
+			userPosition.marketIndex
+		);
+		const lpTokens = userPosition.lpTokens;
+		const totalLpTokens = market.amm.sqrtK;
+
+		// payments
+		const feePayment = market.amm.totalFeeMinusDistributions
+			.sub(userPosition.lastTotalFeeMinusDistributions)
+			.mul(lpTokens)
+			.div(totalLpTokens);
+
+		const fundingPayment = market.amm.cumulativeFundingRateLp
+			.sub(userPosition.lastCumulativeFundingRate)
+			.mul(lpTokens)
+			.div(totalLpTokens);
+
+		const totalPayment = feePayment.add(fundingPayment);
+
+		// market position
+		const netBAADelta = userPosition.lastNetBaseAssetAmount.sub(
+			market.amm.netBaseAssetAmount
+		);
+		let marketBAA = new BN(0);
+		let marketQAA = new BN(0);
+		let settleResult = SettleResult.RECIEVED_MARKET_POSITION;
+
+		if (!netBAADelta.eq(ZERO)) {
+			const BAA = netBAADelta.mul(lpTokens).div(totalLpTokens);
+
+			let swapDirection;
+			if (netBAADelta.gt(ZERO)) {
+				swapDirection = SwapDirection.REMOVE;
+			} else {
+				swapDirection = SwapDirection.ADD;
+			}
+
+			const [_, newQAR] = calculateSwapOutput(
+				market.amm.baseAssetReserve,
+				netBAADelta.abs(),
+				swapDirection,
+				market.amm.sqrtK.mul(market.amm.sqrtK)
+			);
+
+			const netQAADelta = newQAR.sub(market.amm.quoteAssetReserve).abs();
+
+			const QAA = netQAADelta
+				.mul(lpTokens)
+				.div(totalLpTokens)
+				.mul(market.amm.pegMultiplier)
+				.div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO);
+
+			if (
+				BAA.abs().gte(market.amm.minimumBaseAssetTradeSize) &&
+				QAA.gte(market.amm.minimumQuoteAssetTradeSize)
+			) {
+				marketQAA = QAA;
+				marketBAA = BAA;
+			} else {
+				// @ts-ignore
+				settleResult = SettleResult.DID_NOT_RECIEVE_MARKET_POSITION;
+			}
+		}
+
+		const marketPosition: UserPosition = {
+			baseAssetAmount: marketBAA,
+			quoteAssetAmount: marketQAA,
+			unsettledPnl: userPosition.unsettledPnl.add(totalPayment),
+			quoteEntryAmount: userPosition.quoteEntryAmount.add(marketQAA),
+			lpTokens: userPosition.lpTokens,
+			marketIndex: userPosition.marketIndex,
+			openOrders: userPosition.openOrders,
+			lastCumulativeFundingRate: market.amm.cumulativeFundingRateLp,
+			lastTotalFeeMinusDistributions: market.amm.totalFeeMinusDistributions,
+			lastNetBaseAssetAmount: market.amm.netBaseAssetAmount,
+		};
+
+		return [marketPosition, settleResult];
 	}
 
 	/**
@@ -626,6 +718,9 @@ export class ClearingHouseUser {
 			quoteEntryAmount: new BN(0),
 			openOrders: new BN(0),
 			unsettledPnl: new BN(0),
+			lpTokens: new BN(0),
+			lastTotalFeeMinusDistributions: new BN(0),
+			lastNetBaseAssetAmount: new BN(0),
 		};
 
 		if (proposedBaseAssetAmount.eq(ZERO)) return new BN(-1);

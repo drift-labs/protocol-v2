@@ -6,6 +6,7 @@ import {
 	calculatePrice,
 	ClearingHouseUser,
 	OracleSource,
+	SettleResult,
 	SwapDirection,
 	Wallet,
 } from '../sdk';
@@ -495,41 +496,44 @@ describe('liquidity providing', () => {
 		await clearingHouse.closePosition(new BN(0));
 	});
 
-	//it('lp burns half of their position', async () => {
+	it('simulates a settle via sdk', async () => {
+		const userPosition2 = clearingHouse.getUserAccount().positions[0];
+		console.log(
+			userPosition2.baseAssetAmount.toString(),
+			userPosition2.quoteAssetAmount.toString(),
+			userPosition2.unsettledPnl.toString()
+		);
 
-	//console.log('adding liquidity...');
-	//await clearingHouse.addLiquidity(usdcAmount, new BN(0));
+		console.log('add lp ...');
+		await clearingHouse.addLiquidity(usdcAmount, new BN(0));
 
-	//let user = clearingHouse.getUserAccount();
-	//let lptokens = user.positions[0].lpTokens;
-	//console.log('got {} lp tokens', lptokens.toString())
+		console.log('user trading...');
+		await traderClearingHouse.openPosition(
+			PositionDirection.SHORT,
+			new BN(115 * 1e5),
+			new BN(0)
+		);
 
-	//console.log('user trading...');
-	//await traderClearingHouse.openPosition(
-	//PositionDirection.SHORT,
-	//new BN(115 * 1e5),
-	//new BN(0)
-	//);
+		const [settledPosition, result] = clearingHouseUser.getSettledLPPosition(
+			new BN(0)
+		);
 
-	//console.log('burning...');
-	//let lpTokensToBurn = lptokens.div(new BN(2))
-	//try {
-	//await clearingHouse.removeLiquidity(
-	//lpTokensToBurn,
-	//new BN(0)
-	//)
-	//} catch (e) {
-	//console.error(e)
-	//}
+		console.log('settling...');
+		const userPosition = clearingHouse.getUserAccount().positions[0];
 
-	//user = clearingHouse.getUserAccount();
-	//console.log(
-	//lptokens.toString(),
-	//lpTokensToBurn.toString(),
-	//user.positions[0].lpTokens.toString()
-	//)
-	//assert.ok(lptokens.sub(lpTokensToBurn).eq(user.positions[0].lpTokens))
+		console.log(
+			userPosition.baseAssetAmount.toString(),
+			settledPosition.baseAssetAmount.toString(),
 
-	//console.log('done!');
-	//});
+			userPosition.quoteAssetAmount.toString(),
+			settledPosition.quoteAssetAmount.toString(),
+
+			userPosition.unsettledPnl.toString(),
+			settledPosition.unsettledPnl.toString()
+		);
+		assert(result == SettleResult.RECIEVED_MARKET_POSITION);
+		assert(userPosition.baseAssetAmount.eq(settledPosition.baseAssetAmount));
+		assert(userPosition.quoteAssetAmount.eq(settledPosition.quoteAssetAmount));
+		assert(userPosition.unsettledPnl.eq(settledPosition.unsettledPnl));
+	});
 });

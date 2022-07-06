@@ -125,10 +125,9 @@ pub fn get_lp_market_position_margin(
     lp_position: &MarketPosition,
     amm: &AMM,
 ) -> ClearingHouseResult<(MarketPosition, u128)> {
-    // clone bc its only temporary
-    let mut market_position = *lp_position;
     let lp_tokens_to_settle = lp_position.lp_tokens; // settle full amount for margin
-
+                                                     // clone bc its only temporary
+    let mut market_position = *lp_position;
     let lp_metrics = get_lp_metrics(&market_position, lp_tokens_to_settle, amm)?;
 
     // update pnl payments
