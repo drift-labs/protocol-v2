@@ -1,7 +1,5 @@
 use std::cmp::{max, min};
 
-use solana_program::msg;
-
 use crate::controller::amm::SwapDirection;
 use crate::controller::position::PositionDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
@@ -20,6 +18,7 @@ use crate::math_error;
 use crate::state::market::{Market, AMM};
 use crate::state::oracle::OraclePriceData;
 use crate::state::state::{PriceDivergenceGuardRails, ValidityGuardRails};
+use solana_program::msg;
 
 pub fn calculate_price(
     quote_asset_reserve: u128,
@@ -684,9 +683,9 @@ pub fn calculate_budgeted_k_scale(
     let base_asset_reserve = cast_to_i128(market.amm.base_asset_reserve)?;
 
     let mut numerator = mark_div_budget
-        .checked_add(one_div_net_position)
+        .checked_sub(one_div_net_position)
         .ok_or_else(math_error!())?
-        .checked_add(
+        .checked_sub(
             MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128
                 .checked_div(base_asset_reserve)
                 .ok_or_else(math_error!())?,
@@ -694,9 +693,9 @@ pub fn calculate_budgeted_k_scale(
         .ok_or_else(math_error!())?;
 
     let mut denominator = mark_div_budget
-        .checked_sub(one_div_net_position)
+        .checked_add(one_div_net_position)
         .ok_or_else(math_error!())?
-        .checked_sub(
+        .checked_add(
             base_asset_reserve
                 .checked_mul(one_div_net_position)
                 .ok_or_else(math_error!())?
