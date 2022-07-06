@@ -16,7 +16,7 @@ pub fn determine_maker_and_taker<'a>(
     let second_order = &second_user.orders[second_user_order_index];
 
     if first_order.post_only == second_order.post_only {
-        if first_order.ts > second_order.ts {
+        if first_order.ts >= second_order.ts {
             Ok((
                 first_user,
                 first_user_order_index,

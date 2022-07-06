@@ -2049,5 +2049,288 @@ mod tests {
             assert_eq!(market.amm.quote_asset_amount_long, 120 * QUOTE_PRECISION);
             assert_eq!(market.amm.quote_asset_amount_short, 120 * QUOTE_PRECISION);
         }
+
+        #[test]
+        fn double_dutch_auction() {
+            let mut taker = User {
+                orders: get_orders(Order {
+                    market_index: 0,
+                    order_type: OrderType::Market,
+                    direction: PositionDirection::Long,
+                    base_asset_amount: 1 * BASE_PRECISION,
+                    ts: 0,
+                    auction_start_price: 100 * MARK_PRICE_PRECISION,
+                    auction_end_price: 200 * MARK_PRICE_PRECISION,
+                    auction_duration: 10,
+                    ..Order::default()
+                }),
+                positions: get_positions(MarketPosition {
+                    market_index: 0,
+                    open_orders: 1,
+                    open_bids: 1 * BASE_PRECISION_I128,
+                    ..MarketPosition::default()
+                }),
+                ..User::default()
+            };
+
+            let mut maker = User {
+                orders: get_orders(Order {
+                    market_index: 0,
+                    post_only: true,
+                    order_type: OrderType::Market,
+                    direction: PositionDirection::Short,
+                    base_asset_amount: 1 * BASE_PRECISION,
+                    ts: 0,
+                    auction_start_price: 200 * MARK_PRICE_PRECISION,
+                    auction_end_price: 100 * MARK_PRICE_PRECISION,
+                    auction_duration: 10,
+                    ..Order::default()
+                }),
+                positions: get_positions(MarketPosition {
+                    market_index: 0,
+                    open_orders: 1,
+                    open_asks: -1 * BASE_PRECISION_I128,
+                    ..MarketPosition::default()
+                }),
+                ..User::default()
+            };
+
+            let mut market = Market::default();
+
+            let now = 5_i64;
+
+            let fee_structure = get_fee_structure();
+
+            fulfill_order_with_maker_order(
+                &mut market,
+                &mut taker,
+                0,
+                &mut maker,
+                0,
+                None,
+                now,
+                &fee_structure,
+            )
+            .unwrap();
+
+            let taker_position = &taker.positions[0];
+            assert_eq!(taker_position.base_asset_amount, 1 * BASE_PRECISION_I128);
+            assert_eq!(taker_position.quote_asset_amount, 150 * QUOTE_PRECISION);
+            assert_eq!(taker_position.quote_entry_amount, 150 * QUOTE_PRECISION);
+            assert_eq!(taker_position.unsettled_pnl, -75000);
+            assert_eq!(taker_position.open_bids, 0);
+            assert_eq!(taker_position.open_orders, 0);
+            assert_eq!(taker.total_fee_paid, 75000);
+            assert_eq!(taker.total_referee_discount, 0);
+            assert_eq!(taker.total_token_discount, 0);
+            assert_eq!(taker.orders[0], Order::default());
+
+            let maker_position = &maker.positions[0];
+            assert_eq!(maker_position.base_asset_amount, -1 * BASE_PRECISION_I128);
+            assert_eq!(maker_position.quote_asset_amount, 150 * QUOTE_PRECISION);
+            assert_eq!(maker_position.quote_entry_amount, 150 * QUOTE_PRECISION);
+            assert_eq!(maker_position.unsettled_pnl, 45000);
+            assert_eq!(maker_position.open_orders, 0);
+            assert_eq!(maker_position.open_asks, 0);
+            assert_eq!(maker.total_fee_rebate, 45000);
+            assert_eq!(maker.orders[0], Order::default());
+
+            assert_eq!(market.amm.net_base_asset_amount, 0);
+            assert_eq!(market.base_asset_amount_long, BASE_PRECISION_I128);
+            assert_eq!(market.base_asset_amount_short, -BASE_PRECISION_I128);
+            assert_eq!(market.amm.quote_asset_amount_long, 150 * QUOTE_PRECISION);
+            assert_eq!(market.amm.quote_asset_amount_short, 150 * QUOTE_PRECISION);
+            assert_eq!(market.amm.total_fee, 30000);
+            assert_eq!(market.amm.total_fee_minus_distributions, 30000);
+            assert_eq!(market.amm.net_revenue_since_last_funding, 30000);
+            assert_eq!(market.unsettled_profit, 45000);
+            assert_eq!(market.unsettled_loss, 75000);
+        }
+
+        #[test]
+        fn taker_bid_crosses_maker_ask() {
+            let mut first_user = User {
+                orders: get_orders(Order {
+                    market_index: 0,
+                    post_only: true,
+                    order_type: OrderType::Limit,
+                    direction: PositionDirection::Short,
+                    base_asset_amount: 1 * BASE_PRECISION,
+                    ts: 0,
+                    price: 100 * MARK_PRICE_PRECISION,
+                    ..Order::default()
+                }),
+                positions: get_positions(MarketPosition {
+                    market_index: 0,
+                    open_orders: 1,
+                    open_asks: -1 * BASE_PRECISION_I128,
+                    ..MarketPosition::default()
+                }),
+                ..User::default()
+            };
+
+            let mut second_user = User {
+                orders: get_orders(Order {
+                    market_index: 0,
+                    order_type: OrderType::Limit,
+                    direction: PositionDirection::Long,
+                    base_asset_amount: 1 * BASE_PRECISION,
+                    ts: 0,
+                    price: 150 * MARK_PRICE_PRECISION,
+                    ..Order::default()
+                }),
+                positions: get_positions(MarketPosition {
+                    market_index: 0,
+                    open_orders: 1,
+                    open_bids: 1 * BASE_PRECISION_I128,
+                    ..MarketPosition::default()
+                }),
+                ..User::default()
+            };
+
+            let mut market = Market::default();
+
+            let now = 5_i64;
+
+            let fee_structure = get_fee_structure();
+
+            fulfill_order_with_maker_order(
+                &mut market,
+                &mut first_user,
+                0,
+                &mut second_user,
+                0,
+                None,
+                now,
+                &fee_structure,
+            )
+            .unwrap();
+
+            let maker_position = &first_user.positions[0];
+            assert_eq!(maker_position.base_asset_amount, -1 * BASE_PRECISION_I128);
+            assert_eq!(maker_position.quote_asset_amount, 100 * QUOTE_PRECISION);
+            assert_eq!(maker_position.quote_entry_amount, 100 * QUOTE_PRECISION);
+            assert_eq!(maker_position.unsettled_pnl, 30000);
+            assert_eq!(maker_position.open_orders, 0);
+            assert_eq!(maker_position.open_asks, 0);
+            assert_eq!(first_user.total_fee_rebate, 30000);
+            assert_eq!(first_user.orders[0], Order::default());
+
+            let taker_position = &second_user.positions[0];
+            assert_eq!(taker_position.base_asset_amount, 1 * BASE_PRECISION_I128);
+            assert_eq!(taker_position.quote_asset_amount, 100 * QUOTE_PRECISION);
+            assert_eq!(taker_position.quote_entry_amount, 100 * QUOTE_PRECISION);
+            assert_eq!(taker_position.unsettled_pnl, -50000);
+            assert_eq!(taker_position.open_bids, 0);
+            assert_eq!(taker_position.open_orders, 0);
+            assert_eq!(second_user.total_fee_paid, 50000);
+            assert_eq!(second_user.total_referee_discount, 0);
+            assert_eq!(second_user.total_token_discount, 0);
+            assert_eq!(second_user.orders[0], Order::default());
+
+            assert_eq!(market.amm.net_base_asset_amount, 0);
+            assert_eq!(market.base_asset_amount_long, BASE_PRECISION_I128);
+            assert_eq!(market.base_asset_amount_short, -BASE_PRECISION_I128);
+            assert_eq!(market.amm.quote_asset_amount_long, 100 * QUOTE_PRECISION);
+            assert_eq!(market.amm.quote_asset_amount_short, 100 * QUOTE_PRECISION);
+            assert_eq!(market.amm.total_fee, 20000);
+            assert_eq!(market.amm.total_fee_minus_distributions, 20000);
+            assert_eq!(market.amm.net_revenue_since_last_funding, 20000);
+            assert_eq!(market.unsettled_profit, 30000);
+            assert_eq!(market.unsettled_loss, 50000);
+        }
+
+        #[test]
+        fn taker_ask_crosses_maker_bid() {
+            let mut first_user = User {
+                orders: get_orders(Order {
+                    market_index: 0,
+                    post_only: true,
+                    order_type: OrderType::Limit,
+                    direction: PositionDirection::Long,
+                    base_asset_amount: 1 * BASE_PRECISION,
+                    ts: 0,
+                    price: 100 * MARK_PRICE_PRECISION,
+                    ..Order::default()
+                }),
+                positions: get_positions(MarketPosition {
+                    market_index: 0,
+                    open_orders: 1,
+                    open_bids: 1 * BASE_PRECISION_I128,
+                    ..MarketPosition::default()
+                }),
+                ..User::default()
+            };
+
+            let mut second_user = User {
+                orders: get_orders(Order {
+                    market_index: 0,
+                    order_type: OrderType::Limit,
+                    direction: PositionDirection::Short,
+                    base_asset_amount: 1 * BASE_PRECISION,
+                    ts: 0,
+                    price: 50 * MARK_PRICE_PRECISION,
+                    ..Order::default()
+                }),
+                positions: get_positions(MarketPosition {
+                    market_index: 0,
+                    open_orders: 1,
+                    open_asks: -1 * BASE_PRECISION_I128,
+                    ..MarketPosition::default()
+                }),
+                ..User::default()
+            };
+
+            let mut market = Market::default();
+
+            let now = 5_i64;
+
+            let fee_structure = get_fee_structure();
+
+            fulfill_order_with_maker_order(
+                &mut market,
+                &mut first_user,
+                0,
+                &mut second_user,
+                0,
+                None,
+                now,
+                &fee_structure,
+            )
+            .unwrap();
+
+            let maker_position = &first_user.positions[0];
+            assert_eq!(maker_position.base_asset_amount, 1 * BASE_PRECISION_I128);
+            assert_eq!(maker_position.quote_asset_amount, 100 * QUOTE_PRECISION);
+            assert_eq!(maker_position.quote_entry_amount, 100 * QUOTE_PRECISION);
+            assert_eq!(maker_position.unsettled_pnl, 30000);
+            assert_eq!(maker_position.open_orders, 0);
+            assert_eq!(maker_position.open_bids, 0);
+            assert_eq!(first_user.total_fee_rebate, 30000);
+            assert_eq!(first_user.orders[0], Order::default());
+
+            let taker_position = &second_user.positions[0];
+            assert_eq!(taker_position.base_asset_amount, -1 * BASE_PRECISION_I128);
+            assert_eq!(taker_position.quote_asset_amount, 100 * QUOTE_PRECISION);
+            assert_eq!(taker_position.quote_entry_amount, 100 * QUOTE_PRECISION);
+            assert_eq!(taker_position.unsettled_pnl, -50000);
+            assert_eq!(taker_position.open_asks, 0);
+            assert_eq!(taker_position.open_orders, 0);
+            assert_eq!(second_user.total_fee_paid, 50000);
+            assert_eq!(second_user.total_referee_discount, 0);
+            assert_eq!(second_user.total_token_discount, 0);
+            assert_eq!(second_user.orders[0], Order::default());
+
+            assert_eq!(market.amm.net_base_asset_amount, 0);
+            assert_eq!(market.base_asset_amount_long, BASE_PRECISION_I128);
+            assert_eq!(market.base_asset_amount_short, -BASE_PRECISION_I128);
+            assert_eq!(market.amm.quote_asset_amount_long, 100 * QUOTE_PRECISION);
+            assert_eq!(market.amm.quote_asset_amount_short, 100 * QUOTE_PRECISION);
+            assert_eq!(market.amm.total_fee, 20000);
+            assert_eq!(market.amm.total_fee_minus_distributions, 20000);
+            assert_eq!(market.amm.net_revenue_since_last_funding, 20000);
+            assert_eq!(market.unsettled_profit, 30000);
+            assert_eq!(market.unsettled_loss, 50000);
+        }
     }
 }
