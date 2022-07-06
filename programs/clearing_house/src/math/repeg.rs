@@ -307,7 +307,7 @@ pub fn adjust_amm(
     let budget_i128 = cast_to_i128(budget)?;
 
     let mut market_clone = *market;
-    let mut budget_delta_peg: i128 = 0;
+    let mut budget_delta_peg: i128;
     let mut budget_delta_peg_magnitude: u128 = 0;
     let cost: i128;
     let new_peg: u128;
@@ -319,9 +319,7 @@ pub fn adjust_amm(
         budget_delta_peg_magnitude = budget_delta_peg.unsigned_abs();
     }
 
-    if (per_peg_cost == 0
-        || budget_delta_peg > 0 && delta_peg < 0
-        || budget_delta_peg < 0 && delta_peg > 0)
+    if (per_peg_cost == 0 || per_peg_cost > 0 && delta_peg < 0 || per_peg_cost < 0 && delta_peg > 0)
         || (budget_delta_peg_magnitude > delta_peg.unsigned_abs())
     {
         // use optimal peg
@@ -487,4 +485,72 @@ pub fn total_fee_lower_bound(market: &Market) -> ClearingHouseResult<u128> {
         .ok_or_else(math_error!())?;
 
     Ok(total_fee_lb)
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::math::constants::{AMM_RESERVE_PRECISION, MARK_PRICE_PRECISION, QUOTE_PRECISION};
+
+    #[test]
+    fn calc_peg_tests() {
+        let qar = AMM_RESERVE_PRECISION;
+        let bar = AMM_RESERVE_PRECISION;
+        let px = 194011254567891; // 19401.125
+
+        let mut new_peg;
+        new_peg = calculate_peg_from_target_price(qar, bar, px).unwrap();
+        assert_eq!(new_peg, 19401125);
+        new_peg = calculate_peg_from_target_price(qar - 10000, bar + 10000, px).unwrap();
+        assert_eq!(new_peg, 19401125);
+        new_peg = calculate_peg_from_target_price(qar + 10000, bar - 10000, px).unwrap();
+        assert_eq!(new_peg, 19401125);
+        new_peg = calculate_peg_from_target_price(qar / 2, bar * 2, px).unwrap();
+        assert_eq!(new_peg, (19401125 * 4) + 2);
+
+        let px2 = MARK_PRICE_PRECISION + (MARK_PRICE_PRECISION / 10000) * 5;
+        new_peg = calculate_peg_from_target_price(qar, bar, px2).unwrap();
+        assert_eq!(new_peg, 1001);
+        new_peg = calculate_peg_from_target_price(qar, bar, px2 - 1).unwrap();
+        assert_eq!(new_peg, 1000);
+    }
+
+    #[test]
+    fn calc_adjust_amm_tests() {
+        // btc-esque market
+        let mut market = Market {
+            amm: AMM {
+                base_asset_reserve: 65 * AMM_RESERVE_PRECISION,
+                quote_asset_reserve: 630153846154000,
+                terminal_quote_asset_reserve: 64 * AMM_RESERVE_PRECISION,
+                sqrt_k: 64 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 19_400_000,
+                net_base_asset_amount: -1 * AMM_RESERVE_PRECISION as i128,
+                mark_std: MARK_PRICE_PRECISION as u64,
+                last_mark_price_twap_ts: 0,
+                curve_update_intensity: 100,
+                ..AMM::default()
+            },
+            ..Market::default()
+        };
+
+        let prev_price = market.amm.mark_price().unwrap();
+
+        let px = 204_011_254_567_891;
+        let optimal_peg = calculate_peg_from_target_price(
+            market.amm.quote_asset_reserve,
+            market.amm.base_asset_reserve,
+            px,
+        )
+        .unwrap();
+        assert_eq!(optimal_peg > market.amm.peg_multiplier, true);
+
+        let (repegged_market, _amm_update_cost) =
+            adjust_amm(&market, optimal_peg, 0, true).unwrap();
+        assert_eq!(_amm_update_cost, -1615699103);
+        assert_eq!(repegged_market.amm.peg_multiplier, optimal_peg);
+
+        let post_price = repegged_market.amm.mark_price().unwrap();
+        assert_eq!(post_price - prev_price, 15934564582252); // todo: (15934564582252/1e4 - 1615699103 is the slippage cost?)
+    }
 }

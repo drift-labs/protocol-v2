@@ -189,38 +189,14 @@ pub fn calculate_new_oracle_price_twap(
             .ok_or_else(math_error!())?,
     ))?;
     let from_start = max(
-        1,
+        0,
         cast_to_i128(amm.funding_period)?
             .checked_sub(since_last)
             .ok_or_else(math_error!())?,
     );
 
-    // ensure amm.last_oracle_price is proper
-    let capped_last_oracle_price = if amm.last_oracle_price > 0 {
-        amm.last_oracle_price
-    } else {
-        oracle_price
-    };
-
-    // nudge last_oracle_price up to .1% toward oracle price
-    let capped_last_oracle_price_10bp = capped_last_oracle_price
-        .checked_div(1000)
-        .ok_or_else(math_error!())?;
-
-    let mut interpolated_oracle_price = min(
-        capped_last_oracle_price
-            .checked_add(capped_last_oracle_price_10bp)
-            .ok_or_else(math_error!())?,
-        max(
-            capped_last_oracle_price
-                .checked_sub(capped_last_oracle_price_10bp)
-                .ok_or_else(math_error!())?,
-            oracle_price,
-        ),
-    );
-
     // if an oracle delay impacted last oracle_twap, shrink toward mark_twap
-    interpolated_oracle_price = if amm.last_mark_price_twap_ts > amm.last_oracle_price_twap_ts {
+    let interpolated_oracle_price = if amm.last_mark_price_twap_ts > amm.last_oracle_price_twap_ts {
         let since_last_valid = cast_to_i128(
             amm.last_mark_price_twap_ts
                 .checked_sub(amm.last_oracle_price_twap_ts)
@@ -239,12 +215,12 @@ pub fn calculate_new_oracle_price_twap(
         );
         calculate_weighted_average(
             cast_to_i128(amm.last_mark_price_twap)?,
-            interpolated_oracle_price,
+            oracle_price,
             since_last_valid,
             from_start_valid,
         )?
     } else {
-        interpolated_oracle_price
+        oracle_price
     };
 
     let new_twap = calculate_weighted_average(
@@ -999,5 +975,53 @@ mod test {
         //     let expected_out = (MARK_PRICE_PRECISION*2/3600 + (MARK_PRICE_PRECISION - MARK_PRICE_PRECISION/3600)
         // ) as u64;
         //     assert_eq!(amm.mark_std, expected_out);
+    }
+
+    #[test]
+    fn calc_oracle_twap_tests() {
+        let prev = 1656682258;
+        let now = prev + 3600;
+
+        let px = 32 * MARK_PRICE_PRECISION;
+
+        let mut amm = AMM {
+            base_asset_reserve: 2 * AMM_RESERVE_PRECISION,
+            quote_asset_reserve: 2 * AMM_RESERVE_PRECISION,
+            peg_multiplier: PEG_PRECISION,
+            last_oracle_price_twap: px as i128,
+            last_oracle_price_twap_ts: prev,
+            mark_std: MARK_PRICE_PRECISION as u64,
+            last_mark_price_twap_ts: prev,
+            funding_period: 3600_i64,
+            ..AMM::default()
+        };
+        let mut oracle_price_data = OraclePriceData {
+            price: (34 * MARK_PRICE_PRECISION) as i128,
+            confidence: MARK_PRICE_PRECISION / 100,
+            delay: 1,
+            has_sufficient_number_of_data_points: true,
+        };
+
+        let _new_oracle_twap =
+            update_oracle_price_twap(&mut amm, now, &oracle_price_data, None).unwrap();
+        assert_eq!(
+            amm.last_oracle_price_twap,
+            (34 * MARK_PRICE_PRECISION - MARK_PRICE_PRECISION / 100) as i128
+        );
+
+        // let after_ts = amm.last_oracle_price_twap_ts;
+        amm.last_mark_price_twap_ts = now - 60;
+        amm.last_oracle_price_twap_ts = now - 60;
+        // let after_ts_2 = amm.last_oracle_price_twap_ts;
+        oracle_price_data = OraclePriceData {
+            price: (31 * MARK_PRICE_PRECISION) as i128,
+            confidence: 0,
+            delay: 2,
+            has_sufficient_number_of_data_points: true,
+        };
+        // let old_oracle_twap_2 = amm.last_oracle_price_twap;
+        let _new_oracle_twap_2 =
+            update_oracle_price_twap(&mut amm, now, &oracle_price_data, None).unwrap();
+        assert_eq!(amm.last_oracle_price_twap, 339401666666);
     }
 }
