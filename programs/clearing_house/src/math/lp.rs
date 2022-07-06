@@ -11,12 +11,13 @@ use crate::math::constants::{AMM_TO_QUOTE_PRECISION_RATIO, PEG_PRECISION};
 use crate::math::quote_asset::reserve_to_asset_amount;
 use std::cmp::max;
 
-#[derive(PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum SettleResult {
     RecievedMarketPosition,
     DidNotRecieveMarketPosition,
 }
 
+#[derive(Debug)]
 pub struct LPMetrics {
     pub fee_payment: i128,
     pub funding_payment: i128,
@@ -191,4 +192,71 @@ pub fn get_proportion(
     .checked_mul(sign)
     .ok_or_else(math_error!())?;
     Ok(proportional_value)
+}
+
+#[cfg(test)]
+mod test {
+    use super::*; 
+
+    #[test]
+    fn test_no_change_lp_metrics() {
+        let lp_position = MarketPosition {
+            lp_tokens: 100, 
+            last_net_base_asset_amount: 100,
+            ..MarketPosition::default()
+        };
+        let amm = AMM {
+            net_base_asset_amount: 100, 
+            sqrt_k: 200,
+            ..AMM::default()
+        };
+
+        let lp_metrics = get_lp_metrics(&lp_position, lp_position.lp_tokens, &amm).unwrap();
+
+        assert_eq!(lp_metrics.base_asset_amount, 0);
+        assert_eq!(lp_metrics.settle_result, SettleResult::RecievedMarketPosition);
+    }
+
+    #[test]
+    fn test_too_small_lp_metrics() {
+        let lp_position = MarketPosition {
+            lp_tokens: 100, 
+            ..MarketPosition::default()
+        };
+        let amm = AMM {
+            net_base_asset_amount: 100, // users went long
+            sqrt_k: 200,
+            minimum_base_asset_trade_size: 100,
+            ..AMM::default()
+        };
+
+        let lp_metrics = get_lp_metrics(&lp_position, lp_position.lp_tokens, &amm).unwrap();
+
+        assert_eq!(lp_metrics.settle_result, SettleResult::DidNotRecieveMarketPosition);
+        assert_eq!(lp_metrics.base_asset_amount, 0);
+    }
+
+    #[test]
+    fn test_simple_lp_metrics() {
+        let lp_position = MarketPosition {
+            lp_tokens: 100, 
+            ..MarketPosition::default()
+        };
+        let amm = AMM {
+            net_base_asset_amount: 100, // users went long
+            total_fee_minus_distributions: 100, 
+            cumulative_funding_rate_lp: 100, 
+            sqrt_k: 200,
+            minimum_base_asset_trade_size: 1,
+            ..AMM::default()
+        };
+
+        let lp_metrics = get_lp_metrics(&lp_position, lp_position.lp_tokens, &amm).unwrap();
+        println!("{:#?}", lp_metrics);
+
+        assert_eq!(lp_metrics.base_asset_amount, -50);
+        assert_eq!(lp_metrics.fee_payment, 50);
+        assert_eq!(lp_metrics.funding_payment, 50);
+    }
+
 }
