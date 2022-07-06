@@ -837,6 +837,16 @@ pub fn get_update_k_result(
     }
 
     let sqrt_k = new_sqrt_k.try_to_u128().unwrap();
+
+    if new_sqrt_k < old_sqrt_k
+        && market.amm.net_base_asset_amount.unsigned_abs()
+            > sqrt_k.checked_div(3).ok_or_else(math_error!())?
+    {
+        // todo, check less lp_tokens as well
+        msg!("new_sqrt_k too small relative to market imbalance");
+        return Err(ErrorCode::InvalidUpdateK);
+    }
+
     let base_asset_reserve = bn::U192::from(market.amm.base_asset_reserve)
         .checked_mul(sqrt_k_ratio)
         .ok_or_else(math_error!())?
