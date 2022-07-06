@@ -196,17 +196,17 @@ pub fn get_proportion(
 
 #[cfg(test)]
 mod test {
-    use super::*; 
+    use super::*;
 
     #[test]
     fn test_no_change_lp_metrics() {
         let lp_position = MarketPosition {
-            lp_tokens: 100, 
+            lp_tokens: 100,
             last_net_base_asset_amount: 100,
             ..MarketPosition::default()
         };
         let amm = AMM {
-            net_base_asset_amount: 100, 
+            net_base_asset_amount: 100,
             sqrt_k: 200,
             ..AMM::default()
         };
@@ -214,13 +214,16 @@ mod test {
         let lp_metrics = get_lp_metrics(&lp_position, lp_position.lp_tokens, &amm).unwrap();
 
         assert_eq!(lp_metrics.base_asset_amount, 0);
-        assert_eq!(lp_metrics.settle_result, SettleResult::RecievedMarketPosition);
+        assert_eq!(
+            lp_metrics.settle_result,
+            SettleResult::RecievedMarketPosition
+        );
     }
 
     #[test]
     fn test_too_small_lp_metrics() {
         let lp_position = MarketPosition {
-            lp_tokens: 100, 
+            lp_tokens: 100,
             ..MarketPosition::default()
         };
         let amm = AMM {
@@ -232,20 +235,23 @@ mod test {
 
         let lp_metrics = get_lp_metrics(&lp_position, lp_position.lp_tokens, &amm).unwrap();
 
-        assert_eq!(lp_metrics.settle_result, SettleResult::DidNotRecieveMarketPosition);
+        assert_eq!(
+            lp_metrics.settle_result,
+            SettleResult::DidNotRecieveMarketPosition
+        );
         assert_eq!(lp_metrics.base_asset_amount, 0);
     }
 
     #[test]
     fn test_simple_lp_metrics() {
         let lp_position = MarketPosition {
-            lp_tokens: 100, 
+            lp_tokens: 100,
             ..MarketPosition::default()
         };
         let amm = AMM {
             net_base_asset_amount: 100, // users went long
-            total_fee_minus_distributions: 100, 
-            cumulative_funding_rate_lp: 100, 
+            total_fee_minus_distributions: 100,
+            cumulative_funding_rate_lp: 100,
             sqrt_k: 200,
             minimum_base_asset_trade_size: 1,
             ..AMM::default()
@@ -258,5 +264,4 @@ mod test {
         assert_eq!(lp_metrics.fee_payment, 50);
         assert_eq!(lp_metrics.funding_payment, 50);
     }
-
 }

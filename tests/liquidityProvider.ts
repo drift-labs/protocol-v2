@@ -519,6 +519,10 @@ describe('liquidity providing', () => {
 		);
 
 		console.log('settling...');
+		await traderClearingHouse.settleLP(
+			await clearingHouse.getUserAccountPublicKey(),
+			new BN(0)
+		);
 		const userPosition = clearingHouse.getUserAccount().positions[0];
 
 		console.log(
