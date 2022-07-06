@@ -874,7 +874,7 @@ pub mod clearing_house {
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
-        let mut bank_map = BankMap::load(
+        let _bank_map = BankMap::load(
             &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
             remaining_accounts_iter,
         )?;
@@ -905,7 +905,6 @@ pub mod clearing_house {
             &ctx.accounts.state,
             &ctx.accounts.user,
             &market_map,
-            &mut bank_map,
             &mut oracle_map,
             &ctx.accounts.oracle,
             &ctx.accounts.filler,
@@ -931,7 +930,7 @@ pub mod clearing_house {
     ) -> Result<()> {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
-        let mut bank_map = BankMap::load(
+        let bank_map = BankMap::load(
             &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
             remaining_accounts_iter,
         )?;
@@ -994,7 +993,6 @@ pub mod clearing_house {
             &ctx.accounts.state,
             user,
             &market_map,
-            &mut bank_map,
             &mut oracle_map,
             &ctx.accounts.oracle,
             &user.clone(),
