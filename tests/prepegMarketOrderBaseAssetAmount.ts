@@ -93,6 +93,7 @@ describe('prepeg', () => {
 		});
 
 		await clearingHouse.initialize(usdcMint.publicKey, true);
+		await clearingHouse.updateOrderAuctionTime(0);
 
 		await clearingHouse.subscribe();
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);

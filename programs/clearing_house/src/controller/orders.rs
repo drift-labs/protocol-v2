@@ -92,6 +92,14 @@ pub fn place_order(
         let market_position = &mut user.positions[position_index];
         market_position.open_orders += 1;
 
+        validate!(
+            params.base_asset_amount >= market.amm.base_asset_amount_step_size,
+            ErrorCode::TradeSizeTooSmall,
+            "Order base asset amount ({}), smaller than step size ({})",
+            params.base_asset_amount,
+            market.amm.base_asset_amount_step_size
+        )?;
+
         let standardized_base_asset_amount = standardize_base_asset_amount(
             params.base_asset_amount,
             market.amm.base_asset_amount_step_size,
@@ -524,37 +532,6 @@ pub fn fill_order(
     Ok(base_asset_amount)
 }
 
-pub fn execute_order(
-    user: &mut User,
-    order_index: usize,
-    market_map: &MarketMap,
-    market_index: u64,
-    mark_price_before: u128,
-    now: i64,
-    value_oracle_price: Option<i128>,
-) -> ClearingHouseResult<(u128, u128, bool, u128)> {
-    let order_type = user.orders[order_index].order_type;
-    match order_type {
-        OrderType::Market => execute_market_order(
-            user,
-            order_index,
-            market_map,
-            market_index,
-            mark_price_before,
-            now,
-        ),
-        _ => execute_non_market_order(
-            user,
-            order_index,
-            market_map,
-            market_index,
-            mark_price_before,
-            now,
-            value_oracle_price,
-        ),
-    }
-}
-
 pub fn fulfill_order_with_amm(
     state: &State,
     user: &mut User,
@@ -796,6 +773,7 @@ pub fn fulfill_order_with_maker_order(
     let taker_price = taker.orders[taker_order_index].get_limit_price(None, now)?;
     let taker_base_asset_amount =
         taker.orders[taker_order_index].get_base_asset_amount_unfilled()?;
+    let taker_post_only = taker.orders[taker_order_index].post_only;
 
     let maker_price = maker.orders[maker_order_index].get_limit_price(None, now)?;
     let maker_direction = &maker.orders[maker_order_index].direction;
@@ -808,10 +786,17 @@ pub fn fulfill_order_with_maker_order(
         return Ok((0_u128, false));
     }
 
-    let (base_asset_amount, quote_asset_amount) = calculate_fill_for_matched_orders(
+    let (
+        base_asset_amount,
+        maker_quote_asset_amount,
+        taker_quote_asset_amount,
+        quote_asset_amount_surplus,
+    ) = calculate_fill_for_matched_orders(
         maker_base_asset_amount,
         maker_price,
         taker_base_asset_amount,
+        taker_price,
+        taker_post_only,
     )?;
 
     if base_asset_amount == 0 {
@@ -825,7 +810,7 @@ pub fn fulfill_order_with_maker_order(
 
     let maker_position_delta = get_position_delta_for_fill(
         base_asset_amount,
-        quote_asset_amount,
+        maker_quote_asset_amount,
         maker.orders[maker_order_index].direction,
     )?;
 
@@ -842,7 +827,7 @@ pub fn fulfill_order_with_maker_order(
 
     let taker_position_delta = get_position_delta_for_fill(
         base_asset_amount,
-        quote_asset_amount,
+        taker_quote_asset_amount,
         taker.orders[maker_order_index].direction,
     )?;
 
@@ -854,12 +839,19 @@ pub fn fulfill_order_with_maker_order(
 
     let (taker_fee, maker_rebate, fee_to_market, filler_reward) =
         fees::calculate_fee_for_taker_and_maker(
-            quote_asset_amount,
+            taker_quote_asset_amount,
+            quote_asset_amount_surplus,
             fee_structure,
             taker.orders[taker_order_index].ts,
             now,
             filler.is_some(),
         )?;
+
+    validate!(
+        (taker_quote_asset_amount == maker_quote_asset_amount) ^ (quote_asset_amount_surplus > 0),
+        ErrorCode::DefaultError,
+        "quote_asset_amount xor quote_asset_amount_surplus must "
+    )?;
 
     // Increment the markets house's total fee variables
     market.amm.total_fee = market
@@ -915,7 +907,7 @@ pub fn fulfill_order_with_maker_order(
         &mut taker.orders[taker_order_index],
         market.amm.base_asset_amount_step_size,
         base_asset_amount,
-        quote_asset_amount,
+        maker_quote_asset_amount,
         cast(taker_fee)?,
     )?;
 
@@ -929,7 +921,7 @@ pub fn fulfill_order_with_maker_order(
         &mut maker.orders[maker_order_index],
         market.amm.base_asset_amount_step_size,
         base_asset_amount,
-        quote_asset_amount,
+        maker_quote_asset_amount,
         -cast(maker_rebate)?,
     )?;
 
@@ -969,19 +961,12 @@ pub fn execute_market_order(
     let position_index = get_position_index(&user.positions, market_index)?;
     let market = &mut market_map.get_ref_mut(&market_index)?;
 
-    let (
-        order_direction,
-        order_price,
-        order_reduce_only,
-        order_base_asset_amount,
-        order_quote_asset_amount,
-    ) = get_struct_values!(
+    let (order_direction, order_price, order_reduce_only, order_base_asset_amount) = get_struct_values!(
         user.orders[order_index],
         direction,
         price,
         reduce_only,
-        base_asset_amount,
-        quote_asset_amount
+        base_asset_amount
     );
 
     let base_asset_amount = if order_reduce_only {
@@ -1001,29 +986,16 @@ pub fn execute_market_order(
         quote_asset_amount,
         quote_asset_amount_surplus,
         pnl,
-    ) = if order_base_asset_amount > 0 {
-        let direction = user.orders[order_index].direction;
-        controller::position::update_position_with_base_asset_amount(
-            base_asset_amount,
-            direction,
-            market,
-            user,
-            position_index,
-            mark_price_before,
-            now,
-            None,
-        )?
-    } else {
-        controller::position::update_position_with_quote_asset_amount(
-            order_quote_asset_amount,
-            order_direction,
-            market,
-            user,
-            position_index,
-            mark_price_before,
-            now,
-        )?
-    };
+    ) = controller::position::update_position_with_base_asset_amount(
+        base_asset_amount,
+        user.orders[order_index].direction,
+        market,
+        user,
+        position_index,
+        mark_price_before,
+        now,
+        None,
+    )?;
 
     controller::position::update_unsettled_pnl(&mut user.positions[position_index], market, pnl)?;
 
@@ -1073,6 +1045,17 @@ pub fn execute_non_market_order(
         valid_oracle_price,
         now,
     )?;
+
+    let position_index = get_position_index(&user.positions, market_index)?;
+    let base_asset_amount = if user.orders[order_index].reduce_only {
+        calculate_base_asset_amount_for_reduce_only_order(
+            base_asset_amount,
+            user.orders[order_index].direction,
+            user.positions[position_index].base_asset_amount,
+        )
+    } else {
+        base_asset_amount
+    };
 
     if base_asset_amount == 0 {
         msg!("Market cant execute order");
@@ -2331,6 +2314,100 @@ mod tests {
             assert_eq!(market.amm.net_revenue_since_last_funding, 20000);
             assert_eq!(market.unsettled_profit, 30000);
             assert_eq!(market.unsettled_loss, 50000);
+        }
+
+        #[test]
+        fn two_post_onlys() {
+            let mut first_user = User {
+                orders: get_orders(Order {
+                    market_index: 0,
+                    post_only: true,
+                    order_type: OrderType::Limit,
+                    direction: PositionDirection::Long,
+                    base_asset_amount: 1 * BASE_PRECISION,
+                    ts: 0,
+                    price: 100 * MARK_PRICE_PRECISION,
+                    ..Order::default()
+                }),
+                positions: get_positions(MarketPosition {
+                    market_index: 0,
+                    open_orders: 1,
+                    open_bids: 1 * BASE_PRECISION_I128,
+                    ..MarketPosition::default()
+                }),
+                ..User::default()
+            };
+
+            let mut second_user = User {
+                orders: get_orders(Order {
+                    market_index: 0,
+                    post_only: true,
+                    order_type: OrderType::Limit,
+                    direction: PositionDirection::Short,
+                    base_asset_amount: 1 * BASE_PRECISION,
+                    ts: 1,
+                    price: 50 * MARK_PRICE_PRECISION,
+                    ..Order::default()
+                }),
+                positions: get_positions(MarketPosition {
+                    market_index: 0,
+                    open_orders: 1,
+                    open_asks: -1 * BASE_PRECISION_I128,
+                    ..MarketPosition::default()
+                }),
+                ..User::default()
+            };
+
+            let mut market = Market::default();
+
+            let now = 5_i64;
+
+            let fee_structure = get_fee_structure();
+
+            fulfill_order_with_maker_order(
+                &mut market,
+                &mut first_user,
+                0,
+                &mut second_user,
+                0,
+                None,
+                now,
+                &fee_structure,
+            )
+            .unwrap();
+
+            let maker_position = &first_user.positions[0];
+            assert_eq!(maker_position.base_asset_amount, 1 * BASE_PRECISION_I128);
+            assert_eq!(maker_position.quote_asset_amount, 100 * QUOTE_PRECISION);
+            assert_eq!(maker_position.quote_entry_amount, 100 * QUOTE_PRECISION);
+            assert_eq!(maker_position.unsettled_pnl, 0);
+            assert_eq!(maker_position.open_orders, 0);
+            assert_eq!(maker_position.open_bids, 0);
+            assert_eq!(first_user.total_fee_rebate, 0);
+            assert_eq!(first_user.orders[0], Order::default());
+
+            let taker_position = &second_user.positions[0];
+            assert_eq!(taker_position.base_asset_amount, -1 * BASE_PRECISION_I128);
+            assert_eq!(taker_position.quote_asset_amount, 50 * QUOTE_PRECISION);
+            assert_eq!(taker_position.quote_entry_amount, 50 * QUOTE_PRECISION);
+            assert_eq!(taker_position.unsettled_pnl, 0);
+            assert_eq!(taker_position.open_asks, 0);
+            assert_eq!(taker_position.open_orders, 0);
+            assert_eq!(second_user.total_fee_paid, 0);
+            assert_eq!(second_user.total_referee_discount, 0);
+            assert_eq!(second_user.total_token_discount, 0);
+            assert_eq!(second_user.orders[0], Order::default());
+
+            assert_eq!(market.amm.net_base_asset_amount, 0);
+            assert_eq!(market.base_asset_amount_long, BASE_PRECISION_I128);
+            assert_eq!(market.base_asset_amount_short, -BASE_PRECISION_I128);
+            assert_eq!(market.amm.quote_asset_amount_long, 100 * QUOTE_PRECISION);
+            assert_eq!(market.amm.quote_asset_amount_short, 50 * QUOTE_PRECISION);
+            assert_eq!(market.amm.total_fee, 50000000);
+            assert_eq!(market.amm.total_fee_minus_distributions, 50000000);
+            assert_eq!(market.amm.net_revenue_since_last_funding, 50000000);
+            assert_eq!(market.unsettled_profit, 0);
+            assert_eq!(market.unsettled_loss, 0);
         }
     }
 }

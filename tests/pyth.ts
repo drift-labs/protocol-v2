@@ -1,7 +1,7 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
 
-import { BN, QUOTE_ASSET_BANK_INDEX } from '../sdk';
+import { BASE_PRECISION, BN, QUOTE_ASSET_BANK_INDEX } from '../sdk';
 
 import {
 	getFeedData,
@@ -16,7 +16,6 @@ import {
 	calculateMarkPrice,
 	PEG_PRECISION,
 	PositionDirection,
-	QUOTE_PRECISION,
 	calculateTargetPriceTrade,
 	convertToNumber,
 } from '../sdk';
@@ -326,13 +325,13 @@ describe('pyth-oracle', () => {
 
 		await clearingHouse.openPosition(
 			PositionDirection.LONG,
-			QUOTE_PRECISION,
+			BASE_PRECISION.div(new BN(40)),
 			marketIndex
 		);
 
 		await clearingHouse2.openPosition(
 			PositionDirection.SHORT,
-			QUOTE_PRECISION.div(new BN(2)),
+			BASE_PRECISION.div(new BN(80)),
 			marketIndex
 		);
 
@@ -402,7 +401,9 @@ describe('pyth-oracle', () => {
 
 		const [_direction, tradeSize, _entryPrice] = calculateTargetPriceTrade(
 			clearingHouse.getMarketAccount(marketIndex),
-			BN.max(targetPriceFails, new BN(1))
+			BN.max(targetPriceFails, new BN(1)),
+			undefined,
+			'base'
 		);
 
 		try {

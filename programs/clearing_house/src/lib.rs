@@ -852,11 +852,7 @@ pub mod clearing_house {
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]
-    pub fn fill_order<'info>(
-        ctx: Context<FillOrder>,
-        taker_order_id: u64,
-        maker_order_id: Option<u64>,
-    ) -> Result<()> {
+    pub fn fill_order<'info>(ctx: Context<FillOrder>, taker_order_id: u64) -> Result<()> {
         let (writable_markets, market_oracles) = {
             let user = &load(&ctx.accounts.user)?;
             let order_index = user
@@ -881,6 +877,7 @@ pub mod clearing_house {
         let mut market_map =
             MarketMap::load(writable_markets, market_oracles, remaining_accounts_iter)?;
 
+        let maker_order_id = None;
         let maker = match maker_order_id {
             Some(_) => Some(get_maker(remaining_accounts_iter)?),
             None => None,
@@ -1398,38 +1395,20 @@ pub mod clearing_house {
                 let direction_to_close =
                     math::position::direction_to_close_position(existing_base_asset_amount);
 
-                // just reduce position if position is too big
-                let (quote_asset_amount, base_asset_amount, pnl) = if close_slippage_pct_too_large {
-                    let quote_asset_amount = market_status
-                        .base_asset_value
-                        .checked_mul(MAX_LIQUIDATION_SLIPPAGE_U128)
-                        .ok_or_else(math_error!())?
-                        .checked_div(close_position_slippage_pct.unsigned_abs())
-                        .ok_or_else(math_error!())?;
-
-                    let (base_asset_amount, _, pnl) = controller::position::reduce(
+                let base_asset_amount = existing_base_asset_amount;
+                let (_, _, _, quote_asset_amount, _, pnl) =
+                    controller::position::update_position_with_base_asset_amount(
+                        user.positions[position_index]
+                            .base_asset_amount
+                            .unsigned_abs(),
                         direction_to_close,
-                        quote_asset_amount,
                         market,
-                        &mut user.positions[position_index],
+                        user,
+                        position_index,
+                        mark_price_before,
                         now,
-                        Some(mark_price_before),
-                        false,
+                        None,
                     )?;
-
-                    (quote_asset_amount, base_asset_amount, pnl)
-                } else {
-                    let (quote_asset_amount, base_asset_amount, _, pnl) =
-                        controller::position::close(
-                            market,
-                            &mut user.positions[position_index],
-                            now,
-                            None,
-                            Some(mark_price_before),
-                            false,
-                        )?;
-                    (quote_asset_amount, base_asset_amount, pnl)
-                };
 
                 controller::position::update_unsettled_pnl(
                     &mut user.positions[position_index],
@@ -1622,15 +1601,25 @@ pub mod clearing_house {
                 let direction_to_reduce =
                     math::position::direction_to_close_position(existing_base_asset_amount);
 
-                let (base_asset_amount, _, pnl) = controller::position::reduce(
-                    direction_to_reduce,
-                    quote_asset_amount,
-                    market,
-                    &mut user.positions[position_index],
-                    now,
-                    Some(mark_price_before),
-                    false,
-                )?;
+                let base_asset_amount = existing_base_asset_amount
+                    .checked_mul(cast(state.partial_liquidation_close_percentage_numerator)?)
+                    .ok_or_else(math_error!())?
+                    .checked_div(cast(
+                        state.partial_liquidation_close_percentage_denominator,
+                    )?)
+                    .ok_or_else(math_error!())?;
+
+                let (_, _, _, quote_asset_amount, _, pnl) =
+                    controller::position::update_position_with_base_asset_amount(
+                        base_asset_amount.unsigned_abs(),
+                        direction_to_reduce,
+                        market,
+                        user,
+                        position_index,
+                        mark_price_before,
+                        now,
+                        None,
+                    )?;
 
                 controller::position::update_unsettled_pnl(
                     &mut user.positions[position_index],

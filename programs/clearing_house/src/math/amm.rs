@@ -912,7 +912,6 @@ pub fn calculate_max_base_asset_amount_to_trade(
     amm: &AMM,
     limit_price: u128,
     direction: PositionDirection,
-    use_spread: bool,
 ) -> ClearingHouseResult<(u128, PositionDirection)> {
     let invariant_sqrt_u192 = U192::from(amm.sqrt_k);
     let invariant = invariant_sqrt_u192
@@ -933,7 +932,7 @@ pub fn calculate_max_base_asset_amount_to_trade(
         .integer_sqrt()
         .try_to_u128()?;
 
-    let base_asset_reserve_before = if use_spread && amm.base_spread > 0 {
+    let base_asset_reserve_before = if amm.base_spread > 0 {
         let (spread_base_asset_reserve, _) = get_spread_reserves(amm, direction)?;
         spread_base_asset_reserve
     } else {

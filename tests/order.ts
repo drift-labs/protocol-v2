@@ -1836,7 +1836,11 @@ describe('orders', () => {
 		);
 		console.log('3');
 
-		await clearingHouse.placeAndFillOrder(reduceLimitOrderParams);
+		try {
+			await clearingHouse.placeAndFillOrder(reduceLimitOrderParams);
+		} catch (e) {
+			console.error(e);
+		}
 		console.log('4');
 
 		await clearingHouse.settlePNL(

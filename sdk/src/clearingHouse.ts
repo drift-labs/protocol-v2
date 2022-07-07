@@ -777,8 +777,8 @@ export class ClearingHouse {
 			getMarketOrderParams(
 				marketIndex,
 				direction,
-				amount,
 				ZERO,
+				amount,
 				false,
 				limitPrice,
 				discountToken !== undefined,

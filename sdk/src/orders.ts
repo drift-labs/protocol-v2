@@ -214,8 +214,7 @@ export function calculateAmountToTradeForLimit(
 	const [maxAmountToTrade, direction] = calculateMaxBaseAssetAmountToTrade(
 		market.amm,
 		limitPrice,
-		order.direction,
-		!order.postOnly
+		order.direction
 	);
 
 	const baseAssetAmount = standardizeBaseAssetAmount(

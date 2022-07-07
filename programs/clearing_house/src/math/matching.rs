@@ -71,14 +71,43 @@ pub fn calculate_fill_for_matched_orders(
     maker_base_asset_amount: u128,
     maker_price: u128,
     taker_base_asset_amount: u128,
-) -> ClearingHouseResult<(u128, u128)> {
+    taker_price: u128,
+    taker_post_only: bool,
+) -> ClearingHouseResult<(u128, u128, u128, u128)> {
     let base_asset_amount = min(maker_base_asset_amount, taker_base_asset_amount);
 
-    let quote_asset_amount = base_asset_amount
+    let maker_quote_asset_amount = base_asset_amount
         .checked_mul(maker_price)
         .ok_or_else(math_error!())?
         .checked_div(MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO)
         .ok_or_else(math_error!())?;
 
-    Ok((base_asset_amount, quote_asset_amount))
+    let (taker_quote_asset_amount, quote_asset_amount_surplus) = if taker_post_only {
+        let taker_quote_asset_amount = base_asset_amount
+            .checked_mul(taker_price)
+            .ok_or_else(math_error!())?
+            .checked_div(MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO)
+            .ok_or_else(math_error!())?;
+
+        let quote_asset_amount_surplus = if taker_quote_asset_amount > maker_quote_asset_amount {
+            taker_quote_asset_amount
+                .checked_sub(maker_quote_asset_amount)
+                .ok_or_else(math_error!())?
+        } else {
+            maker_quote_asset_amount
+                .checked_sub(taker_quote_asset_amount)
+                .ok_or_else(math_error!())?
+        };
+
+        (taker_quote_asset_amount, quote_asset_amount_surplus)
+    } else {
+        (maker_quote_asset_amount, 0)
+    };
+
+    Ok((
+        base_asset_amount,
+        maker_quote_asset_amount,
+        taker_quote_asset_amount,
+        quote_asset_amount_surplus,
+    ))
 }

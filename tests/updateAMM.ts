@@ -1,6 +1,12 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
-import { BN, getMarketOrderParams, OracleSource, ZERO } from '../sdk';
+import {
+	BASE_PRECISION,
+	BN,
+	getMarketOrderParams,
+	OracleSource,
+	ZERO,
+} from '../sdk';
 
 import { Program } from '@project-serum/anchor';
 
@@ -36,9 +42,17 @@ async function feePoolInjection(fees, marketIndex, clearingHouse) {
 	const connection = anchor.AnchorProvider.local().connection;
 
 	while (market0.amm.totalFeeMinusDistributions.lt(fees)) {
+		const markPrice = calculateMarkPrice(
+			market0,
+			clearingHouse.getOracleDataForMarket(marketIndex)
+		);
+		const baseAmountToTrade = new BN(9000)
+			.mul(MARK_PRICE_PRECISION)
+			.mul(BASE_PRECISION)
+			.div(markPrice);
 		const tx = await clearingHouse.openPosition(
 			PositionDirection.LONG,
-			QUOTE_PRECISION.mul(new BN(9000)),
+			baseAmountToTrade,
 			marketIndex
 		);
 		console.log(
@@ -127,6 +141,7 @@ describe('update amm', () => {
 		});
 
 		await clearingHouse.initialize(usdcMint.publicKey, true);
+		await clearingHouse.updateOrderAuctionTime(0);
 
 		await clearingHouse.subscribe();
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
@@ -434,7 +449,7 @@ describe('update amm', () => {
 			'market2.amm.pegMultiplier = ',
 			market2.amm.pegMultiplier.toString()
 		);
-		assert(market2.amm.pegMultiplier.eq(new BN(1937)));
+		assert(market2.amm.pegMultiplier.eq(new BN(1938)));
 		assert(
 			market2.amm.totalFeeMinusDistributions.gte(
 				market.amm.totalFeeMinusDistributions.div(new BN(2))

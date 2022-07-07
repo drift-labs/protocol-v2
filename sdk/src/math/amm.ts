@@ -168,25 +168,25 @@ export function calculateBidAskPrice(
 /**
  * Calculates a price given an arbitrary base and quote amount (they must have the same precision)
  *
- * @param baseAssetAmount
- * @param quoteAssetAmount
- * @param peg_multiplier
+ * @param baseAssetReserves
+ * @param quoteAssetReserves
+ * @param pegMultiplier
  * @returns price : Precision MARK_PRICE_PRECISION
  */
 export function calculatePrice(
-	baseAssetAmount: BN,
-	quoteAssetAmount: BN,
-	peg_multiplier: BN
+	baseAssetReserves: BN,
+	quoteAssetReserves: BN,
+	pegMultiplier: BN
 ): BN {
-	if (baseAssetAmount.abs().lte(ZERO)) {
+	if (baseAssetReserves.abs().lte(ZERO)) {
 		return new BN(0);
 	}
 
-	return quoteAssetAmount
+	return quoteAssetReserves
 		.mul(MARK_PRICE_PRECISION)
-		.mul(peg_multiplier)
+		.mul(pegMultiplier)
 		.div(PEG_PRECISION)
-		.div(baseAssetAmount);
+		.div(baseAssetReserves);
 }
 
 export type AssetType = 'quote' | 'base';
@@ -443,7 +443,6 @@ export function calculateMaxBaseAssetAmountToTrade(
 	amm: AMM,
 	limit_price: BN,
 	direction: PositionDirection,
-	useSpread: boolean,
 	oraclePriceData?: OraclePriceData
 ): [BN, PositionDirection] {
 	const invariant = amm.sqrtK.mul(amm.sqrtK);
@@ -456,16 +455,11 @@ export function calculateMaxBaseAssetAmountToTrade(
 
 	const newBaseAssetReserve = squareRootBN(newBaseAssetReserveSquared);
 
-	let baseAssetReserveBefore;
-	if (useSpread) {
-		baseAssetReserveBefore = calculateSpreadReserves(
-			amm,
-			direction,
-			oraclePriceData
-		).baseAssetReserve;
-	} else {
-		baseAssetReserveBefore = amm.baseAssetReserve;
-	}
+	const baseAssetReserveBefore = calculateSpreadReserves(
+		amm,
+		direction,
+		oraclePriceData
+	).baseAssetReserve;
 
 	if (newBaseAssetReserve.gt(baseAssetReserveBefore)) {
 		return [

@@ -187,6 +187,13 @@ describe('admin', () => {
 				refereeDiscountNumerator: new BN(1),
 				refereeDiscountDenominator: new BN(1),
 			},
+			makerRebateNumerator: new BN(1),
+			makerRebateDenominator: new BN(1),
+			fillerRewardStructure: {
+				rewardNumerator: new BN(1),
+				rewardDenominator: new BN(1),
+				timeBasedRewardLowerBound: new BN(1),
+			},
 		};
 
 		await clearingHouse.updateFee(newFeeStructure);

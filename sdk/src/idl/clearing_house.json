@@ -1499,7 +1499,7 @@
       "args": [
         {
           "name": "orderAuctionTime",
-          "type": "i64"
+          "type": "u8"
         }
       ]
     }
@@ -1801,18 +1801,12 @@
             "type": "u64"
           },
           {
-            "name": "orderFillerRewardStructure",
-            "type": {
-              "defined": "OrderFillerRewardStructure"
-            }
-          },
-          {
             "name": "minOrderQuoteAssetAmount",
             "type": "u128"
           },
           {
             "name": "orderAuctionDuration",
-            "type": "i64"
+            "type": "u8"
           },
           {
             "name": "padding0",
@@ -1820,14 +1814,6 @@
           },
           {
             "name": "padding1",
-            "type": "u128"
-          },
-          {
-            "name": "padding2",
-            "type": "u128"
-          },
-          {
-            "name": "padding3",
             "type": "u128"
           }
         ]
@@ -2349,6 +2335,20 @@
             "type": {
               "defined": "ReferralDiscount"
             }
+          },
+          {
+            "name": "makerRebateNumerator",
+            "type": "u128"
+          },
+          {
+            "name": "makerRebateDenominator",
+            "type": "u128"
+          },
+          {
+            "name": "fillerRewardStructure",
+            "type": {
+              "defined": "OrderFillerRewardStructure"
+            }
           }
         ]
       }
@@ -2655,6 +2655,10 @@
             "type": "u128"
           },
           {
+            "name": "auctionDuration",
+            "type": "u8"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
@@ -2772,6 +2776,23 @@
           },
           {
             "name": "Expire"
+          }
+        ]
+      }
+    },
+    {
+      "name": "FulfillmentMethod",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "AMM"
+          },
+          {
+            "name": "Match"
+          },
+          {
+            "name": "None"
           }
         ]
       }
@@ -3000,6 +3021,20 @@
         {
           "name": "oraclePrice",
           "type": "i128",
+          "index": false
+        },
+        {
+          "name": "makerAuthority",
+          "type": {
+            "option": "publicKey"
+          },
+          "index": false
+        },
+        {
+          "name": "maker",
+          "type": {
+            "option": "publicKey"
+          },
           "index": false
         }
       ]
@@ -3757,21 +3792,36 @@
     },
     {
       "code": 6080,
+      "name": "MakerMustBeWritable",
+      "msg": "MakerMustBeWritable"
+    },
+    {
+      "code": 6081,
       "name": "MakerOrderNotFound",
       "msg": "MakerOrderNotFound"
     },
     {
-      "code": 6081,
+      "code": 6082,
       "name": "CouldNotDeserializeMaker",
       "msg": "CouldNotDeserializeMaker"
     },
     {
-      "code": 6082,
+      "code": 6083,
       "name": "AuctionPriceDoesNotSatisfyMaker",
       "msg": "AuctionPriceDoesNotSatisfyMaker"
     },
     {
-      "code": 6083,
+      "code": 6084,
+      "name": "MakerCantFulfillOwnOrder",
+      "msg": "MakerCantFulfillOwnOrder"
+    },
+    {
+      "code": 6085,
+      "name": "MakerOrderMustBePostOnly",
+      "msg": "MakerOrderMustBePostOnly"
+    },
+    {
+      "code": 6086,
       "name": "DefaultError",
       "msg": "DefaultError"
     }
