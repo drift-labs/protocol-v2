@@ -6,10 +6,8 @@ import {
 	AMM_TO_QUOTE_PRECISION_RATIO,
 	QUOTE_PRECISION,
 	ZERO,
-	// ZERO,
 } from '../constants/numericConstants';
 import { AMM } from '../types';
-// import { convertToNumber } from '..';
 /**
  * Helper function calculating adjust k cost
  * @param amm
@@ -68,12 +66,21 @@ export function calculateRepegCost(amm: AMM, newPeg: BN): BN {
 export function calculateBudgetedK(amm: AMM, cost: BN): [BN, BN] {
 	// wolframalpha.com
 	// (1/(x+d) - p/(x*p+d))*y*d*Q = C solve for p
-	// p = (d(y*d*Q - C(x+d))) / (C*x(x+d) + y*y*d*Q)
+	// p = (d(y*d*Q - C(x+d))) / (C*x(x+d) + y*d*d*Q)
+
+	// numer
+	//   =  y*d*d*Q - Cxd - Cdd
+	//   =  y/x*Q*d*d - Cd - Cd/x
+	//   = mark      - C/d - C/(x)
+	//   =  mark/C    - 1/d - 1/x
+
+	// denom
+	// = C*x*x + C*x*d + y*d*d*Q
+	// = x/d**2 + 1 / d + mark/C
 
 	// todo: assumes k = x * y
 	// otherwise use: (y(1-p) + (kp^2/(x*p+d)) - k/(x+d)) * Q = C solve for p
 
-	// const k = market.amm.sqrtK.mul(market.amm.sqrtK);
 	const x = amm.baseAssetReserve;
 	const y = amm.quoteAssetReserve;
 
@@ -81,14 +88,6 @@ export function calculateBudgetedK(amm: AMM, cost: BN): [BN, BN] {
 	const Q = amm.pegMultiplier;
 
 	const C = cost.mul(new BN(-1));
-
-	// console.log(
-	// 	convertToNumber(x, AMM_RESERVE_PRECISION),
-	// 	convertToNumber(y, AMM_RESERVE_PRECISION),
-	// 	convertToNumber(d, AMM_RESERVE_PRECISION),
-	// 	Q.toNumber() / 1e3,
-	// 	C.toNumber() / 1e6
-	// );
 
 	const numer1 = y.mul(d).mul(Q).div(AMM_RESERVE_PRECISION).div(PEG_PRECISION);
 	const numer2 = C.mul(x.add(d)).div(QUOTE_PRECISION);
@@ -104,27 +103,11 @@ export function calculateBudgetedK(amm: AMM, cost: BN): [BN, BN] {
 		.div(AMM_RESERVE_PRECISION)
 		.div(PEG_PRECISION);
 
-	// console.log('numers:', numer1.toString(), numer2.toString());
-	// console.log('denoms:', denom1.toString(), denom2.toString());
-
 	const numerator = d
 		.mul(numer1.sub(numer2))
 		.div(AMM_RESERVE_PRECISION)
-		.div(AMM_RESERVE_PRECISION)
 		.div(AMM_TO_QUOTE_PRECISION_RATIO);
-	const denominator = denom1
-		.add(denom2)
-		.div(AMM_RESERVE_PRECISION)
-		.div(AMM_TO_QUOTE_PRECISION_RATIO);
-	// console.log(numerator, denominator);
-	// const p = (numerator).div(denominator);
-
-	// const formulaCost = numer21
-	// 	.sub(numer20)
-	// 	.sub(numer1)
-	// 	.mul(market.amm.pegMultiplier)
-	// 	.div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO);
-	// console.log(convertToNumber(formulaCost, QUOTE_PRECISION));
+	const denominator = denom1.add(denom2).div(AMM_TO_QUOTE_PRECISION_RATIO);
 
 	return [numerator, denominator];
 }
@@ -153,20 +136,10 @@ export function calculateBudgetedPeg(amm: AMM, cost: BN, targetPrice: BN): BN {
 	const deltaQuoteAssetReserves = y.sub(k.div(x.add(d)));
 	const pegChangeDirection = targetPeg.sub(Q);
 
-	// console.log(
-	// 	'budget peg target qar?',
-	// 	y.toString(),
-	// 	k.div(x.add(d)).toString()
-	// );
-
 	const useTargetPeg =
 		(deltaQuoteAssetReserves.lt(ZERO) && pegChangeDirection.gt(ZERO)) ||
 		(deltaQuoteAssetReserves.gt(ZERO) && pegChangeDirection.lt(ZERO));
-	// console.log(
-	// 	'budget peg target?',
-	// 	deltaQuoteAssetReserves.toString(),
-	// 	useTargetPeg
-	// );
+
 	if (deltaQuoteAssetReserves.eq(ZERO) || useTargetPeg) {
 		return targetPeg;
 	}
@@ -174,13 +147,6 @@ export function calculateBudgetedPeg(amm: AMM, cost: BN, targetPrice: BN): BN {
 	const deltaPegMultiplier = C.mul(MARK_PRICE_PRECISION).div(
 		deltaQuoteAssetReserves.div(AMM_TO_QUOTE_PRECISION_RATIO)
 	);
-	// .mul(PEG_PRECISION)
-	// .div(QUOTE_PRECISION);
-	// console.log(
-	// 	Q.toNumber(),
-	// 	'change by',
-	// 	deltaPegMultiplier.toNumber() / MARK_PRICE_PRECISION.toNumber()
-	// );
 	const newPeg = Q.sub(
 		deltaPegMultiplier.mul(PEG_PRECISION).div(MARK_PRICE_PRECISION)
 	);

@@ -274,6 +274,26 @@ pub fn adjust_peg_cost(
     Ok((market_clone, cost))
 }
 
+pub fn calculate_per_peg_cost(
+    quote_asset_reserve: u128,
+    terminal_quote_asset_reserve: u128,
+) -> ClearingHouseResult<i128> {
+    // returns a signed per_peg_cost relative to delta peg
+    let per_peg_cost = if quote_asset_reserve != terminal_quote_asset_reserve {
+        cast_to_i128(quote_asset_reserve)?
+            .checked_sub(cast_to_i128(terminal_quote_asset_reserve)?)
+            .ok_or_else(math_error!())?
+            .checked_div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128)
+            .ok_or_else(math_error!())?
+            .checked_add(1)
+            .ok_or_else(math_error!())?
+    } else {
+        0
+    };
+
+    Ok(per_peg_cost)
+}
+
 pub fn adjust_amm(
     market: &Market,
     optimal_peg: u128,
@@ -291,18 +311,10 @@ pub fn adjust_amm(
         .checked_sub(cast_to_i128(market.amm.peg_multiplier)?)
         .ok_or_else(math_error!())?;
 
-    let mut per_peg_cost =
-        if market.amm.quote_asset_reserve != market.amm.terminal_quote_asset_reserve {
-            cast_to_i128(market.amm.quote_asset_reserve)?
-                .checked_sub(cast_to_i128(market.amm.terminal_quote_asset_reserve)?)
-                .ok_or_else(math_error!())?
-                .checked_div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128)
-                .ok_or_else(math_error!())?
-                .checked_add(1)
-                .ok_or_else(math_error!())?
-        } else {
-            0
-        };
+    let mut per_peg_cost = calculate_per_peg_cost(
+        market.amm.quote_asset_reserve,
+        market.amm.terminal_quote_asset_reserve,
+    )?;
 
     let budget_i128 = cast_to_i128(budget)?;
 
@@ -377,11 +389,10 @@ pub fn adjust_amm(
 
             let adjustment_cost =
                 amm::adjust_k_cost_and_update(&mut market_clone, &update_k_result)?;
-            per_peg_cost = cast_to_i128(market_clone.amm.quote_asset_reserve)?
-                .checked_sub(cast_to_i128(market_clone.amm.terminal_quote_asset_reserve)?)
-                .ok_or_else(math_error!())?
-                .checked_div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128)
-                .ok_or_else(math_error!())?;
+            per_peg_cost = calculate_per_peg_cost(
+                market_clone.amm.quote_asset_reserve,
+                market_clone.amm.terminal_quote_asset_reserve,
+            )?;
             adjustment_cost
         } else {
             0
@@ -516,7 +527,7 @@ mod test {
     }
 
     #[test]
-    fn calc_adjust_amm_tests() {
+    fn calc_adjust_amm_tests_repeg_in_favour() {
         // btc-esque market
         let mut market = Market {
             amm: AMM {
@@ -552,5 +563,57 @@ mod test {
 
         let post_price = repegged_market.amm.mark_price().unwrap();
         assert_eq!(post_price - prev_price, 15934564582252); // todo: (15934564582252/1e4 - 1615699103 is the slippage cost?)
+    }
+
+    #[test]
+    fn calc_adjust_amm_tests_insufficent_fee_for_repeg() {
+        // btc-esque market
+        let mut market = Market {
+            amm: AMM {
+                minimum_quote_asset_trade_size: 10000000,
+                minimum_base_asset_trade_size: 10000000,
+                base_asset_reserve: 604379397200959166,
+                quote_asset_reserve: 604402124593689280,
+                terminal_quote_asset_reserve: 604390726630032096,
+                sqrt_k: 604390760790494666,
+                peg_multiplier: 34353,
+                net_base_asset_amount: 1 * AMM_RESERVE_PRECISION as i128,
+                last_mark_price_twap: 341283700678,
+                last_mark_price_twap_ts: 1657054269,
+                curve_update_intensity: 100,
+                base_spread: 1000,
+                total_fee_minus_distributions: 304289,
+                total_fee: 607476,
+                funding_period: 3600,
+
+                ..AMM::default()
+            },
+            next_curve_record_id: 1,
+            next_trade_record_id: 4,
+            margin_ratio_initial: 1000,
+            margin_ratio_partial: 714,
+            margin_ratio_maintenance: 500,
+
+            ..Market::default()
+        };
+
+        let px = 35768 * MARK_PRICE_PRECISION / 1000;
+        let optimal_peg = calculate_peg_from_target_price(
+            market.amm.quote_asset_reserve,
+            market.amm.base_asset_reserve,
+            px,
+        )
+        .unwrap();
+        assert_eq!(optimal_peg > market.amm.peg_multiplier, true);
+        let fee_budget = calculate_fee_pool(&market).unwrap();
+        assert_eq!(fee_budget > 0, true);
+        let (repegged_market, _amm_update_cost) =
+            adjust_amm(&market, optimal_peg, fee_budget, true).unwrap();
+
+        // insufficient fee to repeg
+        let new_peg = repegged_market.amm.peg_multiplier;
+        let old_peg = market.amm.peg_multiplier;
+        assert_eq!(new_peg == old_peg, true);
+        assert_eq!(_amm_update_cost, 0);
     }
 }
