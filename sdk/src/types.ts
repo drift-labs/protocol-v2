@@ -144,7 +144,6 @@ export type FundingRateRecord = {
 
 export type FundingPaymentRecord = {
 	ts: BN;
-	recordId: BN;
 	userAuthority: PublicKey;
 	user: PublicKey;
 	marketIndex: BN;
