@@ -7,10 +7,11 @@ use crate::math::bn;
 use crate::math::bn::U192;
 use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64};
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, AMM_TO_QUOTE_PRECISION_RATIO_I128,
-    BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128, K_BPS_DECREASE_MAX,
-    K_BPS_INCREASE_MAX, K_BPS_UPDATE_SCALE, MARK_PRICE_PRECISION, ONE_HOUR_I128, PEG_PRECISION,
-    PRICE_TO_PEG_PRECISION_RATIO, QUOTE_PRECISION,
+    AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128,
+    AMM_TO_QUOTE_PRECISION_RATIO_I128, BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128,
+    K_BPS_DECREASE_MAX, K_BPS_INCREASE_MAX, K_BPS_UPDATE_SCALE, MARK_PRICE_PRECISION,
+    MAX_BID_ASK_INVENTORY_SKEW_FACTOR, ONE_HOUR_I128, PEG_PRECISION, PRICE_TO_PEG_PRECISION_RATIO,
+    QUOTE_PRECISION,
 };
 use crate::math::position::{_calculate_base_asset_value, _calculate_base_asset_value_and_pnl};
 use crate::math::quote_asset::{asset_to_reserve_amount, reserve_to_asset_amount};
@@ -59,6 +60,105 @@ pub fn calculate_terminal_price(market: &mut Market) -> ClearingHouseResult<u128
     Ok(terminal_price)
 }
 
+pub fn calculate_spread(
+    base_spread: u16,
+    last_oracle_mark_spread_pct: i128,
+    last_oracle_conf_pct: u64,
+    quote_asset_reserve: u128,
+    terminal_quote_asset_reserve: u128,
+    peg_multiplier: u128,
+    net_base_asset_amount: i128,
+    mark_price: u128,
+    total_fee_minus_distributions: u128,
+) -> ClearingHouseResult<(u128, u128)> {
+    let mut long_spread = (base_spread / 2) as u128;
+    let mut short_spread = (base_spread / 2) as u128;
+
+    // oracle retreat
+    // if mark - oracle < 0 (mark below oracle) and user going long then increase spread
+    if last_oracle_mark_spread_pct < 0 {
+        long_spread = max(
+            long_spread,
+            last_oracle_mark_spread_pct
+                .unsigned_abs()
+                .checked_add(last_oracle_conf_pct as u128)
+                .ok_or_else(math_error!())?,
+        );
+    } else {
+        short_spread = max(
+            short_spread,
+            last_oracle_mark_spread_pct
+                .unsigned_abs()
+                .checked_add(last_oracle_conf_pct as u128)
+                .ok_or_else(math_error!())?,
+        );
+    }
+
+    // inventory scale
+    let net_base_asset_value = cast_to_i128(quote_asset_reserve)?
+        .checked_sub(cast_to_i128(terminal_quote_asset_reserve)?)
+        .ok_or_else(math_error!())?
+        .checked_mul(cast_to_i128(peg_multiplier)?)
+        .ok_or_else(math_error!())?
+        .checked_div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128)
+        .ok_or_else(math_error!())?;
+
+    let local_base_asset_value = net_base_asset_amount
+        .checked_mul(cast_to_i128(
+            mark_price
+                .checked_div(MARK_PRICE_PRECISION / PEG_PRECISION)
+                .ok_or_else(math_error!())?,
+        )?)
+        .ok_or_else(math_error!())?
+        .checked_div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128)
+        .ok_or_else(math_error!())?;
+
+    let effective_leverage = cast_to_u128(max(
+        0,
+        local_base_asset_value
+            .checked_sub(net_base_asset_value)
+            .ok_or_else(math_error!())?,
+    ))?
+    .checked_mul(BID_ASK_SPREAD_PRECISION)
+    .ok_or_else(math_error!())?
+    .checked_div(total_fee_minus_distributions + 1) // todo: fee pool instead of tfmd?
+    .ok_or_else(math_error!())?;
+
+    let effective_leverage_capped = min(
+        MAX_BID_ASK_INVENTORY_SKEW_FACTOR,
+        BID_ASK_SPREAD_PRECISION
+            .checked_add(effective_leverage + 1)
+            .ok_or_else(math_error!())?,
+    );
+
+    if total_fee_minus_distributions == 0 {
+        long_spread = long_spread
+            .checked_mul(MAX_BID_ASK_INVENTORY_SKEW_FACTOR)
+            .ok_or_else(math_error!())?
+            .checked_div(BID_ASK_SPREAD_PRECISION)
+            .ok_or_else(math_error!())?;
+        short_spread = short_spread
+            .checked_mul(MAX_BID_ASK_INVENTORY_SKEW_FACTOR)
+            .ok_or_else(math_error!())?
+            .checked_div(BID_ASK_SPREAD_PRECISION)
+            .ok_or_else(math_error!())?;
+    } else if net_base_asset_amount > 0 {
+        long_spread = long_spread
+            .checked_mul(effective_leverage_capped)
+            .ok_or_else(math_error!())?
+            .checked_div(BID_ASK_SPREAD_PRECISION)
+            .ok_or_else(math_error!())?;
+    } else {
+        short_spread = short_spread
+            .checked_mul(effective_leverage_capped)
+            .ok_or_else(math_error!())?
+            .checked_div(BID_ASK_SPREAD_PRECISION)
+            .ok_or_else(math_error!())?;
+    }
+
+    Ok((long_spread, short_spread))
+}
+
 pub fn update_mark_twap(
     amm: &mut AMM,
     now: i64,
@@ -70,6 +170,9 @@ pub fn update_mark_twap(
     };
     let (bid_price, ask_price) = amm.bid_ask_price(mark_price)?;
 
+    let mark_twap = calculate_new_twap(amm, now, mark_price, amm.last_mark_price_twap)?;
+    amm.last_mark_price_twap = mark_twap;
+
     // todo calculate the mark +/- spread
     let bid_twap = calculate_new_twap(amm, now, bid_price, amm.last_bid_price_twap)?;
     amm.last_bid_price_twap = bid_twap;
@@ -77,10 +180,9 @@ pub fn update_mark_twap(
     let ask_twap = calculate_new_twap(amm, now, ask_price, amm.last_ask_price_twap)?;
     amm.last_ask_price_twap = ask_twap;
 
-    let mid_twap = bid_twap.checked_add(ask_twap).ok_or_else(math_error!())? / 2;
-    amm.last_mark_price_twap = mid_twap;
-
     amm.last_mark_price_twap_ts = now;
+
+    let mid_twap = bid_twap.checked_add(ask_twap).ok_or_else(math_error!())? / 2;
 
     Ok(mid_twap)
 }
@@ -991,6 +1093,136 @@ pub fn should_round_trade(
 mod test {
     use super::*;
     use crate::math::constants::{AMM_RESERVE_PRECISION, MARK_PRICE_PRECISION, QUOTE_PRECISION};
+
+    #[test]
+    fn calculate_spread_tests() {
+        let mut base_spread = 1000; // .1%
+        let mut last_oracle_mark_spread_pct = 0;
+        let mut last_oracle_conf_pct = 0;
+        let mut quote_asset_reserve = AMM_RESERVE_PRECISION * 10;
+        let mut terminal_quote_asset_reserve = AMM_RESERVE_PRECISION * 10;
+        let mut peg_multiplier = 34000;
+        let mut net_base_asset_amount = 0;
+        let mut mark_price = 345623040000;
+        let mut total_fee_minus_distributions = 0;
+
+        // at 0 fee be max spread
+        let (long_spread1, short_spread1) = calculate_spread(
+            base_spread,
+            last_oracle_mark_spread_pct,
+            last_oracle_conf_pct,
+            quote_asset_reserve,
+            terminal_quote_asset_reserve,
+            peg_multiplier,
+            net_base_asset_amount,
+            mark_price,
+            total_fee_minus_distributions,
+        )
+        .unwrap();
+        assert_eq!(long_spread1, (base_spread * 5 / 2) as u128);
+        assert_eq!(short_spread1, (base_spread * 5 / 2) as u128);
+
+        // even at imbalance with 0 fee, be max spread
+        terminal_quote_asset_reserve = terminal_quote_asset_reserve - AMM_RESERVE_PRECISION;
+        net_base_asset_amount = net_base_asset_amount + AMM_RESERVE_PRECISION as i128;
+        let (long_spread2, short_spread2) = calculate_spread(
+            base_spread,
+            last_oracle_mark_spread_pct,
+            last_oracle_conf_pct,
+            quote_asset_reserve,
+            terminal_quote_asset_reserve,
+            peg_multiplier,
+            net_base_asset_amount,
+            mark_price,
+            total_fee_minus_distributions,
+        )
+        .unwrap();
+        assert_eq!(long_spread2, (base_spread * 5 / 2) as u128);
+        assert_eq!(short_spread2, (base_spread * 5 / 2) as u128);
+
+        // oracle retreat * skew that increases long spread
+        last_oracle_mark_spread_pct = BID_ASK_SPREAD_PRECISION_I128;
+        last_oracle_conf_pct = (BID_ASK_SPREAD_PRECISION / 100) as u64;
+        total_fee_minus_distributions = QUOTE_PRECISION;
+        let (long_spread3, short_spread3) = calculate_spread(
+            base_spread,
+            last_oracle_mark_spread_pct,
+            last_oracle_conf_pct,
+            quote_asset_reserve,
+            terminal_quote_asset_reserve,
+            peg_multiplier,
+            net_base_asset_amount,
+            mark_price,
+            total_fee_minus_distributions,
+        )
+        .unwrap();
+        assert_eq!(short_spread3 > long_spread3, true);
+
+        // 1000/2 * (1+(34562000-34000000)/QUOTE_PRECISION) -> 781
+        assert_eq!(long_spread3, 781);
+
+        // last_oracle_mark_spread_pct + conf retreat
+        assert_eq!(short_spread3, 1010000);
+
+        last_oracle_mark_spread_pct = -BID_ASK_SPREAD_PRECISION_I128 / 777;
+        last_oracle_conf_pct = 1;
+        let (long_spread4, short_spread4) = calculate_spread(
+            base_spread,
+            last_oracle_mark_spread_pct,
+            last_oracle_conf_pct,
+            quote_asset_reserve,
+            terminal_quote_asset_reserve,
+            peg_multiplier,
+            net_base_asset_amount,
+            mark_price,
+            total_fee_minus_distributions,
+        )
+        .unwrap();
+        assert_eq!(short_spread4 < long_spread4, true);
+        // (1000000/777 + 1 )* 1.562 -> 2011
+        assert_eq!(long_spread4, 2011);
+        // base_spread
+        assert_eq!(short_spread4, 500);
+
+        // increases to fee pool will decrease long spread (all else equal)
+        let (long_spread5, short_spread5) = calculate_spread(
+            base_spread,
+            last_oracle_mark_spread_pct,
+            last_oracle_conf_pct,
+            quote_asset_reserve,
+            terminal_quote_asset_reserve,
+            peg_multiplier,
+            net_base_asset_amount,
+            mark_price,
+            total_fee_minus_distributions * 2,
+        )
+        .unwrap();
+
+        assert_eq!(long_spread5 < long_spread4, true);
+        assert_eq!(short_spread5, short_spread4);
+
+        let mut amm = AMM {
+            base_asset_reserve: 2 * AMM_RESERVE_PRECISION,
+            quote_asset_reserve: 2 * AMM_RESERVE_PRECISION,
+            sqrt_k: 2 * AMM_RESERVE_PRECISION,
+            peg_multiplier: PEG_PRECISION,
+            long_spread: long_spread5,
+            short_spread: short_spread5,
+            ..AMM::default()
+        };
+
+        let (bar_l, qar_l) = calculate_spread_reserves(&amm, PositionDirection::Long).unwrap();
+        let (bar_s, qar_s) = calculate_spread_reserves(&amm, PositionDirection::Short).unwrap();
+
+        assert_eq!(qar_l > amm.quote_asset_reserve, true);
+        assert_eq!(bar_l < amm.base_asset_reserve, true);
+        assert_eq!(qar_s < amm.quote_asset_reserve, true);
+        assert_eq!(bar_s > amm.base_asset_reserve, true);
+        assert_eq!(bar_s, 20005001250312);
+        assert_eq!(bar_l, 19983525535420);
+        assert_eq!(qar_l, 20016488046166);
+        assert_eq!(qar_s, 19995000000000);
+    }
 
     #[test]
     fn calc_mark_std_tests() {
