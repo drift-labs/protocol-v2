@@ -3140,7 +3140,7 @@
           "index": false
         },
         {
-          "name": "baseAssetAmount",
+          "name": "netBaseAssetAmount",
           "type": "i128",
           "index": false
         },

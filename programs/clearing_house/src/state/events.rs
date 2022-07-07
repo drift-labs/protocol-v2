@@ -90,7 +90,7 @@ pub struct CurveRecord {
     pub sqrt_k_after: u128,
     pub base_asset_amount_long: u128,
     pub base_asset_amount_short: u128,
-    pub base_asset_amount: i128,
+    pub net_base_asset_amount: i128,
     pub open_interest: u128,
     pub total_fee: u128,
     pub total_fee_minus_distributions: u128,

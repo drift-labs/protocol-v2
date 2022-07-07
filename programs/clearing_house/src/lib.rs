@@ -53,8 +53,7 @@ pub mod clearing_house {
     use crate::optional_accounts::{get_discount_token, get_referrer, get_referrer_for_fill_order};
     use crate::state::bank::{Bank, BankBalance, BankBalanceType};
     use crate::state::bank_map::{get_writable_banks, BankMap, WritableBanks};
-    use crate::state::events::TradeRecord;
-    use crate::state::events::{CurveRecord, DepositRecord};
+    use crate::state::events::{CurveRecord, DepositRecord, TradeRecord};
     use crate::state::events::{DepositDirection, LiquidationRecord};
     use crate::state::market::{Market, PoolBalance};
     use crate::state::market_map::{
@@ -1952,7 +1951,7 @@ pub mod clearing_house {
             sqrt_k_after,
             base_asset_amount_long: market.base_asset_amount_long.unsigned_abs(),
             base_asset_amount_short: market.base_asset_amount_short.unsigned_abs(),
-            base_asset_amount: market.amm.net_base_asset_amount,
+            net_base_asset_amount: market.amm.net_base_asset_amount,
             open_interest: market.open_interest,
             total_fee: market.amm.total_fee,
             total_fee_minus_distributions: market.amm.total_fee_minus_distributions,
@@ -2116,7 +2115,7 @@ pub mod clearing_house {
 
         let base_asset_amount_long = market.base_asset_amount_long.unsigned_abs();
         let base_asset_amount_short = market.base_asset_amount_short.unsigned_abs();
-        let base_asset_amount = market.amm.net_base_asset_amount;
+        let net_base_asset_amount = market.amm.net_base_asset_amount;
         let open_interest = market.open_interest;
 
         let price_before = math::amm::calculate_price(
@@ -2233,7 +2232,7 @@ pub mod clearing_house {
             sqrt_k_after,
             base_asset_amount_long,
             base_asset_amount_short,
-            base_asset_amount,
+            net_base_asset_amount,
             open_interest,
             adjustment_cost,
             total_fee,
