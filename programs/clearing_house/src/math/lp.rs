@@ -82,7 +82,7 @@ pub fn get_lp_metrics(
         } else {
             // no market position bc too small so give them negative upnl
             // similar to closing their small position
-            // TODO: make this value concrete
+            // TODO: decide what this should be
             unsettled_pnl = cast_to_i128(min_qaa)?
                 .checked_mul(-1)
                 .ok_or_else(math_error!())?;
@@ -199,9 +199,6 @@ pub fn get_lp_market_position_margin(
     )?;
 
     let base_asset_amount = get_proportion_i128(net_base_asset_amount, lp_tokens, total_lp_tokens)?;
-
-    //println!("max_bids, max_asks: {} {}", max_bids_fill, max_asks_fill);
-    //println!("baa, qaa: {} {}", base_asset_amount, quote_asset_amount);
 
     market_position.base_asset_amount = base_asset_amount;
     market_position.quote_asset_amount = quote_asset_amount;
