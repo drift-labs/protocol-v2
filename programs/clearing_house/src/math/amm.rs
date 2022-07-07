@@ -1296,11 +1296,50 @@ mod test {
     }
 
     #[test]
-    fn calculate_budgeted_k_scale_tests() {
+    fn calculate_k_tests() {
+        let mut market = Market {
+            amm: AMM {
+                base_asset_reserve: 5122950819670000,
+                quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
+                sqrt_k: 500 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 50000,
+                net_base_asset_amount: -(122950819670000 as i128),
+                ..AMM::default()
+            },
+            ..Market::default()
+        };
+        // increase k by .25%
+        let update_k_up =
+            get_update_k_result(&market, bn::U192::from(501 * AMM_RESERVE_PRECISION)).unwrap();
+        let (t_price, t_qar, t_bar) = calculate_terminal_price_and_reserves(&market).unwrap();
+
+        // new terminal reserves are balanced, terminal price = peg)
+        assert_eq!(t_qar, 500 * AMM_RESERVE_PRECISION);
+        assert_eq!(t_bar, 500 * AMM_RESERVE_PRECISION);
+        assert_eq!(t_price, market.amm.peg_multiplier * 10000000);
+
+        assert_eq!(update_k_up.sqrt_k, 501 * AMM_RESERVE_PRECISION);
+        assert_eq!(update_k_up.base_asset_reserve, 5133196721309340);
+        assert_eq!(update_k_up.quote_asset_reserve, 4889760000002034);
+
+        // cost to increase k is always positive when imbalanced
+        let cost = adjust_k_cost_and_update(&mut market, &update_k_up).unwrap();
+        assert_eq!(market.amm.terminal_quote_asset_reserve, 5009754110429452);
+        assert_eq!(cost > 0, true);
+        assert_eq!(cost, 29448);
+
+        let (t_price2, t_qar2, t_bar2) = calculate_terminal_price_and_reserves(&market).unwrap();
+        // since users are net short, new terminal price lower after increasing k
+        assert_eq!(t_price2 < t_price, true);
+        // new terminal reserves are unbalanced with quote below base (lower terminal price)
+        assert_eq!(t_bar2, 5010245901639340);
+        assert_eq!(t_qar2, 5009754110429452);
+
+        // with positive budget, how much can k be increased?
         let (mut numer1, mut denom1) = _calculate_budgeted_k_scale(
             AMM_RESERVE_PRECISION * 55414,
             AMM_RESERVE_PRECISION * 55530,
-            ((QUOTE_PRECISION / 500) as i128),
+            ((QUOTE_PRECISION / 500) as i128), // positive budget
             36365,
             (AMM_RESERVE_PRECISION * 66) as i128,
         )
@@ -1311,8 +1350,9 @@ mod test {
         assert_eq!(denom1, 8790133110760000);
 
         let mut pct_change_in_k = (numer1 * 10000) / denom1;
-        assert_eq!(pct_change_in_k, 10007);
+        assert_eq!(pct_change_in_k, 10007); // k was increased .07%
 
+        // with negative budget, how much should k be lowered?
         (numer1, denom1) = _calculate_budgeted_k_scale(
             AMM_RESERVE_PRECISION * 55414,
             AMM_RESERVE_PRECISION * 55530,
@@ -1322,7 +1362,20 @@ mod test {
         )
         .unwrap();
         assert_eq!(numer1 < denom1, true);
-        pct_change_in_k = (numer1 * 10000) / denom1;
-        assert_eq!(pct_change_in_k, 9930);
+        pct_change_in_k = (numer1 * 1000000) / denom1;
+        assert_eq!(pct_change_in_k, 993050); // k was decreased 0.695%
+
+        // show non-linearity with budget
+        (numer1, denom1) = _calculate_budgeted_k_scale(
+            AMM_RESERVE_PRECISION * 55414,
+            AMM_RESERVE_PRECISION * 55530,
+            -((QUOTE_PRECISION / 25) as i128),
+            36365,
+            (AMM_RESERVE_PRECISION * 66) as i128,
+        )
+        .unwrap();
+        assert_eq!(numer1 < denom1, true);
+        pct_change_in_k = (numer1 * 1000000) / denom1;
+        assert_eq!(pct_change_in_k, 986196); // k was decreased 1.3804%
     }
 }
