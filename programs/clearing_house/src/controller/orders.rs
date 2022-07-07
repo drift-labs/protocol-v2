@@ -16,7 +16,7 @@ use crate::get_then_update_id;
 use crate::math::amm::is_oracle_valid;
 use crate::math::auction::{calculate_auction_end_price, calculate_auction_start_price};
 use crate::math::casting::cast;
-use crate::math::fulfillment::determine_fulfillment_method;
+use crate::math::fulfillment::determine_fulfillment_methods;
 use crate::math::matching::{
     are_orders_same_market_but_different_sides, calculate_fill_for_matched_orders,
     determine_maker_and_taker, do_orders_cross,
@@ -411,55 +411,77 @@ pub fn fill_order(
         None
     };
 
-    let fulfillment_method =
-        determine_fulfillment_method(&user.orders[order_index], maker.is_some(), now)?;
+    let fulfillment_methods =
+        determine_fulfillment_methods(&user.orders[order_index], maker.is_some(), now)?;
 
-    let (base_asset_amount, potentially_risk_increasing) = match fulfillment_method {
-        FulfillmentMethod::AMM => fulfill_order_with_amm(
-            state,
-            user,
-            order_index,
-            market_map,
-            oracle_map,
-            market_index,
-            mark_price_before,
-            now,
-            valid_oracle_price,
-            &user_key,
-            &filler_key,
-            filler,
-        )?,
-        FulfillmentMethod::Match => {
-            let maker = maker.ok_or(ErrorCode::MakerNotFound)?;
-            let maker_key = maker.key();
+    if fulfillment_methods.is_empty() {
+        return Ok(0);
+    }
 
-            validate!(
-                maker_key != user_key,
-                ErrorCode::MakerCantFulfillOwnOrder,
-                "Maker can not fill their own order"
-            )?;
+    let mut base_asset_amount = 0_u128;
+    let mut potentially_risk_increasing = false;
+    for fulfillment_method in fulfillment_methods.iter() {
+        if user.orders[order_index].get_base_asset_amount_unfilled()? == 0 {
+            break;
+        }
 
-            let maker = &mut load_mut(&maker)?;
-            let maker_order_id = maker_order_id.ok_or(ErrorCode::MakerOrderNotFound)?;
-            let maker_order_index = maker
-                .get_order_index(maker_order_id)
-                .map_err(|e| print_error!(e)())?;
-
-            let market = &mut market_map.get_ref_mut(&market_index)?;
-
-            fulfill_order_with_maker_order(
-                market,
+        let (_base_asset_amount, _potentially_risk_increasing) = match fulfillment_method {
+            FulfillmentMethod::AMM => fulfill_order_with_amm(
+                state,
                 user,
                 order_index,
-                maker,
-                maker_order_index,
-                None,
+                market_map,
+                oracle_map,
+                market_index,
+                mark_price_before,
                 now,
-                &state.fee_structure,
-            )?
-        }
-        FulfillmentMethod::None => (0_u128, false),
-    };
+                valid_oracle_price,
+                &user_key,
+                &filler_key,
+                filler,
+            )?,
+            FulfillmentMethod::Match => {
+                let maker = maker.as_ref().ok_or(ErrorCode::MakerNotFound)?;
+                let maker_key = maker.key();
+
+                validate!(
+                    maker_key != user_key,
+                    ErrorCode::MakerCantFulfillOwnOrder,
+                    "Maker can not fill their own order"
+                )?;
+
+                let maker = &mut load_mut(maker)?;
+                let maker_order_id = maker_order_id.ok_or(ErrorCode::MakerOrderNotFound)?;
+                let maker_order_index = maker
+                    .get_order_index(maker_order_id)
+                    .map_err(|e| print_error!(e)())?;
+
+                let market = &mut market_map.get_ref_mut(&market_index)?;
+
+                let mut filler = if filler_key != maker_key && filler_key != user_key {
+                    Some(load_mut(filler)?)
+                } else {
+                    None
+                };
+
+                fulfill_order_with_match(
+                    market,
+                    user,
+                    order_index,
+                    maker,
+                    maker_order_index,
+                    filler.as_deref_mut(),
+                    now,
+                    &state.fee_structure,
+                )?
+            }
+        };
+
+        potentially_risk_increasing = potentially_risk_increasing || _potentially_risk_increasing;
+        base_asset_amount = base_asset_amount
+            .checked_add(_base_asset_amount)
+            .ok_or_else(math_error!())?;
+    }
 
     if base_asset_amount == 0 {
         return Ok(0);
@@ -702,7 +724,7 @@ pub fn fulfill_order_with_amm(
     Ok((base_asset_amount, potentially_risk_increasing))
 }
 
-pub fn fulfill_order_with_maker_order(
+pub fn fulfill_order_with_match(
     market: &mut Market,
     first_user: &mut User,
     first_user_order_index: usize,
@@ -1163,7 +1185,7 @@ fn get_valid_oracle_price(
 mod tests {
 
     pub mod fulfill_order_with_maker_order {
-        use crate::controller::orders::fulfill_order_with_maker_order;
+        use crate::controller::orders::fulfill_order_with_match;
         use crate::controller::position::PositionDirection;
         use crate::math::constants::{
             BASE_PRECISION, BASE_PRECISION_I128, MARK_PRICE_PRECISION, QUOTE_PRECISION,
@@ -1243,7 +1265,7 @@ mod tests {
 
             let fee_structure = get_fee_structure();
 
-            fulfill_order_with_maker_order(
+            fulfill_order_with_match(
                 &mut market,
                 &mut taker,
                 0,
@@ -1338,7 +1360,7 @@ mod tests {
 
             let fee_structure = get_fee_structure();
 
-            fulfill_order_with_maker_order(
+            fulfill_order_with_match(
                 &mut market,
                 &mut taker,
                 0,
@@ -1433,7 +1455,7 @@ mod tests {
 
             let fee_structure = get_fee_structure();
 
-            fulfill_order_with_maker_order(
+            fulfill_order_with_match(
                 &mut market,
                 &mut taker,
                 0,
@@ -1528,7 +1550,7 @@ mod tests {
 
             let fee_structure = get_fee_structure();
 
-            fulfill_order_with_maker_order(
+            fulfill_order_with_match(
                 &mut market,
                 &mut taker,
                 0,
@@ -1623,7 +1645,7 @@ mod tests {
 
             let fee_structure = FeeStructure::default();
 
-            let (base_asset_amount, _) = fulfill_order_with_maker_order(
+            let (base_asset_amount, _) = fulfill_order_with_match(
                 &mut market,
                 &mut taker,
                 0,
@@ -1687,7 +1709,7 @@ mod tests {
 
             let fee_structure = FeeStructure::default();
 
-            let (base_asset_amount, _) = fulfill_order_with_maker_order(
+            let (base_asset_amount, _) = fulfill_order_with_match(
                 &mut market,
                 &mut taker,
                 0,
@@ -1751,7 +1773,7 @@ mod tests {
 
             let fee_structure = FeeStructure::default();
 
-            let (base_asset_amount, _) = fulfill_order_with_maker_order(
+            let (base_asset_amount, _) = fulfill_order_with_match(
                 &mut market,
                 &mut taker,
                 0,
@@ -1816,7 +1838,7 @@ mod tests {
 
             let fee_structure = FeeStructure::default();
 
-            let (base_asset_amount, _) = fulfill_order_with_maker_order(
+            let (base_asset_amount, _) = fulfill_order_with_match(
                 &mut market,
                 &mut taker,
                 0,
@@ -1881,7 +1903,7 @@ mod tests {
 
             let fee_structure = FeeStructure::default();
 
-            fulfill_order_with_maker_order(
+            fulfill_order_with_match(
                 &mut market,
                 &mut taker,
                 0,
@@ -1960,7 +1982,7 @@ mod tests {
 
             let fee_structure = FeeStructure::default();
 
-            fulfill_order_with_maker_order(
+            fulfill_order_with_match(
                 &mut market,
                 &mut taker,
                 0,
@@ -2040,7 +2062,7 @@ mod tests {
 
             let fee_structure = get_fee_structure();
 
-            fulfill_order_with_maker_order(
+            fulfill_order_with_match(
                 &mut market,
                 &mut taker,
                 0,
@@ -2133,7 +2155,7 @@ mod tests {
 
             let fee_structure = get_fee_structure();
 
-            fulfill_order_with_maker_order(
+            fulfill_order_with_match(
                 &mut market,
                 &mut first_user,
                 0,
@@ -2226,7 +2248,7 @@ mod tests {
 
             let fee_structure = get_fee_structure();
 
-            fulfill_order_with_maker_order(
+            fulfill_order_with_match(
                 &mut market,
                 &mut first_user,
                 0,
@@ -2320,7 +2342,7 @@ mod tests {
 
             let fee_structure = get_fee_structure();
 
-            fulfill_order_with_maker_order(
+            fulfill_order_with_match(
                 &mut market,
                 &mut first_user,
                 0,
