@@ -13,7 +13,6 @@ import {
 	PositionDirection,
 	ClearingHouseUser,
 	OrderStatus,
-	OrderDiscountTier,
 	OrderAction,
 	OrderTriggerCondition,
 	calculateTargetPriceTrade,
@@ -47,7 +46,6 @@ import {
 	TWO,
 	ZERO,
 } from '../sdk';
-import { AccountInfo, Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
 const enumsAreEqual = (
 	actual: Record<string, unknown>,
@@ -93,9 +91,6 @@ describe('orders', () => {
 	let whaleUSDCAccount: Keypair;
 	let whaleClearingHouse: ClearingHouse;
 	let whaleUser: ClearingHouseUser;
-
-	let discountMint: Token;
-	let discountTokenAccount: AccountInfo;
 
 	const fillerKeyPair = new Keypair();
 	let fillerUSDCAccount: Keypair;
@@ -178,30 +173,6 @@ describe('orders', () => {
 			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
 		});
 		await clearingHouseUser.subscribe();
-
-		discountMint = await Token.createMint(
-			connection,
-			// @ts-ignore
-			provider.wallet.payer,
-			provider.wallet.publicKey,
-			provider.wallet.publicKey,
-			6,
-			TOKEN_PROGRAM_ID
-		);
-
-		await clearingHouse.updateDiscountMint(discountMint.publicKey);
-
-		discountTokenAccount = await discountMint.getOrCreateAssociatedAccountInfo(
-			provider.wallet.publicKey
-		);
-
-		await discountMint.mintTo(
-			discountTokenAccount.address,
-			// @ts-ignore
-			provider.wallet.payer,
-			[],
-			1000 * 10 ** 6
-		);
 
 		provider.connection.requestAirdrop(fillerKeyPair.publicKey, 10 ** 9);
 		fillerUSDCAccount = await mockUserUSDCAccount(
@@ -298,10 +269,7 @@ describe('orders', () => {
 			true
 		);
 		// user sets reduce-only taker limit buy @ $2
-		const txSig = await clearingHouse.placeOrder(
-			orderParams,
-			discountTokenAccount.address
-		);
+		const txSig = await clearingHouse.placeOrder(orderParams);
 		console.log(
 			'tx logs',
 			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
@@ -320,7 +288,6 @@ describe('orders', () => {
 		assert(order.reduceOnly === reduceOnly);
 		assert(enumsAreEqual(order.direction, direction));
 		assert(enumsAreEqual(order.status, OrderStatus.OPEN));
-		assert(enumsAreEqual(order.discountTier, OrderDiscountTier.FOURTH));
 		assert(order.orderId.eq(expectedOrderId));
 		assert(order.ts.gt(ZERO));
 
@@ -409,7 +376,7 @@ describe('orders', () => {
 			false,
 			true
 		);
-		await clearingHouse.placeOrder(orderParams, discountTokenAccount.address);
+		await clearingHouse.placeOrder(orderParams);
 		const orderIndex = new BN(0);
 		const orderId = new BN(2);
 		await clearingHouseUser.fetchAccounts();
@@ -452,7 +419,7 @@ describe('orders', () => {
 
 		order = clearingHouseUser.getUserAccount().orders[orderIndex.toString()];
 
-		const expectedFillerReward = new BN(95);
+		const expectedFillerReward = new BN(100);
 		console.log(
 			'FillerReward: $',
 			convertToNumber(
@@ -470,12 +437,8 @@ describe('orders', () => {
 		const market = clearingHouse.getMarketAccount(marketIndex);
 		console.log('markPrice After:', calculateMarkPrice(market).toString());
 
-		const expectedFeeToMarket = new BN(855);
+		const expectedFeeToMarket = new BN(900);
 		assert(market.amm.totalFee.eq(expectedFeeToMarket));
-
-		const userAccount = clearingHouseUser.getUserAccount();
-		const expectedTokenDiscount = new BN(50);
-		assert(userAccount.totalTokenDiscount.eq(expectedTokenDiscount));
 
 		assert(order.baseAssetAmount.eq(new BN(0)));
 		assert(order.price.eq(new BN(0)));
@@ -500,7 +463,7 @@ describe('orders', () => {
 
 		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 		const expectedTradeRecordId = new BN(1);
-		const expectedFee = new BN(950);
+		const expectedFee = new BN(1000);
 		assert(orderRecord.ts.gt(ZERO));
 		assert(orderRecord.fee.eq(expectedFee));
 		assert(orderRecord.order.fee.eq(expectedFee));
@@ -539,7 +502,7 @@ describe('orders', () => {
 			false,
 			true
 		);
-		await clearingHouse.placeOrder(orderParams, discountTokenAccount.address);
+		await clearingHouse.placeOrder(orderParams);
 		const orderId = new BN(3);
 		const orderIndex = new BN(0);
 		await clearingHouseUser.fetchAccounts();
@@ -595,7 +558,7 @@ describe('orders', () => {
 
 		order = clearingHouseUser.getUserAccount().orders[orderIndex.toString()];
 
-		const expectedFillerReward = new BN(190);
+		const expectedFillerReward = new BN(200);
 		console.log(
 			'FillerReward: $',
 			convertToNumber(
@@ -613,18 +576,8 @@ describe('orders', () => {
 		const market = clearingHouse.getMarketAccount(marketIndex);
 		console.log('markPrice after:', calculateMarkPrice(market).toString());
 
-		const expectedFeeToMarket = new BN(1710);
+		const expectedFeeToMarket = new BN(1800);
 		assert(market.amm.totalFee.eq(expectedFeeToMarket));
-
-		const userAccount = clearingHouseUser.getUserAccount();
-		const expectedTokenDiscount = new BN(100);
-		console.log(
-			userAccount.totalTokenDiscount.toString(),
-			'=',
-			expectedTokenDiscount.toString()
-		);
-
-		assert(userAccount.totalTokenDiscount.eq(expectedTokenDiscount));
 
 		assert(order.baseAssetAmount.eq(new BN(0)));
 		assert(order.price.eq(new BN(0)));
@@ -689,7 +642,7 @@ describe('orders', () => {
 			false,
 			true
 		);
-		await clearingHouse.placeOrder(orderParams, discountTokenAccount.address);
+		await clearingHouse.placeOrder(orderParams);
 
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
@@ -768,7 +721,7 @@ describe('orders', () => {
 			true
 		);
 
-		await clearingHouse.placeOrder(orderParams, discountTokenAccount.address);
+		await clearingHouse.placeOrder(orderParams);
 
 		await clearingHouseUser.fetchAccounts();
 		const order = clearingHouseUser.getUserAccount().orders[0];
@@ -875,9 +828,7 @@ describe('orders', () => {
 			true
 		);
 
-		// const triggerPrice = new BN(0);
-		// const triggerCondition = OrderTriggerCondition.BELOW;
-		await clearingHouse.placeOrder(orderParams, discountTokenAccount.address);
+		await clearingHouse.placeOrder(orderParams);
 
 		// move price to make liquidity for order @ $1.05 (5%)
 		setFeedPrice(anchor.workspace.Pyth, 1.45, solUsd);
@@ -982,7 +933,7 @@ describe('orders', () => {
 			true
 		);
 
-		await clearingHouse.placeOrder(orderParams, discountTokenAccount.address);
+		await clearingHouse.placeOrder(orderParams);
 
 		// move price to make liquidity for order @ $1.05 (5%)
 		setFeedPrice(anchor.workspace.Pyth, 1.35, solUsd);
@@ -1120,7 +1071,7 @@ describe('orders', () => {
 			false,
 			true
 		);
-		await clearingHouse.placeOrder(orderParams, discountTokenAccount.address);
+		await clearingHouse.placeOrder(orderParams);
 
 		await clearingHouseUser.fetchAccounts();
 
@@ -1234,7 +1185,7 @@ describe('orders', () => {
 			false,
 			true
 		);
-		await clearingHouse.placeOrder(orderParams, discountTokenAccount.address);
+		await clearingHouse.placeOrder(orderParams);
 
 		// move price to make liquidity for order @ $1.05 (5%)
 		// setFeedPrice(anchor.workspace.Pyth, 1.55, solUsd);
@@ -1381,7 +1332,7 @@ describe('orders', () => {
 			false,
 			true
 		);
-		await clearingHouse.placeOrder(orderParams, discountTokenAccount.address);
+		await clearingHouse.placeOrder(orderParams);
 
 		await clearingHouseUser.fetchAccounts();
 
@@ -1470,7 +1421,7 @@ describe('orders', () => {
 			false,
 			true
 		);
-		await clearingHouse.placeOrder(orderParams, discountTokenAccount.address);
+		await clearingHouse.placeOrder(orderParams);
 
 		await clearingHouseUser.fetchAccounts();
 
@@ -1532,10 +1483,7 @@ describe('orders', () => {
 			false,
 			true
 		);
-		const txSig = await clearingHouse.placeAndFillOrder(
-			orderParams,
-			discountTokenAccount.address
-		);
+		const txSig = await clearingHouse.placeAndFillOrder(orderParams);
 
 		const computeUnits = await findComputeUnitConsumption(
 			clearingHouse.program.programId,
@@ -1605,10 +1553,7 @@ describe('orders', () => {
 			false,
 			true
 		);
-		await clearingHouse.placeAndFillOrder(
-			orderParams,
-			discountTokenAccount.address
-		);
+		await clearingHouse.placeAndFillOrder(orderParams);
 
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();

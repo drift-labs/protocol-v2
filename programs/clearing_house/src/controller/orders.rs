@@ -1,6 +1,5 @@
 use anchor_lang::prelude::*;
 use solana_program::msg;
-use spl_token::state::Account as TokenAccount;
 
 use crate::account_loader::load_mut;
 use crate::context::*;
@@ -17,7 +16,6 @@ use crate::get_then_update_id;
 use crate::math::amm::is_oracle_valid;
 use crate::math::auction::{calculate_auction_end_price, calculate_auction_start_price};
 use crate::math::casting::cast;
-use crate::math::fees::calculate_order_fee_tier;
 use crate::math::fulfillment::determine_fulfillment_method;
 use crate::math::matching::{
     are_orders_same_market_but_different_sides, calculate_fill_for_matched_orders,
@@ -38,8 +36,8 @@ use crate::state::market::Market;
 use crate::state::market_map::MarketMap;
 use crate::state::oracle_map::OracleMap;
 use crate::state::state::*;
-use crate::state::user::User;
 use crate::state::user::{Order, OrderStatus, OrderType};
+use crate::state::user::{OrderDiscountTier, User};
 use crate::validate;
 
 pub fn place_order(
@@ -48,8 +46,6 @@ pub fn place_order(
     market_map: &MarketMap,
     bank_map: &BankMap,
     oracle_map: &mut OracleMap,
-    discount_token: Option<TokenAccount>,
-    referrer: &Option<AccountLoader<User>>,
     clock: &Clock,
     params: OrderParams,
     oracle: Option<&AccountInfo>,
@@ -64,7 +60,6 @@ pub fn place_order(
         .iter()
         .position(|order| order.status.eq(&OrderStatus::Init))
         .ok_or(ErrorCode::MaxNumberOfOrders)?;
-    let discount_tier = calculate_order_fee_tier(&state.fee_structure, discount_token)?;
 
     if params.user_order_id > 0 {
         let user_order_id_already_used = user
@@ -140,13 +135,10 @@ pub fn place_order(
         fee: 0,
         direction: params.direction,
         reduce_only: params.reduce_only,
-        discount_tier,
+        discount_tier: OrderDiscountTier::None,
         trigger_price: params.trigger_price,
         trigger_condition: params.trigger_condition,
-        referrer: match referrer {
-            Some(referrer) => referrer.key(),
-            None => Pubkey::default(),
-        },
+        referrer: Pubkey::default(),
         post_only: params.post_only,
         oracle_price_offset: params.oracle_price_offset,
         immediate_or_cancel: params.immediate_or_cancel,
@@ -360,7 +352,6 @@ pub fn fill_order(
     oracle_map: &mut OracleMap,
     oracle: &AccountInfo,
     filler: &AccountLoader<User>,
-    referrer: Option<AccountLoader<User>>,
     maker: Option<AccountLoader<User>>,
     maker_order_id: Option<u64>,
     clock: &Clock,
@@ -437,7 +428,6 @@ pub fn fill_order(
             &user_key,
             &filler_key,
             filler,
-            &referrer,
         )?,
         FulfillmentMethod::Match => {
             let maker = maker.ok_or(ErrorCode::MakerNotFound)?;
@@ -545,7 +535,6 @@ pub fn fulfill_order_with_amm(
     user_key: &Pubkey,
     filler_key: &Pubkey,
     filler: &AccountLoader<User>,
-    referrer: &Option<AccountLoader<User>>,
 ) -> ClearingHouseResult<(u128, bool)> {
     let order_type = user.orders[order_index].order_type;
     let (
@@ -573,26 +562,18 @@ pub fn fulfill_order_with_amm(
         )?,
     };
 
-    let (order_post_only, order_ts, order_discount_tier, order_direction) = get_struct_values!(
-        user.orders[order_index],
-        post_only,
-        ts,
-        discount_tier,
-        direction
-    );
+    let (order_post_only, order_ts, order_direction) =
+        get_struct_values!(user.orders[order_index], post_only, ts, direction);
 
-    let (user_fee, fee_to_market, token_discount, filler_reward, referrer_reward, referee_discount) =
-        fees::calculate_fee_for_order(
-            quote_asset_amount,
-            &state.fee_structure,
-            &order_discount_tier,
-            order_ts,
-            now,
-            referrer.is_some(),
-            filler_key != user_key,
-            quote_asset_amount_surplus,
-            order_post_only,
-        )?;
+    let (user_fee, fee_to_market, filler_reward) = fees::calculate_fee_for_order(
+        quote_asset_amount,
+        &state.fee_structure,
+        order_ts,
+        now,
+        filler_key != user_key,
+        quote_asset_amount_surplus,
+        order_post_only,
+    )?;
 
     let position_index = get_position_index(&user.positions, market_index)?;
     // Increment the clearing house's total fee variables
@@ -634,35 +615,10 @@ pub fn fulfill_order_with_amm(
     }
 
     // Increment the user's total fee variables
-    if user_fee > 0 {
-        user.total_fee_paid = user
-            .total_fee_paid
-            .checked_add(cast(user_fee.unsigned_abs())?)
-            .ok_or_else(math_error!())?;
-    } else {
-        user.total_fee_rebate = user
-            .total_fee_rebate
-            .checked_add(cast(user_fee.unsigned_abs())?)
-            .ok_or_else(math_error!())?;
-    }
-
-    user.total_token_discount = user
-        .total_token_discount
-        .checked_add(token_discount)
+    user.total_fee_paid = user
+        .total_fee_paid
+        .checked_add(cast(user_fee.unsigned_abs())?)
         .ok_or_else(math_error!())?;
-    user.total_referee_discount = user
-        .total_referee_discount
-        .checked_add(referee_discount)
-        .ok_or_else(math_error!())?;
-
-    // Update the referrer's collateral with their reward
-    if let Some(referrer) = referrer {
-        let referrer = &mut load_mut(referrer)?;
-        referrer.total_referral_reward = referrer
-            .total_referral_reward
-            .checked_add(referrer_reward)
-            .ok_or_else(math_error!())?;
-    }
 
     {
         let market = &market_map.get_ref(&market_index)?;
@@ -699,9 +655,9 @@ pub fn fulfill_order_with_amm(
             mark_price_before,
             mark_price_after,
             fee: user_fee,
-            token_discount,
+            token_discount: 0,
             quote_asset_amount_surplus,
-            referee_discount,
+            referee_discount: 0,
             liquidation: false,
             market_index,
             oracle_price: oracle_price_after,

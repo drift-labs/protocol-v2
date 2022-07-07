@@ -50,9 +50,7 @@ pub mod clearing_house {
     use crate::math::bank_balance::get_token_amount;
     use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64};
     use crate::math::slippage::{calculate_slippage, calculate_slippage_pct};
-    use crate::optional_accounts::{
-        get_discount_token, get_maker, get_referrer, get_referrer_for_fill_order,
-    };
+    use crate::optional_accounts::get_maker;
     use crate::state::bank::{Bank, BankBalance, BankBalanceType};
     use crate::state::bank_map::{get_writable_banks, BankMap, WritableBanks};
     use crate::state::events::TradeRecord;
@@ -724,19 +722,6 @@ pub mod clearing_house {
             remaining_accounts_iter,
         )?;
 
-        let discount_token = get_discount_token(
-            params.optional_accounts.discount_token,
-            remaining_accounts_iter,
-            &ctx.accounts.state.discount_mint,
-            ctx.accounts.authority.key,
-        )?;
-        let referrer = get_referrer(
-            params.optional_accounts.referrer,
-            remaining_accounts_iter,
-            &ctx.accounts.user.key(),
-            None,
-        )?;
-
         let oracle = Some(&ctx.accounts.oracle);
 
         if params.immediate_or_cancel {
@@ -750,8 +735,6 @@ pub mod clearing_house {
             &market_map,
             &bank_map,
             &mut oracle_map,
-            discount_token,
-            &referrer,
             &Clock::get()?,
             params,
             oracle,
@@ -890,13 +873,6 @@ pub mod clearing_house {
             &Clock::get()?,
         )?;
 
-        let referrer = get_referrer_for_fill_order(
-            remaining_accounts_iter,
-            &ctx.accounts.user.key(),
-            taker_order_id,
-            &ctx.accounts.user,
-        )?;
-
         let base_asset_amount = controller::orders::fill_order(
             taker_order_id,
             &ctx.accounts.state,
@@ -905,7 +881,6 @@ pub mod clearing_house {
             &mut oracle_map,
             &ctx.accounts.oracle,
             &ctx.accounts.filler,
-            referrer,
             maker,
             maker_order_id,
             &Clock::get()?,
@@ -940,18 +915,6 @@ pub mod clearing_house {
             remaining_accounts_iter,
         )?;
 
-        let discount_token = get_discount_token(
-            params.optional_accounts.discount_token,
-            remaining_accounts_iter,
-            &ctx.accounts.state.discount_mint,
-            ctx.accounts.authority.key,
-        )?;
-        let referrer = get_referrer(
-            params.optional_accounts.referrer,
-            remaining_accounts_iter,
-            &ctx.accounts.user.key(),
-            None,
-        )?;
         let is_immediate_or_cancel = params.immediate_or_cancel;
         let base_asset_amount_to_fill = params.base_asset_amount;
 
@@ -968,8 +931,6 @@ pub mod clearing_house {
             &market_map,
             &bank_map,
             &mut oracle_map,
-            discount_token,
-            &referrer,
             &Clock::get()?,
             params,
             Some(&ctx.accounts.oracle),
@@ -993,7 +954,6 @@ pub mod clearing_house {
             &mut oracle_map,
             &ctx.accounts.oracle,
             &user.clone(),
-            referrer,
             None,
             None,
             &Clock::get()?,
