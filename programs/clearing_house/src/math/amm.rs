@@ -70,9 +70,6 @@ pub fn update_mark_twap(
     };
     let (bid_price, ask_price) = amm.bid_ask_price(mark_price)?;
 
-    let mark_twap = calculate_new_twap(amm, now, mark_price, amm.last_mark_price_twap)?;
-    amm.last_mark_price_twap = mark_twap;
-
     // todo calculate the mark +/- spread
     let bid_twap = calculate_new_twap(amm, now, bid_price, amm.last_bid_price_twap)?;
     amm.last_bid_price_twap = bid_twap;
@@ -80,9 +77,10 @@ pub fn update_mark_twap(
     let ask_twap = calculate_new_twap(amm, now, ask_price, amm.last_ask_price_twap)?;
     amm.last_ask_price_twap = ask_twap;
 
-    amm.last_mark_price_twap_ts = now;
-
     let mid_twap = bid_twap.checked_add(ask_twap).ok_or_else(math_error!())? / 2;
+    amm.last_mark_price_twap = mid_twap;
+
+    amm.last_mark_price_twap_ts = now;
 
     Ok(mid_twap)
 }
