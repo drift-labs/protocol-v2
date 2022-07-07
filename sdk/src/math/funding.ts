@@ -293,12 +293,12 @@ export async function calculateLongShortFundingRateAndLiveTwaps(
  */
 export function calculateFundingPool(market: MarketAccount): BN {
 	// todo
-	const totalFeeLB = market.amm.totalFee.div(new BN(2));
+	const totalFeeLB = market.amm.totalExchangeFee.div(new BN(2));
 	const feePool = BN.max(
 		ZERO,
 		market.amm.totalFeeMinusDistributions
 			.sub(totalFeeLB)
-			.mul(new BN(2))
+			.mul(new BN(1))
 			.div(new BN(3))
 	);
 	return feePool;

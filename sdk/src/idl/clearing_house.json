@@ -369,22 +369,12 @@
       "accounts": [
         {
           "name": "state",
-          "isMut": true,
+          "isMut": false,
           "isSigner": false
         },
         {
           "name": "user",
           "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "oracle",
-          "isMut": false,
           "isSigner": false
         }
       ],
@@ -400,7 +390,7 @@
       "accounts": [
         {
           "name": "state",
-          "isMut": true,
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -412,11 +402,6 @@
           "name": "authority",
           "isMut": false,
           "isSigner": true
-        },
-        {
-          "name": "oracle",
-          "isMut": false,
-          "isSigner": false
         }
       ],
       "args": [
@@ -431,7 +416,7 @@
       "accounts": [
         {
           "name": "state",
-          "isMut": true,
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -443,11 +428,6 @@
           "name": "authority",
           "isMut": false,
           "isSigner": true
-        },
-        {
-          "name": "oracle",
-          "isMut": false,
-          "isSigner": false
         }
       ],
       "args": [
@@ -3844,6 +3824,11 @@
       "code": 6079,
       "name": "CantLPWithMarketPosition",
       "msg": "Cant LP with a market position"
+    },
+    {
+      "code": 6080,
+      "name": "UnableToBurnLPTokens",
+      "msg": "Unable to burn LP tokens"
     }
   ]
 }

@@ -40,7 +40,7 @@ export function calculateNewAmm(
 		.div(MARK_PRICE_PRECISION.div(PEG_PRECISION));
 	let prePegCost = calculateRepegCost(amm, newPeg);
 
-	const totalFeeLB = amm.totalFee.div(new BN(2));
+	const totalFeeLB = amm.totalExchangeFee.div(new BN(2));
 	const budget = BN.max(ZERO, amm.totalFeeMinusDistributions.sub(totalFeeLB));
 
 	if (prePegCost.gt(budget)) {
