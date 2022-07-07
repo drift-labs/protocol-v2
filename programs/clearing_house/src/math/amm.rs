@@ -787,6 +787,144 @@ pub fn calculate_budgeted_k_scale(
     Ok((numerator, denominator))
 }
 
+pub fn _calculate_budgeted_k_scale_2(
+    x: u128,
+    y: u128,
+    budget: i128,
+    q: u128,
+    d: i128,
+) -> ClearingHouseResult<(u128, u128)> {
+    dlog!(x, y, budget, q, d);
+    let c = -budget;
+    let q = cast_to_i128(q)?;
+
+    let c_sign: i128 = if c > 0 { 1 } else { -1 };
+    let d_sign: i128 = if d > 0 { 1 } else { -1 };
+
+    let x_d = cast_to_i128(x)?.checked_add(d).ok_or_else(math_error!())?;
+
+    let AMM_RESERVE_PRECISION_U192 = U192::from(AMM_RESERVE_PRECISION);
+    let x_times_x_d_U192 = U192::from(x)
+        .checked_mul(U192::from(x_d))
+        .ok_or_else(math_error!())?
+        .checked_div(AMM_RESERVE_PRECISION_U192)
+        .ok_or_else(math_error!())?;
+
+    let QUOTE_PRECISION_U192 = U192::from(QUOTE_PRECISION);
+    let x_times_x_d_c = x_times_x_d_U192
+        .checked_mul(U192::from(c.unsigned_abs()))
+        .ok_or_else(math_error!())?
+        .checked_div(QUOTE_PRECISION_U192)
+        .ok_or_else(math_error!())?
+        .try_to_u128()?;
+
+    let c_times_x_d_d = U192::from(c.unsigned_abs())
+        .checked_mul(U192::from(x_d.unsigned_abs()))
+        .ok_or_else(math_error!())?
+        .checked_div(QUOTE_PRECISION_U192)
+        .ok_or_else(math_error!())?
+        .checked_mul(U192::from(d.unsigned_abs()))
+        .ok_or_else(math_error!())?
+        .checked_div(AMM_RESERVE_PRECISION_U192)
+        .ok_or_else(math_error!())?
+        .try_to_u128()?;
+
+    let x_times_x_d = x_times_x_d_U192.try_to_u128()?;
+
+    let pegged_quote_times_dd = cast_to_i128(
+        U192::from(y)
+            .checked_mul(U192::from(d.unsigned_abs()))
+            .ok_or_else(math_error!())?
+            .checked_div(AMM_RESERVE_PRECISION_U192)
+            .ok_or_else(math_error!())?
+            .checked_mul((U192::from(d.unsigned_abs())))
+            .ok_or_else(math_error!())?
+            .checked_div(AMM_RESERVE_PRECISION_U192)
+            .ok_or_else(math_error!())?
+            .checked_mul((U192::from(q)))
+            .ok_or_else(math_error!())?
+            .checked_div(U192::from(PEG_PRECISION))
+            .ok_or_else(math_error!())?
+            .try_to_u128()?,
+    )?;
+
+    let numer1 = pegged_quote_times_dd;
+
+    msg!("{:?} * {:?}", c, x_d);
+    let numer2 = cast_to_i128(c_times_x_d_d)?
+        .checked_mul(c_sign.checked_mul(d_sign).ok_or_else(math_error!())?)
+        .ok_or_else(math_error!())?;
+
+    let denom1 = cast_to_i128(x_times_x_d_c)?
+        .checked_mul(c_sign)
+        .ok_or_else(math_error!())?;
+
+    let denom2 = pegged_quote_times_dd;
+    msg!("{:?} + {:?} / {:?} + {:?}", numer1, numer2, denom1, denom2,);
+    let mut numerator = (numer1.checked_sub(numer2).ok_or_else(math_error!())?)
+        .checked_div(AMM_TO_QUOTE_PRECISION_RATIO_I128)
+        .ok_or_else(math_error!())?;
+    let mut denominator = denom1
+        .checked_add(denom2)
+        .ok_or_else(math_error!())?
+        .checked_div(AMM_TO_QUOTE_PRECISION_RATIO_I128)
+        .ok_or_else(math_error!())?;
+
+    if numerator < 0 && denominator < 0 {
+        numerator = numerator.abs();
+        denominator = denominator.abs();
+    }
+    msg!("{:?} / {:?}", numerator, denominator);
+    assert!((numerator > 0 && denominator > 0));
+    let curve_update_intensity = 100;
+
+    let (numerator, denominator) = if numerator > denominator {
+        let k_pct_upper_bound =
+            K_BPS_UPDATE_SCALE + (K_BPS_INCREASE_MAX) * curve_update_intensity / 100;
+
+        let current_pct_change = numerator
+            .checked_mul(10000)
+            .ok_or_else(math_error!())?
+            .checked_div(denominator)
+            .ok_or_else(math_error!())?;
+
+        let maximum_pct_change = k_pct_upper_bound
+            .checked_mul(10000)
+            .ok_or_else(math_error!())?
+            .checked_div(K_BPS_UPDATE_SCALE)
+            .ok_or_else(math_error!())?;
+
+        if current_pct_change > maximum_pct_change {
+            (k_pct_upper_bound, K_BPS_UPDATE_SCALE)
+        } else {
+            (numerator, denominator)
+        }
+    } else {
+        let k_pct_lower_bound =
+            K_BPS_UPDATE_SCALE - (K_BPS_DECREASE_MAX) * curve_update_intensity / 100;
+
+        let current_pct_change = numerator
+            .checked_mul(10000)
+            .ok_or_else(math_error!())?
+            .checked_div(denominator)
+            .ok_or_else(math_error!())?;
+
+        let maximum_pct_change = k_pct_lower_bound
+            .checked_mul(10000)
+            .ok_or_else(math_error!())?
+            .checked_div(K_BPS_UPDATE_SCALE)
+            .ok_or_else(math_error!())?;
+
+        if current_pct_change < maximum_pct_change {
+            (k_pct_lower_bound, K_BPS_UPDATE_SCALE)
+        } else {
+            (numerator, denominator)
+        }
+    };
+
+    Ok((cast_to_u128(numerator)?, cast_to_u128(denominator)?))
+}
+
 /// To find the cost of adjusting k, compare the the net market value before and after adjusting k
 /// Increasing k costs the protocol money because it reduces slippage and improves the exit price for net market position
 /// Decreasing k costs the protocol money because it increases slippage and hurts the exit price for net market position
