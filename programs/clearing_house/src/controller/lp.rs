@@ -23,7 +23,6 @@ pub fn settle_lp_position(
         .ok_or_else(math_error!())?;
 
     // give market position if size is large enough
-    // otherwise reduce upnl by 1 to account for small position loss
     if lp_metrics.settle_result == SettleResult::RecievedMarketPosition {
         lp_position.base_asset_amount = lp_position
             .base_asset_amount

@@ -431,14 +431,15 @@ describe('liquidity providing', () => {
 		assert(init_tokens.lt(tokens));
 	});
 
-	it('settles an lps position', async () => {
-		console.log('adding liquidity...');
-		await clearingHouse.addLiquidity(usdcAmount, new BN(0));
+	// uncomment when settle fcn is ready
+	/* it('settles an lps position', async () => {
+        console.log('adding liquidity...');
+        await clearingHouse.addLiquidity(usdcAmount, new BN(0));
 
-		let user = clearingHouse.getUserAccount();
-		const baa = user.positions[0].baseAssetAmount;
-		const qaa = user.positions[0].quoteAssetAmount;
-		const upnl = user.positions[0].unsettledPnl;
+        let user = clearingHouse.getUserAccount();
+        const baa = user.positions[0].baseAssetAmount;
+        const qaa = user.positions[0].quoteAssetAmount;
+        const upnl = user.positions[0].unsettledPnl;
 
 		console.log('user trading...');
 		await traderClearingHouse.openPosition(
@@ -479,7 +480,7 @@ describe('liquidity providing', () => {
 		const _txSig = await clearingHouse.removeLiquidity(new BN(0));
 
 		console.log('done!');
-	});
+	}); */
 
 	it('trys to add lp with market position', async () => {
 		try {

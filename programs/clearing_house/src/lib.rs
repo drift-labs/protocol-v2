@@ -761,7 +761,11 @@ pub mod clearing_house {
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]
-    pub fn settle_lp<'info>(ctx: Context<SettleLP>, market_index: u64) -> Result<()> {
+    pub fn settle_lp<'info>(ctx: Context<SettleLP>, _market_index: u64) -> Result<()> {
+        // not ready yet
+        panic!("Settle LP not ready yet...");
+
+        /*
         let user = &mut load_mut(&ctx.accounts.user)?;
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
 
@@ -777,7 +781,7 @@ pub mod clearing_house {
 
         settle_lp_position(lp_position, lp_position.lp_tokens, &mut market)?;
 
-        Ok(())
+        Ok(()) */
     }
 
     #[access_control(
