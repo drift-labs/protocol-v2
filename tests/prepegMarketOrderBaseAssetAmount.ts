@@ -268,7 +268,8 @@ describe('prepeg', () => {
 		);
 
 		const prepegAMM = calculateUpdatedAMM(market0.amm, oraclePriceData);
-		assert(prepegAMM.pegMultiplier.eq(new BN(1006)));
+		console.log(prepegAMM.pegMultiplier.toString());
+		assert(prepegAMM.pegMultiplier.eq(new BN(1005)));
 		const estDist = prepegAMM.totalFee.sub(
 			prepegAMM.totalFeeMinusDistributions
 		);
