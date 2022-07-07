@@ -6,7 +6,6 @@ import {
 	calculatePrice,
 	ClearingHouseUser,
 	OracleSource,
-	SettleResult,
 	SwapDirection,
 	Wallet,
 } from '../sdk';

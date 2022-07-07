@@ -171,9 +171,9 @@ pub fn get_lp_market_position_margin(
     // worse case if all bids are filled (lp is now long)
     let bids_bounded_k = amm
         .sqrt_k
-        .checked_div(sqrt_2)
-        .ok_or_else(math_error!())?
         .checked_mul(AMM_RESERVE_PRECISION)
+        .ok_or_else(math_error!())?
+        .checked_div(sqrt_2)
         .ok_or_else(math_error!())?;
 
     let max_bids_fill = amm

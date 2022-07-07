@@ -852,6 +852,7 @@ pub struct UpdateKResult {
 pub fn get_update_k_result(
     market: &Market,
     new_sqrt_k: bn::U192,
+    bound_update: bool,
 ) -> ClearingHouseResult<UpdateKResult> {
     let sqrt_k_ratio_precision = bn::U192::from(AMM_RESERVE_PRECISION);
 
@@ -863,7 +864,7 @@ pub fn get_update_k_result(
         .ok_or_else(math_error!())?;
 
     // if decreasing k, max decrease ratio for single transaction is 2.5%
-    if sqrt_k_ratio < U192::from(975_000_000_000_u128) {
+    if bound_update && sqrt_k_ratio < U192::from(975_000_000_000_u128) {
         return Err(ErrorCode::InvalidUpdateK);
     }
 
@@ -997,6 +998,28 @@ pub fn should_round_trade(
 mod test {
     use super::*;
     use crate::math::constants::{AMM_RESERVE_PRECISION, MARK_PRICE_PRECISION, QUOTE_PRECISION};
+
+    #[test]
+    fn k_update_results_bound_flag() {
+        let init_reserves = 100 * AMM_RESERVE_PRECISION;
+        let amm = AMM {
+            sqrt_k: init_reserves,
+            base_asset_reserve: init_reserves,
+            quote_asset_reserve: init_reserves,
+            ..AMM::default()
+        };
+        let market = Market {
+            amm,
+            ..Market::default()
+        };
+
+        let new_sqrt_k = U192::from(1 * AMM_RESERVE_PRECISION);
+        let is_error = get_update_k_result(&market, new_sqrt_k, true).is_err();
+        assert!(is_error);
+
+        let is_ok = get_update_k_result(&market, new_sqrt_k, false).is_ok();
+        assert!(is_ok)
+    }
 
     #[test]
     fn calc_mark_std_tests() {

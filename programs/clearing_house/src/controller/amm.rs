@@ -452,7 +452,7 @@ pub fn formulaic_update_k(
             .checked_div(bn::U192::from(k_scale_denominator))
             .ok_or_else(math_error!())?;
 
-        let update_k_result = get_update_k_result(market, new_sqrt_k)?;
+        let update_k_result = get_update_k_result(market, new_sqrt_k, true)?;
 
         let adjustment_cost = amm::adjust_k_cost(market, &update_k_result)?;
 
