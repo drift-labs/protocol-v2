@@ -166,7 +166,7 @@ pub fn apply_cost_to_market(market: &mut Market, cost: i128) -> ClearingHouseRes
 
         // Only a portion of the protocol fees are allocated to repegging
         // This checks that the total_fee_minus_distributions does not decrease too much after repeg
-        if new_total_fee_minus_distributions > repeg::total_fee_lower_bound(market)? {
+        if new_total_fee_minus_distributions > repeg::get_total_fee_lower_bound(market)? {
             market.amm.total_fee_minus_distributions = new_total_fee_minus_distributions;
         } else {
             return Ok(false);

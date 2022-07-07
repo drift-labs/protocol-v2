@@ -470,7 +470,7 @@ pub fn calculate_expected_excess_funding_payment(
 }
 
 pub fn calculate_fee_pool(market: &Market) -> ClearingHouseResult<u128> {
-    let total_fee_minus_distributions_lower_bound = total_fee_lower_bound(market)?;
+    let total_fee_minus_distributions_lower_bound = get_total_fee_lower_bound(market)?;
 
     let fee_pool =
         if market.amm.total_fee_minus_distributions > total_fee_minus_distributions_lower_bound {
@@ -486,16 +486,17 @@ pub fn calculate_fee_pool(market: &Market) -> ClearingHouseResult<u128> {
     Ok(fee_pool)
 }
 
-pub fn total_fee_lower_bound(market: &Market) -> ClearingHouseResult<u128> {
-    let total_fee_lb = market
+pub fn get_total_fee_lower_bound(market: &Market) -> ClearingHouseResult<u128> {
+    // market to retain half of exchange fees
+    let total_fee_lower_bound = market
         .amm
-        .total_fee
+        .total_exchange_fee
         .checked_mul(SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR)
         .ok_or_else(math_error!())?
         .checked_div(SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_DENOMINATOR)
         .ok_or_else(math_error!())?;
 
-    Ok(total_fee_lb)
+    Ok(total_fee_lower_bound)
 }
 
 #[cfg(test)]
@@ -566,7 +567,7 @@ mod test {
     }
 
     #[test]
-    fn calc_adjust_amm_tests_insufficent_fee_for_repeg() {
+    fn calc_adjust_amm_tests_sufficent_fee_for_repeg() {
         // btc-esque market
         let mut market = Market {
             amm: AMM {
@@ -584,6 +585,7 @@ mod test {
                 base_spread: 1000,
                 total_fee_minus_distributions: 304289,
                 total_fee: 607476,
+                total_exchange_fee: 0, // new fee pool lowerbound
                 funding_period: 3600,
 
                 ..AMM::default()
@@ -613,7 +615,8 @@ mod test {
         // insufficient fee to repeg
         let new_peg = repegged_market.amm.peg_multiplier;
         let old_peg = market.amm.peg_multiplier;
-        assert_eq!(new_peg == old_peg, true);
-        assert_eq!(_amm_update_cost, 0);
+        assert_eq!(new_peg > old_peg, true);
+        assert_eq!(new_peg, 34656);
+        assert_eq!(_amm_update_cost, 303303);
     }
 }

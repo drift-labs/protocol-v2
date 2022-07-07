@@ -457,6 +457,16 @@ pub fn fill_order(
             .total_fee
             .checked_add(fee_to_market)
             .ok_or_else(math_error!())?;
+        market.amm.total_exchange_fee = market
+            .amm
+            .total_exchange_fee
+            .checked_add(user_fee.unsigned_abs())
+            .ok_or_else(math_error!())?;
+        market.amm.total_mm_fee = market
+            .amm
+            .total_mm_fee
+            .checked_add(quote_asset_amount_surplus)
+            .ok_or_else(math_error!())?;
         market.amm.total_fee_minus_distributions = market
             .amm
             .total_fee_minus_distributions

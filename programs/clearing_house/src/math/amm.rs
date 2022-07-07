@@ -1072,7 +1072,7 @@ mod test {
             AMM_RESERVE_PRECISION * 55530,
             ((QUOTE_PRECISION / 500) as i128),
             36365,
-            ((AMM_RESERVE_PRECISION * 66) as i128),
+            (AMM_RESERVE_PRECISION * 66) as i128,
         )
         .unwrap();
 
@@ -1088,12 +1088,7 @@ mod test {
             AMM_RESERVE_PRECISION * 55530,
             -((QUOTE_PRECISION / 50) as i128),
             36365,
-            ((AMM_RESERVE_PRECISION * 66) as i128),
-            // (AMM_RESERVE_PRECISION) as i128,
-            // AMM_RESERVE_PRECISION * 1001,
-            // -((QUOTE_PRECISION * 12) as i128),
-            // MARK_PRICE_PRECISION * 1000,
-            // 100_u8,
+            (AMM_RESERVE_PRECISION * 66) as i128,
         )
         .unwrap();
         assert_eq!(numer1 < denom1, true);
