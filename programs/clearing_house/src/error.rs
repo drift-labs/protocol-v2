@@ -164,6 +164,8 @@ pub enum ErrorCode {
     InsufficientLPTokens,
     #[msg("Cant LP with a market position")]
     CantLPWithMarketPosition,
+    #[msg("Unable to burn LP tokens")]
+    UnableToBurnLPTokens,
 }
 
 #[macro_export]

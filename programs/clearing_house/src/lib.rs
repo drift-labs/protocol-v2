@@ -816,11 +816,10 @@ pub mod clearing_house {
         // settle the lp first
         let settle_result = settle_lp_position(lp_position, lp_tokens_to_burn, &mut market)?;
 
-        if settle_result == SettleResult::DidNotRecieveMarketPosition {
-            // TODO: decide whether to throw error here
-            msg!("warning: unable to burn lp tokens due to market position size being too small");
-            return Ok(());
-        }
+        validate!(
+            settle_result != SettleResult::DidNotRecieveMarketPosition,
+            ErrorCode::UnableToBurnLPTokens
+        )?;
 
         // transform lp_position into a market position
         lp_position.lp_tokens = lp_position
