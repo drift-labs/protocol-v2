@@ -527,7 +527,7 @@ mod test {
     }
 
     #[test]
-    fn calc_adjust_amm_tests() {
+    fn calc_adjust_amm_tests_repeg_in_favour() {
         // btc-esque market
         let mut market = Market {
             amm: AMM {
@@ -566,7 +566,7 @@ mod test {
     }
 
     #[test]
-    fn calc_adjust_amm_tests_2() {
+    fn calc_adjust_amm_tests_insufficent_fee_for_repeg() {
         // btc-esque market
         let mut market = Market {
             amm: AMM {
@@ -597,8 +597,6 @@ mod test {
             ..Market::default()
         };
 
-        // let prev_price = market.amm.mark_price().unwrap();
-
         let px = 35768 * MARK_PRICE_PRECISION / 1000;
         let optimal_peg = calculate_peg_from_target_price(
             market.amm.quote_asset_reserve,
@@ -612,8 +610,10 @@ mod test {
         let (repegged_market, _amm_update_cost) =
             adjust_amm(&market, optimal_peg, fee_budget, true).unwrap();
 
+        // insufficient fee to repeg
         let new_peg = repegged_market.amm.peg_multiplier;
         let old_peg = market.amm.peg_multiplier;
-        assert_eq!(new_peg > old_peg, true);
+        assert_eq!(new_peg == old_peg, true);
+        assert_eq!(_amm_update_cost, 0);
     }
 }
