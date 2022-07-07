@@ -20,6 +20,7 @@ import {
 	EventSubscriber,
 	MARK_PRICE_PRECISION,
 	PositionDirection,
+	ZERO,
 } from '../sdk/src';
 
 import {
@@ -410,7 +411,54 @@ describe('liquidity providing', () => {
 		console.log('done!');
 	});
 
-	it('adds additional liquidity to an already open lp', async () => {
+	it('trys to add lp with market position', async () => {
+		await clearingHouse.openPosition(
+			PositionDirection.LONG,
+			new BN(1 * 1e6),
+			new BN(0)
+		);
+
+		try {
+			await clearingHouse.addLiquidity(usdcAmount, new BN(0));
+			assert(false, 'added liquidity with a market position');
+		} catch (e) {
+			assert(e.message.includes('0x17bf'));
+		}
+
+		console.log('closing lp...');
+		const user2 = clearingHouse.getUserAccount();
+		const market = clearingHouse.getMarketAccount(new BN(0));
+		await price_post_swap(user2.positions[0], market);
+		await clearingHouse.closePosition(new BN(0));
+	});
+
+	it('removes liquidity when market position is small', async () => {
+		console.log('adding liquidity...');
+		await clearingHouse.addLiquidity(usdcAmount, new BN(0));
+
+		console.log('user trading...');
+		await traderClearingHouse.openPosition(
+			PositionDirection.LONG,
+			new BN(1 * 1e6),
+			new BN(0)
+		);
+
+		console.log('removing liquidity...');
+		await clearingHouse.removeLiquidity(new BN(0));
+
+		const user = clearingHouse.getUserAccount();
+		const position = user.positions[0];
+
+		// small loss
+		assert(position.unsettledPnl.lt(ZERO));
+		// no position
+		assert(position.baseAssetAmount.eq(ZERO));
+		assert(position.quoteAssetAmount.eq(ZERO));
+	});
+
+	// uncomment when settle fcn is ready
+
+	/* it('adds additional liquidity to an already open lp', async () => {
 		console.log('adding liquidity...');
 		const lp_amount = new BN(300 * 1e6);
 		const txsig = await clearingHouse.addLiquidity(lp_amount, new BN(0));
@@ -429,9 +477,10 @@ describe('liquidity providing', () => {
 		const tokens = user.positions[0].lpTokens;
 		console.log(init_tokens.toString(), tokens.toString());
 		assert(init_tokens.lt(tokens));
-	});
 
-	// uncomment when settle fcn is ready
+		await clearingHouse.removeLiquidity(new BN(0));
+	}); */
+
 	/* it('settles an lps position', async () => {
         console.log('adding liquidity...');
         await clearingHouse.addLiquidity(usdcAmount, new BN(0));
@@ -482,22 +531,7 @@ describe('liquidity providing', () => {
 		console.log('done!');
 	}); */
 
-	it('trys to add lp with market position', async () => {
-		try {
-			await clearingHouse.addLiquidity(usdcAmount, new BN(0));
-			assert(false, 'added liquidity with a market position');
-		} catch (e) {
-			assert(e.message.includes('0x17bf'));
-		}
-
-		console.log('closing lp...');
-		const user2 = clearingHouse.getUserAccount();
-		const market = clearingHouse.getMarketAccount(new BN(0));
-		await price_post_swap(user2.positions[0], market);
-		await clearingHouse.closePosition(new BN(0));
-	});
-
-	it('simulates a settle via sdk', async () => {
+	/* it('simulates a settle via sdk', async () => {
 		const userPosition2 = clearingHouse.getUserAccount().positions[0];
 		console.log(
 			userPosition2.baseAssetAmount.toString(),
@@ -545,5 +579,5 @@ describe('liquidity providing', () => {
 		assert(userPosition.baseAssetAmount.eq(settledPosition.baseAssetAmount));
 		assert(userPosition.quoteAssetAmount.eq(settledPosition.quoteAssetAmount));
 		assert(userPosition.unsettledPnl.eq(settledPosition.unsettledPnl));
-	});
+	}); */
 });

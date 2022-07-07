@@ -11,19 +11,13 @@ use crate::state::user::MarketPosition;
 use solana_program::msg;
 use std::cmp::max;
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum SettleResult {
-    RecievedMarketPosition,
-    DidNotRecieveMarketPosition,
-}
-
 #[derive(Debug)]
 pub struct LPMetrics {
     pub fee_payment: i128,
     pub funding_payment: i128,
+    pub unsettled_pnl: i128,
     pub base_asset_amount: i128,
     pub quote_asset_amount: u128,
-    pub settle_result: SettleResult,
 }
 
 pub fn get_lp_metrics(
@@ -56,7 +50,7 @@ pub fn get_lp_metrics(
 
     let mut market_base_asset_amount = 0;
     let mut market_quote_asset_amount = 0;
-    let mut settle_result = SettleResult::RecievedMarketPosition;
+    let mut unsettled_pnl = 0;
 
     if net_base_asset_amount_delta != 0 {
         let base_asset_amount = get_proportion_i128(
@@ -86,8 +80,12 @@ pub fn get_lp_metrics(
             market_quote_asset_amount = quote_asset_amount;
             market_base_asset_amount = base_asset_amount;
         } else {
-            // dont let them burn tokens
-            settle_result = SettleResult::DidNotRecieveMarketPosition;
+            // no market position bc too small so give them negative upnl
+            // similar to closing their small position
+            // TODO: make this value concrete
+            unsettled_pnl = cast_to_i128(min_qaa)?
+                .checked_mul(-1)
+                .ok_or_else(math_error!())?;
         }
     }
 
@@ -96,7 +94,7 @@ pub fn get_lp_metrics(
         funding_payment,
         base_asset_amount: market_base_asset_amount,
         quote_asset_amount: market_quote_asset_amount,
-        settle_result,
+        unsettled_pnl,
     };
 
     Ok(lp_metrics)
@@ -400,10 +398,7 @@ mod test {
         let lp_metrics = get_lp_metrics(&lp_position, lp_position.lp_tokens, &amm).unwrap();
 
         assert_eq!(lp_metrics.base_asset_amount, 0);
-        assert_eq!(
-            lp_metrics.settle_result,
-            SettleResult::RecievedMarketPosition
-        );
+        assert_eq!(lp_metrics.unsettled_pnl, 0); // no neg upnl
     }
 
     #[test]
@@ -414,17 +409,17 @@ mod test {
         };
         let amm = AMM {
             net_base_asset_amount: 100, // users went long
+            peg_multiplier: 1,
             sqrt_k: 200,
-            minimum_base_asset_trade_size: 100,
+            minimum_base_asset_trade_size: 100, // min size is big
+            minimum_quote_asset_trade_size: 100,
             ..AMM::default()
         };
 
         let lp_metrics = get_lp_metrics(&lp_position, lp_position.lp_tokens, &amm).unwrap();
 
-        assert_eq!(
-            lp_metrics.settle_result,
-            SettleResult::DidNotRecieveMarketPosition
-        );
+        println!("{:#?}", lp_metrics);
+        assert!(lp_metrics.unsettled_pnl < 0);
         assert_eq!(lp_metrics.base_asset_amount, 0);
     }
 

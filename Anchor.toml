@@ -5,6 +5,8 @@ wallet = "~/.config/solana/id.json"
 [scripts]
 test = "./test-scripts/run-ts-mocha"
 lint = "yarn prettify:fix && cargo fmt"
+fulltest = 'cargo test && bash ./test-scripts/run-anchor-tests.sh'
+singlewatch = 'find ./programs/clearing_house/src/* ./tests ./sdk/src | entr -c bash ./test-scripts/single-anchor-test.sh'
 
 [programs.localnet]
 clearing_house = "Eqa21pSiUCR7e796As4mLK9ypo4sfu159mdUDiwY3dtx"

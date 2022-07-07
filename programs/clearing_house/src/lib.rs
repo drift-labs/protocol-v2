@@ -52,7 +52,6 @@ pub mod clearing_house {
     };
     use crate::math::bank_balance::get_token_amount;
     use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64};
-    use crate::math::lp::SettleResult;
     use crate::math::slippage::{calculate_slippage, calculate_slippage_pct};
     use crate::optional_accounts::{get_discount_token, get_referrer, get_referrer_for_fill_order};
     use crate::state::bank::{Bank, BankBalance, BankBalanceType};
@@ -818,12 +817,7 @@ pub mod clearing_house {
         )?;
 
         // settle the lp first
-        let settle_result = settle_lp_position(lp_position, lp_tokens_to_burn, &mut market)?;
-
-        validate!(
-            settle_result != SettleResult::DidNotRecieveMarketPosition,
-            ErrorCode::UnableToBurnLPTokens
-        )?;
+        settle_lp_position(lp_position, lp_tokens_to_burn, &mut market)?;
 
         // transform lp_position into a market position
         lp_position.lp_tokens = lp_position
@@ -917,11 +911,11 @@ pub mod clearing_house {
             .or_else(|_| add_new_position(&mut user.positions, market_index))?;
         let lp_position = &mut user.positions[position_index];
 
-        validate!(
-            !(lp_position.has_open_order() || lp_position.is_open_position())
-                || lp_position.is_lp(),
-            ErrorCode::CantLPWithMarketPosition
-        )?;
+        // TODO: allow lps to add to position when settle is working
+        let can_lp = !(lp_position.has_open_order()
+            || lp_position.is_open_position()
+            || lp_position.is_lp());
+        validate!(can_lp, ErrorCode::CantLPWithMarketPosition)?;
 
         let (
             peg_multiplier,
@@ -950,17 +944,17 @@ pub mod clearing_house {
             .checked_div(peg_multiplier)
             .ok_or_else(math_error!())?;
 
-        // settle the LP first if adding to position
-        if lp_position.is_lp() {
-            // update current stats
-            let mut market = market_map.get_ref_mut(&market_index)?;
-            settle_lp_position(lp_position, lp_position.lp_tokens, &mut market)?;
-        } else {
-            // init position
-            lp_position.last_net_base_asset_amount = net_base_asset_amount;
-            lp_position.last_total_fee_minus_distributions = total_fee_minus_distributions;
-            lp_position.last_cumulative_funding_rate = cumulative_funding_rate_lp;
-        }
+        // // settle the LP first if adding to position
+        // if lp_position.is_lp() {
+        //     // update current stats
+        //     let mut market = market_map.get_ref_mut(&market_index)?;
+        //     settle_lp_position(lp_position, lp_position.lp_tokens, &mut market)?;
+        // } else {
+
+        // init position
+        lp_position.last_net_base_asset_amount = net_base_asset_amount;
+        lp_position.last_total_fee_minus_distributions = total_fee_minus_distributions;
+        lp_position.last_cumulative_funding_rate = cumulative_funding_rate_lp;
 
         // add token balance
         lp_position.lp_tokens = lp_position

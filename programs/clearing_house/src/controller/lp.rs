@@ -2,7 +2,6 @@ use crate::controller::position::update_unsettled_pnl;
 use crate::error::ClearingHouseResult;
 use crate::math::casting::cast_to_u128;
 use crate::math::lp::get_lp_metrics;
-use crate::math::lp::SettleResult;
 use crate::math_error;
 use crate::state::market::Market;
 use crate::MarketPosition;
@@ -12,7 +11,7 @@ pub fn settle_lp_position(
     lp_position: &mut MarketPosition,
     lp_tokens_to_settle: u128,
     market: &mut Market,
-) -> ClearingHouseResult<SettleResult> {
+) -> ClearingHouseResult<()> {
     let amm = &mut market.amm;
     let lp_metrics = get_lp_metrics(lp_position, lp_tokens_to_settle, amm)?;
 
@@ -23,21 +22,21 @@ pub fn settle_lp_position(
         .ok_or_else(math_error!())?;
 
     // give market position if size is large enough
-    if lp_metrics.settle_result == SettleResult::RecievedMarketPosition {
-        lp_position.base_asset_amount = lp_position
-            .base_asset_amount
-            .checked_add(lp_metrics.base_asset_amount)
-            .ok_or_else(math_error!())?;
-        lp_position.quote_asset_amount = lp_position
-            .quote_asset_amount
-            .checked_add(lp_metrics.quote_asset_amount)
-            .ok_or_else(math_error!())?;
-        lp_position.quote_entry_amount = lp_position
-            .quote_entry_amount
-            .checked_add(lp_metrics.quote_asset_amount)
-            .ok_or_else(math_error!())?;
-        lp_position.last_net_base_asset_amount = amm.net_base_asset_amount;
-    }
+    lp_position.base_asset_amount = lp_position
+        .base_asset_amount
+        .checked_add(lp_metrics.base_asset_amount)
+        .ok_or_else(math_error!())?;
+    lp_position.quote_asset_amount = lp_position
+        .quote_asset_amount
+        .checked_add(lp_metrics.quote_asset_amount)
+        .ok_or_else(math_error!())?;
+    lp_position.quote_entry_amount = lp_position
+        .quote_entry_amount
+        .checked_add(lp_metrics.quote_asset_amount)
+        .ok_or_else(math_error!())?;
+
+    // update position
+    lp_position.last_net_base_asset_amount = amm.net_base_asset_amount;
     lp_position.last_total_fee_minus_distributions = amm.total_fee_minus_distributions;
     lp_position.last_cumulative_funding_rate = amm.cumulative_funding_rate_lp;
 
@@ -45,9 +44,11 @@ pub fn settle_lp_position(
     let lp_pnl = lp_metrics
         .fee_payment
         .checked_add(lp_metrics.funding_payment)
+        .ok_or_else(math_error!())?
+        .checked_add(lp_metrics.unsettled_pnl)
         .ok_or_else(math_error!())?;
 
     update_unsettled_pnl(lp_position, market, lp_pnl)?;
 
-    Ok(lp_metrics.settle_result)
+    Ok(())
 }
