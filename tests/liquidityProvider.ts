@@ -519,9 +519,14 @@ describe('liquidity providing', () => {
 		);
 
 		console.log('settling...');
-		await traderClearingHouse.settleLP(
+		const txsig = await traderClearingHouse.settleLP(
 			await clearingHouse.getUserAccountPublicKey(),
 			new BN(0)
+		);
+		console.log(
+			'tx logs',
+			(await connection.getTransaction(txsig, { commitment: 'confirmed' })).meta
+				.logMessages
 		);
 		const userPosition = clearingHouse.getUserAccount().positions[0];
 
