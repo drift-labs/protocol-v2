@@ -79,6 +79,8 @@ describe('clearing_house', () => {
 		await clearingHouse.subscribe();
 
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
+		await clearingHouse.updateOrderAuctionTime(new BN(0));
+
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await clearingHouse.initializeMarket(
@@ -102,7 +104,7 @@ describe('clearing_house', () => {
 
 	it('Long from 0 position', async () => {
 		const marketIndex = new BN(0);
-		const baseAssetAmount = new BN(497450503674885);
+		const baseAssetAmount = new BN(497450500000000);
 		const orderParams = getMarketOrderParams(
 			marketIndex,
 			PositionDirection.LONG,
@@ -128,7 +130,7 @@ describe('clearing_house', () => {
 		assert.ok(
 			clearingHouse
 				.getUserAccount()
-				.positions[0].quoteEntryAmount.eq(new BN(49750001))
+				.positions[0].quoteEntryAmount.eq(new BN(49750000))
 		);
 		console.log(clearingHouse.getUserAccount().positions[0].baseAssetAmount);
 		assert.ok(
@@ -138,8 +140,8 @@ describe('clearing_house', () => {
 		);
 
 		const market = clearingHouse.getMarketAccount(0);
-		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(497450503674885)));
-		assert.ok(market.baseAssetAmountLong.eq(new BN(497450503674885)));
+		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(497450500000000)));
+		assert.ok(market.baseAssetAmountLong.eq(new BN(497450500000000)));
 		assert.ok(market.baseAssetAmountShort.eq(ZERO));
 		assert.ok(market.openInterest.eq(ONE));
 		assert.ok(market.amm.totalFee.eq(new BN(49750)));
@@ -152,9 +154,9 @@ describe('clearing_house', () => {
 			JSON.stringify(tradeRecord.direction) ===
 				JSON.stringify(PositionDirection.LONG)
 		);
-		assert.ok(tradeRecord.baseAssetAmount.eq(new BN(497450503674885)));
+		assert.ok(tradeRecord.baseAssetAmount.eq(new BN(497450500000000)));
 		assert.ok(tradeRecord.liquidation == false);
-		assert.ok(tradeRecord.quoteAssetAmount.eq(new BN(49750001)));
+		assert.ok(tradeRecord.quoteAssetAmount.eq(new BN(49750000)));
 		assert.ok(tradeRecord.marketIndex.eq(marketIndex));
 	});
 
@@ -198,7 +200,7 @@ describe('clearing_house', () => {
 
 	it('Reduce long position', async () => {
 		const marketIndex = new BN(0);
-		const baseAssetAmount = new BN(497450503674885).div(new BN(2));
+		const baseAssetAmount = new BN(248725250000000);
 		const orderParams = getMarketOrderParams(
 			marketIndex,
 			PositionDirection.SHORT,
@@ -221,7 +223,7 @@ describe('clearing_house', () => {
 		assert.ok(
 			clearingHouse
 				.getUserAccount()
-				.positions[0].quoteEntryAmount.eq(new BN(24875002))
+				.positions[0].quoteEntryAmount.eq(new BN(24875000))
 		);
 		console.log(
 			clearingHouse.getUserAccount().positions[0].baseAssetAmount.toNumber()
@@ -229,16 +231,16 @@ describe('clearing_house', () => {
 		assert.ok(
 			clearingHouse
 				.getUserAccount()
-				.positions[0].baseAssetAmount.eq(new BN(248725251837443))
+				.positions[0].baseAssetAmount.eq(new BN(248725250000000))
 		);
 
-		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9925372)));
+		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9925373)));
 		assert(user.totalFeePaid.eq(new BN(74626)));
 
 		const market = clearingHouse.getMarketAccount(0);
 		console.log(market.amm.netBaseAssetAmount.toString());
-		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(248725251837443)));
-		assert.ok(market.baseAssetAmountLong.eq(new BN(248725251837443)));
+		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(248725250000000)));
+		assert.ok(market.baseAssetAmountLong.eq(new BN(248725250000000)));
 		assert.ok(market.baseAssetAmountShort.eq(ZERO));
 		assert.ok(market.openInterest.eq(ONE));
 		assert.ok(market.amm.totalFee.eq(new BN(74626)));
@@ -253,7 +255,7 @@ describe('clearing_house', () => {
 				JSON.stringify(PositionDirection.SHORT)
 		);
 		console.log(tradeRecord.baseAssetAmount.toNumber());
-		assert.ok(tradeRecord.baseAssetAmount.eq(new BN(248725251837442)));
+		assert.ok(tradeRecord.baseAssetAmount.eq(new BN(248725250000000)));
 		assert.ok(tradeRecord.liquidation == false);
 		assert.ok(tradeRecord.quoteAssetAmount.eq(new BN(24876237)));
 		assert.ok(tradeRecord.marketIndex.eq(new BN(0)));
@@ -261,7 +263,7 @@ describe('clearing_house', () => {
 
 	it('Reverse long position', async () => {
 		const marketIndex = new BN(0);
-		const baseAssetAmount = new BN(497450503674885);
+		const baseAssetAmount = new BN(497450500000000);
 		const orderParams = getMarketOrderParams(
 			marketIndex,
 			PositionDirection.SHORT,
@@ -280,12 +282,12 @@ describe('clearing_house', () => {
 			userAccountPublicKey
 		);
 
-		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9875626)));
+		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9874391)));
 		assert(user.totalFeePaid.eq(new BN(124371)));
 		assert.ok(
 			clearingHouse
 				.getUserAccount()
-				.positions[0].quoteEntryAmount.eq(new BN(24871287))
+				.positions[0].quoteEntryAmount.eq(new BN(24872525))
 		);
 		console.log(
 			clearingHouse.getUserAccount().positions[0].baseAssetAmount.toString()
@@ -293,13 +295,13 @@ describe('clearing_house', () => {
 		assert.ok(
 			clearingHouse
 				.getUserAccount()
-				.positions[0].baseAssetAmount.eq(new BN(-248725251837442))
+				.positions[0].baseAssetAmount.eq(new BN(-248725250000000))
 		);
 
 		const market = clearingHouse.getMarketAccount(0);
-		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(-248725251837442)));
+		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(-248725250000000)));
 		assert.ok(market.baseAssetAmountLong.eq(ZERO));
-		assert.ok(market.baseAssetAmountShort.eq(new BN(-248725251837442)));
+		assert.ok(market.baseAssetAmountShort.eq(new BN(-248725250000000)));
 		assert.ok(market.openInterest.eq(ONE));
 		assert.ok(market.amm.totalFee.eq(new BN(124371)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(124371)));
@@ -313,14 +315,15 @@ describe('clearing_house', () => {
 				JSON.stringify(PositionDirection.SHORT)
 		);
 		console.log(tradeRecord.baseAssetAmount.toNumber());
-		assert.ok(tradeRecord.baseAssetAmount.eq(new BN(497450503674885)));
-		assert.ok(tradeRecord.quoteAssetAmount.eq(new BN(49745049)));
+		assert.ok(tradeRecord.baseAssetAmount.eq(new BN(497450500000000)));
+		console.log(tradeRecord.quoteAssetAmount.toString());
+		assert.ok(tradeRecord.quoteAssetAmount.eq(new BN(49745050)));
 		assert.ok(tradeRecord.marketIndex.eq(new BN(0)));
 	});
 
 	it('Close position', async () => {
 		const marketIndex = new BN(0);
-		const baseAssetAmount = new BN(248725251837442);
+		const baseAssetAmount = new BN(248725250000000);
 		const orderParams = getMarketOrderParams(
 			marketIndex,
 			PositionDirection.LONG,
@@ -345,7 +348,8 @@ describe('clearing_house', () => {
 		assert.ok(
 			clearingHouse.getUserAccount().positions[0].baseAssetAmount.eq(new BN(0))
 		);
-		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9850755)));
+
+		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9850757)));
 		assert(user.totalFeePaid.eq(new BN(149242)));
 
 		const market = clearingHouse.getMarketAccount(0);
@@ -361,7 +365,7 @@ describe('clearing_house', () => {
 			JSON.stringify(tradeRecord.direction) ===
 				JSON.stringify(PositionDirection.LONG)
 		);
-		assert.ok(tradeRecord.baseAssetAmount.eq(new BN(248725251837442)));
+		assert.ok(tradeRecord.baseAssetAmount.eq(new BN(248725250000000)));
 		assert.ok(tradeRecord.liquidation == false);
 		assert.ok(tradeRecord.quoteAssetAmount.eq(new BN(24871288)));
 		assert.ok(tradeRecord.marketIndex.eq(new BN(0)));

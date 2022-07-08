@@ -2,6 +2,7 @@ import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
 import {
 	AMM_RESERVE_PRECISION,
+	BASE_PRECISION,
 	BN,
 	calculateTradeSlippage,
 	QUOTE_ASSET_BANK_INDEX,
@@ -74,6 +75,7 @@ describe('update k', () => {
 		await clearingHouse.subscribe();
 
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
+		await clearingHouse.updateOrderAuctionTime(new BN(0));
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
@@ -224,7 +226,7 @@ describe('update k', () => {
 		console.log('taking position');
 		await clearingHouse.openPosition(
 			PositionDirection.LONG,
-			new BN(QUOTE_PRECISION),
+			BASE_PRECISION.div(new BN(initialSOLPrice)),
 			marketIndex
 		);
 		console.log('$1 position taken');
@@ -315,7 +317,7 @@ describe('update k', () => {
 		console.log('taking position');
 		await clearingHouse.openPosition(
 			PositionDirection.LONG,
-			new BN(QUOTE_PRECISION),
+			BASE_PRECISION.div(new BN(initialSOLPrice)),
 			marketIndex
 		);
 		console.log('$1 position taken');

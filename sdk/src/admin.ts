@@ -584,12 +584,12 @@ export class Admin extends ClearingHouse {
 		);
 	}
 
-	public async updateMarketMinimumBaseAssetTradeSize(
+	public async updateMarketBaseAssetAmountStepSize(
 		marketIndex: BN,
-		minimumTradeSize: BN
+		stepSize: BN
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateMarketMinimumBaseAssetTradeSize(
-			minimumTradeSize,
+		return await this.program.rpc.updateMarketBaseAssetAmountStepSize(
+			stepSize,
 			{
 				accounts: {
 					admin: this.wallet.publicKey,
@@ -660,5 +660,19 @@ export class Admin extends ClearingHouse {
 				state: await this.getStatePublicKey(),
 			},
 		});
+	}
+
+	public async updateOrderAuctionTime(
+		time: BN | number
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateOrderAuctionTime(
+			typeof time === 'number' ? time : time.toNumber,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+				},
+			}
+		);
 	}
 }
