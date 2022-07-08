@@ -944,13 +944,6 @@ pub mod clearing_house {
             .checked_div(peg_multiplier)
             .ok_or_else(math_error!())?;
 
-        // // settle the LP first if adding to position
-        // if lp_position.is_lp() {
-        //     // update current stats
-        //     let mut market = market_map.get_ref_mut(&market_index)?;
-        //     settle_lp_position(lp_position, lp_position.lp_tokens, &mut market)?;
-        // } else {
-
         // init position
         lp_position.last_net_base_asset_amount = net_base_asset_amount;
         lp_position.last_total_fee_minus_distributions = total_fee_minus_distributions;
