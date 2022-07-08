@@ -1,6 +1,6 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
-import { BN } from '../sdk';
+import { BASE_PRECISION, BN } from '../sdk';
 
 import { Program, Wallet } from '@project-serum/anchor';
 
@@ -9,7 +9,6 @@ import { Keypair } from '@solana/web3.js';
 import {
 	Admin,
 	MARK_PRICE_PRECISION,
-	calculateBaseAssetValue,
 	ClearingHouse,
 	PositionDirection,
 } from '../sdk/src';
@@ -20,7 +19,7 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
-import { FeeStructure } from '../sdk';
+import { FeeStructure } from '../sdk/src';
 
 describe('idempotent curve', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -63,6 +62,7 @@ describe('idempotent curve', () => {
 		await primaryClearingHouse.subscribe();
 
 		await initializeQuoteAssetBank(primaryClearingHouse, usdcMint.publicKey);
+		await primaryClearingHouse.updateOrderAuctionTime(new BN(0));
 
 		const solUsd = await mockOracle(1);
 		const periodicity = new BN(60 * 60); // 1 HOUR
@@ -77,6 +77,13 @@ describe('idempotent curve', () => {
 		const newFeeStructure: FeeStructure = {
 			feeNumerator: new BN(0),
 			feeDenominator: new BN(1),
+			makerRebateNumerator: new BN(0),
+			makerRebateDenominator: new BN(1),
+			fillerRewardStructure: {
+				rewardNumerator: new BN(0),
+				rewardDenominator: new BN(1),
+				timeBasedRewardLowerBound: new BN(1),
+			},
 			discountTokenTiers: {
 				firstTier: {
 					minimumBalance: new BN(1),
@@ -150,9 +157,10 @@ describe('idempotent curve', () => {
 		);
 
 		const marketIndex = new BN(0);
+		const baseAssetAmount = BASE_PRECISION.mul(new BN(4));
 		await clearingHouse.openPosition(
 			PositionDirection.LONG,
-			usdcAmount,
+			baseAssetAmount,
 			marketIndex,
 			new BN(0)
 		);
@@ -164,15 +172,10 @@ describe('idempotent curve', () => {
 		);
 
 		const numberOfReduces = chunks;
-		const market = clearingHouse.getMarketAccount(marketIndex);
-		const baseAssetValue = calculateBaseAssetValue(
-			market,
-			clearingHouse.getUserAccount().positions[0]
-		);
 		for (let i = 0; i < numberOfReduces - 1; i++) {
 			await clearingHouse.openPosition(
 				PositionDirection.SHORT,
-				baseAssetValue.div(new BN(numberOfReduces)),
+				baseAssetAmount.div(new BN(numberOfReduces)),
 				marketIndex,
 				new BN(0)
 			);
@@ -189,7 +192,7 @@ describe('idempotent curve', () => {
 		assert(
 			clearingHouse
 				.getUserAccount()
-				.positions[0].unsettledPnl.eq(new BN(9999200))
+				.positions[0].unsettledPnl.eq(new BN(3999903))
 		);
 		assert(
 			clearingHouse.getUserAccount().positions[0].quoteEntryAmount.eq(new BN(0))
@@ -197,7 +200,10 @@ describe('idempotent curve', () => {
 		await clearingHouse.unsubscribe();
 	};
 
-	const shrinkUnprofitableLong = async (chunks: number) => {
+	const shrinkUnprofitableLong = async (
+		chunks: number,
+		expectedQuoteTokenAmount: BN
+	) => {
 		const userKeypair = new Keypair();
 		await provider.connection.requestAirdrop(userKeypair.publicKey, 10 ** 9);
 		const userUSDCAccount = await mockUserUSDCAccount(
@@ -225,9 +231,10 @@ describe('idempotent curve', () => {
 		);
 
 		const marketIndex = new BN(0);
+		const baseAssetAmount = BASE_PRECISION.mul(new BN(4));
 		await clearingHouse.openPosition(
 			PositionDirection.LONG,
-			usdcAmount,
+			baseAssetAmount,
 			marketIndex,
 			new BN(0)
 		);
@@ -239,20 +246,17 @@ describe('idempotent curve', () => {
 		);
 
 		const numberOfReduces = chunks;
-		const market = clearingHouse.getMarketAccount(marketIndex);
-		const baseAssetValue = calculateBaseAssetValue(
-			market,
-			clearingHouse.getUserAccount().positions[0]
-		);
 		for (let i = 0; i < numberOfReduces - 1; i++) {
 			await clearingHouse.openPosition(
 				PositionDirection.SHORT,
-				baseAssetValue.div(new BN(numberOfReduces)),
+				baseAssetAmount.div(new BN(numberOfReduces)),
 				marketIndex,
 				new BN(0)
 			);
 		}
 		await clearingHouse.closePosition(new BN(0));
+
+		await clearingHouse.fetchAccounts();
 
 		await clearingHouse.settlePNL(
 			await clearingHouse.getUserAccountPublicKey(),
@@ -262,7 +266,9 @@ describe('idempotent curve', () => {
 
 		await clearingHouse.fetchAccounts();
 
-		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(4999850)));
+		assert(
+			clearingHouse.getQuoteAssetTokenAmount().eq(expectedQuoteTokenAmount)
+		);
 		assert(
 			clearingHouse.getUserAccount().positions[0].quoteEntryAmount.eq(new BN(0))
 		);
@@ -298,9 +304,10 @@ describe('idempotent curve', () => {
 		await clearingHouse.fetchAccounts();
 
 		const marketIndex = new BN(0);
+		const baseAssetAmount = BASE_PRECISION.mul(new BN(4));
 		await clearingHouse.openPosition(
 			PositionDirection.SHORT,
-			usdcAmount,
+			baseAssetAmount,
 			marketIndex,
 			new BN(0)
 		);
@@ -312,15 +319,10 @@ describe('idempotent curve', () => {
 		);
 
 		const numberOfReduces = chunks;
-		const market = clearingHouse.getMarketAccount(marketIndex);
-		const baseAssetValue = calculateBaseAssetValue(
-			market,
-			clearingHouse.getUserAccount().positions[0]
-		);
 		for (let i = 0; i < numberOfReduces - 1; i++) {
 			await clearingHouse.openPosition(
 				PositionDirection.LONG,
-				baseAssetValue.div(new BN(numberOfReduces)),
+				baseAssetAmount.div(new BN(numberOfReduces)),
 				marketIndex,
 				new BN(0)
 			);
@@ -334,14 +336,17 @@ describe('idempotent curve', () => {
 		);
 
 		await clearingHouse.fetchAccounts();
-		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(14999849)));
+		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(11999958)));
 		assert(
 			clearingHouse.getUserAccount().positions[0].quoteEntryAmount.eq(new BN(0))
 		);
 		await clearingHouse.unsubscribe();
 	};
 
-	const shrinkUnrofitableShort = async (chunks: number) => {
+	const shrinkUnrofitableShort = async (
+		chunks: number,
+		expectedQuoteTokenAmount: BN
+	) => {
 		const userKeypair = new Keypair();
 		await provider.connection.requestAirdrop(userKeypair.publicKey, 10 ** 9);
 		const userUSDCAccount = await mockUserUSDCAccount(
@@ -369,9 +374,10 @@ describe('idempotent curve', () => {
 		);
 
 		const marketIndex = new BN(0);
+		const baseAssetAmount = BASE_PRECISION.mul(new BN(4));
 		await clearingHouse.openPosition(
 			PositionDirection.SHORT,
-			usdcAmount,
+			baseAssetAmount,
 			marketIndex,
 			new BN(0)
 		);
@@ -383,15 +389,10 @@ describe('idempotent curve', () => {
 		);
 
 		const numberOfReduces = chunks;
-		const market = clearingHouse.getMarketAccount(marketIndex);
-		const baseAssetValue = calculateBaseAssetValue(
-			market,
-			clearingHouse.getUserAccount().positions[0]
-		);
 		for (let i = 0; i < numberOfReduces - 1; i++) {
 			await clearingHouse.openPosition(
 				PositionDirection.LONG,
-				baseAssetValue.div(new BN(numberOfReduces)),
+				baseAssetAmount.div(new BN(numberOfReduces)),
 				marketIndex,
 				new BN(0)
 			);
@@ -405,7 +406,9 @@ describe('idempotent curve', () => {
 		);
 
 		await clearingHouse.fetchAccounts();
-		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(6666311)));
+		assert(
+			clearingHouse.getQuoteAssetTokenAmount().eq(expectedQuoteTokenAmount)
+		);
 		assert(
 			clearingHouse.getUserAccount().positions[0].quoteEntryAmount.eq(new BN(0))
 		);
@@ -421,11 +424,11 @@ describe('idempotent curve', () => {
 	});
 
 	it('open and shrink unprofitable long twice', async () => {
-		await shrinkUnprofitableLong(2);
+		await shrinkUnprofitableLong(2, new BN(7999959));
 	});
 
 	it('open and shrink unprofitable long fource', async () => {
-		await shrinkUnprofitableLong(4);
+		await shrinkUnprofitableLong(4, new BN(7999957));
 	});
 
 	it('open and shrink profitable short twice', async () => {
@@ -437,10 +440,10 @@ describe('idempotent curve', () => {
 	});
 
 	it('open and shrink unprofitable short twice', async () => {
-		await shrinkUnrofitableShort(2);
+		await shrinkUnrofitableShort(2, new BN(8666619));
 	});
 
 	it('open and shrink unprofitable short fource', async () => {
-		await shrinkUnrofitableShort(4);
+		await shrinkUnrofitableShort(4, new BN(8666618));
 	});
 });

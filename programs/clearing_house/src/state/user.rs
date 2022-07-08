@@ -6,6 +6,7 @@ use solana_program::msg;
 
 use crate::controller::position::{get_position_index, PositionDirection};
 use crate::error::{ClearingHouseResult, ErrorCode};
+use crate::math::auction::calculate_auction_price;
 use crate::math::constants::QUOTE_ASSET_BANK_INDEX;
 use crate::math_error;
 use crate::state::bank::{BankBalance, BankBalanceType};
@@ -81,6 +82,13 @@ impl User {
     ) -> ClearingHouseResult<&mut MarketPosition> {
         Ok(&mut self.positions[get_position_index(&self.positions, market_index)?])
     }
+
+    pub fn get_order_index(&self, order_id: u64) -> ClearingHouseResult<usize> {
+        self.orders
+            .iter()
+            .position(|order| order.order_id == order_id)
+            .ok_or(ErrorCode::OrderDoesNotExist)
+    }
 }
 
 #[zero_copy]
@@ -118,7 +126,7 @@ impl BankBalance for UserBankBalance {
 }
 
 #[zero_copy]
-#[derive(Default)]
+#[derive(Default, Debug)]
 #[repr(packed)]
 pub struct MarketPosition {
     pub market_index: u64,
@@ -130,6 +138,8 @@ pub struct MarketPosition {
     pub last_funding_rate_ts: i64,
     pub open_orders: u128,
     pub unsettled_pnl: i128,
+    pub open_bids: i128,
+    pub open_asks: i128,
 
     // upgrade-ability
     pub padding0: u128,
@@ -137,8 +147,6 @@ pub struct MarketPosition {
     pub padding2: u128,
     pub padding3: u128,
     pub padding4: u128,
-    pub padding5: u128,
-    pub padding6: u128,
 }
 
 impl MarketPosition {
@@ -156,20 +164,42 @@ impl MarketPosition {
     }
 
     pub fn has_open_order(&self) -> bool {
-        self.open_orders != 0
+        self.open_orders != 0 || self.open_bids != 0 || self.open_asks != 0
     }
 
     pub fn has_unsettled_pnl(&self) -> bool {
         self.unsettled_pnl != 0
     }
+
+    pub fn worst_case_base_asset_amount(&self) -> ClearingHouseResult<i128> {
+        let base_asset_amount_all_bids_fill = self
+            .base_asset_amount
+            .checked_add(self.open_bids)
+            .ok_or_else(math_error!())?;
+        let base_asset_amount_all_asks_fill = self
+            .base_asset_amount
+            .checked_add(self.open_asks)
+            .ok_or_else(math_error!())?;
+
+        if base_asset_amount_all_bids_fill
+            .checked_abs()
+            .ok_or_else(math_error!())?
+            > base_asset_amount_all_asks_fill
+                .checked_abs()
+                .ok_or_else(math_error!())?
+        {
+            Ok(base_asset_amount_all_bids_fill)
+        } else {
+            Ok(base_asset_amount_all_asks_fill)
+        }
+    }
 }
 
 pub type UserPositions = [MarketPosition; 5];
 
-// SPACE: 7136
 #[zero_copy]
 #[repr(packed)]
-#[derive(AnchorSerialize, AnchorDeserialize)]
+#[derive(AnchorSerialize, AnchorDeserialize, PartialEq, Debug)]
 pub struct Order {
     pub status: OrderStatus,
     pub order_type: OrderType,
@@ -193,6 +223,9 @@ pub struct Order {
     pub trigger_condition: OrderTriggerCondition,
     pub referrer: Pubkey,
     pub oracle_price_offset: i128,
+    pub auction_start_price: u128,
+    pub auction_end_price: u128,
+    pub auction_duration: u8,
     pub padding: [u16; 3],
 }
 
@@ -201,7 +234,11 @@ impl Order {
         self.oracle_price_offset != 0
     }
 
-    pub fn get_limit_price(self, valid_oracle_price: Option<i128>) -> ClearingHouseResult<u128> {
+    pub fn get_limit_price(
+        &self,
+        valid_oracle_price: Option<i128>,
+        now: i64,
+    ) -> ClearingHouseResult<u128> {
         // the limit price can be hardcoded on order or derived from oracle_price + oracle_price_offset
         let price = if self.has_oracle_price_offset() {
             if let Some(oracle_price) = valid_oracle_price {
@@ -227,11 +264,19 @@ impl Order {
                 msg!("Could not find oracle too calculate oracle offset limit price");
                 return Err(crate::error::ErrorCode::OracleNotFound);
             }
+        } else if self.order_type == OrderType::Market {
+            calculate_auction_price(self, now)?
         } else {
             self.price
         };
 
         Ok(price)
+    }
+
+    pub fn get_base_asset_amount_unfilled(&self) -> ClearingHouseResult<u128> {
+        self.base_asset_amount
+            .checked_sub(self.base_asset_amount_filled)
+            .ok_or_else(math_error!())
     }
 }
 
@@ -260,18 +305,21 @@ impl Default for Order {
             trigger_condition: OrderTriggerCondition::Above,
             referrer: Pubkey::default(),
             oracle_price_offset: 0,
+            auction_start_price: 0,
+            auction_end_price: 0,
+            auction_duration: 0,
             padding: [0; 3],
         }
     }
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug)]
 pub enum OrderStatus {
     Init,
     Open,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug)]
 pub enum OrderType {
     Market,
     Limit,
@@ -279,7 +327,7 @@ pub enum OrderType {
     TriggerLimit,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug)]
 pub enum OrderDiscountTier {
     None,
     First,
@@ -288,7 +336,7 @@ pub enum OrderDiscountTier {
     Fourth,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug)]
 pub enum OrderTriggerCondition {
     Above,
     Below,

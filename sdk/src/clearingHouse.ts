@@ -769,35 +769,25 @@ export class ClearingHouse {
 		direction: PositionDirection,
 		amount: BN,
 		marketIndex: BN,
-		limitPrice?: BN,
-		discountToken?: PublicKey,
-		referrer?: PublicKey
+		limitPrice?: BN
 	): Promise<TransactionSignature> {
 		return await this.placeAndFillOrder(
 			getMarketOrderParams(
 				marketIndex,
 				direction,
-				amount,
 				ZERO,
+				amount,
 				false,
-				limitPrice,
-				discountToken !== undefined,
-				referrer !== undefined
-			),
-			discountToken,
-			referrer
+				limitPrice
+			)
 		);
 	}
 
 	public async placeOrder(
-		orderParams: OrderParams,
-		discountToken?: PublicKey,
-		referrer?: PublicKey
+		orderParams: OrderParams
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.txSender.send(
-			wrapInTx(
-				await this.getPlaceOrderIx(orderParams, discountToken, referrer)
-			),
+			wrapInTx(await this.getPlaceOrderIx(orderParams)),
 			[],
 			this.opts
 		);
@@ -806,9 +796,7 @@ export class ClearingHouse {
 	}
 
 	public async getPlaceOrderIx(
-		orderParams: OrderParams,
-		discountToken?: PublicKey,
-		referrer?: PublicKey
+		orderParams: OrderParams
 	): Promise<TransactionInstruction> {
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 
@@ -818,34 +806,6 @@ export class ClearingHouse {
 		const remainingAccounts = this.getRemainingAccounts({
 			writableMarketIndex: orderParams.marketIndex,
 		});
-
-		if (orderParams.optionalAccounts.discountToken) {
-			if (!discountToken) {
-				throw Error(
-					'Optional accounts specified discount token but no discount token present'
-				);
-			}
-
-			remainingAccounts.push({
-				pubkey: discountToken,
-				isWritable: false,
-				isSigner: false,
-			});
-		}
-
-		if (orderParams.optionalAccounts.referrer) {
-			if (!referrer) {
-				throw Error(
-					'Optional accounts specified referrer but no referrer present'
-				);
-			}
-
-			remainingAccounts.push({
-				pubkey: referrer,
-				isWritable: false,
-				isSigner: false,
-			});
-		}
 
 		return await this.program.instruction.placeOrder(orderParams, {
 			accounts: {
@@ -1150,14 +1110,6 @@ export class ClearingHouse {
 			bankAccountInfos.concat(marketAccountInfos)
 		);
 
-		if (!order.referrer.equals(PublicKey.default)) {
-			remainingAccounts.push({
-				pubkey: order.referrer,
-				isWritable: true,
-				isSigner: false,
-			});
-		}
-
 		const orderId = order.orderId;
 		return await this.program.instruction.fillOrder(orderId, {
 			accounts: {
@@ -1172,14 +1124,10 @@ export class ClearingHouse {
 	}
 
 	public async placeAndFillOrder(
-		orderParams: OrderParams,
-		discountToken?: PublicKey,
-		referrer?: PublicKey
+		orderParams: OrderParams
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.txSender.send(
-			wrapInTx(
-				await this.getPlaceAndFillOrderIx(orderParams, discountToken, referrer)
-			),
+			wrapInTx(await this.getPlaceAndFillOrderIx(orderParams)),
 			[],
 			this.opts
 		);
@@ -1188,9 +1136,7 @@ export class ClearingHouse {
 	}
 
 	public async getPlaceAndFillOrderIx(
-		orderParams: OrderParams,
-		discountToken?: PublicKey,
-		referrer?: PublicKey
+		orderParams: OrderParams
 	): Promise<TransactionInstruction> {
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 
@@ -1201,34 +1147,6 @@ export class ClearingHouse {
 			writableMarketIndex: orderParams.marketIndex,
 			writableBankIndex: QUOTE_ASSET_BANK_INDEX,
 		});
-
-		if (orderParams.optionalAccounts.discountToken) {
-			if (!discountToken) {
-				throw Error(
-					'Optional accounts specified discount token but no discount token present'
-				);
-			}
-
-			remainingAccounts.push({
-				pubkey: discountToken,
-				isWritable: false,
-				isSigner: false,
-			});
-		}
-
-		if (orderParams.optionalAccounts.referrer) {
-			if (!referrer) {
-				throw Error(
-					'Optional accounts specified referrer but no referrer present'
-				);
-			}
-
-			remainingAccounts.push({
-				pubkey: referrer,
-				isWritable: true,
-				isSigner: false,
-			});
-		}
 
 		return await this.program.instruction.placeAndFillOrder(orderParams, {
 			accounts: {
@@ -1244,15 +1162,9 @@ export class ClearingHouse {
 	/**
 	 * Close an entire position. If you want to reduce a position, use the {@link openPosition} method in the opposite direction of the current position.
 	 * @param marketIndex
-	 * @param discountToken
-	 * @param referrer
 	 * @returns
 	 */
-	public async closePosition(
-		marketIndex: BN,
-		discountToken?: PublicKey,
-		referrer?: PublicKey
-	): Promise<TransactionSignature> {
+	public async closePosition(marketIndex: BN): Promise<TransactionSignature> {
 		const userPosition = this.getUser().getUserPosition(marketIndex);
 		if (!userPosition) {
 			throw Error(`No position in market ${marketIndex.toString()}`);
@@ -1265,12 +1177,8 @@ export class ClearingHouse {
 				ZERO,
 				userPosition.baseAssetAmount,
 				true,
-				undefined,
-				discountToken !== undefined,
-				referrer !== undefined
-			),
-			discountToken,
-			referrer
+				undefined
+			)
 		);
 	}
 

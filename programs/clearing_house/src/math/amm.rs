@@ -14,7 +14,7 @@ use crate::math::constants::{
     MAX_BID_ASK_INVENTORY_SKEW_FACTOR, ONE_HOUR_I128, PEG_PRECISION, PRICE_TO_PEG_PRECISION_RATIO,
     QUOTE_PRECISION,
 };
-use crate::math::position::{_calculate_base_asset_value, _calculate_base_asset_value_and_pnl};
+use crate::math::position::{_calculate_base_asset_value_and_pnl, calculate_base_asset_value};
 use crate::math::quote_asset::{asset_to_reserve_amount, reserve_to_asset_amount};
 use crate::math_error;
 use crate::state::market::{Market, AMM};
@@ -452,7 +452,7 @@ pub fn calculate_rolling_sum(
 
 pub fn calculate_swap_output(
     swap_amount: u128,
-    input_asset_amount: u128,
+    input_asset_reserve: u128,
     direction: SwapDirection,
     invariant_sqrt: u128,
 ) -> ClearingHouseResult<(u128, u128)> {
@@ -461,27 +461,27 @@ pub fn calculate_swap_output(
         .checked_mul(invariant_sqrt_u192)
         .ok_or_else(math_error!())?;
 
-    if direction == SwapDirection::Remove && swap_amount > input_asset_amount {
+    if direction == SwapDirection::Remove && swap_amount > input_asset_reserve {
         return Err(ErrorCode::TradeSizeTooLarge);
     }
 
-    let new_input_amount = if let SwapDirection::Add = direction {
-        input_asset_amount
+    let new_input_asset_reserve = if let SwapDirection::Add = direction {
+        input_asset_reserve
             .checked_add(swap_amount)
             .ok_or_else(math_error!())?
     } else {
-        input_asset_amount
+        input_asset_reserve
             .checked_sub(swap_amount)
             .ok_or_else(math_error!())?
     };
 
-    let new_input_amount_u192 = U192::from(new_input_amount);
-    let new_output_amount = invariant
+    let new_input_amount_u192 = U192::from(new_input_asset_reserve);
+    let new_output_asset_reserve = invariant
         .checked_div(new_input_amount_u192)
         .ok_or_else(math_error!())?
         .try_to_u128()?;
 
-    Ok((new_output_amount, new_input_amount))
+    Ok((new_output_asset_reserve, new_input_asset_reserve))
 }
 
 pub fn calculate_quote_asset_amount_swapped(
@@ -824,7 +824,7 @@ pub fn adjust_k_cost_and_update(
 ) -> ClearingHouseResult<i128> {
     // Find the net market value before adjusting k
     let current_net_market_value =
-        _calculate_base_asset_value(market.amm.net_base_asset_amount, &market.amm, false)?;
+        calculate_base_asset_value(market.amm.net_base_asset_amount, &market.amm, false)?;
 
     update_k(market, update_k_result)?;
 
@@ -922,7 +922,6 @@ pub fn calculate_max_base_asset_amount_to_trade(
     amm: &AMM,
     limit_price: u128,
     direction: PositionDirection,
-    use_spread: bool,
 ) -> ClearingHouseResult<(u128, PositionDirection)> {
     let invariant_sqrt_u192 = U192::from(amm.sqrt_k);
     let invariant = invariant_sqrt_u192
@@ -943,7 +942,7 @@ pub fn calculate_max_base_asset_amount_to_trade(
         .integer_sqrt()
         .try_to_u128()?;
 
-    let base_asset_reserve_before = if use_spread && amm.base_spread > 0 {
+    let base_asset_reserve_before = if amm.base_spread > 0 {
         let (spread_base_asset_reserve, _) = get_spread_reserves(amm, direction)?;
         spread_base_asset_reserve
     } else {
@@ -1105,7 +1104,7 @@ pub fn _calculate_budgeted_k_scale(
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::math::constants::{AMM_RESERVE_PRECISION, MARK_PRICE_PRECISION, QUOTE_PRECISION};
+    use crate::math::constants::MARK_PRICE_PRECISION;
 
     #[test]
     fn calculate_spread_tests() {
@@ -1248,7 +1247,7 @@ mod test {
             ..AMM::default()
         };
         let old_mark_std = amm.mark_std;
-        update_amm_mark_std(&mut amm, now, MARK_PRICE_PRECISION * 23);
+        update_amm_mark_std(&mut amm, now, MARK_PRICE_PRECISION * 23).unwrap();
         assert_eq!(amm.mark_std, (MARK_PRICE_PRECISION * 23) as u64);
 
         amm.mark_std = MARK_PRICE_PRECISION as u64;

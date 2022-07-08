@@ -58,7 +58,7 @@ describe('AMM Curve', () => {
 	const initialSOLPrice = 150;
 
 	const usdcAmount = new BN(1e9 * 10 ** 6);
-	const solPositionInitialValue = usdcAmount.div(new BN(10));
+	const initialBaseAssmount = new BN('6622516556291390728');
 
 	let userAccount: ClearingHouseUser;
 
@@ -70,6 +70,7 @@ describe('AMM Curve', () => {
 		await clearingHouse.subscribe();
 
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
+		await clearingHouse.updateOrderAuctionTime(new BN(0));
 
 		solUsdOracle = await createPriceFeed({
 			oracleProgram: anchor.workspace.Pyth,
@@ -188,7 +189,7 @@ describe('AMM Curve', () => {
 	it('After Position Taken', async () => {
 		await clearingHouse.openPosition(
 			PositionDirection.LONG,
-			solPositionInitialValue,
+			initialBaseAssmount,
 			marketIndex
 		);
 
@@ -205,13 +206,15 @@ describe('AMM Curve', () => {
 		showBook(marketIndex);
 	});
 	it('Arb back to Oracle Price Moves', async () => {
-		const [direction, quoteSize] = calculateTargetPriceTrade(
+		const [direction, basesize] = calculateTargetPriceTrade(
 			clearingHouse.getMarketAccount(marketIndex),
-			new BN(initialSOLPrice).mul(MARK_PRICE_PRECISION)
+			new BN(initialSOLPrice).mul(MARK_PRICE_PRECISION),
+			undefined,
+			'base'
 		);
 
-		console.log('arbing', direction, quoteSize.toNumber());
-		await clearingHouse.openPosition(direction, quoteSize, marketIndex);
+		console.log('arbing', direction, basesize.toString());
+		await clearingHouse.openPosition(direction, basesize, marketIndex);
 
 		showBook(marketIndex);
 	});
@@ -232,7 +235,7 @@ describe('AMM Curve', () => {
 
 		await clearingHouse.openPosition(
 			PositionDirection.LONG,
-			QUOTE_PRECISION.mul(new BN(10)),
+			BASE_PRECISION.div(new BN(10)),
 			marketIndex
 		);
 		// showBook(marketIndex);
@@ -299,7 +302,7 @@ describe('AMM Curve', () => {
 
 		await clearingHouse.openPosition(
 			PositionDirection.SHORT,
-			QUOTE_PRECISION.mul(new BN(100000)),
+			BASE_PRECISION.div(new BN(1000)),
 			marketIndex
 		);
 		const marketData1 = clearingHouse.getMarketAccount(marketIndex);

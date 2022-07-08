@@ -125,6 +125,8 @@ export class ClearingHouseUser {
 			quoteEntryAmount: ZERO,
 			openOrders: ZERO,
 			unsettledPnl: ZERO,
+			openBids: ZERO,
+			openAsks: ZERO,
 		};
 	}
 
@@ -626,6 +628,8 @@ export class ClearingHouseUser {
 			quoteEntryAmount: new BN(0),
 			openOrders: new BN(0),
 			unsettledPnl: new BN(0),
+			openBids: new BN(0),
+			openAsks: new BN(0),
 		};
 
 		if (proposedBaseAssetAmount.eq(ZERO)) return new BN(-1);

@@ -100,6 +100,7 @@ describe('market order', () => {
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
+		await clearingHouse.updateOrderAuctionTime(new BN(0));
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
@@ -304,106 +305,6 @@ describe('market order', () => {
 		);
 		assert(orderRecord.baseAssetAmountFilled.eq(baseAssetAmount));
 		assert(orderRecord.quoteAssetAmountFilled.eq(expectedQuoteAssetAmount));
-		assert(orderRecord.fillerReward.eq(ZERO));
-		assert(orderRecord.tradeRecordId.eq(expectedTradeRecordId));
-	});
-
-	it('Fill market long order with quote asset', async () => {
-		const direction = PositionDirection.LONG;
-		const quoteAssetAmount = new BN(1000002);
-		const price = MARK_PRICE_PRECISION.mul(new BN(2));
-
-		const orderParams = getMarketOrderParams(
-			marketIndex,
-			direction,
-			quoteAssetAmount,
-			ZERO,
-			false,
-			price
-		);
-		await clearingHouse.placeAndFillOrder(orderParams);
-
-		await clearingHouse.fetchAccounts();
-		await clearingHouseUser.fetchAccounts();
-		await fillerUser.fetchAccounts();
-
-		const firstPosition = clearingHouseUser.getUserAccount().positions[0];
-		const baseAssetAmount = new BN(9999999999961);
-		assert(firstPosition.baseAssetAmount.eq(baseAssetAmount));
-		assert(firstPosition.quoteEntryAmount.eq(quoteAssetAmount));
-
-		const tradeHistoryRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
-
-		assert.ok(tradeHistoryRecord.baseAssetAmount.eq(baseAssetAmount));
-		assert.ok(tradeHistoryRecord.quoteAssetAmount.eq(quoteAssetAmount));
-
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
-		const expectedOrderId = new BN(3);
-		const expectedTradeRecordId = new BN(3);
-		const expectedFee = new BN(1000);
-		assert(orderRecord.ts.gt(ZERO));
-		assert(orderRecord.order.orderId.eq(expectedOrderId));
-		assert(orderRecord.fee.eq(expectedFee));
-		assert(orderRecord.order.fee.eq(expectedFee));
-		assert(enumsAreEqual(orderRecord.action, OrderAction.FILL));
-		assert(
-			orderRecord.user.equals(await clearingHouseUser.getUserAccountPublicKey())
-		);
-		assert(
-			orderRecord.authority.equals(clearingHouseUser.getUserAccount().authority)
-		);
-		assert(orderRecord.baseAssetAmountFilled.eq(baseAssetAmount));
-		assert(orderRecord.quoteAssetAmountFilled.eq(quoteAssetAmount));
-		assert(orderRecord.fillerReward.eq(ZERO));
-		assert(orderRecord.tradeRecordId.eq(expectedTradeRecordId));
-	});
-
-	it('Fill market short order with quote asset', async () => {
-		const direction = PositionDirection.SHORT;
-		const quoteAssetAmount = new BN(1000002);
-		const price = MARK_PRICE_PRECISION.mul(new BN(1));
-
-		const orderParams = getMarketOrderParams(
-			marketIndex,
-			direction,
-			quoteAssetAmount,
-			ZERO,
-			false,
-			price
-		);
-		await clearingHouse.placeAndFillOrder(orderParams);
-
-		await clearingHouse.fetchAccounts();
-		await clearingHouseUser.fetchAccounts();
-		await fillerUser.fetchAccounts();
-
-		const firstPosition = clearingHouseUser.getUserAccount().positions[0];
-		assert(firstPosition.baseAssetAmount.eq(ZERO));
-		assert(firstPosition.quoteEntryAmount.eq(ZERO));
-
-		const tradeHistoryRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
-
-		const baseAssetAmount = new BN(9999999999961);
-		assert.ok(tradeHistoryRecord.baseAssetAmount.eq(baseAssetAmount));
-		assert.ok(tradeHistoryRecord.quoteAssetAmount.eq(quoteAssetAmount));
-
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
-		const expectedOrderId = new BN(4);
-		const expectedTradeRecordId = new BN(4);
-		const expectedFee = new BN(1000);
-		assert(orderRecord.ts.gt(ZERO));
-		assert(orderRecord.order.orderId.eq(expectedOrderId));
-		assert(orderRecord.fee.eq(expectedFee));
-		assert(orderRecord.order.fee.eq(expectedFee));
-		assert(enumsAreEqual(orderRecord.action, OrderAction.FILL));
-		assert(
-			orderRecord.user.equals(await clearingHouseUser.getUserAccountPublicKey())
-		);
-		assert(
-			orderRecord.authority.equals(clearingHouseUser.getUserAccount().authority)
-		);
-		assert(orderRecord.baseAssetAmountFilled.eq(baseAssetAmount));
-		assert(orderRecord.quoteAssetAmountFilled.eq(quoteAssetAmount));
 		assert(orderRecord.fillerReward.eq(ZERO));
 		assert(orderRecord.tradeRecordId.eq(expectedTradeRecordId));
 	});

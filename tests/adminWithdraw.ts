@@ -1,16 +1,11 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
-import { BN } from '../sdk';
+import { BASE_PRECISION, BN } from '../sdk';
 
 import { Program } from '@project-serum/anchor';
 import { getTokenAccount } from '@project-serum/common';
 
-import {
-	Admin,
-	MARK_PRICE_PRECISION,
-	MAX_LEVERAGE,
-	PositionDirection,
-} from '../sdk/src';
+import { Admin, MARK_PRICE_PRECISION, PositionDirection } from '../sdk/src';
 
 import {
 	mockOracle,
@@ -18,16 +13,6 @@ import {
 	mockUserUSDCAccount,
 	initializeQuoteAssetBank,
 } from './testHelpers';
-
-const calculateTradeAmount = (amountOfCollateral: BN) => {
-	const ONE_MANTISSA = new BN(100000);
-	const fee = ONE_MANTISSA.div(new BN(1000));
-	const tradeAmount = amountOfCollateral
-		.mul(MAX_LEVERAGE)
-		.mul(ONE_MANTISSA.sub(MAX_LEVERAGE.mul(fee)))
-		.div(ONE_MANTISSA);
-	return tradeAmount;
-};
 
 describe('admin withdraw', () => {
 	const provider = anchor.AnchorProvider.local();
@@ -71,6 +56,7 @@ describe('admin withdraw', () => {
 		await clearingHouse.subscribe();
 
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
+		await clearingHouse.updateOrderAuctionTime(new BN(0));
 
 		const solUsd = await mockOracle(1);
 		const periodicity = new BN(60 * 60); // 1 HOUR
@@ -88,10 +74,9 @@ describe('admin withdraw', () => {
 		);
 
 		const marketIndex = new BN(0);
-		const incrementalUSDCNotionalAmount = calculateTradeAmount(usdcAmount);
 		await clearingHouse.openPosition(
 			PositionDirection.LONG,
-			incrementalUSDCNotionalAmount,
+			BASE_PRECISION.mul(new BN(5)),
 			marketIndex
 		);
 	});
@@ -115,7 +100,9 @@ describe('admin withdraw', () => {
 	});
 
 	it('Withdraw Fees', async () => {
-		const withdrawAmount = fee.div(new BN(2));
+		const withdrawAmount = clearingHouse
+			.getUserAccount()
+			.totalFeePaid.div(new BN(2));
 		const state = await clearingHouse.getStateAccount();
 		await clearingHouse.withdrawFees(
 			new BN(0),
@@ -130,7 +117,9 @@ describe('admin withdraw', () => {
 	});
 
 	it('Withdraw From Insurance Vault', async () => {
-		const withdrawAmount = fee.div(new BN(4));
+		const withdrawAmount = clearingHouse
+			.getUserAccount()
+			.totalFeePaid.div(new BN(4));
 		await clearingHouse.withdrawFromInsuranceVault(
 			withdrawAmount,
 			userUSDCAccount.publicKey
@@ -143,10 +132,12 @@ describe('admin withdraw', () => {
 	});
 
 	it('Withdraw From Insurance Vault to amm', async () => {
-		const withdrawAmount = fee.div(new BN(4));
+		const withdrawAmount = clearingHouse
+			.getUserAccount()
+			.totalFeePaid.div(new BN(4));
 
 		let market = clearingHouse.getMarketAccount(0);
-		assert(market.amm.totalFee.eq(fee));
+		assert(market.amm.totalFee.eq(clearingHouse.getUserAccount().totalFeePaid));
 
 		await clearingHouse.withdrawFromInsuranceVaultToMarket(
 			new BN(0),
@@ -157,7 +148,7 @@ describe('admin withdraw', () => {
 			provider,
 			clearingHouse.getQuoteAssetBankAccount().vault
 		);
-		assert(collateralVaultTokenAccount.amount.eq(new BN(9987562)));
+		assert(collateralVaultTokenAccount.amount.eq(new BN(9998750)));
 
 		market = clearingHouse.getMarketAccount(0);
 
@@ -165,6 +156,6 @@ describe('admin withdraw', () => {
 		console.log(market.amm.totalFee.toString());
 		console.log(market.amm.totalFeeMinusDistributions.toString());
 		assert(market.amm.totalFee.lt(market.amm.totalFeeMinusDistributions));
-		assert(market.amm.totalFeeMinusDistributions.eq(new BN(62187)));
+		assert(market.amm.totalFeeMinusDistributions.eq(new BN(6250)));
 	});
 });

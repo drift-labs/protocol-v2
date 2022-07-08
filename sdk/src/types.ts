@@ -216,7 +216,6 @@ export type StateAccount = {
 	maxDeposit: BN;
 	numberOfMarkets: BN;
 	numberOfBanks: BN;
-	orderFillerRewardStructure: OrderFillerRewardStructure;
 	minOrderQuoteAssetAmount: BN;
 };
 
@@ -286,7 +285,7 @@ export type AMM = {
 	totalFeeWithdrawn: BN;
 	totalFee: BN;
 	minimumQuoteAssetTradeSize: BN;
-	minimumBaseAssetTradeSize: BN;
+	baseAssetAmountStepSize: BN;
 	lastOraclePrice: BN;
 	baseSpread: number;
 	curveUpdateIntensity: number;
@@ -314,6 +313,8 @@ export type UserPosition = {
 	quoteEntryAmount: BN;
 	openOrders: BN;
 	unsettledPnl: BN;
+	openBids: BN;
+	openAsks: BN;
 };
 
 export type UserAccount = {
@@ -361,6 +362,8 @@ export type Order = {
 	postOnly: boolean;
 	immediateOrCancel: boolean;
 	oraclePriceOffset: BN;
+	auctionStartPrice: BN;
+	auctionEndPrice: BN;
 };
 
 export type OrderParams = {
@@ -424,6 +427,9 @@ export type FeeStructure = {
 		refereeDiscountNumerator: BN;
 		refereeDiscountDenominator: BN;
 	};
+	makerRebateNumerator: BN;
+	makerRebateDenominator: BN;
+	fillerRewardStructure: OrderFillerRewardStructure;
 };
 
 export type OracleGuardRails = {
