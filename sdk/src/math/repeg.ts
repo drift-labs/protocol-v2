@@ -1,4 +1,5 @@
 import { BN } from '@project-serum/anchor';
+import { assert } from '../assert/assert';
 import {
 	MARK_PRICE_PRECISION,
 	AMM_RESERVE_PRECISION,
@@ -63,6 +64,104 @@ export function calculateRepegCost(amm: AMM, newPeg: BN): BN {
 	return cost;
 }
 
+export function calculateBudgetedKN2(
+	x: BN,
+	y: BN,
+	budget: BN,
+	Q: BN,
+	d: BN
+): [BN, BN] {
+	assert(Q.gt(new BN(0)));
+	const C = budget.mul(new BN(-1));
+
+	const numer1 = y.mul(d).mul(Q).div(AMM_RESERVE_PRECISION).div(PEG_PRECISION);
+	const numer2 = C.mul(x.add(d)).div(QUOTE_PRECISION);
+	const denom1 = C.mul(x)
+		.mul(x.add(d))
+		.div(AMM_RESERVE_PRECISION)
+		.div(QUOTE_PRECISION);
+	const denom2 = y
+		.mul(d)
+		.mul(d)
+		.mul(Q)
+		.div(AMM_RESERVE_PRECISION)
+		.div(AMM_RESERVE_PRECISION)
+		.div(PEG_PRECISION);
+
+	console.log(
+		'\n',
+		numer1.mul(d).div(AMM_RESERVE_PRECISION).toString(),
+		'-',
+		numer2.mul(d.div(AMM_RESERVE_PRECISION)).toString(),
+		'/',
+		denom1.toString(),
+		'+',
+		denom2.toString()
+	);
+
+	const numerator = d
+		.mul(numer1.sub(numer2))
+		.div(AMM_RESERVE_PRECISION)
+		.div(AMM_TO_QUOTE_PRECISION_RATIO);
+	const denominator = denom1.add(denom2).div(AMM_TO_QUOTE_PRECISION_RATIO);
+
+	return [numerator, denominator];
+}
+
+export function calculateBudgetedKN(
+	x: BN,
+	y: BN,
+	budget: BN,
+	Q: BN,
+	d: BN
+): [BN, BN] {
+	assert(Q.gt(new BN(0)));
+	const C = budget.mul(new BN(-1));
+
+	let dSign = new BN(1);
+	if (d.lt(new BN(0))) {
+		dSign = new BN(-1);
+	}
+	const pegged_y_d_d = y
+		.mul(d)
+		.mul(d)
+		.mul(Q)
+		.div(AMM_RESERVE_PRECISION)
+		.div(AMM_RESERVE_PRECISION)
+		.div(PEG_PRECISION);
+
+	const numer1 = pegged_y_d_d;
+	const numer2 = C.mul(d)
+		.div(QUOTE_PRECISION)
+		.mul(x.add(d))
+		.div(AMM_RESERVE_PRECISION)
+		.mul(dSign);
+
+	// C.mul(x.add(d)).div(QUOTE_PRECISION);
+
+	const denom1 = C.mul(x)
+		.mul(x.add(d))
+		.div(AMM_RESERVE_PRECISION)
+		.div(QUOTE_PRECISION);
+	const denom2 = pegged_y_d_d;
+
+	console.log(
+		'\n',
+		numer1.toString(),
+		'-',
+		numer2.toString(),
+		'/',
+		denom1.toString(),
+		'+',
+		denom2.toString()
+	);
+
+	const numerator = numer1.sub(numer2).div(AMM_TO_QUOTE_PRECISION_RATIO);
+	const denominator = denom1.add(denom2).div(AMM_TO_QUOTE_PRECISION_RATIO);
+
+	return [numerator, denominator];
+}
+
 export function calculateBudgetedK(amm: AMM, cost: BN): [BN, BN] {
 	// wolframalpha.com
 	// (1/(x+d) - p/(x*p+d))*y*d*Q = C solve for p
@@ -87,27 +186,7 @@ export function calculateBudgetedK(amm: AMM, cost: BN): [BN, BN] {
 	const d = amm.netBaseAssetAmount;
 	const Q = amm.pegMultiplier;
 
-	const C = cost.mul(new BN(-1));
-
-	const numer1 = y.mul(d).mul(Q).div(AMM_RESERVE_PRECISION).div(PEG_PRECISION);
-	const numer2 = C.mul(x.add(d)).div(QUOTE_PRECISION);
-	const denom1 = C.mul(x)
-		.mul(x.add(d))
-		.div(AMM_RESERVE_PRECISION)
-		.div(QUOTE_PRECISION);
-	const denom2 = y
-		.mul(d)
-		.mul(d)
-		.mul(Q)
-		.div(AMM_RESERVE_PRECISION)
-		.div(AMM_RESERVE_PRECISION)
-		.div(PEG_PRECISION);
-
-	const numerator = d
-		.mul(numer1.sub(numer2))
-		.div(AMM_RESERVE_PRECISION)
-		.div(AMM_TO_QUOTE_PRECISION_RATIO);
-	const denominator = denom1.add(denom2).div(AMM_TO_QUOTE_PRECISION_RATIO);
+	const [numerator, denominator] = calculateBudgetedKN(x, y, cost, Q, d);
 
 	return [numerator, denominator];
 }
