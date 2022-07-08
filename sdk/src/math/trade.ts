@@ -106,15 +106,6 @@ export function calculateTradeSlippage(
 		amm.pegMultiplier
 	).mul(new BN(-1));
 
-	// console.log(
-	// 	'entryPrice:',
-	// 	entryPrice.toString(),
-	// 	'(',
-	// 	acquiredBase.toString(),
-	// 	acquiredQuote.toString(),
-	// 	')'
-	// );
-
 	const newPrice = calculatePrice(
 		amm.baseAssetReserve.sub(acquiredBase),
 		amm.quoteAssetReserve.sub(acquiredQuote),

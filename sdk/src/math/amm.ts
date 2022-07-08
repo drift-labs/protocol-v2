@@ -279,16 +279,6 @@ export function calculateSpread(
 		const netCostBasis = amm.quoteAssetAmountLong.sub(
 			amm.quoteAssetAmountShort
 		);
-		// console.log(
-		// 	'amm.netBaseAssetAmount:',
-		// 	amm.netBaseAssetAmount.toString(),
-		// 	'terminalQuoteAssetReserve:',
-		// 	amm.terminalQuoteAssetReserve.toString(),
-		// 	'quoteAssetReserve:',
-		// 	amm.quoteAssetReserve.toString(),
-		// 	'pegMultiplier:',
-		// 	amm.pegMultiplier.toString()
-		// );
 		const netBaseAssetValue = amm.quoteAssetReserve
 			.sub(amm.terminalQuoteAssetReserve)
 			.mul(amm.pegMultiplier)
@@ -297,25 +287,8 @@ export function calculateSpread(
 		const localBaseAssetValue = amm.netBaseAssetAmount
 			.mul(markPrice)
 			.div(AMM_TO_QUOTE_PRECISION_RATIO.mul(MARK_PRICE_PRECISION));
-		// console.log(
-		// 	'localBAV:',
-		// 	localBaseAssetValue.toString(),
-		// 	'netBAV:',
-		// 	netBaseAssetValue.toString(),
-		// 	'netCostBasis:',
-		// 	netCostBasis.toString()
-		// );
 		const netPnl = netBaseAssetValue.sub(netCostBasis);
 		const localPnl = localBaseAssetValue.sub(netCostBasis);
-
-		// console.log(
-		// 	'localPnl:',
-		// 	localPnl.toString(),
-		// 	'netPnl:',
-		// 	netPnl.toString(),
-		// 	'netCostBasis:',
-		// 	netCostBasis.toString()
-		// );
 
 		let effectiveLeverage = MAX_INVENTORY_SKEW;
 		if (amm.totalFeeMinusDistributions.gt(ZERO)) {

@@ -54,58 +54,12 @@ export function calculateAdjustKCost(
  * @returns cost : Precision QUOTE_ASSET_PRECISION
  */
 export function calculateRepegCost(amm: AMM, newPeg: BN): BN {
-	// const dqar = amm.quoteAssetAmountLong.sub(amm.quoteAssetAmountShort);
 	const dqar = amm.quoteAssetReserve.sub(amm.terminalQuoteAssetReserve);
 	const cost = dqar
 		.mul(newPeg.sub(amm.pegMultiplier))
 		.div(AMM_TO_QUOTE_PRECISION_RATIO)
 		.div(PEG_PRECISION);
-	// console.log('dqar cost', dqar, cost);
 	return cost;
-}
-
-export function calculateBudgetedKN2(
-	x: BN,
-	y: BN,
-	budget: BN,
-	Q: BN,
-	d: BN
-): [BN, BN] {
-	assert(Q.gt(new BN(0)));
-	const C = budget.mul(new BN(-1));
-
-	const numer1 = y.mul(d).mul(Q).div(AMM_RESERVE_PRECISION).div(PEG_PRECISION);
-	const numer2 = C.mul(x.add(d)).div(QUOTE_PRECISION);
-	const denom1 = C.mul(x)
-		.mul(x.add(d))
-		.div(AMM_RESERVE_PRECISION)
-		.div(QUOTE_PRECISION);
-	const denom2 = y
-		.mul(d)
-		.mul(d)
-		.mul(Q)
-		.div(AMM_RESERVE_PRECISION)
-		.div(AMM_RESERVE_PRECISION)
-		.div(PEG_PRECISION);
-
-	console.log(
-		'\n',
-		numer1.mul(d).div(AMM_RESERVE_PRECISION).toString(),
-		'-',
-		numer2.mul(d.div(AMM_RESERVE_PRECISION)).toString(),
-		'/',
-		denom1.toString(),
-		'+',
-		denom2.toString()
-	);
-
-	const numerator = d
-		.mul(numer1.sub(numer2))
-		.div(AMM_RESERVE_PRECISION)
-		.div(AMM_TO_QUOTE_PRECISION_RATIO);
-	const denominator = denom1.add(denom2).div(AMM_TO_QUOTE_PRECISION_RATIO);
-
-	return [numerator, denominator];
 }
 
 export function calculateBudgetedKN(
@@ -137,24 +91,11 @@ export function calculateBudgetedKN(
 		.div(AMM_RESERVE_PRECISION)
 		.mul(dSign);
 
-	// C.mul(x.add(d)).div(QUOTE_PRECISION);
-
 	const denom1 = C.mul(x)
 		.mul(x.add(d))
 		.div(AMM_RESERVE_PRECISION)
 		.div(QUOTE_PRECISION);
 	const denom2 = pegged_y_d_d;
-
-	console.log(
-		'\n',
-		numer1.toString(),
-		'-',
-		numer2.toString(),
-		'/',
-		denom1.toString(),
-		'+',
-		denom2.toString()
-	);
 
 	const numerator = numer1.sub(numer2).div(AMM_TO_QUOTE_PRECISION_RATIO);
 	const denominator = denom1.add(denom2).div(AMM_TO_QUOTE_PRECISION_RATIO);
