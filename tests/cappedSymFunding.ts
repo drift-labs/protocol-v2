@@ -699,7 +699,7 @@ describe('capped funding', () => {
 			marketIndex,
 			ammInitialBaseAssetAmount,
 			[41, 44.5],
-			[2000, 1000],
+			[50, 25],
 			10000
 		);
 
@@ -789,7 +789,7 @@ describe('capped funding', () => {
 			marketIndex,
 			ammInitialBaseAssetAmount,
 			[41, 45.1],
-			[20000, 1000]
+			[50, 25]
 		);
 
 		//ensure it was clamped :)
