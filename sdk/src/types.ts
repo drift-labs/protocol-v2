@@ -144,7 +144,6 @@ export type FundingRateRecord = {
 
 export type FundingPaymentRecord = {
 	ts: BN;
-	recordId: BN;
 	userAuthority: PublicKey;
 	user: PublicKey;
 	marketIndex: BN;
@@ -295,6 +294,14 @@ export type AMM = {
 	quoteAssetAmountShort: BN;
 	terminalQuoteAssetReserve: BN;
 	feePool: PoolBalance;
+	totalExchangeFee: BN;
+	totalMmFee: BN;
+	netRevenueSinceLastFunding: BN;
+	lastUpdateSlot: BN;
+	lastBidPriceTwap: BN;
+	lastAskPriceTwap: BN;
+	longSpread: BN;
+	shortSpread: BN;
 };
 
 // # User Account Types

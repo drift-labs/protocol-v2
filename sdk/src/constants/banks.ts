@@ -27,7 +27,15 @@ export const DevnetBanks: BankConfig[] = [
 	},
 ];
 
-export const MainnetBanks: BankConfig[] = [];
+export const MainnetBanks: BankConfig[] = [
+	{
+		symbol: 'USDC',
+		bankIndex: new BN(0),
+		oracle: PublicKey.default,
+		oracleSource: OracleSource.QUOTE_ASSET,
+		mint: new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'),
+	},
+];
 
 export const Banks: { [key in DriftEnv]: BankConfig[] } = {
 	devnet: DevnetBanks,

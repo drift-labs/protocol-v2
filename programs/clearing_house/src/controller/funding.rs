@@ -172,15 +172,16 @@ pub fn update_funding_rate(
         let (funding_rate_long, funding_rate_short, funding_imbalance_cost) =
             calculate_funding_rate_long_short(market, funding_rate)?;
 
-        formulaic_update_k(
-            market,
-            &oracle_price_data,
-            funding_imbalance_cost,
-            // now,
-            // market_index,
-            // trade_record_id,
-            mark_price,
-        )?;
+        // todo: finish robust tests
+        if market.amm.curve_update_intensity > 0 {
+            formulaic_update_k(
+                market,
+                &oracle_price_data,
+                funding_imbalance_cost,
+                now,
+                mark_price,
+            )?;
+        }
 
         market.amm.cumulative_funding_rate_long = market
             .amm
@@ -196,6 +197,7 @@ pub fn update_funding_rate(
 
         market.amm.last_funding_rate = funding_rate;
         market.amm.last_funding_rate_ts = now;
+        market.amm.net_revenue_since_last_funding = 0;
 
         emit!(FundingRateRecord {
             ts: now,

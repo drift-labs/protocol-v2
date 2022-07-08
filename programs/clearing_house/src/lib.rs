@@ -53,8 +53,7 @@ pub mod clearing_house {
     use crate::optional_accounts::get_maker;
     use crate::state::bank::{Bank, BankBalance, BankBalanceType};
     use crate::state::bank_map::{get_writable_banks, BankMap, WritableBanks};
-    use crate::state::events::TradeRecord;
-    use crate::state::events::{CurveRecord, DepositRecord};
+    use crate::state::events::{CurveRecord, DepositRecord, TradeRecord};
     use crate::state::events::{DepositDirection, LiquidationRecord};
     use crate::state::market::{Market, PoolBalance};
     use crate::state::market_map::{
@@ -1037,7 +1036,7 @@ pub mod clearing_house {
 
         // update user cost basis (if at a loss)
         let (_amm_position_base_asset_value, amm_position_unrealized_pnl) =
-            calculate_base_asset_value_and_pnl(market_position, &market.amm, true)?;
+            calculate_base_asset_value_and_pnl(market_position, &market.amm, false)?;
 
         if amm_position_unrealized_pnl < 0 {
             if market_position.base_asset_amount > 0 {
@@ -1885,7 +1884,7 @@ pub mod clearing_house {
             sqrt_k_after,
             base_asset_amount_long: market.base_asset_amount_long.unsigned_abs(),
             base_asset_amount_short: market.base_asset_amount_short.unsigned_abs(),
-            base_asset_amount: market.amm.net_base_asset_amount,
+            net_base_asset_amount: market.amm.net_base_asset_amount,
             open_interest: market.open_interest,
             total_fee: market.amm.total_fee,
             total_fee_minus_distributions: market.amm.total_fee_minus_distributions,
@@ -2049,7 +2048,7 @@ pub mod clearing_house {
 
         let base_asset_amount_long = market.base_asset_amount_long.unsigned_abs();
         let base_asset_amount_short = market.base_asset_amount_short.unsigned_abs();
-        let base_asset_amount = market.amm.net_base_asset_amount;
+        let net_base_asset_amount = market.amm.net_base_asset_amount;
         let open_interest = market.open_interest;
 
         let price_before = math::amm::calculate_price(
@@ -2166,7 +2165,7 @@ pub mod clearing_house {
             sqrt_k_after,
             base_asset_amount_long,
             base_asset_amount_short,
-            base_asset_amount,
+            net_base_asset_amount,
             open_interest,
             adjustment_cost,
             total_fee,

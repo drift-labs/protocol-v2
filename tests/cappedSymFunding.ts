@@ -83,10 +83,15 @@ async function updateFundingRateHelper(
 		const cumulativeFundingRateShortOld =
 			ammAccountState0.cumulativeFundingRateShort;
 
-		const _tx = await clearingHouse.updateFundingRate(
-			priceFeedAddress,
-			marketIndex
-		);
+		let _tx;
+		try {
+			_tx = await clearingHouse.updateFundingRate(
+				priceFeedAddress,
+				marketIndex
+			);
+		} catch (e) {
+			console.error(e);
+		}
 
 		const CONVERSION_SCALE =
 			FUNDING_PAYMENT_PRECISION.mul(MARK_PRICE_PRECISION);
@@ -729,7 +734,9 @@ describe('capped funding', () => {
 		assert(fundingRateShort.abs().eq(fundingRateLong.abs()));
 		console.log(fundingRateShort.abs().toString());
 		console.log(clampedFundingRate.toString());
-		assert(fundingRateShort.abs().gt(clampedFundingRate));
+		assert(
+			fundingRateShort.abs().sub(clampedFundingRate).abs().lt(new BN(1000))
+		);
 		assert(fundingRateLong.lt(new BN(0)));
 		assert(fundingRateShort.lt(new BN(0)));
 
@@ -816,7 +823,10 @@ describe('capped funding', () => {
 		);
 
 		assert(fundingRateShort.abs().gt(fundingRateLong.abs()));
-		assert(fundingRateShort.abs().gt(clampedFundingRate));
+		// assert(fundingRateShort.abs().gt(clampedFundingRate));
+		assert(
+			fundingRateShort.abs().sub(clampedFundingRate).abs().lt(new BN(1000))
+		);
 		assert(fundingRateLong.lt(new BN(0)));
 		assert(fundingRateShort.lt(new BN(0)));
 

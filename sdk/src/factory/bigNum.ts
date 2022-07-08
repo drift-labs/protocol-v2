@@ -439,6 +439,14 @@ export class BigNum {
 		return !this.isNeg();
 	}
 
+	/**
+	 * Get the numerical value of the BigNum. This can break if the BigNum is too large.
+	 * @returns
+	 */
+	public toNum() {
+		return parseFloat(this.print());
+	}
+
 	static fromJSON(json: { val: string; precision: string }) {
 		return BigNum.from(new BN(json.val), new BN(json.precision));
 	}

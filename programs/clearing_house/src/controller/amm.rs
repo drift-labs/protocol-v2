@@ -2,20 +2,20 @@ use solana_program::msg;
 
 use crate::controller::position::PositionDirection;
 use crate::error::ClearingHouseResult;
+use crate::get_then_update_id;
 use crate::math::amm::{
     calculate_quote_asset_amount_swapped, calculate_spread_reserves, get_spread_reserves,
     get_update_k_result,
 };
 use crate::math::casting::{cast_to_i128, cast_to_i64, cast_to_u128};
-use crate::math::constants::{
-    AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128, MARK_PRICE_PRECISION, PEG_PRECISION,
-    PRICE_TO_PEG_PRECISION_RATIO,
-};
+use crate::math::constants::PRICE_TO_PEG_PRECISION_RATIO;
 use crate::math::{amm, bn, quote_asset::*};
 use crate::math_error;
+use crate::state::events::CurveRecord;
 use crate::state::market::{Market, AMM};
 use crate::state::oracle::OraclePriceData;
-use std::cmp::{max, min};
+use anchor_lang::prelude::*;
+use std::cmp::max;
 
 use crate::controller::repeg::apply_cost_to_market;
 
@@ -175,92 +175,22 @@ fn calculate_base_swap_output_without_spread(
 }
 
 pub fn update_spreads(amm: &mut AMM, mark_price: u128) -> ClearingHouseResult<(u128, u128)> {
-    let mut long_spread = (amm.base_spread / 2) as u128;
-    let mut short_spread = (amm.base_spread / 2) as u128;
-
-    if amm.curve_update_intensity > 0 {
-        // oracle retreat
-        // if mark - oracle < 0 (mark below oracle) and user going long then increase spread
-        if amm.last_oracle_mark_spread_pct < 0 {
-            long_spread = max(
-                long_spread,
-                amm.last_oracle_mark_spread_pct
-                    .unsigned_abs()
-                    .checked_add(amm.last_oracle_conf_pct as u128)
-                    .ok_or_else(math_error!())?,
-            );
-        } else {
-            short_spread = max(
-                short_spread,
-                amm.last_oracle_mark_spread_pct
-                    .unsigned_abs()
-                    .checked_add(amm.last_oracle_conf_pct as u128)
-                    .ok_or_else(math_error!())?,
-            );
-        }
-
-        // inventory scale
-        let max_invetory_skew = 5 * MARK_PRICE_PRECISION;
-        if amm.total_fee_minus_distributions > 0 {
-            let net_base_asset_value = cast_to_i128(amm.quote_asset_reserve)?
-                .checked_sub(cast_to_i128(amm.terminal_quote_asset_reserve)?)
-                .ok_or_else(math_error!())?
-                .checked_mul(cast_to_i128(amm.peg_multiplier)?)
-                .ok_or_else(math_error!())?
-                .checked_div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128)
-                .ok_or_else(math_error!())?;
-
-            let local_base_asset_value = amm
-                .net_base_asset_amount
-                .checked_mul(cast_to_i128(
-                    mark_price
-                        .checked_div(MARK_PRICE_PRECISION / PEG_PRECISION)
-                        .ok_or_else(math_error!())?,
-                )?)
-                .ok_or_else(math_error!())?
-                .checked_div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128)
-                .ok_or_else(math_error!())?;
-
-            let effective_leverage = cast_to_u128(max(
-                0,
-                local_base_asset_value
-                    .checked_sub(net_base_asset_value)
-                    .ok_or_else(math_error!())?,
-            ))?
-            .checked_mul(MARK_PRICE_PRECISION)
-            .ok_or_else(math_error!())?
-            .checked_div(amm.total_fee_minus_distributions)
-            .ok_or_else(math_error!())?;
-
-            let effective_leverage_capped = min(
-                max_invetory_skew,
-                MARK_PRICE_PRECISION
-                    .checked_add(effective_leverage)
-                    .ok_or_else(math_error!())?,
-            );
-
-            if amm.net_base_asset_amount > 0 {
-                long_spread = long_spread
-                    .checked_mul(effective_leverage_capped)
-                    .ok_or_else(math_error!())?
-                    .checked_div(MARK_PRICE_PRECISION)
-                    .ok_or_else(math_error!())?;
-            } else {
-                short_spread = short_spread
-                    .checked_mul(effective_leverage_capped)
-                    .ok_or_else(math_error!())?
-                    .checked_div(MARK_PRICE_PRECISION)
-                    .ok_or_else(math_error!())?;
-            }
-        } else {
-            long_spread = long_spread
-                .checked_mul(max_invetory_skew / MARK_PRICE_PRECISION)
-                .ok_or_else(math_error!())?;
-            short_spread = short_spread
-                .checked_mul(max_invetory_skew / MARK_PRICE_PRECISION)
-                .ok_or_else(math_error!())?;
-        }
-    }
+    let (long_spread, short_spread) = if amm.curve_update_intensity > 0 {
+        amm::calculate_spread(
+            amm.base_spread,
+            amm.last_oracle_mark_spread_pct,
+            amm.last_oracle_conf_pct,
+            amm.quote_asset_reserve,
+            amm.terminal_quote_asset_reserve,
+            amm.peg_multiplier,
+            amm.net_base_asset_amount,
+            mark_price,
+            amm.total_fee_minus_distributions,
+        )?
+    } else {
+        let half_base_spread = (amm.base_spread / 2) as u128;
+        (half_base_spread, half_base_spread)
+    };
 
     amm.long_spread = long_spread;
     amm.short_spread = short_spread;
@@ -282,26 +212,29 @@ pub fn formulaic_update_k(
     market: &mut Market,
     _oracle_price_data: &OraclePriceData,
     funding_imbalance_cost: i128,
-    // now: i64,
-    // market_index: u64,
-    // trade_record: Option<u128>,
+    now: i64,
     mark_price: u128,
 ) -> ClearingHouseResult {
-    // let peg_multiplier_before = market.amm.peg_multiplier;
-    // let base_asset_reserve_before = market.amm.base_asset_reserve;
-    // let quote_asset_reserve_before = market.amm.quote_asset_reserve;
-    // let sqrt_k_before = market.amm.sqrt_k;
+    let peg_multiplier_before = market.amm.peg_multiplier;
+    let base_asset_reserve_before = market.amm.base_asset_reserve;
+    let quote_asset_reserve_before = market.amm.quote_asset_reserve;
+    let sqrt_k_before = market.amm.sqrt_k;
 
     let funding_imbalance_cost_i64 = cast_to_i64(funding_imbalance_cost)?;
 
     // calculate budget
-    // let budget = 0;
     let budget = if funding_imbalance_cost_i64 < 0 {
-        // negative cost is period revenue, give back half in k increase
-        funding_imbalance_cost_i64
-            .checked_div(2)
-            .ok_or_else(math_error!())?
-            .abs()
+        // negative cost is period revenue, if spread is low give back half in k increase
+        if max(market.amm.long_spread, market.amm.short_spread)
+            <= cast_to_u128(market.amm.base_spread)?
+        {
+            funding_imbalance_cost_i64
+                .checked_div(2)
+                .ok_or_else(math_error!())?
+                .abs()
+        } else {
+            0
+        }
     } else if market.amm.net_revenue_since_last_funding < funding_imbalance_cost_i64 {
         // cost exceeded period revenue, take back half in k decrease
         max(0, market.amm.net_revenue_since_last_funding)
@@ -331,13 +264,35 @@ pub fn formulaic_update_k(
         let cost_applied = apply_cost_to_market(market, adjustment_cost)?;
 
         if cost_applied {
-            // todo: do actual k adj here
             amm::update_k(market, &update_k_result)?;
 
-            // let peg_multiplier_after = market.amm.peg_multiplier;
-            // let base_asset_reserve_after = market.amm.base_asset_reserve;
-            // let quote_asset_reserve_after = market.amm.quote_asset_reserve;
-            // let sqrt_k_after = market.amm.sqrt_k;
+            let peg_multiplier_after = market.amm.peg_multiplier;
+            let base_asset_reserve_after = market.amm.base_asset_reserve;
+            let quote_asset_reserve_after = market.amm.quote_asset_reserve;
+            let sqrt_k_after = market.amm.sqrt_k;
+
+            emit!(CurveRecord {
+                ts: now,
+                record_id: get_then_update_id!(market, next_curve_record_id),
+                market_index: market.market_index,
+                peg_multiplier_before,
+                base_asset_reserve_before,
+                quote_asset_reserve_before,
+                sqrt_k_before,
+                peg_multiplier_after,
+                base_asset_reserve_after,
+                quote_asset_reserve_after,
+                sqrt_k_after,
+                base_asset_amount_long: market.base_asset_amount_long.unsigned_abs(),
+                base_asset_amount_short: market.base_asset_amount_short.unsigned_abs(),
+                net_base_asset_amount: market.amm.net_base_asset_amount,
+                open_interest: market.open_interest,
+                adjustment_cost,
+                total_fee: market.amm.total_fee,
+                total_fee_minus_distributions: market.amm.total_fee_minus_distributions,
+                oracle_price: market.amm.last_oracle_price,
+                trade_record: market.next_trade_record_id as u128,
+            });
         }
     }
     Ok(())
@@ -382,4 +337,62 @@ pub fn move_to_price(amm: &mut AMM, target_price: u128) -> ClearingHouseResult {
     amm.quote_asset_reserve = new_quote_asset_amount.try_to_u128()?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::math::constants::{AMM_RESERVE_PRECISION, MARK_PRICE_PRECISION, QUOTE_PRECISION};
+    #[test]
+    fn formualic_k_tests() {
+        let mut market = Market {
+            amm: AMM {
+                base_asset_reserve: 5122950819670000,
+                quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
+                sqrt_k: 500 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 50000,
+                net_base_asset_amount: -(122950819670000 as i128),
+                ..AMM::default()
+            },
+            ..Market::default()
+        };
+
+        let prev_sqrt_k = market.amm.sqrt_k;
+
+        let mark_price = market.amm.mark_price().unwrap();
+        let now = 10000 as i64;
+        let oracle_price_data = OraclePriceData {
+            price: (50 * MARK_PRICE_PRECISION) as i128,
+            confidence: 0,
+            delay: 2,
+            has_sufficient_number_of_data_points: true,
+        };
+
+        // zero funding cost
+        let funding_cost: i128 = 0;
+        formulaic_update_k(
+            &mut market,
+            &oracle_price_data,
+            funding_cost,
+            now,
+            mark_price,
+        )
+        .unwrap();
+        assert_eq!(prev_sqrt_k, market.amm.sqrt_k);
+
+        // positive means amm paid $500 in funding payments for interval
+        let funding_cost_2: i128 = (500 * QUOTE_PRECISION) as i128;
+        formulaic_update_k(
+            &mut market,
+            &oracle_price_data,
+            funding_cost_2,
+            now,
+            mark_price,
+        )
+        .unwrap();
+
+        assert_eq!(prev_sqrt_k > market.amm.sqrt_k, true);
+        assert_eq!(market.amm.sqrt_k, 4890000000000000);
+        assert_eq!(market.amm.total_fee_minus_distributions, 332075);
+    }
 }
