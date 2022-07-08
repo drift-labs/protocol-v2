@@ -29,7 +29,7 @@ import {
 import { Program } from '@project-serum/anchor';
 
 import { Keypair, PublicKey } from '@solana/web3.js';
-import { OracleSource } from '../sdk';
+import { BASE_PRECISION, OracleSource } from '../sdk';
 
 async function updateFundingRateHelper(
 	clearingHouse: ClearingHouse,
@@ -83,10 +83,15 @@ async function updateFundingRateHelper(
 		const cumulativeFundingRateShortOld =
 			ammAccountState0.cumulativeFundingRateShort;
 
-		const _tx = await clearingHouse.updateFundingRate(
-			priceFeedAddress,
-			marketIndex
-		);
+		let _tx;
+		try {
+			_tx = await clearingHouse.updateFundingRate(
+				priceFeedAddress,
+				marketIndex
+			);
+		} catch (e) {
+			console.error(e);
+		}
 
 		const CONVERSION_SCALE =
 			FUNDING_PAYMENT_PRECISION.mul(MARK_PRICE_PRECISION);
@@ -206,7 +211,7 @@ async function cappedSymFundingScenario(
 
 		await clearingHouse.openPosition(
 			PositionDirection.LONG,
-			QUOTE_PRECISION.mul(new BN(5000)),
+			BASE_PRECISION.mul(new BN(100)),
 			marketIndex
 		);
 		await clearingHouse.closePosition(marketIndex);
@@ -230,7 +235,7 @@ async function cappedSymFundingScenario(
 	if (longShortSizes[0] !== 0) {
 		await clearingHouse.openPosition(
 			PositionDirection.LONG,
-			QUOTE_PRECISION.mul(new BN(longShortSizes[0])),
+			BASE_PRECISION.mul(new BN(longShortSizes[0])),
 			marketIndex
 		);
 	}
@@ -241,7 +246,7 @@ async function cappedSymFundingScenario(
 	if (longShortSizes[1] !== 0) {
 		await clearingHouse2.openPosition(
 			PositionDirection.SHORT,
-			QUOTE_PRECISION.mul(new BN(longShortSizes[1])),
+			BASE_PRECISION.mul(new BN(longShortSizes[1])),
 			marketIndex
 		);
 	}
@@ -379,7 +384,7 @@ describe('capped funding', () => {
 		MARK_PRICE_PRECISION
 	);
 
-	const usdcAmount = new BN(10000 * 10 ** 6);
+	const usdcAmount = new BN(100000 * 10 ** 6);
 
 	let userAccount: ClearingHouseUser;
 	let userAccount2: ClearingHouseUser;
@@ -407,6 +412,7 @@ describe('capped funding', () => {
 		await clearingHouse.subscribe();
 
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
+		await clearingHouse.updateOrderAuctionTime(new BN(0));
 
 		await clearingHouse.initializeUserAccount();
 		userAccount = new ClearingHouseUser({
@@ -698,7 +704,7 @@ describe('capped funding', () => {
 			marketIndex,
 			ammInitialBaseAssetAmount,
 			[41, 44.5],
-			[2000, 1000],
+			[50, 25],
 			10000
 		);
 
@@ -790,7 +796,7 @@ describe('capped funding', () => {
 			marketIndex,
 			ammInitialBaseAssetAmount,
 			[41, 45.1],
-			[20000, 1000]
+			[50, 25]
 		);
 
 		//ensure it was clamped :)

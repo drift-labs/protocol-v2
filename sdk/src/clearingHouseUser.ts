@@ -128,6 +128,8 @@ export class ClearingHouseUser {
 			quoteEntryAmount: ZERO,
 			openOrders: ZERO,
 			unsettledPnl: ZERO,
+			openBids: ZERO,
+			openAsks: ZERO,
 			lpTokens: ZERO,
 			lastTotalFeeMinusDistributions: ZERO,
 			lastNetBaseAssetAmount: ZERO,
@@ -223,9 +225,8 @@ export class ClearingHouseUser {
 				.div(totalLpTokens)
 				.mul(market.amm.pegMultiplier)
 				.div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO);
-
 			if (
-				BAA.abs().gte(market.amm.minimumBaseAssetTradeSize) &&
+				BAA.abs().gte(market.amm.baseAssetAmountStepSize) &&
 				QAA.gte(market.amm.minimumQuoteAssetTradeSize)
 			) {
 				marketQAA = QAA;
@@ -247,6 +248,8 @@ export class ClearingHouseUser {
 			lastCumulativeFundingRate: market.amm.cumulativeFundingRateLp,
 			lastTotalFeeMinusDistributions: market.amm.totalFeeMinusDistributions,
 			lastNetBaseAssetAmount: market.amm.netBaseAssetAmount,
+			openAsks: ZERO,
+			openBids: ZERO,
 		};
 
 		return [marketPosition, settleResult];
@@ -718,6 +721,8 @@ export class ClearingHouseUser {
 			quoteEntryAmount: new BN(0),
 			openOrders: new BN(0),
 			unsettledPnl: new BN(0),
+			openBids: new BN(0),
+			openAsks: new BN(0),
 			lpTokens: new BN(0),
 			lastTotalFeeMinusDistributions: new BN(0),
 			lastNetBaseAssetAmount: new BN(0),

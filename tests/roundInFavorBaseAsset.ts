@@ -61,6 +61,7 @@ describe('round in favor', () => {
 		await primaryClearingHouse.subscribe();
 
 		await initializeQuoteAssetBank(primaryClearingHouse, usdcMint.publicKey);
+		await primaryClearingHouse.updateOrderAuctionTime(new BN(0));
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 

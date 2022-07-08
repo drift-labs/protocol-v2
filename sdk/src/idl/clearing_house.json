@@ -567,7 +567,7 @@
       ],
       "args": [
         {
-          "name": "orderId",
+          "name": "takerOrderId",
           "type": "u64"
         }
       ]
@@ -1413,7 +1413,7 @@
       ]
     },
     {
-      "name": "updateMarketMinimumBaseAssetTradeSize",
+      "name": "updateMarketBaseAssetAmountStepSize",
       "accounts": [
         {
           "name": "admin",
@@ -1556,6 +1556,27 @@
         {
           "name": "fundingPaused",
           "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "updateOrderAuctionTime",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "orderAuctionTime",
+          "type": "u8"
         }
       ]
     }
@@ -1857,14 +1878,12 @@
             "type": "u64"
           },
           {
-            "name": "orderFillerRewardStructure",
-            "type": {
-              "defined": "OrderFillerRewardStructure"
-            }
-          },
-          {
             "name": "minOrderQuoteAssetAmount",
             "type": "u128"
+          },
+          {
+            "name": "orderAuctionDuration",
+            "type": "u8"
           },
           {
             "name": "padding0",
@@ -1872,14 +1891,6 @@
           },
           {
             "name": "padding1",
-            "type": "u128"
-          },
-          {
-            "name": "padding2",
-            "type": "u128"
-          },
-          {
-            "name": "padding3",
             "type": "u128"
           }
         ]
@@ -2205,7 +2216,7 @@
             "type": "u128"
           },
           {
-            "name": "minimumBaseAssetTradeSize",
+            "name": "baseAssetAmountStepSize",
             "type": "u128"
           },
           {
@@ -2401,6 +2412,20 @@
             "type": {
               "defined": "ReferralDiscount"
             }
+          },
+          {
+            "name": "makerRebateNumerator",
+            "type": "u128"
+          },
+          {
+            "name": "makerRebateDenominator",
+            "type": "u128"
+          },
+          {
+            "name": "fillerRewardStructure",
+            "type": {
+              "defined": "OrderFillerRewardStructure"
+            }
           }
         ]
       }
@@ -2565,6 +2590,14 @@
             "type": "i128"
           },
           {
+            "name": "openBids",
+            "type": "i128"
+          },
+          {
+            "name": "openAsks",
+            "type": "i128"
+          },
+          {
             "name": "lpTokens",
             "type": "u128"
           },
@@ -2594,14 +2627,6 @@
           },
           {
             "name": "padding4",
-            "type": "u128"
-          },
-          {
-            "name": "padding5",
-            "type": "u128"
-          },
-          {
-            "name": "padding6",
             "type": "u128"
           }
         ]
@@ -2709,6 +2734,18 @@
           {
             "name": "oraclePriceOffset",
             "type": "i128"
+          },
+          {
+            "name": "auctionStartPrice",
+            "type": "u128"
+          },
+          {
+            "name": "auctionEndPrice",
+            "type": "u128"
+          },
+          {
+            "name": "auctionDuration",
+            "type": "u8"
           },
           {
             "name": "padding",
@@ -2842,6 +2879,20 @@
           },
           {
             "name": "Expire"
+          }
+        ]
+      }
+    },
+    {
+      "name": "FulfillmentMethod",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "AMM"
+          },
+          {
+            "name": "Match"
           }
         ]
       }
@@ -3071,6 +3122,20 @@
           "name": "oraclePrice",
           "type": "i128",
           "index": false
+        },
+        {
+          "name": "makerAuthority",
+          "type": {
+            "option": "publicKey"
+          },
+          "index": false
+        },
+        {
+          "name": "maker",
+          "type": {
+            "option": "publicKey"
+          },
+          "index": false
         }
       ]
     },
@@ -3243,7 +3308,7 @@
           "index": false
         },
         {
-          "name": "baseAssetAmount",
+          "name": "netBaseAssetAmount",
           "type": "i128",
           "index": false
         },
@@ -3814,6 +3879,51 @@
       "code": 6077,
       "name": "AMMNotUpdatedInSameSlot",
       "msg": "AMMNotUpdatedInSameSlot"
+    },
+    {
+      "code": 6078,
+      "name": "AuctionNotComplete",
+      "msg": "AuctionNotComplete"
+    },
+    {
+      "code": 6079,
+      "name": "MakerNotFound",
+      "msg": "MakerNotFound"
+    },
+    {
+      "code": 6080,
+      "name": "MakerMustBeWritable",
+      "msg": "MakerMustBeWritable"
+    },
+    {
+      "code": 6081,
+      "name": "MakerOrderNotFound",
+      "msg": "MakerOrderNotFound"
+    },
+    {
+      "code": 6082,
+      "name": "CouldNotDeserializeMaker",
+      "msg": "CouldNotDeserializeMaker"
+    },
+    {
+      "code": 6083,
+      "name": "AuctionPriceDoesNotSatisfyMaker",
+      "msg": "AuctionPriceDoesNotSatisfyMaker"
+    },
+    {
+      "code": 6084,
+      "name": "MakerCantFulfillOwnOrder",
+      "msg": "MakerCantFulfillOwnOrder"
+    },
+    {
+      "code": 6085,
+      "name": "MakerOrderMustBePostOnly",
+      "msg": "MakerOrderMustBePostOnly"
+    },
+    {
+      "code": 6086,
+      "name": "DefaultError",
+      "msg": "DefaultError"
     },
     {
       "code": 6078,

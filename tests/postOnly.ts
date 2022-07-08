@@ -32,7 +32,7 @@ import {
 	ZERO,
 } from '../sdk';
 
-describe('maker order', () => {
+describe('post only', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
 		commitment: 'confirmed',
 		preflightCommitment: 'confirmed',
@@ -90,6 +90,7 @@ describe('maker order', () => {
 		await fillerClearingHouse.initialize(usdcMint.publicKey, true);
 		await fillerClearingHouse.subscribe();
 		await initializeQuoteAssetBank(fillerClearingHouse, usdcMint.publicKey);
+		await fillerClearingHouse.updateOrderAuctionTime(new BN(0));
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
@@ -99,6 +100,8 @@ describe('maker order', () => {
 			ammInitialQuoteAssetReserve,
 			periodicity
 		);
+
+		await fillerClearingHouse.updateMarketBaseSpread(new BN(0), 500);
 
 		await fillerClearingHouse.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
@@ -199,19 +202,20 @@ describe('maker order', () => {
 		const position = clearingHouseUser.getUserPosition(marketIndex);
 		assert(position.baseAssetAmount.eq(baseAssetAmount));
 		assert(position.quoteEntryAmount.eq(new BN(1000001)));
+		assert(position.quoteAssetAmount.eq(new BN(1000001)));
 		assert(clearingHouse.getQuoteAssetTokenAmount().eq(usdcAmount));
 		assert(
-			clearingHouse.getUserAccount().positions[0].unsettledPnl.eq(new BN(500))
+			clearingHouse.getUserAccount().positions[0].unsettledPnl.eq(new BN(ZERO))
 		);
 		assert(clearingHouseUser.getUserAccount().totalFeePaid.eq(ZERO));
-		assert(clearingHouseUser.getUserAccount().totalFeeRebate.eq(new BN(500)));
+		assert(clearingHouseUser.getUserAccount().totalFeeRebate.eq(ZERO));
 
 		await fillerClearingHouse.fetchAccounts();
 		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 
 		assert(isVariant(orderRecord.action, 'fill'));
-		assert(orderRecord.fee.eq(new BN(-500)));
-		assert(orderRecord.quoteAssetAmountSurplus.eq(new BN(500000)));
+		assert(orderRecord.fee.eq(ZERO));
+		assert(orderRecord.quoteAssetAmountSurplus.eq(new BN(499875)));
 
 		await clearingHouse.unsubscribe();
 		await clearingHouseUser.unsubscribe();
@@ -292,17 +296,17 @@ describe('maker order', () => {
 		assert(position.quoteEntryAmount.eq(new BN(1000000)));
 		assert(clearingHouse.getQuoteAssetTokenAmount().eq(usdcAmount));
 		assert(
-			clearingHouse.getUserAccount().positions[0].unsettledPnl.eq(new BN(500))
+			clearingHouse.getUserAccount().positions[0].unsettledPnl.eq(new BN(0))
 		);
 		assert(clearingHouseUser.getUserAccount().totalFeePaid.eq(ZERO));
-		assert(clearingHouseUser.getUserAccount().totalFeeRebate.eq(new BN(500)));
+		assert(clearingHouseUser.getUserAccount().totalFeeRebate.eq(new BN(0)));
 
 		await fillerClearingHouse.fetchAccounts();
 		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 
 		assert(isVariant(orderRecord.action, 'fill'));
-		assert(orderRecord.fee.eq(new BN(-500)));
-		assert(orderRecord.quoteAssetAmountSurplus.eq(new BN(999992)));
+		assert(orderRecord.fee.eq(new BN(0)));
+		assert(orderRecord.quoteAssetAmountSurplus.eq(new BN(999492)));
 
 		await clearingHouse.unsubscribe();
 		await clearingHouseUser.unsubscribe();

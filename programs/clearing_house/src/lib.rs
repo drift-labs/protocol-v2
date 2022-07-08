@@ -53,11 +53,10 @@ pub mod clearing_house {
     use crate::math::bank_balance::get_token_amount;
     use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64};
     use crate::math::slippage::{calculate_slippage, calculate_slippage_pct};
-    use crate::optional_accounts::{get_discount_token, get_referrer, get_referrer_for_fill_order};
+    use crate::optional_accounts::get_maker;
     use crate::state::bank::{Bank, BankBalance, BankBalanceType};
     use crate::state::bank_map::{get_writable_banks, BankMap, WritableBanks};
-    use crate::state::events::TradeRecord;
-    use crate::state::events::{CurveRecord, DepositRecord};
+    use crate::state::events::{CurveRecord, DepositRecord, TradeRecord};
     use crate::state::events::{DepositDirection, LiquidationRecord};
     use crate::state::market::{Market, PoolBalance};
     use crate::state::market_map::{
@@ -68,7 +67,6 @@ pub mod clearing_house {
     use crate::state::oracle::OraclePriceData;
     use crate::state::oracle_map::OracleMap;
     use crate::state::state::OrderFillerRewardStructure;
-    use crate::state::user::OrderType;
 
     use super::*;
 
@@ -101,42 +99,7 @@ pub mod clearing_house {
             full_liquidation_penalty_percentage_denominator: 1,
             partial_liquidation_liquidator_share_denominator: 2,
             full_liquidation_liquidator_share_denominator: 20,
-            fee_structure: FeeStructure {
-                fee_numerator: DEFAULT_FEE_NUMERATOR,
-                fee_denominator: DEFAULT_FEE_DENOMINATOR,
-                discount_token_tiers: DiscountTokenTiers {
-                    first_tier: DiscountTokenTier {
-                        minimum_balance: DEFAULT_DISCOUNT_TOKEN_FIRST_TIER_MINIMUM_BALANCE,
-                        discount_numerator: DEFAULT_DISCOUNT_TOKEN_FIRST_TIER_DISCOUNT_NUMERATOR,
-                        discount_denominator:
-                            DEFAULT_DISCOUNT_TOKEN_FIRST_TIER_DISCOUNT_DENOMINATOR,
-                    },
-                    second_tier: DiscountTokenTier {
-                        minimum_balance: DEFAULT_DISCOUNT_TOKEN_SECOND_TIER_MINIMUM_BALANCE,
-                        discount_numerator: DEFAULT_DISCOUNT_TOKEN_SECOND_TIER_DISCOUNT_NUMERATOR,
-                        discount_denominator:
-                            DEFAULT_DISCOUNT_TOKEN_SECOND_TIER_DISCOUNT_DENOMINATOR,
-                    },
-                    third_tier: DiscountTokenTier {
-                        minimum_balance: DEFAULT_DISCOUNT_TOKEN_THIRD_TIER_MINIMUM_BALANCE,
-                        discount_numerator: DEFAULT_DISCOUNT_TOKEN_THIRD_TIER_DISCOUNT_NUMERATOR,
-                        discount_denominator:
-                            DEFAULT_DISCOUNT_TOKEN_THIRD_TIER_DISCOUNT_DENOMINATOR,
-                    },
-                    fourth_tier: DiscountTokenTier {
-                        minimum_balance: DEFAULT_DISCOUNT_TOKEN_FOURTH_TIER_MINIMUM_BALANCE,
-                        discount_numerator: DEFAULT_DISCOUNT_TOKEN_FOURTH_TIER_DISCOUNT_NUMERATOR,
-                        discount_denominator:
-                            DEFAULT_DISCOUNT_TOKEN_FOURTH_TIER_DISCOUNT_DENOMINATOR,
-                    },
-                },
-                referral_discount: ReferralDiscount {
-                    referrer_reward_numerator: DEFAULT_REFERRER_REWARD_NUMERATOR,
-                    referrer_reward_denominator: DEFAULT_REFERRER_REWARD_DENOMINATOR,
-                    referee_discount_numerator: DEFAULT_REFEREE_DISCOUNT_NUMERATOR,
-                    referee_discount_denominator: DEFAULT_REFEREE_DISCOUNT_DENOMINATOR,
-                },
-            },
+            fee_structure: FeeStructure::default(),
             whitelist_mint: Pubkey::default(),
             discount_mint: Pubkey::default(),
             oracle_guard_rails: OracleGuardRails {
@@ -153,16 +116,10 @@ pub mod clearing_house {
             },
             number_of_markets: 0,
             number_of_banks: 0,
-            order_filler_reward_structure: OrderFillerRewardStructure {
-                reward_numerator: 1,
-                reward_denominator: 10,
-                time_based_reward_lower_bound: 10_000, // 1 cent
-            },
             min_order_quote_asset_amount: 500_000, // 50 cents
+            order_auction_duration: 5,             // 5 seconds
             padding0: 0,
             padding1: 0,
-            padding2: 0,
-            padding3: 0,
         };
 
         Ok(())
@@ -445,7 +402,7 @@ pub mod clearing_house {
                 last_oracle_conf_pct: 0,
                 last_oracle_delay: oracle_delay,
                 last_oracle_mark_spread_pct: 0, // todo
-                minimum_base_asset_trade_size: 10000000,
+                base_asset_amount_step_size: 10000000,
                 base_spread: 0,
                 long_spread: 0,
                 short_spread: 0,
@@ -979,33 +936,15 @@ pub mod clearing_house {
 
     pub fn place_order(ctx: Context<PlaceOrder>, params: OrderParams) -> Result<()> {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let _oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
-        let _bank_map = BankMap::load(&WritableBanks::new(), remaining_accounts_iter)?;
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
+        let bank_map = BankMap::load(&WritableBanks::new(), remaining_accounts_iter)?;
         let market_map = MarketMap::load(
             &WritableMarkets::new(),
             &get_market_oracles(params.market_index, &ctx.accounts.oracle),
             remaining_accounts_iter,
         )?;
 
-        let discount_token = get_discount_token(
-            params.optional_accounts.discount_token,
-            remaining_accounts_iter,
-            &ctx.accounts.state.discount_mint,
-            ctx.accounts.authority.key,
-        )?;
-        let referrer = get_referrer(
-            params.optional_accounts.referrer,
-            remaining_accounts_iter,
-            &ctx.accounts.user.key(),
-            None,
-        )?;
-
         let oracle = Some(&ctx.accounts.oracle);
-
-        if params.order_type == OrderType::Market {
-            msg!("market order must be in place and fill");
-            return Err(ErrorCode::MarketOrderMustBeInPlaceAndFill.into());
-        }
 
         if params.immediate_or_cancel {
             msg!("immediate_or_cancel order must be in place and fill");
@@ -1016,8 +955,8 @@ pub mod clearing_house {
             &ctx.accounts.state,
             &ctx.accounts.user,
             &market_map,
-            discount_token,
-            &referrer,
+            &bank_map,
+            &mut oracle_map,
             &Clock::get()?,
             params,
             oracle,
@@ -1118,13 +1057,13 @@ pub mod clearing_house {
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]
-    pub fn fill_order<'info>(ctx: Context<FillOrder>, order_id: u64) -> Result<()> {
+    pub fn fill_order<'info>(ctx: Context<FillOrder>, taker_order_id: u64) -> Result<()> {
         let (writable_markets, market_oracles) = {
             let user = &load(&ctx.accounts.user)?;
             let order_index = user
                 .orders
                 .iter()
-                .position(|order| order.order_id == order_id)
+                .position(|order| order.order_id == taker_order_id)
                 .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
             let order = &user.orders[order_index];
 
@@ -1136,12 +1075,18 @@ pub mod clearing_house {
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
-        let mut bank_map = BankMap::load(
+        let _bank_map = BankMap::load(
             &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
             remaining_accounts_iter,
         )?;
         let mut market_map =
             MarketMap::load(writable_markets, market_oracles, remaining_accounts_iter)?;
+
+        let maker_order_id = None;
+        let maker = match maker_order_id {
+            Some(_) => Some(get_maker(remaining_accounts_iter)?),
+            None => None,
+        };
 
         controller::repeg::update_amms(
             &mut market_map,
@@ -1150,23 +1095,16 @@ pub mod clearing_house {
             &Clock::get()?,
         )?;
 
-        let referrer = get_referrer_for_fill_order(
-            remaining_accounts_iter,
-            &ctx.accounts.user.key(),
-            order_id,
-            &ctx.accounts.user,
-        )?;
-
         let base_asset_amount = controller::orders::fill_order(
-            order_id,
+            taker_order_id,
             &ctx.accounts.state,
             &ctx.accounts.user,
             &market_map,
-            &mut bank_map,
             &mut oracle_map,
             &ctx.accounts.oracle,
             &ctx.accounts.filler,
-            referrer,
+            maker,
+            maker_order_id,
             &Clock::get()?,
         )?;
 
@@ -1186,7 +1124,7 @@ pub mod clearing_house {
     ) -> Result<()> {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
-        let mut bank_map = BankMap::load(
+        let bank_map = BankMap::load(
             &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
             remaining_accounts_iter,
         )?;
@@ -1199,18 +1137,6 @@ pub mod clearing_house {
             remaining_accounts_iter,
         )?;
 
-        let discount_token = get_discount_token(
-            params.optional_accounts.discount_token,
-            remaining_accounts_iter,
-            &ctx.accounts.state.discount_mint,
-            ctx.accounts.authority.key,
-        )?;
-        let referrer = get_referrer(
-            params.optional_accounts.referrer,
-            remaining_accounts_iter,
-            &ctx.accounts.user.key(),
-            None,
-        )?;
         let is_immediate_or_cancel = params.immediate_or_cancel;
         let base_asset_amount_to_fill = params.base_asset_amount;
 
@@ -1225,8 +1151,8 @@ pub mod clearing_house {
             &ctx.accounts.state,
             &ctx.accounts.user,
             &market_map,
-            discount_token,
-            &referrer,
+            &bank_map,
+            &mut oracle_map,
             &Clock::get()?,
             params,
             Some(&ctx.accounts.oracle),
@@ -1247,11 +1173,11 @@ pub mod clearing_house {
             &ctx.accounts.state,
             user,
             &market_map,
-            &mut bank_map,
             &mut oracle_map,
             &ctx.accounts.oracle,
             &user.clone(),
-            referrer,
+            None,
+            None,
             &Clock::get()?,
         )?;
 
@@ -1341,9 +1267,19 @@ pub mod clearing_house {
                     .quote_asset_amount
                     .checked_sub(amm_position_unrealized_pnl.unsigned_abs())
                     .ok_or_else(math_error!())?;
+                market.amm.quote_asset_amount_long = market
+                    .amm
+                    .quote_asset_amount_long
+                    .checked_sub(amm_position_unrealized_pnl.unsigned_abs())
+                    .ok_or_else(math_error!())?;
             } else {
                 market_position.quote_asset_amount = market_position
                     .quote_asset_amount
+                    .checked_add(amm_position_unrealized_pnl.unsigned_abs())
+                    .ok_or_else(math_error!())?;
+                market.amm.quote_asset_amount_short = market
+                    .amm
+                    .quote_asset_amount_short
                     .checked_add(amm_position_unrealized_pnl.unsigned_abs())
                     .ok_or_else(math_error!())?;
             }
@@ -1645,38 +1581,20 @@ pub mod clearing_house {
                 let direction_to_close =
                     math::position::direction_to_close_position(existing_base_asset_amount);
 
-                // just reduce position if position is too big
-                let (quote_asset_amount, base_asset_amount, pnl) = if close_slippage_pct_too_large {
-                    let quote_asset_amount = market_status
-                        .base_asset_value
-                        .checked_mul(MAX_LIQUIDATION_SLIPPAGE_U128)
-                        .ok_or_else(math_error!())?
-                        .checked_div(close_position_slippage_pct.unsigned_abs())
-                        .ok_or_else(math_error!())?;
-
-                    let (base_asset_amount, _, pnl) = controller::position::reduce(
+                let base_asset_amount = existing_base_asset_amount;
+                let (_, _, quote_asset_amount, _, pnl) =
+                    controller::position::update_position_with_base_asset_amount(
+                        user.positions[position_index]
+                            .base_asset_amount
+                            .unsigned_abs(),
                         direction_to_close,
-                        quote_asset_amount,
                         market,
-                        &mut user.positions[position_index],
+                        user,
+                        position_index,
+                        mark_price_before,
                         now,
-                        Some(mark_price_before),
-                        false,
+                        None,
                     )?;
-
-                    (quote_asset_amount, base_asset_amount, pnl)
-                } else {
-                    let (quote_asset_amount, base_asset_amount, _, pnl) =
-                        controller::position::close(
-                            market,
-                            &mut user.positions[position_index],
-                            now,
-                            None,
-                            Some(mark_price_before),
-                            false,
-                        )?;
-                    (quote_asset_amount, base_asset_amount, pnl)
-                };
 
                 controller::position::update_unsettled_pnl(
                     &mut user.positions[position_index],
@@ -1707,6 +1625,8 @@ pub mod clearing_house {
                     liquidation: true,
                     market_index: market_status.market_index,
                     oracle_price: market_status.oracle_status.price_data.price,
+                    maker_authority: None,
+                    maker: None,
                 };
                 emit!(trade_record);
 
@@ -1871,15 +1791,25 @@ pub mod clearing_house {
                 let direction_to_reduce =
                     math::position::direction_to_close_position(existing_base_asset_amount);
 
-                let (base_asset_amount, _, pnl) = controller::position::reduce(
-                    direction_to_reduce,
-                    quote_asset_amount,
-                    market,
-                    &mut user.positions[position_index],
-                    now,
-                    Some(mark_price_before),
-                    false,
-                )?;
+                let base_asset_amount = existing_base_asset_amount
+                    .checked_mul(cast(state.partial_liquidation_close_percentage_numerator)?)
+                    .ok_or_else(math_error!())?
+                    .checked_div(cast(
+                        state.partial_liquidation_close_percentage_denominator,
+                    )?)
+                    .ok_or_else(math_error!())?;
+
+                let (_, _, quote_asset_amount, _, pnl) =
+                    controller::position::update_position_with_base_asset_amount(
+                        base_asset_amount.unsigned_abs(),
+                        direction_to_reduce,
+                        market,
+                        user,
+                        position_index,
+                        mark_price_before,
+                        now,
+                        None,
+                    )?;
 
                 controller::position::update_unsettled_pnl(
                     &mut user.positions[position_index],
@@ -1908,6 +1838,8 @@ pub mod clearing_house {
                     liquidation: true,
                     market_index: market_status.market_index,
                     oracle_price: market_status.oracle_status.price_data.price,
+                    maker_authority: None,
+                    maker: None,
                 };
                 emit!(trade_record);
 
@@ -2183,7 +2115,7 @@ pub mod clearing_house {
             sqrt_k_after,
             base_asset_amount_long: market.base_asset_amount_long.unsigned_abs(),
             base_asset_amount_short: market.base_asset_amount_short.unsigned_abs(),
-            base_asset_amount: market.amm.net_base_asset_amount,
+            net_base_asset_amount: market.amm.net_base_asset_amount,
             open_interest: market.open_interest,
             total_fee: market.amm.total_fee,
             total_fee_minus_distributions: market.amm.total_fee_minus_distributions,
@@ -2347,7 +2279,7 @@ pub mod clearing_house {
 
         let base_asset_amount_long = market.base_asset_amount_long.unsigned_abs();
         let base_asset_amount_short = market.base_asset_amount_short.unsigned_abs();
-        let base_asset_amount = market.amm.net_base_asset_amount;
+        let net_base_asset_amount = market.amm.net_base_asset_amount;
         let open_interest = market.open_interest;
 
         let price_before = math::amm::calculate_price(
@@ -2464,7 +2396,7 @@ pub mod clearing_house {
             sqrt_k_after,
             base_asset_amount_long,
             base_asset_amount_short,
-            base_asset_amount,
+            net_base_asset_amount,
             open_interest,
             adjustment_cost,
             total_fee,
@@ -2581,7 +2513,7 @@ pub mod clearing_house {
         ctx: Context<AdminUpdateState>,
         order_filler_reward_structure: OrderFillerRewardStructure,
     ) -> Result<()> {
-        ctx.accounts.state.order_filler_reward_structure = order_filler_reward_structure;
+        ctx.accounts.state.fee_structure.filler_reward_structure = order_filler_reward_structure;
         Ok(())
     }
 
@@ -2636,12 +2568,12 @@ pub mod clearing_house {
     #[access_control(
         market_initialized(&ctx.accounts.market)
     )]
-    pub fn update_market_minimum_base_asset_trade_size(
+    pub fn update_market_base_asset_amount_step_size(
         ctx: Context<AdminUpdateMarket>,
         minimum_trade_size: u128,
     ) -> Result<()> {
         let market = &mut ctx.accounts.market.load_mut()?;
-        market.amm.minimum_base_asset_trade_size = minimum_trade_size;
+        market.amm.base_asset_amount_step_size = minimum_trade_size;
         Ok(())
     }
 
@@ -2684,6 +2616,20 @@ pub mod clearing_house {
         funding_paused: bool,
     ) -> Result<()> {
         ctx.accounts.state.funding_paused = funding_paused;
+        Ok(())
+    }
+
+    pub fn update_order_auction_time(
+        ctx: Context<AdminUpdateState>,
+        order_auction_time: u8,
+    ) -> Result<()> {
+        validate!(
+            order_auction_time > 0 || order_auction_time < 100,
+            ErrorCode::DefaultError,
+            "invalid auction time",
+        )?;
+
+        ctx.accounts.state.order_auction_duration = order_auction_time;
         Ok(())
     }
 }

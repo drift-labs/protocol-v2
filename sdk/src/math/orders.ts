@@ -1,6 +1,7 @@
 import { ClearingHouseUser } from '../clearingHouseUser';
 import { isVariant, Order } from '../types';
 import { ZERO, TWO } from '../constants/numericConstants';
+import { BN } from '@project-serum/anchor';
 
 export function isOrderRiskIncreasing(
 	user: ClearingHouseUser,
@@ -105,4 +106,12 @@ export function isOrderReduceOnly(
 	}
 
 	return true;
+}
+
+export function standardizeBaseAssetAmount(
+	baseAssetAmount: BN,
+	stepSize: BN
+): BN {
+	const remainder = baseAssetAmount.mod(stepSize);
+	return baseAssetAmount.sub(remainder);
 }

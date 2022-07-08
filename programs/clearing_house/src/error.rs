@@ -160,6 +160,24 @@ pub enum ErrorCode {
     InsufficientCollateralForSettlingPNL,
     #[msg("AMMNotUpdatedInSameSlot")]
     AMMNotUpdatedInSameSlot,
+    #[msg("AuctionNotComplete")]
+    AuctionNotComplete,
+    #[msg("MakerNotFound")]
+    MakerNotFound,
+    #[msg("MakerMustBeWritable")]
+    MakerMustBeWritable,
+    #[msg("MakerOrderNotFound")]
+    MakerOrderNotFound,
+    #[msg("CouldNotDeserializeMaker")]
+    CouldNotDeserializeMaker,
+    #[msg("AuctionPriceDoesNotSatisfyMaker")]
+    AuctionPriceDoesNotSatisfyMaker,
+    #[msg("MakerCantFulfillOwnOrder")]
+    MakerCantFulfillOwnOrder,
+    #[msg("MakerOrderMustBePostOnly")]
+    MakerOrderMustBePostOnly,
+    #[msg("DefaultError")]
+    DefaultError,
     #[msg("Insufficient LP tokens")]
     InsufficientLPTokens,
     #[msg("Cant LP with a market position")]

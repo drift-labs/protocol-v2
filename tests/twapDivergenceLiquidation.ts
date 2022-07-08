@@ -65,6 +65,7 @@ describe('twap divergence liquidation', () => {
 		await clearingHouse.subscribe();
 
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
+		await clearingHouse.updateOrderAuctionTime(new BN(0));
 
 		for (let i = 0; i < maxPositions; i++) {
 			// make invalid

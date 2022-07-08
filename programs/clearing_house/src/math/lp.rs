@@ -74,7 +74,7 @@ pub fn get_lp_metrics(
         )?;
 
         let min_qaa = amm.minimum_quote_asset_trade_size;
-        let min_baa = amm.minimum_base_asset_trade_size;
+        let min_baa = amm.base_asset_amount_step_size;
 
         if base_asset_amount.unsigned_abs() >= min_baa && quote_asset_amount >= min_qaa {
             market_quote_asset_amount = quote_asset_amount;

@@ -50,6 +50,7 @@ describe('admin', () => {
 		await clearingHouse.subscribe();
 
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
+		await clearingHouse.updateOrderAuctionTime(new BN(0));
 
 		const solUsd = await mockOracle(1);
 		const periodicity = new BN(60 * 60); // 1 HOUR
@@ -186,6 +187,13 @@ describe('admin', () => {
 				refereeDiscountNumerator: new BN(1),
 				refereeDiscountDenominator: new BN(1),
 			},
+			makerRebateNumerator: new BN(1),
+			makerRebateDenominator: new BN(1),
+			fillerRewardStructure: {
+				rewardNumerator: new BN(1),
+				rewardDenominator: new BN(1),
+				timeBasedRewardLowerBound: new BN(1),
+			},
 		};
 
 		await clearingHouse.updateFee(newFeeStructure);
@@ -212,7 +220,7 @@ describe('admin', () => {
 		assert(
 			JSON.stringify(newStructure) ===
 				JSON.stringify(
-					clearingHouse.getStateAccount().orderFillerRewardStructure
+					clearingHouse.getStateAccount().feeStructure.fillerRewardStructure
 				)
 		);
 	});
@@ -296,17 +304,17 @@ describe('admin', () => {
 		assert(market.amm.minimumQuoteAssetTradeSize.eq(minimumTradeSize));
 	});
 
-	it('Update market minimum base asset trade size', async () => {
-		const minimumTradeSize = new BN(2);
+	it('Update market base asset step size', async () => {
+		const stepSize = new BN(2);
 
-		await clearingHouse.updateMarketMinimumBaseAssetTradeSize(
+		await clearingHouse.updateMarketBaseAssetAmountStepSize(
 			new BN(0),
-			minimumTradeSize
+			stepSize
 		);
 
 		await clearingHouse.fetchAccounts();
 		const market = clearingHouse.getMarketAccount(0);
-		assert(market.amm.minimumBaseAssetTradeSize.eq(minimumTradeSize));
+		assert(market.amm.baseAssetAmountStepSize.eq(stepSize));
 	});
 
 	it('Pause funding', async () => {

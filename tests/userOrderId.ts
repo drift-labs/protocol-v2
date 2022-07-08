@@ -80,6 +80,7 @@ describe('user order id', () => {
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
+		await clearingHouse.updateOrderAuctionTime(new BN(0));
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
@@ -143,7 +144,7 @@ describe('user order id', () => {
 		const direction = PositionDirection.LONG;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
 		const price = MARK_PRICE_PRECISION.mul(new BN(2));
-		const reduceOnly = true;
+		const reduceOnly = false;
 		const userOrderId = 1;
 
 		const orderParams = getLimitOrderParams(
@@ -169,7 +170,7 @@ describe('user order id', () => {
 		const direction = PositionDirection.LONG;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
 		const price = MARK_PRICE_PRECISION.mul(new BN(2));
-		const reduceOnly = true;
+		const reduceOnly = false;
 		const userOrderId = 1;
 
 		const orderParams = getLimitOrderParams(

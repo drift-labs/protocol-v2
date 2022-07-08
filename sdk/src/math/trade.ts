@@ -1,4 +1,4 @@
-import { MarketAccount, PositionDirection } from '../types';
+import { MarketAccount, PositionDirection, SwapDirection } from '../types';
 import { BN } from '@project-serum/anchor';
 import { assert } from '../assert/assert';
 import {
@@ -18,6 +18,7 @@ import {
 	getSwapDirection,
 	AssetType,
 	calculateUpdatedAMMSpreadReserves,
+	calculateQuoteAssetAmountSwapped,
 } from './amm';
 import { squareRootBN } from './utils';
 import { isVariant } from '../types';
@@ -86,6 +87,20 @@ export function calculateTradeSlippage(
 		useSpread
 	);
 
+	const swapDirection = isVariant(direction, 'long')
+		? SwapDirection.REMOVE
+		: SwapDirection.ADD;
+	const quoteAssetAmountAcquired = calculateQuoteAssetAmountSwapped(
+		acquiredQuote.abs(),
+		market.amm.pegMultiplier,
+		swapDirection
+	);
+
+	const entryPrice = quoteAssetAmountAcquired
+		.mul(AMM_TO_QUOTE_PRECISION_RATIO)
+		.mul(MARK_PRICE_PRECISION)
+		.div(acquiredBase.abs());
+
 	let amm: Parameters<typeof calculateAmmReservesAfterSwap>[0];
 	if (useSpread && market.amm.baseSpread > 0) {
 		const { baseAssetReserve, quoteAssetReserve, sqrtK, newPeg } =
@@ -99,21 +114,6 @@ export function calculateTradeSlippage(
 	} else {
 		amm = market.amm;
 	}
-
-	const entryPrice = calculatePrice(
-		acquiredBase,
-		acquiredQuote,
-		amm.pegMultiplier
-	).mul(new BN(-1));
-
-	// console.log(
-	// 	'entryPrice:',
-	// 	entryPrice.toString(),
-	// 	'(',
-	// 	acquiredBase.toString(),
-	// 	acquiredQuote.toString(),
-	// 	')'
-	// );
 
 	const newPrice = calculatePrice(
 		amm.baseAssetReserve.sub(acquiredBase),
