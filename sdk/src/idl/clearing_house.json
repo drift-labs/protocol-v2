@@ -2788,20 +2788,6 @@
       }
     },
     {
-      "name": "SettleResult",
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "RecievedMarketPosition"
-          },
-          {
-            "name": "DidNotRecieveMarketPosition"
-          }
-        ]
-      }
-    },
-    {
       "name": "MarginRequirementType",
       "type": {
         "kind": "enum",
@@ -3926,17 +3912,17 @@
       "msg": "DefaultError"
     },
     {
-      "code": 6078,
+      "code": 6087,
       "name": "InsufficientLPTokens",
       "msg": "Insufficient LP tokens"
     },
     {
-      "code": 6079,
+      "code": 6088,
       "name": "CantLPWithMarketPosition",
       "msg": "Cant LP with a market position"
     },
     {
-      "code": 6080,
+      "code": 6089,
       "name": "UnableToBurnLPTokens",
       "msg": "Unable to burn LP tokens"
     }

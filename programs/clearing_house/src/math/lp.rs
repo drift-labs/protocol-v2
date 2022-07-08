@@ -408,7 +408,7 @@ mod test {
             net_base_asset_amount: 100, // users went long
             peg_multiplier: 1,
             sqrt_k: 200,
-            minimum_base_asset_trade_size: 100, // min size is big
+            base_asset_amount_step_size: 100, // min size is big
             minimum_quote_asset_trade_size: 100,
             ..AMM::default()
         };
@@ -431,7 +431,7 @@ mod test {
             total_fee_minus_distributions: 100,
             cumulative_funding_rate_lp: 100,
             sqrt_k: 200,
-            minimum_base_asset_trade_size: 1,
+            base_asset_amount_step_size: 1,
             ..AMM::default()
         };
 

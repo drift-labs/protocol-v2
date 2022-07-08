@@ -1349,7 +1349,8 @@ mod test {
         };
         // increase k by .25%
         let update_k_up =
-            get_update_k_result(&market, bn::U192::from(501 * AMM_RESERVE_PRECISION)).unwrap();
+            get_update_k_result(&market, bn::U192::from(501 * AMM_RESERVE_PRECISION), true)
+                .unwrap();
         let (t_price, t_qar, t_bar) = calculate_terminal_price_and_reserves(&market).unwrap();
 
         // new terminal reserves are balanced, terminal price = peg)
