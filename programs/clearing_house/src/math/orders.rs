@@ -4,23 +4,16 @@ use std::ops::Div;
 use solana_program::msg;
 
 use crate::controller::amm::SwapDirection;
+use crate::controller::position::PositionDelta;
 use crate::controller::position::PositionDirection;
-use crate::controller::position::{get_position_index, PositionDelta};
 use crate::error::{ClearingHouseResult, ErrorCode};
-use crate::get_struct_values;
 use crate::math;
-use crate::math::amm::{calculate_swap_output, get_spread_reserves};
-use crate::math::casting::{cast, cast_to_i128, cast_to_u128};
-use crate::math::constants::{MARGIN_PRECISION, MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO};
-use crate::math::margin::calculate_free_collateral;
+use crate::math::casting::{cast_to_i128, cast_to_u128};
+use crate::math::constants::MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO;
 use crate::math::position::calculate_entry_price;
-use crate::math::quote_asset::asset_to_reserve_amount;
 use crate::math_error;
-use crate::state::bank_map::BankMap;
 use crate::state::market::Market;
-use crate::state::market_map::MarketMap;
-use crate::state::oracle_map::OracleMap;
-use crate::state::user::{Order, OrderTriggerCondition, OrderType, User};
+use crate::state::user::{Order, OrderTriggerCondition, OrderType};
 
 pub fn calculate_base_asset_amount_market_can_execute(
     order: &Order,
@@ -161,137 +154,6 @@ fn calculate_base_asset_amount_to_trade_for_trigger_limit(
     }
 
     calculate_base_asset_amount_to_trade_for_limit(order, market, None, now)
-}
-
-pub fn calculate_base_asset_amount_user_can_execute(
-    user: &User,
-    order_index: usize,
-    market_map: &MarketMap,
-    bank_map: &BankMap,
-    oracle_map: &mut OracleMap,
-    market_index: u64,
-) -> ClearingHouseResult<u128> {
-    let position_index = get_position_index(&user.positions, market_index)?;
-
-    let (order_direction, order_post_only, order_reduce_only) =
-        get_struct_values!(user.orders[order_index], direction, post_only, reduce_only);
-
-    let quote_asset_amount = calculate_available_quote_asset_user_can_execute(
-        user,
-        order_index,
-        position_index,
-        market_map,
-        bank_map,
-        oracle_map,
-    )?;
-
-    let market = &mut market_map.get_ref_mut(&market_index)?;
-
-    let swap_direction = match order_direction {
-        PositionDirection::Long => SwapDirection::Add,
-        PositionDirection::Short => SwapDirection::Remove,
-    };
-
-    // Extra check in case user have more collateral than market has reserves
-    let quote_asset_reserve_amount = min(
-        market
-            .amm
-            .quote_asset_reserve
-            .checked_sub(1)
-            .ok_or_else(math_error!())?,
-        asset_to_reserve_amount(quote_asset_amount, market.amm.peg_multiplier)?,
-    );
-
-    let (base_asset_reserves_before, quote_asset_reserves_before) =
-        if order_post_only || market.amm.base_spread == 0 {
-            (
-                market.amm.base_asset_reserve,
-                market.amm.quote_asset_reserve,
-            )
-        } else {
-            get_spread_reserves(&market.amm, order_direction)?
-        };
-
-    let (base_asset_reserves_after, _) = calculate_swap_output(
-        quote_asset_reserve_amount,
-        quote_asset_reserves_before,
-        swap_direction,
-        market.amm.sqrt_k,
-    )?;
-
-    let mut base_asset_amount = cast_to_i128(base_asset_reserves_before)?
-        .checked_sub(cast(base_asset_reserves_after)?)
-        .ok_or_else(math_error!())?
-        .unsigned_abs();
-
-    if order_reduce_only && base_asset_amount != 0 {
-        let existing_position = user.positions[position_index].base_asset_amount;
-        base_asset_amount = calculate_base_asset_amount_for_reduce_only_order(
-            base_asset_amount,
-            order_direction,
-            existing_position,
-        )
-    }
-
-    standardize_base_asset_amount(base_asset_amount, market.amm.base_asset_amount_step_size)
-}
-
-pub fn calculate_available_quote_asset_user_can_execute(
-    user: &User,
-    order_index: usize,
-    position_index: usize,
-    market_map: &MarketMap,
-    bank_map: &BankMap,
-    oracle_map: &mut OracleMap,
-) -> ClearingHouseResult<u128> {
-    let (existing_base_asset_amount, market_index) = {
-        let market_position = &user.positions[position_index];
-        (
-            market_position.base_asset_amount,
-            market_position.market_index,
-        )
-    };
-    let order_direction = user.orders[order_index].direction;
-
-    let risk_increasing_in_same_direction = existing_base_asset_amount == 0
-        || existing_base_asset_amount > 0 && order_direction == PositionDirection::Long
-        || existing_base_asset_amount < 0 && order_direction == PositionDirection::Short;
-
-    let available_quote_asset_for_order = if risk_increasing_in_same_direction {
-        let (free_collateral, _) =
-            calculate_free_collateral(user, market_map, bank_map, oracle_map, None)?;
-
-        let market = market_map.get_ref(&market_index)?;
-        free_collateral
-            .checked_mul(MARGIN_PRECISION)
-            .ok_or_else(math_error!())?
-            .checked_div(
-                // add one to initial margin ratio so we don't fill exactly to max leverage
-                cast_to_u128(market.margin_ratio_initial)?
-                    .checked_add(1)
-                    .ok_or_else(math_error!())?,
-            )
-            .ok_or_else(math_error!())?
-    } else {
-        let (free_collateral, closed_position_base_asset_value) =
-            calculate_free_collateral(user, market_map, bank_map, oracle_map, Some(market_index))?;
-
-        let market = market_map.get_ref(&market_index)?;
-        free_collateral
-            .checked_mul(MARGIN_PRECISION)
-            .ok_or_else(math_error!())?
-            .checked_div(
-                // add one to initial margin ratio so we don't fill exactly to max leverage
-                cast_to_u128(market.margin_ratio_initial)?
-                    .checked_add(1)
-                    .ok_or_else(math_error!())?,
-            )
-            .ok_or_else(math_error!())?
-            .checked_add(closed_position_base_asset_value)
-            .ok_or_else(math_error!())?
-    };
-
-    Ok(available_quote_asset_for_order)
 }
 
 pub fn limit_price_satisfied(

@@ -24,8 +24,7 @@ use crate::math::matching::{
 use crate::math::{amm, fees, margin::*, orders::*};
 use crate::math_error;
 use crate::order_validation::{
-    check_if_order_can_be_canceled, get_base_asset_amount_for_order, validate_order,
-    validate_order_can_be_canceled,
+    check_if_order_can_be_canceled, validate_order, validate_order_can_be_canceled,
 };
 use crate::print_error;
 use crate::state::bank_map::BankMap;
@@ -87,24 +86,29 @@ pub fn place_order(
         let market_position = &mut user.positions[position_index];
         market_position.open_orders += 1;
 
+        let standardized_base_asset_amount = standardize_base_asset_amount(
+            params.base_asset_amount,
+            market.amm.base_asset_amount_step_size,
+        )?;
+
+        let base_asset_amount = if params.reduce_only {
+            calculate_base_asset_amount_for_reduce_only_order(
+                standardized_base_asset_amount,
+                params.direction,
+                market_position.base_asset_amount,
+            )
+        } else {
+            standardized_base_asset_amount
+        };
+
         validate!(
-            params.base_asset_amount >= market.amm.base_asset_amount_step_size,
+            base_asset_amount >= market.amm.base_asset_amount_step_size,
             ErrorCode::TradeSizeTooSmall,
             "Order base asset amount ({}), smaller than step size ({})",
             params.base_asset_amount,
             market.amm.base_asset_amount_step_size
         )?;
 
-        let standardized_base_asset_amount = standardize_base_asset_amount(
-            params.base_asset_amount,
-            market.amm.base_asset_amount_step_size,
-        )?;
-        let base_asset_amount = get_base_asset_amount_for_order(
-            &params,
-            market,
-            market_position,
-            standardized_base_asset_amount,
-        );
         increase_open_bids_and_asks(market_position, &params.direction, base_asset_amount)?;
         (market_position.base_asset_amount, base_asset_amount)
     };
@@ -949,33 +953,21 @@ pub fn execute_market_order(
     let position_index = get_position_index(&user.positions, market_index)?;
     let market = &mut market_map.get_ref_mut(&market_index)?;
 
-    let (order_direction, order_price, order_reduce_only, order_base_asset_amount) = get_struct_values!(
+    let (order_direction, order_price, order_base_asset_amount) = get_struct_values!(
         user.orders[order_index],
         direction,
         price,
-        reduce_only,
         base_asset_amount
     );
 
-    let base_asset_amount = if order_reduce_only {
-        calculate_base_asset_amount_for_reduce_only_order(
-            order_base_asset_amount,
-            order_direction,
-            user.positions[position_index].base_asset_amount,
-        )
-    } else {
-        order_base_asset_amount
-    };
-
     let (
         potentially_risk_increasing,
-        reduce_only,
         base_asset_amount,
         quote_asset_amount,
         quote_asset_amount_surplus,
         pnl,
     ) = controller::position::update_position_with_base_asset_amount(
-        base_asset_amount,
+        order_base_asset_amount,
         user.orders[order_index].direction,
         market,
         user,
@@ -986,15 +978,6 @@ pub fn execute_market_order(
     )?;
 
     controller::position::update_unsettled_pnl(&mut user.positions[position_index], market, pnl)?;
-
-    if base_asset_amount < market.amm.base_asset_amount_step_size {
-        msg!("base asset amount {}", base_asset_amount);
-        return Err(print_error!(ErrorCode::TradeSizeTooSmall)());
-    }
-
-    if !reduce_only && order_reduce_only {
-        return Err(ErrorCode::ReduceOnlyOrderIncreasedRisk);
-    }
 
     if order_price > 0
         && !limit_price_satisfied(
@@ -1034,17 +1017,6 @@ pub fn execute_non_market_order(
         now,
     )?;
 
-    let position_index = get_position_index(&user.positions, market_index)?;
-    let base_asset_amount = if user.orders[order_index].reduce_only {
-        calculate_base_asset_amount_for_reduce_only_order(
-            base_asset_amount,
-            user.orders[order_index].direction,
-            user.positions[position_index].base_asset_amount,
-        )
-    } else {
-        base_asset_amount
-    };
-
     if base_asset_amount == 0 {
         msg!("Market cant execute order");
         return Ok((0, 0, false, 0));
@@ -1055,16 +1027,9 @@ pub fn execute_non_market_order(
         return Ok((0, 0, false, 0));
     }
 
-    let (
-        order_direction,
-        order_reduce_only,
-        order_post_only,
-        order_base_asset_amount,
-        order_base_asset_amount_filled,
-    ) = get_struct_values!(
+    let (order_direction, order_post_only, order_base_asset_amount, order_base_asset_amount_filled) = get_struct_values!(
         user.orders[order_index],
         direction,
-        reduce_only,
         post_only,
         base_asset_amount,
         base_asset_amount_filled
@@ -1095,29 +1060,19 @@ pub fn execute_non_market_order(
     } else {
         None
     };
-    let (
-        potentially_risk_increasing,
-        reduce_only,
-        _,
-        quote_asset_amount,
-        quote_asset_amount_surplus,
-        pnl,
-    ) = controller::position::update_position_with_base_asset_amount(
-        base_asset_amount,
-        order_direction,
-        market,
-        user,
-        position_index,
-        mark_price_before,
-        now,
-        maker_limit_price,
-    )?;
+    let (potentially_risk_increasing, _, quote_asset_amount, quote_asset_amount_surplus, pnl) =
+        controller::position::update_position_with_base_asset_amount(
+            base_asset_amount,
+            order_direction,
+            market,
+            user,
+            position_index,
+            mark_price_before,
+            now,
+            maker_limit_price,
+        )?;
 
     controller::position::update_unsettled_pnl(&mut user.positions[position_index], market, pnl)?;
-
-    if !reduce_only && order_reduce_only {
-        return Err(ErrorCode::ReduceOnlyOrderIncreasedRisk);
-    }
 
     Ok((
         base_asset_amount,

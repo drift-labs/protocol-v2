@@ -320,7 +320,7 @@ pub fn update_position_with_base_asset_amount(
     mark_price_before: u128,
     now: i64,
     maker_limit_price: Option<u128>,
-) -> ClearingHouseResult<(bool, bool, u128, u128, u128, i128)> {
+) -> ClearingHouseResult<(bool, u128, u128, u128, i128)> {
     let swap_direction = match direction {
         PositionDirection::Long => SwapDirection::Remove,
         PositionDirection::Short => SwapDirection::Add,
@@ -358,15 +358,11 @@ pub fn update_position_with_base_asset_amount(
         || base_asset_amount_before.signum() == position_delta.base_asset_amount.signum()
         || base_asset_amount_before.abs() < position_delta.base_asset_amount.abs();
 
-    let reduce_only = !potentially_risk_increasing
-        && base_asset_amount_before.signum() != position_delta.base_asset_amount.signum();
-
     let pnl =
         update_position_and_market(&mut user.positions[position_index], market, &position_delta)?;
 
     Ok((
         potentially_risk_increasing,
-        reduce_only,
         base_asset_amount,
         quote_asset_amount,
         quote_asset_amount_surplus,

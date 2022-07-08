@@ -257,7 +257,7 @@ describe('orders', () => {
 		const direction = PositionDirection.LONG;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
 		const price = MARK_PRICE_PRECISION.mul(new BN(2));
-		const reduceOnly = true;
+		const reduceOnly = false;
 		const triggerPrice = new BN(0);
 
 		const orderParams = getLimitOrderParams(
@@ -307,22 +307,6 @@ describe('orders', () => {
 		assert(
 			orderRecord.authority.equals(clearingHouseUser.getUserAccount().authority)
 		);
-	});
-
-	it('Fail to fill reduce only order', async () => {
-		const order = clearingHouseUser.getUserAccount().orders[0];
-
-		try {
-			await fillerClearingHouse.fillOrder(
-				userAccountPublicKey,
-				clearingHouseUser.getUserAccount(),
-				order
-			);
-		} catch (e) {
-			return;
-		}
-
-		assert(false);
 	});
 
 	it('Cancel order', async () => {
@@ -1801,13 +1785,7 @@ describe('orders', () => {
 		orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 		assert(orderRecord.baseAssetAmountFilled.eq(AMM_RESERVE_PRECISION));
 		assert(
-			isVariant(clearingHouseUser.getUserAccount().orders[0].status, 'open')
-		);
-
-		assert(
-			clearingHouseUser
-				.getUserAccount()
-				.orders[0].baseAssetAmountFilled.eq(AMM_RESERVE_PRECISION)
+			isVariant(clearingHouseUser.getUserAccount().orders[0].status, 'init')
 		);
 	});
 });

@@ -1355,7 +1355,7 @@ pub mod clearing_house {
                     math::position::direction_to_close_position(existing_base_asset_amount);
 
                 let base_asset_amount = existing_base_asset_amount;
-                let (_, _, _, quote_asset_amount, _, pnl) =
+                let (_, _, quote_asset_amount, _, pnl) =
                     controller::position::update_position_with_base_asset_amount(
                         user.positions[position_index]
                             .base_asset_amount
@@ -1568,7 +1568,7 @@ pub mod clearing_house {
                     )?)
                     .ok_or_else(math_error!())?;
 
-                let (_, _, _, quote_asset_amount, _, pnl) =
+                let (_, _, quote_asset_amount, _, pnl) =
                     controller::position::update_position_with_base_asset_amount(
                         base_asset_amount.unsigned_abs(),
                         direction_to_reduce,
