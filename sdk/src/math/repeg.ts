@@ -62,7 +62,7 @@ export function calculateRepegCost(amm: AMM, newPeg: BN): BN {
 	return cost;
 }
 
-export function calculateBudgetedKN(
+export function calculateBudgetedKBN(
 	x: BN,
 	y: BN,
 	budget: BN,
@@ -127,7 +127,7 @@ export function calculateBudgetedK(amm: AMM, cost: BN): [BN, BN] {
 	const d = amm.netBaseAssetAmount;
 	const Q = amm.pegMultiplier;
 
-	const [numerator, denominator] = calculateBudgetedKN(x, y, cost, Q, d);
+	const [numerator, denominator] = calculateBudgetedKBN(x, y, cost, Q, d);
 
 	return [numerator, denominator];
 }

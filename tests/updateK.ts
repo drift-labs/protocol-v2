@@ -19,7 +19,7 @@ import {
 	PositionDirection,
 	convertToNumber,
 	squareRootBN,
-	calculateBudgetedKN,
+	calculateBudgetedKBN,
 } from '../sdk/src';
 
 import {
@@ -541,7 +541,7 @@ describe('update k', () => {
 
 	it('budget k change (sdk math)', async () => {
 		// pay $.11 to increase k
-		let [numer1, denom1] = calculateBudgetedKN(
+		let [numer1, denom1] = calculateBudgetedKBN(
 			new BN('49750000004950'), // x
 			new BN('50250000000000'), // y
 			new BN('114638'), // cost
@@ -554,7 +554,7 @@ describe('update k', () => {
 		assert(denom1.eq(new BN(4969200901)));
 
 		// gain $.11 by decreasing k
-		[numer1, denom1] = calculateBudgetedKN(
+		[numer1, denom1] = calculateBudgetedKBN(
 			new BN('49750000004950'), // x
 			new BN('50250000000000'), // y
 			new BN('-114638'), // cost
@@ -567,7 +567,7 @@ describe('update k', () => {
 		assert(numer1.lt(denom1));
 
 		// pay $11 to increase k
-		[numer1, denom1] = calculateBudgetedKN(
+		[numer1, denom1] = calculateBudgetedKBN(
 			new BN('49750000004950'),
 			new BN('50250000000000'),
 			new BN('11463800'),
@@ -581,7 +581,7 @@ describe('update k', () => {
 		assert(numer1.gt(denom1));
 
 		// net pos so small that decreasing k for .01 is sending to zero (squeezing a stone)
-		[numer1, denom1] = calculateBudgetedKN(
+		[numer1, denom1] = calculateBudgetedKBN(
 			new BN('500000000049750000004950'),
 			new BN('499999999950250000000000'),
 			new BN('-10000'),
@@ -594,7 +594,7 @@ describe('update k', () => {
 		assert(denom1.eq(new BN('25000049503737504925373124')));
 
 		// impossible task trying to spend more than amount to make k infinity
-		[numer1, denom1] = calculateBudgetedKN(
+		[numer1, denom1] = calculateBudgetedKBN(
 			new BN('500000000049750000004950'),
 			new BN('499999999950250000000000'),
 			new BN('10000'),
