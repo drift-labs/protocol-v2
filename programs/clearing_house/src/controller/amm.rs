@@ -392,7 +392,36 @@ mod test {
         .unwrap();
 
         assert_eq!(prev_sqrt_k > market.amm.sqrt_k, true);
-        assert_eq!(market.amm.sqrt_k, 4890000000000000);
-        assert_eq!(market.amm.total_fee_minus_distributions, 332075);
+        assert_eq!(market.amm.sqrt_k, 4890000000000000); // max k decrease (2.2%)
+        assert_eq!(market.amm.total_fee_minus_distributions, 332075); //$.33 acquired from slippage increase
+
+        // negative means amm recieved $500 in funding payments for interval
+        let funding_cost_2: i128 = -((500 * QUOTE_PRECISION) as i128);
+        formulaic_update_k(
+            &mut market,
+            &oracle_price_data,
+            funding_cost_2,
+            now,
+            mark_price,
+        )
+        .unwrap();
+
+        assert_eq!(market.amm.sqrt_k, 4894890000000000); // max k increase (.1%)
+        assert_eq!(market.amm.total_fee_minus_distributions, 316988); //$.33 acquired from slippage increase
+
+        // negative means amm recieved $.001 in funding payments for interval
+        let funding_cost_2: i128 = -((QUOTE_PRECISION / 1000) as i128);
+        formulaic_update_k(
+            &mut market,
+            &oracle_price_data,
+            funding_cost_2,
+            now,
+            mark_price,
+        )
+        .unwrap();
+
+        assert_eq!(market.amm.sqrt_k, 4895052229261371); // increase k by 1.00003314258x
+        assert_eq!(market.amm.total_fee_minus_distributions, 316491); // ~$.005 spent from slippage decrease
+                                                                      // todo: (316988-316491)/1e6 * 2 = 0.000994 < .001
     }
 }
