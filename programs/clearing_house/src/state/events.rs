@@ -1,7 +1,6 @@
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 
-use crate::controller::position::PositionDirection;
 use crate::state::user::Order;
 
 #[event]
@@ -27,28 +26,6 @@ impl Default for DepositDirection {
     fn default() -> Self {
         DepositDirection::DEPOSIT
     }
-}
-
-#[event]
-pub struct TradeRecord {
-    pub ts: i64,
-    pub record_id: u64,
-    pub user_authority: Pubkey,
-    pub user: Pubkey,
-    pub direction: PositionDirection,
-    pub base_asset_amount: u128,
-    pub quote_asset_amount: u128,
-    pub mark_price_before: u128,
-    pub mark_price_after: u128,
-    pub fee: i128,
-    pub quote_asset_amount_surplus: u128,
-    pub referee_discount: u128,
-    pub token_discount: u128,
-    pub liquidation: bool,
-    pub market_index: u64,
-    pub oracle_price: i128,
-    pub maker_authority: Option<Pubkey>,
-    pub maker: Option<Pubkey>,
 }
 
 #[event]
@@ -122,17 +99,21 @@ pub struct LiquidationRecord {
 #[event]
 pub struct OrderRecord {
     pub ts: i64,
-    pub user: Pubkey,
-    pub authority: Pubkey,
-    pub order: Order,
+    pub taker: Option<Pubkey>,
+    pub maker: Option<Pubkey>,
+    pub taker_order: Option<Order>,
+    pub maker_order: Option<Order>,
     pub action: OrderAction,
-    pub filler: Pubkey,
-    pub trade_record_id: u64,
+    pub filler: Option<Pubkey>,
     pub base_asset_amount_filled: u128,
-    pub quote_asset_amount_filled: u128,
-    pub fee: i128,
+    pub taker_quote_asset_amount_filled: u128,
+    pub maker_quote_asset_amount_filled: u128,
+    pub maker_rebate: u128,
+    pub taker_fee: u128,
     pub filler_reward: u128,
     pub quote_asset_amount_surplus: u128,
+    pub liquidation: bool,
+    pub oracle_price: i128,
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq)]

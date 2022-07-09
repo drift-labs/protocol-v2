@@ -1,5 +1,5 @@
 use crate::error::ClearingHouseResult;
-use crate::math::casting::{cast_to_i128, cast_to_u128};
+use crate::math::casting::cast_to_u128;
 use crate::math_error;
 use crate::state::state::FeeStructure;
 use crate::state::state::OrderFillerRewardStructure;
@@ -7,7 +7,7 @@ use num_integer::Roots;
 use solana_program::msg;
 use std::cmp::{max, min};
 
-pub fn calculate_fee_for_order(
+pub fn calculate_fee_for_order_fulfill_against_amm(
     quote_asset_amount: u128,
     fee_structure: &FeeStructure,
     order_ts: i64,
@@ -15,7 +15,7 @@ pub fn calculate_fee_for_order(
     reward_filler: bool,
     quote_asset_amount_surplus: u128,
     is_post_only: bool,
-) -> ClearingHouseResult<(i128, u128, u128)> {
+) -> ClearingHouseResult<(u128, u128, u128)> {
     // if there was a quote_asset_amount_surplus, the order was a maker order and fee_to_market comes from surplus
     if is_post_only {
         let fee = quote_asset_amount_surplus;
@@ -26,7 +26,7 @@ pub fn calculate_fee_for_order(
         };
         let fee_minus_filler_reward = fee.checked_sub(filler_reward).ok_or_else(math_error!())?;
         let fee_to_market = fee_minus_filler_reward;
-        let user_fee = 0_i128;
+        let user_fee = 0_u128;
 
         Ok((user_fee, fee_to_market, filler_reward))
     } else {
@@ -55,7 +55,7 @@ pub fn calculate_fee_for_order(
             .checked_add(quote_asset_amount_surplus)
             .ok_or_else(math_error!())?;
 
-        Ok((cast_to_i128(user_fee)?, fee_to_market, filler_reward))
+        Ok((user_fee, fee_to_market, filler_reward))
     }
 }
 
@@ -94,7 +94,7 @@ fn calculate_filler_reward(
     Ok(fee)
 }
 
-pub fn calculate_fee_for_taker_and_maker(
+pub fn calculate_fee_for_fulfillment_with_match(
     quote_asset_amount: u128,
     quote_asset_amount_surplus: u128,
     fee_structure: &FeeStructure,
@@ -158,7 +158,7 @@ mod test {
 
     mod calculate_fee_for_taker_and_maker {
         use crate::math::constants::QUOTE_PRECISION;
-        use crate::math::fees::calculate_fee_for_taker_and_maker;
+        use crate::math::fees::calculate_fee_for_fulfillment_with_match;
         use crate::state::state::FeeStructure;
 
         #[test]
@@ -167,7 +167,7 @@ mod test {
             let quote_asset_amount_surplus = 0_u128;
 
             let (taker_fee, maker_rebate, fee_to_market, filler_reward) =
-                calculate_fee_for_taker_and_maker(
+                calculate_fee_for_fulfillment_with_match(
                     quote_asset_amount,
                     quote_asset_amount_surplus,
                     &FeeStructure::default(),
@@ -194,7 +194,7 @@ mod test {
                 .time_based_reward_lower_bound = 10000000000000000; // big number
 
             let (taker_fee, maker_rebate, fee_to_market, filler_reward) =
-                calculate_fee_for_taker_and_maker(
+                calculate_fee_for_fulfillment_with_match(
                     quote_asset_amount,
                     quote_asset_amount_surplus,
                     &fee_structure,
@@ -220,7 +220,7 @@ mod test {
             fee_structure.filler_reward_structure.reward_denominator = 1;
 
             let (taker_fee, maker_rebate, fee_to_market, filler_reward) =
-                calculate_fee_for_taker_and_maker(
+                calculate_fee_for_fulfillment_with_match(
                     quote_asset_amount,
                     quote_asset_amount_surplus,
                     &fee_structure,
@@ -246,7 +246,7 @@ mod test {
             fee_structure.filler_reward_structure.reward_denominator = 1;
 
             let (taker_fee, maker_rebate, fee_to_market, filler_reward) =
-                calculate_fee_for_taker_and_maker(
+                calculate_fee_for_fulfillment_with_match(
                     quote_asset_amount,
                     quote_asset_amount_surplus,
                     &fee_structure,
@@ -270,7 +270,7 @@ mod test {
             let mut fee_structure = FeeStructure::default();
 
             let (taker_fee, maker_rebate, fee_to_market, filler_reward) =
-                calculate_fee_for_taker_and_maker(
+                calculate_fee_for_fulfillment_with_match(
                     quote_asset_amount,
                     quote_asset_amount_surplus,
                     &fee_structure,
