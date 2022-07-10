@@ -1,8 +1,8 @@
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::bn;
-use crate::math::casting::cast_to_i128;
+use crate::math::casting::{cast, cast_to_i128};
 use crate::math::constants::{
-    AMM_TO_QUOTE_PRECISION_RATIO, FUNDING_PAYMENT_PRECISION, MARK_PRICE_PRECISION,
+    AMM_TO_QUOTE_PRECISION_RATIO, FUNDING_PAYMENT_PRECISION, MARK_PRICE_PRECISION, ONE_HOUR,
     QUOTE_TO_BASE_AMT_FUNDING_PRECISION,
 };
 use crate::math::repeg::{calculate_fee_pool, get_total_fee_lower_bound};
@@ -10,7 +10,40 @@ use crate::math_error;
 use crate::state::market::Market;
 use crate::state::user::MarketPosition;
 use solana_program::msg;
-use std::cmp::max;
+use std::cmp::{max, min};
+
+pub fn calculate_funding_rate(
+    mid_price_twap: u128,
+    oracle_price_twap: i128,
+    funding_period: i64,
+) -> ClearingHouseResult<i128> {
+    // funding period = 1 hour, window = 1 day
+    // low periodicity => quickly updating/settled funding rates
+    //                 => lower funding rate payment per interval
+    let period_adjustment = (24_i128)
+        .checked_mul(ONE_HOUR)
+        .ok_or_else(math_error!())?
+        .checked_div(max(ONE_HOUR, funding_period as i128))
+        .ok_or_else(math_error!())?;
+
+    let price_spread = cast_to_i128(mid_price_twap)?
+        .checked_sub(oracle_price_twap)
+        .ok_or_else(math_error!())?;
+
+    // clamp price divergence to 3% for funding rate calculation
+    let max_price_spread = oracle_price_twap
+        .checked_div(33)
+        .ok_or_else(math_error!())?; // 3%
+    let clamped_price_spread = max(-max_price_spread, min(price_spread, max_price_spread));
+
+    let funding_rate = clamped_price_spread
+        .checked_mul(cast(FUNDING_PAYMENT_PRECISION)?)
+        .ok_or_else(math_error!())?
+        .checked_div(cast(period_adjustment)?)
+        .ok_or_else(math_error!())?;
+
+    Ok(funding_rate)
+}
 
 /// With a virtual AMM, there can be an imbalance between longs and shorts and thus funding can be asymmetric.
 /// To account for this, amm keeps track of the cumulative funding rate for both longs and shorts.
@@ -208,4 +241,88 @@ fn calculate_funding_payment_in_quote_precision(
         .ok_or_else(math_error!())?;
 
     Ok(funding_payment_collateral)
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::math::constants::{AMM_RESERVE_PRECISION, MARK_PRICE_PRECISION, QUOTE_PRECISION};
+    use crate::state::market::{Market, AMM};
+
+    #[test]
+    fn capped_sym_funding_test() {
+        // more shorts than longs, positive funding, 1/3 of fee pool too small
+        let mut market = Market {
+            base_asset_amount_long: 122950819670000,
+            base_asset_amount_short: -122950819670000 * 2,
+            amm: AMM {
+                base_asset_reserve: 5122950819670000,
+                quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
+                sqrt_k: 500 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 50000,
+                net_base_asset_amount: -(122950819670000 as i128),
+                total_exchange_fee: QUOTE_PRECISION / 2,
+                total_fee_minus_distributions: QUOTE_PRECISION / 2,
+
+                last_mark_price_twap: 50 * MARK_PRICE_PRECISION,
+                last_oracle_price_twap: (49 * MARK_PRICE_PRECISION) as i128,
+                funding_period: 3600,
+
+                ..AMM::default()
+            },
+            ..Market::default()
+        };
+
+        let balanced_funding = calculate_funding_rate(
+            market.amm.last_mark_price_twap,
+            market.amm.last_oracle_price_twap,
+            market.amm.funding_period,
+        )
+        .unwrap();
+
+        assert_eq!(balanced_funding, 4166666666666);
+
+        let (long_funding, short_funding, pnl) =
+            calculate_funding_rate_long_short(&mut market, balanced_funding).unwrap();
+
+        assert_eq!(long_funding, balanced_funding);
+        assert_eq!(long_funding > short_funding, true);
+        assert_eq!(short_funding, 2422216466708);
+
+        // only spend 1/3 of fee pool, ((.5-.416667)) * 3 < .25
+        assert_eq!(market.amm.total_fee_minus_distributions, 416667);
+
+        // more longs than shorts, positive funding, amm earns funding
+        market = Market {
+            base_asset_amount_long: 122950819670000 * 2,
+            base_asset_amount_short: -122950819670000,
+            amm: AMM {
+                base_asset_reserve: 5122950819670000,
+                quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
+                sqrt_k: 500 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 50000,
+                net_base_asset_amount: (122950819670000 as i128),
+                total_exchange_fee: QUOTE_PRECISION / 2,
+                total_fee_minus_distributions: QUOTE_PRECISION / 2,
+
+                last_mark_price_twap: 50 * MARK_PRICE_PRECISION,
+                last_oracle_price_twap: (49 * MARK_PRICE_PRECISION) as i128,
+                funding_period: 3600,
+
+                ..AMM::default()
+            },
+            ..Market::default()
+        };
+
+        assert_eq!(balanced_funding, 4166666666666);
+
+        let (long_funding, short_funding, pnl) =
+            calculate_funding_rate_long_short(&mut market, balanced_funding).unwrap();
+
+        assert_eq!(long_funding, balanced_funding);
+        assert_eq!(long_funding, short_funding);
+        let new_fees = market.amm.total_fee_minus_distributions;
+        assert_eq!(new_fees > (QUOTE_PRECISION / 2), true);
+        assert_eq!(new_fees, 1012295); // made over $.50
+    }
 }

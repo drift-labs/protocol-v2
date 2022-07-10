@@ -572,7 +572,7 @@ mod test {
         let mut market = Market {
             amm: AMM {
                 minimum_quote_asset_trade_size: 10000000,
-                minimum_base_asset_trade_size: 10000000,
+                base_asset_amount_step_size: 10000000,
                 base_asset_reserve: 604379397200959166,
                 quote_asset_reserve: 604402124593689280,
                 terminal_quote_asset_reserve: 604390726630032096,
