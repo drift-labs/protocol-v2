@@ -2,7 +2,6 @@ use std::cmp::{max, min};
 
 use crate::controller::amm::SwapDirection;
 use crate::controller::position::PositionDirection;
-use crate::dlog;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::bn;
 use crate::math::bn::U192;
@@ -794,7 +793,6 @@ pub fn _calculate_budgeted_k_scale(
     q: u128,
     d: i128,
 ) -> ClearingHouseResult<(u128, u128)> {
-    dlog!(x, y, budget, q, d);
     let curve_update_intensity = 100;
 
     let c = -budget;
