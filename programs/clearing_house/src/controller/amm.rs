@@ -291,7 +291,7 @@ pub fn formulaic_update_k(
                 total_fee: market.amm.total_fee,
                 total_fee_minus_distributions: market.amm.total_fee_minus_distributions,
                 oracle_price: market.amm.last_oracle_price,
-                trade_record: market.next_trade_record_id as u128,
+                fill_record: market.next_fill_record_id as u128,
             });
         }
     }

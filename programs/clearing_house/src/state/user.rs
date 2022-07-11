@@ -317,6 +317,8 @@ impl Default for Order {
 pub enum OrderStatus {
     Init,
     Open,
+    Filled,
+    Canceled,
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug)]

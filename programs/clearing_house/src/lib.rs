@@ -352,7 +352,7 @@ pub mod clearing_house {
             margin_ratio_initial, // unit is 20% (+2 decimal places)
             margin_ratio_partial,
             margin_ratio_maintenance,
-            next_trade_record_id: 1,
+            next_fill_record_id: 1,
             next_funding_rate_record_id: 1,
             next_curve_record_id: 1,
             pnl_pool: PoolBalance { balance: 0 },
@@ -1839,7 +1839,7 @@ pub mod clearing_house {
             total_fee_minus_distributions: market.amm.total_fee_minus_distributions,
             adjustment_cost,
             oracle_price,
-            trade_record: 0,
+            fill_record: 0,
         });
 
         Ok(())
@@ -2120,7 +2120,7 @@ pub mod clearing_house {
             total_fee,
             total_fee_minus_distributions,
             oracle_price,
-            trade_record: 0,
+            fill_record: 0,
         });
 
         Ok(())

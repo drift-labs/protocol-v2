@@ -75,7 +75,7 @@ pub struct CurveRecord {
     pub total_fee_minus_distributions: u128,
     pub adjustment_cost: i128,
     pub oracle_price: i128,
-    pub trade_record: u128,
+    pub fill_record: u128,
 }
 
 #[event]
@@ -105,14 +105,14 @@ pub struct OrderRecord {
     pub maker_order: Option<Order>,
     pub action: OrderAction,
     pub filler: Option<Pubkey>,
+    pub fill_record_id: Option<u64>,
+    pub market_index: u64,
     pub base_asset_amount_filled: u128,
-    pub taker_quote_asset_amount_filled: u128,
-    pub maker_quote_asset_amount_filled: u128,
+    pub quote_asset_amount_filled: u128,
     pub maker_rebate: u128,
     pub taker_fee: u128,
     pub filler_reward: u128,
     pub quote_asset_amount_surplus: u128,
-    pub liquidation: bool,
     pub oracle_price: i128,
 }
 

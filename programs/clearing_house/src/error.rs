@@ -176,6 +176,8 @@ pub enum ErrorCode {
     MakerCantFulfillOwnOrder,
     #[msg("MakerOrderMustBePostOnly")]
     MakerOrderMustBePostOnly,
+    #[msg("CantMatchTwoPostOnlys")]
+    CantMatchTwoPostOnlys,
     #[msg("DefaultError")]
     DefaultError,
 }

@@ -70,18 +70,17 @@ describe('clearing_house', () => {
 
 		solUsd = await mockOracle(1);
 
-		clearingHouse = Admin.from(
+		clearingHouse = new Admin({
 			connection,
-			provider.wallet,
-			chProgram.programId,
-			{
+			wallet: provider.wallet,
+			programID: chProgram.programId,
+			opts: {
 				commitment: 'confirmed',
 			},
-			0,
-			[new BN(0)],
-			[new BN(0)],
-			[{ publicKey: solUsd, source: OracleSource.PYTH }]
-		);
+			marketIndexes: [new BN(0)],
+			bankIndexes: [new BN(0)],
+			oracleInfos: [{ publicKey: solUsd, source: OracleSource.PYTH }],
+		});
 	});
 
 	after(async () => {
@@ -318,18 +317,17 @@ describe('clearing_house', () => {
 		);
 
 		await eventSubscriber.awaitTx(txSig);
-		const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0].data;
-		assert.ok(tradeRecord.user.equals(userAccountPublicKey));
-		assert.ok(tradeRecord.recordId.eq(new BN(1)));
+		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
+		assert.ok(orderRecord.taker.equals(userAccountPublicKey));
+		assert.ok(orderRecord.fillRecordId.eq(new BN(1)));
 		assert.ok(
-			JSON.stringify(tradeRecord.direction) ===
+			JSON.stringify(orderRecord.takerOrder.direction) ===
 				JSON.stringify(PositionDirection.SHORT)
 		);
-		// console.log(tradeRecord.baseAssetAmount.toNumber());
-		assert.ok(tradeRecord.baseAssetAmount.eq(new BN(497549506175864)));
-		assert.ok(tradeRecord.quoteAssetAmount.eq(new BN(49750000)));
+		assert.ok(orderRecord.baseAssetAmountFilled.eq(new BN(497549506175864)));
+		assert.ok(orderRecord.quoteAssetAmountFilled.eq(new BN(49750000)));
 
-		assert.ok(tradeRecord.marketIndex.eq(new BN(0)));
+		assert.ok(orderRecord.marketIndex.eq(new BN(0)));
 
 		await clearingHouse.closePosition(marketIndex);
 	});
@@ -452,8 +450,8 @@ describe('clearing_house', () => {
 		);
 
 		await eventSubscriber.awaitTx(txSig);
-		const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0].data;
-		assert.ok(tradeRecord.user.equals(userAccountPublicKey));
-		assert.ok(tradeRecord.marketIndex.eq(new BN(0)));
+		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
+		assert.ok(orderRecord.taker.equals(userAccountPublicKey));
+		assert.ok(orderRecord.marketIndex.eq(new BN(0)));
 	});
 });
