@@ -781,6 +781,7 @@ pub fn calculate_budgeted_k_scale(
         budget,
         market.amm.peg_multiplier,
         market.amm.net_base_asset_amount,
+        market.amm.curve_update_intensity,
     )?;
 
     Ok((numerator, denominator))
@@ -792,9 +793,9 @@ pub fn _calculate_budgeted_k_scale(
     budget: i128,
     q: u128,
     d: i128,
+    curve_update_intensity: u8,
 ) -> ClearingHouseResult<(u128, u128)> {
-    let curve_update_intensity = 100;
-
+    let curve_update_intensity = curve_update_intensity as i128;
     let c = -budget;
     let q = cast_to_i128(q)?;
 
@@ -1382,6 +1383,7 @@ mod test {
             ((QUOTE_PRECISION / 500) as i128), // positive budget
             36365,
             (AMM_RESERVE_PRECISION * 66) as i128,
+            100,
         )
         .unwrap();
 
@@ -1399,6 +1401,7 @@ mod test {
             -((QUOTE_PRECISION / 50) as i128),
             36365,
             (AMM_RESERVE_PRECISION * 66) as i128,
+            100,
         )
         .unwrap();
         assert_eq!(numer1 < denom1, true);
@@ -1412,6 +1415,7 @@ mod test {
             -((QUOTE_PRECISION / 25) as i128),
             36365,
             (AMM_RESERVE_PRECISION * 66) as i128,
+            100,
         )
         .unwrap();
         assert_eq!(numer1 < denom1, true);
@@ -1425,10 +1429,13 @@ mod test {
             114638,
             40000,
             49750000004950,
+            100,
         )
         .unwrap();
 
         assert_eq!(numer1 > denom1, true);
+        assert_eq!(numer1, 1001000);
+        assert_eq!(denom1, 1000000);
 
         // todo:
         (numer1, denom1) = _calculate_budgeted_k_scale(
@@ -1437,9 +1444,12 @@ mod test {
             -114638,
             40000,
             49750000004950,
+            100,
         )
         .unwrap();
 
         assert_eq!(numer1 < denom1, true);
+        assert_eq!(numer1, 978000); // 2.2% decrease
+        assert_eq!(denom1, 1000000);
     }
 }

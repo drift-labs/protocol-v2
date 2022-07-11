@@ -342,8 +342,10 @@ pub fn adjust_amm(
     } else {
         // use full budget peg
 
+        let can_lower_k = market.amm.can_lower_k()?;
+
         // equivalent to (but cheaper than) scaling down by .1%
-        let adjustment_cost: i128 = if adjust_k {
+        let adjustment_cost: i128 = if adjust_k && can_lower_k {
             // TODO can be off by 1?
 
             let new_sqrt_k = market

@@ -158,16 +158,20 @@ pub fn apply_cost_to_market(market: &mut Market, cost: i128) -> ClearingHouseRes
     // positive cost is expense, negative cost is revenue
     // Reduce pnl to quote asset precision and take the absolute value
     if cost > 0 {
-        let new_total_fee_minus_distributions = market
-            .amm
-            .total_fee_minus_distributions
-            .checked_sub(cost.unsigned_abs())
-            .ok_or_else(math_error!())?;
+        if market.amm.total_fee_minus_distributions > cost.unsigned_abs() {
+            let new_total_fee_minus_distributions = market
+                .amm
+                .total_fee_minus_distributions
+                .checked_sub(cost.unsigned_abs())
+                .ok_or_else(math_error!())?;
 
-        // Only a portion of the protocol fees are allocated to repegging
-        // This checks that the total_fee_minus_distributions does not decrease too much after repeg
-        if new_total_fee_minus_distributions > repeg::get_total_fee_lower_bound(market)? {
-            market.amm.total_fee_minus_distributions = new_total_fee_minus_distributions;
+            // Only a portion of the protocol fees are allocated to repegging
+            // This checks that the total_fee_minus_distributions does not decrease too much after repeg
+            if new_total_fee_minus_distributions > repeg::get_total_fee_lower_bound(market)? {
+                market.amm.total_fee_minus_distributions = new_total_fee_minus_distributions;
+            } else {
+                return Ok(false);
+            }
         } else {
             return Ok(false);
         }
