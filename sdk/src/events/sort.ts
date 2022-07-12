@@ -6,7 +6,7 @@ import {
 	SortFn,
 	Event,
 } from './types';
-import { TradeRecord } from '../types';
+import { OrderRecord } from '../types';
 
 function clientSortAscFn(): 'less than' {
 	return 'less than';
@@ -23,17 +23,27 @@ function defaultBlockchainSortFn(
 	return currentEvent.slot <= newEvent.slot ? 'less than' : 'greater than';
 }
 
-function tradeRecordSortFn(
-	currentEvent: Event<TradeRecord>,
-	newEvent: Event<TradeRecord>
+function orderRecordSortFn(
+	currentEvent: Event<OrderRecord>,
+	newEvent: Event<OrderRecord>
 ): 'less than' | 'greater than' {
-	if (!currentEvent.marketIndex.eq(newEvent.marketIndex)) {
+	const currentEventMarketIndex = currentEvent.makerOrder
+		? currentEvent.makerOrder.marketIndex
+		: currentEvent.takerOrder.marketIndex;
+	const newEventMarketIndex = newEvent.makerOrder
+		? newEvent.makerOrder.marketIndex
+		: newEvent.takerOrder.marketIndex;
+	if (!currentEventMarketIndex.eq(newEventMarketIndex)) {
 		return currentEvent.ts.lte(newEvent.ts) ? 'less than' : 'greater than';
 	}
 
-	return currentEvent.recordId.lte(newEvent.recordId)
-		? 'less than'
-		: 'greater than';
+	if (currentEvent.fillRecordId && newEvent.fillRecordId) {
+		return currentEvent.fillRecordId.lte(newEvent.fillRecordId)
+			? 'less than'
+			: 'greater than';
+	} else {
+		return currentEvent.ts.lte(newEvent.ts) ? 'less than' : 'greater than';
+	}
 }
 
 export function getSortFn(
@@ -46,8 +56,8 @@ export function getSortFn(
 	}
 
 	switch (eventType) {
-		case 'TradeRecord':
-			return tradeRecordSortFn;
+		case 'OrderRecord':
+			return orderRecordSortFn;
 		default:
 			return defaultBlockchainSortFn;
 	}

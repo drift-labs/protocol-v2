@@ -53,7 +53,7 @@ pub mod clearing_house {
     use crate::optional_accounts::get_maker;
     use crate::state::bank::{Bank, BankBalance, BankBalanceType};
     use crate::state::bank_map::{get_writable_banks, BankMap, WritableBanks};
-    use crate::state::events::{CurveRecord, DepositRecord, TradeRecord};
+    use crate::state::events::{CurveRecord, DepositRecord};
     use crate::state::events::{DepositDirection, LiquidationRecord};
     use crate::state::market::{Market, PoolBalance};
     use crate::state::market_map::{
@@ -352,7 +352,7 @@ pub mod clearing_house {
             margin_ratio_initial, // unit is 20% (+2 decimal places)
             margin_ratio_partial,
             margin_ratio_maintenance,
-            next_trade_record_id: 1,
+            next_fill_record_id: 1,
             next_funding_rate_record_id: 1,
             next_curve_record_id: 1,
             pnl_pool: PoolBalance { balance: 0 },
@@ -1358,7 +1358,6 @@ pub mod clearing_house {
                 let direction_to_close =
                     math::position::direction_to_close_position(existing_base_asset_amount);
 
-                let base_asset_amount = existing_base_asset_amount;
                 let (_, _, quote_asset_amount, _, pnl) =
                     controller::position::update_position_with_base_asset_amount(
                         user.positions[position_index]
@@ -1379,33 +1378,9 @@ pub mod clearing_house {
                     pnl,
                 )?;
 
-                let base_asset_amount = base_asset_amount.unsigned_abs();
                 base_asset_value_closed = base_asset_value_closed
                     .checked_add(quote_asset_amount)
                     .ok_or_else(math_error!())?;
-                let mark_price_after = market.amm.mark_price()?;
-
-                let trade_record = TradeRecord {
-                    ts: now,
-                    record_id: get_then_update_id!(market, next_trade_record_id),
-                    user_authority: user.authority,
-                    user: user_key,
-                    direction: direction_to_close,
-                    base_asset_amount,
-                    quote_asset_amount,
-                    mark_price_before,
-                    mark_price_after,
-                    fee: 0,
-                    token_discount: 0,
-                    quote_asset_amount_surplus: 0,
-                    referee_discount: 0,
-                    liquidation: true,
-                    market_index: market_status.market_index,
-                    oracle_price: market_status.oracle_status.price_data.price,
-                    maker_authority: None,
-                    maker: None,
-                };
-                emit!(trade_record);
 
                 margin_requirement = margin_requirement
                     .checked_sub(
@@ -1589,32 +1564,6 @@ pub mod clearing_house {
                     market,
                     pnl,
                 )?;
-
-                let base_asset_amount = base_asset_amount.unsigned_abs();
-
-                let mark_price_after = market.amm.mark_price()?;
-
-                let trade_record = TradeRecord {
-                    ts: now,
-                    record_id: get_then_update_id!(market, next_trade_record_id),
-                    user_authority: user.authority,
-                    user: user_key,
-                    direction: direction_to_reduce,
-                    base_asset_amount,
-                    quote_asset_amount,
-                    mark_price_before,
-                    mark_price_after,
-                    fee: 0,
-                    token_discount: 0,
-                    quote_asset_amount_surplus: 0,
-                    referee_discount: 0,
-                    liquidation: true,
-                    market_index: market_status.market_index,
-                    oracle_price: market_status.oracle_status.price_data.price,
-                    maker_authority: None,
-                    maker: None,
-                };
-                emit!(trade_record);
 
                 margin_requirement = margin_requirement
                     .checked_sub(
@@ -1894,7 +1843,7 @@ pub mod clearing_house {
             total_fee_minus_distributions: market.amm.total_fee_minus_distributions,
             adjustment_cost,
             oracle_price,
-            trade_record: 0,
+            fill_record: 0,
         });
 
         Ok(())
@@ -2175,7 +2124,7 @@ pub mod clearing_house {
             total_fee,
             total_fee_minus_distributions,
             oracle_price,
-            trade_record: 0,
+            fill_record: 0,
         });
 
         Ok(())

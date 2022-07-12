@@ -1,5 +1,5 @@
 use crate::error::ClearingHouseResult;
-use crate::math::casting::{cast_to_i128, cast_to_u128};
+use crate::math::casting::cast_to_u128;
 use crate::math_error;
 use crate::state::state::FeeStructure;
 use crate::state::state::OrderFillerRewardStructure;
@@ -7,7 +7,7 @@ use num_integer::Roots;
 use solana_program::msg;
 use std::cmp::{max, min};
 
-pub fn calculate_fee_for_order(
+pub fn calculate_fee_for_order_fulfill_against_amm(
     quote_asset_amount: u128,
     fee_structure: &FeeStructure,
     order_ts: i64,
@@ -15,7 +15,7 @@ pub fn calculate_fee_for_order(
     reward_filler: bool,
     quote_asset_amount_surplus: u128,
     is_post_only: bool,
-) -> ClearingHouseResult<(i128, u128, u128)> {
+) -> ClearingHouseResult<(u128, u128, u128)> {
     // if there was a quote_asset_amount_surplus, the order was a maker order and fee_to_market comes from surplus
     if is_post_only {
         let fee = quote_asset_amount_surplus;
@@ -26,7 +26,7 @@ pub fn calculate_fee_for_order(
         };
         let fee_minus_filler_reward = fee.checked_sub(filler_reward).ok_or_else(math_error!())?;
         let fee_to_market = fee_minus_filler_reward;
-        let user_fee = 0_i128;
+        let user_fee = 0_u128;
 
         Ok((user_fee, fee_to_market, filler_reward))
     } else {
@@ -55,7 +55,7 @@ pub fn calculate_fee_for_order(
             .checked_add(quote_asset_amount_surplus)
             .ok_or_else(math_error!())?;
 
-        Ok((cast_to_i128(user_fee)?, fee_to_market, filler_reward))
+        Ok((user_fee, fee_to_market, filler_reward))
     }
 }
 
@@ -94,61 +94,38 @@ fn calculate_filler_reward(
     Ok(fee)
 }
 
-pub fn calculate_fee_for_taker_and_maker(
+pub fn calculate_fee_for_fulfillment_with_match(
     quote_asset_amount: u128,
-    quote_asset_amount_surplus: u128,
     fee_structure: &FeeStructure,
     order_ts: i64,
     now: i64,
     reward_filler: bool,
 ) -> ClearingHouseResult<(u128, u128, u128, u128)> {
-    let (taker_fee, maker_rebate, fee_to_market, filler_reward) = if quote_asset_amount_surplus == 0
-    {
-        let fee = quote_asset_amount
-            .checked_mul(fee_structure.fee_numerator)
-            .ok_or_else(math_error!())?
-            .checked_div(fee_structure.fee_denominator)
-            .ok_or_else(math_error!())?;
+    let fee = quote_asset_amount
+        .checked_mul(fee_structure.fee_numerator)
+        .ok_or_else(math_error!())?
+        .checked_div(fee_structure.fee_denominator)
+        .ok_or_else(math_error!())?;
 
-        let maker_rebate = fee
-            .checked_mul(fee_structure.maker_rebate_numerator)
-            .ok_or_else(math_error!())?
-            .checked_div(fee_structure.maker_rebate_denominator)
-            .ok_or_else(math_error!())?;
+    let maker_rebate = fee
+        .checked_mul(fee_structure.maker_rebate_numerator)
+        .ok_or_else(math_error!())?
+        .checked_div(fee_structure.maker_rebate_denominator)
+        .ok_or_else(math_error!())?;
 
-        let taker_fee = fee;
+    let taker_fee = fee;
 
-        let filler_reward: u128 = if !reward_filler {
-            0
-        } else {
-            calculate_filler_reward(fee, order_ts, now, &fee_structure.filler_reward_structure)?
-        };
-
-        let fee_to_market = taker_fee
-            .checked_sub(filler_reward)
-            .ok_or_else(math_error!())?
-            .checked_sub(maker_rebate)
-            .ok_or_else(math_error!())?;
-
-        (taker_fee, maker_rebate, fee_to_market, filler_reward)
+    let filler_reward: u128 = if !reward_filler {
+        0
     } else {
-        let filler_reward: u128 = if !reward_filler {
-            0
-        } else {
-            calculate_filler_reward(
-                quote_asset_amount_surplus,
-                order_ts,
-                now,
-                &fee_structure.filler_reward_structure,
-            )?
-        };
-
-        let fee_to_market = quote_asset_amount_surplus
-            .checked_sub(filler_reward)
-            .ok_or_else(math_error!())?;
-
-        (0, 0, fee_to_market, filler_reward)
+        calculate_filler_reward(fee, order_ts, now, &fee_structure.filler_reward_structure)?
     };
+
+    let fee_to_market = taker_fee
+        .checked_sub(filler_reward)
+        .ok_or_else(math_error!())?
+        .checked_sub(maker_rebate)
+        .ok_or_else(math_error!())?;
 
     Ok((taker_fee, maker_rebate, fee_to_market, filler_reward))
 }
@@ -158,18 +135,16 @@ mod test {
 
     mod calculate_fee_for_taker_and_maker {
         use crate::math::constants::QUOTE_PRECISION;
-        use crate::math::fees::calculate_fee_for_taker_and_maker;
+        use crate::math::fees::calculate_fee_for_fulfillment_with_match;
         use crate::state::state::FeeStructure;
 
         #[test]
         fn no_filler() {
             let quote_asset_amount = 100 * QUOTE_PRECISION;
-            let quote_asset_amount_surplus = 0_u128;
 
             let (taker_fee, maker_rebate, fee_to_market, filler_reward) =
-                calculate_fee_for_taker_and_maker(
+                calculate_fee_for_fulfillment_with_match(
                     quote_asset_amount,
-                    quote_asset_amount_surplus,
                     &FeeStructure::default(),
                     0,
                     0,
@@ -186,7 +161,6 @@ mod test {
         #[test]
         fn filler_size_reward() {
             let quote_asset_amount = 100 * QUOTE_PRECISION;
-            let quote_asset_amount_surplus = 0_u128;
 
             let mut fee_structure = FeeStructure::default();
             fee_structure
@@ -194,9 +168,8 @@ mod test {
                 .time_based_reward_lower_bound = 10000000000000000; // big number
 
             let (taker_fee, maker_rebate, fee_to_market, filler_reward) =
-                calculate_fee_for_taker_and_maker(
+                calculate_fee_for_fulfillment_with_match(
                     quote_asset_amount,
-                    quote_asset_amount_surplus,
                     &fee_structure,
                     0,
                     0,
@@ -213,16 +186,14 @@ mod test {
         #[test]
         fn time_reward_no_time_passed() {
             let quote_asset_amount = 100 * QUOTE_PRECISION;
-            let quote_asset_amount_surplus = 0_u128;
 
             let mut fee_structure = FeeStructure::default();
             fee_structure.filler_reward_structure.reward_numerator = 1; // will make size reward the whole fee
             fee_structure.filler_reward_structure.reward_denominator = 1;
 
             let (taker_fee, maker_rebate, fee_to_market, filler_reward) =
-                calculate_fee_for_taker_and_maker(
+                calculate_fee_for_fulfillment_with_match(
                     quote_asset_amount,
-                    quote_asset_amount_surplus,
                     &fee_structure,
                     0,
                     0,
@@ -239,16 +210,14 @@ mod test {
         #[test]
         fn time_reward_time_passed() {
             let quote_asset_amount = 100 * QUOTE_PRECISION;
-            let quote_asset_amount_surplus = 0_u128;
 
             let mut fee_structure = FeeStructure::default();
             fee_structure.filler_reward_structure.reward_numerator = 1; // will make size reward the whole fee
             fee_structure.filler_reward_structure.reward_denominator = 1;
 
             let (taker_fee, maker_rebate, fee_to_market, filler_reward) =
-                calculate_fee_for_taker_and_maker(
+                calculate_fee_for_fulfillment_with_match(
                     quote_asset_amount,
-                    quote_asset_amount_surplus,
                     &fee_structure,
                     0,
                     60,
@@ -260,30 +229,6 @@ mod test {
             assert_eq!(maker_rebate, 60000);
             assert_eq!(fee_to_market, 12200);
             assert_eq!(filler_reward, 27800);
-        }
-
-        #[test]
-        fn quote_asset_surplus() {
-            let quote_asset_amount = 0;
-            let quote_asset_amount_surplus = 100 * QUOTE_PRECISION;
-
-            let mut fee_structure = FeeStructure::default();
-
-            let (taker_fee, maker_rebate, fee_to_market, filler_reward) =
-                calculate_fee_for_taker_and_maker(
-                    quote_asset_amount,
-                    quote_asset_amount_surplus,
-                    &fee_structure,
-                    0,
-                    0,
-                    true,
-                )
-                .unwrap();
-
-            assert_eq!(taker_fee, 0);
-            assert_eq!(maker_rebate, 0);
-            assert_eq!(fee_to_market, 99990000);
-            assert_eq!(filler_reward, 10000);
         }
     }
 }

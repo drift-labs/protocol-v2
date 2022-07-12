@@ -109,28 +109,6 @@ export type CurveRecord = {
 	tradeId: BN;
 };
 
-export type TradeRecord = {
-	ts: BN;
-	recordId: BN;
-	userAuthority: PublicKey;
-	user: PublicKey;
-	direction: {
-		long?: any;
-		short?: any;
-	};
-	baseAssetAmount: BN;
-	quoteAssetAmount: BN;
-	markPriceBefore: BN;
-	markPriceAfter: BN;
-	fee: BN;
-	quoteAssetAmountSurplus: BN;
-	refereeDiscount: BN;
-	tokenDiscount: BN;
-	marketIndex: BN;
-	liquidation: boolean;
-	oraclePrice: BN;
-};
-
 export type FundingRateRecord = {
 	ts: BN;
 	recordId: BN;
@@ -175,17 +153,24 @@ export type LiquidationRecord = {
 
 export type OrderRecord = {
 	ts: BN;
-	order: Order;
+	taker: PublicKey | null;
+	maker: PublicKey | null;
+	takerOrder: Order | null;
+	makerOrder: Order | null;
+	action: OrderAction;
+	filler: PublicKey | null;
+	fillRecordId: BN | null;
+	marketIndex: BN;
 	user: PublicKey;
 	authority: PublicKey;
-	action: OrderAction;
-	filler: PublicKey;
 	baseAssetAmountFilled: BN;
 	quoteAssetAmountFilled: BN;
-	fee: BN;
+	makerRebate: BN;
+	takerFee: BN;
 	fillerReward: BN;
-	tradeRecordId: BN;
 	quoteAssetAmountSurplus: BN;
+	oraclePrice: BN;
+	liquidation: false;
 };
 
 export type StateAccount = {
@@ -231,7 +216,7 @@ export type MarketAccount = {
 	marginRatioInitial: number;
 	marginRatioMaintenance: number;
 	marginRatioPartial: number;
-	nextTradeRecordId: BN;
+	nextFillRecordId: BN;
 	pnlPool: PoolBalance;
 };
 

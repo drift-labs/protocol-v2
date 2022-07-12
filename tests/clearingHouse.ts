@@ -288,20 +288,19 @@ describe('clearing_house', () => {
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(49750)));
 
 		await eventSubscriber.awaitTx(txSig);
-		const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 
-		assert.ok(tradeRecord.user.equals(userAccountPublicKey));
-		assert.ok(tradeRecord.recordId.eq(new BN(1)));
+		assert.ok(orderRecord.taker.equals(userAccountPublicKey));
+		assert.ok(orderRecord.fillRecordId.eq(new BN(1)));
 		assert.ok(
-			JSON.stringify(tradeRecord.direction) ===
+			JSON.stringify(orderRecord.takerOrder.direction) ===
 				JSON.stringify(PositionDirection.LONG)
 		);
-		assert.ok(tradeRecord.baseAssetAmount.eq(new BN(497450500000000)));
-		assert.ok(tradeRecord.liquidation == false);
-		assert.ok(tradeRecord.quoteAssetAmount.eq(new BN(49750000)));
-		assert.ok(tradeRecord.marketIndex.eq(marketIndex));
+		assert.ok(orderRecord.baseAssetAmountFilled.eq(new BN(497450500000000)));
+		assert.ok(orderRecord.quoteAssetAmountFilled.eq(new BN(49750000)));
+		assert.ok(orderRecord.marketIndex.eq(marketIndex));
 
-		assert(clearingHouse.getMarketAccount(0).nextTradeRecordId.eq(new BN(2)));
+		assert(clearingHouse.getMarketAccount(0).nextFillRecordId.eq(new BN(2)));
 	});
 
 	it('Withdraw fails due to insufficient collateral', async () => {
@@ -413,17 +412,16 @@ describe('clearing_house', () => {
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(74626)));
 
 		await eventSubscriber.awaitTx(txSig);
-		const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
-		assert.ok(tradeRecord.user.equals(userAccountPublicKey));
-		assert.ok(tradeRecord.recordId.eq(new BN(2)));
+		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
+		assert.ok(orderRecord.taker.equals(userAccountPublicKey));
+		assert.ok(orderRecord.fillRecordId.eq(new BN(2)));
 		assert.ok(
-			JSON.stringify(tradeRecord.direction) ===
+			JSON.stringify(orderRecord.takerOrder.direction) ===
 				JSON.stringify(PositionDirection.SHORT)
 		);
-		assert.ok(tradeRecord.baseAssetAmount.eq(new BN(248725250000000)));
-		assert.ok(tradeRecord.liquidation == false);
-		assert.ok(tradeRecord.quoteAssetAmount.eq(new BN(24876237)));
-		assert.ok(tradeRecord.marketIndex.eq(new BN(0)));
+		assert.ok(orderRecord.baseAssetAmountFilled.eq(new BN(248725250000000)));
+		assert.ok(orderRecord.quoteAssetAmountFilled.eq(new BN(24876237)));
+		assert.ok(orderRecord.marketIndex.eq(new BN(0)));
 	});
 
 	it('Reverse long position', async () => {
@@ -475,18 +473,18 @@ describe('clearing_house', () => {
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(124371)));
 
 		await eventSubscriber.awaitTx(txSig);
-		const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
-		assert.ok(tradeRecord.user.equals(userAccountPublicKey));
-		assert.ok(tradeRecord.recordId.eq(new BN(3)));
+		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
+		assert.ok(orderRecord.taker.equals(userAccountPublicKey));
+		assert.ok(orderRecord.fillRecordId.eq(new BN(3)));
 		assert.ok(
-			JSON.stringify(tradeRecord.direction) ===
+			JSON.stringify(orderRecord.takerOrder.direction) ===
 				JSON.stringify(PositionDirection.SHORT)
 		);
-		console.log(tradeRecord.baseAssetAmount.toNumber());
-		assert.ok(tradeRecord.baseAssetAmount.eq(new BN(497450500000000)));
-		assert.ok(tradeRecord.quoteAssetAmount.eq(new BN(49745050)));
+		console.log(orderRecord.baseAssetAmountFilled.toNumber());
+		assert.ok(orderRecord.baseAssetAmountFilled.eq(new BN(497450500000000)));
+		assert.ok(orderRecord.quoteAssetAmountFilled.eq(new BN(49745050)));
 
-		assert.ok(tradeRecord.marketIndex.eq(new BN(0)));
+		assert.ok(orderRecord.marketIndex.eq(new BN(0)));
 	});
 
 	it('Close position', async () => {
@@ -513,18 +511,17 @@ describe('clearing_house', () => {
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(149242)));
 
 		await eventSubscriber.awaitTx(txSig);
-		const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 
-		assert.ok(tradeRecord.user.equals(userAccountPublicKey));
-		assert.ok(tradeRecord.recordId.eq(new BN(4)));
+		assert.ok(orderRecord.taker.equals(userAccountPublicKey));
+		assert.ok(orderRecord.fillRecordId.eq(new BN(4)));
 		assert.ok(
-			JSON.stringify(tradeRecord.direction) ===
+			JSON.stringify(orderRecord.takerOrder.direction) ===
 				JSON.stringify(PositionDirection.LONG)
 		);
-		assert.ok(tradeRecord.baseAssetAmount.eq(new BN(248725250000000)));
-		assert.ok(tradeRecord.liquidation == false);
-		assert.ok(tradeRecord.quoteAssetAmount.eq(new BN(24871288)));
-		assert.ok(tradeRecord.marketIndex.eq(new BN(0)));
+		assert.ok(orderRecord.baseAssetAmountFilled.eq(new BN(248725250000000)));
+		assert.ok(orderRecord.quoteAssetAmountFilled.eq(new BN(24871288)));
+		assert.ok(orderRecord.marketIndex.eq(new BN(0)));
 	});
 
 	it('Open short position', async () => {
@@ -551,18 +548,17 @@ describe('clearing_house', () => {
 		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(-490122700000000)));
 
 		await eventSubscriber.awaitTx(txSig);
-		const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 
-		assert.ok(tradeRecord.user.equals(userAccountPublicKey));
-		assert.ok(tradeRecord.recordId.eq(new BN(5)));
+		assert.ok(orderRecord.taker.equals(userAccountPublicKey));
+		assert.ok(orderRecord.fillRecordId.eq(new BN(5)));
 		assert.ok(
-			JSON.stringify(tradeRecord.direction) ===
+			JSON.stringify(orderRecord.takerOrder.direction) ===
 				JSON.stringify(PositionDirection.SHORT)
 		);
-		assert.ok(tradeRecord.baseAssetAmount.eq(new BN(490122700000000)));
-		assert.ok(tradeRecord.liquidation == false);
-		assert.ok(tradeRecord.quoteAssetAmount.eq(new BN(49007466)));
-		assert.ok(tradeRecord.marketIndex.eq(new BN(0)));
+		assert.ok(orderRecord.baseAssetAmountFilled.eq(new BN(490122700000000)));
+		assert.ok(orderRecord.quoteAssetAmountFilled.eq(new BN(49007466)));
+		assert.ok(orderRecord.marketIndex.eq(new BN(0)));
 	});
 
 	it('Partial Liquidation', async () => {
@@ -658,18 +654,6 @@ describe('clearing_house', () => {
 		assert.ok(chInsuranceAccountToken.amount.eq(new BN(43227)));
 
 		await eventSubscriber.awaitTx(txSig);
-		const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
-
-		assert.ok(tradeRecord.user.equals(userAccountPublicKey));
-		assert.ok(tradeRecord.recordId.eq(new BN(6)));
-		assert.ok(
-			JSON.stringify(tradeRecord.direction) ===
-				JSON.stringify(PositionDirection.LONG)
-		);
-		assert.ok(tradeRecord.baseAssetAmount.eq(new BN(122530675000000)));
-		assert.ok(tradeRecord.liquidation);
-		assert.ok(tradeRecord.quoteAssetAmount.eq(new BN(13836622)));
-		assert.ok(tradeRecord.marketIndex.eq(new BN(0)));
 
 		const liquidationRecord =
 			eventSubscriber.getEventsArray('LiquidationRecord')[0];
@@ -762,18 +746,6 @@ describe('clearing_house', () => {
 		assert.ok(chInsuranceAccountToken.amount.eq(new BN(2075604)));
 
 		await eventSubscriber.awaitTx(txSig);
-		const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
-
-		assert.ok(tradeRecord.user.equals(userAccountPublicKey));
-		assert.ok(tradeRecord.recordId.eq(new BN(7)));
-		assert.ok(
-			JSON.stringify(tradeRecord.direction) ===
-				JSON.stringify(PositionDirection.LONG)
-		);
-		assert.ok(tradeRecord.baseAssetAmount.eq(new BN(367592025000000)));
-		assert.ok(tradeRecord.liquidation);
-		assert.ok(tradeRecord.quoteAssetAmount.eq(new BN(42790023)));
-		assert.ok(tradeRecord.marketIndex.eq(new BN(0)));
 
 		const liquidationRecord =
 			eventSubscriber.getEventsArray('LiquidationRecord')[0];

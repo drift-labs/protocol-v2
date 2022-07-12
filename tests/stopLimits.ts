@@ -267,36 +267,31 @@ describe('stop limit', () => {
 		const expectedQuoteAssetAmount = new BN(0);
 		assert(firstPosition.quoteEntryAmount.eq(expectedQuoteAssetAmount));
 
-		const tradeHistoryRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 
-		assert.ok(tradeHistoryRecord.baseAssetAmount.eq(baseAssetAmount));
+		assert.ok(orderRecord.baseAssetAmountFilled.eq(baseAssetAmount));
 		const expectedTradeQuoteAssetAmount = new BN(1000002);
 		assert.ok(
-			tradeHistoryRecord.quoteAssetAmount.eq(expectedTradeQuoteAssetAmount)
+			orderRecord.quoteAssetAmountFilled.eq(expectedTradeQuoteAssetAmount)
 		);
-		assert.ok(tradeHistoryRecord.markPriceBefore.gt(triggerPrice));
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 		const expectedOrderId = new BN(2);
-		const expectedTradeRecordId = new BN(2);
+		const expectedFillRecordId = new BN(2);
 		assert(orderRecord.ts.gt(ZERO));
-		assert(orderRecord.order.orderId.eq(expectedOrderId));
+		assert(orderRecord.takerOrder.orderId.eq(expectedOrderId));
 		assert(enumsAreEqual(orderRecord.action, OrderAction.FILL));
-		assert(enumsAreEqual(orderRecord.order.orderType, OrderType.TRIGGER_LIMIT));
 		assert(
-			orderRecord.user.equals(await clearingHouseUser.getUserAccountPublicKey())
+			enumsAreEqual(orderRecord.takerOrder.orderType, OrderType.TRIGGER_LIMIT)
 		);
 		assert(
-			orderRecord.authority.equals(clearingHouseUser.getUserAccount().authority)
+			orderRecord.taker.equals(
+				await clearingHouseUser.getUserAccountPublicKey()
+			)
 		);
 		assert(
 			orderRecord.filler.equals(await fillerUser.getUserAccountPublicKey())
 		);
-		assert(orderRecord.baseAssetAmountFilled.eq(baseAssetAmount));
-		assert(
-			orderRecord.quoteAssetAmountFilled.eq(expectedTradeQuoteAssetAmount)
-		);
-		assert(orderRecord.tradeRecordId.eq(expectedTradeRecordId));
+		assert(orderRecord.fillRecordId.eq(expectedFillRecordId));
 	});
 
 	it('Fill stop limit long order', async () => {
@@ -356,28 +351,22 @@ describe('stop limit', () => {
 		const expectedQuoteAssetAmount = new BN(0);
 		assert(firstPosition.quoteEntryAmount.eq(expectedQuoteAssetAmount));
 
-		const tradeHistoryRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
-
-		assert.ok(tradeHistoryRecord.baseAssetAmount.eq(baseAssetAmount));
 		const expectedTradeQuoteAssetAmount = new BN(999999);
-		assert.ok(
-			tradeHistoryRecord.quoteAssetAmount.eq(expectedTradeQuoteAssetAmount)
-		);
-		assert.ok(tradeHistoryRecord.markPriceBefore.lt(triggerPrice));
-
 		const orderRecord: OrderRecord =
 			eventSubscriber.getEventsArray('OrderRecord')[0];
+
 		const expectedOrderId = new BN(4);
-		const expectedTradeRecordId = new BN(4);
+		const expectedFillRecord = new BN(4);
 		assert(orderRecord.ts.gt(ZERO));
-		assert(orderRecord.order.orderId.eq(expectedOrderId));
+		assert(orderRecord.takerOrder.orderId.eq(expectedOrderId));
 		assert(enumsAreEqual(orderRecord.action, OrderAction.FILL));
-		assert(enumsAreEqual(orderRecord.order.orderType, OrderType.TRIGGER_LIMIT));
 		assert(
-			orderRecord.user.equals(await clearingHouseUser.getUserAccountPublicKey())
+			enumsAreEqual(orderRecord.takerOrder.orderType, OrderType.TRIGGER_LIMIT)
 		);
 		assert(
-			orderRecord.authority.equals(clearingHouseUser.getUserAccount().authority)
+			orderRecord.taker.equals(
+				await clearingHouseUser.getUserAccountPublicKey()
+			)
 		);
 		assert(
 			orderRecord.filler.equals(await fillerUser.getUserAccountPublicKey())
@@ -386,6 +375,6 @@ describe('stop limit', () => {
 		assert(
 			orderRecord.quoteAssetAmountFilled.eq(expectedTradeQuoteAssetAmount)
 		);
-		assert(orderRecord.tradeRecordId.eq(expectedTradeRecordId));
+		assert(orderRecord.fillRecordId.eq(expectedFillRecord));
 	});
 });

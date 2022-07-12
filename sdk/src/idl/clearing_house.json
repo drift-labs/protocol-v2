@@ -1647,7 +1647,7 @@
             "type": "u32"
           },
           {
-            "name": "nextTradeRecordId",
+            "name": "nextFillRecordId",
             "type": "u64"
           },
           {
@@ -2823,6 +2823,12 @@
           },
           {
             "name": "Open"
+          },
+          {
+            "name": "Filled"
+          },
+          {
+            "name": "Canceled"
           }
         ]
       }
@@ -3136,7 +3142,7 @@
           "index": false
         },
         {
-          "name": "tradeRecord",
+          "name": "fillRecord",
           "type": "u128",
           "index": false
         }
@@ -3272,17 +3278,24 @@
           "index": false
         },
         {
+          "name": "fillRecordId",
+          "type": {
+            "option": "u64"
+          },
+          "index": false
+        },
+        {
+          "name": "marketIndex",
+          "type": "u64",
+          "index": false
+        },
+        {
           "name": "baseAssetAmountFilled",
           "type": "u128",
           "index": false
         },
         {
-          "name": "takerQuoteAssetAmountFilled",
-          "type": "u128",
-          "index": false
-        },
-        {
-          "name": "makerQuoteAssetAmountFilled",
+          "name": "quoteAssetAmountFilled",
           "type": "u128",
           "index": false
         },
@@ -3304,11 +3317,6 @@
         {
           "name": "quoteAssetAmountSurplus",
           "type": "u128",
-          "index": false
-        },
-        {
-          "name": "liquidation",
-          "type": "bool",
           "index": false
         },
         {
@@ -3752,6 +3760,11 @@
     },
     {
       "code": 6086,
+      "name": "CantMatchTwoPostOnlys",
+      "msg": "CantMatchTwoPostOnlys"
+    },
+    {
+      "code": 6087,
       "name": "DefaultError",
       "msg": "DefaultError"
     }

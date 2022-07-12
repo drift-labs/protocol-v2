@@ -5,7 +5,6 @@ import {
 	FundingRateRecord,
 	LiquidationRecord,
 	OrderRecord,
-	TradeRecord,
 } from '../index';
 
 export type EventSubscriptionOptions = {
@@ -23,7 +22,6 @@ export type EventSubscriptionOptions = {
 
 export const DefaultEventSubscriptionOptions: EventSubscriptionOptions = {
 	eventTypes: [
-		'TradeRecord',
 		'DepositRecord',
 		'FundingPaymentRecord',
 		'LiquidationRecord',
@@ -57,7 +55,6 @@ export type WrappedEvents = WrappedEvent<EventType>[];
 
 export type EventMap = {
 	DepositRecord: Event<DepositRecord>;
-	TradeRecord: Event<TradeRecord>;
 	FundingPaymentRecord: Event<FundingPaymentRecord>;
 	LiquidationRecord: Event<LiquidationRecord>;
 	FundingRateRecord: Event<FundingRateRecord>;
