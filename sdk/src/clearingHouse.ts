@@ -575,6 +575,7 @@ export class ClearingHouse {
 	 * @param name
 	 * @param amount
 	 * @param userTokenAccount
+	 * @param fromUserId
 	 * @returns
 	 */
 	public async initializeUserAccountAndDepositCollateral(
