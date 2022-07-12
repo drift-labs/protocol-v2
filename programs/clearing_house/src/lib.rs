@@ -2027,24 +2027,18 @@ pub mod clearing_house {
             let max_cost = market
                 .amm
                 .total_fee_minus_distributions
-                .checked_sub(market.amm.total_fee_withdrawn)
+                .checked_sub(cast_to_i128(market.amm.total_fee_withdrawn)?)
                 .ok_or_else(math_error!())?;
-            if adjustment_cost.unsigned_abs() > max_cost {
+            if adjustment_cost > max_cost {
                 return Err(ErrorCode::InvalidUpdateK.into());
-            } else {
-                market.amm.total_fee_minus_distributions = market
-                    .amm
-                    .total_fee_minus_distributions
-                    .checked_sub(adjustment_cost.unsigned_abs())
-                    .ok_or_else(math_error!())?;
             }
-        } else {
-            market.amm.total_fee_minus_distributions = market
-                .amm
-                .total_fee_minus_distributions
-                .checked_add(adjustment_cost.unsigned_abs())
-                .ok_or_else(math_error!())?;
         }
+
+        market.amm.total_fee_minus_distributions = market
+            .amm
+            .total_fee_minus_distributions
+            .checked_add(adjustment_cost)
+            .ok_or_else(math_error!())?;
 
         market.amm.net_revenue_since_last_funding = market
             .amm

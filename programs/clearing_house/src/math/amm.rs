@@ -69,7 +69,7 @@ pub fn calculate_spread(
     peg_multiplier: u128,
     net_base_asset_amount: i128,
     mark_price: u128,
-    total_fee_minus_distributions: u128,
+    total_fee_minus_distributions: i128,
 ) -> ClearingHouseResult<(u128, u128)> {
     let mut long_spread = (base_spread / 2) as u128;
     let mut short_spread = (base_spread / 2) as u128;
@@ -113,13 +113,13 @@ pub fn calculate_spread(
         .checked_div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128)
         .ok_or_else(math_error!())?;
 
-    let effective_leverage = cast_to_u128(max(
+    let effective_leverage = max(
         0,
         local_base_asset_value
             .checked_sub(net_base_asset_value)
             .ok_or_else(math_error!())?,
-    ))?
-    .checked_mul(BID_ASK_SPREAD_PRECISION)
+    )
+    .checked_mul(BID_ASK_SPREAD_PRECISION_I128)
     .ok_or_else(math_error!())?
     .checked_div(total_fee_minus_distributions + 1) // todo: fee pool instead of tfmd?
     .ok_or_else(math_error!())?;
@@ -127,11 +127,11 @@ pub fn calculate_spread(
     let effective_leverage_capped = min(
         MAX_BID_ASK_INVENTORY_SKEW_FACTOR,
         BID_ASK_SPREAD_PRECISION
-            .checked_add(effective_leverage + 1)
+            .checked_add(cast_to_u128(max(0, effective_leverage))? + 1)
             .ok_or_else(math_error!())?,
     );
 
-    if total_fee_minus_distributions == 0 {
+    if total_fee_minus_distributions <= 0 {
         long_spread = long_spread
             .checked_mul(MAX_BID_ASK_INVENTORY_SKEW_FACTOR)
             .ok_or_else(math_error!())?
@@ -1263,6 +1263,38 @@ mod test {
         assert_eq!(bar_l, 19983525535420);
         assert_eq!(qar_l, 20016488046166);
         assert_eq!(qar_s, 19995000000000);
+
+        let (long_spread_btc, short_spread_btc) = calculate_spread(
+            500,
+            62099,
+            411,
+            942800306955655,
+            944728468434773,
+            21966868,
+            -1931600000000,
+            219277638717000,
+            50457675,
+        )
+        .unwrap();
+
+        assert_eq!(long_spread_btc, 500 / 2);
+        assert_eq!(short_spread_btc, 62510);
+
+        let (long_spread_btc1, short_spread_btc1) = calculate_spread(
+            500,
+            70719,
+            0,
+            921137624214280,
+            923064882199510,
+            21754071,
+            -1930600000000,
+            216710715732581,
+            4876326,
+        )
+        .unwrap();
+
+        assert_eq!(long_spread_btc1, 500 / 2);
+        assert_eq!(short_spread_btc1, 197670);
     }
 
     #[test]

@@ -148,7 +148,7 @@ pub struct AMM {
     pub total_fee: u128,
     pub total_mm_fee: u128,
     pub total_exchange_fee: u128,
-    pub total_fee_minus_distributions: u128,
+    pub total_fee_minus_distributions: i128,
     pub total_fee_withdrawn: u128,
     pub net_revenue_since_last_funding: i64,
     pub fee_pool: PoolBalance,

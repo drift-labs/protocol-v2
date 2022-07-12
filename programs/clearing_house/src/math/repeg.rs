@@ -274,6 +274,22 @@ pub fn adjust_peg_cost(
     Ok((market_clone, cost))
 }
 
+pub fn calculate_repeg_cost(amm: &AMM, new_peg: u128) -> ClearingHouseResult<i128> {
+    let cost = cast_to_i128(amm.quote_asset_reserve)?
+        .checked_sub(cast_to_i128(amm.terminal_quote_asset_reserve)?)
+        .ok_or_else(math_error!())?
+        .checked_mul(
+            cast_to_i128(new_peg)?
+                .checked_sub(cast_to_i128(amm.peg_multiplier)?)
+                .ok_or_else(math_error!())?,
+        )
+        .ok_or_else(math_error!())?
+        .checked_div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128)
+        .ok_or_else(math_error!())?;
+
+    Ok(cost)
+}
+
 pub fn calculate_per_peg_cost(
     quote_asset_reserve: u128,
     terminal_quote_asset_reserve: u128,
@@ -471,16 +487,30 @@ pub fn calculate_expected_excess_funding_payment(
     Ok(expected_excess_funding_payment)
 }
 
+pub fn calculate_budget_to_repeg(market: &Market) -> ClearingHouseResult<u128> {
+    let fee_pool = calculate_fee_pool(market)?;
+
+    // if fee_pool < 0 {
+    //     // do more
+    //     0
+    // }
+
+    Ok(fee_pool)
+}
+
 pub fn calculate_fee_pool(market: &Market) -> ClearingHouseResult<u128> {
-    let total_fee_minus_distributions_lower_bound = get_total_fee_lower_bound(market)?;
+    let total_fee_minus_distributions_lower_bound =
+        cast_to_i128(get_total_fee_lower_bound(market)?)?;
 
     let fee_pool =
         if market.amm.total_fee_minus_distributions > total_fee_minus_distributions_lower_bound {
-            market
-                .amm
-                .total_fee_minus_distributions
-                .checked_sub(total_fee_minus_distributions_lower_bound)
-                .ok_or_else(math_error!())?
+            cast_to_u128(
+                market
+                    .amm
+                    .total_fee_minus_distributions
+                    .checked_sub(total_fee_minus_distributions_lower_bound)
+                    .ok_or_else(math_error!())?,
+            )?
         } else {
             0
         };

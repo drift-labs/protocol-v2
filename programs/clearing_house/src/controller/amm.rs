@@ -261,7 +261,7 @@ pub fn formulaic_update_k(
 
         let adjustment_cost = amm::adjust_k_cost(market, &update_k_result)?;
 
-        let cost_applied = apply_cost_to_market(market, adjustment_cost)?;
+        let cost_applied = apply_cost_to_market(market, adjustment_cost, true)?;
 
         if cost_applied {
             amm::update_k(market, &update_k_result)?;

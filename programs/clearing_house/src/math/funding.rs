@@ -64,7 +64,7 @@ pub fn calculate_funding_rate_long_short(
         market.amm.total_fee_minus_distributions = market
             .amm
             .total_fee_minus_distributions
-            .checked_add(uncapped_funding_pnl.unsigned_abs())
+            .checked_add(uncapped_funding_pnl)
             .ok_or_else(math_error!())?;
         market.amm.net_revenue_since_last_funding = market
             .amm
@@ -80,19 +80,19 @@ pub fn calculate_funding_rate_long_short(
     let new_total_fee_minus_distributions = market
         .amm
         .total_fee_minus_distributions
-        .checked_sub(capped_funding_pnl.unsigned_abs())
+        .checked_sub(capped_funding_pnl)
         .ok_or_else(math_error!())?;
 
     // clearing house is paying part of funding imbalance
     if capped_funding_pnl != 0 {
-        let total_fee_minus_distributions_lower_bound = get_total_fee_lower_bound(market)?;
+        let total_fee_minus_distributions_lower_bound =
+            cast_to_i128(get_total_fee_lower_bound(market)?)?;
 
         // makes sure the clearing house doesn't pay more than the share of fees allocated to `distributions`
         if new_total_fee_minus_distributions < total_fee_minus_distributions_lower_bound {
             return Err(ErrorCode::InvalidFundingProfitability);
         }
     }
-
     market.amm.total_fee_minus_distributions = new_total_fee_minus_distributions;
     market.amm.net_revenue_since_last_funding = market
         .amm
