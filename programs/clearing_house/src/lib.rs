@@ -29,7 +29,7 @@ pub mod state;
 #[cfg(feature = "mainnet-beta")]
 declare_id!("dammHkt7jmytvbS3nHTxQNEcP59aE57nxwV21YdqEDN");
 #[cfg(not(feature = "mainnet-beta"))]
-declare_id!("Eqa21pSiUCR7e796As4mLK9ypo4sfu159mdUDiwY3dtx");
+declare_id!("7aCcNjnd5DLVPYi8npx9aquuKVrabeahtyKP3u7h65GJ");
 
 #[program]
 pub mod clearing_house {
@@ -638,10 +638,13 @@ pub mod clearing_house {
             &Clock::get()?,
         )?;
 
-        let bank = &mut bank_map.get_ref_mut(&bank_index)?;
-        controller::bank_balance::update_bank_cumulative_interest(bank, clock.unix_timestamp)?;
+        {
+            let bank = &mut bank_map.get_ref_mut(&bank_index)?;
+            controller::bank_balance::update_bank_cumulative_interest(bank, clock.unix_timestamp)?;
+        }
 
         {
+            let bank = &mut bank_map.get_ref_mut(&bank_index)?;
             let from_user_bank_balance = match from_user.get_bank_balance_mut(bank.bank_index) {
                 Some(user_bank_balance) => user_bank_balance,
                 None => from_user.add_bank_balance(bank_index, BankBalanceType::Deposit)?,
@@ -674,6 +677,7 @@ pub mod clearing_house {
         emit!(deposit_record);
 
         {
+            let bank = &mut bank_map.get_ref_mut(&bank_index)?;
             let to_user_bank_balance = match to_user.get_bank_balance_mut(bank.bank_index) {
                 Some(user_bank_balance) => user_bank_balance,
                 None => to_user.add_bank_balance(bank_index, BankBalanceType::Deposit)?,

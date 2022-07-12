@@ -246,8 +246,8 @@ pub fn formulaic_update_k(
         0
     };
 
-    if budget != 0 {
-        // single k scale is capped by .1% increase and .09% decrease (regardless of budget)
+    if budget > 0 || (budget < 0 && market.amm.can_lower_k()?) {
+        // single k scale is capped by .1% increase and 2.2% decrease (regardless of budget)
         let (k_scale_numerator, k_scale_denominator) =
             amm::calculate_budgeted_k_scale(market, cast_to_i128(budget)?, mark_price)?;
 
@@ -352,6 +352,8 @@ mod test {
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50000,
                 net_base_asset_amount: -(122950819670000 as i128),
+                total_fee_minus_distributions: 1000 * QUOTE_PRECISION,
+                curve_update_intensity: 100,
                 ..AMM::default()
             },
             ..Market::default()
@@ -380,7 +382,7 @@ mod test {
         .unwrap();
         assert_eq!(prev_sqrt_k, market.amm.sqrt_k);
 
-        // positive means amm paid $500 in funding payments for interval
+        // positive means amm supossedly paid $500 in funding payments for interval
         let funding_cost_2: i128 = (500 * QUOTE_PRECISION) as i128;
         formulaic_update_k(
             &mut market,
@@ -392,7 +394,36 @@ mod test {
         .unwrap();
 
         assert_eq!(prev_sqrt_k > market.amm.sqrt_k, true);
-        assert_eq!(market.amm.sqrt_k, 4890000000000000);
-        assert_eq!(market.amm.total_fee_minus_distributions, 332075);
+        assert_eq!(market.amm.sqrt_k, 4890000000000000); // max k decrease (2.2%)
+        assert_eq!(market.amm.total_fee_minus_distributions, 1000332075); //$.33 acquired from slippage increase
+
+        // negative means amm recieved $500 in funding payments for interval
+        let funding_cost_2: i128 = -((500 * QUOTE_PRECISION) as i128);
+        formulaic_update_k(
+            &mut market,
+            &oracle_price_data,
+            funding_cost_2,
+            now,
+            mark_price,
+        )
+        .unwrap();
+
+        assert_eq!(market.amm.sqrt_k, 4894890000000000); // max k increase (.1%)
+        assert_eq!(market.amm.total_fee_minus_distributions, 1000316988); //$.33 acquired from slippage increase
+
+        // negative means amm recieved $.001 in funding payments for interval
+        let funding_cost_2: i128 = -((QUOTE_PRECISION / 1000) as i128);
+        formulaic_update_k(
+            &mut market,
+            &oracle_price_data,
+            funding_cost_2,
+            now,
+            mark_price,
+        )
+        .unwrap();
+
+        assert_eq!(market.amm.sqrt_k, 4895052229261371); // increase k by 1.00003314258x
+        assert_eq!(market.amm.total_fee_minus_distributions, 1000316491); // ~$.005 spent from slippage decrease
+                                                                          // todo: (316988-316491)/1e6 * 2 = 0.000994 < .001
     }
 }

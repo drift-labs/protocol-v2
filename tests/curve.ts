@@ -12,6 +12,7 @@ import {
 	ClearingHouseUser,
 	PositionDirection,
 	convertToNumber,
+	calculateBudgetedPeg,
 } from '../sdk/src';
 
 import { liquidityBook } from './liquidityBook';
@@ -351,6 +352,99 @@ describe('AMM Curve', () => {
 		console.log(linearApproxCostToAMM, 'vs', totalCostToAMMChain);
 		assert(linearApproxCostToAMM > totalCostToAMMChain);
 		assert(linearApproxCostToAMM / totalCostToAMMChain < 1.02);
+
+		await clearingHouse.closePosition(marketIndex);
+	});
+
+	it('calculateBudgetedPeg (sdk tests)', async () => {
+		const marketData1 = clearingHouse.getMarketAccount(marketIndex);
+
+		let amm = marketData1.amm;
+
+		// unbalanced but no net position
+		console.log('netBaseAssetAmount:', amm.netBaseAssetAmount.toString());
+		assert(!amm.baseAssetReserve.eq(amm.quoteAssetReserve));
+		assert(amm.netBaseAssetAmount.eq(new BN(0)));
+
+		// check if balanced
+		const candidatePegUp0 = calculateBudgetedPeg(
+			amm,
+			QUOTE_PRECISION,
+			new BN(200 * MARK_PRICE_PRECISION.toNumber())
+		);
+
+		const candidatePegDown0 = calculateBudgetedPeg(
+			amm,
+			QUOTE_PRECISION,
+			new BN(10 * MARK_PRICE_PRECISION.toNumber())
+		);
+		assert(candidatePegUp0.eq(new BN(202637)));
+		assert(candidatePegDown0.eq(new BN(10131)));
+
+		// check if short
+		await clearingHouse.openPosition(
+			PositionDirection.SHORT,
+			BASE_PRECISION,
+			marketIndex
+		);
+
+		amm = clearingHouse.getMarketAccount(marketIndex).amm;
+
+		const candidatePegUp = calculateBudgetedPeg(
+			amm,
+			QUOTE_PRECISION,
+			new BN(200 * MARK_PRICE_PRECISION.toNumber())
+		);
+		console.log(amm.pegMultiplier.toString(), '->', candidatePegUp.toString());
+		assert(candidatePegUp.eq(new BN(202637)));
+
+		const candidatePegDown = calculateBudgetedPeg(
+			amm,
+			QUOTE_PRECISION,
+			new BN(10 * MARK_PRICE_PRECISION.toNumber())
+		);
+		console.log(
+			amm.pegMultiplier.toString(),
+			'->',
+			candidatePegDown.toString()
+		);
+		assert(candidatePegDown.eq(new BN(146987)));
+
+		await clearingHouse.closePosition(marketIndex);
+
+		// check if long
+		await clearingHouse.openPosition(
+			PositionDirection.LONG,
+			BASE_PRECISION,
+			marketIndex
+		);
+		amm = clearingHouse.getMarketAccount(marketIndex).amm;
+
+		const candidatePegUp2 = calculateBudgetedPeg(
+			amm,
+			QUOTE_PRECISION,
+			new BN(200 * MARK_PRICE_PRECISION.toNumber())
+		);
+		// console.log(
+		// 	'USER LONG: target $200',
+		// 	amm.pegMultiplier.toString(),
+		// 	'->',
+		// 	candidatePegUp2.toString()
+		// );
+		assert(candidatePegUp2.eq(new BN(149013)));
+
+		const candidatePegDown2 = calculateBudgetedPeg(
+			amm,
+			QUOTE_PRECISION,
+			new BN(10 * MARK_PRICE_PRECISION.toNumber())
+		);
+		// console.log(
+		// 	'USER LONG: target $10',
+		// 	amm.pegMultiplier.toString(),
+		// 	'->',
+		// 	candidatePegDown2.toString()
+		// );
+		assert(candidatePegDown2.eq(new BN(10131)));
 
 		await clearingHouse.closePosition(marketIndex);
 	});

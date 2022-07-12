@@ -197,6 +197,11 @@ impl AMM {
         }
     }
 
+    pub fn can_lower_k(&self) -> ClearingHouseResult<bool> {
+        let can_lower = self.net_base_asset_amount.unsigned_abs() < self.sqrt_k / 4;
+        Ok(can_lower)
+    }
+
     pub fn get_pyth_price(
         &self,
         price_oracle: &AccountInfo,
