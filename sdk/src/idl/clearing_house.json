@@ -2581,8 +2581,10 @@
             "type": "u128"
           },
           {
-            "name": "userBaseAssetAmount",
-            "type": "i128"
+            "name": "existingPositionDirection",
+            "type": {
+              "defined": "PositionDirection"
+            }
           },
           {
             "name": "quoteAssetAmount",
@@ -2936,107 +2938,6 @@
       ]
     },
     {
-      "name": "TradeRecord",
-      "fields": [
-        {
-          "name": "ts",
-          "type": "i64",
-          "index": false
-        },
-        {
-          "name": "recordId",
-          "type": "u64",
-          "index": false
-        },
-        {
-          "name": "userAuthority",
-          "type": "publicKey",
-          "index": false
-        },
-        {
-          "name": "user",
-          "type": "publicKey",
-          "index": false
-        },
-        {
-          "name": "direction",
-          "type": {
-            "defined": "PositionDirection"
-          },
-          "index": false
-        },
-        {
-          "name": "baseAssetAmount",
-          "type": "u128",
-          "index": false
-        },
-        {
-          "name": "quoteAssetAmount",
-          "type": "u128",
-          "index": false
-        },
-        {
-          "name": "markPriceBefore",
-          "type": "u128",
-          "index": false
-        },
-        {
-          "name": "markPriceAfter",
-          "type": "u128",
-          "index": false
-        },
-        {
-          "name": "fee",
-          "type": "i128",
-          "index": false
-        },
-        {
-          "name": "quoteAssetAmountSurplus",
-          "type": "u128",
-          "index": false
-        },
-        {
-          "name": "refereeDiscount",
-          "type": "u128",
-          "index": false
-        },
-        {
-          "name": "tokenDiscount",
-          "type": "u128",
-          "index": false
-        },
-        {
-          "name": "liquidation",
-          "type": "bool",
-          "index": false
-        },
-        {
-          "name": "marketIndex",
-          "type": "u64",
-          "index": false
-        },
-        {
-          "name": "oraclePrice",
-          "type": "i128",
-          "index": false
-        },
-        {
-          "name": "makerAuthority",
-          "type": {
-            "option": "publicKey"
-          },
-          "index": false
-        },
-        {
-          "name": "maker",
-          "type": {
-            "option": "publicKey"
-          },
-          "index": false
-        }
-      ]
-    },
-    {
       "name": "FundingPaymentRecord",
       "fields": [
         {
@@ -3325,19 +3226,34 @@
           "index": false
         },
         {
-          "name": "user",
-          "type": "publicKey",
-          "index": false
-        },
-        {
-          "name": "authority",
-          "type": "publicKey",
-          "index": false
-        },
-        {
-          "name": "order",
+          "name": "taker",
           "type": {
-            "defined": "Order"
+            "option": "publicKey"
+          },
+          "index": false
+        },
+        {
+          "name": "maker",
+          "type": {
+            "option": "publicKey"
+          },
+          "index": false
+        },
+        {
+          "name": "takerOrder",
+          "type": {
+            "option": {
+              "defined": "Order"
+            }
+          },
+          "index": false
+        },
+        {
+          "name": "makerOrder",
+          "type": {
+            "option": {
+              "defined": "Order"
+            }
           },
           "index": false
         },
@@ -3350,12 +3266,9 @@
         },
         {
           "name": "filler",
-          "type": "publicKey",
-          "index": false
-        },
-        {
-          "name": "tradeRecordId",
-          "type": "u64",
+          "type": {
+            "option": "publicKey"
+          },
           "index": false
         },
         {
@@ -3364,13 +3277,23 @@
           "index": false
         },
         {
-          "name": "quoteAssetAmountFilled",
+          "name": "takerQuoteAssetAmountFilled",
           "type": "u128",
           "index": false
         },
         {
-          "name": "fee",
-          "type": "i128",
+          "name": "makerQuoteAssetAmountFilled",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "makerRebate",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "takerFee",
+          "type": "u128",
           "index": false
         },
         {
@@ -3381,6 +3304,16 @@
         {
           "name": "quoteAssetAmountSurplus",
           "type": "u128",
+          "index": false
+        },
+        {
+          "name": "liquidation",
+          "type": "bool",
+          "index": false
+        },
+        {
+          "name": "oraclePrice",
+          "type": "i128",
           "index": false
         }
       ]
