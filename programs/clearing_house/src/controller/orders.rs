@@ -7,7 +7,7 @@ use crate::controller;
 use crate::controller::position;
 use crate::controller::position::{
     add_new_position, decrease_open_bids_and_asks, get_position_index, increase_open_bids_and_asks,
-    update_position_and_market, PositionDirection,
+    update_position_and_market,
 };
 use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
@@ -29,7 +29,7 @@ use crate::order_validation::{
 use crate::print_error;
 use crate::state::bank_map::BankMap;
 use crate::state::events::OrderAction;
-use crate::state::events::OrderRecord;
+use crate::state::events::{OrderRecord, TradeRecord};
 use crate::state::fulfillment::FulfillmentMethod;
 use crate::state::market::Market;
 use crate::state::market_map::MarketMap;
@@ -82,7 +82,7 @@ pub fn place_order(
         user.positions[position_index].worst_case_base_asset_amount()?;
 
     // Increment open orders for existing position
-    let (existing_position_direction, order_base_asset_amount) = {
+    let (user_base_asset_amount, order_base_asset_amount) = {
         let market_position = &mut user.positions[position_index];
         market_position.open_orders += 1;
 
@@ -110,13 +110,7 @@ pub fn place_order(
         )?;
 
         increase_open_bids_and_asks(market_position, &params.direction, base_asset_amount)?;
-
-        let existing_position_direction = if market_position.base_asset_amount >= 0 {
-            PositionDirection::Long
-        } else {
-            PositionDirection::Short
-        };
-        (existing_position_direction, base_asset_amount)
+        (market_position.base_asset_amount, base_asset_amount)
     };
 
     let (auction_start_price, auction_end_price) = if let OrderType::Market = params.order_type {
@@ -136,7 +130,7 @@ pub fn place_order(
         user_order_id: params.user_order_id,
         market_index: params.market_index,
         price: params.price,
-        existing_position_direction,
+        user_base_asset_amount,
         base_asset_amount: order_base_asset_amount,
         quote_asset_amount: params.quote_asset_amount,
         base_asset_amount_filled: 0,
@@ -181,33 +175,20 @@ pub fn place_order(
         return Err(ErrorCode::InsufficientCollateral);
     }
 
-    let (
-        taker,
-        taker_order,
-        taker_quote_asset_amount_filled,
-        maker,
-        maker_order,
-        maker_quote_asset_amount_filled,
-    ) = get_taker_and_maker_for_order_record(&user_key, &new_order, 0);
-
     // emit order record
     emit!(OrderRecord {
         ts: now,
-        taker,
-        taker_order,
-        maker,
-        maker_order,
+        order: new_order,
+        user: user_key,
+        authority: user.authority,
         action: OrderAction::Place,
-        filler: None,
+        filler: Pubkey::default(),
+        trade_record_id: 0,
         base_asset_amount_filled: 0,
-        taker_quote_asset_amount_filled,
-        maker_quote_asset_amount_filled,
+        quote_asset_amount_filled: 0,
         filler_reward: 0,
-        taker_fee: 0,
-        maker_rebate: 0,
+        fee: 0,
         quote_asset_amount_surplus: 0,
-        liquidation: false,
-        oracle_price: oracle_map.get_price_data(&market.amm.oracle)?.price,
     });
 
     Ok(())
@@ -334,32 +315,19 @@ pub fn cancel_order(
         )?;
     }
 
-    let (
-        taker,
-        taker_order,
-        taker_quote_asset_amount_filled,
-        maker,
-        maker_order,
-        maker_quote_asset_amount_filled,
-    ) = get_taker_and_maker_for_order_record(user_key, &user.orders[order_index], 0);
-
     emit!(OrderRecord {
         ts: now,
-        taker,
-        taker_order,
-        maker,
-        maker_order,
+        order: user.orders[order_index],
+        user: *user_key,
+        authority: user.authority,
         action: OrderAction::Cancel,
-        filler: None,
+        filler: Pubkey::default(),
+        trade_record_id: 0,
         base_asset_amount_filled: 0,
-        taker_quote_asset_amount_filled,
-        maker_quote_asset_amount_filled,
+        quote_asset_amount_filled: 0,
         filler_reward: 0,
-        taker_fee: 0,
-        maker_rebate: 0,
+        fee: 0,
         quote_asset_amount_surplus: 0,
-        liquidation: false,
-        oracle_price: oracle_map.get_price_data(&market.amm.oracle)?.price
     });
 
     // Decrement open orders for existing position
@@ -499,14 +467,11 @@ pub fn fill_order(
                     market,
                     user,
                     order_index,
-                    &user_key,
                     maker,
                     maker_order_index,
-                    &maker_key,
                     filler.as_deref_mut(),
                     now,
                     &state.fee_structure,
-                    oracle_map,
                 )?
             }
         };
@@ -614,16 +579,15 @@ pub fn fulfill_order_with_amm(
     let (order_post_only, order_ts, order_direction) =
         get_struct_values!(user.orders[order_index], post_only, ts, direction);
 
-    let (user_fee, fee_to_market, filler_reward) =
-        fees::calculate_fee_for_order_fulfill_against_amm(
-            quote_asset_amount,
-            &state.fee_structure,
-            order_ts,
-            now,
-            filler_key != user_key,
-            quote_asset_amount_surplus,
-            order_post_only,
-        )?;
+    let (user_fee, fee_to_market, filler_reward) = fees::calculate_fee_for_order(
+        quote_asset_amount,
+        &state.fee_structure,
+        order_ts,
+        now,
+        filler_key != user_key,
+        quote_asset_amount_surplus,
+        order_post_only,
+    )?;
 
     let position_index = get_position_index(&user.positions, market.market_index)?;
     // Increment the clearing house's total fee variables
@@ -635,7 +599,7 @@ pub fn fulfill_order_with_amm(
     market.amm.total_exchange_fee = market
         .amm
         .total_exchange_fee
-        .checked_add(user_fee)
+        .checked_add(user_fee.unsigned_abs())
         .ok_or_else(math_error!())?;
     market.amm.total_mm_fee = market
         .amm
@@ -656,13 +620,13 @@ pub fn fulfill_order_with_amm(
     // Increment the user's total fee variables
     user.total_fee_paid = user
         .total_fee_paid
-        .checked_add(cast(user_fee)?)
+        .checked_add(cast(user_fee.unsigned_abs())?)
         .ok_or_else(math_error!())?;
 
     controller::position::update_unsettled_pnl(
         &mut user.positions[position_index],
         market,
-        -cast(user_fee)?,
+        -user_fee,
     )?;
 
     if filler_key != user_key {
@@ -682,7 +646,7 @@ pub fn fulfill_order_with_amm(
         market.amm.base_asset_amount_step_size,
         base_asset_amount,
         quote_asset_amount,
-        cast(user_fee)?,
+        user_fee,
     )?;
 
     decrease_open_bids_and_asks(
@@ -691,36 +655,47 @@ pub fn fulfill_order_with_amm(
         base_asset_amount,
     )?;
 
-    let (
-        taker,
-        taker_order,
-        taker_quote_asset_amount_filled,
-        maker,
-        maker_order,
-        maker_quote_asset_amount_filled,
-    ) = get_taker_and_maker_for_order_record(
-        user_key,
-        &user.orders[order_index],
-        quote_asset_amount,
-    );
+    let trade_record_id = {
+        let mark_price_after = market.amm.mark_price()?;
+        let oracle_price_after = oracle_map.get_price_data(&market.amm.oracle)?.price;
+        let record_id = get_then_update_id!(market, next_trade_record_id);
+        let trade_record = TradeRecord {
+            ts: now,
+            record_id,
+            user_authority: user.authority,
+            user: *user_key,
+            direction: order_direction,
+            base_asset_amount,
+            quote_asset_amount,
+            mark_price_before,
+            mark_price_after,
+            fee: user_fee,
+            token_discount: 0,
+            quote_asset_amount_surplus,
+            referee_discount: 0,
+            liquidation: false,
+            market_index: market.market_index,
+            oracle_price: oracle_price_after,
+            maker_authority: None,
+            maker: None,
+        };
+        emit!(trade_record);
+        record_id
+    };
 
     emit!(OrderRecord {
         ts: now,
-        taker,
-        taker_order,
-        maker,
-        maker_order,
+        order: user.orders[order_index],
+        user: *user_key,
+        authority: user.authority,
         action: OrderAction::Fill,
-        filler: None,
+        filler: *filler_key,
+        trade_record_id,
         base_asset_amount_filled: base_asset_amount,
-        taker_quote_asset_amount_filled,
-        maker_quote_asset_amount_filled,
+        quote_asset_amount_filled: quote_asset_amount,
         filler_reward,
-        taker_fee: user_fee,
-        maker_rebate: 0,
+        fee: user_fee,
         quote_asset_amount_surplus,
-        liquidation: false,
-        oracle_price: oracle_map.get_price_data(&market.amm.oracle)?.price,
     });
 
     // Cant reset order until after its logged
@@ -739,24 +714,18 @@ pub fn fulfill_order_with_match(
     market: &mut Market,
     first_user: &mut User,
     first_user_order_index: usize,
-    first_user_key: &Pubkey,
     second_user: &mut User,
     second_user_order_index: usize,
-    second_user_key: &Pubkey,
     filler: Option<&mut User>,
     now: i64,
     fee_structure: &FeeStructure,
-    oracle_map: &mut OracleMap,
 ) -> ClearingHouseResult<(u128, bool)> {
-    let (taker, taker_order_index, taker_key, maker, maker_order_index, maker_key) =
-        determine_maker_and_taker(
-            first_user,
-            first_user_order_index,
-            first_user_key,
-            second_user,
-            second_user_order_index,
-            second_user_key,
-        )?;
+    let (taker, taker_order_index, maker, maker_order_index) = determine_maker_and_taker(
+        first_user,
+        first_user_order_index,
+        second_user,
+        second_user_order_index,
+    )?;
 
     if !are_orders_same_market_but_different_sides(
         &maker.orders[maker_order_index],
@@ -833,7 +802,7 @@ pub fn fulfill_order_with_match(
     )?;
 
     let (taker_fee, maker_rebate, fee_to_market, filler_reward) =
-        fees::calculate_fee_for_fulfillment_with_match(
+        fees::calculate_fee_for_taker_and_maker(
             taker_quote_asset_amount,
             quote_asset_amount_surplus,
             fee_structure,
@@ -925,25 +894,6 @@ pub fn fulfill_order_with_match(
         &maker.orders[maker_order_index].direction,
         base_asset_amount,
     )?;
-
-    emit!(OrderRecord {
-        ts: now,
-        taker: Some(*taker_key),
-        taker_order: Some(taker.orders[taker_order_index]),
-        maker: Some(*maker_key),
-        maker_order: Some(maker.orders[maker_order_index]),
-        action: OrderAction::Fill,
-        filler: None,
-        base_asset_amount_filled: base_asset_amount,
-        taker_quote_asset_amount_filled: taker_quote_asset_amount,
-        maker_quote_asset_amount_filled: maker_quote_asset_amount,
-        filler_reward,
-        taker_fee,
-        maker_rebate,
-        quote_asset_amount_surplus,
-        liquidation: false,
-        oracle_price: oracle_map.get_price_data(&market.amm.oracle)?.price,
-    });
 
     if taker.orders[taker_order_index].base_asset_amount
         == taker.orders[taker_order_index].base_asset_amount_filled
@@ -1164,39 +1114,6 @@ fn get_valid_oracle_price(
     Ok(price)
 }
 
-fn get_taker_and_maker_for_order_record(
-    user_key: &Pubkey,
-    user_order: &Order,
-    quote_asset_amount: u128,
-) -> (
-    Option<Pubkey>,
-    Option<Order>,
-    u128,
-    Option<Pubkey>,
-    Option<Order>,
-    u128,
-) {
-    if user_order.post_only {
-        (
-            None,
-            None,
-            0,
-            Some(*user_key),
-            Some(*user_order),
-            quote_asset_amount,
-        )
-    } else {
-        (
-            Some(*user_key),
-            Some(*user_order),
-            quote_asset_amount,
-            None,
-            None,
-            0,
-        )
-    }
-}
-
 #[cfg(test)]
 mod tests {
 
@@ -1207,10 +1124,8 @@ mod tests {
             BASE_PRECISION, BASE_PRECISION_I128, MARK_PRICE_PRECISION, QUOTE_PRECISION,
         };
         use crate::state::market::Market;
-        use crate::state::oracle_map::OracleMap;
         use crate::state::state::FeeStructure;
         use crate::state::user::{MarketPosition, Order, OrderType, User};
-        use anchor_lang::prelude::Pubkey;
 
         fn get_positions(order: MarketPosition) -> [MarketPosition; 5] {
             let mut positions = [MarketPosition::default(); 5];
@@ -1232,14 +1147,6 @@ mod tests {
                 maker_rebate_denominator: 5,
                 ..FeeStructure::default()
             }
-        }
-
-        fn get_user_keys() -> (Pubkey, Pubkey) {
-            (Pubkey::default(), Pubkey::default())
-        }
-
-        fn get_oracle_map<'a>() -> OracleMap<'a> {
-            OracleMap::empty()
         }
 
         #[test]
@@ -1291,20 +1198,15 @@ mod tests {
 
             let fee_structure = get_fee_structure();
 
-            let (taker_key, maker_key) = get_user_keys();
-
             fulfill_order_with_match(
                 &mut market,
                 &mut taker,
                 0,
-                &taker_key,
                 &mut maker,
                 0,
-                &maker_key,
                 None,
                 now,
                 &fee_structure,
-                &mut get_oracle_map(),
             )
             .unwrap();
 
@@ -1391,20 +1293,15 @@ mod tests {
 
             let fee_structure = get_fee_structure();
 
-            let (taker_key, maker_key) = get_user_keys();
-
             fulfill_order_with_match(
                 &mut market,
                 &mut taker,
                 0,
-                &taker_key,
                 &mut maker,
                 0,
-                &maker_key,
                 None,
                 now,
                 &fee_structure,
-                &mut get_oracle_map(),
             )
             .unwrap();
 
@@ -1491,20 +1388,15 @@ mod tests {
 
             let fee_structure = get_fee_structure();
 
-            let (taker_key, maker_key) = get_user_keys();
-
             fulfill_order_with_match(
                 &mut market,
                 &mut taker,
                 0,
-                &taker_key,
                 &mut maker,
                 0,
-                &maker_key,
                 None,
                 now,
                 &fee_structure,
-                &mut get_oracle_map(),
             )
             .unwrap();
 
@@ -1591,20 +1483,15 @@ mod tests {
 
             let fee_structure = get_fee_structure();
 
-            let (taker_key, maker_key) = get_user_keys();
-
             fulfill_order_with_match(
                 &mut market,
                 &mut taker,
                 0,
-                &taker_key,
                 &mut maker,
                 0,
-                &maker_key,
                 None,
                 now,
                 &fee_structure,
-                &mut get_oracle_map(),
             )
             .unwrap();
 
@@ -1691,20 +1578,15 @@ mod tests {
 
             let fee_structure = FeeStructure::default();
 
-            let (taker_key, maker_key) = get_user_keys();
-
             let (base_asset_amount, _) = fulfill_order_with_match(
                 &mut market,
                 &mut taker,
                 0,
-                &taker_key,
                 &mut maker,
                 0,
-                &maker_key,
                 None,
                 now,
                 &fee_structure,
-                &mut get_oracle_map(),
             )
             .unwrap();
 
@@ -1760,20 +1642,15 @@ mod tests {
 
             let fee_structure = FeeStructure::default();
 
-            let (taker_key, maker_key) = get_user_keys();
-
             let (base_asset_amount, _) = fulfill_order_with_match(
                 &mut market,
                 &mut taker,
                 0,
-                &taker_key,
                 &mut maker,
                 0,
-                &maker_key,
                 None,
                 now,
                 &fee_structure,
-                &mut get_oracle_map(),
             )
             .unwrap();
 
@@ -1829,20 +1706,15 @@ mod tests {
 
             let fee_structure = FeeStructure::default();
 
-            let (taker_key, maker_key) = get_user_keys();
-
             let (base_asset_amount, _) = fulfill_order_with_match(
                 &mut market,
                 &mut taker,
                 0,
-                &taker_key,
                 &mut maker,
                 0,
-                &maker_key,
                 None,
                 now,
                 &fee_structure,
-                &mut get_oracle_map(),
             )
             .unwrap();
 
@@ -1899,20 +1771,15 @@ mod tests {
 
             let fee_structure = FeeStructure::default();
 
-            let (taker_key, maker_key) = get_user_keys();
-
             let (base_asset_amount, _) = fulfill_order_with_match(
                 &mut market,
                 &mut taker,
                 0,
-                &taker_key,
                 &mut maker,
                 0,
-                &maker_key,
                 None,
                 now,
                 &fee_structure,
-                &mut get_oracle_map(),
             )
             .unwrap();
 
@@ -1969,20 +1836,15 @@ mod tests {
 
             let fee_structure = FeeStructure::default();
 
-            let (taker_key, maker_key) = get_user_keys();
-
             fulfill_order_with_match(
                 &mut market,
                 &mut taker,
                 0,
-                &taker_key,
                 &mut maker,
                 0,
-                &maker_key,
                 None,
                 now,
                 &fee_structure,
-                &mut get_oracle_map(),
             )
             .unwrap();
 
@@ -2053,20 +1915,15 @@ mod tests {
 
             let fee_structure = FeeStructure::default();
 
-            let (taker_key, maker_key) = get_user_keys();
-
             fulfill_order_with_match(
                 &mut market,
                 &mut taker,
                 0,
-                &taker_key,
                 &mut maker,
                 0,
-                &maker_key,
                 None,
                 now,
                 &fee_structure,
-                &mut get_oracle_map(),
             )
             .unwrap();
 
@@ -2138,20 +1995,15 @@ mod tests {
 
             let fee_structure = get_fee_structure();
 
-            let (taker_key, maker_key) = get_user_keys();
-
             fulfill_order_with_match(
                 &mut market,
                 &mut taker,
                 0,
-                &taker_key,
                 &mut maker,
                 0,
-                &maker_key,
                 None,
                 now,
                 &fee_structure,
-                &mut get_oracle_map(),
             )
             .unwrap();
 
@@ -2235,20 +2087,16 @@ mod tests {
             let now = 5_i64;
 
             let fee_structure = get_fee_structure();
-            let (first_user_key, second_user_key) = get_user_keys();
 
             fulfill_order_with_match(
                 &mut market,
                 &mut first_user,
                 0,
-                &first_user_key,
                 &mut second_user,
                 0,
-                &second_user_key,
                 None,
                 now,
                 &fee_structure,
-                &mut get_oracle_map(),
             )
             .unwrap();
 
@@ -2333,20 +2181,15 @@ mod tests {
 
             let fee_structure = get_fee_structure();
 
-            let (first_user_key, second_user_key) = get_user_keys();
-
             fulfill_order_with_match(
                 &mut market,
                 &mut first_user,
                 0,
-                &first_user_key,
                 &mut second_user,
                 0,
-                &second_user_key,
                 None,
                 now,
                 &fee_structure,
-                &mut get_oracle_map(),
             )
             .unwrap();
 
@@ -2432,20 +2275,15 @@ mod tests {
 
             let fee_structure = get_fee_structure();
 
-            let (first_user_key, second_user_key) = get_user_keys();
-
             fulfill_order_with_match(
                 &mut market,
                 &mut first_user,
                 0,
-                &first_user_key,
                 &mut second_user,
                 0,
-                &second_user_key,
                 None,
                 now,
                 &fee_structure,
-                &mut get_oracle_map(),
             )
             .unwrap();
 
