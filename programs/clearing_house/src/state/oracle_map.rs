@@ -97,4 +97,19 @@ impl<'a> OracleMap<'a> {
             },
         })
     }
+
+    #[cfg(test)]
+    pub fn empty<'c>() -> OracleMap<'a> {
+        OracleMap {
+            oracles: BTreeMap::new(),
+            price_data: BTreeMap::new(),
+            slot: 0,
+            quote_asset_price_data: OraclePriceData {
+                price: MARK_PRICE_PRECISION_I128,
+                confidence: 1,
+                delay: 0,
+                has_sufficient_number_of_data_points: true,
+            },
+        }
+    }
 }
