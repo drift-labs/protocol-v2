@@ -2,13 +2,12 @@ use std::cmp::{max, min};
 
 use crate::controller::amm::SwapDirection;
 use crate::controller::position::PositionDirection;
-use crate::dlog;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::bn;
 use crate::math::bn::U192;
 use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64};
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128,
+    AMM_RESERVE_PRECISION, AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128,
     AMM_TO_QUOTE_PRECISION_RATIO_I128, BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128,
     K_BPS_DECREASE_MAX, K_BPS_INCREASE_MAX, K_BPS_UPDATE_SCALE, MARK_PRICE_PRECISION,
     MAX_BID_ASK_INVENTORY_SKEW_FACTOR, ONE_HOUR_I128, PEG_PRECISION, PRICE_TO_PEG_PRECISION_RATIO,
@@ -782,9 +781,158 @@ pub fn calculate_budgeted_k_scale(
         budget,
         market.amm.peg_multiplier,
         market.amm.net_base_asset_amount,
+        market.amm.curve_update_intensity,
     )?;
 
     Ok((numerator, denominator))
+}
+
+pub fn _calculate_budgeted_k_scale(
+    x: u128,
+    y: u128,
+    budget: i128,
+    q: u128,
+    d: i128,
+    curve_update_intensity: u8,
+) -> ClearingHouseResult<(u128, u128)> {
+    let curve_update_intensity = curve_update_intensity as i128;
+    let c = -budget;
+    let q = cast_to_i128(q)?;
+
+    let c_sign: i128 = if c > 0 { 1 } else { -1 };
+    let d_sign: i128 = if d > 0 { 1 } else { -1 };
+
+    let x_d = cast_to_i128(x)?.checked_add(d).ok_or_else(math_error!())?;
+
+    let amm_reserve_precision_u192 = U192::from(AMM_RESERVE_PRECISION);
+    let x_times_x_d_u192 = U192::from(x)
+        .checked_mul(U192::from(x_d))
+        .ok_or_else(math_error!())?
+        .checked_div(amm_reserve_precision_u192)
+        .ok_or_else(math_error!())?;
+
+    let quote_precision_u192 = U192::from(QUOTE_PRECISION);
+    let x_times_x_d_c = x_times_x_d_u192
+        .checked_mul(U192::from(c.unsigned_abs()))
+        .ok_or_else(math_error!())?
+        .checked_div(quote_precision_u192)
+        .ok_or_else(math_error!())?
+        .try_to_u128()?;
+
+    let c_times_x_d_d = U192::from(c.unsigned_abs())
+        .checked_mul(U192::from(x_d.unsigned_abs()))
+        .ok_or_else(math_error!())?
+        .checked_div(quote_precision_u192)
+        .ok_or_else(math_error!())?
+        .checked_mul(U192::from(d.unsigned_abs()))
+        .ok_or_else(math_error!())?
+        .checked_div(amm_reserve_precision_u192)
+        .ok_or_else(math_error!())?
+        .try_to_u128()?;
+
+    let pegged_quote_times_dd = cast_to_i128(
+        U192::from(y)
+            .checked_mul(U192::from(d.unsigned_abs()))
+            .ok_or_else(math_error!())?
+            .checked_div(amm_reserve_precision_u192)
+            .ok_or_else(math_error!())?
+            .checked_mul(U192::from(d.unsigned_abs()))
+            .ok_or_else(math_error!())?
+            .checked_div(amm_reserve_precision_u192)
+            .ok_or_else(math_error!())?
+            .checked_mul(U192::from(q))
+            .ok_or_else(math_error!())?
+            .checked_div(U192::from(PEG_PRECISION))
+            .ok_or_else(math_error!())?
+            .try_to_u128()?,
+    )?;
+
+    let numer1 = pegged_quote_times_dd;
+
+    let numer2 = cast_to_i128(c_times_x_d_d)?
+        .checked_mul(c_sign.checked_mul(d_sign).ok_or_else(math_error!())?)
+        .ok_or_else(math_error!())?;
+
+    let denom1 = cast_to_i128(x_times_x_d_c)?
+        .checked_mul(c_sign)
+        .ok_or_else(math_error!())?;
+
+    let denom2 = pegged_quote_times_dd;
+
+    // protocol is spending to increase k
+    if c_sign < 0 {
+        // thus denom1 is negative and solution is unstable
+        if x_times_x_d_c > pegged_quote_times_dd.unsigned_abs() {
+            msg!("cost exceeds possible amount to spend");
+            let k_pct_upper_bound =
+                K_BPS_UPDATE_SCALE + (K_BPS_INCREASE_MAX) * curve_update_intensity / 100;
+            return Ok((
+                cast_to_u128(k_pct_upper_bound)?,
+                cast_to_u128(K_BPS_UPDATE_SCALE)?,
+            ));
+        }
+    }
+
+    let mut numerator = (numer1.checked_sub(numer2).ok_or_else(math_error!())?)
+        .checked_div(AMM_TO_QUOTE_PRECISION_RATIO_I128)
+        .ok_or_else(math_error!())?;
+    let mut denominator = denom1
+        .checked_add(denom2)
+        .ok_or_else(math_error!())?
+        .checked_div(AMM_TO_QUOTE_PRECISION_RATIO_I128)
+        .ok_or_else(math_error!())?;
+
+    if numerator < 0 && denominator < 0 {
+        numerator = numerator.abs();
+        denominator = denominator.abs();
+    }
+    assert!((numerator > 0 && denominator > 0));
+
+    let (numerator, denominator) = if numerator > denominator {
+        let k_pct_upper_bound =
+            K_BPS_UPDATE_SCALE + (K_BPS_INCREASE_MAX) * curve_update_intensity / 100;
+
+        let current_pct_change = numerator
+            .checked_mul(10000)
+            .ok_or_else(math_error!())?
+            .checked_div(denominator)
+            .ok_or_else(math_error!())?;
+
+        let maximum_pct_change = k_pct_upper_bound
+            .checked_mul(10000)
+            .ok_or_else(math_error!())?
+            .checked_div(K_BPS_UPDATE_SCALE)
+            .ok_or_else(math_error!())?;
+
+        if current_pct_change > maximum_pct_change {
+            (k_pct_upper_bound, K_BPS_UPDATE_SCALE)
+        } else {
+            (numerator, denominator)
+        }
+    } else {
+        let k_pct_lower_bound =
+            K_BPS_UPDATE_SCALE - (K_BPS_DECREASE_MAX) * curve_update_intensity / 100;
+
+        let current_pct_change = numerator
+            .checked_mul(10000)
+            .ok_or_else(math_error!())?
+            .checked_div(denominator)
+            .ok_or_else(math_error!())?;
+
+        let maximum_pct_change = k_pct_lower_bound
+            .checked_mul(10000)
+            .ok_or_else(math_error!())?
+            .checked_div(K_BPS_UPDATE_SCALE)
+            .ok_or_else(math_error!())?;
+
+        if current_pct_change < maximum_pct_change {
+            (k_pct_lower_bound, K_BPS_UPDATE_SCALE)
+        } else {
+            (numerator, denominator)
+        }
+    };
+
+    Ok((cast_to_u128(numerator)?, cast_to_u128(denominator)?))
 }
 
 /// To find the cost of adjusting k, compare the the net market value before and after adjusting k
@@ -980,125 +1128,6 @@ pub fn should_round_trade(
     let quote_asset_reserve_amount = asset_to_reserve_amount(difference, amm.peg_multiplier)?;
 
     Ok(quote_asset_reserve_amount < amm.minimum_quote_asset_trade_size)
-}
-
-pub fn _calculate_budgeted_k_scale(
-    x: u128,
-    y: u128,
-    budget: i128,
-    q: u128,
-    d: i128,
-) -> ClearingHouseResult<(u128, u128)> {
-    dlog!(x, y, budget, q, d);
-
-    let c = -budget;
-    let q = cast_to_i128(q)?;
-
-    let x_d = cast_to_i128(x)?.checked_add(d).ok_or_else(math_error!())?;
-
-    let x_times_x_d = U192::from(x)
-        .checked_mul(U192::from(x_d))
-        .ok_or_else(math_error!())?
-        .checked_div(U192::from(AMM_RESERVE_PRECISION))
-        .ok_or_else(math_error!())?
-        .try_to_u128()?;
-
-    let pegged_quote_times_dd = cast_to_i128(y)?
-        .checked_mul(d)
-        .ok_or_else(math_error!())?
-        .checked_div(AMM_RESERVE_PRECISION_I128)
-        .ok_or_else(math_error!())?
-        .checked_mul(d)
-        .ok_or_else(math_error!())?
-        .checked_div(AMM_RESERVE_PRECISION_I128)
-        .ok_or_else(math_error!())?
-        .checked_mul(q)
-        .ok_or_else(math_error!())?
-        .checked_div(cast_to_i128(PEG_PRECISION)?)
-        .ok_or_else(math_error!())?;
-
-    let numer1 = pegged_quote_times_dd;
-
-    let numer2 = c
-        .checked_mul(x_d)
-        .ok_or_else(math_error!())?
-        .checked_div(cast_to_i128(QUOTE_PRECISION)?)
-        .ok_or_else(math_error!())?
-        .checked_mul(d)
-        .ok_or_else(math_error!())?
-        .checked_div(AMM_RESERVE_PRECISION_I128)
-        .ok_or_else(math_error!())?;
-
-    let denom1 = c
-        .checked_mul(cast_to_i128(x_times_x_d)?)
-        .ok_or_else(math_error!())?
-        .checked_div(cast_to_i128(QUOTE_PRECISION)?)
-        .ok_or_else(math_error!())?;
-
-    let denom2 = pegged_quote_times_dd;
-
-    let mut numerator = (numer1.checked_sub(numer2).ok_or_else(math_error!())?)
-        .checked_div(AMM_TO_QUOTE_PRECISION_RATIO_I128)
-        .ok_or_else(math_error!())?;
-    let mut denominator = denom1
-        .checked_add(denom2)
-        .ok_or_else(math_error!())?
-        .checked_div(AMM_TO_QUOTE_PRECISION_RATIO_I128)
-        .ok_or_else(math_error!())?;
-
-    if numerator < 0 && denominator < 0 {
-        numerator = numerator.abs();
-        denominator = denominator.abs();
-    }
-
-    assert!((numerator > 0 && denominator > 0));
-    let curve_update_intensity = 100;
-
-    let (numerator, denominator) = if numerator > denominator {
-        let k_pct_upper_bound =
-            K_BPS_UPDATE_SCALE + (K_BPS_INCREASE_MAX) * curve_update_intensity / 100;
-
-        let current_pct_change = numerator
-            .checked_mul(10000)
-            .ok_or_else(math_error!())?
-            .checked_div(denominator)
-            .ok_or_else(math_error!())?;
-
-        let maximum_pct_change = k_pct_upper_bound
-            .checked_mul(10000)
-            .ok_or_else(math_error!())?
-            .checked_div(K_BPS_UPDATE_SCALE)
-            .ok_or_else(math_error!())?;
-
-        if current_pct_change > maximum_pct_change {
-            (k_pct_upper_bound, K_BPS_UPDATE_SCALE)
-        } else {
-            (numerator, denominator)
-        }
-    } else {
-        let k_pct_lower_bound =
-            K_BPS_UPDATE_SCALE - (K_BPS_DECREASE_MAX) * curve_update_intensity / 100;
-
-        let current_pct_change = numerator
-            .checked_mul(10000)
-            .ok_or_else(math_error!())?
-            .checked_div(denominator)
-            .ok_or_else(math_error!())?;
-
-        let maximum_pct_change = k_pct_lower_bound
-            .checked_mul(10000)
-            .ok_or_else(math_error!())?
-            .checked_div(K_BPS_UPDATE_SCALE)
-            .ok_or_else(math_error!())?;
-
-        if current_pct_change < maximum_pct_change {
-            (k_pct_lower_bound, K_BPS_UPDATE_SCALE)
-        } else {
-            (numerator, denominator)
-        }
-    };
-
-    Ok((cast_to_u128(numerator)?, cast_to_u128(denominator)?))
 }
 
 #[cfg(test)]
@@ -1354,6 +1383,7 @@ mod test {
             ((QUOTE_PRECISION / 500) as i128), // positive budget
             36365,
             (AMM_RESERVE_PRECISION * 66) as i128,
+            100,
         )
         .unwrap();
 
@@ -1371,6 +1401,7 @@ mod test {
             -((QUOTE_PRECISION / 50) as i128),
             36365,
             (AMM_RESERVE_PRECISION * 66) as i128,
+            100,
         )
         .unwrap();
         assert_eq!(numer1 < denom1, true);
@@ -1384,6 +1415,7 @@ mod test {
             -((QUOTE_PRECISION / 25) as i128),
             36365,
             (AMM_RESERVE_PRECISION * 66) as i128,
+            100,
         )
         .unwrap();
         assert_eq!(numer1 < denom1, true);
@@ -1391,15 +1423,33 @@ mod test {
         assert_eq!(pct_change_in_k, 986196); // k was decreased 1.3804%
 
         // todo:
-        // (numer1, denom1) = _calculate_budgeted_k_scale(
-        //     500000000049750000004950,
-        //     499999999950250000000000,
-        //     114638,
-        //     40000,
-        //     49750000004950,
-        // )
-        // .unwrap();
+        (numer1, denom1) = _calculate_budgeted_k_scale(
+            500000000049750000004950,
+            499999999950250000000000,
+            114638,
+            40000,
+            49750000004950,
+            100,
+        )
+        .unwrap();
 
-        // assert_eq!(numer1 > denom1, true)
+        assert_eq!(numer1 > denom1, true);
+        assert_eq!(numer1, 1001000);
+        assert_eq!(denom1, 1000000);
+
+        // todo:
+        (numer1, denom1) = _calculate_budgeted_k_scale(
+            500000000049750000004950,
+            499999999950250000000000,
+            -114638,
+            40000,
+            49750000004950,
+            100,
+        )
+        .unwrap();
+
+        assert_eq!(numer1 < denom1, true);
+        assert_eq!(numer1, 978000); // 2.2% decrease
+        assert_eq!(denom1, 1000000);
     }
 }
