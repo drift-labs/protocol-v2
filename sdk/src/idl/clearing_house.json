@@ -3233,33 +3233,25 @@
         },
         {
           "name": "taker",
-          "type": {
-            "option": "publicKey"
-          },
+          "type": "publicKey",
           "index": false
         },
         {
           "name": "maker",
-          "type": {
-            "option": "publicKey"
-          },
+          "type": "publicKey",
           "index": false
         },
         {
           "name": "takerOrder",
           "type": {
-            "option": {
-              "defined": "Order"
-            }
+            "defined": "Order"
           },
           "index": false
         },
         {
           "name": "makerOrder",
           "type": {
-            "option": {
-              "defined": "Order"
-            }
+            "defined": "Order"
           },
           "index": false
         },
@@ -3272,16 +3264,12 @@
         },
         {
           "name": "filler",
-          "type": {
-            "option": "publicKey"
-          },
+          "type": "publicKey",
           "index": false
         },
         {
           "name": "fillRecordId",
-          "type": {
-            "option": "u64"
-          },
+          "type": "u64",
           "index": false
         },
         {
