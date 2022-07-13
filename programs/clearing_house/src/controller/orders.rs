@@ -192,8 +192,8 @@ pub fn place_order(
         maker,
         maker_order,
         action: OrderAction::Place,
-        filler: None,
-        fill_record_id: None,
+        filler: Pubkey::default(),
+        fill_record_id: 0,
         market_index: market.market_index,
         base_asset_amount_filled: 0,
         quote_asset_amount_filled: 0,
@@ -341,8 +341,8 @@ pub fn cancel_order(
         maker,
         maker_order,
         action: OrderAction::Cancel,
-        filler: None,
-        fill_record_id: None,
+        filler: Pubkey::default(),
+        fill_record_id: 0,
         market_index: market.market_index,
         base_asset_amount_filled: 0,
         quote_asset_amount_filled: 0,
@@ -694,8 +694,8 @@ pub fn fulfill_order_with_amm(
         maker,
         maker_order,
         action: OrderAction::Fill,
-        filler: Some(*filler_key),
-        fill_record_id: Some(fill_record_id),
+        filler: *filler_key,
+        fill_record_id,
         market_index: market.market_index,
         base_asset_amount_filled: base_asset_amount,
         quote_asset_amount_filled: quote_asset_amount,
@@ -898,13 +898,13 @@ pub fn fulfill_order_with_match(
     let fill_record_id = get_then_update_id!(market, next_fill_record_id);
     emit!(OrderRecord {
         ts: now,
-        taker: Some(*taker_key),
-        taker_order: Some(taker.orders[taker_order_index]),
-        maker: Some(*maker_key),
-        maker_order: Some(maker.orders[maker_order_index]),
+        taker: *taker_key,
+        taker_order: taker.orders[taker_order_index],
+        maker: *maker_key,
+        maker_order: maker.orders[maker_order_index],
         action: OrderAction::Fill,
-        filler: Some(*filler_key),
-        fill_record_id: Some(fill_record_id),
+        filler: *filler_key,
+        fill_record_id,
         market_index: market.market_index,
         base_asset_amount_filled: base_asset_amount,
         quote_asset_amount_filled: quote_asset_amount,
@@ -1133,11 +1133,11 @@ fn get_valid_oracle_price(
 fn get_taker_and_maker_for_order_record(
     user_key: &Pubkey,
     user_order: &Order,
-) -> (Option<Pubkey>, Option<Order>, Option<Pubkey>, Option<Order>) {
+) -> (Pubkey, Order, Pubkey, Order) {
     if user_order.post_only {
-        (None, None, Some(*user_key), Some(*user_order))
+        (Pubkey::default(), Order::default(), *user_key, *user_order)
     } else {
-        (Some(*user_key), Some(*user_order), None, None)
+        (*user_key, *user_order, Pubkey::default(), Order::default())
     }
 }
 
