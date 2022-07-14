@@ -181,7 +181,7 @@ export function calculateUpdatedAMMSpreadReserves(
 	direction: PositionDirection,
 	oraclePriceData: OraclePriceData
 ): { baseAssetReserve: BN; quoteAssetReserve: BN; sqrtK: BN; newPeg: BN } {
-	const newAmm = calculateUpdatedAMM(amm, oraclePriceData, marginRatioInitial);
+	const newAmm = calculateUpdatedAMM(amm, oraclePriceData);
 	const dirReserves = calculateSpreadReserves(
 		newAmm,
 		direction,
