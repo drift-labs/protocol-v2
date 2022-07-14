@@ -2155,6 +2155,10 @@
             "type": "u128"
           },
           {
+            "name": "maxSpread",
+            "type": "u32"
+          },
+          {
             "name": "askBaseAssetReserve",
             "type": "u128"
           },

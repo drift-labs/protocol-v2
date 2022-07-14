@@ -287,6 +287,7 @@ export type AMM = {
 	lastAskPriceTwap: BN;
 	longSpread: BN;
 	shortSpread: BN;
+	maxSpread: number;
 };
 
 // # User Account Types

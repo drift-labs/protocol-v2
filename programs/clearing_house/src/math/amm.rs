@@ -168,19 +168,15 @@ pub fn calculate_spread(
     let max_spread = calculate_max_spread(margin_ratio_initial)?;
     if total_spread > max_spread {
         if long_spread > short_spread {
-            long_spread = max(
-                base_spread as u128,
-                max_spread
-                    .checked_sub(short_spread)
-                    .ok_or_else(math_error!())?,
-            );
+            long_spread = min(max_spread, long_spread);
+            short_spread = max_spread
+                .checked_sub(long_spread)
+                .ok_or_else(math_error!())?;
         } else {
-            short_spread = max(
-                base_spread as u128,
-                max_spread
-                    .checked_sub(long_spread)
-                    .ok_or_else(math_error!())?,
-            );
+            short_spread = min(max_spread, short_spread);
+            long_spread = max_spread
+                .checked_sub(short_spread)
+                .ok_or_else(math_error!())?;
         }
     }
 
@@ -1173,11 +1169,14 @@ mod test {
         let mut mark_price = 345623040000;
         let mut total_fee_minus_distributions = 0;
 
+        let margin_ratio_initial = 2000; // 5x max leverage
+
         // at 0 fee be max spread
         let (long_spread1, short_spread1) = calculate_spread(
             base_spread,
             last_oracle_mark_spread_pct,
             last_oracle_conf_pct,
+            margin_ratio_initial,
             quote_asset_reserve,
             terminal_quote_asset_reserve,
             peg_multiplier,
@@ -1196,6 +1195,7 @@ mod test {
             base_spread,
             last_oracle_mark_spread_pct,
             last_oracle_conf_pct,
+            margin_ratio_initial,
             quote_asset_reserve,
             terminal_quote_asset_reserve,
             peg_multiplier,
@@ -1208,13 +1208,14 @@ mod test {
         assert_eq!(short_spread2, (base_spread * 5 / 2) as u128);
 
         // oracle retreat * skew that increases long spread
-        last_oracle_mark_spread_pct = BID_ASK_SPREAD_PRECISION_I128;
-        last_oracle_conf_pct = (BID_ASK_SPREAD_PRECISION / 100) as u64;
+        last_oracle_mark_spread_pct = BID_ASK_SPREAD_PRECISION_I128 / 20; //5%
+        last_oracle_conf_pct = (BID_ASK_SPREAD_PRECISION / 100) as u64; //1%
         total_fee_minus_distributions = QUOTE_PRECISION as i128;
         let (long_spread3, short_spread3) = calculate_spread(
             base_spread,
             last_oracle_mark_spread_pct,
             last_oracle_conf_pct,
+            margin_ratio_initial,
             quote_asset_reserve,
             terminal_quote_asset_reserve,
             peg_multiplier,
@@ -1230,7 +1231,7 @@ mod test {
 
         // last_oracle_mark_spread_pct + conf retreat
         // assert_eq!(short_spread3, 1010000);
-        assert_eq!(short_spread3, 199219); // hitting max spread
+        assert_eq!(short_spread3, 60000); // hitting max spread
 
         last_oracle_mark_spread_pct = -BID_ASK_SPREAD_PRECISION_I128 / 777;
         last_oracle_conf_pct = 1;
@@ -1238,6 +1239,7 @@ mod test {
             base_spread,
             last_oracle_mark_spread_pct,
             last_oracle_conf_pct,
+            margin_ratio_initial,
             quote_asset_reserve,
             terminal_quote_asset_reserve,
             peg_multiplier,
@@ -1257,6 +1259,7 @@ mod test {
             base_spread,
             last_oracle_mark_spread_pct,
             last_oracle_conf_pct,
+            margin_ratio_initial,
             quote_asset_reserve,
             terminal_quote_asset_reserve,
             peg_multiplier,
@@ -1295,6 +1298,7 @@ mod test {
             500,
             62099,
             411,
+            margin_ratio_initial,
             942800306955655,
             944728468434773,
             21966868,
@@ -1311,6 +1315,7 @@ mod test {
             500,
             70719,
             0,
+            margin_ratio_initial,
             921137624214280,
             923064882199510,
             21754071,
@@ -1322,7 +1327,7 @@ mod test {
 
         assert_eq!(long_spread_btc1, 500 / 2);
         // assert_eq!(short_spread_btc1, 197670);
-        assert_eq!(short_spread_btc1, 99750); // max spread
+        assert_eq!(short_spread_btc1, 197670); // max spread
     }
 
     #[test]

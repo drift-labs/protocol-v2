@@ -163,7 +163,7 @@ describe('repeg and spread amm', () => {
 			periodicity,
 			new BN(21_966_868),
 			undefined,
-			1000
+			500
 		);
 		await clearingHouse.updateMarketBaseSpread(new BN(0), 250);
 		await clearingHouse.updateCurveUpdateIntensity(new BN(0), 100);
@@ -281,7 +281,7 @@ describe('repeg and spread amm', () => {
 			prepegAMM.totalFeeMinusDistributions.toNumber() /
 			QUOTE_PRECISION.toNumber();
 		console.log('prepegAMM.totalFeeMinusDistributions:', tfMD);
-		assert(tfMD < 0); // max spread
+		assert(tfMD < 0); // enforcing max spread
 
 		console.log(
 			'prepegAMM.pegMultiplier:',
@@ -302,7 +302,7 @@ describe('repeg and spread amm', () => {
 			prepegAMM.baseSpread,
 			targetMarkSpreadPct,
 			new BN(0),
-			market0.marginRatioInitial,
+			prepegAMM.maxSpread,
 			prepegAMM.quoteAssetReserve,
 			prepegAMM.terminalQuoteAssetReserve,
 			prepegAMM.pegMultiplier,

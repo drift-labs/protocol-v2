@@ -467,16 +467,11 @@ pub fn calculate_optimal_peg_and_budget(
         check_lower_bound = false;
 
         let max_price_spread = cast_to_i128(
-            min(
-                BID_ASK_SPREAD_PRECISION / 5, // 20%
-                (market.amm.base_spread as u128)
-                    .checked_mul(200) // 250 base spread -> 5% gap
-                    .ok_or_else(math_error!())?,
-            )
-            .checked_mul(mark_price_before)
-            .ok_or_else(math_error!())?
-            .checked_div(BID_ASK_SPREAD_PRECISION)
-            .ok_or_else(math_error!())?,
+            amm::calculate_max_spread(market.margin_ratio_initial)?
+                .checked_mul(target_price)
+                .ok_or_else(math_error!())?
+                .checked_div(BID_ASK_SPREAD_PRECISION)
+                .ok_or_else(math_error!())?,
         )?;
 
         let target_price_gap = cast_to_i128(mark_price_before)?
@@ -644,6 +639,8 @@ mod test {
                 curve_update_intensity: 100,
                 ..AMM::default()
             },
+            margin_ratio_initial: 500,
+
             ..Market::default()
         };
 
@@ -658,8 +655,8 @@ mod test {
         let (optimal_peg, budget, check_lb) =
             calculate_optimal_peg_and_budget(&market, &oracle_price_data).unwrap();
 
-        assert_eq!(optimal_peg, 13760527);
-        assert_eq!(budget, 5552711876);
+        assert_eq!(optimal_peg, 13430054);
+        assert_eq!(budget, 5878100676);
         assert_eq!(check_lb, false);
     }
 

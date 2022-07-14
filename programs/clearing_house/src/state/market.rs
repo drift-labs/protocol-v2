@@ -130,6 +130,7 @@ pub struct AMM {
     pub base_spread: u16,
     pub long_spread: u128,
     pub short_spread: u128,
+    pub max_spread: u32,
     pub ask_base_asset_reserve: u128,
     pub ask_quote_asset_reserve: u128,
     pub bid_base_asset_reserve: u128,
@@ -200,11 +201,6 @@ impl AMM {
     pub fn can_lower_k(&self) -> ClearingHouseResult<bool> {
         let can_lower = self.net_base_asset_amount.unsigned_abs() < self.sqrt_k / 4;
         Ok(can_lower)
-    }
-
-    pub fn max_spread(&self) -> ClearingHouseResult<u128> {
-        // todo: set as 1/max_leverage? using initial margin requirement on market acct
-        Ok((self.base_spread * 200) as u128)
     }
 
     pub fn get_pyth_price(

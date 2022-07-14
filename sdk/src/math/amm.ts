@@ -60,11 +60,8 @@ export function calculateOptimalPegAndBudget(
 	const totalFeeLB = amm.totalExchangeFee.div(new BN(2));
 	const budget = BN.max(ZERO, amm.totalFeeMinusDistributions.sub(totalFeeLB));
 	if (budget.lt(prePegCost)) {
-		const maxPriceSpread = BN.min(
-			BID_ASK_SPREAD_PRECISION.div(new BN(5)),
-			new BN(amm.baseSpread * 200)
-		)
-			.mul(markPriceBefore)
+		const maxPriceSpread = new BN(amm.maxSpread)
+			.mul(targetPrice)
 			.div(BID_ASK_SPREAD_PRECISION);
 
 		// console.log('maxPriceSpread:', maxPriceSpread.toNumber());
@@ -184,7 +181,7 @@ export function calculateUpdatedAMMSpreadReserves(
 	direction: PositionDirection,
 	oraclePriceData: OraclePriceData
 ): { baseAssetReserve: BN; quoteAssetReserve: BN; sqrtK: BN; newPeg: BN } {
-	const newAmm = calculateUpdatedAMM(amm, oraclePriceData);
+	const newAmm = calculateUpdatedAMM(amm, oraclePriceData, marginRatioInitial);
 	const dirReserves = calculateSpreadReserves(
 		newAmm,
 		direction,
@@ -344,11 +341,19 @@ export function calculateEffectiveLeverage(
 	return effectiveLeverage;
 }
 
+export function calculateMaxSpread(marginRatioInitial: number): number {
+	const maxTargetSpread: number = new BN(marginRatioInitial)
+		.mul(BID_ASK_SPREAD_PRECISION.div(MARGIN_PRECISION))
+		.toNumber();
+
+	return maxTargetSpread;
+}
+
 export function calculateSpreadBN(
 	baseSpread: number,
 	lastOracleMarkSpreadPct: BN,
 	lastOracleConfPct: BN,
-	marginRatioInitial: number,
+	maxSpread: number,
 	quoteAssetReserve: BN,
 	terminalQuoteAssetReserve: BN,
 	pegMultiplier: BN,
@@ -373,9 +378,8 @@ export function calculateSpreadBN(
 
 	// console.log('JUST ORACLE RETEREAT, ss:', shortSpread, 'ls:', longSpread);
 	// const maxTargetSpread: number = baseSpread * 200;
-	const maxTargetSpread: number = new BN(marginRatioInitial)
-		.mul(BID_ASK_SPREAD_PRECISION.div(MARGIN_PRECISION))
-		.toNumber();
+	const maxTargetSpread: number = maxSpread;
+	// calculateMaxSpread(marginRatioInitial);
 
 	const MAX_INVENTORY_SKEW = 5;
 
@@ -404,9 +408,11 @@ export function calculateSpreadBN(
 	const totalSpread = longSpread + shortSpread;
 	if (totalSpread > maxTargetSpread) {
 		if (longSpread > shortSpread) {
-			longSpread = Math.max(baseSpread, maxTargetSpread - shortSpread);
+			longSpread = Math.min(longSpread, maxTargetSpread);
+			shortSpread = maxTargetSpread - longSpread;
 		} else {
-			shortSpread = Math.max(baseSpread, maxTargetSpread - longSpread);
+			shortSpread = Math.min(shortSpread, maxTargetSpread);
+			longSpread = maxTargetSpread - shortSpread;
 		}
 	}
 

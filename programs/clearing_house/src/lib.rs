@@ -403,6 +403,7 @@ pub mod clearing_house {
                 base_spread: 0,
                 long_spread: 0,
                 short_spread: 0,
+                max_spread: (margin_ratio_initial * 100),
                 last_bid_price_twap: init_mark_price,
                 last_ask_price_twap: init_mark_price,
                 net_base_asset_amount: 0,

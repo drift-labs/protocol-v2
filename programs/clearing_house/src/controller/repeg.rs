@@ -199,8 +199,9 @@ pub fn apply_cost_to_market(
 mod test {
     use super::*;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, MARK_PRICE_PRECISION, MARK_PRICE_PRECISION_I128, QUOTE_PRECISION,
+        AMM_RESERVE_PRECISION, MARK_PRICE_PRECISION, MARK_PRICE_PRECISION_I128,
     };
+    use crate::state::market::AMM;
     use crate::state::state::{PriceDivergenceGuardRails, ValidityGuardRails};
 
     #[test]
@@ -220,6 +221,7 @@ mod test {
                 curve_update_intensity: 100,
                 ..AMM::default()
             },
+            margin_ratio_initial: 555, // max 1/.0555 = 18.018018018x leverage
             ..Market::default()
         };
 
@@ -263,23 +265,24 @@ mod test {
         assert_eq!(-cost_of_update, profit);
         assert_eq!(is_oracle_valid, true);
         assert_eq!(profit < 0, true);
-        assert_eq!(profit, -5543601959);
-        assert_eq!(peg, 13760527);
+        assert_eq!(profit, -5799304834);
+        assert_eq!(peg, 13500402);
 
         let mark_price = market.amm.mark_price().unwrap();
         let (bid, ask) = market.amm.bid_ask_price(mark_price).unwrap();
         assert_eq!(bid < mark_price, true);
         assert_eq!(bid < ask, true);
-        assert_eq!(mark_price < ask, true);
+        assert_eq!(mark_price <= ask, true);
+        assert_eq!(
+            market.amm.long_spread + market.amm.short_spread,
+            (market.margin_ratio_initial * 100) as u128
+        );
 
-        assert_eq!(bid, 126817016832030);
-        assert_eq!(ask, 133487208381380);
-        assert_eq!(mark_price, 133403830987014);
-
-        //(133487208381380-126817016832030)/133403830987014 == .05 (max spread)
-
-        // assert_eq!(optimal_peg, 13760527);
-        // assert_eq!(budget, 5552711876);
-        // assert_eq!(check_lb, false);
+        assert_eq!(bid, 123618052558950);
+        assert_eq!(bid < (oracle_price_data.price as u128), true);
+        assert_eq!(ask, 130882003768079);
+        assert_eq!(mark_price, 130882003768079);
+        //(133487208381380-120146825282679)/133403830987014 == .1 (max spread)
+        // 127060953641838
     }
 }
