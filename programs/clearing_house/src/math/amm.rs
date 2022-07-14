@@ -60,6 +60,10 @@ pub fn calculate_terminal_price(market: &mut Market) -> ClearingHouseResult<u128
     Ok(terminal_price)
 }
 
+pub fn calculate_max_spread(base_spread: u16) -> ClearingHouseResult<u128> {
+    Ok((base_spread as u128) * 200)
+}
+
 pub fn calculate_spread(
     base_spread: u16,
     last_oracle_mark_spread_pct: i128,
@@ -121,7 +125,7 @@ pub fn calculate_spread(
     )
     .checked_mul(BID_ASK_SPREAD_PRECISION_I128)
     .ok_or_else(math_error!())?
-    .checked_div(total_fee_minus_distributions + 1) // todo: fee pool instead of tfmd?
+    .checked_div(max(0, total_fee_minus_distributions) + 1)
     .ok_or_else(math_error!())?;
 
     let effective_leverage_capped = min(
@@ -154,6 +158,28 @@ pub fn calculate_spread(
             .ok_or_else(math_error!())?
             .checked_div(BID_ASK_SPREAD_PRECISION)
             .ok_or_else(math_error!())?;
+    }
+    let total_spread = long_spread
+        .checked_add(short_spread)
+        .ok_or_else(math_error!())?;
+
+    let max_spread = calculate_max_spread(base_spread)?;
+    if total_spread > max_spread {
+        if long_spread > short_spread {
+            long_spread = max(
+                base_spread as u128,
+                max_spread
+                    .checked_sub(short_spread)
+                    .ok_or_else(math_error!())?,
+            );
+        } else {
+            short_spread = max(
+                base_spread as u128,
+                max_spread
+                    .checked_sub(long_spread)
+                    .ok_or_else(math_error!())?,
+            );
+        }
     }
 
     Ok((long_spread, short_spread))
@@ -1184,7 +1210,7 @@ mod test {
         // oracle retreat * skew that increases long spread
         last_oracle_mark_spread_pct = BID_ASK_SPREAD_PRECISION_I128;
         last_oracle_conf_pct = (BID_ASK_SPREAD_PRECISION / 100) as u64;
-        total_fee_minus_distributions = QUOTE_PRECISION;
+        total_fee_minus_distributions = QUOTE_PRECISION as i128;
         let (long_spread3, short_spread3) = calculate_spread(
             base_spread,
             last_oracle_mark_spread_pct,
@@ -1203,7 +1229,8 @@ mod test {
         assert_eq!(long_spread3, 781);
 
         // last_oracle_mark_spread_pct + conf retreat
-        assert_eq!(short_spread3, 1010000);
+        // assert_eq!(short_spread3, 1010000);
+        assert_eq!(short_spread3, 199219); // hitting max spread
 
         last_oracle_mark_spread_pct = -BID_ASK_SPREAD_PRECISION_I128 / 777;
         last_oracle_conf_pct = 1;
@@ -1294,7 +1321,8 @@ mod test {
         .unwrap();
 
         assert_eq!(long_spread_btc1, 500 / 2);
-        assert_eq!(short_spread_btc1, 197670);
+        // assert_eq!(short_spread_btc1, 197670);
+        assert_eq!(short_spread_btc1, 99750); // max spread
     }
 
     #[test]
@@ -1455,7 +1483,7 @@ mod test {
         assert_eq!(pct_change_in_k, 986196); // k was decreased 1.3804%
 
         // todo:
-        (numer1, denom1) = _calculate_budgeted_k_scale(
+        let (numer1, denom1) = _calculate_budgeted_k_scale(
             500000000049750000004950,
             499999999950250000000000,
             114638,
@@ -1470,7 +1498,7 @@ mod test {
         assert_eq!(denom1, 1000000);
 
         // todo:
-        (numer1, denom1) = _calculate_budgeted_k_scale(
+        let (numer1, denom1) = _calculate_budgeted_k_scale(
             500000000049750000004950,
             499999999950250000000000,
             -114638,

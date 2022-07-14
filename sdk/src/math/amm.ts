@@ -26,6 +26,74 @@ import {
 	calculateAdjustKCost,
 	calculateBudgetedPeg,
 } from './repeg';
+
+export function calculateOptimalPegFromTargetPrice(
+	targetPrice: BN,
+	baseAssetReserve: BN,
+	quoteAssetReserve: BN
+): BN {
+	return targetPrice
+		.mul(baseAssetReserve)
+		.div(quoteAssetReserve)
+		.add(MARK_PRICE_PRECISION.div(PEG_PRECISION).div(new BN(2)))
+		.div(MARK_PRICE_PRECISION.div(PEG_PRECISION));
+}
+
+export function calculateOptimalPegAndBudget(
+	amm: AMM,
+	oraclePriceData: OraclePriceData
+): [BN, BN, BN] {
+	const markPriceBefore = calculatePrice(
+		amm.baseAssetReserve,
+		amm.quoteAssetReserve,
+		amm.pegMultiplier
+	);
+	const targetPrice = oraclePriceData.price;
+	const newPeg = targetPrice
+		.mul(amm.baseAssetReserve)
+		.div(amm.quoteAssetReserve)
+		.add(MARK_PRICE_PRECISION.div(PEG_PRECISION).div(new BN(2)))
+		.div(MARK_PRICE_PRECISION.div(PEG_PRECISION));
+	const prePegCost = calculateRepegCost(amm, newPeg);
+
+	const totalFeeLB = amm.totalExchangeFee.div(new BN(2));
+	const budget = BN.max(ZERO, amm.totalFeeMinusDistributions.sub(totalFeeLB));
+	if (budget.lt(prePegCost)) {
+		const maxPriceSpread = BN.min(
+			BID_ASK_SPREAD_PRECISION.div(new BN(5)),
+			new BN(amm.baseSpread * 200)
+		)
+			.mul(markPriceBefore)
+			.div(BID_ASK_SPREAD_PRECISION);
+
+		let markAdj: BN;
+		let newTargetPrice: BN;
+		let newOptimalPeg: BN;
+		let newBudget: BN;
+		const targetPriceGap = markPriceBefore.sub(targetPrice);
+		if (targetPriceGap.abs().gt(maxPriceSpread)) {
+			markAdj = targetPriceGap.abs().sub(maxPriceSpread);
+
+			if (targetPriceGap.gt(new BN(0))) {
+				newTargetPrice = markPriceBefore.add(markAdj);
+			} else {
+				newTargetPrice = markPriceBefore.sub(markAdj);
+			}
+
+			newOptimalPeg = targetPrice
+				.mul(amm.baseAssetReserve)
+				.div(amm.quoteAssetReserve)
+				.add(MARK_PRICE_PRECISION.div(PEG_PRECISION).div(new BN(2)))
+				.div(MARK_PRICE_PRECISION.div(PEG_PRECISION));
+
+			newBudget = calculateRepegCost(amm, newOptimalPeg);
+			return [newTargetPrice, newOptimalPeg, newBudget];
+		}
+	}
+
+	return [targetPrice, newPeg, budget];
+}
+
 export function calculateNewAmm(
 	amm: AMM,
 	oraclePriceData: OraclePriceData
@@ -33,16 +101,12 @@ export function calculateNewAmm(
 	let pKNumer = new BN(1);
 	let pKDenom = new BN(1);
 
-	const targetPrice = oraclePriceData.price;
-	let newPeg = targetPrice
-		.mul(amm.baseAssetReserve)
-		.div(amm.quoteAssetReserve)
-		.add(MARK_PRICE_PRECISION.div(PEG_PRECISION).div(new BN(2)))
-		.div(MARK_PRICE_PRECISION.div(PEG_PRECISION));
-	let prePegCost = calculateRepegCost(amm, newPeg);
-
-	const totalFeeLB = amm.totalExchangeFee.div(new BN(2));
-	const budget = BN.max(ZERO, amm.totalFeeMinusDistributions.sub(totalFeeLB));
+	const [targetPrice, _newPeg, budget] = calculateOptimalPegAndBudget(
+		amm,
+		oraclePriceData
+	);
+	let prePegCost = calculateRepegCost(amm, _newPeg);
+	let newPeg = _newPeg;
 
 	if (prePegCost.gt(budget)) {
 		[pKNumer, pKDenom] = [new BN(999), new BN(1000)];
@@ -283,32 +347,33 @@ export function calculateSpreadBN(
 		netBaseAssetValue.toString()
 	);
 	let effectiveLeverage = MAX_INVENTORY_SKEW;
-	const maxTargetSpread: number = BID_ASK_SPREAD_PRECISION.toNumber() / 50; // 2%
+	const maxTargetSpread: number = baseSpread * 200;
 
 	if (totalFeeMinusDistributions.gt(ZERO)) {
 		effectiveLeverage =
 			localBaseAssetValue.sub(netBaseAssetValue).toNumber() /
-				(totalFeeMinusDistributions.toNumber() + 1) +
+				(Math.max(0, totalFeeMinusDistributions.toNumber()) + 1) +
 			1 / QUOTE_PRECISION.toNumber();
 
 		console.log('effectiveLeverage:', effectiveLeverage);
-		let spreadScale = Math.min(MAX_INVENTORY_SKEW, 1 + effectiveLeverage);
-		// cap the scale to attempt to only scale up to maxTargetSpread
-		// always let the oracle retreat methods go through 100%
+		const spreadScale = Math.min(MAX_INVENTORY_SKEW, 1 + effectiveLeverage);
 		if (netBaseAssetAmount.gt(ZERO)) {
-			if (spreadScale * longSpread > maxTargetSpread) {
-				spreadScale = Math.max(1.05, maxTargetSpread / longSpread);
-			}
 			longSpread *= spreadScale;
 		} else {
-			if (spreadScale * shortSpread > maxTargetSpread) {
-				spreadScale = Math.max(1.05, maxTargetSpread / shortSpread);
-			}
 			shortSpread *= spreadScale;
 		}
 	} else {
 		longSpread *= MAX_INVENTORY_SKEW;
 		shortSpread *= MAX_INVENTORY_SKEW;
+	}
+
+	const totalSpread = longSpread + shortSpread;
+	if (totalSpread > maxTargetSpread) {
+		if (longSpread > shortSpread) {
+			longSpread = Math.max(baseSpread, maxTargetSpread - shortSpread);
+		} else {
+			shortSpread = Math.max(baseSpread, maxTargetSpread - longSpread);
+		}
 	}
 
 	return [longSpread, shortSpread];
@@ -332,9 +397,14 @@ export function calculateSpread(
 	);
 
 	const targetPrice = oraclePriceData?.price || markPrice;
+	const confInterval = oraclePriceData.confidence || ZERO;
 
 	const targetMarkSpreadPct = markPrice
 		.sub(targetPrice)
+		.mul(BID_ASK_SPREAD_PRECISION)
+		.div(markPrice);
+
+	const confIntervalPct = confInterval
 		.mul(BID_ASK_SPREAD_PRECISION)
 		.div(markPrice);
 
@@ -345,7 +415,10 @@ export function calculateSpread(
 		(isVariant(direction, 'long') && targetMarkSpreadPct.lt(ZERO)) ||
 		(isVariant(direction, 'short') && targetMarkSpreadPct.gt(ZERO))
 	) {
-		spread = Math.max(spread, targetMarkSpreadPct.abs().toNumber());
+		spread = Math.max(
+			spread,
+			targetMarkSpreadPct.abs().toNumber() + confIntervalPct.abs().toNumber()
+		);
 	}
 
 	// inventory skew

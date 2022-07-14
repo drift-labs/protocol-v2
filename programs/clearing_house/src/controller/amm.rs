@@ -352,7 +352,7 @@ mod test {
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50000,
                 net_base_asset_amount: -(122950819670000 as i128),
-                total_fee_minus_distributions: 1000 * QUOTE_PRECISION,
+                total_fee_minus_distributions: 1000 * QUOTE_PRECISION as i128,
                 curve_update_intensity: 100,
                 ..AMM::default()
             },

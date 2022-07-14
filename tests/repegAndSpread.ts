@@ -322,13 +322,16 @@ describe('repeg and spread amm', () => {
 				)
 			)
 		);
-
-		const txSig = await clearingHouse.updateAMMs([marketIndex]);
-		console.log(
-			'tx logs',
-			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
-				.logMessages
-		);
+		try {
+			const txSig = await clearingHouse.updateAMMs([marketIndex]);
+			console.log(
+				'tx logs',
+				(await connection.getTransaction(txSig, { commitment: 'confirmed' }))
+					.meta.logMessages
+			);
+		} catch (e) {
+			console.error(e);
+		}
 
 		const market = clearingHouse.getMarketAccount(0);
 		const [bid1, ask1] = calculateBidAskPrice(market.amm, oraclePriceData);

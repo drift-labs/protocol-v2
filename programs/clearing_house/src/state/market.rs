@@ -202,6 +202,11 @@ impl AMM {
         Ok(can_lower)
     }
 
+    pub fn max_spread(&self) -> ClearingHouseResult<u128> {
+        // todo: set as 1/max_leverage? using initial margin requirement on market acct
+        Ok((self.base_spread * 200) as u128)
+    }
+
     pub fn get_pyth_price(
         &self,
         price_oracle: &AccountInfo,
