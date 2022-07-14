@@ -7,6 +7,7 @@ import {
 	Event,
 } from './types';
 import { OrderRecord } from '../types';
+import { PublicKey, ZERO } from '../index';
 
 function clientSortAscFn(): 'less than' {
 	return 'less than';
@@ -27,17 +28,17 @@ function orderRecordSortFn(
 	currentEvent: Event<OrderRecord>,
 	newEvent: Event<OrderRecord>
 ): 'less than' | 'greater than' {
-	const currentEventMarketIndex = currentEvent.makerOrder
+	const currentEventMarketIndex = !currentEvent.maker.equals(PublicKey.default)
 		? currentEvent.makerOrder.marketIndex
 		: currentEvent.takerOrder.marketIndex;
-	const newEventMarketIndex = newEvent.makerOrder
+	const newEventMarketIndex = !newEvent.maker.equals(PublicKey.default)
 		? newEvent.makerOrder.marketIndex
 		: newEvent.takerOrder.marketIndex;
 	if (!currentEventMarketIndex.eq(newEventMarketIndex)) {
 		return currentEvent.ts.lte(newEvent.ts) ? 'less than' : 'greater than';
 	}
 
-	if (currentEvent.fillRecordId && newEvent.fillRecordId) {
+	if (currentEvent.fillRecordId.gt(ZERO) && newEvent.fillRecordId.gt(ZERO)) {
 		return currentEvent.fillRecordId.lte(newEvent.fillRecordId)
 			? 'less than'
 			: 'greater than';
