@@ -174,12 +174,17 @@ fn calculate_base_swap_output_without_spread(
     ))
 }
 
-pub fn update_spreads(amm: &mut AMM, mark_price: u128) -> ClearingHouseResult<(u128, u128)> {
+pub fn update_spreads(
+    amm: &mut AMM,
+    mark_price: u128,
+    margin_ratio_initial: u32,
+) -> ClearingHouseResult<(u128, u128)> {
     let (long_spread, short_spread) = if amm.curve_update_intensity > 0 {
         amm::calculate_spread(
             amm.base_spread,
             amm.last_oracle_mark_spread_pct,
             amm.last_oracle_conf_pct,
+            margin_ratio_initial,
             amm.quote_asset_reserve,
             amm.terminal_quote_asset_reserve,
             amm.peg_multiplier,

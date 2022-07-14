@@ -140,7 +140,11 @@ pub fn update_amm(
             oracle_price_data,
             Some(mark_price_after),
         )?;
-        update_spreads(&mut market.amm, mark_price_after)?;
+        update_spreads(
+            &mut market.amm,
+            mark_price_after,
+            market.margin_ratio_initial,
+        )?;
         market.amm.last_update_slot = clock_slot;
     }
 

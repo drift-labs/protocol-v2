@@ -23,7 +23,7 @@ import {
 	// MARK_PRICE_PRECISION,
 	AMM_RESERVE_PRECISION,
 	QUOTE_PRECISION,
-	calculateMarkPrice,
+	// calculateMarkPrice,
 	PositionDirection,
 	EventSubscriber,
 	convertToNumber,
@@ -218,6 +218,8 @@ describe('repeg and spread amm', () => {
 				.meta.logMessages
 		);
 		await depositToFeePoolFromIF(50, clearingHouse, userUSDCAccount);
+
+		// old oracle price: 21966
 		await setFeedPrice(anchor.workspace.Pyth, 19790, btcUsd);
 		const curPrice = (await getFeedData(anchor.workspace.Pyth, btcUsd)).price;
 		console.log('new oracle price:', curPrice);
@@ -300,6 +302,7 @@ describe('repeg and spread amm', () => {
 			prepegAMM.baseSpread,
 			targetMarkSpreadPct,
 			new BN(0),
+			market0.marginRatioInitial,
 			prepegAMM.quoteAssetReserve,
 			prepegAMM.terminalQuoteAssetReserve,
 			prepegAMM.pegMultiplier,
@@ -308,7 +311,7 @@ describe('repeg and spread amm', () => {
 			prepegAMM.totalFeeMinusDistributions
 		);
 		console.log('spreads:', ls1, ss1);
-		const maxSpread = prepegAMM.baseSpread * 200;
+		const maxSpread = market0.marginRatioInitial * 100;
 		assert(ls1 + ss1 == maxSpread);
 
 		console.log(
@@ -325,6 +328,11 @@ describe('repeg and spread amm', () => {
 				)
 			)
 		);
+
+		const midPrice = (convertToNumber(bid) + convertToNumber(ask)) / 2;
+
+		console.log(convertToNumber(oraclePriceData.price), midPrice);
+
 		try {
 			const txSig = await clearingHouse.updateAMMs([marketIndex]);
 			console.log(
@@ -337,21 +345,35 @@ describe('repeg and spread amm', () => {
 		}
 
 		const market = clearingHouse.getMarketAccount(0);
-		const [bid1, ask1] = calculateBidAskPrice(market.amm, oraclePriceData);
+		const [bid1, ask1] = calculateBidAskPrice(
+			market.amm,
+			oraclePriceData,
+			false
+		);
+
+		const mark1 = calculatePrice(
+			market.amm.baseAssetReserve,
+			market.amm.quoteAssetReserve,
+			market.amm.pegMultiplier
+		);
 		console.log(
 			'post trade bid/ask:',
 			convertToNumber(bid1),
 			'/',
 			convertToNumber(ask1),
 			'\n post trade mark price:',
-			convertToNumber(calculateMarkPrice(market, oraclePriceData))
+			convertToNumber(mark1)
 		);
+
+		assert(bid1.eq(bid));
+		assert(ask1.eq(ask));
+		assert(mark1.eq(markPrice));
+
 		assert(bid1.lt(ask1));
 		assert(ask1.gt(oraclePriceData.price));
 		assert(bid1.lt(oraclePriceData.price));
 
 		console.log(market.amm.pegMultiplier.toString());
-		// assert(market.amm.pegMultiplier.eq(new BN(1003)));
 		const actualDist = market.amm.totalFee.sub(
 			market.amm.totalFeeMinusDistributions
 		);

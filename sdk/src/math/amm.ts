@@ -9,6 +9,7 @@ import {
 	// QUOTE_PRECISION,
 	AMM_TO_QUOTE_PRECISION_RATIO,
 	QUOTE_PRECISION,
+	MARGIN_PRECISION,
 } from '../constants/numericConstants';
 import {
 	AMM,
@@ -66,7 +67,7 @@ export function calculateOptimalPegAndBudget(
 			.mul(markPriceBefore)
 			.div(BID_ASK_SPREAD_PRECISION);
 
-		console.log('maxPriceSpread:', maxPriceSpread.toNumber());
+		// console.log('maxPriceSpread:', maxPriceSpread.toNumber());
 
 		let markAdj: BN;
 		let newTargetPrice: BN;
@@ -201,9 +202,16 @@ export function calculateUpdatedAMMSpreadReserves(
 
 export function calculateBidAskPrice(
 	amm: AMM,
-	oraclePriceData: OraclePriceData
+	oraclePriceData: OraclePriceData,
+	withUpdate = true
 ): [BN, BN] {
-	const newAmm = calculateUpdatedAMM(amm, oraclePriceData);
+	let newAmm: AMM;
+	if (withUpdate) {
+		newAmm = calculateUpdatedAMM(amm, oraclePriceData);
+	} else {
+		newAmm = amm;
+	}
+
 	const askReserves = calculateSpreadReserves(
 		newAmm,
 		PositionDirection.LONG,
@@ -302,10 +310,45 @@ export function calculateAmmReservesAfterSwap(
 	return [newQuoteAssetReserve, newBaseAssetReserve];
 }
 
+export function calculateEffectiveLeverage(
+	baseSpread: number,
+	quoteAssetReserve: BN,
+	terminalQuoteAssetReserve: BN,
+	pegMultiplier: BN,
+	netBaseAssetAmount: BN,
+	markPrice: BN,
+	totalFeeMinusDistributions: BN
+): number {
+	// inventory skew
+	const netBaseAssetValue = quoteAssetReserve
+		.sub(terminalQuoteAssetReserve)
+		.mul(pegMultiplier)
+		.div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO);
+
+	const localBaseAssetValue = netBaseAssetAmount
+		.mul(markPrice)
+		.div(AMM_TO_QUOTE_PRECISION_RATIO.mul(MARK_PRICE_PRECISION));
+	// console.log(
+	// 	'lpnl:',
+	// 	localBaseAssetValue.toString(),
+	// 	'-',
+	// 	netBaseAssetValue.toString()
+	// );
+	// const maxTargetSpread: number = baseSpread * 200;
+
+	const effectiveLeverage =
+		localBaseAssetValue.sub(netBaseAssetValue).toNumber() /
+			(Math.max(0, totalFeeMinusDistributions.toNumber()) + 1) +
+		1 / QUOTE_PRECISION.toNumber();
+
+	return effectiveLeverage;
+}
+
 export function calculateSpreadBN(
 	baseSpread: number,
 	lastOracleMarkSpreadPct: BN,
 	lastOracleConfPct: BN,
+	marginRatioInitial: number,
 	quoteAssetReserve: BN,
 	terminalQuoteAssetReserve: BN,
 	pegMultiplier: BN,
@@ -328,34 +371,25 @@ export function calculateSpreadBN(
 		);
 	}
 
-	console.log('JUST ORACLE RETEREAT, ss:', shortSpread, 'ls:', longSpread);
+	// console.log('JUST ORACLE RETEREAT, ss:', shortSpread, 'ls:', longSpread);
+	// const maxTargetSpread: number = baseSpread * 200;
+	const maxTargetSpread: number = new BN(marginRatioInitial)
+		.mul(BID_ASK_SPREAD_PRECISION.div(MARGIN_PRECISION))
+		.toNumber();
 
-	// inventory skew
 	const MAX_INVENTORY_SKEW = 5;
-	const netBaseAssetValue = quoteAssetReserve
-		.sub(terminalQuoteAssetReserve)
-		.mul(pegMultiplier)
-		.div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO);
 
-	const localBaseAssetValue = netBaseAssetAmount
-		.mul(markPrice)
-		.div(AMM_TO_QUOTE_PRECISION_RATIO.mul(MARK_PRICE_PRECISION));
-	console.log(
-		'lpnl:',
-		localBaseAssetValue.toString(),
-		'-',
-		netBaseAssetValue.toString()
+	const effectiveLeverage = calculateEffectiveLeverage(
+		baseSpread,
+		quoteAssetReserve,
+		terminalQuoteAssetReserve,
+		pegMultiplier,
+		netBaseAssetAmount,
+		markPrice,
+		totalFeeMinusDistributions
 	);
-	let effectiveLeverage = MAX_INVENTORY_SKEW;
-	const maxTargetSpread: number = baseSpread * 200;
 
 	if (totalFeeMinusDistributions.gt(ZERO)) {
-		effectiveLeverage =
-			localBaseAssetValue.sub(netBaseAssetValue).toNumber() /
-				(Math.max(0, totalFeeMinusDistributions.toNumber()) + 1) +
-			1 / QUOTE_PRECISION.toNumber();
-
-		console.log('effectiveLeverage:', effectiveLeverage);
 		const spreadScale = Math.min(MAX_INVENTORY_SKEW, 1 + effectiveLeverage);
 		if (netBaseAssetAmount.gt(ZERO)) {
 			longSpread *= spreadScale;
@@ -408,8 +442,6 @@ export function calculateSpread(
 		.mul(BID_ASK_SPREAD_PRECISION)
 		.div(markPrice);
 
-	console.log('targetMarkSpreadPct:', targetMarkSpreadPct.toString());
-
 	// oracle retreat
 	if (
 		(isVariant(direction, 'long') && targetMarkSpreadPct.lt(ZERO)) ||
@@ -449,7 +481,6 @@ export function calculateSpread(
 				(amm.totalFeeMinusDistributions.toNumber() + 1);
 		}
 
-		// console.log('effectiveLeverage:', effecstiveLeverage.toString());
 		let spreadScale = Math.min(MAX_INVENTORY_SKEW, 1 + effectiveLeverage);
 		const maxTargetSpread = BID_ASK_SPREAD_PRECISION.toNumber() / 50; // 2%
 		// cap the scale to attempt to only scale up to maxTargetSpread
