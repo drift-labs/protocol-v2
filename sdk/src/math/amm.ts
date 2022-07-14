@@ -42,7 +42,7 @@ export function calculateOptimalPegFromTargetPrice(
 export function calculateOptimalPegAndBudget(
 	amm: AMM,
 	oraclePriceData: OraclePriceData
-): [BN, BN, BN] {
+): [BN, BN, BN, boolean] {
 	const markPriceBefore = calculatePrice(
 		amm.baseAssetReserve,
 		amm.quoteAssetReserve,
@@ -66,6 +66,8 @@ export function calculateOptimalPegAndBudget(
 			.mul(markPriceBefore)
 			.div(BID_ASK_SPREAD_PRECISION);
 
+		console.log('maxPriceSpread:', maxPriceSpread.toNumber());
+
 		let markAdj: BN;
 		let newTargetPrice: BN;
 		let newOptimalPeg: BN;
@@ -74,24 +76,24 @@ export function calculateOptimalPegAndBudget(
 		if (targetPriceGap.abs().gt(maxPriceSpread)) {
 			markAdj = targetPriceGap.abs().sub(maxPriceSpread);
 
-			if (targetPriceGap.gt(new BN(0))) {
+			if (targetPriceGap.lt(new BN(0))) {
 				newTargetPrice = markPriceBefore.add(markAdj);
 			} else {
 				newTargetPrice = markPriceBefore.sub(markAdj);
 			}
 
-			newOptimalPeg = targetPrice
+			newOptimalPeg = newTargetPrice
 				.mul(amm.baseAssetReserve)
 				.div(amm.quoteAssetReserve)
 				.add(MARK_PRICE_PRECISION.div(PEG_PRECISION).div(new BN(2)))
 				.div(MARK_PRICE_PRECISION.div(PEG_PRECISION));
 
 			newBudget = calculateRepegCost(amm, newOptimalPeg);
-			return [newTargetPrice, newOptimalPeg, newBudget];
+			return [newTargetPrice, newOptimalPeg, newBudget, false];
 		}
 	}
 
-	return [targetPrice, newPeg, budget];
+	return [targetPrice, newPeg, budget, true];
 }
 
 export function calculateNewAmm(
@@ -101,14 +103,12 @@ export function calculateNewAmm(
 	let pKNumer = new BN(1);
 	let pKDenom = new BN(1);
 
-	const [targetPrice, _newPeg, budget] = calculateOptimalPegAndBudget(
-		amm,
-		oraclePriceData
-	);
+	const [targetPrice, _newPeg, budget, checkLowerBound] =
+		calculateOptimalPegAndBudget(amm, oraclePriceData);
 	let prePegCost = calculateRepegCost(amm, _newPeg);
 	let newPeg = _newPeg;
 
-	if (prePegCost.gt(budget)) {
+	if (prePegCost.gt(budget) && checkLowerBound) {
 		[pKNumer, pKDenom] = [new BN(999), new BN(1000)];
 		const deficitMadeup = calculateAdjustKCost(amm, pKNumer, pKDenom);
 		assert(deficitMadeup.lte(new BN(0)));

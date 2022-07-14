@@ -275,11 +275,12 @@ describe('repeg and spread amm', () => {
 			.mul(BID_ASK_SPREAD_PRECISION)
 			.div(markPrice);
 
-		console.log(
-			'prepegAMM.totalFeeMinusDistributions:',
+		const tfMD =
 			prepegAMM.totalFeeMinusDistributions.toNumber() /
-				QUOTE_PRECISION.toNumber()
-		);
+			QUOTE_PRECISION.toNumber();
+		console.log('prepegAMM.totalFeeMinusDistributions:', tfMD);
+		assert(tfMD < 0); // max spread
+
 		console.log(
 			'prepegAMM.pegMultiplier:',
 			prepegAMM.pegMultiplier.toNumber() / PEG_PRECISION.toNumber()
@@ -307,6 +308,8 @@ describe('repeg and spread amm', () => {
 			prepegAMM.totalFeeMinusDistributions
 		);
 		console.log('spreads:', ls1, ss1);
+		const maxSpread = prepegAMM.baseSpread * 200;
+		assert(ls1 + ss1 == maxSpread);
 
 		console.log(
 			'pre trade bid/ask:',
