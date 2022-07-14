@@ -172,13 +172,21 @@ impl AMM {
 
     pub fn bid_ask_price(&self, mark_price: u128) -> ClearingHouseResult<(u128, u128)> {
         let ask_price = mark_price
-            .checked_mul(BID_ASK_SPREAD_PRECISION + self.long_spread)
+            .checked_mul(
+                BID_ASK_SPREAD_PRECISION
+                    .checked_add(self.long_spread)
+                    .ok_or_else(math_error!())?,
+            )
             .ok_or_else(math_error!())?
             .checked_div(BID_ASK_SPREAD_PRECISION)
             .ok_or_else(math_error!())?;
 
         let bid_price = mark_price
-            .checked_mul(BID_ASK_SPREAD_PRECISION - self.short_spread)
+            .checked_mul(
+                BID_ASK_SPREAD_PRECISION
+                    .checked_sub(self.short_spread)
+                    .ok_or_else(math_error!())?,
+            )
             .ok_or_else(math_error!())?
             .checked_div(BID_ASK_SPREAD_PRECISION)
             .ok_or_else(math_error!())?;

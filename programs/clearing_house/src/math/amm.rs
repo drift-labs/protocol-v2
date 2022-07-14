@@ -220,7 +220,7 @@ pub fn calculate_new_twap(
             .ok_or_else(math_error!())?,
     ))?;
     let from_start = max(
-        1,
+        0,
         cast_to_i128(amm.funding_period)?
             .checked_sub(since_last)
             .ok_or_else(math_error!())?,
