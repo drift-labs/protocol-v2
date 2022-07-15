@@ -829,13 +829,17 @@ pub mod clearing_house {
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]
-    pub fn fill_order<'info>(ctx: Context<FillOrder>, taker_order_id: u64) -> Result<()> {
+    pub fn fill_order<'info>(
+        ctx: Context<FillOrder>,
+        order_id: u64,
+        maker_order_id: Option<u64>,
+    ) -> Result<()> {
         let (writable_markets, market_oracles) = {
             let user = &load(&ctx.accounts.user)?;
             let order_index = user
                 .orders
                 .iter()
-                .position(|order| order.order_id == taker_order_id)
+                .position(|order| order.order_id == order_id)
                 .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
             let order = &user.orders[order_index];
 
@@ -854,7 +858,6 @@ pub mod clearing_house {
         let mut market_map =
             MarketMap::load(writable_markets, market_oracles, remaining_accounts_iter)?;
 
-        let maker_order_id = None;
         let maker = match maker_order_id {
             Some(_) => Some(get_maker(remaining_accounts_iter)?),
             None => None,
@@ -868,7 +871,7 @@ pub mod clearing_house {
         )?;
 
         let base_asset_amount = controller::orders::fill_order(
-            taker_order_id,
+            order_id,
             &ctx.accounts.state,
             &ctx.accounts.user,
             &bank_map,

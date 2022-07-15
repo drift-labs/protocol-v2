@@ -1043,12 +1043,17 @@ export class ClearingHouse {
 
 	public async fillOrder(
 		userAccountPublicKey: PublicKey,
-		userAccount: UserAccount,
-		order: Order
+		user: UserAccount,
+		order: Order,
+		makerInfo?: {
+			pubkey: PublicKey;
+			maker: UserAccount;
+			order: Order;
+		}
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.txSender.send(
 			wrapInTx(
-				await this.getFillOrderIx(userAccountPublicKey, userAccount, order)
+				await this.getFillOrderIx(userAccountPublicKey, user, order, makerInfo)
 			),
 			[],
 			this.opts
@@ -1060,7 +1065,12 @@ export class ClearingHouse {
 	public async getFillOrderIx(
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
-		order: Order
+		order: Order,
+		makerInfo?: {
+			pubkey: PublicKey;
+			maker: UserAccount;
+			order: Order;
+		}
 	): Promise<TransactionInstruction> {
 		const fillerPublicKey = await this.getUserAccountPublicKey();
 
@@ -1115,8 +1125,17 @@ export class ClearingHouse {
 			bankAccountInfos.concat(marketAccountInfos)
 		);
 
+		if (makerInfo) {
+			remainingAccounts.push({
+				pubkey: makerInfo.pubkey,
+				isWritable: true,
+				isSigner: false,
+			});
+		}
+
 		const orderId = order.orderId;
-		return await this.program.instruction.fillOrder(orderId, {
+		const makerOrderId = makerInfo ? makerInfo.order.orderId : null;
+		return await this.program.instruction.fillOrder(orderId, makerOrderId, {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				filler: fillerPublicKey,

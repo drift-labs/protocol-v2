@@ -490,8 +490,14 @@
       ],
       "args": [
         {
-          "name": "takerOrderId",
+          "name": "orderId",
           "type": "u64"
+        },
+        {
+          "name": "makerOrderId",
+          "type": {
+            "option": "u64"
+          }
         }
       ]
     },
