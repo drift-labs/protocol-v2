@@ -73,7 +73,25 @@ pub fn swap_base_asset(
     now: i64,
     precomputed_mark_price: Option<u128>,
 ) -> ClearingHouseResult<(u128, u128)> {
-    amm::update_mark_twap(amm, now, precomputed_mark_price)?;
+    let position_direction = match direction {
+        SwapDirection::Add => PositionDirection::Short,
+        SwapDirection::Remove => PositionDirection::Long,
+    };
+
+    let mark_price = match precomputed_mark_price {
+        Some(mark_price) => mark_price,
+        None => amm.mark_price()?,
+    };
+
+    amm::update_mark_twap(
+        amm,
+        now,
+        Some(match position_direction {
+            PositionDirection::Long => amm.ask_price(mark_price)?,
+            PositionDirection::Short => amm.bid_price(mark_price)?,
+        }),
+        Some(position_direction),
+    )?;
 
     let (
         new_base_asset_reserve,

@@ -130,23 +130,24 @@ pub fn update_amm(
         &state.oracle_guard_rails.validity,
     )?;
 
+    let mark_price_after = market.amm.mark_price()?;
+
     if is_oracle_valid {
         // cannot update market
-
-        let mark_price_after = market.amm.mark_price()?;
         amm::update_oracle_price_twap(
             &mut market.amm,
             now,
             oracle_price_data,
             Some(mark_price_after),
         )?;
-        update_spreads(
-            &mut market.amm,
-            mark_price_after,
-            market.margin_ratio_initial,
-        )?;
         market.amm.last_update_slot = clock_slot;
     }
+
+    update_spreads(
+        &mut market.amm,
+        mark_price_after,
+        market.margin_ratio_initial,
+    )?;
 
     Ok(amm_update_cost)
 }

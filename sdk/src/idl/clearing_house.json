@@ -939,11 +939,6 @@
           "name": "user",
           "isMut": true,
           "isSigner": false
-        },
-        {
-          "name": "market",
-          "isMut": false,
-          "isSigner": false
         }
       ],
       "args": []

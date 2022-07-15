@@ -186,15 +186,33 @@ pub fn calculate_spread(
 pub fn update_mark_twap(
     amm: &mut AMM,
     now: i64,
-    precomputed_mark_price: Option<u128>,
+    precomputed_trade_price: Option<u128>,
+    direction: Option<PositionDirection>,
 ) -> ClearingHouseResult<u128> {
-    let mark_price = match precomputed_mark_price {
-        Some(mark_price) => mark_price,
+    let trade_price = match precomputed_trade_price {
+        Some(trade_price) => trade_price,
         None => amm.mark_price()?,
     };
-    let (bid_price, ask_price) = amm.bid_ask_price(mark_price)?;
 
-    // todo calculate the mark +/- spread
+    // optimistically estimation of bid/ask using execution premium
+    let (bid_price, ask_price) = match direction {
+        Some(direction) => match direction {
+            PositionDirection::Long => (
+                min(trade_price, cast_to_u128(amm.last_oracle_price)?),
+                trade_price,
+            ),
+            PositionDirection::Short => (
+                trade_price,
+                max(trade_price, cast_to_u128(amm.last_oracle_price)?),
+            ),
+        },
+        None => (
+            cast_to_u128(amm.last_oracle_price)?,
+            cast_to_u128(amm.last_oracle_price)?,
+        ),
+    };
+
+    // update bid and ask twaps
     let bid_twap = calculate_new_twap(amm, now, bid_price, amm.last_bid_price_twap)?;
     amm.last_bid_price_twap = bid_twap;
 
