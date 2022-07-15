@@ -980,6 +980,87 @@ pub mod clearing_house {
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]
+    pub fn place_and_make<'info>(
+        ctx: Context<PlaceAndMake>,
+        params: OrderParams,
+        taker_order_id: u64,
+    ) -> Result<()> {
+        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
+        let bank_map = BankMap::load(
+            &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
+            remaining_accounts_iter,
+        )?;
+        let mut market_map = MarketMap::load(
+            &get_writable_markets_for_user_positions_and_order(
+                &load(&ctx.accounts.user)?.positions,
+                params.market_index,
+            ),
+            &get_market_oracles(params.market_index, &ctx.accounts.oracle),
+            remaining_accounts_iter,
+        )?;
+
+        let is_immediate_or_cancel = params.immediate_or_cancel;
+        let base_asset_amount_to_fill = params.base_asset_amount;
+
+        controller::repeg::update_amms(
+            &mut market_map,
+            &mut oracle_map,
+            &ctx.accounts.state,
+            &Clock::get()?,
+        )?;
+
+        controller::orders::place_order(
+            &ctx.accounts.state,
+            &ctx.accounts.user,
+            &market_map,
+            &bank_map,
+            &mut oracle_map,
+            &Clock::get()?,
+            params,
+            Some(&ctx.accounts.oracle),
+        )?;
+
+        let user = &mut ctx.accounts.user;
+        let order_id = {
+            let user = load(user)?;
+            if user.next_order_id == 1 {
+                u64::MAX
+            } else {
+                user.next_order_id - 1
+            }
+        };
+
+        let base_asset_amount_filled = controller::orders::fill_order(
+            taker_order_id,
+            &ctx.accounts.state,
+            &ctx.accounts.taker,
+            &bank_map,
+            &market_map,
+            &mut oracle_map,
+            &ctx.accounts.oracle,
+            &user.clone(),
+            Some(&ctx.accounts.user),
+            Some(order_id),
+            &Clock::get()?,
+        )?;
+
+        if is_immediate_or_cancel && base_asset_amount_to_fill != base_asset_amount_filled {
+            controller::orders::cancel_order_by_order_id(
+                order_id,
+                &ctx.accounts.user,
+                &market_map,
+                &mut oracle_map,
+                &Clock::get()?,
+            )?;
+        }
+
+        Ok(())
+    }
+
+    #[access_control(
+        exchange_not_paused(&ctx.accounts.state)
+    )]
     pub fn update_amms(ctx: Context<UpdateAMM>, market_indexes: [u64; 5]) -> Result<()> {
         // up to ~60k compute units (per amm) worst case
 

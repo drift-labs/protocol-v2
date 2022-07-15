@@ -378,6 +378,20 @@ pub struct PlaceAndTake<'info> {
 }
 
 #[derive(Accounts)]
+pub struct PlaceAndMake<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        mut,
+        has_one = authority,
+    )]
+    pub user: AccountLoader<'info, User>,
+    pub taker: AccountLoader<'info, User>,
+    pub authority: Signer<'info>,
+    /// CHECK: validated in `place_order` ix constraint
+    pub oracle: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
 pub struct CancelOrder<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
