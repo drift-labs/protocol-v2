@@ -541,6 +541,48 @@
       ]
     },
     {
+      "name": "placeAndMake",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "taker",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "oracle",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "OrderParams"
+          }
+        },
+        {
+          "name": "takerOrderId",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "updateAmms",
       "accounts": [
         {
