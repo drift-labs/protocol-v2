@@ -153,13 +153,13 @@ export type LiquidationRecord = {
 
 export type OrderRecord = {
 	ts: BN;
-	taker: PublicKey | null;
-	maker: PublicKey | null;
-	takerOrder: Order | null;
-	makerOrder: Order | null;
+	taker: PublicKey;
+	maker: PublicKey;
+	takerOrder: Order;
+	makerOrder: Order;
 	action: OrderAction;
-	filler: PublicKey | null;
-	fillRecordId: BN | null;
+	filler: PublicKey;
+	fillRecordId: BN;
 	marketIndex: BN;
 	user: PublicKey;
 	authority: PublicKey;
@@ -170,7 +170,6 @@ export type OrderRecord = {
 	fillerReward: BN;
 	quoteAssetAmountSurplus: BN;
 	oraclePrice: BN;
-	liquidation: false;
 };
 
 export type StateAccount = {
