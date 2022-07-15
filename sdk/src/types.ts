@@ -161,8 +161,6 @@ export type OrderRecord = {
 	filler: PublicKey;
 	fillRecordId: BN;
 	marketIndex: BN;
-	user: PublicKey;
-	authority: PublicKey;
 	baseAssetAmountFilled: BN;
 	quoteAssetAmountFilled: BN;
 	makerRebate: BN;
@@ -331,7 +329,6 @@ export type Order = {
 	userOrderId: number;
 	marketIndex: BN;
 	price: BN;
-	userBaseAssetAmount: BN;
 	baseAssetAmount: BN;
 	baseAssetAmountFilled: BN;
 	quoteAssetAmount: BN;
@@ -342,6 +339,7 @@ export type Order = {
 	triggerPrice: BN;
 	triggerCondition: OrderTriggerCondition;
 	discountTier: OrderDiscountTier;
+	existingPositionDirection: PositionDirection,
 	referrer: PublicKey;
 	postOnly: boolean;
 	immediateOrCancel: boolean;
