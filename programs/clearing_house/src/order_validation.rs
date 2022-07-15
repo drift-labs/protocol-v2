@@ -27,18 +27,6 @@ pub fn validate_order(
         OrderType::TriggerLimit => validate_trigger_limit_order(order, market, state)?,
     }
 
-    if order.order_type == OrderType::Market || order.order_type == OrderType::Limit {
-        let order_breaches_oracle_price_limits = order_breaches_oracle_price_limits(
-            order,
-            valid_oracle_price.ok_or(ErrorCode::InvalidOracle)?,
-            now,
-        )?;
-
-        if order_breaches_oracle_price_limits {
-            return Err(ErrorCode::OrderBreachesOraclePriceLimits);
-        }
-    }
-
     Ok(())
 }
 
@@ -113,6 +101,16 @@ fn validate_limit_order(
 
     if order.post_only {
         validate_post_only_order(order, market, valid_oracle_price, now)?;
+
+        let order_breaches_oracle_price_limits = order_breaches_oracle_price_limits(
+            order,
+            valid_oracle_price.ok_or(ErrorCode::InvalidOracle)?,
+            now,
+        )?;
+
+        if order_breaches_oracle_price_limits {
+            return Err(ErrorCode::OrderBreachesOraclePriceLimits);
+        }
     }
 
     let limit_price = order.get_limit_price(valid_oracle_price, now)?;
