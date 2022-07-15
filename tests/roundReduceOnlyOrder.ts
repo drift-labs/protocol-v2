@@ -101,7 +101,7 @@ describe('round reduce only order', () => {
 			baseAssetAmount,
 			reduceOnly
 		);
-		await clearingHouse.placeAndFillOrder(openOrderParams);
+		await clearingHouse.placeAndTake(openOrderParams);
 
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
@@ -113,7 +113,7 @@ describe('round reduce only order', () => {
 			baseAssetAmount.add(ONE),
 			true
 		);
-		await clearingHouse.placeAndFillOrder(closeOrderParams);
+		await clearingHouse.placeAndTake(closeOrderParams);
 
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();

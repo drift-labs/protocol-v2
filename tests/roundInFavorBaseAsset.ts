@@ -151,7 +151,7 @@ describe('round in favor', () => {
 			baseAssetAmount,
 			false
 		);
-		await clearingHouse.placeAndFillOrder(orderParams);
+		await clearingHouse.placeAndTake(orderParams);
 
 		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9999000)));
 
@@ -204,7 +204,7 @@ describe('round in favor', () => {
 			baseAssetAmount,
 			false
 		);
-		await clearingHouse.placeAndFillOrder(orderParams);
+		await clearingHouse.placeAndTake(orderParams);
 
 		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9999000)));
 

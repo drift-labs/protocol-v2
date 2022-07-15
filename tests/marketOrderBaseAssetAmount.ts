@@ -112,7 +112,7 @@ describe('clearing_house', () => {
 			baseAssetAmount,
 			false
 		);
-		await clearingHouse.placeAndFillOrder(orderParams);
+		await clearingHouse.placeAndTake(orderParams);
 		const txSig = await clearingHouse.settlePNL(
 			await clearingHouse.getUserAccountPublicKey(),
 			clearingHouse.getUserAccount(),
@@ -188,7 +188,7 @@ describe('clearing_house', () => {
 				false,
 				limitPriceTooHigh
 			);
-			await clearingHouse.placeAndFillOrder(orderParams);
+			await clearingHouse.placeAndTake(orderParams);
 		} catch (e) {
 			assert(true);
 			return;
@@ -207,7 +207,7 @@ describe('clearing_house', () => {
 			baseAssetAmount,
 			false
 		);
-		const txSig = await clearingHouse.placeAndFillOrder(orderParams);
+		const txSig = await clearingHouse.placeAndTake(orderParams);
 		await printTxLogs(connection, txSig);
 
 		await clearingHouse.settlePNL(
@@ -269,7 +269,7 @@ describe('clearing_house', () => {
 			baseAssetAmount,
 			false
 		);
-		await clearingHouse.placeAndFillOrder(orderParams);
+		await clearingHouse.placeAndTake(orderParams);
 		await clearingHouse.settlePNL(
 			await clearingHouse.getUserAccountPublicKey(),
 			clearingHouse.getUserAccount(),
@@ -329,7 +329,7 @@ describe('clearing_house', () => {
 			baseAssetAmount,
 			true
 		);
-		await clearingHouse.placeAndFillOrder(orderParams);
+		await clearingHouse.placeAndTake(orderParams);
 		await clearingHouse.settlePNL(
 			await clearingHouse.getUserAccountPublicKey(),
 			clearingHouse.getUserAccount(),

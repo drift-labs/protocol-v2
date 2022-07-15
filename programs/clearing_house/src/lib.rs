@@ -894,9 +894,10 @@ pub mod clearing_house {
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]
-    pub fn place_and_fill_order<'info>(
-        ctx: Context<PlaceAndFillOrder>,
+    pub fn place_and_take<'info>(
+        ctx: Context<PlaceAndTake>,
         params: OrderParams,
+        maker_order_id: Option<u64>,
     ) -> Result<()> {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
@@ -912,6 +913,11 @@ pub mod clearing_house {
             &get_market_oracles(params.market_index, &ctx.accounts.oracle),
             remaining_accounts_iter,
         )?;
+
+        let maker = match maker_order_id {
+            Some(_) => Some(get_maker(remaining_accounts_iter)?),
+            None => None,
+        };
 
         let is_immediate_or_cancel = params.immediate_or_cancel;
         let base_asset_amount_to_fill = params.base_asset_amount;
@@ -953,8 +959,8 @@ pub mod clearing_house {
             &mut oracle_map,
             &ctx.accounts.oracle,
             &user.clone(),
-            None,
-            None,
+            maker.as_ref(),
+            maker_order_id,
             &Clock::get()?,
         )?;
 

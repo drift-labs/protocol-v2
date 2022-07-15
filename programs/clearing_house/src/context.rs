@@ -365,7 +365,7 @@ pub struct OrderParamsOptionalAccounts {
 }
 
 #[derive(Accounts)]
-pub struct PlaceAndFillOrder<'info> {
+pub struct PlaceAndTake<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
         mut,

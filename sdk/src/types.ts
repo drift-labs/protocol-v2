@@ -375,6 +375,12 @@ export type OrderParams = {
 	};
 };
 
+export type MakerInfo = {
+	pubkey: PublicKey;
+	maker: UserAccount;
+	order: Order;
+};
+
 // # Misc Types
 export interface IWallet {
 	signTransaction(tx: Transaction): Promise<Transaction>;

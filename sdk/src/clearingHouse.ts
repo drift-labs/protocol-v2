@@ -10,6 +10,7 @@ import {
 	Order,
 	BankAccount,
 	UserBankBalance,
+	MakerInfo,
 } from './types';
 import * as anchor from '@project-serum/anchor';
 import clearingHouseIDL from './idl/clearing_house.json';
@@ -776,7 +777,7 @@ export class ClearingHouse {
 		marketIndex: BN,
 		limitPrice?: BN
 	): Promise<TransactionSignature> {
-		return await this.placeAndFillOrder(
+		return await this.placeAndTake(
 			getMarketOrderParams(
 				marketIndex,
 				direction,
@@ -1045,11 +1046,7 @@ export class ClearingHouse {
 		userAccountPublicKey: PublicKey,
 		user: UserAccount,
 		order: Order,
-		makerInfo?: {
-			pubkey: PublicKey;
-			maker: UserAccount;
-			order: Order;
-		}
+		makerInfo?: MakerInfo
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.txSender.send(
 			wrapInTx(
@@ -1147,11 +1144,12 @@ export class ClearingHouse {
 		});
 	}
 
-	public async placeAndFillOrder(
-		orderParams: OrderParams
+	public async placeAndTake(
+		orderParams: OrderParams,
+		makerInfo?: MakerInfo
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.txSender.send(
-			wrapInTx(await this.getPlaceAndFillOrderIx(orderParams)),
+			wrapInTx(await this.getPlaceAndTakeIx(orderParams, makerInfo)),
 			[],
 			this.opts
 		);
@@ -1159,8 +1157,9 @@ export class ClearingHouse {
 		return txSig;
 	}
 
-	public async getPlaceAndFillOrderIx(
-		orderParams: OrderParams
+	public async getPlaceAndTakeIx(
+		orderParams: OrderParams,
+		makerInfo?: MakerInfo
 	): Promise<TransactionInstruction> {
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 
@@ -1172,15 +1171,29 @@ export class ClearingHouse {
 			writableBankIndex: QUOTE_ASSET_BANK_INDEX,
 		});
 
-		return await this.program.instruction.placeAndFillOrder(orderParams, {
-			accounts: {
-				state: await this.getStatePublicKey(),
-				user: userAccountPublicKey,
-				authority: this.wallet.publicKey,
-				oracle: priceOracle,
-			},
-			remainingAccounts,
-		});
+		let makerOrderId = null;
+		if (makerInfo) {
+			makerOrderId = makerInfo.order.orderId;
+			remainingAccounts.push({
+				pubkey: makerInfo.pubkey,
+				isSigner: false,
+				isWritable: true,
+			});
+		}
+
+		return await this.program.instruction.placeAndTake(
+			orderParams,
+			makerOrderId,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					user: userAccountPublicKey,
+					authority: this.wallet.publicKey,
+					oracle: priceOracle,
+				},
+				remainingAccounts,
+			}
+		);
 	}
 
 	/**
@@ -1194,7 +1207,7 @@ export class ClearingHouse {
 			throw Error(`No position in market ${marketIndex.toString()}`);
 		}
 
-		return await this.placeAndFillOrder(
+		return await this.placeAndTake(
 			getMarketOrderParams(
 				marketIndex,
 				findDirectionToClose(userPosition),

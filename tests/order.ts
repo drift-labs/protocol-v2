@@ -1472,7 +1472,7 @@ describe('orders', () => {
 		await clearingHouse.cancelOrder(orderId);
 	});
 
-	it('PlaceAndFill LONG Order 100% filled', async () => {
+	it('PlaceAndTake LONG Order 100% filled', async () => {
 		const direction = PositionDirection.LONG;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
 		const price = new BN('13300000000').add(
@@ -1495,14 +1495,14 @@ describe('orders', () => {
 			false,
 			true
 		);
-		const txSig = await clearingHouse.placeAndFillOrder(orderParams);
+		const txSig = await clearingHouse.placeAndTake(orderParams);
 
 		const computeUnits = await findComputeUnitConsumption(
 			clearingHouse.program.programId,
 			connection,
 			txSig
 		);
-		console.log('placeAndFill compute units', computeUnits[0]);
+		console.log('placeAndTake compute units', computeUnits[0]);
 
 		await clearingHouse.settlePNL(
 			await clearingHouse.getUserAccountPublicKey(),
@@ -1564,7 +1564,7 @@ describe('orders', () => {
 			false,
 			true
 		);
-		await clearingHouse.placeAndFillOrder(orderParams);
+		await clearingHouse.placeAndTake(orderParams);
 
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
@@ -1764,7 +1764,7 @@ describe('orders', () => {
 			AMM_RESERVE_PRECISION,
 			false
 		);
-		await clearingHouse.placeAndFillOrder(openPositionOrderParams);
+		await clearingHouse.placeAndTake(openPositionOrderParams);
 		console.log('1');
 		const reduceMarketOrderParams = getMarketOrderParams(
 			marketIndexEth,
@@ -1773,7 +1773,7 @@ describe('orders', () => {
 			TWO.mul(AMM_RESERVE_PRECISION),
 			true
 		);
-		await clearingHouse.placeAndFillOrder(reduceMarketOrderParams);
+		await clearingHouse.placeAndTake(reduceMarketOrderParams);
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
 		console.log('2');
@@ -1784,7 +1784,7 @@ describe('orders', () => {
 			isVariant(clearingHouseUser.getUserAccount().orders[0].status, 'init')
 		);
 
-		await clearingHouse.placeAndFillOrder(openPositionOrderParams);
+		await clearingHouse.placeAndTake(openPositionOrderParams);
 		const reduceLimitOrderParams = getLimitOrderParams(
 			marketIndexEth,
 			PositionDirection.LONG,
@@ -1797,7 +1797,7 @@ describe('orders', () => {
 		console.log('3');
 
 		try {
-			await clearingHouse.placeAndFillOrder(reduceLimitOrderParams);
+			await clearingHouse.placeAndTake(reduceLimitOrderParams);
 		} catch (e) {
 			console.error(e);
 		}
