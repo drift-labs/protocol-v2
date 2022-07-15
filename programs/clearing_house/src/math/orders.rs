@@ -243,6 +243,52 @@ pub fn get_position_delta_for_fill(
     })
 }
 
+pub fn order_breaches_oracle_price_limits(
+    order: &Order,
+    oracle_price: i128,
+    now: i64,
+) -> ClearingHouseResult<bool> {
+    let order_limit_price = order.get_limit_price(Some(oracle_price), now)?;
+    let oracle_price = oracle_price.unsigned_abs();
+
+    msg!("order_limit_price {}", order_limit_price);
+    msg!("oracle_price {}", oracle_price);
+    match order.direction {
+        PositionDirection::Long => {
+            if order_limit_price <= oracle_price {
+                return Ok(false);
+            }
+
+            let ratio = order_limit_price
+                .checked_div(
+                    order_limit_price
+                        .checked_sub(oracle_price)
+                        .ok_or_else(math_error!())?,
+                )
+                .ok_or_else(math_error!())?;
+
+            // order cant be buying if oracle price is more than 2.5% below limit price
+            Ok(ratio <= 40)
+        }
+        PositionDirection::Short => {
+            if order_limit_price >= oracle_price {
+                return Ok(false);
+            }
+
+            let ratio = oracle_price
+                .checked_div(
+                    oracle_price
+                        .checked_sub(order_limit_price)
+                        .ok_or_else(math_error!())?,
+                )
+                .ok_or_else(math_error!())?;
+
+            // order cant be buying if oracle price is more than 2.5% above limit price
+            Ok(ratio <= 40)
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
 

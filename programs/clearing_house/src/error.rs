@@ -178,6 +178,8 @@ pub enum ErrorCode {
     MakerOrderMustBePostOnly,
     #[msg("CantMatchTwoPostOnlys")]
     CantMatchTwoPostOnlys,
+    #[msg("OrderBreachesOraclePriceLimits")]
+    OrderBreachesOraclePriceLimits,
     #[msg("DefaultError")]
     DefaultError,
 }

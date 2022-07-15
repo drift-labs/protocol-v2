@@ -104,6 +104,7 @@ pub struct OrderRecord {
     pub taker_order: Order,
     pub maker_order: Order,
     pub action: OrderAction,
+    pub action_explanation: OrderActionExplanation,
     pub filler: Pubkey,
     pub fill_record_id: u64,
     pub market_index: u64,
@@ -122,6 +123,13 @@ pub enum OrderAction {
     Cancel,
     Fill,
     Expire,
+}
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq)]
+pub enum OrderActionExplanation {
+    None,
+    BreachedMarginRequirement,
+    OraclePriceBreachedLimitPrice,
 }
 
 impl Default for OrderAction {

@@ -1853,24 +1853,10 @@
             }
           },
           {
-            "name": "totalFeePaid",
-            "type": "u64"
-          },
-          {
-            "name": "totalFeeRebate",
-            "type": "u64"
-          },
-          {
-            "name": "totalTokenDiscount",
-            "type": "u128"
-          },
-          {
-            "name": "totalReferralReward",
-            "type": "u128"
-          },
-          {
-            "name": "totalRefereeDiscount",
-            "type": "u128"
+            "name": "fees",
+            "type": {
+              "defined": "UserFees"
+            }
           },
           {
             "name": "nextOrderId",
@@ -2450,6 +2436,34 @@
       }
     },
     {
+      "name": "UserFees",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "totalFeePaid",
+            "type": "u64"
+          },
+          {
+            "name": "totalFeeRebate",
+            "type": "u64"
+          },
+          {
+            "name": "totalTokenDiscount",
+            "type": "u128"
+          },
+          {
+            "name": "totalReferralReward",
+            "type": "u128"
+          },
+          {
+            "name": "totalRefereeDiscount",
+            "type": "u128"
+          }
+        ]
+      }
+    },
+    {
       "name": "UserBankBalance",
       "type": {
         "kind": "struct",
@@ -2778,6 +2792,23 @@
           },
           {
             "name": "Expire"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderActionExplanation",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "None"
+          },
+          {
+            "name": "BreachedMarginRequirement"
+          },
+          {
+            "name": "OraclePriceBreachedLimitPrice"
           }
         ]
       }
@@ -3259,6 +3290,13 @@
           "name": "action",
           "type": {
             "defined": "OrderAction"
+          },
+          "index": false
+        },
+        {
+          "name": "actionExplanation",
+          "type": {
+            "defined": "OrderActionExplanation"
           },
           "index": false
         },
@@ -3753,6 +3791,11 @@
     },
     {
       "code": 6087,
+      "name": "OrderBreachesOraclePriceLimits",
+      "msg": "OrderBreachesOraclePriceLimits"
+    },
+    {
+      "code": 6088,
       "name": "DefaultError",
       "msg": "DefaultError"
     }

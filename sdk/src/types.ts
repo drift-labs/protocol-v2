@@ -308,11 +308,13 @@ export type UserAccount = {
 	bankBalances: UserBankBalance[];
 	collateral: BN;
 	cumulativeDeposits: BN;
-	totalFeePaid: BN;
-	totalFeeRebate: BN;
-	totalTokenDiscount: BN;
-	totalReferralReward: BN;
-	totalRefereeDiscount: BN;
+	fees: {
+		totalFeePaid: BN;
+		totalFeeRebate: BN;
+		totalTokenDiscount: BN;
+		totalReferralReward: BN;
+		totalRefereeDiscount: BN;
+	};
 	positions: UserPosition[];
 	orders: Order[];
 };

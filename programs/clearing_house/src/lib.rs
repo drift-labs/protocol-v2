@@ -761,7 +761,7 @@ pub mod clearing_house {
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
-        let bank_map = BankMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
+        let _bank_map = BankMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
         let mut market_map = MarketMap::load(
             &WritableMarkets::new(),
             market_oracles,
@@ -775,17 +775,12 @@ pub mod clearing_house {
             &Clock::get()?,
         )?;
 
-        let oracle = Some(&ctx.accounts.oracle);
-
         controller::orders::cancel_order_by_order_id(
-            &ctx.accounts.state,
             order_id,
             &ctx.accounts.user,
             &market_map,
-            &bank_map,
             &mut oracle_map,
             &Clock::get()?,
-            oracle,
         )?;
 
         Ok(())
@@ -806,7 +801,7 @@ pub mod clearing_house {
         };
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
-        let bank_map = BankMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
+        let _bank_map = BankMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
         let mut market_map = MarketMap::load(
             &WritableMarkets::new(),
             market_oracles,
@@ -820,16 +815,12 @@ pub mod clearing_house {
             &Clock::get()?,
         )?;
 
-        let oracle = Some(&ctx.accounts.oracle);
         controller::orders::cancel_order_by_user_order_id(
-            &ctx.accounts.state,
             user_order_id,
             &ctx.accounts.user,
             &market_map,
-            &bank_map,
             &mut oracle_map,
             &Clock::get()?,
-            oracle,
         )?;
 
         Ok(())
@@ -856,7 +847,7 @@ pub mod clearing_house {
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
-        let _bank_map = BankMap::load(
+        let bank_map = BankMap::load(
             &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
             remaining_accounts_iter,
         )?;
@@ -880,11 +871,12 @@ pub mod clearing_house {
             taker_order_id,
             &ctx.accounts.state,
             &ctx.accounts.user,
+            &bank_map,
             &market_map,
             &mut oracle_map,
             &ctx.accounts.oracle,
             &ctx.accounts.filler,
-            maker,
+            maker.as_ref(),
             maker_order_id,
             &Clock::get()?,
         )?;
@@ -953,6 +945,7 @@ pub mod clearing_house {
             order_id,
             &ctx.accounts.state,
             user,
+            &bank_map,
             &market_map,
             &mut oracle_map,
             &ctx.accounts.oracle,
@@ -964,14 +957,11 @@ pub mod clearing_house {
 
         if is_immediate_or_cancel && base_asset_amount_to_fill != base_asset_amount_filled {
             controller::orders::cancel_order_by_order_id(
-                &ctx.accounts.state,
                 order_id,
                 &ctx.accounts.user,
                 &market_map,
-                &bank_map,
                 &mut oracle_map,
                 &Clock::get()?,
-                Some(&ctx.accounts.oracle),
             )?;
         }
 

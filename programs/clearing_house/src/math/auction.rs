@@ -61,6 +61,10 @@ pub fn calculate_auction_price(order: &Order, now: i64) -> ClearingHouseResult<u
     let delta_numerator = min(time_elapsed, cast(order.auction_duration)?);
     let delta_denominator = order.auction_duration;
 
+    if delta_denominator == 0 {
+        return Ok(order.auction_end_price);
+    }
+
     let price_delta = match order.direction {
         PositionDirection::Long => order
             .auction_end_price

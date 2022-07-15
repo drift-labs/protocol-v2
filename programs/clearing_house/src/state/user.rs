@@ -19,11 +19,7 @@ pub struct User {
     pub user_id: u8,
     pub name: [u8; 32],
     pub bank_balances: [UserBankBalance; 8],
-    pub total_fee_paid: u64,
-    pub total_fee_rebate: u64,
-    pub total_token_discount: u128,
-    pub total_referral_reward: u128,
-    pub total_referee_discount: u128,
+    pub fees: UserFees,
     pub next_order_id: u64,
     pub positions: [MarketPosition; 5],
     pub orders: [Order; 32],
@@ -76,11 +72,8 @@ impl User {
         Ok(next_balance)
     }
 
-    pub fn get_position_mut(
-        &mut self,
-        market_index: u64,
-    ) -> ClearingHouseResult<&mut MarketPosition> {
-        Ok(&mut self.positions[get_position_index(&self.positions, market_index)?])
+    pub fn get_position(&self, market_index: u64) -> ClearingHouseResult<&MarketPosition> {
+        Ok(&self.positions[get_position_index(&self.positions, market_index)?])
     }
 
     pub fn get_order_index(&self, order_id: u64) -> ClearingHouseResult<usize> {
@@ -89,6 +82,17 @@ impl User {
             .position(|order| order.order_id == order_id)
             .ok_or(ErrorCode::OrderDoesNotExist)
     }
+}
+
+#[zero_copy]
+#[derive(Default)]
+#[repr(packed)]
+pub struct UserFees {
+    pub total_fee_paid: u64,
+    pub total_fee_rebate: u64,
+    pub total_token_discount: u128,
+    pub total_referral_reward: u128,
+    pub total_referee_discount: u128,
 }
 
 #[zero_copy]

@@ -1423,7 +1423,7 @@ mod test {
         assert_eq!(pct_change_in_k, 986196); // k was decreased 1.3804%
 
         // todo:
-        (numer1, denom1) = _calculate_budgeted_k_scale(
+        let (numer1, denom1) = _calculate_budgeted_k_scale(
             500000000049750000004950,
             499999999950250000000000,
             114638,
@@ -1438,7 +1438,7 @@ mod test {
         assert_eq!(denom1, 1000000);
 
         // todo:
-        (numer1, denom1) = _calculate_budgeted_k_scale(
+        let (numer1, denom1) = _calculate_budgeted_k_scale(
             500000000049750000004950,
             499999999950250000000000,
             -114638,

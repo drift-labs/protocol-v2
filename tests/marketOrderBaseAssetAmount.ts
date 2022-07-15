@@ -125,7 +125,7 @@ describe('clearing_house', () => {
 		);
 
 		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9950249)));
-		assert(user.totalFeePaid.eq(new BN(49750)));
+		assert(user.fees.totalFeePaid.eq(new BN(49750)));
 
 		assert.ok(
 			clearingHouse
@@ -234,7 +234,7 @@ describe('clearing_house', () => {
 		);
 
 		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9925373)));
-		assert(user.totalFeePaid.eq(new BN(74626)));
+		assert(user.fees.totalFeePaid.eq(new BN(74626)));
 
 		const market = clearingHouse.getMarketAccount(0);
 		console.log(market.amm.netBaseAssetAmount.toString());
@@ -281,7 +281,7 @@ describe('clearing_house', () => {
 		);
 
 		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9874391)));
-		assert(user.totalFeePaid.eq(new BN(124371)));
+		assert(user.fees.totalFeePaid.eq(new BN(124371)));
 		assert.ok(
 			clearingHouse
 				.getUserAccount()
@@ -348,7 +348,7 @@ describe('clearing_house', () => {
 		);
 
 		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9850757)));
-		assert(user.totalFeePaid.eq(new BN(149242)));
+		assert(user.fees.totalFeePaid.eq(new BN(149242)));
 
 		const market = clearingHouse.getMarketAccount(0);
 		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(0)));
