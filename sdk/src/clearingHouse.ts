@@ -233,6 +233,12 @@ export class ClearingHouse {
 		return this.accountSubscriber.getMarketAccountAndSlot(marketIndex)?.data;
 	}
 
+	public getMarketAccounts(): MarketAccount[] {
+		return this.accountSubscriber
+			.getMarketAccountsAndSlots()
+			.map((value) => value.data);
+	}
+
 	public getBankAccount(bankIndex: BN | number): BankAccount | undefined {
 		bankIndex = bankIndex instanceof BN ? bankIndex : new BN(bankIndex);
 		return this.accountSubscriber.getBankAccountAndSlot(bankIndex).data;
