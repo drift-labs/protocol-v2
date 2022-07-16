@@ -1438,9 +1438,11 @@ mod test {
         assert_eq!((new_bid_twap + new_ask_twap) / 2, new_mark_twap);
         assert_eq!((new_oracle_twap as u128) < new_mark_twap, true); // funding in favor of maker?
         assert_eq!(new_oracle_twap, 400071307837);
-        assert_eq!(new_mark_twap, 400229350757);
+        assert_eq!(new_bid_twap, 400134525005);
+        assert_eq!(new_mark_twap, 400229350757); // < 2 cents above oracle twap
+        assert_eq!(new_ask_twap, 400324176509);
 
-        let trade_price_2 = 398112800000;
+        let trade_price_2 = 399712800200;
         let trade_direction_2 = PositionDirection::Short;
         oracle_price_data = OraclePriceData {
             price: 399912800200,
@@ -1452,12 +1454,9 @@ mod test {
         while now <= 3600 * 2 {
             now = now + 1;
             update_oracle_price_twap(&mut amm, now, &oracle_price_data, None).unwrap();
-            if (now % 2 == 0) {
+            if now % 200 == 0 {
                 update_mark_twap(&mut amm, now, Some(trade_price_2), Some(trade_direction_2))
-                    .unwrap(); // ~8 cents below oracle
-            } else {
-                update_mark_twap(&mut amm, now, Some(trade_price), Some(trade_direction)).unwrap();
-                // ~6 cents above oracle
+                    .unwrap(); // ~2 cents below oracle
             }
         }
 
@@ -1468,7 +1467,10 @@ mod test {
 
         assert_eq!(new_bid_twap < new_ask_twap, true);
         assert_eq!((new_bid_twap + new_ask_twap) / 2, new_mark_twap);
-        assert_eq!((new_oracle_twap as u128) > new_mark_twap, true); // funding in favor of maker?
+        assert_eq!((new_oracle_twap as u128) > new_mark_twap, true); // funding in favor of maker
+        assert_eq!(new_oracle_twap, 399971086480);
+        assert_eq!(new_bid_twap, 399863531908); // ema from prev twap
+        assert_eq!(new_ask_twap, 400059833178); // ema from prev twap
     }
 
     #[test]
