@@ -53,6 +53,7 @@ import { RetryTxSender } from './tx/retryTxSender';
 import { ClearingHouseUser } from './clearingHouseUser';
 import { ClearingHouseUserAccountSubscriptionConfig } from './clearingHouseUserConfig';
 import { getMarketOrderParams } from './orderParams';
+import { getMarketsBanksAndOraclesForSubscription } from './config';
 
 /**
  * # ClearingHouse
@@ -109,13 +110,27 @@ export class ClearingHouse {
 				  };
 		this.createUsers(userIds, this.userAccountSubscriptionConfig);
 
+		let marketIndexes = config.marketIndexes;
+		let bankIndexes = config.bankIndexes;
+		let oracleInfos = config.oracleInfos;
+		if (config.env) {
+			const {
+				marketIndexes: envMarketIndexes,
+				bankIndexes: envBankIndexes,
+				oracleInfos: envOralceInfos,
+			} = getMarketsBanksAndOraclesForSubscription(config.env);
+			marketIndexes = marketIndexes ? marketIndexes : envMarketIndexes;
+			bankIndexes = bankIndexes ? bankIndexes : envBankIndexes;
+			oracleInfos = oracleInfos ? oracleInfos : envOralceInfos;
+		}
+
 		if (config.accountSubscription?.type === 'polling') {
 			this.accountSubscriber = new PollingClearingHouseAccountSubscriber(
 				this.program,
 				config.accountSubscription.accountLoader,
-				config.marketIndexes ?? [],
-				config.bankIndexes ?? [],
-				config.oracleInfos ?? []
+				marketIndexes ?? [],
+				bankIndexes ?? [],
+				oracleInfos ?? []
 			);
 		} else {
 			this.accountSubscriber = new WebSocketClearingHouseAccountSubscriber(
