@@ -73,6 +73,12 @@ pub fn place_order(
         }
     }
 
+    if params.order_type == OrderType::TriggerMarket || params.order_type == OrderType::TriggerLimit
+    {
+        msg!("temp disabled trigger orders");
+        panic!();
+    }
+
     let market_index = params.market_index;
     let market = &market_map.get_ref(&market_index)?;
 
