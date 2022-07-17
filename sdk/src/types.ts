@@ -59,6 +59,12 @@ export function isVariant(object: unknown, type: string) {
 	return object.hasOwnProperty(type);
 }
 
+export function isOneOfVariant(object: unknown, types: string[]) {
+	return types.reduce((result, type) => {
+		return result || object.hasOwnProperty(type);
+	}, false);
+}
+
 export enum TradeSide {
 	None = 0,
 	Buy = 1,
