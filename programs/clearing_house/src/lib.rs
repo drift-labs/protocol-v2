@@ -1057,7 +1057,7 @@ pub mod clearing_house {
         }
 
         validate!(
-            pnl_to_settle_with_user < 0 || user.authority.eq(&ctx.accounts.authority.key()),
+            pnl_to_settle_with_user > 0 || user.authority.eq(&ctx.accounts.authority.key()),
             ErrorCode::UserMustSettleTheirOwnPositiveUnsettledPNL,
             "User must settle their own unsettled pnl when its positive",
         )?;
@@ -1073,18 +1073,12 @@ pub mod clearing_house {
             user.get_quote_asset_bank_balance_mut(),
         )?;
 
-        update_bank_balances(
-            pnl_to_settle_with_user.unsigned_abs(),
-            &BankBalanceType::Deposit,
-            bank,
-            user.get_quote_asset_bank_balance_mut(),
-        )?;
         let user_position = &mut user.positions[position_index];
 
         controller::position::update_unsettled_pnl(
             user_position,
             market,
-            pnl_to_settle_with_user, // positive sign
+            -pnl_to_settle_with_user,
         )?;
 
         Ok(())

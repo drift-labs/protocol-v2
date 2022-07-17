@@ -372,7 +372,7 @@ pub fn update_pool_balances(
         market.pnl_pool.balance_type(),
     )?;
 
-    let mut pnl_to_settle_with_user = if user_unsettled_pnl > 0 {
+    let pnl_to_settle_with_user = if user_unsettled_pnl > 0 {
         min(user_unsettled_pnl, cast_to_i128(pnl_pool_token_amount)?)
     } else {
         user_unsettled_pnl
@@ -393,13 +393,13 @@ pub fn update_pool_balances(
         0
     };
 
-    pnl_to_settle_with_user = pnl_to_settle_with_user
+    let pnl_to_settle_with_market = -(pnl_to_settle_with_user
         .checked_sub(pnl_fraction_for_amm)
-        .ok_or_else(math_error!())?;
+        .ok_or_else(math_error!())?);
 
     update_bank_balances(
-        pnl_to_settle_with_user.unsigned_abs(),
-        if pnl_to_settle_with_user <= 0 {
+        pnl_to_settle_with_market.unsigned_abs(),
+        if pnl_to_settle_with_market >= 0 {
             &BankBalanceType::Deposit
         } else {
             &BankBalanceType::Borrow
@@ -568,7 +568,7 @@ mod test {
         assert_eq!(to_settle_with_user, 0);
 
         let to_settle_with_user = update_pool_balances(&mut market, &mut bank, -100).unwrap();
-        assert_eq!(to_settle_with_user, -99);
+        assert_eq!(to_settle_with_user, -100);
         assert_eq!(market.amm.fee_pool.balance() > 0, true);
 
         let amm_fee_pool_token_amount = get_token_amount(
