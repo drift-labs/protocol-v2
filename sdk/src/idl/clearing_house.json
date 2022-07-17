@@ -2633,6 +2633,10 @@
             "type": "i64"
           },
           {
+            "name": "slot",
+            "type": "u64"
+          },
+          {
             "name": "orderId",
             "type": "u64"
           },
@@ -3314,6 +3318,11 @@
         {
           "name": "ts",
           "type": "i64",
+          "index": false
+        },
+        {
+          "name": "slot",
+          "type": "u64",
           "index": false
         },
         {

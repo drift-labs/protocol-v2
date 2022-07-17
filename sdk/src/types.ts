@@ -329,6 +329,7 @@ export type Order = {
 	status: OrderStatus;
 	orderType: OrderType;
 	ts: BN;
+	slot: BN;
 	orderId: BN;
 	userOrderId: number;
 	marketIndex: BN;
@@ -348,6 +349,7 @@ export type Order = {
 	postOnly: boolean;
 	immediateOrCancel: boolean;
 	oraclePriceOffset: BN;
+	auctionDuration: number;
 	auctionStartPrice: BN;
 	auctionEndPrice: BN;
 };
@@ -376,8 +378,7 @@ export type OrderParams = {
 };
 
 export type MakerInfo = {
-	pubkey: PublicKey;
-	maker: UserAccount;
+	maker: PublicKey;
 	order: Order;
 };
 

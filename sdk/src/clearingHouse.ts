@@ -1069,14 +1069,13 @@ export class ClearingHouse {
 		order: Order,
 		makerInfo?: MakerInfo
 	): Promise<TransactionSignature> {
-		const { txSig, slot } = await this.txSender.send(
+		const { txSig } = await this.txSender.send(
 			wrapInTx(
 				await this.getFillOrderIx(userAccountPublicKey, user, order, makerInfo)
 			),
 			[],
 			this.opts
 		);
-		this.marketLastSlotCache.set(order.marketIndex.toNumber(), slot);
 		return txSig;
 	}
 
@@ -1084,11 +1083,7 @@ export class ClearingHouse {
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
 		order: Order,
-		makerInfo?: {
-			pubkey: PublicKey;
-			maker: UserAccount;
-			order: Order;
-		}
+		makerInfo?: MakerInfo
 	): Promise<TransactionInstruction> {
 		const fillerPublicKey = await this.getUserAccountPublicKey();
 
@@ -1123,12 +1118,8 @@ export class ClearingHouse {
 				!position.marketIndex.eq(order.marketIndex)
 			) {
 				const market = this.getMarketAccount(position.marketIndex);
-				const marketPublicKey = await getMarketPublicKey(
-					this.program.programId,
-					position.marketIndex
-				);
 				marketAccountInfos.push({
-					pubkey: marketPublicKey,
+					pubkey: market.pubkey,
 					isWritable: false,
 					isSigner: false,
 				});
@@ -1145,7 +1136,7 @@ export class ClearingHouse {
 
 		if (makerInfo) {
 			remainingAccounts.push({
-				pubkey: makerInfo.pubkey,
+				pubkey: makerInfo.maker,
 				isWritable: true,
 				isSigner: false,
 			});
@@ -1196,7 +1187,7 @@ export class ClearingHouse {
 		if (makerInfo) {
 			makerOrderId = makerInfo.order.orderId;
 			remainingAccounts.push({
-				pubkey: makerInfo.pubkey,
+				pubkey: makerInfo.maker,
 				isSigner: false,
 				isWritable: true,
 			});

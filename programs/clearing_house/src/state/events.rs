@@ -99,6 +99,7 @@ pub struct LiquidationRecord {
 #[event]
 pub struct OrderRecord {
     pub ts: i64,
+    pub slot: u64,
     pub taker: Pubkey,
     pub maker: Pubkey,
     pub taker_order: Order,

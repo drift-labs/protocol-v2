@@ -18,11 +18,11 @@ pub fn validate_order(
     market: &Market,
     state: &State,
     valid_oracle_price: Option<i128>,
-    now: i64,
+    slot: u64,
 ) -> ClearingHouseResult {
     match order.order_type {
         OrderType::Market => validate_market_order(order, market)?,
-        OrderType::Limit => validate_limit_order(order, market, state, valid_oracle_price, now)?,
+        OrderType::Limit => validate_limit_order(order, market, state, valid_oracle_price, slot)?,
         OrderType::TriggerMarket => validate_trigger_market_order(order, market, state)?,
         OrderType::TriggerLimit => validate_trigger_limit_order(order, market, state)?,
     }
@@ -70,7 +70,7 @@ fn validate_limit_order(
     market: &Market,
     state: &State,
     valid_oracle_price: Option<i128>,
-    now: i64,
+    slot: u64,
 ) -> ClearingHouseResult {
     validate_base_asset_amount(order, market)?;
 
@@ -100,12 +100,12 @@ fn validate_limit_order(
     }
 
     if order.post_only {
-        validate_post_only_order(order, market, valid_oracle_price, now)?;
+        validate_post_only_order(order, market, valid_oracle_price, slot)?;
 
         let order_breaches_oracle_price_limits = order_breaches_oracle_price_limits(
             order,
             valid_oracle_price.ok_or(ErrorCode::InvalidOracle)?,
-            now,
+            slot,
         )?;
 
         if order_breaches_oracle_price_limits {
@@ -113,7 +113,7 @@ fn validate_limit_order(
         }
     }
 
-    let limit_price = order.get_limit_price(valid_oracle_price, now)?;
+    let limit_price = order.get_limit_price(valid_oracle_price, slot)?;
     let approximate_market_value = limit_price
         .checked_mul(order.base_asset_amount)
         .unwrap_or(u128::MAX)
@@ -132,10 +132,10 @@ fn validate_post_only_order(
     order: &Order,
     market: &Market,
     valid_oracle_price: Option<i128>,
-    now: i64,
+    slot: u64,
 ) -> ClearingHouseResult {
     let base_asset_amount_market_can_fill =
-        calculate_base_asset_amount_to_trade_for_limit(order, market, valid_oracle_price, now)?;
+        calculate_base_asset_amount_to_trade_for_limit(order, market, valid_oracle_price, slot)?;
 
     if base_asset_amount_market_can_fill != 0 {
         msg!(

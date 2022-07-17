@@ -52,13 +52,10 @@ pub fn calculate_auction_end_price(
     Ok(auction_end_price)
 }
 
-pub fn calculate_auction_price(order: &Order, now: i64) -> ClearingHouseResult<u128> {
-    let time_elapsed = now
-        .checked_sub(order.ts)
-        .ok_or_else(math_error!())?
-        .unsigned_abs();
+pub fn calculate_auction_price(order: &Order, slot: u64) -> ClearingHouseResult<u128> {
+    let slots_elapsed = slot.checked_sub(order.slot).ok_or_else(math_error!())?;
 
-    let delta_numerator = min(time_elapsed, cast(order.auction_duration)?);
+    let delta_numerator = min(slots_elapsed, cast(order.auction_duration)?);
     let delta_denominator = order.auction_duration;
 
     if delta_denominator == 0 {
@@ -147,11 +144,11 @@ pub fn calculate_auction_fill_amount(
 }
 
 pub fn is_auction_complete(
-    order_ts: i64,
+    order_slot: u64,
     auction_duration: u8,
-    now: i64,
+    slot: u64,
 ) -> ClearingHouseResult<bool> {
-    let time_elapsed = now.checked_sub(order_ts).ok_or_else(math_error!())?;
+    let time_elapsed = slot.checked_sub(order_slot).ok_or_else(math_error!())?;
 
     Ok(time_elapsed >= cast(auction_duration)?)
 }

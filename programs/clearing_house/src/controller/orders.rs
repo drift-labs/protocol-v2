@@ -51,6 +51,7 @@ pub fn place_order(
     oracle: Option<&AccountInfo>,
 ) -> ClearingHouseResult {
     let now = clock.unix_timestamp;
+    let slot = clock.slot;
     let user_key = user.key();
     let user = &mut load_mut(user)?;
     controller::funding::settle_funding_payment(user, &user_key, market_map, now)?;
@@ -139,6 +140,7 @@ pub fn place_order(
         status: OrderStatus::Open,
         order_type: params.order_type,
         ts: now,
+        slot,
         order_id: get_then_update_id!(user, next_order_id),
         user_order_id: params.user_order_id,
         market_index: params.market_index,
@@ -172,7 +174,7 @@ pub fn place_order(
         clock.slot,
     )?;
 
-    validate_order(&new_order, market, state, valid_oracle_price, now)?;
+    validate_order(&new_order, market, state, valid_oracle_price, slot)?;
 
     user.orders[new_order_index] = new_order;
 
@@ -194,6 +196,7 @@ pub fn place_order(
     // emit order record
     emit!(OrderRecord {
         ts: now,
+        slot,
         taker,
         taker_order,
         maker,
@@ -237,6 +240,7 @@ pub fn cancel_order_by_order_id(
         market_map,
         oracle_map,
         clock.unix_timestamp,
+        clock.slot,
         OrderActionExplanation::None,
     )
 }
@@ -263,6 +267,7 @@ pub fn cancel_order_by_user_order_id(
         market_map,
         oracle_map,
         clock.unix_timestamp,
+        clock.slot,
         OrderActionExplanation::None,
     )
 }
@@ -274,6 +279,7 @@ pub fn cancel_order(
     market_map: &MarketMap,
     oracle_map: &mut OracleMap,
     now: i64,
+    slot: u64,
     explanation: OrderActionExplanation,
 ) -> ClearingHouseResult {
     controller::funding::settle_funding_payment(user, user_key, market_map, now)?;
@@ -295,6 +301,7 @@ pub fn cancel_order(
 
     emit!(OrderRecord {
         ts: now,
+        slot,
         taker,
         taker_order,
         maker,
@@ -341,7 +348,7 @@ pub fn fill_order(
     clock: &Clock,
 ) -> ClearingHouseResult<u128> {
     let now = clock.unix_timestamp;
-    let clock_slot = clock.slot;
+    let slot = clock.slot;
 
     let filler_key = filler.key();
     let user_key = user.key();
@@ -370,7 +377,7 @@ pub fn fill_order(
     {
         let market = &mut market_map.get_ref_mut(&market_index)?;
         validate!(
-            (clock_slot == market.amm.last_update_slot || market.amm.curve_update_intensity == 0),
+            (slot == market.amm.last_update_slot || market.amm.curve_update_intensity == 0),
             ErrorCode::AMMNotUpdatedInSameSlot,
             "AMM must be updated in a prior instruction within same slot"
         )?;
@@ -403,6 +410,7 @@ pub fn fill_order(
         &user.orders[order_index],
         oracle_price,
         now,
+        slot,
     )?;
 
     let is_filler_taker = user_key == filler_key;
@@ -429,6 +437,7 @@ pub fn fill_order(
         mark_price_before,
         valid_oracle_price,
         now,
+        slot,
     )?;
 
     if base_asset_amount == 0 {
@@ -482,7 +491,7 @@ pub fn fill_order(
             market,
             oracle,
             now,
-            clock_slot,
+            slot,
             &state.oracle_guard_rails,
             state.funding_paused,
             Some(mark_price_before),
@@ -501,6 +510,7 @@ fn sanitize_maker_order<'a>(
     taker_order: &Order,
     oracle_price: i128,
     now: i64,
+    slot: u64,
 ) -> ClearingHouseResult<(Option<RefMut<'a, User>>, Option<Pubkey>, Option<usize>)> {
     if maker.is_none() {
         return Ok((None, None, None));
@@ -517,7 +527,7 @@ fn sanitize_maker_order<'a>(
     }
 
     // Dont fulfill with a maker order if oracle has diverged significantly
-    if order_breaches_oracle_price_limits(&maker.orders[maker_order_index], oracle_price, now)? {
+    if order_breaches_oracle_price_limits(&maker.orders[maker_order_index], oracle_price, slot)? {
         cancel_order(
             maker_order_index,
             maker.deref_mut(),
@@ -525,6 +535,7 @@ fn sanitize_maker_order<'a>(
             market_map,
             oracle_map,
             now,
+            slot,
             OrderActionExplanation::OraclePriceBreachedLimitPrice,
         )?;
         return Ok((None, None, None));
@@ -549,6 +560,7 @@ fn fulfill_order(
     mark_price_before: u128,
     valid_oracle_price: Option<i128>,
     now: i64,
+    slot: u64,
 ) -> ClearingHouseResult<(u128, bool)> {
     let market_index = user.orders[user_order_index].market_index;
 
@@ -572,7 +584,7 @@ fn fulfill_order(
     let market_checkpoint = clone(market_map.get_ref(&market_index)?.deref());
 
     let fulfillment_methods =
-        determine_fulfillment_methods(&user.orders[user_order_index], false, now)?;
+        determine_fulfillment_methods(&user.orders[user_order_index], false, slot)?;
 
     if fulfillment_methods.is_empty() {
         return Ok((0, false));
@@ -597,6 +609,7 @@ fn fulfill_order(
                 oracle_map,
                 mark_price_before,
                 now,
+                slot,
                 valid_oracle_price,
                 user_key,
                 filler_key,
@@ -614,6 +627,7 @@ fn fulfill_order(
                 filler.as_deref_mut(),
                 filler_key,
                 now,
+                slot,
                 &state.fee_structure,
                 oracle_map,
                 &mut order_records,
@@ -653,6 +667,7 @@ fn fulfill_order(
             market_map,
             oracle_map,
             now,
+            slot,
             OrderActionExplanation::BreachedMarginRequirement,
         )?
     }
@@ -735,6 +750,7 @@ pub fn fulfill_order_with_amm(
     oracle_map: &mut OracleMap,
     mark_price_before: u128,
     now: i64,
+    slot: u64,
     value_oracle_price: Option<i128>,
     user_key: &Pubkey,
     filler_key: &Pubkey,
@@ -757,6 +773,7 @@ pub fn fulfill_order_with_amm(
             market,
             mark_price_before,
             now,
+            slot,
             value_oracle_price,
         )?,
     };
@@ -847,6 +864,7 @@ pub fn fulfill_order_with_amm(
     let fill_record_id = get_then_update_id!(market, next_fill_record_id);
     order_records.push(OrderRecord {
         ts: now,
+        slot,
         taker,
         taker_order,
         maker,
@@ -888,6 +906,7 @@ pub fn fulfill_order_with_match(
     filler: Option<&mut User>,
     filler_key: &Pubkey,
     now: i64,
+    slot: u64,
     fee_structure: &FeeStructure,
     oracle_map: &mut OracleMap,
     order_records: &mut Vec<OrderRecord>,
@@ -899,11 +918,11 @@ pub fn fulfill_order_with_match(
         return Ok((0_u128, false));
     }
 
-    let taker_price = taker.orders[taker_order_index].get_limit_price(None, now)?;
+    let taker_price = taker.orders[taker_order_index].get_limit_price(None, slot)?;
     let taker_base_asset_amount =
         taker.orders[taker_order_index].get_base_asset_amount_unfilled()?;
 
-    let maker_price = maker.orders[maker_order_index].get_limit_price(None, now)?;
+    let maker_price = maker.orders[maker_order_index].get_limit_price(None, slot)?;
     let maker_direction = &maker.orders[maker_order_index].direction;
     let maker_base_asset_amount =
         maker.orders[maker_order_index].get_base_asset_amount_unfilled()?;
@@ -1050,6 +1069,7 @@ pub fn fulfill_order_with_match(
     let fill_record_id = get_then_update_id!(market, next_fill_record_id);
     order_records.push(OrderRecord {
         ts: now,
+        slot,
         taker: *taker_key,
         taker_order: taker.orders[taker_order_index],
         maker: *maker_key,
@@ -1143,6 +1163,7 @@ pub fn execute_non_market_order(
     market: &mut Market,
     mark_price_before: u128,
     now: i64,
+    slot: u64,
     valid_oracle_price: Option<i128>,
 ) -> ClearingHouseResult<(u128, u128, bool, u128)> {
     // Determine the base asset amount the market can fill
@@ -1151,7 +1172,7 @@ pub fn execute_non_market_order(
         market,
         Some(mark_price_before),
         valid_oracle_price,
-        now,
+        slot,
     )?;
 
     if base_asset_amount == 0 {
@@ -1193,7 +1214,7 @@ pub fn execute_non_market_order(
     let position_index = get_position_index(&user.positions, market.market_index)?;
 
     let maker_limit_price = if order_post_only {
-        Some(user.orders[order_index].get_limit_price(valid_oracle_price, now)?)
+        Some(user.orders[order_index].get_limit_price(valid_oracle_price, slot)?)
     } else {
         None
     };

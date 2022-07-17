@@ -20,11 +20,11 @@ pub fn calculate_base_asset_amount_market_can_execute(
     market: &Market,
     precomputed_mark_price: Option<u128>,
     valid_oracle_price: Option<i128>,
-    now: i64,
+    slot: u64,
 ) -> ClearingHouseResult<u128> {
     match order.order_type {
         OrderType::Limit => {
-            calculate_base_asset_amount_to_trade_for_limit(order, market, valid_oracle_price, now)
+            calculate_base_asset_amount_to_trade_for_limit(order, market, valid_oracle_price, slot)
         }
         OrderType::TriggerMarket => calculate_base_asset_amount_to_trade_for_trigger_market(
             order,
@@ -37,7 +37,7 @@ pub fn calculate_base_asset_amount_market_can_execute(
             market,
             precomputed_mark_price,
             valid_oracle_price,
-            now,
+            slot,
         ),
         OrderType::Market => Err(ErrorCode::InvalidOrder),
     }
@@ -47,14 +47,14 @@ pub fn calculate_base_asset_amount_to_trade_for_limit(
     order: &Order,
     market: &Market,
     valid_oracle_price: Option<i128>,
-    now: i64,
+    slot: u64,
 ) -> ClearingHouseResult<u128> {
     let base_asset_amount_to_fill = order
         .base_asset_amount
         .checked_sub(order.base_asset_amount_filled)
         .ok_or_else(math_error!())?;
 
-    let limit_price = order.get_limit_price(valid_oracle_price, now)?;
+    let limit_price = order.get_limit_price(valid_oracle_price, slot)?;
 
     let (max_trade_base_asset_amount, max_trade_direction) =
         math::amm::calculate_max_base_asset_amount_to_trade(
@@ -138,7 +138,7 @@ fn calculate_base_asset_amount_to_trade_for_trigger_limit(
     market: &Market,
     precomputed_mark_price: Option<u128>,
     valid_oracle_price: Option<i128>,
-    now: i64,
+    slot: u64,
 ) -> ClearingHouseResult<u128> {
     // if the order has not been filled yet, need to check that trigger condition is met
     if order.base_asset_amount_filled == 0 {
@@ -153,7 +153,7 @@ fn calculate_base_asset_amount_to_trade_for_trigger_limit(
         }
     }
 
-    calculate_base_asset_amount_to_trade_for_limit(order, market, None, now)
+    calculate_base_asset_amount_to_trade_for_limit(order, market, None, slot)
 }
 
 pub fn limit_price_satisfied(
@@ -246,13 +246,11 @@ pub fn get_position_delta_for_fill(
 pub fn order_breaches_oracle_price_limits(
     order: &Order,
     oracle_price: i128,
-    now: i64,
+    slot: u64,
 ) -> ClearingHouseResult<bool> {
-    let order_limit_price = order.get_limit_price(Some(oracle_price), now)?;
+    let order_limit_price = order.get_limit_price(Some(oracle_price), slot)?;
     let oracle_price = oracle_price.unsigned_abs();
 
-    msg!("order_limit_price {}", order_limit_price);
-    msg!("oracle_price {}", oracle_price);
     match order.direction {
         PositionDirection::Long => {
             if order_limit_price <= oracle_price {

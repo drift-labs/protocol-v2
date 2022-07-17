@@ -208,6 +208,7 @@ pub struct Order {
     pub status: OrderStatus,
     pub order_type: OrderType,
     pub ts: i64,
+    pub slot: u64,
     pub order_id: u64,
     pub user_order_id: u8,
     pub market_index: u64,
@@ -241,7 +242,7 @@ impl Order {
     pub fn get_limit_price(
         &self,
         valid_oracle_price: Option<i128>,
-        now: i64,
+        slot: u64,
     ) -> ClearingHouseResult<u128> {
         // the limit price can be hardcoded on order or derived from oracle_price + oracle_price_offset
         let price = if self.has_oracle_price_offset() {
@@ -269,7 +270,7 @@ impl Order {
                 return Err(crate::error::ErrorCode::OracleNotFound);
             }
         } else if self.order_type == OrderType::Market {
-            calculate_auction_price(self, now)?
+            calculate_auction_price(self, slot)?
         } else {
             self.price
         };
@@ -290,6 +291,7 @@ impl Default for Order {
             status: OrderStatus::Init,
             order_type: OrderType::Limit,
             ts: 0,
+            slot: 0,
             order_id: 0,
             user_order_id: 0,
             market_index: 0,
