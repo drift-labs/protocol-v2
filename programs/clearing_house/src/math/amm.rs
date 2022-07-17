@@ -189,9 +189,9 @@ pub fn update_mark_twap(
     precomputed_trade_price: Option<u128>,
     direction: Option<PositionDirection>,
 ) -> ClearingHouseResult<u128> {
-    let trade_price = match precomputed_trade_price {
+    let trade_price: u128 = match precomputed_trade_price {
         Some(trade_price) => trade_price,
-        None => amm.mark_price()?,
+        None => cast_to_u128(amm.last_oracle_price)?,
     };
 
     // optimistically estimation of bid/ask using execution premium

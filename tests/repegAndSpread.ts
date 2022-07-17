@@ -20,6 +20,7 @@ import { Program } from '@project-serum/anchor';
 
 import {
 	Admin,
+	ClearingHouseUser,
 	// MARK_PRICE_PRECISION,
 	AMM_RESERVE_PRECISION,
 	QUOTE_PRECISION,
@@ -35,7 +36,7 @@ import {
 
 import {
 	getFeedData,
-	// initUserAccounts,
+	initUserAccounts,
 	mockOracle,
 	mockUserUSDCAccount,
 	mockUSDCMint,
@@ -389,5 +390,116 @@ describe('repeg and spread amm', () => {
 		assert(qAR1.eq(market.amm.quoteAssetReserve));
 		console.log(bAR1.toString(), '==', market.amm.baseAssetReserve.toString());
 		assert(bAR1.eq(market.amm.baseAssetReserve));
+
+		await clearingHouse.closePosition(new BN(0));
+		await clearingHouse.settlePNL(
+			await clearingHouse.getUserAccountPublicKey(),
+			clearingHouse.getUserAccount(),
+			marketIndex
+		);
+
+		const clearingHouseUser = new ClearingHouseUser({
+			clearingHouse,
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
+		await clearingHouseUser.subscribe();
+		console.log(clearingHouseUser.getCollateralValue().toString());
+		assert(clearingHouseUser.getCollateralValue().eq(usdcAmount));
+		await clearingHouseUser.unsubscribe();
+	});
+
+	it('5 users, 15 trades, single market, check invariants', async () => {
+		// create <NUM_USERS> users with 10k that collectively do <NUM_EVENTS> actions
+		const [_userUSDCAccounts, _user_keys, clearingHouses, userAccountInfos] =
+			await initUserAccounts(
+				5,
+				usdcMint,
+				usdcAmount,
+				provider,
+				marketIndexes,
+				bankIndexes,
+				[]
+			);
+		let count = 0;
+		let btcPrice = 19790;
+		while (count < 15) {
+			console.log(count);
+
+			if (count % 3 == 0) {
+				btcPrice *= 1.075;
+			} else {
+				btcPrice *= 0.999;
+			}
+			await setFeedPrice(anchor.workspace.Pyth, btcPrice, btcUsd);
+			const oraclePriceData = await getOraclePriceData(
+				anchor.workspace.Pyth,
+				btcUsd
+			);
+
+			const market0 = clearingHouse.getMarketAccount(0);
+			const prepegAMM = calculateUpdatedAMM(market0.amm, oraclePriceData);
+			const [bid, ask] = calculateBidAskPrice(market0.amm, oraclePriceData);
+			const longSpread = calculateSpread(
+				prepegAMM,
+				PositionDirection.LONG,
+				oraclePriceData
+			);
+			const shortSpread = calculateSpread(
+				prepegAMM,
+				PositionDirection.SHORT,
+				oraclePriceData
+			);
+			console.log('spreads:', longSpread, shortSpread);
+			console.log(
+				'bid/oracle/ask:',
+				convertToNumber(bid),
+				btcPrice,
+				convertToNumber(ask)
+			);
+			let tradeSize =
+				0.053 * ((count % 7) + 1) * AMM_RESERVE_PRECISION.toNumber();
+			let tradeDirection;
+			if (count % 2 == 0) {
+				tradeDirection = PositionDirection.LONG;
+				tradeSize *= 2;
+			} else {
+				tradeDirection = PositionDirection.SHORT;
+			}
+
+			const orderParams = getMarketOrderParams(
+				new BN(0),
+				tradeDirection,
+				ZERO,
+				new BN(tradeSize),
+				false
+			);
+
+			await clearingHouses[count % 5].placeAndFillOrder(orderParams);
+			count += 1;
+		}
+
+		for (let i = 0; i < clearingHouses.length; i++) {
+			await clearingHouses[i].closePosition(new BN(0));
+			await clearingHouses[i].settlePNL(
+				await clearingHouses[i].getUserAccountPublicKey(),
+				clearingHouses[i].getUserAccount(),
+				new BN(0)
+			);
+
+			const clearingHouse = clearingHouses[i];
+			const clearingHouseUser = new ClearingHouseUser({
+				clearingHouse,
+				userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+			});
+			await clearingHouseUser.subscribe();
+			console.log(
+				'user',
+				i,
+				':',
+				'$',
+				convertToNumber(clearingHouseUser.getCollateralValue(), QUOTE_PRECISION)
+			);
+			await clearingHouseUser.unsubscribe();
+		}
 	});
 });
