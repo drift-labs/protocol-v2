@@ -1331,6 +1331,32 @@
       ]
     },
     {
+      "name": "updateMarketMaxSpread",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "maxSpread",
+          "type": "u32"
+        }
+      ]
+    },
+    {
       "name": "updateMarketBaseAssetAmountStepSize",
       "accounts": [
         {

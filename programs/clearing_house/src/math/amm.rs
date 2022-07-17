@@ -9,9 +9,9 @@ use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64};
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128,
     AMM_TO_QUOTE_PRECISION_RATIO_I128, BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128,
-    K_BPS_DECREASE_MAX, K_BPS_INCREASE_MAX, K_BPS_UPDATE_SCALE, MARGIN_PRECISION,
-    MARK_PRICE_PRECISION, MAX_BID_ASK_INVENTORY_SKEW_FACTOR, ONE_HOUR_I128, PEG_PRECISION,
-    PRICE_TO_PEG_PRECISION_RATIO, QUOTE_PRECISION,
+    K_BPS_DECREASE_MAX, K_BPS_INCREASE_MAX, K_BPS_UPDATE_SCALE, MARK_PRICE_PRECISION,
+    MAX_BID_ASK_INVENTORY_SKEW_FACTOR, ONE_HOUR_I128, PEG_PRECISION, PRICE_TO_PEG_PRECISION_RATIO,
+    QUOTE_PRECISION,
 };
 use crate::math::position::{_calculate_base_asset_value_and_pnl, calculate_base_asset_value};
 use crate::math::quote_asset::{asset_to_reserve_amount, reserve_to_asset_amount};
@@ -60,16 +60,11 @@ pub fn calculate_terminal_price(market: &mut Market) -> ClearingHouseResult<u128
     Ok(terminal_price)
 }
 
-pub fn calculate_max_spread(margin_ratio_initial: u32) -> ClearingHouseResult<u128> {
-    // Ok((base_spread as u128) * 200)
-    Ok((margin_ratio_initial as u128) * (BID_ASK_SPREAD_PRECISION / MARGIN_PRECISION))
-}
-
 pub fn calculate_spread(
     base_spread: u16,
     last_oracle_mark_spread_pct: i128,
     last_oracle_conf_pct: u64,
-    margin_ratio_initial: u32,
+    max_spread: u32,
     quote_asset_reserve: u128,
     terminal_quote_asset_reserve: u128,
     peg_multiplier: u128,
@@ -165,7 +160,8 @@ pub fn calculate_spread(
         .checked_add(short_spread)
         .ok_or_else(math_error!())?;
 
-    let max_spread = calculate_max_spread(margin_ratio_initial)?;
+    let max_spread = max_spread as u128;
+
     if total_spread > max_spread {
         if long_spread > short_spread {
             long_spread = min(max_spread, long_spread);

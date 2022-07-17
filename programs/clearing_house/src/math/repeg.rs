@@ -467,7 +467,7 @@ pub fn calculate_optimal_peg_and_budget(
         check_lower_bound = false;
 
         let max_price_spread = cast_to_i128(
-            amm::calculate_max_spread(market.margin_ratio_initial)?
+            (market.amm.max_spread as u128)
                 .checked_mul(target_price)
                 .ok_or_else(math_error!())?
                 .checked_div(BID_ASK_SPREAD_PRECISION)

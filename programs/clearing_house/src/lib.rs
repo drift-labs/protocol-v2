@@ -334,7 +334,7 @@ pub mod clearing_house {
 
         validate_margin(
             margin_ratio_initial,
-            margin_ratio_initial,
+            margin_ratio_partial,
             margin_ratio_maintenance,
         )?;
 
@@ -2178,6 +2178,26 @@ pub mod clearing_house {
         market.amm.base_spread = base_spread;
         market.amm.long_spread = (base_spread / 2) as u128;
         market.amm.short_spread = (base_spread / 2) as u128;
+        Ok(())
+    }
+
+    #[access_control(
+        market_initialized(&ctx.accounts.market)
+    )]
+    pub fn update_market_max_spread(
+        ctx: Context<AdminUpdateMarket>,
+        max_spread: u32,
+    ) -> Result<()> {
+        let market = &mut ctx.accounts.market.load_mut()?;
+        validate!(
+            (max_spread > market.amm.base_spread as u32)
+                && (max_spread <= market.margin_ratio_initial * 100),
+            ErrorCode::DefaultError,
+            "invalid max_spread",
+        )?;
+
+        market.amm.max_spread = max_spread;
+
         Ok(())
     }
 

@@ -376,10 +376,7 @@ export function calculateSpreadBN(
 		);
 	}
 
-	// console.log('JUST ORACLE RETEREAT, ss:', shortSpread, 'ls:', longSpread);
-	// const maxTargetSpread: number = baseSpread * 200;
 	const maxTargetSpread: number = maxSpread;
-	// calculateMaxSpread(marginRatioInitial);
 
 	const MAX_INVENTORY_SKEW = 5;
 

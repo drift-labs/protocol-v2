@@ -143,11 +143,7 @@ pub fn update_amm(
         market.amm.last_update_slot = clock_slot;
     }
 
-    update_spreads(
-        &mut market.amm,
-        mark_price_after,
-        market.margin_ratio_initial,
-    )?;
+    update_spreads(&mut market.amm, mark_price_after)?;
 
     Ok(amm_update_cost)
 }

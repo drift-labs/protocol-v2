@@ -444,6 +444,19 @@ export class Admin extends ClearingHouse {
 		});
 	}
 
+	public async updateMarketMaxSpread(
+		marketIndex: BN,
+		maxSpread: number
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateMarketMaxSpread(maxSpread, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				market: await getMarketPublicKey(this.program.programId, marketIndex),
+			},
+		});
+	}
+
 	public async updatePartialLiquidationClosePercentage(
 		numerator: BN,
 		denominator: BN
