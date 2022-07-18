@@ -469,7 +469,6 @@ pub struct SettleFunding<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub user: AccountLoader<'info, User>,
-    pub market: AccountLoader<'info, Market>,
 }
 
 #[derive(Accounts)]

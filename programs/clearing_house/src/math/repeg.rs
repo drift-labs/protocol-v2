@@ -342,8 +342,10 @@ pub fn adjust_amm(
     } else {
         // use full budget peg
 
+        let can_lower_k = market.amm.can_lower_k()?;
+
         // equivalent to (but cheaper than) scaling down by .1%
-        let adjustment_cost: i128 = if adjust_k {
+        let adjustment_cost: i128 = if adjust_k && can_lower_k {
             // TODO can be off by 1?
 
             let new_sqrt_k = market
@@ -591,7 +593,7 @@ mod test {
                 ..AMM::default()
             },
             next_curve_record_id: 1,
-            next_trade_record_id: 4,
+            next_fill_record_id: 4,
             margin_ratio_initial: 1000,
             margin_ratio_partial: 714,
             margin_ratio_maintenance: 500,

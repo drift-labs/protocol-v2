@@ -28,7 +28,7 @@ pub struct Market {
     pub margin_ratio_initial: u32,
     pub margin_ratio_partial: u32,
     pub margin_ratio_maintenance: u32,
-    pub next_trade_record_id: u64,
+    pub next_fill_record_id: u64,
     pub next_funding_rate_record_id: u64,
     pub next_curve_record_id: u64,
     pub pnl_pool: PoolBalance,
@@ -195,6 +195,11 @@ impl AMM {
             OracleSource::Switchboard => self.get_switchboard_price(price_oracle, clock_slot),
             OracleSource::QuoteAsset => panic!(),
         }
+    }
+
+    pub fn can_lower_k(&self) -> ClearingHouseResult<bool> {
+        let can_lower = self.net_base_asset_amount.unsigned_abs() < self.sqrt_k / 4;
+        Ok(can_lower)
     }
 
     pub fn get_pyth_price(

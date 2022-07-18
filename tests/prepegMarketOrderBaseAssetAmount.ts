@@ -231,17 +231,15 @@ describe('prepeg', () => {
 		assert.ok(market.amm.totalFee.gt(new BN(49750)));
 		assert.ok(market.amm.totalFeeMinusDistributions.gt(new BN(49750)));
 
-		const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
-		assert.ok(tradeRecord.user.equals(userAccountPublicKey));
-		assert.ok(tradeRecord.recordId.eq(new BN(1)));
+		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
+		assert.ok(orderRecord.taker.equals(userAccountPublicKey));
 		assert.ok(
-			JSON.stringify(tradeRecord.direction) ===
+			JSON.stringify(orderRecord.takerOrder.direction) ===
 				JSON.stringify(PositionDirection.LONG)
 		);
-		assert.ok(tradeRecord.baseAssetAmount.eq(new BN(497450500000000)));
-		assert.ok(tradeRecord.liquidation == false);
-		assert.ok(tradeRecord.quoteAssetAmount.gt(new BN(49750001)));
-		assert.ok(tradeRecord.marketIndex.eq(marketIndex));
+		assert.ok(orderRecord.baseAssetAmountFilled.eq(new BN(497450500000000)));
+		assert.ok(orderRecord.quoteAssetAmountFilled.gt(new BN(49750001)));
+		assert.ok(orderRecord.takerOrder.marketIndex.eq(marketIndex));
 	});
 
 	it('Long even more', async () => {
@@ -425,18 +423,16 @@ describe('prepeg', () => {
 
 		console.log(market.amm.netBaseAssetAmount.toString());
 
-		const tradeRecord = eventSubscriber.getEventsArray('TradeRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 
-		assert.ok(tradeRecord.user.equals(userAccountPublicKey));
-		assert.ok(tradeRecord.recordId.eq(new BN(3)));
+		assert.ok(orderRecord.taker.equals(userAccountPublicKey));
 		assert.ok(
-			JSON.stringify(tradeRecord.direction) ===
+			JSON.stringify(orderRecord.takerOrder.direction) ===
 				JSON.stringify(PositionDirection.SHORT)
 		);
-		console.log(tradeRecord.baseAssetAmount.toNumber());
-		assert.ok(tradeRecord.baseAssetAmount.eq(new BN(248725250000000)));
-		assert.ok(tradeRecord.liquidation == false);
-		assert.ok(tradeRecord.marketIndex.eq(new BN(0)));
+		console.log(orderRecord.baseAssetAmountFilled.toNumber());
+		assert.ok(orderRecord.baseAssetAmountFilled.eq(new BN(248725250000000)));
+		assert.ok(orderRecord.marketIndex.eq(new BN(0)));
 	});
 
 	it('Many market balanced prepegs, long position', async () => {

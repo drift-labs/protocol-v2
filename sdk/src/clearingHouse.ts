@@ -541,7 +541,7 @@ export class ClearingHouse {
 		} else {
 			remainingAccounts = [
 				{
-					pubkey: this.getQuoteAssetBankAccount().pubkey,
+					pubkey: this.getBankAccount(bankIndex).pubkey,
 					isSigner: false,
 					isWritable: true,
 				},
@@ -575,6 +575,7 @@ export class ClearingHouse {
 	 * @param name
 	 * @param amount
 	 * @param userTokenAccount
+	 * @param fromUserId
 	 * @returns
 	 */
 	public async initializeUserAccountAndDepositCollateral(
@@ -582,19 +583,23 @@ export class ClearingHouse {
 		userTokenAccount: PublicKey,
 		bankIndex = new BN(0),
 		userId = 0,
-		name = DEFAULT_USER_NAME
+		name = DEFAULT_USER_NAME,
+		fromUserId?: number
 	): Promise<[TransactionSignature, PublicKey]> {
 		const [userAccountPublicKey, initializeUserAccountIx] =
 			await this.getInitializeUserInstructions(userId, name);
 
-		const depositCollateralIx = await this.getDepositInstruction(
-			amount,
-			bankIndex,
-			userTokenAccount,
-			userId,
-			false,
-			false
-		);
+		const depositCollateralIx =
+			fromUserId != null
+				? await this.getTransferDepositIx(amount, bankIndex, fromUserId, userId)
+				: await this.getDepositInstruction(
+						amount,
+						bankIndex,
+						userTokenAccount,
+						userId,
+						false,
+						false
+				  );
 
 		const tx = new Transaction()
 			.add(initializeUserAccountIx)

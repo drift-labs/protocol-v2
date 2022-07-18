@@ -19,6 +19,7 @@ import {
 	PositionDirection,
 	convertToNumber,
 	squareRootBN,
+	calculateBudgetedKBN,
 } from '../sdk/src';
 
 import {
@@ -536,5 +537,72 @@ describe('update k', () => {
 			'USER getTotalCollateral',
 			convertToNumber(userAccount.getTotalCollateral(), QUOTE_PRECISION)
 		);
+	});
+
+	it('budget k change (sdk math)', async () => {
+		// pay $.11 to increase k
+		let [numer1, denom1] = calculateBudgetedKBN(
+			new BN('49750000004950'), // x
+			new BN('50250000000000'), // y
+			new BN('114638'), // cost
+			new BN('40000'), // peg
+			new BN('49750000004950') // net position
+		);
+		console.log(numer1.toString(), '/', denom1.toString());
+
+		assert(numer1.eq(new BN(4980550350)));
+		assert(denom1.eq(new BN(4969200901)));
+
+		// gain $.11 by decreasing k
+		[numer1, denom1] = calculateBudgetedKBN(
+			new BN('49750000004950'), // x
+			new BN('50250000000000'), // y
+			new BN('-114638'), // cost
+			new BN('40000'), // peg
+			new BN('49750000004950') // net position
+		);
+		console.log(numer1.toString(), '/', denom1.toString());
+		assert(numer1.eq(new BN(4969200901)));
+		assert(denom1.eq(new BN(4980550350)));
+		assert(numer1.lt(denom1));
+
+		// pay $11 to increase k
+		[numer1, denom1] = calculateBudgetedKBN(
+			new BN('49750000004950'),
+			new BN('50250000000000'),
+			new BN('11463800'),
+			new BN('40000'),
+			new BN('49750000004950')
+		);
+		console.log(numer1.toString(), '/', denom1.toString());
+
+		assert(numer1.eq(new BN(5542348055)));
+		assert(denom1.eq(new BN(4407403196)));
+		assert(numer1.gt(denom1));
+
+		// net pos so small that decreasing k for .01 is sending to zero (squeezing a stone)
+		[numer1, denom1] = calculateBudgetedKBN(
+			new BN('500000000049750000004950'),
+			new BN('499999999950250000000000'),
+			new BN('-10000'),
+			new BN('40000'),
+			new BN('-49750000004950')
+		);
+		console.log(numer1.toString(), '/', denom1.toString());
+
+		assert(numer1.eq(new BN('49498762504924880624')));
+		assert(denom1.eq(new BN('25000049503737504925373124')));
+
+		// impossible task trying to spend more than amount to make k infinity
+		[numer1, denom1] = calculateBudgetedKBN(
+			new BN('500000000049750000004950'),
+			new BN('499999999950250000000000'),
+			new BN('10000'),
+			new BN('40000'),
+			new BN('-49750000004950')
+		);
+		console.log(numer1.toString(), '/', denom1.toString());
+
+		assert(denom1.lt(new BN(0))); // throws negative
 	});
 });

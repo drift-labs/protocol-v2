@@ -219,7 +219,7 @@ pub struct Order {
     pub user_order_id: u8,
     pub market_index: u64,
     pub price: u128,
-    pub user_base_asset_amount: i128,
+    pub existing_position_direction: PositionDirection,
     pub quote_asset_amount: u128,
     pub base_asset_amount: u128,
     pub base_asset_amount_filled: u128,
@@ -301,7 +301,7 @@ impl Default for Order {
             user_order_id: 0,
             market_index: 0,
             price: 0,
-            user_base_asset_amount: 0,
+            existing_position_direction: PositionDirection::Long,
             base_asset_amount: 0,
             quote_asset_amount: 0,
             base_asset_amount_filled: 0,
@@ -328,6 +328,8 @@ impl Default for Order {
 pub enum OrderStatus {
     Init,
     Open,
+    Filled,
+    Canceled,
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
