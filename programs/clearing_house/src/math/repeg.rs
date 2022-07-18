@@ -462,10 +462,8 @@ pub fn calculate_optimal_peg_and_budget(
 
     let optimal_peg_cost = calculate_repeg_cost(&market.amm, optimal_peg)?;
 
-    let check_lower_bound: bool;
+    let mut check_lower_bound = true;
     if fee_budget < cast_to_u128(max(0, optimal_peg_cost))? {
-        check_lower_bound = false;
-
         let max_price_spread = cast_to_i128(
             (market.amm.max_spread as u128)
                 .checked_mul(target_price)
@@ -501,9 +499,8 @@ pub fn calculate_optimal_peg_and_budget(
                 target_price,
             )?;
             fee_budget = cast_to_u128(calculate_repeg_cost(&market.amm, optimal_peg)?)?;
+            check_lower_bound = false;
         }
-    } else {
-        check_lower_bound = true;
     }
 
     Ok((optimal_peg, fee_budget, check_lower_bound))
@@ -587,8 +584,8 @@ pub fn get_total_fee_lower_bound(market: &Market) -> ClearingHouseResult<u128> {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::controller::amm::SwapDirection;
     use crate::math::constants::{AMM_RESERVE_PRECISION, MARK_PRICE_PRECISION, QUOTE_PRECISION};
-
     #[test]
     fn calc_peg_tests() {
         let qar = AMM_RESERVE_PRECISION;
@@ -627,6 +624,8 @@ mod test {
                 base_spread: 250,
                 curve_update_intensity: 100,
                 max_spread: 500 * 100,
+                total_exchange_fee: QUOTE_PRECISION,
+                total_fee_minus_distributions: (40 * QUOTE_PRECISION) as i128,
                 ..AMM::default()
             },
             margin_ratio_initial: 500,
@@ -635,6 +634,10 @@ mod test {
         };
 
         let now = 10000 as i64;
+        let mark_price = market.amm.mark_price().unwrap();
+        assert_eq!(mark_price, 188076686390578); //$ 18,807.6686390578
+
+        // positive target_price_gap exceeding max_spread
         let oracle_price_data = OraclePriceData {
             price: (12_400 * MARK_PRICE_PRECISION) as i128,
             confidence: 0,
@@ -647,6 +650,93 @@ mod test {
 
         assert_eq!(optimal_peg, 13430054);
         assert_eq!(budget, 5878100676);
+        assert_eq!(check_lb, false);
+
+        // positive target_price_gap within max_spread
+        let oracle_price_data = OraclePriceData {
+            price: (18_901 * MARK_PRICE_PRECISION) as i128,
+            confidence: 167,
+            delay: 21,
+            has_sufficient_number_of_data_points: true,
+        };
+        let (optimal_peg, budget, check_lb) =
+            calculate_optimal_peg_and_budget(&market, &oracle_price_data).unwrap();
+
+        assert_eq!(optimal_peg, 19496271);
+        assert_eq!(budget, 39500000);
+        assert_eq!(check_lb, true);
+
+        // positive target_price_gap 2 within max_spread?
+        let oracle_price_data = OraclePriceData {
+            price: (18_601 * MARK_PRICE_PRECISION) as i128,
+            confidence: 167,
+            delay: 21,
+            has_sufficient_number_of_data_points: true,
+        };
+        let (optimal_peg, budget, check_lb) =
+            calculate_optimal_peg_and_budget(&market, &oracle_price_data).unwrap();
+
+        assert_eq!(optimal_peg, 19186823);
+        assert_eq!(budget, 39500000);
+        assert_eq!(check_lb, true);
+
+        // negative target_price_gap within max_spread
+        let oracle_price_data = OraclePriceData {
+            price: (20_400 * MARK_PRICE_PRECISION) as i128,
+            confidence: 1234567,
+            delay: 21,
+            has_sufficient_number_of_data_points: true,
+        };
+        let (optimal_peg, budget, check_lb) =
+            calculate_optimal_peg_and_budget(&market, &oracle_price_data).unwrap();
+
+        assert_eq!(optimal_peg, 21042480);
+        assert_eq!(budget, 39500000);
+        assert_eq!(check_lb, true);
+
+        // negative target_price_gap exceeding max_spread (in favor of vAMM)
+        let oracle_price_data = OraclePriceData {
+            price: (42_400 * MARK_PRICE_PRECISION) as i128,
+            confidence: 0,
+            delay: 2,
+            has_sufficient_number_of_data_points: true,
+        };
+        let (optimal_peg, budget, check_lb) =
+            calculate_optimal_peg_and_budget(&market, &oracle_price_data).unwrap();
+
+        assert_eq!(optimal_peg, 43735352);
+        assert_eq!(budget, 39500000);
+        assert_eq!(check_lb, true);
+
+        market.amm.net_base_asset_amount = AMM_RESERVE_PRECISION as i128;
+
+        let swap_direction = if market.amm.net_base_asset_amount > 0 {
+            SwapDirection::Add
+        } else {
+            SwapDirection::Remove
+        };
+        let (new_terminal_quote_reserve, _new_terminal_base_reserve) = amm::calculate_swap_output(
+            market.amm.net_base_asset_amount.unsigned_abs(),
+            market.amm.base_asset_reserve,
+            swap_direction,
+            market.amm.sqrt_k,
+        )
+        .unwrap();
+
+        market.amm.terminal_quote_asset_reserve = new_terminal_quote_reserve;
+
+        // negative target_price_gap exceeding max_spread (not in favor of vAMM)
+        let oracle_price_data = OraclePriceData {
+            price: (42_400 * MARK_PRICE_PRECISION) as i128,
+            confidence: 0,
+            delay: 2,
+            has_sufficient_number_of_data_points: true,
+        };
+        let (optimal_peg, budget, check_lb) =
+            calculate_optimal_peg_and_budget(&market, &oracle_price_data).unwrap();
+
+        assert_eq!(optimal_peg, 41548584);
+        assert_eq!(budget, 21146993022); // $21146.993022
         assert_eq!(check_lb, false);
     }
 
