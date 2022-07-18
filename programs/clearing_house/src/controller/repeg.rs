@@ -216,6 +216,7 @@ mod test {
                 last_oracle_price_twap: 19_400 * MARK_PRICE_PRECISION_I128,
                 base_spread: 250,
                 curve_update_intensity: 100,
+                max_spread: 55500,
                 ..AMM::default()
             },
             margin_ratio_initial: 555, // max 1/.0555 = 18.018018018x leverage

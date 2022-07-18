@@ -1184,13 +1184,13 @@ mod test {
         let mut total_fee_minus_distributions = 0;
 
         let margin_ratio_initial = 2000; // 5x max leverage
-
+        let max_spread = margin_ratio_initial * 100;
         // at 0 fee be max spread
         let (long_spread1, short_spread1) = calculate_spread(
             base_spread,
             last_oracle_mark_spread_pct,
             last_oracle_conf_pct,
-            margin_ratio_initial,
+            max_spread,
             quote_asset_reserve,
             terminal_quote_asset_reserve,
             peg_multiplier,
@@ -1209,7 +1209,7 @@ mod test {
             base_spread,
             last_oracle_mark_spread_pct,
             last_oracle_conf_pct,
-            margin_ratio_initial,
+            max_spread,
             quote_asset_reserve,
             terminal_quote_asset_reserve,
             peg_multiplier,
@@ -1229,7 +1229,7 @@ mod test {
             base_spread,
             last_oracle_mark_spread_pct,
             last_oracle_conf_pct,
-            margin_ratio_initial,
+            max_spread,
             quote_asset_reserve,
             terminal_quote_asset_reserve,
             peg_multiplier,
@@ -1253,7 +1253,7 @@ mod test {
             base_spread,
             last_oracle_mark_spread_pct,
             last_oracle_conf_pct,
-            margin_ratio_initial,
+            max_spread,
             quote_asset_reserve,
             terminal_quote_asset_reserve,
             peg_multiplier,
@@ -1273,7 +1273,7 @@ mod test {
             base_spread,
             last_oracle_mark_spread_pct,
             last_oracle_conf_pct,
-            margin_ratio_initial,
+            max_spread,
             quote_asset_reserve,
             terminal_quote_asset_reserve,
             peg_multiplier,
@@ -1312,7 +1312,7 @@ mod test {
             500,
             62099,
             411,
-            margin_ratio_initial,
+            margin_ratio_initial * 100,
             942800306955655,
             944728468434773,
             21966868,
@@ -1329,7 +1329,7 @@ mod test {
             500,
             70719,
             0,
-            margin_ratio_initial,
+            margin_ratio_initial * 100,
             921137624214280,
             923064882199510,
             21754071,

@@ -637,6 +637,7 @@ mod test {
                 last_mark_price_twap_ts: 0,
                 base_spread: 250,
                 curve_update_intensity: 100,
+                max_spread: 500 * 100,
                 ..AMM::default()
             },
             margin_ratio_initial: 500,

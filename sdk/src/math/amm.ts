@@ -64,8 +64,6 @@ export function calculateOptimalPegAndBudget(
 			.mul(targetPrice)
 			.div(BID_ASK_SPREAD_PRECISION);
 
-		// console.log('maxPriceSpread:', maxPriceSpread.toNumber());
-
 		let markAdj: BN;
 		let newTargetPrice: BN;
 		let newOptimalPeg: BN;
