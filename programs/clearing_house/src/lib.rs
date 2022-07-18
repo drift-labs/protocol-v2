@@ -1022,8 +1022,13 @@ pub mod clearing_house {
             &mut market_map,
             &mut oracle_map,
             &ctx.accounts.state,
-            &Clock::get()?,
+            &clock,
         )?;
+
+        {
+            let bank = &mut bank_map.get_quote_asset_bank_mut()?;
+            controller::bank_balance::update_bank_cumulative_interest(bank, clock.unix_timestamp)?;
+        }
 
         let user = &mut load_mut(&ctx.accounts.user)?;
         let position_index = get_position_index(&user.positions, market_index)?;
