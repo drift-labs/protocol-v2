@@ -10,7 +10,7 @@ use crate::state::user::User;
 
 use crate::error::ErrorCode;
 use crate::math::amm::use_oracle_price_for_margin_calculation;
-use crate::math::bank_balance::get_balance_value;
+use crate::math::bank_balance::get_balance_value_and_token_amount;
 use crate::math::casting::cast_to_i128;
 use crate::math::oracle::{get_oracle_status, OracleStatus};
 // use crate::math::repeg;
@@ -52,14 +52,17 @@ pub fn calculate_margin_requirement_and_total_collateral(
         let bank = &bank_map.get_ref(&user_bank_balance.bank_index)?;
 
         let oracle_price_data = oracle_map.get_price_data(&bank.oracle)?;
-        let balance_value = get_balance_value(user_bank_balance, bank, oracle_price_data)?;
+        let (balance_value, token_amount) =
+            get_balance_value_and_token_amount(user_bank_balance, bank, oracle_price_data)?;
 
         match user_bank_balance.balance_type {
             BankBalanceType::Deposit => {
                 total_collateral = total_collateral
                     .checked_add(
                         balance_value
-                            .checked_mul(bank.get_asset_weight(&margin_requirement_type))
+                            .checked_mul(
+                                bank.get_asset_weight(token_amount, &margin_requirement_type)?,
+                            )
                             .ok_or_else(math_error!())?
                             .checked_div(BANK_WEIGHT_PRECISION)
                             .ok_or_else(math_error!())?,
@@ -152,14 +155,17 @@ pub fn calculate_net_quote_balance(
         let bank = &bank_map.get_ref(&user_bank_balance.bank_index)?;
 
         let oracle_price_data = oracle_map.get_price_data(&bank.oracle)?;
-        let balance_value = get_balance_value(user_bank_balance, bank, oracle_price_data)?;
+        let (balance_value, token_amount) =
+            get_balance_value_and_token_amount(user_bank_balance, bank, oracle_price_data)?;
 
         match user_bank_balance.balance_type {
             BankBalanceType::Deposit => {
                 net_quote_balance = net_quote_balance
                     .checked_add(cast_to_i128(
                         balance_value
-                            .checked_mul(bank.get_asset_weight(&margin_requirement_type))
+                            .checked_mul(
+                                bank.get_asset_weight(token_amount, &margin_requirement_type)?,
+                            )
                             .ok_or_else(math_error!())?
                             .checked_div(BANK_WEIGHT_PRECISION)
                             .ok_or_else(math_error!())?,
@@ -276,14 +282,18 @@ pub fn calculate_liquidation_status(
         let bank = &bank_map.get_ref(&user_bank_balance.bank_index)?;
 
         let oracle_price_data = oracle_map.get_price_data(&bank.oracle)?;
-        let balance_value = get_balance_value(user_bank_balance, bank, oracle_price_data)?;
+        let (balance_value, token_amount) =
+            get_balance_value_and_token_amount(user_bank_balance, bank, oracle_price_data)?;
 
         match user_bank_balance.balance_type {
             BankBalanceType::Deposit => {
                 deposit_value = deposit_value
                     .checked_add(
                         balance_value
-                            .checked_mul(bank.get_asset_weight(&MarginRequirementType::Maintenance))
+                            .checked_mul(bank.get_asset_weight(
+                                token_amount,
+                                &MarginRequirementType::Maintenance,
+                            )?)
                             .ok_or_else(math_error!())?
                             .checked_div(BANK_WEIGHT_PRECISION)
                             .ok_or_else(math_error!())?,
@@ -525,19 +535,24 @@ pub fn calculate_free_collateral(
         let bank = &bank_map.get_ref(&user_bank_balance.bank_index)?;
 
         let oracle_price_data = oracle_map.get_price_data(&bank.oracle)?;
-        let balance_value = get_balance_value(user_bank_balance, bank, oracle_price_data)?;
+        let (balance_value, token_amount) =
+            get_balance_value_and_token_amount(user_bank_balance, bank, oracle_price_data)?;
 
         match user_bank_balance.balance_type {
             BankBalanceType::Deposit => {
-                deposit_value = deposit_value
-                    .checked_add(
-                        balance_value
-                            .checked_mul(bank.get_asset_weight(&MarginRequirementType::Initial))
-                            .ok_or_else(math_error!())?
-                            .checked_div(BANK_WEIGHT_PRECISION)
-                            .ok_or_else(math_error!())?,
-                    )
-                    .ok_or_else(math_error!())?;
+                deposit_value =
+                    deposit_value
+                        .checked_add(
+                            balance_value
+                                .checked_mul(bank.get_asset_weight(
+                                    token_amount,
+                                    &MarginRequirementType::Initial,
+                                )?)
+                                .ok_or_else(math_error!())?
+                                .checked_div(BANK_WEIGHT_PRECISION)
+                                .ok_or_else(math_error!())?,
+                        )
+                        .ok_or_else(math_error!())?;
             }
             BankBalanceType::Borrow => panic!(),
         }
@@ -592,4 +607,33 @@ pub fn calculate_free_collateral(
     };
 
     Ok((free_collateral, closed_position_base_asset_value))
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::math::constants::{
+        AMM_RESERVE_PRECISION, BANK_IMF_PRECISION, BANK_WEIGHT_PRECISION, QUOTE_PRECISION,
+    };
+    use crate::state::bank::Bank;
+    #[test]
+    fn bank_asset_weight() {
+        let mut bank = Bank {
+            initial_asset_weight: 90,
+            imf_factor: 0,
+            ..Bank::default()
+        };
+
+        let size = 1000 * AMM_RESERVE_PRECISION;
+        let asset_weight = bank
+            .get_asset_weight(size, &MarginRequirementType::Initial)
+            .unwrap();
+        assert_eq!(asset_weight, 90);
+
+        bank.imf_factor = BANK_IMF_PRECISION / 10;
+        let asset_weight = bank
+            .get_asset_weight(size, &MarginRequirementType::Initial)
+            .unwrap();
+        assert_eq!(asset_weight, 26);
+    }
 }

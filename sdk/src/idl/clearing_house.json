@@ -141,6 +141,10 @@
         {
           "name": "maintenanceLiabilityWeight",
           "type": "u128"
+        },
+        {
+          "name": "imfFactor",
+          "type": "u128"
         }
       ]
     },
@@ -939,11 +943,6 @@
           "name": "user",
           "isMut": true,
           "isSigner": false
-        },
-        {
-          "name": "market",
-          "isMut": false,
-          "isSigner": false
         }
       ],
       "args": []
@@ -1594,6 +1593,10 @@
           },
           {
             "name": "maintenanceLiabilityWeight",
+            "type": "u128"
+          },
+          {
+            "name": "imfFactor",
             "type": "u128"
           }
         ]

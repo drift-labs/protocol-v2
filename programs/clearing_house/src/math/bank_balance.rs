@@ -184,11 +184,11 @@ pub fn calculate_accumulated_interest(
     })
 }
 
-pub fn get_balance_value(
+pub fn get_balance_value_and_token_amount(
     bank_balance: &UserBankBalance,
     bank: &Bank,
     oracle_price_data: &OraclePriceData,
-) -> ClearingHouseResult<u128> {
+) -> ClearingHouseResult<(u128, u128)> {
     let token_amount = get_token_amount(bank_balance.balance, bank, &bank_balance.balance_type)?;
 
     let precision_decrease = 10_u128.pow(10_u32 + (bank.decimals - 6) as u32);
@@ -199,5 +199,14 @@ pub fn get_balance_value(
         .checked_div(precision_decrease)
         .ok_or_else(math_error!())?;
 
+    Ok((value, token_amount))
+}
+
+pub fn get_balance_value(
+    bank_balance: &UserBankBalance,
+    bank: &Bank,
+    oracle_price_data: &OraclePriceData,
+) -> ClearingHouseResult<u128> {
+    let (value, _) = get_balance_value_and_token_amount(bank_balance, bank, oracle_price_data)?;
     Ok(value)
 }

@@ -132,6 +132,7 @@ pub mod clearing_house {
         maintenance_asset_weight: u128,
         initial_liability_weight: u128,
         maintenance_liability_weight: u128,
+        imf_factor: u128,
     ) -> Result<()> {
         let state = &mut ctx.accounts.state;
         let bank_pubkey = ctx.accounts.bank.key();
@@ -269,6 +270,7 @@ pub mod clearing_house {
             maintenance_asset_weight,
             initial_liability_weight,
             maintenance_liability_weight,
+            imf_factor,
         };
 
         Ok(())
