@@ -336,26 +336,24 @@ pub fn update_pool_balances(
 
     if market.amm.total_fee_minus_distributions < amm_fee_pool_token_amount {
         // owe the market pnl pool before settling user
-        if market.amm.total_fee_minus_distributions != amm_fee_pool_token_amount {
-            let pnl_pool_addition = max(0, market.amm.total_fee_minus_distributions)
-                .checked_sub(amm_fee_pool_token_amount)
-                .ok_or_else(math_error!())?;
+        let pnl_pool_addition = max(0, market.amm.total_fee_minus_distributions)
+            .checked_sub(amm_fee_pool_token_amount)
+            .ok_or_else(math_error!())?;
 
-            if pnl_pool_addition < 0 {
-                update_bank_balances(
-                    pnl_pool_addition.unsigned_abs(),
-                    &BankBalanceType::Borrow,
-                    bank,
-                    &mut market.amm.fee_pool,
-                )?;
+        if pnl_pool_addition < 0 {
+            update_bank_balances(
+                pnl_pool_addition.unsigned_abs(),
+                &BankBalanceType::Borrow,
+                bank,
+                &mut market.amm.fee_pool,
+            )?;
 
-                update_bank_balances(
-                    pnl_pool_addition.unsigned_abs(),
-                    &BankBalanceType::Deposit,
-                    bank,
-                    &mut market.pnl_pool,
-                )?;
-            }
+            update_bank_balances(
+                pnl_pool_addition.unsigned_abs(),
+                &BankBalanceType::Deposit,
+                bank,
+                &mut market.pnl_pool,
+            )?;
         }
 
         fraction_for_amm = 0;
