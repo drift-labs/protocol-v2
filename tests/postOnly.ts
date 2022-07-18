@@ -214,7 +214,7 @@ describe('post only', () => {
 		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 
 		assert(isVariant(orderRecord.action, 'fill'));
-		assert(orderRecord.fee.eq(ZERO));
+		assert(orderRecord.takerFee.eq(ZERO));
 		assert(orderRecord.quoteAssetAmountSurplus.eq(new BN(499875)));
 
 		await clearingHouse.unsubscribe();
@@ -305,7 +305,7 @@ describe('post only', () => {
 		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 
 		assert(isVariant(orderRecord.action, 'fill'));
-		assert(orderRecord.fee.eq(new BN(0)));
+		assert(orderRecord.takerFee.eq(new BN(0)));
 		assert(orderRecord.quoteAssetAmountSurplus.eq(new BN(999492)));
 
 		await clearingHouse.unsubscribe();

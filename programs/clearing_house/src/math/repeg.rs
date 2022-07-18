@@ -225,24 +225,6 @@ pub fn calculate_amm_target_price(
     Ok(target_price)
 }
 
-pub fn calculate_prepeg_market(
-    market: &Market,
-    oracle_price_data: &OraclePriceData,
-    fee_budget: u128,
-) -> ClearingHouseResult<AMM> {
-    let target_price = cast_to_u128(oracle_price_data.price)?;
-
-    let optimal_peg = calculate_peg_from_target_price(
-        market.amm.quote_asset_reserve,
-        market.amm.base_asset_reserve,
-        target_price,
-    )?;
-
-    let (repegged_market, _cost) = adjust_amm(market, optimal_peg, fee_budget, false)?;
-
-    Ok(repegged_market.amm)
-}
-
 pub fn adjust_peg_cost(
     market: &Market,
     new_peg_candidate: u128,
@@ -351,10 +333,8 @@ pub fn adjust_amm(
         || (budget_delta_peg_magnitude > delta_peg.unsigned_abs())
     {
         // use optimal peg
-        cost = per_peg_cost
-            .checked_mul(delta_peg)
-            .ok_or_else(math_error!())?;
         new_peg = optimal_peg;
+        cost = calculate_repeg_cost(&market_clone.amm, new_peg)?;
     } else {
         // use full budget peg
 
@@ -435,9 +415,8 @@ pub fn adjust_amm(
                 .checked_sub(budget_delta_peg_magnitude)
                 .ok_or_else(math_error!())?
         };
-        cost = budget_delta_peg
-            .checked_mul(per_peg_cost)
-            .ok_or_else(math_error!())?;
+
+        cost = calculate_repeg_cost(&market_clone.amm, new_peg)?;
     }
 
     market_clone.amm.peg_multiplier = new_peg;
@@ -772,7 +751,7 @@ mod test {
 
         let (repegged_market, _amm_update_cost) =
             adjust_amm(&market, optimal_peg, 0, true).unwrap();
-        assert_eq!(_amm_update_cost, -1615699103);
+        assert_eq!(_amm_update_cost, -1618354215);
         assert_eq!(repegged_market.amm.peg_multiplier, optimal_peg);
 
         let post_price = repegged_market.amm.mark_price().unwrap();
@@ -830,6 +809,6 @@ mod test {
         let old_peg = market.amm.peg_multiplier;
         assert_eq!(new_peg > old_peg, true);
         assert_eq!(new_peg, 34656);
-        assert_eq!(_amm_update_cost, 303303);
+        assert_eq!(_amm_update_cost, 303006);
     }
 }

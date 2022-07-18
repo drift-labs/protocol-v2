@@ -415,6 +415,12 @@ describe('repeg and spread amm', () => {
 
 	it('5 users, 15 trades, single market, check invariants', async () => {
 		// create <NUM_USERS> users with 10k that collectively do <NUM_EVENTS> actions
+		const market00 = clearingHouse.getMarketAccount(0);
+		const initialTotalFeeMinusDistributions = convertToNumber(
+			market00.amm.totalFeeMinusDistributions,
+			QUOTE_PRECISION
+		);
+
 		const [_userUSDCAccounts, _user_keys, clearingHouses, _userAccountInfos] =
 			await initUserAccounts(
 				5,
@@ -484,6 +490,7 @@ describe('repeg and spread amm', () => {
 		}
 
 		let allUserCollateral = 0;
+		let allUserUnsettledPnl = 0;
 
 		for (let i = 0; i < clearingHouses.length; i++) {
 			await clearingHouses[i].closePosition(new BN(0));
@@ -494,19 +501,30 @@ describe('repeg and spread amm', () => {
 			);
 
 			const clearingHouse = clearingHouses[i];
-			const clearingHouseUser = new ClearingHouseUser({
-				clearingHouse,
-				userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
-			});
-			await clearingHouseUser.subscribe();
+			const clearingHouseUser = _userAccountInfos[i];
 			const userCollateral = convertToNumber(
 				clearingHouseUser.getCollateralValue(),
 				QUOTE_PRECISION
 			);
+
+			const userUnsettledPnl = convertToNumber(
+				clearingHouseUser.getUnsettledPNL(),
+				QUOTE_PRECISION
+			);
 			allUserCollateral += userCollateral;
-			console.log('user', i, ':', '$', userCollateral);
-			await clearingHouseUser.unsubscribe();
+			allUserUnsettledPnl += userUnsettledPnl;
+			console.log(
+				'user',
+				i,
+				':',
+				'$',
+				userCollateral,
+				'+',
+				userUnsettledPnl,
+				'(unsettled)'
+			);
 			await clearingHouse.unsubscribe();
+			await clearingHouseUser.unsubscribe();
 		}
 
 		const market0 = clearingHouse.getMarketAccount(0);
@@ -536,6 +554,11 @@ describe('repeg and spread amm', () => {
 			),
 			QUOTE_PRECISION
 		);
+
+		const sinceStartTFMD =
+			convertToNumber(market0.amm.totalFeeMinusDistributions, QUOTE_PRECISION) -
+			initialTotalFeeMinusDistributions;
+
 		console.log(
 			'sum all money:',
 			allUserCollateral,
@@ -543,10 +566,15 @@ describe('repeg and spread amm', () => {
 			pnlPoolBalance,
 			'+',
 			feePoolBalance,
+			'+',
+			allUserUnsettledPnl,
+			'+',
+			sinceStartTFMD,
 			'==',
 			50000
 		);
 
+		assert(Math.abs(allUserUnsettledPnl + sinceStartTFMD) < 2);
 		assert(allUserCollateral + pnlPoolBalance + feePoolBalance == 50000);
 	});
 });

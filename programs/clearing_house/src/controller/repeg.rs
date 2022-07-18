@@ -263,7 +263,7 @@ mod test {
         assert_eq!(-cost_of_update, profit);
         assert_eq!(is_oracle_valid, true);
         assert_eq!(profit < 0, true);
-        assert_eq!(profit, -5799304834);
+        assert_eq!(profit, -5808834953);
         assert_eq!(peg, 13500402);
 
         let mark_price = market.amm.mark_price().unwrap();
