@@ -616,6 +616,7 @@ mod test {
         AMM_RESERVE_PRECISION, BANK_IMF_PRECISION, BANK_WEIGHT_PRECISION, QUOTE_PRECISION,
     };
     use crate::state::bank::Bank;
+    use crate::state::market::{Market, AMM};
     #[test]
     fn bank_asset_weight() {
         let mut bank = Bank {
@@ -635,5 +636,29 @@ mod test {
             .get_asset_weight(size, &MarginRequirementType::Initial)
             .unwrap();
         assert_eq!(asset_weight, 26);
+    }
+
+    #[test]
+    fn size_based_partial_margin_requirement() {
+
+        let mut market = Market {
+            amm: AMM {
+                base_asset_reserve: 5122950819670000,
+                quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
+                sqrt_k: 500 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 50000,
+                net_base_asset_amount: -(122950819670000 as i128),
+                ..AMM::default()
+            },
+            margin_ratio_initial: 1000,
+            margin_ratio_partial: 625,
+            margin_ratio_maintenance: 500,
+            imf_factor: BANK_IMF_PRECISION / 10,
+            ..Market::default()
+        };
+
+        let res = market.get_margin_requirement(AMM_RESERVE_PRECISION,
+             MarginRequirementType::Partial).unwrap();
+        assert_eq!(res >= 625, true);
     }
 }

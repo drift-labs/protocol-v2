@@ -1,7 +1,7 @@
-use std::cmp::max;
-
 use anchor_lang::prelude::*;
+use num_integer::Roots;
 use solana_program::msg;
+use std::cmp::{max, min};
 use switchboard_v2::decimal::SwitchboardDecimal;
 use switchboard_v2::AggregatorAccountData;
 
@@ -12,7 +12,10 @@ use crate::math::margin::MarginRequirementType;
 use crate::math_error;
 use crate::state::bank::{BankBalance, BankBalanceType};
 use crate::state::oracle::{OraclePriceData, OracleSource};
-use crate::{BID_ASK_SPREAD_PRECISION, MARK_PRICE_PRECISION};
+use crate::{
+    BANK_IMF_PRECISION, BANK_WEIGHT_PRECISION, BID_ASK_SPREAD_PRECISION, MARK_PRICE_PRECISION,
+    MARGIN_PRECISION
+};
 
 #[account(zero_copy)]
 #[derive(Default)]
@@ -34,6 +37,7 @@ pub struct Market {
     pub pnl_pool: PoolBalance,
     pub unsettled_profit: u128,
     pub unsettled_loss: u128,
+    pub imf_factor: u128,
 
     // upgrade-ability
     pub padding0: u32,
@@ -50,6 +54,89 @@ impl Market {
             MarginRequirementType::Partial => self.margin_ratio_partial,
             MarginRequirementType::Maintenance => self.margin_ratio_maintenance,
         }
+    }
+
+    pub fn get_unrealised_asset_weight(
+        &self,
+        size: u128,
+        margin_type: MarginRequirementType,
+    ) -> ClearingHouseResult<u128> {
+        // todo
+        let mut asset_weight = match margin_type {
+            MarginRequirementType::Initial => 100,
+            MarginRequirementType::Partial => 100,
+            MarginRequirementType::Maintenance => 100,
+        };
+
+        if self.imf_factor > 0 {
+            let size_sqrt = (size + 1).nth_root(2); //1e6 -> 1e3
+            let imf_numerator = BANK_IMF_PRECISION + BANK_IMF_PRECISION / 10;
+
+            let size_discounted_asset_weight = imf_numerator
+                .checked_mul(BANK_WEIGHT_PRECISION)
+                .ok_or_else(math_error!())?
+                .checked_div(
+                    BANK_IMF_PRECISION
+                        .checked_add(
+                            size_sqrt // 1e3
+                                .checked_mul(self.imf_factor)
+                                .ok_or_else(math_error!())?
+                                .checked_div(1_000) // 1e3
+                                .ok_or_else(math_error!())?,
+                        )
+                        .ok_or_else(math_error!())?,
+                )
+                .ok_or_else(math_error!())?;
+
+            asset_weight = min(asset_weight, size_discounted_asset_weight);
+        }
+
+        Ok(asset_weight)
+    }
+
+    pub fn get_margin_requirement(
+        &self,
+        size: u128,
+        margin_type: MarginRequirementType,
+    ) -> ClearingHouseResult<u32> {
+
+        let margin_requirement = match margin_type {
+            MarginRequirementType::Initial => self.margin_ratio_initial,
+            MarginRequirementType::Partial => self.margin_ratio_partial,
+            MarginRequirementType::Maintenance => self.margin_ratio_maintenance,
+        } as u128;
+
+        let margin_requirement_numer = margin_requirement.checked_add(
+            margin_requirement.checked_div(
+                10
+            )
+            .ok_or_else(math_error!())?
+        )
+        .ok_or_else(math_error!())?;
+
+        if self.imf_factor > 0 {
+            let size_sqrt = ((size / 1000) + 1).nth_root(2); //1e13 -> 1e10 -> 1e5
+
+            // increases 
+            let size_surplus_margin_requirement = margin_requirement_numer
+                .checked_add(
+                        .checked_add(
+                            size_sqrt // 1e5
+                                .checked_mul(self.imf_factor)
+                                .ok_or_else(math_error!())?
+                                .checked_div(100_000) // 1e5
+                                .ok_or_else(math_error!())?,
+                        )
+                        .ok_or_else(math_error!())?,
+                .ok_or_else(math_error!())?;
+
+            // result between margin_requirement (10-20x) and 10_000 (1x)
+            margin_requirement = min(max(margin_requirement, 
+                size_surplus_margin_requirement),
+                MARGIN_PRECISION);
+        }
+
+        Ok(margin_requirement as u32)
     }
 }
 
