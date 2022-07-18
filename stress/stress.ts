@@ -288,7 +288,7 @@ export async function stress_test(
 
 			user_i: user_i,
 			user_i_collateral: user.collateral,
-			user_i_cumfee: user.totalFeePaid.toNumber() / 10 ** 6,
+			user_i_cumfee: userfees.fees.totalFeePaid.toNumber() / 10 ** 6,
 
 			oracle_px: oracleData.price,
 

@@ -29,7 +29,7 @@ pub mod state;
 #[cfg(feature = "mainnet-beta")]
 declare_id!("dammHkt7jmytvbS3nHTxQNEcP59aE57nxwV21YdqEDN");
 #[cfg(not(feature = "mainnet-beta"))]
-declare_id!("7FUKtosmZd2Sj8gWY34Bmt9YwFw1Fe1PHc9bDfMYnZoK");
+declare_id!("GCuH76fb1rXc7bjFXNcnNvWSekLgzpsnMbc1Ng4FsGSs");
 
 #[program]
 pub mod clearing_house {
@@ -719,7 +719,7 @@ pub mod clearing_house {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
         let bank_map = BankMap::load(&WritableBanks::new(), remaining_accounts_iter)?;
-        let market_map = MarketMap::load(
+        let mut market_map = MarketMap::load(
             &WritableMarkets::new(),
             &get_market_oracles(params.market_index, &ctx.accounts.oracle),
             remaining_accounts_iter,
@@ -731,6 +731,13 @@ pub mod clearing_house {
             msg!("immediate_or_cancel order must be in place and fill");
             return Err(print_error!(ErrorCode::InvalidOrder)().into());
         }
+
+        controller::repeg::update_amms(
+            &mut market_map,
+            &mut oracle_map,
+            &ctx.accounts.state,
+            &Clock::get()?,
+        )?;
 
         controller::orders::place_order(
             &ctx.accounts.state,
@@ -761,7 +768,7 @@ pub mod clearing_house {
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
-        let bank_map = BankMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
+        let _bank_map = BankMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
         let mut market_map = MarketMap::load(
             &WritableMarkets::new(),
             market_oracles,
@@ -775,17 +782,12 @@ pub mod clearing_house {
             &Clock::get()?,
         )?;
 
-        let oracle = Some(&ctx.accounts.oracle);
-
         controller::orders::cancel_order_by_order_id(
-            &ctx.accounts.state,
             order_id,
             &ctx.accounts.user,
             &market_map,
-            &bank_map,
             &mut oracle_map,
             &Clock::get()?,
-            oracle,
         )?;
 
         Ok(())
@@ -806,7 +808,7 @@ pub mod clearing_house {
         };
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
-        let bank_map = BankMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
+        let _bank_map = BankMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
         let mut market_map = MarketMap::load(
             &WritableMarkets::new(),
             market_oracles,
@@ -820,16 +822,12 @@ pub mod clearing_house {
             &Clock::get()?,
         )?;
 
-        let oracle = Some(&ctx.accounts.oracle);
         controller::orders::cancel_order_by_user_order_id(
-            &ctx.accounts.state,
             user_order_id,
             &ctx.accounts.user,
             &market_map,
-            &bank_map,
             &mut oracle_map,
             &Clock::get()?,
-            oracle,
         )?;
 
         Ok(())
@@ -838,13 +836,17 @@ pub mod clearing_house {
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]
-    pub fn fill_order<'info>(ctx: Context<FillOrder>, taker_order_id: u64) -> Result<()> {
+    pub fn fill_order<'info>(
+        ctx: Context<FillOrder>,
+        order_id: u64,
+        maker_order_id: Option<u64>,
+    ) -> Result<()> {
         let (writable_markets, market_oracles) = {
             let user = &load(&ctx.accounts.user)?;
             let order_index = user
                 .orders
                 .iter()
-                .position(|order| order.order_id == taker_order_id)
+                .position(|order| order.order_id == order_id)
                 .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
             let order = &user.orders[order_index];
 
@@ -856,14 +858,13 @@ pub mod clearing_house {
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
-        let _bank_map = BankMap::load(
+        let bank_map = BankMap::load(
             &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
             remaining_accounts_iter,
         )?;
         let mut market_map =
             MarketMap::load(writable_markets, market_oracles, remaining_accounts_iter)?;
 
-        let maker_order_id = None;
         let maker = match maker_order_id {
             Some(_) => Some(get_maker(remaining_accounts_iter)?),
             None => None,
@@ -877,14 +878,15 @@ pub mod clearing_house {
         )?;
 
         let base_asset_amount = controller::orders::fill_order(
-            taker_order_id,
+            order_id,
             &ctx.accounts.state,
             &ctx.accounts.user,
+            &bank_map,
             &market_map,
             &mut oracle_map,
             &ctx.accounts.oracle,
             &ctx.accounts.filler,
-            maker,
+            maker.as_ref(),
             maker_order_id,
             &Clock::get()?,
         )?;
@@ -899,9 +901,96 @@ pub mod clearing_house {
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]
-    pub fn place_and_fill_order<'info>(
-        ctx: Context<PlaceAndFillOrder>,
+    pub fn place_and_take<'info>(
+        ctx: Context<PlaceAndTake>,
         params: OrderParams,
+        maker_order_id: Option<u64>,
+    ) -> Result<()> {
+        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
+        let bank_map = BankMap::load(
+            &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
+            remaining_accounts_iter,
+        )?;
+        let mut market_map = MarketMap::load(
+            &get_writable_markets_for_user_positions_and_order(
+                &load(&ctx.accounts.user)?.positions,
+                params.market_index,
+            ),
+            &get_market_oracles(params.market_index, &ctx.accounts.oracle),
+            remaining_accounts_iter,
+        )?;
+
+        let maker = match maker_order_id {
+            Some(_) => Some(get_maker(remaining_accounts_iter)?),
+            None => None,
+        };
+
+        let is_immediate_or_cancel = params.immediate_or_cancel;
+        let base_asset_amount_to_fill = params.base_asset_amount;
+
+        controller::repeg::update_amms(
+            &mut market_map,
+            &mut oracle_map,
+            &ctx.accounts.state,
+            &Clock::get()?,
+        )?;
+
+        controller::orders::place_order(
+            &ctx.accounts.state,
+            &ctx.accounts.user,
+            &market_map,
+            &bank_map,
+            &mut oracle_map,
+            &Clock::get()?,
+            params,
+            Some(&ctx.accounts.oracle),
+        )?;
+
+        let user = &mut ctx.accounts.user;
+        let order_id = {
+            let user = load(user)?;
+            if user.next_order_id == 1 {
+                u64::MAX
+            } else {
+                user.next_order_id - 1
+            }
+        };
+
+        let base_asset_amount_filled = controller::orders::fill_order(
+            order_id,
+            &ctx.accounts.state,
+            user,
+            &bank_map,
+            &market_map,
+            &mut oracle_map,
+            &ctx.accounts.oracle,
+            &user.clone(),
+            maker.as_ref(),
+            maker_order_id,
+            &Clock::get()?,
+        )?;
+
+        if is_immediate_or_cancel && base_asset_amount_to_fill != base_asset_amount_filled {
+            controller::orders::cancel_order_by_order_id(
+                order_id,
+                &ctx.accounts.user,
+                &market_map,
+                &mut oracle_map,
+                &Clock::get()?,
+            )?;
+        }
+
+        Ok(())
+    }
+
+    #[access_control(
+        exchange_not_paused(&ctx.accounts.state)
+    )]
+    pub fn place_and_make<'info>(
+        ctx: Context<PlaceAndMake>,
+        params: OrderParams,
+        taker_order_id: u64,
     ) -> Result<()> {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
@@ -950,28 +1039,26 @@ pub mod clearing_house {
         };
 
         let base_asset_amount_filled = controller::orders::fill_order(
-            order_id,
+            taker_order_id,
             &ctx.accounts.state,
-            user,
+            &ctx.accounts.taker,
+            &bank_map,
             &market_map,
             &mut oracle_map,
             &ctx.accounts.oracle,
             &user.clone(),
-            None,
-            None,
+            Some(&ctx.accounts.user),
+            Some(order_id),
             &Clock::get()?,
         )?;
 
         if is_immediate_or_cancel && base_asset_amount_to_fill != base_asset_amount_filled {
             controller::orders::cancel_order_by_order_id(
-                &ctx.accounts.state,
                 order_id,
                 &ctx.accounts.user,
                 &market_map,
-                &bank_map,
                 &mut oracle_map,
                 &Clock::get()?,
-                Some(&ctx.accounts.oracle),
             )?;
         }
 

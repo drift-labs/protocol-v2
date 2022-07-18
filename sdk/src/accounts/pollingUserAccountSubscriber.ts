@@ -34,6 +34,7 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 		this.program = program;
 		this.accountLoader = accountLoader;
 		this.eventEmitter = new EventEmitter();
+		this.userAccountPublicKey = userAccountPublicKey;
 	}
 
 	async subscribe(): Promise<boolean> {

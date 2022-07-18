@@ -19,7 +19,7 @@ solana-program = "1.8.0"
 spl-token = { version="3.1.1", features = [ "no-entrypoint" ] }
 anchor-spl = "0.24.2"
 pyth-client = "0.2.2"
-bytemuck = { version = "1.4.0" }
+bytemuck = { version = "1.4.0", features = [ "extern_crate_alloc" ] }
 borsh = "0.9.1"
 num-traits = "0.2"
 uint = { version = "0.9.1", default-features = false }

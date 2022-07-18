@@ -178,7 +178,7 @@ describe('prepeg', () => {
 			baseAssetAmount,
 			false
 		);
-		const txSig = await clearingHouse.placeAndFillOrder(orderParams);
+		const txSig = await clearingHouse.placeAndTake(orderParams);
 
 		const computeUnits = await findComputeUnitConsumption(
 			clearingHouse.program.programId,
@@ -291,7 +291,7 @@ describe('prepeg', () => {
 			false
 		);
 
-		const txSig = await clearingHouse.placeAndFillOrder(orderParams);
+		const txSig = await clearingHouse.placeAndTake(orderParams);
 		const computeUnits = await findComputeUnitConsumption(
 			clearingHouse.program.programId,
 			connection,
@@ -392,7 +392,7 @@ describe('prepeg', () => {
 			convertToNumber(newPrice)
 		);
 
-		const txSig = await clearingHouse.placeAndFillOrder(orderParams);
+		const txSig = await clearingHouse.placeAndTake(orderParams);
 		const computeUnits = await findComputeUnitConsumption(
 			clearingHouse.program.programId,
 			connection,
@@ -475,7 +475,7 @@ describe('prepeg', () => {
 				'after trade est. mark price:',
 				convertToNumber(newPrice)
 			);
-			const txSig = await clearingHouse.placeAndFillOrder(orderParams);
+			const txSig = await clearingHouse.placeAndTake(orderParams);
 			const computeUnits = await findComputeUnitConsumption(
 				clearingHouse.program.programId,
 				connection,
@@ -532,7 +532,7 @@ describe('prepeg', () => {
 			false
 		);
 
-		const txSig = await clearingHouse.placeAndFillOrder(orderParams);
+		const txSig = await clearingHouse.placeAndTake(orderParams);
 		const computeUnits = await findComputeUnitConsumption(
 			clearingHouse.program.programId,
 			connection,

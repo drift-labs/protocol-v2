@@ -256,7 +256,9 @@ describe('orders', () => {
 		// user has $10, no open positions, trading in market of $1 mark price coin
 		const direction = PositionDirection.LONG;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
-		const price = MARK_PRICE_PRECISION.mul(new BN(2));
+		const price = MARK_PRICE_PRECISION.add(
+			MARK_PRICE_PRECISION.div(new BN(100))
+		);
 		const reduceOnly = false;
 		const triggerPrice = new BN(0);
 
@@ -268,7 +270,7 @@ describe('orders', () => {
 			reduceOnly,
 			true
 		);
-		// user sets reduce-only taker limit buy @ $2
+
 		const txSig = await clearingHouse.placeOrder(orderParams);
 		console.log(
 			'tx logs',
@@ -345,7 +347,9 @@ describe('orders', () => {
 	it('Fill limit long order', async () => {
 		const direction = PositionDirection.LONG;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
-		const price = MARK_PRICE_PRECISION.mul(new BN(2));
+		const price = MARK_PRICE_PRECISION.add(
+			MARK_PRICE_PRECISION.div(new BN(100))
+		);
 		const market0 = clearingHouse.getMarketAccount(marketIndex);
 
 		console.log('markPrice:', calculateMarkPrice(market0).toString());
@@ -370,11 +374,16 @@ describe('orders', () => {
 		assert(clearingHouseUser.getUserPosition(marketIndex).openAsks.eq(ZERO));
 
 		let order = clearingHouseUser.getOrder(orderId);
-		await fillerClearingHouse.fillOrder(
-			userAccountPublicKey,
-			clearingHouseUser.getUserAccount(),
-			order
-		);
+		try {
+			await fillerClearingHouse.fillOrder(
+				userAccountPublicKey,
+				clearingHouseUser.getUserAccount(),
+				order
+			);
+		} catch (e) {
+			console.error(e);
+			throw e;
+		}
 
 		await fillerClearingHouse.settlePNLs(
 			[
@@ -909,7 +918,12 @@ describe('orders', () => {
 			true
 		);
 
-		await clearingHouse.placeOrder(orderParams);
+		try {
+			await clearingHouse.placeOrder(orderParams);
+		} catch (e) {
+			console.error(e);
+			throw e;
+		}
 
 		// move price to make liquidity for order @ $1.05 (5%)
 		setFeedPrice(anchor.workspace.Pyth, 1.35, solUsd);
@@ -958,11 +972,16 @@ describe('orders', () => {
 			'\n'
 		);
 
-		await fillerClearingHouse.fillOrder(
-			userAccountPublicKey,
-			clearingHouseUser.getUserAccount(),
-			order
-		);
+		try {
+			await fillerClearingHouse.fillOrder(
+				userAccountPublicKey,
+				clearingHouseUser.getUserAccount(),
+				order
+			);
+		} catch (e) {
+			console.error(e);
+			throw e;
+		}
 
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
@@ -1161,7 +1180,12 @@ describe('orders', () => {
 			false,
 			true
 		);
-		await clearingHouse.placeOrder(orderParams);
+		try {
+			await clearingHouse.placeOrder(orderParams);
+		} catch (e) {
+			console.error(e);
+			throw e;
+		}
 
 		// move price to make liquidity for order @ $1.05 (5%)
 		// setFeedPrice(anchor.workspace.Pyth, 1.55, solUsd);
@@ -1211,11 +1235,16 @@ describe('orders', () => {
 			'\n'
 		);
 
-		await fillerClearingHouse.fillOrder(
-			userAccountPublicKey,
-			clearingHouseUser.getUserAccount(),
-			order
-		);
+		try {
+			await fillerClearingHouse.fillOrder(
+				userAccountPublicKey,
+				clearingHouseUser.getUserAccount(),
+				order
+			);
+		} catch (e) {
+			console.error(e);
+			throw e;
+		}
 
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
@@ -1249,7 +1278,12 @@ describe('orders', () => {
 			'\n'
 		);
 
-		await clearingHouse.closePosition(marketIndex);
+		try {
+			await clearingHouse.closePosition(marketIndex);
+		} catch (e) {
+			console.error(e);
+			throw e;
+		}
 
 		assert(userLeverage.gt(new BN(0)));
 		assert(postPosition.baseAssetAmount.lt(ZERO));
@@ -1438,10 +1472,12 @@ describe('orders', () => {
 		await clearingHouse.cancelOrder(orderId);
 	});
 
-	it('PlaceAndFill LONG Order 100% filled', async () => {
+	it('PlaceAndTake LONG Order 100% filled', async () => {
 		const direction = PositionDirection.LONG;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
-		const price = MARK_PRICE_PRECISION.mul(new BN(2));
+		const price = new BN('13300000000').add(
+			MARK_PRICE_PRECISION.div(new BN(40))
+		);
 
 		await clearingHouseUser.fetchAccounts();
 		const prePosition = clearingHouseUser.getUserPosition(marketIndex);
@@ -1459,14 +1495,14 @@ describe('orders', () => {
 			false,
 			true
 		);
-		const txSig = await clearingHouse.placeAndFillOrder(orderParams);
+		const txSig = await clearingHouse.placeAndTake(orderParams);
 
 		const computeUnits = await findComputeUnitConsumption(
 			clearingHouse.program.programId,
 			connection,
 			txSig
 		);
-		console.log('placeAndFill compute units', computeUnits[0]);
+		console.log('placeAndTake compute units', computeUnits[0]);
 
 		await clearingHouse.settlePNL(
 			await clearingHouse.getUserAccountPublicKey(),
@@ -1485,7 +1521,6 @@ describe('orders', () => {
 			'->',
 			convertToNumber(postPosition.baseAssetAmount, AMM_RESERVE_PRECISION)
 		);
-		assert(postPosition.baseAssetAmount.abs().gt(new BN(0)));
 		assert(postPosition.baseAssetAmount.eq(baseAssetAmount)); // 100% filled
 
 		// zero filler reward
@@ -1529,7 +1564,7 @@ describe('orders', () => {
 			false,
 			true
 		);
-		await clearingHouse.placeAndFillOrder(orderParams);
+		await clearingHouse.placeAndTake(orderParams);
 
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
@@ -1700,7 +1735,7 @@ describe('orders', () => {
 		const whaleUserAccount = whaleUser.getUserAccount();
 		console.log(
 			'whaleFee:',
-			convertToNumber(whaleUserAccount.totalFeePaid, QUOTE_PRECISION)
+			convertToNumber(whaleUserAccount.fees.totalFeePaid, QUOTE_PRECISION)
 		);
 
 		const expectedFillerReward = new BN(1e6 / 100); //1 cent
@@ -1715,7 +1750,9 @@ describe('orders', () => {
 		);
 		assert(fillerReward.eq(expectedFillerReward));
 
-		assert(whaleUserAccount.totalFeePaid.gt(fillerReward.mul(new BN(100))));
+		assert(
+			whaleUserAccount.fees.totalFeePaid.gt(fillerReward.mul(new BN(100)))
+		);
 		// ensure whale fee more than x100 filler
 	});
 
@@ -1727,7 +1764,7 @@ describe('orders', () => {
 			AMM_RESERVE_PRECISION,
 			false
 		);
-		await clearingHouse.placeAndFillOrder(openPositionOrderParams);
+		await clearingHouse.placeAndTake(openPositionOrderParams);
 		console.log('1');
 		const reduceMarketOrderParams = getMarketOrderParams(
 			marketIndexEth,
@@ -1736,7 +1773,7 @@ describe('orders', () => {
 			TWO.mul(AMM_RESERVE_PRECISION),
 			true
 		);
-		await clearingHouse.placeAndFillOrder(reduceMarketOrderParams);
+		await clearingHouse.placeAndTake(reduceMarketOrderParams);
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
 		console.log('2');
@@ -1747,18 +1784,20 @@ describe('orders', () => {
 			isVariant(clearingHouseUser.getUserAccount().orders[0].status, 'init')
 		);
 
-		await clearingHouse.placeAndFillOrder(openPositionOrderParams);
+		await clearingHouse.placeAndTake(openPositionOrderParams);
 		const reduceLimitOrderParams = getLimitOrderParams(
 			marketIndexEth,
 			PositionDirection.LONG,
 			TWO.mul(AMM_RESERVE_PRECISION),
-			TWO.mul(MARK_PRICE_PRECISION),
+			calculateMarkPrice(clearingHouse.getMarketAccount(marketIndexEth)).add(
+				MARK_PRICE_PRECISION.div(new BN(40))
+			),
 			true
 		);
 		console.log('3');
 
 		try {
-			await clearingHouse.placeAndFillOrder(reduceLimitOrderParams);
+			await clearingHouse.placeAndTake(reduceLimitOrderParams);
 		} catch (e) {
 			console.error(e);
 		}

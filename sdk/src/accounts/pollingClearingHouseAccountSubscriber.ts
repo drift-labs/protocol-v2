@@ -399,6 +399,10 @@ export class PollingClearingHouseAccountSubscriber
 		return this.market.get(marketIndex.toNumber());
 	}
 
+	public getMarketAccountsAndSlots(): DataAndSlot<MarketAccount>[] {
+		return Array.from(this.market.values());
+	}
+
 	public getBankAccountAndSlot(
 		bankIndex: BN
 	): DataAndSlot<BankAccount> | undefined {
