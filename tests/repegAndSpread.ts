@@ -9,6 +9,9 @@ import {
 	ZERO,
 	BID_ASK_SPREAD_PRECISION,
 	PEG_PRECISION,
+	QUOTE_ASSET_BANK_INDEX,
+	getTokenAmount,
+	BankBalanceType,
 } from '../sdk';
 import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import {
@@ -164,7 +167,9 @@ describe('repeg and spread amm', () => {
 			periodicity,
 			new BN(21_966_868),
 			undefined,
-			500
+			500,
+			333,
+			200
 		);
 		await clearingHouse.updateMarketBaseSpread(new BN(0), 250);
 		await clearingHouse.updateCurveUpdateIntensity(new BN(0), 100);
@@ -478,6 +483,8 @@ describe('repeg and spread amm', () => {
 			count += 1;
 		}
 
+		let allUserCollateral = 0;
+
 		for (let i = 0; i < clearingHouses.length; i++) {
 			await clearingHouses[i].closePosition(new BN(0));
 			await clearingHouses[i].settlePNL(
@@ -492,15 +499,54 @@ describe('repeg and spread amm', () => {
 				userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
 			});
 			await clearingHouseUser.subscribe();
-			console.log(
-				'user',
-				i,
-				':',
-				'$',
-				convertToNumber(clearingHouseUser.getCollateralValue(), QUOTE_PRECISION)
+			const userCollateral = convertToNumber(
+				clearingHouseUser.getCollateralValue(),
+				QUOTE_PRECISION
 			);
+			allUserCollateral += userCollateral;
+			console.log('user', i, ':', '$', userCollateral);
 			await clearingHouseUser.unsubscribe();
 			await clearingHouse.unsubscribe();
 		}
+
+		const market0 = clearingHouse.getMarketAccount(0);
+
+		console.log('total Fees:', market0.amm.totalFee.toString());
+		console.log(
+			'total Fees minus dist:',
+			market0.amm.totalFeeMinusDistributions.toString()
+		);
+
+		const bankAccount = clearingHouse.getBankAccount(QUOTE_ASSET_BANK_INDEX);
+
+		const pnlPoolBalance = convertToNumber(
+			getTokenAmount(
+				market0.pnlPool.balance,
+				bankAccount,
+				BankBalanceType.DEPOSIT
+			),
+			QUOTE_PRECISION
+		);
+
+		const feePoolBalance = convertToNumber(
+			getTokenAmount(
+				market0.amm.feePool.balance,
+				bankAccount,
+				BankBalanceType.DEPOSIT
+			),
+			QUOTE_PRECISION
+		);
+		console.log(
+			'sum all money:',
+			allUserCollateral,
+			'+',
+			pnlPoolBalance,
+			'+',
+			feePoolBalance,
+			'==',
+			50000
+		);
+
+		assert(allUserCollateral + pnlPoolBalance + feePoolBalance == 50000);
 	});
 });
