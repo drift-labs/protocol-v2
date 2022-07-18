@@ -64,13 +64,12 @@ export function calculateOptimalPegAndBudget(
 			.mul(targetPrice)
 			.div(BID_ASK_SPREAD_PRECISION);
 
-		let markAdj: BN;
 		let newTargetPrice: BN;
 		let newOptimalPeg: BN;
 		let newBudget: BN;
 		const targetPriceGap = markPriceBefore.sub(targetPrice);
 		if (targetPriceGap.abs().gt(maxPriceSpread)) {
-			markAdj = targetPriceGap.abs().sub(maxPriceSpread);
+			const markAdj = targetPriceGap.abs().sub(maxPriceSpread);
 
 			if (targetPriceGap.lt(new BN(0))) {
 				newTargetPrice = markPriceBefore.add(markAdj);
@@ -323,13 +322,6 @@ export function calculateEffectiveLeverage(
 	const localBaseAssetValue = netBaseAssetAmount
 		.mul(markPrice)
 		.div(AMM_TO_QUOTE_PRECISION_RATIO.mul(MARK_PRICE_PRECISION));
-	// console.log(
-	// 	'lpnl:',
-	// 	localBaseAssetValue.toString(),
-	// 	'-',
-	// 	netBaseAssetValue.toString()
-	// );
-	// const maxTargetSpread: number = baseSpread * 200;
 
 	const effectiveLeverage =
 		localBaseAssetValue.sub(netBaseAssetValue).toNumber() /

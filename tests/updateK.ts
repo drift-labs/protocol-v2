@@ -169,11 +169,6 @@ describe('update k', () => {
 			.div(MARK_PRICE_PRECISION);
 
 		await clearingHouse.updateK(newSqrtK, marketIndex);
-		// console.log(
-		// 	'tx logs',
-		// 	(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
-		// 		.logMessages
-		// );
 
 		await clearingHouse.fetchAccounts();
 		const newKPrice = calculateMarkPrice(
