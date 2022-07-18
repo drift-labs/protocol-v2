@@ -29,7 +29,7 @@ pub mod state;
 #[cfg(feature = "mainnet-beta")]
 declare_id!("dammHkt7jmytvbS3nHTxQNEcP59aE57nxwV21YdqEDN");
 #[cfg(not(feature = "mainnet-beta"))]
-declare_id!("7FUKtosmZd2Sj8gWY34Bmt9YwFw1Fe1PHc9bDfMYnZoK");
+declare_id!("GCuH76fb1rXc7bjFXNcnNvWSekLgzpsnMbc1Ng4FsGSs");
 
 #[program]
 pub mod clearing_house {
@@ -719,7 +719,7 @@ pub mod clearing_house {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
         let bank_map = BankMap::load(&WritableBanks::new(), remaining_accounts_iter)?;
-        let market_map = MarketMap::load(
+        let mut market_map = MarketMap::load(
             &WritableMarkets::new(),
             &get_market_oracles(params.market_index, &ctx.accounts.oracle),
             remaining_accounts_iter,
@@ -731,6 +731,13 @@ pub mod clearing_house {
             msg!("immediate_or_cancel order must be in place and fill");
             return Err(print_error!(ErrorCode::InvalidOrder)().into());
         }
+
+        controller::repeg::update_amms(
+            &mut market_map,
+            &mut oracle_map,
+            &ctx.accounts.state,
+            &Clock::get()?,
+        )?;
 
         controller::orders::place_order(
             &ctx.accounts.state,
