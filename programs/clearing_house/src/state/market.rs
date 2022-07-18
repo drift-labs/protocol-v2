@@ -13,8 +13,8 @@ use crate::math_error;
 use crate::state::bank::{BankBalance, BankBalanceType};
 use crate::state::oracle::{OraclePriceData, OracleSource};
 use crate::{
-    BANK_IMF_PRECISION, BANK_WEIGHT_PRECISION, BID_ASK_SPREAD_PRECISION, MARK_PRICE_PRECISION,
-    MARGIN_PRECISION
+    BANK_IMF_PRECISION, BANK_WEIGHT_PRECISION, BID_ASK_SPREAD_PRECISION, MARGIN_PRECISION,
+    MARK_PRICE_PRECISION,
 };
 
 #[account(zero_copy)]
@@ -99,41 +99,38 @@ impl Market {
         size: u128,
         margin_type: MarginRequirementType,
     ) -> ClearingHouseResult<u32> {
-
-        let margin_requirement = match margin_type {
+        let mut margin_requirement = match margin_type {
             MarginRequirementType::Initial => self.margin_ratio_initial,
             MarginRequirementType::Partial => self.margin_ratio_partial,
             MarginRequirementType::Maintenance => self.margin_ratio_maintenance,
         } as u128;
 
-        let margin_requirement_numer = margin_requirement.checked_add(
-            margin_requirement.checked_div(
-                10
-            )
-            .ok_or_else(math_error!())?
-        )
-        .ok_or_else(math_error!())?;
-
         if self.imf_factor > 0 {
             let size_sqrt = ((size / 1000) + 1).nth_root(2); //1e13 -> 1e10 -> 1e5
 
-            // increases 
-            let size_surplus_margin_requirement = margin_requirement_numer
-                .checked_add(
-                        .checked_add(
-                            size_sqrt // 1e5
-                                .checked_mul(self.imf_factor)
-                                .ok_or_else(math_error!())?
-                                .checked_div(100_000) // 1e5
-                                .ok_or_else(math_error!())?,
-                        )
+            let margin_requirement_numer = margin_requirement
+                .checked_sub(
+                    margin_requirement
+                        .checked_div(BANK_IMF_PRECISION / self.imf_factor)
                         .ok_or_else(math_error!())?,
+                )
                 .ok_or_else(math_error!())?;
 
+            // increases
+            let size_surplus_margin_requirement = margin_requirement_numer
+                .checked_add(
+                    size_sqrt // 1e5
+                        .checked_mul(self.imf_factor)
+                        .ok_or_else(math_error!())?
+                        .checked_div(100_000 * BANK_IMF_PRECISION / MARGIN_PRECISION) // 1e5 * 1e2
+                        .ok_or_else(math_error!())?,
+                )
+                .ok_or_else(math_error!())?;
             // result between margin_requirement (10-20x) and 10_000 (1x)
-            margin_requirement = min(max(margin_requirement, 
-                size_surplus_margin_requirement),
-                MARGIN_PRECISION);
+            margin_requirement = min(
+                max(margin_requirement, size_surplus_margin_requirement),
+                MARGIN_PRECISION,
+            );
         }
 
         Ok(margin_requirement as u32)

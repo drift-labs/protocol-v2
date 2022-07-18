@@ -640,7 +640,6 @@ mod test {
 
     #[test]
     fn size_based_partial_margin_requirement() {
-
         let mut market = Market {
             amm: AMM {
                 base_asset_reserve: 5122950819670000,
@@ -653,12 +652,64 @@ mod test {
             margin_ratio_initial: 1000,
             margin_ratio_partial: 625,
             margin_ratio_maintenance: 500,
-            imf_factor: BANK_IMF_PRECISION / 10,
+            imf_factor: 0,
             ..Market::default()
         };
 
-        let res = market.get_margin_requirement(AMM_RESERVE_PRECISION,
-             MarginRequirementType::Partial).unwrap();
-        assert_eq!(res >= 625, true);
+        let res = market
+            .get_margin_requirement(AMM_RESERVE_PRECISION, MarginRequirementType::Partial)
+            .unwrap();
+        assert_eq!(res, 625);
+        let res = market
+            .get_margin_requirement(
+                AMM_RESERVE_PRECISION * 100000,
+                MarginRequirementType::Partial,
+            )
+            .unwrap();
+        assert_eq!(res, 625);
+
+        market.imf_factor = 1; // .000001
+        let res = market
+            .get_margin_requirement(
+                AMM_RESERVE_PRECISION * 100000,
+                MarginRequirementType::Partial,
+            )
+            .unwrap();
+        // $5,000,000
+        assert_eq!(res > 625, true);
+        assert_eq!(res, 628);
+
+        market.imf_factor = 100; // .0001
+
+        let res = market
+            .get_margin_requirement(
+                AMM_RESERVE_PRECISION * 100000,
+                MarginRequirementType::Partial,
+            )
+            .unwrap();
+        // $5,000,000
+        assert_eq!(res > 625, true);
+        assert_eq!(res, 941);
+
+        market.imf_factor = 1000; // .001
+
+        let res = market
+            .get_margin_requirement(
+                AMM_RESERVE_PRECISION * 10000,
+                MarginRequirementType::Partial,
+            )
+            .unwrap();
+        // $500,000
+        assert_eq!(res > 625, true);
+        assert_eq!(res, 1625);
+
+        let res = market
+            .get_margin_requirement(
+                AMM_RESERVE_PRECISION / 1000000,
+                MarginRequirementType::Partial,
+            )
+            .unwrap();
+        // $500,000
+        assert_eq!(res, 625);
     }
 }
