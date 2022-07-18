@@ -1032,7 +1032,6 @@ pub mod clearing_house {
 
         let user = &mut load_mut(&ctx.accounts.user)?;
         let position_index = get_position_index(&user.positions, market_index)?;
-        // let user_quote_bank_balance = user.bank_balances[0].balance;
 
         // cannot settle pnl this way on a user who is in liquidation territory
         if !(meets_partial_margin_requirement(user, &market_map, &bank_map, &mut oracle_map)?) {
