@@ -375,16 +375,16 @@ pub fn update_pool_balances(
     };
 
     let pnl_fraction_for_amm = if fraction_for_amm > 0 {
-        let _pnl_fraction_for_amm = pnl_to_settle_with_user
+        let pnl_fraction_for_amm = pnl_to_settle_with_user
             .checked_div(fraction_for_amm)
             .ok_or_else(math_error!())?;
         update_bank_balances(
-            _pnl_fraction_for_amm.unsigned_abs(),
+            pnl_fraction_for_amm.unsigned_abs(),
             &BankBalanceType::Deposit,
             bank,
             &mut market.amm.fee_pool,
         )?;
-        _pnl_fraction_for_amm
+        pnl_fraction_for_amm
     } else {
         0
     };

@@ -109,10 +109,10 @@ pub fn update_amm(
     if curve_update_intensity > 0 {
         let (optimal_peg, fee_budget, check_lower_bound) =
             repeg::calculate_optimal_peg_and_budget(market, oracle_price_data)?;
-        let (repegged_market, _amm_update_cost) =
+        let (repegged_market, repegged_cost) =
             repeg::adjust_amm(market, optimal_peg, fee_budget, true)?;
 
-        let cost_applied = apply_cost_to_market(market, _amm_update_cost, check_lower_bound)?;
+        let cost_applied = apply_cost_to_market(market, repegged_cost, check_lower_bound)?;
 
         if cost_applied {
             market.amm.base_asset_reserve = repegged_market.amm.base_asset_reserve;
@@ -121,7 +121,7 @@ pub fn update_amm(
             market.amm.terminal_quote_asset_reserve =
                 repegged_market.amm.terminal_quote_asset_reserve;
             market.amm.peg_multiplier = repegged_market.amm.peg_multiplier;
-            amm_update_cost = _amm_update_cost;
+            amm_update_cost = repegged_cost;
         }
     }
     let is_oracle_valid = amm::is_oracle_valid(
