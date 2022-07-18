@@ -6,10 +6,10 @@ import {
 	ZERO,
 	BID_ASK_SPREAD_PRECISION,
 	ONE,
-	// QUOTE_PRECISION,
 	AMM_TO_QUOTE_PRECISION_RATIO,
 	QUOTE_PRECISION,
 	MARGIN_PRECISION,
+	PRICE_DIV_PEG,
 } from '../constants/numericConstants';
 import {
 	AMM,
@@ -28,7 +28,7 @@ import {
 	calculateBudgetedPeg,
 } from './repeg';
 
-export function calculateOptimalPegFromTargetPrice(
+export function calculatePegFromTargetPrice(
 	targetPrice: BN,
 	baseAssetReserve: BN,
 	quoteAssetReserve: BN
@@ -36,8 +36,8 @@ export function calculateOptimalPegFromTargetPrice(
 	return targetPrice
 		.mul(baseAssetReserve)
 		.div(quoteAssetReserve)
-		.add(MARK_PRICE_PRECISION.div(PEG_PRECISION).div(new BN(2)))
-		.div(MARK_PRICE_PRECISION.div(PEG_PRECISION));
+		.add(PRICE_DIV_PEG.div(new BN(2)))
+		.div(PRICE_DIV_PEG);
 }
 
 export function calculateOptimalPegAndBudget(
@@ -50,11 +50,11 @@ export function calculateOptimalPegAndBudget(
 		amm.pegMultiplier
 	);
 	const targetPrice = oraclePriceData.price;
-	const newPeg = targetPrice
-		.mul(amm.baseAssetReserve)
-		.div(amm.quoteAssetReserve)
-		.add(MARK_PRICE_PRECISION.div(PEG_PRECISION).div(new BN(2)))
-		.div(MARK_PRICE_PRECISION.div(PEG_PRECISION));
+	const newPeg = calculatePegFromTargetPrice(
+		targetPrice,
+		amm.baseAssetReserve,
+		amm.quoteAssetReserve
+	);
 	const prePegCost = calculateRepegCost(amm, newPeg);
 
 	const totalFeeLB = amm.totalExchangeFee.div(new BN(2));
@@ -77,11 +77,11 @@ export function calculateOptimalPegAndBudget(
 				newTargetPrice = markPriceBefore.sub(markAdj);
 			}
 
-			newOptimalPeg = newTargetPrice
-				.mul(amm.baseAssetReserve)
-				.div(amm.quoteAssetReserve)
-				.add(MARK_PRICE_PRECISION.div(PEG_PRECISION).div(new BN(2)))
-				.div(MARK_PRICE_PRECISION.div(PEG_PRECISION));
+			newOptimalPeg = calculatePegFromTargetPrice(
+				newTargetPrice,
+				amm.baseAssetReserve,
+				amm.quoteAssetReserve
+			);
 
 			newBudget = calculateRepegCost(amm, newOptimalPeg);
 			return [newTargetPrice, newOptimalPeg, newBudget, false];

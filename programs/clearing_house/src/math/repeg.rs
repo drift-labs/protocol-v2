@@ -551,17 +551,6 @@ pub fn calculate_expected_excess_funding_payment(
     Ok(expected_excess_funding_payment)
 }
 
-pub fn calculate_budget_to_repeg(market: &Market) -> ClearingHouseResult<u128> {
-    let fee_pool = calculate_fee_pool(market)?;
-
-    // if fee_pool < 0 {
-    //     // do more
-    //     0
-    // }
-
-    Ok(fee_pool)
-}
-
 pub fn calculate_fee_pool(market: &Market) -> ClearingHouseResult<u128> {
     let total_fee_minus_distributions_lower_bound =
         cast_to_i128(get_total_fee_lower_bound(market)?)?;

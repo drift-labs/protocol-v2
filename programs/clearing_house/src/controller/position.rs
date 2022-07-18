@@ -399,7 +399,7 @@ pub fn update_cost_basis(
     market_position: &mut MarketPosition,
 ) -> ClearingHouseResult<i128> {
     // update user cost basis (if at a loss)
-    let (_amm_position_base_asset_value, amm_position_unrealized_pnl) =
+    let (_, amm_position_unrealized_pnl) =
         calculate_base_asset_value_and_pnl(market_position, &market.amm, false)?;
 
     if amm_position_unrealized_pnl < 0 {
