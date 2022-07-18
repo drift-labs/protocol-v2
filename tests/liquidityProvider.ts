@@ -324,10 +324,16 @@ describe('liquidity providing', () => {
 		const lp_position = user.positions[0];
 		const lp_token_amount = lp_position.lpTokens;
 
+		console.log('lp tokens', lp_token_amount.toString());
+		console.log(
+			'baa, qaa',
+			lp_position.baseAssetAmount.toString(),
+			lp_position.quoteAssetAmount.toString()
+		);
+
 		assert(lp_token_amount.eq(new BN(0)));
 		assert(user.positions[0].baseAssetAmount.lt(new BN(0))); // lp is short
 		assert(!user.positions[0].quoteAssetAmount.eq(new BN(0)));
-		assert(user.positions[0].lpTokens.eq(new BN(0))); // tokens are burned
 
 		console.log('closing trader...');
 		let market = clearingHouse.getMarketAccount(new BN(0));

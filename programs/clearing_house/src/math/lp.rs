@@ -80,6 +80,14 @@ pub fn get_lp_metrics(
             market_quote_asset_amount = quote_asset_amount;
             market_base_asset_amount = base_asset_amount;
         } else {
+            msg!(
+                "Warning: lp market position too small: {} {} :: {} {}",
+                base_asset_amount,
+                min_baa,
+                quote_asset_amount,
+                min_qaa
+            );
+
             // no market position bc too small so give them negative upnl
             // similar to closing their small position
             // TODO: decide what this should be
