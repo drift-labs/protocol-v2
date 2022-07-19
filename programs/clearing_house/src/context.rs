@@ -400,8 +400,6 @@ pub struct CancelOrder<'info> {
     )]
     pub user: AccountLoader<'info, User>,
     pub authority: Signer<'info>,
-    /// CHECK: validated in `cancel_order` when market_map is created
-    pub oracle: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
@@ -416,12 +414,12 @@ pub struct CancelAllOrders<'info> {
 }
 
 #[derive(Accounts)]
-pub struct ExpireOrder<'info> {
+pub struct TriggerOrder<'info> {
     pub state: Box<Account<'info, State>>,
     pub authority: Signer<'info>,
     #[account(
         mut,
-        has_one = authority,
+        has_one = authority
     )]
     pub filler: AccountLoader<'info, User>,
     #[account(mut)]

@@ -123,6 +123,7 @@ pub enum OrderAction {
     Place,
     Cancel,
     Fill,
+    Trigger,
     Expire,
 }
 

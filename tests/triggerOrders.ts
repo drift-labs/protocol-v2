@@ -200,8 +200,13 @@ describe('trigger orders', () => {
 			ammInitialQuoteAssetReserve,
 			marketIndex
 		);
-		await setFeedPrice(anchor.workspace.Pyth, 0.1, solUsd);
+		await setFeedPrice(anchor.workspace.Pyth, 0.49, solUsd);
 
+		await fillerClearingHouse.triggerOrder(
+			await clearingHouseUser.getUserAccountPublicKey(),
+			clearingHouseUser.getUserAccount(),
+			order
+		);
 		await fillerClearingHouse.fillOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
 			clearingHouseUser.getUserAccount(),
@@ -298,6 +303,11 @@ describe('trigger orders', () => {
 		);
 		await setFeedPrice(anchor.workspace.Pyth, 0.2, solUsd);
 
+		await fillerClearingHouse.triggerOrder(
+			await clearingHouseUser.getUserAccountPublicKey(),
+			clearingHouseUser.getUserAccount(),
+			order
+		);
 		await fillerClearingHouse.fillOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
 			clearingHouseUser.getUserAccount(),
@@ -391,8 +401,13 @@ describe('trigger orders', () => {
 			ammInitialQuoteAssetReserve,
 			marketIndex
 		);
-		await setFeedPrice(anchor.workspace.Pyth, 10, solUsd);
+		await setFeedPrice(anchor.workspace.Pyth, 2.01, solUsd);
 
+		await fillerClearingHouse.triggerOrder(
+			await clearingHouseUser.getUserAccountPublicKey(),
+			clearingHouseUser.getUserAccount(),
+			order
+		);
 		await fillerClearingHouse.fillOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
 			clearingHouseUser.getUserAccount(),
@@ -489,6 +504,11 @@ describe('trigger orders', () => {
 		);
 		await setFeedPrice(anchor.workspace.Pyth, 5, solUsd);
 
+		await fillerClearingHouse.triggerOrder(
+			await clearingHouseUser.getUserAccountPublicKey(),
+			clearingHouseUser.getUserAccount(),
+			order
+		);
 		await fillerClearingHouse.fillOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
 			clearingHouseUser.getUserAccount(),
@@ -582,8 +602,13 @@ describe('trigger orders', () => {
 			ammInitialQuoteAssetReserve,
 			marketIndex
 		);
-		await setFeedPrice(anchor.workspace.Pyth, 10, solUsd);
+		await setFeedPrice(anchor.workspace.Pyth, 2.01, solUsd);
 
+		await fillerClearingHouse.triggerOrder(
+			await clearingHouseUser.getUserAccountPublicKey(),
+			clearingHouseUser.getUserAccount(),
+			order
+		);
 		await fillerClearingHouse.fillOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
 			clearingHouseUser.getUserAccount(),
@@ -680,6 +705,11 @@ describe('trigger orders', () => {
 		);
 		await setFeedPrice(anchor.workspace.Pyth, 5, solUsd);
 
+		await fillerClearingHouse.triggerOrder(
+			await clearingHouseUser.getUserAccountPublicKey(),
+			clearingHouseUser.getUserAccount(),
+			order
+		);
 		await fillerClearingHouse.fillOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
 			clearingHouseUser.getUserAccount(),
@@ -773,8 +803,13 @@ describe('trigger orders', () => {
 			ammInitialQuoteAssetReserve,
 			marketIndex
 		);
-		await setFeedPrice(anchor.workspace.Pyth, 0.1, solUsd);
+		await setFeedPrice(anchor.workspace.Pyth, 0.49, solUsd);
 
+		await fillerClearingHouse.triggerOrder(
+			await clearingHouseUser.getUserAccountPublicKey(),
+			clearingHouseUser.getUserAccount(),
+			order
+		);
 		await fillerClearingHouse.fillOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
 			clearingHouseUser.getUserAccount(),
@@ -871,6 +906,11 @@ describe('trigger orders', () => {
 		);
 		await setFeedPrice(anchor.workspace.Pyth, 0.2, solUsd);
 
+		await fillerClearingHouse.triggerOrder(
+			await clearingHouseUser.getUserAccountPublicKey(),
+			clearingHouseUser.getUserAccount(),
+			order
+		);
 		await fillerClearingHouse.fillOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
 			clearingHouseUser.getUserAccount(),

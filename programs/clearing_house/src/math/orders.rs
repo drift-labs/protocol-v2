@@ -287,6 +287,13 @@ pub fn order_breaches_oracle_price_limits(
     }
 }
 
+pub fn order_satisfies_trigger_condition(order: &Order, oracle_price: u128) -> bool {
+    match order.trigger_condition {
+        OrderTriggerCondition::Above => oracle_price > order.trigger_price,
+        OrderTriggerCondition::Below => oracle_price < order.trigger_price,
+    }
+}
+
 #[cfg(test)]
 mod test {
 

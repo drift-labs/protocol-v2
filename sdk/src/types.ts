@@ -348,7 +348,7 @@ export type Order = {
 	triggerPrice: BN;
 	triggerCondition: OrderTriggerCondition;
 	discountTier: OrderDiscountTier;
-	existingPositionDirection: PositionDirection,
+	existingPositionDirection: PositionDirection;
 	referrer: PublicKey;
 	postOnly: boolean;
 	immediateOrCancel: boolean;

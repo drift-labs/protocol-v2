@@ -28,6 +28,7 @@ import {
 	mockOracle,
 	mockUSDCMint,
 	mockUserUSDCAccount,
+	setFeedPrice,
 } from './testHelpers';
 import { AMM_RESERVE_PRECISION, OracleSource, ZERO } from '../sdk';
 import { AccountInfo, Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
@@ -237,11 +238,19 @@ describe('stop limit', () => {
 			true
 		);
 
-		await clearingHouse.placeOrder(orderParams, discountTokenAccount.address);
+		await clearingHouse.placeOrder(orderParams);
 		const orderId = new BN(2);
 		const orderIndex = new BN(0);
 		await clearingHouseUser.fetchAccounts();
 		let order = clearingHouseUser.getOrder(orderId);
+
+		await setFeedPrice(anchor.workspace.Pyth, 1.01, solUsd);
+		await clearingHouse.triggerOrder(
+			userAccountPublicKey,
+			clearingHouseUser.getUserAccount(),
+			order
+		);
+
 		await fillerClearingHouse.fillOrder(
 			userAccountPublicKey,
 			clearingHouseUser.getUserAccount(),
@@ -322,10 +331,18 @@ describe('stop limit', () => {
 			true
 		);
 
-		await clearingHouse.placeOrder(orderParams, discountTokenAccount.address);
+		await clearingHouse.placeOrder(orderParams);
 		const orderId = new BN(4);
 		const orderIndex = new BN(0);
 		let order = clearingHouseUser.getOrder(orderId);
+
+		await setFeedPrice(anchor.workspace.Pyth, 0.99, solUsd);
+		await clearingHouse.triggerOrder(
+			userAccountPublicKey,
+			clearingHouseUser.getUserAccount(),
+			order
+		);
+
 		await fillerClearingHouse.fillOrder(
 			userAccountPublicKey,
 			clearingHouseUser.getUserAccount(),
