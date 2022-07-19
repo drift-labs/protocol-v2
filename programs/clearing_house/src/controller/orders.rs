@@ -1369,6 +1369,7 @@ mod tests {
                     direction: PositionDirection::Long,
                     base_asset_amount: 1 * BASE_PRECISION,
                     ts: 0,
+                    slot: 0,
                     auction_start_price: 100 * MARK_PRICE_PRECISION,
                     auction_end_price: 200 * MARK_PRICE_PRECISION,
                     auction_duration: 5,
@@ -1406,6 +1407,7 @@ mod tests {
             let mut market = Market::default();
 
             let now = 1_i64;
+            let slot = 1_u64;
 
             let fee_structure = get_fee_structure();
 
@@ -1424,6 +1426,7 @@ mod tests {
                 None,
                 &filler_key,
                 now,
+                slot,
                 &fee_structure,
                 &mut get_oracle_map(),
                 &mut order_records,
@@ -1473,6 +1476,7 @@ mod tests {
                     direction: PositionDirection::Long,
                     base_asset_amount: 1 * BASE_PRECISION,
                     ts: 0,
+                    slot: 0,
                     auction_start_price: 100 * MARK_PRICE_PRECISION,
                     auction_end_price: 200 * MARK_PRICE_PRECISION,
                     auction_duration: 5,
@@ -1510,6 +1514,7 @@ mod tests {
             let mut market = Market::default();
 
             let now = 3_i64;
+            let slot = 3_u64;
 
             let fee_structure = get_fee_structure();
 
@@ -1528,6 +1533,7 @@ mod tests {
                 None,
                 &filler_key,
                 now,
+                slot,
                 &fee_structure,
                 &mut get_oracle_map(),
                 &mut order_records,
@@ -1577,6 +1583,7 @@ mod tests {
                     direction: PositionDirection::Short,
                     base_asset_amount: 1 * BASE_PRECISION,
                     ts: 0,
+                    slot: 0,
                     auction_start_price: 200 * MARK_PRICE_PRECISION,
                     auction_end_price: 100 * MARK_PRICE_PRECISION,
                     auction_duration: 5,
@@ -1614,6 +1621,7 @@ mod tests {
             let mut market = Market::default();
 
             let now = 1_i64;
+            let slot = 1_u64;
 
             let fee_structure = get_fee_structure();
 
@@ -1632,6 +1640,7 @@ mod tests {
                 None,
                 &filler_key,
                 now,
+                slot,
                 &fee_structure,
                 &mut get_oracle_map(),
                 &mut order_records,
@@ -1681,6 +1690,7 @@ mod tests {
                     direction: PositionDirection::Short,
                     base_asset_amount: 1 * BASE_PRECISION,
                     ts: 0,
+                    slot: 0,
                     auction_start_price: 200 * MARK_PRICE_PRECISION,
                     auction_end_price: 100 * MARK_PRICE_PRECISION,
                     auction_duration: 5,
@@ -1718,6 +1728,7 @@ mod tests {
             let mut market = Market::default();
 
             let now = 3_i64;
+            let slot = 3_u64;
 
             let fee_structure = get_fee_structure();
 
@@ -1736,6 +1747,7 @@ mod tests {
                 None,
                 &filler_key,
                 now,
+                slot,
                 &fee_structure,
                 &mut get_oracle_map(),
                 &mut order_records,
@@ -1785,6 +1797,7 @@ mod tests {
                     direction: PositionDirection::Long,
                     base_asset_amount: 1 * BASE_PRECISION,
                     ts: 0,
+                    slot: 0,
                     auction_start_price: 100 * MARK_PRICE_PRECISION,
                     auction_end_price: 200 * MARK_PRICE_PRECISION,
                     auction_duration: 5,
@@ -1822,6 +1835,7 @@ mod tests {
             let mut market = Market::default();
 
             let now = 1_i64;
+            let slot = 3_u64;
 
             let fee_structure = FeeStructure::default();
 
@@ -1840,6 +1854,7 @@ mod tests {
                 None,
                 &filler_key,
                 now,
+                slot,
                 &fee_structure,
                 &mut get_oracle_map(),
                 &mut order_records,
@@ -1895,6 +1910,7 @@ mod tests {
             let mut market = Market::default();
 
             let now = 1_i64;
+            let slot = 3_u64;
 
             let fee_structure = FeeStructure::default();
 
@@ -1913,6 +1929,7 @@ mod tests {
                 None,
                 &filler_key,
                 now,
+                slot,
                 &fee_structure,
                 &mut get_oracle_map(),
                 &mut order_records,
@@ -1931,6 +1948,7 @@ mod tests {
                     direction: PositionDirection::Short,
                     base_asset_amount: 1 * BASE_PRECISION,
                     ts: 0,
+                    slot: 0,
                     auction_start_price: 200 * MARK_PRICE_PRECISION,
                     auction_end_price: 100 * MARK_PRICE_PRECISION,
                     auction_duration: 5,
@@ -1968,6 +1986,7 @@ mod tests {
             let mut market = Market::default();
 
             let now = 1_i64;
+            let slot = 1_u64;
 
             let fee_structure = FeeStructure::default();
 
@@ -1986,6 +2005,7 @@ mod tests {
                 None,
                 &filler_key,
                 now,
+                slot,
                 &fee_structure,
                 &mut get_oracle_map(),
                 &mut order_records,
@@ -2042,6 +2062,7 @@ mod tests {
             let mut market = Market::default();
 
             let now = 1_i64;
+            let slot = 1_u64;
 
             let fee_structure = FeeStructure::default();
 
@@ -2060,6 +2081,7 @@ mod tests {
                 None,
                 &filler_key,
                 now,
+                slot,
                 &fee_structure,
                 &mut get_oracle_map(),
                 &mut order_records,
@@ -2078,6 +2100,7 @@ mod tests {
                     direction: PositionDirection::Long,
                     base_asset_amount: 100 * BASE_PRECISION,
                     ts: 0,
+                    slot: 0,
                     auction_start_price: 100 * MARK_PRICE_PRECISION,
                     auction_end_price: 200 * MARK_PRICE_PRECISION,
                     auction_duration: 5,
@@ -2115,6 +2138,7 @@ mod tests {
             let mut market = Market::default();
 
             let now = 1_i64;
+            let slot = 1_u64;
             let auction_duration = 5_i64;
 
             let fee_structure = FeeStructure::default();
@@ -2134,6 +2158,7 @@ mod tests {
                 None,
                 &filler_key,
                 now,
+                slot,
                 &fee_structure,
                 &mut get_oracle_map(),
                 &mut order_records,
@@ -2166,6 +2191,7 @@ mod tests {
                     direction: PositionDirection::Long,
                     base_asset_amount: 1 * BASE_PRECISION,
                     ts: 0,
+                    slot: 0,
                     auction_start_price: 100 * MARK_PRICE_PRECISION,
                     auction_end_price: 200 * MARK_PRICE_PRECISION,
                     auction_duration: 5,
@@ -2203,6 +2229,7 @@ mod tests {
             let mut market = Market::default();
 
             let now = 1_i64;
+            let slot = 1_u64;
             let auction_duration = 5_i64;
 
             let fee_structure = FeeStructure::default();
@@ -2222,6 +2249,7 @@ mod tests {
                 None,
                 &filler_key,
                 now,
+                slot,
                 &fee_structure,
                 &mut get_oracle_map(),
                 &mut order_records,
@@ -2254,6 +2282,7 @@ mod tests {
                     direction: PositionDirection::Long,
                     base_asset_amount: 1 * BASE_PRECISION,
                     ts: 0,
+                    slot: 0,
                     auction_start_price: 100 * MARK_PRICE_PRECISION,
                     auction_end_price: 200 * MARK_PRICE_PRECISION,
                     auction_duration: 10,
@@ -2276,6 +2305,7 @@ mod tests {
                     direction: PositionDirection::Short,
                     base_asset_amount: 1 * BASE_PRECISION,
                     ts: 0,
+                    slot: 0,
                     auction_start_price: 200 * MARK_PRICE_PRECISION,
                     auction_end_price: 100 * MARK_PRICE_PRECISION,
                     auction_duration: 10,
@@ -2293,6 +2323,7 @@ mod tests {
             let mut market = Market::default();
 
             let now = 5_i64;
+            let slot = 5_u64;
 
             let fee_structure = get_fee_structure();
 
@@ -2311,6 +2342,7 @@ mod tests {
                 None,
                 &filler_key,
                 now,
+                slot,
                 &fee_structure,
                 &mut get_oracle_map(),
                 &mut order_records,
@@ -2361,6 +2393,7 @@ mod tests {
                     direction: PositionDirection::Short,
                     base_asset_amount: 1 * BASE_PRECISION,
                     ts: 0,
+                    slot: 0,
                     price: 100 * MARK_PRICE_PRECISION,
                     ..Order::default()
                 }),
@@ -2395,6 +2428,7 @@ mod tests {
             let mut market = Market::default();
 
             let now = 5_i64;
+            let slot = 5_u64;
 
             let fee_structure = get_fee_structure();
             let (maker_key, taker_key, filler_key) = get_user_keys();
@@ -2412,6 +2446,7 @@ mod tests {
                 None,
                 &filler_key,
                 now,
+                slot,
                 &fee_structure,
                 &mut get_oracle_map(),
                 &mut order_records,
@@ -2462,6 +2497,7 @@ mod tests {
                     direction: PositionDirection::Long,
                     base_asset_amount: 1 * BASE_PRECISION,
                     ts: 0,
+                    slot: 0,
                     price: 100 * MARK_PRICE_PRECISION,
                     ..Order::default()
                 }),
@@ -2496,6 +2532,7 @@ mod tests {
             let mut market = Market::default();
 
             let now = 5_i64;
+            let slot = 5_u64;
 
             let fee_structure = get_fee_structure();
 
@@ -2514,6 +2551,7 @@ mod tests {
                 None,
                 &filler_key,
                 now,
+                slot,
                 &fee_structure,
                 &mut get_oracle_map(),
                 &mut order_records,
