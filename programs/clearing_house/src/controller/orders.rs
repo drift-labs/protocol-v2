@@ -812,7 +812,7 @@ pub fn fulfill_order_with_amm(
     market.amm.total_fee_minus_distributions = market
         .amm
         .total_fee_minus_distributions
-        .checked_add(fee_to_market)
+        .checked_add(fee_to_market as i128)
         .ok_or_else(math_error!())?;
     market.amm.net_revenue_since_last_funding = market
         .amm
@@ -995,7 +995,7 @@ pub fn fulfill_order_with_match(
     market.amm.total_fee_minus_distributions = market
         .amm
         .total_fee_minus_distributions
-        .checked_add(fee_to_market)
+        .checked_add(fee_to_market as i128)
         .ok_or_else(math_error!())?;
     market.amm.net_revenue_since_last_funding = market
         .amm

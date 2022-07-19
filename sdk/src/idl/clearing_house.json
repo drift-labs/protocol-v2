@@ -993,11 +993,6 @@
           "name": "user",
           "isMut": true,
           "isSigner": false
-        },
-        {
-          "name": "market",
-          "isMut": false,
-          "isSigner": false
         }
       ],
       "args": []
@@ -1386,6 +1381,32 @@
         {
           "name": "baseSpread",
           "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "updateMarketMaxSpread",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "maxSpread",
+          "type": "u32"
         }
       ]
     },
@@ -2195,6 +2216,10 @@
             "type": "u128"
           },
           {
+            "name": "maxSpread",
+            "type": "u32"
+          },
+          {
             "name": "askBaseAssetReserve",
             "type": "u128"
           },
@@ -2252,7 +2277,7 @@
           },
           {
             "name": "totalFeeMinusDistributions",
-            "type": "u128"
+            "type": "i128"
           },
           {
             "name": "totalFeeWithdrawn",
@@ -3217,7 +3242,7 @@
         },
         {
           "name": "totalFeeMinusDistributions",
-          "type": "u128",
+          "type": "i128",
           "index": false
         },
         {

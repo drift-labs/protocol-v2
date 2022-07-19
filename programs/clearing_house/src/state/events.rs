@@ -72,7 +72,7 @@ pub struct CurveRecord {
     pub net_base_asset_amount: i128,
     pub open_interest: u128,
     pub total_fee: u128,
-    pub total_fee_minus_distributions: u128,
+    pub total_fee_minus_distributions: i128,
     pub adjustment_cost: i128,
     pub oracle_price: i128,
     pub fill_record: u128,
