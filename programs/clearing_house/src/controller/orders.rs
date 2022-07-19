@@ -1185,7 +1185,6 @@ pub fn execute_non_market_order(
     let base_asset_amount = calculate_base_asset_amount_market_can_execute(
         &user.orders[order_index],
         market,
-        Some(mark_price_before),
         valid_oracle_price,
         slot,
     )?;
