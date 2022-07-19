@@ -1159,7 +1159,7 @@ pub mod clearing_house {
         }
 
         validate!(
-            pnl_to_settle_with_user > 0 || user.authority.eq(&ctx.accounts.authority.key()),
+            pnl_to_settle_with_user < 0 || user.authority.eq(&ctx.accounts.authority.key()),
             ErrorCode::UserMustSettleTheirOwnPositiveUnsettledPNL,
             "User must settle their own unsettled pnl when its positive",
         )?;
