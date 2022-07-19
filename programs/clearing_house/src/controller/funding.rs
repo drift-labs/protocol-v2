@@ -144,7 +144,7 @@ pub fn update_funding_rate(
             &oracle_price_data,
             precomputed_mark_price,
         )?;
-        let mid_price_twap = amm::update_mark_twap(&mut market.amm, now, None)?;
+        let mid_price_twap = amm::update_mark_twap(&mut market.amm, now, None, None)?;
 
         let period_adjustment = (24_i128)
             .checked_mul(ONE_HOUR)

@@ -59,6 +59,12 @@ export function isVariant(object: unknown, type: string) {
 	return object.hasOwnProperty(type);
 }
 
+export function isOneOfVariant(object: unknown, types: string[]) {
+	return types.reduce((result, type) => {
+		return result || object.hasOwnProperty(type);
+	}, false);
+}
+
 export enum TradeSide {
 	None = 0,
 	Buy = 1,
@@ -161,8 +167,6 @@ export type OrderRecord = {
 	filler: PublicKey;
 	fillRecordId: BN;
 	marketIndex: BN;
-	user: PublicKey;
-	authority: PublicKey;
 	baseAssetAmountFilled: BN;
 	quoteAssetAmountFilled: BN;
 	makerRebate: BN;
@@ -286,6 +290,7 @@ export type AMM = {
 	lastAskPriceTwap: BN;
 	longSpread: BN;
 	shortSpread: BN;
+	maxSpread: number;
 };
 
 // # User Account Types
@@ -308,11 +313,13 @@ export type UserAccount = {
 	bankBalances: UserBankBalance[];
 	collateral: BN;
 	cumulativeDeposits: BN;
-	totalFeePaid: BN;
-	totalFeeRebate: BN;
-	totalTokenDiscount: BN;
-	totalReferralReward: BN;
-	totalRefereeDiscount: BN;
+	fees: {
+		totalFeePaid: BN;
+		totalFeeRebate: BN;
+		totalTokenDiscount: BN;
+		totalReferralReward: BN;
+		totalRefereeDiscount: BN;
+	};
 	positions: UserPosition[];
 	orders: Order[];
 };
@@ -327,11 +334,11 @@ export type Order = {
 	status: OrderStatus;
 	orderType: OrderType;
 	ts: BN;
+	slot: BN;
 	orderId: BN;
 	userOrderId: number;
 	marketIndex: BN;
 	price: BN;
-	userBaseAssetAmount: BN;
 	baseAssetAmount: BN;
 	baseAssetAmountFilled: BN;
 	quoteAssetAmount: BN;
@@ -342,10 +349,12 @@ export type Order = {
 	triggerPrice: BN;
 	triggerCondition: OrderTriggerCondition;
 	discountTier: OrderDiscountTier;
+	existingPositionDirection: PositionDirection,
 	referrer: PublicKey;
 	postOnly: boolean;
 	immediateOrCancel: boolean;
 	oraclePriceOffset: BN;
+	auctionDuration: number;
 	auctionStartPrice: BN;
 	auctionEndPrice: BN;
 };
@@ -371,6 +380,11 @@ export type OrderParams = {
 		discountToken: boolean;
 		referrer: boolean;
 	};
+};
+
+export type MakerInfo = {
+	maker: PublicKey;
+	order: Order;
 };
 
 // # Misc Types

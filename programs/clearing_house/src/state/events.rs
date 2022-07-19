@@ -72,7 +72,7 @@ pub struct CurveRecord {
     pub net_base_asset_amount: i128,
     pub open_interest: u128,
     pub total_fee: u128,
-    pub total_fee_minus_distributions: u128,
+    pub total_fee_minus_distributions: i128,
     pub adjustment_cost: i128,
     pub oracle_price: i128,
     pub fill_record: u128,
@@ -99,11 +99,13 @@ pub struct LiquidationRecord {
 #[event]
 pub struct OrderRecord {
     pub ts: i64,
+    pub slot: u64,
     pub taker: Pubkey,
     pub maker: Pubkey,
     pub taker_order: Order,
     pub maker_order: Order,
     pub action: OrderAction,
+    pub action_explanation: OrderActionExplanation,
     pub filler: Pubkey,
     pub fill_record_id: u64,
     pub market_index: u64,
@@ -122,6 +124,13 @@ pub enum OrderAction {
     Cancel,
     Fill,
     Expire,
+}
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq)]
+pub enum OrderActionExplanation {
+    None,
+    BreachedMarginRequirement,
+    OraclePriceBreachedLimitPrice,
 }
 
 impl Default for OrderAction {

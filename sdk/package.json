@@ -1,6 +1,6 @@
 {
 	"name": "@drift-labs/sdk",
-	"version": "0.1.36-master.7",
+	"version": "0.2.0-master.1",
 	"main": "lib/index.js",
 	"types": "lib/index.d.ts",
 	"author": "crispheaney",
@@ -30,7 +30,7 @@
 	},
 	"dependencies": {
 		"@project-serum/anchor": "0.24.2",
-		"@pythnetwork/client": "^2.5.1",
+		"@pythnetwork/client": "2.5.1",
 		"@solana/spl-token": "^0.1.6",
 		"@solana/web3.js": "1.41.0",
 		"@switchboard-xyz/switchboard-v2": "^0.0.67",

@@ -293,6 +293,12 @@ export class WebSocketClearingHouseAccountSubscriber
 			.dataAndSlot;
 	}
 
+	public getMarketAccountsAndSlots(): DataAndSlot<MarketAccount>[] {
+		return Array.from(this.marketAccountSubscribers.values()).map(
+			(subscriber) => subscriber.dataAndSlot
+		);
+	}
+
 	public getBankAccountAndSlot(
 		bankIndex: BN
 	): DataAndSlot<BankAccount> | undefined {

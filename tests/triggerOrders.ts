@@ -165,7 +165,7 @@ describe('trigger orders', () => {
 			baseAssetAmount,
 			false
 		);
-		await clearingHouse.placeAndFillOrder(marketOrderParams);
+		await clearingHouse.placeAndTake(marketOrderParams);
 
 		const stopOrderParams = getTriggerMarketOrderParams(
 			marketIndex,
@@ -260,7 +260,7 @@ describe('trigger orders', () => {
 			baseAssetAmount,
 			false
 		);
-		await clearingHouse.placeAndFillOrder(marketOrderParams);
+		await clearingHouse.placeAndTake(marketOrderParams);
 
 		const stopLimitOrderParams = getTriggerLimitOrderParams(
 			marketIndex,
@@ -356,7 +356,7 @@ describe('trigger orders', () => {
 			baseAssetAmount,
 			false
 		);
-		await clearingHouse.placeAndFillOrder(marketOrderParams);
+		await clearingHouse.placeAndTake(marketOrderParams);
 
 		const stopOrderParams = getTriggerMarketOrderParams(
 			marketIndex,
@@ -451,7 +451,7 @@ describe('trigger orders', () => {
 			baseAssetAmount,
 			false
 		);
-		await clearingHouse.placeAndFillOrder(marketOrderParams);
+		await clearingHouse.placeAndTake(marketOrderParams);
 
 		const stopLimitOrderParams = getTriggerLimitOrderParams(
 			marketIndex,
@@ -547,7 +547,7 @@ describe('trigger orders', () => {
 			baseAssetAmount,
 			false
 		);
-		await clearingHouse.placeAndFillOrder(marketOrderParams);
+		await clearingHouse.placeAndTake(marketOrderParams);
 
 		const stopOrderParams = getTriggerMarketOrderParams(
 			marketIndex,
@@ -642,7 +642,7 @@ describe('trigger orders', () => {
 			baseAssetAmount,
 			false
 		);
-		await clearingHouse.placeAndFillOrder(marketOrderParams);
+		await clearingHouse.placeAndTake(marketOrderParams);
 
 		const stopLimitOrderParams = getTriggerLimitOrderParams(
 			marketIndex,
@@ -738,7 +738,7 @@ describe('trigger orders', () => {
 			baseAssetAmount,
 			false
 		);
-		await clearingHouse.placeAndFillOrder(marketOrderParams);
+		await clearingHouse.placeAndTake(marketOrderParams);
 
 		const stopOrderParams = getTriggerMarketOrderParams(
 			marketIndex,
@@ -833,7 +833,7 @@ describe('trigger orders', () => {
 			baseAssetAmount,
 			false
 		);
-		await clearingHouse.placeAndFillOrder(marketOrderParams);
+		await clearingHouse.placeAndTake(marketOrderParams);
 
 		const stopLimitOrderParams = getTriggerLimitOrderParams(
 			marketIndex,
