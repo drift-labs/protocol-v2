@@ -533,7 +533,8 @@ mod test {
         update_cost_basis, update_position_and_market, PositionDelta,
     };
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, PEG_PRECISION, QUOTE_PRECISION,
+        AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, MARK_PRICE_PRECISION, PEG_PRECISION,
+        QUOTE_PRECISION,
     };
     use crate::state::market::{Market, AMM};
     use crate::state::user::MarketPosition;
@@ -1321,13 +1322,6 @@ mod test {
             last_funding_rate_ts: 1,
             ..MarketPosition::default()
         };
-
-        // let mut oracle_price_data = OraclePriceData {
-        //     price: (34 * MARK_PRICE_PRECISION) as i128,
-        //     confidence: MARK_PRICE_PRECISION / 100,
-        //     delay: 1,
-        //     has_sufficient_number_of_data_points: true,
-        // };
 
         let oracle_price: i128 = 50 * MARK_PRICE_PRECISION as i128;
 
