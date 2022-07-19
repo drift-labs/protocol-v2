@@ -818,14 +818,9 @@ export class ClearingHouse {
 	): Promise<TransactionInstruction> {
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 
-		const marketAccount = this.getMarketAccount(marketIndex.toNumber());
-		const remainingAccounts = [
-			{
-				pubkey: marketAccount.pubkey,
-				isSigner: false,
-				isWritable: true,
-			},
-		];
+		const remainingAccounts = this.getRemainingAccounts({
+			writableMarketIndex: marketIndex,
+		});
 
 		return this.program.instruction.removeLiquidity(marketIndex, {
 			accounts: {

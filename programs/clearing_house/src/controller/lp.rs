@@ -1,6 +1,7 @@
 use crate::controller::position::update_unsettled_pnl;
 use crate::error::ClearingHouseResult;
 use crate::math::casting::cast_to_i128;
+use crate::math::lp::abs_difference;
 use crate::math::lp::get_lp_metrics;
 use crate::math_error;
 use crate::state::market::Market;
@@ -24,26 +25,20 @@ pub fn settle_lp_position(
             .lp_base_asset_amount
             .checked_add(metrics.base_asset_amount)
             .ok_or_else(math_error!())?;
+
         position.lp_quote_asset_amount = position
             .lp_quote_asset_amount
             .checked_add(metrics.quote_asset_amount)
             .ok_or_else(math_error!())?;
     } else {
-        let quote_asset_amount = if metrics.quote_asset_amount > position.lp_quote_asset_amount {
-            metrics
-                .quote_asset_amount
-                .checked_sub(position.lp_quote_asset_amount)
-                .ok_or_else(math_error!())?
-        } else {
-            position
-                .lp_quote_asset_amount
-                .checked_sub(metrics.quote_asset_amount)
-                .ok_or_else(math_error!())?
-        };
+        let quote_asset_amount =
+            abs_difference(metrics.quote_asset_amount, position.lp_quote_asset_amount)?;
+
         let base_asset_amount = position
             .lp_base_asset_amount
             .checked_add(metrics.base_asset_amount)
             .ok_or_else(math_error!())?;
+
         position.lp_base_asset_amount = base_asset_amount;
         position.lp_quote_asset_amount = quote_asset_amount;
     }
@@ -59,7 +54,7 @@ pub fn settle_lp_position(
 
     // update last_ metrics
     position.last_cumulative_fee_per_lp = market.amm.cumulative_fee_per_lp;
-    position.last_cumulative_funding_rate_lp = market.amm.cumulative_funding_payment_per_lp;
+    position.last_cumulative_funding_payment_per_lp = market.amm.cumulative_funding_payment_per_lp;
     position.last_cumulative_net_base_asset_amount_per_lp =
         market.amm.cumulative_net_base_asset_amount_per_lp;
 

@@ -6,6 +6,7 @@ import {
 	calculatePrice,
 	ClearingHouseUser,
 	OracleSource,
+	PEG_PRECISION,
 	SwapDirection,
 	Wallet,
 } from '../sdk';
@@ -57,6 +58,66 @@ async function price_post_swap(baa, swap_direction, market) {
 	const new_price = _new_price.toNumber() / MARK_PRICE_PRECISION.toNumber();
 	console.log('post trade price:', new_price);
 	await setFeedPrice(anchor.workspace.Pyth, new_price, market.amm.oracle);
+
+	return new_price;
+}
+
+async function createNewUser(
+	program,
+	provider,
+	usdcMint,
+	usdcAmount,
+	oracleInfos,
+	wallet
+) {
+	let wallet_flag = true;
+	if (wallet == undefined) {
+		const kp = new web3.Keypair();
+		const sig = await provider.connection.requestAirdrop(kp.publicKey, 10 ** 9);
+		await provider.connection.confirmTransaction(sig);
+		wallet = new Wallet(kp);
+		wallet_flag = false;
+	}
+
+	console.log('wallet:', wallet_flag);
+	const usdcAta = await mockUserUSDCAccount(
+		usdcMint,
+		usdcAmount,
+		provider,
+		wallet.publicKey
+	);
+
+	const clearingHouse = new Admin({
+		connection: provider.connection,
+		wallet: wallet,
+		programID: program.programId,
+		opts: {
+			commitment: 'confirmed',
+		},
+		activeUserId: 0,
+		marketIndexes: [new BN(0), new BN(1)],
+		bankIndexes: [new BN(0)],
+		oracleInfos,
+	});
+	await clearingHouse.subscribe();
+
+	if (wallet_flag) {
+		await clearingHouse.initialize(usdcMint.publicKey, true);
+		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
+	}
+
+	await clearingHouse.initializeUserAccountAndDepositCollateral(
+		usdcAmount,
+		usdcAta.publicKey
+	);
+
+	const clearingHouseUser = new ClearingHouseUser({
+		clearingHouse,
+		userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+	});
+	clearingHouseUser.subscribe();
+
+	return [clearingHouse, clearingHouseUser];
 }
 
 describe('liquidity providing', () => {
@@ -75,6 +136,20 @@ describe('liquidity providing', () => {
 		console.log('tx logs', tx.meta.logMessages);
 	}
 
+	// ammInvariant == k == x * y
+	const ammInitialBaseAssetReserve = new BN(200).mul(new BN(1e13));
+	const ammInitialQuoteAssetReserve = new BN(200).mul(new BN(1e13));
+
+	const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
+	const stableAmmInitialQuoteAssetReserve = new anchor.BN(1 * 10 ** 13).mul(
+		mantissaSqrtScale
+	);
+	const stableAmmInitialBaseAssetReserve = new anchor.BN(1 * 10 ** 13).mul(
+		mantissaSqrtScale
+	);
+
+	const usdcAmount = new BN(1_000_000_000 * 1e6);
+
 	let clearingHouse: Admin;
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
@@ -82,191 +157,75 @@ describe('liquidity providing', () => {
 	let usdcMint: web3.Keypair;
 	let userUSDCAccount: web3.Keypair;
 
-	// ammInvariant == k == x * y
-	const ammInitialBaseAssetReserve = new BN(200).mul(new BN(1e13));
-	const ammInitialQuoteAssetReserve = new BN(200).mul(new BN(1e13));
-
-	// const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
-	// const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
-	// 	mantissaSqrtScale
-	// );
-	// const ammInitialBaseAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
-	// 	mantissaSqrtScale
-	// );
-
-	const usdcAmount = new BN(1_000_000_000 * 1e6);
-
-	let traderKp: web3.Keypair;
-	let traderClearingHouse: Admin;
-	let traderUser: ClearingHouseUser;
-	let traderClearingHouse2: Admin;
-	let traderUser2: ClearingHouseUser;
 	let clearingHouseUser: ClearingHouseUser;
-	let poorLPClearingHouse: ClearingHouse;
+
+	let traderClearingHouse: Admin;
+	let traderClearingHouseUser: ClearingHouseUser;
+
+	let traderClearingHouseUser2: ClearingHouseUser;
+	let traderClearingHouse2: Admin;
+
+	let solusdc;
+	let solusdc2;
 
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
-		const solusdc = await mockOracle(1, -7); // make invalid
-		const oracleInfos = [{ publicKey: solusdc, source: OracleSource.PYTH }];
+		solusdc2 = await mockOracle(1, -7); // make invalid
+		solusdc = await mockOracle(1, -7); // make invalid
+		const oracleInfos = [
+			{ publicKey: solusdc, source: OracleSource.PYTH },
+			{ publicKey: solusdc2, source: OracleSource.PYTH },
+		];
 
-		clearingHouse = new Admin({
-			connection,
-			wallet: provider.wallet,
-			programID: chProgram.programId,
-			opts: {
-				commitment: 'confirmed',
-			},
-			activeUserId: 0,
-			marketIndexes: [new BN(0), new BN(1), new BN(2), new BN(3), new BN(4)],
-			bankIndexes: [new BN(0)],
+		[clearingHouse, clearingHouseUser] = await createNewUser(
+			chProgram,
+			provider,
+			usdcMint,
+			usdcAmount,
 			oracleInfos,
-		});
-		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.subscribe();
-
+			provider.wallet
+		);
 		await clearingHouse.updateOrderAuctionTime(new BN(0));
 
-		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
+		// used for trading / taking on baa
 		await clearingHouse.initializeMarket(
 			solusdc,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
+			new BN(60 * 60)
+		);
+
+		// second market -- used for funding ..
+		await clearingHouse.initializeMarket(
+			solusdc2,
+			stableAmmInitialBaseAssetReserve,
+			stableAmmInitialQuoteAssetReserve,
 			new BN(0)
 		);
 
-		await clearingHouse.initializeUserAccountAndDepositCollateral(
-			usdcAmount,
-			userUSDCAccount.publicKey
-		);
-
-		clearingHouseUser = new ClearingHouseUser({
-			clearingHouse,
-			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
-		});
-		clearingHouseUser.subscribe();
-
-		// setup a new user to trade against lp
-		const poorLp = new web3.Keypair();
-		const sig3 = await provider.connection.requestAirdrop(
-			poorLp.publicKey,
-			10 ** 9
-		);
-		await provider.connection.confirmTransaction(sig3);
-		const poorLPUSDC = await mockUserUSDCAccount(
+		[traderClearingHouse, traderClearingHouseUser] = await createNewUser(
+			chProgram,
+			provider,
 			usdcMint,
 			usdcAmount,
-			provider,
-			poorLp.publicKey
+			oracleInfos
 		);
-		poorLPClearingHouse = new Admin({
-			connection,
-			wallet: new Wallet(poorLp),
-			programID: chProgram.programId,
-			opts: {
-				commitment: 'confirmed',
-			},
-			activeUserId: 0,
-			marketIndexes: [new BN(0), new BN(1), new BN(2), new BN(3), new BN(4)],
-			bankIndexes: [new BN(0)],
-			oracleInfos,
-		});
-
-		await poorLPClearingHouse.subscribe();
-		await poorLPClearingHouse.initializeUserAccountAndDepositCollateral(
-			new BN(1 * QUOTE_PRECISION),
-			poorLPUSDC.publicKey
-		);
-
-		// setup a new user to trade against lp
-		const traderKp2 = new web3.Keypair();
-		const sig2 = await provider.connection.requestAirdrop(
-			traderKp2.publicKey,
-			10 ** 9
-		);
-		await provider.connection.confirmTransaction(sig2);
-		const traderUSDCAccount2 = await mockUserUSDCAccount(
-			usdcMint,
-			usdcAmount,
-			provider,
-			traderKp2.publicKey
-		);
-		traderClearingHouse2 = new Admin({
-			connection,
-			wallet: new Wallet(traderKp2),
-			programID: chProgram.programId,
-			opts: {
-				commitment: 'confirmed',
-			},
-			activeUserId: 0,
-			marketIndexes: [new BN(0), new BN(1), new BN(2), new BN(3), new BN(4)],
-			bankIndexes: [new BN(0)],
-			oracleInfos,
-		});
-
-		await traderClearingHouse2.subscribe();
-		await traderClearingHouse2.initializeUserAccountAndDepositCollateral(
-			usdcAmount,
-			traderUSDCAccount2.publicKey
-		);
-
-		traderUser2 = new ClearingHouseUser({
-			clearingHouse: traderClearingHouse2,
-			userAccountPublicKey:
-				await traderClearingHouse2.getUserAccountPublicKey(),
-		});
-		await traderUser2.subscribe();
-
-		1; // setup a new user to trade against lp
-		traderKp = new web3.Keypair();
-		const sig = await provider.connection.requestAirdrop(
-			traderKp.publicKey,
-			10 ** 9
-		);
-		await provider.connection.confirmTransaction(sig);
-		const traderUSDCAccount = await mockUserUSDCAccount(
-			usdcMint,
-			usdcAmount,
-			provider,
-			traderKp.publicKey
-		);
-
-		traderClearingHouse = new Admin({
-			connection,
-			wallet: new Wallet(traderKp),
-			programID: chProgram.programId,
-			opts: {
-				commitment: 'confirmed',
-			},
-			activeUserId: 0,
-			marketIndexes: [new BN(0), new BN(1), new BN(2), new BN(3), new BN(4)],
-			bankIndexes: [new BN(0)],
-			oracleInfos,
-		});
-
-		await traderClearingHouse.subscribe();
-		await traderClearingHouse.initializeUserAccountAndDepositCollateral(
-			usdcAmount,
-			traderUSDCAccount.publicKey
-		);
-
-		traderUser = new ClearingHouseUser({
-			clearingHouse: traderClearingHouse,
-			userAccountPublicKey: await traderClearingHouse.getUserAccountPublicKey(),
-		});
-		await traderUser.subscribe();
+		// [traderClearingHouse2, traderClearingHouseUser2] = await createNewUser(chProgram, provider, usdcMint, usdcAmount, oracleInfos);
 	});
 
 	after(async () => {
-		await clearingHouse.unsubscribe();
 		await eventSubscriber.unsubscribe();
+
+		await clearingHouse.unsubscribe();
 		await clearingHouseUser.unsubscribe();
+
 		await traderClearingHouse.unsubscribe();
-		await traderUser.unsubscribe();
-		await traderClearingHouse2.unsubscribe();
-		await traderUser2.unsubscribe();
-		await poorLPClearingHouse.unsubscribe();
+		await traderClearingHouseUser.unsubscribe();
+
+		// await traderClearingHouse2.unsubscribe();
+		// await traderClearingHouseUser2.unsubscribe();
 	});
 
 	it('provides and removes liquidity', async () => {
@@ -278,9 +237,8 @@ describe('liquidity providing', () => {
 		console.log('adding liquidity...');
 		const txsig = await clearingHouse.addLiquidity(
 			new BN(100 * AMM_RESERVE_PRECISION),
-			new BN(0)
+			market.marketIndex
 		);
-		view_logs(txsig);
 
 		market = clearingHouse.getMarketAccount(0);
 		console.log(
@@ -307,20 +265,18 @@ describe('liquidity providing', () => {
 		assert(prevqar.lt(market.amm.quoteAssetReserve));
 		assert(prevbar.lt(market.amm.baseAssetReserve));
 
-		const user0 = clearingHouseUser.getUserAccount();
-		const lpTokenAmount0 = user0.positions[0].lpShares;
-		console.log('lpTokenAmount0:', lpTokenAmount0.toString());
-		assert(lpTokenAmount0.gt(new BN(0)));
+		const lpShares = clearingHouseUser.getUserAccount().positions[0].lpShares;
+		console.log('lpShares:', lpShares.toString());
+		assert(lpShares.gt(ZERO));
 
 		console.log('removing liquidity...');
-		const txSig = await clearingHouse.removeLiquidity(new BN(0));
-		view_logs(txSig);
+		const txSig = await clearingHouse.removeLiquidity(market.marketIndex);
 
 		market = clearingHouse.getMarketAccount(0);
 		const user = clearingHouseUser.getUserAccount();
 		const lp_token_amount = user.positions[0].lpShares;
 		console.log('lp token amount:', lp_token_amount.toString());
-		assert(lp_token_amount.eq(new BN(0)));
+		assert(lp_token_amount.eq(ZERO));
 
 		console.log('asset reserves:');
 		console.log(prevSqrtK.toString(), market.amm.sqrtK.toString());
@@ -342,43 +298,40 @@ describe('liquidity providing', () => {
 
 	it('mints too many lp tokens', async () => {
 		console.log('adding liquidity...');
+		let market = clearingHouse.getMarketAccount(ZERO);
 		try {
-			await poorLPClearingHouse.addLiquidity(
-				new BN(500 * AMM_RESERVE_PRECISION),
-				new BN(0)
-			);
+			await clearingHouse.addLiquidity(market.amm.sqrtK, market.marketIndex);
 		} catch (e) {
 			assert(e.message.includes('0x1773')); // insufficient collateral
 		}
 	});
 
-	it('provides lp, users longs, removes lp, lp has short', async () => {
+	it('provides lp, users shorts, removes lp, lp has long', async () => {
 		console.log('adding liquidity...');
 
-		let market2 = clearingHouse.getMarketAccount(new BN(0));
-		const sig = await clearingHouse.addLiquidity(new BN(100 * 1e13), new BN(0));
-		view_logs(sig);
+		const market = clearingHouse.getMarketAccount(new BN(0));
+		const sig = await clearingHouse.addLiquidity(
+			new BN(100 * 1e13),
+			market.marketIndex
+		);
 
 		let user = clearingHouseUser.getUserAccount();
 		console.log(user.positions[0].lpShares.toString());
 
 		// some user goes long (lp should get a short)
 		console.log('user trading...');
-		let baa = new BN(30 * 1e13);
-		try {
-			await price_post_swap(baa, SwapDirection.REMOVE, market2);
-			let txsig = await traderClearingHouse.openPosition(
-				PositionDirection.LONG,
-				baa,
-				new BN(0)
-			);
-			view_logs(txsig);
-		} catch (e) {
-			console.log(e);
-		}
+		let tradeSize = new BN(40 * 1e13);
+		let newPrice;
 
-		const traderr = traderClearingHouse.getUserAccount();
-		const position = traderr.positions[0];
+		newPrice = await price_post_swap(tradeSize, SwapDirection.ADD, market);
+		console.log('post trade price:', newPrice);
+		let txsig = await traderClearingHouse.openPosition(
+			PositionDirection.SHORT,
+			tradeSize,
+			market.marketIndex
+		);
+
+		const position = traderClearingHouse.getUserAccount().positions[0];
 		console.log(
 			'trader position:',
 			position.baseAssetAmount.toString(),
@@ -386,12 +339,8 @@ describe('liquidity providing', () => {
 		);
 
 		console.log('removing liquidity...');
-		try {
-			const txSig = await clearingHouse.removeLiquidity(new BN(0));
-			view_logs(txSig);
-		} catch (e) {
-			console.log(e);
-		}
+		const txSig = await clearingHouse.removeLiquidity(market.marketIndex);
+		// view_logs(txSig);
 
 		user = clearingHouseUser.getUserAccount();
 		const lp_position = user.positions[0];
@@ -401,29 +350,90 @@ describe('liquidity providing', () => {
 		console.log(
 			'baa, qaa',
 			lp_position.baseAssetAmount.toString(),
-			lp_position.quoteAssetAmount.toString()
+			lp_position.quoteAssetAmount.toString(),
+			lp_position.unsettledPnl.toString()
 		);
 
+		assert(lp_position.unsettledPnl.gt(ZERO)); // get paid fees
 		assert(lp_token_amount.eq(new BN(0)));
-		assert(user.positions[0].baseAssetAmount.lt(new BN(0))); // lp is short
+		assert(user.positions[0].baseAssetAmount.gt(new BN(0))); // lp is short
 		assert(!user.positions[0].quoteAssetAmount.eq(new BN(0)));
 
-		console.log('closing trader...');
-		let market = clearingHouse.getMarketAccount(new BN(0));
-		const trader = traderClearingHouse.getUserAccount();
-		console.log(
-			trader.positions[0].baseAssetAmount.div(new BN(1e13)).toString()
-		);
-		const trader_position = trader.positions[0];
-
-		console.log('closing trader...');
-		await price_post_swap(baa, SwapDirection.ADD, market);
+		console.log('closing trader ...');
+		await price_post_swap(tradeSize, SwapDirection.REMOVE, market);
 		await traderClearingHouse.closePosition(new BN(0));
 
 		console.log('closing lp ...');
 		console.log(user.positions[0].baseAssetAmount.div(new BN(1e13)).toString());
+		await price_post_swap(
+			user.positions[0].baseAssetAmount,
+			SwapDirection.ADD,
+			market
+		);
+		await clearingHouse.closePosition(new BN(0)); // close lp position
 
-		market = clearingHouse.getMarketAccount(new BN(0));
+		let user2 = clearingHouseUser.getUserAccount();
+		console.log(user2.positions[0].lpShares.toString());
+		let position2 = user2.positions[0];
+		console.log(
+			position2.baseAssetAmount.toString(),
+			position2.quoteAssetAmount.toString()
+		);
+
+		console.log('done!');
+	});
+
+	it('provides lp, users longs, removes lp, lp has short', async () => {
+		const market = clearingHouse.getMarketAccount(ZERO);
+
+		console.log('adding liquidity...');
+		const sig = await clearingHouse.addLiquidity(
+			new BN(100 * 1e13),
+			market.marketIndex
+		);
+
+		// some user goes long (lp should get a short)
+		console.log('user trading...');
+		let tradeSize = new BN(40 * 1e13);
+		await price_post_swap(tradeSize, SwapDirection.REMOVE, market);
+		let txsig = await traderClearingHouse.openPosition(
+			PositionDirection.LONG,
+			tradeSize,
+			market.marketIndex
+		);
+
+		const position = traderClearingHouse.getUserAccount().positions[0];
+		console.log(
+			'trader position:',
+			position.baseAssetAmount.toString(),
+			position.quoteAssetAmount.toString()
+		);
+
+		console.log('removing liquidity...');
+		const txSig = await clearingHouse.removeLiquidity(market.marketIndex);
+
+		let user = clearingHouseUser.getUserAccount();
+		const lp_position = user.positions[0];
+		const lp_token_amount = lp_position.lpShares;
+
+		console.log('lp tokens', lp_token_amount.toString());
+		console.log(
+			'baa, qaa, upnl',
+			lp_position.baseAssetAmount.toString(),
+			lp_position.quoteAssetAmount.toString(),
+			lp_position.unsettledPnl.toString()
+		);
+
+		assert(lp_position.unsettledPnl.gt(ZERO)); // get paid fees
+		assert(lp_token_amount.eq(ZERO));
+		assert(user.positions[0].baseAssetAmount.lt(ZERO)); // lp is short
+		assert(!user.positions[0].quoteAssetAmount.eq(ZERO));
+
+		console.log('closing trader...');
+		await price_post_swap(tradeSize, SwapDirection.ADD, market);
+		await traderClearingHouse.closePosition(new BN(0));
+
+		console.log('closing lp ...');
 		await price_post_swap(
 			user.positions[0].baseAssetAmount,
 			SwapDirection.REMOVE,
@@ -434,85 +444,42 @@ describe('liquidity providing', () => {
 		console.log('done!');
 	});
 
-	// it('provides lp, users shorts, removes lp, lp has long', async () => {
-	// 	console.log('adding liquidity...');
-	// 	const txsig = await clearingHouse.addLiquidity(usdcAmount, new BN(0));
-	// 	console.log(
-	// 		'tx logs',
-	// 		(await connection.getTransaction(txsig, { commitment: 'confirmed' })).meta
-	// 			.logMessages
-	// 	);
-	//
-	// 	let user = clearingHouseUser.getUserAccount();
-	// 	console.log(user.positions[0].lpTokens.toString());
-	//
-	// 	// some user goes long (lp should get a short)
-	// 	console.log('user trading...');
-	// 	await traderClearingHouse.openPosition(
-	// 		PositionDirection.SHORT,
-	// 		new BN(115 * 1e5),
-	// 		new BN(0)
-	// 	);
-	//
-	// 	console.log('removing liquidity...');
-	// 	const txSig = await clearingHouse.removeLiquidity(new BN(0));
-	//
-	// 	console.log(
-	// 		'tx logs',
-	// 		(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
-	// 			.logMessages
-	// 	);
-	//
-	// 	user = clearingHouseUser.getUserAccount();
-	// 	const lp_position = user.positions[0];
-	// 	const lp_token_amount = lp_position.lpTokens;
-	//
-	// 	console.log(
-	// 		lp_position.lpTokens.toString(),
-	// 		lp_position.baseAssetAmount.toString(),
-	// 		lp_position.quoteAssetAmount.toString()
-	// 	);
-	//
-	// 	assert(lp_token_amount.eq(new BN(0)));
-	// 	assert(lp_position.baseAssetAmount.gt(new BN(0))); // lp is long
-	// 	assert(!lp_position.quoteAssetAmount.eq(new BN(0)));
-	// 	assert(lp_position.lpTokens.eq(new BN(0))); // tokens are burned
-	//
-	// 	console.log('closing lp...');
-	// 	let market = clearingHouse.getMarketAccount(new BN(0));
-	// 	await price_post_swap(user.positions[0], market);
-	// 	await clearingHouse.closePosition(new BN(0)); // close lp position
-	//
-	// 	console.log('closing trader...');
-	// 	const trader_user = traderClearingHouse.getUserAccount();
-	// 	market = clearingHouse.getMarketAccount(new BN(0));
-	// 	await price_post_swap(trader_user.positions[0], market);
-	// 	await traderClearingHouse.closePosition(new BN(0));
-	//
-	// 	console.log('done!');
-	// });
-	//
-	// it('trys to add lp with market position', async () => {
-	// 	await clearingHouse.openPosition(
-	// 		PositionDirection.LONG,
-	// 		new BN(1 * 1e6),
-	// 		new BN(0)
-	// 	);
-	//
-	// 	try {
-	// 		await clearingHouse.addLiquidity(usdcAmount, new BN(0));
-	// 		assert(false, 'added liquidity with a market position');
-	// 	} catch (e) {
-	// 		assert(e.message.includes('0x17bf'));
-	// 	}
-	//
-	// 	console.log('closing lp...');
-	// 	const user2 = clearingHouse.getUserAccount();
-	// 	const market = clearingHouse.getMarketAccount(new BN(0));
-	// 	await price_post_swap(user2.positions[0], market);
-	// 	await clearingHouse.closePosition(new BN(0));
-	// });
-	//
+	it('lp gets paid in funding', async () => {
+		let market = clearingHouse.getMarketAccount(new BN(1));
+		let marketIndex = market.marketIndex;
+
+		console.log('adding liquidity...');
+		const sig = await clearingHouse.addLiquidity(
+			new BN(100_000).mul(new BN(1e13)),
+			marketIndex
+		);
+
+		console.log('user trading...');
+		let tradeSize = new BN(100 * 1e13).mul(new BN(30));
+		await traderClearingHouse.openPosition(
+			PositionDirection.LONG,
+			tradeSize,
+			marketIndex
+		);
+
+		console.log('updating funding rates');
+		let txsig = await clearingHouse.updateFundingRate(solusdc2, marketIndex);
+
+		console.log('removing liquidity...');
+		try {
+			const txSig = await clearingHouse.removeLiquidity(marketIndex);
+		} catch (e) {
+			console.log(e);
+		}
+
+		const user = clearingHouseUser.getUserAccount();
+		const fee_payment = new BN(1500000);
+		const funding_payment = new BN(2300000);
+
+		// dont get paid in fees bc the sqrtk is so big that fees dont get given to the lps
+		assert(user.positions[1].unsettledPnl.eq(funding_payment.add(fee_payment)));
+	});
+
 	// it('removes liquidity when market position is small', async () => {
 	// 	console.log('adding liquidity...');
 	// 	await clearingHouse.addLiquidity(usdcAmount, new BN(0));

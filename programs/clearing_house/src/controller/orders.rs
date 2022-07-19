@@ -16,6 +16,7 @@ use crate::get_then_update_id;
 use crate::math::amm::is_oracle_valid;
 use crate::math::auction::{calculate_auction_end_price, calculate_auction_start_price};
 use crate::math::casting::cast;
+use crate::math::constants::AMM_RESERVE_PRECISION;
 use crate::math::fulfillment::determine_fulfillment_methods;
 use crate::math::matching::{
     are_orders_same_market_but_different_sides, calculate_fill_for_matched_orders,
@@ -617,6 +618,41 @@ pub fn fulfill_order_with_amm(
             order_post_only,
         )?;
 
+    // pay the lps and update the market fee amount
+    let fee_slice = fee_to_market
+        .checked_mul(AMM_RESERVE_PRECISION)
+        .ok_or_else(math_error!())?
+        .checked_div(market.amm.sqrt_k)
+        .ok_or_else(math_error!())?;
+
+    market.amm.cumulative_fee_per_lp = market
+        .amm
+        .cumulative_fee_per_lp
+        .checked_add(fee_slice)
+        .ok_or_else(math_error!())?;
+
+    let non_amm_shares = market
+        .amm
+        .sqrt_k
+        .checked_sub(market.amm.amm_lp_shares)
+        .ok_or_else(math_error!())?;
+
+    let non_amm_fee_payment = fee_slice
+        .checked_mul(non_amm_shares)
+        .ok_or_else(math_error!())?
+        .checked_div(AMM_RESERVE_PRECISION)
+        .ok_or_else(math_error!())?;
+
+    msg!("full fee: {}", fee_to_market);
+
+    let fee_to_market = fee_to_market
+        .checked_sub(non_amm_fee_payment)
+        .ok_or_else(math_error!())?;
+
+    msg!("all lp amount {}", non_amm_fee_payment);
+    msg!("market fee: {}", fee_to_market);
+    msg!("cum per lp funding {}", market.amm.cumulative_fee_per_lp);
+
     let position_index = get_position_index(&user.positions, market.market_index)?;
     // Increment the clearing house's total fee variables
     market.amm.total_fee = market
@@ -816,6 +852,25 @@ pub fn fulfill_order_with_match(
             now,
             filler.is_some(),
         )?;
+
+    // pay the lps and update the market fee amount
+    let fee_slice = fee_to_market
+        .checked_mul(AMM_RESERVE_PRECISION)
+        .ok_or_else(math_error!())?
+        .checked_div(market.amm.sqrt_k)
+        .ok_or_else(math_error!())?;
+
+    market.amm.cumulative_fee_per_lp = market
+        .amm
+        .cumulative_fee_per_lp
+        .checked_add(fee_slice)
+        .ok_or_else(math_error!())?;
+
+    let fee_to_market = fee_slice
+        .checked_mul(market.amm.amm_lp_shares)
+        .ok_or_else(math_error!())?
+        .checked_div(AMM_RESERVE_PRECISION)
+        .ok_or_else(math_error!())?;
 
     // Increment the markets house's total fee variables
     market.amm.total_fee = market

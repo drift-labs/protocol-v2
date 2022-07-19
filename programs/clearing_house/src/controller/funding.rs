@@ -11,7 +11,8 @@ use crate::get_then_update_id;
 use crate::math::amm;
 use crate::math::casting::{cast, cast_to_i128};
 use crate::math::constants::{
-    AMM_TO_QUOTE_PRECISION_RATIO_I128, FUNDING_PAYMENT_PRECISION, ONE_HOUR,
+    AMM_RESERVE_PRECISION_I128, AMM_TO_QUOTE_PRECISION_RATIO_I128, FUNDING_PAYMENT_PRECISION,
+    ONE_HOUR,
 };
 use crate::math::funding::{
     calculate_funding_payment, calculate_funding_payment_in_quote_precision,
@@ -140,6 +141,9 @@ pub fn update_funding_rate(
         }
     }
 
+    msg!("{} > {}", time_since_last_update, next_update_wait);
+    msg!("{} {}", !funding_paused, !block_funding_rate_update);
+
     if !funding_paused && !block_funding_rate_update && time_since_last_update >= next_update_wait {
         let oracle_price_twap = amm::update_oracle_price_twap(
             &mut market.amm,
@@ -185,19 +189,6 @@ pub fn update_funding_rate(
                 mark_price,
             )?;
         }
-
-        // lp funding
-        let amm_net_position = -market.amm.net_base_asset_amount;
-        let funding_rate_lp = if amm_net_position < 0 {
-            calculate_funding_payment_in_quote_precision(funding_rate_short, amm_net_position)?
-        } else {
-            calculate_funding_payment_in_quote_precision(funding_rate_long, amm_net_position)?
-        };
-        market.amm.cumulative_funding_rate_lp = market
-            .amm
-            .cumulative_funding_rate_lp
-            .checked_add(funding_rate_lp)
-            .ok_or_else(math_error!())?;
 
         market.amm.cumulative_funding_rate_long = market
             .amm

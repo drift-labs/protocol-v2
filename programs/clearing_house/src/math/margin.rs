@@ -6,7 +6,6 @@ use crate::math::position::{
     calculate_base_asset_value_and_pnl_with_oracle_price, calculate_position_pnl,
 };
 use crate::math_error;
-use crate::state::market;
 use crate::state::user::User;
 
 use crate::error::ErrorCode;
@@ -85,13 +84,9 @@ pub fn calculate_margin_requirement_and_total_collateral(
     let mut perp_margin_requirements: u128 = 0;
     for market_position in user.positions.iter() {
         let lp_market_position = if market_position.is_lp() {
-            if market_position.base_asset_amount != 0 {
-                panic!("not impl yet")
-            }
-
             // market position if lp was settled
             let market = &market_map.get_ref(&market_position.market_index)?;
-            let lp_market_position = get_lp_market_position_margin(market_position, &market.amm)?;
+            let lp_market_position = get_lp_market_position_margin(market_position, &market)?;
             Some(lp_market_position)
         } else {
             None

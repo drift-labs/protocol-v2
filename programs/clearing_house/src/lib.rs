@@ -41,8 +41,7 @@ pub mod clearing_house {
     use crate::controller::bank_balance::update_bank_balances;
     use crate::controller::lp::settle_lp_position;
     use crate::controller::position::{
-        add_new_position, get_position_index, get_position_index_lp, update_position_and_market,
-        PositionDelta,
+        add_new_position, get_position_index, update_position_and_market, PositionDelta,
     };
     use crate::margin_validation::validate_margin;
     use crate::math;
@@ -382,7 +381,6 @@ pub mod clearing_house {
                 cumulative_repeg_rebate_short: 0,
                 cumulative_funding_rate_long: 0,
                 cumulative_funding_rate_short: 0,
-                cumulative_funding_rate_lp: 0,
                 last_funding_rate: 0,
                 last_funding_rate_ts: now,
                 funding_period: amm_periodicity,
@@ -767,6 +765,10 @@ pub mod clearing_house {
         // let clock_slot = clock.slot; // TODO add cool down for adding/removing liquidity
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
 
+        // TODO remove -- only here so get remaining accounts from sdk works
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let bank_map = BankMap::load(&WritableBanks::new(), remaining_accounts_iter)?;
+
         let market_map = MarketMap::load(
             &get_writable_markets(market_index),
             &MarketOracles::new(),
@@ -774,16 +776,16 @@ pub mod clearing_house {
         )?;
         let mut market = market_map.get_ref_mut(&market_index)?;
 
-        // need position_lp bc could get incorrect account otherwise (old account with unsettled_pnl)
-        let position_index = get_position_index_lp(&user.positions, market_index)?;
-
+        // update funding
         {
             controller::funding::settle_funding_payment(user, &user_key, &market_map, now)?;
         }
 
+        // get position
+        let position_index = get_position_index(&user.positions, market_index)?;
         let position = &mut user.positions[position_index];
 
-        let lp_shares_to_burn = position.lp_shares; // tmp
+        let lp_shares_to_burn = position.lp_shares;
         if lp_shares_to_burn == 0 {
             return Ok(());
         }
@@ -796,11 +798,6 @@ pub mod clearing_house {
 
         // settle the lp first
         settle_lp_position(position, &mut market)?;
-        msg!(
-            "lp baa qaa: {} {}",
-            position.lp_base_asset_amount,
-            position.lp_quote_asset_amount
-        );
 
         // give them a portion of the market position
         let base_amount_acquired = get_proportion_i128(
@@ -865,6 +862,7 @@ pub mod clearing_house {
 
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
         let bank_map = BankMap::load(&WritableBanks::new(), remaining_accounts_iter)?;
+
         let market_map = MarketMap::load(
             &get_writable_markets(market_index),
             &MarketOracles::new(), // TODO
@@ -889,22 +887,21 @@ pub mod clearing_house {
         );
 
         if position.lp_shares > 0 {
-            panic!("not impl yet");
+            let mut market = market_map.get_ref_mut(&market_index)?;
+            settle_lp_position(position, &mut market)?;
+        } else {
+            // init
+            position.last_cumulative_fee_per_lp = cumulative_fee_per_lp;
+            position.last_cumulative_funding_payment_per_lp = cumulative_funding_payment_per_lp;
+            position.last_cumulative_net_base_asset_amount_per_lp =
+                cumulative_net_base_asset_amount_per_lp;
         }
 
-        // add token balance
+        // add share balance
         position.lp_shares = position
             .lp_shares
             .checked_add(n_shares)
             .ok_or_else(math_error!())?;
-
-        // record stats
-        // TODO: call settle and have these stats updated on their own
-
-        position.last_cumulative_fee_per_lp = cumulative_fee_per_lp;
-        position.last_cumulative_funding_rate_lp = cumulative_funding_payment_per_lp;
-        position.last_cumulative_net_base_asset_amount_per_lp =
-            cumulative_net_base_asset_amount_per_lp;
 
         // update market state
         let new_sqrt_k = sqrt_k.checked_add(n_shares).ok_or_else(math_error!())?;

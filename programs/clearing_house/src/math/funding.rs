@@ -12,6 +12,8 @@ use crate::state::user::MarketPosition;
 use solana_program::msg;
 use std::cmp::{max, min};
 
+use super::constants::AMM_RESERVE_PRECISION_I128;
+
 pub fn calculate_funding_rate(
     mid_price_twap: u128,
     oracle_price_twap: i128,
@@ -58,24 +60,114 @@ pub fn calculate_funding_rate_long_short(
     let net_market_position_funding_payment =
         calculate_funding_payment_in_quote_precision(funding_rate, net_market_position)?;
     let uncapped_funding_pnl = -net_market_position_funding_payment;
+    msg!("uncap fundign: {}", uncapped_funding_pnl);
 
     // If the uncapped_funding_pnl is positive, the clearing house receives money.
     if uncapped_funding_pnl >= 0 {
+        let scaled_uncap = uncapped_funding_pnl
+            .checked_mul(AMM_RESERVE_PRECISION_I128)
+            .ok_or_else(math_error!())?;
+
+        msg!("sqrtk {}", market.amm.sqrt_k);
+        msg!("scaled uncap {}", scaled_uncap);
+
+        // pay the lps
+        let funding_pnl_slice = uncapped_funding_pnl
+            .checked_mul(AMM_RESERVE_PRECISION_I128)
+            .ok_or_else(math_error!())?
+            .checked_div(cast_to_i128(market.amm.sqrt_k)?)
+            .ok_or_else(math_error!())?;
+
+        market.amm.cumulative_funding_payment_per_lp = market
+            .amm
+            .cumulative_funding_payment_per_lp
+            .checked_add(funding_pnl_slice)
+            .ok_or_else(math_error!())?;
+
+        let non_amm_shares = market
+            .amm
+            .sqrt_k
+            .checked_sub(market.amm.amm_lp_shares)
+            .ok_or_else(math_error!())?;
+
+        let non_amm_funding_payment = funding_pnl_slice
+            .checked_mul(cast_to_i128(non_amm_shares)?)
+            .ok_or_else(math_error!())?
+            .checked_div(AMM_RESERVE_PRECISION_I128)
+            .ok_or_else(math_error!())?;
+
+        // pay the market what the lps didnt get
+        let uncapped_funding_pnl = uncapped_funding_pnl
+            .checked_sub(non_amm_funding_payment)
+            .ok_or_else(math_error!())?;
+
+        msg!(
+            "cum per lp funding {}",
+            market.amm.cumulative_funding_payment_per_lp
+        );
+        msg!("total lp funding  {}", non_amm_funding_payment);
+        msg!("market funding: {}", uncapped_funding_pnl);
+
+        // update the stats
         market.amm.total_fee_minus_distributions = market
             .amm
             .total_fee_minus_distributions
             .checked_add(uncapped_funding_pnl.unsigned_abs())
             .ok_or_else(math_error!())?;
+
         market.amm.net_revenue_since_last_funding = market
             .amm
             .net_revenue_since_last_funding
             .checked_add(uncapped_funding_pnl as i64)
             .ok_or_else(math_error!())?;
+
         return Ok((funding_rate, funding_rate, uncapped_funding_pnl));
     }
 
     let (capped_funding_rate, capped_funding_pnl) =
         calculate_capped_funding_rate(market, uncapped_funding_pnl, funding_rate)?;
+    // pay the lps
+    let funding_pnl_slice = capped_funding_pnl
+        .checked_mul(AMM_RESERVE_PRECISION_I128)
+        .ok_or_else(math_error!())?
+        .checked_div(cast_to_i128(market.amm.sqrt_k)?)
+        .ok_or_else(math_error!())?;
+
+    market.amm.cumulative_funding_payment_per_lp = market
+        .amm
+        .cumulative_funding_payment_per_lp
+        .checked_add(funding_pnl_slice)
+        .ok_or_else(math_error!())?;
+
+    let non_amm_shares = market
+        .amm
+        .sqrt_k
+        .checked_sub(market.amm.amm_lp_shares)
+        .ok_or_else(math_error!())?;
+
+    let non_amm_funding = funding_pnl_slice
+        .checked_mul(cast_to_i128(non_amm_shares)?)
+        .ok_or_else(math_error!())?
+        .checked_div(AMM_RESERVE_PRECISION_I128)
+        .ok_or_else(math_error!())?;
+
+    // pay the market what the lps didnt get
+    let capped_funding_pnl = capped_funding_pnl
+        .checked_sub(non_amm_funding)
+        .ok_or_else(math_error!())?;
+
+    msg!(
+        "cum per lp funding {}",
+        market.amm.cumulative_funding_payment_per_lp
+    );
+    msg!("total lp funding  {}", non_amm_funding);
+    msg!("market funding: {}", capped_funding_pnl);
+
+    let capped_funding_pnl = funding_pnl_slice
+        .checked_mul(cast_to_i128(market.amm.amm_lp_shares)?)
+        .ok_or_else(math_error!())?
+        .checked_div(AMM_RESERVE_PRECISION_I128)
+        .ok_or_else(math_error!())?;
 
     let new_total_fee_minus_distributions = market
         .amm
@@ -99,6 +191,7 @@ pub fn calculate_funding_rate_long_short(
         .net_revenue_since_last_funding
         .checked_sub(capped_funding_pnl.unsigned_abs() as i64)
         .ok_or_else(math_error!())?;
+
     let funding_rate_long = if funding_rate < 0 {
         capped_funding_rate
     } else {

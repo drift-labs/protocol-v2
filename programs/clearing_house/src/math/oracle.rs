@@ -7,6 +7,8 @@ use crate::state::market::AMM;
 use crate::state::oracle::OraclePriceData;
 use crate::state::state::OracleGuardRails;
 
+use solana_program::msg;
+
 pub fn block_operation(
     amm: &AMM,
     oracle_account_info: &AccountInfo,
@@ -26,6 +28,11 @@ pub fn block_operation(
         guard_rails,
         precomputed_mark_price,
     )?;
+    msg!(
+        "oracle block: {} {}",
+        oracle_is_valid,
+        is_oracle_mark_too_divergent
+    );
 
     let block = !oracle_is_valid || is_oracle_mark_too_divergent;
     Ok((block, oracle_price_data))

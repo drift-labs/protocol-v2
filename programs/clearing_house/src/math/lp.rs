@@ -1,14 +1,16 @@
 use crate::controller::amm::SwapDirection;
+use crate::controller::position::update_position_and_market;
+use crate::controller::position::PositionDelta;
 use crate::error::ClearingHouseResult;
 use crate::math::amm::calculate_swap_output;
 use crate::math::casting::cast_to_i128;
 use crate::math::constants::{AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128};
 use crate::math::quote_asset::reserve_to_asset_amount;
 use crate::math_error;
+use crate::state::market::Market;
 use crate::state::market::AMM;
 use crate::state::user::MarketPosition;
 
-use core::panic;
 use solana_program::msg;
 
 #[derive(Debug)]
@@ -39,8 +41,8 @@ pub fn get_lp_metrics(position: &MarketPosition, amm: &AMM) -> ClearingHouseResu
 
     // give them the funding
     let funding_payment = amm
-        .cumulative_funding_rate_lp
-        .checked_sub(position.last_cumulative_funding_rate_lp)
+        .cumulative_funding_payment_per_lp
+        .checked_sub(position.last_cumulative_funding_payment_per_lp)
         .ok_or_else(math_error!())?
         .checked_mul(n_shares_i128)
         .ok_or_else(math_error!())?
@@ -117,8 +119,17 @@ pub fn get_lp_metrics(position: &MarketPosition, amm: &AMM) -> ClearingHouseResu
         quote_asset_amount: market_quote_asset_amount,
         unsettled_pnl,
     };
+    msg!("lp metrics: {:#?}", lp_metrics);
 
     Ok(lp_metrics)
+}
+
+pub fn abs_difference(a: u128, b: u128) -> ClearingHouseResult<u128> {
+    if a > b {
+        a.checked_sub(b).ok_or_else(math_error!())
+    } else {
+        b.checked_sub(a).ok_or_else(math_error!())
+    }
 }
 
 pub fn calculate_swap_quote_reserve_delta(
@@ -137,25 +148,21 @@ pub fn calculate_swap_quote_reserve_delta(
         amm.sqrt_k,
     )?;
 
-    // avoid overflow - note: sign doesnt matter
-    let quote_asset_reserve_output = if new_quote_asset_reserve > amm.quote_asset_reserve {
-        new_quote_asset_reserve
-            .checked_sub(amm.quote_asset_reserve)
-            .ok_or_else(math_error!())?
-    } else {
-        amm.quote_asset_reserve
-            .checked_sub(new_quote_asset_reserve)
-            .ok_or_else(math_error!())?
-    };
+    let quote_asset_reserve_output =
+        abs_difference(new_quote_asset_reserve, amm.quote_asset_reserve)?;
 
     Ok(quote_asset_reserve_output)
 }
 
 pub fn get_lp_market_position_margin(
     position: &MarketPosition,
-    amm: &AMM,
+    market: &Market,
 ) -> ClearingHouseResult<MarketPosition> {
-    let mut market_position = *position; // clone bc its only temporary
+    let amm = &market.amm;
+
+    // clone bc its only temporary
+    let mut market_position = *position;
+
     let lp_metrics = get_lp_metrics(&market_position, amm)?;
 
     let total_lp_shares = amm.sqrt_k;
@@ -168,6 +175,20 @@ pub fn get_lp_market_position_margin(
         .ok_or_else(math_error!())?
         .checked_add(lp_metrics.funding_payment)
         .ok_or_else(math_error!())?;
+
+    // update the virtual position from the settle
+    // let mut market_clone = (*market).clone();
+    // TODO: probably want to refactor so we dont have to clone the market
+    // if lp_metrics.base_asset_amount != 0 {
+    //     let position_delta = PositionDelta {
+    //         base_asset_amount: lp_metrics.base_asset_amount,
+    //         quote_asset_amount: lp_metrics.quote_asset_amount,
+    //     };
+    //     let pnl = update_position_and_market(&mut market_position, &mut market_clone, &position_delta)?;
+    //     market_position.unsettled_pnl = market_position.unsettled_pnl
+    //         .checked_add(pnl)
+    //         .ok_or_else(math_error!())?;
+    // }
 
     // worse case market position
     // max ask: (sqrtk*1.4142 - base asset reserves) * lp share
@@ -206,13 +227,6 @@ pub fn get_lp_market_position_margin(
         .ok_or_else(math_error!())?;
 
     let open_bids = cast_to_i128(get_proportion_u128(max_bids, lp_shares, total_lp_shares)?)?;
-
-    if market_position.base_asset_amount != 0 {
-        panic!("not impl yet")
-    }
-
-    market_position.base_asset_amount = lp_metrics.base_asset_amount;
-    market_position.quote_asset_amount = lp_metrics.quote_asset_amount;
 
     market_position.open_bids = market_position
         .open_bids
