@@ -112,7 +112,7 @@ describe('clearing_house', () => {
 			baseAssetAmount,
 			false
 		);
-		await clearingHouse.placeAndFillOrder(orderParams);
+		await clearingHouse.placeAndTake(orderParams);
 		const txSig = await clearingHouse.settlePNL(
 			await clearingHouse.getUserAccountPublicKey(),
 			clearingHouse.getUserAccount(),
@@ -125,7 +125,7 @@ describe('clearing_house', () => {
 		);
 
 		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9950249)));
-		assert(user.totalFeePaid.eq(new BN(49750)));
+		assert(user.fees.totalFeePaid.eq(new BN(49750)));
 
 		assert.ok(
 			clearingHouse
@@ -188,7 +188,7 @@ describe('clearing_house', () => {
 				false,
 				limitPriceTooHigh
 			);
-			await clearingHouse.placeAndFillOrder(orderParams);
+			await clearingHouse.placeAndTake(orderParams);
 		} catch (e) {
 			assert(true);
 			return;
@@ -207,7 +207,7 @@ describe('clearing_house', () => {
 			baseAssetAmount,
 			false
 		);
-		const txSig = await clearingHouse.placeAndFillOrder(orderParams);
+		const txSig = await clearingHouse.placeAndTake(orderParams);
 		await printTxLogs(connection, txSig);
 
 		await clearingHouse.settlePNL(
@@ -234,7 +234,7 @@ describe('clearing_house', () => {
 		);
 
 		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9925373)));
-		assert(user.totalFeePaid.eq(new BN(74626)));
+		assert(user.fees.totalFeePaid.eq(new BN(74626)));
 
 		const market = clearingHouse.getMarketAccount(0);
 		console.log(market.amm.netBaseAssetAmount.toString());
@@ -269,7 +269,7 @@ describe('clearing_house', () => {
 			baseAssetAmount,
 			false
 		);
-		await clearingHouse.placeAndFillOrder(orderParams);
+		await clearingHouse.placeAndTake(orderParams);
 		await clearingHouse.settlePNL(
 			await clearingHouse.getUserAccountPublicKey(),
 			clearingHouse.getUserAccount(),
@@ -281,7 +281,7 @@ describe('clearing_house', () => {
 		);
 
 		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9874391)));
-		assert(user.totalFeePaid.eq(new BN(124371)));
+		assert(user.fees.totalFeePaid.eq(new BN(124371)));
 		assert.ok(
 			clearingHouse
 				.getUserAccount()
@@ -329,7 +329,7 @@ describe('clearing_house', () => {
 			baseAssetAmount,
 			true
 		);
-		await clearingHouse.placeAndFillOrder(orderParams);
+		await clearingHouse.placeAndTake(orderParams);
 		await clearingHouse.settlePNL(
 			await clearingHouse.getUserAccountPublicKey(),
 			clearingHouse.getUserAccount(),
@@ -348,7 +348,7 @@ describe('clearing_house', () => {
 		);
 
 		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9850757)));
-		assert(user.totalFeePaid.eq(new BN(149242)));
+		assert(user.fees.totalFeePaid.eq(new BN(149242)));
 
 		const market = clearingHouse.getMarketAccount(0);
 		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(0)));

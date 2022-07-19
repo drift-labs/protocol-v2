@@ -216,7 +216,7 @@ describe('stop limit', () => {
 		const limitPrice = MARK_PRICE_PRECISION;
 		const triggerCondition = OrderTriggerCondition.ABOVE;
 
-		await clearingHouse.placeAndFillOrder(
+		await clearingHouse.placeAndTake(
 			getMarketOrderParams(
 				marketIndex,
 				PositionDirection.LONG,
@@ -301,7 +301,7 @@ describe('stop limit', () => {
 		const limitPrice = MARK_PRICE_PRECISION;
 		const triggerCondition = OrderTriggerCondition.BELOW;
 
-		await clearingHouse.placeAndFillOrder(
+		await clearingHouse.placeAndTake(
 			getMarketOrderParams(
 				marketIndex,
 				PositionDirection.SHORT,

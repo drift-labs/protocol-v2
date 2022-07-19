@@ -207,8 +207,8 @@ describe('post only', () => {
 		assert(
 			clearingHouse.getUserAccount().positions[0].unsettledPnl.eq(new BN(ZERO))
 		);
-		assert(clearingHouseUser.getUserAccount().totalFeePaid.eq(ZERO));
-		assert(clearingHouseUser.getUserAccount().totalFeeRebate.eq(ZERO));
+		assert(clearingHouseUser.getUserAccount().fees.totalFeePaid.eq(ZERO));
+		assert(clearingHouseUser.getUserAccount().fees.totalFeePaid.eq(ZERO));
 
 		await fillerClearingHouse.fetchAccounts();
 		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
@@ -298,8 +298,8 @@ describe('post only', () => {
 		assert(
 			clearingHouse.getUserAccount().positions[0].unsettledPnl.eq(new BN(0))
 		);
-		assert(clearingHouseUser.getUserAccount().totalFeePaid.eq(ZERO));
-		assert(clearingHouseUser.getUserAccount().totalFeeRebate.eq(new BN(0)));
+		assert(clearingHouseUser.getUserAccount().fees.totalFeePaid.eq(ZERO));
+		assert(clearingHouseUser.getUserAccount().fees.totalFeePaid.eq(new BN(0)));
 
 		await fillerClearingHouse.fetchAccounts();
 		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
