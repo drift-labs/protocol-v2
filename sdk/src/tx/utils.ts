@@ -8,7 +8,7 @@ const COMPUTE_UNITS_DEFAULT = 200_000;
 
 export function wrapInTx(
 	instruction: TransactionInstruction,
-	computeUnits = 500_000 // TODO, requires less code change
+	computeUnits = 600_000 // TODO, requires less code change
 ): Transaction {
 	const tx = new Transaction();
 	if (computeUnits != COMPUTE_UNITS_DEFAULT) {

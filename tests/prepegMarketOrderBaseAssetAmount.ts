@@ -531,19 +531,23 @@ describe('prepeg', () => {
 			user.positions[0].baseAssetAmount.div(new BN(2)),
 			false
 		);
-
-		const txSig = await clearingHouse.placeAndTake(orderParams);
-		const computeUnits = await findComputeUnitConsumption(
-			clearingHouse.program.programId,
-			connection,
-			txSig,
-			'confirmed'
-		);
-		console.log('compute units', computeUnits);
-		console.log(
-			'tx logs',
-			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
-				.logMessages
-		);
+		try {
+			const txSig = await clearingHouse.placeAndTake(orderParams);
+			const computeUnits = await findComputeUnitConsumption(
+				clearingHouse.program.programId,
+				connection,
+				txSig,
+				'confirmed'
+			);
+			console.log('compute units', computeUnits);
+			console.log(
+				'tx logs',
+				(await connection.getTransaction(txSig, { commitment: 'confirmed' }))
+					.meta.logMessages
+			);
+		} catch (e) {
+			console.error(e);
+			assert(false);
+		}
 	});
 });

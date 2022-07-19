@@ -1,9 +1,11 @@
 use crate::error::ClearingHouseResult;
 use crate::math::collateral::calculate_updated_collateral;
-use crate::math::constants::{BANK_WEIGHT_PRECISION, MARGIN_PRECISION};
+use crate::math::constants::{
+    BANK_WEIGHT_PRECISION, BID_ASK_SPREAD_PRECISION_I128, MARGIN_PRECISION,
+};
 use crate::math::position::{
-    calculate_base_asset_value, calculate_base_asset_value_and_pnl,
-    calculate_base_asset_value_and_pnl_with_oracle_price, calculate_position_pnl,
+    calculate_base_asset_value_and_pnl, calculate_base_asset_value_and_pnl_with_oracle_price,
+    calculate_base_asset_value_with_oracle_price,
 };
 use crate::math_error;
 use crate::state::user::User;
@@ -27,6 +29,7 @@ use crate::state::user::{MarketPosition, UserBankBalance};
 use crate::validate;
 use solana_program::clock::Slot;
 use solana_program::msg;
+use std::cmp::min;
 use std::ops::Div;
 
 #[derive(Copy, Clone)]
@@ -61,12 +64,51 @@ pub fn calculate_bank_equity_value(
     Ok(balance_equity_value)
 }
 
+pub fn calculate_oracle_price_for_margin(
+    market_position: &MarketPosition,
+    market: &Market,
+    oracle_price_data: &OraclePriceData,
+) -> ClearingHouseResult<i128> {
+    let oracle_price_offset = min(
+        (market.amm.max_spread as i128)
+            .checked_mul(oracle_price_data.price)
+            .ok_or_else(math_error!())?
+            .checked_div(BID_ASK_SPREAD_PRECISION_I128)
+            .ok_or_else(math_error!())?,
+        cast_to_i128(
+            oracle_price_data
+                .confidence
+                .checked_add(market.amm.base_spread as u128)
+                .ok_or_else(math_error!())?,
+        )?,
+    );
+    let oracle_price = if market_position.base_asset_amount > 0 {
+        oracle_price_data
+            .price
+            .checked_sub(oracle_price_offset)
+            .ok_or_else(math_error!())?
+    } else {
+        oracle_price_data
+            .price
+            .checked_add(oracle_price_offset)
+            .ok_or_else(math_error!())?
+    };
+
+    Ok(oracle_price)
+}
+
 pub fn calculate_perp_equity_value(
     market_position: &MarketPosition,
     market: &Market,
+    oracle_price_data: &OraclePriceData,
     margin_requirement_type: MarginRequirementType,
 ) -> ClearingHouseResult<(u128, i128)> {
-    let position_unrealized_pnl = calculate_position_pnl(market_position, &market.amm, false)?;
+    let oracle_price =
+        calculate_oracle_price_for_margin(market_position, market, oracle_price_data)?;
+
+    let (_, position_unrealized_pnl) =
+        calculate_base_asset_value_and_pnl_with_oracle_price(market_position, oracle_price)?;
+
     let position_unsettled_pnl = position_unrealized_pnl
         .checked_add(market_position.unsettled_pnl)
         .ok_or_else(math_error!())?;
@@ -75,8 +117,9 @@ pub fn calculate_perp_equity_value(
         market.get_unsettled_asset_weight(position_unsettled_pnl, margin_requirement_type)?;
 
     let worst_case_base_asset_amount = market_position.worst_case_base_asset_amount()?;
+
     let worse_case_base_asset_value =
-        calculate_base_asset_value(worst_case_base_asset_amount, &market.amm, false)?;
+        calculate_base_asset_value_with_oracle_price(worst_case_base_asset_amount, oracle_price)?;
 
     let margin_ratio = market.get_margin_ratio(
         worst_case_base_asset_amount.unsigned_abs(),
@@ -152,8 +195,14 @@ pub fn calculate_margin_requirement_and_total_collateral(
             "AMM must be updated in a prior instruction within same slot"
         )?;
 
-        let (perp_margin_requirement, perp_unrealized_pnl) =
-            calculate_perp_equity_value(market_position, market, margin_requirement_type)?;
+        let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
+
+        let (perp_margin_requirement, perp_unrealized_pnl) = calculate_perp_equity_value(
+            market_position,
+            market,
+            oracle_price_data,
+            margin_requirement_type,
+        )?;
 
         perp_margin_requirements = perp_margin_requirements
             .checked_add(perp_margin_requirement)
@@ -753,7 +802,7 @@ mod test {
     }
 
     #[test]
-    fn calculate_equity_value_tests() {
+    fn calculate_user_equity_value_tests() {
         let user = User { ..User::default() };
 
         let user_bank_balance = UserBankBalance {

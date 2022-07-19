@@ -260,9 +260,10 @@ describe('clearing_house', () => {
 		await printTxLogs(connection, txSig);
 
 		await eventSubscriber.awaitTx(txSig);
-		console.log(
-			eventSubscriber.getEventsArray('OrderRecord')[0].takerFee.toString()
-		);
+		const orderR = eventSubscriber.getEventsArray('OrderRecord')[0];
+		console.log(orderR.takerFee.toString());
+
+		console.log(orderR.baseAssetAmountFilled.toString());
 
 		const txSigSettlePnl = await clearingHouse.settlePNL(
 			await clearingHouse.getUserAccountPublicKey(),
