@@ -274,6 +274,10 @@ export type AMM = {
 	totalFeeMinusDistributions: BN;
 	totalFeeWithdrawn: BN;
 	totalFee: BN;
+	cumulativeFundingPaymentPerLp: BN;
+	cumulativeFeePerLp: BN;
+	cumulativeNetBaBNseAssetAmountPerLp: BN;
+	ammLpShares: BN;
 	minimumQuoteAssetTradeSize: BN;
 	baseAssetAmountStepSize: BN;
 	lastOraclePrice: BN;
@@ -303,11 +307,14 @@ export type UserPosition = {
 	quoteEntryAmount: BN;
 	openOrders: BN;
 	unsettledPnl: BN;
-	lpTokens: BN;
-	lastTotalFeeMinusDistributions: BN;
-	lastNetBaseAssetAmount: BN;
 	openBids: BN;
 	openAsks: BN;
+	lpShares: BN;
+	lpBaseAssetAmount: BN;
+	lpQuoteAssetAmount: BN;
+	lastCumulativeFundingRateLp: BN;
+	lastCumulativeFeePerLp: BN;
+	lastCumulativeNetBaseAssetAmountPerLp: BN;
 };
 
 export type UserAccount = {
@@ -350,7 +357,7 @@ export type Order = {
 	triggerPrice: BN;
 	triggerCondition: OrderTriggerCondition;
 	discountTier: OrderDiscountTier;
-	existingPositionDirection: PositionDirection,
+	existingPositionDirection: PositionDirection;
 	referrer: PublicKey;
 	postOnly: boolean;
 	immediateOrCancel: boolean;

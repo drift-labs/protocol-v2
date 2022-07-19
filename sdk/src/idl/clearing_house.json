@@ -365,27 +365,6 @@
       "args": []
     },
     {
-      "name": "settleLp",
-      "accounts": [
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "user",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "marketIndex",
-          "type": "u64"
-        }
-      ]
-    },
-    {
       "name": "removeLiquidity",
       "accounts": [
         {
@@ -432,7 +411,7 @@
       ],
       "args": [
         {
-          "name": "quoteAssetAmount",
+          "name": "nShares",
           "type": "u128"
         },
         {
@@ -1015,11 +994,6 @@
         {
           "name": "user",
           "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "market",
-          "isMut": false,
           "isSigner": false
         }
       ],
@@ -2168,6 +2142,22 @@
             "type": "u128"
           },
           {
+            "name": "cumulativeFundingPaymentPerLp",
+            "type": "i128"
+          },
+          {
+            "name": "cumulativeFeePerLp",
+            "type": "u128"
+          },
+          {
+            "name": "cumulativeNetBaseAssetAmountPerLp",
+            "type": "i128"
+          },
+          {
+            "name": "ammLpShares",
+            "type": "u128"
+          },
+          {
             "name": "lastFundingRate",
             "type": "i128"
           },
@@ -2598,15 +2588,27 @@
             "type": "i128"
           },
           {
-            "name": "lpTokens",
+            "name": "lpShares",
             "type": "u128"
           },
           {
-            "name": "lastTotalFeeMinusDistributions",
+            "name": "lpBaseAssetAmount",
+            "type": "i128"
+          },
+          {
+            "name": "lpQuoteAssetAmount",
             "type": "u128"
           },
           {
-            "name": "lastNetBaseAssetAmount",
+            "name": "lastCumulativeFundingRateLp",
+            "type": "i128"
+          },
+          {
+            "name": "lastCumulativeFeePerLp",
+            "type": "u128"
+          },
+          {
+            "name": "lastCumulativeNetBaseAssetAmountPerLp",
             "type": "i128"
           },
           {
@@ -3846,17 +3848,17 @@
       "msg": "DefaultError"
     },
     {
-      "code": 6087,
+      "code": 6088,
       "name": "InsufficientLPTokens",
       "msg": "Insufficient LP tokens"
     },
     {
-      "code": 6088,
+      "code": 6089,
       "name": "CantLPWithMarketPosition",
       "msg": "Cant LP with a market position"
     },
     {
-      "code": 6089,
+      "code": 6090,
       "name": "UnableToBurnLPTokens",
       "msg": "Unable to burn LP tokens"
     }

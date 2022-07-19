@@ -8,6 +8,7 @@ use crate::controller;
 use crate::controller::amm::SwapDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::casting::{cast, cast_to_i128};
+use crate::math::constants::AMM_RESERVE_PRECISION;
 use crate::math::orders::calculate_quote_asset_amount_for_maker_order;
 use crate::math::pnl::calculate_pnl;
 use crate::math::position::swap_direction_to_close_position;
@@ -194,6 +195,22 @@ pub fn update_position_and_market(
         .net_base_asset_amount
         .checked_add(delta.base_asset_amount)
         .ok_or_else(math_error!())?;
+
+    market.amm.cumulative_net_base_asset_amount_per_lp = market
+        .amm
+        .cumulative_net_base_asset_amount_per_lp
+        .checked_add(delta.base_asset_amount)
+        .ok_or_else(math_error!())?
+        .checked_mul(cast_to_i128(AMM_RESERVE_PRECISION)?)
+        .ok_or_else(math_error!())?
+        .checked_div(cast_to_i128(market.amm.sqrt_k)?)
+        .ok_or_else(math_error!())?;
+
+    msg!("baa delta: {}", delta.base_asset_amount);
+    msg!(
+        "cum net baa {}",
+        market.amm.cumulative_net_base_asset_amount_per_lp
+    );
 
     // Update Market open interest
     if new_position {

@@ -41,7 +41,8 @@ pub mod clearing_house {
     use crate::controller::bank_balance::update_bank_balances;
     use crate::controller::lp::settle_lp_position;
     use crate::controller::position::{
-        add_new_position, get_position_index, get_position_index_lp,
+        add_new_position, get_position_index, get_position_index_lp, update_position_and_market,
+        PositionDelta,
     };
     use crate::margin_validation::validate_margin;
     use crate::math;
@@ -52,6 +53,7 @@ pub mod clearing_house {
     };
     use crate::math::bank_balance::get_token_amount;
     use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64};
+    use crate::math::lp::{get_proportion_i128, get_proportion_u128};
     use crate::math::slippage::{calculate_slippage, calculate_slippage_pct};
     use crate::optional_accounts::get_maker;
     use crate::state::bank::{Bank, BankBalance, BankBalanceType};
@@ -419,6 +421,13 @@ pub mod clearing_house {
                 curve_update_intensity: 0,
                 fee_pool: PoolBalance { balance: 0 },
                 last_update_slot: clock_slot,
+
+                // lp stuff
+                cumulative_funding_payment_per_lp: 0,
+                cumulative_fee_per_lp: 0,
+                cumulative_net_base_asset_amount_per_lp: 0,
+                amm_lp_shares: amm_base_asset_reserve, // sqrtk
+
                 padding0: 0,
                 padding1: 0,
                 padding2: 0,
@@ -718,31 +727,31 @@ pub mod clearing_house {
         Ok(())
     }
 
-    #[access_control(
-        exchange_not_paused(&ctx.accounts.state)
-    )]
-    pub fn settle_lp<'info>(ctx: Context<SettleLP>, _market_index: u64) -> Result<()> {
-        // not ready yet
-        panic!("Settle LP not ready yet...");
-
-        /*
-        let user = &mut load_mut(&ctx.accounts.user)?;
-        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-
-        let market_map = MarketMap::load(
-            &get_writable_markets(market_index),
-            &MarketOracles::new(),
-            remaining_accounts_iter,
-        )?;
-        let mut market = market_map.get_ref_mut(&market_index)?;
-
-        let position_index = get_position_index_lp(&user.positions, market_index)?;
-        let lp_position = &mut user.positions[position_index];
-
-        settle_lp_position(lp_position, lp_position.lp_tokens, &mut market)?;
-
-        Ok(()) */
-    }
+    // #[access_control(
+    //     exchange_not_paused(&ctx.accounts.state)
+    // )]
+    // pub fn settle_lp<'info>(ctx: Context<SettleLP>, _market_index: u64) -> Result<()> {
+    //     // not ready yet
+    //     panic!("Settle LP not ready yet...");
+    //
+    //     /*
+    //     let user = &mut load_mut(&ctx.accounts.user)?;
+    //     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    //
+    //     let market_map = MarketMap::load(
+    //         &get_writable_markets(market_index),
+    //         &MarketOracles::new(),
+    //         remaining_accounts_iter,
+    //     )?;
+    //     let mut market = market_map.get_ref_mut(&market_index)?;
+    //
+    //     let position_index = get_position_index_lp(&user.positions, market_index)?;
+    //     let position = &mut user.positions[position_index];
+    //
+    //     settle_position(position, position.lp_shares, &mut market)?;
+    //
+    //     Ok(()) */
+    // }
 
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
@@ -751,7 +760,11 @@ pub mod clearing_house {
         ctx: Context<AddRemoveLiquidity>,
         market_index: u64,
     ) -> Result<()> {
+        let user_key = ctx.accounts.user.key();
         let user = &mut load_mut(&ctx.accounts.user)?;
+        let clock = Clock::get()?;
+        let now = clock.unix_timestamp;
+        // let clock_slot = clock.slot; // TODO add cool down for adding/removing liquidity
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
 
         let market_map = MarketMap::load(
@@ -763,79 +776,72 @@ pub mod clearing_house {
 
         // need position_lp bc could get incorrect account otherwise (old account with unsettled_pnl)
         let position_index = get_position_index_lp(&user.positions, market_index)?;
-        let lp_position = &mut user.positions[position_index];
 
-        let lp_tokens_to_burn = lp_position.lp_tokens; // tmp
+        {
+            controller::funding::settle_funding_payment(user, &user_key, &market_map, now)?;
+        }
 
-        if lp_tokens_to_burn == 0 {
+        let position = &mut user.positions[position_index];
+
+        let lp_shares_to_burn = position.lp_shares; // tmp
+        if lp_shares_to_burn == 0 {
             return Ok(());
         }
 
         validate!(
-            lp_position.lp_tokens >= lp_tokens_to_burn,
+            position.lp_shares >= lp_shares_to_burn,
             ErrorCode::InsufficientLPTokens,
             "Trying to burn more lp tokens than the user has",
         )?;
 
         // settle the lp first
-        settle_lp_position(lp_position, lp_tokens_to_burn, &mut market)?;
+        settle_lp_position(position, &mut market)?;
+        msg!(
+            "lp baa qaa: {} {}",
+            position.lp_base_asset_amount,
+            position.lp_quote_asset_amount
+        );
 
-        // transform lp_position into a market position
-        lp_position.lp_tokens = lp_position
-            .lp_tokens
-            .checked_sub(lp_tokens_to_burn)
-            .ok_or_else(math_error!())?; // burn tokens
+        // give them a portion of the market position
+        let base_amount_acquired = get_proportion_i128(
+            position.lp_base_asset_amount,
+            lp_shares_to_burn,
+            position.lp_shares,
+        )?;
+        let quote_amount = get_proportion_u128(
+            position.lp_quote_asset_amount,
+            lp_shares_to_burn,
+            position.lp_shares,
+        )?;
 
-        // update funding rate to the markets position
-        lp_position.last_cumulative_funding_rate = if lp_position.base_asset_amount > 0 {
-            market.amm.cumulative_funding_rate_long
-        } else {
-            market.amm.cumulative_funding_rate_short
-        };
-
-        // track new position in the market
-        // TODO: probably want to refactor all this into one fcn (auction PR fcn?)
-        market.amm.net_base_asset_amount = market
-            .amm
-            .net_base_asset_amount
-            .checked_add(lp_position.base_asset_amount)
+        // update lp position
+        position.lp_base_asset_amount = position
+            .lp_base_asset_amount
+            .checked_sub(base_amount_acquired)
+            .ok_or_else(math_error!())?;
+        position.lp_quote_asset_amount = position
+            .lp_quote_asset_amount
+            .checked_sub(quote_amount)
             .ok_or_else(math_error!())?;
 
-        let base_asset_acquired = lp_position.base_asset_amount;
-        let quote_asset_amount = lp_position.quote_asset_amount;
+        // track new market position
+        let position_delta = PositionDelta {
+            base_asset_amount: base_amount_acquired,
+            quote_asset_amount: quote_amount,
+        };
+        update_position_and_market(position, &mut market, &position_delta)?;
 
-        if lp_position.base_asset_amount > 0 {
-            market.base_asset_amount_long = market
-                .base_asset_amount_long
-                .checked_add(base_asset_acquired)
-                .ok_or_else(math_error!())?;
-            market.amm.quote_asset_amount_long = market
-                .amm
-                .quote_asset_amount_long
-                .checked_add(quote_asset_amount)
-                .ok_or_else(math_error!())?;
-        } else {
-            market.base_asset_amount_short = market
-                .base_asset_amount_short
-                .checked_add(base_asset_acquired)
-                .ok_or_else(math_error!())?;
-            market.amm.quote_asset_amount_short = market
-                .amm
-                .quote_asset_amount_short
-                .checked_add(quote_asset_amount)
-                .ok_or_else(math_error!())?;
-        }
-
-        market.open_interest = market
-            .open_interest
-            .checked_add(1)
+        // burn shares
+        position.lp_shares = position
+            .lp_shares
+            .checked_sub(lp_shares_to_burn)
             .ok_or_else(math_error!())?;
 
         // update market state
         let new_sqrt_k = market
             .amm
             .sqrt_k
-            .checked_sub(lp_tokens_to_burn)
+            .checked_sub(lp_shares_to_burn)
             .ok_or_else(math_error!())?;
         let new_sqrt_k_u192 = bn::U192::from(new_sqrt_k);
 
@@ -850,7 +856,7 @@ pub mod clearing_house {
     )]
     pub fn add_liquidity<'info>(
         ctx: Context<AddRemoveLiquidity>,
-        quote_asset_amount: u128,
+        n_shares: u128,
         market_index: u64,
     ) -> Result<()> {
         let user = &mut load_mut(&ctx.accounts.user)?;
@@ -860,63 +866,48 @@ pub mod clearing_house {
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
         let bank_map = BankMap::load(&WritableBanks::new(), remaining_accounts_iter)?;
         let market_map = MarketMap::load(
-            &WritableMarkets::new(),
+            &get_writable_markets(market_index),
             &MarketOracles::new(), // TODO
             remaining_accounts_iter,
         )?;
 
         let position_index = get_position_index(&user.positions, market_index)
             .or_else(|_| add_new_position(&mut user.positions, market_index))?;
-        let lp_position = &mut user.positions[position_index];
-
-        // TODO: allow lps to add to position when settle is working
-        let can_lp = !(lp_position.has_open_order()
-            || lp_position.is_open_position()
-            || lp_position.is_lp());
-        validate!(can_lp, ErrorCode::CantLPWithMarketPosition)?;
+        let position = &mut user.positions[position_index];
 
         let (
-            peg_multiplier,
-            net_base_asset_amount,
-            total_fee_minus_distributions,
-            cumulative_funding_rate_lp,
+            cumulative_fee_per_lp,
+            cumulative_funding_payment_per_lp,
+            cumulative_net_base_asset_amount_per_lp,
             sqrt_k,
         ) = get_struct_values!(
             market_map.get_ref(&market_index)?.amm,
-            peg_multiplier,
-            net_base_asset_amount,
-            total_fee_minus_distributions,
-            cumulative_funding_rate_lp,
+            cumulative_fee_per_lp,
+            cumulative_funding_payment_per_lp,
+            cumulative_net_base_asset_amount_per_lp,
             sqrt_k
         );
 
-        // create lp position
-        // TODO: change from peg to mark price?
-        let user_lp_tokens = quote_asset_amount
-            .checked_mul(AMM_TO_QUOTE_PRECISION_RATIO)
-            .ok_or_else(math_error!())?
-            .checked_div(PEG_PRECISION)
-            .ok_or_else(math_error!())?
-            .checked_div(2)
-            .ok_or_else(math_error!())?
-            .checked_div(peg_multiplier)
-            .ok_or_else(math_error!())?;
-
-        // init position
-        lp_position.last_net_base_asset_amount = net_base_asset_amount;
-        lp_position.last_total_fee_minus_distributions = total_fee_minus_distributions;
-        lp_position.last_cumulative_funding_rate = cumulative_funding_rate_lp;
+        if position.lp_shares > 0 {
+            panic!("not impl yet");
+        }
 
         // add token balance
-        lp_position.lp_tokens = lp_position
-            .lp_tokens
-            .checked_add(user_lp_tokens)
+        position.lp_shares = position
+            .lp_shares
+            .checked_add(n_shares)
             .ok_or_else(math_error!())?;
 
+        // record stats
+        // TODO: call settle and have these stats updated on their own
+
+        position.last_cumulative_fee_per_lp = cumulative_fee_per_lp;
+        position.last_cumulative_funding_rate_lp = cumulative_funding_payment_per_lp;
+        position.last_cumulative_net_base_asset_amount_per_lp =
+            cumulative_net_base_asset_amount_per_lp;
+
         // update market state
-        let new_sqrt_k = sqrt_k
-            .checked_add(user_lp_tokens)
-            .ok_or_else(math_error!())?;
+        let new_sqrt_k = sqrt_k.checked_add(n_shares).ok_or_else(math_error!())?;
         let new_sqrt_k_u192 = bn::U192::from(new_sqrt_k);
 
         {

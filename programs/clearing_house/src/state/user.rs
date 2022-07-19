@@ -142,9 +142,12 @@ pub struct MarketPosition {
     pub open_asks: i128,
 
     // lp stuff
-    pub lp_tokens: u128,
-    pub last_total_fee_minus_distributions: u128,
-    pub last_net_base_asset_amount: i128,
+    pub lp_shares: u128,
+    pub lp_base_asset_amount: i128,
+    pub lp_quote_asset_amount: u128,
+    pub last_cumulative_funding_rate_lp: i128,
+    pub last_cumulative_fee_per_lp: u128,
+    pub last_cumulative_net_base_asset_amount_per_lp: i128,
 
     // upgrade-ability
     pub padding0: u128,
@@ -175,7 +178,7 @@ impl MarketPosition {
     }
 
     pub fn is_lp(&self) -> bool {
-        self.lp_tokens > 0
+        self.lp_shares > 0
     }
 
     pub fn has_unsettled_pnl(&self) -> bool {
