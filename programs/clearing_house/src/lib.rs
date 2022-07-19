@@ -1132,7 +1132,8 @@ pub mod clearing_house {
         let bank = &mut bank_map.get_quote_asset_bank_mut()?;
         let market = &mut market_map.get_ref_mut(&market_index)?;
 
-        controller::position::update_cost_basis(market, market_position)?;
+        let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
+        controller::position::update_cost_basis(market, market_position, oracle_price)?;
 
         let user_unsettled_pnl = market_position.unsettled_pnl;
 
