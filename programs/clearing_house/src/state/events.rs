@@ -11,6 +11,7 @@ pub struct DepositRecord {
     pub direction: DepositDirection,
     pub amount: u64,
     pub bank_index: u64,
+    pub oracle_price: i128,
     pub from: Option<Pubkey>,
     pub to: Option<Pubkey>,
 }

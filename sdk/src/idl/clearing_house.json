@@ -3042,6 +3042,11 @@
           "index": false
         },
         {
+          "name": "oraclePrice",
+          "type": "i128",
+          "index": false
+        },
+        {
           "name": "from",
           "type": {
             "option": "publicKey"

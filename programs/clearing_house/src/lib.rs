@@ -500,12 +500,14 @@ pub mod clearing_house {
             amount,
         )?;
 
+        let oracle_price = oracle_map.get_price_data(&bank.oracle)?.price;
         let deposit_record = DepositRecord {
             ts: now,
             user_authority: user.authority,
             user: user_key,
             direction: DepositDirection::DEPOSIT,
             amount,
+            oracle_price,
             bank_index,
             from: None,
             to: None,
@@ -594,11 +596,13 @@ pub mod clearing_house {
             amount,
         )?;
 
+        let oracle_price = oracle_map.get_price_data(&bank.oracle)?.price;
         let deposit_record = DepositRecord {
             ts: now,
             user_authority: user.authority,
             user: user_key,
             direction: DepositDirection::WITHDRAW,
+            oracle_price,
             amount,
             bank_index,
             from: None,
@@ -664,12 +668,18 @@ pub mod clearing_house {
             "From user does not meet initial margin requirement"
         )?;
 
+        let oracle_price = {
+            let bank = &bank_map.get_ref(&bank_index)?;
+            oracle_map.get_price_data(&bank.oracle)?.price
+        };
+
         let deposit_record = DepositRecord {
             ts: clock.unix_timestamp,
             user_authority: *authority_key,
             user: from_user_key,
             direction: DepositDirection::WITHDRAW,
             amount,
+            oracle_price,
             bank_index,
             from: None,
             to: Some(to_user_key),
@@ -697,6 +707,7 @@ pub mod clearing_house {
             user: to_user_key,
             direction: DepositDirection::DEPOSIT,
             amount,
+            oracle_price,
             bank_index,
             from: Some(from_user_key),
             to: None,
