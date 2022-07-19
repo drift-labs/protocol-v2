@@ -190,8 +190,8 @@ pub fn place_order(
         return Err(ErrorCode::InsufficientCollateral);
     }
 
-    let (taker, taker_order, maker, maker_order) =
-        get_taker_and_maker_for_order_record(&user_key, &new_order);
+    let (taker, taker_order, taker_unsettled_pnl, maker, maker_order, maker_unsettled_pnl) =
+        get_taker_and_maker_for_order_record(&user_key, &new_order, 0);
 
     // emit order record
     emit!(OrderRecord {
@@ -201,6 +201,8 @@ pub fn place_order(
         taker_order,
         maker,
         maker_order,
+        maker_unsettled_pnl,
+        taker_unsettled_pnl,
         action: OrderAction::Place,
         action_explanation: OrderActionExplanation::None,
         filler: Pubkey::default(),
@@ -296,8 +298,8 @@ pub fn cancel_order(
     // When save in the record, we want the status to be canceled
     user.orders[order_index].status = OrderStatus::Canceled;
 
-    let (taker, taker_order, maker, maker_order) =
-        get_taker_and_maker_for_order_record(user_key, &user.orders[order_index]);
+    let (taker, taker_order, taker_unsettled_pnl, maker, maker_order, maker_unsettled_pnl) =
+        get_taker_and_maker_for_order_record(user_key, &user.orders[order_index], 0);
 
     emit!(OrderRecord {
         ts: now,
@@ -306,6 +308,8 @@ pub fn cancel_order(
         taker_order,
         maker,
         maker_order,
+        maker_unsettled_pnl,
+        taker_unsettled_pnl,
         action: OrderAction::Cancel,
         action_explanation: explanation,
         filler: Pubkey::default(),
@@ -763,6 +767,7 @@ pub fn fulfill_order_with_amm(
         quote_asset_amount,
         potentially_risk_increasing,
         quote_asset_amount_surplus,
+        pnl,
     ) = match order_type {
         OrderType::Market => {
             execute_market_order(user, order_index, market, mark_price_before, now)?
@@ -777,6 +782,8 @@ pub fn fulfill_order_with_amm(
             value_oracle_price,
         )?,
     };
+
+    let mut unsettled_pnl = pnl;
 
     let (order_post_only, order_ts, order_direction) =
         get_struct_values!(user.orders[order_index], post_only, ts, direction);
@@ -833,6 +840,10 @@ pub fn fulfill_order_with_amm(
         -cast(user_fee)?,
     )?;
 
+    unsettled_pnl = unsettled_pnl
+        .checked_sub(cast(user_fee)?)
+        .ok_or_else(math_error!())?;
+
     if let Some(filler) = filler.as_mut() {
         let position_index = get_position_index(&filler.positions, market.market_index)
             .or_else(|_| add_new_position(&mut filler.positions, market.market_index))?;
@@ -858,8 +869,8 @@ pub fn fulfill_order_with_amm(
         base_asset_amount,
     )?;
 
-    let (taker, taker_order, maker, maker_order) =
-        get_taker_and_maker_for_order_record(user_key, &user.orders[order_index]);
+    let (taker, taker_order, taker_unsettled_pnl, maker, maker_order, maker_unsettled_pnl) =
+        get_taker_and_maker_for_order_record(user_key, &user.orders[order_index], unsettled_pnl);
 
     let fill_record_id = get_then_update_id!(market, next_fill_record_id);
     order_records.push(OrderRecord {
@@ -869,6 +880,8 @@ pub fn fulfill_order_with_amm(
         taker_order,
         maker,
         maker_order,
+        taker_unsettled_pnl,
+        maker_unsettled_pnl,
         action: OrderAction::Fill,
         action_explanation: OrderActionExplanation::None,
         filler: *filler_key,
@@ -954,7 +967,7 @@ pub fn fulfill_order_with_match(
         maker.orders[maker_order_index].direction,
     )?;
 
-    update_position_and_market(
+    let mut maker_unsettled_pnl = update_position_and_market(
         &mut maker.positions[maker_position_index],
         market,
         &maker_position_delta,
@@ -971,7 +984,7 @@ pub fn fulfill_order_with_match(
         taker.orders[maker_order_index].direction,
     )?;
 
-    update_position_and_market(
+    let mut taker_unsettled_pnl = update_position_and_market(
         &mut taker.positions[taker_position_index],
         market,
         &taker_position_delta,
@@ -1015,6 +1028,10 @@ pub fn fulfill_order_with_match(
         .checked_add(cast(taker_fee)?)
         .ok_or_else(math_error!())?;
 
+    taker_unsettled_pnl = taker_unsettled_pnl
+        .checked_sub(cast(taker_fee)?)
+        .ok_or_else(math_error!())?;
+
     controller::position::update_unsettled_pnl(
         &mut maker.positions[maker_position_index],
         market,
@@ -1024,6 +1041,10 @@ pub fn fulfill_order_with_match(
     maker.fees.total_fee_rebate = maker
         .fees
         .total_fee_rebate
+        .checked_add(cast(maker_rebate)?)
+        .ok_or_else(math_error!())?;
+
+    maker_unsettled_pnl = maker_unsettled_pnl
         .checked_add(cast(maker_rebate)?)
         .ok_or_else(math_error!())?;
 
@@ -1072,8 +1093,10 @@ pub fn fulfill_order_with_match(
         slot,
         taker: *taker_key,
         taker_order: taker.orders[taker_order_index],
+        taker_unsettled_pnl,
         maker: *maker_key,
         maker_order: maker.orders[maker_order_index],
+        maker_unsettled_pnl,
         action: OrderAction::Fill,
         action_explanation: OrderActionExplanation::None,
         filler: *filler_key,
@@ -1109,7 +1132,7 @@ pub fn execute_market_order(
     market: &mut Market,
     mark_price_before: u128,
     now: i64,
-) -> ClearingHouseResult<(u128, u128, bool, u128)> {
+) -> ClearingHouseResult<(u128, u128, bool, u128, i128)> {
     let position_index = get_position_index(&user.positions, market.market_index)?;
 
     let (order_direction, order_price, order_base_asset_amount) = get_struct_values!(
@@ -1154,6 +1177,7 @@ pub fn execute_market_order(
         quote_asset_amount,
         potentially_risk_increasing,
         quote_asset_amount_surplus,
+        pnl,
     ))
 }
 
@@ -1165,7 +1189,7 @@ pub fn execute_non_market_order(
     now: i64,
     slot: u64,
     valid_oracle_price: Option<i128>,
-) -> ClearingHouseResult<(u128, u128, bool, u128)> {
+) -> ClearingHouseResult<(u128, u128, bool, u128, i128)> {
     // Determine the base asset amount the market can fill
     let base_asset_amount = calculate_base_asset_amount_market_can_execute(
         &user.orders[order_index],
@@ -1177,12 +1201,12 @@ pub fn execute_non_market_order(
 
     if base_asset_amount == 0 {
         msg!("Market cant execute order");
-        return Ok((0, 0, false, 0));
+        return Ok((0, 0, false, 0, 0));
     }
 
     if base_asset_amount < market.amm.base_asset_amount_step_size {
         msg!("base asset amount too small {}", base_asset_amount);
-        return Ok((0, 0, false, 0));
+        return Ok((0, 0, false, 0, 0));
     }
 
     let (order_direction, order_post_only, order_base_asset_amount, order_base_asset_amount_filled) = get_struct_values!(
@@ -1208,7 +1232,7 @@ pub fn execute_non_market_order(
     }
 
     if base_asset_amount == 0 {
-        return Ok((0, 0, false, 0));
+        return Ok((0, 0, false, 0, 0));
     }
 
     let position_index = get_position_index(&user.positions, market.market_index)?;
@@ -1237,6 +1261,7 @@ pub fn execute_non_market_order(
         quote_asset_amount,
         potentially_risk_increasing,
         quote_asset_amount_surplus,
+        pnl,
     ))
 }
 
@@ -1307,11 +1332,26 @@ fn get_valid_oracle_price(
 fn get_taker_and_maker_for_order_record(
     user_key: &Pubkey,
     user_order: &Order,
-) -> (Pubkey, Order, Pubkey, Order) {
+    unsettled_pnl: i128,
+) -> (Pubkey, Order, i128, Pubkey, Order, i128) {
     if user_order.post_only {
-        (Pubkey::default(), Order::default(), *user_key, *user_order)
+        (
+            Pubkey::default(),
+            Order::default(),
+            0,
+            *user_key,
+            *user_order,
+            unsettled_pnl,
+        )
     } else {
-        (*user_key, *user_order, Pubkey::default(), Order::default())
+        (
+            *user_key,
+            *user_order,
+            unsettled_pnl,
+            Pubkey::default(),
+            Order::default(),
+            0,
+        )
     }
 }
 

@@ -105,6 +105,8 @@ pub struct OrderRecord {
     pub maker: Pubkey,
     pub taker_order: Order,
     pub maker_order: Order,
+    pub maker_unsettled_pnl: i128,
+    pub taker_unsettled_pnl: i128,
     pub action: OrderAction,
     pub action_explanation: OrderActionExplanation,
     pub filler: Pubkey,

@@ -3380,6 +3380,16 @@
           "index": false
         },
         {
+          "name": "makerUnsettledPnl",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "takerUnsettledPnl",
+          "type": "i128",
+          "index": false
+        },
+        {
           "name": "action",
           "type": {
             "defined": "OrderAction"
