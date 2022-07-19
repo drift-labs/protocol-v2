@@ -360,6 +360,7 @@ pub mod clearing_house {
             pnl_pool: PoolBalance { balance: 0 },
             unsettled_loss: 0,
             unsettled_profit: 0,
+            unsettled_asset_weight: 100, // 100%
             padding0: 0,
             padding1: 0,
             padding2: 0,

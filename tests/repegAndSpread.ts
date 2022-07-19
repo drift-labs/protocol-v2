@@ -216,7 +216,7 @@ describe('repeg and spread amm', () => {
 
 		// await clearingHouse.placeAndFillOrder(orderParams);
 		// await clearingHouse.closePosition(new BN(0));
-		const txSig0 = await clearingHouse.placeAndFillOrder(orderParams);
+		const txSig0 = await clearingHouse.placeAndTake(orderParams);
 
 		console.log(
 			'tx logs',
@@ -402,6 +402,12 @@ describe('repeg and spread amm', () => {
 			clearingHouse.getUserAccount(),
 			marketIndex
 		);
+		await depositToFeePoolFromIF(157.476328, clearingHouse, userUSDCAccount);
+		const market1 = clearingHouse.getMarketAccount(0);
+		console.log(
+			'after fee pool deposit totalFeeMinusDistributions:',
+			market1.amm.totalFeeMinusDistributions.toString()
+		);
 
 		const clearingHouseUser = new ClearingHouseUser({
 			clearingHouse,
@@ -438,8 +444,10 @@ describe('repeg and spread amm', () => {
 
 			if (count % 3 == 0) {
 				btcPrice *= 1.075;
+				// btcPrice *= 1.001;
 			} else {
 				btcPrice *= 0.999;
+				// btcPrice *= 0.925;
 			}
 			await setFeedPrice(anchor.workspace.Pyth, btcPrice, btcUsd);
 			const oraclePriceData = await getOraclePriceData(
@@ -485,7 +493,7 @@ describe('repeg and spread amm', () => {
 				false
 			);
 
-			await clearingHouses[count % 5].placeAndFillOrder(orderParams);
+			await clearingHouses[count % 5].placeAndTake(orderParams);
 			count += 1;
 		}
 
@@ -574,7 +582,12 @@ describe('repeg and spread amm', () => {
 			50000
 		);
 
-		assert(Math.abs(allUserUnsettledPnl + sinceStartTFMD) < 2);
+		assert(
+			Math.abs(
+				allUserUnsettledPnl +
+					(sinceStartTFMD - (pnlPoolBalance + feePoolBalance))
+			) < 2
+		);
 		assert(allUserCollateral + pnlPoolBalance + feePoolBalance == 50000);
 	});
 });
