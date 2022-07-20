@@ -174,6 +174,8 @@ export type OrderRecord = {
 	maker: PublicKey;
 	takerOrder: Order;
 	makerOrder: Order;
+	takerUnsettledPnl: BN;
+	makerUnsettledPnl: BN;
 	action: OrderAction;
 	filler: PublicKey;
 	fillRecordId: BN;
