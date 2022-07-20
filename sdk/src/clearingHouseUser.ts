@@ -13,7 +13,6 @@ import { calculateEntryPrice } from './math/position';
 import {
 	MARK_PRICE_PRECISION,
 	AMM_TO_QUOTE_PRECISION_RATIO,
-	AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO,
 	ZERO,
 	TEN_THOUSAND,
 	BN_MAX,
@@ -37,9 +36,6 @@ import {
 	calculateTradeSlippage,
 	BN,
 	BankAccount,
-	SwapDirection,
-	calculateSwapOutput,
-	SettleResult,
 } from '.';
 import { getTokenAmount } from './math/bankBalance';
 import { OraclePriceData } from './oracles/types';
