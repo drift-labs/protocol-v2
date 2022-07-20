@@ -208,7 +208,7 @@ describe('market order', () => {
 			false,
 			price
 		);
-		await clearingHouse.placeAndFillOrder(orderParams);
+		await clearingHouse.placeAndTake(orderParams);
 		const orderIndex = new BN(0);
 
 		await clearingHouse.fetchAccounts();
@@ -267,7 +267,7 @@ describe('market order', () => {
 			false,
 			price
 		);
-		await clearingHouse.placeAndFillOrder(orderParams);
+		await clearingHouse.placeAndTake(orderParams);
 
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();

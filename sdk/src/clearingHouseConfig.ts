@@ -3,6 +3,7 @@ import { IWallet } from './types';
 import { BN } from '@project-serum/anchor';
 import { OracleInfo } from './oracles/types';
 import { BulkAccountLoader } from './accounts/bulkAccountLoader';
+import { DriftEnv } from './config';
 
 export type ClearingHouseConfig = {
 	connection: Connection;
@@ -16,6 +17,7 @@ export type ClearingHouseConfig = {
 	marketIndexes?: BN[];
 	bankIndexes?: BN[];
 	oracleInfos?: OracleInfo[];
+	env?: DriftEnv;
 };
 
 type ClearingHouseSubscriptionConfig =

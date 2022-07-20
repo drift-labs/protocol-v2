@@ -331,8 +331,6 @@ pub struct FillOrder<'info> {
     pub filler: AccountLoader<'info, User>,
     #[account(mut)]
     pub user: AccountLoader<'info, User>,
-    /// CHECK: validated in `controller::orders::fill_order`
-    pub oracle: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
@@ -344,8 +342,6 @@ pub struct PlaceOrder<'info> {
     )]
     pub user: AccountLoader<'info, User>,
     pub authority: Signer<'info>,
-    /// CHECK: validated in `place_order` when market_map is created
-    pub oracle: AccountInfo<'info>,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
@@ -383,7 +379,7 @@ pub struct OrderParamsOptionalAccounts {
 }
 
 #[derive(Accounts)]
-pub struct PlaceAndFillOrder<'info> {
+pub struct PlaceAndTake<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
         mut,
@@ -391,8 +387,18 @@ pub struct PlaceAndFillOrder<'info> {
     )]
     pub user: AccountLoader<'info, User>,
     pub authority: Signer<'info>,
-    /// CHECK: validated in `place_order` ix constraint
-    pub oracle: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
+pub struct PlaceAndMake<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        mut,
+        has_one = authority,
+    )]
+    pub user: AccountLoader<'info, User>,
+    pub taker: AccountLoader<'info, User>,
+    pub authority: Signer<'info>,
 }
 
 #[derive(Accounts)]
@@ -404,8 +410,6 @@ pub struct CancelOrder<'info> {
     )]
     pub user: AccountLoader<'info, User>,
     pub authority: Signer<'info>,
-    /// CHECK: validated in `cancel_order` when market_map is created
-    pub oracle: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
@@ -420,12 +424,12 @@ pub struct CancelAllOrders<'info> {
 }
 
 #[derive(Accounts)]
-pub struct ExpireOrder<'info> {
+pub struct TriggerOrder<'info> {
     pub state: Box<Account<'info, State>>,
     pub authority: Signer<'info>,
     #[account(
         mut,
-        has_one = authority,
+        has_one = authority
     )]
     pub filler: AccountLoader<'info, User>,
     #[account(mut)]

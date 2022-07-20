@@ -217,7 +217,7 @@ describe('amm spread: market order', () => {
 			baseAssetAmount,
 			false
 		);
-		const txSig = await clearingHouse.placeAndFillOrder(orderParams);
+		const txSig = await clearingHouse.placeAndTake(orderParams);
 		const computeUnits = await findComputeUnitConsumption(
 			clearingHouse.program.programId,
 			connection,
@@ -324,7 +324,7 @@ describe('amm spread: market order', () => {
 			baseAssetAmount,
 			false
 		);
-		const txSig = await clearingHouse.placeAndFillOrder(orderParams);
+		const txSig = await clearingHouse.placeAndTake(orderParams);
 		const computeUnits = await findComputeUnitConsumption(
 			clearingHouse.program.programId,
 			connection,
@@ -711,7 +711,7 @@ describe('amm spread: market order', () => {
 			baseAssetAmount,
 			false
 		);
-		const txSig = await clearingHouse.placeAndFillOrder(orderParams);
+		const txSig = await clearingHouse.placeAndTake(orderParams);
 		const computeUnits = await findComputeUnitConsumption(
 			clearingHouse.program.programId,
 			connection,
@@ -762,7 +762,7 @@ describe('amm spread: market order', () => {
 				baseAssetAmount.div(new BN(numCloses * i)), // variable sized close
 				false
 			);
-			await clearingHouse.placeAndFillOrder(orderParams);
+			await clearingHouse.placeAndTake(orderParams);
 		}
 		await clearingHouse.closePosition(marketIndex2); // close rest
 		await clearingHouse.settlePNL(

@@ -3,27 +3,13 @@ import {
 	MarketAccount,
 	Order,
 	PositionDirection,
-	SwapDirection,
 	UserAccount,
 	UserPosition,
 } from './types';
-import {
-	BN,
-	calculateAmmReservesAfterSwap,
-	calculateBaseAssetValue,
-	calculateSpreadReserves,
-	ClearingHouseUser,
-	isOrderRiskIncreasingInSameDirection,
-	standardizeBaseAssetAmount,
-	TEN_THOUSAND,
-} from '.';
-import {
-	calculateMarkPrice,
-	calculateNewMarketAfterTrade,
-} from './math/market';
+import { BN, standardizeBaseAssetAmount } from '.';
+import { calculateNewMarketAfterTrade } from './math/market';
 import {
 	AMM_TO_QUOTE_PRECISION_RATIO,
-	TWO,
 	PEG_PRECISION,
 	ZERO,
 } from './constants/numericConstants';
@@ -182,7 +168,6 @@ export function calculateBaseAssetAmountMarketCanExecute(
 	} else if (isVariant(order.orderType, 'triggerLimit')) {
 		return calculateAmountToTradeForTriggerLimit(market, order);
 	} else if (isVariant(order.orderType, 'market')) {
-		// should never be a market order queued
 		return ZERO;
 	} else {
 		return calculateAmountToTradeForTriggerMarket(market, order);
@@ -201,14 +186,7 @@ export function calculateAmountToTradeForLimit(
 				'Cant calculate limit price for oracle offset oracle without OraclePriceData'
 			);
 		}
-		const floatingPrice = oraclePriceData.price.add(order.oraclePriceOffset);
-		if (order.postOnly) {
-			limitPrice = isVariant(order.direction, 'long')
-				? BN.min(order.price, floatingPrice)
-				: BN.max(order.price, floatingPrice);
-		} else {
-			limitPrice = floatingPrice;
-		}
+		limitPrice = oraclePriceData.price.add(order.oraclePriceOffset);
 	}
 
 	const [maxAmountToTrade, direction] = calculateMaxBaseAssetAmountToTrade(
@@ -237,14 +215,8 @@ export function calculateAmountToTradeForTriggerLimit(
 	market: MarketAccount,
 	order: Order
 ): BN {
-	if (order.baseAssetAmountFilled.eq(ZERO)) {
-		const baseAssetAmount = calculateAmountToTradeForTriggerMarket(
-			market,
-			order
-		);
-		if (baseAssetAmount.eq(ZERO)) {
-			return ZERO;
-		}
+	if (!order.triggered) {
+		return ZERO;
 	}
 
 	return calculateAmountToTradeForLimit(market, order);
@@ -264,105 +236,9 @@ function calculateAmountToTradeForTriggerMarket(
 	market: MarketAccount,
 	order: Order
 ): BN {
-	return isTriggerConditionSatisfied(market, order)
-		? order.baseAssetAmount
-		: ZERO;
-}
-
-function isTriggerConditionSatisfied(
-	market: MarketAccount,
-	order: Order,
-	oraclePriceData?: OraclePriceData
-): boolean {
-	const markPrice = calculateMarkPrice(market, oraclePriceData);
-	if (isVariant(order.triggerCondition, 'above')) {
-		return markPrice.gt(order.triggerPrice);
-	} else {
-		return markPrice.lt(order.triggerPrice);
-	}
-}
-
-export function calculateBaseAssetAmountUserCanExecute(
-	market: MarketAccount,
-	order: Order,
-	user: ClearingHouseUser,
-	oraclePriceData?: OraclePriceData
-): BN {
-	const maxLeverage = user.getMaxLeverage(order.marketIndex, 'Initial');
-	const freeCollateral = user.getFreeCollateral();
-	let quoteAssetAmount: BN;
-	if (isOrderRiskIncreasingInSameDirection(user, order)) {
-		quoteAssetAmount = freeCollateral.mul(maxLeverage).div(TEN_THOUSAND);
-	} else {
-		const position =
-			user.getUserPosition(order.marketIndex) ||
-			user.getEmptyPosition(order.marketIndex);
-		const positionValue = calculateBaseAssetValue(
-			market,
-			position,
-			oraclePriceData
-		);
-		quoteAssetAmount = freeCollateral
-			.mul(maxLeverage)
-			.div(TEN_THOUSAND)
-			.add(positionValue.mul(TWO));
-	}
-
-	if (quoteAssetAmount.lte(ZERO)) {
+	if (!order.triggered) {
 		return ZERO;
 	}
 
-	const swapDirection = isVariant(order.direction, 'long')
-		? SwapDirection.ADD
-		: SwapDirection.REMOVE;
-
-	const useSpread = !order.postOnly;
-	let amm: Parameters<typeof calculateAmmReservesAfterSwap>[0];
-	if (useSpread) {
-		const { baseAssetReserve, quoteAssetReserve } = calculateSpreadReserves(
-			market.amm,
-			order.direction,
-			oraclePriceData
-		);
-		amm = {
-			baseAssetReserve,
-			quoteAssetReserve,
-			sqrtK: market.amm.sqrtK,
-			pegMultiplier: market.amm.pegMultiplier,
-		};
-	} else {
-		amm = market.amm;
-	}
-
-	const baseAssetReservesBefore = amm.baseAssetReserve;
-	const [_, baseAssetReservesAfter] = calculateAmmReservesAfterSwap(
-		amm,
-		'quote',
-		quoteAssetAmount,
-		swapDirection
-	);
-
-	let baseAssetAmount = baseAssetReservesBefore
-		.sub(baseAssetReservesAfter)
-		.abs();
-	if (order.reduceOnly) {
-		const position =
-			user.getUserPosition(order.marketIndex) ||
-			user.getEmptyPosition(order.marketIndex);
-		if (
-			isVariant(order.direction, 'long') &&
-			position.baseAssetAmount.gte(ZERO)
-		) {
-			baseAssetAmount = ZERO;
-		} else if (
-			isVariant(order.direction, 'short') &&
-			position.baseAssetAmount.lte(ZERO)
-		) {
-			baseAssetAmount = ZERO;
-		} else {
-			BN.min(baseAssetAmount, position.baseAssetAmount.abs());
-		}
-	}
-
-	return baseAssetAmount;
+	return order.baseAssetAmount;
 }

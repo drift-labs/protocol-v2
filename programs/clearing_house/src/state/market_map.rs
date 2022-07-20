@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::iter::Peekable;
 use std::slice::Iter;
 
-use anchor_lang::prelude::{AccountInfo, Pubkey};
+use anchor_lang::prelude::AccountInfo;
 
 use anchor_lang::Discriminator;
 use arrayref::array_ref;
@@ -38,7 +38,6 @@ impl<'a> MarketMap<'a> {
 
     pub fn load<'b, 'c>(
         writable_markets: &'b WritableMarkets,
-        market_oracles: &MarketOracles,
         account_info_iter: &'c mut Peekable<Iter<AccountInfo<'a>>>,
     ) -> ClearingHouseResult<MarketMap<'a>> {
         let mut market_map: MarketMap = MarketMap(BTreeMap::new());
@@ -59,7 +58,6 @@ impl<'a> MarketMap<'a> {
             }
             let market_index = u64::from_le_bytes(*array_ref![data, 8, 8]);
             let is_initialized = array_ref![data, 48, 1];
-            let market_oracle = Pubkey::new(array_ref![data, 49, 32]);
 
             msg!("found market {}", market_index);
 
@@ -74,12 +72,6 @@ impl<'a> MarketMap<'a> {
 
             if is_initialized != &[1] {
                 return Err(ErrorCode::MarketIndexNotInitialized);
-            }
-
-            if let Some(oracle_account_info) = market_oracles.get(&market_index) {
-                if !oracle_account_info.key.eq(&market_oracle) {
-                    return Err(ErrorCode::InvalidOracle);
-                }
             }
 
             market_map.0.insert(market_index, account_loader);
@@ -127,15 +119,4 @@ pub fn get_writable_markets_for_user_positions_and_order(
     writable_markets.insert(market_index);
 
     writable_markets
-}
-
-pub type MarketOracles<'a, 'b> = BTreeMap<u64, &'a AccountInfo<'b>>;
-
-pub fn get_market_oracles<'a, 'b>(
-    market_index: u64,
-    oracle: &'a AccountInfo<'b>,
-) -> MarketOracles<'a, 'b> {
-    let mut market_oracles = MarketOracles::new();
-    market_oracles.insert(market_index, oracle);
-    market_oracles
 }

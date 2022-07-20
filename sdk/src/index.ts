@@ -1,5 +1,6 @@
 import { BN } from '@project-serum/anchor';
 import { PublicKey } from '@solana/web3.js';
+import pyth from '@pythnetwork/client';
 
 export * from './mockUSDCFaucet';
 export * from './oracles/types';
@@ -24,6 +25,7 @@ export * from './factory/oracleClient';
 export * from './factory/bigNum';
 export * from './events/types';
 export * from './events/eventSubscriber';
+export * from './math/auction';
 export * from './math/conversion';
 export * from './math/funding';
 export * from './math/market';
@@ -35,6 +37,7 @@ export * from './math/orders';
 export * from './math/repeg';
 export * from './orders';
 export * from './orderParams';
+export * from './slot/SlotSubscriber';
 export * from './wallet';
 export * from './types';
 export * from './math/utils';
@@ -47,4 +50,4 @@ export * from './math/bankBalance';
 export * from './constants/banks';
 export * from './clearingHouseConfig';
 
-export { BN, PublicKey };
+export { BN, PublicKey, pyth };

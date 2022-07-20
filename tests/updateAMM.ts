@@ -426,7 +426,7 @@ describe('update amm', () => {
 		);
 		let txSig;
 		try {
-			txSig = await clearingHouse.placeAndFillOrder(orderParams);
+			txSig = await clearingHouse.placeAndTake(orderParams);
 		} catch (e) {
 			console.error(e);
 		}
@@ -501,7 +501,7 @@ describe('update amm', () => {
 			);
 			let txSig;
 			try {
-				txSig = await clearingHouse.placeAndFillOrder(orderParams);
+				txSig = await clearingHouse.placeAndTake(orderParams);
 			} catch (e) {
 				console.error(e);
 			}
@@ -594,7 +594,7 @@ describe('update amm', () => {
 			tradeSize,
 			false
 		);
-		const txSig3 = await clearingHouse.placeAndFillOrder(orderParams);
+		const txSig3 = await clearingHouse.placeAndTake(orderParams);
 
 		console.log(
 			'tx logs',

@@ -5,6 +5,7 @@ import {
 	MARK_PRICE_PRECISION,
 	PEG_PRECISION,
 	convertToNumber,
+	PRICE_DIV_PEG,
 } from '../sdk/src';
 
 import { assert } from '../sdk/src/assert/assert';
@@ -134,7 +135,7 @@ export async function stress_test(
 				let _entry_px; //todo
 				const oraclePriceMantissa = new BN(
 					oracleData.price * PEG_PRECISION.toNumber()
-				).mul(MARK_PRICE_PRECISION.div(PEG_PRECISION));
+				).mul(PRICE_DIV_PEG);
 				const markPriceMantissa = clearingHouse.calculateMarkPrice(market_i);
 
 				[randEType, rand_amt, _entry_px] =
@@ -288,7 +289,7 @@ export async function stress_test(
 
 			user_i: user_i,
 			user_i_collateral: user.collateral,
-			user_i_cumfee: user.totalFeePaid.toNumber() / 10 ** 6,
+			user_i_cumfee: userfees.fees.totalFeePaid.toNumber() / 10 ** 6,
 
 			oracle_px: oracleData.price,
 

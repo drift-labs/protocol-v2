@@ -1,7 +1,9 @@
 import { ClearingHouseUser } from '../clearingHouseUser';
-import { isVariant, Order } from '../types';
+import { isOneOfVariant, isVariant, Order } from '../types';
 import { ZERO, TWO } from '../constants/numericConstants';
 import { BN } from '@project-serum/anchor';
+import { OraclePriceData } from '../oracles/types';
+import { getAuctionPrice } from './auction';
 
 export function isOrderRiskIncreasing(
 	user: ClearingHouseUser,
@@ -114,4 +116,21 @@ export function standardizeBaseAssetAmount(
 ): BN {
 	const remainder = baseAssetAmount.mod(stepSize);
 	return baseAssetAmount.sub(remainder);
+}
+
+export function getLimitPrice(
+	order: Order,
+	oraclePriceData: OraclePriceData,
+	slot: number
+): BN {
+	let limitPrice;
+	if (!order.oraclePriceOffset.eq(ZERO)) {
+		limitPrice = oraclePriceData.price.add(order.oraclePriceOffset);
+	} else if (isOneOfVariant(order.orderType, ['market', 'triggerMarket'])) {
+		limitPrice = getAuctionPrice(order, slot);
+	} else {
+		limitPrice = order.price;
+	}
+
+	return limitPrice;
 }

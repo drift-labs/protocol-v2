@@ -234,8 +234,14 @@ export class BigNum {
 		return printString;
 	}
 
-	public prettyPrint(): string {
-		const [leftSide, rightSide] = this.printShort().split(BigNum.delim);
+	public prettyPrint(
+		useTradePrecision?: boolean,
+		precisionOverride?: number
+	): string {
+		const [leftSide, rightSide] = this.printShort(
+			useTradePrecision,
+			precisionOverride
+		).split(BigNum.delim);
 
 		let formattedLeftSide = leftSide;
 
@@ -374,13 +380,24 @@ export class BigNum {
 		return this.toPrecision(6, true);
 	}
 
-	public toNotional(): string {
-		return `${this.lt(BigNum.zero()) ? `-` : ``}$${BigNum.fromPrint(
-			this.toFixed(2),
-			new BN(2)
-		)
-			.prettyPrint()
-			.replace('-', '')}`;
+	/**
+	 * Print dollar formatted value. Defaults to fixed decimals two unless a given precision is given.
+	 * @param useTradePrecision
+	 * @param precisionOverride
+	 * @returns
+	 */
+	public toNotional(
+		useTradePrecision?: boolean,
+		precisionOverride?: number
+	): string {
+		const prefix = `${this.lt(BigNum.zero()) ? `-` : ``}$`;
+
+		const val =
+			useTradePrecision || precisionOverride
+				? this.prettyPrint(useTradePrecision, precisionOverride)
+				: BigNum.fromPrint(this.toFixed(2), new BN(2)).prettyPrint();
+
+		return `${prefix}${val.replace('-', '')}`;
 	}
 
 	public toMillified(precision = 3): string {

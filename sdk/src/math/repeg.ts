@@ -5,6 +5,7 @@ import {
 	AMM_RESERVE_PRECISION,
 	PEG_PRECISION,
 	AMM_TO_QUOTE_PRECISION_RATIO,
+	PRICE_DIV_PEG,
 	QUOTE_PRECISION,
 	ZERO,
 } from '../constants/numericConstants';
@@ -142,7 +143,7 @@ export function calculateBudgetedPeg(amm: AMM, cost: BN, targetPrice: BN): BN {
 	const targetPeg = targetPrice
 		.mul(amm.baseAssetReserve)
 		.div(amm.quoteAssetReserve)
-		.div(MARK_PRICE_PRECISION.div(PEG_PRECISION));
+		.div(PRICE_DIV_PEG);
 
 	const k = amm.sqrtK.mul(amm.sqrtK);
 	const x = amm.baseAssetReserve;

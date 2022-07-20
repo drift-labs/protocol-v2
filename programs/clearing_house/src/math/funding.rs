@@ -62,57 +62,50 @@ pub fn calculate_funding_rate_long_short(
     let uncapped_funding_pnl = -net_market_position_funding_payment;
     msg!("uncap fundign: {}", uncapped_funding_pnl);
 
+    // NOTE: have to be careful here -- probably need to update market.amm.amm_lp_shares on k update
+    // so that this math checks out (// TODO)
+    let user_lp_shares = market
+        .amm
+        .sqrt_k
+        .checked_sub(market.amm.amm_lp_shares)
+        .ok_or_else(math_error!())?;
+
     // If the uncapped_funding_pnl is positive, the clearing house receives money.
     if uncapped_funding_pnl >= 0 {
-        let scaled_uncap = uncapped_funding_pnl
-            .checked_mul(AMM_RESERVE_PRECISION_I128)
-            .ok_or_else(math_error!())?;
+        let uncapped_funding_pnl = if user_lp_shares > 0 {
+            // pay the user lps
+            let funding_pnl_slice = uncapped_funding_pnl
+                .checked_mul(AMM_RESERVE_PRECISION_I128)
+                .ok_or_else(math_error!())?
+                .checked_div(cast_to_i128(market.amm.sqrt_k)?)
+                .ok_or_else(math_error!())?;
 
-        msg!("sqrtk {}", market.amm.sqrt_k);
-        msg!("scaled uncap {}", scaled_uncap);
+            market.amm.cumulative_funding_payment_per_lp = market
+                .amm
+                .cumulative_funding_payment_per_lp
+                .checked_add(funding_pnl_slice)
+                .ok_or_else(math_error!())?;
 
-        // pay the lps
-        let funding_pnl_slice = uncapped_funding_pnl
-            .checked_mul(AMM_RESERVE_PRECISION_I128)
-            .ok_or_else(math_error!())?
-            .checked_div(cast_to_i128(market.amm.sqrt_k)?)
-            .ok_or_else(math_error!())?;
+            let user_lp_funding_payment = funding_pnl_slice
+                .checked_mul(cast_to_i128(user_lp_shares)?)
+                .ok_or_else(math_error!())?
+                .checked_div(AMM_RESERVE_PRECISION_I128)
+                .ok_or_else(math_error!())?;
 
-        market.amm.cumulative_funding_payment_per_lp = market
-            .amm
-            .cumulative_funding_payment_per_lp
-            .checked_add(funding_pnl_slice)
-            .ok_or_else(math_error!())?;
-
-        let non_amm_shares = market
-            .amm
-            .sqrt_k
-            .checked_sub(market.amm.amm_lp_shares)
-            .ok_or_else(math_error!())?;
-
-        let non_amm_funding_payment = funding_pnl_slice
-            .checked_mul(cast_to_i128(non_amm_shares)?)
-            .ok_or_else(math_error!())?
-            .checked_div(AMM_RESERVE_PRECISION_I128)
-            .ok_or_else(math_error!())?;
-
-        // pay the market what the lps didnt get
-        let uncapped_funding_pnl = uncapped_funding_pnl
-            .checked_sub(non_amm_funding_payment)
-            .ok_or_else(math_error!())?;
-
-        msg!(
-            "cum per lp funding {}",
-            market.amm.cumulative_funding_payment_per_lp
-        );
-        msg!("total lp funding  {}", non_amm_funding_payment);
-        msg!("market funding: {}", uncapped_funding_pnl);
+            // pay the market what the lps didnt get
+            uncapped_funding_pnl
+                .checked_sub(user_lp_funding_payment)
+                .ok_or_else(math_error!())?
+        } else {
+            // no lps = market gets it all
+            uncapped_funding_pnl
+        };
 
         // update the stats
         market.amm.total_fee_minus_distributions = market
             .amm
             .total_fee_minus_distributions
-            .checked_add(uncapped_funding_pnl.unsigned_abs())
+            .checked_add(uncapped_funding_pnl)
             .ok_or_else(math_error!())?;
 
         market.amm.net_revenue_since_last_funding = market
@@ -126,65 +119,52 @@ pub fn calculate_funding_rate_long_short(
 
     let (capped_funding_rate, capped_funding_pnl) =
         calculate_capped_funding_rate(market, uncapped_funding_pnl, funding_rate)?;
-    // pay the lps
-    let funding_pnl_slice = capped_funding_pnl
-        .checked_mul(AMM_RESERVE_PRECISION_I128)
-        .ok_or_else(math_error!())?
-        .checked_div(cast_to_i128(market.amm.sqrt_k)?)
-        .ok_or_else(math_error!())?;
 
-    market.amm.cumulative_funding_payment_per_lp = market
-        .amm
-        .cumulative_funding_payment_per_lp
-        .checked_add(funding_pnl_slice)
-        .ok_or_else(math_error!())?;
+    let capped_funding_pnl = if user_lp_shares > 0 {
+        // user lps pay
+        let funding_pnl_slice = capped_funding_pnl
+            .checked_mul(AMM_RESERVE_PRECISION_I128)
+            .ok_or_else(math_error!())?
+            .checked_div(cast_to_i128(market.amm.sqrt_k)?)
+            .ok_or_else(math_error!())?;
 
-    let non_amm_shares = market
-        .amm
-        .sqrt_k
-        .checked_sub(market.amm.amm_lp_shares)
-        .ok_or_else(math_error!())?;
+        market.amm.cumulative_funding_payment_per_lp = market
+            .amm
+            .cumulative_funding_payment_per_lp
+            .checked_add(funding_pnl_slice)
+            .ok_or_else(math_error!())?;
 
-    let non_amm_funding = funding_pnl_slice
-        .checked_mul(cast_to_i128(non_amm_shares)?)
-        .ok_or_else(math_error!())?
-        .checked_div(AMM_RESERVE_PRECISION_I128)
-        .ok_or_else(math_error!())?;
+        let user_lp_funding_payment = funding_pnl_slice
+            .checked_mul(cast_to_i128(user_lp_shares)?)
+            .ok_or_else(math_error!())?
+            .checked_div(AMM_RESERVE_PRECISION_I128)
+            .ok_or_else(math_error!())?;
 
-    // pay the market what the lps didnt get
-    let capped_funding_pnl = capped_funding_pnl
-        .checked_sub(non_amm_funding)
-        .ok_or_else(math_error!())?;
-
-    msg!(
-        "cum per lp funding {}",
-        market.amm.cumulative_funding_payment_per_lp
-    );
-    msg!("total lp funding  {}", non_amm_funding);
-    msg!("market funding: {}", capped_funding_pnl);
-
-    let capped_funding_pnl = funding_pnl_slice
-        .checked_mul(cast_to_i128(market.amm.amm_lp_shares)?)
-        .ok_or_else(math_error!())?
-        .checked_div(AMM_RESERVE_PRECISION_I128)
-        .ok_or_else(math_error!())?;
+        // pay the market what the lps didnt get
+        capped_funding_pnl
+            .checked_sub(user_lp_funding_payment)
+            .ok_or_else(math_error!())?
+    } else {
+        // no lps = market gets it all
+        capped_funding_pnl
+    };
 
     let new_total_fee_minus_distributions = market
         .amm
         .total_fee_minus_distributions
-        .checked_sub(capped_funding_pnl.unsigned_abs())
+        .checked_add(capped_funding_pnl)
         .ok_or_else(math_error!())?;
 
     // clearing house is paying part of funding imbalance
     if capped_funding_pnl != 0 {
-        let total_fee_minus_distributions_lower_bound = get_total_fee_lower_bound(market)?;
+        let total_fee_minus_distributions_lower_bound =
+            cast_to_i128(get_total_fee_lower_bound(market)?)?;
 
         // makes sure the clearing house doesn't pay more than the share of fees allocated to `distributions`
         if new_total_fee_minus_distributions < total_fee_minus_distributions_lower_bound {
             return Err(ErrorCode::InvalidFundingProfitability);
         }
     }
-
     market.amm.total_fee_minus_distributions = new_total_fee_minus_distributions;
     market.amm.net_revenue_since_last_funding = market
         .amm
@@ -352,10 +332,11 @@ mod test {
                 base_asset_reserve: 5122950819670000,
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
+                amm_lp_shares: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50000,
-                net_base_asset_amount: -(122950819670000 as i128),
+                net_base_asset_amount: -122950819670000,
                 total_exchange_fee: QUOTE_PRECISION / 2,
-                total_fee_minus_distributions: QUOTE_PRECISION / 2,
+                total_fee_minus_distributions: (QUOTE_PRECISION as i128) / 2,
 
                 last_mark_price_twap: 50 * MARK_PRICE_PRECISION,
                 last_oracle_price_twap: (49 * MARK_PRICE_PRECISION) as i128,
@@ -375,11 +356,11 @@ mod test {
 
         assert_eq!(balanced_funding, 4166666666666);
 
-        let (long_funding, short_funding, pnl) =
+        let (long_funding, short_funding, _) =
             calculate_funding_rate_long_short(&mut market, balanced_funding).unwrap();
 
         assert_eq!(long_funding, balanced_funding);
-        assert_eq!(long_funding > short_funding, true);
+        assert!(long_funding > short_funding);
         assert_eq!(short_funding, 2422216466708);
 
         // only spend 1/3 of fee pool, ((.5-.416667)) * 3 < .25
@@ -393,11 +374,11 @@ mod test {
                 base_asset_reserve: 5122950819670000,
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
+                amm_lp_shares: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50000,
-                net_base_asset_amount: (122950819670000 as i128),
+                net_base_asset_amount: 122950819670000,
                 total_exchange_fee: QUOTE_PRECISION / 2,
-                total_fee_minus_distributions: QUOTE_PRECISION / 2,
-
+                total_fee_minus_distributions: (QUOTE_PRECISION as i128) / 2,
                 last_mark_price_twap: 50 * MARK_PRICE_PRECISION,
                 last_oracle_price_twap: (49 * MARK_PRICE_PRECISION) as i128,
                 funding_period: 3600,
@@ -409,13 +390,13 @@ mod test {
 
         assert_eq!(balanced_funding, 4166666666666);
 
-        let (long_funding, short_funding, pnl) =
+        let (long_funding, short_funding, _) =
             calculate_funding_rate_long_short(&mut market, balanced_funding).unwrap();
 
         assert_eq!(long_funding, balanced_funding);
         assert_eq!(long_funding, short_funding);
         let new_fees = market.amm.total_fee_minus_distributions;
-        assert_eq!(new_fees > (QUOTE_PRECISION / 2), true);
+        assert!(new_fees > QUOTE_PRECISION as i128 / 2);
         assert_eq!(new_fees, 1012295); // made over $.50
     }
 }
