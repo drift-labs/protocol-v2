@@ -359,7 +359,8 @@ pub mod clearing_house {
             pnl_pool: PoolBalance { balance: 0 },
             unsettled_loss: 0,
             unsettled_profit: 0,
-            unsettled_asset_weight: 100, // 100%
+            unsettled_initial_asset_weight: 100,     // 100%
+            unsettled_maintenance_asset_weight: 100, // 100%
             padding0: 0,
             padding1: 0,
             padding2: 0,
@@ -2159,10 +2160,61 @@ pub mod clearing_house {
     #[access_control(
         market_initialized(&ctx.accounts.market)
     )]
+    pub fn update_market_imf_factor(
+        ctx: Context<AdminUpdateMarket>,
+        imf_factor: u128,
+    ) -> Result<()> {
+        validate!(
+            imf_factor <= BANK_IMF_PRECISION,
+            ErrorCode::DefaultError,
+            "invalid unsettled_asset_weight",
+        )?;
+        let market = &mut ctx.accounts.market.load_mut()?;
+        market.imf_factor = imf_factor;
+        Ok(())
+    }
+
+    #[access_control(
+        market_initialized(&ctx.accounts.market)
+    )]
+    pub fn update_market_unsettled_asset_weight(
+        ctx: Context<AdminUpdateMarket>,
+        unsettled_initial_asset_weight: u8,
+        unsettled_maintenance_asset_weight: u8,
+    ) -> Result<()> {
+        validate!(
+            unsettled_initial_asset_weight <= 100,
+            ErrorCode::DefaultError,
+            "invalid unsettled_initial_asset_weight",
+        )?;
+        validate!(
+            unsettled_maintenance_asset_weight <= 100,
+            ErrorCode::DefaultError,
+            "invalid unsettled_maintenance_asset_weight",
+        )?;
+        validate!(
+            unsettled_initial_asset_weight <= unsettled_maintenance_asset_weight,
+            ErrorCode::DefaultError,
+            "must enforce unsettled_initial_asset_weight <= unsettled_maintenance_asset_weight",
+        )?;
+        let market = &mut ctx.accounts.market.load_mut()?;
+        market.unsettled_initial_asset_weight = unsettled_initial_asset_weight;
+        market.unsettled_maintenance_asset_weight = unsettled_maintenance_asset_weight;
+        Ok(())
+    }
+
+    #[access_control(
+        market_initialized(&ctx.accounts.market)
+    )]
     pub fn update_curve_update_intensity(
         ctx: Context<AdminUpdateMarket>,
         curve_update_intensity: u8,
     ) -> Result<()> {
+        validate!(
+            curve_update_intensity <= 100,
+            ErrorCode::DefaultError,
+            "invalid curve_update_intensity",
+        )?;
         let market = &mut ctx.accounts.market.load_mut()?;
         market.amm.curve_update_intensity = curve_update_intensity;
         Ok(())

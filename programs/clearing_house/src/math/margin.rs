@@ -31,7 +31,7 @@ use solana_program::msg;
 use std::cmp::min;
 use std::ops::Div;
 
-#[derive(Copy, Clone)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum MarginRequirementType {
     Initial,
     Partial,
@@ -868,7 +868,8 @@ mod test {
             margin_ratio_partial: 625,
             margin_ratio_maintenance: 500,
             imf_factor: 1000, // 1_000/1_000_000 = .001
-            unsettled_asset_weight: 100,
+            unsettled_initial_asset_weight: 100,
+            unsettled_maintenance_asset_weight: 100,
             ..Market::default()
         };
 
@@ -948,7 +949,8 @@ mod test {
             margin_ratio_partial: 625,
             margin_ratio_maintenance: 500,
             imf_factor: 1000, // 1_000/1_000_000 = .001
-            unsettled_asset_weight: 100,
+            unsettled_initial_asset_weight: 100,
+            unsettled_maintenance_asset_weight: 100,
             ..Market::default()
         };
 
@@ -972,7 +974,7 @@ mod test {
             ..MarketPosition::default()
         };
 
-        let margin_requirement_type = MarginRequirementType::Partial;
+        let margin_requirement_type = MarginRequirementType::Initial;
         let quote_asset_oracle_price_data = OraclePriceData {
             price: MARK_PRICE_PRECISION as i128,
             confidence: 1,
@@ -999,7 +1001,7 @@ mod test {
         assert_eq!(position_unsettled_pnl, 22_699_050_901);
 
         let uaw = market
-            .get_unsettled_asset_weight(position_unsettled_pnl, margin_requirement_type)
+            .get_unsettled_asset_weight(position_unsettled_pnl, MarginRequirementType::Initial)
             .unwrap();
         assert_eq!(uaw, 95);
 
@@ -1007,7 +1009,7 @@ mod test {
             &market_position,
             &market,
             &oracle_price_data,
-            margin_requirement_type,
+            MarginRequirementType::Initial,
         )
         .unwrap();
 
@@ -1019,9 +1021,23 @@ mod test {
         assert!(upnl < position_unrealized_pnl); // margin system discounts
 
         assert!(pmr > 0);
-        assert_eq!(pmr, 87974077867214);
-        // required margin $8501.21684229 for position before partial liq
-        // 8501.21684229 * 1/.0625 = 136019.469477
+        assert_eq!(pmr, 135553278686000);
+
+        let (pmr_partial, upnl_partial) = calculate_perp_equity_value(
+            &market_position,
+            &market,
+            &oracle_price_data,
+            MarginRequirementType::Partial,
+        )
+        .unwrap();
+
+        assert_eq!(upnl_partial, 18135245902);
+        assert!(upnl_partial < position_unrealized_pnl); // margin system discounts
+
+        assert!(pmr_partial > 0);
+        assert_eq!(pmr_partial, 87974077867214);
+        // required margin $8797.4077867214 for position before partial liq
+        // 8587.9701 * 1/.0625 = 13740.7522252
 
         oracle_price_data.price = (21050 * MARK_PRICE_PRECISION) as i128; // lower by $1000 (in favor of user)
         oracle_price_data.confidence = MARK_PRICE_PRECISION;
@@ -1090,13 +1106,16 @@ mod test {
             &market_position,
             &market,
             &oracle_price_data,
-            margin_requirement_type,
+            MarginRequirementType::Initial,
         )
         .unwrap();
 
-        assert_eq!(upnl_2, 23062807377); //22699050901 * .95 = 21564098355
+        assert_eq!(upnl_2, 23062807377);
         assert!(upnl_2 > upnl);
         assert!(pmr_2 > 0);
-        assert_eq!(pmr_2, 83988313522707);
+        assert_eq!(pmr_2, 129411885243000); //$12941.1885243
+        assert!(pmr > pmr_2);
+        assert_eq!(pmr - pmr_2, 6141393443000); //$614.13 less collateral required
+        assert!(pmr - pmr_2 < 6147500000000); // which is less than wouldbe 614.75
     }
 }

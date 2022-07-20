@@ -14,7 +14,7 @@ use crate::state::bank::{BankBalance, BankBalanceType};
 use crate::state::oracle::{OraclePriceData, OracleSource};
 use crate::{
     BANK_IMF_PRECISION, BANK_WEIGHT_PRECISION, BID_ASK_SPREAD_PRECISION, MARGIN_PRECISION,
-    MARK_PRICE_PRECISION,
+    MARK_PRICE_PRECISION, MARK_PRICE_PRECISION_I128,
 };
 
 #[account(zero_copy)]
@@ -38,7 +38,8 @@ pub struct Market {
     pub unsettled_profit: u128,
     pub unsettled_loss: u128,
     pub imf_factor: u128,
-    pub unsettled_asset_weight: u8,
+    pub unsettled_initial_asset_weight: u8,
+    pub unsettled_maintenance_asset_weight: u8,
 
     // upgrade-ability
     pub padding0: u32,
@@ -68,6 +69,7 @@ impl Market {
             MarginRequirementType::Maintenance => MARGIN_PRECISION + MARGIN_PRECISION / 10, // 1.1x leverage
         };
 
+        // construct an initial
         if self.imf_factor > 0 {
             let size_sqrt = ((size / 1000) + 1).nth_root(2); //1e13 -> 1e10 -> 1e5
 
@@ -110,34 +112,42 @@ impl Market {
         // < 0 (negative balance) always has asset weight = 1
         let mut unrealised_asset_weight = 100; // 100 = 1 in BANK_WEIGHT_PRECISION (1e3)
         if unsettled_pnl > 0 {
-            let size = unsettled_pnl.unsigned_abs();
+            let asset_weight = if margin_type == MarginRequirementType::Initial {
+                let size = unsettled_pnl
+                    .checked_mul(MARK_PRICE_PRECISION_I128)
+                    .ok_or_else(math_error!())?
+                    .checked_div(max(MARK_PRICE_PRECISION_I128, self.amm.last_oracle_price))
+                    .ok_or_else(math_error!())?
+                    .unsigned_abs();
 
-            let mut asset_weight = match margin_type {
-                MarginRequirementType::Initial => self.unsettled_asset_weight,
-                MarginRequirementType::Partial => self.unsettled_asset_weight,
-                MarginRequirementType::Maintenance => self.unsettled_asset_weight,
-            };
-
-            let size_sqrt = (size + 1).nth_root(2); //1e6 -> 1e3
-            let imf_numerator = BANK_IMF_PRECISION + BANK_IMF_PRECISION / 10;
-
-            let size_discounted_asset_weight = imf_numerator
-                .checked_mul(BANK_WEIGHT_PRECISION)
-                .ok_or_else(math_error!())?
-                .checked_div(
-                    BANK_IMF_PRECISION
-                        .checked_add(
-                            size_sqrt // 1e3
-                                .checked_mul(self.imf_factor as u128)
-                                .ok_or_else(math_error!())?
-                                .checked_div(1_000) // 1e3
+                // rought approx of size in unit of base amount
+                let unsettled_initial_asset_weight_discounted = min(
+                    self.unsettled_initial_asset_weight,
+                    ((BANK_IMF_PRECISION + BANK_IMF_PRECISION / 10)
+                        .checked_mul(BANK_WEIGHT_PRECISION)
+                        .ok_or_else(math_error!())?
+                        .checked_div(
+                            BANK_IMF_PRECISION
+                                .checked_add(
+                                    (size + 1)
+                                        .nth_root(2) // 1e3
+                                        .checked_mul(self.imf_factor as u128)
+                                        .ok_or_else(math_error!())?
+                                        .checked_div(1_000) // 1e3
+                                        .ok_or_else(math_error!())?,
+                                )
                                 .ok_or_else(math_error!())?,
                         )
-                        .ok_or_else(math_error!())?,
-                )
-                .ok_or_else(math_error!())?;
-
-            asset_weight = min(asset_weight, size_discounted_asset_weight as u8);
+                        .ok_or_else(math_error!())?) as u8,
+                );
+                unsettled_initial_asset_weight_discounted
+            } else {
+                match margin_type {
+                    MarginRequirementType::Initial => self.unsettled_initial_asset_weight,
+                    MarginRequirementType::Partial => self.unsettled_maintenance_asset_weight,
+                    MarginRequirementType::Maintenance => self.unsettled_maintenance_asset_weight,
+                }
+            };
 
             unrealised_asset_weight = asset_weight as u128;
         }
