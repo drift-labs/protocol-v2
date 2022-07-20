@@ -1,5 +1,5 @@
 import { ClearingHouseUser } from '../clearingHouseUser';
-import { isVariant, Order } from '../types';
+import { isOneOfVariant, isVariant, Order } from '../types';
 import { ZERO, TWO } from '../constants/numericConstants';
 import { BN } from '@project-serum/anchor';
 import { OraclePriceData } from '../oracles/types';
@@ -125,18 +125,8 @@ export function getLimitPrice(
 ): BN {
 	let limitPrice;
 	if (!order.oraclePriceOffset.eq(ZERO)) {
-		const floatingPrice = oraclePriceData.price.add(order.oraclePriceOffset);
-		if (order.postOnly) {
-			limitPrice = isVariant(order.direction, 'long')
-				? BN.min(order.price, floatingPrice)
-				: BN.max(order.price, floatingPrice);
-		} else {
-			limitPrice = floatingPrice;
-		}
-	} else if (
-		isVariant(order.orderType, 'market') ||
-		isVariant(order.orderType, 'triggerMarket')
-	) {
+		limitPrice = oraclePriceData.price.add(order.oraclePriceOffset);
+	} else if (isOneOfVariant(order.orderType, ['market', 'triggerMarket'])) {
 		limitPrice = getAuctionPrice(order, slot);
 	} else {
 		limitPrice = order.price;

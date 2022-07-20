@@ -186,14 +186,7 @@ export function calculateAmountToTradeForLimit(
 				'Cant calculate limit price for oracle offset oracle without OraclePriceData'
 			);
 		}
-		const floatingPrice = oraclePriceData.price.add(order.oraclePriceOffset);
-		if (order.postOnly) {
-			limitPrice = isVariant(order.direction, 'long')
-				? BN.min(order.price, floatingPrice)
-				: BN.max(order.price, floatingPrice);
-		} else {
-			limitPrice = floatingPrice;
-		}
+		limitPrice = oraclePriceData.price.add(order.oraclePriceOffset);
 	}
 
 	const [maxAmountToTrade, direction] = calculateMaxBaseAssetAmountToTrade(
