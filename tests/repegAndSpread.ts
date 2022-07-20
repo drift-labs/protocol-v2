@@ -415,7 +415,11 @@ describe('repeg and spread amm', () => {
 		});
 		await clearingHouseUser.subscribe();
 		console.log(clearingHouseUser.getCollateralValue().toString());
-		assert(clearingHouseUser.getCollateralValue().eq(usdcAmount));
+		assert(
+			clearingHouseUser
+				.getCollateralValue()
+				.eq(usdcAmount.add(new BN(50001000)))
+		);
 		await clearingHouseUser.unsubscribe();
 	});
 
@@ -629,7 +633,7 @@ describe('repeg and spread amm', () => {
 			'+',
 			sinceStartTFMD,
 			'==',
-			50000
+			usdcDepositBalance - usdcBorrowBalance
 		);
 
 		assert(
@@ -643,14 +647,14 @@ describe('repeg and spread amm', () => {
 
 		assert(market0.amm.netBaseAssetAmount.eq(new BN(0)));
 
-		console.log(market0);
+		// console.log(market0);
 
-		// todo: doesnt add up perfectly
-		// assert(
-		// 	Math.abs(
-		// 		allUserUnsettledPnl +
-		// 			(sinceStartTFMD - (pnlPoolBalance + feePoolBalance))
-		// 	) < 2
-		// );
+		// todo: doesnt add up perfectly (~$2 off), adjust peg/k not precise?
+		assert(
+			Math.abs(
+				allUserUnsettledPnl +
+					(sinceStartTFMD - (pnlPoolBalance + feePoolBalance))
+			) < 2
+		);
 	});
 });

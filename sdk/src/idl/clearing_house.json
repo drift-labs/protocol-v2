@@ -720,7 +720,7 @@
       ]
     },
     {
-      "name": "withdrawFees",
+      "name": "withdrawFromMarketToInsuranceVault",
       "accounts": [
         {
           "name": "state",
@@ -840,7 +840,17 @@
           "isSigner": false
         },
         {
+          "name": "bank",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "bankVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "bankVaultAuthority",
           "isMut": true,
           "isSigner": false
         },

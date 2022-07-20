@@ -37,7 +37,6 @@ pub mod clearing_house {
     use std::option::Option::Some;
 
     use crate::account_loader::{load, load_mut};
-    use crate::controller::bank_balance::update_bank_balances;
     use crate::controller::position::get_position_index;
     use crate::margin_validation::validate_margin;
     use crate::math;
@@ -1145,7 +1144,7 @@ pub mod clearing_house {
             "User must settle their own unsettled pnl when its positive",
         )?;
 
-        update_bank_balances(
+        controller::bank_balance::update_bank_balances(
             pnl_to_settle_with_user.unsigned_abs(),
             if pnl_to_settle_with_user > 0 {
                 &BankBalanceType::Deposit
@@ -1602,7 +1601,7 @@ pub mod clearing_house {
             // handle edge case where user liquidates themselves
             if liquidate_key.eq(&user_key) {
                 let user_bank_balance = user.get_quote_asset_bank_balance_mut();
-                update_bank_balances(
+                controller::bank_balance::update_bank_balances(
                     fee_to_liquidator as u128,
                     &BankBalanceType::Deposit,
                     bank,
@@ -1611,7 +1610,7 @@ pub mod clearing_house {
             } else {
                 let liquidator = &mut load_mut(&ctx.accounts.liquidator)?;
                 let user_bank_balance = liquidator.get_quote_asset_bank_balance_mut();
-                update_bank_balances(
+                controller::bank_balance::update_bank_balances(
                     fee_to_liquidator as u128,
                     &BankBalanceType::Deposit,
                     bank,
@@ -1623,7 +1622,7 @@ pub mod clearing_house {
         {
             let bank = &mut bank_map.get_quote_asset_bank_mut()?;
             let user_bank_balance = user.get_quote_asset_bank_balance_mut();
-            update_bank_balances(
+            controller::bank_balance::update_bank_balances(
                 liquidation_fee,
                 &BankBalanceType::Borrow,
                 bank,
@@ -1683,13 +1682,16 @@ pub mod clearing_house {
     #[access_control(
         market_initialized(&ctx.accounts.market)
     )]
-    pub fn withdraw_fees(ctx: Context<WithdrawFees>, amount: u64) -> Result<()> {
+    pub fn withdraw_from_market_to_insurance_vault(
+        ctx: Context<WithdrawFromMarketToInsuranceVault>,
+        amount: u64,
+    ) -> Result<()> {
         let market = &mut ctx.accounts.market.load_mut()?;
 
         // A portion of fees must always remain in protocol to be used to keep markets optimal
         let max_withdraw = market
             .amm
-            .total_fee
+            .total_exchange_fee
             .checked_mul(SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR)
             .ok_or_else(math_error!())?
             .checked_div(SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_DENOMINATOR)
@@ -1697,11 +1699,24 @@ pub mod clearing_house {
             .checked_sub(market.amm.total_fee_withdrawn)
             .ok_or_else(math_error!())?;
 
+        let bank = &mut ctx.accounts.bank.load_mut()?;
+
+        let amm_fee_pool_token_amount =
+            get_token_amount(market.amm.fee_pool.balance, bank, &BankBalanceType::Deposit)?;
+
         if cast_to_u128(amount)? > max_withdraw {
+            msg!("withdraw size exceeds max_withdraw: {:?}", max_withdraw);
             return Err(ErrorCode::AdminWithdrawTooLarge.into());
         }
 
-        let bank = ctx.accounts.bank.load()?;
+        if cast_to_u128(amount)? > amm_fee_pool_token_amount {
+            msg!(
+                "withdraw size exceeds amm_fee_pool_token_amount: {:?}",
+                amm_fee_pool_token_amount
+            );
+            return Err(ErrorCode::AdminWithdrawTooLarge.into());
+        }
+
         controller::token::send_from_bank_vault(
             &ctx.accounts.token_program,
             &ctx.accounts.bank_vault,
@@ -1710,6 +1725,13 @@ pub mod clearing_house {
             0,
             bank.vault_authority_nonce,
             amount,
+        )?;
+
+        controller::bank_balance::update_bank_balances(
+            cast_to_u128(amount)?,
+            &BankBalanceType::Borrow,
+            bank,
+            &mut market.amm.fee_pool,
         )?;
 
         market.amm.total_fee_withdrawn = market
@@ -1753,6 +1775,15 @@ pub mod clearing_house {
             .total_fee_minus_distributions
             .checked_add(cast(amount)?)
             .ok_or_else(math_error!())?;
+
+        let bank = &mut ctx.accounts.bank.load_mut()?;
+
+        controller::bank_balance::update_bank_balances(
+            cast_to_u128(amount)?,
+            &BankBalanceType::Deposit,
+            bank,
+            &mut market.amm.fee_pool,
+        )?;
 
         controller::token::send_from_insurance_vault(
             &ctx.accounts.token_program,

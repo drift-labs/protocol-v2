@@ -331,10 +331,12 @@ export class Admin extends ClearingHouse {
 		recipient: PublicKey
 	): Promise<TransactionSignature> {
 		const state = await this.getStateAccount();
+		const bank = this.getQuoteAssetBankAccount();
 		return await this.program.rpc.withdrawFromInsuranceVault(amount, {
 			accounts: {
 				admin: this.wallet.publicKey,
 				state: await this.getStatePublicKey(),
+				bank: bank.pubkey,
 				insuranceVault: state.insuranceVault,
 				insuranceVaultAuthority: state.insuranceVaultAuthority,
 				recipient: recipient,
@@ -343,7 +345,7 @@ export class Admin extends ClearingHouse {
 		});
 	}
 
-	public async withdrawFees(
+	public async withdrawFromMarketToInsuranceVault(
 		marketIndex: BN,
 		amount: BN,
 		recipient: PublicKey
@@ -353,7 +355,7 @@ export class Admin extends ClearingHouse {
 			marketIndex
 		);
 		const bank = this.getQuoteAssetBankAccount();
-		return await this.program.rpc.withdrawFees(amount, {
+		return await this.program.rpc.withdrawFromMarketToInsuranceVault(amount, {
 			accounts: {
 				admin: this.wallet.publicKey,
 				state: await this.getStatePublicKey(),
@@ -372,6 +374,8 @@ export class Admin extends ClearingHouse {
 		amount: BN
 	): Promise<TransactionSignature> {
 		const state = await this.getStateAccount();
+		const bank = this.getQuoteAssetBankAccount();
+
 		return await this.program.rpc.withdrawFromInsuranceVaultToMarket(amount, {
 			accounts: {
 				admin: this.wallet.publicKey,
@@ -379,7 +383,9 @@ export class Admin extends ClearingHouse {
 				market: await getMarketPublicKey(this.program.programId, marketIndex),
 				insuranceVault: state.insuranceVault,
 				insuranceVaultAuthority: state.insuranceVaultAuthority,
-				bankVault: this.getQuoteAssetBankAccount().vault,
+				bank: bank.pubkey,
+				bankVault: bank.vault,
+				bankVaultAuthority: bank.vaultAuthority,
 				tokenProgram: TOKEN_PROGRAM_ID,
 			},
 		});

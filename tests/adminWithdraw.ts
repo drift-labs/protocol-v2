@@ -88,7 +88,7 @@ describe('admin withdraw', () => {
 	it('Try to withdraw too much', async () => {
 		const withdrawAmount = fee.div(new BN(2)).add(new BN(1));
 		try {
-			await clearingHouse.withdrawFees(
+			await clearingHouse.withdrawFromMarketToInsuranceVault(
 				new BN(0),
 				withdrawAmount,
 				userUSDCAccount.publicKey
@@ -104,7 +104,7 @@ describe('admin withdraw', () => {
 			.getUserAccount()
 			.fees.totalFeePaid.div(new BN(2));
 		const state = await clearingHouse.getStateAccount();
-		await clearingHouse.withdrawFees(
+		await clearingHouse.withdrawFromMarketToInsuranceVault(
 			new BN(0),
 			withdrawAmount,
 			state.insuranceVault
