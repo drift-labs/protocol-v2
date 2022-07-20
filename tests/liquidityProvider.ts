@@ -115,7 +115,7 @@ describe('liquidity providing', () => {
 	const chProgram = anchor.workspace.ClearingHouse as Program;
 
 	async function viewLogs(txsig) {
-		let tx = await connection.getTransaction(txsig, {
+		const tx = await connection.getTransaction(txsig, {
 			commitment: 'confirmed',
 		});
 		console.log('tx logs', tx.meta.logMessages);
@@ -295,7 +295,7 @@ describe('liquidity providing', () => {
 		console.log('adding liquidity...');
 		const market = clearingHouse.getMarketAccount(ZERO);
 		try {
-			let sig = await poorClearingHouse.addLiquidity(
+			const sig = await poorClearingHouse.addLiquidity(
 				market.amm.sqrtK.mul(new BN(5)),
 				market.marketIndex
 			);
