@@ -725,31 +725,34 @@ pub mod clearing_house {
         Ok(())
     }
 
-    // #[access_control(
-    //     exchange_not_paused(&ctx.accounts.state)
-    // )]
-    // pub fn settle_lp<'info>(ctx: Context<SettleLP>, _market_index: u64) -> Result<()> {
-    //     // not ready yet
-    //     panic!("Settle LP not ready yet...");
-    //
-    //     /*
-    //     let user = &mut load_mut(&ctx.accounts.user)?;
-    //     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-    //
-    //     let market_map = MarketMap::load(
-    //         &get_writable_markets(market_index),
-    //         &MarketOracles::new(),
-    //         remaining_accounts_iter,
-    //     )?;
-    //     let mut market = market_map.get_ref_mut(&market_index)?;
-    //
-    //     let position_index = get_position_index_lp(&user.positions, market_index)?;
-    //     let position = &mut user.positions[position_index];
-    //
-    //     settle_position(position, position.lp_shares, &mut market)?;
-    //
-    //     Ok(()) */
-    // }
+    #[access_control(
+        exchange_not_paused(&ctx.accounts.state)
+    )]
+    pub fn settle_lp<'info>(ctx: Context<SettleLP>, market_index: u64) -> Result<()> {
+        let user_key = ctx.accounts.user.key();
+        let user = &mut load_mut(&ctx.accounts.user)?;
+        let clock = Clock::get()?;
+        let now = clock.unix_timestamp;
+
+        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+        let market_map = MarketMap::load(
+            &get_writable_markets(market_index),
+            &MarketOracles::new(),
+            remaining_accounts_iter,
+        )?;
+
+        {
+            controller::funding::settle_funding_payment(user, &user_key, &market_map, now)?;
+        }
+
+        let mut market = market_map.get_ref_mut(&market_index)?;
+        let position_index = get_position_index(&user.positions, market_index)?;
+        let position = &mut user.positions[position_index];
+
+        settle_lp_position(position, &mut market)?;
+    
+        Ok(())
+    }
 
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
@@ -772,12 +775,12 @@ pub mod clearing_house {
             remaining_accounts_iter,
         )?;
 
-        if shares_to_burn == 0 {
-            return Ok(());
-        }
-
         {
             controller::funding::settle_funding_payment(user, &user_key, &market_map, now)?;
+        }
+
+        if shares_to_burn == 0 {
+            return Ok(());
         }
 
         let mut market = market_map.get_ref_mut(&market_index)?;

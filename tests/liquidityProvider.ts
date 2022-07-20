@@ -40,7 +40,6 @@ async function price_post_swap(baa, swap_direction, market) {
 		market.amm.quoteAssetReserve,
 		market.amm.pegMultiplier
 	);
-	console.log('price;', price.toNumber() / MARK_PRICE_PRECISION.toNumber());
 	const [new_qaa, new_baa] = calculateAmmReservesAfterSwap(
 		market.amm,
 		'base',
@@ -49,7 +48,6 @@ async function price_post_swap(baa, swap_direction, market) {
 	);
 	const _new_price = calculatePrice(new_baa, new_qaa, market.amm.pegMultiplier);
 	const new_price = _new_price.toNumber() / MARK_PRICE_PRECISION.toNumber();
-	console.log('post trade price:', new_price);
 	await setFeedPrice(anchor.workspace.Pyth, new_price, market.amm.oracle);
 
 	return new_price;
@@ -382,7 +380,7 @@ describe('liquidity providing', () => {
 			new BN(100 * 1e13),
 			market.marketIndex
 		);
-
+	
 		// some user goes long (lp should get a short)
 		console.log('user trading...');
 		let tradeSize = new BN(40 * 1e13);
@@ -447,7 +445,7 @@ describe('liquidity providing', () => {
 
 		console.log('user trading...');
 		let tradeSize = new BN(100 * 1e13).mul(new BN(30));
-		await traderClearingHouse.openPosition(
+		let txig = await traderClearingHouse.openPosition(
 			PositionDirection.LONG,
 			tradeSize,
 			marketIndex
@@ -469,6 +467,15 @@ describe('liquidity providing', () => {
 
 		// dont get paid in fees bc the sqrtk is so big that fees dont get given to the lps
 		assert(user.positions[1].unsettledPnl.eq(funding_payment.add(fee_payment)));
+
+		let trader = traderClearingHouse.getUserAccount()
+		await price_post_swap(trader.positions[1].baseAssetAmount, SwapDirection.ADD, market);
+		await traderClearingHouse.closePosition(market.marketIndex); // close lp position
+
+		console.log('closing lp ...');
+		console.log(user.positions[1].baseAssetAmount.toString())
+		await price_post_swap(user.positions[1].baseAssetAmount, SwapDirection.REMOVE, market);
+		await clearingHouse.closePosition(market.marketIndex); // close lp position
 	});
 
 	it('lp burns a partial position', async () => {
@@ -488,6 +495,7 @@ describe('liquidity providing', () => {
 			tradeSize,
 			market.marketIndex
 		);
+
 
 		console.log('removing liquidity...');
 		let user = clearingHouse.getUserAccount();
@@ -544,6 +552,87 @@ describe('liquidity providing', () => {
 		console.log('closing lp ...');
 		await price_post_swap(new_baa, SwapDirection.ADD, market);
 		await clearingHouse.closePosition(new BN(0)); // close lp position
+	});
+
+	it('settles lp', async () => {
+		console.log('adding liquidity...');
+
+		const market = clearingHouse.getMarketAccount(new BN(0));
+		const sig = await clearingHouse.addLiquidity(
+			new BN(100 * 1e13),
+			market.marketIndex
+		);
+
+		let user = clearingHouseUser.getUserAccount();
+		console.log(user.positions[0].lpShares.toString());
+
+		// some user goes long (lp should get a short)
+		console.log('user trading...');
+		let tradeSize = new BN(124 * 1e13);
+		await price_post_swap(tradeSize, SwapDirection.ADD, market);
+		let txsig = await traderClearingHouse.openPosition(
+			PositionDirection.SHORT,
+			tradeSize,
+			market.marketIndex
+		);
+	
+		let trader = traderClearingHouse.getUserAccount()
+		console.log(
+			"trader size",
+			trader.positions[0].baseAssetAmount.toString()
+		)
+		let lpPosition = clearingHouse.getUserAccount().positions[0]
+		console.log(
+			'LP baa, qaa, upnl',
+			lpPosition.baseAssetAmount.toString(),
+			lpPosition.quoteAssetAmount.toString(),
+			lpPosition.unsettledPnl.toString()
+		);
+
+		console.log("settling...")
+		// trader settles the lp
+		const txssig = await traderClearingHouse.settleLP(
+			await clearingHouse.getUserAccountPublicKey(), 
+			market.marketIndex
+		)
+
+		user = clearingHouse.getUserAccount()
+		let position = user.positions[0]
+		let lpBaa = position.lpBaseAssetAmount
+		let lpQaa = position.lpQuoteAssetAmount
+		let lpUpnl = position.unsettledPnl
+
+		console.log(lpBaa.toString(), lpQaa.toString(), lpUpnl.toString())
+		assert(lpBaa.gt(ZERO))
+		assert(lpQaa.gt(ZERO))
+		
+		console.log('removing liquidity...');
+		let baa = position.baseAssetAmount; 
+		let qaa = position.quoteAssetAmount; // dust from prev tests 
+
+		const txSig = await clearingHouse.removeLiquidity(market.marketIndex);
+
+		user = clearingHouseUser.getUserAccount();
+		const lp_position = user.positions[0];
+		const lp_token_amount = lp_position.lpShares;
+
+		assert(lp_token_amount.eq(new BN(0)));
+		assert(user.positions[0].baseAssetAmount.eq(lpBaa.add(baa))); 
+		assert(user.positions[0].quoteAssetAmount.eq(lpQaa.add(qaa)));
+
+		console.log('closing trader ...');
+		await price_post_swap(tradeSize, SwapDirection.REMOVE, market);
+		await traderClearingHouse.closePosition(new BN(0));
+
+		console.log('closing lp ...');
+		await price_post_swap(
+			user.positions[0].baseAssetAmount,
+			SwapDirection.ADD,
+			market
+		);
+		await clearingHouse.closePosition(new BN(0)); // close lp position
+
+		console.log('done!');
 	});
 
 	// it('removes liquidity when market position is small', async () => {
@@ -695,3 +784,4 @@ describe('liquidity providing', () => {
 		assert(userPosition.unsettledPnl.eq(settledPosition.unsettledPnl));
 	}); */
 });
+
