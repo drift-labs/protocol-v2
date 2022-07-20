@@ -19,6 +19,7 @@ use crate::math_error;
 use crate::state::events::{FundingPaymentRecord, FundingRateRecord};
 use crate::state::market::{Market, AMM};
 use crate::state::market_map::MarketMap;
+use crate::state::oracle_map::OracleMap;
 use crate::state::state::OracleGuardRails;
 use crate::state::user::User;
 
@@ -73,9 +74,8 @@ pub fn settle_funding_payment(
 pub fn update_funding_rate(
     market_index: u64,
     market: &mut Market,
-    price_oracle: &AccountInfo,
+    oracle_map: &mut OracleMap,
     now: UnixTimestamp,
-    clock_slot: u64,
     guard_rails: &OracleGuardRails,
     funding_paused: bool,
     precomputed_mark_price: Option<u128>,
@@ -88,10 +88,9 @@ pub fn update_funding_rate(
         None => market.amm.mark_price()?,
     };
     // Pause funding if oracle is invalid or if mark/oracle spread is too divergent
-    let (block_funding_rate_update, oracle_price_data) = oracle::block_operation(
+    let block_funding_rate_update = oracle::block_operation(
         &market.amm,
-        price_oracle,
-        clock_slot,
+        oracle_map.get_price_data(&market.amm.oracle)?,
         guard_rails,
         Some(mark_price),
     )?;
@@ -138,10 +137,11 @@ pub fn update_funding_rate(
     }
 
     if !funding_paused && !block_funding_rate_update && time_since_last_update >= next_update_wait {
+        let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
         let oracle_price_twap = amm::update_oracle_price_twap(
             &mut market.amm,
             now,
-            &oracle_price_data,
+            oracle_price_data,
             precomputed_mark_price,
         )?;
         let mid_price_twap = amm::update_mark_twap(&mut market.amm, now, None, None)?;
@@ -176,7 +176,7 @@ pub fn update_funding_rate(
         if market.amm.curve_update_intensity > 0 {
             formulaic_update_k(
                 market,
-                &oracle_price_data,
+                oracle_price_data,
                 funding_imbalance_cost,
                 now,
                 mark_price,

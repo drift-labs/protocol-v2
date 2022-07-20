@@ -98,6 +98,38 @@ impl<'a> OracleMap<'a> {
         })
     }
 
+    pub fn load_one<'c>(
+        account_info: &'c AccountInfo<'a>,
+        slot: u64,
+    ) -> ClearingHouseResult<OracleMap<'a>> {
+        let mut oracles: BTreeMap<Pubkey, AccountInfoAndOracleSource<'a>> = BTreeMap::new();
+
+        if account_info.owner == &pyth_program::id() {
+            return Err(ErrorCode::InvalidOracle);
+        }
+
+        let pubkey = account_info.key();
+        oracles.insert(
+            pubkey,
+            AccountInfoAndOracleSource {
+                account_info: account_info.clone(),
+                oracle_source: OracleSource::Pyth,
+            },
+        );
+
+        Ok(OracleMap {
+            oracles,
+            price_data: BTreeMap::new(),
+            slot,
+            quote_asset_price_data: OraclePriceData {
+                price: MARK_PRICE_PRECISION_I128,
+                confidence: 1,
+                delay: 0,
+                has_sufficient_number_of_data_points: true,
+            },
+        })
+    }
+
     #[cfg(test)]
     pub fn empty<'c>() -> OracleMap<'a> {
         OracleMap {

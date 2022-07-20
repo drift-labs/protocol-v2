@@ -21,7 +21,6 @@ use crate::state::market_map::MarketMap;
 use crate::state::oracle_map::OracleMap;
 use crate::state::state::OracleGuardRails;
 use crate::validate;
-use solana_program::clock::Slot;
 use solana_program::msg;
 use std::ops::Div;
 
@@ -257,7 +256,6 @@ pub fn calculate_liquidation_status(
     bank_map: &BankMap,
     oracle_map: &mut OracleMap,
     oracle_guard_rails: &OracleGuardRails,
-    clock_slot: Slot,
 ) -> ClearingHouseResult<LiquidationStatus> {
     let mut deposit_value: u128 = 0;
     let mut partial_margin_requirement: u128 = 0;
@@ -316,14 +314,12 @@ pub fn calculate_liquidation_status(
             .ok_or_else(math_error!())?;
 
         // Block the liquidation if the oracle is invalid or the oracle and mark are too divergent
-        let oracle_account_info = oracle_map.get_account_info(&market.amm.oracle)?;
-
         let mark_price_before = market.amm.mark_price()?;
 
+        let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
         let oracle_status = get_oracle_status(
             &market.amm,
-            &oracle_account_info,
-            clock_slot,
+            oracle_price_data,
             oracle_guard_rails,
             Some(mark_price_before),
         )?;

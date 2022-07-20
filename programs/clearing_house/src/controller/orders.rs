@@ -33,6 +33,7 @@ use crate::state::events::{OrderAction, OrderActionExplanation};
 use crate::state::fulfillment::FulfillmentMethod;
 use crate::state::market::Market;
 use crate::state::market_map::MarketMap;
+use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
 use crate::state::state::*;
 use crate::state::user::{MarketPosition, Order, OrderStatus, OrderType, UserFees};
@@ -50,7 +51,6 @@ pub fn place_order(
     oracle_map: &mut OracleMap,
     clock: &Clock,
     params: OrderParams,
-    oracle: Option<&AccountInfo>,
 ) -> ClearingHouseResult {
     let now = clock.unix_timestamp;
     let slot = clock.slot;
@@ -169,11 +169,10 @@ pub fn place_order(
     };
 
     let valid_oracle_price = get_valid_oracle_price(
-        oracle,
+        oracle_map.get_price_data(&market.amm.oracle)?,
         market,
         &new_order,
         &state.oracle_guard_rails.validity,
-        clock.slot,
     )?;
 
     validate_order(&new_order, market, state, valid_oracle_price, slot)?;
@@ -347,7 +346,6 @@ pub fn fill_order(
     bank_map: &BankMap,
     market_map: &MarketMap,
     oracle_map: &mut OracleMap,
-    oracle: &AccountInfo,
     filler: &AccountLoader<User>,
     maker: Option<&AccountLoader<User>>,
     maker_order_id: Option<u64>,
@@ -501,9 +499,8 @@ pub fn fill_order(
         controller::funding::update_funding_rate(
             market_index,
             market,
-            oracle,
+            oracle_map,
             now,
-            slot,
             &state.oracle_guard_rails,
             state.funding_paused,
             Some(mark_price_before),
@@ -1316,28 +1313,21 @@ pub fn update_order_after_fill(
 }
 
 fn get_valid_oracle_price(
-    oracle: Option<&AccountInfo>,
+    oracle_price_data: &OraclePriceData,
     market: &Market,
     order: &Order,
     validity_guardrails: &ValidityGuardRails,
-    slot: u64,
 ) -> ClearingHouseResult<Option<i128>> {
-    let price = if let Some(oracle) = oracle {
-        let oracle_data = market.amm.get_oracle_price(oracle, slot)?;
-        let is_oracle_valid = is_oracle_valid(&market.amm, &oracle_data, validity_guardrails)?;
+    let price = {
+        let is_oracle_valid = is_oracle_valid(&market.amm, oracle_price_data, validity_guardrails)?;
         if is_oracle_valid {
-            Some(oracle_data.price)
+            Some(oracle_price_data.price)
         } else if order.has_oracle_price_offset() {
             msg!("Invalid oracle for order with oracle price offset");
             return Err(print_error!(ErrorCode::InvalidOracle)());
         } else {
             None
         }
-    } else if order.has_oracle_price_offset() {
-        msg!("Oracle not found for order with oracle price offset");
-        return Err(print_error!(ErrorCode::OracleNotFound)());
-    } else {
-        None
     };
 
     Ok(price)

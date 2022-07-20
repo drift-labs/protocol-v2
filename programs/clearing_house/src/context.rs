@@ -313,8 +313,6 @@ pub struct FillOrder<'info> {
     pub filler: AccountLoader<'info, User>,
     #[account(mut)]
     pub user: AccountLoader<'info, User>,
-    /// CHECK: validated in `controller::orders::fill_order`
-    pub oracle: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
@@ -326,8 +324,6 @@ pub struct PlaceOrder<'info> {
     )]
     pub user: AccountLoader<'info, User>,
     pub authority: Signer<'info>,
-    /// CHECK: validated in `place_order` when market_map is created
-    pub oracle: AccountInfo<'info>,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
@@ -373,8 +369,6 @@ pub struct PlaceAndTake<'info> {
     )]
     pub user: AccountLoader<'info, User>,
     pub authority: Signer<'info>,
-    /// CHECK: validated in `place_order` ix constraint
-    pub oracle: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
@@ -387,8 +381,6 @@ pub struct PlaceAndMake<'info> {
     pub user: AccountLoader<'info, User>,
     pub taker: AccountLoader<'info, User>,
     pub authority: Signer<'info>,
-    /// CHECK: validated in `place_order` ix constraint
-    pub oracle: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
