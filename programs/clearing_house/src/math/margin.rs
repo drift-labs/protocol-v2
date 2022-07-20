@@ -144,8 +144,8 @@ pub fn calculate_margin_requirement_and_total_collateral(
     margin_requirement_type: MarginRequirementType,
     bank_map: &BankMap,
     oracle_map: &mut OracleMap,
-) -> ClearingHouseResult<(u128, u128)> {
-    let mut total_collateral: u128 = 0;
+) -> ClearingHouseResult<(u128, i128)> {
+    let mut total_collateral: i128 = 0;
     let mut margin_requirement: u128 = 0;
 
     for user_bank_balance in user.bank_balances.iter() {
@@ -163,7 +163,7 @@ pub fn calculate_margin_requirement_and_total_collateral(
         match user_bank_balance.balance_type {
             BankBalanceType::Deposit => {
                 total_collateral = total_collateral
-                    .checked_add(bank_equity_value)
+                    .checked_add(cast_to_i128(bank_equity_value)?)
                     .ok_or_else(math_error!())?;
             }
             BankBalanceType::Borrow => {
@@ -220,7 +220,9 @@ pub fn calculate_margin_requirement_and_total_collateral(
         )
         .ok_or_else(math_error!())?;
 
-    let total_collateral = calculate_updated_collateral(total_collateral, unrealized_pnl)?;
+    let total_collateral = total_collateral
+        .checked_add(unrealized_pnl)
+        .ok_or_else(math_error!())?;
 
     Ok((margin_requirement, total_collateral))
 }
@@ -289,7 +291,7 @@ pub fn meets_initial_margin_requirement(
         oracle_map,
     )?;
 
-    Ok(margin >= margin_requirement)
+    Ok(margin >= cast_to_i128(margin_requirement)?)
 }
 
 pub fn meets_partial_margin_requirement(
@@ -311,7 +313,7 @@ pub fn meets_partial_margin_requirement(
         .checked_div(MARGIN_PRECISION)
         .ok_or_else(math_error!())?;
 
-    Ok(total_collateral >= partial_margin_requirement)
+    Ok(total_collateral >= cast_to_i128(partial_margin_requirement)?)
 }
 
 #[derive(PartialEq)]
@@ -701,7 +703,7 @@ mod test {
         BANK_IMF_PRECISION,
         // BANK_WEIGHT_PRECISION,
         MARK_PRICE_PRECISION,
-        // QUOTE_PRECISION,
+        QUOTE_PRECISION,
     };
     use crate::math::position::calculate_position_pnl;
     use crate::state::bank::Bank;
@@ -802,6 +804,93 @@ mod test {
         assert_eq!(res, 625);
     }
 
+    fn negative_margin_user_test() {
+        let bank = Bank {
+            cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_borrow_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            ..Bank::default()
+        };
+
+        let user_bank_balance = UserBankBalance {
+            balance_type: BankBalanceType::Deposit,
+            balance: MARK_PRICE_PRECISION,
+            ..UserBankBalance::default()
+        };
+
+        let mut user = User { ..User::default() };
+
+        let market_position = MarketPosition {
+            market_index: 0,
+            unsettled_pnl: -(2 * QUOTE_PRECISION as i128),
+            ..MarketPosition::default()
+        };
+
+        user.bank_balances[0] = user_bank_balance;
+        user.positions[0] = market_position;
+
+        let mut market = Market {
+            market_index: 0,
+            amm: AMM {
+                base_asset_reserve: 5122950819670000,
+                quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
+                sqrt_k: 500 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 22_100_000,
+                net_base_asset_amount: -(122950819670000_i128),
+                ..AMM::default()
+            },
+            margin_ratio_initial: 1000,
+            margin_ratio_partial: 625,
+            margin_ratio_maintenance: 500,
+            imf_factor: 1000, // 1_000/1_000_000 = .001
+            unsettled_asset_weight: 100,
+            ..Market::default()
+        };
+
+        // btc
+        let oracle_price_data = OraclePriceData {
+            price: (22050 * MARK_PRICE_PRECISION) as i128,
+            confidence: 0,
+            delay: 2,
+            has_sufficient_number_of_data_points: true,
+        };
+
+        let (pmr, unrealized_pnl) = calculate_perp_equity_value(
+            &market_position,
+            &market,
+            &oracle_price_data,
+            MarginRequirementType::Initial,
+        )
+        .unwrap();
+
+        let quote_asset_oracle_price_data = OraclePriceData {
+            price: MARK_PRICE_PRECISION as i128,
+            confidence: 1,
+            delay: 0,
+            has_sufficient_number_of_data_points: true,
+        };
+
+        let mut total_collateral = calculate_bank_equity_value(
+            &user_bank_balance,
+            &bank,
+            &quote_asset_oracle_price_data,
+            MarginRequirementType::Initial,
+        )
+        .unwrap();
+
+        let total_collateral_updated =
+            calculate_updated_collateral(total_collateral, unrealized_pnl).unwrap();
+
+        assert_eq!(total_collateral_updated, 0);
+
+        let total_collateral_i128 = (total_collateral as i128)
+            .checked_add(unrealized_pnl)
+            .ok_or_else(math_error!())
+            .unwrap();
+
+        assert_eq!(total_collateral_i128, -(QUOTE_PRECISION as i128));
+    }
+
     #[test]
     fn calculate_user_equity_value_tests() {
         let _user = User { ..User::default() };
@@ -855,11 +944,16 @@ mod test {
         };
 
         let margin_requirement_type = MarginRequirementType::Partial;
-
+        let quote_asset_oracle_price_data = OraclePriceData {
+            price: MARK_PRICE_PRECISION as i128,
+            confidence: 1,
+            delay: 0,
+            has_sufficient_number_of_data_points: true,
+        };
         let _bqv = calculate_bank_equity_value(
             &user_bank_balance,
             &bank,
-            &oracle_price_data,
+            &quote_asset_oracle_price_data,
             margin_requirement_type,
         )
         .unwrap();
