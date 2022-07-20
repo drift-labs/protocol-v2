@@ -414,17 +414,14 @@
           "name": "authority",
           "isMut": false,
           "isSigner": true
-        },
-        {
-          "name": "oracle",
-          "isMut": false,
-          "isSigner": false
         }
       ],
       "args": [
         {
           "name": "orderId",
-          "type": "u64"
+          "type": {
+            "option": "u64"
+          }
         }
       ]
     },
@@ -445,11 +442,6 @@
           "name": "authority",
           "isMut": false,
           "isSigner": true
-        },
-        {
-          "name": "oracle",
-          "isMut": false,
-          "isSigner": false
         }
       ],
       "args": [
@@ -491,7 +483,9 @@
       "args": [
         {
           "name": "orderId",
-          "type": "u64"
+          "type": {
+            "option": "u64"
+          }
         },
         {
           "name": "makerOrderId",
@@ -578,6 +572,37 @@
         },
         {
           "name": "takerOrderId",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "triggerOrder",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "filler",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "orderId",
           "type": "u64"
         }
       ]
@@ -2738,6 +2763,10 @@
             }
           },
           {
+            "name": "triggered",
+            "type": "bool"
+          },
+          {
             "name": "referrer",
             "type": "publicKey"
           },
@@ -2872,6 +2901,9 @@
           },
           {
             "name": "Fill"
+          },
+          {
+            "name": "Trigger"
           },
           {
             "name": "Expire"
@@ -3894,6 +3926,21 @@
     },
     {
       "code": 6087,
+      "name": "OrderMustBeTriggeredFirst",
+      "msg": "OrderMustBeTriggeredFirst"
+    },
+    {
+      "code": 6088,
+      "name": "OrderNotTriggerable",
+      "msg": "OrderNotTriggerable"
+    },
+    {
+      "code": 6089,
+      "name": "OrderDidNotSatisfyTriggerCondition",
+      "msg": "OrderDidNotSatisfyTriggerCondition"
+    },
+    {
+      "code": 6090,
       "name": "DefaultError",
       "msg": "DefaultError"
     }

@@ -14,7 +14,9 @@ use crate::error::ErrorCode;
 use crate::get_struct_values;
 use crate::get_then_update_id;
 use crate::math::amm::is_oracle_valid;
-use crate::math::auction::{calculate_auction_end_price, calculate_auction_start_price};
+use crate::math::auction::{
+    calculate_auction_end_price, calculate_auction_start_price, is_auction_complete,
+};
 use crate::math::casting::cast;
 use crate::math::fulfillment::determine_fulfillment_methods;
 use crate::math::matching::{
@@ -74,12 +76,6 @@ pub fn place_order(
         }
     }
 
-    if params.order_type == OrderType::TriggerMarket || params.order_type == OrderType::TriggerLimit
-    {
-        msg!("temp disabled trigger orders");
-        panic!();
-    }
-
     let market_index = params.market_index;
     let market = &market_map.get_ref(&market_index)?;
 
@@ -117,7 +113,12 @@ pub fn place_order(
             market.amm.base_asset_amount_step_size
         )?;
 
-        increase_open_bids_and_asks(market_position, &params.direction, base_asset_amount)?;
+        if !matches!(
+            &params.order_type,
+            OrderType::TriggerMarket | OrderType::TriggerLimit
+        ) {
+            increase_open_bids_and_asks(market_position, &params.direction, base_asset_amount)?;
+        }
 
         let existing_position_direction = if market_position.base_asset_amount >= 0 {
             PositionDirection::Long
@@ -156,6 +157,7 @@ pub fn place_order(
         discount_tier: OrderDiscountTier::None,
         trigger_price: params.trigger_price,
         trigger_condition: params.trigger_condition,
+        triggered: false,
         referrer: Pubkey::default(),
         post_only: params.post_only,
         oracle_price_offset: params.oracle_price_offset,
@@ -374,6 +376,12 @@ pub fn fill_order(
         "Order not open"
     )?;
 
+    validate!(
+        !user.orders[order_index].must_be_triggered() || user.orders[order_index].triggered,
+        ErrorCode::OrderMustBeTriggeredFirst,
+        "Order must be triggered first"
+    )?;
+
     let mark_price_before: u128;
     let oracle_mark_spread_pct_before: i128;
     let is_oracle_valid: bool;
@@ -526,8 +534,17 @@ fn sanitize_maker_order<'a>(
     let maker_order_index =
         maker.get_order_index(maker_order_id.ok_or(ErrorCode::MakerOrderNotFound)?)?;
 
-    if !is_maker_for_taker(&maker.orders[maker_order_index], taker_order)? {
-        return Ok((None, None, None));
+    {
+        let maker_order = &maker.orders[maker_order_index];
+        if !is_maker_for_taker(maker_order, taker_order)? {
+            return Ok((None, None, None));
+        }
+
+        validate!(
+            !maker_order.must_be_triggered() || maker_order.triggered,
+            ErrorCode::OrderMustBeTriggeredFirst,
+            "Maker order not triggered"
+        )?;
     }
 
     // Dont fulfill with a maker order if oracle has diverged significantly
@@ -588,7 +605,7 @@ fn fulfill_order(
     let market_checkpoint = clone(market_map.get_ref(&market_index)?.deref());
 
     let fulfillment_methods =
-        determine_fulfillment_methods(&user.orders[user_order_index], false, slot)?;
+        determine_fulfillment_methods(&user.orders[user_order_index], maker.is_some(), slot)?;
 
     if fulfillment_methods.is_empty() {
         return Ok((0, false));
@@ -897,9 +914,7 @@ pub fn fulfill_order_with_amm(
     });
 
     // Cant reset order until after its logged
-    if user.orders[order_index].get_base_asset_amount_unfilled()? == 0
-        || user.orders[order_index].order_type == OrderType::Market
-    {
+    if user.orders[order_index].get_base_asset_amount_unfilled()? == 0 {
         user.orders[order_index] = Order::default();
         let market_position = &mut user.positions[position_index];
         market_position.open_orders -= 1;
@@ -1194,7 +1209,6 @@ pub fn execute_non_market_order(
     let base_asset_amount = calculate_base_asset_amount_market_can_execute(
         &user.orders[order_index],
         market,
-        Some(mark_price_before),
         valid_oracle_price,
         slot,
     )?;
@@ -1353,6 +1367,137 @@ fn get_taker_and_maker_for_order_record(
             0,
         )
     }
+}
+
+pub fn trigger_order(
+    order_id: u64,
+    state: &State,
+    user: &AccountLoader<User>,
+    market_map: &MarketMap,
+    oracle_map: &mut OracleMap,
+    filler: &AccountLoader<User>,
+    clock: &Clock,
+) -> ClearingHouseResult {
+    let now = clock.unix_timestamp;
+    let slot = clock.slot;
+
+    let filler_key = filler.key();
+    let user_key = user.key();
+    let user = &mut load_mut(user)?;
+    controller::funding::settle_funding_payment(user, &user_key, market_map, now)?;
+
+    let order_index = user
+        .orders
+        .iter()
+        .position(|order| order.order_id == order_id)
+        .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
+
+    let (order_status, market_index) =
+        get_struct_values!(user.orders[order_index], status, market_index);
+
+    validate!(
+        order_status == OrderStatus::Open,
+        ErrorCode::OrderNotOpen,
+        "Order not open"
+    )?;
+
+    validate!(
+        user.orders[order_index].must_be_triggered(),
+        ErrorCode::OrderNotTriggerable,
+        "Order is not triggerable"
+    )?;
+
+    let market = &mut market_map.get_ref_mut(&market_index)?;
+    let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
+
+    let is_oracle_valid = amm::is_oracle_valid(
+        &market.amm,
+        oracle_price_data,
+        &state.oracle_guard_rails.validity,
+    )?;
+    validate!(is_oracle_valid, ErrorCode::InvalidOracle)?;
+    let oracle_price = oracle_price_data.price;
+
+    let order_slot = user.orders[order_index].slot;
+    let auction_duration = user.orders[order_index].auction_duration;
+    validate!(
+        is_auction_complete(order_slot, auction_duration, slot)?,
+        ErrorCode::OrderDidNotSatisfyTriggerCondition,
+        "Auction duration must elapse before triggering"
+    )?;
+
+    let can_trigger =
+        order_satisfies_trigger_condition(&user.orders[order_index], oracle_price.unsigned_abs());
+    validate!(can_trigger, ErrorCode::OrderDidNotSatisfyTriggerCondition)?;
+
+    {
+        let direction = user.orders[order_index].direction;
+        let base_asset_amount = user.orders[order_index].base_asset_amount;
+
+        user.orders[order_index].triggered = true;
+        user.orders[order_index].slot = slot;
+        let order_type = user.orders[order_index].order_type;
+        if let OrderType::TriggerMarket = order_type {
+            let auction_start_price = calculate_auction_start_price(market, direction)?;
+            let auction_end_price =
+                calculate_auction_end_price(market, direction, base_asset_amount)?;
+            user.orders[order_index].auction_start_price = auction_start_price;
+            user.orders[order_index].auction_end_price = auction_end_price;
+        }
+
+        let user_position = user.get_position_mut(market_index)?;
+        increase_open_bids_and_asks(user_position, &direction, base_asset_amount)?;
+    }
+
+    let is_filler_taker = user_key == filler_key;
+    let filler = if !is_filler_taker {
+        Some(load_mut(filler)?)
+    } else {
+        None
+    };
+
+    let filler_reward = match filler {
+        Some(_) => {
+            state
+                .fee_structure
+                .filler_reward_structure
+                .time_based_reward_lower_bound
+        }
+        None => 0,
+    };
+
+    emit!(OrderRecord {
+        ts: now,
+        slot,
+        taker: user_key,
+        taker_order: user.orders[order_index],
+        maker: Pubkey::default(),
+        maker_order: Order::default(),
+        taker_unsettled_pnl: -cast(filler_reward)?,
+        maker_unsettled_pnl: 0,
+        action: OrderAction::Trigger,
+        action_explanation: OrderActionExplanation::None,
+        filler: Pubkey::default(),
+        fill_record_id: 0,
+        market_index,
+        base_asset_amount_filled: 0,
+        quote_asset_amount_filled: 0,
+        filler_reward,
+        taker_fee: 0,
+        maker_rebate: 0,
+        quote_asset_amount_surplus: 0,
+        oracle_price,
+    });
+
+    if let Some(mut filler) = filler {
+        let user_position = user.get_position_mut(market_index)?;
+        controller::position::update_unsettled_pnl(user_position, market, -cast(filler_reward)?)?;
+
+        let filler_position = filler.force_get_position_mut(market_index)?;
+        controller::position::update_unsettled_pnl(filler_position, market, cast(filler_reward)?)?;
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]

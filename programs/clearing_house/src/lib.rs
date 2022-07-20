@@ -764,25 +764,13 @@ pub mod clearing_house {
         Ok(())
     }
 
-    pub fn cancel_order(ctx: Context<CancelOrder>, order_id: u64) -> Result<()> {
-        let market_oracles = {
-            let user = &load(&ctx.accounts.user)?;
-            let order_index = user
-                .orders
-                .iter()
-                .position(|order| order.order_id == order_id)
-                .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
-            let order = &user.orders[order_index];
-
-            &get_market_oracles(order.market_index, &ctx.accounts.oracle)
-        };
-
+    pub fn cancel_order(ctx: Context<CancelOrder>, order_id: Option<u64>) -> Result<()> {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
         let _bank_map = BankMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
         let mut market_map = MarketMap::load(
             &WritableMarkets::new(),
-            market_oracles,
+            &MarketOracles::new(),
             remaining_accounts_iter,
         )?;
 
@@ -792,6 +780,14 @@ pub mod clearing_house {
             &ctx.accounts.state,
             &Clock::get()?,
         )?;
+
+        let order_id = match order_id {
+            Some(order_id) => order_id,
+            None => {
+                let user = load(&ctx.accounts.user)?;
+                user.next_order_id - 1
+            }
+        };
 
         controller::orders::cancel_order_by_order_id(
             order_id,
@@ -805,24 +801,12 @@ pub mod clearing_house {
     }
 
     pub fn cancel_order_by_user_id(ctx: Context<CancelOrder>, user_order_id: u8) -> Result<()> {
-        let market_oracles = {
-            let user = &load(&ctx.accounts.user)?;
-
-            let order_index = user
-                .orders
-                .iter()
-                .position(|order| order.user_order_id == user_order_id)
-                .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
-            let order = &user.orders[order_index];
-
-            &get_market_oracles(order.market_index, &ctx.accounts.oracle)
-        };
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
         let _bank_map = BankMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
         let mut market_map = MarketMap::load(
             &WritableMarkets::new(),
-            market_oracles,
+            &MarketOracles::new(),
             remaining_accounts_iter,
         )?;
 
@@ -849,11 +833,13 @@ pub mod clearing_house {
     )]
     pub fn fill_order<'info>(
         ctx: Context<FillOrder>,
-        order_id: u64,
+        order_id: Option<u64>,
         maker_order_id: Option<u64>,
     ) -> Result<()> {
-        let (writable_markets, market_oracles) = {
+        let (order_id, writable_markets, market_oracles) = {
             let user = &load(&ctx.accounts.user)?;
+            // if there is no order id, use the users last order id
+            let order_id = order_id.map_or(user.next_order_id - 1, |order_id| order_id);
             let order_index = user
                 .orders
                 .iter()
@@ -862,6 +848,7 @@ pub mod clearing_house {
             let order = &user.orders[order_index];
 
             (
+                order_id,
                 &get_writable_markets(order.market_index),
                 &get_market_oracles(order.market_index, &ctx.accounts.oracle),
             )
@@ -1072,6 +1059,39 @@ pub mod clearing_house {
                 &Clock::get()?,
             )?;
         }
+
+        Ok(())
+    }
+
+    #[access_control(
+        exchange_not_paused(&ctx.accounts.state)
+    )]
+    pub fn trigger_order<'info>(ctx: Context<TriggerOrder>, order_id: u64) -> Result<()> {
+        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
+        BankMap::load(&WritableBanks::new(), remaining_accounts_iter)?;
+        let mut market_map = MarketMap::load(
+            &WritableMarkets::new(),
+            &MarketOracles::new(),
+            remaining_accounts_iter,
+        )?;
+
+        controller::repeg::update_amms(
+            &mut market_map,
+            &mut oracle_map,
+            &ctx.accounts.state,
+            &Clock::get()?,
+        )?;
+
+        controller::orders::trigger_order(
+            order_id,
+            &ctx.accounts.state,
+            &ctx.accounts.user,
+            &market_map,
+            &mut oracle_map,
+            &ctx.accounts.filler,
+            &Clock::get()?,
+        )?;
 
         Ok(())
     }
