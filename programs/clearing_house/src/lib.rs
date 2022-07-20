@@ -1944,7 +1944,7 @@ pub mod clearing_house {
         let clock_slot = clock.slot;
         let mut oracle_map = OracleMap::load_one(&ctx.accounts.oracle, clock_slot)?;
 
-        controller::funding::update_funding_rate(
+        let is_updated = controller::funding::update_funding_rate(
             market_index,
             market,
             &mut oracle_map,
@@ -1953,6 +1953,10 @@ pub mod clearing_house {
             ctx.accounts.state.funding_paused,
             None,
         )?;
+
+        if !is_updated {
+            return Err(ErrorCode::InvalidFundingProfitability.into());
+        }
 
         Ok(())
     }

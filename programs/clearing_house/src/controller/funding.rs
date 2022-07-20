@@ -79,7 +79,7 @@ pub fn update_funding_rate(
     guard_rails: &OracleGuardRails,
     funding_paused: bool,
     precomputed_mark_price: Option<u128>,
-) -> ClearingHouseResult {
+) -> ClearingHouseResult<bool> {
     let time_since_last_update = now
         .checked_sub(market.amm.last_funding_rate_ts)
         .ok_or_else(math_error!())?;
@@ -141,10 +141,15 @@ pub fn update_funding_rate(
         let oracle_price_twap = amm::update_oracle_price_twap(
             &mut market.amm,
             now,
-            oracle_price_data,
-            precomputed_mark_price,
+            &oracle_price_data,
+            Some(mark_price),
         )?;
-        let mid_price_twap = amm::update_mark_twap(&mut market.amm, now, None, None)?;
+        let mid_price_twap = amm::update_mark_twap(
+            &mut market.amm,
+            now,
+            Some(mark_price), // todo:ideally price here relates to execution premium
+            None,
+        )?;
 
         let period_adjustment = (24_i128)
             .checked_mul(ONE_HOUR)
@@ -209,7 +214,9 @@ pub fn update_funding_rate(
             mark_price_twap: mid_price_twap,
             oracle_price_twap,
         });
+    } else {
+        return Ok(false);
     }
 
-    Ok(())
+    Ok(true)
 }
