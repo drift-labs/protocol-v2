@@ -28,7 +28,7 @@ pub mod state;
 #[cfg(feature = "mainnet-beta")]
 declare_id!("dammHkt7jmytvbS3nHTxQNEcP59aE57nxwV21YdqEDN");
 #[cfg(not(feature = "mainnet-beta"))]
-declare_id!("GCuH76fb1rXc7bjFXNcnNvWSekLgzpsnMbc1Ng4FsGSs");
+declare_id!("9jwr5nC2f9yAraXrg4UzHXmCX3vi9FQkjD6p9e8bRqNa");
 
 #[program]
 pub mod clearing_house {
@@ -56,9 +56,9 @@ pub mod clearing_house {
     use crate::state::events::{DepositDirection, LiquidationRecord};
     use crate::state::market::{Market, PoolBalance};
     use crate::state::market_map::{
-        get_market_oracles, get_writable_markets, get_writable_markets_for_user_positions,
+        get_writable_markets, get_writable_markets_for_user_positions,
         get_writable_markets_for_user_positions_and_order, get_writable_markets_list, MarketMap,
-        MarketOracles, WritableMarkets,
+        WritableMarkets,
     };
     use crate::state::oracle::OraclePriceData;
     use crate::state::oracle_map::OracleMap;
@@ -452,7 +452,6 @@ pub mod clearing_house {
 
         let mut market_map = MarketMap::load(
             &get_writable_markets_for_user_positions(&user.positions),
-            &MarketOracles::new(),
             remaining_accounts_iter,
         )?;
 
@@ -504,12 +503,14 @@ pub mod clearing_house {
             amount,
         )?;
 
+        let oracle_price = oracle_map.get_price_data(&bank.oracle)?.price;
         let deposit_record = DepositRecord {
             ts: now,
             user_authority: user.authority,
             user: user_key,
             direction: DepositDirection::DEPOSIT,
             amount,
+            oracle_price,
             bank_index,
             from: None,
             to: None,
@@ -536,11 +537,7 @@ pub mod clearing_house {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
         let bank_map = BankMap::load(&get_writable_banks(bank_index), remaining_accounts_iter)?;
-        let mut market_map = MarketMap::load(
-            &WritableMarkets::new(),
-            &MarketOracles::new(),
-            remaining_accounts_iter,
-        )?;
+        let mut market_map = MarketMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
 
         controller::repeg::update_amms(
             &mut market_map,
@@ -598,11 +595,13 @@ pub mod clearing_house {
             amount,
         )?;
 
+        let oracle_price = oracle_map.get_price_data(&bank.oracle)?.price;
         let deposit_record = DepositRecord {
             ts: now,
             user_authority: user.authority,
             user: user_key,
             direction: DepositDirection::WITHDRAW,
+            oracle_price,
             amount,
             bank_index,
             from: None,
@@ -629,11 +628,7 @@ pub mod clearing_house {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
         let bank_map = BankMap::load(&get_writable_banks(bank_index), remaining_accounts_iter)?;
-        let mut market_map = MarketMap::load(
-            &WritableMarkets::new(),
-            &MarketOracles::new(),
-            remaining_accounts_iter,
-        )?;
+        let mut market_map = MarketMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
 
         controller::repeg::update_amms(
             &mut market_map,
@@ -668,12 +663,18 @@ pub mod clearing_house {
             "From user does not meet initial margin requirement"
         )?;
 
+        let oracle_price = {
+            let bank = &bank_map.get_ref(&bank_index)?;
+            oracle_map.get_price_data(&bank.oracle)?.price
+        };
+
         let deposit_record = DepositRecord {
             ts: clock.unix_timestamp,
             user_authority: *authority_key,
             user: from_user_key,
             direction: DepositDirection::WITHDRAW,
             amount,
+            oracle_price,
             bank_index,
             from: None,
             to: Some(to_user_key),
@@ -701,6 +702,7 @@ pub mod clearing_house {
             user: to_user_key,
             direction: DepositDirection::DEPOSIT,
             amount,
+            oracle_price,
             bank_index,
             from: Some(from_user_key),
             to: None,
@@ -723,13 +725,7 @@ pub mod clearing_house {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
         let bank_map = BankMap::load(&WritableBanks::new(), remaining_accounts_iter)?;
-        let mut market_map = MarketMap::load(
-            &WritableMarkets::new(),
-            &get_market_oracles(params.market_index, &ctx.accounts.oracle),
-            remaining_accounts_iter,
-        )?;
-
-        let oracle = Some(&ctx.accounts.oracle);
+        let mut market_map = MarketMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
 
         if params.immediate_or_cancel {
             msg!("immediate_or_cancel order must be in place and fill");
@@ -751,33 +747,16 @@ pub mod clearing_house {
             &mut oracle_map,
             &Clock::get()?,
             params,
-            oracle,
         )?;
 
         Ok(())
     }
 
-    pub fn cancel_order(ctx: Context<CancelOrder>, order_id: u64) -> Result<()> {
-        let market_oracles = {
-            let user = &load(&ctx.accounts.user)?;
-            let order_index = user
-                .orders
-                .iter()
-                .position(|order| order.order_id == order_id)
-                .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
-            let order = &user.orders[order_index];
-
-            &get_market_oracles(order.market_index, &ctx.accounts.oracle)
-        };
-
+    pub fn cancel_order(ctx: Context<CancelOrder>, order_id: Option<u64>) -> Result<()> {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
         let _bank_map = BankMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
-        let mut market_map = MarketMap::load(
-            &WritableMarkets::new(),
-            market_oracles,
-            remaining_accounts_iter,
-        )?;
+        let mut market_map = MarketMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
 
         controller::repeg::update_amms(
             &mut market_map,
@@ -785,6 +764,14 @@ pub mod clearing_house {
             &ctx.accounts.state,
             &Clock::get()?,
         )?;
+
+        let order_id = match order_id {
+            Some(order_id) => order_id,
+            None => {
+                let user = load(&ctx.accounts.user)?;
+                user.next_order_id - 1
+            }
+        };
 
         controller::orders::cancel_order_by_order_id(
             order_id,
@@ -798,26 +785,10 @@ pub mod clearing_house {
     }
 
     pub fn cancel_order_by_user_id(ctx: Context<CancelOrder>, user_order_id: u8) -> Result<()> {
-        let market_oracles = {
-            let user = &load(&ctx.accounts.user)?;
-
-            let order_index = user
-                .orders
-                .iter()
-                .position(|order| order.user_order_id == user_order_id)
-                .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
-            let order = &user.orders[order_index];
-
-            &get_market_oracles(order.market_index, &ctx.accounts.oracle)
-        };
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
         let _bank_map = BankMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
-        let mut market_map = MarketMap::load(
-            &WritableMarkets::new(),
-            market_oracles,
-            remaining_accounts_iter,
-        )?;
+        let mut market_map = MarketMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
 
         controller::repeg::update_amms(
             &mut market_map,
@@ -842,11 +813,13 @@ pub mod clearing_house {
     )]
     pub fn fill_order<'info>(
         ctx: Context<FillOrder>,
-        order_id: u64,
+        order_id: Option<u64>,
         maker_order_id: Option<u64>,
     ) -> Result<()> {
-        let (writable_markets, market_oracles) = {
+        let (order_id, writable_markets) = {
             let user = &load(&ctx.accounts.user)?;
+            // if there is no order id, use the users last order id
+            let order_id = order_id.map_or(user.next_order_id - 1, |order_id| order_id);
             let order_index = user
                 .orders
                 .iter()
@@ -854,10 +827,7 @@ pub mod clearing_house {
                 .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
             let order = &user.orders[order_index];
 
-            (
-                &get_writable_markets(order.market_index),
-                &get_market_oracles(order.market_index, &ctx.accounts.oracle),
-            )
+            (order_id, &get_writable_markets(order.market_index))
         };
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
@@ -866,8 +836,7 @@ pub mod clearing_house {
             &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
             remaining_accounts_iter,
         )?;
-        let mut market_map =
-            MarketMap::load(writable_markets, market_oracles, remaining_accounts_iter)?;
+        let mut market_map = MarketMap::load(writable_markets, remaining_accounts_iter)?;
 
         let maker = match maker_order_id {
             Some(_) => Some(get_maker(remaining_accounts_iter)?),
@@ -888,7 +857,6 @@ pub mod clearing_house {
             &bank_map,
             &market_map,
             &mut oracle_map,
-            &ctx.accounts.oracle,
             &ctx.accounts.filler,
             maker.as_ref(),
             maker_order_id,
@@ -921,7 +889,6 @@ pub mod clearing_house {
                 &load(&ctx.accounts.user)?.positions,
                 params.market_index,
             ),
-            &get_market_oracles(params.market_index, &ctx.accounts.oracle),
             remaining_accounts_iter,
         )?;
 
@@ -948,7 +915,6 @@ pub mod clearing_house {
             &mut oracle_map,
             &Clock::get()?,
             params,
-            Some(&ctx.accounts.oracle),
         )?;
 
         let user = &mut ctx.accounts.user;
@@ -968,7 +934,6 @@ pub mod clearing_house {
             &bank_map,
             &market_map,
             &mut oracle_map,
-            &ctx.accounts.oracle,
             &user.clone(),
             maker.as_ref(),
             maker_order_id,
@@ -1007,7 +972,6 @@ pub mod clearing_house {
                 &load(&ctx.accounts.user)?.positions,
                 params.market_index,
             ),
-            &get_market_oracles(params.market_index, &ctx.accounts.oracle),
             remaining_accounts_iter,
         )?;
 
@@ -1029,7 +993,6 @@ pub mod clearing_house {
             &mut oracle_map,
             &Clock::get()?,
             params,
-            Some(&ctx.accounts.oracle),
         )?;
 
         let user = &mut ctx.accounts.user;
@@ -1049,7 +1012,6 @@ pub mod clearing_house {
             &bank_map,
             &market_map,
             &mut oracle_map,
-            &ctx.accounts.oracle,
             &user.clone(),
             Some(&ctx.accounts.user),
             Some(order_id),
@@ -1072,6 +1034,35 @@ pub mod clearing_house {
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]
+    pub fn trigger_order<'info>(ctx: Context<TriggerOrder>, order_id: u64) -> Result<()> {
+        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
+        BankMap::load(&WritableBanks::new(), remaining_accounts_iter)?;
+        let mut market_map = MarketMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
+
+        controller::repeg::update_amms(
+            &mut market_map,
+            &mut oracle_map,
+            &ctx.accounts.state,
+            &Clock::get()?,
+        )?;
+
+        controller::orders::trigger_order(
+            order_id,
+            &ctx.accounts.state,
+            &ctx.accounts.user,
+            &market_map,
+            &mut oracle_map,
+            &ctx.accounts.filler,
+            &Clock::get()?,
+        )?;
+
+        Ok(())
+    }
+
+    #[access_control(
+        exchange_not_paused(&ctx.accounts.state)
+    )]
     pub fn update_amms(ctx: Context<UpdateAMM>, market_indexes: [u64; 5]) -> Result<()> {
         // up to ~60k compute units (per amm) worst case
 
@@ -1083,7 +1074,6 @@ pub mod clearing_house {
         let oracle_map = &mut OracleMap::load(remaining_accounts_iter, clock.slot)?;
         let market_map = &mut MarketMap::load(
             &get_writable_markets_list(market_indexes),
-            &MarketOracles::new(),
             remaining_accounts_iter,
         )?;
 
@@ -1103,11 +1093,8 @@ pub mod clearing_house {
             &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
             remaining_accounts_iter,
         )?;
-        let mut market_map = MarketMap::load(
-            &get_writable_markets(market_index),
-            &MarketOracles::new(),
-            remaining_accounts_iter,
-        )?;
+        let mut market_map =
+            MarketMap::load(&get_writable_markets(market_index), remaining_accounts_iter)?;
 
         controller::repeg::update_amms(
             &mut market_map,
@@ -1153,7 +1140,7 @@ pub mod clearing_house {
         }
 
         validate!(
-            pnl_to_settle_with_user > 0 || user.authority.eq(&ctx.accounts.authority.key()),
+            pnl_to_settle_with_user < 0 || user.authority.eq(&ctx.accounts.authority.key()),
             ErrorCode::UserMustSettleTheirOwnPositiveUnsettledPNL,
             "User must settle their own unsettled pnl when its positive",
         )?;
@@ -1189,7 +1176,6 @@ pub mod clearing_house {
         let user = &mut load_mut(&ctx.accounts.user)?;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
-        let clock_slot = clock.slot;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
@@ -1199,7 +1185,6 @@ pub mod clearing_house {
         )?;
         let mut market_map = MarketMap::load(
             &get_writable_markets_for_user_positions(&user.positions),
-            &MarketOracles::new(), // oracles validated in calculate liquidation status
             remaining_accounts_iter,
         )?;
 
@@ -1228,7 +1213,6 @@ pub mod clearing_house {
             &bank_map,
             &mut oracle_map,
             &ctx.accounts.state.oracle_guard_rails,
-            clock_slot,
         )?;
 
         // Verify that the user is in liquidation territory
@@ -1944,11 +1928,7 @@ pub mod clearing_house {
         let now = clock.unix_timestamp;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let market_map = MarketMap::load(
-            &WritableMarkets::new(),
-            &MarketOracles::new(), // oracles validated in calculate liquidation status
-            remaining_accounts_iter,
-        )?;
+        let market_map = MarketMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
 
         let user_key = ctx.accounts.user.key();
         let user = &mut load_mut(&ctx.accounts.user)?;
@@ -1964,21 +1944,24 @@ pub mod clearing_house {
     )]
     pub fn update_funding_rate(ctx: Context<UpdateFundingRate>, market_index: u64) -> Result<()> {
         let market = &mut ctx.accounts.market.load_mut()?;
-        let price_oracle = &ctx.accounts.oracle;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
         let clock_slot = clock.slot;
+        let mut oracle_map = OracleMap::load_one(&ctx.accounts.oracle, clock_slot)?;
 
-        controller::funding::update_funding_rate(
+        let is_updated = controller::funding::update_funding_rate(
             market_index,
             market,
-            price_oracle,
+            &mut oracle_map,
             now,
-            clock_slot,
             &ctx.accounts.state.oracle_guard_rails,
             ctx.accounts.state.funding_paused,
             None,
         )?;
+
+        if !is_updated {
+            return Err(ErrorCode::InvalidFundingProfitability.into());
+        }
 
         Ok(())
     }

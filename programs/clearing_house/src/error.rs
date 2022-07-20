@@ -178,6 +178,12 @@ pub enum ErrorCode {
     CantMatchTwoPostOnlys,
     #[msg("OrderBreachesOraclePriceLimits")]
     OrderBreachesOraclePriceLimits,
+    #[msg("OrderMustBeTriggeredFirst")]
+    OrderMustBeTriggeredFirst,
+    #[msg("OrderNotTriggerable")]
+    OrderNotTriggerable,
+    #[msg("OrderDidNotSatisfyTriggerCondition")]
+    OrderDidNotSatisfyTriggerCondition,
     #[msg("DefaultError")]
     DefaultError,
 }

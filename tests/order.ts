@@ -34,6 +34,7 @@ import {
 	mockUSDCMint,
 	setFeedPrice,
 	initializeQuoteAssetBank,
+	printTxLogs,
 } from './testHelpers';
 import {
 	AMM_RESERVE_PRECISION,
@@ -312,8 +313,7 @@ describe('orders', () => {
 
 	it('Cancel order', async () => {
 		const orderIndex = new BN(0);
-		const orderId = new BN(1);
-		await clearingHouse.cancelOrder(orderId);
+		await clearingHouse.cancelOrder(undefined);
 
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
@@ -475,7 +475,9 @@ describe('orders', () => {
 	it('Fill stop short order', async () => {
 		const direction = PositionDirection.SHORT;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
-		const triggerPrice = MARK_PRICE_PRECISION;
+		const triggerPrice = MARK_PRICE_PRECISION.sub(
+			MARK_PRICE_PRECISION.div(new BN(10))
+		);
 		const triggerCondition = OrderTriggerCondition.ABOVE;
 		const market0 = clearingHouse.getMarketAccount(marketIndex);
 
@@ -494,14 +496,16 @@ describe('orders', () => {
 		const orderId = new BN(3);
 		const orderIndex = new BN(0);
 		await clearingHouseUser.fetchAccounts();
-		assert(
-			clearingHouseUser
-				.getUserPosition(marketIndex)
-				.openAsks.eq(baseAssetAmount.neg())
-		);
+		assert(clearingHouseUser.getUserPosition(marketIndex).openAsks.eq(ZERO));
 		assert(clearingHouseUser.getUserPosition(marketIndex).openBids.eq(ZERO));
 
 		let order = clearingHouseUser.getOrder(orderId);
+		await fillerClearingHouse.triggerOrder(
+			userAccountPublicKey,
+			clearingHouseUser.getUserAccount(),
+			order
+		);
+
 		const txSig = await fillerClearingHouse.fillOrder(
 			userAccountPublicKey,
 			clearingHouseUser.getUserAccount(),
@@ -546,7 +550,7 @@ describe('orders', () => {
 
 		order = clearingHouseUser.getUserAccount().orders[orderIndex.toString()];
 
-		const expectedFillerReward = new BN(200);
+		const expectedFillerReward = new BN(10200);
 		console.log(
 			'FillerReward: $',
 			convertToNumber(
@@ -1670,11 +1674,18 @@ describe('orders', () => {
 			triggerPrice,
 			triggerCondition,
 			false,
-			false
+			false,
+			undefined,
+			1
 		);
 		try {
 			await whaleClearingHouse.placeOrder(orderParams);
+			await fillerClearingHouse.fillOrder(
+				userAccountPublicKey,
+				whaleClearingHouse.getUserAccount()
+			);
 		} catch (e) {
+			await whaleClearingHouse.cancelOrderByUserId(1);
 			return;
 		}
 
@@ -1684,8 +1695,7 @@ describe('orders', () => {
 	it('Time-based fee reward cap', async () => {
 		const direction = PositionDirection.SHORT;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION.mul(new BN(10000)));
-		const market0 = clearingHouse.getMarketAccount(marketIndex);
-		const triggerPrice = calculateMarkPrice(market0).sub(new BN(1));
+		const triggerPrice = MARK_PRICE_PRECISION.div(new BN(1000));
 		const triggerCondition = OrderTriggerCondition.ABOVE;
 
 		const orderParams = getTriggerMarketOrderParams(
@@ -1697,7 +1707,9 @@ describe('orders', () => {
 			false,
 			false
 		);
-		await whaleClearingHouse.placeOrder(orderParams);
+
+		const placeTxSig = await whaleClearingHouse.placeOrder(orderParams);
+		await printTxLogs(connection, placeTxSig);
 
 		await whaleClearingHouse.fetchAccounts();
 		await whaleUser.fetchAccounts();
@@ -1705,10 +1717,17 @@ describe('orders', () => {
 
 		const orderIndex = new BN(0);
 		const order = whaleUser.getUserAccount().orders[orderIndex.toString()];
+
 		const fillerCollateralBefore =
 			fillerClearingHouse.getQuoteAssetTokenAmount();
 		const fillerUnsettledPNLBefore =
 			fillerClearingHouse.getUserAccount().positions[0].unsettledPnl;
+
+		await fillerClearingHouse.triggerOrder(
+			whaleAccountPublicKey,
+			whaleUser.getUserAccount(),
+			order
+		);
 
 		await fillerClearingHouse.fillOrder(
 			whaleAccountPublicKey,
@@ -1738,7 +1757,7 @@ describe('orders', () => {
 			convertToNumber(whaleUserAccount.fees.totalFeePaid, QUOTE_PRECISION)
 		);
 
-		const expectedFillerReward = new BN(1e6 / 100); //1 cent
+		const expectedFillerReward = new BN(2e6 / 100); //1 cent
 		const fillerReward = fillerClearingHouse
 			.getQuoteAssetTokenAmount()
 			.sub(fillerCollateralBefore)

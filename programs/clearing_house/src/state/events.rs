@@ -11,6 +11,7 @@ pub struct DepositRecord {
     pub direction: DepositDirection,
     pub amount: u64,
     pub bank_index: u64,
+    pub oracle_price: i128,
     pub from: Option<Pubkey>,
     pub to: Option<Pubkey>,
 }
@@ -104,6 +105,8 @@ pub struct OrderRecord {
     pub maker: Pubkey,
     pub taker_order: Order,
     pub maker_order: Order,
+    pub maker_unsettled_pnl: i128,
+    pub taker_unsettled_pnl: i128,
     pub action: OrderAction,
     pub action_explanation: OrderActionExplanation,
     pub filler: Pubkey,
@@ -123,6 +126,7 @@ pub enum OrderAction {
     Place,
     Cancel,
     Fill,
+    Trigger,
     Expire,
 }
 

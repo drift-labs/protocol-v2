@@ -8,7 +8,7 @@ use crate::controller::position::PositionDelta;
 use crate::controller::position::PositionDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math;
-use crate::math::casting::{cast_to_i128, cast_to_u128};
+use crate::math::casting::cast_to_i128;
 use crate::math::constants::MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO;
 use crate::math::position::calculate_entry_price;
 use crate::math_error;
@@ -18,7 +18,6 @@ use crate::state::user::{Order, OrderTriggerCondition, OrderType};
 pub fn calculate_base_asset_amount_market_can_execute(
     order: &Order,
     market: &Market,
-    precomputed_mark_price: Option<u128>,
     valid_oracle_price: Option<i128>,
     slot: u64,
 ) -> ClearingHouseResult<u128> {
@@ -26,19 +25,12 @@ pub fn calculate_base_asset_amount_market_can_execute(
         OrderType::Limit => {
             calculate_base_asset_amount_to_trade_for_limit(order, market, valid_oracle_price, slot)
         }
-        OrderType::TriggerMarket => calculate_base_asset_amount_to_trade_for_trigger_market(
-            order,
-            market,
-            precomputed_mark_price,
-            valid_oracle_price,
-        ),
-        OrderType::TriggerLimit => calculate_base_asset_amount_to_trade_for_trigger_limit(
-            order,
-            market,
-            precomputed_mark_price,
-            valid_oracle_price,
-            slot,
-        ),
+        OrderType::TriggerMarket => {
+            calculate_base_asset_amount_to_trade_for_trigger_market(order, market)
+        }
+        OrderType::TriggerLimit => {
+            calculate_base_asset_amount_to_trade_for_trigger_limit(order, market, slot)
+        }
         OrderType::Market => Err(ErrorCode::InvalidOrder),
     }
 }
@@ -75,85 +67,27 @@ pub fn calculate_base_asset_amount_to_trade_for_limit(
 fn calculate_base_asset_amount_to_trade_for_trigger_market(
     order: &Order,
     market: &Market,
-    precomputed_mark_price: Option<u128>,
-    valid_oracle_price: Option<i128>,
 ) -> ClearingHouseResult<u128> {
-    let mark_price = match precomputed_mark_price {
-        Some(mark_price) => mark_price,
-        None => market.amm.mark_price()?,
-    };
-
-    match order.trigger_condition {
-        OrderTriggerCondition::Above => {
-            if mark_price <= order.trigger_price {
-                return Ok(0);
-            }
-
-            // If there is a valid oracle, check that trigger condition is also satisfied by
-            // oracle price (plus some additional buffer)
-            if let Some(oracle_price) = valid_oracle_price {
-                let oracle_price_101pct = oracle_price
-                    .checked_mul(101)
-                    .ok_or_else(math_error!())?
-                    .checked_div(100)
-                    .ok_or_else(math_error!())?;
-
-                if cast_to_u128(oracle_price_101pct)? <= order.trigger_price {
-                    return Ok(0);
-                }
-            }
-        }
-        OrderTriggerCondition::Below => {
-            if mark_price >= order.trigger_price {
-                return Ok(0);
-            }
-
-            // If there is a valid oracle, check that trigger condition is also satisfied by
-            // oracle price (plus some additional buffer)
-            if let Some(oracle_price) = valid_oracle_price {
-                let oracle_price_99pct = oracle_price
-                    .checked_mul(99)
-                    .ok_or_else(math_error!())?
-                    .checked_div(100)
-                    .ok_or_else(math_error!())?;
-
-                if cast_to_u128(oracle_price_99pct)? >= order.trigger_price {
-                    return Ok(0);
-                }
-            }
-        }
+    if !order.triggered {
+        Ok(0)
+    } else {
+        standardize_base_asset_amount(
+            order.get_base_asset_amount_unfilled()?,
+            market.amm.base_asset_amount_step_size,
+        )
     }
-
-    standardize_base_asset_amount(
-        order
-            .base_asset_amount
-            .checked_sub(order.base_asset_amount_filled)
-            .ok_or_else(math_error!())?,
-        market.amm.base_asset_amount_step_size,
-    )
 }
 
 fn calculate_base_asset_amount_to_trade_for_trigger_limit(
     order: &Order,
     market: &Market,
-    precomputed_mark_price: Option<u128>,
-    valid_oracle_price: Option<i128>,
     slot: u64,
 ) -> ClearingHouseResult<u128> {
-    // if the order has not been filled yet, need to check that trigger condition is met
-    if order.base_asset_amount_filled == 0 {
-        let base_asset_amount = calculate_base_asset_amount_to_trade_for_trigger_market(
-            order,
-            market,
-            precomputed_mark_price,
-            valid_oracle_price,
-        )?;
-        if base_asset_amount == 0 {
-            return Ok(0);
-        }
+    if !order.triggered {
+        Ok(0)
+    } else {
+        calculate_base_asset_amount_to_trade_for_limit(order, market, None, slot)
     }
-
-    calculate_base_asset_amount_to_trade_for_limit(order, market, None, slot)
 }
 
 pub fn limit_price_satisfied(
@@ -284,6 +218,13 @@ pub fn order_breaches_oracle_price_limits(
             // order cant be buying if oracle price is more than 2.5% above limit price
             Ok(ratio <= 40)
         }
+    }
+}
+
+pub fn order_satisfies_trigger_condition(order: &Order, oracle_price: u128) -> bool {
+    match order.trigger_condition {
+        OrderTriggerCondition::Above => oracle_price > order.trigger_price,
+        OrderTriggerCondition::Below => oracle_price < order.trigger_price,
     }
 }
 

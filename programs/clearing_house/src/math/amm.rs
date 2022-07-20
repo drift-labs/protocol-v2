@@ -202,10 +202,7 @@ pub fn update_mark_twap(
                 max(trade_price, cast_to_u128(amm.last_oracle_price)?),
             ),
         },
-        None => (
-            cast_to_u128(amm.last_oracle_price)?,
-            cast_to_u128(amm.last_oracle_price)?,
-        ),
+        None => (trade_price, trade_price),
     };
 
     // update bid and ask twaps
@@ -234,7 +231,7 @@ pub fn calculate_new_twap(
             .ok_or_else(math_error!())?,
     ))?;
     let from_start = max(
-        0,
+        1,
         cast_to_i128(amm.funding_period)?
             .checked_sub(since_last)
             .ok_or_else(math_error!())?,

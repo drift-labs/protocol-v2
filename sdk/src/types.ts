@@ -48,6 +48,7 @@ export class OrderAction {
 	static readonly CANCEL = { cancel: {} };
 	static readonly EXPIRE = { expire: {} };
 	static readonly FILL = { fill: {} };
+	static readonly TRIGGER = { trigger: {} };
 }
 
 export class OrderTriggerCondition {
@@ -348,6 +349,7 @@ export type Order = {
 	reduceOnly: boolean;
 	triggerPrice: BN;
 	triggerCondition: OrderTriggerCondition;
+	triggered: boolean;
 	discountTier: OrderDiscountTier;
 	existingPositionDirection: PositionDirection;
 	referrer: PublicKey;
