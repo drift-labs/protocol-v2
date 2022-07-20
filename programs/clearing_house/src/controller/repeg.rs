@@ -210,7 +210,7 @@ mod test {
                 terminal_quote_asset_reserve: 64 * AMM_RESERVE_PRECISION,
                 sqrt_k: 64 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 19_400_000,
-                net_base_asset_amount: -1 * AMM_RESERVE_PRECISION as i128,
+                net_base_asset_amount: -(AMM_RESERVE_PRECISION as i128),
                 mark_std: MARK_PRICE_PRECISION as u64,
                 last_mark_price_twap_ts: 0,
                 last_oracle_price_twap: 19_400 * MARK_PRICE_PRECISION_I128,
@@ -239,8 +239,8 @@ mod test {
             ..State::default()
         };
 
-        let now = 10000 as i64;
-        let slot = 81680085 as u64;
+        let now = 10000;
+        let slot = 81680085;
         let oracle_price_data = OraclePriceData {
             price: (12_400 * MARK_PRICE_PRECISION) as i128,
             confidence: 0,
@@ -261,23 +261,23 @@ mod test {
         let profit = market.amm.total_fee_minus_distributions;
         let peg = market.amm.peg_multiplier;
         assert_eq!(-cost_of_update, profit);
-        assert_eq!(is_oracle_valid, true);
-        assert_eq!(profit < 0, true);
+        assert!(is_oracle_valid);
+        assert!(profit < 0);
         assert_eq!(profit, -5808834953);
         assert_eq!(peg, 13500402);
 
         let mark_price = market.amm.mark_price().unwrap();
         let (bid, ask) = market.amm.bid_ask_price(mark_price).unwrap();
-        assert_eq!(bid < mark_price, true);
-        assert_eq!(bid < ask, true);
-        assert_eq!(mark_price <= ask, true);
+        assert!(bid < mark_price);
+        assert!(bid < ask);
+        assert!(mark_price <= ask);
         assert_eq!(
             market.amm.long_spread + market.amm.short_spread,
             (market.margin_ratio_initial * 100) as u128
         );
 
         assert_eq!(bid, 123618052558950);
-        assert_eq!(bid < (oracle_price_data.price as u128), true);
+        assert!(bid < (oracle_price_data.price as u128));
         assert_eq!(ask, 130882003768079);
         assert_eq!(mark_price, 130882003768079);
         //(133487208381380-120146825282679)/133403830987014 == .1 (max spread)

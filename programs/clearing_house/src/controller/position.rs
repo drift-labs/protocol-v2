@@ -1344,11 +1344,8 @@ mod test {
         let adj_quote =
             update_cost_basis(&mut market, &mut market_position_down, oracle_price).unwrap();
 
-        assert_eq!(adj_quote < 0, true);
-        assert_eq!(
-            market_position_down.quote_asset_amount > market_position_up.quote_entry_amount,
-            true
-        );
+        assert!(adj_quote < 0);
+        assert!(market_position_down.quote_asset_amount > market_position_up.quote_entry_amount);
     }
 }
 

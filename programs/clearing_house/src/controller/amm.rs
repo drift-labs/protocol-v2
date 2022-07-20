@@ -461,7 +461,7 @@ mod test {
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50000,
-                net_base_asset_amount: -(122950819670000 as i128),
+                net_base_asset_amount: -122950819670000,
                 total_fee_minus_distributions: 1000 * QUOTE_PRECISION as i128,
                 curve_update_intensity: 100,
                 ..AMM::default()
@@ -472,7 +472,7 @@ mod test {
         let prev_sqrt_k = market.amm.sqrt_k;
 
         let mark_price = market.amm.mark_price().unwrap();
-        let now = 10000 as i64;
+        let now = 10000;
         let oracle_price_data = OraclePriceData {
             price: (50 * MARK_PRICE_PRECISION) as i128,
             confidence: 0,
@@ -503,7 +503,7 @@ mod test {
         )
         .unwrap();
 
-        assert_eq!(prev_sqrt_k > market.amm.sqrt_k, true);
+        assert!(prev_sqrt_k > market.amm.sqrt_k);
         assert_eq!(market.amm.sqrt_k, 4890000000000000); // max k decrease (2.2%)
         assert_eq!(market.amm.total_fee_minus_distributions, 1000332075); //$.33 acquired from slippage increase
 
@@ -545,7 +545,7 @@ mod test {
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50000,
-                net_base_asset_amount: -(122950819670000 as i128),
+                net_base_asset_amount: -122950819670000,
                 total_fee_minus_distributions: 1000 * QUOTE_PRECISION as i128,
                 curve_update_intensity: 100,
                 ..AMM::default()
@@ -563,7 +563,7 @@ mod test {
 
         let to_settle_with_user = update_pool_balances(&mut market, &mut bank, -100).unwrap();
         assert_eq!(to_settle_with_user, -100);
-        assert_eq!(market.amm.fee_pool.balance() > 0, true);
+        assert!(market.amm.fee_pool.balance() > 0);
 
         let amm_fee_pool_token_amount = get_token_amount(
             market.amm.fee_pool.balance(),
@@ -598,7 +598,7 @@ mod test {
         assert_eq!(amm_fee_pool_token_amount, 1);
 
         market.amm.total_fee_minus_distributions = 0;
-        let to_settle_with_user = update_pool_balances(&mut market, &mut bank, -1).unwrap();
+        update_pool_balances(&mut market, &mut bank, -1).unwrap();
         let amm_fee_pool_token_amount = get_token_amount(
             market.amm.fee_pool.balance(),
             &bank,
@@ -614,10 +614,8 @@ mod test {
         assert_eq!(pnl_pool_token_amount, 2);
         assert_eq!(amm_fee_pool_token_amount, 0);
 
-        market.amm.total_fee_minus_distributions = (90_000 * QUOTE_PRECISION as i128);
-        let to_settle_with_user =
-            update_pool_balances(&mut market, &mut bank, -(100_000 * QUOTE_PRECISION as i128))
-                .unwrap();
+        market.amm.total_fee_minus_distributions = 90_000 * QUOTE_PRECISION as i128;
+        update_pool_balances(&mut market, &mut bank, -(100_000 * QUOTE_PRECISION as i128)).unwrap();
         let amm_fee_pool_token_amount = get_token_amount(
             market.amm.fee_pool.balance(),
             &bank,
@@ -634,9 +632,9 @@ mod test {
         assert_eq!(amm_fee_pool_token_amount, (1_000 * QUOTE_PRECISION));
 
         // negative fee pool
-        market.amm.total_fee_minus_distributions = (-8_008_123_456 as i128);
-        let to_settle_with_user =
-            update_pool_balances(&mut market, &mut bank, (1_000_987_789 as i128)).unwrap();
+        market.amm.total_fee_minus_distributions = -8_008_123_456;
+
+        update_pool_balances(&mut market, &mut bank, 1_000_987_789).unwrap();
         let amm_fee_pool_token_amount = get_token_amount(
             market.amm.fee_pool.balance(),
             &bank,

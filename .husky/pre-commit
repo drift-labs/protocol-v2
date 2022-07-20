@@ -3,6 +3,8 @@
 
 cargo fmt -- --check
 cargo +nightly clippy -- -D warnings
+cargo +nightly clippy --tests -- -D warnings
+cargo test --quiet
 yarn prettify
 yarn lint
 cd sdk && yarn build

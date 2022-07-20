@@ -199,7 +199,7 @@ mod test {
         let (base_asset_amount, quote_asset_amount) =
             calculate_auction_fill_amount(auction_price, &maker_order, &taker_order).unwrap();
 
-        let expected_base_asset_amount = 1 * AMM_RESERVE_PRECISION;
+        let expected_base_asset_amount = AMM_RESERVE_PRECISION;
         assert_eq!(base_asset_amount, expected_base_asset_amount);
 
         let expected_quote_asset_amount = 10 * QUOTE_PRECISION;
@@ -222,7 +222,7 @@ mod test {
         let (base_asset_amount, quote_asset_amount) =
             calculate_auction_fill_amount(auction_price, &maker_order, &taker_order).unwrap();
 
-        let expected_base_asset_amount = 1 * AMM_RESERVE_PRECISION;
+        let expected_base_asset_amount = AMM_RESERVE_PRECISION;
         assert_eq!(base_asset_amount, expected_base_asset_amount);
 
         let expected_quote_asset_amount = 10 * QUOTE_PRECISION;
