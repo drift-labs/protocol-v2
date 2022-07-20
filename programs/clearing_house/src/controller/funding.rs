@@ -141,7 +141,7 @@ pub fn update_funding_rate(
         let oracle_price_twap = amm::update_oracle_price_twap(
             &mut market.amm,
             now,
-            &oracle_price_data,
+            oracle_price_data,
             Some(mark_price),
         )?;
         let mid_price_twap = amm::update_mark_twap(

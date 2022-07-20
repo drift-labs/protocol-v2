@@ -104,7 +104,7 @@ impl<'a> OracleMap<'a> {
     ) -> ClearingHouseResult<OracleMap<'a>> {
         let mut oracles: BTreeMap<Pubkey, AccountInfoAndOracleSource<'a>> = BTreeMap::new();
 
-        if account_info.owner == &pyth_program::id() {
+        if account_info.owner != &pyth_program::id() {
             return Err(ErrorCode::InvalidOracle);
         }
 

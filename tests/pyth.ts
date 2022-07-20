@@ -80,11 +80,14 @@ async function updateFundingRateHelper(
 			ammAccountState0.cumulativeFundingRateLong;
 		const cumulativeFundingRateShortOld =
 			ammAccountState0.cumulativeFundingRateShort;
-
-		const _tx = await clearingHouse.updateFundingRate(
-			priceFeedAddress,
-			marketIndex
-		);
+		try {
+			const _tx = await clearingHouse.updateFundingRate(
+				priceFeedAddress,
+				marketIndex
+			);
+		} catch (e) {
+			console.error(e);
+		}
 
 		const CONVERSION_SCALE =
 			FUNDING_PAYMENT_PRECISION.mul(MARK_PRICE_PRECISION);
