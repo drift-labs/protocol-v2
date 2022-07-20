@@ -48,6 +48,17 @@ export class OrderAction {
 	static readonly CANCEL = { cancel: {} };
 	static readonly EXPIRE = { expire: {} };
 	static readonly FILL = { fill: {} };
+	static readonly TRIGGER = { trigger: {} };
+}
+
+export class OrderActionExplanation {
+	static readonly NONE = { none: {} };
+	static readonly BREACHED_MARGIN_REQUIREMENT = {
+		breachedMarginRequirement: {},
+	};
+	static readonly ORACLE_PRICE_BREACHED_LIMIT_PRICE = {
+		oraclePriceBreachedLimitPrice: {},
+	};
 }
 
 export class OrderTriggerCondition {
@@ -57,6 +68,12 @@ export class OrderTriggerCondition {
 
 export function isVariant(object: unknown, type: string) {
 	return object.hasOwnProperty(type);
+}
+
+export function isOneOfVariant(object: unknown, types: string[]) {
+	return types.reduce((result, type) => {
+		return result || object.hasOwnProperty(type);
+	}, false);
 }
 
 export enum TradeSide {
@@ -157,6 +174,8 @@ export type OrderRecord = {
 	maker: PublicKey;
 	takerOrder: Order;
 	makerOrder: Order;
+	takerUnsettledPnl: BN;
+	makerUnsettledPnl: BN;
 	action: OrderAction;
 	filler: PublicKey;
 	fillRecordId: BN;
@@ -284,6 +303,7 @@ export type AMM = {
 	lastAskPriceTwap: BN;
 	longSpread: BN;
 	shortSpread: BN;
+	maxSpread: number;
 };
 
 // # User Account Types
@@ -306,11 +326,13 @@ export type UserAccount = {
 	bankBalances: UserBankBalance[];
 	collateral: BN;
 	cumulativeDeposits: BN;
-	totalFeePaid: BN;
-	totalFeeRebate: BN;
-	totalTokenDiscount: BN;
-	totalReferralReward: BN;
-	totalRefereeDiscount: BN;
+	fees: {
+		totalFeePaid: BN;
+		totalFeeRebate: BN;
+		totalTokenDiscount: BN;
+		totalReferralReward: BN;
+		totalRefereeDiscount: BN;
+	};
 	positions: UserPosition[];
 	orders: Order[];
 };
@@ -325,6 +347,7 @@ export type Order = {
 	status: OrderStatus;
 	orderType: OrderType;
 	ts: BN;
+	slot: BN;
 	orderId: BN;
 	userOrderId: number;
 	marketIndex: BN;
@@ -338,12 +361,14 @@ export type Order = {
 	reduceOnly: boolean;
 	triggerPrice: BN;
 	triggerCondition: OrderTriggerCondition;
+	triggered: boolean;
 	discountTier: OrderDiscountTier;
-	existingPositionDirection: PositionDirection,
+	existingPositionDirection: PositionDirection;
 	referrer: PublicKey;
 	postOnly: boolean;
 	immediateOrCancel: boolean;
 	oraclePriceOffset: BN;
+	auctionDuration: number;
 	auctionStartPrice: BN;
 	auctionEndPrice: BN;
 };
@@ -369,6 +394,11 @@ export type OrderParams = {
 		discountToken: boolean;
 		referrer: boolean;
 	};
+};
+
+export type MakerInfo = {
+	maker: PublicKey;
+	order: Order;
 };
 
 // # Misc Types

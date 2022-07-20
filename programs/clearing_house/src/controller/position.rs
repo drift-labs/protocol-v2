@@ -10,7 +10,7 @@ use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::casting::{cast, cast_to_i128};
 use crate::math::orders::calculate_quote_asset_amount_for_maker_order;
 use crate::math::pnl::calculate_pnl;
-use crate::math::position::swap_direction_to_close_position;
+use crate::math::position::{calculate_base_asset_value_and_pnl, swap_direction_to_close_position};
 use crate::math_error;
 use crate::state::market::Market;
 use crate::state::user::{User, UserPositions};
@@ -394,6 +394,44 @@ fn calculate_quote_asset_amount_surplus(
     Ok((quote_asset_amount, quote_asset_amount_surplus))
 }
 
+pub fn update_cost_basis(
+    market: &mut Market,
+    market_position: &mut MarketPosition,
+) -> ClearingHouseResult<i128> {
+    // update user cost basis (if at a loss)
+    let (_, amm_position_unrealized_pnl) =
+        calculate_base_asset_value_and_pnl(market_position, &market.amm, false)?;
+
+    if amm_position_unrealized_pnl < 0 {
+        if market_position.base_asset_amount > 0 {
+            market_position.quote_asset_amount = market_position
+                .quote_asset_amount
+                .checked_sub(amm_position_unrealized_pnl.unsigned_abs())
+                .ok_or_else(math_error!())?;
+            market.amm.quote_asset_amount_long = market
+                .amm
+                .quote_asset_amount_long
+                .checked_sub(amm_position_unrealized_pnl.unsigned_abs())
+                .ok_or_else(math_error!())?;
+        } else {
+            market_position.quote_asset_amount = market_position
+                .quote_asset_amount
+                .checked_add(amm_position_unrealized_pnl.unsigned_abs())
+                .ok_or_else(math_error!())?;
+            market.amm.quote_asset_amount_short = market
+                .amm
+                .quote_asset_amount_short
+                .checked_add(amm_position_unrealized_pnl.unsigned_abs())
+                .ok_or_else(math_error!())?;
+        }
+
+        update_unsettled_pnl(market_position, market, amm_position_unrealized_pnl)?;
+        return Ok(amm_position_unrealized_pnl);
+    }
+
+    Ok(0)
+}
+
 pub fn update_unsettled_pnl(
     market_position: &mut MarketPosition,
     market: &mut Market,
@@ -485,7 +523,12 @@ pub fn decrease_open_bids_and_asks(
 
 #[cfg(test)]
 mod test {
-    use crate::controller::position::{update_position_and_market, PositionDelta};
+    use crate::controller::position::{
+        update_cost_basis, update_position_and_market, PositionDelta,
+    };
+    use crate::math::constants::{
+        AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, PEG_PRECISION, QUOTE_PRECISION,
+    };
     use crate::state::market::{Market, AMM};
     use crate::state::user::MarketPosition;
 
@@ -1244,6 +1287,54 @@ mod test {
         assert_eq!(market.amm.net_base_asset_amount, -1);
         assert_eq!(market.amm.quote_asset_amount_long, 0);
         assert_eq!(market.amm.quote_asset_amount_short, 1);
+    }
+
+    #[test]
+    fn update_cost_basis_test() {
+        let mut market = Market {
+            amm: AMM {
+                base_asset_reserve: 1000 * AMM_RESERVE_PRECISION,
+                quote_asset_reserve: 1000 * AMM_RESERVE_PRECISION,
+                sqrt_k: 1000 * AMM_RESERVE_PRECISION,
+                terminal_quote_asset_reserve: 999 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 50 * PEG_PRECISION,
+                cumulative_funding_rate_long: 1,
+                quote_asset_amount_long: 100 * QUOTE_PRECISION,
+                net_base_asset_amount: 2 * AMM_RESERVE_PRECISION_I128,
+                ..AMM::default()
+            },
+            open_interest: 0,
+            ..Market::default()
+        };
+
+        let mut market_position_up = MarketPosition {
+            base_asset_amount: AMM_RESERVE_PRECISION as i128,
+            quote_asset_amount: 40 * QUOTE_PRECISION,
+            quote_entry_amount: 40 * QUOTE_PRECISION,
+            last_cumulative_funding_rate: 1,
+            last_funding_rate_ts: 1,
+            ..MarketPosition::default()
+        };
+
+        let adj_quote = update_cost_basis(&mut market, &mut market_position_up).unwrap();
+        assert_eq!(adj_quote, 0);
+        assert_eq!(
+            market_position_up.quote_asset_amount,
+            market_position_up.quote_entry_amount
+        );
+
+        let mut market_position_down = MarketPosition {
+            base_asset_amount: AMM_RESERVE_PRECISION as i128,
+            quote_asset_amount: 60 * QUOTE_PRECISION,
+            quote_entry_amount: 60 * QUOTE_PRECISION,
+            last_cumulative_funding_rate: 1,
+            last_funding_rate_ts: 1,
+            ..MarketPosition::default()
+        };
+        let adj_quote = update_cost_basis(&mut market, &mut market_position_down).unwrap();
+
+        assert!(adj_quote < 0);
+        assert!(market_position_down.quote_asset_amount > market_position_up.quote_entry_amount);
     }
 }
 

@@ -64,7 +64,7 @@ pub fn calculate_funding_rate_long_short(
         market.amm.total_fee_minus_distributions = market
             .amm
             .total_fee_minus_distributions
-            .checked_add(uncapped_funding_pnl.unsigned_abs())
+            .checked_add(uncapped_funding_pnl)
             .ok_or_else(math_error!())?;
         market.amm.net_revenue_since_last_funding = market
             .amm
@@ -80,19 +80,19 @@ pub fn calculate_funding_rate_long_short(
     let new_total_fee_minus_distributions = market
         .amm
         .total_fee_minus_distributions
-        .checked_sub(capped_funding_pnl.unsigned_abs())
+        .checked_add(capped_funding_pnl)
         .ok_or_else(math_error!())?;
 
     // clearing house is paying part of funding imbalance
     if capped_funding_pnl != 0 {
-        let total_fee_minus_distributions_lower_bound = get_total_fee_lower_bound(market)?;
+        let total_fee_minus_distributions_lower_bound =
+            cast_to_i128(get_total_fee_lower_bound(market)?)?;
 
         // makes sure the clearing house doesn't pay more than the share of fees allocated to `distributions`
         if new_total_fee_minus_distributions < total_fee_minus_distributions_lower_bound {
             return Err(ErrorCode::InvalidFundingProfitability);
         }
     }
-
     market.amm.total_fee_minus_distributions = new_total_fee_minus_distributions;
     market.amm.net_revenue_since_last_funding = market
         .amm
@@ -260,9 +260,9 @@ mod test {
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50000,
-                net_base_asset_amount: -(122950819670000 as i128),
+                net_base_asset_amount: -122950819670000,
                 total_exchange_fee: QUOTE_PRECISION / 2,
-                total_fee_minus_distributions: QUOTE_PRECISION / 2,
+                total_fee_minus_distributions: (QUOTE_PRECISION as i128) / 2,
 
                 last_mark_price_twap: 50 * MARK_PRICE_PRECISION,
                 last_oracle_price_twap: (49 * MARK_PRICE_PRECISION) as i128,
@@ -282,11 +282,11 @@ mod test {
 
         assert_eq!(balanced_funding, 4166666666666);
 
-        let (long_funding, short_funding, pnl) =
+        let (long_funding, short_funding, _) =
             calculate_funding_rate_long_short(&mut market, balanced_funding).unwrap();
 
         assert_eq!(long_funding, balanced_funding);
-        assert_eq!(long_funding > short_funding, true);
+        assert!(long_funding > short_funding);
         assert_eq!(short_funding, 2422216466708);
 
         // only spend 1/3 of fee pool, ((.5-.416667)) * 3 < .25
@@ -301,10 +301,9 @@ mod test {
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50000,
-                net_base_asset_amount: (122950819670000 as i128),
+                net_base_asset_amount: 122950819670000,
                 total_exchange_fee: QUOTE_PRECISION / 2,
-                total_fee_minus_distributions: QUOTE_PRECISION / 2,
-
+                total_fee_minus_distributions: (QUOTE_PRECISION as i128) / 2,
                 last_mark_price_twap: 50 * MARK_PRICE_PRECISION,
                 last_oracle_price_twap: (49 * MARK_PRICE_PRECISION) as i128,
                 funding_period: 3600,
@@ -316,13 +315,13 @@ mod test {
 
         assert_eq!(balanced_funding, 4166666666666);
 
-        let (long_funding, short_funding, pnl) =
+        let (long_funding, short_funding, _) =
             calculate_funding_rate_long_short(&mut market, balanced_funding).unwrap();
 
         assert_eq!(long_funding, balanced_funding);
         assert_eq!(long_funding, short_funding);
         let new_fees = market.amm.total_fee_minus_distributions;
-        assert_eq!(new_fees > (QUOTE_PRECISION / 2), true);
+        assert!(new_fees > QUOTE_PRECISION as i128 / 2);
         assert_eq!(new_fees, 1012295); // made over $.50
     }
 }

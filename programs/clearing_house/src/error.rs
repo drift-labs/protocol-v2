@@ -106,8 +106,6 @@ pub enum ErrorCode {
     DidNotReceiveExpectedReferrer,
     #[msg("Could not deserialize referrer")]
     CouldNotDeserializeReferrer,
-    #[msg("Market order must be in place and fill")]
-    MarketOrderMustBeInPlaceAndFill,
     #[msg("User Order Id Already In Use")]
     UserOrderIdAlreadyInUse,
     #[msg("No positions liquidatable")]
@@ -178,6 +176,14 @@ pub enum ErrorCode {
     MakerOrderMustBePostOnly,
     #[msg("CantMatchTwoPostOnlys")]
     CantMatchTwoPostOnlys,
+    #[msg("OrderBreachesOraclePriceLimits")]
+    OrderBreachesOraclePriceLimits,
+    #[msg("OrderMustBeTriggeredFirst")]
+    OrderMustBeTriggeredFirst,
+    #[msg("OrderNotTriggerable")]
+    OrderNotTriggerable,
+    #[msg("OrderDidNotSatisfyTriggerCondition")]
+    OrderDidNotSatisfyTriggerCondition,
     #[msg("DefaultError")]
     DefaultError,
 }

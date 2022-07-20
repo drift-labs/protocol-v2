@@ -2,71 +2,17 @@ use crate::controller::position::PositionDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::constants::MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO;
 use crate::math_error;
-use crate::state::user::{Order, User};
-use anchor_lang::prelude::Pubkey;
+use crate::state::user::Order;
 use solana_program::msg;
 use std::cmp::min;
 
-pub fn determine_maker_and_taker<'a>(
-    first_user: &'a mut User,
-    first_user_order_index: usize,
-    first_user_key: &'a Pubkey,
-    second_user: &'a mut User,
-    second_user_order_index: usize,
-    second_user_key: &'a Pubkey,
-) -> ClearingHouseResult<(
-    &'a mut User,
-    usize,
-    &'a Pubkey,
-    &'a mut User,
-    usize,
-    &'a Pubkey,
-)> {
-    let first_order = &first_user.orders[first_user_order_index];
-    let second_order = &second_user.orders[second_user_order_index];
-
-    if first_order.post_only && second_order.post_only {
-        return Err(ErrorCode::CantMatchTwoPostOnlys);
-    }
-
-    if first_order.post_only == second_order.post_only {
-        if first_order.ts >= second_order.ts {
-            Ok((
-                first_user,
-                first_user_order_index,
-                first_user_key,
-                second_user,
-                second_user_order_index,
-                second_user_key,
-            ))
-        } else {
-            Ok((
-                second_user,
-                second_user_order_index,
-                second_user_key,
-                first_user,
-                first_user_order_index,
-                first_user_key,
-            ))
-        }
-    } else if second_order.post_only {
-        Ok((
-            first_user,
-            first_user_order_index,
-            first_user_key,
-            second_user,
-            second_user_order_index,
-            second_user_key,
-        ))
+pub fn is_maker_for_taker(maker_order: &Order, taker_order: &Order) -> ClearingHouseResult<bool> {
+    if taker_order.post_only {
+        Err(ErrorCode::CantMatchTwoPostOnlys)
+    } else if maker_order.post_only && !taker_order.post_only {
+        Ok(true)
     } else {
-        Ok((
-            second_user,
-            second_user_order_index,
-            second_user_key,
-            first_user,
-            first_user_order_index,
-            first_user_key,
-        ))
+        Ok(maker_order.ts < taker_order.ts)
     }
 }
 

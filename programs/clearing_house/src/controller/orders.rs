@@ -14,30 +14,34 @@ use crate::error::ErrorCode;
 use crate::get_struct_values;
 use crate::get_then_update_id;
 use crate::math::amm::is_oracle_valid;
-use crate::math::auction::{calculate_auction_end_price, calculate_auction_start_price};
+use crate::math::auction::{
+    calculate_auction_end_price, calculate_auction_start_price, is_auction_complete,
+};
 use crate::math::casting::cast;
 use crate::math::fulfillment::determine_fulfillment_methods;
 use crate::math::matching::{
-    are_orders_same_market_but_different_sides, calculate_fill_for_matched_orders,
-    determine_maker_and_taker, do_orders_cross,
+    are_orders_same_market_but_different_sides, calculate_fill_for_matched_orders, do_orders_cross,
+    is_maker_for_taker,
 };
 use crate::math::{amm, fees, margin::*, orders::*};
 use crate::math_error;
-use crate::order_validation::{
-    check_if_order_can_be_canceled, validate_order, validate_order_can_be_canceled,
-};
+use crate::order_validation::validate_order;
 use crate::print_error;
 use crate::state::bank_map::BankMap;
-use crate::state::events::OrderAction;
 use crate::state::events::OrderRecord;
+use crate::state::events::{OrderAction, OrderActionExplanation};
 use crate::state::fulfillment::FulfillmentMethod;
 use crate::state::market::Market;
 use crate::state::market_map::MarketMap;
+use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
 use crate::state::state::*;
-use crate::state::user::{Order, OrderStatus, OrderType};
+use crate::state::user::{MarketPosition, Order, OrderStatus, OrderType, UserFees};
 use crate::state::user::{OrderDiscountTier, User};
 use crate::validate;
+use std::alloc::{alloc_zeroed, Layout};
+use std::cell::RefMut;
+use std::ops::{Deref, DerefMut};
 
 pub fn place_order(
     state: &State,
@@ -47,9 +51,9 @@ pub fn place_order(
     oracle_map: &mut OracleMap,
     clock: &Clock,
     params: OrderParams,
-    oracle: Option<&AccountInfo>,
 ) -> ClearingHouseResult {
     let now = clock.unix_timestamp;
+    let slot = clock.slot;
     let user_key = user.key();
     let user = &mut load_mut(user)?;
     controller::funding::settle_funding_payment(user, &user_key, market_map, now)?;
@@ -109,7 +113,12 @@ pub fn place_order(
             market.amm.base_asset_amount_step_size
         )?;
 
-        increase_open_bids_and_asks(market_position, &params.direction, base_asset_amount)?;
+        if !matches!(
+            &params.order_type,
+            OrderType::TriggerMarket | OrderType::TriggerLimit
+        ) {
+            increase_open_bids_and_asks(market_position, &params.direction, base_asset_amount)?;
+        }
 
         let existing_position_direction = if market_position.base_asset_amount >= 0 {
             PositionDirection::Long
@@ -132,6 +141,7 @@ pub fn place_order(
         status: OrderStatus::Open,
         order_type: params.order_type,
         ts: now,
+        slot,
         order_id: get_then_update_id!(user, next_order_id),
         user_order_id: params.user_order_id,
         market_index: params.market_index,
@@ -147,6 +157,7 @@ pub fn place_order(
         discount_tier: OrderDiscountTier::None,
         trigger_price: params.trigger_price,
         trigger_condition: params.trigger_condition,
+        triggered: false,
         referrer: Pubkey::default(),
         post_only: params.post_only,
         oracle_price_offset: params.oracle_price_offset,
@@ -158,14 +169,13 @@ pub fn place_order(
     };
 
     let valid_oracle_price = get_valid_oracle_price(
-        oracle,
+        oracle_map.get_price_data(&market.amm.oracle)?,
         market,
         &new_order,
         &state.oracle_guard_rails.validity,
-        clock.slot,
     )?;
 
-    validate_order(&new_order, market, state, valid_oracle_price, now)?;
+    validate_order(&new_order, market, state, valid_oracle_price, slot)?;
 
     user.orders[new_order_index] = new_order;
 
@@ -181,17 +191,21 @@ pub fn place_order(
         return Err(ErrorCode::InsufficientCollateral);
     }
 
-    let (taker, taker_order, maker, maker_order) =
-        get_taker_and_maker_for_order_record(&user_key, &new_order);
+    let (taker, taker_order, taker_unsettled_pnl, maker, maker_order, maker_unsettled_pnl) =
+        get_taker_and_maker_for_order_record(&user_key, &new_order, 0);
 
     // emit order record
     emit!(OrderRecord {
         ts: now,
+        slot,
         taker,
         taker_order,
         maker,
         maker_order,
+        maker_unsettled_pnl,
+        taker_unsettled_pnl,
         action: OrderAction::Place,
+        action_explanation: OrderActionExplanation::None,
         filler: Pubkey::default(),
         fill_record_id: 0,
         market_index: market.market_index,
@@ -208,14 +222,11 @@ pub fn place_order(
 }
 
 pub fn cancel_order_by_order_id(
-    state: &State,
     order_id: u64,
     user: &AccountLoader<User>,
     market_map: &MarketMap,
-    bank_map: &BankMap,
     oracle_map: &mut OracleMap,
     clock: &Clock,
-    oracle: Option<&AccountInfo>,
 ) -> ClearingHouseResult {
     let user_key = user.key();
     let user = &mut load_mut(user)?;
@@ -226,28 +237,23 @@ pub fn cancel_order_by_order_id(
         .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
 
     cancel_order(
-        state,
         order_index,
         user,
         &user_key,
         market_map,
-        bank_map,
         oracle_map,
-        clock,
-        oracle,
-        false,
+        clock.unix_timestamp,
+        clock.slot,
+        OrderActionExplanation::None,
     )
 }
 
 pub fn cancel_order_by_user_order_id(
-    state: &State,
     user_order_id: u8,
     user: &AccountLoader<User>,
     market_map: &MarketMap,
-    bank_map: &BankMap,
     oracle_map: &mut OracleMap,
     clock: &Clock,
-    oracle: Option<&AccountInfo>,
 ) -> ClearingHouseResult {
     let user_key = user.key();
     let user = &mut load_mut(user)?;
@@ -258,32 +264,27 @@ pub fn cancel_order_by_user_order_id(
         .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
 
     cancel_order(
-        state,
         order_index,
         user,
         &user_key,
         market_map,
-        bank_map,
         oracle_map,
-        clock,
-        oracle,
-        false,
+        clock.unix_timestamp,
+        clock.slot,
+        OrderActionExplanation::None,
     )
 }
 
 pub fn cancel_order(
-    state: &State,
     order_index: usize,
     user: &mut User,
     user_key: &Pubkey,
     market_map: &MarketMap,
-    bank_map: &BankMap,
     oracle_map: &mut OracleMap,
-    clock: &Clock,
-    oracle: Option<&AccountInfo>,
-    best_effort: bool,
+    now: i64,
+    slot: u64,
+    explanation: OrderActionExplanation,
 ) -> ClearingHouseResult {
-    let now = clock.unix_timestamp;
     controller::funding::settle_funding_payment(user, user_key, market_map, now)?;
 
     let (order_status, order_market_index, order_direction) =
@@ -294,53 +295,24 @@ pub fn cancel_order(
     }
 
     let market = &market_map.get_ref(&order_market_index)?;
-    let valid_oracle_price = get_valid_oracle_price(
-        oracle,
-        market,
-        &user.orders[order_index],
-        &state.oracle_guard_rails.validity,
-        clock.slot,
-    )?;
-
-    if best_effort {
-        let is_cancelable = check_if_order_can_be_canceled(
-            user,
-            order_index,
-            market_map,
-            bank_map,
-            oracle_map,
-            valid_oracle_price,
-            now,
-        )?;
-
-        if !is_cancelable {
-            return Ok(());
-        }
-    } else {
-        validate_order_can_be_canceled(
-            user,
-            order_index,
-            market_map,
-            bank_map,
-            oracle_map,
-            valid_oracle_price,
-            now,
-        )?;
-    }
 
     // When save in the record, we want the status to be canceled
     user.orders[order_index].status = OrderStatus::Canceled;
 
-    let (taker, taker_order, maker, maker_order) =
-        get_taker_and_maker_for_order_record(user_key, &user.orders[order_index]);
+    let (taker, taker_order, taker_unsettled_pnl, maker, maker_order, maker_unsettled_pnl) =
+        get_taker_and_maker_for_order_record(user_key, &user.orders[order_index], 0);
 
     emit!(OrderRecord {
         ts: now,
+        slot,
         taker,
         taker_order,
         maker,
         maker_order,
+        maker_unsettled_pnl,
+        taker_unsettled_pnl,
         action: OrderAction::Cancel,
+        action_explanation: explanation,
         filler: Pubkey::default(),
         fill_record_id: 0,
         market_index: market.market_index,
@@ -371,16 +343,16 @@ pub fn fill_order(
     order_id: u64,
     state: &State,
     user: &AccountLoader<User>,
+    bank_map: &BankMap,
     market_map: &MarketMap,
     oracle_map: &mut OracleMap,
-    oracle: &AccountInfo,
     filler: &AccountLoader<User>,
-    maker: Option<AccountLoader<User>>,
+    maker: Option<&AccountLoader<User>>,
     maker_order_id: Option<u64>,
     clock: &Clock,
 ) -> ClearingHouseResult<u128> {
     let now = clock.unix_timestamp;
-    let clock_slot = clock.slot;
+    let slot = clock.slot;
 
     let filler_key = filler.key();
     let user_key = user.key();
@@ -402,6 +374,12 @@ pub fn fill_order(
         "Order not open"
     )?;
 
+    validate!(
+        !user.orders[order_index].must_be_triggered() || user.orders[order_index].triggered,
+        ErrorCode::OrderMustBeTriggeredFirst,
+        "Order must be triggered first"
+    )?;
+
     let mark_price_before: u128;
     let oracle_mark_spread_pct_before: i128;
     let is_oracle_valid: bool;
@@ -409,7 +387,7 @@ pub fn fill_order(
     {
         let market = &mut market_map.get_ref_mut(&market_index)?;
         validate!(
-            (clock_slot == market.amm.last_update_slot || market.amm.curve_update_intensity == 0),
+            (slot == market.amm.last_update_slot || market.amm.curve_update_intensity == 0),
             ErrorCode::AMMNotUpdatedInSameSlot,
             "AMM must be updated in a prior instruction within same slot"
         )?;
@@ -434,80 +412,43 @@ pub fn fill_order(
         None
     };
 
-    let fulfillment_methods =
-        determine_fulfillment_methods(&user.orders[order_index], maker.is_some(), now)?;
+    let (mut maker, maker_key, maker_order_index) = sanitize_maker_order(
+        market_map,
+        oracle_map,
+        maker,
+        maker_order_id,
+        &user.orders[order_index],
+        oracle_price,
+        now,
+        slot,
+    )?;
 
-    if fulfillment_methods.is_empty() {
-        return Ok(0);
-    }
+    let is_filler_taker = user_key == filler_key;
+    let is_filler_maker = maker_key.map_or(false, |key| key == user_key);
+    let mut filler = if !is_filler_maker && !is_filler_taker {
+        Some(load_mut(filler)?)
+    } else {
+        None
+    };
 
-    let mut base_asset_amount = 0_u128;
-    let mut potentially_risk_increasing = false;
-    for fulfillment_method in fulfillment_methods.iter() {
-        if user.orders[order_index].status != OrderStatus::Open {
-            break;
-        }
-
-        let market = &mut market_map.get_ref_mut(&market_index)?;
-
-        let (_base_asset_amount, _potentially_risk_increasing) = match fulfillment_method {
-            FulfillmentMethod::AMM => fulfill_order_with_amm(
-                state,
-                user,
-                order_index,
-                market,
-                oracle_map,
-                mark_price_before,
-                now,
-                valid_oracle_price,
-                &user_key,
-                &filler_key,
-                filler,
-            )?,
-            FulfillmentMethod::Match => {
-                let maker = maker.as_ref().ok_or(ErrorCode::MakerNotFound)?;
-                let maker_key = maker.key();
-
-                validate!(
-                    maker_key != user_key,
-                    ErrorCode::MakerCantFulfillOwnOrder,
-                    "Maker can not fill their own order"
-                )?;
-
-                let maker = &mut load_mut(maker)?;
-                let maker_order_id = maker_order_id.ok_or(ErrorCode::MakerOrderNotFound)?;
-                let maker_order_index = maker
-                    .get_order_index(maker_order_id)
-                    .map_err(|e| print_error!(e)())?;
-
-                let mut filler = if filler_key != maker_key && filler_key != user_key {
-                    Some(load_mut(filler)?)
-                } else {
-                    None
-                };
-
-                fulfill_order_with_match(
-                    market,
-                    user,
-                    order_index,
-                    &user_key,
-                    maker,
-                    maker_order_index,
-                    &maker_key,
-                    filler.as_deref_mut(),
-                    &filler_key,
-                    now,
-                    &state.fee_structure,
-                    oracle_map,
-                )?
-            }
-        };
-
-        potentially_risk_increasing = potentially_risk_increasing || _potentially_risk_increasing;
-        base_asset_amount = base_asset_amount
-            .checked_add(_base_asset_amount)
-            .ok_or_else(math_error!())?;
-    }
+    let (base_asset_amount, potentially_risk_increasing) = fulfill_order(
+        state,
+        user,
+        order_index,
+        &user_key,
+        &mut maker.as_deref_mut(),
+        maker_order_index,
+        maker_key.as_ref(),
+        &mut filler.as_deref_mut(),
+        &filler_key,
+        bank_map,
+        market_map,
+        oracle_map,
+        mark_price_before,
+        valid_oracle_price,
+        now,
+        slot,
+    )?;
 
     if base_asset_amount == 0 {
         return Ok(0);
@@ -558,9 +499,8 @@ pub fn fill_order(
         controller::funding::update_funding_rate(
             market_index,
             market,
-            oracle,
+            oracle_map,
             now,
-            clock_slot,
             &state.oracle_guard_rails,
             state.funding_paused,
             Some(mark_price_before),
@@ -568,6 +508,256 @@ pub fn fill_order(
     }
 
     Ok(base_asset_amount)
+}
+
+#[allow(clippy::type_complexity)]
+fn sanitize_maker_order<'a>(
+    market_map: &MarketMap,
+    oracle_map: &mut OracleMap,
+    maker: Option<&'a AccountLoader<User>>,
+    maker_order_id: Option<u64>,
+    taker_order: &Order,
+    oracle_price: i128,
+    now: i64,
+    slot: u64,
+) -> ClearingHouseResult<(Option<RefMut<'a, User>>, Option<Pubkey>, Option<usize>)> {
+    if maker.is_none() {
+        return Ok((None, None, None));
+    }
+
+    let maker = maker.unwrap();
+    let maker_key = maker.key();
+    let mut maker = load_mut(maker)?;
+    let maker_order_index =
+        maker.get_order_index(maker_order_id.ok_or(ErrorCode::MakerOrderNotFound)?)?;
+
+    {
+        let maker_order = &maker.orders[maker_order_index];
+        if !is_maker_for_taker(maker_order, taker_order)? {
+            return Ok((None, None, None));
+        }
+
+        validate!(
+            !maker_order.must_be_triggered() || maker_order.triggered,
+            ErrorCode::OrderMustBeTriggeredFirst,
+            "Maker order not triggered"
+        )?;
+    }
+
+    // Dont fulfill with a maker order if oracle has diverged significantly
+    if order_breaches_oracle_price_limits(&maker.orders[maker_order_index], oracle_price, slot)? {
+        cancel_order(
+            maker_order_index,
+            maker.deref_mut(),
+            &maker_key,
+            market_map,
+            oracle_map,
+            now,
+            slot,
+            OrderActionExplanation::OraclePriceBreachedLimitPrice,
+        )?;
+        return Ok((None, None, None));
+    }
+
+    Ok((Some(maker), Some(maker_key), Some(maker_order_index)))
+}
+
+fn fulfill_order(
+    state: &State,
+    user: &mut User,
+    user_order_index: usize,
+    user_key: &Pubkey,
+    maker: &mut Option<&mut User>,
+    maker_order_index: Option<usize>,
+    maker_key: Option<&Pubkey>,
+    filler: &mut Option<&mut User>,
+    filler_key: &Pubkey,
+    bank_map: &BankMap,
+    market_map: &MarketMap,
+    oracle_map: &mut OracleMap,
+    mark_price_before: u128,
+    valid_oracle_price: Option<i128>,
+    now: i64,
+    slot: u64,
+) -> ClearingHouseResult<(u128, bool)> {
+    let market_index = user.orders[user_order_index].market_index;
+
+    let user_checkpoint = checkpoint_user(user, market_index, Some(user_order_index))?;
+    let maker_checkpoint = if let Some(maker) = maker {
+        let maker_order_index = maker_order_index.ok_or(ErrorCode::MakerOrderNotFound)?;
+        Some(checkpoint_user(
+            maker,
+            market_index,
+            Some(maker_order_index),
+        )?)
+    } else {
+        None
+    };
+    let filler_checkpoint = if let Some(filler) = filler {
+        Some(checkpoint_user(filler, market_index, None)?)
+    } else {
+        None
+    };
+
+    let market_checkpoint = clone(market_map.get_ref(&market_index)?.deref());
+
+    let fulfillment_methods =
+        determine_fulfillment_methods(&user.orders[user_order_index], maker.is_some(), slot)?;
+
+    if fulfillment_methods.is_empty() {
+        return Ok((0, false));
+    }
+
+    let mut base_asset_amount = 0_u128;
+    let mut potentially_risk_increasing = false;
+    let mut order_records: Vec<OrderRecord> = vec![];
+    for fulfillment_method in fulfillment_methods.iter() {
+        if user.orders[user_order_index].status != OrderStatus::Open {
+            break;
+        }
+
+        let mut market = market_map.get_ref_mut(&market_index)?;
+
+        let (_base_asset_amount, _potentially_risk_increasing) = match fulfillment_method {
+            FulfillmentMethod::AMM => fulfill_order_with_amm(
+                state,
+                user,
+                user_order_index,
+                market.deref_mut(),
+                oracle_map,
+                mark_price_before,
+                now,
+                slot,
+                valid_oracle_price,
+                user_key,
+                filler_key,
+                filler,
+                &mut order_records,
+            )?,
+            FulfillmentMethod::Match => fulfill_order_with_match(
+                market.deref_mut(),
+                user,
+                user_order_index,
+                user_key,
+                maker.as_deref_mut().unwrap(),
+                maker_order_index.unwrap(),
+                maker_key.unwrap(),
+                filler.as_deref_mut(),
+                filler_key,
+                now,
+                slot,
+                &state.fee_structure,
+                oracle_map,
+                &mut order_records,
+            )?,
+        };
+
+        potentially_risk_increasing = potentially_risk_increasing || _potentially_risk_increasing;
+        base_asset_amount = base_asset_amount
+            .checked_add(_base_asset_amount)
+            .ok_or_else(math_error!())?;
+    }
+
+    let meets_initial_margin_requirement =
+        meets_initial_margin_requirement(user, market_map, bank_map, oracle_map)?;
+
+    if meets_initial_margin_requirement {
+        for order_record in order_records {
+            emit!(order_record)
+        }
+    } else {
+        revert_to_checkpoint(user, user_checkpoint)?;
+        if let Some(maker) = maker {
+            revert_to_checkpoint(maker, maker_checkpoint.unwrap())?;
+        }
+        if let Some(filler) = filler {
+            revert_to_checkpoint(filler, filler_checkpoint.unwrap())?;
+        }
+        {
+            let mut market = market_map.get_ref_mut(&market_index)?;
+            *market = *market_checkpoint;
+        }
+
+        cancel_order(
+            user_order_index,
+            user,
+            user_key,
+            market_map,
+            oracle_map,
+            now,
+            slot,
+            OrderActionExplanation::BreachedMarginRequirement,
+        )?
+    }
+
+    Ok((base_asset_amount, potentially_risk_increasing))
+}
+
+struct UserCheckpoint {
+    pub order_index: Option<usize>,
+    pub order: Option<Box<Order>>,
+    pub position_index: usize,
+    pub position: Box<MarketPosition>,
+    pub fees: Box<UserFees>,
+}
+
+fn checkpoint_user(
+    user: &mut User,
+    market_index: u64,
+    order_index: Option<usize>,
+) -> ClearingHouseResult<UserCheckpoint> {
+    let order = if let Some(order_index) = order_index {
+        let mut order = unsafe {
+            let layout = Layout::new::<Order>();
+            let raw_allocation = alloc_zeroed(layout) as *mut Order;
+            Box::from_raw(raw_allocation)
+        };
+        *order = user.orders[order_index];
+        Some(order)
+    } else {
+        None
+    };
+
+    let position_index = get_position_index(&user.positions, market_index)
+        .or_else(|_| add_new_position(&mut user.positions, market_index))?;
+    let mut position = unsafe {
+        let layout = Layout::new::<MarketPosition>();
+        let raw_allocation = alloc_zeroed(layout) as *mut MarketPosition;
+        Box::from_raw(raw_allocation)
+    };
+    *position = user.positions[position_index];
+    let mut fees = unsafe {
+        let layout = Layout::new::<UserFees>();
+        let raw_allocation = alloc_zeroed(layout) as *mut UserFees;
+        Box::from_raw(raw_allocation)
+    };
+    *fees = user.fees;
+    Ok(UserCheckpoint {
+        order_index,
+        order,
+        position_index,
+        position,
+        fees,
+    })
+}
+
+fn clone<T: Copy>(original: &T) -> Box<T> {
+    let mut clone = unsafe {
+        let layout = Layout::new::<T>();
+        let raw_allocation = alloc_zeroed(layout) as *mut T;
+        Box::from_raw(raw_allocation)
+    };
+    *clone = *original;
+    clone
+}
+
+fn revert_to_checkpoint(user: &mut User, checkpoint: UserCheckpoint) -> ClearingHouseResult {
+    user.fees = *checkpoint.fees;
+    user.positions[checkpoint.position_index] = *checkpoint.position;
+    if let Some(order) = checkpoint.order {
+        user.orders[checkpoint.order_index.unwrap()] = *order;
+    }
+    Ok(())
 }
 
 pub fn fulfill_order_with_amm(
@@ -578,10 +768,12 @@ pub fn fulfill_order_with_amm(
     oracle_map: &mut OracleMap,
     mark_price_before: u128,
     now: i64,
+    slot: u64,
     value_oracle_price: Option<i128>,
     user_key: &Pubkey,
     filler_key: &Pubkey,
-    filler: &AccountLoader<User>,
+    filler: &mut Option<&mut User>,
+    order_records: &mut Vec<OrderRecord>,
 ) -> ClearingHouseResult<(u128, bool)> {
     let order_type = user.orders[order_index].order_type;
     let (
@@ -589,6 +781,7 @@ pub fn fulfill_order_with_amm(
         quote_asset_amount,
         potentially_risk_increasing,
         quote_asset_amount_surplus,
+        pnl,
     ) = match order_type {
         OrderType::Market => {
             execute_market_order(user, order_index, market, mark_price_before, now)?
@@ -599,9 +792,12 @@ pub fn fulfill_order_with_amm(
             market,
             mark_price_before,
             now,
+            slot,
             value_oracle_price,
         )?,
     };
+
+    let mut unsettled_pnl = pnl;
 
     let (order_post_only, order_ts, order_direction) =
         get_struct_values!(user.orders[order_index], post_only, ts, direction);
@@ -612,7 +808,7 @@ pub fn fulfill_order_with_amm(
             &state.fee_structure,
             order_ts,
             now,
-            filler_key != user_key,
+            filler.is_some(),
             quote_asset_amount_surplus,
             order_post_only,
         )?;
@@ -637,7 +833,7 @@ pub fn fulfill_order_with_amm(
     market.amm.total_fee_minus_distributions = market
         .amm
         .total_fee_minus_distributions
-        .checked_add(fee_to_market)
+        .checked_add(fee_to_market as i128)
         .ok_or_else(math_error!())?;
     market.amm.net_revenue_since_last_funding = market
         .amm
@@ -646,7 +842,8 @@ pub fn fulfill_order_with_amm(
         .ok_or_else(math_error!())?;
 
     // Increment the user's total fee variables
-    user.total_fee_paid = user
+    user.fees.total_fee_paid = user
+        .fees
         .total_fee_paid
         .checked_add(cast(user_fee)?)
         .ok_or_else(math_error!())?;
@@ -657,8 +854,11 @@ pub fn fulfill_order_with_amm(
         -cast(user_fee)?,
     )?;
 
-    if filler_key != user_key {
-        let filler = &mut load_mut(filler)?;
+    unsettled_pnl = unsettled_pnl
+        .checked_sub(cast(user_fee)?)
+        .ok_or_else(math_error!())?;
+
+    if let Some(filler) = filler.as_mut() {
         let position_index = get_position_index(&filler.positions, market.market_index)
             .or_else(|_| add_new_position(&mut filler.positions, market.market_index))?;
 
@@ -683,17 +883,21 @@ pub fn fulfill_order_with_amm(
         base_asset_amount,
     )?;
 
-    let (taker, taker_order, maker, maker_order) =
-        get_taker_and_maker_for_order_record(user_key, &user.orders[order_index]);
+    let (taker, taker_order, taker_unsettled_pnl, maker, maker_order, maker_unsettled_pnl) =
+        get_taker_and_maker_for_order_record(user_key, &user.orders[order_index], unsettled_pnl);
 
     let fill_record_id = get_then_update_id!(market, next_fill_record_id);
-    emit!(OrderRecord {
+    order_records.push(OrderRecord {
         ts: now,
+        slot,
         taker,
         taker_order,
         maker,
         maker_order,
+        taker_unsettled_pnl,
+        maker_unsettled_pnl,
         action: OrderAction::Fill,
+        action_explanation: OrderActionExplanation::None,
         filler: *filler_key,
         fill_record_id,
         market_index: market.market_index,
@@ -707,9 +911,7 @@ pub fn fulfill_order_with_amm(
     });
 
     // Cant reset order until after its logged
-    if user.orders[order_index].get_base_asset_amount_unfilled()? == 0
-        || user.orders[order_index].order_type == OrderType::Market
-    {
+    if user.orders[order_index].get_base_asset_amount_unfilled()? == 0 {
         user.orders[order_index] = Order::default();
         let market_position = &mut user.positions[position_index];
         market_position.open_orders -= 1;
@@ -720,28 +922,20 @@ pub fn fulfill_order_with_amm(
 
 pub fn fulfill_order_with_match(
     market: &mut Market,
-    first_user: &mut User,
-    first_user_order_index: usize,
-    first_user_key: &Pubkey,
-    second_user: &mut User,
-    second_user_order_index: usize,
-    second_user_key: &Pubkey,
+    taker: &mut User,
+    taker_order_index: usize,
+    taker_key: &Pubkey,
+    maker: &mut User,
+    maker_order_index: usize,
+    maker_key: &Pubkey,
     filler: Option<&mut User>,
     filler_key: &Pubkey,
     now: i64,
+    slot: u64,
     fee_structure: &FeeStructure,
     oracle_map: &mut OracleMap,
+    order_records: &mut Vec<OrderRecord>,
 ) -> ClearingHouseResult<(u128, bool)> {
-    let (taker, taker_order_index, taker_key, maker, maker_order_index, maker_key) =
-        determine_maker_and_taker(
-            first_user,
-            first_user_order_index,
-            first_user_key,
-            second_user,
-            second_user_order_index,
-            second_user_key,
-        )?;
-
     if !are_orders_same_market_but_different_sides(
         &maker.orders[maker_order_index],
         &taker.orders[taker_order_index],
@@ -749,11 +943,11 @@ pub fn fulfill_order_with_match(
         return Ok((0_u128, false));
     }
 
-    let taker_price = taker.orders[taker_order_index].get_limit_price(None, now)?;
+    let taker_price = taker.orders[taker_order_index].get_limit_price(None, slot)?;
     let taker_base_asset_amount =
         taker.orders[taker_order_index].get_base_asset_amount_unfilled()?;
 
-    let maker_price = maker.orders[maker_order_index].get_limit_price(None, now)?;
+    let maker_price = maker.orders[maker_order_index].get_limit_price(None, slot)?;
     let maker_direction = &maker.orders[maker_order_index].direction;
     let maker_base_asset_amount =
         maker.orders[maker_order_index].get_base_asset_amount_unfilled()?;
@@ -785,7 +979,7 @@ pub fn fulfill_order_with_match(
         maker.orders[maker_order_index].direction,
     )?;
 
-    update_position_and_market(
+    let mut maker_unsettled_pnl = update_position_and_market(
         &mut maker.positions[maker_position_index],
         market,
         &maker_position_delta,
@@ -802,7 +996,7 @@ pub fn fulfill_order_with_match(
         taker.orders[maker_order_index].direction,
     )?;
 
-    update_position_and_market(
+    let mut taker_unsettled_pnl = update_position_and_market(
         &mut taker.positions[taker_position_index],
         market,
         &taker_position_delta,
@@ -826,7 +1020,7 @@ pub fn fulfill_order_with_match(
     market.amm.total_fee_minus_distributions = market
         .amm
         .total_fee_minus_distributions
-        .checked_add(fee_to_market)
+        .checked_add(fee_to_market as i128)
         .ok_or_else(math_error!())?;
     market.amm.net_revenue_since_last_funding = market
         .amm
@@ -840,9 +1034,14 @@ pub fn fulfill_order_with_match(
         -cast(taker_fee)?,
     )?;
 
-    taker.total_fee_paid = taker
+    taker.fees.total_fee_paid = taker
+        .fees
         .total_fee_paid
         .checked_add(cast(taker_fee)?)
+        .ok_or_else(math_error!())?;
+
+    taker_unsettled_pnl = taker_unsettled_pnl
+        .checked_sub(cast(taker_fee)?)
         .ok_or_else(math_error!())?;
 
     controller::position::update_unsettled_pnl(
@@ -851,8 +1050,13 @@ pub fn fulfill_order_with_match(
         cast(maker_rebate)?,
     )?;
 
-    maker.total_fee_rebate = maker
+    maker.fees.total_fee_rebate = maker
+        .fees
         .total_fee_rebate
+        .checked_add(cast(maker_rebate)?)
+        .ok_or_else(math_error!())?;
+
+    maker_unsettled_pnl = maker_unsettled_pnl
         .checked_add(cast(maker_rebate)?)
         .ok_or_else(math_error!())?;
 
@@ -896,13 +1100,17 @@ pub fn fulfill_order_with_match(
     )?;
 
     let fill_record_id = get_then_update_id!(market, next_fill_record_id);
-    emit!(OrderRecord {
+    order_records.push(OrderRecord {
         ts: now,
+        slot,
         taker: *taker_key,
         taker_order: taker.orders[taker_order_index],
+        taker_unsettled_pnl,
         maker: *maker_key,
         maker_order: maker.orders[maker_order_index],
+        maker_unsettled_pnl,
         action: OrderAction::Fill,
+        action_explanation: OrderActionExplanation::None,
         filler: *filler_key,
         fill_record_id,
         market_index: market.market_index,
@@ -936,7 +1144,7 @@ pub fn execute_market_order(
     market: &mut Market,
     mark_price_before: u128,
     now: i64,
-) -> ClearingHouseResult<(u128, u128, bool, u128)> {
+) -> ClearingHouseResult<(u128, u128, bool, u128, i128)> {
     let position_index = get_position_index(&user.positions, market.market_index)?;
 
     let (order_direction, order_price, order_base_asset_amount) = get_struct_values!(
@@ -981,6 +1189,7 @@ pub fn execute_market_order(
         quote_asset_amount,
         potentially_risk_increasing,
         quote_asset_amount_surplus,
+        pnl,
     ))
 }
 
@@ -990,25 +1199,25 @@ pub fn execute_non_market_order(
     market: &mut Market,
     mark_price_before: u128,
     now: i64,
+    slot: u64,
     valid_oracle_price: Option<i128>,
-) -> ClearingHouseResult<(u128, u128, bool, u128)> {
+) -> ClearingHouseResult<(u128, u128, bool, u128, i128)> {
     // Determine the base asset amount the market can fill
     let base_asset_amount = calculate_base_asset_amount_market_can_execute(
         &user.orders[order_index],
         market,
-        Some(mark_price_before),
         valid_oracle_price,
-        now,
+        slot,
     )?;
 
     if base_asset_amount == 0 {
         msg!("Market cant execute order");
-        return Ok((0, 0, false, 0));
+        return Ok((0, 0, false, 0, 0));
     }
 
     if base_asset_amount < market.amm.base_asset_amount_step_size {
         msg!("base asset amount too small {}", base_asset_amount);
-        return Ok((0, 0, false, 0));
+        return Ok((0, 0, false, 0, 0));
     }
 
     let (order_direction, order_post_only, order_base_asset_amount, order_base_asset_amount_filled) = get_struct_values!(
@@ -1034,13 +1243,13 @@ pub fn execute_non_market_order(
     }
 
     if base_asset_amount == 0 {
-        return Ok((0, 0, false, 0));
+        return Ok((0, 0, false, 0, 0));
     }
 
     let position_index = get_position_index(&user.positions, market.market_index)?;
 
     let maker_limit_price = if order_post_only {
-        Some(user.orders[order_index].get_limit_price(valid_oracle_price, now)?)
+        Some(user.orders[order_index].get_limit_price(valid_oracle_price, slot)?)
     } else {
         None
     };
@@ -1063,6 +1272,7 @@ pub fn execute_non_market_order(
         quote_asset_amount,
         potentially_risk_increasing,
         quote_asset_amount_surplus,
+        pnl,
     ))
 }
 
@@ -1103,28 +1313,21 @@ pub fn update_order_after_fill(
 }
 
 fn get_valid_oracle_price(
-    oracle: Option<&AccountInfo>,
+    oracle_price_data: &OraclePriceData,
     market: &Market,
     order: &Order,
     validity_guardrails: &ValidityGuardRails,
-    slot: u64,
 ) -> ClearingHouseResult<Option<i128>> {
-    let price = if let Some(oracle) = oracle {
-        let oracle_data = market.amm.get_oracle_price(oracle, slot)?;
-        let is_oracle_valid = is_oracle_valid(&market.amm, &oracle_data, validity_guardrails)?;
+    let price = {
+        let is_oracle_valid = is_oracle_valid(&market.amm, oracle_price_data, validity_guardrails)?;
         if is_oracle_valid {
-            Some(oracle_data.price)
+            Some(oracle_price_data.price)
         } else if order.has_oracle_price_offset() {
             msg!("Invalid oracle for order with oracle price offset");
             return Err(print_error!(ErrorCode::InvalidOracle)());
         } else {
             None
         }
-    } else if order.has_oracle_price_offset() {
-        msg!("Oracle not found for order with oracle price offset");
-        return Err(print_error!(ErrorCode::OracleNotFound)());
-    } else {
-        None
     };
 
     Ok(price)
@@ -1133,12 +1336,158 @@ fn get_valid_oracle_price(
 fn get_taker_and_maker_for_order_record(
     user_key: &Pubkey,
     user_order: &Order,
-) -> (Pubkey, Order, Pubkey, Order) {
+    unsettled_pnl: i128,
+) -> (Pubkey, Order, i128, Pubkey, Order, i128) {
     if user_order.post_only {
-        (Pubkey::default(), Order::default(), *user_key, *user_order)
+        (
+            Pubkey::default(),
+            Order::default(),
+            0,
+            *user_key,
+            *user_order,
+            unsettled_pnl,
+        )
     } else {
-        (*user_key, *user_order, Pubkey::default(), Order::default())
+        (
+            *user_key,
+            *user_order,
+            unsettled_pnl,
+            Pubkey::default(),
+            Order::default(),
+            0,
+        )
     }
+}
+
+pub fn trigger_order(
+    order_id: u64,
+    state: &State,
+    user: &AccountLoader<User>,
+    market_map: &MarketMap,
+    oracle_map: &mut OracleMap,
+    filler: &AccountLoader<User>,
+    clock: &Clock,
+) -> ClearingHouseResult {
+    let now = clock.unix_timestamp;
+    let slot = clock.slot;
+
+    let filler_key = filler.key();
+    let user_key = user.key();
+    let user = &mut load_mut(user)?;
+    controller::funding::settle_funding_payment(user, &user_key, market_map, now)?;
+
+    let order_index = user
+        .orders
+        .iter()
+        .position(|order| order.order_id == order_id)
+        .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
+
+    let (order_status, market_index) =
+        get_struct_values!(user.orders[order_index], status, market_index);
+
+    validate!(
+        order_status == OrderStatus::Open,
+        ErrorCode::OrderNotOpen,
+        "Order not open"
+    )?;
+
+    validate!(
+        user.orders[order_index].must_be_triggered(),
+        ErrorCode::OrderNotTriggerable,
+        "Order is not triggerable"
+    )?;
+
+    let market = &mut market_map.get_ref_mut(&market_index)?;
+    let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
+
+    let is_oracle_valid = amm::is_oracle_valid(
+        &market.amm,
+        oracle_price_data,
+        &state.oracle_guard_rails.validity,
+    )?;
+    validate!(is_oracle_valid, ErrorCode::InvalidOracle)?;
+    let oracle_price = oracle_price_data.price;
+
+    let order_slot = user.orders[order_index].slot;
+    let auction_duration = user.orders[order_index].auction_duration;
+    validate!(
+        is_auction_complete(order_slot, auction_duration, slot)?,
+        ErrorCode::OrderDidNotSatisfyTriggerCondition,
+        "Auction duration must elapse before triggering"
+    )?;
+
+    let can_trigger =
+        order_satisfies_trigger_condition(&user.orders[order_index], oracle_price.unsigned_abs());
+    validate!(can_trigger, ErrorCode::OrderDidNotSatisfyTriggerCondition)?;
+
+    {
+        let direction = user.orders[order_index].direction;
+        let base_asset_amount = user.orders[order_index].base_asset_amount;
+
+        user.orders[order_index].triggered = true;
+        user.orders[order_index].slot = slot;
+        let order_type = user.orders[order_index].order_type;
+        if let OrderType::TriggerMarket = order_type {
+            let auction_start_price = calculate_auction_start_price(market, direction)?;
+            let auction_end_price =
+                calculate_auction_end_price(market, direction, base_asset_amount)?;
+            user.orders[order_index].auction_start_price = auction_start_price;
+            user.orders[order_index].auction_end_price = auction_end_price;
+        }
+
+        let user_position = user.get_position_mut(market_index)?;
+        increase_open_bids_and_asks(user_position, &direction, base_asset_amount)?;
+    }
+
+    let is_filler_taker = user_key == filler_key;
+    let filler = if !is_filler_taker {
+        Some(load_mut(filler)?)
+    } else {
+        None
+    };
+
+    let filler_reward = match filler {
+        Some(_) => {
+            state
+                .fee_structure
+                .filler_reward_structure
+                .time_based_reward_lower_bound
+        }
+        None => 0,
+    };
+
+    emit!(OrderRecord {
+        ts: now,
+        slot,
+        taker: user_key,
+        taker_order: user.orders[order_index],
+        maker: Pubkey::default(),
+        maker_order: Order::default(),
+        taker_unsettled_pnl: -cast(filler_reward)?,
+        maker_unsettled_pnl: 0,
+        action: OrderAction::Trigger,
+        action_explanation: OrderActionExplanation::None,
+        filler: Pubkey::default(),
+        fill_record_id: 0,
+        market_index,
+        base_asset_amount_filled: 0,
+        quote_asset_amount_filled: 0,
+        filler_reward,
+        taker_fee: 0,
+        maker_rebate: 0,
+        quote_asset_amount_surplus: 0,
+        oracle_price,
+    });
+
+    if let Some(mut filler) = filler {
+        let user_position = user.get_position_mut(market_index)?;
+        controller::position::update_unsettled_pnl(user_position, market, -cast(filler_reward)?)?;
+
+        let filler_position = filler.force_get_position_mut(market_index)?;
+        controller::position::update_unsettled_pnl(filler_position, market, cast(filler_reward)?)?;
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -1193,8 +1542,9 @@ mod tests {
                     market_index: 0,
                     order_type: OrderType::Market,
                     direction: PositionDirection::Long,
-                    base_asset_amount: 1 * BASE_PRECISION,
+                    base_asset_amount: BASE_PRECISION,
                     ts: 0,
+                    slot: 0,
                     auction_start_price: 100 * MARK_PRICE_PRECISION,
                     auction_end_price: 200 * MARK_PRICE_PRECISION,
                     auction_duration: 5,
@@ -1203,7 +1553,7 @@ mod tests {
                 positions: get_positions(MarketPosition {
                     market_index: 0,
                     open_orders: 1,
-                    open_bids: 1 * BASE_PRECISION_I128,
+                    open_bids: BASE_PRECISION_I128,
                     ..MarketPosition::default()
                 }),
                 ..User::default()
@@ -1215,7 +1565,7 @@ mod tests {
                     post_only: true,
                     order_type: OrderType::Limit,
                     direction: PositionDirection::Short,
-                    base_asset_amount: 1 * BASE_PRECISION,
+                    base_asset_amount: BASE_PRECISION,
                     ts: 0,
                     price: 100 * MARK_PRICE_PRECISION,
                     ..Order::default()
@@ -1223,7 +1573,7 @@ mod tests {
                 positions: get_positions(MarketPosition {
                     market_index: 0,
                     open_orders: 1,
-                    open_asks: -1 * BASE_PRECISION_I128,
+                    open_asks: -BASE_PRECISION_I128,
                     ..MarketPosition::default()
                 }),
                 ..User::default()
@@ -1232,10 +1582,13 @@ mod tests {
             let mut market = Market::default();
 
             let now = 1_i64;
+            let slot = 1_u64;
 
             let fee_structure = get_fee_structure();
 
             let (taker_key, maker_key, filler_key) = get_user_keys();
+
+            let mut order_records = vec![];
 
             fulfill_order_with_match(
                 &mut market,
@@ -1248,31 +1601,33 @@ mod tests {
                 None,
                 &filler_key,
                 now,
+                slot,
                 &fee_structure,
                 &mut get_oracle_map(),
+                &mut order_records,
             )
             .unwrap();
 
             let taker_position = &taker.positions[0];
-            assert_eq!(taker_position.base_asset_amount, 1 * BASE_PRECISION_I128);
+            assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I128);
             assert_eq!(taker_position.quote_asset_amount, 100 * QUOTE_PRECISION);
             assert_eq!(taker_position.quote_entry_amount, 100 * QUOTE_PRECISION);
             assert_eq!(taker_position.unsettled_pnl, -50000);
             assert_eq!(taker_position.open_bids, 0);
             assert_eq!(taker_position.open_orders, 0);
-            assert_eq!(taker.total_fee_paid, 50000);
-            assert_eq!(taker.total_referee_discount, 0);
-            assert_eq!(taker.total_token_discount, 0);
+            assert_eq!(taker.fees.total_fee_paid, 50000);
+            assert_eq!(taker.fees.total_referee_discount, 0);
+            assert_eq!(taker.fees.total_token_discount, 0);
             assert_eq!(taker.orders[0], Order::default());
 
             let maker_position = &maker.positions[0];
-            assert_eq!(maker_position.base_asset_amount, -1 * BASE_PRECISION_I128);
+            assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I128);
             assert_eq!(maker_position.quote_asset_amount, 100 * QUOTE_PRECISION);
             assert_eq!(maker_position.quote_entry_amount, 100 * QUOTE_PRECISION);
             assert_eq!(maker_position.unsettled_pnl, 30000);
             assert_eq!(maker_position.open_orders, 0);
             assert_eq!(maker_position.open_asks, 0);
-            assert_eq!(maker.total_fee_rebate, 30000);
+            assert_eq!(maker.fees.total_fee_rebate, 30000);
             assert_eq!(maker.orders[0], Order::default());
 
             assert_eq!(market.amm.net_base_asset_amount, 0);
@@ -1294,8 +1649,9 @@ mod tests {
                     market_index: 0,
                     order_type: OrderType::Market,
                     direction: PositionDirection::Long,
-                    base_asset_amount: 1 * BASE_PRECISION,
+                    base_asset_amount: BASE_PRECISION,
                     ts: 0,
+                    slot: 0,
                     auction_start_price: 100 * MARK_PRICE_PRECISION,
                     auction_end_price: 200 * MARK_PRICE_PRECISION,
                     auction_duration: 5,
@@ -1304,7 +1660,7 @@ mod tests {
                 positions: get_positions(MarketPosition {
                     market_index: 0,
                     open_orders: 1,
-                    open_bids: 1 * BASE_PRECISION_I128,
+                    open_bids: BASE_PRECISION_I128,
                     ..MarketPosition::default()
                 }),
                 ..User::default()
@@ -1316,7 +1672,7 @@ mod tests {
                     post_only: true,
                     order_type: OrderType::Limit,
                     direction: PositionDirection::Short,
-                    base_asset_amount: 1 * BASE_PRECISION,
+                    base_asset_amount: BASE_PRECISION,
                     ts: 0,
                     price: 160 * MARK_PRICE_PRECISION,
                     ..Order::default()
@@ -1324,7 +1680,7 @@ mod tests {
                 positions: get_positions(MarketPosition {
                     market_index: 0,
                     open_orders: 1,
-                    open_asks: -1 * BASE_PRECISION_I128,
+                    open_asks: -BASE_PRECISION_I128,
                     ..MarketPosition::default()
                 }),
                 ..User::default()
@@ -1333,10 +1689,13 @@ mod tests {
             let mut market = Market::default();
 
             let now = 3_i64;
+            let slot = 3_u64;
 
             let fee_structure = get_fee_structure();
 
             let (taker_key, maker_key, filler_key) = get_user_keys();
+
+            let mut order_records = vec![];
 
             fulfill_order_with_match(
                 &mut market,
@@ -1349,31 +1708,33 @@ mod tests {
                 None,
                 &filler_key,
                 now,
+                slot,
                 &fee_structure,
                 &mut get_oracle_map(),
+                &mut order_records,
             )
             .unwrap();
 
             let taker_position = &taker.positions[0];
-            assert_eq!(taker_position.base_asset_amount, 1 * BASE_PRECISION_I128);
+            assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I128);
             assert_eq!(taker_position.quote_asset_amount, 160 * QUOTE_PRECISION);
             assert_eq!(taker_position.quote_entry_amount, 160 * QUOTE_PRECISION);
             assert_eq!(taker_position.unsettled_pnl, -80000);
             assert_eq!(taker_position.open_bids, 0);
             assert_eq!(taker_position.open_orders, 0);
-            assert_eq!(taker.total_fee_paid, 80000);
-            assert_eq!(taker.total_referee_discount, 0);
-            assert_eq!(taker.total_token_discount, 0);
+            assert_eq!(taker.fees.total_fee_paid, 80000);
+            assert_eq!(taker.fees.total_referee_discount, 0);
+            assert_eq!(taker.fees.total_token_discount, 0);
             assert_eq!(taker.orders[0], Order::default());
 
             let maker_position = &maker.positions[0];
-            assert_eq!(maker_position.base_asset_amount, -1 * BASE_PRECISION_I128);
+            assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I128);
             assert_eq!(maker_position.quote_asset_amount, 160 * QUOTE_PRECISION);
             assert_eq!(maker_position.quote_entry_amount, 160 * QUOTE_PRECISION);
             assert_eq!(maker_position.unsettled_pnl, 48000);
             assert_eq!(maker_position.open_orders, 0);
             assert_eq!(maker_position.open_asks, 0);
-            assert_eq!(maker.total_fee_rebate, 48000);
+            assert_eq!(maker.fees.total_fee_rebate, 48000);
             assert_eq!(maker.orders[0], Order::default());
 
             assert_eq!(market.amm.net_base_asset_amount, 0);
@@ -1395,8 +1756,9 @@ mod tests {
                     market_index: 0,
                     order_type: OrderType::Market,
                     direction: PositionDirection::Short,
-                    base_asset_amount: 1 * BASE_PRECISION,
+                    base_asset_amount: BASE_PRECISION,
                     ts: 0,
+                    slot: 0,
                     auction_start_price: 200 * MARK_PRICE_PRECISION,
                     auction_end_price: 100 * MARK_PRICE_PRECISION,
                     auction_duration: 5,
@@ -1405,7 +1767,7 @@ mod tests {
                 positions: get_positions(MarketPosition {
                     market_index: 0,
                     open_orders: 1,
-                    open_asks: -1 * BASE_PRECISION_I128,
+                    open_asks: -BASE_PRECISION_I128,
                     ..MarketPosition::default()
                 }),
                 ..User::default()
@@ -1417,7 +1779,7 @@ mod tests {
                     post_only: true,
                     order_type: OrderType::Limit,
                     direction: PositionDirection::Long,
-                    base_asset_amount: 1 * BASE_PRECISION,
+                    base_asset_amount: BASE_PRECISION,
                     ts: 0,
                     price: 180 * MARK_PRICE_PRECISION,
                     ..Order::default()
@@ -1425,7 +1787,7 @@ mod tests {
                 positions: get_positions(MarketPosition {
                     market_index: 0,
                     open_orders: 1,
-                    open_bids: 1 * BASE_PRECISION_I128,
+                    open_bids: BASE_PRECISION_I128,
                     ..MarketPosition::default()
                 }),
                 ..User::default()
@@ -1434,10 +1796,13 @@ mod tests {
             let mut market = Market::default();
 
             let now = 1_i64;
+            let slot = 1_u64;
 
             let fee_structure = get_fee_structure();
 
             let (taker_key, maker_key, filler_key) = get_user_keys();
+
+            let mut order_records = vec![];
 
             fulfill_order_with_match(
                 &mut market,
@@ -1450,31 +1815,33 @@ mod tests {
                 None,
                 &filler_key,
                 now,
+                slot,
                 &fee_structure,
                 &mut get_oracle_map(),
+                &mut order_records,
             )
             .unwrap();
 
             let taker_position = &taker.positions[0];
-            assert_eq!(taker_position.base_asset_amount, -1 * BASE_PRECISION_I128);
+            assert_eq!(taker_position.base_asset_amount, -BASE_PRECISION_I128);
             assert_eq!(taker_position.quote_asset_amount, 180 * QUOTE_PRECISION);
             assert_eq!(taker_position.quote_entry_amount, 180 * QUOTE_PRECISION);
             assert_eq!(taker_position.unsettled_pnl, -90000);
             assert_eq!(taker_position.open_asks, 0);
             assert_eq!(taker_position.open_orders, 0);
-            assert_eq!(taker.total_fee_paid, 90000);
-            assert_eq!(taker.total_referee_discount, 0);
-            assert_eq!(taker.total_token_discount, 0);
+            assert_eq!(taker.fees.total_fee_paid, 90000);
+            assert_eq!(taker.fees.total_referee_discount, 0);
+            assert_eq!(taker.fees.total_token_discount, 0);
             assert_eq!(taker.orders[0], Order::default());
 
             let maker_position = &maker.positions[0];
-            assert_eq!(maker_position.base_asset_amount, 1 * BASE_PRECISION_I128);
+            assert_eq!(maker_position.base_asset_amount, BASE_PRECISION_I128);
             assert_eq!(maker_position.quote_asset_amount, 180 * QUOTE_PRECISION);
             assert_eq!(maker_position.quote_entry_amount, 180 * QUOTE_PRECISION);
             assert_eq!(maker_position.unsettled_pnl, 54000);
             assert_eq!(maker_position.open_orders, 0);
             assert_eq!(maker_position.open_bids, 0);
-            assert_eq!(maker.total_fee_rebate, 54000);
+            assert_eq!(maker.fees.total_fee_rebate, 54000);
             assert_eq!(maker.orders[0], Order::default());
 
             assert_eq!(market.amm.net_base_asset_amount, 0);
@@ -1496,8 +1863,9 @@ mod tests {
                     market_index: 0,
                     order_type: OrderType::Market,
                     direction: PositionDirection::Short,
-                    base_asset_amount: 1 * BASE_PRECISION,
+                    base_asset_amount: BASE_PRECISION,
                     ts: 0,
+                    slot: 0,
                     auction_start_price: 200 * MARK_PRICE_PRECISION,
                     auction_end_price: 100 * MARK_PRICE_PRECISION,
                     auction_duration: 5,
@@ -1506,7 +1874,7 @@ mod tests {
                 positions: get_positions(MarketPosition {
                     market_index: 0,
                     open_orders: 1,
-                    open_asks: -1 * BASE_PRECISION_I128,
+                    open_asks: -BASE_PRECISION_I128,
                     ..MarketPosition::default()
                 }),
                 ..User::default()
@@ -1518,7 +1886,7 @@ mod tests {
                     post_only: true,
                     order_type: OrderType::Limit,
                     direction: PositionDirection::Long,
-                    base_asset_amount: 1 * BASE_PRECISION,
+                    base_asset_amount: BASE_PRECISION,
                     ts: 0,
                     price: 140 * MARK_PRICE_PRECISION,
                     ..Order::default()
@@ -1526,7 +1894,7 @@ mod tests {
                 positions: get_positions(MarketPosition {
                     market_index: 0,
                     open_orders: 1,
-                    open_bids: 1 * BASE_PRECISION_I128,
+                    open_bids: BASE_PRECISION_I128,
                     ..MarketPosition::default()
                 }),
                 ..User::default()
@@ -1535,10 +1903,13 @@ mod tests {
             let mut market = Market::default();
 
             let now = 3_i64;
+            let slot = 3_u64;
 
             let fee_structure = get_fee_structure();
 
             let (taker_key, maker_key, filler_key) = get_user_keys();
+
+            let mut order_records = vec![];
 
             fulfill_order_with_match(
                 &mut market,
@@ -1551,31 +1922,33 @@ mod tests {
                 None,
                 &filler_key,
                 now,
+                slot,
                 &fee_structure,
                 &mut get_oracle_map(),
+                &mut order_records,
             )
             .unwrap();
 
             let taker_position = &taker.positions[0];
-            assert_eq!(taker_position.base_asset_amount, -1 * BASE_PRECISION_I128);
+            assert_eq!(taker_position.base_asset_amount, -BASE_PRECISION_I128);
             assert_eq!(taker_position.quote_asset_amount, 140 * QUOTE_PRECISION);
             assert_eq!(taker_position.quote_entry_amount, 140 * QUOTE_PRECISION);
             assert_eq!(taker_position.unsettled_pnl, -70000);
             assert_eq!(taker_position.open_asks, 0);
             assert_eq!(taker_position.open_orders, 0);
-            assert_eq!(taker.total_fee_paid, 70000);
-            assert_eq!(taker.total_referee_discount, 0);
-            assert_eq!(taker.total_token_discount, 0);
+            assert_eq!(taker.fees.total_fee_paid, 70000);
+            assert_eq!(taker.fees.total_referee_discount, 0);
+            assert_eq!(taker.fees.total_token_discount, 0);
             assert_eq!(taker.orders[0], Order::default());
 
             let maker_position = &maker.positions[0];
-            assert_eq!(maker_position.base_asset_amount, 1 * BASE_PRECISION_I128);
+            assert_eq!(maker_position.base_asset_amount, BASE_PRECISION_I128);
             assert_eq!(maker_position.quote_asset_amount, 140 * QUOTE_PRECISION);
             assert_eq!(maker_position.quote_entry_amount, 140 * QUOTE_PRECISION);
             assert_eq!(maker_position.unsettled_pnl, 42000);
             assert_eq!(maker_position.open_orders, 0);
             assert_eq!(maker_position.open_bids, 0);
-            assert_eq!(maker.total_fee_rebate, 42000);
+            assert_eq!(maker.fees.total_fee_rebate, 42000);
             assert_eq!(maker.orders[0], Order::default());
 
             assert_eq!(market.amm.net_base_asset_amount, 0);
@@ -1597,8 +1970,9 @@ mod tests {
                     market_index: 0,
                     order_type: OrderType::Market,
                     direction: PositionDirection::Long,
-                    base_asset_amount: 1 * BASE_PRECISION,
+                    base_asset_amount: BASE_PRECISION,
                     ts: 0,
+                    slot: 0,
                     auction_start_price: 100 * MARK_PRICE_PRECISION,
                     auction_end_price: 200 * MARK_PRICE_PRECISION,
                     auction_duration: 5,
@@ -1619,7 +1993,7 @@ mod tests {
                     post_only: true,
                     order_type: OrderType::Limit,
                     direction: PositionDirection::Short,
-                    base_asset_amount: 1 * BASE_PRECISION,
+                    base_asset_amount: BASE_PRECISION,
                     ts: 0,
                     price: 201 * MARK_PRICE_PRECISION,
                     ..Order::default()
@@ -1636,10 +2010,13 @@ mod tests {
             let mut market = Market::default();
 
             let now = 1_i64;
+            let slot = 3_u64;
 
             let fee_structure = FeeStructure::default();
 
             let (taker_key, maker_key, filler_key) = get_user_keys();
+
+            let mut order_records = vec![];
 
             let (base_asset_amount, _) = fulfill_order_with_match(
                 &mut market,
@@ -1652,8 +2029,10 @@ mod tests {
                 None,
                 &filler_key,
                 now,
+                slot,
                 &fee_structure,
                 &mut get_oracle_map(),
+                &mut order_records,
             )
             .unwrap();
 
@@ -1667,7 +2046,7 @@ mod tests {
                     market_index: 0,
                     order_type: OrderType::Market,
                     direction: PositionDirection::Short,
-                    base_asset_amount: 1 * BASE_PRECISION,
+                    base_asset_amount: BASE_PRECISION,
                     ts: 0,
                     auction_start_price: 200 * MARK_PRICE_PRECISION,
                     auction_end_price: 100 * MARK_PRICE_PRECISION,
@@ -1689,7 +2068,7 @@ mod tests {
                     post_only: true,
                     order_type: OrderType::Limit,
                     direction: PositionDirection::Long,
-                    base_asset_amount: 1 * BASE_PRECISION,
+                    base_asset_amount: BASE_PRECISION,
                     ts: 0,
                     price: 99 * MARK_PRICE_PRECISION,
                     ..Order::default()
@@ -1706,10 +2085,13 @@ mod tests {
             let mut market = Market::default();
 
             let now = 1_i64;
+            let slot = 3_u64;
 
             let fee_structure = FeeStructure::default();
 
             let (taker_key, maker_key, filler_key) = get_user_keys();
+
+            let mut order_records = vec![];
 
             let (base_asset_amount, _) = fulfill_order_with_match(
                 &mut market,
@@ -1722,8 +2104,10 @@ mod tests {
                 None,
                 &filler_key,
                 now,
+                slot,
                 &fee_structure,
                 &mut get_oracle_map(),
+                &mut order_records,
             )
             .unwrap();
 
@@ -1737,8 +2121,9 @@ mod tests {
                     market_index: 0,
                     order_type: OrderType::Market,
                     direction: PositionDirection::Short,
-                    base_asset_amount: 1 * BASE_PRECISION,
+                    base_asset_amount: BASE_PRECISION,
                     ts: 0,
+                    slot: 0,
                     auction_start_price: 200 * MARK_PRICE_PRECISION,
                     auction_end_price: 100 * MARK_PRICE_PRECISION,
                     auction_duration: 5,
@@ -1759,7 +2144,7 @@ mod tests {
                     post_only: true,
                     order_type: OrderType::Limit,
                     direction: PositionDirection::Short,
-                    base_asset_amount: 1 * BASE_PRECISION,
+                    base_asset_amount: BASE_PRECISION,
                     ts: 0,
                     price: 200 * MARK_PRICE_PRECISION,
                     ..Order::default()
@@ -1776,10 +2161,13 @@ mod tests {
             let mut market = Market::default();
 
             let now = 1_i64;
+            let slot = 1_u64;
 
             let fee_structure = FeeStructure::default();
 
             let (taker_key, maker_key, filler_key) = get_user_keys();
+
+            let mut order_records = vec![];
 
             let (base_asset_amount, _) = fulfill_order_with_match(
                 &mut market,
@@ -1792,8 +2180,10 @@ mod tests {
                 None,
                 &filler_key,
                 now,
+                slot,
                 &fee_structure,
                 &mut get_oracle_map(),
+                &mut order_records,
             )
             .unwrap();
 
@@ -1807,7 +2197,7 @@ mod tests {
                     market_index: 1,
                     order_type: OrderType::Market,
                     direction: PositionDirection::Short,
-                    base_asset_amount: 1 * BASE_PRECISION,
+                    base_asset_amount: BASE_PRECISION,
                     ts: 0,
                     auction_start_price: 200 * MARK_PRICE_PRECISION,
                     auction_end_price: 100 * MARK_PRICE_PRECISION,
@@ -1829,7 +2219,7 @@ mod tests {
                     post_only: true,
                     order_type: OrderType::Limit,
                     direction: PositionDirection::Long,
-                    base_asset_amount: 1 * BASE_PRECISION,
+                    base_asset_amount: BASE_PRECISION,
                     ts: 0,
                     price: 200 * MARK_PRICE_PRECISION,
                     auction_duration: 5,
@@ -1847,10 +2237,13 @@ mod tests {
             let mut market = Market::default();
 
             let now = 1_i64;
+            let slot = 1_u64;
 
             let fee_structure = FeeStructure::default();
 
             let (taker_key, maker_key, filler_key) = get_user_keys();
+
+            let mut order_records = vec![];
 
             let (base_asset_amount, _) = fulfill_order_with_match(
                 &mut market,
@@ -1863,8 +2256,10 @@ mod tests {
                 None,
                 &filler_key,
                 now,
+                slot,
                 &fee_structure,
                 &mut get_oracle_map(),
+                &mut order_records,
             )
             .unwrap();
 
@@ -1880,6 +2275,7 @@ mod tests {
                     direction: PositionDirection::Long,
                     base_asset_amount: 100 * BASE_PRECISION,
                     ts: 0,
+                    slot: 0,
                     auction_start_price: 100 * MARK_PRICE_PRECISION,
                     auction_end_price: 200 * MARK_PRICE_PRECISION,
                     auction_duration: 5,
@@ -1900,7 +2296,7 @@ mod tests {
                     post_only: true,
                     order_type: OrderType::Limit,
                     direction: PositionDirection::Short,
-                    base_asset_amount: 1 * BASE_PRECISION,
+                    base_asset_amount: BASE_PRECISION,
                     ts: 0,
                     price: 120 * MARK_PRICE_PRECISION,
                     ..Order::default()
@@ -1908,7 +2304,7 @@ mod tests {
                 positions: get_positions(MarketPosition {
                     market_index: 0,
                     open_orders: 1,
-                    open_asks: -1 * BASE_PRECISION_I128,
+                    open_asks: -BASE_PRECISION_I128,
                     ..MarketPosition::default()
                 }),
                 ..User::default()
@@ -1917,11 +2313,13 @@ mod tests {
             let mut market = Market::default();
 
             let now = 1_i64;
-            let auction_duration = 5_i64;
+            let slot = 1_u64;
 
             let fee_structure = FeeStructure::default();
 
             let (taker_key, maker_key, filler_key) = get_user_keys();
+
+            let mut order_records = vec![];
 
             fulfill_order_with_match(
                 &mut market,
@@ -1934,18 +2332,20 @@ mod tests {
                 None,
                 &filler_key,
                 now,
+                slot,
                 &fee_structure,
                 &mut get_oracle_map(),
+                &mut order_records,
             )
             .unwrap();
 
             let taker_position = &taker.positions[0];
-            assert_eq!(taker_position.base_asset_amount, 1 * BASE_PRECISION_I128);
+            assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I128);
             assert_eq!(taker_position.quote_asset_amount, 120 * QUOTE_PRECISION);
             assert_eq!(taker_position.quote_entry_amount, 120 * QUOTE_PRECISION);
 
             let maker_position = &maker.positions[0];
-            assert_eq!(maker_position.base_asset_amount, -1 * BASE_PRECISION_I128);
+            assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I128);
             assert_eq!(maker_position.quote_asset_amount, 120 * QUOTE_PRECISION);
             assert_eq!(maker_position.quote_entry_amount, 120 * QUOTE_PRECISION);
 
@@ -1963,8 +2363,9 @@ mod tests {
                     market_index: 0,
                     order_type: OrderType::Market,
                     direction: PositionDirection::Long,
-                    base_asset_amount: 1 * BASE_PRECISION,
+                    base_asset_amount: BASE_PRECISION,
                     ts: 0,
+                    slot: 0,
                     auction_start_price: 100 * MARK_PRICE_PRECISION,
                     auction_end_price: 200 * MARK_PRICE_PRECISION,
                     auction_duration: 5,
@@ -2002,11 +2403,13 @@ mod tests {
             let mut market = Market::default();
 
             let now = 1_i64;
-            let auction_duration = 5_i64;
+            let slot = 1_u64;
 
             let fee_structure = FeeStructure::default();
 
             let (taker_key, maker_key, filler_key) = get_user_keys();
+
+            let mut order_records = vec![];
 
             fulfill_order_with_match(
                 &mut market,
@@ -2019,18 +2422,20 @@ mod tests {
                 None,
                 &filler_key,
                 now,
+                slot,
                 &fee_structure,
                 &mut get_oracle_map(),
+                &mut order_records,
             )
             .unwrap();
 
             let taker_position = &taker.positions[0];
-            assert_eq!(taker_position.base_asset_amount, 1 * BASE_PRECISION_I128);
+            assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I128);
             assert_eq!(taker_position.quote_asset_amount, 120 * QUOTE_PRECISION);
             assert_eq!(taker_position.quote_entry_amount, 120 * QUOTE_PRECISION);
 
             let maker_position = &maker.positions[0];
-            assert_eq!(maker_position.base_asset_amount, -1 * BASE_PRECISION_I128);
+            assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I128);
             assert_eq!(maker_position.quote_asset_amount, 120 * QUOTE_PRECISION);
             assert_eq!(maker_position.quote_entry_amount, 120 * QUOTE_PRECISION);
 
@@ -2048,8 +2453,9 @@ mod tests {
                     market_index: 0,
                     order_type: OrderType::Market,
                     direction: PositionDirection::Long,
-                    base_asset_amount: 1 * BASE_PRECISION,
+                    base_asset_amount: BASE_PRECISION,
                     ts: 0,
+                    slot: 0,
                     auction_start_price: 100 * MARK_PRICE_PRECISION,
                     auction_end_price: 200 * MARK_PRICE_PRECISION,
                     auction_duration: 10,
@@ -2058,7 +2464,7 @@ mod tests {
                 positions: get_positions(MarketPosition {
                     market_index: 0,
                     open_orders: 1,
-                    open_bids: 1 * BASE_PRECISION_I128,
+                    open_bids: BASE_PRECISION_I128,
                     ..MarketPosition::default()
                 }),
                 ..User::default()
@@ -2070,8 +2476,9 @@ mod tests {
                     post_only: true,
                     order_type: OrderType::Market,
                     direction: PositionDirection::Short,
-                    base_asset_amount: 1 * BASE_PRECISION,
+                    base_asset_amount: BASE_PRECISION,
                     ts: 0,
+                    slot: 0,
                     auction_start_price: 200 * MARK_PRICE_PRECISION,
                     auction_end_price: 100 * MARK_PRICE_PRECISION,
                     auction_duration: 10,
@@ -2080,7 +2487,7 @@ mod tests {
                 positions: get_positions(MarketPosition {
                     market_index: 0,
                     open_orders: 1,
-                    open_asks: -1 * BASE_PRECISION_I128,
+                    open_asks: -BASE_PRECISION_I128,
                     ..MarketPosition::default()
                 }),
                 ..User::default()
@@ -2089,10 +2496,13 @@ mod tests {
             let mut market = Market::default();
 
             let now = 5_i64;
+            let slot = 5_u64;
 
             let fee_structure = get_fee_structure();
 
             let (taker_key, maker_key, filler_key) = get_user_keys();
+
+            let mut order_records = vec![];
 
             fulfill_order_with_match(
                 &mut market,
@@ -2105,31 +2515,33 @@ mod tests {
                 None,
                 &filler_key,
                 now,
+                slot,
                 &fee_structure,
                 &mut get_oracle_map(),
+                &mut order_records,
             )
             .unwrap();
 
             let taker_position = &taker.positions[0];
-            assert_eq!(taker_position.base_asset_amount, 1 * BASE_PRECISION_I128);
+            assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I128);
             assert_eq!(taker_position.quote_asset_amount, 150 * QUOTE_PRECISION);
             assert_eq!(taker_position.quote_entry_amount, 150 * QUOTE_PRECISION);
             assert_eq!(taker_position.unsettled_pnl, -75000);
             assert_eq!(taker_position.open_bids, 0);
             assert_eq!(taker_position.open_orders, 0);
-            assert_eq!(taker.total_fee_paid, 75000);
-            assert_eq!(taker.total_referee_discount, 0);
-            assert_eq!(taker.total_token_discount, 0);
+            assert_eq!(taker.fees.total_fee_paid, 75000);
+            assert_eq!(taker.fees.total_referee_discount, 0);
+            assert_eq!(taker.fees.total_token_discount, 0);
             assert_eq!(taker.orders[0], Order::default());
 
             let maker_position = &maker.positions[0];
-            assert_eq!(maker_position.base_asset_amount, -1 * BASE_PRECISION_I128);
+            assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I128);
             assert_eq!(maker_position.quote_asset_amount, 150 * QUOTE_PRECISION);
             assert_eq!(maker_position.quote_entry_amount, 150 * QUOTE_PRECISION);
             assert_eq!(maker_position.unsettled_pnl, 45000);
             assert_eq!(maker_position.open_orders, 0);
             assert_eq!(maker_position.open_asks, 0);
-            assert_eq!(maker.total_fee_rebate, 45000);
+            assert_eq!(maker.fees.total_fee_rebate, 45000);
             assert_eq!(maker.orders[0], Order::default());
 
             assert_eq!(market.amm.net_base_asset_amount, 0);
@@ -2146,32 +2558,33 @@ mod tests {
 
         #[test]
         fn taker_bid_crosses_maker_ask() {
-            let mut first_user = User {
+            let mut maker = User {
                 orders: get_orders(Order {
                     market_index: 0,
                     post_only: true,
                     order_type: OrderType::Limit,
                     direction: PositionDirection::Short,
-                    base_asset_amount: 1 * BASE_PRECISION,
+                    base_asset_amount: BASE_PRECISION,
                     ts: 0,
+                    slot: 0,
                     price: 100 * MARK_PRICE_PRECISION,
                     ..Order::default()
                 }),
                 positions: get_positions(MarketPosition {
                     market_index: 0,
                     open_orders: 1,
-                    open_asks: -1 * BASE_PRECISION_I128,
+                    open_asks: -BASE_PRECISION_I128,
                     ..MarketPosition::default()
                 }),
                 ..User::default()
             };
 
-            let mut second_user = User {
+            let mut taker = User {
                 orders: get_orders(Order {
                     market_index: 0,
                     order_type: OrderType::Limit,
                     direction: PositionDirection::Long,
-                    base_asset_amount: 1 * BASE_PRECISION,
+                    base_asset_amount: BASE_PRECISION,
                     ts: 0,
                     price: 150 * MARK_PRICE_PRECISION,
                     ..Order::default()
@@ -2179,7 +2592,7 @@ mod tests {
                 positions: get_positions(MarketPosition {
                     market_index: 0,
                     open_orders: 1,
-                    open_bids: 1 * BASE_PRECISION_I128,
+                    open_bids: BASE_PRECISION_I128,
                     ..MarketPosition::default()
                 }),
                 ..User::default()
@@ -2188,47 +2601,52 @@ mod tests {
             let mut market = Market::default();
 
             let now = 5_i64;
+            let slot = 5_u64;
 
             let fee_structure = get_fee_structure();
-            let (first_user_key, second_user_key, filler_key) = get_user_keys();
+            let (maker_key, taker_key, filler_key) = get_user_keys();
+
+            let mut order_records = vec![];
 
             fulfill_order_with_match(
                 &mut market,
-                &mut first_user,
+                &mut taker,
                 0,
-                &first_user_key,
-                &mut second_user,
+                &taker_key,
+                &mut maker,
                 0,
-                &second_user_key,
+                &maker_key,
                 None,
                 &filler_key,
                 now,
+                slot,
                 &fee_structure,
                 &mut get_oracle_map(),
+                &mut order_records,
             )
             .unwrap();
 
-            let maker_position = &first_user.positions[0];
-            assert_eq!(maker_position.base_asset_amount, -1 * BASE_PRECISION_I128);
+            let maker_position = &maker.positions[0];
+            assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I128);
             assert_eq!(maker_position.quote_asset_amount, 100 * QUOTE_PRECISION);
             assert_eq!(maker_position.quote_entry_amount, 100 * QUOTE_PRECISION);
             assert_eq!(maker_position.unsettled_pnl, 30000);
             assert_eq!(maker_position.open_orders, 0);
             assert_eq!(maker_position.open_asks, 0);
-            assert_eq!(first_user.total_fee_rebate, 30000);
-            assert_eq!(first_user.orders[0], Order::default());
+            assert_eq!(maker.fees.total_fee_rebate, 30000);
+            assert_eq!(maker.orders[0], Order::default());
 
-            let taker_position = &second_user.positions[0];
-            assert_eq!(taker_position.base_asset_amount, 1 * BASE_PRECISION_I128);
+            let taker_position = &taker.positions[0];
+            assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I128);
             assert_eq!(taker_position.quote_asset_amount, 100 * QUOTE_PRECISION);
             assert_eq!(taker_position.quote_entry_amount, 100 * QUOTE_PRECISION);
             assert_eq!(taker_position.unsettled_pnl, -50000);
             assert_eq!(taker_position.open_bids, 0);
             assert_eq!(taker_position.open_orders, 0);
-            assert_eq!(second_user.total_fee_paid, 50000);
-            assert_eq!(second_user.total_referee_discount, 0);
-            assert_eq!(second_user.total_token_discount, 0);
-            assert_eq!(second_user.orders[0], Order::default());
+            assert_eq!(taker.fees.total_fee_paid, 50000);
+            assert_eq!(taker.fees.total_referee_discount, 0);
+            assert_eq!(taker.fees.total_token_discount, 0);
+            assert_eq!(taker.orders[0], Order::default());
 
             assert_eq!(market.amm.net_base_asset_amount, 0);
             assert_eq!(market.base_asset_amount_long, BASE_PRECISION_I128);
@@ -2244,32 +2662,33 @@ mod tests {
 
         #[test]
         fn taker_ask_crosses_maker_bid() {
-            let mut first_user = User {
+            let mut maker = User {
                 orders: get_orders(Order {
                     market_index: 0,
                     post_only: true,
                     order_type: OrderType::Limit,
                     direction: PositionDirection::Long,
-                    base_asset_amount: 1 * BASE_PRECISION,
+                    base_asset_amount: BASE_PRECISION,
                     ts: 0,
+                    slot: 0,
                     price: 100 * MARK_PRICE_PRECISION,
                     ..Order::default()
                 }),
                 positions: get_positions(MarketPosition {
                     market_index: 0,
                     open_orders: 1,
-                    open_bids: 1 * BASE_PRECISION_I128,
+                    open_bids: BASE_PRECISION_I128,
                     ..MarketPosition::default()
                 }),
                 ..User::default()
             };
 
-            let mut second_user = User {
+            let mut taker = User {
                 orders: get_orders(Order {
                     market_index: 0,
                     order_type: OrderType::Limit,
                     direction: PositionDirection::Short,
-                    base_asset_amount: 1 * BASE_PRECISION,
+                    base_asset_amount: BASE_PRECISION,
                     ts: 0,
                     price: 50 * MARK_PRICE_PRECISION,
                     ..Order::default()
@@ -2277,7 +2696,7 @@ mod tests {
                 positions: get_positions(MarketPosition {
                     market_index: 0,
                     open_orders: 1,
-                    open_asks: -1 * BASE_PRECISION_I128,
+                    open_asks: -BASE_PRECISION_I128,
                     ..MarketPosition::default()
                 }),
                 ..User::default()
@@ -2286,48 +2705,53 @@ mod tests {
             let mut market = Market::default();
 
             let now = 5_i64;
+            let slot = 5_u64;
 
             let fee_structure = get_fee_structure();
 
-            let (first_user_key, second_user_key, filler_key) = get_user_keys();
+            let (maker_key, taker_key, filler_key) = get_user_keys();
+
+            let mut order_records = vec![];
 
             fulfill_order_with_match(
                 &mut market,
-                &mut first_user,
+                &mut taker,
                 0,
-                &first_user_key,
-                &mut second_user,
+                &taker_key,
+                &mut maker,
                 0,
-                &second_user_key,
+                &maker_key,
                 None,
                 &filler_key,
                 now,
+                slot,
                 &fee_structure,
                 &mut get_oracle_map(),
+                &mut order_records,
             )
             .unwrap();
 
-            let maker_position = &first_user.positions[0];
-            assert_eq!(maker_position.base_asset_amount, 1 * BASE_PRECISION_I128);
+            let maker_position = &maker.positions[0];
+            assert_eq!(maker_position.base_asset_amount, BASE_PRECISION_I128);
             assert_eq!(maker_position.quote_asset_amount, 100 * QUOTE_PRECISION);
             assert_eq!(maker_position.quote_entry_amount, 100 * QUOTE_PRECISION);
             assert_eq!(maker_position.unsettled_pnl, 30000);
             assert_eq!(maker_position.open_orders, 0);
             assert_eq!(maker_position.open_bids, 0);
-            assert_eq!(first_user.total_fee_rebate, 30000);
-            assert_eq!(first_user.orders[0], Order::default());
+            assert_eq!(maker.fees.total_fee_rebate, 30000);
+            assert_eq!(maker.orders[0], Order::default());
 
-            let taker_position = &second_user.positions[0];
-            assert_eq!(taker_position.base_asset_amount, -1 * BASE_PRECISION_I128);
+            let taker_position = &taker.positions[0];
+            assert_eq!(taker_position.base_asset_amount, -BASE_PRECISION_I128);
             assert_eq!(taker_position.quote_asset_amount, 100 * QUOTE_PRECISION);
             assert_eq!(taker_position.quote_entry_amount, 100 * QUOTE_PRECISION);
             assert_eq!(taker_position.unsettled_pnl, -50000);
             assert_eq!(taker_position.open_asks, 0);
             assert_eq!(taker_position.open_orders, 0);
-            assert_eq!(second_user.total_fee_paid, 50000);
-            assert_eq!(second_user.total_referee_discount, 0);
-            assert_eq!(second_user.total_token_discount, 0);
-            assert_eq!(second_user.orders[0], Order::default());
+            assert_eq!(taker.fees.total_fee_paid, 50000);
+            assert_eq!(taker.fees.total_referee_discount, 0);
+            assert_eq!(taker.fees.total_token_discount, 0);
+            assert_eq!(taker.orders[0], Order::default());
 
             assert_eq!(market.amm.net_base_asset_amount, 0);
             assert_eq!(market.base_asset_amount_long, BASE_PRECISION_I128);

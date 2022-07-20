@@ -381,11 +381,6 @@
           "name": "authority",
           "isMut": false,
           "isSigner": true
-        },
-        {
-          "name": "oracle",
-          "isMut": false,
-          "isSigner": false
         }
       ],
       "args": [
@@ -414,17 +409,14 @@
           "name": "authority",
           "isMut": false,
           "isSigner": true
-        },
-        {
-          "name": "oracle",
-          "isMut": false,
-          "isSigner": false
         }
       ],
       "args": [
         {
           "name": "orderId",
-          "type": "u64"
+          "type": {
+            "option": "u64"
+          }
         }
       ]
     },
@@ -445,11 +437,6 @@
           "name": "authority",
           "isMut": false,
           "isSigner": true
-        },
-        {
-          "name": "oracle",
-          "isMut": false,
-          "isSigner": false
         }
       ],
       "args": [
@@ -481,22 +468,25 @@
           "name": "user",
           "isMut": true,
           "isSigner": false
-        },
-        {
-          "name": "oracle",
-          "isMut": false,
-          "isSigner": false
         }
       ],
       "args": [
         {
-          "name": "takerOrderId",
-          "type": "u64"
+          "name": "orderId",
+          "type": {
+            "option": "u64"
+          }
+        },
+        {
+          "name": "makerOrderId",
+          "type": {
+            "option": "u64"
+          }
         }
       ]
     },
     {
-      "name": "placeAndFillOrder",
+      "name": "placeAndTake",
       "accounts": [
         {
           "name": "state",
@@ -512,11 +502,6 @@
           "name": "authority",
           "isMut": false,
           "isSigner": true
-        },
-        {
-          "name": "oracle",
-          "isMut": false,
-          "isSigner": false
         }
       ],
       "args": [
@@ -525,6 +510,80 @@
           "type": {
             "defined": "OrderParams"
           }
+        },
+        {
+          "name": "makerOrderId",
+          "type": {
+            "option": "u64"
+          }
+        }
+      ]
+    },
+    {
+      "name": "placeAndMake",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "taker",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "OrderParams"
+          }
+        },
+        {
+          "name": "takerOrderId",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "triggerOrder",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "filler",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "orderId",
+          "type": "u64"
         }
       ]
     },
@@ -939,11 +998,6 @@
           "name": "user",
           "isMut": true,
           "isSigner": false
-        },
-        {
-          "name": "market",
-          "isMut": false,
-          "isSigner": false
         }
       ],
       "args": []
@@ -1332,6 +1386,32 @@
         {
           "name": "baseSpread",
           "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "updateMarketMaxSpread",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "maxSpread",
+          "type": "u32"
         }
       ]
     },
@@ -1853,24 +1933,10 @@
             }
           },
           {
-            "name": "totalFeePaid",
-            "type": "u64"
-          },
-          {
-            "name": "totalFeeRebate",
-            "type": "u64"
-          },
-          {
-            "name": "totalTokenDiscount",
-            "type": "u128"
-          },
-          {
-            "name": "totalReferralReward",
-            "type": "u128"
-          },
-          {
-            "name": "totalRefereeDiscount",
-            "type": "u128"
+            "name": "fees",
+            "type": {
+              "defined": "UserFees"
+            }
           },
           {
             "name": "nextOrderId",
@@ -2155,6 +2221,10 @@
             "type": "u128"
           },
           {
+            "name": "maxSpread",
+            "type": "u32"
+          },
+          {
             "name": "askBaseAssetReserve",
             "type": "u128"
           },
@@ -2212,7 +2282,7 @@
           },
           {
             "name": "totalFeeMinusDistributions",
-            "type": "u128"
+            "type": "i128"
           },
           {
             "name": "totalFeeWithdrawn",
@@ -2450,6 +2520,34 @@
       }
     },
     {
+      "name": "UserFees",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "totalFeePaid",
+            "type": "u64"
+          },
+          {
+            "name": "totalFeeRebate",
+            "type": "u64"
+          },
+          {
+            "name": "totalTokenDiscount",
+            "type": "u128"
+          },
+          {
+            "name": "totalReferralReward",
+            "type": "u128"
+          },
+          {
+            "name": "totalRefereeDiscount",
+            "type": "u128"
+          }
+        ]
+      }
+    },
+    {
       "name": "UserBankBalance",
       "type": {
         "kind": "struct",
@@ -2565,6 +2663,10 @@
             "type": "i64"
           },
           {
+            "name": "slot",
+            "type": "u64"
+          },
+          {
             "name": "orderId",
             "type": "u64"
           },
@@ -2639,6 +2741,10 @@
             "type": {
               "defined": "OrderTriggerCondition"
             }
+          },
+          {
+            "name": "triggered",
+            "type": "bool"
           },
           {
             "name": "referrer",
@@ -2777,7 +2883,27 @@
             "name": "Fill"
           },
           {
+            "name": "Trigger"
+          },
+          {
             "name": "Expire"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderActionExplanation",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "None"
+          },
+          {
+            "name": "BreachedMarginRequirement"
+          },
+          {
+            "name": "OraclePriceBreachedLimitPrice"
           }
         ]
       }
@@ -2925,6 +3051,11 @@
         {
           "name": "bankIndex",
           "type": "u64",
+          "index": false
+        },
+        {
+          "name": "oraclePrice",
+          "type": "i128",
           "index": false
         },
         {
@@ -3128,7 +3259,7 @@
         },
         {
           "name": "totalFeeMinusDistributions",
-          "type": "u128",
+          "type": "i128",
           "index": false
         },
         {
@@ -3232,6 +3363,11 @@
           "index": false
         },
         {
+          "name": "slot",
+          "type": "u64",
+          "index": false
+        },
+        {
           "name": "taker",
           "type": "publicKey",
           "index": false
@@ -3256,9 +3392,26 @@
           "index": false
         },
         {
+          "name": "makerUnsettledPnl",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "takerUnsettledPnl",
+          "type": "i128",
+          "index": false
+        },
+        {
           "name": "action",
           "type": {
             "defined": "OrderAction"
+          },
+          "index": false
+        },
+        {
+          "name": "actionExplanation",
+          "type": {
+            "defined": "OrderActionExplanation"
           },
           "index": false
         },
@@ -3573,186 +3726,201 @@
     },
     {
       "code": 6051,
-      "name": "MarketOrderMustBeInPlaceAndFill",
-      "msg": "Market order must be in place and fill"
-    },
-    {
-      "code": 6052,
       "name": "UserOrderIdAlreadyInUse",
       "msg": "User Order Id Already In Use"
     },
     {
-      "code": 6053,
+      "code": 6052,
       "name": "NoPositionsLiquidatable",
       "msg": "No positions liquidatable"
     },
     {
-      "code": 6054,
+      "code": 6053,
       "name": "InvalidMarginRatio",
       "msg": "Invalid Margin Ratio"
     },
     {
-      "code": 6055,
+      "code": 6054,
       "name": "CantCancelPostOnlyOrder",
       "msg": "Cant Cancel Post Only Order"
     },
     {
-      "code": 6056,
+      "code": 6055,
       "name": "InvalidOracleOffset",
       "msg": "InvalidOracleOffset"
     },
     {
-      "code": 6057,
+      "code": 6056,
       "name": "CantExpireOrders",
       "msg": "CantExpireOrders"
     },
     {
-      "code": 6058,
+      "code": 6057,
       "name": "CouldNotLoadMarketData",
       "msg": "CouldNotLoadMarketData"
     },
     {
-      "code": 6059,
+      "code": 6058,
       "name": "MarketNotFound",
       "msg": "MarketNotFound"
     },
     {
-      "code": 6060,
+      "code": 6059,
       "name": "InvalidMarketAccount",
       "msg": "InvalidMarketAccount"
     },
     {
-      "code": 6061,
+      "code": 6060,
       "name": "UnableToLoadMarketAccount",
       "msg": "UnableToLoadMarketAccount"
     },
     {
-      "code": 6062,
+      "code": 6061,
       "name": "MarketWrongMutability",
       "msg": "MarketWrongMutability"
     },
     {
-      "code": 6063,
+      "code": 6062,
       "name": "UnableToCastUnixTime",
       "msg": "UnableToCastUnixTime"
     },
     {
-      "code": 6064,
+      "code": 6063,
       "name": "CouldNotFindBankBalance",
       "msg": "CouldNotFindBankBalance"
     },
     {
-      "code": 6065,
+      "code": 6064,
       "name": "NoUserBankBalanceAvailable",
       "msg": "NoUserBankBalanceAvailable"
     },
     {
-      "code": 6066,
+      "code": 6065,
       "name": "InvalidBankInitialization",
       "msg": "InvalidBankInitialization"
     },
     {
-      "code": 6067,
+      "code": 6066,
       "name": "CouldNotLoadBankData",
       "msg": "CouldNotLoadBankData"
     },
     {
-      "code": 6068,
+      "code": 6067,
       "name": "BankNotFound",
       "msg": "BankNotFound"
     },
     {
-      "code": 6069,
+      "code": 6068,
       "name": "InvalidBankAccount",
       "msg": "InvalidBankAccount"
     },
     {
-      "code": 6070,
+      "code": 6069,
       "name": "UnableToLoadBankAccount",
       "msg": "UnableToLoadBankAccount"
     },
     {
-      "code": 6071,
+      "code": 6070,
       "name": "BankWrongMutability",
       "msg": "BankWrongMutability"
     },
     {
-      "code": 6072,
+      "code": 6071,
       "name": "BankInterestNotUpToDate",
       "msg": "BankInterestNotUpToDate"
     },
     {
-      "code": 6073,
+      "code": 6072,
       "name": "BankInsufficientDeposits",
       "msg": "BankInsufficientDeposits"
     },
     {
-      "code": 6074,
+      "code": 6073,
       "name": "UserMustSettleTheirOwnPositiveUnsettledPNL",
       "msg": "UserMustSettleTheirOwnPositiveUnsettledPNL"
     },
     {
-      "code": 6075,
+      "code": 6074,
       "name": "CantUpdatePoolBalanceType",
       "msg": "CantUpdatePoolBalanceType"
     },
     {
-      "code": 6076,
+      "code": 6075,
       "name": "InsufficientCollateralForSettlingPNL",
       "msg": "InsufficientCollateralForSettlingPNL"
     },
     {
-      "code": 6077,
+      "code": 6076,
       "name": "AMMNotUpdatedInSameSlot",
       "msg": "AMMNotUpdatedInSameSlot"
     },
     {
-      "code": 6078,
+      "code": 6077,
       "name": "AuctionNotComplete",
       "msg": "AuctionNotComplete"
     },
     {
-      "code": 6079,
+      "code": 6078,
       "name": "MakerNotFound",
       "msg": "MakerNotFound"
     },
     {
-      "code": 6080,
+      "code": 6079,
       "name": "MakerMustBeWritable",
       "msg": "MakerMustBeWritable"
     },
     {
-      "code": 6081,
+      "code": 6080,
       "name": "MakerOrderNotFound",
       "msg": "MakerOrderNotFound"
     },
     {
-      "code": 6082,
+      "code": 6081,
       "name": "CouldNotDeserializeMaker",
       "msg": "CouldNotDeserializeMaker"
     },
     {
-      "code": 6083,
+      "code": 6082,
       "name": "AuctionPriceDoesNotSatisfyMaker",
       "msg": "AuctionPriceDoesNotSatisfyMaker"
     },
     {
-      "code": 6084,
+      "code": 6083,
       "name": "MakerCantFulfillOwnOrder",
       "msg": "MakerCantFulfillOwnOrder"
     },
     {
-      "code": 6085,
+      "code": 6084,
       "name": "MakerOrderMustBePostOnly",
       "msg": "MakerOrderMustBePostOnly"
     },
     {
-      "code": 6086,
+      "code": 6085,
       "name": "CantMatchTwoPostOnlys",
       "msg": "CantMatchTwoPostOnlys"
     },
     {
+      "code": 6086,
+      "name": "OrderBreachesOraclePriceLimits",
+      "msg": "OrderBreachesOraclePriceLimits"
+    },
+    {
       "code": 6087,
+      "name": "OrderMustBeTriggeredFirst",
+      "msg": "OrderMustBeTriggeredFirst"
+    },
+    {
+      "code": 6088,
+      "name": "OrderNotTriggerable",
+      "msg": "OrderNotTriggerable"
+    },
+    {
+      "code": 6089,
+      "name": "OrderDidNotSatisfyTriggerCondition",
+      "msg": "OrderDidNotSatisfyTriggerCondition"
+    },
+    {
+      "code": 6090,
       "name": "DefaultError",
       "msg": "DefaultError"
     }

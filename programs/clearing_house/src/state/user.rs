@@ -4,7 +4,7 @@ use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::msg;
 
-use crate::controller::position::{get_position_index, PositionDirection};
+use crate::controller::position::{add_new_position, get_position_index, PositionDirection};
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::auction::calculate_auction_price;
 use crate::math::constants::QUOTE_ASSET_BANK_INDEX;
@@ -19,11 +19,7 @@ pub struct User {
     pub user_id: u8,
     pub name: [u8; 32],
     pub bank_balances: [UserBankBalance; 8],
-    pub total_fee_paid: u64,
-    pub total_fee_rebate: u64,
-    pub total_token_discount: u128,
-    pub total_referral_reward: u128,
-    pub total_referee_discount: u128,
+    pub fees: UserFees,
     pub next_order_id: u64,
     pub positions: [MarketPosition; 5],
     pub orders: [Order; 32],
@@ -76,11 +72,24 @@ impl User {
         Ok(next_balance)
     }
 
+    pub fn get_position(&self, market_index: u64) -> ClearingHouseResult<&MarketPosition> {
+        Ok(&self.positions[get_position_index(&self.positions, market_index)?])
+    }
+
     pub fn get_position_mut(
         &mut self,
         market_index: u64,
     ) -> ClearingHouseResult<&mut MarketPosition> {
         Ok(&mut self.positions[get_position_index(&self.positions, market_index)?])
+    }
+
+    pub fn force_get_position_mut(
+        &mut self,
+        market_index: u64,
+    ) -> ClearingHouseResult<&mut MarketPosition> {
+        let position_index = get_position_index(&self.positions, market_index)
+            .or_else(|_| add_new_position(&mut self.positions, market_index))?;
+        Ok(&mut self.positions[position_index])
     }
 
     pub fn get_order_index(&self, order_id: u64) -> ClearingHouseResult<usize> {
@@ -89,6 +98,17 @@ impl User {
             .position(|order| order.order_id == order_id)
             .ok_or(ErrorCode::OrderDoesNotExist)
     }
+}
+
+#[zero_copy]
+#[derive(Default)]
+#[repr(packed)]
+pub struct UserFees {
+    pub total_fee_paid: u64,
+    pub total_fee_rebate: u64,
+    pub total_token_discount: u128,
+    pub total_referral_reward: u128,
+    pub total_referee_discount: u128,
 }
 
 #[zero_copy]
@@ -204,6 +224,7 @@ pub struct Order {
     pub status: OrderStatus,
     pub order_type: OrderType,
     pub ts: i64,
+    pub slot: u64,
     pub order_id: u64,
     pub user_order_id: u8,
     pub market_index: u64,
@@ -221,6 +242,7 @@ pub struct Order {
     pub discount_tier: OrderDiscountTier,
     pub trigger_price: u128,
     pub trigger_condition: OrderTriggerCondition,
+    pub triggered: bool,
     pub referrer: Pubkey,
     pub oracle_price_offset: i128,
     pub auction_start_price: u128,
@@ -237,7 +259,7 @@ impl Order {
     pub fn get_limit_price(
         &self,
         valid_oracle_price: Option<i128>,
-        now: i64,
+        slot: u64,
     ) -> ClearingHouseResult<u128> {
         // the limit price can be hardcoded on order or derived from oracle_price + oracle_price_offset
         let price = if self.has_oracle_price_offset() {
@@ -264,8 +286,11 @@ impl Order {
                 msg!("Could not find oracle too calculate oracle offset limit price");
                 return Err(crate::error::ErrorCode::OracleNotFound);
             }
-        } else if self.order_type == OrderType::Market {
-            calculate_auction_price(self, now)?
+        } else if matches!(
+            self.order_type,
+            OrderType::Market | OrderType::TriggerMarket
+        ) {
+            calculate_auction_price(self, slot)?
         } else {
             self.price
         };
@@ -278,6 +303,13 @@ impl Order {
             .checked_sub(self.base_asset_amount_filled)
             .ok_or_else(math_error!())
     }
+
+    pub fn must_be_triggered(&self) -> bool {
+        matches!(
+            self.order_type,
+            OrderType::TriggerMarket | OrderType::TriggerLimit
+        )
+    }
 }
 
 impl Default for Order {
@@ -286,6 +318,7 @@ impl Default for Order {
             status: OrderStatus::Init,
             order_type: OrderType::Limit,
             ts: 0,
+            slot: 0,
             order_id: 0,
             user_order_id: 0,
             market_index: 0,
@@ -303,6 +336,7 @@ impl Default for Order {
             discount_tier: OrderDiscountTier::None,
             trigger_price: 0,
             trigger_condition: OrderTriggerCondition::Above,
+            triggered: false,
             referrer: Pubkey::default(),
             oracle_price_offset: 0,
             auction_start_price: 0,

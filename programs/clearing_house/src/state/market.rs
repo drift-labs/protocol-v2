@@ -130,6 +130,7 @@ pub struct AMM {
     pub base_spread: u16,
     pub long_spread: u128,
     pub short_spread: u128,
+    pub max_spread: u32,
     pub ask_base_asset_reserve: u128,
     pub ask_quote_asset_reserve: u128,
     pub bid_base_asset_reserve: u128,
@@ -148,7 +149,7 @@ pub struct AMM {
     pub total_fee: u128,
     pub total_mm_fee: u128,
     pub total_exchange_fee: u128,
-    pub total_fee_minus_distributions: u128,
+    pub total_fee_minus_distributions: i128,
     pub total_fee_withdrawn: u128,
     pub net_revenue_since_last_funding: i64,
     pub fee_pool: PoolBalance,
@@ -169,19 +170,37 @@ impl AMM {
         )
     }
 
-    pub fn bid_ask_price(&self, mark_price: u128) -> ClearingHouseResult<(u128, u128)> {
-        let ask_price = mark_price
-            .checked_mul(BID_ASK_SPREAD_PRECISION + self.long_spread)
-            .ok_or_else(math_error!())?
-            .checked_div(BID_ASK_SPREAD_PRECISION)
-            .ok_or_else(math_error!())?;
-
+    pub fn bid_price(&self, mark_price: u128) -> ClearingHouseResult<u128> {
         let bid_price = mark_price
-            .checked_mul(BID_ASK_SPREAD_PRECISION - self.short_spread)
+            .checked_mul(
+                BID_ASK_SPREAD_PRECISION
+                    .checked_sub(self.short_spread)
+                    .ok_or_else(math_error!())?,
+            )
             .ok_or_else(math_error!())?
             .checked_div(BID_ASK_SPREAD_PRECISION)
             .ok_or_else(math_error!())?;
 
+        Ok(bid_price)
+    }
+
+    pub fn ask_price(&self, mark_price: u128) -> ClearingHouseResult<u128> {
+        let ask_price = mark_price
+            .checked_mul(
+                BID_ASK_SPREAD_PRECISION
+                    .checked_add(self.long_spread)
+                    .ok_or_else(math_error!())?,
+            )
+            .ok_or_else(math_error!())?
+            .checked_div(BID_ASK_SPREAD_PRECISION)
+            .ok_or_else(math_error!())?;
+
+        Ok(ask_price)
+    }
+
+    pub fn bid_ask_price(&self, mark_price: u128) -> ClearingHouseResult<(u128, u128)> {
+        let bid_price = self.bid_price(mark_price)?;
+        let ask_price = self.ask_price(mark_price)?;
         Ok((bid_price, ask_price))
     }
 

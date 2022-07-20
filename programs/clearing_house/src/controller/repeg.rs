@@ -1,5 +1,5 @@
 use crate::error::*;
-use crate::math::casting::{cast_to_i128, cast_to_u128};
+use crate::math::casting::cast_to_i128;
 
 use crate::account_loader::load_mut;
 use crate::controller::amm::update_spreads;
@@ -12,11 +12,10 @@ use crate::state::market_map::MarketMap;
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
 use crate::state::state::{OracleGuardRails, State};
-use anchor_lang::prelude::*;
-use std::cmp::min;
-
 use anchor_lang::prelude::AccountInfo;
+use anchor_lang::prelude::*;
 use solana_program::msg;
+use std::cmp::min;
 
 pub fn repeg(
     market: &mut Market,
@@ -67,7 +66,7 @@ pub fn repeg(
     }
 
     // modify market's total fee change and peg change
-    let cost_applied = apply_cost_to_market(market, adjustment_cost)?;
+    let cost_applied = apply_cost_to_market(market, adjustment_cost, true)?;
     if cost_applied {
         market.amm.peg_multiplier = new_peg_candidate;
     } else {
@@ -108,17 +107,12 @@ pub fn update_amm(
 
     let mut amm_update_cost = 0;
     if curve_update_intensity > 0 {
-        let fee_budget = repeg::calculate_fee_pool(market)?;
-        let target_price = cast_to_u128(oracle_price_data.price)?;
-        let optimal_peg = repeg::calculate_peg_from_target_price(
-            market.amm.quote_asset_reserve,
-            market.amm.base_asset_reserve,
-            target_price,
-        )?;
-
-        let (repegged_market, _amm_update_cost) =
+        let (optimal_peg, fee_budget, check_lower_bound) =
+            repeg::calculate_optimal_peg_and_budget(market, oracle_price_data)?;
+        let (repegged_market, repegged_cost) =
             repeg::adjust_amm(market, optimal_peg, fee_budget, true)?;
-        let cost_applied = apply_cost_to_market(market, _amm_update_cost)?;
+
+        let cost_applied = apply_cost_to_market(market, repegged_cost, check_lower_bound)?;
 
         if cost_applied {
             market.amm.base_asset_reserve = repegged_market.amm.base_asset_reserve;
@@ -127,7 +121,7 @@ pub fn update_amm(
             market.amm.terminal_quote_asset_reserve =
                 repegged_market.amm.terminal_quote_asset_reserve;
             market.amm.peg_multiplier = repegged_market.amm.peg_multiplier;
-            amm_update_cost = _amm_update_cost;
+            amm_update_cost = repegged_cost;
         }
     }
     let is_oracle_valid = amm::is_oracle_valid(
@@ -136,58 +130,157 @@ pub fn update_amm(
         &state.oracle_guard_rails.validity,
     )?;
 
-    let mark_price_before = market.amm.mark_price()?;
+    let mark_price_after = market.amm.mark_price()?;
 
     if is_oracle_valid {
+        // cannot update market
         amm::update_oracle_price_twap(
             &mut market.amm,
             now,
             oracle_price_data,
-            Some(mark_price_before),
+            Some(mark_price_after),
         )?;
+        market.amm.last_update_slot = clock_slot;
     }
 
-    // 15k compute units below
-    update_spreads(&mut market.amm, mark_price_before)?;
-    market.amm.last_update_slot = clock_slot;
+    update_spreads(&mut market.amm, mark_price_after)?;
 
     Ok(amm_update_cost)
 }
 
-pub fn apply_cost_to_market(market: &mut Market, cost: i128) -> ClearingHouseResult<bool> {
+pub fn apply_cost_to_market(
+    market: &mut Market,
+    cost: i128,
+    check_lower_bound: bool,
+) -> ClearingHouseResult<bool> {
     // positive cost is expense, negative cost is revenue
     // Reduce pnl to quote asset precision and take the absolute value
     if cost > 0 {
-        if market.amm.total_fee_minus_distributions > cost.unsigned_abs() {
-            let new_total_fee_minus_distributions = market
-                .amm
-                .total_fee_minus_distributions
-                .checked_sub(cost.unsigned_abs())
-                .ok_or_else(math_error!())?;
+        let new_total_fee_minus_distributions = market
+            .amm
+            .total_fee_minus_distributions
+            .checked_sub(cost)
+            .ok_or_else(math_error!())?;
 
-            // Only a portion of the protocol fees are allocated to repegging
-            // This checks that the total_fee_minus_distributions does not decrease too much after repeg
-            if new_total_fee_minus_distributions > repeg::get_total_fee_lower_bound(market)? {
+        // Only a portion of the protocol fees are allocated to repegging
+        // This checks that the total_fee_minus_distributions does not decrease too much after repeg
+        if check_lower_bound {
+            if new_total_fee_minus_distributions
+                > cast_to_i128(repeg::get_total_fee_lower_bound(market)?)?
+            {
                 market.amm.total_fee_minus_distributions = new_total_fee_minus_distributions;
             } else {
                 return Ok(false);
             }
         } else {
-            return Ok(false);
+            market.amm.total_fee_minus_distributions = new_total_fee_minus_distributions;
         }
     } else {
         market.amm.total_fee_minus_distributions = market
             .amm
             .total_fee_minus_distributions
-            .checked_add(cost.unsigned_abs())
+            .checked_add(cost.abs())
             .ok_or_else(math_error!())?;
     }
 
     market.amm.net_revenue_since_last_funding = market
         .amm
         .net_revenue_since_last_funding
-        .checked_add(cost as i64)
+        .checked_sub(cost as i64)
         .ok_or_else(math_error!())?;
 
     Ok(true)
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::math::constants::{
+        AMM_RESERVE_PRECISION, MARK_PRICE_PRECISION, MARK_PRICE_PRECISION_I128,
+    };
+    use crate::state::market::AMM;
+    use crate::state::state::{PriceDivergenceGuardRails, ValidityGuardRails};
+
+    #[test]
+    pub fn update_amm_test() {
+        let mut market = Market {
+            amm: AMM {
+                base_asset_reserve: 65 * AMM_RESERVE_PRECISION,
+                quote_asset_reserve: 630153846154000,
+                terminal_quote_asset_reserve: 64 * AMM_RESERVE_PRECISION,
+                sqrt_k: 64 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 19_400_000,
+                net_base_asset_amount: -(AMM_RESERVE_PRECISION as i128),
+                mark_std: MARK_PRICE_PRECISION as u64,
+                last_mark_price_twap_ts: 0,
+                last_oracle_price_twap: 19_400 * MARK_PRICE_PRECISION_I128,
+                base_spread: 250,
+                curve_update_intensity: 100,
+                max_spread: 55500,
+                ..AMM::default()
+            },
+            margin_ratio_initial: 555, // max 1/.0555 = 18.018018018x leverage
+            ..Market::default()
+        };
+
+        let state = State {
+            oracle_guard_rails: OracleGuardRails {
+                price_divergence: PriceDivergenceGuardRails {
+                    mark_oracle_divergence_numerator: 1,
+                    mark_oracle_divergence_denominator: 10,
+                },
+                validity: ValidityGuardRails {
+                    slots_before_stale: 10,
+                    confidence_interval_max_size: 4,
+                    too_volatile_ratio: 5,
+                },
+                use_for_liquidations: true,
+            },
+            ..State::default()
+        };
+
+        let now = 10000;
+        let slot = 81680085;
+        let oracle_price_data = OraclePriceData {
+            price: (12_400 * MARK_PRICE_PRECISION) as i128,
+            confidence: 0,
+            delay: 2,
+            has_sufficient_number_of_data_points: true,
+        };
+
+        let cost_of_update =
+            update_amm(&mut market, &oracle_price_data, &state, now, slot).unwrap();
+
+        let is_oracle_valid = amm::is_oracle_valid(
+            &market.amm,
+            &oracle_price_data,
+            &state.oracle_guard_rails.validity,
+        )
+        .unwrap();
+
+        let profit = market.amm.total_fee_minus_distributions;
+        let peg = market.amm.peg_multiplier;
+        assert_eq!(-cost_of_update, profit);
+        assert!(is_oracle_valid);
+        assert!(profit < 0);
+        assert_eq!(profit, -5808834953);
+        assert_eq!(peg, 13500402);
+
+        let mark_price = market.amm.mark_price().unwrap();
+        let (bid, ask) = market.amm.bid_ask_price(mark_price).unwrap();
+        assert!(bid < mark_price);
+        assert!(bid < ask);
+        assert!(mark_price <= ask);
+        assert_eq!(
+            market.amm.long_spread + market.amm.short_spread,
+            (market.margin_ratio_initial * 100) as u128
+        );
+
+        assert_eq!(bid, 123618052558950);
+        assert!(bid < (oracle_price_data.price as u128));
+        assert_eq!(ask, 130882003768079);
+        assert_eq!(mark_price, 130882003768079);
+        //(133487208381380-120146825282679)/133403830987014 == .1 (max spread)
+        // 127060953641838
+    }
 }
