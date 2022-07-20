@@ -756,6 +756,7 @@ pub mod clearing_house {
     )]
     pub fn remove_liquidity<'info>(
         ctx: Context<AddRemoveLiquidity>,
+        shares_to_burn: u128,
         market_index: u64,
     ) -> Result<()> {
         let user_key = ctx.accounts.user.key();
@@ -765,33 +766,26 @@ pub mod clearing_house {
         // let clock_slot = clock.slot; // TODO add cool down for adding/removing liquidity
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
 
-        // TODO remove -- only here so get remaining accounts from sdk works
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
-        let bank_map = BankMap::load(&WritableBanks::new(), remaining_accounts_iter)?;
-
         let market_map = MarketMap::load(
             &get_writable_markets(market_index),
             &MarketOracles::new(),
             remaining_accounts_iter,
         )?;
-        let mut market = market_map.get_ref_mut(&market_index)?;
 
-        // update funding
+        if shares_to_burn == 0 {
+            return Ok(());
+        }
+
         {
             controller::funding::settle_funding_payment(user, &user_key, &market_map, now)?;
         }
 
-        // get position
+        let mut market = market_map.get_ref_mut(&market_index)?;
         let position_index = get_position_index(&user.positions, market_index)?;
         let position = &mut user.positions[position_index];
 
-        let lp_shares_to_burn = position.lp_shares;
-        if lp_shares_to_burn == 0 {
-            return Ok(());
-        }
-
         validate!(
-            position.lp_shares >= lp_shares_to_burn,
+            position.lp_shares >= shares_to_burn,
             ErrorCode::InsufficientLPTokens,
             "Trying to burn more lp tokens than the user has",
         )?;
@@ -802,12 +796,12 @@ pub mod clearing_house {
         // give them a portion of the market position
         let base_amount_acquired = get_proportion_i128(
             position.lp_base_asset_amount,
-            lp_shares_to_burn,
+            shares_to_burn,
             position.lp_shares,
         )?;
         let quote_amount = get_proportion_u128(
             position.lp_quote_asset_amount,
-            lp_shares_to_burn,
+            shares_to_burn,
             position.lp_shares,
         )?;
 
@@ -826,19 +820,19 @@ pub mod clearing_house {
             base_asset_amount: base_amount_acquired,
             quote_asset_amount: quote_amount,
         };
-        update_position_and_market(position, &mut market, &position_delta)?;
+        update_position_and_market(position, &mut market, &position_delta, true)?;
 
         // burn shares
         position.lp_shares = position
             .lp_shares
-            .checked_sub(lp_shares_to_burn)
+            .checked_sub(shares_to_burn)
             .ok_or_else(math_error!())?;
 
         // update market state
         let new_sqrt_k = market
             .amm
             .sqrt_k
-            .checked_sub(lp_shares_to_burn)
+            .checked_sub(shares_to_burn)
             .ok_or_else(math_error!())?;
         let new_sqrt_k_u192 = bn::U192::from(new_sqrt_k);
 

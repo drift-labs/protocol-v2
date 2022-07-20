@@ -804,9 +804,12 @@ export class ClearingHouse {
 		});
 	}
 
-	public async removeLiquidity(marketIndex: BN): Promise<TransactionSignature> {
+	public async removeLiquidity(
+		marketIndex: BN,
+		sharesToBurn?: BN
+	): Promise<TransactionSignature> {
 		const { txSig } = await this.txSender.send(
-			wrapInTx(await this.getRemoveLiquidityIx(marketIndex)),
+			wrapInTx(await this.getRemoveLiquidityIx(marketIndex, sharesToBurn)),
 			[],
 			this.opts
 		);
@@ -814,15 +817,39 @@ export class ClearingHouse {
 	}
 
 	public async getRemoveLiquidityIx(
-		marketIndex: BN
+		marketIndex: BN,
+		sharesToBurn?: BN
 	): Promise<TransactionInstruction> {
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 
-		const remainingAccounts = this.getRemainingAccounts({
-			writableMarketIndex: marketIndex,
-		});
+		const user = this.getUserAccount();
+		const userPositions = user.positions;
 
-		return this.program.instruction.removeLiquidity(marketIndex, {
+		const remainingAccounts = [];
+		for (const position of userPositions) {
+			if (!positionIsAvailable(position) || position.lpShares.gt(ZERO)) {
+				const marketPublicKey = await getMarketPublicKey(
+					this.program.programId,
+					position.marketIndex
+				);
+				remainingAccounts.push({
+					pubkey: marketPublicKey,
+					isWritable: true,
+					isSigner: false,
+				});
+			}
+		}
+
+		if (sharesToBurn == undefined) {
+			const userAccount = this.getUserAccount();
+			const marketPosition = userAccount.positions.filter((position) =>
+				position.marketIndex.eq(marketIndex)
+			)[0];
+			sharesToBurn = marketPosition.lpShares;
+			console.log('burning lp shares:', sharesToBurn.toString());
+		}
+
+		return this.program.instruction.removeLiquidity(sharesToBurn, marketIndex, {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				user: userAccountPublicKey,

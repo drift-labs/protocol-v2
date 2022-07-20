@@ -385,6 +385,10 @@
       ],
       "args": [
         {
+          "name": "sharesToBurn",
+          "type": "u128"
+        },
+        {
           "name": "marketIndex",
           "type": "u64"
         }
@@ -2178,10 +2182,6 @@
             "type": "i128"
           },
           {
-            "name": "cumulativeFundingRateLp",
-            "type": "i128"
-          },
-          {
             "name": "cumulativeRepegRebateLong",
             "type": "u128"
           },
@@ -2600,7 +2600,7 @@
             "type": "u128"
           },
           {
-            "name": "lastCumulativeFundingRateLp",
+            "name": "lastCumulativeFundingPaymentPerLp",
             "type": "i128"
           },
           {

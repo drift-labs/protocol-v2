@@ -177,18 +177,25 @@ pub fn get_lp_market_position_margin(
         .ok_or_else(math_error!())?;
 
     // update the virtual position from the settle
-    // let mut market_clone = (*market).clone();
     // TODO: probably want to refactor so we dont have to clone the market
-    // if lp_metrics.base_asset_amount != 0 {
-    //     let position_delta = PositionDelta {
-    //         base_asset_amount: lp_metrics.base_asset_amount,
-    //         quote_asset_amount: lp_metrics.quote_asset_amount,
-    //     };
-    //     let pnl = update_position_and_market(&mut market_position, &mut market_clone, &position_delta)?;
-    //     market_position.unsettled_pnl = market_position.unsettled_pnl
-    //         .checked_add(pnl)
-    //         .ok_or_else(math_error!())?;
-    // }
+
+    let mut market_clone = *market;
+    if lp_metrics.base_asset_amount != 0 {
+        let position_delta = PositionDelta {
+            base_asset_amount: lp_metrics.base_asset_amount,
+            quote_asset_amount: lp_metrics.quote_asset_amount,
+        };
+        let pnl = update_position_and_market(
+            &mut market_position,
+            &mut market_clone,
+            &position_delta,
+            true,
+        )?;
+        market_position.unsettled_pnl = market_position
+            .unsettled_pnl
+            .checked_add(pnl)
+            .ok_or_else(math_error!())?;
+    }
 
     // worse case market position
     // max ask: (sqrtk*1.4142 - base asset reserves) * lp share
