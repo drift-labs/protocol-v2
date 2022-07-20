@@ -423,6 +423,7 @@ pub mod clearing_house {
                 cumulative_fee_per_lp: 0,
                 cumulative_net_base_asset_amount_per_lp: 0,
                 amm_lp_shares: amm_base_asset_reserve, // sqrtk
+                lp_cooldown_time: 1,                   // TODO: what should this be?
 
                 padding0: 0,
                 padding1: 0,
@@ -764,7 +765,7 @@ pub mod clearing_house {
         let user = &mut load_mut(&ctx.accounts.user)?;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
-        // let clock_slot = clock.slot; // TODO add cool down for adding/removing liquidity
+
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
 
         let market_map = MarketMap::load(
@@ -787,8 +788,16 @@ pub mod clearing_house {
 
         validate!(
             position.lp_shares >= shares_to_burn,
-            ErrorCode::InsufficientLPTokens,
-            "Trying to burn more lp tokens than the user has",
+            ErrorCode::InsufficientLPTokens
+        )?;
+
+        let time_since_last_add_liquidity = now
+            .checked_sub(position.last_lp_add_time)
+            .ok_or_else(math_error!())?;
+
+        validate!(
+            time_since_last_add_liquidity > market.amm.lp_cooldown_time,
+            ErrorCode::TryingToRemoveLiquidityTooFast
         )?;
 
         burn_lp_shares(position, &mut market, shares_to_burn)?;
@@ -806,6 +815,7 @@ pub mod clearing_house {
     ) -> Result<()> {
         let user = &mut load_mut(&ctx.accounts.user)?;
         let clock = Clock::get()?;
+        let now = clock.unix_timestamp;
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
 
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
@@ -820,6 +830,9 @@ pub mod clearing_house {
         let position_index = get_position_index(&user.positions, market_index)
             .or_else(|_| add_new_position(&mut user.positions, market_index))?;
         let position = &mut user.positions[position_index];
+
+        // update add liquidity time
+        position.last_lp_add_time = now;
 
         let (
             cumulative_fee_per_lp,
@@ -1471,10 +1484,6 @@ pub mod clearing_house {
                     ..=MAX_LIQUIDATION_SLIPPAGE)
                     .contains(&close_position_slippage_pct);
 
-                //close_position_slippage_pct
-                //> MAX_LIQUIDATION_SLIPPAGE
-                //|| close_position_slippage_pct < -MAX_LIQUIDATION_SLIPPAGE;
-
                 let oracle_mark_divergence_after_close = if !close_slippage_pct_too_large {
                     oracle_status
                         .oracle_mark_spread_pct
@@ -1638,10 +1647,6 @@ pub mod clearing_house {
                 let reduce_slippage_pct_too_large = !(-MAX_LIQUIDATION_SLIPPAGE
                     ..=MAX_LIQUIDATION_SLIPPAGE)
                     .contains(&reduce_position_slippage_pct);
-
-                //reduce_position_slippage_pct
-                //> MAX_LIQUIDATION_SLIPPAGE
-                //|| reduce_position_slippage_pct < -MAX_LIQUIDATION_SLIPPAGE;
 
                 if reduce_slippage_pct_too_large {
                     msg!(

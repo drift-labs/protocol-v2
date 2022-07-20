@@ -16,6 +16,7 @@ import * as web3 from '@solana/web3.js';
 
 import {
 	Admin,
+	QUOTE_PRECISION,
 	AMM_RESERVE_PRECISION,
 	EventSubscriber,
 	MARK_PRICE_PRECISION,
@@ -113,12 +114,15 @@ describe('liquidity providing', () => {
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.ClearingHouse as Program;
 
-	// async function viewLogs(txsig) {
-	// 	let tx = await connection.getTransaction(txsig, {
-	// 		commitment: 'confirmed',
-	// 	});
-	// 	console.log('tx logs', tx.meta.logMessages);
-	// }
+	async function viewLogs(txsig) {
+		let tx = await connection.getTransaction(txsig, {
+			commitment: 'confirmed',
+		});
+		console.log('tx logs', tx.meta.logMessages);
+	}
+	async function delay(time) {
+		await new Promise((resolve) => setTimeout(resolve, time));
+	}
 
 	// ammInvariant == k == x * y
 	const ammInitialBaseAssetReserve = new BN(200).mul(new BN(1e13));
@@ -143,6 +147,9 @@ describe('liquidity providing', () => {
 	let clearingHouseUser: ClearingHouseUser;
 	let traderClearingHouse: Admin;
 	let traderClearingHouseUser: ClearingHouseUser;
+
+	let poorClearingHouse: Admin;
+	let poorClearingHouseUser: ClearingHouseUser;
 
 	let solusdc;
 	let solusdc2;
@@ -191,6 +198,14 @@ describe('liquidity providing', () => {
 			oracleInfos,
 			undefined
 		);
+		[poorClearingHouse, poorClearingHouseUser] = await createNewUser(
+			chProgram,
+			provider,
+			usdcMint,
+			new BN(1 * QUOTE_PRECISION),
+			oracleInfos,
+			undefined
+		);
 	});
 
 	after(async () => {
@@ -202,12 +217,13 @@ describe('liquidity providing', () => {
 		await traderClearingHouse.unsubscribe();
 		await traderClearingHouseUser.unsubscribe();
 
-		// await traderClearingHouse2.unsubscribe();
-		// await traderClearingHouseUser2.unsubscribe();
+		await poorClearingHouse.unsubscribe();
+		await poorClearingHouseUser.unsubscribe();
 	});
 
+	const lpCooldown = 1500;
 	it('provides and removes liquidity', async () => {
-		const market = clearingHouse.getMarketAccount(0);
+		let market = clearingHouse.getMarketAccount(0);
 		const prevSqrtK = market.amm.sqrtK;
 		const prevbar = market.amm.baseAssetReserve;
 		const prevqar = market.amm.quoteAssetReserve;
@@ -217,6 +233,7 @@ describe('liquidity providing', () => {
 			new BN(100 * AMM_RESERVE_PRECISION),
 			market.marketIndex
 		);
+		await delay(lpCooldown + 1000);
 
 		market = clearingHouse.getMarketAccount(0);
 		console.log(
@@ -278,7 +295,12 @@ describe('liquidity providing', () => {
 		console.log('adding liquidity...');
 		const market = clearingHouse.getMarketAccount(ZERO);
 		try {
-			await clearingHouse.addLiquidity(market.amm.sqrtK, market.marketIndex);
+			let sig = await poorClearingHouse.addLiquidity(
+				market.amm.sqrtK.mul(new BN(5)),
+				market.marketIndex
+			);
+			await viewLogs(sig);
+			assert(false);
 		} catch (e) {
 			assert(e.message.includes('0x1773')); // insufficient collateral
 		}
@@ -292,6 +314,7 @@ describe('liquidity providing', () => {
 			new BN(100 * 1e13),
 			market.marketIndex
 		);
+		await delay(lpCooldown);
 
 		let user = clearingHouseUser.getUserAccount();
 		console.log(user.positions[0].lpShares.toString());
@@ -366,6 +389,7 @@ describe('liquidity providing', () => {
 			new BN(100 * 1e13),
 			market.marketIndex
 		);
+		await delay(lpCooldown);
 
 		// some user goes long (lp should get a short)
 		console.log('user trading...');
@@ -428,6 +452,7 @@ describe('liquidity providing', () => {
 			new BN(100_000).mul(new BN(1e13)),
 			marketIndex
 		);
+		await delay(lpCooldown);
 
 		console.log('user trading...');
 		const tradeSize = new BN(100 * 1e13).mul(new BN(30));
@@ -480,6 +505,7 @@ describe('liquidity providing', () => {
 			new BN(100 * AMM_RESERVE_PRECISION),
 			market.marketIndex
 		);
+		await delay(lpCooldown);
 
 		console.log('user trading...');
 		const tradeSize = new BN(40 * 1e13);
@@ -555,6 +581,7 @@ describe('liquidity providing', () => {
 			new BN(100 * 1e13),
 			market.marketIndex
 		);
+		await delay(lpCooldown);
 
 		let user = clearingHouseUser.getUserAccount();
 		console.log(user.positions[0].lpShares.toString());
@@ -623,6 +650,28 @@ describe('liquidity providing', () => {
 		await clearingHouse.closePosition(new BN(0)); // close lp position
 
 		console.log('done!');
+	});
+
+	it('provides and removes liquidity too fast', async () => {
+		const market = clearingHouse.getMarketAccount(0);
+
+		const lpShares = new BN(100 * AMM_RESERVE_PRECISION);
+		const addLpIx = await clearingHouse.getAddLiquidityIx(
+			lpShares,
+			market.marketIndex
+		);
+		const removeLpIx = await clearingHouse.getRemoveLiquidityIx(
+			market.marketIndex,
+			lpShares
+		);
+
+		const tx = new web3.Transaction().add(addLpIx).add(removeLpIx);
+		try {
+			await provider.sendAll([{ tx }]);
+			assert(false);
+		} catch (e) {
+			assert(e.message.includes('0x17cb'));
+		}
 	});
 
 	// it('removes liquidity when market position is small', async () => {

@@ -2183,6 +2183,10 @@
             "type": "u128"
           },
           {
+            "name": "lpCooldownTime",
+            "type": "i64"
+          },
+          {
             "name": "lastFundingRate",
             "type": "i128"
           },
@@ -2631,6 +2635,10 @@
           {
             "name": "lastCumulativeNetBaseAssetAmountPerLp",
             "type": "i128"
+          },
+          {
+            "name": "lastLpAddTime",
+            "type": "i64"
           },
           {
             "name": "padding0",
@@ -3882,6 +3890,11 @@
       "code": 6090,
       "name": "UnableToBurnLPTokens",
       "msg": "Unable to burn LP tokens"
+    },
+    {
+      "code": 6091,
+      "name": "TryingToRemoveLiquidityTooFast",
+      "msg": "Trying to remove liqudity too fast after adding it"
     }
   ]
 }

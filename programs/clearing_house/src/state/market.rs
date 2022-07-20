@@ -113,6 +113,7 @@ pub struct AMM {
     pub cumulative_fee_per_lp: u128,
     pub cumulative_net_base_asset_amount_per_lp: i128,
     pub amm_lp_shares: u128,
+    pub lp_cooldown_time: i64,
 
     // funding
     pub last_funding_rate: i128,

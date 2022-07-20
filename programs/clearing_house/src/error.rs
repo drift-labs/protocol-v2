@@ -186,6 +186,8 @@ pub enum ErrorCode {
     CantLPWithMarketPosition,
     #[msg("Unable to burn LP tokens")]
     UnableToBurnLPTokens,
+    #[msg("Trying to remove liqudity too fast after adding it")]
+    TryingToRemoveLiquidityTooFast,
 }
 
 #[macro_export]

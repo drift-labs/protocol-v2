@@ -148,6 +148,7 @@ pub struct MarketPosition {
     pub last_cumulative_funding_payment_per_lp: i128,
     pub last_cumulative_fee_per_lp: u128,
     pub last_cumulative_net_base_asset_amount_per_lp: i128,
+    pub last_lp_add_time: i64,
 
     // upgrade-ability
     pub padding0: u128,

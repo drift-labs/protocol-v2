@@ -847,6 +847,7 @@ export class ClearingHouse {
 		const user = this.getUserAccount();
 		const userPositions = user.positions;
 
+		let foundMarket = false;
 		const remainingAccounts = [];
 		for (const position of userPositions) {
 			if (!positionIsAvailable(position) || position.lpShares.gt(ZERO)) {
@@ -859,7 +860,22 @@ export class ClearingHouse {
 					isWritable: true,
 					isSigner: false,
 				});
+				if (position.marketIndex.eq(marketIndex)) {
+					foundMarket = true;
+				}
 			}
+		}
+
+		if (!foundMarket) {
+			const marketPublicKey = await getMarketPublicKey(
+				this.program.programId,
+				marketIndex
+			);
+			remainingAccounts.push({
+				pubkey: marketPublicKey,
+				isWritable: true,
+				isSigner: false,
+			});
 		}
 
 		if (sharesToBurn == undefined) {

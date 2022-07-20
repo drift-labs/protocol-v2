@@ -257,7 +257,7 @@ pub fn get_lp_market_position_margin(
 
     let open_asks = cast_to_i128(get_proportion_u128(max_asks, lp_shares, total_lp_shares)?)?;
 
-    // worse case if all bids are filled (lp is now long)
+    // worst case if all bids are filled (lp is now long)
     let bids_bounded_k = market
         .amm
         .sqrt_k
