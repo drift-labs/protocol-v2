@@ -40,9 +40,7 @@ pub mod clearing_house {
     use crate::account_loader::{load, load_mut};
     use crate::controller::bank_balance::update_bank_balances;
     use crate::controller::lp::settle_lp_position;
-    use crate::controller::position::{
-        add_new_position, get_position_index, update_position_and_market, PositionDelta,
-    };
+    use crate::controller::position::{add_new_position, get_position_index};
     use crate::margin_validation::validate_margin;
     use crate::math;
     use crate::math::amm::{
@@ -52,7 +50,7 @@ pub mod clearing_house {
     };
     use crate::math::bank_balance::get_token_amount;
     use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64};
-    use crate::math::lp::{get_proportion_i128, get_proportion_u128};
+    use crate::math::lp::burn_lp_shares;
     use crate::math::slippage::{calculate_slippage, calculate_slippage_pct};
     use crate::optional_accounts::get_maker;
     use crate::state::bank::{Bank, BankBalance, BankBalanceType};
@@ -793,54 +791,7 @@ pub mod clearing_house {
             "Trying to burn more lp tokens than the user has",
         )?;
 
-        // settle the lp first
-        settle_lp_position(position, &mut market)?;
-
-        // give them a portion of the market position
-        let base_amount_acquired = get_proportion_i128(
-            position.lp_base_asset_amount,
-            shares_to_burn,
-            position.lp_shares,
-        )?;
-        let quote_amount = get_proportion_u128(
-            position.lp_quote_asset_amount,
-            shares_to_burn,
-            position.lp_shares,
-        )?;
-
-        // update lp position
-        position.lp_base_asset_amount = position
-            .lp_base_asset_amount
-            .checked_sub(base_amount_acquired)
-            .ok_or_else(math_error!())?;
-        position.lp_quote_asset_amount = position
-            .lp_quote_asset_amount
-            .checked_sub(quote_amount)
-            .ok_or_else(math_error!())?;
-
-        // track new market position
-        let position_delta = PositionDelta {
-            base_asset_amount: base_amount_acquired,
-            quote_asset_amount: quote_amount,
-        };
-        update_position_and_market(position, &mut market, &position_delta, true)?;
-
-        // burn shares
-        position.lp_shares = position
-            .lp_shares
-            .checked_sub(shares_to_burn)
-            .ok_or_else(math_error!())?;
-
-        // update market state
-        let new_sqrt_k = market
-            .amm
-            .sqrt_k
-            .checked_sub(shares_to_burn)
-            .ok_or_else(math_error!())?;
-        let new_sqrt_k_u192 = bn::U192::from(new_sqrt_k);
-
-        let update_k_result = get_update_k_result(&market, new_sqrt_k_u192, false)?;
-        math::amm::update_k(&mut market, &update_k_result)?;
+        burn_lp_shares(position, &mut market, shares_to_burn)?;
 
         Ok(())
     }

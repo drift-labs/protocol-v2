@@ -1,4 +1,5 @@
 use crate::controller::amm::SwapDirection;
+use crate::controller::lp::settle_lp_position;
 use crate::controller::position::update_position_and_market;
 use crate::controller::position::PositionDelta;
 use crate::error::ClearingHouseResult;
@@ -10,6 +11,9 @@ use crate::math_error;
 use crate::state::market::Market;
 use crate::state::market::AMM;
 use crate::state::user::MarketPosition;
+
+use crate::bn::U192;
+use crate::math::amm::{get_update_k_result, update_k};
 
 use solana_program::msg;
 
@@ -111,16 +115,16 @@ pub fn get_lp_metrics(position: &MarketPosition, amm: &AMM) -> ClearingHouseResu
         }
     }
 
-    let lp_metrics = LPMetrics {
+    let metrics = LPMetrics {
         fee_payment,
         funding_payment,
         base_asset_amount: market_base_asset_amount,
         quote_asset_amount: market_quote_asset_amount,
         unsettled_pnl,
     };
-    msg!("lp metrics: {:#?}", lp_metrics);
+    msg!("lp metrics: {:#?}", metrics);
 
-    Ok(lp_metrics)
+    Ok(metrics)
 }
 
 pub fn abs_difference(a: u128, b: u128) -> ClearingHouseResult<u128> {
@@ -153,62 +157,94 @@ pub fn calculate_swap_quote_reserve_delta(
     Ok(quote_asset_reserve_output)
 }
 
+pub fn burn_lp_shares(
+    position: &mut MarketPosition,
+    market: &mut Market,
+    shares_to_burn: u128,
+) -> ClearingHouseResult<()> {
+    settle_lp_position(position, market)?;
+
+    // give them a portion of the market position
+    if position.lp_base_asset_amount != 0 {
+        let base_amount_acquired = get_proportion_i128(
+            position.lp_base_asset_amount,
+            shares_to_burn,
+            position.lp_shares,
+        )?;
+        let quote_amount = get_proportion_u128(
+            position.lp_quote_asset_amount,
+            shares_to_burn,
+            position.lp_shares,
+        )?;
+
+        // update lp position
+        position.lp_base_asset_amount = position
+            .lp_base_asset_amount
+            .checked_sub(base_amount_acquired)
+            .ok_or_else(math_error!())?;
+        position.lp_quote_asset_amount = position
+            .lp_quote_asset_amount
+            .checked_sub(quote_amount)
+            .ok_or_else(math_error!())?;
+
+        // track new market position
+        let position_delta = PositionDelta {
+            base_asset_amount: base_amount_acquired,
+            quote_asset_amount: quote_amount,
+        };
+        let upnl = update_position_and_market(position, market, &position_delta, true)?;
+
+        position.unsettled_pnl = position
+            .unsettled_pnl
+            .checked_add(upnl)
+            .ok_or_else(math_error!())?;
+    }
+
+    // burn shares
+    position.lp_shares = position
+        .lp_shares
+        .checked_sub(shares_to_burn)
+        .ok_or_else(math_error!())?;
+
+    // update market state
+    let new_sqrt_k = market
+        .amm
+        .sqrt_k
+        .checked_sub(shares_to_burn)
+        .ok_or_else(math_error!())?;
+    let new_sqrt_k_u192 = U192::from(new_sqrt_k);
+
+    let update_k_result = get_update_k_result(market, new_sqrt_k_u192, false)?;
+    update_k(market, &update_k_result)?;
+
+    Ok(())
+}
+
+// settle and make tradeable
 pub fn get_lp_market_position_margin(
     position: &MarketPosition,
     market: &Market,
 ) -> ClearingHouseResult<MarketPosition> {
-    let amm = &market.amm;
-
     // clone bc its only temporary
-    let mut market_position = *position;
+    let mut position_clone = *position;
+    let mut market_clone = *market;
 
-    let lp_metrics = get_lp_metrics(&market_position, amm)?;
-
-    let total_lp_shares = amm.sqrt_k;
+    let total_lp_shares = market.amm.sqrt_k;
     let lp_shares = position.lp_shares;
 
-    // update pnl payments
-    market_position.unsettled_pnl = position
-        .unsettled_pnl
-        .checked_add(cast_to_i128(lp_metrics.fee_payment)?)
-        .ok_or_else(math_error!())?
-        .checked_add(lp_metrics.funding_payment)
-        .ok_or_else(math_error!())?;
-
-    // update the virtual position from the settle
-    if lp_metrics.base_asset_amount != 0 {
-        // TODO: probably want to refactor so we dont have to clone the market
-        // and we just get the updated position
-        let mut market_clone = *market;
-
-        let position_delta = PositionDelta {
-            base_asset_amount: lp_metrics.base_asset_amount,
-            quote_asset_amount: lp_metrics.quote_asset_amount,
-        };
-
-        let pnl = update_position_and_market(
-            &mut market_position,
-            &mut market_clone,
-            &position_delta,
-            true,
-        )?;
-
-        market_position.unsettled_pnl = market_position
-            .unsettled_pnl
-            .checked_add(pnl)
-            .ok_or_else(math_error!())?;
-    }
+    burn_lp_shares(&mut position_clone, &mut market_clone, lp_shares)?;
 
     // worse case market position
     // max ask: (sqrtk*1.4142 - base asset reserves) * lp share
     // max bid: (base asset reserves - sqrtk/1.4142) * lp share
 
     // TODO: make this a constant?
-    let sqrt_2_percision = 10_000 as u128;
+    let sqrt_2_percision = 10_000_u128;
     let sqrt_2 = 14142;
 
     // worse case if all asks are filled
-    let ask_bounded_k = amm
+    let ask_bounded_k = market
+        .amm
         .sqrt_k
         .checked_mul(sqrt_2)
         .ok_or_else(math_error!())?
@@ -216,37 +252,39 @@ pub fn get_lp_market_position_margin(
         .ok_or_else(math_error!())?;
 
     let max_asks = ask_bounded_k
-        .checked_sub(amm.base_asset_reserve)
+        .checked_sub(market.amm.base_asset_reserve)
         .ok_or_else(math_error!())?;
 
     let open_asks = cast_to_i128(get_proportion_u128(max_asks, lp_shares, total_lp_shares)?)?;
 
     // worse case if all bids are filled (lp is now long)
-    let bids_bounded_k = amm
+    let bids_bounded_k = market
+        .amm
         .sqrt_k
         .checked_mul(sqrt_2_percision)
         .ok_or_else(math_error!())?
         .checked_div(sqrt_2)
         .ok_or_else(math_error!())?;
 
-    let max_bids = amm
+    let max_bids = market
+        .amm
         .base_asset_reserve
         .checked_sub(bids_bounded_k)
         .ok_or_else(math_error!())?;
 
     let open_bids = cast_to_i128(get_proportion_u128(max_bids, lp_shares, total_lp_shares)?)?;
 
-    market_position.open_bids = market_position
+    position_clone.open_bids = position_clone
         .open_bids
         .checked_add(open_bids)
         .ok_or_else(math_error!())?;
 
-    market_position.open_asks = market_position
+    position_clone.open_asks = position_clone
         .open_asks
         .checked_add(open_asks)
         .ok_or_else(math_error!())?;
 
-    Ok(market_position)
+    Ok(position_clone)
 }
 
 // TODO: change to macro to support value=u128, U192, etc. without casting?
@@ -279,6 +317,46 @@ pub fn get_proportion_u128(
         .checked_div(denominator)
         .ok_or_else(math_error!())?;
     Ok(proportional_value)
+}
+
+pub fn update_lp_position(
+    position: &mut MarketPosition,
+    metrics: &LPMetrics,
+) -> ClearingHouseResult<i128> {
+    let is_new_position = position.lp_base_asset_amount == 0;
+    let is_increase = (position.lp_base_asset_amount > 0 && metrics.base_asset_amount > 0)
+        || (position.lp_base_asset_amount < 0 && metrics.base_asset_amount < 0);
+
+    if is_new_position || is_increase {
+        position.lp_base_asset_amount = position
+            .lp_base_asset_amount
+            .checked_add(metrics.base_asset_amount)
+            .ok_or_else(math_error!())?;
+
+        position.lp_quote_asset_amount = position
+            .lp_quote_asset_amount
+            .checked_add(metrics.quote_asset_amount)
+            .ok_or_else(math_error!())?;
+    } else {
+        let quote_asset_amount =
+            abs_difference(metrics.quote_asset_amount, position.lp_quote_asset_amount)?;
+
+        let base_asset_amount = position
+            .lp_base_asset_amount
+            .checked_add(metrics.base_asset_amount)
+            .ok_or_else(math_error!())?;
+
+        position.lp_base_asset_amount = base_asset_amount;
+        position.lp_quote_asset_amount = quote_asset_amount;
+    }
+
+    let upnl = cast_to_i128(metrics.fee_payment)?
+        .checked_add(metrics.funding_payment)
+        .ok_or_else(math_error!())?
+        .checked_add(metrics.unsettled_pnl)
+        .ok_or_else(math_error!())?;
+
+    Ok(upnl)
 }
 
 // #[cfg(test)]
@@ -407,7 +485,7 @@ pub fn get_proportion_u128(
 //     }
 //
 //     #[test]
-//     fn test_no_change_lp_metrics() {
+//     fn test_no_change_metrics() {
 //         let position = MarketPosition {
 //             lp_shares: 100,
 //             last_net_base_asset_amount: 100,
@@ -419,14 +497,14 @@ pub fn get_proportion_u128(
 //             ..AMM::default()
 //         };
 //
-//         let lp_metrics = get_lp_metrics(&position, position.lp_shares, &amm).unwrap();
+//         let metrics = get_lp_metrics(&position, position.lp_shares, &amm).unwrap();
 //
-//         assert_eq!(lp_metrics.base_asset_amount, 0);
-//         assert_eq!(lp_metrics.unsettled_pnl, 0); // no neg upnl
+//         assert_eq!(metrics.base_asset_amount, 0);
+//         assert_eq!(metrics.unsettled_pnl, 0); // no neg upnl
 //     }
 //
 //     #[test]
-//     fn test_too_small_lp_metrics() {
+//     fn test_too_small_metrics() {
 //         let position = MarketPosition {
 //             lp_shares: 100,
 //             ..MarketPosition::default()
@@ -440,15 +518,15 @@ pub fn get_proportion_u128(
 //             ..AMM::default()
 //         };
 //
-//         let lp_metrics = get_lp_metrics(&position, position.lp_shares, &amm).unwrap();
+//         let metrics = get_lp_metrics(&position, position.lp_shares, &amm).unwrap();
 //
-//         println!("{:#?}", lp_metrics);
-//         assert!(lp_metrics.unsettled_pnl < 0);
-//         assert_eq!(lp_metrics.base_asset_amount, 0);
+//         println!("{:#?}", metrics);
+//         assert!(metrics.unsettled_pnl < 0);
+//         assert_eq!(metrics.base_asset_amount, 0);
 //     }
 //
 //     #[test]
-//     fn test_simple_lp_metrics() {
+//     fn test_simple_metrics() {
 //         let position = MarketPosition {
 //             lp_shares: 100,
 //             ..MarketPosition::default()
@@ -462,11 +540,11 @@ pub fn get_proportion_u128(
 //             ..AMM::default()
 //         };
 //
-//         let lp_metrics = get_lp_metrics(&position, position.lp_shares, &amm).unwrap();
-//         println!("{:#?}", lp_metrics);
+//         let metrics = get_lp_metrics(&position, position.lp_shares, &amm).unwrap();
+//         println!("{:#?}", metrics);
 //
-//         assert_eq!(lp_metrics.base_asset_amount, -50);
-//         assert_eq!(lp_metrics.fee_payment, 50);
-//         assert_eq!(lp_metrics.funding_payment, 50);
+//         assert_eq!(metrics.base_asset_amount, -50);
+//         assert_eq!(metrics.fee_payment, 50);
+//         assert_eq!(metrics.funding_payment, 50);
 //     }
 // }

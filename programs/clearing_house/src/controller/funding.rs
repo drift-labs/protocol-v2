@@ -11,13 +11,9 @@ use crate::get_then_update_id;
 use crate::math::amm;
 use crate::math::casting::{cast, cast_to_i128};
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION_I128, AMM_TO_QUOTE_PRECISION_RATIO_I128, FUNDING_PAYMENT_PRECISION,
-    ONE_HOUR,
+    AMM_TO_QUOTE_PRECISION_RATIO_I128, FUNDING_PAYMENT_PRECISION, ONE_HOUR,
 };
-use crate::math::funding::{
-    calculate_funding_payment, calculate_funding_payment_in_quote_precision,
-    calculate_funding_rate_long_short,
-};
+use crate::math::funding::{calculate_funding_payment, calculate_funding_rate_long_short};
 use crate::math::oracle;
 use crate::math_error;
 use crate::state::events::{FundingPaymentRecord, FundingRateRecord};

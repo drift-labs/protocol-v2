@@ -86,7 +86,7 @@ pub fn calculate_margin_requirement_and_total_collateral(
         let lp_market_position = if market_position.is_lp() {
             // market position if lp was settled
             let market = &market_map.get_ref(&market_position.market_index)?;
-            let lp_market_position = get_lp_market_position_margin(market_position, &market)?;
+            let lp_market_position = get_lp_market_position_margin(market_position, market)?;
             Some(lp_market_position)
         } else {
             None
