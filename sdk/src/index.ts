@@ -1,5 +1,6 @@
 import { BN } from '@project-serum/anchor';
 import { PublicKey } from '@solana/web3.js';
+import pyth from '@pythnetwork/client';
 
 export * from './mockUSDCFaucet';
 export * from './oracles/types';
@@ -47,4 +48,4 @@ export * from './math/bankBalance';
 export * from './constants/banks';
 export * from './clearingHouseConfig';
 
-export { BN, PublicKey };
+export { BN, PublicKey, pyth };
