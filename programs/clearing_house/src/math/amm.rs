@@ -1170,14 +1170,14 @@ mod test {
 
     #[test]
     fn calculate_spread_tests() {
-        let mut base_spread = 1000; // .1%
+        let base_spread = 1000; // .1%
         let mut last_oracle_mark_spread_pct = 0;
         let mut last_oracle_conf_pct = 0;
-        let mut quote_asset_reserve = AMM_RESERVE_PRECISION * 10;
+        let quote_asset_reserve = AMM_RESERVE_PRECISION * 10;
         let mut terminal_quote_asset_reserve = AMM_RESERVE_PRECISION * 10;
-        let mut peg_multiplier = 34000;
+        let peg_multiplier = 34000;
         let mut net_base_asset_amount = 0;
-        let mut mark_price = 345623040000;
+        let mark_price = 345623040000;
         let mut total_fee_minus_distributions = 0;
 
         let margin_ratio_initial = 2000; // 5x max leverage
@@ -1200,8 +1200,8 @@ mod test {
         assert_eq!(short_spread1, (base_spread * 5 / 2) as u128);
 
         // even at imbalance with 0 fee, be max spread
-        terminal_quote_asset_reserve = terminal_quote_asset_reserve - AMM_RESERVE_PRECISION;
-        net_base_asset_amount = net_base_asset_amount + AMM_RESERVE_PRECISION as i128;
+        terminal_quote_asset_reserve -= AMM_RESERVE_PRECISION;
+        net_base_asset_amount += AMM_RESERVE_PRECISION as i128;
         let (long_spread2, short_spread2) = calculate_spread(
             base_spread,
             last_oracle_mark_spread_pct,
@@ -1235,7 +1235,7 @@ mod test {
             total_fee_minus_distributions,
         )
         .unwrap();
-        assert_eq!(short_spread3 > long_spread3, true);
+        assert!(short_spread3 > long_spread3);
 
         // 1000/2 * (1+(34562000-34000000)/QUOTE_PRECISION) -> 781
         assert_eq!(long_spread3, 781);
@@ -1259,7 +1259,7 @@ mod test {
             total_fee_minus_distributions,
         )
         .unwrap();
-        assert_eq!(short_spread4 < long_spread4, true);
+        assert!(short_spread4 < long_spread4);
         // (1000000/777 + 1 )* 1.562 -> 2011
         assert_eq!(long_spread4, 2011);
         // base_spread
@@ -1280,10 +1280,10 @@ mod test {
         )
         .unwrap();
 
-        assert_eq!(long_spread5 < long_spread4, true);
+        assert!(long_spread5 < long_spread4);
         assert_eq!(short_spread5, short_spread4);
 
-        let mut amm = AMM {
+        let amm = AMM {
             base_asset_reserve: 2 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 2 * AMM_RESERVE_PRECISION,
             sqrt_k: 2 * AMM_RESERVE_PRECISION,
@@ -1296,10 +1296,10 @@ mod test {
         let (bar_l, qar_l) = calculate_spread_reserves(&amm, PositionDirection::Long).unwrap();
         let (bar_s, qar_s) = calculate_spread_reserves(&amm, PositionDirection::Short).unwrap();
 
-        assert_eq!(qar_l > amm.quote_asset_reserve, true);
-        assert_eq!(bar_l < amm.base_asset_reserve, true);
-        assert_eq!(qar_s < amm.quote_asset_reserve, true);
-        assert_eq!(bar_s > amm.base_asset_reserve, true);
+        assert!(qar_l > amm.quote_asset_reserve);
+        assert!(bar_l < amm.base_asset_reserve);
+        assert!(qar_s < amm.quote_asset_reserve);
+        assert!(bar_s > amm.base_asset_reserve);
         assert_eq!(bar_s, 20005001250312);
         assert_eq!(bar_l, 19983525535420);
         assert_eq!(qar_l, 20016488046166);
@@ -1351,17 +1351,12 @@ mod test {
             last_mark_price_twap_ts: prev,
             ..AMM::default()
         };
-        let old_mark_std = amm.mark_std;
         update_amm_mark_std(&mut amm, now, MARK_PRICE_PRECISION * 23).unwrap();
         assert_eq!(amm.mark_std, (MARK_PRICE_PRECISION * 23) as u64);
 
         amm.mark_std = MARK_PRICE_PRECISION as u64;
         amm.last_mark_price_twap_ts = now - 60;
-        update_amm_mark_std(&mut amm, now, MARK_PRICE_PRECISION * 2);
-
-        //     let expected_out = (MARK_PRICE_PRECISION*2/3600 + (MARK_PRICE_PRECISION - MARK_PRICE_PRECISION/3600)
-        // ) as u64;
-        //     assert_eq!(amm.mark_std, expected_out);
+        update_amm_mark_std(&mut amm, now, MARK_PRICE_PRECISION * 2).unwrap();
     }
 
     #[test]
@@ -1394,8 +1389,7 @@ mod test {
             ..AMM::default()
         };
 
-        let new_oracle_price_twap =
-            update_oracle_price_twap(&mut amm, now, &oracle_price_data, None).unwrap();
+        update_oracle_price_twap(&mut amm, now, &oracle_price_data, None).unwrap();
         assert_eq!(amm.last_oracle_price, oracle_price_data.price);
         assert_eq!(amm.last_oracle_price, 400212800000);
 
@@ -1403,21 +1397,19 @@ mod test {
         let trade_direction = PositionDirection::Long;
 
         let old_mark_twap = amm.last_mark_price_twap;
-        let old_bid_twap = amm.last_bid_price_twap;
-        let old_ask_twap = amm.last_ask_price_twap;
         let new_mark_twap =
             update_mark_twap(&mut amm, now, Some(trade_price), Some(trade_direction)).unwrap();
         let new_bid_twap = amm.last_bid_price_twap;
         let new_ask_twap = amm.last_ask_price_twap;
 
-        assert_eq!(new_mark_twap > old_mark_twap, true);
-        assert_eq!(new_bid_twap < new_ask_twap, true);
+        assert!(new_mark_twap > old_mark_twap);
+        assert!(new_bid_twap < new_ask_twap);
         assert_eq!(new_bid_twap, 400000059111);
         assert_eq!(new_mark_twap, 400000100777);
         assert_eq!(new_ask_twap, 400000142444);
 
         while now < 3600 {
-            now = now + 1;
+            now += 1;
             update_oracle_price_twap(&mut amm, now, &oracle_price_data, None).unwrap();
             update_mark_twap(&mut amm, now, Some(trade_price), Some(trade_direction)).unwrap();
         }
@@ -1427,9 +1419,9 @@ mod test {
         let new_bid_twap = amm.last_bid_price_twap;
         let new_ask_twap = amm.last_ask_price_twap;
 
-        assert_eq!(new_bid_twap < new_ask_twap, true);
+        assert!(new_bid_twap < new_ask_twap);
         assert_eq!((new_bid_twap + new_ask_twap) / 2, new_mark_twap);
-        assert_eq!((new_oracle_twap as u128) < new_mark_twap, true); // funding in favor of maker?
+        assert!((new_oracle_twap as u128) < new_mark_twap); // funding in favor of maker?
         assert_eq!(new_oracle_twap, 400071307837);
         assert_eq!(new_bid_twap, 400134525005);
         assert_eq!(new_mark_twap, 400229350757); // < 2 cents above oracle twap
@@ -1445,7 +1437,7 @@ mod test {
         };
 
         while now <= 3600 * 2 {
-            now = now + 1;
+            now += 1;
             update_oracle_price_twap(&mut amm, now, &oracle_price_data, None).unwrap();
             if now % 200 == 0 {
                 update_mark_twap(&mut amm, now, Some(trade_price_2), Some(trade_direction_2))
@@ -1458,9 +1450,9 @@ mod test {
         let new_bid_twap = amm.last_bid_price_twap;
         let new_ask_twap = amm.last_ask_price_twap;
 
-        assert_eq!(new_bid_twap < new_ask_twap, true);
+        assert!(new_bid_twap < new_ask_twap);
         assert_eq!((new_bid_twap + new_ask_twap) / 2, new_mark_twap);
-        assert_eq!((new_oracle_twap as u128) > new_mark_twap, true); // funding in favor of maker
+        assert!((new_oracle_twap as u128) > new_mark_twap); // funding in favor of maker
         assert_eq!(new_oracle_twap, 399971086480);
         assert_eq!(new_bid_twap, 399863531908); // ema from prev twap
         assert_eq!(new_ask_twap, 400059833178); // ema from prev twap
@@ -1522,7 +1514,7 @@ mod test {
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50000,
-                net_base_asset_amount: -(122950819670000 as i128),
+                net_base_asset_amount: -122950819670000,
                 ..AMM::default()
             },
             ..Market::default()
@@ -1544,28 +1536,28 @@ mod test {
         // cost to increase k is always positive when imbalanced
         let cost = adjust_k_cost_and_update(&mut market, &update_k_up).unwrap();
         assert_eq!(market.amm.terminal_quote_asset_reserve, 5009754110429452);
-        assert_eq!(cost > 0, true);
+        assert!(cost > 0);
         assert_eq!(cost, 29448);
 
         let (t_price2, t_qar2, t_bar2) = calculate_terminal_price_and_reserves(&market).unwrap();
         // since users are net short, new terminal price lower after increasing k
-        assert_eq!(t_price2 < t_price, true);
+        assert!(t_price2 < t_price);
         // new terminal reserves are unbalanced with quote below base (lower terminal price)
         assert_eq!(t_bar2, 5010245901639340);
         assert_eq!(t_qar2, 5009754110429452);
 
         // with positive budget, how much can k be increased?
-        let (mut numer1, mut denom1) = _calculate_budgeted_k_scale(
+        let (numer1, denom1) = _calculate_budgeted_k_scale(
             AMM_RESERVE_PRECISION * 55414,
             AMM_RESERVE_PRECISION * 55530,
-            ((QUOTE_PRECISION / 500) as i128), // positive budget
+            (QUOTE_PRECISION / 500) as i128, // positive budget
             36365,
             (AMM_RESERVE_PRECISION * 66) as i128,
             100,
         )
         .unwrap();
 
-        assert_eq!(numer1 > denom1, true);
+        assert!(numer1 > denom1);
         assert_eq!(numer1, 8796289171560000);
         assert_eq!(denom1, 8790133110760000);
 
@@ -1582,7 +1574,7 @@ mod test {
             100,
         )
         .unwrap();
-        assert_eq!(numer1 < denom1, true);
+        assert!(numer1 < denom1);
         pct_change_in_k = (numer1 * 1000000) / denom1;
         assert_eq!(pct_change_in_k, 993050); // k was decreased 0.695%
 
@@ -1596,7 +1588,7 @@ mod test {
             100,
         )
         .unwrap();
-        assert_eq!(numer1 < denom1, true);
+        assert!(numer1 < denom1);
         pct_change_in_k = (numer1 * 1000000) / denom1;
         assert_eq!(pct_change_in_k, 986196); // k was decreased 1.3804%
 
@@ -1611,7 +1603,7 @@ mod test {
         )
         .unwrap();
 
-        assert_eq!(numer1 > denom1, true);
+        assert!(numer1 > denom1);
         assert_eq!(numer1, 1001000);
         assert_eq!(denom1, 1000000);
 
@@ -1626,7 +1618,7 @@ mod test {
         )
         .unwrap();
 
-        assert_eq!(numer1 < denom1, true);
+        assert!(numer1 < denom1);
         assert_eq!(numer1, 978000); // 2.2% decrease
         assert_eq!(denom1, 1000000);
     }

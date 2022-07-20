@@ -571,8 +571,7 @@ mod test {
         let bar = AMM_RESERVE_PRECISION;
         let px = 194011254567891; // 19401.125
 
-        let mut new_peg;
-        new_peg = calculate_peg_from_target_price(qar, bar, px).unwrap();
+        let mut new_peg = calculate_peg_from_target_price(qar, bar, px).unwrap();
         assert_eq!(new_peg, 19401125);
         new_peg = calculate_peg_from_target_price(qar - 10000, bar + 10000, px).unwrap();
         assert_eq!(new_peg, 19401125);
@@ -597,7 +596,7 @@ mod test {
                 terminal_quote_asset_reserve: 64 * AMM_RESERVE_PRECISION,
                 sqrt_k: 64 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 19_400_000,
-                net_base_asset_amount: -1 * AMM_RESERVE_PRECISION as i128,
+                net_base_asset_amount: -(AMM_RESERVE_PRECISION as i128),
                 mark_std: MARK_PRICE_PRECISION as u64,
                 last_mark_price_twap_ts: 0,
                 base_spread: 250,
@@ -612,7 +611,6 @@ mod test {
             ..Market::default()
         };
 
-        let now = 10000 as i64;
         let mark_price = market.amm.mark_price().unwrap();
         assert_eq!(mark_price, 188076686390578); //$ 18,807.6686390578
 
@@ -629,7 +627,7 @@ mod test {
 
         assert_eq!(optimal_peg, 13430054);
         assert_eq!(budget, 5878100676);
-        assert_eq!(check_lb, false);
+        assert!(!check_lb);
 
         // positive target_price_gap within max_spread
         let oracle_price_data = OraclePriceData {
@@ -643,7 +641,7 @@ mod test {
 
         assert_eq!(optimal_peg, 19496271);
         assert_eq!(budget, 39500000);
-        assert_eq!(check_lb, true);
+        assert!(check_lb);
 
         // positive target_price_gap 2 within max_spread?
         let oracle_price_data = OraclePriceData {
@@ -657,7 +655,7 @@ mod test {
 
         assert_eq!(optimal_peg, 19186823);
         assert_eq!(budget, 39500000);
-        assert_eq!(check_lb, true);
+        assert!(check_lb);
 
         // negative target_price_gap within max_spread
         let oracle_price_data = OraclePriceData {
@@ -671,7 +669,7 @@ mod test {
 
         assert_eq!(optimal_peg, 21042480);
         assert_eq!(budget, 39500000);
-        assert_eq!(check_lb, true);
+        assert!(check_lb);
 
         // negative target_price_gap exceeding max_spread (in favor of vAMM)
         let oracle_price_data = OraclePriceData {
@@ -685,7 +683,7 @@ mod test {
 
         assert_eq!(optimal_peg, 43735352);
         assert_eq!(budget, 39500000);
-        assert_eq!(check_lb, true);
+        assert!(check_lb);
 
         market.amm.net_base_asset_amount = AMM_RESERVE_PRECISION as i128;
 
@@ -716,20 +714,20 @@ mod test {
 
         assert_eq!(optimal_peg, 41548584);
         assert_eq!(budget, 21146993022); // $21146.993022
-        assert_eq!(check_lb, false);
+        assert!(!check_lb);
     }
 
     #[test]
     fn calc_adjust_amm_tests_repeg_in_favour() {
         // btc-esque market
-        let mut market = Market {
+        let market = Market {
             amm: AMM {
                 base_asset_reserve: 65 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 630153846154000,
                 terminal_quote_asset_reserve: 64 * AMM_RESERVE_PRECISION,
                 sqrt_k: 64 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 19_400_000,
-                net_base_asset_amount: -1 * AMM_RESERVE_PRECISION as i128,
+                net_base_asset_amount: AMM_RESERVE_PRECISION as i128,
                 mark_std: MARK_PRICE_PRECISION as u64,
                 last_mark_price_twap_ts: 0,
                 curve_update_intensity: 100,
@@ -747,7 +745,7 @@ mod test {
             px,
         )
         .unwrap();
-        assert_eq!(optimal_peg > market.amm.peg_multiplier, true);
+        assert!(optimal_peg > market.amm.peg_multiplier);
 
         let (repegged_market, _amm_update_cost) =
             adjust_amm(&market, optimal_peg, 0, true).unwrap();
@@ -761,7 +759,7 @@ mod test {
     #[test]
     fn calc_adjust_amm_tests_sufficent_fee_for_repeg() {
         // btc-esque market
-        let mut market = Market {
+        let market = Market {
             amm: AMM {
                 minimum_quote_asset_trade_size: 10000000,
                 base_asset_amount_step_size: 10000000,
@@ -770,7 +768,7 @@ mod test {
                 terminal_quote_asset_reserve: 604390726630032096,
                 sqrt_k: 604390760790494666,
                 peg_multiplier: 34353,
-                net_base_asset_amount: 1 * AMM_RESERVE_PRECISION as i128,
+                net_base_asset_amount: AMM_RESERVE_PRECISION as i128,
                 last_mark_price_twap: 341283700678,
                 last_mark_price_twap_ts: 1657054269,
                 curve_update_intensity: 100,
@@ -798,16 +796,16 @@ mod test {
             px,
         )
         .unwrap();
-        assert_eq!(optimal_peg > market.amm.peg_multiplier, true);
+        assert!(optimal_peg > market.amm.peg_multiplier);
         let fee_budget = calculate_fee_pool(&market).unwrap();
-        assert_eq!(fee_budget > 0, true);
+        assert!(fee_budget > 0);
         let (repegged_market, _amm_update_cost) =
             adjust_amm(&market, optimal_peg, fee_budget, true).unwrap();
 
         // insufficient fee to repeg
         let new_peg = repegged_market.amm.peg_multiplier;
         let old_peg = market.amm.peg_multiplier;
-        assert_eq!(new_peg > old_peg, true);
+        assert!(new_peg > old_peg);
         assert_eq!(new_peg, 34656);
         assert_eq!(_amm_update_cost, 303006);
     }

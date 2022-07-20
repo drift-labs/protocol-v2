@@ -260,7 +260,7 @@ mod test {
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50000,
-                net_base_asset_amount: -(122950819670000 as i128),
+                net_base_asset_amount: -122950819670000,
                 total_exchange_fee: QUOTE_PRECISION / 2,
                 total_fee_minus_distributions: (QUOTE_PRECISION as i128) / 2,
 
@@ -282,11 +282,11 @@ mod test {
 
         assert_eq!(balanced_funding, 4166666666666);
 
-        let (long_funding, short_funding, pnl) =
+        let (long_funding, short_funding, _) =
             calculate_funding_rate_long_short(&mut market, balanced_funding).unwrap();
 
         assert_eq!(long_funding, balanced_funding);
-        assert_eq!(long_funding > short_funding, true);
+        assert!(long_funding > short_funding);
         assert_eq!(short_funding, 2422216466708);
 
         // only spend 1/3 of fee pool, ((.5-.416667)) * 3 < .25
@@ -301,7 +301,7 @@ mod test {
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50000,
-                net_base_asset_amount: (122950819670000 as i128),
+                net_base_asset_amount: 122950819670000,
                 total_exchange_fee: QUOTE_PRECISION / 2,
                 total_fee_minus_distributions: (QUOTE_PRECISION as i128) / 2,
                 last_mark_price_twap: 50 * MARK_PRICE_PRECISION,
@@ -315,13 +315,13 @@ mod test {
 
         assert_eq!(balanced_funding, 4166666666666);
 
-        let (long_funding, short_funding, pnl) =
+        let (long_funding, short_funding, _) =
             calculate_funding_rate_long_short(&mut market, balanced_funding).unwrap();
 
         assert_eq!(long_funding, balanced_funding);
         assert_eq!(long_funding, short_funding);
         let new_fees = market.amm.total_fee_minus_distributions;
-        assert_eq!(new_fees > (QUOTE_PRECISION as i128 / 2), true);
+        assert!(new_fees > QUOTE_PRECISION as i128 / 2);
         assert_eq!(new_fees, 1012295); // made over $.50
     }
 }

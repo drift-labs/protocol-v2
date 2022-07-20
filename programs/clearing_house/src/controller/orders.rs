@@ -1542,7 +1542,7 @@ mod tests {
                     market_index: 0,
                     order_type: OrderType::Market,
                     direction: PositionDirection::Long,
-                    base_asset_amount: 1 * BASE_PRECISION,
+                    base_asset_amount: BASE_PRECISION,
                     ts: 0,
                     slot: 0,
                     auction_start_price: 100 * MARK_PRICE_PRECISION,
@@ -1553,7 +1553,7 @@ mod tests {
                 positions: get_positions(MarketPosition {
                     market_index: 0,
                     open_orders: 1,
-                    open_bids: 1 * BASE_PRECISION_I128,
+                    open_bids: BASE_PRECISION_I128,
                     ..MarketPosition::default()
                 }),
                 ..User::default()
@@ -1565,7 +1565,7 @@ mod tests {
                     post_only: true,
                     order_type: OrderType::Limit,
                     direction: PositionDirection::Short,
-                    base_asset_amount: 1 * BASE_PRECISION,
+                    base_asset_amount: BASE_PRECISION,
                     ts: 0,
                     price: 100 * MARK_PRICE_PRECISION,
                     ..Order::default()
@@ -1573,7 +1573,7 @@ mod tests {
                 positions: get_positions(MarketPosition {
                     market_index: 0,
                     open_orders: 1,
-                    open_asks: -1 * BASE_PRECISION_I128,
+                    open_asks: -BASE_PRECISION_I128,
                     ..MarketPosition::default()
                 }),
                 ..User::default()
@@ -1609,7 +1609,7 @@ mod tests {
             .unwrap();
 
             let taker_position = &taker.positions[0];
-            assert_eq!(taker_position.base_asset_amount, 1 * BASE_PRECISION_I128);
+            assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I128);
             assert_eq!(taker_position.quote_asset_amount, 100 * QUOTE_PRECISION);
             assert_eq!(taker_position.quote_entry_amount, 100 * QUOTE_PRECISION);
             assert_eq!(taker_position.unsettled_pnl, -50000);
@@ -1621,7 +1621,7 @@ mod tests {
             assert_eq!(taker.orders[0], Order::default());
 
             let maker_position = &maker.positions[0];
-            assert_eq!(maker_position.base_asset_amount, -1 * BASE_PRECISION_I128);
+            assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I128);
             assert_eq!(maker_position.quote_asset_amount, 100 * QUOTE_PRECISION);
             assert_eq!(maker_position.quote_entry_amount, 100 * QUOTE_PRECISION);
             assert_eq!(maker_position.unsettled_pnl, 30000);
@@ -1649,7 +1649,7 @@ mod tests {
                     market_index: 0,
                     order_type: OrderType::Market,
                     direction: PositionDirection::Long,
-                    base_asset_amount: 1 * BASE_PRECISION,
+                    base_asset_amount: BASE_PRECISION,
                     ts: 0,
                     slot: 0,
                     auction_start_price: 100 * MARK_PRICE_PRECISION,
@@ -1660,7 +1660,7 @@ mod tests {
                 positions: get_positions(MarketPosition {
                     market_index: 0,
                     open_orders: 1,
-                    open_bids: 1 * BASE_PRECISION_I128,
+                    open_bids: BASE_PRECISION_I128,
                     ..MarketPosition::default()
                 }),
                 ..User::default()
@@ -1672,7 +1672,7 @@ mod tests {
                     post_only: true,
                     order_type: OrderType::Limit,
                     direction: PositionDirection::Short,
-                    base_asset_amount: 1 * BASE_PRECISION,
+                    base_asset_amount: BASE_PRECISION,
                     ts: 0,
                     price: 160 * MARK_PRICE_PRECISION,
                     ..Order::default()
@@ -1680,7 +1680,7 @@ mod tests {
                 positions: get_positions(MarketPosition {
                     market_index: 0,
                     open_orders: 1,
-                    open_asks: -1 * BASE_PRECISION_I128,
+                    open_asks: -BASE_PRECISION_I128,
                     ..MarketPosition::default()
                 }),
                 ..User::default()
@@ -1716,7 +1716,7 @@ mod tests {
             .unwrap();
 
             let taker_position = &taker.positions[0];
-            assert_eq!(taker_position.base_asset_amount, 1 * BASE_PRECISION_I128);
+            assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I128);
             assert_eq!(taker_position.quote_asset_amount, 160 * QUOTE_PRECISION);
             assert_eq!(taker_position.quote_entry_amount, 160 * QUOTE_PRECISION);
             assert_eq!(taker_position.unsettled_pnl, -80000);
@@ -1728,7 +1728,7 @@ mod tests {
             assert_eq!(taker.orders[0], Order::default());
 
             let maker_position = &maker.positions[0];
-            assert_eq!(maker_position.base_asset_amount, -1 * BASE_PRECISION_I128);
+            assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I128);
             assert_eq!(maker_position.quote_asset_amount, 160 * QUOTE_PRECISION);
             assert_eq!(maker_position.quote_entry_amount, 160 * QUOTE_PRECISION);
             assert_eq!(maker_position.unsettled_pnl, 48000);
@@ -1756,7 +1756,7 @@ mod tests {
                     market_index: 0,
                     order_type: OrderType::Market,
                     direction: PositionDirection::Short,
-                    base_asset_amount: 1 * BASE_PRECISION,
+                    base_asset_amount: BASE_PRECISION,
                     ts: 0,
                     slot: 0,
                     auction_start_price: 200 * MARK_PRICE_PRECISION,
@@ -1767,7 +1767,7 @@ mod tests {
                 positions: get_positions(MarketPosition {
                     market_index: 0,
                     open_orders: 1,
-                    open_asks: -1 * BASE_PRECISION_I128,
+                    open_asks: -BASE_PRECISION_I128,
                     ..MarketPosition::default()
                 }),
                 ..User::default()
@@ -1779,7 +1779,7 @@ mod tests {
                     post_only: true,
                     order_type: OrderType::Limit,
                     direction: PositionDirection::Long,
-                    base_asset_amount: 1 * BASE_PRECISION,
+                    base_asset_amount: BASE_PRECISION,
                     ts: 0,
                     price: 180 * MARK_PRICE_PRECISION,
                     ..Order::default()
@@ -1787,7 +1787,7 @@ mod tests {
                 positions: get_positions(MarketPosition {
                     market_index: 0,
                     open_orders: 1,
-                    open_bids: 1 * BASE_PRECISION_I128,
+                    open_bids: BASE_PRECISION_I128,
                     ..MarketPosition::default()
                 }),
                 ..User::default()
@@ -1823,7 +1823,7 @@ mod tests {
             .unwrap();
 
             let taker_position = &taker.positions[0];
-            assert_eq!(taker_position.base_asset_amount, -1 * BASE_PRECISION_I128);
+            assert_eq!(taker_position.base_asset_amount, -BASE_PRECISION_I128);
             assert_eq!(taker_position.quote_asset_amount, 180 * QUOTE_PRECISION);
             assert_eq!(taker_position.quote_entry_amount, 180 * QUOTE_PRECISION);
             assert_eq!(taker_position.unsettled_pnl, -90000);
@@ -1835,7 +1835,7 @@ mod tests {
             assert_eq!(taker.orders[0], Order::default());
 
             let maker_position = &maker.positions[0];
-            assert_eq!(maker_position.base_asset_amount, 1 * BASE_PRECISION_I128);
+            assert_eq!(maker_position.base_asset_amount, BASE_PRECISION_I128);
             assert_eq!(maker_position.quote_asset_amount, 180 * QUOTE_PRECISION);
             assert_eq!(maker_position.quote_entry_amount, 180 * QUOTE_PRECISION);
             assert_eq!(maker_position.unsettled_pnl, 54000);
@@ -1863,7 +1863,7 @@ mod tests {
                     market_index: 0,
                     order_type: OrderType::Market,
                     direction: PositionDirection::Short,
-                    base_asset_amount: 1 * BASE_PRECISION,
+                    base_asset_amount: BASE_PRECISION,
                     ts: 0,
                     slot: 0,
                     auction_start_price: 200 * MARK_PRICE_PRECISION,
@@ -1874,7 +1874,7 @@ mod tests {
                 positions: get_positions(MarketPosition {
                     market_index: 0,
                     open_orders: 1,
-                    open_asks: -1 * BASE_PRECISION_I128,
+                    open_asks: -BASE_PRECISION_I128,
                     ..MarketPosition::default()
                 }),
                 ..User::default()
@@ -1886,7 +1886,7 @@ mod tests {
                     post_only: true,
                     order_type: OrderType::Limit,
                     direction: PositionDirection::Long,
-                    base_asset_amount: 1 * BASE_PRECISION,
+                    base_asset_amount: BASE_PRECISION,
                     ts: 0,
                     price: 140 * MARK_PRICE_PRECISION,
                     ..Order::default()
@@ -1894,7 +1894,7 @@ mod tests {
                 positions: get_positions(MarketPosition {
                     market_index: 0,
                     open_orders: 1,
-                    open_bids: 1 * BASE_PRECISION_I128,
+                    open_bids: BASE_PRECISION_I128,
                     ..MarketPosition::default()
                 }),
                 ..User::default()
@@ -1930,7 +1930,7 @@ mod tests {
             .unwrap();
 
             let taker_position = &taker.positions[0];
-            assert_eq!(taker_position.base_asset_amount, -1 * BASE_PRECISION_I128);
+            assert_eq!(taker_position.base_asset_amount, -BASE_PRECISION_I128);
             assert_eq!(taker_position.quote_asset_amount, 140 * QUOTE_PRECISION);
             assert_eq!(taker_position.quote_entry_amount, 140 * QUOTE_PRECISION);
             assert_eq!(taker_position.unsettled_pnl, -70000);
@@ -1942,7 +1942,7 @@ mod tests {
             assert_eq!(taker.orders[0], Order::default());
 
             let maker_position = &maker.positions[0];
-            assert_eq!(maker_position.base_asset_amount, 1 * BASE_PRECISION_I128);
+            assert_eq!(maker_position.base_asset_amount, BASE_PRECISION_I128);
             assert_eq!(maker_position.quote_asset_amount, 140 * QUOTE_PRECISION);
             assert_eq!(maker_position.quote_entry_amount, 140 * QUOTE_PRECISION);
             assert_eq!(maker_position.unsettled_pnl, 42000);
@@ -1970,7 +1970,7 @@ mod tests {
                     market_index: 0,
                     order_type: OrderType::Market,
                     direction: PositionDirection::Long,
-                    base_asset_amount: 1 * BASE_PRECISION,
+                    base_asset_amount: BASE_PRECISION,
                     ts: 0,
                     slot: 0,
                     auction_start_price: 100 * MARK_PRICE_PRECISION,
@@ -1993,7 +1993,7 @@ mod tests {
                     post_only: true,
                     order_type: OrderType::Limit,
                     direction: PositionDirection::Short,
-                    base_asset_amount: 1 * BASE_PRECISION,
+                    base_asset_amount: BASE_PRECISION,
                     ts: 0,
                     price: 201 * MARK_PRICE_PRECISION,
                     ..Order::default()
@@ -2046,7 +2046,7 @@ mod tests {
                     market_index: 0,
                     order_type: OrderType::Market,
                     direction: PositionDirection::Short,
-                    base_asset_amount: 1 * BASE_PRECISION,
+                    base_asset_amount: BASE_PRECISION,
                     ts: 0,
                     auction_start_price: 200 * MARK_PRICE_PRECISION,
                     auction_end_price: 100 * MARK_PRICE_PRECISION,
@@ -2068,7 +2068,7 @@ mod tests {
                     post_only: true,
                     order_type: OrderType::Limit,
                     direction: PositionDirection::Long,
-                    base_asset_amount: 1 * BASE_PRECISION,
+                    base_asset_amount: BASE_PRECISION,
                     ts: 0,
                     price: 99 * MARK_PRICE_PRECISION,
                     ..Order::default()
@@ -2121,7 +2121,7 @@ mod tests {
                     market_index: 0,
                     order_type: OrderType::Market,
                     direction: PositionDirection::Short,
-                    base_asset_amount: 1 * BASE_PRECISION,
+                    base_asset_amount: BASE_PRECISION,
                     ts: 0,
                     slot: 0,
                     auction_start_price: 200 * MARK_PRICE_PRECISION,
@@ -2144,7 +2144,7 @@ mod tests {
                     post_only: true,
                     order_type: OrderType::Limit,
                     direction: PositionDirection::Short,
-                    base_asset_amount: 1 * BASE_PRECISION,
+                    base_asset_amount: BASE_PRECISION,
                     ts: 0,
                     price: 200 * MARK_PRICE_PRECISION,
                     ..Order::default()
@@ -2197,7 +2197,7 @@ mod tests {
                     market_index: 1,
                     order_type: OrderType::Market,
                     direction: PositionDirection::Short,
-                    base_asset_amount: 1 * BASE_PRECISION,
+                    base_asset_amount: BASE_PRECISION,
                     ts: 0,
                     auction_start_price: 200 * MARK_PRICE_PRECISION,
                     auction_end_price: 100 * MARK_PRICE_PRECISION,
@@ -2219,7 +2219,7 @@ mod tests {
                     post_only: true,
                     order_type: OrderType::Limit,
                     direction: PositionDirection::Long,
-                    base_asset_amount: 1 * BASE_PRECISION,
+                    base_asset_amount: BASE_PRECISION,
                     ts: 0,
                     price: 200 * MARK_PRICE_PRECISION,
                     auction_duration: 5,
@@ -2296,7 +2296,7 @@ mod tests {
                     post_only: true,
                     order_type: OrderType::Limit,
                     direction: PositionDirection::Short,
-                    base_asset_amount: 1 * BASE_PRECISION,
+                    base_asset_amount: BASE_PRECISION,
                     ts: 0,
                     price: 120 * MARK_PRICE_PRECISION,
                     ..Order::default()
@@ -2304,7 +2304,7 @@ mod tests {
                 positions: get_positions(MarketPosition {
                     market_index: 0,
                     open_orders: 1,
-                    open_asks: -1 * BASE_PRECISION_I128,
+                    open_asks: -BASE_PRECISION_I128,
                     ..MarketPosition::default()
                 }),
                 ..User::default()
@@ -2314,7 +2314,6 @@ mod tests {
 
             let now = 1_i64;
             let slot = 1_u64;
-            let auction_duration = 5_i64;
 
             let fee_structure = FeeStructure::default();
 
@@ -2341,12 +2340,12 @@ mod tests {
             .unwrap();
 
             let taker_position = &taker.positions[0];
-            assert_eq!(taker_position.base_asset_amount, 1 * BASE_PRECISION_I128);
+            assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I128);
             assert_eq!(taker_position.quote_asset_amount, 120 * QUOTE_PRECISION);
             assert_eq!(taker_position.quote_entry_amount, 120 * QUOTE_PRECISION);
 
             let maker_position = &maker.positions[0];
-            assert_eq!(maker_position.base_asset_amount, -1 * BASE_PRECISION_I128);
+            assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I128);
             assert_eq!(maker_position.quote_asset_amount, 120 * QUOTE_PRECISION);
             assert_eq!(maker_position.quote_entry_amount, 120 * QUOTE_PRECISION);
 
@@ -2364,7 +2363,7 @@ mod tests {
                     market_index: 0,
                     order_type: OrderType::Market,
                     direction: PositionDirection::Long,
-                    base_asset_amount: 1 * BASE_PRECISION,
+                    base_asset_amount: BASE_PRECISION,
                     ts: 0,
                     slot: 0,
                     auction_start_price: 100 * MARK_PRICE_PRECISION,
@@ -2405,7 +2404,6 @@ mod tests {
 
             let now = 1_i64;
             let slot = 1_u64;
-            let auction_duration = 5_i64;
 
             let fee_structure = FeeStructure::default();
 
@@ -2432,12 +2430,12 @@ mod tests {
             .unwrap();
 
             let taker_position = &taker.positions[0];
-            assert_eq!(taker_position.base_asset_amount, 1 * BASE_PRECISION_I128);
+            assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I128);
             assert_eq!(taker_position.quote_asset_amount, 120 * QUOTE_PRECISION);
             assert_eq!(taker_position.quote_entry_amount, 120 * QUOTE_PRECISION);
 
             let maker_position = &maker.positions[0];
-            assert_eq!(maker_position.base_asset_amount, -1 * BASE_PRECISION_I128);
+            assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I128);
             assert_eq!(maker_position.quote_asset_amount, 120 * QUOTE_PRECISION);
             assert_eq!(maker_position.quote_entry_amount, 120 * QUOTE_PRECISION);
 
@@ -2455,7 +2453,7 @@ mod tests {
                     market_index: 0,
                     order_type: OrderType::Market,
                     direction: PositionDirection::Long,
-                    base_asset_amount: 1 * BASE_PRECISION,
+                    base_asset_amount: BASE_PRECISION,
                     ts: 0,
                     slot: 0,
                     auction_start_price: 100 * MARK_PRICE_PRECISION,
@@ -2466,7 +2464,7 @@ mod tests {
                 positions: get_positions(MarketPosition {
                     market_index: 0,
                     open_orders: 1,
-                    open_bids: 1 * BASE_PRECISION_I128,
+                    open_bids: BASE_PRECISION_I128,
                     ..MarketPosition::default()
                 }),
                 ..User::default()
@@ -2478,7 +2476,7 @@ mod tests {
                     post_only: true,
                     order_type: OrderType::Market,
                     direction: PositionDirection::Short,
-                    base_asset_amount: 1 * BASE_PRECISION,
+                    base_asset_amount: BASE_PRECISION,
                     ts: 0,
                     slot: 0,
                     auction_start_price: 200 * MARK_PRICE_PRECISION,
@@ -2489,7 +2487,7 @@ mod tests {
                 positions: get_positions(MarketPosition {
                     market_index: 0,
                     open_orders: 1,
-                    open_asks: -1 * BASE_PRECISION_I128,
+                    open_asks: -BASE_PRECISION_I128,
                     ..MarketPosition::default()
                 }),
                 ..User::default()
@@ -2525,7 +2523,7 @@ mod tests {
             .unwrap();
 
             let taker_position = &taker.positions[0];
-            assert_eq!(taker_position.base_asset_amount, 1 * BASE_PRECISION_I128);
+            assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I128);
             assert_eq!(taker_position.quote_asset_amount, 150 * QUOTE_PRECISION);
             assert_eq!(taker_position.quote_entry_amount, 150 * QUOTE_PRECISION);
             assert_eq!(taker_position.unsettled_pnl, -75000);
@@ -2537,7 +2535,7 @@ mod tests {
             assert_eq!(taker.orders[0], Order::default());
 
             let maker_position = &maker.positions[0];
-            assert_eq!(maker_position.base_asset_amount, -1 * BASE_PRECISION_I128);
+            assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I128);
             assert_eq!(maker_position.quote_asset_amount, 150 * QUOTE_PRECISION);
             assert_eq!(maker_position.quote_entry_amount, 150 * QUOTE_PRECISION);
             assert_eq!(maker_position.unsettled_pnl, 45000);
@@ -2566,7 +2564,7 @@ mod tests {
                     post_only: true,
                     order_type: OrderType::Limit,
                     direction: PositionDirection::Short,
-                    base_asset_amount: 1 * BASE_PRECISION,
+                    base_asset_amount: BASE_PRECISION,
                     ts: 0,
                     slot: 0,
                     price: 100 * MARK_PRICE_PRECISION,
@@ -2575,7 +2573,7 @@ mod tests {
                 positions: get_positions(MarketPosition {
                     market_index: 0,
                     open_orders: 1,
-                    open_asks: -1 * BASE_PRECISION_I128,
+                    open_asks: -BASE_PRECISION_I128,
                     ..MarketPosition::default()
                 }),
                 ..User::default()
@@ -2586,7 +2584,7 @@ mod tests {
                     market_index: 0,
                     order_type: OrderType::Limit,
                     direction: PositionDirection::Long,
-                    base_asset_amount: 1 * BASE_PRECISION,
+                    base_asset_amount: BASE_PRECISION,
                     ts: 0,
                     price: 150 * MARK_PRICE_PRECISION,
                     ..Order::default()
@@ -2594,7 +2592,7 @@ mod tests {
                 positions: get_positions(MarketPosition {
                     market_index: 0,
                     open_orders: 1,
-                    open_bids: 1 * BASE_PRECISION_I128,
+                    open_bids: BASE_PRECISION_I128,
                     ..MarketPosition::default()
                 }),
                 ..User::default()
@@ -2629,7 +2627,7 @@ mod tests {
             .unwrap();
 
             let maker_position = &maker.positions[0];
-            assert_eq!(maker_position.base_asset_amount, -1 * BASE_PRECISION_I128);
+            assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I128);
             assert_eq!(maker_position.quote_asset_amount, 100 * QUOTE_PRECISION);
             assert_eq!(maker_position.quote_entry_amount, 100 * QUOTE_PRECISION);
             assert_eq!(maker_position.unsettled_pnl, 30000);
@@ -2639,7 +2637,7 @@ mod tests {
             assert_eq!(maker.orders[0], Order::default());
 
             let taker_position = &taker.positions[0];
-            assert_eq!(taker_position.base_asset_amount, 1 * BASE_PRECISION_I128);
+            assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I128);
             assert_eq!(taker_position.quote_asset_amount, 100 * QUOTE_PRECISION);
             assert_eq!(taker_position.quote_entry_amount, 100 * QUOTE_PRECISION);
             assert_eq!(taker_position.unsettled_pnl, -50000);
@@ -2670,7 +2668,7 @@ mod tests {
                     post_only: true,
                     order_type: OrderType::Limit,
                     direction: PositionDirection::Long,
-                    base_asset_amount: 1 * BASE_PRECISION,
+                    base_asset_amount: BASE_PRECISION,
                     ts: 0,
                     slot: 0,
                     price: 100 * MARK_PRICE_PRECISION,
@@ -2679,7 +2677,7 @@ mod tests {
                 positions: get_positions(MarketPosition {
                     market_index: 0,
                     open_orders: 1,
-                    open_bids: 1 * BASE_PRECISION_I128,
+                    open_bids: BASE_PRECISION_I128,
                     ..MarketPosition::default()
                 }),
                 ..User::default()
@@ -2690,7 +2688,7 @@ mod tests {
                     market_index: 0,
                     order_type: OrderType::Limit,
                     direction: PositionDirection::Short,
-                    base_asset_amount: 1 * BASE_PRECISION,
+                    base_asset_amount: BASE_PRECISION,
                     ts: 0,
                     price: 50 * MARK_PRICE_PRECISION,
                     ..Order::default()
@@ -2698,7 +2696,7 @@ mod tests {
                 positions: get_positions(MarketPosition {
                     market_index: 0,
                     open_orders: 1,
-                    open_asks: -1 * BASE_PRECISION_I128,
+                    open_asks: -BASE_PRECISION_I128,
                     ..MarketPosition::default()
                 }),
                 ..User::default()
@@ -2734,7 +2732,7 @@ mod tests {
             .unwrap();
 
             let maker_position = &maker.positions[0];
-            assert_eq!(maker_position.base_asset_amount, 1 * BASE_PRECISION_I128);
+            assert_eq!(maker_position.base_asset_amount, BASE_PRECISION_I128);
             assert_eq!(maker_position.quote_asset_amount, 100 * QUOTE_PRECISION);
             assert_eq!(maker_position.quote_entry_amount, 100 * QUOTE_PRECISION);
             assert_eq!(maker_position.unsettled_pnl, 30000);
@@ -2744,7 +2742,7 @@ mod tests {
             assert_eq!(maker.orders[0], Order::default());
 
             let taker_position = &taker.positions[0];
-            assert_eq!(taker_position.base_asset_amount, -1 * BASE_PRECISION_I128);
+            assert_eq!(taker_position.base_asset_amount, -BASE_PRECISION_I128);
             assert_eq!(taker_position.quote_asset_amount, 100 * QUOTE_PRECISION);
             assert_eq!(taker_position.quote_entry_amount, 100 * QUOTE_PRECISION);
             assert_eq!(taker_position.unsettled_pnl, -50000);
