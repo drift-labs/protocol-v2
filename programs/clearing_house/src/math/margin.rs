@@ -696,9 +696,14 @@ pub fn calculate_free_collateral(
 mod test {
     use super::*;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, BANK_CUMULATIVE_INTEREST_PRECISION, BANK_IMF_PRECISION,
-        BANK_WEIGHT_PRECISION, MARK_PRICE_PRECISION, QUOTE_PRECISION,
+        AMM_RESERVE_PRECISION,
+        BANK_CUMULATIVE_INTEREST_PRECISION,
+        BANK_IMF_PRECISION,
+        // BANK_WEIGHT_PRECISION,
+        MARK_PRICE_PRECISION,
+        // QUOTE_PRECISION,
     };
+    use crate::math::position::calculate_position_pnl;
     use crate::state::bank::Bank;
     use crate::state::market::{Market, AMM};
     #[test]
@@ -730,7 +735,7 @@ mod test {
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50000,
-                net_base_asset_amount: -(122950819670000 as i128),
+                net_base_asset_amount: -(122950819670000_i128),
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -760,7 +765,7 @@ mod test {
             )
             .unwrap();
         // $5,000,000
-        assert_eq!(res > 625, true);
+        assert!(res > 625);
         assert_eq!(res, 628);
 
         market.imf_factor = 100; // .0001
@@ -772,7 +777,7 @@ mod test {
             )
             .unwrap();
         // $5,000,000
-        assert_eq!(res > 625, true);
+        assert!(res > 625);
         assert_eq!(res, 941);
 
         market.imf_factor = 1000; // .001
@@ -784,7 +789,7 @@ mod test {
             )
             .unwrap();
         // $500,000
-        assert_eq!(res > 625, true);
+        assert!(res > 625);
         assert_eq!(res, 1625);
 
         let res = market
@@ -799,15 +804,15 @@ mod test {
 
     #[test]
     fn calculate_user_equity_value_tests() {
-        let user = User { ..User::default() };
+        let _user = User { ..User::default() };
 
         let user_bank_balance = UserBankBalance {
             balance_type: BankBalanceType::Deposit,
-            balance: 1 * MARK_PRICE_PRECISION,
+            balance: MARK_PRICE_PRECISION,
             ..UserBankBalance::default()
         };
 
-        let mut bank = Bank {
+        let bank = Bank {
             cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
@@ -821,7 +826,7 @@ mod test {
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 22_100_000,
-                net_base_asset_amount: -(122950819670000 as i128),
+                net_base_asset_amount: -(122950819670000_i128),
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -831,6 +836,8 @@ mod test {
             unsettled_asset_weight: 100,
             ..Market::default()
         };
+
+        market.imf_factor = 1000; // 1_000/1_000_000 = .001
 
         // btc
         let oracle_price_data = OraclePriceData {
@@ -842,14 +849,14 @@ mod test {
 
         let market_position = MarketPosition {
             market_index: 0,
-            base_asset_amount: -(122950819670000 / 2 as i128),
+            base_asset_amount: -(122950819670000 / 2_i128),
             quote_asset_amount: 153688524588, // $25,000 entry price
             ..MarketPosition::default()
         };
 
         let margin_requirement_type = MarginRequirementType::Partial;
 
-        let bqv = calculate_bank_equity_value(
+        let _bqv = calculate_bank_equity_value(
             &user_bank_balance,
             &bank,
             &oracle_price_data,
@@ -873,15 +880,19 @@ mod test {
             .unwrap();
         assert_eq!(uaw, 95);
 
-        let (pmr, upnl) =
-            calculate_perp_equity_value(&market_position, &market, margin_requirement_type)
-                .unwrap();
+        let (pmr, upnl) = calculate_perp_equity_value(
+            &market_position,
+            &market,
+            &oracle_price_data,
+            margin_requirement_type,
+        )
+        .unwrap();
 
-        assert_eq!(upnl, 21564098355); //22699050901 * .95 = 21564098355
-        assert_eq!(upnl < position_unrealized_pnl, true); // margin system discounts
+        assert_eq!(upnl, 17409836065); //22699050901 * .95 = 21564098355
+        assert!(upnl < position_unrealized_pnl); // margin system discounts
 
-        assert_eq!(pmr > 0, true);
-        assert_eq!(pmr, 85012168422863);
+        assert!(pmr > 0);
+        assert_eq!(pmr, 87974077867214);
         // required margin $8501.21684229 for position before partial liq
         // 8501.21684229 * 1/.0625 = 136019.469477
     }

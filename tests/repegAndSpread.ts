@@ -560,7 +560,7 @@ describe('repeg and spread amm', () => {
 				'(unsettled)'
 			);
 			await clearingHouseI.unsubscribe();
-			await clearingHouseUser.unsubscribe();
+			await clearingHouseUserI.unsubscribe();
 		}
 
 		const market0 = clearingHouseOld.getMarketAccount(0);

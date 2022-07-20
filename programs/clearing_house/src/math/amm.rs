@@ -1547,7 +1547,7 @@ mod test {
         assert_eq!(t_qar2, 5009754110429452);
 
         // with positive budget, how much can k be increased?
-        let (numer1, denom1) = _calculate_budgeted_k_scale(
+        let (mut numer1, mut denom1) = _calculate_budgeted_k_scale(
             AMM_RESERVE_PRECISION * 55414,
             AMM_RESERVE_PRECISION * 55530,
             (QUOTE_PRECISION / 500) as i128, // positive budget
