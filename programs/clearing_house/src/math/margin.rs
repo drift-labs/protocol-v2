@@ -793,6 +793,13 @@ mod test {
         // $500,000
         assert!(res > 625);
         assert_eq!(res, 1625);
+        let res = market
+            .get_margin_ratio(
+                AMM_RESERVE_PRECISION * 100000,
+                MarginRequirementType::Initial,
+            )
+            .unwrap();
+        assert_eq!(res, 3787);
 
         let res = market
             .get_margin_ratio(
@@ -802,6 +809,24 @@ mod test {
             .unwrap();
         // $500,000
         assert_eq!(res, 625);
+
+        market.imf_factor = 10000; // .01
+        let res = market
+            .get_margin_ratio(
+                AMM_RESERVE_PRECISION * 100000,
+                MarginRequirementType::Partial,
+            )
+            .unwrap();
+        // $5,000,000
+        assert_eq!(res, 10000);
+        let res = market
+            .get_margin_ratio(
+                AMM_RESERVE_PRECISION * 100000,
+                MarginRequirementType::Initial,
+            )
+            .unwrap();
+        // $5,000,000
+        assert_eq!(res, 10000);
     }
 
     fn negative_margin_user_test() {
@@ -916,6 +941,7 @@ mod test {
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 22_100_000,
                 net_base_asset_amount: -(122950819670000_i128),
+                max_spread: 1000,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -926,10 +952,13 @@ mod test {
             ..Market::default()
         };
 
+        let current_price = market.amm.mark_price().unwrap();
+        assert_eq!(current_price, 210519296000087);
+
         market.imf_factor = 1000; // 1_000/1_000_000 = .001
 
         // btc
-        let oracle_price_data = OraclePriceData {
+        let mut oracle_price_data = OraclePriceData {
             price: (22050 * MARK_PRICE_PRECISION) as i128,
             confidence: 0,
             delay: 2,
@@ -950,7 +979,7 @@ mod test {
             delay: 0,
             has_sufficient_number_of_data_points: true,
         };
-        let _bqv = calculate_bank_equity_value(
+        let bqv = calculate_bank_equity_value(
             &user_bank_balance,
             &bank,
             &quote_asset_oracle_price_data,
@@ -966,7 +995,7 @@ mod test {
         let position_unsettled_pnl = position_unrealized_pnl
             .checked_add(market_position.unsettled_pnl)
             .unwrap();
-
+        assert_eq!(market_position.unsettled_pnl, 0);
         assert_eq!(position_unsettled_pnl, 22_699_050_901);
 
         let uaw = market
@@ -982,6 +1011,10 @@ mod test {
         )
         .unwrap();
 
+        let oracle_price_for_margin =
+            calculate_oracle_price_for_margin(&market_position, &market, &oracle_price_data)
+                .unwrap();
+        assert_eq!(oracle_price_for_margin, 220500000000000);
         assert_eq!(upnl, 17409836065); //22699050901 * .95 = 21564098355
         assert!(upnl < position_unrealized_pnl); // margin system discounts
 
@@ -989,5 +1022,81 @@ mod test {
         assert_eq!(pmr, 87974077867214);
         // required margin $8501.21684229 for position before partial liq
         // 8501.21684229 * 1/.0625 = 136019.469477
+
+        oracle_price_data.price = (21050 * MARK_PRICE_PRECISION) as i128; // lower by $1000 (in favor of user)
+        oracle_price_data.confidence = MARK_PRICE_PRECISION;
+
+        let oracle_price_for_margin_2 =
+            calculate_oracle_price_for_margin(&market_position, &market, &oracle_price_data)
+                .unwrap();
+        assert_eq!(oracle_price_for_margin_2, 210510000000000);
+
+        let (_, position_unrealized_pnl) = calculate_base_asset_value_and_pnl_with_oracle_price(
+            &market_position,
+            oracle_price_for_margin_2,
+        )
+        .unwrap();
+
+        let position_unsettled_pnl = position_unrealized_pnl
+            .checked_add(market_position.unsettled_pnl)
+            .ok_or_else(math_error!())
+            .unwrap();
+        assert_eq!(position_unsettled_pnl, 24276639345); // $24.276k
+
+        assert_eq!(
+            market
+                .get_unsettled_asset_weight(position_unsettled_pnl, margin_requirement_type)
+                .unwrap(),
+            95
+        );
+        assert_eq!(
+            market
+                .get_unsettled_asset_weight(position_unsettled_pnl * 10, margin_requirement_type)
+                .unwrap(),
+            73
+        );
+        assert_eq!(
+            market
+                .get_unsettled_asset_weight(position_unsettled_pnl * 100, margin_requirement_type)
+                .unwrap(),
+            43
+        );
+        assert_eq!(
+            market
+                .get_unsettled_asset_weight(position_unsettled_pnl * 1000, margin_requirement_type)
+                .unwrap(),
+            18
+        );
+        assert_eq!(
+            market
+                .get_unsettled_asset_weight(position_unsettled_pnl * 10000, margin_requirement_type)
+                .unwrap(),
+            6
+        );
+        //nice that 18000 < 60000
+
+        assert_eq!(
+            market
+                .get_unsettled_asset_weight(
+                    position_unsettled_pnl * 800000,
+                    margin_requirement_type
+                )
+                .unwrap(),
+            0 // todo want to reduce to zero once sufficiently sized?
+        );
+        assert_eq!(position_unsettled_pnl * 800000, 19421311476000000); // 1.9 billion
+
+        let (pmr_2, upnl_2) = calculate_perp_equity_value(
+            &market_position,
+            &market,
+            &oracle_price_data,
+            margin_requirement_type,
+        )
+        .unwrap();
+
+        assert_eq!(upnl_2, 23062807377); //22699050901 * .95 = 21564098355
+        assert!(upnl_2 > upnl);
+        assert!(pmr_2 > 0);
+        assert_eq!(pmr_2, 83988313522707);
     }
 }
