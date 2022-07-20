@@ -29,7 +29,6 @@ pub fn get_lp_metrics(position: &MarketPosition, amm: &AMM) -> ClearingHouseResu
     let total_lp_shares_i128 = cast_to_i128(total_lp_shares)?;
 
     // give them fees
-    assert!(amm.cumulative_fee_per_lp >= position.last_cumulative_fee_per_lp);
     let fee_payment = amm
         .cumulative_fee_per_lp
         .checked_sub(position.last_cumulative_fee_per_lp)
@@ -177,20 +176,23 @@ pub fn get_lp_market_position_margin(
         .ok_or_else(math_error!())?;
 
     // update the virtual position from the settle
-    // TODO: probably want to refactor so we dont have to clone the market
-
-    let mut market_clone = *market;
     if lp_metrics.base_asset_amount != 0 {
+        // TODO: probably want to refactor so we dont have to clone the market
+        // and we just get the updated position
+        let mut market_clone = *market;
+
         let position_delta = PositionDelta {
             base_asset_amount: lp_metrics.base_asset_amount,
             quote_asset_amount: lp_metrics.quote_asset_amount,
         };
+
         let pnl = update_position_and_market(
             &mut market_position,
             &mut market_clone,
             &position_delta,
             true,
         )?;
+
         market_position.unsettled_pnl = market_position
             .unsettled_pnl
             .checked_add(pnl)
@@ -201,17 +203,16 @@ pub fn get_lp_market_position_margin(
     // max ask: (sqrtk*1.4142 - base asset reserves) * lp share
     // max bid: (base asset reserves - sqrtk/1.4142) * lp share
 
-    // TODO: is there a cleaner way to do this? -- maybe make it a constant?
-    // TODO: 14142 with percision of 10_000
-    let percision: f64 = 10_000_000_000_000.0; // amm percision as float
-    let sqrt_2 = (2_f64.sqrt() * percision).round() as u128;
+    // TODO: make this a constant?
+    let sqrt_2_percision = 10_000 as u128;
+    let sqrt_2 = 14142;
 
     // worse case if all asks are filled
     let ask_bounded_k = amm
         .sqrt_k
         .checked_mul(sqrt_2)
         .ok_or_else(math_error!())?
-        .checked_div(AMM_RESERVE_PRECISION)
+        .checked_div(sqrt_2_percision)
         .ok_or_else(math_error!())?;
 
     let max_asks = ask_bounded_k
@@ -223,7 +224,7 @@ pub fn get_lp_market_position_margin(
     // worse case if all bids are filled (lp is now long)
     let bids_bounded_k = amm
         .sqrt_k
-        .checked_mul(AMM_RESERVE_PRECISION)
+        .checked_mul(sqrt_2_percision)
         .ok_or_else(math_error!())?
         .checked_div(sqrt_2)
         .ok_or_else(math_error!())?;
@@ -239,6 +240,7 @@ pub fn get_lp_market_position_margin(
         .open_bids
         .checked_add(open_bids)
         .ok_or_else(math_error!())?;
+
     market_position.open_asks = market_position
         .open_asks
         .checked_add(open_asks)

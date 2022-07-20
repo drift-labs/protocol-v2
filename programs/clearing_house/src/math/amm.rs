@@ -1016,7 +1016,8 @@ pub fn get_update_k_result(
 
     let sqrt_k = new_sqrt_k.try_to_u128().unwrap();
 
-    if bound_update && new_sqrt_k < old_sqrt_k
+    if bound_update
+        && new_sqrt_k < old_sqrt_k
         && market.amm.net_base_asset_amount.unsigned_abs()
             > sqrt_k.checked_div(3).ok_or_else(math_error!())?
     {

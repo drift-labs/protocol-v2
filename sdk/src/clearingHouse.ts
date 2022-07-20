@@ -786,14 +786,13 @@ export class ClearingHouse {
 		settleeUserAccountPublicKey: PublicKey,
 		marketIndex: BN
 	): Promise<TransactionInstruction> {
-		
 		const settleeUserAccount = (await this.program.account.user.fetch(
 			settleeUserAccountPublicKey
 		)) as UserAccount;
 		const userPositions = settleeUserAccount.positions;
 		const remainingAccounts = [];
 
-		let foundMarket = false
+		let foundMarket = false;
 		for (const position of userPositions) {
 			if (!positionIsAvailable(position) || position.lpShares.gt(ZERO)) {
 				const marketPublicKey = await getMarketPublicKey(
@@ -807,13 +806,15 @@ export class ClearingHouse {
 				});
 
 				if (marketIndex.eq(position.marketIndex)) {
-					foundMarket = true
+					foundMarket = true;
 				}
 			}
 		}
 
 		if (!foundMarket) {
-			console.log('Warning: lp is not in the market specified -- tx will likely fail')
+			console.log(
+				'Warning: lp is not in the market specified -- tx will likely fail'
+			);
 		}
 
 		return this.program.instruction.settleLp(marketIndex, {
