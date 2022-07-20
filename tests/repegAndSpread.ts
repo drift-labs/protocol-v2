@@ -216,7 +216,7 @@ describe('repeg and spread amm', () => {
 
 		// await clearingHouse.placeAndFillOrder(orderParams);
 		// await clearingHouse.closePosition(new BN(0));
-		const txSig0 = await clearingHouse.placeAndFillOrder(orderParams);
+		const txSig0 = await clearingHouse.placeAndTake(orderParams);
 
 		console.log(
 			'tx logs',
@@ -485,7 +485,7 @@ describe('repeg and spread amm', () => {
 				false
 			);
 
-			await clearingHouses[count % 5].placeAndFillOrder(orderParams);
+			await clearingHouses[count % 5].placeAndTake(orderParams);
 			count += 1;
 		}
 
