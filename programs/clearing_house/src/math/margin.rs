@@ -789,11 +789,12 @@ mod test {
         let mut bank = Bank {
             initial_asset_weight: 90,
             initial_liability_weight: 110,
+            decimals: 6,
             imf_factor: 0,
             ..Bank::default()
         };
 
-        let size = 1000 * AMM_RESERVE_PRECISION;
+        let size = 1000 * QUOTE_PRECISION;
         let asset_weight = bank
             .get_asset_weight(size, &MarginRequirementType::Initial)
             .unwrap();
@@ -815,11 +816,17 @@ mod test {
             .unwrap();
         assert_eq!(lib_weight, 110);
 
+        let same_asset_weight_diff_imf_factor = 83;
+        let asset_weight = bank
+            .get_asset_weight(size * 1_000_000, &MarginRequirementType::Initial)
+            .unwrap();
+        assert_eq!(asset_weight, same_asset_weight_diff_imf_factor);
+
         bank.imf_factor = 10000;
         let asset_weight = bank
             .get_asset_weight(size, &MarginRequirementType::Initial)
             .unwrap();
-        assert_eq!(asset_weight, 83);
+        assert_eq!(asset_weight, same_asset_weight_diff_imf_factor);
 
         let lib_weight = bank
             .get_liability_weight(size, &MarginRequirementType::Initial)

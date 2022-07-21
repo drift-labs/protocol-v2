@@ -88,7 +88,7 @@ impl Market {
         // > 0 (positive balance)
         // < 0 (negative balance) always has asset weight = 1
         let unsettled_asset_weight = if unsettled_pnl > 0 {
-            // only discount the initial margin s.t. no one gets liquidated over upnl
+            // todo: only discount the initial margin s.t. no one gets liquidated over upnl?
 
             // a larger imf factor -> lower asset weight
             match margin_type {

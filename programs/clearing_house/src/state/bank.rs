@@ -5,7 +5,7 @@ use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 
 use crate::error::ClearingHouseResult;
-use crate::math::constants::BANK_WEIGHT_PRECISION;
+use crate::math::constants::{AMM_RESERVE_PRECISION, BANK_WEIGHT_PRECISION};
 use crate::math::margin::{
     calculate_size_discount_asset_weight, calculate_size_markup_liability_weight,
     MarginRequirementType,
@@ -46,14 +46,21 @@ impl Bank {
         size: u128,
         margin_requirement_type: &MarginRequirementType,
     ) -> ClearingHouseResult<u128> {
+        let size_precision = 10_u128.pow(self.decimals as u32);
+
+        let size_in_amm_reserve_precision = if size_precision > AMM_RESERVE_PRECISION {
+            size / (size_precision / AMM_RESERVE_PRECISION)
+        } else {
+            (size * AMM_RESERVE_PRECISION) / size_precision
+        };
         let asset_weight = match margin_requirement_type {
             MarginRequirementType::Initial => calculate_size_discount_asset_weight(
-                size,
+                size_in_amm_reserve_precision,
                 self.imf_factor,
                 self.initial_asset_weight,
             )?,
             MarginRequirementType::Partial => calculate_size_discount_asset_weight(
-                size,
+                size_in_amm_reserve_precision,
                 self.imf_factor,
                 self.maintenance_asset_weight,
             )?,
@@ -67,15 +74,23 @@ impl Bank {
         size: u128,
         margin_requirement_type: &MarginRequirementType,
     ) -> ClearingHouseResult<u128> {
+        let size_precision = 10_u128.pow(self.decimals as u32);
+
+        let size_in_amm_reserve_precision = if size_precision > AMM_RESERVE_PRECISION {
+            size / (size_precision / AMM_RESERVE_PRECISION)
+        } else {
+            (size * AMM_RESERVE_PRECISION) / size_precision
+        };
+
         let libability_weight = match margin_requirement_type {
             MarginRequirementType::Initial => calculate_size_markup_liability_weight(
-                size,
+                size_in_amm_reserve_precision,
                 self.imf_factor,
                 self.initial_liability_weight,
                 BANK_WEIGHT_PRECISION,
             )?,
             MarginRequirementType::Partial => calculate_size_markup_liability_weight(
-                size,
+                size_in_amm_reserve_precision,
                 self.imf_factor,
                 self.maintenance_liability_weight,
                 BANK_WEIGHT_PRECISION,
