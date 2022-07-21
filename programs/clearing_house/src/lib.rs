@@ -38,6 +38,7 @@ pub mod clearing_house {
 
     use crate::account_loader::{load, load_mut};
     use crate::controller::bank_balance::update_bank_balances;
+    use crate::controller::lp::burn_lp_shares;
     use crate::controller::lp::settle_lp_position;
     use crate::controller::position::{add_new_position, get_position_index};
     use crate::margin_validation::validate_margin;
@@ -49,7 +50,6 @@ pub mod clearing_house {
     };
     use crate::math::bank_balance::get_token_amount;
     use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64};
-    use crate::math::lp::burn_lp_shares;
     use crate::math::slippage::{calculate_slippage, calculate_slippage_pct};
     use crate::optional_accounts::get_maker;
     use crate::state::bank::{Bank, BankBalanceType};

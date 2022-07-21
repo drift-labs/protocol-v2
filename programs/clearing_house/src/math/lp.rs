@@ -1,20 +1,14 @@
-use crate::controller::amm::SwapDirection;
-use crate::controller::lp::settle_lp_position;
-use crate::controller::position::update_position_and_market;
-use crate::controller::position::PositionDelta;
+use crate::controller::lp::burn_lp_shares;
 use crate::error::ClearingHouseResult;
 use crate::math::amm::calculate_swap_output;
 use crate::math::casting::cast_to_i128;
 use crate::math::constants::{AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128};
+use crate::math::position::swap_direction_to_close_position;
 use crate::math::quote_asset::reserve_to_asset_amount;
 use crate::math_error;
 use crate::state::market::Market;
 use crate::state::market::AMM;
 use crate::state::user::MarketPosition;
-
-use crate::bn::U192;
-use crate::math::amm::{get_update_k_result, update_k};
-
 use solana_program::msg;
 
 #[derive(Debug)]
@@ -69,16 +63,21 @@ pub fn get_lp_metrics(position: &MarketPosition, amm: &AMM) -> ClearingHouseResu
             .checked_div(AMM_RESERVE_PRECISION_I128)
             .ok_or_else(math_error!())?;
 
-        let total_net_base_asset_amount_lp = amm_net_base_asset_amount_per_lp
+        let total_net_base_asset_amount = amm_net_base_asset_amount_per_lp
             .checked_mul(total_lp_shares_i128)
             .ok_or_else(math_error!())?
             .checked_div(AMM_RESERVE_PRECISION_I128)
             .ok_or_else(math_error!())?;
 
-        let net_quote_reserves_lp =
-            calculate_swap_quote_reserve_delta(amm, total_net_base_asset_amount_lp)?;
+        // close out the user positions
+        let net_quote_reserves = calculate_swap_quote_reserve_delta(
+            amm,
+            total_net_base_asset_amount
+                .checked_mul(-1)
+                .ok_or_else(math_error!())?,
+        )?;
 
-        let quote_asset_reserve_amount = net_quote_reserves_lp
+        let quote_asset_reserve_amount = net_quote_reserves
             .checked_mul(AMM_RESERVE_PRECISION)
             .ok_or_else(math_error!())?
             .checked_div(total_lp_shares)
@@ -127,22 +126,11 @@ pub fn get_lp_metrics(position: &MarketPosition, amm: &AMM) -> ClearingHouseResu
     Ok(metrics)
 }
 
-pub fn abs_difference(a: u128, b: u128) -> ClearingHouseResult<u128> {
-    if a > b {
-        a.checked_sub(b).ok_or_else(math_error!())
-    } else {
-        b.checked_sub(a).ok_or_else(math_error!())
-    }
-}
-
 pub fn calculate_swap_quote_reserve_delta(
     amm: &AMM,
     base_asset_amount: i128,
 ) -> ClearingHouseResult<u128> {
-    let swap_direction = match base_asset_amount > 0 {
-        true => SwapDirection::Remove,
-        false => SwapDirection::Add,
-    };
+    let swap_direction = swap_direction_to_close_position(base_asset_amount);
 
     let (new_quote_asset_reserve, _) = calculate_swap_output(
         base_asset_amount.unsigned_abs(),
@@ -155,69 +143,6 @@ pub fn calculate_swap_quote_reserve_delta(
         abs_difference(new_quote_asset_reserve, amm.quote_asset_reserve)?;
 
     Ok(quote_asset_reserve_output)
-}
-
-pub fn burn_lp_shares(
-    position: &mut MarketPosition,
-    market: &mut Market,
-    shares_to_burn: u128,
-) -> ClearingHouseResult<()> {
-    settle_lp_position(position, market)?;
-
-    // give them a portion of the market position
-    if position.lp_base_asset_amount != 0 {
-        let base_amount_acquired = get_proportion_i128(
-            position.lp_base_asset_amount,
-            shares_to_burn,
-            position.lp_shares,
-        )?;
-        let quote_amount = get_proportion_u128(
-            position.lp_quote_asset_amount,
-            shares_to_burn,
-            position.lp_shares,
-        )?;
-
-        // update lp position
-        position.lp_base_asset_amount = position
-            .lp_base_asset_amount
-            .checked_sub(base_amount_acquired)
-            .ok_or_else(math_error!())?;
-        position.lp_quote_asset_amount = position
-            .lp_quote_asset_amount
-            .checked_sub(quote_amount)
-            .ok_or_else(math_error!())?;
-
-        // track new market position
-        let position_delta = PositionDelta {
-            base_asset_amount: base_amount_acquired,
-            quote_asset_amount: quote_amount,
-        };
-        let upnl = update_position_and_market(position, market, &position_delta, true)?;
-
-        position.unsettled_pnl = position
-            .unsettled_pnl
-            .checked_add(upnl)
-            .ok_or_else(math_error!())?;
-    }
-
-    // burn shares
-    position.lp_shares = position
-        .lp_shares
-        .checked_sub(shares_to_burn)
-        .ok_or_else(math_error!())?;
-
-    // update market state
-    let new_sqrt_k = market
-        .amm
-        .sqrt_k
-        .checked_sub(shares_to_burn)
-        .ok_or_else(math_error!())?;
-    let new_sqrt_k_u192 = U192::from(new_sqrt_k);
-
-    let update_k_result = get_update_k_result(market, new_sqrt_k_u192, false)?;
-    update_k(market, &update_k_result, true)?;
-
-    Ok(())
 }
 
 // settle and make tradeable
@@ -287,7 +212,14 @@ pub fn get_lp_market_position_margin(
     Ok(position_clone)
 }
 
-// TODO: change to macro to support value=u128, U192, etc. without casting?
+pub fn abs_difference(a: u128, b: u128) -> ClearingHouseResult<u128> {
+    if a > b {
+        a.checked_sub(b).ok_or_else(math_error!())
+    } else {
+        b.checked_sub(a).ok_or_else(math_error!())
+    }
+}
+
 pub fn get_proportion_i128(
     value: i128,
     numerator: u128,
@@ -359,192 +291,205 @@ pub fn update_lp_position(
     Ok(upnl)
 }
 
-// #[cfg(test)]
-// mod test {
-//     use super::*;
-//     use crate::math::position::calculate_base_asset_value_and_pnl;
-//
-//     #[test]
-//     fn test_margin_requirements_user_short() {
-//         let position = MarketPosition {
-//             lp_shares: 10 * AMM_RESERVE_PRECISION,
-//             ..MarketPosition::default()
-//         };
-//
-//         // 500_000 * 1e13
-//         let init_reserves: u128 = 5000000000000000000;
-//         let mut amm = AMM {
-//             // balanced market
-//             base_asset_reserve: init_reserves,
-//             quote_asset_reserve: init_reserves,
-//             sqrt_k: init_reserves,
-//             peg_multiplier: 53000,
-//             ..AMM::default()
-//         };
-//
-//         let (market_position, _) = get_lp_market_position_margin(&position, &amm).unwrap();
-//         let (balanced_position_base_asset_value, balanced_pnl) =
-//             calculate_base_asset_value_and_pnl(&market_position, &amm, true).unwrap();
-//
-//         // make the market unbalanced
-//         // note we gotta short a lot more bc theres more risk to lps going short than long
-//         let trade_size = 200_000 * AMM_RESERVE_PRECISION;
-//         let (new_qar, new_bar) = calculate_swap_output(
-//             trade_size,
-//             amm.base_asset_reserve,
-//             SwapDirection::Add, // user shorts
-//             amm.sqrt_k,
-//         )
-//         .unwrap();
-//         amm.quote_asset_reserve = new_qar;
-//         amm.base_asset_reserve = new_bar;
-//
-//         // recompute margin requirements
-//         let (market_position, _) = get_lp_market_position_margin(&position, &amm).unwrap();
-//         let (unbalanced_position_base_asset_value, unbalanced_pnl) =
-//             calculate_base_asset_value_and_pnl(&market_position, &amm, true).unwrap();
-//
-//         let unbalanced_value: i128 = unbalanced_position_base_asset_value as i128 - unbalanced_pnl;
-//         let balanced_value: i128 = balanced_position_base_asset_value as i128 - balanced_pnl;
-//
-//         println!("pnl: {} {}", balanced_pnl, unbalanced_pnl);
-//         println!(
-//             "base v: {} {} {}",
-//             balanced_position_base_asset_value,
-//             unbalanced_position_base_asset_value,
-//             balanced_position_base_asset_value < unbalanced_position_base_asset_value
-//         );
-//         println!(
-//             "total v: {} {} {}",
-//             balanced_value,
-//             unbalanced_value,
-//             unbalanced_value > balanced_value
-//         );
-//
-//         // this doesnt pass regardless of trade size when the user shorts lol
-//         //assert!(unbalanced_position_base_asset_value > balanced_position_base_asset_value);
-//
-//         // this passes
-//         assert!(unbalanced_value > balanced_value);
-//     }
-//
-//     #[test]
-//     fn test_margin_requirements_user_long() {
-//         let position = MarketPosition {
-//             lp_shares: 50 * AMM_RESERVE_PRECISION,
-//             ..MarketPosition::default()
-//         };
-//
-//         let init_reserves: u128 = 5000000000000000000;
-//         let mut amm = AMM {
-//             // balanced market
-//             base_asset_reserve: init_reserves,
-//             quote_asset_reserve: init_reserves,
-//             sqrt_k: init_reserves,
-//             peg_multiplier: 53000,
-//             ..AMM::default()
-//         };
-//
-//         let (market_position, _) = get_lp_market_position_margin(&position, &amm).unwrap();
-//         let (balanced_position_base_asset_value, balanced_pnl) =
-//             calculate_base_asset_value_and_pnl(&market_position, &amm, true).unwrap();
-//
-//         // make the market unbalanced
-//         let trade_size = 2_000 * AMM_RESERVE_PRECISION;
-//         let (new_qar, new_bar) = calculate_swap_output(
-//             trade_size,
-//             amm.base_asset_reserve,
-//             SwapDirection::Remove, // user longs
-//             amm.sqrt_k,
-//         )
-//         .unwrap();
-//         amm.quote_asset_reserve = new_qar;
-//         amm.base_asset_reserve = new_bar;
-//
-//         // recompute margin requirements
-//         let (market_position, _) = get_lp_market_position_margin(&position, &amm).unwrap();
-//         let (unbalanced_position_base_asset_value, unbalanced_pnl) =
-//             calculate_base_asset_value_and_pnl(&market_position, &amm, true).unwrap();
-//
-//         let unbalanced_value: i128 = unbalanced_position_base_asset_value as i128 - unbalanced_pnl;
-//         let balanced_value: i128 = balanced_position_base_asset_value as i128 - balanced_pnl;
-//
-//         println!("pnl: {} {}", balanced_pnl, unbalanced_pnl);
-//         println!(
-//             "base v: {} {}",
-//             balanced_position_base_asset_value, unbalanced_position_base_asset_value
-//         );
-//         println!(
-//             "total v: {} {} {}",
-//             balanced_value,
-//             unbalanced_value,
-//             unbalanced_value > balanced_value
-//         );
-//
-//         assert!(unbalanced_position_base_asset_value > balanced_position_base_asset_value);
-//     }
-//
-//     #[test]
-//     fn test_no_change_metrics() {
-//         let position = MarketPosition {
-//             lp_shares: 100,
-//             last_net_base_asset_amount: 100,
-//             ..MarketPosition::default()
-//         };
-//         let amm = AMM {
-//             net_base_asset_amount: 100,
-//             sqrt_k: 200,
-//             ..AMM::default()
-//         };
-//
-//         let metrics = get_lp_metrics(&position, position.lp_shares, &amm).unwrap();
-//
-//         assert_eq!(metrics.base_asset_amount, 0);
-//         assert_eq!(metrics.unsettled_pnl, 0); // no neg upnl
-//     }
-//
-//     #[test]
-//     fn test_too_small_metrics() {
-//         let position = MarketPosition {
-//             lp_shares: 100,
-//             ..MarketPosition::default()
-//         };
-//         let amm = AMM {
-//             net_base_asset_amount: 100, // users went long
-//             peg_multiplier: 1,
-//             sqrt_k: 200,
-//             base_asset_amount_step_size: 100, // min size is big
-//             minimum_quote_asset_trade_size: 100,
-//             ..AMM::default()
-//         };
-//
-//         let metrics = get_lp_metrics(&position, position.lp_shares, &amm).unwrap();
-//
-//         println!("{:#?}", metrics);
-//         assert!(metrics.unsettled_pnl < 0);
-//         assert_eq!(metrics.base_asset_amount, 0);
-//     }
-//
-//     #[test]
-//     fn test_simple_metrics() {
-//         let position = MarketPosition {
-//             lp_shares: 100,
-//             ..MarketPosition::default()
-//         };
-//         let amm = AMM {
-//             net_base_asset_amount: 100, // users went long
-//             total_fee_minus_distributions: 100,
-//             cumulative_funding_rate_lp: 100,
-//             sqrt_k: 200,
-//             base_asset_amount_step_size: 1,
-//             ..AMM::default()
-//         };
-//
-//         let metrics = get_lp_metrics(&position, position.lp_shares, &amm).unwrap();
-//         println!("{:#?}", metrics);
-//
-//         assert_eq!(metrics.base_asset_amount, -50);
-//         assert_eq!(metrics.fee_payment, 50);
-//         assert_eq!(metrics.funding_payment, 50);
-//     }
-// }
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::controller::amm::SwapDirection;
+    use crate::math::{constants::PEG_PRECISION, position::calculate_base_asset_value};
+
+    #[test]
+    fn test_margin_requirements_user_long() {
+        let position = MarketPosition {
+            lp_shares: 300_000 * AMM_RESERVE_PRECISION,
+            ..MarketPosition::default()
+        };
+
+        // 500_000 * 1e13
+        let init_reserves: u128 = 5000000000000000000;
+        let amm = AMM {
+            // balanced market
+            base_asset_reserve: init_reserves,
+            quote_asset_reserve: init_reserves,
+            sqrt_k: init_reserves,
+            amm_lp_shares: init_reserves,
+            peg_multiplier: 53000,
+            ..AMM::default()
+        };
+        let mut market = Market {
+            amm,
+            ..Market::default()
+        };
+
+        let market_position = get_lp_market_position_margin(&position, &market).unwrap();
+        let worst_case_base_asset_amount = market_position.worst_case_base_asset_amount().unwrap();
+        let balanced_position_base_asset_value =
+            calculate_base_asset_value(worst_case_base_asset_amount, &market.amm, false).unwrap();
+
+        // make the market unbalanced
+        let trade_size = 2_000 * AMM_RESERVE_PRECISION;
+        let (new_qar, new_bar) = calculate_swap_output(
+            trade_size,
+            amm.base_asset_reserve,
+            SwapDirection::Remove, // user longs
+            amm.sqrt_k,
+        )
+        .unwrap();
+        market.amm.quote_asset_reserve = new_qar;
+        market.amm.base_asset_reserve = new_bar;
+
+        // recompute margin requirements
+        let market_position = get_lp_market_position_margin(&position, &market).unwrap();
+        let worst_case_base_asset_amount = market_position.worst_case_base_asset_amount().unwrap();
+        let unbalanced_position_base_asset_value =
+            calculate_base_asset_value(worst_case_base_asset_amount, &market.amm, false).unwrap();
+
+        println!(
+            "base v: {} {}",
+            balanced_position_base_asset_value, unbalanced_position_base_asset_value,
+        );
+
+        assert!(unbalanced_position_base_asset_value > balanced_position_base_asset_value);
+    }
+
+    // unsure how to write this - the margin risk of the shorts are always larger than the
+    // amount of longs even if longs >> shorts
+    // #[test]
+    // fn test_margin_requirements_user_short() {
+    //     let position = MarketPosition {
+    //         lp_shares: 300_000 * AMM_RESERVE_PRECISION,
+    //         ..MarketPosition::default()
+    //     };
+
+    //     // 500_000 * 1e13
+    //     let init_reserves: u128 = 5000000000000000000;
+    //     let amm = AMM {
+    //         // balanced market
+    //         base_asset_reserve: init_reserves,
+    //         quote_asset_reserve: init_reserves,
+    //         sqrt_k: init_reserves,
+    //         amm_lp_shares: init_reserves,
+    //         peg_multiplier: 53000,
+    //         ..AMM::default()
+    //     };
+    //     let mut market = Market {
+    //         amm,
+    //         ..Market::default()
+    //     };
+
+    //     let market_position= get_lp_market_position_margin(&position, &market).unwrap();
+    //     let worst_case_base_asset_amount = market_position.worst_case_base_asset_amount().unwrap();
+    //     let balanced_position_base_asset_value =
+    //         calculate_base_asset_value(worst_case_base_asset_amount, &market.amm, false).unwrap();
+
+    //     // make the market unbalanced
+    //     // note we gotta short a lot more bc theres more risk to lps going short than long
+    //     let trade_size = 200_000 * AMM_RESERVE_PRECISION;
+    //     let (new_qar, new_bar) = calculate_swap_output(
+    //         trade_size,
+    //         amm.base_asset_reserve,
+    //         SwapDirection::Add, // user shorts
+    //         amm.sqrt_k,
+    //     )
+    //     .unwrap();
+    //     market.amm.quote_asset_reserve = new_qar;
+    //     market.amm.base_asset_reserve = new_bar;
+
+    //     // recompute margin requirements
+    //     let market_position= get_lp_market_position_margin(&position, &market).unwrap();
+    //     let worst_case_base_asset_amount = market_position.worst_case_base_asset_amount().unwrap();
+    //     let unbalanced_position_base_asset_value =
+    //         calculate_base_asset_value(worst_case_base_asset_amount, &market.amm, false).unwrap();
+
+    //     println!(
+    //         "base v: {} {}",
+    //         balanced_position_base_asset_value,
+    //         unbalanced_position_base_asset_value,
+    //     );
+    //     assert!(unbalanced_position_base_asset_value > balanced_position_base_asset_value);
+    // }
+
+    #[test]
+    fn test_no_change_metrics() {
+        let position = MarketPosition {
+            lp_shares: 100,
+            last_cumulative_net_base_asset_amount_per_lp: 100,
+            ..MarketPosition::default()
+        };
+        let amm = AMM {
+            cumulative_net_base_asset_amount_per_lp: 100,
+            sqrt_k: 200,
+            ..AMM::default()
+        };
+
+        let metrics = get_lp_metrics(&position, &amm).unwrap();
+
+        assert_eq!(metrics.base_asset_amount, 0);
+        assert_eq!(metrics.unsettled_pnl, 0); // no neg upnl
+    }
+
+    #[test]
+    fn test_too_small_metrics() {
+        let position = MarketPosition {
+            lp_shares: 100 * AMM_RESERVE_PRECISION,
+            last_cumulative_net_base_asset_amount_per_lp: 70 * AMM_RESERVE_PRECISION_I128,
+            ..MarketPosition::default()
+        };
+
+        let amm = AMM {
+            cumulative_net_base_asset_amount_per_lp: 100 * AMM_RESERVE_PRECISION_I128,
+            net_base_asset_amount: 100 * AMM_RESERVE_PRECISION_I128, // users went long
+            peg_multiplier: 1,
+            sqrt_k: 900 * AMM_RESERVE_PRECISION,
+            amm_lp_shares: 900 * AMM_RESERVE_PRECISION,
+            base_asset_amount_step_size: 100 * AMM_RESERVE_PRECISION, // min size is big
+            minimum_quote_asset_trade_size: 100 * AMM_RESERVE_PRECISION,
+            ..AMM::default()
+        };
+
+        let metrics = get_lp_metrics(&position, &amm).unwrap();
+
+        println!("{:#?}", metrics);
+        assert!(metrics.unsettled_pnl < 0);
+        assert_eq!(metrics.base_asset_amount, 0);
+    }
+
+    #[test]
+    fn test_simple_metrics() {
+        let position = MarketPosition {
+            lp_shares: 1000 * AMM_RESERVE_PRECISION,
+            ..MarketPosition::default()
+        };
+        let init_reserves = 2000 * AMM_RESERVE_PRECISION;
+        let amm = AMM {
+            cumulative_net_base_asset_amount_per_lp: 100 * AMM_RESERVE_PRECISION_I128,
+            cumulative_fee_per_lp: 100,
+            cumulative_funding_payment_per_lp: 100,
+
+            sqrt_k: init_reserves,
+            base_asset_reserve: init_reserves,
+            quote_asset_reserve: init_reserves,
+            peg_multiplier: PEG_PRECISION,
+            amm_lp_shares: init_reserves,
+            base_asset_amount_step_size: 1,
+            minimum_quote_asset_trade_size: 1,
+            ..AMM::default()
+        };
+
+        let metrics = get_lp_metrics(&position, &amm).unwrap();
+        println!("{:#?}", metrics);
+
+        let shares_ = position.lp_shares as i128 / AMM_RESERVE_PRECISION_I128;
+        assert_eq!(
+            metrics.base_asset_amount,
+            -100_i128 * position.lp_shares as i128
+        );
+        assert_eq!(
+            metrics.fee_payment,
+            amm.cumulative_fee_per_lp * shares_ as u128
+        );
+        assert_eq!(
+            metrics.funding_payment,
+            amm.cumulative_funding_payment_per_lp * shares_
+        );
+    }
+}
