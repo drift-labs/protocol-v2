@@ -56,7 +56,7 @@ impl Market {
     pub fn default_test() -> Self {
         let amm = AMM::default_test();
         Market {
-            amm, 
+            amm,
             ..Market::default()
         }
     }
@@ -123,7 +123,7 @@ pub struct AMM {
     pub cumulative_net_base_asset_amount_per_lp: i128,
     pub lp_cooldown_time: i64,
     pub user_lp_shares: u128,
-    
+
     // funding
     pub last_funding_rate: i128,
     pub last_funding_rate_ts: i64,
@@ -177,13 +177,12 @@ pub struct AMM {
 }
 
 impl AMM {
-
     pub fn default_test() -> Self {
         let default_reserves = AMM_RESERVE_PRECISION;
-        // make sure tests dont have the default sqrt_k = 0 
-        AMM { 
-            base_asset_reserve: default_reserves, 
-            quote_asset_reserve: default_reserves, 
+        // make sure tests dont have the default sqrt_k = 0
+        AMM {
+            base_asset_reserve: default_reserves,
+            quote_asset_reserve: default_reserves,
             sqrt_k: default_reserves,
             ..AMM::default()
         }

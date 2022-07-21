@@ -81,8 +81,10 @@ pub fn burn_lp_shares(
         .lp_shares
         .checked_sub(shares_to_burn)
         .ok_or_else(math_error!())?;
-    
-    market.amm.user_lp_shares = market.amm.user_lp_shares 
+
+    market.amm.user_lp_shares = market
+        .amm
+        .user_lp_shares
         .checked_sub(shares_to_burn)
         .ok_or_else(math_error!())?;
 

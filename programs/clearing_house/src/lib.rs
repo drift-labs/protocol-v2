@@ -424,8 +424,8 @@ pub mod clearing_house {
                 cumulative_funding_payment_per_lp: 0,
                 cumulative_fee_per_lp: 0,
                 cumulative_net_base_asset_amount_per_lp: 0,
-                user_lp_shares: 0, 
-                lp_cooldown_time: 1,                   // TODO: what should this be?
+                user_lp_shares: 0,
+                lp_cooldown_time: 1, // TODO: what should this be?
 
                 padding0: 0,
                 padding1: 0,
@@ -868,7 +868,9 @@ pub mod clearing_house {
             let update_k_result = get_update_k_result(&market, new_sqrt_k_u192, true)?;
             math::amm::update_k(&mut market, &update_k_result)?;
 
-            market.amm.user_lp_shares = market.amm.user_lp_shares 
+            market.amm.user_lp_shares = market
+                .amm
+                .user_lp_shares
                 .checked_add(n_shares)
                 .ok_or_else(math_error!())?;
         }

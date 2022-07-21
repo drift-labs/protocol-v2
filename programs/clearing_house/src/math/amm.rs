@@ -1083,10 +1083,7 @@ pub fn get_update_k_result(
     })
 }
 
-pub fn update_k(
-    market: &mut Market,
-    update_k_result: &UpdateKResult,
-) -> ClearingHouseResult {
+pub fn update_k(market: &mut Market, update_k_result: &UpdateKResult) -> ClearingHouseResult {
     market.amm.base_asset_reserve = update_k_result.base_asset_reserve;
     market.amm.quote_asset_reserve = update_k_result.quote_asset_reserve;
     market.amm.sqrt_k = update_k_result.sqrt_k;

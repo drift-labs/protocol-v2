@@ -63,7 +63,6 @@ pub fn calculate_funding_rate_long_short(
 
     // If the uncapped_funding_pnl is positive, the clearing house receives money.
     if uncapped_funding_pnl >= 0 {
-
         // pay the user lps
         let funding_pnl_slice = uncapped_funding_pnl
             .checked_mul(AMM_RESERVE_PRECISION_I128)

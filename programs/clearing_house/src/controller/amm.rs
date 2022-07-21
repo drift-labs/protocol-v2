@@ -418,7 +418,7 @@ pub fn move_price(
         .ok_or_else(math_error!())?;
 
     let new_sqrt_k = k.integer_sqrt().try_to_u128()?;
-    amm.sqrt_k = new_sqrt_k; 
+    amm.sqrt_k = new_sqrt_k;
 
     Ok(())
 }

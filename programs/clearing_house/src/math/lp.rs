@@ -307,7 +307,7 @@ mod test {
             base_asset_reserve: init_reserves,
             quote_asset_reserve: init_reserves,
             sqrt_k: init_reserves,
-            user_lp_shares: position.lp_shares, 
+            user_lp_shares: position.lp_shares,
             peg_multiplier: 53000,
             ..AMM::default()
         };

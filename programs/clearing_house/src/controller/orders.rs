@@ -1056,7 +1056,6 @@ pub fn fulfill_order_with_match(
             filler.is_some(),
         )?;
 
-
     // Increment the markets house's total fee variables
     market.amm.total_fee = market
         .amm
