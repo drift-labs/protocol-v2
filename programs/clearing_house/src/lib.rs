@@ -864,7 +864,7 @@ pub mod clearing_house {
         {
             let mut market = market_map.get_ref_mut(&market_index)?;
             let update_k_result = get_update_k_result(&market, new_sqrt_k_u192, true)?;
-            math::amm::update_k(&mut market, &update_k_result)?;
+            math::amm::update_k(&mut market, &update_k_result, true)?;
         }
 
         // check margin requirements
@@ -2155,7 +2155,7 @@ pub mod clearing_house {
 
         let adjustment_cost = math::amm::adjust_k_cost(market, &update_k_result)?;
 
-        math::amm::update_k(market, &update_k_result);
+        math::amm::update_k(market, &update_k_result, false);
 
         if adjustment_cost > 0 {
             let max_cost = market

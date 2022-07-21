@@ -117,7 +117,25 @@ pub fn update_amm(
         if cost_applied {
             market.amm.base_asset_reserve = repegged_market.amm.base_asset_reserve;
             market.amm.quote_asset_reserve = repegged_market.amm.quote_asset_reserve;
+
+            let k_delta = cast_to_i128(repegged_market.amm.sqrt_k)?
+                .checked_sub(cast_to_i128(market.amm.sqrt_k)?)
+                .ok_or_else(math_error!())?;
+            if k_delta > 0 {
+                market.amm.amm_lp_shares = market
+                    .amm
+                    .amm_lp_shares
+                    .checked_add(k_delta.unsigned_abs())
+                    .ok_or_else(math_error!())?;
+            } else {
+                market.amm.amm_lp_shares = market
+                    .amm
+                    .amm_lp_shares
+                    .checked_sub(k_delta.unsigned_abs())
+                    .ok_or_else(math_error!())?;
+            }
             market.amm.sqrt_k = repegged_market.amm.sqrt_k;
+
             market.amm.terminal_quote_asset_reserve =
                 repegged_market.amm.terminal_quote_asset_reserve;
             market.amm.peg_multiplier = repegged_market.amm.peg_multiplier;

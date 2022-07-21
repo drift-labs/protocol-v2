@@ -215,7 +215,7 @@ pub fn burn_lp_shares(
     let new_sqrt_k_u192 = U192::from(new_sqrt_k);
 
     let update_k_result = get_update_k_result(market, new_sqrt_k_u192, false)?;
-    update_k(market, &update_k_result)?;
+    update_k(market, &update_k_result, true)?;
 
     Ok(())
 }

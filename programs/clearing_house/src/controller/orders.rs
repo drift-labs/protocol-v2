@@ -829,14 +829,19 @@ pub fn fulfill_order_with_amm(
             .checked_add(fee_slice)
             .ok_or_else(math_error!())?;
 
-        let non_amm_shares = market
+        msg!(
+            "sqrt_k, amm shares: {} {}",
+            market.amm.sqrt_k,
+            market.amm.amm_lp_shares
+        );
+        let user_lp_shares = market
             .amm
             .sqrt_k
             .checked_sub(market.amm.amm_lp_shares)
             .ok_or_else(math_error!())?;
 
-        let non_amm_fee_payment = fee_slice
-            .checked_mul(non_amm_shares)
+        let user_lp_fee_payment = fee_slice
+            .checked_mul(user_lp_shares)
             .ok_or_else(math_error!())?
             .checked_div(AMM_RESERVE_PRECISION)
             .ok_or_else(math_error!())?;
@@ -844,12 +849,12 @@ pub fn fulfill_order_with_amm(
         msg!("full fee: {}", fee_to_market);
 
         let fee_to_market = fee_to_market
-            .checked_sub(non_amm_fee_payment)
+            .checked_sub(user_lp_fee_payment)
             .ok_or_else(math_error!())?;
 
-        msg!("all lp amount {}", non_amm_fee_payment);
+        msg!("all lp amount {}", user_lp_fee_payment);
         msg!("market fee: {}", fee_to_market);
-        msg!("cum per lp funding {}", market.amm.cumulative_fee_per_lp);
+        msg!("cum per lp fee {}", market.amm.cumulative_fee_per_lp);
 
         fee_to_market
     } else {

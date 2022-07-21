@@ -60,10 +60,7 @@ pub fn calculate_funding_rate_long_short(
     let net_market_position_funding_payment =
         calculate_funding_payment_in_quote_precision(funding_rate, net_market_position)?;
     let uncapped_funding_pnl = -net_market_position_funding_payment;
-    msg!("uncap fundign: {}", uncapped_funding_pnl);
 
-    // NOTE: have to be careful here -- probably need to update market.amm.amm_lp_shares on k update
-    // so that this math checks out (// TODO)
     let user_lp_shares = market
         .amm
         .sqrt_k
@@ -80,6 +77,8 @@ pub fn calculate_funding_rate_long_short(
                 .checked_div(cast_to_i128(market.amm.sqrt_k)?)
                 .ok_or_else(math_error!())?;
 
+            msg!("funding pnl slice: {}", funding_pnl_slice);
+
             market.amm.cumulative_funding_payment_per_lp = market
                 .amm
                 .cumulative_funding_payment_per_lp
@@ -92,6 +91,8 @@ pub fn calculate_funding_rate_long_short(
                 .checked_div(AMM_RESERVE_PRECISION_I128)
                 .ok_or_else(math_error!())?;
 
+            msg!("user lp funding: {}", user_lp_funding_payment);
+
             // pay the market what the lps didnt get
             uncapped_funding_pnl
                 .checked_sub(user_lp_funding_payment)
@@ -100,6 +101,8 @@ pub fn calculate_funding_rate_long_short(
             // no lps = market gets it all
             uncapped_funding_pnl
         };
+
+        msg!("market funding: {}", uncapped_funding_pnl);
 
         // update the stats
         market.amm.total_fee_minus_distributions = market
@@ -128,6 +131,7 @@ pub fn calculate_funding_rate_long_short(
             .checked_div(cast_to_i128(market.amm.sqrt_k)?)
             .ok_or_else(math_error!())?;
 
+        msg!("funding pnl slice: {}", funding_pnl_slice);
         market.amm.cumulative_funding_payment_per_lp = market
             .amm
             .cumulative_funding_payment_per_lp
@@ -149,6 +153,7 @@ pub fn calculate_funding_rate_long_short(
         capped_funding_pnl
     };
 
+    msg!("market funding: {}", capped_funding_pnl);
     let new_total_fee_minus_distributions = market
         .amm
         .total_fee_minus_distributions

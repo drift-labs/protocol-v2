@@ -781,11 +781,15 @@ describe('clearing_house', () => {
 			userUSDCAccount.publicKey
 		);
 
-		await clearingHouse.openPosition(
-			PositionDirection.LONG,
-			clearingHouse.getMarketAccount(new BN(0)).amm.baseAssetAmountStepSize,
-			new BN(0)
-		);
+		try {
+			await clearingHouse.openPosition(
+				PositionDirection.LONG,
+				clearingHouse.getMarketAccount(new BN(0)).amm.baseAssetAmountStepSize,
+				new BN(0)
+			);
+		} catch (e) {
+			console.log(e);
+		}
 	});
 
 	it('Short order succeeds due to realiziable limit price ', async () => {

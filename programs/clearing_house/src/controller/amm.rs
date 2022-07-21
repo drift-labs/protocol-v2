@@ -286,7 +286,7 @@ pub fn formulaic_update_k(
         let cost_applied = apply_cost_to_market(market, adjustment_cost, true)?;
 
         if cost_applied {
-            amm::update_k(market, &update_k_result)?;
+            amm::update_k(market, &update_k_result, false)?;
 
             let peg_multiplier_after = market.amm.peg_multiplier;
             let base_asset_reserve_after = market.amm.base_asset_reserve;
@@ -417,7 +417,23 @@ pub fn move_price(
         .checked_mul(bn::U256::from(quote_asset_reserve))
         .ok_or_else(math_error!())?;
 
-    amm.sqrt_k = k.integer_sqrt().try_to_u128()?;
+    let new_sqrt_k = k.integer_sqrt().try_to_u128()?;
+
+    let k_delta = cast_to_i128(new_sqrt_k)?
+        .checked_sub(cast_to_i128(amm.sqrt_k)?)
+        .ok_or_else(math_error!())?;
+
+    if k_delta > 0 {
+        amm.amm_lp_shares = amm
+            .amm_lp_shares
+            .checked_add(k_delta.unsigned_abs())
+            .ok_or_else(math_error!())?;
+    } else {
+        amm.amm_lp_shares = amm
+            .amm_lp_shares
+            .checked_sub(k_delta.unsigned_abs())
+            .ok_or_else(math_error!())?;
+    }
 
     Ok(())
 }
@@ -460,6 +476,7 @@ mod test {
                 base_asset_reserve: 5122950819670000,
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
+                amm_lp_shares: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50000,
                 net_base_asset_amount: -122950819670000,
                 total_fee_minus_distributions: 1000 * QUOTE_PRECISION as i128,
@@ -532,11 +549,7 @@ mod test {
         )
         .unwrap();
 
-        // assert_eq!(market.amm.sqrt_k, 4895052229261371); // increase k by 1.00003314258x
-        // assert_eq!(market.amm.total_fee_minus_distributions, 1000316491); // ~$.005 spent from slippage decrease
-        //                                                                   // todo: (316988-316491)/1e6 * 2 = 0.000994 < .001
-
-        // tmp soln -- this test was failing and idk why
+        // new numbers bc of increased sqrt_k precision
         assert_eq!(market.amm.sqrt_k, 4895052229260015); // increase k by 1.00003314258x
         assert_eq!(market.amm.total_fee_minus_distributions, 1000316488); // ~$.005 spent from slippage decrease
                                                                           // todo: (316988-316491)/1e6 * 2 = 0.000994 < .001
