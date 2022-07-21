@@ -222,6 +222,7 @@ describe('liquidity providing', () => {
 	});
 
 	const lpCooldown = 1500;
+
 	it('provides and removes liquidity', async () => {
 		let market = clearingHouse.getMarketAccount(0);
 		const prevSqrtK = market.amm.sqrtK;
@@ -303,6 +304,91 @@ describe('liquidity providing', () => {
 		} catch (e) {
 			assert(e.message.includes('0x1773')); // insufficient collateral
 		}
+	});
+
+	it('settles lp', async () => {
+		console.log('adding liquidity...');
+
+		const market = clearingHouse.getMarketAccount(new BN(0));
+		const _sig = await clearingHouse.addLiquidity(
+			new BN(100 * 1e13),
+			market.marketIndex
+		);
+		await delay(lpCooldown);
+
+		let user = clearingHouseUser.getUserAccount();
+		console.log(user.positions[0].lpShares.toString());
+
+		// some user goes long (lp should get a short)
+		console.log('user trading...');
+		const tradeSize = new BN(124 * 1e13);
+		await adjustOraclePostSwap(tradeSize, SwapDirection.ADD, market);
+		const _txsig = await traderClearingHouse.openPosition(
+			PositionDirection.SHORT,
+			tradeSize,
+			market.marketIndex
+		);
+
+		const trader = traderClearingHouse.getUserAccount();
+		console.log('trader size', trader.positions[0].baseAssetAmount.toString());
+		const lpPosition2 = clearingHouse.getUserAccount().positions[0];
+		console.log(
+			'LP baa, qaa, upnl',
+			lpPosition2.baseAssetAmount.toString(),
+			lpPosition2.quoteAssetAmount.toString(),
+			lpPosition2.unsettledPnl.toString()
+		);
+
+		console.log('settling...');
+		const sdkSettle = await clearingHouseUser.getSettledLPPosition(
+			market.marketIndex
+		);
+		// trader settles the lp
+		const _txssig = await traderClearingHouse.settleLP(
+			await clearingHouse.getUserAccountPublicKey(),
+			market.marketIndex
+		);
+
+		user = clearingHouse.getUserAccount();
+		const position = user.positions[0];
+		const lpBaa = position.lpBaseAssetAmount;
+		const lpQaa = position.lpQuoteAssetAmount;
+		const lpUpnl = position.unsettledPnl;
+
+		console.log(lpBaa.toString(), lpQaa.toString(), lpUpnl.toString());
+		assert(sdkSettle.lpBaseAssetAmount.eq(lpBaa));
+		assert(sdkSettle.lpQuoteAssetAmount.eq(lpQaa));
+		assert(sdkSettle.unsettledPnl.eq(lpUpnl));
+		assert(lpBaa.gt(ZERO));
+		assert(lpQaa.gt(ZERO));
+
+		console.log('removing liquidity...');
+		const baa = position.baseAssetAmount;
+		const qaa = position.quoteAssetAmount; // dust from prev tests
+
+		const _txSig = await clearingHouse.removeLiquidity(market.marketIndex);
+
+		user = clearingHouseUser.getUserAccount();
+		const lpPosition = user.positions[0];
+		const lpTokenAmount = lpPosition.lpShares;
+
+		assert(lpTokenAmount.eq(new BN(0)));
+		assert(user.positions[0].baseAssetAmount.eq(lpBaa.add(baa)));
+		assert(user.positions[0].quoteAssetAmount.eq(lpQaa.add(qaa)));
+
+		console.log('closing trader ...');
+		await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);
+		await traderClearingHouse.closePosition(new BN(0));
+
+		console.log('closing lp ...');
+		await adjustOraclePostSwap(
+			user.positions[0].baseAssetAmount,
+			SwapDirection.ADD,
+			market
+		);
+		await clearingHouse.closePosition(new BN(0)); // close lp position
+
+		console.log('done!');
 	});
 
 	it('provides lp, users shorts, removes lp, lp has long', async () => {
@@ -571,85 +657,6 @@ describe('liquidity providing', () => {
 		console.log('closing lp ...');
 		await adjustOraclePostSwap(newBaa, SwapDirection.ADD, market);
 		await clearingHouse.closePosition(new BN(0)); // close lp position
-	});
-
-	it('settles lp', async () => {
-		console.log('adding liquidity...');
-
-		const market = clearingHouse.getMarketAccount(new BN(0));
-		const _sig = await clearingHouse.addLiquidity(
-			new BN(100 * 1e13),
-			market.marketIndex
-		);
-		await delay(lpCooldown);
-
-		let user = clearingHouseUser.getUserAccount();
-		console.log(user.positions[0].lpShares.toString());
-
-		// some user goes long (lp should get a short)
-		console.log('user trading...');
-		const tradeSize = new BN(124 * 1e13);
-		await adjustOraclePostSwap(tradeSize, SwapDirection.ADD, market);
-		const _txsig = await traderClearingHouse.openPosition(
-			PositionDirection.SHORT,
-			tradeSize,
-			market.marketIndex
-		);
-
-		const trader = traderClearingHouse.getUserAccount();
-		console.log('trader size', trader.positions[0].baseAssetAmount.toString());
-		const lpPosition2 = clearingHouse.getUserAccount().positions[0];
-		console.log(
-			'LP baa, qaa, upnl',
-			lpPosition2.baseAssetAmount.toString(),
-			lpPosition2.quoteAssetAmount.toString(),
-			lpPosition2.unsettledPnl.toString()
-		);
-
-		console.log('settling...');
-		// trader settles the lp
-		const _txssig = await traderClearingHouse.settleLP(
-			await clearingHouse.getUserAccountPublicKey(),
-			market.marketIndex
-		);
-
-		user = clearingHouse.getUserAccount();
-		const position = user.positions[0];
-		const lpBaa = position.lpBaseAssetAmount;
-		const lpQaa = position.lpQuoteAssetAmount;
-		const lpUpnl = position.unsettledPnl;
-
-		console.log(lpBaa.toString(), lpQaa.toString(), lpUpnl.toString());
-		assert(lpBaa.gt(ZERO));
-		assert(lpQaa.gt(ZERO));
-
-		console.log('removing liquidity...');
-		const baa = position.baseAssetAmount;
-		const qaa = position.quoteAssetAmount; // dust from prev tests
-
-		const _txSig = await clearingHouse.removeLiquidity(market.marketIndex);
-
-		user = clearingHouseUser.getUserAccount();
-		const lpPosition = user.positions[0];
-		const lpTokenAmount = lpPosition.lpShares;
-
-		assert(lpTokenAmount.eq(new BN(0)));
-		assert(user.positions[0].baseAssetAmount.eq(lpBaa.add(baa)));
-		assert(user.positions[0].quoteAssetAmount.eq(lpQaa.add(qaa)));
-
-		console.log('closing trader ...');
-		await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);
-		await traderClearingHouse.closePosition(new BN(0));
-
-		console.log('closing lp ...');
-		await adjustOraclePostSwap(
-			user.positions[0].baseAssetAmount,
-			SwapDirection.ADD,
-			market
-		);
-		await clearingHouse.closePosition(new BN(0)); // close lp position
-
-		console.log('done!');
 	});
 
 	it('provides and removes liquidity too fast', async () => {

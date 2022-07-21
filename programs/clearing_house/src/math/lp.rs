@@ -78,13 +78,9 @@ pub fn get_lp_metrics(position: &MarketPosition, amm: &AMM) -> ClearingHouseResu
         )?;
 
         let quote_asset_reserve_amount = net_quote_reserves
-            .checked_mul(AMM_RESERVE_PRECISION)
-            .ok_or_else(math_error!())?
-            .checked_div(total_lp_shares)
-            .ok_or_else(math_error!())?
             .checked_mul(n_shares)
             .ok_or_else(math_error!())?
-            .checked_div(AMM_RESERVE_PRECISION)
+            .checked_div(total_lp_shares)
             .ok_or_else(math_error!())?;
 
         let quote_asset_amount =

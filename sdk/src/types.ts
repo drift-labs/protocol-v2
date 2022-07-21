@@ -332,8 +332,8 @@ export type UserPosition = {
 	lpShares: BN;
 	lpBaseAssetAmount: BN;
 	lpQuoteAssetAmount: BN;
-	lastCumulativeFundingRateLp: BN;
 	lastCumulativeFeePerLp: BN;
+	lastCumulativeFundingPaymentPerLp: BN;
 	lastCumulativeNetBaseAssetAmountPerLp: BN;
 };
 
