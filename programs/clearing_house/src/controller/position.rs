@@ -177,13 +177,13 @@ pub fn update_position_and_market(
     let flipped_position = position.base_asset_amount.signum() != new_base_asset_amount.signum();
 
     // Update Market
-    if !is_lp_remove {
-        market.amm.net_base_asset_amount = market
-            .amm
-            .net_base_asset_amount
-            .checked_add(delta.base_asset_amount)
-            .ok_or_else(math_error!())?;
+    market.amm.net_base_asset_amount = market
+        .amm
+        .net_base_asset_amount
+        .checked_add(delta.base_asset_amount)
+        .ok_or_else(math_error!())?;
 
+    if !is_lp_remove {
         let baa_slice = delta
             .base_asset_amount
             .checked_mul(AMM_RESERVE_PRECISION_I128)

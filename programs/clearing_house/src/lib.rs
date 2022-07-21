@@ -2300,6 +2300,18 @@ pub mod clearing_house {
         Ok(())
     }
 
+    #[access_control(
+        market_initialized(&ctx.accounts.market)
+    )]
+    pub fn update_lp_cooldown_time(
+        ctx: Context<AdminUpdateMarket>,
+        lp_cooldown_time: i64,
+    ) -> Result<()> {
+        let market = &mut ctx.accounts.market.load_mut()?;
+        market.amm.lp_cooldown_time = lp_cooldown_time;
+        Ok(())
+    }
+
     pub fn update_partial_liquidation_close_percentage(
         ctx: Context<AdminUpdateState>,
         numerator: u128,
