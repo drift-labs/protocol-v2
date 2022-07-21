@@ -28,3 +28,6 @@ thiserror = "1.0"
 num-integer = "0.1.44"
 switchboard-v2 = "0.1.10"
 arrayref = "0.3.6"
+
+[dev-dependencies]
+bytes = "1.2.0"
