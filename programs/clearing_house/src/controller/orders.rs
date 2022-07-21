@@ -546,8 +546,16 @@ fn sanitize_maker_order<'a>(
         )?;
     }
 
+    let market_margin_ratio_initial = market_map
+        .get_ref(&maker.orders[maker_order_index].market_index)?
+        .margin_ratio_initial;
     // Dont fulfill with a maker order if oracle has diverged significantly
-    if order_breaches_oracle_price_limits(&maker.orders[maker_order_index], oracle_price, slot)? {
+    if order_breaches_oracle_price_limits(
+        market_margin_ratio_initial,
+        &maker.orders[maker_order_index],
+        oracle_price,
+        slot,
+    )? {
         cancel_order(
             maker_order_index,
             maker.deref_mut(),
