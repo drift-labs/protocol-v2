@@ -811,6 +811,7 @@ pub mod clearing_house {
         n_shares: u128,
         market_index: u64,
     ) -> Result<()> {
+        let user_key = ctx.accounts.user.key();
         let user = &mut load_mut(&ctx.accounts.user)?;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
@@ -821,6 +822,10 @@ pub mod clearing_house {
 
         let market_map =
             MarketMap::load(&get_writable_markets(market_index), remaining_accounts_iter)?;
+
+        {
+            controller::funding::settle_funding_payment(user, &user_key, &market_map, now)?;
+        }
 
         let position_index = get_position_index(&user.positions, market_index)
             .or_else(|_| add_new_position(&mut user.positions, market_index))?;

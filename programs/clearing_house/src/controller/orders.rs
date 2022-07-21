@@ -831,6 +831,10 @@ pub fn fulfill_order_with_amm(
     let fee_slice = fee_to_market
         .checked_mul(AMM_RESERVE_PRECISION)
         .ok_or_else(math_error!())?
+        .checked_mul(9)
+        .ok_or_else(math_error!())?
+        .checked_div(10)
+        .ok_or_else(math_error!())?
         .checked_div(market.amm.sqrt_k)
         .ok_or_else(math_error!())?;
 
@@ -846,15 +850,9 @@ pub fn fulfill_order_with_amm(
         .checked_div(AMM_RESERVE_PRECISION)
         .ok_or_else(math_error!())?;
 
-    msg!("full fee: {}", fee_to_market);
-
     let fee_to_market = fee_to_market
         .checked_sub(user_lp_fee_payment)
         .ok_or_else(math_error!())?;
-
-    msg!("all lp amount {}", user_lp_fee_payment);
-    msg!("market fee: {}", fee_to_market);
-    msg!("cum per lp fee {}", market.amm.cumulative_fee_per_lp);
 
     let position_index = get_position_index(&user.positions, market.market_index)?;
     // Increment the clearing house's total fee variables

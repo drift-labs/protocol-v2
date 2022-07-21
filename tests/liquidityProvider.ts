@@ -553,13 +553,13 @@ describe('liquidity providing', () => {
 		console.log('removing liquidity...');
 		try {
 			const _txSig = await clearingHouse.removeLiquidity(marketIndex);
-			// _viewLogs(_txSig)
+			_viewLogs(_txSig);
 		} catch (e) {
 			console.log(e);
 		}
 
 		const user = clearingHouseUser.getUserAccount();
-		const feePayment = new BN(1500000);
+		const feePayment = new BN(1300000);
 		const fundingPayment = new BN(900000);
 
 		// dont get paid in fees bc the sqrtk is so big that fees dont get given to the lps

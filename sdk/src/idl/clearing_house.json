@@ -1201,6 +1201,32 @@
       ]
     },
     {
+      "name": "updateLpCooldownTime",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "lpCooldownTime",
+          "type": "i64"
+        }
+      ]
+    },
+    {
       "name": "updatePartialLiquidationClosePercentage",
       "accounts": [
         {
