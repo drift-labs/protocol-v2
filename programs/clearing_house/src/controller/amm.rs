@@ -286,7 +286,7 @@ pub fn formulaic_update_k(
         let cost_applied = apply_cost_to_market(market, adjustment_cost, true)?;
 
         if cost_applied {
-            amm::update_k(market, &update_k_result, false)?;
+            amm::update_k(market, &update_k_result)?;
 
             let peg_multiplier_after = market.amm.peg_multiplier;
             let base_asset_reserve_after = market.amm.base_asset_reserve;
@@ -418,22 +418,7 @@ pub fn move_price(
         .ok_or_else(math_error!())?;
 
     let new_sqrt_k = k.integer_sqrt().try_to_u128()?;
-
-    let k_delta = cast_to_i128(new_sqrt_k)?
-        .checked_sub(cast_to_i128(amm.sqrt_k)?)
-        .ok_or_else(math_error!())?;
-
-    if k_delta > 0 {
-        amm.amm_lp_shares = amm
-            .amm_lp_shares
-            .checked_add(k_delta.unsigned_abs())
-            .ok_or_else(math_error!())?;
-    } else {
-        amm.amm_lp_shares = amm
-            .amm_lp_shares
-            .checked_sub(k_delta.unsigned_abs())
-            .ok_or_else(math_error!())?;
-    }
+    amm.sqrt_k = new_sqrt_k; 
 
     Ok(())
 }
@@ -476,7 +461,6 @@ mod test {
                 base_asset_reserve: 5122950819670000,
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
-                amm_lp_shares: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50000,
                 net_base_asset_amount: -122950819670000,
                 total_fee_minus_distributions: 1000 * QUOTE_PRECISION as i128,

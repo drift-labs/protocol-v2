@@ -767,7 +767,6 @@ mod test {
                 quote_asset_reserve: 604402124593689280,
                 terminal_quote_asset_reserve: 604390726630032096,
                 sqrt_k: 604390760790494666,
-                amm_lp_shares: 604390760790494666,
                 peg_multiplier: 34353,
                 net_base_asset_amount: AMM_RESERVE_PRECISION as i128,
                 last_mark_price_twap: 341283700678,

@@ -2250,12 +2250,12 @@
             "type": "i128"
           },
           {
-            "name": "ammLpShares",
-            "type": "u128"
-          },
-          {
             "name": "lpCooldownTime",
             "type": "i64"
+          },
+          {
+            "name": "userLpShares",
+            "type": "u128"
           },
           {
             "name": "lastFundingRate",

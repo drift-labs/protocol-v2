@@ -307,7 +307,7 @@ mod test {
             base_asset_reserve: init_reserves,
             quote_asset_reserve: init_reserves,
             sqrt_k: init_reserves,
-            amm_lp_shares: init_reserves,
+            user_lp_shares: position.lp_shares, 
             peg_multiplier: 53000,
             ..AMM::default()
         };
@@ -332,6 +332,7 @@ mod test {
         .unwrap();
         market.amm.quote_asset_reserve = new_qar;
         market.amm.base_asset_reserve = new_bar;
+        market.amm.user_lp_shares = position.lp_shares;
 
         // recompute margin requirements
         let market_position = get_lp_market_position_margin(&position, &market).unwrap();
@@ -363,7 +364,6 @@ mod test {
     //         base_asset_reserve: init_reserves,
     //         quote_asset_reserve: init_reserves,
     //         sqrt_k: init_reserves,
-    //         amm_lp_shares: init_reserves,
     //         peg_multiplier: 53000,
     //         ..AMM::default()
     //     };
@@ -436,7 +436,6 @@ mod test {
             net_base_asset_amount: 100 * AMM_RESERVE_PRECISION_I128, // users went long
             peg_multiplier: 1,
             sqrt_k: 900 * AMM_RESERVE_PRECISION,
-            amm_lp_shares: 900 * AMM_RESERVE_PRECISION,
             base_asset_amount_step_size: 100 * AMM_RESERVE_PRECISION, // min size is big
             minimum_quote_asset_trade_size: 100 * AMM_RESERVE_PRECISION,
             ..AMM::default()
@@ -465,7 +464,6 @@ mod test {
             base_asset_reserve: init_reserves,
             quote_asset_reserve: init_reserves,
             peg_multiplier: PEG_PRECISION,
-            amm_lp_shares: init_reserves,
             base_asset_amount_step_size: 1,
             minimum_quote_asset_trade_size: 1,
             ..AMM::default()

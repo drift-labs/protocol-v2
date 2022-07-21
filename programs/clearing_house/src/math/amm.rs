@@ -985,7 +985,7 @@ pub fn adjust_k_cost(
         false,
     )?;
 
-    update_k(&mut market_clone, update_k_result, false)?;
+    update_k(&mut market_clone, update_k_result)?;
 
     let (_new_net_market_value, cost) = _calculate_base_asset_value_and_pnl(
         market_clone.amm.net_base_asset_amount,
@@ -1007,7 +1007,7 @@ pub fn adjust_k_cost_and_update(
     let current_net_market_value =
         calculate_base_asset_value(market.amm.net_base_asset_amount, &market.amm, false)?;
 
-    update_k(market, update_k_result, false)?;
+    update_k(market, update_k_result)?;
 
     let (_new_net_market_value, cost) = _calculate_base_asset_value_and_pnl(
         market.amm.net_base_asset_amount,
@@ -1086,36 +1086,9 @@ pub fn get_update_k_result(
 pub fn update_k(
     market: &mut Market,
     update_k_result: &UpdateKResult,
-    is_lp_operation: bool,
 ) -> ClearingHouseResult {
     market.amm.base_asset_reserve = update_k_result.base_asset_reserve;
     market.amm.quote_asset_reserve = update_k_result.quote_asset_reserve;
-    if !is_lp_operation {
-        let k_delta = cast_to_i128(update_k_result.sqrt_k)?
-            .checked_sub(cast_to_i128(market.amm.sqrt_k)?)
-            .ok_or_else(math_error!())?;
-
-        if k_delta > 0 {
-            market.amm.amm_lp_shares = market
-                .amm
-                .amm_lp_shares
-                .checked_add(k_delta.unsigned_abs())
-                .ok_or_else(math_error!())?;
-        } else {
-            market.amm.amm_lp_shares = market
-                .amm
-                .amm_lp_shares
-                .checked_sub(k_delta.unsigned_abs())
-                .ok_or_else(math_error!())?;
-        }
-
-        println!(
-            "sqrtk, new sqrtk {} {}",
-            market.amm.sqrt_k, update_k_result.sqrt_k
-        );
-        println!("delta: {}", k_delta);
-        println!("new amm lp shares {}", market.amm.amm_lp_shares);
-    }
     market.amm.sqrt_k = update_k_result.sqrt_k;
 
     let swap_direction = if market.amm.net_base_asset_amount > 0 {

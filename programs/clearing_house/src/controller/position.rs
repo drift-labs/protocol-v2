@@ -184,22 +184,18 @@ pub fn update_position_and_market(
             .checked_add(delta.base_asset_amount)
             .ok_or_else(math_error!())?;
 
-        // sqrt > 0 is a check for the tests -- might have to go through and change
-        // the values idk
-        if market.amm.sqrt_k > 0 {
-            let baa_slice = delta
-                .base_asset_amount
-                .checked_mul(AMM_RESERVE_PRECISION_I128)
-                .ok_or_else(math_error!())?
-                .checked_div(cast_to_i128(market.amm.sqrt_k)?)
-                .ok_or_else(math_error!())?;
+        let baa_slice = delta
+            .base_asset_amount
+            .checked_mul(AMM_RESERVE_PRECISION_I128)
+            .ok_or_else(math_error!())?
+            .checked_div(cast_to_i128(market.amm.sqrt_k)?)
+            .ok_or_else(math_error!())?;
 
-            market.amm.cumulative_net_base_asset_amount_per_lp = market
-                .amm
-                .cumulative_net_base_asset_amount_per_lp
-                .checked_add(baa_slice)
-                .ok_or_else(math_error!())?;
-        }
+        market.amm.cumulative_net_base_asset_amount_per_lp = market
+            .amm
+            .cumulative_net_base_asset_amount_per_lp
+            .checked_add(baa_slice)
+            .ok_or_else(math_error!())?;
     }
 
     // Update Market open interest
@@ -567,10 +563,10 @@ mod test {
         let mut market = Market {
             amm: AMM {
                 cumulative_funding_rate_long: 1,
-                ..AMM::default()
+                ..AMM::default_test()
             },
             open_interest: 0,
-            ..Market::default()
+            ..Market::default_test()
         };
 
         let pnl =
@@ -601,10 +597,10 @@ mod test {
         let mut market = Market {
             amm: AMM {
                 cumulative_funding_rate_short: 1,
-                ..AMM::default()
+                ..AMM::default_test()
             },
             open_interest: 0,
-            ..Market::default()
+            ..Market::default_test()
         };
 
         let pnl =
@@ -642,12 +638,12 @@ mod test {
             amm: AMM {
                 net_base_asset_amount: 1,
                 quote_asset_amount_long: 1,
-                ..AMM::default()
+                ..AMM::default_test()
             },
             base_asset_amount_long: 1,
             base_asset_amount_short: 0,
             open_interest: 1,
-            ..Market::default()
+            ..Market::default_test()
         };
 
         let pnl =
@@ -686,12 +682,12 @@ mod test {
                 net_base_asset_amount: -1,
                 quote_asset_amount_long: 0,
                 quote_asset_amount_short: 1,
-                ..AMM::default()
+                ..AMM::default_test()
             },
             open_interest: 1,
             base_asset_amount_short: -1,
             base_asset_amount_long: 0,
-            ..Market::default()
+            ..Market::default_test()
         };
 
         let pnl =
@@ -730,12 +726,12 @@ mod test {
                 net_base_asset_amount: 10,
                 quote_asset_amount_long: 10,
                 quote_asset_amount_short: 0,
-                ..AMM::default()
+                ..AMM::default_test()
             },
             open_interest: 1,
             base_asset_amount_long: 10,
             base_asset_amount_short: 0,
-            ..Market::default()
+            ..Market::default_test()
         };
 
         let pnl =
@@ -774,12 +770,12 @@ mod test {
                 net_base_asset_amount: 10,
                 quote_asset_amount_long: 100,
                 quote_asset_amount_short: 0,
-                ..AMM::default()
+                ..AMM::default_test()
             },
             open_interest: 1,
             base_asset_amount_long: 10,
             base_asset_amount_short: 0,
-            ..Market::default()
+            ..Market::default_test()
         };
 
         let pnl =
@@ -819,12 +815,12 @@ mod test {
                 quote_asset_amount_long: 10,
                 quote_asset_amount_short: 0,
                 cumulative_funding_rate_short: 2,
-                ..AMM::default()
+                ..AMM::default_test()
             },
             open_interest: 1,
             base_asset_amount_long: 10,
             base_asset_amount_short: 0,
-            ..Market::default()
+            ..Market::default_test()
         };
 
         let pnl =
@@ -864,12 +860,12 @@ mod test {
                 quote_asset_amount_long: 10,
                 quote_asset_amount_short: 0,
                 cumulative_funding_rate_short: 2,
-                ..AMM::default()
+                ..AMM::default_test()
             },
             open_interest: 1,
             base_asset_amount_long: 10,
             base_asset_amount_short: 0,
-            ..Market::default()
+            ..Market::default_test()
         };
 
         let pnl =
@@ -908,12 +904,12 @@ mod test {
                 net_base_asset_amount: -10,
                 quote_asset_amount_long: 0,
                 quote_asset_amount_short: 100,
-                ..AMM::default()
+                ..AMM::default_test()
             },
             open_interest: 1,
             base_asset_amount_long: 0,
             base_asset_amount_short: -10,
-            ..Market::default()
+            ..Market::default_test()
         };
 
         let pnl =
@@ -952,12 +948,12 @@ mod test {
                 net_base_asset_amount: -10,
                 quote_asset_amount_long: 0,
                 quote_asset_amount_short: 100,
-                ..AMM::default()
+                ..AMM::default_test()
             },
             open_interest: 1,
             base_asset_amount_long: 0,
             base_asset_amount_short: -10,
-            ..Market::default()
+            ..Market::default_test()
         };
 
         let pnl =
@@ -997,12 +993,12 @@ mod test {
                 quote_asset_amount_long: 0,
                 quote_asset_amount_short: 100,
                 cumulative_funding_rate_long: 2,
-                ..AMM::default()
+                ..AMM::default_test()
             },
             open_interest: 1,
             base_asset_amount_long: 0,
             base_asset_amount_short: -10,
-            ..Market::default()
+            ..Market::default_test()
         };
 
         let pnl =
@@ -1042,12 +1038,12 @@ mod test {
                 quote_asset_amount_long: 0,
                 quote_asset_amount_short: 100,
                 cumulative_funding_rate_long: 2,
-                ..AMM::default()
+                ..AMM::default_test()
             },
             open_interest: 1,
             base_asset_amount_long: 0,
             base_asset_amount_short: -10,
-            ..Market::default()
+            ..Market::default_test()
         };
 
         let pnl =
@@ -1086,11 +1082,11 @@ mod test {
             amm: AMM {
                 net_base_asset_amount: 11,
                 quote_asset_amount_long: 11,
-                ..AMM::default()
+                ..AMM::default_test()
             },
             open_interest: 2,
             base_asset_amount_long: 11,
-            ..Market::default()
+            ..Market::default_test()
         };
 
         let pnl =
@@ -1130,11 +1126,11 @@ mod test {
             amm: AMM {
                 net_base_asset_amount: 11,
                 quote_asset_amount_long: 11,
-                ..AMM::default()
+                ..AMM::default_test()
             },
             open_interest: 2,
             base_asset_amount_long: 11,
-            ..Market::default()
+            ..Market::default_test()
         };
 
         let pnl =
@@ -1174,11 +1170,11 @@ mod test {
             amm: AMM {
                 net_base_asset_amount: -11,
                 quote_asset_amount_short: 11,
-                ..AMM::default()
+                ..AMM::default_test()
             },
             open_interest: 2,
             base_asset_amount_short: -11,
-            ..Market::default()
+            ..Market::default_test()
         };
 
         let pnl =
@@ -1218,11 +1214,11 @@ mod test {
             amm: AMM {
                 net_base_asset_amount: -11,
                 quote_asset_amount_short: 11,
-                ..AMM::default()
+                ..AMM::default_test()
             },
             open_interest: 2,
             base_asset_amount_short: -11,
-            ..Market::default()
+            ..Market::default_test()
         };
 
         let pnl =
@@ -1262,11 +1258,11 @@ mod test {
             amm: AMM {
                 net_base_asset_amount: 11,
                 quote_asset_amount_long: 11,
-                ..AMM::default()
+                ..AMM::default_test()
             },
             open_interest: 2,
             base_asset_amount_long: 11,
-            ..Market::default()
+            ..Market::default_test()
         };
 
         let pnl =
@@ -1306,11 +1302,11 @@ mod test {
             amm: AMM {
                 net_base_asset_amount: -11,
                 quote_asset_amount_short: 11,
-                ..AMM::default()
+                ..AMM::default_test()
             },
             open_interest: 2,
             base_asset_amount_short: -11,
-            ..Market::default()
+            ..Market::default_test()
         };
 
         let pnl =
@@ -1344,10 +1340,10 @@ mod test {
                 cumulative_funding_rate_long: 1,
                 quote_asset_amount_long: 100 * QUOTE_PRECISION,
                 net_base_asset_amount: 2 * AMM_RESERVE_PRECISION_I128,
-                ..AMM::default()
+                ..AMM::default_test()
             },
             open_interest: 0,
-            ..Market::default()
+            ..Market::default_test()
         };
 
         let mut market_position_up = MarketPosition {

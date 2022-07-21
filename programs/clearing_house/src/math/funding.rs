@@ -61,46 +61,36 @@ pub fn calculate_funding_rate_long_short(
         calculate_funding_payment_in_quote_precision(funding_rate, net_market_position)?;
     let uncapped_funding_pnl = -net_market_position_funding_payment;
 
-    let user_lp_shares = market
-        .amm
-        .sqrt_k
-        .checked_sub(market.amm.amm_lp_shares)
-        .ok_or_else(math_error!())?;
-
     // If the uncapped_funding_pnl is positive, the clearing house receives money.
     if uncapped_funding_pnl >= 0 {
-        let uncapped_funding_pnl = if user_lp_shares > 0 {
-            // pay the user lps
-            let funding_pnl_slice = uncapped_funding_pnl
-                .checked_mul(AMM_RESERVE_PRECISION_I128)
-                .ok_or_else(math_error!())?
-                .checked_div(cast_to_i128(market.amm.sqrt_k)?)
-                .ok_or_else(math_error!())?;
 
-            msg!("funding pnl slice: {}", funding_pnl_slice);
+        // pay the user lps
+        let funding_pnl_slice = uncapped_funding_pnl
+            .checked_mul(AMM_RESERVE_PRECISION_I128)
+            .ok_or_else(math_error!())?
+            .checked_div(cast_to_i128(market.amm.sqrt_k)?)
+            .ok_or_else(math_error!())?;
 
-            market.amm.cumulative_funding_payment_per_lp = market
-                .amm
-                .cumulative_funding_payment_per_lp
-                .checked_add(funding_pnl_slice)
-                .ok_or_else(math_error!())?;
+        msg!("funding pnl slice: {}", funding_pnl_slice);
 
-            let user_lp_funding_payment = funding_pnl_slice
-                .checked_mul(cast_to_i128(user_lp_shares)?)
-                .ok_or_else(math_error!())?
-                .checked_div(AMM_RESERVE_PRECISION_I128)
-                .ok_or_else(math_error!())?;
+        market.amm.cumulative_funding_payment_per_lp = market
+            .amm
+            .cumulative_funding_payment_per_lp
+            .checked_add(funding_pnl_slice)
+            .ok_or_else(math_error!())?;
 
-            msg!("user lp funding: {}", user_lp_funding_payment);
+        let user_lp_funding_payment = funding_pnl_slice
+            .checked_mul(cast_to_i128(market.amm.user_lp_shares)?)
+            .ok_or_else(math_error!())?
+            .checked_div(AMM_RESERVE_PRECISION_I128)
+            .ok_or_else(math_error!())?;
 
-            // pay the market what the lps didnt get
-            uncapped_funding_pnl
-                .checked_sub(user_lp_funding_payment)
-                .ok_or_else(math_error!())?
-        } else {
-            // no lps = market gets it all
-            uncapped_funding_pnl
-        };
+        msg!("user lp funding: {}", user_lp_funding_payment);
+
+        // pay the market what the lps didnt get
+        let uncapped_funding_pnl = uncapped_funding_pnl
+            .checked_sub(user_lp_funding_payment)
+            .ok_or_else(math_error!())?;
 
         msg!("market funding: {}", uncapped_funding_pnl);
 
@@ -123,35 +113,30 @@ pub fn calculate_funding_rate_long_short(
     let (capped_funding_rate, capped_funding_pnl) =
         calculate_capped_funding_rate(market, uncapped_funding_pnl, funding_rate)?;
 
-    let capped_funding_pnl = if user_lp_shares > 0 {
-        // user lps pay
-        let funding_pnl_slice = capped_funding_pnl
-            .checked_mul(AMM_RESERVE_PRECISION_I128)
-            .ok_or_else(math_error!())?
-            .checked_div(cast_to_i128(market.amm.sqrt_k)?)
-            .ok_or_else(math_error!())?;
+    // user lps pay
+    let funding_pnl_slice = capped_funding_pnl
+        .checked_mul(AMM_RESERVE_PRECISION_I128)
+        .ok_or_else(math_error!())?
+        .checked_div(cast_to_i128(market.amm.sqrt_k)?)
+        .ok_or_else(math_error!())?;
 
-        msg!("funding pnl slice: {}", funding_pnl_slice);
-        market.amm.cumulative_funding_payment_per_lp = market
-            .amm
-            .cumulative_funding_payment_per_lp
-            .checked_add(funding_pnl_slice)
-            .ok_or_else(math_error!())?;
+    msg!("funding pnl slice: {}", funding_pnl_slice);
+    market.amm.cumulative_funding_payment_per_lp = market
+        .amm
+        .cumulative_funding_payment_per_lp
+        .checked_add(funding_pnl_slice)
+        .ok_or_else(math_error!())?;
 
-        let user_lp_funding_payment = funding_pnl_slice
-            .checked_mul(cast_to_i128(user_lp_shares)?)
-            .ok_or_else(math_error!())?
-            .checked_div(AMM_RESERVE_PRECISION_I128)
-            .ok_or_else(math_error!())?;
+    let user_lp_funding_payment = funding_pnl_slice
+        .checked_mul(cast_to_i128(market.amm.user_lp_shares)?)
+        .ok_or_else(math_error!())?
+        .checked_div(AMM_RESERVE_PRECISION_I128)
+        .ok_or_else(math_error!())?;
 
-        // pay the market what the lps didnt get
-        capped_funding_pnl
-            .checked_sub(user_lp_funding_payment)
-            .ok_or_else(math_error!())?
-    } else {
-        // no lps = market gets it all
-        capped_funding_pnl
-    };
+    // pay the market what the lps didnt get
+    let capped_funding_pnl = capped_funding_pnl
+        .checked_sub(user_lp_funding_payment)
+        .ok_or_else(math_error!())?;
 
     msg!("market funding: {}", capped_funding_pnl);
     let new_total_fee_minus_distributions = market
@@ -337,7 +322,6 @@ mod test {
                 base_asset_reserve: 5122950819670000,
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
-                amm_lp_shares: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50000,
                 net_base_asset_amount: -122950819670000,
                 total_exchange_fee: QUOTE_PRECISION / 2,
@@ -379,7 +363,6 @@ mod test {
                 base_asset_reserve: 5122950819670000,
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
-                amm_lp_shares: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50000,
                 net_base_asset_amount: 122950819670000,
                 total_exchange_fee: QUOTE_PRECISION / 2,

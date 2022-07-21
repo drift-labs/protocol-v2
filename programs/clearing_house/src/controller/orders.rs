@@ -828,51 +828,33 @@ pub fn fulfill_order_with_amm(
         )?;
 
     // pay the lps and update the market fee amount
-    // TODO update the tests for this
-    let fee_to_market = if market.amm.sqrt_k > 0 {
-        let fee_slice = fee_to_market
-            .checked_mul(AMM_RESERVE_PRECISION)
-            .ok_or_else(math_error!())?
-            .checked_div(market.amm.sqrt_k)
-            .ok_or_else(math_error!())?;
+    let fee_slice = fee_to_market
+        .checked_mul(AMM_RESERVE_PRECISION)
+        .ok_or_else(math_error!())?
+        .checked_div(market.amm.sqrt_k)
+        .ok_or_else(math_error!())?;
 
-        market.amm.cumulative_fee_per_lp = market
-            .amm
-            .cumulative_fee_per_lp
-            .checked_add(fee_slice)
-            .ok_or_else(math_error!())?;
+    market.amm.cumulative_fee_per_lp = market
+        .amm
+        .cumulative_fee_per_lp
+        .checked_add(fee_slice)
+        .ok_or_else(math_error!())?;
 
-        msg!(
-            "sqrt_k, amm shares: {} {}",
-            market.amm.sqrt_k,
-            market.amm.amm_lp_shares
-        );
-        let user_lp_shares = market
-            .amm
-            .sqrt_k
-            .checked_sub(market.amm.amm_lp_shares)
-            .ok_or_else(math_error!())?;
+    let user_lp_fee_payment = fee_slice
+        .checked_mul(market.amm.user_lp_shares)
+        .ok_or_else(math_error!())?
+        .checked_div(AMM_RESERVE_PRECISION)
+        .ok_or_else(math_error!())?;
 
-        let user_lp_fee_payment = fee_slice
-            .checked_mul(user_lp_shares)
-            .ok_or_else(math_error!())?
-            .checked_div(AMM_RESERVE_PRECISION)
-            .ok_or_else(math_error!())?;
+    msg!("full fee: {}", fee_to_market);
 
-        msg!("full fee: {}", fee_to_market);
+    let fee_to_market = fee_to_market
+        .checked_sub(user_lp_fee_payment)
+        .ok_or_else(math_error!())?;
 
-        let fee_to_market = fee_to_market
-            .checked_sub(user_lp_fee_payment)
-            .ok_or_else(math_error!())?;
-
-        msg!("all lp amount {}", user_lp_fee_payment);
-        msg!("market fee: {}", fee_to_market);
-        msg!("cum per lp fee {}", market.amm.cumulative_fee_per_lp);
-
-        fee_to_market
-    } else {
-        fee_to_market
-    };
+    msg!("all lp amount {}", user_lp_fee_payment);
+    msg!("market fee: {}", fee_to_market);
+    msg!("cum per lp fee {}", market.amm.cumulative_fee_per_lp);
 
     let position_index = get_position_index(&user.positions, market.market_index)?;
     // Increment the clearing house's total fee variables
@@ -1074,28 +1056,6 @@ pub fn fulfill_order_with_match(
             filler.is_some(),
         )?;
 
-    // pay the lps and update the market fee amount
-    let fee_to_market = if market.amm.sqrt_k > 0 {
-        let fee_slice = fee_to_market
-            .checked_mul(AMM_RESERVE_PRECISION)
-            .ok_or_else(math_error!())?
-            .checked_div(market.amm.sqrt_k)
-            .ok_or_else(math_error!())?;
-
-        market.amm.cumulative_fee_per_lp = market
-            .amm
-            .cumulative_fee_per_lp
-            .checked_add(fee_slice)
-            .ok_or_else(math_error!())?;
-
-        fee_slice
-            .checked_mul(market.amm.amm_lp_shares)
-            .ok_or_else(math_error!())?
-            .checked_div(AMM_RESERVE_PRECISION)
-            .ok_or_else(math_error!())?
-    } else {
-        fee_to_market
-    };
 
     // Increment the markets house's total fee variables
     market.amm.total_fee = market

@@ -424,7 +424,7 @@ pub mod clearing_house {
                 cumulative_funding_payment_per_lp: 0,
                 cumulative_fee_per_lp: 0,
                 cumulative_net_base_asset_amount_per_lp: 0,
-                amm_lp_shares: amm_base_asset_reserve, // sqrtk
+                user_lp_shares: 0, 
                 lp_cooldown_time: 1,                   // TODO: what should this be?
 
                 padding0: 0,
@@ -866,7 +866,11 @@ pub mod clearing_house {
         {
             let mut market = market_map.get_ref_mut(&market_index)?;
             let update_k_result = get_update_k_result(&market, new_sqrt_k_u192, true)?;
-            math::amm::update_k(&mut market, &update_k_result, true)?;
+            math::amm::update_k(&mut market, &update_k_result)?;
+
+            market.amm.user_lp_shares = market.amm.user_lp_shares 
+                .checked_add(n_shares)
+                .ok_or_else(math_error!())?;
         }
 
         // check margin requirements
@@ -2157,7 +2161,7 @@ pub mod clearing_house {
 
         let adjustment_cost = math::amm::adjust_k_cost(market, &update_k_result)?;
 
-        math::amm::update_k(market, &update_k_result, false);
+        math::amm::update_k(market, &update_k_result);
 
         if adjustment_cost > 0 {
             let max_cost = market
