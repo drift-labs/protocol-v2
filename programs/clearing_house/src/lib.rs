@@ -25,7 +25,7 @@ pub mod optional_accounts;
 pub mod order_validation;
 pub mod state;
 #[cfg(test)]
-mod test_utils;
+mod tests;
 
 #[cfg(feature = "mainnet-beta")]
 declare_id!("dammHkt7jmytvbS3nHTxQNEcP59aE57nxwV21YdqEDN");

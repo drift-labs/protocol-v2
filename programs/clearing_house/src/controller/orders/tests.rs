@@ -33,7 +33,7 @@ pub mod fulfill_order_with_maker_order {
     use crate::state::market::Market;
     use crate::state::state::FeeStructure;
     use crate::state::user::{MarketPosition, Order, OrderType, User};
-    use crate::test_utils::*;
+    use crate::tests::utils::*;
 
     #[test]
     fn long_taker_order_fulfilled_start_of_auction() {
@@ -1282,8 +1282,7 @@ pub mod fulfill_order {
     use crate::state::market_map::MarketMap;
     use crate::state::oracle::OracleSource;
     use crate::state::user::{OrderStatus, OrderType, User, UserBankBalance};
-    use crate::test_utils::create_account_info;
-    use crate::test_utils::*;
+    use crate::tests::utils::*;
     use std::ops::Deref;
 
     #[test]
