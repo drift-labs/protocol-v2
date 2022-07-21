@@ -1,20 +1,21 @@
 use anchor_lang::prelude::*;
-use num_integer::Roots;
 use solana_program::msg;
-use std::cmp::{max, min};
+use std::cmp::max;
 use switchboard_v2::decimal::SwitchboardDecimal;
 use switchboard_v2::AggregatorAccountData;
 
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm;
 use crate::math::casting::{cast, cast_to_i128, cast_to_i64, cast_to_u128};
-use crate::math::margin::MarginRequirementType;
+use crate::math::margin::{
+    calculate_size_discount_asset_weight, calculate_size_markup_liability_weight,
+    MarginRequirementType,
+};
 use crate::math_error;
 use crate::state::bank::{BankBalance, BankBalanceType};
 use crate::state::oracle::{OraclePriceData, OracleSource};
 use crate::{
-    BANK_IMF_PRECISION, BANK_WEIGHT_PRECISION, BID_ASK_SPREAD_PRECISION, MARGIN_PRECISION,
-    MARK_PRICE_PRECISION, MARK_PRICE_PRECISION_I128,
+    AMM_TO_QUOTE_PRECISION_RATIO, BID_ASK_SPREAD_PRECISION, MARGIN_PRECISION, MARK_PRICE_PRECISION,
 };
 
 #[account(zero_copy)]
@@ -40,6 +41,7 @@ pub struct Market {
     pub imf_factor: u128,
     pub unsettled_initial_asset_weight: u8,
     pub unsettled_maintenance_asset_weight: u8,
+    pub unsettled_imf_factor: u128,
 
     // upgrade-ability
     pub padding0: u32,
@@ -56,49 +58,25 @@ impl Market {
         margin_type: MarginRequirementType,
     ) -> ClearingHouseResult<u32> {
         let margin_ratio = match margin_type {
-            MarginRequirementType::Initial => self.margin_ratio_initial,
-            MarginRequirementType::Partial => self.margin_ratio_partial,
-            MarginRequirementType::Maintenance => self.margin_ratio_maintenance,
+            MarginRequirementType::Initial => max(
+                self.margin_ratio_initial as u128,
+                calculate_size_markup_liability_weight(
+                    size,
+                    self.imf_factor,
+                    self.margin_ratio_partial as u128,
+                    MARGIN_PRECISION,
+                )? + 1,
+            ),
+            MarginRequirementType::Partial => calculate_size_markup_liability_weight(
+                size,
+                self.imf_factor,
+                self.margin_ratio_partial as u128,
+                MARGIN_PRECISION,
+            )?,
+            MarginRequirementType::Maintenance => self.margin_ratio_maintenance as u128,
         };
 
-        let mut margin_requirement = self.margin_ratio_partial as u128;
-
-        let margin_ratio_max = match margin_type {
-            MarginRequirementType::Initial => MARGIN_PRECISION, // 1x leverage
-            MarginRequirementType::Partial => MARGIN_PRECISION, // 1x leverage
-            MarginRequirementType::Maintenance => MARGIN_PRECISION + MARGIN_PRECISION / 10, // 1.1x leverage
-        };
-
-        // construct an initial
-        if self.imf_factor > 0 {
-            let size_sqrt = ((size / 1000) + 1).nth_root(2); //1e13 -> 1e10 -> 1e5
-
-            let margin_requirement_numer = margin_requirement
-                .checked_sub(
-                    margin_requirement
-                        .checked_div(BANK_IMF_PRECISION / self.imf_factor)
-                        .ok_or_else(math_error!())?,
-                )
-                .ok_or_else(math_error!())?;
-
-            // increases
-            let size_surplus_margin_requirement = margin_requirement_numer
-                .checked_add(
-                    size_sqrt // 1e5
-                        .checked_mul(self.imf_factor)
-                        .ok_or_else(math_error!())?
-                        .checked_div(100_000 * BANK_IMF_PRECISION / MARGIN_PRECISION) // 1e5 * 1e2
-                        .ok_or_else(math_error!())?,
-                )
-                .ok_or_else(math_error!())?;
-            // result between margin_requirement (10-20x) and 10_000 (1x)
-            margin_requirement = min(
-                max(margin_requirement, size_surplus_margin_requirement),
-                margin_ratio_max,
-            );
-        }
-
-        Ok(max(margin_ratio, margin_requirement as u32))
+        Ok(margin_ratio as u32)
     }
 
     pub fn get_unsettled_asset_weight(
@@ -106,54 +84,32 @@ impl Market {
         unsettled_pnl: i128,
         margin_type: MarginRequirementType,
     ) -> ClearingHouseResult<u128> {
-        // the asset weight for a position's unrealised pnl + unsettled pnl
-        // in the margin system
+        // the asset weight for a position's unrealized pnl + unsettled pnl in the margin system
         // > 0 (positive balance)
         // < 0 (negative balance) always has asset weight = 1
-        let mut unrealised_asset_weight = 100; // 100 = 1 in BANK_WEIGHT_PRECISION (1e3)
-        if unsettled_pnl > 0 {
-            let asset_weight = if margin_type == MarginRequirementType::Initial {
-                let size = unsettled_pnl
-                    .checked_mul(MARK_PRICE_PRECISION_I128)
-                    .ok_or_else(math_error!())?
-                    .checked_div(max(MARK_PRICE_PRECISION_I128, self.amm.last_oracle_price))
-                    .ok_or_else(math_error!())?
-                    .unsigned_abs();
+        let unsettled_asset_weight = if unsettled_pnl > 0 {
+            // only discount the initial margin s.t. no one gets liquidated over upnl
 
-                // rought approx of size in unit of base amount
-                let unsettled_initial_asset_weight_discounted = min(
-                    self.unsettled_initial_asset_weight,
-                    ((BANK_IMF_PRECISION + BANK_IMF_PRECISION / 10)
-                        .checked_mul(BANK_WEIGHT_PRECISION)
-                        .ok_or_else(math_error!())?
-                        .checked_div(
-                            BANK_IMF_PRECISION
-                                .checked_add(
-                                    (size + 1)
-                                        .nth_root(2) // 1e3
-                                        .checked_mul(self.imf_factor as u128)
-                                        .ok_or_else(math_error!())?
-                                        .checked_div(1_000) // 1e3
-                                        .ok_or_else(math_error!())?,
-                                )
-                                .ok_or_else(math_error!())?,
-                        )
-                        .ok_or_else(math_error!())?) as u8,
-                );
-                unsettled_initial_asset_weight_discounted
-            } else {
-                match margin_type {
-                    MarginRequirementType::Initial => self.unsettled_initial_asset_weight,
-                    MarginRequirementType::Partial => self.unsettled_maintenance_asset_weight,
-                    MarginRequirementType::Maintenance => self.unsettled_maintenance_asset_weight,
+            // a larger imf factor -> lower asset weight
+            match margin_type {
+                MarginRequirementType::Initial => calculate_size_discount_asset_weight(
+                    unsettled_pnl
+                        .unsigned_abs()
+                        .checked_mul(AMM_TO_QUOTE_PRECISION_RATIO)
+                        .ok_or_else(math_error!())?,
+                    self.unsettled_imf_factor,
+                    self.unsettled_initial_asset_weight as u128,
+                )?,
+                MarginRequirementType::Partial => self.unsettled_maintenance_asset_weight as u128,
+                MarginRequirementType::Maintenance => {
+                    self.unsettled_maintenance_asset_weight as u128
                 }
-            };
+            }
+        } else {
+            100
+        };
 
-            unrealised_asset_weight = asset_weight as u128;
-        }
-
-        // always ensure asset weight <= 1
-        Ok(min(BANK_WEIGHT_PRECISION, unrealised_asset_weight))
+        Ok(unsettled_asset_weight)
     }
 }
 

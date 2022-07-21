@@ -1,15 +1,15 @@
-use std::cmp::min;
 use std::fmt;
 use std::fmt::{Display, Formatter};
 
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
-use num_integer::Roots;
 
 use crate::error::ClearingHouseResult;
-use crate::math::constants::{BANK_IMF_PRECISION, BANK_WEIGHT_PRECISION};
-use crate::math::margin::MarginRequirementType;
-use crate::math_error;
+use crate::math::constants::BANK_WEIGHT_PRECISION;
+use crate::math::margin::{
+    calculate_size_discount_asset_weight, calculate_size_markup_liability_weight,
+    MarginRequirementType,
+};
 use crate::state::oracle::OracleSource;
 
 #[account(zero_copy)]
@@ -46,44 +46,44 @@ impl Bank {
         size: u128,
         margin_requirement_type: &MarginRequirementType,
     ) -> ClearingHouseResult<u128> {
-        let mut asset_weight = match margin_requirement_type {
-            MarginRequirementType::Initial => self.initial_asset_weight,
-            MarginRequirementType::Partial => self.maintenance_asset_weight,
+        let asset_weight = match margin_requirement_type {
+            MarginRequirementType::Initial => calculate_size_discount_asset_weight(
+                size,
+                self.imf_factor,
+                self.initial_asset_weight,
+            )?,
+            MarginRequirementType::Partial => calculate_size_discount_asset_weight(
+                size,
+                self.imf_factor,
+                self.maintenance_asset_weight,
+            )?,
             MarginRequirementType::Maintenance => self.maintenance_asset_weight,
         };
-
-        if self.imf_factor > 0 {
-            let size_sqrt = (size / 1000).nth_root(2); //1e13 -> 1e10 -> 1e5
-            let imf_numerator = BANK_IMF_PRECISION + BANK_IMF_PRECISION / 10;
-
-            let size_discounted_asset_weight = imf_numerator
-                .checked_mul(BANK_WEIGHT_PRECISION)
-                .ok_or_else(math_error!())?
-                .checked_div(
-                    BANK_IMF_PRECISION
-                        .checked_add(
-                            size_sqrt // 1e5
-                                .checked_mul(self.imf_factor)
-                                .ok_or_else(math_error!())?
-                                .checked_div(100_000) // 1e5
-                                .ok_or_else(math_error!())?,
-                        )
-                        .ok_or_else(math_error!())?,
-                )
-                .ok_or_else(math_error!())?;
-
-            asset_weight = min(asset_weight, size_discounted_asset_weight);
-        }
-
         Ok(asset_weight)
     }
 
-    pub fn get_liability_weight(&self, margin_requirement_type: &MarginRequirementType) -> u128 {
-        match margin_requirement_type {
-            MarginRequirementType::Initial => self.initial_liability_weight,
-            MarginRequirementType::Partial => self.maintenance_liability_weight,
+    pub fn get_liability_weight(
+        &self,
+        size: u128,
+        margin_requirement_type: &MarginRequirementType,
+    ) -> ClearingHouseResult<u128> {
+        let libability_weight = match margin_requirement_type {
+            MarginRequirementType::Initial => calculate_size_markup_liability_weight(
+                size,
+                self.imf_factor,
+                self.initial_liability_weight,
+                BANK_WEIGHT_PRECISION,
+            )?,
+            MarginRequirementType::Partial => calculate_size_markup_liability_weight(
+                size,
+                self.imf_factor,
+                self.maintenance_liability_weight,
+                BANK_WEIGHT_PRECISION,
+            )?,
             MarginRequirementType::Maintenance => self.maintenance_liability_weight,
-        }
+        };
+
+        Ok(libability_weight)
     }
 }
 

@@ -1,7 +1,7 @@
 use crate::error::ClearingHouseResult;
 use crate::math::collateral::calculate_updated_collateral;
 use crate::math::constants::{
-    BANK_WEIGHT_PRECISION, BID_ASK_SPREAD_PRECISION_I128, MARGIN_PRECISION,
+    BANK_IMF_PRECISION, BANK_WEIGHT_PRECISION, BID_ASK_SPREAD_PRECISION_I128, MARGIN_PRECISION,
 };
 use crate::math::position::{
     calculate_base_asset_value_and_pnl, calculate_base_asset_value_and_pnl_with_oracle_price,
@@ -27,8 +27,9 @@ use crate::state::oracle_map::OracleMap;
 use crate::state::state::OracleGuardRails;
 use crate::state::user::{MarketPosition, UserBankBalance};
 use crate::validate;
+use num_integer::Roots;
 use solana_program::msg;
-use std::cmp::min;
+use std::cmp::{max, min};
 use std::ops::Div;
 
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -36,6 +37,74 @@ pub enum MarginRequirementType {
     Initial,
     Partial,
     Maintenance,
+}
+
+pub fn calculate_size_markup_liability_weight(
+    size: u128, // AMM_RESERVE_PRECISION
+    imf_factor: u128,
+    liability_weight: u128,
+    precision: u128,
+) -> ClearingHouseResult<u128> {
+    if imf_factor == 0 {
+        return Ok(liability_weight);
+    }
+
+    let size_sqrt = ((size / 1000) + 1).nth_root(2); //1e13 -> 1e10 -> 1e5
+
+    let liability_weight_numer = liability_weight
+        .checked_sub(
+            liability_weight
+                .checked_div(max(1, BANK_IMF_PRECISION / imf_factor))
+                .ok_or_else(math_error!())?,
+        )
+        .ok_or_else(math_error!())?;
+
+    // increases
+    let size_markup_liability_weight = liability_weight_numer
+        .checked_add(
+            size_sqrt // 1e5
+                .checked_mul(imf_factor)
+                .ok_or_else(math_error!())?
+                .checked_div(100_000 * BANK_IMF_PRECISION / precision) // 1e5 * 1e2
+                .ok_or_else(math_error!())?,
+        )
+        .ok_or_else(math_error!())?;
+
+    let max_liability_weight = max(liability_weight, size_markup_liability_weight);
+    Ok(max_liability_weight)
+}
+
+pub fn calculate_size_discount_asset_weight(
+    size: u128, // AMM_RESERVE_PRECISION
+    imf_factor: u128,
+    asset_weight: u128,
+) -> ClearingHouseResult<u128> {
+    if imf_factor == 0 {
+        return Ok(asset_weight);
+    }
+
+    let size_sqrt = (size / 1000).nth_root(2) + 1; //1e13 -> 1e10 -> 1e5
+    let imf_numerator = BANK_IMF_PRECISION + BANK_IMF_PRECISION / 10;
+
+    let size_discount_asset_weight = imf_numerator
+        .checked_mul(BANK_WEIGHT_PRECISION)
+        .ok_or_else(math_error!())?
+        .checked_div(
+            BANK_IMF_PRECISION
+                .checked_add(
+                    size_sqrt // 1e5
+                        .checked_mul(imf_factor)
+                        .ok_or_else(math_error!())?
+                        .checked_div(100_000) // 1e5
+                        .ok_or_else(math_error!())?,
+                )
+                .ok_or_else(math_error!())?,
+        )
+        .ok_or_else(math_error!())?;
+
+    let min_asset_weight = min(asset_weight, size_discount_asset_weight);
+
+    Ok(min_asset_weight)
 }
 
 pub fn calculate_bank_equity_value(
@@ -54,7 +123,7 @@ pub fn calculate_bank_equity_value(
             .checked_div(BANK_WEIGHT_PRECISION)
             .ok_or_else(math_error!())?,
         BankBalanceType::Borrow => balance_value
-            .checked_mul(bank.get_liability_weight(&margin_requirement_type))
+            .checked_mul(bank.get_liability_weight(token_amount, &margin_requirement_type)?)
             .ok_or_else(math_error!())?
             .checked_div(BANK_WEIGHT_PRECISION)
             .ok_or_else(math_error!())?,
@@ -102,23 +171,27 @@ pub fn calculate_perp_equity_value(
     oracle_price_data: &OraclePriceData,
     margin_requirement_type: MarginRequirementType,
 ) -> ClearingHouseResult<(u128, i128)> {
-    let oracle_price =
+    let oracle_price_for_upnl =
         calculate_oracle_price_for_margin(market_position, market, oracle_price_data)?;
 
-    let (_, position_unrealized_pnl) =
-        calculate_base_asset_value_and_pnl_with_oracle_price(market_position, oracle_price)?;
+    let (_, position_unrealized_pnl) = calculate_base_asset_value_and_pnl_with_oracle_price(
+        market_position,
+        oracle_price_for_upnl,
+    )?;
 
-    let position_unsettled_pnl = position_unrealized_pnl
+    let position_total_unsettled_pnl = position_unrealized_pnl
         .checked_add(market_position.unsettled_pnl)
         .ok_or_else(math_error!())?;
 
     let unsettled_asset_weight =
-        market.get_unsettled_asset_weight(position_unsettled_pnl, margin_requirement_type)?;
+        market.get_unsettled_asset_weight(position_total_unsettled_pnl, margin_requirement_type)?;
 
     let worst_case_base_asset_amount = market_position.worst_case_base_asset_amount()?;
 
-    let worse_case_base_asset_value =
-        calculate_base_asset_value_with_oracle_price(worst_case_base_asset_amount, oracle_price)?;
+    let worse_case_base_asset_value = calculate_base_asset_value_with_oracle_price(
+        worst_case_base_asset_amount,
+        oracle_price_data.price,
+    )?;
 
     let margin_ratio = market.get_margin_ratio(
         worst_case_base_asset_amount.unsigned_abs(),
@@ -129,7 +202,7 @@ pub fn calculate_perp_equity_value(
         .checked_mul(margin_ratio.into())
         .ok_or_else(math_error!())?;
 
-    let unsettled_pnl_equity = position_unsettled_pnl
+    let unsettled_pnl_equity = position_total_unsettled_pnl
         .checked_mul(unsettled_asset_weight as i128)
         .ok_or_else(math_error!())?
         .checked_div(BANK_WEIGHT_PRECISION as i128)
@@ -264,7 +337,9 @@ pub fn calculate_net_quote_balance(
                 net_quote_balance = net_quote_balance
                     .checked_sub(cast_to_i128(
                         balance_value
-                            .checked_mul(bank.get_liability_weight(&margin_requirement_type))
+                            .checked_mul(
+                                bank.get_liability_weight(token_amount, &margin_requirement_type)?,
+                            )
                             .ok_or_else(math_error!())?
                             .checked_div(BANK_WEIGHT_PRECISION)
                             .ok_or_else(math_error!())?,
@@ -703,6 +778,7 @@ mod test {
         BANK_IMF_PRECISION,
         // BANK_WEIGHT_PRECISION,
         MARK_PRICE_PRECISION,
+        MARK_PRICE_PRECISION_I128,
         QUOTE_PRECISION,
     };
     use crate::math::position::calculate_position_pnl;
@@ -712,6 +788,7 @@ mod test {
     fn bank_asset_weight() {
         let mut bank = Bank {
             initial_asset_weight: 90,
+            initial_liability_weight: 110,
             imf_factor: 0,
             ..Bank::default()
         };
@@ -722,11 +799,43 @@ mod test {
             .unwrap();
         assert_eq!(asset_weight, 90);
 
+        let lib_weight = bank
+            .get_liability_weight(size, &MarginRequirementType::Initial)
+            .unwrap();
+        assert_eq!(lib_weight, 110);
+
+        bank.imf_factor = 10;
+        let asset_weight = bank
+            .get_asset_weight(size, &MarginRequirementType::Initial)
+            .unwrap();
+        assert_eq!(asset_weight, 90);
+
+        let lib_weight = bank
+            .get_liability_weight(size, &MarginRequirementType::Initial)
+            .unwrap();
+        assert_eq!(lib_weight, 110);
+
+        bank.imf_factor = 10000;
+        let asset_weight = bank
+            .get_asset_weight(size, &MarginRequirementType::Initial)
+            .unwrap();
+        assert_eq!(asset_weight, 83);
+
+        let lib_weight = bank
+            .get_liability_weight(size, &MarginRequirementType::Initial)
+            .unwrap();
+        assert_eq!(lib_weight, 140);
+
         bank.imf_factor = BANK_IMF_PRECISION / 10;
         let asset_weight = bank
             .get_asset_weight(size, &MarginRequirementType::Initial)
             .unwrap();
         assert_eq!(asset_weight, 26);
+
+        let lib_weight = bank
+            .get_liability_weight(size, &MarginRequirementType::Initial)
+            .unwrap();
+        assert_eq!(lib_weight, 415);
     }
 
     #[test]
@@ -799,6 +908,13 @@ mod test {
                 MarginRequirementType::Initial,
             )
             .unwrap();
+        assert_eq!(res, 3788);
+        let res = market
+            .get_margin_ratio(
+                AMM_RESERVE_PRECISION * 100000,
+                MarginRequirementType::Partial,
+            )
+            .unwrap();
         assert_eq!(res, 3787);
 
         let res = market
@@ -818,7 +934,7 @@ mod test {
             )
             .unwrap();
         // $5,000,000
-        assert_eq!(res, 10000);
+        assert_eq!(res, 32241);
         let res = market
             .get_margin_ratio(
                 AMM_RESERVE_PRECISION * 100000,
@@ -826,7 +942,7 @@ mod test {
             )
             .unwrap();
         // $5,000,000
-        assert_eq!(res, 10000);
+        assert_eq!(res, 32242);
     }
 
     fn negative_margin_user_test() {
@@ -1000,6 +1116,14 @@ mod test {
         assert_eq!(market_position.unsettled_pnl, 0);
         assert_eq!(position_unsettled_pnl, 22_699_050_901);
 
+        // sqrt of oracle price = 149
+        market.unsettled_imf_factor = market.imf_factor;
+
+        let oracle_price_for_margin =
+            calculate_oracle_price_for_margin(&market_position, &market, &oracle_price_data)
+                .unwrap();
+        assert_eq!(oracle_price_for_margin, 220500000000000);
+
         let uaw = market
             .get_unsettled_asset_weight(position_unsettled_pnl, MarginRequirementType::Initial)
             .unwrap();
@@ -1013,12 +1137,8 @@ mod test {
         )
         .unwrap();
 
-        let oracle_price_for_margin =
-            calculate_oracle_price_for_margin(&market_position, &market, &oracle_price_data)
-                .unwrap();
-        assert_eq!(oracle_price_for_margin, 220500000000000);
-        assert_eq!(upnl, 17409836065); //22699050901 * .95 = 21564098355
-        assert!(upnl < position_unrealized_pnl); // margin system discounts
+        // assert_eq!(upnl, 17409836065);
+        // assert!(upnl < position_unrealized_pnl); // margin system discounts
 
         assert!(pmr > 0);
         assert_eq!(pmr, 135553278686000);
@@ -1110,12 +1230,17 @@ mod test {
         )
         .unwrap();
 
+        let uaw_2 = market
+            .get_unsettled_asset_weight(upnl_2, MarginRequirementType::Initial)
+            .unwrap();
+        assert_eq!(uaw_2, 95);
+
         assert_eq!(upnl_2, 23062807377);
         assert!(upnl_2 > upnl);
         assert!(pmr_2 > 0);
-        assert_eq!(pmr_2, 129411885243000); //$12941.1885243
+        assert_eq!(pmr_2, 129405737702000); //$12940.5737702000
         assert!(pmr > pmr_2);
-        assert_eq!(pmr - pmr_2, 6141393443000); //$614.13 less collateral required
-        assert!(pmr - pmr_2 < 6147500000000); // which is less than wouldbe 614.75
+        assert_eq!(pmr - pmr_2, 6147540984000);
+        //-6.1475409835 * 1000 / 10 = 614.75
     }
 }

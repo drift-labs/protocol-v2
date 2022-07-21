@@ -361,6 +361,7 @@ pub mod clearing_house {
             unsettled_profit: 0,
             unsettled_initial_asset_weight: 100,     // 100%
             unsettled_maintenance_asset_weight: 100, // 100%
+            unsettled_imf_factor: 0,
             padding0: 0,
             padding1: 0,
             padding2: 0,

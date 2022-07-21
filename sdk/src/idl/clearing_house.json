@@ -1108,6 +1108,62 @@
       ]
     },
     {
+      "name": "updateMarketImfFactor",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "imfFactor",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "updateMarketUnsettledAssetWeight",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "unsettledInitialAssetWeight",
+          "type": "u8"
+        },
+        {
+          "name": "unsettledMaintenanceAssetWeight",
+          "type": "u8"
+        }
+      ]
+    },
+    {
       "name": "updateCurveUpdateIntensity",
       "accounts": [
         {
@@ -1775,8 +1831,16 @@
             "type": "u128"
           },
           {
-            "name": "unsettledAssetWeight",
+            "name": "unsettledInitialAssetWeight",
             "type": "u8"
+          },
+          {
+            "name": "unsettledMaintenanceAssetWeight",
+            "type": "u8"
+          },
+          {
+            "name": "unsettledImfFactor",
+            "type": "u128"
           },
           {
             "name": "padding0",
