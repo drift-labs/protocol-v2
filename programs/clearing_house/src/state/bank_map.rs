@@ -75,8 +75,10 @@ impl<'a> BankMap<'a> {
 
         Ok(bank_map)
     }
+}
 
-    #[cfg(test)]
+#[cfg(test)]
+impl<'a> BankMap<'a> {
     pub fn load_one<'c>(
         account_info: &'c AccountInfo<'a>,
         must_be_writable: bool,

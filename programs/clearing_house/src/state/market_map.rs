@@ -73,8 +73,10 @@ impl<'a> MarketMap<'a> {
 
         Ok(market_map)
     }
+}
 
-    #[cfg(test)]
+#[cfg(test)]
+impl<'a> MarketMap<'a> {
     pub fn load_one<'c>(
         account_info: &'c AccountInfo<'a>,
         must_be_writable: bool,
