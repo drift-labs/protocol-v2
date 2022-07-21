@@ -15,7 +15,7 @@ use crate::state::oracle::{OraclePriceData, OracleSource};
 use crate::{BID_ASK_SPREAD_PRECISION, MARK_PRICE_PRECISION};
 
 #[account(zero_copy)]
-#[derive(Default)]
+#[derive(Default, Eq, PartialEq, Debug)]
 #[repr(packed)]
 pub struct Market {
     pub market_index: u64,
@@ -54,7 +54,7 @@ impl Market {
 }
 
 #[zero_copy]
-#[derive(Default)]
+#[derive(Default, Eq, PartialEq, Debug)]
 pub struct PoolBalance {
     pub balance: u128,
 }
@@ -84,7 +84,7 @@ impl BankBalance for PoolBalance {
 }
 
 #[zero_copy]
-#[derive(Default)]
+#[derive(Default, Debug, PartialEq, Eq)]
 #[repr(packed)]
 pub struct AMM {
     // oracle

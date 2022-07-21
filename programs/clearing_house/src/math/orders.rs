@@ -9,7 +9,7 @@ use crate::controller::position::PositionDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math;
 use crate::math::casting::cast_to_i128;
-use crate::math::constants::MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO;
+use crate::math::constants::{MARGIN_PRECISION, MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO};
 use crate::math::position::calculate_entry_price;
 use crate::math_error;
 use crate::state::market::Market;
@@ -178,6 +178,7 @@ pub fn get_position_delta_for_fill(
 }
 
 pub fn order_breaches_oracle_price_limits(
+    market_initial_margin_ratio: u32,
     order: &Order,
     oracle_price: i128,
     slot: u64,
@@ -185,6 +186,7 @@ pub fn order_breaches_oracle_price_limits(
     let order_limit_price = order.get_limit_price(Some(oracle_price), slot)?;
     let oracle_price = oracle_price.unsigned_abs();
 
+    let max_ratio = MARGIN_PRECISION / (market_initial_margin_ratio as u128 / 2);
     match order.direction {
         PositionDirection::Long => {
             if order_limit_price <= oracle_price {
@@ -200,7 +202,7 @@ pub fn order_breaches_oracle_price_limits(
                 .ok_or_else(math_error!())?;
 
             // order cant be buying if oracle price is more than 2.5% below limit price
-            Ok(ratio <= 40)
+            Ok(ratio <= max_ratio)
         }
         PositionDirection::Short => {
             if order_limit_price >= oracle_price {
@@ -216,7 +218,7 @@ pub fn order_breaches_oracle_price_limits(
                 .ok_or_else(math_error!())?;
 
             // order cant be buying if oracle price is more than 2.5% above limit price
-            Ok(ratio <= 40)
+            Ok(ratio <= max_ratio)
         }
     }
 }
