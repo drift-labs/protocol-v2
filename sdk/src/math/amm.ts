@@ -59,12 +59,6 @@ export function calculateOptimalPegAndBudget(
 
 	const totalFeeLB = amm.totalExchangeFee.div(new BN(2));
 	const budget = BN.max(ZERO, amm.totalFeeMinusDistributions.sub(totalFeeLB));
-	console.log(
-		'prePegCost: ',
-		prePegCost.toString(),
-		'budget:',
-		budget.toString()
-	);
 	if (budget.lt(prePegCost)) {
 		const maxPriceSpread = new BN(amm.maxSpread)
 			.mul(targetPrice)
@@ -74,12 +68,6 @@ export function calculateOptimalPegAndBudget(
 		let newOptimalPeg: BN;
 		let newBudget: BN;
 		const targetPriceGap = markPriceBefore.sub(targetPrice);
-
-		console.log(
-			'targetPriceGap > maxPriceSpread? :: ',
-			targetPriceGap.toString(),
-			maxPriceSpread.toString()
-		);
 
 		if (targetPriceGap.abs().gt(maxPriceSpread)) {
 			const markAdj = targetPriceGap.abs().sub(maxPriceSpread);
