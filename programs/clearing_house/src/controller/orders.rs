@@ -828,12 +828,11 @@ pub fn fulfill_order_with_amm(
         )?;
 
     // pay the lps and update the market fee amount
+    let amm_chunk = fee_to_market.checked_div(10).ok_or_else(math_error!())?;
     let fee_slice = fee_to_market
+        .checked_sub(amm_chunk)
+        .ok_or_else(math_error!())?
         .checked_mul(AMM_RESERVE_PRECISION)
-        .ok_or_else(math_error!())?
-        .checked_mul(9)
-        .ok_or_else(math_error!())?
-        .checked_div(10)
         .ok_or_else(math_error!())?
         .checked_div(market.amm.sqrt_k)
         .ok_or_else(math_error!())?;

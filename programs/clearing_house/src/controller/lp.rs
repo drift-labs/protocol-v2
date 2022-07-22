@@ -70,6 +70,12 @@ pub fn burn_lp_shares(
         };
         let upnl = update_position_and_market(position, market, &position_delta)?;
 
+        market.amm.net_base_asset_amount = market
+            .amm
+            .net_base_asset_amount
+            .checked_add(base_amount_acquired)
+            .ok_or_else(math_error!())?;
+
         position.unsettled_pnl = position
             .unsettled_pnl
             .checked_add(upnl)
