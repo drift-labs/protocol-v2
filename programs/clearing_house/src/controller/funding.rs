@@ -5,7 +5,7 @@ use solana_program::clock::UnixTimestamp;
 use solana_program::msg;
 
 use crate::controller::amm::formulaic_update_k;
-use crate::controller::position::update_unsettled_pnl;
+use crate::controller::position::{update_unsettled_pnl, PositionDirection};
 use crate::error::ClearingHouseResult;
 use crate::get_then_update_id;
 use crate::math::amm;
@@ -148,17 +148,28 @@ pub fn update_funding_rate(
             Some(mark_price),
         )?;
 
-        // price relates to execution premium
-        let execution_premium_price = if market.amm.long_spread > market.amm.short_spread {
-            market.amm.ask_price(mark_price)?
-        } else if market.amm.long_spread < market.amm.short_spread {
-            market.amm.bid_price(mark_price)?
-        } else {
-            mark_price
-        };
+        // price relates to execution premium / direction
+        let (execution_premium_price, execution_premium_direction) =
+            if market.amm.long_spread > market.amm.short_spread {
+                (
+                    market.amm.ask_price(mark_price)?,
+                    Some(PositionDirection::Long),
+                )
+            } else if market.amm.long_spread < market.amm.short_spread {
+                (
+                    market.amm.bid_price(mark_price)?,
+                    Some(PositionDirection::Short),
+                )
+            } else {
+                (mark_price, None)
+            };
 
-        let mid_price_twap =
-            amm::update_mark_twap(&mut market.amm, now, Some(execution_premium_price), None)?;
+        let mid_price_twap = amm::update_mark_twap(
+            &mut market.amm,
+            now,
+            Some(execution_premium_price),
+            execution_premium_direction,
+        )?;
 
         let period_adjustment = (24_i128)
             .checked_mul(ONE_HOUR)
