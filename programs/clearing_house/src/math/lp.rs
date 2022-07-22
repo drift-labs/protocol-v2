@@ -103,8 +103,9 @@ pub fn get_lp_metrics(position: &MarketPosition, amm: &AMM) -> ClearingHouseResu
 
             // no market position bc too small so give them negative upnl
             // similar to closing their small position
-            // TODO: decide what this should be
-            unsettled_pnl = cast_to_i128(min_qaa)?
+            unsettled_pnl = cast_to_i128(quote_asset_amount)?
+                .checked_add(1)
+                .ok_or_else(math_error!())?
                 .checked_mul(-1)
                 .ok_or_else(math_error!())?;
         }
