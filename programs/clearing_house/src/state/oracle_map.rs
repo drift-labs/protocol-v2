@@ -129,8 +129,10 @@ impl<'a> OracleMap<'a> {
             },
         })
     }
+}
 
-    #[cfg(test)]
+#[cfg(test)]
+impl<'a> OracleMap<'a> {
     pub fn empty() -> OracleMap<'a> {
         OracleMap {
             oracles: BTreeMap::new(),

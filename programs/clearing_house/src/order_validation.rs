@@ -98,6 +98,7 @@ fn validate_limit_order(
         validate_post_only_order(order, market, valid_oracle_price, slot)?;
 
         let order_breaches_oracle_price_limits = order_breaches_oracle_price_limits(
+            market.margin_ratio_initial,
             order,
             valid_oracle_price.ok_or(ErrorCode::InvalidOracle)?,
             slot,
