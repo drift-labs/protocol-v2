@@ -273,6 +273,8 @@ export type AMM = {
 	lastMarkPriceTwapTs: BN;
 	lastOraclePriceTwap: BN;
 	lastOraclePriceTwapTs: BN;
+	lastOracleMarkSpreadPct: BN;
+	lastOracleConfPct: BN;
 	oracle: PublicKey;
 	oracleSource: OracleSource;
 	fundingPeriod: BN;

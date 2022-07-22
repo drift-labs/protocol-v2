@@ -59,6 +59,12 @@ export function calculateOptimalPegAndBudget(
 
 	const totalFeeLB = amm.totalExchangeFee.div(new BN(2));
 	const budget = BN.max(ZERO, amm.totalFeeMinusDistributions.sub(totalFeeLB));
+	console.log(
+		'prePegCost: ',
+		prePegCost.toString(),
+		'budget:',
+		budget.toString()
+	);
 	if (budget.lt(prePegCost)) {
 		const maxPriceSpread = new BN(amm.maxSpread)
 			.mul(targetPrice)
@@ -68,6 +74,13 @@ export function calculateOptimalPegAndBudget(
 		let newOptimalPeg: BN;
 		let newBudget: BN;
 		const targetPriceGap = markPriceBefore.sub(targetPrice);
+
+		console.log(
+			'targetPriceGap > maxPriceSpread? :: ',
+			targetPriceGap.toString(),
+			maxPriceSpread.toString()
+		);
+
 		if (targetPriceGap.abs().gt(maxPriceSpread)) {
 			const markAdj = targetPriceGap.abs().sub(maxPriceSpread);
 
@@ -411,10 +424,8 @@ export function calculateSpread(
 	direction: PositionDirection,
 	oraclePriceData: OraclePriceData
 ): number {
-	let spread = amm.baseSpread / 2;
-
 	if (amm.baseSpread == 0 || amm.curveUpdateIntensity == 0) {
-		return spread;
+		return amm.baseSpread / 2;
 	}
 
 	const markPrice = calculatePrice(
@@ -435,54 +446,25 @@ export function calculateSpread(
 		.mul(BID_ASK_SPREAD_PRECISION)
 		.div(markPrice);
 
-	// oracle retreat
-	if (
-		(isVariant(direction, 'long') && targetMarkSpreadPct.lt(ZERO)) ||
-		(isVariant(direction, 'short') && targetMarkSpreadPct.gt(ZERO))
-	) {
-		spread = Math.max(
-			spread,
-			targetMarkSpreadPct.abs().toNumber() + confIntervalPct.abs().toNumber()
-		);
-	}
+	const [longSpread, shortSpread] = calculateSpreadBN(
+		amm.baseSpread,
+		targetMarkSpreadPct,
+		confIntervalPct,
+		amm.maxSpread,
+		amm.quoteAssetReserve,
+		amm.terminalQuoteAssetReserve,
+		amm.pegMultiplier,
+		amm.netBaseAssetAmount,
+		markPrice,
+		amm.totalFeeMinusDistributions
+	);
 
-	// inventory skew
-	const MAX_INVENTORY_SKEW = 5;
-	if (
-		(amm.netBaseAssetAmount.gt(ZERO) && isVariant(direction, 'long')) ||
-		(amm.netBaseAssetAmount.lt(ZERO) && isVariant(direction, 'short')) ||
-		amm.totalFeeMinusDistributions.eq(ZERO)
-	) {
-		const netCostBasis = amm.quoteAssetAmountLong.sub(
-			amm.quoteAssetAmountShort
-		);
-		const netBaseAssetValue = amm.quoteAssetReserve
-			.sub(amm.terminalQuoteAssetReserve)
-			.mul(amm.pegMultiplier)
-			.div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO);
+	let spread: number;
 
-		const localBaseAssetValue = amm.netBaseAssetAmount
-			.mul(markPrice)
-			.div(AMM_TO_QUOTE_PRECISION_RATIO.mul(MARK_PRICE_PRECISION));
-		const netPnl = netBaseAssetValue.sub(netCostBasis);
-		const localPnl = localBaseAssetValue.sub(netCostBasis);
-
-		let effectiveLeverage = MAX_INVENTORY_SKEW;
-		if (amm.totalFeeMinusDistributions.gt(ZERO)) {
-			effectiveLeverage =
-				localPnl.sub(netPnl).toNumber() /
-				(amm.totalFeeMinusDistributions.toNumber() + 1);
-		}
-
-		let spreadScale = Math.min(MAX_INVENTORY_SKEW, 1 + effectiveLeverage);
-		const maxTargetSpread = BID_ASK_SPREAD_PRECISION.toNumber() / 50; // 2%
-		// cap the scale to attempt to only scale up to maxTargetSpread
-		// always let the oracle retreat methods go through 100%
-		if (spreadScale * spread > maxTargetSpread) {
-			spreadScale = Math.max(1.05, maxTargetSpread / spread);
-		}
-
-		spread *= spreadScale;
+	if (isVariant(direction, 'long')) {
+		spread = longSpread;
+	} else {
+		spread = shortSpread;
 	}
 
 	return spread;
