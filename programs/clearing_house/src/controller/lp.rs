@@ -68,7 +68,7 @@ pub fn burn_lp_shares(
             base_asset_amount: base_amount_acquired,
             quote_asset_amount: quote_amount,
         };
-        let upnl = update_position_and_market(position, market, &position_delta, true)?;
+        let upnl = update_position_and_market(position, market, &position_delta)?;
 
         position.unsettled_pnl = position
             .unsettled_pnl

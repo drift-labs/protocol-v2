@@ -1024,7 +1024,6 @@ pub fn fulfill_order_with_match(
         &mut maker.positions[maker_position_index],
         market,
         &maker_position_delta,
-        false,
     )?;
 
     let taker_position_index = get_position_index(
@@ -1042,7 +1041,6 @@ pub fn fulfill_order_with_match(
         &mut taker.positions[taker_position_index],
         market,
         &taker_position_delta,
-        false,
     )?;
 
     let (taker_fee, maker_rebate, fee_to_market, filler_reward) =
