@@ -1,5 +1,3 @@
-use std::cmp::{max, min};
-
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::msg;
@@ -12,7 +10,7 @@ use crate::math_error;
 use crate::state::bank::{BankBalance, BankBalanceType};
 
 #[account(zero_copy)]
-#[derive(Default)]
+#[derive(Default, Eq, PartialEq, Debug)]
 #[repr(packed)]
 pub struct User {
     pub authority: Pubkey,
@@ -101,7 +99,7 @@ impl User {
 }
 
 #[zero_copy]
-#[derive(Default)]
+#[derive(Default, Eq, PartialEq, Debug)]
 #[repr(packed)]
 pub struct UserFees {
     pub total_fee_paid: u64,
@@ -112,7 +110,7 @@ pub struct UserFees {
 }
 
 #[zero_copy]
-#[derive(Default)]
+#[derive(Default, Eq, PartialEq, Debug)]
 #[repr(packed)]
 pub struct UserBankBalance {
     pub bank_index: u64,
@@ -146,7 +144,7 @@ impl BankBalance for UserBankBalance {
 }
 
 #[zero_copy]
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Eq, PartialEq)]
 #[repr(packed)]
 pub struct MarketPosition {
     pub market_index: u64,
@@ -219,7 +217,7 @@ pub type UserPositions = [MarketPosition; 5];
 
 #[zero_copy]
 #[repr(packed)]
-#[derive(AnchorSerialize, AnchorDeserialize, PartialEq, Debug)]
+#[derive(AnchorSerialize, AnchorDeserialize, PartialEq, Debug, Eq)]
 pub struct Order {
     pub status: OrderStatus,
     pub order_type: OrderType,
@@ -273,15 +271,7 @@ impl Order {
                     return Err(crate::error::ErrorCode::InvalidOracleOffset);
                 }
 
-                // if the order is post only, a limit price must also be specified with oracle offset
-                if self.post_only {
-                    match self.direction {
-                        PositionDirection::Long => min(self.price, limit_price.unsigned_abs()),
-                        PositionDirection::Short => max(self.price, limit_price.unsigned_abs()),
-                    }
-                } else {
-                    limit_price.unsigned_abs()
-                }
+                limit_price.unsigned_abs()
             } else {
                 msg!("Could not find oracle too calculate oracle offset limit price");
                 return Err(crate::error::ErrorCode::OracleNotFound);
@@ -347,7 +337,7 @@ impl Default for Order {
     }
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug)]
 pub enum OrderStatus {
     Init,
     Open,
@@ -355,7 +345,7 @@ pub enum OrderStatus {
     Canceled,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
 pub enum OrderType {
     Market,
     Limit,
@@ -363,7 +353,7 @@ pub enum OrderType {
     TriggerLimit,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
 pub enum OrderDiscountTier {
     None,
     First,
@@ -372,7 +362,7 @@ pub enum OrderDiscountTier {
     Fourth,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
 pub enum OrderTriggerCondition {
     Above,
     Below,

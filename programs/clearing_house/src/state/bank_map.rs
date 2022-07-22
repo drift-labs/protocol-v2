@@ -42,9 +42,9 @@ impl<'a> BankMap<'a> {
         writable_banks: &'b WritableBanks,
         account_info_iter: &'c mut Peekable<Iter<AccountInfo<'a>>>,
     ) -> ClearingHouseResult<BankMap<'a>> {
-        let mut market_map: BankMap = BankMap(BTreeMap::new());
+        let mut bank_map: BankMap = BankMap(BTreeMap::new());
 
-        let market_discriminator: [u8; 8] = Bank::discriminator();
+        let bank_discriminator: [u8; 8] = Bank::discriminator();
         while let Some(account_info) = account_info_iter.peek() {
             let data = account_info
                 .try_borrow_data()
@@ -55,7 +55,7 @@ impl<'a> BankMap<'a> {
             }
 
             let account_discriminator = array_ref![data, 0, 8];
-            if account_discriminator != &market_discriminator {
+            if account_discriminator != &bank_discriminator {
                 break;
             }
 
@@ -70,10 +70,47 @@ impl<'a> BankMap<'a> {
                 return Err(ErrorCode::BankWrongMutability);
             }
 
-            market_map.0.insert(bank_index, account_loader);
+            bank_map.0.insert(bank_index, account_loader);
         }
 
-        Ok(market_map)
+        Ok(bank_map)
+    }
+}
+
+#[cfg(test)]
+impl<'a> BankMap<'a> {
+    pub fn load_one<'c>(
+        account_info: &'c AccountInfo<'a>,
+        must_be_writable: bool,
+    ) -> ClearingHouseResult<BankMap<'a>> {
+        let mut bank_map: BankMap = BankMap(BTreeMap::new());
+
+        let bank_discriminator: [u8; 8] = Bank::discriminator();
+        let data = account_info
+            .try_borrow_data()
+            .or(Err(ErrorCode::CouldNotLoadBankData))?;
+
+        if data.len() < std::mem::size_of::<Bank>() + 8 {
+            return Err(ErrorCode::CouldNotLoadBankData);
+        }
+
+        let account_discriminator = array_ref![data, 0, 8];
+        if account_discriminator != &bank_discriminator {
+            return Err(ErrorCode::CouldNotLoadBankData);
+        }
+
+        let bank_index = u64::from_le_bytes(*array_ref![data, 8, 8]);
+        let is_writable = account_info.is_writable;
+        let account_loader: AccountLoader<Bank> =
+            AccountLoader::try_from(account_info).or(Err(ErrorCode::InvalidBankAccount))?;
+
+        if must_be_writable && !is_writable {
+            return Err(ErrorCode::BankWrongMutability);
+        }
+
+        bank_map.0.insert(bank_index, account_loader);
+
+        Ok(bank_map)
     }
 }
 
