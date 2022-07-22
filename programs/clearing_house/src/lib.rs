@@ -1944,15 +1944,25 @@ pub mod clearing_house {
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
         let clock_slot = clock.slot;
+        let state = &ctx.accounts.state;
         let mut oracle_map = OracleMap::load_one(&ctx.accounts.oracle, clock_slot)?;
+
+        let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
+        controller::repeg::update_amm(market, oracle_price_data, state, now, clock_slot)?;
+
+        validate!(
+            (clock_slot == market.amm.last_update_slot || market.amm.curve_update_intensity == 0),
+            ErrorCode::AMMNotUpdatedInSameSlot,
+            "AMM must be updated in a prior instruction within same slot"
+        )?;
 
         let is_updated = controller::funding::update_funding_rate(
             market_index,
             market,
             &mut oracle_map,
             now,
-            &ctx.accounts.state.oracle_guard_rails,
-            ctx.accounts.state.funding_paused,
+            &state.oracle_guard_rails,
+            state.funding_paused,
             None,
         )?;
 
