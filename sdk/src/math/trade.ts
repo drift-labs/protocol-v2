@@ -78,7 +78,7 @@ export function calculateTradeSlippage(
 	if (amount.eq(ZERO)) {
 		return [ZERO, ZERO, oldPrice, oldPrice];
 	}
-	const [acquiredBase, acquiredQuote] = calculateTradeAcquiredAmounts(
+	const [acquiredBaseReserve, acquiredQuoteReserve, acquiredQuoteAssetAmount] = calculateTradeAcquiredAmounts(
 		direction,
 		amount,
 		market,
@@ -87,19 +87,10 @@ export function calculateTradeSlippage(
 		useSpread
 	);
 
-	const swapDirection = isVariant(direction, 'long')
-		? SwapDirection.REMOVE
-		: SwapDirection.ADD;
-	const quoteAssetAmountAcquired = calculateQuoteAssetAmountSwapped(
-		acquiredQuote.abs(),
-		market.amm.pegMultiplier,
-		swapDirection
-	);
-
-	const entryPrice = quoteAssetAmountAcquired
+	const entryPrice = acquiredQuoteAssetAmount
 		.mul(AMM_TO_QUOTE_PRECISION_RATIO)
 		.mul(MARK_PRICE_PRECISION)
-		.div(acquiredBase.abs());
+		.div(acquiredBaseReserve.abs());
 
 	let amm: Parameters<typeof calculateAmmReservesAfterSwap>[0];
 	if (useSpread && market.amm.baseSpread > 0) {
@@ -116,8 +107,8 @@ export function calculateTradeSlippage(
 	}
 
 	const newPrice = calculatePrice(
-		amm.baseAssetReserve.sub(acquiredBase),
-		amm.quoteAssetReserve.sub(acquiredQuote),
+		amm.baseAssetReserve.sub(acquiredBaseReserve),
+		amm.quoteAssetReserve.sub(acquiredQuoteReserve),
 		amm.pegMultiplier
 	);
 
@@ -159,9 +150,9 @@ export function calculateTradeAcquiredAmounts(
 	inputAssetType: AssetType = 'quote',
 	oraclePriceData: OraclePriceData,
 	useSpread = true
-): [BN, BN] {
+): [BN, BN, BN] {
 	if (amount.eq(ZERO)) {
-		return [ZERO, ZERO];
+		return [ZERO, ZERO, ZERO];
 	}
 
 	const swapDirection = getSwapDirection(inputAssetType, direction);
@@ -185,7 +176,13 @@ export function calculateTradeAcquiredAmounts(
 
 	const acquiredBase = amm.baseAssetReserve.sub(newBaseAssetReserve);
 	const acquiredQuote = amm.quoteAssetReserve.sub(newQuoteAssetReserve);
-	return [acquiredBase, acquiredQuote];
+	const acquiredQuoteAssetamount = calculateQuoteAssetAmountSwapped(
+			acquiredQuote.abs(),
+			amm.pegMultiplier,
+			swapDirection
+		);
+
+	return [acquiredBase, acquiredQuote, acquiredQuoteAssetamount];
 }
 
 /**
