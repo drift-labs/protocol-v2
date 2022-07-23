@@ -13,6 +13,7 @@ import {
 	MakerInfo,
 	OptionalOrderParams,
 	DefaultOrderParams,
+	OrderType,
 } from './types';
 import * as anchor from '@project-serum/anchor';
 import clearingHouseIDL from './idl/clearing_house.json';
@@ -800,6 +801,7 @@ export class ClearingHouse {
 		limitPrice?: BN
 	): Promise<TransactionSignature> {
 		return await this.placeAndTake({
+			orderType: OrderType.MARKET,
 			marketIndex,
 			direction,
 			baseAssetAmount: amount,
@@ -1172,6 +1174,7 @@ export class ClearingHouse {
 		}
 
 		return await this.placeAndTake({
+			orderType: OrderType.MARKET,
 			marketIndex,
 			direction: findDirectionToClose(userPosition),
 			baseAssetAmount: userPosition.baseAssetAmount,

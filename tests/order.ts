@@ -1747,22 +1747,19 @@ describe('orders', () => {
 	});
 
 	it('reduce only', async () => {
-		const openPositionOrderParams = getMarketOrderParams(
-			marketIndexEth,
-			PositionDirection.SHORT,
-			ZERO,
-			AMM_RESERVE_PRECISION,
-			false
-		);
+		const openPositionOrderParams = getMarketOrderParams({
+			marketIndex: marketIndexEth,
+			direction: PositionDirection.SHORT,
+			baseAssetAmount: AMM_RESERVE_PRECISION,
+		});
 		await clearingHouse.placeAndTake(openPositionOrderParams);
 		console.log('1');
-		const reduceMarketOrderParams = getMarketOrderParams(
-			marketIndexEth,
-			PositionDirection.LONG,
-			ZERO,
-			TWO.mul(AMM_RESERVE_PRECISION),
-			true
-		);
+		const reduceMarketOrderParams = getMarketOrderParams({
+			marketIndex: marketIndexEth,
+			direction: PositionDirection.LONG,
+			baseAssetAmount: TWO.mul(AMM_RESERVE_PRECISION),
+			reduceOnly: true,
+		});
 		await clearingHouse.placeAndTake(reduceMarketOrderParams);
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();

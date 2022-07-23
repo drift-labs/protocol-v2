@@ -384,16 +384,13 @@ describe('amm spread: market order', () => {
 			clearingHouse.getMarketAccount(0)
 		).add(MARK_PRICE_PRECISION.div(new BN(10000))); // limit price plus 1bp
 
-		const orderParams = getLimitOrderParams(
+		const orderParams = getLimitOrderParams({
 			marketIndex,
 			direction,
 			baseAssetAmount,
-			limitPrice,
-			false,
-			undefined,
-			false,
-			1
-		);
+			price: limitPrice,
+			userOrderId: 1,
+		});
 
 		await clearingHouse.placeOrder(orderParams);
 
@@ -429,16 +426,13 @@ describe('amm spread: market order', () => {
 			clearingHouse.getMarketAccount(0)
 		).add(MARK_PRICE_PRECISION.sub(new BN(10000))); // limit price plus 1bp
 
-		const orderParams = getLimitOrderParams(
+		const orderParams = getLimitOrderParams({
 			marketIndex,
 			direction,
 			baseAssetAmount,
-			limitPrice,
-			false,
-			undefined,
-			false,
-			1
-		);
+			price: limitPrice,
+			userOrderId: 1,
+		});
 		await clearingHouse.placeOrder(orderParams);
 
 		await clearingHouse.fetchAccounts();
@@ -475,16 +469,13 @@ describe('amm spread: market order', () => {
 			clearingHouse.getMarketAccount(0)
 		).add(MARK_PRICE_PRECISION.div(new BN(1000))); // limit price plus 10bp
 
-		const orderParams = getLimitOrderParams(
+		const orderParams = getLimitOrderParams({
 			marketIndex,
 			direction,
 			baseAssetAmount,
-			limitPrice,
-			false,
-			undefined,
-			false,
-			1
-		);
+			price: limitPrice,
+			userOrderId: 1,
+		});
 		await clearingHouse.placeOrder(orderParams);
 
 		await clearingHouse.fetchAccounts();
@@ -557,16 +548,13 @@ describe('amm spread: market order', () => {
 			clearingHouse.getMarketAccount(0)
 		).sub(MARK_PRICE_PRECISION.div(new BN(1000))); // limit price minus 10bp
 
-		const orderParams = getLimitOrderParams(
+		const orderParams = getLimitOrderParams({
 			marketIndex,
 			direction,
 			baseAssetAmount,
-			limitPrice,
-			false,
-			undefined,
-			false,
-			1
-		);
+			price: limitPrice,
+			userOrderId: 1,
+		});
 		await clearingHouse.placeOrder(orderParams);
 
 		await clearingHouse.fetchAccounts();

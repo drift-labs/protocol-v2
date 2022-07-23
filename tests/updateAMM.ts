@@ -1,12 +1,6 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
-import {
-	BASE_PRECISION,
-	BN,
-	getMarketOrderParams,
-	OracleSource,
-	ZERO,
-} from '../sdk';
+import { BASE_PRECISION, BN, getMarketOrderParams, OracleSource } from '../sdk';
 
 import { Program } from '@project-serum/anchor';
 
@@ -402,13 +396,11 @@ describe('update amm', () => {
 		);
 
 		const baseAssetAmount = new BN(1.02765 * AMM_RESERVE_PRECISION.toNumber());
-		const orderParams = getMarketOrderParams(
-			new BN(marketIndex),
-			PositionDirection.LONG,
-			ZERO,
+		const orderParams = getMarketOrderParams({
+			marketIndex: new BN(marketIndex),
+			direction: PositionDirection.LONG,
 			baseAssetAmount,
-			false
-		);
+		});
 		const [_pctAvgSlippage, _pctMaxSlippage, _entryPrice, newPrice] =
 			calculateTradeSlippage(
 				PositionDirection.LONG,
@@ -469,13 +461,11 @@ describe('update amm', () => {
 				31.02765 * AMM_RESERVE_PRECISION.toNumber()
 			);
 			const market0 = clearingHouse.getMarketAccount(i);
-			const orderParams = getMarketOrderParams(
+			const orderParams = getMarketOrderParams({
 				marketIndex,
-				PositionDirection.LONG,
-				ZERO,
+				direction: PositionDirection.LONG,
 				baseAssetAmount,
-				false
-			);
+			});
 
 			const curPrice = (await getFeedData(anchor.workspace.Pyth, thisUsd))
 				.price;
@@ -591,13 +581,11 @@ describe('update amm', () => {
 			);
 		}
 
-		const orderParams = getMarketOrderParams(
-			new BN(4),
-			tradeDirection,
-			ZERO,
-			tradeSize,
-			false
-		);
+		const orderParams = getMarketOrderParams({
+			marketIndex: new BN(4),
+			direction: tradeDirection,
+			baseAssetAmount: tradeSize,
+		});
 		const txSig3 = await clearingHouse.placeAndTake(orderParams);
 
 		console.log(
