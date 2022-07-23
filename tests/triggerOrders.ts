@@ -86,7 +86,7 @@ describe('trigger orders', () => {
 		await fillerClearingHouse.initialize(usdcMint.publicKey, true);
 		await fillerClearingHouse.subscribe();
 		await initializeQuoteAssetBank(fillerClearingHouse, usdcMint.publicKey);
-		await fillerClearingHouse.updateOrderAuctionTime(new BN(0));
+		await fillerClearingHouse.updateAuctionDuration(new BN(0), new BN(0));
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 

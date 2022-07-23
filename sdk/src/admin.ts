@@ -675,11 +675,13 @@ export class Admin extends ClearingHouse {
 		});
 	}
 
-	public async updateOrderAuctionTime(
-		time: BN | number
+	public async updateAuctionDuration(
+		minDuration: BN | number,
+		maxDuration: BN | number
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateOrderAuctionTime(
-			typeof time === 'number' ? time : time.toNumber,
+		return await this.program.rpc.updateAuctionDuration(
+			typeof minDuration === 'number' ? minDuration : minDuration.toNumber(),
+			typeof maxDuration === 'number' ? maxDuration : maxDuration.toNumber(),
 			{
 				accounts: {
 					admin: this.wallet.publicKey,
@@ -687,5 +689,34 @@ export class Admin extends ClearingHouse {
 				},
 			}
 		);
+	}
+
+	public async updateMaxBaseAssetAmountRatio(
+		marketIndex: BN,
+		maxBaseAssetAmountRatio: number
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateMaxBaseAssetAmountRatio(
+			maxBaseAssetAmountRatio,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					market: this.getMarketAccount(marketIndex).pubkey,
+				},
+			}
+		);
+	}
+
+	public async updateMaxSlippageRatio(
+		marketIndex: BN,
+		maxSlippageRatio: number
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateMaxSlippageRatio(maxSlippageRatio, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				market: this.getMarketAccount(marketIndex).pubkey,
+			},
+		});
 	}
 }

@@ -287,6 +287,8 @@ export type AMM = {
 	totalFee: BN;
 	minimumQuoteAssetTradeSize: BN;
 	baseAssetAmountStepSize: BN;
+	maxBaseAssetAmountRatio: number;
+	maxSlippageRatio: number;
 	lastOraclePrice: BN;
 	baseSpread: number;
 	curveUpdateIntensity: number;

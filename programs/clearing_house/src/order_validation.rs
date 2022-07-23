@@ -6,7 +6,7 @@ use crate::controller::position::PositionDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::constants::*;
 use crate::math::orders::{
-    calculate_base_asset_amount_to_trade_for_limit, order_breaches_oracle_price_limits,
+    calculate_base_asset_amount_to_fill_up_to_limit_price, order_breaches_oracle_price_limits,
 };
 use crate::math::quote_asset::asset_to_reserve_amount;
 use crate::state::market::Market;
@@ -40,6 +40,26 @@ fn validate_market_order(order: &Order, market: &Market) -> ClearingHouseResult 
         validate_base_asset_amount(order, market)?;
     } else {
         validate_quote_asset_amount(order, market)?;
+    }
+
+    match order.direction {
+        PositionDirection::Long if order.auction_start_price >= order.auction_end_price => {
+            msg!(
+                "Auction start price ({}) was greater than auction end price ({})",
+                order.auction_start_price,
+                order.auction_end_price
+            );
+            return Err(ErrorCode::InvalidOrder);
+        }
+        PositionDirection::Short if order.auction_start_price <= order.auction_end_price => {
+            msg!(
+                "Auction start price ({}) was less than auction end price ({})",
+                order.auction_start_price,
+                order.auction_end_price
+            );
+            return Err(ErrorCode::InvalidOrder);
+        }
+        _ => {}
     }
 
     if order.trigger_price > 0 {
@@ -98,7 +118,7 @@ fn validate_limit_order(
         validate_post_only_order(order, market, valid_oracle_price, slot)?;
 
         let order_breaches_oracle_price_limits = order_breaches_oracle_price_limits(
-            market.margin_ratio_initial,
+            market,
             order,
             valid_oracle_price.ok_or(ErrorCode::InvalidOracle)?,
             slot,
@@ -109,7 +129,7 @@ fn validate_limit_order(
         }
     }
 
-    let limit_price = order.get_limit_price(valid_oracle_price, slot)?;
+    let limit_price = order.get_limit_price(&market.amm, valid_oracle_price, slot)?;
     let approximate_market_value = limit_price
         .checked_mul(order.base_asset_amount)
         .unwrap_or(u128::MAX)
@@ -130,8 +150,11 @@ fn validate_post_only_order(
     valid_oracle_price: Option<i128>,
     slot: u64,
 ) -> ClearingHouseResult {
-    let base_asset_amount_market_can_fill =
-        calculate_base_asset_amount_to_trade_for_limit(order, market, valid_oracle_price, slot)?;
+    let base_asset_amount_market_can_fill = calculate_base_asset_amount_to_fill_up_to_limit_price(
+        order,
+        market,
+        order.get_limit_price(&market.amm, valid_oracle_price, slot)?,
+    )?;
 
     if base_asset_amount_market_can_fill != 0 {
         msg!(

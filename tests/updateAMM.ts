@@ -60,6 +60,10 @@ async function feePoolInjection(fees, marketIndex, clearingHouse) {
 			(await connection.getTransaction(tx, { commitment: 'confirmed' })).meta
 				.logMessages
 		);
+
+		// cancel remaining order
+		await clearingHouse.cancelOrder();
+
 		await clearingHouse.closePosition(marketIndex);
 		await clearingHouse.settlePNL(
 			await clearingHouse.getUserAccountPublicKey(),
@@ -141,7 +145,7 @@ describe('update amm', () => {
 		});
 
 		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.updateOrderAuctionTime(0);
+		await clearingHouse.updateAuctionDuration(0, 0);
 
 		await clearingHouse.subscribe();
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);

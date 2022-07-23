@@ -153,7 +153,7 @@ describe('repeg and spread amm', () => {
 		});
 
 		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.updateOrderAuctionTime(0);
+		await clearingHouse.updateAuctionDuration(0, 0);
 		await clearingHouse.subscribe();
 
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);

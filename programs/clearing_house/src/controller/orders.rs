@@ -41,6 +41,7 @@ use crate::state::user::{OrderDiscountTier, User};
 use crate::validate;
 use std::alloc::{alloc_zeroed, Layout};
 use std::cell::RefMut;
+use std::cmp::{max, min};
 use std::ops::{Deref, DerefMut};
 #[cfg(test)]
 mod tests;
@@ -132,8 +133,11 @@ pub fn place_order(
 
     let (auction_start_price, auction_end_price) = if let OrderType::Market = params.order_type {
         let auction_start_price = calculate_auction_start_price(market, params.direction)?;
-        let auction_end_price =
-            calculate_auction_end_price(market, params.direction, order_base_asset_amount)?;
+        let auction_end_price = if params.price == 0 {
+            calculate_auction_end_price(market, params.direction, order_base_asset_amount)?
+        } else {
+            params.price
+        };
         (auction_start_price, auction_end_price)
     } else {
         (0_u128, 0_u128)
@@ -166,7 +170,10 @@ pub fn place_order(
         immediate_or_cancel: params.immediate_or_cancel,
         auction_start_price,
         auction_end_price,
-        auction_duration: state.order_auction_duration,
+        auction_duration: min(
+            max(state.min_auction_duration, params.auction_duration),
+            state.max_auction_duration,
+        ),
         padding: [0; 3],
     };
 
@@ -546,12 +553,11 @@ fn sanitize_maker_order<'a>(
         )?;
     }
 
-    let market_margin_ratio_initial = market_map
-        .get_ref(&maker.orders[maker_order_index].market_index)?
-        .margin_ratio_initial;
     // Dont fulfill with a maker order if oracle has diverged significantly
     if order_breaches_oracle_price_limits(
-        market_margin_ratio_initial,
+        market_map
+            .get_ref(&maker.orders[maker_order_index].market_index)?
+            .deref(),
         &maker.orders[maker_order_index],
         oracle_price,
         slot,
@@ -781,34 +787,50 @@ pub fn fulfill_order_with_amm(
     mark_price_before: u128,
     now: i64,
     slot: u64,
-    value_oracle_price: Option<i128>,
+    valid_oracle_price: Option<i128>,
     user_key: &Pubkey,
     filler_key: &Pubkey,
     filler: &mut Option<&mut User>,
     fee_structure: &FeeStructure,
     order_records: &mut Vec<OrderRecord>,
 ) -> ClearingHouseResult<(u128, bool)> {
-    let order_type = user.orders[order_index].order_type;
-    let (
-        base_asset_amount,
-        quote_asset_amount,
-        potentially_risk_increasing,
-        quote_asset_amount_surplus,
-        pnl,
-    ) = match order_type {
-        OrderType::Market => {
-            execute_market_order(user, order_index, market, mark_price_before, now)?
-        }
-        _ => execute_non_market_order(
-            user,
-            order_index,
+    // Determine the base asset amount the market can fill
+    let base_asset_amount = calculate_base_asset_amount_for_amm_to_fulfill(
+        &user.orders[order_index],
+        market,
+        valid_oracle_price,
+        slot,
+    )?;
+
+    let (order_direction, order_post_only) =
+        get_struct_values!(user.orders[order_index], direction, post_only);
+
+    if base_asset_amount == 0 {
+        msg!("Amm cant fulfill order");
+        return Ok((0, false));
+    }
+
+    let position_index = get_position_index(&user.positions, market.market_index)?;
+
+    let maker_limit_price = if order_post_only {
+        Some(user.orders[order_index].get_limit_price(&market.amm, valid_oracle_price, slot)?)
+    } else {
+        None
+    };
+
+    let (potentially_risk_increasing, _, quote_asset_amount, quote_asset_amount_surplus, pnl) =
+        controller::position::update_position_with_base_asset_amount(
+            base_asset_amount,
+            order_direction,
             market,
+            user,
+            position_index,
             mark_price_before,
             now,
-            slot,
-            value_oracle_price,
-        )?,
-    };
+            maker_limit_price,
+        )?;
+
+    controller::position::update_unsettled_pnl(&mut user.positions[position_index], market, pnl)?;
 
     let mut unsettled_pnl = pnl;
 
@@ -956,11 +978,14 @@ pub fn fulfill_order_with_match(
         return Ok((0_u128, false));
     }
 
-    let taker_price = taker.orders[taker_order_index].get_limit_price(None, slot)?;
+    let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
+    let taker_price =
+        taker.orders[taker_order_index].get_limit_price(&market.amm, Some(oracle_price), slot)?;
     let taker_base_asset_amount =
         taker.orders[taker_order_index].get_base_asset_amount_unfilled()?;
 
-    let maker_price = maker.orders[maker_order_index].get_limit_price(None, slot)?;
+    let maker_price =
+        maker.orders[maker_order_index].get_limit_price(&market.amm, Some(oracle_price), slot)?;
     let maker_direction = &maker.orders[maker_order_index].direction;
     let maker_base_asset_amount =
         maker.orders[maker_order_index].get_base_asset_amount_unfilled()?;
@@ -1149,141 +1174,6 @@ pub fn fulfill_order_with_match(
     }
 
     Ok((base_asset_amount, false))
-}
-
-pub fn execute_market_order(
-    user: &mut User,
-    order_index: usize,
-    market: &mut Market,
-    mark_price_before: u128,
-    now: i64,
-) -> ClearingHouseResult<(u128, u128, bool, u128, i128)> {
-    let position_index = get_position_index(&user.positions, market.market_index)?;
-
-    let order_direction = user.orders[order_index].direction;
-    let order_price = user.orders[order_index].price;
-    let order_base_asset_amount = user.orders[order_index].get_base_asset_amount_unfilled()?;
-
-    let (
-        potentially_risk_increasing,
-        base_asset_amount,
-        quote_asset_amount,
-        quote_asset_amount_surplus,
-        pnl,
-    ) = controller::position::update_position_with_base_asset_amount(
-        order_base_asset_amount,
-        user.orders[order_index].direction,
-        market,
-        user,
-        position_index,
-        mark_price_before,
-        now,
-        None,
-    )?;
-
-    controller::position::update_unsettled_pnl(&mut user.positions[position_index], market, pnl)?;
-
-    if order_price > 0
-        && !limit_price_satisfied(
-            order_price,
-            quote_asset_amount,
-            base_asset_amount,
-            order_direction,
-        )?
-    {
-        return Err(ErrorCode::SlippageOutsideLimit);
-    }
-
-    Ok((
-        base_asset_amount,
-        quote_asset_amount,
-        potentially_risk_increasing,
-        quote_asset_amount_surplus,
-        pnl,
-    ))
-}
-
-pub fn execute_non_market_order(
-    user: &mut User,
-    order_index: usize,
-    market: &mut Market,
-    mark_price_before: u128,
-    now: i64,
-    slot: u64,
-    valid_oracle_price: Option<i128>,
-) -> ClearingHouseResult<(u128, u128, bool, u128, i128)> {
-    // Determine the base asset amount the market can fill
-    let base_asset_amount = calculate_base_asset_amount_market_can_execute(
-        &user.orders[order_index],
-        market,
-        valid_oracle_price,
-        slot,
-    )?;
-
-    if base_asset_amount == 0 {
-        msg!("Market cant execute order");
-        return Ok((0, 0, false, 0, 0));
-    }
-
-    if base_asset_amount < market.amm.base_asset_amount_step_size {
-        msg!("base asset amount too small {}", base_asset_amount);
-        return Ok((0, 0, false, 0, 0));
-    }
-
-    let (order_direction, order_post_only, order_base_asset_amount, order_base_asset_amount_filled) = get_struct_values!(
-        user.orders[order_index],
-        direction,
-        post_only,
-        base_asset_amount,
-        base_asset_amount_filled
-    );
-
-    let base_asset_amount_left_to_fill = order_base_asset_amount
-        .checked_sub(
-            order_base_asset_amount_filled
-                .checked_add(base_asset_amount)
-                .ok_or_else(math_error!())?,
-        )
-        .ok_or_else(math_error!())?;
-
-    if base_asset_amount_left_to_fill != 0
-        && base_asset_amount_left_to_fill < market.amm.base_asset_amount_step_size
-    {
-        return Err(ErrorCode::OrderAmountTooSmall);
-    }
-
-    if base_asset_amount == 0 {
-        return Ok((0, 0, false, 0, 0));
-    }
-
-    let position_index = get_position_index(&user.positions, market.market_index)?;
-
-    let maker_limit_price = if order_post_only {
-        Some(user.orders[order_index].get_limit_price(valid_oracle_price, slot)?)
-    } else {
-        None
-    };
-    let (potentially_risk_increasing, _, quote_asset_amount, quote_asset_amount_surplus, pnl) =
-        controller::position::update_position_with_base_asset_amount(
-            base_asset_amount,
-            order_direction,
-            market,
-            user,
-            position_index,
-            mark_price_before,
-            now,
-            maker_limit_price,
-        )?;
-
-    controller::position::update_unsettled_pnl(&mut user.positions[position_index], market, pnl)?;
-
-    Ok((
-        base_asset_amount,
-        quote_asset_amount,
-        potentially_risk_increasing,
-        quote_asset_amount_surplus,
-        pnl,
-    ))
 }
 
 pub fn update_order_after_fill(

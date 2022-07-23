@@ -1297,6 +1297,9 @@ pub mod fulfill_order {
                 ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
+                max_slippage_ratio: 50,
+                max_base_asset_amount_ratio: 100,
+                base_asset_amount_step_size: 10000000,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -1591,6 +1594,9 @@ pub mod fulfill_order {
                 ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
+                max_slippage_ratio: 10,
+                max_base_asset_amount_ratio: 100,
+                base_asset_amount_step_size: 10000000,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -1644,7 +1650,7 @@ pub mod fulfill_order {
         };
 
         let now = 0_i64;
-        let slot = 5_u64;
+        let slot = 6_u64;
 
         let fee_structure = get_fee_structure();
 
@@ -1709,6 +1715,9 @@ pub mod fulfill_order {
                 ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
+                max_slippage_ratio: 10,
+                max_base_asset_amount_ratio: 100,
+                base_asset_amount_step_size: 10000000,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
