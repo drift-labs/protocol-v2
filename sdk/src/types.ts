@@ -59,6 +59,9 @@ export class OrderActionExplanation {
 	static readonly ORACLE_PRICE_BREACHED_LIMIT_PRICE = {
 		oraclePriceBreachedLimitPrice: {},
 	};
+	static readonly MARKET_ORDER_FILLED_TO_LIMIT_PRICE = {
+		marketOrderFilledToLimitPrice: {},
+	};
 }
 
 export class OrderTriggerCondition {
@@ -177,6 +180,7 @@ export type OrderRecord = {
 	takerUnsettledPnl: BN;
 	makerUnsettledPnl: BN;
 	action: OrderAction;
+	actionExplanation: OrderActionExplanation;
 	filler: PublicKey;
 	fillRecordId: BN;
 	marketIndex: BN;

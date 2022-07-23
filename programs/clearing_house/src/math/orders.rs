@@ -9,12 +9,13 @@ use crate::controller::position::PositionDirection;
 use crate::error::ClearingHouseResult;
 use crate::math;
 use crate::math::amm::calculate_max_base_asset_amount_fillable;
+use crate::math::auction::is_auction_complete;
 use crate::math::casting::cast_to_i128;
 use crate::math::constants::{MARGIN_PRECISION, MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO};
 use crate::math::position::calculate_entry_price;
 use crate::math_error;
 use crate::state::market::Market;
-use crate::state::user::{Order, OrderTriggerCondition};
+use crate::state::user::{Order, OrderStatus, OrderTriggerCondition, OrderType, User};
 
 pub fn calculate_base_asset_amount_for_amm_to_fulfill(
     order: &Order,
@@ -145,6 +146,22 @@ pub fn get_position_delta_for_fill(
             PositionDirection::Short => -cast_to_i128(base_asset_amount)?,
         },
     })
+}
+
+pub fn cancel_order_after_fulfill(
+    user: &User,
+    user_order_index: usize,
+    slot: u64,
+) -> ClearingHouseResult<bool> {
+    let order = &user.orders[user_order_index];
+    if order.order_type != OrderType::Market {
+        return Ok(false);
+    }
+
+    Ok(order.order_type == OrderType::Market
+        && order.status == OrderStatus::Open
+        && order.price != 0
+        && is_auction_complete(order.slot, order.auction_duration, slot)?)
 }
 
 pub fn order_breaches_oracle_price_limits(

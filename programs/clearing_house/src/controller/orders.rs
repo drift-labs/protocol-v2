@@ -709,6 +709,19 @@ fn fulfill_order(
         )?
     }
 
+    if cancel_order_after_fulfill(user, user_order_index, slot)? {
+        cancel_order(
+            user_order_index,
+            user,
+            user_key,
+            market_map,
+            oracle_map,
+            now,
+            slot,
+            OrderActionExplanation::MarketOrderFilledToLimitPrice,
+        )?
+    }
+
     Ok((base_asset_amount, potentially_risk_increasing))
 }
 

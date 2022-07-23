@@ -1704,6 +1704,107 @@ pub mod fulfill_order {
     }
 
     #[test]
+    fn fulfill_with_amm_then_cancel() {
+        let mut market = Market {
+            amm: AMM {
+                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
+                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
+                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
+                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
+                sqrt_k: 100 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 100 * PEG_PRECISION,
+                max_slippage_ratio: 100,
+                max_base_asset_amount_ratio: 100,
+                base_asset_amount_step_size: 10000000,
+                ..AMM::default()
+            },
+            margin_ratio_initial: 1000,
+            margin_ratio_partial: 714,
+            margin_ratio_maintenance: 500,
+            initialized: true,
+            ..Market::default()
+        };
+        create_account_info!(market, Market, market_account_info);
+        let market_map = MarketMap::load_one(&market_account_info, true).unwrap();
+
+        let mut bank = Bank {
+            bank_index: 0,
+            oracle_source: OracleSource::QuoteAsset,
+            cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            initial_asset_weight: BANK_WEIGHT_PRECISION,
+            ..Bank::default()
+        };
+        create_account_info!(bank, Bank, bank_account_info);
+        let bank_map = BankMap::load_one(&bank_account_info, true).unwrap();
+
+        let mut oracle_map = get_oracle_map();
+
+        let mut taker = User {
+            orders: get_orders(Order {
+                market_index: 0,
+                status: OrderStatus::Open,
+                order_type: OrderType::Market,
+                direction: PositionDirection::Long,
+                base_asset_amount: BASE_PRECISION,
+                ts: 0,
+                slot: 0,
+                auction_start_price: 0,
+                auction_end_price: 102 * MARK_PRICE_PRECISION,
+                auction_duration: 5,
+                price: 102 * MARK_PRICE_PRECISION,
+                ..Order::default()
+            }),
+            positions: get_positions(MarketPosition {
+                market_index: 0,
+                open_orders: 1,
+                open_bids: BASE_PRECISION_I128,
+                ..MarketPosition::default()
+            }),
+            bank_balances: get_bank_balances(UserBankBalance {
+                bank_index: 0,
+                balance_type: BankBalanceType::Deposit,
+                balance: 100 * BANK_INTEREST_PRECISION,
+            }),
+            ..User::default()
+        };
+
+        let now = 0_i64;
+        let slot = 6_u64;
+
+        let fee_structure = get_fee_structure();
+
+        let (taker_key, _, filler_key) = get_user_keys();
+
+        let (base_asset_amount, _) = fulfill_order(
+            &mut taker,
+            0,
+            &taker_key,
+            &mut None,
+            None,
+            None,
+            &mut None,
+            &filler_key,
+            &bank_map,
+            &market_map,
+            &mut oracle_map,
+            &fee_structure,
+            0,
+            None,
+            now,
+            slot,
+        )
+        .unwrap();
+
+        assert_eq!(base_asset_amount, 9852450000000);
+        assert_eq!(taker.positions[0].open_orders, 0);
+        assert_eq!(taker.positions[0].open_bids, 0);
+        assert_eq!(taker.orders[0], Order::default()); // order canceled
+    }
+
+    #[test]
     fn taker_breaches_margin_requirement() {
         let mut market = Market {
             amm: AMM {
