@@ -136,6 +136,7 @@ pub enum OrderActionExplanation {
     BreachedMarginRequirement,
     OraclePriceBreachedLimitPrice,
     MarketOrderFilledToLimitPrice,
+    MarketOrderAuctionExpired,
 }
 
 impl Default for OrderAction {

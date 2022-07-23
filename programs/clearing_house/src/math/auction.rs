@@ -155,9 +155,9 @@ pub fn is_auction_complete(
         return Ok(true);
     }
 
-    let time_elapsed = slot.checked_sub(order_slot).ok_or_else(math_error!())?;
+    let slots_elapsed = slot.checked_sub(order_slot).ok_or_else(math_error!())?;
 
-    Ok(time_elapsed > cast(auction_duration)?)
+    Ok(slots_elapsed > cast(auction_duration)?)
 }
 
 #[cfg(test)]

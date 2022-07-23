@@ -100,18 +100,7 @@ pub mod clearing_house {
             fee_structure: FeeStructure::default(),
             whitelist_mint: Pubkey::default(),
             discount_mint: Pubkey::default(),
-            oracle_guard_rails: OracleGuardRails {
-                price_divergence: PriceDivergenceGuardRails {
-                    mark_oracle_divergence_numerator: 1,
-                    mark_oracle_divergence_denominator: 10,
-                },
-                validity: ValidityGuardRails {
-                    slots_before_stale: 1000,
-                    confidence_interval_max_size: 4,
-                    too_volatile_ratio: 5,
-                },
-                use_for_liquidations: true,
-            },
+            oracle_guard_rails: OracleGuardRails::default(),
             number_of_markets: 0,
             number_of_banks: 0,
             min_order_quote_asset_amount: 500_000, // 50 cents

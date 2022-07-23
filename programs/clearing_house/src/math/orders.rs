@@ -10,7 +10,7 @@ use crate::error::ClearingHouseResult;
 use crate::math;
 use crate::math::amm::calculate_max_base_asset_amount_fillable;
 use crate::math::auction::is_auction_complete;
-use crate::math::casting::cast_to_i128;
+use crate::math::casting::{cast, cast_to_i128};
 use crate::math::constants::{MARGIN_PRECISION, MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO};
 use crate::math::position::calculate_entry_price;
 use crate::math_error;
@@ -148,20 +148,32 @@ pub fn get_position_delta_for_fill(
     })
 }
 
-pub fn cancel_order_after_fulfill(
+pub fn should_cancel_order_after_fulfill(
     user: &User,
     user_order_index: usize,
     slot: u64,
 ) -> ClearingHouseResult<bool> {
     let order = &user.orders[user_order_index];
-    if order.order_type != OrderType::Market {
+    if order.order_type != OrderType::Market || order.status != OrderStatus::Open {
         return Ok(false);
     }
 
-    Ok(order.order_type == OrderType::Market
-        && order.status == OrderStatus::Open
-        && order.price != 0
-        && is_auction_complete(order.slot, order.auction_duration, slot)?)
+    Ok(order.price != 0 && is_auction_complete(order.slot, order.auction_duration, slot)?)
+}
+
+pub fn should_expire_order(
+    user: &User,
+    user_order_index: usize,
+    slot: u64,
+    max_auction_duration: u8,
+) -> ClearingHouseResult<bool> {
+    let order = &user.orders[user_order_index];
+    if order.order_type != OrderType::Market || order.status != OrderStatus::Open {
+        return Ok(false);
+    }
+
+    let slots_elapsed = slot.checked_sub(order.slot).ok_or_else(math_error!())?;
+    Ok(slots_elapsed > cast(max_auction_duration)?)
 }
 
 pub fn order_breaches_oracle_price_limits(

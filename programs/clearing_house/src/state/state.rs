@@ -54,11 +54,28 @@ pub struct State {
     pub padding1: u128,
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct OracleGuardRails {
     pub price_divergence: PriceDivergenceGuardRails,
     pub validity: ValidityGuardRails,
     pub use_for_liquidations: bool,
+}
+
+impl Default for OracleGuardRails {
+    fn default() -> Self {
+        OracleGuardRails {
+            price_divergence: PriceDivergenceGuardRails {
+                mark_oracle_divergence_numerator: 1,
+                mark_oracle_divergence_denominator: 10,
+            },
+            validity: ValidityGuardRails {
+                slots_before_stale: 1000,
+                confidence_interval_max_size: 4,
+                too_volatile_ratio: 5,
+            },
+            use_for_liquidations: true,
+        }
+    }
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]

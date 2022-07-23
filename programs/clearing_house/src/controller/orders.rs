@@ -440,7 +440,23 @@ pub fn fill_order(
         None
     };
 
-    let (base_asset_amount, potentially_risk_increasing, updated_user_state) = fulfill_order(
+    let should_expire_order =
+        should_expire_order(user, order_index, slot, state.max_auction_duration)?;
+    if should_expire_order {
+        cancel_order(
+            order_index,
+            user,
+            &user_key,
+            market_map,
+            oracle_map,
+            now,
+            slot,
+            OrderActionExplanation::MarketOrderAuctionExpired,
+        )?;
+        return Ok((0, true));
+    }
+
+    let (base_asset_amount, potentially_risk_increasing, mut updated_user_state) = fulfill_order(
         user,
         order_index,
         &user_key,
@@ -458,6 +474,21 @@ pub fn fill_order(
         now,
         slot,
     )?;
+
+    if should_cancel_order_after_fulfill(user, order_index, slot)? {
+        updated_user_state = true;
+
+        cancel_order(
+            order_index,
+            user,
+            &user_key,
+            market_map,
+            oracle_map,
+            now,
+            slot,
+            OrderActionExplanation::MarketOrderFilledToLimitPrice,
+        )?
+    }
 
     if !updated_user_state {
         return Ok((base_asset_amount, updated_user_state));
@@ -710,21 +741,6 @@ fn fulfill_order(
             now,
             slot,
             OrderActionExplanation::BreachedMarginRequirement,
-        )?
-    }
-
-    if cancel_order_after_fulfill(user, user_order_index, slot)? {
-        updated_user_state = true;
-
-        cancel_order(
-            user_order_index,
-            user,
-            user_key,
-            market_map,
-            oracle_map,
-            now,
-            slot,
-            OrderActionExplanation::MarketOrderFilledToLimitPrice,
         )?
     }
 
