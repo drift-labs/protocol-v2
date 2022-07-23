@@ -2979,6 +2979,9 @@
           },
           {
             "name": "MarketOrderFilledToLimitPrice"
+          },
+          {
+            "name": "MarketOrderAuctionExpired"
           }
         ]
       }

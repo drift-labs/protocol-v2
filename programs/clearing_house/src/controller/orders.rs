@@ -254,6 +254,8 @@ pub fn cancel_order_by_order_id(
         clock.unix_timestamp,
         clock.slot,
         OrderActionExplanation::None,
+        None,
+        0,
     )
 }
 
@@ -281,6 +283,8 @@ pub fn cancel_order_by_user_order_id(
         clock.unix_timestamp,
         clock.slot,
         OrderActionExplanation::None,
+        None,
+        0,
     )
 }
 
@@ -293,6 +297,8 @@ pub fn cancel_order(
     now: i64,
     slot: u64,
     explanation: OrderActionExplanation,
+    filler_key: Option<&Pubkey>,
+    filler_reward: u128,
 ) -> ClearingHouseResult {
     controller::funding::settle_funding_payment(user, user_key, market_map, now)?;
 
@@ -322,12 +328,15 @@ pub fn cancel_order(
         taker_unsettled_pnl,
         action: OrderAction::Cancel,
         action_explanation: explanation,
-        filler: Pubkey::default(),
+        filler: match filler_key {
+            Some(filler) => *filler,
+            None => Pubkey::default(),
+        },
         fill_record_id: 0,
         market_index: market.market_index,
         base_asset_amount_filled: 0,
         quote_asset_amount_filled: 0,
-        filler_reward: 0,
+        filler_reward,
         taker_fee: 0,
         maker_rebate: 0,
         quote_asset_amount_surplus: 0,
@@ -427,6 +436,7 @@ pub fn fill_order(
         maker,
         maker_order_id,
         &user.orders[order_index],
+        &filler_key,
         oracle_price,
         now,
         slot,
@@ -452,6 +462,8 @@ pub fn fill_order(
             now,
             slot,
             OrderActionExplanation::MarketOrderAuctionExpired,
+            Some(&filler_key),
+            0,
         )?;
         return Ok((0, true));
     }
@@ -487,6 +499,8 @@ pub fn fill_order(
             now,
             slot,
             OrderActionExplanation::MarketOrderFilledToLimitPrice,
+            Some(&filler_key),
+            0,
         )?
     }
 
@@ -557,6 +571,7 @@ fn sanitize_maker_order<'a>(
     maker: Option<&'a AccountLoader<User>>,
     maker_order_id: Option<u64>,
     taker_order: &Order,
+    filler_key: &Pubkey,
     oracle_price: i128,
     now: i64,
     slot: u64,
@@ -602,6 +617,8 @@ fn sanitize_maker_order<'a>(
             now,
             slot,
             OrderActionExplanation::OraclePriceBreachedLimitPrice,
+            Some(filler_key),
+            0,
         )?;
         return Ok((None, None, None));
     }
@@ -741,6 +758,8 @@ fn fulfill_order(
             now,
             slot,
             OrderActionExplanation::BreachedMarginRequirement,
+            Some(filler_key),
+            0,
         )?
     }
 
