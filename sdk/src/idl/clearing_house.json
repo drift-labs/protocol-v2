@@ -3769,8 +3769,8 @@
     },
     {
       "code": 6044,
-      "name": "CouldNotFillOrder",
-      "msg": "CouldNotFillOrder"
+      "name": "FillOrderDidNotUpdateState",
+      "msg": "FillOrderDidNotUpdateState"
     },
     {
       "code": 6045,

@@ -92,8 +92,8 @@ pub enum ErrorCode {
     OrderDoesNotExist,
     #[msg("Order not open")]
     OrderNotOpen,
-    #[msg("CouldNotFillOrder")]
-    CouldNotFillOrder,
+    #[msg("FillOrderDidNotUpdateState")]
+    FillOrderDidNotUpdateState,
     #[msg("Reduce only order increased risk")]
     ReduceOnlyOrderIncreasedRisk,
     #[msg("Unable to load AccountLoader")]

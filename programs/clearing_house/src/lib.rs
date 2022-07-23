@@ -854,7 +854,7 @@ pub mod clearing_house {
         )?;
 
         if !updated_user_state {
-            return Err(print_error!(ErrorCode::CouldNotFillOrder)().into());
+            return Err(print_error!(ErrorCode::FillOrderDidNotUpdateState)().into());
         }
 
         Ok(())
