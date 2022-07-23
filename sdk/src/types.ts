@@ -385,7 +385,6 @@ export type OrderParams = {
 	orderType: OrderType;
 	userOrderId: number;
 	direction: PositionDirection;
-	quoteAssetAmount: BN;
 	baseAssetAmount: BN;
 	price: BN;
 	marketIndex: BN;
@@ -419,7 +418,6 @@ export const DefaultOrderParams = {
 	orderType: OrderType.MARKET,
 	userOrderId: 0,
 	direction: PositionDirection.LONG,
-	quoteAssetAmount: ZERO,
 	baseAssetAmount: ZERO,
 	price: ZERO,
 	marketIndex: ZERO,

@@ -154,7 +154,6 @@ pub fn place_order(
         price: params.price,
         existing_position_direction,
         base_asset_amount: order_base_asset_amount,
-        quote_asset_amount: params.quote_asset_amount,
         base_asset_amount_filled: 0,
         quote_asset_amount_filled: 0,
         fee: 0,

@@ -2051,10 +2051,6 @@
             "type": "u8"
           },
           {
-            "name": "quoteAssetAmount",
-            "type": "u128"
-          },
-          {
             "name": "baseAssetAmount",
             "type": "u128"
           },
@@ -2759,10 +2755,6 @@
             "type": {
               "defined": "PositionDirection"
             }
-          },
-          {
-            "name": "quoteAssetAmount",
-            "type": "u128"
           },
           {
             "name": "baseAssetAmount",
