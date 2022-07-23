@@ -1442,6 +1442,58 @@
       ]
     },
     {
+      "name": "updateMarketMaxSlippageRatio",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "maxSlippageRatio",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "updateMaxBaseAssetAmountRatio",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "maxBaseAssetAmountRatio",
+          "type": "u16"
+        }
+      ]
+    },
+    {
       "name": "updateAdmin",
       "accounts": [
         {
@@ -1563,7 +1615,7 @@
       ]
     },
     {
-      "name": "updateOrderAuctionTime",
+      "name": "updateAuctionDuration",
       "accounts": [
         {
           "name": "admin",
@@ -1578,7 +1630,11 @@
       ],
       "args": [
         {
-          "name": "orderAuctionTime",
+          "name": "minAuctionDuration",
+          "type": "u8"
+        },
+        {
+          "name": "maxAuctionDuration",
           "type": "u8"
         }
       ]
@@ -1885,7 +1941,11 @@
             "type": "u128"
           },
           {
-            "name": "orderAuctionDuration",
+            "name": "minAuctionDuration",
+            "type": "u8"
+          },
+          {
+            "name": "maxAuctionDuration",
             "type": "u8"
           },
           {
@@ -2041,6 +2101,10 @@
           {
             "name": "oraclePriceOffset",
             "type": "i128"
+          },
+          {
+            "name": "auctionDuration",
+            "type": "u8"
           },
           {
             "name": "padding0",
@@ -2203,6 +2267,14 @@
           {
             "name": "minimumQuoteAssetTradeSize",
             "type": "u128"
+          },
+          {
+            "name": "maxBaseAssetAmountRatio",
+            "type": "u16"
+          },
+          {
+            "name": "maxSlippageRatio",
+            "type": "u16"
           },
           {
             "name": "baseAssetAmountStepSize",
@@ -2904,6 +2976,12 @@
           },
           {
             "name": "OraclePriceBreachedLimitPrice"
+          },
+          {
+            "name": "MarketOrderFilledToLimitPrice"
+          },
+          {
+            "name": "MarketOrderAuctionExpired"
           }
         ]
       }
@@ -3691,8 +3769,8 @@
     },
     {
       "code": 6044,
-      "name": "CouldNotFillOrder",
-      "msg": "CouldNotFillOrder"
+      "name": "FillOrderDidNotUpdateState",
+      "msg": "FillOrderDidNotUpdateState"
     },
     {
       "code": 6045,

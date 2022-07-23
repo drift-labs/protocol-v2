@@ -4,10 +4,11 @@ use solana_program::msg;
 
 use crate::controller::position::{add_new_position, get_position_index, PositionDirection};
 use crate::error::{ClearingHouseResult, ErrorCode};
-use crate::math::auction::calculate_auction_price;
+use crate::math::auction::{calculate_auction_price, is_auction_complete};
 use crate::math::constants::QUOTE_ASSET_BANK_INDEX;
 use crate::math_error;
 use crate::state::bank::{BankBalance, BankBalanceType};
+use crate::state::market::AMM;
 
 #[account(zero_copy)]
 #[derive(Default, Eq, PartialEq, Debug)]
@@ -256,6 +257,7 @@ impl Order {
 
     pub fn get_limit_price(
         &self,
+        amm: &AMM,
         valid_oracle_price: Option<i128>,
         slot: u64,
     ) -> ClearingHouseResult<u128> {
@@ -280,7 +282,28 @@ impl Order {
             self.order_type,
             OrderType::Market | OrderType::TriggerMarket
         ) {
-            calculate_auction_price(self, slot)?
+            if !is_auction_complete(self.slot, self.auction_duration, slot)? {
+                calculate_auction_price(self, slot)?
+            } else if self.price != 0 {
+                self.price
+            } else {
+                match self.direction {
+                    PositionDirection::Long => {
+                        let ask_price = amm.ask_price(amm.mark_price()?)?;
+                        let delta = ask_price
+                            .checked_div(amm.max_slippage_ratio as u128)
+                            .ok_or_else(math_error!())?;
+                        ask_price.checked_add(delta).ok_or_else(math_error!())?
+                    }
+                    PositionDirection::Short => {
+                        let bid_price = amm.bid_price(amm.mark_price()?)?;
+                        let delta = bid_price
+                            .checked_div(amm.max_slippage_ratio as u128)
+                            .ok_or_else(math_error!())?;
+                        bid_price.checked_sub(delta).ok_or_else(math_error!())?
+                    }
+                }
+            }
         } else {
             self.price
         };

@@ -124,6 +124,8 @@ pub struct AMM {
 
     // trade constraints
     pub minimum_quote_asset_trade_size: u128,
+    pub max_base_asset_amount_ratio: u16,
+    pub max_slippage_ratio: u16,
     pub base_asset_amount_step_size: u128,
 
     // market making

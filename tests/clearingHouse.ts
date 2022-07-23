@@ -100,7 +100,7 @@ describe('clearing_house', () => {
 
 		await clearingHouse.subscribe();
 		const state = clearingHouse.getStateAccount();
-		await clearingHouse.updateOrderAuctionTime(new BN(0));
+		await clearingHouse.updateAuctionDuration(new BN(0), new BN(0));
 
 		assert.ok(state.admin.equals(provider.wallet.publicKey));
 
@@ -329,38 +329,6 @@ describe('clearing_house', () => {
 		} finally {
 			console.log = oldConsoleLog;
 			console.error = oldConsoleError;
-		}
-	});
-
-	it('Order fails due to unrealiziable limit price ', async () => {
-		// Should be a better a way to catch an exception with chai but wasn't working for me
-		try {
-			const newUSDCNotionalAmount = usdcAmount.div(new BN(2)).mul(new BN(5));
-			const marketIndex = new BN(0);
-			const market = clearingHouse.getMarketAccount(marketIndex);
-			const estTradePrice = calculateTradeSlippage(
-				PositionDirection.SHORT,
-				newUSDCNotionalAmount,
-				market
-			)[2];
-
-			// trying to sell at price too high
-			const limitPriceTooHigh = calculateMarkPrice(market);
-			console.log(
-				'failed order:',
-				estTradePrice.toNumber(),
-				limitPriceTooHigh.toNumber()
-			);
-
-			await clearingHouse.openPosition(
-				PositionDirection.SHORT,
-				newUSDCNotionalAmount,
-				marketIndex,
-				limitPriceTooHigh
-			);
-			assert(false, 'Order succeeded');
-		} catch (e) {
-			assert(e.message.includes('0x177f'));
 		}
 	});
 

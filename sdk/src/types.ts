@@ -1,5 +1,5 @@
 import { PublicKey, Transaction } from '@solana/web3.js';
-import { BN } from '.';
+import { BN, ZERO } from '.';
 
 // # Utility Types / Enums / Constants
 export class SwapDirection {
@@ -58,6 +58,9 @@ export class OrderActionExplanation {
 	};
 	static readonly ORACLE_PRICE_BREACHED_LIMIT_PRICE = {
 		oraclePriceBreachedLimitPrice: {},
+	};
+	static readonly MARKET_ORDER_FILLED_TO_LIMIT_PRICE = {
+		marketOrderFilledToLimitPrice: {},
 	};
 }
 
@@ -177,6 +180,7 @@ export type OrderRecord = {
 	takerUnsettledPnl: BN;
 	makerUnsettledPnl: BN;
 	action: OrderAction;
+	actionExplanation: OrderActionExplanation;
 	filler: PublicKey;
 	fillRecordId: BN;
 	marketIndex: BN;
@@ -289,6 +293,8 @@ export type AMM = {
 	totalFee: BN;
 	minimumQuoteAssetTradeSize: BN;
 	baseAssetAmountStepSize: BN;
+	maxBaseAssetAmountRatio: number;
+	maxSlippageRatio: number;
 	lastOraclePrice: BN;
 	baseSpread: number;
 	curveUpdateIntensity: number;
@@ -396,6 +402,40 @@ export type OrderParams = {
 		discountToken: boolean;
 		referrer: boolean;
 	};
+};
+
+export type NecessaryOrderParams = {
+	orderType: OrderType;
+	marketIndex: BN;
+	baseAssetAmount: BN;
+	direction: PositionDirection;
+};
+
+export type OptionalOrderParams = {
+	[Property in keyof OrderParams]?: OrderParams[Property];
+} & NecessaryOrderParams;
+
+export const DefaultOrderParams = {
+	orderType: OrderType.MARKET,
+	userOrderId: 0,
+	direction: PositionDirection.LONG,
+	quoteAssetAmount: ZERO,
+	baseAssetAmount: ZERO,
+	price: ZERO,
+	marketIndex: ZERO,
+	reduceOnly: false,
+	postOnly: false,
+	immediateOrCancel: false,
+	triggerPrice: ZERO,
+	triggerCondition: OrderTriggerCondition.ABOVE,
+	positionLimit: ZERO,
+	oraclePriceOffset: ZERO,
+	padding0: ZERO,
+	padding1: ZERO,
+	optionalAccounts: {
+		discountToken: false,
+		referrer: false,
+	},
 };
 
 export type MakerInfo = {

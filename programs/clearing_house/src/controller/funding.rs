@@ -71,6 +71,7 @@ pub fn settle_funding_payment(
     Ok(())
 }
 
+#[allow(clippy::comparison_chain)]
 pub fn update_funding_rate(
     market_index: u64,
     market: &mut Market,

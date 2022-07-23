@@ -100,22 +100,12 @@ pub mod clearing_house {
             fee_structure: FeeStructure::default(),
             whitelist_mint: Pubkey::default(),
             discount_mint: Pubkey::default(),
-            oracle_guard_rails: OracleGuardRails {
-                price_divergence: PriceDivergenceGuardRails {
-                    mark_oracle_divergence_numerator: 1,
-                    mark_oracle_divergence_denominator: 10,
-                },
-                validity: ValidityGuardRails {
-                    slots_before_stale: 1000,
-                    confidence_interval_max_size: 4,
-                    too_volatile_ratio: 5,
-                },
-                use_for_liquidations: true,
-            },
+            oracle_guard_rails: OracleGuardRails::default(),
             number_of_markets: 0,
             number_of_banks: 0,
             min_order_quote_asset_amount: 500_000, // 50 cents
-            order_auction_duration: 5,             // 5 seconds
+            min_auction_duration: 10,
+            max_auction_duration: 60,
             padding0: 0,
             padding1: 0,
         };
@@ -401,6 +391,8 @@ pub mod clearing_house {
                 last_oracle_delay: oracle_delay,
                 last_oracle_mark_spread_pct: 0, // todo
                 base_asset_amount_step_size: 10000000,
+                max_slippage_ratio: 50,           // ~2%
+                max_base_asset_amount_ratio: 100, // moves price ~2%
                 base_spread: 0,
                 long_spread: 0,
                 short_spread: 0,
@@ -848,7 +840,7 @@ pub mod clearing_house {
             &Clock::get()?,
         )?;
 
-        let base_asset_amount = controller::orders::fill_order(
+        let (_, updated_user_state) = controller::orders::fill_order(
             order_id,
             &ctx.accounts.state,
             &ctx.accounts.user,
@@ -861,8 +853,8 @@ pub mod clearing_house {
             &Clock::get()?,
         )?;
 
-        if base_asset_amount == 0 {
-            return Err(print_error!(ErrorCode::CouldNotFillOrder)().into());
+        if !updated_user_state {
+            return Err(print_error!(ErrorCode::FillOrderDidNotUpdateState)().into());
         }
 
         Ok(())
@@ -925,7 +917,7 @@ pub mod clearing_house {
             }
         };
 
-        let base_asset_amount_filled = controller::orders::fill_order(
+        let (base_asset_amount_filled, _) = controller::orders::fill_order(
             order_id,
             &ctx.accounts.state,
             user,
@@ -1003,7 +995,7 @@ pub mod clearing_house {
             }
         };
 
-        let base_asset_amount_filled = controller::orders::fill_order(
+        let (base_asset_amount_filled, _) = controller::orders::fill_order(
             taker_order_id,
             &ctx.accounts.state,
             &ctx.accounts.taker,
@@ -2299,6 +2291,32 @@ pub mod clearing_house {
         Ok(())
     }
 
+    #[access_control(
+        market_initialized(&ctx.accounts.market)
+    )]
+    pub fn update_market_max_slippage_ratio(
+        ctx: Context<AdminUpdateMarket>,
+        max_slippage_ratio: u16,
+    ) -> Result<()> {
+        validate!(max_slippage_ratio > 0, ErrorCode::DefaultError)?;
+        let market = &mut ctx.accounts.market.load_mut()?;
+        market.amm.max_slippage_ratio = max_slippage_ratio;
+        Ok(())
+    }
+
+    #[access_control(
+        market_initialized(&ctx.accounts.market)
+    )]
+    pub fn update_max_base_asset_amount_ratio(
+        ctx: Context<AdminUpdateMarket>,
+        max_base_asset_amount_ratio: u16,
+    ) -> Result<()> {
+        validate!(max_base_asset_amount_ratio > 0, ErrorCode::DefaultError)?;
+        let market = &mut ctx.accounts.market.load_mut()?;
+        market.amm.max_base_asset_amount_ratio = max_base_asset_amount_ratio;
+        Ok(())
+    }
+
     pub fn update_admin(ctx: Context<AdminUpdateState>, admin: Pubkey) -> Result<()> {
         ctx.accounts.state.admin = admin;
         Ok(())
@@ -2341,17 +2359,19 @@ pub mod clearing_house {
         Ok(())
     }
 
-    pub fn update_order_auction_time(
+    pub fn update_auction_duration(
         ctx: Context<AdminUpdateState>,
-        order_auction_time: u8,
+        min_auction_duration: u8,
+        max_auction_duration: u8,
     ) -> Result<()> {
         validate!(
-            order_auction_time > 0 || order_auction_time < 100,
+            min_auction_duration <= max_auction_duration,
             ErrorCode::DefaultError,
-            "invalid auction time",
+            "min auction duration must be less than or equal to max auction duration",
         )?;
 
-        ctx.accounts.state.order_auction_duration = order_auction_time;
+        ctx.accounts.state.min_auction_duration = min_auction_duration;
+        ctx.accounts.state.max_auction_duration = max_auction_duration;
         Ok(())
     }
 }
