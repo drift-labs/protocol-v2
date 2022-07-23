@@ -147,16 +147,14 @@ describe('user order id', () => {
 		const reduceOnly = false;
 		const userOrderId = 1;
 
-		const orderParams = getLimitOrderParams(
+		const orderParams = getLimitOrderParams({
 			marketIndex,
 			direction,
 			baseAssetAmount,
 			price,
 			reduceOnly,
-			false,
-			false,
-			userOrderId
-		);
+			userOrderId,
+		});
 		await clearingHouse.placeOrder(orderParams);
 
 		await clearingHouse.fetchAccounts();
@@ -173,16 +171,15 @@ describe('user order id', () => {
 		const reduceOnly = false;
 		const userOrderId = 1;
 
-		const orderParams = getLimitOrderParams(
+		const orderParams = getLimitOrderParams({
 			marketIndex,
 			direction,
 			baseAssetAmount,
 			price,
 			reduceOnly,
-			false,
-			false,
-			userOrderId
-		);
+			userOrderId,
+		});
+
 		try {
 			await clearingHouse.placeOrder(orderParams);
 		} catch (_) {

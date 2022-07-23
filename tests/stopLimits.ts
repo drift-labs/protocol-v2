@@ -218,25 +218,21 @@ describe('stop limit', () => {
 		const triggerCondition = OrderTriggerCondition.ABOVE;
 
 		await clearingHouse.placeAndTake(
-			getMarketOrderParams(
+			getMarketOrderParams({
 				marketIndex,
-				PositionDirection.LONG,
-				ZERO,
+				direction: PositionDirection.LONG,
 				baseAssetAmount,
-				false
-			)
+			})
 		);
 
-		const orderParams = getTriggerLimitOrderParams(
+		const orderParams = getTriggerLimitOrderParams({
 			marketIndex,
 			direction,
 			baseAssetAmount,
-			limitPrice,
+			price: limitPrice,
 			triggerPrice,
 			triggerCondition,
-			false,
-			true
-		);
+		});
 
 		await clearingHouse.placeOrder(orderParams);
 		const orderId = new BN(2);
@@ -311,25 +307,21 @@ describe('stop limit', () => {
 		const triggerCondition = OrderTriggerCondition.BELOW;
 
 		await clearingHouse.placeAndTake(
-			getMarketOrderParams(
+			getMarketOrderParams({
 				marketIndex,
-				PositionDirection.SHORT,
-				ZERO,
+				direction: PositionDirection.SHORT,
 				baseAssetAmount,
-				false
-			)
+			})
 		);
 
-		const orderParams = getTriggerLimitOrderParams(
+		const orderParams = getTriggerLimitOrderParams({
 			marketIndex,
 			direction,
 			baseAssetAmount,
-			limitPrice,
+			price: limitPrice,
 			triggerPrice,
 			triggerCondition,
-			false,
-			true
-		);
+		});
 
 		await clearingHouse.placeOrder(orderParams);
 		const orderId = new BN(4);

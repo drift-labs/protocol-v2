@@ -2976,6 +2976,9 @@
           },
           {
             "name": "OraclePriceBreachedLimitPrice"
+          },
+          {
+            "name": "MarketOrderFilledToLimitPrice"
           }
         ]
       }

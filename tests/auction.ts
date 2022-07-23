@@ -158,13 +158,11 @@ describe('amm spread: market order', () => {
 	it('Place long market order', async () => {
 		const direction = PositionDirection.LONG;
 		const baseAssetAmount = BASE_PRECISION;
-		const orderParams = getMarketOrderParams(
+		const orderParams = getMarketOrderParams({
 			marketIndex,
 			direction,
-			ZERO,
 			baseAssetAmount,
-			false
-		);
+		});
 
 		const txSig = await clearingHouse.placeOrder(orderParams);
 		await printTxLogs(connection, txSig);

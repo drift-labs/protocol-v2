@@ -210,13 +210,11 @@ describe('amm spread: market order', () => {
 			).toString()
 		);
 
-		const orderParams = getMarketOrderParams(
+		const orderParams = getMarketOrderParams({
 			marketIndex,
 			direction,
-			ZERO,
 			baseAssetAmount,
-			false
-		);
+		});
 		const txSig = await clearingHouse.placeAndTake(orderParams);
 		const computeUnits = await findComputeUnitConsumption(
 			clearingHouse.program.programId,
@@ -317,13 +315,11 @@ describe('amm spread: market order', () => {
 			).toString()
 		);
 
-		const orderParams = getMarketOrderParams(
+		const orderParams = getMarketOrderParams({
 			marketIndex,
 			direction,
-			ZERO,
 			baseAssetAmount,
-			false
-		);
+		});
 		const txSig = await clearingHouse.placeAndTake(orderParams);
 		const computeUnits = await findComputeUnitConsumption(
 			clearingHouse.program.programId,
@@ -704,13 +700,11 @@ describe('amm spread: market order', () => {
 			).toString()
 		);
 
-		const orderParams = getMarketOrderParams(
-			marketIndex2,
+		const orderParams = getMarketOrderParams({
+			marketIndex: marketIndex2,
 			direction,
-			ZERO,
 			baseAssetAmount,
-			false
-		);
+		});
 		const txSig = await clearingHouse.placeAndTake(orderParams);
 		const computeUnits = await findComputeUnitConsumption(
 			clearingHouse.program.programId,
@@ -755,13 +749,11 @@ describe('amm spread: market order', () => {
 		const directionToClose = PositionDirection.SHORT;
 
 		for (let i = numCloses; i > 0; i--) {
-			const orderParams = getMarketOrderParams(
-				marketIndex2,
-				directionToClose,
-				ZERO,
-				baseAssetAmount.div(new BN(numCloses * i)), // variable sized close
-				false
-			);
+			const orderParams = getMarketOrderParams({
+				marketIndex: marketIndex2,
+				direction: directionToClose,
+				baseAssetAmount: baseAssetAmount.div(new BN(numCloses * i)), // variable sized close
+			});
 			await clearingHouse.placeAndTake(orderParams);
 		}
 		await clearingHouse.closePosition(marketIndex2); // close rest
