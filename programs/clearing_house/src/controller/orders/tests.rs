@@ -1802,14 +1802,25 @@ pub mod fulfill_order {
         let expected_taker_after = User {
             positions: get_positions(MarketPosition {
                 market_index: 0,
+                unsettled_pnl: -10000,
                 ..MarketPosition::default()
             }),
             orders: get_orders(Order::default()),
             ..taker
         };
         let expected_maker_after = maker;
-        let expected_filler_after = filler;
-        let expected_market_after = *market_map.get_ref(&0).unwrap();
+        let expected_filler_after = User {
+            positions: get_positions(MarketPosition {
+                market_index: 0,
+                unsettled_pnl: 10000,
+                ..MarketPosition::default()
+            }),
+            orders: get_orders(Order::default()),
+            ..filler
+        };
+        let mut expected_market_after = *market_map.get_ref(&0).unwrap();
+        expected_market_after.unsettled_profit = 10000;
+        expected_market_after.unsettled_loss = 10000;
 
         let (base_asset_amount, potentially_risk_increasing, _) = fulfill_order(
             &mut taker,
@@ -1862,6 +1873,7 @@ pub mod fill_order {
     use crate::tests::utils::create_account_info;
     use crate::tests::utils::*;
     use anchor_lang::prelude::{AccountLoader, Clock};
+    use std::str::FromStr;
 
     #[test]
     fn cancel_order_after_fulfill() {
@@ -1934,6 +1946,9 @@ pub mod fill_order {
         create_account_info!(user, User, user_account_info);
         let user_account_loader: AccountLoader<User> =
             AccountLoader::try_from(&user_account_info).unwrap();
+
+        let filler_key = Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap();
+        create_account_info!(User::default(), &filler_key, User, user_account_info);
         let filler_account_loader: AccountLoader<User> =
             AccountLoader::try_from(&user_account_info).unwrap();
 
@@ -1971,6 +1986,9 @@ pub mod fill_order {
         assert_eq!(user_after.positions[0].open_orders, 0);
         assert_eq!(user_after.positions[0].open_bids, 0);
         assert_eq!(user_after.orders[0], Order::default()); // order canceled
+
+        let filler_after = filler_account_loader.load().unwrap();
+        assert_eq!(filler_after.positions[0].unsettled_pnl, 20000);
     }
 
     #[test]
@@ -2044,6 +2062,9 @@ pub mod fill_order {
         create_account_info!(user, User, user_account_info);
         let user_account_loader: AccountLoader<User> =
             AccountLoader::try_from(&user_account_info).unwrap();
+
+        let filler_key = Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap();
+        create_account_info!(User::default(), &filler_key, User, user_account_info);
         let filler_account_loader: AccountLoader<User> =
             AccountLoader::try_from(&user_account_info).unwrap();
 
@@ -2079,6 +2100,10 @@ pub mod fill_order {
         assert_eq!(base_asset_amount, 0);
         assert_eq!(user_after.positions[0].open_orders, 0);
         assert_eq!(user_after.positions[0].open_bids, 0);
+        assert_eq!(user_after.positions[0].unsettled_pnl, -10000);
         assert_eq!(user_after.orders[0], Order::default()); // order canceled
+
+        let filler_after = filler_account_loader.load().unwrap();
+        assert_eq!(filler_after.positions[0].unsettled_pnl, 10000);
     }
 }

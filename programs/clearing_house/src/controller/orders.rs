@@ -315,7 +315,11 @@ pub fn cancel_order(
     user.orders[order_index].status = OrderStatus::Canceled;
 
     let (taker, taker_order, taker_unsettled_pnl, maker, maker_order, maker_unsettled_pnl) =
-        get_taker_and_maker_for_order_record(user_key, &user.orders[order_index], 0);
+        get_taker_and_maker_for_order_record(
+            user_key,
+            &user.orders[order_index],
+            -cast(filler_reward)?,
+        );
 
     emit!(OrderRecord {
         ts: now,
@@ -453,6 +457,19 @@ pub fn fill_order(
     let should_expire_order =
         should_expire_order(user, order_index, slot, state.max_auction_duration)?;
     if should_expire_order {
+        let filler_reward = {
+            let mut market = market_map.get_ref_mut(&market_index)?;
+            pay_filler_flat_reward(
+                user,
+                filler.as_deref_mut(),
+                market.deref_mut(),
+                state
+                    .fee_structure
+                    .filler_reward_structure
+                    .time_based_reward_lower_bound,
+            )?
+        };
+
         cancel_order(
             order_index,
             user,
@@ -463,7 +480,7 @@ pub fn fill_order(
             slot,
             OrderActionExplanation::MarketOrderAuctionExpired,
             Some(&filler_key),
-            0,
+            filler_reward,
         )?;
         return Ok((0, true));
     }
@@ -490,6 +507,19 @@ pub fn fill_order(
     if should_cancel_order_after_fulfill(user, order_index, slot)? {
         updated_user_state = true;
 
+        let filler_reward = {
+            let mut market = market_map.get_ref_mut(&market_index)?;
+            pay_filler_flat_reward(
+                user,
+                filler.as_deref_mut(),
+                market.deref_mut(),
+                state
+                    .fee_structure
+                    .filler_reward_structure
+                    .time_based_reward_lower_bound,
+            )?
+        };
+
         cancel_order(
             order_index,
             user,
@@ -500,7 +530,7 @@ pub fn fill_order(
             slot,
             OrderActionExplanation::MarketOrderFilledToLimitPrice,
             Some(&filler_key),
-            0,
+            filler_reward,
         )?
     }
 
@@ -749,6 +779,18 @@ fn fulfill_order(
         base_asset_amount = 0;
         potentially_risk_increasing = false;
 
+        let filler_reward = {
+            let mut market = market_map.get_ref_mut(&market_index)?;
+            pay_filler_flat_reward(
+                user,
+                filler.as_deref_mut(),
+                market.deref_mut(),
+                fee_structure
+                    .filler_reward_structure
+                    .time_based_reward_lower_bound,
+            )?
+        };
+
         cancel_order(
             user_order_index,
             user,
@@ -759,7 +801,7 @@ fn fulfill_order(
             slot,
             OrderActionExplanation::BreachedMarginRequirement,
             Some(filler_key),
-            0,
+            filler_reward,
         )?
     }
 
@@ -1398,21 +1440,21 @@ pub fn trigger_order(
     }
 
     let is_filler_taker = user_key == filler_key;
-    let filler = if !is_filler_taker {
+    let mut filler = if !is_filler_taker {
         Some(load_mut(filler)?)
     } else {
         None
     };
 
-    let filler_reward = match filler {
-        Some(_) => {
-            state
-                .fee_structure
-                .filler_reward_structure
-                .time_based_reward_lower_bound
-        }
-        None => 0,
-    };
+    let filler_reward = pay_filler_flat_reward(
+        user,
+        filler.as_deref_mut(),
+        market,
+        state
+            .fee_structure
+            .filler_reward_structure
+            .time_based_reward_lower_bound,
+    )?;
 
     emit!(OrderRecord {
         ts: now,
@@ -1437,13 +1479,26 @@ pub fn trigger_order(
         oracle_price,
     });
 
-    if let Some(mut filler) = filler {
-        let user_position = user.get_position_mut(market_index)?;
+    Ok(())
+}
+
+pub fn pay_filler_flat_reward(
+    user: &mut User,
+    filler: Option<&mut User>,
+    market: &mut Market,
+    filler_reward: u128,
+) -> ClearingHouseResult<u128> {
+    let filler_reward = if let Some(filler) = filler {
+        let user_position = user.get_position_mut(market.market_index)?;
         controller::position::update_unsettled_pnl(user_position, market, -cast(filler_reward)?)?;
 
-        let filler_position = filler.force_get_position_mut(market_index)?;
+        let filler_position = filler.force_get_position_mut(market.market_index)?;
         controller::position::update_unsettled_pnl(filler_position, market, cast(filler_reward)?)?;
-    }
 
-    Ok(())
+        filler_reward
+    } else {
+        0
+    };
+
+    Ok(filler_reward)
 }
