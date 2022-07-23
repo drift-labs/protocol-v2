@@ -359,7 +359,7 @@ pub fn fill_order(
     maker: Option<&AccountLoader<User>>,
     maker_order_id: Option<u64>,
     clock: &Clock,
-) -> ClearingHouseResult<u128> {
+) -> ClearingHouseResult<(u128, bool)> {
     let now = clock.unix_timestamp;
     let slot = clock.slot;
 
@@ -440,7 +440,7 @@ pub fn fill_order(
         None
     };
 
-    let (base_asset_amount, potentially_risk_increasing) = fulfill_order(
+    let (base_asset_amount, potentially_risk_increasing, updated_user_state) = fulfill_order(
         user,
         order_index,
         &user_key,
@@ -459,8 +459,8 @@ pub fn fill_order(
         slot,
     )?;
 
-    if base_asset_amount == 0 {
-        return Ok(0);
+    if !updated_user_state {
+        return Ok((base_asset_amount, updated_user_state));
     }
 
     let mark_price_after: u128;
@@ -516,7 +516,7 @@ pub fn fill_order(
         )?;
     }
 
-    Ok(base_asset_amount)
+    Ok((base_asset_amount, updated_user_state))
 }
 
 #[allow(clippy::type_complexity)]
@@ -595,7 +595,7 @@ fn fulfill_order(
     valid_oracle_price: Option<i128>,
     now: i64,
     slot: u64,
-) -> ClearingHouseResult<(u128, bool)> {
+) -> ClearingHouseResult<(u128, bool, bool)> {
     let market_index = user.orders[user_order_index].market_index;
 
     let user_checkpoint = checkpoint_user(user, market_index, Some(user_order_index))?;
@@ -621,7 +621,7 @@ fn fulfill_order(
         determine_fulfillment_methods(&user.orders[user_order_index], maker.is_some(), slot)?;
 
     if fulfillment_methods.is_empty() {
-        return Ok((0, false));
+        return Ok((0, false, false));
     }
 
     let mut base_asset_amount = 0_u128;
@@ -677,11 +677,15 @@ fn fulfill_order(
     let meets_initial_margin_requirement =
         meets_initial_margin_requirement(user, market_map, bank_map, oracle_map)?;
 
+    let mut updated_user_state = base_asset_amount != 0;
+
     if meets_initial_margin_requirement {
         for order_record in order_records {
             emit!(order_record)
         }
     } else {
+        updated_user_state = true;
+
         revert_to_checkpoint(user, user_checkpoint)?;
         if let Some(maker) = maker {
             revert_to_checkpoint(maker, maker_checkpoint.unwrap())?;
@@ -710,6 +714,8 @@ fn fulfill_order(
     }
 
     if cancel_order_after_fulfill(user, user_order_index, slot)? {
+        updated_user_state = true;
+
         cancel_order(
             user_order_index,
             user,
@@ -722,7 +728,11 @@ fn fulfill_order(
         )?
     }
 
-    Ok((base_asset_amount, potentially_risk_increasing))
+    Ok((
+        base_asset_amount,
+        potentially_risk_increasing,
+        updated_user_state,
+    ))
 }
 
 struct UserCheckpoint {

@@ -851,7 +851,7 @@ pub mod clearing_house {
             &Clock::get()?,
         )?;
 
-        let base_asset_amount = controller::orders::fill_order(
+        let (_, updated_user_state) = controller::orders::fill_order(
             order_id,
             &ctx.accounts.state,
             &ctx.accounts.user,
@@ -864,7 +864,7 @@ pub mod clearing_house {
             &Clock::get()?,
         )?;
 
-        if base_asset_amount == 0 {
+        if !updated_user_state {
             return Err(print_error!(ErrorCode::CouldNotFillOrder)().into());
         }
 
@@ -928,7 +928,7 @@ pub mod clearing_house {
             }
         };
 
-        let base_asset_amount_filled = controller::orders::fill_order(
+        let (base_asset_amount_filled, _) = controller::orders::fill_order(
             order_id,
             &ctx.accounts.state,
             user,
@@ -1006,7 +1006,7 @@ pub mod clearing_house {
             }
         };
 
-        let base_asset_amount_filled = controller::orders::fill_order(
+        let (base_asset_amount_filled, _) = controller::orders::fill_order(
             taker_order_id,
             &ctx.accounts.state,
             &ctx.accounts.taker,

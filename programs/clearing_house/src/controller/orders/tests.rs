@@ -1379,7 +1379,7 @@ pub mod fulfill_order {
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
-        let (base_asset_amount, _) = fulfill_order(
+        let (base_asset_amount, _, _) = fulfill_order(
             &mut taker,
             0,
             &taker_key,
@@ -1527,7 +1527,7 @@ pub mod fulfill_order {
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
-        let (base_asset_amount, _) = fulfill_order(
+        let (base_asset_amount, _, _) = fulfill_order(
             &mut taker,
             0,
             &taker_key,
@@ -1656,7 +1656,7 @@ pub mod fulfill_order {
 
         let (taker_key, _, filler_key) = get_user_keys();
 
-        let (base_asset_amount, _) = fulfill_order(
+        let (base_asset_amount, _, _) = fulfill_order(
             &mut taker,
             0,
             &taker_key,
@@ -1778,7 +1778,7 @@ pub mod fulfill_order {
 
         let (taker_key, _, filler_key) = get_user_keys();
 
-        let (base_asset_amount, _) = fulfill_order(
+        let (base_asset_amount, _, _) = fulfill_order(
             &mut taker,
             0,
             &taker_key,
@@ -1912,7 +1912,7 @@ pub mod fulfill_order {
         let expected_filler_after = filler;
         let expected_market_after = *market_map.get_ref(&0).unwrap();
 
-        let (base_asset_amount, potentially_risk_increasing) = fulfill_order(
+        let (base_asset_amount, potentially_risk_increasing, _) = fulfill_order(
             &mut taker,
             0,
             &taker_key,
