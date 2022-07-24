@@ -93,7 +93,7 @@ describe('prepeg', () => {
 		});
 
 		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.updateOrderAuctionTime(0);
+		await clearingHouse.updateAuctionDuration(0, 0);
 
 		await clearingHouse.subscribe();
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
@@ -171,13 +171,11 @@ describe('prepeg', () => {
 			'after trade est. mark price:',
 			convertToNumber(newPrice)
 		);
-		const orderParams = getMarketOrderParams(
+		const orderParams = getMarketOrderParams({
 			marketIndex,
-			PositionDirection.LONG,
-			ZERO,
+			direction: PositionDirection.LONG,
 			baseAssetAmount,
-			false
-		);
+		});
 		const txSig = await clearingHouse.placeAndTake(orderParams);
 
 		const computeUnits = await findComputeUnitConsumption(
@@ -283,13 +281,11 @@ describe('prepeg', () => {
 			convertToNumber(newPrice)
 		);
 
-		const orderParams = getMarketOrderParams(
+		const orderParams = getMarketOrderParams({
 			marketIndex,
-			PositionDirection.LONG,
-			ZERO,
+			direction: PositionDirection.LONG,
 			baseAssetAmount,
-			false
-		);
+		});
 
 		const txSig = await clearingHouse.placeAndTake(orderParams);
 		const computeUnits = await findComputeUnitConsumption(
@@ -357,13 +353,11 @@ describe('prepeg', () => {
 		const marketIndex = new BN(0);
 		const baseAssetAmount = new BN(248725250000000);
 		const market0 = clearingHouse.getMarketAccount(0);
-		const orderParams = getMarketOrderParams(
+		const orderParams = getMarketOrderParams({
 			marketIndex,
-			PositionDirection.SHORT,
-			ZERO,
+			direction: PositionDirection.SHORT,
 			baseAssetAmount,
-			false
-		);
+		});
 
 		await setFeedPrice(anchor.workspace.Pyth, 1.02234232, solUsd);
 		const curPrice = (await getFeedData(anchor.workspace.Pyth, solUsd)).price;
@@ -441,13 +435,11 @@ describe('prepeg', () => {
 			const marketIndex = new BN(i);
 			const baseAssetAmount = new BN(31.02765 * 10e13);
 			const market0 = clearingHouse.getMarketAccount(i);
-			const orderParams = getMarketOrderParams(
+			const orderParams = getMarketOrderParams({
 				marketIndex,
-				PositionDirection.LONG,
-				ZERO,
+				direction: PositionDirection.LONG,
 				baseAssetAmount,
-				false
-			);
+			});
 
 			const curPrice = (await getFeedData(anchor.workspace.Pyth, thisUsd))
 				.price;
@@ -524,13 +516,11 @@ describe('prepeg', () => {
 			.price;
 		await setFeedPrice(anchor.workspace.Pyth, curPrice * 1.01, mockOracles[0]);
 
-		const orderParams = getMarketOrderParams(
-			new BN(0),
-			PositionDirection.SHORT,
-			ZERO,
-			user.positions[0].baseAssetAmount.div(new BN(2)),
-			false
-		);
+		const orderParams = getMarketOrderParams({
+			marketIndex: new BN(0),
+			direction: PositionDirection.SHORT,
+			baseAssetAmount: user.positions[0].baseAssetAmount.div(new BN(2)),
+		});
 
 		const txSig = await clearingHouse.placeAndTake(orderParams);
 		const computeUnits = await findComputeUnitConsumption(

@@ -11,6 +11,9 @@ import {
 	BankAccount,
 	UserBankBalance,
 	MakerInfo,
+	OptionalOrderParams,
+	DefaultOrderParams,
+	OrderType,
 } from './types';
 import * as anchor from '@project-serum/anchor';
 import clearingHouseIDL from './idl/clearing_house.json';
@@ -52,7 +55,6 @@ import { WebSocketClearingHouseAccountSubscriber } from './accounts/webSocketCle
 import { RetryTxSender } from './tx/retryTxSender';
 import { ClearingHouseUser } from './clearingHouseUser';
 import { ClearingHouseUserAccountSubscriptionConfig } from './clearingHouseUserConfig';
-import { getMarketOrderParams } from './orderParams';
 import { getMarketsBanksAndOraclesForSubscription } from './config';
 
 /**
@@ -957,20 +959,17 @@ export class ClearingHouse {
 		marketIndex: BN,
 		limitPrice?: BN
 	): Promise<TransactionSignature> {
-		return await this.placeAndTake(
-			getMarketOrderParams(
-				marketIndex,
-				direction,
-				ZERO,
-				amount,
-				false,
-				limitPrice
-			)
-		);
+		return await this.placeAndTake({
+			orderType: OrderType.MARKET,
+			marketIndex,
+			direction,
+			baseAssetAmount: amount,
+			price: limitPrice,
+		});
 	}
 
 	public async placeOrder(
-		orderParams: OrderParams
+		orderParams: OptionalOrderParams
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.txSender.send(
 			wrapInTx(await this.getPlaceOrderIx(orderParams)),
@@ -981,9 +980,14 @@ export class ClearingHouse {
 		return txSig;
 	}
 
+	getOrderParams(optionalOrderParams: OptionalOrderParams): OrderParams {
+		return Object.assign({}, DefaultOrderParams, optionalOrderParams);
+	}
+
 	public async getPlaceOrderIx(
-		orderParams: OrderParams
+		orderParams: OptionalOrderParams
 	): Promise<TransactionInstruction> {
+		orderParams = this.getOrderParams(orderParams);
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 
 		const remainingAccounts = this.getRemainingAccounts({
@@ -1269,7 +1273,7 @@ export class ClearingHouse {
 	}
 
 	public async placeAndTake(
-		orderParams: OrderParams,
+		orderParams: OptionalOrderParams,
 		makerInfo?: MakerInfo
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.txSender.send(
@@ -1282,9 +1286,10 @@ export class ClearingHouse {
 	}
 
 	public async getPlaceAndTakeIx(
-		orderParams: OrderParams,
+		orderParams: OptionalOrderParams,
 		makerInfo?: MakerInfo
 	): Promise<TransactionInstruction> {
+		orderParams = this.getOrderParams(orderParams);
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 
 		const remainingAccounts = this.getRemainingAccounts({
@@ -1327,16 +1332,13 @@ export class ClearingHouse {
 			throw Error(`No position in market ${marketIndex.toString()}`);
 		}
 
-		return await this.placeAndTake(
-			getMarketOrderParams(
-				marketIndex,
-				findDirectionToClose(userPosition),
-				ZERO,
-				userPosition.baseAssetAmount,
-				true,
-				undefined
-			)
-		);
+		return await this.placeAndTake({
+			orderType: OrderType.MARKET,
+			marketIndex,
+			direction: findDirectionToClose(userPosition),
+			baseAssetAmount: userPosition.baseAssetAmount,
+			reduceOnly: true,
+		});
 	}
 
 	public async settlePNLs(

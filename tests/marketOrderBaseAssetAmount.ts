@@ -79,7 +79,7 @@ describe('clearing_house', () => {
 		await clearingHouse.subscribe();
 
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
-		await clearingHouse.updateOrderAuctionTime(new BN(0));
+		await clearingHouse.updateAuctionDuration(new BN(0), new BN(0));
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
@@ -105,13 +105,11 @@ describe('clearing_house', () => {
 	it('Long from 0 position', async () => {
 		const marketIndex = new BN(0);
 		const baseAssetAmount = new BN(497450500000000);
-		const orderParams = getMarketOrderParams(
+		const orderParams = getMarketOrderParams({
 			marketIndex,
-			PositionDirection.LONG,
-			ZERO,
+			direction: PositionDirection.LONG,
 			baseAssetAmount,
-			false
-		);
+		});
 		await clearingHouse.placeAndTake(orderParams);
 		const txSig = await clearingHouse.settlePNL(
 			await clearingHouse.getUserAccountPublicKey(),
@@ -180,14 +178,12 @@ describe('clearing_house', () => {
 			);
 
 			const baseAssetAmount = new BN(497450503674885).div(new BN(2));
-			const orderParams = getMarketOrderParams(
+			const orderParams = getMarketOrderParams({
 				marketIndex,
-				PositionDirection.SHORT,
-				ZERO,
+				direction: PositionDirection.SHORT,
 				baseAssetAmount,
-				false,
-				limitPriceTooHigh
-			);
+				price: limitPriceTooHigh,
+			});
 			await clearingHouse.placeAndTake(orderParams);
 		} catch (e) {
 			assert(true);
@@ -200,13 +196,11 @@ describe('clearing_house', () => {
 	it('Reduce long position', async () => {
 		const marketIndex = new BN(0);
 		const baseAssetAmount = new BN(248725250000000);
-		const orderParams = getMarketOrderParams(
+		const orderParams = getMarketOrderParams({
 			marketIndex,
-			PositionDirection.SHORT,
-			ZERO,
+			direction: PositionDirection.SHORT,
 			baseAssetAmount,
-			false
-		);
+		});
 		const txSig = await clearingHouse.placeAndTake(orderParams);
 		await printTxLogs(connection, txSig);
 
@@ -262,13 +256,11 @@ describe('clearing_house', () => {
 	it('Reverse long position', async () => {
 		const marketIndex = new BN(0);
 		const baseAssetAmount = new BN(497450500000000);
-		const orderParams = getMarketOrderParams(
+		const orderParams = getMarketOrderParams({
 			marketIndex,
-			PositionDirection.SHORT,
-			ZERO,
+			direction: PositionDirection.SHORT,
 			baseAssetAmount,
-			false
-		);
+		});
 		await clearingHouse.placeAndTake(orderParams);
 		await clearingHouse.settlePNL(
 			await clearingHouse.getUserAccountPublicKey(),
@@ -322,13 +314,12 @@ describe('clearing_house', () => {
 	it('Close position', async () => {
 		const marketIndex = new BN(0);
 		const baseAssetAmount = new BN(248725250000000);
-		const orderParams = getMarketOrderParams(
+		const orderParams = getMarketOrderParams({
 			marketIndex,
-			PositionDirection.LONG,
-			ZERO,
+			direction: PositionDirection.LONG,
 			baseAssetAmount,
-			true
-		);
+			reduceOnly: true,
+		});
 		await clearingHouse.placeAndTake(orderParams);
 		await clearingHouse.settlePNL(
 			await clearingHouse.getUserAccountPublicKey(),

@@ -46,18 +46,36 @@ pub struct State {
     pub number_of_markets: u64,
     pub number_of_banks: u64,
     pub min_order_quote_asset_amount: u128, // minimum est. quote_asset_amount for place_order to succeed
-    pub order_auction_duration: u8,         // number of slots
+    pub min_auction_duration: u8,
+    pub max_auction_duration: u8,
 
     // upgrade-ability
     pub padding0: u128,
     pub padding1: u128,
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct OracleGuardRails {
     pub price_divergence: PriceDivergenceGuardRails,
     pub validity: ValidityGuardRails,
     pub use_for_liquidations: bool,
+}
+
+impl Default for OracleGuardRails {
+    fn default() -> Self {
+        OracleGuardRails {
+            price_divergence: PriceDivergenceGuardRails {
+                mark_oracle_divergence_numerator: 1,
+                mark_oracle_divergence_denominator: 10,
+            },
+            validity: ValidityGuardRails {
+                slots_before_stale: 1000,
+                confidence_interval_max_size: 4,
+                too_volatile_ratio: 5,
+            },
+            use_for_liquidations: true,
+        }
+    }
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]

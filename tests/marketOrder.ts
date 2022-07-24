@@ -100,7 +100,7 @@ describe('market order', () => {
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
-		await clearingHouse.updateOrderAuctionTime(new BN(0));
+		await clearingHouse.updateAuctionDuration(new BN(0), new BN(0));
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
@@ -200,14 +200,12 @@ describe('market order', () => {
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
 		const price = MARK_PRICE_PRECISION.mul(new BN(2));
 
-		const orderParams = getMarketOrderParams(
+		const orderParams = getMarketOrderParams({
 			marketIndex,
 			direction,
-			ZERO,
 			baseAssetAmount,
-			false,
-			price
-		);
+			price,
+		});
 		await clearingHouse.placeAndTake(orderParams);
 		const orderIndex = new BN(0);
 
@@ -259,14 +257,12 @@ describe('market order', () => {
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
 		const price = MARK_PRICE_PRECISION.mul(new BN(1));
 
-		const orderParams = getMarketOrderParams(
+		const orderParams = getMarketOrderParams({
 			marketIndex,
 			direction,
-			ZERO,
 			baseAssetAmount,
-			false,
-			price
-		);
+			price,
+		});
 		await clearingHouse.placeAndTake(orderParams);
 
 		await clearingHouse.fetchAccounts();

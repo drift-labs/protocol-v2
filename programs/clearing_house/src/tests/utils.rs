@@ -48,4 +48,10 @@ macro_rules! create_account_info {
         let owner = $type::owner();
         let $name = create_account_info(&key, true, &mut lamports, &mut data[..], &owner);
     };
+    ($account:expr, $pubkey:expr, $type:ident, $name: ident) => {
+        let mut lamports = 0;
+        let mut data = get_account_bytes(&mut $account);
+        let owner = $type::owner();
+        let $name = create_account_info($pubkey, true, &mut lamports, &mut data[..], &owner);
+    };
 }

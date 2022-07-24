@@ -1,12 +1,10 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
 import {
-	// BASE_PRECISION,
 	BN,
 	calculatePrice,
 	getMarketOrderParams,
 	OracleSource,
-	ZERO,
 	BID_ASK_SPREAD_PRECISION,
 	PEG_PRECISION,
 	QUOTE_ASSET_BANK_INDEX,
@@ -153,7 +151,7 @@ describe('repeg and spread amm', () => {
 		});
 
 		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.updateOrderAuctionTime(0);
+		await clearingHouse.updateAuctionDuration(0, 0);
 		await clearingHouse.subscribe();
 
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
@@ -205,13 +203,11 @@ describe('repeg and spread amm', () => {
 	it('BTC market massive spread', async () => {
 		const marketIndex = new BN(0);
 		const baseAssetAmount = new BN(0.19316 * AMM_RESERVE_PRECISION.toNumber());
-		const orderParams = getMarketOrderParams(
+		const orderParams = getMarketOrderParams({
 			marketIndex,
-			PositionDirection.SHORT,
-			ZERO,
+			direction: PositionDirection.SHORT,
 			baseAssetAmount,
-			false
-		);
+		});
 		await depositToFeePoolFromIF(0.001, clearingHouse, userUSDCAccount);
 
 		// await clearingHouse.placeAndFillOrder(orderParams);
@@ -477,13 +473,11 @@ describe('repeg and spread amm', () => {
 				tradeDirection = PositionDirection.SHORT;
 			}
 
-			const orderParams = getMarketOrderParams(
-				new BN(0),
-				tradeDirection,
-				ZERO,
-				new BN(tradeSize),
-				false
-			);
+			const orderParams = getMarketOrderParams({
+				marketIndex: new BN(0),
+				direction: tradeDirection,
+				baseAssetAmount: new BN(tradeSize),
+			});
 
 			await clearingHouses[count % 5].placeAndTake(orderParams);
 			count += 1;

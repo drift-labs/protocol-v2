@@ -82,7 +82,7 @@ describe('amm spread: market order', () => {
 		await clearingHouse.subscribe();
 
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
-		await clearingHouse.updateOrderAuctionTime(new BN(0));
+		await clearingHouse.updateAuctionDuration(new BN(0), new BN(0));
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
@@ -158,13 +158,11 @@ describe('amm spread: market order', () => {
 	it('Place long market order', async () => {
 		const direction = PositionDirection.LONG;
 		const baseAssetAmount = BASE_PRECISION;
-		const orderParams = getMarketOrderParams(
+		const orderParams = getMarketOrderParams({
 			marketIndex,
 			direction,
-			ZERO,
 			baseAssetAmount,
-			false
-		);
+		});
 
 		const txSig = await clearingHouse.placeOrder(orderParams);
 		await printTxLogs(connection, txSig);

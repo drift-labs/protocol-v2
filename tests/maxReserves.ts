@@ -77,7 +77,7 @@ describe('max reserves', () => {
 		await clearingHouse.subscribe();
 
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
-		await clearingHouse.updateOrderAuctionTime(new BN(0));
+		await clearingHouse.updateAuctionDuration(new BN(0), new BN(0));
 
 		for (let i = 0; i < maxPositions; i++) {
 			const oracle = await mockOracle(1);

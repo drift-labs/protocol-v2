@@ -2,7 +2,11 @@ import { isVariant, Order } from '../types';
 import { BN, ZERO } from '../.';
 
 export function isAuctionComplete(order: Order, slot: number): boolean {
-	return new BN(slot).sub(order.slot).gte(new BN(order.auctionDuration));
+	if (order.auctionDuration === 0) {
+		return true;
+	}
+
+	return new BN(slot).sub(order.slot).gt(new BN(order.auctionDuration));
 }
 
 export function getAuctionPrice(order: Order, slot: number): BN {

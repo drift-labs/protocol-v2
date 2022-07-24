@@ -1,9 +1,10 @@
 import { ClearingHouseUser } from '../clearingHouseUser';
-import { isOneOfVariant, isVariant, Order } from '../types';
+import { isOneOfVariant, isVariant, MarketAccount, Order } from '../types';
 import { ZERO, TWO } from '../constants/numericConstants';
 import { BN } from '@project-serum/anchor';
 import { OraclePriceData } from '../oracles/types';
-import { getAuctionPrice } from './auction';
+import { getAuctionPrice, isAuctionComplete } from './auction';
+import { calculateAskPrice, calculateBidPrice } from './market';
 
 export function isOrderRiskIncreasing(
 	user: ClearingHouseUser,
@@ -120,6 +121,7 @@ export function standardizeBaseAssetAmount(
 
 export function getLimitPrice(
 	order: Order,
+	market: MarketAccount,
 	oraclePriceData: OraclePriceData,
 	slot: number
 ): BN {
@@ -127,7 +129,19 @@ export function getLimitPrice(
 	if (!order.oraclePriceOffset.eq(ZERO)) {
 		limitPrice = oraclePriceData.price.add(order.oraclePriceOffset);
 	} else if (isOneOfVariant(order.orderType, ['market', 'triggerMarket'])) {
-		limitPrice = getAuctionPrice(order, slot);
+		if (isAuctionComplete(order, slot)) {
+			limitPrice = getAuctionPrice(order, slot);
+		} else if (!order.price.eq(ZERO)) {
+			limitPrice = order.price;
+		} else if (isVariant(order.direction, 'long')) {
+			const askPrice = calculateAskPrice(market, oraclePriceData);
+			const delta = askPrice.div(new BN(market.amm.maxSlippageRatio));
+			limitPrice = askPrice.add(delta);
+		} else {
+			const bidPrice = calculateBidPrice(market, oraclePriceData);
+			const delta = bidPrice.div(new BN(market.amm.maxSlippageRatio));
+			limitPrice = bidPrice.sub(delta);
+		}
 	} else {
 		limitPrice = order.price;
 	}
