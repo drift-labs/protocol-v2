@@ -433,25 +433,30 @@ pub fn fill_order(
         None
     };
 
+    let is_filler_taker = user_key == filler_key;
+    let is_filler_maker = maker.map_or(false, |maker| maker.key() == filler_key);
+    let mut filler = if !is_filler_maker && !is_filler_taker {
+        Some(load_mut(filler)?)
+    } else {
+        None
+    };
+
     let (mut maker, maker_key, maker_order_index) = sanitize_maker_order(
         market_map,
         oracle_map,
         maker,
         maker_order_id,
         &user.orders[order_index],
+        &mut filler.as_deref_mut(),
         &filler_key,
+        state
+            .fee_structure
+            .filler_reward_structure
+            .time_based_reward_lower_bound,
         oracle_price,
         now,
         slot,
     )?;
-
-    let is_filler_taker = user_key == filler_key;
-    let is_filler_maker = maker_key.map_or(false, |key| key == user_key);
-    let mut filler = if !is_filler_maker && !is_filler_taker {
-        Some(load_mut(filler)?)
-    } else {
-        None
-    };
 
     let should_expire_order =
         should_expire_order(user, order_index, slot, state.max_auction_duration)?;
@@ -600,7 +605,9 @@ fn sanitize_maker_order<'a>(
     maker: Option<&'a AccountLoader<User>>,
     maker_order_id: Option<u64>,
     taker_order: &Order,
+    filler: &mut Option<&mut User>,
     filler_key: &Pubkey,
+    filler_reward: u128,
     oracle_price: i128,
     now: i64,
     slot: u64,
@@ -637,6 +644,17 @@ fn sanitize_maker_order<'a>(
         oracle_price,
         slot,
     )? {
+        let filler_reward = {
+            let mut market =
+                market_map.get_ref_mut(&maker.orders[maker_order_index].market_index)?;
+            pay_filler_flat_reward(
+                &mut maker,
+                filler.as_deref_mut(),
+                market.deref_mut(),
+                filler_reward,
+            )?
+        };
+
         cancel_order(
             maker_order_index,
             maker.deref_mut(),
@@ -647,7 +665,7 @@ fn sanitize_maker_order<'a>(
             slot,
             OrderActionExplanation::OraclePriceBreachedLimitPrice,
             Some(filler_key),
-            0,
+            filler_reward,
         )?;
         return Ok((None, None, None));
     }
