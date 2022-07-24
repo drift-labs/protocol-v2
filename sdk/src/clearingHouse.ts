@@ -938,7 +938,6 @@ export class ClearingHouse {
 	): Promise<TransactionInstruction> {
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 		const remainingAccounts = this.getRemainingAccounts({
-			writableBankIndex: QUOTE_ASSET_BANK_INDEX,
 			writableMarketIndex: marketIndex,
 		});
 
