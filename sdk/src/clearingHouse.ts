@@ -1000,7 +1000,7 @@ export class ClearingHouse {
 				const market = this.getMarketAccount(position.marketIndex);
 				marketAccountInfos.push({
 					pubkey: market.pubkey,
-					isWritable: false,
+					isWritable: true,
 					isSigner: false,
 				});
 				oracleAccountInfos.push({
