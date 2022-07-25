@@ -7,7 +7,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use crate::error::ClearingHouseResult;
 use crate::math::constants::{AMM_RESERVE_PRECISION, BANK_WEIGHT_PRECISION};
 use crate::math::margin::{
-    calculate_size_discount_asset_weight, calculate_size_markup_liability_weight,
+    calculate_size_discount_asset_weight, calculate_size_premium_liability_weight,
     MarginRequirementType,
 };
 use crate::state::oracle::OracleSource;
@@ -82,14 +82,14 @@ impl Bank {
             (size * AMM_RESERVE_PRECISION) / size_precision
         };
 
-        let libability_weight = match margin_requirement_type {
-            MarginRequirementType::Initial => calculate_size_markup_liability_weight(
+        let liability_weight = match margin_requirement_type {
+            MarginRequirementType::Initial => calculate_size_premium_liability_weight(
                 size_in_amm_reserve_precision,
                 self.imf_factor,
                 self.initial_liability_weight,
                 BANK_WEIGHT_PRECISION,
             )?,
-            MarginRequirementType::Partial => calculate_size_markup_liability_weight(
+            MarginRequirementType::Partial => calculate_size_premium_liability_weight(
                 size_in_amm_reserve_precision,
                 self.imf_factor,
                 self.maintenance_liability_weight,
@@ -98,7 +98,7 @@ impl Bank {
             MarginRequirementType::Maintenance => self.maintenance_liability_weight,
         };
 
-        Ok(libability_weight)
+        Ok(liability_weight)
     }
 }
 

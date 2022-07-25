@@ -8,7 +8,7 @@ use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm;
 use crate::math::casting::{cast, cast_to_i128, cast_to_i64, cast_to_u128};
 use crate::math::margin::{
-    calculate_size_discount_asset_weight, calculate_size_markup_liability_weight,
+    calculate_size_discount_asset_weight, calculate_size_premium_liability_weight,
     MarginRequirementType,
 };
 use crate::math_error;
@@ -60,14 +60,14 @@ impl Market {
         let margin_ratio = match margin_type {
             MarginRequirementType::Initial => max(
                 self.margin_ratio_initial as u128,
-                calculate_size_markup_liability_weight(
+                calculate_size_premium_liability_weight(
                     size,
                     self.imf_factor,
                     self.margin_ratio_partial as u128,
                     MARGIN_PRECISION,
                 )? + 1,
             ),
-            MarginRequirementType::Partial => calculate_size_markup_liability_weight(
+            MarginRequirementType::Partial => calculate_size_premium_liability_weight(
                 size,
                 self.imf_factor,
                 self.margin_ratio_partial as u128,

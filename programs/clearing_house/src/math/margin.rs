@@ -10,7 +10,6 @@ use crate::math::position::{
 use crate::math_error;
 use crate::state::user::User;
 
-use crate::error::ErrorCode;
 use crate::math::amm::use_oracle_price_for_margin_calculation;
 use crate::math::bank_balance::get_balance_value_and_token_amount;
 use crate::math::casting::cast_to_i128;
@@ -26,7 +25,6 @@ use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
 use crate::state::state::OracleGuardRails;
 use crate::state::user::{MarketPosition, UserBankBalance};
-use crate::validate;
 use num_integer::Roots;
 use solana_program::msg;
 use std::cmp::{max, min};
@@ -39,7 +37,7 @@ pub enum MarginRequirementType {
     Maintenance,
 }
 
-pub fn calculate_size_markup_liability_weight(
+pub fn calculate_size_premium_liability_weight(
     size: u128, // AMM_RESERVE_PRECISION
     imf_factor: u128,
     liability_weight: u128,
@@ -60,7 +58,7 @@ pub fn calculate_size_markup_liability_weight(
         .ok_or_else(math_error!())?;
 
     // increases
-    let size_markup_liability_weight = liability_weight_numer
+    let size_premium_liability_weight = liability_weight_numer
         .checked_add(
             size_sqrt // 1e5
                 .checked_mul(imf_factor)
@@ -70,7 +68,7 @@ pub fn calculate_size_markup_liability_weight(
         )
         .ok_or_else(math_error!())?;
 
-    let max_liability_weight = max(liability_weight, size_markup_liability_weight);
+    let max_liability_weight = max(liability_weight, size_premium_liability_weight);
     Ok(max_liability_weight)
 }
 
@@ -83,7 +81,7 @@ pub fn calculate_size_discount_asset_weight(
         return Ok(asset_weight);
     }
 
-    let size_sqrt = (size / 1000).nth_root(2) + 1; //1e13 -> 1e10 -> 1e5
+    let size_sqrt = ((size / 1000) + 1).nth_root(2); //1e13 -> 1e10 -> 1e5
     let imf_numerator = BANK_IMF_PRECISION + BANK_IMF_PRECISION / 10;
 
     let size_discount_asset_weight = imf_numerator
@@ -107,7 +105,7 @@ pub fn calculate_size_discount_asset_weight(
     Ok(min_asset_weight)
 }
 
-pub fn calculate_bank_equity_value(
+pub fn calculate_bank_balance_value(
     user_bank_balance: &UserBankBalance,
     bank: &Bank,
     oracle_price_data: &OraclePriceData,
@@ -132,7 +130,7 @@ pub fn calculate_bank_equity_value(
     Ok(balance_equity_value)
 }
 
-pub fn calculate_oracle_price_for_margin(
+pub fn calculate_oracle_price_for_perp_margin(
     market_position: &MarketPosition,
     market: &Market,
     oracle_price_data: &OraclePriceData,
@@ -165,14 +163,14 @@ pub fn calculate_oracle_price_for_margin(
     Ok(oracle_price)
 }
 
-pub fn calculate_perp_equity_value(
+pub fn calculate_perp_position_value(
     market_position: &MarketPosition,
     market: &Market,
     oracle_price_data: &OraclePriceData,
     margin_requirement_type: MarginRequirementType,
 ) -> ClearingHouseResult<(u128, i128)> {
     let oracle_price_for_upnl =
-        calculate_oracle_price_for_margin(market_position, market, oracle_price_data)?;
+        calculate_oracle_price_for_perp_margin(market_position, market, oracle_price_data)?;
 
     let (_, position_unrealized_pnl) = calculate_base_asset_value_and_pnl_with_oracle_price(
         market_position,
@@ -200,6 +198,8 @@ pub fn calculate_perp_equity_value(
 
     let margin_requirement = worse_case_base_asset_value
         .checked_mul(margin_ratio.into())
+        .ok_or_else(math_error!())?
+        .checked_div(MARGIN_PRECISION)
         .ok_or_else(math_error!())?;
 
     let unsettled_pnl_equity = position_total_unsettled_pnl
@@ -227,7 +227,7 @@ pub fn calculate_margin_requirement_and_total_collateral(
         }
         let bank = &bank_map.get_ref(&user_bank_balance.bank_index)?;
         let oracle_price_data = oracle_map.get_price_data(&bank.oracle)?;
-        let bank_equity_value = calculate_bank_equity_value(
+        let bank_equity_value = calculate_bank_balance_value(
             user_bank_balance,
             bank,
             oracle_price_data,
@@ -247,9 +247,6 @@ pub fn calculate_margin_requirement_and_total_collateral(
         }
     }
 
-    let mut perp_margin_requirements: u128 = 0;
-    let mut unrealized_pnl: i128 = 0;
-
     for market_position in user.positions.iter() {
         if market_position.base_asset_amount == 0
             && market_position.unsettled_pnl == 0
@@ -260,42 +257,23 @@ pub fn calculate_margin_requirement_and_total_collateral(
 
         let market = &market_map.get_ref(&market_position.market_index)?;
 
-        validate!(
-            (oracle_map.slot == market.amm.last_update_slot
-                || market.amm.curve_update_intensity == 0),
-            ErrorCode::AMMNotUpdatedInSameSlot,
-            "AMM must be updated in a prior instruction within same slot"
-        )?;
-
         let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
 
-        let (perp_margin_requirement, perp_unrealized_pnl) = calculate_perp_equity_value(
+        let (perp_margin_requirement, perp_pnl) = calculate_perp_position_value(
             market_position,
             market,
             oracle_price_data,
             margin_requirement_type,
         )?;
 
-        perp_margin_requirements = perp_margin_requirements
+        margin_requirement
             .checked_add(perp_margin_requirement)
             .ok_or_else(math_error!())?;
 
-        unrealized_pnl = unrealized_pnl
-            .checked_add(perp_unrealized_pnl)
+        total_collateral = total_collateral
+            .checked_add(perp_pnl)
             .ok_or_else(math_error!())?;
     }
-
-    margin_requirement = margin_requirement
-        .checked_add(
-            perp_margin_requirements
-                .checked_div(MARGIN_PRECISION)
-                .ok_or_else(math_error!())?,
-        )
-        .ok_or_else(math_error!())?;
-
-    let total_collateral = total_collateral
-        .checked_add(unrealized_pnl)
-        .ok_or_else(math_error!())?;
 
     Ok((margin_requirement, total_collateral))
 }
@@ -1004,7 +982,7 @@ mod test {
             has_sufficient_number_of_data_points: true,
         };
 
-        let (pmr, unrealized_pnl) = calculate_perp_equity_value(
+        let (pmr, unrealized_pnl) = calculate_perp_position_value(
             &market_position,
             &market,
             &oracle_price_data,
@@ -1019,7 +997,7 @@ mod test {
             has_sufficient_number_of_data_points: true,
         };
 
-        let mut total_collateral = calculate_bank_equity_value(
+        let mut total_collateral = calculate_bank_balance_value(
             &user_bank_balance,
             &bank,
             &quote_asset_oracle_price_data,
@@ -1104,7 +1082,7 @@ mod test {
             delay: 0,
             has_sufficient_number_of_data_points: true,
         };
-        let bqv = calculate_bank_equity_value(
+        let bqv = calculate_bank_balance_value(
             &user_bank_balance,
             &bank,
             &quote_asset_oracle_price_data,
@@ -1127,7 +1105,7 @@ mod test {
         market.unsettled_imf_factor = market.imf_factor;
 
         let oracle_price_for_margin =
-            calculate_oracle_price_for_margin(&market_position, &market, &oracle_price_data)
+            calculate_oracle_price_for_perp_margin(&market_position, &market, &oracle_price_data)
                 .unwrap();
         assert_eq!(oracle_price_for_margin, 220500000000000);
 
@@ -1136,7 +1114,7 @@ mod test {
             .unwrap();
         assert_eq!(uaw, 95);
 
-        let (pmr, upnl) = calculate_perp_equity_value(
+        let (pmr, upnl) = calculate_perp_position_value(
             &market_position,
             &market,
             &oracle_price_data,
@@ -1150,7 +1128,7 @@ mod test {
         assert!(pmr > 0);
         assert_eq!(pmr, 135553278686000);
 
-        let (pmr_partial, upnl_partial) = calculate_perp_equity_value(
+        let (pmr_partial, upnl_partial) = calculate_perp_position_value(
             &market_position,
             &market,
             &oracle_price_data,
@@ -1170,7 +1148,7 @@ mod test {
         oracle_price_data.confidence = MARK_PRICE_PRECISION;
 
         let oracle_price_for_margin_2 =
-            calculate_oracle_price_for_margin(&market_position, &market, &oracle_price_data)
+            calculate_oracle_price_for_perp_margin(&market_position, &market, &oracle_price_data)
                 .unwrap();
         assert_eq!(oracle_price_for_margin_2, 210510000000000);
 
@@ -1229,7 +1207,7 @@ mod test {
         );
         assert_eq!(position_unsettled_pnl * 800000, 19421311476000000); // 1.9 billion
 
-        let (pmr_2, upnl_2) = calculate_perp_equity_value(
+        let (pmr_2, upnl_2) = calculate_perp_position_value(
             &market_position,
             &market,
             &oracle_price_data,
@@ -1249,5 +1227,11 @@ mod test {
         assert!(pmr > pmr_2);
         assert_eq!(pmr - pmr_2, 6147540984000);
         //-6.1475409835 * 1000 / 10 = 614.75
+    }
+
+    #[test]
+    fn test_nroot() {
+        let ans = (0).nth_root(2);
+        assert_eq!(ans, 0);
     }
 }
