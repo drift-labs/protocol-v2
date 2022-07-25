@@ -4,6 +4,7 @@
 use anchor_lang::prelude::*;
 use borsh::BorshSerialize;
 
+use crate::load as other_load;
 use context::*;
 use error::ErrorCode;
 use math::{amm, bn, constants::*, margin::*};
@@ -812,8 +813,9 @@ pub mod clearing_house {
         order_id: Option<u64>,
         maker_order_id: Option<u64>,
     ) -> Result<()> {
+        msg!("here");
         let (order_id, writable_markets) = {
-            let user = &load(&ctx.accounts.user)?;
+            let user = &other_load!(&ctx.accounts.user)?;
             // if there is no order id, use the users last order id
             let order_id = order_id.map_or(user.next_order_id - 1, |order_id| order_id);
             let order_index = user
@@ -825,6 +827,7 @@ pub mod clearing_house {
 
             (order_id, &get_writable_markets(order.market_index))
         };
+        msg!("here");
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
@@ -834,17 +837,21 @@ pub mod clearing_house {
         )?;
         let mut market_map = MarketMap::load(writable_markets, remaining_accounts_iter)?;
 
+        msg!("here");
         let maker = match maker_order_id {
             Some(_) => Some(get_maker(remaining_accounts_iter)?),
             None => None,
         };
 
+        msg!("here");
         controller::repeg::update_amms(
             &mut market_map,
             &mut oracle_map,
             &ctx.accounts.state,
             &Clock::get()?,
         )?;
+
+        msg!("here2");
 
         let base_asset_amount = controller::orders::fill_order(
             order_id,

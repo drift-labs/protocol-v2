@@ -13,6 +13,7 @@ use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
 use crate::get_struct_values;
 use crate::get_then_update_id;
+use crate::load_mut;
 use crate::math::amm::is_oracle_valid;
 use crate::math::auction::{
     calculate_auction_end_price, calculate_auction_start_price, is_auction_complete,
@@ -356,7 +357,7 @@ pub fn fill_order(
 
     let filler_key = filler.key();
     let user_key = user.key();
-    let user = &mut load_mut(user)?;
+    let user = &mut load_mut!(user)?;
     controller::funding::settle_funding_payment(user, &user_key, market_map, now)?;
 
     let order_index = user
@@ -426,7 +427,7 @@ pub fn fill_order(
     let is_filler_taker = user_key == filler_key;
     let is_filler_maker = maker_key.map_or(false, |key| key == user_key);
     let mut filler = if !is_filler_maker && !is_filler_taker {
-        Some(load_mut(filler)?)
+        Some(load_mut!(filler)?)
     } else {
         None
     };
@@ -527,7 +528,7 @@ fn sanitize_maker_order<'a>(
 
     let maker = maker.unwrap();
     let maker_key = maker.key();
-    let mut maker = load_mut(maker)?;
+    let mut maker = load_mut!(maker)?;
     let maker_order_index =
         maker.get_order_index(maker_order_id.ok_or(ErrorCode::MakerOrderNotFound)?)?;
 
