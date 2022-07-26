@@ -343,7 +343,6 @@ pub struct OrderParams {
     pub order_type: OrderType,
     pub direction: PositionDirection,
     pub user_order_id: u8,
-    pub quote_asset_amount: u128,
     pub base_asset_amount: u128,
     pub price: u128,
     pub market_index: u64,
@@ -355,6 +354,7 @@ pub struct OrderParams {
     pub optional_accounts: OrderParamsOptionalAccounts,
     pub position_limit: u128,
     pub oracle_price_offset: i128,
+    pub auction_duration: u8,
     pub padding0: bool,
     pub padding1: bool,
 }

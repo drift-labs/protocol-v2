@@ -90,7 +90,7 @@ describe('post only', () => {
 		await fillerClearingHouse.initialize(usdcMint.publicKey, true);
 		await fillerClearingHouse.subscribe();
 		await initializeQuoteAssetBank(fillerClearingHouse, usdcMint.publicKey);
-		await fillerClearingHouse.updateOrderAuctionTime(new BN(0));
+		await fillerClearingHouse.updateAuctionDuration(new BN(0), new BN(0));
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
@@ -168,17 +168,14 @@ describe('post only', () => {
 		const markPrice = calculateMarkPrice(
 			clearingHouse.getMarketAccount(marketIndex)
 		);
-		const makerOrderParams = getLimitOrderParams(
+		const makerOrderParams = getLimitOrderParams({
 			marketIndex,
-			PositionDirection.LONG,
+			direction: PositionDirection.LONG,
 			baseAssetAmount,
-			markPrice,
-			false,
-			false,
-			false,
-			1,
-			true
-		);
+			price: markPrice,
+			userOrderId: 1,
+			postOnly: true,
+		});
 		await clearingHouse.placeOrder(makerOrderParams);
 		await clearingHouseUser.fetchAccounts();
 		const order = clearingHouseUser.getOrderByUserOrderId(1);
@@ -259,17 +256,14 @@ describe('post only', () => {
 		const markPrice = calculateMarkPrice(
 			clearingHouse.getMarketAccount(marketIndex)
 		);
-		const makerOrderParams = getLimitOrderParams(
+		const makerOrderParams = getLimitOrderParams({
 			marketIndex,
-			PositionDirection.SHORT,
+			direction: PositionDirection.SHORT,
 			baseAssetAmount,
-			markPrice,
-			false,
-			false,
-			false,
-			1,
-			true
-		);
+			price: markPrice,
+			userOrderId: 1,
+			postOnly: true,
+		});
 		await clearingHouse.placeOrder(makerOrderParams);
 		await clearingHouseUser.fetchAccounts();
 		const order = clearingHouseUser.getOrderByUserOrderId(1);

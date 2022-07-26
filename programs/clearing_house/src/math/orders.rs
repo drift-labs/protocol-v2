@@ -6,88 +6,59 @@ use solana_program::msg;
 use crate::controller::amm::SwapDirection;
 use crate::controller::position::PositionDelta;
 use crate::controller::position::PositionDirection;
-use crate::error::{ClearingHouseResult, ErrorCode};
+use crate::error::ClearingHouseResult;
 use crate::math;
-use crate::math::casting::cast_to_i128;
+use crate::math::amm::calculate_max_base_asset_amount_fillable;
+use crate::math::auction::is_auction_complete;
+use crate::math::casting::{cast, cast_to_i128};
 use crate::math::constants::{MARGIN_PRECISION, MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO};
 use crate::math::position::calculate_entry_price;
 use crate::math_error;
 use crate::state::market::Market;
-use crate::state::user::{Order, OrderTriggerCondition, OrderType};
+use crate::state::user::{Order, OrderStatus, OrderTriggerCondition, OrderType, User};
 
-pub fn calculate_base_asset_amount_market_can_execute(
+pub fn calculate_base_asset_amount_for_amm_to_fulfill(
     order: &Order,
     market: &Market,
     valid_oracle_price: Option<i128>,
     slot: u64,
 ) -> ClearingHouseResult<u128> {
-    match order.order_type {
-        OrderType::Limit => {
-            calculate_base_asset_amount_to_trade_for_limit(order, market, valid_oracle_price, slot)
-        }
-        OrderType::TriggerMarket => {
-            calculate_base_asset_amount_to_trade_for_trigger_market(order, market)
-        }
-        OrderType::TriggerLimit => {
-            calculate_base_asset_amount_to_trade_for_trigger_limit(order, market, slot)
-        }
-        OrderType::Market => Err(ErrorCode::InvalidOrder),
+    if order.must_be_triggered() && !order.triggered {
+        return Ok(0);
     }
+
+    let limit_price = order.get_limit_price(&market.amm, valid_oracle_price, slot)?;
+    let base_asset_amount =
+        calculate_base_asset_amount_to_fill_up_to_limit_price(order, market, limit_price)?;
+    let max_base_asset_amount = calculate_max_base_asset_amount_fillable(&market.amm)?;
+
+    let base_asset_amount = min(base_asset_amount, max_base_asset_amount);
+
+    Ok(base_asset_amount)
 }
 
-pub fn calculate_base_asset_amount_to_trade_for_limit(
+pub fn calculate_base_asset_amount_to_fill_up_to_limit_price(
     order: &Order,
     market: &Market,
-    valid_oracle_price: Option<i128>,
-    slot: u64,
+    limit_price: u128,
 ) -> ClearingHouseResult<u128> {
-    let base_asset_amount_to_fill = order
-        .base_asset_amount
-        .checked_sub(order.base_asset_amount_filled)
-        .ok_or_else(math_error!())?;
-
-    let limit_price = order.get_limit_price(valid_oracle_price, slot)?;
+    let base_asset_amount_unfilled = order.get_base_asset_amount_unfilled()?;
 
     let (max_trade_base_asset_amount, max_trade_direction) =
-        math::amm::calculate_max_base_asset_amount_to_trade(
+        math::amm::calculate_base_asset_amount_to_trade_to_price(
             &market.amm,
             limit_price,
             order.direction,
         )?;
+
     if max_trade_direction != order.direction || max_trade_base_asset_amount == 0 {
         return Ok(0);
     }
 
     standardize_base_asset_amount(
-        min(base_asset_amount_to_fill, max_trade_base_asset_amount),
+        min(base_asset_amount_unfilled, max_trade_base_asset_amount),
         market.amm.base_asset_amount_step_size,
     )
-}
-
-fn calculate_base_asset_amount_to_trade_for_trigger_market(
-    order: &Order,
-    market: &Market,
-) -> ClearingHouseResult<u128> {
-    if !order.triggered {
-        Ok(0)
-    } else {
-        standardize_base_asset_amount(
-            order.get_base_asset_amount_unfilled()?,
-            market.amm.base_asset_amount_step_size,
-        )
-    }
-}
-
-fn calculate_base_asset_amount_to_trade_for_trigger_limit(
-    order: &Order,
-    market: &Market,
-    slot: u64,
-) -> ClearingHouseResult<u128> {
-    if !order.triggered {
-        Ok(0)
-    } else {
-        calculate_base_asset_amount_to_trade_for_limit(order, market, None, slot)
-    }
 }
 
 pub fn limit_price_satisfied(
@@ -177,16 +148,44 @@ pub fn get_position_delta_for_fill(
     })
 }
 
+pub fn should_cancel_order_after_fulfill(
+    user: &User,
+    user_order_index: usize,
+    slot: u64,
+) -> ClearingHouseResult<bool> {
+    let order = &user.orders[user_order_index];
+    if order.order_type != OrderType::Market || order.status != OrderStatus::Open {
+        return Ok(false);
+    }
+
+    Ok(order.price != 0 && is_auction_complete(order.slot, order.auction_duration, slot)?)
+}
+
+pub fn should_expire_order(
+    user: &User,
+    user_order_index: usize,
+    slot: u64,
+    max_auction_duration: u8,
+) -> ClearingHouseResult<bool> {
+    let order = &user.orders[user_order_index];
+    if order.order_type != OrderType::Market || order.status != OrderStatus::Open {
+        return Ok(false);
+    }
+
+    let slots_elapsed = slot.checked_sub(order.slot).ok_or_else(math_error!())?;
+    Ok(slots_elapsed > cast(max_auction_duration)?)
+}
+
 pub fn order_breaches_oracle_price_limits(
-    market_initial_margin_ratio: u32,
+    market: &Market,
     order: &Order,
     oracle_price: i128,
     slot: u64,
 ) -> ClearingHouseResult<bool> {
-    let order_limit_price = order.get_limit_price(Some(oracle_price), slot)?;
+    let order_limit_price = order.get_limit_price(&market.amm, Some(oracle_price), slot)?;
     let oracle_price = oracle_price.unsigned_abs();
 
-    let max_ratio = MARGIN_PRECISION / (market_initial_margin_ratio as u128 / 2);
+    let max_ratio = MARGIN_PRECISION / (market.margin_ratio_initial as u128 / 2);
     match order.direction {
         PositionDirection::Long => {
             if order_limit_price <= oracle_price {

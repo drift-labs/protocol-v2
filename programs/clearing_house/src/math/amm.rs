@@ -13,8 +13,9 @@ use crate::math::constants::{
     MAX_BID_ASK_INVENTORY_SKEW_FACTOR, ONE_HOUR_I128, PEG_PRECISION, PRICE_TO_PEG_PRECISION_RATIO,
     QUOTE_PRECISION,
 };
+use crate::math::orders::standardize_base_asset_amount;
 use crate::math::position::{_calculate_base_asset_value_and_pnl, calculate_base_asset_value};
-use crate::math::quote_asset::{asset_to_reserve_amount, reserve_to_asset_amount};
+use crate::math::quote_asset::reserve_to_asset_amount;
 use crate::math_error;
 use crate::state::market::{Market, AMM};
 use crate::state::oracle::OraclePriceData;
@@ -1099,7 +1100,7 @@ pub fn update_k(market: &mut Market, update_k_result: &UpdateKResult) -> Clearin
     Ok(())
 }
 
-pub fn calculate_max_base_asset_amount_to_trade(
+pub fn calculate_base_asset_amount_to_trade_to_price(
     amm: &AMM,
     limit_price: u128,
     direction: PositionDirection,
@@ -1143,24 +1144,11 @@ pub fn calculate_max_base_asset_amount_to_trade(
     }
 }
 
-pub fn should_round_trade(
-    amm: &AMM,
-    quote_asset_amount: u128,
-    base_asset_value: u128,
-) -> ClearingHouseResult<bool> {
-    let difference = if quote_asset_amount > base_asset_value {
-        quote_asset_amount
-            .checked_sub(base_asset_value)
-            .ok_or_else(math_error!())?
-    } else {
-        base_asset_value
-            .checked_sub(quote_asset_amount)
-            .ok_or_else(math_error!())?
-    };
-
-    let quote_asset_reserve_amount = asset_to_reserve_amount(difference, amm.peg_multiplier)?;
-
-    Ok(quote_asset_reserve_amount < amm.minimum_quote_asset_trade_size)
+pub fn calculate_max_base_asset_amount_fillable(amm: &AMM) -> ClearingHouseResult<u128> {
+    standardize_base_asset_amount(
+        amm.base_asset_reserve / amm.max_base_asset_amount_ratio as u128,
+        amm.base_asset_amount_step_size,
+    )
 }
 
 #[cfg(test)]

@@ -16,7 +16,6 @@ import {
 	calculateMarkPrice,
 	PEG_PRECISION,
 	PositionDirection,
-	calculateTargetPriceTrade,
 	convertToNumber,
 } from '../sdk';
 
@@ -204,7 +203,7 @@ describe('pyth-oracle', () => {
 		await clearingHouse.subscribe();
 
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
-		await clearingHouse.updateOrderAuctionTime(new BN(0));
+		await clearingHouse.updateAuctionDuration(new BN(0), new BN(0));
 
 		await clearingHouse.initializeUserAccount();
 		userAccount = new ClearingHouseUser({
@@ -361,67 +360,5 @@ describe('pyth-oracle', () => {
 		assert(fundingRateLong.gt(new BN(0)));
 		assert(fundingRateShort.gt(new BN(0)));
 		// assert(fundingRateShort.gt(fundingRateLong));
-	});
-
-	it('new LONG trade above oracle-mark limit fails', async () => {
-		const marketIndex = new BN(1);
-
-		const market = clearingHouse.getMarketAccount(marketIndex);
-		const baseAssetPriceWithMantissa = calculateMarkPrice(market);
-
-		const targetPriceDefaultSlippage = baseAssetPriceWithMantissa.add(
-			baseAssetPriceWithMantissa.div(new BN(11))
-		); // < 10% increase
-
-		console.log(
-			'SUCCEEDS: price from',
-			convertToNumber(baseAssetPriceWithMantissa),
-			'->',
-			convertToNumber(targetPriceDefaultSlippage)
-		);
-		const [_directionSuc, _tradeSizeSuc, _entryPriceSuc] =
-			calculateTargetPriceTrade(
-				clearingHouse.getMarketAccount(marketIndex),
-				BN.max(targetPriceDefaultSlippage, new BN(1))
-			);
-		// await clearingHouse.openPosition(
-		// 	PositionDirection.LONG,
-		// 	tradeSizeSuc,
-		// 	marketIndex
-		// );
-		// await clearingHouse.closePosition(
-		// 	marketIndex
-		// );
-
-		const targetPriceFails = baseAssetPriceWithMantissa.add(
-			baseAssetPriceWithMantissa.div(new BN(9))
-		); // > 10% increase
-		console.log(
-			'FAILS: price from',
-			convertToNumber(baseAssetPriceWithMantissa),
-			'->',
-			convertToNumber(targetPriceFails)
-		);
-
-		const [_direction, tradeSize, _entryPrice] = calculateTargetPriceTrade(
-			clearingHouse.getMarketAccount(marketIndex),
-			BN.max(targetPriceFails, new BN(1)),
-			undefined,
-			'base'
-		);
-
-		try {
-			await clearingHouse.openPosition(
-				PositionDirection.LONG,
-				tradeSize,
-				marketIndex
-			);
-			assert(false, 'Order succeeded');
-		} catch (e) {
-			if (e.message == 'Order succeeded') {
-				assert(false, 'Order succeeded');
-			}
-			assert(true);
-		}
 	});
 });

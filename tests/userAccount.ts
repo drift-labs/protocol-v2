@@ -67,7 +67,7 @@ describe('User Account', () => {
 		await clearingHouse.subscribe();
 
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
-		await clearingHouse.updateOrderAuctionTime(new BN(0));
+		await clearingHouse.updateAuctionDuration(0, 0);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 

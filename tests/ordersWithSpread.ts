@@ -93,7 +93,7 @@ describe('amm spread: market order', () => {
 		await clearingHouse.subscribe();
 
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
-		await clearingHouse.updateOrderAuctionTime(new BN(0));
+		await clearingHouse.updateAuctionDuration(new BN(0), new BN(0));
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
@@ -210,13 +210,11 @@ describe('amm spread: market order', () => {
 			).toString()
 		);
 
-		const orderParams = getMarketOrderParams(
+		const orderParams = getMarketOrderParams({
 			marketIndex,
 			direction,
-			ZERO,
 			baseAssetAmount,
-			false
-		);
+		});
 		const txSig = await clearingHouse.placeAndTake(orderParams);
 		const computeUnits = await findComputeUnitConsumption(
 			clearingHouse.program.programId,
@@ -317,13 +315,11 @@ describe('amm spread: market order', () => {
 			).toString()
 		);
 
-		const orderParams = getMarketOrderParams(
+		const orderParams = getMarketOrderParams({
 			marketIndex,
 			direction,
-			ZERO,
 			baseAssetAmount,
-			false
-		);
+		});
 		const txSig = await clearingHouse.placeAndTake(orderParams);
 		const computeUnits = await findComputeUnitConsumption(
 			clearingHouse.program.programId,
@@ -388,16 +384,13 @@ describe('amm spread: market order', () => {
 			clearingHouse.getMarketAccount(0)
 		).add(MARK_PRICE_PRECISION.div(new BN(10000))); // limit price plus 1bp
 
-		const orderParams = getLimitOrderParams(
+		const orderParams = getLimitOrderParams({
 			marketIndex,
 			direction,
 			baseAssetAmount,
-			limitPrice,
-			false,
-			undefined,
-			false,
-			1
-		);
+			price: limitPrice,
+			userOrderId: 1,
+		});
 
 		await clearingHouse.placeOrder(orderParams);
 
@@ -433,16 +426,13 @@ describe('amm spread: market order', () => {
 			clearingHouse.getMarketAccount(0)
 		).add(MARK_PRICE_PRECISION.sub(new BN(10000))); // limit price plus 1bp
 
-		const orderParams = getLimitOrderParams(
+		const orderParams = getLimitOrderParams({
 			marketIndex,
 			direction,
 			baseAssetAmount,
-			limitPrice,
-			false,
-			undefined,
-			false,
-			1
-		);
+			price: limitPrice,
+			userOrderId: 1,
+		});
 		await clearingHouse.placeOrder(orderParams);
 
 		await clearingHouse.fetchAccounts();
@@ -479,16 +469,13 @@ describe('amm spread: market order', () => {
 			clearingHouse.getMarketAccount(0)
 		).add(MARK_PRICE_PRECISION.div(new BN(1000))); // limit price plus 10bp
 
-		const orderParams = getLimitOrderParams(
+		const orderParams = getLimitOrderParams({
 			marketIndex,
 			direction,
 			baseAssetAmount,
-			limitPrice,
-			false,
-			undefined,
-			false,
-			1
-		);
+			price: limitPrice,
+			userOrderId: 1,
+		});
 		await clearingHouse.placeOrder(orderParams);
 
 		await clearingHouse.fetchAccounts();
@@ -561,16 +548,13 @@ describe('amm spread: market order', () => {
 			clearingHouse.getMarketAccount(0)
 		).sub(MARK_PRICE_PRECISION.div(new BN(1000))); // limit price minus 10bp
 
-		const orderParams = getLimitOrderParams(
+		const orderParams = getLimitOrderParams({
 			marketIndex,
 			direction,
 			baseAssetAmount,
-			limitPrice,
-			false,
-			undefined,
-			false,
-			1
-		);
+			price: limitPrice,
+			userOrderId: 1,
+		});
 		await clearingHouse.placeOrder(orderParams);
 
 		await clearingHouse.fetchAccounts();
@@ -704,13 +688,11 @@ describe('amm spread: market order', () => {
 			).toString()
 		);
 
-		const orderParams = getMarketOrderParams(
-			marketIndex2,
+		const orderParams = getMarketOrderParams({
+			marketIndex: marketIndex2,
 			direction,
-			ZERO,
 			baseAssetAmount,
-			false
-		);
+		});
 		const txSig = await clearingHouse.placeAndTake(orderParams);
 		const computeUnits = await findComputeUnitConsumption(
 			clearingHouse.program.programId,
@@ -755,13 +737,11 @@ describe('amm spread: market order', () => {
 		const directionToClose = PositionDirection.SHORT;
 
 		for (let i = numCloses; i > 0; i--) {
-			const orderParams = getMarketOrderParams(
-				marketIndex2,
-				directionToClose,
-				ZERO,
-				baseAssetAmount.div(new BN(numCloses * i)), // variable sized close
-				false
-			);
+			const orderParams = getMarketOrderParams({
+				marketIndex: marketIndex2,
+				direction: directionToClose,
+				baseAssetAmount: baseAssetAmount.div(new BN(numCloses * i)), // variable sized close
+			});
 			await clearingHouse.placeAndTake(orderParams);
 		}
 		await clearingHouse.closePosition(marketIndex2); // close rest

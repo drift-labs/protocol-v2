@@ -88,7 +88,7 @@ describe('oracle offset', () => {
 		await fillerClearingHouse.initialize(usdcMint.publicKey, true);
 		await fillerClearingHouse.subscribe();
 		await initializeQuoteAssetBank(fillerClearingHouse, usdcMint.publicKey);
-		await fillerClearingHouse.updateOrderAuctionTime(new BN(0));
+		await fillerClearingHouse.updateAuctionDuration(new BN(0), new BN(0));
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
@@ -164,18 +164,15 @@ describe('oracle offset', () => {
 		const reduceOnly = false;
 		const priceOffset = MARK_PRICE_PRECISION.div(new BN(20)).neg();
 
-		const orderParams = getLimitOrderParams(
+		const orderParams = getLimitOrderParams({
 			marketIndex,
 			direction,
 			baseAssetAmount,
 			price,
 			reduceOnly,
-			undefined,
-			undefined,
-			1,
-			undefined,
-			priceOffset
-		);
+			userOrderId: 1,
+			oraclePriceOffset: priceOffset,
+		});
 		await clearingHouse.placeOrder(orderParams);
 
 		await fillerClearingHouse.moveAmmPrice(
@@ -239,20 +236,17 @@ describe('oracle offset', () => {
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
 		const reduceOnly = false;
 		const priceOffset = MARK_PRICE_PRECISION.div(new BN(20)).neg();
-		const price = MARK_PRICE_PRECISION.add(priceOffset);
 
-		const orderParams = getLimitOrderParams(
+		const orderParams = getLimitOrderParams({
 			marketIndex,
 			direction,
 			baseAssetAmount,
-			price,
 			reduceOnly,
-			undefined,
-			undefined,
-			1,
-			true,
-			priceOffset
-		);
+			userOrderId: 1,
+			postOnly: true,
+			oraclePriceOffset: priceOffset,
+		});
+
 		await clearingHouse.placeOrder(orderParams);
 
 		await fillerClearingHouse.moveAmmPrice(
@@ -315,22 +309,17 @@ describe('oracle offset', () => {
 
 		const direction = PositionDirection.SHORT;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
-		const price = ZERO;
 		const reduceOnly = false;
 		const priceOffset = MARK_PRICE_PRECISION.div(new BN(20));
 
-		const orderParams = getLimitOrderParams(
+		const orderParams = getLimitOrderParams({
 			marketIndex,
 			direction,
 			baseAssetAmount,
-			price,
 			reduceOnly,
-			undefined,
-			undefined,
-			1,
-			undefined,
-			priceOffset
-		);
+			userOrderId: 1,
+			oraclePriceOffset: priceOffset,
+		});
 		await clearingHouse.placeOrder(orderParams);
 
 		await fillerClearingHouse.moveAmmPrice(
@@ -394,20 +383,16 @@ describe('oracle offset', () => {
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
 		const reduceOnly = false;
 		const priceOffset = MARK_PRICE_PRECISION.div(new BN(20));
-		const price = MARK_PRICE_PRECISION.add(priceOffset);
 
-		const orderParams = getLimitOrderParams(
+		const orderParams = getLimitOrderParams({
 			marketIndex,
 			direction,
 			baseAssetAmount,
-			price,
 			reduceOnly,
-			undefined,
-			undefined,
-			1,
-			true,
-			priceOffset
-		);
+			userOrderId: 1,
+			postOnly: true,
+			oraclePriceOffset: priceOffset,
+		});
 		await clearingHouse.placeOrder(orderParams);
 
 		await fillerClearingHouse.moveAmmPrice(
@@ -472,20 +457,15 @@ describe('oracle offset', () => {
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
 		const reduceOnly = false;
 		const priceOffset = MARK_PRICE_PRECISION.div(new BN(20));
-		const price = MARK_PRICE_PRECISION.add(priceOffset);
 
-		const orderParams = getLimitOrderParams(
+		const orderParams = getLimitOrderParams({
 			marketIndex,
 			direction,
 			baseAssetAmount,
-			price,
 			reduceOnly,
-			undefined,
-			undefined,
-			undefined,
-			true,
-			priceOffset
-		);
+			postOnly: true,
+			oraclePriceOffset: priceOffset,
+		});
 		await clearingHouse.placeOrder(orderParams);
 
 		await clearingHouseUser.fetchAccounts();
@@ -533,20 +513,16 @@ describe('oracle offset', () => {
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
 		const reduceOnly = false;
 		const priceOffset = MARK_PRICE_PRECISION.div(new BN(20));
-		const price = MARK_PRICE_PRECISION.add(priceOffset);
 
-		const orderParams = getLimitOrderParams(
+		const orderParams = getLimitOrderParams({
 			marketIndex,
 			direction,
 			baseAssetAmount,
-			price,
 			reduceOnly,
-			undefined,
-			undefined,
-			1,
-			true,
-			priceOffset
-		);
+			postOnly: true,
+			userOrderId: 1,
+			oraclePriceOffset: priceOffset,
+		});
 		await clearingHouse.placeOrder(orderParams);
 
 		await clearingHouseUser.fetchAccounts();

@@ -79,6 +79,7 @@ pub fn repeg(
 pub fn update_amms(
     market_map: &mut MarketMap,
     oracle_map: &mut OracleMap,
+    market_index: u64,
     state: &State,
     clock: &Clock,
 ) -> Result<()> {
@@ -87,9 +88,13 @@ pub fn update_amms(
     let now = clock.unix_timestamp;
 
     for (_key, market_account_loader) in market_map.0.iter_mut() {
+        msg!("market_account_loader key: {:?}", _key);
+
         let market = &mut load_mut(market_account_loader)?;
-        let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
-        update_amm(market, oracle_price_data, state, now, clock_slot)?;
+        if market.market_index == market_index {
+            let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
+            update_amm(market, oracle_price_data, state, now, clock_slot)?;
+        }
     }
 
     Ok(())
