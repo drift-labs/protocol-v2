@@ -134,6 +134,18 @@ pub fn standardize_base_asset_amount(
         .ok_or_else(math_error!())
 }
 
+pub fn standardize_base_asset_amount_i128(
+    base_asset_amount: i128,
+    step_size: u128,
+) -> ClearingHouseResult<i128> {
+    let standardized_base_asset_amount =
+        standardize_base_asset_amount(base_asset_amount.unsigned_abs(), step_size)?;
+
+    cast_to_i128(standardized_base_asset_amount)?
+        .checked_mul(base_asset_amount.signum())
+        .ok_or_else(math_error!())
+}
+
 pub fn get_position_delta_for_fill(
     base_asset_amount: u128,
     quote_asset_amount: u128,
@@ -154,7 +166,10 @@ pub fn should_cancel_order_after_fulfill(
     slot: u64,
 ) -> ClearingHouseResult<bool> {
     let order = &user.orders[user_order_index];
-    if order.order_type != OrderType::Market || order.status != OrderStatus::Open {
+    if order.order_type != OrderType::Market
+        || order.status != OrderStatus::Open
+        || order.liquidation
+    {
         return Ok(false);
     }
 
@@ -168,7 +183,10 @@ pub fn should_expire_order(
     max_auction_duration: u8,
 ) -> ClearingHouseResult<bool> {
     let order = &user.orders[user_order_index];
-    if order.order_type != OrderType::Market || order.status != OrderStatus::Open {
+    if order.order_type != OrderType::Market
+        || order.status != OrderStatus::Open
+        || order.liquidation
+    {
         return Ok(false);
     }
 

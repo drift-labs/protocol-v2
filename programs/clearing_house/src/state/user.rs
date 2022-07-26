@@ -97,6 +97,12 @@ impl User {
             .position(|order| order.order_id == order_id)
             .ok_or(ErrorCode::OrderDoesNotExist)
     }
+
+    pub fn is_being_liquidated(&self) -> bool {
+        self.positions
+            .iter()
+            .any(|position| position.liquidation_base_asset_amount != 0)
+    }
 }
 
 #[zero_copy]
@@ -159,6 +165,7 @@ pub struct MarketPosition {
     pub unsettled_pnl: i128,
     pub open_bids: i128,
     pub open_asks: i128,
+    pub liquidation_base_asset_amount: i128,
 
     // upgrade-ability
     pub padding0: u128,
@@ -246,6 +253,7 @@ pub struct Order {
     pub auction_start_price: u128,
     pub auction_end_price: u128,
     pub auction_duration: u8,
+    pub liquidation: bool,
     pub padding: [u16; 3],
 }
 
@@ -322,6 +330,10 @@ impl Order {
             OrderType::TriggerMarket | OrderType::TriggerLimit
         )
     }
+
+    pub fn is_open_order_for_market(&self, market_index: u64) -> bool {
+        self.market_index == market_index && self.status == OrderStatus::Open
+    }
 }
 
 impl Default for Order {
@@ -353,6 +365,7 @@ impl Default for Order {
             auction_start_price: 0,
             auction_end_price: 0,
             auction_duration: 0,
+            liquidation: false,
             padding: [0; 3],
         }
     }

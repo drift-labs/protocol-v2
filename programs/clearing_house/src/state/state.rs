@@ -48,6 +48,7 @@ pub struct State {
     pub min_order_quote_asset_amount: u128, // minimum est. quote_asset_amount for place_order to succeed
     pub min_auction_duration: u8,
     pub max_auction_duration: u8,
+    pub liquidation_auction_duration: u8,
 
     // upgrade-ability
     pub padding0: u128,

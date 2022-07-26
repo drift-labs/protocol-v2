@@ -17,6 +17,7 @@ use crate::math::amm::is_oracle_valid;
 use crate::math::auction::{
     calculate_auction_end_price, calculate_auction_start_price, is_auction_complete,
 };
+use crate::math::base_asset_amount::get_signed_base_asset_amount;
 use crate::math::casting::cast;
 use crate::math::fulfillment::determine_fulfillment_methods;
 use crate::math::matching::{
@@ -43,6 +44,7 @@ use std::alloc::{alloc_zeroed, Layout};
 use std::cell::RefMut;
 use std::cmp::{max, min};
 use std::ops::{Deref, DerefMut};
+
 #[cfg(test)]
 mod tests;
 
@@ -60,6 +62,11 @@ pub fn place_order(
     let user_key = user.key();
     let user = &mut load_mut(user)?;
     controller::funding::settle_funding_payment(user, &user_key, market_map, now)?;
+
+    validate!(
+        !user.is_being_liquidated(),
+        ErrorCode::UserIsBeingLiquidated
+    )?;
 
     let new_order_index = user
         .orders
@@ -173,6 +180,7 @@ pub fn place_order(
             max(state.min_auction_duration, params.auction_duration),
             state.max_auction_duration,
         ),
+        liquidation: false,
         padding: [0; 3],
     };
 
@@ -301,12 +309,17 @@ pub fn cancel_order(
 ) -> ClearingHouseResult {
     controller::funding::settle_funding_payment(user, user_key, market_map, now)?;
 
-    let (order_status, order_market_index, order_direction) =
-        get_struct_values!(user.orders[order_index], status, market_index, direction);
+    let (order_status, order_market_index, order_direction, liquidation) = get_struct_values!(
+        user.orders[order_index],
+        status,
+        market_index,
+        direction,
+        liquidation
+    );
 
-    if order_status != OrderStatus::Open {
-        return Err(ErrorCode::OrderNotOpen);
-    }
+    validate!(order_status == OrderStatus::Open, ErrorCode::OrderNotOpen)?;
+
+    validate!(!liquidation, ErrorCode::CantCancelLiquidationOrder)?;
 
     let market = &market_map.get_ref(&order_market_index)?;
 
@@ -400,6 +413,14 @@ pub fn fill_order(
         ErrorCode::OrderMustBeTriggeredFirst,
         "Order must be triggered first"
     )?;
+
+    {
+        let market = market_map.get_ref(&market_index)?;
+        validate!(
+            market.current_liquidations == 0 || user.is_being_liquidated(),
+            ErrorCode::LiquidationsOngoing
+        )?;
+    }
 
     let mark_price_before: u128;
     let oracle_mark_spread_pct_before: i128;
@@ -628,6 +649,10 @@ fn sanitize_maker_order<'a>(
             return Ok((None, None, None));
         }
 
+        if maker_order.liquidation {
+            return Ok((None, None, None));
+        }
+
         validate!(
             !maker_order.must_be_triggered() || maker_order.triggered,
             ErrorCode::OrderMustBeTriggeredFirst,
@@ -772,9 +797,11 @@ fn fulfill_order(
     let meets_initial_margin_requirement =
         meets_initial_margin_requirement(user, market_map, bank_map, oracle_map)?;
 
+    let is_liquidation = user.orders[user_order_index].liquidation;
+
     let mut updated_user_state = base_asset_amount != 0;
 
-    if meets_initial_margin_requirement {
+    if meets_initial_margin_requirement || is_liquidation {
         for order_record in order_records {
             emit!(order_record)
         }
@@ -1062,6 +1089,23 @@ pub fn fulfill_order_with_amm(
         oracle_price: oracle_map.get_price_data(&market.amm.oracle)?.price,
     });
 
+    if user.orders[order_index].liquidation {
+        let market_position = &mut user.positions[position_index];
+        let base_asset_amount = get_signed_base_asset_amount(base_asset_amount, order_direction)?;
+
+        market_position.liquidation_base_asset_amount = market_position
+            .liquidation_base_asset_amount
+            .checked_sub(base_asset_amount)
+            .ok_or_else(math_error!())?;
+
+        if market_position.liquidation_base_asset_amount == 0 {
+            market.current_liquidations = market
+                .current_liquidations
+                .checked_sub(1)
+                .ok_or_else(math_error!())?;
+        }
+    }
+
     // Cant reset order until after its logged
     if user.orders[order_index].get_base_asset_amount_unfilled()? == 0 {
         user.orders[order_index] = Order::default();
@@ -1277,6 +1321,24 @@ pub fn fulfill_order_with_match(
         quote_asset_amount_surplus: 0,
         oracle_price: oracle_map.get_price_data(&market.amm.oracle)?.price,
     });
+
+    if taker.orders[taker_order_index].liquidation {
+        let direction = taker.orders[taker_order_index].direction;
+        let market_position = &mut taker.positions[taker_order_index];
+        let base_asset_amount = get_signed_base_asset_amount(base_asset_amount, direction)?;
+
+        market_position.liquidation_base_asset_amount = market_position
+            .liquidation_base_asset_amount
+            .checked_sub(base_asset_amount)
+            .ok_or_else(math_error!())?;
+
+        if market_position.liquidation_base_asset_amount == 0 {
+            market.current_liquidations = market
+                .current_liquidations
+                .checked_sub(1)
+                .ok_or_else(math_error!())?;
+        }
+    }
 
     if taker.orders[taker_order_index].get_base_asset_amount_unfilled()? == 0 {
         taker.orders[taker_order_index] = Order::default();

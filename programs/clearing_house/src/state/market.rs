@@ -34,6 +34,7 @@ pub struct Market {
     pub pnl_pool: PoolBalance,
     pub unsettled_profit: u128,
     pub unsettled_loss: u128,
+    pub current_liquidations: u64,
 
     // upgrade-ability
     pub padding0: u32,

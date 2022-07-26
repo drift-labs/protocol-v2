@@ -184,6 +184,18 @@ pub enum ErrorCode {
     OrderNotTriggerable,
     #[msg("OrderDidNotSatisfyTriggerCondition")]
     OrderDidNotSatisfyTriggerCondition,
+    #[msg("PositionAlreadyBeingLiquidated")]
+    PositionAlreadyBeingLiquidated,
+    #[msg("PositionDoesntHaveOpenPositionOrOrders")]
+    PositionDoesntHaveOpenPositionOrOrders,
+    #[msg("AllOrdersAreAlreadyLiquidations")]
+    AllOrdersAreAlreadyLiquidations,
+    #[msg("CantCancelLiquidationOrder")]
+    CantCancelLiquidationOrder,
+    #[msg("UserIsBeingLiquidated")]
+    UserIsBeingLiquidated,
+    #[msg("LiquidationsOngoing")]
+    LiquidationsOngoing,
     #[msg("DefaultError")]
     DefaultError,
 }
