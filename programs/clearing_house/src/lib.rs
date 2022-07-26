@@ -57,8 +57,8 @@ pub mod clearing_house {
     use crate::state::events::{DepositDirection, LiquidationRecord};
     use crate::state::market::{Market, PoolBalance};
     use crate::state::market_map::{
-        get_writable_markets, get_writable_markets_for_order,
-        get_writable_markets_for_user_positions, get_writable_markets_list, MarketMap,
+        get_writable_markets, get_writable_markets_for_user_positions,
+        get_writable_markets_for_user_positions_and_order, get_writable_markets_list, MarketMap,
         WritableMarkets,
     };
     use crate::state::oracle::OraclePriceData;
@@ -488,8 +488,6 @@ pub mod clearing_house {
             user_bank_balance,
         )?;
 
-        controller::funding::settle_funding_payment(user, &user_key, &market_map, now)?;
-
         controller::token::receive(
             &ctx.accounts.token_program,
             &ctx.accounts.user_token_account,
@@ -533,8 +531,6 @@ pub mod clearing_house {
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
         let bank_map = BankMap::load(&get_writable_banks(bank_index), remaining_accounts_iter)?;
         let mut market_map = MarketMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
-
-        controller::funding::settle_funding_payment(user, &user_key, &market_map, now)?;
 
         let amount = {
             let bank = &mut bank_map.get_ref_mut(&bank_index)?;
@@ -878,8 +874,15 @@ pub mod clearing_house {
             &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
             remaining_accounts_iter,
         )?;
+        // let mut market_map = MarketMap::load(
+        //     &get_writable_markets_for_user_positions_and_order(
+        //         &load(&ctx.accounts.user)?.positions,
+        //         params.market_index),
+        //     remaining_accounts_iter,
+        // )?;
+
         let mut market_map = MarketMap::load(
-            &get_writable_markets_for_order(params.market_index),
+            &get_writable_markets(params.market_index),
             remaining_accounts_iter,
         )?;
 
@@ -971,7 +974,7 @@ pub mod clearing_house {
             remaining_accounts_iter,
         )?;
         let mut market_map = MarketMap::load(
-            &get_writable_markets_for_order(params.market_index),
+            &get_writable_markets(params.market_index),
             remaining_accounts_iter,
         )?;
 
@@ -1079,7 +1082,7 @@ pub mod clearing_house {
             remaining_accounts_iter,
         )?;
 
-        controller::repeg::update_amms(market_map, oracle_map, market_indexes[0], state, &clock)?;
+        controller::repeg::update_amms(market_map, oracle_map, 100, state, &clock)?; // todo
 
         Ok(())
     }
@@ -1199,7 +1202,7 @@ pub mod clearing_house {
         // )?;
 
         // Settle user's funding payments so that collateral is up to date
-        controller::funding::settle_funding_payment(user, &user_key, &market_map, now)?;
+        controller::funding::settle_funding_payments(user, &user_key, &market_map, now)?;
 
         let LiquidationStatus {
             liquidation_type,
@@ -1967,7 +1970,7 @@ pub mod clearing_house {
 
         let user_key = ctx.accounts.user.key();
         let user = &mut load_mut(&ctx.accounts.user)?;
-        controller::funding::settle_funding_payment(user, &user_key, &market_map, now)?;
+        controller::funding::settle_funding_payments(user, &user_key, &market_map, now)?;
         Ok(())
     }
 

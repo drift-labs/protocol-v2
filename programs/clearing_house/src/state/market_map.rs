@@ -156,9 +156,3 @@ pub fn get_writable_markets_for_user_positions_and_order(
 
     writable_markets
 }
-
-pub fn get_writable_markets_for_order(market_index: u64) -> WritableMarkets {
-    let mut writable_markets = WritableMarkets::new();
-    writable_markets.insert(market_index);
-    writable_markets
-}

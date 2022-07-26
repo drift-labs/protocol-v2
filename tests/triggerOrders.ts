@@ -462,24 +462,13 @@ describe('trigger orders', () => {
 			marketIndex,
 			direction: PositionDirection.LONG,
 			baseAssetAmount,
-<<<<<<< HEAD
-			MARK_PRICE_PRECISION.mul(new BN(3)).div(new BN(2)),
-			MARK_PRICE_PRECISION.mul(new BN(6)).div(new BN(5)),
+			price: MARK_PRICE_PRECISION.mul(new BN(3)).div(new BN(2)),
+			triggerPrice: MARK_PRICE_PRECISION.mul(new BN(6)).div(new BN(5)),
 			// MARK_PRICE_PRECISION.mul(new BN(10)),
 			// MARK_PRICE_PRECISION.mul(new BN(2)),
-			OrderTriggerCondition.ABOVE,
-			false,
-			undefined,
-			undefined,
-			1
-		);
-=======
-			price: MARK_PRICE_PRECISION.mul(new BN(10)),
-			triggerPrice: MARK_PRICE_PRECISION.mul(new BN(2)),
 			triggerCondition: OrderTriggerCondition.ABOVE,
 			userOrderId: 1,
 		});
->>>>>>> master
 		await clearingHouse.placeOrder(stopLimitOrderParams);
 
 		await clearingHouseUser.fetchAccounts();

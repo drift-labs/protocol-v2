@@ -277,8 +277,10 @@ describe('clearing_house', () => {
 		);
 
 		console.log(clearingHouse.getQuoteAssetTokenAmount().toString());
-		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9950249)));
+		console.log(user.fees.totalFeePaid.toString());
+
 		assert(user.fees.totalFeePaid.eq(new BN(49750)));
+		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9950249))); //9945300
 
 		assert.ok(user.positions[0].quoteEntryAmount.eq(new BN(49750000)));
 		assert.ok(user.positions[0].baseAssetAmount.eq(new BN(497450500000000)));
