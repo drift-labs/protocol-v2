@@ -20,7 +20,7 @@ import {
 } from './addresses/pda';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { ClearingHouse } from './clearingHouse';
-import { PEG_PRECISION } from './constants/numericConstants';
+import { PEG_PRECISION, ZERO } from './constants/numericConstants';
 import { calculateTargetPriceTrade } from './math/trade';
 import { calculateAmmReservesAfterSwap, getSwapDirection } from './math/amm';
 
@@ -85,7 +85,8 @@ export class Admin extends ClearingHouse {
 		initialAssetWeight: BN,
 		maintenanceAssetWeight: BN,
 		initialLiabilityWeight: BN,
-		maintenanceLiabilityWeight: BN
+		maintenanceLiabilityWeight: BN,
+		liquidationFee = ZERO
 	): Promise<TransactionSignature> {
 		const bankIndex = this.getStateAccount().numberOfBanks;
 		const bank = await getBankPublicKey(this.program.programId, bankIndex);
@@ -109,6 +110,7 @@ export class Admin extends ClearingHouse {
 			maintenanceAssetWeight,
 			initialLiabilityWeight,
 			maintenanceLiabilityWeight,
+			liquidationFee,
 			{
 				accounts: {
 					admin: this.wallet.publicKey,

@@ -25,6 +25,17 @@ pub struct User {
 }
 
 impl User {
+    pub fn get_bank_balance(&self, bank_index: u64) -> Option<&UserBankBalance> {
+        // first bank balance is always quote asset, which is
+        if bank_index == 0 {
+            return Some(&self.bank_balances[0]);
+        }
+
+        self.bank_balances
+            .iter()
+            .find(|bank_balance| bank_balance.bank_index == bank_index)
+    }
+
     pub fn get_bank_balance_mut(&mut self, bank_index: u64) -> Option<&mut UserBankBalance> {
         // first bank balance is always quote asset, which is
         if bank_index == 0 {

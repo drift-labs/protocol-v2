@@ -141,6 +141,10 @@
         {
           "name": "maintenanceLiabilityWeight",
           "type": "u128"
+        },
+        {
+          "name": "liquidationFee",
+          "type": "u128"
         }
       ]
     },
@@ -712,6 +716,41 @@
       "args": [
         {
           "name": "marketIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "liquidateBorrow",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "liquidator",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "depositBank",
+          "type": "u64"
+        },
+        {
+          "name": "borrowBank",
           "type": "u64"
         }
       ]
@@ -1761,6 +1800,10 @@
           },
           {
             "name": "maintenanceLiabilityWeight",
+            "type": "u128"
+          },
+          {
+            "name": "liquidationFee",
             "type": "u128"
           }
         ]

@@ -70,6 +70,10 @@ pub mod clearing_house {
     use crate::math::auction::{
         calculate_auction_end_price, calculate_auction_start_price_for_liquidation,
     };
+    use crate::math::liquidation::{
+        calculate_borrow_amount_for_deposit_amount,
+        calculate_borrow_amount_to_remove_margin_shortage, calculate_deposit_amount_to_transfer,
+    };
     use crate::math::orders::standardize_base_asset_amount_i128;
     use crate::math::position::direction_to_close_position;
 
@@ -129,6 +133,7 @@ pub mod clearing_house {
         maintenance_asset_weight: u128,
         initial_liability_weight: u128,
         maintenance_liability_weight: u128,
+        liquidation_fee: u128,
     ) -> Result<()> {
         let state = &mut ctx.accounts.state;
         let bank_pubkey = ctx.accounts.bank.key();
@@ -266,6 +271,7 @@ pub mod clearing_house {
             maintenance_asset_weight,
             initial_liability_weight,
             maintenance_liability_weight,
+            liquidation_fee,
         };
 
         Ok(())
@@ -1705,6 +1711,7 @@ pub mod clearing_house {
             &mut oracle_map,
             &ctx.accounts.state.oracle_guard_rails,
         )?;
+
         if liquidation_type == LiquidationType::NONE {
             msg!("total_collateral {}", total_collateral);
             msg!("adjusted_total_collateral {}", adjusted_total_collateral);
@@ -1899,6 +1906,272 @@ pub mod clearing_house {
         market.current_liquidations += 1;
 
         // TODO figure out formula for paying liquidators
+
+        Ok(())
+    }
+
+    #[access_control(
+        exchange_not_paused(&ctx.accounts.state)
+    )]
+    pub fn liquidate_borrow(
+        ctx: Context<LiquidateBorrow>,
+        deposit_bank_index: u64,
+        borrow_bank_index: u64,
+        liquidator_max_borrow_amount: u128,
+    ) -> Result<()> {
+        let clock = Clock::get()?;
+        let now = clock.unix_timestamp;
+
+        let user_key = ctx.accounts.user.key();
+        let liquidator_key = ctx.accounts.liquidator.key();
+
+        validate!(
+            user_key != liquidator_key,
+            ErrorCode::UserCantLiquidateThemself
+        )?;
+
+        let user = &mut load_mut(&ctx.accounts.user)?;
+        let liquidator = &mut load_mut(&ctx.accounts.liquidator)?;
+
+        // validate user and liquidator have bank balances
+        {
+            user.get_bank_balance(deposit_bank_index).ok_or_else(|| {
+                msg!(
+                    "User does not have a bank balance for deposit bank {}",
+                    deposit_bank_index
+                );
+                ErrorCode::CouldNotFindBankBalance
+            })?;
+
+            user.get_bank_balance(borrow_bank_index).ok_or_else(|| {
+                msg!(
+                    "User does not have a bank balance for borrow bank {}",
+                    borrow_bank_index
+                );
+                ErrorCode::CouldNotFindBankBalance
+            })?;
+
+            match liquidator.get_bank_balance_mut(deposit_bank_index) {
+                Some(_) => {}
+                None => {
+                    liquidator
+                        .add_bank_balance(deposit_bank_index, BankBalanceType::Deposit)
+                        .map_err(|e| {
+                            msg!("Liquidator has no available bank balances to take on deposit");
+                            e
+                        })?;
+                }
+            };
+
+            match liquidator.get_bank_balance_mut(borrow_bank_index) {
+                Some(_) => {}
+                None => {
+                    liquidator
+                        .add_bank_balance(borrow_bank_index, BankBalanceType::Borrow)
+                        .map_err(|e| {
+                            msg!("Liquidator has no available bank balances to take on borrow");
+                            e
+                        })?;
+                }
+            };
+        }
+
+        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+
+        let mut writable_banks = WritableBanks::new();
+        writable_banks.insert(deposit_bank_index);
+        writable_banks.insert(borrow_bank_index);
+        let bank_map = BankMap::load(&writable_banks, remaining_accounts_iter)?;
+        let market_map = MarketMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
+
+        // Settle user's funding payments so that collateral is up to date
+        controller::funding::settle_funding_payment(user, &user_key, &market_map, now)?;
+
+        let (
+            deposit_amount,
+            deposit_price,
+            deposit_decimals,
+            deposit_asset_weight,
+            deposit_liquidation_multiplier,
+        ) = {
+            let mut deposit_bank = bank_map.get_ref_mut(&deposit_bank_index)?;
+            controller::bank_balance::update_bank_cumulative_interest(&mut deposit_bank, now)?;
+
+            let user_deposit_bank_balance = user.get_bank_balance(deposit_bank_index).unwrap();
+
+            validate!(
+                user_deposit_bank_balance.balance_type == BankBalanceType::Deposit,
+                ErrorCode::WrongBankBalanceType,
+                "User did not have a deposit for the deposit bank index"
+            )?;
+
+            let deposit_token_amount = get_token_amount(
+                user_deposit_bank_balance.balance,
+                &deposit_bank,
+                &user_deposit_bank_balance.balance_type,
+            )?;
+
+            // TODO add oracle checks
+            let deposit_token_price = oracle_map.get_price_data(&deposit_bank.oracle)?.price;
+
+            (
+                deposit_token_amount,
+                deposit_token_price,
+                deposit_bank.decimals,
+                deposit_bank.maintenance_asset_weight,
+                BANK_LIQUIDATION_MULTIPLIER_PRECISION
+                    .checked_add(deposit_bank.liquidation_fee)
+                    .ok_or_else(math_error!())?,
+            )
+        };
+
+        let (
+            borrow_amount,
+            borrow_price,
+            borrow_decimals,
+            borrow_liability_weight,
+            borrow_liquidation_multiplier,
+        ) = {
+            let mut borrow_bank = bank_map.get_ref_mut(&borrow_bank_index)?;
+            controller::bank_balance::update_bank_cumulative_interest(&mut borrow_bank, now)?;
+
+            let user_borrow_bank_balance = user.get_bank_balance(borrow_bank_index).unwrap();
+
+            validate!(
+                user_borrow_bank_balance.balance_type == BankBalanceType::Borrow,
+                ErrorCode::WrongBankBalanceType,
+                "User did not have a deposit for the borrow bank index"
+            )?;
+
+            let borrow_token_amount = get_token_amount(
+                user_borrow_bank_balance.balance,
+                &borrow_bank,
+                &user_borrow_bank_balance.balance_type,
+            )?;
+
+            // TODO add oracle checks
+            let borrow_token_price = oracle_map.get_price_data(&borrow_bank.oracle)?.price;
+
+            (
+                borrow_token_amount,
+                borrow_token_price,
+                borrow_bank.decimals,
+                borrow_bank.maintenance_liability_weight,
+                BANK_LIQUIDATION_MULTIPLIER_PRECISION
+                    .checked_sub(borrow_bank.liquidation_fee)
+                    .ok_or_else(math_error!())?,
+            )
+        };
+
+        let LiquidationStatus {
+            liquidation_type,
+            total_collateral,
+            adjusted_total_collateral,
+            margin_requirement,
+            ..
+        } = calculate_liquidation_status(
+            user,
+            &market_map,
+            &bank_map,
+            &mut oracle_map,
+            &ctx.accounts.state.oracle_guard_rails,
+        )?;
+
+        if liquidation_type == LiquidationType::NONE {
+            msg!("total_collateral {}", total_collateral);
+            msg!("adjusted_total_collateral {}", adjusted_total_collateral);
+            msg!("margin_requirement {}", margin_requirement);
+            return Err(ErrorCode::SufficientCollateral.into());
+        }
+
+        let margin_shortage = margin_requirement
+            .checked_sub(total_collateral)
+            .ok_or_else(math_error!())?;
+
+        // Determine what amount of borrow to transfer to reduce margin shortage to 0
+        let borrow_amount_to_reduce_margin_shortage =
+            calculate_borrow_amount_to_remove_margin_shortage(
+                margin_shortage,
+                deposit_asset_weight,
+                deposit_liquidation_multiplier,
+                borrow_liability_weight,
+                borrow_liquidation_multiplier,
+                borrow_decimals as u32,
+                borrow_price,
+            )?;
+
+        // Given the user's deposit amount, how much borrow can be transferred?
+        let borrow_amount_for_deposit_amount = calculate_borrow_amount_for_deposit_amount(
+            deposit_amount,
+            deposit_liquidation_multiplier,
+            deposit_decimals as u32,
+            deposit_price,
+            borrow_liquidation_multiplier,
+            borrow_decimals as u32,
+            borrow_price,
+        )?;
+
+        let borrow_amount_to_transfer = liquidator_max_borrow_amount
+            .min(borrow_amount)
+            .min(borrow_amount_to_reduce_margin_shortage)
+            .min(borrow_amount_for_deposit_amount);
+
+        // Given the borrow amount to transfer, determine how much deposit amount to transfer
+        let deposit_amount_to_transfer = calculate_deposit_amount_to_transfer(
+            deposit_liquidation_multiplier,
+            deposit_decimals as u32,
+            deposit_price,
+            borrow_amount,
+            borrow_liquidation_multiplier,
+            borrow_decimals as u32,
+            borrow_price,
+        )?;
+
+        {
+            let mut borrow_bank = bank_map.get_ref_mut(&borrow_bank_index)?;
+
+            update_bank_balances(
+                borrow_amount_to_transfer,
+                &BankBalanceType::Deposit,
+                &mut borrow_bank,
+                user.get_bank_balance_mut(borrow_bank_index).unwrap(),
+            )?;
+
+            update_bank_balances(
+                borrow_amount_to_transfer,
+                &BankBalanceType::Borrow,
+                &mut borrow_bank,
+                liquidator.get_bank_balance_mut(borrow_bank_index).unwrap(),
+            )?;
+        }
+
+        {
+            let mut deposit_bank = bank_map.get_ref_mut(&deposit_bank_index)?;
+
+            update_bank_balances(
+                deposit_amount_to_transfer,
+                &BankBalanceType::Borrow,
+                &mut deposit_bank,
+                user.get_bank_balance_mut(deposit_bank_index).unwrap(),
+            )?;
+
+            update_bank_balances(
+                deposit_amount_to_transfer,
+                &BankBalanceType::Deposit,
+                &mut deposit_bank,
+                liquidator.get_bank_balance_mut(deposit_bank_index).unwrap(),
+            )?;
+        }
+
+        let liquidator_meets_initial_margin_requirement =
+            meets_initial_margin_requirement(liquidator, &market_map, &bank_map, &mut oracle_map)?;
+
+        validate!(
+            liquidator_meets_initial_margin_requirement,
+            ErrorCode::InsufficientCollateral,
+            "Liquidator doesnt have enough collateral to take over borrow"
+        )?;
 
         Ok(())
     }

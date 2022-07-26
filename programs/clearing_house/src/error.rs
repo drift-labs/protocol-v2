@@ -196,6 +196,10 @@ pub enum ErrorCode {
     UserIsBeingLiquidated,
     #[msg("LiquidationsOngoing")]
     LiquidationsOngoing,
+    #[msg("WrongBankBalanceType")]
+    WrongBankBalanceType,
+    #[msg("UserCantLiquidateThemself")]
+    UserCantLiquidateThemself,
     #[msg("DefaultError")]
     DefaultError,
 }
