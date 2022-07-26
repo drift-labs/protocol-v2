@@ -57,8 +57,8 @@ pub mod clearing_house {
     use crate::state::events::{DepositDirection, LiquidationRecord};
     use crate::state::market::{Market, PoolBalance};
     use crate::state::market_map::{
-        get_writable_markets, get_writable_markets_for_user_positions,
-        get_writable_markets_for_user_positions_and_order, get_writable_markets_list, MarketMap,
+        get_writable_markets, get_writable_markets_for_order,
+        get_writable_markets_for_user_positions, get_writable_markets_list, MarketMap,
         WritableMarkets,
     };
     use crate::state::oracle::OraclePriceData;
@@ -879,10 +879,7 @@ pub mod clearing_house {
             remaining_accounts_iter,
         )?;
         let mut market_map = MarketMap::load(
-            &get_writable_markets_for_user_positions_and_order(
-                &load(&ctx.accounts.user)?.positions,
-                params.market_index,
-            ),
+            &get_writable_markets_for_order(params.market_index),
             remaining_accounts_iter,
         )?;
 
@@ -901,6 +898,8 @@ pub mod clearing_house {
             &ctx.accounts.state,
             &Clock::get()?,
         )?;
+
+        msg!("updated_amms");
 
         // let state =  &ctx.accounts.state;
         // let clock = Clock::get()?;
@@ -972,10 +971,7 @@ pub mod clearing_house {
             remaining_accounts_iter,
         )?;
         let mut market_map = MarketMap::load(
-            &get_writable_markets_for_user_positions_and_order(
-                &load(&ctx.accounts.user)?.positions,
-                params.market_index,
-            ),
+            &get_writable_markets_for_order(params.market_index),
             remaining_accounts_iter,
         )?;
 
@@ -1066,27 +1062,27 @@ pub mod clearing_house {
         Ok(())
     }
 
-    // #[access_control(
-    //     exchange_not_paused(&ctx.accounts.state)
-    // )]
-    // pub fn update_amms(ctx: Context<UpdateAMM>, market_indexes: [u64; 5]) -> Result<()> {
-    //     // up to ~60k compute units (per amm) worst case
+    #[access_control(
+        exchange_not_paused(&ctx.accounts.state)
+    )]
+    pub fn update_amms(ctx: Context<UpdateAMM>, market_indexes: [u64; 5]) -> Result<()> {
+        // up to ~60k compute units (per amm) worst case
 
-    //     let clock = Clock::get()?;
+        let clock = Clock::get()?;
 
-    //     let state = &ctx.accounts.state;
+        let state = &ctx.accounts.state;
 
-    //     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-    //     let oracle_map = &mut OracleMap::load(remaining_accounts_iter, clock.slot)?;
-    //     let market_map = &mut MarketMap::load(
-    //         &get_writable_markets_list(market_indexes),
-    //         remaining_accounts_iter,
-    //     )?;
+        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+        let oracle_map = &mut OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let market_map = &mut MarketMap::load(
+            &get_writable_markets_list(market_indexes),
+            remaining_accounts_iter,
+        )?;
 
-    // controller::repeg::update_amms(market_map, oracle_map, state, &clock)?;
+        controller::repeg::update_amms(market_map, oracle_map, market_indexes[0], state, &clock)?;
 
-    //     Ok(())
-    // }
+        Ok(())
+    }
 
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
