@@ -17,6 +17,10 @@ export class BigNum {
 		this.precision = new BN(precisionVal);
 	}
 
+	private bigNumFromParam (bn: BigNum | BN) {
+		return BN.isBN(bn) ? BigNum.from(bn) : bn;
+	}
+
 	public add(bn: BigNum): BigNum {
 		assert(bn.precision.eq(this.precision), 'Adding unequal precisions');
 
@@ -30,7 +34,7 @@ export class BigNum {
 	}
 
 	public mul(bn: BigNum | BN): BigNum {
-		const mulVal = bn instanceof BigNum ? bn : BigNum.from(bn);
+		const mulVal = this.bigNumFromParam(bn);
 
 		return BigNum.from(
 			this.val.mul(mulVal.val),
@@ -101,7 +105,7 @@ export class BigNum {
 	}
 
 	public gt(bn: BigNum | BN, ignorePrecision?: boolean): boolean {
-		const comparisonVal = bn instanceof BigNum ? bn : BigNum.from(bn);
+		const comparisonVal = this.bigNumFromParam(bn);
 
 		if (!ignorePrecision && !comparisonVal.eq(ZERO)) {
 			assert(
@@ -114,7 +118,7 @@ export class BigNum {
 	}
 
 	public lt(bn: BigNum | BN, ignorePrecision?: boolean): boolean {
-		const comparisonVal = bn instanceof BigNum ? bn : BigNum.from(bn);
+		const comparisonVal = this.bigNumFromParam(bn);
 
 		if (!ignorePrecision && !comparisonVal.val.eq(ZERO)) {
 			assert(
@@ -127,7 +131,7 @@ export class BigNum {
 	}
 
 	public gte(bn: BigNum | BN, ignorePrecision?: boolean): boolean {
-		const comparisonVal = bn instanceof BigNum ? bn : BigNum.from(bn);
+		const comparisonVal = this.bigNumFromParam(bn);
 
 		if (!ignorePrecision && !comparisonVal.val.eq(ZERO)) {
 			assert(
@@ -140,7 +144,7 @@ export class BigNum {
 	}
 
 	public lte(bn: BigNum | BN, ignorePrecision?: boolean): boolean {
-		const comparisonVal = bn instanceof BigNum ? bn : BigNum.from(bn);
+		const comparisonVal = this.bigNumFromParam(bn);
 
 		if (!ignorePrecision && !comparisonVal.val.eq(ZERO)) {
 			assert(
@@ -153,7 +157,7 @@ export class BigNum {
 	}
 
 	public eq(bn: BigNum | BN, ignorePrecision?: boolean): boolean {
-		const comparisonVal = bn instanceof BigNum ? bn : BigNum.from(bn);
+		const comparisonVal = this.bigNumFromParam(bn);
 
 		if (!ignorePrecision && !comparisonVal.val.eq(ZERO)) {
 			assert(
