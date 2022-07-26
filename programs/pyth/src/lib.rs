@@ -1,6 +1,8 @@
 use anchor_lang::prelude::*;
 mod pc;
-use pc::Price;
+use pc::{AccountType, Price, MAGIC, VERSION};
+
+use borsh::{BorshDeserialize, BorshSerialize};
 
 #[cfg(feature = "mainnet-beta")]
 declare_id!("GWXu4vLvXFN87dePFvM7Ejt8HEALEG9GNmwimNKHZrXG");
@@ -16,9 +18,12 @@ pub mod pyth {
 
         let mut price_oracle = Price::load(oracle).unwrap();
 
+        price_oracle.magic = MAGIC;
+        price_oracle.ver = VERSION;
+        price_oracle.atype = AccountType::Price;
+
         price_oracle.agg.price = price;
         price_oracle.agg.conf = conf;
-        price_oracle.agg.conf = 0;
         price_oracle.valid_slot = 228506959; //todo just turned 1->2 for negative delay
 
         price_oracle.twap = price;
@@ -38,6 +43,12 @@ pub mod pyth {
             .checked_div(2)
             .unwrap(); //todo
         price_oracle.agg.price = price as i64;
+
+        let clock = Clock::get().unwrap();
+
+        price_oracle.curr_slot = clock.slot;
+        price_oracle.valid_slot = clock.slot;
+
         Ok(())
     }
 

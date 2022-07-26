@@ -3,6 +3,26 @@ use anchor_lang::prelude::AccountInfo;
 use bytemuck::{cast_slice_mut, from_bytes_mut, try_cast_slice_mut, Pod, Zeroable};
 use std::cell::RefMut;
 
+pub const MAGIC: u32 = 0xa1b2c3d4;
+pub const VERSION_2: u32 = 2;
+pub const VERSION: u32 = VERSION_2;
+
+#[derive(Copy, Clone)]
+#[repr(C)]
+#[allow(dead_code, clippy::upper_case_acronyms)]
+pub enum AccountType {
+    Unknown,
+    Mapping,
+    Product,
+    Price,
+}
+
+impl Default for AccountType {
+    fn default() -> Self {
+        AccountType::Price
+    }
+}
+
 #[derive(Default, Copy, Clone)]
 #[repr(C)]
 pub struct AccKey {
@@ -73,13 +93,13 @@ impl Default for PriceType {
 #[derive(Default, Copy, Clone)]
 #[repr(C)]
 pub struct Price {
-    pub magic: u32,       // Pyth magic number.
-    pub ver: u32,         // Program version.
-    pub atype: u32,       // Account type.
-    pub size: u32,        // Price account size.
-    pub ptype: PriceType, // Price or calculation type.
-    pub expo: i32,        // Price exponent.
-    pub num: u32,         // Number of component prices.
+    pub magic: u32,         // Pyth magic number.
+    pub ver: u32,           // Program version.
+    pub atype: AccountType, // Account type.
+    pub size: u32,          // Price account size.
+    pub ptype: PriceType,   // Price or calculation type.
+    pub expo: i32,          // Price exponent.
+    pub num: u32,           // Number of component prices.
     pub unused: u32,
     pub curr_slot: u64,        // Currently accumulating price slot.
     pub valid_slot: u64,       // Valid slot-time of agg. price.
