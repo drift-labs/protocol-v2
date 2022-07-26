@@ -11,6 +11,7 @@ use state::oracle::{get_oracle_price, OracleSource};
 
 use crate::math::amm::get_update_k_result;
 use crate::state::market::Market;
+use crate::state::user::MarketPosition;
 use crate::state::{market::AMM, state::*, user::*};
 
 mod account_loader;
@@ -414,6 +415,10 @@ pub mod clearing_house {
                 short_intensity_volume: 0,
                 curve_update_intensity: 0,
                 fee_pool: PoolBalance { balance: 0 },
+                market_position: MarketPosition {
+                    market_index: market_index,
+                    ..MarketPosition::default()
+                },
                 last_update_slot: clock_slot,
                 padding0: 0,
                 padding1: 0,
@@ -1127,7 +1132,7 @@ pub mod clearing_house {
         let market = &mut market_map.get_ref_mut(&market_index)?;
 
         let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
-        controller::position::update_cost_basis(market, market_position, oracle_price)?;
+        // controller::position::update_cost_basis(market, market_position, oracle_price)?;
 
         let user_unsettled_pnl = market_position.unsettled_pnl;
 

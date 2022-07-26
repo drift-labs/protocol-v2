@@ -2367,6 +2367,12 @@
             "type": "u128"
           },
           {
+            "name": "marketPosition",
+            "type": {
+              "defined": "MarketPosition"
+            }
+          },
+          {
             "name": "baseSpread",
             "type": "u16"
           },

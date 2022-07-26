@@ -14,6 +14,7 @@ use crate::math::margin::{
 use crate::math_error;
 use crate::state::bank::{BankBalance, BankBalanceType};
 use crate::state::oracle::{OraclePriceData, OracleSource};
+use crate::state::user::MarketPosition;
 use crate::{
     AMM_TO_QUOTE_PRECISION_RATIO, BID_ASK_SPREAD_PRECISION, MARGIN_PRECISION, MARK_PRICE_PRECISION,
 };
@@ -189,6 +190,7 @@ pub struct AMM {
     pub base_asset_amount_step_size: u128,
 
     // market making
+    pub market_position: MarketPosition,
     pub base_spread: u16,
     pub long_spread: u128,
     pub short_spread: u128,

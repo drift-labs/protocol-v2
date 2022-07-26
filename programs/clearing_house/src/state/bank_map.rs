@@ -66,9 +66,9 @@ impl<'a> BankMap<'a> {
             let account_loader: AccountLoader<Bank> =
                 AccountLoader::try_from(account_info).or(Err(ErrorCode::InvalidBankAccount))?;
 
-            // if writable_banks.contains(&bank_index) && !is_writable {
-            //     return Err(ErrorCode::BankWrongMutability);
-            // }
+            if writable_banks.contains(&bank_index) && !is_writable {
+                return Err(ErrorCode::BankWrongMutability);
+            }
 
             bank_map.0.insert(bank_index, account_loader);
         }
@@ -104,9 +104,9 @@ impl<'a> BankMap<'a> {
         let account_loader: AccountLoader<Bank> =
             AccountLoader::try_from(account_info).or(Err(ErrorCode::InvalidBankAccount))?;
 
-        // if must_be_writable && !is_writable {
-        //     return Err(ErrorCode::BankWrongMutability);
-        // }
+        if must_be_writable && !is_writable {
+            return Err(ErrorCode::BankWrongMutability);
+        }
 
         bank_map.0.insert(bank_index, account_loader);
 
