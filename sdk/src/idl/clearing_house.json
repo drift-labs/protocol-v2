@@ -686,6 +686,37 @@
       "args": []
     },
     {
+      "name": "liquidateNew",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "liquidator",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "moveAmmPrice",
       "accounts": [
         {
@@ -1809,6 +1840,10 @@
             "type": "u128"
           },
           {
+            "name": "currentLiquidations",
+            "type": "u64"
+          },
+          {
             "name": "padding0",
             "type": "u32"
           },
@@ -1946,6 +1981,10 @@
           },
           {
             "name": "maxAuctionDuration",
+            "type": "u8"
+          },
+          {
+            "name": "liquidationAuctionDuration",
             "type": "u8"
           },
           {
@@ -2687,6 +2726,10 @@
             "type": "i128"
           },
           {
+            "name": "liquidationBaseAssetAmount",
+            "type": "i128"
+          },
+          {
             "name": "padding0",
             "type": "u128"
           },
@@ -2829,6 +2872,10 @@
           {
             "name": "auctionDuration",
             "type": "u8"
+          },
+          {
+            "name": "liquidation",
+            "type": "bool"
           },
           {
             "name": "padding",
@@ -2974,6 +3021,9 @@
           },
           {
             "name": "MarketOrderAuctionExpired"
+          },
+          {
+            "name": "CanceledForLiquidation"
           }
         ]
       }
@@ -3991,6 +4041,36 @@
     },
     {
       "code": 6090,
+      "name": "PositionAlreadyBeingLiquidated",
+      "msg": "PositionAlreadyBeingLiquidated"
+    },
+    {
+      "code": 6091,
+      "name": "PositionDoesntHaveOpenPositionOrOrders",
+      "msg": "PositionDoesntHaveOpenPositionOrOrders"
+    },
+    {
+      "code": 6092,
+      "name": "AllOrdersAreAlreadyLiquidations",
+      "msg": "AllOrdersAreAlreadyLiquidations"
+    },
+    {
+      "code": 6093,
+      "name": "CantCancelLiquidationOrder",
+      "msg": "CantCancelLiquidationOrder"
+    },
+    {
+      "code": 6094,
+      "name": "UserIsBeingLiquidated",
+      "msg": "UserIsBeingLiquidated"
+    },
+    {
+      "code": 6095,
+      "name": "LiquidationsOngoing",
+      "msg": "LiquidationsOngoing"
+    },
+    {
+      "code": 6096,
       "name": "DefaultError",
       "msg": "DefaultError"
     }

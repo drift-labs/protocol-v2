@@ -29,7 +29,7 @@ use crate::math_error;
 use crate::order_validation::validate_order;
 use crate::print_error;
 use crate::state::bank_map::BankMap;
-use crate::state::events::OrderRecord;
+use crate::state::events::{emit_stack, OrderRecord};
 use crate::state::events::{OrderAction, OrderActionExplanation};
 use crate::state::fulfillment::FulfillmentMethod;
 use crate::state::market::Market;
@@ -210,8 +210,7 @@ pub fn place_order(
     let (taker, taker_order, taker_unsettled_pnl, maker, maker_order, maker_unsettled_pnl) =
         get_taker_and_maker_for_order_record(&user_key, &new_order, 0);
 
-    // emit order record
-    emit!(OrderRecord {
+    emit_stack::<_, 984>(OrderRecord {
         ts: now,
         slot,
         taker,
@@ -333,7 +332,7 @@ pub fn cancel_order(
             -cast(filler_reward)?,
         );
 
-    emit!(OrderRecord {
+    emit_stack::<_, 984>(OrderRecord {
         ts: now,
         slot,
         taker,
@@ -356,7 +355,7 @@ pub fn cancel_order(
         taker_fee: 0,
         maker_rebate: 0,
         quote_asset_amount_surplus: 0,
-        oracle_price: oracle_map.get_price_data(&market.amm.oracle)?.price
+        oracle_price: oracle_map.get_price_data(&market.amm.oracle)?.price,
     });
 
     // Decrement open orders for existing position
