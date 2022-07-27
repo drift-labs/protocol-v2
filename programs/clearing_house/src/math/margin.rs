@@ -756,7 +756,7 @@ mod test {
         BANK_IMF_PRECISION,
         // BANK_WEIGHT_PRECISION,
         MARK_PRICE_PRECISION,
-        MARK_PRICE_PRECISION_I128,
+        // MARK_PRICE_PRECISION_I128,
         QUOTE_PRECISION,
     };
     use crate::math::position::calculate_position_pnl;

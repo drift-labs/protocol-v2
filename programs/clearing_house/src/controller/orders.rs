@@ -59,7 +59,6 @@ pub fn place_order(
     let slot = clock.slot;
     let user_key = user.key();
     let user = &mut load_mut(user)?;
-    controller::funding::settle_funding_payment(user, &user_key, market_map, now)?;
 
     let new_order_index = user
         .orders
@@ -299,7 +298,6 @@ pub fn cancel_order(
     filler_key: Option<&Pubkey>,
     filler_reward: u128,
 ) -> ClearingHouseResult {
-    controller::funding::settle_funding_payment(user, user_key, market_map, now)?;
 
     let (order_status, order_market_index, order_direction) =
         get_struct_values!(user.orders[order_index], status, market_index, direction);
@@ -378,7 +376,6 @@ pub fn fill_order(
     let filler_key = filler.key();
     let user_key = user.key();
     let user = &mut load_mut(user)?;
-    controller::funding::settle_funding_payment(user, &user_key, market_map, now)?;
 
     let order_index = user
         .orders
@@ -407,6 +404,8 @@ pub fn fill_order(
     let oracle_price: i128;
     {
         let market = &mut market_map.get_ref_mut(&market_index)?;
+        controller::funding::settle_funding_payment(user, &user_key, market, now)?;
+
         validate!(
             (slot == market.amm.last_update_slot || market.amm.curve_update_intensity == 0),
             ErrorCode::AMMNotUpdatedInSameSlot,
@@ -1392,7 +1391,6 @@ pub fn trigger_order(
     let filler_key = filler.key();
     let user_key = user.key();
     let user = &mut load_mut(user)?;
-    controller::funding::settle_funding_payment(user, &user_key, market_map, now)?;
 
     let order_index = user
         .orders
@@ -1416,6 +1414,8 @@ pub fn trigger_order(
     )?;
 
     let market = &mut market_map.get_ref_mut(&market_index)?;
+    controller::funding::settle_funding_payment(user, &user_key, market, now)?;
+
     let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
 
     let is_oracle_valid = amm::is_oracle_valid(

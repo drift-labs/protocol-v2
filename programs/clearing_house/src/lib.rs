@@ -493,7 +493,7 @@ pub mod clearing_house {
             user_bank_balance,
         )?;
 
-        controller::funding::settle_funding_payment(user, &user_key, &market_map, now)?;
+        controller::funding::settle_funding_payments(user, &user_key, &market_map, now)?;
 
         controller::token::receive(
             &ctx.accounts.token_program,
@@ -539,7 +539,7 @@ pub mod clearing_house {
         let bank_map = BankMap::load(&get_writable_banks(bank_index), remaining_accounts_iter)?;
         let market_map = MarketMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
 
-        controller::funding::settle_funding_payment(user, &user_key, &market_map, now)?;
+        controller::funding::settle_funding_payments(user, &user_key, &market_map, now)?;
 
         let amount = {
             let bank = &mut bank_map.get_ref_mut(&bank_index)?;
@@ -1203,7 +1203,7 @@ pub mod clearing_house {
         )?;
 
         // Settle user's funding payments so that collateral is up to date
-        controller::funding::settle_funding_payment(user, &user_key, &market_map, now)?;
+        controller::funding::settle_funding_payments(user, &user_key, &market_map, now)?;
 
         let LiquidationStatus {
             liquidation_type,
@@ -1971,7 +1971,7 @@ pub mod clearing_house {
 
         let user_key = ctx.accounts.user.key();
         let user = &mut load_mut(&ctx.accounts.user)?;
-        controller::funding::settle_funding_payment(user, &user_key, &market_map, now)?;
+        controller::funding::settle_funding_payments(user, &user_key, &market_map, now)?;
         Ok(())
     }
 
