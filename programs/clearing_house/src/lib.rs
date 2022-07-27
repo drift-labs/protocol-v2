@@ -786,7 +786,7 @@ pub mod clearing_house {
             .ok_or_else(math_error!())?;
 
         validate!(
-            time_since_last_add_liquidity > market.amm.lp_cooldown_time,
+            time_since_last_add_liquidity >= market.amm.lp_cooldown_time,
             ErrorCode::TryingToRemoveLiquidityTooFast
         )?;
 
