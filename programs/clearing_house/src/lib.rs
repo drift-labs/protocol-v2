@@ -57,9 +57,8 @@ pub mod clearing_house {
     use crate::state::events::{DepositDirection, LiquidationRecord};
     use crate::state::market::{Market, PoolBalance};
     use crate::state::market_map::{
-        get_writable_markets, get_writable_markets_for_user_positions,
-        get_writable_markets_for_user_positions_and_order, get_writable_markets_list, MarketMap,
-        WritableMarkets,
+        get_writable_markets, get_writable_markets_for_user_positions, get_writable_markets_list,
+        MarketMap, WritableMarkets,
     };
     use crate::state::oracle::OraclePriceData;
     use crate::state::oracle_map::OracleMap;
@@ -531,7 +530,7 @@ pub mod clearing_house {
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
         let bank_map = BankMap::load(&get_writable_banks(bank_index), remaining_accounts_iter)?;
         let mut market_map = MarketMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
-        
+
         controller::repeg::update_all_amms(
             &mut market_map,
             &mut oracle_map,
@@ -1054,7 +1053,6 @@ pub mod clearing_house {
         controller::repeg::update_all_amms(
             &mut market_map,
             &mut oracle_map,
-
             &ctx.accounts.state,
             &Clock::get()?,
         )?;

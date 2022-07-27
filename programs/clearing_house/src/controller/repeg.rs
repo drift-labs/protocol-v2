@@ -1,7 +1,7 @@
 use crate::error::*;
 use crate::math::casting::cast_to_i128;
 
-use crate::account_loader::{load, load_mut};
+use crate::account_loader::load_mut;
 use crate::controller::amm::update_spreads;
 use crate::error::ErrorCode;
 use crate::math::amm;

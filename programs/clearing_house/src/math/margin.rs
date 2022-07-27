@@ -765,13 +765,8 @@ pub fn calculate_free_collateral(
 mod test {
     use super::*;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION,
-        BANK_CUMULATIVE_INTEREST_PRECISION,
-        BANK_IMF_PRECISION,
-        // BANK_WEIGHT_PRECISION,
-        MARK_PRICE_PRECISION,
-        MARK_PRICE_PRECISION_I128,
-        QUOTE_PRECISION,
+        AMM_RESERVE_PRECISION, BANK_CUMULATIVE_INTEREST_PRECISION, BANK_IMF_PRECISION,
+        MARK_PRICE_PRECISION, QUOTE_PRECISION,
     };
     use crate::math::position::calculate_position_pnl;
     use crate::state::bank::Bank;
@@ -944,6 +939,7 @@ mod test {
         assert_eq!(res, 32242);
     }
 
+    #[test]
     fn negative_margin_user_test() {
         let bank = Bank {
             cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
@@ -969,7 +965,7 @@ mod test {
         user.bank_balances[0] = user_bank_balance;
         user.positions[0] = market_position;
 
-        let mut market = Market {
+        let market = Market {
             market_index: 0,
             amm: AMM {
                 base_asset_reserve: 5122950819670000,
@@ -996,7 +992,7 @@ mod test {
             has_sufficient_number_of_data_points: true,
         };
 
-        let (pmr, unrealized_pnl) = calculate_perp_position_value(
+        let (_, unrealized_pnl) = calculate_perp_position_value(
             &market_position,
             &market,
             &oracle_price_data,
@@ -1011,7 +1007,7 @@ mod test {
             has_sufficient_number_of_data_points: true,
         };
 
-        let mut total_collateral = calculate_bank_balance_value(
+        let total_collateral = calculate_bank_balance_value(
             &user_bank_balance,
             &bank,
             &quote_asset_oracle_price_data,
@@ -1029,7 +1025,7 @@ mod test {
             .ok_or_else(math_error!())
             .unwrap();
 
-        assert_eq!(total_collateral_i128, -(QUOTE_PRECISION as i128));
+        assert_eq!(total_collateral_i128, -(2 * QUOTE_PRECISION as i128));
     }
 
     #[test]
@@ -1096,7 +1092,7 @@ mod test {
             delay: 0,
             has_sufficient_number_of_data_points: true,
         };
-        let bqv = calculate_bank_balance_value(
+        let _bqv = calculate_bank_balance_value(
             &user_bank_balance,
             &bank,
             &quote_asset_oracle_price_data,

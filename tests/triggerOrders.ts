@@ -25,7 +25,6 @@ import {
 	mockUserUSDCAccount,
 	setFeedPrice,
 	initializeQuoteAssetBank,
-	printTxLogs,
 } from './testHelpers';
 import {
 	BASE_PRECISION,
