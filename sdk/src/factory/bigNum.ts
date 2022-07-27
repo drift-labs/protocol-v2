@@ -48,7 +48,7 @@ export class BigNum {
 	 * @returns
 	 */
 	public scalarMul(bn: BigNum | BN): BigNum {
-		if (bn instanceof BN) return BigNum.from(this.val.mul(bn), this.precision);
+		if (BN.isBN(bn)) return BigNum.from(this.val.mul(bn), this.precision);
 
 		return BigNum.from(
 			this.val.mul(bn.val),
@@ -57,7 +57,8 @@ export class BigNum {
 	}
 
 	public div(bn: BigNum | BN): BigNum {
-		if (bn instanceof BN) return BigNum.from(this.val.div(bn), this.precision);
+		if (BN.isBN(bn)) return BigNum.from(this.val.div(bn), this.precision);
+
 		return BigNum.from(this.val.div(bn.val), this.precision.sub(bn.precision));
 	}
 
