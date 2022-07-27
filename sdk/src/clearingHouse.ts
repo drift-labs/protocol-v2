@@ -1181,7 +1181,7 @@ export class ClearingHouse {
 
 	public async getPlaceAndMakeIx(
 		orderParams: OptionalOrderParams,
-		takerInfo?: TakerInfo,
+		takerInfo: TakerInfo,
 	): Promise<TransactionInstruction> {
 		orderParams = this.getOrderParams(orderParams);
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
@@ -1191,15 +1191,12 @@ export class ClearingHouse {
 			writableBankIndex: QUOTE_ASSET_BANK_INDEX,
 		});
 
-		let takerOrderId = null;
-		if (takerInfo) {
-			takerOrderId = takerInfo.order.orderId;
-			remainingAccounts.push({
-				pubkey: takerInfo.taker,
-				isSigner: false,
-				isWritable: true,
-			});
-		}
+		const takerOrderId = takerInfo!.order!.orderId;
+		remainingAccounts.push({
+			pubkey: takerInfo.taker,
+			isSigner: false,
+			isWritable: true,
+		});
 
 		return await this.program.instruction.placeAndMake(
 			orderParams,
