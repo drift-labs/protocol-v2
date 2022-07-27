@@ -453,7 +453,7 @@ pub mod clearing_house {
             return Err(ErrorCode::InsufficientDeposit.into());
         }
 
-        controller::repeg::update_all_amms(
+        controller::repeg::update_amms(
             &mut market_map,
             &mut oracle_map,
             &ctx.accounts.state,
@@ -531,7 +531,7 @@ pub mod clearing_house {
         let bank_map = BankMap::load(&get_writable_banks(bank_index), remaining_accounts_iter)?;
         let mut market_map = MarketMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
 
-        controller::repeg::update_all_amms(
+        controller::repeg::update_amms(
             &mut market_map,
             &mut oracle_map,
             &ctx.accounts.state,
@@ -620,7 +620,7 @@ pub mod clearing_house {
         let bank_map = BankMap::load(&get_writable_banks(bank_index), remaining_accounts_iter)?;
         let mut market_map = MarketMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
 
-        controller::repeg::update_all_amms(
+        controller::repeg::update_amms(
             &mut market_map,
             &mut oracle_map,
             &ctx.accounts.state,
@@ -725,7 +725,6 @@ pub mod clearing_house {
         controller::repeg::update_amms(
             &mut market_map,
             &mut oracle_map,
-            params.market_index,
             &ctx.accounts.state,
             &Clock::get()?,
         )?;
@@ -749,7 +748,7 @@ pub mod clearing_house {
         let _bank_map = BankMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
         let mut market_map = MarketMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
 
-        controller::repeg::update_all_amms(
+        controller::repeg::update_amms(
             &mut market_map,
             &mut oracle_map,
             &ctx.accounts.state,
@@ -781,7 +780,7 @@ pub mod clearing_house {
         let _bank_map = BankMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
         let mut market_map = MarketMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
 
-        controller::repeg::update_all_amms(
+        controller::repeg::update_amms(
             &mut market_map,
             &mut oracle_map,
             &ctx.accounts.state,
@@ -807,7 +806,7 @@ pub mod clearing_house {
         order_id: Option<u64>,
         maker_order_id: Option<u64>,
     ) -> Result<()> {
-        let (order_id, market_index, writable_markets) = {
+        let (order_id, writable_markets) = {
             let user = &load(&ctx.accounts.user)?;
             // if there is no order id, use the users last order id
             let order_id = order_id.map_or(user.next_order_id - 1, |order_id| order_id);
@@ -818,11 +817,7 @@ pub mod clearing_house {
                 .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
             let order = &user.orders[order_index];
 
-            (
-                order_id,
-                order.market_index,
-                &get_writable_markets(order.market_index),
-            )
+            (order_id, &get_writable_markets(order.market_index))
         };
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
@@ -841,7 +836,6 @@ pub mod clearing_house {
         controller::repeg::update_amms(
             &mut market_map,
             &mut oracle_map,
-            market_index,
             &ctx.accounts.state,
             &Clock::get()?,
         )?;
@@ -903,7 +897,6 @@ pub mod clearing_house {
         controller::repeg::update_amms(
             &mut market_map,
             &mut oracle_map,
-            params.market_index,
             &ctx.accounts.state,
             &Clock::get()?,
         )?;
@@ -990,7 +983,6 @@ pub mod clearing_house {
         controller::repeg::update_amms(
             &mut market_map,
             &mut oracle_map,
-            params.market_index,
             &ctx.accounts.state,
             &Clock::get()?,
         )?;
@@ -1050,7 +1042,7 @@ pub mod clearing_house {
         BankMap::load(&WritableBanks::new(), remaining_accounts_iter)?;
         let mut market_map = MarketMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
 
-        controller::repeg::update_all_amms(
+        controller::repeg::update_amms(
             &mut market_map,
             &mut oracle_map,
             &ctx.accounts.state,
@@ -1087,7 +1079,7 @@ pub mod clearing_house {
             remaining_accounts_iter,
         )?;
 
-        controller::repeg::update_amms(market_map, oracle_map, 100, state, &clock)?; // todo
+        controller::repeg::update_amms(market_map, oracle_map, state, &clock)?; // todo
 
         Ok(())
     }
@@ -1109,7 +1101,6 @@ pub mod clearing_house {
         controller::repeg::update_amms(
             &mut market_map,
             &mut oracle_map,
-            market_index,
             &ctx.accounts.state,
             &clock,
         )?;
@@ -1199,7 +1190,7 @@ pub mod clearing_house {
             remaining_accounts_iter,
         )?;
 
-        controller::repeg::update_all_amms(
+        controller::repeg::update_amms(
             &mut market_map,
             &mut oracle_map,
             &ctx.accounts.state,

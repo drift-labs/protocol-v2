@@ -850,11 +850,6 @@
           "isSigner": false
         },
         {
-          "name": "bankVaultAuthority",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
           "name": "tokenProgram",
           "isMut": false,
           "isSigner": false
