@@ -59,6 +59,7 @@ pub fn place_order(
     let slot = clock.slot;
     let user_key = user.key();
     let user = &mut load_mut(user)?;
+    controller::funding::settle_funding_payment(user, &user_key, market_map, now)?;
 
     let new_order_index = user
         .orders
@@ -298,6 +299,8 @@ pub fn cancel_order(
     filler_key: Option<&Pubkey>,
     filler_reward: u128,
 ) -> ClearingHouseResult {
+    controller::funding::settle_funding_payment(user, user_key, market_map, now)?;
+
     let (order_status, order_market_index, order_direction) =
         get_struct_values!(user.orders[order_index], status, market_index, direction);
 
@@ -375,6 +378,7 @@ pub fn fill_order(
     let filler_key = filler.key();
     let user_key = user.key();
     let user = &mut load_mut(user)?;
+    controller::funding::settle_funding_payment(user, &user_key, market_map, now)?;
 
     let order_index = user
         .orders
@@ -1387,6 +1391,7 @@ pub fn trigger_order(
     let filler_key = filler.key();
     let user_key = user.key();
     let user = &mut load_mut(user)?;
+    controller::funding::settle_funding_payment(user, &user_key, market_map, now)?;
 
     let order_index = user
         .orders

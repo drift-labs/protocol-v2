@@ -1207,7 +1207,7 @@ pub mod clearing_house {
         )?;
 
         // Settle user's funding payments so that collateral is up to date
-        controller::funding::settle_funding_payments(user, &user_key, &market_map, now)?;
+        controller::funding::settle_funding_payment(user, &user_key, &market_map, now)?;
 
         let LiquidationStatus {
             liquidation_type,
@@ -1975,7 +1975,7 @@ pub mod clearing_house {
 
         let user_key = ctx.accounts.user.key();
         let user = &mut load_mut(&ctx.accounts.user)?;
-        controller::funding::settle_funding_payments(user, &user_key, &market_map, now)?;
+        controller::funding::settle_funding_payment(user, &user_key, &market_map, now)?;
         Ok(())
     }
 
