@@ -17,7 +17,7 @@ export class BigNum {
 		this.precision = new BN(precisionVal);
 	}
 
-	private bigNumFromParam (bn: BigNum | BN) {
+	private bigNumFromParam(bn: BigNum | BN) {
 		return BN.isBN(bn) ? BigNum.from(bn) : bn;
 	}
 
@@ -397,10 +397,30 @@ export class BigNum {
 	): string {
 		const prefix = `${this.lt(BigNum.zero()) ? `-` : ``}$`;
 
-		const val =
-			useTradePrecision || precisionOverride
-				? this.prettyPrint(useTradePrecision, precisionOverride)
-				: BigNum.fromPrint(this.toFixed(2), new BN(2)).prettyPrint();
+		const usingCustomPrecision =
+			true && (useTradePrecision || precisionOverride);
+
+		let val = usingCustomPrecision
+			? this.prettyPrint(useTradePrecision, precisionOverride)
+			: BigNum.fromPrint(this.toFixed(2), new BN(2)).prettyPrint();
+
+		// Append two trailing zeroes if not using custom precision
+		if (!usingCustomPrecision) {
+			const [_, rightSide] = val.split(BigNum.delim);
+
+			const trailingLength = rightSide?.length ?? 0;
+
+			if (trailingLength < 2) {
+				const numHasDecimals = this.print().includes(BigNum.delim);
+
+				// Handle case where pretty print won't include the decimal point
+				if (trailingLength === 0 && numHasDecimals) {
+					val = `${val}.00`;
+				} else {
+					val = `${val}${new Array(2 - trailingLength).fill('0').join('')}`;
+				}
+			}
+		}
 
 		return `${prefix}${val.replace('-', '')}`;
 	}
