@@ -76,6 +76,25 @@ pub fn repeg(
     Ok(adjustment_cost)
 }
 
+pub fn update_all_amms(
+    market_map: &mut MarketMap,
+    oracle_map: &mut OracleMap,
+    state: &State,
+    clock: &Clock,
+) -> Result<()> {
+    // up to ~60k compute units (per amm) worst case
+    let clock_slot = clock.slot;
+    let now = clock.unix_timestamp;
+
+    for (_key, market_account_loader) in market_map.0.iter_mut() {
+        let market = &mut load_mut(market_account_loader)?;
+        let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
+        update_amm(market, oracle_price_data, state, now, clock_slot)?;
+    }
+
+    Ok(())
+}
+
 pub fn update_amms(
     market_map: &mut MarketMap,
     oracle_map: &mut OracleMap,
