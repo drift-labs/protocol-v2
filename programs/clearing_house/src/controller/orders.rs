@@ -428,7 +428,7 @@ pub fn fill_order(
     )?;
 
     let is_filler_taker = user_key == filler_key;
-    let is_filler_maker = maker_key.map_or(false, |key| key == user_key);
+    let is_filler_maker = maker_key.map_or(false, |key| key == filler_key);
     let mut filler = if !is_filler_maker && !is_filler_taker {
         Some(load_mut!(filler)?)
     } else {
