@@ -12,7 +12,7 @@ use state::oracle::{get_oracle_price, OracleSource};
 use crate::math::amm::get_update_k_result;
 use crate::state::market::Market;
 use crate::state::user::MarketPosition;
-use crate::state::{market::AMM, state::*, user::*};
+use crate::state::{market::AMM, state::*};
 
 mod account_loader;
 pub mod context;
@@ -459,12 +459,12 @@ pub mod clearing_house {
             return Err(ErrorCode::InsufficientDeposit.into());
         }
 
-        // controller::repeg::update_amms(
-        //     &mut market_map,
-        //     &mut oracle_map,
-        //     &ctx.accounts.state,
-        //     &Clock::get()?,
-        // )?;
+        controller::repeg::update_all_amms(
+            &mut market_map,
+            &mut oracle_map,
+            &ctx.accounts.state,
+            &Clock::get()?,
+        )?;
 
         let bank = &mut bank_map.get_ref_mut(&bank_index)?;
         controller::bank_balance::update_bank_cumulative_interest(bank, now)?;
@@ -537,7 +537,7 @@ pub mod clearing_house {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
         let bank_map = BankMap::load(&get_writable_banks(bank_index), remaining_accounts_iter)?;
-        let mut market_map = MarketMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
+        let market_map = MarketMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
 
         controller::funding::settle_funding_payment(user, &user_key, &market_map, now)?;
 
@@ -623,12 +623,12 @@ pub mod clearing_house {
         let bank_map = BankMap::load(&get_writable_banks(bank_index), remaining_accounts_iter)?;
         let mut market_map = MarketMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
 
-        // controller::repeg::update_amms(
-        //     &mut market_map,
-        //     &mut oracle_map,
-        //     &ctx.accounts.state,
-        //     &Clock::get()?,
-        // )?;
+        controller::repeg::update_all_amms(
+            &mut market_map,
+            &mut oracle_map,
+            &ctx.accounts.state,
+            &Clock::get()?,
+        )?;
 
         {
             let bank = &mut bank_map.get_ref_mut(&bank_index)?;
@@ -752,12 +752,12 @@ pub mod clearing_house {
         let _bank_map = BankMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
         let mut market_map = MarketMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
 
-        // controller::repeg::update_amms(
-        //     &mut market_map,
-        //     &mut oracle_map,
-        //     &ctx.accounts.state,
-        //     &Clock::get()?,
-        // )?;
+        controller::repeg::update_all_amms(
+            &mut market_map,
+            &mut oracle_map,
+            &ctx.accounts.state,
+            &Clock::get()?,
+        )?;
 
         let order_id = match order_id {
             Some(order_id) => order_id,
@@ -784,12 +784,12 @@ pub mod clearing_house {
         let _bank_map = BankMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
         let mut market_map = MarketMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
 
-        // controller::repeg::update_amms(
-        //     &mut market_map,
-        //     &mut oracle_map,
-        //     &ctx.accounts.state,
-        //     &Clock::get()?,
-        // )?;
+        controller::repeg::update_all_amms(
+            &mut market_map,
+            &mut oracle_map,
+            &ctx.accounts.state,
+            &Clock::get()?,
+        )?;
 
         controller::orders::cancel_order_by_user_order_id(
             user_order_id,
@@ -1046,13 +1046,12 @@ pub mod clearing_house {
         BankMap::load(&WritableBanks::new(), remaining_accounts_iter)?;
         let mut market_map = MarketMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
 
-        // controller::repeg::update_amms(
-        //     &mut market_map,
-        //     &mut oracle_map,
-
-        //     &ctx.accounts.state,
-        //     &Clock::get()?,
-        // )?;
+        controller::repeg::update_all_amms(
+            &mut market_map,
+            &mut oracle_map,
+            &ctx.accounts.state,
+            &Clock::get()?,
+        )?;
 
         controller::orders::trigger_order(
             order_id,
@@ -1196,12 +1195,12 @@ pub mod clearing_house {
             remaining_accounts_iter,
         )?;
 
-        // controller::repeg::update_amms(
-        //     &mut market_map,
-        //     &mut oracle_map,
-        //     &ctx.accounts.state,
-        //     &clock,
-        // )?;
+        controller::repeg::update_all_amms(
+            &mut market_map,
+            &mut oracle_map,
+            &ctx.accounts.state,
+            &clock,
+        )?;
 
         // Settle user's funding payments so that collateral is up to date
         controller::funding::settle_funding_payment(user, &user_key, &market_map, now)?;

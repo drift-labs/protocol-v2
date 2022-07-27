@@ -499,8 +499,6 @@ export class ClearingHouse {
 			}
 		}
 
-		console.log(marketAccountMap);
-
 		return [
 			...oracleAccountMap.values(),
 			...bankAccountMap.values(),
