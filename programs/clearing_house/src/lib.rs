@@ -57,8 +57,9 @@ pub mod clearing_house {
     use crate::state::events::{DepositDirection, LiquidationRecord};
     use crate::state::market::{Market, PoolBalance};
     use crate::state::market_map::{
-        get_writable_markets, get_writable_markets_for_user_positions, get_writable_markets_list,
-        MarketMap, WritableMarkets,
+        get_writable_markets, get_writable_markets_for_user_positions,
+        get_writable_markets_for_user_positions_and_order, get_writable_markets_list, MarketMap,
+        WritableMarkets,
     };
     use crate::state::oracle::OraclePriceData;
     use crate::state::oracle_map::OracleMap;
@@ -874,15 +875,12 @@ pub mod clearing_house {
             &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
             remaining_accounts_iter,
         )?;
-        // let mut market_map = MarketMap::load(
-        //     &get_writable_markets_for_user_positions_and_order(
-        //         &load(&ctx.accounts.user)?.positions,
-        //         params.market_index),
-        //     remaining_accounts_iter,
-        // )?;
 
         let mut market_map = MarketMap::load(
-            &get_writable_markets(params.market_index),
+            &get_writable_markets_for_user_positions_and_order(
+                &load(&ctx.accounts.user)?.positions,
+                params.market_index,
+            ),
             remaining_accounts_iter,
         )?;
 
@@ -900,17 +898,6 @@ pub mod clearing_house {
             &ctx.accounts.state,
             &Clock::get()?,
         )?;
-
-        msg!("updated_amms");
-
-        // let state =  &ctx.accounts.state;
-        // let clock = Clock::get()?;
-        // let now = clock.unix_timestamp;
-        // let clock_slot = clock.slot;
-
-        // let mut market = market_map.get_ref_mut(&params.market_index)?;
-        // let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
-        // controller::repeg::update_amm(&mut market, oracle_price_data, state, now, clock_slot)?;
 
         controller::orders::place_order(
             &ctx.accounts.state,
@@ -973,7 +960,10 @@ pub mod clearing_house {
             remaining_accounts_iter,
         )?;
         let mut market_map = MarketMap::load(
-            &get_writable_markets(params.market_index),
+            &get_writable_markets_for_user_positions_and_order(
+                &load(&ctx.accounts.user)?.positions,
+                params.market_index,
+            ),
             remaining_accounts_iter,
         )?;
 
