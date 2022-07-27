@@ -1197,7 +1197,7 @@ export class ClearingHouse {
 			remainingAccounts.push({
 				pubkey: takerInfo.taker,
 				isSigner: false,
-				isWritable: false,
+				isWritable: true,
 			});
 		}
 
