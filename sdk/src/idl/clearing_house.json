@@ -592,32 +592,6 @@
       ]
     },
     {
-      "name": "updateAmms",
-      "accounts": [
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": true
-        }
-      ],
-      "args": [
-        {
-          "name": "marketIndexes",
-          "type": {
-            "array": [
-              "u64",
-              5
-            ]
-          }
-        }
-      ]
-    },
-    {
       "name": "settlePnl",
       "accounts": [
         {

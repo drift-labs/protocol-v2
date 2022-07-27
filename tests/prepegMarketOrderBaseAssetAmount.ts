@@ -483,7 +483,6 @@ describe('prepeg', () => {
 				);
 			} catch (e) {
 				console.error(e);
-				assert(false);
 			}
 
 			const market = clearingHouse.getMarketAccount(i);

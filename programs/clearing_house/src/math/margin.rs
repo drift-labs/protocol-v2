@@ -1,8 +1,7 @@
 use crate::error::ClearingHouseResult;
 use crate::math::collateral::calculate_updated_collateral;
 use crate::math::constants::{
-    AMM_TO_QUOTE_PRECISION_RATIO_I128, BANK_IMF_PRECISION, BANK_WEIGHT_PRECISION,
-    BID_ASK_SPREAD_PRECISION_I128, MARGIN_PRECISION,
+    BANK_IMF_PRECISION, BANK_WEIGHT_PRECISION, BID_ASK_SPREAD_PRECISION_I128, MARGIN_PRECISION,
 };
 use crate::math::position::{
     calculate_base_asset_value_and_pnl, calculate_base_asset_value_and_pnl_with_oracle_price,
@@ -14,7 +13,6 @@ use crate::state::user::User;
 use crate::math::amm::use_oracle_price_for_margin_calculation;
 use crate::math::bank_balance::get_balance_value_and_token_amount;
 use crate::math::casting::cast_to_i128;
-use crate::math::funding::calculate_funding_payment;
 use crate::math::oracle::{get_oracle_status, OracleStatus};
 // use crate::math::repeg;
 use crate::math::slippage::calculate_slippage;
@@ -268,24 +266,12 @@ pub fn calculate_margin_requirement_and_total_collateral(
             margin_requirement_type,
         )?;
 
-        let amm_cumulative_funding_rate = if market_position.base_asset_amount > 0 {
-            market.amm.cumulative_funding_rate_long
-        } else {
-            market.amm.cumulative_funding_rate_short
-        };
-
-        let perp_funding = calculate_funding_payment(amm_cumulative_funding_rate, market_position)?
-            .checked_div(AMM_TO_QUOTE_PRECISION_RATIO_I128)
-            .ok_or_else(math_error!())?;
-
         margin_requirement
             .checked_add(perp_margin_requirement)
             .ok_or_else(math_error!())?;
 
         total_collateral = total_collateral
             .checked_add(perp_pnl)
-            .ok_or_else(math_error!())?
-            .checked_add(perp_funding)
             .ok_or_else(math_error!())?;
     }
 

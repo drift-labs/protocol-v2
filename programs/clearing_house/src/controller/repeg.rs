@@ -1,7 +1,7 @@
 use crate::error::*;
 use crate::math::casting::cast_to_i128;
 
-use crate::account_loader::{load, load_mut};
+use crate::account_loader::load_mut;
 use crate::controller::amm::update_spreads;
 use crate::error::ErrorCode;
 use crate::math::amm;
@@ -90,25 +90,14 @@ pub fn update_amms(
     for (_key, market_account_loader) in market_map.0.iter_mut() {
         msg!("market_account_loader key: {:?}", _key);
         let market = &mut load_mut(market_account_loader)?;
-
-        // if market_account_loader.acc_info.is_writable {
-        //     &mut load_mut(market_account_loader)?;
-        // } else {
-        //     &mut load(market_account_loader)?;
-
-        // };
-
         msg!(
             "market_account_loader complete index: {:?}",
             market.market_index
         );
 
-        if market.market_index == market_index || market_index == 100 {
+        if market.market_index == market_index {
             let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
             update_amm(market, oracle_price_data, state, now, clock_slot)?;
-            if market.market_index == market_index {
-                return Ok(());
-            }
         }
         msg!("update_amm complete key: {:?}", _key);
     }
