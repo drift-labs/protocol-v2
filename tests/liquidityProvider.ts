@@ -172,7 +172,7 @@ describe('liquidity providing', () => {
 			oracleInfos,
 			provider.wallet
 		);
-		await clearingHouse.updateOrderAuctionTime(new BN(0));
+		await clearingHouse.updateAuctionDuration(new BN(0), new BN(0));
 
 		// used for trading / taking on baa
 		await clearingHouse.initializeMarket(
