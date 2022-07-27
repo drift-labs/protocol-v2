@@ -364,7 +364,10 @@ pub fn fill_order(
         .orders
         .iter()
         .position(|order| order.order_id == order_id)
-        .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
+        .ok_or_else(|| {
+            msg!("Could not find order id {}", order_id);
+            print_error!(ErrorCode::OrderDoesNotExist)()
+        })?;
 
     let (order_status, market_index) =
         get_struct_values!(user.orders[order_index], status, market_index);
