@@ -258,6 +258,8 @@ describe('clearing_house', () => {
 			marketIndex
 		);
 		await printTxLogs(connection, txSig);
+		const marketData = clearingHouse.getMarketAccount(0);
+		await setFeedPrice(anchor.workspace.Pyth, 1.01, marketData.amm.oracle);
 
 		await eventSubscriber.awaitTx(txSig);
 		const orderR = eventSubscriber.getEventsArray('OrderRecord')[0];

@@ -7,7 +7,7 @@ use crate::controller;
 use crate::controller::position;
 use crate::controller::position::{
     add_new_position, decrease_open_bids_and_asks, get_position_index, increase_open_bids_and_asks,
-    update_position_and_market, PositionDirection,
+    update_position_and_market, update_position_and_market_with_fee, PositionDirection,
 };
 use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
@@ -1147,12 +1147,6 @@ pub fn fulfill_order_with_match(
         taker.orders[maker_order_index].direction,
     )?;
 
-    let mut taker_unsettled_pnl = update_position_and_market(
-        &mut taker.positions[taker_position_index],
-        market,
-        &taker_position_delta,
-    )?;
-
     let (taker_fee, maker_rebate, fee_to_market, filler_reward) =
         fees::calculate_fee_for_fulfillment_with_match(
             quote_asset_amount,
@@ -1161,6 +1155,13 @@ pub fn fulfill_order_with_match(
             now,
             filler.is_some(),
         )?;
+
+    let mut taker_unsettled_pnl = update_position_and_market_with_fee(
+        &mut taker.positions[taker_position_index],
+        market,
+        &taker_position_delta,
+        fee_to_market,
+    )?;
 
     // Increment the markets house's total fee variables
     market.amm.total_fee = market

@@ -1140,7 +1140,7 @@ mod test {
         // assert!(upnl < position_unrealized_pnl); // margin system discounts
 
         assert!(pmr > 0);
-        assert_eq!(pmr, 135553278686000);
+        assert_eq!(pmr, 13555327868);
 
         let (pmr_partial, upnl_partial) = calculate_perp_position_value(
             &market_position,
@@ -1154,7 +1154,7 @@ mod test {
         assert!(upnl_partial < position_unrealized_pnl); // margin system discounts
 
         assert!(pmr_partial > 0);
-        assert_eq!(pmr_partial, 87974077867214);
+        assert_eq!(pmr_partial, 8797407786);
         // required margin $8797.4077867214 for position before partial liq
         // 8587.9701 * 1/.0625 = 13740.7522252
 
@@ -1237,9 +1237,9 @@ mod test {
         assert_eq!(upnl_2, 23062807377);
         assert!(upnl_2 > upnl);
         assert!(pmr_2 > 0);
-        assert_eq!(pmr_2, 129405737702000); //$12940.5737702000
+        assert_eq!(pmr_2, 12940573770); //$12940.5737702000
         assert!(pmr > pmr_2);
-        assert_eq!(pmr - pmr_2, 6147540984000);
+        assert_eq!(pmr - pmr_2, 614754098);
         //-6.1475409835 * 1000 / 10 = 614.75
     }
 

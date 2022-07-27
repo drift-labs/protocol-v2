@@ -321,16 +321,17 @@ pub fn update_position(
     Ok(pnl)
 }
 
-pub fn update_position_and_market(
+pub fn update_position_and_market_with_fee(
     position: &mut MarketPosition,
     market: &mut Market,
     delta: &PositionDelta,
+    fee_to_market: u128,
 ) -> ClearingHouseResult<i128> {
     // update user position
     let pnl = update_position(Some(position), market, delta, true)?;
 
     // update Market implicit position
-    let _amm_pnl = update_position(
+    let amm_pnl = update_position(
         None,
         market,
         &PositionDelta {
@@ -339,6 +340,28 @@ pub fn update_position_and_market(
         },
         false,
     )?;
+
+    market.amm.market_position.unsettled_pnl = market
+        .amm
+        .market_position
+        .unsettled_pnl
+        .checked_add(
+            amm_pnl
+                .checked_add(cast_to_i128(fee_to_market)?)
+                .ok_or_else(math_error!())?,
+        )
+        .ok_or_else(math_error!())?;
+
+    Ok(pnl)
+}
+
+pub fn update_position_and_market(
+    position: &mut MarketPosition,
+    market: &mut Market,
+    delta: &PositionDelta,
+) -> ClearingHouseResult<i128> {
+    // update user position
+    let pnl = update_position_and_market_with_fee(position, market, delta, 0)?;
 
     Ok(pnl)
 }
@@ -598,6 +621,10 @@ mod test {
         assert_eq!(market.amm.net_base_asset_amount, 1);
         assert_eq!(market.amm.quote_asset_amount_long, 1);
         assert_eq!(market.amm.quote_asset_amount_short, 0);
+
+        assert_eq!(market.amm.market_position.base_asset_amount, -1);
+        assert_eq!(market.amm.market_position.quote_asset_amount, 1);
+        assert_eq!(market.amm.market_position.quote_entry_amount, 1);
     }
 
     #[test]
@@ -1374,6 +1401,57 @@ mod test {
 
         assert!(adj_quote < 0);
         assert!(market_position_down.quote_asset_amount > market_position_up.quote_entry_amount);
+    }
+
+    #[test]
+    fn many_positions_test() {
+        let mut existing_position = MarketPosition::default();
+        let mut position_delta = PositionDelta {
+            base_asset_amount: 1,
+            quote_asset_amount: 1,
+        };
+        let mut market = Market {
+            amm: AMM {
+                cumulative_funding_rate_long: 1,
+                ..AMM::default()
+            },
+            open_interest: 0,
+            ..Market::default()
+        };
+
+        let pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
+            .unwrap();
+
+        assert_eq!(market.amm.market_position.base_asset_amount, -1);
+        assert_eq!(market.amm.market_position.quote_asset_amount, 1);
+        assert_eq!(market.amm.market_position.quote_entry_amount, 1);
+        assert_eq!(market.amm.market_position.unsettled_pnl, 0);
+
+        position_delta = PositionDelta {
+            base_asset_amount: 10,
+            quote_asset_amount: 400,
+        };
+
+        let pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
+            .unwrap();
+
+        assert_eq!(market.amm.market_position.base_asset_amount, -11);
+        assert_eq!(market.amm.market_position.quote_asset_amount, 401);
+        assert_eq!(market.amm.market_position.quote_entry_amount, 401);
+        assert_eq!(market.amm.market_position.unsettled_pnl, 0);
+
+        position_delta = PositionDelta {
+            base_asset_amount: -10,
+            quote_asset_amount: 420,
+        };
+
+        let pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
+            .unwrap();
+
+        assert_eq!(market.amm.market_position.base_asset_amount, -1);
+        assert_eq!(market.amm.market_position.quote_asset_amount, 37);
+        assert_eq!(market.amm.market_position.quote_entry_amount, 37);
+        assert_eq!(market.amm.market_position.unsettled_pnl, -56);
     }
 }
 
