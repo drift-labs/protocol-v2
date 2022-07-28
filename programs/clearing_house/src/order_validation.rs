@@ -135,6 +135,10 @@ fn validate_post_only_order(
     valid_oracle_price: Option<i128>,
     slot: u64,
 ) -> ClearingHouseResult {
+    if order.is_jit_maker() {
+        return Ok(());
+    }
+
     let base_asset_amount_market_can_fill = calculate_base_asset_amount_to_fill_up_to_limit_price(
         order,
         market,
