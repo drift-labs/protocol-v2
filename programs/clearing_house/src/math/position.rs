@@ -94,6 +94,30 @@ pub fn calculate_base_asset_value(
     Ok(base_asset_value)
 }
 
+pub fn calculate_base_asset_value_with_oracle_price(
+    base_asset_amount: i128,
+    oracle_price: i128,
+) -> ClearingHouseResult<u128> {
+    if base_asset_amount == 0 {
+        return Ok(0);
+    }
+
+    let oracle_price = if oracle_price > 0 {
+        oracle_price.unsigned_abs()
+    } else {
+        0
+    };
+
+    let base_asset_value = base_asset_amount
+        .unsigned_abs()
+        .checked_mul(oracle_price)
+        .ok_or_else(math_error!())?
+        .checked_div(AMM_RESERVE_PRECISION * PRICE_TO_QUOTE_PRECISION_RATIO)
+        .ok_or_else(math_error!())?;
+
+    Ok(base_asset_value)
+}
+
 pub fn calculate_base_asset_value_and_pnl_with_oracle_price(
     market_position: &MarketPosition,
     oracle_price: i128,

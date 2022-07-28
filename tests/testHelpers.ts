@@ -776,6 +776,7 @@ export async function initializeQuoteAssetBank(
 	const maintenanceAssetWeight = BANK_WEIGHT_PRECISION;
 	const initialLiabilityWeight = BANK_WEIGHT_PRECISION;
 	const maintenanceLiabilityWeight = BANK_WEIGHT_PRECISION;
+	const imfFactor = new BN(0);
 	await admin.initializeBank(
 		usdcMint,
 		optimalUtilization,
@@ -786,6 +787,7 @@ export async function initializeQuoteAssetBank(
 		initialAssetWeight,
 		maintenanceAssetWeight,
 		initialLiabilityWeight,
-		maintenanceLiabilityWeight
+		maintenanceLiabilityWeight,
+		imfFactor
 	);
 }

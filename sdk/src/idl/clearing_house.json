@@ -143,6 +143,10 @@
           "type": "u128"
         },
         {
+          "name": "imfFactor",
+          "type": "u128"
+        },
+        {
           "name": "liquidationFee",
           "type": "u128"
         }
@@ -746,12 +750,55 @@
       ],
       "args": [
         {
-          "name": "depositBank",
+          "name": "depositBankIndex",
           "type": "u64"
         },
         {
-          "name": "borrowBank",
+          "name": "borrowBankIndex",
           "type": "u64"
+        },
+        {
+          "name": "liquidatorMaxBorrowAmount",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "liquidateBorrowForPerp",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "liquidator",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "perpMarketIndex",
+          "type": "u64"
+        },
+        {
+          "name": "borrowBankIndex",
+          "type": "u64"
+        },
+        {
+          "name": "liquidatorMaxBorrowAmount",
+          "type": "u128"
         }
       ]
     },
@@ -786,7 +833,7 @@
       ]
     },
     {
-      "name": "withdrawFees",
+      "name": "withdrawFromMarketToInsuranceVault",
       "accounts": [
         {
           "name": "state",
@@ -800,7 +847,7 @@
         },
         {
           "name": "bank",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -903,6 +950,11 @@
         {
           "name": "insuranceVaultAuthority",
           "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "bank",
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -1160,6 +1212,62 @@
         {
           "name": "marginRatioMaintenance",
           "type": "u32"
+        }
+      ]
+    },
+    {
+      "name": "updateMarketImfFactor",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "imfFactor",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "updateMarketUnsettledAssetWeight",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "unsettledInitialAssetWeight",
+          "type": "u8"
+        },
+        {
+          "name": "unsettledMaintenanceAssetWeight",
+          "type": "u8"
         }
       ]
     },
@@ -1803,6 +1911,10 @@
             "type": "u128"
           },
           {
+            "name": "imfFactor",
+            "type": "u128"
+          },
+          {
             "name": "liquidationFee",
             "type": "u128"
           }
@@ -1880,6 +1992,22 @@
           },
           {
             "name": "unsettledLoss",
+            "type": "u128"
+          },
+          {
+            "name": "imfFactor",
+            "type": "u128"
+          },
+          {
+            "name": "unsettledInitialAssetWeight",
+            "type": "u8"
+          },
+          {
+            "name": "unsettledMaintenanceAssetWeight",
+            "type": "u8"
+          },
+          {
+            "name": "unsettledImfFactor",
             "type": "u128"
           },
           {
@@ -4114,6 +4242,21 @@
     },
     {
       "code": 6096,
+      "name": "WrongBankBalanceType",
+      "msg": "WrongBankBalanceType"
+    },
+    {
+      "code": 6097,
+      "name": "UserCantLiquidateThemself",
+      "msg": "UserCantLiquidateThemself"
+    },
+    {
+      "code": 6098,
+      "name": "InvalidPerpPositionToLiquidateBorrow",
+      "msg": "InvalidPerpPositionToLiquidateBorrow"
+    },
+    {
+      "code": 6099,
       "name": "DefaultError",
       "msg": "DefaultError"
     }

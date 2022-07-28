@@ -61,7 +61,12 @@ pub fn place_order(
     let slot = clock.slot;
     let user_key = user.key();
     let user = &mut load_mut(user)?;
-    controller::funding::settle_funding_payment(user, &user_key, market_map, now)?;
+    controller::funding::settle_funding_payment(
+        user,
+        &user_key,
+        market_map.get_ref_mut(&params.market_index)?.deref_mut(),
+        now,
+    )?;
 
     validate!(
         !user.is_being_liquidated(),
@@ -306,8 +311,6 @@ pub fn cancel_order(
     filler_key: Option<&Pubkey>,
     filler_reward: u128,
 ) -> ClearingHouseResult {
-    controller::funding::settle_funding_payment(user, user_key, market_map, now)?;
-
     let (order_status, order_market_index, order_direction, liquidation) = get_struct_values!(
         user.orders[order_index],
         status,
@@ -315,6 +318,13 @@ pub fn cancel_order(
         direction,
         liquidation
     );
+
+    controller::funding::settle_funding_payment(
+        user,
+        user_key,
+        market_map.get_ref_mut(&order_market_index)?.deref_mut(),
+        now,
+    )?;
 
     validate!(order_status == OrderStatus::Open, ErrorCode::OrderNotOpen)?;
 
@@ -390,7 +400,6 @@ pub fn fill_order(
     let filler_key = filler.key();
     let user_key = user.key();
     let user = &mut load_mut(user)?;
-    controller::funding::settle_funding_payment(user, &user_key, market_map, now)?;
 
     let order_index = user
         .orders
@@ -400,6 +409,13 @@ pub fn fill_order(
 
     let (order_status, market_index) =
         get_struct_values!(user.orders[order_index], status, market_index);
+
+    controller::funding::settle_funding_payment(
+        user,
+        &user_key,
+        market_map.get_ref_mut(&market_index)?.deref_mut(),
+        now,
+    )?;
 
     validate!(
         order_status == OrderStatus::Open,
@@ -1452,7 +1468,6 @@ pub fn trigger_order(
     let filler_key = filler.key();
     let user_key = user.key();
     let user = &mut load_mut(user)?;
-    controller::funding::settle_funding_payment(user, &user_key, market_map, now)?;
 
     let order_index = user
         .orders
@@ -1462,6 +1477,13 @@ pub fn trigger_order(
 
     let (order_status, market_index) =
         get_struct_values!(user.orders[order_index], status, market_index);
+
+    controller::funding::settle_funding_payment(
+        user,
+        &user_key,
+        market_map.get_ref_mut(&market_index)?.deref_mut(),
+        now,
+    )?;
 
     validate!(
         order_status == OrderStatus::Open,

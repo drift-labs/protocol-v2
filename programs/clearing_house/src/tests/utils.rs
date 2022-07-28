@@ -21,7 +21,14 @@ pub fn get_bank_balances(bank_balance: UserBankBalance) -> [UserBankBalance; 8] 
     bank_balances
 }
 
-pub fn get_account_bytes<T: ZeroCopy + Owner>(account: &mut T) -> BytesMut {
+pub fn get_account_bytes<T: bytemuck::Pod>(account: &mut T) -> BytesMut {
+    let mut bytes = BytesMut::new();
+    let data = bytemuck::bytes_of_mut(account);
+    bytes.extend_from_slice(data);
+    bytes
+}
+
+pub fn get_anchor_account_bytes<T: ZeroCopy + Owner>(account: &mut T) -> BytesMut {
     let mut bytes = BytesMut::new();
     bytes.extend_from_slice(&T::discriminator());
     let data = bytemuck::bytes_of_mut(account);
@@ -40,18 +47,34 @@ pub fn create_account_info<'a>(
 }
 
 #[macro_export]
-macro_rules! create_account_info {
+macro_rules! create_anchor_account_info {
     ($account:expr, $type:ident, $name: ident) => {
         let key = Pubkey::default();
         let mut lamports = 0;
-        let mut data = get_account_bytes(&mut $account);
+        let mut data = get_anchor_account_bytes(&mut $account);
         let owner = $type::owner();
         let $name = create_account_info(&key, true, &mut lamports, &mut data[..], &owner);
     };
     ($account:expr, $pubkey:expr, $type:ident, $name: ident) => {
         let mut lamports = 0;
-        let mut data = get_account_bytes(&mut $account);
+        let mut data = get_anchor_account_bytes(&mut $account);
         let owner = $type::owner();
         let $name = create_account_info($pubkey, true, &mut lamports, &mut data[..], &owner);
+    };
+}
+
+#[macro_export]
+macro_rules! create_account_info {
+    ($account:expr, $owner:expr, $name: ident) => {
+        let key = Pubkey::default();
+        let mut lamports = 0;
+        let mut data = get_account_bytes(&mut $account);
+        let owner = $type::owner();
+        let $name = create_account_info(&key, true, &mut lamports, &mut data[..], $owner);
+    };
+    ($account:expr, $pubkey:expr, $owner:expr, $name: ident) => {
+        let mut lamports = 0;
+        let mut data = get_account_bytes(&mut $account);
+        let $name = create_account_info($pubkey, true, &mut lamports, &mut data[..], $owner);
     };
 }
