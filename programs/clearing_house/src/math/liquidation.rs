@@ -1,7 +1,36 @@
 use crate::error::ClearingHouseResult;
-use crate::math::constants::MARK_PRICE_PRECISION;
+use crate::math::constants::{
+    LIQUIDATION_FEE_PRECISION, LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO, MARK_PRICE_PRECISION,
+    MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO,
+};
 use crate::math_error;
 use solana_program::msg;
+
+pub fn calculate_base_asset_amount_to_remove_margin_shortage(
+    margin_shortage: u128,
+    margin_ratio: u32,
+    liquidation_fee: u128,
+    oracle_price: i128,
+) -> ClearingHouseResult<u128> {
+    margin_shortage
+        .checked_mul(MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO)
+        .ok_or_else(math_error!())?
+        .checked_div(
+            oracle_price
+                .unsigned_abs()
+                .checked_mul(
+                    (margin_ratio as u128)
+                        .checked_mul(LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO)
+                        .ok_or_else(math_error!())?
+                        .checked_sub(liquidation_fee)
+                        .unwrap_or(1),
+                )
+                .ok_or_else(math_error!())?
+                .checked_div(LIQUIDATION_FEE_PRECISION)
+                .ok_or_else(math_error!())?,
+        )
+        .ok_or_else(math_error!())
+}
 
 pub fn calculate_borrow_amount_to_remove_margin_shortage(
     margin_shortage: u128,

@@ -134,6 +134,21 @@ pub fn standardize_base_asset_amount(
         .ok_or_else(math_error!())
 }
 
+pub fn standardize_base_asset_amount_ceil(
+    base_asset_amount: u128,
+    step_size: u128,
+) -> ClearingHouseResult<u128> {
+    let remainder = base_asset_amount
+        .checked_rem_euclid(step_size)
+        .ok_or_else(math_error!())?;
+
+    base_asset_amount
+        .checked_add(step_size)
+        .ok_or_else(math_error!())?
+        .checked_sub(remainder)
+        .ok_or_else(math_error!())
+}
+
 pub fn standardize_base_asset_amount_i128(
     base_asset_amount: i128,
     step_size: u128,

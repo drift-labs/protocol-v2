@@ -202,6 +202,8 @@ pub enum ErrorCode {
     UserCantLiquidateThemself,
     #[msg("InvalidPerpPositionToLiquidateBorrow")]
     InvalidPerpPositionToLiquidateBorrow,
+    #[msg("InvalidBaseAssetAmountForLiquidatePerp")]
+    InvalidBaseAssetAmountForLiquidatePerp,
     #[msg("DefaultError")]
     DefaultError,
 }

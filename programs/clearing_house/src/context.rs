@@ -457,7 +457,7 @@ pub struct Liquidate<'info> {
 }
 
 #[derive(Accounts)]
-pub struct LiquidateNew<'info> {
+pub struct LiquidatePerp<'info> {
     pub state: Box<Account<'info, State>>,
     pub authority: Signer<'info>,
     #[account(

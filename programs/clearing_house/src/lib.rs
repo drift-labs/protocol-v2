@@ -34,12 +34,12 @@ declare_id!("9jwr5nC2f9yAraXrg4UzHXmCX3vi9FQkjD6p9e8bRqNa");
 #[program]
 pub mod clearing_house {
     use std::cmp::min;
-    use std::ops::Div;
+    use std::ops::{DerefMut, Div};
     use std::option::Option::Some;
 
     use crate::controller::bank_balance::update_bank_balances;
     use crate::controller::position::{
-        get_position_index, update_unsettled_pnl, PositionDirection,
+        get_position_index, update_position_and_market, update_unsettled_pnl,
     };
     use crate::margin_validation::validate_margin;
     use crate::math;
@@ -67,15 +67,13 @@ pub mod clearing_house {
     use crate::state::state::OrderFillerRewardStructure;
 
     use super::*;
-    use crate::math::auction::{
-        calculate_auction_end_price, calculate_auction_start_price_for_liquidation,
-    };
     use crate::math::liquidation::{
+        calculate_base_asset_amount_to_remove_margin_shortage,
         calculate_borrow_amount_for_deposit_amount,
         calculate_borrow_amount_to_remove_margin_shortage, calculate_deposit_amount_to_transfer,
     };
-    use crate::math::orders::standardize_base_asset_amount_i128;
-    use crate::math::position::direction_to_close_position;
+    use crate::math::orders::{get_position_delta_for_fill, standardize_base_asset_amount_ceil};
+    use crate::math::position::calculate_base_asset_value_with_oracle_price;
 
     pub fn initialize(ctx: Context<Initialize>, admin_controls_prices: bool) -> Result<()> {
         let insurance_account_key = ctx.accounts.insurance_vault.to_account_info().key;
@@ -289,6 +287,7 @@ pub mod clearing_house {
         margin_ratio_initial: u32,
         margin_ratio_partial: u32,
         margin_ratio_maintenance: u32,
+        liquidation_fee: u128,
     ) -> Result<()> {
         let market_pubkey = ctx.accounts.market.to_account_info().key;
         let market = &mut ctx.accounts.market.load_init()?;
@@ -368,6 +367,7 @@ pub mod clearing_house {
             unsettled_maintenance_asset_weight: 100, // 100%
             unsettled_imf_factor: 0,
             current_liquidations: 0,
+            liquidation_fee,
             padding0: 0,
             padding1: 0,
             padding2: 0,
@@ -1677,14 +1677,41 @@ pub mod clearing_house {
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]
-    pub fn liquidate_new(ctx: Context<LiquidateNew>, market_index: u64) -> Result<()> {
+    pub fn liquidate_perp(
+        ctx: Context<LiquidatePerp>,
+        market_index: u64,
+        liquidator_max_base_asset_amount: u128,
+    ) -> Result<()> {
         let state = &ctx.accounts.state;
-        let user_key = ctx.accounts.user.key();
-        let user = &mut load_mut!(ctx.accounts.user)?;
-        let liquidator_key = ctx.accounts.liquidator.key();
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
         let slot = clock.slot;
+
+        let user_key = ctx.accounts.user.key();
+        let liquidator_key = ctx.accounts.liquidator.key();
+
+        validate!(
+            user_key != liquidator_key,
+            ErrorCode::UserCantLiquidateThemself
+        )?;
+
+        let user = &mut load_mut!(ctx.accounts.user)?;
+        let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
+
+        user.get_position(market_index).map_err(|e| {
+            msg!(
+                "User does not have a position for perp market {}",
+                market_index
+            );
+            e
+        })?;
+
+        liquidator
+            .force_get_position_mut(market_index)
+            .map_err(|e| {
+                msg!("Liquidator has no available positions to take on perp position");
+                e
+            })?;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
@@ -1693,7 +1720,12 @@ pub mod clearing_house {
             MarketMap::load(&get_writable_markets(market_index), remaining_accounts_iter)?;
 
         // Settle user's funding payments so that collateral is up to date
-        // controller::funding::settle_funding_payment(user, &user_key, &market_map, now)?;
+        controller::funding::settle_funding_payment(
+            user,
+            &user_key,
+            market_map.get_ref_mut(&market_index)?.deref_mut(),
+            now,
+        )?;
 
         let LiquidationStatus {
             liquidation_type,
@@ -1716,7 +1748,8 @@ pub mod clearing_house {
             return Err(ErrorCode::SufficientCollateral.into());
         }
 
-        let is_full_liquidation = liquidation_type == LiquidationType::FULL;
+        let is_full_liquidation = liquidation_type == LiquidationType::FULL
+            || adjusted_total_collateral < QUOTE_PRECISION;
 
         let position_index = get_position_index(&user.positions, market_index)?;
         validate!(
@@ -1757,30 +1790,32 @@ pub mod clearing_house {
             .checked_sub(worst_case_base_asset_amount_before)
             .ok_or_else(math_error!())?;
 
-        // TODO move this to isolated functions once Z's changes are moved in
-        if worse_case_base_asset_amount_delta != 0 {
+        let (margin_ratio, oracle_price) = {
             let market = &mut market_map.get_ref(&market_index)?;
             let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
-            let base_asset_value = worse_case_base_asset_amount_delta
-                .unsigned_abs()
-                .checked_mul(oracle_price.unsigned_abs())
-                .ok_or_else(math_error!())?
-                .checked_div(AMM_RESERVE_PRECISION * PRICE_TO_QUOTE_PRECISION_RATIO)
-                .ok_or_else(math_error!())?;
+            let margin_ratio = market.get_margin_ratio(
+                worst_case_base_asset_amount_before.unsigned_abs(),
+                if is_full_liquidation {
+                    MarginRequirementType::Maintenance
+                } else {
+                    MarginRequirementType::Partial
+                },
+            )?;
 
-            let margin_requirement_delta = if is_full_liquidation {
-                base_asset_value
-                    .checked_mul(market.margin_ratio_maintenance as u128)
-                    .ok_or_else(math_error!())?
-                    .checked_div(MARGIN_PRECISION)
-                    .ok_or_else(math_error!())?
-            } else {
-                base_asset_value
-                    .checked_mul(market.margin_ratio_partial as u128)
-                    .ok_or_else(math_error!())?
-                    .checked_div(MARGIN_PRECISION)
-                    .ok_or_else(math_error!())?
-            };
+            (margin_ratio, oracle_price)
+        };
+
+        if worse_case_base_asset_amount_delta != 0 {
+            let base_asset_value = calculate_base_asset_value_with_oracle_price(
+                worse_case_base_asset_amount_delta,
+                oracle_price,
+            )?;
+
+            let margin_requirement_delta = base_asset_value
+                .checked_mul(margin_ratio as u128)
+                .ok_or_else(math_error!())?
+                .checked_div(MARGIN_PRECISION)
+                .ok_or_else(math_error!())?;
 
             margin_requirement = margin_requirement
                 .checked_sub(margin_requirement_delta)
@@ -1791,118 +1826,120 @@ pub mod clearing_house {
             return Ok(());
         }
 
-        let new_order_index = user
-            .orders
-            .iter()
-            .position(|order| order.status.eq(&OrderStatus::Init));
+        if user.positions[position_index].base_asset_amount == 0 {
+            return Ok(());
+        }
 
-        let new_order_index = match new_order_index {
-            Some(new_order_index) => new_order_index,
-            None => {
-                let new_order_index = user
-                    .orders
-                    .iter()
-                    .position(|order| !order.liquidation)
-                    .ok_or(ErrorCode::AllOrdersAreAlreadyLiquidations)?;
+        validate!(
+            liquidator_max_base_asset_amount != 0,
+            ErrorCode::InvalidBaseAssetAmountForLiquidatePerp,
+            "liquidator_max_base_asset_amount cant be 0"
+        )?;
 
-                controller::orders::cancel_order(
-                    new_order_index,
-                    user,
-                    &user_key,
-                    &market_map,
-                    &mut oracle_map,
-                    now,
-                    slot,
-                    OrderActionExplanation::CanceledForLiquidation,
-                    Some(&liquidator_key),
-                    0,
-                )?;
+        let liquidator_max_base_asset_amount = standardize_base_asset_amount_ceil(
+            liquidator_max_base_asset_amount,
+            market_map
+                .get_ref(&market_index)?
+                .amm
+                .base_asset_amount_step_size,
+        )?;
 
-                new_order_index
-            }
-        };
-
-        let base_asset_amount_to_close = if is_full_liquidation {
-            user.positions[position_index].base_asset_amount
+        let max_base_asset_amount = if is_full_liquidation {
+            user.positions[position_index]
+                .base_asset_amount
+                .unsigned_abs()
         } else {
             let base_asset_amount = user.positions[position_index]
                 .base_asset_amount
-                .checked_mul(cast(state.partial_liquidation_close_percentage_numerator)?)
+                .unsigned_abs()
+                .checked_mul(state.partial_liquidation_close_percentage_numerator)
                 .ok_or_else(math_error!())?
-                .checked_div(cast(
-                    state.partial_liquidation_close_percentage_denominator,
-                )?)
+                .checked_div(state.partial_liquidation_close_percentage_denominator)
                 .ok_or_else(math_error!())?;
 
             let market = &mut market_map.get_ref(&market_index)?;
-            standardize_base_asset_amount_i128(
+            standardize_base_asset_amount_ceil(
                 base_asset_amount,
                 market.amm.base_asset_amount_step_size,
             )?
         };
 
-        let existing_position_direction = if base_asset_amount_to_close >= 0 {
-            PositionDirection::Long
+        let liquidation_fee = market_map.get_ref(&market_index)?.liquidation_fee;
+        let margin_shortage = margin_requirement
+            .checked_sub(adjusted_total_collateral)
+            .ok_or_else(math_error!())?;
+        let base_asset_amount_to_reduce_margin_shortage =
+            calculate_base_asset_amount_to_remove_margin_shortage(
+                margin_shortage,
+                margin_ratio,
+                liquidation_fee,
+                oracle_price,
+            )?;
+
+        let base_asset_amount = max_base_asset_amount
+            .min(liquidator_max_base_asset_amount)
+            .min(base_asset_amount_to_reduce_margin_shortage);
+
+        let quote_asset_amount = if user.positions[position_index].base_asset_amount > 0 {
+            let liquidation_multiplier = LIQUIDATION_FEE_PRECISION
+                .checked_sub(liquidation_fee)
+                .ok_or_else(math_error!())?;
+            let base_asset_value = calculate_base_asset_value_with_oracle_price(
+                user.positions[position_index].base_asset_amount,
+                oracle_price,
+            )?;
+            base_asset_value
+                .checked_mul(liquidation_multiplier)
+                .ok_or_else(math_error!())?
+                .checked_div(LIQUIDATION_FEE_PRECISION)
+                .ok_or_else(math_error!())?
         } else {
-            PositionDirection::Short
+            let liquidation_multiplier = LIQUIDATION_FEE_PRECISION
+                .checked_add(liquidation_fee)
+                .ok_or_else(math_error!())?;
+            let base_asset_value = calculate_base_asset_value_with_oracle_price(
+                user.positions[position_index].base_asset_amount,
+                oracle_price,
+            )?;
+            base_asset_value
+                .checked_mul(liquidation_multiplier)
+                .ok_or_else(math_error!())?
+                .checked_div(LIQUIDATION_FEE_PRECISION)
+                .ok_or_else(math_error!())?
         };
 
-        let direction_to_close = direction_to_close_position(base_asset_amount_to_close);
-
-        let mut market = market_map.get_ref_mut(&market_index)?;
-        let auction_start_price =
-            calculate_auction_start_price_for_liquidation(&market, direction_to_close)?;
-
-        let auction_end_price = calculate_auction_end_price(
-            &market,
-            direction_to_close,
-            base_asset_amount_to_close.unsigned_abs(),
+        let user_position_delta = get_position_delta_for_fill(
+            base_asset_amount,
+            quote_asset_amount,
+            user.positions[position_index].get_direction_to_close(),
         )?;
 
-        let liquidation_order = Order {
-            status: OrderStatus::Open,
-            order_type: OrderType::Market,
-            ts: now,
-            slot,
-            order_id: get_then_update_id!(user, next_order_id),
-            user_order_id: 0,
-            market_index,
-            price: 0,
-            existing_position_direction,
-            base_asset_amount: base_asset_amount_to_close.unsigned_abs(),
-            base_asset_amount_filled: 0,
-            quote_asset_amount_filled: 0,
-            fee: 0,
-            direction: direction_to_close,
-            reduce_only: true,
-            discount_tier: OrderDiscountTier::None,
-            trigger_price: 0,
-            trigger_condition: OrderTriggerCondition::Above,
-            triggered: false,
-            referrer: Pubkey::default(),
-            post_only: false,
-            oracle_price_offset: 0,
-            immediate_or_cancel: false,
-            auction_start_price,
-            auction_end_price,
-            auction_duration: state.liquidation_auction_duration,
-            liquidation: true,
-            padding: [0; 3],
-        };
-
-        user.orders[new_order_index] = liquidation_order;
-
-        user.positions[position_index].open_orders += 1;
-        controller::position::increase_open_bids_and_asks(
-            &mut user.positions[position_index],
-            &existing_position_direction,
-            base_asset_amount_to_close.unsigned_abs(),
+        let liquidator_position_delta = get_position_delta_for_fill(
+            base_asset_amount,
+            quote_asset_amount,
+            user.positions[position_index].get_direction(),
         )?;
-        user.positions[position_index].liquidation_base_asset_amount = base_asset_amount_to_close;
 
-        market.current_liquidations += 1;
+        update_position_and_market(
+            user.get_position_mut(market_index).unwrap(),
+            market_map.get_ref_mut(&market_index)?.deref_mut(),
+            &user_position_delta,
+        )?;
 
-        // TODO figure out formula for paying liquidators
+        update_position_and_market(
+            liquidator.get_position_mut(market_index).unwrap(),
+            market_map.get_ref_mut(&market_index)?.deref_mut(),
+            &liquidator_position_delta,
+        )?;
+
+        let liquidator_meets_initial_margin_requirement =
+            meets_initial_margin_requirement(liquidator, &market_map, &bank_map, &mut oracle_map)?;
+
+        validate!(
+            liquidator_meets_initial_margin_requirement,
+            ErrorCode::InsufficientCollateral,
+            "Liquidator doesnt have enough collateral to take over perp position"
+        )?;
 
         Ok(())
     }
@@ -2017,7 +2054,7 @@ pub mod clearing_house {
                 deposit_token_price,
                 deposit_bank.decimals,
                 deposit_bank.maintenance_asset_weight,
-                BANK_LIQUIDATION_MULTIPLIER_PRECISION
+                LIQUIDATION_FEE_PRECISION
                     .checked_add(deposit_bank.liquidation_fee)
                     .ok_or_else(math_error!())?,
             )
@@ -2055,7 +2092,7 @@ pub mod clearing_house {
                 borrow_token_price,
                 borrow_bank.decimals,
                 borrow_bank.maintenance_liability_weight,
-                BANK_LIQUIDATION_MULTIPLIER_PRECISION
+                LIQUIDATION_FEE_PRECISION
                     .checked_sub(borrow_bank.liquidation_fee)
                     .ok_or_else(math_error!())?,
             )
@@ -2271,7 +2308,7 @@ pub mod clearing_house {
                 pnl_price,
                 6_u8,
                 BANK_WEIGHT_PRECISION, // TODO add market unsettled pnl weight
-                BANK_LIQUIDATION_MULTIPLIER_PRECISION,
+                LIQUIDATION_FEE_PRECISION,
             )
         };
 
@@ -2307,7 +2344,7 @@ pub mod clearing_house {
                 borrow_token_price,
                 borrow_bank.decimals,
                 borrow_bank.maintenance_liability_weight,
-                BANK_LIQUIDATION_MULTIPLIER_PRECISION
+                LIQUIDATION_FEE_PRECISION
                     .checked_sub(borrow_bank.liquidation_fee)
                     .ok_or_else(math_error!())?,
             )

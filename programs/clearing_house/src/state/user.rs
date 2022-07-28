@@ -230,6 +230,22 @@ impl MarketPosition {
             Ok(base_asset_amount_all_asks_fill)
         }
     }
+
+    pub fn get_direction(&self) -> PositionDirection {
+        if self.base_asset_amount >= 0 {
+            PositionDirection::Long
+        } else {
+            PositionDirection::Short
+        }
+    }
+
+    pub fn get_direction_to_close(&self) -> PositionDirection {
+        if self.base_asset_amount >= 0 {
+            PositionDirection::Short
+        } else {
+            PositionDirection::Long
+        }
+    }
 }
 
 pub type UserPositions = [MarketPosition; 5];
