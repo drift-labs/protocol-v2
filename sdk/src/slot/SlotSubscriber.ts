@@ -1,22 +1,32 @@
 import { Connection } from '@solana/web3.js';
+import { EventEmitter } from 'events';
+import StrictEventEmitter from 'strict-event-emitter-types/types/src';
 
 // eslint-disable-next-line @typescript-eslint/ban-types
 type SlotSubscriberConfig = {}; // for future customization
 
+export interface SlotSubscriberEvents {
+	newSlot: (newSlot: number) => void;
+}
+
 export class SlotSubscriber {
 	currentSlot: number;
 	subscriptionId: number;
+	eventEmitter: StrictEventEmitter<EventEmitter, SlotSubscriberEvents>;
 
 	public constructor(
 		private connection: Connection,
 		_config?: SlotSubscriberConfig
-	) {}
+	) {
+		this.eventEmitter = new EventEmitter();
+	}
 
 	public async subscribe(): Promise<void> {
 		this.currentSlot = await this.connection.getSlot('confirmed');
 
 		this.subscriptionId = this.connection.onSlotChange((slotInfo) => {
 			this.currentSlot = slotInfo.slot;
+			this.eventEmitter.emit('newSlot', slotInfo.slot);
 		});
 	}
 
