@@ -17,6 +17,11 @@ export class PositionDirection {
 	static readonly SHORT = { short: {} };
 }
 
+export class DepositDirection {
+	static readonly DEPOSIT = { deposit: {} };
+	static readonly WITHDRAW = { withdraw: {} };
+}
+
 export class OracleSource {
 	static readonly PYTH = { pyth: {} };
 	static readonly SWITCHBOARD = { switchboard: {} };
@@ -105,6 +110,7 @@ export type DepositRecord = {
 	};
 	bankIndex: BN;
 	amount: BN;
+	oraclePrice: BN;
 	from?: PublicKey;
 	to?: PublicKey;
 };
