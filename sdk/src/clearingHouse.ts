@@ -564,13 +564,19 @@ export class ClearingHouse {
 				writableBankIndex: bankIndex,
 			});
 		} else {
-			remainingAccounts = [
-				{
-					pubkey: this.getBankAccount(bankIndex).pubkey,
+			const bankAccount = this.getBankAccount(bankIndex);
+			if (!bankAccount.oracle.equals(PublicKey.default)) {
+				remainingAccounts.push({
+					pubkey: bankAccount.oracle,
 					isSigner: false,
-					isWritable: true,
-				},
-			];
+					isWritable: false,
+				});
+			}
+			remainingAccounts.push({
+				pubkey: bankAccount.pubkey,
+				isSigner: false,
+				isWritable: true,
+			});
 		}
 
 		const bank = this.getBankAccount(bankIndex);
