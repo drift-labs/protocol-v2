@@ -421,6 +421,7 @@ dependencies = [
  "num-derive",
  "num-integer",
  "num-traits",
+ "pyth",
  "pyth-client",
  "solana-program",
  "spl-token",

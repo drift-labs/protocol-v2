@@ -213,7 +213,7 @@ pub struct UpdateBankCumulativeInterest<'info> {
 }
 
 #[derive(Accounts)]
-pub struct WithdrawFees<'info> {
+pub struct WithdrawFromMarketToInsuranceVault<'info> {
     #[account(
         has_one = admin
     )]
@@ -222,6 +222,7 @@ pub struct WithdrawFees<'info> {
     #[account(
         seeds = [b"bank", 0_u64.to_le_bytes().as_ref()],
         bump,
+        mut
     )]
     pub bank: AccountLoader<'info, Bank>,
     #[account(
@@ -294,9 +295,14 @@ pub struct WithdrawFromInsuranceVaultToMarket<'info> {
     pub insurance_vault_authority: AccountInfo<'info>,
     #[account(
         mut,
+        seeds = [b"bank", 0_u64.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub bank: AccountLoader<'info, Bank>,
+    #[account(
+        mut,
         seeds = [b"bank_vault".as_ref(), 0_u64.to_le_bytes().as_ref()],
         bump,
-        token::mint = insurance_vault.mint
     )]
     pub bank_vault: Box<Account<'info, TokenAccount>>,
     pub token_program: Program<'info, Token>,

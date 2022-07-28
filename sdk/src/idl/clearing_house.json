@@ -141,6 +141,10 @@
         {
           "name": "maintenanceLiabilityWeight",
           "type": "u128"
+        },
+        {
+          "name": "imfFactor",
+          "type": "u128"
         }
       ]
     },
@@ -716,7 +720,7 @@
       ]
     },
     {
-      "name": "withdrawFees",
+      "name": "withdrawFromMarketToInsuranceVault",
       "accounts": [
         {
           "name": "state",
@@ -730,7 +734,7 @@
         },
         {
           "name": "bank",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -833,6 +837,11 @@
         {
           "name": "insuranceVaultAuthority",
           "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "bank",
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -1090,6 +1099,62 @@
         {
           "name": "marginRatioMaintenance",
           "type": "u32"
+        }
+      ]
+    },
+    {
+      "name": "updateMarketImfFactor",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "imfFactor",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "updateMarketUnsettledAssetWeight",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "unsettledInitialAssetWeight",
+          "type": "u8"
+        },
+        {
+          "name": "unsettledMaintenanceAssetWeight",
+          "type": "u8"
         }
       ]
     },
@@ -1731,6 +1796,10 @@
           {
             "name": "maintenanceLiabilityWeight",
             "type": "u128"
+          },
+          {
+            "name": "imfFactor",
+            "type": "u128"
           }
         ]
       }
@@ -1806,6 +1875,22 @@
           },
           {
             "name": "unsettledLoss",
+            "type": "u128"
+          },
+          {
+            "name": "imfFactor",
+            "type": "u128"
+          },
+          {
+            "name": "unsettledInitialAssetWeight",
+            "type": "u8"
+          },
+          {
+            "name": "unsettledMaintenanceAssetWeight",
+            "type": "u8"
+          },
+          {
+            "name": "unsettledImfFactor",
             "type": "u128"
           },
           {

@@ -1,18 +1,22 @@
-use std::cmp::max;
-
 use anchor_lang::prelude::*;
 use solana_program::msg;
+use std::cmp::max;
 use switchboard_v2::decimal::SwitchboardDecimal;
 use switchboard_v2::AggregatorAccountData;
 
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm;
 use crate::math::casting::{cast, cast_to_i128, cast_to_i64, cast_to_u128};
-use crate::math::margin::MarginRequirementType;
+use crate::math::margin::{
+    calculate_size_discount_asset_weight, calculate_size_premium_liability_weight,
+    MarginRequirementType,
+};
 use crate::math_error;
 use crate::state::bank::{BankBalance, BankBalanceType};
 use crate::state::oracle::{OraclePriceData, OracleSource};
-use crate::{BID_ASK_SPREAD_PRECISION, MARK_PRICE_PRECISION};
+use crate::{
+    AMM_TO_QUOTE_PRECISION_RATIO, BID_ASK_SPREAD_PRECISION, MARGIN_PRECISION, MARK_PRICE_PRECISION,
+};
 
 #[account(zero_copy)]
 #[derive(Default, Eq, PartialEq, Debug)]
@@ -34,6 +38,10 @@ pub struct Market {
     pub pnl_pool: PoolBalance,
     pub unsettled_profit: u128,
     pub unsettled_loss: u128,
+    pub imf_factor: u128,
+    pub unsettled_initial_asset_weight: u8,
+    pub unsettled_maintenance_asset_weight: u8,
+    pub unsettled_imf_factor: u128,
 
     // upgrade-ability
     pub padding0: u32,
@@ -44,12 +52,64 @@ pub struct Market {
 }
 
 impl Market {
-    pub fn get_margin_ratio(&self, margin_type: MarginRequirementType) -> u32 {
-        match margin_type {
-            MarginRequirementType::Initial => self.margin_ratio_initial,
-            MarginRequirementType::Partial => self.margin_ratio_partial,
-            MarginRequirementType::Maintenance => self.margin_ratio_maintenance,
-        }
+    pub fn get_margin_ratio(
+        &self,
+        size: u128,
+        margin_type: MarginRequirementType,
+    ) -> ClearingHouseResult<u32> {
+        let margin_ratio = match margin_type {
+            MarginRequirementType::Initial => max(
+                self.margin_ratio_initial as u128,
+                calculate_size_premium_liability_weight(
+                    size,
+                    self.imf_factor,
+                    self.margin_ratio_partial as u128,
+                    MARGIN_PRECISION,
+                )? + 1,
+            ),
+            MarginRequirementType::Partial => calculate_size_premium_liability_weight(
+                size,
+                self.imf_factor,
+                self.margin_ratio_partial as u128,
+                MARGIN_PRECISION,
+            )?,
+            MarginRequirementType::Maintenance => self.margin_ratio_maintenance as u128,
+        };
+
+        Ok(margin_ratio as u32)
+    }
+
+    pub fn get_unsettled_asset_weight(
+        &self,
+        unsettled_pnl: i128,
+        margin_type: MarginRequirementType,
+    ) -> ClearingHouseResult<u128> {
+        // the asset weight for a position's unrealized pnl + unsettled pnl in the margin system
+        // > 0 (positive balance)
+        // < 0 (negative balance) always has asset weight = 1
+        let unsettled_asset_weight = if unsettled_pnl > 0 {
+            // todo: only discount the initial margin s.t. no one gets liquidated over upnl?
+
+            // a larger imf factor -> lower asset weight
+            match margin_type {
+                MarginRequirementType::Initial => calculate_size_discount_asset_weight(
+                    unsettled_pnl
+                        .unsigned_abs()
+                        .checked_mul(AMM_TO_QUOTE_PRECISION_RATIO)
+                        .ok_or_else(math_error!())?,
+                    self.unsettled_imf_factor,
+                    self.unsettled_initial_asset_weight as u128,
+                )?,
+                MarginRequirementType::Partial => self.unsettled_maintenance_asset_weight as u128,
+                MarginRequirementType::Maintenance => {
+                    self.unsettled_maintenance_asset_weight as u128
+                }
+            }
+        } else {
+            100
+        };
+
+        Ok(unsettled_asset_weight)
     }
 }
 

@@ -10,7 +10,9 @@ use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::casting::{cast, cast_to_i128};
 use crate::math::orders::calculate_quote_asset_amount_for_maker_order;
 use crate::math::pnl::calculate_pnl;
-use crate::math::position::{calculate_base_asset_value_and_pnl, swap_direction_to_close_position};
+use crate::math::position::{
+    calculate_base_asset_value_and_pnl_with_oracle_price, swap_direction_to_close_position,
+};
 use crate::math_error;
 use crate::state::market::Market;
 use crate::state::user::{User, UserPositions};
@@ -397,10 +399,12 @@ fn calculate_quote_asset_amount_surplus(
 pub fn update_cost_basis(
     market: &mut Market,
     market_position: &mut MarketPosition,
+    oracle_price: i128,
 ) -> ClearingHouseResult<i128> {
     // update user cost basis (if at a loss)
-    let (_, amm_position_unrealized_pnl) =
-        calculate_base_asset_value_and_pnl(market_position, &market.amm, false)?;
+
+    let (_amm_position_base_asset_value, amm_position_unrealized_pnl) =
+        calculate_base_asset_value_and_pnl_with_oracle_price(market_position, oracle_price)?;
 
     if amm_position_unrealized_pnl < 0 {
         if market_position.base_asset_amount > 0 {
@@ -527,7 +531,8 @@ mod test {
         update_cost_basis, update_position_and_market, PositionDelta,
     };
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, PEG_PRECISION, QUOTE_PRECISION,
+        AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, MARK_PRICE_PRECISION, PEG_PRECISION,
+        QUOTE_PRECISION,
     };
     use crate::state::market::{Market, AMM};
     use crate::state::user::MarketPosition;
@@ -1316,7 +1321,10 @@ mod test {
             ..MarketPosition::default()
         };
 
-        let adj_quote = update_cost_basis(&mut market, &mut market_position_up).unwrap();
+        let oracle_price: i128 = 50 * MARK_PRICE_PRECISION as i128;
+
+        let adj_quote =
+            update_cost_basis(&mut market, &mut market_position_up, oracle_price).unwrap();
         assert_eq!(adj_quote, 0);
         assert_eq!(
             market_position_up.quote_asset_amount,
@@ -1331,7 +1339,8 @@ mod test {
             last_funding_rate_ts: 1,
             ..MarketPosition::default()
         };
-        let adj_quote = update_cost_basis(&mut market, &mut market_position_down).unwrap();
+        let adj_quote =
+            update_cost_basis(&mut market, &mut market_position_down, oracle_price).unwrap();
 
         assert!(adj_quote < 0);
         assert!(market_position_down.quote_asset_amount > market_position_up.quote_entry_amount);

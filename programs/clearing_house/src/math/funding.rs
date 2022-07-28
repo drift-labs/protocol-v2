@@ -175,6 +175,10 @@ pub fn calculate_funding_payment(
         .checked_sub(market_position.last_cumulative_funding_rate)
         .ok_or_else(math_error!())?;
 
+    if funding_rate_delta == 0 {
+        return Ok(0);
+    }
+
     let funding_rate_payment =
         _calculate_funding_payment(funding_rate_delta, market_position.base_asset_amount)?;
 

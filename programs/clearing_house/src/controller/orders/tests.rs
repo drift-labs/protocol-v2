@@ -4,6 +4,7 @@ use crate::state::state::FeeStructure;
 use crate::state::user::{MarketPosition, Order};
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::Owner;
+use pyth::pc::Price;
 
 fn get_fee_structure() -> FeeStructure {
     FeeStructure {
@@ -21,6 +22,15 @@ fn get_user_keys() -> (Pubkey, Pubkey, Pubkey) {
 
 fn get_oracle_map<'a>() -> OracleMap<'a> {
     OracleMap::empty()
+}
+
+fn get_price(price: i64, expo: i32) -> Price {
+    let mut pyth_price = Price::default();
+    let price = price * 10_i64.pow(expo as u32);
+    pyth_price.agg.price = price;
+    pyth_price.twap = price;
+    pyth_price.expo = 10;
+    pyth_price
 }
 
 pub mod fulfill_order_with_maker_order {
@@ -1271,6 +1281,7 @@ pub mod fulfill_order {
     use crate::controller::orders::fulfill_order;
     use crate::controller::position::PositionDirection;
     use crate::create_account_info;
+    use crate::create_anchor_account_info;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BANK_CUMULATIVE_INTEREST_PRECISION, BANK_INTEREST_PRECISION,
         BANK_WEIGHT_PRECISION, BASE_PRECISION, BASE_PRECISION_I128, MARK_PRICE_PRECISION,
@@ -1284,9 +1295,25 @@ pub mod fulfill_order {
     use crate::state::user::{OrderStatus, OrderType, User, UserBankBalance};
     use crate::tests::utils::*;
     use std::ops::Deref;
+    use std::str::FromStr;
 
     #[test]
     fn fulfill_with_amm_and_maker() {
+        let now = 0_i64;
+        let slot = 0_u64;
+
+        let mut oracle_price = get_price(100, 10);
+        let oracle_price_key =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        create_account_info!(
+            oracle_price,
+            &oracle_price_key,
+            &pyth_program,
+            oracle_account_info
+        );
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+
         let mut market = Market {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
@@ -1300,6 +1327,7 @@ pub mod fulfill_order {
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
                 base_asset_amount_step_size: 10000000,
+                oracle: oracle_price_key,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -1308,7 +1336,7 @@ pub mod fulfill_order {
             initialized: true,
             ..Market::default()
         };
-        create_account_info!(market, Market, market_account_info);
+        create_anchor_account_info!(market, Market, market_account_info);
         let market_map = MarketMap::load_one(&market_account_info, true).unwrap();
 
         let mut bank = Bank {
@@ -1319,10 +1347,8 @@ pub mod fulfill_order {
             initial_asset_weight: BANK_WEIGHT_PRECISION,
             ..Bank::default()
         };
-        create_account_info!(bank, Bank, bank_account_info);
+        create_anchor_account_info!(bank, Bank, bank_account_info);
         let bank_map = BankMap::load_one(&bank_account_info, true).unwrap();
-
-        let mut oracle_map = get_oracle_map();
 
         let mut taker = User {
             orders: get_orders(Order {
@@ -1371,9 +1397,6 @@ pub mod fulfill_order {
             }),
             ..User::default()
         };
-
-        let now = 0_i64;
-        let slot = 0_u64;
 
         let fee_structure = get_fee_structure();
 
@@ -1456,7 +1479,7 @@ pub mod fulfill_order {
             initialized: true,
             ..Market::default()
         };
-        create_account_info!(market, Market, market_account_info);
+        create_anchor_account_info!(market, Market, market_account_info);
         let market_map = MarketMap::load_one(&market_account_info, true).unwrap();
 
         let mut bank = Bank {
@@ -1467,7 +1490,7 @@ pub mod fulfill_order {
             initial_asset_weight: BANK_WEIGHT_PRECISION,
             ..Bank::default()
         };
-        create_account_info!(bank, Bank, bank_account_info);
+        create_anchor_account_info!(bank, Bank, bank_account_info);
         let bank_map = BankMap::load_one(&bank_account_info, true).unwrap();
 
         let mut oracle_map = get_oracle_map();
@@ -1584,6 +1607,21 @@ pub mod fulfill_order {
 
     #[test]
     fn fulfill_with_amm_end_of_auction() {
+        let now = 0_i64;
+        let slot = 6_u64;
+
+        let mut oracle_price = get_price(100, 10);
+        let oracle_price_key =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        create_account_info!(
+            oracle_price,
+            &oracle_price_key,
+            &pyth_program,
+            oracle_account_info
+        );
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+
         let mut market = Market {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
@@ -1597,6 +1635,7 @@ pub mod fulfill_order {
                 max_slippage_ratio: 10,
                 max_base_asset_amount_ratio: 100,
                 base_asset_amount_step_size: 10000000,
+                oracle: oracle_price_key,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -1605,7 +1644,7 @@ pub mod fulfill_order {
             initialized: true,
             ..Market::default()
         };
-        create_account_info!(market, Market, market_account_info);
+        create_anchor_account_info!(market, Market, market_account_info);
         let market_map = MarketMap::load_one(&market_account_info, true).unwrap();
 
         let mut bank = Bank {
@@ -1616,10 +1655,8 @@ pub mod fulfill_order {
             initial_asset_weight: BANK_WEIGHT_PRECISION,
             ..Bank::default()
         };
-        create_account_info!(bank, Bank, bank_account_info);
+        create_anchor_account_info!(bank, Bank, bank_account_info);
         let bank_map = BankMap::load_one(&bank_account_info, true).unwrap();
-
-        let mut oracle_map = get_oracle_map();
 
         let mut taker = User {
             orders: get_orders(Order {
@@ -1648,9 +1685,6 @@ pub mod fulfill_order {
             }),
             ..User::default()
         };
-
-        let now = 0_i64;
-        let slot = 6_u64;
 
         let fee_structure = get_fee_structure();
 
@@ -1726,7 +1760,7 @@ pub mod fulfill_order {
             initialized: true,
             ..Market::default()
         };
-        create_account_info!(market, Market, market_account_info);
+        create_anchor_account_info!(market, Market, market_account_info);
         let market_map = MarketMap::load_one(&market_account_info, true).unwrap();
 
         let mut bank = Bank {
@@ -1737,7 +1771,7 @@ pub mod fulfill_order {
             initial_asset_weight: BANK_WEIGHT_PRECISION,
             ..Bank::default()
         };
-        create_account_info!(bank, Bank, bank_account_info);
+        create_anchor_account_info!(bank, Bank, bank_account_info);
         let bank_map = BankMap::load_one(&bank_account_info, true).unwrap();
 
         let mut oracle_map = get_oracle_map();
@@ -1858,6 +1892,7 @@ pub mod fill_order {
     use crate::controller::orders::fill_order;
     use crate::controller::position::PositionDirection;
     use crate::create_account_info;
+    use crate::create_anchor_account_info;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BANK_CUMULATIVE_INTEREST_PRECISION, BANK_INTEREST_PRECISION,
         BANK_WEIGHT_PRECISION, BASE_PRECISION, BASE_PRECISION_I128, MARK_PRICE_PRECISION,
@@ -1877,6 +1912,26 @@ pub mod fill_order {
 
     #[test]
     fn cancel_order_after_fulfill() {
+        let clock = Clock {
+            slot: 6,
+            epoch_start_timestamp: 0,
+            epoch: 0,
+            leader_schedule_epoch: 0,
+            unix_timestamp: 0,
+        };
+
+        let mut oracle_price = get_price(100, 10);
+        let oracle_price_key =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        create_account_info!(
+            oracle_price,
+            &oracle_price_key,
+            &pyth_program,
+            oracle_account_info
+        );
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot).unwrap();
+
         let mut market = Market {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
@@ -1890,6 +1945,7 @@ pub mod fill_order {
                 max_slippage_ratio: 100,
                 max_base_asset_amount_ratio: 100,
                 base_asset_amount_step_size: 10000000,
+                oracle: oracle_price_key,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -1898,7 +1954,7 @@ pub mod fill_order {
             initialized: true,
             ..Market::default()
         };
-        create_account_info!(market, Market, market_account_info);
+        create_anchor_account_info!(market, Market, market_account_info);
         let market_map = MarketMap::load_one(&market_account_info, true).unwrap();
 
         let mut bank = Bank {
@@ -1909,10 +1965,8 @@ pub mod fill_order {
             initial_asset_weight: BANK_WEIGHT_PRECISION,
             ..Bank::default()
         };
-        create_account_info!(bank, Bank, bank_account_info);
+        create_anchor_account_info!(bank, Bank, bank_account_info);
         let bank_map = BankMap::load_one(&bank_account_info, true).unwrap();
-
-        let mut oracle_map = get_oracle_map();
 
         let mut user = User {
             orders: get_orders(Order {
@@ -1943,12 +1997,12 @@ pub mod fill_order {
             }),
             ..User::default()
         };
-        create_account_info!(user, User, user_account_info);
+        create_anchor_account_info!(user, User, user_account_info);
         let user_account_loader: AccountLoader<User> =
             AccountLoader::try_from(&user_account_info).unwrap();
 
         let filler_key = Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap();
-        create_account_info!(User::default(), &filler_key, User, user_account_info);
+        create_anchor_account_info!(User::default(), &filler_key, User, user_account_info);
         let filler_account_loader: AccountLoader<User> =
             AccountLoader::try_from(&user_account_info).unwrap();
 
@@ -1956,14 +2010,6 @@ pub mod fill_order {
             min_auction_duration: 1,
             max_auction_duration: 10,
             ..State::default()
-        };
-
-        let clock = Clock {
-            slot: 6,
-            epoch_start_timestamp: 0,
-            epoch: 0,
-            leader_schedule_epoch: 0,
-            unix_timestamp: 0,
         };
 
         let (base_asset_amount, updated_user_state) = fill_order(
@@ -2014,7 +2060,7 @@ pub mod fill_order {
             initialized: true,
             ..Market::default()
         };
-        create_account_info!(market, Market, market_account_info);
+        create_anchor_account_info!(market, Market, market_account_info);
         let market_map = MarketMap::load_one(&market_account_info, true).unwrap();
 
         let mut bank = Bank {
@@ -2025,7 +2071,7 @@ pub mod fill_order {
             initial_asset_weight: BANK_WEIGHT_PRECISION,
             ..Bank::default()
         };
-        create_account_info!(bank, Bank, bank_account_info);
+        create_anchor_account_info!(bank, Bank, bank_account_info);
         let bank_map = BankMap::load_one(&bank_account_info, true).unwrap();
 
         let mut oracle_map = get_oracle_map();
@@ -2059,12 +2105,12 @@ pub mod fill_order {
             }),
             ..User::default()
         };
-        create_account_info!(user, User, user_account_info);
+        create_anchor_account_info!(user, User, user_account_info);
         let user_account_loader: AccountLoader<User> =
             AccountLoader::try_from(&user_account_info).unwrap();
 
         let filler_key = Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap();
-        create_account_info!(User::default(), &filler_key, User, user_account_info);
+        create_anchor_account_info!(User::default(), &filler_key, User, user_account_info);
         let filler_account_loader: AccountLoader<User> =
             AccountLoader::try_from(&user_account_info).unwrap();
 
