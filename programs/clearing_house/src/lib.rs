@@ -1187,7 +1187,7 @@ pub mod clearing_house {
         )?;
 
         // Settle user's funding payments so that collateral is up to date
-        controller::funding::settle_funding_payment(user, &user_key, &market_map, now)?;
+        // controller::funding::settle_funding_payments(user, &user_key, &market_map, now)?;
 
         let LiquidationStatus {
             liquidation_type,
@@ -1950,12 +1950,16 @@ pub mod clearing_house {
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
 
-        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let market_map = MarketMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
-
         let user_key = ctx.accounts.user.key();
         let user = &mut load_mut(&ctx.accounts.user)?;
-        controller::funding::settle_funding_payment(user, &user_key, &market_map, now)?;
+
+        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+        let market_map = MarketMap::load(
+            &get_writable_markets_for_user_positions(&user.positions),
+            remaining_accounts_iter,
+        )?;
+
+        controller::funding::settle_funding_payments(user, &user_key, &market_map, now)?;
         Ok(())
     }
 
