@@ -717,7 +717,7 @@ pub mod clearing_house {
         let mut market_map = MarketMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
 
         if params.immediate_or_cancel {
-            msg!("immediate_or_cancel order must be in place and fill");
+            msg!("immediate_or_cancel order must be in place_and_make or place_and_take");
             return Err(print_error!(ErrorCode::InvalidOrder)().into());
         }
 
@@ -881,6 +881,16 @@ pub mod clearing_house {
             remaining_accounts_iter,
         )?;
 
+        if params.order_type != OrderType::Limit {
+            msg!("place_and_take must use limit order");
+            return Err(print_error!(ErrorCode::InvalidOrder)().into());
+        }
+
+        if params.post_only {
+            msg!("post_only cant be used in place_and_take");
+            return Err(print_error!(ErrorCode::InvalidOrder)().into());
+        }
+
         let maker = match maker_order_id {
             Some(_) => Some(get_maker(remaining_accounts_iter)?),
             None => None,
@@ -964,7 +974,12 @@ pub mod clearing_house {
             remaining_accounts_iter,
         )?;
 
-        let is_immediate_or_cancel = params.immediate_or_cancel;
+        if !params.immediate_or_cancel || !params.post_only || params.order_type != OrderType::Limit
+        {
+            msg!("place_and_make must use IOC post only limit order");
+            return Err(print_error!(ErrorCode::InvalidOrder)().into());
+        }
+
         let base_asset_amount_to_fill = params.base_asset_amount;
 
         controller::repeg::update_amms(
@@ -1007,7 +1022,7 @@ pub mod clearing_house {
             &Clock::get()?,
         )?;
 
-        if is_immediate_or_cancel && base_asset_amount_to_fill != base_asset_amount_filled {
+        if base_asset_amount_to_fill != base_asset_amount_filled {
             controller::orders::cancel_order_by_order_id(
                 order_id,
                 &ctx.accounts.user,
