@@ -881,11 +881,6 @@ pub mod clearing_house {
             remaining_accounts_iter,
         )?;
 
-        if params.order_type != OrderType::Limit {
-            msg!("place_and_take must use limit order");
-            return Err(print_error!(ErrorCode::InvalidOrder)().into());
-        }
-
         if params.post_only {
             msg!("post_only cant be used in place_and_take");
             return Err(print_error!(ErrorCode::InvalidOrder)().into());
