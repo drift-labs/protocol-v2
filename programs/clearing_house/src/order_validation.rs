@@ -146,7 +146,10 @@ fn validate_post_only_order(
             "Post-only order can immediately fill {} base asset amount",
             base_asset_amount_market_can_fill
         );
-        return Err(ErrorCode::InvalidOrder);
+
+        if !order.is_jit_maker() {
+            return Err(ErrorCode::InvalidOrder);
+        }
     }
 
     Ok(())

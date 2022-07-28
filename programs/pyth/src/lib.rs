@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-mod pc;
+pub mod pc;
 use pc::Price;
 
 #[cfg(feature = "mainnet-beta")]

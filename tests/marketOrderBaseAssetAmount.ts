@@ -122,7 +122,7 @@ describe('clearing_house', () => {
 			userAccountPublicKey
 		);
 
-		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9950249)));
+		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9945300)));
 		assert(user.fees.totalFeePaid.eq(new BN(49750)));
 
 		assert.ok(
@@ -227,7 +227,7 @@ describe('clearing_house', () => {
 				.positions[0].baseAssetAmount.eq(new BN(248725250000000))
 		);
 
-		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9925373)));
+		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9924136)));
 		assert(user.fees.totalFeePaid.eq(new BN(74626)));
 
 		const market = clearingHouse.getMarketAccount(0);

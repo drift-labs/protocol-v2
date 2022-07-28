@@ -467,19 +467,24 @@ describe('prepeg', () => {
 				'after trade est. mark price:',
 				convertToNumber(newPrice)
 			);
-			const txSig = await clearingHouse.placeAndTake(orderParams);
-			const computeUnits = await findComputeUnitConsumption(
-				clearingHouse.program.programId,
-				connection,
-				txSig,
-				'confirmed'
-			);
-			console.log('compute units', computeUnits);
-			console.log(
-				'tx logs',
-				(await connection.getTransaction(txSig, { commitment: 'confirmed' }))
-					.meta.logMessages
-			);
+			try {
+				const txSig = await clearingHouse.placeAndTake(orderParams);
+				const computeUnits = await findComputeUnitConsumption(
+					clearingHouse.program.programId,
+					connection,
+					txSig,
+					'confirmed'
+				);
+				console.log('compute units', computeUnits);
+				console.log(
+					'tx logs',
+					(await connection.getTransaction(txSig, { commitment: 'confirmed' }))
+						.meta.logMessages
+				);
+			} catch (e) {
+				console.error(e);
+				assert(false);
+			}
 
 			const market = clearingHouse.getMarketAccount(i);
 			const [bid1, ask1] = calculateBidAskPrice(market.amm, oraclePriceData);
