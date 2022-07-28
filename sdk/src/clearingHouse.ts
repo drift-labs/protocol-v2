@@ -979,6 +979,16 @@ export class ClearingHouse {
 				isWritable: true,
 			},
 		];
+		for (const bankBalance of userAccount.bankBalances) {
+			if (!bankBalance.balance.eq(ZERO) && !bankBalance.bankIndex.eq(ZERO)) {
+				bankAccountInfos.push({
+					pubkey: this.getBankAccount(bankBalance.bankIndex).pubkey,
+					isSigner: false,
+					isWritable: false,
+				});
+			}
+		}
+
 		const marketAccountInfos = [
 			{
 				pubkey: marketAccount.pubkey,
@@ -1166,7 +1176,7 @@ export class ClearingHouse {
 
 	public async placeAndMake(
 		orderParams: OptionalOrderParams,
-		takerInfo: TakerInfo,
+		takerInfo: TakerInfo
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.txSender.send(
 			wrapInTx(await this.getPlaceAndMakeIx(orderParams, takerInfo)),
@@ -1181,7 +1191,7 @@ export class ClearingHouse {
 
 	public async getPlaceAndMakeIx(
 		orderParams: OptionalOrderParams,
-		takerInfo: TakerInfo,
+		takerInfo: TakerInfo
 	): Promise<TransactionInstruction> {
 		orderParams = this.getOrderParams(orderParams);
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
