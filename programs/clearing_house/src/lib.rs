@@ -875,7 +875,6 @@ pub mod clearing_house {
             &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
             remaining_accounts_iter,
         )?;
-
         let mut market_map = MarketMap::load(
             &get_writable_markets_for_user_positions_and_order(
                 &load(&ctx.accounts.user)?.positions,
@@ -1069,7 +1068,7 @@ pub mod clearing_house {
             remaining_accounts_iter,
         )?;
 
-        controller::repeg::update_amms(market_map, oracle_map, state, &clock)?; // todo
+        controller::repeg::update_amms(market_map, oracle_map, state, &clock)?;
 
         Ok(())
     }
@@ -2169,7 +2168,7 @@ pub mod clearing_house {
         validate!(
             imf_factor <= BANK_IMF_PRECISION,
             ErrorCode::DefaultError,
-            "invalid unsettled_asset_weight",
+            "invalid imf factor",
         )?;
         let market = &mut ctx.accounts.market.load_mut()?;
         market.imf_factor = imf_factor;

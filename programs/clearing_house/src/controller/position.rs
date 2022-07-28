@@ -402,8 +402,6 @@ pub fn update_cost_basis(
     oracle_price: i128,
 ) -> ClearingHouseResult<i128> {
     // update user cost basis (if at a loss)
-    // let (_, amm_position_unrealized_pnl) =
-    //     calculate_base_asset_value_and_pnl(market_position, &market.amm, false)?;
 
     let (_amm_position_base_asset_value, amm_position_unrealized_pnl) =
         calculate_base_asset_value_and_pnl_with_oracle_price(market_position, oracle_price)?;
