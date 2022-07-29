@@ -1737,6 +1737,14 @@ pub mod clearing_house {
             now,
         )?;
 
+        // Settle user's funding payments so that collateral is up to date
+        controller::funding::settle_funding_payment(
+            liquidator,
+            &liquidator_key,
+            market_map.get_ref_mut(&market_index)?.deref_mut(),
+            now,
+        )?;
+
         let (mut margin_requirement, total_collateral) =
             calculate_margin_requirement_and_total_collateral(
                 user,
@@ -1899,17 +1907,22 @@ pub mod clearing_house {
             user.positions[position_index].get_direction(),
         )?;
 
-        update_position_and_market(
-            user.get_position_mut(market_index).unwrap(),
-            market_map.get_ref_mut(&market_index)?.deref_mut(),
-            &user_position_delta,
-        )?;
+        {
+            let mut market = market_map.get_ref_mut(&market_index)?;
 
-        update_position_and_market(
-            liquidator.get_position_mut(market_index).unwrap(),
-            market_map.get_ref_mut(&market_index)?.deref_mut(),
-            &liquidator_position_delta,
-        )?;
+            let user_position = user.get_position_mut(market_index).unwrap();
+            let user_pnl =
+                update_position_and_market(user_position, &mut market, &user_position_delta)?;
+            update_unsettled_pnl(user_position, &mut market, user_pnl)?;
+
+            let liquidator_position = liquidator.get_position_mut(market_index).unwrap();
+            let liquidator_pnl = update_position_and_market(
+                liquidator_position,
+                &mut market,
+                &liquidator_position_delta,
+            )?;
+            update_unsettled_pnl(liquidator_position, &mut market, liquidator_pnl)?;
+        }
 
         let liquidator_meets_initial_margin_requirement =
             meets_initial_margin_requirement(liquidator, &market_map, &bank_map, &mut oracle_map)?;
@@ -2255,6 +2268,13 @@ pub mod clearing_house {
             now,
         )?;
 
+        controller::funding::settle_funding_payment(
+            liquidator,
+            &liquidator_key,
+            market_map.get_ref_mut(&perp_market_index)?.deref_mut(),
+            now,
+        )?;
+
         let (pnl, quote_price, quote_decimals, pnl_asset_weight, pnl_liquidation_multiplier) = {
             let user_position = user.get_position(perp_market_index).unwrap();
 
@@ -2501,6 +2521,13 @@ pub mod clearing_house {
         controller::funding::settle_funding_payment(
             user,
             &user_key,
+            market_map.get_ref_mut(&perp_market_index)?.deref_mut(),
+            now,
+        )?;
+
+        controller::funding::settle_funding_payment(
+            liquidator,
+            &liquidator_key,
             market_map.get_ref_mut(&perp_market_index)?.deref_mut(),
             now,
         )?;
