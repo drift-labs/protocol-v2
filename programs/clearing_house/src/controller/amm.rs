@@ -110,6 +110,7 @@ pub fn swap_base_asset(
     // Update AMM and LPs net position
     let net_base_asset_amount_delta =
         get_signed_base_asset_amount(base_asset_swap_amount, position_direction)?;
+
     amm.net_base_asset_amount = amm
         .net_base_asset_amount
         .checked_add(net_base_asset_amount_delta)

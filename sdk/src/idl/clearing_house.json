@@ -2720,6 +2720,10 @@
             "type": "u64"
           },
           {
+            "name": "totalLpFees",
+            "type": "u128"
+          },
+          {
             "name": "totalFeeRebate",
             "type": "u64"
           },
@@ -2836,6 +2840,10 @@
           {
             "name": "lastLpAddTime",
             "type": "i64"
+          },
+          {
+            "name": "lpFeePayments",
+            "type": "u128"
           },
           {
             "name": "padding0",

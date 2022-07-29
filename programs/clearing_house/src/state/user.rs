@@ -104,6 +104,7 @@ impl User {
 #[repr(packed)]
 pub struct UserFees {
     pub total_fee_paid: u64,
+    pub total_lp_fees: u128,
     pub total_fee_rebate: u64,
     pub total_token_discount: u128,
     pub total_referral_reward: u128,
@@ -168,6 +169,9 @@ pub struct MarketPosition {
     pub last_cumulative_fee_per_lp: u128,
     pub last_cumulative_net_base_asset_amount_per_lp: i128,
     pub last_lp_add_time: i64,
+
+    // debugging 
+    pub lp_fee_payments: u128,
 
     // upgrade-ability
     pub padding0: u128,
