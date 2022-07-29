@@ -999,7 +999,7 @@ export class ClearingHouse {
 				bankAccountMap.set(bankBalance.bankIndex.toNumber(), {
 					pubkey: bankAccount.pubkey,
 					isSigner: false,
-					isWritable: false,
+					isWritable: true,
 				});
 
 				if (!bankAccount.oracle.equals(PublicKey.default)) {
