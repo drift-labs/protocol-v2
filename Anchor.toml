@@ -11,5 +11,5 @@ watch_build = 'find ./programs/clearing_house/src/* ./tests ./sdk/src | entr -c 
 watch_cargo = 'find ./programs/clearing_house/src/* ./tests ./sdk/src | entr -c cargo test -- --show-output'
 
 [programs.localnet]
-clearing_house = "9jwr5nC2f9yAraXrg4UzHXmCX3vi9FQkjD6p9e8bRqNa"
+clearing_house = "BMow898PH56jD8z4EaqxicoGXkR1HhN17qrER6Uc4AYq"
 pyth = "gSbePebfvPy7tRqimPoVecS2UsBvYv46ynrzWocc92s"

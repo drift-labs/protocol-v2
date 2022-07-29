@@ -29,7 +29,7 @@ mod tests;
 #[cfg(feature = "mainnet-beta")]
 declare_id!("dammHkt7jmytvbS3nHTxQNEcP59aE57nxwV21YdqEDN");
 #[cfg(not(feature = "mainnet-beta"))]
-declare_id!("9jwr5nC2f9yAraXrg4UzHXmCX3vi9FQkjD6p9e8bRqNa");
+declare_id!("BMow898PH56jD8z4EaqxicoGXkR1HhN17qrER6Uc4AYq");
 
 #[program]
 pub mod clearing_house {
@@ -1051,11 +1051,6 @@ pub mod clearing_house {
             ),
             remaining_accounts_iter,
         )?;
-
-        if params.order_type != OrderType::Limit {
-            msg!("place_and_take must use limit order");
-            return Err(print_error!(ErrorCode::InvalidOrder)().into());
-        }
 
         if params.post_only {
             msg!("post_only cant be used in place_and_take");
