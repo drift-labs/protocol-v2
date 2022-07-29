@@ -1693,7 +1693,6 @@ pub mod clearing_house {
         market_index: u64,
         liquidator_max_base_asset_amount: u128,
     ) -> Result<()> {
-        let state = &ctx.accounts.state;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
         let slot = clock.slot;
@@ -1738,29 +1737,20 @@ pub mod clearing_house {
             now,
         )?;
 
-        let LiquidationStatus {
-            liquidation_type,
-            total_collateral,
-            adjusted_total_collateral,
-            mut margin_requirement,
-            ..
-        } = calculate_liquidation_status(
-            user,
-            &market_map,
-            &bank_map,
-            &mut oracle_map,
-            &ctx.accounts.state.oracle_guard_rails,
-        )?;
+        let (mut margin_requirement, total_collateral) =
+            calculate_margin_requirement_and_total_collateral(
+                user,
+                &market_map,
+                MarginRequirementType::Maintenance,
+                &bank_map,
+                &mut oracle_map,
+            )?;
 
-        if liquidation_type == LiquidationType::NONE {
+        if cast_to_u128(total_collateral)? > margin_requirement {
             msg!("total_collateral {}", total_collateral);
-            msg!("adjusted_total_collateral {}", adjusted_total_collateral);
             msg!("margin_requirement {}", margin_requirement);
             return Err(ErrorCode::SufficientCollateral.into());
         }
-
-        let is_full_liquidation = liquidation_type == LiquidationType::FULL
-            || adjusted_total_collateral < QUOTE_PRECISION;
 
         let position_index = get_position_index(&user.positions, market_index)?;
         validate!(
@@ -1801,11 +1791,7 @@ pub mod clearing_house {
             let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
             let margin_ratio = market.get_margin_ratio(
                 worst_case_base_asset_amount_before.unsigned_abs(),
-                if is_full_liquidation {
-                    MarginRequirementType::Maintenance
-                } else {
-                    MarginRequirementType::Partial
-                },
+                MarginRequirementType::Maintenance,
             )?;
 
             (margin_ratio, oracle_price)
@@ -1828,11 +1814,12 @@ pub mod clearing_house {
                 .ok_or_else(math_error!())?;
         }
 
-        if adjusted_total_collateral >= margin_requirement {
+        if total_collateral >= cast(margin_requirement)? {
             return Ok(());
         }
 
         if user.positions[position_index].base_asset_amount == 0 {
+            msg!("User has no base asset amount");
             return Ok(());
         }
 
@@ -1850,29 +1837,15 @@ pub mod clearing_house {
                 .base_asset_amount_step_size,
         )?;
 
-        let max_base_asset_amount = if is_full_liquidation {
-            user.positions[position_index]
-                .base_asset_amount
-                .unsigned_abs()
-        } else {
-            let base_asset_amount = user.positions[position_index]
-                .base_asset_amount
-                .unsigned_abs()
-                .checked_mul(state.partial_liquidation_close_percentage_numerator)
-                .ok_or_else(math_error!())?
-                .checked_div(state.partial_liquidation_close_percentage_denominator)
-                .ok_or_else(math_error!())?;
+        let user_base_asset_amount = user.positions[position_index]
+            .base_asset_amount
+            .unsigned_abs();
 
-            let market = &mut market_map.get_ref(&market_index)?;
-            standardize_base_asset_amount_ceil(
-                base_asset_amount,
-                market.amm.base_asset_amount_step_size,
-            )?
-        };
+        let margin_shortage = cast_to_i128(margin_requirement)?
+            .checked_sub(total_collateral)
+            .ok_or_else(math_error!())?
+            .unsigned_abs();
 
-        let margin_shortage = margin_requirement
-            .checked_sub(adjusted_total_collateral)
-            .ok_or_else(math_error!())?;
         let liquidation_fee = market_map.get_ref(&market_index)?.liquidation_fee;
         let base_asset_amount_to_cover_margin_shortage =
             calculate_base_asset_amount_to_cover_margin_shortage(
@@ -1882,7 +1855,7 @@ pub mod clearing_house {
                 oracle_price,
             )?;
 
-        let base_asset_amount = max_base_asset_amount
+        let base_asset_amount = user_base_asset_amount
             .min(liquidator_max_base_asset_amount)
             .min(base_asset_amount_to_cover_margin_shortage);
 
@@ -2096,30 +2069,25 @@ pub mod clearing_house {
             )
         };
 
-        let LiquidationStatus {
-            liquidation_type,
-            total_collateral,
-            adjusted_total_collateral,
-            margin_requirement,
-            ..
-        } = calculate_liquidation_status(
-            user,
-            &market_map,
-            &bank_map,
-            &mut oracle_map,
-            &ctx.accounts.state.oracle_guard_rails,
-        )?;
+        let (margin_requirement, total_collateral) =
+            calculate_margin_requirement_and_total_collateral(
+                user,
+                &market_map,
+                MarginRequirementType::Maintenance,
+                &bank_map,
+                &mut oracle_map,
+            )?;
 
-        if liquidation_type == LiquidationType::NONE {
+        if cast_to_u128(total_collateral)? > margin_requirement {
             msg!("total_collateral {}", total_collateral);
-            msg!("adjusted_total_collateral {}", adjusted_total_collateral);
             msg!("margin_requirement {}", margin_requirement);
             return Err(ErrorCode::SufficientCollateral.into());
         }
 
-        let margin_shortage = margin_requirement
+        let margin_shortage = cast_to_i128(margin_requirement)?
             .checked_sub(total_collateral)
-            .ok_or_else(math_error!())?;
+            .ok_or_else(math_error!())?
+            .unsigned_abs();
 
         // Determine what amount of borrow to transfer to reduce margin shortage to 0
         let liability_transfer_to_cover_margin_shortage =
@@ -2355,30 +2323,25 @@ pub mod clearing_house {
             )
         };
 
-        let LiquidationStatus {
-            liquidation_type,
-            total_collateral,
-            adjusted_total_collateral,
-            margin_requirement,
-            ..
-        } = calculate_liquidation_status(
-            user,
-            &market_map,
-            &bank_map,
-            &mut oracle_map,
-            &ctx.accounts.state.oracle_guard_rails,
-        )?;
+        let (margin_requirement, total_collateral) =
+            calculate_margin_requirement_and_total_collateral(
+                user,
+                &market_map,
+                MarginRequirementType::Maintenance,
+                &bank_map,
+                &mut oracle_map,
+            )?;
 
-        if liquidation_type == LiquidationType::NONE {
+        if cast_to_u128(total_collateral)? > margin_requirement {
             msg!("total_collateral {}", total_collateral);
-            msg!("adjusted_total_collateral {}", adjusted_total_collateral);
             msg!("margin_requirement {}", margin_requirement);
             return Err(ErrorCode::SufficientCollateral.into());
         }
 
-        let margin_shortage = margin_requirement
+        let margin_shortage = cast_to_i128(margin_requirement)?
             .checked_sub(total_collateral)
-            .ok_or_else(math_error!())?;
+            .ok_or_else(math_error!())?
+            .unsigned_abs();
 
         // Determine what amount of borrow to transfer to reduce margin shortage to 0
         let liability_transfer_to_cover_margin_shortage =
@@ -2610,30 +2573,25 @@ pub mod clearing_house {
             )
         };
 
-        let LiquidationStatus {
-            liquidation_type,
-            total_collateral,
-            adjusted_total_collateral,
-            margin_requirement,
-            ..
-        } = calculate_liquidation_status(
-            user,
-            &market_map,
-            &bank_map,
-            &mut oracle_map,
-            &ctx.accounts.state.oracle_guard_rails,
-        )?;
+        let (margin_requirement, total_collateral) =
+            calculate_margin_requirement_and_total_collateral(
+                user,
+                &market_map,
+                MarginRequirementType::Maintenance,
+                &bank_map,
+                &mut oracle_map,
+            )?;
 
-        if liquidation_type == LiquidationType::NONE {
+        if cast_to_u128(total_collateral)? > margin_requirement {
             msg!("total_collateral {}", total_collateral);
-            msg!("adjusted_total_collateral {}", adjusted_total_collateral);
             msg!("margin_requirement {}", margin_requirement);
             return Err(ErrorCode::SufficientCollateral.into());
         }
 
-        let margin_shortage = margin_requirement
+        let margin_shortage = cast_to_i128(margin_requirement)?
             .checked_sub(total_collateral)
-            .ok_or_else(math_error!())?;
+            .ok_or_else(math_error!())?
+            .unsigned_abs();
 
         // Determine what amount of borrow to transfer to reduce margin shortage to 0
         let pnl_transfer_to_cover_margin_shortage =
