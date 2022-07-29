@@ -1359,7 +1359,7 @@ pub mod clearing_house {
                     math::position::direction_to_close_position(existing_base_asset_amount);
 
                 let (_, _, quote_asset_amount, _, position_delta) =
-                    controller::position::update_position_with_base_asset_amount(
+                    controller::position::calculate_position_delta_with_base_asset_amount(
                         user.positions[position_index]
                             .base_asset_amount
                             .unsigned_abs(),
@@ -1554,7 +1554,7 @@ pub mod clearing_house {
                     .ok_or_else(math_error!())?;
 
                 let (_, _, quote_asset_amount, _, position_delta) =
-                    controller::position::update_position_with_base_asset_amount(
+                    controller::position::calculate_position_delta_with_base_asset_amount(
                         base_asset_amount.unsigned_abs(),
                         direction_to_reduce,
                         market,
@@ -2019,7 +2019,13 @@ pub mod clearing_house {
         let mut oracle_map = OracleMap::load_one(&ctx.accounts.oracle, clock_slot)?;
 
         let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
-        controller::repeg::update_amm_with_market(market, oracle_price_data, state, now, clock_slot)?;
+        controller::repeg::update_amm_with_market(
+            market,
+            oracle_price_data,
+            state,
+            now,
+            clock_slot,
+        )?;
 
         validate!(
             (clock_slot == market.amm.last_update_slot || market.amm.curve_update_intensity == 0),

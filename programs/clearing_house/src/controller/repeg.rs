@@ -268,7 +268,7 @@ mod test {
         };
 
         let cost_of_update =
-        update_amm_with_market(&mut market, &oracle_price_data, &state, now, slot).unwrap();
+            update_amm_with_market(&mut market, &oracle_price_data, &state, now, slot).unwrap();
 
         let is_oracle_valid = amm::is_oracle_valid(
             &market.amm,

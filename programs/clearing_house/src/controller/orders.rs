@@ -960,7 +960,7 @@ pub fn fulfill_order_with_amm(
         quote_asset_amount,
         quote_asset_amount_surplus,
         position_delta,
-    ) = controller::position::update_position_with_base_asset_amount(
+    ) = controller::position::calculate_position_delta_with_base_asset_amount(
         base_asset_amount,
         order_direction,
         market,
@@ -986,7 +986,9 @@ pub fn fulfill_order_with_amm(
         &mut user.positions[position_index],
         market,
         &position_delta,
-        fee_to_market,
+        user_fee
+            .checked_sub(filler_reward)
+            .ok_or_else(math_error!())?,
     )?;
 
     controller::position::update_unsettled_pnl(&mut user.positions[position_index], market, pnl)?;
