@@ -6,5 +6,5 @@ wallet = "~/.config/solana/id.json"
 test = "./test-scripts/run-ts-mocha"
 
 [programs.localnet]
-clearing_house = "9jwr5nC2f9yAraXrg4UzHXmCX3vi9FQkjD6p9e8bRqNa"
+clearing_house = "BMow898PH56jD8z4EaqxicoGXkR1HhN17qrER6Uc4AYq"
 pyth = "gSbePebfvPy7tRqimPoVecS2UsBvYv46ynrzWocc92s"

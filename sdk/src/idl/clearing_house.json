@@ -538,7 +538,7 @@
         },
         {
           "name": "taker",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -734,7 +734,7 @@
         },
         {
           "name": "bank",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {

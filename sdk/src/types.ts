@@ -17,6 +17,11 @@ export class PositionDirection {
 	static readonly SHORT = { short: {} };
 }
 
+export class DepositDirection {
+	static readonly DEPOSIT = { deposit: {} };
+	static readonly WITHDRAW = { withdraw: {} };
+}
+
 export class OracleSource {
 	static readonly PYTH = { pyth: {} };
 	static readonly SWITCHBOARD = { switchboard: {} };
@@ -105,6 +110,7 @@ export type DepositRecord = {
 	};
 	bankIndex: BN;
 	amount: BN;
+	oraclePrice: BN;
 	from?: PublicKey;
 	to?: PublicKey;
 };
@@ -438,6 +444,11 @@ export const DefaultOrderParams = {
 
 export type MakerInfo = {
 	maker: PublicKey;
+	order: Order;
+};
+
+export type TakerInfo = {
+	taker: PublicKey;
 	order: Order;
 };
 

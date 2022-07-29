@@ -153,7 +153,11 @@ export function calculatePositionFundingPNL(
 }
 
 export function positionIsAvailable(position: UserPosition): boolean {
-	return position.baseAssetAmount.eq(ZERO) && position.openOrders.eq(ZERO);
+	return (
+		position.baseAssetAmount.eq(ZERO) &&
+		position.openOrders.eq(ZERO) &&
+		position.unsettledPnl.eq(ZERO)
+	);
 }
 
 /**

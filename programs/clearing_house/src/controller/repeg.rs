@@ -1,9 +1,9 @@
 use crate::error::*;
 use crate::math::casting::cast_to_i128;
 
-use crate::account_loader::{load, load_mut};
 use crate::controller::amm::update_spreads;
 use crate::error::ErrorCode;
+use crate::load_mut;
 use crate::math::amm;
 use crate::math::repeg;
 use crate::math_error;
@@ -79,7 +79,6 @@ pub fn repeg(
 pub fn update_amms(
     market_map: &mut MarketMap,
     oracle_map: &mut OracleMap,
-    market_index: u64,
     state: &State,
     clock: &Clock,
 ) -> Result<()> {
@@ -88,35 +87,34 @@ pub fn update_amms(
     let now = clock.unix_timestamp;
 
     for (_key, market_account_loader) in market_map.0.iter_mut() {
-        msg!("market_account_loader key: {:?}", _key);
-        let market = &mut load_mut(market_account_loader)?;
-
-        // if market_account_loader.acc_info.is_writable {
-        //     &mut load_mut(market_account_loader)?;
-        // } else {
-        //     &mut load(market_account_loader)?;
-
-        // };
-
-        msg!(
-            "market_account_loader complete index: {:?}",
-            market.market_index
-        );
-
-        if market.market_index == market_index || market_index == 100 {
-            let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
-            update_amm(market, oracle_price_data, state, now, clock_slot)?;
-            if market.market_index == market_index {
-                return Ok(());
-            }
-        }
-        msg!("update_amm complete key: {:?}", _key);
+        let market = &mut load_mut!(market_account_loader)?;
+        let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
+        _update_amm(market, oracle_price_data, state, now, clock_slot)?;
     }
 
     Ok(())
 }
 
 pub fn update_amm(
+    market_map: &mut MarketMap,
+    oracle_map: &mut OracleMap,
+    market_index: u64,
+    state: &State,
+    clock: &Clock,
+) -> Result<()> {
+    let market = &mut market_map.get_ref_mut(&market_index)?;
+    let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
+    _update_amm(
+        market,
+        oracle_price_data,
+        state,
+        clock.unix_timestamp,
+        clock.slot,
+    )?;
+    Ok(())
+}
+
+pub fn _update_amm(
     market: &mut Market,
     oracle_price_data: &OraclePriceData,
     state: &State,
@@ -270,7 +268,7 @@ mod test {
         };
 
         let cost_of_update =
-            update_amm(&mut market, &oracle_price_data, &state, now, slot).unwrap();
+            _update_amm(&mut market, &oracle_price_data, &state, now, slot).unwrap();
 
         let is_oracle_valid = amm::is_oracle_valid(
             &market.amm,

@@ -222,6 +222,7 @@ pub struct WithdrawFromMarketToInsuranceVault<'info> {
     #[account(
         seeds = [b"bank", 0_u64.to_le_bytes().as_ref()],
         bump,
+        mut
     )]
     pub bank: AccountLoader<'info, Bank>,
     #[account(
@@ -391,6 +392,7 @@ pub struct PlaceAndMake<'info> {
         has_one = authority,
     )]
     pub user: AccountLoader<'info, User>,
+    #[account(mut)]
     pub taker: AccountLoader<'info, User>,
     pub authority: Signer<'info>,
 }

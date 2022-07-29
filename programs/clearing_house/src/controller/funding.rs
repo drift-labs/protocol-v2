@@ -29,8 +29,16 @@ pub fn settle_funding_payment(
     market: &mut Market,
     now: UnixTimestamp,
 ) -> ClearingHouseResult {
-    let mut market_position =
-        &mut user.positions[get_position_index(&user.positions, market.market_index)?];
+    let position_index = match get_position_index(&user.positions, market.market_index) {
+        Ok(position_index) => position_index,
+        Err(_) => return Ok(()),
+    };
+
+    let mut market_position = &mut user.positions[position_index];
+
+    if market_position.base_asset_amount == 0 {
+        return Ok(());
+    }
 
     let amm: &AMM = &market.amm;
 
