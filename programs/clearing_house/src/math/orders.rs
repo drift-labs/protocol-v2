@@ -181,10 +181,7 @@ pub fn should_cancel_order_after_fulfill(
     slot: u64,
 ) -> ClearingHouseResult<bool> {
     let order = &user.orders[user_order_index];
-    if order.order_type != OrderType::Market
-        || order.status != OrderStatus::Open
-        || order.liquidation
-    {
+    if order.order_type != OrderType::Market || order.status != OrderStatus::Open {
         return Ok(false);
     }
 
@@ -198,10 +195,7 @@ pub fn should_expire_order(
     max_auction_duration: u8,
 ) -> ClearingHouseResult<bool> {
     let order = &user.orders[user_order_index];
-    if order.order_type != OrderType::Market
-        || order.status != OrderStatus::Open
-        || order.liquidation
-    {
+    if order.order_type != OrderType::Market || order.status != OrderStatus::Open {
         return Ok(false);
     }
 

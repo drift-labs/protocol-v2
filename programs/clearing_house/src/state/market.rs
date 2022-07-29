@@ -42,7 +42,6 @@ pub struct Market {
     pub unsettled_initial_asset_weight: u8,
     pub unsettled_maintenance_asset_weight: u8,
     pub unsettled_imf_factor: u128,
-    pub current_liquidations: u64,
     pub liquidation_fee: u128,
 
     // upgrade-ability

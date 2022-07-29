@@ -367,7 +367,6 @@ pub mod clearing_house {
             unsettled_initial_asset_weight: 100,     // 100%
             unsettled_maintenance_asset_weight: 100, // 100%
             unsettled_imf_factor: 0,
-            current_liquidations: 0,
             liquidation_fee,
             padding0: 0,
             padding1: 0,
@@ -554,11 +553,6 @@ pub mod clearing_house {
             &clock,
         )?;
 
-        validate!(
-            !user.is_being_liquidated(),
-            ErrorCode::UserIsBeingLiquidated
-        )?;
-
         let amount = {
             let bank = &mut bank_map.get_ref_mut(&bank_index)?;
             controller::bank_balance::update_bank_cumulative_interest(bank, now)?;
@@ -594,6 +588,8 @@ pub mod clearing_house {
         if !meets_initial_margin_requirement(user, &market_map, &bank_map, &mut oracle_map)? {
             return Err(ErrorCode::InsufficientCollateral.into());
         }
+
+        user.being_liquidated = false;
 
         let bank = bank_map.get_ref(&bank_index)?;
         controller::token::send_from_bank_vault(
@@ -673,6 +669,8 @@ pub mod clearing_house {
             ErrorCode::InsufficientCollateral,
             "From user does not meet initial margin requirement"
         )?;
+
+        from_user.being_liquidated = false;
 
         let oracle_price = {
             let bank = &bank_map.get_ref(&bank_index)?;
@@ -1757,7 +1755,12 @@ pub mod clearing_house {
         if cast_to_u128(total_collateral)? > margin_requirement {
             msg!("total_collateral {}", total_collateral);
             msg!("margin_requirement {}", margin_requirement);
-            return Err(ErrorCode::SufficientCollateral.into());
+
+            if user.being_liquidated {
+                user.being_liquidated = false;
+            } else {
+                return Err(ErrorCode::SufficientCollateral.into());
+            }
         }
 
         let position_index = get_position_index(&user.positions, market_index)?;
@@ -1823,6 +1826,7 @@ pub mod clearing_house {
         }
 
         if total_collateral >= cast(margin_requirement)? {
+            user.being_liquidated = false;
             return Ok(());
         }
 
@@ -1922,6 +1926,10 @@ pub mod clearing_house {
                 &liquidator_position_delta,
             )?;
             update_unsettled_pnl(liquidator_position, &mut market, liquidator_pnl)?;
+        }
+
+        if base_asset_amount >= base_asset_amount_to_cover_margin_shortage {
+            user.being_liquidated = false;
         }
 
         let liquidator_meets_initial_margin_requirement =
@@ -2092,9 +2100,13 @@ pub mod clearing_house {
             )?;
 
         if cast_to_u128(total_collateral)? > margin_requirement {
-            msg!("total_collateral {}", total_collateral);
-            msg!("margin_requirement {}", margin_requirement);
-            return Err(ErrorCode::SufficientCollateral.into());
+            if user.being_liquidated {
+                user.being_liquidated = true;
+            } else {
+                msg!("total_collateral {}", total_collateral);
+                msg!("margin_requirement {}", margin_requirement);
+                return Err(ErrorCode::SufficientCollateral.into());
+            }
         }
 
         let margin_shortage = cast_to_i128(margin_requirement)?
@@ -2178,6 +2190,10 @@ pub mod clearing_house {
                 &mut asset_bank,
                 liquidator.get_bank_balance_mut(asset_bank_index).unwrap(),
             )?;
+        }
+
+        if liability_transfer >= liability_transfer_to_cover_margin_shortage {
+            user.being_liquidated = false;
         }
 
         let liquidator_meets_initial_margin_requirement =
@@ -2353,9 +2369,13 @@ pub mod clearing_house {
             )?;
 
         if cast_to_u128(total_collateral)? > margin_requirement {
-            msg!("total_collateral {}", total_collateral);
-            msg!("margin_requirement {}", margin_requirement);
-            return Err(ErrorCode::SufficientCollateral.into());
+            if user.being_liquidated {
+                user.being_liquidated = true;
+            } else {
+                msg!("total_collateral {}", total_collateral);
+                msg!("margin_requirement {}", margin_requirement);
+                return Err(ErrorCode::SufficientCollateral.into());
+            }
         }
 
         let margin_shortage = cast_to_i128(margin_requirement)?
@@ -2437,6 +2457,10 @@ pub mod clearing_house {
             update_unsettled_pnl(user_position, &mut market, -cast_to_i128(pnl_transfer)?)?;
         }
 
+        if liability_transfer >= liability_transfer_to_cover_margin_shortage {
+            user.being_liquidated = false;
+        }
+
         let liquidator_meets_initial_margin_requirement =
             meets_initial_margin_requirement(liquidator, &market_map, &bank_map, &mut oracle_map)?;
 
@@ -2455,7 +2479,7 @@ pub mod clearing_house {
     pub fn liquidate_perp_pnl_for_deposit(
         ctx: Context<LiquidatePerpPnlForDeposit>,
         perp_market_index: u64,
-        deposit_bank_index: u64,
+        asset_bank_index: u64,
         liquidator_max_pnl_transfer: u128,
     ) -> Result<()> {
         let clock = Clock::get()?;
@@ -2482,10 +2506,10 @@ pub mod clearing_house {
                 e
             })?;
 
-            user.get_bank_balance(deposit_bank_index).ok_or_else(|| {
+            user.get_bank_balance(asset_bank_index).ok_or_else(|| {
                 msg!(
                     "User does not have a bank balance for deposit bank {}",
-                    deposit_bank_index
+                    asset_bank_index
                 );
                 ErrorCode::CouldNotFindBankBalance
             })?;
@@ -2497,11 +2521,11 @@ pub mod clearing_house {
                     e
                 })?;
 
-            match liquidator.get_bank_balance_mut(deposit_bank_index) {
+            match liquidator.get_bank_balance_mut(asset_bank_index) {
                 Some(_) => {}
                 None => {
                     liquidator
-                        .add_bank_balance(deposit_bank_index, BankBalanceType::Borrow)
+                        .add_bank_balance(asset_bank_index, BankBalanceType::Borrow)
                         .map_err(|e| {
                             msg!("Liquidator has no available bank balances to take on deposit");
                             e
@@ -2514,7 +2538,7 @@ pub mod clearing_house {
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
 
         let mut writable_banks = WritableBanks::new();
-        writable_banks.insert(deposit_bank_index);
+        writable_banks.insert(asset_bank_index);
         let bank_map = BankMap::load(&writable_banks, remaining_accounts_iter)?;
         let market_map = MarketMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
 
@@ -2533,10 +2557,10 @@ pub mod clearing_house {
         )?;
 
         let (asset_amount, asset_price, asset_decimals, asset_weight, asset_liquidation_multiplier) = {
-            let mut asset_bank = bank_map.get_ref_mut(&deposit_bank_index)?;
+            let mut asset_bank = bank_map.get_ref_mut(&asset_bank_index)?;
             controller::bank_balance::update_bank_cumulative_interest(&mut asset_bank, now)?;
 
-            let user_bank_balance = user.get_bank_balance(deposit_bank_index).unwrap();
+            let user_bank_balance = user.get_bank_balance(asset_bank_index).unwrap();
 
             validate!(
                 user_bank_balance.balance_type == BankBalanceType::Deposit,
@@ -2610,9 +2634,13 @@ pub mod clearing_house {
             )?;
 
         if cast_to_u128(total_collateral)? > margin_requirement {
-            msg!("total_collateral {}", total_collateral);
-            msg!("margin_requirement {}", margin_requirement);
-            return Err(ErrorCode::SufficientCollateral.into());
+            if user.being_liquidated {
+                user.being_liquidated = false;
+            } else {
+                msg!("total_collateral {}", total_collateral);
+                msg!("margin_requirement {}", margin_requirement);
+                return Err(ErrorCode::SufficientCollateral.into());
+            }
         }
 
         let margin_shortage = cast_to_i128(margin_requirement)?
@@ -2661,20 +2689,20 @@ pub mod clearing_house {
         )?;
 
         {
-            let mut asset_bank = bank_map.get_ref_mut(&deposit_bank_index)?;
+            let mut asset_bank = bank_map.get_ref_mut(&asset_bank_index)?;
 
             update_bank_balances(
                 asset_transfer,
                 &BankBalanceType::Borrow,
                 &mut asset_bank,
-                user.get_bank_balance_mut(deposit_bank_index).unwrap(),
+                user.get_bank_balance_mut(asset_bank_index).unwrap(),
             )?;
 
             update_bank_balances(
                 asset_transfer,
                 &BankBalanceType::Deposit,
                 &mut asset_bank,
-                liquidator.get_bank_balance_mut(deposit_bank_index).unwrap(),
+                liquidator.get_bank_balance_mut(asset_bank_index).unwrap(),
             )?;
         }
 
@@ -2690,6 +2718,10 @@ pub mod clearing_house {
 
             let user_position = user.get_position_mut(perp_market_index)?;
             update_unsettled_pnl(user_position, &mut market, cast_to_i128(pnl_transfer)?)?;
+        }
+
+        if pnl_transfer >= pnl_transfer_to_cover_margin_shortage {
+            user.being_liquidated = false;
         }
 
         let liquidator_meets_initial_margin_requirement =
