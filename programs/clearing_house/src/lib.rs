@@ -920,16 +920,6 @@ pub mod clearing_house {
             &Clock::get()?,
         )?;
 
-        msg!("updated_amms");
-
-        // let state =  &ctx.accounts.state;
-        // let clock = Clock::get()?;
-        // let now = clock.unix_timestamp;
-        // let clock_slot = clock.slot;
-
-        // let mut market = market_map.get_ref_mut(&params.market_index)?;
-        // let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
-
         controller::orders::place_order(
             &ctx.accounts.state,
             &ctx.accounts.user,
@@ -1106,7 +1096,7 @@ pub mod clearing_house {
             remaining_accounts_iter,
         )?;
 
-        controller::repeg::update_amms(market_map, oracle_map, state, &clock)?; // todo
+        controller::repeg::update_amms(market_map, oracle_map, state, &clock)?;
 
         Ok(())
     }
@@ -2029,7 +2019,7 @@ pub mod clearing_house {
         let mut oracle_map = OracleMap::load_one(&ctx.accounts.oracle, clock_slot)?;
 
         let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
-        controller::repeg::_update_amm(market, oracle_price_data, state, now, clock_slot)?;
+        controller::repeg::update_amm_with_market(market, oracle_price_data, state, now, clock_slot)?;
 
         validate!(
             (clock_slot == market.amm.last_update_slot || market.amm.curve_update_intensity == 0),

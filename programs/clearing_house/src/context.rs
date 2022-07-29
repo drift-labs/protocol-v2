@@ -305,13 +305,6 @@ pub struct WithdrawFromInsuranceVaultToMarket<'info> {
         bump,
     )]
     pub bank_vault: Box<Account<'info, TokenAccount>>,
-    #[account(
-        mut,
-        seeds = [b"bank_vault_authority".as_ref(), 0_u64.to_le_bytes().as_ref()],
-        bump,
-    )]
-    /// CHECK: this is the pda for the bank vault
-    pub bank_vault_authority: AccountInfo<'info>,
     pub token_program: Program<'info, Token>,
 }
 

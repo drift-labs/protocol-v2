@@ -1416,7 +1416,7 @@ mod test {
             ..Market::default()
         };
 
-        let pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
+        let _pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
             .unwrap();
 
         // amm sells 1 for 1
@@ -1430,7 +1430,7 @@ mod test {
             quote_asset_amount: 400,
         };
 
-        let pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
+        let _pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
             .unwrap();
 
         // amm sells 10 for 40 each
@@ -1444,7 +1444,7 @@ mod test {
             quote_asset_amount: 420,
         };
 
-        let pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
+        let _pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
             .unwrap();
 
         // amm bought 10 for 42 each

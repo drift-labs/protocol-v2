@@ -1535,7 +1535,7 @@ mod test {
         assert_eq!(t_qar2, 5009754110429452);
 
         // with positive budget, how much can k be increased?
-        let (mut numer1, mut denom1) = _calculate_budgeted_k_scale(
+        let (numer1, denom1) = _calculate_budgeted_k_scale(
             AMM_RESERVE_PRECISION * 55414,
             AMM_RESERVE_PRECISION * 55530,
             (QUOTE_PRECISION / 500) as i128, // positive budget
@@ -1553,7 +1553,7 @@ mod test {
         assert_eq!(pct_change_in_k, 10007); // k was increased .07%
 
         // with negative budget, how much should k be lowered?
-        (numer1, denom1) = _calculate_budgeted_k_scale(
+        let (numer1, denom1) = _calculate_budgeted_k_scale(
             AMM_RESERVE_PRECISION * 55414,
             AMM_RESERVE_PRECISION * 55530,
             -((QUOTE_PRECISION / 50) as i128),
@@ -1567,7 +1567,7 @@ mod test {
         assert_eq!(pct_change_in_k, 993050); // k was decreased 0.695%
 
         // show non-linearity with budget
-        (numer1, denom1) = _calculate_budgeted_k_scale(
+        let (numer1, denom1) = _calculate_budgeted_k_scale(
             AMM_RESERVE_PRECISION * 55414,
             AMM_RESERVE_PRECISION * 55530,
             -((QUOTE_PRECISION / 25) as i128),

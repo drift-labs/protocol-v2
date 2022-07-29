@@ -89,7 +89,7 @@ pub fn update_amms(
     for (_key, market_account_loader) in market_map.0.iter_mut() {
         let market = &mut load_mut!(market_account_loader)?;
         let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
-        _update_amm(market, oracle_price_data, state, now, clock_slot)?;
+        update_amm_with_market(market, oracle_price_data, state, now, clock_slot)?;
     }
 
     Ok(())
@@ -104,7 +104,7 @@ pub fn update_amm(
 ) -> Result<()> {
     let market = &mut market_map.get_ref_mut(&market_index)?;
     let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
-    _update_amm(
+    update_amm_with_market(
         market,
         oracle_price_data,
         state,
@@ -114,7 +114,7 @@ pub fn update_amm(
     Ok(())
 }
 
-pub fn _update_amm(
+pub fn update_amm_with_market(
     market: &mut Market,
     oracle_price_data: &OraclePriceData,
     state: &State,
@@ -268,7 +268,7 @@ mod test {
         };
 
         let cost_of_update =
-            _update_amm(&mut market, &oracle_price_data, &state, now, slot).unwrap();
+        update_amm_with_market(&mut market, &oracle_price_data, &state, now, slot).unwrap();
 
         let is_oracle_valid = amm::is_oracle_valid(
             &market.amm,
