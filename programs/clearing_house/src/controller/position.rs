@@ -1450,7 +1450,7 @@ mod test {
         let pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
             .unwrap();
 
-        // amm bought 10 for 42 each 
+        // amm bought 10 for 42 each
         // ends up with 1 worth $37
         // and down 56
 
@@ -1459,7 +1459,6 @@ mod test {
         assert_eq!(market.amm.market_position.quote_asset_amount, 37);
         assert_eq!(market.amm.market_position.quote_entry_amount, 37);
         assert_eq!(market.amm.market_position.unsettled_pnl, -56);
-
     }
 }
 
