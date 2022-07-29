@@ -278,20 +278,13 @@ describe('clearing_house', () => {
 			userAccountPublicKey
 		);
 
-<<<<<<< HEAD
-		console.log(clearingHouse.getQuoteAssetTokenAmount().toString());
-		console.log(user.fees.totalFeePaid.toString());
-
-=======
 		console.log(
 			'getQuoteAssetTokenAmount:',
 			clearingHouse.getQuoteAssetTokenAmount().toString()
 		);
 		console.log('unsettledPnl:', user.positions[0].unsettledPnl.toString());
 		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9950250)));
->>>>>>> master
 		assert(user.fees.totalFeePaid.eq(new BN(49750)));
-		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9950249))); //9945300
 
 		assert.ok(user.positions[0].quoteEntryAmount.eq(new BN(49750000)));
 		assert.ok(user.positions[0].baseAssetAmount.eq(new BN(497450500000000)));

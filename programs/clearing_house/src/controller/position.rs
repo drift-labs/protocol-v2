@@ -1422,6 +1422,7 @@ mod test {
         let pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
             .unwrap();
 
+        // amm sells 1 for 1
         assert_eq!(market.amm.market_position.base_asset_amount, -1);
         assert_eq!(market.amm.market_position.quote_asset_amount, 1);
         assert_eq!(market.amm.market_position.quote_entry_amount, 1);
@@ -1435,6 +1436,7 @@ mod test {
         let pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
             .unwrap();
 
+        // amm sells 10 for 40 each
         assert_eq!(market.amm.market_position.base_asset_amount, -11);
         assert_eq!(market.amm.market_position.quote_asset_amount, 401);
         assert_eq!(market.amm.market_position.quote_entry_amount, 401);
@@ -1448,10 +1450,16 @@ mod test {
         let pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
             .unwrap();
 
+        // amm bought 10 for 42 each 
+        // ends up with 1 worth $37
+        // and down 56
+
+        // loss = (42-40) * 10 + (37-1) = 56
         assert_eq!(market.amm.market_position.base_asset_amount, -1);
         assert_eq!(market.amm.market_position.quote_asset_amount, 37);
         assert_eq!(market.amm.market_position.quote_entry_amount, 37);
         assert_eq!(market.amm.market_position.unsettled_pnl, -56);
+
     }
 }
 
