@@ -179,7 +179,20 @@ pub fn calculate_perp_position_value_and_pnl(
         oracle_price_for_upnl,
     )?;
 
+    let unrealized_funding = calculate_funding_payment(
+        if market_position.base_asset_amount > 0 {
+            market.amm.cumulative_funding_rate_long
+        } else {
+            market.amm.cumulative_funding_rate_short
+        },
+        market_position,
+    )?
+    .checked_div(AMM_TO_QUOTE_PRECISION_RATIO_I128)
+    .ok_or_else(math_error!())?;
+
     let total_unsettled_pnl = unrealized_pnl
+        .checked_add(unrealized_funding)
+        .ok_or_else(math_error!())?
         .checked_add(market_position.unsettled_pnl)
         .ok_or_else(math_error!())?;
 
@@ -268,24 +281,12 @@ pub fn calculate_margin_requirement_and_total_collateral(
             margin_requirement_type,
         )?;
 
-        let amm_cumulative_funding_rate = if market_position.base_asset_amount > 0 {
-            market.amm.cumulative_funding_rate_long
-        } else {
-            market.amm.cumulative_funding_rate_short
-        };
-
-        let perp_funding = calculate_funding_payment(amm_cumulative_funding_rate, market_position)?
-            .checked_div(AMM_TO_QUOTE_PRECISION_RATIO_I128)
-            .ok_or_else(math_error!())?;
-
         margin_requirement
             .checked_add(perp_margin_requirement)
             .ok_or_else(math_error!())?;
 
         total_collateral = total_collateral
             .checked_add(weighted_pnl)
-            .ok_or_else(math_error!())?
-            .checked_add(perp_funding)
             .ok_or_else(math_error!())?;
     }
 
