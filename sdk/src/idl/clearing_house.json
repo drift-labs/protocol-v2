@@ -542,7 +542,7 @@
         },
         {
           "name": "taker",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {

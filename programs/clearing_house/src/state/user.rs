@@ -358,6 +358,10 @@ impl Order {
         )
     }
 
+    pub fn is_jit_maker(&self) -> bool {
+        self.post_only && self.immediate_or_cancel
+    }
+
     pub fn is_open_order_for_market(&self, market_index: u64) -> bool {
         self.market_index == market_index && self.status == OrderStatus::Open
     }

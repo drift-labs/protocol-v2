@@ -385,6 +385,7 @@ pub struct PlaceAndMake<'info> {
         has_one = authority,
     )]
     pub user: AccountLoader<'info, User>,
+    #[account(mut)]
     pub taker: AccountLoader<'info, User>,
     pub authority: Signer<'info>,
 }

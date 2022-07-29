@@ -29,7 +29,7 @@ mod tests;
 #[cfg(feature = "mainnet-beta")]
 declare_id!("dammHkt7jmytvbS3nHTxQNEcP59aE57nxwV21YdqEDN");
 #[cfg(not(feature = "mainnet-beta"))]
-declare_id!("9jwr5nC2f9yAraXrg4UzHXmCX3vi9FQkjD6p9e8bRqNa");
+declare_id!("BMow898PH56jD8z4EaqxicoGXkR1HhN17qrER6Uc4AYq");
 
 #[program]
 pub mod clearing_house {
@@ -739,7 +739,7 @@ pub mod clearing_house {
         let mut market_map = MarketMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
 
         if params.immediate_or_cancel {
-            msg!("immediate_or_cancel order must be in place and fill");
+            msg!("immediate_or_cancel order must be in place_and_make or place_and_take");
             return Err(print_error!(ErrorCode::InvalidOrder)().into());
         }
 
@@ -903,6 +903,11 @@ pub mod clearing_house {
             remaining_accounts_iter,
         )?;
 
+        if params.post_only {
+            msg!("post_only cant be used in place_and_take");
+            return Err(print_error!(ErrorCode::InvalidOrder)().into());
+        }
+
         let maker = match maker_order_id {
             Some(_) => Some(get_maker(remaining_accounts_iter)?),
             None => None,
@@ -986,7 +991,12 @@ pub mod clearing_house {
             remaining_accounts_iter,
         )?;
 
-        let is_immediate_or_cancel = params.immediate_or_cancel;
+        if !params.immediate_or_cancel || !params.post_only || params.order_type != OrderType::Limit
+        {
+            msg!("place_and_make must use IOC post only limit order");
+            return Err(print_error!(ErrorCode::InvalidOrder)().into());
+        }
+
         let base_asset_amount_to_fill = params.base_asset_amount;
 
         controller::repeg::update_amms(
@@ -1029,7 +1039,7 @@ pub mod clearing_house {
             &Clock::get()?,
         )?;
 
-        if is_immediate_or_cancel && base_asset_amount_to_fill != base_asset_amount_filled {
+        if base_asset_amount_to_fill != base_asset_amount_filled {
             controller::orders::cancel_order_by_order_id(
                 order_id,
                 &ctx.accounts.user,
