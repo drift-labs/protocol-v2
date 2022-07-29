@@ -318,6 +318,7 @@ export type AMM = {
 	longSpread: BN;
 	shortSpread: BN;
 	maxSpread: number;
+	marketPosition: UserPosition;
 };
 
 // # User Account Types

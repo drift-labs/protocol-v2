@@ -1368,7 +1368,7 @@ pub mod clearing_house {
                 let direction_to_close =
                     math::position::direction_to_close_position(existing_base_asset_amount);
 
-                let (_, _, quote_asset_amount, _, pnl) =
+                let (_, _, quote_asset_amount, _, position_delta) =
                     controller::position::update_position_with_base_asset_amount(
                         user.positions[position_index]
                             .base_asset_amount
@@ -1381,6 +1381,12 @@ pub mod clearing_house {
                         now,
                         None,
                     )?;
+                let pnl = controller::position::update_position_and_market_with_fee(
+                    &mut user.positions[position_index],
+                    market,
+                    &position_delta,
+                    0, //todo
+                )?;
 
                 controller::position::update_unsettled_pnl(
                     &mut user.positions[position_index],
@@ -1557,7 +1563,7 @@ pub mod clearing_house {
                     )?)
                     .ok_or_else(math_error!())?;
 
-                let (_, _, quote_asset_amount, _, pnl) =
+                let (_, _, quote_asset_amount, _, position_delta) =
                     controller::position::update_position_with_base_asset_amount(
                         base_asset_amount.unsigned_abs(),
                         direction_to_reduce,
@@ -1568,6 +1574,12 @@ pub mod clearing_house {
                         now,
                         None,
                     )?;
+                let pnl = controller::position::update_position_and_market_with_fee(
+                    &mut user.positions[position_index],
+                    market,
+                    &position_delta,
+                    0, //todo
+                )?;
 
                 controller::position::update_unsettled_pnl(
                     &mut user.positions[position_index],

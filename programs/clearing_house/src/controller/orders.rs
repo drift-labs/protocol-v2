@@ -935,7 +935,7 @@ pub fn fulfill_order_with_amm(
         slot,
     )?;
 
-    let (order_direction, order_post_only) =
+    let (_order_direction, order_post_only) =
         get_struct_values!(user.orders[order_index], direction, post_only);
 
     if base_asset_amount == 0 {
@@ -951,24 +951,25 @@ pub fn fulfill_order_with_amm(
         None
     };
 
-    let (potentially_risk_increasing, _, quote_asset_amount, quote_asset_amount_surplus, pnl) =
-        controller::position::update_position_with_base_asset_amount(
-            base_asset_amount,
-            order_direction,
-            market,
-            user,
-            position_index,
-            mark_price_before,
-            now,
-            maker_limit_price,
-        )?;
-
-    controller::position::update_unsettled_pnl(&mut user.positions[position_index], market, pnl)?;
-
-    let mut unsettled_pnl = pnl;
-
     let (order_post_only, order_ts, order_direction) =
         get_struct_values!(user.orders[order_index], post_only, ts, direction);
+
+    let (
+        potentially_risk_increasing,
+        _,
+        quote_asset_amount,
+        quote_asset_amount_surplus,
+        position_delta,
+    ) = controller::position::update_position_with_base_asset_amount(
+        base_asset_amount,
+        order_direction,
+        market,
+        user,
+        position_index,
+        mark_price_before,
+        now,
+        maker_limit_price,
+    )?;
 
     let (user_fee, fee_to_market, filler_reward) =
         fees::calculate_fee_for_order_fulfill_against_amm(
@@ -980,6 +981,17 @@ pub fn fulfill_order_with_amm(
             quote_asset_amount_surplus,
             order_post_only,
         )?;
+
+    let pnl = update_position_and_market_with_fee(
+        &mut user.positions[position_index],
+        market,
+        &position_delta,
+        fee_to_market,
+    )?;
+
+    controller::position::update_unsettled_pnl(&mut user.positions[position_index], market, pnl)?;
+
+    let mut unsettled_pnl = pnl;
 
     let position_index = get_position_index(&user.positions, market.market_index)?;
     // Increment the clearing house's total fee variables
