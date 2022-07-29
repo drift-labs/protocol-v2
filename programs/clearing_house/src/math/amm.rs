@@ -1137,6 +1137,12 @@ pub fn calculate_base_asset_amount_to_trade_to_price(
         amm.base_asset_reserve
     };
 
+    msg!(
+        "new baa {} baa {}",
+        new_base_asset_reserve,
+        amm.base_asset_reserve
+    );
+
     if new_base_asset_reserve > base_asset_reserve_before {
         let max_trade_amount = new_base_asset_reserve
             .checked_sub(base_asset_reserve_before)
@@ -1146,6 +1152,7 @@ pub fn calculate_base_asset_amount_to_trade_to_price(
         let max_trade_amount = base_asset_reserve_before
             .checked_sub(new_base_asset_reserve)
             .ok_or_else(math_error!())?;
+        msg!("max trade {}", max_trade_amount);
         Ok((max_trade_amount, PositionDirection::Long))
     }
 }
