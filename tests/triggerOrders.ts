@@ -26,7 +26,13 @@ import {
 	setFeedPrice,
 	initializeQuoteAssetBank,
 } from './testHelpers';
-import { BASE_PRECISION, OracleSource, ZERO } from '../sdk';
+import {
+	BASE_PRECISION,
+	convertToNumber,
+	OracleSource,
+	QUOTE_PRECISION,
+	ZERO,
+} from '../sdk';
 
 describe('trigger orders', () => {
 	const provider = anchor.AnchorProvider.local();
@@ -86,7 +92,7 @@ describe('trigger orders', () => {
 		await fillerClearingHouse.initialize(usdcMint.publicKey, true);
 		await fillerClearingHouse.subscribe();
 		await initializeQuoteAssetBank(fillerClearingHouse, usdcMint.publicKey);
-		await fillerClearingHouse.updateOrderAuctionTime(new BN(0));
+		await fillerClearingHouse.updateAuctionDuration(new BN(0), new BN(0));
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
@@ -158,26 +164,21 @@ describe('trigger orders', () => {
 
 		const marketIndex = new BN(0);
 		const baseAssetAmount = BASE_PRECISION;
-		const marketOrderParams = getMarketOrderParams(
+		const marketOrderParams = getMarketOrderParams({
 			marketIndex,
-			PositionDirection.LONG,
-			ZERO,
+			direction: PositionDirection.LONG,
 			baseAssetAmount,
-			false
-		);
+		});
 		await clearingHouse.placeAndTake(marketOrderParams);
 
-		const stopOrderParams = getTriggerMarketOrderParams(
+		const stopOrderParams = getTriggerMarketOrderParams({
 			marketIndex,
-			PositionDirection.SHORT,
+			direction: PositionDirection.SHORT,
 			baseAssetAmount,
-			MARK_PRICE_PRECISION.div(new BN(2)),
-			OrderTriggerCondition.BELOW,
-			false,
-			undefined,
-			undefined,
-			1
-		);
+			triggerPrice: MARK_PRICE_PRECISION.div(new BN(2)),
+			triggerCondition: OrderTriggerCondition.BELOW,
+			userOrderId: 1,
+		});
 		await clearingHouse.placeOrder(stopOrderParams);
 
 		await clearingHouseUser.fetchAccounts();
@@ -258,27 +259,22 @@ describe('trigger orders', () => {
 
 		const marketIndex = new BN(0);
 		const baseAssetAmount = BASE_PRECISION.mul(new BN(10));
-		const marketOrderParams = getMarketOrderParams(
+		const marketOrderParams = getMarketOrderParams({
 			marketIndex,
-			PositionDirection.LONG,
-			ZERO,
+			direction: PositionDirection.LONG,
 			baseAssetAmount,
-			false
-		);
+		});
 		await clearingHouse.placeAndTake(marketOrderParams);
 
-		const stopLimitOrderParams = getTriggerLimitOrderParams(
+		const stopLimitOrderParams = getTriggerLimitOrderParams({
 			marketIndex,
-			PositionDirection.SHORT,
+			direction: PositionDirection.SHORT,
 			baseAssetAmount,
-			MARK_PRICE_PRECISION.div(new BN(10)),
-			MARK_PRICE_PRECISION.div(new BN(2)),
-			OrderTriggerCondition.BELOW,
-			false,
-			undefined,
-			undefined,
-			1
-		);
+			price: MARK_PRICE_PRECISION.div(new BN(10)),
+			triggerPrice: MARK_PRICE_PRECISION.div(new BN(2)),
+			triggerCondition: OrderTriggerCondition.BELOW,
+			userOrderId: 1,
+		});
 		await clearingHouse.placeOrder(stopLimitOrderParams);
 
 		await clearingHouseUser.fetchAccounts();
@@ -359,26 +355,21 @@ describe('trigger orders', () => {
 
 		const marketIndex = new BN(0);
 		const baseAssetAmount = BASE_PRECISION;
-		const marketOrderParams = getMarketOrderParams(
+		const marketOrderParams = getMarketOrderParams({
 			marketIndex,
-			PositionDirection.SHORT,
-			ZERO,
+			direction: PositionDirection.SHORT,
 			baseAssetAmount,
-			false
-		);
+		});
 		await clearingHouse.placeAndTake(marketOrderParams);
 
-		const stopOrderParams = getTriggerMarketOrderParams(
+		const stopOrderParams = getTriggerMarketOrderParams({
 			marketIndex,
-			PositionDirection.LONG,
+			direction: PositionDirection.LONG,
 			baseAssetAmount,
-			MARK_PRICE_PRECISION.mul(new BN(2)),
-			OrderTriggerCondition.ABOVE,
-			false,
-			undefined,
-			undefined,
-			1
-		);
+			triggerPrice: MARK_PRICE_PRECISION.mul(new BN(2)),
+			triggerCondition: OrderTriggerCondition.ABOVE,
+			userOrderId: 1,
+		});
 		await clearingHouse.placeOrder(stopOrderParams);
 
 		await clearingHouseUser.fetchAccounts();
@@ -459,27 +450,24 @@ describe('trigger orders', () => {
 
 		const marketIndex = new BN(0);
 		const baseAssetAmount = BASE_PRECISION.mul(new BN(10));
-		const marketOrderParams = getMarketOrderParams(
+		const marketOrderParams = getMarketOrderParams({
 			marketIndex,
-			PositionDirection.SHORT,
-			ZERO,
+			direction: PositionDirection.SHORT,
 			baseAssetAmount,
-			false
-		);
+		});
 		await clearingHouse.placeAndTake(marketOrderParams);
 
-		const stopLimitOrderParams = getTriggerLimitOrderParams(
+		const stopLimitOrderParams = getTriggerLimitOrderParams({
 			marketIndex,
-			PositionDirection.LONG,
+			direction: PositionDirection.LONG,
 			baseAssetAmount,
-			MARK_PRICE_PRECISION.mul(new BN(10)),
-			MARK_PRICE_PRECISION.mul(new BN(2)),
-			OrderTriggerCondition.ABOVE,
-			false,
-			undefined,
-			undefined,
-			1
-		);
+			price: MARK_PRICE_PRECISION.mul(new BN(3)).div(new BN(2)),
+			triggerPrice: MARK_PRICE_PRECISION.mul(new BN(6)).div(new BN(5)),
+			// MARK_PRICE_PRECISION.mul(new BN(10)),
+			// MARK_PRICE_PRECISION.mul(new BN(2)),
+			triggerCondition: OrderTriggerCondition.ABOVE,
+			userOrderId: 1,
+		});
 		await clearingHouse.placeOrder(stopLimitOrderParams);
 
 		await clearingHouseUser.fetchAccounts();
@@ -497,12 +485,35 @@ describe('trigger orders', () => {
 			// no op
 		}
 
+		await clearingHouseUser.fetchAccounts();
+
+		const totalCollateral0 = clearingHouseUser.getTotalCollateral();
+		console.log(
+			'user total collateral 0:',
+			convertToNumber(totalCollateral0, QUOTE_PRECISION)
+		);
 		await fillerClearingHouse.moveAmmPrice(
-			ammInitialBaseAssetReserve.div(new BN(5)),
-			ammInitialQuoteAssetReserve,
+			// ammInitialBaseAssetReserve.div(new BN(5)),
+			// ammInitialQuoteAssetReserve,
+			ammInitialBaseAssetReserve,
+			ammInitialQuoteAssetReserve.mul(new BN(6)).div(new BN(5)),
 			marketIndex
 		);
 		await setFeedPrice(anchor.workspace.Pyth, 5, solUsd);
+		// console.log('oracle move: $1 -> $5');
+
+		await setFeedPrice(anchor.workspace.Pyth, 1.201, solUsd);
+		console.log('oracle move: $1 -> $1.201');
+
+		await clearingHouseUser.fetchAccounts();
+
+		const totalCollateral = clearingHouseUser.getTotalCollateral();
+		console.log(
+			'user total collateral after:',
+			convertToNumber(totalCollateral, QUOTE_PRECISION)
+		);
+
+		assert(!clearingHouseUser.canBeLiquidated()[0]);
 
 		await fillerClearingHouse.triggerOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
@@ -514,6 +525,7 @@ describe('trigger orders', () => {
 			clearingHouseUser.getUserAccount(),
 			order
 		);
+		// await printTxLogs(connection, txSig);
 
 		await clearingHouseUser.fetchAccounts();
 
@@ -560,26 +572,21 @@ describe('trigger orders', () => {
 
 		const marketIndex = new BN(0);
 		const baseAssetAmount = BASE_PRECISION;
-		const marketOrderParams = getMarketOrderParams(
+		const marketOrderParams = getMarketOrderParams({
 			marketIndex,
-			PositionDirection.LONG,
-			ZERO,
+			direction: PositionDirection.LONG,
 			baseAssetAmount,
-			false
-		);
+		});
 		await clearingHouse.placeAndTake(marketOrderParams);
 
-		const stopOrderParams = getTriggerMarketOrderParams(
+		const stopOrderParams = getTriggerMarketOrderParams({
 			marketIndex,
-			PositionDirection.SHORT,
+			direction: PositionDirection.SHORT,
 			baseAssetAmount,
-			MARK_PRICE_PRECISION.mul(new BN(2)),
-			OrderTriggerCondition.ABOVE,
-			false,
-			undefined,
-			undefined,
-			1
-		);
+			triggerPrice: MARK_PRICE_PRECISION.mul(new BN(2)),
+			triggerCondition: OrderTriggerCondition.ABOVE,
+			userOrderId: 1,
+		});
 		await clearingHouse.placeOrder(stopOrderParams);
 
 		await clearingHouseUser.fetchAccounts();
@@ -660,27 +667,22 @@ describe('trigger orders', () => {
 
 		const marketIndex = new BN(0);
 		const baseAssetAmount = BASE_PRECISION.mul(new BN(10));
-		const marketOrderParams = getMarketOrderParams(
+		const marketOrderParams = getMarketOrderParams({
 			marketIndex,
-			PositionDirection.LONG,
-			ZERO,
+			direction: PositionDirection.LONG,
 			baseAssetAmount,
-			false
-		);
+		});
 		await clearingHouse.placeAndTake(marketOrderParams);
 
-		const stopLimitOrderParams = getTriggerLimitOrderParams(
+		const stopLimitOrderParams = getTriggerLimitOrderParams({
 			marketIndex,
-			PositionDirection.SHORT,
+			direction: PositionDirection.SHORT,
 			baseAssetAmount,
-			MARK_PRICE_PRECISION.mul(new BN(2)),
-			MARK_PRICE_PRECISION.mul(new BN(2)),
-			OrderTriggerCondition.ABOVE,
-			false,
-			undefined,
-			undefined,
-			1
-		);
+			price: MARK_PRICE_PRECISION.mul(new BN(2)),
+			triggerPrice: MARK_PRICE_PRECISION.mul(new BN(2)),
+			triggerCondition: OrderTriggerCondition.ABOVE,
+			userOrderId: 1,
+		});
 		await clearingHouse.placeOrder(stopLimitOrderParams);
 
 		await clearingHouseUser.fetchAccounts();
@@ -761,26 +763,21 @@ describe('trigger orders', () => {
 
 		const marketIndex = new BN(0);
 		const baseAssetAmount = BASE_PRECISION;
-		const marketOrderParams = getMarketOrderParams(
+		const marketOrderParams = getMarketOrderParams({
 			marketIndex,
-			PositionDirection.SHORT,
-			ZERO,
+			direction: PositionDirection.SHORT,
 			baseAssetAmount,
-			false
-		);
+		});
 		await clearingHouse.placeAndTake(marketOrderParams);
 
-		const stopOrderParams = getTriggerMarketOrderParams(
+		const stopOrderParams = getTriggerMarketOrderParams({
 			marketIndex,
-			PositionDirection.LONG,
+			direction: PositionDirection.LONG,
 			baseAssetAmount,
-			MARK_PRICE_PRECISION.div(new BN(2)),
-			OrderTriggerCondition.BELOW,
-			false,
-			undefined,
-			undefined,
-			1
-		);
+			triggerPrice: MARK_PRICE_PRECISION.div(new BN(2)),
+			triggerCondition: OrderTriggerCondition.BELOW,
+			userOrderId: 1,
+		});
 		await clearingHouse.placeOrder(stopOrderParams);
 
 		await clearingHouseUser.fetchAccounts();
@@ -861,27 +858,22 @@ describe('trigger orders', () => {
 
 		const marketIndex = new BN(0);
 		const baseAssetAmount = BASE_PRECISION.mul(new BN(10));
-		const marketOrderParams = getMarketOrderParams(
+		const marketOrderParams = getMarketOrderParams({
 			marketIndex,
-			PositionDirection.SHORT,
-			ZERO,
+			direction: PositionDirection.SHORT,
 			baseAssetAmount,
-			false
-		);
+		});
 		await clearingHouse.placeAndTake(marketOrderParams);
 
-		const stopLimitOrderParams = getTriggerLimitOrderParams(
+		const stopLimitOrderParams = getTriggerLimitOrderParams({
 			marketIndex,
-			PositionDirection.LONG,
+			direction: PositionDirection.LONG,
 			baseAssetAmount,
-			MARK_PRICE_PRECISION.div(new BN(2)),
-			MARK_PRICE_PRECISION.div(new BN(2)),
-			OrderTriggerCondition.BELOW,
-			false,
-			undefined,
-			undefined,
-			1
-		);
+			price: MARK_PRICE_PRECISION.div(new BN(2)),
+			triggerPrice: MARK_PRICE_PRECISION.div(new BN(2)),
+			triggerCondition: OrderTriggerCondition.BELOW,
+			userOrderId: 1,
+		});
 		await clearingHouse.placeOrder(stopLimitOrderParams);
 
 		await clearingHouseUser.fetchAccounts();

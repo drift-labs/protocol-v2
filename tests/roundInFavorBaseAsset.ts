@@ -1,6 +1,6 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
-import { BN, getMarketOrderParams, OracleSource, Wallet, ZERO } from '../sdk';
+import { BN, getMarketOrderParams, OracleSource, Wallet } from '../sdk';
 
 import { Program } from '@project-serum/anchor';
 
@@ -61,7 +61,7 @@ describe('round in favor', () => {
 		await primaryClearingHouse.subscribe();
 
 		await initializeQuoteAssetBank(primaryClearingHouse, usdcMint.publicKey);
-		await primaryClearingHouse.updateOrderAuctionTime(new BN(0));
+		await primaryClearingHouse.updateAuctionDuration(new BN(0), new BN(0));
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
@@ -144,13 +144,11 @@ describe('round in favor', () => {
 
 		const marketIndex = new BN(0);
 		const baseAssetAmount = new BN(7896402480);
-		const orderParams = getMarketOrderParams(
+		const orderParams = getMarketOrderParams({
 			marketIndex,
-			PositionDirection.SHORT,
-			ZERO,
+			direction: PositionDirection.SHORT,
 			baseAssetAmount,
-			false
-		);
+		});
 		await clearingHouse.placeAndTake(orderParams);
 
 		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9999000)));
@@ -197,13 +195,11 @@ describe('round in favor', () => {
 
 		const marketIndex = new BN(0);
 		const baseAssetAmount = new BN(7895668982);
-		const orderParams = getMarketOrderParams(
+		const orderParams = getMarketOrderParams({
 			marketIndex,
-			PositionDirection.LONG,
-			ZERO,
+			direction: PositionDirection.LONG,
 			baseAssetAmount,
-			false
-		);
+		});
 		await clearingHouse.placeAndTake(orderParams);
 
 		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9999000)));

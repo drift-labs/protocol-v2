@@ -56,7 +56,7 @@ describe('admin withdraw', () => {
 		await clearingHouse.subscribe();
 
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
-		await clearingHouse.updateOrderAuctionTime(new BN(0));
+		await clearingHouse.updateAuctionDuration(new BN(0), new BN(0));
 
 		const solUsd = await mockOracle(1);
 		const periodicity = new BN(60 * 60); // 1 HOUR
@@ -88,7 +88,7 @@ describe('admin withdraw', () => {
 	it('Try to withdraw too much', async () => {
 		const withdrawAmount = fee.div(new BN(2)).add(new BN(1));
 		try {
-			await clearingHouse.withdrawFees(
+			await clearingHouse.withdrawFromMarketToInsuranceVault(
 				new BN(0),
 				withdrawAmount,
 				userUSDCAccount.publicKey
@@ -104,7 +104,7 @@ describe('admin withdraw', () => {
 			.getUserAccount()
 			.fees.totalFeePaid.div(new BN(2));
 		const state = await clearingHouse.getStateAccount();
-		await clearingHouse.withdrawFees(
+		await clearingHouse.withdrawFromMarketToInsuranceVault(
 			new BN(0),
 			withdrawAmount,
 			state.insuranceVault

@@ -213,7 +213,7 @@ pub struct UpdateBankCumulativeInterest<'info> {
 }
 
 #[derive(Accounts)]
-pub struct WithdrawFees<'info> {
+pub struct WithdrawFromMarketToInsuranceVault<'info> {
     #[account(
         has_one = admin
     )]
@@ -222,6 +222,7 @@ pub struct WithdrawFees<'info> {
     #[account(
         seeds = [b"bank", 0_u64.to_le_bytes().as_ref()],
         bump,
+        mut
     )]
     pub bank: AccountLoader<'info, Bank>,
     #[account(
@@ -294,9 +295,14 @@ pub struct WithdrawFromInsuranceVaultToMarket<'info> {
     pub insurance_vault_authority: AccountInfo<'info>,
     #[account(
         mut,
+        seeds = [b"bank", 0_u64.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub bank: AccountLoader<'info, Bank>,
+    #[account(
+        mut,
         seeds = [b"bank_vault".as_ref(), 0_u64.to_le_bytes().as_ref()],
         bump,
-        token::mint = insurance_vault.mint
     )]
     pub bank_vault: Box<Account<'info, TokenAccount>>,
     pub token_program: Program<'info, Token>,
@@ -331,7 +337,6 @@ pub struct OrderParams {
     pub order_type: OrderType,
     pub direction: PositionDirection,
     pub user_order_id: u8,
-    pub quote_asset_amount: u128,
     pub base_asset_amount: u128,
     pub price: u128,
     pub market_index: u64,
@@ -343,6 +348,7 @@ pub struct OrderParams {
     pub optional_accounts: OrderParamsOptionalAccounts,
     pub position_limit: u128,
     pub oracle_price_offset: i128,
+    pub auction_duration: u8,
     pub padding0: bool,
     pub padding1: bool,
 }
@@ -379,6 +385,7 @@ pub struct PlaceAndMake<'info> {
         has_one = authority,
     )]
     pub user: AccountLoader<'info, User>,
+    #[account(mut)]
     pub taker: AccountLoader<'info, User>,
     pub authority: Signer<'info>,
 }

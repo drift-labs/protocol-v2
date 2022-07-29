@@ -1,12 +1,10 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
 import {
-	// BASE_PRECISION,
 	BN,
 	calculatePrice,
 	getMarketOrderParams,
 	OracleSource,
-	ZERO,
 	BID_ASK_SPREAD_PRECISION,
 	PEG_PRECISION,
 	QUOTE_ASSET_BANK_INDEX,
@@ -153,7 +151,7 @@ describe('repeg and spread amm', () => {
 		});
 
 		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.updateOrderAuctionTime(0);
+		await clearingHouse.updateAuctionDuration(0, 0);
 		await clearingHouse.subscribe();
 
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
@@ -205,13 +203,11 @@ describe('repeg and spread amm', () => {
 	it('BTC market massive spread', async () => {
 		const marketIndex = new BN(0);
 		const baseAssetAmount = new BN(0.19316 * AMM_RESERVE_PRECISION.toNumber());
-		const orderParams = getMarketOrderParams(
+		const orderParams = getMarketOrderParams({
 			marketIndex,
-			PositionDirection.SHORT,
-			ZERO,
+			direction: PositionDirection.SHORT,
 			baseAssetAmount,
-			false
-		);
+		});
 		await depositToFeePoolFromIF(0.001, clearingHouse, userUSDCAccount);
 
 		// await clearingHouse.placeAndFillOrder(orderParams);
@@ -402,6 +398,12 @@ describe('repeg and spread amm', () => {
 			clearingHouse.getUserAccount(),
 			marketIndex
 		);
+		await depositToFeePoolFromIF(157.476328, clearingHouse, userUSDCAccount);
+		const market1 = clearingHouse.getMarketAccount(0);
+		console.log(
+			'after fee pool deposit totalFeeMinusDistributions:',
+			market1.amm.totalFeeMinusDistributions.toString()
+		);
 
 		const clearingHouseUser = new ClearingHouseUser({
 			clearingHouse,
@@ -409,17 +411,17 @@ describe('repeg and spread amm', () => {
 		});
 		await clearingHouseUser.subscribe();
 		console.log(clearingHouseUser.getCollateralValue().toString());
-		assert(clearingHouseUser.getCollateralValue().eq(usdcAmount));
+		assert(
+			clearingHouseUser
+				.getCollateralValue()
+				.eq(usdcAmount.add(new BN(50001000)))
+		);
 		await clearingHouseUser.unsubscribe();
 	});
 
 	it('5 users, 15 trades, single market, check invariants', async () => {
 		// create <NUM_USERS> users with 10k that collectively do <NUM_EVENTS> actions
-		const market00 = clearingHouse.getMarketAccount(0);
-		const initialTotalFeeMinusDistributions = convertToNumber(
-			market00.amm.totalFeeMinusDistributions,
-			QUOTE_PRECISION
-		);
+		const clearingHouseOld = clearingHouse;
 
 		const [_userUSDCAccounts, _user_keys, clearingHouses, _userAccountInfos] =
 			await initUserAccounts(
@@ -438,8 +440,10 @@ describe('repeg and spread amm', () => {
 
 			if (count % 3 == 0) {
 				btcPrice *= 1.075;
+				// btcPrice *= 1.001;
 			} else {
 				btcPrice *= 0.999;
+				// btcPrice *= 0.925;
 			}
 			await setFeedPrice(anchor.workspace.Pyth, btcPrice, btcUsd);
 			const oraclePriceData = await getOraclePriceData(
@@ -477,13 +481,11 @@ describe('repeg and spread amm', () => {
 				tradeDirection = PositionDirection.SHORT;
 			}
 
-			const orderParams = getMarketOrderParams(
-				new BN(0),
-				tradeDirection,
-				ZERO,
-				new BN(tradeSize),
-				false
-			);
+			const orderParams = getMarketOrderParams({
+				marketIndex: new BN(0),
+				direction: tradeDirection,
+				baseAssetAmount: new BN(tradeSize),
+			});
 
 			await clearingHouses[count % 5].placeAndTake(orderParams);
 			count += 1;
@@ -491,6 +493,34 @@ describe('repeg and spread amm', () => {
 
 		let allUserCollateral = 0;
 		let allUserUnsettledPnl = 0;
+
+		const clearingHouseUser = new ClearingHouseUser({
+			clearingHouse,
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
+		await clearingHouseUser.subscribe();
+		const userCollateral = convertToNumber(
+			clearingHouseUser.getCollateralValue(),
+			QUOTE_PRECISION
+		);
+
+		const userUnsettledPnl = convertToNumber(
+			clearingHouseUser.getUnsettledPNL(),
+			QUOTE_PRECISION
+		);
+		allUserCollateral += userCollateral;
+		allUserUnsettledPnl += userUnsettledPnl;
+		console.log(
+			'user',
+			0,
+			':',
+			'$',
+			userCollateral,
+			'+',
+			userUnsettledPnl,
+			'(unsettled)'
+		);
+		await clearingHouseUser.unsubscribe();
 
 		for (let i = 0; i < clearingHouses.length; i++) {
 			await clearingHouses[i].closePosition(new BN(0));
@@ -500,22 +530,22 @@ describe('repeg and spread amm', () => {
 				new BN(0)
 			);
 
-			const clearingHouse = clearingHouses[i];
-			const clearingHouseUser = _userAccountInfos[i];
+			const clearingHouseI = clearingHouses[i];
+			const clearingHouseUserI = _userAccountInfos[i];
 			const userCollateral = convertToNumber(
-				clearingHouseUser.getCollateralValue(),
+				clearingHouseUserI.getCollateralValue(),
 				QUOTE_PRECISION
 			);
 
 			const userUnsettledPnl = convertToNumber(
-				clearingHouseUser.getUnsettledPNL(),
+				clearingHouseUserI.getUnsettledPNL(),
 				QUOTE_PRECISION
 			);
 			allUserCollateral += userCollateral;
 			allUserUnsettledPnl += userUnsettledPnl;
 			console.log(
 				'user',
-				i,
+				i + 1,
 				':',
 				'$',
 				userCollateral,
@@ -523,11 +553,11 @@ describe('repeg and spread amm', () => {
 				userUnsettledPnl,
 				'(unsettled)'
 			);
-			await clearingHouse.unsubscribe();
-			await clearingHouseUser.unsubscribe();
+			await clearingHouseI.unsubscribe();
+			await clearingHouseUserI.unsubscribe();
 		}
 
-		const market0 = clearingHouse.getMarketAccount(0);
+		const market0 = clearingHouseOld.getMarketAccount(0);
 
 		console.log('total Fees:', market0.amm.totalFee.toString());
 		console.log(
@@ -535,7 +565,7 @@ describe('repeg and spread amm', () => {
 			market0.amm.totalFeeMinusDistributions.toString()
 		);
 
-		const bankAccount = clearingHouse.getBankAccount(QUOTE_ASSET_BANK_INDEX);
+		const bankAccount = clearingHouseOld.getBankAccount(QUOTE_ASSET_BANK_INDEX);
 
 		const pnlPoolBalance = convertToNumber(
 			getTokenAmount(
@@ -555,9 +585,35 @@ describe('repeg and spread amm', () => {
 			QUOTE_PRECISION
 		);
 
-		const sinceStartTFMD =
-			convertToNumber(market0.amm.totalFeeMinusDistributions, QUOTE_PRECISION) -
-			initialTotalFeeMinusDistributions;
+		const usdcDepositBalance = convertToNumber(
+			getTokenAmount(
+				bankAccount.depositBalance,
+				bankAccount,
+				BankBalanceType.DEPOSIT
+			),
+			QUOTE_PRECISION
+		);
+
+		const usdcBorrowBalance = convertToNumber(
+			getTokenAmount(
+				bankAccount.borrowBalance,
+				bankAccount,
+				BankBalanceType.DEPOSIT
+			),
+			QUOTE_PRECISION
+		);
+
+		console.log(
+			'usdc balance:',
+			usdcDepositBalance.toString(),
+			'-',
+			usdcBorrowBalance.toString()
+		);
+
+		const sinceStartTFMD = convertToNumber(
+			market0.amm.totalFeeMinusDistributions,
+			QUOTE_PRECISION
+		);
 
 		console.log(
 			'sum all money:',
@@ -571,10 +627,28 @@ describe('repeg and spread amm', () => {
 			'+',
 			sinceStartTFMD,
 			'==',
-			50000
+			usdcDepositBalance - usdcBorrowBalance
 		);
 
-		assert(Math.abs(allUserUnsettledPnl + sinceStartTFMD) < 2);
-		assert(allUserCollateral + pnlPoolBalance + feePoolBalance == 50000);
+		assert(
+			Math.abs(
+				allUserCollateral +
+					pnlPoolBalance +
+					feePoolBalance -
+					(usdcDepositBalance - usdcBorrowBalance)
+			) < 1e-7
+		);
+
+		assert(market0.amm.netBaseAssetAmount.eq(new BN(0)));
+
+		// console.log(market0);
+
+		// todo: doesnt add up perfectly (~$2 off), adjust peg/k not precise?
+		assert(
+			Math.abs(
+				allUserUnsettledPnl +
+					(sinceStartTFMD - (pnlPoolBalance + feePoolBalance))
+			) < 2
+		);
 	});
 });

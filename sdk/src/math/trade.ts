@@ -1,4 +1,4 @@
-import { MarketAccount, PositionDirection, SwapDirection } from '../types';
+import { MarketAccount, PositionDirection } from '../types';
 import { BN } from '@project-serum/anchor';
 import { assert } from '../assert/assert';
 import {
@@ -78,14 +78,15 @@ export function calculateTradeSlippage(
 	if (amount.eq(ZERO)) {
 		return [ZERO, ZERO, oldPrice, oldPrice];
 	}
-	const [acquiredBaseReserve, acquiredQuoteReserve, acquiredQuoteAssetAmount] = calculateTradeAcquiredAmounts(
-		direction,
-		amount,
-		market,
-		inputAssetType,
-		oraclePriceData,
-		useSpread
-	);
+	const [acquiredBaseReserve, acquiredQuoteReserve, acquiredQuoteAssetAmount] =
+		calculateTradeAcquiredAmounts(
+			direction,
+			amount,
+			market,
+			inputAssetType,
+			oraclePriceData,
+			useSpread
+		);
 
 	const entryPrice = acquiredQuoteAssetAmount
 		.mul(AMM_TO_QUOTE_PRECISION_RATIO)
@@ -177,10 +178,10 @@ export function calculateTradeAcquiredAmounts(
 	const acquiredBase = amm.baseAssetReserve.sub(newBaseAssetReserve);
 	const acquiredQuote = amm.quoteAssetReserve.sub(newQuoteAssetReserve);
 	const acquiredQuoteAssetamount = calculateQuoteAssetAmountSwapped(
-			acquiredQuote.abs(),
-			amm.pegMultiplier,
-			swapDirection
-		);
+		acquiredQuote.abs(),
+		amm.pegMultiplier,
+		swapDirection
+	);
 
 	return [acquiredBase, acquiredQuote, acquiredQuoteAssetamount];
 }

@@ -5,7 +5,7 @@ use solana_program::clock::UnixTimestamp;
 use solana_program::msg;
 
 use crate::controller::amm::formulaic_update_k;
-use crate::controller::position::update_unsettled_pnl;
+use crate::controller::position::{get_position_index, update_unsettled_pnl, PositionDirection};
 use crate::error::ClearingHouseResult;
 use crate::get_then_update_id;
 use crate::math::amm;
@@ -24,6 +24,58 @@ use crate::state::state::OracleGuardRails;
 use crate::state::user::User;
 
 pub fn settle_funding_payment(
+    user: &mut User,
+    user_key: &Pubkey,
+    market: &mut Market,
+    now: UnixTimestamp,
+) -> ClearingHouseResult {
+    let position_index = match get_position_index(&user.positions, market.market_index) {
+        Ok(position_index) => position_index,
+        Err(_) => return Ok(()),
+    };
+
+    let mut market_position = &mut user.positions[position_index];
+
+    if market_position.base_asset_amount == 0 {
+        return Ok(());
+    }
+
+    let amm: &AMM = &market.amm;
+
+    let amm_cumulative_funding_rate = if market_position.base_asset_amount > 0 {
+        amm.cumulative_funding_rate_long
+    } else {
+        amm.cumulative_funding_rate_short
+    };
+
+    if amm_cumulative_funding_rate != market_position.last_cumulative_funding_rate {
+        let market_funding_payment =
+            calculate_funding_payment(amm_cumulative_funding_rate, market_position)?
+                .checked_div(AMM_TO_QUOTE_PRECISION_RATIO_I128)
+                .ok_or_else(math_error!())?;
+
+        emit!(FundingPaymentRecord {
+            ts: now,
+            user_authority: user.authority,
+            user: *user_key,
+            market_index: market_position.market_index,
+            funding_payment: market_funding_payment, //10e13
+            user_last_cumulative_funding: market_position.last_cumulative_funding_rate, //10e14
+            user_last_funding_rate_ts: market_position.last_funding_rate_ts,
+            amm_cumulative_funding_long: amm.cumulative_funding_rate_long, //10e14
+            amm_cumulative_funding_short: amm.cumulative_funding_rate_short, //10e14
+            base_asset_amount: market_position.base_asset_amount,          //10e13
+        });
+
+        market_position.last_cumulative_funding_rate = amm_cumulative_funding_rate;
+        market_position.last_funding_rate_ts = amm.last_funding_rate_ts;
+        update_unsettled_pnl(market_position, market, market_funding_payment)?;
+    }
+
+    Ok(())
+}
+
+pub fn settle_funding_payments(
     user: &mut User,
     user_key: &Pubkey,
     market_map: &MarketMap,
@@ -71,6 +123,7 @@ pub fn settle_funding_payment(
     Ok(())
 }
 
+#[allow(clippy::comparison_chain)]
 pub fn update_funding_rate(
     market_index: u64,
     market: &mut Market,
@@ -136,7 +189,10 @@ pub fn update_funding_rate(
         }
     }
 
-    if !funding_paused && !block_funding_rate_update && time_since_last_update >= next_update_wait {
+    let skip_funding_update =
+        !funding_paused && !block_funding_rate_update && time_since_last_update >= next_update_wait;
+
+    if skip_funding_update {
         let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
         let oracle_price_twap = amm::update_oracle_price_twap(
             &mut market.amm,
@@ -144,11 +200,28 @@ pub fn update_funding_rate(
             oracle_price_data,
             Some(mark_price),
         )?;
+
+        // price relates to execution premium / direction
+        let (execution_premium_price, execution_premium_direction) =
+            if market.amm.long_spread > market.amm.short_spread {
+                (
+                    market.amm.ask_price(mark_price)?,
+                    Some(PositionDirection::Long),
+                )
+            } else if market.amm.long_spread < market.amm.short_spread {
+                (
+                    market.amm.bid_price(mark_price)?,
+                    Some(PositionDirection::Short),
+                )
+            } else {
+                (mark_price, None)
+            };
+
         let mid_price_twap = amm::update_mark_twap(
             &mut market.amm,
             now,
-            Some(mark_price), // todo:ideally price here relates to execution premium
-            None,
+            Some(execution_premium_price),
+            execution_premium_direction,
         )?;
 
         let period_adjustment = (24_i128)

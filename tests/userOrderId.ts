@@ -80,7 +80,7 @@ describe('user order id', () => {
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
-		await clearingHouse.updateOrderAuctionTime(new BN(0));
+		await clearingHouse.updateAuctionDuration(new BN(0), new BN(0));
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
@@ -147,16 +147,14 @@ describe('user order id', () => {
 		const reduceOnly = false;
 		const userOrderId = 1;
 
-		const orderParams = getLimitOrderParams(
+		const orderParams = getLimitOrderParams({
 			marketIndex,
 			direction,
 			baseAssetAmount,
 			price,
 			reduceOnly,
-			false,
-			false,
-			userOrderId
-		);
+			userOrderId,
+		});
 		await clearingHouse.placeOrder(orderParams);
 
 		await clearingHouse.fetchAccounts();
@@ -173,16 +171,15 @@ describe('user order id', () => {
 		const reduceOnly = false;
 		const userOrderId = 1;
 
-		const orderParams = getLimitOrderParams(
+		const orderParams = getLimitOrderParams({
 			marketIndex,
 			direction,
 			baseAssetAmount,
 			price,
 			reduceOnly,
-			false,
-			false,
-			userOrderId
-		);
+			userOrderId,
+		});
+
 		try {
 			await clearingHouse.placeOrder(orderParams);
 		} catch (_) {

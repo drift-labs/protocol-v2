@@ -6,9 +6,8 @@ use crate::controller::position::PositionDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::constants::*;
 use crate::math::orders::{
-    calculate_base_asset_amount_to_trade_for_limit, order_breaches_oracle_price_limits,
+    calculate_base_asset_amount_to_fill_up_to_limit_price, order_breaches_oracle_price_limits,
 };
-use crate::math::quote_asset::asset_to_reserve_amount;
 use crate::state::market::Market;
 use crate::state::state::State;
 use crate::state::user::{Order, OrderTriggerCondition, OrderType};
@@ -31,15 +30,26 @@ pub fn validate_order(
 }
 
 fn validate_market_order(order: &Order, market: &Market) -> ClearingHouseResult {
-    if order.quote_asset_amount > 0 && order.base_asset_amount > 0 {
-        msg!("Market order should not have quote_asset_amount and base_asset_amount set");
-        return Err(ErrorCode::InvalidOrder);
-    }
+    validate_base_asset_amount(order, market)?;
 
-    if order.base_asset_amount > 0 {
-        validate_base_asset_amount(order, market)?;
-    } else {
-        validate_quote_asset_amount(order, market)?;
+    match order.direction {
+        PositionDirection::Long if order.auction_start_price >= order.auction_end_price => {
+            msg!(
+                "Auction start price ({}) was greater than auction end price ({})",
+                order.auction_start_price,
+                order.auction_end_price
+            );
+            return Err(ErrorCode::InvalidOrder);
+        }
+        PositionDirection::Short if order.auction_start_price <= order.auction_end_price => {
+            msg!(
+                "Auction start price ({}) was less than auction end price ({})",
+                order.auction_start_price,
+                order.auction_end_price
+            );
+            return Err(ErrorCode::InvalidOrder);
+        }
+        _ => {}
     }
 
     if order.trigger_price > 0 {
@@ -89,16 +99,11 @@ fn validate_limit_order(
         return Err(ErrorCode::InvalidOrder);
     }
 
-    if order.quote_asset_amount != 0 {
-        msg!("Limit order should not have a quote asset amount");
-        return Err(ErrorCode::InvalidOrder);
-    }
-
     if order.post_only {
         validate_post_only_order(order, market, valid_oracle_price, slot)?;
 
         let order_breaches_oracle_price_limits = order_breaches_oracle_price_limits(
-            market.margin_ratio_initial,
+            market,
             order,
             valid_oracle_price.ok_or(ErrorCode::InvalidOracle)?,
             slot,
@@ -109,7 +114,7 @@ fn validate_limit_order(
         }
     }
 
-    let limit_price = order.get_limit_price(valid_oracle_price, slot)?;
+    let limit_price = order.get_limit_price(&market.amm, valid_oracle_price, slot)?;
     let approximate_market_value = limit_price
         .checked_mul(order.base_asset_amount)
         .unwrap_or(u128::MAX)
@@ -130,15 +135,21 @@ fn validate_post_only_order(
     valid_oracle_price: Option<i128>,
     slot: u64,
 ) -> ClearingHouseResult {
-    let base_asset_amount_market_can_fill =
-        calculate_base_asset_amount_to_trade_for_limit(order, market, valid_oracle_price, slot)?;
+    let base_asset_amount_market_can_fill = calculate_base_asset_amount_to_fill_up_to_limit_price(
+        order,
+        market,
+        order.get_limit_price(&market.amm, valid_oracle_price, slot)?,
+    )?;
 
     if base_asset_amount_market_can_fill != 0 {
         msg!(
             "Post-only order can immediately fill {} base asset amount",
             base_asset_amount_market_can_fill
         );
-        return Err(ErrorCode::InvalidOrder);
+
+        if !order.is_jit_maker() {
+            return Err(ErrorCode::InvalidOrder);
+        }
     }
 
     Ok(())
@@ -158,11 +169,6 @@ fn validate_trigger_limit_order(
 
     if order.trigger_price == 0 {
         msg!("Trigger price == 0");
-        return Err(ErrorCode::InvalidOrder);
-    }
-
-    if order.quote_asset_amount != 0 {
-        msg!("Trigger limit order should not have a quote asset amount");
         return Err(ErrorCode::InvalidOrder);
     }
 
@@ -223,11 +229,6 @@ fn validate_trigger_market_order(
         return Err(ErrorCode::InvalidOrder);
     }
 
-    if order.quote_asset_amount != 0 {
-        msg!("Trigger market order should not have a quote asset amount");
-        return Err(ErrorCode::InvalidOrder);
-    }
-
     if order.post_only {
         msg!("Trigger market order can not be post only");
         return Err(ErrorCode::InvalidOrder);
@@ -262,23 +263,6 @@ fn validate_base_asset_amount(order: &Order, market: &Market) -> ClearingHouseRe
 
     if order.base_asset_amount < market.amm.base_asset_amount_step_size {
         msg!("Order base_asset_amount smaller than market base asset amount step size");
-        return Err(ErrorCode::InvalidOrder);
-    }
-
-    Ok(())
-}
-
-fn validate_quote_asset_amount(order: &Order, market: &Market) -> ClearingHouseResult {
-    if order.quote_asset_amount == 0 {
-        msg!("Order quote_asset_amount cant be 0");
-        return Err(ErrorCode::InvalidOrder);
-    }
-
-    let quote_asset_reserve_amount =
-        asset_to_reserve_amount(order.quote_asset_amount, market.amm.peg_multiplier)?;
-
-    if quote_asset_reserve_amount < market.amm.minimum_quote_asset_trade_size {
-        msg!("Order quote_asset_reserve_amount smaller than market minimum_quote_asset_trade_size");
         return Err(ErrorCode::InvalidOrder);
     }
 

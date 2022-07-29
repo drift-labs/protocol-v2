@@ -11,6 +11,10 @@ import {
 	BankAccount,
 	UserBankBalance,
 	MakerInfo,
+	TakerInfo,
+	OptionalOrderParams,
+	DefaultOrderParams,
+	OrderType,
 } from './types';
 import * as anchor from '@project-serum/anchor';
 import clearingHouseIDL from './idl/clearing_house.json';
@@ -52,7 +56,6 @@ import { WebSocketClearingHouseAccountSubscriber } from './accounts/webSocketCle
 import { RetryTxSender } from './tx/retryTxSender';
 import { ClearingHouseUser } from './clearingHouseUser';
 import { ClearingHouseUserAccountSubscriptionConfig } from './clearingHouseUserConfig';
-import { getMarketOrderParams } from './orderParams';
 import { getMarketsBanksAndOraclesForSubscription } from './config';
 
 /**
@@ -561,13 +564,19 @@ export class ClearingHouse {
 				writableBankIndex: bankIndex,
 			});
 		} else {
-			remainingAccounts = [
-				{
-					pubkey: this.getBankAccount(bankIndex).pubkey,
+			const bankAccount = this.getBankAccount(bankIndex);
+			if (!bankAccount.oracle.equals(PublicKey.default)) {
+				remainingAccounts.push({
+					pubkey: bankAccount.oracle,
 					isSigner: false,
-					isWritable: true,
-				},
-			];
+					isWritable: false,
+				});
+			}
+			remainingAccounts.push({
+				pubkey: bankAccount.pubkey,
+				isSigner: false,
+				isWritable: true,
+			});
 		}
 
 		const bank = this.getBankAccount(bankIndex);
@@ -798,20 +807,17 @@ export class ClearingHouse {
 		marketIndex: BN,
 		limitPrice?: BN
 	): Promise<TransactionSignature> {
-		return await this.placeAndTake(
-			getMarketOrderParams(
-				marketIndex,
-				direction,
-				ZERO,
-				amount,
-				false,
-				limitPrice
-			)
-		);
+		return await this.placeAndTake({
+			orderType: OrderType.MARKET,
+			marketIndex,
+			direction,
+			baseAssetAmount: amount,
+			price: limitPrice,
+		});
 	}
 
 	public async placeOrder(
-		orderParams: OrderParams
+		orderParams: OptionalOrderParams
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.txSender.send(
 			wrapInTx(await this.getPlaceOrderIx(orderParams)),
@@ -822,9 +828,14 @@ export class ClearingHouse {
 		return txSig;
 	}
 
+	getOrderParams(optionalOrderParams: OptionalOrderParams): OrderParams {
+		return Object.assign({}, DefaultOrderParams, optionalOrderParams);
+	}
+
 	public async getPlaceOrderIx(
-		orderParams: OrderParams
+		orderParams: OptionalOrderParams
 	): Promise<TransactionInstruction> {
+		orderParams = this.getOrderParams(orderParams);
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 
 		const remainingAccounts = this.getRemainingAccounts({
@@ -967,48 +978,64 @@ export class ClearingHouse {
 		const marketIndex = order.marketIndex;
 		const marketAccount = this.getMarketAccount(marketIndex);
 
-		const bankAccountInfos = [
-			{
-				pubkey: this.getQuoteAssetBankAccount().pubkey,
-				isSigner: false,
-				isWritable: true,
-			},
-		];
-		const marketAccountInfos = [
-			{
-				pubkey: marketAccount.pubkey,
-				isWritable: true,
-				isSigner: false,
-			},
-		];
-		const oracleAccountInfos = [
-			{
-				pubkey: marketAccount.amm.oracle,
-				isWritable: false,
-				isSigner: false,
-			},
-		];
+		const oracleAccountMap = new Map<string, AccountMeta>();
+		const bankAccountMap = new Map<number, AccountMeta>();
+		const marketAccountMap = new Map<number, AccountMeta>();
+
+		marketAccountMap.set(marketIndex.toNumber(), {
+			pubkey: marketAccount.pubkey,
+			isWritable: true,
+			isSigner: false,
+		});
+		oracleAccountMap.set(marketAccount.amm.oracle.toString(), {
+			pubkey: marketAccount.amm.oracle,
+			isWritable: false,
+			isSigner: false,
+		});
+
+		for (const bankBalance of userAccount.bankBalances) {
+			if (!bankBalance.balance.eq(ZERO)) {
+				const bankAccount = this.getBankAccount(bankBalance.bankIndex);
+				bankAccountMap.set(bankBalance.bankIndex.toNumber(), {
+					pubkey: bankAccount.pubkey,
+					isSigner: false,
+					isWritable: false,
+				});
+
+				if (!bankAccount.oracle.equals(PublicKey.default)) {
+					oracleAccountMap.set(bankAccount.oracle.toString(), {
+						pubkey: bankAccount.oracle,
+						isSigner: false,
+						isWritable: false,
+					});
+				}
+			}
+		}
+
 		for (const position of userAccount.positions) {
 			if (
 				!positionIsAvailable(position) &&
 				!position.marketIndex.eq(order.marketIndex)
 			) {
 				const market = this.getMarketAccount(position.marketIndex);
-				marketAccountInfos.push({
+				marketAccountMap.set(position.marketIndex.toNumber(), {
 					pubkey: market.pubkey,
-					isWritable: false,
+					isWritable: true,
 					isSigner: false,
 				});
-				oracleAccountInfos.push({
+				oracleAccountMap.set(market.amm.oracle.toString(), {
 					pubkey: market.amm.oracle,
 					isWritable: false,
 					isSigner: false,
 				});
 			}
 		}
-		const remainingAccounts = oracleAccountInfos.concat(
-			bankAccountInfos.concat(marketAccountInfos)
-		);
+
+		const remainingAccounts = [
+			...oracleAccountMap.values(),
+			...bankAccountMap.values(),
+			...marketAccountMap.values(),
+		];
 
 		if (makerInfo) {
 			remainingAccounts.push({
@@ -1020,6 +1047,7 @@ export class ClearingHouse {
 
 		const orderId = order.orderId;
 		const makerOrderId = makerInfo ? makerInfo.order.orderId : null;
+
 		return await this.program.instruction.fillOrder(orderId, makerOrderId, {
 			accounts: {
 				state: await this.getStatePublicKey(),
@@ -1110,7 +1138,7 @@ export class ClearingHouse {
 	}
 
 	public async placeAndTake(
-		orderParams: OrderParams,
+		orderParams: OptionalOrderParams,
 		makerInfo?: MakerInfo
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.txSender.send(
@@ -1123,9 +1151,10 @@ export class ClearingHouse {
 	}
 
 	public async getPlaceAndTakeIx(
-		orderParams: OrderParams,
+		orderParams: OptionalOrderParams,
 		makerInfo?: MakerInfo
 	): Promise<TransactionInstruction> {
+		orderParams = this.getOrderParams(orderParams);
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 
 		const remainingAccounts = this.getRemainingAccounts({
@@ -1157,6 +1186,55 @@ export class ClearingHouse {
 		);
 	}
 
+	public async placeAndMake(
+		orderParams: OptionalOrderParams,
+		takerInfo: TakerInfo
+	): Promise<TransactionSignature> {
+		const { txSig, slot } = await this.txSender.send(
+			wrapInTx(await this.getPlaceAndMakeIx(orderParams, takerInfo)),
+			[],
+			this.opts
+		);
+
+		this.marketLastSlotCache.set(orderParams.marketIndex.toNumber(), slot);
+
+		return txSig;
+	}
+
+	public async getPlaceAndMakeIx(
+		orderParams: OptionalOrderParams,
+		takerInfo: TakerInfo
+	): Promise<TransactionInstruction> {
+		orderParams = this.getOrderParams(orderParams);
+		const userAccountPublicKey = await this.getUserAccountPublicKey();
+
+		const remainingAccounts = this.getRemainingAccounts({
+			writableMarketIndex: orderParams.marketIndex,
+			writableBankIndex: QUOTE_ASSET_BANK_INDEX,
+		});
+
+		const takerOrderId = takerInfo!.order!.orderId;
+		remainingAccounts.push({
+			pubkey: takerInfo.taker,
+			isSigner: false,
+			isWritable: true,
+		});
+
+		return await this.program.instruction.placeAndMake(
+			orderParams,
+			takerOrderId,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					user: userAccountPublicKey,
+					taker: takerInfo.taker,
+					authority: this.wallet.publicKey,
+				},
+				remainingAccounts,
+			}
+		);
+	}
+
 	/**
 	 * Close an entire position. If you want to reduce a position, use the {@link openPosition} method in the opposite direction of the current position.
 	 * @param marketIndex
@@ -1168,16 +1246,13 @@ export class ClearingHouse {
 			throw Error(`No position in market ${marketIndex.toString()}`);
 		}
 
-		return await this.placeAndTake(
-			getMarketOrderParams(
-				marketIndex,
-				findDirectionToClose(userPosition),
-				ZERO,
-				userPosition.baseAssetAmount,
-				true,
-				undefined
-			)
-		);
+		return await this.placeAndTake({
+			orderType: OrderType.MARKET,
+			marketIndex,
+			direction: findDirectionToClose(userPosition),
+			baseAssetAmount: userPosition.baseAssetAmount,
+			reduceOnly: true,
+		});
 	}
 
 	public async settlePNLs(

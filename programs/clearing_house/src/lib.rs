@@ -13,7 +13,6 @@ use crate::math::amm::get_update_k_result;
 use crate::state::market::Market;
 use crate::state::{market::AMM, state::*, user::*};
 
-mod account_loader;
 pub mod context;
 pub mod controller;
 pub mod error;
@@ -30,7 +29,7 @@ mod tests;
 #[cfg(feature = "mainnet-beta")]
 declare_id!("dammHkt7jmytvbS3nHTxQNEcP59aE57nxwV21YdqEDN");
 #[cfg(not(feature = "mainnet-beta"))]
-declare_id!("9jwr5nC2f9yAraXrg4UzHXmCX3vi9FQkjD6p9e8bRqNa");
+declare_id!("BMow898PH56jD8z4EaqxicoGXkR1HhN17qrER6Uc4AYq");
 
 #[program]
 pub mod clearing_house {
@@ -38,8 +37,6 @@ pub mod clearing_house {
     use std::ops::Div;
     use std::option::Option::Some;
 
-    use crate::account_loader::{load, load_mut};
-    use crate::controller::bank_balance::update_bank_balances;
     use crate::controller::position::get_position_index;
     use crate::margin_validation::validate_margin;
     use crate::math;
@@ -100,22 +97,12 @@ pub mod clearing_house {
             fee_structure: FeeStructure::default(),
             whitelist_mint: Pubkey::default(),
             discount_mint: Pubkey::default(),
-            oracle_guard_rails: OracleGuardRails {
-                price_divergence: PriceDivergenceGuardRails {
-                    mark_oracle_divergence_numerator: 1,
-                    mark_oracle_divergence_denominator: 10,
-                },
-                validity: ValidityGuardRails {
-                    slots_before_stale: 1000,
-                    confidence_interval_max_size: 4,
-                    too_volatile_ratio: 5,
-                },
-                use_for_liquidations: true,
-            },
+            oracle_guard_rails: OracleGuardRails::default(),
             number_of_markets: 0,
             number_of_banks: 0,
             min_order_quote_asset_amount: 500_000, // 50 cents
-            order_auction_duration: 5,             // 5 seconds
+            min_auction_duration: 10,
+            max_auction_duration: 60,
             padding0: 0,
             padding1: 0,
         };
@@ -133,6 +120,7 @@ pub mod clearing_house {
         maintenance_asset_weight: u128,
         initial_liability_weight: u128,
         maintenance_liability_weight: u128,
+        imf_factor: u128,
     ) -> Result<()> {
         let state = &mut ctx.accounts.state;
         let bank_pubkey = ctx.accounts.bank.key();
@@ -270,6 +258,7 @@ pub mod clearing_house {
             maintenance_asset_weight,
             initial_liability_weight,
             maintenance_liability_weight,
+            imf_factor,
         };
 
         Ok(())
@@ -353,12 +342,16 @@ pub mod clearing_house {
             margin_ratio_initial, // unit is 20% (+2 decimal places)
             margin_ratio_partial,
             margin_ratio_maintenance,
+            imf_factor: 0,
             next_fill_record_id: 1,
             next_funding_rate_record_id: 1,
             next_curve_record_id: 1,
             pnl_pool: PoolBalance { balance: 0 },
             unsettled_loss: 0,
             unsettled_profit: 0,
+            unsettled_initial_asset_weight: 100,     // 100%
+            unsettled_maintenance_asset_weight: 100, // 100%
+            unsettled_imf_factor: 0,
             padding0: 0,
             padding1: 0,
             padding2: 0,
@@ -401,6 +394,8 @@ pub mod clearing_house {
                 last_oracle_delay: oracle_delay,
                 last_oracle_mark_spread_pct: 0, // todo
                 base_asset_amount_step_size: 10000000,
+                max_slippage_ratio: 50,           // ~2%
+                max_base_asset_amount_ratio: 100, // moves price ~2%
                 base_spread: 0,
                 long_spread: 0,
                 short_spread: 0,
@@ -440,7 +435,7 @@ pub mod clearing_house {
         reduce_only: bool,
     ) -> Result<()> {
         let user_key = ctx.accounts.user.key();
-        let user = &mut load_mut(&ctx.accounts.user)?;
+        let user = &mut load_mut!(ctx.accounts.user)?;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
 
@@ -491,8 +486,6 @@ pub mod clearing_house {
             user_bank_balance,
         )?;
 
-        controller::funding::settle_funding_payment(user, &user_key, &market_map, now)?;
-
         controller::token::receive(
             &ctx.accounts.token_program,
             &ctx.accounts.user_token_account,
@@ -528,7 +521,7 @@ pub mod clearing_house {
         reduce_only: bool,
     ) -> Result<()> {
         let user_key = ctx.accounts.user.key();
-        let user = &mut load_mut(&ctx.accounts.user)?;
+        let user = &mut load_mut!(ctx.accounts.user)?;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
 
@@ -541,10 +534,8 @@ pub mod clearing_house {
             &mut market_map,
             &mut oracle_map,
             &ctx.accounts.state,
-            &Clock::get()?,
+            &clock,
         )?;
-
-        controller::funding::settle_funding_payment(user, &user_key, &market_map, now)?;
 
         let amount = {
             let bank = &mut bank_map.get_ref_mut(&bank_index)?;
@@ -620,8 +611,8 @@ pub mod clearing_house {
         let from_user_key = ctx.accounts.from_user.key();
         let clock = Clock::get()?;
 
-        let to_user = &mut load_mut(&ctx.accounts.to_user)?;
-        let from_user = &mut load_mut(&ctx.accounts.from_user)?;
+        let to_user = &mut load_mut!(ctx.accounts.to_user)?;
+        let from_user = &mut load_mut!(ctx.accounts.from_user)?;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
@@ -713,7 +704,7 @@ pub mod clearing_house {
     pub fn update_bank_cumulative_interest(
         ctx: Context<UpdateBankCumulativeInterest>,
     ) -> Result<()> {
-        let bank = &mut load_mut(&ctx.accounts.bank)?;
+        let bank = &mut load_mut!(ctx.accounts.bank)?;
         let now = Clock::get()?.unix_timestamp;
         controller::bank_balance::update_bank_cumulative_interest(bank, now)?;
         Ok(())
@@ -726,7 +717,7 @@ pub mod clearing_house {
         let mut market_map = MarketMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
 
         if params.immediate_or_cancel {
-            msg!("immediate_or_cancel order must be in place and fill");
+            msg!("immediate_or_cancel order must be in place_and_make or place_and_take");
             return Err(print_error!(ErrorCode::InvalidOrder)().into());
         }
 
@@ -766,7 +757,7 @@ pub mod clearing_house {
         let order_id = match order_id {
             Some(order_id) => order_id,
             None => {
-                let user = load(&ctx.accounts.user)?;
+                let user = load!(ctx.accounts.user)?;
                 user.next_order_id - 1
             }
         };
@@ -815,7 +806,7 @@ pub mod clearing_house {
         maker_order_id: Option<u64>,
     ) -> Result<()> {
         let (order_id, writable_markets) = {
-            let user = &load(&ctx.accounts.user)?;
+            let user = &load!(ctx.accounts.user)?;
             // if there is no order id, use the users last order id
             let order_id = order_id.map_or(user.next_order_id - 1, |order_id| order_id);
             let order_index = user
@@ -848,7 +839,7 @@ pub mod clearing_house {
             &Clock::get()?,
         )?;
 
-        let base_asset_amount = controller::orders::fill_order(
+        let (_, updated_user_state) = controller::orders::fill_order(
             order_id,
             &ctx.accounts.state,
             &ctx.accounts.user,
@@ -861,8 +852,8 @@ pub mod clearing_house {
             &Clock::get()?,
         )?;
 
-        if base_asset_amount == 0 {
-            return Err(print_error!(ErrorCode::CouldNotFillOrder)().into());
+        if !updated_user_state {
+            return Err(print_error!(ErrorCode::FillOrderDidNotUpdateState)().into());
         }
 
         Ok(())
@@ -884,11 +875,16 @@ pub mod clearing_house {
         )?;
         let mut market_map = MarketMap::load(
             &get_writable_markets_for_user_positions_and_order(
-                &load(&ctx.accounts.user)?.positions,
+                &load!(ctx.accounts.user)?.positions,
                 params.market_index,
             ),
             remaining_accounts_iter,
         )?;
+
+        if params.post_only {
+            msg!("post_only cant be used in place_and_take");
+            return Err(print_error!(ErrorCode::InvalidOrder)().into());
+        }
 
         let maker = match maker_order_id {
             Some(_) => Some(get_maker(remaining_accounts_iter)?),
@@ -917,7 +913,7 @@ pub mod clearing_house {
 
         let user = &mut ctx.accounts.user;
         let order_id = {
-            let user = load(user)?;
+            let user = load!(user)?;
             if user.next_order_id == 1 {
                 u64::MAX
             } else {
@@ -925,7 +921,7 @@ pub mod clearing_house {
             }
         };
 
-        let base_asset_amount_filled = controller::orders::fill_order(
+        let (base_asset_amount_filled, _) = controller::orders::fill_order(
             order_id,
             &ctx.accounts.state,
             user,
@@ -967,13 +963,18 @@ pub mod clearing_house {
         )?;
         let mut market_map = MarketMap::load(
             &get_writable_markets_for_user_positions_and_order(
-                &load(&ctx.accounts.user)?.positions,
+                &load!(ctx.accounts.user)?.positions,
                 params.market_index,
             ),
             remaining_accounts_iter,
         )?;
 
-        let is_immediate_or_cancel = params.immediate_or_cancel;
+        if !params.immediate_or_cancel || !params.post_only || params.order_type != OrderType::Limit
+        {
+            msg!("place_and_make must use IOC post only limit order");
+            return Err(print_error!(ErrorCode::InvalidOrder)().into());
+        }
+
         let base_asset_amount_to_fill = params.base_asset_amount;
 
         controller::repeg::update_amms(
@@ -995,7 +996,7 @@ pub mod clearing_house {
 
         let user = &mut ctx.accounts.user;
         let order_id = {
-            let user = load(user)?;
+            let user = load!(user)?;
             if user.next_order_id == 1 {
                 u64::MAX
             } else {
@@ -1003,7 +1004,7 @@ pub mod clearing_house {
             }
         };
 
-        let base_asset_amount_filled = controller::orders::fill_order(
+        let (base_asset_amount_filled, _) = controller::orders::fill_order(
             taker_order_id,
             &ctx.accounts.state,
             &ctx.accounts.taker,
@@ -1016,7 +1017,7 @@ pub mod clearing_house {
             &Clock::get()?,
         )?;
 
-        if is_immediate_or_cancel && base_asset_amount_to_fill != base_asset_amount_filled {
+        if base_asset_amount_to_fill != base_asset_amount_filled {
             controller::orders::cancel_order_by_order_id(
                 order_id,
                 &ctx.accounts.user,
@@ -1106,7 +1107,7 @@ pub mod clearing_house {
             controller::bank_balance::update_bank_cumulative_interest(bank, clock.unix_timestamp)?;
         }
 
-        let user = &mut load_mut(&ctx.accounts.user)?;
+        let user = &mut load_mut!(ctx.accounts.user)?;
         let position_index = get_position_index(&user.positions, market_index)?;
 
         // cannot settle pnl this way on a user who is in liquidation territory
@@ -1118,7 +1119,8 @@ pub mod clearing_house {
         let bank = &mut bank_map.get_quote_asset_bank_mut()?;
         let market = &mut market_map.get_ref_mut(&market_index)?;
 
-        controller::position::update_cost_basis(market, market_position)?;
+        let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
+        controller::position::update_cost_basis(market, market_position, oracle_price)?;
 
         let user_unsettled_pnl = market_position.unsettled_pnl;
 
@@ -1142,7 +1144,7 @@ pub mod clearing_house {
             "User must settle their own unsettled pnl when its positive",
         )?;
 
-        update_bank_balances(
+        controller::bank_balance::update_bank_balances(
             pnl_to_settle_with_user.unsigned_abs(),
             if pnl_to_settle_with_user > 0 {
                 &BankBalanceType::Deposit
@@ -1170,7 +1172,7 @@ pub mod clearing_house {
     pub fn liquidate(ctx: Context<Liquidate>) -> Result<()> {
         let state = &ctx.accounts.state;
         let user_key = ctx.accounts.user.key();
-        let user = &mut load_mut(&ctx.accounts.user)?;
+        let user = &mut load_mut!(ctx.accounts.user)?;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
 
@@ -1193,7 +1195,7 @@ pub mod clearing_house {
         )?;
 
         // Settle user's funding payments so that collateral is up to date
-        controller::funding::settle_funding_payment(user, &user_key, &market_map, now)?;
+        // controller::funding::settle_funding_payments(user, &user_key, &market_map, now)?;
 
         let LiquidationStatus {
             liquidation_type,
@@ -1599,16 +1601,16 @@ pub mod clearing_house {
             // handle edge case where user liquidates themselves
             if liquidate_key.eq(&user_key) {
                 let user_bank_balance = user.get_quote_asset_bank_balance_mut();
-                update_bank_balances(
+                controller::bank_balance::update_bank_balances(
                     fee_to_liquidator as u128,
                     &BankBalanceType::Deposit,
                     bank,
                     user_bank_balance,
                 )?;
             } else {
-                let liquidator = &mut load_mut(&ctx.accounts.liquidator)?;
+                let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
                 let user_bank_balance = liquidator.get_quote_asset_bank_balance_mut();
-                update_bank_balances(
+                controller::bank_balance::update_bank_balances(
                     fee_to_liquidator as u128,
                     &BankBalanceType::Deposit,
                     bank,
@@ -1620,7 +1622,7 @@ pub mod clearing_house {
         {
             let bank = &mut bank_map.get_quote_asset_bank_mut()?;
             let user_bank_balance = user.get_quote_asset_bank_balance_mut();
-            update_bank_balances(
+            controller::bank_balance::update_bank_balances(
                 liquidation_fee,
                 &BankBalanceType::Borrow,
                 bank,
@@ -1672,7 +1674,7 @@ pub mod clearing_house {
         base_asset_reserve: u128,
         quote_asset_reserve: u128,
     ) -> Result<()> {
-        let market = &mut ctx.accounts.market.load_mut()?;
+        let market = &mut load_mut!(ctx.accounts.market)?;
         controller::amm::move_price(&mut market.amm, base_asset_reserve, quote_asset_reserve)?;
         Ok(())
     }
@@ -1680,13 +1682,16 @@ pub mod clearing_house {
     #[access_control(
         market_initialized(&ctx.accounts.market)
     )]
-    pub fn withdraw_fees(ctx: Context<WithdrawFees>, amount: u64) -> Result<()> {
+    pub fn withdraw_from_market_to_insurance_vault(
+        ctx: Context<WithdrawFromMarketToInsuranceVault>,
+        amount: u64,
+    ) -> Result<()> {
         let market = &mut ctx.accounts.market.load_mut()?;
 
         // A portion of fees must always remain in protocol to be used to keep markets optimal
         let max_withdraw = market
             .amm
-            .total_fee
+            .total_exchange_fee
             .checked_mul(SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR)
             .ok_or_else(math_error!())?
             .checked_div(SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_DENOMINATOR)
@@ -1694,11 +1699,24 @@ pub mod clearing_house {
             .checked_sub(market.amm.total_fee_withdrawn)
             .ok_or_else(math_error!())?;
 
+        let bank = &mut ctx.accounts.bank.load_mut()?;
+
+        let amm_fee_pool_token_amount =
+            get_token_amount(market.amm.fee_pool.balance, bank, &BankBalanceType::Deposit)?;
+
         if cast_to_u128(amount)? > max_withdraw {
+            msg!("withdraw size exceeds max_withdraw: {:?}", max_withdraw);
             return Err(ErrorCode::AdminWithdrawTooLarge.into());
         }
 
-        let bank = ctx.accounts.bank.load()?;
+        if cast_to_u128(amount)? > amm_fee_pool_token_amount {
+            msg!(
+                "withdraw size exceeds amm_fee_pool_token_amount: {:?}",
+                amm_fee_pool_token_amount
+            );
+            return Err(ErrorCode::AdminWithdrawTooLarge.into());
+        }
+
         controller::token::send_from_bank_vault(
             &ctx.accounts.token_program,
             &ctx.accounts.bank_vault,
@@ -1707,6 +1725,13 @@ pub mod clearing_house {
             0,
             bank.vault_authority_nonce,
             amount,
+        )?;
+
+        controller::bank_balance::update_bank_balances(
+            cast_to_u128(amount)?,
+            &BankBalanceType::Borrow,
+            bank,
+            &mut market.amm.fee_pool,
         )?;
 
         market.amm.total_fee_withdrawn = market
@@ -1740,7 +1765,7 @@ pub mod clearing_house {
         ctx: Context<WithdrawFromInsuranceVaultToMarket>,
         amount: u64,
     ) -> Result<()> {
-        let market = &mut ctx.accounts.market.load_mut()?;
+        let market = &mut load_mut!(ctx.accounts.market)?;
 
         // The admin can move fees from the insurance fund back to the protocol so that money in
         // the insurance fund can be used to make market more optimal
@@ -1750,6 +1775,15 @@ pub mod clearing_house {
             .total_fee_minus_distributions
             .checked_add(cast(amount)?)
             .ok_or_else(math_error!())?;
+
+        let bank = &mut load_mut!(ctx.accounts.bank)?;
+
+        controller::bank_balance::update_bank_balances(
+            cast_to_u128(amount)?,
+            &BankBalanceType::Deposit,
+            bank,
+            &mut market.amm.fee_pool,
+        )?;
 
         controller::token::send_from_insurance_vault(
             &ctx.accounts.token_program,
@@ -1773,7 +1807,7 @@ pub mod clearing_house {
         let now = clock.unix_timestamp;
         let clock_slot = clock.slot;
 
-        let market = &mut ctx.accounts.market.load_mut()?;
+        let market = &mut load_mut!(ctx.accounts.market)?;
         let price_oracle = &ctx.accounts.oracle;
         let OraclePriceData {
             price: oracle_price,
@@ -1838,7 +1872,7 @@ pub mod clearing_house {
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
 
-        let market = &mut ctx.accounts.market.load_mut()?;
+        let market = &mut load_mut!(ctx.accounts.market)?;
         let price_oracle = &ctx.accounts.oracle;
         let oracle_twap = market.amm.get_oracle_twap(price_oracle)?;
 
@@ -1882,7 +1916,7 @@ pub mod clearing_house {
         let now = clock.unix_timestamp;
         let clock_slot = clock.slot;
 
-        let market = &mut ctx.accounts.market.load_mut()?;
+        let market = &mut load_mut!(ctx.accounts.market)?;
         let price_oracle = &ctx.accounts.oracle;
         let oracle_price_data = &market.amm.get_oracle_price(price_oracle, clock_slot)?;
 
@@ -1924,12 +1958,16 @@ pub mod clearing_house {
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
 
-        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let market_map = MarketMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
-
         let user_key = ctx.accounts.user.key();
-        let user = &mut load_mut(&ctx.accounts.user)?;
-        controller::funding::settle_funding_payment(user, &user_key, &market_map, now)?;
+        let user = &mut load_mut!(ctx.accounts.user)?;
+
+        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+        let market_map = MarketMap::load(
+            &get_writable_markets_for_user_positions(&user.positions),
+            remaining_accounts_iter,
+        )?;
+
+        controller::funding::settle_funding_payments(user, &user_key, &market_map, now)?;
         Ok(())
     }
 
@@ -1940,19 +1978,29 @@ pub mod clearing_house {
         valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.market)
     )]
     pub fn update_funding_rate(ctx: Context<UpdateFundingRate>, market_index: u64) -> Result<()> {
-        let market = &mut ctx.accounts.market.load_mut()?;
+        let market = &mut load_mut!(ctx.accounts.market)?;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
         let clock_slot = clock.slot;
+        let state = &ctx.accounts.state;
         let mut oracle_map = OracleMap::load_one(&ctx.accounts.oracle, clock_slot)?;
+
+        let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
+        controller::repeg::update_amm(market, oracle_price_data, state, now, clock_slot)?;
+
+        validate!(
+            (clock_slot == market.amm.last_update_slot || market.amm.curve_update_intensity == 0),
+            ErrorCode::AMMNotUpdatedInSameSlot,
+            "AMM must be updated in a prior instruction within same slot"
+        )?;
 
         let is_updated = controller::funding::update_funding_rate(
             market_index,
             market,
             &mut oracle_map,
             now,
-            &ctx.accounts.state.oracle_guard_rails,
-            ctx.accounts.state.funding_paused,
+            &state.oracle_guard_rails,
+            state.funding_paused,
             None,
         )?;
 
@@ -1973,7 +2021,7 @@ pub mod clearing_house {
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
 
-        let market = &mut ctx.accounts.market.load_mut()?;
+        let market = &mut load_mut!(ctx.accounts.market)?;
 
         let base_asset_amount_long = market.base_asset_amount_long.unsigned_abs();
         let base_asset_amount_short = market.base_asset_amount_short.unsigned_abs();
@@ -2115,10 +2163,56 @@ pub mod clearing_house {
             margin_ratio_maintenance,
         )?;
 
-        let market = &mut ctx.accounts.market.load_mut()?;
+        let market = &mut load_mut!(ctx.accounts.market)?;
         market.margin_ratio_initial = margin_ratio_initial;
         market.margin_ratio_partial = margin_ratio_partial;
         market.margin_ratio_maintenance = margin_ratio_maintenance;
+        Ok(())
+    }
+
+    #[access_control(
+        market_initialized(&ctx.accounts.market)
+    )]
+    pub fn update_market_imf_factor(
+        ctx: Context<AdminUpdateMarket>,
+        imf_factor: u128,
+    ) -> Result<()> {
+        validate!(
+            imf_factor <= BANK_IMF_PRECISION,
+            ErrorCode::DefaultError,
+            "invalid imf factor",
+        )?;
+        let market = &mut load_mut!(ctx.accounts.market)?;
+        market.imf_factor = imf_factor;
+        Ok(())
+    }
+
+    #[access_control(
+        market_initialized(&ctx.accounts.market)
+    )]
+    pub fn update_market_unsettled_asset_weight(
+        ctx: Context<AdminUpdateMarket>,
+        unsettled_initial_asset_weight: u8,
+        unsettled_maintenance_asset_weight: u8,
+    ) -> Result<()> {
+        validate!(
+            unsettled_initial_asset_weight <= 100,
+            ErrorCode::DefaultError,
+            "invalid unsettled_initial_asset_weight",
+        )?;
+        validate!(
+            unsettled_maintenance_asset_weight <= 100,
+            ErrorCode::DefaultError,
+            "invalid unsettled_maintenance_asset_weight",
+        )?;
+        validate!(
+            unsettled_initial_asset_weight <= unsettled_maintenance_asset_weight,
+            ErrorCode::DefaultError,
+            "must enforce unsettled_initial_asset_weight <= unsettled_maintenance_asset_weight",
+        )?;
+        let market = &mut load_mut!(ctx.accounts.market)?;
+        market.unsettled_initial_asset_weight = unsettled_initial_asset_weight;
+        market.unsettled_maintenance_asset_weight = unsettled_maintenance_asset_weight;
         Ok(())
     }
 
@@ -2129,7 +2223,12 @@ pub mod clearing_house {
         ctx: Context<AdminUpdateMarket>,
         curve_update_intensity: u8,
     ) -> Result<()> {
-        let market = &mut ctx.accounts.market.load_mut()?;
+        validate!(
+            curve_update_intensity <= 100,
+            ErrorCode::DefaultError,
+            "invalid curve_update_intensity",
+        )?;
+        let market = &mut load_mut!(ctx.accounts.market)?;
         market.amm.curve_update_intensity = curve_update_intensity;
         Ok(())
     }
@@ -2225,7 +2324,7 @@ pub mod clearing_house {
         oracle: Pubkey,
         oracle_source: OracleSource,
     ) -> Result<()> {
-        let market = &mut ctx.accounts.market.load_mut()?;
+        let market = &mut load_mut!(ctx.accounts.market)?;
         market.amm.oracle = oracle;
         market.amm.oracle_source = oracle_source;
         Ok(())
@@ -2238,7 +2337,7 @@ pub mod clearing_house {
         ctx: Context<AdminUpdateMarket>,
         minimum_trade_size: u128,
     ) -> Result<()> {
-        let market = &mut ctx.accounts.market.load_mut()?;
+        let market = &mut load_mut!(ctx.accounts.market)?;
         market.amm.minimum_quote_asset_trade_size = minimum_trade_size;
         Ok(())
     }
@@ -2250,7 +2349,7 @@ pub mod clearing_house {
         ctx: Context<AdminUpdateMarket>,
         base_spread: u16,
     ) -> Result<()> {
-        let market = &mut ctx.accounts.market.load_mut()?;
+        let market = &mut load_mut!(ctx.accounts.market)?;
         market.amm.base_spread = base_spread;
         market.amm.long_spread = (base_spread / 2) as u128;
         market.amm.short_spread = (base_spread / 2) as u128;
@@ -2264,7 +2363,7 @@ pub mod clearing_house {
         ctx: Context<AdminUpdateMarket>,
         max_spread: u32,
     ) -> Result<()> {
-        let market = &mut ctx.accounts.market.load_mut()?;
+        let market = &mut load_mut!(ctx.accounts.market)?;
         validate!(
             (max_spread > market.amm.base_spread as u32)
                 && (max_spread <= market.margin_ratio_initial * 100),
@@ -2284,8 +2383,34 @@ pub mod clearing_house {
         ctx: Context<AdminUpdateMarket>,
         minimum_trade_size: u128,
     ) -> Result<()> {
-        let market = &mut ctx.accounts.market.load_mut()?;
+        let market = &mut load_mut!(ctx.accounts.market)?;
         market.amm.base_asset_amount_step_size = minimum_trade_size;
+        Ok(())
+    }
+
+    #[access_control(
+        market_initialized(&ctx.accounts.market)
+    )]
+    pub fn update_market_max_slippage_ratio(
+        ctx: Context<AdminUpdateMarket>,
+        max_slippage_ratio: u16,
+    ) -> Result<()> {
+        validate!(max_slippage_ratio > 0, ErrorCode::DefaultError)?;
+        let market = &mut load_mut!(ctx.accounts.market)?;
+        market.amm.max_slippage_ratio = max_slippage_ratio;
+        Ok(())
+    }
+
+    #[access_control(
+        market_initialized(&ctx.accounts.market)
+    )]
+    pub fn update_max_base_asset_amount_ratio(
+        ctx: Context<AdminUpdateMarket>,
+        max_base_asset_amount_ratio: u16,
+    ) -> Result<()> {
+        validate!(max_base_asset_amount_ratio > 0, ErrorCode::DefaultError)?;
+        let market = &mut load_mut!(ctx.accounts.market)?;
+        market.amm.max_base_asset_amount_ratio = max_base_asset_amount_ratio;
         Ok(())
     }
 
@@ -2331,17 +2456,19 @@ pub mod clearing_house {
         Ok(())
     }
 
-    pub fn update_order_auction_time(
+    pub fn update_auction_duration(
         ctx: Context<AdminUpdateState>,
-        order_auction_time: u8,
+        min_auction_duration: u8,
+        max_auction_duration: u8,
     ) -> Result<()> {
         validate!(
-            order_auction_time > 0 || order_auction_time < 100,
+            min_auction_duration <= max_auction_duration,
             ErrorCode::DefaultError,
-            "invalid auction time",
+            "min auction duration must be less than or equal to max auction duration",
         )?;
 
-        ctx.accounts.state.order_auction_duration = order_auction_time;
+        ctx.accounts.state.min_auction_duration = min_auction_duration;
+        ctx.accounts.state.max_auction_duration = max_auction_duration;
         Ok(())
     }
 }

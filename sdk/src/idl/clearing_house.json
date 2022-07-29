@@ -141,6 +141,10 @@
         {
           "name": "maintenanceLiabilityWeight",
           "type": "u128"
+        },
+        {
+          "name": "imfFactor",
+          "type": "u128"
         }
       ]
     },
@@ -534,7 +538,7 @@
         },
         {
           "name": "taker",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -716,7 +720,7 @@
       ]
     },
     {
-      "name": "withdrawFees",
+      "name": "withdrawFromMarketToInsuranceVault",
       "accounts": [
         {
           "name": "state",
@@ -730,7 +734,7 @@
         },
         {
           "name": "bank",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -833,6 +837,11 @@
         {
           "name": "insuranceVaultAuthority",
           "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "bank",
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -1090,6 +1099,62 @@
         {
           "name": "marginRatioMaintenance",
           "type": "u32"
+        }
+      ]
+    },
+    {
+      "name": "updateMarketImfFactor",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "imfFactor",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "updateMarketUnsettledAssetWeight",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "unsettledInitialAssetWeight",
+          "type": "u8"
+        },
+        {
+          "name": "unsettledMaintenanceAssetWeight",
+          "type": "u8"
         }
       ]
     },
@@ -1442,6 +1507,58 @@
       ]
     },
     {
+      "name": "updateMarketMaxSlippageRatio",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "maxSlippageRatio",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "updateMaxBaseAssetAmountRatio",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "maxBaseAssetAmountRatio",
+          "type": "u16"
+        }
+      ]
+    },
+    {
       "name": "updateAdmin",
       "accounts": [
         {
@@ -1563,7 +1680,7 @@
       ]
     },
     {
-      "name": "updateOrderAuctionTime",
+      "name": "updateAuctionDuration",
       "accounts": [
         {
           "name": "admin",
@@ -1578,7 +1695,11 @@
       ],
       "args": [
         {
-          "name": "orderAuctionTime",
+          "name": "minAuctionDuration",
+          "type": "u8"
+        },
+        {
+          "name": "maxAuctionDuration",
           "type": "u8"
         }
       ]
@@ -1675,6 +1796,10 @@
           {
             "name": "maintenanceLiabilityWeight",
             "type": "u128"
+          },
+          {
+            "name": "imfFactor",
+            "type": "u128"
           }
         ]
       }
@@ -1750,6 +1875,22 @@
           },
           {
             "name": "unsettledLoss",
+            "type": "u128"
+          },
+          {
+            "name": "imfFactor",
+            "type": "u128"
+          },
+          {
+            "name": "unsettledInitialAssetWeight",
+            "type": "u8"
+          },
+          {
+            "name": "unsettledMaintenanceAssetWeight",
+            "type": "u8"
+          },
+          {
+            "name": "unsettledImfFactor",
             "type": "u128"
           },
           {
@@ -1885,7 +2026,11 @@
             "type": "u128"
           },
           {
-            "name": "orderAuctionDuration",
+            "name": "minAuctionDuration",
+            "type": "u8"
+          },
+          {
+            "name": "maxAuctionDuration",
             "type": "u8"
           },
           {
@@ -1991,10 +2136,6 @@
             "type": "u8"
           },
           {
-            "name": "quoteAssetAmount",
-            "type": "u128"
-          },
-          {
             "name": "baseAssetAmount",
             "type": "u128"
           },
@@ -2041,6 +2182,10 @@
           {
             "name": "oraclePriceOffset",
             "type": "i128"
+          },
+          {
+            "name": "auctionDuration",
+            "type": "u8"
           },
           {
             "name": "padding0",
@@ -2203,6 +2348,14 @@
           {
             "name": "minimumQuoteAssetTradeSize",
             "type": "u128"
+          },
+          {
+            "name": "maxBaseAssetAmountRatio",
+            "type": "u16"
+          },
+          {
+            "name": "maxSlippageRatio",
+            "type": "u16"
           },
           {
             "name": "baseAssetAmountStepSize",
@@ -2689,10 +2842,6 @@
             }
           },
           {
-            "name": "quoteAssetAmount",
-            "type": "u128"
-          },
-          {
             "name": "baseAssetAmount",
             "type": "u128"
           },
@@ -2904,6 +3053,12 @@
           },
           {
             "name": "OraclePriceBreachedLimitPrice"
+          },
+          {
+            "name": "MarketOrderFilledToLimitPrice"
+          },
+          {
+            "name": "MarketOrderAuctionExpired"
           }
         ]
       }
@@ -3691,8 +3846,8 @@
     },
     {
       "code": 6044,
-      "name": "CouldNotFillOrder",
-      "msg": "CouldNotFillOrder"
+      "name": "FillOrderDidNotUpdateState",
+      "msg": "FillOrderDidNotUpdateState"
     },
     {
       "code": 6045,

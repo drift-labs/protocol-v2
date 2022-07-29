@@ -12,7 +12,7 @@ export interface SlotSubscriberEvents {
 export class SlotSubscriber {
 	currentSlot: number;
 	subscriptionId: number;
-	eventEmitter: StrictEventEmitter<EventEmitter,SlotSubscriberEvents> ;
+	eventEmitter: StrictEventEmitter<EventEmitter, SlotSubscriberEvents>;
 
 	public constructor(
 		private connection: Connection,

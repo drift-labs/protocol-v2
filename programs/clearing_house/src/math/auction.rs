@@ -1,7 +1,7 @@
 use crate::controller::amm::{calculate_base_swap_output_with_spread, SwapDirection};
 use crate::controller::position::PositionDirection;
 use crate::error::ClearingHouseResult;
-use crate::math::amm::{calculate_price, calculate_spread_reserves};
+use crate::math::amm::calculate_price;
 use crate::math::casting::cast;
 use crate::math::constants::MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO;
 use crate::math::position::calculate_entry_price;
@@ -17,17 +17,20 @@ pub fn calculate_auction_start_price(
     market: &Market,
     direction: PositionDirection,
 ) -> ClearingHouseResult<u128> {
-    let (base_asset_reserves, quote_asset_reserves) = calculate_spread_reserves(
-        &market.amm,
-        match direction {
-            PositionDirection::Long => PositionDirection::Short,
-            PositionDirection::Short => PositionDirection::Long,
-        },
-    )?;
+    let (base_asset_reserves, quote_asset_reserves) = match direction {
+        PositionDirection::Long => (
+            market.amm.bid_base_asset_reserve,
+            market.amm.bid_quote_asset_reserve,
+        ),
+        PositionDirection::Short => (
+            market.amm.ask_base_asset_reserve,
+            market.amm.ask_quote_asset_reserve,
+        ),
+    };
 
     let auction_start_price = calculate_price(
-        base_asset_reserves,
         quote_asset_reserves,
+        base_asset_reserves,
         market.amm.peg_multiplier,
     )?;
 
@@ -148,9 +151,13 @@ pub fn is_auction_complete(
     auction_duration: u8,
     slot: u64,
 ) -> ClearingHouseResult<bool> {
-    let time_elapsed = slot.checked_sub(order_slot).ok_or_else(math_error!())?;
+    if auction_duration == 0 {
+        return Ok(true);
+    }
 
-    Ok(time_elapsed >= cast(auction_duration)?)
+    let slots_elapsed = slot.checked_sub(order_slot).ok_or_else(math_error!())?;
+
+    Ok(slots_elapsed > cast(auction_duration)?)
 }
 
 #[cfg(test)]
