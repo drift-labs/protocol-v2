@@ -341,6 +341,10 @@ impl Order {
             OrderType::TriggerMarket | OrderType::TriggerLimit
         )
     }
+
+    pub fn is_jit_maker(&self) -> bool {
+        self.post_only && self.immediate_or_cancel
+    }
 }
 
 impl Default for Order {

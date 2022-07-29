@@ -31,3 +31,4 @@ arrayref = "0.3.6"
 
 [dev-dependencies]
 bytes = "1.2.0"
+pyth = { path = "../pyth" }

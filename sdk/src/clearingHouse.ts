@@ -11,6 +11,7 @@ import {
 	BankAccount,
 	UserBankBalance,
 	MakerInfo,
+	TakerInfo,
 	OptionalOrderParams,
 	DefaultOrderParams,
 	OrderType,
@@ -960,7 +961,7 @@ export class ClearingHouse {
 		limitPrice?: BN
 	): Promise<TransactionSignature> {
 		return await this.placeAndTake({
-			orderType: OrderType.MARKET,
+			orderType: OrderType.LIMIT,
 			marketIndex,
 			direction,
 			baseAssetAmount: amount,
@@ -1137,6 +1138,16 @@ export class ClearingHouse {
 				isWritable: true,
 			},
 		];
+		for (const bankBalance of userAccount.bankBalances) {
+			if (!bankBalance.balance.eq(ZERO) && !bankBalance.bankIndex.eq(ZERO)) {
+				bankAccountInfos.push({
+					pubkey: this.getBankAccount(bankBalance.bankIndex).pubkey,
+					isSigner: false,
+					isWritable: false,
+				});
+			}
+		}
+
 		const marketAccountInfos = [
 			{
 				pubkey: marketAccount.pubkey,
@@ -1159,7 +1170,7 @@ export class ClearingHouse {
 				const market = this.getMarketAccount(position.marketIndex);
 				marketAccountInfos.push({
 					pubkey: market.pubkey,
-					isWritable: false,
+					isWritable: true,
 					isSigner: false,
 				});
 				oracleAccountInfos.push({
@@ -1183,6 +1194,7 @@ export class ClearingHouse {
 
 		const orderId = order.orderId;
 		const makerOrderId = makerInfo ? makerInfo.order.orderId : null;
+
 		return await this.program.instruction.fillOrder(orderId, makerOrderId, {
 			accounts: {
 				state: await this.getStatePublicKey(),
@@ -1314,6 +1326,55 @@ export class ClearingHouse {
 				accounts: {
 					state: await this.getStatePublicKey(),
 					user: userAccountPublicKey,
+					authority: this.wallet.publicKey,
+				},
+				remainingAccounts,
+			}
+		);
+	}
+
+	public async placeAndMake(
+		orderParams: OptionalOrderParams,
+		takerInfo: TakerInfo
+	): Promise<TransactionSignature> {
+		const { txSig, slot } = await this.txSender.send(
+			wrapInTx(await this.getPlaceAndMakeIx(orderParams, takerInfo)),
+			[],
+			this.opts
+		);
+
+		this.marketLastSlotCache.set(orderParams.marketIndex.toNumber(), slot);
+
+		return txSig;
+	}
+
+	public async getPlaceAndMakeIx(
+		orderParams: OptionalOrderParams,
+		takerInfo: TakerInfo
+	): Promise<TransactionInstruction> {
+		orderParams = this.getOrderParams(orderParams);
+		const userAccountPublicKey = await this.getUserAccountPublicKey();
+
+		const remainingAccounts = this.getRemainingAccounts({
+			writableMarketIndex: orderParams.marketIndex,
+			writableBankIndex: QUOTE_ASSET_BANK_INDEX,
+		});
+
+		const takerOrderId = takerInfo!.order!.orderId;
+		remainingAccounts.push({
+			pubkey: takerInfo.taker,
+			isSigner: false,
+			isWritable: true,
+		});
+
+		return await this.program.instruction.placeAndMake(
+			orderParams,
+			takerOrderId,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					user: userAccountPublicKey,
+					taker: takerInfo.taker,
 					authority: this.wallet.publicKey,
 				},
 				remainingAccounts,

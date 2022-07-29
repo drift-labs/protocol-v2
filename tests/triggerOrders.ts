@@ -26,7 +26,13 @@ import {
 	setFeedPrice,
 	initializeQuoteAssetBank,
 } from './testHelpers';
-import { BASE_PRECISION, OracleSource, ZERO } from '../sdk';
+import {
+	BASE_PRECISION,
+	convertToNumber,
+	OracleSource,
+	QUOTE_PRECISION,
+	ZERO,
+} from '../sdk';
 
 describe('trigger orders', () => {
 	const provider = anchor.AnchorProvider.local();
@@ -455,8 +461,10 @@ describe('trigger orders', () => {
 			marketIndex,
 			direction: PositionDirection.LONG,
 			baseAssetAmount,
-			price: MARK_PRICE_PRECISION.mul(new BN(10)),
-			triggerPrice: MARK_PRICE_PRECISION.mul(new BN(2)),
+			price: MARK_PRICE_PRECISION.mul(new BN(3)).div(new BN(2)),
+			triggerPrice: MARK_PRICE_PRECISION.mul(new BN(6)).div(new BN(5)),
+			// MARK_PRICE_PRECISION.mul(new BN(10)),
+			// MARK_PRICE_PRECISION.mul(new BN(2)),
 			triggerCondition: OrderTriggerCondition.ABOVE,
 			userOrderId: 1,
 		});
@@ -477,12 +485,35 @@ describe('trigger orders', () => {
 			// no op
 		}
 
+		await clearingHouseUser.fetchAccounts();
+
+		const totalCollateral0 = clearingHouseUser.getTotalCollateral();
+		console.log(
+			'user total collateral 0:',
+			convertToNumber(totalCollateral0, QUOTE_PRECISION)
+		);
 		await fillerClearingHouse.moveAmmPrice(
-			ammInitialBaseAssetReserve.div(new BN(5)),
-			ammInitialQuoteAssetReserve,
+			// ammInitialBaseAssetReserve.div(new BN(5)),
+			// ammInitialQuoteAssetReserve,
+			ammInitialBaseAssetReserve,
+			ammInitialQuoteAssetReserve.mul(new BN(6)).div(new BN(5)),
 			marketIndex
 		);
 		await setFeedPrice(anchor.workspace.Pyth, 5, solUsd);
+		// console.log('oracle move: $1 -> $5');
+
+		await setFeedPrice(anchor.workspace.Pyth, 1.201, solUsd);
+		console.log('oracle move: $1 -> $1.201');
+
+		await clearingHouseUser.fetchAccounts();
+
+		const totalCollateral = clearingHouseUser.getTotalCollateral();
+		console.log(
+			'user total collateral after:',
+			convertToNumber(totalCollateral, QUOTE_PRECISION)
+		);
+
+		assert(!clearingHouseUser.canBeLiquidated()[0]);
 
 		await fillerClearingHouse.triggerOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
@@ -494,6 +525,7 @@ describe('trigger orders', () => {
 			clearingHouseUser.getUserAccount(),
 			order
 		);
+		// await printTxLogs(connection, txSig);
 
 		await clearingHouseUser.fetchAccounts();
 
