@@ -1371,7 +1371,7 @@ pub mod clearing_house {
                         now,
                         None,
                     )?;
-                let pnl = controller::position::update_position_and_market_with_fee(
+                let pnl = controller::position::update_user_and_market_position(
                     &mut user.positions[position_index],
                     market,
                     &position_delta,
@@ -1564,7 +1564,7 @@ pub mod clearing_house {
                         now,
                         None,
                     )?;
-                let pnl = controller::position::update_position_and_market_with_fee(
+                let pnl = controller::position::update_user_and_market_position(
                     &mut user.positions[position_index],
                     market,
                     &position_delta,

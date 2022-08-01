@@ -6,7 +6,7 @@ use crate::controller;
 use crate::controller::position;
 use crate::controller::position::{
     add_new_position, decrease_open_bids_and_asks, get_position_index, increase_open_bids_and_asks,
-    update_position_and_market, update_position_and_market_with_fee, PositionDirection,
+    update_position_and_market, update_user_and_market_position, PositionDirection,
 };
 use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
@@ -17,7 +17,7 @@ use crate::math::amm::is_oracle_valid;
 use crate::math::auction::{
     calculate_auction_end_price, calculate_auction_start_price, is_auction_complete,
 };
-use crate::math::casting::cast;
+use crate::math::casting::{cast, cast_to_i128};
 use crate::math::fulfillment::determine_fulfillment_methods;
 use crate::math::matching::{
     are_orders_same_market_but_different_sides, calculate_fill_for_matched_orders, do_orders_cross,
@@ -935,13 +935,12 @@ pub fn fulfill_order_with_amm(
         slot,
     )?;
 
-    let (_order_direction, order_post_only) =
-        get_struct_values!(user.orders[order_index], direction, post_only);
-
     if base_asset_amount == 0 {
         msg!("Amm cant fulfill order");
         return Ok((0, false));
     }
+
+    let (_, order_post_only) = get_struct_values!(user.orders[order_index], direction, post_only);
 
     let position_index = get_position_index(&user.positions, market.market_index)?;
 
@@ -982,13 +981,15 @@ pub fn fulfill_order_with_amm(
             order_post_only,
         )?;
 
-    let pnl = update_position_and_market_with_fee(
+    let market_postion_unsettled_pnl_delta = cast_to_i128(user_fee)?
+        .checked_sub(cast_to_i128(filler_reward)?)
+        .ok_or_else(math_error!())?;
+
+    let pnl = update_user_and_market_position(
         &mut user.positions[position_index],
         market,
         &position_delta,
-        user_fee
-            .checked_sub(filler_reward)
-            .ok_or_else(math_error!())?,
+        market_postion_unsettled_pnl_delta,
     )?;
 
     controller::position::update_unsettled_pnl(&mut user.positions[position_index], market, pnl)?;
@@ -1181,6 +1182,12 @@ pub fn fulfill_order_with_match(
         taker.orders[maker_order_index].direction,
     )?;
 
+    let mut taker_unsettled_pnl = update_position_and_market(
+        &mut taker.positions[taker_position_index],
+        market,
+        &taker_position_delta,
+    )?;
+
     let (taker_fee, maker_rebate, fee_to_market, filler_reward) =
         fees::calculate_fee_for_fulfillment_with_match(
             quote_asset_amount,
@@ -1190,14 +1197,14 @@ pub fn fulfill_order_with_match(
             filler.is_some(),
         )?;
 
-    let mut taker_unsettled_pnl = update_position_and_market_with_fee(
-        &mut taker.positions[taker_position_index],
-        market,
-        &taker_position_delta,
-        fee_to_market,
-    )?;
-
     // Increment the markets house's total fee variables
+    market.amm.market_position.unsettled_pnl = market
+        .amm
+        .market_position
+        .unsettled_pnl
+        .checked_add(cast_to_i128(fee_to_market)?)
+        .ok_or_else(math_error!())?;
+
     market.amm.total_fee = market
         .amm
         .total_fee

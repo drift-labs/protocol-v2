@@ -69,17 +69,140 @@ pub struct PositionDelta {
     pub base_asset_amount: i128,
 }
 
-pub fn update_position(
-    position: Option<&mut MarketPosition>,
+pub fn update_amm_position(
     market: &mut Market,
     delta: &PositionDelta,
-    update_net_user_stats: bool,
 ) -> ClearingHouseResult<i128> {
-    let position = match position {
-        Some(position) => position,
-        None => &mut market.amm.market_position,
-    };
+    let mut position = market.amm.market_position;
 
+    let new_position = position.base_asset_amount == 0;
+    let increasing_position =
+        new_position || position.base_asset_amount.signum() == delta.base_asset_amount.signum();
+
+    let (new_quote_asset_amount, new_quote_entry_amount, new_base_asset_amount, pnl) =
+        if !increasing_position {
+            let base_asset_amount_before_unsigned = position.base_asset_amount.unsigned_abs();
+            let delta_base_asset_amount_unsigned = delta.base_asset_amount.unsigned_abs();
+
+            let cost_basis = position
+                .quote_asset_amount
+                .checked_mul(min(
+                    delta_base_asset_amount_unsigned,
+                    base_asset_amount_before_unsigned,
+                ))
+                .ok_or_else(math_error!())?
+                .checked_div(base_asset_amount_before_unsigned)
+                .ok_or_else(math_error!())?;
+
+            let exit_value = delta
+                .quote_asset_amount
+                .checked_mul(min(
+                    delta_base_asset_amount_unsigned,
+                    base_asset_amount_before_unsigned,
+                ))
+                .ok_or_else(math_error!())?
+                .checked_div(delta_base_asset_amount_unsigned)
+                .ok_or_else(math_error!())?;
+
+            let pnl = calculate_pnl(
+                exit_value,
+                cost_basis,
+                swap_direction_to_close_position(position.base_asset_amount),
+            )?;
+
+            let new_base_asset_amount = position
+                .base_asset_amount
+                .checked_add(delta.base_asset_amount)
+                .ok_or_else(math_error!())?;
+
+            let (new_quote_asset_amount, new_quote_entry_amount) =
+                if delta.quote_asset_amount > exit_value {
+                    let new_quote_asset_amount = delta
+                        .quote_asset_amount
+                        .checked_sub(exit_value)
+                        .ok_or_else(math_error!())?;
+                    (new_quote_asset_amount, new_quote_asset_amount)
+                } else {
+                    let entry_amount_delta = position
+                        .quote_entry_amount
+                        .checked_mul(delta_base_asset_amount_unsigned)
+                        .ok_or_else(math_error!())?
+                        .checked_div(base_asset_amount_before_unsigned)
+                        .ok_or_else(math_error!())?;
+
+                    let quote_entry_amount = position
+                        .quote_entry_amount
+                        .checked_sub(entry_amount_delta)
+                        .ok_or_else(math_error!())?;
+
+                    (
+                        position
+                            .quote_asset_amount
+                            .checked_sub(cost_basis)
+                            .ok_or_else(math_error!())?,
+                        quote_entry_amount,
+                    )
+                };
+
+            (
+                new_quote_asset_amount,
+                new_quote_entry_amount,
+                new_base_asset_amount,
+                pnl,
+            )
+        } else {
+            let new_quote_asset_amount = position
+                .quote_asset_amount
+                .checked_add(delta.quote_asset_amount)
+                .ok_or_else(math_error!())?;
+            let new_quote_entry_amount = position
+                .quote_entry_amount
+                .checked_add(delta.quote_asset_amount)
+                .ok_or_else(math_error!())?;
+            let new_base_asset_amount = position
+                .base_asset_amount
+                .checked_add(delta.base_asset_amount)
+                .ok_or_else(math_error!())?;
+
+            (
+                new_quote_asset_amount,
+                new_quote_entry_amount,
+                new_base_asset_amount,
+                0_i128,
+            )
+        };
+
+    // let _reduced_position = !increasing_position
+    //     && position.base_asset_amount.signum() == new_base_asset_amount.signum();
+    let closed_position = new_base_asset_amount == 0;
+    let flipped_position = position.base_asset_amount.signum() != new_base_asset_amount.signum();
+
+    // Update user position
+    if closed_position {
+        position.last_cumulative_funding_rate = 0;
+        position.last_funding_rate_ts = 0;
+    } else if new_position || flipped_position {
+        if new_base_asset_amount > 0 {
+            position.last_cumulative_funding_rate = market.amm.cumulative_funding_rate_long;
+        } else {
+            position.last_cumulative_funding_rate = market.amm.cumulative_funding_rate_short;
+        }
+    }
+
+    position.quote_asset_amount = new_quote_asset_amount;
+    position.quote_entry_amount = new_quote_entry_amount;
+    position.base_asset_amount = new_base_asset_amount;
+
+    market.amm.market_position = position;
+
+    Ok(pnl)
+}
+
+pub fn update_position_and_market(
+    position: &mut MarketPosition,
+    market: &mut Market,
+    delta: &PositionDelta,
+) -> ClearingHouseResult<i128> {
     let new_position = position.base_asset_amount == 0;
     let increasing_position =
         new_position || position.base_asset_amount.signum() == delta.base_asset_amount.signum();
@@ -182,123 +305,121 @@ pub fn update_position(
     let closed_position = new_base_asset_amount == 0;
     let flipped_position = position.base_asset_amount.signum() != new_base_asset_amount.signum();
 
-    if update_net_user_stats {
-        // Update Market
-        market.amm.net_base_asset_amount = market
-            .amm
-            .net_base_asset_amount
-            .checked_add(delta.base_asset_amount)
-            .ok_or_else(math_error!())?;
+    // Update Market
+    market.amm.net_base_asset_amount = market
+        .amm
+        .net_base_asset_amount
+        .checked_add(delta.base_asset_amount)
+        .ok_or_else(math_error!())?;
 
-        // Update Market open interest
-        if new_position {
-            market.open_interest = market
-                .open_interest
-                .checked_add(1)
+    // Update Market open interest
+    if new_position {
+        market.open_interest = market
+            .open_interest
+            .checked_add(1)
+            .ok_or_else(math_error!())?;
+    } else if closed_position {
+        market.open_interest = market
+            .open_interest
+            .checked_sub(1)
+            .ok_or_else(math_error!())?;
+    }
+
+    if increasing_position {
+        if new_base_asset_amount > 0 {
+            market.base_asset_amount_long = market
+                .base_asset_amount_long
+                .checked_add(delta.base_asset_amount)
                 .ok_or_else(math_error!())?;
-        } else if closed_position {
-            market.open_interest = market
-                .open_interest
-                .checked_sub(1)
+            market.amm.quote_asset_amount_long = market
+                .amm
+                .quote_asset_amount_long
+                .checked_add(delta.quote_asset_amount)
+                .ok_or_else(math_error!())?;
+        } else {
+            market.base_asset_amount_short = market
+                .base_asset_amount_short
+                .checked_add(delta.base_asset_amount)
+                .ok_or_else(math_error!())?;
+            market.amm.quote_asset_amount_short = market
+                .amm
+                .quote_asset_amount_short
+                .checked_add(delta.quote_asset_amount)
                 .ok_or_else(math_error!())?;
         }
+    } else if reduced_position || closed_position {
+        if position.base_asset_amount > 0 {
+            market.base_asset_amount_long = market
+                .base_asset_amount_long
+                .checked_add(delta.base_asset_amount)
+                .ok_or_else(math_error!())?;
+            market.amm.quote_asset_amount_long = market
+                .amm
+                .quote_asset_amount_long
+                .checked_sub(
+                    position
+                        .quote_asset_amount
+                        .checked_sub(new_quote_asset_amount)
+                        .ok_or_else(math_error!())?,
+                )
+                .ok_or_else(math_error!())?;
+        } else {
+            market.base_asset_amount_short = market
+                .base_asset_amount_short
+                .checked_add(delta.base_asset_amount)
+                .ok_or_else(math_error!())?;
+            market.amm.quote_asset_amount_short = market
+                .amm
+                .quote_asset_amount_short
+                .checked_sub(
+                    position
+                        .quote_asset_amount
+                        .checked_sub(new_quote_asset_amount)
+                        .ok_or_else(math_error!())?,
+                )
+                .ok_or_else(math_error!())?;
+        }
+    } else if flipped_position {
+        if new_base_asset_amount > 0 {
+            market.base_asset_amount_short = market
+                .base_asset_amount_short
+                .checked_sub(position.base_asset_amount)
+                .ok_or_else(math_error!())?;
+            market.base_asset_amount_long = market
+                .base_asset_amount_long
+                .checked_add(new_base_asset_amount)
+                .ok_or_else(math_error!())?;
 
-        if increasing_position {
-            if new_base_asset_amount > 0 {
-                market.base_asset_amount_long = market
-                    .base_asset_amount_long
-                    .checked_add(delta.base_asset_amount)
-                    .ok_or_else(math_error!())?;
-                market.amm.quote_asset_amount_long = market
-                    .amm
-                    .quote_asset_amount_long
-                    .checked_add(delta.quote_asset_amount)
-                    .ok_or_else(math_error!())?;
-            } else {
-                market.base_asset_amount_short = market
-                    .base_asset_amount_short
-                    .checked_add(delta.base_asset_amount)
-                    .ok_or_else(math_error!())?;
-                market.amm.quote_asset_amount_short = market
-                    .amm
-                    .quote_asset_amount_short
-                    .checked_add(delta.quote_asset_amount)
-                    .ok_or_else(math_error!())?;
-            }
-        } else if reduced_position || closed_position {
-            if position.base_asset_amount > 0 {
-                market.base_asset_amount_long = market
-                    .base_asset_amount_long
-                    .checked_add(delta.base_asset_amount)
-                    .ok_or_else(math_error!())?;
-                market.amm.quote_asset_amount_long = market
-                    .amm
-                    .quote_asset_amount_long
-                    .checked_sub(
-                        position
-                            .quote_asset_amount
-                            .checked_sub(new_quote_asset_amount)
-                            .ok_or_else(math_error!())?,
-                    )
-                    .ok_or_else(math_error!())?;
-            } else {
-                market.base_asset_amount_short = market
-                    .base_asset_amount_short
-                    .checked_add(delta.base_asset_amount)
-                    .ok_or_else(math_error!())?;
-                market.amm.quote_asset_amount_short = market
-                    .amm
-                    .quote_asset_amount_short
-                    .checked_sub(
-                        position
-                            .quote_asset_amount
-                            .checked_sub(new_quote_asset_amount)
-                            .ok_or_else(math_error!())?,
-                    )
-                    .ok_or_else(math_error!())?;
-            }
-        } else if flipped_position {
-            if new_base_asset_amount > 0 {
-                market.base_asset_amount_short = market
-                    .base_asset_amount_short
-                    .checked_sub(position.base_asset_amount)
-                    .ok_or_else(math_error!())?;
-                market.base_asset_amount_long = market
-                    .base_asset_amount_long
-                    .checked_add(new_base_asset_amount)
-                    .ok_or_else(math_error!())?;
+            market.amm.quote_asset_amount_short = market
+                .amm
+                .quote_asset_amount_short
+                .checked_sub(position.quote_asset_amount)
+                .ok_or_else(math_error!())?;
+            market.amm.quote_asset_amount_long = market
+                .amm
+                .quote_asset_amount_long
+                .checked_add(new_quote_asset_amount)
+                .ok_or_else(math_error!())?;
+        } else {
+            market.base_asset_amount_long = market
+                .base_asset_amount_long
+                .checked_sub(position.base_asset_amount)
+                .ok_or_else(math_error!())?;
+            market.base_asset_amount_short = market
+                .base_asset_amount_short
+                .checked_add(new_base_asset_amount)
+                .ok_or_else(math_error!())?;
 
-                market.amm.quote_asset_amount_short = market
-                    .amm
-                    .quote_asset_amount_short
-                    .checked_sub(position.quote_asset_amount)
-                    .ok_or_else(math_error!())?;
-                market.amm.quote_asset_amount_long = market
-                    .amm
-                    .quote_asset_amount_long
-                    .checked_add(new_quote_asset_amount)
-                    .ok_or_else(math_error!())?;
-            } else {
-                market.base_asset_amount_long = market
-                    .base_asset_amount_long
-                    .checked_sub(position.base_asset_amount)
-                    .ok_or_else(math_error!())?;
-                market.base_asset_amount_short = market
-                    .base_asset_amount_short
-                    .checked_add(new_base_asset_amount)
-                    .ok_or_else(math_error!())?;
-
-                market.amm.quote_asset_amount_long = market
-                    .amm
-                    .quote_asset_amount_long
-                    .checked_sub(position.quote_asset_amount)
-                    .ok_or_else(math_error!())?;
-                market.amm.quote_asset_amount_short = market
-                    .amm
-                    .quote_asset_amount_short
-                    .checked_add(new_quote_asset_amount)
-                    .ok_or_else(math_error!())?;
-            }
+            market.amm.quote_asset_amount_long = market
+                .amm
+                .quote_asset_amount_long
+                .checked_sub(position.quote_asset_amount)
+                .ok_or_else(math_error!())?;
+            market.amm.quote_asset_amount_short = market
+                .amm
+                .quote_asset_amount_short
+                .checked_add(new_quote_asset_amount)
+                .ok_or_else(math_error!())?;
         }
     }
 
@@ -321,24 +442,22 @@ pub fn update_position(
     Ok(pnl)
 }
 
-pub fn update_position_and_market_with_fee(
+pub fn update_user_and_market_position(
     position: &mut MarketPosition,
     market: &mut Market,
     delta: &PositionDelta,
-    fee_to_market: u128,
+    fee_to_market: i128,
 ) -> ClearingHouseResult<i128> {
     // update user position
-    let pnl = update_position(Some(position), market, delta, true)?;
+    let pnl = update_position_and_market(position, market, delta)?;
 
     // update Market implicit position
-    let amm_pnl = update_position(
-        None,
+    let amm_pnl = update_amm_position(
         market,
         &PositionDelta {
             base_asset_amount: -delta.base_asset_amount,
             quote_asset_amount: delta.quote_asset_amount,
         },
-        false,
     )?;
 
     market.amm.market_position.unsettled_pnl = market
@@ -347,21 +466,10 @@ pub fn update_position_and_market_with_fee(
         .unsettled_pnl
         .checked_add(
             amm_pnl
-                .checked_add(cast_to_i128(fee_to_market)?)
+                .checked_add(fee_to_market)
                 .ok_or_else(math_error!())?,
         )
         .ok_or_else(math_error!())?;
-
-    Ok(pnl)
-}
-
-pub fn update_position_and_market(
-    position: &mut MarketPosition,
-    market: &mut Market,
-    delta: &PositionDelta,
-) -> ClearingHouseResult<i128> {
-    // update user position
-    let pnl = update_position_and_market_with_fee(position, market, delta, 0)?;
 
     Ok(pnl)
 }
@@ -578,7 +686,8 @@ pub fn decrease_open_bids_and_asks(
 #[cfg(test)]
 mod test {
     use crate::controller::position::{
-        update_cost_basis, update_position_and_market, PositionDelta,
+        update_cost_basis, update_position_and_market, update_user_and_market_position,
+        PositionDelta,
     };
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, MARK_PRICE_PRECISION, PEG_PRECISION,
@@ -603,8 +712,13 @@ mod test {
             ..Market::default()
         };
 
-        let pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
-            .unwrap();
+        let pnl = update_user_and_market_position(
+            &mut existing_position,
+            &mut market,
+            &position_delta,
+            0,
+        )
+        .unwrap();
 
         assert_eq!(existing_position.base_asset_amount, 1);
         assert_eq!(existing_position.quote_asset_amount, 1);
@@ -1416,8 +1530,13 @@ mod test {
             ..Market::default()
         };
 
-        let _pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
-            .unwrap();
+        let _pnl = update_user_and_market_position(
+            &mut existing_position,
+            &mut market,
+            &position_delta,
+            0,
+        )
+        .unwrap();
 
         // amm sells 1 for 1
         assert_eq!(market.amm.market_position.base_asset_amount, -1);
@@ -1430,8 +1549,13 @@ mod test {
             quote_asset_amount: 400,
         };
 
-        let _pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
-            .unwrap();
+        let _pnl = update_user_and_market_position(
+            &mut existing_position,
+            &mut market,
+            &position_delta,
+            0,
+        )
+        .unwrap();
 
         // amm sells 10 for 40 each
         assert_eq!(market.amm.market_position.base_asset_amount, -11);
@@ -1444,8 +1568,13 @@ mod test {
             quote_asset_amount: 420,
         };
 
-        let _pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
-            .unwrap();
+        let _pnl = update_user_and_market_position(
+            &mut existing_position,
+            &mut market,
+            &position_delta,
+            0,
+        )
+        .unwrap();
 
         // amm bought 10 for 42 each
         // ends up with 1 worth $37
