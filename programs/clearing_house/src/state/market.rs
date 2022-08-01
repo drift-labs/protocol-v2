@@ -190,6 +190,7 @@ pub struct AMM {
     pub base_asset_amount_step_size: u128,
 
     // market making
+    pub market_position_per_lp: MarketPosition,
     pub market_position: MarketPosition,
     pub base_spread: u16,
     pub long_spread: u128,

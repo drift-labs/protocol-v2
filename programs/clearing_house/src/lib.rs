@@ -413,6 +413,10 @@ pub mod clearing_house {
                 short_intensity_volume: 0,
                 curve_update_intensity: 0,
                 fee_pool: PoolBalance { balance: 0 },
+                market_position_per_lp: MarketPosition {
+                    market_index,
+                    ..MarketPosition::default()
+                },
                 market_position: MarketPosition {
                     market_index,
                     ..MarketPosition::default()
