@@ -1363,7 +1363,7 @@ pub mod clearing_house {
                     math::position::direction_to_close_position(existing_base_asset_amount);
 
                 let (_, _, quote_asset_amount, _, position_delta) =
-                    controller::position::calculate_position_delta_with_base_asset_amount(
+                    controller::position::swap_base_asset_position_delta(
                         user.positions[position_index]
                             .base_asset_amount
                             .unsigned_abs(),
@@ -1558,7 +1558,7 @@ pub mod clearing_house {
                     .ok_or_else(math_error!())?;
 
                 let (_, _, quote_asset_amount, _, position_delta) =
-                    controller::position::calculate_position_delta_with_base_asset_amount(
+                    controller::position::swap_base_asset_position_delta(
                         base_asset_amount.unsigned_abs(),
                         direction_to_reduce,
                         market,

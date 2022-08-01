@@ -648,7 +648,7 @@ pub fn update_user_and_market_position(
     Ok(pnl)
 }
 
-pub fn calculate_position_delta_with_base_asset_amount(
+pub fn swap_base_asset_position_delta(
     base_asset_amount: u128,
     direction: PositionDirection,
     market: &mut Market,

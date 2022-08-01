@@ -940,7 +940,7 @@ pub fn fulfill_order_with_amm(
         return Ok((0, false));
     }
 
-    let (_, order_post_only) = get_struct_values!(user.orders[order_index], direction, post_only);
+    let (order_post_only,) = get_struct_values!(user.orders[order_index], post_only);
 
     let position_index = get_position_index(&user.positions, market.market_index)?;
 
@@ -959,7 +959,7 @@ pub fn fulfill_order_with_amm(
         quote_asset_amount,
         quote_asset_amount_surplus,
         position_delta,
-    ) = controller::position::calculate_position_delta_with_base_asset_amount(
+    ) = controller::position::swap_base_asset_position_delta(
         base_asset_amount,
         order_direction,
         market,

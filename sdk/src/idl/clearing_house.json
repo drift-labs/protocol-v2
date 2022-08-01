@@ -2362,6 +2362,12 @@
             "type": "u128"
           },
           {
+            "name": "marketPositionPerLp",
+            "type": {
+              "defined": "MarketPosition"
+            }
+          },
+          {
             "name": "marketPosition",
             "type": {
               "defined": "MarketPosition"
