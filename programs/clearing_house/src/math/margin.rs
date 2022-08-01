@@ -281,7 +281,7 @@ pub fn calculate_margin_requirement_and_total_collateral(
             margin_requirement_type,
         )?;
 
-        margin_requirement
+        margin_requirement = margin_requirement
             .checked_add(perp_margin_requirement)
             .ok_or_else(math_error!())?;
 

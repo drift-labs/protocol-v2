@@ -142,11 +142,15 @@ pub fn standardize_base_asset_amount_ceil(
         .checked_rem_euclid(step_size)
         .ok_or_else(math_error!())?;
 
-    base_asset_amount
-        .checked_add(step_size)
-        .ok_or_else(math_error!())?
-        .checked_sub(remainder)
-        .ok_or_else(math_error!())
+    if remainder == 0 {
+        Ok(base_asset_amount)
+    } else {
+        base_asset_amount
+            .checked_add(step_size)
+            .ok_or_else(math_error!())?
+            .checked_sub(remainder)
+            .ok_or_else(math_error!())
+    }
 }
 
 pub fn standardize_base_asset_amount_i128(

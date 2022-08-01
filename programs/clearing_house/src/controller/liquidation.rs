@@ -32,6 +32,9 @@ use anchor_lang::prelude::Pubkey;
 use solana_program::msg;
 use std::ops::DerefMut;
 
+#[cfg(test)]
+mod tests;
+
 pub fn liquidate_perp(
     market_index: u64,
     liquidator_max_base_asset_amount: u128,
@@ -85,7 +88,7 @@ pub fn liquidate_perp(
             oracle_map,
         )?;
 
-    if total_collateral > cast(margin_requirement)? {
+    if total_collateral >= cast(margin_requirement)? {
         msg!("total_collateral {}", total_collateral);
         msg!("margin_requirement {}", margin_requirement);
 
@@ -208,10 +211,8 @@ pub fn liquidate_perp(
         let liquidation_multiplier = LIQUIDATION_FEE_PRECISION
             .checked_sub(liquidation_fee)
             .ok_or_else(math_error!())?;
-        let base_asset_value = calculate_base_asset_value_with_oracle_price(
-            user.positions[position_index].base_asset_amount,
-            oracle_price,
-        )?;
+        let base_asset_value =
+            calculate_base_asset_value_with_oracle_price(cast(base_asset_amount)?, oracle_price)?;
         base_asset_value
             .checked_mul(liquidation_multiplier)
             .ok_or_else(math_error!())?
@@ -221,10 +222,8 @@ pub fn liquidate_perp(
         let liquidation_multiplier = LIQUIDATION_FEE_PRECISION
             .checked_add(liquidation_fee)
             .ok_or_else(math_error!())?;
-        let base_asset_value = calculate_base_asset_value_with_oracle_price(
-            user.positions[position_index].base_asset_amount,
-            oracle_price,
-        )?;
+        let base_asset_value =
+            calculate_base_asset_value_with_oracle_price(cast(base_asset_amount)?, oracle_price)?;
         base_asset_value
             .checked_mul(liquidation_multiplier)
             .ok_or_else(math_error!())?
@@ -252,7 +251,7 @@ pub fn liquidate_perp(
             update_position_and_market(user_position, &mut market, &user_position_delta)?;
         update_unsettled_pnl(user_position, &mut market, user_pnl)?;
 
-        let liquidator_position = liquidator.get_position_mut(market_index).unwrap();
+        let liquidator_position = liquidator.force_get_position_mut(market_index).unwrap();
         let liquidator_pnl = update_position_and_market(
             liquidator_position,
             &mut market,

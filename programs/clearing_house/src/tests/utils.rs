@@ -2,6 +2,7 @@ use crate::state::user::{MarketPosition, Order, UserBankBalance};
 use anchor_lang::prelude::{AccountInfo, Pubkey};
 use anchor_lang::{Owner, ZeroCopy};
 use bytes::BytesMut;
+use pyth::pc::Price;
 
 pub fn get_positions(position: MarketPosition) -> [MarketPosition; 5] {
     let mut positions = [MarketPosition::default(); 5];
@@ -77,4 +78,13 @@ macro_rules! create_account_info {
         let mut data = get_account_bytes(&mut $account);
         let $name = create_account_info($pubkey, true, &mut lamports, &mut data[..], $owner);
     };
+}
+
+pub fn get_pyth_price(price: i64, expo: i32) -> Price {
+    let mut pyth_price = Price::default();
+    let price = price * 10_i64.pow(expo as u32);
+    pyth_price.agg.price = price;
+    pyth_price.twap = price;
+    pyth_price.expo = 10;
+    pyth_price
 }
