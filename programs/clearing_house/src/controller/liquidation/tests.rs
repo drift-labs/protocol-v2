@@ -63,7 +63,7 @@ pub mod liquidate_perp {
             margin_ratio_maintenance: 500,
             open_interest: 1,
             initialized: true,
-            liquidation_fee: LIQUIDATION_FEE_PRECISION / 10,
+            liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..Market::default()
         };
         create_anchor_account_info!(market, Market, market_account_info);
@@ -134,7 +134,7 @@ pub mod liquidate_perp {
         assert_eq!(user.positions[0].base_asset_amount, 0);
         assert_eq!(
             user.positions[0].unsettled_pnl,
-            -60 * (QUOTE_PRECISION as i128)
+            -51 * (QUOTE_PRECISION as i128)
         );
         assert_eq!(user.positions[0].open_orders, 0);
         assert_eq!(user.positions[0].open_bids, 0);
@@ -146,7 +146,7 @@ pub mod liquidate_perp {
         assert_eq!(liquidator.positions[0].unsettled_pnl, 0);
         assert_eq!(
             liquidator.positions[0].quote_asset_amount,
-            90 * QUOTE_PRECISION
+            99 * QUOTE_PRECISION
         );
     }
 
@@ -190,7 +190,7 @@ pub mod liquidate_perp {
             margin_ratio_maintenance: 500,
             open_interest: 1,
             initialized: true,
-            liquidation_fee: LIQUIDATION_FEE_PRECISION / 10,
+            liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..Market::default()
         };
         create_anchor_account_info!(market, Market, market_account_info);
@@ -261,7 +261,7 @@ pub mod liquidate_perp {
         assert_eq!(user.positions[0].base_asset_amount, 0);
         assert_eq!(
             user.positions[0].unsettled_pnl,
-            -60 * (QUOTE_PRECISION as i128)
+            -51 * (QUOTE_PRECISION as i128)
         );
         assert_eq!(user.positions[0].open_orders, 0);
         assert_eq!(user.positions[0].open_bids, 0);
@@ -273,7 +273,7 @@ pub mod liquidate_perp {
         assert_eq!(liquidator.positions[0].unsettled_pnl, 0);
         assert_eq!(
             liquidator.positions[0].quote_asset_amount,
-            110 * QUOTE_PRECISION
+            101 * QUOTE_PRECISION
         );
     }
 
@@ -317,7 +317,7 @@ pub mod liquidate_perp {
             margin_ratio_maintenance: 500,
             open_interest: 1,
             initialized: true,
-            liquidation_fee: LIQUIDATION_FEE_PRECISION / 10,
+            liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..Market::default()
         };
         create_anchor_account_info!(market, Market, market_account_info);
@@ -437,7 +437,7 @@ pub mod liquidate_perp {
             margin_ratio_maintenance: 500,
             open_interest: 1,
             initialized: true,
-            liquidation_fee: LIQUIDATION_FEE_PRECISION / 10,
+            liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..Market::default()
         };
         create_anchor_account_info!(market, Market, market_account_info);
@@ -506,10 +506,7 @@ pub mod liquidate_perp {
         .unwrap();
 
         assert_eq!(user.positions[0].base_asset_amount, BASE_PRECISION_I128 / 2);
-        assert_eq!(
-            user.positions[0].unsettled_pnl,
-            -30 * (QUOTE_PRECISION as i128)
-        );
+        assert_eq!(user.positions[0].unsettled_pnl, -25500000);
         assert_eq!(user.positions[0].open_orders, 0);
         assert_eq!(user.positions[0].open_bids, 0);
 
@@ -518,10 +515,7 @@ pub mod liquidate_perp {
             BASE_PRECISION_I128 / 2
         );
         assert_eq!(liquidator.positions[0].unsettled_pnl, 0);
-        assert_eq!(
-            liquidator.positions[0].quote_asset_amount,
-            45 * QUOTE_PRECISION
-        );
+        assert_eq!(liquidator.positions[0].quote_asset_amount, 49500000);
     }
 
     #[test]
@@ -647,5 +641,344 @@ pub mod liquidate_perp {
 
         assert_eq!(liquidator.positions[0].base_asset_amount, 12500000000000);
         assert_eq!(liquidator.positions[0].quote_asset_amount, 123750000);
+    }
+}
+
+pub mod liquidate_borrow {
+    use crate::controller::liquidation::liquidate_borrow;
+    use crate::create_account_info;
+    use crate::create_anchor_account_info;
+    use crate::math::constants::{
+        BANK_CUMULATIVE_INTEREST_PRECISION, BANK_INTEREST_PRECISION, BANK_WEIGHT_PRECISION,
+        LIQUIDATION_FEE_PRECISION,
+    };
+    use crate::state::bank::{Bank, BankBalanceType};
+    use crate::state::bank_map::BankMap;
+    use crate::state::market_map::MarketMap;
+    use crate::state::oracle::OracleSource;
+    use crate::state::oracle_map::OracleMap;
+    use crate::state::user::{MarketPosition, Order, User, UserBankBalance};
+    use crate::tests::utils::get_pyth_price;
+    use crate::tests::utils::*;
+    use anchor_lang::Owner;
+    use solana_program::pubkey::Pubkey;
+    use std::str::FromStr;
+
+    #[test]
+    pub fn successful_liquidation_liability_transfer_implied_by_asset_amount() {
+        let now = 0_i64;
+        let slot = 0_u64;
+
+        let mut sol_oracle_price = get_pyth_price(100, 10);
+        let sol_oracle_price_key =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        create_account_info!(
+            sol_oracle_price,
+            &sol_oracle_price_key,
+            &pyth_program,
+            oracle_account_info
+        );
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+
+        let market_map = MarketMap::empty();
+
+        let mut usdc_bank = Bank {
+            bank_index: 0,
+            oracle_source: OracleSource::QuoteAsset,
+            cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            initial_asset_weight: BANK_WEIGHT_PRECISION,
+            maintenance_asset_weight: BANK_WEIGHT_PRECISION,
+            deposit_balance: 200 * BANK_INTEREST_PRECISION,
+            liquidation_fee: 0,
+            ..Bank::default()
+        };
+        create_anchor_account_info!(usdc_bank, Bank, usdc_bank_account_info);
+        let mut sol_bank = Bank {
+            bank_index: 1,
+            oracle_source: OracleSource::Pyth,
+            oracle: sol_oracle_price_key,
+            cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_borrow_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            initial_asset_weight: 8 * BANK_WEIGHT_PRECISION / 10,
+            maintenance_asset_weight: 9 * BANK_WEIGHT_PRECISION / 10,
+            initial_liability_weight: 12 * BANK_WEIGHT_PRECISION / 10,
+            maintenance_liability_weight: 11 * BANK_WEIGHT_PRECISION / 10,
+            deposit_balance: BANK_INTEREST_PRECISION,
+            borrow_balance: BANK_INTEREST_PRECISION,
+            liquidation_fee: LIQUIDATION_FEE_PRECISION / 1000,
+            ..Bank::default()
+        };
+        create_anchor_account_info!(sol_bank, Bank, sol_bank_account_info);
+        let bank_account_infos = Vec::from([&usdc_bank_account_info, &sol_bank_account_info]);
+        let bank_map = BankMap::load_multiple(bank_account_infos, true).unwrap();
+
+        let mut user_bank_balances = [UserBankBalance::default(); 8];
+        user_bank_balances[0] = UserBankBalance {
+            bank_index: 0,
+            balance_type: BankBalanceType::Deposit,
+            balance: 100 * BANK_INTEREST_PRECISION,
+        };
+        user_bank_balances[1] = UserBankBalance {
+            bank_index: 1,
+            balance_type: BankBalanceType::Borrow,
+            balance: BANK_INTEREST_PRECISION,
+        };
+        let mut user = User {
+            orders: [Order::default(); 32],
+            positions: [MarketPosition::default(); 5],
+            bank_balances: user_bank_balances,
+            ..User::default()
+        };
+
+        let mut liquidator = User {
+            bank_balances: get_bank_balances(UserBankBalance {
+                bank_index: 0,
+                balance_type: BankBalanceType::Deposit,
+                balance: 100 * BANK_INTEREST_PRECISION,
+            }),
+            ..User::default()
+        };
+
+        liquidate_borrow(
+            0,
+            1,
+            10_u128.pow(6),
+            &mut user,
+            &mut liquidator,
+            &market_map,
+            &bank_map,
+            &mut oracle_map,
+            now,
+        )
+        .unwrap();
+
+        assert_eq!(user.bank_balances[0].balance, 0);
+        assert_eq!(user.bank_balances[1].balance, 999);
+
+        assert_eq!(
+            liquidator.bank_balances[0].balance_type,
+            BankBalanceType::Deposit
+        );
+        assert_eq!(liquidator.bank_balances[0].balance, 200000000);
+        assert_eq!(
+            liquidator.bank_balances[1].balance_type,
+            BankBalanceType::Borrow
+        );
+        assert_eq!(liquidator.bank_balances[1].balance, 999001);
+    }
+
+    #[test]
+    pub fn successful_liquidation_liquidator_max_liability_transfer() {
+        let now = 0_i64;
+        let slot = 0_u64;
+
+        let mut sol_oracle_price = get_pyth_price(100, 10);
+        let sol_oracle_price_key =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        create_account_info!(
+            sol_oracle_price,
+            &sol_oracle_price_key,
+            &pyth_program,
+            oracle_account_info
+        );
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+
+        let market_map = MarketMap::empty();
+
+        let mut usdc_bank = Bank {
+            bank_index: 0,
+            oracle_source: OracleSource::QuoteAsset,
+            cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            initial_asset_weight: BANK_WEIGHT_PRECISION,
+            maintenance_asset_weight: BANK_WEIGHT_PRECISION,
+            deposit_balance: 200 * BANK_INTEREST_PRECISION,
+            liquidation_fee: 0,
+            ..Bank::default()
+        };
+        create_anchor_account_info!(usdc_bank, Bank, usdc_bank_account_info);
+        let mut sol_bank = Bank {
+            bank_index: 1,
+            oracle_source: OracleSource::Pyth,
+            oracle: sol_oracle_price_key,
+            cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_borrow_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            initial_asset_weight: 8 * BANK_WEIGHT_PRECISION / 10,
+            maintenance_asset_weight: 9 * BANK_WEIGHT_PRECISION / 10,
+            initial_liability_weight: 12 * BANK_WEIGHT_PRECISION / 10,
+            maintenance_liability_weight: 11 * BANK_WEIGHT_PRECISION / 10,
+            deposit_balance: BANK_INTEREST_PRECISION,
+            borrow_balance: BANK_INTEREST_PRECISION,
+            liquidation_fee: LIQUIDATION_FEE_PRECISION / 1000,
+            ..Bank::default()
+        };
+        create_anchor_account_info!(sol_bank, Bank, sol_bank_account_info);
+        let bank_account_infos = Vec::from([&usdc_bank_account_info, &sol_bank_account_info]);
+        let bank_map = BankMap::load_multiple(bank_account_infos, true).unwrap();
+
+        let mut user_bank_balances = [UserBankBalance::default(); 8];
+        user_bank_balances[0] = UserBankBalance {
+            bank_index: 0,
+            balance_type: BankBalanceType::Deposit,
+            balance: 100 * BANK_INTEREST_PRECISION,
+        };
+        user_bank_balances[1] = UserBankBalance {
+            bank_index: 1,
+            balance_type: BankBalanceType::Borrow,
+            balance: BANK_INTEREST_PRECISION,
+        };
+        let mut user = User {
+            orders: [Order::default(); 32],
+            positions: [MarketPosition::default(); 5],
+            bank_balances: user_bank_balances,
+            ..User::default()
+        };
+
+        let mut liquidator = User {
+            bank_balances: get_bank_balances(UserBankBalance {
+                bank_index: 0,
+                balance_type: BankBalanceType::Deposit,
+                balance: 100 * BANK_INTEREST_PRECISION,
+            }),
+            ..User::default()
+        };
+
+        liquidate_borrow(
+            0,
+            1,
+            10_u128.pow(6) / 10,
+            &mut user,
+            &mut liquidator,
+            &market_map,
+            &bank_map,
+            &mut oracle_map,
+            now,
+        )
+        .unwrap();
+
+        assert_eq!(user.bank_balances[0].balance, 89989990);
+        assert_eq!(user.bank_balances[1].balance, 899999);
+
+        assert_eq!(
+            liquidator.bank_balances[0].balance_type,
+            BankBalanceType::Deposit
+        );
+        assert_eq!(liquidator.bank_balances[0].balance, 110010010);
+        assert_eq!(
+            liquidator.bank_balances[1].balance_type,
+            BankBalanceType::Borrow
+        );
+        assert_eq!(liquidator.bank_balances[1].balance, 100001);
+    }
+
+    #[test]
+    pub fn successful_liquidation_liability_transfer_to_cover_margin_shortage() {
+        let now = 0_i64;
+        let slot = 0_u64;
+
+        let mut sol_oracle_price = get_pyth_price(100, 10);
+        let sol_oracle_price_key =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        create_account_info!(
+            sol_oracle_price,
+            &sol_oracle_price_key,
+            &pyth_program,
+            oracle_account_info
+        );
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+
+        let market_map = MarketMap::empty();
+
+        let mut usdc_bank = Bank {
+            bank_index: 0,
+            oracle_source: OracleSource::QuoteAsset,
+            cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            initial_asset_weight: BANK_WEIGHT_PRECISION,
+            maintenance_asset_weight: BANK_WEIGHT_PRECISION,
+            deposit_balance: 200 * BANK_INTEREST_PRECISION,
+            liquidation_fee: 0,
+            ..Bank::default()
+        };
+        create_anchor_account_info!(usdc_bank, Bank, usdc_bank_account_info);
+        let mut sol_bank = Bank {
+            bank_index: 1,
+            oracle_source: OracleSource::Pyth,
+            oracle: sol_oracle_price_key,
+            cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_borrow_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            initial_asset_weight: 8 * BANK_WEIGHT_PRECISION / 10,
+            maintenance_asset_weight: 9 * BANK_WEIGHT_PRECISION / 10,
+            initial_liability_weight: 12 * BANK_WEIGHT_PRECISION / 10,
+            maintenance_liability_weight: 11 * BANK_WEIGHT_PRECISION / 10,
+            deposit_balance: BANK_INTEREST_PRECISION,
+            borrow_balance: BANK_INTEREST_PRECISION,
+            liquidation_fee: LIQUIDATION_FEE_PRECISION / 1000,
+            ..Bank::default()
+        };
+        create_anchor_account_info!(sol_bank, Bank, sol_bank_account_info);
+        let bank_account_infos = Vec::from([&usdc_bank_account_info, &sol_bank_account_info]);
+        let bank_map = BankMap::load_multiple(bank_account_infos, true).unwrap();
+
+        let mut user_bank_balances = [UserBankBalance::default(); 8];
+        user_bank_balances[0] = UserBankBalance {
+            bank_index: 0,
+            balance_type: BankBalanceType::Deposit,
+            balance: 105 * BANK_INTEREST_PRECISION,
+        };
+        user_bank_balances[1] = UserBankBalance {
+            bank_index: 1,
+            balance_type: BankBalanceType::Borrow,
+            balance: BANK_INTEREST_PRECISION,
+        };
+        let mut user = User {
+            orders: [Order::default(); 32],
+            positions: [MarketPosition::default(); 5],
+            bank_balances: user_bank_balances,
+            ..User::default()
+        };
+
+        let mut liquidator = User {
+            bank_balances: get_bank_balances(UserBankBalance {
+                bank_index: 0,
+                balance_type: BankBalanceType::Deposit,
+                balance: 100 * BANK_INTEREST_PRECISION,
+            }),
+            ..User::default()
+        };
+
+        liquidate_borrow(
+            0,
+            1,
+            10_u128.pow(6),
+            &mut user,
+            &mut liquidator,
+            &market_map,
+            &bank_map,
+            &mut oracle_map,
+            now,
+        )
+        .unwrap();
+
+        assert_eq!(user.bank_balances[0].balance, 54444445);
+        assert_eq!(user.bank_balances[1].balance, 494949);
+
+        assert_eq!(
+            liquidator.bank_balances[0].balance_type,
+            BankBalanceType::Deposit
+        );
+        assert_eq!(liquidator.bank_balances[0].balance, 150555555);
+        assert_eq!(
+            liquidator.bank_balances[1].balance_type,
+            BankBalanceType::Borrow
+        );
+        assert_eq!(liquidator.bank_balances[1].balance, 505051);
     }
 }

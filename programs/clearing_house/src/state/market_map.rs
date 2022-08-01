@@ -115,6 +115,10 @@ impl<'a> MarketMap<'a> {
 
         Ok(market_map)
     }
+
+    pub fn empty() -> Self {
+        MarketMap(BTreeMap::new())
+    }
 }
 
 pub type WritableMarkets = BTreeSet<u64>;

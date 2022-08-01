@@ -407,7 +407,7 @@ pub fn liquidate_borrow(
         oracle_map,
     )?;
 
-    if total_collateral > cast(margin_requirement)? {
+    if total_collateral >= cast(margin_requirement)? {
         if user.being_liquidated {
             user.being_liquidated = true;
         } else {

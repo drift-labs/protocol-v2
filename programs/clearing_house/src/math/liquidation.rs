@@ -1,10 +1,13 @@
 use crate::error::ClearingHouseResult;
 use crate::math::constants::{
-    LIQUIDATION_FEE_PRECISION, LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO, MARK_PRICE_PRECISION,
-    MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO,
+    BANK_WEIGHT_PRECISION, LIQUIDATION_FEE_PRECISION, LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO,
+    MARK_PRICE_PRECISION, MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO,
 };
 use crate::math_error;
 use solana_program::msg;
+
+#[cfg(test)]
+mod tests;
 
 pub fn calculate_base_asset_amount_to_cover_margin_shortage(
     margin_shortage: u128,
@@ -23,7 +26,7 @@ pub fn calculate_base_asset_amount_to_cover_margin_shortage(
                         .checked_mul(LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO)
                         .ok_or_else(math_error!())?
                         .checked_sub(liquidation_fee)
-                        .unwrap_or(1),
+                        .ok_or_else(math_error!())?,
                 )
                 .ok_or_else(math_error!())?
                 .checked_div(LIQUIDATION_FEE_PRECISION)
@@ -50,18 +53,22 @@ pub fn calculate_liability_transfer_to_cover_margin_shortage(
     margin_shortage
         .checked_mul(numerator_scale)
         .ok_or_else(math_error!())?
-        .checked_mul(MARK_PRICE_PRECISION)
+        .checked_mul(MARK_PRICE_PRECISION * BANK_WEIGHT_PRECISION * 1000)
         .ok_or_else(math_error!())?
         .checked_div(
             liability_price
                 .unsigned_abs()
                 .checked_mul(
                     liability_weight
+                        .checked_mul(1000) // multiply bank weights by extra 1000 to increase precision
+                        .ok_or_else(math_error!())?
                         .checked_sub(
                             asset_weight
+                                .checked_mul(1000)
+                                .ok_or_else(math_error!())?
                                 .checked_mul(asset_liquidation_multiplier)
                                 .ok_or_else(math_error!())?
-                                .checked_mul(liability_liquidation_multiplier)
+                                .checked_div(liability_liquidation_multiplier)
                                 .ok_or_else(math_error!())?,
                         )
                         .ok_or_else(math_error!())?,

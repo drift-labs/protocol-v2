@@ -327,6 +327,7 @@ pub mod clearing_house {
             margin_ratio_initial,
             margin_ratio_partial,
             margin_ratio_maintenance,
+            liquidation_fee,
         )?;
 
         let state = &mut ctx.accounts.state;
@@ -2351,16 +2352,36 @@ pub mod clearing_house {
         margin_ratio_partial: u32,
         margin_ratio_maintenance: u32,
     ) -> Result<()> {
+        let market = &mut load_mut!(ctx.accounts.market)?;
         validate_margin(
             margin_ratio_initial,
             margin_ratio_partial,
             margin_ratio_maintenance,
+            market.liquidation_fee,
         )?;
 
-        let market = &mut load_mut!(ctx.accounts.market)?;
         market.margin_ratio_initial = margin_ratio_initial;
         market.margin_ratio_partial = margin_ratio_partial;
         market.margin_ratio_maintenance = margin_ratio_maintenance;
+        Ok(())
+    }
+
+    #[access_control(
+        market_initialized(&ctx.accounts.market)
+    )]
+    pub fn update_perp_liquidation_fee(
+        ctx: Context<AdminUpdateMarket>,
+        liquidation_fee: u128,
+    ) -> Result<()> {
+        let market = &mut load_mut!(ctx.accounts.market)?;
+        validate_margin(
+            market.margin_ratio_initial,
+            market.margin_ratio_partial,
+            market.margin_ratio_maintenance,
+            liquidation_fee,
+        )?;
+
+        market.liquidation_fee = liquidation_fee;
         Ok(())
     }
 
