@@ -49,6 +49,7 @@ pub struct State {
     pub min_auction_duration: u8,
     pub max_auction_duration: u8,
     pub liquidation_auction_duration: u8,
+    pub liquidation_margin_buffer_ratio: u8,
 
     // upgrade-ability
     pub padding0: u128,

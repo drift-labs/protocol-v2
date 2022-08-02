@@ -100,6 +100,7 @@ pub mod clearing_house {
             min_auction_duration: 10,
             max_auction_duration: 60,
             liquidation_auction_duration: 10,
+            liquidation_margin_buffer_ratio: 10, // 1%
             padding0: 0,
             padding1: 0,
         };
@@ -1710,6 +1711,7 @@ pub mod clearing_house {
             &mut oracle_map,
             slot,
             now,
+            ctx.accounts.state.liquidation_margin_buffer_ratio,
         )?;
 
         Ok(())
@@ -1757,6 +1759,7 @@ pub mod clearing_house {
             &bank_map,
             &mut oracle_map,
             now,
+            ctx.accounts.state.liquidation_margin_buffer_ratio,
         )?;
 
         Ok(())
@@ -1805,6 +1808,7 @@ pub mod clearing_house {
             &bank_map,
             &mut oracle_map,
             now,
+            ctx.accounts.state.liquidation_margin_buffer_ratio,
         )?;
 
         Ok(())
@@ -1853,6 +1857,7 @@ pub mod clearing_house {
             &bank_map,
             &mut oracle_map,
             now,
+            ctx.accounts.state.liquidation_margin_buffer_ratio,
         )?;
 
         Ok(())

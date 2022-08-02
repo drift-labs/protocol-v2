@@ -12,7 +12,7 @@ use crate::math::liquidation::{
     calculate_asset_transfer_for_liability_transfer,
     calculate_base_asset_amount_to_cover_margin_shortage,
     calculate_liability_transfer_implied_by_asset_amount,
-    calculate_liability_transfer_to_cover_margin_shortage,
+    calculate_liability_transfer_to_cover_margin_shortage, get_margin_requirement_plus_buffer,
 };
 use crate::math::margin::{
     calculate_margin_requirement_and_total_collateral, meets_initial_margin_requirement,
@@ -47,6 +47,7 @@ pub fn liquidate_perp(
     oracle_map: &mut OracleMap,
     slot: u64,
     now: i64,
+    liquidation_margin_buffer_ratio: u8,
 ) -> ClearingHouseResult {
     user.get_position(market_index).map_err(|e| {
         msg!(
@@ -88,15 +89,14 @@ pub fn liquidate_perp(
             oracle_map,
         )?;
 
-    if total_collateral >= cast(margin_requirement)? {
-        msg!("total_collateral {}", total_collateral);
-        msg!("margin_requirement {}", margin_requirement);
+    let mut margin_requirement_plus_buffer =
+        get_margin_requirement_plus_buffer(margin_requirement, liquidation_margin_buffer_ratio)?;
 
-        if user.being_liquidated {
-            user.being_liquidated = false;
-        } else {
-            return Err(ErrorCode::SufficientCollateral);
-        }
+    if !user.being_liquidated && total_collateral >= cast(margin_requirement)? {
+        return Err(ErrorCode::SufficientCollateral);
+    } else if user.being_liquidated && total_collateral >= cast(margin_requirement_plus_buffer)? {
+        user.being_liquidated = false;
+        return Ok(());
     }
 
     let position_index = get_position_index(&user.positions, market_index)?;
@@ -157,6 +157,10 @@ pub fn liquidate_perp(
             .checked_div(MARGIN_PRECISION)
             .ok_or_else(math_error!())?;
 
+        margin_requirement_plus_buffer = margin_requirement_plus_buffer
+            .checked_sub(margin_requirement_delta)
+            .ok_or_else(math_error!())?;
+
         margin_requirement = margin_requirement
             .checked_sub(margin_requirement_delta)
             .ok_or_else(math_error!())?;
@@ -190,7 +194,7 @@ pub fn liquidate_perp(
         .base_asset_amount
         .unsigned_abs();
 
-    let margin_shortage = cast_to_i128(margin_requirement)?
+    let margin_shortage = cast_to_i128(margin_requirement_plus_buffer)?
         .checked_sub(total_collateral)
         .ok_or_else(math_error!())?
         .unsigned_abs();
@@ -287,6 +291,7 @@ pub fn liquidate_borrow(
     bank_map: &BankMap,
     oracle_map: &mut OracleMap,
     now: i64,
+    liquidation_margin_buffer_ratio: u8,
 ) -> ClearingHouseResult {
     // validate user and liquidator have bank balances
     user.get_bank_balance(asset_bank_index).ok_or_else(|| {
@@ -408,17 +413,17 @@ pub fn liquidate_borrow(
         oracle_map,
     )?;
 
-    if total_collateral >= cast(margin_requirement)? {
-        if user.being_liquidated {
-            user.being_liquidated = true;
-        } else {
-            msg!("total_collateral {}", total_collateral);
-            msg!("margin_requirement {}", margin_requirement);
-            return Err(ErrorCode::SufficientCollateral);
-        }
+    let margin_requirement_plus_buffer =
+        get_margin_requirement_plus_buffer(margin_requirement, liquidation_margin_buffer_ratio)?;
+
+    if !user.being_liquidated && total_collateral >= cast(margin_requirement)? {
+        return Err(ErrorCode::SufficientCollateral);
+    } else if user.being_liquidated && total_collateral >= cast(margin_requirement_plus_buffer)? {
+        user.being_liquidated = false;
+        return Ok(());
     }
 
-    let margin_shortage = cast_to_i128(margin_requirement)?
+    let margin_shortage = cast_to_i128(margin_requirement_plus_buffer)?
         .checked_sub(total_collateral)
         .ok_or_else(math_error!())?
         .unsigned_abs();
@@ -530,6 +535,7 @@ pub fn liquidate_borrow_for_perp_pnl(
     bank_map: &BankMap,
     oracle_map: &mut OracleMap,
     now: i64,
+    liquidation_margin_buffer_ratio: u8,
 ) -> ClearingHouseResult {
     user.get_position(perp_market_index).map_err(|e| {
         msg!(
@@ -666,17 +672,17 @@ pub fn liquidate_borrow_for_perp_pnl(
         oracle_map,
     )?;
 
-    if total_collateral > cast(margin_requirement)? {
-        if user.being_liquidated {
-            user.being_liquidated = true;
-        } else {
-            msg!("total_collateral {}", total_collateral);
-            msg!("margin_requirement {}", margin_requirement);
-            return Err(ErrorCode::SufficientCollateral);
-        }
+    let margin_requirement_plus_buffer =
+        get_margin_requirement_plus_buffer(margin_requirement, liquidation_margin_buffer_ratio)?;
+
+    if !user.being_liquidated && total_collateral >= cast(margin_requirement)? {
+        return Err(ErrorCode::SufficientCollateral);
+    } else if user.being_liquidated && total_collateral >= cast(margin_requirement_plus_buffer)? {
+        user.being_liquidated = false;
+        return Ok(());
     }
 
-    let margin_shortage = cast_to_i128(margin_requirement)?
+    let margin_shortage = cast_to_i128(margin_requirement_plus_buffer)?
         .checked_sub(total_collateral)
         .ok_or_else(math_error!())?
         .unsigned_abs();
@@ -783,6 +789,7 @@ pub fn liquidate_perp_pnl_for_deposit(
     bank_map: &BankMap,
     oracle_map: &mut OracleMap,
     now: i64,
+    liquidation_margin_buffer_ratio: u8,
 ) -> ClearingHouseResult {
     user.get_position(perp_market_index).map_err(|e| {
         msg!(
@@ -919,17 +926,17 @@ pub fn liquidate_perp_pnl_for_deposit(
         oracle_map,
     )?;
 
-    if total_collateral >= cast(margin_requirement)? {
-        if user.being_liquidated {
-            user.being_liquidated = false;
-        } else {
-            msg!("total_collateral {}", total_collateral);
-            msg!("margin_requirement {}", margin_requirement);
-            return Err(ErrorCode::SufficientCollateral);
-        }
+    let margin_requirement_plus_buffer =
+        get_margin_requirement_plus_buffer(margin_requirement, liquidation_margin_buffer_ratio)?;
+
+    if !user.being_liquidated && total_collateral >= cast(margin_requirement)? {
+        return Err(ErrorCode::SufficientCollateral);
+    } else if user.being_liquidated && total_collateral >= cast(margin_requirement_plus_buffer)? {
+        user.being_liquidated = false;
+        return Ok(());
     }
 
-    let margin_shortage = cast_to_i128(margin_requirement)?
+    let margin_shortage = cast_to_i128(margin_requirement_plus_buffer)?
         .checked_sub(total_collateral)
         .ok_or_else(math_error!())?
         .unsigned_abs();

@@ -1,9 +1,17 @@
-use crate::error::ClearingHouseResult;
+use crate::error::{ClearingHouseResult, ErrorCode};
+use crate::math::casting::cast;
 use crate::math::constants::{
     BANK_WEIGHT_PRECISION, LIQUIDATION_FEE_PRECISION, LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO,
     MARK_PRICE_PRECISION, MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, QUOTE_PRECISION,
 };
+use crate::math::margin::{
+    calculate_margin_requirement_and_total_collateral, MarginRequirementType,
+};
 use crate::math_error;
+use crate::state::bank_map::BankMap;
+use crate::state::market_map::MarketMap;
+use crate::state::oracle_map::OracleMap;
+use crate::state::user::User;
 use solana_program::msg;
 
 #[cfg(test)]
@@ -174,4 +182,66 @@ pub fn calculate_asset_transfer_for_liability_transfer(
     }
 
     Ok(asset_transfer)
+}
+
+pub fn is_user_being_liquidated(
+    user: &User,
+    market_map: &MarketMap,
+    bank_map: &BankMap,
+    oracle_map: &mut OracleMap,
+    liquidation_margin_buffer_ratio: u8,
+) -> ClearingHouseResult<bool> {
+    let (margin_requirement, total_collateral) = calculate_margin_requirement_and_total_collateral(
+        user,
+        market_map,
+        MarginRequirementType::Maintenance,
+        bank_map,
+        oracle_map,
+    )?;
+
+    let margin_requirement_plus_buffer =
+        get_margin_requirement_plus_buffer(margin_requirement, liquidation_margin_buffer_ratio)?;
+
+    Ok(total_collateral >= cast(margin_requirement_plus_buffer)?)
+}
+
+pub fn get_margin_requirement_plus_buffer(
+    margin_requirement: u128,
+    liquidation_margin_buffer_ratio: u8,
+) -> ClearingHouseResult<u128> {
+    margin_requirement
+        .checked_add(
+            margin_requirement
+                .checked_div(liquidation_margin_buffer_ratio as u128)
+                .ok_or_else(math_error!())?,
+        )
+        .ok_or_else(math_error!())
+}
+
+pub fn validate_user_not_being_liquidated(
+    user: &mut User,
+    market_map: &MarketMap,
+    bank_map: &BankMap,
+    oracle_map: &mut OracleMap,
+    liquidation_margin_buffer_ratio: u8,
+) -> ClearingHouseResult {
+    if !user.being_liquidated {
+        return Ok(());
+    }
+
+    let is_still_being_liquidated = is_user_being_liquidated(
+        user,
+        market_map,
+        bank_map,
+        oracle_map,
+        liquidation_margin_buffer_ratio,
+    )?;
+
+    if is_still_being_liquidated {
+        return Err(ErrorCode::UserIsBeingLiquidated);
+    } else {
+        user.being_liquidated = false;
+    }
+
+    Ok(())
 }

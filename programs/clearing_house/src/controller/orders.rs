@@ -19,6 +19,7 @@ use crate::math::auction::{
 };
 use crate::math::casting::cast;
 use crate::math::fulfillment::determine_fulfillment_methods;
+use crate::math::liquidation::validate_user_not_being_liquidated;
 use crate::math::matching::{
     are_orders_same_market_but_different_sides, calculate_fill_for_matched_orders, do_orders_cross,
     is_maker_for_taker,
@@ -67,7 +68,13 @@ pub fn place_order(
         now,
     )?;
 
-    validate!(!user.being_liquidated, ErrorCode::UserIsBeingLiquidated)?;
+    validate_user_not_being_liquidated(
+        user,
+        market_map,
+        bank_map,
+        oracle_map,
+        state.liquidation_margin_buffer_ratio,
+    )?;
 
     let new_order_index = user
         .orders
@@ -430,7 +437,13 @@ pub fn fill_order(
         "Order must be triggered first"
     )?;
 
-    validate!(!user.being_liquidated, ErrorCode::UserIsBeingLiquidated)?;
+    validate_user_not_being_liquidated(
+        user,
+        market_map,
+        bank_map,
+        oracle_map,
+        state.liquidation_margin_buffer_ratio,
+    )?;
 
     let mark_price_before: u128;
     let oracle_mark_spread_pct_before: i128;
@@ -823,11 +836,7 @@ fn fulfill_order(
     let meets_initial_margin_requirement =
         meets_initial_margin_requirement(user, market_map, bank_map, oracle_map)?;
 
-    if user.being_liquidated && meets_initial_margin_requirement {
-        user.being_liquidated = false;
-    }
-
-    if meets_initial_margin_requirement || (risk_decreasing && !user.being_liquidated) {
+    if meets_initial_margin_requirement || risk_decreasing {
         for order_record in order_records {
             emit!(order_record)
         }
@@ -861,12 +870,6 @@ fn fulfill_order(
             )?
         };
 
-        let order_explanation = if user.being_liquidated {
-            OrderActionExplanation::CanceledForLiquidation
-        } else {
-            OrderActionExplanation::BreachedMarginRequirement
-        };
-
         cancel_order(
             user_order_index,
             user,
@@ -875,7 +878,7 @@ fn fulfill_order(
             oracle_map,
             now,
             slot,
-            order_explanation,
+            OrderActionExplanation::BreachedMarginRequirement,
             Some(filler_key),
             filler_reward,
             false,

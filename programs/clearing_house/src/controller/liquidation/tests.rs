@@ -128,6 +128,7 @@ pub mod liquidate_perp {
             &mut oracle_map,
             slot,
             now,
+            10,
         )
         .unwrap();
 
@@ -255,6 +256,7 @@ pub mod liquidate_perp {
             &mut oracle_map,
             slot,
             now,
+            10,
         )
         .unwrap();
 
@@ -357,7 +359,7 @@ pub mod liquidate_perp {
             bank_balances: get_bank_balances(UserBankBalance {
                 bank_index: 0,
                 balance_type: BankBalanceType::Deposit,
-                balance: 5 * BANK_INTEREST_PRECISION,
+                balance: 50 * BANK_INTEREST_PRECISION,
             }),
             ..User::default()
         };
@@ -386,6 +388,7 @@ pub mod liquidate_perp {
             &mut oracle_map,
             slot,
             now,
+            255,
         )
         .unwrap();
 
@@ -502,6 +505,7 @@ pub mod liquidate_perp {
             &mut oracle_map,
             slot,
             now,
+            10,
         )
         .unwrap();
 
@@ -628,19 +632,17 @@ pub mod liquidate_perp {
             &mut oracle_map,
             slot,
             now,
+            100,
         )
         .unwrap();
 
-        assert_eq!(
-            user.positions[0].base_asset_amount,
-            75 * BASE_PRECISION_I128 / 100
-        );
-        assert_eq!(user.positions[0].unsettled_pnl, -1250000);
+        assert_eq!(user.positions[0].base_asset_amount, 7125000000000);
+        assert_eq!(user.positions[0].unsettled_pnl, -1287500);
         assert_eq!(user.positions[0].open_orders, 0);
         assert_eq!(user.positions[0].open_bids, 0);
 
-        assert_eq!(liquidator.positions[0].base_asset_amount, 12500000000000);
-        assert_eq!(liquidator.positions[0].quote_asset_amount, 123750000);
+        assert_eq!(liquidator.positions[0].base_asset_amount, 12875000000000);
+        assert_eq!(liquidator.positions[0].quote_asset_amount, 127462500);
     }
 }
 
@@ -752,6 +754,7 @@ pub mod liquidate_borrow {
             &bank_map,
             &mut oracle_map,
             now,
+            10,
         )
         .unwrap();
 
@@ -858,6 +861,7 @@ pub mod liquidate_borrow {
             &bank_map,
             &mut oracle_map,
             now,
+            10,
         )
         .unwrap();
 
@@ -964,22 +968,23 @@ pub mod liquidate_borrow {
             &bank_map,
             &mut oracle_map,
             now,
+            100,
         )
         .unwrap();
 
-        assert_eq!(user.bank_balances[0].balance, 54444445);
-        assert_eq!(user.bank_balances[1].balance, 494949);
+        assert_eq!(user.bank_balances[0].balance, 43322223);
+        assert_eq!(user.bank_balances[1].balance, 383838);
 
         assert_eq!(
             liquidator.bank_balances[0].balance_type,
             BankBalanceType::Deposit
         );
-        assert_eq!(liquidator.bank_balances[0].balance, 150555555);
+        assert_eq!(liquidator.bank_balances[0].balance, 161677777);
         assert_eq!(
             liquidator.bank_balances[1].balance_type,
             BankBalanceType::Borrow
         );
-        assert_eq!(liquidator.bank_balances[1].balance, 505051);
+        assert_eq!(liquidator.bank_balances[1].balance, 616162);
     }
 }
 
@@ -1126,6 +1131,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             &bank_map,
             &mut oracle_map,
             now,
+            10,
         )
         .unwrap();
 
@@ -1261,18 +1267,19 @@ pub mod liquidate_borrow_for_perp_pnl {
             &bank_map,
             &mut oracle_map,
             now,
+            100,
         )
         .unwrap();
 
-        assert_eq!(user.bank_balances[0].balance, 421357);
-        assert_eq!(user.positions[0].unsettled_pnl, 51498657);
+        assert_eq!(user.bank_balances[0].balance, 363492);
+        assert_eq!(user.positions[0].unsettled_pnl, 45648442);
 
         assert_eq!(
             liquidator.bank_balances[1].balance_type,
             BankBalanceType::Borrow
         );
-        assert_eq!(liquidator.bank_balances[1].balance, 578643);
-        assert_eq!(liquidator.positions[0].unsettled_pnl, 58501343);
+        assert_eq!(liquidator.bank_balances[1].balance, 636508);
+        assert_eq!(liquidator.positions[0].unsettled_pnl, 64351558);
     }
 
     #[test]
@@ -1396,6 +1403,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             &bank_map,
             &mut oracle_map,
             now,
+            10,
         )
         .unwrap();
 
@@ -1554,6 +1562,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             &bank_map,
             &mut oracle_map,
             now,
+            10,
         )
         .unwrap();
 
@@ -1689,6 +1698,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             &bank_map,
             &mut oracle_map,
             now,
+            10,
         )
         .unwrap();
 
@@ -1824,6 +1834,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             &bank_map,
             &mut oracle_map,
             now,
+            10,
         )
         .unwrap();
 
