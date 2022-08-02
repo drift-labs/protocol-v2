@@ -808,7 +808,7 @@ pub mod clearing_house {
         let (order_id, writable_markets) = {
             let user = &load!(ctx.accounts.user)?;
             // if there is no order id, use the users last order id
-            let order_id = order_id.map_or(user.next_order_id - 1, |order_id| order_id);
+            let order_id = order_id.unwrap_or(user.next_order_id - 1);
             let order_index = user
                 .orders
                 .iter()
