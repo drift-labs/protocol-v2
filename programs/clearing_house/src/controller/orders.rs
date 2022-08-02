@@ -462,6 +462,7 @@ pub fn fill_order(
         oracle_map,
         maker,
         maker_order_id,
+        &user_key,
         &user.orders[order_index],
         &mut filler.as_deref_mut(),
         &filler_key,
@@ -620,6 +621,7 @@ fn sanitize_maker_order<'a>(
     oracle_map: &mut OracleMap,
     maker: Option<&'a AccountLoader<User>>,
     maker_order_id: Option<u64>,
+    taker_key: &Pubkey,
     taker_order: &Order,
     filler: &mut Option<&mut User>,
     filler_key: &Pubkey,
@@ -633,6 +635,10 @@ fn sanitize_maker_order<'a>(
     }
 
     let maker = maker.unwrap();
+    if &maker.key() == taker_key {
+        return Ok((None, None, None));
+    }
+
     let maker_key = maker.key();
     let mut maker = load_mut!(maker)?;
     let maker_order_index =
