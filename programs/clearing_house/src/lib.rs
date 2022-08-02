@@ -1841,7 +1841,7 @@ pub mod clearing_house {
         let bank_map = BankMap::load(&writable_banks, remaining_accounts_iter)?;
         let market_map = MarketMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
 
-        controller::liquidation::liquidate_perp_pnl_for_borrow(
+        controller::liquidation::liquidate_perp_pnl_for_deposit(
             perp_market_index,
             asset_bank_index,
             liquidator_max_pnl_transfer,

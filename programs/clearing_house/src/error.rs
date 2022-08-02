@@ -200,8 +200,8 @@ pub enum ErrorCode {
     WrongBankBalanceType,
     #[msg("UserCantLiquidateThemself")]
     UserCantLiquidateThemself,
-    #[msg("InvalidPerpPositionToLiquidateBorrow")]
-    InvalidPerpPositionToLiquidateBorrow,
+    #[msg("InvalidPerpPositionToLiquidate")]
+    InvalidPerpPositionToLiquidate,
     #[msg("InvalidBaseAssetAmountForLiquidatePerp")]
     InvalidBaseAssetAmountForLiquidatePerp,
     #[msg("DefaultError")]

@@ -453,6 +453,7 @@ pub fn liquidate_borrow(
 
     // Given the borrow amount to transfer, determine how much deposit amount to transfer
     let asset_transfer = calculate_asset_transfer_for_liability_transfer(
+        asset_amount,
         asset_liquidation_multiplier,
         asset_decimals,
         asset_price,
@@ -585,26 +586,36 @@ pub fn liquidate_borrow_for_perp_pnl(
 
         validate!(
             base_asset_amount == 0,
-            ErrorCode::InvalidPerpPositionToLiquidateBorrow,
+            ErrorCode::InvalidPerpPositionToLiquidate,
             "Cant have open perp position"
+        )?;
+
+        validate!(
+            user_position.open_orders == 0,
+            ErrorCode::InvalidPerpPositionToLiquidate,
+            "Cant have open orders for perp position"
         )?;
 
         let unsettled_pnl = user_position.unsettled_pnl;
 
         validate!(
             unsettled_pnl > 0,
-            ErrorCode::InvalidPerpPositionToLiquidateBorrow,
+            ErrorCode::InvalidPerpPositionToLiquidate,
             "Perp position must have position pnl"
         )?;
 
         let pnl_price = oracle_map.quote_asset_price_data.price;
 
+        let market = market_map.get_ref(&perp_market_index)?;
+
         (
             unsettled_pnl.unsigned_abs(),
             pnl_price,
             6_u8,
-            BANK_WEIGHT_PRECISION, // TODO add market unsettled pnl weight
-            LIQUIDATION_FEE_PRECISION,
+            market.unsettled_maintenance_asset_weight, // TODO add market unsettled pnl weight
+            LIQUIDATION_FEE_PRECISION
+                .checked_add(market.liquidation_fee)
+                .ok_or_else(math_error!())?,
         )
     };
 
@@ -673,7 +684,7 @@ pub fn liquidate_borrow_for_perp_pnl(
     let liability_transfer_to_cover_margin_shortage =
         calculate_liability_transfer_to_cover_margin_shortage(
             margin_shortage,
-            pnl_asset_weight,
+            pnl_asset_weight as u128,
             pnl_liquidation_multiplier,
             liability_weight,
             liability_liquidation_multiplier,
@@ -699,6 +710,7 @@ pub fn liquidate_borrow_for_perp_pnl(
 
     // Given the borrow amount to transfer, determine how much deposit amount to transfer
     let pnl_transfer = calculate_asset_transfer_for_liability_transfer(
+        pnl,
         pnl_liquidation_multiplier,
         quote_decimals,
         quote_price,
@@ -731,7 +743,7 @@ pub fn liquidate_borrow_for_perp_pnl(
     {
         let mut market = market_map.get_ref_mut(&perp_market_index)?;
 
-        let liquidator_position = liquidator.get_position_mut(perp_market_index)?;
+        let liquidator_position = liquidator.force_get_position_mut(perp_market_index)?;
         update_unsettled_pnl(
             liquidator_position,
             &mut market,
@@ -758,7 +770,7 @@ pub fn liquidate_borrow_for_perp_pnl(
     Ok(())
 }
 
-pub fn liquidate_perp_pnl_for_borrow(
+pub fn liquidate_perp_pnl_for_deposit(
     perp_market_index: u64,
     asset_bank_index: u64,
     liquidator_max_pnl_transfer: u128,
@@ -865,26 +877,36 @@ pub fn liquidate_perp_pnl_for_borrow(
 
         validate!(
             base_asset_amount == 0,
-            ErrorCode::InvalidPerpPositionToLiquidateBorrow,
+            ErrorCode::InvalidPerpPositionToLiquidate,
             "Cant have open perp position"
+        )?;
+
+        validate!(
+            user_position.open_orders == 0,
+            ErrorCode::InvalidPerpPositionToLiquidate,
+            "Cant have open orders on perp position"
         )?;
 
         let unsettled_pnl = user_position.unsettled_pnl;
 
         validate!(
             unsettled_pnl < 0,
-            ErrorCode::InvalidPerpPositionToLiquidateBorrow,
+            ErrorCode::InvalidPerpPositionToLiquidate,
             "Perp position must have negative pnl"
         )?;
 
         let pnl_price = oracle_map.quote_asset_price_data.price;
 
+        let market = market_map.get_ref(&perp_market_index)?;
+
         (
             unsettled_pnl.unsigned_abs(),
             pnl_price,
             6_u8,
-            BANK_WEIGHT_PRECISION, // TODO add market unsettled pnl weight
-            LIQUIDATION_FEE_PRECISION,
+            BANK_WEIGHT_PRECISION,
+            LIQUIDATION_FEE_PRECISION
+                .checked_sub(market.liquidation_fee)
+                .ok_or_else(math_error!())?,
         )
     };
 
@@ -896,7 +918,7 @@ pub fn liquidate_perp_pnl_for_borrow(
         oracle_map,
     )?;
 
-    if total_collateral > cast(margin_requirement)? {
+    if total_collateral >= cast(margin_requirement)? {
         if user.being_liquidated {
             user.being_liquidated = false;
         } else {
@@ -942,6 +964,7 @@ pub fn liquidate_perp_pnl_for_borrow(
 
     // Given the borrow amount to transfer, determine how much deposit amount to transfer
     let asset_transfer = calculate_asset_transfer_for_liability_transfer(
+        asset_amount,
         asset_liquidation_multiplier,
         asset_decimals,
         asset_price,
@@ -972,7 +995,7 @@ pub fn liquidate_perp_pnl_for_borrow(
     {
         let mut market = market_map.get_ref_mut(&perp_market_index)?;
 
-        let liquidator_position = liquidator.get_position_mut(perp_market_index)?;
+        let liquidator_position = liquidator.force_get_position_mut(perp_market_index)?;
         update_unsettled_pnl(
             liquidator_position,
             &mut market,

@@ -1,7 +1,7 @@
 use crate::error::ClearingHouseResult;
 use crate::math::constants::{
     BANK_WEIGHT_PRECISION, LIQUIDATION_FEE_PRECISION, LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO,
-    MARK_PRICE_PRECISION, MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO,
+    MARK_PRICE_PRECISION, MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, QUOTE_PRECISION,
 };
 use crate::math_error;
 use solana_program::msg;
@@ -114,6 +114,7 @@ pub fn calculate_liability_transfer_implied_by_asset_amount(
 }
 
 pub fn calculate_asset_transfer_for_liability_transfer(
+    asset_amount: u128,
     asset_liquidation_multiplier: u128,
     asset_decimals: u8,
     asset_price: i128,
@@ -128,7 +129,7 @@ pub fn calculate_asset_transfer_for_liability_transfer(
         (1, 10_u128.pow((liability_decimals - asset_decimals) as u32))
     };
 
-    liability_amount
+    let mut asset_transfer = liability_amount
         .checked_mul(numerator_scale)
         .ok_or_else(math_error!())?
         .checked_mul(liability_price.unsigned_abs())
@@ -143,5 +144,34 @@ pub fn calculate_asset_transfer_for_liability_transfer(
         )
         .ok_or_else(math_error!())?
         .checked_div(denominator_scale)
-        .ok_or_else(math_error!())
+        .ok_or_else(math_error!())?;
+
+    // Need to check if asset_transfer should be rounded to asset amount
+    let (asset_value_numerator_scale, asset_value_denominator_scale) = if asset_decimals > 6 {
+        (10_u128.pow((asset_decimals - 6) as u32), 1)
+    } else {
+        (1, 10_u128.pow((asset_decimals - 6) as u32))
+    };
+
+    let asset_delta = if asset_transfer > asset_amount {
+        asset_transfer - asset_amount
+    } else {
+        asset_amount - asset_transfer
+    };
+
+    let asset_value_delta = asset_delta
+        .checked_mul(asset_price.unsigned_abs())
+        .ok_or_else(math_error!())?
+        .checked_div(MARK_PRICE_PRECISION)
+        .ok_or_else(math_error!())?
+        .checked_mul(asset_value_numerator_scale)
+        .ok_or_else(math_error!())?
+        .checked_div(asset_value_denominator_scale)
+        .ok_or_else(math_error!())?;
+
+    if asset_value_delta < QUOTE_PRECISION {
+        asset_transfer = asset_amount;
+    }
+
+    Ok(asset_transfer)
 }

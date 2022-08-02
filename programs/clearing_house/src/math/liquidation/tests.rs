@@ -151,12 +151,13 @@ mod calculate_liability_transfer_implied_by_asset_amount {
 
 mod calculate_asset_transfer_for_liability_transfer {
     use crate::math::constants::{
-        BASE_PRECISION, LIQUIDATION_FEE_PRECISION, MARK_PRICE_PRECISION_I128,
+        BASE_PRECISION, LIQUIDATION_FEE_PRECISION, MARK_PRICE_PRECISION_I128, QUOTE_PRECISION,
     };
     use crate::math::liquidation::calculate_asset_transfer_for_liability_transfer;
 
     #[test]
     pub fn zero_asset_and_liability_fee() {
+        let asset_amount = 100 * QUOTE_PRECISION;
         let asset_liquidation_multiplier = LIQUIDATION_FEE_PRECISION;
         let asset_price = MARK_PRICE_PRECISION_I128;
         let liability_transfer = BASE_PRECISION;
@@ -165,6 +166,7 @@ mod calculate_asset_transfer_for_liability_transfer {
         let liability_price = 100 * MARK_PRICE_PRECISION_I128;
 
         let asset_transfer = calculate_asset_transfer_for_liability_transfer(
+            asset_amount,
             asset_liquidation_multiplier,
             6,
             asset_price,
@@ -180,6 +182,7 @@ mod calculate_asset_transfer_for_liability_transfer {
 
     #[test]
     pub fn one_percent_asset_and_liability_fee() {
+        let asset_amount = 200 * QUOTE_PRECISION;
         let asset_liquidation_multiplier = 101 * LIQUIDATION_FEE_PRECISION / 100;
         let asset_price = MARK_PRICE_PRECISION_I128;
         let liability_transfer = BASE_PRECISION;
@@ -188,6 +191,7 @@ mod calculate_asset_transfer_for_liability_transfer {
         let liability_price = 100 * MARK_PRICE_PRECISION_I128;
 
         let asset_transfer = calculate_asset_transfer_for_liability_transfer(
+            asset_amount,
             asset_liquidation_multiplier,
             6,
             asset_price,
