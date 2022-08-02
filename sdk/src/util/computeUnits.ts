@@ -9,7 +9,7 @@ export async function findComputeUnitConsumption(
 	const tx = await connection.getTransaction(txSignature, { commitment });
 	const computeUnits = [];
 	const regex = new RegExp(
-		`Program ${programId.toString()} consumed ([0-9]{0,6}) of 200000 compute units`
+		`Program ${programId.toString()} consumed ([0-9]{0,6}) of ([0-9]{0,7}) compute units`
 	);
 	tx.meta.logMessages.forEach((logMessage) => {
 		const match = logMessage.match(regex);

@@ -18,7 +18,7 @@ pub struct OracleMap<'a> {
     oracles: BTreeMap<Pubkey, AccountInfoAndOracleSource<'a>>,
     price_data: BTreeMap<Pubkey, OraclePriceData>,
     pub slot: u64,
-    quote_asset_price_data: OraclePriceData,
+    pub quote_asset_price_data: OraclePriceData,
 }
 
 impl<'a> OracleMap<'a> {

@@ -349,6 +349,7 @@ export type UserAccount = {
 	};
 	positions: UserPosition[];
 	orders: Order[];
+	beingLiquidated: boolean;
 };
 
 export type UserBankBalance = {

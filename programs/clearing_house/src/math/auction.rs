@@ -37,6 +37,30 @@ pub fn calculate_auction_start_price(
     Ok(auction_start_price)
 }
 
+pub fn calculate_auction_start_price_for_liquidation(
+    market: &Market,
+    direction: PositionDirection,
+) -> ClearingHouseResult<u128> {
+    let (base_asset_reserves, quote_asset_reserves) = match direction {
+        PositionDirection::Long => (
+            market.amm.ask_base_asset_reserve,
+            market.amm.ask_quote_asset_reserve,
+        ),
+        PositionDirection::Short => (
+            market.amm.bid_base_asset_reserve,
+            market.amm.bid_quote_asset_reserve,
+        ),
+    };
+
+    let auction_start_price = calculate_price(
+        quote_asset_reserves,
+        base_asset_reserves,
+        market.amm.peg_multiplier,
+    )?;
+
+    Ok(auction_start_price)
+}
+
 pub fn calculate_auction_end_price(
     market: &Market,
     direction: PositionDirection,

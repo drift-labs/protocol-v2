@@ -458,6 +458,58 @@ pub struct Liquidate<'info> {
 }
 
 #[derive(Accounts)]
+pub struct LiquidatePerp<'info> {
+    pub state: Box<Account<'info, State>>,
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        has_one = authority,
+    )]
+    pub liquidator: AccountLoader<'info, User>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
+}
+
+#[derive(Accounts)]
+pub struct LiquidateBorrow<'info> {
+    pub state: Box<Account<'info, State>>,
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        has_one = authority,
+    )]
+    pub liquidator: AccountLoader<'info, User>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
+}
+
+#[derive(Accounts)]
+pub struct LiquidateBorrowForPerpPnl<'info> {
+    pub state: Box<Account<'info, State>>,
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        has_one = authority,
+    )]
+    pub liquidator: AccountLoader<'info, User>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
+}
+
+#[derive(Accounts)]
+pub struct LiquidatePerpPnlForDeposit<'info> {
+    pub state: Box<Account<'info, State>>,
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        has_one = authority,
+    )]
+    pub liquidator: AccountLoader<'info, User>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
+}
+
+#[derive(Accounts)]
 pub struct SettleFunding<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(mut)]

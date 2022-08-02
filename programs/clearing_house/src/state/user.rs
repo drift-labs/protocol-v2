@@ -22,9 +22,21 @@ pub struct User {
     pub next_order_id: u64,
     pub positions: [MarketPosition; 5],
     pub orders: [Order; 32],
+    pub being_liquidated: bool,
 }
 
 impl User {
+    pub fn get_bank_balance(&self, bank_index: u64) -> Option<&UserBankBalance> {
+        // first bank balance is always quote asset, which is
+        if bank_index == 0 {
+            return Some(&self.bank_balances[0]);
+        }
+
+        self.bank_balances
+            .iter()
+            .find(|bank_balance| bank_balance.bank_index == bank_index)
+    }
+
     pub fn get_bank_balance_mut(&mut self, bank_index: u64) -> Option<&mut UserBankBalance> {
         // first bank balance is always quote asset, which is
         if bank_index == 0 {
@@ -212,6 +224,22 @@ impl MarketPosition {
             Ok(base_asset_amount_all_asks_fill)
         }
     }
+
+    pub fn get_direction(&self) -> PositionDirection {
+        if self.base_asset_amount >= 0 {
+            PositionDirection::Long
+        } else {
+            PositionDirection::Short
+        }
+    }
+
+    pub fn get_direction_to_close(&self) -> PositionDirection {
+        if self.base_asset_amount >= 0 {
+            PositionDirection::Short
+        } else {
+            PositionDirection::Long
+        }
+    }
 }
 
 pub type UserPositions = [MarketPosition; 5];
@@ -325,6 +353,10 @@ impl Order {
 
     pub fn is_jit_maker(&self) -> bool {
         self.post_only && self.immediate_or_cancel
+    }
+
+    pub fn is_open_order_for_market(&self, market_index: u64) -> bool {
+        self.market_index == market_index && self.status == OrderStatus::Open
     }
 }
 

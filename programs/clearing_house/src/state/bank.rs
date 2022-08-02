@@ -38,6 +38,7 @@ pub struct Bank {
     pub initial_liability_weight: u128,
     pub maintenance_liability_weight: u128,
     pub imf_factor: u128,
+    pub liquidation_fee: u128,
 }
 
 impl Bank {

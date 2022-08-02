@@ -415,6 +415,7 @@ dependencies = [
  "anchor-lang",
  "anchor-spl",
  "arrayref",
+ "base64 0.13.0",
  "borsh",
  "bytemuck",
  "bytes",
