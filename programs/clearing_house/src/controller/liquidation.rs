@@ -124,6 +124,7 @@ pub fn liquidate_perp(
             OrderActionExplanation::CanceledForLiquidation,
             Some(liquidator_key),
             0,
+            true,
         )?;
     }
 

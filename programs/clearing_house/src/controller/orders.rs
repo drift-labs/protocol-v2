@@ -270,6 +270,7 @@ pub fn cancel_order_by_order_id(
         OrderActionExplanation::None,
         None,
         0,
+        false,
     )
 }
 
@@ -299,6 +300,7 @@ pub fn cancel_order_by_user_order_id(
         OrderActionExplanation::None,
         None,
         0,
+        false,
     )
 }
 
@@ -313,6 +315,7 @@ pub fn cancel_order(
     explanation: OrderActionExplanation,
     filler_key: Option<&Pubkey>,
     filler_reward: u128,
+    skip_log: bool,
 ) -> ClearingHouseResult {
     let (order_status, order_market_index, order_direction) =
         get_struct_values!(user.orders[order_index], status, market_index, direction);
@@ -331,38 +334,40 @@ pub fn cancel_order(
     // When save in the record, we want the status to be canceled
     user.orders[order_index].status = OrderStatus::Canceled;
 
-    let (taker, taker_order, taker_unsettled_pnl, maker, maker_order, maker_unsettled_pnl) =
-        get_taker_and_maker_for_order_record(
-            user_key,
-            &user.orders[order_index],
-            -cast(filler_reward)?,
-        );
+    if !skip_log {
+        let (taker, taker_order, taker_unsettled_pnl, maker, maker_order, maker_unsettled_pnl) =
+            get_taker_and_maker_for_order_record(
+                user_key,
+                &user.orders[order_index],
+                -cast(filler_reward)?,
+            );
 
-    emit_stack::<_, 984>(OrderRecord {
-        ts: now,
-        slot,
-        taker,
-        taker_order,
-        maker,
-        maker_order,
-        maker_unsettled_pnl,
-        taker_unsettled_pnl,
-        action: OrderAction::Cancel,
-        action_explanation: explanation,
-        filler: match filler_key {
-            Some(filler) => *filler,
-            None => Pubkey::default(),
-        },
-        fill_record_id: 0,
-        market_index: market.market_index,
-        base_asset_amount_filled: 0,
-        quote_asset_amount_filled: 0,
-        filler_reward,
-        taker_fee: 0,
-        maker_rebate: 0,
-        quote_asset_amount_surplus: 0,
-        oracle_price: oracle_map.get_price_data(&market.amm.oracle)?.price,
-    });
+        emit_stack::<_, 984>(OrderRecord {
+            ts: now,
+            slot,
+            taker,
+            taker_order,
+            maker,
+            maker_order,
+            maker_unsettled_pnl,
+            taker_unsettled_pnl,
+            action: OrderAction::Cancel,
+            action_explanation: explanation,
+            filler: match filler_key {
+                Some(filler) => *filler,
+                None => Pubkey::default(),
+            },
+            fill_record_id: 0,
+            market_index: market.market_index,
+            base_asset_amount_filled: 0,
+            quote_asset_amount_filled: 0,
+            filler_reward,
+            taker_fee: 0,
+            maker_rebate: 0,
+            quote_asset_amount_surplus: 0,
+            oracle_price: oracle_map.get_price_data(&market.amm.oracle)?.price,
+        });
+    }
 
     // Decrement open orders for existing position
     let position_index = get_position_index(&user.positions, order_market_index)?;
@@ -511,6 +516,7 @@ pub fn fill_order(
             OrderActionExplanation::MarketOrderAuctionExpired,
             Some(&filler_key),
             filler_reward,
+            false,
         )?;
         return Ok((0, true));
     }
@@ -561,6 +567,7 @@ pub fn fill_order(
             OrderActionExplanation::MarketOrderFilledToLimitPrice,
             Some(&filler_key),
             filler_reward,
+            false,
         )?
     }
 
@@ -696,6 +703,7 @@ fn sanitize_maker_order<'a>(
             OrderActionExplanation::OraclePriceBreachedLimitPrice,
             Some(filler_key),
             filler_reward,
+            false,
         )?;
         return Ok((None, None, None));
     }
@@ -870,6 +878,7 @@ fn fulfill_order(
             order_explanation,
             Some(filler_key),
             filler_reward,
+            false,
         )?
     }
 
