@@ -8,11 +8,10 @@ use crate::controller;
 use crate::controller::amm::SwapDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::casting::{cast, cast_to_i128, cast_to_u128};
-use crate::math::constants::{AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128};
+use crate::math::constants::AMM_RESERVE_PRECISION_I128;
 use crate::math::orders::calculate_quote_asset_amount_for_maker_order;
 use crate::math::position::{
-    calculate_base_asset_value_and_pnl_with_oracle_price,
-    calculate_position_new_quote_base_pnl,
+    calculate_base_asset_value_and_pnl_with_oracle_price, calculate_position_new_quote_base_pnl,
 };
 use crate::math_error;
 use crate::state::market::Market;
@@ -299,7 +298,7 @@ pub fn update_user_and_market_position(
 
     // todo w/ lp branch
     let n_shares = AMM_RESERVE_PRECISION_I128;
-    let total_lp_shares = market.amm.sqrt_k + AMM_RESERVE_PRECISION;
+    let total_lp_shares = market.amm.sqrt_k;
 
     let lp_delta_base = delta
         .base_asset_amount
@@ -577,6 +576,7 @@ mod test {
         let mut market = Market {
             amm: AMM {
                 cumulative_funding_rate_long: 1,
+                sqrt_k: 1,
                 ..AMM::default()
             },
             open_interest: 0,
@@ -1389,12 +1389,12 @@ mod test {
     fn many_positions_test() {
         let mut existing_position = MarketPosition::default();
         let mut position_delta = PositionDelta {
-            base_asset_amount: 1,
-            quote_asset_amount: 1,
+            base_asset_amount: AMM_RESERVE_PRECISION_I128,
+            quote_asset_amount: QUOTE_PRECISION,
         };
         let mut market = Market {
             amm: AMM {
-                cumulative_funding_rate_long: 1,
+                sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 ..AMM::default()
             },
             open_interest: 0,
@@ -1410,14 +1410,23 @@ mod test {
         .unwrap();
 
         // amm sells 1 for 1
-        assert_eq!(market.amm.market_position.base_asset_amount, -1);
-        assert_eq!(market.amm.market_position.quote_asset_amount, 1);
-        assert_eq!(market.amm.market_position.quote_entry_amount, 1);
+        assert_eq!(
+            market.amm.market_position.base_asset_amount,
+            -AMM_RESERVE_PRECISION_I128
+        );
+        assert_eq!(
+            market.amm.market_position.quote_asset_amount,
+            QUOTE_PRECISION
+        );
+        assert_eq!(
+            market.amm.market_position.quote_entry_amount,
+            QUOTE_PRECISION
+        );
         assert_eq!(market.amm.market_position.unsettled_pnl, 0);
 
         position_delta = PositionDelta {
-            base_asset_amount: 10,
-            quote_asset_amount: 400,
+            base_asset_amount: 10 * AMM_RESERVE_PRECISION_I128,
+            quote_asset_amount: 400 * QUOTE_PRECISION,
         };
 
         let _pnl = update_user_and_market_position(
@@ -1429,14 +1438,23 @@ mod test {
         .unwrap();
 
         // amm sells 10 for 40 each
-        assert_eq!(market.amm.market_position.base_asset_amount, -11);
-        assert_eq!(market.amm.market_position.quote_asset_amount, 401);
-        assert_eq!(market.amm.market_position.quote_entry_amount, 401);
+        assert_eq!(
+            market.amm.market_position.base_asset_amount,
+            -11 * AMM_RESERVE_PRECISION_I128
+        );
+        assert_eq!(
+            market.amm.market_position.quote_asset_amount,
+            401 * QUOTE_PRECISION
+        );
+        assert_eq!(
+            market.amm.market_position.quote_entry_amount,
+            401 * QUOTE_PRECISION
+        );
         assert_eq!(market.amm.market_position.unsettled_pnl, 0);
 
         position_delta = PositionDelta {
-            base_asset_amount: -10,
-            quote_asset_amount: 420,
+            base_asset_amount: -10 * AMM_RESERVE_PRECISION_I128,
+            quote_asset_amount: 420 * QUOTE_PRECISION,
         };
 
         let _pnl = update_user_and_market_position(
@@ -1452,10 +1470,50 @@ mod test {
         // and down 56
 
         // loss = (42-40) * 10 + (37-1) = 56
-        assert_eq!(market.amm.market_position.base_asset_amount, -1);
-        assert_eq!(market.amm.market_position.quote_asset_amount, 37);
-        assert_eq!(market.amm.market_position.quote_entry_amount, 37);
-        assert_eq!(market.amm.market_position.unsettled_pnl, -56);
+        assert_eq!(
+            market.amm.market_position.base_asset_amount,
+            -AMM_RESERVE_PRECISION_I128
+        );
+        assert_eq!(market.amm.market_position.quote_asset_amount, 36454546);
+        assert_eq!(market.amm.market_position.quote_entry_amount, 36454546);
+        assert_eq!(market.amm.market_position.unsettled_pnl, -55454546);
+
+        assert_eq!(
+            market.amm.market_position_per_lp.base_asset_amount,
+            -AMM_RESERVE_PRECISION_I128 / 100
+        );
+        assert_eq!(market.amm.market_position_per_lp.quote_entry_amount, 364546);
+        assert_eq!(market.amm.market_position_per_lp.unsettled_pnl, -554546);
+
+        market.amm.sqrt_k = 190 * AMM_RESERVE_PRECISION;
+
+        position_delta = PositionDelta {
+            base_asset_amount: -2 * AMM_RESERVE_PRECISION_I128,
+            quote_asset_amount: 41444421,
+        };
+
+        let _pnl = update_user_and_market_position(
+            &mut existing_position,
+            &mut market,
+            &position_delta,
+            0,
+        )
+        .unwrap();
+
+        assert_eq!(
+            market.amm.market_position.base_asset_amount,
+            AMM_RESERVE_PRECISION_I128
+        );
+        assert_eq!(market.amm.market_position.quote_asset_amount, 20722211);
+        assert_eq!(market.amm.market_position.quote_entry_amount, 20722211);
+        assert_eq!(market.amm.market_position.unsettled_pnl, -39722210);
+
+        assert_eq!(
+            market.amm.market_position_per_lp.base_asset_amount,
+            5263157894
+        );
+        assert_eq!(market.amm.market_position_per_lp.quote_entry_amount, 10907);
+        assert_eq!(market.amm.market_position_per_lp.unsettled_pnl, -397221);
     }
 }
 
