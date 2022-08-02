@@ -369,6 +369,87 @@
       "args": []
     },
     {
+      "name": "settleLp",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "removeLiquidity",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "sharesToBurn",
+          "type": "u128"
+        },
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "addLiquidity",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "nShares",
+          "type": "u128"
+        },
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "placeOrder",
       "accounts": [
         {
@@ -1181,6 +1262,32 @@
         {
           "name": "curveUpdateIntensity",
           "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "updateLpCooldownTime",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "lpCooldownTime",
+          "type": "i64"
         }
       ]
     },
@@ -2302,6 +2409,26 @@
             "type": "u128"
           },
           {
+            "name": "cumulativeFundingPaymentPerLp",
+            "type": "i128"
+          },
+          {
+            "name": "cumulativeFeePerLp",
+            "type": "u128"
+          },
+          {
+            "name": "cumulativeNetBaseAssetAmountPerLp",
+            "type": "i128"
+          },
+          {
+            "name": "lpCooldownTime",
+            "type": "i64"
+          },
+          {
+            "name": "userLpShares",
+            "type": "u128"
+          },
+          {
             "name": "lastFundingRate",
             "type": "i128"
           },
@@ -2319,10 +2446,6 @@
           },
           {
             "name": "cumulativeFundingRateShort",
-            "type": "i128"
-          },
-          {
-            "name": "cumulativeFundingRateLp",
             "type": "i128"
           },
           {
@@ -2682,6 +2805,10 @@
             "type": "u64"
           },
           {
+            "name": "totalLpFees",
+            "type": "u128"
+          },
+          {
             "name": "totalFeeRebate",
             "type": "u64"
           },
@@ -2770,6 +2897,38 @@
           {
             "name": "openAsks",
             "type": "i128"
+          },
+          {
+            "name": "lpShares",
+            "type": "u128"
+          },
+          {
+            "name": "lpBaseAssetAmount",
+            "type": "i128"
+          },
+          {
+            "name": "lpQuoteAssetAmount",
+            "type": "u128"
+          },
+          {
+            "name": "lastCumulativeFundingPaymentPerLp",
+            "type": "i128"
+          },
+          {
+            "name": "lastCumulativeFeePerLp",
+            "type": "u128"
+          },
+          {
+            "name": "lastCumulativeNetBaseAssetAmountPerLp",
+            "type": "i128"
+          },
+          {
+            "name": "lastLpAddTime",
+            "type": "i64"
+          },
+          {
+            "name": "lpFeePayments",
+            "type": "u128"
           },
           {
             "name": "padding0",
@@ -4078,6 +4237,26 @@
       "code": 6090,
       "name": "DefaultError",
       "msg": "DefaultError"
+    },
+    {
+      "code": 6091,
+      "name": "InsufficientLPTokens",
+      "msg": "Insufficient LP tokens"
+    },
+    {
+      "code": 6092,
+      "name": "CantLPWithMarketPosition",
+      "msg": "Cant LP with a market position"
+    },
+    {
+      "code": 6093,
+      "name": "UnableToBurnLPTokens",
+      "msg": "Unable to burn LP tokens"
+    },
+    {
+      "code": 6094,
+      "name": "TryingToRemoveLiquidityTooFast",
+      "msg": "Trying to remove liqudity too fast after adding it"
     }
   ]
 }

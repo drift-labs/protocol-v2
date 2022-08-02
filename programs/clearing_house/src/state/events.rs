@@ -16,7 +16,7 @@ pub struct DepositRecord {
     pub to: Option<Pubkey>,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
 pub enum DepositDirection {
     DEPOSIT,
     WITHDRAW,
@@ -121,7 +121,7 @@ pub struct OrderRecord {
     pub oracle_price: i128,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
 pub enum OrderAction {
     Place,
     Cancel,
@@ -130,7 +130,7 @@ pub enum OrderAction {
     Expire,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
 pub enum OrderActionExplanation {
     None,
     BreachedMarginRequirement,

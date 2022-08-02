@@ -15,8 +15,8 @@ use crate::math::amm::use_oracle_price_for_margin_calculation;
 use crate::math::bank_balance::get_balance_value_and_token_amount;
 use crate::math::casting::cast_to_i128;
 use crate::math::funding::calculate_funding_payment;
+use crate::math::lp::get_lp_market_position_margin;
 use crate::math::oracle::{get_oracle_status, OracleStatus};
-// use crate::math::repeg;
 use crate::math::slippage::calculate_slippage;
 use crate::state::bank::Bank;
 use crate::state::bank::BankBalanceType;
@@ -32,7 +32,7 @@ use solana_program::msg;
 use std::cmp::{max, min};
 use std::ops::Div;
 
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug, Eq)]
 pub enum MarginRequirementType {
     Initial,
     Partial,
@@ -263,6 +263,20 @@ pub fn calculate_margin_requirement_and_total_collateral(
     }
 
     for market_position in user.positions.iter() {
+        let lp_market_position = if market_position.is_lp() {
+            // market position if lp was settled
+            let market = &market_map.get_ref(&market_position.market_index)?;
+            let lp_market_position = get_lp_market_position_margin(market_position, market)?;
+            Some(lp_market_position)
+        } else {
+            None
+        };
+
+        let market_position = match lp_market_position.as_ref() {
+            Some(lp_market_position) => lp_market_position,
+            None => market_position,
+        };
+
         if market_position.base_asset_amount == 0
             && market_position.unsettled_pnl == 0
             && !market_position.has_open_order()
@@ -384,7 +398,7 @@ pub fn meets_partial_margin_requirement(
     Ok(total_collateral >= cast_to_i128(partial_margin_requirement)?)
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Eq)]
 pub enum LiquidationType {
     NONE,
     PARTIAL,

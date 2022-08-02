@@ -186,6 +186,14 @@ pub enum ErrorCode {
     OrderDidNotSatisfyTriggerCondition,
     #[msg("DefaultError")]
     DefaultError,
+    #[msg("Insufficient LP tokens")]
+    InsufficientLPTokens,
+    #[msg("Cant LP with a market position")]
+    CantLPWithMarketPosition,
+    #[msg("Unable to burn LP tokens")]
+    UnableToBurnLPTokens,
+    #[msg("Trying to remove liqudity too fast after adding it")]
+    TryingToRemoveLiquidityTooFast,
 }
 
 #[macro_export]

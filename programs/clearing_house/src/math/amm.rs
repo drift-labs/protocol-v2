@@ -1028,24 +1028,30 @@ pub struct UpdateKResult {
 pub fn get_update_k_result(
     market: &Market,
     new_sqrt_k: bn::U192,
+    bound_update: bool,
 ) -> ClearingHouseResult<UpdateKResult> {
-    let sqrt_k_ratio_precision = bn::U192::from(100_000_000);
+    let sqrt_k_ratio_precision = bn::U192::from(AMM_RESERVE_PRECISION);
 
     let old_sqrt_k = bn::U192::from(market.amm.sqrt_k);
-    let sqrt_k_ratio = new_sqrt_k
+    let mut sqrt_k_ratio = new_sqrt_k
         .checked_mul(sqrt_k_ratio_precision)
         .ok_or_else(math_error!())?
         .checked_div(old_sqrt_k)
         .ok_or_else(math_error!())?;
 
     // if decreasing k, max decrease ratio for single transaction is 2.5%
-    if sqrt_k_ratio < U192::from(97_500_000) {
+    if bound_update && sqrt_k_ratio < U192::from(975_000_000_000_u128) {
         return Err(ErrorCode::InvalidUpdateK);
+    }
+
+    if sqrt_k_ratio < sqrt_k_ratio_precision {
+        sqrt_k_ratio = sqrt_k_ratio + 1;
     }
 
     let sqrt_k = new_sqrt_k.try_to_u128().unwrap();
 
-    if new_sqrt_k < old_sqrt_k
+    if bound_update
+        && new_sqrt_k < old_sqrt_k
         && market.amm.net_base_asset_amount.unsigned_abs()
             > sqrt_k.checked_div(3).ok_or_else(math_error!())?
     {
@@ -1079,9 +1085,9 @@ pub fn get_update_k_result(
 }
 
 pub fn update_k(market: &mut Market, update_k_result: &UpdateKResult) -> ClearingHouseResult {
-    market.amm.sqrt_k = update_k_result.sqrt_k;
     market.amm.base_asset_reserve = update_k_result.base_asset_reserve;
     market.amm.quote_asset_reserve = update_k_result.quote_asset_reserve;
+    market.amm.sqrt_k = update_k_result.sqrt_k;
 
     let swap_direction = if market.amm.net_base_asset_amount > 0 {
         SwapDirection::Add
@@ -1131,6 +1137,12 @@ pub fn calculate_base_asset_amount_to_trade_to_price(
         amm.base_asset_reserve
     };
 
+    msg!(
+        "new baa {} baa {}",
+        new_base_asset_reserve,
+        amm.base_asset_reserve
+    );
+
     if new_base_asset_reserve > base_asset_reserve_before {
         let max_trade_amount = new_base_asset_reserve
             .checked_sub(base_asset_reserve_before)
@@ -1140,6 +1152,7 @@ pub fn calculate_base_asset_amount_to_trade_to_price(
         let max_trade_amount = base_asset_reserve_before
             .checked_sub(new_base_asset_reserve)
             .ok_or_else(math_error!())?;
+        msg!("max trade {}", max_trade_amount);
         Ok((max_trade_amount, PositionDirection::Long))
     }
 }
@@ -1330,6 +1343,28 @@ mod test {
     }
 
     #[test]
+    fn k_update_results_bound_flag() {
+        let init_reserves = 100 * AMM_RESERVE_PRECISION;
+        let amm = AMM {
+            sqrt_k: init_reserves,
+            base_asset_reserve: init_reserves,
+            quote_asset_reserve: init_reserves,
+            ..AMM::default()
+        };
+        let market = Market {
+            amm,
+            ..Market::default()
+        };
+
+        let new_sqrt_k = U192::from(AMM_RESERVE_PRECISION);
+        let is_error = get_update_k_result(&market, new_sqrt_k, true).is_err();
+        assert!(is_error);
+
+        let is_ok = get_update_k_result(&market, new_sqrt_k, false).is_ok();
+        assert!(is_ok)
+    }
+
+    #[test]
     fn calc_mark_std_tests() {
         let prev = 1656682258;
         let now = prev + 3600;
@@ -1509,7 +1544,8 @@ mod test {
         };
         // increase k by .25%
         let update_k_up =
-            get_update_k_result(&market, bn::U192::from(501 * AMM_RESERVE_PRECISION)).unwrap();
+            get_update_k_result(&market, bn::U192::from(501 * AMM_RESERVE_PRECISION), true)
+                .unwrap();
         let (t_price, t_qar, t_bar) = calculate_terminal_price_and_reserves(&market).unwrap();
 
         // new terminal reserves are balanced, terminal price = peg)

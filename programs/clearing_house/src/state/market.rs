@@ -7,6 +7,7 @@ use switchboard_v2::AggregatorAccountData;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm;
 use crate::math::casting::{cast, cast_to_i128, cast_to_i64, cast_to_u128};
+use crate::math::constants::AMM_RESERVE_PRECISION;
 use crate::math::margin::{
     calculate_size_discount_asset_weight, calculate_size_premium_liability_weight,
     MarginRequirementType,
@@ -77,6 +78,14 @@ impl Market {
         };
 
         Ok(margin_ratio as u32)
+    }
+
+    pub fn default_test() -> Self {
+        let amm = AMM::default_test();
+        Market {
+            amm,
+            ..Market::default()
+        }
     }
 
     pub fn get_unsettled_asset_weight(
@@ -168,13 +177,19 @@ pub struct AMM {
     pub quote_asset_amount_long: u128,
     pub quote_asset_amount_short: u128,
 
+    // lp stuff
+    pub cumulative_funding_payment_per_lp: i128,
+    pub cumulative_fee_per_lp: u128,
+    pub cumulative_net_base_asset_amount_per_lp: i128,
+    pub lp_cooldown_time: i64,
+    pub user_lp_shares: u128,
+
     // funding
     pub last_funding_rate: i128,
     pub last_funding_rate_ts: i64,
     pub funding_period: i64,
     pub cumulative_funding_rate_long: i128,
     pub cumulative_funding_rate_short: i128,
-    pub cumulative_funding_rate_lp: i128,
     pub cumulative_repeg_rebate_long: u128,
     pub cumulative_repeg_rebate_short: u128,
 
@@ -224,6 +239,17 @@ pub struct AMM {
 }
 
 impl AMM {
+    pub fn default_test() -> Self {
+        let default_reserves = AMM_RESERVE_PRECISION;
+        // make sure tests dont have the default sqrt_k = 0
+        AMM {
+            base_asset_reserve: default_reserves,
+            quote_asset_reserve: default_reserves,
+            sqrt_k: default_reserves,
+            ..AMM::default()
+        }
+    }
+
     pub fn mark_price(&self) -> ClearingHouseResult<u128> {
         amm::calculate_price(
             self.quote_asset_reserve,

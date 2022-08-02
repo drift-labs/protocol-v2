@@ -104,6 +104,7 @@ impl User {
 #[repr(packed)]
 pub struct UserFees {
     pub total_fee_paid: u64,
+    pub total_lp_fees: u128,
     pub total_fee_rebate: u64,
     pub total_token_discount: u128,
     pub total_referral_reward: u128,
@@ -160,6 +161,18 @@ pub struct MarketPosition {
     pub open_bids: i128,
     pub open_asks: i128,
 
+    // lp stuff
+    pub lp_shares: u128,
+    pub lp_base_asset_amount: i128,
+    pub lp_quote_asset_amount: u128,
+    pub last_cumulative_funding_payment_per_lp: i128,
+    pub last_cumulative_fee_per_lp: u128,
+    pub last_cumulative_net_base_asset_amount_per_lp: i128,
+    pub last_lp_add_time: i64,
+
+    // debugging 
+    pub lp_fee_payments: u128,
+
     // upgrade-ability
     pub padding0: u128,
     pub padding1: u128,
@@ -170,12 +183,14 @@ pub struct MarketPosition {
 
 impl MarketPosition {
     pub fn is_for(&self, market_index: u64) -> bool {
-        self.market_index == market_index
-            && (self.is_open_position() || self.has_open_order() || self.has_unsettled_pnl())
+        self.market_index == market_index && !self.is_available()
     }
 
     pub fn is_available(&self) -> bool {
-        !self.is_open_position() && !self.has_open_order() && !self.has_unsettled_pnl()
+        !self.is_open_position()
+            && !self.has_open_order()
+            && !self.has_unsettled_pnl()
+            && !self.is_lp()
     }
 
     pub fn is_open_position(&self) -> bool {
@@ -184,6 +199,10 @@ impl MarketPosition {
 
     pub fn has_open_order(&self) -> bool {
         self.open_orders != 0 || self.open_bids != 0 || self.open_asks != 0
+    }
+
+    pub fn is_lp(&self) -> bool {
+        self.lp_shares > 0
     }
 
     pub fn has_unsettled_pnl(&self) -> bool {

@@ -7,6 +7,13 @@ export class SwapDirection {
 	static readonly REMOVE = { remove: {} };
 }
 
+export class SettleResult {
+	static readonly RECIEVED_MARKET_POSITION = { recievedMarketPosition: {} };
+	static readonly DID_NOT_RECIEVE_MARKET_POSITION = {
+		didNotRecieveMarketPosition: {},
+	};
+}
+
 export class BankBalanceType {
 	static readonly DEPOSIT = { deposit: {} };
 	static readonly BORROW = { borrow: {} };
@@ -292,11 +299,16 @@ export type AMM = {
 	pegMultiplier: BN;
 	cumulativeFundingRateLong: BN;
 	cumulativeFundingRateShort: BN;
+	cumulativeFundingRateLp: BN;
 	cumulativeRepegRebateLong: BN;
 	cumulativeRepegRebateShort: BN;
 	totalFeeMinusDistributions: BN;
 	totalFeeWithdrawn: BN;
 	totalFee: BN;
+	cumulativeFundingPaymentPerLp: BN;
+	cumulativeFeePerLp: BN;
+	cumulativeNetBaseAssetAmountPerLp: BN;
+	ammLpShares: BN;
 	minimumQuoteAssetTradeSize: BN;
 	baseAssetAmountStepSize: BN;
 	maxBaseAssetAmountRatio: number;
@@ -331,6 +343,12 @@ export type UserPosition = {
 	unsettledPnl: BN;
 	openBids: BN;
 	openAsks: BN;
+	lpShares: BN;
+	lpBaseAssetAmount: BN;
+	lpQuoteAssetAmount: BN;
+	lastCumulativeFeePerLp: BN;
+	lastCumulativeFundingPaymentPerLp: BN;
+	lastCumulativeNetBaseAssetAmountPerLp: BN;
 };
 
 export type UserAccount = {

@@ -18,6 +18,7 @@ use crate::math::auction::{
     calculate_auction_end_price, calculate_auction_start_price, is_auction_complete,
 };
 use crate::math::casting::cast;
+use crate::math::constants::AMM_RESERVE_PRECISION;
 use crate::math::fulfillment::determine_fulfillment_methods;
 use crate::math::matching::{
     are_orders_same_market_but_different_sides, calculate_fill_for_matched_orders, do_orders_cross,
@@ -986,6 +987,32 @@ pub fn fulfill_order_with_amm(
             quote_asset_amount_surplus,
             order_post_only,
         )?;
+
+    // pay the lps and update the market fee amount
+    let amm_chunk = fee_to_market.checked_div(10).ok_or_else(math_error!())?;
+    let fee_slice = fee_to_market
+        .checked_sub(amm_chunk)
+        .ok_or_else(math_error!())?
+        .checked_mul(AMM_RESERVE_PRECISION)
+        .ok_or_else(math_error!())?
+        .checked_div(market.amm.sqrt_k)
+        .ok_or_else(math_error!())?;
+
+    market.amm.cumulative_fee_per_lp = market
+        .amm
+        .cumulative_fee_per_lp
+        .checked_add(fee_slice)
+        .ok_or_else(math_error!())?;
+
+    let user_lp_fee_payment = fee_slice
+        .checked_mul(market.amm.user_lp_shares)
+        .ok_or_else(math_error!())?
+        .checked_div(AMM_RESERVE_PRECISION)
+        .ok_or_else(math_error!())?;
+
+    let fee_to_market = fee_to_market
+        .checked_sub(user_lp_fee_payment)
+        .ok_or_else(math_error!())?;
 
     let position_index = get_position_index(&user.positions, market.market_index)?;
     // Increment the clearing house's total fee variables
