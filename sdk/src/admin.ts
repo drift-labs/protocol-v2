@@ -149,7 +149,8 @@ export class Admin extends ClearingHouse {
 		oracleSource: OracleSource = OracleSource.PYTH,
 		marginRatioInitial = 2000,
 		marginRatioPartial = 625,
-		marginRatioMaintenance = 500
+		marginRatioMaintenance = 500,
+		liquidationFee = ZERO
 	): Promise<TransactionSignature> {
 		const marketPublicKey = await getMarketPublicKey(
 			this.program.programId,
@@ -165,6 +166,7 @@ export class Admin extends ClearingHouse {
 			marginRatioInitial,
 			marginRatioPartial,
 			marginRatioMaintenance,
+			liquidationFee,
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),

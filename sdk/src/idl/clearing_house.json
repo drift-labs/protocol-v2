@@ -220,6 +220,10 @@
         {
           "name": "marginRatioMaintenance",
           "type": "u32"
+        },
+        {
+          "name": "liquidationFee",
+          "type": "u128"
         }
       ]
     },
@@ -694,7 +698,7 @@
       "args": []
     },
     {
-      "name": "liquidateNew",
+      "name": "liquidatePerp",
       "accounts": [
         {
           "name": "state",
@@ -721,6 +725,10 @@
         {
           "name": "marketIndex",
           "type": "u64"
+        },
+        {
+          "name": "liquidatorMaxBaseAssetAmount",
+          "type": "u128"
         }
       ]
     },
@@ -750,21 +758,21 @@
       ],
       "args": [
         {
-          "name": "depositBankIndex",
+          "name": "assetBankIndex",
           "type": "u64"
         },
         {
-          "name": "borrowBankIndex",
+          "name": "liabilityBankIndex",
           "type": "u64"
         },
         {
-          "name": "liquidatorMaxBorrowAmount",
+          "name": "liquidatorMaxLiabilityTransfer",
           "type": "u128"
         }
       ]
     },
     {
-      "name": "liquidateBorrowForPerp",
+      "name": "liquidateBorrowForPerpPnl",
       "accounts": [
         {
           "name": "state",
@@ -793,11 +801,50 @@
           "type": "u64"
         },
         {
-          "name": "borrowBankIndex",
+          "name": "liabilityBankIndex",
           "type": "u64"
         },
         {
-          "name": "liquidatorMaxBorrowAmount",
+          "name": "liquidatorMaxLiabilityTransfer",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "liquidatePerpPnlForDeposit",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "liquidator",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "perpMarketIndex",
+          "type": "u64"
+        },
+        {
+          "name": "assetBankIndex",
+          "type": "u64"
+        },
+        {
+          "name": "liquidatorMaxPnlTransfer",
           "type": "u128"
         }
       ]
@@ -1212,6 +1259,32 @@
         {
           "name": "marginRatioMaintenance",
           "type": "u32"
+        }
+      ]
+    },
+    {
+      "name": "updatePerpLiquidationFee",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "liquidationFee",
+          "type": "u128"
         }
       ]
     },
@@ -2011,8 +2084,8 @@
             "type": "u128"
           },
           {
-            "name": "currentLiquidations",
-            "type": "u64"
+            "name": "liquidationFee",
+            "type": "u128"
           },
           {
             "name": "padding0",
@@ -2233,6 +2306,10 @@
                 32
               ]
             }
+          },
+          {
+            "name": "beingLiquidated",
+            "type": "bool"
           }
         ]
       }
@@ -2897,10 +2974,6 @@
             "type": "i128"
           },
           {
-            "name": "liquidationBaseAssetAmount",
-            "type": "i128"
-          },
-          {
             "name": "padding0",
             "type": "u128"
           },
@@ -3043,10 +3116,6 @@
           {
             "name": "auctionDuration",
             "type": "u8"
-          },
-          {
-            "name": "liquidation",
-            "type": "bool"
           },
           {
             "name": "padding",
@@ -4252,11 +4321,16 @@
     },
     {
       "code": 6098,
-      "name": "InvalidPerpPositionToLiquidateBorrow",
-      "msg": "InvalidPerpPositionToLiquidateBorrow"
+      "name": "InvalidPerpPositionToLiquidate",
+      "msg": "InvalidPerpPositionToLiquidate"
     },
     {
       "code": 6099,
+      "name": "InvalidBaseAssetAmountForLiquidatePerp",
+      "msg": "InvalidBaseAssetAmountForLiquidatePerp"
+    },
+    {
+      "code": 6100,
       "name": "DefaultError",
       "msg": "DefaultError"
     }
