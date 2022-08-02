@@ -299,6 +299,13 @@ describe('clearing_house', () => {
 		assert.ok(market.amm.totalFee.eq(new BN(49750)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(49750)));
 
+		console.log(market.amm.marketPosition);
+		assert.ok(
+			market.amm.marketPosition.baseAssetAmount.eq(new BN(-497450500000000))
+		);
+		assert.ok(market.amm.marketPosition.quoteAssetAmount.eq(new BN(49750000)));
+		assert.ok(market.amm.marketPosition.unsettledPnl.eq(new BN(49750)));
+
 		await eventSubscriber.awaitTx(txSig);
 		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 
@@ -355,6 +362,7 @@ describe('clearing_house', () => {
 			'before unsettledPnl:',
 			user0.positions[0].unsettledPnl.toString()
 		);
+		assert(user0.positions[0].unsettledPnl.eq(new BN(-23639)));
 
 		await clearingHouse.settlePNL(
 			await clearingHouse.getUserAccountPublicKey(),
@@ -391,6 +399,13 @@ describe('clearing_house', () => {
 		assert.ok(market.amm.totalFee.eq(new BN(74626)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(74626)));
 
+		console.log(market.amm.marketPosition);
+		assert.ok(
+			market.amm.marketPosition.baseAssetAmount.eq(new BN(-248725250000000))
+		);
+		assert.ok(market.amm.marketPosition.quoteAssetAmount.eq(new BN(24875000)));
+		assert.ok(market.amm.marketPosition.unsettledPnl.eq(new BN(49750 + 23639))); //73389
+
 		await eventSubscriber.awaitTx(txSig);
 		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 		assert.ok(orderRecord.taker.equals(userAccountPublicKey));
@@ -421,6 +436,7 @@ describe('clearing_house', () => {
 			'before unsettledPnl:',
 			user0.positions[0].unsettledPnl.toString()
 		);
+		assert(user0.positions[0].unsettledPnl.eq(new BN(-52220)));
 
 		await clearingHouse.settlePNL(
 			await clearingHouse.getUserAccountPublicKey(),
@@ -456,6 +472,13 @@ describe('clearing_house', () => {
 		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(-248725250000000)));
 		assert.ok(market.amm.totalFee.eq(new BN(124371)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(124371)));
+
+		console.log(market.amm.marketPosition);
+		assert.ok(
+			market.amm.marketPosition.baseAssetAmount.eq(new BN(248725250000000))
+		);
+		assert.ok(market.amm.marketPosition.quoteAssetAmount.eq(new BN(24872525)));
+		assert.ok(market.amm.marketPosition.unsettledPnl.eq(new BN(73389 + 52220)));
 
 		await eventSubscriber.awaitTx(txSig);
 		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];

@@ -586,6 +586,21 @@ describe('update amm', () => {
 			direction: tradeDirection,
 			baseAssetAmount: tradeSize,
 		});
+
+		const txSig21 = await clearingHouse.updateAMMs([
+			new BN(0),
+			new BN(1),
+			new BN(2),
+			new BN(3),
+		]);
+		const computeUnits21 = await findComputeUnitConsumption(
+			clearingHouse.program.programId,
+			connection,
+			txSig21,
+			'confirmed'
+		);
+		console.log(computeUnits21);
+
 		const txSig3 = await clearingHouse.placeAndTake(orderParams);
 
 		console.log(
