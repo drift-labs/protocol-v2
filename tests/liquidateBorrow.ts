@@ -12,6 +12,8 @@ import {
 	BN,
 	OracleSource,
 	ZERO,
+	EventSubscriber,
+	MARK_PRICE_PRECISION,
 } from '../sdk/src';
 
 import {
@@ -24,6 +26,7 @@ import {
 	createWSolTokenAccountForUser,
 	initializeSolAssetBank,
 } from './testHelpers';
+import { isVariant } from '../sdk';
 
 describe('liquidate borrow', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -35,6 +38,8 @@ describe('liquidate borrow', () => {
 	const chProgram = anchor.workspace.ClearingHouse as Program;
 
 	let clearingHouse: Admin;
+	const eventSubscriber = new EventSubscriber(connection, chProgram);
+	eventSubscriber.subscribe();
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -119,6 +124,7 @@ describe('liquidate borrow', () => {
 	after(async () => {
 		await clearingHouse.unsubscribe();
 		await liquidatorClearingHouse.unsubscribe();
+		await eventSubscriber.unsubscribe();
 	});
 
 	it('liquidate', async () => {
@@ -149,6 +155,26 @@ describe('liquidate borrow', () => {
 		assert(clearingHouse.getUserAccount().bankBalances[0].balance.eq(ZERO));
 		assert(
 			clearingHouse.getUserAccount().bankBalances[1].balance.eq(new BN(2))
+		);
+
+		const liquidationRecord =
+			eventSubscriber.getEventsArray('LiquidationRecord')[0];
+		assert(isVariant(liquidationRecord.liquidationType, 'liquidateBorrow'));
+		assert(
+			liquidationRecord.liquidateBorrow.assetPrice.eq(MARK_PRICE_PRECISION)
+		);
+		assert(liquidationRecord.liquidateBorrow.assetBankIndex.eq(ZERO));
+		assert(
+			liquidationRecord.liquidateBorrow.assetTransfer.eq(new BN(100000000))
+		);
+		assert(
+			liquidationRecord.liquidateBorrow.liabilityPrice.eq(
+				new BN(200).mul(MARK_PRICE_PRECISION)
+			)
+		);
+		assert(liquidationRecord.liquidateBorrow.liabilityBankIndex.eq(new BN(1)));
+		assert(
+			liquidationRecord.liquidateBorrow.liabilityTransfer.eq(new BN(500000000))
 		);
 	});
 });

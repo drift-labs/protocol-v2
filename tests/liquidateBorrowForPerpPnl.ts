@@ -15,6 +15,7 @@ import {
 	findComputeUnitConsumption,
 	MARK_PRICE_PRECISION,
 	PositionDirection,
+	EventSubscriber,
 } from '../sdk/src';
 
 import {
@@ -27,6 +28,7 @@ import {
 	createWSolTokenAccountForUser,
 	initializeSolAssetBank,
 } from './testHelpers';
+import { isVariant } from '../sdk';
 
 describe('liquidate borrow for perp pnl', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -38,6 +40,8 @@ describe('liquidate borrow for perp pnl', () => {
 	const chProgram = anchor.workspace.ClearingHouse as Program;
 
 	let clearingHouse: Admin;
+	const eventSubscriber = new EventSubscriber(connection, chProgram);
+	eventSubscriber.subscribe();
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -156,6 +160,7 @@ describe('liquidate borrow for perp pnl', () => {
 	after(async () => {
 		await clearingHouse.unsubscribe();
 		await liquidatorClearingHouse.unsubscribe();
+		await eventSubscriber.unsubscribe();
 	});
 
 	it('liquidate', async () => {
@@ -184,5 +189,38 @@ describe('liquidate borrow for perp pnl', () => {
 
 		assert(!clearingHouse.getUserAccount().beingLiquidated);
 		assert(clearingHouse.getUserAccount().positions[0].unsettledPnl.eq(ZERO));
+
+		const liquidationRecord =
+			eventSubscriber.getEventsArray('LiquidationRecord')[0];
+
+		assert(
+			isVariant(liquidationRecord.liquidationType, 'liquidateBorrowForPerpPnl')
+		);
+		assert(
+			liquidationRecord.liquidateBorrowForPerpPnl.marketOraclePrice.eq(
+				new BN(50).mul(MARK_PRICE_PRECISION)
+			)
+		);
+		assert(liquidationRecord.liquidateBorrowForPerpPnl.marketIndex.eq(ZERO));
+		assert(
+			liquidationRecord.liquidateBorrowForPerpPnl.pnlTransfer.eq(
+				new BN(9969234)
+			)
+		);
+		assert(
+			liquidationRecord.liquidateBorrowForPerpPnl.liabilityPrice.eq(
+				new BN(50).mul(MARK_PRICE_PRECISION)
+			)
+		);
+		assert(
+			liquidationRecord.liquidateBorrowForPerpPnl.liabilityBankIndex.eq(
+				new BN(1)
+			)
+		);
+		assert(
+			liquidationRecord.liquidateBorrowForPerpPnl.liabilityTransfer.eq(
+				new BN(199384680)
+			)
+		);
 	});
 });

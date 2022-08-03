@@ -16,6 +16,7 @@ import { Keypair } from '@solana/web3.js';
 import {
 	Admin,
 	ClearingHouse,
+	EventSubscriber,
 	findComputeUnitConsumption,
 	MARK_PRICE_PRECISION,
 	PositionDirection,
@@ -40,6 +41,8 @@ describe('liquidate perp', () => {
 	const chProgram = anchor.workspace.ClearingHouse as Program;
 
 	let clearingHouse: Admin;
+	const eventSubscriber = new EventSubscriber(connection, chProgram);
+	eventSubscriber.subscribe();
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -156,6 +159,7 @@ describe('liquidate perp', () => {
 	after(async () => {
 		await clearingHouse.unsubscribe();
 		await liquidatorClearingHouse.unsubscribe();
+		await eventSubscriber.unsubscribe();
 	});
 
 	it('liquidate', async () => {
@@ -195,5 +199,26 @@ describe('liquidate perp', () => {
 		);
 
 		assert(!clearingHouse.getUserAccount().beingLiquidated);
+
+		const liquidationRecord =
+			eventSubscriber.getEventsArray('LiquidationRecord')[0];
+		assert(isVariant(liquidationRecord.liquidationType, 'liquidatePerp'));
+		assert(liquidationRecord.liquidatePerp.marketIndex.eq(ZERO));
+		assert(liquidationRecord.liquidatePerp.orderIds.length === 32);
+		assert(
+			liquidationRecord.liquidatePerp.oraclePrice.eq(
+				MARK_PRICE_PRECISION.div(new BN(4))
+			)
+		);
+		assert(
+			liquidationRecord.liquidatePerp.baseAssetAmount.eq(
+				new BN(-175000000000000)
+			)
+		);
+		assert(
+			liquidationRecord.liquidatePerp.quoteAssetAmount.eq(new BN(4375000))
+		);
+		assert(liquidationRecord.liquidatePerp.userPnl.eq(new BN(-13125613)));
+		assert(liquidationRecord.liquidatePerp.liquidatorPnl.eq(new BN(0)));
 	});
 });

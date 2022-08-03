@@ -744,12 +744,17 @@ pub mod liquidate_borrow {
             ..User::default()
         };
 
+        let user_key = Pubkey::default();
+        let liquidator_key = Pubkey::default();
+
         liquidate_borrow(
             0,
             1,
             10_u128.pow(6),
             &mut user,
+            &user_key,
             &mut liquidator,
+            &liquidator_key,
             &market_map,
             &bank_map,
             &mut oracle_map,
@@ -851,12 +856,17 @@ pub mod liquidate_borrow {
             ..User::default()
         };
 
+        let user_key = Pubkey::default();
+        let liquidator_key = Pubkey::default();
+
         liquidate_borrow(
             0,
             1,
             10_u128.pow(6) / 10,
             &mut user,
+            &user_key,
             &mut liquidator,
+            &liquidator_key,
             &market_map,
             &bank_map,
             &mut oracle_map,
@@ -958,12 +968,17 @@ pub mod liquidate_borrow {
             ..User::default()
         };
 
+        let user_key = Pubkey::default();
+        let liquidator_key = Pubkey::default();
+
         liquidate_borrow(
             0,
             1,
             10_u128.pow(6),
             &mut user,
+            &user_key,
             &mut liquidator,
+            &liquidator_key,
             &market_map,
             &bank_map,
             &mut oracle_map,

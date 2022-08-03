@@ -82,24 +82,6 @@ pub struct CurveRecord {
 }
 
 #[event]
-pub struct LiquidationRecord {
-    pub ts: i64,
-    pub user_authority: Pubkey,
-    pub user: Pubkey,
-    pub partial: bool,
-    pub base_asset_value: u128,
-    pub base_asset_value_closed: u128,
-    pub liquidation_fee: u128,
-    pub fee_to_liquidator: u64,
-    pub fee_to_insurance_fund: u64,
-    pub liquidator: Pubkey,
-    pub total_collateral: u128,
-    pub collateral: u128,
-    pub unrealized_pnl: i128,
-    pub margin_ratio: u128,
-}
-
-#[event]
 pub struct OrderRecord {
     pub ts: i64,
     pub slot: u64,
@@ -147,6 +129,77 @@ impl Default for OrderAction {
     fn default() -> Self {
         OrderAction::Place
     }
+}
+
+#[event]
+#[derive(Default)]
+pub struct LiquidationRecord {
+    pub ts: i64,
+    pub liquidation_type: LiquidationType2,
+    pub user: Pubkey,
+    pub liquidator: Pubkey,
+    pub margin_requirement: u128,
+    pub total_collateral: i128,
+    pub liquidate_perp: LiquidatePerpRecord,
+    pub liquidate_borrow: LiquidateBorrowRecord,
+    pub liquidate_borrow_for_perp_pnl: LiquidateBorrowForPerpPnlRecord,
+    pub liquidate_perp_pnl_for_deposit: LiquidatePerpPnlForDepositRecord,
+}
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq)]
+pub enum LiquidationType2 {
+    LiquidatePerp,
+    LiquidateBorrow,
+    LiquidateBorrowForPerpPnl,
+    LiquidatePerpPnlForDeposit,
+}
+
+impl Default for LiquidationType2 {
+    // UpOnly
+    fn default() -> Self {
+        LiquidationType2::LiquidatePerp
+    }
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, Default)]
+pub struct LiquidatePerpRecord {
+    pub market_index: u64,
+    pub order_ids: Vec<u64>,
+    pub oracle_price: i128,
+    pub base_asset_amount: i128,
+    pub quote_asset_amount: u128,
+    pub user_pnl: i128,
+    pub liquidator_pnl: i128,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, Default)]
+pub struct LiquidateBorrowRecord {
+    pub asset_bank_index: u64,
+    pub asset_price: i128,
+    pub asset_transfer: u128,
+    pub liability_bank_index: u64,
+    pub liability_price: i128,
+    pub liability_transfer: u128,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, Default)]
+pub struct LiquidateBorrowForPerpPnlRecord {
+    pub market_index: u64,
+    pub market_oracle_price: i128,
+    pub pnl_transfer: u128,
+    pub liability_bank_index: u64,
+    pub liability_price: i128,
+    pub liability_transfer: u128,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, Default)]
+pub struct LiquidatePerpPnlForDepositRecord {
+    pub market_index: u64,
+    pub market_oracle_price: i128,
+    pub pnl_transfer: u128,
+    pub asset_bank_index: u64,
+    pub asset_price: i128,
+    pub asset_transfer: u128,
 }
 
 pub fn emit_stack<T: AnchorSerialize + Discriminator, const N: usize>(event: T) {

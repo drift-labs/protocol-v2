@@ -15,6 +15,7 @@ import {
 	findComputeUnitConsumption,
 	MARK_PRICE_PRECISION,
 	PositionDirection,
+	EventSubscriber,
 } from '../sdk/src';
 
 import {
@@ -27,6 +28,7 @@ import {
 	createWSolTokenAccountForUser,
 	initializeSolAssetBank,
 } from './testHelpers';
+import { isVariant } from '../sdk';
 
 describe('liquidate perp pnl for deposit', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -38,6 +40,8 @@ describe('liquidate perp pnl for deposit', () => {
 	const chProgram = anchor.workspace.ClearingHouse as Program;
 
 	let clearingHouse: Admin;
+	const eventSubscriber = new EventSubscriber(connection, chProgram);
+	eventSubscriber.subscribe();
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -156,6 +160,7 @@ describe('liquidate perp pnl for deposit', () => {
 	after(async () => {
 		await clearingHouse.unsubscribe();
 		await liquidatorClearingHouse.unsubscribe();
+		await eventSubscriber.unsubscribe();
 	});
 
 	it('liquidate', async () => {
@@ -184,5 +189,36 @@ describe('liquidate perp pnl for deposit', () => {
 
 		assert(!clearingHouse.getUserAccount().beingLiquidated);
 		assert(clearingHouse.getUserAccount().bankBalances[0].balance.eq(ZERO));
+
+		const liquidationRecord =
+			eventSubscriber.getEventsArray('LiquidationRecord')[0];
+
+		assert(
+			isVariant(liquidationRecord.liquidationType, 'liquidatePerpPnlForDeposit')
+		);
+		assert(
+			liquidationRecord.liquidatePerpPnlForDeposit.marketOraclePrice.eq(
+				new BN(50).mul(MARK_PRICE_PRECISION)
+			)
+		);
+		assert(liquidationRecord.liquidatePerpPnlForDeposit.marketIndex.eq(ZERO));
+		assert(
+			liquidationRecord.liquidatePerpPnlForDeposit.pnlTransfer.eq(
+				new BN(9011207)
+			)
+		);
+		assert(
+			liquidationRecord.liquidatePerpPnlForDeposit.assetPrice.eq(
+				MARK_PRICE_PRECISION
+			)
+		);
+		assert(
+			liquidationRecord.liquidatePerpPnlForDeposit.assetBankIndex.eq(new BN(0))
+		);
+		assert(
+			liquidationRecord.liquidatePerpPnlForDeposit.assetTransfer.eq(
+				new BN(10000000)
+			)
+		);
 	});
 });

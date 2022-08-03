@@ -23,12 +23,15 @@ use crate::math::position::calculate_base_asset_value_with_oracle_price;
 use crate::math_error;
 use crate::state::bank::BankBalanceType;
 use crate::state::bank_map::BankMap;
-use crate::state::events::OrderActionExplanation;
+use crate::state::events::{
+    LiquidateBorrowForPerpPnlRecord, LiquidateBorrowRecord, LiquidatePerpPnlForDepositRecord,
+    LiquidatePerpRecord, LiquidationRecord, LiquidationType2, OrderActionExplanation,
+};
 use crate::state::market_map::MarketMap;
 use crate::state::oracle_map::OracleMap;
 use crate::state::user::User;
 use crate::validate;
-use anchor_lang::prelude::Pubkey;
+use anchor_lang::prelude::*;
 use solana_program::msg;
 use std::ops::DerefMut;
 
@@ -107,11 +110,13 @@ pub fn liquidate_perp(
 
     let worst_case_base_asset_amount_before =
         user.positions[position_index].worst_case_base_asset_amount()?;
+    let mut canceled_order_ids: Vec<u64> = vec![];
     for order_index in 0..user.orders.len() {
         if !user.orders[order_index].is_open_order_for_market(market_index) {
             continue;
         }
 
+        canceled_order_ids.push(user.orders[order_index].order_id);
         cancel_order(
             order_index,
             user,
@@ -162,6 +167,22 @@ pub fn liquidate_perp(
     }
 
     if total_collateral >= cast(margin_requirement_plus_buffer)? {
+        emit!(LiquidationRecord {
+            ts: now,
+            liquidation_type: LiquidationType2::LiquidatePerp,
+            user: *user_key,
+            liquidator: *liquidator_key,
+            margin_requirement,
+            total_collateral,
+            liquidate_perp: LiquidatePerpRecord {
+                market_index,
+                order_ids: canceled_order_ids,
+                oracle_price,
+                ..LiquidatePerpRecord::default()
+            },
+            ..LiquidationRecord::default()
+        });
+
         user.being_liquidated = false;
         return Ok(());
     }
@@ -243,7 +264,7 @@ pub fn liquidate_perp(
         user.positions[position_index].get_direction(),
     )?;
 
-    {
+    let (user_pnl, liquidator_pnl) = {
         let mut market = market_map.get_ref_mut(&market_index)?;
 
         let user_position = user.get_position_mut(market_index).unwrap();
@@ -258,7 +279,8 @@ pub fn liquidate_perp(
             &liquidator_position_delta,
         )?;
         update_unsettled_pnl(liquidator_position, &mut market, liquidator_pnl)?;
-    }
+        (user_pnl, liquidator_pnl)
+    };
 
     if base_asset_amount >= base_asset_amount_to_cover_margin_shortage {
         user.being_liquidated = false;
@@ -273,6 +295,25 @@ pub fn liquidate_perp(
         "Liquidator doesnt have enough collateral to take over perp position"
     )?;
 
+    emit!(LiquidationRecord {
+        ts: now,
+        liquidation_type: LiquidationType2::LiquidatePerp,
+        user: *user_key,
+        liquidator: *liquidator_key,
+        margin_requirement,
+        total_collateral,
+        liquidate_perp: LiquidatePerpRecord {
+            market_index,
+            order_ids: canceled_order_ids,
+            oracle_price,
+            base_asset_amount: user_position_delta.base_asset_amount,
+            quote_asset_amount: user_position_delta.quote_asset_amount,
+            user_pnl,
+            liquidator_pnl,
+        },
+        ..LiquidationRecord::default()
+    });
+
     Ok(())
 }
 
@@ -281,7 +322,9 @@ pub fn liquidate_borrow(
     liability_bank_index: u64,
     liquidator_max_liability_transfer: u128,
     user: &mut User,
+    user_key: &Pubkey,
     liquidator: &mut User,
+    liquidator_key: &Pubkey,
     market_map: &MarketMap,
     bank_map: &BankMap,
     oracle_map: &mut OracleMap,
@@ -515,11 +558,29 @@ pub fn liquidate_borrow(
         "Liquidator doesnt have enough collateral to take over borrow"
     )?;
 
+    emit!(LiquidationRecord {
+        ts: now,
+        liquidation_type: LiquidationType2::LiquidateBorrow,
+        user: *user_key,
+        liquidator: *liquidator_key,
+        margin_requirement,
+        total_collateral,
+        liquidate_borrow: LiquidateBorrowRecord {
+            asset_bank_index,
+            asset_price,
+            asset_transfer,
+            liability_bank_index,
+            liability_price,
+            liability_transfer,
+        },
+        ..LiquidationRecord::default()
+    });
+
     Ok(())
 }
 
 pub fn liquidate_borrow_for_perp_pnl(
-    perp_market_index: u64,
+    market_index: u64,
     liability_bank_index: u64,
     liquidator_max_liability_transfer: u128,
     user: &mut User,
@@ -532,10 +593,10 @@ pub fn liquidate_borrow_for_perp_pnl(
     now: i64,
     liquidation_margin_buffer_ratio: u8,
 ) -> ClearingHouseResult {
-    user.get_position(perp_market_index).map_err(|e| {
+    user.get_position(market_index).map_err(|e| {
         msg!(
             "User does not have a position for perp market {}",
-            perp_market_index
+            market_index
         );
         e
     })?;
@@ -549,7 +610,7 @@ pub fn liquidate_borrow_for_perp_pnl(
     })?;
 
     liquidator
-        .force_get_position_mut(perp_market_index)
+        .force_get_position_mut(market_index)
         .map_err(|e| {
             msg!("Liquidator has no available positions to take on pnl");
             e
@@ -570,19 +631,19 @@ pub fn liquidate_borrow_for_perp_pnl(
     settle_funding_payment(
         user,
         user_key,
-        market_map.get_ref_mut(&perp_market_index)?.deref_mut(),
+        market_map.get_ref_mut(&market_index)?.deref_mut(),
         now,
     )?;
 
     settle_funding_payment(
         liquidator,
         liquidator_key,
-        market_map.get_ref_mut(&perp_market_index)?.deref_mut(),
+        market_map.get_ref_mut(&market_index)?.deref_mut(),
         now,
     )?;
 
     let (pnl, quote_price, quote_decimals, pnl_asset_weight, pnl_liquidation_multiplier) = {
-        let user_position = user.get_position(perp_market_index).unwrap();
+        let user_position = user.get_position(market_index).unwrap();
 
         let base_asset_amount = user_position.base_asset_amount;
 
@@ -608,7 +669,7 @@ pub fn liquidate_borrow_for_perp_pnl(
 
         let pnl_price = oracle_map.quote_asset_price_data.price;
 
-        let market = market_map.get_ref(&perp_market_index)?;
+        let market = market_map.get_ref(&market_index)?;
 
         (
             unsettled_pnl.unsigned_abs(),
@@ -743,16 +804,16 @@ pub fn liquidate_borrow_for_perp_pnl(
     }
 
     {
-        let mut market = market_map.get_ref_mut(&perp_market_index)?;
+        let mut market = market_map.get_ref_mut(&market_index)?;
 
-        let liquidator_position = liquidator.force_get_position_mut(perp_market_index)?;
+        let liquidator_position = liquidator.force_get_position_mut(market_index)?;
         update_unsettled_pnl(
             liquidator_position,
             &mut market,
             cast_to_i128(pnl_transfer)?,
         )?;
 
-        let user_position = user.get_position_mut(perp_market_index)?;
+        let user_position = user.get_position_mut(market_index)?;
         update_unsettled_pnl(user_position, &mut market, -cast_to_i128(pnl_transfer)?)?;
     }
 
@@ -769,11 +830,34 @@ pub fn liquidate_borrow_for_perp_pnl(
         "Liquidator doesnt have enough collateral to take over borrow"
     )?;
 
+    let market_oracle_price = {
+        let market = market_map.get_ref_mut(&market_index)?;
+        oracle_map.get_price_data(&market.amm.oracle)?.price
+    };
+
+    emit!(LiquidationRecord {
+        ts: now,
+        liquidation_type: LiquidationType2::LiquidateBorrowForPerpPnl,
+        user: *user_key,
+        liquidator: *liquidator_key,
+        margin_requirement,
+        total_collateral,
+        liquidate_borrow_for_perp_pnl: LiquidateBorrowForPerpPnlRecord {
+            market_index,
+            market_oracle_price,
+            pnl_transfer,
+            liability_bank_index,
+            liability_price,
+            liability_transfer,
+        },
+        ..LiquidationRecord::default()
+    });
+
     Ok(())
 }
 
 pub fn liquidate_perp_pnl_for_deposit(
-    perp_market_index: u64,
+    market_index: u64,
     asset_bank_index: u64,
     liquidator_max_pnl_transfer: u128,
     user: &mut User,
@@ -786,10 +870,10 @@ pub fn liquidate_perp_pnl_for_deposit(
     now: i64,
     liquidation_margin_buffer_ratio: u8,
 ) -> ClearingHouseResult {
-    user.get_position(perp_market_index).map_err(|e| {
+    user.get_position(market_index).map_err(|e| {
         msg!(
             "User does not have a position for perp market {}",
-            perp_market_index
+            market_index
         );
         e
     })?;
@@ -803,7 +887,7 @@ pub fn liquidate_perp_pnl_for_deposit(
     })?;
 
     liquidator
-        .force_get_position_mut(perp_market_index)
+        .force_get_position_mut(market_index)
         .map_err(|e| {
             msg!("Liquidator has no available positions to take on pnl");
             e
@@ -824,14 +908,14 @@ pub fn liquidate_perp_pnl_for_deposit(
     settle_funding_payment(
         user,
         user_key,
-        market_map.get_ref_mut(&perp_market_index)?.deref_mut(),
+        market_map.get_ref_mut(&market_index)?.deref_mut(),
         now,
     )?;
 
     settle_funding_payment(
         liquidator,
         liquidator_key,
-        market_map.get_ref_mut(&perp_market_index)?.deref_mut(),
+        market_map.get_ref_mut(&market_index)?.deref_mut(),
         now,
     )?;
 
@@ -874,7 +958,7 @@ pub fn liquidate_perp_pnl_for_deposit(
         pnl_liability_weight,
         pnl_liquidation_multiplier,
     ) = {
-        let user_position = user.get_position(perp_market_index).unwrap();
+        let user_position = user.get_position(market_index).unwrap();
 
         let base_asset_amount = user_position.base_asset_amount;
 
@@ -900,7 +984,7 @@ pub fn liquidate_perp_pnl_for_deposit(
 
         let pnl_price = oracle_map.quote_asset_price_data.price;
 
-        let market = market_map.get_ref(&perp_market_index)?;
+        let market = market_map.get_ref(&market_index)?;
 
         (
             unsettled_pnl.unsigned_abs(),
@@ -996,16 +1080,16 @@ pub fn liquidate_perp_pnl_for_deposit(
     }
 
     {
-        let mut market = market_map.get_ref_mut(&perp_market_index)?;
+        let mut market = market_map.get_ref_mut(&market_index)?;
 
-        let liquidator_position = liquidator.force_get_position_mut(perp_market_index)?;
+        let liquidator_position = liquidator.force_get_position_mut(market_index)?;
         update_unsettled_pnl(
             liquidator_position,
             &mut market,
             -cast_to_i128(pnl_transfer)?,
         )?;
 
-        let user_position = user.get_position_mut(perp_market_index)?;
+        let user_position = user.get_position_mut(market_index)?;
         update_unsettled_pnl(user_position, &mut market, cast_to_i128(pnl_transfer)?)?;
     }
 
@@ -1021,6 +1105,29 @@ pub fn liquidate_perp_pnl_for_deposit(
         ErrorCode::InsufficientCollateral,
         "Liquidator doesnt have enough collateral to take over borrow"
     )?;
+
+    let market_oracle_price = {
+        let market = market_map.get_ref_mut(&market_index)?;
+        oracle_map.get_price_data(&market.amm.oracle)?.price
+    };
+
+    emit!(LiquidationRecord {
+        ts: now,
+        liquidation_type: LiquidationType2::LiquidatePerpPnlForDeposit,
+        user: *user_key,
+        liquidator: *liquidator_key,
+        margin_requirement,
+        total_collateral,
+        liquidate_perp_pnl_for_deposit: LiquidatePerpPnlForDepositRecord {
+            market_index,
+            market_oracle_price,
+            pnl_transfer,
+            asset_bank_index,
+            asset_price,
+            asset_transfer,
+        },
+        ..LiquidationRecord::default()
+    });
 
     Ok(())
 }
