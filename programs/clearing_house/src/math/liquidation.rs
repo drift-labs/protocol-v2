@@ -52,6 +52,11 @@ pub fn calculate_liability_transfer_to_cover_margin_shortage(
     liability_decimals: u8,
     liability_price: i128,
 ) -> ClearingHouseResult<u128> {
+    // If unsettled pnl asset weight is 1 and quote asset is 1, this calculation breaks
+    if asset_weight == liability_weight && asset_weight >= liability_weight {
+        return Ok(u128::MAX);
+    }
+
     let (numerator_scale, denominator_scale) = if liability_decimals > 6 {
         (10_u128.pow((liability_decimals - 6) as u32), 1)
     } else {
