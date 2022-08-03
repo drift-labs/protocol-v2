@@ -1,25 +1,20 @@
 import * as anchor from '@project-serum/anchor';
-import {
-	BASE_PRECISION,
-	BN,
-	getLimitOrderParams,
-	isVariant,
-	OracleSource,
-	ZERO,
-} from '../sdk';
 import { assert } from 'chai';
 
 import { Program } from '@project-serum/anchor';
 
-import { Keypair } from '@solana/web3.js';
+import { PublicKey } from '@solana/web3.js';
 
 import {
+	BASE_PRECISION,
+	BN,
+	OracleSource,
+	ZERO,
 	Admin,
 	ClearingHouse,
 	findComputeUnitConsumption,
 	MARK_PRICE_PRECISION,
 	PositionDirection,
-	Wallet,
 } from '../sdk/src';
 
 import {
@@ -28,9 +23,12 @@ import {
 	mockUserUSDCAccount,
 	setFeedPrice,
 	initializeQuoteAssetBank,
+	createUserWithUSDCAndWSOLAccount,
+	createWSolTokenAccountForUser,
+	initializeSolAssetBank,
 } from './testHelpers';
 
-describe('liquidate perp', () => {
+describe('liquidate borrow for perp pnl', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
 		preflightCommitment: 'confirmed',
 		commitment: 'confirmed',
@@ -43,10 +41,12 @@ describe('liquidate perp', () => {
 
 	let usdcMint;
 	let userUSDCAccount;
+	let userWSOLAccount;
 
-	const liquidatorKeyPair = new Keypair();
-	let liquidatorUSDCAccount: Keypair;
 	let liquidatorClearingHouse: ClearingHouse;
+	let liquidatorClearingHouseWSOLAccount: PublicKey;
+
+	let solOracle: PublicKey;
 
 	// ammInvariant == k == x * y
 	const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
@@ -62,8 +62,14 @@ describe('liquidate perp', () => {
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
+		userWSOLAccount = await createWSolTokenAccountForUser(
+			provider,
+			// @ts-ignore
+			provider.wallet,
+			ZERO
+		);
 
-		const oracle = await mockOracle(1);
+		solOracle = await mockOracle(1);
 
 		clearingHouse = new Admin({
 			connection,
@@ -74,10 +80,10 @@ describe('liquidate perp', () => {
 			},
 			activeUserId: 0,
 			marketIndexes: [new BN(0)],
-			bankIndexes: [new BN(0)],
+			bankIndexes: [new BN(0), new BN(1)],
 			oracleInfos: [
 				{
-					publicKey: oracle,
+					publicKey: solOracle,
 					source: OracleSource.PYTH,
 				},
 			],
@@ -87,12 +93,13 @@ describe('liquidate perp', () => {
 		await clearingHouse.subscribe();
 
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
+		await initializeSolAssetBank(clearingHouse, solOracle);
 		await clearingHouse.updateAuctionDuration(new BN(0), new BN(0));
 
 		const periodicity = new BN(0);
 
 		await clearingHouse.initializeMarket(
-			oracle,
+			solOracle,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			periodicity
@@ -105,52 +112,45 @@ describe('liquidate perp', () => {
 
 		await clearingHouse.openPosition(
 			PositionDirection.LONG,
-			new BN(175).mul(BASE_PRECISION).div(new BN(10)), // 25 SOL
+			new BN(10).mul(BASE_PRECISION),
 			new BN(0),
 			new BN(0)
 		);
 
-		for (let i = 0; i < 32; i++) {
-			await clearingHouse.placeOrder(
-				getLimitOrderParams({
-					baseAssetAmount: BASE_PRECISION,
-					marketIndex: ZERO,
-					direction: PositionDirection.LONG,
-					price: MARK_PRICE_PRECISION,
-				})
-			);
-		}
-
-		provider.connection.requestAirdrop(liquidatorKeyPair.publicKey, 10 ** 9);
-		liquidatorUSDCAccount = await mockUserUSDCAccount(
-			usdcMint,
-			usdcAmount,
-			provider,
-			liquidatorKeyPair.publicKey
+		await clearingHouse.moveAmmToPrice(
+			new BN(0),
+			new BN(2).mul(MARK_PRICE_PRECISION)
 		);
-		liquidatorClearingHouse = new ClearingHouse({
-			connection,
-			wallet: new Wallet(liquidatorKeyPair),
-			programID: chProgram.programId,
-			opts: {
-				commitment: 'confirmed',
-			},
-			activeUserId: 0,
-			marketIndexes: [new BN(0)],
-			bankIndexes: [new BN(0)],
-			oracleInfos: [
-				{
-					publicKey: oracle,
-					source: OracleSource.PYTH,
-				},
-			],
-		});
+
+		await clearingHouse.closePosition(new BN(0));
+
+		const solAmount = new BN(1 * 10 ** 9);
+		[liquidatorClearingHouse, liquidatorClearingHouseWSOLAccount] =
+			await createUserWithUSDCAndWSOLAccount(
+				provider,
+				usdcMint,
+				chProgram,
+				solAmount,
+				usdcAmount,
+				[new BN(0)],
+				[new BN(0), new BN(1)],
+				[
+					{
+						publicKey: solOracle,
+						source: OracleSource.PYTH,
+					},
+				]
+			);
 		await liquidatorClearingHouse.subscribe();
 
-		await liquidatorClearingHouse.initializeUserAccountAndDepositCollateral(
-			usdcAmount,
-			liquidatorUSDCAccount.publicKey
+		const bankIndex = new BN(1);
+		await liquidatorClearingHouse.deposit(
+			solAmount,
+			bankIndex,
+			liquidatorClearingHouseWSOLAccount
 		);
+		const solBorrow = new BN(5 * 10 ** 8);
+		await clearingHouse.withdraw(solBorrow, new BN(1), userWSOLAccount);
 	});
 
 	after(async () => {
@@ -159,14 +159,14 @@ describe('liquidate perp', () => {
 	});
 
 	it('liquidate', async () => {
-		const oracle = clearingHouse.getMarketAccount(0).amm.oracle;
-		await setFeedPrice(anchor.workspace.Pyth, 0.25, oracle);
+		await setFeedPrice(anchor.workspace.Pyth, 50, solOracle);
 
-		const txSig = await liquidatorClearingHouse.liquidatePerp(
+		const txSig = await liquidatorClearingHouse.liquidateBorrowForPerpPnl(
 			await clearingHouse.getUserAccountPublicKey(),
 			clearingHouse.getUserAccount(),
 			new BN(0),
-			new BN(175).mul(BASE_PRECISION).div(new BN(10))
+			new BN(1),
+			new BN(6 * 10 ** 8)
 		);
 
 		const computeUnits = await findComputeUnitConsumption(
@@ -182,18 +182,7 @@ describe('liquidate perp', () => {
 				.logMessages
 		);
 
-		for (let i = 0; i < 32; i++) {
-			assert(
-				isVariant(clearingHouse.getUserAccount().orders[i].status, 'init')
-			);
-		}
-
-		assert(
-			liquidatorClearingHouse
-				.getUserAccount()
-				.positions[0].baseAssetAmount.eq(new BN(175000000000000))
-		);
-
 		assert(!clearingHouse.getUserAccount().beingLiquidated);
+		assert(clearingHouse.getUserAccount().positions[0].unsettledPnl.eq(ZERO));
 	});
 });

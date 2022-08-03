@@ -7,10 +7,7 @@ import { PublicKey } from '@solana/web3.js';
 
 import {
 	Admin,
-	BANK_RATE_PRECISION,
-	BANK_WEIGHT_PRECISION,
 	ClearingHouse,
-	EventSubscriber,
 	findComputeUnitConsumption,
 	BN,
 	OracleSource,
@@ -25,8 +22,8 @@ import {
 	initializeQuoteAssetBank,
 	createUserWithUSDCAndWSOLAccount,
 	createWSolTokenAccountForUser,
+	initializeSolAssetBank,
 } from './testHelpers';
-import { NATIVE_MINT } from '@solana/spl-token';
 
 describe('liquidate borrow', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -38,9 +35,6 @@ describe('liquidate borrow', () => {
 	const chProgram = anchor.workspace.ClearingHouse as Program;
 
 	let clearingHouse: Admin;
-
-	const eventSubscriber = new EventSubscriber(connection, chProgram);
-	eventSubscriber.subscribe();
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -87,34 +81,7 @@ describe('liquidate borrow', () => {
 		await clearingHouse.subscribe();
 
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
-
-		const optimalUtilization = BANK_RATE_PRECISION.div(new BN(2)); // 50% utilization
-		const optimalRate = BANK_RATE_PRECISION.mul(new BN(20)); // 2000% APR
-		const maxRate = BANK_RATE_PRECISION.mul(new BN(50)); // 5000% APR
-		const initialAssetWeight = BANK_WEIGHT_PRECISION.mul(new BN(8)).div(
-			new BN(10)
-		);
-		const maintenanceAssetWeight = BANK_WEIGHT_PRECISION.mul(new BN(9)).div(
-			new BN(10)
-		);
-		const initialLiabilityWeight = BANK_WEIGHT_PRECISION.mul(new BN(12)).div(
-			new BN(10)
-		);
-		const maintenanceLiabilityWeight = BANK_WEIGHT_PRECISION.mul(
-			new BN(11)
-		).div(new BN(10));
-		await clearingHouse.initializeBank(
-			NATIVE_MINT,
-			optimalUtilization,
-			optimalRate,
-			maxRate,
-			solOracle,
-			OracleSource.QUOTE_ASSET,
-			initialAssetWeight,
-			maintenanceAssetWeight,
-			initialLiabilityWeight,
-			maintenanceLiabilityWeight
-		);
+		await initializeSolAssetBank(clearingHouse, solOracle);
 
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
@@ -138,7 +105,6 @@ describe('liquidate borrow', () => {
 					},
 				]
 			);
-		await liquidatorClearingHouse.subscribe();
 
 		const bankIndex = new BN(1);
 		await liquidatorClearingHouse.deposit(
@@ -152,6 +118,7 @@ describe('liquidate borrow', () => {
 
 	after(async () => {
 		await clearingHouse.unsubscribe();
+		await liquidatorClearingHouse.unsubscribe();
 	});
 
 	it('liquidate', async () => {

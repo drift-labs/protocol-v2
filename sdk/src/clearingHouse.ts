@@ -1544,6 +1544,60 @@ export class ClearingHouse {
 		);
 	}
 
+	public async liquidateBorrowForPerpPnl(
+		userAccountPublicKey: PublicKey,
+		userAccount: UserAccount,
+		perpMarketIndex: BN,
+		liabilityBankIndex: BN,
+		maxLiabilityTransfer: BN
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.txSender.send(
+			wrapInTx(
+				await this.getLiquidateBorrowForPerpPnlIx(
+					userAccountPublicKey,
+					userAccount,
+					perpMarketIndex,
+					liabilityBankIndex,
+					maxLiabilityTransfer
+				)
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getLiquidateBorrowForPerpPnlIx(
+		userAccountPublicKey: PublicKey,
+		userAccount: UserAccount,
+		perpMarketIndex: BN,
+		liabilityBankIndex: BN,
+		maxLiabilityTransfer: BN
+	): Promise<TransactionInstruction> {
+		const liquidatorPublicKey = await this.getUserAccountPublicKey();
+
+		const remainingAccounts = this.getRemainingAccountsForLiquidation({
+			userAccount,
+			writableMarketIndex: perpMarketIndex,
+			writableBankIndexes: [liabilityBankIndex],
+		});
+
+		return await this.program.instruction.liquidateBorrowForPerpPnl(
+			perpMarketIndex,
+			liabilityBankIndex,
+			maxLiabilityTransfer,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					authority: this.wallet.publicKey,
+					user: userAccountPublicKey,
+					liquidator: liquidatorPublicKey,
+				},
+				remainingAccounts: remainingAccounts,
+			}
+		);
+	}
+
 	getRemainingAccountsForLiquidation(params: {
 		userAccount: UserAccount;
 		writableMarketIndex?: BN;
