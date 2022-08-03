@@ -230,7 +230,12 @@ export class BigNum {
 		printString = printString.replace(/^0+/, '');
 
 		// add zero if leading delim
-		if (printString[0] === BigNum.delim) printString = `0${printString}`;
+		if (this.isNeg()) {
+			if (printString[1] === BigNum.delim)
+				printString = printString.replace('-.', '-0.');
+		} else {
+			if (printString[0] === BigNum.delim) printString = `0${printString}`;
+		}
 
 		// remove trailing delim
 		if (printString[printString.length - 1] === BigNum.delim)
