@@ -80,14 +80,13 @@ pub fn liquidate_perp(
         now,
     )?;
 
-    let (mut margin_requirement, total_collateral) =
-        calculate_margin_requirement_and_total_collateral(
-            user,
-            market_map,
-            MarginRequirementType::Maintenance,
-            bank_map,
-            oracle_map,
-        )?;
+    let (margin_requirement, total_collateral) = calculate_margin_requirement_and_total_collateral(
+        user,
+        market_map,
+        MarginRequirementType::Maintenance,
+        bank_map,
+        oracle_map,
+    )?;
 
     let mut margin_requirement_plus_buffer =
         get_margin_requirement_plus_buffer(margin_requirement, liquidation_margin_buffer_ratio)?;
@@ -160,13 +159,9 @@ pub fn liquidate_perp(
         margin_requirement_plus_buffer = margin_requirement_plus_buffer
             .checked_sub(margin_requirement_delta)
             .ok_or_else(math_error!())?;
-
-        margin_requirement = margin_requirement
-            .checked_sub(margin_requirement_delta)
-            .ok_or_else(math_error!())?;
     }
 
-    if total_collateral >= cast(margin_requirement)? {
+    if total_collateral >= cast(margin_requirement_plus_buffer)? {
         user.being_liquidated = false;
         return Ok(());
     }

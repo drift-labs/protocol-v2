@@ -1,5 +1,12 @@
 import * as anchor from '@project-serum/anchor';
-import { BASE_PRECISION, BN, OracleSource } from '../sdk';
+import {
+	BASE_PRECISION,
+	BN,
+	getLimitOrderParams,
+	isVariant,
+	OracleSource,
+	ZERO,
+} from '../sdk';
 import { assert } from 'chai';
 
 import { Program } from '@project-serum/anchor';
@@ -102,10 +109,21 @@ describe('max positions', () => {
 
 		await clearingHouse.openPosition(
 			PositionDirection.LONG,
-			new BN(25).mul(BASE_PRECISION), // 25 SOL
+			new BN(175).mul(BASE_PRECISION).div(new BN(10)), // 25 SOL
 			new BN(0),
 			new BN(0)
 		);
+
+		for (let i = 0; i < 32; i++) {
+			await clearingHouse.placeOrder(
+				getLimitOrderParams({
+					baseAssetAmount: BASE_PRECISION,
+					marketIndex: ZERO,
+					direction: PositionDirection.LONG,
+					price: MARK_PRICE_PRECISION,
+				})
+			);
+		}
 
 		provider.connection.requestAirdrop(liquidatorKeyPair.publicKey, 10 ** 9);
 		liquidatorUSDCAccount = await mockUserUSDCAccount(
@@ -145,13 +163,13 @@ describe('max positions', () => {
 
 	it('liquidate', async () => {
 		const oracle = clearingHouse.getMarketAccount(0).amm.oracle;
-		await setFeedPrice(anchor.workspace.Pyth, 0.5, oracle);
+		await setFeedPrice(anchor.workspace.Pyth, 0.25, oracle);
 
 		const txSig = await liquidatorClearingHouse.liquidatePerp(
 			await clearingHouse.getUserAccountPublicKey(),
 			clearingHouse.getUserAccount(),
 			new BN(0),
-			new BN(25).mul(BASE_PRECISION)
+			new BN(175).mul(BASE_PRECISION).div(new BN(10))
 		);
 
 		const computeUnits = await findComputeUnitConsumption(
@@ -167,10 +185,16 @@ describe('max positions', () => {
 				.logMessages
 		);
 
+		for (let i = 0; i < 32; i++) {
+			assert(
+				isVariant(clearingHouse.getUserAccount().orders[i].status, 'init')
+			);
+		}
+
 		assert(
 			liquidatorClearingHouse
 				.getUserAccount()
-				.positions[0].baseAssetAmount.eq(new BN(250000000000000))
+				.positions[0].baseAssetAmount.eq(new BN(175000000000000))
 		);
 
 		assert(!clearingHouse.getUserAccount().beingLiquidated);
