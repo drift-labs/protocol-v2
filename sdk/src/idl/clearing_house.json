@@ -2433,8 +2433,20 @@
             "type": "i128"
           },
           {
+            "name": "lastFundingRateLong",
+            "type": "i128"
+          },
+          {
+            "name": "lastFundingRateShort",
+            "type": "i128"
+          },
+          {
             "name": "lastFundingRateTs",
             "type": "i64"
+          },
+          {
+            "name": "lastFundingBaseAssetAmountPerLp",
+            "type": "i128"
           },
           {
             "name": "fundingPeriod",
@@ -2483,6 +2495,18 @@
           {
             "name": "baseAssetAmountStepSize",
             "type": "u128"
+          },
+          {
+            "name": "marketPositionPerLp",
+            "type": {
+              "defined": "MarketPosition"
+            }
+          },
+          {
+            "name": "marketPosition",
+            "type": {
+              "defined": "MarketPosition"
+            }
           },
           {
             "name": "baseSpread",
@@ -2916,11 +2940,15 @@
           },
           {
             "name": "lastCumulativeFeePerLp",
-            "type": "u128"
+            "type": "i128"
           },
           {
             "name": "lastCumulativeNetBaseAssetAmountPerLp",
             "type": "i128"
+          },
+          {
+            "name": "lastCumulativeNetQuoteAssetAmountPerLp",
+            "type": "u128"
           },
           {
             "name": "lastLpAddTime",

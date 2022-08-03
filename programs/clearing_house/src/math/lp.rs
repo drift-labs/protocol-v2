@@ -3,17 +3,19 @@ use crate::error::ClearingHouseResult;
 use crate::math::amm::calculate_swap_output;
 use crate::math::casting::cast_to_i128;
 use crate::math::constants::{AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128};
+use crate::math::funding::calculate_funding_payment_in_quote_precision;
 use crate::math::position::swap_direction_to_close_position;
 use crate::math::quote_asset::reserve_to_asset_amount;
 use crate::math_error;
 use crate::state::market::Market;
 use crate::state::market::AMM;
 use crate::state::user::MarketPosition;
+// use std::cmp::max;
 use solana_program::msg;
 
 #[derive(Debug)]
 pub struct LPMetrics {
-    pub fee_payment: u128,
+    pub fee_payment: i128,
     pub funding_payment: i128,
     pub unsettled_pnl: i128,
     pub base_asset_amount: i128,
@@ -28,18 +30,9 @@ pub fn get_lp_metrics(position: &MarketPosition, amm: &AMM) -> ClearingHouseResu
 
     // give them fees
     let fee_payment = amm
-        .cumulative_fee_per_lp
+        .market_position_per_lp
+        .unsettled_pnl
         .checked_sub(position.last_cumulative_fee_per_lp)
-        .ok_or_else(math_error!())?
-        .checked_mul(n_shares)
-        .ok_or_else(math_error!())?
-        .checked_div(AMM_RESERVE_PRECISION)
-        .ok_or_else(math_error!())?;
-
-    // give them the funding
-    let funding_payment = amm
-        .cumulative_funding_payment_per_lp
-        .checked_sub(position.last_cumulative_funding_payment_per_lp)
         .ok_or_else(math_error!())?
         .checked_mul(n_shares_i128)
         .ok_or_else(math_error!())?
@@ -47,9 +40,10 @@ pub fn get_lp_metrics(position: &MarketPosition, amm: &AMM) -> ClearingHouseResu
         .ok_or_else(math_error!())?;
 
     // give them slice of the damm market position
-    let amm_net_base_asset_amount_per_lp = position
-        .last_cumulative_net_base_asset_amount_per_lp
-        .checked_sub(amm.cumulative_net_base_asset_amount_per_lp)
+    let amm_net_base_asset_amount_per_lp = amm
+        .market_position_per_lp
+        .base_asset_amount
+        .checked_sub(position.last_cumulative_net_base_asset_amount_per_lp)
         .ok_or_else(math_error!())?;
 
     let mut market_base_asset_amount = 0;
@@ -70,21 +64,42 @@ pub fn get_lp_metrics(position: &MarketPosition, amm: &AMM) -> ClearingHouseResu
             .ok_or_else(math_error!())?;
 
         // close out the user positions
-        let net_quote_reserves = calculate_swap_quote_reserve_delta(
-            amm,
-            total_net_base_asset_amount
-                .checked_mul(-1)
-                .ok_or_else(math_error!())?,
-        )?;
+        // let net_quote_reserves = calculate_swap_quote_reserve_delta(
+        //     amm,
+        //     total_net_base_asset_amount
+        //         .checked_mul(-1)
+        //         .ok_or_else(math_error!())?,
+        // )?;
 
-        let quote_asset_reserve_amount = net_quote_reserves
+        let amm_net_quote_asset_amount_per_lp =
+            if amm.market_position_per_lp.base_asset_amount.signum()
+                == position.last_cumulative_net_base_asset_amount_per_lp.signum()
+            {
+                if position.last_cumulative_net_base_asset_amount_per_lp.unsigned_abs()
+                    > amm.market_position_per_lp.base_asset_amount.unsigned_abs()
+                {
+                    position
+                        .last_cumulative_net_quote_asset_amount_per_lp
+                        .checked_sub(amm.market_position_per_lp.quote_asset_amount)
+                        .ok_or_else(math_error!())?
+                } else {
+                    amm.market_position_per_lp
+                        .quote_asset_amount
+                        .checked_sub(position.last_cumulative_net_quote_asset_amount_per_lp)
+                        .ok_or_else(math_error!())?
+                }
+            } else {
+                amm.market_position_per_lp
+                    .quote_asset_amount
+                    .checked_add(position.last_cumulative_net_quote_asset_amount_per_lp)
+                    .ok_or_else(math_error!())?
+            };
+
+        let quote_asset_amount = amm_net_quote_asset_amount_per_lp
             .checked_mul(n_shares)
             .ok_or_else(math_error!())?
             .checked_div(total_lp_shares)
             .ok_or_else(math_error!())?;
-
-        let quote_asset_amount =
-            reserve_to_asset_amount(quote_asset_reserve_amount, amm.peg_multiplier)?;
 
         let min_qaa = amm.minimum_quote_asset_trade_size;
         let min_baa = amm.base_asset_amount_step_size;
@@ -111,9 +126,43 @@ pub fn get_lp_metrics(position: &MarketPosition, amm: &AMM) -> ClearingHouseResu
         }
     }
 
+    // calculate funding (todo/review)
+    // REQUIRED: lp needs to be settled every hour without getting penalty applied
+    let last_lp_settle_duration = amm
+        .last_funding_rate_ts
+        .checked_sub(position.last_lp_add_time)
+        .ok_or_else(math_error!())?;
+
+    let funding_payment: i128;
+    if last_lp_settle_duration > 0 {
+        let base_amount_delta = amm
+            .last_funding_base_asset_amount_per_lp
+            .checked_sub(market_base_asset_amount)
+            .ok_or_else(math_error!())?;
+
+        let last_funding_payment =
+            calculate_funding_payment_in_quote_precision(amm.last_funding_rate, base_amount_delta)?;
+
+        // whether funding was applied within last update time
+        // (if no trades cause delay, then no new lp position)
+        funding_payment = if last_lp_settle_duration <= amm.funding_period {
+            last_funding_payment
+        } else {
+            // count number of penalty intervals
+            // let penalty_intervals: i128 = max(0, (last_lp_settle_duration / amm.funding_period));
+            let penalty = 0; // todo, make a positive cost
+            last_funding_payment
+                .checked_sub(penalty)
+                .ok_or_else(math_error!())?
+        };
+    } else {
+        funding_payment = 0;
+    }
+
     let metrics = LPMetrics {
         fee_payment,
-        funding_payment,
+        // funding_payment,
+        funding_payment: funding_payment,
         base_asset_amount: market_base_asset_amount,
         quote_asset_amount: market_quote_asset_amount,
         unsettled_pnl,
@@ -293,7 +342,7 @@ mod test {
     use super::*;
     use crate::controller::amm::SwapDirection;
     use crate::math::{constants::PEG_PRECISION, position::calculate_base_asset_value};
-
+    use crate::math::constants::{QUOTE_PRECISION};
     #[test]
     fn test_margin_requirements_user_long() {
         let position = MarketPosition {
@@ -453,14 +502,21 @@ mod test {
     fn test_simple_metrics() {
         let position = MarketPosition {
             lp_shares: 1000 * AMM_RESERVE_PRECISION,
+            last_cumulative_net_base_asset_amount_per_lp: 0,
             ..MarketPosition::default()
         };
         let init_reserves = 2000 * AMM_RESERVE_PRECISION;
         let amm = AMM {
+            market_position_per_lp: MarketPosition {
+                base_asset_amount:  -100 * AMM_RESERVE_PRECISION_I128,
+                quote_asset_amount: 100 * QUOTE_PRECISION,
+                unsettled_pnl: 100,
+                ..MarketPosition::default()
+            },
             cumulative_net_base_asset_amount_per_lp: 100 * AMM_RESERVE_PRECISION_I128,
             cumulative_fee_per_lp: 100,
-            cumulative_funding_payment_per_lp: 100,
-
+            // cumulative_funding_payment_per_lp: 100,
+            last_funding_rate_long: 100,
             sqrt_k: init_reserves,
             base_asset_reserve: init_reserves,
             quote_asset_reserve: init_reserves,
@@ -480,7 +536,7 @@ mod test {
         );
         assert_eq!(
             metrics.fee_payment,
-            amm.cumulative_fee_per_lp * shares_ as u128
+            (amm.cumulative_fee_per_lp as i128) * shares_ 
         );
         assert_eq!(
             metrics.funding_payment,

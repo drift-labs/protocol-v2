@@ -440,7 +440,7 @@ export class ClearingHouse {
 					pubkey: marketAccount.pubkey,
 					isSigner: false,
 					// isWritable: false, // TODO
-					isWritable: true,
+					isWritable: true, // TODO
 				});
 				oracleAccountMap.set(marketAccount.pubkey.toString(), {
 					pubkey: marketAccount.amm.oracle,
@@ -1465,12 +1465,14 @@ export class ClearingHouse {
 		const marketAccountMap = new Map<number, AccountMeta>();
 		const oracleAccountMap = new Map<string, AccountMeta>();
 		const bankAccountMap = new Map<number, AccountMeta>();
+
 		for (const position of settleeUserAccount.positions) {
 			if (!positionIsAvailable(position)) {
 				const market = this.getMarketAccount(position.marketIndex);
 				marketAccountMap.set(position.marketIndex.toNumber(), {
 					pubkey: market.pubkey,
 					isWritable: true, // TODO
+					// isWritable: false, // TODO
 					isSigner: false,
 				});
 				oracleAccountMap.set(market.amm.oracle.toString(), {

@@ -15,6 +15,7 @@ use crate::math::margin::{
 use crate::math_error;
 use crate::state::bank::{BankBalance, BankBalanceType};
 use crate::state::oracle::{OraclePriceData, OracleSource};
+use crate::state::user::MarketPosition;
 use crate::{
     AMM_TO_QUOTE_PRECISION_RATIO, BID_ASK_SPREAD_PRECISION, MARGIN_PRECISION, MARK_PRICE_PRECISION,
 };
@@ -186,7 +187,10 @@ pub struct AMM {
 
     // funding
     pub last_funding_rate: i128,
+    pub last_funding_rate_long: i128,
+    pub last_funding_rate_short: i128,
     pub last_funding_rate_ts: i64,
+    pub last_funding_base_asset_amount_per_lp: i128,
     pub funding_period: i64,
     pub cumulative_funding_rate_long: i128,
     pub cumulative_funding_rate_short: i128,
@@ -204,6 +208,8 @@ pub struct AMM {
     pub base_asset_amount_step_size: u128,
 
     // market making
+    pub market_position_per_lp: MarketPosition,
+    pub market_position: MarketPosition,
     pub base_spread: u16,
     pub long_spread: u128,
     pub short_spread: u128,

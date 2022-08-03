@@ -11,6 +11,7 @@ use state::oracle::{get_oracle_price, OracleSource};
 
 use crate::math::amm::get_update_k_result;
 use crate::state::market::Market;
+use crate::state::user::MarketPosition;
 use crate::state::{market::AMM, state::*, user::*};
 
 pub mod context;
@@ -374,7 +375,10 @@ pub mod clearing_house {
                 cumulative_funding_rate_long: 0,
                 cumulative_funding_rate_short: 0,
                 last_funding_rate: 0,
+                last_funding_rate_long: 0,
+                last_funding_rate_short: 0,
                 last_funding_rate_ts: now,
+                last_funding_base_asset_amount_per_lp: 0,
                 funding_period: amm_periodicity,
                 last_oracle_price_twap,
                 last_mark_price_twap: init_mark_price,
@@ -413,6 +417,14 @@ pub mod clearing_house {
                 short_intensity_volume: 0,
                 curve_update_intensity: 0,
                 fee_pool: PoolBalance { balance: 0 },
+                market_position_per_lp: MarketPosition {
+                    market_index,
+                    ..MarketPosition::default()
+                },
+                market_position: MarketPosition {
+                    market_index,
+                    ..MarketPosition::default()
+                },
                 last_update_slot: clock_slot,
 
                 // lp stuff
@@ -825,17 +837,30 @@ pub mod clearing_house {
         // update add liquidity time
         position.last_lp_add_time = now;
 
+        let market_amm = market_map.get_ref(&market_index)?.amm;
+
         let (
-            cumulative_fee_per_lp,
-            cumulative_funding_payment_per_lp,
-            cumulative_net_base_asset_amount_per_lp,
+            // cumulative_fee_per_lp,
+            // cumulative_funding_payment_per_lp,
+            // cumulative_net_base_asset_amount_per_lp,
             sqrt_k,
         ) = get_struct_values!(
-            market_map.get_ref(&market_index)?.amm,
-            cumulative_fee_per_lp,
-            cumulative_funding_payment_per_lp,
-            cumulative_net_base_asset_amount_per_lp,
+            market_amm,
+            // cumulative_fee_per_lp,
+            // cumulative_funding_payment_per_lp,
+            // cumulative_net_base_asset_amount_per_lp,
             sqrt_k
+        );
+
+        let (
+            cumulative_fee_per_lp,
+            cumulative_net_base_asset_amount_per_lp,
+            cumulative_net_quote_asset_amount_per_lp,
+        ) = get_struct_values!(
+            market_amm.market_position_per_lp,
+            unsettled_pnl,
+            base_asset_amount,
+            quote_asset_amount
         );
 
         if position.lp_shares > 0 {
@@ -844,9 +869,11 @@ pub mod clearing_house {
         } else {
             // init
             position.last_cumulative_fee_per_lp = cumulative_fee_per_lp;
-            position.last_cumulative_funding_payment_per_lp = cumulative_funding_payment_per_lp;
+            // position.last_cumulative_funding_payment_per_lp = cumulative_funding_payment_per_lp;
             position.last_cumulative_net_base_asset_amount_per_lp =
                 cumulative_net_base_asset_amount_per_lp;
+            position.last_cumulative_net_quote_asset_amount_per_lp =
+                cumulative_net_quote_asset_amount_per_lp;
         }
 
         // add share balance
@@ -892,9 +919,10 @@ pub mod clearing_house {
             return Err(print_error!(ErrorCode::InvalidOrder)().into());
         }
 
-        controller::repeg::update_amms(
+        controller::repeg::update_amm(
             &mut market_map,
             &mut oracle_map,
+            params.market_index,
             &ctx.accounts.state,
             &Clock::get()?,
         )?;
@@ -976,7 +1004,7 @@ pub mod clearing_house {
         order_id: Option<u64>,
         maker_order_id: Option<u64>,
     ) -> Result<()> {
-        let (order_id, writable_markets) = {
+        let (order_id, market_index, writable_markets) = {
             let user = &load!(ctx.accounts.user)?;
             // if there is no order id, use the users last order id
             let order_id = order_id.map_or(user.next_order_id - 1, |order_id| order_id);
@@ -987,7 +1015,11 @@ pub mod clearing_house {
                 .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
             let order = &user.orders[order_index];
 
-            (order_id, &get_writable_markets(order.market_index))
+            (
+                order_id,
+                order.market_index,
+                &get_writable_markets(order.market_index),
+            )
         };
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
@@ -1003,9 +1035,10 @@ pub mod clearing_house {
             None => None,
         };
 
-        controller::repeg::update_amms(
+        controller::repeg::update_amm(
             &mut market_map,
             &mut oracle_map,
+            market_index,
             &ctx.accounts.state,
             &Clock::get()?,
         )?;
@@ -1044,6 +1077,13 @@ pub mod clearing_house {
             &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
             remaining_accounts_iter,
         )?;
+        // let mut market_map = MarketMap::load(
+        //     &get_writable_markets_for_user_positions_and_order(
+        //         &load(&ctx.accounts.user)?.positions,
+        //         params.market_index),
+        //     remaining_accounts_iter,
+        // )?;
+
         let mut market_map = MarketMap::load(
             &get_writable_markets_for_user_positions_and_order(
                 &load!(ctx.accounts.user)?.positions,
@@ -1065,9 +1105,10 @@ pub mod clearing_house {
         let is_immediate_or_cancel = params.immediate_or_cancel;
         let base_asset_amount_to_fill = params.base_asset_amount;
 
-        controller::repeg::update_amms(
+        controller::repeg::update_amm(
             &mut market_map,
             &mut oracle_map,
+            params.market_index,
             &ctx.accounts.state,
             &Clock::get()?,
         )?;
@@ -1148,9 +1189,10 @@ pub mod clearing_house {
 
         let base_asset_amount_to_fill = params.base_asset_amount;
 
-        controller::repeg::update_amms(
+        controller::repeg::update_amm(
             &mut market_map,
             &mut oracle_map,
+            params.market_index,
             &ctx.accounts.state,
             &Clock::get()?,
         )?;
@@ -1266,9 +1308,10 @@ pub mod clearing_house {
         let mut market_map =
             MarketMap::load(&get_writable_markets(market_index), remaining_accounts_iter)?;
 
-        controller::repeg::update_amms(
+        controller::repeg::update_amm(
             &mut market_map,
             &mut oracle_map,
+            market_index,
             &ctx.accounts.state,
             &clock,
         )?;
@@ -1366,7 +1409,7 @@ pub mod clearing_house {
         )?;
 
         // Settle user's funding payments so that collateral is up to date
-        // controller::funding::settle_funding_payments(user, &user_key, &market_map, now)?;
+        controller::funding::settle_funding_payments(user, &user_key, &market_map, now)?;
 
         let LiquidationStatus {
             liquidation_type,
@@ -1508,8 +1551,8 @@ pub mod clearing_house {
                 let direction_to_close =
                     math::position::direction_to_close_position(existing_base_asset_amount);
 
-                let (_, _, quote_asset_amount, _, pnl) =
-                    controller::position::update_position_with_base_asset_amount(
+                let (_, _, quote_asset_amount, _, position_delta) =
+                    controller::position::swap_base_asset_position_delta(
                         user.positions[position_index]
                             .base_asset_amount
                             .unsigned_abs(),
@@ -1521,6 +1564,12 @@ pub mod clearing_house {
                         now,
                         None,
                     )?;
+                let pnl = controller::position::update_user_and_market_position(
+                    &mut user.positions[position_index],
+                    market,
+                    &position_delta,
+                    0, //todo
+                )?;
 
                 controller::position::update_unsettled_pnl(
                     &mut user.positions[position_index],
@@ -1697,8 +1746,8 @@ pub mod clearing_house {
                     )?)
                     .ok_or_else(math_error!())?;
 
-                let (_, _, quote_asset_amount, _, pnl) =
-                    controller::position::update_position_with_base_asset_amount(
+                let (_, _, quote_asset_amount, _, position_delta) =
+                    controller::position::swap_base_asset_position_delta(
                         base_asset_amount.unsigned_abs(),
                         direction_to_reduce,
                         market,
@@ -1708,6 +1757,12 @@ pub mod clearing_house {
                         now,
                         None,
                     )?;
+                let pnl = controller::position::update_user_and_market_position(
+                    &mut user.positions[position_index],
+                    market,
+                    &position_delta,
+                    0, //todo
+                )?;
 
                 controller::position::update_unsettled_pnl(
                     &mut user.positions[position_index],
@@ -2157,7 +2212,13 @@ pub mod clearing_house {
         let mut oracle_map = OracleMap::load_one(&ctx.accounts.oracle, clock_slot)?;
 
         let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
-        controller::repeg::update_amm(market, oracle_price_data, state, now, clock_slot)?;
+        controller::repeg::update_amm_with_market(
+            market,
+            oracle_price_data,
+            state,
+            now,
+            clock_slot,
+        )?;
 
         validate!(
             (clock_slot == market.amm.last_update_slot || market.amm.curve_update_intensity == 0),

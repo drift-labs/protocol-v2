@@ -13,7 +13,10 @@ use crate::math::casting::{cast, cast_to_i128};
 use crate::math::constants::{
     AMM_TO_QUOTE_PRECISION_RATIO_I128, FUNDING_PAYMENT_PRECISION, ONE_HOUR,
 };
-use crate::math::funding::{calculate_funding_payment, calculate_funding_rate_long_short};
+use crate::math::funding::{
+    calculate_funding_payment, calculate_funding_payment_in_quote_precision,
+    calculate_funding_rate_long_short,
+};
 use crate::math::oracle;
 use crate::math_error;
 use crate::state::events::{FundingPaymentRecord, FundingRateRecord};
@@ -250,6 +253,23 @@ pub fn update_funding_rate(
         let (funding_rate_long, funding_rate_short, funding_imbalance_cost) =
             calculate_funding_rate_long_short(market, funding_rate)?;
 
+        market.amm.last_funding_base_asset_amount_per_lp =
+            market.amm.market_position_per_lp.base_asset_amount;
+
+        market.amm.market_position_per_lp.unsettled_pnl = market
+            .amm
+            .market_position_per_lp
+            .unsettled_pnl
+            .checked_add(calculate_funding_payment_in_quote_precision(
+                if market.amm.market_position_per_lp.base_asset_amount > 0 {
+                    funding_rate_long
+                } else {
+                    funding_rate_short
+                },
+                market.amm.market_position_per_lp.base_asset_amount,
+            )?)
+            .ok_or_else(math_error!())?;
+
         // todo: finish robust tests
         if market.amm.curve_update_intensity > 0 {
             formulaic_update_k(
@@ -274,6 +294,8 @@ pub fn update_funding_rate(
             .ok_or_else(math_error!())?;
 
         market.amm.last_funding_rate = funding_rate;
+        market.amm.last_funding_rate_long = funding_rate_long;
+        market.amm.last_funding_rate_short = funding_rate_short;
         market.amm.last_funding_rate_ts = now;
         market.amm.net_revenue_since_last_funding = 0;
 
