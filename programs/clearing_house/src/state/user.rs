@@ -170,7 +170,7 @@ pub struct MarketPosition {
     pub last_cumulative_net_base_asset_amount_per_lp: i128,
     pub last_lp_add_time: i64,
 
-    // debugging 
+    // debugging
     pub lp_fee_payments: u128,
 
     // upgrade-ability

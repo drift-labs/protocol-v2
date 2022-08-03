@@ -967,7 +967,7 @@ export class ClearingHouse {
 		limitPrice?: BN
 	): Promise<TransactionSignature> {
 		return await this.placeAndTake({
-			orderType: OrderType.LIMIT,
+			orderType: OrderType.MARKET,
 			marketIndex,
 			direction,
 			baseAssetAmount: amount,

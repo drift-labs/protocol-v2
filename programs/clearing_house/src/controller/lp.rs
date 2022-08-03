@@ -1,11 +1,11 @@
 use crate::controller::position::update_unsettled_pnl;
 use crate::error::ClearingHouseResult;
+use crate::math::casting::cast;
 use crate::math::lp::get_lp_metrics;
 use crate::math::lp::{get_proportion_i128, get_proportion_u128, update_lp_position};
 use crate::math_error;
 use crate::state::market::Market;
 use crate::MarketPosition;
-use crate::math::casting::cast;
 
 use crate::bn::U192;
 use crate::controller::position::update_position_and_market;
@@ -25,13 +25,16 @@ pub fn settle_lp_position(
     let upnl = update_lp_position(position, &metrics)?;
     update_unsettled_pnl(position, market, upnl)?;
 
-    position.lp_fee_payments = position.lp_fee_payments
+    position.lp_fee_payments = position
+        .lp_fee_payments
         .checked_add(metrics.fee_payment)
         .ok_or_else(math_error!())?;
 
     // market gets it when its too small
     assert!(metrics.unsettled_pnl <= 0);
-    market.amm.total_fee_minus_distributions = market.amm.total_fee_minus_distributions
+    market.amm.total_fee_minus_distributions = market
+        .amm
+        .total_fee_minus_distributions
         .checked_add(cast(metrics.unsettled_pnl.unsigned_abs())?)
         .ok_or_else(math_error!())?;
 

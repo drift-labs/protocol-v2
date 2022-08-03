@@ -2566,6 +2566,7 @@ pub mod clearing_house {
         ctx: Context<AdminUpdateMarket>,
         minimum_trade_size: u128,
     ) -> Result<()> {
+        validate!(minimum_trade_size > 0, ErrorCode::DefaultError)?;
         let market = &mut load_mut!(ctx.accounts.market)?;
         market.amm.base_asset_amount_step_size = minimum_trade_size;
         Ok(())
