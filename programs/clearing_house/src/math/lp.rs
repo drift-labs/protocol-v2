@@ -73,9 +73,13 @@ pub fn get_lp_metrics(position: &MarketPosition, amm: &AMM) -> ClearingHouseResu
 
         let amm_net_quote_asset_amount_per_lp =
             if amm.market_position_per_lp.base_asset_amount.signum()
-                == position.last_cumulative_net_base_asset_amount_per_lp.signum()
+                == position
+                    .last_cumulative_net_base_asset_amount_per_lp
+                    .signum()
             {
-                if position.last_cumulative_net_base_asset_amount_per_lp.unsigned_abs()
+                if position
+                    .last_cumulative_net_base_asset_amount_per_lp
+                    .unsigned_abs()
                     > amm.market_position_per_lp.base_asset_amount.unsigned_abs()
                 {
                     position
@@ -126,43 +130,9 @@ pub fn get_lp_metrics(position: &MarketPosition, amm: &AMM) -> ClearingHouseResu
         }
     }
 
-    // calculate funding (todo/review)
-    // REQUIRED: lp needs to be settled every hour without getting penalty applied
-    let last_lp_settle_duration = amm
-        .last_funding_rate_ts
-        .checked_sub(position.last_lp_add_time)
-        .ok_or_else(math_error!())?;
-
-    let funding_payment: i128;
-    if last_lp_settle_duration > 0 {
-        let base_amount_delta = amm
-            .last_funding_base_asset_amount_per_lp
-            .checked_sub(market_base_asset_amount)
-            .ok_or_else(math_error!())?;
-
-        let last_funding_payment =
-            calculate_funding_payment_in_quote_precision(amm.last_funding_rate, base_amount_delta)?;
-
-        // whether funding was applied within last update time
-        // (if no trades cause delay, then no new lp position)
-        funding_payment = if last_lp_settle_duration <= amm.funding_period {
-            last_funding_payment
-        } else {
-            // count number of penalty intervals
-            // let penalty_intervals: i128 = max(0, (last_lp_settle_duration / amm.funding_period));
-            let penalty = 0; // todo, make a positive cost
-            last_funding_payment
-                .checked_sub(penalty)
-                .ok_or_else(math_error!())?
-        };
-    } else {
-        funding_payment = 0;
-    }
-
     let metrics = LPMetrics {
         fee_payment,
-        // funding_payment,
-        funding_payment: funding_payment,
+        funding_payment: 0,
         base_asset_amount: market_base_asset_amount,
         quote_asset_amount: market_quote_asset_amount,
         unsettled_pnl,
@@ -341,8 +311,8 @@ pub fn update_lp_position(
 mod test {
     use super::*;
     use crate::controller::amm::SwapDirection;
+    use crate::math::constants::QUOTE_PRECISION;
     use crate::math::{constants::PEG_PRECISION, position::calculate_base_asset_value};
-    use crate::math::constants::{QUOTE_PRECISION};
     #[test]
     fn test_margin_requirements_user_long() {
         let position = MarketPosition {
@@ -508,7 +478,7 @@ mod test {
         let init_reserves = 2000 * AMM_RESERVE_PRECISION;
         let amm = AMM {
             market_position_per_lp: MarketPosition {
-                base_asset_amount:  -100 * AMM_RESERVE_PRECISION_I128,
+                base_asset_amount: -100 * AMM_RESERVE_PRECISION_I128,
                 quote_asset_amount: 100 * QUOTE_PRECISION,
                 unsettled_pnl: 100,
                 ..MarketPosition::default()
@@ -536,7 +506,7 @@ mod test {
         );
         assert_eq!(
             metrics.fee_payment,
-            (amm.cumulative_fee_per_lp as i128) * shares_ 
+            (amm.cumulative_fee_per_lp as i128) * shares_
         );
         assert_eq!(
             metrics.funding_payment,

@@ -256,20 +256,6 @@ pub fn update_funding_rate(
         market.amm.last_funding_base_asset_amount_per_lp =
             market.amm.market_position_per_lp.base_asset_amount;
 
-        market.amm.market_position_per_lp.unsettled_pnl = market
-            .amm
-            .market_position_per_lp
-            .unsettled_pnl
-            .checked_add(calculate_funding_payment_in_quote_precision(
-                if market.amm.market_position_per_lp.base_asset_amount > 0 {
-                    funding_rate_long
-                } else {
-                    funding_rate_short
-                },
-                market.amm.market_position_per_lp.base_asset_amount,
-            )?)
-            .ok_or_else(math_error!())?;
-
         // todo: finish robust tests
         if market.amm.curve_update_intensity > 0 {
             formulaic_update_k(

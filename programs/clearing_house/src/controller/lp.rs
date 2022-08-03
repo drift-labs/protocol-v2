@@ -22,6 +22,8 @@ pub fn settle_lp_position(
     let metrics = get_lp_metrics(position, amm)?;
 
     // update lp market position
+    // todo: use update_position_and_market instead of update_lp_position
+    // for the lp when they settle, that should make the market state/ funding prope
     let upnl = update_lp_position(position, &metrics)?;
     update_unsettled_pnl(position, market, upnl)?;
 
