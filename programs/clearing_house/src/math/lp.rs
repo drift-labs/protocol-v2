@@ -50,84 +50,73 @@ pub fn get_lp_metrics(position: &MarketPosition, amm: &AMM) -> ClearingHouseResu
     let mut market_quote_asset_amount = 0;
     let mut unsettled_pnl = 0;
 
-    if amm_net_base_asset_amount_per_lp != 0 {
-        let base_asset_amount = amm_net_base_asset_amount_per_lp
-            .checked_mul(n_shares_i128)
-            .ok_or_else(math_error!())?
-            .checked_div(AMM_RESERVE_PRECISION_I128)
-            .ok_or_else(math_error!())?;
+    let base_asset_amount = amm_net_base_asset_amount_per_lp
+        .checked_mul(n_shares_i128)
+        .ok_or_else(math_error!())?
+        .checked_div(AMM_RESERVE_PRECISION_I128)
+        .ok_or_else(math_error!())?;
 
-        let total_net_base_asset_amount = amm_net_base_asset_amount_per_lp
-            .checked_mul(total_lp_shares_i128)
-            .ok_or_else(math_error!())?
-            .checked_div(AMM_RESERVE_PRECISION_I128)
-            .ok_or_else(math_error!())?;
+    let total_net_base_asset_amount = amm_net_base_asset_amount_per_lp
+        .checked_mul(total_lp_shares_i128)
+        .ok_or_else(math_error!())?
+        .checked_div(AMM_RESERVE_PRECISION_I128)
+        .ok_or_else(math_error!())?;
 
-        // close out the user positions
-        // let net_quote_reserves = calculate_swap_quote_reserve_delta(
-        //     amm,
-        //     total_net_base_asset_amount
-        //         .checked_mul(-1)
-        //         .ok_or_else(math_error!())?,
-        // )?;
-
-        let amm_net_quote_asset_amount_per_lp =
-            if amm.market_position_per_lp.base_asset_amount.signum()
-                == position
-                    .last_cumulative_net_base_asset_amount_per_lp
-                    .signum()
-            {
-                if position
-                    .last_cumulative_net_base_asset_amount_per_lp
-                    .unsigned_abs()
-                    > amm.market_position_per_lp.base_asset_amount.unsigned_abs()
-                {
-                    position
-                        .last_cumulative_net_quote_asset_amount_per_lp
-                        .checked_sub(amm.market_position_per_lp.quote_asset_amount)
-                        .ok_or_else(math_error!())?
-                } else {
-                    amm.market_position_per_lp
-                        .quote_asset_amount
-                        .checked_sub(position.last_cumulative_net_quote_asset_amount_per_lp)
-                        .ok_or_else(math_error!())?
-                }
-            } else {
-                amm.market_position_per_lp
-                    .quote_asset_amount
-                    .checked_add(position.last_cumulative_net_quote_asset_amount_per_lp)
-                    .ok_or_else(math_error!())?
-            };
-
-        let quote_asset_amount = amm_net_quote_asset_amount_per_lp
-            .checked_mul(n_shares)
-            .ok_or_else(math_error!())?
-            .checked_div(total_lp_shares)
-            .ok_or_else(math_error!())?;
-
-        let min_qaa = amm.minimum_quote_asset_trade_size;
-        let min_baa = amm.base_asset_amount_step_size;
-
-        if base_asset_amount.unsigned_abs() >= min_baa && quote_asset_amount >= min_qaa {
-            market_quote_asset_amount = quote_asset_amount;
-            market_base_asset_amount = base_asset_amount;
-        } else {
-            msg!(
-                "Warning: lp market position too small: {} {} :: {} {}",
-                base_asset_amount,
-                min_baa,
-                quote_asset_amount,
-                min_qaa
-            );
-
-            // no market position bc too small so give them negative upnl
-            // similar to closing their small position
-            unsettled_pnl = cast_to_i128(quote_asset_amount)?
-                .checked_add(1)
+    let amm_net_quote_asset_amount_per_lp = if amm.market_position_per_lp.base_asset_amount.signum()
+        == position
+            .last_cumulative_net_base_asset_amount_per_lp
+            .signum()
+    {
+        if position
+            .last_cumulative_net_base_asset_amount_per_lp
+            .unsigned_abs()
+            > amm.market_position_per_lp.base_asset_amount.unsigned_abs()
+        {
+            position
+                .last_cumulative_net_quote_asset_amount_per_lp
+                .checked_sub(amm.market_position_per_lp.quote_asset_amount)
                 .ok_or_else(math_error!())?
-                .checked_mul(-1)
-                .ok_or_else(math_error!())?;
+        } else {
+            amm.market_position_per_lp
+                .quote_asset_amount
+                .checked_sub(position.last_cumulative_net_quote_asset_amount_per_lp)
+                .ok_or_else(math_error!())?
         }
+    } else {
+        amm.market_position_per_lp
+            .quote_asset_amount
+            .checked_add(position.last_cumulative_net_quote_asset_amount_per_lp)
+            .ok_or_else(math_error!())?
+    };
+
+    let quote_asset_amount = amm_net_quote_asset_amount_per_lp
+        .checked_mul(n_shares)
+        .ok_or_else(math_error!())?
+        .checked_div(total_lp_shares)
+        .ok_or_else(math_error!())?;
+
+    let min_qaa = amm.minimum_quote_asset_trade_size;
+    let min_baa = amm.base_asset_amount_step_size;
+
+    if base_asset_amount.unsigned_abs() >= min_baa && quote_asset_amount >= min_qaa {
+        market_quote_asset_amount = quote_asset_amount;
+        market_base_asset_amount = base_asset_amount;
+    } else {
+        msg!(
+            "Warning: lp market position too small: {} {} :: {} {}",
+            base_asset_amount,
+            min_baa,
+            quote_asset_amount,
+            min_qaa
+        );
+
+        // no market position bc too small so give them negative upnl
+        // similar to closing their small position
+        unsettled_pnl = cast_to_i128(quote_asset_amount)?
+            .checked_add(1)
+            .ok_or_else(math_error!())?
+            .checked_mul(-1)
+            .ok_or_else(math_error!())?;
     }
 
     let metrics = LPMetrics {
@@ -265,46 +254,6 @@ pub fn get_proportion_u128(
         .checked_div(denominator)
         .ok_or_else(math_error!())?;
     Ok(proportional_value)
-}
-
-pub fn update_lp_position(
-    position: &mut MarketPosition,
-    metrics: &LPMetrics,
-) -> ClearingHouseResult<i128> {
-    let is_new_position = position.lp_base_asset_amount == 0;
-    let is_increase = (position.lp_base_asset_amount > 0 && metrics.base_asset_amount > 0)
-        || (position.lp_base_asset_amount < 0 && metrics.base_asset_amount < 0);
-
-    if is_new_position || is_increase {
-        position.lp_base_asset_amount = position
-            .lp_base_asset_amount
-            .checked_add(metrics.base_asset_amount)
-            .ok_or_else(math_error!())?;
-
-        position.lp_quote_asset_amount = position
-            .lp_quote_asset_amount
-            .checked_add(metrics.quote_asset_amount)
-            .ok_or_else(math_error!())?;
-    } else {
-        let quote_asset_amount =
-            abs_difference(metrics.quote_asset_amount, position.lp_quote_asset_amount)?;
-
-        let base_asset_amount = position
-            .lp_base_asset_amount
-            .checked_add(metrics.base_asset_amount)
-            .ok_or_else(math_error!())?;
-
-        position.lp_base_asset_amount = base_asset_amount;
-        position.lp_quote_asset_amount = quote_asset_amount;
-    }
-
-    let upnl = cast_to_i128(metrics.fee_payment)?
-        .checked_add(metrics.funding_payment)
-        .ok_or_else(math_error!())?
-        .checked_add(metrics.unsettled_pnl)
-        .ok_or_else(math_error!())?;
-
-    Ok(upnl)
 }
 
 #[cfg(test)]

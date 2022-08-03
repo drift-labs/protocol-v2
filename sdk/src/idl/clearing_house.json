@@ -2927,18 +2927,6 @@
             "type": "u128"
           },
           {
-            "name": "lpBaseAssetAmount",
-            "type": "i128"
-          },
-          {
-            "name": "lpQuoteAssetAmount",
-            "type": "u128"
-          },
-          {
-            "name": "lastCumulativeFundingPaymentPerLp",
-            "type": "i128"
-          },
-          {
             "name": "lastCumulativeFeePerLp",
             "type": "i128"
           },
@@ -2953,10 +2941,6 @@
           {
             "name": "lastLpAddTime",
             "type": "i64"
-          },
-          {
-            "name": "lpFeePayments",
-            "type": "u128"
           },
           {
             "name": "padding0",

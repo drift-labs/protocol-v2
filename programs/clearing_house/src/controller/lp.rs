@@ -2,7 +2,7 @@ use crate::controller::position::update_unsettled_pnl;
 use crate::error::ClearingHouseResult;
 use crate::math::casting::cast;
 use crate::math::lp::get_lp_metrics;
-use crate::math::lp::{get_proportion_i128, get_proportion_u128, update_lp_position};
+use crate::math::lp::{get_proportion_i128, get_proportion_u128, LPMetrics};
 use crate::math_error;
 use crate::state::market::Market;
 use crate::MarketPosition;
@@ -19,26 +19,35 @@ pub fn settle_lp_position(
     market: &mut Market,
 ) -> ClearingHouseResult<()> {
     let amm = &mut market.amm;
-    let metrics = get_lp_metrics(position, amm)?;
+    let metrics: LPMetrics = get_lp_metrics(position, amm)?;
 
     // update lp market position
     // todo: use update_position_and_market instead of update_lp_position
     // for the lp when they settle, that should make the market state/ funding prope
-    let upnl = update_lp_position(position, &metrics)?;
-    update_unsettled_pnl(position, market, upnl)?;
+    // let upnl = update_lp_position(position, &metrics)?;
+    // update_unsettled_pnl(position, market, upnl)?;
+    // give them a portion of the market position
 
-    // position.lp_fee_payments = position
-    //     .lp_fee_payments
-    //     .checked_add(metrics.fee_payment)
-    //     .ok_or_else(math_error!())?;
+    // track new market position
+    let position_delta = PositionDelta {
+        base_asset_amount: metrics.base_asset_amount,
+        quote_asset_amount: metrics.quote_asset_amount,
+    };
 
-    // market gets it when its too small
-    //todo: AMM has slightly more position+IL than this though that doesnt get registered//
-    assert!(metrics.unsettled_pnl <= 0);
-    market.amm.total_fee_minus_distributions = market
+    let upnl = update_position_and_market(position, market, &position_delta)?;
+
+    position.unsettled_pnl = position
+        .unsettled_pnl
+        .checked_add(
+            upnl.checked_add(metrics.unsettled_pnl)
+                .ok_or_else(math_error!())?,
+        )
+        .ok_or_else(math_error!())?;
+
+    market.amm.net_base_asset_amount = market
         .amm
-        .total_fee_minus_distributions
-        .checked_add(cast(metrics.unsettled_pnl.unsigned_abs())?)
+        .net_base_asset_amount
+        .checked_add(metrics.base_asset_amount)
         .ok_or_else(math_error!())?;
 
     // update last_ metrics
@@ -57,49 +66,6 @@ pub fn burn_lp_shares(
     shares_to_burn: u128,
 ) -> ClearingHouseResult<()> {
     settle_lp_position(position, market)?;
-
-    // give them a portion of the market position
-    if position.lp_base_asset_amount != 0 {
-        let base_amount_acquired = get_proportion_i128(
-            position.lp_base_asset_amount,
-            shares_to_burn,
-            position.lp_shares,
-        )?;
-
-        let quote_amount = get_proportion_u128(
-            position.lp_quote_asset_amount,
-            shares_to_burn,
-            position.lp_shares,
-        )?;
-
-        // update lp position
-        position.lp_base_asset_amount = position
-            .lp_base_asset_amount
-            .checked_sub(base_amount_acquired)
-            .ok_or_else(math_error!())?;
-        position.lp_quote_asset_amount = position
-            .lp_quote_asset_amount
-            .checked_sub(quote_amount)
-            .ok_or_else(math_error!())?;
-
-        // track new market position
-        let position_delta = PositionDelta {
-            base_asset_amount: base_amount_acquired,
-            quote_asset_amount: quote_amount,
-        };
-        let upnl = update_position_and_market(position, market, &position_delta)?;
-
-        market.amm.net_base_asset_amount = market
-            .amm
-            .net_base_asset_amount
-            .checked_add(base_amount_acquired)
-            .ok_or_else(math_error!())?;
-
-        position.unsettled_pnl = position
-            .unsettled_pnl
-            .checked_add(upnl)
-            .ok_or_else(math_error!())?;
-    }
 
     // burn shares
     position.lp_shares = position
