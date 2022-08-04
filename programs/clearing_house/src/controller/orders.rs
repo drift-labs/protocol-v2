@@ -1164,13 +1164,13 @@ pub fn fulfill_order_with_match(
 
     let taker_position_index = get_position_index(
         &taker.positions,
-        taker.orders[maker_order_index].market_index,
+        taker.orders[taker_order_index].market_index,
     )?;
 
     let taker_position_delta = get_position_delta_for_fill(
         base_asset_amount,
         quote_asset_amount,
-        taker.orders[maker_order_index].direction,
+        taker.orders[taker_order_index].direction,
     )?;
 
     let mut taker_unsettled_pnl = update_position_and_market(
