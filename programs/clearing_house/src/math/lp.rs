@@ -389,16 +389,16 @@ mod test {
         };
 
         let amm = AMM {
-            cumulative_net_base_asset_amount_per_lp: 100 * AMM_RESERVE_PRECISION_I128,
+            // cumulative_net_base_asset_amount_per_lp: 100 * AMM_RESERVE_PRECISION_I128,
             net_base_asset_amount: 100 * AMM_RESERVE_PRECISION_I128, // users went long
             market_position_per_lp: MarketPosition {
-                base_asset_amount: 100 * AMM_RESERVE_PRECISION_I128, //todo
+                base_asset_amount: 71 * AMM_RESERVE_PRECISION_I128, //todo
                 quote_asset_amount: 0 * QUOTE_PRECISION,
                 ..MarketPosition::default()
             },
             peg_multiplier: 1,
             sqrt_k: 900 * AMM_RESERVE_PRECISION,
-            base_asset_amount_step_size: 100 * AMM_RESERVE_PRECISION, // min size is big
+            base_asset_amount_step_size: 1000 * AMM_RESERVE_PRECISION, // min size is big
             minimum_quote_asset_trade_size: 100 * AMM_RESERVE_PRECISION,
             ..AMM::default()
         };
