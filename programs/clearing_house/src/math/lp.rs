@@ -392,8 +392,8 @@ mod test {
             cumulative_net_base_asset_amount_per_lp: 100 * AMM_RESERVE_PRECISION_I128,
             net_base_asset_amount: 100 * AMM_RESERVE_PRECISION_I128, // users went long
             market_position_per_lp: MarketPosition {
-                base_asset_amount: 70 * AMM_RESERVE_PRECISION_I128, //todo
-                quote_asset_amount: 100 * QUOTE_PRECISION,
+                base_asset_amount: 100 * AMM_RESERVE_PRECISION_I128, //todo
+                quote_asset_amount: 0 * QUOTE_PRECISION,
                 ..MarketPosition::default()
             },
             peg_multiplier: 1,
