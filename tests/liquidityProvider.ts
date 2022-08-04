@@ -408,6 +408,7 @@ describe('liquidity providing', () => {
 			);
 			assert(false);
 		} catch (e) {
+			console.error(e);
 			assert(e.message.includes('0x1773')); // insufficient collateral
 		}
 	});
@@ -698,6 +699,7 @@ describe('liquidity providing', () => {
 			await provider.sendAll([{ tx }]);
 			assert(false);
 		} catch (e) {
+			console.error(e);
 			assert(e.message.includes('0x17ce'));
 		}
 	});

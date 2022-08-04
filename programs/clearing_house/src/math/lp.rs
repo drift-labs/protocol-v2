@@ -169,9 +169,13 @@ pub fn get_lp_market_position_margin(
         .checked_div(sqrt_2_percision)
         .ok_or_else(math_error!())?;
 
-    let max_asks = ask_bounded_k
+    let max_asks = if ask_bounded_k > market.amm.base_asset_reserve {
+        ask_bounded_k
         .checked_sub(market.amm.base_asset_reserve)
-        .ok_or_else(math_error!())?;
+        .ok_or_else(math_error!())?
+    } else {
+        0
+    };
 
     let open_asks = cast_to_i128(get_proportion_u128(max_asks, lp_shares, total_lp_shares)?)?;
 
@@ -183,12 +187,23 @@ pub fn get_lp_market_position_margin(
         .ok_or_else(math_error!())?
         .checked_div(sqrt_2)
         .ok_or_else(math_error!())?;
-
-    let max_bids = market
+    msg!(
+        "{:?} > {:?} ? ",
+        bids_bounded_k,
+        market.amm.base_asset_reserve
+    );
+    let max_bids = if bids_bounded_k < market
+    .amm
+    .base_asset_reserve { market
         .amm
         .base_asset_reserve
         .checked_sub(bids_bounded_k)
-        .ok_or_else(math_error!())?;
+        .ok_or_else(math_error!())?
+    } else {
+        0
+    };
+
+    msg!("ma: {:?}, mb: {:?}", max_asks, max_bids);
 
     let open_bids = cast_to_i128(get_proportion_u128(max_bids, lp_shares, total_lp_shares)?)?;
 
@@ -201,6 +216,8 @@ pub fn get_lp_market_position_margin(
         .open_asks
         .checked_add(open_asks)
         .ok_or_else(math_error!())?;
+
+    msg!("oa: {:?}, ob: {:?}", open_asks, open_bids);
 
     Ok(position_clone)
 }
