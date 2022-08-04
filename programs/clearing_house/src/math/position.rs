@@ -190,7 +190,7 @@ pub fn calculate_position_new_quote_base_pnl(
         new_position || position.base_asset_amount.signum() == delta.base_asset_amount.signum();
 
     let (new_quote_asset_amount, new_quote_entry_amount, new_base_asset_amount, pnl) =
-        if !increasing_position {
+        if !increasing_position && delta.base_asset_amount != 0 {
             let base_asset_amount_before_unsigned = position.base_asset_amount.unsigned_abs();
             let delta_base_asset_amount_unsigned = delta.base_asset_amount.unsigned_abs();
 

@@ -117,16 +117,16 @@ pub fn update_position_and_market(
     market: &mut Market,
     delta: &PositionDelta,
 ) -> ClearingHouseResult<i128> {
-    let new_position = position.base_asset_amount == 0;
-    let increasing_position =
-        new_position || position.base_asset_amount.signum() == delta.base_asset_amount.signum();
+    let new_position = position.base_asset_amount == 0 && delta.base_asset_amount != 0;
+    let increasing_position = delta.base_asset_amount != 0 && (
+        new_position || position.base_asset_amount.signum() == delta.base_asset_amount.signum());
 
     let (new_quote_asset_amount, new_quote_entry_amount, new_base_asset_amount, pnl) =
         calculate_position_new_quote_base_pnl(position, delta)?;
 
     let reduced_position = !increasing_position
         && position.base_asset_amount.signum() == new_base_asset_amount.signum();
-    let closed_position = new_base_asset_amount == 0;
+    let closed_position = new_base_asset_amount == 0 && delta.base_asset_amount != 0;
     let flipped_position = position.base_asset_amount.signum() != new_base_asset_amount.signum();
 
     // Update the market stats that are based on user position changes

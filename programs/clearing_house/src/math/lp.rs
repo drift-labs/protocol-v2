@@ -86,10 +86,11 @@ pub fn get_lp_metrics(position: &MarketPosition, amm: &AMM) -> ClearingHouseResu
         .checked_div(total_lp_shares)
         .ok_or_else(math_error!())?;
 
-    let min_qaa = amm.minimum_quote_asset_trade_size;
+    let min_qaa = amm.minimum_quote_asset_trade_size; // todo: uses reserve precision
     let min_baa = amm.base_asset_amount_step_size;
 
-    if base_asset_amount.unsigned_abs() >= min_baa && quote_asset_amount >= min_qaa {
+    if base_asset_amount.unsigned_abs() >= min_baa {
+        //&& quote_asset_amount >= min_qaa {
         market_quote_asset_amount = quote_asset_amount;
         market_base_asset_amount = base_asset_amount;
     } else {

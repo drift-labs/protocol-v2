@@ -323,7 +323,7 @@ describe('liquidity providing', () => {
 
 		console.log('done!');
 	});
-	return;
+	// return;
 
 	it('provides and removes liquidity', async () => {
 		let market = clearingHouse.getMarketAccount(0);
@@ -332,10 +332,14 @@ describe('liquidity providing', () => {
 		const prevqar = market.amm.quoteAssetReserve;
 
 		console.log('adding liquidity...');
-		const _txsig = await clearingHouse.addLiquidity(
-			new BN(100 * AMM_RESERVE_PRECISION),
-			market.marketIndex
-		);
+		try {
+			const _txsig = await clearingHouse.addLiquidity(
+				new BN(100 * AMM_RESERVE_PRECISION),
+				market.marketIndex
+			);
+		} catch (e) {
+			console.error(e);
+		}
 		await delay(lpCooldown + 1000);
 
 		market = clearingHouse.getMarketAccount(0);
