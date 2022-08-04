@@ -118,8 +118,9 @@ pub fn update_position_and_market(
     delta: &PositionDelta,
 ) -> ClearingHouseResult<i128> {
     let new_position = position.base_asset_amount == 0 && delta.base_asset_amount != 0;
-    let increasing_position = delta.base_asset_amount != 0 && (
-        new_position || position.base_asset_amount.signum() == delta.base_asset_amount.signum());
+    let increasing_position = delta.base_asset_amount != 0
+        && (new_position
+            || position.base_asset_amount.signum() == delta.base_asset_amount.signum());
 
     let (new_quote_asset_amount, new_quote_entry_amount, new_base_asset_amount, pnl) =
         calculate_position_new_quote_base_pnl(position, delta)?;
