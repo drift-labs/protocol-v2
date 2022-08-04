@@ -715,6 +715,10 @@ fn fulfill_order(
 ) -> ClearingHouseResult<(u128, bool, bool)> {
     let market_index = user.orders[user_order_index].market_index;
 
+    let position_index = get_position_index(&user.positions, market_index)?;
+    let worst_case_base_asset_amount_before =
+        user.positions[position_index].worst_case_base_asset_amount()?;
+
     let user_checkpoint = checkpoint_user(user, market_index, Some(user_order_index))?;
     let maker_checkpoint = if let Some(maker) = maker {
         let maker_order_index = maker_order_index.ok_or(ErrorCode::MakerOrderNotFound)?;
@@ -791,12 +795,19 @@ fn fulfill_order(
             .ok_or_else(math_error!())?;
     }
 
+    let worst_case_base_asset_amount_after =
+        user.positions[position_index].worst_case_base_asset_amount()?;
+
+    // Order fails if it's risk increasing and it brings the user collateral below the margin requirement
+    let risk_decreasing = worst_case_base_asset_amount_after.unsigned_abs()
+        < worst_case_base_asset_amount_before.unsigned_abs();
+
     let meets_initial_margin_requirement =
         meets_initial_margin_requirement(user, market_map, bank_map, oracle_map)?;
 
     let mut updated_user_state = base_asset_amount != 0;
 
-    if meets_initial_margin_requirement {
+    if meets_initial_margin_requirement || risk_decreasing {
         for order_record in order_records {
             emit!(order_record)
         }
