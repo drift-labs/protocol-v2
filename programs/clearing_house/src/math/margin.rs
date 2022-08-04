@@ -11,13 +11,9 @@ use crate::math::position::{
 use crate::math_error;
 use crate::state::user::User;
 
-use crate::math::amm::use_oracle_price_for_margin_calculation;
 use crate::math::bank_balance::get_balance_value_and_token_amount;
 use crate::math::casting::cast_to_i128;
 use crate::math::funding::calculate_funding_payment;
-use crate::math::oracle::{get_oracle_status, OracleStatus};
-// use crate::math::repeg;
-use crate::math::slippage::calculate_slippage;
 use crate::state::bank::Bank;
 use crate::state::bank::BankBalanceType;
 use crate::state::bank_map::BankMap;
@@ -25,12 +21,10 @@ use crate::state::market::Market;
 use crate::state::market_map::MarketMap;
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
-use crate::state::state::OracleGuardRails;
 use crate::state::user::{MarketPosition, UserBankBalance};
 use num_integer::Roots;
 use solana_program::msg;
 use std::cmp::{max, min};
-use std::ops::Div;
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum MarginRequirementType {
@@ -359,6 +353,9 @@ pub fn meets_initial_margin_requirement(
         oracle_map,
     )?;
 
+    msg!("margin_requirement {}", margin_requirement);
+    msg!("total_collateral {}", total_collateral);
+
     Ok(total_collateral >= cast_to_i128(margin_requirement)?)
 }
 
@@ -382,289 +379,6 @@ pub fn meets_partial_margin_requirement(
         .ok_or_else(math_error!())?;
 
     Ok(total_collateral >= cast_to_i128(partial_margin_requirement)?)
-}
-
-#[derive(PartialEq)]
-pub enum LiquidationType {
-    NONE,
-    PARTIAL,
-    FULL,
-}
-
-pub struct LiquidationStatus {
-    pub liquidation_type: LiquidationType,
-    pub margin_requirement: u128,
-    pub total_collateral: u128,
-    pub unrealized_pnl: i128,
-    pub adjusted_total_collateral: u128,
-    pub base_asset_value: u128,
-    pub margin_ratio: u128,
-    pub market_statuses: [MarketStatus; 5],
-}
-
-#[derive(Default, Clone, Copy, Debug)]
-pub struct MarketStatus {
-    pub market_index: u64,
-    pub partial_margin_requirement: u128,
-    pub maintenance_margin_requirement: u128,
-    pub base_asset_value: u128,
-    pub mark_price_before: u128,
-    pub close_position_slippage: Option<i128>,
-    pub oracle_status: OracleStatus,
-}
-
-pub fn calculate_liquidation_status(
-    user: &User,
-    market_map: &MarketMap,
-    bank_map: &BankMap,
-    oracle_map: &mut OracleMap,
-    oracle_guard_rails: &OracleGuardRails,
-) -> ClearingHouseResult<LiquidationStatus> {
-    let mut deposit_value: u128 = 0;
-    let mut partial_margin_requirement: u128 = 0;
-    let mut maintenance_margin_requirement: u128 = 0;
-    let mut base_asset_value: u128 = 0;
-    let mut unsettled_pnl: i128 = 0;
-    let mut unrealized_pnl: i128 = 0;
-    let mut adjusted_unrealized_pnl: i128 = 0;
-    let mut market_statuses = [MarketStatus::default(); 5];
-
-    for user_bank_balance in user.bank_balances.iter() {
-        if user_bank_balance.balance == 0 {
-            continue;
-        }
-
-        let bank = &bank_map.get_ref(&user_bank_balance.bank_index)?;
-
-        let oracle_price_data = oracle_map.get_price_data(&bank.oracle)?;
-        let (balance_value, token_amount) =
-            get_balance_value_and_token_amount(user_bank_balance, bank, oracle_price_data)?;
-
-        match user_bank_balance.balance_type {
-            BankBalanceType::Deposit => {
-                deposit_value = deposit_value
-                    .checked_add(
-                        balance_value
-                            .checked_mul(bank.get_asset_weight(
-                                token_amount,
-                                &MarginRequirementType::Maintenance,
-                            )?)
-                            .ok_or_else(math_error!())?
-                            .checked_div(BANK_WEIGHT_PRECISION)
-                            .ok_or_else(math_error!())?,
-                    )
-                    .ok_or_else(math_error!())?;
-            }
-            BankBalanceType::Borrow => panic!(),
-        }
-    }
-
-    for (i, market_position) in user.positions.iter().enumerate() {
-        unsettled_pnl = unsettled_pnl
-            .checked_add(market_position.unsettled_pnl)
-            .ok_or_else(math_error!())?;
-
-        if market_position.base_asset_amount == 0 {
-            continue;
-        }
-
-        let market = market_map.get_ref(&market_position.market_index)?;
-        let amm = &market.amm;
-        let (amm_position_base_asset_value, amm_position_unrealized_pnl) =
-            calculate_base_asset_value_and_pnl(market_position, amm, true)?;
-
-        base_asset_value = base_asset_value
-            .checked_add(amm_position_base_asset_value)
-            .ok_or_else(math_error!())?;
-        unrealized_pnl = unrealized_pnl
-            .checked_add(amm_position_unrealized_pnl)
-            .ok_or_else(math_error!())?;
-
-        // Block the liquidation if the oracle is invalid or the oracle and mark are too divergent
-        let mark_price_before = market.amm.mark_price()?;
-
-        let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
-        let oracle_status = get_oracle_status(
-            &market.amm,
-            oracle_price_data,
-            oracle_guard_rails,
-            Some(mark_price_before),
-        )?;
-
-        let market_partial_margin_requirement: u128;
-        let market_maintenance_margin_requirement: u128;
-        let mut close_position_slippage = None;
-        if oracle_status.is_valid
-            && use_oracle_price_for_margin_calculation(
-                oracle_status.oracle_mark_spread_pct,
-                &oracle_guard_rails.price_divergence,
-            )?
-        {
-            let market_index = market_position.market_index;
-            let exit_slippage = calculate_slippage(
-                amm_position_base_asset_value,
-                market_position.base_asset_amount.unsigned_abs(),
-                cast_to_i128(mark_price_before)?,
-            )?;
-            close_position_slippage = Some(exit_slippage);
-
-            let oracle_exit_price = oracle_status
-                .price_data
-                .price
-                .checked_add(exit_slippage)
-                .ok_or_else(math_error!())?;
-
-            let (oracle_position_base_asset_value, oracle_position_unrealized_pnl) =
-                calculate_base_asset_value_and_pnl_with_oracle_price(
-                    market_position,
-                    oracle_exit_price,
-                )?;
-
-            let oracle_provides_better_pnl =
-                oracle_position_unrealized_pnl > amm_position_unrealized_pnl;
-            if oracle_provides_better_pnl {
-                msg!("Using oracle pnl for market {}", market_index);
-                adjusted_unrealized_pnl = adjusted_unrealized_pnl
-                    .checked_add(oracle_position_unrealized_pnl)
-                    .ok_or_else(math_error!())?;
-
-                market_partial_margin_requirement = (oracle_position_base_asset_value)
-                    .checked_mul(market.margin_ratio_partial.into())
-                    .ok_or_else(math_error!())?;
-
-                partial_margin_requirement = partial_margin_requirement
-                    .checked_add(market_partial_margin_requirement)
-                    .ok_or_else(math_error!())?;
-
-                market_maintenance_margin_requirement = oracle_position_base_asset_value
-                    .checked_mul(market.margin_ratio_maintenance.into())
-                    .ok_or_else(math_error!())?;
-
-                maintenance_margin_requirement = maintenance_margin_requirement
-                    .checked_add(market_maintenance_margin_requirement)
-                    .ok_or_else(math_error!())?;
-            } else {
-                adjusted_unrealized_pnl = adjusted_unrealized_pnl
-                    .checked_add(amm_position_unrealized_pnl)
-                    .ok_or_else(math_error!())?;
-
-                market_partial_margin_requirement = (amm_position_base_asset_value)
-                    .checked_mul(market.margin_ratio_partial.into())
-                    .ok_or_else(math_error!())?;
-
-                partial_margin_requirement = partial_margin_requirement
-                    .checked_add(market_partial_margin_requirement)
-                    .ok_or_else(math_error!())?;
-
-                market_maintenance_margin_requirement = amm_position_base_asset_value
-                    .checked_mul(market.margin_ratio_maintenance.into())
-                    .ok_or_else(math_error!())?;
-
-                maintenance_margin_requirement = maintenance_margin_requirement
-                    .checked_add(market_maintenance_margin_requirement)
-                    .ok_or_else(math_error!())?;
-            }
-        } else {
-            adjusted_unrealized_pnl = adjusted_unrealized_pnl
-                .checked_add(amm_position_unrealized_pnl)
-                .ok_or_else(math_error!())?;
-
-            market_partial_margin_requirement = (amm_position_base_asset_value)
-                .checked_mul(market.margin_ratio_partial.into())
-                .ok_or_else(math_error!())?;
-
-            partial_margin_requirement = partial_margin_requirement
-                .checked_add(market_partial_margin_requirement)
-                .ok_or_else(math_error!())?;
-
-            market_maintenance_margin_requirement = amm_position_base_asset_value
-                .checked_mul(market.margin_ratio_maintenance.into())
-                .ok_or_else(math_error!())?;
-
-            maintenance_margin_requirement = maintenance_margin_requirement
-                .checked_add(market_maintenance_margin_requirement)
-                .ok_or_else(math_error!())?;
-        }
-
-        market_statuses[i] = MarketStatus {
-            market_index: market_position.market_index,
-            partial_margin_requirement: market_partial_margin_requirement.div(MARGIN_PRECISION),
-            maintenance_margin_requirement: market_maintenance_margin_requirement
-                .div(MARGIN_PRECISION),
-            base_asset_value: amm_position_base_asset_value,
-            mark_price_before,
-            oracle_status,
-            close_position_slippage,
-        };
-    }
-
-    partial_margin_requirement = partial_margin_requirement
-        .checked_div(MARGIN_PRECISION)
-        .ok_or_else(math_error!())?;
-
-    maintenance_margin_requirement = maintenance_margin_requirement
-        .checked_div(MARGIN_PRECISION)
-        .ok_or_else(math_error!())?;
-
-    let total_collateral = calculate_updated_collateral(
-        calculate_updated_collateral(deposit_value, unrealized_pnl)?,
-        unsettled_pnl,
-    )?;
-    let adjusted_total_collateral = calculate_updated_collateral(
-        calculate_updated_collateral(deposit_value, adjusted_unrealized_pnl)?,
-        unsettled_pnl,
-    )?;
-
-    let requires_partial_liquidation = adjusted_total_collateral < partial_margin_requirement;
-    let requires_full_liquidation = adjusted_total_collateral < maintenance_margin_requirement;
-
-    let liquidation_type = if requires_full_liquidation {
-        LiquidationType::FULL
-    } else if requires_partial_liquidation {
-        LiquidationType::PARTIAL
-    } else {
-        LiquidationType::NONE
-    };
-
-    let margin_requirement = match liquidation_type {
-        LiquidationType::FULL => maintenance_margin_requirement,
-        LiquidationType::PARTIAL => partial_margin_requirement,
-        LiquidationType::NONE => partial_margin_requirement,
-    };
-
-    // Sort the market statuses such that we close the markets with biggest margin requirements first
-    if liquidation_type == LiquidationType::FULL {
-        market_statuses.sort_by(|a, b| {
-            b.maintenance_margin_requirement
-                .cmp(&a.maintenance_margin_requirement)
-        });
-    } else if liquidation_type == LiquidationType::PARTIAL {
-        market_statuses.sort_by(|a, b| {
-            b.partial_margin_requirement
-                .cmp(&a.partial_margin_requirement)
-        });
-    }
-
-    let margin_ratio = if base_asset_value == 0 {
-        u128::MAX
-    } else {
-        total_collateral
-            .checked_mul(MARGIN_PRECISION)
-            .ok_or_else(math_error!())?
-            .checked_div(base_asset_value)
-            .ok_or_else(math_error!())?
-    };
-
-    Ok(LiquidationStatus {
-        liquidation_type,
-        margin_requirement,
-        total_collateral,
-        unrealized_pnl,
-        adjusted_total_collateral,
-        base_asset_value,
-        market_statuses,
-        margin_ratio,
-    })
 }
 
 pub fn calculate_free_collateral(

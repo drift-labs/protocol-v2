@@ -3267,23 +3267,6 @@
       }
     },
     {
-      "name": "LiquidationType",
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "NONE"
-          },
-          {
-            "name": "PARTIAL"
-          },
-          {
-            "name": "FULL"
-          }
-        ]
-      }
-    },
-    {
       "name": "BankBalanceType",
       "type": {
         "kind": "enum",
@@ -3361,7 +3344,7 @@
       }
     },
     {
-      "name": "LiquidationType2",
+      "name": "LiquidationType",
       "type": {
         "kind": "enum",
         "variants": [
@@ -3875,7 +3858,7 @@
         {
           "name": "liquidationType",
           "type": {
-            "defined": "LiquidationType2"
+            "defined": "LiquidationType"
           },
           "index": false
         },

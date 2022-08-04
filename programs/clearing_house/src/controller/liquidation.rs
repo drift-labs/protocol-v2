@@ -25,7 +25,7 @@ use crate::state::bank::BankBalanceType;
 use crate::state::bank_map::BankMap;
 use crate::state::events::{
     LiquidateBorrowForPerpPnlRecord, LiquidateBorrowRecord, LiquidatePerpPnlForDepositRecord,
-    LiquidatePerpRecord, LiquidationRecord, LiquidationType2, OrderActionExplanation,
+    LiquidatePerpRecord, LiquidationRecord, LiquidationType, OrderActionExplanation,
 };
 use crate::state::market_map::MarketMap;
 use crate::state::oracle_map::OracleMap;
@@ -169,7 +169,7 @@ pub fn liquidate_perp(
     if total_collateral >= cast(margin_requirement_plus_buffer)? {
         emit!(LiquidationRecord {
             ts: now,
-            liquidation_type: LiquidationType2::LiquidatePerp,
+            liquidation_type: LiquidationType::LiquidatePerp,
             user: *user_key,
             liquidator: *liquidator_key,
             margin_requirement,
@@ -297,7 +297,7 @@ pub fn liquidate_perp(
 
     emit!(LiquidationRecord {
         ts: now,
-        liquidation_type: LiquidationType2::LiquidatePerp,
+        liquidation_type: LiquidationType::LiquidatePerp,
         user: *user_key,
         liquidator: *liquidator_key,
         margin_requirement,
@@ -560,7 +560,7 @@ pub fn liquidate_borrow(
 
     emit!(LiquidationRecord {
         ts: now,
-        liquidation_type: LiquidationType2::LiquidateBorrow,
+        liquidation_type: LiquidationType::LiquidateBorrow,
         user: *user_key,
         liquidator: *liquidator_key,
         margin_requirement,
@@ -837,7 +837,7 @@ pub fn liquidate_borrow_for_perp_pnl(
 
     emit!(LiquidationRecord {
         ts: now,
-        liquidation_type: LiquidationType2::LiquidateBorrowForPerpPnl,
+        liquidation_type: LiquidationType::LiquidateBorrowForPerpPnl,
         user: *user_key,
         liquidator: *liquidator_key,
         margin_requirement,
@@ -1113,7 +1113,7 @@ pub fn liquidate_perp_pnl_for_deposit(
 
     emit!(LiquidationRecord {
         ts: now,
-        liquidation_type: LiquidationType2::LiquidatePerpPnlForDeposit,
+        liquidation_type: LiquidationType::LiquidatePerpPnlForDeposit,
         user: *user_key,
         liquidator: *liquidator_key,
         margin_requirement,

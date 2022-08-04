@@ -135,7 +135,7 @@ impl Default for OrderAction {
 #[derive(Default)]
 pub struct LiquidationRecord {
     pub ts: i64,
-    pub liquidation_type: LiquidationType2,
+    pub liquidation_type: LiquidationType,
     pub user: Pubkey,
     pub liquidator: Pubkey,
     pub margin_requirement: u128,
@@ -147,17 +147,17 @@ pub struct LiquidationRecord {
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq)]
-pub enum LiquidationType2 {
+pub enum LiquidationType {
     LiquidatePerp,
     LiquidateBorrow,
     LiquidateBorrowForPerpPnl,
     LiquidatePerpPnlForDeposit,
 }
 
-impl Default for LiquidationType2 {
+impl Default for LiquidationType {
     // UpOnly
     fn default() -> Self {
-        LiquidationType2::LiquidatePerp
+        LiquidationType::LiquidatePerp
     }
 }
 
