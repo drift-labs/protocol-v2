@@ -537,6 +537,7 @@ export type FeeStructure = {
 	makerRebateNumerator: BN;
 	makerRebateDenominator: BN;
 	fillerRewardStructure: OrderFillerRewardStructure;
+	cancelOrderFee: BN;
 };
 
 export type OracleGuardRails = {

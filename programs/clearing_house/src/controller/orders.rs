@@ -487,10 +487,7 @@ pub fn fill_order(
         &user.orders[order_index],
         &mut filler.as_deref_mut(),
         &filler_key,
-        state
-            .fee_structure
-            .filler_reward_structure
-            .time_based_reward_lower_bound,
+        state.fee_structure.cancel_order_fee,
         oracle_price,
         now,
         slot,
@@ -501,14 +498,11 @@ pub fn fill_order(
     if should_expire_order {
         let filler_reward = {
             let mut market = market_map.get_ref_mut(&market_index)?;
-            pay_filler_flat_reward(
+            pay_keeper_flat_reward(
                 user,
                 filler.as_deref_mut(),
                 market.deref_mut(),
-                state
-                    .fee_structure
-                    .filler_reward_structure
-                    .time_based_reward_lower_bound,
+                state.fee_structure.cancel_order_fee,
             )?
         };
 
@@ -552,14 +546,11 @@ pub fn fill_order(
 
         let filler_reward = {
             let mut market = market_map.get_ref_mut(&market_index)?;
-            pay_filler_flat_reward(
+            pay_keeper_flat_reward(
                 user,
                 filler.as_deref_mut(),
                 market.deref_mut(),
-                state
-                    .fee_structure
-                    .filler_reward_structure
-                    .time_based_reward_lower_bound,
+                state.fee_structure.cancel_order_fee,
             )?
         };
 
@@ -691,7 +682,7 @@ fn sanitize_maker_order<'a>(
         let filler_reward = {
             let mut market =
                 market_map.get_ref_mut(&maker.orders[maker_order_index].market_index)?;
-            pay_filler_flat_reward(
+            pay_keeper_flat_reward(
                 &mut maker,
                 filler.as_deref_mut(),
                 market.deref_mut(),
@@ -854,13 +845,11 @@ fn fulfill_order(
 
         let filler_reward = {
             let mut market = market_map.get_ref_mut(&market_index)?;
-            pay_filler_flat_reward(
+            pay_keeper_flat_reward(
                 user,
                 filler.as_deref_mut(),
                 market.deref_mut(),
-                fee_structure
-                    .filler_reward_structure
-                    .time_based_reward_lower_bound,
+                fee_structure.cancel_order_fee,
             )?
         };
 
@@ -1526,14 +1515,11 @@ pub fn trigger_order(
         None
     };
 
-    let filler_reward = pay_filler_flat_reward(
+    let filler_reward = pay_keeper_flat_reward(
         user,
         filler.as_deref_mut(),
         market,
-        state
-            .fee_structure
-            .filler_reward_structure
-            .time_based_reward_lower_bound,
+        state.fee_structure.cancel_order_fee,
     )?;
 
     emit!(OrderRecord {
@@ -1562,7 +1548,7 @@ pub fn trigger_order(
     Ok(())
 }
 
-pub fn pay_filler_flat_reward(
+pub fn pay_keeper_flat_reward(
     user: &mut User,
     filler: Option<&mut User>,
     market: &mut Market,

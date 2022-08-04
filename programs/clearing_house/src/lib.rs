@@ -1209,6 +1209,7 @@ pub mod clearing_house {
             slot,
             now,
             ctx.accounts.state.liquidation_margin_buffer_ratio,
+            ctx.accounts.state.fee_structure.cancel_order_fee,
         )?;
 
         Ok(())

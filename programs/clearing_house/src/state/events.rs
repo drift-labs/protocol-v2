@@ -165,6 +165,7 @@ impl Default for LiquidationType {
 pub struct LiquidatePerpRecord {
     pub market_index: u64,
     pub order_ids: Vec<u64>,
+    pub canceled_orders_fee: u128,
     pub oracle_price: i128,
     pub base_asset_amount: i128,
     pub quote_asset_amount: u128,

@@ -128,6 +128,7 @@ pub mod liquidate_perp {
             slot,
             now,
             10,
+            0,
         )
         .unwrap();
 
@@ -255,6 +256,7 @@ pub mod liquidate_perp {
             slot,
             now,
             10,
+            0,
         )
         .unwrap();
 
@@ -386,6 +388,7 @@ pub mod liquidate_perp {
             slot,
             now,
             255,
+            0,
         )
         .unwrap();
 
@@ -502,6 +505,7 @@ pub mod liquidate_perp {
             slot,
             now,
             10,
+            0,
         )
         .unwrap();
 
@@ -628,6 +632,7 @@ pub mod liquidate_perp {
             slot,
             now,
             100,
+            0,
         )
         .unwrap();
 

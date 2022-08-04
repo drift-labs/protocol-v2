@@ -102,6 +102,7 @@ pub struct FeeStructure {
     pub maker_rebate_numerator: u128,
     pub maker_rebate_denominator: u128,
     pub filler_reward_structure: OrderFillerRewardStructure,
+    pub cancel_order_fee: u128,
 }
 
 impl Default for FeeStructure {
@@ -144,6 +145,7 @@ impl Default for FeeStructure {
                 reward_denominator: 10,
                 time_based_reward_lower_bound: 10_000, // 1 cent
             },
+            cancel_order_fee: 10_000,
         }
     }
 }

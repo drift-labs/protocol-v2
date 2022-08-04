@@ -1,6 +1,6 @@
 use crate::controller::bank_balance::{update_bank_balances, update_bank_cumulative_interest};
 use crate::controller::funding::settle_funding_payment;
-use crate::controller::orders::cancel_order;
+use crate::controller::orders::{cancel_order, pay_keeper_flat_reward};
 use crate::controller::position::{
     get_position_index, update_position_and_market, update_unsettled_pnl,
 };
@@ -51,6 +51,7 @@ pub fn liquidate_perp(
     slot: u64,
     now: i64,
     liquidation_margin_buffer_ratio: u8,
+    cancel_fee: u128,
 ) -> ClearingHouseResult {
     user.get_position(market_index).map_err(|e| {
         msg!(
@@ -111,10 +112,21 @@ pub fn liquidate_perp(
     let worst_case_base_asset_amount_before =
         user.positions[position_index].worst_case_base_asset_amount()?;
     let mut canceled_order_ids: Vec<u64> = vec![];
+    let mut canceled_orders_fee = 0_u128;
     for order_index in 0..user.orders.len() {
         if !user.orders[order_index].is_open_order_for_market(market_index) {
             continue;
         }
+
+        canceled_orders_fee = canceled_orders_fee
+            .checked_add(cancel_fee)
+            .ok_or_else(math_error!())?;
+        pay_keeper_flat_reward(
+            user,
+            Some(liquidator),
+            market_map.get_ref_mut(&market_index)?.deref_mut(),
+            cancel_fee,
+        )?;
 
         canceled_order_ids.push(user.orders[order_index].order_id);
         cancel_order(
@@ -127,7 +139,7 @@ pub fn liquidate_perp(
             slot,
             OrderActionExplanation::CanceledForLiquidation,
             Some(liquidator_key),
-            0,
+            cancel_fee,
             true,
         )?;
     }
@@ -178,6 +190,7 @@ pub fn liquidate_perp(
                 market_index,
                 order_ids: canceled_order_ids,
                 oracle_price,
+                canceled_orders_fee,
                 ..LiquidatePerpRecord::default()
             },
             ..LiquidationRecord::default()
@@ -297,6 +310,7 @@ pub fn liquidate_perp(
             quote_asset_amount: user_position_delta.quote_asset_amount,
             user_pnl,
             liquidator_pnl,
+            canceled_orders_fee,
         },
         ..LiquidationRecord::default()
     });
