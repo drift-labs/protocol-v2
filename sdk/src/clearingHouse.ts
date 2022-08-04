@@ -1082,48 +1082,64 @@ export class ClearingHouse {
 		const marketIndex = order.marketIndex;
 		const marketAccount = this.getMarketAccount(marketIndex);
 
-		const bankAccountInfos = [
-			{
-				pubkey: this.getQuoteAssetBankAccount().pubkey,
-				isSigner: false,
-				isWritable: true,
-			},
-		];
-		const marketAccountInfos = [
-			{
-				pubkey: marketAccount.pubkey,
-				isWritable: true,
-				isSigner: false,
-			},
-		];
-		const oracleAccountInfos = [
-			{
-				pubkey: marketAccount.amm.oracle,
-				isWritable: false,
-				isSigner: false,
-			},
-		];
+		const oracleAccountMap = new Map<string, AccountMeta>();
+		const bankAccountMap = new Map<number, AccountMeta>();
+		const marketAccountMap = new Map<number, AccountMeta>();
+
+		marketAccountMap.set(marketIndex.toNumber(), {
+			pubkey: marketAccount.pubkey,
+			isWritable: true,
+			isSigner: false,
+		});
+		oracleAccountMap.set(marketAccount.amm.oracle.toString(), {
+			pubkey: marketAccount.amm.oracle,
+			isWritable: false,
+			isSigner: false,
+		});
+
+		for (const bankBalance of userAccount.bankBalances) {
+			if (!bankBalance.balance.eq(ZERO)) {
+				const bankAccount = this.getBankAccount(bankBalance.bankIndex);
+				bankAccountMap.set(bankBalance.bankIndex.toNumber(), {
+					pubkey: bankAccount.pubkey,
+					isSigner: false,
+					isWritable: true,
+				});
+
+				if (!bankAccount.oracle.equals(PublicKey.default)) {
+					oracleAccountMap.set(bankAccount.oracle.toString(), {
+						pubkey: bankAccount.oracle,
+						isSigner: false,
+						isWritable: false,
+					});
+				}
+			}
+		}
+
 		for (const position of userAccount.positions) {
 			if (
 				!positionIsAvailable(position) &&
 				!position.marketIndex.eq(order.marketIndex)
 			) {
 				const market = this.getMarketAccount(position.marketIndex);
-				marketAccountInfos.push({
+				marketAccountMap.set(position.marketIndex.toNumber(), {
 					pubkey: market.pubkey,
-					isWritable: false,
+					isWritable: true,
 					isSigner: false,
 				});
-				oracleAccountInfos.push({
+				oracleAccountMap.set(market.amm.oracle.toString(), {
 					pubkey: market.amm.oracle,
 					isWritable: false,
 					isSigner: false,
 				});
 			}
 		}
-		const remainingAccounts = oracleAccountInfos.concat(
-			bankAccountInfos.concat(marketAccountInfos)
-		);
+
+		const remainingAccounts = [
+			...oracleAccountMap.values(),
+			...bankAccountMap.values(),
+			...marketAccountMap.values(),
+		];
 
 		const orderId = order.orderId;
 		return await this.program.instruction.triggerOrder(orderId, {
