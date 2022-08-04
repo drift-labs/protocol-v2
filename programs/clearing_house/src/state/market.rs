@@ -7,6 +7,7 @@ use switchboard_v2::AggregatorAccountData;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm;
 use crate::math::casting::{cast, cast_to_i128, cast_to_i64, cast_to_u128};
+use crate::math::constants::LIQUIDATION_FEE_PRECISION;
 use crate::math::margin::{
     calculate_size_discount_asset_weight, calculate_size_premium_liability_weight,
     MarginRequirementType,
@@ -103,6 +104,21 @@ impl Market {
         };
 
         Ok(unsettled_asset_weight)
+    }
+
+    pub fn get_liquidation_fee_multiplier(
+        &self,
+        base_asset_amount: i128,
+    ) -> ClearingHouseResult<u128> {
+        if base_asset_amount >= 0 {
+            LIQUIDATION_FEE_PRECISION
+                .checked_sub(self.liquidation_fee)
+                .ok_or_else(math_error!())
+        } else {
+            LIQUIDATION_FEE_PRECISION
+                .checked_add(self.liquidation_fee)
+                .ok_or_else(math_error!())
+        }
     }
 }
 

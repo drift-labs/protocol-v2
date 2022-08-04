@@ -228,29 +228,16 @@ pub fn liquidate_perp(
         .min(liquidator_max_base_asset_amount)
         .min(base_asset_amount_to_cover_margin_shortage);
 
-    let quote_asset_amount = if user.positions[position_index].base_asset_amount > 0 {
-        let liquidation_multiplier = LIQUIDATION_FEE_PRECISION
-            .checked_sub(liquidation_fee)
-            .ok_or_else(math_error!())?;
-        let base_asset_value =
-            calculate_base_asset_value_with_oracle_price(cast(base_asset_amount)?, oracle_price)?;
-        base_asset_value
-            .checked_mul(liquidation_multiplier)
-            .ok_or_else(math_error!())?
-            .checked_div(LIQUIDATION_FEE_PRECISION)
-            .ok_or_else(math_error!())?
-    } else {
-        let liquidation_multiplier = LIQUIDATION_FEE_PRECISION
-            .checked_add(liquidation_fee)
-            .ok_or_else(math_error!())?;
-        let base_asset_value =
-            calculate_base_asset_value_with_oracle_price(cast(base_asset_amount)?, oracle_price)?;
-        base_asset_value
-            .checked_mul(liquidation_multiplier)
-            .ok_or_else(math_error!())?
-            .checked_div(LIQUIDATION_FEE_PRECISION)
-            .ok_or_else(math_error!())?
-    };
+    let liquidation_multiplier = market_map
+        .get_ref(&market_index)?
+        .get_liquidation_fee_multiplier(user.positions[position_index].base_asset_amount)?;
+    let base_asset_value =
+        calculate_base_asset_value_with_oracle_price(cast(base_asset_amount)?, oracle_price)?;
+    let quote_asset_amount = base_asset_value
+        .checked_mul(liquidation_multiplier)
+        .ok_or_else(math_error!())?
+        .checked_div(LIQUIDATION_FEE_PRECISION)
+        .ok_or_else(math_error!())?;
 
     let user_position_delta = get_position_delta_for_fill(
         base_asset_amount,
