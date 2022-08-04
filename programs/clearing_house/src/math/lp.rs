@@ -171,8 +171,8 @@ pub fn get_lp_market_position_margin(
 
     let max_asks = if ask_bounded_k > market.amm.base_asset_reserve {
         ask_bounded_k
-        .checked_sub(market.amm.base_asset_reserve)
-        .ok_or_else(math_error!())?
+            .checked_sub(market.amm.base_asset_reserve)
+            .ok_or_else(math_error!())?
     } else {
         0
     };
@@ -192,13 +192,12 @@ pub fn get_lp_market_position_margin(
         bids_bounded_k,
         market.amm.base_asset_reserve
     );
-    let max_bids = if bids_bounded_k < market
-    .amm
-    .base_asset_reserve { market
-        .amm
-        .base_asset_reserve
-        .checked_sub(bids_bounded_k)
-        .ok_or_else(math_error!())?
+    let max_bids = if bids_bounded_k < market.amm.base_asset_reserve {
+        market
+            .amm
+            .base_asset_reserve
+            .checked_sub(bids_bounded_k)
+            .ok_or_else(math_error!())?
     } else {
         0
     };
@@ -313,6 +312,69 @@ mod test {
         let worst_case_base_asset_amount = market_position.worst_case_base_asset_amount().unwrap();
         let unbalanced_position_base_asset_value =
             calculate_base_asset_value(worst_case_base_asset_amount, &market.amm, false).unwrap();
+
+        println!(
+            "base v: {} {}",
+            balanced_position_base_asset_value, unbalanced_position_base_asset_value,
+        );
+
+        assert!(unbalanced_position_base_asset_value > balanced_position_base_asset_value);
+    }
+
+    #[test]
+    fn test_lp_margin_requirements_limits() {
+        let position = MarketPosition {
+            lp_shares: 100 * AMM_RESERVE_PRECISION,
+            ..MarketPosition::default()
+        };
+
+        // 500_000 * 1e13
+        let init_reserves: u128 = 5000000000000000000;
+
+        // lp is 0.02% (100/500_000)
+        let amm = AMM {
+            // balanced market
+            base_asset_reserve: init_reserves,
+            quote_asset_reserve: init_reserves,
+            sqrt_k: init_reserves,
+            user_lp_shares: position.lp_shares,
+            peg_multiplier: 53000,
+            ..AMM::default()
+        };
+        let mut market = Market {
+            amm,
+            ..Market::default()
+        };
+
+        let market_position = get_lp_market_position_margin(&position, &market).unwrap();
+        let worst_case_base_asset_amount = market_position.worst_case_base_asset_amount().unwrap();
+        let balanced_position_base_asset_value =
+            calculate_base_asset_value(worst_case_base_asset_amount, &market.amm, false).unwrap();
+
+        // (500000*1e13 * 14142 / 10000 - 500000*1e13)/1e13 * .0002 = 41.42
+        assert_eq!(worst_case_base_asset_amount, 414200000000000);
+        assert_eq!(balanced_position_base_asset_value, 2195078159); //$2195.078159
+
+        // make the market unbalanced
+        let trade_size = 2_000 * AMM_RESERVE_PRECISION;
+        let (new_qar, new_bar) = calculate_swap_output(
+            trade_size,
+            amm.base_asset_reserve,
+            SwapDirection::Remove, // user longs
+            amm.sqrt_k,
+        )
+        .unwrap();
+        market.amm.quote_asset_reserve = new_qar;
+        market.amm.base_asset_reserve = new_bar;
+        market.amm.user_lp_shares = position.lp_shares;
+
+        // recompute margin requirements
+        let market_position = get_lp_market_position_margin(&position, &market).unwrap();
+        let worst_case_base_asset_amount = market_position.worst_case_base_asset_amount().unwrap();
+        let unbalanced_position_base_asset_value =
+            calculate_base_asset_value(worst_case_base_asset_amount, &market.amm, false).unwrap();
+
+        assert_eq!(worst_case_base_asset_amount, 418200000000000);
 
         println!(
             "base v: {} {}",
