@@ -30,7 +30,6 @@ pub struct Market {
     pub base_asset_amount_short: i128,
     pub open_interest: u128, // number of users in a position
     pub margin_ratio_initial: u32,
-    pub margin_ratio_partial: u32,
     pub margin_ratio_maintenance: u32,
     pub next_fill_record_id: u64,
     pub next_funding_rate_record_id: u64,
@@ -64,16 +63,10 @@ impl Market {
                 calculate_size_premium_liability_weight(
                     size,
                     self.imf_factor,
-                    self.margin_ratio_partial as u128,
+                    self.margin_ratio_initial as u128,
                     MARGIN_PRECISION,
                 )? + 1,
             ),
-            MarginRequirementType::Partial => calculate_size_premium_liability_weight(
-                size,
-                self.imf_factor,
-                self.margin_ratio_partial as u128,
-                MARGIN_PRECISION,
-            )?,
             MarginRequirementType::Maintenance => self.margin_ratio_maintenance as u128,
         };
 
@@ -101,7 +94,6 @@ impl Market {
                     self.unsettled_imf_factor,
                     self.unsettled_initial_asset_weight as u128,
                 )?,
-                MarginRequirementType::Partial => self.unsettled_maintenance_asset_weight as u128,
                 MarginRequirementType::Maintenance => {
                     self.unsettled_maintenance_asset_weight as u128
                 }

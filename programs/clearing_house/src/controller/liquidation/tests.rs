@@ -59,7 +59,6 @@ pub mod liquidate_perp {
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
-            margin_ratio_partial: 714,
             margin_ratio_maintenance: 500,
             open_interest: 1,
             initialized: true,
@@ -187,7 +186,6 @@ pub mod liquidate_perp {
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
-            margin_ratio_partial: 714,
             margin_ratio_maintenance: 500,
             open_interest: 1,
             initialized: true,
@@ -315,7 +313,6 @@ pub mod liquidate_perp {
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
-            margin_ratio_partial: 714,
             margin_ratio_maintenance: 500,
             open_interest: 1,
             initialized: true,
@@ -436,7 +433,6 @@ pub mod liquidate_perp {
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
-            margin_ratio_partial: 714,
             margin_ratio_maintenance: 500,
             open_interest: 1,
             initialized: true,
@@ -558,7 +554,6 @@ pub mod liquidate_perp {
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
-            margin_ratio_partial: 714,
             margin_ratio_maintenance: 500,
             open_interest: 1,
             initialized: true,
@@ -1061,7 +1056,6 @@ pub mod liquidate_borrow_for_perp_pnl {
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
-            margin_ratio_partial: 714,
             margin_ratio_maintenance: 500,
             unsettled_initial_asset_weight: 80,
             unsettled_maintenance_asset_weight: 90,
@@ -1197,7 +1191,6 @@ pub mod liquidate_borrow_for_perp_pnl {
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
-            margin_ratio_partial: 714,
             margin_ratio_maintenance: 500,
             unsettled_initial_asset_weight: 80,
             unsettled_maintenance_asset_weight: 90,
@@ -1333,7 +1326,6 @@ pub mod liquidate_borrow_for_perp_pnl {
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
-            margin_ratio_partial: 714,
             margin_ratio_maintenance: 500,
             unsettled_initial_asset_weight: 80,
             unsettled_maintenance_asset_weight: 90,
@@ -1492,7 +1484,6 @@ pub mod liquidate_perp_pnl_for_deposit {
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
-            margin_ratio_partial: 714,
             margin_ratio_maintenance: 500,
             unsettled_initial_asset_weight: 80,
             unsettled_maintenance_asset_weight: 90,
@@ -1628,7 +1619,6 @@ pub mod liquidate_perp_pnl_for_deposit {
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
-            margin_ratio_partial: 714,
             margin_ratio_maintenance: 500,
             unsettled_initial_asset_weight: 80,
             unsettled_maintenance_asset_weight: 90,
@@ -1764,7 +1754,6 @@ pub mod liquidate_perp_pnl_for_deposit {
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
-            margin_ratio_partial: 714,
             margin_ratio_maintenance: 500,
             unsettled_initial_asset_weight: 80,
             unsettled_maintenance_asset_weight: 90,

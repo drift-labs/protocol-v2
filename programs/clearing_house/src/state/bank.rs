@@ -60,11 +60,6 @@ impl Bank {
                 self.imf_factor,
                 self.initial_asset_weight,
             )?,
-            MarginRequirementType::Partial => calculate_size_discount_asset_weight(
-                size_in_amm_reserve_precision,
-                self.imf_factor,
-                self.maintenance_asset_weight,
-            )?,
             MarginRequirementType::Maintenance => self.maintenance_asset_weight,
         };
         Ok(asset_weight)
@@ -88,12 +83,6 @@ impl Bank {
                 size_in_amm_reserve_precision,
                 self.imf_factor,
                 self.initial_liability_weight,
-                BANK_WEIGHT_PRECISION,
-            )?,
-            MarginRequirementType::Partial => calculate_size_premium_liability_weight(
-                size_in_amm_reserve_precision,
-                self.imf_factor,
-                self.maintenance_liability_weight,
                 BANK_WEIGHT_PRECISION,
             )?,
             MarginRequirementType::Maintenance => self.maintenance_liability_weight,

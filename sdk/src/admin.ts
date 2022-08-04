@@ -148,7 +148,6 @@ export class Admin extends ClearingHouse {
 		pegMultiplier: BN = PEG_PRECISION,
 		oracleSource: OracleSource = OracleSource.PYTH,
 		marginRatioInitial = 2000,
-		marginRatioPartial = 625,
 		marginRatioMaintenance = 500,
 		liquidationFee = ZERO
 	): Promise<TransactionSignature> {
@@ -164,7 +163,6 @@ export class Admin extends ClearingHouse {
 			pegMultiplier,
 			oracleSource,
 			marginRatioInitial,
-			marginRatioPartial,
 			marginRatioMaintenance,
 			liquidationFee,
 			{
@@ -426,12 +424,10 @@ export class Admin extends ClearingHouse {
 	public async updateMarginRatio(
 		marketIndex: BN,
 		marginRatioInitial: number,
-		marginRatioPartial: number,
 		marginRatioMaintenance: number
 	): Promise<TransactionSignature> {
 		return await this.program.rpc.updateMarginRatio(
 			marginRatioInitial,
-			marginRatioPartial,
 			marginRatioMaintenance,
 			{
 				accounts: {

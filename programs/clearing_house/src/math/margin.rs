@@ -29,7 +29,6 @@ use std::cmp::{max, min};
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum MarginRequirementType {
     Initial,
-    Partial,
     Maintenance,
 }
 
@@ -353,32 +352,24 @@ pub fn meets_initial_margin_requirement(
         oracle_map,
     )?;
 
-    msg!("margin_requirement {}", margin_requirement);
-    msg!("total_collateral {}", total_collateral);
-
     Ok(total_collateral >= cast_to_i128(margin_requirement)?)
 }
 
-pub fn meets_partial_margin_requirement(
+pub fn meets_maintenance_margin_requirement(
     user: &User,
     market_map: &MarketMap,
     bank_map: &BankMap,
     oracle_map: &mut OracleMap,
 ) -> ClearingHouseResult<bool> {
-    let (mut partial_margin_requirement, total_collateral) =
-        calculate_margin_requirement_and_total_collateral(
-            user,
-            market_map,
-            MarginRequirementType::Partial,
-            bank_map,
-            oracle_map,
-        )?;
+    let (margin_requirement, total_collateral) = calculate_margin_requirement_and_total_collateral(
+        user,
+        market_map,
+        MarginRequirementType::Maintenance,
+        bank_map,
+        oracle_map,
+    )?;
 
-    partial_margin_requirement = partial_margin_requirement
-        .checked_div(MARGIN_PRECISION)
-        .ok_or_else(math_error!())?;
-
-    Ok(total_collateral >= cast_to_i128(partial_margin_requirement)?)
+    Ok(total_collateral >= cast_to_i128(margin_requirement)?)
 }
 
 pub fn calculate_free_collateral(
@@ -548,113 +539,6 @@ mod test {
     }
 
     #[test]
-    fn size_based_partial_margin_requirement() {
-        let mut market = Market {
-            amm: AMM {
-                base_asset_reserve: 5122950819670000,
-                quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
-                sqrt_k: 500 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 50000,
-                net_base_asset_amount: -(122950819670000_i128),
-                ..AMM::default()
-            },
-            margin_ratio_initial: 1000,
-            margin_ratio_partial: 625,
-            margin_ratio_maintenance: 500,
-            imf_factor: 0,
-            ..Market::default()
-        };
-
-        let res = market
-            .get_margin_ratio(AMM_RESERVE_PRECISION, MarginRequirementType::Partial)
-            .unwrap();
-        assert_eq!(res, 625);
-        let res = market
-            .get_margin_ratio(
-                AMM_RESERVE_PRECISION * 100000,
-                MarginRequirementType::Partial,
-            )
-            .unwrap();
-        assert_eq!(res, 625);
-
-        market.imf_factor = 1; // .000001
-        let res = market
-            .get_margin_ratio(
-                AMM_RESERVE_PRECISION * 100000,
-                MarginRequirementType::Partial,
-            )
-            .unwrap();
-        // $5,000,000
-        assert!(res > 625);
-        assert_eq!(res, 628);
-
-        market.imf_factor = 100; // .0001
-
-        let res = market
-            .get_margin_ratio(
-                AMM_RESERVE_PRECISION * 100000,
-                MarginRequirementType::Partial,
-            )
-            .unwrap();
-        // $5,000,000
-        assert!(res > 625);
-        assert_eq!(res, 941);
-
-        market.imf_factor = 1000; // .001
-
-        let res = market
-            .get_margin_ratio(
-                AMM_RESERVE_PRECISION * 10000,
-                MarginRequirementType::Partial,
-            )
-            .unwrap();
-        // $500,000
-        assert!(res > 625);
-        assert_eq!(res, 1625);
-        let res = market
-            .get_margin_ratio(
-                AMM_RESERVE_PRECISION * 100000,
-                MarginRequirementType::Initial,
-            )
-            .unwrap();
-        assert_eq!(res, 3788);
-        let res = market
-            .get_margin_ratio(
-                AMM_RESERVE_PRECISION * 100000,
-                MarginRequirementType::Partial,
-            )
-            .unwrap();
-        assert_eq!(res, 3787);
-
-        let res = market
-            .get_margin_ratio(
-                AMM_RESERVE_PRECISION / 1000000,
-                MarginRequirementType::Partial,
-            )
-            .unwrap();
-        // $500,000
-        assert_eq!(res, 625);
-
-        market.imf_factor = 10000; // .01
-        let res = market
-            .get_margin_ratio(
-                AMM_RESERVE_PRECISION * 100000,
-                MarginRequirementType::Partial,
-            )
-            .unwrap();
-        // $5,000,000
-        assert_eq!(res, 32241);
-        let res = market
-            .get_margin_ratio(
-                AMM_RESERVE_PRECISION * 100000,
-                MarginRequirementType::Initial,
-            )
-            .unwrap();
-        // $5,000,000
-        assert_eq!(res, 32242);
-    }
-
-    #[test]
     fn negative_margin_user_test() {
         let bank = Bank {
             cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
@@ -691,7 +575,6 @@ mod test {
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
-            margin_ratio_partial: 625,
             margin_ratio_maintenance: 500,
             imf_factor: 1000, // 1_000/1_000_000 = .001
             unsettled_initial_asset_weight: 100,
@@ -772,7 +655,6 @@ mod test {
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
-            margin_ratio_partial: 625,
             margin_ratio_maintenance: 500,
             imf_factor: 1000, // 1_000/1_000_000 = .001
             unsettled_initial_asset_weight: 100,
@@ -851,23 +733,7 @@ mod test {
         // assert!(upnl < position_unrealized_pnl); // margin system discounts
 
         assert!(pmr > 0);
-        assert_eq!(pmr, 13555327868);
-
-        let (pmr_partial, upnl_partial) = calculate_perp_position_value_and_pnl(
-            &market_position,
-            &market,
-            &oracle_price_data,
-            MarginRequirementType::Partial,
-        )
-        .unwrap();
-
-        assert_eq!(upnl_partial, 18135245902);
-        assert!(upnl_partial < position_unrealized_pnl); // margin system discounts
-
-        assert!(pmr_partial > 0);
-        assert_eq!(pmr_partial, 8797407786);
-        // required margin $8797.4077867214 for position before partial liq
-        // 8587.9701 * 1/.0625 = 13740.7522252
+        assert_eq!(pmr, 13880655737);
 
         oracle_price_data.price = (21050 * MARK_PRICE_PRECISION) as i128; // lower by $1000 (in favor of user)
         oracle_price_data.confidence = MARK_PRICE_PRECISION;
@@ -948,9 +814,9 @@ mod test {
         assert_eq!(upnl_2, 23062807377);
         assert!(upnl_2 > upnl);
         assert!(pmr_2 > 0);
-        assert_eq!(pmr_2, 12940573770); //$12940.5737702000
+        assert_eq!(pmr_2, 13251147540); //$12940.5737702000
         assert!(pmr > pmr_2);
-        assert_eq!(pmr - pmr_2, 614754098);
+        assert_eq!(pmr - pmr_2, 629508197);
         //-6.1475409835 * 1000 / 10 = 614.75
     }
 

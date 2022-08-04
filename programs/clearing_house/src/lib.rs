@@ -269,7 +269,6 @@ pub mod clearing_house {
         amm_peg_multiplier: u128,
         oracle_source: OracleSource,
         margin_ratio_initial: u32,
-        margin_ratio_partial: u32,
         margin_ratio_maintenance: u32,
         liquidation_fee: u128,
     ) -> Result<()> {
@@ -323,7 +322,6 @@ pub mod clearing_house {
 
         validate_margin(
             margin_ratio_initial,
-            margin_ratio_partial,
             margin_ratio_maintenance,
             liquidation_fee,
         )?;
@@ -339,7 +337,6 @@ pub mod clearing_house {
             // base_asset_amount: 0,
             open_interest: 0,
             margin_ratio_initial, // unit is 20% (+2 decimal places)
-            margin_ratio_partial,
             margin_ratio_maintenance,
             imf_factor: 0,
             next_fill_record_id: 1,
@@ -1115,7 +1112,7 @@ pub mod clearing_house {
         let position_index = get_position_index(&user.positions, market_index)?;
 
         // cannot settle pnl this way on a user who is in liquidation territory
-        if !(meets_partial_margin_requirement(user, &market_map, &bank_map, &mut oracle_map)?) {
+        if !(meets_maintenance_margin_requirement(user, &market_map, &bank_map, &mut oracle_map)?) {
             return Err(ErrorCode::InsufficientCollateralForSettlingPNL.into());
         }
 
@@ -1856,19 +1853,16 @@ pub mod clearing_house {
     pub fn update_margin_ratio(
         ctx: Context<AdminUpdateMarket>,
         margin_ratio_initial: u32,
-        margin_ratio_partial: u32,
         margin_ratio_maintenance: u32,
     ) -> Result<()> {
         let market = &mut load_mut!(ctx.accounts.market)?;
         validate_margin(
             margin_ratio_initial,
-            margin_ratio_partial,
             margin_ratio_maintenance,
             market.liquidation_fee,
         )?;
 
         market.margin_ratio_initial = margin_ratio_initial;
-        market.margin_ratio_partial = margin_ratio_partial;
         market.margin_ratio_maintenance = margin_ratio_maintenance;
         Ok(())
     }
@@ -1883,7 +1877,6 @@ pub mod clearing_house {
         let market = &mut load_mut!(ctx.accounts.market)?;
         validate_margin(
             market.margin_ratio_initial,
-            market.margin_ratio_partial,
             market.margin_ratio_maintenance,
             liquidation_fee,
         )?;

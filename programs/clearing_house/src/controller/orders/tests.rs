@@ -1320,7 +1320,6 @@ pub mod fulfill_order {
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
-            margin_ratio_partial: 714,
             margin_ratio_maintenance: 500,
             initialized: true,
             ..Market::default()
@@ -1463,7 +1462,6 @@ pub mod fulfill_order {
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
-            margin_ratio_partial: 714,
             margin_ratio_maintenance: 500,
             initialized: true,
             ..Market::default()
@@ -1628,7 +1626,6 @@ pub mod fulfill_order {
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
-            margin_ratio_partial: 714,
             margin_ratio_maintenance: 500,
             initialized: true,
             ..Market::default()
@@ -1744,7 +1741,6 @@ pub mod fulfill_order {
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
-            margin_ratio_partial: 714,
             margin_ratio_maintenance: 500,
             initialized: true,
             ..Market::default()
@@ -1938,7 +1934,6 @@ pub mod fill_order {
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
-            margin_ratio_partial: 714,
             margin_ratio_maintenance: 500,
             initialized: true,
             ..Market::default()
@@ -2044,7 +2039,6 @@ pub mod fill_order {
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
-            margin_ratio_partial: 714,
             margin_ratio_maintenance: 500,
             initialized: true,
             ..Market::default()
