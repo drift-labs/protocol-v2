@@ -2,26 +2,14 @@ import * as anchor from '@project-serum/anchor';
 
 import { assert } from 'chai';
 import { Program } from '@project-serum/anchor';
-import { getTokenAccount } from '@project-serum/common';
 
-import { PublicKey, TransactionSignature } from '@solana/web3.js';
+import { PublicKey } from '@solana/web3.js';
 
 import {
 	Admin,
 	BN,
-	MARK_PRICE_PRECISION,
-	calculateMarkPrice,
-	calculateTradeSlippage,
-	ClearingHouseUser,
-	PositionDirection,
-	AMM_RESERVE_PRECISION,
-	QUOTE_PRECISION,
-	convertToNumber,
-	getMarketPublicKey,
 	EventSubscriber,
-	QUOTE_ASSET_BANK_INDEX,
 	Order,
-	UserAccount,
 	OrderRecord,
 } from '../../sdk/src';
 
@@ -31,13 +19,8 @@ import {
 
 import {
 	mockUSDCMint,
-// 	mockUserUSDCAccount,
 	mockOracle,
-// 	setFeedPrice,
 	initializeQuoteAssetBank,
-// 	getTokenAmountAsBN,
-// 	mintUSDCToUser,
-// 	printTxLogs,
 } from '../testHelpers';
 
 describe('dlob', () => {
@@ -54,7 +37,6 @@ describe('dlob', () => {
 
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
-		// userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
 		const solUsd = await mockOracle(1);
 		const periodicity = new BN(60 * 60); // 1 HOUR
@@ -92,7 +74,6 @@ describe('dlob', () => {
 	it('DLOB handle place sell', async () => {
 
 		await clearingHouse.fetchAccounts();
-		// why clearingHouse.getMarketAccounts doesn't work?
 		const markets = clearingHouse.getMarketAccount(0);
 
 		const dlob = new DLOB(
@@ -261,7 +242,6 @@ describe('dlob', () => {
 	it('DLOB handle fill', async () => {
 
 		await clearingHouse.fetchAccounts();
-		// why clearingHouse.getMarketAccounts doesn't work?
 		const markets = clearingHouse.getMarketAccount(0);
 
 		const dlob = new DLOB(
@@ -541,7 +521,6 @@ describe('dlob', () => {
 	it('DLOB handle cancel', async () => {
 
 		await clearingHouse.fetchAccounts();
-		// why clearingHouse.getMarketAccounts doesn't work?
 		const markets = clearingHouse.getMarketAccount(0);
 
 		const dlob = new DLOB(
@@ -821,7 +800,6 @@ describe('dlob', () => {
 	it('DLOB handle partial fill', async () => {
 
 		await clearingHouse.fetchAccounts();
-		// why clearingHouse.getMarketAccounts doesn't work?
 		const markets = clearingHouse.getMarketAccount(0);
 
 		const dlob = new DLOB(
@@ -1096,7 +1074,4 @@ describe('dlob', () => {
 
 		assert(asksCountAfter === asksCountBefore); // no new records
 	});
-
-	/*
-	*/
 });
