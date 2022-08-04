@@ -207,18 +207,12 @@ pub fn place_order(
 
     // Order fails if it's risk increasing and it brings the user collateral below the margin requirement
     let risk_decreasing = worst_case_base_asset_amount_after.unsigned_abs()
-        < worst_case_base_asset_amount_before.unsigned_abs();
+        <= worst_case_base_asset_amount_before.unsigned_abs();
 
     let meets_initial_maintenance_requirement =
         meets_initial_margin_requirement(user, market_map, bank_map, oracle_map)?;
 
-    if user.being_liquidated {
-        if meets_initial_maintenance_requirement {
-            user.being_liquidated = false;
-        } else {
-            return Err(ErrorCode::UserIsBeingLiquidated);
-        }
-    } else if !meets_initial_maintenance_requirement && !risk_decreasing {
+    if !meets_initial_maintenance_requirement && !risk_decreasing {
         return Err(ErrorCode::InsufficientCollateral);
     }
 
