@@ -207,7 +207,7 @@ pub fn is_user_being_liquidated(
     let margin_requirement_plus_buffer =
         get_margin_requirement_plus_buffer(margin_requirement, liquidation_margin_buffer_ratio)?;
 
-    Ok(total_collateral >= cast(margin_requirement_plus_buffer)?)
+    Ok(total_collateral <= cast(margin_requirement_plus_buffer)?)
 }
 
 pub fn get_margin_requirement_plus_buffer(
