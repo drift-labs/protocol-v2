@@ -115,6 +115,47 @@ impl<'a> MarketMap<'a> {
 
         Ok(market_map)
     }
+
+    pub fn load_multiple<'c>(
+        account_infos: Vec<&'c AccountInfo<'a>>,
+        must_be_writable: bool,
+    ) -> ClearingHouseResult<MarketMap<'a>> {
+        let mut market_map: MarketMap = MarketMap(BTreeMap::new());
+
+        for account_info in account_infos {
+            let data = account_info
+                .try_borrow_data()
+                .or(Err(ErrorCode::CouldNotLoadMarketData))?;
+
+            if data.len() < std::mem::size_of::<Market>() + 8 {
+                return Err(ErrorCode::CouldNotLoadMarketData);
+            }
+
+            let market_discriminator: [u8; 8] = Market::discriminator();
+            let account_discriminator = array_ref![data, 0, 8];
+            if account_discriminator != &market_discriminator {
+                return Err(ErrorCode::CouldNotLoadMarketData);
+            }
+            let market_index = u64::from_le_bytes(*array_ref![data, 8, 8]);
+            let is_initialized = array_ref![data, 48, 1];
+
+            let is_writable = account_info.is_writable;
+            let account_loader: AccountLoader<Market> =
+                AccountLoader::try_from(account_info).or(Err(ErrorCode::InvalidMarketAccount))?;
+
+            if must_be_writable && !is_writable {
+                return Err(ErrorCode::MarketWrongMutability);
+            }
+
+            if is_initialized != &[1] {
+                return Err(ErrorCode::MarketIndexNotInitialized);
+            }
+
+            market_map.0.insert(market_index, account_loader);
+        }
+
+        Ok(market_map)
+    }
 }
 
 pub type WritableMarkets = BTreeSet<u64>;
