@@ -1,4 +1,3 @@
-use crate::controller::lp::burn_lp_shares;
 use crate::error::ClearingHouseResult;
 use crate::math::amm::calculate_swap_output;
 use crate::math::casting::cast_to_i128;
@@ -149,12 +148,9 @@ pub fn get_lp_market_position_margin(
 ) -> ClearingHouseResult<MarketPosition> {
     // clone bc its only temporary
     let mut position_clone = *position;
-    let mut market_clone = *market;
 
     let total_lp_shares = market.amm.sqrt_k;
     let lp_shares = position.lp_shares;
-
-    burn_lp_shares(&mut position_clone, &mut market_clone, lp_shares)?;
 
     // worse case market position
     // max ask: (sqrtk*1.4142 - base asset reserves) * lp share
@@ -395,6 +391,11 @@ mod test {
         let amm = AMM {
             cumulative_net_base_asset_amount_per_lp: 100 * AMM_RESERVE_PRECISION_I128,
             net_base_asset_amount: 100 * AMM_RESERVE_PRECISION_I128, // users went long
+            market_position_per_lp: MarketPosition {
+                base_asset_amount: 70 * AMM_RESERVE_PRECISION_I128, //todo
+                quote_asset_amount: 100 * QUOTE_PRECISION,
+                ..MarketPosition::default()
+            },
             peg_multiplier: 1,
             sqrt_k: 900 * AMM_RESERVE_PRECISION,
             base_asset_amount_step_size: 100 * AMM_RESERVE_PRECISION, // min size is big
