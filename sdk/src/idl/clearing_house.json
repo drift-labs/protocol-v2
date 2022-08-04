@@ -2409,6 +2409,10 @@
             "type": "u128"
           },
           {
+            "name": "netUnsettledLpBaseAssetAmount",
+            "type": "i128"
+          },
+          {
             "name": "cumulativeFundingPaymentPerLp",
             "type": "i128"
           },

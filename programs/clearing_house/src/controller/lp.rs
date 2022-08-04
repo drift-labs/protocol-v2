@@ -1,8 +1,7 @@
 use crate::controller::position::update_unsettled_pnl;
 use crate::error::ClearingHouseResult;
-use crate::math::casting::cast;
 use crate::math::lp::get_lp_metrics;
-use crate::math::lp::{get_proportion_i128, get_proportion_u128, LPMetrics};
+use crate::math::lp::LPMetrics;
 use crate::math_error;
 use crate::state::market::Market;
 use crate::MarketPosition;
@@ -36,18 +35,17 @@ pub fn settle_lp_position(
 
     let upnl = update_position_and_market(position, market, &position_delta)?;
 
-    position.unsettled_pnl = position
-        .unsettled_pnl
-        .checked_add(
-            upnl.checked_add(metrics.unsettled_pnl)
-                .ok_or_else(math_error!())?,
-        )
-        .ok_or_else(math_error!())?;
+    update_unsettled_pnl(
+        position,
+        market,
+        upnl.checked_add(metrics.unsettled_pnl)
+            .ok_or_else(math_error!())?,
+    )?;
 
-    market.amm.net_base_asset_amount = market
+    market.amm.net_unsettled_lp_base_asset_amount = market
         .amm
-        .net_base_asset_amount
-        .checked_add(metrics.base_asset_amount)
+        .net_unsettled_lp_base_asset_amount
+        .checked_sub(metrics.base_asset_amount)
         .ok_or_else(math_error!())?;
 
     // update last_ metrics

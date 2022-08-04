@@ -2,10 +2,8 @@ use crate::controller::lp::burn_lp_shares;
 use crate::error::ClearingHouseResult;
 use crate::math::amm::calculate_swap_output;
 use crate::math::casting::cast_to_i128;
-use crate::math::constants::{AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128};
-use crate::math::funding::calculate_funding_payment_in_quote_precision;
+use crate::math::constants::AMM_RESERVE_PRECISION_I128;
 use crate::math::position::swap_direction_to_close_position;
-use crate::math::quote_asset::reserve_to_asset_amount;
 use crate::math_error;
 use crate::state::market::Market;
 use crate::state::market::AMM;
@@ -26,7 +24,6 @@ pub fn get_lp_metrics(position: &MarketPosition, amm: &AMM) -> ClearingHouseResu
     let total_lp_shares = amm.sqrt_k;
     let n_shares = position.lp_shares;
     let n_shares_i128 = cast_to_i128(n_shares)?;
-    let total_lp_shares_i128 = cast_to_i128(total_lp_shares)?;
 
     // give them fees
     let fee_payment = amm
@@ -52,12 +49,6 @@ pub fn get_lp_metrics(position: &MarketPosition, amm: &AMM) -> ClearingHouseResu
 
     let base_asset_amount = amm_net_base_asset_amount_per_lp
         .checked_mul(n_shares_i128)
-        .ok_or_else(math_error!())?
-        .checked_div(AMM_RESERVE_PRECISION_I128)
-        .ok_or_else(math_error!())?;
-
-    let total_net_base_asset_amount = amm_net_base_asset_amount_per_lp
-        .checked_mul(total_lp_shares_i128)
         .ok_or_else(math_error!())?
         .checked_div(AMM_RESERVE_PRECISION_I128)
         .ok_or_else(math_error!())?;
@@ -260,7 +251,7 @@ pub fn get_proportion_u128(
 mod test {
     use super::*;
     use crate::controller::amm::SwapDirection;
-    use crate::math::constants::QUOTE_PRECISION;
+    use crate::math::constants::{AMM_RESERVE_PRECISION, QUOTE_PRECISION};
     use crate::math::{constants::PEG_PRECISION, position::calculate_base_asset_value};
     #[test]
     fn test_margin_requirements_user_long() {

@@ -9,7 +9,7 @@ use crate::math::amm::{
 };
 use crate::math::bank_balance::get_token_amount;
 use crate::math::casting::{cast_to_i128, cast_to_i64, cast_to_u128};
-use crate::math::constants::{AMM_RESERVE_PRECISION_I128, PRICE_TO_PEG_PRECISION_RATIO};
+use crate::math::constants::PRICE_TO_PEG_PRECISION_RATIO;
 use crate::math::{amm, bn, quote_asset::*};
 use crate::math_error;
 use crate::state::events::CurveRecord;
@@ -20,7 +20,6 @@ use std::cmp::{max, min};
 
 use crate::controller::bank_balance::update_bank_balances;
 use crate::controller::repeg::apply_cost_to_market;
-use crate::math::base_asset_amount::get_signed_base_asset_amount;
 use crate::state::bank::{Bank, BankBalance, BankBalanceType};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -106,26 +105,6 @@ pub fn swap_base_asset(
 
     amm.base_asset_reserve = new_base_asset_reserve;
     amm.quote_asset_reserve = new_quote_asset_reserve;
-
-    // Update AMM and LPs net position
-    let net_base_asset_amount_delta =
-        get_signed_base_asset_amount(base_asset_swap_amount, position_direction)?;
-
-    amm.net_base_asset_amount = amm
-        .net_base_asset_amount
-        .checked_add(net_base_asset_amount_delta)
-        .ok_or_else(math_error!())?;
-
-    let net_base_asset_amount_per_lp_delta = net_base_asset_amount_delta
-        .checked_mul(AMM_RESERVE_PRECISION_I128)
-        .ok_or_else(math_error!())?
-        .checked_div(cast_to_i128(amm.sqrt_k)?)
-        .ok_or_else(math_error!())?;
-
-    amm.cumulative_net_base_asset_amount_per_lp = amm
-        .cumulative_net_base_asset_amount_per_lp
-        .checked_add(net_base_asset_amount_per_lp_delta)
-        .ok_or_else(math_error!())?;
 
     Ok((quote_asset_amount, quote_asset_amount_surplus))
 }

@@ -428,6 +428,7 @@ pub mod clearing_house {
                 last_update_slot: clock_slot,
 
                 // lp stuff
+                net_unsettled_lp_base_asset_amount: 0,
                 cumulative_funding_payment_per_lp: 0,
                 cumulative_fee_per_lp: 0,
                 cumulative_net_base_asset_amount_per_lp: 0,

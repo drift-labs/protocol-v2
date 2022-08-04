@@ -179,6 +179,7 @@ pub struct AMM {
     pub quote_asset_amount_short: u128,
 
     // lp stuff
+    pub net_unsettled_lp_base_asset_amount: i128,
     pub cumulative_funding_payment_per_lp: i128,
     pub cumulative_fee_per_lp: u128,
     pub cumulative_net_base_asset_amount_per_lp: i128,
