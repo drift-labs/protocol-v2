@@ -29,7 +29,7 @@ import {
 	AccountMeta,
 } from '@solana/web3.js';
 
-import { MockUSDCFaucet } from './mockUSDCFaucet';
+import { TokenFaucet } from './tokenFaucet';
 import { EventEmitter } from 'events';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import {
@@ -644,11 +644,12 @@ export class ClearingHouse {
 	public async initializeUserAccountForDevnet(
 		userId = 0,
 		name = DEFAULT_USER_NAME,
-		mockUSDCFaucet: MockUSDCFaucet,
+		bankIndex: BN,
+		tokenFaucet: TokenFaucet,
 		amount: BN
 	): Promise<[TransactionSignature, PublicKey]> {
 		const [associateTokenPublicKey, createAssociatedAccountIx, mintToIx] =
-			await mockUSDCFaucet.createAssociatedTokenAccountAndMintToInstructions(
+			await tokenFaucet.createAssociatedTokenAccountAndMintToInstructions(
 				this.wallet.publicKey,
 				amount
 			);
@@ -658,7 +659,7 @@ export class ClearingHouse {
 
 		const depositCollateralIx = await this.getDepositInstruction(
 			amount,
-			new BN(0),
+			bankIndex,
 			associateTokenPublicKey,
 			userId,
 			false,
