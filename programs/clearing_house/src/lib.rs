@@ -808,7 +808,7 @@ pub mod clearing_house {
         let (order_id, writable_markets) = {
             let user = &load!(ctx.accounts.user)?;
             // if there is no order id, use the users last order id
-            let order_id = order_id.map_or(user.next_order_id - 1, |order_id| order_id);
+            let order_id = order_id.unwrap_or(user.next_order_id - 1);
             let order_index = user
                 .orders
                 .iter()
@@ -1037,14 +1037,7 @@ pub mod clearing_house {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
         BankMap::load(&WritableBanks::new(), remaining_accounts_iter)?;
-        let mut market_map = MarketMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
-
-        controller::repeg::update_amms(
-            &mut market_map,
-            &mut oracle_map,
-            &ctx.accounts.state,
-            &Clock::get()?,
-        )?;
+        let market_map = MarketMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
 
         controller::orders::trigger_order(
             order_id,

@@ -484,6 +484,7 @@ pub fn fill_order(
         oracle_map,
         maker,
         maker_order_id,
+        &user_key,
         &user.orders[order_index],
         &mut filler.as_deref_mut(),
         &filler_key,
@@ -635,6 +636,7 @@ fn sanitize_maker_order<'a>(
     oracle_map: &mut OracleMap,
     maker: Option<&'a AccountLoader<User>>,
     maker_order_id: Option<u64>,
+    taker_key: &Pubkey,
     taker_order: &Order,
     filler: &mut Option<&mut User>,
     filler_key: &Pubkey,
@@ -648,6 +650,10 @@ fn sanitize_maker_order<'a>(
     }
 
     let maker = maker.unwrap();
+    if &maker.key() == taker_key {
+        return Ok((None, None, None));
+    }
+
     let maker_key = maker.key();
     let mut maker = load_mut!(maker)?;
     let maker_order_index =
@@ -1188,13 +1194,13 @@ pub fn fulfill_order_with_match(
 
     let taker_position_index = get_position_index(
         &taker.positions,
-        taker.orders[maker_order_index].market_index,
+        taker.orders[taker_order_index].market_index,
     )?;
 
     let taker_position_delta = get_position_delta_for_fill(
         base_asset_amount,
         quote_asset_amount,
-        taker.orders[maker_order_index].direction,
+        taker.orders[taker_order_index].direction,
     )?;
 
     let mut taker_unsettled_pnl = update_position_and_market(
