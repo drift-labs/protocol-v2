@@ -2378,6 +2378,10 @@
             }
           },
           {
+            "name": "canceledOrdersFee",
+            "type": "u128"
+          },
+          {
             "name": "oraclePrice",
             "type": "i128"
           },
@@ -2854,6 +2858,10 @@
             "type": {
               "defined": "OrderFillerRewardStructure"
             }
+          },
+          {
+            "name": "cancelOrderFee",
+            "type": "u128"
           }
         ]
       }
@@ -3233,6 +3241,20 @@
           },
           {
             "name": "Short"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LiquidationMultiplierType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Discount"
+          },
+          {
+            "name": "Premium"
           }
         ]
       }

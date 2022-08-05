@@ -5,12 +5,16 @@ use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 
 use crate::error::ClearingHouseResult;
-use crate::math::constants::{AMM_RESERVE_PRECISION, BANK_WEIGHT_PRECISION};
+use crate::math::constants::{
+    AMM_RESERVE_PRECISION, BANK_WEIGHT_PRECISION, LIQUIDATION_FEE_PRECISION,
+};
 use crate::math::margin::{
     calculate_size_discount_asset_weight, calculate_size_premium_liability_weight,
     MarginRequirementType,
 };
+use crate::math_error;
 use crate::state::oracle::OracleSource;
+use solana_program::msg;
 
 #[account(zero_copy)]
 #[derive(Default)]
@@ -89,6 +93,20 @@ impl Bank {
         };
 
         Ok(liability_weight)
+    }
+
+    pub fn get_liquidation_fee_multiplier(
+        &self,
+        balance_type: BankBalanceType,
+    ) -> ClearingHouseResult<u128> {
+        match balance_type {
+            BankBalanceType::Deposit => LIQUIDATION_FEE_PRECISION
+                .checked_add(self.liquidation_fee)
+                .ok_or_else(math_error!()),
+            BankBalanceType::Borrow => LIQUIDATION_FEE_PRECISION
+                .checked_sub(self.liquidation_fee)
+                .ok_or_else(math_error!()),
+        }
     }
 }
 

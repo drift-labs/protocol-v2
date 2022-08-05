@@ -250,3 +250,22 @@ pub fn validate_user_not_being_liquidated(
 
     Ok(())
 }
+
+pub enum LiquidationMultiplierType {
+    Discount,
+    Premium,
+}
+
+pub fn calculate_liquidation_multiplier(
+    liquidation_fee: u128,
+    multiplier_type: LiquidationMultiplierType,
+) -> ClearingHouseResult<u128> {
+    match multiplier_type {
+        LiquidationMultiplierType::Premium => LIQUIDATION_FEE_PRECISION
+            .checked_add(liquidation_fee)
+            .ok_or_else(math_error!()),
+        LiquidationMultiplierType::Discount => LIQUIDATION_FEE_PRECISION
+            .checked_sub(liquidation_fee)
+            .ok_or_else(math_error!()),
+    }
+}

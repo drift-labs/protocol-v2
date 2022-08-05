@@ -12,7 +12,8 @@ use crate::math::liquidation::{
     calculate_asset_transfer_for_liability_transfer,
     calculate_base_asset_amount_to_cover_margin_shortage,
     calculate_liability_transfer_implied_by_asset_amount,
-    calculate_liability_transfer_to_cover_margin_shortage, get_margin_requirement_plus_buffer,
+    calculate_liability_transfer_to_cover_margin_shortage, calculate_liquidation_multiplier,
+    get_margin_requirement_plus_buffer, LiquidationMultiplierType,
 };
 use crate::math::margin::{
     calculate_margin_requirement_and_total_collateral, meets_initial_margin_requirement,
@@ -51,7 +52,7 @@ pub fn liquidate_perp(
     slot: u64,
     now: i64,
     liquidation_margin_buffer_ratio: u8,
-    cancel_fee: u128,
+    cancel_order_fee: u128,
 ) -> ClearingHouseResult {
     user.get_position(market_index).map_err(|e| {
         msg!(
@@ -64,7 +65,10 @@ pub fn liquidate_perp(
     liquidator
         .force_get_position_mut(market_index)
         .map_err(|e| {
-            msg!("Liquidator has no available positions to take on perp position");
+            msg!(
+                "Liquidator has no available positions to take on perp position in market {}",
+                market_index
+            );
             e
         })?;
 
@@ -84,13 +88,14 @@ pub fn liquidate_perp(
         now,
     )?;
 
-    let (margin_requirement, total_collateral) = calculate_margin_requirement_and_total_collateral(
-        user,
-        market_map,
-        MarginRequirementType::Maintenance,
-        bank_map,
-        oracle_map,
-    )?;
+    let (margin_requirement, mut total_collateral) =
+        calculate_margin_requirement_and_total_collateral(
+            user,
+            market_map,
+            MarginRequirementType::Maintenance,
+            bank_map,
+            oracle_map,
+        )?;
 
     let mut margin_requirement_plus_buffer =
         get_margin_requirement_plus_buffer(margin_requirement, liquidation_margin_buffer_ratio)?;
@@ -119,13 +124,16 @@ pub fn liquidate_perp(
         }
 
         canceled_orders_fee = canceled_orders_fee
-            .checked_add(cancel_fee)
+            .checked_add(cancel_order_fee)
+            .ok_or_else(math_error!())?;
+        total_collateral = total_collateral
+            .checked_sub(cast(cancel_order_fee)?)
             .ok_or_else(math_error!())?;
         pay_keeper_flat_reward(
             user,
             Some(liquidator),
             market_map.get_ref_mut(&market_index)?.deref_mut(),
-            cancel_fee,
+            cancel_order_fee,
         )?;
 
         canceled_order_ids.push(user.orders[order_index].order_id);
@@ -139,7 +147,7 @@ pub fn liquidate_perp(
             slot,
             OrderActionExplanation::CanceledForLiquidation,
             Some(liquidator_key),
-            cancel_fee,
+            cancel_order_fee,
             true,
         )?;
     }
@@ -241,9 +249,14 @@ pub fn liquidate_perp(
         .min(liquidator_max_base_asset_amount)
         .min(base_asset_amount_to_cover_margin_shortage);
 
-    let liquidation_multiplier = market_map
-        .get_ref(&market_index)?
-        .get_liquidation_fee_multiplier(user.positions[position_index].base_asset_amount)?;
+    let liquidation_multiplier = calculate_liquidation_multiplier(
+        liquidation_fee,
+        if user.positions[position_index].base_asset_amount > 0 {
+            LiquidationMultiplierType::Discount // Sell at discount if user is long
+        } else {
+            LiquidationMultiplierType::Premium // premium if user is short
+        },
+    )?;
     let base_asset_value =
         calculate_base_asset_value_with_oracle_price(cast(base_asset_amount)?, oracle_price)?;
     let quote_asset_amount = base_asset_value
@@ -392,16 +405,17 @@ pub fn liquidate_borrow(
         )?;
 
         // TODO add oracle checks
-        let token_price = oracle_map.get_price_data(&asset_bank.oracle)?.price;
+        let asset_price = oracle_map.get_price_data(&asset_bank.oracle)?.price;
 
         (
             token_amount,
-            token_price,
+            asset_price,
             asset_bank.decimals,
             asset_bank.maintenance_asset_weight,
-            LIQUIDATION_FEE_PRECISION
-                .checked_add(asset_bank.liquidation_fee)
-                .ok_or_else(math_error!())?,
+            calculate_liquidation_multiplier(
+                asset_bank.liquidation_fee,
+                LiquidationMultiplierType::Premium,
+            )?,
         )
     };
 
@@ -430,17 +444,17 @@ pub fn liquidate_borrow(
         )?;
 
         // TODO add oracle checks
-        let token_price = oracle_map.get_price_data(&liability_bank.oracle)?.price;
+        let liability_price = oracle_map.get_price_data(&liability_bank.oracle)?.price;
 
         (
             token_amount,
-            token_price,
+            liability_price,
             liability_bank.decimals,
-            // TODO should use size premium weight?
             liability_bank.maintenance_liability_weight,
-            LIQUIDATION_FEE_PRECISION
-                .checked_sub(liability_bank.liquidation_fee)
-                .ok_or_else(math_error!())?,
+            calculate_liquidation_multiplier(
+                liability_bank.liquidation_fee,
+                LiquidationMultiplierType::Discount,
+            )?,
         )
     };
 
@@ -668,18 +682,19 @@ pub fn liquidate_borrow_for_perp_pnl(
             "Perp position must have position pnl"
         )?;
 
-        let pnl_price = oracle_map.quote_asset_price_data.price;
+        let quote_price = oracle_map.quote_asset_price_data.price;
 
         let market = market_map.get_ref(&market_index)?;
 
         (
             unsettled_pnl.unsigned_abs(),
-            pnl_price,
+            quote_price,
             6_u8,
             market.unsettled_maintenance_asset_weight, // TODO add market unsettled pnl weight
-            LIQUIDATION_FEE_PRECISION
-                .checked_add(market.liquidation_fee)
-                .ok_or_else(math_error!())?,
+            calculate_liquidation_multiplier(
+                market.liquidation_fee,
+                LiquidationMultiplierType::Premium,
+            )?,
         )
     };
 
@@ -708,16 +723,17 @@ pub fn liquidate_borrow_for_perp_pnl(
         )?;
 
         // TODO add oracle checks
-        let token_price = oracle_map.get_price_data(&liability_bank.oracle)?.price;
+        let liability_price = oracle_map.get_price_data(&liability_bank.oracle)?.price;
 
         (
             token_amount,
-            token_price,
+            liability_price,
             liability_bank.decimals,
             liability_bank.maintenance_liability_weight,
-            LIQUIDATION_FEE_PRECISION
-                .checked_sub(liability_bank.liquidation_fee)
-                .ok_or_else(math_error!())?,
+            calculate_liquidation_multiplier(
+                liability_bank.liquidation_fee,
+                LiquidationMultiplierType::Discount,
+            )?,
         )
     };
 
@@ -946,9 +962,10 @@ pub fn liquidate_perp_pnl_for_deposit(
             token_price,
             asset_bank.decimals,
             asset_bank.maintenance_asset_weight,
-            LIQUIDATION_FEE_PRECISION
-                .checked_add(asset_bank.liquidation_fee)
-                .ok_or_else(math_error!())?,
+            calculate_liquidation_multiplier(
+                asset_bank.liquidation_fee,
+                LiquidationMultiplierType::Premium,
+            )?,
         )
     };
 
@@ -983,18 +1000,19 @@ pub fn liquidate_perp_pnl_for_deposit(
             "Perp position must have negative pnl"
         )?;
 
-        let pnl_price = oracle_map.quote_asset_price_data.price;
+        let quote_price = oracle_map.quote_asset_price_data.price;
 
         let market = market_map.get_ref(&market_index)?;
 
         (
             unsettled_pnl.unsigned_abs(),
-            pnl_price,
+            quote_price,
             6_u8,
             BANK_WEIGHT_PRECISION,
-            LIQUIDATION_FEE_PRECISION
-                .checked_sub(market.liquidation_fee)
-                .ok_or_else(math_error!())?,
+            calculate_liquidation_multiplier(
+                market.liquidation_fee,
+                LiquidationMultiplierType::Discount,
+            )?,
         )
     };
 
