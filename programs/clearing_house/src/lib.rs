@@ -96,7 +96,6 @@ pub mod clearing_house {
             min_order_quote_asset_amount: 500_000, // 50 cents
             min_auction_duration: 10,
             max_auction_duration: 60,
-            liquidation_auction_duration: 10,
             liquidation_margin_buffer_ratio: 50, // 2%
             padding0: 0,
             padding1: 0,
