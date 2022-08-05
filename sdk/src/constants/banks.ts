@@ -1,7 +1,5 @@
-import { BN, OracleSource } from '../';
-import { DriftEnv } from '../';
 import { PublicKey } from '@solana/web3.js';
-import { WRAPPED_SOL_MINT } from '@project-serum/serum/lib/token-instructions';
+import { BN, DriftEnv, OracleSource } from '../';
 
 export type BankConfig = {
 	symbol: string;
@@ -32,13 +30,6 @@ export const DevnetBanks: BankConfig[] = [
 		oracle: new PublicKey('HovQMDrbAgAYPCmHVSrezcSmkMtXSSUsLDFANExrZh2J'),
 		oracleSource: OracleSource.PYTH,
 		mint: new PublicKey('3BZPwbcqB5kKScF3TEXxwNfx5ipV13kbRVDvfVp5c6fv'),
-	},
-	{
-		symbol: 'SOL',
-		bankIndex: new BN(2),
-		oracle: new PublicKey('J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix'),
-		oracleSource: OracleSource.PYTH,
-		mint: WRAPPED_SOL_MINT,
 	},
 ];
 
