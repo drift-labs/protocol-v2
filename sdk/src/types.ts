@@ -191,6 +191,10 @@ export type LiquidatePerpRecord = {
 	quoteAssetAmount: BN;
 	userPnl: BN;
 	liquidatorPnl: BN;
+	canceledOrdersFee: BN;
+	userOrderId: BN;
+	liquidatorOrderId: BN;
+	fillRecordId: BN;
 };
 
 export type LiquidateBorrowRecord = {

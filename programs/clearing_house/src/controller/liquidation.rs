@@ -5,6 +5,7 @@ use crate::controller::position::{
     get_position_index, update_position_and_market, update_unsettled_pnl,
 };
 use crate::error::{ClearingHouseResult, ErrorCode};
+use crate::get_then_update_id;
 use crate::math::bank_balance::get_token_amount;
 use crate::math::casting::{cast, cast_to_i128};
 use crate::math::constants::{BANK_WEIGHT_PRECISION, LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION};
@@ -308,6 +309,14 @@ pub fn liquidate_perp(
         "Liquidator doesnt have enough collateral to take over perp position"
     )?;
 
+    // Increment ids so users can make order records off chain
+    let user_order_id = get_then_update_id!(user, next_order_id);
+    let liquidator_order_id = get_then_update_id!(liquidator, next_order_id);
+    let fill_record_id = {
+        let mut market = market_map.get_ref_mut(&market_index)?;
+        get_then_update_id!(market, next_fill_record_id)
+    };
+
     emit!(LiquidationRecord {
         ts: now,
         liquidation_type: LiquidationType::LiquidatePerp,
@@ -324,6 +333,9 @@ pub fn liquidate_perp(
             user_pnl,
             liquidator_pnl,
             canceled_orders_fee,
+            user_order_id,
+            liquidator_order_id,
+            fill_record_id,
         },
         ..LiquidationRecord::default()
     });

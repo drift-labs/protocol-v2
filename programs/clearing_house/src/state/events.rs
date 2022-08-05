@@ -171,6 +171,9 @@ pub struct LiquidatePerpRecord {
     pub quote_asset_amount: u128,
     pub user_pnl: i128,
     pub liquidator_pnl: i128,
+    pub fill_record_id: u64,
+    pub user_order_id: u64,
+    pub liquidator_order_id: u64,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, Default)]
