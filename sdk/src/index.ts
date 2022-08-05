@@ -2,7 +2,7 @@ import { BN } from '@project-serum/anchor';
 import { PublicKey } from '@solana/web3.js';
 import pyth from '@pythnetwork/client';
 
-export * from './mockUSDCFaucet';
+export * from './tokenFaucet';
 export * from './oracles/types';
 export * from './oracles/pythClient';
 export * from './oracles/switchboardClient';

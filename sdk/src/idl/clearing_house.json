@@ -1235,6 +1235,32 @@
       ]
     },
     {
+      "name": "updateBankLiquidationFee",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "bank",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "liquidationFee",
+          "type": "u128"
+        }
+      ]
+    },
+    {
       "name": "updateMarketImfFactor",
       "accounts": [
         {
@@ -2170,10 +2196,6 @@
             "type": "u8"
           },
           {
-            "name": "liquidationAuctionDuration",
-            "type": "u8"
-          },
-          {
             "name": "liquidationMarginBufferRatio",
             "type": "u8"
           },
@@ -2400,6 +2422,18 @@
           {
             "name": "liquidatorPnl",
             "type": "i128"
+          },
+          {
+            "name": "fillRecordId",
+            "type": "u64"
+          },
+          {
+            "name": "userOrderId",
+            "type": "u64"
+          },
+          {
+            "name": "liquidatorOrderId",
+            "type": "u64"
           }
         ]
       }
