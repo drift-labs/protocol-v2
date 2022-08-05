@@ -18,7 +18,6 @@ import {
 import { BN } from '.';
 import tokenFaucet from './idl/token_faucet.json';
 import { IWallet } from './types';
-import { getTokenAccount } from '@project-serum/common';
 
 export class TokenFaucet {
 	connection: Connection;
@@ -145,9 +144,7 @@ export class TokenFaucet {
 		let associatedTokenAccountExists = false;
 
 		try {
-			const assosciatedTokenAccount = await getTokenAccount(
-				// @ts-ignore
-				this.program.provider,
+			const assosciatedTokenAccount = await this.connection.getAccountInfo(
 				associatedTokenPublicKey
 			);
 
