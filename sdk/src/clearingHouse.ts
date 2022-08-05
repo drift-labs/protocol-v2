@@ -1,62 +1,73 @@
+import * as anchor from '@project-serum/anchor';
 import { AnchorProvider, BN, Idl, Program } from '@project-serum/anchor';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
-import {
-	StateAccount,
-	IWallet,
-	PositionDirection,
-	UserAccount,
-	MarketAccount,
-	OrderParams,
-	Order,
-	BankAccount,
-	UserBankBalance,
-	MakerInfo,
-	TakerInfo,
-	OptionalOrderParams,
-	DefaultOrderParams,
-	OrderType,
-} from './types';
-import * as anchor from '@project-serum/anchor';
 import clearingHouseIDL from './idl/clearing_house.json';
+import {
+	BankAccount,
+	DefaultOrderParams,
+	IWallet,
+	MakerInfo,
+	MarketAccount,
+	OptionalOrderParams,
+	Order,
+	OrderParams,
+	OrderType,
+	PositionDirection,
+	StateAccount,
+	TakerInfo,
+	UserAccount,
+	UserBankBalance,
+} from './types';
 
 import {
-	Connection,
-	PublicKey,
-	TransactionSignature,
+	AccountMeta,
 	ConfirmOptions,
+	Connection,
+	Keypair,
+	LAMPORTS_PER_SOL,
+	PublicKey,
+	Signer,
+	SystemProgram,
 	Transaction,
 	TransactionInstruction,
-	AccountMeta,
+	TransactionSignature,
 } from '@solana/web3.js';
 
-import { TokenFaucet } from './tokenFaucet';
+import {
+	closeAccount,
+	initializeAccount,
+	WRAPPED_SOL_MINT,
+} from '@project-serum/serum/lib/token-instructions';
 import { EventEmitter } from 'events';
 import StrictEventEmitter from 'strict-event-emitter-types';
+import { PollingClearingHouseAccountSubscriber } from './accounts/pollingClearingHouseAccountSubscriber';
+import {
+	ClearingHouseAccountEvents,
+	ClearingHouseAccountSubscriber,
+	DataAndSlot,
+} from './accounts/types';
+import { WebSocketClearingHouseAccountSubscriber } from './accounts/webSocketClearingHouseAccountSubscriber';
 import {
 	getClearingHouseStateAccountPublicKey,
 	getMarketPublicKey,
 	getUserAccountPublicKey,
 	getUserAccountPublicKeySync,
 } from './addresses/pda';
-import {
-	ClearingHouseAccountSubscriber,
-	ClearingHouseAccountEvents,
-	DataAndSlot,
-} from './accounts/types';
-import { TxSender } from './tx/types';
-import { wrapInTx } from './tx/utils';
-import { QUOTE_ASSET_BANK_INDEX, ZERO } from './constants/numericConstants';
-import { findDirectionToClose, positionIsAvailable } from './math/position';
-import { getTokenAmount } from './math/bankBalance';
-import { DEFAULT_USER_NAME, encodeName } from './userName';
-import { OraclePriceData } from './oracles/types';
 import { ClearingHouseConfig } from './clearingHouseConfig';
-import { PollingClearingHouseAccountSubscriber } from './accounts/pollingClearingHouseAccountSubscriber';
-import { WebSocketClearingHouseAccountSubscriber } from './accounts/webSocketClearingHouseAccountSubscriber';
-import { RetryTxSender } from './tx/retryTxSender';
 import { ClearingHouseUser } from './clearingHouseUser';
 import { ClearingHouseUserAccountSubscriptionConfig } from './clearingHouseUserConfig';
 import { getMarketsBanksAndOraclesForSubscription } from './config';
+import { BankConfig } from './constants/banks';
+import { QUOTE_ASSET_BANK_INDEX, ZERO } from './constants/numericConstants';
+import { getTokenAmount } from './math/bankBalance';
+import { findDirectionToClose, positionIsAvailable } from './math/position';
+import { OraclePriceData } from './oracles/types';
+import { TokenFaucet } from './tokenFaucet';
+import { RetryTxSender } from './tx/retryTxSender';
+import { TxSender } from './tx/types';
+import { wrapInTx } from './tx/utils';
+import { DEFAULT_USER_NAME, encodeName } from './userName';
+import { getTokenAddress } from './util/getTokenAddress';
 
 /**
  * # ClearingHouse
@@ -522,11 +533,41 @@ export class ClearingHouse {
 
 	public async deposit(
 		amount: BN,
-		bankIndex: BN,
-		collateralAccountPublicKey: PublicKey,
+		authority: PublicKey,
+		bank: BankConfig,
 		userId?: number,
 		reduceOnly = false
 	): Promise<TransactionSignature> {
+		const tx = new Transaction();
+		const additionalSigners: Array<Signer> = [];
+
+		const bankIndex = bank.bankIndex;
+
+		let collateralAccountPublicKey: PublicKey;
+
+		const isSolBank = bank.mint.equals(WRAPPED_SOL_MINT);
+
+		if (isSolBank) {
+			const { startIxs, tokenAccount, signers } = await this.handleSolDeposit(
+				authority,
+				bank,
+				amount
+			);
+
+			startIxs.forEach((ix) => {
+				tx.add(ix);
+			});
+
+			signers.forEach((signer) => additionalSigners.push(signer));
+
+			collateralAccountPublicKey = tokenAccount;
+		} else {
+			collateralAccountPublicKey = await getTokenAddress(
+				bank.mint.toString(),
+				authority.toString()
+			);
+		}
+
 		const depositCollateralIx = await this.getDepositInstruction(
 			amount,
 			bankIndex,
@@ -536,9 +577,24 @@ export class ClearingHouse {
 			true
 		);
 
-		const tx = new Transaction().add(depositCollateralIx);
+		tx.add(depositCollateralIx);
 
-		const { txSig } = await this.txSender.send(tx);
+		// Close the wrapped sol account at the end of the transaction
+		if (isSolBank) {
+			tx.add(
+				closeAccount({
+					source: collateralAccountPublicKey,
+					destination: authority,
+					owner: authority,
+				})
+			);
+		}
+
+		const { txSig } = await this.txSender.send(
+			tx,
+			additionalSigners,
+			this.opts
+		);
 		return txSig;
 	}
 
@@ -600,6 +656,123 @@ export class ClearingHouse {
 		);
 	}
 
+	private async getSolWithdrawalIxs(
+		authority: PublicKey,
+		bank: BankConfig,
+		amount: BN
+	) {
+		const result = {
+			ixs: [],
+			signers: [],
+		};
+
+		const bankAccount = this.getBankAccount(bank.bankIndex);
+
+		// Create a temporary wrapped SOL account to store the SOL that we're depositing
+		const wrappedSolAccount = new Keypair();
+
+		const lamportsPrecisionExp = new BN(Math.log10(LAMPORTS_PER_SOL));
+
+		const amountInLamports = amount.mul(
+			new BN(10).pow(lamportsPrecisionExp.sub(new BN(bankAccount.decimals)))
+		);
+
+		result.ixs.push(
+			SystemProgram.createAccount({
+				fromPubkey: authority,
+				newAccountPubkey: wrappedSolAccount.publicKey,
+				lamports: LAMPORTS_PER_SOL / 100,
+				space: 165,
+				programId: TOKEN_PROGRAM_ID,
+			})
+		);
+
+		result.ixs.push(
+			initializeAccount({
+				account: wrappedSolAccount.publicKey,
+				mint: WRAPPED_SOL_MINT,
+				owner: authority,
+			})
+		);
+
+		result.signers.push(wrappedSolAccount);
+
+		const withdrawIx = await this.getWithdrawIx(
+			amountInLamports,
+			bank.bankIndex,
+			wrappedSolAccount.publicKey,
+			true
+		);
+
+		result.ixs.push(withdrawIx);
+
+		result.ixs.push(
+			closeAccount({
+				source: wrappedSolAccount.publicKey,
+				destination: authority,
+				owner: authority,
+			})
+		);
+
+		return result;
+	}
+
+	private async handleSolDeposit(
+		authority: PublicKey,
+		bank: BankConfig,
+		amount: BN
+	): Promise<{
+		startIxs: anchor.web3.TransactionInstruction[];
+		tokenAccount: PublicKey;
+		signers: Signer[];
+	}> {
+		const result = {
+			startIxs: [],
+			tokenAccount: PublicKey.default,
+			signers: [],
+		};
+
+		const bankAccount = this.getBankAccount(bank.bankIndex);
+
+		// Create a temporary wrapped SOL account to store the SOL that we're depositing
+		const wrappedSolAccount = new Keypair();
+
+		const lamportsPrecisionExp = new BN(Math.log10(LAMPORTS_PER_SOL));
+		const lamportsPerSol = new BN(LAMPORTS_PER_SOL);
+
+		const amountInLamports = amount.mul(
+			new BN(10).pow(lamportsPrecisionExp.sub(new BN(bankAccount.decimals)))
+		);
+
+		const rentSpaceLamports = lamportsPerSol.div(new BN(100));
+
+		const depositAmountLamports = amountInLamports.add(rentSpaceLamports);
+
+		result.startIxs.push(
+			SystemProgram.createAccount({
+				fromPubkey: authority,
+				newAccountPubkey: wrappedSolAccount.publicKey,
+				lamports: depositAmountLamports.toNumber(),
+				space: 165,
+				programId: TOKEN_PROGRAM_ID,
+			})
+		);
+
+		result.startIxs.push(
+			initializeAccount({
+				account: wrappedSolAccount.publicKey,
+				mint: WRAPPED_SOL_MINT,
+				owner: authority,
+			})
+		);
+
+		result.signers.push(wrappedSolAccount);
+
+		result.tokenAccount = wrappedSolAccount.publicKey;
+
+		return result;
+	}
+
 	/**
 	 * Creates the Clearing House User account for a user, and deposits some initial collateral
 	 * @param userId
@@ -611,14 +784,45 @@ export class ClearingHouse {
 	 */
 	public async initializeUserAccountAndDepositCollateral(
 		amount: BN,
-		userTokenAccount: PublicKey,
-		bankIndex = new BN(0),
+		authority: PublicKey,
+		bank: BankConfig,
 		userId = 0,
 		name = DEFAULT_USER_NAME,
 		fromUserId?: number
 	): Promise<[TransactionSignature, PublicKey]> {
 		const [userAccountPublicKey, initializeUserAccountIx] =
 			await this.getInitializeUserInstructions(userId, name);
+
+		const additionalSigners: Array<Signer> = [];
+
+		const bankIndex = bank.bankIndex;
+
+		let userTokenAccount: PublicKey;
+
+		const isSolBank = bank.mint.equals(WRAPPED_SOL_MINT);
+
+		const tx = new Transaction();
+
+		if (isSolBank) {
+			const { startIxs, tokenAccount, signers } = await this.handleSolDeposit(
+				authority,
+				bank,
+				amount
+			);
+
+			startIxs.forEach((ix) => {
+				tx.add(ix);
+			});
+
+			signers.forEach((signer) => additionalSigners.push(signer));
+
+			userTokenAccount = tokenAccount;
+		} else {
+			userTokenAccount = await getTokenAddress(
+				bank.mint.toString(),
+				authority.toString()
+			);
+		}
 
 		const depositCollateralIx =
 			fromUserId != null
@@ -632,11 +836,24 @@ export class ClearingHouse {
 						false
 				  );
 
-		const tx = new Transaction()
-			.add(initializeUserAccountIx)
-			.add(depositCollateralIx);
+		tx.add(initializeUserAccountIx).add(depositCollateralIx);
 
-		const { txSig } = await this.txSender.send(tx, []);
+		// Close the wrapped sol account at the end of the transaction
+		if (isSolBank) {
+			tx.add(
+				closeAccount({
+					source: userTokenAccount,
+					destination: authority,
+					owner: authority,
+				})
+			);
+		}
+
+		const { txSig } = await this.txSender.send(
+			tx,
+			additionalSigners,
+			this.opts
+		);
 
 		return [txSig, userAccountPublicKey];
 	}
@@ -679,23 +896,50 @@ export class ClearingHouse {
 
 	public async withdraw(
 		amount: BN,
-		bankIndex: BN,
-		userTokenAccount: PublicKey,
+		bank: BankConfig,
+		authority: PublicKey,
 		reduceOnly = false
 	): Promise<TransactionSignature> {
-		const { txSig } = await this.txSender.send(
-			wrapInTx(
-				await this.getWithdrawIx(
-					amount,
-					bankIndex,
-					userTokenAccount,
-					reduceOnly
-				)
-			),
-			[],
-			this.opts
-		);
-		return txSig;
+		const isSolBank = bank.mint.equals(WRAPPED_SOL_MINT);
+
+		if (isSolBank) {
+			const tx = new Transaction();
+
+			const solWithdrawalIxs = await this.getSolWithdrawalIxs(
+				authority,
+				bank,
+				amount
+			);
+
+			solWithdrawalIxs.ixs.forEach((ix) => tx.add(ix));
+
+			const { txSig } = await this.txSender.send(
+				tx,
+				solWithdrawalIxs.signers,
+				this.opts
+			);
+
+			return txSig;
+		} else {
+			const userTokenAccount = await getTokenAddress(
+				bank.mint.toString(),
+				authority.toString()
+			);
+
+			const { txSig } = await this.txSender.send(
+				wrapInTx(
+					await this.getWithdrawIx(
+						amount,
+						bank.bankIndex,
+						userTokenAccount,
+						reduceOnly
+					)
+				),
+				[],
+				this.opts
+			);
+			return txSig;
+		}
 	}
 
 	public async getWithdrawIx(

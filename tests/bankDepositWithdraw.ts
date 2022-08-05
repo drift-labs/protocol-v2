@@ -36,7 +36,7 @@ import {
 	getTokenAmount,
 } from '../sdk/src/math/bankBalance';
 import { NATIVE_MINT } from '@solana/spl-token';
-import { ONE, ZERO } from '../sdk';
+import { initialize, ONE, ZERO } from '../sdk';
 
 describe('bank deposit and withdraw', () => {
 	const provider = anchor.AnchorProvider.local();
@@ -53,7 +53,6 @@ describe('bank deposit and withdraw', () => {
 	let usdcMint;
 
 	let firstUserClearingHouse: ClearingHouse;
-	let firstUserClearingHouseUSDCAccount: PublicKey;
 
 	let secondUserClearingHouse: ClearingHouse;
 	let secondUserClearingHouseWSOLAccount: PublicKey;
@@ -65,6 +64,8 @@ describe('bank deposit and withdraw', () => {
 	let marketIndexes: BN[];
 	let bankIndexes: BN[];
 	let oracleInfos: OracleInfo[];
+
+	const banks = initialize({ env: 'devnet' }).BANKS;
 
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
@@ -192,22 +193,21 @@ describe('bank deposit and withdraw', () => {
 	});
 
 	it('First User Deposit USDC', async () => {
-		[firstUserClearingHouse, firstUserClearingHouseUSDCAccount] =
-			await createUserWithUSDCAccount(
-				provider,
-				usdcMint,
-				chProgram,
-				usdcAmount,
-				marketIndexes,
-				bankIndexes,
-				oracleInfos
-			);
+		[firstUserClearingHouse] = await createUserWithUSDCAccount(
+			provider,
+			usdcMint,
+			chProgram,
+			usdcAmount,
+			marketIndexes,
+			bankIndexes,
+			oracleInfos
+		);
 
 		const bankIndex = new BN(0);
 		const txSig = await firstUserClearingHouse.deposit(
 			usdcAmount,
-			bankIndex,
-			firstUserClearingHouseUSDCAccount
+			provider.wallet.publicKey,
+			banks.find((bank) => bank.bankIndex.eq(bankIndex))
 		);
 		await printTxLogs(connection, txSig);
 
@@ -251,8 +251,8 @@ describe('bank deposit and withdraw', () => {
 		const bankIndex = new BN(1);
 		const txSig = await secondUserClearingHouse.deposit(
 			solAmount,
-			bankIndex,
-			secondUserClearingHouseWSOLAccount
+			provider.wallet.publicKey,
+			banks.find((bank) => bank.bankIndex.eq(bankIndex))
 		);
 		await printTxLogs(connection, txSig);
 
@@ -282,8 +282,8 @@ describe('bank deposit and withdraw', () => {
 		const withdrawAmount = usdcAmount.div(new BN(2));
 		const txSig = await secondUserClearingHouse.withdraw(
 			withdrawAmount,
-			bankIndex,
-			secondUserClearingHouseUSDCAccount
+			banks.find((bank) => bank.bankIndex.eq(bankIndex)),
+			provider.wallet.publicKey
 		);
 		await printTxLogs(connection, txSig);
 
@@ -391,8 +391,8 @@ describe('bank deposit and withdraw', () => {
 			.sub(ONE);
 		const txSig = await secondUserClearingHouse.withdraw(
 			withdrawAmount,
-			bankIndex,
-			secondUserClearingHouseUSDCAccount
+			banks.find((bank) => bank.bankIndex.eq(bankIndex)),
+			provider.wallet.publicKey
 		);
 		await printTxLogs(connection, txSig);
 
@@ -511,8 +511,8 @@ describe('bank deposit and withdraw', () => {
 		const depositAmount = userUSDCAmountBefore.add(mintAmount.div(new BN(2)));
 		const txSig = await secondUserClearingHouse.deposit(
 			depositAmount,
-			bankIndex,
-			secondUserClearingHouseUSDCAccount
+			provider.wallet.publicKey,
+			banks.find((bank) => bank.bankIndex.eq(bankIndex))
 		);
 		await printTxLogs(connection, txSig);
 
@@ -559,8 +559,8 @@ describe('bank deposit and withdraw', () => {
 		const borrowAmount = userDepositokenAmountBefore.add(new BN(1 * 10 ** 6));
 		const txSig = await secondUserClearingHouse.withdraw(
 			borrowAmount,
-			bankIndex,
-			secondUserClearingHouseUSDCAccount
+			banks.find((bank) => bank.bankIndex.eq(bankIndex)),
+			provider.wallet.publicKey
 		);
 		await printTxLogs(connection, txSig);
 
@@ -605,8 +605,8 @@ describe('bank deposit and withdraw', () => {
 		const depositAmount = userUSDCAmountBefore.mul(new BN(100000)); // huge number
 		const txSig = await secondUserClearingHouse.deposit(
 			depositAmount,
-			bankIndex,
-			secondUserClearingHouseUSDCAccount,
+			provider.wallet.publicKey,
+			banks.find((bank) => bank.bankIndex.eq(bankIndex)),
 			undefined,
 			true
 		);
@@ -647,8 +647,8 @@ describe('bank deposit and withdraw', () => {
 		const withdrawAmount = new BN(LAMPORTS_PER_SOL * 100);
 		const txSig = await secondUserClearingHouse.withdraw(
 			withdrawAmount,
-			bankIndex,
-			secondUserClearingHouseWSOLAccount,
+			banks.find((bank) => bank.bankIndex.eq(bankIndex)),
+			provider.wallet.publicKey,
 			true
 		);
 		await printTxLogs(connection, txSig);

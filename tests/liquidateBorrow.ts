@@ -26,7 +26,7 @@ import {
 	createWSolTokenAccountForUser,
 	initializeSolAssetBank,
 } from './testHelpers';
-import { isVariant } from '../sdk';
+import { initialize, isVariant } from '../sdk';
 
 describe('liquidate borrow', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -51,6 +51,9 @@ describe('liquidate borrow', () => {
 	let solOracle: PublicKey;
 
 	const usdcAmount = new BN(100 * 10 ** 6);
+
+	const banks = initialize({ env: 'devnet' }).BANKS;
+	const usdcBank = banks[0];
 
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
@@ -90,7 +93,8 @@ describe('liquidate borrow', () => {
 
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
-			userUSDCAccount.publicKey
+			userUSDCAccount.publicKey,
+			usdcBank
 		);
 
 		const solAmount = new BN(1 * 10 ** 9);
@@ -112,13 +116,14 @@ describe('liquidate borrow', () => {
 			);
 
 		const bankIndex = new BN(1);
+		const bank = banks.find((bank) => bank.bankIndex.eq(bankIndex));
 		await liquidatorClearingHouse.deposit(
 			solAmount,
-			bankIndex,
-			liquidatorClearingHouseWSOLAccount
+			liquidatorClearingHouseWSOLAccount,
+			bank
 		);
 		const solBorrow = new BN(5 * 10 ** 8);
-		await clearingHouse.withdraw(solBorrow, new BN(1), userWSOLAccount);
+		await clearingHouse.withdraw(solBorrow, bank, userWSOLAccount);
 	});
 
 	after(async () => {

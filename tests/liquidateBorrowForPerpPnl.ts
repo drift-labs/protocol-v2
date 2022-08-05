@@ -28,7 +28,7 @@ import {
 	createWSolTokenAccountForUser,
 	initializeSolAssetBank,
 } from './testHelpers';
-import { isVariant } from '../sdk';
+import { initialize, isVariant } from '../sdk';
 
 describe('liquidate borrow for perp pnl', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -102,6 +102,9 @@ describe('liquidate borrow for perp pnl', () => {
 
 		const periodicity = new BN(0);
 
+		const banks = initialize({ env: 'devnet' }).BANKS;
+		const usdcBank = banks[0];
+
 		await clearingHouse.initializeMarket(
 			solOracle,
 			ammInitialBaseAssetReserve,
@@ -111,7 +114,8 @@ describe('liquidate borrow for perp pnl', () => {
 
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
-			userUSDCAccount.publicKey
+			userUSDCAccount.publicKey,
+			usdcBank
 		);
 
 		await clearingHouse.openPosition(
@@ -148,13 +152,14 @@ describe('liquidate borrow for perp pnl', () => {
 		await liquidatorClearingHouse.subscribe();
 
 		const bankIndex = new BN(1);
+		const bank = banks.find((bank) => bank.bankIndex.eq(bankIndex));
 		await liquidatorClearingHouse.deposit(
 			solAmount,
-			bankIndex,
-			liquidatorClearingHouseWSOLAccount
+			liquidatorClearingHouseWSOLAccount,
+			bank
 		);
 		const solBorrow = new BN(5 * 10 ** 8);
-		await clearingHouse.withdraw(solBorrow, new BN(1), userWSOLAccount);
+		await clearingHouse.withdraw(solBorrow, bank, userWSOLAccount);
 	});
 
 	after(async () => {

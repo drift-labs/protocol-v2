@@ -1,6 +1,6 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
-import { BN, QUOTE_ASSET_BANK_INDEX } from '../sdk';
+import { BN, initialize } from '../sdk';
 
 import { Program } from '@project-serum/anchor';
 
@@ -29,6 +29,8 @@ describe('admin withdraw', () => {
 	);
 
 	const usdcAmount = new BN(10 * 10 ** 6);
+	const banks = initialize({ env: 'devnet' }).BANKS;
+	const usdcBank = banks[0];
 
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
@@ -54,7 +56,8 @@ describe('admin withdraw', () => {
 
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
-			userUSDCAccount.publicKey
+			userUSDCAccount.publicKey,
+			usdcBank
 		);
 
 		const marketIndex = new BN(0);
@@ -104,7 +107,7 @@ describe('admin withdraw', () => {
 		try {
 			await clearingHouse.withdraw(
 				usdcAmount,
-				QUOTE_ASSET_BANK_INDEX,
+				usdcBank,
 				userUSDCAccount.publicKey
 			);
 		} catch (e) {

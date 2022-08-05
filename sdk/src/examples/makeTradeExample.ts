@@ -84,11 +84,8 @@ const main = async () => {
 		const depositAmount = new BN(10000).mul(QUOTE_PRECISION);
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
 			depositAmount,
-			await getTokenAddress(
-				usdcTokenAddress.toString(),
-				wallet.publicKey.toString()
-			),
-			Banks['devnet'][0].bankIndex
+			wallet.publicKey,
+			Banks['devnet'][0]
 		);
 	}
 

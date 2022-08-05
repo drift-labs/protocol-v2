@@ -1,6 +1,6 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
-import { BN } from '../sdk';
+import { BN, initialize } from '../sdk';
 
 import { Program } from '@project-serum/anchor';
 
@@ -32,6 +32,9 @@ describe('delete user', () => {
 		mantissaSqrtScale
 	);
 
+	const banks = initialize({ env: 'devnet' }).BANKS;
+	const usdcBank = banks[0];
+
 	const usdcAmount = new BN(10 * 10 ** 6);
 
 	before(async () => {
@@ -59,7 +62,8 @@ describe('delete user', () => {
 		[, userAccountPublicKey] =
 			await clearingHouse.initializeUserAccountAndDepositCollateral(
 				usdcAmount,
-				userUSDCAccount.publicKey
+				userUSDCAccount.publicKey,
+				usdcBank
 			);
 	});
 
@@ -89,7 +93,11 @@ describe('delete user', () => {
 		);
 		assert(userPositionsAccountInfo.lamports !== 0);
 
-		await clearingHouse.withdraw(usdcAmount, userUSDCAccount.publicKey);
+		await clearingHouse.withdraw(
+			usdcAmount,
+			usdcBank,
+			userUSDCAccount.publicKey
+		);
 		await clearingHouse.deleteUser();
 
 		userAccountInfo = await connection.getAccountInfo(userAccountPublicKey);
