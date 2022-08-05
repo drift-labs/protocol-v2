@@ -1,10 +1,8 @@
-#[cfg(test)]
 use crate::state::oracle_map::OracleMap;
 use crate::state::state::FeeStructure;
 use crate::state::user::{MarketPosition, Order};
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::Owner;
-use pyth::pc::Price;
 
 fn get_fee_structure() -> FeeStructure {
     FeeStructure {
@@ -22,15 +20,6 @@ fn get_user_keys() -> (Pubkey, Pubkey, Pubkey) {
 
 fn get_oracle_map<'a>() -> OracleMap<'a> {
     OracleMap::empty()
-}
-
-fn get_price(price: i64, expo: i32) -> Price {
-    let mut pyth_price = Price::default();
-    let price = price * 10_i64.pow(expo as u32);
-    pyth_price.agg.price = price;
-    pyth_price.twap = price;
-    pyth_price.expo = 10;
-    pyth_price
 }
 
 pub mod fulfill_order_with_maker_order {
@@ -1302,7 +1291,7 @@ pub mod fulfill_order {
         let now = 0_i64;
         let slot = 0_u64;
 
-        let mut oracle_price = get_price(100, 10);
+        let mut oracle_price = get_pyth_price(100, 10);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -1331,7 +1320,6 @@ pub mod fulfill_order {
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
-            margin_ratio_partial: 714,
             margin_ratio_maintenance: 500,
             initialized: true,
             ..Market::default()
@@ -1474,7 +1462,6 @@ pub mod fulfill_order {
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
-            margin_ratio_partial: 714,
             margin_ratio_maintenance: 500,
             initialized: true,
             ..Market::default()
@@ -1610,7 +1597,7 @@ pub mod fulfill_order {
         let now = 0_i64;
         let slot = 6_u64;
 
-        let mut oracle_price = get_price(100, 10);
+        let mut oracle_price = get_pyth_price(100, 10);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -1639,7 +1626,6 @@ pub mod fulfill_order {
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
-            margin_ratio_partial: 714,
             margin_ratio_maintenance: 500,
             initialized: true,
             ..Market::default()
@@ -1755,7 +1741,6 @@ pub mod fulfill_order {
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
-            margin_ratio_partial: 714,
             margin_ratio_maintenance: 500,
             initialized: true,
             ..Market::default()
@@ -1901,7 +1886,6 @@ pub mod fulfill_order {
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
-            margin_ratio_partial: 714,
             margin_ratio_maintenance: 500,
             initialized: true,
             ..Market::default()
@@ -1920,7 +1904,6 @@ pub mod fulfill_order {
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
-            margin_ratio_partial: 714,
             margin_ratio_maintenance: 500,
             initialized: true,
             market_index: 1,
@@ -2156,7 +2139,7 @@ pub mod fill_order {
             unix_timestamp: 0,
         };
 
-        let mut oracle_price = get_price(100, 10);
+        let mut oracle_price = get_pyth_price(100, 10);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -2185,7 +2168,6 @@ pub mod fill_order {
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
-            margin_ratio_partial: 714,
             margin_ratio_maintenance: 500,
             initialized: true,
             ..Market::default()
@@ -2291,7 +2273,6 @@ pub mod fill_order {
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
-            margin_ratio_partial: 714,
             margin_ratio_maintenance: 500,
             initialized: true,
             ..Market::default()

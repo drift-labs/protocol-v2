@@ -116,6 +116,10 @@ impl<'a> MarketMap<'a> {
         Ok(market_map)
     }
 
+    pub fn empty() -> Self {
+        MarketMap(BTreeMap::new())
+    }
+
     pub fn load_multiple<'c>(
         account_infos: Vec<&'c AccountInfo<'a>>,
         must_be_writable: bool,

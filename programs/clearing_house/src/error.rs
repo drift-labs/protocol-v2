@@ -184,6 +184,26 @@ pub enum ErrorCode {
     OrderNotTriggerable,
     #[msg("OrderDidNotSatisfyTriggerCondition")]
     OrderDidNotSatisfyTriggerCondition,
+    #[msg("PositionAlreadyBeingLiquidated")]
+    PositionAlreadyBeingLiquidated,
+    #[msg("PositionDoesntHaveOpenPositionOrOrders")]
+    PositionDoesntHaveOpenPositionOrOrders,
+    #[msg("AllOrdersAreAlreadyLiquidations")]
+    AllOrdersAreAlreadyLiquidations,
+    #[msg("CantCancelLiquidationOrder")]
+    CantCancelLiquidationOrder,
+    #[msg("UserIsBeingLiquidated")]
+    UserIsBeingLiquidated,
+    #[msg("LiquidationsOngoing")]
+    LiquidationsOngoing,
+    #[msg("WrongBankBalanceType")]
+    WrongBankBalanceType,
+    #[msg("UserCantLiquidateThemself")]
+    UserCantLiquidateThemself,
+    #[msg("InvalidPerpPositionToLiquidate")]
+    InvalidPerpPositionToLiquidate,
+    #[msg("InvalidBaseAssetAmountForLiquidatePerp")]
+    InvalidBaseAssetAmountForLiquidatePerp,
     #[msg("DefaultError")]
     DefaultError,
 }
