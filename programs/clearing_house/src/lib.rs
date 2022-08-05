@@ -1875,6 +1875,12 @@ pub mod clearing_house {
         liquidation_fee: u128,
     ) -> Result<()> {
         let market = &mut load_mut!(ctx.accounts.market)?;
+        validate!(
+            liquidation_fee < LIQUIDATION_FEE_PRECISION,
+            ErrorCode::DefaultError,
+            "Liquidation fee must be less than 100%"
+        )?;
+
         validate_margin(
             market.margin_ratio_initial,
             market.margin_ratio_maintenance,
@@ -1882,6 +1888,21 @@ pub mod clearing_house {
         )?;
 
         market.liquidation_fee = liquidation_fee;
+        Ok(())
+    }
+
+    pub fn update_bank_liquidation_fee(
+        ctx: Context<AdminUpdateBank>,
+        liquidation_fee: u128,
+    ) -> Result<()> {
+        let bank = &mut load_mut!(ctx.accounts.bank)?;
+        validate!(
+            liquidation_fee < LIQUIDATION_FEE_PRECISION,
+            ErrorCode::DefaultError,
+            "Liquidation fee must be less than 100%"
+        )?;
+
+        bank.liquidation_fee = liquidation_fee;
         Ok(())
     }
 

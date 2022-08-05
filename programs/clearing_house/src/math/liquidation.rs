@@ -23,6 +23,14 @@ pub fn calculate_base_asset_amount_to_cover_margin_shortage(
     liquidation_fee: u128,
     oracle_price: i128,
 ) -> ClearingHouseResult<u128> {
+    let margin_ratio = (margin_ratio as u128)
+        .checked_mul(LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO)
+        .ok_or_else(math_error!())?;
+
+    if oracle_price == 0 || margin_ratio <= liquidation_fee {
+        return Ok(u128::MAX);
+    }
+
     margin_shortage
         .checked_mul(MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO)
         .ok_or_else(math_error!())?
@@ -30,9 +38,7 @@ pub fn calculate_base_asset_amount_to_cover_margin_shortage(
             oracle_price
                 .unsigned_abs()
                 .checked_mul(
-                    (margin_ratio as u128)
-                        .checked_mul(LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO)
-                        .ok_or_else(math_error!())?
+                    margin_ratio
                         .checked_sub(liquidation_fee)
                         .ok_or_else(math_error!())?,
                 )

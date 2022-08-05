@@ -284,9 +284,9 @@ export type MarketAccount = {
 	openInterest: BN;
 	marginRatioInitial: number;
 	marginRatioMaintenance: number;
-	marginRatioPartial: number;
 	nextFillRecordId: BN;
 	pnlPool: PoolBalance;
+	liquidationFee: BN;
 };
 
 export type BankAccount = {
@@ -310,6 +310,7 @@ export type BankAccount = {
 	maintenanceAssetWeight: BN;
 	initialLiabilityWeight: BN;
 	maintenanceLiabilityWeight: BN;
+	liquidationFee: BN;
 };
 
 export type PoolBalance = {
@@ -559,4 +560,4 @@ export type OrderFillerRewardStructure = {
 	timeBasedRewardLowerBound: BN;
 };
 
-export type MarginCategory = 'Initial' | 'Partial' | 'Maintenance';
+export type MarginCategory = 'Initial' | 'Maintenance';

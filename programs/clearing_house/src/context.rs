@@ -583,3 +583,14 @@ pub struct AdminUpdateMarket<'info> {
     #[account(mut)]
     pub market: AccountLoader<'info, Market>,
 }
+
+#[derive(Accounts)]
+pub struct AdminUpdateBank<'info> {
+    pub admin: Signer<'info>,
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub bank: AccountLoader<'info, Bank>,
+}

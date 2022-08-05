@@ -271,16 +271,12 @@ describe('orders', () => {
 			reduceOnly,
 		});
 
-		try {
-			const txSig = await clearingHouse.placeOrder(orderParams);
-			console.log(
-				'tx logs',
-				(await connection.getTransaction(txSig, { commitment: 'confirmed' }))
-					.meta.logMessages
-			);
-		} catch (e) {
-			console.error(e);
-		}
+		const txSig = await clearingHouse.placeOrder(orderParams);
+		console.log(
+			'tx logs',
+			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
+				.logMessages
+		);
 
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();

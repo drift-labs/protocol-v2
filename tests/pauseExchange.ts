@@ -4,8 +4,6 @@ import { BN, QUOTE_ASSET_BANK_INDEX } from '../sdk';
 
 import { Program } from '@project-serum/anchor';
 
-import { PublicKey } from '@solana/web3.js';
-
 import { Admin, MARK_PRICE_PRECISION, PositionDirection } from '../sdk/src';
 
 import { mockUSDCMint, mockUserUSDCAccount } from './testHelpers';
@@ -17,8 +15,6 @@ describe('admin withdraw', () => {
 	const chProgram = anchor.workspace.ClearingHouse as Program;
 
 	let clearingHouse: Admin;
-
-	let userAccountPublicKey: PublicKey;
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -56,11 +52,10 @@ describe('admin withdraw', () => {
 			periodicity
 		);
 
-		[, userAccountPublicKey] =
-			await clearingHouse.initializeUserAccountAndDepositCollateral(
-				usdcAmount,
-				userUSDCAccount.publicKey
-			);
+		await clearingHouse.initializeUserAccountAndDepositCollateral(
+			usdcAmount,
+			userUSDCAccount.publicKey
+		);
 
 		const marketIndex = new BN(0);
 		const incrementalUSDCNotionalAmount = usdcAmount.mul(new BN(5));
@@ -98,16 +93,6 @@ describe('admin withdraw', () => {
 	it('Block close position', async () => {
 		try {
 			await clearingHouse.closePosition(new BN(0));
-		} catch (e) {
-			assert(e.msg, 'Exchange is paused');
-			return;
-		}
-		console.assert(false);
-	});
-
-	it('Block liquidation', async () => {
-		try {
-			await clearingHouse.liquidate(userAccountPublicKey);
 		} catch (e) {
 			assert(e.msg, 'Exchange is paused');
 			return;

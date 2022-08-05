@@ -1,11 +1,10 @@
 use crate::error::ClearingHouseResult;
-use crate::math::collateral::calculate_updated_collateral;
 use crate::math::constants::{
     AMM_TO_QUOTE_PRECISION_RATIO_I128, BANK_IMF_PRECISION, BANK_WEIGHT_PRECISION,
     BID_ASK_SPREAD_PRECISION_I128, MARGIN_PRECISION,
 };
 use crate::math::position::{
-    calculate_base_asset_value_and_pnl, calculate_base_asset_value_and_pnl_with_oracle_price,
+    calculate_base_asset_value_and_pnl_with_oracle_price,
     calculate_base_asset_value_with_oracle_price,
 };
 use crate::math_error;
@@ -372,104 +371,10 @@ pub fn meets_maintenance_margin_requirement(
     Ok(total_collateral >= cast_to_i128(margin_requirement)?)
 }
 
-pub fn calculate_free_collateral(
-    user: &User,
-    market_map: &MarketMap,
-    bank_map: &BankMap,
-    oracle_map: &mut OracleMap,
-    market_to_close: Option<u64>,
-) -> ClearingHouseResult<(u128, u128)> {
-    let mut closed_position_base_asset_value: u128 = 0;
-    let mut initial_margin_requirement: u128 = 0;
-    let mut unrealized_pnl: i128 = 0;
-    let mut unsettled_pnl: i128 = 0;
-
-    let mut deposit_value = 0_u128;
-    for user_bank_balance in user.bank_balances.iter() {
-        if user_bank_balance.balance == 0 {
-            continue;
-        }
-
-        let bank = &bank_map.get_ref(&user_bank_balance.bank_index)?;
-
-        let oracle_price_data = oracle_map.get_price_data(&bank.oracle)?;
-        let (balance_value, token_amount) =
-            get_balance_value_and_token_amount(user_bank_balance, bank, oracle_price_data)?;
-
-        match user_bank_balance.balance_type {
-            BankBalanceType::Deposit => {
-                deposit_value =
-                    deposit_value
-                        .checked_add(
-                            balance_value
-                                .checked_mul(bank.get_asset_weight(
-                                    token_amount,
-                                    &MarginRequirementType::Initial,
-                                )?)
-                                .ok_or_else(math_error!())?
-                                .checked_div(BANK_WEIGHT_PRECISION)
-                                .ok_or_else(math_error!())?,
-                        )
-                        .ok_or_else(math_error!())?;
-            }
-            BankBalanceType::Borrow => panic!(),
-        }
-    }
-
-    for market_position in user.positions.iter() {
-        unsettled_pnl = unsettled_pnl
-            .checked_add(market_position.unsettled_pnl)
-            .ok_or_else(math_error!())?;
-
-        if market_position.base_asset_amount == 0 {
-            continue;
-        }
-
-        let market = &market_map.get_ref(&market_position.market_index)?;
-        let amm = &market.amm;
-        let (position_base_asset_value, position_unrealized_pnl) =
-            calculate_base_asset_value_and_pnl(market_position, amm, true)?;
-
-        if market_to_close.is_some() && market_to_close.unwrap() == market_position.market_index {
-            closed_position_base_asset_value = position_base_asset_value;
-        } else {
-            initial_margin_requirement = initial_margin_requirement
-                .checked_add(
-                    position_base_asset_value
-                        .checked_mul(market.margin_ratio_initial.into())
-                        .ok_or_else(math_error!())?,
-                )
-                .ok_or_else(math_error!())?;
-        }
-
-        unrealized_pnl = unrealized_pnl
-            .checked_add(position_unrealized_pnl)
-            .ok_or_else(math_error!())?;
-    }
-
-    initial_margin_requirement = initial_margin_requirement
-        .checked_div(MARGIN_PRECISION)
-        .ok_or_else(math_error!())?;
-
-    let total_collateral = calculate_updated_collateral(
-        calculate_updated_collateral(deposit_value, unrealized_pnl)?,
-        unsettled_pnl,
-    )?;
-
-    let free_collateral = if initial_margin_requirement < total_collateral {
-        total_collateral
-            .checked_sub(initial_margin_requirement)
-            .ok_or_else(math_error!())?
-    } else {
-        0
-    };
-
-    Ok((free_collateral, closed_position_base_asset_value))
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::math::collateral::calculate_updated_collateral;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BANK_CUMULATIVE_INTEREST_PRECISION, BANK_IMF_PRECISION,
         MARK_PRICE_PRECISION, QUOTE_PRECISION,
@@ -477,6 +382,7 @@ mod test {
     use crate::math::position::calculate_position_pnl;
     use crate::state::bank::Bank;
     use crate::state::market::{Market, AMM};
+
     #[test]
     fn bank_asset_weight() {
         let mut bank = Bank {
