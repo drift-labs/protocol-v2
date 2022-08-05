@@ -5,12 +5,16 @@ use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 
 use crate::error::ClearingHouseResult;
-use crate::math::constants::{AMM_RESERVE_PRECISION, BANK_WEIGHT_PRECISION};
+use crate::math::constants::{
+    AMM_RESERVE_PRECISION, BANK_WEIGHT_PRECISION, LIQUIDATION_FEE_PRECISION,
+};
 use crate::math::margin::{
     calculate_size_discount_asset_weight, calculate_size_premium_liability_weight,
     MarginRequirementType,
 };
+use crate::math_error;
 use crate::state::oracle::OracleSource;
+use solana_program::msg;
 
 #[account(zero_copy)]
 #[derive(Default)]
@@ -38,6 +42,7 @@ pub struct Bank {
     pub initial_liability_weight: u128,
     pub maintenance_liability_weight: u128,
     pub imf_factor: u128,
+    pub liquidation_fee: u128,
 }
 
 impl Bank {
@@ -58,11 +63,6 @@ impl Bank {
                 size_in_amm_reserve_precision,
                 self.imf_factor,
                 self.initial_asset_weight,
-            )?,
-            MarginRequirementType::Partial => calculate_size_discount_asset_weight(
-                size_in_amm_reserve_precision,
-                self.imf_factor,
-                self.maintenance_asset_weight,
             )?,
             MarginRequirementType::Maintenance => self.maintenance_asset_weight,
         };
@@ -89,16 +89,24 @@ impl Bank {
                 self.initial_liability_weight,
                 BANK_WEIGHT_PRECISION,
             )?,
-            MarginRequirementType::Partial => calculate_size_premium_liability_weight(
-                size_in_amm_reserve_precision,
-                self.imf_factor,
-                self.maintenance_liability_weight,
-                BANK_WEIGHT_PRECISION,
-            )?,
             MarginRequirementType::Maintenance => self.maintenance_liability_weight,
         };
 
         Ok(liability_weight)
+    }
+
+    pub fn get_liquidation_fee_multiplier(
+        &self,
+        balance_type: BankBalanceType,
+    ) -> ClearingHouseResult<u128> {
+        match balance_type {
+            BankBalanceType::Deposit => LIQUIDATION_FEE_PRECISION
+                .checked_add(self.liquidation_fee)
+                .ok_or_else(math_error!()),
+            BankBalanceType::Borrow => LIQUIDATION_FEE_PRECISION
+                .checked_sub(self.liquidation_fee)
+                .ok_or_else(math_error!()),
+        }
     }
 }
 

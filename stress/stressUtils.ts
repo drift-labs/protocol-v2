@@ -137,10 +137,6 @@ export async function simEvent(
 				await clearingHouse.closePosition(market_i);
 				break;
 
-			case 'liquidate':
-				await clearingHouse.liquidate(user_e);
-				break;
-
 			default:
 			//default statement or expression;
 		}

@@ -112,6 +112,43 @@ impl<'a> BankMap<'a> {
 
         Ok(bank_map)
     }
+
+    pub fn load_multiple<'c>(
+        account_info: Vec<&'c AccountInfo<'a>>,
+        must_be_writable: bool,
+    ) -> ClearingHouseResult<BankMap<'a>> {
+        let mut bank_map: BankMap = BankMap(BTreeMap::new());
+
+        let account_info_iter = account_info.into_iter();
+        for account_info in account_info_iter {
+            let bank_discriminator: [u8; 8] = Bank::discriminator();
+            let data = account_info
+                .try_borrow_data()
+                .or(Err(ErrorCode::CouldNotLoadBankData))?;
+
+            if data.len() < std::mem::size_of::<Bank>() + 8 {
+                return Err(ErrorCode::CouldNotLoadBankData);
+            }
+
+            let account_discriminator = array_ref![data, 0, 8];
+            if account_discriminator != &bank_discriminator {
+                return Err(ErrorCode::CouldNotLoadBankData);
+            }
+
+            let bank_index = u64::from_le_bytes(*array_ref![data, 8, 8]);
+            let is_writable = account_info.is_writable;
+            let account_loader: AccountLoader<Bank> =
+                AccountLoader::try_from(account_info).or(Err(ErrorCode::InvalidBankAccount))?;
+
+            if must_be_writable && !is_writable {
+                return Err(ErrorCode::BankWrongMutability);
+            }
+
+            bank_map.0.insert(bank_index, account_loader);
+        }
+
+        Ok(bank_map)
+    }
 }
 
 pub type WritableBanks = BTreeSet<u64>;

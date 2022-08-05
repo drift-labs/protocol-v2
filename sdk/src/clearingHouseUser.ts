@@ -205,7 +205,7 @@ export class ClearingHouseUser {
 	/**
 	 * @returns The partial margin requirement in USDC. : QUOTE_PRECISION
 	 */
-	public getPartialMarginRequirement(): BN {
+	public getMaintenanceMarginRequirement(): BN {
 		return this.getUserAccount()
 			.positions.reduce((marginRequirement, marketPosition) => {
 				const market = this.clearingHouse.getMarketAccount(
@@ -217,7 +217,7 @@ export class ClearingHouseUser {
 						marketPosition,
 						this.getOracleDataForMarket(market.marketIndex)
 					)
-						.mul(new BN(market.marginRatioPartial))
+						.mul(new BN(market.marginRatioMaintenance))
 						.div(MARGIN_PRECISION)
 				);
 			}, ZERO)
@@ -514,9 +514,6 @@ export class ClearingHouseUser {
 			case 'Maintenance':
 				marginRatioCategory = market.marginRatioMaintenance;
 				break;
-			case 'Partial':
-				marginRatioCategory = market.marginRatioPartial;
-				break;
 			default:
 				marginRatioCategory = market.marginRatioInitial;
 				break;
@@ -543,7 +540,8 @@ export class ClearingHouseUser {
 
 	public canBeLiquidated(): [boolean, BN] {
 		const totalCollateral = this.getTotalCollateral();
-		const partialMaintenanceRequirement = this.getPartialMarginRequirement();
+		const partialMaintenanceRequirement =
+			this.getMaintenanceMarginRequirement();
 		const marginRatio = this.getMarginRatio();
 		const canLiquidate = totalCollateral.lt(partialMaintenanceRequirement);
 		return [canLiquidate, marginRatio];
@@ -587,8 +585,7 @@ export class ClearingHouseUser {
 	 */
 	public liquidationPrice(
 		marketPosition: Pick<UserPosition, 'marketIndex'>,
-		positionBaseSizeChange: BN = ZERO,
-		partial = false
+		positionBaseSizeChange: BN = ZERO
 	): BN {
 		// solves formula for example canBeLiquidated below
 
@@ -661,11 +658,7 @@ export class ClearingHouseUser {
 							this.getOracleDataForMarket(market.marketIndex)
 						);
 						const marketMarginRequirement = positionValue
-							.mul(
-								partial
-									? new BN(market.marginRatioPartial)
-									: new BN(market.marginRatioMaintenance)
-							)
+							.mul(new BN(market.marginRatioMaintenance))
 							.div(MARGIN_PRECISION);
 						totalMarginRequirement = totalMarginRequirement.add(
 							marketMarginRequirement
@@ -691,20 +684,17 @@ export class ClearingHouseUser {
 		const marginRequirementAfterTrade =
 			marginRequirementExcludingTargetMarket.add(
 				proposedMarketPositionValue
-					.mul(
-						partial
-							? new BN(market.marginRatioPartial)
-							: new BN(market.marginRatioMaintenance)
-					)
+					.mul(new BN(market.marginRatioMaintenance))
 					.div(MARGIN_PRECISION)
 			);
 		const freeCollateralAfterTrade = totalCollateral.sub(
 			marginRequirementAfterTrade
 		);
 
-		const marketMaxLeverage = partial
-			? this.getMaxLeverage(proposedMarketPosition.marketIndex, 'Partial')
-			: this.getMaxLeverage(proposedMarketPosition.marketIndex, 'Maintenance');
+		const marketMaxLeverage = this.getMaxLeverage(
+			proposedMarketPosition.marketIndex,
+			'Maintenance'
+		);
 
 		let priceDelta;
 		if (proposedBaseAssetAmount.lt(ZERO)) {
@@ -777,8 +767,7 @@ export class ClearingHouseUser {
 			{
 				marketIndex: positionMarketIndex,
 			},
-			closeBaseAmount,
-			true
+			closeBaseAmount
 		);
 	}
 

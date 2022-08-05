@@ -20,8 +20,15 @@ export const DevnetBanks: BankConfig[] = [
 		mint: new PublicKey('8zGuJQqwhZafTah7Uc7Z4tXRnguqkn5KLFAP8oV6PHe2'),
 	},
 	{
-		symbol: 'BTC',
+		symbol: 'SOL',
 		bankIndex: new BN(1),
+		oracle: new PublicKey('J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix'),
+		oracleSource: OracleSource.PYTH,
+		mint: new PublicKey('So11111111111111111111111111111111111111112'),
+	},
+	{
+		symbol: 'BTC',
+		bankIndex: new BN(2),
 		oracle: new PublicKey('HovQMDrbAgAYPCmHVSrezcSmkMtXSSUsLDFANExrZh2J'),
 		oracleSource: OracleSource.PYTH,
 		mint: new PublicKey('Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr'),
