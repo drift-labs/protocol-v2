@@ -429,14 +429,26 @@ describe('liquidity providing', () => {
 		// some user goes long (lp should get a short)
 		console.log('user trading...');
 		const tradeSize = new BN(40 * 1e13);
-		await adjustOraclePostSwap(tradeSize, SwapDirection.ADD, market);
-		const _txsig = await traderClearingHouse.openPosition(
-			PositionDirection.SHORT,
+		const newPrice = await adjustOraclePostSwap(
 			tradeSize,
-			market.marketIndex
+			SwapDirection.ADD,
+			market
 		);
+		try {
+			const _txsig = await traderClearingHouse.openPosition(
+				PositionDirection.SHORT,
+				tradeSize,
+				market.marketIndex,
+				new BN(newPrice * MARK_PRICE_PRECISION.toNumber())
+			);
+		} catch (e) {
+			console.error(e);
+		}
 
-		const position = traderClearingHouse.getUserAccount().positions[0];
+		await traderClearingHouse.fetchAccounts();
+		const traderUserAccount = traderClearingHouse.getUserAccount();
+		console.log(traderUserAccount);
+		const position = traderUserAccount.positions[0];
 		console.log(
 			'trader position:',
 			position.baseAssetAmount.toString(),
@@ -459,10 +471,10 @@ describe('liquidity providing', () => {
 			lpPosition.unsettledPnl.toString()
 		);
 
-		assert(lpPosition.unsettledPnl.gt(ZERO)); // get paid fees
+		assert(lpPosition.unsettledPnl.eq(new BN(-3355581))); // get paid fees
 		assert(lpTokenAmount.eq(new BN(0)));
 		assert(user.positions[0].baseAssetAmount.gt(new BN(0))); // lp is short
-		assert(!user.positions[0].quoteAssetAmount.eq(new BN(0)));
+		assert(!user.positions[0].quoteAssetAmount.eq(new BN(152457)));
 
 		console.log('closing trader ...');
 		await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);
