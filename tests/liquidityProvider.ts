@@ -614,14 +614,14 @@ describe('liquidity providing', () => {
 		console.log('lp tokens', lpPosition2.lpShares.toString());
 		console.log(
 			'lp position for market',
-			lpPosition.marketIndex.toNumber(),
+			lpPosition2.marketIndex.toNumber(),
 			':\n',
 			'baa, qaa, upnl',
-			lpPosition.baseAssetAmount.toString(),
-			lpPosition.quoteAssetAmount.toString(),
-			lpPosition.unsettledPnl.toString()
+			lpPosition2.baseAssetAmount.toString(),
+			lpPosition2.quoteAssetAmount.toString(),
+			lpPosition2.unsettledPnl.toString()
 		);
-		assert(lpPosition.baseAssetAmount.eq(ZERO));
+		assert(lpPosition2.baseAssetAmount.eq(ZERO));
 
 		console.log('done!');
 	});
