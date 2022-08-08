@@ -277,6 +277,10 @@ pub fn calculate_margin_requirement_and_total_collateral(
             None => market_position,
         };
 
+        msg!("market_position.is_lp()={:?}", market_position.is_lp());
+        msg!("market_position.open_bids={:?}", market_position.open_bids);
+        msg!("market_position.open_asks={:?}", market_position.open_asks);
+
         if market_position.base_asset_amount == 0
             && market_position.unsettled_pnl == 0
             && !market_position.has_open_order()
@@ -294,8 +298,9 @@ pub fn calculate_margin_requirement_and_total_collateral(
             oracle_price_data,
             margin_requirement_type,
         )?;
+        msg!("oracle_price_data.price={:?}", oracle_price_data.price);
 
-        margin_requirement
+        margin_requirement = margin_requirement
             .checked_add(perp_margin_requirement)
             .ok_or_else(math_error!())?;
 
@@ -372,6 +377,11 @@ pub fn meets_initial_margin_requirement(
         bank_map,
         oracle_map,
     )?;
+    msg!(
+        "meets_initial_margin_requirement: {:?} > {:?}",
+        total_collateral,
+        margin_requirement
+    );
 
     Ok(total_collateral >= cast_to_i128(margin_requirement)?)
 }

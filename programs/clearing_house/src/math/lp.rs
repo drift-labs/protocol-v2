@@ -364,7 +364,14 @@ mod test {
             ..Market::default()
         };
 
+        assert_eq!(position.open_asks, 0);
+        assert_eq!(position.open_bids, 0);
+        assert_eq!(position.open_orders, 0);
         let market_position = get_lp_market_position_margin(&position, &market).unwrap();
+        assert_eq!(market_position.open_asks, 414200000000000);
+        assert_eq!(market_position.open_bids, 292886437561872);
+        assert_eq!(market_position.open_orders, 0); // todo?
+
         let worst_case_base_asset_amount = market_position.worst_case_base_asset_amount().unwrap();
         let balanced_position_base_asset_value =
             calculate_base_asset_value(worst_case_base_asset_amount, &market.amm, false).unwrap();
@@ -374,7 +381,7 @@ mod test {
         assert_eq!(balanced_position_base_asset_value, 2195078159); //$2195.078159
 
         // make the market unbalanced
-        let trade_size = 2_000 * AMM_RESERVE_PRECISION;
+        let trade_size = 229_000 * AMM_RESERVE_PRECISION;
         let (new_qar, new_bar) = calculate_swap_output(
             trade_size,
             amm.base_asset_reserve,
@@ -387,12 +394,21 @@ mod test {
         market.amm.user_lp_shares = position.lp_shares;
 
         // recompute margin requirements
+        assert_eq!(position.open_asks, 0);
+        assert_eq!(position.open_bids, 0);
+        assert_eq!(position.open_orders, 0);
+
         let market_position = get_lp_market_position_margin(&position, &market).unwrap();
         let worst_case_base_asset_amount = market_position.worst_case_base_asset_amount().unwrap();
         let unbalanced_position_base_asset_value =
             calculate_base_asset_value(worst_case_base_asset_amount, &market.amm, false).unwrap();
 
-        assert_eq!(worst_case_base_asset_amount, 418200000000000);
+        assert_eq!(market_position.open_asks, 872200000000000); //87.22
+        assert_eq!(market_position.open_bids, 0);
+        assert_eq!(market_position.open_orders, 0); // todo?
+
+        assert_eq!(worst_case_base_asset_amount, 872200000000000);
+        assert_eq!(unbalanced_position_base_asset_value, 15730902011);
 
         println!(
             "base v: {} {}",
@@ -490,7 +506,7 @@ mod test {
             net_base_asset_amount: 100 * AMM_RESERVE_PRECISION_I128, // users went long
             market_position_per_lp: MarketPosition {
                 base_asset_amount: 71 * AMM_RESERVE_PRECISION_I128, //todo
-                quote_asset_amount: 0 * QUOTE_PRECISION,
+                quote_asset_amount: 0,
                 ..MarketPosition::default()
             },
             peg_multiplier: 1,
