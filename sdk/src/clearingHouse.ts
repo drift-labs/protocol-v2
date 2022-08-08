@@ -1399,7 +1399,10 @@ export class ClearingHouse {
 	 * @param marketIndex
 	 * @returns
 	 */
-	public async closePosition(marketIndex: BN): Promise<TransactionSignature> {
+	public async closePosition(
+		marketIndex: BN,
+		limitPrice?: BN
+	): Promise<TransactionSignature> {
 		const userPosition = this.getUser().getUserPosition(marketIndex);
 		if (!userPosition) {
 			throw Error(`No position in market ${marketIndex.toString()}`);
@@ -1409,8 +1412,9 @@ export class ClearingHouse {
 			orderType: OrderType.MARKET,
 			marketIndex,
 			direction: findDirectionToClose(userPosition),
-			baseAssetAmount: userPosition.baseAssetAmount,
+			baseAssetAmount: userPosition.baseAssetAmount.abs(),
 			reduceOnly: true,
+			price: limitPrice,
 		});
 	}
 

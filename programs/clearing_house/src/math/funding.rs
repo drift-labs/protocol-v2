@@ -57,7 +57,7 @@ pub fn calculate_funding_rate_long_short(
     let settled_net_market_position = market
         .amm
         .net_base_asset_amount
-        .checked_sub(market.amm.net_unsettled_lp_base_asset_amount)
+        .checked_add(market.amm.net_unsettled_lp_base_asset_amount)
         .ok_or_else(math_error!())?;
 
     let net_market_position_funding_payment =

@@ -10,6 +10,7 @@ use crate::bn::U192;
 use crate::controller::position::update_position_and_market;
 use crate::controller::position::PositionDelta;
 use crate::math::amm::{get_update_k_result, update_k};
+use crate::math::orders::standardize_base_asset_amount_with_remainder_i128;
 
 use anchor_lang::prelude::msg;
 
@@ -20,27 +21,48 @@ pub fn settle_lp_position(
     let amm = &mut market.amm;
     let metrics: LPMetrics = get_lp_metrics(position, amm)?;
 
-    // update lp market position
-    // todo: use update_position_and_market instead of update_lp_position
-    // for the lp when they settle, that should make the market state/ funding prope
-    // let upnl = update_lp_position(position, &metrics)?;
-    // update_unsettled_pnl(position, market, upnl)?;
-    // give them a portion of the market position
+    // step_amount, remainder = standardize baa
+    // position_delta.baa = step_amount
+    // // markets position
+    // market.position.baa += remainder
+    // // users position
+    // market.net_baa -= remainder (market gets the ceil)
+
+    let (standardized_base_asset_amount, remainder) =
+        standardize_base_asset_amount_with_remainder_i128(
+            metrics.base_asset_amount,
+            market.amm.base_asset_amount_step_size,
+        )?;
 
     // track new market position
     let position_delta = PositionDelta {
-        base_asset_amount: metrics.base_asset_amount,
+        base_asset_amount: standardized_base_asset_amount,
         quote_asset_amount: metrics.quote_asset_amount,
     };
 
+    // market gets the remainder position
+    market.amm.net_base_asset_amount = market
+        .amm
+        .net_base_asset_amount
+        .checked_sub(remainder)
+        .ok_or_else(math_error!())?;
+
+    market.amm.market_position.base_asset_amount = market
+        .amm
+        .market_position
+        .base_asset_amount
+        .checked_add(remainder)
+        .ok_or_else(math_error!())?;
+
     let upnl = update_position_and_market(position, market, &position_delta)?;
 
-    update_unsettled_pnl(
-        position,
-        market,
-        upnl.checked_add(metrics.unsettled_pnl)
-            .ok_or_else(math_error!())?,
-    )?;
+    let unsettled_pnl = upnl
+        .checked_add(metrics.unsettled_pnl)
+        .ok_or_else(math_error!())?
+        .checked_add(metrics.fee_payment)
+        .ok_or_else(math_error!())?;
+
+    update_unsettled_pnl(position, market, unsettled_pnl)?;
 
     market.amm.net_unsettled_lp_base_asset_amount = market
         .amm

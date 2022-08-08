@@ -308,7 +308,7 @@ export type AMM = {
 	cumulativeFundingPaymentPerLp: BN;
 	cumulativeFeePerLp: BN;
 	cumulativeNetBaseAssetAmountPerLp: BN;
-	ammLpShares: BN;
+	userLpShares: BN;
 	minimumQuoteAssetTradeSize: BN;
 	baseAssetAmountStepSize: BN;
 	maxBaseAssetAmountRatio: number;
