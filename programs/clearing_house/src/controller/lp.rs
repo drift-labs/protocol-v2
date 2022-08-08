@@ -35,12 +35,13 @@ pub fn settle_lp_position(
 
     let upnl = update_position_and_market(position, market, &position_delta)?;
 
-    update_unsettled_pnl(
-        position,
-        market,
-        upnl.checked_add(metrics.unsettled_pnl)
-            .ok_or_else(math_error!())?,
-    )?;
+    let unsettled_pnl = upnl
+        .checked_add(metrics.unsettled_pnl)
+        .ok_or_else(math_error!())?
+        .checked_add(metrics.fee_payment)
+        .ok_or_else(math_error!())?;
+
+    update_unsettled_pnl(position, market, unsettled_pnl)?;
 
     market.amm.net_unsettled_lp_base_asset_amount = market
         .amm

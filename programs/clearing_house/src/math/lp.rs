@@ -92,6 +92,10 @@ pub fn get_lp_metrics(position: &MarketPosition, amm: &AMM) -> ClearingHouseResu
         //&& quote_asset_amount >= min_qaa {
         market_quote_asset_amount = quote_asset_amount;
         market_base_asset_amount = base_asset_amount;
+    } else if amm_net_base_asset_amount_per_lp == 0 {
+        // no change in baa
+        market_quote_asset_amount = 0;
+        market_base_asset_amount = 0;
     } else {
         msg!(
             "Warning: lp market position too small: {} {} :: {} {}",
@@ -155,6 +159,20 @@ pub fn get_lp_market_position_margin(
     // worse case market position
     // max ask: (sqrtk*1.4142 - base asset reserves) * lp share
     // max bid: (base asset reserves - sqrtk/1.4142) * lp share
+
+    // TODO: first compute 'would be' funding payment
+    // let unrealized_funding = calculate_funding_payment(
+    //     if market_position.base_asset_amount > 0 {
+    //         market.amm.cumulative_funding_rate_long
+    //     } else {
+    //         market.amm.cumulative_funding_rate_short
+    //     },
+    //     market_position,
+    // )?
+    // .checked_div(AMM_TO_QUOTE_PRECISION_RATIO_I128)
+    // .ok_or_else(math_error!())?;
+
+    // TODO: compute would be 'settled position' function here
 
     // TODO: make this a constant?
     let sqrt_2_percision = 10_000_u128;

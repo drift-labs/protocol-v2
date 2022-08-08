@@ -68,7 +68,6 @@ pub fn calculate_funding_rate_long_short(
 
     // If the uncapped_funding_pnl is positive, the clearing house receives money.
     if uncapped_funding_pnl >= 0 {
-
         market.amm.total_fee_minus_distributions = market
             .amm
             .total_fee_minus_distributions

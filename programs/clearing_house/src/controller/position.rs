@@ -298,6 +298,11 @@ pub fn update_user_and_market_position(
         .ok_or_else(math_error!())?;
 
     // update Market per lp position
+    msg!(
+        "per lp baa qaa: {} {}",
+        market.amm.market_position_per_lp.base_asset_amount,
+        market.amm.market_position_per_lp.quote_asset_amount,
+    );
     let per_lp_position_delta = PositionDelta {
         base_asset_amount: -delta
             .base_asset_amount
@@ -313,6 +318,12 @@ pub fn update_user_and_market_position(
             .ok_or_else(math_error!())?,
     };
     let per_lp_pnl = update_amm_position(market, &per_lp_position_delta, true)?;
+
+    msg!(
+        "=> per lp baa qaa: {} {}",
+        market.amm.market_position_per_lp.base_asset_amount,
+        market.amm.market_position_per_lp.quote_asset_amount,
+    );
 
     let lp_fee = (fee_to_market - (fee_to_market / 5)) // todo: 80% retained
         .checked_mul(cast_to_i128(market.amm.user_lp_shares)?)
@@ -344,6 +355,13 @@ pub fn update_user_and_market_position(
                 .ok_or_else(math_error!())?,
         )
         .ok_or_else(math_error!())?;
+
+    msg!(
+        "lp pnl fee: {} {} upnl: {}",
+        per_lp_pnl,
+        per_lp_fee,
+        market.amm.market_position_per_lp.unsettled_pnl
+    );
 
     // update Market implicit position
     let amm_pnl = update_amm_position(
