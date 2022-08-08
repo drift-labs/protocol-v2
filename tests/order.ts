@@ -1242,6 +1242,9 @@ describe('orders', () => {
 		const newMarket1 = clearingHouse.getMarketAccount(marketIndex);
 		const newMarkPrice1 = calculateMarkPrice(newMarket1); // 0 liquidity at current mark price
 
+		const userTC = clearingHouseUser.getTotalCollateral();
+		const userTPV = clearingHouseUser.getTotalPositionValue();
+
 		const userLeverage = clearingHouseUser.getLeverage();
 		const postPosition = clearingHouseUser.getUserPosition(marketIndex);
 
@@ -1260,6 +1263,12 @@ describe('orders', () => {
 			convertToNumber(order1.baseAssetAmountFilled, AMM_RESERVE_PRECISION),
 			'/',
 			convertToNumber(order1.baseAssetAmount, AMM_RESERVE_PRECISION),
+			'\n',
+			'user TC:',
+			convertToNumber(userTC, QUOTE_PRECISION),
+			'\n',
+			'user TPV:',
+			convertToNumber(userTPV, QUOTE_PRECISION),
 			'\n',
 			'user leverage:',
 			convertToNumber(userLeverage, TEN_THOUSAND),

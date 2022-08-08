@@ -103,6 +103,7 @@ export function calculateMarginBaseAssetValue(
 		oraclePriceData
 	);
 	const baseAssetValue = marketPosition.baseAssetAmount
+		.abs()
 		.mul(marginPrice)
 		.div(AMM_TO_QUOTE_PRECISION_RATIO.mul(MARK_PRICE_PRECISION));
 

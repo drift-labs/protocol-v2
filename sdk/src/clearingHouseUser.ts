@@ -34,7 +34,6 @@ import {
 	calculatePositionPNL,
 	calculateUnsettledAssetWeight,
 	calculateMarketMarginRatio,
-	calculateWorseCaseBaseAssetAmount,
 	PositionDirection,
 	calculateTradeSlippage,
 	BN,
@@ -45,7 +44,10 @@ import {
 	calculateAssetWeight,
 	calculateLiabilityWeight,
 } from './math/bankBalance';
-import { calculateMarginBaseAssetValue } from './math/margin';
+import {
+	calculateMarginBaseAssetValue,
+	calculateWorseCaseBaseAssetAmount,
+} from './math/margin';
 import { OraclePriceData } from './oracles/types';
 import { ClearingHouseUserConfig } from './clearingHouseUserConfig';
 import { PollingUserAccountSubscriber } from './accounts/pollingUserAccountSubscriber';
@@ -201,6 +203,7 @@ export class ClearingHouseUser {
 					calculateWorseCaseBaseAssetAmount(marketPosition);
 
 				const worstCaseAssetValue = worstCaseBaseAssetAmount
+					.abs()
 					.mul(this.getOracleDataForMarket(market.marketIndex).price)
 					.div(AMM_TO_QUOTE_PRECISION_RATIO.mul(MARK_PRICE_PRECISION));
 
@@ -232,6 +235,7 @@ export class ClearingHouseUser {
 					calculateWorseCaseBaseAssetAmount(marketPosition);
 
 				const worstCaseAssetValue = worstCaseBaseAssetAmount
+					.abs()
 					.mul(this.getOracleDataForMarket(market.marketIndex).price)
 					.div(AMM_TO_QUOTE_PRECISION_RATIO.mul(MARK_PRICE_PRECISION));
 
