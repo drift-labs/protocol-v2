@@ -125,6 +125,26 @@ pub fn calculate_base_asset_amount_for_reduce_only_order(
     }
 }
 
+pub fn standardize_base_asset_amount_with_remainder_i128(
+    base_asset_amount: i128,
+    step_size: u128,
+) -> ClearingHouseResult<(i128, i128)> {
+    let remainder = cast_to_i128(
+        base_asset_amount
+            .unsigned_abs()
+            .checked_rem_euclid(step_size)
+            .ok_or_else(math_error!())?,
+    )?
+    .checked_mul(base_asset_amount.signum())
+    .ok_or_else(math_error!())?;
+
+    let standardized_base_asset_amount = base_asset_amount
+        .checked_sub(remainder)
+        .ok_or_else(math_error!())?;
+
+    Ok((standardized_base_asset_amount, remainder))
+}
+
 pub fn standardize_base_asset_amount(
     base_asset_amount: u128,
     step_size: u128,
@@ -235,6 +255,83 @@ pub fn order_satisfies_trigger_condition(order: &Order, oracle_price: u128) -> b
 
 #[cfg(test)]
 mod test {
+
+    pub mod standardize_base_asset_amount_with_remainder_i128 {
+        use crate::math::orders::standardize_base_asset_amount_with_remainder_i128;
+
+        #[test]
+        fn negative_remainder_greater_than_step() {
+            let baa = -90;
+            let step_size = 50;
+
+            let (s_baa, rem) =
+                standardize_base_asset_amount_with_remainder_i128(baa, step_size).unwrap();
+
+            assert_eq!(s_baa, -50); // reduced to 50 short position
+            assert_eq!(rem, -40); // 40 short left over
+        }
+
+        #[test]
+        fn negative_remainder_smaller_than_step() {
+            let baa = -20;
+            let step_size = 50;
+
+            let (s_baa, rem) =
+                standardize_base_asset_amount_with_remainder_i128(baa, step_size).unwrap();
+
+            assert_eq!(s_baa, 0);
+            assert_eq!(rem, -20);
+        }
+
+        #[test]
+        fn positive_remainder_greater_than_step() {
+            let baa = 90;
+            let step_size = 50;
+
+            let (s_baa, rem) =
+                standardize_base_asset_amount_with_remainder_i128(baa, step_size).unwrap();
+
+            assert_eq!(s_baa, 50); // reduced to 50 long position
+            assert_eq!(rem, 40); // 40 long left over
+        }
+
+        #[test]
+        fn positive_remainder_smaller_than_step() {
+            let baa = 20;
+            let step_size = 50;
+
+            let (s_baa, rem) =
+                standardize_base_asset_amount_with_remainder_i128(baa, step_size).unwrap();
+
+            assert_eq!(s_baa, 0);
+            assert_eq!(rem, 20);
+        }
+
+        #[test]
+        fn no_remainder() {
+            let baa = 100;
+            let step_size = 50;
+
+            let (s_baa, rem) =
+                standardize_base_asset_amount_with_remainder_i128(baa, step_size).unwrap();
+
+            assert_eq!(s_baa, 100);
+            assert_eq!(rem, 0);
+        }
+    }
+    // baa = -90
+    // remainder = -40
+    // baa -= remainder (baa = -50)
+
+    // trades +100
+    // stepsize of 50
+    // amm = 10 lp = 90
+    // net_baa = 10
+    // market_baa = -10
+    // lp burns => metrics_baa: -90
+    // standardize => baa = -50 (round down (+40))
+    // amm_net_baa = 10 + (-40)
+    // amm_baa = 10 + 40 = 50
 
     pub mod standardize_base_asset_amount {
         use crate::math::orders::standardize_base_asset_amount;

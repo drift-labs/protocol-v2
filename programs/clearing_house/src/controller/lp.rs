@@ -10,6 +10,8 @@ use crate::bn::U192;
 use crate::controller::position::update_position_and_market;
 use crate::controller::position::PositionDelta;
 use crate::math::amm::{get_update_k_result, update_k};
+use crate::math::casting::cast_to_i128;
+use crate::math::orders::standardize_base_asset_amount_with_remainder_i128;
 
 use anchor_lang::prelude::msg;
 
@@ -28,10 +30,37 @@ pub fn settle_lp_position(
     // give them a portion of the market position
 
     // track new market position
-    let position_delta = PositionDelta {
+    let mut position_delta = PositionDelta {
         base_asset_amount: metrics.base_asset_amount,
         quote_asset_amount: metrics.quote_asset_amount,
     };
+
+    // step_amount, remainder = standardize baa
+    // position_delta.baa = step_amount
+    // // markets position
+    // market.position.baa += remainder
+    // // users position
+    // market.net_baa -= remainder (market gets the ceil)
+
+    let (standardized_base_asset_amount, remainder) =
+        standardize_base_asset_amount_with_remainder_i128(
+            position_delta.base_asset_amount,
+            market.amm.base_asset_amount_step_size,
+        )?;
+
+    position_delta.base_asset_amount = standardized_base_asset_amount;
+    market.amm.net_base_asset_amount = market
+        .amm
+        .net_base_asset_amount
+        .checked_sub(remainder)
+        .ok_or_else(math_error!())?;
+    // market gets the remainder position
+    market.amm.market_position.base_asset_amount = market
+        .amm
+        .market_position
+        .base_asset_amount
+        .checked_add(remainder)
+        .ok_or_else(math_error!())?;
 
     let upnl = update_position_and_market(position, market, &position_delta)?;
 
