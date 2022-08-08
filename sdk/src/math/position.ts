@@ -18,6 +18,8 @@ import {
 	getSwapDirection,
 } from './amm';
 
+import { calculateMarginBaseAssetValue } from './margin';
+
 /**
  * calculateBaseAssetValue
  * = market value of closing entire position
@@ -96,7 +98,7 @@ export function calculatePositionPNL(
 		return ZERO;
 	}
 
-	const baseAssetValue = calculateBaseAssetValue(
+	const baseAssetValue = calculateMarginBaseAssetValue(
 		market,
 		marketPosition,
 		oraclePriceData
@@ -166,6 +168,23 @@ export function positionIsAvailable(position: UserPosition): boolean {
  * @returns Precision: MARK_PRICE_PRECISION (10^10)
  */
 export function calculateEntryPrice(userPosition: UserPosition): BN {
+	if (userPosition.baseAssetAmount.eq(ZERO)) {
+		return ZERO;
+	}
+
+	return userPosition.quoteEntryAmount
+		.mul(MARK_PRICE_PRECISION)
+		.mul(AMM_TO_QUOTE_PRECISION_RATIO)
+		.div(userPosition.baseAssetAmount)
+		.abs();
+}
+
+/**
+ *
+ * @param userPosition
+ * @returns Precision: MARK_PRICE_PRECISION (10^10)
+ */
+export function calculateCostBasis(userPosition: UserPosition): BN {
 	if (userPosition.baseAssetAmount.eq(ZERO)) {
 		return ZERO;
 	}

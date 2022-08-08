@@ -135,12 +135,15 @@ pub fn calculate_oracle_price_for_perp_margin(
             .ok_or_else(math_error!())?
             .checked_div(BID_ASK_SPREAD_PRECISION_I128)
             .ok_or_else(math_error!())?,
-        cast_to_i128(
-            oracle_price_data
-                .confidence
-                .checked_add(market.amm.base_spread as u128)
-                .ok_or_else(math_error!())?,
-        )?,
+        cast_to_i128(oracle_price_data.confidence)?
+            .checked_add(
+                (market.amm.base_spread as i128)
+                    .checked_mul(oracle_price_data.price)
+                    .ok_or_else(math_error!())?
+                    .checked_div(BID_ASK_SPREAD_PRECISION_I128)
+                    .ok_or_else(math_error!())?,
+            )
+            .ok_or_else(math_error!())?,
     );
     let oracle_price = if market_position.base_asset_amount > 0 {
         oracle_price_data

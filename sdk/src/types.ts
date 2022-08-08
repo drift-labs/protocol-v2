@@ -291,6 +291,10 @@ export type MarketAccount = {
 	nextFillRecordId: BN;
 	pnlPool: PoolBalance;
 	liquidationFee: BN;
+	imfFactor: BN;
+	unsettledImfFactor: BN;
+	unsettledInitialAssetWeight: number;
+	unsettledMaintenanceAssetWeight: number;
 };
 
 export type BankAccount = {
@@ -315,6 +319,7 @@ export type BankAccount = {
 	initialLiabilityWeight: BN;
 	maintenanceLiabilityWeight: BN;
 	liquidationFee: BN;
+	imfFactor: BN;
 };
 
 export type PoolBalance = {
