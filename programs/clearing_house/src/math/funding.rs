@@ -12,8 +12,6 @@ use crate::state::user::MarketPosition;
 use solana_program::msg;
 use std::cmp::{max, min};
 
-use super::constants::AMM_RESERVE_PRECISION_I128;
-
 pub fn calculate_funding_rate(
     mid_price_twap: u128,
     oracle_price_twap: i128,

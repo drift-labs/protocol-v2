@@ -17,7 +17,6 @@ import * as web3 from '@solana/web3.js';
 import {
 	Admin,
 	QUOTE_PRECISION,
-	PEG_PRECISION,
 	AMM_RESERVE_PRECISION,
 	EventSubscriber,
 	MARK_PRICE_PRECISION,
@@ -35,8 +34,8 @@ import { setFeedPrice } from '../stress/mockPythUtils';
 
 async function adjustOraclePostSwap(baa, swapDirection, market) {
 	const price = calculatePrice(
-		market.amm.baseAssetReserve, 
-		market.amm.quoteAssetReserve, 
+		market.amm.baseAssetReserve,
+		market.amm.quoteAssetReserve,
 		market.amm.pegMultiplier
 	);
 
@@ -51,11 +50,7 @@ async function adjustOraclePostSwap(baa, swapDirection, market) {
 	const _newPrice = newPrice.toNumber() / MARK_PRICE_PRECISION.toNumber();
 	await setFeedPrice(anchor.workspace.Pyth, _newPrice, market.amm.oracle);
 
-	console.log(
-		'price => new price', 
-		price.toString(), 
-		newPrice.toString()
-	)
+	console.log('price => new price', price.toString(), newPrice.toString());
 
 	return _newPrice;
 }
@@ -118,22 +113,15 @@ async function createNewUser(
 	return [clearingHouse, clearingHouseUser];
 }
 
-async function fullClosePosition(
-	clearingHouse,
-	userPosition,
-) {
-
+async function fullClosePosition(clearingHouse, userPosition) {
 	let limitPrice;
 	if (userPosition.baseAssetAmount.lt(ZERO)) {
-		limitPrice = new BN(100 * 1e13)
+		limitPrice = new BN(100 * 1e13);
 	} else {
-		limitPrice = new BN(10 * 1e6)
+		limitPrice = new BN(10 * 1e6);
 	}
 
-	return await clearingHouse.closePosition(
-		new BN(0),
-		limitPrice
-	);
+	return await clearingHouse.closePosition(new BN(0), limitPrice);
 }
 
 // if (limitPrice === undefined) {
@@ -353,9 +341,9 @@ describe('liquidity providing', () => {
 		console.log('closing trader ...');
 		await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);
 		const _txsig = await fullClosePosition(
-			traderClearingHouse, 
+			traderClearingHouse,
 			trader.positions[0]
-		)
+		);
 
 		const traderPosition = traderClearingHouse.getUserAccount().positions[0];
 		console.log(
@@ -365,17 +353,14 @@ describe('liquidity providing', () => {
 		);
 
 		console.log('closing lp ...');
-		const market2 = clearingHouse.getMarketAccount(ZERO)
+		const market2 = clearingHouse.getMarketAccount(ZERO);
 		await adjustOraclePostSwap(
 			user.positions[0].baseAssetAmount,
 			SwapDirection.ADD,
 			market2
 		);
-		await fullClosePosition(
-			clearingHouse, 
-			user.positions[0]
-		)
-		
+		await fullClosePosition(clearingHouse, user.positions[0]);
+
 		console.log('done!');
 	});
 
@@ -460,7 +445,7 @@ describe('liquidity providing', () => {
 				market.amm.sqrtK.mul(new BN(5)),
 				market.marketIndex
 			);
-			_viewLogs(_sig)
+			_viewLogs(_sig);
 			assert(false);
 		} catch (e) {
 			// console.error(e);
@@ -563,9 +548,9 @@ describe('liquidity providing', () => {
 		await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);
 		// await traderClearingHouse.closePosition(new BN(0));
 		await fullClosePosition(
-			traderClearingHouse, 
+			traderClearingHouse,
 			traderUserAccount.positions[0]
-		)
+		);
 
 		console.log('closing lp ...');
 		console.log(user.positions[0].baseAssetAmount.div(new BN(1e13)).toString());
@@ -575,10 +560,7 @@ describe('liquidity providing', () => {
 			market
 		);
 		// await clearingHouse.closePosition(new BN(0)); // close lp position
-		await fullClosePosition(
-			clearingHouse, 
-			user.positions[0]
-		)
+		await fullClosePosition(clearingHouse, user.positions[0]);
 
 		const user2 = clearingHouseUser.getUserAccount();
 		const position2 = user2.positions[0];
@@ -625,7 +607,7 @@ describe('liquidity providing', () => {
 
 		console.log('removing liquidity...');
 		const _txSig = await clearingHouse.removeLiquidity(market.marketIndex);
-		await _viewLogs(_txSig)
+		await _viewLogs(_txSig);
 
 		const user = clearingHouseUser.getUserAccount();
 		const lpPosition = user.positions[0];
@@ -645,26 +627,20 @@ describe('liquidity providing', () => {
 		assert(lpPosition.unsettledPnl.eq(new BN(-17648799))); // get paid fees
 
 		console.log('closing trader...');
-		const newPrice = await adjustOraclePostSwap(
+		await adjustOraclePostSwap(
 			tradeSize,
 			SwapDirection.ADD,
 			market
 		);
-		await fullClosePosition(
-			traderClearingHouse, 
-			position,
-		)
+		await fullClosePosition(traderClearingHouse, position);
 
 		console.log('closing lp ...');
-		const newPrice2 = await adjustOraclePostSwap(
+		await adjustOraclePostSwap(
 			user.positions[0].baseAssetAmount,
 			SwapDirection.REMOVE,
 			market
 		);
-		await fullClosePosition(
-			clearingHouse, 
-			lpPosition,
-		)
+		await fullClosePosition(clearingHouse, lpPosition);
 
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
@@ -685,6 +661,108 @@ describe('liquidity providing', () => {
 
 		console.log('done!');
 	});
+
+	it('lp burns a partial position', async () => {
+		const market = clearingHouse.getMarketAccount(0);
+
+		console.log('adding liquidity...');
+		await clearingHouse.addLiquidity(
+			new BN(100).mul(AMM_RESERVE_PRECISION),
+			market.marketIndex
+		);
+		// await delay(lpCooldown + 1000);
+
+		await clearingHouse.fetchAccounts();
+		await clearingHouseUser.fetchAccounts();
+
+		const user0 = clearingHouse.getUserAccount();
+		const position0 = user0.positions[0];
+		console.log(
+			'assert LP has 0 position in market index',
+			market.marketIndex.toNumber(),
+			':',
+			position0.baseAssetAmount.toString(),
+			position0.quoteAssetAmount.toString()
+		);
+		console.log(position0.lpShares.toString());
+
+		const baa0 = position0.baseAssetAmount;
+		const qaa0 = position0.quoteAssetAmount;
+		assert(baa0.eq(ZERO));
+		assert(qaa0.eq(ZERO));
+
+		console.log('user trading...');
+		const tradeSize = new BN(40 * 1e13);
+		const newPrice = await adjustOraclePostSwap(
+			tradeSize,
+			SwapDirection.ADD,
+			market
+		);
+		await traderClearingHouse.openPosition(
+			PositionDirection.SHORT,
+			tradeSize,
+			market.marketIndex,
+			new BN(newPrice * MARK_PRICE_PRECISION.toNumber())
+		);
+
+		console.log('removing liquidity...');
+		let user = clearingHouse.getUserAccount();
+		let position = user.positions[0];
+
+		const fullShares = position.lpShares;
+		const halfShares = position.lpShares.div(new BN(2));
+		const otherHalfShares = fullShares.sub(halfShares);
+
+		try {
+			const _txSig = await clearingHouse.removeLiquidity(
+				market.marketIndex,
+				halfShares
+			);
+		} catch (e) {
+			console.log(e);
+		}
+		await clearingHouse.fetchAccounts();
+		user = clearingHouse.getUserAccount();
+		position = user.positions[0];
+		console.log(
+			'lp first half burn:',
+			user.positions[0].baseAssetAmount.toString(),
+			user.positions[0].quoteAssetAmount.toString(),
+			user.positions[0].lpShares.toString()
+		);
+
+		const baa = user.positions[0].baseAssetAmount;
+		const qaa = user.positions[0].quoteAssetAmount;
+		assert(baa.gt(ZERO));
+		assert(qaa.gt(ZERO));
+
+		console.log('removing the other half of liquidity');
+		await clearingHouse.removeLiquidity(market.marketIndex, otherHalfShares);
+
+		user = clearingHouse.getUserAccount();
+		console.log(
+			'lp second half burn:',
+			user.positions[0].baseAssetAmount.toString(),
+			user.positions[0].quoteAssetAmount.toString(),
+			user.positions[0].lpShares.toString()
+		);
+		// lp is already settled so full burn baa is already in baa
+		assert(user.positions[0].lpShares.eq(ZERO));
+
+		console.log('closing trader ...');
+		await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);
+		// await traderClearingHouse.closePosition(new BN(0));
+		const trader = traderClearingHouse.getUserAccount();
+		const _txsig = await fullClosePosition(
+			traderClearingHouse,
+			trader.positions[0]
+		);
+
+		console.log('closing lp ...');
+		await adjustOraclePostSwap(baa, SwapDirection.ADD, market);
+		await fullClosePosition(clearingHouse, user.positions[0]);
+	});
+
 	return;
 
 	it('lp gets paid in funding (todo)', async () => {
@@ -776,107 +854,6 @@ describe('liquidity providing', () => {
 		// 	SwapDirection.REMOVE,
 		// 	market
 		// );
-	});
-
-	it('lp burns a partial position', async () => {
-		const market = clearingHouse.getMarketAccount(0);
-
-		console.log('adding liquidity...');
-		await clearingHouse.addLiquidity(
-			new BN(100).mul(AMM_RESERVE_PRECISION),
-			market.marketIndex
-		);
-		await delay(lpCooldown + 1000);
-
-		await clearingHouse.fetchAccounts();
-		await clearingHouseUser.fetchAccounts();
-
-		const user0 = clearingHouse.getUserAccount();
-		const position0 = user0.positions[0];
-		console.log(
-			'assert LP has 0 position in market index',
-			market.marketIndex.toNumber(),
-			':',
-			position0.baseAssetAmount.toString(),
-			position0.quoteAssetAmount.toString()
-		);
-		console.log(position0.lpShares.toString());
-
-		const baa0 = position0.baseAssetAmount;
-		const qaa0 = position0.quoteAssetAmount;
-		assert(baa0.eq(ZERO));
-		assert(qaa0.eq(ZERO));
-
-		console.log('user trading...');
-		const tradeSize = new BN(40 * 1e13);
-		const newPrice = await adjustOraclePostSwap(
-			tradeSize,
-			SwapDirection.ADD,
-			market
-		);
-		await traderClearingHouse.openPosition(
-			PositionDirection.SHORT,
-			tradeSize,
-			market.marketIndex,
-			new BN(newPrice * MARK_PRICE_PRECISION.toNumber())
-		);
-
-		console.log('removing liquidity...');
-		let user = clearingHouse.getUserAccount();
-		let position = user.positions[0];
-
-		const fullShares = position.lpShares;
-		const halfShares = position.lpShares.div(new BN(2));
-		const otherHalfShares = fullShares.sub(halfShares);
-
-		try {
-			const _txSig = await clearingHouse.removeLiquidity(
-				market.marketIndex,
-				halfShares
-			);
-		} catch (e) {
-			console.log(e);
-		}
-		await clearingHouse.fetchAccounts();
-		user = clearingHouse.getUserAccount();
-		position = user.positions[0];
-		console.log(
-			user.positions[0].baseAssetAmount.toString(),
-			user.positions[0].quoteAssetAmount.toString()
-		);
-		console.log(user.positions[0].lpShares.toString());
-
-		const baa = user.positions[0].baseAssetAmount;
-		const qaa = user.positions[0].quoteAssetAmount;
-		assert(baa.gt(ZERO));
-		assert(qaa.gt(ZERO));
-
-		console.log('removing the other half of liquidity');
-		await clearingHouse.removeLiquidity(market.marketIndex, otherHalfShares);
-
-		user = clearingHouse.getUserAccount();
-		position = user.positions[0];
-
-		console.log(
-			position.baseAssetAmount.toString(),
-			position.quoteAssetAmount.toString()
-		);
-		console.log(position.lpShares.toString());
-
-		const newBaa = position.baseAssetAmount;
-		const newQaa = position.quoteAssetAmount;
-		assert(newBaa.gt(baa));
-		assert(newQaa.gt(qaa));
-
-		assert(user.positions[0].lpShares.eq(ZERO));
-
-		console.log('closing trader ...');
-		await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);
-		await traderClearingHouse.closePosition(new BN(0));
-
-		console.log('closing lp ...');
-		await adjustOraclePostSwap(newBaa, SwapDirection.ADD, market);
-		await clearingHouse.closePosition(new BN(0)); // close lp position
 	});
 
 	// // TODO
