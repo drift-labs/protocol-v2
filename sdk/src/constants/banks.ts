@@ -9,6 +9,10 @@ export type BankConfig = {
 	oracleSource: OracleSource;
 };
 
+export const WRAPPED_SOL_MINT = new PublicKey(
+	'So11111111111111111111111111111111111111112'
+);
+
 export const DevnetBanks: BankConfig[] = [
 	{
 		symbol: 'USDC',
@@ -22,7 +26,7 @@ export const DevnetBanks: BankConfig[] = [
 		bankIndex: new BN(1),
 		oracle: new PublicKey('J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix'),
 		oracleSource: OracleSource.PYTH,
-		mint: new PublicKey('So11111111111111111111111111111111111111112'),
+		mint: new PublicKey(WRAPPED_SOL_MINT),
 	},
 	{
 		symbol: 'BTC',

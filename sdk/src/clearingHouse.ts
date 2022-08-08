@@ -1,5 +1,5 @@
 import { AnchorProvider, BN, Idl, Program } from '@project-serum/anchor';
-import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import {
 	StateAccount,
 	IWallet,
@@ -27,6 +27,10 @@ import {
 	Transaction,
 	TransactionInstruction,
 	AccountMeta,
+	Keypair,
+	LAMPORTS_PER_SOL,
+	Signer,
+	SystemProgram,
 } from '@solana/web3.js';
 
 import { TokenFaucet } from './tokenFaucet';
@@ -57,6 +61,7 @@ import { RetryTxSender } from './tx/retryTxSender';
 import { ClearingHouseUser } from './clearingHouseUser';
 import { ClearingHouseUserAccountSubscriptionConfig } from './clearingHouseUserConfig';
 import { getMarketsBanksAndOraclesForSubscription } from './config';
+import { WRAPPED_SOL_MINT } from './constants/banks';
 
 /**
  * # ClearingHouse
@@ -527,6 +532,36 @@ export class ClearingHouse {
 		userId?: number,
 		reduceOnly = false
 	): Promise<TransactionSignature> {
+		const tx = new Transaction();
+		const additionalSigners: Array<Signer> = [];
+
+		const bank = this.getBankAccount(bankIndex);
+
+		const isSolBank = bank.mint.equals(WRAPPED_SOL_MINT);
+
+		const authority = this.wallet.publicKey;
+
+		let wrappedSolAccountAlreadyExists = false;
+
+		if (isSolBank) {
+			wrappedSolAccountAlreadyExists = await this.checkIfAccountExists(
+				collateralAccountPublicKey
+			);
+
+			if (!wrappedSolAccountAlreadyExists) {
+				const { ixs, signers } = await this.getWrappedSolAccountCreationIxs(
+					collateralAccountPublicKey,
+					amount
+				);
+
+				ixs.forEach((ix) => {
+					tx.add(ix);
+				});
+
+				signers.forEach((signer) => additionalSigners.push(signer));
+			}
+		}
+
 		const depositCollateralIx = await this.getDepositInstruction(
 			amount,
 			bankIndex,
@@ -536,9 +571,26 @@ export class ClearingHouse {
 			true
 		);
 
-		const tx = new Transaction().add(depositCollateralIx);
+		tx.add(depositCollateralIx);
 
-		const { txSig } = await this.txSender.send(tx);
+		// Close the wrapped sol account at the end of the transaction
+		if (isSolBank && !wrappedSolAccountAlreadyExists) {
+			tx.add(
+				Token.createCloseAccountInstruction(
+					TOKEN_PROGRAM_ID,
+					collateralAccountPublicKey,
+					authority,
+					authority,
+					[]
+				)
+			);
+		}
+
+		const { txSig } = await this.txSender.send(
+			tx,
+			additionalSigners,
+			this.opts
+		);
 		return txSig;
 	}
 
@@ -600,6 +652,106 @@ export class ClearingHouse {
 		);
 	}
 
+	private async checkIfAccountExists(account: PublicKey) {
+		try {
+			const accountInfo = await this.connection.getAccountInfo(account);
+			return accountInfo && true;
+		} catch (e) {
+			// Doesn't already exist
+			return false;
+		}
+	}
+
+	private async getSolWithdrawalIxs(bankIndex: BN, amount: BN) {
+		const result = {
+			ixs: [],
+			signers: [],
+		};
+
+		// Create a temporary wrapped SOL account to store the SOL that we're withdrawing
+		const wrappedSolAccount = new Keypair();
+
+		const authority = this.wallet.publicKey;
+
+		const { ixs, signers } = await this.getWrappedSolAccountCreationIxs(
+			wrappedSolAccount.publicKey,
+			amount
+		);
+
+		ixs.forEach((ix) => {
+			result.ixs.push(ix);
+		});
+
+		signers.forEach((ix) => {
+			result.signers.push(ix);
+		});
+
+		const withdrawIx = await this.getWithdrawIx(
+			amount,
+			bankIndex,
+			wrappedSolAccount.publicKey,
+			true
+		);
+
+		result.ixs.push(withdrawIx);
+
+		result.ixs.push(
+			Token.createCloseAccountInstruction(
+				TOKEN_PROGRAM_ID,
+				wrappedSolAccount.publicKey,
+				authority,
+				authority,
+				[]
+			)
+		);
+
+		return result;
+	}
+
+	private async getWrappedSolAccountCreationIxs(
+		tokenAccount: PublicKey,
+		amount: BN
+	): Promise<{
+		ixs: anchor.web3.TransactionInstruction[];
+		signers: Signer[];
+	}> {
+		const result = {
+			ixs: [],
+			signers: [],
+		};
+
+		const wrappedSolAccount = tokenAccount;
+
+		const rentSpaceLamports = new BN(LAMPORTS_PER_SOL / 100);
+
+		const depositAmountLamports = amount.add(rentSpaceLamports);
+
+		const authority = this.wallet.publicKey;
+
+		result.ixs.push(
+			SystemProgram.createAccount({
+				fromPubkey: authority,
+				newAccountPubkey: wrappedSolAccount,
+				lamports: depositAmountLamports.toNumber(),
+				space: 165,
+				programId: TOKEN_PROGRAM_ID,
+			})
+		);
+
+		result.ixs.push(
+			Token.createInitAccountInstruction(
+				TOKEN_PROGRAM_ID,
+				WRAPPED_SOL_MINT,
+				wrappedSolAccount,
+				authority
+			)
+		);
+
+		result.signers.push(wrappedSolAccount);
+
+		return result;
+	}
+
 	/**
 	 * Creates the Clearing House User account for a user, and deposits some initial collateral
 	 * @param userId
@@ -620,6 +772,35 @@ export class ClearingHouse {
 		const [userAccountPublicKey, initializeUserAccountIx] =
 			await this.getInitializeUserInstructions(userId, name);
 
+		const additionalSigners: Array<Signer> = [];
+
+		const bank = this.getBankAccount(bankIndex);
+
+		const isSolBank = bank.mint.equals(WRAPPED_SOL_MINT);
+
+		const tx = new Transaction();
+
+		const authority = this.wallet.publicKey;
+
+		let wrappedSolAccountAlreadyExists = false;
+
+		if (isSolBank) {
+			wrappedSolAccountAlreadyExists = await this.checkIfAccountExists(
+				userTokenAccount
+			);
+
+			if (!wrappedSolAccountAlreadyExists) {
+				const { ixs: startIxs, signers } =
+					await this.getWrappedSolAccountCreationIxs(userTokenAccount, amount);
+
+				startIxs.forEach((ix) => {
+					tx.add(ix);
+				});
+
+				signers.forEach((signer) => additionalSigners.push(signer));
+			}
+		}
+
 		const depositCollateralIx =
 			fromUserId != null
 				? await this.getTransferDepositIx(amount, bankIndex, fromUserId, userId)
@@ -632,11 +813,26 @@ export class ClearingHouse {
 						false
 				  );
 
-		const tx = new Transaction()
-			.add(initializeUserAccountIx)
-			.add(depositCollateralIx);
+		tx.add(initializeUserAccountIx).add(depositCollateralIx);
 
-		const { txSig } = await this.txSender.send(tx, []);
+		// Close the wrapped sol account at the end of the transaction
+		if (isSolBank && !wrappedSolAccountAlreadyExists) {
+			tx.add(
+				Token.createCloseAccountInstruction(
+					TOKEN_PROGRAM_ID,
+					userTokenAccount,
+					authority,
+					authority,
+					[]
+				)
+			);
+		}
+
+		const { txSig } = await this.txSender.send(
+			tx,
+			additionalSigners,
+			this.opts
+		);
 
 		return [txSig, userAccountPublicKey];
 	}
@@ -683,19 +879,42 @@ export class ClearingHouse {
 		userTokenAccount: PublicKey,
 		reduceOnly = false
 	): Promise<TransactionSignature> {
-		const { txSig } = await this.txSender.send(
-			wrapInTx(
-				await this.getWithdrawIx(
-					amount,
-					bankIndex,
-					userTokenAccount,
-					reduceOnly
-				)
-			),
-			[],
-			this.opts
-		);
-		return txSig;
+		const bank = this.getBankAccount(bankIndex);
+
+		const isSolBank = bank.mint.equals(WRAPPED_SOL_MINT);
+
+		if (isSolBank) {
+			const tx = new Transaction();
+
+			const solWithdrawalIxs = await this.getSolWithdrawalIxs(
+				bankIndex,
+				amount
+			);
+
+			solWithdrawalIxs.ixs.forEach((ix) => tx.add(ix));
+
+			const { txSig } = await this.txSender.send(
+				tx,
+				solWithdrawalIxs.signers,
+				this.opts
+			);
+
+			return txSig;
+		} else {
+			const { txSig } = await this.txSender.send(
+				wrapInTx(
+					await this.getWithdrawIx(
+						amount,
+						bank.bankIndex,
+						userTokenAccount,
+						reduceOnly
+					)
+				),
+				[],
+				this.opts
+			);
+			return txSig;
+		}
 	}
 
 	public async getWithdrawIx(
