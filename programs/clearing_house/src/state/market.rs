@@ -180,11 +180,9 @@ pub struct AMM {
 
     // lp stuff
     pub net_unsettled_lp_base_asset_amount: i128,
-    pub cumulative_funding_payment_per_lp: i128,
-    pub cumulative_fee_per_lp: u128,
-    pub cumulative_net_base_asset_amount_per_lp: i128,
     pub lp_cooldown_time: i64,
     pub user_lp_shares: u128,
+    pub market_position_per_lp: MarketPosition,
 
     // funding
     pub last_funding_rate: i128,
@@ -209,7 +207,6 @@ pub struct AMM {
     pub base_asset_amount_step_size: u128,
 
     // market making
-    pub market_position_per_lp: MarketPosition,
     pub market_position: MarketPosition,
     pub base_spread: u16,
     pub long_spread: u128,

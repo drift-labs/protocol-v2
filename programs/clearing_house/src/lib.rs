@@ -429,9 +429,6 @@ pub mod clearing_house {
 
                 // lp stuff
                 net_unsettled_lp_base_asset_amount: 0,
-                cumulative_funding_payment_per_lp: 0,
-                cumulative_fee_per_lp: 0,
-                cumulative_net_base_asset_amount_per_lp: 0,
                 user_lp_shares: 0,
                 lp_cooldown_time: 1, // TODO: what should this be?
 
@@ -840,24 +837,9 @@ pub mod clearing_house {
 
         let market_amm = market_map.get_ref(&market_index)?.amm;
 
-        let (
-            // cumulative_fee_per_lp,
-            // cumulative_funding_payment_per_lp,
-            // cumulative_net_base_asset_amount_per_lp,
-            sqrt_k,
-        ) = get_struct_values!(
-            market_amm,
-            // cumulative_fee_per_lp,
-            // cumulative_funding_payment_per_lp,
-            // cumulative_net_base_asset_amount_per_lp,
-            sqrt_k
-        );
+        let (sqrt_k,) = get_struct_values!(market_amm, sqrt_k);
 
-        let (
-            cumulative_fee_per_lp,
-            cumulative_net_base_asset_amount_per_lp,
-            cumulative_net_quote_asset_amount_per_lp,
-        ) = get_struct_values!(
+        let (unsettled_pnl_per_lp, net_base_asset_amount_per_lp, net_quote_asset_amount_per_lp) = get_struct_values!(
             market_amm.market_position_per_lp,
             unsettled_pnl,
             base_asset_amount,
@@ -869,12 +851,9 @@ pub mod clearing_house {
             settle_lp_position(position, &mut market)?;
         } else {
             // init
-            position.last_cumulative_fee_per_lp = cumulative_fee_per_lp;
-            // position.last_cumulative_funding_payment_per_lp = cumulative_funding_payment_per_lp;
-            position.last_cumulative_net_base_asset_amount_per_lp =
-                cumulative_net_base_asset_amount_per_lp;
-            position.last_cumulative_net_quote_asset_amount_per_lp =
-                cumulative_net_quote_asset_amount_per_lp;
+            position.last_unsettled_pnl_per_lp = unsettled_pnl_per_lp;
+            position.last_net_base_asset_amount_per_lp = net_base_asset_amount_per_lp;
+            position.last_net_quote_asset_amount_per_lp = net_quote_asset_amount_per_lp;
         }
 
         // add share balance

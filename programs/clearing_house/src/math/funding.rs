@@ -12,8 +12,6 @@ use crate::state::user::MarketPosition;
 use solana_program::msg;
 use std::cmp::{max, min};
 
-use super::constants::AMM_RESERVE_PRECISION_I128;
-
 pub fn calculate_funding_rate(
     mid_price_twap: u128,
     oracle_price_twap: i128,
@@ -68,37 +66,6 @@ pub fn calculate_funding_rate_long_short(
 
     // If the uncapped_funding_pnl is positive, the clearing house receives money.
     if uncapped_funding_pnl >= 0 {
-        // pay the user lps
-        let funding_pnl_slice = uncapped_funding_pnl
-            .checked_mul(AMM_RESERVE_PRECISION_I128)
-            .ok_or_else(math_error!())?
-            .checked_div(cast_to_i128(market.amm.sqrt_k)?)
-            .ok_or_else(math_error!())?;
-
-        msg!("funding pnl slice: {}", funding_pnl_slice);
-
-        market.amm.cumulative_funding_payment_per_lp = market
-            .amm
-            .cumulative_funding_payment_per_lp
-            .checked_add(funding_pnl_slice)
-            .ok_or_else(math_error!())?;
-
-        let user_lp_funding_payment = funding_pnl_slice
-            .checked_mul(cast_to_i128(market.amm.user_lp_shares)?)
-            .ok_or_else(math_error!())?
-            .checked_div(AMM_RESERVE_PRECISION_I128)
-            .ok_or_else(math_error!())?;
-
-        msg!("user lp funding: {}", user_lp_funding_payment);
-
-        // pay the market what the lps didnt get
-        let uncapped_funding_pnl = uncapped_funding_pnl
-            .checked_sub(user_lp_funding_payment)
-            .ok_or_else(math_error!())?;
-
-        msg!("market funding: {}", uncapped_funding_pnl);
-
-        // update the stats
         market.amm.total_fee_minus_distributions = market
             .amm
             .total_fee_minus_distributions
@@ -117,32 +84,6 @@ pub fn calculate_funding_rate_long_short(
     let (capped_funding_rate, capped_funding_pnl) =
         calculate_capped_funding_rate(market, uncapped_funding_pnl, funding_rate)?;
 
-    // user lps pay
-    let funding_pnl_slice = capped_funding_pnl
-        .checked_mul(AMM_RESERVE_PRECISION_I128)
-        .ok_or_else(math_error!())?
-        .checked_div(cast_to_i128(market.amm.sqrt_k)?)
-        .ok_or_else(math_error!())?;
-
-    msg!("funding pnl slice: {}", funding_pnl_slice);
-    market.amm.cumulative_funding_payment_per_lp = market
-        .amm
-        .cumulative_funding_payment_per_lp
-        .checked_add(funding_pnl_slice)
-        .ok_or_else(math_error!())?;
-
-    let user_lp_funding_payment = funding_pnl_slice
-        .checked_mul(cast_to_i128(market.amm.user_lp_shares)?)
-        .ok_or_else(math_error!())?
-        .checked_div(AMM_RESERVE_PRECISION_I128)
-        .ok_or_else(math_error!())?;
-
-    // pay the market what the lps didnt get
-    let capped_funding_pnl = capped_funding_pnl
-        .checked_sub(user_lp_funding_payment)
-        .ok_or_else(math_error!())?;
-
-    msg!("market funding: {}", capped_funding_pnl);
     let new_total_fee_minus_distributions = market
         .amm
         .total_fee_minus_distributions

@@ -49,10 +49,10 @@ pub fn settle_lp_position(
         .ok_or_else(math_error!())?;
 
     // update last_ metrics
-    position.last_cumulative_fee_per_lp = market.amm.market_position_per_lp.unsettled_pnl;
-    position.last_cumulative_net_base_asset_amount_per_lp =
+    position.last_unsettled_pnl_per_lp = market.amm.market_position_per_lp.unsettled_pnl;
+    position.last_net_base_asset_amount_per_lp =
         market.amm.market_position_per_lp.base_asset_amount;
-    position.last_cumulative_net_quote_asset_amount_per_lp =
+    position.last_net_quote_asset_amount_per_lp =
         market.amm.market_position_per_lp.quote_asset_amount;
 
     Ok(())
