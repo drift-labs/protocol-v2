@@ -627,11 +627,7 @@ describe('liquidity providing', () => {
 		assert(lpPosition.unsettledPnl.eq(new BN(-17648799))); // get paid fees
 
 		console.log('closing trader...');
-		await adjustOraclePostSwap(
-			tradeSize,
-			SwapDirection.ADD,
-			market
-		);
+		await adjustOraclePostSwap(tradeSize, SwapDirection.ADD, market);
 		await fullClosePosition(traderClearingHouse, position);
 
 		console.log('closing lp ...');
