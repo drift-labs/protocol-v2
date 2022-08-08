@@ -218,10 +218,10 @@ describe('liquidity providing', () => {
 		);
 		await clearingHouse.updateLpCooldownTime(ZERO, new BN(0));
 		await clearingHouse.updateMaxBaseAssetAmountRatio(new BN(0), 1);
-		await clearingHouse.updateMarketBaseAssetAmountStepSize(
-			new BN(0),
-			new BN(1)
-		);
+		// await clearingHouse.updateMarketBaseAssetAmountStepSize(
+		// 	new BN(0),
+		// 	new BN(1)
+		// );
 
 		// second market -- used for funding ..
 		await clearingHouse.initializeMarket(
