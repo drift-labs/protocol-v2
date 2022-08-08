@@ -7,12 +7,11 @@ use solana_program::msg;
 use crate::controller;
 use crate::controller::amm::SwapDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
-use crate::math::casting::{cast, cast_to_i128};
-use crate::math::orders::calculate_quote_asset_amount_for_maker_order;
-use crate::math::pnl::calculate_pnl;
-use crate::math::position::{
-    calculate_base_asset_value_and_pnl_with_oracle_price, swap_direction_to_close_position,
+use crate::math::casting::cast;
+use crate::math::orders::{
+    calculate_quote_asset_amount_for_maker_order, get_position_delta_for_fill,
 };
+use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
 use crate::math_error;
 use crate::state::market::Market;
 use crate::state::user::{User, UserPositions};
@@ -65,7 +64,7 @@ pub fn get_position_index(
 }
 
 pub struct PositionDelta {
-    pub quote_asset_amount: u128,
+    pub quote_asset_amount: i128,
     pub base_asset_amount: i128,
 }
 
@@ -77,78 +76,93 @@ pub fn update_position_and_market(
     let new_position = position.base_asset_amount == 0;
     let increasing_position =
         new_position || position.base_asset_amount.signum() == delta.base_asset_amount.signum();
+    let reducing_position =
+        !increasing_position && position.base_asset_amount.abs() > delta.base_asset_amount.abs();
+    let closing_position =
+        !increasing_position && position.base_asset_amount.abs() == delta.base_asset_amount.abs();
+    let flipped_position =
+        !increasing_position && position.base_asset_amount.abs() < delta.base_asset_amount.abs();
 
     let (new_quote_asset_amount, new_quote_entry_amount, new_base_asset_amount, pnl) =
         if !increasing_position {
-            let base_asset_amount_before_unsigned = position.base_asset_amount.unsigned_abs();
-            let delta_base_asset_amount_unsigned = delta.base_asset_amount.unsigned_abs();
+            let base_asset_amount_before_abs = position.base_asset_amount.abs();
+            let delta_base_asset_amount_abs = delta.base_asset_amount.abs();
+            if reducing_position || closing_position {
+                let new_quote_asset_amount = position
+                    .quote_asset_amount
+                    .checked_add(delta.quote_asset_amount)
+                    .ok_or_else(math_error!())?;
 
-            let cost_basis = position
-                .quote_asset_amount
-                .checked_mul(min(
-                    delta_base_asset_amount_unsigned,
-                    base_asset_amount_before_unsigned,
-                ))
-                .ok_or_else(math_error!())?
-                .checked_div(base_asset_amount_before_unsigned)
-                .ok_or_else(math_error!())?;
+                let new_base_asset_amount = position
+                    .base_asset_amount
+                    .checked_add(delta.base_asset_amount)
+                    .ok_or_else(math_error!())?;
 
-            let exit_value = delta
-                .quote_asset_amount
-                .checked_mul(min(
-                    delta_base_asset_amount_unsigned,
-                    base_asset_amount_before_unsigned,
-                ))
-                .ok_or_else(math_error!())?
-                .checked_div(delta_base_asset_amount_unsigned)
-                .ok_or_else(math_error!())?;
-
-            let pnl = calculate_pnl(
-                exit_value,
-                cost_basis,
-                swap_direction_to_close_position(position.base_asset_amount),
-            )?;
-
-            let new_base_asset_amount = position
-                .base_asset_amount
-                .checked_add(delta.base_asset_amount)
-                .ok_or_else(math_error!())?;
-
-            let (new_quote_asset_amount, new_quote_entry_amount) =
-                if delta.quote_asset_amount > exit_value {
-                    let new_quote_asset_amount = delta
-                        .quote_asset_amount
-                        .checked_sub(exit_value)
-                        .ok_or_else(math_error!())?;
-                    (new_quote_asset_amount, new_quote_asset_amount)
-                } else {
-                    let entry_amount_delta = position
-                        .quote_entry_amount
-                        .checked_mul(delta_base_asset_amount_unsigned)
-                        .ok_or_else(math_error!())?
-                        .checked_div(base_asset_amount_before_unsigned)
-                        .ok_or_else(math_error!())?;
-
-                    let quote_entry_amount = position
-                        .quote_entry_amount
-                        .checked_sub(entry_amount_delta)
-                        .ok_or_else(math_error!())?;
-
-                    (
+                let new_quote_entry_amount = position
+                    .quote_entry_amount
+                    .checked_sub(
                         position
-                            .quote_asset_amount
-                            .checked_sub(cost_basis)
+                            .quote_entry_amount
+                            .checked_mul(delta_base_asset_amount_abs)
+                            .ok_or_else(math_error!())?
+                            .checked_div(base_asset_amount_before_abs)
                             .ok_or_else(math_error!())?,
-                        quote_entry_amount,
                     )
-                };
+                    .ok_or_else(math_error!())?;
 
-            (
-                new_quote_asset_amount,
-                new_quote_entry_amount,
-                new_base_asset_amount,
-                pnl,
-            )
+                let pnl = position
+                    .quote_entry_amount
+                    .checked_sub(new_quote_entry_amount)
+                    .ok_or_else(math_error!())?
+                    .checked_add(delta.quote_asset_amount)
+                    .ok_or_else(math_error!())?;
+
+                (
+                    new_quote_asset_amount,
+                    new_quote_entry_amount,
+                    new_base_asset_amount,
+                    pnl,
+                )
+            } else {
+                let new_quote_asset_amount = position
+                    .quote_asset_amount
+                    .checked_add(delta.quote_asset_amount)
+                    .ok_or_else(math_error!())?;
+
+                let new_base_asset_amount = position
+                    .base_asset_amount
+                    .checked_add(delta.base_asset_amount)
+                    .ok_or_else(math_error!())?;
+
+                let new_quote_entry_amount = delta
+                    .quote_asset_amount
+                    .checked_sub(
+                        delta
+                            .quote_asset_amount
+                            .checked_mul(base_asset_amount_before_abs)
+                            .ok_or_else(math_error!())?
+                            .checked_div(delta_base_asset_amount_abs)
+                            .ok_or_else(math_error!())?,
+                    )
+                    .ok_or_else(math_error!())?;
+
+                let pnl = position
+                    .quote_entry_amount
+                    .checked_add(
+                        delta
+                            .quote_asset_amount
+                            .checked_sub(new_quote_entry_amount)
+                            .ok_or_else(math_error!())?,
+                    )
+                    .ok_or_else(math_error!())?;
+
+                (
+                    new_quote_asset_amount,
+                    new_quote_entry_amount,
+                    new_base_asset_amount,
+                    pnl,
+                )
+            }
         } else {
             let new_quote_asset_amount = position
                 .quote_asset_amount
@@ -171,11 +185,6 @@ pub fn update_position_and_market(
             )
         };
 
-    let reduced_position = !increasing_position
-        && position.base_asset_amount.signum() == new_base_asset_amount.signum();
-    let closed_position = new_base_asset_amount == 0;
-    let flipped_position = position.base_asset_amount.signum() != new_base_asset_amount.signum();
-
     // Update Market
     market.amm.net_base_asset_amount = market
         .amm
@@ -189,7 +198,7 @@ pub fn update_position_and_market(
             .open_interest
             .checked_add(1)
             .ok_or_else(math_error!())?;
-    } else if closed_position {
+    } else if closing_position {
         market.open_interest = market
             .open_interest
             .checked_sub(1)
@@ -218,7 +227,7 @@ pub fn update_position_and_market(
                 .checked_add(delta.quote_asset_amount)
                 .ok_or_else(math_error!())?;
         }
-    } else if reduced_position || closed_position {
+    } else if reducing_position || closing_position {
         if position.base_asset_amount > 0 {
             market.base_asset_amount_long = market
                 .base_asset_amount_long
@@ -227,12 +236,7 @@ pub fn update_position_and_market(
             market.amm.quote_asset_amount_long = market
                 .amm
                 .quote_asset_amount_long
-                .checked_sub(
-                    position
-                        .quote_asset_amount
-                        .checked_sub(new_quote_asset_amount)
-                        .ok_or_else(math_error!())?,
-                )
+                .checked_add(delta.quote_asset_amount)
                 .ok_or_else(math_error!())?;
         } else {
             market.base_asset_amount_short = market
@@ -242,12 +246,7 @@ pub fn update_position_and_market(
             market.amm.quote_asset_amount_short = market
                 .amm
                 .quote_asset_amount_short
-                .checked_sub(
-                    position
-                        .quote_asset_amount
-                        .checked_sub(new_quote_asset_amount)
-                        .ok_or_else(math_error!())?,
-                )
+                .checked_add(delta.quote_asset_amount)
                 .ok_or_else(math_error!())?;
         }
     } else if flipped_position {
@@ -264,12 +263,17 @@ pub fn update_position_and_market(
             market.amm.quote_asset_amount_short = market
                 .amm
                 .quote_asset_amount_short
-                .checked_sub(position.quote_asset_amount)
+                .checked_add(
+                    delta
+                        .quote_asset_amount
+                        .checked_sub(new_quote_entry_amount)
+                        .ok_or_else(math_error!())?,
+                )
                 .ok_or_else(math_error!())?;
             market.amm.quote_asset_amount_long = market
                 .amm
                 .quote_asset_amount_long
-                .checked_add(new_quote_asset_amount)
+                .checked_add(new_quote_entry_amount)
                 .ok_or_else(math_error!())?;
         } else {
             market.base_asset_amount_long = market
@@ -284,18 +288,23 @@ pub fn update_position_and_market(
             market.amm.quote_asset_amount_long = market
                 .amm
                 .quote_asset_amount_long
-                .checked_sub(position.quote_asset_amount)
+                .checked_add(
+                    delta
+                        .quote_asset_amount
+                        .checked_sub(new_quote_entry_amount)
+                        .ok_or_else(math_error!())?,
+                )
                 .ok_or_else(math_error!())?;
             market.amm.quote_asset_amount_short = market
                 .amm
                 .quote_asset_amount_short
-                .checked_add(new_quote_asset_amount)
+                .checked_add(new_quote_entry_amount)
                 .ok_or_else(math_error!())?;
         }
     }
 
     // Update user position
-    if closed_position {
+    if closing_position {
         position.last_cumulative_funding_rate = 0;
         position.last_funding_rate_ts = 0;
     } else if new_position || flipped_position {
@@ -346,13 +355,8 @@ pub fn update_position_with_base_asset_amount(
         None => (quote_asset_swapped, quote_asset_amount_surplus),
     };
 
-    let position_delta = PositionDelta {
-        quote_asset_amount,
-        base_asset_amount: match direction {
-            PositionDirection::Long => cast_to_i128(base_asset_amount)?,
-            PositionDirection::Short => -cast_to_i128(base_asset_amount)?,
-        },
-    };
+    let position_delta =
+        get_position_delta_for_fill(base_asset_amount, quote_asset_amount, direction)?;
 
     let base_asset_amount_before = user.positions[position_index].base_asset_amount;
 
@@ -410,22 +414,22 @@ pub fn update_cost_basis(
         if market_position.base_asset_amount > 0 {
             market_position.quote_asset_amount = market_position
                 .quote_asset_amount
-                .checked_sub(amm_position_unrealized_pnl.unsigned_abs())
+                .checked_sub(amm_position_unrealized_pnl.abs())
                 .ok_or_else(math_error!())?;
             market.amm.quote_asset_amount_long = market
                 .amm
                 .quote_asset_amount_long
-                .checked_sub(amm_position_unrealized_pnl.unsigned_abs())
+                .checked_sub(amm_position_unrealized_pnl.abs())
                 .ok_or_else(math_error!())?;
         } else {
             market_position.quote_asset_amount = market_position
                 .quote_asset_amount
-                .checked_add(amm_position_unrealized_pnl.unsigned_abs())
+                .checked_add(amm_position_unrealized_pnl.abs())
                 .ok_or_else(math_error!())?;
             market.amm.quote_asset_amount_short = market
                 .amm
                 .quote_asset_amount_short
-                .checked_add(amm_position_unrealized_pnl.unsigned_abs())
+                .checked_add(amm_position_unrealized_pnl.abs())
                 .ok_or_else(math_error!())?;
         }
 
@@ -532,7 +536,7 @@ mod test {
     };
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, MARK_PRICE_PRECISION, PEG_PRECISION,
-        QUOTE_PRECISION,
+        QUOTE_PRECISION_I128,
     };
     use crate::state::market::{Market, AMM};
     use crate::state::user::MarketPosition;
@@ -542,7 +546,7 @@ mod test {
         let mut existing_position = MarketPosition::default();
         let position_delta = PositionDelta {
             base_asset_amount: 1,
-            quote_asset_amount: 1,
+            quote_asset_amount: -1,
         };
         let mut market = Market {
             amm: AMM {
@@ -557,8 +561,8 @@ mod test {
             .unwrap();
 
         assert_eq!(existing_position.base_asset_amount, 1);
-        assert_eq!(existing_position.quote_asset_amount, 1);
-        assert_eq!(existing_position.quote_entry_amount, 1);
+        assert_eq!(existing_position.quote_asset_amount, -1);
+        assert_eq!(existing_position.quote_entry_amount, -1);
         assert_eq!(pnl, 0);
         assert_eq!(existing_position.last_cumulative_funding_rate, 1);
 
@@ -566,7 +570,7 @@ mod test {
         assert_eq!(market.base_asset_amount_long, 1);
         assert_eq!(market.base_asset_amount_short, 0);
         assert_eq!(market.amm.net_base_asset_amount, 1);
-        assert_eq!(market.amm.quote_asset_amount_long, 1);
+        assert_eq!(market.amm.quote_asset_amount_long, -1);
         assert_eq!(market.amm.quote_asset_amount_short, 0);
     }
 
@@ -607,19 +611,19 @@ mod test {
     fn increase_long() {
         let mut existing_position = MarketPosition {
             base_asset_amount: 1,
-            quote_asset_amount: 1,
-            quote_entry_amount: 1,
+            quote_asset_amount: -1,
+            quote_entry_amount: -1,
             last_cumulative_funding_rate: 1,
             ..MarketPosition::default()
         };
         let position_delta = PositionDelta {
             base_asset_amount: 1,
-            quote_asset_amount: 1,
+            quote_asset_amount: -1,
         };
         let mut market = Market {
             amm: AMM {
                 net_base_asset_amount: 1,
-                quote_asset_amount_long: 1,
+                quote_asset_amount_long: -1,
                 ..AMM::default()
             },
             base_asset_amount_long: 1,
@@ -632,8 +636,8 @@ mod test {
             .unwrap();
 
         assert_eq!(existing_position.base_asset_amount, 2);
-        assert_eq!(existing_position.quote_asset_amount, 2);
-        assert_eq!(existing_position.quote_entry_amount, 2);
+        assert_eq!(existing_position.quote_asset_amount, -2);
+        assert_eq!(existing_position.quote_entry_amount, -2);
         assert_eq!(pnl, 0);
         assert_eq!(existing_position.last_cumulative_funding_rate, 1);
 
@@ -641,7 +645,7 @@ mod test {
         assert_eq!(market.base_asset_amount_long, 2);
         assert_eq!(market.base_asset_amount_short, 0);
         assert_eq!(market.amm.net_base_asset_amount, 2);
-        assert_eq!(market.amm.quote_asset_amount_long, 2);
+        assert_eq!(market.amm.quote_asset_amount_long, -2);
         assert_eq!(market.amm.quote_asset_amount_short, 0);
     }
 
@@ -692,8 +696,8 @@ mod test {
     fn reduce_long_profitable() {
         let mut existing_position = MarketPosition {
             base_asset_amount: 10,
-            quote_asset_amount: 10,
-            quote_entry_amount: 10,
+            quote_asset_amount: -10,
+            quote_entry_amount: -10,
             last_cumulative_funding_rate: 1,
             ..MarketPosition::default()
         };
@@ -704,7 +708,7 @@ mod test {
         let mut market = Market {
             amm: AMM {
                 net_base_asset_amount: 10,
-                quote_asset_amount_long: 10,
+                quote_asset_amount_long: -10,
                 quote_asset_amount_short: 0,
                 ..AMM::default()
             },
@@ -718,8 +722,8 @@ mod test {
             .unwrap();
 
         assert_eq!(existing_position.base_asset_amount, 9);
-        assert_eq!(existing_position.quote_asset_amount, 9);
-        assert_eq!(existing_position.quote_entry_amount, 9);
+        assert_eq!(existing_position.quote_asset_amount, -5);
+        assert_eq!(existing_position.quote_entry_amount, -9);
         assert_eq!(pnl, 4);
         assert_eq!(existing_position.last_cumulative_funding_rate, 1);
 
@@ -727,7 +731,7 @@ mod test {
         assert_eq!(market.base_asset_amount_long, 9);
         assert_eq!(market.base_asset_amount_short, 0);
         assert_eq!(market.amm.net_base_asset_amount, 9);
-        assert_eq!(market.amm.quote_asset_amount_long, 9);
+        assert_eq!(market.amm.quote_asset_amount_long, -5);
         assert_eq!(market.amm.quote_asset_amount_short, 0);
     }
 
@@ -735,8 +739,8 @@ mod test {
     fn reduce_long_unprofitable() {
         let mut existing_position = MarketPosition {
             base_asset_amount: 10,
-            quote_asset_amount: 100,
-            quote_entry_amount: 100,
+            quote_asset_amount: -100,
+            quote_entry_amount: -100,
             last_cumulative_funding_rate: 1,
             ..MarketPosition::default()
         };
@@ -747,7 +751,7 @@ mod test {
         let mut market = Market {
             amm: AMM {
                 net_base_asset_amount: 10,
-                quote_asset_amount_long: 100,
+                quote_asset_amount_long: -100,
                 quote_asset_amount_short: 0,
                 ..AMM::default()
             },
@@ -761,8 +765,8 @@ mod test {
             .unwrap();
 
         assert_eq!(existing_position.base_asset_amount, 9);
-        assert_eq!(existing_position.quote_asset_amount, 90);
-        assert_eq!(existing_position.quote_entry_amount, 90);
+        assert_eq!(existing_position.quote_asset_amount, -95);
+        assert_eq!(existing_position.quote_entry_amount, -90);
         assert_eq!(pnl, -5);
         assert_eq!(existing_position.last_cumulative_funding_rate, 1);
 
@@ -770,7 +774,7 @@ mod test {
         assert_eq!(market.base_asset_amount_long, 9);
         assert_eq!(market.base_asset_amount_short, 0);
         assert_eq!(market.amm.net_base_asset_amount, 9);
-        assert_eq!(market.amm.quote_asset_amount_long, 90);
+        assert_eq!(market.amm.quote_asset_amount_long, -95);
         assert_eq!(market.amm.quote_asset_amount_short, 0);
     }
 
@@ -778,8 +782,8 @@ mod test {
     fn flip_long_to_short_profitable() {
         let mut existing_position = MarketPosition {
             base_asset_amount: 10,
-            quote_asset_amount: 10,
-            quote_entry_amount: 10,
+            quote_asset_amount: -10,
+            quote_entry_amount: -10,
             last_cumulative_funding_rate: 1,
             ..MarketPosition::default()
         };
@@ -790,7 +794,7 @@ mod test {
         let mut market = Market {
             amm: AMM {
                 net_base_asset_amount: 10,
-                quote_asset_amount_long: 10,
+                quote_asset_amount_long: -10,
                 quote_asset_amount_short: 0,
                 cumulative_funding_rate_short: 2,
                 ..AMM::default()
@@ -805,7 +809,7 @@ mod test {
             .unwrap();
 
         assert_eq!(existing_position.base_asset_amount, -1);
-        assert_eq!(existing_position.quote_asset_amount, 2);
+        assert_eq!(existing_position.quote_asset_amount, 12);
         assert_eq!(existing_position.quote_entry_amount, 2);
         assert_eq!(pnl, 10);
         assert_eq!(existing_position.last_cumulative_funding_rate, 2);
@@ -814,7 +818,7 @@ mod test {
         assert_eq!(market.base_asset_amount_long, 0);
         assert_eq!(market.base_asset_amount_short, -1);
         assert_eq!(market.amm.net_base_asset_amount, -1);
-        assert_eq!(market.amm.quote_asset_amount_long, 0);
+        assert_eq!(market.amm.quote_asset_amount_long, 10);
         assert_eq!(market.amm.quote_asset_amount_short, 2);
     }
 
@@ -822,8 +826,8 @@ mod test {
     fn flip_long_to_short_unprofitable() {
         let mut existing_position = MarketPosition {
             base_asset_amount: 10,
-            quote_asset_amount: 10,
-            quote_entry_amount: 10,
+            quote_asset_amount: -10,
+            quote_entry_amount: -10,
             last_cumulative_funding_rate: 1,
             ..MarketPosition::default()
         };
@@ -834,7 +838,7 @@ mod test {
         let mut market = Market {
             amm: AMM {
                 net_base_asset_amount: 10,
-                quote_asset_amount_long: 10,
+                quote_asset_amount_long: -10,
                 quote_asset_amount_short: 0,
                 cumulative_funding_rate_short: 2,
                 ..AMM::default()
@@ -849,7 +853,7 @@ mod test {
             .unwrap();
 
         assert_eq!(existing_position.base_asset_amount, -1);
-        assert_eq!(existing_position.quote_asset_amount, 1);
+        assert_eq!(existing_position.quote_asset_amount, 0);
         assert_eq!(existing_position.quote_entry_amount, 1);
         assert_eq!(pnl, -1);
         assert_eq!(existing_position.last_cumulative_funding_rate, 2);
@@ -858,7 +862,7 @@ mod test {
         assert_eq!(market.base_asset_amount_long, 0);
         assert_eq!(market.base_asset_amount_short, -1);
         assert_eq!(market.amm.net_base_asset_amount, -1);
-        assert_eq!(market.amm.quote_asset_amount_long, 0);
+        assert_eq!(market.amm.quote_asset_amount_long, -1);
         assert_eq!(market.amm.quote_asset_amount_short, 1);
     }
 
@@ -873,7 +877,7 @@ mod test {
         };
         let position_delta = PositionDelta {
             base_asset_amount: 1,
-            quote_asset_amount: 5,
+            quote_asset_amount: -5,
         };
         let mut market = Market {
             amm: AMM {
@@ -892,7 +896,7 @@ mod test {
             .unwrap();
 
         assert_eq!(existing_position.base_asset_amount, -9);
-        assert_eq!(existing_position.quote_asset_amount, 90);
+        assert_eq!(existing_position.quote_asset_amount, 95);
         assert_eq!(existing_position.quote_entry_amount, 90);
         assert_eq!(pnl, 5);
         assert_eq!(existing_position.last_cumulative_funding_rate, 1);
@@ -902,7 +906,7 @@ mod test {
         assert_eq!(market.base_asset_amount_short, -9);
         assert_eq!(market.amm.net_base_asset_amount, -9);
         assert_eq!(market.amm.quote_asset_amount_long, 0);
-        assert_eq!(market.amm.quote_asset_amount_short, 90);
+        assert_eq!(market.amm.quote_asset_amount_short, 95);
     }
 
     #[test]
@@ -916,7 +920,7 @@ mod test {
         };
         let position_delta = PositionDelta {
             base_asset_amount: 1,
-            quote_asset_amount: 15,
+            quote_asset_amount: -15,
         };
         let mut market = Market {
             amm: AMM {
@@ -935,7 +939,7 @@ mod test {
             .unwrap();
 
         assert_eq!(existing_position.base_asset_amount, -9);
-        assert_eq!(existing_position.quote_asset_amount, 90);
+        assert_eq!(existing_position.quote_asset_amount, 85);
         assert_eq!(existing_position.quote_entry_amount, 90);
         assert_eq!(pnl, -5);
         assert_eq!(existing_position.last_cumulative_funding_rate, 1);
@@ -945,7 +949,7 @@ mod test {
         assert_eq!(market.base_asset_amount_short, -9);
         assert_eq!(market.amm.net_base_asset_amount, -9);
         assert_eq!(market.amm.quote_asset_amount_long, 0);
-        assert_eq!(market.amm.quote_asset_amount_short, 90);
+        assert_eq!(market.amm.quote_asset_amount_short, 85);
     }
 
     #[test]
@@ -959,7 +963,7 @@ mod test {
         };
         let position_delta = PositionDelta {
             base_asset_amount: 11,
-            quote_asset_amount: 60,
+            quote_asset_amount: -60,
         };
         let mut market = Market {
             amm: AMM {
@@ -979,8 +983,8 @@ mod test {
             .unwrap();
 
         assert_eq!(existing_position.base_asset_amount, 1);
-        assert_eq!(existing_position.quote_asset_amount, 6);
-        assert_eq!(existing_position.quote_entry_amount, 6);
+        assert_eq!(existing_position.quote_asset_amount, 40);
+        assert_eq!(existing_position.quote_entry_amount, -6);
         assert_eq!(pnl, 46);
         assert_eq!(existing_position.last_cumulative_funding_rate, 2);
 
@@ -988,8 +992,8 @@ mod test {
         assert_eq!(market.base_asset_amount_long, 1);
         assert_eq!(market.base_asset_amount_short, 0);
         assert_eq!(market.amm.net_base_asset_amount, 1);
-        assert_eq!(market.amm.quote_asset_amount_long, 6);
-        assert_eq!(market.amm.quote_asset_amount_short, 0);
+        assert_eq!(market.amm.quote_asset_amount_long, -6);
+        assert_eq!(market.amm.quote_asset_amount_short, 46);
     }
 
     #[test]
@@ -1003,7 +1007,7 @@ mod test {
         };
         let position_delta = PositionDelta {
             base_asset_amount: 11,
-            quote_asset_amount: 120,
+            quote_asset_amount: -120,
         };
         let mut market = Market {
             amm: AMM {
@@ -1023,8 +1027,8 @@ mod test {
             .unwrap();
 
         assert_eq!(existing_position.base_asset_amount, 1);
-        assert_eq!(existing_position.quote_asset_amount, 11);
-        assert_eq!(existing_position.quote_entry_amount, 11);
+        assert_eq!(existing_position.quote_asset_amount, -20);
+        assert_eq!(existing_position.quote_entry_amount, -11);
         assert_eq!(pnl, -9);
         assert_eq!(existing_position.last_cumulative_funding_rate, 2);
 
@@ -1032,16 +1036,16 @@ mod test {
         assert_eq!(market.base_asset_amount_long, 1);
         assert_eq!(market.base_asset_amount_short, 0);
         assert_eq!(market.amm.net_base_asset_amount, 1);
-        assert_eq!(market.amm.quote_asset_amount_long, 11);
-        assert_eq!(market.amm.quote_asset_amount_short, 0);
+        assert_eq!(market.amm.quote_asset_amount_long, -11);
+        assert_eq!(market.amm.quote_asset_amount_short, -9);
     }
 
     #[test]
     fn close_long_profitable() {
         let mut existing_position = MarketPosition {
             base_asset_amount: 10,
-            quote_asset_amount: 10,
-            quote_entry_amount: 10,
+            quote_asset_amount: -10,
+            quote_entry_amount: -10,
             last_cumulative_funding_rate: 1,
             last_funding_rate_ts: 1,
             ..MarketPosition::default()
@@ -1053,7 +1057,7 @@ mod test {
         let mut market = Market {
             amm: AMM {
                 net_base_asset_amount: 11,
-                quote_asset_amount_long: 11,
+                quote_asset_amount_long: -11,
                 ..AMM::default()
             },
             open_interest: 2,
@@ -1065,7 +1069,7 @@ mod test {
             .unwrap();
 
         assert_eq!(existing_position.base_asset_amount, 0);
-        assert_eq!(existing_position.quote_asset_amount, 0);
+        assert_eq!(existing_position.quote_asset_amount, 5);
         assert_eq!(existing_position.quote_entry_amount, 0);
         assert_eq!(pnl, 5);
         assert_eq!(existing_position.last_cumulative_funding_rate, 0);
@@ -1075,7 +1079,8 @@ mod test {
         assert_eq!(market.base_asset_amount_long, 1);
         assert_eq!(market.base_asset_amount_short, 0);
         assert_eq!(market.amm.net_base_asset_amount, 1);
-        assert_eq!(market.amm.quote_asset_amount_long, 1);
+        // not 5 because quote asset amount long was -11 not -10 before
+        assert_eq!(market.amm.quote_asset_amount_long, 4);
         assert_eq!(market.amm.quote_asset_amount_short, 0);
     }
 
@@ -1083,8 +1088,8 @@ mod test {
     fn close_long_unprofitable() {
         let mut existing_position = MarketPosition {
             base_asset_amount: 10,
-            quote_asset_amount: 10,
-            quote_entry_amount: 10,
+            quote_asset_amount: -10,
+            quote_entry_amount: -10,
             last_cumulative_funding_rate: 1,
             last_funding_rate_ts: 1,
             ..MarketPosition::default()
@@ -1096,7 +1101,7 @@ mod test {
         let mut market = Market {
             amm: AMM {
                 net_base_asset_amount: 11,
-                quote_asset_amount_long: 11,
+                quote_asset_amount_long: -11,
                 ..AMM::default()
             },
             open_interest: 2,
@@ -1108,7 +1113,7 @@ mod test {
             .unwrap();
 
         assert_eq!(existing_position.base_asset_amount, 0);
-        assert_eq!(existing_position.quote_asset_amount, 0);
+        assert_eq!(existing_position.quote_asset_amount, -5);
         assert_eq!(existing_position.quote_entry_amount, 0);
         assert_eq!(pnl, -5);
         assert_eq!(existing_position.last_cumulative_funding_rate, 0);
@@ -1118,7 +1123,7 @@ mod test {
         assert_eq!(market.base_asset_amount_long, 1);
         assert_eq!(market.base_asset_amount_short, 0);
         assert_eq!(market.amm.net_base_asset_amount, 1);
-        assert_eq!(market.amm.quote_asset_amount_long, 1);
+        assert_eq!(market.amm.quote_asset_amount_long, -6);
         assert_eq!(market.amm.quote_asset_amount_short, 0);
     }
 
@@ -1134,7 +1139,7 @@ mod test {
         };
         let position_delta = PositionDelta {
             base_asset_amount: 10,
-            quote_asset_amount: 5,
+            quote_asset_amount: -5,
         };
         let mut market = Market {
             amm: AMM {
@@ -1151,7 +1156,7 @@ mod test {
             .unwrap();
 
         assert_eq!(existing_position.base_asset_amount, 0);
-        assert_eq!(existing_position.quote_asset_amount, 0);
+        assert_eq!(existing_position.quote_asset_amount, 5);
         assert_eq!(existing_position.quote_entry_amount, 0);
         assert_eq!(pnl, 5);
         assert_eq!(existing_position.last_cumulative_funding_rate, 0);
@@ -1162,7 +1167,7 @@ mod test {
         assert_eq!(market.base_asset_amount_short, -1);
         assert_eq!(market.amm.net_base_asset_amount, -1);
         assert_eq!(market.amm.quote_asset_amount_long, 0);
-        assert_eq!(market.amm.quote_asset_amount_short, 1);
+        assert_eq!(market.amm.quote_asset_amount_short, 6);
     }
 
     #[test]
@@ -1177,7 +1182,7 @@ mod test {
         };
         let position_delta = PositionDelta {
             base_asset_amount: 10,
-            quote_asset_amount: 15,
+            quote_asset_amount: -15,
         };
         let mut market = Market {
             amm: AMM {
@@ -1194,7 +1199,7 @@ mod test {
             .unwrap();
 
         assert_eq!(existing_position.base_asset_amount, 0);
-        assert_eq!(existing_position.quote_asset_amount, 0);
+        assert_eq!(existing_position.quote_asset_amount, -5);
         assert_eq!(existing_position.quote_entry_amount, 0);
         assert_eq!(pnl, -5);
         assert_eq!(existing_position.last_cumulative_funding_rate, 0);
@@ -1205,15 +1210,15 @@ mod test {
         assert_eq!(market.base_asset_amount_short, -1);
         assert_eq!(market.amm.net_base_asset_amount, -1);
         assert_eq!(market.amm.quote_asset_amount_long, 0);
-        assert_eq!(market.amm.quote_asset_amount_short, 1);
+        assert_eq!(market.amm.quote_asset_amount_short, -4);
     }
 
     #[test]
     fn close_long_with_quote_entry_amount_less_than_quote_asset_amount() {
         let mut existing_position = MarketPosition {
             base_asset_amount: 10,
-            quote_asset_amount: 10,
-            quote_entry_amount: 8,
+            quote_asset_amount: -10,
+            quote_entry_amount: -8,
             last_cumulative_funding_rate: 1,
             last_funding_rate_ts: 1,
             ..MarketPosition::default()
@@ -1225,7 +1230,7 @@ mod test {
         let mut market = Market {
             amm: AMM {
                 net_base_asset_amount: 11,
-                quote_asset_amount_long: 11,
+                quote_asset_amount_long: -11,
                 ..AMM::default()
             },
             open_interest: 2,
@@ -1237,9 +1242,9 @@ mod test {
             .unwrap();
 
         assert_eq!(existing_position.base_asset_amount, 0);
-        assert_eq!(existing_position.quote_asset_amount, 0);
+        assert_eq!(existing_position.quote_asset_amount, -5);
         assert_eq!(existing_position.quote_entry_amount, 0);
-        assert_eq!(pnl, -5);
+        assert_eq!(pnl, -3);
         assert_eq!(existing_position.last_cumulative_funding_rate, 0);
         assert_eq!(existing_position.last_funding_rate_ts, 0);
 
@@ -1247,7 +1252,7 @@ mod test {
         assert_eq!(market.base_asset_amount_long, 1);
         assert_eq!(market.base_asset_amount_short, 0);
         assert_eq!(market.amm.net_base_asset_amount, 1);
-        assert_eq!(market.amm.quote_asset_amount_long, 1);
+        assert_eq!(market.amm.quote_asset_amount_long, -6);
         assert_eq!(market.amm.quote_asset_amount_short, 0);
     }
 
@@ -1263,7 +1268,7 @@ mod test {
         };
         let position_delta = PositionDelta {
             base_asset_amount: 10,
-            quote_asset_amount: 15,
+            quote_asset_amount: -15,
         };
         let mut market = Market {
             amm: AMM {
@@ -1280,9 +1285,9 @@ mod test {
             .unwrap();
 
         assert_eq!(existing_position.base_asset_amount, 0);
-        assert_eq!(existing_position.quote_asset_amount, 0);
+        assert_eq!(existing_position.quote_asset_amount, -5);
         assert_eq!(existing_position.quote_entry_amount, 0);
-        assert_eq!(pnl, -5);
+        assert_eq!(pnl, 0);
         assert_eq!(existing_position.last_cumulative_funding_rate, 0);
         assert_eq!(existing_position.last_funding_rate_ts, 0);
 
@@ -1291,7 +1296,7 @@ mod test {
         assert_eq!(market.base_asset_amount_short, -1);
         assert_eq!(market.amm.net_base_asset_amount, -1);
         assert_eq!(market.amm.quote_asset_amount_long, 0);
-        assert_eq!(market.amm.quote_asset_amount_short, 1);
+        assert_eq!(market.amm.quote_asset_amount_short, -4);
     }
 
     #[test]
@@ -1304,7 +1309,7 @@ mod test {
                 terminal_quote_asset_reserve: 999 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50 * PEG_PRECISION,
                 cumulative_funding_rate_long: 1,
-                quote_asset_amount_long: 100 * QUOTE_PRECISION,
+                quote_asset_amount_long: -100 * QUOTE_PRECISION_I128,
                 net_base_asset_amount: 2 * AMM_RESERVE_PRECISION_I128,
                 ..AMM::default()
             },
@@ -1314,8 +1319,8 @@ mod test {
 
         let mut market_position_up = MarketPosition {
             base_asset_amount: AMM_RESERVE_PRECISION as i128,
-            quote_asset_amount: 40 * QUOTE_PRECISION,
-            quote_entry_amount: 40 * QUOTE_PRECISION,
+            quote_asset_amount: -40 * QUOTE_PRECISION_I128,
+            quote_entry_amount: -40 * QUOTE_PRECISION_I128,
             last_cumulative_funding_rate: 1,
             last_funding_rate_ts: 1,
             ..MarketPosition::default()
@@ -1333,8 +1338,8 @@ mod test {
 
         let mut market_position_down = MarketPosition {
             base_asset_amount: AMM_RESERVE_PRECISION as i128,
-            quote_asset_amount: 60 * QUOTE_PRECISION,
-            quote_entry_amount: 60 * QUOTE_PRECISION,
+            quote_asset_amount: -60 * QUOTE_PRECISION_I128,
+            quote_entry_amount: -60 * QUOTE_PRECISION_I128,
             last_cumulative_funding_rate: 1,
             last_funding_rate_ts: 1,
             ..MarketPosition::default()
@@ -1342,8 +1347,8 @@ mod test {
         let adj_quote =
             update_cost_basis(&mut market, &mut market_position_down, oracle_price).unwrap();
 
-        assert!(adj_quote < 0);
-        assert!(market_position_down.quote_asset_amount > market_position_up.quote_entry_amount);
+        assert_eq!(adj_quote, -10000000);
+        assert_eq!(market_position_down.quote_asset_amount, -70000000);
     }
 }
 
