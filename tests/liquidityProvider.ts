@@ -267,19 +267,15 @@ describe('liquidity providing', () => {
 	const lpCooldown = 1;
 
 	it('burn with standardized baa', async () => {
-
 		console.log('adding liquidity...');
 		let market = clearingHouse.getMarketAccount(new BN(0));
 		const _sig = await clearingHouse.addLiquidity(
-			new BN(100 * 1e13), // 100 / (100 + 300) = 1/4 
+			new BN(100 * 1e13), // 100 / (100 + 300) = 1/4
 			market.marketIndex
 		);
 
-		let stepSize = new BN(1 * 1e13)
-		await clearingHouse.updateMarketBaseAssetAmountStepSize(
-			ZERO, 
-			stepSize
-		);
+		let stepSize = new BN(1 * 1e13);
+		await clearingHouse.updateMarketBaseAssetAmountStepSize(ZERO, stepSize);
 
 		let user = clearingHouseUser.getUserAccount();
 		console.log('lpUser lpShares:', user.positions[0].lpShares.toString());
@@ -300,7 +296,7 @@ describe('liquidity providing', () => {
 			market.marketIndex,
 			new BN(newPrice * MARK_PRICE_PRECISION.toNumber())
 		);
-		await _viewLogs(sig)
+		await _viewLogs(sig);
 
 		// amm gets 33 (3/4 * 50 = 37.5)
 		// lp gets stepSize (1/4 * 50 = 12.5 => 10 with remainder 2.5)
@@ -317,18 +313,22 @@ describe('liquidity providing', () => {
 
 		market = await clearingHouse.getMarketAccount(ZERO);
 		console.log(
-			"market baa",
-			market.amm.netBaseAssetAmount.toString(), 
-			market.amm.marketPosition.baseAssetAmount.toString(),
-		)
-		assert(market.amm.netBaseAssetAmount.eq(new BN(-37500000000000)))
-		assert(market.amm.marketPosition.baseAssetAmount.eq(new BN(37500000000000)))
-		assert(market.amm.marketPosition.baseAssetAmount.eq(new BN(37500000000000)))
+			'market baa',
+			market.amm.netBaseAssetAmount.toString(),
+			market.amm.marketPosition.baseAssetAmount.toString()
+		);
+		assert(market.amm.netBaseAssetAmount.eq(new BN(-37500000000000)));
+		assert(
+			market.amm.marketPosition.baseAssetAmount.eq(new BN(37500000000000))
+		);
+		assert(
+			market.amm.marketPosition.baseAssetAmount.eq(new BN(37500000000000))
+		);
 
 		console.log('removing liquidity...');
 		const _txSig = await clearingHouse.removeLiquidity(market.marketIndex);
 		await _viewLogs(_txSig);
-		
+
 		user = clearingHouseUser.getUserAccount();
 		const lpPosition = user.positions[0];
 
@@ -347,12 +347,14 @@ describe('liquidity providing', () => {
 
 		market = await clearingHouse.getMarketAccount(ZERO);
 		console.log(
-			"market baa",
-			market.amm.netBaseAssetAmount.toString(), 
-			market.amm.marketPosition.baseAssetAmount.toString(),
-		)
-		assert(market.amm.netBaseAssetAmount.eq(new BN(-40000000000000)))
-		assert(market.amm.marketPosition.baseAssetAmount.eq(new BN(40000000000000)))
+			'market baa',
+			market.amm.netBaseAssetAmount.toString(),
+			market.amm.marketPosition.baseAssetAmount.toString()
+		);
+		assert(market.amm.netBaseAssetAmount.eq(new BN(-40000000000000)));
+		assert(
+			market.amm.marketPosition.baseAssetAmount.eq(new BN(40000000000000))
+		);
 
 		console.log('closing trader ...');
 		await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);

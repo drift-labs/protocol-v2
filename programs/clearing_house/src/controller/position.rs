@@ -7,14 +7,14 @@ use solana_program::msg;
 use crate::controller;
 use crate::controller::amm::SwapDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
-use crate::math::casting::{cast, cast_to_i128, cast_to_u128};
+use crate::math::casting::{cast, cast_to_i128};
 use crate::math::constants::{AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128};
 use crate::math::orders::calculate_quote_asset_amount_for_maker_order;
 use crate::math::position::{
     calculate_base_asset_value_and_pnl_with_oracle_price, calculate_position_new_quote_base_pnl,
 };
 use crate::math_error;
-use crate::state::market::{Market, AMM};
+use crate::state::market::Market;
 use crate::state::user::{User, UserPositions};
 use crate::MarketPosition;
 
