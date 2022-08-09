@@ -28,6 +28,9 @@ export const BANK_BALANCE_PRECISION_EXP = new BN(6);
 export const BANK_BALANCE_PRECISION = new BN(10).pow(
 	BANK_BALANCE_PRECISION_EXP
 );
+export const BANK_IMF_PRECISION_EXP = new BN(6);
+
+export const BANK_IMF_PRECISION = new BN(10).pow(BANK_IMF_PRECISION_EXP);
 export const LIQUIDATION_FEE_PRECISION = new BN(1000000);
 
 export const QUOTE_PRECISION = new BN(10).pow(QUOTE_PRECISION_EXP);
