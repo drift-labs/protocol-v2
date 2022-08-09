@@ -541,25 +541,20 @@ export class ClearingHouse {
 
 		const authority = this.wallet.publicKey;
 
-		let wrappedSolAccountAlreadyExists = false;
+		const createWSOLTokenAccount =
+			isSolBank && collateralAccountPublicKey.equals(authority);
 
-		if (isSolBank) {
-			wrappedSolAccountAlreadyExists = await this.checkIfAccountExists(
-				collateralAccountPublicKey
-			);
+		if (createWSOLTokenAccount) {
+			const { ixs, signers, pubkey } =
+				await this.getWrappedSolAccountCreationIxs(amount);
 
-			if (!wrappedSolAccountAlreadyExists) {
-				const { ixs, signers } = await this.getWrappedSolAccountCreationIxs(
-					collateralAccountPublicKey,
-					amount
-				);
+			collateralAccountPublicKey = pubkey;
 
-				ixs.forEach((ix) => {
-					tx.add(ix);
-				});
+			ixs.forEach((ix) => {
+				tx.add(ix);
+			});
 
-				signers.forEach((signer) => additionalSigners.push(signer));
-			}
+			signers.forEach((signer) => additionalSigners.push(signer));
 		}
 
 		const depositCollateralIx = await this.getDepositInstruction(
@@ -574,7 +569,7 @@ export class ClearingHouse {
 		tx.add(depositCollateralIx);
 
 		// Close the wrapped sol account at the end of the transaction
-		if (isSolBank && !wrappedSolAccountAlreadyExists) {
+		if (createWSOLTokenAccount) {
 			tx.add(
 				Token.createCloseAccountInstruction(
 					TOKEN_PROGRAM_ID,
@@ -662,21 +657,28 @@ export class ClearingHouse {
 		}
 	}
 
-	private async getSolWithdrawalIxs(bankIndex: BN, amount: BN) {
+	private async getSolWithdrawalIxs(
+		bankIndex: BN,
+		amount: BN
+	): Promise<{
+		ixs: anchor.web3.TransactionInstruction[];
+		signers: Signer[];
+		pubkey: PublicKey;
+	}> {
 		const result = {
 			ixs: [],
 			signers: [],
+			pubkey: PublicKey.default,
 		};
 
 		// Create a temporary wrapped SOL account to store the SOL that we're withdrawing
-		const wrappedSolAccount = new Keypair();
 
 		const authority = this.wallet.publicKey;
 
-		const { ixs, signers } = await this.getWrappedSolAccountCreationIxs(
-			wrappedSolAccount.publicKey,
+		const { ixs, signers, pubkey } = await this.getWrappedSolAccountCreationIxs(
 			amount
 		);
+		result.pubkey = pubkey;
 
 		ixs.forEach((ix) => {
 			result.ixs.push(ix);
@@ -689,7 +691,7 @@ export class ClearingHouse {
 		const withdrawIx = await this.getWithdrawIx(
 			amount,
 			bankIndex,
-			wrappedSolAccount.publicKey,
+			pubkey,
 			true
 		);
 
@@ -698,7 +700,7 @@ export class ClearingHouse {
 		result.ixs.push(
 			Token.createCloseAccountInstruction(
 				TOKEN_PROGRAM_ID,
-				wrappedSolAccount.publicKey,
+				pubkey,
 				authority,
 				authority,
 				[]
@@ -708,19 +710,18 @@ export class ClearingHouse {
 		return result;
 	}
 
-	private async getWrappedSolAccountCreationIxs(
-		tokenAccount: PublicKey,
-		amount: BN
-	): Promise<{
+	private async getWrappedSolAccountCreationIxs(amount: BN): Promise<{
 		ixs: anchor.web3.TransactionInstruction[];
 		signers: Signer[];
+		pubkey: PublicKey;
 	}> {
+		const wrappedSolAccount = new Keypair();
+
 		const result = {
 			ixs: [],
 			signers: [],
+			pubkey: wrappedSolAccount.publicKey,
 		};
-
-		const wrappedSolAccount = tokenAccount;
 
 		const rentSpaceLamports = new BN(LAMPORTS_PER_SOL / 100);
 
@@ -731,7 +732,7 @@ export class ClearingHouse {
 		result.ixs.push(
 			SystemProgram.createAccount({
 				fromPubkey: authority,
-				newAccountPubkey: wrappedSolAccount,
+				newAccountPubkey: wrappedSolAccount.publicKey,
 				lamports: depositAmountLamports.toNumber(),
 				space: 165,
 				programId: TOKEN_PROGRAM_ID,
@@ -742,7 +743,7 @@ export class ClearingHouse {
 			Token.createInitAccountInstruction(
 				TOKEN_PROGRAM_ID,
 				WRAPPED_SOL_MINT,
-				wrappedSolAccount,
+				wrappedSolAccount.publicKey,
 				authority
 			)
 		);
@@ -754,10 +755,11 @@ export class ClearingHouse {
 
 	/**
 	 * Creates the Clearing House User account for a user, and deposits some initial collateral
-	 * @param userId
-	 * @param name
 	 * @param amount
 	 * @param userTokenAccount
+	 * @param bankIndex
+	 * @param userId
+	 * @param name
 	 * @param fromUserId
 	 * @returns
 	 */
@@ -782,23 +784,23 @@ export class ClearingHouse {
 
 		const authority = this.wallet.publicKey;
 
-		let wrappedSolAccountAlreadyExists = false;
+		const createWSOLTokenAccount =
+			isSolBank && userTokenAccount.equals(authority);
 
-		if (isSolBank) {
-			wrappedSolAccountAlreadyExists = await this.checkIfAccountExists(
-				userTokenAccount
-			);
+		if (createWSOLTokenAccount) {
+			const {
+				ixs: startIxs,
+				signers,
+				pubkey,
+			} = await this.getWrappedSolAccountCreationIxs(amount);
 
-			if (!wrappedSolAccountAlreadyExists) {
-				const { ixs: startIxs, signers } =
-					await this.getWrappedSolAccountCreationIxs(userTokenAccount, amount);
+			userTokenAccount = pubkey;
 
-				startIxs.forEach((ix) => {
-					tx.add(ix);
-				});
+			startIxs.forEach((ix) => {
+				tx.add(ix);
+			});
 
-				signers.forEach((signer) => additionalSigners.push(signer));
-			}
+			signers.forEach((signer) => additionalSigners.push(signer));
 		}
 
 		const depositCollateralIx =
@@ -816,7 +818,7 @@ export class ClearingHouse {
 		tx.add(initializeUserAccountIx).add(depositCollateralIx);
 
 		// Close the wrapped sol account at the end of the transaction
-		if (isSolBank && !wrappedSolAccountAlreadyExists) {
+		if (createWSOLTokenAccount) {
 			tx.add(
 				Token.createCloseAccountInstruction(
 					TOKEN_PROGRAM_ID,
@@ -879,42 +881,59 @@ export class ClearingHouse {
 		userTokenAccount: PublicKey,
 		reduceOnly = false
 	): Promise<TransactionSignature> {
+		const tx = new Transaction();
+		const additionalSigners: Array<Signer> = [];
+
 		const bank = this.getBankAccount(bankIndex);
 
 		const isSolBank = bank.mint.equals(WRAPPED_SOL_MINT);
 
-		if (isSolBank) {
-			const tx = new Transaction();
+		const authority = this.wallet.publicKey;
 
-			const solWithdrawalIxs = await this.getSolWithdrawalIxs(
-				bankIndex,
-				amount
-			);
+		const createWSOLTokenAccount =
+			isSolBank && userTokenAccount.equals(authority);
 
-			solWithdrawalIxs.ixs.forEach((ix) => tx.add(ix));
+		if (createWSOLTokenAccount) {
+			const { ixs, signers, pubkey } =
+				await this.getWrappedSolAccountCreationIxs(amount);
 
-			const { txSig } = await this.txSender.send(
-				tx,
-				solWithdrawalIxs.signers,
-				this.opts
-			);
+			userTokenAccount = pubkey;
 
-			return txSig;
-		} else {
-			const { txSig } = await this.txSender.send(
-				wrapInTx(
-					await this.getWithdrawIx(
-						amount,
-						bank.bankIndex,
-						userTokenAccount,
-						reduceOnly
-					)
-				),
-				[],
-				this.opts
-			);
-			return txSig;
+			ixs.forEach((ix) => {
+				tx.add(ix);
+			});
+
+			signers.forEach((signer) => additionalSigners.push(signer));
 		}
+
+		const withdrawCollateral = await this.getWithdrawIx(
+			amount,
+			bank.bankIndex,
+			userTokenAccount,
+			reduceOnly
+		);
+
+		tx.add(withdrawCollateral);
+
+		// Close the wrapped sol account at the end of the transaction
+		if (createWSOLTokenAccount) {
+			tx.add(
+				Token.createCloseAccountInstruction(
+					TOKEN_PROGRAM_ID,
+					userTokenAccount,
+					authority,
+					authority,
+					[]
+				)
+			);
+		}
+
+		const { txSig } = await this.txSender.send(
+			tx,
+			additionalSigners,
+			this.opts
+		);
+		return txSig;
 	}
 
 	public async getWithdrawIx(
