@@ -746,7 +746,7 @@ export class ClearingHouseUser {
 			proposedMarketPosition.marketIndex
 		);
 
-		const proposedMarketPositionValue = calculateBaseAssetValue(
+		const proposedMarketPositionValue = calculateMarginBaseAssetValue(
 			market,
 			proposedMarketPosition,
 			this.getOracleDataForMarket(market.marketIndex)
@@ -763,14 +763,19 @@ export class ClearingHouseUser {
 						const market = this.clearingHouse.getMarketAccount(
 							position.marketIndex
 						);
-						const positionValue = calculateBaseAssetValue(
+						const positionValue = calculateMarginBaseAssetValue(
 							market,
 							position,
 							this.getOracleDataForMarket(market.marketIndex)
 						);
-						const marketMarginRequirement = positionValue
-							.mul(new BN(market.marginRatioMaintenance))
-							.div(MARGIN_PRECISION);
+						const marketMarginRequirement = positionValue;
+						new BN(
+							calculateMarketMarginRatio(
+								market,
+								position.baseAssetAmount.abs(),
+								'Maintenance'
+							)
+						).div(MARGIN_PRECISION);
 						totalMarginRequirement = totalMarginRequirement.add(
 							marketMarginRequirement
 						);
@@ -795,7 +800,15 @@ export class ClearingHouseUser {
 		const marginRequirementAfterTrade =
 			marginRequirementExcludingTargetMarket.add(
 				proposedMarketPositionValue
-					.mul(new BN(market.marginRatioMaintenance))
+					.mul(
+						new BN(
+							calculateMarketMarginRatio(
+								market,
+								proposedMarketPosition.baseAssetAmount.abs(),
+								'Maintenance'
+							)
+						)
+					)
 					.div(MARGIN_PRECISION)
 			);
 		const freeCollateralAfterTrade = totalCollateral.sub(
