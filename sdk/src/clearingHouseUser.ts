@@ -21,6 +21,7 @@ import {
 	PRICE_TO_QUOTE_PRECISION,
 	MARGIN_PRECISION,
 	BANK_WEIGHT_PRECISION,
+	BANK_BALANCE_PRECISION_EXP,
 } from './constants/numericConstants';
 import {
 	UserAccountSubscriber,
@@ -46,7 +47,7 @@ import {
 } from './math/bankBalance';
 import {
 	calculateMarginBaseAssetValue,
-	calculateWorseCaseBaseAssetAmount,
+	calculateWorstCaseBaseAssetAmount,
 } from './math/margin';
 import { OraclePriceData } from './oracles/types';
 import { ClearingHouseUserConfig } from './clearingHouseUserConfig';
@@ -200,7 +201,7 @@ export class ClearingHouseUser {
 					marketPosition.marketIndex
 				);
 				const worstCaseBaseAssetAmount =
-					calculateWorseCaseBaseAssetAmount(marketPosition);
+					calculateWorstCaseBaseAssetAmount(marketPosition);
 
 				const worstCaseAssetValue = worstCaseBaseAssetAmount
 					.abs()
@@ -223,7 +224,7 @@ export class ClearingHouseUser {
 	}
 
 	/**
-	 * @returns The partial margin requirement in USDC. : QUOTE_PRECISION
+	 * @returns The maintenance margin requirement in USDC. : QUOTE_PRECISION
 	 */
 	public getMaintenanceMarginRequirement(): BN {
 		return this.getUserAccount()
@@ -232,7 +233,7 @@ export class ClearingHouseUser {
 					marketPosition.marketIndex
 				);
 				const worstCaseBaseAssetAmount =
-					calculateWorseCaseBaseAssetAmount(marketPosition);
+					calculateWorstCaseBaseAssetAmount(marketPosition);
 
 				const worstCaseAssetValue = worstCaseBaseAssetAmount
 					.abs()
@@ -280,13 +281,15 @@ export class ClearingHouseUser {
 
 				if (withWeightMarginCategory !== undefined) {
 					if (pnl0.gt(ZERO)) {
-						pnl0 = pnl0.mul(
-							calculateUnsettledAssetWeight(
-								market,
-								pnl0,
-								withWeightMarginCategory
+						pnl0 = pnl0
+							.mul(
+								calculateUnsettledAssetWeight(
+									market,
+									pnl0,
+									withWeightMarginCategory
+								)
 							)
-						);
+							.div(new BN(BANK_WEIGHT_PRECISION));
 					}
 				}
 
@@ -313,13 +316,15 @@ export class ClearingHouseUser {
 						const market = this.clearingHouse.getMarketAccount(
 							marketPosition.marketIndex
 						);
-						pnl0 = pnl0.mul(
-							calculateUnsettledAssetWeight(
-								market,
-								pnl0,
-								withWeightMarginCategory
+						pnl0 = pnl0
+							.mul(
+								calculateUnsettledAssetWeight(
+									market,
+									pnl0,
+									withWeightMarginCategory
+								)
 							)
-						);
+							.div(new BN(BANK_WEIGHT_PRECISION));
 					}
 				}
 				return pnl.add(pnl0);
@@ -368,9 +373,14 @@ export class ClearingHouseUser {
 					bankBalance.balanceType
 				);
 
-				let liabilityValue = tokenAmount.mul(
-					this.getOracleDataForBank(bankAccount.bankIndex).price
-				);
+				let liabilityValue = tokenAmount
+					.mul(this.getOracleDataForBank(bankAccount.bankIndex).price)
+					.div(MARK_PRICE_PRECISION)
+					.div(
+						new BN(10).pow(
+							new BN(bankAccount.decimals).sub(BANK_BALANCE_PRECISION_EXP)
+						)
+					);
 
 				if (withWeightMarginCategory !== undefined) {
 					const weight = calculateLiabilityWeight(
@@ -383,9 +393,7 @@ export class ClearingHouseUser {
 						.div(BANK_WEIGHT_PRECISION);
 				}
 
-				return totalLiabilityValue.add(
-					liabilityValue.div(MARK_PRICE_PRECISION)
-				);
+				return totalLiabilityValue.add(liabilityValue);
 			},
 			ZERO
 		);
@@ -418,7 +426,12 @@ export class ClearingHouseUser {
 
 				let assetValue = tokenAmount
 					.mul(this.getOracleDataForBank(bankAccount.bankIndex).price)
-					.div(MARK_PRICE_PRECISION);
+					.div(MARK_PRICE_PRECISION)
+					.div(
+						new BN(10).pow(
+							new BN(bankAccount.decimals).sub(BANK_BALANCE_PRECISION_EXP)
+						)
+					);
 				if (withWeightMarginCategory !== undefined) {
 					const weight = calculateAssetWeight(
 						tokenAmount,

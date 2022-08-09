@@ -66,7 +66,7 @@ export function calculateSizeDiscountAssetWeight(
 	return minAssetWeight;
 }
 
-export function calculateOraclePriceForUpnl(
+export function calculateOraclePriceForPerpMargin(
 	marketPosition: UserPosition,
 	market: MarketAccount,
 	oraclePriceData: OraclePriceData
@@ -97,7 +97,7 @@ export function calculateMarginBaseAssetValue(
 	marketPosition: UserPosition,
 	oraclePriceData: OraclePriceData
 ): BN {
-	const marginPrice = calculateOraclePriceForUpnl(
+	const marginPrice = calculateOraclePriceForPerpMargin(
 		marketPosition,
 		market,
 		oraclePriceData
@@ -110,7 +110,7 @@ export function calculateMarginBaseAssetValue(
 	return baseAssetValue;
 }
 
-export function calculateWorseCaseBaseAssetAmount(
+export function calculateWorstCaseBaseAssetAmount(
 	marketPosition: UserPosition
 ): BN {
 	const allBids = marketPosition.baseAssetAmount.add(marketPosition.openBids);
