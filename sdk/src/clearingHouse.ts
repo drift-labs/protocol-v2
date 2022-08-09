@@ -541,8 +541,7 @@ export class ClearingHouse {
 
 		const authority = this.wallet.publicKey;
 
-		const createWSOLTokenAccount =
-			isSolBank && collateralAccountPublicKey.equals(authority);
+		const createWSOLTokenAccount = isSolBank;
 
 		if (createWSOLTokenAccount) {
 			const { ixs, signers, pubkey } =
@@ -784,8 +783,7 @@ export class ClearingHouse {
 
 		const authority = this.wallet.publicKey;
 
-		const createWSOLTokenAccount =
-			isSolBank && userTokenAccount.equals(authority);
+		const createWSOLTokenAccount = isSolBank;
 
 		if (createWSOLTokenAccount) {
 			const {
@@ -890,8 +888,7 @@ export class ClearingHouse {
 
 		const authority = this.wallet.publicKey;
 
-		const createWSOLTokenAccount =
-			isSolBank && userTokenAccount.equals(authority);
+		const createWSOLTokenAccount = isSolBank;
 
 		if (createWSOLTokenAccount) {
 			const { ixs, signers, pubkey } =
