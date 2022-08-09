@@ -21,6 +21,7 @@ import {
 	PRICE_TO_QUOTE_PRECISION,
 	MARGIN_PRECISION,
 	BANK_WEIGHT_PRECISION,
+	BANK_BALANCE_PRECISION_EXP,
 } from './constants/numericConstants';
 import {
 	UserAccountSubscriber,
@@ -305,6 +306,12 @@ export class ClearingHouseUser {
 						.mul(bankAccount.initialLiabilityWeight)
 						.div(BANK_WEIGHT_PRECISION)
 						.div(MARK_PRICE_PRECISION)
+						// Adjust for decimals of bank account
+						.div(
+							new BN(10).pow(
+								new BN(bankAccount.decimals).sub(BANK_BALANCE_PRECISION_EXP)
+							)
+						)
 				);
 			},
 			ZERO
@@ -340,6 +347,12 @@ export class ClearingHouseUser {
 					tokenAmount
 						.mul(this.getOracleDataForBank(bankAccount.bankIndex).price)
 						.div(MARK_PRICE_PRECISION)
+						// Adjust for decimals of bank account
+						.div(
+							new BN(10).pow(
+								new BN(bankAccount.decimals).sub(BANK_BALANCE_PRECISION_EXP)
+							)
+						)
 				);
 			},
 			ZERO
@@ -377,6 +390,12 @@ export class ClearingHouseUser {
 						.mul(bankAccount.initialAssetWeight)
 						.div(BANK_WEIGHT_PRECISION)
 						.div(MARK_PRICE_PRECISION)
+						// Adjust for decimals of bank account
+						.div(
+							new BN(10).pow(
+								new BN(bankAccount.decimals).sub(BANK_BALANCE_PRECISION_EXP)
+							)
+						)
 				);
 			}, ZERO)
 			.add(this.getUnrealizedPNL(true))
