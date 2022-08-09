@@ -928,11 +928,11 @@ export class ClearingHouseUser {
 
 		const closeBaseAmount = currentPosition.baseAssetAmount
 			.mul(closeQuoteAmount)
-			.div(currentPosition.quoteAssetAmount)
+			.div(currentPosition.quoteAssetAmount.abs())
 			.add(
 				currentPosition.baseAssetAmount
 					.mul(closeQuoteAmount)
-					.mod(currentPosition.quoteAssetAmount)
+					.mod(currentPosition.quoteAssetAmount.abs())
 			)
 			.neg();
 

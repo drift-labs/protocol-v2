@@ -95,7 +95,7 @@ export function calculatePositionPNL(
 	oraclePriceData: OraclePriceData
 ): BN {
 	if (marketPosition.baseAssetAmount.eq(ZERO)) {
-		return ZERO;
+		return marketPosition.quoteAssetAmount;
 	}
 
 	const baseAssetValue = calculateMarginBaseAssetValue(
@@ -104,12 +104,12 @@ export function calculatePositionPNL(
 		oraclePriceData
 	);
 
-	let pnl;
-	if (marketPosition.baseAssetAmount.gt(ZERO)) {
-		pnl = baseAssetValue.sub(marketPosition.quoteAssetAmount);
-	} else {
-		pnl = marketPosition.quoteAssetAmount.sub(baseAssetValue);
-	}
+	const quoteAssetAmountSign = marketPosition.quoteAssetAmount.isNeg()
+		? new BN(-1)
+		: new BN(1);
+	let pnl = baseAssetValue
+		.mul(quoteAssetAmountSign)
+		.add(marketPosition.quoteAssetAmount);
 
 	if (withFunding) {
 		const fundingRatePnL = calculatePositionFundingPNL(
