@@ -65,26 +65,62 @@ pub struct PositionDelta {
     pub base_asset_amount: i128,
 }
 
+enum PositionUpdateType {
+    Open,
+    Increase,
+    Reduce,
+    Close,
+    Flip,
+}
+
+fn get_position_update_type(
+    position: &MarketPosition,
+    delta: &PositionDelta,
+) -> PositionUpdateType {
+    if position.base_asset_amount == 0 {
+        PositionUpdateType::Open
+    } else if position.base_asset_amount.signum() == delta.base_asset_amount.signum() {
+        PositionUpdateType::Increase
+    } else if position.base_asset_amount.abs() > delta.base_asset_amount.abs() {
+        PositionUpdateType::Reduce
+    } else if position.base_asset_amount.abs() == delta.base_asset_amount.abs() {
+        PositionUpdateType::Close
+    } else {
+        PositionUpdateType::Flip
+    }
+}
+
 pub fn update_position_and_market(
     position: &mut MarketPosition,
     market: &mut Market,
     delta: &PositionDelta,
 ) -> ClearingHouseResult<i128> {
-    let new_position = position.base_asset_amount == 0;
-    let increasing_position =
-        new_position || position.base_asset_amount.signum() == delta.base_asset_amount.signum();
-    let reducing_position =
-        !increasing_position && position.base_asset_amount.abs() > delta.base_asset_amount.abs();
-    let closing_position =
-        !increasing_position && position.base_asset_amount.abs() == delta.base_asset_amount.abs();
-    let flipped_position =
-        !increasing_position && position.base_asset_amount.abs() < delta.base_asset_amount.abs();
+    let update_type = get_position_update_type(position, delta);
 
     let (new_quote_asset_amount, new_quote_entry_amount, new_base_asset_amount, pnl) =
-        if !increasing_position {
-            let base_asset_amount_before_abs = position.base_asset_amount.abs();
-            let delta_base_asset_amount_abs = delta.base_asset_amount.abs();
-            if reducing_position || closing_position {
+        match update_type {
+            PositionUpdateType::Open | PositionUpdateType::Increase => {
+                let new_quote_asset_amount = position
+                    .quote_asset_amount
+                    .checked_add(delta.quote_asset_amount)
+                    .ok_or_else(math_error!())?;
+                let new_quote_entry_amount = position
+                    .quote_entry_amount
+                    .checked_add(delta.quote_asset_amount)
+                    .ok_or_else(math_error!())?;
+                let new_base_asset_amount = position
+                    .base_asset_amount
+                    .checked_add(delta.base_asset_amount)
+                    .ok_or_else(math_error!())?;
+
+                (
+                    new_quote_asset_amount,
+                    new_quote_entry_amount,
+                    new_base_asset_amount,
+                    0_i128,
+                )
+            }
+            PositionUpdateType::Reduce | PositionUpdateType::Close => {
                 let new_quote_asset_amount = position
                     .quote_asset_amount
                     .checked_add(delta.quote_asset_amount)
@@ -100,9 +136,9 @@ pub fn update_position_and_market(
                     .checked_sub(
                         position
                             .quote_entry_amount
-                            .checked_mul(delta_base_asset_amount_abs)
+                            .checked_mul(delta.base_asset_amount.abs())
                             .ok_or_else(math_error!())?
-                            .checked_div(base_asset_amount_before_abs)
+                            .checked_div(position.base_asset_amount.abs())
                             .ok_or_else(math_error!())?,
                     )
                     .ok_or_else(math_error!())?;
@@ -120,7 +156,8 @@ pub fn update_position_and_market(
                     new_base_asset_amount,
                     pnl,
                 )
-            } else {
+            }
+            PositionUpdateType::Flip => {
                 let new_quote_asset_amount = position
                     .quote_asset_amount
                     .checked_add(delta.quote_asset_amount)
@@ -136,9 +173,9 @@ pub fn update_position_and_market(
                     .checked_sub(
                         delta
                             .quote_asset_amount
-                            .checked_mul(base_asset_amount_before_abs)
+                            .checked_mul(position.base_asset_amount.abs())
                             .ok_or_else(math_error!())?
-                            .checked_div(delta_base_asset_amount_abs)
+                            .checked_div(delta.base_asset_amount.abs())
                             .ok_or_else(math_error!())?,
                     )
                     .ok_or_else(math_error!())?;
@@ -160,26 +197,6 @@ pub fn update_position_and_market(
                     pnl,
                 )
             }
-        } else {
-            let new_quote_asset_amount = position
-                .quote_asset_amount
-                .checked_add(delta.quote_asset_amount)
-                .ok_or_else(math_error!())?;
-            let new_quote_entry_amount = position
-                .quote_entry_amount
-                .checked_add(delta.quote_asset_amount)
-                .ok_or_else(math_error!())?;
-            let new_base_asset_amount = position
-                .base_asset_amount
-                .checked_add(delta.base_asset_amount)
-                .ok_or_else(math_error!())?;
-
-            (
-                new_quote_asset_amount,
-                new_quote_entry_amount,
-                new_base_asset_amount,
-                0_i128,
-            )
         };
 
     // Update Market
@@ -190,172 +207,179 @@ pub fn update_position_and_market(
         .ok_or_else(math_error!())?;
 
     // Update Market open interest
-    if new_position {
+    if let PositionUpdateType::Open = update_type {
         market.open_interest = market
             .open_interest
             .checked_add(1)
             .ok_or_else(math_error!())?;
-    } else if closing_position {
+    } else if let PositionUpdateType::Close = update_type {
         market.open_interest = market
             .open_interest
             .checked_sub(1)
             .ok_or_else(math_error!())?;
     }
 
-    if increasing_position {
-        if new_base_asset_amount > 0 {
-            market.base_asset_amount_long = market
-                .base_asset_amount_long
-                .checked_add(delta.base_asset_amount)
-                .ok_or_else(math_error!())?;
-            market.amm.quote_asset_amount_long = market
-                .amm
-                .quote_asset_amount_long
-                .checked_add(delta.quote_asset_amount)
-                .ok_or_else(math_error!())?;
-            market.amm.quote_entry_amount_long = market
-                .amm
-                .quote_entry_amount_long
-                .checked_add(delta.quote_asset_amount)
-                .ok_or_else(math_error!())?;
-        } else {
-            market.base_asset_amount_short = market
-                .base_asset_amount_short
-                .checked_add(delta.base_asset_amount)
-                .ok_or_else(math_error!())?;
-            market.amm.quote_asset_amount_short = market
-                .amm
-                .quote_asset_amount_short
-                .checked_add(delta.quote_asset_amount)
-                .ok_or_else(math_error!())?;
-            market.amm.quote_entry_amount_short = market
-                .amm
-                .quote_entry_amount_short
-                .checked_add(delta.quote_asset_amount)
-                .ok_or_else(math_error!())?;
+    match update_type {
+        PositionUpdateType::Open | PositionUpdateType::Increase => {
+            if new_base_asset_amount > 0 {
+                market.base_asset_amount_long = market
+                    .base_asset_amount_long
+                    .checked_add(delta.base_asset_amount)
+                    .ok_or_else(math_error!())?;
+                market.amm.quote_asset_amount_long = market
+                    .amm
+                    .quote_asset_amount_long
+                    .checked_add(delta.quote_asset_amount)
+                    .ok_or_else(math_error!())?;
+                market.amm.quote_entry_amount_long = market
+                    .amm
+                    .quote_entry_amount_long
+                    .checked_add(delta.quote_asset_amount)
+                    .ok_or_else(math_error!())?;
+            } else {
+                market.base_asset_amount_short = market
+                    .base_asset_amount_short
+                    .checked_add(delta.base_asset_amount)
+                    .ok_or_else(math_error!())?;
+                market.amm.quote_asset_amount_short = market
+                    .amm
+                    .quote_asset_amount_short
+                    .checked_add(delta.quote_asset_amount)
+                    .ok_or_else(math_error!())?;
+                market.amm.quote_entry_amount_short = market
+                    .amm
+                    .quote_entry_amount_short
+                    .checked_add(delta.quote_asset_amount)
+                    .ok_or_else(math_error!())?;
+            }
         }
-    } else if reducing_position || closing_position {
-        if position.base_asset_amount > 0 {
-            market.base_asset_amount_long = market
-                .base_asset_amount_long
-                .checked_add(delta.base_asset_amount)
-                .ok_or_else(math_error!())?;
-            market.amm.quote_asset_amount_long = market
-                .amm
-                .quote_asset_amount_long
-                .checked_add(delta.quote_asset_amount)
-                .ok_or_else(math_error!())?;
-            market.amm.quote_entry_amount_long = market
-                .amm
-                .quote_entry_amount_long
-                .checked_sub(
-                    position
-                        .quote_entry_amount
-                        .checked_sub(new_quote_entry_amount)
-                        .ok_or_else(math_error!())?,
-                )
-                .ok_or_else(math_error!())?;
-        } else {
-            market.base_asset_amount_short = market
-                .base_asset_amount_short
-                .checked_add(delta.base_asset_amount)
-                .ok_or_else(math_error!())?;
-            market.amm.quote_asset_amount_short = market
-                .amm
-                .quote_asset_amount_short
-                .checked_add(delta.quote_asset_amount)
-                .ok_or_else(math_error!())?;
-            market.amm.quote_entry_amount_short = market
-                .amm
-                .quote_entry_amount_short
-                .checked_sub(
-                    position
-                        .quote_entry_amount
-                        .checked_sub(new_quote_entry_amount)
-                        .ok_or_else(math_error!())?,
-                )
-                .ok_or_else(math_error!())?;
+        PositionUpdateType::Reduce | PositionUpdateType::Close => {
+            if position.base_asset_amount > 0 {
+                market.base_asset_amount_long = market
+                    .base_asset_amount_long
+                    .checked_add(delta.base_asset_amount)
+                    .ok_or_else(math_error!())?;
+                market.amm.quote_asset_amount_long = market
+                    .amm
+                    .quote_asset_amount_long
+                    .checked_add(delta.quote_asset_amount)
+                    .ok_or_else(math_error!())?;
+                market.amm.quote_entry_amount_long = market
+                    .amm
+                    .quote_entry_amount_long
+                    .checked_sub(
+                        position
+                            .quote_entry_amount
+                            .checked_sub(new_quote_entry_amount)
+                            .ok_or_else(math_error!())?,
+                    )
+                    .ok_or_else(math_error!())?;
+            } else {
+                market.base_asset_amount_short = market
+                    .base_asset_amount_short
+                    .checked_add(delta.base_asset_amount)
+                    .ok_or_else(math_error!())?;
+                market.amm.quote_asset_amount_short = market
+                    .amm
+                    .quote_asset_amount_short
+                    .checked_add(delta.quote_asset_amount)
+                    .ok_or_else(math_error!())?;
+                market.amm.quote_entry_amount_short = market
+                    .amm
+                    .quote_entry_amount_short
+                    .checked_sub(
+                        position
+                            .quote_entry_amount
+                            .checked_sub(new_quote_entry_amount)
+                            .ok_or_else(math_error!())?,
+                    )
+                    .ok_or_else(math_error!())?;
+            }
         }
-    } else if flipped_position {
-        if new_base_asset_amount > 0 {
-            market.base_asset_amount_short = market
-                .base_asset_amount_short
-                .checked_sub(position.base_asset_amount)
-                .ok_or_else(math_error!())?;
-            market.base_asset_amount_long = market
-                .base_asset_amount_long
-                .checked_add(new_base_asset_amount)
-                .ok_or_else(math_error!())?;
+        PositionUpdateType::Flip => {
+            if new_base_asset_amount > 0 {
+                market.base_asset_amount_short = market
+                    .base_asset_amount_short
+                    .checked_sub(position.base_asset_amount)
+                    .ok_or_else(math_error!())?;
+                market.base_asset_amount_long = market
+                    .base_asset_amount_long
+                    .checked_add(new_base_asset_amount)
+                    .ok_or_else(math_error!())?;
 
-            market.amm.quote_asset_amount_short = market
-                .amm
-                .quote_asset_amount_short
-                .checked_add(
-                    delta
-                        .quote_asset_amount
-                        .checked_sub(new_quote_entry_amount)
-                        .ok_or_else(math_error!())?,
-                )
-                .ok_or_else(math_error!())?;
-            market.amm.quote_entry_amount_short = market
-                .amm
-                .quote_entry_amount_short
-                .checked_sub(position.quote_entry_amount)
-                .ok_or_else(math_error!())?;
+                market.amm.quote_asset_amount_short = market
+                    .amm
+                    .quote_asset_amount_short
+                    .checked_add(
+                        delta
+                            .quote_asset_amount
+                            .checked_sub(new_quote_entry_amount)
+                            .ok_or_else(math_error!())?,
+                    )
+                    .ok_or_else(math_error!())?;
+                market.amm.quote_entry_amount_short = market
+                    .amm
+                    .quote_entry_amount_short
+                    .checked_sub(position.quote_entry_amount)
+                    .ok_or_else(math_error!())?;
 
-            market.amm.quote_asset_amount_long = market
-                .amm
-                .quote_asset_amount_long
-                .checked_add(new_quote_entry_amount)
-                .ok_or_else(math_error!())?;
-            market.amm.quote_entry_amount_long = market
-                .amm
-                .quote_entry_amount_long
-                .checked_add(new_quote_entry_amount)
-                .ok_or_else(math_error!())?;
-        } else {
-            market.base_asset_amount_long = market
-                .base_asset_amount_long
-                .checked_sub(position.base_asset_amount)
-                .ok_or_else(math_error!())?;
-            market.base_asset_amount_short = market
-                .base_asset_amount_short
-                .checked_add(new_base_asset_amount)
-                .ok_or_else(math_error!())?;
+                market.amm.quote_asset_amount_long = market
+                    .amm
+                    .quote_asset_amount_long
+                    .checked_add(new_quote_entry_amount)
+                    .ok_or_else(math_error!())?;
+                market.amm.quote_entry_amount_long = market
+                    .amm
+                    .quote_entry_amount_long
+                    .checked_add(new_quote_entry_amount)
+                    .ok_or_else(math_error!())?;
+            } else {
+                market.base_asset_amount_long = market
+                    .base_asset_amount_long
+                    .checked_sub(position.base_asset_amount)
+                    .ok_or_else(math_error!())?;
+                market.base_asset_amount_short = market
+                    .base_asset_amount_short
+                    .checked_add(new_base_asset_amount)
+                    .ok_or_else(math_error!())?;
 
-            market.amm.quote_asset_amount_long = market
-                .amm
-                .quote_asset_amount_long
-                .checked_add(
-                    delta
-                        .quote_asset_amount
-                        .checked_sub(new_quote_entry_amount)
-                        .ok_or_else(math_error!())?,
-                )
-                .ok_or_else(math_error!())?;
-            market.amm.quote_entry_amount_long = market
-                .amm
-                .quote_entry_amount_long
-                .checked_sub(position.quote_entry_amount)
-                .ok_or_else(math_error!())?;
-            market.amm.quote_asset_amount_short = market
-                .amm
-                .quote_asset_amount_short
-                .checked_add(new_quote_entry_amount)
-                .ok_or_else(math_error!())?;
-            market.amm.quote_entry_amount_short = market
-                .amm
-                .quote_entry_amount_short
-                .checked_add(new_quote_entry_amount)
-                .ok_or_else(math_error!())?;
+                market.amm.quote_asset_amount_long = market
+                    .amm
+                    .quote_asset_amount_long
+                    .checked_add(
+                        delta
+                            .quote_asset_amount
+                            .checked_sub(new_quote_entry_amount)
+                            .ok_or_else(math_error!())?,
+                    )
+                    .ok_or_else(math_error!())?;
+                market.amm.quote_entry_amount_long = market
+                    .amm
+                    .quote_entry_amount_long
+                    .checked_sub(position.quote_entry_amount)
+                    .ok_or_else(math_error!())?;
+                market.amm.quote_asset_amount_short = market
+                    .amm
+                    .quote_asset_amount_short
+                    .checked_add(new_quote_entry_amount)
+                    .ok_or_else(math_error!())?;
+                market.amm.quote_entry_amount_short = market
+                    .amm
+                    .quote_entry_amount_short
+                    .checked_add(new_quote_entry_amount)
+                    .ok_or_else(math_error!())?;
+            }
         }
     }
 
     // Update user position
-    if closing_position {
+    if let PositionUpdateType::Close = update_type {
         position.last_cumulative_funding_rate = 0;
         position.last_funding_rate_ts = 0;
-    } else if new_position || flipped_position {
+    } else if matches!(
+        update_type,
+        PositionUpdateType::Open | PositionUpdateType::Flip
+    ) {
         if new_base_asset_amount > 0 {
             position.last_cumulative_funding_rate = market.amm.cumulative_funding_rate_long;
         } else {
