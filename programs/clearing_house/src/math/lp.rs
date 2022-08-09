@@ -472,7 +472,7 @@ mod test {
             last_net_base_asset_amount_per_lp: 100,
             ..MarketPosition::default()
         };
-        let mut per_lp_position = MarketPosition {
+        let per_lp_position = MarketPosition {
             base_asset_amount: 100,
             ..MarketPosition::default()
         };

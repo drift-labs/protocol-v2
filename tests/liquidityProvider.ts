@@ -274,7 +274,7 @@ describe('liquidity providing', () => {
 			market.marketIndex
 		);
 
-		let stepSize = new BN(1 * 1e13);
+		const stepSize = new BN(1 * 1e13);
 		await clearingHouse.updateMarketBaseAssetAmountStepSize(ZERO, stepSize);
 
 		let user = clearingHouseUser.getUserAccount();
@@ -290,7 +290,7 @@ describe('liquidity providing', () => {
 			SwapDirection.ADD,
 			market
 		);
-		let sig = await traderClearingHouse.openPosition(
+		const sig = await traderClearingHouse.openPosition(
 			PositionDirection.SHORT,
 			tradeSize,
 			market.marketIndex,
