@@ -372,6 +372,7 @@ export class ClearingHouseUser {
 					bankAccount,
 					bankBalance.balanceType
 				);
+<<<<<<< HEAD
 
 				let liabilityValue = tokenAmount
 					.mul(this.getOracleDataForBank(bankAccount.bankIndex).price)
@@ -394,6 +395,21 @@ export class ClearingHouseUser {
 				}
 
 				return totalLiabilityValue.add(liabilityValue);
+=======
+				return totalAssetValue.add(
+					tokenAmount
+						.mul(this.getOracleDataForBank(bankAccount.bankIndex).price)
+						.mul(bankAccount.initialLiabilityWeight)
+						.div(BANK_WEIGHT_PRECISION)
+						.div(MARK_PRICE_PRECISION)
+						// Adjust for decimals of bank account
+						.div(
+							new BN(10).pow(
+								new BN(bankAccount.decimals).sub(BANK_BALANCE_PRECISION_EXP)
+							)
+						)
+				);
+>>>>>>> master
 			},
 			ZERO
 		);
@@ -441,7 +457,21 @@ export class ClearingHouseUser {
 					assetValue = assetValue.mul(weight).div(BANK_WEIGHT_PRECISION);
 				}
 
+<<<<<<< HEAD
 				return totalAssetValue.add(assetValue);
+=======
+				return totalAssetValue.add(
+					tokenAmount
+						.mul(this.getOracleDataForBank(bankAccount.bankIndex).price)
+						.div(MARK_PRICE_PRECISION)
+						// Adjust for decimals of bank account
+						.div(
+							new BN(10).pow(
+								new BN(bankAccount.decimals).sub(BANK_BALANCE_PRECISION_EXP)
+							)
+						)
+				);
+>>>>>>> master
 			},
 			ZERO
 		);
@@ -490,6 +520,12 @@ export class ClearingHouseUser {
 						.mul(weight)
 						.div(BANK_WEIGHT_PRECISION)
 						.div(MARK_PRICE_PRECISION)
+						// Adjust for decimals of bank account
+						.div(
+							new BN(10).pow(
+								new BN(bankAccount.decimals).sub(BANK_BALANCE_PRECISION_EXP)
+							)
+						)
 				);
 			}, ZERO)
 			.add(this.getUnrealizedPNL(true, undefined, marginCategory))

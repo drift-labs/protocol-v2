@@ -92,11 +92,8 @@ export class TokenFaucet {
 		);
 	}
 
-	public async mintToUser(
-		userTokenAccount: PublicKey,
-		amount: BN
-	): Promise<TransactionSignature> {
-		return await this.program.rpc.mintToUser(amount, {
+	private async mintToUserIx(userTokenAccount: PublicKey, amount: BN) {
+		return this.program.instruction.mintToUser(amount, {
 			accounts: {
 				faucetConfig: await this.getFaucetConfigPublicKey(),
 				mintAccount: this.mint,
@@ -105,6 +102,19 @@ export class TokenFaucet {
 				tokenProgram: TOKEN_PROGRAM_ID,
 			},
 		});
+	}
+
+	public async mintToUser(
+		userTokenAccount: PublicKey,
+		amount: BN
+	): Promise<TransactionSignature> {
+		const mintIx = await this.mintToUserIx(userTokenAccount, amount);
+
+		const tx = new Transaction().add(mintIx);
+
+		const txSig = await this.program.provider.sendAndConfirm(tx, [], this.opts);
+
+		return txSig;
 	}
 
 	public async transferMintAuthority(): Promise<TransactionSignature> {
@@ -123,12 +133,33 @@ export class TokenFaucet {
 		userPublicKey: PublicKey,
 		amount: BN
 	): Promise<[PublicKey, TransactionSignature]> {
+		const tx = new Transaction();
+
 		const [associatedTokenPublicKey, createAssociatedAccountIx, mintToTx] =
 			await this.createAssociatedTokenAccountAndMintToInstructions(
 				userPublicKey,
 				amount
 			);
-		const tx = new Transaction().add(createAssociatedAccountIx).add(mintToTx);
+
+		let associatedTokenAccountExists = false;
+
+		try {
+			const assosciatedTokenAccount = await this.connection.getAccountInfo(
+				associatedTokenPublicKey
+			);
+
+			associatedTokenAccountExists = !!assosciatedTokenAccount;
+		} catch (e) {
+			// token account doesn't exist
+			associatedTokenAccountExists = false;
+		}
+
+		const skipAccountCreation = associatedTokenAccountExists;
+
+		if (!skipAccountCreation) tx.add(createAssociatedAccountIx);
+
+		tx.add(mintToTx);
+
 		const txSig = await this.program.provider.sendAndConfirm(tx, [], this.opts);
 		return [associatedTokenPublicKey, txSig];
 	}
@@ -153,15 +184,7 @@ export class TokenFaucet {
 				this.wallet.publicKey
 			);
 
-		const mintToIx = await this.program.instruction.mintToUser(amount, {
-			accounts: {
-				faucetConfig: await this.getFaucetConfigPublicKey(),
-				mintAccount: state.mint,
-				userTokenAccount: associateTokenPublicKey,
-				mintAuthority: state.mintAuthority,
-				tokenProgram: TOKEN_PROGRAM_ID,
-			},
-		});
+		const mintToIx = await this.mintToUserIx(associateTokenPublicKey, amount);
 
 		return [associateTokenPublicKey, createAssociatedAccountIx, mintToIx];
 	}
