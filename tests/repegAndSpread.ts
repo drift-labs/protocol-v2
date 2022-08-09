@@ -410,10 +410,10 @@ describe('repeg and spread amm', () => {
 			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
 		});
 		await clearingHouseUser.subscribe();
-		console.log(clearingHouseUser.getCollateralValue().toString());
+		console.log(clearingHouseUser.getBankAssetValue().toString());
 		assert(
 			clearingHouseUser
-				.getCollateralValue()
+				.getBankAssetValue()
 				.eq(usdcAmount.add(new BN(50001000)))
 		);
 		await clearingHouseUser.unsubscribe();
@@ -500,7 +500,7 @@ describe('repeg and spread amm', () => {
 		});
 		await clearingHouseUser.subscribe();
 		const userCollateral = convertToNumber(
-			clearingHouseUser.getCollateralValue(),
+			clearingHouseUser.getBankAssetValue(),
 			QUOTE_PRECISION
 		);
 
@@ -533,7 +533,7 @@ describe('repeg and spread amm', () => {
 			const clearingHouseI = clearingHouses[i];
 			const clearingHouseUserI = _userAccountInfos[i];
 			const userCollateral = convertToNumber(
-				clearingHouseUserI.getCollateralValue(),
+				clearingHouseUserI.getBankAssetValue(),
 				QUOTE_PRECISION
 			);
 

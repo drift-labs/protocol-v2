@@ -54,14 +54,6 @@ export function getTokenAmount(
 	return balanceAmount.mul(cumulativeInterest).div(precisionDecrease);
 }
 
-export function getTokenAmountValue(
-	balanceAmount: BN,
-	bank: BankAccount,
-	balanceType: BankBalanceType
-): BN {
-	const tokenAmount = getTokenAmount(balanceAmount, bank, balanceType);
-}
-
 export function calculateAssetWeight(
 	balanceAmount: BN,
 	bank: BankAccount,

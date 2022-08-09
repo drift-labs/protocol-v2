@@ -534,12 +534,13 @@ export class ClearingHouseUser {
 	}
 
 	/**
-	 * calculates average exit price for closing 100% of position
+	 * calculates average exit price (optionally for closing up to 100% of position)
 	 * @returns : Precision MARK_PRICE_PRECISION
 	 */
 	public getPositionEstimatedExitPriceAndPnl(
 		position: UserPosition,
-		amountToClose?: BN
+		amountToClose?: BN,
+		useAMMClose: boolean = false
 	): [BN, BN] {
 		const market = this.clearingHouse.getMarketAccount(position.marketIndex);
 
@@ -559,11 +560,22 @@ export class ClearingHouseUser {
 			} as UserPosition;
 		}
 
-		const baseAssetValue = calculateBaseAssetValue(
+		let baseAssetValue: BN;
+		
+		if(useAMMClose){
+			baseAssetValue = calculateBaseAssetValue(
+				market,
+				position,
+				oraclePriceData
+			);
+		} else {
+
+			baseAssetValue = calculateMarginBaseAssetValue(
 			market,
 			position,
 			oraclePriceData
 		);
+		}
 		if (position.baseAssetAmount.eq(ZERO)) {
 			return [ZERO, ZERO];
 		}
