@@ -17,6 +17,10 @@ export class BigNum {
 		this.precision = new BN(precisionVal);
 	}
 
+	private bigNumFromParam(bn: BigNum | BN) {
+		return BN.isBN(bn) ? BigNum.from(bn) : bn;
+	}
+
 	public add(bn: BigNum): BigNum {
 		assert(bn.precision.eq(this.precision), 'Adding unequal precisions');
 
@@ -30,7 +34,7 @@ export class BigNum {
 	}
 
 	public mul(bn: BigNum | BN): BigNum {
-		const mulVal = bn instanceof BigNum ? bn : BigNum.from(bn);
+		const mulVal = this.bigNumFromParam(bn);
 
 		return BigNum.from(
 			this.val.mul(mulVal.val),
@@ -44,7 +48,7 @@ export class BigNum {
 	 * @returns
 	 */
 	public scalarMul(bn: BigNum | BN): BigNum {
-		if (bn instanceof BN) return BigNum.from(this.val.mul(bn), this.precision);
+		if (BN.isBN(bn)) return BigNum.from(this.val.mul(bn), this.precision);
 
 		return BigNum.from(
 			this.val.mul(bn.val),
@@ -53,7 +57,8 @@ export class BigNum {
 	}
 
 	public div(bn: BigNum | BN): BigNum {
-		if (bn instanceof BN) return BigNum.from(this.val.div(bn), this.precision);
+		if (BN.isBN(bn)) return BigNum.from(this.val.div(bn), this.precision);
+
 		return BigNum.from(this.val.div(bn.val), this.precision.sub(bn.precision));
 	}
 
@@ -101,7 +106,7 @@ export class BigNum {
 	}
 
 	public gt(bn: BigNum | BN, ignorePrecision?: boolean): boolean {
-		const comparisonVal = bn instanceof BigNum ? bn : BigNum.from(bn);
+		const comparisonVal = this.bigNumFromParam(bn);
 
 		if (!ignorePrecision && !comparisonVal.eq(ZERO)) {
 			assert(
@@ -114,7 +119,7 @@ export class BigNum {
 	}
 
 	public lt(bn: BigNum | BN, ignorePrecision?: boolean): boolean {
-		const comparisonVal = bn instanceof BigNum ? bn : BigNum.from(bn);
+		const comparisonVal = this.bigNumFromParam(bn);
 
 		if (!ignorePrecision && !comparisonVal.val.eq(ZERO)) {
 			assert(
@@ -127,7 +132,7 @@ export class BigNum {
 	}
 
 	public gte(bn: BigNum | BN, ignorePrecision?: boolean): boolean {
-		const comparisonVal = bn instanceof BigNum ? bn : BigNum.from(bn);
+		const comparisonVal = this.bigNumFromParam(bn);
 
 		if (!ignorePrecision && !comparisonVal.val.eq(ZERO)) {
 			assert(
@@ -140,7 +145,7 @@ export class BigNum {
 	}
 
 	public lte(bn: BigNum | BN, ignorePrecision?: boolean): boolean {
-		const comparisonVal = bn instanceof BigNum ? bn : BigNum.from(bn);
+		const comparisonVal = this.bigNumFromParam(bn);
 
 		if (!ignorePrecision && !comparisonVal.val.eq(ZERO)) {
 			assert(
@@ -153,7 +158,7 @@ export class BigNum {
 	}
 
 	public eq(bn: BigNum | BN, ignorePrecision?: boolean): boolean {
-		const comparisonVal = bn instanceof BigNum ? bn : BigNum.from(bn);
+		const comparisonVal = this.bigNumFromParam(bn);
 
 		if (!ignorePrecision && !comparisonVal.val.eq(ZERO)) {
 			assert(
@@ -225,7 +230,12 @@ export class BigNum {
 		printString = printString.replace(/^0+/, '');
 
 		// add zero if leading delim
-		if (printString[0] === BigNum.delim) printString = `0${printString}`;
+		if (this.isNeg()) {
+			if (printString[1] === BigNum.delim)
+				printString = printString.replace('-.', '-0.');
+		} else {
+			if (printString[0] === BigNum.delim) printString = `0${printString}`;
+		}
 
 		// remove trailing delim
 		if (printString[printString.length - 1] === BigNum.delim)
@@ -392,10 +402,30 @@ export class BigNum {
 	): string {
 		const prefix = `${this.lt(BigNum.zero()) ? `-` : ``}$`;
 
-		const val =
-			useTradePrecision || precisionOverride
-				? this.prettyPrint(useTradePrecision, precisionOverride)
-				: BigNum.fromPrint(this.toFixed(2), new BN(2)).prettyPrint();
+		const usingCustomPrecision =
+			true && (useTradePrecision || precisionOverride);
+
+		let val = usingCustomPrecision
+			? this.prettyPrint(useTradePrecision, precisionOverride)
+			: BigNum.fromPrint(this.toFixed(2), new BN(2)).prettyPrint();
+
+		// Append two trailing zeroes if not using custom precision
+		if (!usingCustomPrecision) {
+			const [_, rightSide] = val.split(BigNum.delim);
+
+			const trailingLength = rightSide?.length ?? 0;
+
+			if (trailingLength < 2) {
+				const numHasDecimals = this.print().includes(BigNum.delim);
+
+				// Handle case where pretty print won't include the decimal point
+				if (trailingLength === 0 && numHasDecimals) {
+					val = `${val}.00`;
+				} else {
+					val = `${val}${new Array(2 - trailingLength).fill('0').join('')}`;
+				}
+			}
+		}
 
 		return `${prefix}${val.replace('-', '')}`;
 	}

@@ -67,6 +67,12 @@ export class OrderActionExplanation {
 	static readonly MARKET_ORDER_FILLED_TO_LIMIT_PRICE = {
 		marketOrderFilledToLimitPrice: {},
 	};
+	static readonly CANCELED_FOR_LIQUIDATION = {
+		canceledForLiquidation: {},
+	};
+	static readonly MARKET_ORDER_AUCTION_EXPIRED = {
+		marketOrderAuctionExpired: {},
+	};
 }
 
 export class OrderTriggerCondition {
@@ -291,6 +297,10 @@ export type MarketAccount = {
 	nextFillRecordId: BN;
 	pnlPool: PoolBalance;
 	liquidationFee: BN;
+	imfFactor: BN;
+	unsettledImfFactor: BN;
+	unsettledInitialAssetWeight: number;
+	unsettledMaintenanceAssetWeight: number;
 };
 
 export type BankAccount = {
@@ -315,6 +325,7 @@ export type BankAccount = {
 	initialLiabilityWeight: BN;
 	maintenanceLiabilityWeight: BN;
 	liquidationFee: BN;
+	imfFactor: BN;
 };
 
 export type PoolBalance = {
