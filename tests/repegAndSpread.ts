@@ -412,9 +412,7 @@ describe('repeg and spread amm', () => {
 		await clearingHouseUser.subscribe();
 		console.log(clearingHouseUser.getBankAssetValue().toString());
 		assert(
-			clearingHouseUser
-				.getBankAssetValue()
-				.eq(usdcAmount.add(new BN(50001000)))
+			clearingHouseUser.getBankAssetValue().eq(usdcAmount.add(new BN(50001000)))
 		);
 		await clearingHouseUser.unsubscribe();
 	});

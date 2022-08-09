@@ -561,20 +561,19 @@ export class ClearingHouseUser {
 		}
 
 		let baseAssetValue: BN;
-		
-		if(useAMMClose){
+
+		if (useAMMClose) {
 			baseAssetValue = calculateBaseAssetValue(
 				market,
 				position,
 				oraclePriceData
 			);
 		} else {
-
 			baseAssetValue = calculateMarginBaseAssetValue(
-			market,
-			position,
-			oraclePriceData
-		);
+				market,
+				position,
+				oraclePriceData
+			);
 		}
 		if (position.baseAssetAmount.eq(ZERO)) {
 			return [ZERO, ZERO];
