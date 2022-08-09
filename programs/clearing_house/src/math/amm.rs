@@ -778,6 +778,9 @@ pub fn is_oracle_valid(
     } = *oracle_price_data;
 
     let is_oracle_price_nonpositive = oracle_price <= 0;
+    if is_oracle_price_nonpositive {
+        msg!("Invalid Oracle: Non-positive (oracle_price <=0)");
+    }
 
     let is_oracle_price_too_volatile = ((oracle_price
         .checked_div(max(1, amm.last_oracle_price_twap))
@@ -788,15 +791,28 @@ pub fn is_oracle_valid(
             .checked_div(max(1, oracle_price))
             .ok_or_else(math_error!())?)
         .gt(&valid_oracle_guard_rails.too_volatile_ratio));
+    if is_oracle_price_too_volatile {
+        msg!("Invalid Oracle: Too Volatile (last_oracle_price_twap vs oracle_price)");
+    }
 
-    let conf_denom_of_price = cast_to_u128(oracle_price)?
-        .checked_div(max(1, oracle_conf))
+    let conf_pct_of_price = cast_to_u128(amm.base_spread)?
+        .checked_add(max(1, oracle_conf))
+        .ok_or_else(math_error!())?
+        .checked_mul(BID_ASK_SPREAD_PRECISION)
+        .ok_or_else(math_error!())?
+        .checked_div(cast_to_u128(oracle_price)?)
         .ok_or_else(math_error!())?;
-    let is_conf_too_large =
-        conf_denom_of_price.lt(&valid_oracle_guard_rails.confidence_interval_max_size);
-
+    let is_conf_too_large = conf_pct_of_price.gt(&cast_to_u128(amm.max_spread)?);
+    if is_conf_too_large {
+        msg!(
+            "Invalid Oracle: Confidence Too Large (is_conf_too_large={:?})",
+            conf_pct_of_price
+        );
+    }
     let is_stale = oracle_delay.gt(&valid_oracle_guard_rails.slots_before_stale);
-
+    if is_stale {
+        msg!("Invalid Oracle: Stale (oracle_delay={:?})", oracle_delay);
+    }
     Ok(!(is_stale
         || !has_sufficient_number_of_data_points
         || is_oracle_price_nonpositive

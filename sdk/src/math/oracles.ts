@@ -1,6 +1,10 @@
 import { AMM, OracleGuardRails } from '../types';
 import { OraclePriceData } from '../oracles/types';
-import { ONE, ZERO } from '../constants/numericConstants';
+import {
+	BID_ASK_SPREAD_PRECISION,
+	ONE,
+	ZERO,
+} from '../constants/numericConstants';
 import { BN } from '../index';
 
 export function isOracleValid(
@@ -9,7 +13,7 @@ export function isOracleValid(
 	oracleGuardRails: OracleGuardRails,
 	slot: number
 ): boolean {
-	const isOraclePriceNonPositive = oraclePriceData.price.lt(ZERO);
+	const isOraclePriceNonPositive = oraclePriceData.price.lte(ZERO);
 	const isOraclePriceTooVolatile =
 		oraclePriceData.price
 			.div(BN.max(ONE, amm.lastOraclePriceTwap))
@@ -18,9 +22,11 @@ export function isOracleValid(
 			.div(BN.max(ONE, oraclePriceData.price))
 			.gt(oracleGuardRails.validity.tooVolatileRatio);
 
-	const isConfidenceTooLarge = oraclePriceData.price
-		.div(BN.max(ONE, oraclePriceData.confidence))
-		.lt(oracleGuardRails.validity.confidenceIntervalMaxSize);
+	const isConfidenceTooLarge = new BN(amm.baseSpread)
+		.add(BN.max(ONE, oraclePriceData.confidence))
+		.mul(BID_ASK_SPREAD_PRECISION)
+		.div(oraclePriceData.price)
+		.gt(new BN(amm.maxSpread));
 
 	const oracleIsStale = oraclePriceData.slot
 		.sub(new BN(slot))

@@ -526,11 +526,17 @@ pub mod clearing_house {
         let bank_map = BankMap::load(&get_writable_banks(bank_index), remaining_accounts_iter)?;
         let mut market_map = MarketMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
 
-        controller::repeg::update_amms(
+        let all_amms_updated = controller::repeg::update_amms(
             &mut market_map,
             &mut oracle_map,
             &ctx.accounts.state,
             &clock,
+        )?;
+
+        validate!(
+            all_amms_updated,
+            ErrorCode::AMMNotUpdatedInSameSlot,
+            "All market position's AMM must be updated within same slot"
         )?;
 
         let amount = {
@@ -617,11 +623,17 @@ pub mod clearing_house {
         let bank_map = BankMap::load(&get_writable_banks(bank_index), remaining_accounts_iter)?;
         let mut market_map = MarketMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
 
-        controller::repeg::update_amms(
+        let all_amms_updated = controller::repeg::update_amms(
             &mut market_map,
             &mut oracle_map,
             &ctx.accounts.state,
             &Clock::get()?,
+        )?;
+
+        validate!(
+            all_amms_updated,
+            ErrorCode::AMMNotUpdatedInSameSlot,
+            "All market position's AMM must be updated within same slot"
         )?;
 
         {
@@ -832,11 +844,16 @@ pub mod clearing_house {
             None => None,
         };
 
-        controller::repeg::update_amms(
+        let all_amms_updated = controller::repeg::update_amms(
             &mut market_map,
             &mut oracle_map,
             &ctx.accounts.state,
             &Clock::get()?,
+        )?;
+        validate!(
+            all_amms_updated,
+            ErrorCode::AMMNotUpdatedInSameSlot,
+            "All market position's AMM must be updated within same slot"
         )?;
 
         let (_, updated_user_state) = controller::orders::fill_order(
@@ -894,11 +911,16 @@ pub mod clearing_house {
         let is_immediate_or_cancel = params.immediate_or_cancel;
         let base_asset_amount_to_fill = params.base_asset_amount;
 
-        controller::repeg::update_amms(
+        let all_amms_updated = controller::repeg::update_amms(
             &mut market_map,
             &mut oracle_map,
             &ctx.accounts.state,
             &Clock::get()?,
+        )?;
+        validate!(
+            all_amms_updated,
+            ErrorCode::AMMNotUpdatedInSameSlot,
+            "All market position's AMM must be updated within same slot"
         )?;
 
         controller::orders::place_order(
@@ -977,11 +999,17 @@ pub mod clearing_house {
 
         let base_asset_amount_to_fill = params.base_asset_amount;
 
-        controller::repeg::update_amms(
+        let all_amms_updated = controller::repeg::update_amms(
             &mut market_map,
             &mut oracle_map,
             &ctx.accounts.state,
             &Clock::get()?,
+        )?;
+
+        validate!(
+            all_amms_updated,
+            ErrorCode::AMMNotUpdatedInSameSlot,
+            "All market position's AMM must be updated within same slot"
         )?;
 
         controller::orders::place_order(
@@ -1088,7 +1116,7 @@ pub mod clearing_house {
         let mut market_map =
             MarketMap::load(&get_writable_markets(market_index), remaining_accounts_iter)?;
 
-        controller::repeg::update_amms(
+        let all_amms_updated = controller::repeg::update_amms(
             &mut market_map,
             &mut oracle_map,
             &ctx.accounts.state,

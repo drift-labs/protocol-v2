@@ -1395,6 +1395,7 @@ fn get_valid_oracle_price(
             msg!("Invalid oracle for order with oracle price offset");
             return Err(print_error!(ErrorCode::InvalidOracle)());
         } else {
+            msg!("Oracle is invalid");
             None
         }
     };

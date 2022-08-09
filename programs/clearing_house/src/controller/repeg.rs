@@ -81,18 +81,23 @@ pub fn update_amms(
     oracle_map: &mut OracleMap,
     state: &State,
     clock: &Clock,
-) -> Result<()> {
+) -> ClearingHouseResult<bool> {
     // up to ~60k compute units (per amm) worst case
     let clock_slot = clock.slot;
     let now = clock.unix_timestamp;
 
+    let mut updated = true;
     for (_key, market_account_loader) in market_map.0.iter_mut() {
         let market = &mut load_mut!(market_account_loader)?;
         let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
         update_amm(market, oracle_price_data, state, now, clock_slot)?;
+
+        if market.amm.last_update_slot != clock_slot {
+            updated = false;
+        }
     }
 
-    Ok(())
+    Ok(updated)
 }
 
 pub fn update_amm(
@@ -141,6 +146,13 @@ pub fn update_amm(
             Some(mark_price_after),
         )?;
         market.amm.last_update_slot = clock_slot;
+    } else if market.amm.last_update_slot == clock_slot {
+        // in order to block if oracle invalid
+        market.amm.last_update_slot = market
+            .amm
+            .last_update_slot
+            .checked_sub(1)
+            .ok_or_else(math_error!())?;
     }
 
     update_spreads(&mut market.amm, mark_price_after)?;
