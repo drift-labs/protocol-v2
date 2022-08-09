@@ -999,8 +999,6 @@ pub fn fulfill_order_with_amm(
             maker_limit_price,
         )?;
 
-    controller::position::update_unsettled_pnl(&mut user.positions[position_index], market, pnl)?;
-
     let mut unsettled_pnl = pnl;
 
     let (order_post_only, order_ts, order_direction) =
@@ -1052,9 +1050,8 @@ pub fn fulfill_order_with_amm(
         .checked_add(cast(user_fee)?)
         .ok_or_else(math_error!())?;
 
-    controller::position::update_unsettled_pnl(
+    controller::position::update_quote_asset_amount(
         &mut user.positions[position_index],
-        market,
         -cast(user_fee)?,
     )?;
 
@@ -1066,9 +1063,8 @@ pub fn fulfill_order_with_amm(
         let position_index = get_position_index(&filler.positions, market.market_index)
             .or_else(|_| add_new_position(&mut filler.positions, market.market_index))?;
 
-        controller::position::update_unsettled_pnl(
+        controller::position::update_quote_asset_amount(
             &mut filler.positions[position_index],
-            market,
             cast(filler_reward)?,
         )?;
     }
@@ -1235,9 +1231,8 @@ pub fn fulfill_order_with_match(
         .checked_add(fee_to_market as i64)
         .ok_or_else(math_error!())?;
 
-    controller::position::update_unsettled_pnl(
+    controller::position::update_quote_asset_amount(
         &mut taker.positions[taker_position_index],
-        market,
         -cast(taker_fee)?,
     )?;
 
@@ -1251,9 +1246,8 @@ pub fn fulfill_order_with_match(
         .checked_sub(cast(taker_fee)?)
         .ok_or_else(math_error!())?;
 
-    controller::position::update_unsettled_pnl(
+    controller::position::update_quote_asset_amount(
         &mut maker.positions[maker_position_index],
-        market,
         cast(maker_rebate)?,
     )?;
 
@@ -1271,9 +1265,8 @@ pub fn fulfill_order_with_match(
         let filler_position_index = get_position_index(&filler.positions, market.market_index)
             .or_else(|_| add_new_position(&mut filler.positions, market.market_index))?;
 
-        controller::position::update_unsettled_pnl(
+        controller::position::update_quote_asset_amount(
             &mut filler.positions[filler_position_index],
-            market,
             cast(filler_reward)?,
         )?;
     }
@@ -1562,10 +1555,10 @@ pub fn pay_keeper_flat_reward(
 ) -> ClearingHouseResult<u128> {
     let filler_reward = if let Some(filler) = filler {
         let user_position = user.get_position_mut(market.market_index)?;
-        controller::position::update_unsettled_pnl(user_position, market, -cast(filler_reward)?)?;
+        controller::position::update_quote_asset_amount(user_position, -cast(filler_reward)?)?;
 
         let filler_position = filler.force_get_position_mut(market.market_index)?;
-        controller::position::update_unsettled_pnl(filler_position, market, cast(filler_reward)?)?;
+        controller::position::update_quote_asset_amount(filler_position, cast(filler_reward)?)?;
 
         filler_reward
     } else {

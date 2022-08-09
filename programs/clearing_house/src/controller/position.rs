@@ -1,5 +1,3 @@
-use std::cmp::min;
-
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::msg;
@@ -11,7 +9,6 @@ use crate::math::casting::cast;
 use crate::math::orders::{
     calculate_quote_asset_amount_for_maker_order, get_position_delta_for_fill,
 };
-use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
 use crate::math_error;
 use crate::state::market::Market;
 use crate::state::user::{User, UserPositions};
@@ -400,109 +397,24 @@ fn calculate_quote_asset_amount_surplus(
     Ok((quote_asset_amount, quote_asset_amount_surplus))
 }
 
-pub fn update_cost_basis(
-    market: &mut Market,
-    market_position: &mut MarketPosition,
-    oracle_price: i128,
-) -> ClearingHouseResult<i128> {
-    // update user cost basis (if at a loss)
-
-    let (_amm_position_base_asset_value, amm_position_unrealized_pnl) =
-        calculate_base_asset_value_and_pnl_with_oracle_price(market_position, oracle_price)?;
-
-    if amm_position_unrealized_pnl < 0 {
-        if market_position.base_asset_amount > 0 {
-            market_position.quote_asset_amount = market_position
-                .quote_asset_amount
-                .checked_sub(amm_position_unrealized_pnl.abs())
-                .ok_or_else(math_error!())?;
-            market.amm.quote_asset_amount_long = market
-                .amm
-                .quote_asset_amount_long
-                .checked_sub(amm_position_unrealized_pnl.abs())
-                .ok_or_else(math_error!())?;
-        } else {
-            market_position.quote_asset_amount = market_position
-                .quote_asset_amount
-                .checked_add(amm_position_unrealized_pnl.abs())
-                .ok_or_else(math_error!())?;
-            market.amm.quote_asset_amount_short = market
-                .amm
-                .quote_asset_amount_short
-                .checked_add(amm_position_unrealized_pnl.abs())
-                .ok_or_else(math_error!())?;
-        }
-
-        update_unsettled_pnl(market_position, market, amm_position_unrealized_pnl)?;
-        return Ok(amm_position_unrealized_pnl);
-    }
-
-    Ok(0)
-}
-
-pub fn update_unsettled_pnl(
-    market_position: &mut MarketPosition,
-    market: &mut Market,
-    unsettled_pnl: i128,
+pub fn update_quote_asset_amount(
+    position: &mut MarketPosition,
+    pnl: i128,
 ) -> ClearingHouseResult<()> {
-    let new_user_unsettled_pnl = market_position
-        .unsettled_pnl
-        .checked_add(unsettled_pnl)
+    position.quote_asset_amount = position
+        .quote_asset_amount
+        .checked_add(pnl)
         .ok_or_else(math_error!())?;
 
-    // update market state
-    if unsettled_pnl > 0 {
-        if market_position.unsettled_pnl >= 0 {
-            // increase profit
-            market.unsettled_profit = market
-                .unsettled_profit
-                .checked_add(unsettled_pnl.unsigned_abs())
-                .ok_or_else(math_error!())?;
-        } else {
-            // decrease loss
-            market.unsettled_loss = market
-                .unsettled_loss
-                .checked_sub(min(
-                    unsettled_pnl.unsigned_abs(),
-                    market_position.unsettled_pnl.unsigned_abs(),
-                ))
-                .ok_or_else(math_error!())?;
+    Ok(())
+}
 
-            if new_user_unsettled_pnl > 0 {
-                // increase profit
-                market.unsettled_profit = market
-                    .unsettled_profit
-                    .checked_add(new_user_unsettled_pnl.unsigned_abs())
-                    .ok_or_else(math_error!())?;
-            }
-        }
-    } else if market_position.unsettled_pnl > 0 {
-        // decrease profit
-        market.unsettled_profit = market
-            .unsettled_profit
-            .checked_sub(min(
-                unsettled_pnl.unsigned_abs(),
-                market_position.unsettled_pnl.unsigned_abs(),
-            ))
-            .ok_or_else(math_error!())?;
+pub fn settle_pnl(position: &mut MarketPosition, pnl: i128) -> ClearingHouseResult {
+    position.quote_asset_amount = position
+        .quote_asset_amount
+        .checked_sub(pnl)
+        .ok_or_else(math_error!())?;
 
-        if new_user_unsettled_pnl < 0 {
-            // increase loss
-            market.unsettled_loss = market
-                .unsettled_loss
-                .checked_add(new_user_unsettled_pnl.unsigned_abs())
-                .ok_or_else(math_error!())?;
-        }
-    } else {
-        // increase loss
-        market.unsettled_loss = market
-            .unsettled_loss
-            .checked_add(unsettled_pnl.unsigned_abs())
-            .ok_or_else(math_error!())?;
-    }
-
-    // update user state
-    market_position.unsettled_pnl = new_user_unsettled_pnl;
     Ok(())
 }
 
@@ -531,13 +443,7 @@ pub fn decrease_open_bids_and_asks(
 
 #[cfg(test)]
 mod test {
-    use crate::controller::position::{
-        update_cost_basis, update_position_and_market, PositionDelta,
-    };
-    use crate::math::constants::{
-        AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, MARK_PRICE_PRECISION, PEG_PRECISION,
-        QUOTE_PRECISION_I128,
-    };
+    use crate::controller::position::{update_position_and_market, PositionDelta};
     use crate::state::market::{Market, AMM};
     use crate::state::user::MarketPosition;
 
@@ -1297,58 +1203,6 @@ mod test {
         assert_eq!(market.amm.net_base_asset_amount, -1);
         assert_eq!(market.amm.quote_asset_amount_long, 0);
         assert_eq!(market.amm.quote_asset_amount_short, -4);
-    }
-
-    #[test]
-    fn update_cost_basis_test() {
-        let mut market = Market {
-            amm: AMM {
-                base_asset_reserve: 1000 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 1000 * AMM_RESERVE_PRECISION,
-                sqrt_k: 1000 * AMM_RESERVE_PRECISION,
-                terminal_quote_asset_reserve: 999 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 50 * PEG_PRECISION,
-                cumulative_funding_rate_long: 1,
-                quote_asset_amount_long: -100 * QUOTE_PRECISION_I128,
-                net_base_asset_amount: 2 * AMM_RESERVE_PRECISION_I128,
-                ..AMM::default()
-            },
-            open_interest: 0,
-            ..Market::default()
-        };
-
-        let mut market_position_up = MarketPosition {
-            base_asset_amount: AMM_RESERVE_PRECISION as i128,
-            quote_asset_amount: -40 * QUOTE_PRECISION_I128,
-            quote_entry_amount: -40 * QUOTE_PRECISION_I128,
-            last_cumulative_funding_rate: 1,
-            last_funding_rate_ts: 1,
-            ..MarketPosition::default()
-        };
-
-        let oracle_price: i128 = 50 * MARK_PRICE_PRECISION as i128;
-
-        let adj_quote =
-            update_cost_basis(&mut market, &mut market_position_up, oracle_price).unwrap();
-        assert_eq!(adj_quote, 0);
-        assert_eq!(
-            market_position_up.quote_asset_amount,
-            market_position_up.quote_entry_amount
-        );
-
-        let mut market_position_down = MarketPosition {
-            base_asset_amount: AMM_RESERVE_PRECISION as i128,
-            quote_asset_amount: -60 * QUOTE_PRECISION_I128,
-            quote_entry_amount: -60 * QUOTE_PRECISION_I128,
-            last_cumulative_funding_rate: 1,
-            last_funding_rate_ts: 1,
-            ..MarketPosition::default()
-        };
-        let adj_quote =
-            update_cost_basis(&mut market, &mut market_position_down, oracle_price).unwrap();
-
-        assert_eq!(adj_quote, -10000000);
-        assert_eq!(market_position_down.quote_asset_amount, -70000000);
     }
 }
 

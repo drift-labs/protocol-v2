@@ -134,7 +134,10 @@ pub mod liquidate_perp {
         .unwrap();
 
         assert_eq!(user.positions[0].base_asset_amount, 0);
-        assert_eq!(user.positions[0].unsettled_pnl, -51 * QUOTE_PRECISION_I128);
+        assert_eq!(
+            user.positions[0].quote_asset_amount,
+            -51 * QUOTE_PRECISION_I128
+        );
         assert_eq!(user.positions[0].open_orders, 0);
         assert_eq!(user.positions[0].open_bids, 0);
 
@@ -142,7 +145,6 @@ pub mod liquidate_perp {
             liquidator.positions[0].base_asset_amount,
             BASE_PRECISION_I128
         );
-        assert_eq!(liquidator.positions[0].unsettled_pnl, 0);
         assert_eq!(
             liquidator.positions[0].quote_asset_amount,
             -99 * QUOTE_PRECISION_I128
@@ -260,7 +262,10 @@ pub mod liquidate_perp {
         .unwrap();
 
         assert_eq!(user.positions[0].base_asset_amount, 0);
-        assert_eq!(user.positions[0].unsettled_pnl, -51 * QUOTE_PRECISION_I128);
+        assert_eq!(
+            user.positions[0].quote_asset_amount,
+            -51 * QUOTE_PRECISION_I128
+        );
         assert_eq!(user.positions[0].open_orders, 0);
         assert_eq!(user.positions[0].open_bids, 0);
 
@@ -268,7 +273,6 @@ pub mod liquidate_perp {
             liquidator.positions[0].base_asset_amount,
             -BASE_PRECISION_I128
         );
-        assert_eq!(liquidator.positions[0].unsettled_pnl, 0);
         assert_eq!(
             liquidator.positions[0].quote_asset_amount,
             101 * QUOTE_PRECISION_I128
@@ -389,7 +393,6 @@ pub mod liquidate_perp {
         .unwrap();
 
         assert_eq!(user.positions[0].base_asset_amount, BASE_PRECISION_I128);
-        assert_eq!(user.positions[0].unsettled_pnl, 0,);
         assert_eq!(user.positions[0].open_orders, 0);
         assert_eq!(user.positions[0].open_bids, 0);
 
@@ -507,7 +510,8 @@ pub mod liquidate_perp {
         .unwrap();
 
         assert_eq!(user.positions[0].base_asset_amount, BASE_PRECISION_I128 / 2);
-        assert_eq!(user.positions[0].unsettled_pnl, -25500000);
+        assert_eq!(user.positions[0].quote_asset_amount, -100500000);
+        assert_eq!(user.positions[0].quote_entry_amount, -75000000);
         assert_eq!(user.positions[0].open_orders, 0);
         assert_eq!(user.positions[0].open_bids, 0);
 
@@ -515,7 +519,6 @@ pub mod liquidate_perp {
             liquidator.positions[0].base_asset_amount,
             BASE_PRECISION_I128 / 2
         );
-        assert_eq!(liquidator.positions[0].unsettled_pnl, 0);
         assert_eq!(liquidator.positions[0].quote_asset_amount, -49500000);
     }
 
@@ -635,7 +638,8 @@ pub mod liquidate_perp {
         .unwrap();
 
         assert_eq!(user.positions[0].base_asset_amount, 7125000000000);
-        assert_eq!(user.positions[0].unsettled_pnl, -1287500);
+        assert_eq!(user.positions[0].quote_asset_amount, -72537500);
+        assert_eq!(user.positions[0].quote_entry_amount, -71250000);
         assert_eq!(user.positions[0].open_orders, 0);
         assert_eq!(user.positions[0].open_bids, 0);
 
@@ -1112,7 +1116,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             orders: [Order::default(); 32],
             positions: get_positions(MarketPosition {
                 market_index: 0,
-                unsettled_pnl: 100 * QUOTE_PRECISION_I128 as i128,
+                quote_asset_amount: 100 * QUOTE_PRECISION_I128 as i128,
                 ..MarketPosition::default()
             }),
             bank_balances: user_bank_balances,
@@ -1148,14 +1152,14 @@ pub mod liquidate_borrow_for_perp_pnl {
         .unwrap();
 
         assert_eq!(user.bank_balances[0].balance, 199999);
-        assert_eq!(user.positions[0].unsettled_pnl, 19119120);
+        assert_eq!(user.positions[0].quote_asset_amount, 19119120);
 
         assert_eq!(
             liquidator.bank_balances[1].balance_type,
             BankBalanceType::Borrow
         );
         assert_eq!(liquidator.bank_balances[1].balance, 800001);
-        assert_eq!(liquidator.positions[0].unsettled_pnl, 80880880);
+        assert_eq!(liquidator.positions[0].quote_asset_amount, 80880880);
     }
 
     #[test]
@@ -1247,7 +1251,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             orders: [Order::default(); 32],
             positions: get_positions(MarketPosition {
                 market_index: 0,
-                unsettled_pnl: 110 * QUOTE_PRECISION_I128 as i128,
+                quote_asset_amount: 110 * QUOTE_PRECISION_I128 as i128,
                 ..MarketPosition::default()
             }),
             bank_balances: user_bank_balances,
@@ -1283,14 +1287,14 @@ pub mod liquidate_borrow_for_perp_pnl {
         .unwrap();
 
         assert_eq!(user.bank_balances[0].balance, 363492);
-        assert_eq!(user.positions[0].unsettled_pnl, 45648442);
+        assert_eq!(user.positions[0].quote_asset_amount, 45648442);
 
         assert_eq!(
             liquidator.bank_balances[1].balance_type,
             BankBalanceType::Borrow
         );
         assert_eq!(liquidator.bank_balances[1].balance, 636508);
-        assert_eq!(liquidator.positions[0].unsettled_pnl, 64351558);
+        assert_eq!(liquidator.positions[0].quote_asset_amount, 64351558);
     }
 
     #[test]
@@ -1382,7 +1386,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             orders: [Order::default(); 32],
             positions: get_positions(MarketPosition {
                 market_index: 0,
-                unsettled_pnl: 80 * QUOTE_PRECISION_I128 as i128,
+                quote_asset_amount: 80 * QUOTE_PRECISION_I128 as i128,
                 ..MarketPosition::default()
             }),
             bank_balances: user_bank_balances,
@@ -1418,14 +1422,14 @@ pub mod liquidate_borrow_for_perp_pnl {
         .unwrap();
 
         assert_eq!(user.bank_balances[0].balance, 208712);
-        assert_eq!(user.positions[0].unsettled_pnl, 0);
+        assert_eq!(user.positions[0].quote_asset_amount, 0);
 
         assert_eq!(
             liquidator.bank_balances[1].balance_type,
             BankBalanceType::Borrow
         );
         assert_eq!(liquidator.bank_balances[1].balance, 791288);
-        assert_eq!(liquidator.positions[0].unsettled_pnl, 80000000);
+        assert_eq!(liquidator.positions[0].quote_asset_amount, 80000000);
     }
 }
 
@@ -1540,7 +1544,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             orders: [Order::default(); 32],
             positions: get_positions(MarketPosition {
                 market_index: 0,
-                unsettled_pnl: -100 * QUOTE_PRECISION_I128 as i128,
+                quote_asset_amount: -100 * QUOTE_PRECISION_I128 as i128,
                 ..MarketPosition::default()
             }),
             bank_balances: user_bank_balances,
@@ -1576,14 +1580,14 @@ pub mod liquidate_perp_pnl_for_deposit {
         .unwrap();
 
         assert_eq!(user.bank_balances[0].balance, 494445);
-        assert_eq!(user.positions[0].unsettled_pnl, -50000000);
+        assert_eq!(user.positions[0].quote_asset_amount, -50000000);
 
         assert_eq!(
             liquidator.bank_balances[1].balance_type,
             BankBalanceType::Deposit
         );
         assert_eq!(liquidator.bank_balances[1].balance, 505555);
-        assert_eq!(liquidator.positions[0].unsettled_pnl, -50000000);
+        assert_eq!(liquidator.positions[0].quote_asset_amount, -50000000);
     }
 
     #[test]
@@ -1675,7 +1679,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             orders: [Order::default(); 32],
             positions: get_positions(MarketPosition {
                 market_index: 0,
-                unsettled_pnl: -91 * QUOTE_PRECISION_I128 as i128,
+                quote_asset_amount: -91 * QUOTE_PRECISION_I128 as i128,
                 ..MarketPosition::default()
             }),
             bank_balances: user_bank_balances,
@@ -1711,14 +1715,14 @@ pub mod liquidate_perp_pnl_for_deposit {
         .unwrap();
 
         assert_eq!(user.bank_balances[0].balance, 887655);
-        assert_eq!(user.positions[0].unsettled_pnl, -79888889);
+        assert_eq!(user.positions[0].quote_asset_amount, -79888889);
 
         assert_eq!(
             liquidator.bank_balances[1].balance_type,
             BankBalanceType::Deposit
         );
         assert_eq!(liquidator.bank_balances[1].balance, 112345);
-        assert_eq!(liquidator.positions[0].unsettled_pnl, -11111111);
+        assert_eq!(liquidator.positions[0].quote_asset_amount, -11111111);
     }
 
     #[test]
@@ -1810,7 +1814,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             orders: [Order::default(); 32],
             positions: get_positions(MarketPosition {
                 market_index: 0,
-                unsettled_pnl: -150 * QUOTE_PRECISION_I128 as i128,
+                quote_asset_amount: -150 * QUOTE_PRECISION_I128 as i128,
                 ..MarketPosition::default()
             }),
             bank_balances: user_bank_balances,
@@ -1846,13 +1850,13 @@ pub mod liquidate_perp_pnl_for_deposit {
         .unwrap();
 
         assert_eq!(user.bank_balances[0].balance, 0);
-        assert_eq!(user.positions[0].unsettled_pnl, -51098902);
+        assert_eq!(user.positions[0].quote_asset_amount, -51098902);
 
         assert_eq!(
             liquidator.bank_balances[1].balance_type,
             BankBalanceType::Deposit
         );
         assert_eq!(liquidator.bank_balances[1].balance, 1000000);
-        assert_eq!(liquidator.positions[0].unsettled_pnl, -98901098);
+        assert_eq!(liquidator.positions[0].quote_asset_amount, -98901098);
     }
 }

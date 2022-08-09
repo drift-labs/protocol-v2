@@ -36,8 +36,6 @@ pub struct Market {
     pub next_funding_rate_record_id: u64,
     pub next_curve_record_id: u64,
     pub pnl_pool: PoolBalance,
-    pub unsettled_profit: u128,
-    pub unsettled_loss: u128,
     pub imf_factor: u128,
     pub unsettled_initial_asset_weight: u8,
     pub unsettled_maintenance_asset_weight: u8,

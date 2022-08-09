@@ -5,7 +5,9 @@ use solana_program::clock::UnixTimestamp;
 use solana_program::msg;
 
 use crate::controller::amm::formulaic_update_k;
-use crate::controller::position::{get_position_index, update_unsettled_pnl, PositionDirection};
+use crate::controller::position::{
+    get_position_index, update_quote_asset_amount, PositionDirection,
+};
 use crate::error::ClearingHouseResult;
 use crate::get_then_update_id;
 use crate::math::amm;
@@ -69,7 +71,7 @@ pub fn settle_funding_payment(
 
         market_position.last_cumulative_funding_rate = amm_cumulative_funding_rate;
         market_position.last_funding_rate_ts = amm.last_funding_rate_ts;
-        update_unsettled_pnl(market_position, market, market_funding_payment)?;
+        update_quote_asset_amount(market_position, market_funding_payment)?;
     }
 
     Ok(())
@@ -116,7 +118,7 @@ pub fn settle_funding_payments(
 
             market_position.last_cumulative_funding_rate = amm_cumulative_funding_rate;
             market_position.last_funding_rate_ts = amm.last_funding_rate_ts;
-            update_unsettled_pnl(market_position, market, market_funding_payment)?;
+            update_quote_asset_amount(market_position, market_funding_payment)?;
         }
     }
 

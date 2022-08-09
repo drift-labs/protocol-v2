@@ -168,7 +168,6 @@ pub struct MarketPosition {
     pub last_cumulative_repeg_rebate: u128,
     pub last_funding_rate_ts: i64,
     pub open_orders: u128,
-    pub unsettled_pnl: i128,
     pub open_bids: i128,
     pub open_asks: i128,
 
@@ -199,7 +198,7 @@ impl MarketPosition {
     }
 
     pub fn has_unsettled_pnl(&self) -> bool {
-        self.unsettled_pnl != 0
+        self.base_asset_amount == 0 && self.quote_asset_amount != 0
     }
 
     pub fn worst_case_base_asset_amount(&self) -> ClearingHouseResult<i128> {

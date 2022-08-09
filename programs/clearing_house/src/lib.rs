@@ -57,6 +57,9 @@ pub mod clearing_house {
     use crate::state::state::OrderFillerRewardStructure;
 
     use super::*;
+    use crate::math::position::{
+        calculate_base_asset_value_and_pnl_with_oracle_price, calculate_max_pnl_to_settle,
+    };
 
     pub fn initialize(ctx: Context<Initialize>, admin_controls_prices: bool) -> Result<()> {
         let insurance_account_key = ctx.accounts.insurance_vault.to_account_info().key;
@@ -342,8 +345,6 @@ pub mod clearing_house {
             next_funding_rate_record_id: 1,
             next_curve_record_id: 1,
             pnl_pool: PoolBalance { balance: 0 },
-            unsettled_loss: 0,
-            unsettled_profit: 0,
             unsettled_initial_asset_weight: 100,     // 100%
             unsettled_maintenance_asset_weight: 100, // 100%
             unsettled_imf_factor: 0,
@@ -1108,14 +1109,17 @@ pub mod clearing_house {
             return Err(ErrorCode::InsufficientCollateralForSettlingPNL.into());
         }
 
-        let market_position = &mut user.positions[position_index];
         let bank = &mut bank_map.get_quote_asset_bank_mut()?;
         let market = &mut market_map.get_ref_mut(&market_index)?;
 
         let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
-        controller::position::update_cost_basis(market, market_position, oracle_price)?;
+        let max_pnl_to_settle = calculate_max_pnl_to_settle(&user.positions[position_index])?;
+        let (_, unrealized_pnl) = calculate_base_asset_value_and_pnl_with_oracle_price(
+            &user.positions[position_index],
+            oracle_price,
+        )?;
 
-        let user_unsettled_pnl = market_position.unsettled_pnl;
+        let user_unsettled_pnl = max_pnl_to_settle.min(unrealized_pnl);
 
         let pnl_to_settle_with_user =
             controller::amm::update_pool_balances(market, bank, user_unsettled_pnl)?;
@@ -1148,12 +1152,9 @@ pub mod clearing_house {
             user.get_quote_asset_bank_balance_mut(),
         )?;
 
-        let user_position = &mut user.positions[position_index];
-
-        controller::position::update_unsettled_pnl(
-            user_position,
-            market,
-            -pnl_to_settle_with_user,
+        controller::position::settle_pnl(
+            &mut user.positions[position_index],
+            pnl_to_settle_with_user,
         )?;
 
         Ok(())

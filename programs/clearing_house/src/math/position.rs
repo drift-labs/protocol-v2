@@ -124,7 +124,7 @@ pub fn calculate_base_asset_value_and_pnl_with_oracle_price(
     oracle_price: i128,
 ) -> ClearingHouseResult<(u128, i128)> {
     if market_position.base_asset_amount == 0 {
-        return Ok((0, 0));
+        return Ok((0, market_position.quote_asset_amount));
     }
 
     let oracle_price = if oracle_price > 0 {
@@ -174,4 +174,11 @@ pub fn calculate_entry_price(
         .ok_or_else(math_error!())?;
 
     Ok(price)
+}
+
+pub fn calculate_max_pnl_to_settle(position: &MarketPosition) -> ClearingHouseResult<i128> {
+    position
+        .quote_asset_amount
+        .checked_sub(position.quote_entry_amount)
+        .ok_or_else(math_error!())
 }
