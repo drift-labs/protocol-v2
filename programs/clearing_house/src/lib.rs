@@ -1154,9 +1154,9 @@ pub mod clearing_house {
             user.get_quote_asset_bank_balance_mut(),
         )?;
 
-        controller::position::settle_pnl(
+        controller::position::update_quote_asset_amount(
             &mut user.positions[position_index],
-            pnl_to_settle_with_user,
+            -pnl_to_settle_with_user,
         )?;
 
         Ok(())

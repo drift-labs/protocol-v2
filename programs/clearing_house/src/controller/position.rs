@@ -450,20 +450,11 @@ fn calculate_quote_asset_amount_surplus(
 
 pub fn update_quote_asset_amount(
     position: &mut MarketPosition,
-    pnl: i128,
+    delta: i128,
 ) -> ClearingHouseResult<()> {
     position.quote_asset_amount = position
         .quote_asset_amount
-        .checked_add(pnl)
-        .ok_or_else(math_error!())?;
-
-    Ok(())
-}
-
-pub fn settle_pnl(position: &mut MarketPosition, pnl: i128) -> ClearingHouseResult {
-    position.quote_asset_amount = position
-        .quote_asset_amount
-        .checked_sub(pnl)
+        .checked_add(delta)
         .ok_or_else(math_error!())?;
 
     Ok(())
