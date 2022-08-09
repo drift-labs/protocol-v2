@@ -402,6 +402,8 @@ pub mod clearing_house {
                 net_base_asset_amount: 0,
                 quote_asset_amount_long: 0,
                 quote_asset_amount_short: 0,
+                quote_entry_amount_long: 0,
+                quote_entry_amount_short: 0,
                 mark_std: 0,
                 long_intensity_count: 0,
                 long_intensity_volume: 0,

@@ -213,6 +213,11 @@ pub fn update_position_and_market(
                 .quote_asset_amount_long
                 .checked_add(delta.quote_asset_amount)
                 .ok_or_else(math_error!())?;
+            market.amm.quote_entry_amount_long = market
+                .amm
+                .quote_entry_amount_long
+                .checked_add(delta.quote_asset_amount)
+                .ok_or_else(math_error!())?;
         } else {
             market.base_asset_amount_short = market
                 .base_asset_amount_short
@@ -221,6 +226,11 @@ pub fn update_position_and_market(
             market.amm.quote_asset_amount_short = market
                 .amm
                 .quote_asset_amount_short
+                .checked_add(delta.quote_asset_amount)
+                .ok_or_else(math_error!())?;
+            market.amm.quote_entry_amount_short = market
+                .amm
+                .quote_entry_amount_short
                 .checked_add(delta.quote_asset_amount)
                 .ok_or_else(math_error!())?;
         }
@@ -235,6 +245,16 @@ pub fn update_position_and_market(
                 .quote_asset_amount_long
                 .checked_add(delta.quote_asset_amount)
                 .ok_or_else(math_error!())?;
+            market.amm.quote_entry_amount_long = market
+                .amm
+                .quote_entry_amount_long
+                .checked_sub(
+                    position
+                        .quote_entry_amount
+                        .checked_sub(new_quote_entry_amount)
+                        .ok_or_else(math_error!())?,
+                )
+                .ok_or_else(math_error!())?;
         } else {
             market.base_asset_amount_short = market
                 .base_asset_amount_short
@@ -244,6 +264,16 @@ pub fn update_position_and_market(
                 .amm
                 .quote_asset_amount_short
                 .checked_add(delta.quote_asset_amount)
+                .ok_or_else(math_error!())?;
+            market.amm.quote_entry_amount_short = market
+                .amm
+                .quote_entry_amount_short
+                .checked_sub(
+                    position
+                        .quote_entry_amount
+                        .checked_sub(new_quote_entry_amount)
+                        .ok_or_else(math_error!())?,
+                )
                 .ok_or_else(math_error!())?;
         }
     } else if flipped_position {
@@ -267,9 +297,20 @@ pub fn update_position_and_market(
                         .ok_or_else(math_error!())?,
                 )
                 .ok_or_else(math_error!())?;
+            market.amm.quote_entry_amount_short = market
+                .amm
+                .quote_entry_amount_short
+                .checked_sub(position.quote_entry_amount)
+                .ok_or_else(math_error!())?;
+
             market.amm.quote_asset_amount_long = market
                 .amm
                 .quote_asset_amount_long
+                .checked_add(new_quote_entry_amount)
+                .ok_or_else(math_error!())?;
+            market.amm.quote_entry_amount_long = market
+                .amm
+                .quote_entry_amount_long
                 .checked_add(new_quote_entry_amount)
                 .ok_or_else(math_error!())?;
         } else {
@@ -292,9 +333,19 @@ pub fn update_position_and_market(
                         .ok_or_else(math_error!())?,
                 )
                 .ok_or_else(math_error!())?;
+            market.amm.quote_entry_amount_long = market
+                .amm
+                .quote_entry_amount_long
+                .checked_sub(position.quote_entry_amount)
+                .ok_or_else(math_error!())?;
             market.amm.quote_asset_amount_short = market
                 .amm
                 .quote_asset_amount_short
+                .checked_add(new_quote_entry_amount)
+                .ok_or_else(math_error!())?;
+            market.amm.quote_entry_amount_short = market
+                .amm
+                .quote_entry_amount_short
                 .checked_add(new_quote_entry_amount)
                 .ok_or_else(math_error!())?;
         }
@@ -418,6 +469,29 @@ pub fn settle_pnl(position: &mut MarketPosition, pnl: i128) -> ClearingHouseResu
     Ok(())
 }
 
+pub fn increase_open_bids_and_asks(
+    position: &mut MarketPosition,
+    direction: &PositionDirection,
+    base_asset_amount_unfilled: u128,
+) -> ClearingHouseResult {
+    match direction {
+        PositionDirection::Long => {
+            position.open_bids = position
+                .open_bids
+                .checked_add(cast(base_asset_amount_unfilled)?)
+                .ok_or_else(math_error!())?;
+        }
+        PositionDirection::Short => {
+            position.open_asks = position
+                .open_asks
+                .checked_sub(cast(base_asset_amount_unfilled)?)
+                .ok_or_else(math_error!())?;
+        }
+    }
+
+    Ok(())
+}
+
 pub fn decrease_open_bids_and_asks(
     position: &mut MarketPosition,
     direction: &PositionDirection,
@@ -478,6 +552,8 @@ mod test {
         assert_eq!(market.amm.net_base_asset_amount, 1);
         assert_eq!(market.amm.quote_asset_amount_long, -1);
         assert_eq!(market.amm.quote_asset_amount_short, 0);
+        assert_eq!(market.amm.quote_entry_amount_long, -1);
+        assert_eq!(market.amm.quote_entry_amount_short, 0);
     }
 
     #[test]
@@ -511,6 +587,8 @@ mod test {
         assert_eq!(market.amm.net_base_asset_amount, -1);
         assert_eq!(market.amm.quote_asset_amount_long, 0);
         assert_eq!(market.amm.quote_asset_amount_short, 1);
+        assert_eq!(market.amm.quote_entry_amount_long, 0);
+        assert_eq!(market.amm.quote_entry_amount_short, 1);
     }
 
     #[test]
@@ -530,6 +608,7 @@ mod test {
             amm: AMM {
                 net_base_asset_amount: 1,
                 quote_asset_amount_long: -1,
+                quote_entry_amount_long: -1,
                 ..AMM::default()
             },
             base_asset_amount_long: 1,
@@ -553,6 +632,8 @@ mod test {
         assert_eq!(market.amm.net_base_asset_amount, 2);
         assert_eq!(market.amm.quote_asset_amount_long, -2);
         assert_eq!(market.amm.quote_asset_amount_short, 0);
+        assert_eq!(market.amm.quote_entry_amount_long, -2);
+        assert_eq!(market.amm.quote_entry_amount_short, 0);
     }
 
     #[test]
@@ -573,6 +654,7 @@ mod test {
                 net_base_asset_amount: -1,
                 quote_asset_amount_long: 0,
                 quote_asset_amount_short: 1,
+                quote_entry_amount_short: 1,
                 ..AMM::default()
             },
             open_interest: 1,
@@ -596,6 +678,8 @@ mod test {
         assert_eq!(market.amm.net_base_asset_amount, -2);
         assert_eq!(market.amm.quote_asset_amount_long, 0);
         assert_eq!(market.amm.quote_asset_amount_short, 2);
+        assert_eq!(market.amm.quote_entry_amount_long, 0);
+        assert_eq!(market.amm.quote_entry_amount_short, 2);
     }
 
     #[test]
@@ -615,6 +699,7 @@ mod test {
             amm: AMM {
                 net_base_asset_amount: 10,
                 quote_asset_amount_long: -10,
+                quote_entry_amount_long: -10,
                 quote_asset_amount_short: 0,
                 ..AMM::default()
             },
@@ -639,6 +724,8 @@ mod test {
         assert_eq!(market.amm.net_base_asset_amount, 9);
         assert_eq!(market.amm.quote_asset_amount_long, -5);
         assert_eq!(market.amm.quote_asset_amount_short, 0);
+        assert_eq!(market.amm.quote_entry_amount_long, -9);
+        assert_eq!(market.amm.quote_entry_amount_short, 0);
     }
 
     #[test]
@@ -658,6 +745,7 @@ mod test {
             amm: AMM {
                 net_base_asset_amount: 10,
                 quote_asset_amount_long: -100,
+                quote_entry_amount_long: -100,
                 quote_asset_amount_short: 0,
                 ..AMM::default()
             },
@@ -682,6 +770,8 @@ mod test {
         assert_eq!(market.amm.net_base_asset_amount, 9);
         assert_eq!(market.amm.quote_asset_amount_long, -95);
         assert_eq!(market.amm.quote_asset_amount_short, 0);
+        assert_eq!(market.amm.quote_entry_amount_long, -90);
+        assert_eq!(market.amm.quote_entry_amount_short, 0);
     }
 
     #[test]
@@ -701,6 +791,7 @@ mod test {
             amm: AMM {
                 net_base_asset_amount: 10,
                 quote_asset_amount_long: -10,
+                quote_entry_amount_long: -10,
                 quote_asset_amount_short: 0,
                 cumulative_funding_rate_short: 2,
                 ..AMM::default()
@@ -726,6 +817,8 @@ mod test {
         assert_eq!(market.amm.net_base_asset_amount, -1);
         assert_eq!(market.amm.quote_asset_amount_long, 10);
         assert_eq!(market.amm.quote_asset_amount_short, 2);
+        assert_eq!(market.amm.quote_entry_amount_long, 0);
+        assert_eq!(market.amm.quote_entry_amount_short, 2);
     }
 
     #[test]
@@ -745,6 +838,7 @@ mod test {
             amm: AMM {
                 net_base_asset_amount: 10,
                 quote_asset_amount_long: -10,
+                quote_entry_amount_long: -10,
                 quote_asset_amount_short: 0,
                 cumulative_funding_rate_short: 2,
                 ..AMM::default()
@@ -770,6 +864,8 @@ mod test {
         assert_eq!(market.amm.net_base_asset_amount, -1);
         assert_eq!(market.amm.quote_asset_amount_long, -1);
         assert_eq!(market.amm.quote_asset_amount_short, 1);
+        assert_eq!(market.amm.quote_entry_amount_long, 0);
+        assert_eq!(market.amm.quote_entry_amount_short, 1);
     }
 
     #[test]
@@ -790,6 +886,7 @@ mod test {
                 net_base_asset_amount: -10,
                 quote_asset_amount_long: 0,
                 quote_asset_amount_short: 100,
+                quote_entry_amount_short: 100,
                 ..AMM::default()
             },
             open_interest: 1,
@@ -813,6 +910,8 @@ mod test {
         assert_eq!(market.amm.net_base_asset_amount, -9);
         assert_eq!(market.amm.quote_asset_amount_long, 0);
         assert_eq!(market.amm.quote_asset_amount_short, 95);
+        assert_eq!(market.amm.quote_entry_amount_long, 0);
+        assert_eq!(market.amm.quote_entry_amount_short, 90);
     }
 
     #[test]
@@ -833,6 +932,7 @@ mod test {
                 net_base_asset_amount: -10,
                 quote_asset_amount_long: 0,
                 quote_asset_amount_short: 100,
+                quote_entry_amount_short: 100,
                 ..AMM::default()
             },
             open_interest: 1,
@@ -856,6 +956,8 @@ mod test {
         assert_eq!(market.amm.net_base_asset_amount, -9);
         assert_eq!(market.amm.quote_asset_amount_long, 0);
         assert_eq!(market.amm.quote_asset_amount_short, 85);
+        assert_eq!(market.amm.quote_entry_amount_long, 0);
+        assert_eq!(market.amm.quote_entry_amount_short, 90);
     }
 
     #[test]
@@ -876,6 +978,7 @@ mod test {
                 net_base_asset_amount: -10,
                 quote_asset_amount_long: 0,
                 quote_asset_amount_short: 100,
+                quote_entry_amount_short: 100,
                 cumulative_funding_rate_long: 2,
                 ..AMM::default()
             },
@@ -900,6 +1003,8 @@ mod test {
         assert_eq!(market.amm.net_base_asset_amount, 1);
         assert_eq!(market.amm.quote_asset_amount_long, -6);
         assert_eq!(market.amm.quote_asset_amount_short, 46);
+        assert_eq!(market.amm.quote_entry_amount_long, -6);
+        assert_eq!(market.amm.quote_entry_amount_short, 0);
     }
 
     #[test]
@@ -920,6 +1025,7 @@ mod test {
                 net_base_asset_amount: -10,
                 quote_asset_amount_long: 0,
                 quote_asset_amount_short: 100,
+                quote_entry_amount_short: 100,
                 cumulative_funding_rate_long: 2,
                 ..AMM::default()
             },
@@ -944,6 +1050,8 @@ mod test {
         assert_eq!(market.amm.net_base_asset_amount, 1);
         assert_eq!(market.amm.quote_asset_amount_long, -11);
         assert_eq!(market.amm.quote_asset_amount_short, -9);
+        assert_eq!(market.amm.quote_entry_amount_long, -11);
+        assert_eq!(market.amm.quote_entry_amount_short, 0);
     }
 
     #[test]
@@ -964,6 +1072,7 @@ mod test {
             amm: AMM {
                 net_base_asset_amount: 11,
                 quote_asset_amount_long: -11,
+                quote_entry_amount_long: -11,
                 ..AMM::default()
             },
             open_interest: 2,
@@ -988,6 +1097,8 @@ mod test {
         // not 5 because quote asset amount long was -11 not -10 before
         assert_eq!(market.amm.quote_asset_amount_long, 4);
         assert_eq!(market.amm.quote_asset_amount_short, 0);
+        assert_eq!(market.amm.quote_entry_amount_long, -1);
+        assert_eq!(market.amm.quote_entry_amount_short, 0);
     }
 
     #[test]
@@ -1008,6 +1119,7 @@ mod test {
             amm: AMM {
                 net_base_asset_amount: 11,
                 quote_asset_amount_long: -11,
+                quote_entry_amount_long: -11,
                 ..AMM::default()
             },
             open_interest: 2,
@@ -1031,6 +1143,8 @@ mod test {
         assert_eq!(market.amm.net_base_asset_amount, 1);
         assert_eq!(market.amm.quote_asset_amount_long, -6);
         assert_eq!(market.amm.quote_asset_amount_short, 0);
+        assert_eq!(market.amm.quote_entry_amount_long, -1);
+        assert_eq!(market.amm.quote_entry_amount_short, 0);
     }
 
     #[test]
@@ -1051,6 +1165,7 @@ mod test {
             amm: AMM {
                 net_base_asset_amount: -11,
                 quote_asset_amount_short: 11,
+                quote_entry_amount_short: 11,
                 ..AMM::default()
             },
             open_interest: 2,
@@ -1074,6 +1189,8 @@ mod test {
         assert_eq!(market.amm.net_base_asset_amount, -1);
         assert_eq!(market.amm.quote_asset_amount_long, 0);
         assert_eq!(market.amm.quote_asset_amount_short, 6);
+        assert_eq!(market.amm.quote_entry_amount_long, 0);
+        assert_eq!(market.amm.quote_entry_amount_short, 1);
     }
 
     #[test]
@@ -1094,6 +1211,7 @@ mod test {
             amm: AMM {
                 net_base_asset_amount: -11,
                 quote_asset_amount_short: 11,
+                quote_entry_amount_short: 11,
                 ..AMM::default()
             },
             open_interest: 2,
@@ -1117,6 +1235,8 @@ mod test {
         assert_eq!(market.amm.net_base_asset_amount, -1);
         assert_eq!(market.amm.quote_asset_amount_long, 0);
         assert_eq!(market.amm.quote_asset_amount_short, -4);
+        assert_eq!(market.amm.quote_entry_amount_long, 0);
+        assert_eq!(market.amm.quote_entry_amount_short, 1);
     }
 
     #[test]
@@ -1137,6 +1257,7 @@ mod test {
             amm: AMM {
                 net_base_asset_amount: 11,
                 quote_asset_amount_long: -11,
+                quote_entry_amount_long: -8,
                 ..AMM::default()
             },
             open_interest: 2,
@@ -1160,6 +1281,8 @@ mod test {
         assert_eq!(market.amm.net_base_asset_amount, 1);
         assert_eq!(market.amm.quote_asset_amount_long, -6);
         assert_eq!(market.amm.quote_asset_amount_short, 0);
+        assert_eq!(market.amm.quote_entry_amount_long, 0);
+        assert_eq!(market.amm.quote_entry_amount_short, 0);
     }
 
     #[test]
@@ -1180,6 +1303,7 @@ mod test {
             amm: AMM {
                 net_base_asset_amount: -11,
                 quote_asset_amount_short: 11,
+                quote_entry_amount_short: 15,
                 ..AMM::default()
             },
             open_interest: 2,
@@ -1203,28 +1327,7 @@ mod test {
         assert_eq!(market.amm.net_base_asset_amount, -1);
         assert_eq!(market.amm.quote_asset_amount_long, 0);
         assert_eq!(market.amm.quote_asset_amount_short, -4);
+        assert_eq!(market.amm.quote_entry_amount_long, 0);
+        assert_eq!(market.amm.quote_entry_amount_short, 0);
     }
-}
-
-pub fn increase_open_bids_and_asks(
-    position: &mut MarketPosition,
-    direction: &PositionDirection,
-    base_asset_amount_unfilled: u128,
-) -> ClearingHouseResult {
-    match direction {
-        PositionDirection::Long => {
-            position.open_bids = position
-                .open_bids
-                .checked_add(cast(base_asset_amount_unfilled)?)
-                .ok_or_else(math_error!())?;
-        }
-        PositionDirection::Short => {
-            position.open_asks = position
-                .open_asks
-                .checked_sub(cast(base_asset_amount_unfilled)?)
-                .ok_or_else(math_error!())?;
-        }
-    }
-
-    Ok(())
 }

@@ -174,6 +174,8 @@ pub struct AMM {
     pub net_base_asset_amount: i128,
     pub quote_asset_amount_long: i128,
     pub quote_asset_amount_short: i128,
+    pub quote_entry_amount_long: i128,
+    pub quote_entry_amount_short: i128,
 
     // funding
     pub last_funding_rate: i128,
