@@ -136,18 +136,18 @@ pub fn update_amm(
     )?;
 
     let mark_price_after = market.amm.mark_price()?;
-
+    amm::update_oracle_price_twap(
+        &mut market.amm,
+        now,
+        oracle_price_data,
+        Some(mark_price_after),
+    )?;
+    
     if is_oracle_valid {
         // cannot update market
-        amm::update_oracle_price_twap(
-            &mut market.amm,
-            now,
-            oracle_price_data,
-            Some(mark_price_after),
-        )?;
         market.amm.last_update_slot = clock_slot;
     } else if market.amm.last_update_slot == clock_slot {
-        // in order to block if oracle invalid
+        // in order to block if oracle becomes invalid within same slot as another update
         market.amm.last_update_slot = market
             .amm
             .last_update_slot
