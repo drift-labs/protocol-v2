@@ -178,7 +178,7 @@ pub struct MarketPosition {
     pub lp_shares: u128,
     pub last_unsettled_pnl_per_lp: i128,
     pub last_net_base_asset_amount_per_lp: i128,
-    pub last_net_quote_asset_amount_per_lp: u128,
+    pub last_net_quote_asset_amount_per_lp: i128,
     pub last_lp_add_time: i64,
 
     // upgrade-ability

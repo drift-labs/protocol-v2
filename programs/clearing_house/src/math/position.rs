@@ -177,106 +177,105 @@ pub fn calculate_entry_price(
     Ok(price)
 }
 
+pub enum PositionUpdateType {
+    Open,
+    Increase,
+    Reduce,
+    Close,
+    Flip,
+}
+pub fn get_position_update_type(
+    position: &MarketPosition,
+    delta: &PositionDelta,
+) -> PositionUpdateType {
+    if position.base_asset_amount == 0 {
+        PositionUpdateType::Open
+    } else if position.base_asset_amount.signum() == delta.base_asset_amount.signum() {
+        PositionUpdateType::Increase
+    } else if position.base_asset_amount.abs() > delta.base_asset_amount.abs() {
+        PositionUpdateType::Reduce
+    } else if position.base_asset_amount.abs() == delta.base_asset_amount.abs() {
+        PositionUpdateType::Close
+    } else {
+        PositionUpdateType::Flip
+    }
+}
+
 pub fn calculate_position_new_quote_base_pnl(
     position: &MarketPosition,
     delta: &PositionDelta,
-) -> ClearingHouseResult<(u128, u128, i128, i128)> {
-    let new_position = position.base_asset_amount == 0;
-    let increasing_position =
-        new_position || position.base_asset_amount.signum() == delta.base_asset_amount.signum();
+) -> ClearingHouseResult<(i128, i128, i128, i128)> {
+    let update_type = get_position_update_type(position, delta);
+    let update_type = get_position_update_type(position, delta);
 
-    let (new_quote_asset_amount, new_quote_entry_amount, new_base_asset_amount, pnl) =
-        if !increasing_position && delta.base_asset_amount != 0 {
-            let base_asset_amount_before_unsigned = position.base_asset_amount.unsigned_abs();
-            let delta_base_asset_amount_unsigned = delta.base_asset_amount.unsigned_abs();
+    // Update User
+    let new_quote_asset_amount = position
+        .quote_asset_amount
+        .checked_add(delta.quote_asset_amount)
+        .ok_or_else(math_error!())?;
 
-            let cost_basis = position
-                .quote_asset_amount
-                .checked_mul(min(
-                    delta_base_asset_amount_unsigned,
-                    base_asset_amount_before_unsigned,
-                ))
-                .ok_or_else(math_error!())?
-                .checked_div(base_asset_amount_before_unsigned)
-                .ok_or_else(math_error!())?;
+    let new_base_asset_amount = position
+        .base_asset_amount
+        .checked_add(delta.base_asset_amount)
+        .ok_or_else(math_error!())?;
 
-            let exit_value = delta
-                .quote_asset_amount
-                .checked_mul(min(
-                    delta_base_asset_amount_unsigned,
-                    base_asset_amount_before_unsigned,
-                ))
-                .ok_or_else(math_error!())?
-                .checked_div(delta_base_asset_amount_unsigned)
-                .ok_or_else(math_error!())?;
-
-            let pnl = calculate_pnl(
-                exit_value,
-                cost_basis,
-                swap_direction_to_close_position(position.base_asset_amount),
-            )?;
-
-            let new_base_asset_amount = position
-                .base_asset_amount
-                .checked_add(delta.base_asset_amount)
-                .ok_or_else(math_error!())?;
-
-            let (new_quote_asset_amount, new_quote_entry_amount) =
-                if delta.quote_asset_amount > exit_value {
-                    let new_quote_asset_amount = delta
-                        .quote_asset_amount
-                        .checked_sub(exit_value)
-                        .ok_or_else(math_error!())?;
-                    (new_quote_asset_amount, new_quote_asset_amount)
-                } else {
-                    let entry_amount_delta = position
-                        .quote_entry_amount
-                        .checked_mul(delta_base_asset_amount_unsigned)
-                        .ok_or_else(math_error!())?
-                        .checked_div(base_asset_amount_before_unsigned)
-                        .ok_or_else(math_error!())?;
-
-                    let quote_entry_amount = position
-                        .quote_entry_amount
-                        .checked_sub(entry_amount_delta)
-                        .ok_or_else(math_error!())?;
-
-                    (
-                        position
-                            .quote_asset_amount
-                            .checked_sub(cost_basis)
-                            .ok_or_else(math_error!())?,
-                        quote_entry_amount,
-                    )
-                };
-
-            (
-                new_quote_asset_amount,
-                new_quote_entry_amount,
-                new_base_asset_amount,
-                pnl,
-            )
-        } else {
-            let new_quote_asset_amount = position
-                .quote_asset_amount
-                .checked_add(delta.quote_asset_amount)
-                .ok_or_else(math_error!())?;
+    let (new_quote_entry_amount, pnl) = match update_type {
+        PositionUpdateType::Open | PositionUpdateType::Increase => {
             let new_quote_entry_amount = position
                 .quote_entry_amount
                 .checked_add(delta.quote_asset_amount)
                 .ok_or_else(math_error!())?;
-            let new_base_asset_amount = position
-                .base_asset_amount
-                .checked_add(delta.base_asset_amount)
+
+            (new_quote_entry_amount, 0_i128)
+        }
+        PositionUpdateType::Reduce | PositionUpdateType::Close => {
+            let new_quote_entry_amount = position
+                .quote_entry_amount
+                .checked_sub(
+                    position
+                        .quote_entry_amount
+                        .checked_mul(delta.base_asset_amount.abs())
+                        .ok_or_else(math_error!())?
+                        .checked_div(position.base_asset_amount.abs())
+                        .ok_or_else(math_error!())?,
+                )
                 .ok_or_else(math_error!())?;
 
-            (
-                new_quote_asset_amount,
-                new_quote_entry_amount,
-                new_base_asset_amount,
-                0_i128,
-            )
-        };
+            let pnl = position
+                .quote_entry_amount
+                .checked_sub(new_quote_entry_amount)
+                .ok_or_else(math_error!())?
+                .checked_add(delta.quote_asset_amount)
+                .ok_or_else(math_error!())?;
+
+            (new_quote_entry_amount, pnl)
+        }
+        PositionUpdateType::Flip => {
+            let new_quote_entry_amount = delta
+                .quote_asset_amount
+                .checked_sub(
+                    delta
+                        .quote_asset_amount
+                        .checked_mul(position.base_asset_amount.abs())
+                        .ok_or_else(math_error!())?
+                        .checked_div(delta.base_asset_amount.abs())
+                        .ok_or_else(math_error!())?,
+                )
+                .ok_or_else(math_error!())?;
+
+            let pnl = position
+                .quote_entry_amount
+                .checked_add(
+                    delta
+                        .quote_asset_amount
+                        .checked_sub(new_quote_entry_amount)
+                        .ok_or_else(math_error!())?,
+                )
+                .ok_or_else(math_error!())?;
+
+            (new_quote_entry_amount, pnl)
+        }
+    };
 
     Ok((
         new_quote_asset_amount,

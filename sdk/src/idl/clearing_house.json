@@ -3252,7 +3252,7 @@
           },
           {
             "name": "lastNetQuoteAssetAmountPerLp",
-            "type": "u128"
+            "type": "i128"
           },
           {
             "name": "lastLpAddTime",
@@ -3443,29 +3443,6 @@
       }
     },
     {
-      "name": "PositionUpdateType",
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "Open"
-          },
-          {
-            "name": "Increase"
-          },
-          {
-            "name": "Reduce"
-          },
-          {
-            "name": "Close"
-          },
-          {
-            "name": "Flip"
-          }
-        ]
-      }
-    },
-    {
       "name": "LiquidationMultiplierType",
       "type": {
         "kind": "enum",
@@ -3489,6 +3466,29 @@
           },
           {
             "name": "Maintenance"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PositionUpdateType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Open"
+          },
+          {
+            "name": "Increase"
+          },
+          {
+            "name": "Reduce"
+          },
+          {
+            "name": "Close"
+          },
+          {
+            "name": "Flip"
           }
         ]
       }
@@ -4648,26 +4648,36 @@
     },
     {
       "code": 6100,
+      "name": "InvalidPositionLastFundingRate",
+      "msg": "InvalidPositionLastFundingRate"
+    },
+    {
+      "code": 6101,
+      "name": "InvalidPositionDelta",
+      "msg": "InvalidPositionDelta"
+    },
+    {
+      "code": 6102,
       "name": "DefaultError",
       "msg": "DefaultError"
     },
     {
-      "code": 6091,
+      "code": 6103,
       "name": "InsufficientLPTokens",
       "msg": "Insufficient LP tokens"
     },
     {
-      "code": 6092,
+      "code": 6104,
       "name": "CantLPWithMarketPosition",
       "msg": "Cant LP with a market position"
     },
     {
-      "code": 6093,
+      "code": 6105,
       "name": "UnableToBurnLPTokens",
       "msg": "Unable to burn LP tokens"
     },
     {
-      "code": 6094,
+      "code": 6106,
       "name": "TryingToRemoveLiquidityTooFast",
       "msg": "Trying to remove liqudity too fast after adding it"
     }

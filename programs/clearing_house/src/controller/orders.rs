@@ -986,20 +986,6 @@ pub fn fulfill_order_with_amm(
         None
     };
 
-    let (potentially_risk_increasing, _, quote_asset_amount, quote_asset_amount_surplus, pnl) =
-        controller::position::update_position_with_base_asset_amount(
-            base_asset_amount,
-            order_direction,
-            market,
-            user,
-            position_index,
-            mark_price_before,
-            now,
-            maker_limit_price,
-        )?;
-
-    let mut unsettled_pnl = pnl;∂
-
     let (order_post_only, order_ts, order_direction) =
         get_struct_values!(user.orders[order_index], post_only, ts, direction);
 
@@ -1042,7 +1028,7 @@ pub fn fulfill_order_with_amm(
         market_postion_unsettled_pnl_delta,
     )?;
 
-    controller::position::update_unsettled_pnl(&mut user.positions[position_index], market, pnl)?;
+    // controller::position::update_unsettled_pnl(&mut user.positions[position_index], market, pnl)?;
 
     let mut unsettled_pnl = pnl;
 
@@ -1246,10 +1232,10 @@ pub fn fulfill_order_with_match(
         )?;
 
     // Increment the markets house's total fee variables
-    market.amm.market_position.unsettled_pnl = market
+    market.amm.market_position.quote_asset_amount = market
         .amm
         .market_position
-        .unsettled_pnl
+        .quote_asset_amount
         .checked_add(cast_to_i128(fee_to_market)?)
         .ok_or_else(math_error!())?;
 

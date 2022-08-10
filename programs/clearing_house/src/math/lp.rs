@@ -1,21 +1,21 @@
 use crate::error::ClearingHouseResult;
 use crate::math::amm::calculate_swap_output;
 use crate::math::casting::cast_to_i128;
+use crate::math::constants::AMM_RESERVE_PRECISION;
+use crate::math::constants::AMM_RESERVE_PRECISION_I128;
+use crate::math::orders::standardize_base_asset_amount_with_remainder_i128;
 use crate::math::position::swap_direction_to_close_position;
 use crate::math_error;
 use crate::state::market::Market;
 use crate::state::market::AMM;
 use crate::state::user::MarketPosition;
 use solana_program::msg;
-use crate::math::constants::AMM_RESERVE_PRECISION_I128;
-use crate::math::constants::AMM_RESERVE_PRECISION;
-use crate::math::orders::standardize_base_asset_amount_with_remainder_i128;
 
 pub struct LPMetrics {
-    pub base_asset_amount: i128, 
-    pub quote_asset_amount: u128, 
-    pub remainder_base_asset_amount: i128, 
-    pub remainder_quote_asset_amount: u128, 
+    pub base_asset_amount: i128,
+    pub quote_asset_amount: i128,
+    pub remainder_base_asset_amount: i128,
+    pub remainder_quote_asset_amount: i128,
     pub unsettled_pnl: i128,
 }
 
@@ -28,15 +28,15 @@ pub fn compute_settle_lp_metrics(
     let n_shares_i128 = cast_to_i128(n_shares)?;
 
     // give them fees
-    let unsettled_pnl = amm
-        .market_position_per_lp
-        .unsettled_pnl
-        .checked_sub(position.last_unsettled_pnl_per_lp)
-        .ok_or_else(math_error!())?
-        .checked_mul(n_shares_i128)
-        .ok_or_else(math_error!())?
-        .checked_div(AMM_RESERVE_PRECISION_I128)
-        .ok_or_else(math_error!())?;
+    // let unsettled_pnl = amm
+    //     .market_position_per_lp
+    //     .unsettled_pnl
+    //     .checked_sub(position.last_unsettled_pnl_per_lp)
+    //     .ok_or_else(math_error!())?
+    //     .checked_mul(n_shares_i128)
+    //     .ok_or_else(math_error!())?
+    //     .checked_div(AMM_RESERVE_PRECISION_I128)
+    //     .ok_or_else(math_error!())?;
 
     let (base_asset_amount, quote_asset_amount) = calculate_settled_lp_base_quote(amm, position)?;
 
@@ -54,18 +54,20 @@ pub fn compute_settle_lp_metrics(
     let (remainder_base_asset_amount, remainder_quote_asset_amount) =
         if standardized_base_asset_amount.unsigned_abs() >= min_baa {
             // compute quote amount in remainder
-            let remainder_ratio = remainder_base_asset_amount
-                .unsigned_abs()
-                .checked_mul(AMM_RESERVE_PRECISION)
-                .ok_or_else(math_error!())?
-                .checked_div(base_asset_amount.unsigned_abs())
-                .ok_or_else(math_error!())?;
+            let remainder_ratio = cast_to_i128(
+                remainder_base_asset_amount
+                    .unsigned_abs()
+                    .checked_mul(AMM_RESERVE_PRECISION)
+                    .ok_or_else(math_error!())?
+                    .checked_div(base_asset_amount.unsigned_abs())
+                    .ok_or_else(math_error!())?,
+            )?;
 
             // msg!("remainder ratio: {}", remainder_ratio);
             let remainder_quote_asset_amount = quote_asset_amount
                 .checked_mul(remainder_ratio)
                 .ok_or_else(math_error!())?
-                .checked_div(AMM_RESERVE_PRECISION)
+                .checked_div(AMM_RESERVE_PRECISION_I128)
                 .ok_or_else(math_error!())?;
 
             (remainder_base_asset_amount, remainder_quote_asset_amount)
@@ -86,7 +88,7 @@ pub fn compute_settle_lp_metrics(
         quote_asset_amount: standardized_quote_asset_amount,
         remainder_base_asset_amount,
         remainder_quote_asset_amount,
-        unsettled_pnl
+        unsettled_pnl: 0,
     };
 
     Ok(lp_metrics)
@@ -95,8 +97,9 @@ pub fn compute_settle_lp_metrics(
 pub fn calculate_settled_lp_base_quote(
     amm: &AMM,
     position: &MarketPosition,
-) -> ClearingHouseResult<(i128, u128)> {
+) -> ClearingHouseResult<(i128, i128)> {
     let total_lp_shares = amm.sqrt_k;
+    let total_lp_shares_i128 = cast_to_i128(total_lp_shares)?;
     let n_shares = position.lp_shares;
     let n_shares_i128 = cast_to_i128(n_shares)?;
 
@@ -113,33 +116,16 @@ pub fn calculate_settled_lp_base_quote(
         .checked_div(AMM_RESERVE_PRECISION_I128)
         .ok_or_else(math_error!())?;
 
-    let amm_net_quote_asset_amount_per_lp = if amm.market_position_per_lp.base_asset_amount.signum()
-        == position.last_net_base_asset_amount_per_lp.signum()
-    {
-        if position.last_net_base_asset_amount_per_lp.unsigned_abs()
-            > amm.market_position_per_lp.base_asset_amount.unsigned_abs()
-        {
-            position
-                .last_net_quote_asset_amount_per_lp
-                .checked_sub(amm.market_position_per_lp.quote_asset_amount)
-                .ok_or_else(math_error!())?
-        } else {
-            amm.market_position_per_lp
-                .quote_asset_amount
-                .checked_sub(position.last_net_quote_asset_amount_per_lp)
-                .ok_or_else(math_error!())?
-        }
-    } else {
-        amm.market_position_per_lp
-            .quote_asset_amount
-            .checked_add(position.last_net_quote_asset_amount_per_lp)
-            .ok_or_else(math_error!())?
-    };
+    let amm_net_quote_asset_amount_per_lp = amm
+        .market_position_per_lp
+        .quote_asset_amount
+        .checked_sub(position.last_net_quote_asset_amount_per_lp)
+        .ok_or_else(math_error!())?;
 
     let quote_asset_amount = amm_net_quote_asset_amount_per_lp
-        .checked_mul(n_shares)
+        .checked_mul(n_shares_i128)
         .ok_or_else(math_error!())?
-        .checked_div(total_lp_shares)
+        .checked_div(total_lp_shares_i128)
         .ok_or_else(math_error!())?;
 
     Ok((base_asset_amount, quote_asset_amount))

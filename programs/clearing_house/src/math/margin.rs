@@ -13,12 +13,9 @@ use crate::state::user::User;
 use crate::math::bank_balance::get_balance_value_and_token_amount;
 use crate::math::casting::cast_to_i128;
 use crate::math::funding::calculate_funding_payment;
-<<<<<<< HEAD
 use crate::math::lp::get_lp_market_position_margin;
 use crate::math::oracle::{get_oracle_status, OracleStatus};
 use crate::math::slippage::calculate_slippage;
-=======
->>>>>>> master
 use crate::state::bank::Bank;
 use crate::state::bank::BankBalanceType;
 use crate::state::bank_map::BankMap;
@@ -191,9 +188,9 @@ pub fn calculate_perp_position_value_and_pnl(
     .checked_div(AMM_TO_QUOTE_PRECISION_RATIO_I128)
     .ok_or_else(math_error!())?;
 
-    // if lp: 
-        // calculate_settled_lp_base_quote
-        // add baa/qaa to 
+    // if lp:
+    // calculate_settled_lp_base_quote
+    // add baa/qaa to
 
     let total_unsettled_pnl = unrealized_pnl
         .checked_add(unrealized_funding)

@@ -42,14 +42,11 @@ pub mod clearing_house {
     use crate::controller::position::{add_new_position, get_position_index};
     use crate::margin_validation::validate_margin;
     use crate::math;
-<<<<<<< HEAD
     use crate::math::amm::{
         calculate_mark_twap_spread_pct,
         //  normalise_oracle_price,
         is_oracle_mark_too_divergent,
     };
-=======
->>>>>>> master
     use crate::math::bank_balance::get_token_amount;
     use crate::math::casting::{cast, cast_to_i128, cast_to_u128};
     use crate::optional_accounts::get_maker;
@@ -848,9 +845,8 @@ pub mod clearing_house {
 
         let (sqrt_k,) = get_struct_values!(market_amm, sqrt_k);
 
-        let (unsettled_pnl_per_lp, net_base_asset_amount_per_lp, net_quote_asset_amount_per_lp) = get_struct_values!(
+        let (net_base_asset_amount_per_lp, net_quote_asset_amount_per_lp) = get_struct_values!(
             market_amm.market_position_per_lp,
-            unsettled_pnl,
             base_asset_amount,
             quote_asset_amount
         );
@@ -860,7 +856,6 @@ pub mod clearing_house {
             settle_lp_position(position, &mut market)?;
         } else {
             // init
-            position.last_unsettled_pnl_per_lp = unsettled_pnl_per_lp;
             position.last_net_base_asset_amount_per_lp = net_base_asset_amount_per_lp;
             position.last_net_quote_asset_amount_per_lp = net_quote_asset_amount_per_lp;
         }

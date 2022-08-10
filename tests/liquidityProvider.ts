@@ -325,7 +325,7 @@ describe('liquidity providing', () => {
 			lpPosition.lpShares.toString(),
 			lpPosition.baseAssetAmount.toString(),
 			lpPosition.quoteAssetAmount.toString(),
-			lpPosition.unsettledPnl.toString(),
+			// lpPosition.unsettledPnl.toString(),
 			lpPosition.lastNetBaseAssetAmountPerLp.toString(),
 			lpPosition.lastNetQuoteAssetAmountPerLp.toString()
 		);
@@ -333,7 +333,7 @@ describe('liquidity providing', () => {
 		// assert(lpPosition.lpShares.eq(new BN(0)));
 		assert(user.positions[0].baseAssetAmount.eq(new BN(10000000000000))); // lp is long
 		assert(user.positions[0].quoteAssetAmount.eq(new BN(2469)));
-		assert(user.positions[0].unsettledPnl.eq(new BN(900)));
+		// assert(user.positions[0].unsettledPnl.eq(new BN(900)));
 		// remainder goes into the last
 		assert(
 			user.positions[0].lastNetBaseAssetAmountPerLp.eq(new BN(100000000000))
@@ -439,13 +439,13 @@ describe('liquidity providing', () => {
 		console.log(
 			position.baseAssetAmount.toString(),
 			position.quoteAssetAmount.toString(),
-			position.unsettledPnl.toString(),
+			// position.unsettledPnl.toString(),
 			position.lpShares.toString()
 		);
 
 		assert(position.baseAssetAmount.lt(ZERO));
 		assert(position.quoteAssetAmount.gt(ZERO));
-		assert(position.unsettledPnl.gt(ZERO)); // fees
+		// assert(position.unsettledPnl.gt(ZERO)); // fees
 		assert(position.lpShares.gt(ZERO));
 
 		console.log('removing liquidity...');
@@ -669,11 +669,11 @@ describe('liquidity providing', () => {
 			lpTokenAmount.toString(),
 			'baa, qaa',
 			lpPosition.baseAssetAmount.toString(),
-			lpPosition.quoteAssetAmount.toString(),
-			lpPosition.unsettledPnl.toString()
+			lpPosition.quoteAssetAmount.toString()
+			// lpPosition.unsettledPnl.toString()
 		);
 
-		assert(lpPosition.unsettledPnl.eq(new BN(-226921))); // get paid fees
+		// assert(lpPosition.unsettledPnl.eq(new BN(-226921))); // get paid fees
 		assert(lpTokenAmount.eq(new BN(0)));
 		assert(user.positions[0].baseAssetAmount.eq(new BN('100000000000000'))); // lp is long
 		assert(user.positions[0].quoteAssetAmount.eq(new BN(22781)));
@@ -749,16 +749,18 @@ describe('liquidity providing', () => {
 
 		console.log('lp tokens', lpTokenAmount.toString());
 		console.log(
-			'baa, qaa, upnl',
+			'baa, qaa, qea',
 			lpPosition.baseAssetAmount.toString(),
 			lpPosition.quoteAssetAmount.toString(),
-			lpPosition.unsettledPnl.toString()
+			lpPosition.quoteEntryAmount.toString()
+
+			// lpPosition.unsettledPnl.toString()
 		);
 
 		assert(lpTokenAmount.eq(ZERO));
 		assert(user.positions[0].baseAssetAmount.eq(new BN('-100000000000000'))); // lp is short
 		assert(user.positions[0].quoteAssetAmount.eq(new BN('27826')));
-		assert(lpPosition.unsettledPnl.eq(new BN(10111223))); // get paid fees
+		// assert(lpPosition.unsettledPnl.eq(new BN(10111223))); // get paid fees
 
 		console.log('closing trader...');
 		await adjustOraclePostSwap(tradeSize, SwapDirection.ADD, market);
@@ -782,10 +784,10 @@ describe('liquidity providing', () => {
 			'lp position for market',
 			lpPosition2.marketIndex.toNumber(),
 			':\n',
-			'baa, qaa, upnl',
+			'baa, qaa, qea',
 			lpPosition2.baseAssetAmount.toString(),
 			lpPosition2.quoteAssetAmount.toString(),
-			lpPosition2.unsettledPnl.toString()
+			lpPosition2.quoteEntryAmount.toString()
 		);
 		assert(lpPosition2.baseAssetAmount.eq(ZERO));
 
