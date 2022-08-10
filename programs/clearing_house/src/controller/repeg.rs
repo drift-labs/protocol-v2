@@ -142,7 +142,7 @@ pub fn update_amm(
         oracle_price_data,
         Some(mark_price_after),
     )?;
-    
+
     if is_oracle_valid {
         // cannot update market
         market.amm.last_update_slot = clock_slot;

@@ -297,9 +297,16 @@ pub fn update_oracle_price_twap(
     // sanity check
     let oracle_price_twap: i128;
     if capped_oracle_update_price > 0 && oracle_price > 0 {
-        oracle_price_twap = calculate_new_oracle_price_twap(amm, now, capped_oracle_update_price)?;
+        oracle_price_twap = calculate_new_oracle_price_twap(
+            amm,
+            now,
+            capped_oracle_update_price,
+            amm.funding_period,
+        )?;
 
-        //amm.last_oracle_mark_spread = precomputed_mark_price
+        let oracle_price_twap_5min =
+            calculate_new_oracle_price_twap(amm, now, capped_oracle_update_price, 60 * 5)?;
+
         amm.last_oracle_normalised_price = capped_oracle_update_price;
         amm.last_oracle_price = oracle_price_data.price;
         amm.last_oracle_conf_pct = oracle_price_data
@@ -312,6 +319,7 @@ pub fn update_oracle_price_twap(
         amm.last_oracle_mark_spread_pct =
             calculate_oracle_mark_spread_pct(amm, oracle_price_data, Some(mark_price))?;
 
+        amm.last_oracle_price_twap_5min = oracle_price_twap_5min;
         amm.last_oracle_price_twap = oracle_price_twap;
         amm.last_oracle_price_twap_ts = now;
     } else {
@@ -325,7 +333,19 @@ pub fn calculate_new_oracle_price_twap(
     amm: &AMM,
     now: i64,
     oracle_price: i128,
+    period: i64,
 ) -> ClearingHouseResult<i128> {
+    let (last_mark_twap, last_oracle_twap) = if period == amm.funding_period {
+        (amm.last_mark_price_twap, amm.last_oracle_price_twap)
+    } else if period == 60 * 5 {
+        (
+            amm.last_mark_price_twap_5min,
+            amm.last_oracle_price_twap_5min,
+        )
+    } else {
+        (0, 0)
+    };
+
     let since_last = cast_to_i128(max(
         1,
         now.checked_sub(amm.last_oracle_price_twap_ts)
@@ -333,7 +353,7 @@ pub fn calculate_new_oracle_price_twap(
     ))?;
     let from_start = max(
         0,
-        cast_to_i128(amm.funding_period)?
+        cast_to_i128(period)?
             .checked_sub(since_last)
             .ok_or_else(math_error!())?,
     );
@@ -352,7 +372,7 @@ pub fn calculate_new_oracle_price_twap(
 
         let from_start_valid = max(
             1,
-            cast_to_i128(amm.funding_period)?
+            cast_to_i128(period)?
                 .checked_sub(since_last_valid)
                 .ok_or_else(math_error!())?,
         );
@@ -368,7 +388,7 @@ pub fn calculate_new_oracle_price_twap(
 
     let new_twap = calculate_weighted_average(
         interpolated_oracle_price,
-        amm.last_oracle_price_twap,
+        last_oracle_twap,
         since_last,
         from_start,
     )?;
@@ -638,7 +658,8 @@ pub fn calculate_oracle_mark_spread(
         None => cast_to_i128(amm.mark_price()?)?,
     };
 
-    let oracle_price = oracle_price_data.price;
+    // let oracle_price = oracle_price_data.price;
+    let oracle_price = amm.last_oracle_price_twap_5min;
 
     let price_spread = mark_price
         .checked_sub(oracle_price)

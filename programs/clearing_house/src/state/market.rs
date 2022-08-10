@@ -164,6 +164,7 @@ pub struct AMM {
     pub last_oracle_delay: i64,
     pub last_oracle_normalised_price: i128,
     pub last_oracle_price_twap: i128,
+    pub last_oracle_price_twap_5min: i128,
     pub last_oracle_price_twap_ts: i64,
     pub last_oracle_mark_spread_pct: i128,
 
@@ -189,6 +190,7 @@ pub struct AMM {
 
     pub mark_std: u64,
     pub last_mark_price_twap: u128,
+    pub last_mark_price_twap_5min: u128,
     pub last_mark_price_twap_ts: i64,
 
     // trade constraints
