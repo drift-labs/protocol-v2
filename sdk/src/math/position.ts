@@ -140,7 +140,7 @@ export function calculateUnsettledPnl(
 	const pnl = calculatePositionPNL(
 		market,
 		marketPosition,
-		false,
+		true,
 		oraclePriceData
 	);
 
