@@ -12,7 +12,6 @@ import {
 import { calculateEntryPrice } from './math/position';
 import {
 	MARK_PRICE_PRECISION,
-	PEG_PRECISION,
 	AMM_TO_QUOTE_PRECISION_RATIO,
 	ZERO,
 	TEN_THOUSAND,
@@ -37,8 +36,6 @@ import {
 	calculateTradeSlippage,
 	BN,
 	BankAccount,
-	calculateSwapOutput,
-	SwapDirection,
 } from '.';
 import { getTokenAmount } from './math/bankBalance';
 import { OraclePriceData } from './oracles/types';
@@ -130,11 +127,10 @@ export class ClearingHouseUser {
 			openBids: ZERO,
 			openAsks: ZERO,
 			lpShares: ZERO,
-			lpBaseAssetAmount: ZERO,
-			lpQuoteAssetAmount: ZERO,
-			lastCumulativeFeePerLp: ZERO,
-			lastCumulativeNetBaseAssetAmountPerLp: ZERO,
-			lastCumulativeFundingPaymentPerLp: ZERO,
+			lastFeePerLp: ZERO,
+			lastNetBaseAssetAmountPerLp: ZERO,
+			lastNetQuoteAssetAmountPerLp: ZERO,
+			lastUnsettledPnlPerLp: ZERO,
 		};
 	}
 
@@ -170,101 +166,102 @@ export class ClearingHouseUser {
 		return userAccountRPCResponse.value !== null;
 	}
 
-	/**
-	 * calculates the market position if the lp position was settled
-	 * @returns : userPosition
-	 */
-	public getSettledLPPosition(marketIndex: BN): UserPosition {
-		const position = this.getUserPosition(marketIndex);
-		const market = this.clearingHouse.getMarketAccount(position.marketIndex);
-		const nShares = position.lpShares;
-		const totalLpTokens = market.amm.sqrtK;
+	// TODO
+	// /**
+	//  * calculates the market position if the lp position was settled
+	//  * @returns : userPosition
+	//  */
+	// public getSettledLPPosition(marketIndex: BN): UserPosition {
+	// 	const position = this.getUserPosition(marketIndex);
+	// 	const market = this.clearingHouse.getMarketAccount(position.marketIndex);
+	// 	const nShares = position.lpShares;
+	// 	const totalLpTokens = market.amm.sqrtK;
 
-		// payments
-		const feePayment = market.amm.cumulativeFeePerLp
-			.sub(position.lastCumulativeFeePerLp)
-			.mul(nShares)
-			.div(AMM_RESERVE_PRECISION);
+	// 	// payments
+	// 	const feePayment = market.amm.cumulativeFeePerLp
+	// 		.sub(position.lastCumulativeFeePerLp)
+	// 		.mul(nShares)
+	// 		.div(AMM_RESERVE_PRECISION);
 
-		const fundingPayment = market.amm.cumulativeFundingPaymentPerLp
-			.sub(position.lastCumulativeFundingPaymentPerLp)
-			.mul(nShares)
-			.div(AMM_RESERVE_PRECISION);
+	// 	const fundingPayment = market.amm.cumulativeFundingPaymentPerLp
+	// 		.sub(position.lastCumulativeFundingPaymentPerLp)
+	// 		.mul(nShares)
+	// 		.div(AMM_RESERVE_PRECISION);
 
-		// market position
-		const ammNetBAAPerLP = position.lastCumulativeNetBaseAssetAmountPerLp.sub(
-			market.amm.cumulativeNetBaseAssetAmountPerLp
-		);
+	// 	// market position
+	// 	const ammNetBAAPerLP = position.lastCumulativeNetBaseAssetAmountPerLp.sub(
+	// 		market.amm.cumulativeNetBaseAssetAmountPerLp
+	// 	);
 
-		let marketBAA = new BN(0);
-		let marketQAA = new BN(0);
-		let settlePnl = new BN(0);
+	// 	let marketBAA = new BN(0);
+	// 	let marketQAA = new BN(0);
+	// 	let settlePnl = new BN(0);
 
-		if (!ammNetBAAPerLP.eq(ZERO)) {
-			const BAA = ammNetBAAPerLP.mul(nShares).div(AMM_RESERVE_PRECISION);
-			const totalNetBAA = ammNetBAAPerLP
-				.mul(totalLpTokens)
-				.div(AMM_RESERVE_PRECISION);
+	// 	if (!ammNetBAAPerLP.eq(ZERO)) {
+	// 		const BAA = ammNetBAAPerLP.mul(nShares).div(AMM_RESERVE_PRECISION);
+	// 		const totalNetBAA = ammNetBAAPerLP
+	// 			.mul(totalLpTokens)
+	// 			.div(AMM_RESERVE_PRECISION);
 
-			let swapDirection;
-			if (ammNetBAAPerLP.gt(ZERO)) {
-				swapDirection = SwapDirection.REMOVE;
-			} else {
-				swapDirection = SwapDirection.ADD;
-			}
+	// 		let swapDirection;
+	// 		if (ammNetBAAPerLP.gt(ZERO)) {
+	// 			swapDirection = SwapDirection.REMOVE;
+	// 		} else {
+	// 			swapDirection = SwapDirection.ADD;
+	// 		}
 
-			const [_, newQAR] = calculateSwapOutput(
-				market.amm.baseAssetReserve,
-				totalNetBAA.abs(),
-				swapDirection,
-				market.amm.sqrtK.mul(market.amm.sqrtK)
-			);
+	// 		const [_, newQAR] = calculateSwapOutput(
+	// 			market.amm.baseAssetReserve,
+	// 			totalNetBAA.abs(),
+	// 			swapDirection,
+	// 			market.amm.sqrtK.mul(market.amm.sqrtK)
+	// 		);
 
-			const netQAADelta = newQAR.sub(market.amm.quoteAssetReserve).abs();
+	// 		const netQAADelta = newQAR.sub(market.amm.quoteAssetReserve).abs();
 
-			const QAA = netQAADelta
-				.mul(nShares)
-				.div(totalLpTokens)
-				.mul(market.amm.pegMultiplier)
-				.mul(QUOTE_PRECISION)
-				.div(AMM_RESERVE_PRECISION)
-				.div(PEG_PRECISION);
+	// 		const QAA = netQAADelta
+	// 			.mul(nShares)
+	// 			.div(totalLpTokens)
+	// 			.mul(market.amm.pegMultiplier)
+	// 			.mul(QUOTE_PRECISION)
+	// 			.div(AMM_RESERVE_PRECISION)
+	// 			.div(PEG_PRECISION);
 
-			if (
-				BAA.abs().gte(market.amm.baseAssetAmountStepSize) &&
-				QAA.gte(market.amm.minimumQuoteAssetTradeSize)
-			) {
-				marketQAA = QAA;
-				marketBAA = BAA;
-			} else {
-				settlePnl = market.amm.minimumQuoteAssetTradeSize.mul(new BN(-1));
-			}
-		}
+	// 		if (
+	// 			BAA.abs().gte(market.amm.baseAssetAmountStepSize) &&
+	// 			QAA.gte(market.amm.minimumQuoteAssetTradeSize)
+	// 		) {
+	// 			marketQAA = QAA;
+	// 			marketBAA = BAA;
+	// 		} else {
+	// 			settlePnl = market.amm.minimumQuoteAssetTradeSize.mul(new BN(-1));
+	// 		}
+	// 	}
 
-		const totalPayment = feePayment.add(fundingPayment).add(settlePnl);
+	// 	const totalPayment = feePayment.add(fundingPayment).add(settlePnl);
 
-		const marketPosition: UserPosition = {
-			baseAssetAmount: position.baseAssetAmount,
-			quoteAssetAmount: position.quoteAssetAmount,
-			lpBaseAssetAmount: marketBAA,
-			lpQuoteAssetAmount: marketQAA,
-			lastCumulativeFeePerLp: market.amm.cumulativeFeePerLp,
-			lastCumulativeFundingPaymentPerLp:
-				market.amm.cumulativeFundingPaymentPerLp,
-			lastCumulativeNetBaseAssetAmountPerLp:
-				market.amm.cumulativeNetBaseAssetAmountPerLp,
-			lastCumulativeFundingRate: position.lastCumulativeFundingRate,
-			unsettledPnl: position.unsettledPnl.add(totalPayment),
-			quoteEntryAmount: position.quoteEntryAmount,
-			lpShares: position.lpShares,
-			marketIndex: position.marketIndex,
-			openOrders: position.openOrders,
-			openAsks: ZERO,
-			openBids: ZERO,
-		};
+	// 	const marketPosition: UserPosition = {
+	// 		baseAssetAmount: position.baseAssetAmount,
+	// 		quoteAssetAmount: position.quoteAssetAmount,
+	// 		lpBaseAssetAmount: marketBAA,
+	// 		lpQuoteAssetAmount: marketQAA,
+	// 		lastCumulativeFeePerLp: market.amm.cumulativeFeePerLp,
+	// 		lastCumulativeFundingPaymentPerLp:
+	// 			market.amm.cumulativeFundingPaymentPerLp,
+	// 		lastCumulativeNetBaseAssetAmountPerLp:
+	// 			market.amm.cumulativeNetBaseAssetAmountPerLp,
+	// 		lastCumulativeFundingRate: position.lastCumulativeFundingRate,
+	// 		unsettledPnl: position.unsettledPnl.add(totalPayment),
+	// 		quoteEntryAmount: position.quoteEntryAmount,
+	// 		lpShares: position.lpShares,
+	// 		marketIndex: position.marketIndex,
+	// 		openOrders: position.openOrders,
+	// 		openAsks: ZERO,
+	// 		openBids: ZERO,
+	// 	};
 
-		return marketPosition;
-	}
+	// 	return marketPosition;
+	// }
 
 	/**
 	 * calculates Buying Power = FC * MAX_LEVERAGE
@@ -734,11 +731,10 @@ export class ClearingHouseUser {
 			openBids: new BN(0),
 			openAsks: new BN(0),
 			lpShares: ZERO,
-			lpBaseAssetAmount: ZERO,
-			lpQuoteAssetAmount: ZERO,
-			lastCumulativeFeePerLp: ZERO,
-			lastCumulativeNetBaseAssetAmountPerLp: ZERO,
-			lastCumulativeFundingPaymentPerLp: ZERO,
+			lastFeePerLp: ZERO,
+			lastNetBaseAssetAmountPerLp: ZERO,
+			lastNetQuoteAssetAmountPerLp: ZERO,
+			lastUnsettledPnlPerLp: ZERO,
 		};
 
 		if (proposedBaseAssetAmount.eq(ZERO)) return new BN(-1);

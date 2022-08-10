@@ -7,7 +7,7 @@ use solana_program::msg;
 use crate::controller;
 use crate::controller::amm::SwapDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
-use crate::math::casting::{cast, cast_to_i128, cast_to_u128};
+use crate::math::casting::{cast, cast_to_i128};
 use crate::math::constants::{AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128};
 use crate::math::orders::calculate_quote_asset_amount_for_maker_order;
 use crate::math::position::{
@@ -260,6 +260,8 @@ pub fn update_position_and_market(
     Ok(pnl)
 }
 
+use crate::math::lp::{get_proportion_i128, get_proportion_u128};
+
 pub fn update_user_and_market_position(
     position: &mut MarketPosition,
     market: &mut Market,
@@ -268,52 +270,32 @@ pub fn update_user_and_market_position(
 ) -> ClearingHouseResult<i128> {
     // update user position
     let pnl = update_position_and_market(position, market, delta)?;
-
-    // pay the lps and update the market fee amount
-    let amm_chunk = fee_to_market.checked_div(10).ok_or_else(math_error!())?;
-    let fee_slice = cast_to_u128(
-        fee_to_market
-            .checked_sub(amm_chunk)
-            .ok_or_else(math_error!())?
-            .checked_mul(AMM_RESERVE_PRECISION_I128)
-            .ok_or_else(math_error!())?
-            .checked_div(cast_to_i128(market.amm.sqrt_k)?)
-            .ok_or_else(math_error!())?,
-    )?;
-
-    market.amm.cumulative_fee_per_lp = market
-        .amm
-        .cumulative_fee_per_lp
-        .checked_add(fee_slice)
-        .ok_or_else(math_error!())?;
-
-    let n_shares = cast_to_i128(market.amm.user_lp_shares)?;
     let total_lp_shares = market.amm.sqrt_k;
 
-    let lp_delta_base = delta
-        .base_asset_amount
-        .checked_mul(n_shares)
-        .ok_or_else(math_error!())?
-        .checked_div(cast_to_i128(total_lp_shares)?)
-        .ok_or_else(math_error!())?;
-
     // update Market per lp position
+    let lp_delta_base = get_proportion_i128(
+        delta.base_asset_amount,
+        market.amm.user_lp_shares,
+        total_lp_shares,
+    )?;
+    let per_lp_delta_base = -get_proportion_i128(
+        delta.base_asset_amount,
+        AMM_RESERVE_PRECISION,
+        total_lp_shares,
+    )?;
+
     let per_lp_position_delta = PositionDelta {
-        base_asset_amount: -delta
-            .base_asset_amount
-            .checked_mul(AMM_RESERVE_PRECISION_I128)
-            .ok_or_else(math_error!())?
-            .checked_div(cast_to_i128(total_lp_shares)?)
-            .ok_or_else(math_error!())?,
-        quote_asset_amount: delta
-            .quote_asset_amount
-            .checked_mul(AMM_RESERVE_PRECISION)
-            .ok_or_else(math_error!())?
-            .checked_div(total_lp_shares)
-            .ok_or_else(math_error!())?,
+        base_asset_amount: per_lp_delta_base,
+        quote_asset_amount: get_proportion_u128(
+            delta.quote_asset_amount,
+            AMM_RESERVE_PRECISION,
+            total_lp_shares,
+        )?,
     };
     let per_lp_pnl = update_amm_position(market, &per_lp_position_delta, true)?;
 
+    // 1/5 of fee auto goes to market
+    // the rest goes to lps/market proportional
     let lp_fee = (fee_to_market - (fee_to_market / 5)) // todo: 80% retained
         .checked_mul(cast_to_i128(market.amm.user_lp_shares)?)
         .ok_or_else(math_error!())?
@@ -345,11 +327,16 @@ pub fn update_user_and_market_position(
         )
         .ok_or_else(math_error!())?;
 
-    // update Market implicit position
+    // Update AMM position
+    let amm_baa = delta
+        .base_asset_amount
+        .checked_sub(lp_delta_base)
+        .ok_or_else(math_error!())?;
+
     let amm_pnl = update_amm_position(
         market,
         &PositionDelta {
-            base_asset_amount: -delta.base_asset_amount,
+            base_asset_amount: -amm_baa,
             quote_asset_amount: delta.quote_asset_amount,
         },
         false,
@@ -362,28 +349,16 @@ pub fn update_user_and_market_position(
         .checked_add(amm_pnl.checked_add(amm_fee).ok_or_else(math_error!())?)
         .ok_or_else(math_error!())?;
 
-    // Update AMM and LPs net position
     market.amm.net_base_asset_amount = market
         .amm
         .net_base_asset_amount
-        .checked_add(
-            delta
-                .base_asset_amount
-                .checked_sub(lp_delta_base)
-                .ok_or_else(math_error!())?,
-        )
+        .checked_add(amm_baa)
         .ok_or_else(math_error!())?;
 
     market.amm.net_unsettled_lp_base_asset_amount = market
         .amm
         .net_unsettled_lp_base_asset_amount
         .checked_add(lp_delta_base)
-        .ok_or_else(math_error!())?;
-
-    market.amm.cumulative_net_base_asset_amount_per_lp = market
-        .amm
-        .cumulative_net_base_asset_amount_per_lp
-        .checked_add(per_lp_position_delta.base_asset_amount)
         .ok_or_else(math_error!())?;
 
     Ok(pnl)

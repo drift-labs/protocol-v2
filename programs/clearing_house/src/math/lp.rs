@@ -1,50 +1,111 @@
 use crate::error::ClearingHouseResult;
 use crate::math::amm::calculate_swap_output;
 use crate::math::casting::cast_to_i128;
-use crate::math::constants::AMM_RESERVE_PRECISION_I128;
 use crate::math::position::swap_direction_to_close_position;
 use crate::math_error;
 use crate::state::market::Market;
 use crate::state::market::AMM;
 use crate::state::user::MarketPosition;
-// use std::cmp::max;
 use solana_program::msg;
+use crate::math::constants::AMM_RESERVE_PRECISION_I128;
+use crate::math::constants::AMM_RESERVE_PRECISION;
+use crate::math::orders::standardize_base_asset_amount_with_remainder_i128;
 
-#[derive(Debug)]
 pub struct LPMetrics {
-    pub fee_payment: i128,
-    pub funding_payment: i128,
+    pub base_asset_amount: i128, 
+    pub quote_asset_amount: u128, 
+    pub remainder_base_asset_amount: i128, 
+    pub remainder_quote_asset_amount: u128, 
     pub unsettled_pnl: i128,
-    pub base_asset_amount: i128,
-    pub quote_asset_amount: u128,
 }
 
-pub fn get_lp_metrics(position: &MarketPosition, amm: &AMM) -> ClearingHouseResult<LPMetrics> {
-    let total_lp_shares = amm.sqrt_k;
+pub fn compute_settle_lp_metrics(
+    position: &MarketPosition,
+    market: &Market,
+) -> ClearingHouseResult<LPMetrics> {
+    let amm = &market.amm;
     let n_shares = position.lp_shares;
     let n_shares_i128 = cast_to_i128(n_shares)?;
 
     // give them fees
-    let fee_payment = amm
+    let unsettled_pnl = amm
         .market_position_per_lp
         .unsettled_pnl
-        .checked_sub(position.last_cumulative_fee_per_lp)
+        .checked_sub(position.last_unsettled_pnl_per_lp)
         .ok_or_else(math_error!())?
         .checked_mul(n_shares_i128)
         .ok_or_else(math_error!())?
         .checked_div(AMM_RESERVE_PRECISION_I128)
         .ok_or_else(math_error!())?;
 
+    let (base_asset_amount, quote_asset_amount) = calculate_settled_lp_base_quote(amm, position)?;
+
+    // stepsize it
+    let (standardized_base_asset_amount, remainder_base_asset_amount) =
+        standardize_base_asset_amount_with_remainder_i128(
+            base_asset_amount,
+            amm.base_asset_amount_step_size,
+        )?;
+
+    let _min_qaa = amm.minimum_quote_asset_trade_size; // todo: uses reserve precision -- see note:
+    let min_baa = amm.base_asset_amount_step_size;
+
+    // note: since pnl may go into the qaa of a position its not really fair to ensure qaa >= min_qaa
+    let (remainder_base_asset_amount, remainder_quote_asset_amount) =
+        if standardized_base_asset_amount.unsigned_abs() >= min_baa {
+            // compute quote amount in remainder
+            let remainder_ratio = remainder_base_asset_amount
+                .unsigned_abs()
+                .checked_mul(AMM_RESERVE_PRECISION)
+                .ok_or_else(math_error!())?
+                .checked_div(base_asset_amount.unsigned_abs())
+                .ok_or_else(math_error!())?;
+
+            // msg!("remainder ratio: {}", remainder_ratio);
+            let remainder_quote_asset_amount = quote_asset_amount
+                .checked_mul(remainder_ratio)
+                .ok_or_else(math_error!())?
+                .checked_div(AMM_RESERVE_PRECISION)
+                .ok_or_else(math_error!())?;
+
+            (remainder_base_asset_amount, remainder_quote_asset_amount)
+        } else {
+            (base_asset_amount, quote_asset_amount)
+        };
+
+    let standardized_quote_asset_amount = quote_asset_amount
+        .checked_sub(remainder_quote_asset_amount)
+        .ok_or_else(math_error!())?;
+
+    let standardized_base_asset_amount = base_asset_amount
+        .checked_sub(remainder_base_asset_amount)
+        .ok_or_else(math_error!())?;
+
+    let lp_metrics = LPMetrics {
+        base_asset_amount: standardized_base_asset_amount,
+        quote_asset_amount: standardized_quote_asset_amount,
+        remainder_base_asset_amount,
+        remainder_quote_asset_amount,
+        unsettled_pnl
+    };
+
+    Ok(lp_metrics)
+}
+
+pub fn calculate_settled_lp_base_quote(
+    amm: &AMM,
+    position: &MarketPosition,
+) -> ClearingHouseResult<(i128, u128)> {
+    let total_lp_shares = amm.sqrt_k;
+    let n_shares = position.lp_shares;
+    let n_shares_i128 = cast_to_i128(n_shares)?;
+
     // give them slice of the damm market position
     let amm_net_base_asset_amount_per_lp = amm
         .market_position_per_lp
         .base_asset_amount
-        .checked_sub(position.last_cumulative_net_base_asset_amount_per_lp)
+        .checked_sub(position.last_net_base_asset_amount_per_lp)
         .ok_or_else(math_error!())?;
-
-    let mut market_base_asset_amount = 0;
-    let mut market_quote_asset_amount = 0;
-    let mut unsettled_pnl = 0;
 
     let base_asset_amount = amm_net_base_asset_amount_per_lp
         .checked_mul(n_shares_i128)
@@ -53,29 +114,25 @@ pub fn get_lp_metrics(position: &MarketPosition, amm: &AMM) -> ClearingHouseResu
         .ok_or_else(math_error!())?;
 
     let amm_net_quote_asset_amount_per_lp = if amm.market_position_per_lp.base_asset_amount.signum()
-        == position
-            .last_cumulative_net_base_asset_amount_per_lp
-            .signum()
+        == position.last_net_base_asset_amount_per_lp.signum()
     {
-        if position
-            .last_cumulative_net_base_asset_amount_per_lp
-            .unsigned_abs()
+        if position.last_net_base_asset_amount_per_lp.unsigned_abs()
             > amm.market_position_per_lp.base_asset_amount.unsigned_abs()
         {
             position
-                .last_cumulative_net_quote_asset_amount_per_lp
+                .last_net_quote_asset_amount_per_lp
                 .checked_sub(amm.market_position_per_lp.quote_asset_amount)
                 .ok_or_else(math_error!())?
         } else {
             amm.market_position_per_lp
                 .quote_asset_amount
-                .checked_sub(position.last_cumulative_net_quote_asset_amount_per_lp)
+                .checked_sub(position.last_net_quote_asset_amount_per_lp)
                 .ok_or_else(math_error!())?
         }
     } else {
         amm.market_position_per_lp
             .quote_asset_amount
-            .checked_add(position.last_cumulative_net_quote_asset_amount_per_lp)
+            .checked_add(position.last_net_quote_asset_amount_per_lp)
             .ok_or_else(math_error!())?
     };
 
@@ -85,41 +142,7 @@ pub fn get_lp_metrics(position: &MarketPosition, amm: &AMM) -> ClearingHouseResu
         .checked_div(total_lp_shares)
         .ok_or_else(math_error!())?;
 
-    let min_qaa = amm.minimum_quote_asset_trade_size; // todo: uses reserve precision
-    let min_baa = amm.base_asset_amount_step_size;
-
-    if base_asset_amount.unsigned_abs() >= min_baa {
-        //&& quote_asset_amount >= min_qaa {
-        market_quote_asset_amount = quote_asset_amount;
-        market_base_asset_amount = base_asset_amount;
-    } else {
-        msg!(
-            "Warning: lp market position too small: {} {} :: {} {}",
-            base_asset_amount,
-            min_baa,
-            quote_asset_amount,
-            min_qaa
-        );
-
-        // no market position bc too small so give them negative upnl
-        // similar to closing their small position
-        unsettled_pnl = cast_to_i128(quote_asset_amount)?
-            .checked_add(1)
-            .ok_or_else(math_error!())?
-            .checked_mul(-1)
-            .ok_or_else(math_error!())?;
-    }
-
-    let metrics = LPMetrics {
-        fee_payment,
-        funding_payment: 0,
-        base_asset_amount: market_base_asset_amount,
-        quote_asset_amount: market_quote_asset_amount,
-        unsettled_pnl,
-    };
-    msg!("lp metrics: {:#?}", metrics);
-
-    Ok(metrics)
+    Ok((base_asset_amount, quote_asset_amount))
 }
 
 pub fn calculate_swap_quote_reserve_delta(
@@ -155,6 +178,20 @@ pub fn get_lp_market_position_margin(
     // worse case market position
     // max ask: (sqrtk*1.4142 - base asset reserves) * lp share
     // max bid: (base asset reserves - sqrtk/1.4142) * lp share
+
+    // TODO: first compute 'would be' funding payment
+    // let unrealized_funding = calculate_funding_payment(
+    //     if market_position.base_asset_amount > 0 {
+    //         market.amm.cumulative_funding_rate_long
+    //     } else {
+    //         market.amm.cumulative_funding_rate_short
+    //     },
+    //     market_position,
+    // )?
+    // .checked_div(AMM_TO_QUOTE_PRECISION_RATIO_I128)
+    // .ok_or_else(math_error!())?;
+
+    // TODO: compute would be 'settled position' function here
 
     // TODO: make this a constant?
     let sqrt_2_percision = 10_000_u128;
@@ -264,8 +301,9 @@ pub fn get_proportion_u128(
 mod test {
     use super::*;
     use crate::controller::amm::SwapDirection;
-    use crate::math::constants::{AMM_RESERVE_PRECISION, QUOTE_PRECISION};
-    use crate::math::{constants::PEG_PRECISION, position::calculate_base_asset_value};
+    use crate::math::constants::AMM_RESERVE_PRECISION;
+    use crate::math::position::calculate_base_asset_value;
+
     #[test]
     fn test_margin_requirements_user_long() {
         let position = MarketPosition {
@@ -456,98 +494,99 @@ mod test {
     //     assert!(unbalanced_position_base_asset_value > balanced_position_base_asset_value);
     // }
 
-    #[test]
-    fn test_no_change_metrics() {
-        let position = MarketPosition {
-            lp_shares: 100,
-            last_cumulative_net_base_asset_amount_per_lp: 100,
-            ..MarketPosition::default()
-        };
-        let amm = AMM {
-            cumulative_net_base_asset_amount_per_lp: 100,
-            sqrt_k: 200,
-            ..AMM::default()
-        };
+    //     #[test]
+    //     fn test_no_change_metrics() {
+    //         let position = MarketPosition {
+    //             lp_shares: 100,
+    //             last_net_base_asset_amount_per_lp: 100,
+    //             ..MarketPosition::default()
+    //         };
+    //         let per_lp_position = MarketPosition {
+    //             base_asset_amount: 100,
+    //             ..MarketPosition::default()
+    //         };
+    //         let amm = AMM {
+    //             market_position_per_lp: per_lp_position,
+    //             sqrt_k: 200,
+    //             ..AMM::default()
+    //         };
 
-        let metrics = get_lp_metrics(&position, &amm).unwrap();
+    //         let metrics = get_lp_metrics(&position, &amm).unwrap();
 
-        assert_eq!(metrics.base_asset_amount, 0);
-        assert_eq!(metrics.unsettled_pnl, 0); // no neg upnl
-    }
+    //         assert_eq!(metrics.base_asset_amount, 0);
+    //         assert_eq!(metrics.unsettled_pnl, 0); // no neg upnl
+    //     }
 
-    #[test]
-    fn test_too_small_metrics() {
-        let position = MarketPosition {
-            lp_shares: 100 * AMM_RESERVE_PRECISION,
-            last_cumulative_net_base_asset_amount_per_lp: 70 * AMM_RESERVE_PRECISION_I128,
-            ..MarketPosition::default()
-        };
+    //     #[test]
+    //     fn test_too_small_metrics() {
+    //         let position = MarketPosition {
+    //             lp_shares: 100 * AMM_RESERVE_PRECISION,
+    //             last_net_base_asset_amount_per_lp: 70 * AMM_RESERVE_PRECISION_I128,
+    //             ..MarketPosition::default()
+    //         };
 
-        let amm = AMM {
-            // cumulative_net_base_asset_amount_per_lp: 100 * AMM_RESERVE_PRECISION_I128,
-            net_base_asset_amount: 100 * AMM_RESERVE_PRECISION_I128, // users went long
-            market_position_per_lp: MarketPosition {
-                base_asset_amount: 71 * AMM_RESERVE_PRECISION_I128, //todo
-                quote_asset_amount: 0,
-                ..MarketPosition::default()
-            },
-            peg_multiplier: 1,
-            sqrt_k: 900 * AMM_RESERVE_PRECISION,
-            base_asset_amount_step_size: 1000 * AMM_RESERVE_PRECISION, // min size is big
-            minimum_quote_asset_trade_size: 100 * AMM_RESERVE_PRECISION,
-            ..AMM::default()
-        };
+    //         let amm = AMM {
+    //             // cumulative_net_base_asset_amount_per_lp: 100 * AMM_RESERVE_PRECISION_I128,
+    //             net_base_asset_amount: 100 * AMM_RESERVE_PRECISION_I128, // users went long
+    //             market_position_per_lp: MarketPosition {
+    //                 base_asset_amount: 71 * AMM_RESERVE_PRECISION_I128, //todo
+    //                 quote_asset_amount: 0,
+    //                 ..MarketPosition::default()
+    //             },
+    //             peg_multiplier: 1,
+    //             sqrt_k: 900 * AMM_RESERVE_PRECISION,
+    //             base_asset_amount_step_size: 1000 * AMM_RESERVE_PRECISION, // min size is big
+    //             minimum_quote_asset_trade_size: 100 * AMM_RESERVE_PRECISION,
+    //             ..AMM::default()
+    //         };
 
-        let metrics = get_lp_metrics(&position, &amm).unwrap();
+    //         let metrics = get_lp_metrics(&position, &amm).unwrap();
 
-        println!("{:#?}", metrics);
-        assert!(metrics.unsettled_pnl < 0);
-        assert_eq!(metrics.base_asset_amount, 0);
-    }
+    //         println!("{:#?}", metrics);
+    //         assert!(metrics.unsettled_pnl < 0);
+    //         assert_eq!(metrics.base_asset_amount, 0);
+    //     }
 
-    #[test]
-    fn test_simple_metrics() {
-        let position = MarketPosition {
-            lp_shares: 1000 * AMM_RESERVE_PRECISION,
-            last_cumulative_net_base_asset_amount_per_lp: 0,
-            ..MarketPosition::default()
-        };
-        let init_reserves = 2000 * AMM_RESERVE_PRECISION;
-        let amm = AMM {
-            market_position_per_lp: MarketPosition {
-                base_asset_amount: -100 * AMM_RESERVE_PRECISION_I128,
-                quote_asset_amount: 100 * QUOTE_PRECISION,
-                unsettled_pnl: 100,
-                ..MarketPosition::default()
-            },
-            cumulative_net_base_asset_amount_per_lp: 100 * AMM_RESERVE_PRECISION_I128,
-            cumulative_fee_per_lp: 100,
-            // cumulative_funding_payment_per_lp: 100,
-            last_funding_rate_long: 100,
-            sqrt_k: init_reserves,
-            base_asset_reserve: init_reserves,
-            quote_asset_reserve: init_reserves,
-            peg_multiplier: PEG_PRECISION,
-            base_asset_amount_step_size: 1,
-            minimum_quote_asset_trade_size: 1,
-            ..AMM::default()
-        };
+    //     #[test]
+    //     fn test_simple_metrics() {
+    //         let position = MarketPosition {
+    //             lp_shares: 1000 * AMM_RESERVE_PRECISION,
+    //             last_net_base_asset_amount_per_lp: 0,
+    //             ..MarketPosition::default()
+    //         };
+    //         let init_reserves = 2000 * AMM_RESERVE_PRECISION;
+    //         let amm = AMM {
+    //             market_position_per_lp: MarketPosition {
+    //                 base_asset_amount: -100 * AMM_RESERVE_PRECISION_I128,
+    //                 quote_asset_amount: 100 * QUOTE_PRECISION,
+    //                 unsettled_pnl: 100,
+    //                 ..MarketPosition::default()
+    //             },
+    //             last_funding_rate_long: 100,
+    //             sqrt_k: init_reserves,
+    //             base_asset_reserve: init_reserves,
+    //             quote_asset_reserve: init_reserves,
+    //             peg_multiplier: PEG_PRECISION,
+    //             base_asset_amount_step_size: 1,
+    //             minimum_quote_asset_trade_size: 1,
+    //             ..AMM::default()
+    //         };
 
-        let metrics = get_lp_metrics(&position, &amm).unwrap();
-        println!("{:#?}", metrics);
+    //         let metrics = get_lp_metrics(&position, &amm).unwrap();
+    //         println!("{:#?}", metrics);
 
-        let shares_ = position.lp_shares as i128 / AMM_RESERVE_PRECISION_I128;
-        assert_eq!(
-            metrics.base_asset_amount,
-            -100_i128 * position.lp_shares as i128
-        );
-        assert_eq!(
-            metrics.fee_payment,
-            (amm.cumulative_fee_per_lp as i128) * shares_
-        );
-        assert_eq!(
-            metrics.funding_payment,
-            amm.cumulative_funding_payment_per_lp * shares_
-        );
-    }
+    //         // let shares_ = position.lp_shares as i128 / AMM_RESERVE_PRECISION_I128;
+    //         // assert_eq!(
+    //         //     metrics.base_asset_amount,
+    //         //     -100_i128 * position.lp_shares as i128
+    //         // );
+    //         // assert_eq!(
+    //         //     metrics.fee_payment,
+    //         //     (amm.cumulative_fee_per_lp as i128) * shares_
+    //         // );
+    //         // assert_eq!(
+    //         //     metrics.funding_payment,
+    //         //     amm.cumulative_funding_payment_per_lp * shares_
+    //         // );
+    //     }
 }

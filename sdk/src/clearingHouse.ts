@@ -1412,7 +1412,7 @@ export class ClearingHouse {
 			orderType: OrderType.MARKET,
 			marketIndex,
 			direction: findDirectionToClose(userPosition),
-			baseAssetAmount: userPosition.baseAssetAmount,
+			baseAssetAmount: userPosition.baseAssetAmount.abs(),
 			reduceOnly: true,
 			price: limitPrice,
 		});

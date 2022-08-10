@@ -2413,24 +2413,18 @@
             "type": "i128"
           },
           {
-            "name": "cumulativeFundingPaymentPerLp",
-            "type": "i128"
-          },
-          {
-            "name": "cumulativeFeePerLp",
-            "type": "u128"
-          },
-          {
-            "name": "cumulativeNetBaseAssetAmountPerLp",
-            "type": "i128"
-          },
-          {
             "name": "lpCooldownTime",
             "type": "i64"
           },
           {
             "name": "userLpShares",
             "type": "u128"
+          },
+          {
+            "name": "marketPositionPerLp",
+            "type": {
+              "defined": "MarketPosition"
+            }
           },
           {
             "name": "lastFundingRate",
@@ -2499,12 +2493,6 @@
           {
             "name": "baseAssetAmountStepSize",
             "type": "u128"
-          },
-          {
-            "name": "marketPositionPerLp",
-            "type": {
-              "defined": "MarketPosition"
-            }
           },
           {
             "name": "marketPosition",
@@ -2931,15 +2919,15 @@
             "type": "u128"
           },
           {
-            "name": "lastCumulativeFeePerLp",
+            "name": "lastUnsettledPnlPerLp",
             "type": "i128"
           },
           {
-            "name": "lastCumulativeNetBaseAssetAmountPerLp",
+            "name": "lastNetBaseAssetAmountPerLp",
             "type": "i128"
           },
           {
-            "name": "lastCumulativeNetQuoteAssetAmountPerLp",
+            "name": "lastNetQuoteAssetAmountPerLp",
             "type": "u128"
           },
           {
