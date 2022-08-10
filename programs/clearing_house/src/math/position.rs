@@ -175,10 +175,3 @@ pub fn calculate_entry_price(
 
     Ok(price)
 }
-
-pub fn calculate_max_pnl_to_settle(position: &MarketPosition) -> ClearingHouseResult<i128> {
-    position
-        .quote_asset_amount
-        .checked_sub(position.quote_entry_amount)
-        .ok_or_else(math_error!())
-}

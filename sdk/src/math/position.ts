@@ -86,6 +86,7 @@ export function calculateBaseAssetValue(
  * @param market
  * @param marketPosition
  * @param withFunding (adds unrealized funding payment pnl to result)
+ * @param oraclePriceData
  * @returns BaseAssetAmount : Precision QUOTE_PRECISION
  */
 export function calculatePositionPNL(
@@ -121,6 +122,29 @@ export function calculatePositionPNL(
 	}
 
 	return pnl;
+}
+
+export function calculateUnsettledPnl(
+	market: MarketAccount,
+	marketPosition: UserPosition,
+	oraclePriceData: OraclePriceData
+): BN {
+	const fundingPnL = calculatePositionFundingPNL(market, marketPosition).div(
+		PRICE_TO_QUOTE_PRECISION
+	);
+
+	const maxPnlToSettle = marketPosition.quoteAssetAmount
+		.add(marketPosition.quoteEntryAmount)
+		.add(fundingPnL);
+
+	const pnl = calculatePositionPNL(
+		market,
+		marketPosition,
+		false,
+		oraclePriceData
+	);
+
+	return BN.min(maxPnlToSettle, pnl);
 }
 
 /**

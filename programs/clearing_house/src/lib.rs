@@ -57,9 +57,7 @@ pub mod clearing_house {
     use crate::state::state::OrderFillerRewardStructure;
 
     use super::*;
-    use crate::math::position::{
-        calculate_base_asset_value_and_pnl_with_oracle_price, calculate_max_pnl_to_settle,
-    };
+    use std::ops::DerefMut;
 
     pub fn initialize(ctx: Context<Initialize>, admin_controls_prices: bool) -> Result<()> {
         let insurance_account_key = ctx.accounts.insurance_vault.to_account_info().key;
@@ -1110,8 +1108,16 @@ pub mod clearing_house {
             controller::bank_balance::update_bank_cumulative_interest(bank, clock.unix_timestamp)?;
         }
 
+        let user_key = ctx.accounts.user.key();
         let user = &mut load_mut!(ctx.accounts.user)?;
         let position_index = get_position_index(&user.positions, market_index)?;
+
+        controller::funding::settle_funding_payment(
+            user,
+            &user_key,
+            market_map.get_ref_mut(&market_index)?.deref_mut(),
+            clock.unix_timestamp,
+        )?;
 
         // cannot settle pnl this way on a user who is in liquidation territory
         if !(meets_maintenance_margin_requirement(user, &market_map, &bank_map, &mut oracle_map)?) {
@@ -1122,13 +1128,8 @@ pub mod clearing_house {
         let market = &mut market_map.get_ref_mut(&market_index)?;
 
         let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
-        let max_pnl_to_settle = calculate_max_pnl_to_settle(&user.positions[position_index])?;
-        let (_, unrealized_pnl) = calculate_base_asset_value_and_pnl_with_oracle_price(
-            &user.positions[position_index],
-            oracle_price,
-        )?;
-
-        let user_unsettled_pnl = max_pnl_to_settle.min(unrealized_pnl);
+        let user_unsettled_pnl: i128 =
+            user.positions[position_index].get_unsettled_pnl(oracle_price)?;
 
         let pnl_to_settle_with_user =
             controller::amm::update_pool_balances(market, bank, user_unsettled_pnl)?;

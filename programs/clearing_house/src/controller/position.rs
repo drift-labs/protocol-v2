@@ -12,6 +12,7 @@ use crate::math::orders::{
 use crate::math_error;
 use crate::state::market::Market;
 use crate::state::user::{User, UserPositions};
+use crate::validate;
 use crate::MarketPosition;
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
@@ -95,109 +96,84 @@ pub fn update_position_and_market(
     market: &mut Market,
     delta: &PositionDelta,
 ) -> ClearingHouseResult<i128> {
+    validate!(
+        delta.base_asset_amount != 0 && delta.quote_asset_amount != 0,
+        ErrorCode::InvalidPositionDelta,
+        "delta.base_asset_amount {} delta.quote_asset_amount {}",
+        delta.base_asset_amount,
+        delta.quote_asset_amount,
+    )?;
+
     let update_type = get_position_update_type(position, delta);
 
-    let (new_quote_asset_amount, new_quote_entry_amount, new_base_asset_amount, pnl) =
-        match update_type {
-            PositionUpdateType::Open | PositionUpdateType::Increase => {
-                let new_quote_asset_amount = position
-                    .quote_asset_amount
-                    .checked_add(delta.quote_asset_amount)
-                    .ok_or_else(math_error!())?;
-                let new_quote_entry_amount = position
-                    .quote_entry_amount
-                    .checked_add(delta.quote_asset_amount)
-                    .ok_or_else(math_error!())?;
-                let new_base_asset_amount = position
-                    .base_asset_amount
-                    .checked_add(delta.base_asset_amount)
-                    .ok_or_else(math_error!())?;
+    // Update User
+    let new_quote_asset_amount = position
+        .quote_asset_amount
+        .checked_add(delta.quote_asset_amount)
+        .ok_or_else(math_error!())?;
 
-                (
-                    new_quote_asset_amount,
-                    new_quote_entry_amount,
-                    new_base_asset_amount,
-                    0_i128,
+    let new_base_asset_amount = position
+        .base_asset_amount
+        .checked_add(delta.base_asset_amount)
+        .ok_or_else(math_error!())?;
+
+    let (new_quote_entry_amount, pnl) = match update_type {
+        PositionUpdateType::Open | PositionUpdateType::Increase => {
+            let new_quote_entry_amount = position
+                .quote_entry_amount
+                .checked_add(delta.quote_asset_amount)
+                .ok_or_else(math_error!())?;
+
+            (new_quote_entry_amount, 0_i128)
+        }
+        PositionUpdateType::Reduce | PositionUpdateType::Close => {
+            let new_quote_entry_amount = position
+                .quote_entry_amount
+                .checked_sub(
+                    position
+                        .quote_entry_amount
+                        .checked_mul(delta.base_asset_amount.abs())
+                        .ok_or_else(math_error!())?
+                        .checked_div(position.base_asset_amount.abs())
+                        .ok_or_else(math_error!())?,
                 )
-            }
-            PositionUpdateType::Reduce | PositionUpdateType::Close => {
-                let new_quote_asset_amount = position
-                    .quote_asset_amount
-                    .checked_add(delta.quote_asset_amount)
-                    .ok_or_else(math_error!())?;
+                .ok_or_else(math_error!())?;
 
-                let new_base_asset_amount = position
-                    .base_asset_amount
-                    .checked_add(delta.base_asset_amount)
-                    .ok_or_else(math_error!())?;
+            let pnl = position
+                .quote_entry_amount
+                .checked_sub(new_quote_entry_amount)
+                .ok_or_else(math_error!())?
+                .checked_add(delta.quote_asset_amount)
+                .ok_or_else(math_error!())?;
 
-                let new_quote_entry_amount = position
-                    .quote_entry_amount
-                    .checked_sub(
-                        position
-                            .quote_entry_amount
-                            .checked_mul(delta.base_asset_amount.abs())
-                            .ok_or_else(math_error!())?
-                            .checked_div(position.base_asset_amount.abs())
-                            .ok_or_else(math_error!())?,
-                    )
-                    .ok_or_else(math_error!())?;
-
-                let pnl = position
-                    .quote_entry_amount
-                    .checked_sub(new_quote_entry_amount)
-                    .ok_or_else(math_error!())?
-                    .checked_add(delta.quote_asset_amount)
-                    .ok_or_else(math_error!())?;
-
-                (
-                    new_quote_asset_amount,
-                    new_quote_entry_amount,
-                    new_base_asset_amount,
-                    pnl,
+            (new_quote_entry_amount, pnl)
+        }
+        PositionUpdateType::Flip => {
+            let new_quote_entry_amount = delta
+                .quote_asset_amount
+                .checked_sub(
+                    delta
+                        .quote_asset_amount
+                        .checked_mul(position.base_asset_amount.abs())
+                        .ok_or_else(math_error!())?
+                        .checked_div(delta.base_asset_amount.abs())
+                        .ok_or_else(math_error!())?,
                 )
-            }
-            PositionUpdateType::Flip => {
-                let new_quote_asset_amount = position
-                    .quote_asset_amount
-                    .checked_add(delta.quote_asset_amount)
-                    .ok_or_else(math_error!())?;
+                .ok_or_else(math_error!())?;
 
-                let new_base_asset_amount = position
-                    .base_asset_amount
-                    .checked_add(delta.base_asset_amount)
-                    .ok_or_else(math_error!())?;
-
-                let new_quote_entry_amount = delta
-                    .quote_asset_amount
-                    .checked_sub(
-                        delta
-                            .quote_asset_amount
-                            .checked_mul(position.base_asset_amount.abs())
-                            .ok_or_else(math_error!())?
-                            .checked_div(delta.base_asset_amount.abs())
-                            .ok_or_else(math_error!())?,
-                    )
-                    .ok_or_else(math_error!())?;
-
-                let pnl = position
-                    .quote_entry_amount
-                    .checked_add(
-                        delta
-                            .quote_asset_amount
-                            .checked_sub(new_quote_entry_amount)
-                            .ok_or_else(math_error!())?,
-                    )
-                    .ok_or_else(math_error!())?;
-
-                (
-                    new_quote_asset_amount,
-                    new_quote_entry_amount,
-                    new_base_asset_amount,
-                    pnl,
+            let pnl = position
+                .quote_entry_amount
+                .checked_add(
+                    delta
+                        .quote_asset_amount
+                        .checked_sub(new_quote_entry_amount)
+                        .ok_or_else(math_error!())?,
                 )
-            }
-        };
+                .ok_or_else(math_error!())?;
+
+            (new_quote_entry_amount, pnl)
+        }
+    };
 
     // Update Market
     market.amm.net_base_asset_amount = market
@@ -370,6 +346,29 @@ pub fn update_position_and_market(
                     .ok_or_else(math_error!())?;
             }
         }
+    }
+
+    // Validate that user funding rate is up to date before modifying
+    match position.get_direction() {
+        PositionDirection::Long if position.base_asset_amount != 0 => {
+            validate!(
+                position.last_cumulative_funding_rate == market.amm.cumulative_funding_rate_long,
+                ErrorCode::InvalidPositionLastFundingRate,
+                "position.last_cumulative_funding_rate {} market.amm.cumulative_funding_rate_long {}",
+                position.last_cumulative_funding_rate,
+                market.amm.cumulative_funding_rate_long,
+            )?;
+        }
+        PositionDirection::Short => {
+            validate!(
+                position.last_cumulative_funding_rate == market.amm.cumulative_funding_rate_short,
+                ErrorCode::InvalidPositionLastFundingRate,
+                "position.last_cumulative_funding_rate {} market.amm.cumulative_funding_rate_short {}",
+                position.last_cumulative_funding_rate,
+                market.amm.cumulative_funding_rate_short,
+            )?;
+        }
+        _ => {}
     }
 
     // Update user position
@@ -624,6 +623,7 @@ mod test {
                 net_base_asset_amount: 1,
                 quote_asset_amount_long: -1,
                 quote_entry_amount_long: -1,
+                cumulative_funding_rate_long: 1,
                 ..AMM::default()
             },
             base_asset_amount_long: 1,
@@ -670,6 +670,7 @@ mod test {
                 quote_asset_amount_long: 0,
                 quote_asset_amount_short: 1,
                 quote_entry_amount_short: 1,
+                cumulative_funding_rate_short: 1,
                 ..AMM::default()
             },
             open_interest: 1,
@@ -716,6 +717,7 @@ mod test {
                 quote_asset_amount_long: -10,
                 quote_entry_amount_long: -10,
                 quote_asset_amount_short: 0,
+                cumulative_funding_rate_long: 1,
                 ..AMM::default()
             },
             open_interest: 1,
@@ -762,6 +764,7 @@ mod test {
                 quote_asset_amount_long: -100,
                 quote_entry_amount_long: -100,
                 quote_asset_amount_short: 0,
+                cumulative_funding_rate_long: 1,
                 ..AMM::default()
             },
             open_interest: 1,
@@ -809,6 +812,7 @@ mod test {
                 quote_entry_amount_long: -10,
                 quote_asset_amount_short: 0,
                 cumulative_funding_rate_short: 2,
+                cumulative_funding_rate_long: 1,
                 ..AMM::default()
             },
             open_interest: 1,
@@ -856,6 +860,7 @@ mod test {
                 quote_entry_amount_long: -10,
                 quote_asset_amount_short: 0,
                 cumulative_funding_rate_short: 2,
+                cumulative_funding_rate_long: 1,
                 ..AMM::default()
             },
             open_interest: 1,
@@ -902,6 +907,7 @@ mod test {
                 quote_asset_amount_long: 0,
                 quote_asset_amount_short: 100,
                 quote_entry_amount_short: 100,
+                cumulative_funding_rate_short: 1,
                 ..AMM::default()
             },
             open_interest: 1,
@@ -948,6 +954,7 @@ mod test {
                 quote_asset_amount_long: 0,
                 quote_asset_amount_short: 100,
                 quote_entry_amount_short: 100,
+                cumulative_funding_rate_short: 1,
                 ..AMM::default()
             },
             open_interest: 1,
@@ -995,6 +1002,7 @@ mod test {
                 quote_asset_amount_short: 100,
                 quote_entry_amount_short: 100,
                 cumulative_funding_rate_long: 2,
+                cumulative_funding_rate_short: 1,
                 ..AMM::default()
             },
             open_interest: 1,
@@ -1042,6 +1050,7 @@ mod test {
                 quote_asset_amount_short: 100,
                 quote_entry_amount_short: 100,
                 cumulative_funding_rate_long: 2,
+                cumulative_funding_rate_short: 1,
                 ..AMM::default()
             },
             open_interest: 1,
@@ -1088,6 +1097,7 @@ mod test {
                 net_base_asset_amount: 11,
                 quote_asset_amount_long: -11,
                 quote_entry_amount_long: -11,
+                cumulative_funding_rate_long: 1,
                 ..AMM::default()
             },
             open_interest: 2,
@@ -1135,6 +1145,7 @@ mod test {
                 net_base_asset_amount: 11,
                 quote_asset_amount_long: -11,
                 quote_entry_amount_long: -11,
+                cumulative_funding_rate_long: 1,
                 ..AMM::default()
             },
             open_interest: 2,
@@ -1181,6 +1192,7 @@ mod test {
                 net_base_asset_amount: -11,
                 quote_asset_amount_short: 11,
                 quote_entry_amount_short: 11,
+                cumulative_funding_rate_short: 1,
                 ..AMM::default()
             },
             open_interest: 2,
@@ -1227,6 +1239,7 @@ mod test {
                 net_base_asset_amount: -11,
                 quote_asset_amount_short: 11,
                 quote_entry_amount_short: 11,
+                cumulative_funding_rate_short: 1,
                 ..AMM::default()
             },
             open_interest: 2,
@@ -1273,6 +1286,7 @@ mod test {
                 net_base_asset_amount: 11,
                 quote_asset_amount_long: -11,
                 quote_entry_amount_long: -8,
+                cumulative_funding_rate_long: 1,
                 ..AMM::default()
             },
             open_interest: 2,
@@ -1319,6 +1333,7 @@ mod test {
                 net_base_asset_amount: -11,
                 quote_asset_amount_short: 11,
                 quote_entry_amount_short: 15,
+                cumulative_funding_rate_short: 1,
                 ..AMM::default()
             },
             open_interest: 2,
