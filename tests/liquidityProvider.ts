@@ -338,26 +338,33 @@ describe('liquidity providing', () => {
 		assert(
 			user.positions[0].lastNetBaseAssetAmountPerLp.eq(new BN(100000000000))
 		);
-		assert(
-			user.positions[0].lastNetQuoteAssetAmountPerLp.eq(new BN(12339))
-		);
+		assert(user.positions[0].lastNetQuoteAssetAmountPerLp.eq(new BN(12339)));
 
 		market = await clearingHouse.getMarketAccount(ZERO);
-		console.log(
-			market.amm.marketPositionPerLp.quoteAssetAmount.toString()
-		)
+		console.log(market.amm.marketPositionPerLp.quoteAssetAmount.toString());
 		assert(
 			market.amm.marketPositionPerLp.baseAssetAmount.eq(new BN(125000000000))
 		);
-		assert(
-			market.amm.marketPositionPerLp.quoteAssetAmount.eq(new BN(12345))
-		);
+		assert(market.amm.marketPositionPerLp.quoteAssetAmount.eq(new BN(12345)));
+
+		// remove
+		console.log('removing liquidity...');
+		await clearingHouse.removeLiquidity(ZERO);
 
 		console.log('closing trader ...');
 		await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);
-		await fullClosePosition(
+		const _sigg = await fullClosePosition(
 			traderClearingHouse,
 			traderUserAccount.positions[0]
+		);
+		// await _viewLogs(_sigg);
+
+		const traderUserAccount2 =
+			traderClearingHouse.getUserAccount().positions[0];
+		console.log(
+			traderUserAccount2.lpShares.toString(),
+			traderUserAccount2.baseAssetAmount.toString(),
+			traderUserAccount2.quoteAssetAmount.toString()
 		);
 
 		console.log('closing lp ...');
@@ -367,7 +374,9 @@ describe('liquidity providing', () => {
 			SwapDirection.ADD,
 			market
 		);
-		await fullClosePosition(clearingHouse, user.positions[0]);
+
+		const _ttxsig = await fullClosePosition(clearingHouse, user.positions[0]);
+		// await _viewLogs(ttxsig);
 
 		await clearingHouse.updateMarketBaseAssetAmountStepSize(ZERO, new BN(1));
 
@@ -396,7 +405,7 @@ describe('liquidity providing', () => {
 
 		// some user goes long (lp should get a short)
 		console.log('user trading...');
-		const tradeSize = new BN(124 * 1e13);
+		const tradeSize = new BN(5 * 1e13);
 		try {
 			await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);
 			const _txsig = await traderClearingHouse.openPosition(
@@ -419,7 +428,7 @@ describe('liquidity providing', () => {
 				await clearingHouse.getUserAccountPublicKey(),
 				ZERO
 			);
-			await _viewLogs(_txsigg)
+			await _viewLogs(_txsigg);
 		} catch (e) {
 			console.log(e);
 		}
@@ -460,6 +469,7 @@ describe('liquidity providing', () => {
 			traderClearingHouse,
 			trader.positions[0]
 		);
+		await _viewLogs(_txsig);
 
 		const traderPosition = traderClearingHouse.getUserAccount().positions[0];
 		console.log(
@@ -479,7 +489,6 @@ describe('liquidity providing', () => {
 
 		console.log('done!');
 	});
-	return;
 
 	it('provides and removes liquidity', async () => {
 		let market = clearingHouse.getMarketAccount(0);
@@ -572,8 +581,16 @@ describe('liquidity providing', () => {
 
 	it('provides lp, users shorts, removes lp, lp has long', async () => {
 		console.log('adding liquidity...');
+
+		const traderUserAccount3 = clearingHouse.getUserAccount();
+		const position3 = traderUserAccount3.positions[0];
+		console.log(
+			'lp position:',
+			position3.baseAssetAmount.toString(),
+			position3.quoteAssetAmount.toString()
+		);
+
 		const traderUserAccount0 = traderClearingHouse.getUserAccount();
-		// console.log(traderUserAccount);
 		const position0 = traderUserAccount0.positions[0];
 		console.log(
 			'trader position:',
@@ -656,10 +673,10 @@ describe('liquidity providing', () => {
 			lpPosition.unsettledPnl.toString()
 		);
 
-		assert(lpPosition.unsettledPnl.eq(new BN(-41806533))); // get paid fees
+		assert(lpPosition.unsettledPnl.eq(new BN(-226921))); // get paid fees
 		assert(lpTokenAmount.eq(new BN(0)));
 		assert(user.positions[0].baseAssetAmount.eq(new BN('100000000000000'))); // lp is long
-		assert(user.positions[0].quoteAssetAmount.eq(new BN(22727)));
+		assert(user.positions[0].quoteAssetAmount.eq(new BN(22781)));
 
 		console.log('closing trader ...');
 		await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);
@@ -740,8 +757,8 @@ describe('liquidity providing', () => {
 
 		assert(lpTokenAmount.eq(ZERO));
 		assert(user.positions[0].baseAssetAmount.eq(new BN('-100000000000000'))); // lp is short
-		assert(user.positions[0].quoteAssetAmount.eq(new BN('27777')));
-		assert(lpPosition.unsettledPnl.eq(new BN(7200))); // get paid fees
+		assert(user.positions[0].quoteAssetAmount.eq(new BN('27826')));
+		assert(lpPosition.unsettledPnl.eq(new BN(10111223))); // get paid fees
 
 		console.log('closing trader...');
 		await adjustOraclePostSwap(tradeSize, SwapDirection.ADD, market);

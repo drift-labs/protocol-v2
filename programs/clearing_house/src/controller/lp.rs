@@ -16,6 +16,7 @@ use anchor_lang::prelude::msg;
 
 use crate::state::market::AMM;
 
+// todo: move this to math/
 pub fn calculate_settled_lp_base_quote(
     amm: &AMM,
     position: &MarketPosition,
@@ -98,8 +99,15 @@ pub fn settle_lp_position(
             amm.base_asset_amount_step_size,
         )?;
 
+    msg!(
+        "full std remainder: {} {} {}",
+        base_asset_amount,
+        standardized_base_asset_amount,
+        remainder_base_asset_amount
+    );
+
     let _min_qaa = amm.minimum_quote_asset_trade_size; // todo: uses reserve precision -- see note:
-    let min_baa = cast_to_i128(amm.base_asset_amount_step_size)?;
+    let min_baa = amm.base_asset_amount_step_size;
 
     position.last_net_base_asset_amount_per_lp =
         market.amm.market_position_per_lp.base_asset_amount;
@@ -107,38 +115,44 @@ pub fn settle_lp_position(
         market.amm.market_position_per_lp.quote_asset_amount;
     position.last_unsettled_pnl_per_lp = market.amm.market_position_per_lp.unsettled_pnl;
 
-    // note: since pnl may go into the qaa of a position its not really fair to ensure qaa >= min_qaa 
-    let (remainder_base_asset_amount, remainder_quote_asset_amount) = if standardized_base_asset_amount >= min_baa {
-        // compute quote amount in remainder
-        let remainder_ratio = remainder_base_asset_amount
-            .unsigned_abs()
-            .checked_mul(AMM_RESERVE_PRECISION)
-            .ok_or_else(math_error!())?
-            .checked_div(base_asset_amount.unsigned_abs())
-            .ok_or_else(math_error!())?;
-        
-        msg!("remainder ratio: {}", remainder_ratio);
+    // note: since pnl may go into the qaa of a position its not really fair to ensure qaa >= min_qaa
+    let (remainder_base_asset_amount, remainder_quote_asset_amount) =
+        if standardized_base_asset_amount.unsigned_abs() >= min_baa {
+            // compute quote amount in remainder
+            let remainder_ratio = remainder_base_asset_amount
+                .unsigned_abs()
+                .checked_mul(AMM_RESERVE_PRECISION)
+                .ok_or_else(math_error!())?
+                .checked_div(base_asset_amount.unsigned_abs())
+                .ok_or_else(math_error!())?;
 
-        let remainder_quote_asset_amount = quote_asset_amount
-            .checked_mul(remainder_ratio)
-            .ok_or_else(math_error!())?
-            .checked_div(AMM_RESERVE_PRECISION)
-            .ok_or_else(math_error!())?;
+            msg!("remainder ratio: {}", remainder_ratio);
 
-        (remainder_base_asset_amount, remainder_quote_asset_amount)
-    } else { 
-        (base_asset_amount, quote_asset_amount)
-    };
+            let remainder_quote_asset_amount = quote_asset_amount
+                .checked_mul(remainder_ratio)
+                .ok_or_else(math_error!())?
+                .checked_div(AMM_RESERVE_PRECISION)
+                .ok_or_else(math_error!())?;
+
+            (remainder_base_asset_amount, remainder_quote_asset_amount)
+        } else {
+            (base_asset_amount, quote_asset_amount)
+        };
 
     let standardized_quote_asset_amount = quote_asset_amount
         .checked_sub(remainder_quote_asset_amount)
         .ok_or_else(math_error!())?;
-    
-    let standardized_base_asset_amount = base_asset_amount 
+
+    let standardized_base_asset_amount = base_asset_amount
         .checked_sub(remainder_base_asset_amount)
         .ok_or_else(math_error!())?;
-    
-    msg!("std qaa, full qaa, remainder qaa: {} {} {}", standardized_quote_asset_amount, quote_asset_amount, remainder_quote_asset_amount);
+
+    msg!(
+        "std qaa, full qaa, remainder qaa: {} {} {}",
+        standardized_quote_asset_amount,
+        quote_asset_amount,
+        remainder_quote_asset_amount
+    );
 
     let remainder_quote_asset_amount_per_lp = remainder_quote_asset_amount
         .checked_mul(AMM_RESERVE_PRECISION)
@@ -165,13 +179,19 @@ pub fn settle_lp_position(
 
     // put the standardized into the position
     let position_delta = PositionDelta {
-        base_asset_amount: standardized_base_asset_amount, 
+        base_asset_amount: standardized_base_asset_amount,
         quote_asset_amount: standardized_quote_asset_amount,
     };
 
     let upnl = update_position_and_market(position, market, &position_delta)?;
     unsettled_pnl = unsettled_pnl.checked_add(upnl).ok_or_else(math_error!())?;
     update_unsettled_pnl(position, market, unsettled_pnl)?;
+
+    market.amm.net_base_asset_amount = market
+        .amm
+        .net_base_asset_amount
+        .checked_add(standardized_base_asset_amount)
+        .ok_or_else(math_error!())?;
 
     market.amm.net_unsettled_lp_base_asset_amount = market
         .amm
@@ -189,8 +209,9 @@ pub fn burn_lp_shares(
 ) -> ClearingHouseResult<()> {
     settle_lp_position(position, market)?;
 
-    // clean up dust 
-    let (base_asset_amount, quote_asset_amount) = calculate_settled_lp_base_quote(&market.amm, position)?;
+    // clean up dust
+    let (base_asset_amount, quote_asset_amount) =
+        calculate_settled_lp_base_quote(&market.amm, position)?;
 
     // update stats
     market.amm.net_unsettled_lp_base_asset_amount = market
@@ -200,7 +221,9 @@ pub fn burn_lp_shares(
         .ok_or_else(math_error!())?;
 
     // liquidate dust position
-    let unsettled_pnl = -cast_to_i128(quote_asset_amount)?.checked_add(1).ok_or_else(math_error!())?;
+    let unsettled_pnl = -cast_to_i128(quote_asset_amount)?
+        .checked_add(1)
+        .ok_or_else(math_error!())?;
     update_unsettled_pnl(position, market, unsettled_pnl)?;
 
     // update last_ metrics
@@ -208,7 +231,6 @@ pub fn burn_lp_shares(
         market.amm.market_position_per_lp.base_asset_amount;
     position.last_net_quote_asset_amount_per_lp =
         market.amm.market_position_per_lp.quote_asset_amount;
-    position.last_unsettled_pnl_per_lp = market.amm.market_position_per_lp.unsettled_pnl;
 
     // burn shares
     position.lp_shares = position
