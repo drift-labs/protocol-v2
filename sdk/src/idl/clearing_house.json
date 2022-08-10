@@ -2582,6 +2582,10 @@
             "type": "i128"
           },
           {
+            "name": "lastOraclePriceTwap5min",
+            "type": "i128"
+          },
+          {
             "name": "lastOraclePriceTwapTs",
             "type": "i64"
           },
@@ -2659,6 +2663,10 @@
           },
           {
             "name": "lastMarkPriceTwap",
+            "type": "u128"
+          },
+          {
+            "name": "lastMarkPriceTwap5min",
             "type": "u128"
           },
           {
