@@ -195,8 +195,8 @@ export class ClearingHouseUser {
 	}
 
 	public getInitialMarginRequirement(): BN {
-		return this.getUserAccount()
-			.positions.reduce((marginRequirement, marketPosition) => {
+		const postionMarginRequirement = this.getUserAccount().positions.reduce(
+			(marginRequirement, marketPosition) => {
 				const market = this.clearingHouse.getMarketAccount(
 					marketPosition.marketIndex
 				);
@@ -208,19 +208,26 @@ export class ClearingHouseUser {
 					.mul(this.getOracleDataForMarket(market.marketIndex).price)
 					.div(AMM_TO_QUOTE_PRECISION_RATIO.mul(MARK_PRICE_PRECISION));
 
-				return marginRequirement.add(
-					worstCaseAssetValue.mul(
-						new BN(
-							calculateMarketMarginRatio(
-								market,
-								worstCaseBaseAssetAmount.abs(),
-								'Initial'
-							)
-						).div(MARGIN_PRECISION)
+				const marketMarginRatio = new BN(
+					calculateMarketMarginRatio(
+						market,
+						worstCaseBaseAssetAmount.abs(),
+						'Initial'
 					)
 				);
-			}, ZERO)
-			.add(this.getBankLiabilityValue(undefined, 'Initial'));
+				return marginRequirement.add(
+					worstCaseAssetValue.mul(marketMarginRatio).div(MARGIN_PRECISION)
+				);
+			},
+			ZERO
+		);
+
+		const bankMarginRequirement = this.getBankLiabilityValue(
+			undefined,
+			'Initial'
+		);
+
+		return bankMarginRequirement.add(postionMarginRequirement);
 	}
 
 	/**
@@ -241,15 +248,17 @@ export class ClearingHouseUser {
 					.div(AMM_TO_QUOTE_PRECISION_RATIO.mul(MARK_PRICE_PRECISION));
 
 				return marginRequirement.add(
-					worstCaseAssetValue.mul(
-						new BN(
-							calculateMarketMarginRatio(
-								market,
-								worstCaseBaseAssetAmount.abs(),
-								'Maintenance'
+					worstCaseAssetValue
+						.mul(
+							new BN(
+								calculateMarketMarginRatio(
+									market,
+									worstCaseBaseAssetAmount.abs(),
+									'Maintenance'
+								)
 							)
-						).div(MARGIN_PRECISION)
-					)
+						)
+						.div(MARGIN_PRECISION)
 				);
 			}, ZERO)
 			.add(this.getBankLiabilityValue(undefined, 'Maintenance'));
@@ -512,13 +521,13 @@ export class ClearingHouseUser {
 				const market = this.clearingHouse.getMarketAccount(
 					marketPosition.marketIndex
 				);
-				return positionValue.add(
-					calculateMarginBaseAssetValue(
-						market,
-						marketPosition,
-						this.getOracleDataForMarket(market.marketIndex)
-					)
+				const posVal = calculateMarginBaseAssetValue(
+					market,
+					marketPosition,
+					this.getOracleDataForMarket(market.marketIndex)
 				);
+
+				return positionValue.add(posVal);
 			},
 			ZERO
 		);
@@ -635,19 +644,13 @@ export class ClearingHouseUser {
 		category: MarginCategory = 'Initial'
 	): BN {
 		const market = this.clearingHouse.getMarketAccount(marketIndex);
-		let marginRatioCategory: number;
 
-		switch (category) {
-			case 'Initial':
-				marginRatioCategory = market.marginRatioInitial;
-				break;
-			case 'Maintenance':
-				marginRatioCategory = market.marginRatioMaintenance;
-				break;
-			default:
-				marginRatioCategory = market.marginRatioInitial;
-				break;
-		}
+		const marginRatioCategory = calculateMarketMarginRatio(
+			market,
+			// worstCaseBaseAssetAmount.abs(),
+			ZERO, // todo
+			category
+		);
 		const maxLeverage = TEN_THOUSAND.mul(TEN_THOUSAND).div(
 			new BN(marginRatioCategory)
 		);
