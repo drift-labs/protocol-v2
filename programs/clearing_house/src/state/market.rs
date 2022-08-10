@@ -36,8 +36,6 @@ pub struct Market {
     pub next_funding_rate_record_id: u64,
     pub next_curve_record_id: u64,
     pub pnl_pool: PoolBalance,
-    pub unsettled_profit: u128,
-    pub unsettled_loss: u128,
     pub imf_factor: u128,
     pub unsettled_initial_asset_weight: u8,
     pub unsettled_maintenance_asset_weight: u8,
@@ -174,8 +172,10 @@ pub struct AMM {
 
     pub terminal_quote_asset_reserve: u128,
     pub net_base_asset_amount: i128,
-    pub quote_asset_amount_long: u128,
-    pub quote_asset_amount_short: u128,
+    pub quote_asset_amount_long: i128,
+    pub quote_asset_amount_short: i128,
+    pub quote_entry_amount_long: i128,
+    pub quote_entry_amount_short: i128,
 
     // funding
     pub last_funding_rate: i128,

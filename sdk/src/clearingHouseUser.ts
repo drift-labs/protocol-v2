@@ -135,7 +135,6 @@ export class ClearingHouseUser {
 			quoteAssetAmount: ZERO,
 			quoteEntryAmount: ZERO,
 			openOrders: ZERO,
-			unsettledPnl: ZERO,
 			openBids: ZERO,
 			openAsks: ZERO,
 		};
@@ -307,40 +306,6 @@ export class ClearingHouseUser {
 	}
 
 	/**
-	 * calculates unrealized position price pnl
-	 * @returns : Precision QUOTE_PRECISION
-	 */
-	public getUnsettledPNL(
-		marketIndex?: BN,
-		withWeightMarginCategory?: MarginCategory
-	): BN {
-		return this.getUserAccount()
-			.positions.filter((pos) =>
-				marketIndex ? pos.marketIndex === marketIndex : true
-			)
-			.reduce((pnl, marketPosition) => {
-				let pnl0 = marketPosition.unsettledPnl;
-				if (withWeightMarginCategory !== undefined) {
-					if (pnl0.gt(ZERO)) {
-						const market = this.clearingHouse.getMarketAccount(
-							marketPosition.marketIndex
-						);
-						pnl0 = pnl0
-							.mul(
-								calculateUnsettledAssetWeight(
-									market,
-									pnl0,
-									withWeightMarginCategory
-								)
-							)
-							.div(new BN(BANK_WEIGHT_PRECISION));
-					}
-				}
-				return pnl.add(pnl0);
-			}, ZERO);
-	}
-
-	/**
 	 * calculates unrealized funding payment pnl
 	 * @returns : Precision QUOTE_PRECISION
 	 */
@@ -507,8 +472,7 @@ export class ClearingHouseUser {
 						)
 				);
 			}, ZERO)
-			.add(this.getUnrealizedPNL(true, undefined, marginCategory))
-			.add(this.getUnsettledPNL(undefined, marginCategory));
+			.add(this.getUnrealizedPNL(true, undefined, marginCategory));
 	}
 
 	/**
@@ -568,7 +532,7 @@ export class ClearingHouseUser {
 	public getPositionEstimatedExitPriceAndPnl(
 		position: UserPosition,
 		amountToClose?: BN,
-		useAMMClose: boolean = false
+		useAMMClose = false
 	): [BN, BN] {
 		const market = this.clearingHouse.getMarketAccount(position.marketIndex);
 
@@ -757,7 +721,6 @@ export class ClearingHouseUser {
 			quoteAssetAmount: new BN(0),
 			quoteEntryAmount: new BN(0),
 			openOrders: new BN(0),
-			unsettledPnl: new BN(0),
 			openBids: new BN(0),
 			openAsks: new BN(0),
 		};
@@ -901,11 +864,11 @@ export class ClearingHouseUser {
 
 		const closeBaseAmount = currentPosition.baseAssetAmount
 			.mul(closeQuoteAmount)
-			.div(currentPosition.quoteAssetAmount)
+			.div(currentPosition.quoteAssetAmount.abs())
 			.add(
 				currentPosition.baseAssetAmount
 					.mul(closeQuoteAmount)
-					.mod(currentPosition.quoteAssetAmount)
+					.mod(currentPosition.quoteAssetAmount.abs())
 			)
 			.neg();
 

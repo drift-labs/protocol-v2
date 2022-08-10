@@ -126,7 +126,7 @@ describe('clearing_house', () => {
 		assert.ok(
 			clearingHouse
 				.getUserAccount()
-				.positions[0].quoteEntryAmount.eq(new BN(48004609))
+				.positions[0].quoteEntryAmount.eq(new BN(-48004609))
 		);
 		console.log(clearingHouse.getUserAccount().positions[0].baseAssetAmount);
 		assert.ok(
@@ -178,7 +178,7 @@ describe('clearing_house', () => {
 		assert.ok(
 			clearingHouse
 				.getUserAccount()
-				.positions[0].quoteEntryAmount.eq(new BN(24002305))
+				.positions[0].quoteEntryAmount.eq(new BN(-24002305))
 		);
 		console.log(
 			clearingHouse.getUserAccount().positions[0].baseAssetAmount.toNumber()

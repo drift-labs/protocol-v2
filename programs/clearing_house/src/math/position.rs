@@ -5,9 +5,10 @@ use crate::controller::position::PositionDirection;
 use crate::error::ClearingHouseResult;
 use crate::math::amm;
 use crate::math::amm::calculate_quote_asset_amount_swapped;
+use crate::math::casting::cast_to_i128;
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION, AMM_TO_QUOTE_PRECISION_RATIO, MARK_PRICE_PRECISION,
-    PRICE_TO_QUOTE_PRECISION_RATIO,
+    AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, AMM_TO_QUOTE_PRECISION_RATIO,
+    MARK_PRICE_PRECISION, PRICE_TO_QUOTE_PRECISION_RATIO,
 };
 use crate::math::pnl::calculate_pnl;
 use crate::math_error;
@@ -21,7 +22,7 @@ pub fn calculate_base_asset_value_and_pnl(
 ) -> ClearingHouseResult<(u128, i128)> {
     _calculate_base_asset_value_and_pnl(
         market_position.base_asset_amount,
-        market_position.quote_asset_amount,
+        market_position.quote_asset_amount.unsigned_abs(),
         amm,
         use_spread,
     )
@@ -34,7 +35,7 @@ pub fn calculate_position_pnl(
 ) -> ClearingHouseResult<i128> {
     let (_, pnl) = _calculate_base_asset_value_and_pnl(
         market_position.base_asset_amount,
-        market_position.quote_asset_amount,
+        market_position.quote_asset_amount.unsigned_abs(),
         amm,
         use_spread,
     )?;
@@ -123,32 +124,27 @@ pub fn calculate_base_asset_value_and_pnl_with_oracle_price(
     oracle_price: i128,
 ) -> ClearingHouseResult<(u128, i128)> {
     if market_position.base_asset_amount == 0 {
-        return Ok((0, 0));
+        return Ok((0, market_position.quote_asset_amount));
     }
 
-    let swap_direction = swap_direction_to_close_position(market_position.base_asset_amount);
-
     let oracle_price = if oracle_price > 0 {
-        oracle_price.unsigned_abs()
+        oracle_price.abs()
     } else {
         0
     };
 
     let base_asset_value = market_position
         .base_asset_amount
-        .unsigned_abs()
         .checked_mul(oracle_price)
         .ok_or_else(math_error!())?
-        .checked_div(AMM_RESERVE_PRECISION * PRICE_TO_QUOTE_PRECISION_RATIO)
+        .checked_div(AMM_RESERVE_PRECISION_I128 * cast_to_i128(PRICE_TO_QUOTE_PRECISION_RATIO)?)
         .ok_or_else(math_error!())?;
 
-    let pnl = calculate_pnl(
-        base_asset_value,
-        market_position.quote_asset_amount,
-        swap_direction,
-    )?;
+    let pnl = base_asset_value
+        .checked_add(market_position.quote_asset_amount)
+        .ok_or_else(math_error!())?;
 
-    Ok((base_asset_value, pnl))
+    Ok((base_asset_value.unsigned_abs(), pnl))
 }
 
 pub fn direction_to_close_position(base_asset_amount: i128) -> PositionDirection {

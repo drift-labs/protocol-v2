@@ -159,7 +159,10 @@ pub fn get_position_delta_for_fill(
     direction: PositionDirection,
 ) -> ClearingHouseResult<PositionDelta> {
     Ok(PositionDelta {
-        quote_asset_amount,
+        quote_asset_amount: match direction {
+            PositionDirection::Long => -cast_to_i128(quote_asset_amount)?,
+            PositionDirection::Short => cast_to_i128(quote_asset_amount)?,
+        },
         base_asset_amount: match direction {
             PositionDirection::Long => cast_to_i128(base_asset_amount)?,
             PositionDirection::Short => -cast_to_i128(base_asset_amount)?,

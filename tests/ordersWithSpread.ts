@@ -192,7 +192,7 @@ describe('amm spread: market order', () => {
 			tradeAcquiredAmountsWithSpread[1].abs(),
 			clearingHouse.getMarketAccount(marketIndex).amm.pegMultiplier,
 			getSwapDirection('base', direction)
-		);
+		).neg();
 		console.log(
 			'expected quote with out spread',
 			calculateQuoteAssetAmountSwapped(
@@ -252,7 +252,9 @@ describe('amm spread: market order', () => {
 		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 
 		assert.ok(orderRecord.baseAssetAmountFilled.eq(baseAssetAmount));
-		assert.ok(orderRecord.quoteAssetAmountFilled.eq(expectedQuoteAssetAmount));
+		assert.ok(
+			orderRecord.quoteAssetAmountFilled.eq(expectedQuoteAssetAmount.abs())
+		);
 		assert.ok(orderRecord.quoteAssetAmountSurplus.eq(expectedFeeToMarket));
 
 		await clearingHouse.closePosition(marketIndex);
@@ -506,7 +508,7 @@ describe('amm spread: market order', () => {
 			tradeAcquiredAmountsWithSpread[1].abs(),
 			clearingHouse.getMarketAccount(marketIndex).amm.pegMultiplier,
 			getSwapDirection('base', direction)
-		);
+		).neg();
 
 		const txSig = await clearingHouse.fillOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
@@ -670,7 +672,7 @@ describe('amm spread: market order', () => {
 			tradeAcquiredAmountsWithSpread[1].abs(),
 			clearingHouse.getMarketAccount(marketIndex2Num).amm.pegMultiplier,
 			getSwapDirection('base', direction)
-		);
+		).neg();
 		console.log(
 			'expected quote with out spread',
 			calculateQuoteAssetAmountSwapped(
@@ -729,7 +731,9 @@ describe('amm spread: market order', () => {
 		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 
 		assert.ok(orderRecord.baseAssetAmountFilled.eq(baseAssetAmount));
-		assert.ok(orderRecord.quoteAssetAmountFilled.eq(expectedQuoteAssetAmount));
+		assert.ok(
+			orderRecord.quoteAssetAmountFilled.eq(expectedQuoteAssetAmount.abs())
+		);
 		assert.ok(orderRecord.quoteAssetAmountSurplus.eq(expectedFeeToMarket));
 		console.log('surplus', orderRecord.quoteAssetAmountSurplus.toString());
 

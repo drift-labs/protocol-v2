@@ -2,7 +2,7 @@ use crate::controller::bank_balance::{update_bank_balances, update_bank_cumulati
 use crate::controller::funding::settle_funding_payment;
 use crate::controller::orders::{cancel_order, pay_keeper_flat_reward};
 use crate::controller::position::{
-    get_position_index, update_position_and_market, update_unsettled_pnl,
+    get_position_index, update_position_and_market, update_quote_asset_amount,
 };
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::get_then_update_id;
@@ -287,7 +287,6 @@ pub fn liquidate_perp(
         let user_position = user.get_position_mut(market_index).unwrap();
         let user_pnl =
             update_position_and_market(user_position, &mut market, &user_position_delta)?;
-        update_unsettled_pnl(user_position, &mut market, user_pnl)?;
 
         let liquidator_position = liquidator.force_get_position_mut(market_index).unwrap();
         let liquidator_pnl = update_position_and_market(
@@ -295,7 +294,6 @@ pub fn liquidate_perp(
             &mut market,
             &liquidator_position_delta,
         )?;
-        update_unsettled_pnl(liquidator_position, &mut market, liquidator_pnl)?;
         (user_pnl, liquidator_pnl)
     };
 
@@ -693,7 +691,7 @@ pub fn liquidate_borrow_for_perp_pnl(
             "Cant have open orders for perp position"
         )?;
 
-        let unsettled_pnl = user_position.unsettled_pnl;
+        let unsettled_pnl = user_position.quote_asset_amount;
 
         validate!(
             unsettled_pnl > 0,
@@ -842,17 +840,11 @@ pub fn liquidate_borrow_for_perp_pnl(
     }
 
     {
-        let mut market = market_map.get_ref_mut(&market_index)?;
-
         let liquidator_position = liquidator.force_get_position_mut(market_index)?;
-        update_unsettled_pnl(
-            liquidator_position,
-            &mut market,
-            cast_to_i128(pnl_transfer)?,
-        )?;
+        update_quote_asset_amount(liquidator_position, cast_to_i128(pnl_transfer)?)?;
 
         let user_position = user.get_position_mut(market_index)?;
-        update_unsettled_pnl(user_position, &mut market, -cast_to_i128(pnl_transfer)?)?;
+        update_quote_asset_amount(user_position, -cast_to_i128(pnl_transfer)?)?;
     }
 
     if liability_transfer >= liability_transfer_to_cover_margin_shortage {
@@ -1014,7 +1006,7 @@ pub fn liquidate_perp_pnl_for_deposit(
             "Cant have open orders on perp position"
         )?;
 
-        let unsettled_pnl = user_position.unsettled_pnl;
+        let unsettled_pnl = user_position.quote_asset_amount;
 
         validate!(
             unsettled_pnl < 0,
@@ -1123,17 +1115,11 @@ pub fn liquidate_perp_pnl_for_deposit(
     }
 
     {
-        let mut market = market_map.get_ref_mut(&market_index)?;
-
         let liquidator_position = liquidator.force_get_position_mut(market_index)?;
-        update_unsettled_pnl(
-            liquidator_position,
-            &mut market,
-            -cast_to_i128(pnl_transfer)?,
-        )?;
+        update_quote_asset_amount(liquidator_position, -cast_to_i128(pnl_transfer)?)?;
 
         let user_position = user.get_position_mut(market_index)?;
-        update_unsettled_pnl(user_position, &mut market, cast_to_i128(pnl_transfer)?)?;
+        update_quote_asset_amount(user_position, cast_to_i128(pnl_transfer)?)?;
     }
 
     if pnl_transfer >= pnl_transfer_to_cover_margin_shortage {

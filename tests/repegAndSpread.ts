@@ -10,6 +10,7 @@ import {
 	QUOTE_ASSET_BANK_INDEX,
 	getTokenAmount,
 	BankBalanceType,
+	ZERO,
 } from '../sdk';
 import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import {
@@ -166,8 +167,7 @@ describe('repeg and spread amm', () => {
 			new BN(21_966_868),
 			undefined,
 			500,
-			333,
-			200
+			333
 		);
 		await clearingHouse.updateMarketBaseSpread(new BN(0), 250);
 		await clearingHouse.updateCurveUpdateIntensity(new BN(0), 100);
@@ -503,9 +503,16 @@ describe('repeg and spread amm', () => {
 		);
 
 		const userUnsettledPnl = convertToNumber(
-			clearingHouseUser.getUnsettledPNL(),
+			clearingHouseUser
+				.getUserAccount()
+				.positions.reduce((unsettledPnl, position) => {
+					return unsettledPnl.add(
+						position.quoteAssetAmount.add(position.quoteEntryAmount)
+					);
+				}, ZERO),
 			QUOTE_PRECISION
 		);
+		console.log('unsettle pnl', userUnsettledPnl);
 		allUserCollateral += userCollateral;
 		allUserUnsettledPnl += userUnsettledPnl;
 		console.log(
@@ -535,10 +542,15 @@ describe('repeg and spread amm', () => {
 				QUOTE_PRECISION
 			);
 
-			const userUnsettledPnl = convertToNumber(
-				clearingHouseUserI.getUnsettledPNL(),
-				QUOTE_PRECISION
-			);
+			const unsettledPnl = clearingHouseUserI
+				.getUserAccount()
+				.positions.reduce((unsettledPnl, position) => {
+					return unsettledPnl.add(
+						position.quoteAssetAmount.add(position.quoteEntryAmount)
+					);
+				}, ZERO);
+			console.log('unsettled pnl', unsettledPnl.toString());
+			const userUnsettledPnl = convertToNumber(unsettledPnl, QUOTE_PRECISION);
 			allUserCollateral += userCollateral;
 			allUserUnsettledPnl += userUnsettledPnl;
 			console.log(

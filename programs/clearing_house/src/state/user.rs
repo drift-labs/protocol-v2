@@ -6,6 +6,7 @@ use crate::controller::position::{add_new_position, get_position_index, Position
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::auction::{calculate_auction_price, is_auction_complete};
 use crate::math::constants::QUOTE_ASSET_BANK_INDEX;
+use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
 use crate::math_error;
 use crate::state::bank::{BankBalance, BankBalanceType};
 use crate::state::market::AMM;
@@ -163,13 +164,12 @@ impl BankBalance for UserBankBalance {
 pub struct MarketPosition {
     pub market_index: u64,
     pub base_asset_amount: i128,
-    pub quote_asset_amount: u128,
-    pub quote_entry_amount: u128,
+    pub quote_asset_amount: i128,
+    pub quote_entry_amount: i128,
     pub last_cumulative_funding_rate: i128,
     pub last_cumulative_repeg_rebate: u128,
     pub last_funding_rate_ts: i64,
     pub open_orders: u128,
-    pub unsettled_pnl: i128,
     pub open_bids: i128,
     pub open_asks: i128,
 
@@ -200,7 +200,7 @@ impl MarketPosition {
     }
 
     pub fn has_unsettled_pnl(&self) -> bool {
-        self.unsettled_pnl != 0
+        self.base_asset_amount == 0 && self.quote_asset_amount != 0
     }
 
     pub fn worst_case_base_asset_amount(&self) -> ClearingHouseResult<i128> {
@@ -240,6 +240,18 @@ impl MarketPosition {
         } else {
             PositionDirection::Long
         }
+    }
+
+    pub fn get_unsettled_pnl(&self, oracle_price: i128) -> ClearingHouseResult<i128> {
+        // this limits the amount of positive pnl that can be settled to be the amount of pnl realized
+        // when a user reduces/closes their position
+        let max_pnl_to_settle = self
+            .quote_asset_amount
+            .checked_sub(self.quote_entry_amount)
+            .ok_or_else(math_error!())?;
+
+        let (_, pnl) = calculate_base_asset_value_and_pnl_with_oracle_price(self, oracle_price)?;
+        Ok(max_pnl_to_settle.min(pnl))
     }
 }
 

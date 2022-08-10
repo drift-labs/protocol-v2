@@ -192,7 +192,7 @@ describe('idempotent curve', () => {
 		assert(
 			clearingHouse
 				.getUserAccount()
-				.positions[0].unsettledPnl.eq(new BN(3999903))
+				.positions[0].quoteAssetAmount.eq(new BN(3999903))
 		);
 		assert(
 			clearingHouse.getUserAccount().positions[0].quoteEntryAmount.eq(new BN(0))

@@ -209,7 +209,7 @@ describe('prepeg', () => {
 		assert.ok(
 			clearingHouse
 				.getUserAccount()
-				.positions[0].quoteEntryAmount.gt(new BN(49750001))
+				.positions[0].quoteEntryAmount.eq(new BN(-49999074))
 		);
 		console.log(
 			clearingHouse.getUserAccount().positions[0].baseAssetAmount.toString()
@@ -344,7 +344,7 @@ describe('prepeg', () => {
 		assert.ok(
 			clearingHouse
 				.getUserAccount()
-				.positions[0].quoteEntryAmount.gt(new BN(49750001))
+				.positions[0].quoteEntryAmount.eq(new BN(-51022273))
 		);
 		console.log(clearingHouse.getUserAccount().positions[0].baseAssetAmount);
 	});

@@ -439,7 +439,7 @@ describe('orders', () => {
 		assert(firstPosition.baseAssetAmount.eq(baseAssetAmount));
 		assert(firstPosition.openBids.eq(new BN(0)));
 
-		const expectedQuoteAssetAmount = new BN(1000003);
+		const expectedQuoteAssetAmount = new BN(-1000003);
 		// console.log(convertToNumber(firstPosition.quoteAssetAmount, QUOTE_PRECISION),
 		//  '!=',
 		//  convertToNumber(expectedQuoteAssetAmount, QUOTE_PRECISION),
@@ -448,7 +448,9 @@ describe('orders', () => {
 
 		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 		assert.ok(orderRecord.baseAssetAmountFilled.eq(baseAssetAmount));
-		assert.ok(orderRecord.quoteAssetAmountFilled.eq(expectedQuoteAssetAmount));
+		assert.ok(
+			orderRecord.quoteAssetAmountFilled.eq(expectedQuoteAssetAmount.abs())
+		);
 
 		const expectedFillRecordId = new BN(1);
 		const expectedFee = new BN(1000);
@@ -465,7 +467,9 @@ describe('orders', () => {
 			orderRecord.filler.equals(await fillerUser.getUserAccountPublicKey())
 		);
 		assert(orderRecord.baseAssetAmountFilled.eq(baseAssetAmount));
-		assert(orderRecord.quoteAssetAmountFilled.eq(expectedQuoteAssetAmount));
+		assert(
+			orderRecord.quoteAssetAmountFilled.eq(expectedQuoteAssetAmount.abs())
+		);
 		assert(orderRecord.fillerReward.eq(expectedFillerReward));
 		assert(orderRecord.fillRecordId.eq(expectedFillRecordId));
 	});
@@ -1630,14 +1634,9 @@ describe('orders', () => {
 			'FillerReward: $',
 			convertToNumber(fillerReward, QUOTE_PRECISION),
 			convertToNumber(
-				fillerUser.getUserAccount().positions[0].unsettledPnl,
+				fillerUser.getUserAccount().positions[0].quoteAssetAmount,
 				QUOTE_PRECISION
 			)
-		);
-		assert(
-			fillerReward
-				.add(fillerUser.getUserAccount().positions[0].unsettledPnl)
-				.gt(new BN(0))
 		);
 		await clearingHouse.closePosition(marketIndex);
 	});
@@ -1701,7 +1700,7 @@ describe('orders', () => {
 		const fillerCollateralBefore =
 			fillerClearingHouse.getQuoteAssetTokenAmount();
 		const fillerUnsettledPNLBefore =
-			fillerClearingHouse.getUserAccount().positions[0].unsettledPnl;
+			fillerClearingHouse.getUserAccount().positions[0].quoteAssetAmount;
 
 		await fillerClearingHouse.triggerOrder(
 			whaleAccountPublicKey,
@@ -1741,7 +1740,7 @@ describe('orders', () => {
 		const fillerReward = fillerClearingHouse
 			.getQuoteAssetTokenAmount()
 			.sub(fillerCollateralBefore)
-			.add(fillerUser.getUserAccount().positions[0].unsettledPnl)
+			.add(fillerUser.getUserAccount().positions[0].quoteAssetAmount)
 			.sub(fillerUnsettledPNLBefore);
 		console.log(
 			'FillerReward: $',
