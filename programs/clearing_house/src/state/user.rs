@@ -250,8 +250,9 @@ impl MarketPosition {
             .checked_sub(self.quote_entry_amount)
             .ok_or_else(math_error!())?;
 
-        let (_, pnl) = calculate_base_asset_value_and_pnl_with_oracle_price(self, oracle_price)?;
-        Ok(max_pnl_to_settle.min(pnl))
+        let (_, unrealized_pnl) =
+            calculate_base_asset_value_and_pnl_with_oracle_price(self, oracle_price)?;
+        Ok(max_pnl_to_settle.min(unrealized_pnl))
     }
 }
 

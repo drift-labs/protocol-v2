@@ -137,14 +137,14 @@ export function calculateUnsettledPnl(
 		.add(marketPosition.quoteEntryAmount)
 		.add(fundingPnL);
 
-	const pnl = calculatePositionPNL(
+	const unrealizedPnl = calculatePositionPNL(
 		market,
 		marketPosition,
 		true,
 		oraclePriceData
 	);
 
-	return BN.min(maxPnlToSettle, pnl);
+	return BN.min(maxPnlToSettle, unrealizedPnl);
 }
 
 /**
