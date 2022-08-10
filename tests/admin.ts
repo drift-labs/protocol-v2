@@ -65,13 +65,11 @@ describe('admin', () => {
 
 	it('Update Margin Ratio', async () => {
 		const marginRatioInitial = 3000;
-		const marginRatioPartial = 2000;
 		const marginRatioMaintenance = 1000;
 
 		await clearingHouse.updateMarginRatio(
 			new BN(0),
 			marginRatioInitial,
-			marginRatioPartial,
 			marginRatioMaintenance
 		);
 
@@ -79,7 +77,6 @@ describe('admin', () => {
 		const market = clearingHouse.getMarketAccount(0);
 
 		assert(market.marginRatioInitial === marginRatioInitial);
-		assert(market.marginRatioPartial === marginRatioPartial);
 		assert(market.marginRatioMaintenance === marginRatioMaintenance);
 	});
 

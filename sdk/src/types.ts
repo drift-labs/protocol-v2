@@ -74,6 +74,12 @@ export class OrderActionExplanation {
 	static readonly MARKET_ORDER_FILLED_TO_LIMIT_PRICE = {
 		marketOrderFilledToLimitPrice: {},
 	};
+	static readonly CANCELED_FOR_LIQUIDATION = {
+		canceledForLiquidation: {},
+	};
+	static readonly MARKET_ORDER_AUCTION_EXPIRED = {
+		marketOrderAuctionExpired: {},
+	};
 }
 
 export class OrderTriggerCondition {
@@ -168,20 +174,68 @@ export type FundingPaymentRecord = {
 
 export type LiquidationRecord = {
 	ts: BN;
-	recordId: BN;
-	userAuthority: PublicKey;
 	user: PublicKey;
-	partial: boolean;
-	baseAssetValue: BN;
-	baseAssetValueClosed: BN;
-	liquidationFee: BN;
-	feeToLiquidator: BN;
-	feeToInsuranceFund: BN;
 	liquidator: PublicKey;
+	liquidationType: LiquidationType;
+	marginRequirement: BN;
 	totalCollateral: BN;
-	collateral: BN;
-	unrealizedPnl: BN;
-	marginRatio: BN;
+	liquidationId: number;
+	liquidatePerp: LiquidatePerpRecord;
+	liquidateBorrow: LiquidateBorrowRecord;
+	liquidateBorrowForPerpPnl: LiquidateBorrowForPerpPnlRecord;
+	liquidatePerpPnlForDeposit: LiquidatePerpPnlForDepositRecord;
+};
+
+export class LiquidationType {
+	static readonly LIQUIDATE_PERP = { liquidatePerp: {} };
+	static readonly LIQUIDATE_BORROW = { liquidateBorrow: {} };
+	static readonly LIQUIDATE_BORROW_FOR_PERP_PNL = {
+		liquidateBorrowForPerpPnl: {},
+	};
+	static readonly LIQUIDATE_PERP_PNL_FOR_DEPOSIT = {
+		liquidatePerpPnlForDeposit: {},
+	};
+}
+
+export type LiquidatePerpRecord = {
+	marketIndex: BN;
+	orderIds: BN[];
+	oraclePrice: BN;
+	baseAssetAmount: BN;
+	quoteAssetAmount: BN;
+	userPnl: BN;
+	liquidatorPnl: BN;
+	canceledOrdersFee: BN;
+	userOrderId: BN;
+	liquidatorOrderId: BN;
+	fillRecordId: BN;
+};
+
+export type LiquidateBorrowRecord = {
+	assetBankIndex: BN;
+	assetPrice: BN;
+	assetTransfer: BN;
+	liabilityBankIndex: BN;
+	liabilityPrice: BN;
+	liabilityTransfer: BN;
+};
+
+export type LiquidateBorrowForPerpPnlRecord = {
+	marketIndex: BN;
+	marketOraclePrice: BN;
+	pnlTransfer: BN;
+	liabilityBankIndex: BN;
+	liabilityPrice: BN;
+	liabilityTransfer: BN;
+};
+
+export type LiquidatePerpPnlForDepositRecord = {
+	marketIndex: BN;
+	marketOraclePrice: BN;
+	pnlTransfer: BN;
+	assetBankIndex: BN;
+	assetPrice: BN;
+	assetTransfer: BN;
 };
 
 export type OrderRecord = {
@@ -248,9 +302,13 @@ export type MarketAccount = {
 	openInterest: BN;
 	marginRatioInitial: number;
 	marginRatioMaintenance: number;
-	marginRatioPartial: number;
 	nextFillRecordId: BN;
 	pnlPool: PoolBalance;
+	liquidationFee: BN;
+	imfFactor: BN;
+	unsettledImfFactor: BN;
+	unsettledInitialAssetWeight: number;
+	unsettledMaintenanceAssetWeight: number;
 };
 
 export type BankAccount = {
@@ -274,6 +332,8 @@ export type BankAccount = {
 	maintenanceAssetWeight: BN;
 	initialLiabilityWeight: BN;
 	maintenanceLiabilityWeight: BN;
+	liquidationFee: BN;
+	imfFactor: BN;
 };
 
 export type PoolBalance = {
@@ -342,7 +402,6 @@ export type UserPosition = {
 	quoteAssetAmount: BN;
 	quoteEntryAmount: BN;
 	openOrders: BN;
-	unsettledPnl: BN;
 	openBids: BN;
 	openAsks: BN;
 	lpShares: BN;
@@ -368,6 +427,8 @@ export type UserAccount = {
 	};
 	positions: UserPosition[];
 	orders: Order[];
+	beingLiquidated: boolean;
+	nextLiquidationId: number;
 };
 
 export type UserBankBalance = {
@@ -512,6 +573,7 @@ export type FeeStructure = {
 	makerRebateNumerator: BN;
 	makerRebateDenominator: BN;
 	fillerRewardStructure: OrderFillerRewardStructure;
+	cancelOrderFee: BN;
 };
 
 export type OracleGuardRails = {
@@ -533,4 +595,4 @@ export type OrderFillerRewardStructure = {
 	timeBasedRewardLowerBound: BN;
 };
 
-export type MarginCategory = 'Initial' | 'Partial' | 'Maintenance';
+export type MarginCategory = 'Initial' | 'Maintenance';

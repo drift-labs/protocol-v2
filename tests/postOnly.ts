@@ -198,12 +198,9 @@ describe('post only', () => {
 		await clearingHouseUser.fetchAccounts();
 		const position = clearingHouseUser.getUserPosition(marketIndex);
 		assert(position.baseAssetAmount.eq(baseAssetAmount));
-		assert(position.quoteEntryAmount.eq(new BN(1000001)));
-		assert(position.quoteAssetAmount.eq(new BN(1000001)));
+		assert(position.quoteEntryAmount.eq(new BN(-1000001)));
+		assert(position.quoteAssetAmount.eq(new BN(-1000001)));
 		assert(clearingHouse.getQuoteAssetTokenAmount().eq(usdcAmount));
-		assert(
-			clearingHouse.getUserAccount().positions[0].unsettledPnl.eq(new BN(ZERO))
-		);
 		assert(clearingHouseUser.getUserAccount().fees.totalFeePaid.eq(ZERO));
 		assert(clearingHouseUser.getUserAccount().fees.totalFeePaid.eq(ZERO));
 
@@ -289,9 +286,6 @@ describe('post only', () => {
 		assert(position.baseAssetAmount.abs().eq(baseAssetAmount));
 		assert(position.quoteEntryAmount.eq(new BN(1000000)));
 		assert(clearingHouse.getQuoteAssetTokenAmount().eq(usdcAmount));
-		assert(
-			clearingHouse.getUserAccount().positions[0].unsettledPnl.eq(new BN(0))
-		);
 		assert(clearingHouseUser.getUserAccount().fees.totalFeePaid.eq(ZERO));
 		assert(clearingHouseUser.getUserAccount().fees.totalFeePaid.eq(new BN(0)));
 

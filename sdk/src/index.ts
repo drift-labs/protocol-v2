@@ -2,7 +2,7 @@ import { BN } from '@project-serum/anchor';
 import { PublicKey } from '@solana/web3.js';
 import pyth from '@pythnetwork/client';
 
-export * from './mockUSDCFaucet';
+export * from './tokenFaucet';
 export * from './oracles/types';
 export * from './oracles/pythClient';
 export * from './oracles/switchboardClient';
@@ -35,6 +35,7 @@ export * from './math/amm';
 export * from './math/trade';
 export * from './math/orders';
 export * from './math/repeg';
+export * from './math/margin';
 export * from './orders';
 export * from './orderParams';
 export * from './slot/SlotSubscriber';

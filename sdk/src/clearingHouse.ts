@@ -1,5 +1,5 @@
 import { AnchorProvider, BN, Idl, Program } from '@project-serum/anchor';
-import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import {
 	StateAccount,
 	IWallet,
@@ -27,9 +27,13 @@ import {
 	Transaction,
 	TransactionInstruction,
 	AccountMeta,
+	Keypair,
+	LAMPORTS_PER_SOL,
+	Signer,
+	SystemProgram,
 } from '@solana/web3.js';
 
-import { MockUSDCFaucet } from './mockUSDCFaucet';
+import { TokenFaucet } from './tokenFaucet';
 import { EventEmitter } from 'events';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import {
@@ -57,6 +61,7 @@ import { RetryTxSender } from './tx/retryTxSender';
 import { ClearingHouseUser } from './clearingHouseUser';
 import { ClearingHouseUserAccountSubscriptionConfig } from './clearingHouseUserConfig';
 import { getMarketsBanksAndOraclesForSubscription } from './config';
+import { WRAPPED_SOL_MINT } from './constants/banks';
 
 /**
  * # ClearingHouse
@@ -527,6 +532,31 @@ export class ClearingHouse {
 		userId?: number,
 		reduceOnly = false
 	): Promise<TransactionSignature> {
+		const tx = new Transaction();
+		const additionalSigners: Array<Signer> = [];
+
+		const bank = this.getBankAccount(bankIndex);
+
+		const isSolBank = bank.mint.equals(WRAPPED_SOL_MINT);
+
+		const authority = this.wallet.publicKey;
+
+		const createWSOLTokenAccount =
+			isSolBank && collateralAccountPublicKey.equals(authority);
+
+		if (createWSOLTokenAccount) {
+			const { ixs, signers, pubkey } =
+				await this.getWrappedSolAccountCreationIxs(amount);
+
+			collateralAccountPublicKey = pubkey;
+
+			ixs.forEach((ix) => {
+				tx.add(ix);
+			});
+
+			signers.forEach((signer) => additionalSigners.push(signer));
+		}
+
 		const depositCollateralIx = await this.getDepositInstruction(
 			amount,
 			bankIndex,
@@ -536,9 +566,26 @@ export class ClearingHouse {
 			true
 		);
 
-		const tx = new Transaction().add(depositCollateralIx);
+		tx.add(depositCollateralIx);
 
-		const { txSig } = await this.txSender.send(tx);
+		// Close the wrapped sol account at the end of the transaction
+		if (createWSOLTokenAccount) {
+			tx.add(
+				Token.createCloseAccountInstruction(
+					TOKEN_PROGRAM_ID,
+					collateralAccountPublicKey,
+					authority,
+					authority,
+					[]
+				)
+			);
+		}
+
+		const { txSig } = await this.txSender.send(
+			tx,
+			additionalSigners,
+			this.opts
+		);
 		return txSig;
 	}
 
@@ -600,12 +647,119 @@ export class ClearingHouse {
 		);
 	}
 
+	private async checkIfAccountExists(account: PublicKey) {
+		try {
+			const accountInfo = await this.connection.getAccountInfo(account);
+			return accountInfo && true;
+		} catch (e) {
+			// Doesn't already exist
+			return false;
+		}
+	}
+
+	private async getSolWithdrawalIxs(
+		bankIndex: BN,
+		amount: BN
+	): Promise<{
+		ixs: anchor.web3.TransactionInstruction[];
+		signers: Signer[];
+		pubkey: PublicKey;
+	}> {
+		const result = {
+			ixs: [],
+			signers: [],
+			pubkey: PublicKey.default,
+		};
+
+		// Create a temporary wrapped SOL account to store the SOL that we're withdrawing
+
+		const authority = this.wallet.publicKey;
+
+		const { ixs, signers, pubkey } = await this.getWrappedSolAccountCreationIxs(
+			amount
+		);
+		result.pubkey = pubkey;
+
+		ixs.forEach((ix) => {
+			result.ixs.push(ix);
+		});
+
+		signers.forEach((ix) => {
+			result.signers.push(ix);
+		});
+
+		const withdrawIx = await this.getWithdrawIx(
+			amount,
+			bankIndex,
+			pubkey,
+			true
+		);
+
+		result.ixs.push(withdrawIx);
+
+		result.ixs.push(
+			Token.createCloseAccountInstruction(
+				TOKEN_PROGRAM_ID,
+				pubkey,
+				authority,
+				authority,
+				[]
+			)
+		);
+
+		return result;
+	}
+
+	private async getWrappedSolAccountCreationIxs(amount: BN): Promise<{
+		ixs: anchor.web3.TransactionInstruction[];
+		signers: Signer[];
+		pubkey: PublicKey;
+	}> {
+		const wrappedSolAccount = new Keypair();
+
+		const result = {
+			ixs: [],
+			signers: [],
+			pubkey: wrappedSolAccount.publicKey,
+		};
+
+		const rentSpaceLamports = new BN(LAMPORTS_PER_SOL / 100);
+
+		const depositAmountLamports = amount.add(rentSpaceLamports);
+
+		const authority = this.wallet.publicKey;
+
+		result.ixs.push(
+			SystemProgram.createAccount({
+				fromPubkey: authority,
+				newAccountPubkey: wrappedSolAccount.publicKey,
+				lamports: depositAmountLamports.toNumber(),
+				space: 165,
+				programId: TOKEN_PROGRAM_ID,
+			})
+		);
+
+		result.ixs.push(
+			Token.createInitAccountInstruction(
+				TOKEN_PROGRAM_ID,
+				WRAPPED_SOL_MINT,
+				wrappedSolAccount.publicKey,
+				authority
+			)
+		);
+
+		result.signers.push(wrappedSolAccount);
+
+		return result;
+	}
+
 	/**
 	 * Creates the Clearing House User account for a user, and deposits some initial collateral
-	 * @param userId
-	 * @param name
 	 * @param amount
 	 * @param userTokenAccount
+	 * @param bankIndex
+	 * @param userId
+	 * @param name
 	 * @param fromUserId
 	 * @returns
 	 */
@@ -620,6 +774,35 @@ export class ClearingHouse {
 		const [userAccountPublicKey, initializeUserAccountIx] =
 			await this.getInitializeUserInstructions(userId, name);
 
+		const additionalSigners: Array<Signer> = [];
+
+		const bank = this.getBankAccount(bankIndex);
+
+		const isSolBank = bank.mint.equals(WRAPPED_SOL_MINT);
+
+		const tx = new Transaction();
+
+		const authority = this.wallet.publicKey;
+
+		const createWSOLTokenAccount =
+			isSolBank && userTokenAccount.equals(authority);
+
+		if (createWSOLTokenAccount) {
+			const {
+				ixs: startIxs,
+				signers,
+				pubkey,
+			} = await this.getWrappedSolAccountCreationIxs(amount);
+
+			userTokenAccount = pubkey;
+
+			startIxs.forEach((ix) => {
+				tx.add(ix);
+			});
+
+			signers.forEach((signer) => additionalSigners.push(signer));
+		}
+
 		const depositCollateralIx =
 			fromUserId != null
 				? await this.getTransferDepositIx(amount, bankIndex, fromUserId, userId)
@@ -632,11 +815,26 @@ export class ClearingHouse {
 						false
 				  );
 
-		const tx = new Transaction()
-			.add(initializeUserAccountIx)
-			.add(depositCollateralIx);
+		tx.add(initializeUserAccountIx).add(depositCollateralIx);
 
-		const { txSig } = await this.txSender.send(tx, []);
+		// Close the wrapped sol account at the end of the transaction
+		if (createWSOLTokenAccount) {
+			tx.add(
+				Token.createCloseAccountInstruction(
+					TOKEN_PROGRAM_ID,
+					userTokenAccount,
+					authority,
+					authority,
+					[]
+				)
+			);
+		}
+
+		const { txSig } = await this.txSender.send(
+			tx,
+			additionalSigners,
+			this.opts
+		);
 
 		return [txSig, userAccountPublicKey];
 	}
@@ -644,11 +842,12 @@ export class ClearingHouse {
 	public async initializeUserAccountForDevnet(
 		userId = 0,
 		name = DEFAULT_USER_NAME,
-		mockUSDCFaucet: MockUSDCFaucet,
+		bankIndex: BN,
+		tokenFaucet: TokenFaucet,
 		amount: BN
 	): Promise<[TransactionSignature, PublicKey]> {
 		const [associateTokenPublicKey, createAssociatedAccountIx, mintToIx] =
-			await mockUSDCFaucet.createAssociatedTokenAccountAndMintToInstructions(
+			await tokenFaucet.createAssociatedTokenAccountAndMintToInstructions(
 				this.wallet.publicKey,
 				amount
 			);
@@ -658,7 +857,7 @@ export class ClearingHouse {
 
 		const depositCollateralIx = await this.getDepositInstruction(
 			amount,
-			new BN(0),
+			bankIndex,
 			associateTokenPublicKey,
 			userId,
 			false,
@@ -682,16 +881,56 @@ export class ClearingHouse {
 		userTokenAccount: PublicKey,
 		reduceOnly = false
 	): Promise<TransactionSignature> {
-		const { txSig } = await this.txSender.send(
-			wrapInTx(
-				await this.getWithdrawIx(
-					amount,
-					bankIndex,
+		const tx = new Transaction();
+		const additionalSigners: Array<Signer> = [];
+
+		const bank = this.getBankAccount(bankIndex);
+
+		const isSolBank = bank.mint.equals(WRAPPED_SOL_MINT);
+
+		const authority = this.wallet.publicKey;
+
+		const createWSOLTokenAccount =
+			isSolBank && userTokenAccount.equals(authority);
+
+		if (createWSOLTokenAccount) {
+			const { ixs, signers, pubkey } =
+				await this.getWrappedSolAccountCreationIxs(amount);
+
+			userTokenAccount = pubkey;
+
+			ixs.forEach((ix) => {
+				tx.add(ix);
+			});
+
+			signers.forEach((signer) => additionalSigners.push(signer));
+		}
+
+		const withdrawCollateral = await this.getWithdrawIx(
+			amount,
+			bank.bankIndex,
+			userTokenAccount,
+			reduceOnly
+		);
+
+		tx.add(withdrawCollateral);
+
+		// Close the wrapped sol account at the end of the transaction
+		if (createWSOLTokenAccount) {
+			tx.add(
+				Token.createCloseAccountInstruction(
+					TOKEN_PROGRAM_ID,
 					userTokenAccount,
-					reduceOnly
+					authority,
+					authority,
+					[]
 				)
-			),
-			[],
+			);
+		}
+
+		const { txSig } = await this.txSender.send(
+			tx,
+			additionalSigners,
 			this.opts
 		);
 		return txSig;
@@ -1241,48 +1480,64 @@ export class ClearingHouse {
 		const marketIndex = order.marketIndex;
 		const marketAccount = this.getMarketAccount(marketIndex);
 
-		const bankAccountInfos = [
-			{
-				pubkey: this.getQuoteAssetBankAccount().pubkey,
-				isSigner: false,
-				isWritable: true,
-			},
-		];
-		const marketAccountInfos = [
-			{
-				pubkey: marketAccount.pubkey,
-				isWritable: true,
-				isSigner: false,
-			},
-		];
-		const oracleAccountInfos = [
-			{
-				pubkey: marketAccount.amm.oracle,
-				isWritable: false,
-				isSigner: false,
-			},
-		];
+		const oracleAccountMap = new Map<string, AccountMeta>();
+		const bankAccountMap = new Map<number, AccountMeta>();
+		const marketAccountMap = new Map<number, AccountMeta>();
+
+		marketAccountMap.set(marketIndex.toNumber(), {
+			pubkey: marketAccount.pubkey,
+			isWritable: true,
+			isSigner: false,
+		});
+		oracleAccountMap.set(marketAccount.amm.oracle.toString(), {
+			pubkey: marketAccount.amm.oracle,
+			isWritable: false,
+			isSigner: false,
+		});
+
+		for (const bankBalance of userAccount.bankBalances) {
+			if (!bankBalance.balance.eq(ZERO)) {
+				const bankAccount = this.getBankAccount(bankBalance.bankIndex);
+				bankAccountMap.set(bankBalance.bankIndex.toNumber(), {
+					pubkey: bankAccount.pubkey,
+					isSigner: false,
+					isWritable: true,
+				});
+
+				if (!bankAccount.oracle.equals(PublicKey.default)) {
+					oracleAccountMap.set(bankAccount.oracle.toString(), {
+						pubkey: bankAccount.oracle,
+						isSigner: false,
+						isWritable: false,
+					});
+				}
+			}
+		}
+
 		for (const position of userAccount.positions) {
 			if (
 				!positionIsAvailable(position) &&
 				!position.marketIndex.eq(order.marketIndex)
 			) {
 				const market = this.getMarketAccount(position.marketIndex);
-				marketAccountInfos.push({
+				marketAccountMap.set(position.marketIndex.toNumber(), {
 					pubkey: market.pubkey,
-					isWritable: false,
+					isWritable: true,
 					isSigner: false,
 				});
-				oracleAccountInfos.push({
+				oracleAccountMap.set(market.amm.oracle.toString(), {
 					pubkey: market.amm.oracle,
 					isWritable: false,
 					isSigner: false,
 				});
 			}
 		}
-		const remainingAccounts = oracleAccountInfos.concat(
-			bankAccountInfos.concat(marketAccountInfos)
-		);
+
+		const remainingAccounts = [
+			...oracleAccountMap.values(),
+			...bankAccountMap.values(),
+			...marketAccountMap.values(),
+		];
 
 		const orderId = order.orderId;
 		return await this.program.instruction.triggerOrder(orderId, {
@@ -1539,72 +1794,359 @@ export class ClearingHouse {
 		});
 	}
 
-	public async liquidate(
-		liquidateeUserAccountPublicKey: PublicKey
+	public async liquidatePerp(
+		userAccountPublicKey: PublicKey,
+		userAccount: UserAccount,
+		marketIndex: BN,
+		maxBaseAssetAmount: BN
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.txSender.send(
-			wrapInTx(await this.getLiquidateIx(liquidateeUserAccountPublicKey)),
+			wrapInTx(
+				await this.getLiquidatePerpIx(
+					userAccountPublicKey,
+					userAccount,
+					marketIndex,
+					maxBaseAssetAmount
+				)
+			),
 			[],
 			this.opts
 		);
 		return txSig;
 	}
 
-	public async getLiquidateIx(
-		liquidateeUserAccountPublicKey: PublicKey
+	public async getLiquidatePerpIx(
+		userAccountPublicKey: PublicKey,
+		userAccount: UserAccount,
+		marketIndex: BN,
+		maxBaseAssetAmount: BN
 	): Promise<TransactionInstruction> {
-		const userAccountPublicKey = await this.getUserAccountPublicKey();
-		const liquidateeUserAccount = (await this.program.account.user.fetch(
-			liquidateeUserAccountPublicKey
-		)) as UserAccount;
+		const liquidatorPublicKey = await this.getUserAccountPublicKey();
 
-		const bankAccountInfos = [
+		const remainingAccounts = this.getRemainingAccountsForLiquidation({
+			writableMarketIndex: marketIndex,
+			userAccount,
+		});
+
+		return await this.program.instruction.liquidatePerp(
+			marketIndex,
+			maxBaseAssetAmount,
 			{
-				pubkey: this.getQuoteAssetBankAccount().pubkey,
-				isSigner: false,
-				isWritable: true,
-			},
-		];
-		const marketAccountInfos = [];
-		const oracleAccountInfos = [];
+				accounts: {
+					state: await this.getStatePublicKey(),
+					authority: this.wallet.publicKey,
+					user: userAccountPublicKey,
+					liquidator: liquidatorPublicKey,
+				},
+				remainingAccounts: remainingAccounts,
+			}
+		);
+	}
+
+	public async liquidateBorrow(
+		userAccountPublicKey: PublicKey,
+		userAccount: UserAccount,
+		assetBankIndex: BN,
+		liabilityBankIndex: BN,
+		maxLiabilityTransfer: BN
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.txSender.send(
+			wrapInTx(
+				await this.getLiquidateBorrowIx(
+					userAccountPublicKey,
+					userAccount,
+					assetBankIndex,
+					liabilityBankIndex,
+					maxLiabilityTransfer
+				)
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getLiquidateBorrowIx(
+		userAccountPublicKey: PublicKey,
+		userAccount: UserAccount,
+		assetBankIndex: BN,
+		liabilityBankIndex: BN,
+		maxLiabilityTransfer: BN
+	): Promise<TransactionInstruction> {
+		const liquidatorPublicKey = await this.getUserAccountPublicKey();
+
+		const remainingAccounts = this.getRemainingAccountsForLiquidation({
+			userAccount,
+			writableBankIndexes: [liabilityBankIndex, assetBankIndex],
+		});
+
+		return await this.program.instruction.liquidateBorrow(
+			assetBankIndex,
+			liabilityBankIndex,
+			maxLiabilityTransfer,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					authority: this.wallet.publicKey,
+					user: userAccountPublicKey,
+					liquidator: liquidatorPublicKey,
+				},
+				remainingAccounts: remainingAccounts,
+			}
+		);
+	}
+
+	public async liquidateBorrowForPerpPnl(
+		userAccountPublicKey: PublicKey,
+		userAccount: UserAccount,
+		perpMarketIndex: BN,
+		liabilityBankIndex: BN,
+		maxLiabilityTransfer: BN
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.txSender.send(
+			wrapInTx(
+				await this.getLiquidateBorrowForPerpPnlIx(
+					userAccountPublicKey,
+					userAccount,
+					perpMarketIndex,
+					liabilityBankIndex,
+					maxLiabilityTransfer
+				)
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getLiquidateBorrowForPerpPnlIx(
+		userAccountPublicKey: PublicKey,
+		userAccount: UserAccount,
+		perpMarketIndex: BN,
+		liabilityBankIndex: BN,
+		maxLiabilityTransfer: BN
+	): Promise<TransactionInstruction> {
+		const liquidatorPublicKey = await this.getUserAccountPublicKey();
+
+		const remainingAccounts = this.getRemainingAccountsForLiquidation({
+			userAccount,
+			writableMarketIndex: perpMarketIndex,
+			writableBankIndexes: [liabilityBankIndex],
+		});
+
+		return await this.program.instruction.liquidateBorrowForPerpPnl(
+			perpMarketIndex,
+			liabilityBankIndex,
+			maxLiabilityTransfer,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					authority: this.wallet.publicKey,
+					user: userAccountPublicKey,
+					liquidator: liquidatorPublicKey,
+				},
+				remainingAccounts: remainingAccounts,
+			}
+		);
+	}
+
+	public async liquidatePerpPnlForDeposit(
+		userAccountPublicKey: PublicKey,
+		userAccount: UserAccount,
+		perpMarketIndex: BN,
+		assetBankIndex: BN,
+		maxPnlTransfer: BN
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.txSender.send(
+			wrapInTx(
+				await this.getLiquidatePerpPnlForDepositIx(
+					userAccountPublicKey,
+					userAccount,
+					perpMarketIndex,
+					assetBankIndex,
+					maxPnlTransfer
+				)
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getLiquidatePerpPnlForDepositIx(
+		userAccountPublicKey: PublicKey,
+		userAccount: UserAccount,
+		perpMarketIndex: BN,
+		assetBankIndex: BN,
+		maxPnlTransfer: BN
+	): Promise<TransactionInstruction> {
+		const liquidatorPublicKey = await this.getUserAccountPublicKey();
+
+		const remainingAccounts = this.getRemainingAccountsForLiquidation({
+			userAccount,
+			writableMarketIndex: perpMarketIndex,
+			writableBankIndexes: [assetBankIndex],
+		});
+
+		return await this.program.instruction.liquidatePerpPnlForDeposit(
+			perpMarketIndex,
+			assetBankIndex,
+			maxPnlTransfer,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					authority: this.wallet.publicKey,
+					user: userAccountPublicKey,
+					liquidator: liquidatorPublicKey,
+				},
+				remainingAccounts: remainingAccounts,
+			}
+		);
+	}
+
+	getRemainingAccountsForLiquidation(params: {
+		userAccount: UserAccount;
+		writableMarketIndex?: BN;
+		writableBankIndexes?: BN[];
+	}): AccountMeta[] {
+		const liquidateeUserAccount = params.userAccount;
+
+		const oracleAccountMap = new Map<string, AccountMeta>();
+		const bankAccountMap = new Map<number, AccountMeta>();
+		const marketAccountMap = new Map<number, AccountMeta>();
+		for (const bankBalance of liquidateeUserAccount.bankBalances) {
+			if (!bankBalance.balance.eq(ZERO)) {
+				const bankAccount = this.getBankAccount(bankBalance.bankIndex);
+				bankAccountMap.set(bankBalance.bankIndex.toNumber(), {
+					pubkey: bankAccount.pubkey,
+					isSigner: false,
+					isWritable: false,
+				});
+
+				if (!bankAccount.oracle.equals(PublicKey.default)) {
+					oracleAccountMap.set(bankAccount.oracle.toString(), {
+						pubkey: bankAccount.oracle,
+						isSigner: false,
+						isWritable: false,
+					});
+				}
+			}
+		}
 		for (const position of liquidateeUserAccount.positions) {
 			if (!positionIsAvailable(position)) {
 				const market = this.getMarketAccount(position.marketIndex);
-				const marketPublicKey = await getMarketPublicKey(
-					this.program.programId,
-					position.marketIndex
-				);
-				marketAccountInfos.push({
-					pubkey: marketPublicKey,
-					isWritable: true,
+				marketAccountMap.set(position.marketIndex.toNumber(), {
+					pubkey: market.pubkey,
+					isWritable: false,
 					isSigner: false,
 				});
-				oracleAccountInfos.push({
+				oracleAccountMap.set(market.amm.oracle.toString(), {
 					pubkey: market.amm.oracle,
 					isWritable: false,
 					isSigner: false,
 				});
 			}
 		}
-		const remainingAccounts = oracleAccountInfos.concat(
-			bankAccountInfos.concat(marketAccountInfos)
-		);
 
-		const state = this.getStateAccount();
-		const quoteAssetBankAccount = this.getQuoteAssetBankAccount();
-		return await this.program.instruction.liquidate({
-			accounts: {
-				state: await this.getStatePublicKey(),
-				authority: this.wallet.publicKey,
-				user: liquidateeUserAccountPublicKey,
-				liquidator: userAccountPublicKey,
-				bankVault: quoteAssetBankAccount.vault,
-				bankVaultAuthority: quoteAssetBankAccount.vaultAuthority,
-				insuranceVault: state.insuranceVault,
-				tokenProgram: TOKEN_PROGRAM_ID,
-			},
-			remainingAccounts: remainingAccounts,
-		});
+		const userAccountAndSlot = this.getUserAccountAndSlot();
+		if (!userAccountAndSlot) {
+			throw Error(
+				'No user account found. Most likely user account does not exist or failed to fetch account'
+			);
+		}
+		const { data: userAccount, slot: lastUserPositionsSlot } =
+			userAccountAndSlot;
+
+		for (const [marketIndexNum, slot] of this.marketLastSlotCache.entries()) {
+			// if cache has more recent slot than user positions account slot, add market to remaining accounts
+			// otherwise remove from slot
+			if (slot > lastUserPositionsSlot) {
+				const marketAccount = this.getMarketAccount(marketIndexNum);
+				marketAccountMap.set(marketIndexNum, {
+					pubkey: marketAccount.pubkey,
+					isSigner: false,
+					isWritable: false,
+				});
+				oracleAccountMap.set(marketAccount.amm.oracle.toString(), {
+					pubkey: marketAccount.amm.oracle,
+					isSigner: false,
+					isWritable: false,
+				});
+			} else {
+				this.marketLastSlotCache.delete(marketIndexNum);
+			}
+		}
+		for (const bankBalance of userAccount.bankBalances) {
+			if (!bankBalance.balance.eq(ZERO)) {
+				const bankAccount = this.getBankAccount(bankBalance.bankIndex);
+				bankAccountMap.set(bankBalance.bankIndex.toNumber(), {
+					pubkey: bankAccount.pubkey,
+					isSigner: false,
+					isWritable: false,
+				});
+
+				if (!bankAccount.oracle.equals(PublicKey.default)) {
+					oracleAccountMap.set(bankAccount.oracle.toString(), {
+						pubkey: bankAccount.oracle,
+						isSigner: false,
+						isWritable: false,
+					});
+				}
+			}
+		}
+		for (const position of userAccount.positions) {
+			if (!positionIsAvailable(position)) {
+				const market = this.getMarketAccount(position.marketIndex);
+				marketAccountMap.set(position.marketIndex.toNumber(), {
+					pubkey: market.pubkey,
+					isWritable: false,
+					isSigner: false,
+				});
+				oracleAccountMap.set(market.amm.oracle.toString(), {
+					pubkey: market.amm.oracle,
+					isWritable: false,
+					isSigner: false,
+				});
+			}
+		}
+
+		if (params.writableMarketIndex) {
+			const market = this.getMarketAccount(params.writableMarketIndex);
+			marketAccountMap.set(market.marketIndex.toNumber(), {
+				pubkey: market.pubkey,
+				isSigner: false,
+				isWritable: true,
+			});
+			oracleAccountMap.set(market.amm.oracle.toString(), {
+				pubkey: market.amm.oracle,
+				isSigner: false,
+				isWritable: false,
+			});
+		}
+
+		if (params.writableBankIndexes) {
+			for (const writableBankIndex of params.writableBankIndexes) {
+				const bank = this.getBankAccount(writableBankIndex);
+				bankAccountMap.set(bank.bankIndex.toNumber(), {
+					pubkey: bank.pubkey,
+					isSigner: false,
+					isWritable: true,
+				});
+				if (!bank.oracle.equals(PublicKey.default)) {
+					oracleAccountMap.set(bank.oracle.toString(), {
+						pubkey: bank.oracle,
+						isSigner: false,
+						isWritable: false,
+					});
+				}
+			}
+		}
+
+		return [
+			...oracleAccountMap.values(),
+			...bankAccountMap.values(),
+			...marketAccountMap.values(),
+		];
 	}
 
 	public async updateFundingRate(

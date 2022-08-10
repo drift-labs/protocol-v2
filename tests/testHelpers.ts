@@ -3,6 +3,7 @@ import { AnchorProvider, Program, Provider } from '@project-serum/anchor';
 import {
 	AccountLayout,
 	MintLayout,
+	NATIVE_MINT,
 	Token,
 	TOKEN_PROGRAM_ID,
 } from '@solana/spl-token';
@@ -789,5 +790,38 @@ export async function initializeQuoteAssetBank(
 		initialLiabilityWeight,
 		maintenanceLiabilityWeight,
 		imfFactor
+	);
+}
+
+export async function initializeSolAssetBank(
+	admin: Admin,
+	solOracle: PublicKey
+): Promise<void> {
+	const optimalUtilization = BANK_RATE_PRECISION.div(new BN(2)); // 50% utilization
+	const optimalRate = BANK_RATE_PRECISION.mul(new BN(20)); // 2000% APR
+	const maxRate = BANK_RATE_PRECISION.mul(new BN(50)); // 5000% APR
+	const initialAssetWeight = BANK_WEIGHT_PRECISION.mul(new BN(8)).div(
+		new BN(10)
+	);
+	const maintenanceAssetWeight = BANK_WEIGHT_PRECISION.mul(new BN(9)).div(
+		new BN(10)
+	);
+	const initialLiabilityWeight = BANK_WEIGHT_PRECISION.mul(new BN(12)).div(
+		new BN(10)
+	);
+	const maintenanceLiabilityWeight = BANK_WEIGHT_PRECISION.mul(new BN(11)).div(
+		new BN(10)
+	);
+	await admin.initializeBank(
+		NATIVE_MINT,
+		optimalUtilization,
+		optimalRate,
+		maxRate,
+		solOracle,
+		OracleSource.QUOTE_ASSET,
+		initialAssetWeight,
+		maintenanceAssetWeight,
+		initialLiabilityWeight,
+		maintenanceLiabilityWeight
 	);
 }

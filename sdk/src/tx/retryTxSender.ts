@@ -56,9 +56,17 @@ export class RetryTxSender implements TxSender {
 		const rawTransaction = tx.serialize();
 		const startTime = this.getTimestamp();
 
-		const txid: TransactionSignature =
-			await this.provider.connection.sendRawTransaction(rawTransaction, opts);
-		this.sendToAdditionalConnections(rawTransaction, opts);
+		let txid: TransactionSignature;
+		try {
+			txid = await this.provider.connection.sendRawTransaction(
+				rawTransaction,
+				opts
+			);
+			this.sendToAdditionalConnections(rawTransaction, opts);
+		} catch (e) {
+			console.error(e);
+			throw e;
+		}
 
 		let done = false;
 		const resolveReference: ResolveReference = {

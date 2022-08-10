@@ -783,7 +783,6 @@ mod test {
             next_curve_record_id: 1,
             next_fill_record_id: 4,
             margin_ratio_initial: 1000,
-            margin_ratio_partial: 714,
             margin_ratio_maintenance: 500,
 
             ..Market::default()

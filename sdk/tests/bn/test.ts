@@ -125,6 +125,8 @@ describe('BigNum Tests', () => {
 		expect(BigNum.fromPrint('1234567').toMillified(5)).to.equal('1.2345M');
 		expect(BigNum.fromPrint('12345678').toMillified(5)).to.equal('12.345M');
 		expect(BigNum.fromPrint('123456789').toMillified(5)).to.equal('123.45M');
+
+		expect(BigNum.from(-95, 2).print()).to.equal('-0.95');
 	});
 
 	it('can initialise from string values correctly', () => {

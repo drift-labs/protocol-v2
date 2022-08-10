@@ -145,6 +145,10 @@
         {
           "name": "imfFactor",
           "type": "u128"
+        },
+        {
+          "name": "liquidationFee",
+          "type": "u128"
         }
       ]
     },
@@ -210,12 +214,12 @@
           "type": "u32"
         },
         {
-          "name": "marginRatioPartial",
+          "name": "marginRatioMaintenance",
           "type": "u32"
         },
         {
-          "name": "marginRatioMaintenance",
-          "type": "u32"
+          "name": "liquidationFee",
+          "type": "u128"
         }
       ]
     },
@@ -725,7 +729,7 @@
       ]
     },
     {
-      "name": "liquidate",
+      "name": "liquidatePerp",
       "accounts": [
         {
           "name": "state",
@@ -746,29 +750,135 @@
           "name": "user",
           "isMut": true,
           "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u64"
         },
         {
-          "name": "bankVault",
-          "isMut": true,
-          "isSigner": false
-        },
+          "name": "liquidatorMaxBaseAssetAmount",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "liquidateBorrow",
+      "accounts": [
         {
-          "name": "bankVaultAuthority",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "insuranceVault",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "tokenProgram",
+          "name": "state",
           "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "liquidator",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
           "isSigner": false
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "assetBankIndex",
+          "type": "u64"
+        },
+        {
+          "name": "liabilityBankIndex",
+          "type": "u64"
+        },
+        {
+          "name": "liquidatorMaxLiabilityTransfer",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "liquidateBorrowForPerpPnl",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "liquidator",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "perpMarketIndex",
+          "type": "u64"
+        },
+        {
+          "name": "liabilityBankIndex",
+          "type": "u64"
+        },
+        {
+          "name": "liquidatorMaxLiabilityTransfer",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "liquidatePerpPnlForDeposit",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "liquidator",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "perpMarketIndex",
+          "type": "u64"
+        },
+        {
+          "name": "assetBankIndex",
+          "type": "u64"
+        },
+        {
+          "name": "liquidatorMaxPnlTransfer",
+          "type": "u128"
+        }
+      ]
     },
     {
       "name": "moveAmmPrice",
@@ -1174,12 +1284,60 @@
           "type": "u32"
         },
         {
-          "name": "marginRatioPartial",
-          "type": "u32"
-        },
-        {
           "name": "marginRatioMaintenance",
           "type": "u32"
+        }
+      ]
+    },
+    {
+      "name": "updatePerpLiquidationFee",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "liquidationFee",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "updateBankLiquidationFee",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "bank",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "liquidationFee",
+          "type": "u128"
         }
       ]
     },
@@ -1907,6 +2065,10 @@
           {
             "name": "imfFactor",
             "type": "u128"
+          },
+          {
+            "name": "liquidationFee",
+            "type": "u128"
           }
         ]
       }
@@ -1951,10 +2113,6 @@
             "type": "u32"
           },
           {
-            "name": "marginRatioPartial",
-            "type": "u32"
-          },
-          {
             "name": "marginRatioMaintenance",
             "type": "u32"
           },
@@ -1977,14 +2135,6 @@
             }
           },
           {
-            "name": "unsettledProfit",
-            "type": "u128"
-          },
-          {
-            "name": "unsettledLoss",
-            "type": "u128"
-          },
-          {
             "name": "imfFactor",
             "type": "u128"
           },
@@ -1998,6 +2148,10 @@
           },
           {
             "name": "unsettledImfFactor",
+            "type": "u128"
+          },
+          {
+            "name": "liquidationFee",
             "type": "u128"
           },
           {
@@ -2141,6 +2295,10 @@
             "type": "u8"
           },
           {
+            "name": "liquidationMarginBufferRatio",
+            "type": "u8"
+          },
+          {
             "name": "padding0",
             "type": "u128"
           },
@@ -2215,6 +2373,14 @@
                 32
               ]
             }
+          },
+          {
+            "name": "nextLiquidationId",
+            "type": "u16"
+          },
+          {
+            "name": "beingLiquidated",
+            "type": "bool"
           }
         ]
       }
@@ -2322,6 +2488,156 @@
       }
     },
     {
+      "name": "LiquidatePerpRecord",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "marketIndex",
+            "type": "u64"
+          },
+          {
+            "name": "orderIds",
+            "type": {
+              "vec": "u64"
+            }
+          },
+          {
+            "name": "canceledOrdersFee",
+            "type": "u128"
+          },
+          {
+            "name": "oraclePrice",
+            "type": "i128"
+          },
+          {
+            "name": "baseAssetAmount",
+            "type": "i128"
+          },
+          {
+            "name": "quoteAssetAmount",
+            "type": "i128"
+          },
+          {
+            "name": "userPnl",
+            "type": "i128"
+          },
+          {
+            "name": "liquidatorPnl",
+            "type": "i128"
+          },
+          {
+            "name": "fillRecordId",
+            "type": "u64"
+          },
+          {
+            "name": "userOrderId",
+            "type": "u64"
+          },
+          {
+            "name": "liquidatorOrderId",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LiquidateBorrowRecord",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "assetBankIndex",
+            "type": "u64"
+          },
+          {
+            "name": "assetPrice",
+            "type": "i128"
+          },
+          {
+            "name": "assetTransfer",
+            "type": "u128"
+          },
+          {
+            "name": "liabilityBankIndex",
+            "type": "u64"
+          },
+          {
+            "name": "liabilityPrice",
+            "type": "i128"
+          },
+          {
+            "name": "liabilityTransfer",
+            "type": "u128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LiquidateBorrowForPerpPnlRecord",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "marketIndex",
+            "type": "u64"
+          },
+          {
+            "name": "marketOraclePrice",
+            "type": "i128"
+          },
+          {
+            "name": "pnlTransfer",
+            "type": "u128"
+          },
+          {
+            "name": "liabilityBankIndex",
+            "type": "u64"
+          },
+          {
+            "name": "liabilityPrice",
+            "type": "i128"
+          },
+          {
+            "name": "liabilityTransfer",
+            "type": "u128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LiquidatePerpPnlForDepositRecord",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "marketIndex",
+            "type": "u64"
+          },
+          {
+            "name": "marketOraclePrice",
+            "type": "i128"
+          },
+          {
+            "name": "pnlTransfer",
+            "type": "u128"
+          },
+          {
+            "name": "assetBankIndex",
+            "type": "u64"
+          },
+          {
+            "name": "assetPrice",
+            "type": "i128"
+          },
+          {
+            "name": "assetTransfer",
+            "type": "u128"
+          }
+        ]
+      }
+    },
+    {
       "name": "PoolBalance",
       "type": {
         "kind": "struct",
@@ -2402,11 +2718,19 @@
           },
           {
             "name": "quoteAssetAmountLong",
-            "type": "u128"
+            "type": "i128"
           },
           {
             "name": "quoteAssetAmountShort",
-            "type": "u128"
+            "type": "i128"
+          },
+          {
+            "name": "quoteEntryAmountLong",
+            "type": "i128"
+          },
+          {
+            "name": "quoteEntryAmountShort",
+            "type": "i128"
           },
           {
             "name": "netUnsettledLpBaseAssetAmount",
@@ -2711,6 +3035,10 @@
             "type": {
               "defined": "OrderFillerRewardStructure"
             }
+          },
+          {
+            "name": "cancelOrderFee",
+            "type": "u128"
           }
         ]
       }
@@ -2880,11 +3208,11 @@
           },
           {
             "name": "quoteAssetAmount",
-            "type": "u128"
+            "type": "i128"
           },
           {
             "name": "quoteEntryAmount",
-            "type": "u128"
+            "type": "i128"
           },
           {
             "name": "lastCumulativeFundingRate",
@@ -2901,10 +3229,6 @@
           {
             "name": "openOrders",
             "type": "u128"
-          },
-          {
-            "name": "unsettledPnl",
-            "type": "i128"
           },
           {
             "name": "openBids",
@@ -3119,6 +3443,43 @@
       }
     },
     {
+      "name": "PositionUpdateType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Open"
+          },
+          {
+            "name": "Increase"
+          },
+          {
+            "name": "Reduce"
+          },
+          {
+            "name": "Close"
+          },
+          {
+            "name": "Flip"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LiquidationMultiplierType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Discount"
+          },
+          {
+            "name": "Premium"
+          }
+        ]
+      }
+    },
+    {
       "name": "MarginRequirementType",
       "type": {
         "kind": "enum",
@@ -3127,27 +3488,7 @@
             "name": "Initial"
           },
           {
-            "name": "Partial"
-          },
-          {
             "name": "Maintenance"
-          }
-        ]
-      }
-    },
-    {
-      "name": "LiquidationType",
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "NONE"
-          },
-          {
-            "name": "PARTIAL"
-          },
-          {
-            "name": "FULL"
           }
         ]
       }
@@ -3222,6 +3563,29 @@
           },
           {
             "name": "MarketOrderAuctionExpired"
+          },
+          {
+            "name": "CanceledForLiquidation"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LiquidationType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "LiquidatePerp"
+          },
+          {
+            "name": "LiquidateBorrow"
+          },
+          {
+            "name": "LiquidateBorrowForPerpPnl"
+          },
+          {
+            "name": "LiquidatePerpPnlForDeposit"
           }
         ]
       }
@@ -3598,81 +3962,6 @@
       ]
     },
     {
-      "name": "LiquidationRecord",
-      "fields": [
-        {
-          "name": "ts",
-          "type": "i64",
-          "index": false
-        },
-        {
-          "name": "userAuthority",
-          "type": "publicKey",
-          "index": false
-        },
-        {
-          "name": "user",
-          "type": "publicKey",
-          "index": false
-        },
-        {
-          "name": "partial",
-          "type": "bool",
-          "index": false
-        },
-        {
-          "name": "baseAssetValue",
-          "type": "u128",
-          "index": false
-        },
-        {
-          "name": "baseAssetValueClosed",
-          "type": "u128",
-          "index": false
-        },
-        {
-          "name": "liquidationFee",
-          "type": "u128",
-          "index": false
-        },
-        {
-          "name": "feeToLiquidator",
-          "type": "u64",
-          "index": false
-        },
-        {
-          "name": "feeToInsuranceFund",
-          "type": "u64",
-          "index": false
-        },
-        {
-          "name": "liquidator",
-          "type": "publicKey",
-          "index": false
-        },
-        {
-          "name": "totalCollateral",
-          "type": "u128",
-          "index": false
-        },
-        {
-          "name": "collateral",
-          "type": "u128",
-          "index": false
-        },
-        {
-          "name": "unrealizedPnl",
-          "type": "i128",
-          "index": false
-        },
-        {
-          "name": "marginRatio",
-          "type": "u128",
-          "index": false
-        }
-      ]
-    },
-    {
       "name": "OrderRecord",
       "fields": [
         {
@@ -3781,6 +4070,76 @@
         {
           "name": "oraclePrice",
           "type": "i128",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "LiquidationRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "liquidationType",
+          "type": {
+            "defined": "LiquidationType"
+          },
+          "index": false
+        },
+        {
+          "name": "user",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "liquidator",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "marginRequirement",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "totalCollateral",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "liquidationId",
+          "type": "u16",
+          "index": false
+        },
+        {
+          "name": "liquidatePerp",
+          "type": {
+            "defined": "LiquidatePerpRecord"
+          },
+          "index": false
+        },
+        {
+          "name": "liquidateBorrow",
+          "type": {
+            "defined": "LiquidateBorrowRecord"
+          },
+          "index": false
+        },
+        {
+          "name": "liquidateBorrowForPerpPnl",
+          "type": {
+            "defined": "LiquidateBorrowForPerpPnlRecord"
+          },
+          "index": false
+        },
+        {
+          "name": "liquidatePerpPnlForDeposit",
+          "type": {
+            "defined": "LiquidatePerpPnlForDepositRecord"
+          },
           "index": false
         }
       ]
@@ -4239,6 +4598,56 @@
     },
     {
       "code": 6090,
+      "name": "PositionAlreadyBeingLiquidated",
+      "msg": "PositionAlreadyBeingLiquidated"
+    },
+    {
+      "code": 6091,
+      "name": "PositionDoesntHaveOpenPositionOrOrders",
+      "msg": "PositionDoesntHaveOpenPositionOrOrders"
+    },
+    {
+      "code": 6092,
+      "name": "AllOrdersAreAlreadyLiquidations",
+      "msg": "AllOrdersAreAlreadyLiquidations"
+    },
+    {
+      "code": 6093,
+      "name": "CantCancelLiquidationOrder",
+      "msg": "CantCancelLiquidationOrder"
+    },
+    {
+      "code": 6094,
+      "name": "UserIsBeingLiquidated",
+      "msg": "UserIsBeingLiquidated"
+    },
+    {
+      "code": 6095,
+      "name": "LiquidationsOngoing",
+      "msg": "LiquidationsOngoing"
+    },
+    {
+      "code": 6096,
+      "name": "WrongBankBalanceType",
+      "msg": "WrongBankBalanceType"
+    },
+    {
+      "code": 6097,
+      "name": "UserCantLiquidateThemself",
+      "msg": "UserCantLiquidateThemself"
+    },
+    {
+      "code": 6098,
+      "name": "InvalidPerpPositionToLiquidate",
+      "msg": "InvalidPerpPositionToLiquidate"
+    },
+    {
+      "code": 6099,
+      "name": "InvalidBaseAssetAmountForLiquidatePerp",
+      "msg": "InvalidBaseAssetAmountForLiquidatePerp"
+    },
+    {
+      "code": 6100,
       "name": "DefaultError",
       "msg": "DefaultError"
     },

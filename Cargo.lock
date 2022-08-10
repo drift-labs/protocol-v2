@@ -415,6 +415,7 @@ dependencies = [
  "anchor-lang",
  "anchor-spl",
  "arrayref",
+ "base64 0.13.0",
  "borsh",
  "bytemuck",
  "bytes",
@@ -774,16 +775,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "057a3db23999c867821a7a59feb06a578fcb03685e983dff90daf9e7d24ac08f"
 dependencies = [
  "libc",
-]
-
-[[package]]
-name = "mock-usdc-faucet"
-version = "0.1.0"
-dependencies = [
- "anchor-lang",
- "anchor-spl",
- "bytemuck",
- "solana-program",
 ]
 
 [[package]]
@@ -1305,6 +1296,16 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "token-faucet"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "anchor-spl",
+ "bytemuck",
+ "solana-program",
 ]
 
 [[package]]

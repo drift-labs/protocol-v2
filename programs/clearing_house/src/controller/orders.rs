@@ -19,6 +19,7 @@ use crate::math::auction::{
 };
 use crate::math::casting::{cast, cast_to_i128};
 use crate::math::fulfillment::determine_fulfillment_methods;
+use crate::math::liquidation::validate_user_not_being_liquidated;
 use crate::math::matching::{
     are_orders_same_market_but_different_sides, calculate_fill_for_matched_orders, do_orders_cross,
     is_maker_for_taker,
@@ -28,7 +29,7 @@ use crate::math_error;
 use crate::order_validation::validate_order;
 use crate::print_error;
 use crate::state::bank_map::BankMap;
-use crate::state::events::OrderRecord;
+use crate::state::events::{emit_stack, OrderRecord};
 use crate::state::events::{OrderAction, OrderActionExplanation};
 use crate::state::fulfillment::FulfillmentMethod;
 use crate::state::market::Market;
@@ -43,6 +44,7 @@ use std::alloc::{alloc_zeroed, Layout};
 use std::cell::RefMut;
 use std::cmp::{max, min};
 use std::ops::{Deref, DerefMut};
+
 #[cfg(test)]
 mod tests;
 
@@ -64,6 +66,14 @@ pub fn place_order(
         &user_key,
         market_map.get_ref_mut(&params.market_index)?.deref_mut(),
         now,
+    )?;
+
+    validate_user_not_being_liquidated(
+        user,
+        market_map,
+        bank_map,
+        oracle_map,
+        state.liquidation_margin_buffer_ratio,
     )?;
 
     let new_order_index = user
@@ -196,19 +206,20 @@ pub fn place_order(
         user.positions[position_index].worst_case_base_asset_amount()?;
 
     // Order fails if it's risk increasing and it brings the user collateral below the margin requirement
-    let risk_increasing = worst_case_base_asset_amount_after.unsigned_abs()
-        > worst_case_base_asset_amount_before.unsigned_abs();
+    let risk_decreasing = worst_case_base_asset_amount_after.unsigned_abs()
+        <= worst_case_base_asset_amount_before.unsigned_abs();
+
     let meets_initial_maintenance_requirement =
         meets_initial_margin_requirement(user, market_map, bank_map, oracle_map)?;
-    if !meets_initial_maintenance_requirement && risk_increasing {
+
+    if !meets_initial_maintenance_requirement && !risk_decreasing {
         return Err(ErrorCode::InsufficientCollateral);
     }
 
     let (taker, taker_order, taker_unsettled_pnl, maker, maker_order, maker_unsettled_pnl) =
         get_taker_and_maker_for_order_record(&user_key, &new_order, 0);
 
-    // emit order record
-    emit!(OrderRecord {
+    emit_stack::<_, 984>(OrderRecord {
         ts: now,
         slot,
         taker,
@@ -260,6 +271,7 @@ pub fn cancel_order_by_order_id(
         OrderActionExplanation::None,
         None,
         0,
+        false,
     )
 }
 
@@ -289,6 +301,7 @@ pub fn cancel_order_by_user_order_id(
         OrderActionExplanation::None,
         None,
         0,
+        false,
     )
 }
 
@@ -303,6 +316,7 @@ pub fn cancel_order(
     explanation: OrderActionExplanation,
     filler_key: Option<&Pubkey>,
     filler_reward: u128,
+    skip_log: bool,
 ) -> ClearingHouseResult {
     let (order_status, order_market_index, order_direction) =
         get_struct_values!(user.orders[order_index], status, market_index, direction);
@@ -314,47 +328,47 @@ pub fn cancel_order(
         now,
     )?;
 
-    if order_status != OrderStatus::Open {
-        return Err(ErrorCode::OrderNotOpen);
-    }
+    validate!(order_status == OrderStatus::Open, ErrorCode::OrderNotOpen)?;
 
     let market = &market_map.get_ref(&order_market_index)?;
 
     // When save in the record, we want the status to be canceled
     user.orders[order_index].status = OrderStatus::Canceled;
 
-    let (taker, taker_order, taker_unsettled_pnl, maker, maker_order, maker_unsettled_pnl) =
-        get_taker_and_maker_for_order_record(
-            user_key,
-            &user.orders[order_index],
-            -cast(filler_reward)?,
-        );
+    if !skip_log {
+        let (taker, taker_order, taker_unsettled_pnl, maker, maker_order, maker_unsettled_pnl) =
+            get_taker_and_maker_for_order_record(
+                user_key,
+                &user.orders[order_index],
+                -cast(filler_reward)?,
+            );
 
-    emit!(OrderRecord {
-        ts: now,
-        slot,
-        taker,
-        taker_order,
-        maker,
-        maker_order,
-        maker_unsettled_pnl,
-        taker_unsettled_pnl,
-        action: OrderAction::Cancel,
-        action_explanation: explanation,
-        filler: match filler_key {
-            Some(filler) => *filler,
-            None => Pubkey::default(),
-        },
-        fill_record_id: 0,
-        market_index: market.market_index,
-        base_asset_amount_filled: 0,
-        quote_asset_amount_filled: 0,
-        filler_reward,
-        taker_fee: 0,
-        maker_rebate: 0,
-        quote_asset_amount_surplus: 0,
-        oracle_price: oracle_map.get_price_data(&market.amm.oracle)?.price
-    });
+        emit_stack::<_, 984>(OrderRecord {
+            ts: now,
+            slot,
+            taker,
+            taker_order,
+            maker,
+            maker_order,
+            maker_unsettled_pnl,
+            taker_unsettled_pnl,
+            action: OrderAction::Cancel,
+            action_explanation: explanation,
+            filler: match filler_key {
+                Some(filler) => *filler,
+                None => Pubkey::default(),
+            },
+            fill_record_id: 0,
+            market_index: market.market_index,
+            base_asset_amount_filled: 0,
+            quote_asset_amount_filled: 0,
+            filler_reward,
+            taker_fee: 0,
+            maker_rebate: 0,
+            quote_asset_amount_surplus: 0,
+            oracle_price: oracle_map.get_price_data(&market.amm.oracle)?.price,
+        });
+    }
 
     // Decrement open orders for existing position
     let position_index = get_position_index(&user.positions, order_market_index)?;
@@ -417,6 +431,14 @@ pub fn fill_order(
         "Order must be triggered first"
     )?;
 
+    validate_user_not_being_liquidated(
+        user,
+        market_map,
+        bank_map,
+        oracle_map,
+        state.liquidation_margin_buffer_ratio,
+    )?;
+
     let mark_price_before: u128;
     let oracle_mark_spread_pct_before: i128;
     let is_oracle_valid: bool;
@@ -462,13 +484,11 @@ pub fn fill_order(
         oracle_map,
         maker,
         maker_order_id,
+        &user_key,
         &user.orders[order_index],
         &mut filler.as_deref_mut(),
         &filler_key,
-        state
-            .fee_structure
-            .filler_reward_structure
-            .time_based_reward_lower_bound,
+        state.fee_structure.cancel_order_fee,
         oracle_price,
         now,
         slot,
@@ -479,14 +499,11 @@ pub fn fill_order(
     if should_expire_order {
         let filler_reward = {
             let mut market = market_map.get_ref_mut(&market_index)?;
-            pay_filler_flat_reward(
+            pay_keeper_flat_reward(
                 user,
                 filler.as_deref_mut(),
                 market.deref_mut(),
-                state
-                    .fee_structure
-                    .filler_reward_structure
-                    .time_based_reward_lower_bound,
+                state.fee_structure.cancel_order_fee,
             )?
         };
 
@@ -501,6 +518,7 @@ pub fn fill_order(
             OrderActionExplanation::MarketOrderAuctionExpired,
             Some(&filler_key),
             filler_reward,
+            false,
         )?;
         return Ok((0, true));
     }
@@ -529,14 +547,11 @@ pub fn fill_order(
 
         let filler_reward = {
             let mut market = market_map.get_ref_mut(&market_index)?;
-            pay_filler_flat_reward(
+            pay_keeper_flat_reward(
                 user,
                 filler.as_deref_mut(),
                 market.deref_mut(),
-                state
-                    .fee_structure
-                    .filler_reward_structure
-                    .time_based_reward_lower_bound,
+                state.fee_structure.cancel_order_fee,
             )?
         };
 
@@ -551,6 +566,7 @@ pub fn fill_order(
             OrderActionExplanation::MarketOrderFilledToLimitPrice,
             Some(&filler_key),
             filler_reward,
+            false,
         )?
     }
 
@@ -620,6 +636,7 @@ fn sanitize_maker_order<'a>(
     oracle_map: &mut OracleMap,
     maker: Option<&'a AccountLoader<User>>,
     maker_order_id: Option<u64>,
+    taker_key: &Pubkey,
     taker_order: &Order,
     filler: &mut Option<&mut User>,
     filler_key: &Pubkey,
@@ -633,6 +650,10 @@ fn sanitize_maker_order<'a>(
     }
 
     let maker = maker.unwrap();
+    if &maker.key() == taker_key {
+        return Ok((None, None, None));
+    }
+
     let maker_key = maker.key();
     let mut maker = load_mut!(maker)?;
     let maker_order_index =
@@ -641,6 +662,10 @@ fn sanitize_maker_order<'a>(
     {
         let maker_order = &maker.orders[maker_order_index];
         if !is_maker_for_taker(maker_order, taker_order)? {
+            return Ok((None, None, None));
+        }
+
+        if maker.being_liquidated {
             return Ok((None, None, None));
         }
 
@@ -663,7 +688,7 @@ fn sanitize_maker_order<'a>(
         let filler_reward = {
             let mut market =
                 market_map.get_ref_mut(&maker.orders[maker_order_index].market_index)?;
-            pay_filler_flat_reward(
+            pay_keeper_flat_reward(
                 &mut maker,
                 filler.as_deref_mut(),
                 market.deref_mut(),
@@ -682,6 +707,7 @@ fn sanitize_maker_order<'a>(
             OrderActionExplanation::OraclePriceBreachedLimitPrice,
             Some(filler_key),
             filler_reward,
+            false,
         )?;
         return Ok((None, None, None));
     }
@@ -708,6 +734,10 @@ fn fulfill_order(
     slot: u64,
 ) -> ClearingHouseResult<(u128, bool, bool)> {
     let market_index = user.orders[user_order_index].market_index;
+
+    let position_index = get_position_index(&user.positions, market_index)?;
+    let worst_case_base_asset_amount_before =
+        user.positions[position_index].worst_case_base_asset_amount()?;
 
     let user_checkpoint = checkpoint_user(user, market_index, Some(user_order_index))?;
     let maker_checkpoint = if let Some(maker) = maker {
@@ -785,12 +815,19 @@ fn fulfill_order(
             .ok_or_else(math_error!())?;
     }
 
+    let mut updated_user_state = base_asset_amount != 0;
+
+    let worst_case_base_asset_amount_after =
+        user.positions[position_index].worst_case_base_asset_amount()?;
+
+    // Order fails if it's risk increasing and it brings the user collateral below the margin requirement
+    let risk_decreasing = worst_case_base_asset_amount_after.unsigned_abs()
+        < worst_case_base_asset_amount_before.unsigned_abs();
+
     let meets_initial_margin_requirement =
         meets_initial_margin_requirement(user, market_map, bank_map, oracle_map)?;
 
-    let mut updated_user_state = base_asset_amount != 0;
-
-    if meets_initial_margin_requirement {
+    if meets_initial_margin_requirement || risk_decreasing {
         for order_record in order_records {
             emit!(order_record)
         }
@@ -814,13 +851,11 @@ fn fulfill_order(
 
         let filler_reward = {
             let mut market = market_map.get_ref_mut(&market_index)?;
-            pay_filler_flat_reward(
+            pay_keeper_flat_reward(
                 user,
                 filler.as_deref_mut(),
                 market.deref_mut(),
-                fee_structure
-                    .filler_reward_structure
-                    .time_based_reward_lower_bound,
+                fee_structure.cancel_order_fee,
             )?
         };
 
@@ -835,6 +870,7 @@ fn fulfill_order(
             OrderActionExplanation::BreachedMarginRequirement,
             Some(filler_key),
             filler_reward,
+            false,
         )?
     }
 
@@ -950,6 +986,20 @@ pub fn fulfill_order_with_amm(
         None
     };
 
+    let (potentially_risk_increasing, _, quote_asset_amount, quote_asset_amount_surplus, pnl) =
+        controller::position::update_position_with_base_asset_amount(
+            base_asset_amount,
+            order_direction,
+            market,
+            user,
+            position_index,
+            mark_price_before,
+            now,
+            maker_limit_price,
+        )?;
+
+    let mut unsettled_pnl = pnl;∂
+
     let (order_post_only, order_ts, order_direction) =
         get_struct_values!(user.orders[order_index], post_only, ts, direction);
 
@@ -1031,9 +1081,8 @@ pub fn fulfill_order_with_amm(
         .checked_add(cast(user_fee)?)
         .ok_or_else(math_error!())?;
 
-    controller::position::update_unsettled_pnl(
+    controller::position::update_quote_asset_amount(
         &mut user.positions[position_index],
-        market,
         -cast(user_fee)?,
     )?;
 
@@ -1045,9 +1094,8 @@ pub fn fulfill_order_with_amm(
         let position_index = get_position_index(&filler.positions, market.market_index)
             .or_else(|_| add_new_position(&mut filler.positions, market.market_index))?;
 
-        controller::position::update_unsettled_pnl(
+        controller::position::update_quote_asset_amount(
             &mut filler.positions[position_index],
-            market,
             cast(filler_reward)?,
         )?;
     }
@@ -1173,13 +1221,13 @@ pub fn fulfill_order_with_match(
 
     let taker_position_index = get_position_index(
         &taker.positions,
-        taker.orders[maker_order_index].market_index,
+        taker.orders[taker_order_index].market_index,
     )?;
 
     let taker_position_delta = get_position_delta_for_fill(
         base_asset_amount,
         quote_asset_amount,
-        taker.orders[maker_order_index].direction,
+        taker.orders[taker_order_index].direction,
     )?;
 
     let mut taker_unsettled_pnl = update_position_and_market(
@@ -1221,9 +1269,8 @@ pub fn fulfill_order_with_match(
         .checked_add(fee_to_market as i64)
         .ok_or_else(math_error!())?;
 
-    controller::position::update_unsettled_pnl(
+    controller::position::update_quote_asset_amount(
         &mut taker.positions[taker_position_index],
-        market,
         -cast(taker_fee)?,
     )?;
 
@@ -1237,9 +1284,8 @@ pub fn fulfill_order_with_match(
         .checked_sub(cast(taker_fee)?)
         .ok_or_else(math_error!())?;
 
-    controller::position::update_unsettled_pnl(
+    controller::position::update_quote_asset_amount(
         &mut maker.positions[maker_position_index],
-        market,
         cast(maker_rebate)?,
     )?;
 
@@ -1257,9 +1303,8 @@ pub fn fulfill_order_with_match(
         let filler_position_index = get_position_index(&filler.positions, market.market_index)
             .or_else(|_| add_new_position(&mut filler.positions, market.market_index))?;
 
-        controller::position::update_unsettled_pnl(
+        controller::position::update_quote_asset_amount(
             &mut filler.positions[filler_position_index],
-            market,
             cast(filler_reward)?,
         )?;
     }
@@ -1507,14 +1552,11 @@ pub fn trigger_order(
         None
     };
 
-    let filler_reward = pay_filler_flat_reward(
+    let filler_reward = pay_keeper_flat_reward(
         user,
         filler.as_deref_mut(),
         market,
-        state
-            .fee_structure
-            .filler_reward_structure
-            .time_based_reward_lower_bound,
+        state.fee_structure.cancel_order_fee,
     )?;
 
     emit!(OrderRecord {
@@ -1543,7 +1585,7 @@ pub fn trigger_order(
     Ok(())
 }
 
-pub fn pay_filler_flat_reward(
+pub fn pay_keeper_flat_reward(
     user: &mut User,
     filler: Option<&mut User>,
     market: &mut Market,
@@ -1551,10 +1593,10 @@ pub fn pay_filler_flat_reward(
 ) -> ClearingHouseResult<u128> {
     let filler_reward = if let Some(filler) = filler {
         let user_position = user.get_position_mut(market.market_index)?;
-        controller::position::update_unsettled_pnl(user_position, market, -cast(filler_reward)?)?;
+        controller::position::update_quote_asset_amount(user_position, -cast(filler_reward)?)?;
 
         let filler_position = filler.force_get_position_mut(market.market_index)?;
-        controller::position::update_unsettled_pnl(filler_position, market, cast(filler_reward)?)?;
+        controller::position::update_quote_asset_amount(filler_position, cast(filler_reward)?)?;
 
         filler_reward
     } else {

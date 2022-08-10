@@ -1,12 +1,12 @@
 [package]
-name = "mock-usdc-faucet"
+name = "token-faucet"
 version = "0.1.0"
 description = "Created with Anchor"
 edition = "2018"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "mock_usdc_faucet"
+name = "token_faucet"
 
 [features]
 no-entrypoint = []

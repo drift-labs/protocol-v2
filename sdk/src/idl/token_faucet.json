@@ -1,23 +1,23 @@
 {
-  "version": "0.0.0",
-  "name": "mock_usdc_faucet",
+  "version": "0.1.0",
+  "name": "token_faucet",
   "instructions": [
     {
       "name": "initialize",
       "accounts": [
         {
-          "name": "mockUsdcFaucetState",
+          "name": "faucetConfig",
           "isMut": true,
           "isSigner": false
         },
         {
           "name": "admin",
-          "isMut": false,
+          "isMut": true,
           "isSigner": true
         },
         {
           "name": "mintAccount",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -29,20 +29,20 @@
           "name": "systemProgram",
           "isMut": false,
           "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
         }
       ],
-      "args": [
-        {
-          "name": "mockUsdcFaucetNonce",
-          "type": "u8"
-        }
-      ]
+      "args": []
     },
     {
       "name": "mintToUser",
       "accounts": [
         {
-          "name": "mockUsdcFaucetState",
+          "name": "faucetConfig",
           "isMut": false,
           "isSigner": false
         },
@@ -73,11 +73,42 @@
           "type": "u64"
         }
       ]
+    },
+    {
+      "name": "transferMintAuthority",
+      "accounts": [
+        {
+          "name": "faucetConfig",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "mintAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "mintAuthority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
     }
   ],
   "accounts": [
     {
-      "name": "MockUSDCFaucetState",
+      "name": "FaucetConfig",
       "type": {
         "kind": "struct",
         "fields": [
@@ -103,17 +134,9 @@
   ],
   "errors": [
     {
-      "code": 300,
+      "code": 6000,
       "name": "InvalidMintAccountAuthority",
       "msg": "Program not mint authority"
-    },
-    {
-      "code": 301,
-      "name": "Unauthorized",
-      "msg": "Signer must be MockUSDCFaucet admin"
     }
-  ],
-  "metadata": {
-    "address": "2z2DLVD3tBWc86pbvvy5qN31v1NXprM6zA5MDr2FMx64"
-  }
+  ]
 }

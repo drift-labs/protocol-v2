@@ -3,7 +3,6 @@ import { AnchorProvider, Idl, Program } from '@project-serum/anchor';
 import {
 	AccountInfo,
 	ASSOCIATED_TOKEN_PROGRAM_ID,
-	MintLayout,
 	Token,
 	TOKEN_PROGRAM_ID,
 } from '@solana/spl-token';
@@ -11,27 +10,28 @@ import {
 	ConfirmOptions,
 	Connection,
 	PublicKey,
-	SystemProgram,
 	SYSVAR_RENT_PUBKEY,
 	Transaction,
 	TransactionInstruction,
 	TransactionSignature,
 } from '@solana/web3.js';
 import { BN } from '.';
-import mockUSDCFaucetIDL from './idl/mock_usdc_faucet.json';
+import tokenFaucet from './idl/token_faucet.json';
 import { IWallet } from './types';
 
-export class MockUSDCFaucet {
+export class TokenFaucet {
 	connection: Connection;
 	wallet: IWallet;
 	public program: Program;
 	provider: AnchorProvider;
+	mint: PublicKey;
 	opts?: ConfirmOptions;
 
 	public constructor(
 		connection: Connection,
 		wallet: IWallet,
 		programId: PublicKey,
+		mint: PublicKey,
 		opts?: ConfirmOptions
 	) {
 		this.connection = connection;
@@ -39,93 +39,92 @@ export class MockUSDCFaucet {
 		this.opts = opts || AnchorProvider.defaultOptions();
 		const provider = new AnchorProvider(connection, wallet, this.opts);
 		this.provider = provider;
-		this.program = new Program(mockUSDCFaucetIDL as Idl, programId, provider);
+		this.program = new Program(tokenFaucet as Idl, programId, provider);
+		this.mint = mint;
 	}
 
-	public async getMockUSDCFaucetStatePublicKeyAndNonce(): Promise<
+	public async getFaucetConfigPublicKeyAndNonce(): Promise<
 		[PublicKey, number]
 	> {
 		return anchor.web3.PublicKey.findProgramAddress(
-			[Buffer.from(anchor.utils.bytes.utf8.encode('mock_usdc_faucet'))],
+			[
+				Buffer.from(anchor.utils.bytes.utf8.encode('faucet_config')),
+				this.mint.toBuffer(),
+			],
 			this.program.programId
 		);
 	}
 
-	mockUSDCFaucetStatePublicKey?: PublicKey;
-	public async getMockUSDCFaucetStatePublicKey(): Promise<PublicKey> {
-		if (this.mockUSDCFaucetStatePublicKey) {
-			return this.mockUSDCFaucetStatePublicKey;
-		}
-		this.mockUSDCFaucetStatePublicKey = (
-			await this.getMockUSDCFaucetStatePublicKeyAndNonce()
+	public async getMintAuthority(): Promise<PublicKey> {
+		return (
+			await anchor.web3.PublicKey.findProgramAddress(
+				[
+					Buffer.from(anchor.utils.bytes.utf8.encode('mint_authority')),
+					this.mint.toBuffer(),
+				],
+				this.program.programId
+			)
 		)[0];
-		return this.mockUSDCFaucetStatePublicKey;
+	}
+
+	public async getFaucetConfigPublicKey(): Promise<PublicKey> {
+		return (await this.getFaucetConfigPublicKeyAndNonce())[0];
 	}
 
 	public async initialize(): Promise<TransactionSignature> {
-		const stateAccountRPCResponse = await this.connection.getParsedAccountInfo(
-			await this.getMockUSDCFaucetStatePublicKey()
-		);
-		if (stateAccountRPCResponse.value !== null) {
-			throw new Error('Faucet already initialized');
-		}
-
-		const fakeUSDCMint = anchor.web3.Keypair.generate();
-		const createUSDCMintAccountIx = SystemProgram.createAccount({
-			fromPubkey: this.wallet.publicKey,
-			newAccountPubkey: fakeUSDCMint.publicKey,
-			lamports: await Token.getMinBalanceRentForExemptMint(this.connection),
-			space: MintLayout.span,
-			programId: TOKEN_PROGRAM_ID,
-		});
-
-		const [mintAuthority, _mintAuthorityNonce] =
-			await PublicKey.findProgramAddress(
-				[fakeUSDCMint.publicKey.toBuffer()],
-				this.program.programId
-			);
-
-		const initUSDCMintIx = Token.createInitMintInstruction(
-			TOKEN_PROGRAM_ID,
-			fakeUSDCMint.publicKey,
-			6,
-			mintAuthority,
-			null
-		);
-
-		const [mockUSDCFaucetStatePublicKey, mockUSDCFaucetStateNonce] =
-			await this.getMockUSDCFaucetStatePublicKeyAndNonce();
-		return await this.program.rpc.initialize(mockUSDCFaucetStateNonce, {
+		const [faucetConfigPublicKey] =
+			await this.getFaucetConfigPublicKeyAndNonce();
+		return await this.program.rpc.initialize({
 			accounts: {
-				mockUsdcFaucetState: mockUSDCFaucetStatePublicKey,
+				faucetConfig: faucetConfigPublicKey,
 				admin: this.wallet.publicKey,
-				mintAccount: fakeUSDCMint.publicKey,
+				mintAccount: this.mint,
 				rent: SYSVAR_RENT_PUBKEY,
 				systemProgram: anchor.web3.SystemProgram.programId,
+				tokenProgram: TOKEN_PROGRAM_ID,
 			},
-			instructions: [createUSDCMintAccountIx, initUSDCMintIx],
-			signers: [fakeUSDCMint],
 		});
 	}
 
 	public async fetchState(): Promise<any> {
-		return await this.program.account.mockUsdcFaucetState.fetch(
-			await this.getMockUSDCFaucetStatePublicKey()
+		return await this.program.account.faucetConfig.fetch(
+			await this.getFaucetConfigPublicKey()
 		);
+	}
+
+	private async mintToUserIx(userTokenAccount: PublicKey, amount: BN) {
+		return this.program.instruction.mintToUser(amount, {
+			accounts: {
+				faucetConfig: await this.getFaucetConfigPublicKey(),
+				mintAccount: this.mint,
+				userTokenAccount,
+				mintAuthority: await this.getMintAuthority(),
+				tokenProgram: TOKEN_PROGRAM_ID,
+			},
+		});
 	}
 
 	public async mintToUser(
 		userTokenAccount: PublicKey,
 		amount: BN
 	): Promise<TransactionSignature> {
-		const state: any = await this.fetchState();
-		return await this.program.rpc.mintToUser(amount, {
+		const mintIx = await this.mintToUserIx(userTokenAccount, amount);
+
+		const tx = new Transaction().add(mintIx);
+
+		const txSig = await this.program.provider.sendAndConfirm(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async transferMintAuthority(): Promise<TransactionSignature> {
+		return await this.program.rpc.transferMintAuthority({
 			accounts: {
-				mockUsdcFaucetState: await this.getMockUSDCFaucetStatePublicKey(),
-				mintAccount: state.mint,
-				userTokenAccount,
-				mintAuthority: state.mintAuthority,
+				faucetConfig: await this.getFaucetConfigPublicKey(),
+				mintAccount: this.mint,
+				mintAuthority: await this.getMintAuthority(),
 				tokenProgram: TOKEN_PROGRAM_ID,
+				admin: this.wallet.publicKey,
 			},
 		});
 	}
@@ -134,12 +133,33 @@ export class MockUSDCFaucet {
 		userPublicKey: PublicKey,
 		amount: BN
 	): Promise<[PublicKey, TransactionSignature]> {
+		const tx = new Transaction();
+
 		const [associatedTokenPublicKey, createAssociatedAccountIx, mintToTx] =
 			await this.createAssociatedTokenAccountAndMintToInstructions(
 				userPublicKey,
 				amount
 			);
-		const tx = new Transaction().add(createAssociatedAccountIx).add(mintToTx);
+
+		let associatedTokenAccountExists = false;
+
+		try {
+			const assosciatedTokenAccount = await this.connection.getAccountInfo(
+				associatedTokenPublicKey
+			);
+
+			associatedTokenAccountExists = !!assosciatedTokenAccount;
+		} catch (e) {
+			// token account doesn't exist
+			associatedTokenAccountExists = false;
+		}
+
+		const skipAccountCreation = associatedTokenAccountExists;
+
+		if (!skipAccountCreation) tx.add(createAssociatedAccountIx);
+
+		tx.add(mintToTx);
+
 		const txSig = await this.program.provider.sendAndConfirm(tx, [], this.opts);
 		return [associatedTokenPublicKey, txSig];
 	}
@@ -164,15 +184,7 @@ export class MockUSDCFaucet {
 				this.wallet.publicKey
 			);
 
-		const mintToIx = await this.program.instruction.mintToUser(amount, {
-			accounts: {
-				mockUsdcFaucetState: await this.getMockUSDCFaucetStatePublicKey(),
-				mintAccount: state.mint,
-				userTokenAccount: associateTokenPublicKey,
-				mintAuthority: state.mintAuthority,
-				tokenProgram: TOKEN_PROGRAM_ID,
-			},
-		});
+		const mintToIx = await this.mintToUserIx(associateTokenPublicKey, amount);
 
 		return [associateTokenPublicKey, createAssociatedAccountIx, mintToIx];
 	}

@@ -20,7 +20,7 @@ import {
 } from './addresses/pda';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { ClearingHouse } from './clearingHouse';
-import { PEG_PRECISION } from './constants/numericConstants';
+import { PEG_PRECISION, ZERO } from './constants/numericConstants';
 import { calculateTargetPriceTrade } from './math/trade';
 import { calculateAmmReservesAfterSwap, getSwapDirection } from './math/amm';
 
@@ -86,7 +86,8 @@ export class Admin extends ClearingHouse {
 		maintenanceAssetWeight: BN,
 		initialLiabilityWeight: BN,
 		maintenanceLiabilityWeight: BN,
-		imfFactor = new BN(0)
+		imfFactor = new BN(0),
+		liquidationFee = ZERO
 	): Promise<TransactionSignature> {
 		const bankIndex = this.getStateAccount().numberOfBanks;
 		const bank = await getBankPublicKey(this.program.programId, bankIndex);
@@ -111,6 +112,7 @@ export class Admin extends ClearingHouse {
 			initialLiabilityWeight,
 			maintenanceLiabilityWeight,
 			imfFactor,
+			liquidationFee,
 			{
 				accounts: {
 					admin: this.wallet.publicKey,
@@ -146,8 +148,8 @@ export class Admin extends ClearingHouse {
 		pegMultiplier: BN = PEG_PRECISION,
 		oracleSource: OracleSource = OracleSource.PYTH,
 		marginRatioInitial = 2000,
-		marginRatioPartial = 625,
-		marginRatioMaintenance = 500
+		marginRatioMaintenance = 500,
+		liquidationFee = ZERO
 	): Promise<TransactionSignature> {
 		const marketPublicKey = await getMarketPublicKey(
 			this.program.programId,
@@ -161,8 +163,8 @@ export class Admin extends ClearingHouse {
 			pegMultiplier,
 			oracleSource,
 			marginRatioInitial,
-			marginRatioPartial,
 			marginRatioMaintenance,
+			liquidationFee,
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
@@ -422,12 +424,10 @@ export class Admin extends ClearingHouse {
 	public async updateMarginRatio(
 		marketIndex: BN,
 		marginRatioInitial: number,
-		marginRatioPartial: number,
 		marginRatioMaintenance: number
 	): Promise<TransactionSignature> {
 		return await this.program.rpc.updateMarginRatio(
 			marginRatioInitial,
-			marginRatioPartial,
 			marginRatioMaintenance,
 			{
 				accounts: {
