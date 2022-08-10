@@ -1,5 +1,11 @@
 import { BN } from '@project-serum/anchor';
-import { MarketAccount, PositionDirection, MarginCategory } from '../types';
+import {
+	MarketAccount,
+	PositionDirection,
+	MarginCategory,
+	BankAccount,
+	BankBalanceType,
+} from '../types';
 import {
 	calculateAmmReservesAfterSwap,
 	calculatePrice,
@@ -14,6 +20,7 @@ import {
 import { OraclePriceData } from '../oracles/types';
 import { calculateLiabilityWeight } from './bankBalance';
 import { MARGIN_PRECISION } from '../constants/numericConstants';
+import { getTokenAmount } from '../../lib';
 
 /**
  * Calculates market mark price
@@ -154,4 +161,11 @@ export function calculateUnsettledAssetWeight(
 	}
 
 	return assetWeight;
+}
+
+export function calculateMarketAvailablePNL(
+	market: MarketAccount,
+	bank: BankAccount
+): BN {
+	return getTokenAmount(market.pnlPool.balance, bank, BankBalanceType.DEPOSIT);
 }
