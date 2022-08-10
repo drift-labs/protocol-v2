@@ -190,6 +190,10 @@ pub fn calculate_perp_position_value_and_pnl(
     .checked_div(AMM_TO_QUOTE_PRECISION_RATIO_I128)
     .ok_or_else(math_error!())?;
 
+    // if lp: 
+        // calculate_settled_lp_base_quote
+        // add baa/qaa to 
+
     let total_unsettled_pnl = unrealized_pnl
         .checked_add(unrealized_funding)
         .ok_or_else(math_error!())?
