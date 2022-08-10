@@ -206,9 +206,6 @@ describe('prepeg', () => {
 		console.log(
 			clearingHouse.getUserAccount().positions[0].quoteAssetAmount.toString()
 		);
-		console.log(
-			clearingHouse.getUserAccount().positions[0].quoteEntryAmount.toString()
-		);
 		assert.ok(
 			clearingHouse
 				.getUserAccount()
@@ -344,9 +341,6 @@ describe('prepeg', () => {
 		assert(actualDist.sub(estDist).abs().lte(new BN(4))); // cost is near equal
 		assert(market.amm.sqrtK.lt(market0.amm.sqrtK)); // k was lowered
 
-		console.log(
-			clearingHouse.getUserAccount().positions[0].quoteEntryAmount.toString()
-		);
 		assert.ok(
 			clearingHouse
 				.getUserAccount()
