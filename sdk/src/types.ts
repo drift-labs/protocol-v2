@@ -331,6 +331,7 @@ export type AMM = {
 	shortSpread: BN;
 	maxSpread: number;
 	marketPosition: UserPosition;
+	marketPositionPerLp: UserPosition;
 };
 
 // # User Account Types
@@ -345,11 +346,10 @@ export type UserPosition = {
 	openBids: BN;
 	openAsks: BN;
 	lpShares: BN;
-	lpBaseAssetAmount: BN;
-	lpQuoteAssetAmount: BN;
-	lastCumulativeFeePerLp: BN;
-	lastCumulativeFundingPaymentPerLp: BN;
-	lastCumulativeNetBaseAssetAmountPerLp: BN;
+	lastFeePerLp: BN;
+	lastUnsettledPnlPerLp: BN;
+	lastNetBaseAssetAmountPerLp: BN;
+	lastNetQuoteAssetAmountPerLp: BN;
 };
 
 export type UserAccount = {
