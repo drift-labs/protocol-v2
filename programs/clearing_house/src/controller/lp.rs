@@ -11,9 +11,9 @@ use crate::controller::position::update_position_and_market;
 use crate::controller::position::PositionDelta;
 use crate::math::amm::{get_update_k_result, update_k};
 use crate::math::casting::cast_to_i128;
-use anchor_lang::prelude::msg;
 use crate::math::lp::calculate_settled_lp_base_quote;
 use crate::math::lp::compute_settle_lp_metrics;
+use anchor_lang::prelude::msg;
 
 pub fn settle_lp_position(
     position: &mut MarketPosition,
@@ -30,13 +30,15 @@ pub fn settle_lp_position(
         market.amm.market_position_per_lp.quote_asset_amount;
     position.last_unsettled_pnl_per_lp = market.amm.market_position_per_lp.unsettled_pnl;
 
-    let remainder_quote_asset_amount_per_lp = lp_metrics.remainder_quote_asset_amount
+    let remainder_quote_asset_amount_per_lp = lp_metrics
+        .remainder_quote_asset_amount
         .checked_mul(AMM_RESERVE_PRECISION)
         .ok_or_else(math_error!())?
         .checked_div(n_shares)
         .ok_or_else(math_error!())?;
 
-    let remainder_base_asset_amount_per_lp = lp_metrics.remainder_base_asset_amount
+    let remainder_base_asset_amount_per_lp = lp_metrics
+        .remainder_base_asset_amount
         .checked_mul(AMM_RESERVE_PRECISION_I128)
         .ok_or_else(math_error!())?
         .checked_div(n_shares_i128)
@@ -54,14 +56,17 @@ pub fn settle_lp_position(
         .ok_or_else(math_error!())?;
 
     let position_delta = PositionDelta {
-        base_asset_amount: lp_metrics.base_asset_amount, 
-        quote_asset_amount: lp_metrics.quote_asset_amount
+        base_asset_amount: lp_metrics.base_asset_amount,
+        quote_asset_amount: lp_metrics.quote_asset_amount,
     };
     let upnl = update_position_and_market(position, market, &position_delta)?;
-    let unsettled_pnl = lp_metrics.unsettled_pnl.checked_add(upnl).ok_or_else(math_error!())?;
+    let unsettled_pnl = lp_metrics
+        .unsettled_pnl
+        .checked_add(upnl)
+        .ok_or_else(math_error!())?;
     update_unsettled_pnl(position, market, unsettled_pnl)?;
 
-    // 
+    //
     market.amm.net_base_asset_amount = market
         .amm
         .net_base_asset_amount
@@ -76,7 +81,6 @@ pub fn settle_lp_position(
 
     Ok(())
 }
-
 
 pub fn burn_lp_shares(
     position: &mut MarketPosition,

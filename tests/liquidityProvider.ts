@@ -574,7 +574,7 @@ describe('liquidity providing', () => {
 			_viewLogs(_sig);
 			assert(false);
 		} catch (e) {
-			// console.error(e);
+			console.error(e.message);
 			assert(e.message.includes('0x1773')); // insufficient collateral
 		}
 	});
