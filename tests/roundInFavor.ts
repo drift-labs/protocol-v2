@@ -159,7 +159,7 @@ describe('round in favor', () => {
 		await clearingHouse.closePosition(marketIndex);
 
 		await clearingHouse.fetchAccounts();
-		clearingHouse.getUserAccount().positions[0].unsettledPnl.eq(new BN(0));
+		clearingHouse.getUserAccount().positions[0].quoteAssetAmount.eq(new BN(0));
 		await clearingHouse.unsubscribe();
 	});
 
@@ -206,7 +206,9 @@ describe('round in favor', () => {
 
 		await clearingHouse.fetchAccounts();
 		assert(
-			clearingHouse.getUserAccount().positions[0].unsettledPnl.eq(new BN(-1))
+			clearingHouse
+				.getUserAccount()
+				.positions[0].quoteAssetAmount.eq(new BN(-1))
 		);
 		await clearingHouse.unsubscribe();
 	});

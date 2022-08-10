@@ -2028,14 +2028,6 @@
             }
           },
           {
-            "name": "unsettledProfit",
-            "type": "u128"
-          },
-          {
-            "name": "unsettledLoss",
-            "type": "u128"
-          },
-          {
             "name": "imfFactor",
             "type": "u128"
           },
@@ -2413,7 +2405,7 @@
           },
           {
             "name": "quoteAssetAmount",
-            "type": "u128"
+            "type": "i128"
           },
           {
             "name": "userPnl",
@@ -2615,11 +2607,19 @@
           },
           {
             "name": "quoteAssetAmountLong",
-            "type": "u128"
+            "type": "i128"
           },
           {
             "name": "quoteAssetAmountShort",
-            "type": "u128"
+            "type": "i128"
+          },
+          {
+            "name": "quoteEntryAmountLong",
+            "type": "i128"
+          },
+          {
+            "name": "quoteEntryAmountShort",
+            "type": "i128"
           },
           {
             "name": "lastFundingRate",
@@ -3061,11 +3061,11 @@
           },
           {
             "name": "quoteAssetAmount",
-            "type": "u128"
+            "type": "i128"
           },
           {
             "name": "quoteEntryAmount",
-            "type": "u128"
+            "type": "i128"
           },
           {
             "name": "lastCumulativeFundingRate",
@@ -3082,10 +3082,6 @@
           {
             "name": "openOrders",
             "type": "u128"
-          },
-          {
-            "name": "unsettledPnl",
-            "type": "i128"
           },
           {
             "name": "openBids",
@@ -3275,6 +3271,29 @@
           },
           {
             "name": "Short"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PositionUpdateType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Open"
+          },
+          {
+            "name": "Increase"
+          },
+          {
+            "name": "Reduce"
+          },
+          {
+            "name": "Close"
+          },
+          {
+            "name": "Flip"
           }
         ]
       }

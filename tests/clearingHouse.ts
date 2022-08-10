@@ -274,13 +274,11 @@ describe('clearing_house', () => {
 			'getQuoteAssetTokenAmount:',
 			clearingHouse.getQuoteAssetTokenAmount().toString()
 		);
-		console.log('unsettledPnl:', user.positions[0].unsettledPnl.toString());
 		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9951996)));
 		assert(user.fees.totalFeePaid.eq(new BN(48004)));
 
-		assert.ok(user.positions[0].quoteEntryAmount.eq(new BN(48004609)));
+		assert.ok(user.positions[0].quoteEntryAmount.eq(new BN(-48004609)));
 		assert.ok(user.positions[0].baseAssetAmount.eq(new BN(480000000000000)));
-		assert.ok(user.positions[0].unsettledPnl.eq(new BN(0)));
 
 		const market = clearingHouse.getMarketAccount(0);
 		console.log(market.amm.netBaseAssetAmount.toNumber());
@@ -343,10 +341,6 @@ describe('clearing_house', () => {
 
 		await clearingHouse.fetchAccounts();
 		const user0 = clearingHouse.getUserAccount();
-		console.log(
-			'before unsettledPnl:',
-			user0.positions[0].unsettledPnl.toString()
-		);
 
 		await clearingHouse.settlePNL(
 			await clearingHouse.getUserAccountPublicKey(),
@@ -357,10 +351,6 @@ describe('clearing_house', () => {
 		await clearingHouse.fetchAccounts();
 		const user = clearingHouse.getUserAccount();
 		console.log(
-			'after unsettledPnl:',
-			user.positions[0].unsettledPnl.toString()
-		);
-		console.log(
 			'quoteAssetAmount:',
 			user.positions[0].quoteAssetAmount.toNumber()
 		);
@@ -369,8 +359,8 @@ describe('clearing_house', () => {
 			user.positions[0].quoteEntryAmount.toNumber()
 		);
 
-		assert.ok(user.positions[0].quoteAssetAmount.eq(new BN(24002305)));
-		assert.ok(user.positions[0].quoteEntryAmount.eq(new BN(24002305)));
+		assert.ok(user.positions[0].quoteAssetAmount.eq(new BN(-24002305)));
+		assert.ok(user.positions[0].quoteEntryAmount.eq(new BN(-24002305)));
 
 		assert.ok(user.positions[0].baseAssetAmount.eq(new BN(240000000000000)));
 		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9929145)));
@@ -406,11 +396,6 @@ describe('clearing_house', () => {
 		);
 
 		await clearingHouse.fetchAccounts();
-		const user0 = clearingHouse.getUserAccount();
-		console.log(
-			'before unsettledPnl:',
-			user0.positions[0].unsettledPnl.toString()
-		);
 
 		await clearingHouse.settlePNL(
 			await clearingHouse.getUserAccountPublicKey(),
@@ -420,10 +405,6 @@ describe('clearing_house', () => {
 
 		await clearingHouse.fetchAccounts();
 		const user = clearingHouse.getUserAccount();
-		console.log(
-			'after unsettledPnl:',
-			user.positions[0].unsettledPnl.toString()
-		);
 		console.log(
 			'quoteAssetAmount:',
 			user.positions[0].quoteAssetAmount.toNumber()

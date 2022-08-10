@@ -188,7 +188,9 @@ describe('liquidate borrow for perp pnl', () => {
 		);
 
 		assert(!clearingHouse.getUserAccount().beingLiquidated);
-		assert(clearingHouse.getUserAccount().positions[0].unsettledPnl.eq(ZERO));
+		assert(
+			clearingHouse.getUserAccount().positions[0].quoteAssetAmount.eq(ZERO)
+		);
 
 		const liquidationRecord =
 			eventSubscriber.getEventsArray('LiquidationRecord')[0];

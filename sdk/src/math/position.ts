@@ -104,11 +104,11 @@ export function calculatePositionPNL(
 		oraclePriceData
 	);
 
-	const quoteAssetAmountSign = marketPosition.quoteAssetAmount.isNeg()
+	const baseAssetValueSign = marketPosition.baseAssetAmount.isNeg()
 		? new BN(-1)
 		: new BN(1);
 	let pnl = baseAssetValue
-		.mul(quoteAssetAmountSign)
+		.mul(baseAssetValueSign)
 		.add(marketPosition.quoteAssetAmount);
 
 	if (withFunding) {
@@ -158,7 +158,7 @@ export function positionIsAvailable(position: UserPosition): boolean {
 	return (
 		position.baseAssetAmount.eq(ZERO) &&
 		position.openOrders.eq(ZERO) &&
-		position.unsettledPnl.eq(ZERO)
+		position.quoteAssetAmount.eq(ZERO)
 	);
 }
 
