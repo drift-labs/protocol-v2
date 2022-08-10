@@ -1,3 +1,4 @@
+use crate::controller::position::PositionDelta;
 use crate::error::ClearingHouseResult;
 use crate::math::amm::calculate_swap_output;
 use crate::math::casting::cast_to_i128;
@@ -180,18 +181,53 @@ pub fn get_lp_market_position_margin(
     // max bid: (base asset reserves - sqrtk/1.4142) * lp share
 
     // TODO: first compute 'would be' funding payment
-    // let unrealized_funding = calculate_funding_payment(
-    //     if market_position.base_asset_amount > 0 {
-    //         market.amm.cumulative_funding_rate_long
-    //     } else {
-    //         market.amm.cumulative_funding_rate_short
-    //     },
-    //     market_position,
-    // )?
-    // .checked_div(AMM_TO_QUOTE_PRECISION_RATIO_I128)
-    // .ok_or_else(math_error!())?;
+    use crate::math::funding::calculate_funding_payment;
+    use crate::math::constants::AMM_TO_QUOTE_PRECISION_RATIO_I128;
 
-    // TODO: compute would be 'settled position' function here
+    // first settle the funding bc when we settle the position 
+    // we modify the funding rate amount
+    let unrealized_funding = calculate_funding_payment(
+        if position_clone.base_asset_amount > 0 {
+            market.amm.cumulative_funding_rate_long
+        } else {
+            market.amm.cumulative_funding_rate_short
+        },
+        &position_clone,
+    )?
+    .checked_div(AMM_TO_QUOTE_PRECISION_RATIO_I128)
+    .ok_or_else(math_error!())?;
+
+    position_clone.unsettled_pnl = position_clone.unsettled_pnl
+        .checked_add(unrealized_funding)
+        .ok_or_else(math_error!())?;
+
+    // compute lp metrics 
+    let lp_metrics = compute_settle_lp_metrics(&position_clone, market)?; 
+    // compute standardized + dust position in baa/qaa 
+    // add unsettled pnl from dust qaa 
+    let dust_unsettled_pnl = -cast_to_i128(lp_metrics.quote_asset_amount)?
+        .checked_add(1)
+        .ok_or_else(math_error!())?;
+    position_clone.unsettled_pnl = position_clone.unsettled_pnl
+        .checked_add(dust_unsettled_pnl)
+        .ok_or_else(math_error!())?;
+    
+    // call new_quote_base fcn with the position delta 
+    use crate::math::position::calculate_position_new_quote_base_pnl;
+
+    let delta = PositionDelta {
+        base_asset_amount: lp_metrics.base_asset_amount, 
+        quote_asset_amount: lp_metrics.quote_asset_amount,
+    };
+    let (new_quote_asset_amount, _, new_base_asset_amount, pnl) =
+        calculate_position_new_quote_base_pnl(&position_clone, &delta)?;
+    // update position to be new_baa/qaa 
+    position_clone.base_asset_amount = new_base_asset_amount; 
+    position_clone.quote_asset_amount = new_quote_asset_amount;
+    // add unsettled pnl from position change pnl 
+    position_clone.unsettled_pnl = position_clone.unsettled_pnl
+        .checked_add(pnl)
+        .ok_or_else(math_error!())?;
 
     // TODO: make this a constant?
     let sqrt_2_percision = 10_000_u128;
@@ -320,7 +356,7 @@ mod test {
             sqrt_k: init_reserves,
             user_lp_shares: position.lp_shares,
             peg_multiplier: 53000,
-            ..AMM::default()
+            ..AMM::default_test()
         };
         let mut market = Market {
             amm,
@@ -377,7 +413,7 @@ mod test {
             sqrt_k: init_reserves,
             user_lp_shares: position.lp_shares,
             peg_multiplier: 53000,
-            ..AMM::default()
+            ..AMM::default_test()
         };
         let mut market = Market {
             amm,
@@ -455,7 +491,7 @@ mod test {
     //         quote_asset_reserve: init_reserves,
     //         sqrt_k: init_reserves,
     //         peg_multiplier: 53000,
-    //         ..AMM::default()
+    //         ..AMM::default_test()
     //     };
     //     let mut market = Market {
     //         amm,
@@ -508,7 +544,7 @@ mod test {
     //         let amm = AMM {
     //             market_position_per_lp: per_lp_position,
     //             sqrt_k: 200,
-    //             ..AMM::default()
+    //             ..AMM::default_test()
     //         };
 
     //         let metrics = get_lp_metrics(&position, &amm).unwrap();
@@ -537,7 +573,7 @@ mod test {
     //             sqrt_k: 900 * AMM_RESERVE_PRECISION,
     //             base_asset_amount_step_size: 1000 * AMM_RESERVE_PRECISION, // min size is big
     //             minimum_quote_asset_trade_size: 100 * AMM_RESERVE_PRECISION,
-    //             ..AMM::default()
+    //             ..AMM::default_test()
     //         };
 
     //         let metrics = get_lp_metrics(&position, &amm).unwrap();
@@ -569,7 +605,7 @@ mod test {
     //             peg_multiplier: PEG_PRECISION,
     //             base_asset_amount_step_size: 1,
     //             minimum_quote_asset_trade_size: 1,
-    //             ..AMM::default()
+    //             ..AMM::default_test()
     //         };
 
     //         let metrics = get_lp_metrics(&position, &amm).unwrap();

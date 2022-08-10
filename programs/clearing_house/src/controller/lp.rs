@@ -77,17 +77,13 @@ pub fn settle_lp_position(
     Ok(())
 }
 
-//         // margin 
-//     // let (new_quote_asset_amount, new_quote_entry_amount, new_base_asset_amount, pnl) =
-//     // calculate_position_new_quote_base_pnl(position, delta)?;
-//     Ok(())
-// }
 
 pub fn burn_lp_shares(
     position: &mut MarketPosition,
     market: &mut Market,
     shares_to_burn: u128,
 ) -> ClearingHouseResult<()> {
+    // settle
     settle_lp_position(position, market)?;
 
     // clean up dust
