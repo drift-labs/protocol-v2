@@ -1643,10 +1643,14 @@ pub mod clearing_house {
             .user
             .load_init()
             .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
-        user.authority = ctx.accounts.authority.key();
-        user.user_id = user_id;
-        user.name = name;
-        user.next_order_id = 1;
+        *user = User {
+            authority: ctx.accounts.authority.key(),
+            user_id,
+            name,
+            next_order_id: 1,
+            next_liquidation_id: 1,
+            ..User::default()
+        };
         Ok(())
     }
 

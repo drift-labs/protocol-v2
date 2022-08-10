@@ -108,6 +108,8 @@ pub fn liquidate_perp(
         return Ok(());
     }
 
+    let liquidation_id = set_being_liquidated_and_get_liquidation_id(user)?;
+
     let position_index = get_position_index(&user.positions, market_index)?;
     validate!(
         user.positions[position_index].is_open_position()
@@ -190,6 +192,7 @@ pub fn liquidate_perp(
     if total_collateral >= cast(margin_requirement_plus_buffer)? {
         emit!(LiquidationRecord {
             ts: now,
+            liquidation_id,
             liquidation_type: LiquidationType::LiquidatePerp,
             user: *user_key,
             liquidator: *liquidator_key,
@@ -319,6 +322,7 @@ pub fn liquidate_perp(
 
     emit!(LiquidationRecord {
         ts: now,
+        liquidation_id,
         liquidation_type: LiquidationType::LiquidatePerp,
         user: *user_key,
         liquidator: *liquidator_key,
@@ -488,6 +492,8 @@ pub fn liquidate_borrow(
         return Ok(());
     }
 
+    let liquidation_id = set_being_liquidated_and_get_liquidation_id(user)?;
+
     let margin_shortage = cast_to_i128(margin_requirement_plus_buffer)?
         .checked_sub(total_collateral)
         .ok_or_else(math_error!())?
@@ -587,6 +593,7 @@ pub fn liquidate_borrow(
 
     emit!(LiquidationRecord {
         ts: now,
+        liquidation_id,
         liquidation_type: LiquidationType::LiquidateBorrow,
         user: *user_key,
         liquidator: *liquidator_key,
@@ -767,6 +774,8 @@ pub fn liquidate_borrow_for_perp_pnl(
         return Ok(());
     }
 
+    let liquidation_id = set_being_liquidated_and_get_liquidation_id(user)?;
+
     let margin_shortage = cast_to_i128(margin_requirement_plus_buffer)?
         .checked_sub(total_collateral)
         .ok_or_else(math_error!())?
@@ -866,6 +875,7 @@ pub fn liquidate_borrow_for_perp_pnl(
 
     emit!(LiquidationRecord {
         ts: now,
+        liquidation_id,
         liquidation_type: LiquidationType::LiquidateBorrowForPerpPnl,
         user: *user_key,
         liquidator: *liquidator_key,
@@ -1046,6 +1056,8 @@ pub fn liquidate_perp_pnl_for_deposit(
         return Ok(());
     }
 
+    let liquidation_id = set_being_liquidated_and_get_liquidation_id(user)?;
+
     let margin_shortage = cast_to_i128(margin_requirement_plus_buffer)?
         .checked_sub(total_collateral)
         .ok_or_else(math_error!())?
@@ -1144,6 +1156,7 @@ pub fn liquidate_perp_pnl_for_deposit(
 
     emit!(LiquidationRecord {
         ts: now,
+        liquidation_id,
         liquidation_type: LiquidationType::LiquidatePerpPnlForDeposit,
         user: *user_key,
         liquidator: *liquidator_key,
@@ -1161,4 +1174,17 @@ pub fn liquidate_perp_pnl_for_deposit(
     });
 
     Ok(())
+}
+
+pub fn set_being_liquidated_and_get_liquidation_id(user: &mut User) -> ClearingHouseResult<u16> {
+    let liquidation_id = if user.being_liquidated {
+        user.next_liquidation_id
+            .checked_sub(1)
+            .ok_or_else(math_error!())?
+    } else {
+        get_then_update_id!(user, next_liquidation_id)
+    };
+    user.being_liquidated = true;
+
+    Ok(liquidation_id)
 }

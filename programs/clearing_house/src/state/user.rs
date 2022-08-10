@@ -22,6 +22,7 @@ pub struct User {
     pub next_order_id: u64,
     pub positions: [MarketPosition; 5],
     pub orders: [Order; 32],
+    pub next_liquidation_id: u16,
     pub being_liquidated: bool,
 }
 

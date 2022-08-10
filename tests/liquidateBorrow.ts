@@ -151,7 +151,8 @@ describe('liquidate borrow', () => {
 				.logMessages
 		);
 
-		assert(!clearingHouse.getUserAccount().beingLiquidated);
+		assert(clearingHouse.getUserAccount().beingLiquidated);
+		assert(clearingHouse.getUserAccount().nextLiquidationId === 2);
 		assert(clearingHouse.getUserAccount().bankBalances[0].balance.eq(ZERO));
 		assert(
 			clearingHouse.getUserAccount().bankBalances[1].balance.eq(new BN(2))
@@ -159,6 +160,7 @@ describe('liquidate borrow', () => {
 
 		const liquidationRecord =
 			eventSubscriber.getEventsArray('LiquidationRecord')[0];
+		assert(liquidationRecord.liquidationId === 1);
 		assert(isVariant(liquidationRecord.liquidationType, 'liquidateBorrow'));
 		assert(
 			liquidationRecord.liquidateBorrow.assetPrice.eq(MARK_PRICE_PRECISION)

@@ -140,6 +140,7 @@ pub struct LiquidationRecord {
     pub liquidator: Pubkey,
     pub margin_requirement: u128,
     pub total_collateral: i128,
+    pub liquidation_id: u16,
     pub liquidate_perp: LiquidatePerpRecord,
     pub liquidate_borrow: LiquidateBorrowRecord,
     pub liquidate_borrow_for_perp_pnl: LiquidateBorrowForPerpPnlRecord,

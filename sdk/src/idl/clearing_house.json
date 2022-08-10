@@ -2276,6 +2276,10 @@
             }
           },
           {
+            "name": "nextLiquidationId",
+            "type": "u16"
+          },
+          {
             "name": "beingLiquidated",
             "type": "bool"
           }
@@ -3921,6 +3925,11 @@
         {
           "name": "totalCollateral",
           "type": "i128",
+          "index": false
+        },
+        {
+          "name": "liquidationId",
+          "type": "u16",
           "index": false
         },
         {
