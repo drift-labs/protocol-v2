@@ -388,7 +388,6 @@ export type UserPosition = {
 	quoteAssetAmount: BN;
 	quoteEntryAmount: BN;
 	openOrders: BN;
-	unsettledPnl: BN;
 	openBids: BN;
 	openAsks: BN;
 };

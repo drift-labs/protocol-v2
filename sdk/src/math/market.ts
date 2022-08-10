@@ -18,9 +18,8 @@ import {
 	calculateSizePremiumLiabilityWeight,
 } from './margin';
 import { OraclePriceData } from '../oracles/types';
-import { calculateLiabilityWeight } from './bankBalance';
 import { MARGIN_PRECISION } from '../constants/numericConstants';
-import { getTokenAmount } from '../../lib';
+import { getTokenAmount } from './bankBalance';
 
 /**
  * Calculates market mark price
