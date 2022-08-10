@@ -187,7 +187,8 @@ describe('liquidate borrow for perp pnl', () => {
 				.logMessages
 		);
 
-		assert(!clearingHouse.getUserAccount().beingLiquidated);
+		assert(clearingHouse.getUserAccount().beingLiquidated);
+		assert(clearingHouse.getUserAccount().nextLiquidationId === 2);
 		assert(
 			clearingHouse.getUserAccount().positions[0].quoteAssetAmount.eq(ZERO)
 		);
@@ -195,6 +196,7 @@ describe('liquidate borrow for perp pnl', () => {
 		const liquidationRecord =
 			eventSubscriber.getEventsArray('LiquidationRecord')[0];
 
+		assert(liquidationRecord.liquidationId === 1);
 		assert(
 			isVariant(liquidationRecord.liquidationType, 'liquidateBorrowForPerpPnl')
 		);

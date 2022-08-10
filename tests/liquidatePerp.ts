@@ -198,10 +198,12 @@ describe('liquidate perp', () => {
 				.positions[0].baseAssetAmount.eq(new BN(175000000000000))
 		);
 
-		assert(!clearingHouse.getUserAccount().beingLiquidated);
+		assert(clearingHouse.getUserAccount().beingLiquidated);
+		assert(clearingHouse.getUserAccount().nextLiquidationId === 2);
 
 		const liquidationRecord =
 			eventSubscriber.getEventsArray('LiquidationRecord')[0];
+		assert(liquidationRecord.liquidationId === 1);
 		assert(isVariant(liquidationRecord.liquidationType, 'liquidatePerp'));
 		assert(liquidationRecord.liquidatePerp.marketIndex.eq(ZERO));
 		assert(liquidationRecord.liquidatePerp.orderIds.length === 32);

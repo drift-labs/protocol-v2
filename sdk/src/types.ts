@@ -172,6 +172,7 @@ export type LiquidationRecord = {
 	liquidationType: LiquidationType;
 	marginRequirement: BN;
 	totalCollateral: BN;
+	liquidationId: number;
 	liquidatePerp: LiquidatePerpRecord;
 	liquidateBorrow: LiquidateBorrowRecord;
 	liquidateBorrowForPerpPnl: LiquidateBorrowForPerpPnlRecord;
@@ -409,6 +410,7 @@ export type UserAccount = {
 	positions: UserPosition[];
 	orders: Order[];
 	beingLiquidated: boolean;
+	nextLiquidationId: number;
 };
 
 export type UserBankBalance = {
