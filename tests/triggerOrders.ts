@@ -513,8 +513,6 @@ describe('trigger orders', () => {
 			convertToNumber(totalCollateral, QUOTE_PRECISION)
 		);
 
-		assert(!clearingHouseUser.canBeLiquidated()[0]);
-
 		await fillerClearingHouse.triggerOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
 			clearingHouseUser.getUserAccount(),
