@@ -135,7 +135,6 @@ export class ClearingHouseUser {
 			quoteAssetAmount: ZERO,
 			quoteEntryAmount: ZERO,
 			openOrders: ZERO,
-			unsettledPnl: ZERO,
 			openBids: ZERO,
 			openAsks: ZERO,
 		};
@@ -719,7 +718,6 @@ export class ClearingHouseUser {
 			quoteAssetAmount: new BN(0),
 			quoteEntryAmount: new BN(0),
 			openOrders: new BN(0),
-			unsettledPnl: new BN(0),
 			openBids: new BN(0),
 			openAsks: new BN(0),
 		};

@@ -1634,7 +1634,7 @@ describe('orders', () => {
 			'FillerReward: $',
 			convertToNumber(fillerReward, QUOTE_PRECISION),
 			convertToNumber(
-				fillerUser.getUserAccount().positions[0].unsettledPnl,
+				fillerUser.getUserAccount().positions[0].quoteAssetAmount,
 				QUOTE_PRECISION
 			)
 		);
