@@ -1614,6 +1614,8 @@ pub mod clearing_house {
     }
 
     pub fn initialize_user_stats(ctx: Context<InitializeUserStats>) -> Result<()> {
+        let clock = Clock::get()?;
+
         let mut user_stats = ctx
             .accounts
             .user_stats
@@ -1623,6 +1625,10 @@ pub mod clearing_house {
         *user_stats = UserStats {
             authority: ctx.accounts.authority.key(),
             number_of_users: 0,
+            last_taker_ts: clock.unix_timestamp,
+            last_maker_ts: clock.unix_timestamp,
+            last_filler_ts: clock.unix_timestamp,
+            ..UserStats::default()
         };
 
         Ok(())
