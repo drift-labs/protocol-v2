@@ -826,7 +826,7 @@ describe('liquidity providing', () => {
 		const baa0 = position0.baseAssetAmount;
 		const qaa0 = position0.quoteAssetAmount;
 		assert(baa0.eq(ZERO));
-		assert(qaa0.eq(new BN('399150')));
+		assert(qaa0.eq(new BN('410739')));
 
 		console.log('user trading...');
 		const tradeSize = new BN(40 * 1e13);
@@ -871,7 +871,7 @@ describe('liquidity providing', () => {
 		const baa = user.positions[0].baseAssetAmount;
 		const qaa = user.positions[0].quoteAssetAmount;
 		assert(baa.eq(new BN(100000000000000)));
-		assert(qaa.eq(new BN(421914)));
+		assert(qaa.eq(new BN(388008)));
 
 		console.log('removing the other half of liquidity');
 		await clearingHouse.removeLiquidity(market.marketIndex, otherHalfShares);
