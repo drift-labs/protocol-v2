@@ -247,8 +247,8 @@ export type OrderRecord = {
 	maker: PublicKey;
 	takerOrder: Order;
 	makerOrder: Order;
-	takerUnsettledPnl: BN;
-	makerUnsettledPnl: BN;
+	takerPnl: BN;
+	makerPnl: BN;
 	action: OrderAction;
 	actionExplanation: OrderActionExplanation;
 	filler: PublicKey;
