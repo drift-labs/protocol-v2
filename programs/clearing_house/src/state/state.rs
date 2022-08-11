@@ -71,7 +71,7 @@ impl Default for OracleGuardRails {
             },
             validity: ValidityGuardRails {
                 slots_before_stale: 10,
-                confidence_interval_max_size: 4,
+                confidence_interval_max_size: 1000,
                 too_volatile_ratio: 5,
             },
             use_for_liquidations: true,

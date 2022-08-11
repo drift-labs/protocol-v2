@@ -45,6 +45,7 @@ pub struct Bank {
     pub maintenance_liability_weight: u128,
     pub imf_factor: u128,
     pub liquidation_fee: u128,
+    pub withdraw_threshold: u128,
 }
 
 impl Bank {

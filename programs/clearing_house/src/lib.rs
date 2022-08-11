@@ -6,7 +6,7 @@ use borsh::BorshSerialize;
 
 use context::*;
 use error::ErrorCode;
-use math::{amm, bn, constants::*, margin::*};
+use math::{amm, bank_balance::*, bn, constants::*, margin::*};
 use state::oracle::{get_oracle_price, OracleSource};
 
 use crate::math::amm::get_update_k_result;
@@ -33,7 +33,7 @@ declare_id!("4oyTJnAQ9FqJj1y9mPytbWsLeeHmBzGYfuFqypwyQvuh");
 
 #[program]
 pub mod clearing_house {
-    use std::cmp::min;
+    use std::cmp::{max, min};
     use std::option::Option::Some;
 
     use crate::margin_validation::validate_margin;
@@ -256,6 +256,7 @@ pub mod clearing_house {
             maintenance_liability_weight,
             imf_factor,
             liquidation_fee,
+            withdraw_threshold: 0,
         };
 
         Ok(())
@@ -564,7 +565,7 @@ pub mod clearing_house {
                     amount
                 };
 
-            controller::bank_balance::update_bank_balances(
+            controller::bank_balance::update_bank_balances_with_limits(
                 amount as u128,
                 &BankBalanceType::Borrow,
                 bank,

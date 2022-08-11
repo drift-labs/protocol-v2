@@ -208,11 +208,11 @@ pub fn apply_cost_to_market(
 mod test {
     use super::*;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, MARK_PRICE_PRECISION, MARK_PRICE_PRECISION_I128,
+        AMM_RESERVE_PRECISION, BID_ASK_SPREAD_PRECISION, MARK_PRICE_PRECISION,
+        MARK_PRICE_PRECISION_I128,
     };
     use crate::state::market::AMM;
     use crate::state::state::{PriceDivergenceGuardRails, ValidityGuardRails};
-
     #[test]
     pub fn update_amm_test() {
         let mut market = Market {
@@ -243,7 +243,7 @@ mod test {
                 },
                 validity: ValidityGuardRails {
                     slots_before_stale: 10,
-                    confidence_interval_max_size: 4,
+                    confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
                 use_for_liquidations: true,

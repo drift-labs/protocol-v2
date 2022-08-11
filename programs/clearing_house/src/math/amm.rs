@@ -843,7 +843,12 @@ pub fn is_oracle_valid(
         .ok_or_else(math_error!())?
         .checked_div(cast_to_u128(oracle_price)?)
         .ok_or_else(math_error!())?;
-    let is_conf_too_large = conf_pct_of_price.gt(&cast_to_u128(amm.max_spread)?);
+
+    let max_conf = max(
+        cast_to_u128(amm.max_spread)?,
+        valid_oracle_guard_rails.confidence_interval_max_size,
+    );
+    let is_conf_too_large = conf_pct_of_price.gt(&max_conf);
     if is_conf_too_large {
         msg!(
             "Invalid Oracle: Confidence Too Large (is_conf_too_large={:?})",
