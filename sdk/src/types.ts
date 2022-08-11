@@ -231,6 +231,16 @@ export type LiquidatePerpPnlForDepositRecord = {
 	assetTransfer: BN;
 };
 
+export type SettlePnlRecord = {
+	ts: BN;
+	marketIndex: BN;
+	pnl: BN;
+	baseAssetAmount: BN;
+	quoteAssetAmountAfter: BN;
+	quoteEntryamount: BN;
+	oraclePrice: BN;
+};
+
 export type OrderRecord = {
 	ts: BN;
 	taker: PublicKey;

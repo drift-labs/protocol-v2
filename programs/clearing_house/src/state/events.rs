@@ -207,6 +207,18 @@ pub struct LiquidatePerpPnlForDepositRecord {
     pub asset_transfer: u128,
 }
 
+#[event]
+#[derive(Default)]
+pub struct SettlePnlRecord {
+    pub ts: i64,
+    pub market_index: u64,
+    pub pnl: i128,
+    pub base_asset_amount: i128,
+    pub quote_asset_amount_after: i128,
+    pub quote_entry_amount: i128,
+    pub oracle_price: i128,
+}
+
 pub fn emit_stack<T: AnchorSerialize + Discriminator, const N: usize>(event: T) {
     let mut data_buf = [0u8; N];
     let mut out_buf = [0u8; N];
