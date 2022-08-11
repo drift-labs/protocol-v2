@@ -118,9 +118,12 @@ pub fn update_bank_balances(
         )?;
 
         let max_borrow_token = max(
-            bank.deposit_token_twap / 20,
+            deposit_token_amount / 20,
             bank.borrow_token_twap
                 .checked_add(bank.borrow_token_twap / 5)
+                .ok_or_else(math_error!())?).min(
+            deposit_token_amount
+                .checked_sub(deposit_token_amount / 10)
                 .ok_or_else(math_error!())?,
         );
 
@@ -130,10 +133,10 @@ pub fn update_bank_balances(
             "Bank has hit max daily borrow limit"
         )?;
     } else {
-        let min_deposit_token = bank
-            .deposit_token_twap
-            .checked_sub(bank.deposit_token_twap / 5)
-            .ok_or_else(math_error!())?;
+        let min_deposit_token =
+            bank.deposit_token_twap
+                .checked_sub(bank.deposit_token_twap / 5)
+                .ok_or_else(math_error!())?;
 
         validate!(
             deposit_token_amount < min_deposit_token,

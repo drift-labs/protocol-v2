@@ -187,12 +187,14 @@ describe('liquidate perp pnl for deposit', () => {
 				.logMessages
 		);
 
-		assert(!clearingHouse.getUserAccount().beingLiquidated);
+		assert(clearingHouse.getUserAccount().beingLiquidated);
+		assert(clearingHouse.getUserAccount().nextLiquidationId === 2);
 		assert(clearingHouse.getUserAccount().bankBalances[0].balance.eq(ZERO));
 
 		const liquidationRecord =
 			eventSubscriber.getEventsArray('LiquidationRecord')[0];
 
+		assert(liquidationRecord.liquidationId === 1);
 		assert(
 			isVariant(liquidationRecord.liquidationType, 'liquidatePerpPnlForDeposit')
 		);

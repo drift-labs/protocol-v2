@@ -4,6 +4,7 @@ pub const BASE_PRECISION: u128 = AMM_RESERVE_PRECISION; //expo = -13;
 pub const MARK_PRICE_PRECISION: u128 = 10_000_000_000; //expo = -10;
 pub const MARK_PRICE_PRECISION_I128: i128 = MARK_PRICE_PRECISION as i128;
 pub const QUOTE_PRECISION: u128 = 1_000_000; // expo = -6
+pub const QUOTE_PRECISION_I128: i128 = 1_000_000; // expo = -6
 pub const FUNDING_PAYMENT_PRECISION: u128 = 10_000; // expo = -4
 pub const MARGIN_PRECISION: u128 = 10_000; // expo = -4
 pub const PEG_PRECISION: u128 = 1_000; //expo = -3

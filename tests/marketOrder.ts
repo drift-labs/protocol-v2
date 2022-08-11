@@ -227,13 +227,15 @@ describe('market order', () => {
 		const firstPosition = clearingHouseUser.getUserAccount().positions[0];
 		assert(firstPosition.baseAssetAmount.eq(baseAssetAmount));
 
-		const expectedQuoteAssetAmount = new BN(1000003);
+		const expectedQuoteAssetAmount = new BN(-1000003);
 		assert(firstPosition.quoteEntryAmount.eq(expectedQuoteAssetAmount));
 
 		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 
 		assert.ok(orderRecord.baseAssetAmountFilled.eq(baseAssetAmount));
-		assert.ok(orderRecord.quoteAssetAmountFilled.eq(expectedQuoteAssetAmount));
+		assert.ok(
+			orderRecord.quoteAssetAmountFilled.eq(expectedQuoteAssetAmount.abs())
+		);
 
 		const expectedOrderId = new BN(1);
 		const expectedFillRecordId = new BN(1);

@@ -57,6 +57,7 @@ pub mod clearing_house {
     use crate::state::state::OrderFillerRewardStructure;
 
     use super::*;
+    use std::ops::DerefMut;
 
     pub fn initialize(ctx: Context<Initialize>, admin_controls_prices: bool) -> Result<()> {
         let insurance_account_key = ctx.accounts.insurance_vault.to_account_info().key;
@@ -344,8 +345,6 @@ pub mod clearing_house {
             next_funding_rate_record_id: 1,
             next_curve_record_id: 1,
             pnl_pool: PoolBalance { balance: 0 },
-            unsettled_loss: 0,
-            unsettled_profit: 0,
             unsettled_initial_asset_weight: 100,     // 100%
             unsettled_maintenance_asset_weight: 100, // 100%
             unsettled_imf_factor: 0,
@@ -405,6 +404,8 @@ pub mod clearing_house {
                 net_base_asset_amount: 0,
                 quote_asset_amount_long: 0,
                 quote_asset_amount_short: 0,
+                quote_entry_amount_long: 0,
+                quote_entry_amount_short: 0,
                 mark_std: 0,
                 long_intensity_count: 0,
                 long_intensity_volume: 0,
@@ -1069,7 +1070,14 @@ pub mod clearing_house {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
         BankMap::load(&WritableBanks::new(), remaining_accounts_iter)?;
-        let market_map = MarketMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
+        let mut market_map = MarketMap::load(&WritableMarkets::new(), remaining_accounts_iter)?;
+
+        controller::repeg::update_amms(
+            &mut market_map,
+            &mut oracle_map,
+            &ctx.accounts.state,
+            &Clock::get()?,
+        )?;
 
         controller::orders::trigger_order(
             order_id,
@@ -1132,22 +1140,28 @@ pub mod clearing_house {
             controller::bank_balance::update_bank_cumulative_interest(bank, clock.unix_timestamp)?;
         }
 
+        let user_key = ctx.accounts.user.key();
         let user = &mut load_mut!(ctx.accounts.user)?;
         let position_index = get_position_index(&user.positions, market_index)?;
+
+        controller::funding::settle_funding_payment(
+            user,
+            &user_key,
+            market_map.get_ref_mut(&market_index)?.deref_mut(),
+            clock.unix_timestamp,
+        )?;
 
         // cannot settle pnl this way on a user who is in liquidation territory
         if !(meets_maintenance_margin_requirement(user, &market_map, &bank_map, &mut oracle_map)?) {
             return Err(ErrorCode::InsufficientCollateralForSettlingPNL.into());
         }
 
-        let market_position = &mut user.positions[position_index];
         let bank = &mut bank_map.get_quote_asset_bank_mut()?;
         let market = &mut market_map.get_ref_mut(&market_index)?;
 
         let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
-        controller::position::update_cost_basis(market, market_position, oracle_price)?;
-
-        let user_unsettled_pnl = market_position.unsettled_pnl;
+        let user_unsettled_pnl: i128 =
+            user.positions[position_index].get_unsettled_pnl(oracle_price)?;
 
         let pnl_to_settle_with_user =
             controller::amm::update_pool_balances(market, bank, user_unsettled_pnl)?;
@@ -1180,11 +1194,8 @@ pub mod clearing_house {
             user.get_quote_asset_bank_balance_mut(),
         )?;
 
-        let user_position = &mut user.positions[position_index];
-
-        controller::position::update_unsettled_pnl(
-            user_position,
-            market,
+        controller::position::update_quote_asset_amount(
+            &mut user.positions[position_index],
             -pnl_to_settle_with_user,
         )?;
 
@@ -1668,10 +1679,14 @@ pub mod clearing_house {
             .user
             .load_init()
             .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
-        user.authority = ctx.accounts.authority.key();
-        user.user_id = user_id;
-        user.name = name;
-        user.next_order_id = 1;
+        *user = User {
+            authority: ctx.accounts.authority.key(),
+            user_id,
+            name,
+            next_order_id: 1,
+            next_liquidation_id: 1,
+            ..User::default()
+        };
         Ok(())
     }
 

@@ -33,12 +33,22 @@ import {
 	calculateBaseAssetValue,
 	calculatePositionFundingPNL,
 	calculatePositionPNL,
+	calculateUnsettledAssetWeight,
+	calculateMarketMarginRatio,
 	PositionDirection,
 	calculateTradeSlippage,
 	BN,
 	BankAccount,
 } from '.';
-import { getTokenAmount } from './math/bankBalance';
+import {
+	getTokenAmount,
+	calculateAssetWeight,
+	calculateLiabilityWeight,
+} from './math/bankBalance';
+import {
+	calculateMarginBaseAssetValue,
+	calculateWorstCaseBaseAssetAmount,
+} from './math/margin';
 import { OraclePriceData } from './oracles/types';
 import { ClearingHouseUserConfig } from './clearingHouseUserConfig';
 import { PollingUserAccountSubscriber } from './accounts/pollingUserAccountSubscriber';
@@ -125,7 +135,6 @@ export class ClearingHouseUser {
 			quoteAssetAmount: ZERO,
 			quoteEntryAmount: ZERO,
 			openOrders: ZERO,
-			unsettledPnl: ZERO,
 			openBids: ZERO,
 			openAsks: ZERO,
 		};
@@ -185,26 +194,43 @@ export class ClearingHouseUser {
 	}
 
 	public getInitialMarginRequirement(): BN {
-		return this.getUserAccount()
-			.positions.reduce((marginRequirement, marketPosition) => {
+		const postionMarginRequirement = this.getUserAccount().positions.reduce(
+			(marginRequirement, marketPosition) => {
 				const market = this.clearingHouse.getMarketAccount(
 					marketPosition.marketIndex
 				);
-				return marginRequirement.add(
-					calculateBaseAssetValue(
+				const worstCaseBaseAssetAmount =
+					calculateWorstCaseBaseAssetAmount(marketPosition);
+
+				const worstCaseAssetValue = worstCaseBaseAssetAmount
+					.abs()
+					.mul(this.getOracleDataForMarket(market.marketIndex).price)
+					.div(AMM_TO_QUOTE_PRECISION_RATIO.mul(MARK_PRICE_PRECISION));
+
+				const marketMarginRatio = new BN(
+					calculateMarketMarginRatio(
 						market,
-						marketPosition,
-						this.getOracleDataForMarket(market.marketIndex)
+						worstCaseBaseAssetAmount.abs(),
+						'Initial'
 					)
-						.mul(new BN(market.marginRatioInitial))
-						.div(MARGIN_PRECISION)
 				);
-			}, ZERO)
-			.add(this.getTotalLiability());
+				return marginRequirement.add(
+					worstCaseAssetValue.mul(marketMarginRatio).div(MARGIN_PRECISION)
+				);
+			},
+			ZERO
+		);
+
+		const bankMarginRequirement = this.getBankLiabilityValue(
+			undefined,
+			'Initial'
+		);
+
+		return bankMarginRequirement.add(postionMarginRequirement);
 	}
 
 	/**
-	 * @returns The partial margin requirement in USDC. : QUOTE_PRECISION
+	 * @returns The maintenance margin requirement in USDC. : QUOTE_PRECISION
 	 */
 	public getMaintenanceMarginRequirement(): BN {
 		return this.getUserAccount()
@@ -212,24 +238,40 @@ export class ClearingHouseUser {
 				const market = this.clearingHouse.getMarketAccount(
 					marketPosition.marketIndex
 				);
+				const worstCaseBaseAssetAmount =
+					calculateWorstCaseBaseAssetAmount(marketPosition);
+
+				const worstCaseAssetValue = worstCaseBaseAssetAmount
+					.abs()
+					.mul(this.getOracleDataForMarket(market.marketIndex).price)
+					.div(AMM_TO_QUOTE_PRECISION_RATIO.mul(MARK_PRICE_PRECISION));
+
 				return marginRequirement.add(
-					calculateBaseAssetValue(
-						market,
-						marketPosition,
-						this.getOracleDataForMarket(market.marketIndex)
-					)
-						.mul(new BN(market.marginRatioMaintenance))
+					worstCaseAssetValue
+						.mul(
+							new BN(
+								calculateMarketMarginRatio(
+									market,
+									worstCaseBaseAssetAmount.abs(),
+									'Maintenance'
+								)
+							)
+						)
 						.div(MARGIN_PRECISION)
 				);
 			}, ZERO)
-			.add(this.getTotalLiability());
+			.add(this.getBankLiabilityValue(undefined, 'Maintenance'));
 	}
 
 	/**
 	 * calculates unrealized position price pnl
 	 * @returns : Precision QUOTE_PRECISION
 	 */
-	public getUnrealizedPNL(withFunding?: boolean, marketIndex?: BN): BN {
+	public getUnrealizedPNL(
+		withFunding?: boolean,
+		marketIndex?: BN,
+		withWeightMarginCategory?: MarginCategory
+	): BN {
 		return this.getUserAccount()
 			.positions.filter((pos) =>
 				marketIndex ? pos.marketIndex === marketIndex : true
@@ -238,28 +280,28 @@ export class ClearingHouseUser {
 				const market = this.clearingHouse.getMarketAccount(
 					marketPosition.marketIndex
 				);
-				return pnl.add(
-					calculatePositionPNL(
-						market,
-						marketPosition,
-						withFunding,
-						this.getOracleDataForMarket(market.marketIndex)
-					)
+				let pnl0 = calculatePositionPNL(
+					market,
+					marketPosition,
+					withFunding,
+					this.getOracleDataForMarket(market.marketIndex)
 				);
-			}, ZERO);
-	}
 
-	/**
-	 * calculates unrealized position price pnl
-	 * @returns : Precision QUOTE_PRECISION
-	 */
-	public getUnsettledPNL(marketIndex?: BN): BN {
-		return this.getUserAccount()
-			.positions.filter((pos) =>
-				marketIndex ? pos.marketIndex === marketIndex : true
-			)
-			.reduce((pnl, marketPosition) => {
-				return pnl.add(marketPosition.unsettledPnl);
+				if (withWeightMarginCategory !== undefined) {
+					if (pnl0.gt(ZERO)) {
+						pnl0 = pnl0
+							.mul(
+								calculateUnsettledAssetWeight(
+									market,
+									pnl0,
+									withWeightMarginCategory
+								)
+							)
+							.div(new BN(BANK_WEIGHT_PRECISION));
+					}
+				}
+
+				return pnl.add(pnl0);
 			}, ZERO);
 	}
 
@@ -280,12 +322,67 @@ export class ClearingHouseUser {
 			}, ZERO);
 	}
 
-	public getTotalLiability(): BN {
+	public getBankLiabilityValue(
+		bankIndex?: BN,
+		withWeightMarginCategory?: MarginCategory
+	): BN {
+		return this.getUserAccount().bankBalances.reduce(
+			(totalLiabilityValue, bankBalance) => {
+				if (
+					bankBalance.balance.eq(ZERO) ||
+					isVariant(bankBalance.balanceType, 'deposit') ||
+					(bankIndex !== undefined && !bankBalance.bankIndex.eq(bankIndex))
+				) {
+					return totalLiabilityValue;
+				}
+
+				// Todo this needs to account for whether it's based on initial or maintenance requirements
+				const bankAccount: BankAccount = this.clearingHouse.getBankAccount(
+					bankBalance.bankIndex
+				);
+
+				const tokenAmount = getTokenAmount(
+					bankBalance.balance,
+					bankAccount,
+					bankBalance.balanceType
+				);
+
+				let liabilityValue = tokenAmount
+					.mul(this.getOracleDataForBank(bankAccount.bankIndex).price)
+					.div(MARK_PRICE_PRECISION)
+					.div(
+						new BN(10).pow(
+							new BN(bankAccount.decimals).sub(BANK_BALANCE_PRECISION_EXP)
+						)
+					);
+
+				if (withWeightMarginCategory !== undefined) {
+					const weight = calculateLiabilityWeight(
+						tokenAmount,
+						bankAccount,
+						withWeightMarginCategory
+					);
+					liabilityValue = liabilityValue
+						.mul(weight)
+						.div(BANK_WEIGHT_PRECISION);
+				}
+
+				return totalLiabilityValue.add(liabilityValue);
+			},
+			ZERO
+		);
+	}
+
+	public getBankAssetValue(
+		bankIndex?: BN,
+		withWeightMarginCategory?: MarginCategory
+	): BN {
 		return this.getUserAccount().bankBalances.reduce(
 			(totalAssetValue, bankBalance) => {
 				if (
 					bankBalance.balance.eq(ZERO) ||
-					isVariant(bankBalance.balanceType, 'deposit')
+					isVariant(bankBalance.balanceType, 'borrow') ||
+					(bankIndex !== undefined && !bankBalance.bankIndex.eq(bankIndex))
 				) {
 					return totalAssetValue;
 				}
@@ -300,71 +397,41 @@ export class ClearingHouseUser {
 					bankAccount,
 					bankBalance.balanceType
 				);
-				return totalAssetValue.add(
-					tokenAmount
-						.mul(this.getOracleDataForBank(bankAccount.bankIndex).price)
-						.mul(bankAccount.initialLiabilityWeight)
-						.div(BANK_WEIGHT_PRECISION)
-						.div(MARK_PRICE_PRECISION)
-						// Adjust for decimals of bank account
-						.div(
-							new BN(10).pow(
-								new BN(bankAccount.decimals).sub(BANK_BALANCE_PRECISION_EXP)
-							)
+
+				let assetValue = tokenAmount
+					.mul(this.getOracleDataForBank(bankAccount.bankIndex).price)
+					.div(MARK_PRICE_PRECISION)
+					.div(
+						new BN(10).pow(
+							new BN(bankAccount.decimals).sub(BANK_BALANCE_PRECISION_EXP)
 						)
-				);
+					);
+				if (withWeightMarginCategory !== undefined) {
+					const weight = calculateAssetWeight(
+						tokenAmount,
+						bankAccount,
+						withWeightMarginCategory
+					);
+					assetValue = assetValue.mul(weight).div(BANK_WEIGHT_PRECISION);
+				}
+
+				return totalAssetValue.add(assetValue);
 			},
 			ZERO
 		);
 	}
 
-	public getCollateralValue(bankIndex?: BN): BN {
-		return this.getUserAccount().bankBalances.reduce(
-			(totalAssetValue, bankBalance) => {
-				if (
-					bankBalance.balance.eq(ZERO) ||
-					(bankIndex !== undefined && !bankBalance.bankIndex.eq(bankIndex))
-				) {
-					return totalAssetValue;
-				}
-
-				// Todo this needs to account for whether it's based on initial or maintenance requirements
-				const bankAccount: BankAccount = this.clearingHouse.getBankAccount(
-					bankBalance.bankIndex
-				);
-
-				let tokenAmount = getTokenAmount(
-					bankBalance.balance,
-					bankAccount,
-					bankBalance.balanceType
-				);
-
-				if (isVariant(bankBalance.balanceType, 'borrow')) {
-					tokenAmount = tokenAmount.mul(new BN(-1));
-				}
-
-				return totalAssetValue.add(
-					tokenAmount
-						.mul(this.getOracleDataForBank(bankAccount.bankIndex).price)
-						.div(MARK_PRICE_PRECISION)
-						// Adjust for decimals of bank account
-						.div(
-							new BN(10).pow(
-								new BN(bankAccount.decimals).sub(BANK_BALANCE_PRECISION_EXP)
-							)
-						)
-				);
-			},
-			ZERO
+	public getNetBankValue(withWeightMarginCategory?: MarginCategory): BN {
+		return this.getBankAssetValue(undefined, withWeightMarginCategory).sub(
+			this.getBankLiabilityValue(undefined, withWeightMarginCategory)
 		);
 	}
 
 	/**
 	 * calculates TotalCollateral: collateral + unrealized pnl
-	 * TODO: rename to total equity (for perpetuals swaps)
 	 * @returns : Precision QUOTE_PRECISION
 	 */
-	public getTotalCollateral(): BN {
+	public getTotalCollateral(marginCategory: MarginCategory = 'Initial'): BN {
 		return this.getUserAccount()
 			.bankBalances.reduce((totalAssetValue, bankBalance) => {
 				if (
@@ -384,10 +451,17 @@ export class ClearingHouseUser {
 					bankAccount,
 					bankBalance.balanceType
 				);
+
+				const weight = calculateAssetWeight(
+					tokenAmount,
+					bankAccount,
+					marginCategory
+				);
+
 				return totalAssetValue.add(
 					tokenAmount
 						.mul(this.getOracleDataForBank(bankAccount.bankIndex).price)
-						.mul(bankAccount.initialAssetWeight)
+						.mul(weight)
 						.div(BANK_WEIGHT_PRECISION)
 						.div(MARK_PRICE_PRECISION)
 						// Adjust for decimals of bank account
@@ -398,12 +472,11 @@ export class ClearingHouseUser {
 						)
 				);
 			}, ZERO)
-			.add(this.getUnrealizedPNL(true))
-			.add(this.getUnsettledPNL());
+			.add(this.getUnrealizedPNL(true, undefined, marginCategory));
 	}
 
 	/**
-	 * calculates sum of position value across all positions
+	 * calculates sum of position value across all positions in margin system
 	 * @returns : Precision QUOTE_PRECISION
 	 */
 	getTotalPositionValue(): BN {
@@ -412,20 +485,20 @@ export class ClearingHouseUser {
 				const market = this.clearingHouse.getMarketAccount(
 					marketPosition.marketIndex
 				);
-				return positionValue.add(
-					calculateBaseAssetValue(
-						market,
-						marketPosition,
-						this.getOracleDataForMarket(market.marketIndex)
-					)
+				const posVal = calculateMarginBaseAssetValue(
+					market,
+					marketPosition,
+					this.getOracleDataForMarket(market.marketIndex)
 				);
+
+				return positionValue.add(posVal);
 			},
 			ZERO
 		);
 	}
 
 	/**
-	 * calculates position value from closing 100%
+	 * calculates position value in margin system
 	 * @returns : Precision QUOTE_PRECISION
 	 */
 	public getPositionValue(
@@ -437,7 +510,7 @@ export class ClearingHouseUser {
 		const market = this.clearingHouse.getMarketAccount(
 			userPosition.marketIndex
 		);
-		return calculateBaseAssetValue(market, userPosition, oraclePriceData);
+		return calculateMarginBaseAssetValue(market, userPosition, oraclePriceData);
 	}
 
 	public getPositionSide(
@@ -453,12 +526,13 @@ export class ClearingHouseUser {
 	}
 
 	/**
-	 * calculates average exit price for closing 100% of position
+	 * calculates average exit price (optionally for closing up to 100% of position)
 	 * @returns : Precision MARK_PRICE_PRECISION
 	 */
 	public getPositionEstimatedExitPriceAndPnl(
 		position: UserPosition,
-		amountToClose?: BN
+		amountToClose?: BN,
+		useAMMClose = false
 	): [BN, BN] {
 		const market = this.clearingHouse.getMarketAccount(position.marketIndex);
 
@@ -478,11 +552,21 @@ export class ClearingHouseUser {
 			} as UserPosition;
 		}
 
-		const baseAssetValue = calculateBaseAssetValue(
-			market,
-			position,
-			oraclePriceData
-		);
+		let baseAssetValue: BN;
+
+		if (useAMMClose) {
+			baseAssetValue = calculateBaseAssetValue(
+				market,
+				position,
+				oraclePriceData
+			);
+		} else {
+			baseAssetValue = calculateMarginBaseAssetValue(
+				market,
+				position,
+				oraclePriceData
+			);
+		}
 		if (position.baseAssetAmount.eq(ZERO)) {
 			return [ZERO, ZERO];
 		}
@@ -524,19 +608,13 @@ export class ClearingHouseUser {
 		category: MarginCategory = 'Initial'
 	): BN {
 		const market = this.clearingHouse.getMarketAccount(marketIndex);
-		let marginRatioCategory: number;
 
-		switch (category) {
-			case 'Initial':
-				marginRatioCategory = market.marginRatioInitial;
-				break;
-			case 'Maintenance':
-				marginRatioCategory = market.marginRatioMaintenance;
-				break;
-			default:
-				marginRatioCategory = market.marginRatioInitial;
-				break;
-		}
+		const marginRatioCategory = calculateMarketMarginRatio(
+			market,
+			// worstCaseBaseAssetAmount.abs(),
+			ZERO, // todo
+			category
+		);
 		const maxLeverage = TEN_THOUSAND.mul(TEN_THOUSAND).div(
 			new BN(marginRatioCategory)
 		);
@@ -643,7 +721,6 @@ export class ClearingHouseUser {
 			quoteAssetAmount: new BN(0),
 			quoteEntryAmount: new BN(0),
 			openOrders: new BN(0),
-			unsettledPnl: new BN(0),
 			openBids: new BN(0),
 			openAsks: new BN(0),
 		};
@@ -654,7 +731,7 @@ export class ClearingHouseUser {
 			proposedMarketPosition.marketIndex
 		);
 
-		const proposedMarketPositionValue = calculateBaseAssetValue(
+		const proposedMarketPositionValue = calculateMarginBaseAssetValue(
 			market,
 			proposedMarketPosition,
 			this.getOracleDataForMarket(market.marketIndex)
@@ -671,14 +748,19 @@ export class ClearingHouseUser {
 						const market = this.clearingHouse.getMarketAccount(
 							position.marketIndex
 						);
-						const positionValue = calculateBaseAssetValue(
+						const positionValue = calculateMarginBaseAssetValue(
 							market,
 							position,
 							this.getOracleDataForMarket(market.marketIndex)
 						);
-						const marketMarginRequirement = positionValue
-							.mul(new BN(market.marginRatioMaintenance))
-							.div(MARGIN_PRECISION);
+						const marketMarginRequirement = positionValue;
+						new BN(
+							calculateMarketMarginRatio(
+								market,
+								position.baseAssetAmount.abs(),
+								'Maintenance'
+							)
+						).div(MARGIN_PRECISION);
 						totalMarginRequirement = totalMarginRequirement.add(
 							marketMarginRequirement
 						);
@@ -703,7 +785,15 @@ export class ClearingHouseUser {
 		const marginRequirementAfterTrade =
 			marginRequirementExcludingTargetMarket.add(
 				proposedMarketPositionValue
-					.mul(new BN(market.marginRatioMaintenance))
+					.mul(
+						new BN(
+							calculateMarketMarginRatio(
+								market,
+								proposedMarketPosition.baseAssetAmount.abs(),
+								'Maintenance'
+							)
+						)
+					)
 					.div(MARGIN_PRECISION)
 			);
 		const freeCollateralAfterTrade = totalCollateral.sub(
@@ -774,11 +864,11 @@ export class ClearingHouseUser {
 
 		const closeBaseAmount = currentPosition.baseAssetAmount
 			.mul(closeQuoteAmount)
-			.div(currentPosition.quoteAssetAmount)
+			.div(currentPosition.quoteAssetAmount.abs())
 			.add(
 				currentPosition.baseAssetAmount
 					.mul(closeQuoteAmount)
-					.mod(currentPosition.quoteAssetAmount)
+					.mod(currentPosition.quoteAssetAmount.abs())
 			)
 			.neg();
 

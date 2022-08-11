@@ -8,7 +8,7 @@ use crate::math::position::{
     calculate_base_asset_value_with_oracle_price,
 };
 use crate::math_error;
-use crate::validate;
+// use crate::validate;
 
 use crate::state::user::User;
 
@@ -137,12 +137,15 @@ pub fn calculate_oracle_price_for_perp_margin(
             .ok_or_else(math_error!())?
             .checked_div(BID_ASK_SPREAD_PRECISION_I128)
             .ok_or_else(math_error!())?,
-        cast_to_i128(
-            oracle_price_data
-                .confidence
-                .checked_add(market.amm.base_spread as u128)
-                .ok_or_else(math_error!())?,
-        )?,
+        cast_to_i128(oracle_price_data.confidence)?
+            .checked_add(
+                (market.amm.base_spread as i128)
+                    .checked_mul(oracle_price_data.price)
+                    .ok_or_else(math_error!())?
+                    .checked_div(BID_ASK_SPREAD_PRECISION_I128)
+                    .ok_or_else(math_error!())?,
+            )
+            .ok_or_else(math_error!())?,
     );
     let oracle_price = if market_position.base_asset_amount > 0 {
         oracle_price_data
@@ -186,8 +189,6 @@ pub fn calculate_perp_position_value_and_pnl(
 
     let total_unsettled_pnl = unrealized_pnl
         .checked_add(unrealized_funding)
-        .ok_or_else(math_error!())?
-        .checked_add(market_position.unsettled_pnl)
         .ok_or_else(math_error!())?;
 
     let unsettled_asset_weight =
@@ -258,7 +259,7 @@ pub fn calculate_margin_requirement_and_total_collateral(
 
     for market_position in user.positions.iter() {
         if market_position.base_asset_amount == 0
-            && market_position.unsettled_pnl == 0
+            && market_position.quote_asset_amount == 0
             && !market_position.has_open_order()
         {
             continue;
@@ -465,7 +466,7 @@ mod test {
 
         let market_position = MarketPosition {
             market_index: 0,
-            unsettled_pnl: -(2 * QUOTE_PRECISION as i128),
+            quote_asset_amount: -(2 * QUOTE_PRECISION as i128),
             ..MarketPosition::default()
         };
 
@@ -610,10 +611,7 @@ mod test {
 
         assert_eq!(position_unrealized_pnl, 22699050901);
 
-        let position_unsettled_pnl = position_unrealized_pnl
-            .checked_add(market_position.unsettled_pnl)
-            .unwrap();
-        assert_eq!(market_position.unsettled_pnl, 0);
+        let position_unsettled_pnl = position_unrealized_pnl;
         assert_eq!(position_unsettled_pnl, 22_699_050_901);
 
         // sqrt of oracle price = 149
@@ -657,11 +655,8 @@ mod test {
         )
         .unwrap();
 
-        let position_unsettled_pnl = position_unrealized_pnl
-            .checked_add(market_position.unsettled_pnl)
-            .ok_or_else(math_error!())
-            .unwrap();
-        assert_eq!(position_unsettled_pnl, 24276639345); // $24.276k
+        let position_unsettled_pnl = position_unrealized_pnl;
+        assert_eq!(position_unrealized_pnl, 24276639345); // $24.276k
 
         assert_eq!(
             market

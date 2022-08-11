@@ -2,9 +2,12 @@ import * as anchor from '@project-serum/anchor';
 import { Program } from '@project-serum/anchor';
 import {
 	createPriceFeed,
+	setFeedPrice,
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	initializeQuoteAssetBank,
+	getFeedData,
+	sleep,
 } from './testHelpers';
 import { Admin, ClearingHouseUser, PEG_PRECISION } from '../sdk/src';
 import { Keypair } from '@solana/web3.js';
@@ -13,6 +16,13 @@ import {
 	BN,
 	OracleSource,
 	QUOTE_ASSET_BANK_INDEX,
+	calculateWorstCaseBaseAssetAmount,
+	calculateMarketMarginRatio,
+	AMM_TO_QUOTE_PRECISION_RATIO,
+	MARK_PRICE_PRECISION,
+	calculateMarkPrice,
+	convertToNumber,
+	calculatePrice,
 } from '../sdk';
 import { assert } from 'chai';
 import { MAX_LEVERAGE, PositionDirection } from '../sdk/src';
@@ -49,6 +59,8 @@ describe('User Account', () => {
 		solUsdOracle = await createPriceFeed({
 			oracleProgram: anchor.workspace.Pyth,
 			initPrice: initialSOLPrice,
+			confidence: 0.0005,
+			expo: -10,
 		});
 
 		clearingHouse = new Admin({
@@ -102,25 +114,44 @@ describe('User Account', () => {
 	) => {
 		// todo: dont hate me
 		await userAccount.fetchAccounts();
-		const buyingPower = userAccount.getBuyingPower(new BN(0));
-		assert(buyingPower.eq(expectedBuyingPower));
-		const pnl = userAccount.getUnrealizedPNL();
-		assert(pnl.eq(expectedPNL));
+
 		const totalCollateral = userAccount.getTotalCollateral();
 		console.log(
 			'totalCollateral',
 			totalCollateral.toNumber(),
 			expectedTotalCollateral.toNumber()
 		);
-		assert(totalCollateral.eq(expectedTotalCollateral));
+
+		const pnl = userAccount.getUnrealizedPNL();
+		console.log('pnl', pnl.toNumber(), expectedPNL.toNumber());
 		const freeCollateral = userAccount.getFreeCollateral();
-		assert(freeCollateral.eq(expectedFreeCollateral));
+		console.log(
+			'freeCollateral',
+			freeCollateral.toNumber(),
+			expectedFreeCollateral.toNumber()
+		);
 		const leverage = userAccount.getLeverage();
 		console.log('leverage', leverage.toNumber(), expectedLeverage.toNumber());
-
-		assert(leverage.eq(expectedLeverage));
 		const marginRatio = userAccount.getMarginRatio();
+		console.log(
+			'marginRatio',
+			marginRatio.toNumber(),
+			expectedMarginRatio.toNumber()
+		);
+
+		const buyingPower = userAccount.getBuyingPower(new BN(0));
+		console.log(
+			'buyingPower',
+			buyingPower.toNumber(),
+			expectedBuyingPower.toNumber()
+		);
+
+		assert(pnl.eq(expectedPNL));
+		assert(buyingPower.eq(expectedBuyingPower));
 		assert(marginRatio.eq(expectedMarginRatio));
+		assert(totalCollateral.eq(expectedTotalCollateral));
+		assert(leverage.eq(expectedLeverage));
+		assert(freeCollateral.eq(expectedFreeCollateral));
 	};
 
 	it('Before Deposit', async () => {
@@ -171,6 +202,62 @@ describe('User Account', () => {
 			BASE_PRECISION,
 			marketIndex
 		);
+		clearingHouse.fetchAccounts();
+		userAccount.fetchAccounts();
+		const marketPosition = userAccount.getUserPosition(marketIndex);
+
+		const market = clearingHouse.getMarketAccount(marketPosition.marketIndex);
+
+		const oraclePrice = clearingHouse.getOracleDataForMarket(
+			market.marketIndex
+		).price;
+		const markPrice = calculatePrice(
+			market.amm.baseAssetReserve,
+			market.amm.quoteAssetReserve,
+			market.amm.pegMultiplier
+		);
+		console.log(
+			'mark vs oracle price:',
+			convertToNumber(markPrice),
+			convertToNumber(oraclePrice)
+		);
+		await setFeedPrice(
+			anchor.workspace.Pyth,
+			convertToNumber(markPrice.sub(new BN(250 * 10 ** 4))),
+			solUsdOracle
+		);
+		await sleep(5000);
+
+		clearingHouse.fetchAccounts();
+		const oracleP2 = await getFeedData(anchor.workspace.Pyth, solUsdOracle);
+		console.log('oracleP2:', oracleP2.price);
+		const oraclePrice2 = clearingHouse.getOracleDataForMarket(
+			market.marketIndex
+		).price;
+		const markPrice2 = calculateMarkPrice(market, oraclePrice);
+		console.log(
+			'mark2 vs oracle2 price:',
+			convertToNumber(markPrice2),
+			convertToNumber(oraclePrice2)
+		);
+
+		const worstCaseBaseAssetAmount =
+			calculateWorstCaseBaseAssetAmount(marketPosition);
+
+		const worstCaseAssetValue = worstCaseBaseAssetAmount
+			.abs()
+			.mul(oraclePrice)
+			.div(AMM_TO_QUOTE_PRECISION_RATIO.mul(MARK_PRICE_PRECISION));
+
+		console.log('worstCaseAssetValue:', worstCaseAssetValue.toNumber());
+
+		const marketMarginRatio = calculateMarketMarginRatio(
+			market,
+			worstCaseBaseAssetAmount.abs(),
+			'Maintenance'
+		);
+
+		console.log('marketMarginRatio:', marketMarginRatio);
 
 		const expectedPNL = new BN(-1);
 		const expectedTotalCollateral = new BN(19949999);
@@ -194,6 +281,43 @@ describe('User Account', () => {
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount.mul(new BN(11)).div(new BN(10)),
 			marketIndex
+		);
+		const marketPosition = userAccount.getUserPosition(marketIndex);
+
+		const market = clearingHouse.getMarketAccount(marketPosition.marketIndex);
+
+		const oraclePrice = clearingHouse.getOracleDataForMarket(
+			market.marketIndex
+		).price;
+		const markPrice = calculatePrice(
+			market.amm.baseAssetReserve,
+			market.amm.quoteAssetReserve,
+			market.amm.pegMultiplier
+		);
+
+		console.log(
+			'mark vs oracle price:',
+			convertToNumber(markPrice),
+			convertToNumber(oraclePrice)
+		);
+		await setFeedPrice(
+			anchor.workspace.Pyth,
+			convertToNumber(markPrice.sub(new BN(275 * 10 ** 4))),
+			solUsdOracle
+		);
+		await sleep(5000);
+
+		clearingHouse.fetchAccounts();
+		const oracleP2 = await getFeedData(anchor.workspace.Pyth, solUsdOracle);
+		console.log('oracleP2:', oracleP2.price);
+		const oraclePrice2 = clearingHouse.getOracleDataForMarket(
+			market.marketIndex
+		).price;
+		const markPrice2 = calculateMarkPrice(market, oraclePrice);
+		console.log(
+			'mark2 vs oracle2 price:',
+			convertToNumber(markPrice2),
+			convertToNumber(oraclePrice2)
 		);
 
 		const expectedPNL = new BN(4999474);

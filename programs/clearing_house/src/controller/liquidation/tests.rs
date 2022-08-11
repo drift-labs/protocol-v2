@@ -6,7 +6,7 @@ pub mod liquidate_perp {
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BANK_CUMULATIVE_INTEREST_PRECISION, BANK_INTEREST_PRECISION,
         BANK_WEIGHT_PRECISION, BASE_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION,
-        PEG_PRECISION, QUOTE_PRECISION,
+        PEG_PRECISION, QUOTE_PRECISION_I128,
     };
     use crate::state::bank::{Bank, BankBalanceType};
     use crate::state::bank_map::BankMap;
@@ -53,7 +53,7 @@ pub mod liquidate_perp {
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
                 base_asset_amount_step_size: 10000000,
-                quote_asset_amount_long: 150 * QUOTE_PRECISION,
+                quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
                 net_base_asset_amount: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
                 ..AMM::default()
@@ -93,7 +93,8 @@ pub mod liquidate_perp {
             positions: get_positions(MarketPosition {
                 market_index: 0,
                 base_asset_amount: BASE_PRECISION_I128,
-                quote_asset_amount: 150 * QUOTE_PRECISION,
+                quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+                quote_entry_amount: -150 * QUOTE_PRECISION_I128,
                 open_orders: 1,
                 open_bids: BASE_PRECISION_I128,
                 ..MarketPosition::default()
@@ -134,8 +135,8 @@ pub mod liquidate_perp {
 
         assert_eq!(user.positions[0].base_asset_amount, 0);
         assert_eq!(
-            user.positions[0].unsettled_pnl,
-            -51 * (QUOTE_PRECISION as i128)
+            user.positions[0].quote_asset_amount,
+            -51 * QUOTE_PRECISION_I128
         );
         assert_eq!(user.positions[0].open_orders, 0);
         assert_eq!(user.positions[0].open_bids, 0);
@@ -144,10 +145,9 @@ pub mod liquidate_perp {
             liquidator.positions[0].base_asset_amount,
             BASE_PRECISION_I128
         );
-        assert_eq!(liquidator.positions[0].unsettled_pnl, 0);
         assert_eq!(
             liquidator.positions[0].quote_asset_amount,
-            99 * QUOTE_PRECISION
+            -99 * QUOTE_PRECISION_I128
         );
     }
 
@@ -181,7 +181,7 @@ pub mod liquidate_perp {
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
                 base_asset_amount_step_size: 10000000,
-                quote_asset_amount_short: 50 * QUOTE_PRECISION,
+                quote_asset_amount_short: 50 * QUOTE_PRECISION_I128,
                 net_base_asset_amount: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
                 ..AMM::default()
@@ -221,7 +221,8 @@ pub mod liquidate_perp {
             positions: get_positions(MarketPosition {
                 market_index: 0,
                 base_asset_amount: -BASE_PRECISION_I128,
-                quote_asset_amount: 50 * QUOTE_PRECISION,
+                quote_asset_amount: 50 * QUOTE_PRECISION_I128,
+                quote_entry_amount: 50 * QUOTE_PRECISION_I128,
                 open_orders: 1,
                 open_asks: -BASE_PRECISION_I128,
                 ..MarketPosition::default()
@@ -262,8 +263,8 @@ pub mod liquidate_perp {
 
         assert_eq!(user.positions[0].base_asset_amount, 0);
         assert_eq!(
-            user.positions[0].unsettled_pnl,
-            -51 * (QUOTE_PRECISION as i128)
+            user.positions[0].quote_asset_amount,
+            -51 * QUOTE_PRECISION_I128
         );
         assert_eq!(user.positions[0].open_orders, 0);
         assert_eq!(user.positions[0].open_bids, 0);
@@ -272,10 +273,9 @@ pub mod liquidate_perp {
             liquidator.positions[0].base_asset_amount,
             -BASE_PRECISION_I128
         );
-        assert_eq!(liquidator.positions[0].unsettled_pnl, 0);
         assert_eq!(
             liquidator.positions[0].quote_asset_amount,
-            101 * QUOTE_PRECISION
+            101 * QUOTE_PRECISION_I128
         );
     }
 
@@ -309,7 +309,7 @@ pub mod liquidate_perp {
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
                 base_asset_amount_step_size: 10000000,
-                quote_asset_amount_short: 50 * QUOTE_PRECISION,
+                quote_asset_amount_short: 50 * QUOTE_PRECISION_I128,
                 net_base_asset_amount: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
                 ..AMM::default()
@@ -350,7 +350,7 @@ pub mod liquidate_perp {
             positions: get_positions(MarketPosition {
                 market_index: 0,
                 base_asset_amount: BASE_PRECISION_I128,
-                quote_asset_amount: 100 * QUOTE_PRECISION,
+                quote_asset_amount: 100 * QUOTE_PRECISION_I128,
                 open_orders: 1,
                 open_bids: 1000 * BASE_PRECISION_I128,
                 ..MarketPosition::default()
@@ -393,7 +393,6 @@ pub mod liquidate_perp {
         .unwrap();
 
         assert_eq!(user.positions[0].base_asset_amount, BASE_PRECISION_I128);
-        assert_eq!(user.positions[0].unsettled_pnl, 0,);
         assert_eq!(user.positions[0].open_orders, 0);
         assert_eq!(user.positions[0].open_bids, 0);
 
@@ -430,7 +429,7 @@ pub mod liquidate_perp {
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
                 base_asset_amount_step_size: 10000000,
-                quote_asset_amount_long: 150 * QUOTE_PRECISION,
+                quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
                 net_base_asset_amount: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
                 ..AMM::default()
@@ -470,7 +469,8 @@ pub mod liquidate_perp {
             positions: get_positions(MarketPosition {
                 market_index: 0,
                 base_asset_amount: BASE_PRECISION_I128,
-                quote_asset_amount: 150 * QUOTE_PRECISION,
+                quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+                quote_entry_amount: -150 * QUOTE_PRECISION_I128,
                 open_orders: 1,
                 open_bids: BASE_PRECISION_I128,
                 ..MarketPosition::default()
@@ -510,7 +510,8 @@ pub mod liquidate_perp {
         .unwrap();
 
         assert_eq!(user.positions[0].base_asset_amount, BASE_PRECISION_I128 / 2);
-        assert_eq!(user.positions[0].unsettled_pnl, -25500000);
+        assert_eq!(user.positions[0].quote_asset_amount, -100500000);
+        assert_eq!(user.positions[0].quote_entry_amount, -75000000);
         assert_eq!(user.positions[0].open_orders, 0);
         assert_eq!(user.positions[0].open_bids, 0);
 
@@ -518,8 +519,7 @@ pub mod liquidate_perp {
             liquidator.positions[0].base_asset_amount,
             BASE_PRECISION_I128 / 2
         );
-        assert_eq!(liquidator.positions[0].unsettled_pnl, 0);
-        assert_eq!(liquidator.positions[0].quote_asset_amount, 49500000);
+        assert_eq!(liquidator.positions[0].quote_asset_amount, -49500000);
     }
 
     #[test]
@@ -552,7 +552,7 @@ pub mod liquidate_perp {
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
                 base_asset_amount_step_size: 10000000,
-                quote_asset_amount_long: 150 * QUOTE_PRECISION,
+                quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
                 net_base_asset_amount: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
                 ..AMM::default()
@@ -593,7 +593,8 @@ pub mod liquidate_perp {
             positions: get_positions(MarketPosition {
                 market_index: 0,
                 base_asset_amount: 2 * BASE_PRECISION_I128,
-                quote_asset_amount: 200 * QUOTE_PRECISION,
+                quote_asset_amount: -200 * QUOTE_PRECISION_I128,
+                quote_entry_amount: -200 * QUOTE_PRECISION_I128,
                 open_orders: 1,
                 open_bids: BASE_PRECISION_I128,
                 ..MarketPosition::default()
@@ -637,12 +638,13 @@ pub mod liquidate_perp {
         .unwrap();
 
         assert_eq!(user.positions[0].base_asset_amount, 7125000000000);
-        assert_eq!(user.positions[0].unsettled_pnl, -1287500);
+        assert_eq!(user.positions[0].quote_asset_amount, -72537500);
+        assert_eq!(user.positions[0].quote_entry_amount, -71250000);
         assert_eq!(user.positions[0].open_orders, 0);
         assert_eq!(user.positions[0].open_bids, 0);
 
         assert_eq!(liquidator.positions[0].base_asset_amount, 12875000000000);
-        assert_eq!(liquidator.positions[0].quote_asset_amount, 127462500);
+        assert_eq!(liquidator.positions[0].quote_asset_amount, -127462500);
     }
 }
 
@@ -1010,7 +1012,7 @@ pub mod liquidate_borrow_for_perp_pnl {
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BANK_CUMULATIVE_INTEREST_PRECISION, BANK_INTEREST_PRECISION,
         BANK_WEIGHT_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION, PEG_PRECISION,
-        QUOTE_PRECISION,
+        QUOTE_PRECISION_I128,
     };
     use crate::state::bank::{Bank, BankBalanceType};
     use crate::state::bank_map::BankMap;
@@ -1055,7 +1057,7 @@ pub mod liquidate_borrow_for_perp_pnl {
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
                 base_asset_amount_step_size: 10000000,
-                quote_asset_amount_long: 150 * QUOTE_PRECISION,
+                quote_asset_amount_long: 150 * QUOTE_PRECISION_I128,
                 net_base_asset_amount: BASE_PRECISION_I128,
                 oracle: sol_oracle_price_key,
                 ..AMM::default()
@@ -1114,7 +1116,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             orders: [Order::default(); 32],
             positions: get_positions(MarketPosition {
                 market_index: 0,
-                unsettled_pnl: 100 * QUOTE_PRECISION as i128,
+                quote_asset_amount: 100 * QUOTE_PRECISION_I128 as i128,
                 ..MarketPosition::default()
             }),
             bank_balances: user_bank_balances,
@@ -1150,14 +1152,14 @@ pub mod liquidate_borrow_for_perp_pnl {
         .unwrap();
 
         assert_eq!(user.bank_balances[0].balance, 199999);
-        assert_eq!(user.positions[0].unsettled_pnl, 19119120);
+        assert_eq!(user.positions[0].quote_asset_amount, 19119120);
 
         assert_eq!(
             liquidator.bank_balances[1].balance_type,
             BankBalanceType::Borrow
         );
         assert_eq!(liquidator.bank_balances[1].balance, 800001);
-        assert_eq!(liquidator.positions[0].unsettled_pnl, 80880880);
+        assert_eq!(liquidator.positions[0].quote_asset_amount, 80880880);
     }
 
     #[test]
@@ -1190,7 +1192,7 @@ pub mod liquidate_borrow_for_perp_pnl {
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
                 base_asset_amount_step_size: 10000000,
-                quote_asset_amount_long: 150 * QUOTE_PRECISION,
+                quote_asset_amount_long: 150 * QUOTE_PRECISION_I128,
                 net_base_asset_amount: BASE_PRECISION_I128,
                 oracle: sol_oracle_price_key,
                 ..AMM::default()
@@ -1249,7 +1251,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             orders: [Order::default(); 32],
             positions: get_positions(MarketPosition {
                 market_index: 0,
-                unsettled_pnl: 110 * QUOTE_PRECISION as i128,
+                quote_asset_amount: 110 * QUOTE_PRECISION_I128 as i128,
                 ..MarketPosition::default()
             }),
             bank_balances: user_bank_balances,
@@ -1285,14 +1287,14 @@ pub mod liquidate_borrow_for_perp_pnl {
         .unwrap();
 
         assert_eq!(user.bank_balances[0].balance, 363492);
-        assert_eq!(user.positions[0].unsettled_pnl, 45648442);
+        assert_eq!(user.positions[0].quote_asset_amount, 45648442);
 
         assert_eq!(
             liquidator.bank_balances[1].balance_type,
             BankBalanceType::Borrow
         );
         assert_eq!(liquidator.bank_balances[1].balance, 636508);
-        assert_eq!(liquidator.positions[0].unsettled_pnl, 64351558);
+        assert_eq!(liquidator.positions[0].quote_asset_amount, 64351558);
     }
 
     #[test]
@@ -1325,7 +1327,7 @@ pub mod liquidate_borrow_for_perp_pnl {
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
                 base_asset_amount_step_size: 10000000,
-                quote_asset_amount_long: 150 * QUOTE_PRECISION,
+                quote_asset_amount_long: 150 * QUOTE_PRECISION_I128,
                 net_base_asset_amount: BASE_PRECISION_I128,
                 oracle: sol_oracle_price_key,
                 ..AMM::default()
@@ -1384,7 +1386,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             orders: [Order::default(); 32],
             positions: get_positions(MarketPosition {
                 market_index: 0,
-                unsettled_pnl: 80 * QUOTE_PRECISION as i128,
+                quote_asset_amount: 80 * QUOTE_PRECISION_I128 as i128,
                 ..MarketPosition::default()
             }),
             bank_balances: user_bank_balances,
@@ -1420,14 +1422,14 @@ pub mod liquidate_borrow_for_perp_pnl {
         .unwrap();
 
         assert_eq!(user.bank_balances[0].balance, 208712);
-        assert_eq!(user.positions[0].unsettled_pnl, 0);
+        assert_eq!(user.positions[0].quote_asset_amount, 0);
 
         assert_eq!(
             liquidator.bank_balances[1].balance_type,
             BankBalanceType::Borrow
         );
         assert_eq!(liquidator.bank_balances[1].balance, 791288);
-        assert_eq!(liquidator.positions[0].unsettled_pnl, 80000000);
+        assert_eq!(liquidator.positions[0].quote_asset_amount, 80000000);
     }
 }
 
@@ -1438,7 +1440,7 @@ pub mod liquidate_perp_pnl_for_deposit {
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BANK_CUMULATIVE_INTEREST_PRECISION, BANK_INTEREST_PRECISION,
         BANK_WEIGHT_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION, PEG_PRECISION,
-        QUOTE_PRECISION,
+        QUOTE_PRECISION_I128,
     };
     use crate::state::bank::{Bank, BankBalanceType};
     use crate::state::bank_map::BankMap;
@@ -1483,7 +1485,7 @@ pub mod liquidate_perp_pnl_for_deposit {
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
                 base_asset_amount_step_size: 10000000,
-                quote_asset_amount_long: 150 * QUOTE_PRECISION,
+                quote_asset_amount_long: 150 * QUOTE_PRECISION_I128,
                 net_base_asset_amount: BASE_PRECISION_I128,
                 oracle: sol_oracle_price_key,
                 ..AMM::default()
@@ -1542,7 +1544,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             orders: [Order::default(); 32],
             positions: get_positions(MarketPosition {
                 market_index: 0,
-                unsettled_pnl: -100 * QUOTE_PRECISION as i128,
+                quote_asset_amount: -100 * QUOTE_PRECISION_I128 as i128,
                 ..MarketPosition::default()
             }),
             bank_balances: user_bank_balances,
@@ -1578,14 +1580,14 @@ pub mod liquidate_perp_pnl_for_deposit {
         .unwrap();
 
         assert_eq!(user.bank_balances[0].balance, 494445);
-        assert_eq!(user.positions[0].unsettled_pnl, -50000000);
+        assert_eq!(user.positions[0].quote_asset_amount, -50000000);
 
         assert_eq!(
             liquidator.bank_balances[1].balance_type,
             BankBalanceType::Deposit
         );
         assert_eq!(liquidator.bank_balances[1].balance, 505555);
-        assert_eq!(liquidator.positions[0].unsettled_pnl, -50000000);
+        assert_eq!(liquidator.positions[0].quote_asset_amount, -50000000);
     }
 
     #[test]
@@ -1618,7 +1620,7 @@ pub mod liquidate_perp_pnl_for_deposit {
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
                 base_asset_amount_step_size: 10000000,
-                quote_asset_amount_long: 150 * QUOTE_PRECISION,
+                quote_asset_amount_long: 150 * QUOTE_PRECISION_I128,
                 net_base_asset_amount: BASE_PRECISION_I128,
                 oracle: sol_oracle_price_key,
                 ..AMM::default()
@@ -1677,7 +1679,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             orders: [Order::default(); 32],
             positions: get_positions(MarketPosition {
                 market_index: 0,
-                unsettled_pnl: -91 * QUOTE_PRECISION as i128,
+                quote_asset_amount: -91 * QUOTE_PRECISION_I128 as i128,
                 ..MarketPosition::default()
             }),
             bank_balances: user_bank_balances,
@@ -1713,14 +1715,14 @@ pub mod liquidate_perp_pnl_for_deposit {
         .unwrap();
 
         assert_eq!(user.bank_balances[0].balance, 887655);
-        assert_eq!(user.positions[0].unsettled_pnl, -79888889);
+        assert_eq!(user.positions[0].quote_asset_amount, -79888889);
 
         assert_eq!(
             liquidator.bank_balances[1].balance_type,
             BankBalanceType::Deposit
         );
         assert_eq!(liquidator.bank_balances[1].balance, 112345);
-        assert_eq!(liquidator.positions[0].unsettled_pnl, -11111111);
+        assert_eq!(liquidator.positions[0].quote_asset_amount, -11111111);
     }
 
     #[test]
@@ -1753,7 +1755,7 @@ pub mod liquidate_perp_pnl_for_deposit {
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
                 base_asset_amount_step_size: 10000000,
-                quote_asset_amount_long: 150 * QUOTE_PRECISION,
+                quote_asset_amount_long: 150 * QUOTE_PRECISION_I128,
                 net_base_asset_amount: BASE_PRECISION_I128,
                 oracle: sol_oracle_price_key,
                 ..AMM::default()
@@ -1812,7 +1814,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             orders: [Order::default(); 32],
             positions: get_positions(MarketPosition {
                 market_index: 0,
-                unsettled_pnl: -150 * QUOTE_PRECISION as i128,
+                quote_asset_amount: -150 * QUOTE_PRECISION_I128 as i128,
                 ..MarketPosition::default()
             }),
             bank_balances: user_bank_balances,
@@ -1848,13 +1850,13 @@ pub mod liquidate_perp_pnl_for_deposit {
         .unwrap();
 
         assert_eq!(user.bank_balances[0].balance, 0);
-        assert_eq!(user.positions[0].unsettled_pnl, -51098902);
+        assert_eq!(user.positions[0].quote_asset_amount, -51098902);
 
         assert_eq!(
             liquidator.bank_balances[1].balance_type,
             BankBalanceType::Deposit
         );
         assert_eq!(liquidator.bank_balances[1].balance, 1000000);
-        assert_eq!(liquidator.positions[0].unsettled_pnl, -98901098);
+        assert_eq!(liquidator.positions[0].quote_asset_amount, -98901098);
     }
 }

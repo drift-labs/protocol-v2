@@ -204,6 +204,10 @@ pub enum ErrorCode {
     InvalidPerpPositionToLiquidate,
     #[msg("InvalidBaseAssetAmountForLiquidatePerp")]
     InvalidBaseAssetAmountForLiquidatePerp,
+    #[msg("InvalidPositionLastFundingRate")]
+    InvalidPositionLastFundingRate,
+    #[msg("InvalidPositionDelta")]
+    InvalidPositionDelta,
     #[msg("DefaultError")]
     DefaultError,
 }

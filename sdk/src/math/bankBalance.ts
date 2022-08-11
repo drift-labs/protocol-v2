@@ -1,4 +1,9 @@
-import { BankAccount, BankBalanceType, isVariant } from '../types';
+import {
+	BankAccount,
+	BankBalanceType,
+	isVariant,
+	MarginCategory,
+} from '../types';
 import { BN } from '@project-serum/anchor';
 import {
 	BANK_UTILIZATION_PRECISION,
@@ -6,8 +11,14 @@ import {
 	TEN,
 	ZERO,
 	BANK_INTEREST_PRECISION,
+	BANK_WEIGHT_PRECISION,
 	ONE_YEAR,
+	AMM_RESERVE_PRECISION,
 } from '../constants/numericConstants';
+import {
+	calculateSizeDiscountAssetWeight,
+	calculateSizePremiumLiabilityWeight,
+} from './margin';
 
 export function getBalance(
 	tokenAmount: BN,
@@ -41,6 +52,92 @@ export function getTokenAmount(
 		: bank.cumulativeBorrowInterest;
 
 	return balanceAmount.mul(cumulativeInterest).div(precisionDecrease);
+}
+
+export function calculateAssetWeight(
+	balanceAmount: BN,
+	bank: BankAccount,
+	marginCategory: MarginCategory
+): BN {
+	const sizePrecision = TEN.pow(new BN(bank.decimals));
+	let sizeInAmmReservePrecision;
+	if (sizePrecision.gt(AMM_RESERVE_PRECISION)) {
+		sizeInAmmReservePrecision = balanceAmount.div(
+			sizePrecision.div(AMM_RESERVE_PRECISION)
+		);
+	} else {
+		sizeInAmmReservePrecision = balanceAmount
+			.mul(AMM_RESERVE_PRECISION)
+			.div(sizePrecision);
+	}
+
+	let assetWeight;
+
+	switch (marginCategory) {
+		case 'Initial':
+			assetWeight = calculateSizeDiscountAssetWeight(
+				sizeInAmmReservePrecision,
+				bank.imfFactor,
+				bank.initialAssetWeight
+			);
+			break;
+		case 'Maintenance':
+			assetWeight = calculateSizeDiscountAssetWeight(
+				sizeInAmmReservePrecision,
+				bank.imfFactor,
+				bank.maintenanceAssetWeight
+			);
+			break;
+		default:
+			assetWeight = bank.initialAssetWeight;
+			break;
+	}
+
+	return assetWeight;
+}
+
+export function calculateLiabilityWeight(
+	balanceAmount: BN,
+	bank: BankAccount,
+	marginCategory: MarginCategory
+): BN {
+	const sizePrecision = TEN.pow(new BN(bank.decimals));
+	let sizeInAmmReservePrecision;
+	if (sizePrecision.gt(AMM_RESERVE_PRECISION)) {
+		sizeInAmmReservePrecision = balanceAmount.div(
+			sizePrecision.div(AMM_RESERVE_PRECISION)
+		);
+	} else {
+		sizeInAmmReservePrecision = balanceAmount
+			.mul(AMM_RESERVE_PRECISION)
+			.div(sizePrecision);
+	}
+
+	let assetWeight;
+
+	switch (marginCategory) {
+		case 'Initial':
+			assetWeight = calculateSizePremiumLiabilityWeight(
+				sizeInAmmReservePrecision,
+				bank.imfFactor,
+				bank.initialLiabilityWeight,
+				BANK_WEIGHT_PRECISION
+			);
+			break;
+		case 'Maintenance':
+			assetWeight = calculateSizePremiumLiabilityWeight(
+				sizeInAmmReservePrecision,
+				bank.imfFactor,
+				bank.maintenanceLiabilityWeight,
+				BANK_WEIGHT_PRECISION
+			);
+			break;
+		default:
+			assetWeight = bank.initialLiabilityWeight;
+			break;
+	}
+
+	return assetWeight;
 }
 
 export function calculateInterestAccumulated(

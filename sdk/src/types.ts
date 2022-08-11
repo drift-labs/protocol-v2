@@ -172,6 +172,7 @@ export type LiquidationRecord = {
 	liquidationType: LiquidationType;
 	marginRequirement: BN;
 	totalCollateral: BN;
+	liquidationId: number;
 	liquidatePerp: LiquidatePerpRecord;
 	liquidateBorrow: LiquidateBorrowRecord;
 	liquidateBorrowForPerpPnl: LiquidateBorrowForPerpPnlRecord;
@@ -297,6 +298,10 @@ export type MarketAccount = {
 	nextFillRecordId: BN;
 	pnlPool: PoolBalance;
 	liquidationFee: BN;
+	imfFactor: BN;
+	unsettledImfFactor: BN;
+	unsettledInitialAssetWeight: number;
+	unsettledMaintenanceAssetWeight: number;
 };
 
 export type BankAccount = {
@@ -321,6 +326,7 @@ export type BankAccount = {
 	initialLiabilityWeight: BN;
 	maintenanceLiabilityWeight: BN;
 	liquidationFee: BN;
+	imfFactor: BN;
 };
 
 export type PoolBalance = {
@@ -382,7 +388,6 @@ export type UserPosition = {
 	quoteAssetAmount: BN;
 	quoteEntryAmount: BN;
 	openOrders: BN;
-	unsettledPnl: BN;
 	openBids: BN;
 	openAsks: BN;
 };
@@ -404,6 +409,7 @@ export type UserAccount = {
 	positions: UserPosition[];
 	orders: Order[];
 	beingLiquidated: boolean;
+	nextLiquidationId: number;
 };
 
 export type UserBankBalance = {
