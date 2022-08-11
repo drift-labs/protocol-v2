@@ -332,20 +332,23 @@ describe('liquidity providing', () => {
 
 		// assert(lpPosition.lpShares.eq(new BN(0)));
 		assert(user.positions[0].baseAssetAmount.eq(new BN(10000000000000))); // lp is long
-		assert(user.positions[0].quoteAssetAmount.eq(new BN(2469)));
+		assert(user.positions[0].quoteAssetAmount.eq(new BN(-2468)));
 		// assert(user.positions[0].unsettledPnl.eq(new BN(900)));
 		// remainder goes into the last
 		assert(
 			user.positions[0].lastNetBaseAssetAmountPerLp.eq(new BN(100000000000))
 		);
-		assert(user.positions[0].lastNetQuoteAssetAmountPerLp.eq(new BN(12339)));
+		assert(user.positions[0].lastNetQuoteAssetAmountPerLp.eq(new BN(-12330)));
 
 		market = await clearingHouse.getMarketAccount(ZERO);
-		console.log(market.amm.marketPositionPerLp.quoteAssetAmount.toString());
+		console.log(
+			market.amm.marketPositionPerLp.quoteAssetAmount.toString(),
+			market.amm.marketPositionPerLp.baseAssetAmount.toString(),
+		);
 		assert(
 			market.amm.marketPositionPerLp.baseAssetAmount.eq(new BN(125000000000))
 		);
-		assert(market.amm.marketPositionPerLp.quoteAssetAmount.eq(new BN(12345)));
+		assert(market.amm.marketPositionPerLp.quoteAssetAmount.eq(new BN(-12336)));
 
 		// remove
 		console.log('removing liquidity...');
@@ -677,7 +680,7 @@ describe('liquidity providing', () => {
 		assert(lpTokenAmount.eq(new BN(0)));
 		assert(user.positions[0].baseAssetAmount.eq(new BN('100000000000000'))); // lp is long
 		assert(user.positions[0].baseAssetAmount.eq(new BN('100000000000000'))); // lp is long
-		assert(user.positions[0].quoteAssetAmount.eq(new BN(-222050)));
+		assert(user.positions[0].quoteAssetAmount.eq(new BN(-266135)));
 
 		console.log('closing trader ...');
 		await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);
@@ -760,7 +763,7 @@ describe('liquidity providing', () => {
 
 		assert(lpTokenAmount.eq(ZERO));
 		assert(user.positions[0].baseAssetAmount.eq(new BN('-100000000000000'))); // lp is short
-		assert(user.positions[0].quoteAssetAmount.eq(new BN('10102151')));
+		assert(user.positions[0].quoteAssetAmount.eq(new BN('10113740')));
 		// TODO qae is negative?
 		// assert(lpPosition.unsettledPnl.eq(new BN(10111223))); // get paid fees
 

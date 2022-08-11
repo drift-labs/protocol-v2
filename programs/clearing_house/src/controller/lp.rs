@@ -59,13 +59,6 @@ pub fn settle_lp_position(
     let upnl = update_position_and_market(position, market, &position_delta)?;
     update_quote_asset_amount(position, upnl)?;
 
-    //
-    market.amm.net_base_asset_amount = market
-        .amm
-        .net_base_asset_amount
-        .checked_add(lp_metrics.base_asset_amount)
-        .ok_or_else(math_error!())?;
-
     market.amm.net_unsettled_lp_base_asset_amount = market
         .amm
         .net_unsettled_lp_base_asset_amount

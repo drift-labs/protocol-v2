@@ -197,12 +197,12 @@ pub fn update_position_and_market(
         }
     };
 
-    // // Update Market
-    // market.amm.net_base_asset_amount = market
-    //     .amm
-    //     .net_base_asset_amount
-    //     .checked_add(delta.base_asset_amount)
-    //     .ok_or_else(math_error!())?;
+    // Update Market
+    market.amm.net_base_asset_amount = market
+        .amm
+        .net_base_asset_amount
+        .checked_add(delta.base_asset_amount)
+        .ok_or_else(math_error!())?;
 
     // Update Market open interest
     if let PositionUpdateType::Open = update_type {
@@ -425,6 +425,12 @@ pub fn update_user_and_market_position(
 ) -> ClearingHouseResult<i128> {
     // update user position
     let pnl = update_position_and_market(position, market, delta)?;
+
+    // tmp -- dont over count 
+    market.amm.net_base_asset_amount = market.amm.net_base_asset_amount
+        .checked_sub(delta.base_asset_amount)
+        .ok_or_else(math_error!())?;
+
     let total_lp_shares = market.amm.sqrt_k;
     let non_amm_lp_shares = market.amm.user_lp_shares;
 
@@ -1136,6 +1142,7 @@ mod test {
         };
         let mut market = Market {
             amm: AMM {
+                net_base_asset_amount: -10,
                 quote_asset_amount_long: 0,
                 quote_asset_amount_short: 100,
                 quote_entry_amount_short: 100,
@@ -1183,6 +1190,7 @@ mod test {
         };
         let mut market = Market {
             amm: AMM {
+                net_base_asset_amount: -10,
                 quote_asset_amount_long: 0,
                 quote_asset_amount_short: 100,
                 quote_entry_amount_short: 100,
