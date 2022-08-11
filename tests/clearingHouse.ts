@@ -347,15 +347,7 @@ describe('clearing_house', () => {
 		);
 
 		await clearingHouse.fetchAccounts();
-<<<<<<< HEAD
 		const user0 = clearingHouse.getUserAccount();
-		console.log(
-			'before unsettledPnl:',
-			user0.positions[0].unsettledPnl.toString()
-		);
-		assert(user0.positions[0].unsettledPnl.eq(new BN(-23639)));
-=======
->>>>>>> master
 
 		await clearingHouse.settlePNL(
 			await clearingHouse.getUserAccountPublicKey(),
@@ -418,16 +410,6 @@ describe('clearing_house', () => {
 		);
 
 		await clearingHouse.fetchAccounts();
-<<<<<<< HEAD
-		const user0 = clearingHouse.getUserAccount();
-		console.log(
-			'before unsettledPnl:',
-			user0.positions[0].unsettledPnl.toString()
-		);
-		assert(user0.positions[0].unsettledPnl.eq(new BN(-52220)));
-=======
->>>>>>> master
-
 		await clearingHouse.settlePNL(
 			await clearingHouse.getUserAccountPublicKey(),
 			clearingHouse.getUserAccount(),

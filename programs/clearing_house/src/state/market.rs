@@ -259,6 +259,7 @@ impl AMM {
             base_asset_reserve: default_reserves,
             quote_asset_reserve: default_reserves,
             sqrt_k: default_reserves,
+            base_asset_amount_step_size: 1,
             ..AMM::default()
         }
     }

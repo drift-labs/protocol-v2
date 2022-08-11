@@ -11,9 +11,7 @@ use crate::math::orders::{
     calculate_quote_asset_amount_for_maker_order, get_position_delta_for_fill,
 };
 use crate::math::position::{
-    PositionUpdateType,
-    calculate_position_new_quote_base_pnl,
-    get_position_update_type,
+    calculate_position_new_quote_base_pnl, get_position_update_type, PositionUpdateType,
 };
 use crate::math_error;
 use crate::state::market::Market;
@@ -660,12 +658,10 @@ pub fn decrease_open_bids_and_asks(
 #[cfg(test)]
 mod test {
     use crate::controller::position::{
-        update_position_and_market, update_user_and_market_position,
-        PositionDelta,
+        update_position_and_market, update_user_and_market_position, PositionDelta,
     };
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, 
-        QUOTE_PRECISION,
+        AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, QUOTE_PRECISION,
     };
     use crate::state::market::{Market, AMM};
     use crate::state::user::MarketPosition;

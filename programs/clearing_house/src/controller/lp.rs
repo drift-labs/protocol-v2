@@ -5,8 +5,8 @@ use crate::state::market::Market;
 use crate::MarketPosition;
 
 use crate::bn::U192;
-use crate::controller::position::{update_quote_asset_amount, update_position_and_market};
 use crate::controller::position::PositionDelta;
+use crate::controller::position::{update_position_and_market, update_quote_asset_amount};
 use crate::math::amm::{get_update_k_result, update_k};
 use crate::math::casting::cast_to_i128;
 use crate::math::lp::calculate_settled_lp_base_quote;
@@ -26,7 +26,6 @@ pub fn settle_lp_position(
         market.amm.market_position_per_lp.base_asset_amount;
     position.last_net_quote_asset_amount_per_lp =
         market.amm.market_position_per_lp.quote_asset_amount;
-    // position.last_unsettled_pnl_per_lp = market.amm.market_position_per_lp.unsettled_pnl;
 
     let remainder_quote_asset_amount_per_lp = lp_metrics
         .remainder_quote_asset_amount
@@ -58,12 +57,7 @@ pub fn settle_lp_position(
         quote_asset_amount: lp_metrics.quote_asset_amount,
     };
     let upnl = update_position_and_market(position, market, &position_delta)?;
-    let unsettled_pnl = lp_metrics
-        .unsettled_pnl
-        .checked_add(upnl)
-        .ok_or_else(math_error!())?;
-    update_quote_asset_amount(position, unsettled_pnl)?;
-    // update_unsettled_pnl(position, market, unsettled_pnl)?;
+    update_quote_asset_amount(position, upnl)?;
 
     //
     market.amm.net_base_asset_amount = market
@@ -81,17 +75,12 @@ pub fn settle_lp_position(
     Ok(())
 }
 
-//         // margin
-//     // let (new_quote_asset_amount, new_quote_entry_amount, new_base_asset_amount, pnl) =
-//     // calculate_position_new_quote_base_pnl(position, delta)?;
-//     Ok(())
-// }
-
 pub fn burn_lp_shares(
     position: &mut MarketPosition,
     market: &mut Market,
     shares_to_burn: u128,
 ) -> ClearingHouseResult<()> {
+    // settle
     settle_lp_position(position, market)?;
 
     // clean up dust
@@ -110,10 +99,7 @@ pub fn burn_lp_shares(
         .checked_sub(1)
         .ok_or_else(math_error!())?;
 
-    update_quote_asset_amount(
-        position,
-        unsettled_pnl,
-    )?; 
+    update_quote_asset_amount(position, unsettled_pnl)?;
 
     // update last_ metrics
     position.last_net_base_asset_amount_per_lp =
