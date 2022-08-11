@@ -334,7 +334,7 @@ pub fn update_pool_balances(
 
     let mut fraction_for_amm = 100;
 
-    if market.amm.total_fee_minus_distributions < amm_fee_pool_token_amount {
+    if market.amm.total_fee_minus_distributions <= amm_fee_pool_token_amount {
         // owe the market pnl pool before settling user
         let pnl_pool_addition = max(0, market.amm.total_fee_minus_distributions)
             .checked_sub(amm_fee_pool_token_amount)
