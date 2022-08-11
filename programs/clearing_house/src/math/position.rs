@@ -206,7 +206,6 @@ pub fn calculate_position_new_quote_base_pnl(
     delta: &PositionDelta,
 ) -> ClearingHouseResult<(i128, i128, i128, i128)> {
     let update_type = get_position_update_type(position, delta);
-    let update_type = get_position_update_type(position, delta);
 
     // Update User
     let new_quote_asset_amount = position

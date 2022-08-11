@@ -12,7 +12,7 @@ use crate::math::orders::{
 };
 use crate::math::position::{
     PositionUpdateType,
-    calculate_base_asset_value_and_pnl_with_oracle_price, calculate_position_new_quote_base_pnl,
+    calculate_position_new_quote_base_pnl,
     get_position_update_type,
 };
 use crate::math_error;
@@ -417,7 +417,7 @@ pub fn update_position_and_market(
     Ok(pnl)
 }
 
-use crate::math::lp::{get_proportion_i128, get_proportion_u128};
+use crate::math::lp::get_proportion_i128;
 
 pub fn update_user_and_market_position(
     position: &mut MarketPosition,
@@ -660,11 +660,11 @@ pub fn decrease_open_bids_and_asks(
 #[cfg(test)]
 mod test {
     use crate::controller::position::{
-        update_cost_basis, update_position_and_market, update_user_and_market_position,
+        update_position_and_market, update_user_and_market_position,
         PositionDelta,
     };
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, MARK_PRICE_PRECISION, PEG_PRECISION,
+        AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, 
         QUOTE_PRECISION,
     };
     use crate::state::market::{Market, AMM};
