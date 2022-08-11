@@ -34,6 +34,8 @@ pub struct Bank {
     pub max_borrow_rate: u128,
     pub deposit_balance: u128,
     pub borrow_balance: u128,
+    pub deposit_token_twap: u128,
+    pub borrow_token_twap: u128,
     pub cumulative_deposit_interest: u128,
     pub cumulative_borrow_interest: u128,
     pub last_updated: u64,

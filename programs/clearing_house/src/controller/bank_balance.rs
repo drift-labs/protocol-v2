@@ -1,13 +1,15 @@
 use solana_program::msg;
 
 use crate::error::{ClearingHouseResult, ErrorCode};
+use crate::math::amm::calculate_weighted_average;
 use crate::math::bank_balance::{
     calculate_accumulated_interest, get_bank_balance, get_token_amount, InterestAccumulated,
 };
-use crate::math::casting::cast_to_u64;
+use crate::math::casting::{cast, cast_to_i128, cast_to_u64};
 use crate::math_error;
 use crate::state::bank::{Bank, BankBalance, BankBalanceType};
 use crate::validate;
+use std::cmp::{max, min};
 
 pub fn update_bank_cumulative_interest(bank: &mut Bank, now: i64) -> ClearingHouseResult {
     let InterestAccumulated {
@@ -25,6 +27,37 @@ pub fn update_bank_cumulative_interest(bank: &mut Bank, now: i64) -> ClearingHou
             .cumulative_borrow_interest
             .checked_add(borrow_interest)
             .ok_or_else(math_error!())?;
+
+        let since_last = cast_to_i128(max(
+            1,
+            now.checked_sub(bank.last_updated as i64)
+                .ok_or_else(math_error!())?,
+        ))?;
+        let from_start = max(
+            1,
+            cast_to_i128(60 * 60 * 24)?
+                .checked_sub(since_last)
+                .ok_or_else(math_error!())?,
+        );
+
+        let deposit_token_amount =
+            get_token_amount(bank.deposit_balance, bank, &BankBalanceType::Deposit)?;
+        let borrow_token_amount =
+            get_token_amount(bank.borrow_balance, bank, &BankBalanceType::Borrow)?;
+
+        bank.deposit_token_twap = cast(calculate_weighted_average(
+            cast(deposit_token_amount)?,
+            cast(bank.deposit_token_twap)?,
+            since_last,
+            from_start,
+        )?)?;
+
+        bank.borrow_token_twap = cast(calculate_weighted_average(
+            cast(borrow_token_amount)?,
+            cast(bank.borrow_token_twap)?,
+            since_last,
+            from_start,
+        )?)?;
 
         bank.last_updated = cast_to_u64(now)?;
     }
@@ -73,17 +106,40 @@ pub fn update_bank_balances(
         }
     }
 
+    let deposit_token_amount =
+        get_token_amount(bank.deposit_balance, bank, &BankBalanceType::Deposit)?;
+    let borrow_token_amount =
+        get_token_amount(bank.borrow_balance, bank, &BankBalanceType::Borrow)?;
     if let BankBalanceType::Borrow = update_direction {
-        let deposit_token_amount =
-            get_token_amount(bank.deposit_balance, bank, &BankBalanceType::Deposit)?;
-        let borrow_token_amount =
-            get_token_amount(bank.borrow_balance, bank, &BankBalanceType::Borrow)?;
-
         validate!(
             deposit_token_amount >= borrow_token_amount,
             ErrorCode::BankInsufficientDeposits,
             "Bank has insufficent deposits to complete withdraw"
-        )?
+        )?;
+
+        let max_borrow_token = max(
+            bank.deposit_token_twap / 20,
+            bank.borrow_token_twap
+                .checked_add(bank.borrow_token_twap / 5)
+                .ok_or_else(math_error!())?,
+        );
+
+        validate!(
+            borrow_token_amount > max_borrow_token,
+            ErrorCode::BankInsufficientDeposits,
+            "Bank has hit max daily borrow limit"
+        )?;
+    } else {
+        let min_deposit_token = bank
+            .deposit_token_twap
+            .checked_sub(bank.deposit_token_twap / 5)
+            .ok_or_else(math_error!())?;
+
+        validate!(
+            deposit_token_amount < min_deposit_token,
+            ErrorCode::BankInsufficientDeposits,
+            "Bank has hit max daily withdrawal limit"
+        )?;
     }
 
     Ok(())

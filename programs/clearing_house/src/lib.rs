@@ -243,6 +243,8 @@ pub mod clearing_house {
             max_borrow_rate,
             deposit_balance: 0,
             borrow_balance: 0,
+            deposit_token_twap: 0,
+            borrow_token_twap: 0,
             cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
             last_updated: cast(Clock::get()?.unix_timestamp)

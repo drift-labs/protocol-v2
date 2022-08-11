@@ -207,14 +207,33 @@ pub fn update_mark_twap(
     };
 
     // update bid and ask twaps
-    let bid_twap = calculate_new_twap(amm, now, bid_price, amm.last_bid_price_twap)?;
+    let bid_twap = calculate_new_twap(
+        amm,
+        now,
+        bid_price,
+        amm.last_bid_price_twap,
+        amm.funding_period,
+    )?;
     amm.last_bid_price_twap = bid_twap;
 
-    let ask_twap = calculate_new_twap(amm, now, ask_price, amm.last_ask_price_twap)?;
+    let ask_twap = calculate_new_twap(
+        amm,
+        now,
+        ask_price,
+        amm.last_ask_price_twap,
+        amm.funding_period,
+    )?;
     amm.last_ask_price_twap = ask_twap;
 
     let mid_twap = bid_twap.checked_add(ask_twap).ok_or_else(math_error!())? / 2;
     amm.last_mark_price_twap = mid_twap;
+    amm.last_mark_price_twap_5min = calculate_new_twap(
+        amm,
+        now,
+        bid_price.checked_add(ask_price).ok_or_else(math_error!())? / 2,
+        amm.last_mark_price_twap_5min,
+        60 * 5,
+    )?;
     amm.last_mark_price_twap_ts = now;
 
     Ok(mid_twap)
@@ -225,6 +244,7 @@ pub fn calculate_new_twap(
     now: i64,
     current_price: u128,
     last_twap: u128,
+    period: i64,
 ) -> ClearingHouseResult<u128> {
     let since_last = cast_to_i128(max(
         1,
@@ -233,7 +253,7 @@ pub fn calculate_new_twap(
     ))?;
     let from_start = max(
         1,
-        cast_to_i128(amm.funding_period)?
+        cast_to_i128(period)?
             .checked_sub(since_last)
             .ok_or_else(math_error!())?,
     );
