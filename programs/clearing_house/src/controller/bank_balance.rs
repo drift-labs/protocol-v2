@@ -118,7 +118,7 @@ pub fn update_bank_balances(
         )?;
 
         let max_borrow_token = max(
-            deposit_token_amount / 20,
+            deposit_token_amount / 6,
             bank.borrow_token_twap
                 .checked_add(bank.borrow_token_twap / 5)
                 .ok_or_else(math_error!())?).min(
@@ -128,7 +128,7 @@ pub fn update_bank_balances(
         );
 
         validate!(
-            borrow_token_amount > max_borrow_token,
+            borrow_token_amount < max_borrow_token,
             ErrorCode::BankInsufficientDeposits,
             "Bank has hit max daily borrow limit"
         )?;
@@ -139,7 +139,7 @@ pub fn update_bank_balances(
                 .ok_or_else(math_error!())?;
 
         validate!(
-            deposit_token_amount < min_deposit_token,
+            deposit_token_amount > min_deposit_token,
             ErrorCode::BankInsufficientDeposits,
             "Bank has hit max daily withdrawal limit"
         )?;
