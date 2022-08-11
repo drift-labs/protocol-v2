@@ -386,6 +386,11 @@
           "isSigner": false
         },
         {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "authority",
           "isMut": false,
           "isSigner": true
@@ -1064,6 +1069,11 @@
           "isSigner": false
         },
         {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "state",
           "isMut": false,
           "isSigner": false
@@ -1104,6 +1114,42 @@
           }
         }
       ]
+    },
+    {
+      "name": "initializeUserStats",
+      "accounts": [
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
     },
     {
       "name": "settleFundingPayment",
@@ -2274,6 +2320,22 @@
           {
             "name": "beingLiquidated",
             "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "UserStats",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "publicKey"
+          },
+          {
+            "name": "numberOfUsers",
+            "type": "u8"
           }
         ]
       }
@@ -4485,6 +4547,16 @@
     },
     {
       "code": 6100,
+      "name": "InvalidPositionLastFundingRate",
+      "msg": "InvalidPositionLastFundingRate"
+    },
+    {
+      "code": 6101,
+      "name": "InvalidPositionDelta",
+      "msg": "InvalidPositionDelta"
+    },
+    {
+      "code": 6102,
       "name": "DefaultError",
       "msg": "DefaultError"
     }

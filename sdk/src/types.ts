@@ -392,6 +392,10 @@ export type UserPosition = {
 	openAsks: BN;
 };
 
+export type UserStatsAccount = {
+	numberOfUsers: number;
+};
+
 export type UserAccount = {
 	authority: PublicKey;
 	name: number[];

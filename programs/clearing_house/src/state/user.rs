@@ -454,3 +454,11 @@ impl Default for OrderTriggerCondition {
         OrderTriggerCondition::Above
     }
 }
+
+#[account(zero_copy)]
+#[derive(Default, Eq, PartialEq, Debug)]
+#[repr(packed)]
+pub struct UserStats {
+    pub authority: Pubkey,
+    pub number_of_users: u8,
+}

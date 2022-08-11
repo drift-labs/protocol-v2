@@ -1603,6 +1603,28 @@ pub mod clearing_house {
             next_liquidation_id: 1,
             ..User::default()
         };
+
+        let mut user_stats = load_mut!(ctx.accounts.user_stats)?;
+        user_stats.number_of_users = user_stats
+            .number_of_users
+            .checked_add(1)
+            .ok_or_else(math_error!())?;
+
+        Ok(())
+    }
+
+    pub fn initialize_user_stats(ctx: Context<InitializeUserStats>) -> Result<()> {
+        let mut user_stats = ctx
+            .accounts
+            .user_stats
+            .load_init()
+            .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
+
+        *user_stats = UserStats {
+            authority: ctx.accounts.authority.key(),
+            number_of_users: 0,
+        };
+
         Ok(())
     }
 

@@ -10,6 +10,7 @@ import {
 	BN,
 	EventSubscriber,
 	fetchUserAccounts,
+	fetchUserStatsAccount,
 } from '../sdk/src';
 
 import {
@@ -72,6 +73,14 @@ describe('subaccounts', () => {
 
 		assert(clearingHouse.getUserAccount().userId === userId);
 		assert(decodeName(clearingHouse.getUserAccount().name) === name);
+
+		const userStats = await fetchUserStatsAccount(
+			connection,
+			clearingHouse.program,
+			provider.wallet.publicKey
+		);
+
+		assert(userStats.numberOfUsers === 1);
 	});
 
 	it('Initialize second account', async () => {
@@ -83,6 +92,14 @@ describe('subaccounts', () => {
 
 		assert(clearingHouse.getUserAccount().userId === userId);
 		assert(decodeName(clearingHouse.getUserAccount().name) === name);
+
+		const userStats = await fetchUserStatsAccount(
+			connection,
+			clearingHouse.program,
+			provider.wallet.publicKey
+		);
+
+		assert(userStats.numberOfUsers === 2);
 	});
 
 	it('Fetch all user account', async () => {
