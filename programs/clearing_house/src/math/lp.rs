@@ -1,10 +1,8 @@
 use crate::error::ClearingHouseResult;
-use crate::math::amm::calculate_swap_output;
 use crate::math::casting::cast_to_i128;
 use crate::math::constants::AMM_RESERVE_PRECISION;
 use crate::math::constants::AMM_RESERVE_PRECISION_I128;
 use crate::math::orders::standardize_base_asset_amount_with_remainder_i128;
-use crate::math::position::swap_direction_to_close_position;
 use crate::math_error;
 use crate::state::market::Market;
 use crate::state::market::AMM;
@@ -145,25 +143,6 @@ pub fn calculate_settled_lp_base_quote(
     Ok((base_asset_amount, quote_asset_amount))
 }
 
-pub fn calculate_swap_quote_reserve_delta(
-    amm: &AMM,
-    base_asset_amount: i128,
-) -> ClearingHouseResult<u128> {
-    let swap_direction = swap_direction_to_close_position(base_asset_amount);
-
-    let (new_quote_asset_reserve, _) = calculate_swap_output(
-        base_asset_amount.unsigned_abs(),
-        amm.base_asset_reserve,
-        swap_direction,
-        amm.sqrt_k,
-    )?;
-
-    let quote_asset_reserve_output =
-        abs_difference(new_quote_asset_reserve, amm.quote_asset_reserve)?;
-
-    Ok(quote_asset_reserve_output)
-}
-
 pub fn get_lp_open_bids_asks(
     market_position: &MarketPosition,
     market: &Market,
@@ -215,14 +194,6 @@ pub fn get_lp_open_bids_asks(
     let open_bids = cast_to_i128(get_proportion_u128(max_bids, lp_shares, total_lp_shares)?)?;
 
     Ok((open_bids, open_asks))
-}
-
-pub fn abs_difference(a: u128, b: u128) -> ClearingHouseResult<u128> {
-    if a > b {
-        a.checked_sub(b).ok_or_else(math_error!())
-    } else {
-        b.checked_sub(a).ok_or_else(math_error!())
-    }
 }
 
 pub fn get_proportion_i128(
