@@ -11,6 +11,9 @@ use crate::math_error;
 use crate::state::bank::{BankBalance, BankBalanceType};
 use crate::state::market::AMM;
 
+#[cfg(test)]
+mod tests;
+
 #[account(zero_copy)]
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(packed)]
@@ -243,16 +246,22 @@ impl MarketPosition {
     }
 
     pub fn get_unsettled_pnl(&self, oracle_price: i128) -> ClearingHouseResult<i128> {
-        // this limits the amount of positive pnl that can be settled to be the amount of pnl realized
-        // when a user reduces/closes their position
-        let max_pnl_to_settle = self
-            .quote_asset_amount
-            .checked_sub(self.quote_entry_amount)
-            .ok_or_else(math_error!())?;
-
         let (_, unrealized_pnl) =
             calculate_base_asset_value_and_pnl_with_oracle_price(self, oracle_price)?;
-        Ok(max_pnl_to_settle.min(unrealized_pnl))
+
+        if unrealized_pnl > 0 {
+            // this limits the amount of positive pnl that can be settled to be the amount of positive pnl
+            // realized by reducing/closing position
+            let max_positive_pnl = self
+                .quote_asset_amount
+                .checked_sub(self.quote_entry_amount)
+                .map(|delta| delta.max(0))
+                .ok_or_else(math_error!())?;
+
+            Ok(unrealized_pnl.min(max_positive_pnl))
+        } else {
+            Ok(unrealized_pnl)
+        }
     }
 }
 

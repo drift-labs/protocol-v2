@@ -36,7 +36,6 @@ pub mod clearing_house {
     use std::cmp::min;
     use std::option::Option::Some;
 
-    use crate::controller::position::get_position_index;
     use crate::margin_validation::validate_margin;
     use crate::math;
     use crate::math::bank_balance::get_token_amount;
@@ -57,7 +56,6 @@ pub mod clearing_house {
     use crate::state::state::OrderFillerRewardStructure;
 
     use super::*;
-    use std::ops::DerefMut;
 
     pub fn initialize(ctx: Context<Initialize>, admin_controls_prices: bool) -> Result<()> {
         let insurance_account_key = ctx.accounts.insurance_vault.to_account_info().key;
@@ -1103,68 +1101,18 @@ pub mod clearing_house {
             &clock,
         )?;
 
-        {
-            let bank = &mut bank_map.get_quote_asset_bank_mut()?;
-            controller::bank_balance::update_bank_cumulative_interest(bank, clock.unix_timestamp)?;
-        }
-
         let user_key = ctx.accounts.user.key();
         let user = &mut load_mut!(ctx.accounts.user)?;
-        let position_index = get_position_index(&user.positions, market_index)?;
 
-        controller::funding::settle_funding_payment(
+        controller::pnl::settle_pnl(
+            market_index,
             user,
+            ctx.accounts.authority.key,
             &user_key,
-            market_map.get_ref_mut(&market_index)?.deref_mut(),
+            &market_map,
+            &bank_map,
+            &mut oracle_map,
             clock.unix_timestamp,
-        )?;
-
-        // cannot settle pnl this way on a user who is in liquidation territory
-        if !(meets_maintenance_margin_requirement(user, &market_map, &bank_map, &mut oracle_map)?) {
-            return Err(ErrorCode::InsufficientCollateralForSettlingPNL.into());
-        }
-
-        let bank = &mut bank_map.get_quote_asset_bank_mut()?;
-        let market = &mut market_map.get_ref_mut(&market_index)?;
-
-        let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
-        let user_unsettled_pnl: i128 =
-            user.positions[position_index].get_unsettled_pnl(oracle_price)?;
-
-        let pnl_to_settle_with_user =
-            controller::amm::update_pool_balances(market, bank, user_unsettled_pnl)?;
-
-        if user_unsettled_pnl == 0 {
-            msg!("User has no unsettled pnl for market {}", market_index);
-            return Ok(());
-        } else if pnl_to_settle_with_user == 0 {
-            msg!(
-                "Pnl Pool cannot currently settle with user for market {}",
-                market_index
-            );
-            return Ok(());
-        }
-
-        validate!(
-            pnl_to_settle_with_user < 0 || user.authority.eq(&ctx.accounts.authority.key()),
-            ErrorCode::UserMustSettleTheirOwnPositiveUnsettledPNL,
-            "User must settle their own unsettled pnl when its positive",
-        )?;
-
-        controller::bank_balance::update_bank_balances(
-            pnl_to_settle_with_user.unsigned_abs(),
-            if pnl_to_settle_with_user > 0 {
-                &BankBalanceType::Deposit
-            } else {
-                &BankBalanceType::Borrow
-            },
-            bank,
-            user.get_quote_asset_bank_balance_mut(),
-        )?;
-
-        controller::position::update_quote_asset_amount(
-            &mut user.positions[position_index],
-            -pnl_to_settle_with_user,
         )?;
 
         Ok(())
