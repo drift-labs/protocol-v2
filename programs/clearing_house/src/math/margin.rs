@@ -11,12 +11,15 @@ use crate::math::position::{
 use crate::math_error;
 use crate::state::user::User;
 
+use crate::controller::position::PositionDelta;
 use crate::math::amm::use_oracle_price_for_margin_calculation;
 use crate::math::bank_balance::get_balance_value_and_token_amount;
 use crate::math::casting::cast_to_i128;
 use crate::math::funding::calculate_funding_payment;
-// use crate::math::lp::get_lp_market_position_margin;
+use crate::math::lp::compute_settle_lp_metrics;
+use crate::math::lp::get_lp_open_bids_asks;
 use crate::math::oracle::{get_oracle_status, OracleStatus};
+use crate::math::position::calculate_position_new_quote_base_pnl;
 use crate::math::slippage::calculate_slippage;
 use crate::state::bank::Bank;
 use crate::state::bank::BankBalanceType;
@@ -182,11 +185,7 @@ pub fn calculate_perp_position_value_and_pnl(
     .checked_div(AMM_TO_QUOTE_PRECISION_RATIO_I128)
     .ok_or_else(math_error!())?;
 
-    let (baa, qaa, open_bids, open_asks, lp_settle_pnl) = if market_position.is_lp() {
-        use crate::controller::position::PositionDelta;
-        use crate::math::lp::compute_settle_lp_metrics;
-        use crate::math::position::calculate_position_new_quote_base_pnl;
-
+    let market_position = if market_position.is_lp() {
         // compute lp metrics
         let lp_metrics = compute_settle_lp_metrics(&market_position, market)?;
         // compute standardized + dust position in baa/qaa
@@ -199,100 +198,38 @@ pub fn calculate_perp_position_value_and_pnl(
             base_asset_amount: lp_metrics.base_asset_amount,
             quote_asset_amount: lp_metrics.quote_asset_amount,
         };
-        let (new_quote_asset_amount, _, new_base_asset_amount, pnl) =
+        let (quote_asset_amount, _, base_asset_amount, pnl) =
             calculate_position_new_quote_base_pnl(market_position, &delta)?;
 
         let unsettled_pnl = dust_unsettled_pnl
             .checked_add(pnl)
-            .ok_or_else(math_error!())?;
-
-        // TODO: make this a constant?
-        let sqrt_2_percision = 10_000_u128;
-        let sqrt_2 = 14142;
-
-        // worse case if all asks are filled
-        let ask_bounded_k = market
-            .amm
-            .sqrt_k
-            .checked_mul(sqrt_2)
             .ok_or_else(math_error!())?
-            .checked_div(sqrt_2_percision)
+            .checked_add(market_position.unsettled_pnl)
             .ok_or_else(math_error!())?;
 
-        let max_asks = if ask_bounded_k > market.amm.base_asset_reserve {
-            ask_bounded_k
-                .checked_sub(market.amm.base_asset_reserve)
-                .ok_or_else(math_error!())?
-        } else {
-            0
-        };
+        let (lp_bids, lp_asks) = get_lp_open_bids_asks(market_position, market)?;
 
-        let total_lp_shares = market.amm.sqrt_k;
-        let lp_shares = market_position.lp_shares;
-        use crate::math::lp::get_proportion_u128;
-
-        let mut open_asks =
-            cast_to_i128(get_proportion_u128(max_asks, lp_shares, total_lp_shares)?)?;
-
-        // worst case if all bids are filled (lp is now long)
-        let bids_bounded_k = market
-            .amm
-            .sqrt_k
-            .checked_mul(sqrt_2_percision)
-            .ok_or_else(math_error!())?
-            .checked_div(sqrt_2)
-            .ok_or_else(math_error!())?;
-
-        let max_bids = if bids_bounded_k < market.amm.base_asset_reserve {
-            market
-                .amm
-                .base_asset_reserve
-                .checked_sub(bids_bounded_k)
-                .ok_or_else(math_error!())?
-        } else {
-            0
-        };
-
-        let mut open_bids =
-            cast_to_i128(get_proportion_u128(max_bids, lp_shares, total_lp_shares)?)?;
-
-        open_bids = market_position
+        let open_bids = market_position
             .open_bids
-            .checked_add(open_bids)
+            .checked_add(lp_bids)
             .ok_or_else(math_error!())?;
 
-        open_asks = market_position
+        let open_asks = market_position
             .open_asks
-            .checked_add(open_asks)
+            .checked_add(lp_asks)
             .ok_or_else(math_error!())?;
 
-        (
-            new_base_asset_amount,
-            new_quote_asset_amount,
-            open_bids,
-            open_asks,
+        MarketPosition {
+            base_asset_amount,
+            quote_asset_amount,
             unsettled_pnl,
-        )
+            open_asks,
+            open_bids,
+            ..MarketPosition::default()
+        }
     } else {
-        (
-            market_position.base_asset_amount,
-            market_position.quote_asset_amount,
-            market_position.open_bids,
-            market_position.open_asks,
-            0,
-        )
+        *market_position
     };
-
-    use crate::state::user::MarketPosition;
-    let market_position = MarketPosition {
-        base_asset_amount: baa,
-        quote_asset_amount: qaa,
-        unsettled_pnl: market_position.unsettled_pnl,
-        open_asks,
-        open_bids,
-        ..MarketPosition::default()
-    };
-    msg!("market pos: {:#?}", market_position);
 
     let oracle_price_for_upnl =
         calculate_oracle_price_for_perp_margin(&market_position, market, oracle_price_data)?;
@@ -305,8 +242,6 @@ pub fn calculate_perp_position_value_and_pnl(
     let total_unsettled_pnl = market_position
         .unsettled_pnl
         .checked_add(unrealized_funding)
-        .ok_or_else(math_error!())?
-        .checked_add(lp_settle_pnl)
         .ok_or_else(math_error!())?
         .checked_add(unrealized_pnl)
         .ok_or_else(math_error!())?;

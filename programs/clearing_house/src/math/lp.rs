@@ -1,4 +1,3 @@
-use crate::controller::position::PositionDelta;
 use crate::error::ClearingHouseResult;
 use crate::math::amm::calculate_swap_output;
 use crate::math::casting::cast_to_i128;
@@ -163,6 +162,59 @@ pub fn calculate_swap_quote_reserve_delta(
         abs_difference(new_quote_asset_reserve, amm.quote_asset_reserve)?;
 
     Ok(quote_asset_reserve_output)
+}
+
+pub fn get_lp_open_bids_asks(
+    market_position: &MarketPosition,
+    market: &Market,
+) -> ClearingHouseResult<(i128, i128)> {
+    // TODO: make this a constant?
+    let sqrt_2_percision = 10_000_u128;
+    let sqrt_2 = 14142;
+    let total_lp_shares = market.amm.sqrt_k;
+    let lp_shares = market_position.lp_shares;
+
+    // worse case if all asks are filled
+    let ask_bounded_k = market
+        .amm
+        .sqrt_k
+        .checked_mul(sqrt_2)
+        .ok_or_else(math_error!())?
+        .checked_div(sqrt_2_percision)
+        .ok_or_else(math_error!())?;
+
+    let max_asks = if ask_bounded_k > market.amm.base_asset_reserve {
+        ask_bounded_k
+            .checked_sub(market.amm.base_asset_reserve)
+            .ok_or_else(math_error!())?
+    } else {
+        0
+    };
+
+    let open_asks = cast_to_i128(get_proportion_u128(max_asks, lp_shares, total_lp_shares)?)?;
+
+    // worst case if all bids are filled (lp is now long)
+    let bids_bounded_k = market
+        .amm
+        .sqrt_k
+        .checked_mul(sqrt_2_percision)
+        .ok_or_else(math_error!())?
+        .checked_div(sqrt_2)
+        .ok_or_else(math_error!())?;
+
+    let max_bids = if bids_bounded_k < market.amm.base_asset_reserve {
+        market
+            .amm
+            .base_asset_reserve
+            .checked_sub(bids_bounded_k)
+            .ok_or_else(math_error!())?
+    } else {
+        0
+    };
+
+    let open_bids = cast_to_i128(get_proportion_u128(max_bids, lp_shares, total_lp_shares)?)?;
+
+    Ok((open_bids, open_asks))
 }
 
 pub fn abs_difference(a: u128, b: u128) -> ClearingHouseResult<u128> {
