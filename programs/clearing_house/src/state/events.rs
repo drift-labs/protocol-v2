@@ -147,7 +147,7 @@ pub struct LiquidationRecord {
     pub liquidate_perp_pnl_for_deposit: LiquidatePerpPnlForDepositRecord,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
 pub enum LiquidationType {
     LiquidatePerp,
     LiquidateBorrow,

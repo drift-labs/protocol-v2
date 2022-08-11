@@ -42,11 +42,6 @@ pub mod clearing_house {
     use crate::controller::position::{add_new_position, get_position_index};
     use crate::margin_validation::validate_margin;
     use crate::math;
-    use crate::math::amm::{
-        calculate_mark_twap_spread_pct,
-        //  normalise_oracle_price,
-        is_oracle_mark_too_divergent,
-    };
     use crate::math::bank_balance::get_token_amount;
     use crate::math::casting::{cast, cast_to_i128, cast_to_u128};
     use crate::optional_accounts::get_maker;

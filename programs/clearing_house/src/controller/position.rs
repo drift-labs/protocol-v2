@@ -673,9 +673,6 @@ mod test {
     use crate::controller::position::{
         update_position_and_market, update_user_and_market_position, PositionDelta,
     };
-    use crate::math::constants::{
-        AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, QUOTE_PRECISION,
-    };
     use crate::state::market::{Market, AMM};
     use crate::state::user::MarketPosition;
 

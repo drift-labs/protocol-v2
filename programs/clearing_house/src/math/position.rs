@@ -14,7 +14,6 @@ use crate::math::pnl::calculate_pnl;
 use crate::math_error;
 use crate::state::market::AMM;
 use crate::state::user::MarketPosition;
-use std::cmp::min;
 
 pub fn calculate_base_asset_value_and_pnl(
     market_position: &MarketPosition,

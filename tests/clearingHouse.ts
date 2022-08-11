@@ -347,7 +347,6 @@ describe('clearing_house', () => {
 		);
 
 		await clearingHouse.fetchAccounts();
-		const user0 = clearingHouse.getUserAccount();
 
 		await clearingHouse.settlePNL(
 			await clearingHouse.getUserAccountPublicKey(),

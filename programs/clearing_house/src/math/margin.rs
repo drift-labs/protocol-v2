@@ -11,15 +11,12 @@ use crate::math_error;
 use crate::state::user::User;
 
 use crate::controller::position::PositionDelta;
-use crate::math::amm::use_oracle_price_for_margin_calculation;
 use crate::math::bank_balance::get_balance_value_and_token_amount;
 use crate::math::casting::cast_to_i128;
 use crate::math::funding::calculate_funding_payment;
 use crate::math::lp::compute_settle_lp_metrics;
 use crate::math::lp::get_lp_open_bids_asks;
-use crate::math::oracle::{get_oracle_status, OracleStatus};
 use crate::math::position::calculate_position_new_quote_base_pnl;
-use crate::math::slippage::calculate_slippage;
 use crate::state::bank::Bank;
 use crate::state::bank::BankBalanceType;
 use crate::state::bank_map::BankMap;

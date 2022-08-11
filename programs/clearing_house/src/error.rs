@@ -3,7 +3,7 @@ use anchor_lang::prelude::*;
 pub type ClearingHouseResult<T = ()> = std::result::Result<T, ErrorCode>;
 
 #[error_code]
-#[derive(PartialEq)]
+#[derive(PartialEq, Eq)]
 pub enum ErrorCode {
     #[msg("Invalid Bank Authority")]
     InvalidBankAuthority,
