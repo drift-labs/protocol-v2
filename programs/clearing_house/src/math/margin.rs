@@ -226,6 +226,7 @@ pub fn calculate_perp_position_value_and_pnl(
             unsettled_pnl,
             open_asks,
             open_bids,
+            // this is ok because no other values are used in the future computations
             ..MarketPosition::default()
         }
     } else {
