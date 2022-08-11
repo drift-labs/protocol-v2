@@ -343,7 +343,7 @@ describe('liquidity providing', () => {
 		market = await clearingHouse.getMarketAccount(ZERO);
 		console.log(
 			market.amm.marketPositionPerLp.quoteAssetAmount.toString(),
-			market.amm.marketPositionPerLp.baseAssetAmount.toString(),
+			market.amm.marketPositionPerLp.baseAssetAmount.toString()
 		);
 		assert(
 			market.amm.marketPositionPerLp.baseAssetAmount.eq(new BN(125000000000))

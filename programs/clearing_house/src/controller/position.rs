@@ -426,8 +426,10 @@ pub fn update_user_and_market_position(
     // update user position
     let pnl = update_position_and_market(position, market, delta)?;
 
-    // tmp -- dont over count 
-    market.amm.net_base_asset_amount = market.amm.net_base_asset_amount
+    // tmp -- dont over count
+    market.amm.net_base_asset_amount = market
+        .amm
+        .net_base_asset_amount
         .checked_sub(delta.base_asset_amount)
         .ok_or_else(math_error!())?;
 
