@@ -3,6 +3,7 @@ pub mod bank_balance;
 pub mod funding;
 pub mod liquidation;
 pub mod orders;
+pub mod pnl;
 pub mod position;
 pub mod repeg;
 pub mod token;

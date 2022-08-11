@@ -129,22 +129,29 @@ export function calculateUnsettledPnl(
 	marketPosition: UserPosition,
 	oraclePriceData: OraclePriceData
 ): BN {
-	const fundingPnL = calculatePositionFundingPNL(market, marketPosition).div(
-		PRICE_TO_QUOTE_PRECISION
-	);
-
-	const maxPnlToSettle = marketPosition.quoteAssetAmount
-		.add(marketPosition.quoteEntryAmount)
-		.add(fundingPnL);
-
-	const pnl = calculatePositionPNL(
+	const unrealizedPnl = calculatePositionPNL(
 		market,
 		marketPosition,
 		true,
 		oraclePriceData
 	);
 
-	return BN.min(maxPnlToSettle, pnl);
+	let unsettledPnl = unrealizedPnl;
+	if (unrealizedPnl.gt(ZERO)) {
+		const fundingPnL = calculatePositionFundingPNL(market, marketPosition).div(
+			PRICE_TO_QUOTE_PRECISION
+		);
+
+		const maxPositivePnl = BN.max(
+			marketPosition.quoteAssetAmount
+				.add(marketPosition.quoteEntryAmount)
+				.add(fundingPnL),
+			ZERO
+		);
+
+		unsettledPnl = BN.min(maxPositivePnl, unrealizedPnl);
+	}
+	return unsettledPnl;
 }
 
 /**
