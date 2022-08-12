@@ -58,12 +58,12 @@ pub fn compute_settle_lp_metrics(
             (base_asset_amount, quote_asset_amount)
         };
 
-    let standardized_quote_asset_amount = quote_asset_amount
-        .checked_sub(remainder_quote_asset_amount)
-        .ok_or_else(math_error!())?;
-
     let standardized_base_asset_amount = base_asset_amount
         .checked_sub(remainder_base_asset_amount)
+        .ok_or_else(math_error!())?;
+
+    let standardized_quote_asset_amount = quote_asset_amount
+        .checked_sub(remainder_quote_asset_amount)
         .ok_or_else(math_error!())?;
 
     let lp_metrics = LPMetrics {

@@ -186,7 +186,7 @@ pub fn calculate_perp_position_value_and_pnl(
         let lp_metrics = compute_settle_lp_metrics(market_position, market)?;
 
         // compute standardized + dust position in baa/qaa
-        let dust_unsettled_pnl = -cast_to_i128(lp_metrics.quote_asset_amount)?
+        let dust_unsettled_pnl = -cast_to_i128(lp_metrics.remainder_quote_asset_amount)?
             .checked_add(1)
             .ok_or_else(math_error!())?;
 
