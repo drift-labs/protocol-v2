@@ -20,7 +20,7 @@ pub fn settle_lp_position(
     let n_shares = position.lp_shares;
     let n_shares_i128 = cast_to_i128(n_shares)?;
 
-    let lp_metrics = compute_settle_lp_metrics(position, market)?;
+    let lp_metrics = compute_settle_lp_metrics(&market.amm, position)?;
 
     position.last_net_base_asset_amount_per_lp =
         market.amm.market_position_per_lp.base_asset_amount;

@@ -17,11 +17,9 @@ pub struct LPMetrics {
 }
 
 pub fn compute_settle_lp_metrics(
+    amm: &AMM,
     position: &MarketPosition,
-    market: &Market,
 ) -> ClearingHouseResult<LPMetrics> {
-    let amm = &market.amm;
-
     let (base_asset_amount, quote_asset_amount) = calculate_settled_lp_base_quote(amm, position)?;
 
     // stepsize it
