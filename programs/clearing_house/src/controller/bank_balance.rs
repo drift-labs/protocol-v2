@@ -139,7 +139,7 @@ pub fn update_bank_balances_with_limits(
 
     validate!(
         valid_withdraw,
-        ErrorCode::BankInsufficientDeposits,
+        ErrorCode::BankDailyWithdrawLimit,
         "Bank has hit daily withdraw limit"
     )?;
 
@@ -201,7 +201,7 @@ mod test {
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BANK_CUMULATIVE_INTEREST_PRECISION, BANK_INTEREST_PRECISION,
         BANK_WEIGHT_PRECISION, BASE_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION,
-        PEG_PRECISION, QUOTE_PRECISION, QUOTE_PRECISION_I128
+        PEG_PRECISION, QUOTE_PRECISION, QUOTE_PRECISION_I128,
     };
     use crate::state::bank::{Bank, BankBalanceType};
     use crate::state::bank_map::BankMap;
@@ -413,7 +413,7 @@ mod test {
         };
         sol_bank.deposit_balance = 50 * BANK_INTEREST_PRECISION;
 
-        sol_bank.optimal_borrow_rate = BANK_INTEREST_PRECISION/5; //20% APR
+        sol_bank.optimal_borrow_rate = BANK_INTEREST_PRECISION / 5; //20% APR
         sol_bank.max_borrow_rate = BANK_INTEREST_PRECISION; //100% APR
 
         update_bank_balances_with_limits(
@@ -474,14 +474,14 @@ mod test {
             &BankBalanceType::Borrow,
             &mut sol_bank,
             &mut user.bank_balances[1],
-        ).unwrap();
+        )
+        .unwrap();
 
         assert_eq!(sol_bank.deposit_balance, 50000000);
         assert_eq!(sol_bank.borrow_balance, 8000002);
         assert_eq!(sol_bank.borrow_token_twap, 0);
-        update_bank_cumulative_interest(&mut sol_bank, now + 3655*24).unwrap();
+        update_bank_cumulative_interest(&mut sol_bank, now + 3655 * 24).unwrap();
         assert_eq!(sol_bank.deposit_token_twap, 500067287978);
-        assert_eq!(sol_bank.borrow_token_twap,  80072095947);
+        assert_eq!(sol_bank.borrow_token_twap, 80072095947);
     }
-
 }

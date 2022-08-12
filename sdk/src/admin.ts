@@ -87,7 +87,8 @@ export class Admin extends ClearingHouse {
 		initialLiabilityWeight: BN,
 		maintenanceLiabilityWeight: BN,
 		imfFactor = new BN(0),
-		liquidationFee = ZERO
+		liquidationFee = ZERO,
+		perpMarketIndex = ZERO // todo
 	): Promise<TransactionSignature> {
 		const bankIndex = this.getStateAccount().numberOfBanks;
 		const bank = await getBankPublicKey(this.program.programId, bankIndex);
@@ -113,6 +114,7 @@ export class Admin extends ClearingHouse {
 			maintenanceLiabilityWeight,
 			imfFactor,
 			liquidationFee,
+			perpMarketIndex,
 			{
 				accounts: {
 					admin: this.wallet.publicKey,

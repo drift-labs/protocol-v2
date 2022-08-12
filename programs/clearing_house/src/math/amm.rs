@@ -1,7 +1,6 @@
-use std::cmp::{max, min};
-
 use crate::controller::amm::SwapDirection;
 use crate::controller::position::PositionDirection;
+use crate::dlog;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::bn;
 use crate::math::bn::U192;
@@ -10,8 +9,8 @@ use crate::math::constants::{
     AMM_RESERVE_PRECISION, AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128,
     AMM_TO_QUOTE_PRECISION_RATIO_I128, BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128,
     K_BPS_DECREASE_MAX, K_BPS_INCREASE_MAX, K_BPS_UPDATE_SCALE, MARK_PRICE_PRECISION,
-    MAX_BID_ASK_INVENTORY_SKEW_FACTOR, ONE_HOUR_I128, PEG_PRECISION, PRICE_TO_PEG_PRECISION_RATIO,
-    QUOTE_PRECISION,
+    MARK_PRICE_PRECISION_I128, MAX_BID_ASK_INVENTORY_SKEW_FACTOR, ONE_HOUR_I128, PEG_PRECISION,
+    PRICE_TO_PEG_PRECISION_RATIO, QUOTE_PRECISION,
 };
 use crate::math::orders::standardize_base_asset_amount;
 use crate::math::position::{_calculate_base_asset_value_and_pnl, calculate_base_asset_value};
@@ -21,6 +20,7 @@ use crate::state::market::{Market, AMM};
 use crate::state::oracle::OraclePriceData;
 use crate::state::state::{PriceDivergenceGuardRails, ValidityGuardRails};
 use solana_program::msg;
+use std::cmp::{max, min};
 
 pub fn calculate_price(
     quote_asset_reserve: u128,
@@ -107,12 +107,11 @@ pub fn calculate_spread(
 
     let local_base_asset_value = net_base_asset_amount
         .checked_mul(cast_to_i128(
-            mark_price
-                .checked_div(MARK_PRICE_PRECISION / PEG_PRECISION)
-                .ok_or_else(math_error!())?,
+            mark_price, // .checked_div(MARK_PRICE_PRECISION / PEG_PRECISION)
+                       // .ok_or_else(math_error!())?,
         )?)
         .ok_or_else(math_error!())?
-        .checked_div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128)
+        .checked_div(AMM_TO_QUOTE_PRECISION_RATIO_I128 * MARK_PRICE_PRECISION_I128)
         .ok_or_else(math_error!())?;
 
     let effective_leverage = max(
@@ -132,6 +131,8 @@ pub fn calculate_spread(
             .checked_add(cast_to_u128(max(0, effective_leverage))? + 1)
             .ok_or_else(math_error!())?,
     );
+
+    // dlog!(local_base_asset_value, net_base_asset_value, effective_leverage, effective_leverage_capped, MAX_BID_ASK_INVENTORY_SKEW_FACTOR);
 
     if total_fee_minus_distributions <= 0 {
         long_spread = long_spread
@@ -678,8 +679,7 @@ pub fn calculate_oracle_mark_spread(
         None => cast_to_i128(amm.mark_price()?)?,
     };
 
-    // let oracle_price = oracle_price_data.price;
-    let oracle_price = amm.last_oracle_price_twap_5min;
+    let oracle_price = oracle_price_data.price;
 
     let price_spread = mark_price
         .checked_sub(oracle_price)
@@ -758,6 +758,27 @@ pub fn calculate_oracle_mark_spread_pct(
         .ok_or_else(math_error!())?
         .checked_div(cast_to_i128(mark_price)?) // todo? better for spread logic
         .ok_or_else(math_error!())
+}
+
+pub fn calculate_oracle_twap_5min_mark_spread_pct(
+    amm: &AMM,
+    precomputed_mark_price: Option<u128>,
+) -> ClearingHouseResult<i128> {
+    let mark_price = match precomputed_mark_price {
+        Some(mark_price) => (mark_price),
+        None => (amm.mark_price()?),
+    };
+    let price_spread = cast_to_i128(mark_price)?
+        .checked_sub(amm.last_oracle_price_twap_5min)
+        .ok_or_else(math_error!())?;
+
+    let price_spread_pct = price_spread
+        .checked_mul(BID_ASK_SPREAD_PRECISION_I128)
+        .ok_or_else(math_error!())?
+        .checked_div(cast_to_i128(mark_price)?) // todo? better for spread logic
+        .ok_or_else(math_error!());
+
+    price_spread_pct
 }
 
 pub fn is_oracle_mark_too_divergent(
@@ -1310,8 +1331,8 @@ mod test {
         )
         .unwrap();
         assert!(short_spread4 < long_spread4);
-        // (1000000/777 + 1 )* 1.562 -> 2011
-        assert_eq!(long_spread4, 2011);
+        // (1000000/777 + 1 )* 1.562 -> 2012
+        assert_eq!(long_spread4, 2012);
         // base_spread
         assert_eq!(short_spread4, 500);
 
@@ -1351,8 +1372,8 @@ mod test {
         assert!(qar_s < amm.quote_asset_reserve);
         assert!(bar_s > amm.base_asset_reserve);
         assert_eq!(bar_s, 20005001250312);
-        assert_eq!(bar_l, 19983525535420);
-        assert_eq!(qar_l, 20016488046166);
+        assert_eq!(bar_l, 19983511953833);
+        assert_eq!(qar_l, 20016501650165);
         assert_eq!(qar_s, 19995000000000);
 
         let (long_spread_btc, short_spread_btc) = calculate_spread(
@@ -1388,7 +1409,7 @@ mod test {
 
         assert_eq!(long_spread_btc1, 500 / 2);
         // assert_eq!(short_spread_btc1, 197670);
-        assert_eq!(short_spread_btc1, 197670); // max spread
+        assert_eq!(short_spread_btc1, 197668); // max spread
     }
 
     #[test]

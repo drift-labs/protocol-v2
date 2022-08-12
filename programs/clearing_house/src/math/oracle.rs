@@ -37,7 +37,7 @@ pub fn get_oracle_status<'a>(
 ) -> ClearingHouseResult<OracleStatus> {
     let oracle_is_valid = amm::is_oracle_valid(amm, oracle_price_data, &guard_rails.validity)?;
     let oracle_mark_spread_pct =
-        amm::calculate_oracle_mark_spread_pct(amm, oracle_price_data, precomputed_mark_price)?;
+        amm::calculate_oracle_twap_5min_mark_spread_pct(amm, precomputed_mark_price)?;
     let is_oracle_mark_too_divergent =
         amm::is_oracle_mark_too_divergent(oracle_mark_spread_pct, &guard_rails.price_divergence)?;
 

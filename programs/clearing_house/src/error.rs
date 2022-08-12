@@ -209,6 +209,8 @@ pub enum ErrorCode {
     InvalidPositionLastFundingRate,
     #[msg("InvalidPositionDelta")]
     InvalidPositionDelta,
+    #[msg("BankDailyWithdrawLimit")]
+    BankDailyWithdrawLimit,
     #[msg("DefaultError")]
     DefaultError,
 }

@@ -149,6 +149,10 @@
         {
           "name": "liquidationFee",
           "type": "u128"
+        },
+        {
+          "name": "perpMarketIndex",
+          "type": "u64"
         }
       ]
     },
@@ -1874,6 +1878,14 @@
             "type": "u64"
           },
           {
+            "name": "hasMarket",
+            "type": "bool"
+          },
+          {
+            "name": "perpMarketIndex",
+            "type": "u64"
+          },
+          {
             "name": "pubkey",
             "type": "publicKey"
           },
@@ -1928,6 +1940,14 @@
             "type": "u128"
           },
           {
+            "name": "depositTokenTwap",
+            "type": "u128"
+          },
+          {
+            "name": "borrowTokenTwap",
+            "type": "u128"
+          },
+          {
             "name": "cumulativeDepositInterest",
             "type": "u128"
           },
@@ -1961,6 +1981,10 @@
           },
           {
             "name": "liquidationFee",
+            "type": "u128"
+          },
+          {
+            "name": "withdrawThreshold",
             "type": "u128"
           }
         ]
@@ -4493,6 +4517,21 @@
     },
     {
       "code": 6100,
+      "name": "InvalidPositionLastFundingRate",
+      "msg": "InvalidPositionLastFundingRate"
+    },
+    {
+      "code": 6101,
+      "name": "InvalidPositionDelta",
+      "msg": "InvalidPositionDelta"
+    },
+    {
+      "code": 6102,
+      "name": "BankDailyWithdrawLimit",
+      "msg": "BankDailyWithdrawLimit"
+    },
+    {
+      "code": 6103,
       "name": "DefaultError",
       "msg": "DefaultError"
     }

@@ -6,7 +6,7 @@ use borsh::BorshSerialize;
 
 use context::*;
 use error::ErrorCode;
-use math::{amm, bank_balance::*, bn, constants::*, margin::*};
+use math::{amm, bank_balance::*, bn, constants::*, margin::*, oracle::get_oracle_status};
 use state::oracle::{get_oracle_price, OracleSource};
 
 use crate::math::amm::get_update_k_result;
@@ -115,6 +115,7 @@ pub mod clearing_house {
         maintenance_liability_weight: u128,
         imf_factor: u128,
         liquidation_fee: u128,
+        perp_market_index: u64,
     ) -> Result<()> {
         let state = &mut ctx.accounts.state;
         let bank_pubkey = ctx.accounts.bank.key();
@@ -231,6 +232,8 @@ pub mod clearing_house {
         let bank = &mut ctx.accounts.bank.load_init()?;
         **bank = Bank {
             bank_index,
+            has_market: false,
+            perp_market_index,
             pubkey: bank_pubkey,
             mint: ctx.accounts.bank_mint.key(),
             vault: *ctx.accounts.bank_vault.to_account_info().key,
@@ -537,6 +540,7 @@ pub mod clearing_house {
             &clock,
         )?;
 
+        // prevent withdraw when oracle is invalid for user positions
         validate!(
             all_amms_updated,
             ErrorCode::AMMNotUpdatedInSameSlot,
@@ -565,12 +569,24 @@ pub mod clearing_house {
                     amount
                 };
 
+            // prevent withdraw when
             controller::bank_balance::update_bank_balances_with_limits(
                 amount as u128,
                 &BankBalanceType::Borrow,
                 bank,
                 user_bank_balance,
             )?;
+
+            if bank.has_market {
+                let bank_market = market_map.get_ref(&bank.perp_market_index)?;
+                if bank_market.amm.oracle == bank.oracle {
+                    if user_bank_balance.balance_type == BankBalanceType::Borrow
+                        && bank_market.amm.last_update_slot != clock.slot
+                    {
+                        return Err(ErrorCode::InvalidOracle.into());
+                    }
+                }
+            }
 
             amount
         };
@@ -593,6 +609,7 @@ pub mod clearing_house {
         )?;
 
         let oracle_price = oracle_map.get_price_data(&bank.oracle)?.price;
+
         let deposit_record = DepositRecord {
             ts: now,
             user_authority: user.authority,
@@ -2109,7 +2126,11 @@ pub mod clearing_house {
         minimum_trade_size: u128,
     ) -> Result<()> {
         let market = &mut load_mut!(ctx.accounts.market)?;
-        market.amm.base_asset_amount_step_size = minimum_trade_size;
+        if minimum_trade_size > 0 {
+            market.amm.base_asset_amount_step_size = minimum_trade_size;
+        } else {
+            return Err(ErrorCode::InvalidUpdateK.into());
+        }
         Ok(())
     }
 

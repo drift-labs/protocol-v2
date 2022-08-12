@@ -1,6 +1,5 @@
-use solana_program::msg;
-
 use crate::controller::position::PositionDirection;
+use crate::dlog;
 use crate::error::ClearingHouseResult;
 use crate::get_then_update_id;
 use crate::math::amm::{
@@ -16,6 +15,7 @@ use crate::state::events::CurveRecord;
 use crate::state::market::{Market, AMM};
 use crate::state::oracle::OraclePriceData;
 use anchor_lang::prelude::*;
+use solana_program::msg;
 use std::cmp::{max, min};
 
 use crate::controller::bank_balance::update_bank_balances;
@@ -213,7 +213,21 @@ pub fn update_spreads(amm: &mut AMM, mark_price: u128) -> ClearingHouseResult<(u
         let half_base_spread = (amm.base_spread / 2) as u128;
         (half_base_spread, half_base_spread)
     };
-
+    // dlog!(
+    //     amm.long_spread,
+    //     amm.short_spread,
+    //     amm.last_oracle_mark_spread_pct,
+    //     amm.last_oracle_conf_pct,
+    //     amm.max_spread,
+    //     amm.quote_asset_reserve,
+    //     amm.terminal_quote_asset_reserve,
+    //     amm.peg_multiplier,
+    //     amm.net_base_asset_amount,
+    //     mark_price,
+    //     amm.total_fee_minus_distributions
+    // );
+    // dlog!(long_spread, short_spread);
+    // assert_eq!(long_spread >= short_spread, true);
     amm.long_spread = long_spread;
     amm.short_spread = short_spread;
 
