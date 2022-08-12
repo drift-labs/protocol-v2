@@ -80,8 +80,6 @@ pub fn calculate_settled_lp_base_quote(
     amm: &AMM,
     position: &MarketPosition,
 ) -> ClearingHouseResult<(i128, i128)> {
-    let total_lp_shares = amm.sqrt_k;
-    let total_lp_shares_i128 = cast_to_i128(total_lp_shares)?;
     let n_shares = position.lp_shares;
     let n_shares_i128 = cast_to_i128(n_shares)?;
 
@@ -107,7 +105,7 @@ pub fn calculate_settled_lp_base_quote(
     let quote_asset_amount = amm_net_quote_asset_amount_per_lp
         .checked_mul(n_shares_i128)
         .ok_or_else(math_error!())?
-        .checked_div(total_lp_shares_i128)
+        .checked_div(AMM_RESERVE_PRECISION_I128)
         .ok_or_else(math_error!())?;
 
     Ok((base_asset_amount, quote_asset_amount))
