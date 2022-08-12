@@ -226,8 +226,8 @@ pub fn place_order(
         taker_order,
         maker,
         maker_order,
-        maker_unsettled_pnl,
-        taker_unsettled_pnl,
+        maker_pnl: maker_unsettled_pnl,
+        taker_pnl: taker_unsettled_pnl,
         action: OrderAction::Place,
         action_explanation: OrderActionExplanation::None,
         filler: Pubkey::default(),
@@ -350,8 +350,8 @@ pub fn cancel_order(
             taker_order,
             maker,
             maker_order,
-            maker_unsettled_pnl,
-            taker_unsettled_pnl,
+            maker_pnl: maker_unsettled_pnl,
+            taker_pnl: taker_unsettled_pnl,
             action: OrderAction::Cancel,
             action_explanation: explanation,
             filler: match filler_key {
@@ -1021,18 +1021,15 @@ pub fn fulfill_order_with_amm(
         .checked_sub(cast_to_i128(filler_reward)?)
         .ok_or_else(math_error!())?;
 
-    let pnl = update_user_and_market_position(
+    let mut pnl = update_user_and_market_position(
         &mut user.positions[position_index],
         market,
         &position_delta,
         market_postion_unsettled_pnl_delta,
     )?;
 
-    // controller::position::update_unsettled_pnl(&mut user.positions[position_index], market, pnl)?;
-
-    let mut unsettled_pnl = pnl;
-
     let position_index = get_position_index(&user.positions, market.market_index)?;
+
     // Increment the clearing house's total fee variables
     market.amm.total_fee = market
         .amm
@@ -1072,9 +1069,7 @@ pub fn fulfill_order_with_amm(
         -cast(user_fee)?,
     )?;
 
-    unsettled_pnl = unsettled_pnl
-        .checked_sub(cast(user_fee)?)
-        .ok_or_else(math_error!())?;
+    pnl = pnl.checked_sub(cast(user_fee)?).ok_or_else(math_error!())?;
 
     if let Some(filler) = filler.as_mut() {
         let position_index = get_position_index(&filler.positions, market.market_index)
@@ -1100,8 +1095,8 @@ pub fn fulfill_order_with_amm(
         base_asset_amount,
     )?;
 
-    let (taker, taker_order, taker_unsettled_pnl, maker, maker_order, maker_unsettled_pnl) =
-        get_taker_and_maker_for_order_record(user_key, &user.orders[order_index], unsettled_pnl);
+    let (taker, taker_order, taker_pnl, maker, maker_order, maker_pnl) =
+        get_taker_and_maker_for_order_record(user_key, &user.orders[order_index], pnl);
 
     let fill_record_id = get_then_update_id!(market, next_fill_record_id);
     order_records.push(OrderRecord {
@@ -1111,8 +1106,8 @@ pub fn fulfill_order_with_amm(
         taker_order,
         maker,
         maker_order,
-        taker_unsettled_pnl,
-        maker_unsettled_pnl,
+        taker_pnl,
+        maker_pnl,
         action: OrderAction::Fill,
         action_explanation: OrderActionExplanation::None,
         filler: *filler_key,
@@ -1199,7 +1194,7 @@ pub fn fulfill_order_with_match(
         maker.orders[maker_order_index].direction,
     )?;
 
-    let mut maker_unsettled_pnl = update_position_and_market(
+    let mut maker_pnl = update_position_and_market(
         &mut maker.positions[maker_position_index],
         market,
         &maker_position_delta,
@@ -1216,7 +1211,7 @@ pub fn fulfill_order_with_match(
         taker.orders[taker_order_index].direction,
     )?;
 
-    let mut taker_unsettled_pnl = update_position_and_market(
+    let mut taker_pnl = update_position_and_market(
         &mut taker.positions[taker_position_index],
         market,
         &taker_position_delta,
@@ -1266,7 +1261,7 @@ pub fn fulfill_order_with_match(
         .checked_add(cast(taker_fee)?)
         .ok_or_else(math_error!())?;
 
-    taker_unsettled_pnl = taker_unsettled_pnl
+    taker_pnl = taker_pnl
         .checked_sub(cast(taker_fee)?)
         .ok_or_else(math_error!())?;
 
@@ -1281,7 +1276,7 @@ pub fn fulfill_order_with_match(
         .checked_add(cast(maker_rebate)?)
         .ok_or_else(math_error!())?;
 
-    maker_unsettled_pnl = maker_unsettled_pnl
+    maker_pnl = maker_pnl
         .checked_add(cast(maker_rebate)?)
         .ok_or_else(math_error!())?;
 
@@ -1329,10 +1324,10 @@ pub fn fulfill_order_with_match(
         slot,
         taker: *taker_key,
         taker_order: taker.orders[taker_order_index],
-        taker_unsettled_pnl,
+        taker_pnl,
         maker: *maker_key,
         maker_order: maker.orders[maker_order_index],
-        maker_unsettled_pnl,
+        maker_pnl,
         action: OrderAction::Fill,
         action_explanation: OrderActionExplanation::None,
         filler: *filler_key,
@@ -1422,7 +1417,7 @@ fn get_valid_oracle_price(
 fn get_taker_and_maker_for_order_record(
     user_key: &Pubkey,
     user_order: &Order,
-    unsettled_pnl: i128,
+    pnl: i128,
 ) -> (Pubkey, Order, i128, Pubkey, Order, i128) {
     if user_order.post_only {
         (
@@ -1431,13 +1426,13 @@ fn get_taker_and_maker_for_order_record(
             0,
             *user_key,
             *user_order,
-            unsettled_pnl,
+            pnl,
         )
     } else {
         (
             *user_key,
             *user_order,
-            unsettled_pnl,
+            pnl,
             Pubkey::default(),
             Order::default(),
             0,
@@ -1552,8 +1547,8 @@ pub fn trigger_order(
         taker_order: user.orders[order_index],
         maker: Pubkey::default(),
         maker_order: Order::default(),
-        taker_unsettled_pnl: -cast(filler_reward)?,
-        maker_unsettled_pnl: 0,
+        taker_pnl: -cast(filler_reward)?,
+        maker_pnl: 0,
         action: OrderAction::Trigger,
         action_explanation: OrderActionExplanation::None,
         filler: Pubkey::default(),
