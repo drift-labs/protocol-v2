@@ -17,11 +17,9 @@ pub struct LPMetrics {
 }
 
 pub fn compute_settle_lp_metrics(
+    amm: &AMM,
     position: &MarketPosition,
-    market: &Market,
 ) -> ClearingHouseResult<LPMetrics> {
-    let amm = &market.amm;
-
     let (base_asset_amount, quote_asset_amount) = calculate_settled_lp_base_quote(amm, position)?;
 
     // stepsize it
@@ -195,12 +193,140 @@ pub fn get_proportion_u128(
     Ok(proportional_value)
 }
 
-// #[cfg(test)]
-// mod test {
-//     use super::*;
-//     use crate::controller::amm::SwapDirection;
-//     use crate::math::constants::AMM_RESERVE_PRECISION;
-//     use crate::math::position::calculate_base_asset_value;
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::state::user::MarketPosition;
+
+    mod calculate_settled_lp_base_quote {
+        use super::*;
+
+        #[test]
+        fn test_long_settle() {
+            let position = MarketPosition {
+                lp_shares: 100 * AMM_RESERVE_PRECISION,
+                ..MarketPosition::default()
+            };
+
+            // 500_000 * 1e13
+            let amm = AMM {
+                market_position_per_lp: MarketPosition {
+                    base_asset_amount: 10,
+                    quote_asset_amount: -10,
+                    ..MarketPosition::default()
+                },
+                ..AMM::default_test()
+            };
+
+            let (baa, qaa) = calculate_settled_lp_base_quote(&amm, &position).unwrap();
+
+            assert_eq!(baa, 10 * 100);
+            assert_eq!(qaa, -10 * 100);
+        }
+
+        #[test]
+        fn test_short_settle() {
+            let position = MarketPosition {
+                lp_shares: 100 * AMM_RESERVE_PRECISION,
+                ..MarketPosition::default()
+            };
+
+            // 500_000 * 1e13
+            let amm = AMM {
+                market_position_per_lp: MarketPosition {
+                    base_asset_amount: -10,
+                    quote_asset_amount: 10,
+                    ..MarketPosition::default()
+                },
+                ..AMM::default_test()
+            };
+
+            let (baa, qaa) = calculate_settled_lp_base_quote(&amm, &position).unwrap();
+
+            assert_eq!(baa, -10 * 100);
+            assert_eq!(qaa, 10 * 100);
+        }
+    }
+
+    mod compute_settle_lp_metrics {
+        use super::*;
+
+        #[test]
+        fn test_long_settle() {
+            let position = MarketPosition {
+                lp_shares: 100 * AMM_RESERVE_PRECISION,
+                ..MarketPosition::default()
+            };
+
+            let amm = AMM {
+                market_position_per_lp: MarketPosition {
+                    base_asset_amount: 10,
+                    quote_asset_amount: -10,
+                    ..MarketPosition::default()
+                },
+                base_asset_amount_step_size: 1,
+                ..AMM::default_test()
+            };
+
+            let lp_metrics = compute_settle_lp_metrics(&amm, &position).unwrap();
+
+            assert_eq!(lp_metrics.base_asset_amount, 10 * 100);
+            assert_eq!(lp_metrics.quote_asset_amount, -10 * 100);
+            assert_eq!(lp_metrics.remainder_quote_asset_amount, 0);
+            assert_eq!(lp_metrics.remainder_base_asset_amount, 0);
+        }
+
+        #[test]
+        fn test_all_remainder() {
+            let position = MarketPosition {
+                lp_shares: 100 * AMM_RESERVE_PRECISION,
+                ..MarketPosition::default()
+            };
+
+            let amm = AMM {
+                market_position_per_lp: MarketPosition {
+                    base_asset_amount: 10,
+                    quote_asset_amount: -10,
+                    ..MarketPosition::default()
+                },
+                base_asset_amount_step_size: 50 * 100,
+                ..AMM::default_test()
+            };
+
+            let lp_metrics = compute_settle_lp_metrics(&amm, &position).unwrap();
+
+            assert_eq!(lp_metrics.base_asset_amount, 0);
+            assert_eq!(lp_metrics.quote_asset_amount, 0);
+            assert_eq!(lp_metrics.remainder_base_asset_amount, 10 * 100);
+            assert_eq!(lp_metrics.remainder_quote_asset_amount, -10 * 100);
+        }
+
+        #[test]
+        fn test_portion_remainder() {
+            let position = MarketPosition {
+                lp_shares: AMM_RESERVE_PRECISION,
+                ..MarketPosition::default()
+            };
+
+            let amm = AMM {
+                market_position_per_lp: MarketPosition {
+                    base_asset_amount: 10,
+                    quote_asset_amount: -10,
+                    ..MarketPosition::default()
+                },
+                base_asset_amount_step_size: 3,
+                ..AMM::default_test()
+            };
+
+            let lp_metrics = compute_settle_lp_metrics(&amm, &position).unwrap();
+
+            assert_eq!(lp_metrics.base_asset_amount, 9);
+            assert_eq!(lp_metrics.quote_asset_amount, -9);
+            assert_eq!(lp_metrics.remainder_base_asset_amount, 1);
+            assert_eq!(lp_metrics.remainder_quote_asset_amount, -1);
+        }
+    }
+}
 
 //     #[test]
 //     fn test_margin_requirements_user_long() {
