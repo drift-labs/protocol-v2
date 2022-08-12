@@ -3836,12 +3836,12 @@
           "index": false
         },
         {
-          "name": "makerUnsettledPnl",
+          "name": "makerPnl",
           "type": "i128",
           "index": false
         },
         {
-          "name": "takerUnsettledPnl",
+          "name": "takerPnl",
           "type": "i128",
           "index": false
         },
@@ -3977,6 +3977,46 @@
           "type": {
             "defined": "LiquidatePerpPnlForDepositRecord"
           },
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "SettlePnlRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "marketIndex",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "pnl",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "baseAssetAmount",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "quoteAssetAmountAfter",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "quoteEntryAmount",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "oraclePrice",
+          "type": "i128",
           "index": false
         }
       ]
@@ -4485,6 +4525,16 @@
     },
     {
       "code": 6100,
+      "name": "InvalidPositionLastFundingRate",
+      "msg": "InvalidPositionLastFundingRate"
+    },
+    {
+      "code": 6101,
+      "name": "InvalidPositionDelta",
+      "msg": "InvalidPositionDelta"
+    },
+    {
+      "code": 6102,
       "name": "DefaultError",
       "msg": "DefaultError"
     }
