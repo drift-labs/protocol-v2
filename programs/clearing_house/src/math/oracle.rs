@@ -93,7 +93,7 @@ mod test {
                 },
                 validity: ValidityGuardRails {
                     slots_before_stale: 10,
-                    confidence_interval_max_size: 1000,
+                    confidence_interval_max_size: 20000, // 2%
                     too_volatile_ratio: 5,
                 },
                 use_for_liquidations: true,
@@ -101,7 +101,7 @@ mod test {
             ..State::default()
         };
 
-        let oracle_status =
+        let mut oracle_status =
             get_oracle_status(&amm, &oracle_price_data, &state.oracle_guard_rails, None).unwrap();
 
         assert!(oracle_status.is_valid);
@@ -115,19 +115,38 @@ mod test {
             (34 * MARK_PRICE_PRECISION - MARK_PRICE_PRECISION / 100) as i128
         );
 
-        // let after_ts = amm.last_oracle_price_twap_ts;
-        amm.last_mark_price_twap_ts = now - 60;
-        amm.last_oracle_price_twap_ts = now - 60;
-        // let after_ts_2 = amm.last_oracle_price_twap_ts;
+
         oracle_price_data = OraclePriceData {
-            price: (31 * MARK_PRICE_PRECISION) as i128,
-            confidence: 0,
-            delay: 2,
+            price: (34 * MARK_PRICE_PRECISION) as i128,
+            confidence: MARK_PRICE_PRECISION / 100,
+            delay: 11,
             has_sufficient_number_of_data_points: true,
         };
-        // let old_oracle_twap_2 = amm.last_oracle_price_twap;
-        let _new_oracle_twap_2 =
-            update_oracle_price_twap(&mut amm, now, &oracle_price_data, None).unwrap();
-        assert_eq!(amm.last_oracle_price_twap, 339401666666);
+        oracle_status =
+        get_oracle_status(&amm, &oracle_price_data, &state.oracle_guard_rails, None).unwrap();
+        assert_eq!(oracle_status.is_valid, false);
+
+        oracle_price_data.delay = 8;
+        amm.last_oracle_price_twap_5min = 32 * MARK_PRICE_PRECISION as i128;
+        amm.last_oracle_price_twap = 21 * MARK_PRICE_PRECISION as i128;
+        oracle_status =
+        get_oracle_status(&amm, &oracle_price_data, &state.oracle_guard_rails, None).unwrap();
+        assert_eq!(oracle_status.is_valid, true);
+        assert_eq!(oracle_status.mark_too_divergent, false);
+
+
+        amm.last_oracle_price_twap_5min = 29 * MARK_PRICE_PRECISION as i128;
+        oracle_status =
+        get_oracle_status(&amm, &oracle_price_data, &state.oracle_guard_rails, None).unwrap();
+        assert_eq!(oracle_status.mark_too_divergent, true);
+        assert_eq!(oracle_status.is_valid, true);
+
+
+        oracle_price_data.confidence = 1 * MARK_PRICE_PRECISION;
+        oracle_status =
+        get_oracle_status(&amm, &oracle_price_data, &state.oracle_guard_rails, None).unwrap();
+        assert_eq!(oracle_status.mark_too_divergent, true);
+        assert_eq!(oracle_status.is_valid, false);
+
     }
 }

@@ -451,8 +451,7 @@ pub fn fill_order(
             "AMM must be updated in a prior instruction within same slot"
         )?;
 
-        oracle_mark_spread_pct_before = market.amm.last_oracle_mark_spread_pct;
-
+        
         let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
 
         is_oracle_valid = amm::is_oracle_valid(
@@ -462,6 +461,10 @@ pub fn fill_order(
         )?;
 
         mark_price_before = market.amm.mark_price()?;
+        oracle_mark_spread_pct_before = amm::calculate_oracle_twap_5min_mark_spread_pct(
+            &market.amm,
+            Some(mark_price_before),
+        )?;
         oracle_price = oracle_price_data.price;
     }
 
@@ -579,10 +582,9 @@ pub fn fill_order(
     {
         let market = market_map.get_ref_mut(&market_index)?;
         mark_price_after = market.amm.mark_price()?;
-        let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
-        oracle_mark_spread_pct_after = amm::calculate_oracle_mark_spread_pct(
+        // let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
+        oracle_mark_spread_pct_after = amm::calculate_oracle_twap_5min_mark_spread_pct(
             &market.amm,
-            oracle_price_data,
             Some(mark_price_after),
         )?;
     }

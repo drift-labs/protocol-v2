@@ -70,9 +70,9 @@ impl Default for OracleGuardRails {
                 mark_oracle_divergence_denominator: 10,
             },
             validity: ValidityGuardRails {
-                slots_before_stale: 10,
-                confidence_interval_max_size: 1000,
-                too_volatile_ratio: 5,
+                slots_before_stale: 10, // ~5 seconds
+                confidence_interval_max_size: 20000, // 2% of price
+                too_volatile_ratio: 5, // 5x or 80% down
             },
             use_for_liquidations: true,
         }

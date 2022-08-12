@@ -1575,6 +1575,24 @@ mod test {
         let _new_oracle_twap_2 =
             update_oracle_price_twap(&mut amm, now, &oracle_price_data, None).unwrap();
         assert_eq!(amm.last_oracle_price_twap, 339401666666);
+        assert_eq!(amm.last_oracle_price_twap_5min, 333920000000);
+
+        let _new_oracle_twap_2 =
+            update_oracle_price_twap(&mut amm, now+60*5, &oracle_price_data, None).unwrap();
+
+        assert_eq!(amm.last_oracle_price_twap, 336951527777);
+        assert_eq!(amm.last_oracle_price_twap_5min, 31 * MARK_PRICE_PRECISION_I128);
+
+        oracle_price_data = OraclePriceData {
+            price: (32 * MARK_PRICE_PRECISION) as i128,
+            confidence: 0,
+            delay: 2,
+            has_sufficient_number_of_data_points: true,
+        };
+
+        let _new_oracle_twap_2 =
+        update_oracle_price_twap(&mut amm, now+60*5+60, &oracle_price_data, None).unwrap();
+        assert_eq!(amm.last_oracle_price_twap_5min, 312000000000);
     }
 
     #[test]
@@ -1693,4 +1711,5 @@ mod test {
         assert_eq!(numer1, 978000); // 2.2% decrease
         assert_eq!(denom1, 1000000);
     }
+
 }
