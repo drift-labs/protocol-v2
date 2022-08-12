@@ -9,6 +9,7 @@ use crate::state::market::AMM;
 use crate::state::user::MarketPosition;
 use solana_program::msg;
 
+#[derive(Debug)]
 pub struct LPMetrics {
     pub base_asset_amount: i128,
     pub quote_asset_amount: i128,
@@ -208,7 +209,6 @@ mod test {
                 ..MarketPosition::default()
             };
 
-            // 500_000 * 1e13
             let amm = AMM {
                 market_position_per_lp: MarketPosition {
                     base_asset_amount: 10,
@@ -231,7 +231,6 @@ mod test {
                 ..MarketPosition::default()
             };
 
-            // 500_000 * 1e13
             let amm = AMM {
                 market_position_per_lp: MarketPosition {
                     base_asset_amount: -10,
