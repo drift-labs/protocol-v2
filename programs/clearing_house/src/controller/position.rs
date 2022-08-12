@@ -197,13 +197,6 @@ pub fn update_position_and_market(
         }
     };
 
-    // Update Market
-    market.amm.net_base_asset_amount = market
-        .amm
-        .net_base_asset_amount
-        .checked_add(delta.base_asset_amount)
-        .ok_or_else(math_error!())?;
-
     // Update Market open interest
     if let PositionUpdateType::Open = update_type {
         market.open_interest = market
@@ -425,13 +418,6 @@ pub fn update_user_and_market_position(
 ) -> ClearingHouseResult<i128> {
     // update user position
     let pnl = update_position_and_market(position, market, delta)?;
-
-    // tmp -- dont over count
-    market.amm.net_base_asset_amount = market
-        .amm
-        .net_base_asset_amount
-        .checked_sub(delta.base_asset_amount)
-        .ok_or_else(math_error!())?;
 
     let total_lp_shares = market.amm.sqrt_k;
     let non_amm_lp_shares = market.amm.user_lp_shares;
@@ -794,7 +780,7 @@ mod test {
         assert_eq!(market.open_interest, 1);
         assert_eq!(market.base_asset_amount_long, 2);
         assert_eq!(market.base_asset_amount_short, 0);
-        assert_eq!(market.amm.net_base_asset_amount, 2);
+        // assert_eq!(market.amm.net_base_asset_amount, 2);
         assert_eq!(market.amm.quote_asset_amount_long, -2);
         assert_eq!(market.amm.quote_asset_amount_short, 0);
         assert_eq!(market.amm.quote_entry_amount_long, -2);
@@ -886,7 +872,7 @@ mod test {
         assert_eq!(market.open_interest, 1);
         assert_eq!(market.base_asset_amount_long, 9);
         assert_eq!(market.base_asset_amount_short, 0);
-        assert_eq!(market.amm.net_base_asset_amount, 9);
+        // assert_eq!(market.amm.net_base_asset_amount, 9);
         assert_eq!(market.amm.quote_asset_amount_long, -5);
         assert_eq!(market.amm.quote_asset_amount_short, 0);
         assert_eq!(market.amm.quote_entry_amount_long, -9);
@@ -933,7 +919,7 @@ mod test {
         assert_eq!(market.open_interest, 1);
         assert_eq!(market.base_asset_amount_long, 9);
         assert_eq!(market.base_asset_amount_short, 0);
-        assert_eq!(market.amm.net_base_asset_amount, 9);
+        // assert_eq!(market.amm.net_base_asset_amount, 9);
         assert_eq!(market.amm.quote_asset_amount_long, -95);
         assert_eq!(market.amm.quote_asset_amount_short, 0);
         assert_eq!(market.amm.quote_entry_amount_long, -90);
@@ -981,7 +967,7 @@ mod test {
         assert_eq!(market.open_interest, 1);
         assert_eq!(market.base_asset_amount_long, 0);
         assert_eq!(market.base_asset_amount_short, -1);
-        assert_eq!(market.amm.net_base_asset_amount, -1);
+        // assert_eq!(market.amm.net_base_asset_amount, -1);
         assert_eq!(market.amm.quote_asset_amount_long, 10);
         assert_eq!(market.amm.quote_asset_amount_short, 2);
         assert_eq!(market.amm.quote_entry_amount_long, 0);
@@ -1029,7 +1015,7 @@ mod test {
         assert_eq!(market.open_interest, 1);
         assert_eq!(market.base_asset_amount_long, 0);
         assert_eq!(market.base_asset_amount_short, -1);
-        assert_eq!(market.amm.net_base_asset_amount, -1);
+        // assert_eq!(market.amm.net_base_asset_amount, -1);
         assert_eq!(market.amm.quote_asset_amount_long, -1);
         assert_eq!(market.amm.quote_asset_amount_short, 1);
         assert_eq!(market.amm.quote_entry_amount_long, 0);
@@ -1167,7 +1153,7 @@ mod test {
         assert_eq!(market.open_interest, 1);
         assert_eq!(market.base_asset_amount_long, 1);
         assert_eq!(market.base_asset_amount_short, 0);
-        assert_eq!(market.amm.net_base_asset_amount, 1);
+        // assert_eq!(market.amm.net_base_asset_amount, 1);
         assert_eq!(market.amm.quote_asset_amount_long, -6);
         assert_eq!(market.amm.quote_asset_amount_short, 46);
         assert_eq!(market.amm.quote_entry_amount_long, -6);
@@ -1215,7 +1201,7 @@ mod test {
         assert_eq!(market.open_interest, 1);
         assert_eq!(market.base_asset_amount_long, 1);
         assert_eq!(market.base_asset_amount_short, 0);
-        assert_eq!(market.amm.net_base_asset_amount, 1);
+        // assert_eq!(market.amm.net_base_asset_amount, 1);
         assert_eq!(market.amm.quote_asset_amount_long, -11);
         assert_eq!(market.amm.quote_asset_amount_short, -9);
         assert_eq!(market.amm.quote_entry_amount_long, -11);
@@ -1262,7 +1248,7 @@ mod test {
         assert_eq!(market.open_interest, 1);
         assert_eq!(market.base_asset_amount_long, 1);
         assert_eq!(market.base_asset_amount_short, 0);
-        assert_eq!(market.amm.net_base_asset_amount, 1);
+        // assert_eq!(market.amm.net_base_asset_amount, 1);
         // not 5 because quote asset amount long was -11 not -10 before
         assert_eq!(market.amm.quote_asset_amount_long, 4);
         assert_eq!(market.amm.quote_asset_amount_short, 0);
@@ -1310,7 +1296,7 @@ mod test {
         assert_eq!(market.open_interest, 1);
         assert_eq!(market.base_asset_amount_long, 1);
         assert_eq!(market.base_asset_amount_short, 0);
-        assert_eq!(market.amm.net_base_asset_amount, 1);
+        // assert_eq!(market.amm.net_base_asset_amount, 1);
         assert_eq!(market.amm.quote_asset_amount_long, -6);
         assert_eq!(market.amm.quote_asset_amount_short, 0);
         assert_eq!(market.amm.quote_entry_amount_long, -1);
@@ -1447,7 +1433,7 @@ mod test {
         assert_eq!(market.open_interest, 1);
         assert_eq!(market.base_asset_amount_long, 1);
         assert_eq!(market.base_asset_amount_short, 0);
-        assert_eq!(market.amm.net_base_asset_amount, 1);
+        // assert_eq!(market.amm.net_base_asset_amount, 1);
         assert_eq!(market.amm.quote_asset_amount_long, -6);
         assert_eq!(market.amm.quote_asset_amount_short, 0);
         assert_eq!(market.amm.quote_entry_amount_long, 0);
