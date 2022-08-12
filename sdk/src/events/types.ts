@@ -5,6 +5,7 @@ import {
 	FundingRateRecord,
 	LiquidationRecord,
 	OrderRecord,
+	SettlePnlRecord,
 } from '../index';
 
 export type EventSubscriptionOptions = {
@@ -59,6 +60,7 @@ export type EventMap = {
 	LiquidationRecord: Event<LiquidationRecord>;
 	FundingRateRecord: Event<FundingRateRecord>;
 	OrderRecord: Event<OrderRecord>;
+	SettlePnlRecord: Event<SettlePnlRecord>;
 };
 
 export type EventType = keyof EventMap;

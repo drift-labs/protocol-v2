@@ -53,7 +53,10 @@ export class EventList<Type extends EventType> {
 			newNode.next = currentNode.next;
 			if (currentNode.next !== undefined) {
 				newNode.next.prev = newNode;
+			} else {
+				this.tail = newNode;
 			}
+
 			currentNode.next = newNode;
 			newNode.prev = currentNode;
 		}

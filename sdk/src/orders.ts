@@ -38,7 +38,8 @@ export function calculateAmountToTradeForLimit(
 	const [maxAmountToTrade, direction] = calculateMaxBaseAssetAmountToTrade(
 		market.amm,
 		limitPrice,
-		order.direction
+		order.direction,
+		oraclePriceData
 	);
 
 	const baseAssetAmount = standardizeBaseAssetAmount(
