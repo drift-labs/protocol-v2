@@ -9,6 +9,7 @@ use crate::math::bank_balance::{
 use crate::math::casting::{cast, cast_to_i128, cast_to_u64};
 use crate::math_error;
 use crate::state::bank::{Bank, BankBalance, BankBalanceType};
+use crate::state::market::Market;
 use crate::validate;
 use std::cmp::{max, min};
 
@@ -142,6 +143,25 @@ pub fn update_bank_balances_with_limits(
         ErrorCode::BankDailyWithdrawLimit,
         "Bank has hit daily withdraw limit"
     )?;
+
+    Ok(())
+}
+
+pub fn check_bank_market_valid(
+    market: &Market,
+    bank: &Bank,
+    bank_balance: &mut dyn BankBalance,
+    current_slot: u64,
+) -> ClearingHouseResult {
+    if bank.has_market {
+        if market.amm.oracle == bank.oracle {
+            if bank_balance.balance_type() == &BankBalanceType::Borrow
+                && market.amm.last_update_slot != current_slot
+            {
+                return Err(ErrorCode::InvalidOracle.into());
+            }
+        }
+    }
 
     Ok(())
 }
@@ -483,5 +503,41 @@ mod test {
         update_bank_cumulative_interest(&mut sol_bank, now + 3655 * 24).unwrap();
         assert_eq!(sol_bank.deposit_token_twap, 500067287978);
         assert_eq!(sol_bank.borrow_token_twap, 80072095947);
+
+        sol_bank.has_market = true;
+        sol_bank.perp_market_index = 1;
+        update_bank_balances_with_limits(
+            100000 * 100000,
+            &BankBalanceType::Borrow,
+            &mut sol_bank,
+            &mut user.bank_balances[1],
+        )
+        .unwrap();
+
+        // cant withdraw when market is invalid => delayed update
+        market.amm.last_update_slot = 8008;
+        assert!(
+            check_bank_market_valid(&market, &sol_bank, &mut user.bank_balances[1], 8009 as u64)
+                .is_err(),
+        );
+
+        // ok to withdraw when market is valid
+        market.amm.last_update_slot = 8009;
+        check_bank_market_valid(&market, &sol_bank, &mut user.bank_balances[1], 8009 as u64).unwrap();
+
+        // passes when market isnt set
+        sol_bank.has_market = false;
+        check_bank_market_valid(&market, &sol_bank, &mut user.bank_balances[1], 100000 as u64).unwrap();
+
+        // ok to deposit when market is invalid
+        sol_bank.has_market = true;
+        update_bank_balances_with_limits(
+            100000 * 100000 * 100,
+            &BankBalanceType::Deposit,
+            &mut sol_bank,
+            &mut user.bank_balances[1],
+        )
+        .unwrap();
+        check_bank_market_valid(&market, &sol_bank, &mut user.bank_balances[1], 100000 as u64).unwrap();
     }
 }

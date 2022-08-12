@@ -579,13 +579,12 @@ pub mod clearing_house {
 
             if bank.has_market {
                 let bank_market = market_map.get_ref(&bank.perp_market_index)?;
-                if bank_market.amm.oracle == bank.oracle {
-                    if user_bank_balance.balance_type == BankBalanceType::Borrow
-                        && bank_market.amm.last_update_slot != clock.slot
-                    {
-                        return Err(ErrorCode::InvalidOracle.into());
-                    }
-                }
+                controller::bank_balance::check_bank_market_valid(
+                    &bank_market,
+                    bank,
+                    user_bank_balance,
+                    clock.slot,
+                )?;
             }
 
             amount
