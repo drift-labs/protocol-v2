@@ -419,6 +419,7 @@ export type UserAccount = {
 	positions: UserPosition[];
 	orders: Order[];
 	beingLiquidated: boolean;
+	bankrupt: boolean;
 	nextLiquidationId: number;
 };
 

@@ -1839,6 +1839,48 @@ export class ClearingHouse {
 		);
 	}
 
+	public async resolvePerpBankruptcy(
+		userAccountPublicKey: PublicKey,
+		userAccount: UserAccount,
+		marketIndex: BN
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.txSender.send(
+			wrapInTx(
+				await this.getResolvePerpBankruptcyIx(
+					userAccountPublicKey,
+					userAccount,
+					marketIndex
+				)
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getResolvePerpBankruptcyIx(
+		userAccountPublicKey: PublicKey,
+		userAccount: UserAccount,
+		marketIndex: BN
+	): Promise<TransactionInstruction> {
+		const liquidatorPublicKey = await this.getUserAccountPublicKey();
+
+		const remainingAccounts = this.getRemainingAccountsForLiquidation({
+			writableMarketIndex: marketIndex,
+			userAccount,
+		});
+
+		return await this.program.instruction.resolvePerpBankruptcy(marketIndex, {
+			accounts: {
+				state: await this.getStatePublicKey(),
+				authority: this.wallet.publicKey,
+				user: userAccountPublicKey,
+				liquidator: liquidatorPublicKey,
+			},
+			remainingAccounts: remainingAccounts,
+		});
+	}
+
 	getRemainingAccountsForLiquidation(params: {
 		userAccount: UserAccount;
 		writableMarketIndex?: BN;

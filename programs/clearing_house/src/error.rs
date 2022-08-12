@@ -211,6 +211,8 @@ pub enum ErrorCode {
     InvalidPositionDelta,
     #[msg("UserBankrupt")]
     UserBankrupt,
+    #[msg("UserNotBankrupt")]
+    UserNotBankrupt,
     #[msg("DefaultError")]
     DefaultError,
 }
