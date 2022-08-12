@@ -21,6 +21,7 @@ pub fn settle_lp_position(
     let n_shares_i128 = cast_to_i128(n_shares)?;
 
     let lp_metrics = compute_settle_lp_metrics(&market.amm, position)?;
+    println!("{:#?}", lp_metrics);
 
     position.last_net_base_asset_amount_per_lp =
         market.amm.market_position_per_lp.base_asset_amount;
@@ -94,7 +95,7 @@ pub fn burn_lp_shares(
         .ok_or_else(math_error!())?;
 
     // liquidate dust position
-    let unsettled_pnl = -cast_to_i128(quote_asset_amount)?
+    let unsettled_pnl = (-quote_asset_amount.abs())
         .checked_sub(1)
         .ok_or_else(math_error!())?;
 
@@ -130,4 +131,165 @@ pub fn burn_lp_shares(
     update_k(market, &update_k_result)?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::math::constants::AMM_RESERVE_PRECISION;
+    use crate::state::market::AMM;
+    use crate::state::user::MarketPosition;
+
+    #[test]
+    fn test_full_long_settle() {
+        let mut position = MarketPosition {
+            lp_shares: 100 * AMM_RESERVE_PRECISION,
+            ..MarketPosition::default()
+        };
+
+        let mut amm = AMM {
+            market_position_per_lp: MarketPosition {
+                base_asset_amount: 10,
+                quote_asset_amount: -10,
+                ..MarketPosition::default()
+            },
+            user_lp_shares: position.lp_shares,
+            base_asset_amount_step_size: 1,
+            ..AMM::default_test()
+        };
+        amm.sqrt_k += position.lp_shares;
+
+        let mut market = Market {
+            amm,
+            ..Market::default_test()
+        };
+        let og_market = market;
+
+        settle_lp_position(&mut position, &mut market).unwrap();
+
+        assert_eq!(position.last_net_base_asset_amount_per_lp, 10);
+        assert_eq!(position.last_net_quote_asset_amount_per_lp, -10);
+        assert_eq!(position.base_asset_amount, 10 * 100);
+        assert_eq!(position.quote_asset_amount, -10 * 100);
+        assert_eq!(
+            og_market.amm.net_unsettled_lp_base_asset_amount - 10 * 100,
+            market.amm.net_unsettled_lp_base_asset_amount
+        );
+        assert_eq!(
+            og_market.amm.net_base_asset_amount + position.base_asset_amount,
+            market.amm.net_base_asset_amount
+        );
+
+        // burn
+        let lp_shares = position.lp_shares;
+        burn_lp_shares(&mut position, &mut market, lp_shares).unwrap();
+        assert_eq!(position.lp_shares, 0);
+        assert_eq!(
+            og_market.amm.sqrt_k - 100 * AMM_RESERVE_PRECISION,
+            market.amm.sqrt_k
+        );
+    }
+
+    #[test]
+    fn test_full_short_settle() {
+        let mut position = MarketPosition {
+            lp_shares: 100 * AMM_RESERVE_PRECISION,
+            ..MarketPosition::default()
+        };
+
+        let amm = AMM {
+            market_position_per_lp: MarketPosition {
+                base_asset_amount: -10,
+                quote_asset_amount: 10,
+                ..MarketPosition::default()
+            },
+            user_lp_shares: 100 * AMM_RESERVE_PRECISION,
+            base_asset_amount_step_size: 1,
+            ..AMM::default_test()
+        };
+
+        let mut market = Market {
+            amm,
+            ..Market::default_test()
+        };
+
+        settle_lp_position(&mut position, &mut market).unwrap();
+
+        assert_eq!(position.last_net_base_asset_amount_per_lp, -10);
+        assert_eq!(position.last_net_quote_asset_amount_per_lp, 10);
+        assert_eq!(position.base_asset_amount, -10 * 100);
+        assert_eq!(position.quote_asset_amount, 10 * 100);
+    }
+
+    #[test]
+    fn test_partial_short_settle() {
+        let mut position = MarketPosition {
+            lp_shares: AMM_RESERVE_PRECISION,
+            ..MarketPosition::default()
+        };
+
+        let mut amm = AMM {
+            market_position_per_lp: MarketPosition {
+                base_asset_amount: -10,
+                quote_asset_amount: 10,
+                ..MarketPosition::default()
+            },
+            user_lp_shares: position.lp_shares,
+            base_asset_amount_step_size: 3,
+            ..AMM::default_test()
+        };
+        amm.sqrt_k += position.lp_shares;
+
+        let mut market = Market {
+            amm,
+            ..Market::default_test()
+        };
+
+        settle_lp_position(&mut position, &mut market).unwrap();
+
+        assert_eq!(position.base_asset_amount, -9);
+        assert_eq!(position.quote_asset_amount, 9);
+        assert_eq!(position.last_net_base_asset_amount_per_lp, -9);
+        assert_eq!(position.last_net_quote_asset_amount_per_lp, 9);
+
+        // burn
+        let _position = position;
+        let lp_shares = position.lp_shares;
+        burn_lp_shares(&mut position, &mut market, lp_shares).unwrap();
+        assert_eq!(position.lp_shares, 0);
+        assert_eq!(
+            _position.quote_asset_amount - 2,
+            position.quote_asset_amount
+        );
+    }
+
+    #[test]
+    fn test_partial_long_settle() {
+        let mut position = MarketPosition {
+            lp_shares: AMM_RESERVE_PRECISION,
+            ..MarketPosition::default()
+        };
+
+        let amm = AMM {
+            market_position_per_lp: MarketPosition {
+                base_asset_amount: -10,
+                quote_asset_amount: 10,
+                ..MarketPosition::default()
+            },
+            base_asset_amount_step_size: 3,
+            ..AMM::default_test()
+        };
+
+        let mut market = Market {
+            amm,
+            ..Market::default_test()
+        };
+
+        settle_lp_position(&mut position, &mut market).unwrap();
+
+        assert_eq!(position.base_asset_amount, -9);
+        assert_eq!(position.quote_asset_amount, 9);
+        assert_eq!(position.last_net_base_asset_amount_per_lp, -9);
+        assert_eq!(position.last_net_quote_asset_amount_per_lp, 9);
+    }
 }
