@@ -163,7 +163,7 @@ mod test {
             amm,
             ..Market::default_test()
         };
-        let og_market = market.clone();
+        let og_market = market;
 
         settle_lp_position(&mut position, &mut market).unwrap();
 
@@ -240,7 +240,6 @@ mod test {
         };
         amm.sqrt_k += position.lp_shares;
 
-        let _amm = amm.clone();
         let mut market = Market {
             amm,
             ..Market::default_test()
@@ -254,7 +253,7 @@ mod test {
         assert_eq!(position.last_net_quote_asset_amount_per_lp, 9);
 
         // burn
-        let _position = position.clone();
+        let _position = position;
         let lp_shares = position.lp_shares;
         burn_lp_shares(&mut position, &mut market, lp_shares).unwrap();
         assert_eq!(position.lp_shares, 0);
