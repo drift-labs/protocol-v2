@@ -209,6 +209,8 @@ pub enum ErrorCode {
     InvalidPositionLastFundingRate,
     #[msg("InvalidPositionDelta")]
     InvalidPositionDelta,
+    #[msg("UserBankrupt")]
+    UserBankrupt,
     #[msg("DefaultError")]
     DefaultError,
 }

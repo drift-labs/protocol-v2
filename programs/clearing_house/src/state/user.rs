@@ -28,6 +28,7 @@ pub struct User {
     pub orders: [Order; 32],
     pub next_liquidation_id: u16,
     pub being_liquidated: bool,
+    pub bankrupt: bool,
 }
 
 impl User {

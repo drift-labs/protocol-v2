@@ -434,6 +434,8 @@ pub mod clearing_house {
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
 
+        validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
+
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
         let bank_map = BankMap::load(&get_writable_banks(bank_index), remaining_accounts_iter)?;
@@ -519,6 +521,8 @@ pub mod clearing_house {
         let user = &mut load_mut!(ctx.accounts.user)?;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
+
+        validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
@@ -610,6 +614,17 @@ pub mod clearing_house {
 
         let to_user = &mut load_mut!(ctx.accounts.to_user)?;
         let from_user = &mut load_mut!(ctx.accounts.from_user)?;
+
+        validate!(
+            !to_user.bankrupt,
+            ErrorCode::UserBankrupt,
+            "to_user bankrupt"
+        )?;
+        validate!(
+            !from_user.bankrupt,
+            ErrorCode::UserBankrupt,
+            "from_user bankrupt"
+        )?;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
