@@ -1887,7 +1887,7 @@ pub mod resolve_perp_bankruptcy {
     use std::str::FromStr;
 
     #[test]
-    pub fn successful_resolve_liquidation_perp() {
+    pub fn successful_resolve_perp_bankruptcy() {
         let now = 0_i64;
         let slot = 0_u64;
 
@@ -2007,5 +2007,154 @@ pub mod resolve_perp_bankruptcy {
 
         assert_eq!(expected_user, user);
         assert_eq!(expected_market, *market_map.get_ref(&0).unwrap());
+    }
+}
+
+pub mod resolve_borrow_bankruptcy {
+    use crate::controller::liquidation::resolve_bank_bankruptcy;
+    use crate::controller::position::PositionDirection;
+    use crate::create_account_info;
+    use crate::create_anchor_account_info;
+    use crate::math::constants::{
+        AMM_RESERVE_PRECISION, BANK_CUMULATIVE_INTEREST_PRECISION, BANK_INTEREST_PRECISION,
+        BANK_WEIGHT_PRECISION, BASE_PRECISION, BASE_PRECISION_I128, FUNDING_RATE_PRECISION_I128,
+        LIQUIDATION_FEE_PRECISION, PEG_PRECISION, QUOTE_PRECISION_I128,
+    };
+    use crate::state::bank::{Bank, BankBalanceType};
+    use crate::state::bank_map::BankMap;
+    use crate::state::market::{Market, AMM};
+    use crate::state::market_map::MarketMap;
+    use crate::state::oracle::OracleSource;
+    use crate::state::oracle_map::OracleMap;
+    use crate::state::user::{
+        MarketPosition, Order, OrderStatus, OrderType, User, UserBankBalance,
+    };
+    use crate::tests::utils::get_pyth_price;
+    use crate::tests::utils::*;
+    use anchor_lang::Owner;
+    use solana_program::pubkey::Pubkey;
+    use std::str::FromStr;
+
+    #[test]
+    pub fn successful_resolve_borrow_bankruptcy() {
+        let now = 0_i64;
+        let slot = 0_u64;
+
+        let mut oracle_price = get_pyth_price(100, 10);
+        let oracle_price_key =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        create_account_info!(
+            oracle_price,
+            &oracle_price_key,
+            &pyth_program,
+            oracle_account_info
+        );
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+
+        let mut market = Market {
+            amm: AMM {
+                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
+                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
+                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
+                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
+                sqrt_k: 100 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 100 * PEG_PRECISION,
+                max_slippage_ratio: 50,
+                max_base_asset_amount_ratio: 100,
+                base_asset_amount_step_size: 10000000,
+                quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
+                net_base_asset_amount: BASE_PRECISION_I128,
+                oracle: oracle_price_key,
+                cumulative_funding_rate_long: 1000 * FUNDING_RATE_PRECISION_I128,
+                cumulative_funding_rate_short: -1000 * FUNDING_RATE_PRECISION_I128,
+                ..AMM::default()
+            },
+            margin_ratio_initial: 1000,
+            margin_ratio_maintenance: 500,
+            base_asset_amount_long: 5 * BASE_PRECISION_I128,
+            base_asset_amount_short: -5 * BASE_PRECISION_I128,
+            initialized: true,
+            liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            ..Market::default()
+        };
+        create_anchor_account_info!(market, Market, market_account_info);
+        let market_map = MarketMap::load_one(&market_account_info, true).unwrap();
+
+        let mut bank = Bank {
+            bank_index: 0,
+            oracle_source: OracleSource::QuoteAsset,
+            cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_borrow_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            initial_asset_weight: BANK_WEIGHT_PRECISION,
+            deposit_balance: 1000 * BANK_INTEREST_PRECISION,
+            borrow_balance: 100 * BANK_INTEREST_PRECISION,
+            ..Bank::default()
+        };
+        create_anchor_account_info!(bank, Bank, bank_account_info);
+        let bank_map = BankMap::load_one(&bank_account_info, true).unwrap();
+
+        let mut user = User {
+            orders: get_orders(Order {
+                market_index: 0,
+                status: OrderStatus::Open,
+                order_type: OrderType::Limit,
+                direction: PositionDirection::Long,
+                base_asset_amount: BASE_PRECISION,
+                ts: 0,
+                slot: 0,
+                ..Order::default()
+            }),
+            positions: [MarketPosition::default(); 5],
+            bank_balances: get_bank_balances(UserBankBalance {
+                bank_index: 0,
+                balance: 100 * BANK_INTEREST_PRECISION,
+                balance_type: BankBalanceType::Borrow,
+            }),
+            bankrupt: true,
+            being_liquidated: false,
+            next_liquidation_id: 2,
+            ..User::default()
+        };
+
+        let mut liquidator = User {
+            bank_balances: get_bank_balances(UserBankBalance {
+                bank_index: 0,
+                balance_type: BankBalanceType::Deposit,
+                balance: 50 * BANK_INTEREST_PRECISION,
+            }),
+            ..User::default()
+        };
+
+        let user_key = Pubkey::default();
+        let liquidator_key = Pubkey::default();
+
+        let mut expected_user = user;
+        expected_user.being_liquidated = false;
+        expected_user.bankrupt = false;
+        expected_user.bank_balances[0].balance = 0;
+
+        let mut expected_bank = bank;
+        expected_bank.borrow_balance = 0;
+        expected_bank.cumulative_deposit_interest = 9 * BANK_CUMULATIVE_INTEREST_PRECISION / 10;
+
+        resolve_bank_bankruptcy(
+            0,
+            &mut user,
+            &user_key,
+            &mut liquidator,
+            &liquidator_key,
+            &market_map,
+            &bank_map,
+            &mut oracle_map,
+            now,
+        )
+        .unwrap();
+
+        assert_eq!(expected_user, user);
+        assert_eq!(expected_bank, *bank_map.get_ref(&0).unwrap());
     }
 }
