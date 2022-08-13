@@ -216,8 +216,7 @@ pub struct LiquidatePerpPnlForDepositRecord {
 pub struct PerpBankruptcyRecord {
     pub market_index: u64,
     pub pnl: i128,
-    pub cumulative_funding_rate_long_delta: i128,
-    pub cumulative_funding_rate_short_delta: i128,
+    pub cumulative_funding_rate_delta: i128,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, Default)]

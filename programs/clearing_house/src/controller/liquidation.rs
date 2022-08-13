@@ -13,8 +13,8 @@ use crate::math::constants::{BANK_WEIGHT_PRECISION, LIQUIDATION_FEE_PRECISION, M
 use crate::math::liquidation::{
     calculate_asset_transfer_for_liability_transfer,
     calculate_base_asset_amount_to_cover_margin_shortage,
-    calculate_cumulative_deposit_interest_delta,
-    calculate_funding_rate_deltas_to_resolve_perp_bankruptcy,
+    calculate_cumulative_deposit_interest_delta_to_resolve_bankruptcy,
+    calculate_funding_rate_deltas_to_resolve_bankruptcy,
     calculate_liability_transfer_implied_by_asset_amount,
     calculate_liability_transfer_to_cover_margin_shortage, calculate_liquidation_multiplier,
     get_margin_requirement_plus_buffer, LiquidationMultiplierType,
@@ -1300,11 +1300,10 @@ pub fn resolve_perp_bankruptcy(
         oracle_map,
     )?;
 
-    let (cumulative_funding_rate_long_delta, cumulative_funding_rate_short_delta) =
-        calculate_funding_rate_deltas_to_resolve_perp_bankruptcy(
-            loss,
-            market_map.get_ref(&market_index)?.deref(),
-        )?;
+    let cumulative_funding_rate_delta = calculate_funding_rate_deltas_to_resolve_bankruptcy(
+        loss,
+        market_map.get_ref(&market_index)?.deref(),
+    )?;
 
     {
         let user = user.get_position_mut(market_index).unwrap();
@@ -1315,13 +1314,13 @@ pub fn resolve_perp_bankruptcy(
         market.amm.cumulative_funding_rate_long = market
             .amm
             .cumulative_funding_rate_long
-            .checked_add(cumulative_funding_rate_long_delta)
+            .checked_add(cumulative_funding_rate_delta)
             .ok_or_else(math_error!())?;
 
         market.amm.cumulative_funding_rate_short = market
             .amm
             .cumulative_funding_rate_short
-            .checked_add(cumulative_funding_rate_short_delta)
+            .checked_add(cumulative_funding_rate_delta)
             .ok_or_else(math_error!())?;
     }
 
@@ -1348,8 +1347,7 @@ pub fn resolve_perp_bankruptcy(
         perp_bankruptcy: PerpBankruptcyRecord {
             market_index,
             pnl: loss,
-            cumulative_funding_rate_long_delta,
-            cumulative_funding_rate_short_delta,
+            cumulative_funding_rate_delta,
         },
         ..LiquidationRecord::default()
     });
@@ -1416,10 +1414,11 @@ pub fn resolve_bank_bankruptcy(
         )?
     };
 
-    let cumulative_deposit_interest_delta = calculate_cumulative_deposit_interest_delta(
-        borrow_amount,
-        bank_map.get_ref(&bank_index)?.deref(),
-    )?;
+    let cumulative_deposit_interest_delta =
+        calculate_cumulative_deposit_interest_delta_to_resolve_bankruptcy(
+            borrow_amount,
+            bank_map.get_ref(&bank_index)?.deref(),
+        )?;
 
     {
         let mut bank = bank_map.get_ref_mut(&bank_index)?;

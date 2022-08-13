@@ -2,8 +2,9 @@ use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::bank_balance::get_token_amount;
 use crate::math::casting::cast;
 use crate::math::constants::{
-    BANK_WEIGHT_PRECISION, FUNDING_RATE_TO_QUOTE_PRECISION_PRECISION_RATIO,
-    LIQUIDATION_FEE_PRECISION, LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO, MARK_PRICE_PRECISION,
+    AMM_RESERVE_PRECISION_I128, BANK_WEIGHT_PRECISION,
+    FUNDING_RATE_TO_QUOTE_PRECISION_PRECISION_RATIO, LIQUIDATION_FEE_PRECISION,
+    LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO, MARK_PRICE_PRECISION,
     MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, QUOTE_PRECISION,
 };
 use crate::math::margin::{
@@ -280,10 +281,10 @@ pub fn calculate_liquidation_multiplier(
     }
 }
 
-pub fn calculate_funding_rate_deltas_to_resolve_perp_bankruptcy(
+pub fn calculate_funding_rate_deltas_to_resolve_bankruptcy(
     loss: i128,
     market: &Market,
-) -> ClearingHouseResult<(i128, i128)> {
+) -> ClearingHouseResult<i128> {
     let total_base_asset_amount = market
         .base_asset_amount_long
         .abs()
@@ -291,38 +292,18 @@ pub fn calculate_funding_rate_deltas_to_resolve_perp_bankruptcy(
         .ok_or_else(math_error!())?;
 
     if total_base_asset_amount == 0 {
-        return Ok((0, 0));
+        return Ok(0);
     }
 
-    let long_socialized_loss = loss
-        .abs()
-        .checked_mul(market.base_asset_amount_long.abs())
+    loss.checked_mul(AMM_RESERVE_PRECISION_I128)
         .ok_or_else(math_error!())?
         .checked_div(total_base_asset_amount)
-        .ok_or_else(math_error!())?;
-
-    let short_socialized_loss = loss
-        .abs()
-        .checked_mul(market.base_asset_amount_long.abs())
         .ok_or_else(math_error!())?
-        .checked_div(total_base_asset_amount)
-        .ok_or_else(math_error!())?;
-
-    let cumulative_funding_rate_long_delta = long_socialized_loss
         .checked_mul(cast(FUNDING_RATE_TO_QUOTE_PRECISION_PRECISION_RATIO)?)
-        .ok_or_else(math_error!())?;
-
-    let cumulative_funding_rate_short_delta = short_socialized_loss
-        .checked_mul(cast(FUNDING_RATE_TO_QUOTE_PRECISION_PRECISION_RATIO)?)
-        .ok_or_else(math_error!())?;
-
-    Ok((
-        cumulative_funding_rate_long_delta,
-        cumulative_funding_rate_short_delta,
-    ))
+        .ok_or_else(math_error!())
 }
 
-pub fn calculate_cumulative_deposit_interest_delta(
+pub fn calculate_cumulative_deposit_interest_delta_to_resolve_bankruptcy(
     borrow: u128,
     bank: &Bank,
 ) -> ClearingHouseResult<u128> {
@@ -332,5 +313,6 @@ pub fn calculate_cumulative_deposit_interest_delta(
         .checked_mul(borrow)
         .ok_or_else(math_error!())?
         .checked_div(total_deposits)
+        .or(Some(0))
         .ok_or_else(math_error!())
 }
