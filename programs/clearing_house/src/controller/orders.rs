@@ -1028,8 +1028,6 @@ pub fn fulfill_order_with_amm(
         market_postion_unsettled_pnl_delta,
     )?;
 
-    let position_index = get_position_index(&user.positions, market.market_index)?;
-
     // Increment the clearing house's total fee variables
     market.amm.total_fee = market
         .amm
@@ -1063,6 +1061,8 @@ pub fn fulfill_order_with_amm(
         .total_fee_paid
         .checked_add(cast(user_fee)?)
         .ok_or_else(math_error!())?;
+
+    let position_index = get_position_index(&user.positions, market.market_index)?;
 
     controller::position::update_quote_asset_amount(
         &mut user.positions[position_index],

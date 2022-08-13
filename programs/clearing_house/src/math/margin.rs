@@ -184,11 +184,12 @@ pub fn calculate_perp_position_value_and_pnl(
         let lp_metrics = compute_settle_lp_metrics(&market.amm, market_position)?;
 
         // compute standardized + dust position in baa/qaa
-        let dust_unsettled_pnl = -lp_metrics
-            .remainder_quote_asset_amount
-            .abs()
-            .checked_sub(1)
-            .ok_or_else(math_error!())?;
+        let dust_base_asset_value = calculate_base_asset_value_with_oracle_price(
+            lp_metrics.remainder_base_asset_amount,
+            oracle_price_data.price,
+        )?
+        .checked_add(1)
+        .ok_or_else(math_error!())?;
 
         // compute settled position
         let delta = PositionDelta {
@@ -199,7 +200,7 @@ pub fn calculate_perp_position_value_and_pnl(
             calculate_position_new_quote_base_pnl(market_position, &delta)?;
 
         let quote_asset_amount = quote_asset_amount
-            .checked_add(dust_unsettled_pnl)
+            .checked_sub(cast_to_i128(dust_base_asset_value)?)
             .ok_or_else(math_error!())?
             .checked_add(pnl)
             .ok_or_else(math_error!())?;

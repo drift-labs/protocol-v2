@@ -46,15 +46,16 @@ pub fn compute_settle_lp_metrics(
                     .ok_or_else(math_error!())?,
             )?;
 
-            let remainder_quote_asset_amount = quote_asset_amount
-                .checked_mul(remainder_ratio)
-                .ok_or_else(math_error!())?
-                .checked_div(AMM_RESERVE_PRECISION_I128)
-                .ok_or_else(math_error!())?;
+            // let remainder_quote_asset_amount =
+            //     quote_asset_amount
+            //     .checked_mul(remainder_ratio)
+            //     .ok_or_else(math_error!())?
+            //     .checked_div(AMM_RESERVE_PRECISION_I128)
+            //     .ok_or_else(math_error!())?;
 
-            (remainder_base_asset_amount, remainder_quote_asset_amount)
+            (remainder_base_asset_amount, 0)
         } else {
-            (base_asset_amount, quote_asset_amount)
+            (base_asset_amount, 0)
         };
 
     let standardized_base_asset_amount = base_asset_amount

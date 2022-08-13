@@ -10,6 +10,7 @@ use crate::math::constants::{
     AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, AMM_TO_QUOTE_PRECISION_RATIO,
     MARK_PRICE_PRECISION, PRICE_TO_QUOTE_PRECISION_RATIO,
 };
+use crate::math::lp::get_proportion_u128;
 use crate::math::pnl::calculate_pnl;
 use crate::math_error;
 use crate::state::market::AMM;
@@ -78,15 +79,25 @@ pub fn calculate_base_asset_value(
         (amm.base_asset_reserve, amm.quote_asset_reserve)
     };
 
+    let amm_lp_shares = amm
+        .sqrt_k
+        .checked_sub(amm.user_lp_shares)
+        .ok_or_else(math_error!())?;
+
+    let base_asset_reserve_proportion =
+        get_proportion_u128(base_asset_reserve, amm_lp_shares, amm.sqrt_k)?;
+    let quote_asset_reserve_proportion =
+        get_proportion_u128(quote_asset_reserve, amm_lp_shares, amm.sqrt_k)?;
+
     let (new_quote_asset_reserve, _new_base_asset_reserve) = amm::calculate_swap_output(
         base_asset_amount.unsigned_abs(),
-        base_asset_reserve,
+        base_asset_reserve_proportion,
         swap_direction,
-        amm.sqrt_k,
+        amm_lp_shares,
     )?;
 
     let base_asset_value = calculate_quote_asset_amount_swapped(
-        quote_asset_reserve,
+        quote_asset_reserve_proportion,
         new_quote_asset_reserve,
         swap_direction,
         amm.peg_multiplier,
