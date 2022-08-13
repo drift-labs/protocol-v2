@@ -770,6 +770,9 @@ pub mod clearing_house {
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
 
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let bank_map = BankMap::load(&WritableBanks::new(), remaining_accounts_iter)?;
+
         let market_map =
             MarketMap::load(&get_writable_markets(market_index), remaining_accounts_iter)?;
 
@@ -799,7 +802,8 @@ pub mod clearing_house {
             ErrorCode::TryingToRemoveLiquidityTooFast
         )?;
 
-        burn_lp_shares(position, &mut market, shares_to_burn)?;
+        let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
+        burn_lp_shares(position, &mut market, shares_to_burn, oracle_price_data)?;
 
         Ok(())
     }

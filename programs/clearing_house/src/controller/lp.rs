@@ -8,9 +8,12 @@ use crate::bn::U192;
 use crate::controller::position::PositionDelta;
 use crate::controller::position::{update_position_and_market, update_quote_asset_amount};
 use crate::math::amm::{get_update_k_result, update_k};
+use crate::math::position::calculate_base_asset_value_with_oracle_price;
 use crate::math::casting::cast_to_i128;
 use crate::math::lp::calculate_settled_lp_base_quote;
 use crate::math::lp::compute_settle_lp_metrics;
+use crate::state::oracle::OraclePriceData;
+
 use anchor_lang::prelude::msg;
 
 pub fn settle_lp_position(
@@ -79,6 +82,7 @@ pub fn burn_lp_shares(
     position: &mut MarketPosition,
     market: &mut Market,
     shares_to_burn: u128,
+    oracle_price_data: &OraclePriceData,
 ) -> ClearingHouseResult<()> {
     if shares_to_burn == 0 {
         return Ok(());
@@ -99,11 +103,18 @@ pub fn burn_lp_shares(
         .ok_or_else(math_error!())?;
 
     // liquidate dust position
-    let unsettled_pnl = (-quote_asset_amount.abs())
-        .checked_sub(1)
-        .ok_or_else(math_error!())?;
+    // let unsettled_pnl = (-quote_asset_amount.abs())
+    //     .checked_sub(1)
+    //     .ok_or_else(math_error!())?;
+    // compute standardized + dust position in baa/qaa
+    let dust_base_asset_value = calculate_base_asset_value_with_oracle_price(
+        base_asset_amount,
+        oracle_price_data.price,
+    )?
+    .checked_add(1)
+    .ok_or_else(math_error!())?;
 
-    update_quote_asset_amount(position, unsettled_pnl)?;
+    update_quote_asset_amount(position, -cast_to_i128(dust_base_asset_value)?)?;
 
     // update last_ metrics
     position.last_net_base_asset_amount_per_lp =
