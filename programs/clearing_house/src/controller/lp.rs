@@ -80,6 +80,10 @@ pub fn burn_lp_shares(
     market: &mut Market,
     shares_to_burn: u128,
 ) -> ClearingHouseResult<()> {
+    if shares_to_burn == 0 {
+        return Ok(());
+    }
+
     // settle
     settle_lp_position(position, market)?;
 
