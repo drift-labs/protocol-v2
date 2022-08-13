@@ -1320,7 +1320,7 @@ pub fn resolve_perp_bankruptcy(
         market.amm.cumulative_funding_rate_short = market
             .amm
             .cumulative_funding_rate_short
-            .checked_add(cumulative_funding_rate_delta)
+            .checked_sub(cumulative_funding_rate_delta)
             .ok_or_else(math_error!())?;
     }
 

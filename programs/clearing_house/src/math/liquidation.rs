@@ -295,7 +295,8 @@ pub fn calculate_funding_rate_deltas_to_resolve_bankruptcy(
         return Ok(0);
     }
 
-    loss.checked_mul(AMM_RESERVE_PRECISION_I128)
+    loss.abs()
+        .checked_mul(AMM_RESERVE_PRECISION_I128)
         .ok_or_else(math_error!())?
         .checked_div(total_base_asset_amount)
         .ok_or_else(math_error!())?
