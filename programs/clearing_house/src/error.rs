@@ -213,6 +213,8 @@ pub enum ErrorCode {
     UserBankrupt,
     #[msg("UserNotBankrupt")]
     UserNotBankrupt,
+    #[msg("UserHasInvalidBorrow")]
+    UserHasInvalidBorrow,
     #[msg("DefaultError")]
     DefaultError,
 }

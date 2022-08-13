@@ -1,4 +1,5 @@
 use crate::error::{ClearingHouseResult, ErrorCode};
+use crate::math::bank_balance::get_token_amount;
 use crate::math::casting::cast;
 use crate::math::constants::{
     BANK_WEIGHT_PRECISION, FUNDING_RATE_TO_QUOTE_PRECISION_PRECISION_RATIO,
@@ -9,6 +10,7 @@ use crate::math::margin::{
     calculate_margin_requirement_and_total_collateral, MarginRequirementType,
 };
 use crate::math_error;
+use crate::state::bank::{Bank, BankBalanceType};
 use crate::state::bank_map::BankMap;
 use crate::state::market::Market;
 use crate::state::market_map::MarketMap;
@@ -318,4 +320,17 @@ pub fn calculate_funding_rate_deltas_to_resolve_perp_bankruptcy(
         cumulative_funding_rate_long_delta,
         cumulative_funding_rate_short_delta,
     ))
+}
+
+pub fn calculate_cumulative_deposit_interest_delta(
+    borrow: u128,
+    bank: &Bank,
+) -> ClearingHouseResult<u128> {
+    let total_deposits = get_token_amount(bank.deposit_balance, bank, &BankBalanceType::Deposit)?;
+
+    bank.cumulative_deposit_interest
+        .checked_mul(borrow)
+        .ok_or_else(math_error!())?
+        .checked_div(total_deposits)
+        .ok_or_else(math_error!())
 }

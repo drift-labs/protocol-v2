@@ -13,6 +13,7 @@ use crate::math::constants::{BANK_WEIGHT_PRECISION, LIQUIDATION_FEE_PRECISION, M
 use crate::math::liquidation::{
     calculate_asset_transfer_for_liability_transfer,
     calculate_base_asset_amount_to_cover_margin_shortage,
+    calculate_cumulative_deposit_interest_delta,
     calculate_funding_rate_deltas_to_resolve_perp_bankruptcy,
     calculate_liability_transfer_implied_by_asset_amount,
     calculate_liability_transfer_to_cover_margin_shortage, calculate_liquidation_multiplier,
@@ -28,9 +29,9 @@ use crate::math_error;
 use crate::state::bank::BankBalanceType;
 use crate::state::bank_map::BankMap;
 use crate::state::events::{
-    LiquidateBorrowForPerpPnlRecord, LiquidateBorrowRecord, LiquidatePerpPnlForDepositRecord,
-    LiquidatePerpRecord, LiquidationRecord, LiquidationType, OrderActionExplanation,
-    PerpBankruptcyRecord,
+    BorrowBankruptcyRecord, LiquidateBorrowForPerpPnlRecord, LiquidateBorrowRecord,
+    LiquidatePerpPnlForDepositRecord, LiquidatePerpRecord, LiquidationRecord, LiquidationType,
+    OrderActionExplanation, PerpBankruptcyRecord,
 };
 use crate::state::market_map::MarketMap;
 use crate::state::oracle_map::OracleMap;
@@ -1349,6 +1350,117 @@ pub fn resolve_perp_bankruptcy(
             pnl: loss,
             cumulative_funding_rate_long_delta,
             cumulative_funding_rate_short_delta,
+        },
+        ..LiquidationRecord::default()
+    });
+
+    Ok(())
+}
+
+pub fn resolve_bank_bankruptcy(
+    bank_index: u64,
+    user: &mut User,
+    user_key: &Pubkey,
+    liquidator: &mut User,
+    liquidator_key: &Pubkey,
+    market_map: &MarketMap,
+    bank_map: &BankMap,
+    oracle_map: &mut OracleMap,
+    now: i64,
+) -> ClearingHouseResult {
+    validate!(
+        user.bankrupt,
+        ErrorCode::UserNotBankrupt,
+        "user not bankrupt",
+    )?;
+
+    validate!(
+        !liquidator.being_liquidated,
+        ErrorCode::UserIsBeingLiquidated,
+        "liquidator bankrupt",
+    )?;
+
+    validate!(
+        !liquidator.bankrupt,
+        ErrorCode::UserBankrupt,
+        "liquidator bankrupt",
+    )?;
+
+    // validate user and liquidator have bank balances
+    user.get_bank_balance(bank_index).ok_or_else(|| {
+        msg!("User does not have a bank balance for bank {}", bank_index);
+        ErrorCode::CouldNotFindBankBalance
+    })?;
+
+    let (margin_requirement, total_collateral) = calculate_margin_requirement_and_total_collateral(
+        user,
+        market_map,
+        MarginRequirementType::Maintenance,
+        bank_map,
+        oracle_map,
+    )?;
+
+    let borrow_amount = {
+        let bank_balance = user.get_bank_balance(bank_index).unwrap();
+        validate!(
+            bank_balance.balance_type == BankBalanceType::Borrow,
+            ErrorCode::UserHasInvalidBorrow
+        )?;
+
+        validate!(bank_balance.balance > 0, ErrorCode::UserHasInvalidBorrow)?;
+
+        get_token_amount(
+            bank_balance.balance,
+            bank_map.get_ref(&bank_index)?.deref(),
+            &BankBalanceType::Borrow,
+        )?
+    };
+
+    let cumulative_deposit_interest_delta = calculate_cumulative_deposit_interest_delta(
+        borrow_amount,
+        bank_map.get_ref(&bank_index)?.deref(),
+    )?;
+
+    {
+        let mut bank = bank_map.get_ref_mut(&bank_index)?;
+        let user_bank_balance = user.get_bank_balance_mut(bank_index).unwrap();
+        update_bank_balances(
+            borrow_amount,
+            &BankBalanceType::Deposit,
+            &mut bank,
+            user_bank_balance,
+        )?;
+
+        bank.cumulative_deposit_interest = bank
+            .cumulative_deposit_interest
+            .checked_sub(cumulative_deposit_interest_delta)
+            .ok_or_else(math_error!())?;
+    }
+
+    // exit bankruptcy
+    if !is_user_bankrupt(user) {
+        user.bankrupt = false;
+        user.being_liquidated = false;
+    }
+
+    let liquidation_id = user
+        .next_liquidation_id
+        .checked_sub(1)
+        .ok_or_else(math_error!())?;
+
+    emit!(LiquidationRecord {
+        ts: now,
+        liquidation_id,
+        liquidation_type: LiquidationType::BorrowBankruptcy,
+        user: *user_key,
+        liquidator: *liquidator_key,
+        margin_requirement,
+        total_collateral,
+        bankrupt: true,
+        borrow_bankruptcy: BorrowBankruptcyRecord {
+            bank_index,
+            borrow_amount,
+            cumulative_deposit_interest_delta,
         },
         ..LiquidationRecord::default()
     });

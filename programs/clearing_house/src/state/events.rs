@@ -147,6 +147,7 @@ pub struct LiquidationRecord {
     pub liquidate_borrow_for_perp_pnl: LiquidateBorrowForPerpPnlRecord,
     pub liquidate_perp_pnl_for_deposit: LiquidatePerpPnlForDepositRecord,
     pub perp_bankruptcy: PerpBankruptcyRecord,
+    pub borrow_bankruptcy: BorrowBankruptcyRecord,
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq)]
@@ -156,6 +157,7 @@ pub enum LiquidationType {
     LiquidateBorrowForPerpPnl,
     LiquidatePerpPnlForDeposit,
     PerpBankruptcy,
+    BorrowBankruptcy,
 }
 
 impl Default for LiquidationType {
@@ -216,6 +218,13 @@ pub struct PerpBankruptcyRecord {
     pub pnl: i128,
     pub cumulative_funding_rate_long_delta: i128,
     pub cumulative_funding_rate_short_delta: i128,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, Default)]
+pub struct BorrowBankruptcyRecord {
+    pub bank_index: u64,
+    pub borrow_amount: u128,
+    pub cumulative_deposit_interest_delta: u128,
 }
 
 #[event]
