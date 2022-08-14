@@ -14,7 +14,7 @@ use crate::validate;
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::prelude::*;
 use solana_program::msg;
-use std::ops::DerefMut;
+use std::ops::Deref;
 
 #[cfg(test)]
 mod tests;
@@ -37,7 +37,7 @@ pub fn settle_pnl(
     settle_funding_payment(
         user,
         user_key,
-        market_map.get_ref_mut(&market_index)?.deref_mut(),
+        market_map.get_ref(&market_index)?.deref(),
         now,
     )?;
 

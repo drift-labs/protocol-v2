@@ -89,13 +89,31 @@ pub fn update_amms(
     for (_key, market_account_loader) in market_map.0.iter_mut() {
         let market = &mut load_mut!(market_account_loader)?;
         let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
-        update_amm(market, oracle_price_data, state, now, clock_slot)?;
+        _update_amm(market, oracle_price_data, state, now, clock_slot)?;
     }
 
     Ok(())
 }
 
 pub fn update_amm(
+    market_index: u64,
+    market_map: &MarketMap,
+    oracle_map: &mut OracleMap,
+    state: &State,
+    clock: &Clock,
+) -> ClearingHouseResult<i128> {
+    let market = &mut market_map.get_ref_mut(&market_index)?;
+    let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
+    _update_amm(
+        market,
+        oracle_price_data,
+        state,
+        clock.unix_timestamp,
+        clock.slot,
+    )
+}
+
+pub fn _update_amm(
     market: &mut Market,
     oracle_price_data: &OraclePriceData,
     state: &State,
@@ -249,7 +267,7 @@ mod test {
         };
 
         let cost_of_update =
-            update_amm(&mut market, &oracle_price_data, &state, now, slot).unwrap();
+            _update_amm(&mut market, &oracle_price_data, &state, now, slot).unwrap();
 
         let is_oracle_valid = amm::is_oracle_valid(
             &market.amm,
