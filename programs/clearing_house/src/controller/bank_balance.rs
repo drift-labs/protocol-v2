@@ -7,11 +7,54 @@ use crate::math::bank_balance::{
     InterestAccumulated,
 };
 use crate::math::casting::{cast, cast_to_i128, cast_to_u64};
+use crate::math::constants::TWENTYFOUR_HOUR;
 use crate::math_error;
 use crate::state::bank::{Bank, BankBalance, BankBalanceType};
 use crate::state::market::Market;
 use crate::validate;
 use std::cmp::{max, min};
+
+pub fn update_bank_twap_stats(bank: &mut Bank, utilization: u128, now: i64) -> ClearingHouseResult {
+    let since_last = cast_to_i128(max(
+        1,
+        now.checked_sub(bank.last_updated as i64)
+            .ok_or_else(math_error!())?,
+    ))?;
+    let from_start = max(
+        1,
+        cast_to_i128(TWENTYFOUR_HOUR)?
+            .checked_sub(since_last)
+            .ok_or_else(math_error!())?,
+    );
+
+    let deposit_token_amount =
+        get_token_amount(bank.deposit_balance, bank, &BankBalanceType::Deposit)?;
+    let borrow_token_amount =
+        get_token_amount(bank.borrow_balance, bank, &BankBalanceType::Borrow)?;
+
+    bank.deposit_token_twap = cast(calculate_weighted_average(
+        cast(deposit_token_amount)?,
+        cast(bank.deposit_token_twap)?,
+        since_last,
+        from_start,
+    )?)?;
+
+    bank.borrow_token_twap = cast(calculate_weighted_average(
+        cast(borrow_token_amount)?,
+        cast(bank.borrow_token_twap)?,
+        since_last,
+        from_start,
+    )?)?;
+
+    bank.utilization_twap = cast(calculate_weighted_average(
+        cast(utilization)?,
+        cast(bank.utilization_twap)?,
+        since_last,
+        from_start,
+    )?)?;
+
+    Ok(())
+}
 
 pub fn update_bank_cumulative_interest(bank: &mut Bank, now: i64) -> ClearingHouseResult {
     let InterestAccumulated {
@@ -20,50 +63,23 @@ pub fn update_bank_cumulative_interest(bank: &mut Bank, now: i64) -> ClearingHou
         utilization,
     } = calculate_accumulated_interest(bank, now)?;
 
-    let valid_update = deposit_interest > 0 && borrow_interest > 1 || utilization == 0;
+    let interest_update = deposit_interest > 0 && borrow_interest > 1;
+    let no_utilization = utilization == 0;
 
-    if valid_update {
-        bank.cumulative_deposit_interest = bank
-            .cumulative_deposit_interest
-            .checked_add(deposit_interest)
-            .ok_or_else(math_error!())?;
+    if interest_update || no_utilization {
+        if interest_update {
+            bank.cumulative_deposit_interest = bank
+                .cumulative_deposit_interest
+                .checked_add(deposit_interest)
+                .ok_or_else(math_error!())?;
 
-        bank.cumulative_borrow_interest = bank
-            .cumulative_borrow_interest
-            .checked_add(borrow_interest)
-            .ok_or_else(math_error!())?;
+            bank.cumulative_borrow_interest = bank
+                .cumulative_borrow_interest
+                .checked_add(borrow_interest)
+                .ok_or_else(math_error!())?;
+        }
 
-        let since_last = cast_to_i128(max(
-            1,
-            now.checked_sub(bank.last_updated as i64)
-                .ok_or_else(math_error!())?,
-        ))?;
-        let from_start = max(
-            1,
-            cast_to_i128(60 * 60 * 24)?
-                .checked_sub(since_last)
-                .ok_or_else(math_error!())?,
-        );
-
-        let deposit_token_amount =
-            get_token_amount(bank.deposit_balance, bank, &BankBalanceType::Deposit)?;
-        let borrow_token_amount =
-            get_token_amount(bank.borrow_balance, bank, &BankBalanceType::Borrow)?;
-
-        bank.deposit_token_twap = cast(calculate_weighted_average(
-            cast(deposit_token_amount)?,
-            cast(bank.deposit_token_twap)?,
-            since_last,
-            from_start,
-        )?)?;
-
-        bank.borrow_token_twap = cast(calculate_weighted_average(
-            cast(borrow_token_amount)?,
-            cast(bank.borrow_token_twap)?,
-            since_last,
-            from_start,
-        )?)?;
-
+        update_bank_twap_stats(bank, utilization, now)?;
         bank.last_updated = cast_to_u64(now)?;
     }
 
@@ -516,18 +532,28 @@ mod test {
 
         // cant withdraw when market is invalid => delayed update
         market.amm.last_update_slot = 8008;
-        assert!(
-            check_bank_market_valid(&market, &sol_bank, &mut user.bank_balances[1], 8009 as u64)
-                .is_err(),
-        );
+        assert!(check_bank_market_valid(
+            &market,
+            &sol_bank,
+            &mut user.bank_balances[1],
+            8009 as u64
+        )
+        .is_err(),);
 
         // ok to withdraw when market is valid
         market.amm.last_update_slot = 8009;
-        check_bank_market_valid(&market, &sol_bank, &mut user.bank_balances[1], 8009 as u64).unwrap();
+        check_bank_market_valid(&market, &sol_bank, &mut user.bank_balances[1], 8009 as u64)
+            .unwrap();
 
         // passes when market isnt set
         sol_bank.has_market = false;
-        check_bank_market_valid(&market, &sol_bank, &mut user.bank_balances[1], 100000 as u64).unwrap();
+        check_bank_market_valid(
+            &market,
+            &sol_bank,
+            &mut user.bank_balances[1],
+            100000 as u64,
+        )
+        .unwrap();
 
         // ok to deposit when market is invalid
         sol_bank.has_market = true;
@@ -538,6 +564,12 @@ mod test {
             &mut user.bank_balances[1],
         )
         .unwrap();
-        check_bank_market_valid(&market, &sol_bank, &mut user.bank_balances[1], 100000 as u64).unwrap();
+        check_bank_market_valid(
+            &market,
+            &sol_bank,
+            &mut user.bank_balances[1],
+            100000 as u64,
+        )
+        .unwrap();
     }
 }

@@ -247,6 +247,7 @@ pub mod clearing_house {
             borrow_balance: 0,
             deposit_token_twap: 0,
             borrow_token_twap: 0,
+            utilization_twap: 0, // todo: use for dynamic interest / additional guards
             cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
             last_updated: cast(Clock::get()?.unix_timestamp)
@@ -259,7 +260,7 @@ pub mod clearing_house {
             maintenance_liability_weight,
             imf_factor,
             liquidation_fee,
-            withdraw_threshold: 0,
+            withdraw_guard_threshold: 0,
         };
 
         Ok(())
@@ -569,7 +570,7 @@ pub mod clearing_house {
                     amount
                 };
 
-            // prevent withdraw when
+            // prevents withdraw when limits hit
             controller::bank_balance::update_bank_balances_with_limits(
                 amount as u128,
                 &BankBalanceType::Borrow,
@@ -577,6 +578,7 @@ pub mod clearing_house {
                 user_bank_balance,
             )?;
 
+            // prevents borrow when bank market's oracle invalid
             if bank.has_market {
                 let bank_market = market_map.get_ref(&bank.perp_market_index)?;
                 controller::bank_balance::check_bank_market_valid(

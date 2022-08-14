@@ -263,21 +263,21 @@ mod test {
         let mark_price_before = market.amm.mark_price().unwrap();
         assert_eq!(mark_price_before, 188076686390578);
         market.amm.last_oracle_price_twap_5min = 189076686390578;
-        market.amm.last_oracle_price_twap_ts = now -100;
-        let oracle_mark_spread_pct_before = amm::calculate_oracle_twap_5min_mark_spread_pct(
-            &market.amm,
-            Some(mark_price_before),
-        ).unwrap();
+        market.amm.last_oracle_price_twap_ts = now - 100;
+        let oracle_mark_spread_pct_before =
+            amm::calculate_oracle_twap_5min_mark_spread_pct(&market.amm, Some(mark_price_before))
+                .unwrap();
         assert_eq!(oracle_mark_spread_pct_before, -5316);
         let too_diverge = amm::is_oracle_mark_too_divergent(
             oracle_mark_spread_pct_before,
             &state.oracle_guard_rails.price_divergence,
-        ).unwrap();
+        )
+        .unwrap();
         assert!(!too_diverge);
 
         let cost_of_update =
             update_amm(&mut market, &oracle_price_data, &state, now, slot).unwrap();
-        assert!(market.amm.last_update_slot==slot);
+        assert!(market.amm.last_update_slot == slot);
 
         let is_oracle_valid = amm::is_oracle_valid(
             &market.amm,
@@ -291,12 +291,14 @@ mod test {
         let oracle_mark_spread_pct_before = amm::calculate_oracle_twap_5min_mark_spread_pct(
             &market.amm,
             Some(mark_price_after_prepeg),
-        ).unwrap();
+        )
+        .unwrap();
         assert_eq!(oracle_mark_spread_pct_before, -292478);
         let too_diverge = amm::is_oracle_mark_too_divergent(
             oracle_mark_spread_pct_before,
             &state.oracle_guard_rails.price_divergence,
-        ).unwrap();
+        )
+        .unwrap();
         assert!(too_diverge);
 
         let profit = market.amm.total_fee_minus_distributions;
@@ -374,7 +376,7 @@ mod test {
 
         let cost_of_update =
             update_amm(&mut market, &oracle_price_data, &state, now, slot).unwrap();
-        assert!(market.amm.last_update_slot==0);
+        assert!(market.amm.last_update_slot == 0);
 
         let is_oracle_valid = amm::is_oracle_valid(
             &market.amm,
@@ -383,6 +385,5 @@ mod test {
         )
         .unwrap();
         assert!(!is_oracle_valid);
-
     }
 }

@@ -230,15 +230,16 @@ pub fn check_withdraw_limits(bank: &Bank) -> ClearingHouseResult<bool> {
             deposit_token_amount
                 .checked_sub(deposit_token_amount / 10)
                 .ok_or_else(math_error!())?,
-        ); // between 15-90% utilization with friction on twap
+        ); // between ~15-90% utilization with friction on twap
 
-    let min_deposit_token = if deposit_token_amount >= bank.withdraw_threshold {
-        bank.deposit_token_twap
-            .checked_sub(bank.deposit_token_twap / 5)
-            .ok_or_else(math_error!())?
-    } else {
-        0
-    }; // friction to decrease utilization (if above withdraw threshold)
+    let min_deposit_token = bank
+        .deposit_token_twap
+        .checked_sub(
+            (bank.deposit_token_twap / 5)
+                .max(bank.withdraw_guard_threshold.min(bank.deposit_token_twap)),
+        )
+        .ok_or_else(math_error!())?;
+    // friction to decrease utilization (if above withdraw guard threshold)
 
     msg!("min_deposit_token={:?}", min_deposit_token);
     msg!("deposit_token_amount={:?}", deposit_token_amount);

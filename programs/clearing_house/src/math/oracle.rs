@@ -115,7 +115,6 @@ mod test {
             (34 * MARK_PRICE_PRECISION - MARK_PRICE_PRECISION / 100) as i128
         );
 
-
         oracle_price_data = OraclePriceData {
             price: (34 * MARK_PRICE_PRECISION) as i128,
             confidence: MARK_PRICE_PRECISION / 100,
@@ -123,30 +122,27 @@ mod test {
             has_sufficient_number_of_data_points: true,
         };
         oracle_status =
-        get_oracle_status(&amm, &oracle_price_data, &state.oracle_guard_rails, None).unwrap();
+            get_oracle_status(&amm, &oracle_price_data, &state.oracle_guard_rails, None).unwrap();
         assert_eq!(oracle_status.is_valid, false);
 
         oracle_price_data.delay = 8;
         amm.last_oracle_price_twap_5min = 32 * MARK_PRICE_PRECISION as i128;
         amm.last_oracle_price_twap = 21 * MARK_PRICE_PRECISION as i128;
         oracle_status =
-        get_oracle_status(&amm, &oracle_price_data, &state.oracle_guard_rails, None).unwrap();
+            get_oracle_status(&amm, &oracle_price_data, &state.oracle_guard_rails, None).unwrap();
         assert_eq!(oracle_status.is_valid, true);
         assert_eq!(oracle_status.mark_too_divergent, false);
 
-
         amm.last_oracle_price_twap_5min = 29 * MARK_PRICE_PRECISION as i128;
         oracle_status =
-        get_oracle_status(&amm, &oracle_price_data, &state.oracle_guard_rails, None).unwrap();
+            get_oracle_status(&amm, &oracle_price_data, &state.oracle_guard_rails, None).unwrap();
         assert_eq!(oracle_status.mark_too_divergent, true);
         assert_eq!(oracle_status.is_valid, true);
 
-
         oracle_price_data.confidence = 1 * MARK_PRICE_PRECISION;
         oracle_status =
-        get_oracle_status(&amm, &oracle_price_data, &state.oracle_guard_rails, None).unwrap();
+            get_oracle_status(&amm, &oracle_price_data, &state.oracle_guard_rails, None).unwrap();
         assert_eq!(oracle_status.mark_too_divergent, true);
         assert_eq!(oracle_status.is_valid, false);
-
     }
 }

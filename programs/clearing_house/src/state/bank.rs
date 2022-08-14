@@ -22,7 +22,7 @@ use solana_program::msg;
 pub struct Bank {
     pub bank_index: u64,
     pub has_market: bool,
-    pub perp_market_index: u64,
+    pub perp_market_index: u64, // todo: market pubkey instead?
     pub pubkey: Pubkey,
     pub oracle: Pubkey,
     pub oracle_source: OracleSource,
@@ -36,8 +36,9 @@ pub struct Bank {
     pub max_borrow_rate: u128,
     pub deposit_balance: u128,
     pub borrow_balance: u128,
-    pub deposit_token_twap: u128,
-    pub borrow_token_twap: u128,
+    pub deposit_token_twap: u128, // 24 hour twap
+    pub borrow_token_twap: u128,  // 24 hour twap
+    pub utilization_twap: u128,   // 24 hour twap
     pub cumulative_deposit_interest: u128,
     pub cumulative_borrow_interest: u128,
     pub last_updated: u64,
@@ -47,7 +48,7 @@ pub struct Bank {
     pub maintenance_liability_weight: u128,
     pub imf_factor: u128,
     pub liquidation_fee: u128,
-    pub withdraw_threshold: u128,
+    pub withdraw_guard_threshold: u128, // no withdraw limits/guards when bank deposits below this threshold
 }
 
 impl Bank {
