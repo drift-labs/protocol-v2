@@ -2,6 +2,7 @@ import { AMM, OracleGuardRails } from '../types';
 import { OraclePriceData } from '../oracles/types';
 import {
 	BID_ASK_SPREAD_PRECISION,
+	MARK_PRICE_PRECISION,
 	ONE,
 	ZERO,
 } from '../constants/numericConstants';
@@ -39,4 +40,34 @@ export function isOracleValid(
 		isOraclePriceTooVolatile ||
 		isConfidenceTooLarge
 	);
+}
+
+export function isOracleTooDivergent(
+	amm: AMM,
+	oraclePriceData: OraclePriceData,
+	oracleGuardRails: OracleGuardRails,
+	now: BN
+): boolean {
+	const sinceLastUpdate = now.sub(amm.lastOraclePriceTwapTs);
+	const sinceStart = BN.max(ZERO, new BN(60 * 5).sub(sinceLastUpdate));
+	const oracleTwap5min = amm.lastOraclePriceTwap5min
+		.mul(sinceStart)
+		.add(oraclePriceData.price)
+		.mul(sinceLastUpdate)
+		.div(sinceStart.add(sinceLastUpdate));
+
+	const oracleSpread = oracleTwap5min.sub(oraclePriceData.price);
+	const oracleSpreadPct = oracleSpread
+		.mul(MARK_PRICE_PRECISION)
+		.div(oracleTwap5min);
+
+	const tooDivergent = oracleSpreadPct
+		.abs()
+		.gte(
+			BID_ASK_SPREAD_PRECISION.mul(
+				oracleGuardRails.priceDivergence.markOracleDivergenceNumerator
+			).div(oracleGuardRails.priceDivergence.markOracleDivergenceDenominator)
+		);
+
+	return tooDivergent;
 }
