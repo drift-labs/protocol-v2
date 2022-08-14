@@ -178,6 +178,7 @@ export type LiquidationRecord = {
 	liquidateBorrowForPerpPnl: LiquidateBorrowForPerpPnlRecord;
 	liquidatePerpPnlForDeposit: LiquidatePerpPnlForDepositRecord;
 	perpBankruptcy: PerpBankruptcyRecord;
+	borrowBankruptcy: BorrowBankruptcyRecord;
 };
 
 export class LiquidationType {
@@ -191,6 +192,9 @@ export class LiquidationType {
 	};
 	static readonly PERP_BANKRUPTCY = {
 		perpBankruptcy: {},
+	};
+	static readonly BORROW_BANKRUPTCY = {
+		borrowBankruptcy: {},
 	};
 }
 
@@ -239,6 +243,12 @@ export type PerpBankruptcyRecord = {
 	marketIndex: BN;
 	pnl: BN;
 	cumulativeFundingRateDelta: BN;
+};
+
+export type BorrowBankruptcyRecord = {
+	bankIndex: BN;
+	borrowAmount: BN;
+	cumulativeDepositInterestDelta: BN;
 };
 
 export type SettlePnlRecord = {
