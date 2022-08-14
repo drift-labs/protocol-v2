@@ -6,7 +6,7 @@ use borsh::BorshSerialize;
 
 use context::*;
 use error::ErrorCode;
-use math::{amm, bank_balance::*, bn, constants::*, margin::*, oracle::get_oracle_status};
+use math::{amm, bn, constants::*, margin::*};
 use state::oracle::{get_oracle_price, OracleSource};
 
 use crate::math::amm::get_update_k_result;
@@ -33,7 +33,7 @@ declare_id!("4oyTJnAQ9FqJj1y9mPytbWsLeeHmBzGYfuFqypwyQvuh");
 
 #[program]
 pub mod clearing_house {
-    use std::cmp::{max, min};
+    use std::cmp::min;
     use std::option::Option::Some;
 
     use crate::margin_validation::validate_margin;
@@ -1145,7 +1145,7 @@ pub mod clearing_house {
         let mut market_map =
             MarketMap::load(&get_writable_markets(market_index), remaining_accounts_iter)?;
 
-        let all_amms_updated = controller::repeg::update_amms(
+        let _all_amms_updated = controller::repeg::update_amms(
             &mut market_map,
             &mut oracle_map,
             &ctx.accounts.state,

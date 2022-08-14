@@ -12,7 +12,7 @@ use crate::math_error;
 use crate::state::bank::{Bank, BankBalance, BankBalanceType};
 use crate::state::market::Market;
 use crate::validate;
-use std::cmp::{max, min};
+use std::cmp::max;
 
 pub fn update_bank_twap_stats(bank: &mut Bank, utilization: u128, now: i64) -> ClearingHouseResult {
     let since_last = cast_to_i128(max(
@@ -145,7 +145,7 @@ pub fn update_bank_balances(
 }
 
 pub fn update_bank_balances_with_limits(
-    mut token_amount: u128,
+    token_amount: u128,
     update_direction: &BankBalanceType,
     bank: &mut Bank,
     bank_balance: &mut dyn BankBalance,
@@ -169,14 +169,12 @@ pub fn check_bank_market_valid(
     bank_balance: &mut dyn BankBalance,
     current_slot: u64,
 ) -> ClearingHouseResult {
-    if bank.has_market {
-        if market.amm.oracle == bank.oracle {
-            if bank_balance.balance_type() == &BankBalanceType::Borrow
-                && market.amm.last_update_slot != current_slot
-            {
-                return Err(ErrorCode::InvalidOracle.into());
-            }
-        }
+    if bank.has_market
+        && market.amm.oracle == bank.oracle
+        && bank_balance.balance_type() == &BankBalanceType::Borrow
+        && market.amm.last_update_slot != current_slot
+    {
+        return Err(ErrorCode::InvalidOracle);
     }
 
     Ok(())

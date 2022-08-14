@@ -1,6 +1,5 @@
 use crate::controller::amm::SwapDirection;
 use crate::controller::position::PositionDirection;
-use crate::dlog;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::bn;
 use crate::math::bn::U192;
@@ -131,8 +130,6 @@ pub fn calculate_spread(
             .checked_add(cast_to_u128(max(0, effective_leverage))? + 1)
             .ok_or_else(math_error!())?,
     );
-
-    // dlog!(local_base_asset_value, net_base_asset_value, effective_leverage, effective_leverage_capped, MAX_BID_ASK_INVENTORY_SKEW_FACTOR);
 
     if total_fee_minus_distributions <= 0 {
         long_spread = long_spread
@@ -398,7 +395,7 @@ pub fn calculate_new_oracle_price_twap(
                 .ok_or_else(math_error!())?,
         );
         calculate_weighted_average(
-            cast_to_i128(amm.last_mark_price_twap)?,
+            cast_to_i128(last_mark_twap)?,
             oracle_price,
             since_last_valid,
             from_start_valid,
@@ -772,13 +769,12 @@ pub fn calculate_oracle_twap_5min_mark_spread_pct(
         .checked_sub(amm.last_oracle_price_twap_5min)
         .ok_or_else(math_error!())?;
 
-    let price_spread_pct = price_spread
+    // price_spread_pct
+    price_spread
         .checked_mul(BID_ASK_SPREAD_PRECISION_I128)
         .ok_or_else(math_error!())?
         .checked_div(cast_to_i128(mark_price)?) // todo? better for spread logic
-        .ok_or_else(math_error!());
-
-    price_spread_pct
+        .ok_or_else(math_error!())
 }
 
 pub fn is_oracle_mark_too_divergent(
