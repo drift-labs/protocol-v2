@@ -831,6 +831,37 @@
       ]
     },
     {
+      "name": "resolveBorrowBankruptcy",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "liquidator",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "bankIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "moveAmmPrice",
       "accounts": [
         {
@@ -2579,12 +2610,28 @@
             "type": "i128"
           },
           {
-            "name": "cumulativeFundingRateLongDelta",
+            "name": "cumulativeFundingRateDelta",
             "type": "i128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "BorrowBankruptcyRecord",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bankIndex",
+            "type": "u64"
           },
           {
-            "name": "cumulativeFundingRateShortDelta",
-            "type": "i128"
+            "name": "borrowAmount",
+            "type": "u128"
+          },
+          {
+            "name": "cumulativeDepositInterestDelta",
+            "type": "u128"
           }
         ]
       }
@@ -3485,6 +3532,9 @@
           },
           {
             "name": "PerpBankruptcy"
+          },
+          {
+            "name": "BorrowBankruptcy"
           }
         ]
       }
@@ -4050,6 +4100,13 @@
           "name": "perpBankruptcy",
           "type": {
             "defined": "PerpBankruptcyRecord"
+          },
+          "index": false
+        },
+        {
+          "name": "borrowBankruptcy",
+          "type": {
+            "defined": "BorrowBankruptcyRecord"
           },
           "index": false
         }
@@ -4619,6 +4676,11 @@
     },
     {
       "code": 6104,
+      "name": "UserHasInvalidBorrow",
+      "msg": "UserHasInvalidBorrow"
+    },
+    {
+      "code": 6105,
       "name": "DefaultError",
       "msg": "DefaultError"
     }
