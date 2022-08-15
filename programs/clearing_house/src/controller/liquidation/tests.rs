@@ -1862,6 +1862,7 @@ pub mod liquidate_perp_pnl_for_deposit {
 }
 
 pub mod resolve_perp_bankruptcy {
+    use crate::controller::funding::settle_funding_payment;
     use crate::controller::liquidation::resolve_perp_bankruptcy;
     use crate::controller::position::PositionDirection;
     use crate::create_account_info;
@@ -2006,7 +2007,71 @@ pub mod resolve_perp_bankruptcy {
         .unwrap();
 
         assert_eq!(expected_user, user);
-        assert_eq!(expected_market, *market_map.get_ref(&0).unwrap());
+        assert_eq!(expected_market, market_map.get_ref(&0).unwrap().clone());
+
+        let mut affected_long_user = User {
+            orders: [Order::default(); 32],
+            positions: get_positions(MarketPosition {
+                market_index: 0,
+                base_asset_amount: 5 * BASE_PRECISION_I128,
+                quote_asset_amount: -500 * QUOTE_PRECISION_I128,
+                open_bids: BASE_PRECISION_I128,
+                last_cumulative_funding_rate: 1000 * FUNDING_RATE_PRECISION_I128,
+                ..MarketPosition::default()
+            }),
+            bank_balances: [UserBankBalance::default(); 8],
+            ..User::default()
+        };
+
+        let mut expected_affected_long_user = affected_long_user;
+        expected_affected_long_user.positions[0].quote_asset_amount = -550 * QUOTE_PRECISION_I128; // loses $50
+        expected_affected_long_user.positions[0].last_cumulative_funding_rate =
+            1010 * FUNDING_RATE_PRECISION_I128;
+
+        {
+            let mut market = market_map.get_ref_mut(&0).unwrap();
+            settle_funding_payment(
+                &mut affected_long_user,
+                &Pubkey::default(),
+                &mut market,
+                now,
+            )
+            .unwrap()
+        }
+
+        assert_eq!(expected_affected_long_user, affected_long_user);
+
+        let mut affected_short_user = User {
+            orders: [Order::default(); 32],
+            positions: get_positions(MarketPosition {
+                market_index: 0,
+                base_asset_amount: -5 * BASE_PRECISION_I128,
+                quote_asset_amount: 500 * QUOTE_PRECISION_I128,
+                open_bids: BASE_PRECISION_I128,
+                last_cumulative_funding_rate: -1000 * FUNDING_RATE_PRECISION_I128,
+                ..MarketPosition::default()
+            }),
+            bank_balances: [UserBankBalance::default(); 8],
+            ..User::default()
+        };
+
+        let mut expected_affected_short_user = affected_short_user;
+        expected_affected_short_user.positions[0].quote_asset_amount = 450 * QUOTE_PRECISION_I128; // loses $50
+        expected_affected_short_user.positions[0].last_cumulative_funding_rate =
+            -1010 * FUNDING_RATE_PRECISION_I128;
+
+        {
+            let mut market = market_map.get_ref_mut(&0).unwrap();
+            settle_funding_payment(
+                &mut affected_short_user,
+                &Pubkey::default(),
+                &mut market,
+                now,
+            )
+            .unwrap()
+        }
+
+        assert_eq!(expected_affected_short_user, affected_short_user);
     }
 }
 
