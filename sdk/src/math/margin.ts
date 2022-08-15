@@ -10,6 +10,7 @@ import {
 import { BN } from '@project-serum/anchor';
 import { OraclePriceData } from '../oracles/types';
 import { MarketAccount, UserPosition } from '..';
+import { assert } from '../assert/assert';
 
 export function calculateSizePremiumLiabilityWeight(
 	size: BN, // AMM_RESERVE_PRECISION
@@ -22,14 +23,20 @@ export function calculateSizePremiumLiabilityWeight(
 	}
 
 	const sizeSqrt = squareRootBN(size.div(new BN(1000)).add(new BN(1))); //1e13 -> 1e10 -> 1e5
+
+	const denom0 = BN.max(new BN(1), BANK_IMF_PRECISION.div(imfFactor));
+	assert(denom0.gt(ZERO));
 	const liabilityWeightNumerator = liabilityWeight.sub(
-		liabilityWeight.div(BN.max(new BN(1), BANK_IMF_PRECISION.div(imfFactor)))
+		liabilityWeight.div(denom0)
 	);
+
+	const denom = new BN(100_000).mul(BANK_IMF_PRECISION).div(precision);
+	assert(denom.gt(ZERO));
 
 	const sizePremiumLiabilityWeight = liabilityWeightNumerator.add(
 		sizeSqrt // 1e5
 			.mul(imfFactor)
-			.div(new BN(100_000).mul(BANK_IMF_PRECISION).div(precision)) // 1e5
+			.div(denom) // 1e5
 	);
 
 	const maxLiabilityWeight = BN.max(

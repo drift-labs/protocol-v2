@@ -32,7 +32,7 @@ use crate::state::bank_map::BankMap;
 use crate::state::events::{emit_stack, OrderRecord};
 use crate::state::events::{OrderAction, OrderActionExplanation};
 use crate::state::fulfillment::FulfillmentMethod;
-use crate::state::market::Market;
+use crate::state::market::{ContractType, Market, MarketStatus};
 use crate::state::market_map::MarketMap;
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
@@ -96,6 +96,12 @@ pub fn place_order(
 
     let market_index = params.market_index;
     let market = &market_map.get_ref(&market_index)?;
+
+    validate!(
+        (market.status != MarketStatus::Settlement),
+        ErrorCode::InvalidPositionDelta,
+        "Market is in settlement mode",
+    )?;
 
     let position_index = get_position_index(&user.positions, market_index)
         .or_else(|_| add_new_position(&mut user.positions, market_index))?;
@@ -449,6 +455,12 @@ pub fn fill_order(
             (slot == market.amm.last_update_slot || market.amm.curve_update_intensity == 0),
             ErrorCode::AMMNotUpdatedInSameSlot,
             "AMM must be updated in a prior instruction within same slot"
+        )?;
+
+        validate!(
+            (market.status != MarketStatus::Settlement),
+            ErrorCode::InvalidPositionDelta,
+            "Market is in settlement mode",
         )?;
 
         oracle_mark_spread_pct_before = market.amm.last_oracle_mark_spread_pct;

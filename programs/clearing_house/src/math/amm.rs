@@ -7,11 +7,11 @@ use crate::math::bn;
 use crate::math::bn::U192;
 use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64};
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION, AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128,
+    AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128,
     AMM_TO_QUOTE_PRECISION_RATIO_I128, BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128,
     K_BPS_DECREASE_MAX, K_BPS_INCREASE_MAX, K_BPS_UPDATE_SCALE, MARK_PRICE_PRECISION,
     MAX_BID_ASK_INVENTORY_SKEW_FACTOR, ONE_HOUR_I128, PEG_PRECISION, PRICE_TO_PEG_PRECISION_RATIO,
-    QUOTE_PRECISION,
+    PRICE_TO_QUOTE_PRECISION_RATIO, QUOTE_PRECISION,
 };
 use crate::math::orders::standardize_base_asset_amount;
 use crate::math::position::{_calculate_base_asset_value_and_pnl, calculate_base_asset_value};
@@ -1149,6 +1149,78 @@ pub fn calculate_max_base_asset_amount_fillable(amm: &AMM) -> ClearingHouseResul
         amm.base_asset_reserve / amm.max_base_asset_amount_ratio as u128,
         amm.base_asset_amount_step_size,
     )
+}
+
+pub fn calculate_settlement_price(
+    amm: &AMM,
+    target_price: i128,
+    pnl_pool_amount: u128,
+) -> ClearingHouseResult<i128> {
+    // let long_unsettled_pnl = amm
+    //     .quote_asset_amount_long
+    //     .checked_sub(amm.quote_entry_amount_long)
+    //     .ok_or_else(math_error!())?;
+
+    // let short_unsettled_pnl = amm
+    //     .quote_asset_amount_short
+    //     .checked_sub(amm.quote_entry_amount_short)
+    //     .ok_or_else(math_error!())?;
+
+    // let total_unsettled_pnl = long_unsettled_pnl
+    //     .checked_add(short_unsettled_pnl)
+    //     .ok_or_else(math_error!())?;
+
+    if amm.net_base_asset_amount == 0 {
+        return Ok(target_price);
+    }
+
+    // let net_user_base_asset_value = amm
+    //     .net_base_asset_amount
+    //     .checked_mul(oracle_price)
+    //     .ok_or_else(math_error!())?
+    //     .checked_div(AMM_RESERVE_PRECISION_I128 * cast_to_i128(PRICE_TO_QUOTE_PRECISION_RATIO)?)
+    //     .ok_or_else(math_error!())?;
+
+    // let net_user_unrealized_pnl = net_user_base_asset_value
+    //     .checked_add(
+    //         amm.quote_asset_amount_long
+    //             .checked_add(amm.quote_asset_amount_short)
+    //             .ok_or_else(math_error!())?,
+    //     )
+    //     .ok_or_else(math_error!())?;
+
+    // net_baa * price + net_quote <= 0
+    // net_quote/net_baa <= -price
+
+    // net_user_unrealized_pnl negative = surplus in market
+    // net_user_unrealized_pnl positive = settlement price needs to differ from oracle
+
+    let best_settlement_price = -(amm
+        .quote_asset_amount_long
+        .checked_add(amm.quote_asset_amount_short)
+        .ok_or_else(math_error!())?
+        .checked_sub(cast_to_i128(pnl_pool_amount)?)
+        .ok_or_else(math_error!())?
+        .checked_mul(AMM_RESERVE_PRECISION_I128 * cast_to_i128(PRICE_TO_QUOTE_PRECISION_RATIO)?)
+        .ok_or_else(math_error!())?
+        .checked_div(amm.net_base_asset_amount)
+        .ok_or_else(math_error!())?);
+
+    let settlement_price = if amm.net_base_asset_amount > 0 {
+        // net longs only get as high as oracle_price
+        best_settlement_price
+            .min(target_price)
+            .checked_sub(1)
+            .ok_or_else(math_error!())?
+    } else {
+        // net shorts only get as low as oracle price
+        best_settlement_price
+            .max(target_price)
+            .checked_add(1)
+            .ok_or_else(math_error!())?
+    };
+
+    Ok(settlement_price)
 }
 
 #[cfg(test)]

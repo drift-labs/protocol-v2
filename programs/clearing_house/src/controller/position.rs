@@ -10,7 +10,7 @@ use crate::math::orders::{
     calculate_quote_asset_amount_for_maker_order, get_position_delta_for_fill,
 };
 use crate::math_error;
-use crate::state::market::Market;
+use crate::state::market::{Market, MarketStatus};
 use crate::state::user::{User, UserPositions};
 use crate::validate;
 use crate::MarketPosition;
@@ -66,6 +66,7 @@ pub struct PositionDelta {
     pub base_asset_amount: i128,
 }
 
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
 enum PositionUpdateType {
     Open,
     Increase,
@@ -105,6 +106,15 @@ pub fn update_position_and_market(
     )?;
 
     let update_type = get_position_update_type(position, delta);
+
+    validate!(
+        (market.status == MarketStatus::Initialized)
+            || (market.status == MarketStatus::ReduceOnly
+                && (update_type == PositionUpdateType::Reduce
+                    || update_type == PositionUpdateType::Close)),
+        ErrorCode::InvalidPositionDelta,
+        "Market is in reduce only mode",
+    )?;
 
     // Update User
     let new_quote_asset_amount = position

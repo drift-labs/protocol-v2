@@ -18,6 +18,33 @@ use crate::state::oracle::{OraclePriceData, OracleSource};
 use crate::{
     AMM_TO_QUOTE_PRECISION_RATIO, BID_ASK_SPREAD_PRECISION, MARGIN_PRECISION, MARK_PRICE_PRECISION,
 };
+use borsh::{BorshDeserialize, BorshSerialize};
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+pub enum MarketStatus {
+    Uninitialized,
+    Initialized,
+    ReduceOnly,
+    Settlement,
+}
+
+impl Default for MarketStatus {
+    fn default() -> Self {
+        MarketStatus::Uninitialized
+    }
+}
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+pub enum ContractType {
+    Perpeptual,
+    Future,
+}
+
+impl Default for ContractType {
+    fn default() -> Self {
+        ContractType::Perpeptual
+    }
+}
 
 #[account(zero_copy)]
 #[derive(Default, Eq, PartialEq, Debug)]
@@ -25,7 +52,9 @@ use crate::{
 pub struct Market {
     pub market_index: u64,
     pub pubkey: Pubkey,
-    pub initialized: bool,
+    pub status: MarketStatus,
+    pub contract_type: ContractType,
+    pub expiry_ts: i64, // iff market in reduce only mode
     pub amm: AMM,
     pub base_asset_amount_long: i128,
     pub base_asset_amount_short: i128,

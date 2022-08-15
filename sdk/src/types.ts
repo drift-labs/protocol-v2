@@ -2,6 +2,14 @@ import { PublicKey, Transaction } from '@solana/web3.js';
 import { BN, ZERO } from '.';
 
 // # Utility Types / Enums / Constants
+
+export class MarketStatus {
+	static readonly UNINITIALIZED = { uninitialized: {} };
+	static readonly INITIALIZED = { initialized: {} };
+	static readonly REDUCEONLY = { reduceonly: {} };
+	static readonly SETTLEMENT = { settlement: {} };
+}
+
 export class SwapDirection {
 	static readonly ADD = { add: {} };
 	static readonly REMOVE = { remove: {} };
@@ -295,7 +303,7 @@ export type StateAccount = {
 };
 
 export type MarketAccount = {
-	initialized: boolean;
+	status: MarketStatus;
 	marketIndex: BN;
 	pubkey: PublicKey;
 	amm: AMM;

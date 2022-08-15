@@ -11,7 +11,11 @@ use state::oracle::{get_oracle_price, OracleSource};
 
 use crate::math::amm::get_update_k_result;
 use crate::state::market::Market;
-use crate::state::{market::AMM, state::*, user::*};
+use crate::state::{
+    market::{ContractType, MarketStatus, AMM},
+    state::*,
+    user::*,
+};
 
 pub mod context;
 pub mod controller;
@@ -275,7 +279,7 @@ pub mod clearing_house {
         let now = clock.unix_timestamp;
         let clock_slot = clock.slot;
 
-        if market.initialized {
+        if market.status != MarketStatus::Uninitialized {
             return Err(ErrorCode::MarketIndexAlreadyInitialized.into());
         }
 
@@ -326,7 +330,9 @@ pub mod clearing_house {
         let state = &mut ctx.accounts.state;
         let market_index = state.number_of_markets;
         **market = Market {
-            initialized: true,
+            contract_type: ContractType::Perpeptual,
+            status: MarketStatus::Initialized,
+            expiry_ts: 0,
             pubkey: *market_pubkey,
             market_index,
             base_asset_amount_long: 0,
@@ -1117,6 +1123,107 @@ pub mod clearing_house {
         Ok(())
     }
 
+
+    #[access_control(
+        market_initialized(&ctx.accounts.market) &&
+        exchange_not_paused(&ctx.accounts.state) &&
+        admin_controls_prices(&ctx.accounts.state)
+    )]
+    pub fn settle_expired_market(ctx: Context<MoveAMMPrice>, market_index: u64) -> Result<()> {
+        let clock = Clock::get()?;
+        let now = clock.unix_timestamp;
+
+        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let bank_map = BankMap::load(
+            &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
+            remaining_accounts_iter,
+        )?;
+        let market_map = MarketMap::load(
+            &get_market_set(market_index),
+            &MarketSet::new(),
+            remaining_accounts_iter,
+        )?;
+
+        let market = &mut market_map.get_ref_mut(&market_index)?;
+
+        validate!(
+            market.expiry_ts != 0,
+            ErrorCode::InvalidUpdateK,
+            "Market isn't set to expire"
+        )?;
+
+        validate!(
+            market.expiry_ts > now,
+            ErrorCode::InvalidUpdateK,
+            "Market hasn't expired yet"
+        )?;
+
+        let lateness = now.checked_sub(market.expiry_ts).ok_or_else(math_error!())?;
+        let target_settlement_price: i128;
+
+        // more than 30 seconds late
+        if lateness > 30 {
+            target_settlement_price = market.amm.last_oracle_price_twap;
+        } else {
+            controller::repeg::update_amm(
+                market_index,
+                &market_map,
+                &mut oracle_map,
+                &ctx.accounts.state,
+                &clock,
+            )?;
+            target_settlement_price = market.amm.last_oracle_price_twap;
+        };
+
+        let pnl_pool_amount = get_token_amount(market.pnl_pool.balance, bank, &BankBalanceType::Deposit)?;
+        let settlement_price = amm::calculate_settlement_price(market.amm, target_settlement_price, pnl_pool_amount);
+
+        Ok(())
+    }
+
+    #[access_control(
+        exchange_not_paused(&ctx.accounts.state)
+    )]
+    pub fn settle_expired_position(ctx: Context<SettlePNL>, market_index: u64) -> Result<()> {
+        let clock = Clock::get()?;
+        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let bank_map = BankMap::load(
+            &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
+            remaining_accounts_iter,
+        )?;
+        let market_map = MarketMap::load(
+            &get_market_set(market_index),
+            &MarketSet::new(),
+            remaining_accounts_iter,
+        )?;
+
+        controller::repeg::update_amm(
+            market_index,
+            &market_map,
+            &mut oracle_map,
+            &ctx.accounts.state,
+            &Clock::get()?,
+        )?;
+
+        let user_key = ctx.accounts.user.key();
+        let user = &mut load_mut!(ctx.accounts.user)?;
+
+        controller::pnl::settle_pnl(
+            market_index,
+            user,
+            ctx.accounts.authority.key,
+            &user_key,
+            &market_map,
+            &bank_map,
+            &mut oracle_map,
+            clock.unix_timestamp,
+        )?;
+
+        Ok(())
+    }
+
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]
@@ -1341,6 +1448,29 @@ pub mod clearing_house {
     ) -> Result<()> {
         let market = &mut load_mut!(ctx.accounts.market)?;
         controller::amm::move_price(&mut market.amm, base_asset_reserve, quote_asset_reserve)?;
+        Ok(())
+    }
+
+    #[access_control(
+        market_initialized(&ctx.accounts.market) &&
+        exchange_not_paused(&ctx.accounts.state) &&
+        admin_controls_prices(&ctx.accounts.state)
+    )]
+    pub fn update_market_expiry(ctx: Context<MoveAMMPrice>, expiry_ts: i64) -> Result<()> {
+        let clock = Clock::get()?;
+        let market = &mut load_mut!(ctx.accounts.market)?;
+        validate!(
+            clock.unix_timestamp < expiry_ts,
+            ErrorCode::InvalidUpdateK,
+            "Market expiry ts must later than current clock timestamp"
+        )?;
+
+        if market.contract_type == ContractType::Perpeptual {
+            market.status = MarketStatus::ReduceOnly;
+        }
+
+        market.expiry_ts = expiry_ts;
+
         Ok(())
     }
 
@@ -2181,7 +2311,7 @@ pub mod clearing_house {
 }
 
 fn market_initialized(market: &AccountLoader<Market>) -> Result<()> {
-    if !market.load()?.initialized {
+    if market.load()?.status == MarketStatus::Uninitialized {
         return Err(ErrorCode::MarketIndexNotInitialized.into());
     }
     Ok(())

@@ -135,7 +135,7 @@ describe('clearing_house', () => {
 			marketPublicKey
 		)) as MarketAccount;
 
-		assert.ok(market.initialized);
+		assert.ok(market.status);
 		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(0)));
 		assert.ok(market.openInterest.eq(new BN(0)));
 

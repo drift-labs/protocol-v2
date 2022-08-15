@@ -648,6 +648,32 @@
       ]
     },
     {
+      "name": "settleExpiredPosition",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "liquidatePerp",
       "accounts": [
         {
@@ -1980,8 +2006,20 @@
             "type": "publicKey"
           },
           {
-            "name": "initialized",
-            "type": "bool"
+            "name": "status",
+            "type": {
+              "defined": "MarketStatus"
+            }
+          },
+          {
+            "name": "contractType",
+            "type": {
+              "defined": "ContractType"
+            }
+          },
+          {
+            "name": "expiryTs",
+            "type": "i64"
           },
           {
             "name": "amm",
@@ -3437,6 +3475,40 @@
           },
           {
             "name": "Match"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MarketStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Uninitialized"
+          },
+          {
+            "name": "Initialized"
+          },
+          {
+            "name": "ReduceOnly"
+          },
+          {
+            "name": "Settlement"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ContractType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Perpeptual"
+          },
+          {
+            "name": "Future"
           }
         ]
       }
