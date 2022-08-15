@@ -744,10 +744,7 @@ pub mod clearing_house {
 
         let order_id = match order_id {
             Some(order_id) => order_id,
-            None => {
-                let user = load!(ctx.accounts.user)?;
-                user.next_order_id - 1
-            }
+            None => load!(ctx.accounts.user)?.get_last_order_id(),
         };
 
         controller::orders::cancel_order_by_order_id(
@@ -793,7 +790,7 @@ pub mod clearing_house {
         let (order_id, market_index) = {
             let user = &load!(ctx.accounts.user)?;
             // if there is no order id, use the users last order id
-            let order_id = order_id.unwrap_or(user.next_order_id - 1);
+            let order_id = order_id.unwrap_or_else(|| user.get_last_order_id());
             let market_index = user
                 .get_order(order_id)
                 .map(|order| order.market_index)
@@ -894,14 +891,7 @@ pub mod clearing_house {
         )?;
 
         let user = &mut ctx.accounts.user;
-        let order_id = {
-            let user = load!(user)?;
-            if user.next_order_id == 1 {
-                u64::MAX
-            } else {
-                user.next_order_id - 1
-            }
-        };
+        let order_id = load!(user)?.get_last_order_id();
 
         let (base_asset_amount_filled, _) = controller::orders::fill_order(
             order_id,
@@ -970,14 +960,7 @@ pub mod clearing_house {
             params,
         )?;
 
-        let order_id = {
-            let user = load!(ctx.accounts.user)?;
-            if user.next_order_id == 1 {
-                u64::MAX
-            } else {
-                user.next_order_id - 1
-            }
-        };
+        let order_id = load!(ctx.accounts.user)?.get_last_order_id();
 
         controller::orders::fill_order(
             taker_order_id,
