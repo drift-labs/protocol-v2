@@ -952,8 +952,6 @@ pub mod clearing_house {
             return Err(print_error!(ErrorCode::InvalidOrder)().into());
         }
 
-        let base_asset_amount_to_fill = params.base_asset_amount;
-
         controller::repeg::update_amm(
             params.market_index,
             &market_map,
@@ -972,9 +970,8 @@ pub mod clearing_house {
             params,
         )?;
 
-        let user = &mut ctx.accounts.user;
         let order_id = {
-            let user = load!(user)?;
+            let user = load!(ctx.accounts.user)?;
             if user.next_order_id == 1 {
                 u64::MAX
             } else {
@@ -982,20 +979,25 @@ pub mod clearing_house {
             }
         };
 
-        let (base_asset_amount_filled, _) = controller::orders::fill_order(
+        controller::orders::fill_order(
             taker_order_id,
             &ctx.accounts.state,
             &ctx.accounts.taker,
             &bank_map,
             &market_map,
             &mut oracle_map,
-            &user.clone(),
+            &ctx.accounts.user.clone(),
             Some(&ctx.accounts.user),
             Some(order_id),
             &Clock::get()?,
         )?;
 
-        if base_asset_amount_to_fill != base_asset_amount_filled {
+        let order_exists = load!(ctx.accounts.user)?
+            .orders
+            .iter()
+            .any(|order| order.order_id == order_id);
+
+        if order_exists {
             controller::orders::cancel_order_by_order_id(
                 order_id,
                 &ctx.accounts.user,
