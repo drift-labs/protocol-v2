@@ -118,6 +118,14 @@ impl User {
     pub fn get_order(&self, order_id: u64) -> Option<&Order> {
         self.orders.iter().find(|order| order.order_id == order_id)
     }
+
+    pub fn get_last_order_id(&self) -> u64 {
+        if self.next_order_id == 1 {
+            u64::MAX
+        } else {
+            self.next_order_id - 1
+        }
+    }
 }
 
 #[zero_copy]
