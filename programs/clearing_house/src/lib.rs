@@ -332,6 +332,7 @@ pub mod clearing_house {
         **market = Market {
             contract_type: ContractType::Perpeptual,
             status: MarketStatus::Initialized,
+            settlement_price: 0,
             expiry_ts: 0,
             pubkey: *market_pubkey,
             market_index,
@@ -1123,7 +1124,6 @@ pub mod clearing_house {
         Ok(())
     }
 
-
     #[access_control(
         market_initialized(&ctx.accounts.market) &&
         exchange_not_paused(&ctx.accounts.state) &&
@@ -1154,15 +1154,18 @@ pub mod clearing_house {
         )?;
 
         validate!(
-            market.expiry_ts > now,
+            market.expiry_ts >= now,
             ErrorCode::InvalidUpdateK,
             "Market hasn't expired yet"
         )?;
 
-        let lateness = now.checked_sub(market.expiry_ts).ok_or_else(math_error!())?;
+        let lateness = now
+            .checked_sub(market.expiry_ts)
+            .ok_or_else(math_error!())?;
         let target_settlement_price: i128;
 
-        // more than 30 seconds late
+        // more than 30 seconds late dont update
+        // todo: whats best target settlement? 1hr twap, 5min twap, current (or average of some?)
         if lateness > 30 {
             target_settlement_price = market.amm.last_oracle_price_twap;
         } else {
@@ -1176,9 +1179,13 @@ pub mod clearing_house {
             target_settlement_price = market.amm.last_oracle_price_twap;
         };
 
-        let pnl_pool_amount = get_token_amount(market.pnl_pool.balance, bank, &BankBalanceType::Deposit)?;
-        let settlement_price = amm::calculate_settlement_price(market.amm, target_settlement_price, pnl_pool_amount);
-
+        let bank = &mut bank_map.get_ref_mut(&QUOTE_ASSET_BANK_INDEX)?;
+        let pnl_pool_amount =
+            get_token_amount(market.pnl_pool.balance, bank, &BankBalanceType::Deposit)?;
+        let settlement_price =
+            amm::calculate_settlement_price(&market.amm, target_settlement_price, pnl_pool_amount)?;
+        market.settlement_price = settlement_price;
+        market.status = MarketStatus::Settlement;
         Ok(())
     }
 
@@ -1199,18 +1206,10 @@ pub mod clearing_house {
             remaining_accounts_iter,
         )?;
 
-        controller::repeg::update_amm(
-            market_index,
-            &market_map,
-            &mut oracle_map,
-            &ctx.accounts.state,
-            &Clock::get()?,
-        )?;
-
         let user_key = ctx.accounts.user.key();
         let user = &mut load_mut!(ctx.accounts.user)?;
 
-        controller::pnl::settle_pnl(
+        controller::pnl::settle_expired_position(
             market_index,
             user,
             ctx.accounts.authority.key,

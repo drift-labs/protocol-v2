@@ -405,6 +405,35 @@ pub fn update_pool_balances(
     Ok(pnl_to_settle_with_user)
 }
 
+pub fn update_pnl_pool_balance(
+    market: &mut Market,
+    bank: &mut Bank,
+    user_unsettled_pnl: i128,
+) -> ClearingHouseResult<i128> {
+    let pnl_to_settle_with_user = if user_unsettled_pnl > 0 {
+        user_unsettled_pnl.min(cast_to_i128(get_token_amount(
+            market.pnl_pool.balance,
+            bank,
+            market.pnl_pool.balance_type(),
+        )?)?)
+    } else {
+        user_unsettled_pnl
+    };
+
+    update_bank_balances(
+        pnl_to_settle_with_user.unsigned_abs(),
+        if pnl_to_settle_with_user < 0 {
+            &BankBalanceType::Deposit
+        } else {
+            &BankBalanceType::Borrow
+        },
+        bank,
+        &mut market.pnl_pool,
+    )?;
+
+    Ok(pnl_to_settle_with_user)
+}
+
 pub fn move_price(
     amm: &mut AMM,
     base_asset_reserve: u128,

@@ -7,7 +7,7 @@ use crate::load_mut;
 use crate::math::amm;
 use crate::math::repeg;
 use crate::math_error;
-use crate::state::market::Market;
+use crate::state::market::{Market, MarketStatus};
 use crate::state::market_map::MarketMap;
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
@@ -121,6 +121,10 @@ pub fn _update_amm(
     clock_slot: u64,
 ) -> ClearingHouseResult<i128> {
     // 0-100
+    if market.status == MarketStatus::Settlement || market.status == MarketStatus::Uninitialized {
+        return Ok(0);
+    }
+
     let curve_update_intensity = cast_to_i128(min(market.amm.curve_update_intensity, 100_u8))?;
 
     let mut amm_update_cost = 0;

@@ -54,7 +54,8 @@ pub struct Market {
     pub pubkey: Pubkey,
     pub status: MarketStatus,
     pub contract_type: ContractType,
-    pub expiry_ts: i64, // iff market in reduce only mode
+    pub settlement_price: i128, // iff market has expired, price users can settle position
+    pub expiry_ts: i64,         // iff market in reduce only mode
     pub amm: AMM,
     pub base_asset_amount_long: i128,
     pub base_asset_amount_short: i128,
