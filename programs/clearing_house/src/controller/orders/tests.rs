@@ -1404,6 +1404,9 @@ pub mod fulfill_order {
             initialized: true,
             ..Market::default_test()
         };
+        market.amm.max_base_asset_reserve = u128::MAX;
+        market.amm.min_base_asset_reserve = 0;
+
         create_anchor_account_info!(market, Market, market_account_info);
         let market_map = MarketMap::load_one(&market_account_info, true).unwrap();
 
@@ -1705,6 +1708,9 @@ pub mod fulfill_order {
             initialized: true,
             ..Market::default_test()
         };
+        market.amm.max_base_asset_reserve = u128::MAX;
+        market.amm.min_base_asset_reserve = 0;
+
         create_anchor_account_info!(market, Market, market_account_info);
         let market_map = MarketMap::load_one(&market_account_info, true).unwrap();
 
@@ -2241,6 +2247,8 @@ pub mod fill_order {
             initialized: true,
             ..Market::default()
         };
+        market.amm.max_base_asset_reserve = u128::MAX;
+        market.amm.min_base_asset_reserve = 0;
         create_anchor_account_info!(market, Market, market_account_info);
         let market_map = MarketMap::load_one(&market_account_info, true).unwrap();
 

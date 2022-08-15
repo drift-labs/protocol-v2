@@ -222,7 +222,7 @@ pub fn liquidate_perp(
             &mut user.positions[position_index],
             market_map.get_ref_mut(&market_index)?.deref_mut(),
             user_lp_shares,
-            oracle_price_data,
+            oracle_price,
         )?;
     }
 

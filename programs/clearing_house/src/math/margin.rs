@@ -14,7 +14,7 @@ use crate::controller::position::PositionDelta;
 use crate::math::bank_balance::get_balance_value_and_token_amount;
 use crate::math::casting::cast_to_i128;
 use crate::math::funding::calculate_funding_payment;
-use crate::math::lp::{compute_settle_lp_metrics, get_lp_open_bids_asks};
+use crate::math::lp::{calculate_settle_lp_metrics, get_lp_open_bids_asks};
 use crate::math::position::calculate_position_new_quote_base_pnl;
 use crate::state::bank::{Bank, BankBalanceType};
 use crate::state::bank_map::BankMap;
@@ -181,7 +181,7 @@ pub fn calculate_perp_position_value_and_pnl(
 
     let market_position = if market_position.is_lp() {
         // compute lp metrics
-        let lp_metrics = compute_settle_lp_metrics(&market.amm, market_position)?;
+        let lp_metrics = calculate_settle_lp_metrics(&market.amm, market_position)?;
 
         // compute standardized + dust position in baa/qaa
         let dust_base_asset_value = calculate_base_asset_value_with_oracle_price(
@@ -201,8 +201,6 @@ pub fn calculate_perp_position_value_and_pnl(
 
         let quote_asset_amount = quote_asset_amount
             .checked_sub(cast_to_i128(dust_base_asset_value)?)
-            .ok_or_else(math_error!())?
-            .checked_add(pnl)
             .ok_or_else(math_error!())?;
 
         let (lp_bids, lp_asks) = get_lp_open_bids_asks(market_position, market)?;
@@ -308,10 +306,6 @@ pub fn calculate_margin_requirement_and_total_collateral(
     }
 
     for market_position in user.positions.iter() {
-        msg!("market_position.is_lp()={:?}", market_position.is_lp());
-        msg!("market_position.open_bids={:?}", market_position.open_bids);
-        msg!("market_position.open_asks={:?}", market_position.open_asks);
-
         if market_position.base_asset_amount == 0
             && market_position.quote_asset_amount == 0
             && !market_position.has_open_order()
@@ -330,7 +324,6 @@ pub fn calculate_margin_requirement_and_total_collateral(
             oracle_price_data,
             margin_requirement_type,
         )?;
-        msg!("oracle_price_data.price={:?}", oracle_price_data.price);
 
         margin_requirement = margin_requirement
             .checked_add(perp_margin_requirement)
@@ -409,12 +402,6 @@ pub fn meets_initial_margin_requirement(
         bank_map,
         oracle_map,
     )?;
-    msg!(
-        "meets_initial_margin_requirement: {:?} > {:?}",
-        total_collateral,
-        margin_requirement
-    );
-
     Ok(total_collateral >= cast_to_i128(margin_requirement)?)
 }
 

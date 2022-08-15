@@ -7,13 +7,6 @@ export class SwapDirection {
 	static readonly REMOVE = { remove: {} };
 }
 
-export class SettleResult {
-	static readonly RECIEVED_MARKET_POSITION = { recievedMarketPosition: {} };
-	static readonly DID_NOT_RECIEVE_MARKET_POSITION = {
-		didNotRecieveMarketPosition: {},
-	};
-}
-
 export class BankBalanceType {
 	static readonly DEPOSIT = { deposit: {} };
 	static readonly BORROW = { borrow: {} };
@@ -416,7 +409,6 @@ export type UserPosition = {
 	openAsks: BN;
 	lpShares: BN;
 	lastFeePerLp: BN;
-	lastUnsettledPnlPerLp: BN;
 	lastNetBaseAssetAmountPerLp: BN;
 	lastNetQuoteAssetAmountPerLp: BN;
 };

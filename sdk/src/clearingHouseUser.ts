@@ -140,7 +140,6 @@ export class ClearingHouseUser {
 			lastFeePerLp: ZERO,
 			lastNetBaseAssetAmountPerLp: ZERO,
 			lastNetQuoteAssetAmountPerLp: ZERO,
-			lastUnsettledPnlPerLp: ZERO,
 		};
 	}
 
@@ -827,7 +826,6 @@ export class ClearingHouseUser {
 			lastFeePerLp: ZERO,
 			lastNetBaseAssetAmountPerLp: ZERO,
 			lastNetQuoteAssetAmountPerLp: ZERO,
-			lastUnsettledPnlPerLp: ZERO,
 		};
 
 		if (proposedBaseAssetAmount.eq(ZERO)) return new BN(-1);

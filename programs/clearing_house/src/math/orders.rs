@@ -27,14 +27,10 @@ pub fn calculate_base_asset_amount_for_amm_to_fulfill(
         return Ok(0);
     }
 
-    msg!("order baa {}", order.base_asset_amount);
     let limit_price = order.get_limit_price(&market.amm, valid_oracle_price, slot)?;
-    msg!("limit price {}", limit_price);
     let base_asset_amount =
         calculate_base_asset_amount_to_fill_up_to_limit_price(order, market, limit_price)?;
-    msg!("base up to limit {}", base_asset_amount);
     let max_base_asset_amount = calculate_max_base_asset_amount_fillable(&market.amm)?;
-    msg!("max fillable {}", max_base_asset_amount);
 
     let max_base_asset_amount_on_side = if order.direction == PositionDirection::Long {
         if market.amm.max_base_asset_reserve > market.amm.base_asset_reserve {
@@ -57,7 +53,6 @@ pub fn calculate_base_asset_amount_for_amm_to_fulfill(
             0
         }
     };
-    msg!("max on side {}", max_base_asset_amount_on_side);
 
     let base_asset_amount = min(
         max_base_asset_amount_on_side,

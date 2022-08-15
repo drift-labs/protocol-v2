@@ -14,10 +14,9 @@ pub struct LPMetrics {
     pub base_asset_amount: i128,
     pub quote_asset_amount: i128,
     pub remainder_base_asset_amount: i128,
-    pub remainder_quote_asset_amount: i128,
 }
 
-pub fn compute_settle_lp_metrics(
+pub fn calculate_settle_lp_metrics(
     amm: &AMM,
     position: &MarketPosition,
 ) -> ClearingHouseResult<LPMetrics> {
@@ -30,47 +29,23 @@ pub fn compute_settle_lp_metrics(
             amm.base_asset_amount_step_size,
         )?;
 
-    let _min_qaa = amm.minimum_quote_asset_trade_size; // todo: uses reserve precision -- see note:
     let min_baa = amm.base_asset_amount_step_size;
 
     // note: since pnl may go into the qaa of a position its not really fair to ensure qaa >= min_qaa
-    let (remainder_base_asset_amount, remainder_quote_asset_amount) =
-        if standardized_base_asset_amount.unsigned_abs() >= min_baa {
-            // compute quote amount in remainder
-            let _remainder_ratio = cast_to_i128(
-                remainder_base_asset_amount
-                    .unsigned_abs()
-                    .checked_mul(AMM_RESERVE_PRECISION)
-                    .ok_or_else(math_error!())?
-                    .checked_div(base_asset_amount.unsigned_abs())
-                    .ok_or_else(math_error!())?,
-            )?;
-
-            // let remainder_quote_asset_amount =
-            //     quote_asset_amount
-            //     .checked_mul(remainder_ratio)
-            //     .ok_or_else(math_error!())?
-            //     .checked_div(AMM_RESERVE_PRECISION_I128)
-            //     .ok_or_else(math_error!())?;
-
-            (remainder_base_asset_amount, 0)
-        } else {
-            (base_asset_amount, 0)
-        };
+    let remainder_base_asset_amount = if standardized_base_asset_amount.unsigned_abs() >= min_baa {
+        remainder_base_asset_amount
+    } else {
+        base_asset_amount
+    };
 
     let standardized_base_asset_amount = base_asset_amount
         .checked_sub(remainder_base_asset_amount)
         .ok_or_else(math_error!())?;
 
-    let standardized_quote_asset_amount = quote_asset_amount
-        .checked_sub(remainder_quote_asset_amount)
-        .ok_or_else(math_error!())?;
-
     let lp_metrics = LPMetrics {
         base_asset_amount: standardized_base_asset_amount,
-        quote_asset_amount: standardized_quote_asset_amount,
+        quote_asset_amount: quote_asset_amount,
         remainder_base_asset_amount,
-        remainder_quote_asset_amount,
     };
 
     Ok(lp_metrics)
@@ -117,33 +92,28 @@ pub fn get_lp_open_bids_asks(
 ) -> ClearingHouseResult<(i128, i128)> {
     let total_lp_shares = market.amm.sqrt_k;
     let lp_shares = market_position.lp_shares;
+    let base_asset_reserve = market.amm.base_asset_reserve;
 
     // worse case if all asks are filled
-    let ask_bounded_k = market.amm.max_base_asset_reserve;
-
-    let max_asks = if ask_bounded_k > market.amm.base_asset_reserve {
-        ask_bounded_k
-            .checked_sub(market.amm.base_asset_reserve)
+    let max_base_asset_reserve = market.amm.max_base_asset_reserve;
+    let max_asks = if max_base_asset_reserve > base_asset_reserve {
+        max_base_asset_reserve
+            .checked_sub(base_asset_reserve)
             .ok_or_else(math_error!())?
     } else {
         0
     };
+    let open_asks = -cast_to_i128(get_proportion_u128(max_asks, lp_shares, total_lp_shares)?)?;
 
-    let open_asks = cast_to_i128(get_proportion_u128(max_asks, lp_shares, total_lp_shares)?)?;
-
-    // worst case if all bids are filled (lp is now long)
-    let bids_bounded_k = market.amm.min_base_asset_reserve;
-
-    let max_bids = if bids_bounded_k < market.amm.base_asset_reserve {
-        market
-            .amm
-            .base_asset_reserve
-            .checked_sub(bids_bounded_k)
+    // worst case if all bids are filled
+    let min_base_asset_reserve = market.amm.min_base_asset_reserve;
+    let max_bids = if min_base_asset_reserve < base_asset_reserve {
+        base_asset_reserve
+            .checked_sub(min_base_asset_reserve)
             .ok_or_else(math_error!())?
     } else {
         0
     };
-
     let open_bids = cast_to_i128(get_proportion_u128(max_bids, lp_shares, total_lp_shares)?)?;
 
     Ok((open_bids, open_asks))
@@ -233,7 +203,7 @@ mod test {
         }
     }
 
-    mod compute_settle_lp_metrics {
+    mod calculate_settle_lp_metrics {
         use super::*;
 
         #[test]
@@ -253,11 +223,10 @@ mod test {
                 ..AMM::default_test()
             };
 
-            let lp_metrics = compute_settle_lp_metrics(&amm, &position).unwrap();
+            let lp_metrics = calculate_settle_lp_metrics(&amm, &position).unwrap();
 
             assert_eq!(lp_metrics.base_asset_amount, 10 * 100);
             assert_eq!(lp_metrics.quote_asset_amount, -10 * 100);
-            assert_eq!(lp_metrics.remainder_quote_asset_amount, 0);
             assert_eq!(lp_metrics.remainder_base_asset_amount, 0);
         }
 
@@ -278,12 +247,11 @@ mod test {
                 ..AMM::default_test()
             };
 
-            let lp_metrics = compute_settle_lp_metrics(&amm, &position).unwrap();
+            let lp_metrics = calculate_settle_lp_metrics(&amm, &position).unwrap();
 
             assert_eq!(lp_metrics.base_asset_amount, 0);
-            assert_eq!(lp_metrics.quote_asset_amount, 0);
+            assert_eq!(lp_metrics.quote_asset_amount, -10 * 100);
             assert_eq!(lp_metrics.remainder_base_asset_amount, 10 * 100);
-            assert_eq!(lp_metrics.remainder_quote_asset_amount, -10 * 100);
         }
 
         #[test]
@@ -303,12 +271,11 @@ mod test {
                 ..AMM::default_test()
             };
 
-            let lp_metrics = compute_settle_lp_metrics(&amm, &position).unwrap();
+            let lp_metrics = calculate_settle_lp_metrics(&amm, &position).unwrap();
 
             assert_eq!(lp_metrics.base_asset_amount, 9);
-            assert_eq!(lp_metrics.quote_asset_amount, -9);
+            assert_eq!(lp_metrics.quote_asset_amount, -10);
             assert_eq!(lp_metrics.remainder_base_asset_amount, 1);
-            assert_eq!(lp_metrics.remainder_quote_asset_amount, -1);
         }
     }
 }

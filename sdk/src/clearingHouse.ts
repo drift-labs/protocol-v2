@@ -1064,7 +1064,7 @@ export class ClearingHouse {
 
 		let foundMarket = false;
 		for (const position of userPositions) {
-			if (!positionIsAvailable(position) || position.lpShares.gt(ZERO)) {
+			if (!positionIsAvailable(position)) {
 				const marketPublicKey = await getMarketPublicKey(
 					this.program.programId,
 					position.marketIndex
@@ -1120,7 +1120,7 @@ export class ClearingHouse {
 		let foundMarket = false;
 		const remainingAccounts = [];
 		for (const position of userPositions) {
-			if (!positionIsAvailable(position) || position.lpShares.gt(ZERO)) {
+			if (!positionIsAvailable(position)) {
 				const marketPublicKey = await getMarketPublicKey(
 					this.program.programId,
 					position.marketIndex

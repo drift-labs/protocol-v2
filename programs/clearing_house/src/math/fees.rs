@@ -24,8 +24,7 @@ pub fn calculate_fee_for_order_fulfill_against_amm(
         } else {
             calculate_filler_reward(fee, order_ts, now, &fee_structure.filler_reward_structure)?
         };
-        let fee_minus_filler_reward = fee.checked_sub(filler_reward).ok_or_else(math_error!())?;
-        let fee_to_market = fee_minus_filler_reward;
+        let fee_to_market = fee.checked_sub(filler_reward).ok_or_else(math_error!())?;
         let user_fee = 0_u128;
 
         Ok((user_fee, fee_to_market, filler_reward))

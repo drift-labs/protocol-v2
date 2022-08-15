@@ -81,24 +81,25 @@ pub fn update_amm_position(
         market.amm.market_position
     };
 
-    let new_position = position.base_asset_amount == 0;
+    let update_type = get_position_update_type(&position, delta);
     let (new_quote_asset_amount, new_quote_entry_amount, new_base_asset_amount, pnl) =
         calculate_position_new_quote_base_pnl(&position, delta)?;
 
-    let closed_position = new_base_asset_amount == 0;
-    let flipped_position = position.base_asset_amount.signum() != new_base_asset_amount.signum();
-
     // Update user position
-    if closed_position {
-        position.last_cumulative_funding_rate = 0;
-        position.last_funding_rate_ts = 0;
-    } else if new_position || flipped_position {
-        if new_base_asset_amount > 0 {
-            position.last_cumulative_funding_rate = market.amm.cumulative_funding_rate_long;
-        } else {
-            position.last_cumulative_funding_rate = market.amm.cumulative_funding_rate_short;
+    match update_type {
+        PositionUpdateType::Close => {
+            position.last_cumulative_funding_rate = 0;
+            position.last_funding_rate_ts = 0;
         }
-    }
+        PositionUpdateType::Open | PositionUpdateType::Flip => {
+            if new_base_asset_amount > 0 {
+                position.last_cumulative_funding_rate = market.amm.cumulative_funding_rate_long;
+            } else {
+                position.last_cumulative_funding_rate = market.amm.cumulative_funding_rate_short;
+            }
+        }
+        _ => {}
+    };
 
     position.quote_asset_amount = new_quote_asset_amount;
     position.quote_entry_amount = new_quote_entry_amount;
@@ -444,7 +445,7 @@ pub fn update_user_and_market_position(
         base_asset_amount: per_lp_delta_base,
         quote_asset_amount: per_lp_delta_quote,
     };
-    let per_lp_pnl = update_amm_position(market, &per_lp_position_delta, true)?;
+    update_amm_position(market, &per_lp_position_delta, true)?;
 
     // 1/5 of fee auto goes to market
     // the rest goes to lps/market proportional
@@ -468,14 +469,8 @@ pub fn update_user_and_market_position(
         .checked_sub(lp_fee)
         .ok_or_else(math_error!())?;
 
-    market.amm.market_position_per_lp.quote_asset_amount = market
-        .amm
-        .market_position_per_lp
-        .quote_asset_amount
-        .checked_add(per_lp_pnl)
-        .ok_or_else(math_error!())?
-        .checked_add(per_lp_fee)
-        .ok_or_else(math_error!())?;
+    // update per lp position
+    update_quote_asset_amount(&mut market.amm.market_position_per_lp, per_lp_fee)?;
 
     // Update AMM position
     let amm_baa = delta
@@ -488,7 +483,7 @@ pub fn update_user_and_market_position(
         .checked_sub(lp_delta_quote)
         .ok_or_else(math_error!())?;
 
-    let amm_pnl = update_amm_position(
+    update_amm_position(
         market,
         &PositionDelta {
             base_asset_amount: -amm_baa,
@@ -497,14 +492,7 @@ pub fn update_user_and_market_position(
         false,
     )?;
 
-    market.amm.market_position.quote_asset_amount = market
-        .amm
-        .market_position
-        .quote_asset_amount
-        .checked_add(amm_pnl)
-        .ok_or_else(math_error!())?
-        .checked_add(amm_fee)
-        .ok_or_else(math_error!())?;
+    update_quote_asset_amount(&mut market.amm.market_position, amm_fee)?;
 
     market.amm.net_base_asset_amount = market
         .amm

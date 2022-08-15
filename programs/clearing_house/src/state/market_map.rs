@@ -19,7 +19,6 @@ pub struct MarketMap<'a>(pub BTreeMap<u64, AccountLoader<'a, Market>>);
 
 impl<'a> MarketMap<'a> {
     pub fn get_ref(&self, market_index: &u64) -> ClearingHouseResult<Ref<Market>> {
-        msg!("getting non-mut {}", market_index);
         self.0
             .get(market_index)
             .ok_or(ErrorCode::MarketNotFound)?
@@ -28,7 +27,6 @@ impl<'a> MarketMap<'a> {
     }
 
     pub fn get_ref_mut(&self, market_index: &u64) -> ClearingHouseResult<RefMut<Market>> {
-        msg!("getting mut {}", market_index);
         self.0
             .get(market_index)
             .ok_or(ErrorCode::MarketNotFound)?
@@ -58,8 +56,6 @@ impl<'a> MarketMap<'a> {
             }
             let market_index = u64::from_le_bytes(*array_ref![data, 8, 8]);
             let is_initialized = array_ref![data, 48, 1];
-
-            msg!("found market {}", market_index);
 
             let account_info = account_info_iter.next().unwrap();
             let is_writable = account_info.is_writable;

@@ -40,19 +40,19 @@ pub fn calculate_price(
 }
 
 pub fn calculate_bid_ask_bounds(sqrt_k: u128) -> ClearingHouseResult<(u128, u128)> {
-    let sqrt_2_percision = 10_000_u128;
+    let sqrt_2_precision = 10_000_u128;
     let sqrt_2 = 14_142;
 
     // worse case if all asks are filled (max reserve)
     let ask_bounded_base = sqrt_k
         .checked_mul(sqrt_2)
         .ok_or_else(math_error!())?
-        .checked_div(sqrt_2_percision)
+        .checked_div(sqrt_2_precision)
         .ok_or_else(math_error!())?;
 
     // worse case if all bids are filled (min reserve)
     let bid_bounded_base = sqrt_k
-        .checked_mul(sqrt_2_percision)
+        .checked_mul(sqrt_2_precision)
         .ok_or_else(math_error!())?
         .checked_div(sqrt_2)
         .ok_or_else(math_error!())?;
@@ -1176,12 +1176,6 @@ pub fn calculate_base_asset_amount_to_trade_to_price(
         amm.base_asset_reserve
     };
 
-    msg!(
-        "new baa {} baa {}",
-        new_base_asset_reserve,
-        amm.base_asset_reserve
-    );
-
     if new_base_asset_reserve > base_asset_reserve_before {
         let max_trade_amount = new_base_asset_reserve
             .checked_sub(base_asset_reserve_before)
@@ -1191,7 +1185,6 @@ pub fn calculate_base_asset_amount_to_trade_to_price(
         let max_trade_amount = base_asset_reserve_before
             .checked_sub(new_base_asset_reserve)
             .ok_or_else(math_error!())?;
-        msg!("max trade {}", max_trade_amount);
         Ok((max_trade_amount, PositionDirection::Long))
     }
 }

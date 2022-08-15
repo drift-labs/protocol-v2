@@ -375,7 +375,6 @@ pub mod clearing_house {
                 last_funding_rate_long: 0,
                 last_funding_rate_short: 0,
                 last_funding_rate_ts: now,
-                last_funding_base_asset_amount_per_lp: 0,
                 funding_period: amm_periodicity,
                 last_oracle_price_twap,
                 last_mark_price_twap: init_mark_price,
@@ -808,7 +807,12 @@ pub mod clearing_house {
         )?;
 
         let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
-        burn_lp_shares(position, &mut market, shares_to_burn, oracle_price_data)?;
+        burn_lp_shares(
+            position,
+            &mut market,
+            shares_to_burn,
+            oracle_price_data.price,
+        )?;
 
         Ok(())
     }
@@ -1064,12 +1068,6 @@ pub mod clearing_house {
             &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
             remaining_accounts_iter,
         )?;
-        // let mut market_map = MarketMap::load(
-        //     &get_writable_markets_for_user_positions_and_order(
-        //         &load(&ctx.accounts.user)?.positions,
-        //         params.market_index),
-        //     remaining_accounts_iter,
-        // )?;
 
         let mut market_map = MarketMap::load(
             &get_writable_markets_for_user_positions_and_order(

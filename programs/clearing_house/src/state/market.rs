@@ -200,7 +200,6 @@ pub struct AMM {
     pub last_funding_rate_long: i128,
     pub last_funding_rate_short: i128,
     pub last_funding_rate_ts: i64,
-    pub last_funding_base_asset_amount_per_lp: i128,
     pub funding_period: i64,
     pub cumulative_funding_rate_long: i128,
     pub cumulative_funding_rate_short: i128,

@@ -3243,10 +3243,6 @@
             "type": "u128"
           },
           {
-            "name": "lastUnsettledPnlPerLp",
-            "type": "i128"
-          },
-          {
             "name": "lastNetBaseAssetAmountPerLp",
             "type": "i128"
           },
