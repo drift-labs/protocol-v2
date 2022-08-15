@@ -114,6 +114,10 @@ impl User {
             .position(|order| order.order_id == order_id)
             .ok_or(ErrorCode::OrderDoesNotExist)
     }
+
+    pub fn get_order(&self, order_id: u64) -> Option<&Order> {
+        self.orders.iter().find(|order| order.order_id == order_id)
+    }
 }
 
 #[zero_copy]

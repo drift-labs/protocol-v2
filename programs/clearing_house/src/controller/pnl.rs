@@ -14,7 +14,7 @@ use crate::validate;
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::prelude::*;
 use solana_program::msg;
-use std::ops::DerefMut;
+use std::ops::Deref;
 
 #[cfg(test)]
 mod tests;
@@ -37,7 +37,7 @@ pub fn settle_pnl(
     settle_funding_payment(
         user,
         user_key,
-        market_map.get_ref_mut(&market_index)?.deref_mut(),
+        market_map.get_ref(&market_index)?.deref(),
         now,
     )?;
 
@@ -51,12 +51,18 @@ pub fn settle_pnl(
     let bank = &mut bank_map.get_quote_asset_bank_mut()?;
     let market = &mut market_map.get_ref_mut(&market_index)?;
 
+    // todo, check amm updated
+    validate!(
+        (oracle_map.slot == market.amm.last_update_slot || market.amm.curve_update_intensity == 0),
+        ErrorCode::AMMNotUpdatedInSameSlot,
+        "AMM must be updated in a prior instruction within same slot"
+    )?;
+
     let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
     let user_unsettled_pnl: i128 =
         user.positions[position_index].get_unsettled_pnl(oracle_price)?;
 
     let pnl_to_settle_with_user = update_pool_balances(market, bank, user_unsettled_pnl)?;
-
     if user_unsettled_pnl == 0 {
         msg!("User has no unsettled pnl for market {}", market_index);
         return Ok(());

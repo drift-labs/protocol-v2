@@ -149,10 +149,6 @@
         {
           "name": "liquidationFee",
           "type": "u128"
-        },
-        {
-          "name": "perpMarketIndex",
-          "type": "u64"
         }
       ]
     },
@@ -1265,6 +1261,32 @@
       ]
     },
     {
+      "name": "updateBankWithdrawGuardThreshold",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "bank",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "withdrawGuardThreshold",
+          "type": "u128"
+        }
+      ]
+    },
+    {
       "name": "updateMarketImfFactor",
       "accounts": [
         {
@@ -1948,6 +1970,10 @@
             "type": "u128"
           },
           {
+            "name": "utilizationTwap",
+            "type": "u128"
+          },
+          {
             "name": "cumulativeDepositInterest",
             "type": "u128"
           },
@@ -1984,7 +2010,7 @@
             "type": "u128"
           },
           {
-            "name": "withdrawThreshold",
+            "name": "withdrawGuardThreshold",
             "type": "u128"
           }
         ]
@@ -3868,12 +3894,12 @@
           "index": false
         },
         {
-          "name": "makerUnsettledPnl",
+          "name": "makerPnl",
           "type": "i128",
           "index": false
         },
         {
-          "name": "takerUnsettledPnl",
+          "name": "takerPnl",
           "type": "i128",
           "index": false
         },
@@ -4009,6 +4035,46 @@
           "type": {
             "defined": "LiquidatePerpPnlForDepositRecord"
           },
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "SettlePnlRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "marketIndex",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "pnl",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "baseAssetAmount",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "quoteAssetAmountAfter",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "quoteEntryAmount",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "oraclePrice",
+          "type": "i128",
           "index": false
         }
       ]

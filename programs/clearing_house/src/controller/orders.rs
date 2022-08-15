@@ -64,7 +64,7 @@ pub fn place_order(
     controller::funding::settle_funding_payment(
         user,
         &user_key,
-        market_map.get_ref_mut(&params.market_index)?.deref_mut(),
+        market_map.get_ref(&params.market_index)?.deref(),
         now,
     )?;
 
@@ -324,7 +324,7 @@ pub fn cancel_order(
     controller::funding::settle_funding_payment(
         user,
         user_key,
-        market_map.get_ref_mut(&order_market_index)?.deref_mut(),
+        market_map.get_ref(&order_market_index)?.deref(),
         now,
     )?;
 
@@ -415,7 +415,7 @@ pub fn fill_order(
     controller::funding::settle_funding_payment(
         user,
         &user_key,
-        market_map.get_ref_mut(&market_index)?.deref_mut(),
+        market_map.get_ref(&market_index)?.deref(),
         now,
     )?;
 

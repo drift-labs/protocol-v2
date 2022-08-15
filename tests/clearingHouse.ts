@@ -274,7 +274,7 @@ describe('clearing_house', () => {
 			'getQuoteAssetTokenAmount:',
 			clearingHouse.getQuoteAssetTokenAmount().toString()
 		);
-		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9951996)));
+		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(10000000)));
 		assert(user.fees.totalFeePaid.eq(new BN(48004)));
 
 		assert.ok(user.positions[0].quoteEntryAmount.eq(new BN(-48004609)));
@@ -358,11 +358,12 @@ describe('clearing_house', () => {
 			user.positions[0].quoteEntryAmount.toNumber()
 		);
 
-		assert.ok(user.positions[0].quoteAssetAmount.eq(new BN(-24002305)));
+		assert.ok(user.positions[0].quoteAssetAmount.eq(new BN(-24073160)));
 		assert.ok(user.positions[0].quoteEntryAmount.eq(new BN(-24002305)));
 
 		assert.ok(user.positions[0].baseAssetAmount.eq(new BN(240000000000000)));
-		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9929145)));
+		console.log(clearingHouse.getQuoteAssetTokenAmount().toString());
+		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(10000000)));
 		assert(user.fees.totalFeePaid.eq(new BN(72007)));
 
 		const market = clearingHouse.getMarketAccount(0);

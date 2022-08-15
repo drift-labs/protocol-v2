@@ -220,17 +220,19 @@ pub fn check_withdraw_limits(bank: &Bank) -> ClearingHouseResult<bool> {
     let borrow_token_amount =
         get_token_amount(bank.borrow_balance, bank, &BankBalanceType::Borrow)?;
 
-    let max_borrow_token = (deposit_token_amount / 6)
-        .max(
-            bank.borrow_token_twap
-                .checked_add(bank.borrow_token_twap / 5)
-                .ok_or_else(math_error!())?,
-        )
-        .min(
-            deposit_token_amount
-                .checked_sub(deposit_token_amount / 10)
-                .ok_or_else(math_error!())?,
-        ); // between ~15-90% utilization with friction on twap
+    let max_borrow_token = bank.withdraw_guard_threshold.max(
+        (deposit_token_amount / 6)
+            .max(
+                bank.borrow_token_twap
+                    .checked_add(bank.borrow_token_twap / 5)
+                    .ok_or_else(math_error!())?,
+            )
+            .min(
+                deposit_token_amount
+                    .checked_sub(deposit_token_amount / 10)
+                    .ok_or_else(math_error!())?,
+            ),
+    ); // between ~15-90% utilization with friction on twap
 
     let min_deposit_token = bank
         .deposit_token_twap
@@ -241,6 +243,10 @@ pub fn check_withdraw_limits(bank: &Bank) -> ClearingHouseResult<bool> {
         .ok_or_else(math_error!())?;
     // friction to decrease utilization (if above withdraw guard threshold)
 
+    msg!(
+        "withdraw_guard_threshold={:?}",
+        bank.withdraw_guard_threshold
+    );
     msg!("min_deposit_token={:?}", min_deposit_token);
     msg!("deposit_token_amount={:?}", deposit_token_amount);
     msg!("max_borrow_token={:?}", max_borrow_token);
