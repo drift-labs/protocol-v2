@@ -1268,7 +1268,7 @@ pub fn resolve_perp_bankruptcy(
     validate!(
         !liquidator.being_liquidated,
         ErrorCode::UserIsBeingLiquidated,
-        "liquidator bankrupt",
+        "liquidator being liquidated",
     )?;
 
     validate!(
@@ -1375,7 +1375,7 @@ pub fn resolve_bank_bankruptcy(
     validate!(
         !liquidator.being_liquidated,
         ErrorCode::UserIsBeingLiquidated,
-        "liquidator bankrupt",
+        "liquidator being liquidated",
     )?;
 
     validate!(
