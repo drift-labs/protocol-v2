@@ -39,6 +39,27 @@ pub fn calculate_price(
         .try_to_u128()
 }
 
+pub fn calculate_bid_ask_bounds(sqrt_k: u128) -> ClearingHouseResult<(u128, u128)> {
+    let sqrt_2_percision = 10_000_u128;
+    let sqrt_2 = 14_142;
+
+    // worse case if all asks are filled (max reserve)
+    let ask_bounded_base = sqrt_k
+        .checked_mul(sqrt_2)
+        .ok_or_else(math_error!())?
+        .checked_div(sqrt_2_percision)
+        .ok_or_else(math_error!())?;
+
+    // worse case if all bids are filled (min reserve)
+    let bid_bounded_base = sqrt_k
+        .checked_mul(sqrt_2_percision)
+        .ok_or_else(math_error!())?
+        .checked_div(sqrt_2)
+        .ok_or_else(math_error!())?;
+
+    Ok((bid_bounded_base, ask_bounded_base))
+}
+
 pub fn calculate_terminal_price(market: &mut Market) -> ClearingHouseResult<u128> {
     let swap_direction = if market.amm.net_base_asset_amount > 0 {
         SwapDirection::Add
@@ -1115,6 +1136,11 @@ pub fn update_k(market: &mut Market, update_k_result: &UpdateKResult) -> Clearin
     )?;
 
     market.amm.terminal_quote_asset_reserve = new_terminal_quote_reserve;
+
+    let (min_base_asset_reserve, max_base_asset_reserve) =
+        calculate_bid_ask_bounds(market.amm.sqrt_k)?;
+    market.amm.min_base_asset_reserve = min_base_asset_reserve;
+    market.amm.max_base_asset_reserve = max_base_asset_reserve;
 
     Ok(())
 }

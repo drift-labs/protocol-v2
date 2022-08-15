@@ -37,7 +37,7 @@ pub fn compute_settle_lp_metrics(
     let (remainder_base_asset_amount, remainder_quote_asset_amount) =
         if standardized_base_asset_amount.unsigned_abs() >= min_baa {
             // compute quote amount in remainder
-            let remainder_ratio = cast_to_i128(
+            let _remainder_ratio = cast_to_i128(
                 remainder_base_asset_amount
                     .unsigned_abs()
                     .checked_mul(AMM_RESERVE_PRECISION)
@@ -115,20 +115,11 @@ pub fn get_lp_open_bids_asks(
     market_position: &MarketPosition,
     market: &Market,
 ) -> ClearingHouseResult<(i128, i128)> {
-    // TODO: make this a constant?
-    let sqrt_2_percision = 10_000_u128;
-    let sqrt_2 = 14142;
     let total_lp_shares = market.amm.sqrt_k;
     let lp_shares = market_position.lp_shares;
 
     // worse case if all asks are filled
-    let ask_bounded_k = market
-        .amm
-        .sqrt_k
-        .checked_mul(sqrt_2)
-        .ok_or_else(math_error!())?
-        .checked_div(sqrt_2_percision)
-        .ok_or_else(math_error!())?;
+    let ask_bounded_k = market.amm.max_base_asset_reserve;
 
     let max_asks = if ask_bounded_k > market.amm.base_asset_reserve {
         ask_bounded_k
@@ -141,13 +132,7 @@ pub fn get_lp_open_bids_asks(
     let open_asks = cast_to_i128(get_proportion_u128(max_asks, lp_shares, total_lp_shares)?)?;
 
     // worst case if all bids are filled (lp is now long)
-    let bids_bounded_k = market
-        .amm
-        .sqrt_k
-        .checked_mul(sqrt_2_percision)
-        .ok_or_else(math_error!())?
-        .checked_div(sqrt_2)
-        .ok_or_else(math_error!())?;
+    let bids_bounded_k = market.amm.min_base_asset_reserve;
 
     let max_bids = if bids_bounded_k < market.amm.base_asset_reserve {
         market

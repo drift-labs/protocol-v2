@@ -177,6 +177,8 @@ pub struct AMM {
 
     pub base_asset_reserve: u128,
     pub quote_asset_reserve: u128,
+    pub min_base_asset_reserve: u128,
+    pub max_base_asset_reserve: u128,
     pub sqrt_k: u128,
     pub peg_multiplier: u128,
 

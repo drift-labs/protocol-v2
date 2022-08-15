@@ -299,6 +299,9 @@ pub mod clearing_house {
             .checked_mul(bn::U192::from(amm_quote_asset_reserve))
             .ok_or_else(math_error!())?;
 
+        let (min_base_asset_reserve, max_base_asset_reserve) =
+            amm::calculate_bid_ask_bounds(amm_base_asset_reserve)?;
+
         // Verify oracle is readable
         let OraclePriceData {
             price: oracle_price,
@@ -378,6 +381,8 @@ pub mod clearing_house {
                 last_mark_price_twap: init_mark_price,
                 last_mark_price_twap_ts: now,
                 sqrt_k: amm_base_asset_reserve,
+                min_base_asset_reserve,
+                max_base_asset_reserve,
                 peg_multiplier: amm_peg_multiplier,
                 total_fee: 0,
                 total_fee_withdrawn: 0,
@@ -771,7 +776,7 @@ pub mod clearing_house {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
 
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
-        let bank_map = BankMap::load(&WritableBanks::new(), remaining_accounts_iter)?;
+        let _bank_map = BankMap::load(&WritableBanks::new(), remaining_accounts_iter)?;
 
         let market_map =
             MarketMap::load(&get_writable_markets(market_index), remaining_accounts_iter)?;

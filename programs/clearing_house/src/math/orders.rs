@@ -36,7 +36,33 @@ pub fn calculate_base_asset_amount_for_amm_to_fulfill(
     let max_base_asset_amount = calculate_max_base_asset_amount_fillable(&market.amm)?;
     msg!("max fillable {}", max_base_asset_amount);
 
-    let base_asset_amount = min(base_asset_amount, max_base_asset_amount);
+    let max_base_asset_amount_on_side = if order.direction == PositionDirection::Long {
+        if market.amm.max_base_asset_reserve > market.amm.base_asset_reserve {
+            market
+                .amm
+                .max_base_asset_reserve
+                .checked_sub(market.amm.base_asset_reserve)
+                .ok_or_else(math_error!())?
+        } else {
+            0
+        }
+    } else {
+        if market.amm.min_base_asset_reserve < market.amm.base_asset_reserve {
+            market
+                .amm
+                .base_asset_reserve
+                .checked_sub(market.amm.min_base_asset_reserve)
+                .ok_or_else(math_error!())?
+        } else {
+            0
+        }
+    };
+    msg!("max on side {}", max_base_asset_amount_on_side);
+
+    let base_asset_amount = min(
+        max_base_asset_amount_on_side,
+        min(base_asset_amount, max_base_asset_amount),
+    );
 
     Ok(base_asset_amount)
 }
