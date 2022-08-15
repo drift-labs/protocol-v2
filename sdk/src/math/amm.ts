@@ -33,11 +33,14 @@ export function calculatePegFromTargetPrice(
 	baseAssetReserve: BN,
 	quoteAssetReserve: BN
 ): BN {
-	return targetPrice
-		.mul(baseAssetReserve)
-		.div(quoteAssetReserve)
-		.add(PRICE_DIV_PEG.div(new BN(2)))
-		.div(PRICE_DIV_PEG);
+	return BN.max(
+		targetPrice
+			.mul(baseAssetReserve)
+			.div(quoteAssetReserve)
+			.add(PRICE_DIV_PEG.div(new BN(2)))
+			.div(PRICE_DIV_PEG),
+		ONE
+	);
 }
 
 export function calculateOptimalPegAndBudget(
