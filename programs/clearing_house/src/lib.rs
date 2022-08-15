@@ -1129,7 +1129,7 @@ pub mod clearing_house {
         exchange_not_paused(&ctx.accounts.state) &&
         admin_controls_prices(&ctx.accounts.state)
     )]
-    pub fn settle_expired_market(ctx: Context<MoveAMMPrice>, market_index: u64) -> Result<()> {
+    pub fn settle_expired_market(ctx: Context<UpdateAMM>, market_index: u64) -> Result<()> {
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
 
@@ -1194,6 +1194,8 @@ pub mod clearing_house {
     )]
     pub fn settle_expired_position(ctx: Context<SettlePNL>, market_index: u64) -> Result<()> {
         let clock = Clock::get()?;
+        let state = &ctx.accounts.state;
+
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
         let bank_map = BankMap::load(
@@ -1218,6 +1220,7 @@ pub mod clearing_house {
             &bank_map,
             &mut oracle_map,
             clock.unix_timestamp,
+            &state.fee_structure,
         )?;
 
         Ok(())

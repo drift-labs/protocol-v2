@@ -13,6 +13,7 @@ use crate::state::events::SettlePnlRecord;
 use crate::state::market::{MarketStatus, PoolBalance};
 use crate::state::market_map::MarketMap;
 use crate::state::oracle_map::OracleMap;
+use crate::state::state::FeeStructure;
 use crate::state::user::User;
 use crate::validate;
 use anchor_lang::prelude::Pubkey;
@@ -120,6 +121,7 @@ pub fn settle_expired_position(
     bank_map: &BankMap,
     oracle_map: &mut OracleMap,
     now: i64,
+    fee_structure: &FeeStructure,
 ) -> ClearingHouseResult {
     {
         let bank = &mut bank_map.get_quote_asset_bank_mut()?;
@@ -149,12 +151,24 @@ pub fn settle_expired_position(
     )?;
 
     let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
-    let (_, unrealized_pnl) = calculate_base_asset_value_and_pnl_with_oracle_price(
+    let (base_asset_value, unrealized_pnl) = calculate_base_asset_value_and_pnl_with_oracle_price(
         &user.positions[position_index],
         market.settlement_price,
     )?;
 
-    let pnl_to_settle_with_user = update_pnl_pool_balance(market, bank, unrealized_pnl)?;
+    let fee = base_asset_value
+        .checked_mul(fee_structure.fee_numerator)
+        .ok_or_else(math_error!())?
+        .checked_div(fee_structure.fee_denominator)
+        .ok_or_else(math_error!())?;
+
+    let pnl_to_settle_with_user = update_pnl_pool_balance(
+        market,
+        bank,
+        unrealized_pnl
+            .checked_sub(cast_to_i128(fee)?)
+            .ok_or_else(math_error!())?,
+    )?;
 
     if unrealized_pnl == 0 {
         msg!("User has no unsettled pnl for market {}", market_index);
