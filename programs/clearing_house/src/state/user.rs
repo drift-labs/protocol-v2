@@ -465,7 +465,7 @@ pub struct UserStats {
     pub authority: Pubkey,
     pub number_of_users: u8,
 
-    pub refferer: Pubkey,
+    pub referrer: Pubkey,
 
     // volume track
     pub maker_volume_30d: u64,
