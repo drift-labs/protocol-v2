@@ -381,8 +381,6 @@ export function calculateSpreadBN(
 		totalFeeMinusDistributions
 	);
 
-	console.log('effectiveLeverage:', effectiveLeverage);
-
 	if (totalFeeMinusDistributions.gt(ZERO)) {
 		const spreadScale = Math.min(MAX_INVENTORY_SKEW, 1 + effectiveLeverage);
 		if (netBaseAssetAmount.gt(ZERO)) {

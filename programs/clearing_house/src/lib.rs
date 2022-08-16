@@ -230,8 +230,7 @@ pub mod clearing_house {
         let bank = &mut ctx.accounts.bank.load_init()?;
         **bank = Bank {
             bank_index,
-            has_market: false,    //todo: need instr to set
-            perp_market_index: 0, //todo: need instr to set
+            perp_market_index: None,
             pubkey: bank_pubkey,
             mint: ctx.accounts.bank_mint.key(),
             vault: *ctx.accounts.bank_vault.to_account_info().key,
@@ -415,6 +414,7 @@ pub mod clearing_house {
                 curve_update_intensity: 0,
                 fee_pool: PoolBalance { balance: 0 },
                 last_update_slot: clock_slot,
+                last_oracle_valid: false,
                 padding0: 0,
                 padding1: 0,
                 padding2: 0,
@@ -561,8 +561,8 @@ pub mod clearing_house {
             )?;
 
             // prevents borrow when bank market's oracle invalid
-            if bank.has_market {
-                let bank_market = market_map.get_ref(&bank.perp_market_index)?;
+            if let Some(perp_market_index) = bank.perp_market_index {
+                let bank_market = market_map.get_ref(&perp_market_index)?;
                 controller::bank_balance::check_bank_market_valid(
                     &bank_market,
                     bank,
@@ -1682,7 +1682,8 @@ pub mod clearing_house {
         controller::repeg::_update_amm(market, oracle_price_data, state, now, clock_slot)?;
 
         validate!(
-            (clock_slot == market.amm.last_update_slot || market.amm.curve_update_intensity == 0),
+            ((clock_slot == market.amm.last_update_slot && market.amm.last_oracle_valid)
+                || market.amm.curve_update_intensity == 0),
             ErrorCode::AMMNotUpdatedInSameSlot,
             "AMM must be updated in a prior instruction within same slot"
         )?;
@@ -2131,7 +2132,7 @@ pub mod clearing_house {
         if minimum_trade_size > 0 {
             market.amm.base_asset_amount_step_size = minimum_trade_size;
         } else {
-            return Err(ErrorCode::InvalidUpdateK.into());
+            return Err(ErrorCode::DefaultError.into());
         }
         Ok(())
     }

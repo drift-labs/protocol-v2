@@ -105,10 +105,7 @@ pub fn calculate_spread(
         .ok_or_else(math_error!())?;
 
     let local_base_asset_value = net_base_asset_amount
-        .checked_mul(cast_to_i128(
-            mark_price, // .checked_div(MARK_PRICE_PRECISION / PEG_PRECISION)
-                       // .ok_or_else(math_error!())?,
-        )?)
+        .checked_mul(cast_to_i128(mark_price)?)
         .ok_or_else(math_error!())?
         .checked_div(AMM_TO_QUOTE_PRECISION_RATIO_I128 * MARK_PRICE_PRECISION_I128)
         .ok_or_else(math_error!())?;
@@ -319,11 +316,15 @@ pub fn update_oracle_price_twap(
             amm,
             now,
             capped_oracle_update_price,
-            amm.funding_period,
+            TwapPeriod::FundingPeriod,
         )?;
 
-        let oracle_price_twap_5min =
-            calculate_new_oracle_price_twap(amm, now, capped_oracle_update_price, 60 * 5)?;
+        let oracle_price_twap_5min = calculate_new_oracle_price_twap(
+            amm,
+            now,
+            capped_oracle_update_price,
+            TwapPeriod::FiveMin,
+        )?;
 
         amm.last_oracle_normalised_price = capped_oracle_update_price;
         amm.last_oracle_price = oracle_price_data.price;
@@ -347,21 +348,28 @@ pub fn update_oracle_price_twap(
     Ok(oracle_price_twap)
 }
 
+pub enum TwapPeriod {
+    FundingPeriod,
+    FiveMin,
+}
+
 pub fn calculate_new_oracle_price_twap(
     amm: &AMM,
     now: i64,
     oracle_price: i128,
-    period: i64,
+    twap_period: TwapPeriod,
 ) -> ClearingHouseResult<i128> {
-    let (last_mark_twap, last_oracle_twap) = if period == amm.funding_period {
-        (amm.last_mark_price_twap, amm.last_oracle_price_twap)
-    } else if period == 60 * 5 {
-        (
+    let (last_mark_twap, last_oracle_twap) = match twap_period {
+        TwapPeriod::FundingPeriod => (amm.last_mark_price_twap, amm.last_oracle_price_twap),
+        TwapPeriod::FiveMin => (
             amm.last_mark_price_twap_5min,
             amm.last_oracle_price_twap_5min,
-        )
-    } else {
-        (0, 0)
+        ),
+    };
+
+    let period: i64 = match twap_period {
+        TwapPeriod::FundingPeriod => amm.funding_period,
+        TwapPeriod::FiveMin => 60 * 5,
     };
 
     let since_last = cast_to_i128(max(

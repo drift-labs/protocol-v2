@@ -8,7 +8,6 @@ use crate::math::position::{
     calculate_base_asset_value_with_oracle_price,
 };
 use crate::math_error;
-// use crate::validate;
 
 use crate::state::user::User;
 

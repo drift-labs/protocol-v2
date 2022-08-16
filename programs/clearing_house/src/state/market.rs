@@ -227,6 +227,7 @@ pub struct AMM {
     pub net_revenue_since_last_funding: i64,
     pub fee_pool: PoolBalance,
     pub last_update_slot: u64,
+    pub last_oracle_valid: bool,
 
     pub padding0: u16,
     pub padding1: u32,

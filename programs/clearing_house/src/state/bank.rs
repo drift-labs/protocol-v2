@@ -21,8 +21,7 @@ use solana_program::msg;
 #[repr(packed)]
 pub struct Bank {
     pub bank_index: u64,
-    pub has_market: bool,
-    pub perp_market_index: u64, // todo: market pubkey instead?
+    pub perp_market_index: Option<u64>, // todo: market pubkey instead?
     pub pubkey: Pubkey,
     pub oracle: Pubkey,
     pub oracle_source: OracleSource,

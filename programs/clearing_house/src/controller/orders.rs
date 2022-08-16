@@ -446,7 +446,8 @@ pub fn fill_order(
     {
         let market = &mut market_map.get_ref_mut(&market_index)?;
         validate!(
-            (slot == market.amm.last_update_slot || market.amm.curve_update_intensity == 0),
+            ((oracle_map.slot == market.amm.last_update_slot && market.amm.last_oracle_valid)
+                || market.amm.curve_update_intensity == 0),
             ErrorCode::AMMNotUpdatedInSameSlot,
             "AMM must be updated in a prior instruction within same slot"
         )?;
@@ -579,7 +580,6 @@ pub fn fill_order(
     {
         let market = market_map.get_ref_mut(&market_index)?;
         mark_price_after = market.amm.mark_price()?;
-        // let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
         oracle_mark_spread_pct_after =
             amm::calculate_oracle_twap_5min_mark_spread_pct(&market.amm, Some(mark_price_after))?;
     }

@@ -53,7 +53,8 @@ pub fn settle_pnl(
 
     // todo, check amm updated
     validate!(
-        (oracle_map.slot == market.amm.last_update_slot || market.amm.curve_update_intensity == 0),
+        ((oracle_map.slot == market.amm.last_update_slot && market.amm.last_oracle_valid)
+            || market.amm.curve_update_intensity == 0),
         ErrorCode::AMMNotUpdatedInSameSlot,
         "AMM must be updated in a prior instruction within same slot"
     )?;

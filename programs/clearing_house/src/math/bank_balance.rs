@@ -243,14 +243,19 @@ pub fn check_withdraw_limits(bank: &Bank) -> ClearingHouseResult<bool> {
         .ok_or_else(math_error!())?;
     // friction to decrease utilization (if above withdraw guard threshold)
 
-    msg!(
-        "withdraw_guard_threshold={:?}",
-        bank.withdraw_guard_threshold
-    );
-    msg!("min_deposit_token={:?}", min_deposit_token);
-    msg!("deposit_token_amount={:?}", deposit_token_amount);
-    msg!("max_borrow_token={:?}", max_borrow_token);
-    msg!("borrow_token_amount={:?}", borrow_token_amount);
+    let valid_withdrawal =
+        deposit_token_amount >= min_deposit_token && borrow_token_amount <= max_borrow_token;
 
-    Ok(deposit_token_amount >= min_deposit_token && borrow_token_amount <= max_borrow_token)
+    if !valid_withdrawal {
+        msg!(
+            "withdraw_guard_threshold={:?}",
+            bank.withdraw_guard_threshold
+        );
+        msg!("min_deposit_token={:?}", min_deposit_token);
+        msg!("deposit_token_amount={:?}", deposit_token_amount);
+        msg!("max_borrow_token={:?}", max_borrow_token);
+        msg!("borrow_token_amount={:?}", borrow_token_amount);
+    }
+
+    Ok(valid_withdrawal)
 }

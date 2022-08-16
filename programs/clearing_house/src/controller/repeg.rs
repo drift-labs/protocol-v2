@@ -158,15 +158,10 @@ pub fn _update_amm(
     )?;
 
     if is_oracle_valid {
-        // cannot update market
         market.amm.last_update_slot = clock_slot;
-    } else if market.amm.last_update_slot == clock_slot {
-        // in order to block if oracle becomes invalid within same slot as another update
-        market.amm.last_update_slot = market
-            .amm
-            .last_update_slot
-            .checked_sub(1)
-            .ok_or_else(math_error!())?;
+        market.amm.last_oracle_valid = true;
+    } else {
+        market.amm.last_oracle_valid = false;
     }
 
     update_spreads(&mut market.amm, mark_price_after)?;

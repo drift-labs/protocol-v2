@@ -176,8 +176,8 @@ describe('prepeg', () => {
 			);
 
 		const [
-			acquiredBaseReserve,
-			acquiredQuoteReserve,
+			_acquiredBaseReserve,
+			_acquiredQuoteReserve,
 			acquiredQuoteAssetAmount,
 		] = calculateTradeAcquiredAmounts(
 			direction,
@@ -186,19 +186,6 @@ describe('prepeg', () => {
 			'base',
 			oraclePriceData
 		);
-
-		// off by 1..
-		// const acquiredQuote = _entryPrice
-		// 	.mul(baseAssetAmount.abs())
-		// 	.div(AMM_TO_QUOTE_PRECISION_RATIO)
-		// 	.div(MARK_PRICE_PRECISION);
-
-		// console.log(
-		// 	'est acquiredQuote:',
-		// 	acquiredQuote.toNumber(),
-		// 	acquiredQuoteAssetAmount.toNumber()
-		// );
-		// assert(acquiredQuoteAssetAmount.eq(acquiredQuote));
 
 		const [bid, ask] = calculateBidAskPrice(market0.amm, oraclePriceData);
 

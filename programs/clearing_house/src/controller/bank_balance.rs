@@ -7,7 +7,7 @@ use crate::math::bank_balance::{
     InterestAccumulated,
 };
 use crate::math::casting::{cast, cast_to_i128, cast_to_u64};
-use crate::math::constants::TWENTYFOUR_HOUR;
+use crate::math::constants::TWENTY_FOUR_HOUR;
 use crate::math_error;
 use crate::state::bank::{Bank, BankBalance, BankBalanceType};
 use crate::state::market::Market;
@@ -22,7 +22,7 @@ pub fn update_bank_twap_stats(bank: &mut Bank, utilization: u128, now: i64) -> C
     ))?;
     let from_start = max(
         1,
-        cast_to_i128(TWENTYFOUR_HOUR)?
+        cast_to_i128(TWENTY_FOUR_HOUR)?
             .checked_sub(since_last)
             .ok_or_else(math_error!())?,
     );
@@ -169,10 +169,10 @@ pub fn check_bank_market_valid(
     bank_balance: &mut dyn BankBalance,
     current_slot: u64,
 ) -> ClearingHouseResult {
-    if bank.has_market
-        && market.amm.oracle == bank.oracle
+    if market.amm.oracle == bank.oracle
         && bank_balance.balance_type() == &BankBalanceType::Borrow
-        && market.amm.last_update_slot != current_slot
+        && market.amm.last_update_slot == current_slot
+        && market.amm.last_oracle_valid
     {
         return Err(ErrorCode::InvalidOracle);
     }

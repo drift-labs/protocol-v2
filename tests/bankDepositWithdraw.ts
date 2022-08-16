@@ -36,7 +36,7 @@ import {
 	getTokenAmount,
 } from '../sdk/src/math/bankBalance';
 import { NATIVE_MINT } from '@solana/spl-token';
-import { ONE, QUOTE_PRECISION, ZERO } from '../sdk';
+import { QUOTE_PRECISION, ZERO } from '../sdk';
 
 describe('bank deposit and withdraw', () => {
 	const provider = anchor.AnchorProvider.local();

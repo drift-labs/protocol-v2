@@ -7,7 +7,7 @@ use crate::math::constants::{
     AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128, AMM_TO_QUOTE_PRECISION_RATIO_I128,
     BID_ASK_SPREAD_PRECISION, MARK_PRICE_PRECISION_I128, ONE_HOUR, PRICE_TO_PEG_PRECISION_RATIO,
     SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_DENOMINATOR,
-    SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR, TWENTYFOUR_HOUR,
+    SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR, TWENTY_FOUR_HOUR,
 };
 use crate::math::position::_calculate_base_asset_value_and_pnl;
 use crate::math_error;
@@ -503,7 +503,7 @@ pub fn calculate_expected_excess_funding_payment(
         .ok_or_else(math_error!())?;
 
     let period_adjustment = cast_to_i128(
-        TWENTYFOUR_HOUR
+        TWENTY_FOUR_HOUR
             .checked_div(max(ONE_HOUR as i64, market.amm.funding_period))
             .ok_or_else(math_error!())?,
     )?;
