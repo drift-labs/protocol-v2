@@ -217,8 +217,7 @@ pub fn apply_cost_to_market(
 mod test {
     use super::*;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, BID_ASK_SPREAD_PRECISION, MARK_PRICE_PRECISION,
-        MARK_PRICE_PRECISION_I128,
+        AMM_RESERVE_PRECISION, MARK_PRICE_PRECISION, MARK_PRICE_PRECISION_I128,
     };
     use crate::state::market::AMM;
     use crate::state::state::{PriceDivergenceGuardRails, ValidityGuardRails};
@@ -383,7 +382,7 @@ mod test {
         };
 
         let cost_of_update =
-            update_amm(&mut market, &oracle_price_data, &state, now, slot).unwrap();
+            _update_amm(&mut market, &oracle_price_data, &state, now, slot).unwrap();
         assert!(market.amm.last_update_slot == 0);
 
         let is_oracle_valid = amm::is_oracle_valid(

@@ -169,10 +169,10 @@ pub fn check_bank_market_valid(
     bank_balance: &mut dyn BankBalance,
     current_slot: u64,
 ) -> ClearingHouseResult {
-    if market.amm.oracle == bank.oracle
+    if bank.perp_market_index != None
+        && market.amm.oracle == bank.oracle
         && bank_balance.balance_type() == &BankBalanceType::Borrow
-        && market.amm.last_update_slot == current_slot
-        && market.amm.last_oracle_valid
+        && (market.amm.last_update_slot != current_slot || !market.amm.last_oracle_valid)
     {
         return Err(ErrorCode::InvalidOracle);
     }
@@ -229,13 +229,12 @@ fn decrease_bank_balance(
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::controller::position::PositionDirection;
     use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BANK_CUMULATIVE_INTEREST_PRECISION, BANK_INTEREST_PRECISION,
-        BANK_WEIGHT_PRECISION, BASE_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION,
-        PEG_PRECISION, QUOTE_PRECISION, QUOTE_PRECISION_I128,
+        BANK_WEIGHT_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION, PEG_PRECISION,
+        QUOTE_PRECISION, QUOTE_PRECISION_I128,
     };
     use crate::state::bank::{Bank, BankBalanceType};
     use crate::state::bank_map::BankMap;
@@ -243,9 +242,7 @@ mod test {
     use crate::state::market_map::MarketMap;
     use crate::state::oracle::OracleSource;
     use crate::state::oracle_map::OracleMap;
-    use crate::state::user::{
-        MarketPosition, Order, OrderStatus, OrderType, User, UserBankBalance,
-    };
+    use crate::state::user::{MarketPosition, Order, User, UserBankBalance};
     use crate::tests::utils::get_pyth_price;
     use crate::tests::utils::*;
     use anchor_lang::Owner;
@@ -518,8 +515,7 @@ mod test {
         assert_eq!(sol_bank.deposit_token_twap, 500067287978);
         assert_eq!(sol_bank.borrow_token_twap, 80072095947);
 
-        sol_bank.has_market = true;
-        sol_bank.perp_market_index = 1;
+        sol_bank.perp_market_index = Some(1);
         update_bank_balances_with_limits(
             100000 * 100000,
             &BankBalanceType::Borrow,
@@ -536,15 +532,16 @@ mod test {
             &mut user.bank_balances[1],
             8009 as u64
         )
-        .is_err(),);
+        .is_err());
 
         // ok to withdraw when market is valid
         market.amm.last_update_slot = 8009;
+        market.amm.last_oracle_valid = true;
         check_bank_market_valid(&market, &sol_bank, &mut user.bank_balances[1], 8009 as u64)
             .unwrap();
 
         // passes when market isnt set
-        sol_bank.has_market = false;
+        sol_bank.perp_market_index = None;
         check_bank_market_valid(
             &market,
             &sol_bank,
@@ -554,7 +551,7 @@ mod test {
         .unwrap();
 
         // ok to deposit when market is invalid
-        sol_bank.has_market = true;
+        sol_bank.perp_market_index = Some(1);
         update_bank_balances_with_limits(
             100000 * 100000 * 100,
             &BankBalanceType::Deposit,

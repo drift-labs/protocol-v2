@@ -53,9 +53,7 @@ pub fn get_oracle_status<'a>(
 mod test {
     use super::*;
     use crate::math::amm::update_oracle_price_twap;
-    use crate::math::constants::{
-        AMM_RESERVE_PRECISION, BID_ASK_SPREAD_PRECISION, MARK_PRICE_PRECISION, PEG_PRECISION,
-    };
+    use crate::math::constants::{AMM_RESERVE_PRECISION, MARK_PRICE_PRECISION, PEG_PRECISION};
     use crate::state::state::{
         OracleGuardRails, PriceDivergenceGuardRails, State, ValidityGuardRails,
     };
