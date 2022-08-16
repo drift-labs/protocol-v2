@@ -1900,12 +1900,10 @@
             "type": "u64"
           },
           {
-            "name": "hasMarket",
-            "type": "bool"
-          },
-          {
             "name": "perpMarketIndex",
-            "type": "u64"
+            "type": {
+              "option": "u64"
+            }
           },
           {
             "name": "pubkey",
@@ -2838,6 +2836,10 @@
             "type": "u64"
           },
           {
+            "name": "lastOracleValid",
+            "type": "bool"
+          },
+          {
             "name": "padding0",
             "type": "u16"
           },
@@ -3356,6 +3358,20 @@
           },
           {
             "name": "Flip"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TwapPeriod",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "FundingPeriod"
+          },
+          {
+            "name": "FiveMin"
           }
         ]
       }

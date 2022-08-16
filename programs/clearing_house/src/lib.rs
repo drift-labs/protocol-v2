@@ -131,6 +131,14 @@ pub mod clearing_house {
             return Err(ErrorCode::InvalidBankAuthority.into());
         }
 
+        validate!(
+            optimal_utilization <= BANK_UTILIZATION_PRECISION,
+            ErrorCode::InvalidBankInitialization,
+            "For bank, optimal_utilization must be < {}",
+            BANK_UTILIZATION_PRECISION
+        )?;
+
+
         let bank_index = get_then_update_id!(state, number_of_banks);
         if bank_index == 0 {
             validate!(
@@ -232,6 +240,8 @@ pub mod clearing_house {
             bank_index,
             perp_market_index: None,
             pubkey: bank_pubkey,
+            oracle: ctx.accounts.oracle.key(),
+            oracle_source,
             mint: ctx.accounts.bank_mint.key(),
             vault: *ctx.accounts.bank_vault.to_account_info().key,
             vault_authority,
@@ -249,8 +259,6 @@ pub mod clearing_house {
             cumulative_borrow_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
             last_updated: cast(Clock::get()?.unix_timestamp)
                 .or(Err(ErrorCode::UnableToCastUnixTime))?,
-            oracle_source,
-            oracle: ctx.accounts.oracle.key(),
             initial_asset_weight,
             maintenance_asset_weight,
             initial_liability_weight,
