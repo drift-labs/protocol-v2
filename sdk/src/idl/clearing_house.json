@@ -1900,12 +1900,6 @@
             "type": "u64"
           },
           {
-            "name": "perpMarketIndex",
-            "type": {
-              "option": "u64"
-            }
-          },
-          {
             "name": "pubkey",
             "type": "publicKey"
           },

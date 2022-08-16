@@ -169,8 +169,9 @@ pub fn check_bank_market_valid(
     bank_balance: &mut dyn BankBalance,
     current_slot: u64,
 ) -> ClearingHouseResult {
-    if bank.perp_market_index != None
-        && market.amm.oracle == bank.oracle
+    // todo
+
+    if market.amm.oracle == bank.oracle
         && bank_balance.balance_type() == &BankBalanceType::Borrow
         && (market.amm.last_update_slot != current_slot || !market.amm.last_oracle_valid)
     {
@@ -515,7 +516,6 @@ mod test {
         assert_eq!(sol_bank.deposit_token_twap, 500067287978);
         assert_eq!(sol_bank.borrow_token_twap, 80072095947);
 
-        sol_bank.perp_market_index = Some(1);
         update_bank_balances_with_limits(
             100000 * 100000,
             &BankBalanceType::Borrow,
@@ -540,18 +540,7 @@ mod test {
         check_bank_market_valid(&market, &sol_bank, &mut user.bank_balances[1], 8009 as u64)
             .unwrap();
 
-        // passes when market isnt set
-        sol_bank.perp_market_index = None;
-        check_bank_market_valid(
-            &market,
-            &sol_bank,
-            &mut user.bank_balances[1],
-            100000 as u64,
-        )
-        .unwrap();
-
         // ok to deposit when market is invalid
-        sol_bank.perp_market_index = Some(1);
         update_bank_balances_with_limits(
             100000 * 100000 * 100,
             &BankBalanceType::Deposit,
@@ -559,6 +548,7 @@ mod test {
             &mut user.bank_balances[1],
         )
         .unwrap();
+
         check_bank_market_valid(
             &market,
             &sol_bank,

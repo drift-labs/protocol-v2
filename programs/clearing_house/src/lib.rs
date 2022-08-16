@@ -138,7 +138,6 @@ pub mod clearing_house {
             BANK_UTILIZATION_PRECISION
         )?;
 
-
         let bank_index = get_then_update_id!(state, number_of_banks);
         if bank_index == 0 {
             validate!(
@@ -238,7 +237,6 @@ pub mod clearing_house {
         let bank = &mut ctx.accounts.bank.load_init()?;
         **bank = Bank {
             bank_index,
-            perp_market_index: None,
             pubkey: bank_pubkey,
             oracle: ctx.accounts.oracle.key(),
             oracle_source,
@@ -568,17 +566,7 @@ pub mod clearing_house {
                 user_bank_balance,
             )?;
 
-            // prevents borrow when bank market's oracle invalid
-            if let Some(perp_market_index) = bank.perp_market_index {
-                let bank_market = market_map.get_ref(&perp_market_index)?;
-                controller::bank_balance::check_bank_market_valid(
-                    &bank_market,
-                    bank,
-                    user_bank_balance,
-                    clock.slot,
-                )?;
-            }
-
+            // todo: prevents borrow when bank market's oracle invalid
             amount
         };
 
