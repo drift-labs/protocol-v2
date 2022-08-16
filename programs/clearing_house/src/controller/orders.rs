@@ -24,6 +24,7 @@ use crate::math::matching::{
     are_orders_same_market_but_different_sides, calculate_fill_for_matched_orders, do_orders_cross,
     is_maker_for_taker,
 };
+use crate::math::constants::{ONE_HOUR_I128};
 use crate::math::{amm, fees, margin::*, orders::*};
 use crate::math_error;
 use crate::order_validation::validate_order;
@@ -456,6 +457,14 @@ pub fn fill_order(
             ErrorCode::AMMNotUpdatedInSameSlot,
             "AMM must be updated in a prior instruction within same slot"
         )?;
+
+        if market.expiry_ts != 0 {
+            if market.expiry_ts <= now {
+                market.status = MarketStatus::Settlement;
+            } else if market.expiry_ts.checked_sub(now).ok_or_else(math_error!())? < ONE_HOUR_I128 as i64 {
+                market.status = MarketStatus::ReduceOnly;
+            }
+        }
 
         validate!(
             (market.status != MarketStatus::Settlement),
