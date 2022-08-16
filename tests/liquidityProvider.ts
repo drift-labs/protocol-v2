@@ -344,13 +344,13 @@ describe('liquidity providing', () => {
 
 		// assert(lpPosition.lpShares.eq(new BN(0)));
 		assert(user.positions[0].baseAssetAmount.eq(new BN(10000000000000))); // lp is long
-		assert(user.positions[0].quoteAssetAmount.eq(new BN(-986880)));
+		assert(user.positions[0].quoteAssetAmount.eq(new BN(-1233600)));
 		// assert(user.positions[0].unsettledPnl.eq(new BN(900)));
 		// remainder goes into the last
 		assert(
 			user.positions[0].lastNetBaseAssetAmountPerLp.eq(new BN(100000000000))
 		);
-		assert(user.positions[0].lastNetQuoteAssetAmountPerLp.eq(new BN(-9869)));
+		assert(user.positions[0].lastNetQuoteAssetAmountPerLp.eq(new BN(-12336)));
 
 		market = await clearingHouse.getMarketAccount(ZERO);
 		console.log(
@@ -688,15 +688,12 @@ describe('liquidity providing', () => {
 			// lpPosition.unsettledPnl.toString()
 		);
 
-		// assert(lpPosition.unsettledPnl.eq(new BN(-226921))); // get paid fees
 		assert(lpTokenAmount.eq(new BN(0)));
 		assert(user.positions[0].baseAssetAmount.eq(new BN('100000000000000'))); // lp is long
-		assert(user.positions[0].baseAssetAmount.eq(new BN('100000000000000'))); // lp is long
-		assert(user.positions[0].quoteAssetAmount.eq(new BN(-9299501)));
+		assert(user.positions[0].quoteAssetAmount.eq(new BN(-9550786)));
 
 		console.log('closing trader ...');
 		await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);
-		// await traderClearingHouse.closePosition(new BN(0));
 		await fullClosePosition(
 			traderClearingHouse,
 			traderUserAccount.positions[0]
@@ -709,7 +706,6 @@ describe('liquidity providing', () => {
 			SwapDirection.ADD,
 			market
 		);
-		// await clearingHouse.closePosition(new BN(0)); // close lp position
 		await fullClosePosition(clearingHouse, user.positions[0]);
 
 		const user2 = clearingHouseUser.getUserAccount();
@@ -775,9 +771,7 @@ describe('liquidity providing', () => {
 
 		assert(lpTokenAmount.eq(ZERO));
 		assert(user.positions[0].baseAssetAmount.eq(new BN('-100000000000000'))); // lp is short
-		assert(user.positions[0].quoteAssetAmount.eq(new BN('12192024')));
-		// TODO qae is negative?
-		// assert(lpPosition.unsettledPnl.eq(new BN(10111223))); // get paid fees
+		assert(user.positions[0].quoteAssetAmount.eq(new BN('11940739')));
 
 		console.log('closing trader...');
 		await adjustOraclePostSwap(tradeSize, SwapDirection.ADD, market);
@@ -838,7 +832,7 @@ describe('liquidity providing', () => {
 		const baa0 = position0.baseAssetAmount;
 		const qaa0 = position0.quoteAssetAmount;
 		assert(baa0.eq(ZERO));
-		assert(qaa0.eq(new BN('2489023')));
+		assert(qaa0.eq(new BN('2237738')));
 
 		console.log('user trading...');
 		const tradeSize = new BN(40 * 1e13);
@@ -883,7 +877,7 @@ describe('liquidity providing', () => {
 		const baa = user.positions[0].baseAssetAmount;
 		const qaa = user.positions[0].quoteAssetAmount;
 		assert(baa.eq(new BN(100000000000000)));
-		assert(qaa.eq(new BN(-6604078)));
+		assert(qaa.eq(new BN(-6860363)));
 
 		console.log('removing the other half of liquidity');
 		await clearingHouse.removeLiquidity(market.marketIndex, otherHalfShares);
@@ -911,7 +905,6 @@ describe('liquidity providing', () => {
 		await adjustOraclePostSwap(baa, SwapDirection.ADD, market);
 		await fullClosePosition(clearingHouse, user.positions[0]);
 	});
-
 	return;
 
 	it('lp gets paid in funding (todo)', async () => {

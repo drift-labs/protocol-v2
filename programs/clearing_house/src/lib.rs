@@ -809,7 +809,12 @@ pub mod clearing_house {
         )?;
 
         let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
-        burn_lp_shares(position, &mut market, shares_to_burn, oracle_price_data.price)?;
+        burn_lp_shares(
+            position,
+            &mut market,
+            shares_to_burn,
+            oracle_price_data.price,
+        )?;
 
         Ok(())
     }

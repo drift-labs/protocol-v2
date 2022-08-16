@@ -401,10 +401,15 @@ export class ClearingHouse {
 		);
 	}
 
-	getRemainingAccounts(params: {
-		writableMarketIndex?: BN;
-		writableBankIndex?: BN;
-	}): AccountMeta[] {
+	getRemainingAccounts(
+		params: {
+			writableMarketIndex?: BN;
+			writableBankIndex?: BN;
+		},
+		includeOracles = true,
+		includeBanks = true,
+		includeMarkets = true
+	): AccountMeta[] {
 		const userAccountAndSlot = this.getUserAccountAndSlot();
 		if (!userAccountAndSlot) {
 			throw Error(
@@ -505,11 +510,18 @@ export class ClearingHouse {
 			}
 		}
 
-		return [
-			...oracleAccountMap.values(),
-			...bankAccountMap.values(),
-			...marketAccountMap.values(),
-		];
+		const remainingAccounts = [];
+		if (includeOracles) {
+			remainingAccounts.push(...oracleAccountMap.values());
+		}
+		if (includeBanks) {
+			remainingAccounts.push(...bankAccountMap.values());
+		}
+		if (includeMarkets) {
+			remainingAccounts.push(...marketAccountMap.values());
+		}
+
+		return remainingAccounts;
 	}
 
 	public getOrder(orderId: BN | number): Order | undefined {
@@ -1114,39 +1126,12 @@ export class ClearingHouse {
 	): Promise<TransactionInstruction> {
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 
-		const user = this.getUserAccount();
-		const userPositions = user.positions;
-
-		let foundMarket = false;
-		const remainingAccounts = [];
-		for (const position of userPositions) {
-			if (!positionIsAvailable(position)) {
-				const marketPublicKey = await getMarketPublicKey(
-					this.program.programId,
-					position.marketIndex
-				);
-				remainingAccounts.push({
-					pubkey: marketPublicKey,
-					isWritable: true,
-					isSigner: false,
-				});
-				if (position.marketIndex.eq(marketIndex)) {
-					foundMarket = true;
-				}
-			}
-		}
-
-		if (!foundMarket) {
-			const marketPublicKey = await getMarketPublicKey(
-				this.program.programId,
-				marketIndex
-			);
-			remainingAccounts.push({
-				pubkey: marketPublicKey,
-				isWritable: true,
-				isSigner: false,
-			});
-		}
+		const remainingAccounts = this.getRemainingAccounts(
+			{ writableMarketIndex: marketIndex },
+			true,
+			false,
+			true
+		);
 
 		if (sharesToBurn == undefined) {
 			const userAccount = this.getUserAccount();
