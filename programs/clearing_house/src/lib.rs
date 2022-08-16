@@ -736,7 +736,7 @@ pub mod clearing_house {
             remaining_accounts_iter,
         )?;
         {
-            let mut market = market_map.get_ref_mut(&market_index)?;
+            let market = market_map.get_ref_mut(&market_index)?;
             controller::funding::settle_funding_payment(user, &user_key, &market, now)?;
         }
 
@@ -772,7 +772,7 @@ pub mod clearing_house {
             remaining_accounts_iter,
         )?;
         {
-            let mut market = market_map.get_ref_mut(&market_index)?;
+            let market = market_map.get_ref_mut(&market_index)?;
             controller::funding::settle_funding_payment(user, &user_key, &market, now)?;
         }
 
@@ -833,7 +833,7 @@ pub mod clearing_house {
         )?;
 
         {
-            let mut market = market_map.get_ref_mut(&market_index)?;
+            let market = market_map.get_ref_mut(&market_index)?;
             controller::funding::settle_funding_payment(user, &user_key, &market, now)?;
         }
 
