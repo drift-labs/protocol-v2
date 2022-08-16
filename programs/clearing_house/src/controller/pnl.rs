@@ -59,6 +59,12 @@ pub fn settle_pnl(
     let bank = &mut bank_map.get_quote_asset_bank_mut()?;
     let market = &mut market_map.get_ref_mut(&market_index)?;
 
+    validate!(
+        market.status == MarketStatus::Initialized,
+        ErrorCode::DefaultError,
+        "Cannot settle pnl under current market status"
+    )?;
+
     let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
     let user_unsettled_pnl: i128 =
         user.positions[position_index].get_unsettled_pnl(oracle_price)?;
@@ -149,7 +155,7 @@ pub fn settle_expired_position(
     let market = &mut market_map.get_ref_mut(&market_index)?;
     validate!(
         market.status == MarketStatus::Settlement,
-        ErrorCode::InvalidUpdateK,
+        ErrorCode::DefaultError,
         "Market isn't in settlement"
     )?;
 

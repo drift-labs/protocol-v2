@@ -1,3 +1,4 @@
+use crate::state::market::MarketStatus;
 use crate::state::oracle_map::OracleMap;
 use crate::state::state::FeeStructure;
 use crate::state::user::{MarketPosition, Order};
@@ -1401,7 +1402,7 @@ pub mod fulfill_order {
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-            initialized: true,
+            status: MarketStatus::Initialized,
             ..Market::default()
         };
         create_anchor_account_info!(market, Market, market_account_info);
@@ -1539,7 +1540,7 @@ pub mod fulfill_order {
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-            initialized: true,
+            status: MarketStatus::Initialized,
             ..Market::default()
         };
         create_anchor_account_info!(market, Market, market_account_info);
@@ -1702,7 +1703,7 @@ pub mod fulfill_order {
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-            initialized: true,
+            status: MarketStatus::Initialized,
             ..Market::default()
         };
         create_anchor_account_info!(market, Market, market_account_info);
@@ -1814,7 +1815,7 @@ pub mod fulfill_order {
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-            initialized: true,
+            status: MarketStatus::Initialized,
             ..Market::default()
         };
         create_anchor_account_info!(market, Market, market_account_info);
@@ -1957,7 +1958,7 @@ pub mod fulfill_order {
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-            initialized: true,
+            status: MarketStatus::Initialized,
             ..Market::default()
         };
         create_anchor_account_info!(sol_market, Market, sol_market_account_info);
@@ -1975,7 +1976,7 @@ pub mod fulfill_order {
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-            initialized: true,
+            status: MarketStatus::Initialized,
             market_index: 1,
             ..Market::default()
         };
@@ -2238,7 +2239,7 @@ pub mod fill_order {
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-            initialized: true,
+            status: MarketStatus::Initialized,
             ..Market::default()
         };
         create_anchor_account_info!(market, Market, market_account_info);
@@ -2343,7 +2344,7 @@ pub mod fill_order {
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-            initialized: true,
+            status: MarketStatus::Initialized,
             ..Market::default()
         };
         create_anchor_account_info!(market, Market, market_account_info);

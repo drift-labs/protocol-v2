@@ -10,7 +10,7 @@ pub mod liquidate_perp {
     };
     use crate::state::bank::{Bank, BankBalanceType};
     use crate::state::bank_map::BankMap;
-    use crate::state::market::{Market, AMM};
+    use crate::state::market::{Market, MarketStatus, AMM};
     use crate::state::market_map::MarketMap;
     use crate::state::oracle::OracleSource;
     use crate::state::oracle_map::OracleMap;
@@ -61,7 +61,7 @@ pub mod liquidate_perp {
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             open_interest: 1,
-            initialized: true,
+            status: MarketStatus::Initialized,
             liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..Market::default()
         };
@@ -189,7 +189,7 @@ pub mod liquidate_perp {
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             open_interest: 1,
-            initialized: true,
+            status: MarketStatus::Initialized,
             liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..Market::default()
         };
@@ -317,7 +317,7 @@ pub mod liquidate_perp {
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             open_interest: 1,
-            initialized: true,
+            status: MarketStatus::Initialized,
             liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..Market::default()
         };
@@ -437,7 +437,7 @@ pub mod liquidate_perp {
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             open_interest: 1,
-            initialized: true,
+            status: MarketStatus::Initialized,
             liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..Market::default()
         };
@@ -560,7 +560,7 @@ pub mod liquidate_perp {
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             open_interest: 1,
-            initialized: true,
+            status: MarketStatus::Initialized,
             liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..Market::default()
         };
@@ -658,6 +658,7 @@ pub mod liquidate_borrow {
     };
     use crate::state::bank::{Bank, BankBalanceType};
     use crate::state::bank_map::BankMap;
+    use crate::state::market::{Market, MarketStatus, AMM};
     use crate::state::market_map::MarketMap;
     use crate::state::oracle::OracleSource;
     use crate::state::oracle_map::OracleMap;
@@ -1016,7 +1017,7 @@ pub mod liquidate_borrow_for_perp_pnl {
     };
     use crate::state::bank::{Bank, BankBalanceType};
     use crate::state::bank_map::BankMap;
-    use crate::state::market::{Market, AMM};
+    use crate::state::market::{Market, MarketStatus, AMM};
     use crate::state::market_map::MarketMap;
     use crate::state::oracle::OracleSource;
     use crate::state::oracle_map::OracleMap;
@@ -1067,7 +1068,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             unsettled_initial_asset_weight: 80,
             unsettled_maintenance_asset_weight: 90,
             open_interest: 1,
-            initialized: true,
+            status: MarketStatus::Initialized,
             liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..Market::default()
         };
@@ -1202,7 +1203,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             unsettled_initial_asset_weight: 80,
             unsettled_maintenance_asset_weight: 90,
             open_interest: 1,
-            initialized: true,
+            status: MarketStatus::Initialized,
             liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..Market::default()
         };
@@ -1337,7 +1338,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             unsettled_initial_asset_weight: 80,
             unsettled_maintenance_asset_weight: 90,
             open_interest: 1,
-            initialized: true,
+            status: MarketStatus::Initialized,
             liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..Market::default()
         };
@@ -1444,7 +1445,7 @@ pub mod liquidate_perp_pnl_for_deposit {
     };
     use crate::state::bank::{Bank, BankBalanceType};
     use crate::state::bank_map::BankMap;
-    use crate::state::market::{Market, AMM};
+    use crate::state::market::{Market, MarketStatus, AMM};
     use crate::state::market_map::MarketMap;
     use crate::state::oracle::OracleSource;
     use crate::state::oracle_map::OracleMap;
@@ -1495,7 +1496,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             unsettled_initial_asset_weight: 80,
             unsettled_maintenance_asset_weight: 90,
             open_interest: 1,
-            initialized: true,
+            status: MarketStatus::Initialized,
             liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..Market::default()
         };
@@ -1630,7 +1631,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             unsettled_initial_asset_weight: 80,
             unsettled_maintenance_asset_weight: 90,
             open_interest: 1,
-            initialized: true,
+            status: MarketStatus::Initialized,
             liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..Market::default()
         };
@@ -1765,7 +1766,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             unsettled_initial_asset_weight: 80,
             unsettled_maintenance_asset_weight: 90,
             open_interest: 1,
-            initialized: true,
+            status: MarketStatus::Initialized,
             liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..Market::default()
         };

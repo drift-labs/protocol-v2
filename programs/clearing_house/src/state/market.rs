@@ -70,8 +70,10 @@ pub struct Market {
     pub unsettled_initial_asset_weight: u8,
     pub unsettled_maintenance_asset_weight: u8,
     pub unsettled_imf_factor: u128,
+    pub unsettled_max_imbalance: u128,
     pub liquidation_fee: u128,
-
+    pub quote_max_insurance: u128,
+    pub quote_settled_insurance: u128,
     // upgrade-ability
     pub padding0: u32,
     pub padding1: u128,
@@ -107,6 +109,24 @@ impl Market {
         unsettled_pnl: i128,
         margin_type: MarginRequirementType,
     ) -> ClearingHouseResult<u128> {
+        let mut margin_asset_weight = match margin_type {
+            MarginRequirementType::Initial => (self.unsettled_initial_asset_weight as u128),
+            MarginRequirementType::Maintenance => (self.unsettled_maintenance_asset_weight as u128),
+        };
+
+        if self.unsettled_max_imbalance > 0 {
+            let net_unsettled_pnl =
+                amm::calculate_net_user_pnl(&self.amm, self.amm.last_oracle_price)?;
+            if net_unsettled_pnl > cast_to_i128(self.unsettled_max_imbalance)? {
+                msg!("net_unsettled_pnl: {:?}", net_unsettled_pnl);
+                margin_asset_weight = margin_asset_weight
+                    .checked_mul(self.unsettled_max_imbalance)
+                    .ok_or_else(math_error!())?
+                    .checked_div(net_unsettled_pnl.unsigned_abs())
+                    .ok_or_else(math_error!())?
+            }
+        }
+
         // the asset weight for a position's unrealized pnl + unsettled pnl in the margin system
         // > 0 (positive balance)
         // < 0 (negative balance) always has asset weight = 1
@@ -121,11 +141,9 @@ impl Market {
                         .checked_mul(AMM_TO_QUOTE_PRECISION_RATIO)
                         .ok_or_else(math_error!())?,
                     self.unsettled_imf_factor,
-                    self.unsettled_initial_asset_weight as u128,
+                    margin_asset_weight,
                 )?,
-                MarginRequirementType::Maintenance => {
-                    self.unsettled_maintenance_asset_weight as u128
-                }
+                MarginRequirementType::Maintenance => margin_asset_weight,
             }
         } else {
             100

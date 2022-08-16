@@ -1151,6 +1151,25 @@ pub fn calculate_max_base_asset_amount_fillable(amm: &AMM) -> ClearingHouseResul
     )
 }
 
+pub fn calculate_net_user_pnl(amm: &AMM, oracle_price: i128) -> ClearingHouseResult<i128> {
+    let net_user_base_asset_value = amm
+        .net_base_asset_amount
+        .checked_mul(oracle_price)
+        .ok_or_else(math_error!())?
+        .checked_div(AMM_RESERVE_PRECISION_I128 * cast_to_i128(PRICE_TO_QUOTE_PRECISION_RATIO)?)
+        .ok_or_else(math_error!())?;
+
+    let net_user_unrealized_pnl = net_user_base_asset_value
+        .checked_add(
+            amm.quote_asset_amount_long
+                .checked_add(amm.quote_asset_amount_short)
+                .ok_or_else(math_error!())?,
+        )
+        .ok_or_else(math_error!())?;
+
+    Ok(net_user_unrealized_pnl)
+}
+
 pub fn calculate_settlement_price(
     amm: &AMM,
     target_price: i128,
@@ -1173,21 +1192,6 @@ pub fn calculate_settlement_price(
     if amm.net_base_asset_amount == 0 {
         return Ok(target_price);
     }
-
-    // let net_user_base_asset_value = amm
-    //     .net_base_asset_amount
-    //     .checked_mul(oracle_price)
-    //     .ok_or_else(math_error!())?
-    //     .checked_div(AMM_RESERVE_PRECISION_I128 * cast_to_i128(PRICE_TO_QUOTE_PRECISION_RATIO)?)
-    //     .ok_or_else(math_error!())?;
-
-    // let net_user_unrealized_pnl = net_user_base_asset_value
-    //     .checked_add(
-    //         amm.quote_asset_amount_long
-    //             .checked_add(amm.quote_asset_amount_short)
-    //             .ok_or_else(math_error!())?,
-    //     )
-    //     .ok_or_else(math_error!())?;
 
     // net_baa * price + net_quote <= 0
     // net_quote/net_baa <= -price

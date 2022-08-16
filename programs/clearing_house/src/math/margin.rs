@@ -550,30 +550,6 @@ mod test {
             ..Bank::default()
         };
 
-        let mut market = Market {
-            market_index: 0,
-            amm: AMM {
-                base_asset_reserve: 5122950819670000,
-                quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
-                sqrt_k: 500 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 22_100_000,
-                net_base_asset_amount: -(122950819670000_i128),
-                max_spread: 1000,
-                ..AMM::default()
-            },
-            margin_ratio_initial: 1000,
-            margin_ratio_maintenance: 500,
-            imf_factor: 1000, // 1_000/1_000_000 = .001
-            unsettled_initial_asset_weight: 100,
-            unsettled_maintenance_asset_weight: 100,
-            ..Market::default()
-        };
-
-        let current_price = market.amm.mark_price().unwrap();
-        assert_eq!(current_price, 210519296000087);
-
-        market.imf_factor = 1000; // 1_000/1_000_000 = .001
-
         // btc
         let mut oracle_price_data = OraclePriceData {
             price: (22050 * MARK_PRICE_PRECISION) as i128,
@@ -588,6 +564,32 @@ mod test {
             quote_asset_amount: 153688524588, // $25,000 entry price
             ..MarketPosition::default()
         };
+
+        let mut market = Market {
+            market_index: 0,
+            amm: AMM {
+                base_asset_reserve: 5122950819670000,
+                quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
+                sqrt_k: 500 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 22_100_000,
+                net_base_asset_amount: -(122950819670000_i128),
+                max_spread: 1000,
+                quote_asset_amount_short: market_position.quote_asset_amount * 2,
+                // assume someone else has other half same entry,
+                ..AMM::default()
+            },
+            margin_ratio_initial: 1000,
+            margin_ratio_maintenance: 500,
+            imf_factor: 1000, // 1_000/1_000_000 = .001
+            unsettled_initial_asset_weight: 100,
+            unsettled_maintenance_asset_weight: 100,
+            ..Market::default()
+        };
+
+        let current_price = market.amm.mark_price().unwrap();
+        assert_eq!(current_price, 210519296000087);
+
+        market.imf_factor = 1000; // 1_000/1_000_000 = .001
 
         let margin_requirement_type = MarginRequirementType::Initial;
         let quote_asset_oracle_price_data = OraclePriceData {
@@ -719,6 +721,41 @@ mod test {
         assert!(pmr > pmr_2);
         assert_eq!(pmr - pmr_2, 629508197);
         //-6.1475409835 * 1000 / 10 = 614.75
+
+        market.amm.last_oracle_price = oracle_price_data.price; // in profit
+
+        market.unsettled_max_imbalance = (upnl_2 * 100) as u128;
+        let uaw_2 = market
+            .get_unsettled_asset_weight(upnl_2, MarginRequirementType::Initial)
+            .unwrap();
+        assert_eq!(uaw_2, 95);
+
+        // calculate_oracle_price_for_perp_margin less attractive than last_oracle_price
+        market.unsettled_max_imbalance = (upnl_2 * 2) as u128;
+        let uaw_2 = market
+            .get_unsettled_asset_weight(upnl_2, MarginRequirementType::Initial)
+            .unwrap();
+        assert_eq!(uaw_2, 94);
+
+        market.unsettled_max_imbalance = upnl_2 as u128; // only allow upnl_2 of net pnl
+        let uaw_2 = market
+            .get_unsettled_asset_weight(upnl_2, MarginRequirementType::Initial)
+            .unwrap();
+        assert_eq!(uaw_2, 95 / 2);
+
+        market.unsettled_max_imbalance = (upnl_2 / 10) as u128; // only allow upnl_2 of net pnl
+        let uaw_2 = market
+            .get_unsettled_asset_weight(upnl_2, MarginRequirementType::Initial)
+            .unwrap();
+        assert_eq!(uaw_2, 95 / 2 / 10);
+
+        market.unsettled_max_imbalance = QUOTE_PRECISION; // only allow $1 of net pnl
+        assert_eq!(market.amm.net_base_asset_amount, -122950819670000);
+        // assert_eq!(market.amm.last_oracle_price, 0);
+        let uaw_2 = market
+            .get_unsettled_asset_weight(upnl_2, MarginRequirementType::Initial)
+            .unwrap();
+        assert_eq!(uaw_2, 0);
     }
 
     #[test]

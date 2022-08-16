@@ -241,6 +241,7 @@ mod test {
                 max_spread: 55500,
                 ..AMM::default()
             },
+            status: MarketStatus::Initialized,
             margin_ratio_initial: 555, // max 1/.0555 = 18.018018018x leverage
             ..Market::default()
         };
