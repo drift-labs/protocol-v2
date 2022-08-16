@@ -2701,6 +2701,14 @@
             "type": "u128"
           },
           {
+            "name": "minBaseAssetReserve",
+            "type": "u128"
+          },
+          {
+            "name": "maxBaseAssetReserve",
+            "type": "u128"
+          },
+          {
             "name": "sqrtK",
             "type": "u128"
           },
@@ -2765,10 +2773,6 @@
           {
             "name": "lastFundingRateTs",
             "type": "i64"
-          },
-          {
-            "name": "lastFundingBaseAssetAmountPerLp",
-            "type": "i128"
           },
           {
             "name": "fundingPeriod",

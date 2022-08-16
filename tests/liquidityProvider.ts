@@ -437,6 +437,8 @@ describe('liquidity providing', () => {
 		const trader = traderClearingHouse.getUserAccount();
 		console.log('trader size', trader.positions[0].baseAssetAmount.toString());
 
+		const settledLPPosition = clearingHouseUser.getSettledLPPosition(ZERO);
+
 		console.log('settling...');
 		try {
 			const _txsigg = await clearingHouse.settleLP(
@@ -452,15 +454,24 @@ describe('liquidity providing', () => {
 
 		// gets a short on settle
 		console.log(
+			'simulated settle position:',
+			settledLPPosition.baseAssetAmount.toString(),
+			settledLPPosition.quoteAssetAmount.toString()
+		);
+
+		assert(settledLPPosition.baseAssetAmount.eq(position.baseAssetAmount));
+		assert(settledLPPosition.quoteAssetAmount.eq(position.quoteAssetAmount));
+		assert(settledLPPosition.quoteEntryAmount.eq(position.quoteEntryAmount));
+
+		// gets a short on settle
+		console.log(
 			position.baseAssetAmount.toString(),
 			position.quoteAssetAmount.toString(),
-			// position.unsettledPnl.toString(),
 			position.lpShares.toString()
 		);
 
 		assert(position.baseAssetAmount.lt(ZERO));
 		assert(position.quoteAssetAmount.gt(ZERO));
-		// assert(position.unsettledPnl.gt(ZERO)); // fees
 		assert(position.lpShares.gt(ZERO));
 
 		console.log('removing liquidity...');

@@ -175,102 +175,96 @@ export class ClearingHouseUser {
 		return userAccountRPCResponse.value !== null;
 	}
 
-	// TODO
-	// /**
-	//  * calculates the market position if the lp position was settled
-	//  * @returns : userPosition
-	//  */
-	// public getSettledLPPosition(marketIndex: BN): UserPosition {
-	// 	const position = this.getUserPosition(marketIndex);
-	// 	const market = this.clearingHouse.getMarketAccount(position.marketIndex);
-	// 	const nShares = position.lpShares;
-	// 	const totalLpTokens = market.amm.sqrtK;
+	/**
+	 * calculates the market position if the lp position was settled
+	 * @returns : userPosition
+	 */
+	public getSettledLPPosition(marketIndex: BN): [UserPosition, BN] {
+		const position = this.getUserPosition(marketIndex);
+		const market = this.clearingHouse.getMarketAccount(position.marketIndex);
+		const nShares = position.lpShares;
 
-	// 	// payments
-	// 	const feePayment = market.amm.cumulativeFeePerLp
-	// 		.sub(position.lastCumulativeFeePerLp)
-	// 		.mul(nShares)
-	// 		.div(AMM_RESERVE_PRECISION);
+		const deltaBaa = market.amm.marketPositionPerLp.baseAssetAmount
+			.sub(position.lastNetBaseAssetAmountPerLp)
+			.mul(nShares)
+			.div(AMM_RESERVE_PRECISION);
+		const deltaQaa = market.amm.marketPositionPerLp.quoteAssetAmount
+			.sub(position.lastNetQuoteAssetAmountPerLp)
+			.mul(nShares)
+			.div(AMM_RESERVE_PRECISION);
 
-	// 	const fundingPayment = market.amm.cumulativeFundingPaymentPerLp
-	// 		.sub(position.lastCumulativeFundingPaymentPerLp)
-	// 		.mul(nShares)
-	// 		.div(AMM_RESERVE_PRECISION);
+		function sign(v: BN) {
+			const sign = { true: new BN(1), false: new BN(-1) }[
+				v.gte(ZERO).toString()
+			];
+			return sign;
+		}
 
-	// 	// market position
-	// 	const ammNetBAAPerLP = position.lastCumulativeNetBaseAssetAmountPerLp.sub(
-	// 		market.amm.cumulativeNetBaseAssetAmountPerLp
-	// 	);
+		const remainder = deltaBaa
+			.abs()
+			.mod(market.amm.baseAssetAmountStepSize)
+			.mul(sign(deltaBaa));
+		const _standardizedBaa = deltaBaa.sub(remainder);
 
-	// 	let marketBAA = new BN(0);
-	// 	let marketQAA = new BN(0);
-	// 	let settlePnl = new BN(0);
+		let remainderBaa;
+		if (_standardizedBaa.gte(market.amm.baseAssetAmountStepSize)) {
+			remainderBaa = remainderBaa;
+		} else {
+			remainderBaa = deltaBaa;
+		}
+		const standardizedBaa = deltaBaa.sub(remainderBaa);
 
-	// 	if (!ammNetBAAPerLP.eq(ZERO)) {
-	// 		const BAA = ammNetBAAPerLP.mul(nShares).div(AMM_RESERVE_PRECISION);
-	// 		const totalNetBAA = ammNetBAAPerLP
-	// 			.mul(totalLpTokens)
-	// 			.div(AMM_RESERVE_PRECISION);
+		const reaminderPerLP = remainderBaa.mul(AMM_RESERVE_PRECISION).div(nShares);
 
-	// 		let swapDirection;
-	// 		if (ammNetBAAPerLP.gt(ZERO)) {
-	// 			swapDirection = SwapDirection.REMOVE;
-	// 		} else {
-	// 			swapDirection = SwapDirection.ADD;
-	// 		}
+		position.baseAssetAmount = position.baseAssetAmount.add(standardizedBaa);
+		position.quoteAssetAmount = position.quoteAssetAmount.add(deltaQaa);
 
-	// 		const [_, newQAR] = calculateSwapOutput(
-	// 			market.amm.baseAssetReserve,
-	// 			totalNetBAA.abs(),
-	// 			swapDirection,
-	// 			market.amm.sqrtK.mul(market.amm.sqrtK)
-	// 		);
+		position.lastNetBaseAssetAmountPerLp =
+			market.amm.marketPositionPerLp.baseAssetAmount.sub(reaminderPerLP);
 
-	// 		const netQAADelta = newQAR.sub(market.amm.quoteAssetReserve).abs();
+		let updateType;
+		if (position.baseAssetAmount.eq(ZERO)) {
+			updateType = 'open';
+		} else if (sign(position.baseAssetAmount).eq(sign(deltaBaa))) {
+			updateType = 'increase';
+		} else if (position.baseAssetAmount.abs().gt(deltaBaa.abs())) {
+			updateType = 'reduce';
+		} else if (position.baseAssetAmount.abs().gte(deltaBaa.abs())) {
+			updateType = 'close';
+		} else {
+			updateType = 'flip';
+		}
 
-	// 		const QAA = netQAADelta
-	// 			.mul(nShares)
-	// 			.div(totalLpTokens)
-	// 			.mul(market.amm.pegMultiplier)
-	// 			.mul(QUOTE_PRECISION)
-	// 			.div(AMM_RESERVE_PRECISION)
-	// 			.div(PEG_PRECISION);
+		let newQuoteEntry;
+		let pnl;
+		if (updateType == 'open' || updateType == 'increase') {
+			newQuoteEntry = position.quoteEntryAmount.add(deltaQaa);
+			pnl = 0;
+		} else if (updateType == 'reduce' || updateType == 'close') {
+			newQuoteEntry = position.quoteEntryAmount.sub(
+				position.quoteEntryAmount
+					.mul(deltaBaa.abs())
+					.div(position.baseAssetAmount.abs())
+			);
+			pnl = position.quoteEntryAmount.sub(newQuoteEntry);
+		} else {
+			newQuoteEntry = deltaQaa.sub(
+				deltaQaa.mul(position.baseAssetAmount.abs()).div(deltaBaa.abs())
+			);
+			pnl = position.quoteEntryAmount.add(deltaQaa.sub(newQuoteEntry));
+		}
 
-	// 		if (
-	// 			BAA.abs().gte(market.amm.baseAssetAmountStepSize) &&
-	// 			QAA.gte(market.amm.minimumQuoteAssetTradeSize)
-	// 		) {
-	// 			marketQAA = QAA;
-	// 			marketBAA = BAA;
-	// 		} else {
-	// 			settlePnl = market.amm.minimumQuoteAssetTradeSize.mul(new BN(-1));
-	// 		}
-	// 	}
+		if (position.baseAssetAmount.gt(ZERO)) {
+			position.lastCumulativeFundingRate = market.amm.cumulativeFundingRateLong;
+		} else if (position.baseAssetAmount.lt(ZERO)) {
+			position.lastCumulativeFundingRate =
+				market.amm.cumulativeFundingRateShort;
+		} else {
+			position.lastCumulativeFundingRate = ZERO;
+		}
 
-	// 	const totalPayment = feePayment.add(fundingPayment).add(settlePnl);
-
-	// 	const marketPosition: UserPosition = {
-	// 		baseAssetAmount: position.baseAssetAmount,
-	// 		quoteAssetAmount: position.quoteAssetAmount,
-	// 		lpBaseAssetAmount: marketBAA,
-	// 		lpQuoteAssetAmount: marketQAA,
-	// 		lastCumulativeFeePerLp: market.amm.cumulativeFeePerLp,
-	// 		lastCumulativeFundingPaymentPerLp:
-	// 			market.amm.cumulativeFundingPaymentPerLp,
-	// 		lastCumulativeNetBaseAssetAmountPerLp:
-	// 			market.amm.cumulativeNetBaseAssetAmountPerLp,
-	// 		lastCumulativeFundingRate: position.lastCumulativeFundingRate,
-	// 		unsettledPnl: position.unsettledPnl.add(totalPayment),
-	// 		quoteEntryAmount: position.quoteEntryAmount,
-	// 		lpShares: position.lpShares,
-	// 		marketIndex: position.marketIndex,
-	// 		openOrders: position.openOrders,
-	// 		openAsks: ZERO,
-	// 		openBids: ZERO,
-	// 	};
-
-	// 	return marketPosition;
-	// }
+		return [position, pnl];
+	}
 
 	/**
 	 * calculates Buying Power = FC * MAX_LEVERAGE

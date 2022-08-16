@@ -401,15 +401,10 @@ export class ClearingHouse {
 		);
 	}
 
-	getRemainingAccounts(
-		params: {
-			writableMarketIndex?: BN;
-			writableBankIndex?: BN;
-		},
-		includeOracles = true,
-		includeBanks = true,
-		includeMarkets = true
-	): AccountMeta[] {
+	getRemainingAccounts(params: {
+		writableMarketIndex?: BN;
+		writableBankIndex?: BN;
+	}): AccountMeta[] {
 		const userAccountAndSlot = this.getUserAccountAndSlot();
 		if (!userAccountAndSlot) {
 			throw Error(
@@ -510,18 +505,11 @@ export class ClearingHouse {
 			}
 		}
 
-		const remainingAccounts = [];
-		if (includeOracles) {
-			remainingAccounts.push(...oracleAccountMap.values());
-		}
-		if (includeBanks) {
-			remainingAccounts.push(...bankAccountMap.values());
-		}
-		if (includeMarkets) {
-			remainingAccounts.push(...marketAccountMap.values());
-		}
-
-		return remainingAccounts;
+		return [
+			...oracleAccountMap.values(),
+			...bankAccountMap.values(),
+			...marketAccountMap.values(),
+		];
 	}
 
 	public getOrder(orderId: BN | number): Order | undefined {
@@ -1126,12 +1114,9 @@ export class ClearingHouse {
 	): Promise<TransactionInstruction> {
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 
-		const remainingAccounts = this.getRemainingAccounts(
-			{ writableMarketIndex: marketIndex },
-			true,
-			true,
-			true
-		);
+		const remainingAccounts = this.getRemainingAccounts({
+			writableMarketIndex: marketIndex,
+		});
 
 		if (sharesToBurn == undefined) {
 			const userAccount = this.getUserAccount();
