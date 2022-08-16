@@ -1,6 +1,11 @@
 import { AMM, OracleGuardRails } from '../types';
 import { OraclePriceData } from '../oracles/types';
-import { ONE, ZERO } from '../constants/numericConstants';
+import {
+	BID_ASK_SPREAD_PRECISION,
+	MARK_PRICE_PRECISION,
+	ONE,
+	ZERO,
+} from '../constants/numericConstants';
 import { BN } from '../index';
 
 export function isOracleValid(
@@ -9,7 +14,7 @@ export function isOracleValid(
 	oracleGuardRails: OracleGuardRails,
 	slot: number
 ): boolean {
-	const isOraclePriceNonPositive = oraclePriceData.price.lt(ZERO);
+	const isOraclePriceNonPositive = oraclePriceData.price.lte(ZERO);
 	const isOraclePriceTooVolatile =
 		oraclePriceData.price
 			.div(BN.max(ONE, amm.lastOraclePriceTwap))
@@ -18,9 +23,11 @@ export function isOracleValid(
 			.div(BN.max(ONE, oraclePriceData.price))
 			.gt(oracleGuardRails.validity.tooVolatileRatio);
 
-	const isConfidenceTooLarge = oraclePriceData.price
-		.div(BN.max(ONE, oraclePriceData.confidence))
-		.lt(oracleGuardRails.validity.confidenceIntervalMaxSize);
+	const isConfidenceTooLarge = new BN(amm.baseSpread)
+		.add(BN.max(ONE, oraclePriceData.confidence))
+		.mul(BID_ASK_SPREAD_PRECISION)
+		.div(oraclePriceData.price)
+		.gt(new BN(amm.maxSpread));
 
 	const oracleIsStale = oraclePriceData.slot
 		.sub(new BN(slot))
@@ -33,4 +40,34 @@ export function isOracleValid(
 		isOraclePriceTooVolatile ||
 		isConfidenceTooLarge
 	);
+}
+
+export function isOracleTooDivergent(
+	amm: AMM,
+	oraclePriceData: OraclePriceData,
+	oracleGuardRails: OracleGuardRails,
+	now: BN
+): boolean {
+	const sinceLastUpdate = now.sub(amm.lastOraclePriceTwapTs);
+	const sinceStart = BN.max(ZERO, new BN(60 * 5).sub(sinceLastUpdate));
+	const oracleTwap5min = amm.lastOraclePriceTwap5min
+		.mul(sinceStart)
+		.add(oraclePriceData.price)
+		.mul(sinceLastUpdate)
+		.div(sinceStart.add(sinceLastUpdate));
+
+	const oracleSpread = oracleTwap5min.sub(oraclePriceData.price);
+	const oracleSpreadPct = oracleSpread
+		.mul(MARK_PRICE_PRECISION)
+		.div(oracleTwap5min);
+
+	const tooDivergent = oracleSpreadPct
+		.abs()
+		.gte(
+			BID_ASK_SPREAD_PRECISION.mul(
+				oracleGuardRails.priceDivergence.markOracleDivergenceNumerator
+			).div(oracleGuardRails.priceDivergence.markOracleDivergenceDenominator)
+		);
+
+	return tooDivergent;
 }

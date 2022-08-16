@@ -575,6 +575,22 @@ export class Admin extends ClearingHouse {
 		});
 	}
 
+	public async updateBankWithdrawGuardThreshold(
+		bankIndex: BN,
+		withdrawGuardThreshold: BN
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateBankWithdrawGuardThreshold(
+			withdrawGuardThreshold,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					bank: await getBankPublicKey(this.program.programId, bankIndex),
+				},
+			}
+		);
+	}
+
 	public async updateMarketOracle(
 		marketIndex: BN,
 		oracle: PublicKey,

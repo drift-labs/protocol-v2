@@ -16,6 +16,9 @@ import {
 	findComputeUnitConsumption,
 	calculateBidAskPrice,
 	calculateUpdatedAMM,
+	AMM_TO_QUOTE_PRECISION_RATIO,
+	calculateTradeAcquiredAmounts,
+	calculateSpread,
 } from '../sdk/src';
 
 import {
@@ -65,7 +68,7 @@ describe('prepeg', () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
-		solUsd = await mockOracle(1);
+		solUsd = await mockOracle(1, -7, 0);
 		mockOracles.push(solUsd);
 		for (let i = 1; i <= 4; i++) {
 			// init more oracles
@@ -110,6 +113,10 @@ describe('prepeg', () => {
 		);
 		await clearingHouse.updateMarketBaseSpread(new BN(0), 2000);
 		await clearingHouse.updateCurveUpdateIntensity(new BN(0), 100);
+		await clearingHouse.updateMarketBaseAssetAmountStepSize(
+			new BN(0),
+			new BN(1)
+		);
 
 		for (let i = 1; i <= 4; i++) {
 			// init more markets
@@ -125,6 +132,10 @@ describe('prepeg', () => {
 			);
 			await clearingHouse.updateMarketBaseSpread(new BN(i), 2000);
 			await clearingHouse.updateCurveUpdateIntensity(new BN(i), 100);
+			await clearingHouse.updateMarketBaseAssetAmountStepSize(
+				new BN(i),
+				new BN(1)
+			);
 		}
 
 		[, userAccountPublicKey] =
@@ -142,6 +153,7 @@ describe('prepeg', () => {
 	it('Long from 0 position', async () => {
 		const marketIndex = new BN(0);
 		const baseAssetAmount = new BN(497450500000000);
+		const direction = PositionDirection.LONG;
 		const market0 = clearingHouse.getMarketAccount(0);
 
 		// await setFeedPrice(anchor.workspace.Pyth, 1.01, solUsd);
@@ -151,15 +163,29 @@ describe('prepeg', () => {
 			anchor.workspace.Pyth,
 			solUsd
 		);
+		const position0Before = clearingHouse.getUserAccount().positions[0];
+		console.log(position0Before.quoteAssetAmount.eq(ZERO));
 
 		const [_pctAvgSlippage, _pctMaxSlippage, _entryPrice, newPrice] =
 			calculateTradeSlippage(
-				PositionDirection.LONG,
+				direction,
 				baseAssetAmount,
 				market0,
 				'base',
 				oraclePriceData
 			);
+
+		const [
+			_acquiredBaseReserve,
+			_acquiredQuoteReserve,
+			acquiredQuoteAssetAmount,
+		] = calculateTradeAcquiredAmounts(
+			direction,
+			baseAssetAmount,
+			market0,
+			'base',
+			oraclePriceData
+		);
 
 		const [bid, ask] = calculateBidAskPrice(market0.amm, oraclePriceData);
 
@@ -173,7 +199,7 @@ describe('prepeg', () => {
 		);
 		const orderParams = getMarketOrderParams({
 			marketIndex,
-			direction: PositionDirection.LONG,
+			direction,
 			baseAssetAmount,
 		});
 		const txSig = await clearingHouse.placeAndTake(orderParams);
@@ -203,14 +229,12 @@ describe('prepeg', () => {
 			convertToNumber(calculateMarkPrice(market, oraclePriceData))
 		);
 
-		console.log(
-			clearingHouse.getUserAccount().positions[0].quoteAssetAmount.toString()
-		);
-		assert.ok(
-			clearingHouse
-				.getUserAccount()
-				.positions[0].quoteEntryAmount.eq(new BN(-49999074))
-		);
+		const position0 = clearingHouse.getUserAccount().positions[0];
+
+		console.log(position0.quoteAssetAmount.toString());
+		assert.ok(position0.quoteEntryAmount.eq(new BN(-49999074)));
+		assert.ok(acquiredQuoteAssetAmount.eq(position0.quoteEntryAmount.abs()));
+
 		console.log(
 			clearingHouse.getUserAccount().positions[0].baseAssetAmount.toString()
 		);
@@ -228,6 +252,7 @@ describe('prepeg', () => {
 		assert.ok(market.openInterest.eq(ONE));
 		assert.ok(market.amm.totalFee.gt(new BN(49750)));
 		assert.ok(market.amm.totalFeeMinusDistributions.gt(new BN(49750)));
+		assert.ok(market.amm.totalExchangeFee.eq(new BN(49999)));
 
 		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 		assert.ok(orderRecord.taker.equals(userAccountPublicKey));
@@ -238,6 +263,16 @@ describe('prepeg', () => {
 		assert.ok(orderRecord.baseAssetAmountFilled.eq(new BN(497450500000000)));
 		assert.ok(orderRecord.quoteAssetAmountFilled.gt(new BN(49750001)));
 		assert.ok(orderRecord.takerOrder.marketIndex.eq(marketIndex));
+
+		// console.log(orderRecord);
+		console.log(market.amm.totalExchangeFee.toNumber());
+
+		assert.ok(position0.quoteAssetAmount.eq(new BN(-50049073)));
+		assert.ok(
+			position0.quoteAssetAmount.eq(
+				position0.quoteEntryAmount.sub(market.amm.totalExchangeFee)
+			)
+		);
 	});
 
 	it('Long even more', async () => {
@@ -270,6 +305,43 @@ describe('prepeg', () => {
 				'base',
 				oraclePriceData
 			);
+
+		const [
+			acquiredBaseReserve,
+			acquiredQuoteReserve,
+			acquiredQuoteAssetAmount,
+		] = calculateTradeAcquiredAmounts(
+			PositionDirection.LONG,
+			baseAssetAmount,
+			market0,
+			'base',
+			oraclePriceData
+		);
+
+		const acquiredQuote = _entryPrice
+			.mul(baseAssetAmount.abs())
+			.div(AMM_TO_QUOTE_PRECISION_RATIO)
+			.div(MARK_PRICE_PRECISION);
+		console.log(
+			'est acquiredQuote:',
+			acquiredQuote.toNumber(),
+			acquiredQuoteAssetAmount.toNumber()
+		);
+		const newAmm = calculateUpdatedAMM(market0.amm, oraclePriceData);
+		const longSpread = calculateSpread(
+			newAmm,
+			PositionDirection.LONG,
+			oraclePriceData
+		);
+		const shortSpread = calculateSpread(
+			newAmm,
+			PositionDirection.SHORT,
+			oraclePriceData
+		);
+		console.log(longSpread, shortSpread);
+		assert(shortSpread == 1000);
+		// assert(longSpread == 22781);
+
 		const [bid, ask] = calculateBidAskPrice(market0.amm, oraclePriceData);
 
 		console.log(
@@ -304,7 +376,7 @@ describe('prepeg', () => {
 		const [bid1, ask1] = calculateBidAskPrice(market.amm, oraclePriceData);
 		console.log(
 			'after trade bid/ask:',
-			convertToNumber(market.amm.sqrtK),
+			convertToNumber(bid1),
 			'/',
 			convertToNumber(ask1),
 			'after trade mark price:',
@@ -341,12 +413,73 @@ describe('prepeg', () => {
 		assert(actualDist.sub(estDist).abs().lte(new BN(4))); // cost is near equal
 		assert(market.amm.sqrtK.lt(market0.amm.sqrtK)); // k was lowered
 
+		console.log(market.amm.longSpread.toString());
+		console.log(market.amm.shortSpread.toString());
+
+		assert(market.amm.longSpread.eq(new BN(25035)));
+		assert(market.amm.shortSpread.eq(new BN(1000)));
+
+		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
+		assert.ok(orderRecord.taker.equals(userAccountPublicKey));
 		assert.ok(
-			clearingHouse
-				.getUserAccount()
-				.positions[0].quoteEntryAmount.eq(new BN(-51022273))
+			JSON.stringify(orderRecord.takerOrder.direction) ===
+				JSON.stringify(PositionDirection.LONG)
 		);
-		console.log(clearingHouse.getUserAccount().positions[0].baseAssetAmount);
+		// console.log(orderRecord);
+
+		await clearingHouse.fetchAccounts();
+		const position0 = clearingHouse.getUserAccount().positions[0];
+		const position0qea = position0.quoteEntryAmount;
+		console.log(
+			'position0qea:',
+			position0qea.toNumber(),
+			'(+',
+			acquiredQuoteAssetAmount.toNumber(),
+			')'
+		);
+		console.log(
+			'baseASsetAmounts:',
+			position0.baseAssetAmount.toNumber(),
+			'vs',
+			orderRecord.takerOrder.baseAssetAmountFilled.toNumber(),
+			'vs',
+			baseAssetAmount.toNumber()
+		);
+		console.log(
+			'position0.quoteAssetAmount:',
+			position0.quoteAssetAmount.toNumber()
+		);
+
+		assert(orderRecord.takerOrder.baseAssetAmountFilled.eq(baseAssetAmount));
+		const recordEntryPrice = orderRecord.takerOrder.quoteAssetAmountFilled
+			.mul(AMM_TO_QUOTE_PRECISION_RATIO)
+			.mul(MARK_PRICE_PRECISION)
+			.div(orderRecord.takerOrder.baseAssetAmountFilled.abs());
+
+		console.log(
+			'entry sdk',
+			convertToNumber(_entryPrice),
+			'vs entry record',
+			convertToNumber(recordEntryPrice)
+		);
+
+		console.log(
+			'record Auction:',
+			convertToNumber(orderRecord.takerOrder.auctionStartPrice),
+			'->',
+			convertToNumber(orderRecord.takerOrder.auctionEndPrice),
+			'record oracle:',
+			convertToNumber(orderRecord.oraclePrice)
+		);
+
+		// assert.ok(
+		// 	position0qea
+		// 		.abs()
+		// 		.eq(acquiredQuoteAssetAmount.add(new BN(49999074)).add(new BN(-1001)))
+		// );
+		assert(acquiredQuoteAssetAmount.eq(new BN(1025556)));
+		assert.ok(position0qea.eq(new BN(-51024630)));
+		assert.ok(position0.quoteAssetAmount.eq(new BN(-51075654)));
 	});
 
 	it('Reduce long position', async () => {
@@ -374,6 +507,12 @@ describe('prepeg', () => {
 				'base',
 				oraclePriceData
 			);
+
+		const acquiredQuote = _entryPrice
+			.mul(baseAssetAmount.abs())
+			.div(AMM_TO_QUOTE_PRECISION_RATIO)
+			.div(MARK_PRICE_PRECISION);
+		console.log('est acquiredQuote:', acquiredQuote.toNumber());
 
 		const [bid, ask] = calculateBidAskPrice(market0.amm, oraclePriceData);
 

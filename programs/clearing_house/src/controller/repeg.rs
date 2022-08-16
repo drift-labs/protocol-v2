@@ -81,18 +81,19 @@ pub fn update_amms(
     oracle_map: &mut OracleMap,
     state: &State,
     clock: &Clock,
-) -> Result<()> {
+) -> ClearingHouseResult<bool> {
     // up to ~60k compute units (per amm) worst case
     let clock_slot = clock.slot;
     let now = clock.unix_timestamp;
 
+    let updated = true; // todo
     for (_key, market_account_loader) in market_map.0.iter_mut() {
         let market = &mut load_mut!(market_account_loader)?;
         let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
         _update_amm(market, oracle_price_data, state, now, clock_slot)?;
     }
 
-    Ok(())
+    Ok(updated)
 }
 
 pub fn update_amm(
@@ -149,16 +150,18 @@ pub fn _update_amm(
     )?;
 
     let mark_price_after = market.amm.mark_price()?;
+    amm::update_oracle_price_twap(
+        &mut market.amm,
+        now,
+        oracle_price_data,
+        Some(mark_price_after),
+    )?;
 
     if is_oracle_valid {
-        // cannot update market
-        amm::update_oracle_price_twap(
-            &mut market.amm,
-            now,
-            oracle_price_data,
-            Some(mark_price_after),
-        )?;
         market.amm.last_update_slot = clock_slot;
+        market.amm.last_oracle_valid = true;
+    } else {
+        market.amm.last_oracle_valid = false;
     }
 
     update_spreads(&mut market.amm, mark_price_after)?;
@@ -218,7 +221,6 @@ mod test {
     };
     use crate::state::market::AMM;
     use crate::state::state::{PriceDivergenceGuardRails, ValidityGuardRails};
-
     #[test]
     pub fn update_amm_test() {
         let mut market = Market {
@@ -249,7 +251,7 @@ mod test {
                 },
                 validity: ValidityGuardRails {
                     slots_before_stale: 10,
-                    confidence_interval_max_size: 4,
+                    confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
                 use_for_liquidations: true,
@@ -266,6 +268,21 @@ mod test {
             has_sufficient_number_of_data_points: true,
         };
 
+        let mark_price_before = market.amm.mark_price().unwrap();
+        assert_eq!(mark_price_before, 188076686390578);
+        market.amm.last_oracle_price_twap_5min = 189076686390578;
+        market.amm.last_oracle_price_twap_ts = now - 100;
+        let oracle_mark_spread_pct_before =
+            amm::calculate_oracle_twap_5min_mark_spread_pct(&market.amm, Some(mark_price_before))
+                .unwrap();
+        assert_eq!(oracle_mark_spread_pct_before, -5316);
+        let too_diverge = amm::is_oracle_mark_too_divergent(
+            oracle_mark_spread_pct_before,
+            &state.oracle_guard_rails.price_divergence,
+        )
+        .unwrap();
+        assert!(!too_diverge);
+
         let cost_of_update =
             _update_amm(&mut market, &oracle_price_data, &state, now, slot).unwrap();
 
@@ -275,6 +292,21 @@ mod test {
             &state.oracle_guard_rails.validity,
         )
         .unwrap();
+        let mark_price_after_prepeg = market.amm.mark_price().unwrap();
+        assert_eq!(mark_price_after_prepeg, 130882003768079);
+
+        let oracle_mark_spread_pct_before = amm::calculate_oracle_twap_5min_mark_spread_pct(
+            &market.amm,
+            Some(mark_price_after_prepeg),
+        )
+        .unwrap();
+        assert_eq!(oracle_mark_spread_pct_before, -292478);
+        let too_diverge = amm::is_oracle_mark_too_divergent(
+            oracle_mark_spread_pct_before,
+            &state.oracle_guard_rails.price_divergence,
+        )
+        .unwrap();
+        assert!(too_diverge);
 
         let profit = market.amm.total_fee_minus_distributions;
         let peg = market.amm.peg_multiplier;
@@ -300,5 +332,65 @@ mod test {
         assert_eq!(mark_price, 130882003768079);
         //(133487208381380-120146825282679)/133403830987014 == .1 (max spread)
         // 127060953641838
+    }
+
+    #[test]
+    pub fn update_amm_test_bad_oracle() {
+        let mut market = Market {
+            amm: AMM {
+                base_asset_reserve: 65 * AMM_RESERVE_PRECISION,
+                quote_asset_reserve: 630153846154000,
+                terminal_quote_asset_reserve: 64 * AMM_RESERVE_PRECISION,
+                sqrt_k: 64 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 19_400_000,
+                net_base_asset_amount: -(AMM_RESERVE_PRECISION as i128),
+                mark_std: MARK_PRICE_PRECISION as u64,
+                last_mark_price_twap_ts: 0,
+                last_oracle_price_twap: 19_400 * MARK_PRICE_PRECISION_I128,
+                base_spread: 250,
+                curve_update_intensity: 100,
+                max_spread: 55500,
+                ..AMM::default()
+            },
+            margin_ratio_initial: 555, // max 1/.0555 = 18.018018018x leverage
+            ..Market::default()
+        };
+
+        let state = State {
+            oracle_guard_rails: OracleGuardRails {
+                price_divergence: PriceDivergenceGuardRails {
+                    mark_oracle_divergence_numerator: 1,
+                    mark_oracle_divergence_denominator: 10,
+                },
+                validity: ValidityGuardRails {
+                    slots_before_stale: 10,
+                    confidence_interval_max_size: 20000, //2%
+                    too_volatile_ratio: 5,
+                },
+                use_for_liquidations: true,
+            },
+            ..State::default()
+        };
+
+        let now = 10000;
+        let slot = 81680085;
+        let oracle_price_data = OraclePriceData {
+            price: (12_400 * MARK_PRICE_PRECISION) as i128,
+            confidence: 0,
+            delay: 12,
+            has_sufficient_number_of_data_points: true,
+        };
+
+        let cost_of_update =
+            _update_amm(&mut market, &oracle_price_data, &state, now, slot).unwrap();
+        assert!(market.amm.last_update_slot == 0);
+
+        let is_oracle_valid = amm::is_oracle_valid(
+            &market.amm,
+            &oracle_price_data,
+            &state.oracle_guard_rails.validity,
+        )
+        .unwrap();
+        assert!(!is_oracle_valid);
     }
 }

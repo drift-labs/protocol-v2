@@ -207,3 +207,52 @@ export function calculateInterestAccumulated(
 
 	return { borrowInterest, depositInterest };
 }
+
+export function calculateWithdrawLimit(
+	bank: BankAccount,
+	now: BN
+): { borrowLimit: BN; withdrawLimit: BN } {
+	const bankDepositTokenAmount = getTokenAmount(
+		bank.depositBalance,
+		bank,
+		BankBalanceType.DEPOSIT
+	);
+	const bankBorrowTokenAmount = getTokenAmount(
+		bank.borrowBalance,
+		bank,
+		BankBalanceType.BORROW
+	);
+
+	const twentyFourHours = new BN(60 * 60 * 24);
+	const sinceLast = now.sub(bank.lastUpdated);
+	const sinceStart = BN.max(ZERO, twentyFourHours.sub(sinceLast));
+	const borrowTokenTwapLive = bank.borrowTokenTwap
+		.mul(sinceStart)
+		.add(bankBorrowTokenAmount.mul(sinceLast))
+		.div(sinceLast.add(sinceLast));
+
+	const depositTokenTwapLive = bank.depositTokenTwap
+		.mul(sinceStart)
+		.add(bankDepositTokenAmount.mul(sinceLast))
+		.div(sinceLast.add(sinceLast));
+
+	const maxBorrowTokens = BN.min(
+		BN.max(
+			bankDepositTokenAmount.div(new BN(6)),
+			borrowTokenTwapLive.add(borrowTokenTwapLive.div(new BN(5)))
+		),
+		bankDepositTokenAmount.sub(bankDepositTokenAmount.div(new BN(10)))
+	); // between ~15-90% utilization with friction on twap
+
+	const minDepositTokens = depositTokenTwapLive.sub(
+		BN.min(
+			BN.max(depositTokenTwapLive.div(new BN(5)), bank.withdrawGuardThreshold),
+			depositTokenTwapLive
+		)
+	);
+
+	return {
+		borrowLimit: maxBorrowTokens.sub(bankBorrowTokenAmount),
+		withdrawLimit: bankDepositTokenAmount.sub(minDepositTokens),
+	};
+}
