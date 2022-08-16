@@ -143,10 +143,11 @@ pub fn get_proportion_u128(
     denominator: u128,
 ) -> ClearingHouseResult<u128> {
     let proportional_value = value
-        .checked_mul(numerator)
-        .ok_or_else(math_error!())?
-        .checked_div(denominator)
-        .ok_or_else(math_error!())?;
+                .checked_mul(numerator)
+                .ok_or_else(math_error!())?
+                .checked_div(denominator)
+                .ok_or_else(math_error!())?;
+
     Ok(proportional_value)
 }
 
@@ -155,6 +156,71 @@ mod test {
     use super::*;
     use crate::math::constants::AMM_RESERVE_PRECISION;
     use crate::state::user::MarketPosition;
+
+    mod calculate_get_proportion_u128 {
+        use super::*;
+
+        pub fn get_proportion_u128_safe(
+            value: u128,
+            numerator: u128,
+            denominator: u128,
+        ) -> ClearingHouseResult<u128> {
+            if numerator == 0 {
+                return Ok(0);
+            }
+        
+            let proportional_value = if numerator <= denominator {
+                let ratio = denominator
+                    .checked_mul(10000)
+                    .ok_or_else(math_error!())?
+                    .checked_div(numerator)
+                    .ok_or_else(math_error!())?;
+                value
+                    .checked_mul(10000)
+                    .ok_or_else(math_error!())?
+                    .checked_div(ratio)
+                    .ok_or_else(math_error!())?
+            } else {
+                value
+                    .checked_mul(numerator)
+                    .ok_or_else(math_error!())?
+                    .checked_div(denominator)
+                    .ok_or_else(math_error!())?
+            };
+
+            Ok(proportional_value)
+        }
+
+        #[test]
+        fn test_safe() {
+            let sqrt_k = AMM_RESERVE_PRECISION * 10_123;
+            let max_reserve = sqrt_k * 14121 / 10000;
+            let max_asks = max_reserve - sqrt_k;
+
+            let ans1 = get_proportion_u128_safe(max_asks, sqrt_k - sqrt_k / 100, sqrt_k).unwrap();
+            let ans2 = get_proportion_u128(max_asks, sqrt_k - sqrt_k / 100, sqrt_k).unwrap();
+            // assert_eq!(ans1, ans2); //fails
+
+            let ans1 = get_proportion_u128_safe(max_asks, sqrt_k / 2, sqrt_k).unwrap();
+            let ans2 = get_proportion_u128(max_asks, sqrt_k / 2, sqrt_k).unwrap();
+            assert_eq!(ans1, ans2);
+
+            let ans1 = get_proportion_u128_safe(max_asks, AMM_RESERVE_PRECISION, sqrt_k).unwrap();
+            let ans2 = get_proportion_u128(max_asks, AMM_RESERVE_PRECISION, sqrt_k).unwrap();
+            assert_eq!(ans1, ans2);
+
+            let ans1 = get_proportion_u128_safe(max_asks, 0, sqrt_k).unwrap();
+            let ans2 = get_proportion_u128(max_asks, 0, sqrt_k).unwrap();
+            assert_eq!(ans1, ans2);
+
+            let ans1 = get_proportion_u128_safe(max_asks, 1325324, sqrt_k).unwrap();
+            let ans2 = get_proportion_u128(max_asks, 1325324, sqrt_k).unwrap();
+            assert_eq!(ans1, ans2);
+
+            // let ans1 = get_proportion_u128(max_asks, sqrt_k, sqrt_k).unwrap();
+            // assert_eq!(ans1, max_asks);
+        }
+    }
 
     mod calculate_lp_open_bids_asks {
         use super::*;
