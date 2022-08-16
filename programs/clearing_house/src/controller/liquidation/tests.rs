@@ -2080,10 +2080,11 @@ pub mod resolve_borrow_bankruptcy {
     use crate::controller::position::PositionDirection;
     use crate::create_account_info;
     use crate::create_anchor_account_info;
+    use crate::math::bank_balance::get_token_amount;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BANK_CUMULATIVE_INTEREST_PRECISION, BANK_INTEREST_PRECISION,
         BANK_WEIGHT_PRECISION, BASE_PRECISION, BASE_PRECISION_I128, FUNDING_RATE_PRECISION_I128,
-        LIQUIDATION_FEE_PRECISION, PEG_PRECISION, QUOTE_PRECISION_I128,
+        LIQUIDATION_FEE_PRECISION, PEG_PRECISION, QUOTE_PRECISION, QUOTE_PRECISION_I128,
     };
     use crate::state::bank::{Bank, BankBalanceType};
     use crate::state::bank_map::BankMap;
@@ -2221,5 +2222,12 @@ pub mod resolve_borrow_bankruptcy {
 
         assert_eq!(expected_user, user);
         assert_eq!(expected_bank, *bank_map.get_ref(&0).unwrap());
+
+        let bank = bank_map.get_ref_mut(&0).unwrap();
+        let deposit_balance = bank.deposit_balance;
+        let deposit_token_amount =
+            get_token_amount(deposit_balance, &bank, &BankBalanceType::Deposit).unwrap();
+
+        assert_eq!(deposit_token_amount, 900 * QUOTE_PRECISION);
     }
 }
