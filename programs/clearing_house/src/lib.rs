@@ -1198,12 +1198,9 @@ pub mod clearing_house {
     pub fn trigger_order<'info>(ctx: Context<TriggerOrder>, order_id: u64) -> Result<()> {
         let market_index = {
             let user = &load!(ctx.accounts.user)?;
-            let market_index = user
-                .get_order(order_id)
+            user.get_order(order_id)
                 .map(|order| order.market_index)
                 .ok_or(ErrorCode::OrderDoesNotExist)?;
-
-            market_index
         };
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();

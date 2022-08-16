@@ -784,19 +784,6 @@ mod test {
 
     #[test]
     fn test_lp_user_short() {
-        let _user = User { ..User::default() };
-        let user_bank_balance = UserBankBalance {
-            balance_type: BankBalanceType::Deposit,
-            balance: MARK_PRICE_PRECISION,
-            ..UserBankBalance::default()
-        };
-        let bank = Bank {
-            cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
-            decimals: 6,
-            ..Bank::default()
-        };
-
         let mut market = Market {
             market_index: 0,
             amm: AMM {
@@ -820,14 +807,14 @@ mod test {
             ..MarketPosition::default()
         };
 
-        let mut oracle_price_data = OraclePriceData {
+        let oracle_price_data = OraclePriceData {
             price: (2 * MARK_PRICE_PRECISION) as i128,
             confidence: 0,
             delay: 2,
             has_sufficient_number_of_data_points: true,
         };
 
-        let (pmr, upnl) = calculate_perp_position_value_and_pnl(
+        let (pmr, _) = calculate_perp_position_value_and_pnl(
             &position,
             &market,
             &oracle_price_data,
@@ -848,7 +835,7 @@ mod test {
         market.amm.quote_asset_reserve = new_qar;
         market.amm.base_asset_reserve = new_bar;
 
-        let (pmr2, upnl2) = calculate_perp_position_value_and_pnl(
+        let (pmr2, _) = calculate_perp_position_value_and_pnl(
             &position,
             &market,
             &oracle_price_data,
@@ -862,19 +849,6 @@ mod test {
 
     #[test]
     fn test_lp_user_long() {
-        let _user = User { ..User::default() };
-        let user_bank_balance = UserBankBalance {
-            balance_type: BankBalanceType::Deposit,
-            balance: MARK_PRICE_PRECISION,
-            ..UserBankBalance::default()
-        };
-        let bank = Bank {
-            cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
-            decimals: 6,
-            ..Bank::default()
-        };
-
         let mut market = Market {
             market_index: 0,
             amm: AMM {
@@ -898,14 +872,14 @@ mod test {
             ..MarketPosition::default()
         };
 
-        let mut oracle_price_data = OraclePriceData {
+        let oracle_price_data = OraclePriceData {
             price: (2 * MARK_PRICE_PRECISION) as i128,
             confidence: 0,
             delay: 2,
             has_sufficient_number_of_data_points: true,
         };
 
-        let (pmr, upnl) = calculate_perp_position_value_and_pnl(
+        let (pmr, _) = calculate_perp_position_value_and_pnl(
             &position,
             &market,
             &oracle_price_data,
@@ -925,7 +899,7 @@ mod test {
         market.amm.quote_asset_reserve = new_qar;
         market.amm.base_asset_reserve = new_bar;
 
-        let (pmr2, upnl2) = calculate_perp_position_value_and_pnl(
+        let (pmr2, _) = calculate_perp_position_value_and_pnl(
             &position,
             &market,
             &oracle_price_data,
