@@ -737,7 +737,7 @@ pub mod clearing_house {
         )?;
         {
             let mut market = market_map.get_ref_mut(&market_index)?;
-            controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
+            controller::funding::settle_funding_payment(user, &user_key, &market, now)?;
         }
 
         let mut market = market_map.get_ref_mut(&market_index)?;
@@ -773,7 +773,7 @@ pub mod clearing_house {
         )?;
         {
             let mut market = market_map.get_ref_mut(&market_index)?;
-            controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
+            controller::funding::settle_funding_payment(user, &user_key, &market, now)?;
         }
 
         if shares_to_burn == 0 {
@@ -834,7 +834,7 @@ pub mod clearing_house {
 
         {
             let mut market = market_map.get_ref_mut(&market_index)?;
-            controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
+            controller::funding::settle_funding_payment(user, &user_key, &market, now)?;
         }
 
         let position_index = get_position_index(&user.positions, market_index)
