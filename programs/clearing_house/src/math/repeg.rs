@@ -162,7 +162,7 @@ pub fn calculate_peg_from_target_price(
         .checked_div(bn::U192::from(PRICE_TO_PEG_PRECISION_RATIO))
         .ok_or_else(math_error!())?
         .try_to_u128()?;
-    Ok(new_peg)
+    Ok(new_peg.max(1))
 }
 
 pub fn calculate_amm_target_price(

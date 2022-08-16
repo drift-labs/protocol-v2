@@ -259,7 +259,7 @@ describe('User Account', () => {
 
 		console.log('marketMarginRatio:', marketMarginRatio);
 
-		const expectedPNL = new BN(-1);
+		const expectedPNL = new BN(-50001);
 		const expectedTotalCollateral = new BN(19949999);
 		const expectedBuyingPower = new BN(49749745);
 		const expectedFreeCollateral = new BN(9949949);
@@ -320,7 +320,7 @@ describe('User Account', () => {
 			convertToNumber(oraclePrice2)
 		);
 
-		const expectedPNL = new BN(4999474);
+		const expectedPNL = new BN(4949474);
 		const expectedTotalCollateral = new BN(24949474);
 		const expectedBuyingPower = new BN(69747645);
 		const expectedFreeCollateral = new BN(13949529);
@@ -341,7 +341,7 @@ describe('User Account', () => {
 
 		const expectedBuyingPower = new BN(124472375);
 		const expectedFreeCollateral = new BN(24894475);
-		const expectedPNL = new BN(0);
+		const expectedPNL = new BN(4894475);
 		const expectedTotalCollateral = new BN(24894475);
 		const expectedLeverage = new BN(0);
 		const expectedMarginRatio = new BN(Number.MAX_SAFE_INTEGER);

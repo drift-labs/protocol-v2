@@ -6,13 +6,15 @@ use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::margin::meets_maintenance_margin_requirement;
 use crate::state::bank::BankBalanceType;
 use crate::state::bank_map::BankMap;
+use crate::state::events::SettlePnlRecord;
 use crate::state::market_map::MarketMap;
 use crate::state::oracle_map::OracleMap;
 use crate::state::user::User;
 use crate::validate;
 use anchor_lang::prelude::Pubkey;
+use anchor_lang::prelude::*;
 use solana_program::msg;
-use std::ops::DerefMut;
+use std::ops::Deref;
 
 #[cfg(test)]
 mod tests;
@@ -35,7 +37,7 @@ pub fn settle_pnl(
     settle_funding_payment(
         user,
         user_key,
-        market_map.get_ref_mut(&market_index)?.deref_mut(),
+        market_map.get_ref(&market_index)?.deref(),
         now,
     )?;
 
@@ -87,6 +89,20 @@ pub fn settle_pnl(
         &mut user.positions[position_index],
         -pnl_to_settle_with_user,
     )?;
+
+    let base_asset_amount = user.positions[position_index].base_asset_amount;
+    let quote_asset_amount_after = user.positions[position_index].quote_asset_amount;
+    let quote_entry_amount = user.positions[position_index].quote_entry_amount;
+
+    emit!(SettlePnlRecord {
+        ts: now,
+        market_index,
+        pnl: pnl_to_settle_with_user,
+        base_asset_amount,
+        quote_asset_amount_after,
+        quote_entry_amount,
+        oracle_price,
+    });
 
     Ok(())
 }
