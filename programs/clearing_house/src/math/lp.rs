@@ -85,7 +85,7 @@ pub fn calculate_settled_lp_base_quote(
     Ok((base_asset_amount, quote_asset_amount))
 }
 
-pub fn get_lp_open_bids_asks(
+pub fn calculate_lp_open_bids_asks(
     market_position: &MarketPosition,
     market: &Market,
 ) -> ClearingHouseResult<(i128, i128)> {
@@ -156,7 +156,7 @@ mod test {
     use crate::math::constants::AMM_RESERVE_PRECISION;
     use crate::state::user::MarketPosition;
 
-    mod get_lp_open_bids_asks {
+    mod calculate_lp_open_bids_asks {
         use super::*;
 
         #[test]
@@ -178,7 +178,7 @@ mod test {
                 ..Market::default_test()
             };
 
-            let (open_bids, open_asks) = get_lp_open_bids_asks(&position, &market).unwrap();
+            let (open_bids, open_asks) = calculate_lp_open_bids_asks(&position, &market).unwrap();
 
             assert_eq!(open_bids, 10 * 100 / 200);
             assert_eq!(open_asks, -90 * 100 / 200);
@@ -203,7 +203,7 @@ mod test {
                 ..Market::default_test()
             };
 
-            let (open_bids, open_asks) = get_lp_open_bids_asks(&position, &market).unwrap();
+            let (open_bids, open_asks) = calculate_lp_open_bids_asks(&position, &market).unwrap();
 
             assert_eq!(open_bids, 0); // wont go anymore short
             assert_eq!(open_asks, -100 * 100 / 200);
@@ -228,7 +228,7 @@ mod test {
                 ..Market::default_test()
             };
 
-            let (open_bids, open_asks) = get_lp_open_bids_asks(&position, &market).unwrap();
+            let (open_bids, open_asks) = calculate_lp_open_bids_asks(&position, &market).unwrap();
 
             assert_eq!(open_bids, 10 * 100 / 200);
             assert_eq!(open_asks, 0); // no more long

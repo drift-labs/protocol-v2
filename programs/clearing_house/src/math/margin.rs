@@ -14,7 +14,7 @@ use crate::controller::position::PositionDelta;
 use crate::math::bank_balance::get_balance_value_and_token_amount;
 use crate::math::casting::cast_to_i128;
 use crate::math::funding::calculate_funding_payment;
-use crate::math::lp::{calculate_settle_lp_metrics, get_lp_open_bids_asks};
+use crate::math::lp::{calculate_lp_open_bids_asks, calculate_settle_lp_metrics};
 use crate::math::position::calculate_position_new_quote_base_pnl;
 use crate::state::bank::{Bank, BankBalanceType};
 use crate::state::bank_map::BankMap;
@@ -203,7 +203,7 @@ pub fn calculate_perp_position_value_and_pnl(
             .checked_sub(cast_to_i128(dust_base_asset_value)?)
             .ok_or_else(math_error!())?;
 
-        let (lp_bids, lp_asks) = get_lp_open_bids_asks(market_position, market)?;
+        let (lp_bids, lp_asks) = calculate_lp_open_bids_asks(market_position, market)?;
 
         let open_bids = market_position
             .open_bids
