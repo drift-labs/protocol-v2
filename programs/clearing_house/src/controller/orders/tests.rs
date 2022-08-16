@@ -31,7 +31,7 @@ pub mod fulfill_order_with_maker_order {
     };
     use crate::state::market::Market;
     use crate::state::state::FeeStructure;
-    use crate::state::user::{MarketPosition, Order, OrderType, User};
+    use crate::state::user::{MarketPosition, Order, OrderType, User, UserStats};
     use crate::tests::utils::*;
 
     #[test]
@@ -89,14 +89,20 @@ pub mod fulfill_order_with_maker_order {
 
         let mut order_records = vec![];
 
+        let mut taker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
+
         fulfill_order_with_match(
             &mut market,
             &mut taker,
+            &mut taker_stats,
             0,
             &taker_key,
             &mut maker,
+            &mut maker_stats,
             0,
             &maker_key,
+            None,
             None,
             &filler_key,
             now,
@@ -204,14 +210,20 @@ pub mod fulfill_order_with_maker_order {
 
         let mut order_records = vec![];
 
+        let mut taker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
+
         fulfill_order_with_match(
             &mut market,
             &mut taker,
+            &mut taker_stats,
             0,
             &taker_key,
             &mut maker,
+            &mut maker_stats,
             0,
             &maker_key,
+            None,
             None,
             &filler_key,
             now,
@@ -319,14 +331,20 @@ pub mod fulfill_order_with_maker_order {
 
         let mut order_records = vec![];
 
+        let mut taker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
+
         fulfill_order_with_match(
             &mut market,
             &mut taker,
+            &mut taker_stats,
             0,
             &taker_key,
             &mut maker,
+            &mut maker_stats,
             0,
             &maker_key,
+            None,
             None,
             &filler_key,
             now,
@@ -434,14 +452,20 @@ pub mod fulfill_order_with_maker_order {
 
         let mut order_records = vec![];
 
+        let mut taker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
+
         fulfill_order_with_match(
             &mut market,
             &mut taker,
+            &mut taker_stats,
             0,
             &taker_key,
             &mut maker,
+            &mut maker_stats,
             0,
             &maker_key,
+            None,
             None,
             &filler_key,
             now,
@@ -549,14 +573,20 @@ pub mod fulfill_order_with_maker_order {
 
         let mut order_records = vec![];
 
+        let mut taker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
+
         let (base_asset_amount, _) = fulfill_order_with_match(
             &mut market,
             &mut taker,
+            &mut taker_stats,
             0,
             &taker_key,
             &mut maker,
+            &mut maker_stats,
             0,
             &maker_key,
+            None,
             None,
             &filler_key,
             now,
@@ -624,14 +654,20 @@ pub mod fulfill_order_with_maker_order {
 
         let mut order_records = vec![];
 
+        let mut taker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
+
         let (base_asset_amount, _) = fulfill_order_with_match(
             &mut market,
             &mut taker,
+            &mut taker_stats,
             0,
             &taker_key,
             &mut maker,
+            &mut maker_stats,
             0,
             &maker_key,
+            None,
             None,
             &filler_key,
             now,
@@ -700,14 +736,20 @@ pub mod fulfill_order_with_maker_order {
 
         let mut order_records = vec![];
 
+        let mut taker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
+
         let (base_asset_amount, _) = fulfill_order_with_match(
             &mut market,
             &mut taker,
+            &mut taker_stats,
             0,
             &taker_key,
             &mut maker,
+            &mut maker_stats,
             0,
             &maker_key,
+            None,
             None,
             &filler_key,
             now,
@@ -776,14 +818,20 @@ pub mod fulfill_order_with_maker_order {
 
         let mut order_records = vec![];
 
+        let mut taker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
+
         let (base_asset_amount, _) = fulfill_order_with_match(
             &mut market,
             &mut taker,
+            &mut taker_stats,
             0,
             &taker_key,
             &mut maker,
+            &mut maker_stats,
             0,
             &maker_key,
+            None,
             None,
             &filler_key,
             now,
@@ -852,14 +900,20 @@ pub mod fulfill_order_with_maker_order {
 
         let mut order_records = vec![];
 
+        let mut taker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
+
         fulfill_order_with_match(
             &mut market,
             &mut taker,
+            &mut taker_stats,
             0,
             &taker_key,
             &mut maker,
+            &mut maker_stats,
             0,
             &maker_key,
+            None,
             None,
             &filler_key,
             now,
@@ -954,14 +1008,20 @@ pub mod fulfill_order_with_maker_order {
 
         let mut order_records = vec![];
 
+        let mut taker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
+
         fulfill_order_with_match(
             &mut market,
             &mut taker,
+            &mut taker_stats,
             0,
             &taker_key,
             &mut maker,
+            &mut maker_stats,
             0,
             &maker_key,
+            None,
             None,
             &filler_key,
             now,
@@ -1059,14 +1119,20 @@ pub mod fulfill_order_with_maker_order {
 
         let mut order_records = vec![];
 
+        let mut taker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
+
         fulfill_order_with_match(
             &mut market,
             &mut taker,
+            &mut taker_stats,
             0,
             &taker_key,
             &mut maker,
+            &mut maker_stats,
             0,
             &maker_key,
+            None,
             None,
             &filler_key,
             now,
@@ -1171,14 +1237,20 @@ pub mod fulfill_order_with_maker_order {
 
         let mut order_records = vec![];
 
+        let mut taker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
+
         fulfill_order_with_match(
             &mut market,
             &mut taker,
+            &mut taker_stats,
             0,
             &taker_key,
             &mut maker,
+            &mut maker_stats,
             0,
             &maker_key,
+            None,
             None,
             &filler_key,
             now,
@@ -1284,14 +1356,20 @@ pub mod fulfill_order_with_maker_order {
 
         let mut order_records = vec![];
 
+        let mut taker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
+
         fulfill_order_with_match(
             &mut market,
             &mut taker,
+            &mut taker_stats,
             0,
             &taker_key,
             &mut maker,
+            &mut maker_stats,
             0,
             &maker_key,
+            None,
             None,
             &filler_key,
             now,
@@ -1361,7 +1439,7 @@ pub mod fulfill_order {
     use crate::state::market::{Market, AMM};
     use crate::state::market_map::MarketMap;
     use crate::state::oracle::OracleSource;
-    use crate::state::user::{OrderStatus, OrderType, User, UserBankBalance};
+    use crate::state::user::{OrderStatus, OrderType, User, UserBankBalance, UserStats};
     use crate::tests::utils::*;
     use std::ops::Deref;
     use std::str::FromStr;
@@ -1470,15 +1548,21 @@ pub mod fulfill_order {
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
+        let mut taker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
+
         let (base_asset_amount, _, _) = fulfill_order(
             &mut taker,
             0,
             &taker_key,
+            &mut taker_stats,
             &mut Some(&mut maker),
+            &mut Some(&mut maker_stats),
             Some(0),
             Some(&maker_key),
             &mut None,
             &filler_key,
+            &mut None,
             &bank_map,
             &market_map,
             &mut oracle_map,
@@ -1613,15 +1697,21 @@ pub mod fulfill_order {
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
+        let mut taker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
+
         let (base_asset_amount, _, _) = fulfill_order(
             &mut taker,
             0,
             &taker_key,
+            &mut taker_stats,
             &mut Some(&mut maker),
+            &mut Some(&mut maker_stats),
             Some(0),
             Some(&maker_key),
             &mut None,
             &filler_key,
+            &mut None,
             &bank_map,
             &market_map,
             &mut oracle_map,
@@ -1751,15 +1841,20 @@ pub mod fulfill_order {
 
         let (taker_key, _, filler_key) = get_user_keys();
 
+        let mut taker_stats = UserStats::default();
+
         let (base_asset_amount, _, _) = fulfill_order(
             &mut taker,
             0,
             &taker_key,
+            &mut taker_stats,
+            &mut None,
             &mut None,
             None,
             None,
             &mut None,
             &filler_key,
+            &mut None,
             &bank_map,
             &market_map,
             &mut oracle_map,
@@ -1911,15 +2006,22 @@ pub mod fulfill_order {
         };
         let expected_market_after = *market_map.get_ref(&0).unwrap();
 
+        let mut taker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
+        let mut filler_stats = UserStats::default();
+
         let (base_asset_amount, potentially_risk_increasing, _) = fulfill_order(
             &mut taker,
             0,
             &taker_key,
+            &mut taker_stats,
             &mut Some(&mut maker),
+            &mut Some(&mut maker_stats),
             Some(0),
             Some(&maker_key),
             &mut Some(&mut filler),
             &filler_key,
+            &mut Some(&mut filler_stats),
             &bank_map,
             &market_map,
             &mut oracle_map,
@@ -2103,17 +2205,23 @@ pub mod fulfill_order {
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
+        let mut taker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
+
         let taker_before = taker;
         let maker_before = maker;
         let (base_asset_amount, _, _) = fulfill_order(
             &mut taker,
             0,
             &taker_key,
+            &mut taker_stats,
             &mut Some(&mut maker),
+            &mut Some(&mut maker_stats),
             Some(1),
             Some(&maker_key),
             &mut None,
             &filler_key,
+            &mut None,
             &bank_map,
             &market_map,
             &mut oracle_map,
@@ -2192,7 +2300,7 @@ pub mod fill_order {
     use crate::state::market_map::MarketMap;
     use crate::state::oracle::OracleSource;
     use crate::state::state::State;
-    use crate::state::user::{OrderStatus, OrderType, User, UserBankBalance};
+    use crate::state::user::{OrderStatus, OrderType, User, UserBankBalance, UserStats};
     use crate::tests::utils::create_account_info;
     use crate::tests::utils::*;
     use anchor_lang::prelude::{AccountLoader, Clock};
@@ -2288,10 +2396,18 @@ pub mod fill_order {
         let user_account_loader: AccountLoader<User> =
             AccountLoader::try_from(&user_account_info).unwrap();
 
+        create_anchor_account_info!(UserStats::default(), UserStats, user_stats_account_info);
+        let user_stats_account_loader: AccountLoader<UserStats> =
+            AccountLoader::try_from(&user_stats_account_info).unwrap();
+
         let filler_key = Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap();
         create_anchor_account_info!(User::default(), &filler_key, User, user_account_info);
         let filler_account_loader: AccountLoader<User> =
             AccountLoader::try_from(&user_account_info).unwrap();
+
+        create_anchor_account_info!(UserStats::default(), UserStats, filler_stats_account_info);
+        let filler_stats_account_loader: AccountLoader<UserStats> =
+            AccountLoader::try_from(&filler_stats_account_info).unwrap();
 
         let state = State {
             min_auction_duration: 1,
@@ -2303,10 +2419,13 @@ pub mod fill_order {
             1,
             &state,
             &user_account_loader,
+            &user_stats_account_loader,
             &bank_map,
             &market_map,
             &mut oracle_map,
             &filler_account_loader,
+            &filler_stats_account_loader,
+            None,
             None,
             None,
             &clock,
@@ -2395,10 +2514,18 @@ pub mod fill_order {
         let user_account_loader: AccountLoader<User> =
             AccountLoader::try_from(&user_account_info).unwrap();
 
+        create_anchor_account_info!(UserStats::default(), UserStats, user_stats_account_info);
+        let user_stats_account_loader: AccountLoader<UserStats> =
+            AccountLoader::try_from(&user_stats_account_info).unwrap();
+
         let filler_key = Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap();
         create_anchor_account_info!(User::default(), &filler_key, User, user_account_info);
         let filler_account_loader: AccountLoader<User> =
             AccountLoader::try_from(&user_account_info).unwrap();
+
+        create_anchor_account_info!(UserStats::default(), UserStats, filler_stats_account_info);
+        let filler_stats_account_loader: AccountLoader<UserStats> =
+            AccountLoader::try_from(&filler_stats_account_info).unwrap();
 
         let state = State {
             min_auction_duration: 1,
@@ -2418,10 +2545,13 @@ pub mod fill_order {
             1,
             &state,
             &user_account_loader,
+            &user_stats_account_loader,
             &bank_map,
             &market_map,
             &mut oracle_map,
             &filler_account_loader,
+            &filler_stats_account_loader,
+            None,
             None,
             None,
             &clock,

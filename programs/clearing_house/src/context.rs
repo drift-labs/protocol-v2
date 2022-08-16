@@ -340,8 +340,18 @@ pub struct FillOrder<'info> {
         has_one = authority
     )]
     pub filler: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        has_one = authority,
+    )]
+    pub filler_stats: AccountLoader<'info, UserStats>,
     #[account(mut)]
     pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        has_one = authority,
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
 }
 
 #[derive(Accounts)]
@@ -402,6 +412,11 @@ pub struct PlaceAndTake<'info> {
         has_one = authority,
     )]
     pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        has_one = authority,
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
     pub authority: Signer<'info>,
 }
 
@@ -413,8 +428,18 @@ pub struct PlaceAndMake<'info> {
         has_one = authority,
     )]
     pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        has_one = authority,
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
     #[account(mut)]
     pub taker: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = &taker.load()?.authority.eq(&taker_stats.load()?.authority)
+    )]
+    pub taker_stats: AccountLoader<'info, UserStats>,
     pub authority: Signer<'info>,
 }
 
