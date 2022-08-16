@@ -208,7 +208,7 @@ export class ClearingHouseUser {
 
 		let remainderBaa;
 		if (_standardizedBaa.gte(market.amm.baseAssetAmountStepSize)) {
-			remainderBaa = remainderBaa;
+			remainderBaa = remainder;
 		} else {
 			remainderBaa = deltaBaa;
 		}

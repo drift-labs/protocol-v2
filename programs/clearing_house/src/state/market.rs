@@ -261,6 +261,8 @@ impl AMM {
             quote_asset_reserve: default_reserves,
             sqrt_k: default_reserves,
             base_asset_amount_step_size: 1,
+            max_base_asset_reserve: u128::MAX,
+            min_base_asset_reserve: 0,
             ..AMM::default()
         }
     }
