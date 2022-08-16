@@ -143,10 +143,10 @@ pub fn get_proportion_u128(
     denominator: u128,
 ) -> ClearingHouseResult<u128> {
     let proportional_value = value
-                .checked_mul(numerator)
-                .ok_or_else(math_error!())?
-                .checked_div(denominator)
-                .ok_or_else(math_error!())?;
+        .checked_mul(numerator)
+        .ok_or_else(math_error!())?
+        .checked_div(denominator)
+        .ok_or_else(math_error!())?;
 
     Ok(proportional_value)
 }
@@ -168,7 +168,7 @@ mod test {
             if numerator == 0 {
                 return Ok(0);
             }
-        
+
             let proportional_value = if numerator <= denominator {
                 let ratio = denominator
                     .checked_mul(10000)
@@ -197,8 +197,8 @@ mod test {
             let max_reserve = sqrt_k * 14121 / 10000;
             let max_asks = max_reserve - sqrt_k;
 
-            let ans1 = get_proportion_u128_safe(max_asks, sqrt_k - sqrt_k / 100, sqrt_k).unwrap();
-            let ans2 = get_proportion_u128(max_asks, sqrt_k - sqrt_k / 100, sqrt_k).unwrap();
+            // let ans1 = get_proportion_u128_safe(max_asks, sqrt_k - sqrt_k / 100, sqrt_k).unwrap();
+            // let ans2 = get_proportion_u128(max_asks, sqrt_k - sqrt_k / 100, sqrt_k).unwrap();
             // assert_eq!(ans1, ans2); //fails
 
             let ans1 = get_proportion_u128_safe(max_asks, sqrt_k / 2, sqrt_k).unwrap();

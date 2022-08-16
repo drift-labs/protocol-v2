@@ -33,7 +33,8 @@ impl<'a> MarketMap<'a> {
     }
 
     pub fn load<'b, 'c>(
-        writable_markets: &'b WritableMarkets,
+        writable_markets: &'b MarketSet,
+        override_writable_markets: &'b MarketSet,
         account_info_iter: &'c mut Peekable<Iter<AccountInfo<'a>>>,
     ) -> ClearingHouseResult<MarketMap<'a>> {
         let mut market_map: MarketMap = MarketMap(BTreeMap::new());
@@ -56,13 +57,22 @@ impl<'a> MarketMap<'a> {
             let is_initialized = array_ref![data, 48, 1];
 
             let account_info = account_info_iter.next().unwrap();
-            let is_writable = account_info.is_writable;
-            let account_loader: AccountLoader<Market> =
-                AccountLoader::try_from(account_info).or(Err(ErrorCode::InvalidMarketAccount))?;
 
+            let is_writable = account_info.is_writable;
             if writable_markets.contains(&market_index) && !is_writable {
                 return Err(ErrorCode::MarketWrongMutability);
             }
+
+            let account_loader: AccountLoader<Market> = if override_writable_markets
+                .contains(&market_index)
+            {
+                let mut account_info_clone = account_info.clone();
+                account_info_clone.is_writable = true;
+                AccountLoader::try_from(&account_info_clone)
+                    .or(Err(ErrorCode::InvalidMarketAccount))?
+            } else {
+                AccountLoader::try_from(account_info).or(Err(ErrorCode::InvalidMarketAccount))?
+            };
 
             if is_initialized != &[1] {
                 return Err(ErrorCode::MarketIndexNotInitialized);
@@ -162,16 +172,16 @@ impl<'a> MarketMap<'a> {
     }
 }
 
-pub type WritableMarkets = BTreeSet<u64>;
+pub type MarketSet = BTreeSet<u64>;
 
-pub fn get_writable_markets(market_index: u64) -> WritableMarkets {
-    let mut writable_markets = WritableMarkets::new();
+pub fn get_market_set(market_index: u64) -> MarketSet {
+    let mut writable_markets = MarketSet::new();
     writable_markets.insert(market_index);
     writable_markets
 }
 
-pub fn get_writable_markets_list(market_indexes: [u64; 5]) -> WritableMarkets {
-    let mut writable_markets = WritableMarkets::new();
+pub fn get_market_set_from_list(market_indexes: [u64; 5]) -> MarketSet {
+    let mut writable_markets = MarketSet::new();
     for market_index in market_indexes.iter() {
         if *market_index == 100 {
             continue; // todo
@@ -181,19 +191,19 @@ pub fn get_writable_markets_list(market_indexes: [u64; 5]) -> WritableMarkets {
     writable_markets
 }
 
-pub fn get_writable_markets_for_user_positions(user_positions: &UserPositions) -> WritableMarkets {
-    let mut writable_markets = WritableMarkets::new();
+pub fn get_market_set_for_user_positions(user_positions: &UserPositions) -> MarketSet {
+    let mut writable_markets = MarketSet::new();
     for position in user_positions.iter() {
         writable_markets.insert(position.market_index);
     }
     writable_markets
 }
 
-pub fn get_writable_markets_for_user_positions_and_order(
+pub fn get_market_set_for_user_positions_and_order(
     user_positions: &UserPositions,
     market_index: u64,
-) -> WritableMarkets {
-    let mut writable_markets = WritableMarkets::new();
+) -> MarketSet {
+    let mut writable_markets = MarketSet::new();
     for position in user_positions.iter() {
         writable_markets.insert(position.market_index);
     }

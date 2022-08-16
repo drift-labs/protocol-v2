@@ -437,7 +437,7 @@ describe('liquidity providing', () => {
 		const trader = traderClearingHouse.getUserAccount();
 		console.log('trader size', trader.positions[0].baseAssetAmount.toString());
 
-		const settledLPPosition = clearingHouseUser.getSettledLPPosition(ZERO);
+		const [settledLPPosition, _] = clearingHouseUser.getSettledLPPosition(ZERO);
 
 		console.log('settling...');
 		try {

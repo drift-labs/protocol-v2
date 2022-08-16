@@ -28,7 +28,7 @@ use crate::state::user::User;
 pub fn settle_funding_payment(
     user: &mut User,
     user_key: &Pubkey,
-    market: &mut Market,
+    market: &Market,
     now: UnixTimestamp,
 ) -> ClearingHouseResult {
     let position_index = match get_position_index(&user.positions, market.market_index) {
