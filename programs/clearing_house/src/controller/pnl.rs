@@ -1,12 +1,15 @@
 use crate::controller::amm::{update_pnl_pool_balance, update_pool_balances};
 use crate::controller::bank_balance::{update_bank_balances, update_bank_cumulative_interest};
 use crate::controller::funding::settle_funding_payment;
-use crate::controller::position::{get_position_index, update_quote_asset_amount};
+use crate::controller::position::{
+    get_position_index, update_position_and_market, update_quote_asset_amount, PositionDelta,
+};
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::bank_balance::get_token_amount;
 use crate::math::casting::{cast, cast_to_i128};
 use crate::math::margin::meets_maintenance_margin_requirement;
 use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
+use crate::math_error;
 use crate::state::bank::BankBalanceType;
 use crate::state::bank_map::BankMap;
 use crate::state::events::SettlePnlRecord;
@@ -192,9 +195,19 @@ pub fn settle_expired_position(
         user.get_quote_asset_bank_balance_mut(),
     )?;
 
-    let base_asset_amount = user.positions[position_index].base_asset_amount;
-    let quote_asset_amount_after = 0;
-    let quote_entry_amount = user.positions[position_index].quote_entry_amount;
+    let user_position = &mut user.positions[position_index];
+
+    let base_asset_amount = user_position.base_asset_amount;
+    let quote_entry_amount = user_position.quote_entry_amount;
+
+    let position_delta = PositionDelta {
+        quote_asset_amount: -user_position.quote_asset_amount,
+        base_asset_amount: -user_position.base_asset_amount,
+    };
+
+    let user_pnl = update_position_and_market(user_position, market, &position_delta)?;
+
+    let quote_asset_amount_after = user_position.quote_asset_amount;
 
     emit!(SettlePnlRecord {
         ts: now,
@@ -203,12 +216,8 @@ pub fn settle_expired_position(
         base_asset_amount,
         quote_asset_amount_after,
         quote_entry_amount,
-        oracle_price,
+        oracle_price: market.settlement_price, // todo rename this field?
     });
-
-    user.positions[position_index].base_asset_amount = 0;
-    user.positions[position_index].quote_asset_amount = 0;
-    user.positions[position_index].quote_entry_amount = 0;
 
     Ok(())
 }

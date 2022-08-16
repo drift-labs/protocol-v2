@@ -1125,9 +1125,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        market_initialized(&ctx.accounts.market) &&
-        exchange_not_paused(&ctx.accounts.state) &&
-        admin_controls_prices(&ctx.accounts.state)
+        exchange_not_paused(&ctx.accounts.state)
     )]
     pub fn settle_expired_market(ctx: Context<UpdateAMM>, market_index: u64) -> Result<()> {
         let clock = Clock::get()?;
@@ -1149,13 +1147,13 @@ pub mod clearing_house {
 
         validate!(
             market.expiry_ts != 0,
-            ErrorCode::InvalidUpdateK,
+            ErrorCode::DefaultError,
             "Market isn't set to expire"
         )?;
 
         validate!(
             market.expiry_ts >= now,
-            ErrorCode::InvalidUpdateK,
+            ErrorCode::DefaultError,
             "Market hasn't expired yet"
         )?;
 
@@ -1180,8 +1178,16 @@ pub mod clearing_house {
         };
 
         let bank = &mut bank_map.get_ref_mut(&QUOTE_ASSET_BANK_INDEX)?;
+
         let pnl_pool_amount =
             get_token_amount(market.pnl_pool.balance, bank, &BankBalanceType::Deposit)?;
+
+        validate!(
+            10_u128.pow(bank.decimals as u32) == QUOTE_PRECISION,
+            ErrorCode::DefaultError,
+            "Only support bank.decimals == QUOTE_PRECISION"
+        )?;
+
         let settlement_price =
             amm::calculate_settlement_price(&market.amm, target_settlement_price, pnl_pool_amount)?;
         market.settlement_price = settlement_price;
@@ -1454,9 +1460,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        market_initialized(&ctx.accounts.market) &&
-        exchange_not_paused(&ctx.accounts.state) &&
-        admin_controls_prices(&ctx.accounts.state)
+        market_initialized(&ctx.accounts.market)
     )]
     pub fn update_market_expiry(ctx: Context<MoveAMMPrice>, expiry_ts: i64) -> Result<()> {
         let clock = Clock::get()?;

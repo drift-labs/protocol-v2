@@ -107,14 +107,19 @@ pub fn update_position_and_market(
 
     let update_type = get_position_update_type(position, delta);
 
-    validate!(
-        (market.status == MarketStatus::Initialized)
-            || (market.status == MarketStatus::ReduceOnly
-                && (update_type == PositionUpdateType::Reduce
-                    || update_type == PositionUpdateType::Close)),
-        ErrorCode::InvalidPositionDelta,
-        "Market is in reduce only mode",
-    )?;
+    if market.status == MarketStatus::ReduceOnly {
+        validate!(
+            (update_type == PositionUpdateType::Reduce || update_type == PositionUpdateType::Close),
+            ErrorCode::InvalidPositionDelta,
+            "Market is in reduce only mode",
+        )?;
+    } else if market.status == MarketStatus::Settlement {
+        validate!(
+            update_type == PositionUpdateType::Close,
+            ErrorCode::InvalidPositionDelta,
+            "Market is in settlement only mode",
+        )?;
+    }
 
     // Update User
     let new_quote_asset_amount = position
