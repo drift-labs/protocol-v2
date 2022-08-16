@@ -16,5 +16,5 @@ test_files=(
   curve.ts idempotentCurve.ts roundInFavor.ts cappedSymFunding.ts
 )
 for test_file in ${test_files[@]}; do
-  ANCHOR_TEST_FILE=${test_file} anchor test --skip-build || exit 1;
+  export ANCHOR_TEST_FILE=${test_file} && anchor test --skip-build || exit 1;
 done

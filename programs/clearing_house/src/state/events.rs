@@ -122,6 +122,8 @@ pub enum OrderActionExplanation {
     MarketOrderFilledToLimitPrice,
     MarketOrderAuctionExpired,
     CanceledForLiquidation,
+    OrderFilledWithAMM,
+    OrderFilledWithMatch,
 }
 
 impl Default for OrderAction {

@@ -3566,6 +3566,12 @@
           },
           {
             "name": "CanceledForLiquidation"
+          },
+          {
+            "name": "OrderFilledWithAMM"
+          },
+          {
+            "name": "OrderFilledWithMatch"
           }
         ]
       }
