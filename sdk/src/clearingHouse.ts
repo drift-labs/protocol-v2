@@ -1129,7 +1129,7 @@ export class ClearingHouse {
 		const remainingAccounts = this.getRemainingAccounts(
 			{ writableMarketIndex: marketIndex },
 			true,
-			false,
+			true,
 			true
 		);
 

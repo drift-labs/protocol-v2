@@ -102,6 +102,7 @@ pub fn get_lp_open_bids_asks(
     } else {
         0
     };
+    println!("{} {} {}", max_asks, lp_shares, total_lp_shares);
     let open_asks = -cast_to_i128(get_proportion_u128(max_asks, lp_shares, total_lp_shares)?)?;
 
     // worst case if all bids are filled
@@ -154,6 +155,85 @@ mod test {
     use super::*;
     use crate::math::constants::AMM_RESERVE_PRECISION;
     use crate::state::user::MarketPosition;
+
+    mod get_lp_open_bids_asks {
+        use super::*;
+
+        #[test]
+        fn test_simple_lp_bid_ask() {
+            let position = MarketPosition {
+                lp_shares: 100,
+                ..MarketPosition::default()
+            };
+
+            let amm = AMM {
+                base_asset_reserve: 10,
+                max_base_asset_reserve: 100,
+                min_base_asset_reserve: 0,
+                sqrt_k: 200,
+                ..AMM::default_test()
+            };
+            let market = Market {
+                amm,
+                ..Market::default_test()
+            };
+
+            let (open_bids, open_asks) = get_lp_open_bids_asks(&position, &market).unwrap();
+
+            assert_eq!(open_bids, 10 * 100 / 200);
+            assert_eq!(open_asks, -90 * 100 / 200);
+        }
+
+        #[test]
+        fn test_max_ask() {
+            let position = MarketPosition {
+                lp_shares: 100,
+                ..MarketPosition::default()
+            };
+
+            let amm = AMM {
+                base_asset_reserve: 0,
+                max_base_asset_reserve: 100,
+                min_base_asset_reserve: 0,
+                sqrt_k: 200,
+                ..AMM::default_test()
+            };
+            let market = Market {
+                amm,
+                ..Market::default_test()
+            };
+
+            let (open_bids, open_asks) = get_lp_open_bids_asks(&position, &market).unwrap();
+
+            assert_eq!(open_bids, 0); // wont go anymore short
+            assert_eq!(open_asks, -100 * 100 / 200);
+        }
+
+        #[test]
+        fn test_max_bid() {
+            let position = MarketPosition {
+                lp_shares: 100,
+                ..MarketPosition::default()
+            };
+
+            let amm = AMM {
+                base_asset_reserve: 10,
+                max_base_asset_reserve: 10,
+                min_base_asset_reserve: 0,
+                sqrt_k: 200,
+                ..AMM::default_test()
+            };
+            let market = Market {
+                amm,
+                ..Market::default_test()
+            };
+
+            let (open_bids, open_asks) = get_lp_open_bids_asks(&position, &market).unwrap();
+
+            assert_eq!(open_bids, 10 * 100 / 200);
+            assert_eq!(open_asks, 0); // no more long
+        }
+    }
 
     mod calculate_settled_lp_base_quote {
         use super::*;
