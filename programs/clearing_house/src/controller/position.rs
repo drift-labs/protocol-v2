@@ -7,6 +7,7 @@ use crate::controller::amm::SwapDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::casting::{cast, cast_to_i128};
 use crate::math::constants::{AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128};
+use crate::math::lp::get_proportion_i128;
 use crate::math::orders::{
     calculate_quote_asset_amount_for_maker_order, get_position_delta_for_fill,
 };
@@ -409,8 +410,6 @@ pub fn update_position_and_market(
     Ok(pnl)
 }
 
-use crate::math::lp::get_proportion_i128;
-
 pub fn update_user_and_market_position(
     position: &mut MarketPosition,
     market: &mut Market,
@@ -422,6 +421,7 @@ pub fn update_user_and_market_position(
 
     let total_lp_shares = market.amm.sqrt_k;
     let non_amm_lp_shares = market.amm.user_lp_shares;
+    println!("{} {}", total_lp_shares, non_amm_lp_shares);
 
     // update Market per lp position
     let lp_delta_base =
@@ -647,8 +647,127 @@ mod test {
     use crate::controller::position::{
         update_position_and_market, update_user_and_market_position, PositionDelta,
     };
+    use crate::math::constants::{AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128};
     use crate::state::market::{Market, AMM};
     use crate::state::user::MarketPosition;
+
+    #[test]
+    fn full_amm_split() {
+        let mut position = MarketPosition::default();
+        let delta = PositionDelta {
+            base_asset_amount: 10 * AMM_RESERVE_PRECISION_I128,
+            quote_asset_amount: -10 * AMM_RESERVE_PRECISION_I128,
+        };
+
+        let amm = AMM {
+            user_lp_shares: 0,
+            sqrt_k: 100 * AMM_RESERVE_PRECISION,
+            ..AMM::default_test()
+        };
+        let mut market = Market {
+            amm,
+            ..Market::default_test()
+        };
+
+        update_user_and_market_position(&mut position, &mut market, &delta, 0).unwrap();
+
+        assert_eq!(
+            market.amm.market_position.base_asset_amount,
+            -10 * AMM_RESERVE_PRECISION_I128
+        );
+        assert_eq!(
+            market.amm.market_position.quote_asset_amount,
+            10 * AMM_RESERVE_PRECISION_I128
+        );
+        assert_eq!(market.amm.net_unsettled_lp_base_asset_amount, 0);
+        assert_eq!(
+            market.amm.net_base_asset_amount,
+            10 * AMM_RESERVE_PRECISION_I128
+        );
+    }
+
+    #[test]
+    fn full_lp_split() {
+        let mut position = MarketPosition::default();
+        let delta = PositionDelta {
+            base_asset_amount: 10 * AMM_RESERVE_PRECISION_I128,
+            quote_asset_amount: -10 * AMM_RESERVE_PRECISION_I128,
+        };
+
+        let amm = AMM {
+            user_lp_shares: 100 * AMM_RESERVE_PRECISION,
+            sqrt_k: 100 * AMM_RESERVE_PRECISION,
+            ..AMM::default_test()
+        };
+        let mut market = Market {
+            amm,
+            ..Market::default_test()
+        };
+
+        update_user_and_market_position(&mut position, &mut market, &delta, 0).unwrap();
+
+        assert_eq!(
+            market.amm.market_position_per_lp.base_asset_amount,
+            -10 * AMM_RESERVE_PRECISION_I128 / 100
+        );
+        assert_eq!(
+            market.amm.market_position_per_lp.quote_asset_amount,
+            10 * AMM_RESERVE_PRECISION_I128 / 100
+        );
+        assert_eq!(market.amm.net_base_asset_amount, 0);
+        assert_eq!(
+            market.amm.net_unsettled_lp_base_asset_amount,
+            10 * AMM_RESERVE_PRECISION_I128
+        );
+    }
+
+    #[test]
+    fn half_half_amm_lp_split() {
+        let mut position = MarketPosition::default();
+        let delta = PositionDelta {
+            base_asset_amount: 10 * AMM_RESERVE_PRECISION_I128,
+            quote_asset_amount: -10 * AMM_RESERVE_PRECISION_I128,
+        };
+
+        let amm = AMM {
+            user_lp_shares: 100 * AMM_RESERVE_PRECISION,
+            sqrt_k: 200 * AMM_RESERVE_PRECISION,
+            ..AMM::default_test()
+        };
+        let mut market = Market {
+            amm,
+            ..Market::default_test()
+        };
+
+        update_user_and_market_position(&mut position, &mut market, &delta, 0).unwrap();
+
+        assert_eq!(
+            market.amm.market_position_per_lp.base_asset_amount,
+            -5 * AMM_RESERVE_PRECISION_I128 / 100
+        );
+        assert_eq!(
+            market.amm.market_position_per_lp.quote_asset_amount,
+            5 * AMM_RESERVE_PRECISION_I128 / 100
+        );
+
+        assert_eq!(
+            market.amm.market_position.base_asset_amount,
+            -5 * AMM_RESERVE_PRECISION_I128
+        );
+        assert_eq!(
+            market.amm.market_position.quote_asset_amount,
+            5 * AMM_RESERVE_PRECISION_I128
+        );
+
+        assert_eq!(
+            market.amm.net_base_asset_amount,
+            5 * AMM_RESERVE_PRECISION_I128
+        );
+        assert_eq!(
+            market.amm.net_unsettled_lp_base_asset_amount,
+            5 * AMM_RESERVE_PRECISION_I128
+        );
+    }
 
     #[test]
     fn increase_long_from_no_position() {
