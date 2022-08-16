@@ -13,8 +13,6 @@ use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::state::market::Market;
 use crate::state::user::UserPositions;
 
-use anchor_lang::prelude::msg;
-
 pub struct MarketMap<'a>(pub BTreeMap<u64, AccountLoader<'a, Market>>);
 
 impl<'a> MarketMap<'a> {

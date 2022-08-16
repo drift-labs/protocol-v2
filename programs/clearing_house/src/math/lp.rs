@@ -1,6 +1,5 @@
 use crate::error::ClearingHouseResult;
 use crate::math::casting::cast_to_i128;
-use crate::math::constants::AMM_RESERVE_PRECISION;
 use crate::math::constants::AMM_RESERVE_PRECISION_I128;
 use crate::math::orders::standardize_base_asset_amount_with_remainder_i128;
 use crate::math_error;
@@ -44,7 +43,7 @@ pub fn calculate_settle_lp_metrics(
 
     let lp_metrics = LPMetrics {
         base_asset_amount: standardized_base_asset_amount,
-        quote_asset_amount: quote_asset_amount,
+        quote_asset_amount,
         remainder_base_asset_amount,
     };
 
@@ -153,6 +152,7 @@ pub fn get_proportion_u128(
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::math::constants::AMM_RESERVE_PRECISION;
     use crate::state::user::MarketPosition;
 
     mod calculate_settled_lp_base_quote {

@@ -747,7 +747,8 @@ pub mod clearing_house {
             MarketMap::load(&get_writable_markets(market_index), remaining_accounts_iter)?;
 
         {
-            controller::funding::settle_funding_payments(user, &user_key, &market_map, now)?;
+            let mut market = market_map.get_ref_mut(&market_index)?;
+            controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
         }
 
         let mut market = market_map.get_ref_mut(&market_index)?;
@@ -781,7 +782,8 @@ pub mod clearing_house {
             MarketMap::load(&get_writable_markets(market_index), remaining_accounts_iter)?;
 
         {
-            controller::funding::settle_funding_payments(user, &user_key, &market_map, now)?;
+            let mut market = market_map.get_ref_mut(&market_index)?;
+            controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
         }
 
         if shares_to_burn == 0 {
@@ -807,12 +809,7 @@ pub mod clearing_house {
         )?;
 
         let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
-        burn_lp_shares(
-            position,
-            &mut market,
-            shares_to_burn,
-            oracle_price_data.price,
-        )?;
+        burn_lp_shares(position, &mut market, shares_to_burn, oracle_price_data.price)?;
 
         Ok(())
     }
@@ -838,7 +835,8 @@ pub mod clearing_house {
             MarketMap::load(&get_writable_markets(market_index), remaining_accounts_iter)?;
 
         {
-            controller::funding::settle_funding_payments(user, &user_key, &market_map, now)?;
+            let mut market = market_map.get_ref_mut(&market_index)?;
+            controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
         }
 
         let position_index = get_position_index(&user.positions, market_index)
@@ -1068,7 +1066,6 @@ pub mod clearing_house {
             &get_writable_banks(QUOTE_ASSET_BANK_INDEX),
             remaining_accounts_iter,
         )?;
-
         let mut market_map = MarketMap::load(
             &get_writable_markets_for_user_positions_and_order(
                 &load!(ctx.accounts.user)?.positions,

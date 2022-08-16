@@ -196,7 +196,7 @@ pub fn calculate_perp_position_value_and_pnl(
             base_asset_amount: lp_metrics.base_asset_amount,
             quote_asset_amount: lp_metrics.quote_asset_amount,
         };
-        let (quote_asset_amount, _, base_asset_amount, pnl) =
+        let (quote_asset_amount, _, base_asset_amount, _) =
             calculate_position_new_quote_base_pnl(market_position, &delta)?;
 
         let quote_asset_amount = quote_asset_amount

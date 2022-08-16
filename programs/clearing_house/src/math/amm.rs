@@ -1199,7 +1199,7 @@ pub fn calculate_max_base_asset_amount_fillable(amm: &AMM) -> ClearingHouseResul
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::controller::amm::{swap_base_asset, update_spreads};
+    use crate::controller::amm::update_spreads;
     use crate::controller::lp::settle_lp_position;
     use crate::math::constants::{MARK_PRICE_PRECISION, QUOTE_PRECISION_I128};
     use crate::state::user::MarketPosition;
@@ -1709,7 +1709,6 @@ mod test {
             ..MarketPosition::default()
         };
 
-        let now = 1;
         let mark_price = market.amm.mark_price().unwrap();
         update_spreads(&mut market.amm, mark_price).unwrap();
 
@@ -1727,7 +1726,7 @@ mod test {
         let update_k_up =
             get_update_k_result(&market, bn::U192::from(101 * AMM_RESERVE_PRECISION), false)
                 .unwrap();
-        let (t_price, t_qar, t_bar) = calculate_terminal_price_and_reserves(&market).unwrap();
+        let (t_price, _t_qar, _t_bar) = calculate_terminal_price_and_reserves(&market).unwrap();
 
         // new terminal reserves are balanced, terminal price = peg)
         // assert_eq!(t_qar, 999900009999000);
@@ -1745,7 +1744,7 @@ mod test {
         // lp whale adds
         let lp_whale_amount = 1000 * AMM_RESERVE_PRECISION;
 
-        position.lp_shares = position.lp_shares + lp_whale_amount;
+        position.lp_shares += lp_whale_amount;
         let update_k_lp_whale = get_update_k_result(
             &market,
             bn::U192::from(market.amm.sqrt_k + lp_whale_amount),
@@ -1753,7 +1752,7 @@ mod test {
         )
         .unwrap();
         update_k(&mut market, &update_k_lp_whale).unwrap();
-        market.amm.user_lp_shares = market.amm.user_lp_shares + lp_whale_amount;
+        market.amm.user_lp_shares += lp_whale_amount;
 
         // ensure same cost
         let update_k_up =
@@ -1773,7 +1772,7 @@ mod test {
         assert_eq!(cost, -4994954591); //amm rug
 
         // lp whale removes
-        position.lp_shares = position.lp_shares - lp_whale_amount;
+        position.lp_shares -= lp_whale_amount;
         let update_k_lp_whale = get_update_k_result(
             &market,
             bn::U192::from(market.amm.sqrt_k - lp_whale_amount),
@@ -1781,7 +1780,7 @@ mod test {
         )
         .unwrap();
         update_k(&mut market, &update_k_lp_whale).unwrap();
-        market.amm.user_lp_shares = market.amm.user_lp_shares - lp_whale_amount;
+        market.amm.user_lp_shares -= lp_whale_amount;
 
         // ensure same cost
         let update_k_up =
