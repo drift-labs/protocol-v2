@@ -10,6 +10,11 @@ export class MarketStatus {
 	static readonly SETTLEMENT = { settlement: {} };
 }
 
+export class ContractType {
+	static readonly PERPETUAL = { perpetual: {} };
+	static readonly FUTURE = { future: {} };
+}
+
 export class SwapDirection {
 	static readonly ADD = { add: {} };
 	static readonly REMOVE = { remove: {} };
@@ -304,6 +309,9 @@ export type StateAccount = {
 
 export type MarketAccount = {
 	status: MarketStatus;
+	contractType: ContractType;
+	expiryTs: BN;
+	settlementPrice: BN;
 	marketIndex: BN;
 	pubkey: PublicKey;
 	amm: AMM;
@@ -318,6 +326,7 @@ export type MarketAccount = {
 	liquidationFee: BN;
 	imfFactor: BN;
 	unsettledImfFactor: BN;
+	unsettledMaxImbalance: BN;
 	unsettledInitialAssetWeight: number;
 	unsettledMaintenanceAssetWeight: number;
 };

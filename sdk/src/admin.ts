@@ -621,6 +621,31 @@ export class Admin extends ClearingHouse {
 		);
 	}
 
+	public async updateMarketExpiry(
+		marketIndex: BN,
+		expiryTs: BN
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateMarketExpiry(expiryTs, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				market: await getMarketPublicKey(this.program.programId, marketIndex),
+			},
+		});
+	}
+
+	public async settleExpiredMarket(
+		marketIndex: BN
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.settleExpiredMarket({
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				market: await getMarketPublicKey(this.program.programId, marketIndex),
+			},
+		});
+	}
+
 	public async updateWhitelistMint(
 		whitelistMint?: PublicKey
 	): Promise<TransactionSignature> {
