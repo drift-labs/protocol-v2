@@ -648,6 +648,27 @@
       ]
     },
     {
+      "name": "settleExpiredMarket",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "settleExpiredPosition",
       "accounts": [
         {
@@ -852,6 +873,32 @@
         {
           "name": "quoteAssetReserve",
           "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "updateMarketExpiry",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "expiryTs",
+          "type": "i64"
         }
       ]
     },
@@ -2018,6 +2065,10 @@
             }
           },
           {
+            "name": "settlementPrice",
+            "type": "i128"
+          },
+          {
             "name": "expiryTs",
             "type": "i64"
           },
@@ -2082,7 +2133,19 @@
             "type": "u128"
           },
           {
+            "name": "unsettledMaxImbalance",
+            "type": "u128"
+          },
+          {
             "name": "liquidationFee",
+            "type": "u128"
+          },
+          {
+            "name": "quoteMaxInsurance",
+            "type": "u128"
+          },
+          {
+            "name": "quoteSettledInsurance",
             "type": "u128"
           },
           {

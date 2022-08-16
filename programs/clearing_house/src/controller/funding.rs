@@ -19,7 +19,7 @@ use crate::math::funding::{calculate_funding_payment, calculate_funding_rate_lon
 use crate::math::oracle;
 use crate::math_error;
 use crate::state::events::{FundingPaymentRecord, FundingRateRecord};
-use crate::state::market::{Market, AMM};
+use crate::state::market::{Market, AMM, ContractType, MarketStatus};
 use crate::state::market_map::MarketMap;
 use crate::state::oracle_map::OracleMap;
 use crate::state::state::OracleGuardRails;
@@ -135,6 +135,11 @@ pub fn update_funding_rate(
     funding_paused: bool,
     precomputed_mark_price: Option<u128>,
 ) -> ClearingHouseResult<bool> {
+
+    if market.contract_type != ContractType::Perpeptual || market.status == MarketStatus::Settlement {
+        return Ok(false);
+    }
+
     let time_since_last_update = now
         .checked_sub(market.amm.last_funding_rate_ts)
         .ok_or_else(math_error!())?;
