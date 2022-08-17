@@ -41,6 +41,7 @@ import {
 	getMarketPublicKey,
 	getUserAccountPublicKey,
 	getUserAccountPublicKeySync,
+	getUserStatsAccountPublicKey,
 } from './addresses/pda';
 import {
 	ClearingHouseAccountSubscriber,
@@ -302,6 +303,7 @@ export class ClearingHouse {
 		}
 
 		this.activeUserId = activeUserId;
+		this.userStatsAccountPublicKey = undefined;
 	}
 
 	public async switchActiveUser(userId: number): Promise<void> {
@@ -325,7 +327,12 @@ export class ClearingHouse {
 		const [userAccountPublicKey, initializeUserAccountIx] =
 			await this.getInitializeUserInstructions(userId, name);
 
-		const tx = new Transaction().add(initializeUserAccountIx);
+		const tx = new Transaction();
+		if (userId === 0) {
+			// not the safest assumption, can explicitly check if user stats account exists if it causes problems
+			tx.add(await this.getInitializeUserStatsIx());
+		}
+		tx.add(initializeUserAccountIx);
 		const { txSig } = await this.txSender.send(tx, [], this.opts);
 		return [txSig, userAccountPublicKey];
 	}
@@ -345,6 +352,7 @@ export class ClearingHouse {
 			await this.program.instruction.initializeUser(userId, nameBuffer, {
 				accounts: {
 					user: userAccountPublicKey,
+					userStats: this.getUserStatsAccountPublicKey(),
 					authority: this.wallet.publicKey,
 					payer: this.wallet.publicKey,
 					rent: anchor.web3.SYSVAR_RENT_PUBKEY,
@@ -354,6 +362,19 @@ export class ClearingHouse {
 			});
 
 		return [userAccountPublicKey, initializeUserAccountIx];
+	}
+
+	async getInitializeUserStatsIx(): Promise<TransactionInstruction> {
+		return await this.program.instruction.initializeUserStats({
+			accounts: {
+				userStats: this.getUserStatsAccountPublicKey(),
+				authority: this.wallet.publicKey,
+				payer: this.wallet.publicKey,
+				rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+				systemProgram: anchor.web3.SystemProgram.programId,
+				state: await this.getStatePublicKey(),
+			},
+		});
 	}
 
 	public getUser(userId?: number): ClearingHouseUser {
@@ -366,6 +387,19 @@ export class ClearingHouse {
 
 	public getUsers(): ClearingHouseUser[] {
 		return [...this.users.values()];
+	}
+
+	userStatsAccountPublicKey: PublicKey;
+	public getUserStatsAccountPublicKey(): PublicKey {
+		if (this.userStatsAccountPublicKey) {
+			return this.userStatsAccountPublicKey;
+		}
+
+		this.userStatsAccountPublicKey = getUserStatsAccountPublicKey(
+			this.program.programId,
+			this.wallet.publicKey
+		);
+		return this.userStatsAccountPublicKey;
 	}
 
 	public async getUserAccountPublicKey(): Promise<PublicKey> {
@@ -831,6 +865,9 @@ export class ClearingHouse {
 						false
 				  );
 
+		if (userId === 0) {
+			tx.add(await this.getInitializeUserStatsIx());
+		}
 		tx.add(initializeUserAccountIx).add(depositCollateralIx);
 
 		// Close the wrapped sol account at the end of the transaction
@@ -880,11 +917,12 @@ export class ClearingHouse {
 			false
 		);
 
-		const tx = new Transaction()
-			.add(createAssociatedAccountIx)
-			.add(mintToIx)
-			.add(initializeUserAccountIx)
-			.add(depositCollateralIx);
+		const tx = new Transaction().add(createAssociatedAccountIx).add(mintToIx);
+
+		if (userId === 0) {
+			tx.add(await this.getInitializeUserStatsIx());
+		}
+		tx.add(initializeUserAccountIx).add(depositCollateralIx);
 
 		const txSig = await this.program.provider.sendAndConfirm(tx, []);
 
@@ -1230,6 +1268,7 @@ export class ClearingHouse {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				user: userAccountPublicKey,
+				userStats: this.getUserStatsAccountPublicKey(),
 				authority: this.wallet.publicKey,
 			},
 			remainingAccounts,
@@ -1357,7 +1396,13 @@ export class ClearingHouse {
 		order: Order,
 		makerInfo?: MakerInfo
 	): Promise<TransactionInstruction> {
+		const userStatsPublicKey = getUserStatsAccountPublicKey(
+			this.program.programId,
+			userAccount.authority
+		);
+
 		const fillerPublicKey = await this.getUserAccountPublicKey();
+		const fillerStatsPublicKey = this.getUserStatsAccountPublicKey();
 
 		const marketIndex = order.marketIndex;
 		const marketAccount = this.getMarketAccount(marketIndex);
@@ -1427,6 +1472,11 @@ export class ClearingHouse {
 				isWritable: true,
 				isSigner: false,
 			});
+			remainingAccounts.push({
+				pubkey: makerInfo.makerStats,
+				isWritable: true,
+				isSigner: false,
+			});
 		}
 
 		const orderId = order.orderId;
@@ -1436,7 +1486,9 @@ export class ClearingHouse {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				filler: fillerPublicKey,
+				fillerStats: fillerStatsPublicKey,
 				user: userAccountPublicKey,
+				userStats: userStatsPublicKey,
 				authority: this.wallet.publicKey,
 			},
 			remainingAccounts,
@@ -1555,6 +1607,7 @@ export class ClearingHouse {
 		makerInfo?: MakerInfo
 	): Promise<TransactionInstruction> {
 		orderParams = this.getOrderParams(orderParams);
+		const userStatsPublicKey = await this.getUserStatsAccountPublicKey();
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 
 		const remainingAccounts = this.getRemainingAccounts({
@@ -1570,6 +1623,11 @@ export class ClearingHouse {
 				isSigner: false,
 				isWritable: true,
 			});
+			remainingAccounts.push({
+				pubkey: makerInfo.makerStats,
+				isSigner: false,
+				isWritable: true,
+			});
 		}
 
 		return await this.program.instruction.placeAndTake(
@@ -1579,6 +1637,7 @@ export class ClearingHouse {
 				accounts: {
 					state: await this.getStatePublicKey(),
 					user: userAccountPublicKey,
+					userStats: userStatsPublicKey,
 					authority: this.wallet.publicKey,
 				},
 				remainingAccounts,
@@ -1606,20 +1665,14 @@ export class ClearingHouse {
 		takerInfo: TakerInfo
 	): Promise<TransactionInstruction> {
 		orderParams = this.getOrderParams(orderParams);
+		const userStatsPublicKey = this.getUserStatsAccountPublicKey();
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 
 		const remainingAccounts = this.getRemainingAccounts({
 			writableMarketIndex: orderParams.marketIndex,
-			writableBankIndex: QUOTE_ASSET_BANK_INDEX,
 		});
 
 		const takerOrderId = takerInfo!.order!.orderId;
-		remainingAccounts.push({
-			pubkey: takerInfo.taker,
-			isSigner: false,
-			isWritable: true,
-		});
-
 		return await this.program.instruction.placeAndMake(
 			orderParams,
 			takerOrderId,
@@ -1627,7 +1680,9 @@ export class ClearingHouse {
 				accounts: {
 					state: await this.getStatePublicKey(),
 					user: userAccountPublicKey,
+					userStats: userStatsPublicKey,
 					taker: takerInfo.taker,
+					takerStats: takerInfo.takerStats,
 					authority: this.wallet.publicKey,
 				},
 				remainingAccounts,
@@ -1806,7 +1861,13 @@ export class ClearingHouse {
 		marketIndex: BN,
 		maxBaseAssetAmount: BN
 	): Promise<TransactionInstruction> {
+		const userStatsPublicKey = getUserStatsAccountPublicKey(
+			this.program.programId,
+			userAccount.authority
+		);
+
 		const liquidatorPublicKey = await this.getUserAccountPublicKey();
+		const liquidatorStatsPublicKey = this.getUserStatsAccountPublicKey();
 
 		const remainingAccounts = this.getRemainingAccountsForLiquidation({
 			writableMarketIndex: marketIndex,
@@ -1821,7 +1882,9 @@ export class ClearingHouse {
 					state: await this.getStatePublicKey(),
 					authority: this.wallet.publicKey,
 					user: userAccountPublicKey,
+					userStats: userStatsPublicKey,
 					liquidator: liquidatorPublicKey,
+					liquidatorStats: liquidatorStatsPublicKey,
 				},
 				remainingAccounts: remainingAccounts,
 			}

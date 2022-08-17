@@ -36,7 +36,7 @@ use crate::state::events::{
 };
 use crate::state::market_map::MarketMap;
 use crate::state::oracle_map::OracleMap;
-use crate::state::user::User;
+use crate::state::user::{User, UserStats};
 use crate::validate;
 use anchor_lang::prelude::*;
 use solana_program::msg;
@@ -50,8 +50,10 @@ pub fn liquidate_perp(
     liquidator_max_base_asset_amount: u128,
     user: &mut User,
     user_key: &Pubkey,
+    user_stats: &mut UserStats,
     liquidator: &mut User,
     liquidator_key: &Pubkey,
+    liquidator_stats: &mut UserStats,
     market_map: &MarketMap,
     bank_map: &BankMap,
     oracle_map: &mut OracleMap,
@@ -301,6 +303,9 @@ pub fn liquidate_perp(
         .ok_or_else(math_error!())?
         .checked_div(LIQUIDATION_FEE_PRECISION)
         .ok_or_else(math_error!())?;
+
+    user_stats.update_taker_volume_30d(cast(quote_asset_amount)?, now)?;
+    liquidator_stats.update_maker_volume_30d(cast(quote_asset_amount)?, now)?;
 
     let user_position_delta = get_position_delta_for_fill(
         base_asset_amount,

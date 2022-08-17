@@ -28,10 +28,11 @@ pub mod fulfill_order_with_maker_order {
     use crate::controller::position::PositionDirection;
     use crate::math::constants::{
         BASE_PRECISION, BASE_PRECISION_I128, MARK_PRICE_PRECISION, QUOTE_PRECISION_I128,
+        QUOTE_PRECISION_U64,
     };
     use crate::state::market::Market;
     use crate::state::state::FeeStructure;
-    use crate::state::user::{MarketPosition, Order, OrderType, User};
+    use crate::state::user::{MarketPosition, Order, OrderType, User, UserStats};
     use crate::tests::utils::*;
 
     #[test]
@@ -89,14 +90,20 @@ pub mod fulfill_order_with_maker_order {
 
         let mut order_records = vec![];
 
+        let mut taker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
+
         fulfill_order_with_match(
             &mut market,
             &mut taker,
+            &mut taker_stats,
             0,
             &taker_key,
             &mut maker,
+            &mut maker_stats,
             0,
             &maker_key,
+            None,
             None,
             &filler_key,
             now,
@@ -116,9 +123,10 @@ pub mod fulfill_order_with_maker_order {
         );
         assert_eq!(taker_position.open_bids, 0);
         assert_eq!(taker_position.open_orders, 0);
-        assert_eq!(taker.fees.total_fee_paid, 50000);
-        assert_eq!(taker.fees.total_referee_discount, 0);
-        assert_eq!(taker.fees.total_token_discount, 0);
+        assert_eq!(taker_stats.fees.total_fee_paid, 50000);
+        assert_eq!(taker_stats.taker_volume_30d, 100 * QUOTE_PRECISION_U64);
+        assert_eq!(taker_stats.fees.total_referee_discount, 0);
+        assert_eq!(taker_stats.fees.total_token_discount, 0);
         assert_eq!(taker.orders[0], Order::default());
 
         let maker_position = &maker.positions[0];
@@ -130,7 +138,8 @@ pub mod fulfill_order_with_maker_order {
         );
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_asks, 0);
-        assert_eq!(maker.fees.total_fee_rebate, 30000);
+        assert_eq!(maker_stats.fees.total_fee_rebate, 30000);
+        assert_eq!(maker_stats.maker_volume_30d, 100 * QUOTE_PRECISION_U64);
         assert_eq!(maker.orders[0], Order::default());
 
         assert_eq!(market.amm.net_base_asset_amount, 0);
@@ -204,14 +213,20 @@ pub mod fulfill_order_with_maker_order {
 
         let mut order_records = vec![];
 
+        let mut taker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
+
         fulfill_order_with_match(
             &mut market,
             &mut taker,
+            &mut taker_stats,
             0,
             &taker_key,
             &mut maker,
+            &mut maker_stats,
             0,
             &maker_key,
+            None,
             None,
             &filler_key,
             now,
@@ -231,9 +246,10 @@ pub mod fulfill_order_with_maker_order {
         );
         assert_eq!(taker_position.open_bids, 0);
         assert_eq!(taker_position.open_orders, 0);
-        assert_eq!(taker.fees.total_fee_paid, 80000);
-        assert_eq!(taker.fees.total_referee_discount, 0);
-        assert_eq!(taker.fees.total_token_discount, 0);
+        assert_eq!(taker_stats.fees.total_fee_paid, 80000);
+        assert_eq!(taker_stats.fees.total_referee_discount, 0);
+        assert_eq!(taker_stats.fees.total_token_discount, 0);
+        assert_eq!(taker_stats.taker_volume_30d, 160 * QUOTE_PRECISION_U64);
         assert_eq!(taker.orders[0], Order::default());
 
         let maker_position = &maker.positions[0];
@@ -245,7 +261,8 @@ pub mod fulfill_order_with_maker_order {
         );
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_asks, 0);
-        assert_eq!(maker.fees.total_fee_rebate, 48000);
+        assert_eq!(maker_stats.fees.total_fee_rebate, 48000);
+        assert_eq!(maker_stats.maker_volume_30d, 160 * QUOTE_PRECISION_U64);
         assert_eq!(maker.orders[0], Order::default());
 
         assert_eq!(market.amm.net_base_asset_amount, 0);
@@ -319,14 +336,20 @@ pub mod fulfill_order_with_maker_order {
 
         let mut order_records = vec![];
 
+        let mut taker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
+
         fulfill_order_with_match(
             &mut market,
             &mut taker,
+            &mut taker_stats,
             0,
             &taker_key,
             &mut maker,
+            &mut maker_stats,
             0,
             &maker_key,
+            None,
             None,
             &filler_key,
             now,
@@ -346,9 +369,10 @@ pub mod fulfill_order_with_maker_order {
         );
         assert_eq!(taker_position.open_asks, 0);
         assert_eq!(taker_position.open_orders, 0);
-        assert_eq!(taker.fees.total_fee_paid, 90000);
-        assert_eq!(taker.fees.total_referee_discount, 0);
-        assert_eq!(taker.fees.total_token_discount, 0);
+        assert_eq!(taker_stats.fees.total_fee_paid, 90000);
+        assert_eq!(taker_stats.fees.total_referee_discount, 0);
+        assert_eq!(taker_stats.fees.total_token_discount, 0);
+        assert_eq!(taker_stats.taker_volume_30d, 180 * QUOTE_PRECISION_U64);
         assert_eq!(taker.orders[0], Order::default());
 
         let maker_position = &maker.positions[0];
@@ -360,7 +384,8 @@ pub mod fulfill_order_with_maker_order {
         );
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_bids, 0);
-        assert_eq!(maker.fees.total_fee_rebate, 54000);
+        assert_eq!(maker_stats.fees.total_fee_rebate, 54000);
+        assert_eq!(maker_stats.maker_volume_30d, 180 * QUOTE_PRECISION_U64);
         assert_eq!(maker.orders[0], Order::default());
 
         assert_eq!(market.amm.net_base_asset_amount, 0);
@@ -434,14 +459,20 @@ pub mod fulfill_order_with_maker_order {
 
         let mut order_records = vec![];
 
+        let mut taker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
+
         fulfill_order_with_match(
             &mut market,
             &mut taker,
+            &mut taker_stats,
             0,
             &taker_key,
             &mut maker,
+            &mut maker_stats,
             0,
             &maker_key,
+            None,
             None,
             &filler_key,
             now,
@@ -461,9 +492,10 @@ pub mod fulfill_order_with_maker_order {
         );
         assert_eq!(taker_position.open_asks, 0);
         assert_eq!(taker_position.open_orders, 0);
-        assert_eq!(taker.fees.total_fee_paid, 70000);
-        assert_eq!(taker.fees.total_referee_discount, 0);
-        assert_eq!(taker.fees.total_token_discount, 0);
+        assert_eq!(taker_stats.fees.total_fee_paid, 70000);
+        assert_eq!(taker_stats.fees.total_referee_discount, 0);
+        assert_eq!(taker_stats.fees.total_token_discount, 0);
+        assert_eq!(taker_stats.taker_volume_30d, 140 * QUOTE_PRECISION_U64);
         assert_eq!(taker.orders[0], Order::default());
 
         let maker_position = &maker.positions[0];
@@ -475,7 +507,8 @@ pub mod fulfill_order_with_maker_order {
         );
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_bids, 0);
-        assert_eq!(maker.fees.total_fee_rebate, 42000);
+        assert_eq!(maker_stats.fees.total_fee_rebate, 42000);
+        assert_eq!(maker_stats.maker_volume_30d, 140 * QUOTE_PRECISION_U64);
         assert_eq!(maker.orders[0], Order::default());
 
         assert_eq!(market.amm.net_base_asset_amount, 0);
@@ -549,14 +582,20 @@ pub mod fulfill_order_with_maker_order {
 
         let mut order_records = vec![];
 
+        let mut taker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
+
         let (base_asset_amount, _) = fulfill_order_with_match(
             &mut market,
             &mut taker,
+            &mut taker_stats,
             0,
             &taker_key,
             &mut maker,
+            &mut maker_stats,
             0,
             &maker_key,
+            None,
             None,
             &filler_key,
             now,
@@ -624,14 +663,20 @@ pub mod fulfill_order_with_maker_order {
 
         let mut order_records = vec![];
 
+        let mut taker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
+
         let (base_asset_amount, _) = fulfill_order_with_match(
             &mut market,
             &mut taker,
+            &mut taker_stats,
             0,
             &taker_key,
             &mut maker,
+            &mut maker_stats,
             0,
             &maker_key,
+            None,
             None,
             &filler_key,
             now,
@@ -700,14 +745,20 @@ pub mod fulfill_order_with_maker_order {
 
         let mut order_records = vec![];
 
+        let mut taker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
+
         let (base_asset_amount, _) = fulfill_order_with_match(
             &mut market,
             &mut taker,
+            &mut taker_stats,
             0,
             &taker_key,
             &mut maker,
+            &mut maker_stats,
             0,
             &maker_key,
+            None,
             None,
             &filler_key,
             now,
@@ -776,14 +827,20 @@ pub mod fulfill_order_with_maker_order {
 
         let mut order_records = vec![];
 
+        let mut taker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
+
         let (base_asset_amount, _) = fulfill_order_with_match(
             &mut market,
             &mut taker,
+            &mut taker_stats,
             0,
             &taker_key,
             &mut maker,
+            &mut maker_stats,
             0,
             &maker_key,
+            None,
             None,
             &filler_key,
             now,
@@ -852,14 +909,20 @@ pub mod fulfill_order_with_maker_order {
 
         let mut order_records = vec![];
 
+        let mut taker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
+
         fulfill_order_with_match(
             &mut market,
             &mut taker,
+            &mut taker_stats,
             0,
             &taker_key,
             &mut maker,
+            &mut maker_stats,
             0,
             &maker_key,
+            None,
             None,
             &filler_key,
             now,
@@ -877,6 +940,7 @@ pub mod fulfill_order_with_maker_order {
             taker_position.quote_entry_amount,
             -120 * QUOTE_PRECISION_I128
         );
+        assert_eq!(taker_stats.taker_volume_30d, 120 * QUOTE_PRECISION_U64);
 
         let maker_position = &maker.positions[0];
         assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I128);
@@ -885,6 +949,7 @@ pub mod fulfill_order_with_maker_order {
             maker_position.quote_entry_amount,
             120 * QUOTE_PRECISION_I128
         );
+        assert_eq!(maker_stats.maker_volume_30d, 120 * QUOTE_PRECISION_U64);
 
         assert_eq!(market.amm.net_base_asset_amount, 0);
         assert_eq!(market.base_asset_amount_long, BASE_PRECISION_I128);
@@ -954,14 +1019,20 @@ pub mod fulfill_order_with_maker_order {
 
         let mut order_records = vec![];
 
+        let mut taker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
+
         fulfill_order_with_match(
             &mut market,
             &mut taker,
+            &mut taker_stats,
             0,
             &taker_key,
             &mut maker,
+            &mut maker_stats,
             0,
             &maker_key,
+            None,
             None,
             &filler_key,
             now,
@@ -979,6 +1050,7 @@ pub mod fulfill_order_with_maker_order {
             taker_position.quote_entry_amount,
             -120 * QUOTE_PRECISION_I128
         );
+        assert_eq!(taker_stats.taker_volume_30d, 120 * QUOTE_PRECISION_U64);
 
         let maker_position = &maker.positions[0];
         assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I128);
@@ -987,6 +1059,7 @@ pub mod fulfill_order_with_maker_order {
             maker_position.quote_entry_amount,
             120 * QUOTE_PRECISION_I128
         );
+        assert_eq!(maker_stats.maker_volume_30d, 120 * QUOTE_PRECISION_U64);
 
         assert_eq!(market.amm.net_base_asset_amount, 0);
         assert_eq!(market.base_asset_amount_long, BASE_PRECISION_I128);
@@ -1059,14 +1132,20 @@ pub mod fulfill_order_with_maker_order {
 
         let mut order_records = vec![];
 
+        let mut taker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
+
         fulfill_order_with_match(
             &mut market,
             &mut taker,
+            &mut taker_stats,
             0,
             &taker_key,
             &mut maker,
+            &mut maker_stats,
             0,
             &maker_key,
+            None,
             None,
             &filler_key,
             now,
@@ -1086,9 +1165,10 @@ pub mod fulfill_order_with_maker_order {
         );
         assert_eq!(taker_position.open_bids, 0);
         assert_eq!(taker_position.open_orders, 0);
-        assert_eq!(taker.fees.total_fee_paid, 75000);
-        assert_eq!(taker.fees.total_referee_discount, 0);
-        assert_eq!(taker.fees.total_token_discount, 0);
+        assert_eq!(taker_stats.fees.total_fee_paid, 75000);
+        assert_eq!(taker_stats.fees.total_referee_discount, 0);
+        assert_eq!(taker_stats.fees.total_token_discount, 0);
+        assert_eq!(taker_stats.taker_volume_30d, 150 * QUOTE_PRECISION_U64);
         assert_eq!(taker.orders[0], Order::default());
 
         let maker_position = &maker.positions[0];
@@ -1100,7 +1180,8 @@ pub mod fulfill_order_with_maker_order {
         );
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_asks, 0);
-        assert_eq!(maker.fees.total_fee_rebate, 45000);
+        assert_eq!(maker_stats.fees.total_fee_rebate, 45000);
+        assert_eq!(maker_stats.maker_volume_30d, 150 * QUOTE_PRECISION_U64);
         assert_eq!(maker.orders[0], Order::default());
 
         assert_eq!(market.amm.net_base_asset_amount, 0);
@@ -1171,14 +1252,20 @@ pub mod fulfill_order_with_maker_order {
 
         let mut order_records = vec![];
 
+        let mut taker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
+
         fulfill_order_with_match(
             &mut market,
             &mut taker,
+            &mut taker_stats,
             0,
             &taker_key,
             &mut maker,
+            &mut maker_stats,
             0,
             &maker_key,
+            None,
             None,
             &filler_key,
             now,
@@ -1198,7 +1285,8 @@ pub mod fulfill_order_with_maker_order {
         );
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_asks, 0);
-        assert_eq!(maker.fees.total_fee_rebate, 30000);
+        assert_eq!(maker_stats.fees.total_fee_rebate, 30000);
+        assert_eq!(maker_stats.maker_volume_30d, 100 * QUOTE_PRECISION_U64);
         assert_eq!(maker.orders[0], Order::default());
 
         let taker_position = &taker.positions[0];
@@ -1210,9 +1298,10 @@ pub mod fulfill_order_with_maker_order {
         );
         assert_eq!(taker_position.open_bids, 0);
         assert_eq!(taker_position.open_orders, 0);
-        assert_eq!(taker.fees.total_fee_paid, 50000);
-        assert_eq!(taker.fees.total_referee_discount, 0);
-        assert_eq!(taker.fees.total_token_discount, 0);
+        assert_eq!(taker_stats.fees.total_fee_paid, 50000);
+        assert_eq!(taker_stats.fees.total_referee_discount, 0);
+        assert_eq!(taker_stats.fees.total_token_discount, 0);
+        assert_eq!(taker_stats.taker_volume_30d, 100 * QUOTE_PRECISION_U64);
         assert_eq!(taker.orders[0], Order::default());
 
         assert_eq!(market.amm.net_base_asset_amount, 0);
@@ -1284,14 +1373,20 @@ pub mod fulfill_order_with_maker_order {
 
         let mut order_records = vec![];
 
+        let mut taker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
+
         fulfill_order_with_match(
             &mut market,
             &mut taker,
+            &mut taker_stats,
             0,
             &taker_key,
             &mut maker,
+            &mut maker_stats,
             0,
             &maker_key,
+            None,
             None,
             &filler_key,
             now,
@@ -1311,8 +1406,9 @@ pub mod fulfill_order_with_maker_order {
         );
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_bids, 0);
-        assert_eq!(maker.fees.total_fee_rebate, 30000);
+        assert_eq!(maker_stats.fees.total_fee_rebate, 30000);
         assert_eq!(maker.orders[0], Order::default());
+        assert_eq!(maker_stats.maker_volume_30d, 100 * QUOTE_PRECISION_U64);
 
         let taker_position = &taker.positions[0];
         assert_eq!(taker_position.base_asset_amount, -BASE_PRECISION_I128);
@@ -1323,9 +1419,10 @@ pub mod fulfill_order_with_maker_order {
         );
         assert_eq!(taker_position.open_asks, 0);
         assert_eq!(taker_position.open_orders, 0);
-        assert_eq!(taker.fees.total_fee_paid, 50000);
-        assert_eq!(taker.fees.total_referee_discount, 0);
-        assert_eq!(taker.fees.total_token_discount, 0);
+        assert_eq!(taker_stats.fees.total_fee_paid, 50000);
+        assert_eq!(taker_stats.fees.total_referee_discount, 0);
+        assert_eq!(taker_stats.fees.total_token_discount, 0);
+        assert_eq!(taker_stats.taker_volume_30d, 100 * QUOTE_PRECISION_U64);
         assert_eq!(taker.orders[0], Order::default());
 
         assert_eq!(market.amm.net_base_asset_amount, 0);
@@ -1354,14 +1451,14 @@ pub mod fulfill_order {
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BANK_CUMULATIVE_INTEREST_PRECISION, BANK_INTEREST_PRECISION,
         BANK_WEIGHT_PRECISION, BASE_PRECISION, BASE_PRECISION_I128, MARK_PRICE_PRECISION,
-        PEG_PRECISION, QUOTE_PRECISION_I128,
+        PEG_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_U64,
     };
     use crate::state::bank::{Bank, BankBalanceType};
     use crate::state::bank_map::BankMap;
     use crate::state::market::{Market, AMM};
     use crate::state::market_map::MarketMap;
     use crate::state::oracle::OracleSource;
-    use crate::state::user::{OrderStatus, OrderType, User, UserBankBalance};
+    use crate::state::user::{OrderStatus, OrderType, User, UserBankBalance, UserStats};
     use crate::tests::utils::*;
     use std::ops::Deref;
     use std::str::FromStr;
@@ -1469,19 +1566,28 @@ pub mod fulfill_order {
             ..User::default()
         };
 
+        let mut filler = User::default();
+
         let fee_structure = get_fee_structure();
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
+
+        let mut taker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
+        let mut filler_stats = UserStats::default();
 
         let (base_asset_amount, _, _) = fulfill_order(
             &mut taker,
             0,
             &taker_key,
+            &mut taker_stats,
             &mut Some(&mut maker),
+            &mut Some(&mut maker_stats),
             Some(0),
             Some(&maker_key),
-            &mut None,
+            &mut Some(&mut filler),
             &filler_key,
+            &mut Some(&mut filler_stats),
             &bank_map,
             &market_map,
             &mut oracle_map,
@@ -1501,9 +1607,10 @@ pub mod fulfill_order {
         assert_eq!(taker_position.quote_entry_amount, -102284264);
         assert_eq!(taker_position.open_bids, 0);
         assert_eq!(taker_position.open_orders, 0);
-        assert_eq!(taker.fees.total_fee_paid, 51142);
-        assert_eq!(taker.fees.total_referee_discount, 0);
-        assert_eq!(taker.fees.total_token_discount, 0);
+        assert_eq!(taker_stats.fees.total_fee_paid, 51142);
+        assert_eq!(taker_stats.fees.total_referee_discount, 0);
+        assert_eq!(taker_stats.fees.total_token_discount, 0);
+        assert_eq!(taker_stats.taker_volume_30d, 102284244);
         assert_eq!(taker.orders[0], Order::default());
 
         let maker_position = &maker.positions[0];
@@ -1512,7 +1619,8 @@ pub mod fulfill_order {
         assert_eq!(maker_position.quote_entry_amount, 50 * QUOTE_PRECISION_I128);
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_asks, 0);
-        assert_eq!(maker.fees.total_fee_rebate, 15000);
+        assert_eq!(maker_stats.fees.total_fee_rebate, 15000);
+        assert_eq!(maker_stats.maker_volume_30d, 50 * QUOTE_PRECISION_U64);
         assert_eq!(maker.orders[0], Order::default());
 
         let market_after = market_map.get_ref(&0).unwrap();
@@ -1521,9 +1629,12 @@ pub mod fulfill_order {
         assert_eq!(market_after.base_asset_amount_short, -5000000000000);
         assert_eq!(market_after.amm.quote_asset_amount_long, -102284264);
         assert_eq!(market_after.amm.quote_asset_amount_short, 50000000);
-        assert_eq!(market_after.amm.total_fee, 2069149);
-        assert_eq!(market_after.amm.total_fee_minus_distributions, 2069149);
-        assert_eq!(market_after.amm.net_revenue_since_last_funding, 2069149);
+        assert_eq!(market_after.amm.total_fee, 2064035);
+        assert_eq!(market_after.amm.total_fee_minus_distributions, 2064035);
+        assert_eq!(market_after.amm.net_revenue_since_last_funding, 2064035);
+
+        assert_eq!(filler_stats.filler_volume_30d, 102284244);
+        assert_eq!(filler.positions[0].quote_asset_amount, 5114);
     }
 
     #[test]
@@ -1616,15 +1727,21 @@ pub mod fulfill_order {
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
+        let mut taker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
+
         let (base_asset_amount, _, _) = fulfill_order(
             &mut taker,
             0,
             &taker_key,
+            &mut taker_stats,
             &mut Some(&mut maker),
+            &mut Some(&mut maker_stats),
             Some(0),
             Some(&maker_key),
             &mut None,
             &filler_key,
+            &mut None,
             &bank_map,
             &market_map,
             &mut oracle_map,
@@ -1647,9 +1764,10 @@ pub mod fulfill_order {
         );
         assert_eq!(taker_position.open_bids, BASE_PRECISION_I128 / 2);
         assert_eq!(taker_position.open_orders, 1);
-        assert_eq!(taker.fees.total_fee_paid, 25000);
-        assert_eq!(taker.fees.total_referee_discount, 0);
-        assert_eq!(taker.fees.total_token_discount, 0);
+        assert_eq!(taker_stats.fees.total_fee_paid, 25000);
+        assert_eq!(taker_stats.fees.total_referee_discount, 0);
+        assert_eq!(taker_stats.fees.total_token_discount, 0);
+        assert_eq!(taker_stats.taker_volume_30d, 50 * QUOTE_PRECISION_U64);
 
         let maker_position = &maker.positions[0];
         assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I128 / 2);
@@ -1657,7 +1775,8 @@ pub mod fulfill_order {
         assert_eq!(maker_position.quote_entry_amount, 50 * QUOTE_PRECISION_I128);
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_asks, 0);
-        assert_eq!(maker.fees.total_fee_rebate, 15000);
+        assert_eq!(maker_stats.fees.total_fee_rebate, 15000);
+        assert_eq!(maker_stats.maker_volume_30d, 50 * QUOTE_PRECISION_U64);
 
         let market_after = market_map.get_ref(&0).unwrap();
         assert_eq!(market_after.amm.net_base_asset_amount, 0);
@@ -1757,15 +1876,20 @@ pub mod fulfill_order {
 
         let (taker_key, _, filler_key) = get_user_keys();
 
+        let mut taker_stats = UserStats::default();
+
         let (base_asset_amount, _, _) = fulfill_order(
             &mut taker,
             0,
             &taker_key,
+            &mut taker_stats,
+            &mut None,
             &mut None,
             None,
             None,
             &mut None,
             &filler_key,
+            &mut None,
             &bank_map,
             &market_map,
             &mut oracle_map,
@@ -1785,9 +1909,10 @@ pub mod fulfill_order {
         assert_eq!(taker_position.quote_entry_amount, -104081633);
         assert_eq!(taker_position.open_bids, 0);
         assert_eq!(taker_position.open_orders, 0);
-        assert_eq!(taker.fees.total_fee_paid, 52040);
-        assert_eq!(taker.fees.total_referee_discount, 0);
-        assert_eq!(taker.fees.total_token_discount, 0);
+        assert_eq!(taker_stats.fees.total_fee_paid, 52040);
+        assert_eq!(taker_stats.fees.total_referee_discount, 0);
+        assert_eq!(taker_stats.fees.total_token_discount, 0);
+        assert_eq!(taker_stats.taker_volume_30d, 104081633);
         assert_eq!(taker.orders[0], Order::default());
 
         let market_after = market_map.get_ref(&0).unwrap();
@@ -1917,15 +2042,22 @@ pub mod fulfill_order {
         };
         let expected_market_after = *market_map.get_ref(&0).unwrap();
 
+        let mut taker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
+        let mut filler_stats = UserStats::default();
+
         let (base_asset_amount, potentially_risk_increasing, _) = fulfill_order(
             &mut taker,
             0,
             &taker_key,
+            &mut taker_stats,
             &mut Some(&mut maker),
+            &mut Some(&mut maker_stats),
             Some(0),
             Some(&maker_key),
             &mut Some(&mut filler),
             &filler_key,
+            &mut Some(&mut filler_stats),
             &bank_map,
             &market_map,
             &mut oracle_map,
@@ -1940,7 +2072,9 @@ pub mod fulfill_order {
         assert_eq!(base_asset_amount, 0);
         assert!(!potentially_risk_increasing);
         assert_eq!(maker, expected_maker_after);
+        assert_eq!(maker_stats, UserStats::default());
         assert_eq!(taker, expected_taker_after);
+        assert_eq!(taker_stats, UserStats::default());
         assert_eq!(filler, expected_filler_after);
 
         let market_after = market_map.get_ref(&0).unwrap();
@@ -2109,17 +2243,23 @@ pub mod fulfill_order {
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
+        let mut taker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
+
         let taker_before = taker;
         let maker_before = maker;
         let (base_asset_amount, _, _) = fulfill_order(
             &mut taker,
             0,
             &taker_key,
+            &mut taker_stats,
             &mut Some(&mut maker),
+            &mut Some(&mut maker_stats),
             Some(1),
             Some(&maker_key),
             &mut None,
             &filler_key,
+            &mut None,
             &bank_map,
             &market_map,
             &mut oracle_map,
@@ -2142,9 +2282,10 @@ pub mod fulfill_order {
         );
         assert_eq!(taker_position.open_bids, BASE_PRECISION_I128 / 2);
         assert_eq!(taker_position.open_orders, 1);
-        assert_eq!(taker.fees.total_fee_paid, 25000);
-        assert_eq!(taker.fees.total_referee_discount, 0);
-        assert_eq!(taker.fees.total_token_discount, 0);
+        assert_eq!(taker_stats.fees.total_fee_paid, 25000);
+        assert_eq!(taker_stats.fees.total_referee_discount, 0);
+        assert_eq!(taker_stats.fees.total_token_discount, 0);
+        assert_eq!(taker_stats.taker_volume_30d, 50 * QUOTE_PRECISION_U64);
 
         let taker_order = &taker.orders[0].clone();
         assert_eq!(taker_order.base_asset_amount_filled, BASE_PRECISION / 2);
@@ -2161,7 +2302,8 @@ pub mod fulfill_order {
         assert_eq!(maker_position.quote_entry_amount, 50 * QUOTE_PRECISION_I128);
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_asks, 0);
-        assert_eq!(maker.fees.total_fee_rebate, 15000);
+        assert_eq!(maker_stats.fees.total_fee_rebate, 15000);
+        assert_eq!(maker_stats.maker_volume_30d, 50 * QUOTE_PRECISION_U64);
 
         assert_eq!(maker.orders[1], Order::default());
 
@@ -2198,7 +2340,7 @@ pub mod fill_order {
     use crate::state::market_map::MarketMap;
     use crate::state::oracle::OracleSource;
     use crate::state::state::State;
-    use crate::state::user::{OrderStatus, OrderType, User, UserBankBalance};
+    use crate::state::user::{OrderStatus, OrderType, User, UserBankBalance, UserStats};
     use crate::tests::utils::create_account_info;
     use crate::tests::utils::*;
     use anchor_lang::prelude::{AccountLoader, Clock};
@@ -2296,10 +2438,18 @@ pub mod fill_order {
         let user_account_loader: AccountLoader<User> =
             AccountLoader::try_from(&user_account_info).unwrap();
 
+        create_anchor_account_info!(UserStats::default(), UserStats, user_stats_account_info);
+        let user_stats_account_loader: AccountLoader<UserStats> =
+            AccountLoader::try_from(&user_stats_account_info).unwrap();
+
         let filler_key = Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap();
         create_anchor_account_info!(User::default(), &filler_key, User, user_account_info);
         let filler_account_loader: AccountLoader<User> =
             AccountLoader::try_from(&user_account_info).unwrap();
+
+        create_anchor_account_info!(UserStats::default(), UserStats, filler_stats_account_info);
+        let filler_stats_account_loader: AccountLoader<UserStats> =
+            AccountLoader::try_from(&filler_stats_account_info).unwrap();
 
         let state = State {
             min_auction_duration: 1,
@@ -2311,10 +2461,13 @@ pub mod fill_order {
             1,
             &state,
             &user_account_loader,
+            &user_stats_account_loader,
             &bank_map,
             &market_map,
             &mut oracle_map,
             &filler_account_loader,
+            &filler_stats_account_loader,
+            None,
             None,
             None,
             &clock,
@@ -2403,10 +2556,18 @@ pub mod fill_order {
         let user_account_loader: AccountLoader<User> =
             AccountLoader::try_from(&user_account_info).unwrap();
 
+        create_anchor_account_info!(UserStats::default(), UserStats, user_stats_account_info);
+        let user_stats_account_loader: AccountLoader<UserStats> =
+            AccountLoader::try_from(&user_stats_account_info).unwrap();
+
         let filler_key = Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap();
         create_anchor_account_info!(User::default(), &filler_key, User, user_account_info);
         let filler_account_loader: AccountLoader<User> =
             AccountLoader::try_from(&user_account_info).unwrap();
+
+        create_anchor_account_info!(UserStats::default(), UserStats, filler_stats_account_info);
+        let filler_stats_account_loader: AccountLoader<UserStats> =
+            AccountLoader::try_from(&filler_stats_account_info).unwrap();
 
         let state = State {
             min_auction_duration: 1,
@@ -2426,10 +2587,13 @@ pub mod fill_order {
             1,
             &state,
             &user_account_loader,
+            &user_stats_account_loader,
             &bank_map,
             &market_map,
             &mut oracle_map,
             &filler_account_loader,
+            &filler_stats_account_loader,
+            None,
             None,
             None,
             &clock,

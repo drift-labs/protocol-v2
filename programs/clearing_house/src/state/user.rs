@@ -4,12 +4,15 @@ use solana_program::msg;
 
 use crate::controller::position::{add_new_position, get_position_index, PositionDirection};
 use crate::error::{ClearingHouseResult, ErrorCode};
+use crate::math::amm::calculate_rolling_sum;
 use crate::math::auction::{calculate_auction_price, is_auction_complete};
-use crate::math::constants::QUOTE_ASSET_BANK_INDEX;
+use crate::math::casting::cast_to_i128;
+use crate::math::constants::{QUOTE_ASSET_BANK_INDEX, THIRTY_DAY_I128};
 use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
 use crate::math_error;
 use crate::state::bank::{BankBalance, BankBalanceType};
 use crate::state::market::AMM;
+use std::cmp::max;
 
 #[cfg(test)]
 mod tests;
@@ -22,7 +25,6 @@ pub struct User {
     pub user_id: u8,
     pub name: [u8; 32],
     pub bank_balances: [UserBankBalance; 8],
-    pub fees: UserFees,
     pub next_order_id: u64,
     pub positions: [MarketPosition; 5],
     pub orders: [Order; 32],
@@ -478,5 +480,94 @@ impl Default for OrderTriggerCondition {
     // UpOnly
     fn default() -> Self {
         OrderTriggerCondition::Above
+    }
+}
+
+#[account(zero_copy)]
+#[derive(Default, Eq, PartialEq, Debug)]
+#[repr(packed)]
+pub struct UserStats {
+    pub authority: Pubkey,
+    pub number_of_users: u8,
+
+    pub referrer: Pubkey,
+
+    pub fees: UserFees,
+
+    // volume track
+    pub maker_volume_30d: u64,
+    pub taker_volume_30d: u64,
+    pub filler_volume_30d: u64,
+    pub last_maker_volume_30d_ts: i64,
+    pub last_taker_volume_30d_ts: i64,
+    pub last_filler_volume_30d_ts: i64,
+}
+
+impl UserStats {
+    pub fn update_maker_volume_30d(
+        &mut self,
+        quote_asset_amount: u64,
+        now: i64,
+    ) -> ClearingHouseResult {
+        let since_last = cast_to_i128(max(
+            1,
+            now.checked_sub(self.last_maker_volume_30d_ts)
+                .ok_or_else(math_error!())?,
+        ))?;
+
+        self.maker_volume_30d = calculate_rolling_sum(
+            self.maker_volume_30d,
+            quote_asset_amount,
+            since_last,
+            THIRTY_DAY_I128,
+        )?;
+        self.last_maker_volume_30d_ts = now;
+
+        Ok(())
+    }
+
+    pub fn update_taker_volume_30d(
+        &mut self,
+        quote_asset_amount: u64,
+        now: i64,
+    ) -> ClearingHouseResult {
+        let since_last = cast_to_i128(max(
+            1,
+            now.checked_sub(self.last_taker_volume_30d_ts)
+                .ok_or_else(math_error!())?,
+        ))?;
+
+        self.taker_volume_30d = calculate_rolling_sum(
+            self.taker_volume_30d,
+            quote_asset_amount,
+            since_last,
+            THIRTY_DAY_I128,
+        )?;
+        self.last_taker_volume_30d_ts = now;
+
+        Ok(())
+    }
+
+    pub fn update_filler_volume(
+        &mut self,
+        quote_asset_amount: u64,
+        now: i64,
+    ) -> ClearingHouseResult {
+        let since_last = cast_to_i128(max(
+            1,
+            now.checked_sub(self.last_filler_volume_30d_ts)
+                .ok_or_else(math_error!())?,
+        ))?;
+
+        self.filler_volume_30d = calculate_rolling_sum(
+            self.filler_volume_30d,
+            quote_asset_amount,
+            since_last,
+            THIRTY_DAY_I128,
+        )?;
+
+        self.last_filler_volume_30d_ts = now;
+
+        Ok(())
     }
 }

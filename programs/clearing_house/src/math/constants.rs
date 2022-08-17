@@ -5,6 +5,7 @@ pub const MARK_PRICE_PRECISION: u128 = 10_000_000_000; //expo = -10;
 pub const MARK_PRICE_PRECISION_I128: i128 = MARK_PRICE_PRECISION as i128;
 pub const QUOTE_PRECISION: u128 = 1_000_000; // expo = -6
 pub const QUOTE_PRECISION_I128: i128 = 1_000_000; // expo = -6
+pub const QUOTE_PRECISION_U64: u64 = 1_000_000; // expo = -6
 pub const FUNDING_PAYMENT_PRECISION: u128 = 10_000; // expo = -4
 pub const FUNDING_PAYMENT_PRECISION_I128: i128 = 10_000; // expo = -4
 pub const MARGIN_PRECISION: u128 = 10_000; // expo = -4
@@ -63,8 +64,9 @@ pub const UPDATE_K_ALLOWED_PRICE_CHANGE: u128 = MARK_PRICE_PRECISION / 10_000; /
 // pub const ONE_HOUR: i64 = 3600;
 pub const ONE_HOUR: i128 = 3600;
 pub const ONE_HOUR_I128: i128 = ONE_HOUR as i128;
-pub const ONE_YEAR: u128 = 31536000;
 pub const TWENTY_FOUR_HOUR: i64 = 3600 * 24;
+pub const THIRTY_DAY_I128: i128 = (TWENTY_FOUR_HOUR * 30) as i128;
+pub const ONE_YEAR: u128 = 31536000;
 
 // FEES
 pub const DEFAULT_FEE_NUMERATOR: u128 = 10;

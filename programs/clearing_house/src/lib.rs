@@ -44,7 +44,7 @@ pub mod clearing_house {
     use crate::math;
     use crate::math::bank_balance::get_token_amount;
     use crate::math::casting::{cast, cast_to_i128, cast_to_u128};
-    use crate::optional_accounts::get_maker;
+    use crate::optional_accounts::get_maker_and_maker_stats;
     use crate::state::bank::{Bank, BankBalanceType};
     use crate::state::bank_map::{get_writable_banks, BankMap, WritableBanks};
     use crate::state::events::DepositDirection;
@@ -1039,9 +1039,12 @@ pub mod clearing_house {
             remaining_accounts_iter,
         )?;
 
-        let maker = match maker_order_id {
-            Some(_) => Some(get_maker(remaining_accounts_iter)?),
-            None => None,
+        let (maker, maker_stats) = match maker_order_id {
+            Some(_) => {
+                let (user, user_stats) = get_maker_and_maker_stats(remaining_accounts_iter)?;
+                (Some(user), Some(user_stats))
+            }
+            None => (None, None),
         };
 
         let clock = &Clock::get()?;
@@ -1058,11 +1061,14 @@ pub mod clearing_house {
             order_id,
             &ctx.accounts.state,
             &ctx.accounts.user,
+            &ctx.accounts.user_stats,
             &bank_map,
             &market_map,
             &mut oracle_map,
             &ctx.accounts.filler,
+            &ctx.accounts.filler_stats,
             maker.as_ref(),
+            maker_stats.as_ref(),
             maker_order_id,
             &Clock::get()?,
         )?;
@@ -1097,9 +1103,12 @@ pub mod clearing_house {
             return Err(print_error!(ErrorCode::InvalidOrder)().into());
         }
 
-        let maker = match maker_order_id {
-            Some(_) => Some(get_maker(remaining_accounts_iter)?),
-            None => None,
+        let (maker, maker_stats) = match maker_order_id {
+            Some(_) => {
+                let (user, user_stats) = get_maker_and_maker_stats(remaining_accounts_iter)?;
+                (Some(user), Some(user_stats))
+            }
+            None => (None, None),
         };
 
         let is_immediate_or_cancel = params.immediate_or_cancel;
@@ -1130,11 +1139,14 @@ pub mod clearing_house {
             order_id,
             &ctx.accounts.state,
             user,
+            &ctx.accounts.user_stats,
             &bank_map,
             &market_map,
             &mut oracle_map,
             &user.clone(),
+            &ctx.accounts.user_stats.clone(),
             maker.as_ref(),
+            maker_stats.as_ref(),
             maker_order_id,
             &Clock::get()?,
         )?;
@@ -1199,11 +1211,14 @@ pub mod clearing_house {
             taker_order_id,
             &ctx.accounts.state,
             &ctx.accounts.taker,
+            &ctx.accounts.taker_stats,
             &bank_map,
             &market_map,
             &mut oracle_map,
             &ctx.accounts.user.clone(),
+            &ctx.accounts.user_stats.clone(),
             Some(&ctx.accounts.user),
+            Some(&ctx.accounts.user_stats),
             Some(order_id),
             &Clock::get()?,
         )?;
@@ -1353,7 +1368,9 @@ pub mod clearing_house {
         )?;
 
         let user = &mut load_mut!(ctx.accounts.user)?;
+        let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
         let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
+        let liquidator_stats = &mut load_mut!(ctx.accounts.liquidator_stats)?;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
@@ -1369,8 +1386,10 @@ pub mod clearing_house {
             liquidator_max_base_asset_amount,
             user,
             &user_key,
+            user_stats,
             liquidator,
             &liquidator_key,
+            liquidator_stats,
             &market_map,
             &bank_map,
             &mut oracle_map,
@@ -1922,6 +1941,34 @@ pub mod clearing_house {
             next_liquidation_id: 1,
             ..User::default()
         };
+
+        let mut user_stats = load_mut!(ctx.accounts.user_stats)?;
+        user_stats.number_of_users = user_stats
+            .number_of_users
+            .checked_add(1)
+            .ok_or_else(math_error!())?;
+
+        Ok(())
+    }
+
+    pub fn initialize_user_stats(ctx: Context<InitializeUserStats>) -> Result<()> {
+        let clock = Clock::get()?;
+
+        let mut user_stats = ctx
+            .accounts
+            .user_stats
+            .load_init()
+            .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
+
+        *user_stats = UserStats {
+            authority: ctx.accounts.authority.key(),
+            number_of_users: 0,
+            last_taker_volume_30d_ts: clock.unix_timestamp,
+            last_maker_volume_30d_ts: clock.unix_timestamp,
+            last_filler_volume_30d_ts: clock.unix_timestamp,
+            ..UserStats::default()
+        };
+
         Ok(())
     }
 

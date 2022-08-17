@@ -8,6 +8,7 @@ import {
 	Order,
 	UserAccount,
 	UserPosition,
+	UserStatsAccount,
 } from './types';
 import { calculateEntryPrice } from './math/position';
 import {
@@ -39,6 +40,7 @@ import {
 	calculateTradeSlippage,
 	BN,
 	BankAccount,
+	fetchUserStatsAccount,
 } from '.';
 import {
 	getTokenAmount,
@@ -113,6 +115,14 @@ export class ClearingHouseUser {
 
 	public getUserAccountAndSlot(): DataAndSlot<UserAccount> | undefined {
 		return this.accountSubscriber.getUserAccountAndSlot();
+	}
+
+	public async getUserStatsAccount(): Promise<UserStatsAccount> {
+		return await fetchUserStatsAccount(
+			this.clearingHouse.connection,
+			this.clearingHouse.program,
+			this.getUserAccount().authority
+		);
 	}
 
 	/**

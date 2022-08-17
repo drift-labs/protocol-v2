@@ -15,7 +15,7 @@ pub mod liquidate_perp {
     use crate::state::oracle::OracleSource;
     use crate::state::oracle_map::OracleMap;
     use crate::state::user::{
-        MarketPosition, Order, OrderStatus, OrderType, User, UserBankBalance,
+        MarketPosition, Order, OrderStatus, OrderType, User, UserBankBalance, UserStats,
     };
     use crate::tests::utils::get_pyth_price;
     use crate::tests::utils::*;
@@ -116,13 +116,18 @@ pub mod liquidate_perp {
         let user_key = Pubkey::default();
         let liquidator_key = Pubkey::default();
 
+        let mut user_stats = UserStats::default();
+        let mut liquidator_stats = UserStats::default();
+
         liquidate_perp(
             0,
             BASE_PRECISION,
             &mut user,
             &user_key,
+            &mut user_stats,
             &mut liquidator,
             &liquidator_key,
+            &mut liquidator_stats,
             &market_map,
             &bank_map,
             &mut oracle_map,
@@ -244,13 +249,18 @@ pub mod liquidate_perp {
         let user_key = Pubkey::default();
         let liquidator_key = Pubkey::default();
 
+        let mut user_stats = UserStats::default();
+        let mut liquidator_stats = UserStats::default();
+
         liquidate_perp(
             0,
             BASE_PRECISION,
             &mut user,
             &user_key,
+            &mut user_stats,
             &mut liquidator,
             &liquidator_key,
+            &mut liquidator_stats,
             &market_map,
             &bank_map,
             &mut oracle_map,
@@ -375,13 +385,18 @@ pub mod liquidate_perp {
         let user_key = Pubkey::default();
         let liquidator_key = Pubkey::default();
 
+        let mut user_stats = UserStats::default();
+        let mut liquidator_stats = UserStats::default();
+
         liquidate_perp(
             0,
             BASE_PRECISION,
             &mut user,
             &user_key,
+            &mut user_stats,
             &mut liquidator,
             &liquidator_key,
+            &mut liquidator_stats,
             &market_map,
             &bank_map,
             &mut oracle_map,
@@ -492,13 +507,18 @@ pub mod liquidate_perp {
         let user_key = Pubkey::default();
         let liquidator_key = Pubkey::default();
 
+        let mut user_stats = UserStats::default();
+        let mut liquidator_stats = UserStats::default();
+
         liquidate_perp(
             0,
             BASE_PRECISION / 2,
             &mut user,
             &user_key,
+            &mut user_stats,
             &mut liquidator,
             &liquidator_key,
+            &mut liquidator_stats,
             &market_map,
             &bank_map,
             &mut oracle_map,
@@ -620,13 +640,18 @@ pub mod liquidate_perp {
         let user_key = Pubkey::default();
         let liquidator_key = Pubkey::default();
 
+        let mut user_stats = UserStats::default();
+        let mut liquidator_stats = UserStats::default();
+
         liquidate_perp(
             0,
             10 * BASE_PRECISION,
             &mut user,
             &user_key,
+            &mut user_stats,
             &mut liquidator,
             &liquidator_key,
+            &mut liquidator_stats,
             &market_map,
             &bank_map,
             &mut oracle_map,

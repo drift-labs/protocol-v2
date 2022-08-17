@@ -100,9 +100,9 @@ describe('admin withdraw', () => {
 	});
 
 	it('Withdraw Fees', async () => {
-		const withdrawAmount = clearingHouse
-			.getUserAccount()
-			.fees.totalFeePaid.div(new BN(2));
+		const withdrawAmount = (
+			await clearingHouse.getUser().getUserStatsAccount()
+		).fees.totalFeePaid.div(new BN(2));
 		const state = await clearingHouse.getStateAccount();
 		await clearingHouse.withdrawFromMarketToInsuranceVault(
 			new BN(0),
@@ -117,9 +117,9 @@ describe('admin withdraw', () => {
 	});
 
 	it('Withdraw From Insurance Vault', async () => {
-		const withdrawAmount = clearingHouse
-			.getUserAccount()
-			.fees.totalFeePaid.div(new BN(4));
+		const withdrawAmount = (
+			await clearingHouse.getUser().getUserStatsAccount()
+		).fees.totalFeePaid.div(new BN(4));
 		await clearingHouse.withdrawFromInsuranceVault(
 			withdrawAmount,
 			userUSDCAccount.publicKey
@@ -132,13 +132,15 @@ describe('admin withdraw', () => {
 	});
 
 	it('Withdraw From Insurance Vault to amm', async () => {
-		const withdrawAmount = clearingHouse
-			.getUserAccount()
-			.fees.totalFeePaid.div(new BN(4));
+		const withdrawAmount = (
+			await clearingHouse.getUser().getUserStatsAccount()
+		).fees.totalFeePaid.div(new BN(4));
 
 		let market = clearingHouse.getMarketAccount(0);
 		assert(
-			market.amm.totalFee.eq(clearingHouse.getUserAccount().fees.totalFeePaid)
+			market.amm.totalFee.eq(
+				(await clearingHouse.getUser().getUserStatsAccount()).fees.totalFeePaid
+			)
 		);
 
 		await clearingHouse.withdrawFromInsuranceVaultToMarket(

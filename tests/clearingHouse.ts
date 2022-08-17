@@ -275,7 +275,11 @@ describe('clearing_house', () => {
 			clearingHouse.getQuoteAssetTokenAmount().toString()
 		);
 		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(10000000)));
-		assert(user.fees.totalFeePaid.eq(new BN(48004)));
+		assert(
+			(
+				await clearingHouse.getUser().getUserStatsAccount()
+			).fees.totalFeePaid.eq(new BN(48004))
+		);
 
 		assert.ok(user.positions[0].quoteEntryAmount.eq(new BN(-48004609)));
 		assert.ok(user.positions[0].baseAssetAmount.eq(new BN(480000000000000)));
@@ -371,7 +375,11 @@ describe('clearing_house', () => {
 		assert.ok(user.positions[0].baseAssetAmount.eq(new BN(240000000000000)));
 		console.log(clearingHouse.getQuoteAssetTokenAmount().toString());
 		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(10000000)));
-		assert(user.fees.totalFeePaid.eq(new BN(72007)));
+		assert(
+			(
+				await clearingHouse.getUser().getUserStatsAccount()
+			).fees.totalFeePaid.eq(new BN(72007))
+		);
 
 		const market = clearingHouse.getMarketAccount(0);
 		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(240000000000000)));
@@ -428,7 +436,11 @@ describe('clearing_house', () => {
 		);
 		console.log(clearingHouse.getQuoteAssetTokenAmount().toString());
 		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9878840)));
-		assert(user.fees.totalFeePaid.eq(new BN(120007)));
+		assert(
+			(
+				await clearingHouse.getUser().getUserStatsAccount()
+			).fees.totalFeePaid.eq(new BN(120007))
+		);
 		console.log(user.positions[0].quoteEntryAmount.toString());
 
 		assert.ok(user.positions[0].quoteEntryAmount.eq(new BN(24000000)));
@@ -479,7 +491,11 @@ describe('clearing_house', () => {
 		assert.ok(user.positions[0].quoteEntryAmount.eq(new BN(0)));
 		assert.ok(user.positions[0].baseAssetAmount.eq(new BN(0)));
 		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9855993)));
-		assert(user.fees.totalFeePaid.eq(new BN(144005)));
+		assert(
+			(
+				await clearingHouse.getUser().getUserStatsAccount()
+			).fees.totalFeePaid.eq(new BN(144005))
+		);
 
 		const market = clearingHouse.getMarketAccount(0);
 		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(0)));

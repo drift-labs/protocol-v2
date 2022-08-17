@@ -440,13 +440,14 @@ export type UserPosition = {
 	lastNetQuoteAssetAmountPerLp: BN;
 };
 
-export type UserAccount = {
-	authority: PublicKey;
-	name: number[];
-	userId: number;
-	bankBalances: UserBankBalance[];
-	collateral: BN;
-	cumulativeDeposits: BN;
+export type UserStatsAccount = {
+	numberOfUsers: number;
+	makerVolume30D: BN;
+	takerVolume30D: BN;
+	fillerVolume30D: BN;
+	lastMakerVolume30DTs: BN;
+	lastTakerVolume30DTs: BN;
+	lastFillerVolume30DTs: BN;
 	fees: {
 		totalFeePaid: BN;
 		totalFeeRebate: BN;
@@ -454,6 +455,13 @@ export type UserAccount = {
 		totalReferralReward: BN;
 		totalRefereeDiscount: BN;
 	};
+};
+
+export type UserAccount = {
+	authority: PublicKey;
+	name: number[];
+	userId: number;
+	bankBalances: UserBankBalance[];
 	positions: UserPosition[];
 	orders: Order[];
 	beingLiquidated: boolean;
@@ -554,11 +562,13 @@ export const DefaultOrderParams = {
 
 export type MakerInfo = {
 	maker: PublicKey;
+	makerStats: PublicKey;
 	order: Order;
 };
 
 export type TakerInfo = {
 	taker: PublicKey;
+	takerStats: PublicKey;
 	order: Order;
 };
 

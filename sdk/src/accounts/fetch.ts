@@ -1,6 +1,9 @@
 import { Connection, PublicKey } from '@solana/web3.js';
-import { UserAccount } from '../types';
-import { getUserAccountPublicKey } from '../addresses/pda';
+import { UserAccount, UserStatsAccount } from '../types';
+import {
+	getUserAccountPublicKey,
+	getUserStatsAccountPublicKey,
+} from '../addresses/pda';
 import { Program } from '@project-serum/anchor';
 
 export async function fetchUserAccounts(
@@ -30,4 +33,26 @@ export async function fetchUserAccounts(
 			accountInfo.data
 		) as UserAccount;
 	});
+}
+
+export async function fetchUserStatsAccount(
+	connection: Connection,
+	program: Program,
+	authority: PublicKey
+): Promise<UserStatsAccount | undefined> {
+	const userStatsPublicKey = getUserStatsAccountPublicKey(
+		program.programId,
+		authority
+	);
+	const accountInfo = await connection.getAccountInfo(
+		userStatsPublicKey,
+		'confirmed'
+	);
+
+	return accountInfo
+		? (program.account.user.coder.accounts.decode(
+				'UserStats',
+				accountInfo.data
+		  ) as UserStatsAccount)
+		: undefined;
 }
