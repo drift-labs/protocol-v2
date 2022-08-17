@@ -1727,7 +1727,13 @@ export class ClearingHouse {
 		marketIndex: BN,
 		maxBaseAssetAmount: BN
 	): Promise<TransactionInstruction> {
+		const userStatsPublicKey = getUserStatsAccountPublicKey(
+			this.program.programId,
+			userAccount.authority
+		);
+
 		const liquidatorPublicKey = await this.getUserAccountPublicKey();
+		const liquidatorStatsPublicKey = this.getUserStatsAccountPublicKey();
 
 		const remainingAccounts = this.getRemainingAccountsForLiquidation({
 			writableMarketIndex: marketIndex,
@@ -1742,7 +1748,9 @@ export class ClearingHouse {
 					state: await this.getStatePublicKey(),
 					authority: this.wallet.publicKey,
 					user: userAccountPublicKey,
+					userStats: userStatsPublicKey,
 					liquidator: liquidatorPublicKey,
+					liquidatorStats: liquidatorStatsPublicKey,
 				},
 				remainingAccounts: remainingAccounts,
 			}

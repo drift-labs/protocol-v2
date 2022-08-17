@@ -1138,7 +1138,9 @@ pub mod clearing_house {
         )?;
 
         let user = &mut load_mut!(ctx.accounts.user)?;
+        let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
         let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
+        let liquidator_stats = &mut load_mut!(ctx.accounts.liquidator_stats)?;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
@@ -1154,8 +1156,10 @@ pub mod clearing_house {
             liquidator_max_base_asset_amount,
             user,
             &user_key,
+            user_stats,
             liquidator,
             &liquidator_key,
+            liquidator_stats,
             &market_map,
             &bank_map,
             &mut oracle_map,

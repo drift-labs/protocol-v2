@@ -349,7 +349,7 @@ pub struct FillOrder<'info> {
     pub user: AccountLoader<'info, User>,
     #[account(
         mut,
-        constraint = user.load()?.authority.eq(&user.load()?.authority),
+        constraint = user_stats.load()?.authority.eq(&user.load()?.authority),
     )]
     pub user_stats: AccountLoader<'info, UserStats>,
 }
@@ -474,38 +474,6 @@ pub struct TriggerOrder<'info> {
 }
 
 #[derive(Accounts)]
-pub struct Liquidate<'info> {
-    pub state: Box<Account<'info, State>>,
-    pub authority: Signer<'info>,
-    #[account(
-        mut,
-        has_one = authority,
-    )]
-    pub liquidator: AccountLoader<'info, User>,
-    #[account(mut)]
-    pub user: AccountLoader<'info, User>,
-    #[account(
-        mut,
-        seeds = [b"bank_vault".as_ref(), 0_u64.to_le_bytes().as_ref()],
-        bump,
-    )]
-    pub bank_vault: Box<Account<'info, TokenAccount>>,
-    #[account(
-        mut,
-        seeds = [b"bank_vault_authority".as_ref(), 0_u64.to_le_bytes().as_ref()],
-        bump,
-    )]
-    /// CHECK: this is the pda for the bank vault
-    pub bank_vault_authority: AccountInfo<'info>,
-    #[account(
-        mut,
-        constraint = &state.insurance_vault.eq(&insurance_vault.key())
-    )]
-    pub insurance_vault: Box<Account<'info, TokenAccount>>,
-    pub token_program: Program<'info, Token>,
-}
-
-#[derive(Accounts)]
 pub struct LiquidatePerp<'info> {
     pub state: Box<Account<'info, State>>,
     pub authority: Signer<'info>,
@@ -514,8 +482,18 @@ pub struct LiquidatePerp<'info> {
         has_one = authority,
     )]
     pub liquidator: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        has_one = authority,
+    )]
+    pub liquidator_stats: AccountLoader<'info, UserStats>,
     #[account(mut)]
     pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = user_stats.load()?.authority.eq(&user.load()?.authority),
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
 }
 
 #[derive(Accounts)]
