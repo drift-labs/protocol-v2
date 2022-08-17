@@ -265,7 +265,7 @@ mod test {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let _oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
 
         let mut market = Market {
             amm: AMM {
@@ -293,7 +293,7 @@ mod test {
             ..Market::default()
         };
         create_anchor_account_info!(market, Market, market_account_info);
-        let market_map = MarketMap::load_one(&market_account_info, true).unwrap();
+        let _market_map = MarketMap::load_one(&market_account_info, true).unwrap();
 
         let mut bank = Bank {
             bank_index: 0,
@@ -328,13 +328,13 @@ mod test {
         };
         create_anchor_account_info!(sol_bank, Bank, sol_bank_account_info);
         let bank_account_infos = Vec::from([&bank_account_info, &sol_bank_account_info]);
-        let bank_map = BankMap::load_multiple(bank_account_infos, true).unwrap();
+        let _bank_map = BankMap::load_multiple(bank_account_infos, true).unwrap();
 
         let mut user_bank_balances = [UserBankBalance::default(); 8];
         user_bank_balances[0] = UserBankBalance {
             bank_index: 0,
             balance_type: BankBalanceType::Deposit,
-            balance: 1 * BANK_INTEREST_PRECISION,
+            balance: BANK_INTEREST_PRECISION,
         };
         let mut user = User {
             orders: [Order::default(); 32],
@@ -357,8 +357,8 @@ mod test {
         // TEST USER WITHDRAW
 
         // fails
-        let bank_backup = bank.clone();
-        let user_backup = user.clone();
+        let bank_backup = bank;
+        let user_backup = user;
         assert!(update_bank_balances_with_limits(
             amount as u128,
             &BankBalanceType::Borrow,
@@ -390,10 +390,10 @@ mod test {
         .unwrap();
 
         //fail
-        let bank_backup = bank.clone();
-        let user_backup = user.clone();
+        let bank_backup = bank;
+        let user_backup = user;
         assert!(update_bank_balances_with_limits(
-            1 as u128,
+            1_u128,
             &BankBalanceType::Borrow,
             &mut bank,
             &mut user.bank_balances[0],
@@ -489,8 +489,8 @@ mod test {
         );
 
         // 80% from 2% bad
-        let bank_backup = sol_bank.clone();
-        let user_backup = user.clone();
+        let bank_backup = sol_bank;
+        let user_backup = user;
         assert!(update_bank_balances_with_limits(
             100000 * 100000 * 40,
             &BankBalanceType::Borrow,
@@ -526,19 +526,15 @@ mod test {
 
         // cant withdraw when market is invalid => delayed update
         market.amm.last_update_slot = 8008;
-        assert!(check_bank_market_valid(
-            &market,
-            &sol_bank,
-            &mut user.bank_balances[1],
-            8009 as u64
-        )
-        .is_err());
+        assert!(
+            check_bank_market_valid(&market, &sol_bank, &mut user.bank_balances[1], 8009_u64)
+                .is_err()
+        );
 
         // ok to withdraw when market is valid
         market.amm.last_update_slot = 8009;
         market.amm.last_oracle_valid = true;
-        check_bank_market_valid(&market, &sol_bank, &mut user.bank_balances[1], 8009 as u64)
-            .unwrap();
+        check_bank_market_valid(&market, &sol_bank, &mut user.bank_balances[1], 8009_u64).unwrap();
 
         // ok to deposit when market is invalid
         update_bank_balances_with_limits(
@@ -549,12 +545,7 @@ mod test {
         )
         .unwrap();
 
-        check_bank_market_valid(
-            &market,
-            &sol_bank,
-            &mut user.bank_balances[1],
-            100000 as u64,
-        )
-        .unwrap();
+        check_bank_market_valid(&market, &sol_bank, &mut user.bank_balances[1], 100000_u64)
+            .unwrap();
     }
 }

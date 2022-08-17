@@ -27,7 +27,6 @@ import {
 	createUserWithUSDCAndWSOLAccount,
 	createWSolTokenAccountForUser,
 	initializeSolAssetBank,
-	printTxLogs,
 } from './testHelpers';
 import { isVariant } from '../sdk';
 

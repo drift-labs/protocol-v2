@@ -757,7 +757,7 @@ pub mod clearing_house {
     )]
     pub fn settle_lp<'info>(ctx: Context<SettleLP>, market_index: u64) -> Result<()> {
         let user_key = ctx.accounts.user.key();
-        let user = &mut load_mut!(&ctx.accounts.user)?;
+        let user = &mut load_mut!(ctx.accounts.user)?;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
 
@@ -790,7 +790,7 @@ pub mod clearing_house {
         market_index: u64,
     ) -> Result<()> {
         let user_key = ctx.accounts.user.key();
-        let user = &mut load_mut!(&ctx.accounts.user)?;
+        let user = &mut load_mut!(ctx.accounts.user)?;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
 
@@ -850,7 +850,7 @@ pub mod clearing_house {
         market_index: u64,
     ) -> Result<()> {
         let user_key = ctx.accounts.user.key();
-        let user = &mut load_mut!(&ctx.accounts.user)?;
+        let user = &mut load_mut!(ctx.accounts.user)?;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();

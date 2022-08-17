@@ -104,7 +104,7 @@ mod test {
 
         assert!(oracle_status.is_valid);
         assert_eq!(oracle_status.oracle_mark_spread_pct, 30303); //0.030303 ()
-        assert_eq!(oracle_status.mark_too_divergent, false);
+        assert!(!oracle_status.mark_too_divergent);
 
         let _new_oracle_twap =
             update_oracle_price_twap(&mut amm, now, &oracle_price_data, None).unwrap();
@@ -121,26 +121,26 @@ mod test {
         };
         oracle_status =
             get_oracle_status(&amm, &oracle_price_data, &state.oracle_guard_rails, None).unwrap();
-        assert_eq!(oracle_status.is_valid, false);
+        assert!(!oracle_status.is_valid);
 
         oracle_price_data.delay = 8;
         amm.last_oracle_price_twap_5min = 32 * MARK_PRICE_PRECISION as i128;
         amm.last_oracle_price_twap = 21 * MARK_PRICE_PRECISION as i128;
         oracle_status =
             get_oracle_status(&amm, &oracle_price_data, &state.oracle_guard_rails, None).unwrap();
-        assert_eq!(oracle_status.is_valid, true);
-        assert_eq!(oracle_status.mark_too_divergent, false);
+        assert!(oracle_status.is_valid);
+        assert!(!oracle_status.mark_too_divergent);
 
         amm.last_oracle_price_twap_5min = 29 * MARK_PRICE_PRECISION as i128;
         oracle_status =
             get_oracle_status(&amm, &oracle_price_data, &state.oracle_guard_rails, None).unwrap();
-        assert_eq!(oracle_status.mark_too_divergent, true);
-        assert_eq!(oracle_status.is_valid, true);
+        assert!(oracle_status.mark_too_divergent);
+        assert!(oracle_status.is_valid);
 
-        oracle_price_data.confidence = 1 * MARK_PRICE_PRECISION;
+        oracle_price_data.confidence = MARK_PRICE_PRECISION;
         oracle_status =
             get_oracle_status(&amm, &oracle_price_data, &state.oracle_guard_rails, None).unwrap();
-        assert_eq!(oracle_status.mark_too_divergent, true);
-        assert_eq!(oracle_status.is_valid, false);
+        assert!(oracle_status.mark_too_divergent);
+        assert!(!oracle_status.is_valid);
     }
 }
