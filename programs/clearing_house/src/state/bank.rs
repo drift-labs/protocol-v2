@@ -39,7 +39,8 @@ pub struct Bank {
     pub utilization_twap: u128,   // 24 hour twap
     pub cumulative_deposit_interest: u128,
     pub cumulative_borrow_interest: u128,
-    pub last_updated: u64,
+    pub last_interest_ts: u64,
+    pub last_twap_ts: u64,
     pub initial_asset_weight: u128,
     pub maintenance_asset_weight: u128,
     pub initial_liability_weight: u128,

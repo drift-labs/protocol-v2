@@ -17,7 +17,7 @@ use std::cmp::max;
 pub fn update_bank_twap_stats(bank: &mut Bank, utilization: u128, now: i64) -> ClearingHouseResult {
     let since_last = cast_to_i128(max(
         1,
-        now.checked_sub(bank.last_updated as i64)
+        now.checked_sub(bank.last_twap_ts as i64)
             .ok_or_else(math_error!())?,
     ))?;
     let from_start = max(
@@ -63,25 +63,21 @@ pub fn update_bank_cumulative_interest(bank: &mut Bank, now: i64) -> ClearingHou
         utilization,
     } = calculate_accumulated_interest(bank, now)?;
 
-    let interest_update = deposit_interest > 0 && borrow_interest > 1;
-    let no_utilization = utilization == 0;
+    if deposit_interest > 0 && borrow_interest > 1 {
+        bank.cumulative_deposit_interest = bank
+            .cumulative_deposit_interest
+            .checked_add(deposit_interest)
+            .ok_or_else(math_error!())?;
 
-    if interest_update || no_utilization {
-        if interest_update {
-            bank.cumulative_deposit_interest = bank
-                .cumulative_deposit_interest
-                .checked_add(deposit_interest)
-                .ok_or_else(math_error!())?;
-
-            bank.cumulative_borrow_interest = bank
-                .cumulative_borrow_interest
-                .checked_add(borrow_interest)
-                .ok_or_else(math_error!())?;
-        }
-
-        update_bank_twap_stats(bank, utilization, now)?;
-        bank.last_updated = cast_to_u64(now)?;
+        bank.cumulative_borrow_interest = bank
+            .cumulative_borrow_interest
+            .checked_add(borrow_interest)
+            .ok_or_else(math_error!())?;
+        bank.last_interest_ts = cast_to_u64(now)?;
     }
+
+    update_bank_twap_stats(bank, utilization, now)?;
+    bank.last_twap_ts = cast_to_u64(now)?;
 
     Ok(())
 }
@@ -428,7 +424,8 @@ mod test {
         assert_eq!(user.bank_balances[0].balance, 100000400000);
         assert_eq!(user.bank_balances[1].balance, 0);
 
-        bank.last_updated = now as u64;
+        bank.last_interest_ts = now as u64;
+        bank.last_twap_ts = now as u64;
         update_bank_cumulative_interest(&mut bank, now + 3600).unwrap();
         assert_eq!(bank.deposit_token_twap, 4167066666); //$4167.06
         update_bank_cumulative_interest(&mut bank, now + 3600 * 44).unwrap();
