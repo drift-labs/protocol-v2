@@ -2219,7 +2219,11 @@
             "type": "u128"
           },
           {
-            "name": "lastUpdated",
+            "name": "lastInterestTs",
+            "type": "u64"
+          },
+          {
+            "name": "lastTwapTs",
             "type": "u64"
           },
           {

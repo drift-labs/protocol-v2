@@ -155,7 +155,7 @@ describe('liquidate borrow', () => {
 		assert(clearingHouse.getUserAccount().nextLiquidationId === 2);
 		assert(clearingHouse.getUserAccount().bankBalances[0].balance.eq(ZERO));
 		assert(
-			clearingHouse.getUserAccount().bankBalances[1].balance.eq(new BN(1))
+			clearingHouse.getUserAccount().bankBalances[1].balance.eq(new BN(2))
 		);
 
 		console.log(
@@ -200,7 +200,7 @@ describe('liquidate borrow', () => {
 		assert(isVariant(bankruptcyRecord.liquidationType, 'borrowBankruptcy'));
 		console.log(bankruptcyRecord.borrowBankruptcy);
 		assert(bankruptcyRecord.borrowBankruptcy.bankIndex.eq(ONE));
-		assert(bankruptcyRecord.borrowBankruptcy.borrowAmount.eq(new BN(1000)));
+		assert(bankruptcyRecord.borrowBankruptcy.borrowAmount.eq(new BN(2000)));
 		console.log(
 			bankruptcyRecord.borrowBankruptcy.cumulativeDepositInterestDelta.eq(
 				new BN(39999)
@@ -209,6 +209,6 @@ describe('liquidate borrow', () => {
 
 		const bank = clearingHouse.getBankAccount(1);
 		console.log(bank.cumulativeDepositInterest.toString());
-		assert(bank.cumulativeDepositInterest.eq(new BN(9999983171)));
+		assert(bank.cumulativeDepositInterest.eq(new BN(9999972684)));
 	});
 });

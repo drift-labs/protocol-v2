@@ -239,6 +239,8 @@ pub mod clearing_house {
         }
 
         let bank = &mut ctx.accounts.bank.load_init()?;
+        let now = cast(Clock::get()?.unix_timestamp).or(Err(ErrorCode::UnableToCastUnixTime))?;
+
         **bank = Bank {
             bank_index,
             pubkey: bank_pubkey,
@@ -259,8 +261,8 @@ pub mod clearing_house {
             utilization_twap: 0, // todo: use for dynamic interest / additional guards
             cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
-            last_updated: cast(Clock::get()?.unix_timestamp)
-                .or(Err(ErrorCode::UnableToCastUnixTime))?,
+            last_interest_ts: now,
+            last_twap_ts: now,
             initial_asset_weight,
             maintenance_asset_weight,
             initial_liability_weight,
