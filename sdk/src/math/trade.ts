@@ -177,13 +177,13 @@ export function calculateTradeAcquiredAmounts(
 
 	const acquiredBase = amm.baseAssetReserve.sub(newBaseAssetReserve);
 	const acquiredQuote = amm.quoteAssetReserve.sub(newQuoteAssetReserve);
-	const acquiredQuoteAssetamount = calculateQuoteAssetAmountSwapped(
+	const acquiredQuoteAssetAmount = calculateQuoteAssetAmountSwapped(
 		acquiredQuote.abs(),
 		amm.pegMultiplier,
 		swapDirection
 	);
 
-	return [acquiredBase, acquiredQuote, acquiredQuoteAssetamount];
+	return [acquiredBase, acquiredQuote, acquiredQuoteAssetAmount];
 }
 
 /**

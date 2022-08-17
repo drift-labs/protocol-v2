@@ -1,5 +1,3 @@
-use solana_program::msg;
-
 use crate::controller::position::PositionDirection;
 use crate::error::ClearingHouseResult;
 use crate::get_then_update_id;
@@ -16,6 +14,7 @@ use crate::state::events::CurveRecord;
 use crate::state::market::{Market, AMM};
 use crate::state::oracle::OraclePriceData;
 use anchor_lang::prelude::*;
+use solana_program::msg;
 use std::cmp::{max, min};
 
 use crate::controller::bank_balance::update_bank_balances;

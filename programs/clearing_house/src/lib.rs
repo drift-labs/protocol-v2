@@ -135,6 +135,13 @@ pub mod clearing_house {
             return Err(ErrorCode::InvalidBankAuthority.into());
         }
 
+        validate!(
+            optimal_utilization <= BANK_UTILIZATION_PRECISION,
+            ErrorCode::InvalidBankInitialization,
+            "For bank, optimal_utilization must be < {}",
+            BANK_UTILIZATION_PRECISION
+        )?;
+
         let bank_index = get_then_update_id!(state, number_of_banks);
         if bank_index == 0 {
             validate!(
@@ -235,6 +242,8 @@ pub mod clearing_house {
         **bank = Bank {
             bank_index,
             pubkey: bank_pubkey,
+            oracle: ctx.accounts.oracle.key(),
+            oracle_source,
             mint: ctx.accounts.bank_mint.key(),
             vault: *ctx.accounts.bank_vault.to_account_info().key,
             vault_authority,
@@ -245,18 +254,20 @@ pub mod clearing_house {
             max_borrow_rate,
             deposit_balance: 0,
             borrow_balance: 0,
+            deposit_token_twap: 0,
+            borrow_token_twap: 0,
+            utilization_twap: 0, // todo: use for dynamic interest / additional guards
             cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
             last_updated: cast(Clock::get()?.unix_timestamp)
                 .or(Err(ErrorCode::UnableToCastUnixTime))?,
-            oracle_source,
-            oracle: ctx.accounts.oracle.key(),
             initial_asset_weight,
             maintenance_asset_weight,
             initial_liability_weight,
             maintenance_liability_weight,
             imf_factor,
             liquidation_fee,
+            withdraw_guard_threshold: 0,
         };
 
         Ok(())
@@ -376,7 +387,9 @@ pub mod clearing_house {
                 last_funding_rate_ts: now,
                 funding_period: amm_periodicity,
                 last_oracle_price_twap,
+                last_oracle_price_twap_5min: oracle_price,
                 last_mark_price_twap: init_mark_price,
+                last_mark_price_twap_5min: init_mark_price,
                 last_mark_price_twap_ts: now,
                 sqrt_k: amm_base_asset_reserve,
                 min_base_asset_reserve,
@@ -431,6 +444,7 @@ pub mod clearing_house {
                 user_lp_shares: 0,
                 lp_cooldown_time: 1, // TODO: what should this be?
 
+                last_oracle_valid: false,
                 padding0: 0,
                 padding1: 0,
                 padding2: 0,
@@ -568,13 +582,15 @@ pub mod clearing_house {
                     amount
                 };
 
-            controller::bank_balance::update_bank_balances(
+            // prevents withdraw when limits hit
+            controller::bank_balance::update_bank_balances_with_limits(
                 amount as u128,
                 &BankBalanceType::Borrow,
                 bank,
                 user_bank_balance,
             )?;
 
+            // todo: prevents borrow when bank market's oracle invalid
             amount
         };
 
@@ -596,6 +612,7 @@ pub mod clearing_house {
         )?;
 
         let oracle_price = oracle_map.get_price_data(&bank.oracle)?.price;
+
         let deposit_record = DepositRecord {
             ts: now,
             user_authority: user.authority,
@@ -1012,12 +1029,14 @@ pub mod clearing_house {
             None => None,
         };
 
+        let clock = &Clock::get()?;
+
         controller::repeg::update_amm(
             market_index,
             &market_map,
             &mut oracle_map,
             &ctx.accounts.state,
-            &Clock::get()?,
+            clock,
         )?;
 
         let (_, updated_user_state) = controller::orders::fill_order(
@@ -1840,7 +1859,8 @@ pub mod clearing_house {
         controller::repeg::_update_amm(market, oracle_price_data, state, now, clock_slot)?;
 
         validate!(
-            (clock_slot == market.amm.last_update_slot || market.amm.curve_update_intensity == 0),
+            ((clock_slot == market.amm.last_update_slot && market.amm.last_oracle_valid)
+                || market.amm.curve_update_intensity == 0),
             ErrorCode::AMMNotUpdatedInSameSlot,
             "AMM must be updated in a prior instruction within same slot"
         )?;
@@ -2055,6 +2075,20 @@ pub mod clearing_house {
         )?;
 
         bank.liquidation_fee = liquidation_fee;
+        Ok(())
+    }
+
+    pub fn update_bank_withdraw_guard_threshold(
+        ctx: Context<AdminUpdateBank>,
+        withdraw_guard_threshold: u128,
+    ) -> Result<()> {
+        let bank = &mut load_mut!(ctx.accounts.bank)?;
+        msg!(
+            "bank.withdraw_guard_threshold: {:?} -> {:?}",
+            bank.withdraw_guard_threshold,
+            withdraw_guard_threshold
+        );
+        bank.withdraw_guard_threshold = withdraw_guard_threshold;
         Ok(())
     }
 
@@ -2284,7 +2318,11 @@ pub mod clearing_house {
         minimum_trade_size: u128,
     ) -> Result<()> {
         let market = &mut load_mut!(ctx.accounts.market)?;
-        market.amm.base_asset_amount_step_size = minimum_trade_size;
+        if minimum_trade_size > 0 {
+            market.amm.base_asset_amount_step_size = minimum_trade_size;
+        } else {
+            return Err(ErrorCode::DefaultError.into());
+        }
         Ok(())
     }
 
