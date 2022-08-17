@@ -634,18 +634,6 @@ export class Admin extends ClearingHouse {
 		});
 	}
 
-	public async settleExpiredMarket(
-		marketIndex: BN
-	): Promise<TransactionSignature> {
-		return await this.program.rpc.settleExpiredMarket({
-			accounts: {
-				admin: this.wallet.publicKey,
-				state: await this.getStatePublicKey(),
-				market: await getMarketPublicKey(this.program.programId, marketIndex),
-			},
-		});
-	}
-
 	public async updateWhitelistMint(
 		whitelistMint?: PublicKey
 	): Promise<TransactionSignature> {

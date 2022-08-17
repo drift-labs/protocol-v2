@@ -1150,6 +1150,54 @@ export class ClearingHouse {
 		});
 	}
 
+	public async settleExpiredMarket(
+		marketIndex: BN
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.txSender.send(
+			wrapInTx(await this.getSettleExpiredMarketIx(marketIndex)),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getSettleExpiredMarketIx(
+		marketIndex: BN
+	): Promise<TransactionInstruction> {
+		const marketAccountInfos = [];
+		const oracleAccountInfos = [];
+		const bankAccountInfos = [];
+		const market = this.getMarketAccount(marketIndex);
+		marketAccountInfos.push({
+			pubkey: market.pubkey,
+			isWritable: true,
+			isSigner: false,
+		});
+		oracleAccountInfos.push({
+			pubkey: market.amm.oracle,
+			isWritable: false,
+			isSigner: false,
+		});
+
+		bankAccountInfos.push({
+			pubkey: this.getBankAccount(QUOTE_ASSET_BANK_INDEX).pubkey,
+			isSigner: false,
+			isWritable: true,
+		});
+
+		const remainingAccounts = oracleAccountInfos
+			.concat(bankAccountInfos)
+			.concat(marketAccountInfos);
+
+		return await this.program.instruction.settleExpiredMarket(marketIndex, {
+			accounts: {
+				state: await this.getStatePublicKey(),
+				authority: this.wallet.publicKey,
+			},
+			remainingAccounts,
+		});
+	}
+
 	public async cancelOrder(orderId?: BN): Promise<TransactionSignature> {
 		const { txSig } = await this.txSender.send(
 			wrapInTx(await this.getCancelOrderIx(orderId)),

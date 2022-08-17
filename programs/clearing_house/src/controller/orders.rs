@@ -18,13 +18,13 @@ use crate::math::auction::{
     calculate_auction_end_price, calculate_auction_start_price, is_auction_complete,
 };
 use crate::math::casting::cast;
+use crate::math::constants::ONE_HOUR_I128;
 use crate::math::fulfillment::determine_fulfillment_methods;
 use crate::math::liquidation::validate_user_not_being_liquidated;
 use crate::math::matching::{
     are_orders_same_market_but_different_sides, calculate_fill_for_matched_orders, do_orders_cross,
     is_maker_for_taker,
 };
-use crate::math::constants::{ONE_HOUR_I128};
 use crate::math::{amm, fees, margin::*, orders::*};
 use crate::math_error;
 use crate::order_validation::validate_order;
@@ -461,7 +461,12 @@ pub fn fill_order(
         if market.expiry_ts != 0 {
             if market.expiry_ts <= now {
                 market.status = MarketStatus::Settlement;
-            } else if market.expiry_ts.checked_sub(now).ok_or_else(math_error!())? < ONE_HOUR_I128 as i64 {
+            } else if market
+                .expiry_ts
+                .checked_sub(now)
+                .ok_or_else(math_error!())?
+                < ONE_HOUR_I128 as i64
+            {
                 market.status = MarketStatus::ReduceOnly;
             }
         }

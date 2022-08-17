@@ -1455,7 +1455,7 @@ pub mod clearing_house {
         let market = &mut load_mut!(ctx.accounts.market)?;
         validate!(
             clock.unix_timestamp < expiry_ts,
-            ErrorCode::InvalidUpdateK,
+            ErrorCode::DefaultError,
             "Market expiry ts must later than current clock timestamp"
         )?;
 

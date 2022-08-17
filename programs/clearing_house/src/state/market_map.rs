@@ -74,9 +74,9 @@ impl<'a> MarketMap<'a> {
                 AccountLoader::try_from(account_info).or(Err(ErrorCode::InvalidMarketAccount))?
             };
 
-            if is_initialized != &[1] {
-                return Err(ErrorCode::MarketIndexNotInitialized);
-            }
+            // if is_initialized != &[1] {
+            //     return Err(ErrorCode::MarketIndexNotInitialized);
+            // }
 
             market_map.0.insert(market_index, account_loader);
         }
@@ -117,9 +117,9 @@ impl<'a> MarketMap<'a> {
             return Err(ErrorCode::MarketWrongMutability);
         }
 
-        if is_initialized != &[1] {
-            return Err(ErrorCode::MarketIndexNotInitialized);
-        }
+        // if is_initialized != &[1] {
+        //     return Err(ErrorCode::MarketIndexNotInitialized);
+        // }
 
         market_map.0.insert(market_index, account_loader);
 
@@ -151,7 +151,7 @@ impl<'a> MarketMap<'a> {
                 return Err(ErrorCode::CouldNotLoadMarketData);
             }
             let market_index = u64::from_le_bytes(*array_ref![data, 8, 8]);
-            let is_initialized = array_ref![data, 48, 1];
+            // let is_initialized = array_ref![data, 48, 1]; //todo
 
             let is_writable = account_info.is_writable;
             let account_loader: AccountLoader<Market> =
@@ -161,9 +161,9 @@ impl<'a> MarketMap<'a> {
                 return Err(ErrorCode::MarketWrongMutability);
             }
 
-            if is_initialized != &[1] {
-                return Err(ErrorCode::MarketIndexNotInitialized);
-            }
+            // if is_initialized != &[1] {
+            //     return Err(ErrorCode::MarketIndexNotInitialized);
+            // }
 
             market_map.0.insert(market_index, account_loader);
         }

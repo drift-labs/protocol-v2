@@ -15,6 +15,7 @@ import {
 	Admin,
 	ClearingHouse,
 	findComputeUnitConsumption,
+	convertToNumber,
 	MARK_PRICE_PRECISION,
 	PositionDirection,
 	EventSubscriber,
@@ -29,6 +30,7 @@ import {
 	createUserWithUSDCAndWSOLAccount,
 	createWSolTokenAccountForUser,
 	initializeSolAssetBank,
+	sleep,
 } from './testHelpers';
 import { isVariant } from '../sdk';
 
@@ -112,7 +114,8 @@ describe('delist market', () => {
 			solOracle,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
-			periodicity
+			periodicity,
+			new BN(43_133)
 		);
 
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
@@ -162,21 +165,41 @@ describe('delist market', () => {
 		// });
 
 		// await whaleUser.subscribe();
+	});
 
-		await clearingHouse.openPosition(
-			PositionDirection.SHORT,
-			BASE_PRECISION,
-			new BN(0),
-			new BN(0)
-		);
+	after(async () => {
+		await clearingHouse.unsubscribe();
+		// await liquidatorClearingHouse.unsubscribe();
+		await eventSubscriber.unsubscribe();
+	});
+
+	it('put market in big drawdown and net user positive pnl', async () => {
+		try {
+			await clearingHouse.openPosition(
+				PositionDirection.SHORT,
+				BASE_PRECISION,
+				new BN(0),
+				new BN(0)
+			);
+		} catch (e) {
+			console.log('clearingHouse.openPosition');
+
+			console.error(e);
+		}
 
 		// todo
-		await clearingHouseLoser.openPosition(
-			PositionDirection.LONG,
-			new BN(10000000),
-			new BN(0),
-			new BN(0)
-		);
+		try {
+			await clearingHouseLoser.openPosition(
+				PositionDirection.LONG,
+				new BN(20000000),
+				new BN(0),
+				new BN(0)
+			);
+		} catch (e) {
+			console.log('clearingHouseLoserc.openPosition');
+
+			console.error(e);
+		}
 
 		// sol tanks 90%
 		await clearingHouse.moveAmmToPrice(
@@ -213,26 +236,92 @@ describe('delist market', () => {
 		// await clearingHouse.withdraw(solBorrow, new BN(1), userWSOLAccount);
 	});
 
-	after(async () => {
-		await clearingHouse.unsubscribe();
-		// await liquidatorClearingHouse.unsubscribe();
-		await eventSubscriber.unsubscribe();
-	});
-
 	it('put market in reduce only mode', async () => {
 		const marketIndex = new BN(0);
 		const slot = await connection.getSlot();
 		const now = await connection.getBlockTime(slot);
-		const expiryTs = new BN(now + 100);
+		const expiryTs = new BN(now + 3);
+
+		// await clearingHouse.moveAmmToPrice(
+		// 	new BN(0),
+		// 	new BN(43.1337 * MARK_PRICE_PRECISION.toNumber())
+		// );
 
 		const market0 = clearingHouse.getMarketAccount(marketIndex);
 		assert(market0.expiryTs.eq(ZERO));
 
 		await clearingHouse.updateMarketExpiry(marketIndex, expiryTs);
+		await sleep(1000);
+		clearingHouse.fetchAccounts();
+
+		const market = clearingHouse.getMarketAccount(marketIndex);
+		console.log(market.status);
+		assert(isVariant(market.status, 'reduceOnly'));
+		console.log(
+			'market.expiryTs == ',
+			market.expiryTs.toString(),
+			'(',
+			expiryTs.toString(),
+			')'
+		);
+		assert(market.expiryTs.eq(expiryTs));
+
+		// should fail
+		// try {
+		// 	await clearingHouseLoser.openPosition(
+		// 		PositionDirection.LONG,
+		// 		new BN(10000000),
+		// 		new BN(0),
+		// 		new BN(0)
+		// 	);
+		// 	assert(false);
+		// } catch (e) {
+		// 	console.log(e);
+
+		// 	if (!e.toString().search('AnchorError occurred')) {
+		// 		assert(false);
+		// 	}
+		// 	console.log('risk increase trade failed');
+		// }
+
+		// should succeed
+		// await clearingHouseLoser.openPosition(
+		// 	PositionDirection.SHORT,
+		// 	new BN(10000000),
+		// 	new BN(0),
+		// 	new BN(0)
+		// );
+	});
+
+	it('put market in settlement mode', async () => {
+		const marketIndex = new BN(0);
+		let slot = await connection.getSlot();
+		let now = await connection.getBlockTime(slot);
+
+		const market0 = clearingHouse.getMarketAccount(marketIndex);
+		console.log('market0.status:', market0.status);
+		while (market0.expiryTs.gt(new BN(now))) {
+			console.log(market0.expiryTs.toString(), '>', now);
+			await sleep(1000);
+			slot = await connection.getSlot();
+			now = await connection.getBlockTime(slot);
+		}
+
+		try {
+			await clearingHouse.settleExpiredMarket(marketIndex);
+		} catch (e) {
+			console.error(e);
+		}
 
 		clearingHouse.fetchAccounts();
 
 		const market = clearingHouse.getMarketAccount(marketIndex);
-		assert(market.expiryTs.eq(expiryTs));
+		console.log(market.status);
+		console.log(
+			'market.settlementPrice:',
+			convertToNumber(market.settlementPrice)
+		);
+
+		assert(market.settlementPrice.gt(ZERO));
 	});
 });
