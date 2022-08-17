@@ -373,6 +373,87 @@
       "args": []
     },
     {
+      "name": "settleLp",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "removeLiquidity",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "sharesToBurn",
+          "type": "u128"
+        },
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "addLiquidity",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "nShares",
+          "type": "u128"
+        },
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "placeOrder",
       "accounts": [
         {
@@ -1438,6 +1519,32 @@
         {
           "name": "curveUpdateIntensity",
           "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "updateLpCooldownTime",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "lpCooldownTime",
+          "type": "i64"
         }
       ]
     },
@@ -2741,6 +2848,14 @@
             "type": "u128"
           },
           {
+            "name": "minBaseAssetReserve",
+            "type": "u128"
+          },
+          {
+            "name": "maxBaseAssetReserve",
+            "type": "u128"
+          },
+          {
             "name": "sqrtK",
             "type": "u128"
           },
@@ -2773,7 +2888,33 @@
             "type": "i128"
           },
           {
+            "name": "netUnsettledLpBaseAssetAmount",
+            "type": "i128"
+          },
+          {
+            "name": "lpCooldownTime",
+            "type": "i64"
+          },
+          {
+            "name": "userLpShares",
+            "type": "u128"
+          },
+          {
+            "name": "marketPositionPerLp",
+            "type": {
+              "defined": "MarketPosition"
+            }
+          },
+          {
             "name": "lastFundingRate",
+            "type": "i128"
+          },
+          {
+            "name": "lastFundingRateLong",
+            "type": "i128"
+          },
+          {
+            "name": "lastFundingRateShort",
             "type": "i128"
           },
           {
@@ -2790,10 +2931,6 @@
           },
           {
             "name": "cumulativeFundingRateShort",
-            "type": "i128"
-          },
-          {
-            "name": "cumulativeFundingRateLp",
             "type": "i128"
           },
           {
@@ -2835,6 +2972,12 @@
           {
             "name": "baseAssetAmountStepSize",
             "type": "u128"
+          },
+          {
+            "name": "marketPosition",
+            "type": {
+              "defined": "MarketPosition"
+            }
           },
           {
             "name": "baseSpread",
@@ -3165,6 +3308,10 @@
             "type": "u64"
           },
           {
+            "name": "totalLpFees",
+            "type": "u128"
+          },
+          {
             "name": "totalFeeRebate",
             "type": "u64"
           },
@@ -3249,6 +3396,22 @@
           {
             "name": "openAsks",
             "type": "i128"
+          },
+          {
+            "name": "lpShares",
+            "type": "u128"
+          },
+          {
+            "name": "lastNetBaseAssetAmountPerLp",
+            "type": "i128"
+          },
+          {
+            "name": "lastNetQuoteAssetAmountPerLp",
+            "type": "i128"
+          },
+          {
+            "name": "lastLpAddTime",
+            "type": "i64"
           },
           {
             "name": "padding0",
@@ -3435,29 +3598,6 @@
       }
     },
     {
-      "name": "PositionUpdateType",
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "Open"
-          },
-          {
-            "name": "Increase"
-          },
-          {
-            "name": "Reduce"
-          },
-          {
-            "name": "Close"
-          },
-          {
-            "name": "Flip"
-          }
-        ]
-      }
-    },
-    {
       "name": "TwapPeriod",
       "type": {
         "kind": "enum",
@@ -3495,6 +3635,29 @@
           },
           {
             "name": "Maintenance"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PositionUpdateType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Open"
+          },
+          {
+            "name": "Increase"
+          },
+          {
+            "name": "Reduce"
+          },
+          {
+            "name": "Close"
+          },
+          {
+            "name": "Flip"
           }
         ]
       }
@@ -4751,6 +4914,26 @@
       "code": 6103,
       "name": "DefaultError",
       "msg": "DefaultError"
+    },
+    {
+      "code": 6104,
+      "name": "InsufficientLPTokens",
+      "msg": "Insufficient LP tokens"
+    },
+    {
+      "code": 6105,
+      "name": "CantLPWithMarketPosition",
+      "msg": "Cant LP with a market position"
+    },
+    {
+      "code": 6106,
+      "name": "UnableToBurnLPTokens",
+      "msg": "Unable to burn LP tokens"
+    },
+    {
+      "code": 6107,
+      "name": "TryingToRemoveLiquidityTooFast",
+      "msg": "Trying to remove liqudity too fast after adding it"
     }
   ]
 }

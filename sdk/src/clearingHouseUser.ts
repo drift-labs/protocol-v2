@@ -53,7 +53,6 @@ import { OraclePriceData } from './oracles/types';
 import { ClearingHouseUserConfig } from './clearingHouseUserConfig';
 import { PollingUserAccountSubscriber } from './accounts/pollingUserAccountSubscriber';
 import { WebSocketUserAccountSubscriber } from './accounts/webSocketUserAccountSubscriber';
-
 export class ClearingHouseUser {
 	clearingHouse: ClearingHouse;
 	userAccountPublicKey: PublicKey;
@@ -137,6 +136,10 @@ export class ClearingHouseUser {
 			openOrders: ZERO,
 			openBids: ZERO,
 			openAsks: ZERO,
+			lpShares: ZERO,
+			lastFeePerLp: ZERO,
+			lastNetBaseAssetAmountPerLp: ZERO,
+			lastNetQuoteAssetAmountPerLp: ZERO,
 		};
 	}
 
@@ -170,6 +173,98 @@ export class ClearingHouseUser {
 				this.userAccountPublicKey
 			);
 		return userAccountRPCResponse.value !== null;
+	}
+
+	/**
+	 * calculates the market position if the lp position was settled
+	 * @returns : userPosition
+	 */
+	public getSettledLPPosition(marketIndex: BN): [UserPosition, BN] {
+		const position = this.getUserPosition(marketIndex);
+		const market = this.clearingHouse.getMarketAccount(position.marketIndex);
+		const nShares = position.lpShares;
+
+		const deltaBaa = market.amm.marketPositionPerLp.baseAssetAmount
+			.sub(position.lastNetBaseAssetAmountPerLp)
+			.mul(nShares)
+			.div(AMM_RESERVE_PRECISION);
+		const deltaQaa = market.amm.marketPositionPerLp.quoteAssetAmount
+			.sub(position.lastNetQuoteAssetAmountPerLp)
+			.mul(nShares)
+			.div(AMM_RESERVE_PRECISION);
+
+		function sign(v: BN) {
+			const sign = { true: new BN(1), false: new BN(-1) }[
+				v.gte(ZERO).toString()
+			];
+			return sign;
+		}
+
+		const remainder = deltaBaa
+			.abs()
+			.mod(market.amm.baseAssetAmountStepSize)
+			.mul(sign(deltaBaa));
+		const _standardizedBaa = deltaBaa.sub(remainder);
+
+		let remainderBaa;
+		if (_standardizedBaa.abs().gte(market.amm.baseAssetAmountStepSize)) {
+			remainderBaa = remainder;
+		} else {
+			remainderBaa = deltaBaa;
+		}
+		const standardizedBaa = deltaBaa.sub(remainderBaa);
+
+		const reaminderPerLP = remainderBaa.mul(AMM_RESERVE_PRECISION).div(nShares);
+
+		position.baseAssetAmount = position.baseAssetAmount.add(standardizedBaa);
+		position.quoteAssetAmount = position.quoteAssetAmount.add(deltaQaa);
+
+		position.lastNetBaseAssetAmountPerLp =
+			market.amm.marketPositionPerLp.baseAssetAmount.sub(reaminderPerLP);
+
+		let updateType;
+		if (position.baseAssetAmount.eq(ZERO)) {
+			updateType = 'open';
+		} else if (sign(position.baseAssetAmount).eq(sign(deltaBaa))) {
+			updateType = 'increase';
+		} else if (position.baseAssetAmount.abs().gt(deltaBaa.abs())) {
+			updateType = 'reduce';
+		} else if (position.baseAssetAmount.abs().eq(deltaBaa.abs())) {
+			updateType = 'close';
+		} else {
+			updateType = 'flip';
+		}
+
+		let newQuoteEntry;
+		let pnl;
+		if (updateType == 'open' || updateType == 'increase') {
+			newQuoteEntry = position.quoteEntryAmount.add(deltaQaa);
+			pnl = 0;
+		} else if (updateType == 'reduce' || updateType == 'close') {
+			newQuoteEntry = position.quoteEntryAmount.sub(
+				position.quoteEntryAmount
+					.mul(deltaBaa.abs())
+					.div(position.baseAssetAmount.abs())
+			);
+			pnl = position.quoteEntryAmount.sub(newQuoteEntry);
+		} else {
+			newQuoteEntry = deltaQaa.sub(
+				deltaQaa.mul(position.baseAssetAmount.abs()).div(deltaBaa.abs())
+			);
+			pnl = position.quoteEntryAmount.add(deltaQaa.sub(newQuoteEntry));
+		}
+		position.quoteEntryAmount = newQuoteEntry;
+
+		if (position.baseAssetAmount.gt(ZERO)) {
+			position.lastCumulativeFundingRate = market.amm.cumulativeFundingRateLong;
+		} else if (position.baseAssetAmount.lt(ZERO)) {
+			position.lastCumulativeFundingRate =
+				market.amm.cumulativeFundingRateShort;
+		} else {
+			position.lastCumulativeFundingRate = ZERO;
+		}
+
+		return [position, pnl];
 	}
 
 	/**
@@ -716,13 +811,16 @@ export class ClearingHouseUser {
 		const proposedMarketPosition: UserPosition = {
 			marketIndex: marketPosition.marketIndex,
 			baseAssetAmount: proposedBaseAssetAmount,
-			lastCumulativeFundingRate:
-				currentMarketPosition.lastCumulativeFundingRate,
 			quoteAssetAmount: new BN(0),
+			lastCumulativeFundingRate: ZERO,
 			quoteEntryAmount: new BN(0),
 			openOrders: new BN(0),
 			openBids: new BN(0),
 			openAsks: new BN(0),
+			lpShares: ZERO,
+			lastFeePerLp: ZERO,
+			lastNetBaseAssetAmountPerLp: ZERO,
+			lastNetQuoteAssetAmountPerLp: ZERO,
 		};
 
 		if (proposedBaseAssetAmount.eq(ZERO)) return new BN(-1);

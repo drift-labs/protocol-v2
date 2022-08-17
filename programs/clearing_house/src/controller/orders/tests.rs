@@ -79,7 +79,7 @@ pub mod fulfill_order_with_maker_order {
             ..User::default()
         };
 
-        let mut market = Market::default();
+        let mut market = Market::default_test();
 
         let now = 1_i64;
         let slot = 1_u64;
@@ -194,7 +194,7 @@ pub mod fulfill_order_with_maker_order {
             ..User::default()
         };
 
-        let mut market = Market::default();
+        let mut market = Market::default_test();
 
         let now = 3_i64;
         let slot = 3_u64;
@@ -309,7 +309,7 @@ pub mod fulfill_order_with_maker_order {
             ..User::default()
         };
 
-        let mut market = Market::default();
+        let mut market = Market::default_test();
 
         let now = 1_i64;
         let slot = 1_u64;
@@ -424,7 +424,7 @@ pub mod fulfill_order_with_maker_order {
             ..User::default()
         };
 
-        let mut market = Market::default();
+        let mut market = Market::default_test();
 
         let now = 3_i64;
         let slot = 3_u64;
@@ -539,7 +539,7 @@ pub mod fulfill_order_with_maker_order {
             ..User::default()
         };
 
-        let mut market = Market::default();
+        let mut market = Market::default_test();
 
         let now = 1_i64;
         let slot = 3_u64;
@@ -614,7 +614,7 @@ pub mod fulfill_order_with_maker_order {
             ..User::default()
         };
 
-        let mut market = Market::default();
+        let mut market = Market::default_test();
 
         let now = 1_i64;
         let slot = 3_u64;
@@ -690,7 +690,7 @@ pub mod fulfill_order_with_maker_order {
             ..User::default()
         };
 
-        let mut market = Market::default();
+        let mut market = Market::default_test();
 
         let now = 1_i64;
         let slot = 1_u64;
@@ -766,7 +766,7 @@ pub mod fulfill_order_with_maker_order {
             ..User::default()
         };
 
-        let mut market = Market::default();
+        let mut market = Market::default_test();
 
         let now = 1_i64;
         let slot = 1_u64;
@@ -842,7 +842,7 @@ pub mod fulfill_order_with_maker_order {
             ..User::default()
         };
 
-        let mut market = Market::default();
+        let mut market = Market::default_test();
 
         let now = 1_i64;
         let slot = 1_u64;
@@ -944,7 +944,7 @@ pub mod fulfill_order_with_maker_order {
             ..User::default()
         };
 
-        let mut market = Market::default();
+        let mut market = Market::default_test();
 
         let now = 1_i64;
         let slot = 1_u64;
@@ -1049,7 +1049,7 @@ pub mod fulfill_order_with_maker_order {
             ..User::default()
         };
 
-        let mut market = Market::default();
+        let mut market = Market::default_test();
 
         let now = 5_i64;
         let slot = 5_u64;
@@ -1162,7 +1162,7 @@ pub mod fulfill_order_with_maker_order {
             ..User::default()
         };
 
-        let mut market = Market::default();
+        let mut market = Market::default_test();
 
         let now = 5_i64;
         let slot = 5_u64;
@@ -1274,7 +1274,7 @@ pub mod fulfill_order_with_maker_order {
             ..User::default()
         };
 
-        let mut market = Market::default();
+        let mut market = Market::default_test();
 
         let now = 5_i64;
         let slot = 5_u64;
@@ -1405,6 +1405,9 @@ pub mod fulfill_order {
             status: MarketStatus::Initialized,
             ..Market::default()
         };
+        market.amm.max_base_asset_reserve = u128::MAX;
+        market.amm.min_base_asset_reserve = 0;
+
         create_anchor_account_info!(market, Market, market_account_info);
         let market_map = MarketMap::load_one(&market_account_info, true).unwrap();
 
@@ -1706,6 +1709,9 @@ pub mod fulfill_order {
             status: MarketStatus::Initialized,
             ..Market::default()
         };
+        market.amm.max_base_asset_reserve = u128::MAX;
+        market.amm.min_base_asset_reserve = 0;
+
         create_anchor_account_info!(market, Market, market_account_info);
         let market_map = MarketMap::load_one(&market_account_info, true).unwrap();
 
@@ -2242,6 +2248,8 @@ pub mod fill_order {
             status: MarketStatus::Initialized,
             ..Market::default()
         };
+        market.amm.max_base_asset_reserve = u128::MAX;
+        market.amm.min_base_asset_reserve = 0;
         create_anchor_account_info!(market, Market, market_account_info);
         let market_map = MarketMap::load_one(&market_account_info, true).unwrap();
 

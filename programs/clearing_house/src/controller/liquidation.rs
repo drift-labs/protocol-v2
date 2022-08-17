@@ -1,5 +1,6 @@
 use crate::controller::bank_balance::{update_bank_balances, update_bank_cumulative_interest};
 use crate::controller::funding::settle_funding_payment;
+use crate::controller::lp::burn_lp_shares;
 use crate::controller::orders::{cancel_order, pay_keeper_flat_reward};
 use crate::controller::position::{
     get_position_index, update_position_and_market, update_quote_asset_amount,
@@ -113,7 +114,8 @@ pub fn liquidate_perp(
     let position_index = get_position_index(&user.positions, market_index)?;
     validate!(
         user.positions[position_index].is_open_position()
-            || user.positions[position_index].has_open_order(),
+            || user.positions[position_index].has_open_order()
+            || user.positions[position_index].is_lp(),
         ErrorCode::PositionDoesntHaveOpenPositionOrOrders
     )?;
 
@@ -161,21 +163,22 @@ pub fn liquidate_perp(
         .checked_sub(worst_case_base_asset_amount_after)
         .ok_or_else(math_error!())?;
 
-    let (margin_ratio, oracle_price) = {
+    let (margin_ratio, oracle_price_data) = {
         let market = &mut market_map.get_ref(&market_index)?;
-        let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
+        let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
         let margin_ratio = market.get_margin_ratio(
             worst_case_base_asset_amount_before.unsigned_abs(),
             MarginRequirementType::Maintenance,
         )?;
 
-        (margin_ratio, oracle_price)
+        (margin_ratio, oracle_price_data)
     };
+    let oracle_price = oracle_price_data.price;
 
     if worse_case_base_asset_amount_delta != 0 {
         let base_asset_value = calculate_base_asset_value_with_oracle_price(
             worse_case_base_asset_amount_delta,
-            oracle_price,
+            oracle_price_data.price,
         )?;
 
         let margin_requirement_delta = base_asset_value
@@ -210,6 +213,17 @@ pub fn liquidate_perp(
 
         user.being_liquidated = false;
         return Ok(());
+    }
+
+    let user_lp_shares = user.positions[position_index].lp_shares;
+    if user_lp_shares > 0 {
+        msg!("Burning lp shares");
+        burn_lp_shares(
+            &mut user.positions[position_index],
+            market_map.get_ref_mut(&market_index)?.deref_mut(),
+            user_lp_shares,
+            oracle_price,
+        )?;
     }
 
     if user.positions[position_index].base_asset_amount == 0 {

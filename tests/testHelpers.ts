@@ -24,6 +24,7 @@ import {
 	BANK_RATE_PRECISION,
 	BANK_WEIGHT_PRECISION,
 	MARK_PRICE_PRECISION,
+	QUOTE_PRECISION,
 	ClearingHouse,
 	ClearingHouseUser,
 	OracleSource,
@@ -778,6 +779,8 @@ export async function initializeQuoteAssetBank(
 	const initialLiabilityWeight = BANK_WEIGHT_PRECISION;
 	const maintenanceLiabilityWeight = BANK_WEIGHT_PRECISION;
 	const imfFactor = new BN(0);
+	const bankIndex = admin.getStateAccount().numberOfBanks;
+
 	await admin.initializeBank(
 		usdcMint,
 		optimalUtilization,
@@ -790,6 +793,10 @@ export async function initializeQuoteAssetBank(
 		initialLiabilityWeight,
 		maintenanceLiabilityWeight,
 		imfFactor
+	);
+	await admin.updateBankWithdrawGuardThreshold(
+		bankIndex,
+		new BN(10 ** 10).mul(QUOTE_PRECISION)
 	);
 }
 
@@ -812,6 +819,8 @@ export async function initializeSolAssetBank(
 	const maintenanceLiabilityWeight = BANK_WEIGHT_PRECISION.mul(new BN(11)).div(
 		new BN(10)
 	);
+	const bankIndex = admin.getStateAccount().numberOfBanks;
+
 	await admin.initializeBank(
 		NATIVE_MINT,
 		optimalUtilization,
@@ -823,5 +832,9 @@ export async function initializeSolAssetBank(
 		maintenanceAssetWeight,
 		initialLiabilityWeight,
 		maintenanceLiabilityWeight
+	);
+	await admin.updateBankWithdrawGuardThreshold(
+		bankIndex,
+		new BN(10 ** 10).mul(QUOTE_PRECISION)
 	);
 }

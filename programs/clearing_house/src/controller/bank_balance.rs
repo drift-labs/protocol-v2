@@ -10,7 +10,7 @@ use crate::math::casting::{cast, cast_to_i128, cast_to_u64};
 use crate::math::constants::TWENTY_FOUR_HOUR;
 use crate::math_error;
 use crate::state::bank::{Bank, BankBalance, BankBalanceType};
-use crate::state::market::Market;
+use crate::state::market::{MarketStatus, Market};
 use crate::validate;
 use std::cmp::max;
 
@@ -288,7 +288,7 @@ mod test {
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             open_interest: 1,
-            initialized: true,
+            status: MarketStatus::Initialized,
             liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..Market::default()
         };
