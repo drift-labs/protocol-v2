@@ -375,6 +375,19 @@ describe('delist market', () => {
 		);
 		await printTxLogs(connection, txSig);
 
+		try {
+			await clearingHouse.settlePNL(
+				await clearingHouse.getUserAccountPublicKey(),
+				clearingHouse.getUserAccount(),
+				marketIndex
+			);
+		} catch (e) {
+			// if (!e.toString().search('AnchorError occurred')) {
+			// 	assert(false);
+			// }
+			console.log('Cannot settle pnl under current market status');
+		}
+
 		// const settleRecord = eventSubscriber.getEventsArray('SettlePnlRecord')[0];
 		// console.log(settleRecord);
 
@@ -394,6 +407,18 @@ describe('delist market', () => {
 		const winnerUser = clearingHouse.getUserAccount();
 		console.log(winnerUser.positions[0]);
 		assert(winnerUser.positions[0].baseAssetAmount.eq(new BN(0)));
-		assert(winnerUser.positions[0].quoteAssetAmount.gt(new BN(0)));
+		// assert(winnerUser.positions[0].quoteAssetAmount.gt(new BN(0))); // todo they lose money too after fees
+
+		// await clearingHouse.settlePNL(
+		// 	await clearingHouseLoser.getUserAccountPublicKey(),
+		// 	clearingHouseLoser.getUserAccount(),
+		// 	marketIndex
+		// );
+
+		const marketAfter = clearingHouse.getMarketAccount(marketIndex);
+
+		const finalPnlResult = new BN(86321);
+		console.log(marketAfter.pnlPool.balance.toString());
+		assert(marketAfter.pnlPool.balance.eq(finalPnlResult));
 	});
 });
