@@ -205,3 +205,78 @@ mod calculate_asset_transfer_for_liability_transfer {
         assert_eq!(asset_transfer, 102020202); // 100 quote
     }
 }
+
+mod calculate_funding_rate_deltas_to_resolve_bankruptcy {
+    use crate::math::constants::{BASE_PRECISION_I128, QUOTE_PRECISION_I128};
+    use crate::math::liquidation::calculate_funding_rate_deltas_to_resolve_bankruptcy;
+    use crate::state::market::Market;
+
+    #[test]
+    fn total_base_asset_amount_is_zero() {
+        let loss = -QUOTE_PRECISION_I128;
+        let market = Market {
+            base_asset_amount_long: 0,
+            base_asset_amount_short: 0,
+            ..Market::default()
+        };
+
+        let cumulative_funding_rate_delta =
+            calculate_funding_rate_deltas_to_resolve_bankruptcy(loss, &market).unwrap();
+
+        assert_eq!(cumulative_funding_rate_delta, 0);
+    }
+
+    #[test]
+    fn total_base_asset_amount_not_zero() {
+        let loss = -100 * QUOTE_PRECISION_I128;
+        let market = Market {
+            base_asset_amount_long: 7 * BASE_PRECISION_I128,
+            base_asset_amount_short: -4 * BASE_PRECISION_I128,
+            ..Market::default()
+        };
+
+        let cumulative_funding_rate_delta =
+            calculate_funding_rate_deltas_to_resolve_bankruptcy(loss, &market).unwrap();
+
+        assert_eq!(cumulative_funding_rate_delta, 909090900000000);
+    }
+}
+
+mod calculate_cumulative_deposit_interest_delta_to_resolve_bankruptcy {
+    use crate::math::constants::{
+        BANK_CUMULATIVE_INTEREST_PRECISION, BANK_INTEREST_PRECISION, QUOTE_PRECISION,
+    };
+    use crate::math::liquidation::calculate_cumulative_deposit_interest_delta_to_resolve_bankruptcy;
+    use crate::state::bank::Bank;
+
+    #[test]
+    fn zero_total_deposits() {
+        let loss = 100 * QUOTE_PRECISION;
+        let bank = Bank {
+            deposit_balance: 0,
+            cumulative_deposit_interest: 1111 * BANK_CUMULATIVE_INTEREST_PRECISION / 1000,
+            ..Bank::default()
+        };
+
+        let delta =
+            calculate_cumulative_deposit_interest_delta_to_resolve_bankruptcy(loss, &bank).unwrap();
+
+        assert_eq!(delta, 0);
+    }
+
+    #[test]
+    fn non_zero_total_deposits() {
+        let loss = 11 * QUOTE_PRECISION;
+        let bank = Bank {
+            deposit_balance: 120 * BANK_INTEREST_PRECISION,
+            cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            ..Bank::default()
+        };
+
+        let delta =
+            calculate_cumulative_deposit_interest_delta_to_resolve_bankruptcy(loss, &bank).unwrap();
+
+        assert_eq!(delta, 916666666);
+    }
+}

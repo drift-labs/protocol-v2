@@ -881,6 +881,68 @@
       ]
     },
     {
+      "name": "resolvePerpBankruptcy",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "liquidator",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "resolveBorrowBankruptcy",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "liquidator",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "bankIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "moveAmmPrice",
       "accounts": [
         {
@@ -2423,6 +2485,10 @@
           {
             "name": "beingLiquidated",
             "type": "bool"
+          },
+          {
+            "name": "bankrupt",
+            "type": "bool"
           }
         ]
       }
@@ -2674,6 +2740,46 @@
           },
           {
             "name": "assetTransfer",
+            "type": "u128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PerpBankruptcyRecord",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "marketIndex",
+            "type": "u64"
+          },
+          {
+            "name": "pnl",
+            "type": "i128"
+          },
+          {
+            "name": "cumulativeFundingRateDelta",
+            "type": "i128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "BorrowBankruptcyRecord",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bankIndex",
+            "type": "u64"
+          },
+          {
+            "name": "borrowAmount",
+            "type": "u128"
+          },
+          {
+            "name": "cumulativeDepositInterestDelta",
             "type": "u128"
           }
         ]
@@ -3660,6 +3766,12 @@
           },
           {
             "name": "LiquidatePerpPnlForDeposit"
+          },
+          {
+            "name": "PerpBankruptcy"
+          },
+          {
+            "name": "BorrowBankruptcy"
           }
         ]
       }
@@ -4189,6 +4301,11 @@
           "index": false
         },
         {
+          "name": "bankrupt",
+          "type": "bool",
+          "index": false
+        },
+        {
           "name": "liquidatePerp",
           "type": {
             "defined": "LiquidatePerpRecord"
@@ -4213,6 +4330,20 @@
           "name": "liquidatePerpPnlForDeposit",
           "type": {
             "defined": "LiquidatePerpPnlForDepositRecord"
+          },
+          "index": false
+        },
+        {
+          "name": "perpBankruptcy",
+          "type": {
+            "defined": "PerpBankruptcyRecord"
+          },
+          "index": false
+        },
+        {
+          "name": "borrowBankruptcy",
+          "type": {
+            "defined": "BorrowBankruptcyRecord"
           },
           "index": false
         }
@@ -4772,31 +4903,46 @@
     },
     {
       "code": 6102,
+      "name": "UserBankrupt",
+      "msg": "UserBankrupt"
+    },
+    {
+      "code": 6103,
+      "name": "UserNotBankrupt",
+      "msg": "UserNotBankrupt"
+    },
+    {
+      "code": 6104,
+      "name": "UserHasInvalidBorrow",
+      "msg": "UserHasInvalidBorrow"
+    },
+    {
+      "code": 6105,
       "name": "BankDailyWithdrawLimit",
       "msg": "BankDailyWithdrawLimit"
     },
     {
-      "code": 6103,
+      "code": 6106,
       "name": "DefaultError",
       "msg": "DefaultError"
     },
     {
-      "code": 6104,
+      "code": 6107,
       "name": "InsufficientLPTokens",
       "msg": "Insufficient LP tokens"
     },
     {
-      "code": 6105,
+      "code": 6108,
       "name": "CantLPWithMarketPosition",
       "msg": "Cant LP with a market position"
     },
     {
-      "code": 6106,
+      "code": 6109,
       "name": "UnableToBurnLPTokens",
       "msg": "Unable to burn LP tokens"
     },
     {
-      "code": 6107,
+      "code": 6110,
       "name": "TryingToRemoveLiquidityTooFast",
       "msg": "Trying to remove liqudity too fast after adding it"
     }

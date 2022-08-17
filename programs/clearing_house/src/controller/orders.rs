@@ -76,6 +76,8 @@ pub fn place_order(
         state.liquidation_margin_buffer_ratio,
     )?;
 
+    validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
+
     let new_order_index = user
         .orders
         .iter()
@@ -431,6 +433,8 @@ pub fn fill_order(
         "Order must be triggered first"
     )?;
 
+    validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
+
     validate_user_not_being_liquidated(
         user,
         market_map,
@@ -662,7 +666,7 @@ fn sanitize_maker_order<'a>(
             return Ok((None, None, None));
         }
 
-        if maker.being_liquidated {
+        if maker.being_liquidated || maker.bankrupt {
             return Ok((None, None, None));
         }
 

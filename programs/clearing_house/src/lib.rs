@@ -471,6 +471,8 @@ pub mod clearing_house {
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
 
+        validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
+
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
         let bank_map = BankMap::load(&get_writable_banks(bank_index), remaining_accounts_iter)?;
@@ -550,6 +552,8 @@ pub mod clearing_house {
         let user = &mut load_mut!(ctx.accounts.user)?;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
+
+        validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
@@ -641,6 +645,17 @@ pub mod clearing_house {
 
         let to_user = &mut load_mut!(ctx.accounts.to_user)?;
         let from_user = &mut load_mut!(ctx.accounts.from_user)?;
+
+        validate!(
+            !to_user.bankrupt,
+            ErrorCode::UserBankrupt,
+            "to_user bankrupt"
+        )?;
+        validate!(
+            !from_user.bankrupt,
+            ErrorCode::UserBankrupt,
+            "from_user bankrupt"
+        )?;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
@@ -1523,6 +1538,96 @@ pub mod clearing_house {
             &mut oracle_map,
             now,
             ctx.accounts.state.liquidation_margin_buffer_ratio,
+        )?;
+
+        Ok(())
+    }
+
+    #[access_control(
+        exchange_not_paused(&ctx.accounts.state)
+    )]
+    pub fn resolve_perp_bankruptcy(
+        ctx: Context<ResolvePerpBankruptcy>,
+        market_index: u64,
+    ) -> Result<()> {
+        let clock = Clock::get()?;
+        let now = clock.unix_timestamp;
+
+        let user_key = ctx.accounts.user.key();
+        let liquidator_key = ctx.accounts.liquidator.key();
+
+        validate!(
+            user_key != liquidator_key,
+            ErrorCode::UserCantLiquidateThemself
+        )?;
+
+        let user = &mut load_mut!(ctx.accounts.user)?;
+        let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
+
+        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let bank_map = BankMap::load(&WritableBanks::new(), remaining_accounts_iter)?;
+        let market_map = MarketMap::load(
+            &get_market_set(market_index),
+            &MarketSet::new(),
+            remaining_accounts_iter,
+        )?;
+
+        controller::liquidation::resolve_perp_bankruptcy(
+            market_index,
+            user,
+            &user_key,
+            liquidator,
+            &liquidator_key,
+            &market_map,
+            &bank_map,
+            &mut oracle_map,
+            now,
+        )?;
+
+        Ok(())
+    }
+
+    #[access_control(
+        exchange_not_paused(&ctx.accounts.state)
+    )]
+    pub fn resolve_borrow_bankruptcy(
+        ctx: Context<ResolvePerpBankruptcy>,
+        bank_index: u64,
+    ) -> Result<()> {
+        let clock = Clock::get()?;
+        let now = clock.unix_timestamp;
+
+        let user_key = ctx.accounts.user.key();
+        let liquidator_key = ctx.accounts.liquidator.key();
+
+        validate!(
+            user_key != liquidator_key,
+            ErrorCode::UserCantLiquidateThemself
+        )?;
+
+        let user = &mut load_mut!(ctx.accounts.user)?;
+        let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
+
+        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let bank_map = BankMap::load(&get_writable_banks(bank_index), remaining_accounts_iter)?;
+        let market_map = MarketMap::load(
+            &MarketSet::new(),
+            &MarketSet::new(),
+            remaining_accounts_iter,
+        )?;
+
+        controller::liquidation::resolve_bank_bankruptcy(
+            bank_index,
+            user,
+            &user_key,
+            liquidator,
+            &liquidator_key,
+            &market_map,
+            &bank_map,
+            &mut oracle_map,
+            now,
         )?;
 
         Ok(())

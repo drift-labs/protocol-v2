@@ -164,7 +164,7 @@ describe('liquidate perp', () => {
 
 	it('liquidate', async () => {
 		const oracle = clearingHouse.getMarketAccount(0).amm.oracle;
-		await setFeedPrice(anchor.workspace.Pyth, 0.25, oracle);
+		await setFeedPrice(anchor.workspace.Pyth, 0.1, oracle);
 
 		const txSig = await liquidatorClearingHouse.liquidatePerp(
 			await clearingHouse.getUserAccountPublicKey(),
@@ -209,7 +209,7 @@ describe('liquidate perp', () => {
 		assert(liquidationRecord.liquidatePerp.orderIds.length === 32);
 		assert(
 			liquidationRecord.liquidatePerp.oraclePrice.eq(
-				MARK_PRICE_PRECISION.div(new BN(4))
+				MARK_PRICE_PRECISION.div(new BN(10))
 			)
 		);
 		assert(
@@ -217,10 +217,55 @@ describe('liquidate perp', () => {
 				new BN(-175000000000000)
 			)
 		);
+
 		assert(
-			liquidationRecord.liquidatePerp.quoteAssetAmount.eq(new BN(4375000))
+			liquidationRecord.liquidatePerp.quoteAssetAmount.eq(new BN(1750000))
 		);
-		assert(liquidationRecord.liquidatePerp.userPnl.eq(new BN(-13125613)));
+		assert(liquidationRecord.liquidatePerp.userPnl.eq(new BN(-15750613)));
 		assert(liquidationRecord.liquidatePerp.liquidatorPnl.eq(new BN(0)));
+
+		await liquidatorClearingHouse.liquidatePerpPnlForDeposit(
+			await clearingHouse.getUserAccountPublicKey(),
+			clearingHouse.getUserAccount(),
+			new BN(0),
+			new BN(0),
+			clearingHouse.getUserAccount().positions[0].quoteAssetAmount
+		);
+
+		assert(clearingHouse.getUserAccount().bankrupt);
+		assert(
+			clearingHouse
+				.getUserAccount()
+				.positions[0].quoteAssetAmount.eq(new BN(-6088113))
+		);
+
+		await liquidatorClearingHouse.resolvePerpBankruptcy(
+			await clearingHouse.getUserAccountPublicKey(),
+			clearingHouse.getUserAccount(),
+			new BN(0)
+		);
+
+		await clearingHouse.fetchAccounts();
+
+		assert(!clearingHouse.getUserAccount().bankrupt);
+		assert(!clearingHouse.getUserAccount().beingLiquidated);
+		assert(
+			clearingHouse.getUserAccount().positions[0].quoteAssetAmount.eq(ZERO)
+		);
+
+		const perpBankruptcyRecord =
+			eventSubscriber.getEventsArray('LiquidationRecord')[0];
+		assert(isVariant(perpBankruptcyRecord.liquidationType, 'perpBankruptcy'));
+		assert(perpBankruptcyRecord.perpBankruptcy.marketIndex.eq(ZERO));
+		assert(perpBankruptcyRecord.perpBankruptcy.pnl.eq(new BN(-6088113)));
+		assert(
+			perpBankruptcyRecord.perpBankruptcy.cumulativeFundingRateDelta.eq(
+				new BN(34789200000000)
+			)
+		);
+
+		const market = clearingHouse.getMarketAccount(0);
+		assert(market.amm.cumulativeFundingRateLong.eq(new BN(34789200000000)));
+		assert(market.amm.cumulativeFundingRateShort.eq(new BN(-34789200000000)));
 	});
 });

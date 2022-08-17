@@ -419,6 +419,12 @@ pub fn move_price(
     let new_sqrt_k = k.integer_sqrt().try_to_u128()?;
     amm.sqrt_k = new_sqrt_k;
 
+    let (min_base_asset_reserve, max_base_asset_reserve) =
+        amm::calculate_bid_ask_bounds(amm.base_asset_reserve)?;
+
+    amm.max_base_asset_reserve = max_base_asset_reserve;
+    amm.min_base_asset_reserve = min_base_asset_reserve;
+
     Ok(())
 }
 

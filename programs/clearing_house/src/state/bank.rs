@@ -17,7 +17,7 @@ use crate::state::oracle::OracleSource;
 use solana_program::msg;
 
 #[account(zero_copy)]
-#[derive(Default)]
+#[derive(Default, PartialEq, Debug)]
 #[repr(packed)]
 pub struct Bank {
     pub bank_index: u64,
