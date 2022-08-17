@@ -33,7 +33,7 @@ use crate::state::bank_map::BankMap;
 use crate::state::events::{emit_stack, OrderRecord};
 use crate::state::events::{OrderAction, OrderActionExplanation};
 use crate::state::fulfillment::FulfillmentMethod;
-use crate::state::market::{ContractType, Market, MarketStatus};
+use crate::state::market::{Market, MarketStatus};
 use crate::state::market_map::MarketMap;
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;

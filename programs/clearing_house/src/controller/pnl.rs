@@ -5,15 +5,15 @@ use crate::controller::position::{
     get_position_index, update_position_and_market, update_quote_asset_amount, PositionDelta,
 };
 use crate::error::{ClearingHouseResult, ErrorCode};
-use crate::math::bank_balance::get_token_amount;
-use crate::math::casting::{cast, cast_to_i128};
+// use crate::math::bank_balance::get_token_amount;
+use crate::math::casting::{cast_to_i128};
 use crate::math::margin::meets_maintenance_margin_requirement;
 use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
 use crate::math_error;
 use crate::state::bank::BankBalanceType;
 use crate::state::bank_map::BankMap;
 use crate::state::events::SettlePnlRecord;
-use crate::state::market::{MarketStatus, PoolBalance};
+use crate::state::market::{MarketStatus};
 use crate::state::market_map::MarketMap;
 use crate::state::oracle_map::OracleMap;
 use crate::state::state::FeeStructure;
@@ -166,7 +166,7 @@ pub fn settle_expired_position(
         "Market isn't in settlement"
     )?;
 
-    let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
+    let _oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
     let (base_asset_value, unrealized_pnl) = calculate_base_asset_value_and_pnl_with_oracle_price(
         &user.positions[position_index],
         market.settlement_price,
