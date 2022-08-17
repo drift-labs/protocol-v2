@@ -16,6 +16,7 @@ use crate::state::{
     state::*,
     user::*,
 };
+use std::ops::{Deref, DerefMut};
 
 pub mod context;
 pub mod controller;
@@ -1131,6 +1132,14 @@ pub mod clearing_house {
             remaining_accounts_iter,
         )?;
 
+        controller::repeg::update_amm(
+            market_index,
+            &market_map,
+            &mut oracle_map,
+            &ctx.accounts.state,
+            &clock,
+        )?;
+
         let market = &mut market_map.get_ref_mut(&market_index)?;
 
         validate!(
@@ -1139,8 +1148,10 @@ pub mod clearing_house {
             "Market isn't set to expire"
         )?;
 
+        msg!("{:?} vs {:?}", market.expiry_ts, now);
+
         validate!(
-            market.expiry_ts >= now,
+            market.expiry_ts <= now,
             ErrorCode::DefaultError,
             "Market hasn't expired yet"
         )?;
@@ -1155,15 +1166,10 @@ pub mod clearing_house {
         if lateness > 30 {
             target_settlement_price = market.amm.last_oracle_price_twap;
         } else {
-            controller::repeg::update_amm(
-                market_index,
-                &market_map,
-                &mut oracle_map,
-                &ctx.accounts.state,
-                &clock,
-            )?;
             target_settlement_price = market.amm.last_oracle_price_twap;
         };
+
+        msg!("{:?} -> target: {:?}", lateness, target_settlement_price);
 
         let bank = &mut bank_map.get_ref_mut(&QUOTE_ASSET_BANK_INDEX)?;
 

@@ -30,6 +30,9 @@ import {
 	createUserWithUSDCAndWSOLAccount,
 	createWSolTokenAccountForUser,
 	initializeSolAssetBank,
+	printTxLogs,
+	getFeedData,
+	getOraclePriceData,
 	sleep,
 } from './testHelpers';
 import { isVariant } from '../sdk';
@@ -206,6 +209,7 @@ describe('delist market', () => {
 			new BN(0),
 			new BN(43.1337 * MARK_PRICE_PRECISION.toNumber()).div(new BN(10))
 		);
+		await setFeedPrice(anchor.workspace.Pyth, 43.1337 / 10, solOracle);
 
 		const solAmount = new BN(1 * 10 ** 9);
 		[liquidatorClearingHouse, liquidatorClearingHouseWSOLAccount] =
@@ -300,26 +304,36 @@ describe('delist market', () => {
 
 		const market0 = clearingHouse.getMarketAccount(marketIndex);
 		console.log('market0.status:', market0.status);
-		while (market0.expiryTs.gt(new BN(now))) {
+		while (market0.expiryTs.gte(new BN(now))) {
 			console.log(market0.expiryTs.toString(), '>', now);
 			await sleep(1000);
 			slot = await connection.getSlot();
 			now = await connection.getBlockTime(slot);
 		}
 
-		try {
-			await clearingHouse.settleExpiredMarket(marketIndex);
-		} catch (e) {
-			console.error(e);
-		}
+		// try {
+		const txSig = await clearingHouse.settleExpiredMarket(marketIndex);
+		// } catch (e) {
+		// 	console.error(e);
+		// }
+		await printTxLogs(connection, txSig);
 
 		clearingHouse.fetchAccounts();
 
 		const market = clearingHouse.getMarketAccount(marketIndex);
 		console.log(market.status);
+		assert(isVariant(market.status, 'settlement'));
 		console.log(
 			'market.settlementPrice:',
 			convertToNumber(market.settlementPrice)
+		);
+
+		const curPrice = (await getFeedData(anchor.workspace.Pyth, solOracle))
+			.price;
+		console.log('new oracle price:', curPrice);
+		const oraclePriceData = await getOraclePriceData(
+			anchor.workspace.Pyth,
+			solOracle
 		);
 
 		assert(market.settlementPrice.gt(ZERO));
