@@ -748,9 +748,16 @@ describe('repeg and spread amm', () => {
 		);
 
 		const userUnsettledPnl = convertToNumber(
-			clearingHouseUser.getUnsettledPNL(),
+			clearingHouseUser
+				.getUserAccount()
+				.positions.reduce((unsettledPnl, position) => {
+					return unsettledPnl.add(
+						position.quoteAssetAmount.add(position.quoteEntryAmount)
+					);
+				}, ZERO),
 			QUOTE_PRECISION
 		);
+		console.log('unsettle pnl', userUnsettledPnl);
 		allUserCollateral += userCollateral;
 		allUserUnsettledPnl += userUnsettledPnl;
 		console.log(
