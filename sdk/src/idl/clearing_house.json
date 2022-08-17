@@ -3497,20 +3497,6 @@
       }
     },
     {
-      "name": "LiquidationMultiplierType",
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "Discount"
-          },
-          {
-            "name": "Premium"
-          }
-        ]
-      }
-    },
-    {
       "name": "TwapPeriod",
       "type": {
         "kind": "enum",
@@ -3526,6 +3512,20 @@
     },
     {
       "name": "LiquidationMultiplierType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Discount"
+          },
+          {
+            "name": "Premium"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MarginRequirementType",
       "type": {
         "kind": "enum",
         "variants": [
@@ -4781,22 +4781,22 @@
       "msg": "DefaultError"
     },
     {
-      "code": 6103,
+      "code": 6104,
       "name": "InsufficientLPTokens",
       "msg": "Insufficient LP tokens"
     },
     {
-      "code": 6104,
+      "code": 6105,
       "name": "CantLPWithMarketPosition",
       "msg": "Cant LP with a market position"
     },
     {
-      "code": 6105,
+      "code": 6106,
       "name": "UnableToBurnLPTokens",
       "msg": "Unable to burn LP tokens"
     },
     {
-      "code": 6106,
+      "code": 6107,
       "name": "TryingToRemoveLiquidityTooFast",
       "msg": "Trying to remove liqudity too fast after adding it"
     }
