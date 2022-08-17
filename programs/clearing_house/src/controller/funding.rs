@@ -276,6 +276,8 @@ pub fn update_funding_rate(
             .ok_or_else(math_error!())?;
 
         market.amm.last_funding_rate = funding_rate;
+        market.amm.last_funding_rate_long = funding_rate_long;
+        market.amm.last_funding_rate_short = funding_rate_short;
         market.amm.last_funding_rate_ts = now;
         market.amm.net_revenue_since_last_funding = 0;
 

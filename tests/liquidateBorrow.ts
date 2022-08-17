@@ -26,7 +26,7 @@ import {
 	createWSolTokenAccountForUser,
 	initializeSolAssetBank,
 } from './testHelpers';
-import { isVariant } from '../sdk';
+import { isVariant, ONE } from '../sdk';
 
 describe('liquidate borrow', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -155,7 +155,11 @@ describe('liquidate borrow', () => {
 		assert(clearingHouse.getUserAccount().nextLiquidationId === 2);
 		assert(clearingHouse.getUserAccount().bankBalances[0].balance.eq(ZERO));
 		assert(
-			clearingHouse.getUserAccount().bankBalances[1].balance.eq(new BN(2))
+			clearingHouse.getUserAccount().bankBalances[1].balance.eq(new BN(1))
+		);
+
+		console.log(
+			clearingHouse.getUserAccount().bankBalances[0].balance.toString()
 		);
 
 		const liquidationRecord =
@@ -178,5 +182,33 @@ describe('liquidate borrow', () => {
 		assert(
 			liquidationRecord.liquidateBorrow.liabilityTransfer.eq(new BN(500000000))
 		);
+
+		await liquidatorClearingHouse.resolveBorrowBankruptcy(
+			await clearingHouse.getUserAccountPublicKey(),
+			clearingHouse.getUserAccount(),
+			new BN(1)
+		);
+
+		await clearingHouse.fetchAccounts();
+
+		assert(!clearingHouse.getUserAccount().beingLiquidated);
+		assert(!clearingHouse.getUserAccount().bankrupt);
+		assert(clearingHouse.getUserAccount().bankBalances[1].balance.eq(ZERO));
+
+		const bankruptcyRecord =
+			eventSubscriber.getEventsArray('LiquidationRecord')[0];
+		assert(isVariant(bankruptcyRecord.liquidationType, 'borrowBankruptcy'));
+		console.log(bankruptcyRecord.borrowBankruptcy);
+		assert(bankruptcyRecord.borrowBankruptcy.bankIndex.eq(ONE));
+		assert(bankruptcyRecord.borrowBankruptcy.borrowAmount.eq(new BN(1000)));
+		console.log(
+			bankruptcyRecord.borrowBankruptcy.cumulativeDepositInterestDelta.eq(
+				new BN(39999)
+			)
+		);
+
+		const bank = clearingHouse.getBankAccount(1);
+		console.log(bank.cumulativeDepositInterest.toString());
+		assert(bank.cumulativeDepositInterest.eq(new BN(9999983171)));
 	});
 });

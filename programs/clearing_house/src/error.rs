@@ -3,7 +3,7 @@ use anchor_lang::prelude::*;
 pub type ClearingHouseResult<T = ()> = std::result::Result<T, ErrorCode>;
 
 #[error_code]
-#[derive(PartialEq)]
+#[derive(PartialEq, Eq)]
 pub enum ErrorCode {
     #[msg("Invalid Bank Authority")]
     InvalidBankAuthority,
@@ -215,8 +215,24 @@ pub enum ErrorCode {
     InvalidPositionLastFundingRate,
     #[msg("InvalidPositionDelta")]
     InvalidPositionDelta,
+    #[msg("UserBankrupt")]
+    UserBankrupt,
+    #[msg("UserNotBankrupt")]
+    UserNotBankrupt,
+    #[msg("UserHasInvalidBorrow")]
+    UserHasInvalidBorrow,
+    #[msg("BankDailyWithdrawLimit")]
+    BankDailyWithdrawLimit,
     #[msg("DefaultError")]
     DefaultError,
+    #[msg("Insufficient LP tokens")]
+    InsufficientLPTokens,
+    #[msg("Cant LP with a market position")]
+    CantLPWithMarketPosition,
+    #[msg("Unable to burn LP tokens")]
+    UnableToBurnLPTokens,
+    #[msg("Trying to remove liqudity too fast after adding it")]
+    TryingToRemoveLiquidityTooFast,
 }
 
 #[macro_export]

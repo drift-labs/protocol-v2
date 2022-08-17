@@ -575,6 +575,35 @@ export class Admin extends ClearingHouse {
 		});
 	}
 
+	public async updateBankWithdrawGuardThreshold(
+		bankIndex: BN,
+		withdrawGuardThreshold: BN
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateBankWithdrawGuardThreshold(
+			withdrawGuardThreshold,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					bank: await getBankPublicKey(this.program.programId, bankIndex),
+				},
+			}
+		);
+	}
+
+	public async updateLpCooldownTime(
+		marketIndex: BN,
+		cooldownTime: BN
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateLpCooldownTime(cooldownTime, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				market: await getMarketPublicKey(this.program.programId, marketIndex),
+			},
+		});
+	}
+
 	public async updateMarketOracle(
 		marketIndex: BN,
 		oracle: PublicKey,
@@ -662,7 +691,6 @@ export class Admin extends ClearingHouse {
 			},
 		});
 	}
-
 	public async updateExchangePaused(
 		exchangePaused: boolean
 	): Promise<TransactionSignature> {

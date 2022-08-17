@@ -4,6 +4,11 @@ wallet = "~/.config/solana/id.json"
 
 [scripts]
 test = "./test-scripts/run-ts-mocha"
+lint = "yarn prettify:fix && cargo fmt"
+fulltest = 'cargo test && bash ./test-scripts/run-anchor-tests.sh'
+watch_ts = 'find ./programs/clearing_house/src/* ./tests ./sdk/src | entr -c bash ./test-scripts/single-anchor-test.sh'
+watch_build = 'find ./programs/clearing_house/src/* ./tests ./sdk/src | entr -c anchor build'
+watch_cargo = 'find ./programs/clearing_house/src/* ./tests ./sdk/src | entr -c cargo test -- --show-output'
 
 [programs.localnet]
 clearing_house = "7HDuhZ94TVTWpH3vba3dJhGWyHvQuy2zBjniRxE7PU88"

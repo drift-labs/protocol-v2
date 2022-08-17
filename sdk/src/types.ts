@@ -177,6 +177,8 @@ export type LiquidationRecord = {
 	liquidateBorrow: LiquidateBorrowRecord;
 	liquidateBorrowForPerpPnl: LiquidateBorrowForPerpPnlRecord;
 	liquidatePerpPnlForDeposit: LiquidatePerpPnlForDepositRecord;
+	perpBankruptcy: PerpBankruptcyRecord;
+	borrowBankruptcy: BorrowBankruptcyRecord;
 };
 
 export class LiquidationType {
@@ -187,6 +189,12 @@ export class LiquidationType {
 	};
 	static readonly LIQUIDATE_PERP_PNL_FOR_DEPOSIT = {
 		liquidatePerpPnlForDeposit: {},
+	};
+	static readonly PERP_BANKRUPTCY = {
+		perpBankruptcy: {},
+	};
+	static readonly BORROW_BANKRUPTCY = {
+		borrowBankruptcy: {},
 	};
 }
 
@@ -229,6 +237,18 @@ export type LiquidatePerpPnlForDepositRecord = {
 	assetBankIndex: BN;
 	assetPrice: BN;
 	assetTransfer: BN;
+};
+
+export type PerpBankruptcyRecord = {
+	marketIndex: BN;
+	pnl: BN;
+	cumulativeFundingRateDelta: BN;
+};
+
+export type BorrowBankruptcyRecord = {
+	bankIndex: BN;
+	borrowAmount: BN;
+	cumulativeDepositInterestDelta: BN;
 };
 
 export type SettlePnlRecord = {
@@ -337,6 +357,11 @@ export type BankAccount = {
 	maintenanceLiabilityWeight: BN;
 	liquidationFee: BN;
 	imfFactor: BN;
+
+	withdrawGuardThreshold: BN;
+	depositTokenTwap: BN;
+	borrowTokenTwap: BN;
+	utilizationTwap: BN;
 };
 
 export type PoolBalance = {
@@ -350,8 +375,10 @@ export type AMM = {
 	lastFundingRate: BN;
 	lastFundingRateTs: BN;
 	lastMarkPriceTwap: BN;
+	lastMarkPriceTwap5min: BN;
 	lastMarkPriceTwapTs: BN;
 	lastOraclePriceTwap: BN;
+	lastOraclePriceTwap5min: BN;
 	lastOraclePriceTwapTs: BN;
 	lastOracleMarkSpreadPct: BN;
 	lastOracleConfPct: BN;
@@ -362,11 +389,16 @@ export type AMM = {
 	pegMultiplier: BN;
 	cumulativeFundingRateLong: BN;
 	cumulativeFundingRateShort: BN;
+	cumulativeFundingRateLp: BN;
 	cumulativeRepegRebateLong: BN;
 	cumulativeRepegRebateShort: BN;
 	totalFeeMinusDistributions: BN;
 	totalFeeWithdrawn: BN;
 	totalFee: BN;
+	cumulativeFundingPaymentPerLp: BN;
+	cumulativeFeePerLp: BN;
+	cumulativeNetBaseAssetAmountPerLp: BN;
+	userLpShares: BN;
 	minimumQuoteAssetTradeSize: BN;
 	baseAssetAmountStepSize: BN;
 	maxBaseAssetAmountRatio: number;
@@ -388,6 +420,8 @@ export type AMM = {
 	longSpread: BN;
 	shortSpread: BN;
 	maxSpread: number;
+	marketPosition: UserPosition;
+	marketPositionPerLp: UserPosition;
 };
 
 // # User Account Types
@@ -400,6 +434,10 @@ export type UserPosition = {
 	openOrders: BN;
 	openBids: BN;
 	openAsks: BN;
+	lpShares: BN;
+	lastFeePerLp: BN;
+	lastNetBaseAssetAmountPerLp: BN;
+	lastNetQuoteAssetAmountPerLp: BN;
 };
 
 export type UserStatsAccount = {
@@ -429,6 +467,7 @@ export type UserAccount = {
 	positions: UserPosition[];
 	orders: Order[];
 	beingLiquidated: boolean;
+	bankrupt: boolean;
 	nextLiquidationId: number;
 };
 

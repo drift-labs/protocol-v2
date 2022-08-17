@@ -1,14 +1,19 @@
 use crate::error::{ClearingHouseResult, ErrorCode};
+use crate::math::bank_balance::get_token_amount;
 use crate::math::casting::cast;
 use crate::math::constants::{
-    BANK_WEIGHT_PRECISION, LIQUIDATION_FEE_PRECISION, LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO,
-    MARK_PRICE_PRECISION, MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, QUOTE_PRECISION,
+    AMM_RESERVE_PRECISION_I128, BANK_WEIGHT_PRECISION,
+    FUNDING_RATE_TO_QUOTE_PRECISION_PRECISION_RATIO, LIQUIDATION_FEE_PRECISION,
+    LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO, MARK_PRICE_PRECISION,
+    MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, QUOTE_PRECISION,
 };
 use crate::math::margin::{
     calculate_margin_requirement_and_total_collateral, MarginRequirementType,
 };
 use crate::math_error;
+use crate::state::bank::{Bank, BankBalanceType};
 use crate::state::bank_map::BankMap;
+use crate::state::market::Market;
 use crate::state::market_map::MarketMap;
 use crate::state::oracle_map::OracleMap;
 use crate::state::user::User;
@@ -274,4 +279,41 @@ pub fn calculate_liquidation_multiplier(
             .checked_sub(liquidation_fee)
             .ok_or_else(math_error!()),
     }
+}
+
+pub fn calculate_funding_rate_deltas_to_resolve_bankruptcy(
+    loss: i128,
+    market: &Market,
+) -> ClearingHouseResult<i128> {
+    let total_base_asset_amount = market
+        .base_asset_amount_long
+        .abs()
+        .checked_add(market.base_asset_amount_short.abs())
+        .ok_or_else(math_error!())?;
+
+    if total_base_asset_amount == 0 {
+        return Ok(0);
+    }
+
+    loss.abs()
+        .checked_mul(AMM_RESERVE_PRECISION_I128)
+        .ok_or_else(math_error!())?
+        .checked_div(total_base_asset_amount)
+        .ok_or_else(math_error!())?
+        .checked_mul(cast(FUNDING_RATE_TO_QUOTE_PRECISION_PRECISION_RATIO)?)
+        .ok_or_else(math_error!())
+}
+
+pub fn calculate_cumulative_deposit_interest_delta_to_resolve_bankruptcy(
+    borrow: u128,
+    bank: &Bank,
+) -> ClearingHouseResult<u128> {
+    let total_deposits = get_token_amount(bank.deposit_balance, bank, &BankBalanceType::Deposit)?;
+
+    bank.cumulative_deposit_interest
+        .checked_mul(borrow)
+        .ok_or_else(math_error!())?
+        .checked_div(total_deposits)
+        .or(Some(0))
+        .ok_or_else(math_error!())
 }
