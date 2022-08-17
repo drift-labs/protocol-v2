@@ -1200,7 +1200,7 @@ pub mod clearing_house {
             let user = &load!(ctx.accounts.user)?;
             user.get_order(order_id)
                 .map(|order| order.market_index)
-                .ok_or(ErrorCode::OrderDoesNotExist)?;
+                .ok_or(ErrorCode::OrderDoesNotExist)?
         };
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
