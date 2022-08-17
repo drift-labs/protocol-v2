@@ -111,7 +111,7 @@ pub fn settle_pnl(
         base_asset_amount,
         quote_asset_amount_after,
         quote_entry_amount,
-        oracle_price,
+        settle_price: oracle_price,
     });
 
     Ok(())

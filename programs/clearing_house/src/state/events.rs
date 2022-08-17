@@ -238,7 +238,7 @@ pub struct SettlePnlRecord {
     pub base_asset_amount: i128,
     pub quote_asset_amount_after: i128,
     pub quote_entry_amount: i128,
-    pub oracle_price: i128,
+    pub settle_price: i128,
 }
 
 pub fn emit_stack<T: AnchorSerialize + Discriminator, const N: usize>(event: T) {

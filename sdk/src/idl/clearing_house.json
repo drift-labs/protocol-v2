@@ -4482,6 +4482,11 @@
           "index": false
         },
         {
+          "name": "user",
+          "type": "publicKey",
+          "index": false
+        },
+        {
           "name": "marketIndex",
           "type": "u64",
           "index": false
@@ -4507,7 +4512,7 @@
           "index": false
         },
         {
-          "name": "oraclePrice",
+          "name": "settlePrice",
           "type": "i128",
           "index": false
         }

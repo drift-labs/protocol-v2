@@ -259,7 +259,7 @@ export type SettlePnlRecord = {
 	baseAssetAmount: BN;
 	quoteAssetAmountAfter: BN;
 	quoteEntryamount: BN;
-	oraclePrice: BN;
+	settlePrice: BN;
 };
 
 export type OrderRecord = {
