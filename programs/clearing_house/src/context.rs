@@ -349,7 +349,7 @@ pub struct FillOrder<'info> {
     pub user: AccountLoader<'info, User>,
     #[account(
         mut,
-        has_one = authority,
+        constraint = user.load()?.authority.eq(&user.load()?.authority),
     )]
     pub user_stats: AccountLoader<'info, UserStats>,
 }
@@ -362,11 +362,6 @@ pub struct PlaceOrder<'info> {
         has_one = authority,
     )]
     pub user: AccountLoader<'info, User>,
-    #[account(
-        mut,
-        has_one = authority,
-    )]
-    pub user_stats: AccountLoader<'info, UserStats>,
     pub authority: Signer<'info>,
 }
 

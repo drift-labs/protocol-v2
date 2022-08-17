@@ -37,7 +37,7 @@ use crate::state::market_map::MarketMap;
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
 use crate::state::state::*;
-use crate::state::user::{MarketPosition, Order, OrderStatus, OrderType, UserFees, UserStats};
+use crate::state::user::{MarketPosition, Order, OrderStatus, OrderType, UserStats};
 use crate::state::user::{OrderDiscountTier, User};
 use crate::validate;
 use std::alloc::{alloc_zeroed, Layout};
@@ -763,11 +763,12 @@ fn fulfill_order(
     let worst_case_base_asset_amount_before =
         user.positions[position_index].worst_case_base_asset_amount()?;
 
-    let user_checkpoint = checkpoint_user(user, market_index, Some(user_order_index))?;
+    let user_checkpoint = checkpoint_user(user, user_stats, market_index, Some(user_order_index))?;
     let maker_checkpoint = if let Some(maker) = maker {
         let maker_order_index = maker_order_index.ok_or(ErrorCode::MakerOrderNotFound)?;
         Some(checkpoint_user(
             maker,
+            maker_stats.as_mut().unwrap(),
             market_index,
             Some(maker_order_index),
         )?)
@@ -775,7 +776,12 @@ fn fulfill_order(
         None
     };
     let filler_checkpoint = if let Some(filler) = filler {
-        Some(checkpoint_user(filler, market_index, None)?)
+        Some(checkpoint_user(
+            filler,
+            filler_stats.as_mut().unwrap(),
+            market_index,
+            None,
+        )?)
     } else {
         None
     };
@@ -863,12 +869,20 @@ fn fulfill_order(
     } else {
         updated_user_state = true;
 
-        revert_to_checkpoint(user, user_checkpoint)?;
+        revert_to_checkpoint(user, user_stats, user_checkpoint)?;
         if let Some(maker) = maker {
-            revert_to_checkpoint(maker, maker_checkpoint.unwrap())?;
+            revert_to_checkpoint(
+                maker,
+                maker_stats.as_mut().unwrap(),
+                maker_checkpoint.unwrap(),
+            )?;
         }
         if let Some(filler) = filler {
-            revert_to_checkpoint(filler, filler_checkpoint.unwrap())?;
+            revert_to_checkpoint(
+                filler,
+                filler_stats.as_mut().unwrap(),
+                filler_checkpoint.unwrap(),
+            )?;
         }
         {
             let mut market = market_map.get_ref_mut(&market_index)?;
@@ -915,11 +929,12 @@ struct UserCheckpoint {
     pub order: Option<Box<Order>>,
     pub position_index: usize,
     pub position: Box<MarketPosition>,
-    pub fees: Box<UserFees>,
+    pub user_stats: Box<UserStats>,
 }
 
 fn checkpoint_user(
     user: &mut User,
+    user_stats: &mut UserStats,
     market_index: u64,
     order_index: Option<usize>,
 ) -> ClearingHouseResult<UserCheckpoint> {
@@ -943,18 +958,18 @@ fn checkpoint_user(
         Box::from_raw(raw_allocation)
     };
     *position = user.positions[position_index];
-    let mut fees = unsafe {
-        let layout = Layout::new::<UserFees>();
-        let raw_allocation = alloc_zeroed(layout) as *mut UserFees;
+    let mut stats = unsafe {
+        let layout = Layout::new::<UserStats>();
+        let raw_allocation = alloc_zeroed(layout) as *mut UserStats;
         Box::from_raw(raw_allocation)
     };
-    *fees = user.fees;
+    *stats = *user_stats;
     Ok(UserCheckpoint {
         order_index,
         order,
         position_index,
         position,
-        fees,
+        user_stats: stats,
     })
 }
 
@@ -968,8 +983,12 @@ fn clone<T: Copy>(original: &T) -> Box<T> {
     clone
 }
 
-fn revert_to_checkpoint(user: &mut User, checkpoint: UserCheckpoint) -> ClearingHouseResult {
-    user.fees = *checkpoint.fees;
+fn revert_to_checkpoint(
+    user: &mut User,
+    user_stats: &mut UserStats,
+    checkpoint: UserCheckpoint,
+) -> ClearingHouseResult {
+    *user_stats = *checkpoint.user_stats;
     user.positions[checkpoint.position_index] = *checkpoint.position;
     if let Some(order) = checkpoint.order {
         user.orders[checkpoint.order_index.unwrap()] = *order;
@@ -1073,7 +1092,7 @@ pub fn fulfill_order_with_amm(
         .ok_or_else(math_error!())?;
 
     // Increment the user's total fee variables
-    user.fees.total_fee_paid = user
+    user_stats.fees.total_fee_paid = user_stats
         .fees
         .total_fee_paid
         .checked_add(cast(user_fee)?)
@@ -1084,7 +1103,11 @@ pub fn fulfill_order_with_amm(
         -cast(user_fee)?,
     )?;
 
-    user_stats.update_trading_volume(cast(quote_asset_amount)?, order_post_only, now)?;
+    if order_post_only {
+        user_stats.update_maker_volume_30d(cast(quote_asset_amount)?, now)?;
+    } else {
+        user_stats.update_taker_volume_30d(cast(quote_asset_amount)?, now)?;
+    }
 
     pnl = pnl.checked_sub(cast(user_fee)?).ok_or_else(math_error!())?;
 
@@ -1152,15 +1175,15 @@ pub fn fulfill_order_with_amm(
 pub fn fulfill_order_with_match(
     market: &mut Market,
     taker: &mut User,
-    _taker_stats: &mut UserStats,
+    taker_stats: &mut UserStats,
     taker_order_index: usize,
     taker_key: &Pubkey,
     maker: &mut User,
-    _maker_stats: &mut UserStats,
+    maker_stats: &mut UserStats,
     maker_order_index: usize,
     maker_key: &Pubkey,
     filler: Option<&mut User>,
-    _filler_stats: Option<&mut UserStats>,
+    filler_stats: Option<&mut UserStats>,
     filler_key: &Pubkey,
     now: i64,
     slot: u64,
@@ -1220,6 +1243,8 @@ pub fn fulfill_order_with_match(
         &maker_position_delta,
     )?;
 
+    maker_stats.update_maker_volume_30d(cast(quote_asset_amount)?, now)?;
+
     let taker_position_index = get_position_index(
         &taker.positions,
         taker.orders[taker_order_index].market_index,
@@ -1236,6 +1261,8 @@ pub fn fulfill_order_with_match(
         market,
         &taker_position_delta,
     )?;
+
+    taker_stats.update_taker_volume_30d(cast(quote_asset_amount)?, now)?;
 
     let (taker_fee, maker_rebate, fee_to_market, filler_reward) =
         fees::calculate_fee_for_fulfillment_with_match(
@@ -1268,7 +1295,7 @@ pub fn fulfill_order_with_match(
         -cast(taker_fee)?,
     )?;
 
-    taker.fees.total_fee_paid = taker
+    taker_stats.fees.total_fee_paid = taker_stats
         .fees
         .total_fee_paid
         .checked_add(cast(taker_fee)?)
@@ -1283,7 +1310,7 @@ pub fn fulfill_order_with_match(
         cast(maker_rebate)?,
     )?;
 
-    maker.fees.total_fee_rebate = maker
+    maker_stats.fees.total_fee_rebate = maker_stats
         .fees
         .total_fee_rebate
         .checked_add(cast(maker_rebate)?)
@@ -1301,6 +1328,10 @@ pub fn fulfill_order_with_match(
             &mut filler.positions[filler_position_index],
             cast(filler_reward)?,
         )?;
+
+        filler_stats
+            .unwrap()
+            .update_filler_volume(cast(quote_asset_amount)?, now)?;
     }
 
     update_order_after_fill(

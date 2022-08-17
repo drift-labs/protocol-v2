@@ -28,6 +28,7 @@ pub mod fulfill_order_with_maker_order {
     use crate::controller::position::PositionDirection;
     use crate::math::constants::{
         BASE_PRECISION, BASE_PRECISION_I128, MARK_PRICE_PRECISION, QUOTE_PRECISION_I128,
+        QUOTE_PRECISION_U64,
     };
     use crate::state::market::Market;
     use crate::state::state::FeeStructure;
@@ -122,9 +123,10 @@ pub mod fulfill_order_with_maker_order {
         );
         assert_eq!(taker_position.open_bids, 0);
         assert_eq!(taker_position.open_orders, 0);
-        assert_eq!(taker.fees.total_fee_paid, 50000);
-        assert_eq!(taker.fees.total_referee_discount, 0);
-        assert_eq!(taker.fees.total_token_discount, 0);
+        assert_eq!(taker_stats.fees.total_fee_paid, 50000);
+        assert_eq!(taker_stats.taker_volume_30d, 100 * QUOTE_PRECISION_U64);
+        assert_eq!(taker_stats.fees.total_referee_discount, 0);
+        assert_eq!(taker_stats.fees.total_token_discount, 0);
         assert_eq!(taker.orders[0], Order::default());
 
         let maker_position = &maker.positions[0];
@@ -136,7 +138,8 @@ pub mod fulfill_order_with_maker_order {
         );
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_asks, 0);
-        assert_eq!(maker.fees.total_fee_rebate, 30000);
+        assert_eq!(maker_stats.fees.total_fee_rebate, 30000);
+        assert_eq!(maker_stats.maker_volume_30d, 100 * QUOTE_PRECISION_U64);
         assert_eq!(maker.orders[0], Order::default());
 
         assert_eq!(market.amm.net_base_asset_amount, 0);
@@ -243,9 +246,10 @@ pub mod fulfill_order_with_maker_order {
         );
         assert_eq!(taker_position.open_bids, 0);
         assert_eq!(taker_position.open_orders, 0);
-        assert_eq!(taker.fees.total_fee_paid, 80000);
-        assert_eq!(taker.fees.total_referee_discount, 0);
-        assert_eq!(taker.fees.total_token_discount, 0);
+        assert_eq!(taker_stats.fees.total_fee_paid, 80000);
+        assert_eq!(taker_stats.fees.total_referee_discount, 0);
+        assert_eq!(taker_stats.fees.total_token_discount, 0);
+        assert_eq!(taker_stats.taker_volume_30d, 160 * QUOTE_PRECISION_U64);
         assert_eq!(taker.orders[0], Order::default());
 
         let maker_position = &maker.positions[0];
@@ -257,7 +261,8 @@ pub mod fulfill_order_with_maker_order {
         );
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_asks, 0);
-        assert_eq!(maker.fees.total_fee_rebate, 48000);
+        assert_eq!(maker_stats.fees.total_fee_rebate, 48000);
+        assert_eq!(maker_stats.maker_volume_30d, 160 * QUOTE_PRECISION_U64);
         assert_eq!(maker.orders[0], Order::default());
 
         assert_eq!(market.amm.net_base_asset_amount, 0);
@@ -364,9 +369,9 @@ pub mod fulfill_order_with_maker_order {
         );
         assert_eq!(taker_position.open_asks, 0);
         assert_eq!(taker_position.open_orders, 0);
-        assert_eq!(taker.fees.total_fee_paid, 90000);
-        assert_eq!(taker.fees.total_referee_discount, 0);
-        assert_eq!(taker.fees.total_token_discount, 0);
+        assert_eq!(taker_stats.fees.total_fee_paid, 90000);
+        assert_eq!(taker_stats.fees.total_referee_discount, 0);
+        assert_eq!(taker_stats.fees.total_token_discount, 0);
         assert_eq!(taker.orders[0], Order::default());
 
         let maker_position = &maker.positions[0];
@@ -378,7 +383,7 @@ pub mod fulfill_order_with_maker_order {
         );
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_bids, 0);
-        assert_eq!(maker.fees.total_fee_rebate, 54000);
+        assert_eq!(maker_stats.fees.total_fee_rebate, 54000);
         assert_eq!(maker.orders[0], Order::default());
 
         assert_eq!(market.amm.net_base_asset_amount, 0);
@@ -485,9 +490,9 @@ pub mod fulfill_order_with_maker_order {
         );
         assert_eq!(taker_position.open_asks, 0);
         assert_eq!(taker_position.open_orders, 0);
-        assert_eq!(taker.fees.total_fee_paid, 70000);
-        assert_eq!(taker.fees.total_referee_discount, 0);
-        assert_eq!(taker.fees.total_token_discount, 0);
+        assert_eq!(taker_stats.fees.total_fee_paid, 70000);
+        assert_eq!(taker_stats.fees.total_referee_discount, 0);
+        assert_eq!(taker_stats.fees.total_token_discount, 0);
         assert_eq!(taker.orders[0], Order::default());
 
         let maker_position = &maker.positions[0];
@@ -499,7 +504,7 @@ pub mod fulfill_order_with_maker_order {
         );
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_bids, 0);
-        assert_eq!(maker.fees.total_fee_rebate, 42000);
+        assert_eq!(maker_stats.fees.total_fee_rebate, 42000);
         assert_eq!(maker.orders[0], Order::default());
 
         assert_eq!(market.amm.net_base_asset_amount, 0);
@@ -1152,9 +1157,9 @@ pub mod fulfill_order_with_maker_order {
         );
         assert_eq!(taker_position.open_bids, 0);
         assert_eq!(taker_position.open_orders, 0);
-        assert_eq!(taker.fees.total_fee_paid, 75000);
-        assert_eq!(taker.fees.total_referee_discount, 0);
-        assert_eq!(taker.fees.total_token_discount, 0);
+        assert_eq!(taker_stats.fees.total_fee_paid, 75000);
+        assert_eq!(taker_stats.fees.total_referee_discount, 0);
+        assert_eq!(taker_stats.fees.total_token_discount, 0);
         assert_eq!(taker.orders[0], Order::default());
 
         let maker_position = &maker.positions[0];
@@ -1166,7 +1171,7 @@ pub mod fulfill_order_with_maker_order {
         );
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_asks, 0);
-        assert_eq!(maker.fees.total_fee_rebate, 45000);
+        assert_eq!(maker_stats.fees.total_fee_rebate, 45000);
         assert_eq!(maker.orders[0], Order::default());
 
         assert_eq!(market.amm.net_base_asset_amount, 0);
@@ -1270,7 +1275,7 @@ pub mod fulfill_order_with_maker_order {
         );
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_asks, 0);
-        assert_eq!(maker.fees.total_fee_rebate, 30000);
+        assert_eq!(maker_stats.fees.total_fee_rebate, 30000);
         assert_eq!(maker.orders[0], Order::default());
 
         let taker_position = &taker.positions[0];
@@ -1282,9 +1287,9 @@ pub mod fulfill_order_with_maker_order {
         );
         assert_eq!(taker_position.open_bids, 0);
         assert_eq!(taker_position.open_orders, 0);
-        assert_eq!(taker.fees.total_fee_paid, 50000);
-        assert_eq!(taker.fees.total_referee_discount, 0);
-        assert_eq!(taker.fees.total_token_discount, 0);
+        assert_eq!(taker_stats.fees.total_fee_paid, 50000);
+        assert_eq!(taker_stats.fees.total_referee_discount, 0);
+        assert_eq!(taker_stats.fees.total_token_discount, 0);
         assert_eq!(taker.orders[0], Order::default());
 
         assert_eq!(market.amm.net_base_asset_amount, 0);
@@ -1389,7 +1394,7 @@ pub mod fulfill_order_with_maker_order {
         );
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_bids, 0);
-        assert_eq!(maker.fees.total_fee_rebate, 30000);
+        assert_eq!(maker_stats.fees.total_fee_rebate, 30000);
         assert_eq!(maker.orders[0], Order::default());
 
         let taker_position = &taker.positions[0];
@@ -1401,9 +1406,9 @@ pub mod fulfill_order_with_maker_order {
         );
         assert_eq!(taker_position.open_asks, 0);
         assert_eq!(taker_position.open_orders, 0);
-        assert_eq!(taker.fees.total_fee_paid, 50000);
-        assert_eq!(taker.fees.total_referee_discount, 0);
-        assert_eq!(taker.fees.total_token_discount, 0);
+        assert_eq!(taker_stats.fees.total_fee_paid, 50000);
+        assert_eq!(taker_stats.fees.total_referee_discount, 0);
+        assert_eq!(taker_stats.fees.total_token_discount, 0);
         assert_eq!(taker.orders[0], Order::default());
 
         assert_eq!(market.amm.net_base_asset_amount, 0);
@@ -1582,9 +1587,9 @@ pub mod fulfill_order {
         assert_eq!(taker_position.quote_entry_amount, -102284264);
         assert_eq!(taker_position.open_bids, 0);
         assert_eq!(taker_position.open_orders, 0);
-        assert_eq!(taker.fees.total_fee_paid, 51142);
-        assert_eq!(taker.fees.total_referee_discount, 0);
-        assert_eq!(taker.fees.total_token_discount, 0);
+        assert_eq!(taker_stats.fees.total_fee_paid, 51142);
+        assert_eq!(taker_stats.fees.total_referee_discount, 0);
+        assert_eq!(taker_stats.fees.total_token_discount, 0);
         assert_eq!(taker.orders[0], Order::default());
 
         let maker_position = &maker.positions[0];
@@ -1593,7 +1598,7 @@ pub mod fulfill_order {
         assert_eq!(maker_position.quote_entry_amount, 50 * QUOTE_PRECISION_I128);
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_asks, 0);
-        assert_eq!(maker.fees.total_fee_rebate, 15000);
+        assert_eq!(maker_stats.fees.total_fee_rebate, 15000);
         assert_eq!(maker.orders[0], Order::default());
 
         let market_after = market_map.get_ref(&0).unwrap();
@@ -1734,9 +1739,9 @@ pub mod fulfill_order {
         );
         assert_eq!(taker_position.open_bids, BASE_PRECISION_I128 / 2);
         assert_eq!(taker_position.open_orders, 1);
-        assert_eq!(taker.fees.total_fee_paid, 25000);
-        assert_eq!(taker.fees.total_referee_discount, 0);
-        assert_eq!(taker.fees.total_token_discount, 0);
+        assert_eq!(taker_stats.fees.total_fee_paid, 25000);
+        assert_eq!(taker_stats.fees.total_referee_discount, 0);
+        assert_eq!(taker_stats.fees.total_token_discount, 0);
 
         let maker_position = &maker.positions[0];
         assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I128 / 2);
@@ -1744,7 +1749,7 @@ pub mod fulfill_order {
         assert_eq!(maker_position.quote_entry_amount, 50 * QUOTE_PRECISION_I128);
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_asks, 0);
-        assert_eq!(maker.fees.total_fee_rebate, 15000);
+        assert_eq!(maker_stats.fees.total_fee_rebate, 15000);
 
         let market_after = market_map.get_ref(&0).unwrap();
         assert_eq!(market_after.amm.net_base_asset_amount, 0);
@@ -1874,9 +1879,9 @@ pub mod fulfill_order {
         assert_eq!(taker_position.quote_entry_amount, -104081633);
         assert_eq!(taker_position.open_bids, 0);
         assert_eq!(taker_position.open_orders, 0);
-        assert_eq!(taker.fees.total_fee_paid, 52040);
-        assert_eq!(taker.fees.total_referee_discount, 0);
-        assert_eq!(taker.fees.total_token_discount, 0);
+        assert_eq!(taker_stats.fees.total_fee_paid, 52040);
+        assert_eq!(taker_stats.fees.total_referee_discount, 0);
+        assert_eq!(taker_stats.fees.total_token_discount, 0);
         assert_eq!(taker.orders[0], Order::default());
 
         let market_after = market_map.get_ref(&0).unwrap();
@@ -2036,7 +2041,9 @@ pub mod fulfill_order {
         assert_eq!(base_asset_amount, 0);
         assert!(!potentially_risk_increasing);
         assert_eq!(maker, expected_maker_after);
+        assert_eq!(maker_stats, UserStats::default());
         assert_eq!(taker, expected_taker_after);
+        assert_eq!(taker_stats, UserStats::default());
         assert_eq!(filler, expected_filler_after);
 
         let market_after = market_map.get_ref(&0).unwrap();
@@ -2244,9 +2251,9 @@ pub mod fulfill_order {
         );
         assert_eq!(taker_position.open_bids, BASE_PRECISION_I128 / 2);
         assert_eq!(taker_position.open_orders, 1);
-        assert_eq!(taker.fees.total_fee_paid, 25000);
-        assert_eq!(taker.fees.total_referee_discount, 0);
-        assert_eq!(taker.fees.total_token_discount, 0);
+        assert_eq!(taker_stats.fees.total_fee_paid, 25000);
+        assert_eq!(taker_stats.fees.total_referee_discount, 0);
+        assert_eq!(taker_stats.fees.total_token_discount, 0);
 
         let taker_order = &taker.orders[0].clone();
         assert_eq!(taker_order.base_asset_amount_filled, BASE_PRECISION / 2);
@@ -2263,7 +2270,7 @@ pub mod fulfill_order {
         assert_eq!(maker_position.quote_entry_amount, 50 * QUOTE_PRECISION_I128);
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_asks, 0);
-        assert_eq!(maker.fees.total_fee_rebate, 15000);
+        assert_eq!(maker_stats.fees.total_fee_rebate, 15000);
 
         assert_eq!(maker.orders[1], Order::default());
 

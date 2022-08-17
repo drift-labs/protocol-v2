@@ -25,7 +25,6 @@ pub struct User {
     pub user_id: u8,
     pub name: [u8; 32],
     pub bank_balances: [UserBankBalance; 8],
-    pub fees: UserFees,
     pub next_order_id: u64,
     pub positions: [MarketPosition; 5],
     pub orders: [Order; 32],
@@ -479,75 +478,82 @@ pub struct UserStats {
 
     pub referrer: Pubkey,
 
+    pub fees: UserFees,
+
     // volume track
     pub maker_volume_30d: u64,
     pub taker_volume_30d: u64,
     pub filler_volume_30d: u64,
-    pub last_maker_ts: i64,
-    pub last_taker_ts: i64,
-    pub last_filler_ts: i64,
+    pub last_maker_volume_30d_ts: i64,
+    pub last_taker_volume_30d_ts: i64,
+    pub last_filler_volume_30d_ts: i64,
 }
 
 impl UserStats {
-    pub fn update_trading_volume(
+    pub fn update_maker_volume_30d(
         &mut self,
-        quote_amount: u64,
-        post_only: bool,
+        quote_asset_amount: u64,
         now: i64,
-    ) -> ClearingHouseResult<u128> {
-        if post_only {
-            let since_last = cast_to_i128(max(
-                1,
-                now.checked_sub(self.last_maker_ts)
-                    .ok_or_else(math_error!())?,
-            ))?;
+    ) -> ClearingHouseResult {
+        let since_last = cast_to_i128(max(
+            1,
+            now.checked_sub(self.last_maker_volume_30d_ts)
+                .ok_or_else(math_error!())?,
+        ))?;
 
-            self.maker_volume_30d = calculate_rolling_sum(
-                self.maker_volume_30d,
-                quote_amount,
-                since_last,
-                THIRTY_DAY_I128,
-            )?;
-            self.last_maker_ts = now;
-        } else {
-            let since_last = cast_to_i128(max(
-                1,
-                now.checked_sub(self.last_taker_ts)
-                    .ok_or_else(math_error!())?,
-            ))?;
+        self.maker_volume_30d = calculate_rolling_sum(
+            self.maker_volume_30d,
+            quote_asset_amount,
+            since_last,
+            THIRTY_DAY_I128,
+        )?;
+        self.last_maker_volume_30d_ts = now;
 
-            self.taker_volume_30d = calculate_rolling_sum(
-                self.taker_volume_30d,
-                quote_amount,
-                since_last,
-                THIRTY_DAY_I128,
-            )?;
-            self.last_taker_ts = now;
-        }
+        Ok(())
+    }
 
-        Ok(0)
+    pub fn update_taker_volume_30d(
+        &mut self,
+        quote_asset_amount: u64,
+        now: i64,
+    ) -> ClearingHouseResult {
+        let since_last = cast_to_i128(max(
+            1,
+            now.checked_sub(self.last_taker_volume_30d_ts)
+                .ok_or_else(math_error!())?,
+        ))?;
+
+        self.taker_volume_30d = calculate_rolling_sum(
+            self.taker_volume_30d,
+            quote_asset_amount,
+            since_last,
+            THIRTY_DAY_I128,
+        )?;
+        self.last_taker_volume_30d_ts = now;
+
+        Ok(())
     }
 
     pub fn update_filler_volume(
         &mut self,
-        quote_amount: u64,
+        quote_asset_amount: u64,
         now: i64,
-    ) -> ClearingHouseResult<u128> {
+    ) -> ClearingHouseResult {
         let since_last = cast_to_i128(max(
             1,
-            now.checked_sub(self.last_filler_ts)
+            now.checked_sub(self.last_filler_volume_30d_ts)
                 .ok_or_else(math_error!())?,
         ))?;
 
         self.filler_volume_30d = calculate_rolling_sum(
-            self.maker_volume_30d,
-            quote_amount,
+            self.filler_volume_30d,
+            quote_asset_amount,
             since_last,
             THIRTY_DAY_I128,
         )?;
 
-        self.last_filler_ts = now;
+        self.last_filler_volume_30d_ts = now;
 
-        Ok(0)
+        Ok(())
     }
 }

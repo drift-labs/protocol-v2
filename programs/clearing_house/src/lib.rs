@@ -1639,9 +1639,9 @@ pub mod clearing_house {
         *user_stats = UserStats {
             authority: ctx.accounts.authority.key(),
             number_of_users: 0,
-            last_taker_ts: clock.unix_timestamp,
-            last_maker_ts: clock.unix_timestamp,
-            last_filler_ts: clock.unix_timestamp,
+            last_taker_volume_30d_ts: clock.unix_timestamp,
+            last_maker_volume_30d_ts: clock.unix_timestamp,
+            last_filler_volume_30d_ts: clock.unix_timestamp,
             ..UserStats::default()
         };
 

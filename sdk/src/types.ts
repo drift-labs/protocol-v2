@@ -519,11 +519,13 @@ export const DefaultOrderParams = {
 
 export type MakerInfo = {
 	maker: PublicKey;
+	makerStats: PublicKey;
 	order: Order;
 };
 
 export type TakerInfo = {
 	taker: PublicKey;
+	takerStats: PublicKey;
 	order: Order;
 };
 
