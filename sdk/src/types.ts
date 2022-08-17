@@ -253,6 +253,7 @@ export type BorrowBankruptcyRecord = {
 
 export type SettlePnlRecord = {
 	ts: BN;
+	user: PublicKey;
 	marketIndex: BN;
 	pnl: BN;
 	baseAssetAmount: BN;

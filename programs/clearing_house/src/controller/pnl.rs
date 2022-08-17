@@ -105,6 +105,7 @@ pub fn settle_pnl(
 
     emit!(SettlePnlRecord {
         ts: now,
+        user: *user_key,
         market_index,
         pnl: pnl_to_settle_with_user,
         base_asset_amount,

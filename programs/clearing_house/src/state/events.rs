@@ -232,6 +232,7 @@ pub struct BorrowBankruptcyRecord {
 #[derive(Default)]
 pub struct SettlePnlRecord {
     pub ts: i64,
+    pub user: Pubkey,
     pub market_index: u64,
     pub pnl: i128,
     pub base_asset_amount: i128,
