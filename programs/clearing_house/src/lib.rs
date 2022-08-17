@@ -11,6 +11,7 @@ use state::oracle::{get_oracle_price, OracleSource};
 
 use crate::math::amm::get_update_k_result;
 use crate::state::market::Market;
+use crate::state::user::MarketPosition;
 use crate::state::{market::AMM, state::*, user::*};
 
 pub mod context;
@@ -36,6 +37,9 @@ pub mod clearing_house {
     use std::cmp::min;
     use std::option::Option::Some;
 
+    use crate::controller::lp::burn_lp_shares;
+    use crate::controller::lp::settle_lp_position;
+    use crate::controller::position::{add_new_position, get_position_index};
     use crate::margin_validation::validate_margin;
     use crate::math;
     use crate::math::bank_balance::get_token_amount;
@@ -305,6 +309,9 @@ pub mod clearing_house {
             .checked_mul(bn::U192::from(amm_quote_asset_reserve))
             .ok_or_else(math_error!())?;
 
+        let (min_base_asset_reserve, max_base_asset_reserve) =
+            amm::calculate_bid_ask_bounds(amm_base_asset_reserve)?;
+
         // Verify oracle is readable
         let OraclePriceData {
             price: oracle_price,
@@ -374,8 +381,9 @@ pub mod clearing_house {
                 cumulative_repeg_rebate_short: 0,
                 cumulative_funding_rate_long: 0,
                 cumulative_funding_rate_short: 0,
-                cumulative_funding_rate_lp: 0,
                 last_funding_rate: 0,
+                last_funding_rate_long: 0,
+                last_funding_rate_short: 0,
                 last_funding_rate_ts: now,
                 funding_period: amm_periodicity,
                 last_oracle_price_twap,
@@ -384,6 +392,8 @@ pub mod clearing_house {
                 last_mark_price_twap_5min: init_mark_price,
                 last_mark_price_twap_ts: now,
                 sqrt_k: amm_base_asset_reserve,
+                min_base_asset_reserve,
+                max_base_asset_reserve,
                 peg_multiplier: amm_peg_multiplier,
                 total_fee: 0,
                 total_fee_withdrawn: 0,
@@ -419,7 +429,21 @@ pub mod clearing_house {
                 short_intensity_volume: 0,
                 curve_update_intensity: 0,
                 fee_pool: PoolBalance { balance: 0 },
+                market_position_per_lp: MarketPosition {
+                    market_index,
+                    ..MarketPosition::default()
+                },
+                market_position: MarketPosition {
+                    market_index,
+                    ..MarketPosition::default()
+                },
                 last_update_slot: clock_slot,
+
+                // lp stuff
+                net_unsettled_lp_base_asset_amount: 0,
+                user_lp_shares: 0,
+                lp_cooldown_time: 1, // TODO: what should this be?
+
                 last_oracle_valid: false,
                 padding0: 0,
                 padding1: 0,
@@ -710,6 +734,181 @@ pub mod clearing_house {
         let bank = &mut load_mut!(ctx.accounts.bank)?;
         let now = Clock::get()?.unix_timestamp;
         controller::bank_balance::update_bank_cumulative_interest(bank, now)?;
+        Ok(())
+    }
+
+    #[access_control(
+        exchange_not_paused(&ctx.accounts.state)
+    )]
+    pub fn settle_lp<'info>(ctx: Context<SettleLP>, market_index: u64) -> Result<()> {
+        let user_key = ctx.accounts.user.key();
+        let user = &mut load_mut!(&ctx.accounts.user)?;
+        let clock = Clock::get()?;
+        let now = clock.unix_timestamp;
+
+        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+        let market_map = MarketMap::load(
+            &MarketSet::new(),
+            &get_market_set(market_index),
+            remaining_accounts_iter,
+        )?;
+        {
+            let market = market_map.get_ref_mut(&market_index)?;
+            controller::funding::settle_funding_payment(user, &user_key, &market, now)?;
+        }
+
+        let mut market = market_map.get_ref_mut(&market_index)?;
+        let position_index = get_position_index(&user.positions, market_index)?;
+        let position = &mut user.positions[position_index];
+
+        settle_lp_position(position, &mut market)?;
+
+        Ok(())
+    }
+
+    #[access_control(
+        exchange_not_paused(&ctx.accounts.state)
+    )]
+    pub fn remove_liquidity<'info>(
+        ctx: Context<AddRemoveLiquidity>,
+        shares_to_burn: u128,
+        market_index: u64,
+    ) -> Result<()> {
+        let user_key = ctx.accounts.user.key();
+        let user = &mut load_mut!(&ctx.accounts.user)?;
+        let clock = Clock::get()?;
+        let now = clock.unix_timestamp;
+
+        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let _bank_map = BankMap::load(&WritableBanks::new(), remaining_accounts_iter)?;
+        let market_map = MarketMap::load(
+            &get_market_set(market_index),
+            &MarketSet::new(),
+            remaining_accounts_iter,
+        )?;
+        {
+            let market = market_map.get_ref_mut(&market_index)?;
+            controller::funding::settle_funding_payment(user, &user_key, &market, now)?;
+        }
+
+        if shares_to_burn == 0 {
+            return Ok(());
+        }
+
+        let mut market = market_map.get_ref_mut(&market_index)?;
+        let position_index = get_position_index(&user.positions, market_index)?;
+        let position = &mut user.positions[position_index];
+
+        validate!(
+            position.lp_shares >= shares_to_burn,
+            ErrorCode::InsufficientLPTokens
+        )?;
+
+        let time_since_last_add_liquidity = now
+            .checked_sub(position.last_lp_add_time)
+            .ok_or_else(math_error!())?;
+
+        validate!(
+            time_since_last_add_liquidity >= market.amm.lp_cooldown_time,
+            ErrorCode::TryingToRemoveLiquidityTooFast
+        )?;
+
+        let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
+        burn_lp_shares(
+            position,
+            &mut market,
+            shares_to_burn,
+            oracle_price_data.price,
+        )?;
+
+        Ok(())
+    }
+
+    #[access_control(
+        exchange_not_paused(&ctx.accounts.state)
+    )]
+    pub fn add_liquidity<'info>(
+        ctx: Context<AddRemoveLiquidity>,
+        n_shares: u128,
+        market_index: u64,
+    ) -> Result<()> {
+        let user_key = ctx.accounts.user.key();
+        let user = &mut load_mut!(&ctx.accounts.user)?;
+        let clock = Clock::get()?;
+        let now = clock.unix_timestamp;
+        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let bank_map = BankMap::load(&WritableBanks::new(), remaining_accounts_iter)?;
+
+        let market_map = MarketMap::load(
+            &get_market_set(market_index),
+            &MarketSet::new(),
+            remaining_accounts_iter,
+        )?;
+
+        {
+            let market = market_map.get_ref_mut(&market_index)?;
+            controller::funding::settle_funding_payment(user, &user_key, &market, now)?;
+        }
+
+        let position_index = get_position_index(&user.positions, market_index)
+            .or_else(|_| add_new_position(&mut user.positions, market_index))?;
+        let position = &mut user.positions[position_index];
+
+        // update add liquidity time
+        position.last_lp_add_time = now;
+
+        let market_amm = market_map.get_ref(&market_index)?.amm;
+
+        let (sqrt_k,) = get_struct_values!(market_amm, sqrt_k);
+
+        let (net_base_asset_amount_per_lp, net_quote_asset_amount_per_lp) = get_struct_values!(
+            market_amm.market_position_per_lp,
+            base_asset_amount,
+            quote_asset_amount
+        );
+
+        if position.lp_shares > 0 {
+            let mut market = market_map.get_ref_mut(&market_index)?;
+            settle_lp_position(position, &mut market)?;
+        } else {
+            // init
+            position.last_net_base_asset_amount_per_lp = net_base_asset_amount_per_lp;
+            position.last_net_quote_asset_amount_per_lp = net_quote_asset_amount_per_lp;
+        }
+
+        // add share balance
+        position.lp_shares = position
+            .lp_shares
+            .checked_add(n_shares)
+            .ok_or_else(math_error!())?;
+
+        // update market state
+        let new_sqrt_k = sqrt_k.checked_add(n_shares).ok_or_else(math_error!())?;
+        let new_sqrt_k_u192 = bn::U192::from(new_sqrt_k);
+
+        {
+            let mut market = market_map.get_ref_mut(&market_index)?;
+            let update_k_result = get_update_k_result(&market, new_sqrt_k_u192, true)?;
+            math::amm::update_k(&mut market, &update_k_result)?;
+
+            market.amm.user_lp_shares = market
+                .amm
+                .user_lp_shares
+                .checked_add(n_shares)
+                .ok_or_else(math_error!())?;
+        }
+
+        // check margin requirements
+        validate!(
+            meets_initial_margin_requirement(user, &market_map, &bank_map, &mut oracle_map)?,
+            ErrorCode::InsufficientCollateral,
+            "User does not meet initial margin requirement"
+        )?;
+
         Ok(())
     }
 
@@ -1018,12 +1217,9 @@ pub mod clearing_house {
     pub fn trigger_order<'info>(ctx: Context<TriggerOrder>, order_id: u64) -> Result<()> {
         let market_index = {
             let user = &load!(ctx.accounts.user)?;
-            let market_index = user
-                .get_order(order_id)
+            user.get_order(order_id)
                 .map(|order| order.market_index)
-                .ok_or(ErrorCode::OrderDoesNotExist)?;
-
-            market_index
+                .ok_or(ErrorCode::OrderDoesNotExist)?
         };
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
@@ -1716,7 +1912,7 @@ pub mod clearing_house {
 
         let new_sqrt_k_u192 = bn::U192::from(sqrt_k);
 
-        let update_k_result = get_update_k_result(market, new_sqrt_k_u192)?;
+        let update_k_result = get_update_k_result(market, new_sqrt_k_u192, true)?;
 
         let adjustment_cost = math::amm::adjust_k_cost(market, &update_k_result)?;
 
@@ -1956,6 +2152,18 @@ pub mod clearing_house {
         )?;
         let market = &mut load_mut!(ctx.accounts.market)?;
         market.amm.curve_update_intensity = curve_update_intensity;
+        Ok(())
+    }
+
+    #[access_control(
+        market_initialized(&ctx.accounts.market)
+    )]
+    pub fn update_lp_cooldown_time(
+        ctx: Context<AdminUpdateMarket>,
+        lp_cooldown_time: i64,
+    ) -> Result<()> {
+        let market = &mut ctx.accounts.market.load_mut()?;
+        market.amm.lp_cooldown_time = lp_cooldown_time;
         Ok(())
     }
 

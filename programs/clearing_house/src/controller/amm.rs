@@ -21,7 +21,7 @@ use crate::controller::bank_balance::update_bank_balances;
 use crate::controller::repeg::apply_cost_to_market;
 use crate::state::bank::{Bank, BankBalance, BankBalanceType};
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum SwapDirection {
     Add,
     Remove,
@@ -278,7 +278,7 @@ pub fn formulaic_update_k(
             .checked_div(bn::U192::from(k_scale_denominator))
             .ok_or_else(math_error!())?;
 
-        let update_k_result = get_update_k_result(market, new_sqrt_k)?;
+        let update_k_result = get_update_k_result(market, new_sqrt_k, true)?;
 
         let adjustment_cost = amm::adjust_k_cost(market, &update_k_result)?;
 
@@ -416,7 +416,8 @@ pub fn move_price(
         .checked_mul(bn::U256::from(quote_asset_reserve))
         .ok_or_else(math_error!())?;
 
-    amm.sqrt_k = k.integer_sqrt().try_to_u128()?;
+    let new_sqrt_k = k.integer_sqrt().try_to_u128()?;
+    amm.sqrt_k = new_sqrt_k;
 
     Ok(())
 }
@@ -531,8 +532,9 @@ mod test {
         )
         .unwrap();
 
-        assert_eq!(market.amm.sqrt_k, 4895052229261371); // increase k by 1.00003314258x
-        assert_eq!(market.amm.total_fee_minus_distributions, 1000316491); // ~$.005 spent from slippage decrease
+        // new numbers bc of increased sqrt_k precision
+        assert_eq!(market.amm.sqrt_k, 4895052229260015); // increase k by 1.00003314258x
+        assert_eq!(market.amm.total_fee_minus_distributions, 1000316488); // ~$.005 spent from slippage decrease
                                                                           // todo: (316988-316491)/1e6 * 2 = 0.000994 < .001
     }
 

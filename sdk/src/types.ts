@@ -369,11 +369,16 @@ export type AMM = {
 	pegMultiplier: BN;
 	cumulativeFundingRateLong: BN;
 	cumulativeFundingRateShort: BN;
+	cumulativeFundingRateLp: BN;
 	cumulativeRepegRebateLong: BN;
 	cumulativeRepegRebateShort: BN;
 	totalFeeMinusDistributions: BN;
 	totalFeeWithdrawn: BN;
 	totalFee: BN;
+	cumulativeFundingPaymentPerLp: BN;
+	cumulativeFeePerLp: BN;
+	cumulativeNetBaseAssetAmountPerLp: BN;
+	userLpShares: BN;
 	minimumQuoteAssetTradeSize: BN;
 	baseAssetAmountStepSize: BN;
 	maxBaseAssetAmountRatio: number;
@@ -395,6 +400,8 @@ export type AMM = {
 	longSpread: BN;
 	shortSpread: BN;
 	maxSpread: number;
+	marketPosition: UserPosition;
+	marketPositionPerLp: UserPosition;
 };
 
 // # User Account Types
@@ -407,6 +414,10 @@ export type UserPosition = {
 	openOrders: BN;
 	openBids: BN;
 	openAsks: BN;
+	lpShares: BN;
+	lastFeePerLp: BN;
+	lastNetBaseAssetAmountPerLp: BN;
+	lastNetQuoteAssetAmountPerLp: BN;
 };
 
 export type UserAccount = {

@@ -309,6 +309,24 @@ pub struct WithdrawFromInsuranceVaultToMarket<'info> {
 }
 
 #[derive(Accounts)]
+pub struct SettleLP<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
+}
+
+#[derive(Accounts)]
+pub struct AddRemoveLiquidity<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        mut,
+        has_one = authority,
+    )]
+    pub user: AccountLoader<'info, User>,
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
 pub struct FillOrder<'info> {
     pub state: Box<Account<'info, State>>,
     pub authority: Signer<'info>,

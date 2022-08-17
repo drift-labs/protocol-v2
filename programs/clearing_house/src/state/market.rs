@@ -7,6 +7,7 @@ use switchboard_v2::AggregatorAccountData;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm;
 use crate::math::casting::{cast, cast_to_i128, cast_to_i64, cast_to_u128};
+use crate::math::constants::AMM_RESERVE_PRECISION;
 use crate::math::constants::LIQUIDATION_FEE_PRECISION;
 use crate::math::margin::{
     calculate_size_discount_asset_weight, calculate_size_premium_liability_weight,
@@ -15,6 +16,7 @@ use crate::math::margin::{
 use crate::math_error;
 use crate::state::bank::{BankBalance, BankBalanceType};
 use crate::state::oracle::{OraclePriceData, OracleSource};
+use crate::state::user::MarketPosition;
 use crate::{
     AMM_TO_QUOTE_PRECISION_RATIO, BID_ASK_SPREAD_PRECISION, MARGIN_PRECISION, MARK_PRICE_PRECISION,
 };
@@ -70,6 +72,14 @@ impl Market {
         };
 
         Ok(margin_ratio as u32)
+    }
+
+    pub fn default_test() -> Self {
+        let amm = AMM::default_test();
+        Market {
+            amm,
+            ..Market::default()
+        }
     }
 
     pub fn get_unsettled_asset_weight(
@@ -168,6 +178,8 @@ pub struct AMM {
 
     pub base_asset_reserve: u128,
     pub quote_asset_reserve: u128,
+    pub min_base_asset_reserve: u128,
+    pub max_base_asset_reserve: u128,
     pub sqrt_k: u128,
     pub peg_multiplier: u128,
 
@@ -178,13 +190,20 @@ pub struct AMM {
     pub quote_entry_amount_long: i128,
     pub quote_entry_amount_short: i128,
 
+    // lp stuff
+    pub net_unsettled_lp_base_asset_amount: i128,
+    pub lp_cooldown_time: i64,
+    pub user_lp_shares: u128,
+    pub market_position_per_lp: MarketPosition,
+
     // funding
     pub last_funding_rate: i128,
+    pub last_funding_rate_long: i128,
+    pub last_funding_rate_short: i128,
     pub last_funding_rate_ts: i64,
     pub funding_period: i64,
     pub cumulative_funding_rate_long: i128,
     pub cumulative_funding_rate_short: i128,
-    pub cumulative_funding_rate_lp: i128,
     pub cumulative_repeg_rebate_long: u128,
     pub cumulative_repeg_rebate_short: u128,
 
@@ -200,6 +219,7 @@ pub struct AMM {
     pub base_asset_amount_step_size: u128,
 
     // market making
+    pub market_position: MarketPosition,
     pub base_spread: u16,
     pub long_spread: u128,
     pub short_spread: u128,
@@ -236,6 +256,20 @@ pub struct AMM {
 }
 
 impl AMM {
+    pub fn default_test() -> Self {
+        let default_reserves = AMM_RESERVE_PRECISION;
+        // make sure tests dont have the default sqrt_k = 0
+        AMM {
+            base_asset_reserve: default_reserves,
+            quote_asset_reserve: default_reserves,
+            sqrt_k: default_reserves,
+            base_asset_amount_step_size: 1,
+            max_base_asset_reserve: u128::MAX,
+            min_base_asset_reserve: 0,
+            ..AMM::default()
+        }
+    }
+
     pub fn mark_price(&self) -> ClearingHouseResult<u128> {
         amm::calculate_price(
             self.quote_asset_reserve,

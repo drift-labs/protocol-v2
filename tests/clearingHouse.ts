@@ -289,6 +289,13 @@ describe('clearing_house', () => {
 		assert.ok(market.amm.totalFee.eq(new BN(48004)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(48004)));
 
+		console.log(market.amm.marketPosition);
+		assert.ok(
+			market.amm.marketPosition.baseAssetAmount.eq(new BN(-497450500000000))
+		);
+		assert.ok(market.amm.marketPosition.quoteAssetAmount.eq(new BN(49750000)));
+		assert.ok(market.amm.marketPosition.unsettledPnl.eq(new BN(49750)));
+
 		await eventSubscriber.awaitTx(txSig);
 		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 
@@ -371,6 +378,13 @@ describe('clearing_house', () => {
 		assert.ok(market.amm.totalFee.eq(new BN(72007)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(72007)));
 
+		console.log(market.amm.marketPosition);
+		assert.ok(
+			market.amm.marketPosition.baseAssetAmount.eq(new BN(-248725250000000))
+		);
+		assert.ok(market.amm.marketPosition.quoteAssetAmount.eq(new BN(24875000)));
+		assert.ok(market.amm.marketPosition.unsettledPnl.eq(new BN(49750 + 23639))); //73389
+
 		await eventSubscriber.awaitTx(txSig);
 		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 		assert.ok(orderRecord.taker.equals(userAccountPublicKey));
@@ -396,7 +410,6 @@ describe('clearing_house', () => {
 		);
 
 		await clearingHouse.fetchAccounts();
-
 		await clearingHouse.settlePNL(
 			await clearingHouse.getUserAccountPublicKey(),
 			clearingHouse.getUserAccount(),
@@ -427,6 +440,13 @@ describe('clearing_house', () => {
 		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(-240000000000000)));
 		assert.ok(market.amm.totalFee.eq(new BN(120007)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(120007)));
+
+		console.log(market.amm.marketPosition);
+		assert.ok(
+			market.amm.marketPosition.baseAssetAmount.eq(new BN(248725250000000))
+		);
+		assert.ok(market.amm.marketPosition.quoteAssetAmount.eq(new BN(24872525)));
+		assert.ok(market.amm.marketPosition.unsettledPnl.eq(new BN(73389 + 52220)));
 
 		await eventSubscriber.awaitTx(txSig);
 		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
@@ -532,11 +552,15 @@ describe('clearing_house', () => {
 			userUSDCAccount.publicKey
 		);
 
-		await clearingHouse.openPosition(
-			PositionDirection.LONG,
-			clearingHouse.getMarketAccount(new BN(0)).amm.baseAssetAmountStepSize,
-			new BN(0)
-		);
+		try {
+			await clearingHouse.openPosition(
+				PositionDirection.LONG,
+				clearingHouse.getMarketAccount(new BN(0)).amm.baseAssetAmountStepSize,
+				new BN(0)
+			);
+		} catch (e) {
+			console.log(e);
+		}
 	});
 
 	it('Short order succeeds due to realiziable limit price ', async () => {

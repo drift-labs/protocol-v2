@@ -38,6 +38,27 @@ pub fn calculate_price(
         .try_to_u128()
 }
 
+pub fn calculate_bid_ask_bounds(sqrt_k: u128) -> ClearingHouseResult<(u128, u128)> {
+    let sqrt_2_precision = 10_000_u128;
+    let sqrt_2 = 14_142;
+
+    // worse case if all asks are filled (max reserve)
+    let ask_bounded_base = sqrt_k
+        .checked_mul(sqrt_2)
+        .ok_or_else(math_error!())?
+        .checked_div(sqrt_2_precision)
+        .ok_or_else(math_error!())?;
+
+    // worse case if all bids are filled (min reserve)
+    let bid_bounded_base = sqrt_k
+        .checked_mul(sqrt_2_precision)
+        .ok_or_else(math_error!())?
+        .checked_div(sqrt_2)
+        .ok_or_else(math_error!())?;
+
+    Ok((bid_bounded_base, ask_bounded_base))
+}
+
 pub fn calculate_terminal_price(market: &mut Market) -> ClearingHouseResult<u128> {
     let swap_direction = if market.amm.net_base_asset_amount > 0 {
         SwapDirection::Add
@@ -541,6 +562,7 @@ pub fn calculate_swap_output(
         .ok_or_else(math_error!())?;
 
     if direction == SwapDirection::Remove && swap_amount > input_asset_reserve {
+        msg!("{:?} > {:?}", swap_amount, input_asset_reserve);
         return Err(ErrorCode::TradeSizeTooLarge);
     }
 
@@ -1081,6 +1103,12 @@ pub fn adjust_k_cost(
         &market_clone.amm,
         false,
     )?;
+    msg!(
+        "{:?} -> {:?}",
+        current_net_market_value,
+        _new_net_market_value
+    );
+
     Ok(cost)
 }
 
@@ -1103,6 +1131,7 @@ pub fn adjust_k_cost_and_update(
         &market.amm,
         false,
     )?;
+
     Ok(cost)
 }
 
@@ -1115,28 +1144,39 @@ pub struct UpdateKResult {
 pub fn get_update_k_result(
     market: &Market,
     new_sqrt_k: bn::U192,
+    bound_update: bool,
 ) -> ClearingHouseResult<UpdateKResult> {
-    let sqrt_k_ratio_precision = bn::U192::from(100_000_000);
+    let sqrt_k_ratio_precision = bn::U192::from(AMM_RESERVE_PRECISION);
 
     let old_sqrt_k = bn::U192::from(market.amm.sqrt_k);
-    let sqrt_k_ratio = new_sqrt_k
+    let mut sqrt_k_ratio = new_sqrt_k
         .checked_mul(sqrt_k_ratio_precision)
         .ok_or_else(math_error!())?
         .checked_div(old_sqrt_k)
         .ok_or_else(math_error!())?;
 
     // if decreasing k, max decrease ratio for single transaction is 2.5%
-    if sqrt_k_ratio < U192::from(97_500_000) {
+    if bound_update && sqrt_k_ratio < U192::from(975_000_000_000_u128) {
         return Err(ErrorCode::InvalidUpdateK);
+    }
+
+    if sqrt_k_ratio < sqrt_k_ratio_precision {
+        sqrt_k_ratio = sqrt_k_ratio + 1;
     }
 
     let sqrt_k = new_sqrt_k.try_to_u128().unwrap();
 
-    if new_sqrt_k < old_sqrt_k
+    if bound_update
+        && new_sqrt_k < old_sqrt_k
         && market.amm.net_base_asset_amount.unsigned_abs()
             > sqrt_k.checked_div(3).ok_or_else(math_error!())?
     {
         // todo, check less lp_tokens as well
+        msg!("new_sqrt_k too small relative to market imbalance");
+        return Err(ErrorCode::InvalidUpdateK);
+    }
+
+    if market.amm.net_base_asset_amount.unsigned_abs() > sqrt_k {
         msg!("new_sqrt_k too small relative to market imbalance");
         return Err(ErrorCode::InvalidUpdateK);
     }
@@ -1166,9 +1206,9 @@ pub fn get_update_k_result(
 }
 
 pub fn update_k(market: &mut Market, update_k_result: &UpdateKResult) -> ClearingHouseResult {
-    market.amm.sqrt_k = update_k_result.sqrt_k;
     market.amm.base_asset_reserve = update_k_result.base_asset_reserve;
     market.amm.quote_asset_reserve = update_k_result.quote_asset_reserve;
+    market.amm.sqrt_k = update_k_result.sqrt_k;
 
     let swap_direction = if market.amm.net_base_asset_amount > 0 {
         SwapDirection::Add
@@ -1183,6 +1223,11 @@ pub fn update_k(market: &mut Market, update_k_result: &UpdateKResult) -> Clearin
     )?;
 
     market.amm.terminal_quote_asset_reserve = new_terminal_quote_reserve;
+
+    let (min_base_asset_reserve, max_base_asset_reserve) =
+        calculate_bid_ask_bounds(market.amm.sqrt_k)?;
+    market.amm.min_base_asset_reserve = min_base_asset_reserve;
+    market.amm.max_base_asset_reserve = max_base_asset_reserve;
 
     Ok(())
 }
@@ -1241,7 +1286,10 @@ pub fn calculate_max_base_asset_amount_fillable(amm: &AMM) -> ClearingHouseResul
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::math::constants::MARK_PRICE_PRECISION;
+    use crate::controller::amm::update_spreads;
+    use crate::controller::lp::settle_lp_position;
+    use crate::math::constants::{MARK_PRICE_PRECISION, QUOTE_PRECISION_I128};
+    use crate::state::user::MarketPosition;
 
     #[test]
     fn calculate_spread_tests() {
@@ -1414,6 +1462,28 @@ mod test {
         assert_eq!(long_spread_btc1, 500 / 2);
         // assert_eq!(short_spread_btc1, 197670);
         assert_eq!(short_spread_btc1, 197668); // max spread
+    }
+
+    #[test]
+    fn k_update_results_bound_flag() {
+        let init_reserves = 100 * AMM_RESERVE_PRECISION;
+        let amm = AMM {
+            sqrt_k: init_reserves,
+            base_asset_reserve: init_reserves,
+            quote_asset_reserve: init_reserves,
+            ..AMM::default()
+        };
+        let market = Market {
+            amm,
+            ..Market::default()
+        };
+
+        let new_sqrt_k = U192::from(AMM_RESERVE_PRECISION);
+        let is_error = get_update_k_result(&market, new_sqrt_k, true).is_err();
+        assert!(is_error);
+
+        let is_ok = get_update_k_result(&market, new_sqrt_k, false).is_ok();
+        assert!(is_ok)
     }
 
     #[test]
@@ -1618,7 +1688,8 @@ mod test {
         };
         // increase k by .25%
         let update_k_up =
-            get_update_k_result(&market, bn::U192::from(501 * AMM_RESERVE_PRECISION)).unwrap();
+            get_update_k_result(&market, bn::U192::from(501 * AMM_RESERVE_PRECISION), true)
+                .unwrap();
         let (t_price, t_qar, t_bar) = calculate_terminal_price_and_reserves(&market).unwrap();
 
         // new terminal reserves are balanced, terminal price = peg)
@@ -1718,5 +1789,154 @@ mod test {
         assert!(numer1 < denom1);
         assert_eq!(numer1, 978000); // 2.2% decrease
         assert_eq!(denom1, 1000000);
+    }
+
+    #[test]
+    fn calculate_k_with_lps_tests() {
+        let mut market = Market {
+            amm: AMM {
+                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                terminal_quote_asset_reserve: 999900009999000 * AMM_RESERVE_PRECISION,
+                sqrt_k: 100 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 50_000_000,
+                net_base_asset_amount: (AMM_RESERVE_PRECISION / 10) as i128,
+                base_asset_amount_step_size: 3,
+                user_lp_shares: AMM_RESERVE_PRECISION,
+                market_position_per_lp: MarketPosition {
+                    base_asset_amount: 1,
+                    quote_asset_amount: -QUOTE_PRECISION_I128,
+                    ..MarketPosition::default()
+                },
+                ..AMM::default()
+            },
+            ..Market::default()
+        };
+
+        let mut position = MarketPosition {
+            lp_shares: AMM_RESERVE_PRECISION,
+            ..MarketPosition::default()
+        };
+
+        let mark_price = market.amm.mark_price().unwrap();
+        update_spreads(&mut market.amm, mark_price).unwrap();
+
+        settle_lp_position(&mut position, &mut market).unwrap();
+
+        assert_eq!(position.base_asset_amount, 0);
+        assert_eq!(position.quote_asset_amount, -QUOTE_PRECISION_I128);
+        assert_eq!(position.last_net_base_asset_amount_per_lp, 0);
+        assert_eq!(
+            position.last_net_quote_asset_amount_per_lp,
+            -QUOTE_PRECISION_I128
+        );
+
+        // increase k by 1%
+        let update_k_up =
+            get_update_k_result(&market, bn::U192::from(101 * AMM_RESERVE_PRECISION), false)
+                .unwrap();
+        let (t_price, _t_qar, _t_bar) = calculate_terminal_price_and_reserves(&market).unwrap();
+
+        // new terminal reserves are balanced, terminal price = peg)
+        // assert_eq!(t_qar, 999900009999000);
+        // assert_eq!(t_bar, 1000100000000000);
+        assert_eq!(t_price, 499001498002497); //
+                                              // assert_eq!(update_k_up.sqrt_k, 101 * AMM_RESERVE_PRECISION);
+
+        let cost = adjust_k_cost(&mut market, &update_k_up).unwrap();
+        assert_eq!(
+            market.amm.net_base_asset_amount,
+            (AMM_RESERVE_PRECISION / 10) as i128
+        );
+        assert_eq!(cost, 50_404); //0.05
+
+        // lp whale adds
+        let lp_whale_amount = 1000 * AMM_RESERVE_PRECISION;
+
+        position.lp_shares += lp_whale_amount;
+        let update_k_lp_whale = get_update_k_result(
+            &market,
+            bn::U192::from(market.amm.sqrt_k + lp_whale_amount),
+            false,
+        )
+        .unwrap();
+        update_k(&mut market, &update_k_lp_whale).unwrap();
+        market.amm.user_lp_shares += lp_whale_amount;
+
+        // ensure same cost
+        let update_k_up =
+            get_update_k_result(&market, bn::U192::from(1101 * AMM_RESERVE_PRECISION), false)
+                .unwrap();
+        let cost = adjust_k_cost(&mut market, &update_k_up).unwrap();
+        assert_eq!(
+            market.amm.net_base_asset_amount,
+            (AMM_RESERVE_PRECISION / 10) as i128
+        );
+        assert_eq!(cost, 50_404); //0.05
+
+        let update_k_down =
+            get_update_k_result(&market, bn::U192::from(1001 * AMM_RESERVE_PRECISION), false)
+                .unwrap();
+        let cost = adjust_k_cost(&mut market, &update_k_down).unwrap();
+        assert_eq!(cost, -4994954591); //amm rug
+
+        // lp whale removes
+        position.lp_shares -= lp_whale_amount;
+        let update_k_lp_whale = get_update_k_result(
+            &market,
+            bn::U192::from(market.amm.sqrt_k - lp_whale_amount),
+            false,
+        )
+        .unwrap();
+        update_k(&mut market, &update_k_lp_whale).unwrap();
+        market.amm.user_lp_shares -= lp_whale_amount;
+
+        // ensure same cost
+        let update_k_up =
+            get_update_k_result(&market, bn::U192::from(101 * AMM_RESERVE_PRECISION), false)
+                .unwrap();
+        let cost = adjust_k_cost(&mut market, &update_k_up).unwrap();
+        assert_eq!(
+            market.amm.net_base_asset_amount,
+            (AMM_RESERVE_PRECISION / 10) as i128
+        );
+        assert_eq!(cost, 50_404); //0.05
+
+        let update_k_down =
+            get_update_k_result(&market, bn::U192::from(78 * AMM_RESERVE_PRECISION), false)
+                .unwrap();
+        let cost = adjust_k_cost(&mut market, &update_k_down).unwrap();
+        assert_eq!(cost, -1439676); //0.05
+
+        // lp owns 50% of vAMM, same k
+        position.lp_shares = 50 * AMM_RESERVE_PRECISION;
+        market.amm.user_lp_shares = 50 * AMM_RESERVE_PRECISION;
+        // cost to increase k is always positive when imbalanced
+        let cost = adjust_k_cost(&mut market, &update_k_up).unwrap();
+        assert_eq!(
+            market.amm.net_base_asset_amount,
+            (AMM_RESERVE_PRECISION / 10) as i128
+        );
+        assert_eq!(cost, 195_304); //0.19
+
+        // lp owns 99% of vAMM, same k
+        position.lp_shares = 99 * AMM_RESERVE_PRECISION;
+        market.amm.user_lp_shares = 99 * AMM_RESERVE_PRECISION;
+        let cost2 = adjust_k_cost(&mut market, &update_k_up).unwrap();
+        assert!(cost2 > cost);
+        assert_eq!(cost2, 216450216); //216.45
+
+        // lp owns 100% of vAMM, same k
+        position.lp_shares = 100 * AMM_RESERVE_PRECISION;
+        market.amm.user_lp_shares = 100 * AMM_RESERVE_PRECISION;
+        let cost2 = adjust_k_cost(&mut market, &update_k_up).unwrap();
+        assert!(cost2 > cost);
+        assert_eq!(cost2, 4545454545);
+
+        // todo: support this
+        //  market.amm.net_base_asset_amount = -(AMM_RESERVE_PRECISION as i128);
+        //  let cost2 = adjust_k_cost(&mut market, &update_k_up).unwrap();
+        //  assert!(cost2 > cost);
+        //  assert_eq!(cost2, 4545454545);
     }
 }
