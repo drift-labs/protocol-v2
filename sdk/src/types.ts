@@ -462,8 +462,6 @@ export type UserAccount = {
 	name: number[];
 	userId: number;
 	bankBalances: UserBankBalance[];
-	collateral: BN;
-	cumulativeDeposits: BN;
 	positions: UserPosition[];
 	orders: Order[];
 	beingLiquidated: boolean;
