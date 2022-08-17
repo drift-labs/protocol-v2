@@ -404,6 +404,19 @@ export type UserPosition = {
 
 export type UserStatsAccount = {
 	numberOfUsers: number;
+	makerVolume30D: BN;
+	takerVolume30D: BN;
+	fillerVolume30D: BN;
+	lastMakerVolume30DTs: BN;
+	lastTakerVolume30DTs: BN;
+	lastFillerVolume30DTs: BN;
+	fees: {
+		totalFeePaid: BN;
+		totalFeeRebate: BN;
+		totalTokenDiscount: BN;
+		totalReferralReward: BN;
+		totalRefereeDiscount: BN;
+	};
 };
 
 export type UserAccount = {
@@ -413,13 +426,6 @@ export type UserAccount = {
 	bankBalances: UserBankBalance[];
 	collateral: BN;
 	cumulativeDeposits: BN;
-	fees: {
-		totalFeePaid: BN;
-		totalFeeRebate: BN;
-		totalTokenDiscount: BN;
-		totalReferralReward: BN;
-		totalRefereeDiscount: BN;
-	};
 	positions: UserPosition[];
 	orders: Order[];
 	beingLiquidated: boolean;

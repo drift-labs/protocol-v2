@@ -201,8 +201,12 @@ describe('post only', () => {
 		assert(position.quoteEntryAmount.eq(new BN(-1000001)));
 		assert(position.quoteAssetAmount.eq(new BN(-1000001)));
 		assert(clearingHouse.getQuoteAssetTokenAmount().eq(usdcAmount));
-		assert(clearingHouseUser.getUserAccount().fees.totalFeePaid.eq(ZERO));
-		assert(clearingHouseUser.getUserAccount().fees.totalFeePaid.eq(ZERO));
+		assert(
+			(await clearingHouseUser.getUserStatsAccount()).fees.totalFeePaid.eq(ZERO)
+		);
+		assert(
+			(await clearingHouseUser.getUserStatsAccount()).fees.totalFeePaid.eq(ZERO)
+		);
 
 		await fillerClearingHouse.fetchAccounts();
 		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
@@ -286,8 +290,14 @@ describe('post only', () => {
 		assert(position.baseAssetAmount.abs().eq(baseAssetAmount));
 		assert(position.quoteEntryAmount.eq(new BN(1000000)));
 		assert(clearingHouse.getQuoteAssetTokenAmount().eq(usdcAmount));
-		assert(clearingHouseUser.getUserAccount().fees.totalFeePaid.eq(ZERO));
-		assert(clearingHouseUser.getUserAccount().fees.totalFeePaid.eq(new BN(0)));
+		assert(
+			(await clearingHouseUser.getUserStatsAccount()).fees.totalFeePaid.eq(ZERO)
+		);
+		assert(
+			(await clearingHouseUser.getUserStatsAccount()).fees.totalFeePaid.eq(
+				new BN(0)
+			)
+		);
 
 		await fillerClearingHouse.fetchAccounts();
 		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];

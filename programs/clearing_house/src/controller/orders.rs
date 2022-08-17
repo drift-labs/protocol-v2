@@ -1009,7 +1009,7 @@ pub fn fulfill_order_with_amm(
     user_key: &Pubkey,
     filler_key: &Pubkey,
     filler: &mut Option<&mut User>,
-    _filler_stats: &mut Option<&mut UserStats>,
+    filler_stats: &mut Option<&mut UserStats>,
     fee_structure: &FeeStructure,
     order_records: &mut Vec<OrderRecord>,
 ) -> ClearingHouseResult<(u128, bool)> {
@@ -1119,6 +1119,11 @@ pub fn fulfill_order_with_amm(
             &mut filler.positions[position_index],
             cast(filler_reward)?,
         )?;
+
+        filler_stats
+            .as_mut()
+            .unwrap()
+            .update_filler_volume(cast(quote_asset_amount)?, now)?;
     }
 
     update_order_after_fill(

@@ -372,6 +372,7 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(taker_stats.fees.total_fee_paid, 90000);
         assert_eq!(taker_stats.fees.total_referee_discount, 0);
         assert_eq!(taker_stats.fees.total_token_discount, 0);
+        assert_eq!(taker_stats.taker_volume_30d, 180 * QUOTE_PRECISION_U64);
         assert_eq!(taker.orders[0], Order::default());
 
         let maker_position = &maker.positions[0];
@@ -384,6 +385,7 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_bids, 0);
         assert_eq!(maker_stats.fees.total_fee_rebate, 54000);
+        assert_eq!(maker_stats.maker_volume_30d, 180 * QUOTE_PRECISION_U64);
         assert_eq!(maker.orders[0], Order::default());
 
         assert_eq!(market.amm.net_base_asset_amount, 0);
@@ -493,6 +495,7 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(taker_stats.fees.total_fee_paid, 70000);
         assert_eq!(taker_stats.fees.total_referee_discount, 0);
         assert_eq!(taker_stats.fees.total_token_discount, 0);
+        assert_eq!(taker_stats.taker_volume_30d, 140 * QUOTE_PRECISION_U64);
         assert_eq!(taker.orders[0], Order::default());
 
         let maker_position = &maker.positions[0];
@@ -505,6 +508,7 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_bids, 0);
         assert_eq!(maker_stats.fees.total_fee_rebate, 42000);
+        assert_eq!(maker_stats.maker_volume_30d, 140 * QUOTE_PRECISION_U64);
         assert_eq!(maker.orders[0], Order::default());
 
         assert_eq!(market.amm.net_base_asset_amount, 0);
@@ -936,6 +940,7 @@ pub mod fulfill_order_with_maker_order {
             taker_position.quote_entry_amount,
             -120 * QUOTE_PRECISION_I128
         );
+        assert_eq!(taker_stats.taker_volume_30d, 120 * QUOTE_PRECISION_U64);
 
         let maker_position = &maker.positions[0];
         assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I128);
@@ -944,6 +949,7 @@ pub mod fulfill_order_with_maker_order {
             maker_position.quote_entry_amount,
             120 * QUOTE_PRECISION_I128
         );
+        assert_eq!(maker_stats.maker_volume_30d, 120 * QUOTE_PRECISION_U64);
 
         assert_eq!(market.amm.net_base_asset_amount, 0);
         assert_eq!(market.base_asset_amount_long, BASE_PRECISION_I128);
@@ -1044,6 +1050,7 @@ pub mod fulfill_order_with_maker_order {
             taker_position.quote_entry_amount,
             -120 * QUOTE_PRECISION_I128
         );
+        assert_eq!(taker_stats.taker_volume_30d, 120 * QUOTE_PRECISION_U64);
 
         let maker_position = &maker.positions[0];
         assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I128);
@@ -1052,6 +1059,7 @@ pub mod fulfill_order_with_maker_order {
             maker_position.quote_entry_amount,
             120 * QUOTE_PRECISION_I128
         );
+        assert_eq!(maker_stats.maker_volume_30d, 120 * QUOTE_PRECISION_U64);
 
         assert_eq!(market.amm.net_base_asset_amount, 0);
         assert_eq!(market.base_asset_amount_long, BASE_PRECISION_I128);
@@ -1160,6 +1168,7 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(taker_stats.fees.total_fee_paid, 75000);
         assert_eq!(taker_stats.fees.total_referee_discount, 0);
         assert_eq!(taker_stats.fees.total_token_discount, 0);
+        assert_eq!(taker_stats.taker_volume_30d, 150 * QUOTE_PRECISION_U64);
         assert_eq!(taker.orders[0], Order::default());
 
         let maker_position = &maker.positions[0];
@@ -1172,6 +1181,7 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_asks, 0);
         assert_eq!(maker_stats.fees.total_fee_rebate, 45000);
+        assert_eq!(maker_stats.maker_volume_30d, 150 * QUOTE_PRECISION_U64);
         assert_eq!(maker.orders[0], Order::default());
 
         assert_eq!(market.amm.net_base_asset_amount, 0);
@@ -1276,6 +1286,7 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_asks, 0);
         assert_eq!(maker_stats.fees.total_fee_rebate, 30000);
+        assert_eq!(maker_stats.maker_volume_30d, 100 * QUOTE_PRECISION_U64);
         assert_eq!(maker.orders[0], Order::default());
 
         let taker_position = &taker.positions[0];
@@ -1290,6 +1301,7 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(taker_stats.fees.total_fee_paid, 50000);
         assert_eq!(taker_stats.fees.total_referee_discount, 0);
         assert_eq!(taker_stats.fees.total_token_discount, 0);
+        assert_eq!(taker_stats.taker_volume_30d, 100 * QUOTE_PRECISION_U64);
         assert_eq!(taker.orders[0], Order::default());
 
         assert_eq!(market.amm.net_base_asset_amount, 0);
@@ -1396,6 +1408,7 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(maker_position.open_bids, 0);
         assert_eq!(maker_stats.fees.total_fee_rebate, 30000);
         assert_eq!(maker.orders[0], Order::default());
+        assert_eq!(maker_stats.maker_volume_30d, 100 * QUOTE_PRECISION_U64);
 
         let taker_position = &taker.positions[0];
         assert_eq!(taker_position.base_asset_amount, -BASE_PRECISION_I128);
@@ -1409,6 +1422,7 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(taker_stats.fees.total_fee_paid, 50000);
         assert_eq!(taker_stats.fees.total_referee_discount, 0);
         assert_eq!(taker_stats.fees.total_token_discount, 0);
+        assert_eq!(taker_stats.taker_volume_30d, 100 * QUOTE_PRECISION_U64);
         assert_eq!(taker.orders[0], Order::default());
 
         assert_eq!(market.amm.net_base_asset_amount, 0);
@@ -1437,7 +1451,7 @@ pub mod fulfill_order {
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BANK_CUMULATIVE_INTEREST_PRECISION, BANK_INTEREST_PRECISION,
         BANK_WEIGHT_PRECISION, BASE_PRECISION, BASE_PRECISION_I128, MARK_PRICE_PRECISION,
-        PEG_PRECISION, QUOTE_PRECISION_I128,
+        PEG_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_U64,
     };
     use crate::state::bank::{Bank, BankBalanceType};
     use crate::state::bank_map::BankMap;
@@ -1549,12 +1563,15 @@ pub mod fulfill_order {
             ..User::default()
         };
 
+        let mut filler = User::default();
+
         let fee_structure = get_fee_structure();
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
+        let mut filler_stats = UserStats::default();
 
         let (base_asset_amount, _, _) = fulfill_order(
             &mut taker,
@@ -1565,9 +1582,9 @@ pub mod fulfill_order {
             &mut Some(&mut maker_stats),
             Some(0),
             Some(&maker_key),
-            &mut None,
+            &mut Some(&mut filler),
             &filler_key,
-            &mut None,
+            &mut Some(&mut filler_stats),
             &bank_map,
             &market_map,
             &mut oracle_map,
@@ -1590,6 +1607,7 @@ pub mod fulfill_order {
         assert_eq!(taker_stats.fees.total_fee_paid, 51142);
         assert_eq!(taker_stats.fees.total_referee_discount, 0);
         assert_eq!(taker_stats.fees.total_token_discount, 0);
+        assert_eq!(taker_stats.taker_volume_30d, 102284244);
         assert_eq!(taker.orders[0], Order::default());
 
         let maker_position = &maker.positions[0];
@@ -1599,6 +1617,7 @@ pub mod fulfill_order {
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_asks, 0);
         assert_eq!(maker_stats.fees.total_fee_rebate, 15000);
+        assert_eq!(maker_stats.maker_volume_30d, 50 * QUOTE_PRECISION_U64);
         assert_eq!(maker.orders[0], Order::default());
 
         let market_after = market_map.get_ref(&0).unwrap();
@@ -1607,9 +1626,12 @@ pub mod fulfill_order {
         assert_eq!(market_after.base_asset_amount_short, -5000000000000);
         assert_eq!(market_after.amm.quote_asset_amount_long, -102284264);
         assert_eq!(market_after.amm.quote_asset_amount_short, 50000000);
-        assert_eq!(market_after.amm.total_fee, 2069149);
-        assert_eq!(market_after.amm.total_fee_minus_distributions, 2069149);
-        assert_eq!(market_after.amm.net_revenue_since_last_funding, 2069149);
+        assert_eq!(market_after.amm.total_fee, 2064035);
+        assert_eq!(market_after.amm.total_fee_minus_distributions, 2064035);
+        assert_eq!(market_after.amm.net_revenue_since_last_funding, 2064035);
+
+        assert_eq!(filler_stats.filler_volume_30d, 102284244);
+        assert_eq!(filler.positions[0].quote_asset_amount, 5114);
     }
 
     #[test]
@@ -1742,6 +1764,7 @@ pub mod fulfill_order {
         assert_eq!(taker_stats.fees.total_fee_paid, 25000);
         assert_eq!(taker_stats.fees.total_referee_discount, 0);
         assert_eq!(taker_stats.fees.total_token_discount, 0);
+        assert_eq!(taker_stats.taker_volume_30d, 50 * QUOTE_PRECISION_U64);
 
         let maker_position = &maker.positions[0];
         assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I128 / 2);
@@ -1750,6 +1773,7 @@ pub mod fulfill_order {
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_asks, 0);
         assert_eq!(maker_stats.fees.total_fee_rebate, 15000);
+        assert_eq!(maker_stats.maker_volume_30d, 50 * QUOTE_PRECISION_U64);
 
         let market_after = market_map.get_ref(&0).unwrap();
         assert_eq!(market_after.amm.net_base_asset_amount, 0);
@@ -1882,6 +1906,7 @@ pub mod fulfill_order {
         assert_eq!(taker_stats.fees.total_fee_paid, 52040);
         assert_eq!(taker_stats.fees.total_referee_discount, 0);
         assert_eq!(taker_stats.fees.total_token_discount, 0);
+        assert_eq!(taker_stats.taker_volume_30d, 104081633);
         assert_eq!(taker.orders[0], Order::default());
 
         let market_after = market_map.get_ref(&0).unwrap();
@@ -2254,6 +2279,7 @@ pub mod fulfill_order {
         assert_eq!(taker_stats.fees.total_fee_paid, 25000);
         assert_eq!(taker_stats.fees.total_referee_discount, 0);
         assert_eq!(taker_stats.fees.total_token_discount, 0);
+        assert_eq!(taker_stats.taker_volume_30d, 50 * QUOTE_PRECISION_U64);
 
         let taker_order = &taker.orders[0].clone();
         assert_eq!(taker_order.base_asset_amount_filled, BASE_PRECISION / 2);
@@ -2271,6 +2297,7 @@ pub mod fulfill_order {
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_asks, 0);
         assert_eq!(maker_stats.fees.total_fee_rebate, 15000);
+        assert_eq!(maker_stats.maker_volume_30d, 50 * QUOTE_PRECISION_U64);
 
         assert_eq!(maker.orders[1], Order::default());
 
