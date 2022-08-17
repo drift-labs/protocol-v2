@@ -187,6 +187,7 @@ pub struct MarketPosition {
     pub open_orders: u128,
     pub open_bids: i128,
     pub open_asks: i128,
+    pub realized_pnl: i64,
 
     // upgrade-ability
     pub padding0: u128,
