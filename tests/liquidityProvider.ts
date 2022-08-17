@@ -456,19 +456,20 @@ describe('liquidity providing', () => {
 		console.log(
 			'simulated settle position:',
 			settledLPPosition.baseAssetAmount.toString(),
-			settledLPPosition.quoteAssetAmount.toString()
+			settledLPPosition.quoteAssetAmount.toString(),
+			settledLPPosition.quoteEntryAmount.toString()
 		);
-
-		// assert(settledLPPosition.baseAssetAmount.eq(position.baseAssetAmount));
-		// assert(settledLPPosition.quoteAssetAmount.eq(position.quoteAssetAmount));
-		// assert(settledLPPosition.quoteEntryAmount.eq(position.quoteEntryAmount));
 
 		// gets a short on settle
 		console.log(
 			position.baseAssetAmount.toString(),
 			position.quoteAssetAmount.toString(),
-			position.lpShares.toString()
+			position.quoteEntryAmount.toString()
 		);
+
+		assert(settledLPPosition.baseAssetAmount.eq(position.baseAssetAmount));
+		assert(settledLPPosition.quoteAssetAmount.eq(position.quoteAssetAmount));
+		assert(settledLPPosition.quoteEntryAmount.eq(position.quoteEntryAmount));
 
 		assert(position.baseAssetAmount.lt(ZERO));
 		assert(position.quoteAssetAmount.gt(ZERO));

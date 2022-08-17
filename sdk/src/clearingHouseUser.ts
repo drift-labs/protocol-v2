@@ -207,7 +207,7 @@ export class ClearingHouseUser {
 		const _standardizedBaa = deltaBaa.sub(remainder);
 
 		let remainderBaa;
-		if (_standardizedBaa.gte(market.amm.baseAssetAmountStepSize)) {
+		if (_standardizedBaa.abs().gte(market.amm.baseAssetAmountStepSize)) {
 			remainderBaa = remainder;
 		} else {
 			remainderBaa = deltaBaa;
@@ -229,7 +229,7 @@ export class ClearingHouseUser {
 			updateType = 'increase';
 		} else if (position.baseAssetAmount.abs().gt(deltaBaa.abs())) {
 			updateType = 'reduce';
-		} else if (position.baseAssetAmount.abs().gte(deltaBaa.abs())) {
+		} else if (position.baseAssetAmount.abs().eq(deltaBaa.abs())) {
 			updateType = 'close';
 		} else {
 			updateType = 'flip';
@@ -253,6 +253,7 @@ export class ClearingHouseUser {
 			);
 			pnl = position.quoteEntryAmount.add(deltaQaa.sub(newQuoteEntry));
 		}
+		position.quoteEntryAmount = newQuoteEntry;
 
 		if (position.baseAssetAmount.gt(ZERO)) {
 			position.lastCumulativeFundingRate = market.amm.cumulativeFundingRateLong;
