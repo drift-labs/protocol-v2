@@ -54,7 +54,7 @@ impl<'a> MarketMap<'a> {
                 break;
             }
             let market_index = u64::from_le_bytes(*array_ref![data, 8, 8]);
-            let is_initialized = array_ref![data, 48, 1];
+            // let is_initialized = array_ref![data, 48, 1];
 
             let account_info = account_info_iter.next().unwrap();
 

@@ -67,6 +67,7 @@ pub fn get_token_amount(
 pub struct InterestAccumulated {
     pub borrow_interest: u128,
     pub deposit_interest: u128,
+    pub utilization: u128,
 }
 
 pub fn calculate_accumulated_interest(
@@ -96,6 +97,7 @@ pub fn calculate_accumulated_interest(
         return Ok(InterestAccumulated {
             borrow_interest: 0,
             deposit_interest: 0,
+            utilization: 0,
         });
     }
 
@@ -181,6 +183,7 @@ pub fn calculate_accumulated_interest(
     Ok(InterestAccumulated {
         borrow_interest,
         deposit_interest,
+        utilization,
     })
 }
 
@@ -209,4 +212,50 @@ pub fn get_balance_value(
 ) -> ClearingHouseResult<u128> {
     let (value, _) = get_balance_value_and_token_amount(bank_balance, bank, oracle_price_data)?;
     Ok(value)
+}
+
+pub fn check_withdraw_limits(bank: &Bank) -> ClearingHouseResult<bool> {
+    let deposit_token_amount =
+        get_token_amount(bank.deposit_balance, bank, &BankBalanceType::Deposit)?;
+    let borrow_token_amount =
+        get_token_amount(bank.borrow_balance, bank, &BankBalanceType::Borrow)?;
+
+    let max_borrow_token = bank.withdraw_guard_threshold.max(
+        (deposit_token_amount / 6)
+            .max(
+                bank.borrow_token_twap
+                    .checked_add(bank.borrow_token_twap / 5)
+                    .ok_or_else(math_error!())?,
+            )
+            .min(
+                deposit_token_amount
+                    .checked_sub(deposit_token_amount / 10)
+                    .ok_or_else(math_error!())?,
+            ),
+    ); // between ~15-90% utilization with friction on twap
+
+    let min_deposit_token = bank
+        .deposit_token_twap
+        .checked_sub(
+            (bank.deposit_token_twap / 5)
+                .max(bank.withdraw_guard_threshold.min(bank.deposit_token_twap)),
+        )
+        .ok_or_else(math_error!())?;
+    // friction to decrease utilization (if above withdraw guard threshold)
+
+    let valid_withdrawal =
+        deposit_token_amount >= min_deposit_token && borrow_token_amount <= max_borrow_token;
+
+    if !valid_withdrawal {
+        msg!(
+            "withdraw_guard_threshold={:?}",
+            bank.withdraw_guard_threshold
+        );
+        msg!("min_deposit_token={:?}", min_deposit_token);
+        msg!("deposit_token_amount={:?}", deposit_token_amount);
+        msg!("max_borrow_token={:?}", max_borrow_token);
+        msg!("borrow_token_amount={:?}", borrow_token_amount);
+    }
+
+    Ok(valid_withdrawal)
 }

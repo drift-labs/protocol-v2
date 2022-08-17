@@ -753,14 +753,17 @@ export class ClearingHouseUser {
 							position,
 							this.getOracleDataForMarket(market.marketIndex)
 						);
-						const marketMarginRequirement = positionValue;
-						new BN(
-							calculateMarketMarginRatio(
-								market,
-								position.baseAssetAmount.abs(),
-								'Maintenance'
+						const marketMarginRequirement = positionValue
+							.mul(
+								new BN(
+									calculateMarketMarginRatio(
+										market,
+										position.baseAssetAmount.abs(),
+										'Maintenance'
+									)
+								)
 							)
-						).div(MARGIN_PRECISION);
+							.div(MARGIN_PRECISION);
 						totalMarginRequirement = totalMarginRequirement.add(
 							marketMarginRequirement
 						);

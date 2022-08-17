@@ -1334,6 +1334,32 @@
       ]
     },
     {
+      "name": "updateBankWithdrawGuardThreshold",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "bank",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "withdrawGuardThreshold",
+          "type": "u128"
+        }
+      ]
+    },
+    {
       "name": "updateMarketImfFactor",
       "accounts": [
         {
@@ -2001,6 +2027,18 @@
             "type": "u128"
           },
           {
+            "name": "depositTokenTwap",
+            "type": "u128"
+          },
+          {
+            "name": "borrowTokenTwap",
+            "type": "u128"
+          },
+          {
+            "name": "utilizationTwap",
+            "type": "u128"
+          },
+          {
             "name": "cumulativeDepositInterest",
             "type": "u128"
           },
@@ -2034,6 +2072,10 @@
           },
           {
             "name": "liquidationFee",
+            "type": "u128"
+          },
+          {
+            "name": "withdrawGuardThreshold",
             "type": "u128"
           }
         ]
@@ -2679,6 +2721,10 @@
             "type": "i128"
           },
           {
+            "name": "lastOraclePriceTwap5min",
+            "type": "i128"
+          },
+          {
             "name": "lastOraclePriceTwapTs",
             "type": "i64"
           },
@@ -2764,6 +2810,10 @@
           },
           {
             "name": "lastMarkPriceTwap",
+            "type": "u128"
+          },
+          {
+            "name": "lastMarkPriceTwap5min",
             "type": "u128"
           },
           {
@@ -2879,6 +2929,10 @@
           {
             "name": "lastUpdateSlot",
             "type": "u64"
+          },
+          {
+            "name": "lastOracleValid",
+            "type": "bool"
           },
           {
             "name": "padding0",
@@ -3399,6 +3453,20 @@
           },
           {
             "name": "Flip"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TwapPeriod",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "FundingPeriod"
+          },
+          {
+            "name": "FiveMin"
           }
         ]
       }
@@ -4676,6 +4744,11 @@
     },
     {
       "code": 6102,
+      "name": "BankDailyWithdrawLimit",
+      "msg": "BankDailyWithdrawLimit"
+    },
+    {
+      "code": 6103,
       "name": "DefaultError",
       "msg": "DefaultError"
     }
