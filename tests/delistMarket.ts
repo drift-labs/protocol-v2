@@ -338,4 +338,22 @@ describe('delist market', () => {
 
 		assert(market.settlementPrice.gt(ZERO));
 	});
+
+	it('settle expired market position', async () => {
+		const marketIndex = new BN(0);
+		const loserUser0 = clearingHouseLoser.getUserAccount();
+		assert(loserUser0.positions[0].baseAssetAmount.gt(new BN(0)));
+		assert(loserUser0.positions[0].quoteAssetAmount.lt(new BN(0)));
+
+		const txSig = await clearingHouseLoser.settleExpiredPosition(
+			await clearingHouse.getUserAccountPublicKey(),
+			clearingHouse.getUserAccount(),
+			marketIndex
+		);
+		await printTxLogs(connection, txSig);
+		clearingHouseLoser.fetchAccounts();
+		const loserUser = clearingHouseLoser.getUserAccount();
+		// assert(loserUser.positions[0].baseAssetAmount.eq(new BN(0)));
+		// assert(loserUser.positions[0].quoteAssetAmount.lt(new BN(0)));
+	});
 });
