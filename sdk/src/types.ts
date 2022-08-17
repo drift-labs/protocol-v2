@@ -407,6 +407,7 @@ export type UserPosition = {
 	openOrders: BN;
 	openBids: BN;
 	openAsks: BN;
+	realizedPnl: BN;
 };
 
 export type UserAccount = {
