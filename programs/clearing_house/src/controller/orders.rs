@@ -6,7 +6,7 @@ use crate::controller;
 use crate::controller::position;
 use crate::controller::position::{
     add_new_position, decrease_open_bids_and_asks, get_position_index, increase_open_bids_and_asks,
-    update_position_and_market, PositionDirection,
+    update_position_and_market, update_user_and_market_position, PositionDirection,
 };
 use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
@@ -17,7 +17,7 @@ use crate::math::amm::is_oracle_valid;
 use crate::math::auction::{
     calculate_auction_end_price, calculate_auction_start_price, is_auction_complete,
 };
-use crate::math::casting::cast;
+use crate::math::casting::{cast, cast_to_i128};
 use crate::math::fulfillment::determine_fulfillment_methods;
 use crate::math::liquidation::validate_user_not_being_liquidated;
 use crate::math::matching::{
@@ -64,7 +64,7 @@ pub fn place_order(
     controller::funding::settle_funding_payment(
         user,
         &user_key,
-        market_map.get_ref_mut(&params.market_index)?.deref_mut(),
+        market_map.get_ref(&params.market_index)?.deref(),
         now,
     )?;
 
@@ -326,7 +326,7 @@ pub fn cancel_order(
     controller::funding::settle_funding_payment(
         user,
         user_key,
-        market_map.get_ref_mut(&order_market_index)?.deref_mut(),
+        market_map.get_ref(&order_market_index)?.deref(),
         now,
     )?;
 
@@ -417,7 +417,7 @@ pub fn fill_order(
     controller::funding::settle_funding_payment(
         user,
         &user_key,
-        market_map.get_ref_mut(&market_index)?.deref_mut(),
+        market_map.get_ref(&market_index)?.deref(),
         now,
     )?;
 
@@ -450,12 +450,11 @@ pub fn fill_order(
     {
         let market = &mut market_map.get_ref_mut(&market_index)?;
         validate!(
-            (slot == market.amm.last_update_slot || market.amm.curve_update_intensity == 0),
+            ((oracle_map.slot == market.amm.last_update_slot && market.amm.last_oracle_valid)
+                || market.amm.curve_update_intensity == 0),
             ErrorCode::AMMNotUpdatedInSameSlot,
             "AMM must be updated in a prior instruction within same slot"
         )?;
-
-        oracle_mark_spread_pct_before = market.amm.last_oracle_mark_spread_pct;
 
         let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
 
@@ -466,6 +465,8 @@ pub fn fill_order(
         )?;
 
         mark_price_before = market.amm.mark_price()?;
+        oracle_mark_spread_pct_before =
+            amm::calculate_oracle_twap_5min_mark_spread_pct(&market.amm, Some(mark_price_before))?;
         oracle_price = oracle_price_data.price;
     }
 
@@ -583,12 +584,8 @@ pub fn fill_order(
     {
         let market = market_map.get_ref_mut(&market_index)?;
         mark_price_after = market.amm.mark_price()?;
-        let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
-        oracle_mark_spread_pct_after = amm::calculate_oracle_mark_spread_pct(
-            &market.amm,
-            oracle_price_data,
-            Some(mark_price_after),
-        )?;
+        oracle_mark_spread_pct_after =
+            amm::calculate_oracle_twap_5min_mark_spread_pct(&market.amm, Some(mark_price_after))?;
     }
 
     let is_oracle_mark_too_divergent_before = amm::is_oracle_mark_too_divergent(
@@ -975,13 +972,12 @@ pub fn fulfill_order_with_amm(
         slot,
     )?;
 
-    let (order_direction, order_post_only) =
-        get_struct_values!(user.orders[order_index], direction, post_only);
-
     if base_asset_amount == 0 {
         msg!("Amm cant fulfill order");
         return Ok((0, false));
     }
+
+    let (order_post_only,) = get_struct_values!(user.orders[order_index], post_only);
 
     let position_index = get_position_index(&user.positions, market.market_index)?;
 
@@ -991,20 +987,25 @@ pub fn fulfill_order_with_amm(
         None
     };
 
-    let (potentially_risk_increasing, _, quote_asset_amount, quote_asset_amount_surplus, mut pnl) =
-        controller::position::update_position_with_base_asset_amount(
-            base_asset_amount,
-            order_direction,
-            market,
-            user,
-            position_index,
-            mark_price_before,
-            now,
-            maker_limit_price,
-        )?;
-
     let (order_post_only, order_ts, order_direction) =
         get_struct_values!(user.orders[order_index], post_only, ts, direction);
+
+    let (
+        potentially_risk_increasing,
+        _,
+        quote_asset_amount,
+        quote_asset_amount_surplus,
+        position_delta,
+    ) = controller::position::swap_base_asset_position_delta(
+        base_asset_amount,
+        order_direction,
+        market,
+        user,
+        position_index,
+        mark_price_before,
+        now,
+        maker_limit_price,
+    )?;
 
     let (user_fee, fee_to_market, filler_reward) =
         fees::calculate_fee_for_order_fulfill_against_amm(
@@ -1017,7 +1018,17 @@ pub fn fulfill_order_with_amm(
             order_post_only,
         )?;
 
-    let position_index = get_position_index(&user.positions, market.market_index)?;
+    let market_postion_unsettled_pnl_delta = cast_to_i128(user_fee)?
+        .checked_sub(cast_to_i128(filler_reward)?)
+        .ok_or_else(math_error!())?;
+
+    let mut pnl = update_user_and_market_position(
+        &mut user.positions[position_index],
+        market,
+        &position_delta,
+        market_postion_unsettled_pnl_delta,
+    )?;
+
     // Increment the clearing house's total fee variables
     market.amm.total_fee = market
         .amm
@@ -1051,6 +1062,8 @@ pub fn fulfill_order_with_amm(
         .total_fee_paid
         .checked_add(cast(user_fee)?)
         .ok_or_else(math_error!())?;
+
+    let position_index = get_position_index(&user.positions, market.market_index)?;
 
     controller::position::update_quote_asset_amount(
         &mut user.positions[position_index],
@@ -1097,7 +1110,7 @@ pub fn fulfill_order_with_amm(
         taker_pnl,
         maker_pnl,
         action: OrderAction::Fill,
-        action_explanation: OrderActionExplanation::None,
+        action_explanation: OrderActionExplanation::OrderFilledWithAMM,
         filler: *filler_key,
         fill_record_id,
         market_index: market.market_index,
@@ -1215,6 +1228,13 @@ pub fn fulfill_order_with_match(
         )?;
 
     // Increment the markets house's total fee variables
+    market.amm.market_position.quote_asset_amount = market
+        .amm
+        .market_position
+        .quote_asset_amount
+        .checked_add(cast_to_i128(fee_to_market)?)
+        .ok_or_else(math_error!())?;
+
     market.amm.total_fee = market
         .amm
         .total_fee
@@ -1310,7 +1330,7 @@ pub fn fulfill_order_with_match(
         maker_order: maker.orders[maker_order_index],
         maker_pnl,
         action: OrderAction::Fill,
-        action_explanation: OrderActionExplanation::None,
+        action_explanation: OrderActionExplanation::OrderFilledWithMatch,
         filler: *filler_key,
         fill_record_id,
         market_index: market.market_index,
@@ -1388,6 +1408,7 @@ fn get_valid_oracle_price(
             msg!("Invalid oracle for order with oracle price offset");
             return Err(print_error!(ErrorCode::InvalidOracle)());
         } else {
+            msg!("Oracle is invalid");
             None
         }
     };

@@ -191,6 +191,7 @@ describe('admin', () => {
 				rewardDenominator: new BN(1),
 				timeBasedRewardLowerBound: new BN(1),
 			},
+			cancelOrderFee: new BN(0),
 		};
 
 		await clearingHouse.updateFee(newFeeStructure);

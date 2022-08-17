@@ -54,9 +54,14 @@ pub fn calculate_funding_rate_long_short(
 ) -> ClearingHouseResult<(i128, i128, i128)> {
     // Calculate the funding payment owed by the net_market_position if funding is not capped
     // If the net market position owes funding payment, the clearing house receives payment
-    let net_market_position = market.amm.net_base_asset_amount;
+    let settled_net_market_position = market
+        .amm
+        .net_base_asset_amount
+        .checked_add(market.amm.net_unsettled_lp_base_asset_amount)
+        .ok_or_else(math_error!())?;
+
     let net_market_position_funding_payment =
-        calculate_funding_payment_in_quote_precision(funding_rate, net_market_position)?;
+        calculate_funding_payment_in_quote_precision(funding_rate, settled_net_market_position)?;
     let uncapped_funding_pnl = -net_market_position_funding_payment;
 
     // If the uncapped_funding_pnl is positive, the clearing house receives money.
@@ -66,11 +71,13 @@ pub fn calculate_funding_rate_long_short(
             .total_fee_minus_distributions
             .checked_add(uncapped_funding_pnl)
             .ok_or_else(math_error!())?;
+
         market.amm.net_revenue_since_last_funding = market
             .amm
             .net_revenue_since_last_funding
             .checked_add(uncapped_funding_pnl as i64)
             .ok_or_else(math_error!())?;
+
         return Ok((funding_rate, funding_rate, uncapped_funding_pnl));
     }
 
@@ -99,6 +106,7 @@ pub fn calculate_funding_rate_long_short(
         .net_revenue_since_last_funding
         .checked_sub(capped_funding_pnl.unsigned_abs() as i64)
         .ok_or_else(math_error!())?;
+
     let funding_rate_long = if funding_rate < 0 {
         capped_funding_rate
     } else {
@@ -235,7 +243,7 @@ fn calculate_funding_rate_from_pnl_limit(
         .ok_or_else(math_error!())
 }
 
-fn calculate_funding_payment_in_quote_precision(
+pub fn calculate_funding_payment_in_quote_precision(
     funding_rate_delta: i128,
     base_asset_amount: i128,
 ) -> ClearingHouseResult<i128> {

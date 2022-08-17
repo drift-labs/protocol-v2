@@ -404,6 +404,7 @@ export class ClearingHouse {
 	getRemainingAccounts(params: {
 		writableMarketIndex?: BN;
 		writableBankIndex?: BN;
+		readableMarketIndex?: BN;
 	}): AccountMeta[] {
 		const userAccountAndSlot = this.getUserAccountAndSlot();
 		if (!userAccountAndSlot) {
@@ -444,8 +445,7 @@ export class ClearingHouse {
 				marketAccountMap.set(marketIndexNum, {
 					pubkey: marketAccount.pubkey,
 					isSigner: false,
-					// isWritable: false, // TODO
-					isWritable: true,
+					isWritable: false,
 				});
 				oracleAccountMap.set(marketAccount.pubkey.toString(), {
 					pubkey: marketAccount.amm.oracle,
@@ -453,6 +453,22 @@ export class ClearingHouse {
 					isWritable: false,
 				});
 			}
+		}
+
+		if (params.readableMarketIndex) {
+			const marketAccount = this.getMarketAccount(
+				params.readableMarketIndex.toNumber()
+			);
+			marketAccountMap.set(params.readableMarketIndex.toNumber(), {
+				pubkey: marketAccount.pubkey,
+				isSigner: false,
+				isWritable: true,
+			});
+			oracleAccountMap.set(marketAccount.amm.oracle.toString(), {
+				pubkey: marketAccount.amm.oracle,
+				isSigner: false,
+				isWritable: false,
+			});
 		}
 
 		if (params.writableMarketIndex) {
@@ -1040,6 +1056,135 @@ export class ClearingHouse {
 		});
 	}
 
+	public async settleLP(
+		settleeUserAccountPublicKey: PublicKey,
+		marketIndex: BN
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.txSender.send(
+			wrapInTx(await this.settleLPIx(settleeUserAccountPublicKey, marketIndex)),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async settleLPIx(
+		settleeUserAccountPublicKey: PublicKey,
+		marketIndex: BN
+	): Promise<TransactionInstruction> {
+		const settleeUserAccount = (await this.program.account.user.fetch(
+			settleeUserAccountPublicKey
+		)) as UserAccount;
+		const userPositions = settleeUserAccount.positions;
+		const remainingAccounts = [];
+
+		let foundMarket = false;
+		for (const position of userPositions) {
+			if (!positionIsAvailable(position)) {
+				const marketPublicKey = await getMarketPublicKey(
+					this.program.programId,
+					position.marketIndex
+				);
+				remainingAccounts.push({
+					pubkey: marketPublicKey,
+					isWritable: true,
+					isSigner: false,
+				});
+
+				if (marketIndex.eq(position.marketIndex)) {
+					foundMarket = true;
+				}
+			}
+		}
+
+		if (!foundMarket) {
+			console.log(
+				'Warning: lp is not in the market specified -- tx will likely fail'
+			);
+		}
+
+		return this.program.instruction.settleLp(marketIndex, {
+			accounts: {
+				state: await this.getStatePublicKey(),
+				user: settleeUserAccountPublicKey,
+			},
+			remainingAccounts: remainingAccounts,
+		});
+	}
+
+	public async removeLiquidity(
+		marketIndex: BN,
+		sharesToBurn?: BN
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.txSender.send(
+			wrapInTx(await this.getRemoveLiquidityIx(marketIndex, sharesToBurn)),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getRemoveLiquidityIx(
+		marketIndex: BN,
+		sharesToBurn?: BN
+	): Promise<TransactionInstruction> {
+		const userAccountPublicKey = await this.getUserAccountPublicKey();
+
+		const remainingAccounts = this.getRemainingAccounts({
+			writableMarketIndex: marketIndex,
+		});
+
+		if (sharesToBurn == undefined) {
+			const userAccount = this.getUserAccount();
+			const marketPosition = userAccount.positions.filter((position) =>
+				position.marketIndex.eq(marketIndex)
+			)[0];
+			sharesToBurn = marketPosition.lpShares;
+			console.log('burning lp shares:', sharesToBurn.toString());
+		}
+
+		return this.program.instruction.removeLiquidity(sharesToBurn, marketIndex, {
+			accounts: {
+				state: await this.getStatePublicKey(),
+				user: userAccountPublicKey,
+				authority: this.wallet.publicKey,
+			},
+			remainingAccounts: remainingAccounts,
+		});
+	}
+
+	public async addLiquidity(
+		amount: BN,
+		marketIndex: BN
+	): Promise<TransactionSignature> {
+		const { txSig, slot } = await this.txSender.send(
+			wrapInTx(await this.getAddLiquidityIx(amount, marketIndex)),
+			[],
+			this.opts
+		);
+		this.marketLastSlotCache.set(marketIndex.toNumber(), slot);
+		return txSig;
+	}
+
+	public async getAddLiquidityIx(
+		amount: BN,
+		marketIndex: BN
+	): Promise<TransactionInstruction> {
+		const userAccountPublicKey = await this.getUserAccountPublicKey();
+		const remainingAccounts = this.getRemainingAccounts({
+			writableMarketIndex: marketIndex,
+		});
+
+		return this.program.instruction.addLiquidity(amount, marketIndex, {
+			accounts: {
+				state: await this.getStatePublicKey(),
+				user: userAccountPublicKey,
+				authority: this.wallet.publicKey,
+			},
+			remainingAccounts: remainingAccounts,
+		});
+	}
+
 	public async openPosition(
 		direction: PositionDirection,
 		amount: BN,
@@ -1078,7 +1223,7 @@ export class ClearingHouse {
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 
 		const remainingAccounts = this.getRemainingAccounts({
-			writableMarketIndex: orderParams.marketIndex,
+			readableMarketIndex: orderParams.marketIndex,
 		});
 
 		return await this.program.instruction.placeOrder(orderParams, {
@@ -1221,24 +1366,13 @@ export class ClearingHouse {
 		const bankAccountMap = new Map<number, AccountMeta>();
 		const marketAccountMap = new Map<number, AccountMeta>();
 
-		marketAccountMap.set(marketIndex.toNumber(), {
-			pubkey: marketAccount.pubkey,
-			isWritable: true,
-			isSigner: false,
-		});
-		oracleAccountMap.set(marketAccount.amm.oracle.toString(), {
-			pubkey: marketAccount.amm.oracle,
-			isWritable: false,
-			isSigner: false,
-		});
-
 		for (const bankBalance of userAccount.bankBalances) {
 			if (!bankBalance.balance.eq(ZERO)) {
 				const bankAccount = this.getBankAccount(bankBalance.bankIndex);
 				bankAccountMap.set(bankBalance.bankIndex.toNumber(), {
 					pubkey: bankAccount.pubkey,
 					isSigner: false,
-					isWritable: true,
+					isWritable: false,
 				});
 
 				if (!bankAccount.oracle.equals(PublicKey.default)) {
@@ -1259,7 +1393,7 @@ export class ClearingHouse {
 				const market = this.getMarketAccount(position.marketIndex);
 				marketAccountMap.set(position.marketIndex.toNumber(), {
 					pubkey: market.pubkey,
-					isWritable: true,
+					isWritable: false,
 					isSigner: false,
 				});
 				oracleAccountMap.set(market.amm.oracle.toString(), {
@@ -1269,6 +1403,17 @@ export class ClearingHouse {
 				});
 			}
 		}
+
+		marketAccountMap.set(marketIndex.toNumber(), {
+			pubkey: marketAccount.pubkey,
+			isWritable: true,
+			isSigner: false,
+		});
+		oracleAccountMap.set(marketAccount.amm.oracle.toString(), {
+			pubkey: marketAccount.amm.oracle,
+			isWritable: false,
+			isSigner: false,
+		});
 
 		const remainingAccounts = [
 			...oracleAccountMap.values(),
@@ -1325,24 +1470,13 @@ export class ClearingHouse {
 		const bankAccountMap = new Map<number, AccountMeta>();
 		const marketAccountMap = new Map<number, AccountMeta>();
 
-		marketAccountMap.set(marketIndex.toNumber(), {
-			pubkey: marketAccount.pubkey,
-			isWritable: true,
-			isSigner: false,
-		});
-		oracleAccountMap.set(marketAccount.amm.oracle.toString(), {
-			pubkey: marketAccount.amm.oracle,
-			isWritable: false,
-			isSigner: false,
-		});
-
 		for (const bankBalance of userAccount.bankBalances) {
 			if (!bankBalance.balance.eq(ZERO)) {
 				const bankAccount = this.getBankAccount(bankBalance.bankIndex);
 				bankAccountMap.set(bankBalance.bankIndex.toNumber(), {
 					pubkey: bankAccount.pubkey,
 					isSigner: false,
-					isWritable: true,
+					isWritable: false,
 				});
 
 				if (!bankAccount.oracle.equals(PublicKey.default)) {
@@ -1363,7 +1497,7 @@ export class ClearingHouse {
 				const market = this.getMarketAccount(position.marketIndex);
 				marketAccountMap.set(position.marketIndex.toNumber(), {
 					pubkey: market.pubkey,
-					isWritable: true,
+					isWritable: false,
 					isSigner: false,
 				});
 				oracleAccountMap.set(market.amm.oracle.toString(), {
@@ -1373,6 +1507,17 @@ export class ClearingHouse {
 				});
 			}
 		}
+
+		marketAccountMap.set(marketIndex.toNumber(), {
+			pubkey: marketAccount.pubkey,
+			isWritable: true,
+			isSigner: false,
+		});
+		oracleAccountMap.set(marketAccount.amm.oracle.toString(), {
+			pubkey: marketAccount.amm.oracle,
+			isWritable: false,
+			isSigner: false,
+		});
 
 		const remainingAccounts = [
 			...oracleAccountMap.values(),
@@ -1495,7 +1640,10 @@ export class ClearingHouse {
 	 * @param marketIndex
 	 * @returns
 	 */
-	public async closePosition(marketIndex: BN): Promise<TransactionSignature> {
+	public async closePosition(
+		marketIndex: BN,
+		limitPrice?: BN
+	): Promise<TransactionSignature> {
 		const userPosition = this.getUser().getUserPosition(marketIndex);
 		if (!userPosition) {
 			throw Error(`No position in market ${marketIndex.toString()}`);
@@ -1505,8 +1653,9 @@ export class ClearingHouse {
 			orderType: OrderType.MARKET,
 			marketIndex,
 			direction: findDirectionToClose(userPosition),
-			baseAssetAmount: userPosition.baseAssetAmount,
+			baseAssetAmount: userPosition.baseAssetAmount.abs(),
 			reduceOnly: true,
+			price: limitPrice,
 		});
 	}
 
@@ -1561,12 +1710,13 @@ export class ClearingHouse {
 		const marketAccountMap = new Map<number, AccountMeta>();
 		const oracleAccountMap = new Map<string, AccountMeta>();
 		const bankAccountMap = new Map<number, AccountMeta>();
+
 		for (const position of settleeUserAccount.positions) {
 			if (!positionIsAvailable(position)) {
 				const market = this.getMarketAccount(position.marketIndex);
 				marketAccountMap.set(position.marketIndex.toNumber(), {
 					pubkey: market.pubkey,
-					isWritable: true, // TODO
+					isWritable: false,
 					isSigner: false,
 				});
 				oracleAccountMap.set(market.amm.oracle.toString(), {
