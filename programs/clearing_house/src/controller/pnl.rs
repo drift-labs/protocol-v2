@@ -4,6 +4,7 @@ use crate::controller::funding::settle_funding_payment;
 use crate::controller::position::{
     get_position_index, update_position_and_market, update_quote_asset_amount, PositionDelta,
 };
+use crate::dlog;
 use crate::error::{ClearingHouseResult, ErrorCode};
 // use crate::math::bank_balance::get_token_amount;
 use crate::math::casting::{cast_to_i128};
@@ -172,6 +173,8 @@ pub fn settle_expired_position(
         market.settlement_price,
     )?;
 
+    dlog!(user.positions[position_index].quote_asset_amount, user.positions[position_index].base_asset_amount);
+
     let fee = base_asset_value
         .checked_mul(fee_structure.fee_numerator)
         .ok_or_else(math_error!())?
@@ -185,6 +188,8 @@ pub fn settle_expired_position(
             .checked_sub(cast_to_i128(fee)?)
             .ok_or_else(math_error!())?,
     )?;
+
+    dlog!(_oracle_price, base_asset_value, fee, unrealized_pnl, pnl_to_settle_with_user);
 
     if unrealized_pnl == 0 {
         msg!("User has no unsettled pnl for market {}", market_index);
@@ -214,13 +219,21 @@ pub fn settle_expired_position(
     let quote_entry_amount = user_position.quote_entry_amount;
 
     let position_delta = PositionDelta {
-        quote_asset_amount: -user_position.quote_asset_amount,
+        quote_asset_amount: if user_position.base_asset_amount > 0 {
+            (base_asset_value as i128)
+        } else {
+            -(base_asset_value as i128)
+        },
         base_asset_amount: -user_position.base_asset_amount,
     };
 
     let user_pnl = update_position_and_market(user_position, market, &position_delta)?;
 
     let quote_asset_amount_after = user_position.quote_asset_amount;
+    dlog!(user_pnl);
+    dlog!(user_position.base_asset_amount, user_position.quote_asset_amount);
+
+    // user.positions[position_index] = *user_position;
 
     emit!(SettlePnlRecord {
         ts: now,
@@ -231,6 +244,13 @@ pub fn settle_expired_position(
         quote_entry_amount,
         oracle_price: market.settlement_price, // todo rename this field?
     });
+
+
+    validate!(
+        user.positions[position_index].base_asset_amount == 0,
+        ErrorCode::DefaultError,
+        "Issue occured in expired settlement"
+    )?;
 
     Ok(())
 }

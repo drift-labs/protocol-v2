@@ -202,8 +202,8 @@ describe('User Account', () => {
 			BASE_PRECISION,
 			marketIndex
 		);
-		clearingHouse.fetchAccounts();
-		userAccount.fetchAccounts();
+		await clearingHouse.fetchAccounts();
+		await userAccount.fetchAccounts();
 		const marketPosition = userAccount.getUserPosition(marketIndex);
 
 		const market = clearingHouse.getMarketAccount(marketPosition.marketIndex);
@@ -228,7 +228,7 @@ describe('User Account', () => {
 		);
 		await sleep(5000);
 
-		clearingHouse.fetchAccounts();
+		await clearingHouse.fetchAccounts();
 		const oracleP2 = await getFeedData(anchor.workspace.Pyth, solUsdOracle);
 		console.log('oracleP2:', oracleP2.price);
 		const oraclePrice2 = clearingHouse.getOracleDataForMarket(
@@ -307,7 +307,7 @@ describe('User Account', () => {
 		);
 		await sleep(5000);
 
-		clearingHouse.fetchAccounts();
+		await clearingHouse.fetchAccounts();
 		const oracleP2 = await getFeedData(anchor.workspace.Pyth, solUsdOracle);
 		console.log('oracleP2:', oracleP2.price);
 		const oraclePrice2 = clearingHouse.getOracleDataForMarket(

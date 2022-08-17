@@ -204,6 +204,8 @@ describe('delist market', () => {
 			console.error(e);
 		}
 
+		const market00 = clearingHouse.getMarketAccount(new BN(0));
+
 		// sol tanks 90%
 		await clearingHouse.moveAmmToPrice(
 			new BN(0),
@@ -236,6 +238,26 @@ describe('delist market', () => {
 			bankIndex,
 			liquidatorClearingHouseWSOLAccount
 		);
+
+		const market0 = clearingHouse.getMarketAccount(new BN(0));
+		const winnerUser = clearingHouse.getUserAccount();
+		const loserUser = clearingHouseLoser.getUserAccount();
+		console.log(winnerUser.positions[0].quoteAssetAmount.toString());
+		console.log(loserUser.positions[0].quoteAssetAmount.toString());
+
+		// TODO: quoteAssetAmountShort!= sum of users
+		// assert(
+		// 	market0.amm.quoteAssetAmountShort.eq(
+		// 		winnerUser.positions[0].quoteAssetAmount
+		// 	)
+		// );
+
+		// assert(
+		// 	market0.amm.quoteAssetAmountLong.eq(
+		// 		loserUser.positions[0].quoteAssetAmount
+		// 	)
+		// );
+
 		// const solBorrow = new BN(5 * 10 ** 8);
 		// await clearingHouse.withdraw(solBorrow, new BN(1), userWSOLAccount);
 	});
@@ -344,16 +366,34 @@ describe('delist market', () => {
 		const loserUser0 = clearingHouseLoser.getUserAccount();
 		assert(loserUser0.positions[0].baseAssetAmount.gt(new BN(0)));
 		assert(loserUser0.positions[0].quoteAssetAmount.lt(new BN(0)));
+		console.log(loserUser0.positions[0]);
 
 		const txSig = await clearingHouseLoser.settleExpiredPosition(
+			await clearingHouseLoser.getUserAccountPublicKey(),
+			clearingHouseLoser.getUserAccount(),
+			marketIndex
+		);
+		await printTxLogs(connection, txSig);
+
+		// const settleRecord = eventSubscriber.getEventsArray('SettlePnlRecord')[0];
+		// console.log(settleRecord);
+
+		await clearingHouseLoser.fetchAccounts();
+		const loserUser = clearingHouseLoser.getUserAccount();
+		console.log(loserUser.positions[0]);
+		assert(loserUser.positions[0].baseAssetAmount.eq(new BN(0)));
+		assert(loserUser.positions[0].quoteAssetAmount.lt(new BN(0)));
+
+		const txSig2 = await clearingHouse.settleExpiredPosition(
 			await clearingHouse.getUserAccountPublicKey(),
 			clearingHouse.getUserAccount(),
 			marketIndex
 		);
-		await printTxLogs(connection, txSig);
-		clearingHouseLoser.fetchAccounts();
-		const loserUser = clearingHouseLoser.getUserAccount();
-		// assert(loserUser.positions[0].baseAssetAmount.eq(new BN(0)));
-		// assert(loserUser.positions[0].quoteAssetAmount.lt(new BN(0)));
+		await printTxLogs(connection, txSig2);
+		await clearingHouse.fetchAccounts();
+		const winnerUser = clearingHouse.getUserAccount();
+		console.log(winnerUser.positions[0]);
+		assert(winnerUser.positions[0].baseAssetAmount.eq(new BN(0)));
+		assert(winnerUser.positions[0].quoteAssetAmount.gt(new BN(0)));
 	});
 });
