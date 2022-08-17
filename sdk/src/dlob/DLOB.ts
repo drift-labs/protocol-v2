@@ -46,11 +46,6 @@ export type NodeToFill = {
 	makerNode?: DLOBNode;
 };
 
-// maker node must be there for crossed nodes
-type CrossedNodesToFill = NodeToFill & {
-	makerNode: DLOBNode;
-};
-
 export type NodeToTrigger = {
 	node: TriggerOrderNode;
 };
@@ -61,6 +56,7 @@ export class DLOB {
 	openOrders = new Set<string>();
 	orderLists = new Map<number, MarketNodeLists>();
 	marketIndexToAccount = new Map<number, MarketAccount>();
+	initialized = false;
 
 	private onUpdate: OrderBookCallback;
 	private onRemove: OrderBookCallback;
@@ -102,6 +98,31 @@ export class DLOB {
 		this.onRemove = onRemove;
 		this.onInsert = onInsert;
 		this.onTrigger = onTrigger;
+	}
+
+	/**
+	 * initializes a new DLOB instance
+	 *
+	 * @param clearingHouse The ClearingHouse instance to build the DLOB with
+	 * @returns a true if the DLOB was initialized, false if it was previously initialized
+	 */
+	public async init(clearingHouse: ClearingHouse): Promise<boolean> {
+		if (this.initialized) {
+			return false;
+		}
+		const programAccounts = await clearingHouse.program.account.user.all();
+		for (const programAccount of programAccounts) {
+			// @ts-ignore
+			const userAccount: UserAccount = programAccount.account;
+			const userAccountPublicKey = programAccount.publicKey;
+
+			for (const order of userAccount.orders) {
+				this.insert(order, userAccountPublicKey);
+			}
+		}
+
+		this.initialized = true;
+		return true;
 	}
 
 	public insert(order: Order, userAccount: PublicKey): void {
@@ -210,8 +231,8 @@ export class DLOB {
 		vAsk: BN,
 		slot: number,
 		oraclePriceData?: OraclePriceData
-	): CrossedNodesToFill[] {
-		const nodesToFill = new Array<CrossedNodesToFill>();
+	): NodeToFill[] {
+		const nodesToFill = new Array<NodeToFill>();
 
 		const askGenerator = this.getAsks(marketIndex, vAsk, slot, oraclePriceData);
 		const bidGenerator = this.getBids(marketIndex, vBid, slot, oraclePriceData);
@@ -230,7 +251,14 @@ export class DLOB {
 				slot
 			);
 
-			if (crossingNodes) {
+			const takerIsMaker =
+				crossingNodes?.makerNode !== undefined &&
+				crossingNodes.node.userAccount.equals(
+					crossingNodes.makerNode.userAccount
+				);
+
+			// Verify that each side is different user
+			if (crossingNodes && !takerIsMaker) {
 				nodesToFill.push(crossingNodes);
 				if (nodesToFill.length === 10) {
 					break;
@@ -425,7 +453,7 @@ export class DLOB {
 		oraclePriceData: OraclePriceData,
 		slot: number
 	): {
-		crossingNodes?: CrossedNodesToFill;
+		crossingNodes?: NodeToFill;
 		crossingSide?: Side;
 	} {
 		const bidPrice = bidNode.getPrice(oraclePriceData, slot);
@@ -439,6 +467,9 @@ export class DLOB {
 		// Cant match orders
 		if (askNode.isVammNode()) {
 			return {
+				crossingNodes: {
+					node: bidNode,
+				},
 				crossingSide: 'bid',
 			};
 		}
@@ -447,6 +478,9 @@ export class DLOB {
 		// Cant match orders
 		if (bidNode.isVammNode()) {
 			return {
+				crossingNodes: {
+					node: askNode,
+				},
 				crossingSide: 'ask',
 			};
 		}

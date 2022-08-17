@@ -112,7 +112,7 @@ export class NodeList<NodeType extends keyof DLOBNodeMap>
 				node.previous.next = node.next;
 			}
 
-			if (node.order.orderId.eq(this.head.order.orderId)) {
+			if (this.head && node.order.orderId.eq(this.head.order.orderId)) {
 				this.head = node.next;
 			}
 
