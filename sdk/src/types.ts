@@ -233,6 +233,7 @@ export type LiquidatePerpPnlForDepositRecord = {
 
 export type SettlePnlRecord = {
 	ts: BN;
+	user: PublicKey;
 	marketIndex: BN;
 	pnl: BN;
 	baseAssetAmount: BN;
