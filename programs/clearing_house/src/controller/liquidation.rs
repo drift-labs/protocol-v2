@@ -8,11 +8,14 @@ use crate::controller::position::{
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::get_then_update_id;
 use crate::math::bank_balance::get_token_amount;
+use crate::math::bankruptcy::is_user_bankrupt;
 use crate::math::casting::{cast, cast_to_i128};
 use crate::math::constants::{BANK_WEIGHT_PRECISION, LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION};
 use crate::math::liquidation::{
     calculate_asset_transfer_for_liability_transfer,
     calculate_base_asset_amount_to_cover_margin_shortage,
+    calculate_cumulative_deposit_interest_delta_to_resolve_bankruptcy,
+    calculate_funding_rate_deltas_to_resolve_bankruptcy,
     calculate_liability_transfer_implied_by_asset_amount,
     calculate_liability_transfer_to_cover_margin_shortage, calculate_liquidation_multiplier,
     get_margin_requirement_plus_buffer, LiquidationMultiplierType,
@@ -27,12 +30,13 @@ use crate::math_error;
 use crate::state::bank::BankBalanceType;
 use crate::state::bank_map::BankMap;
 use crate::state::events::{
-    LiquidateBorrowForPerpPnlRecord, LiquidateBorrowRecord, LiquidatePerpPnlForDepositRecord,
-    LiquidatePerpRecord, LiquidationRecord, LiquidationType, OrderActionExplanation,
+    BorrowBankruptcyRecord, LiquidateBorrowForPerpPnlRecord, LiquidateBorrowRecord,
+    LiquidatePerpPnlForDepositRecord, LiquidatePerpRecord, LiquidationRecord, LiquidationType,
+    OrderActionExplanation, PerpBankruptcyRecord,
 };
 use crate::state::market_map::MarketMap;
 use crate::state::oracle_map::OracleMap;
-use crate::state::user::User;
+use crate::state::user::{User, UserStats};
 use crate::validate;
 use anchor_lang::prelude::*;
 use solana_program::msg;
@@ -46,8 +50,10 @@ pub fn liquidate_perp(
     liquidator_max_base_asset_amount: u128,
     user: &mut User,
     user_key: &Pubkey,
+    user_stats: &mut UserStats,
     liquidator: &mut User,
     liquidator_key: &Pubkey,
+    liquidator_stats: &mut UserStats,
     market_map: &MarketMap,
     bank_map: &BankMap,
     oracle_map: &mut OracleMap,
@@ -56,6 +62,20 @@ pub fn liquidate_perp(
     liquidation_margin_buffer_ratio: u8,
     cancel_order_fee: u128,
 ) -> ClearingHouseResult {
+    validate!(!user.bankrupt, ErrorCode::UserBankrupt, "user bankrupt",)?;
+
+    validate!(
+        !liquidator.being_liquidated,
+        ErrorCode::UserIsBeingLiquidated,
+        "liquidator bankrupt",
+    )?;
+
+    validate!(
+        !liquidator.bankrupt,
+        ErrorCode::UserBankrupt,
+        "liquidator bankrupt",
+    )?;
+
     user.get_position(market_index).map_err(|e| {
         msg!(
             "User does not have a position for perp market {}",
@@ -201,6 +221,7 @@ pub fn liquidate_perp(
             liquidator: *liquidator_key,
             margin_requirement,
             total_collateral,
+            bankrupt: user.bankrupt,
             liquidate_perp: LiquidatePerpRecord {
                 market_index,
                 order_ids: canceled_order_ids,
@@ -283,6 +304,9 @@ pub fn liquidate_perp(
         .checked_div(LIQUIDATION_FEE_PRECISION)
         .ok_or_else(math_error!())?;
 
+    user_stats.update_taker_volume_30d(cast(quote_asset_amount)?, now)?;
+    liquidator_stats.update_maker_volume_30d(cast(quote_asset_amount)?, now)?;
+
     let user_position_delta = get_position_delta_for_fill(
         base_asset_amount,
         quote_asset_amount,
@@ -313,6 +337,8 @@ pub fn liquidate_perp(
 
     if base_asset_amount >= base_asset_amount_to_cover_margin_shortage {
         user.being_liquidated = false;
+    } else {
+        user.bankrupt = is_user_bankrupt(user);
     }
 
     let liquidator_meets_initial_margin_requirement =
@@ -340,6 +366,7 @@ pub fn liquidate_perp(
         liquidator: *liquidator_key,
         margin_requirement,
         total_collateral,
+        bankrupt: user.bankrupt,
         liquidate_perp: LiquidatePerpRecord {
             market_index,
             order_ids: canceled_order_ids,
@@ -373,6 +400,20 @@ pub fn liquidate_borrow(
     now: i64,
     liquidation_margin_buffer_ratio: u8,
 ) -> ClearingHouseResult {
+    validate!(!user.bankrupt, ErrorCode::UserBankrupt, "user bankrupt",)?;
+
+    validate!(
+        !liquidator.being_liquidated,
+        ErrorCode::UserIsBeingLiquidated,
+        "liquidator bankrupt",
+    )?;
+
+    validate!(
+        !liquidator.bankrupt,
+        ErrorCode::UserBankrupt,
+        "liquidator bankrupt",
+    )?;
+
     // validate user and liquidator have bank balances
     user.get_bank_balance(asset_bank_index).ok_or_else(|| {
         msg!(
@@ -592,6 +633,8 @@ pub fn liquidate_borrow(
 
     if liability_transfer >= liability_transfer_to_cover_margin_shortage {
         user.being_liquidated = false;
+    } else {
+        user.bankrupt = is_user_bankrupt(user);
     }
 
     let liquidator_meets_initial_margin_requirement =
@@ -611,6 +654,7 @@ pub fn liquidate_borrow(
         liquidator: *liquidator_key,
         margin_requirement,
         total_collateral,
+        bankrupt: user.bankrupt,
         liquidate_borrow: LiquidateBorrowRecord {
             asset_bank_index,
             asset_price,
@@ -639,6 +683,20 @@ pub fn liquidate_borrow_for_perp_pnl(
     now: i64,
     liquidation_margin_buffer_ratio: u8,
 ) -> ClearingHouseResult {
+    validate!(!user.bankrupt, ErrorCode::UserBankrupt, "user bankrupt",)?;
+
+    validate!(
+        !liquidator.being_liquidated,
+        ErrorCode::UserIsBeingLiquidated,
+        "liquidator bankrupt",
+    )?;
+
+    validate!(
+        !liquidator.bankrupt,
+        ErrorCode::UserBankrupt,
+        "liquidator bankrupt",
+    )?;
+
     user.get_position(market_index).map_err(|e| {
         msg!(
             "User does not have a position for perp market {}",
@@ -696,7 +754,8 @@ pub fn liquidate_borrow_for_perp_pnl(
         validate!(
             base_asset_amount == 0,
             ErrorCode::InvalidPerpPositionToLiquidate,
-            "Cant have open perp position"
+            "Cant have open perp position (base_asset_amount: {})",
+            base_asset_amount
         )?;
 
         validate!(
@@ -863,6 +922,8 @@ pub fn liquidate_borrow_for_perp_pnl(
 
     if liability_transfer >= liability_transfer_to_cover_margin_shortage {
         user.being_liquidated = false;
+    } else {
+        user.bankrupt = is_user_bankrupt(user);
     }
 
     let liquidator_meets_initial_margin_requirement =
@@ -887,6 +948,7 @@ pub fn liquidate_borrow_for_perp_pnl(
         liquidator: *liquidator_key,
         margin_requirement,
         total_collateral,
+        bankrupt: user.bankrupt,
         liquidate_borrow_for_perp_pnl: LiquidateBorrowForPerpPnlRecord {
             market_index,
             market_oracle_price,
@@ -915,6 +977,20 @@ pub fn liquidate_perp_pnl_for_deposit(
     now: i64,
     liquidation_margin_buffer_ratio: u8,
 ) -> ClearingHouseResult {
+    validate!(!user.bankrupt, ErrorCode::UserBankrupt, "user bankrupt",)?;
+
+    validate!(
+        !liquidator.being_liquidated,
+        ErrorCode::UserIsBeingLiquidated,
+        "liquidator bankrupt",
+    )?;
+
+    validate!(
+        !liquidator.bankrupt,
+        ErrorCode::UserBankrupt,
+        "liquidator bankrupt",
+    )?;
+
     user.get_position(market_index).map_err(|e| {
         msg!(
             "User does not have a position for perp market {}",
@@ -1138,6 +1214,8 @@ pub fn liquidate_perp_pnl_for_deposit(
 
     if pnl_transfer >= pnl_transfer_to_cover_margin_shortage {
         user.being_liquidated = false;
+    } else {
+        user.bankrupt = is_user_bankrupt(user);
     }
 
     let liquidator_meets_initial_margin_requirement =
@@ -1162,6 +1240,7 @@ pub fn liquidate_perp_pnl_for_deposit(
         liquidator: *liquidator_key,
         margin_requirement,
         total_collateral,
+        bankrupt: user.bankrupt,
         liquidate_perp_pnl_for_deposit: LiquidatePerpPnlForDepositRecord {
             market_index,
             market_oracle_price,
@@ -1187,4 +1266,223 @@ pub fn set_being_liquidated_and_get_liquidation_id(user: &mut User) -> ClearingH
     user.being_liquidated = true;
 
     Ok(liquidation_id)
+}
+
+pub fn resolve_perp_bankruptcy(
+    market_index: u64,
+    user: &mut User,
+    user_key: &Pubkey,
+    liquidator: &mut User,
+    liquidator_key: &Pubkey,
+    market_map: &MarketMap,
+    bank_map: &BankMap,
+    oracle_map: &mut OracleMap,
+    now: i64,
+) -> ClearingHouseResult {
+    validate!(
+        user.bankrupt,
+        ErrorCode::UserNotBankrupt,
+        "user not bankrupt",
+    )?;
+
+    validate!(
+        !liquidator.being_liquidated,
+        ErrorCode::UserIsBeingLiquidated,
+        "liquidator being liquidated",
+    )?;
+
+    validate!(
+        !liquidator.bankrupt,
+        ErrorCode::UserBankrupt,
+        "liquidator bankrupt",
+    )?;
+
+    user.get_position(market_index).map_err(|e| {
+        msg!(
+            "User does not have a position for perp market {}",
+            market_index
+        );
+        e
+    })?;
+
+    let loss = user.get_position(market_index).unwrap().quote_asset_amount;
+    validate!(
+        loss < 0,
+        ErrorCode::InvalidPerpPositionToLiquidate,
+        "user must have negative pnl"
+    )?;
+
+    let (margin_requirement, total_collateral) = calculate_margin_requirement_and_total_collateral(
+        user,
+        market_map,
+        MarginRequirementType::Maintenance,
+        bank_map,
+        oracle_map,
+    )?;
+
+    let cumulative_funding_rate_delta = calculate_funding_rate_deltas_to_resolve_bankruptcy(
+        loss,
+        market_map.get_ref(&market_index)?.deref(),
+    )?;
+
+    {
+        let user = user.get_position_mut(market_index).unwrap();
+        user.quote_asset_amount = 0;
+
+        let mut market = market_map.get_ref_mut(&market_index)?;
+
+        market.amm.cumulative_funding_rate_long = market
+            .amm
+            .cumulative_funding_rate_long
+            .checked_add(cumulative_funding_rate_delta)
+            .ok_or_else(math_error!())?;
+
+        market.amm.cumulative_funding_rate_short = market
+            .amm
+            .cumulative_funding_rate_short
+            .checked_sub(cumulative_funding_rate_delta)
+            .ok_or_else(math_error!())?;
+    }
+
+    // exit bankruptcy
+    if !is_user_bankrupt(user) {
+        user.bankrupt = false;
+        user.being_liquidated = false;
+    }
+
+    let liquidation_id = user
+        .next_liquidation_id
+        .checked_sub(1)
+        .ok_or_else(math_error!())?;
+
+    emit!(LiquidationRecord {
+        ts: now,
+        liquidation_id,
+        liquidation_type: LiquidationType::PerpBankruptcy,
+        user: *user_key,
+        liquidator: *liquidator_key,
+        margin_requirement,
+        total_collateral,
+        bankrupt: true,
+        perp_bankruptcy: PerpBankruptcyRecord {
+            market_index,
+            pnl: loss,
+            cumulative_funding_rate_delta,
+        },
+        ..LiquidationRecord::default()
+    });
+
+    Ok(())
+}
+
+pub fn resolve_bank_bankruptcy(
+    bank_index: u64,
+    user: &mut User,
+    user_key: &Pubkey,
+    liquidator: &mut User,
+    liquidator_key: &Pubkey,
+    market_map: &MarketMap,
+    bank_map: &BankMap,
+    oracle_map: &mut OracleMap,
+    now: i64,
+) -> ClearingHouseResult {
+    validate!(
+        user.bankrupt,
+        ErrorCode::UserNotBankrupt,
+        "user not bankrupt",
+    )?;
+
+    validate!(
+        !liquidator.being_liquidated,
+        ErrorCode::UserIsBeingLiquidated,
+        "liquidator being liquidated",
+    )?;
+
+    validate!(
+        !liquidator.bankrupt,
+        ErrorCode::UserBankrupt,
+        "liquidator bankrupt",
+    )?;
+
+    // validate user and liquidator have bank balances
+    user.get_bank_balance(bank_index).ok_or_else(|| {
+        msg!("User does not have a bank balance for bank {}", bank_index);
+        ErrorCode::CouldNotFindBankBalance
+    })?;
+
+    let (margin_requirement, total_collateral) = calculate_margin_requirement_and_total_collateral(
+        user,
+        market_map,
+        MarginRequirementType::Maintenance,
+        bank_map,
+        oracle_map,
+    )?;
+
+    let borrow_amount = {
+        let bank_balance = user.get_bank_balance(bank_index).unwrap();
+        validate!(
+            bank_balance.balance_type == BankBalanceType::Borrow,
+            ErrorCode::UserHasInvalidBorrow
+        )?;
+
+        validate!(bank_balance.balance > 0, ErrorCode::UserHasInvalidBorrow)?;
+
+        get_token_amount(
+            bank_balance.balance,
+            bank_map.get_ref(&bank_index)?.deref(),
+            &BankBalanceType::Borrow,
+        )?
+    };
+
+    let cumulative_deposit_interest_delta =
+        calculate_cumulative_deposit_interest_delta_to_resolve_bankruptcy(
+            borrow_amount,
+            bank_map.get_ref(&bank_index)?.deref(),
+        )?;
+
+    {
+        let mut bank = bank_map.get_ref_mut(&bank_index)?;
+        let user_bank_balance = user.get_bank_balance_mut(bank_index).unwrap();
+        update_bank_balances(
+            borrow_amount,
+            &BankBalanceType::Deposit,
+            &mut bank,
+            user_bank_balance,
+        )?;
+
+        bank.cumulative_deposit_interest = bank
+            .cumulative_deposit_interest
+            .checked_sub(cumulative_deposit_interest_delta)
+            .ok_or_else(math_error!())?;
+    }
+
+    // exit bankruptcy
+    if !is_user_bankrupt(user) {
+        user.bankrupt = false;
+        user.being_liquidated = false;
+    }
+
+    let liquidation_id = user
+        .next_liquidation_id
+        .checked_sub(1)
+        .ok_or_else(math_error!())?;
+
+    emit!(LiquidationRecord {
+        ts: now,
+        liquidation_id,
+        liquidation_type: LiquidationType::BorrowBankruptcy,
+        user: *user_key,
+        liquidator: *liquidator_key,
+        margin_requirement,
+        total_collateral,
+        bankrupt: true,
+        borrow_bankruptcy: BorrowBankruptcyRecord {
+            bank_index,
+            borrow_amount,
+            cumulative_deposit_interest_delta,
+        },
+        ..LiquidationRecord::default()
+    });
+
+    Ok(())
 }

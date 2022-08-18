@@ -38,6 +38,8 @@ pub fn settle_pnl(
     oracle_map: &mut OracleMap,
     now: i64,
 ) -> ClearingHouseResult {
+    validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
+
     {
         let bank = &mut bank_map.get_quote_asset_bank_mut()?;
         update_bank_cumulative_interest(bank, now)?;
@@ -118,12 +120,13 @@ pub fn settle_pnl(
 
     emit!(SettlePnlRecord {
         ts: now,
+        user: *user_key,
         market_index,
         pnl: pnl_to_settle_with_user,
         base_asset_amount,
         quote_asset_amount_after,
         quote_entry_amount,
-        oracle_price,
+        settle_price: oracle_price,
     });
 
     Ok(())

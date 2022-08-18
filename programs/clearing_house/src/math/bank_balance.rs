@@ -145,7 +145,7 @@ pub fn calculate_accumulated_interest(
 
     let time_since_last_update = cast_to_u64(now)
         .or(Err(ErrorCode::UnableToCastUnixTime))?
-        .checked_sub(bank.last_updated)
+        .checked_sub(bank.last_interest_ts)
         .ok_or_else(math_error!())?;
 
     // To save some compute units, have to multiply the rate by the `time_since_last_update` here

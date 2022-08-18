@@ -307,8 +307,8 @@ describe('prepeg', () => {
 			);
 
 		const [
-			acquiredBaseReserve,
-			acquiredQuoteReserve,
+			_acquiredBaseReserve,
+			_acquiredQuoteReserve,
 			acquiredQuoteAssetAmount,
 		] = calculateTradeAcquiredAmounts(
 			PositionDirection.LONG,

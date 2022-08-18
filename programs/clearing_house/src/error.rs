@@ -163,12 +163,18 @@ pub enum ErrorCode {
     AuctionNotComplete,
     #[msg("MakerNotFound")]
     MakerNotFound,
+    #[msg("MakerNotFound")]
+    MakerStatsNotFound,
     #[msg("MakerMustBeWritable")]
     MakerMustBeWritable,
+    #[msg("MakerMustBeWritable")]
+    MakerStatsMustBeWritable,
     #[msg("MakerOrderNotFound")]
     MakerOrderNotFound,
     #[msg("CouldNotDeserializeMaker")]
     CouldNotDeserializeMaker,
+    #[msg("CouldNotDeserializeMaker")]
+    CouldNotDeserializeMakerStats,
     #[msg("AuctionPriceDoesNotSatisfyMaker")]
     AuctionPriceDoesNotSatisfyMaker,
     #[msg("MakerCantFulfillOwnOrder")]
@@ -209,6 +215,12 @@ pub enum ErrorCode {
     InvalidPositionLastFundingRate,
     #[msg("InvalidPositionDelta")]
     InvalidPositionDelta,
+    #[msg("UserBankrupt")]
+    UserBankrupt,
+    #[msg("UserNotBankrupt")]
+    UserNotBankrupt,
+    #[msg("UserHasInvalidBorrow")]
+    UserHasInvalidBorrow,
     #[msg("BankDailyWithdrawLimit")]
     BankDailyWithdrawLimit,
     #[msg("DefaultError")]

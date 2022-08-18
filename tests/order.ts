@@ -224,6 +224,7 @@ describe('orders', () => {
 			marketIndexes,
 			bankIndexes,
 			oracleInfos,
+			userStats: true,
 		});
 		await whaleClearingHouse.subscribe();
 
@@ -372,16 +373,11 @@ describe('orders', () => {
 		assert(clearingHouseUser.getUserPosition(marketIndex).openAsks.eq(ZERO));
 
 		let order = clearingHouseUser.getOrder(orderId);
-		try {
-			await fillerClearingHouse.fillOrder(
-				userAccountPublicKey,
-				clearingHouseUser.getUserAccount(),
-				order
-			);
-		} catch (e) {
-			console.error(e);
-			throw e;
-		}
+		await fillerClearingHouse.fillOrder(
+			userAccountPublicKey,
+			clearingHouseUser.getUserAccount(),
+			order
+		);
 
 		await fillerClearingHouse.settlePNLs(
 			[
@@ -1730,11 +1726,7 @@ describe('orders', () => {
 		await whaleUser.fetchAccounts();
 		await fillerUser.fetchAccounts();
 
-		const whaleUserAccount = whaleUser.getUserAccount();
-		console.log(
-			'whaleFee:',
-			convertToNumber(whaleUserAccount.fees.totalFeePaid, QUOTE_PRECISION)
-		);
+		const whaleStats = await whaleClearingHouse.getUserStats().getAccount();
 
 		const expectedFillerReward = new BN(2e6 / 100); //1 cent
 		const fillerReward = fillerClearingHouse
@@ -1748,9 +1740,7 @@ describe('orders', () => {
 		);
 		assert(fillerReward.eq(expectedFillerReward));
 
-		assert(
-			whaleUserAccount.fees.totalFeePaid.gt(fillerReward.mul(new BN(100)))
-		);
+		assert(whaleStats.fees.totalFeePaid.gt(fillerReward.mul(new BN(100))));
 		// ensure whale fee more than x100 filler
 	});
 

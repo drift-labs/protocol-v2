@@ -1,6 +1,7 @@
 pub mod amm;
 pub mod auction;
 pub mod bank_balance;
+pub mod bankruptcy;
 pub mod base_asset_amount;
 pub mod bn;
 pub mod casting;
