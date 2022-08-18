@@ -17,6 +17,8 @@ import {
 	getBankPublicKey,
 	getBankVaultPublicKey,
 	getMarketPublicKey,
+	getInsuranceFundVaultPublicKey,
+	getInsuranceFundVaultAuthorityPublicKey,
 } from './addresses/pda';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { ClearingHouse } from './clearingHouse';
@@ -102,6 +104,17 @@ export class Admin extends ClearingHouse {
 			bankIndex
 		);
 
+		const insuranceFundVault = await getInsuranceFundVaultPublicKey(
+			this.program.programId,
+			bankIndex
+		);
+
+		const insuranceFundVaultAuthority =
+			await getInsuranceFundVaultAuthorityPublicKey(
+				this.program.programId,
+				bankIndex
+			);
+
 		const initializeTx = await this.program.transaction.initializeBank(
 			optimalUtilization,
 			optimalRate,
@@ -120,6 +133,8 @@ export class Admin extends ClearingHouse {
 					bank,
 					bankVault,
 					bankVaultAuthority,
+					insuranceFundVault,
+					insuranceFundVaultAuthority,
 					bankMint: mint,
 					oracle,
 					rent: SYSVAR_RENT_PUBKEY,

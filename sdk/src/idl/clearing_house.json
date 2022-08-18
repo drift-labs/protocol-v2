@@ -77,6 +77,16 @@
           "isSigner": false
         },
         {
+          "name": "insuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundVaultAuthority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
           "name": "state",
           "isMut": true,
           "isSigner": false
@@ -2223,6 +2233,18 @@
           },
           {
             "name": "vaultAuthorityNonce",
+            "type": "u8"
+          },
+          {
+            "name": "insuranceFundVault",
+            "type": "publicKey"
+          },
+          {
+            "name": "insuranceFundVaultAuthority",
+            "type": "publicKey"
+          },
+          {
+            "name": "insuranceFundVaultAuthorityNonce",
             "type": "u8"
           },
           {
@@ -4598,8 +4620,8 @@
     },
     {
       "code": 6001,
-      "name": "InvalidInsuranceAccountAuthority",
-      "msg": "Clearing house not insurance account owner"
+      "name": "InvalidInsuranceFundAuthority",
+      "msg": "Clearing house not insurance fund authority"
     },
     {
       "code": 6002,

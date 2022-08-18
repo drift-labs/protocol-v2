@@ -64,6 +64,21 @@ pub struct InitializeBank<'info> {
     /// CHECK: this is the pda for the bank vault
     pub bank_vault_authority: AccountInfo<'info>,
     #[account(
+        init,
+        seeds = [b"insurance_fund_vault".as_ref(), state.number_of_banks.to_le_bytes().as_ref()],
+        bump,
+        payer = admin,
+        token::mint = bank_mint,
+        token::authority = insurance_fund_vault_authority
+    )]
+    pub insurance_fund_vault: Box<Account<'info, TokenAccount>>,
+    #[account(
+        seeds = [b"insurance_fund_vault_authority".as_ref(), state.number_of_banks.to_le_bytes().as_ref()],
+        bump,
+    )]
+    /// CHECK: this is the pda for the bank vault
+    pub insurance_fund_vault_authority: AccountInfo<'info>,
+    #[account(
         mut,
         has_one = admin
     )]

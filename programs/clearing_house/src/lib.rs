@@ -68,7 +68,7 @@ pub mod clearing_house {
 
         // clearing house must be authority of insurance vault
         if ctx.accounts.insurance_vault.owner != insurance_account_authority {
-            return Err(ErrorCode::InvalidInsuranceAccountAuthority.into());
+            return Err(ErrorCode::InvalidInsuranceFundAuthority.into());
         }
 
         **ctx.accounts.state = State {
@@ -134,6 +134,20 @@ pub mod clearing_house {
         // clearing house must be authority of collateral vault
         if ctx.accounts.bank_vault.owner != vault_authority {
             return Err(ErrorCode::InvalidBankAuthority.into());
+        }
+
+        let (insurance_fund_vault_authority, insurance_fund_vault_authority_nonce) =
+            Pubkey::find_program_address(
+                &[
+                    b"insurance_fund_vault_authority".as_ref(),
+                    state.number_of_banks.to_le_bytes().as_ref(),
+                ],
+                ctx.program_id,
+            );
+
+        // clearing house must be authority of collateral vault
+        if ctx.accounts.insurance_fund_vault.owner != insurance_fund_vault_authority {
+            return Err(ErrorCode::InvalidInsuranceFundAuthority.into());
         }
 
         validate!(
@@ -251,6 +265,9 @@ pub mod clearing_house {
             vault: *ctx.accounts.bank_vault.to_account_info().key,
             vault_authority,
             vault_authority_nonce,
+            insurance_fund_vault: *ctx.accounts.insurance_fund_vault.to_account_info().key,
+            insurance_fund_vault_authority,
+            insurance_fund_vault_authority_nonce,
             decimals: ctx.accounts.bank_mint.decimals,
             optimal_utilization,
             optimal_borrow_rate,
