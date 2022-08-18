@@ -7,14 +7,14 @@ use crate::controller::position::{
 use crate::dlog;
 use crate::error::{ClearingHouseResult, ErrorCode};
 // use crate::math::bank_balance::get_token_amount;
-use crate::math::casting::{cast_to_i128};
+use crate::math::casting::cast_to_i128;
 use crate::math::margin::meets_maintenance_margin_requirement;
 use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
 use crate::math_error;
 use crate::state::bank::BankBalanceType;
 use crate::state::bank_map::BankMap;
 use crate::state::events::SettlePnlRecord;
-use crate::state::market::{MarketStatus};
+use crate::state::market::MarketStatus;
 use crate::state::market_map::MarketMap;
 use crate::state::oracle_map::OracleMap;
 use crate::state::state::FeeStructure;
@@ -173,7 +173,10 @@ pub fn settle_expired_position(
         market.settlement_price,
     )?;
 
-    dlog!(user.positions[position_index].quote_asset_amount, user.positions[position_index].base_asset_amount);
+    dlog!(
+        user.positions[position_index].quote_asset_amount,
+        user.positions[position_index].base_asset_amount
+    );
 
     let fee = base_asset_value
         .checked_mul(fee_structure.fee_numerator)
@@ -189,7 +192,13 @@ pub fn settle_expired_position(
             .ok_or_else(math_error!())?,
     )?;
 
-    dlog!(_oracle_price, base_asset_value, fee, unrealized_pnl, pnl_to_settle_with_user);
+    dlog!(
+        _oracle_price,
+        base_asset_value,
+        fee,
+        unrealized_pnl,
+        pnl_to_settle_with_user
+    );
 
     if unrealized_pnl == 0 {
         msg!("User has no unsettled pnl for market {}", market_index);
@@ -220,7 +229,7 @@ pub fn settle_expired_position(
 
     let position_delta = PositionDelta {
         quote_asset_amount: if user_position.base_asset_amount > 0 {
-            (base_asset_value as i128)
+            base_asset_value as i128
         } else {
             -(base_asset_value as i128)
         },
@@ -231,7 +240,10 @@ pub fn settle_expired_position(
 
     let quote_asset_amount_after = user_position.quote_asset_amount;
     dlog!(user_pnl);
-    dlog!(user_position.base_asset_amount, user_position.quote_asset_amount);
+    dlog!(
+        user_position.base_asset_amount,
+        user_position.quote_asset_amount
+    );
 
     // user.positions[position_index] = *user_position;
 
@@ -244,7 +256,6 @@ pub fn settle_expired_position(
         quote_entry_amount,
         oracle_price: market.settlement_price, // todo rename this field?
     });
-
 
     validate!(
         user.positions[position_index].base_asset_amount == 0,

@@ -918,14 +918,22 @@ pub fn calculate_budgeted_k_scale(
     market: &mut Market,
     budget: i128,
     _mark_price: u128, // todo
+    increase_max: i128, 
 ) -> ClearingHouseResult<(u128, u128)> {
+    let curve_update_intensity = market.amm.curve_update_intensity as i128;
+    let k_pct_upper_bound =
+        K_BPS_UPDATE_SCALE + (increase_max) * curve_update_intensity / 100;
+    let k_pct_lower_bound =
+        K_BPS_UPDATE_SCALE - (K_BPS_DECREASE_MAX) * curve_update_intensity / 100;
+
     let (numerator, denominator) = _calculate_budgeted_k_scale(
         market.amm.base_asset_reserve,
         market.amm.quote_asset_reserve,
         budget,
         market.amm.peg_multiplier,
         market.amm.net_base_asset_amount,
-        market.amm.curve_update_intensity,
+        k_pct_upper_bound,
+        k_pct_lower_bound,
     )?;
 
     Ok((numerator, denominator))
@@ -937,9 +945,11 @@ pub fn _calculate_budgeted_k_scale(
     budget: i128,
     q: u128,
     d: i128,
-    curve_update_intensity: u8,
+    // curve_update_intensity: u8,
+    k_pct_upper_bound: i128,
+    k_pct_lower_bound: i128,
 ) -> ClearingHouseResult<(u128, u128)> {
-    let curve_update_intensity = curve_update_intensity as i128;
+    // let curve_update_intensity = curve_update_intensity as i128;
     let c = -budget;
     let q = cast_to_i128(q)?;
 
@@ -1008,8 +1018,8 @@ pub fn _calculate_budgeted_k_scale(
         // thus denom1 is negative and solution is unstable
         if x_times_x_d_c > pegged_quote_times_dd.unsigned_abs() {
             msg!("cost exceeds possible amount to spend");
-            let k_pct_upper_bound =
-                K_BPS_UPDATE_SCALE + (K_BPS_INCREASE_MAX) * curve_update_intensity / 100;
+            // let k_pct_upper_bound =
+            //     K_BPS_UPDATE_SCALE + (K_BPS_INCREASE_MAX) * curve_update_intensity / 100;
             return Ok((
                 cast_to_u128(k_pct_upper_bound)?,
                 cast_to_u128(K_BPS_UPDATE_SCALE)?,
@@ -1033,8 +1043,8 @@ pub fn _calculate_budgeted_k_scale(
     assert!((numerator > 0 && denominator > 0));
 
     let (numerator, denominator) = if numerator > denominator {
-        let k_pct_upper_bound =
-            K_BPS_UPDATE_SCALE + (K_BPS_INCREASE_MAX) * curve_update_intensity / 100;
+        // let k_pct_upper_bound =
+        //     K_BPS_UPDATE_SCALE + (K_BPS_INCREASE_MAX) * curve_update_intensity / 100;
 
         let current_pct_change = numerator
             .checked_mul(10000)
@@ -1054,8 +1064,8 @@ pub fn _calculate_budgeted_k_scale(
             (numerator, denominator)
         }
     } else {
-        let k_pct_lower_bound =
-            K_BPS_UPDATE_SCALE - (K_BPS_DECREASE_MAX) * curve_update_intensity / 100;
+        // let k_pct_lower_bound =
+        //     K_BPS_UPDATE_SCALE - (K_BPS_DECREASE_MAX) * curve_update_intensity / 100;
 
         let current_pct_change = numerator
             .checked_mul(10000)
@@ -1796,6 +1806,12 @@ mod test {
         assert_eq!(t_bar2, 5010245901639340);
         assert_eq!(t_qar2, 5009754110429452);
 
+        let curve_update_intensity = 100;
+        let k_pct_upper_bound =
+            K_BPS_UPDATE_SCALE + (K_BPS_INCREASE_MAX) * curve_update_intensity / 100;
+        let k_pct_lower_bound =
+            K_BPS_UPDATE_SCALE - (K_BPS_DECREASE_MAX) * curve_update_intensity / 100;
+
         // with positive budget, how much can k be increased?
         let (numer1, denom1) = _calculate_budgeted_k_scale(
             AMM_RESERVE_PRECISION * 55414,
@@ -1803,7 +1819,8 @@ mod test {
             (QUOTE_PRECISION / 500) as i128, // positive budget
             36365,
             (AMM_RESERVE_PRECISION * 66) as i128,
-            100,
+            k_pct_upper_bound,
+            k_pct_lower_bound,
         )
         .unwrap();
 
@@ -1821,7 +1838,8 @@ mod test {
             -((QUOTE_PRECISION / 50) as i128),
             36365,
             (AMM_RESERVE_PRECISION * 66) as i128,
-            100,
+            k_pct_upper_bound,
+            k_pct_lower_bound,
         )
         .unwrap();
         assert!(numer1 < denom1);
@@ -1835,7 +1853,8 @@ mod test {
             -((QUOTE_PRECISION / 25) as i128),
             36365,
             (AMM_RESERVE_PRECISION * 66) as i128,
-            100,
+            k_pct_upper_bound,
+            k_pct_lower_bound,
         )
         .unwrap();
         assert!(numer1 < denom1);
@@ -1849,7 +1868,8 @@ mod test {
             114638,
             40000,
             49750000004950,
-            100,
+            k_pct_upper_bound,
+            k_pct_lower_bound,
         )
         .unwrap();
 
@@ -1864,7 +1884,8 @@ mod test {
             -114638,
             40000,
             49750000004950,
-            100,
+            k_pct_upper_bound,
+            k_pct_lower_bound,
         )
         .unwrap();
 

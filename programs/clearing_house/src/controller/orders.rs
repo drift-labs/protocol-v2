@@ -18,6 +18,7 @@ use crate::math::auction::{
     calculate_auction_end_price, calculate_auction_start_price, is_auction_complete,
 };
 use crate::math::casting::{cast, cast_to_i128};
+use crate::math::constants::ONE_HOUR_I128;
 use crate::math::fulfillment::determine_fulfillment_methods;
 use crate::math::liquidation::validate_user_not_being_liquidated;
 use crate::math::matching::{
@@ -25,7 +26,6 @@ use crate::math::matching::{
     is_maker_for_taker,
 };
 use crate::math::{amm, fees, margin::*, orders::*};
-use crate::math::constants::{ONE_HOUR_I128};
 use crate::math_error;
 use crate::order_validation::validate_order;
 use crate::print_error;

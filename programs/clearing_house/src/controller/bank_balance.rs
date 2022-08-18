@@ -10,7 +10,7 @@ use crate::math::casting::{cast, cast_to_i128, cast_to_u64};
 use crate::math::constants::TWENTY_FOUR_HOUR;
 use crate::math_error;
 use crate::state::bank::{Bank, BankBalance, BankBalanceType};
-use crate::state::market::{MarketStatus, Market};
+use crate::state::market::{Market, MarketStatus};
 use crate::validate;
 use std::cmp::max;
 

@@ -2,9 +2,9 @@ import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
 
 import { Program } from '@project-serum/anchor';
+import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
 import { PublicKey } from '@solana/web3.js';
-import { Keypair } from '@solana/web3.js';
 
 import {
 	Wallet,
@@ -19,6 +19,7 @@ import {
 	MARK_PRICE_PRECISION,
 	PositionDirection,
 	EventSubscriber,
+	QUOTE_PRECISION,
 } from '../sdk/src';
 
 import {
@@ -36,6 +37,48 @@ import {
 	sleep,
 } from './testHelpers';
 import { isVariant } from '../sdk';
+import {
+	Keypair,
+	sendAndConfirmTransaction,
+	Transaction,
+} from '@solana/web3.js';
+
+async function depositToFeePoolFromIF(
+	amount: number,
+	clearingHouse: Admin,
+	userUSDCAccount: Keypair
+) {
+	const ifAmount = new BN(amount * QUOTE_PRECISION.toNumber());
+	const state = await clearingHouse.getStateAccount();
+	const tokenIx = Token.createTransferInstruction(
+		TOKEN_PROGRAM_ID,
+		userUSDCAccount.publicKey,
+		state.insuranceVault,
+		clearingHouse.provider.wallet.publicKey,
+		// usdcMint.publicKey,
+		[],
+		ifAmount.toNumber()
+	);
+
+	await sendAndConfirmTransaction(
+		clearingHouse.provider.connection,
+		new Transaction().add(tokenIx),
+		// @ts-ignore
+		[clearingHouse.provider.wallet.payer],
+		{
+			skipPreflight: false,
+			commitment: 'recent',
+			preflightCommitment: 'recent',
+		}
+	);
+
+	// // send $50 to market from IF
+	const txSig00 = await clearingHouse.withdrawFromInsuranceVaultToMarket(
+		new BN(0),
+		ifAmount
+	);
+	console.log(txSig00);
+}
 
 describe('delist market', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -71,12 +114,16 @@ describe('delist market', () => {
 		mantissaSqrtScale
 	);
 
-	const usdcAmount = new BN(10 * 10 ** 6);
+	const usdcAmount = new BN(1000 * 10 ** 6);
 	const userKeypair = new Keypair();
 
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
-		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
+		userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount.mul(new BN(10)),
+			provider
+		);
 		userWSOLAccount = await createWSolTokenAccountForUser(
 			provider,
 			// @ts-ignore
@@ -177,6 +224,8 @@ describe('delist market', () => {
 	});
 
 	it('put market in big drawdown and net user positive pnl', async () => {
+		await depositToFeePoolFromIF(1000, clearingHouse, userUSDCAccount);
+
 		try {
 			await clearingHouse.openPosition(
 				PositionDirection.SHORT,
@@ -417,7 +466,7 @@ describe('delist market', () => {
 
 		const marketAfter = clearingHouse.getMarketAccount(marketIndex);
 
-		const finalPnlResult = new BN(86321);
+		const finalPnlResult = new BN(86320);
 		console.log(marketAfter.pnlPool.balance.toString());
 		assert(marketAfter.pnlPool.balance.eq(finalPnlResult));
 	});

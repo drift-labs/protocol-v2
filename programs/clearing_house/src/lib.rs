@@ -10,7 +10,7 @@ use math::{amm, bn, constants::*, margin::*};
 use state::oracle::{get_oracle_price, OracleSource};
 
 use crate::math::amm::get_update_k_result;
-use crate::state::market::{ContractType, MarketStatus, Market};
+use crate::state::market::{ContractType, Market, MarketStatus};
 use crate::state::user::MarketPosition;
 use crate::state::{market::AMM, state::*, user::*};
 
@@ -1351,6 +1351,36 @@ pub mod clearing_house {
         )?;
 
         let market = &mut market_map.get_ref_mut(&market_index)?;
+
+        let budget = market
+            .amm
+            .total_fee_minus_distributions
+            .checked_sub(cast_to_i128(market.amm.total_exchange_fee / 2)?)
+            .ok_or_else(math_error!())?
+            .max(0);
+
+        if budget > 0 {
+            let (k_scale_numerator, k_scale_denominator) =
+                amm::calculate_budgeted_k_scale(market, cast_to_i128(budget)?, 0, 1000000)?;
+
+            let new_sqrt_k = bn::U192::from(market.amm.sqrt_k)
+                .checked_mul(bn::U192::from(k_scale_numerator))
+                .ok_or_else(math_error!())?
+                .checked_div(bn::U192::from(k_scale_denominator))
+                .ok_or_else(math_error!())?;
+
+            msg!("updating k: {:?} -> {:?}", market.amm.sqrt_k, new_sqrt_k);
+
+            let update_k_result = get_update_k_result(market, new_sqrt_k, true)?;
+
+            let adjustment_cost = amm::adjust_k_cost(market, &update_k_result)?;
+
+            let cost_applied =
+                controller::repeg::apply_cost_to_market(market, adjustment_cost, true)?;
+            if cost_applied {
+                amm::update_k(market, &update_k_result)?;
+            }
+        }
 
         validate!(
             market.expiry_ts != 0,
