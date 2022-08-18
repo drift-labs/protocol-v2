@@ -435,6 +435,7 @@ export type UserPosition = {
 	openOrders: BN;
 	openBids: BN;
 	openAsks: BN;
+	realizedPnl: BN;
 	lpShares: BN;
 	lastFeePerLp: BN;
 	lastNetBaseAssetAmountPerLp: BN;

@@ -3527,6 +3527,10 @@
             "type": "i128"
           },
           {
+            "name": "realizedPnl",
+            "type": "i64"
+          },
+          {
             "name": "lpShares",
             "type": "u128"
           },

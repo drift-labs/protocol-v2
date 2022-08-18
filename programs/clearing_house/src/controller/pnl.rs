@@ -1,8 +1,11 @@
 use crate::controller::amm::update_pool_balances;
 use crate::controller::bank_balance::{update_bank_balances, update_bank_cumulative_interest};
 use crate::controller::funding::settle_funding_payment;
-use crate::controller::position::{get_position_index, update_quote_asset_amount};
+use crate::controller::position::{
+    get_position_index, update_quote_asset_amount, update_realized_pnl,
+};
 use crate::error::{ClearingHouseResult, ErrorCode};
+use crate::math::casting::cast;
 use crate::math::margin::meets_maintenance_margin_requirement;
 use crate::state::bank::BankBalanceType;
 use crate::state::bank_map::BankMap;
@@ -97,6 +100,11 @@ pub fn settle_pnl(
     update_quote_asset_amount(
         &mut user.positions[position_index],
         -pnl_to_settle_with_user,
+    )?;
+
+    update_realized_pnl(
+        &mut user.positions[position_index],
+        cast(pnl_to_settle_with_user)?,
     )?;
 
     let base_asset_amount = user.positions[position_index].base_asset_amount;
