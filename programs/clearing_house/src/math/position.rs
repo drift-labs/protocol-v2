@@ -1,7 +1,7 @@
 use solana_program::msg;
 
 use crate::controller::amm::SwapDirection;
-use crate::controller::position::PositionDirection;
+use crate::controller::position::{PositionDelta, PositionDirection};
 use crate::error::ClearingHouseResult;
 use crate::math::amm;
 use crate::math::amm::calculate_quote_asset_amount_swapped;
@@ -10,6 +10,7 @@ use crate::math::constants::{
     AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, AMM_TO_QUOTE_PRECISION_RATIO,
     MARK_PRICE_PRECISION, PRICE_TO_QUOTE_PRECISION_RATIO,
 };
+use crate::math::lp::get_proportion_u128;
 use crate::math::pnl::calculate_pnl;
 use crate::math_error;
 use crate::state::market::AMM;
@@ -78,15 +79,25 @@ pub fn calculate_base_asset_value(
         (amm.base_asset_reserve, amm.quote_asset_reserve)
     };
 
+    let amm_lp_shares = amm
+        .sqrt_k
+        .checked_sub(amm.user_lp_shares)
+        .ok_or_else(math_error!())?;
+
+    let base_asset_reserve_proportion =
+        get_proportion_u128(base_asset_reserve, amm_lp_shares, amm.sqrt_k)?;
+    let quote_asset_reserve_proportion =
+        get_proportion_u128(quote_asset_reserve, amm_lp_shares, amm.sqrt_k)?;
+
     let (new_quote_asset_reserve, _new_base_asset_reserve) = amm::calculate_swap_output(
         base_asset_amount.unsigned_abs(),
-        base_asset_reserve,
+        base_asset_reserve_proportion,
         swap_direction,
-        amm.sqrt_k,
+        amm_lp_shares,
     )?;
 
     let base_asset_value = calculate_quote_asset_amount_swapped(
-        quote_asset_reserve,
+        quote_asset_reserve_proportion,
         new_quote_asset_reserve,
         swap_direction,
         amm.peg_multiplier,
@@ -174,4 +185,111 @@ pub fn calculate_entry_price(
         .ok_or_else(math_error!())?;
 
     Ok(price)
+}
+
+pub enum PositionUpdateType {
+    Open,
+    Increase,
+    Reduce,
+    Close,
+    Flip,
+}
+pub fn get_position_update_type(
+    position: &MarketPosition,
+    delta: &PositionDelta,
+) -> PositionUpdateType {
+    if position.base_asset_amount == 0 {
+        PositionUpdateType::Open
+    } else if position.base_asset_amount.signum() == delta.base_asset_amount.signum() {
+        PositionUpdateType::Increase
+    } else if position.base_asset_amount.abs() > delta.base_asset_amount.abs() {
+        PositionUpdateType::Reduce
+    } else if position.base_asset_amount.abs() == delta.base_asset_amount.abs() {
+        PositionUpdateType::Close
+    } else {
+        PositionUpdateType::Flip
+    }
+}
+
+pub fn calculate_position_new_quote_base_pnl(
+    position: &MarketPosition,
+    delta: &PositionDelta,
+) -> ClearingHouseResult<(i128, i128, i128, i128)> {
+    let update_type = get_position_update_type(position, delta);
+
+    // Update User
+    let new_quote_asset_amount = position
+        .quote_asset_amount
+        .checked_add(delta.quote_asset_amount)
+        .ok_or_else(math_error!())?;
+
+    let new_base_asset_amount = position
+        .base_asset_amount
+        .checked_add(delta.base_asset_amount)
+        .ok_or_else(math_error!())?;
+
+    let (new_quote_entry_amount, pnl) = match update_type {
+        PositionUpdateType::Open | PositionUpdateType::Increase => {
+            let new_quote_entry_amount = position
+                .quote_entry_amount
+                .checked_add(delta.quote_asset_amount)
+                .ok_or_else(math_error!())?;
+
+            (new_quote_entry_amount, 0_i128)
+        }
+        PositionUpdateType::Reduce | PositionUpdateType::Close => {
+            let new_quote_entry_amount = position
+                .quote_entry_amount
+                .checked_sub(
+                    position
+                        .quote_entry_amount
+                        .checked_mul(delta.base_asset_amount.abs())
+                        .ok_or_else(math_error!())?
+                        .checked_div(position.base_asset_amount.abs())
+                        .ok_or_else(math_error!())?,
+                )
+                .ok_or_else(math_error!())?;
+
+            let pnl = position
+                .quote_entry_amount
+                .checked_sub(new_quote_entry_amount)
+                .ok_or_else(math_error!())?
+                .checked_add(delta.quote_asset_amount)
+                .ok_or_else(math_error!())?;
+
+            (new_quote_entry_amount, pnl)
+        }
+        PositionUpdateType::Flip => {
+            let new_quote_entry_amount = delta
+                .quote_asset_amount
+                .checked_sub(
+                    delta
+                        .quote_asset_amount
+                        .checked_mul(position.base_asset_amount.abs())
+                        .ok_or_else(math_error!())?
+                        .checked_div(delta.base_asset_amount.abs())
+                        .ok_or_else(math_error!())?,
+                )
+                .ok_or_else(math_error!())?;
+
+            let pnl = position
+                .quote_entry_amount
+                .checked_add(
+                    delta
+                        .quote_asset_amount
+                        .checked_sub(new_quote_entry_amount)
+                        .ok_or_else(math_error!())?,
+                )
+                .ok_or_else(math_error!())?;
+
+            (new_quote_entry_amount, pnl)
+        }
+    };
+
+    Ok((
+        new_quote_asset_amount,
+        new_quote_entry_amount,
+        new_base_asset_amount,
+        pnl,
+    ))
 }

@@ -373,6 +373,87 @@
       "args": []
     },
     {
+      "name": "settleLp",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "removeLiquidity",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "sharesToBurn",
+          "type": "u128"
+        },
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "addLiquidity",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "nShares",
+          "type": "u128"
+        },
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "placeOrder",
       "accounts": [
         {
@@ -473,7 +554,17 @@
           "isSigner": false
         },
         {
+          "name": "fillerStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
           "isMut": true,
           "isSigner": false
         }
@@ -503,6 +594,11 @@
         },
         {
           "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
           "isMut": true,
           "isSigner": false
         },
@@ -541,7 +637,17 @@
           "isSigner": false
         },
         {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "taker",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "takerStats",
           "isMut": true,
           "isSigner": false
         },
@@ -666,7 +772,17 @@
           "isSigner": false
         },
         {
+          "name": "liquidatorStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
           "isMut": true,
           "isSigner": false
         }
@@ -796,6 +912,68 @@
         {
           "name": "liquidatorMaxPnlTransfer",
           "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "resolvePerpBankruptcy",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "liquidator",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "resolveBorrowBankruptcy",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "liquidator",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "bankIndex",
+          "type": "u64"
         }
       ]
     },
@@ -1064,6 +1242,11 @@
           "isSigner": false
         },
         {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "state",
           "isMut": false,
           "isSigner": false
@@ -1104,6 +1287,42 @@
           }
         }
       ]
+    },
+    {
+      "name": "initializeUserStats",
+      "accounts": [
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
     },
     {
       "name": "settleFundingPayment",
@@ -1365,6 +1584,32 @@
         {
           "name": "curveUpdateIntensity",
           "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "updateLpCooldownTime",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "lpCooldownTime",
+          "type": "i64"
         }
       ]
     },
@@ -1974,7 +2219,11 @@
             "type": "u128"
           },
           {
-            "name": "lastUpdated",
+            "name": "lastInterestTs",
+            "type": "u64"
+          },
+          {
+            "name": "lastTwapTs",
             "type": "u64"
           },
           {
@@ -2278,12 +2527,6 @@
             }
           },
           {
-            "name": "fees",
-            "type": {
-              "defined": "UserFees"
-            }
-          },
-          {
             "name": "nextOrderId",
             "type": "u64"
           },
@@ -2316,6 +2559,60 @@
           {
             "name": "beingLiquidated",
             "type": "bool"
+          },
+          {
+            "name": "bankrupt",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "UserStats",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "publicKey"
+          },
+          {
+            "name": "numberOfUsers",
+            "type": "u8"
+          },
+          {
+            "name": "referrer",
+            "type": "publicKey"
+          },
+          {
+            "name": "fees",
+            "type": {
+              "defined": "UserFees"
+            }
+          },
+          {
+            "name": "makerVolume30d",
+            "type": "u64"
+          },
+          {
+            "name": "takerVolume30d",
+            "type": "u64"
+          },
+          {
+            "name": "fillerVolume30d",
+            "type": "u64"
+          },
+          {
+            "name": "lastMakerVolume30dTs",
+            "type": "i64"
+          },
+          {
+            "name": "lastTakerVolume30dTs",
+            "type": "i64"
+          },
+          {
+            "name": "lastFillerVolume30dTs",
+            "type": "i64"
           }
         ]
       }
@@ -2573,6 +2870,46 @@
       }
     },
     {
+      "name": "PerpBankruptcyRecord",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "marketIndex",
+            "type": "u64"
+          },
+          {
+            "name": "pnl",
+            "type": "i128"
+          },
+          {
+            "name": "cumulativeFundingRateDelta",
+            "type": "i128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "BorrowBankruptcyRecord",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bankIndex",
+            "type": "u64"
+          },
+          {
+            "name": "borrowAmount",
+            "type": "u128"
+          },
+          {
+            "name": "cumulativeDepositInterestDelta",
+            "type": "u128"
+          }
+        ]
+      }
+    },
+    {
       "name": "PoolBalance",
       "type": {
         "kind": "struct",
@@ -2640,6 +2977,14 @@
             "type": "u128"
           },
           {
+            "name": "minBaseAssetReserve",
+            "type": "u128"
+          },
+          {
+            "name": "maxBaseAssetReserve",
+            "type": "u128"
+          },
+          {
             "name": "sqrtK",
             "type": "u128"
           },
@@ -2672,7 +3017,33 @@
             "type": "i128"
           },
           {
+            "name": "netUnsettledLpBaseAssetAmount",
+            "type": "i128"
+          },
+          {
+            "name": "lpCooldownTime",
+            "type": "i64"
+          },
+          {
+            "name": "userLpShares",
+            "type": "u128"
+          },
+          {
+            "name": "marketPositionPerLp",
+            "type": {
+              "defined": "MarketPosition"
+            }
+          },
+          {
             "name": "lastFundingRate",
+            "type": "i128"
+          },
+          {
+            "name": "lastFundingRateLong",
+            "type": "i128"
+          },
+          {
+            "name": "lastFundingRateShort",
             "type": "i128"
           },
           {
@@ -2689,10 +3060,6 @@
           },
           {
             "name": "cumulativeFundingRateShort",
-            "type": "i128"
-          },
-          {
-            "name": "cumulativeFundingRateLp",
             "type": "i128"
           },
           {
@@ -2734,6 +3101,12 @@
           {
             "name": "baseAssetAmountStepSize",
             "type": "u128"
+          },
+          {
+            "name": "marketPosition",
+            "type": {
+              "defined": "MarketPosition"
+            }
           },
           {
             "name": "baseSpread",
@@ -3064,6 +3437,10 @@
             "type": "u64"
           },
           {
+            "name": "totalLpFees",
+            "type": "u128"
+          },
+          {
             "name": "totalFeeRebate",
             "type": "u64"
           },
@@ -3148,6 +3525,26 @@
           {
             "name": "openAsks",
             "type": "i128"
+          },
+          {
+            "name": "realizedPnl",
+            "type": "i64"
+          },
+          {
+            "name": "lpShares",
+            "type": "u128"
+          },
+          {
+            "name": "lastNetBaseAssetAmountPerLp",
+            "type": "i128"
+          },
+          {
+            "name": "lastNetQuoteAssetAmountPerLp",
+            "type": "i128"
+          },
+          {
+            "name": "lastLpAddTime",
+            "type": "i64"
           },
           {
             "name": "padding0",
@@ -3334,29 +3731,6 @@
       }
     },
     {
-      "name": "PositionUpdateType",
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "Open"
-          },
-          {
-            "name": "Increase"
-          },
-          {
-            "name": "Reduce"
-          },
-          {
-            "name": "Close"
-          },
-          {
-            "name": "Flip"
-          }
-        ]
-      }
-    },
-    {
       "name": "TwapPeriod",
       "type": {
         "kind": "enum",
@@ -3394,6 +3768,29 @@
           },
           {
             "name": "Maintenance"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PositionUpdateType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Open"
+          },
+          {
+            "name": "Increase"
+          },
+          {
+            "name": "Reduce"
+          },
+          {
+            "name": "Close"
+          },
+          {
+            "name": "Flip"
           }
         ]
       }
@@ -3497,6 +3894,12 @@
           },
           {
             "name": "LiquidatePerpPnlForDeposit"
+          },
+          {
+            "name": "PerpBankruptcy"
+          },
+          {
+            "name": "BorrowBankruptcy"
           }
         ]
       }
@@ -4026,6 +4429,11 @@
           "index": false
         },
         {
+          "name": "bankrupt",
+          "type": "bool",
+          "index": false
+        },
+        {
           "name": "liquidatePerp",
           "type": {
             "defined": "LiquidatePerpRecord"
@@ -4052,6 +4460,20 @@
             "defined": "LiquidatePerpPnlForDepositRecord"
           },
           "index": false
+        },
+        {
+          "name": "perpBankruptcy",
+          "type": {
+            "defined": "PerpBankruptcyRecord"
+          },
+          "index": false
+        },
+        {
+          "name": "borrowBankruptcy",
+          "type": {
+            "defined": "BorrowBankruptcyRecord"
+          },
+          "index": false
         }
       ]
     },
@@ -4061,6 +4483,11 @@
         {
           "name": "ts",
           "type": "i64",
+          "index": false
+        },
+        {
+          "name": "user",
+          "type": "publicKey",
           "index": false
         },
         {
@@ -4089,7 +4516,7 @@
           "index": false
         },
         {
-          "name": "oraclePrice",
+          "name": "settlePrice",
           "type": "i128",
           "index": false
         }
@@ -4494,128 +4921,178 @@
     },
     {
       "code": 6079,
+      "name": "MakerStatsNotFound",
+      "msg": "MakerNotFound"
+    },
+    {
+      "code": 6080,
       "name": "MakerMustBeWritable",
       "msg": "MakerMustBeWritable"
     },
     {
-      "code": 6080,
+      "code": 6081,
+      "name": "MakerStatsMustBeWritable",
+      "msg": "MakerMustBeWritable"
+    },
+    {
+      "code": 6082,
       "name": "MakerOrderNotFound",
       "msg": "MakerOrderNotFound"
     },
     {
-      "code": 6081,
+      "code": 6083,
       "name": "CouldNotDeserializeMaker",
       "msg": "CouldNotDeserializeMaker"
     },
     {
-      "code": 6082,
+      "code": 6084,
+      "name": "CouldNotDeserializeMakerStats",
+      "msg": "CouldNotDeserializeMaker"
+    },
+    {
+      "code": 6085,
       "name": "AuctionPriceDoesNotSatisfyMaker",
       "msg": "AuctionPriceDoesNotSatisfyMaker"
     },
     {
-      "code": 6083,
+      "code": 6086,
       "name": "MakerCantFulfillOwnOrder",
       "msg": "MakerCantFulfillOwnOrder"
     },
     {
-      "code": 6084,
+      "code": 6087,
       "name": "MakerOrderMustBePostOnly",
       "msg": "MakerOrderMustBePostOnly"
     },
     {
-      "code": 6085,
+      "code": 6088,
       "name": "CantMatchTwoPostOnlys",
       "msg": "CantMatchTwoPostOnlys"
     },
     {
-      "code": 6086,
+      "code": 6089,
       "name": "OrderBreachesOraclePriceLimits",
       "msg": "OrderBreachesOraclePriceLimits"
     },
     {
-      "code": 6087,
+      "code": 6090,
       "name": "OrderMustBeTriggeredFirst",
       "msg": "OrderMustBeTriggeredFirst"
     },
     {
-      "code": 6088,
+      "code": 6091,
       "name": "OrderNotTriggerable",
       "msg": "OrderNotTriggerable"
     },
     {
-      "code": 6089,
+      "code": 6092,
       "name": "OrderDidNotSatisfyTriggerCondition",
       "msg": "OrderDidNotSatisfyTriggerCondition"
     },
     {
-      "code": 6090,
+      "code": 6093,
       "name": "PositionAlreadyBeingLiquidated",
       "msg": "PositionAlreadyBeingLiquidated"
     },
     {
-      "code": 6091,
+      "code": 6094,
       "name": "PositionDoesntHaveOpenPositionOrOrders",
       "msg": "PositionDoesntHaveOpenPositionOrOrders"
     },
     {
-      "code": 6092,
+      "code": 6095,
       "name": "AllOrdersAreAlreadyLiquidations",
       "msg": "AllOrdersAreAlreadyLiquidations"
     },
     {
-      "code": 6093,
+      "code": 6096,
       "name": "CantCancelLiquidationOrder",
       "msg": "CantCancelLiquidationOrder"
     },
     {
-      "code": 6094,
+      "code": 6097,
       "name": "UserIsBeingLiquidated",
       "msg": "UserIsBeingLiquidated"
     },
     {
-      "code": 6095,
+      "code": 6098,
       "name": "LiquidationsOngoing",
       "msg": "LiquidationsOngoing"
     },
     {
-      "code": 6096,
+      "code": 6099,
       "name": "WrongBankBalanceType",
       "msg": "WrongBankBalanceType"
     },
     {
-      "code": 6097,
+      "code": 6100,
       "name": "UserCantLiquidateThemself",
       "msg": "UserCantLiquidateThemself"
     },
     {
-      "code": 6098,
+      "code": 6101,
       "name": "InvalidPerpPositionToLiquidate",
       "msg": "InvalidPerpPositionToLiquidate"
     },
     {
-      "code": 6099,
+      "code": 6102,
       "name": "InvalidBaseAssetAmountForLiquidatePerp",
       "msg": "InvalidBaseAssetAmountForLiquidatePerp"
     },
     {
-      "code": 6100,
+      "code": 6103,
       "name": "InvalidPositionLastFundingRate",
       "msg": "InvalidPositionLastFundingRate"
     },
     {
-      "code": 6101,
+      "code": 6104,
       "name": "InvalidPositionDelta",
       "msg": "InvalidPositionDelta"
     },
     {
-      "code": 6102,
+      "code": 6105,
+      "name": "UserBankrupt",
+      "msg": "UserBankrupt"
+    },
+    {
+      "code": 6106,
+      "name": "UserNotBankrupt",
+      "msg": "UserNotBankrupt"
+    },
+    {
+      "code": 6107,
+      "name": "UserHasInvalidBorrow",
+      "msg": "UserHasInvalidBorrow"
+    },
+    {
+      "code": 6108,
       "name": "BankDailyWithdrawLimit",
       "msg": "BankDailyWithdrawLimit"
     },
     {
-      "code": 6103,
+      "code": 6109,
       "name": "DefaultError",
       "msg": "DefaultError"
+    },
+    {
+      "code": 6110,
+      "name": "InsufficientLPTokens",
+      "msg": "Insufficient LP tokens"
+    },
+    {
+      "code": 6111,
+      "name": "CantLPWithMarketPosition",
+      "msg": "Cant LP with a market position"
+    },
+    {
+      "code": 6112,
+      "name": "UnableToBurnLPTokens",
+      "msg": "Unable to burn LP tokens"
+    },
+    {
+      "code": 6113,
+      "name": "TryingToRemoveLiquidityTooFast",
+      "msg": "Trying to remove liqudity too fast after adding it"
     }
   ]
 }

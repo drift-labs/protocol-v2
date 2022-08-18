@@ -18,6 +18,7 @@ export type ClearingHouseConfig = {
 	bankIndexes?: BN[];
 	oracleInfos?: OracleInfo[];
 	env?: DriftEnv;
+	userStats?: boolean;
 };
 
 type ClearingHouseSubscriptionConfig =

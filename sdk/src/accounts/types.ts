@@ -4,6 +4,7 @@ import {
 	OracleSource,
 	StateAccount,
 	UserAccount,
+	UserStatsAccount,
 } from '../types';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
@@ -130,3 +131,20 @@ export type DataAndSlot<T> = {
 	data: T;
 	slot: number;
 };
+
+export interface UserStatsAccountEvents {
+	userStatsAccountUpdate: (payload: UserStatsAccount) => void;
+	update: void;
+	error: (e: Error) => void;
+}
+
+export interface UserStatsAccountSubscriber {
+	eventEmitter: StrictEventEmitter<EventEmitter, UserStatsAccountEvents>;
+	isSubscribed: boolean;
+
+	subscribe(): Promise<boolean>;
+	fetch(): Promise<void>;
+	unsubscribe(): Promise<void>;
+
+	getUserStatsAccountAndSlot(): DataAndSlot<UserStatsAccount>;
+}

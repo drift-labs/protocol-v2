@@ -137,6 +137,7 @@ pub fn _update_amm(
             market.amm.base_asset_reserve = repegged_market.amm.base_asset_reserve;
             market.amm.quote_asset_reserve = repegged_market.amm.quote_asset_reserve;
             market.amm.sqrt_k = repegged_market.amm.sqrt_k;
+
             market.amm.terminal_quote_asset_reserve =
                 repegged_market.amm.terminal_quote_asset_reserve;
             market.amm.peg_multiplier = repegged_market.amm.peg_multiplier;
@@ -381,7 +382,7 @@ mod test {
             has_sufficient_number_of_data_points: true,
         };
 
-        let cost_of_update =
+        let _cost_of_update =
             _update_amm(&mut market, &oracle_price_data, &state, now, slot).unwrap();
         assert!(market.amm.last_update_slot == 0);
 
