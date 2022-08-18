@@ -129,3 +129,18 @@ export async function getBankVaultAuthorityPublicKey(
 		)
 	)[0];
 }
+
+export function getInsuranceFundStakeAccountPublicKey(
+	programId: PublicKey,
+	authority: PublicKey,
+	bankIndex: BN
+): PublicKey {
+	return anchor.web3.PublicKey.findProgramAddressSync(
+		[
+			Buffer.from(anchor.utils.bytes.utf8.encode('insurance_fund_stake')),
+			authority.toBuffer(),
+			bankIndex.toArrayLike(Buffer, 'le', 8),
+		],
+		programId
+	)[0];
+}

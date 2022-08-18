@@ -38,6 +38,7 @@ import { EventEmitter } from 'events';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import {
 	getClearingHouseStateAccountPublicKey,
+	getInsuranceFundStakeAccountPublicKey,
 	getMarketPublicKey,
 	getUserAccountPublicKey,
 	getUserAccountPublicKeySync,
@@ -2381,5 +2382,42 @@ export class ClearingHouse {
 		const oracleData = this.getOraclePriceDataAndSlot(oracleKey).data;
 
 		return oracleData;
+	}
+
+	public async initializeInsuranceFundStake(
+		bankIndex: BN
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.txSender.send(
+			wrapInTx(await this.getInitializeInsuranceFundStakeIx(bankIndex)),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getInitializeInsuranceFundStakeIx(
+		bankIndex: BN
+	): Promise<TransactionInstruction> {
+		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
+			this.program.programId,
+			this.wallet.publicKey,
+			bankIndex
+		);
+
+		return await this.program.instruction.initializeInsuranceFundStake(
+			bankIndex,
+			{
+				accounts: {
+					insuranceFundStake: ifStakeAccountPublicKey,
+					bank: this.getBankAccount(bankIndex).pubkey,
+					userStats: this.getUserStatsAccountPublicKey(),
+					authority: this.wallet.publicKey,
+					payer: this.wallet.publicKey,
+					rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+					systemProgram: anchor.web3.SystemProgram.programId,
+					state: await this.getStatePublicKey(),
+				},
+			}
+		);
 	}
 }

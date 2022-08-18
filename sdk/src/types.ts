@@ -638,3 +638,8 @@ export type OrderFillerRewardStructure = {
 };
 
 export type MarginCategory = 'Initial' | 'Maintenance';
+
+export type InsuranceFundStake = {
+	bankIndex: BN;
+	authority: PublicKey;
+};

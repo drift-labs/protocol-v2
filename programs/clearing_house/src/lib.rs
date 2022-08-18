@@ -59,6 +59,7 @@ pub mod clearing_house {
     use crate::state::state::OrderFillerRewardStructure;
 
     use super::*;
+    use crate::state::insurance_fund_stake::InsuranceFundStake;
 
     pub fn initialize(ctx: Context<Initialize>, admin_controls_prices: bool) -> Result<()> {
         let insurance_account_key = ctx.accounts.insurance_vault.to_account_info().key;
@@ -2561,6 +2562,24 @@ pub mod clearing_house {
 
         ctx.accounts.state.min_auction_duration = min_auction_duration;
         ctx.accounts.state.max_auction_duration = max_auction_duration;
+        Ok(())
+    }
+
+    pub fn initialize_insurance_fund_stake(
+        ctx: Context<InitializeInsuranceFundStake>,
+        bank_index: u64,
+    ) -> Result<()> {
+        let mut if_stake = ctx
+            .accounts
+            .insurance_fund_stake
+            .load_init()
+            .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
+
+        *if_stake = InsuranceFundStake {
+            authority: *ctx.accounts.authority.key,
+            bank_index,
+        };
+
         Ok(())
     }
 }

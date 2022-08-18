@@ -2132,6 +2132,57 @@
           "type": "u8"
         }
       ]
+    },
+    {
+      "name": "initializeInsuranceFundStake",
+      "accounts": [
+        {
+          "name": "bank",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundStake",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "bankIndex",
+          "type": "u64"
+        }
+      ]
     }
   ],
   "accounts": [
@@ -2253,6 +2304,22 @@
           {
             "name": "withdrawGuardThreshold",
             "type": "u128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "InsuranceFundStake",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "publicKey"
+          },
+          {
+            "name": "bankIndex",
+            "type": "u64"
           }
         ]
       }

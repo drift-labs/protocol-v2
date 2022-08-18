@@ -3,6 +3,7 @@ use anchor_spl::token::{Mint, Token, TokenAccount};
 
 use crate::controller::position::PositionDirection;
 use crate::state::bank::Bank;
+use crate::state::insurance_fund_stake::InsuranceFundStake;
 use crate::state::market::Market;
 use crate::state::state::State;
 use crate::state::user::{OrderTriggerCondition, OrderType, User, UserStats};
@@ -650,4 +651,35 @@ pub struct AdminUpdateBank<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub bank: AccountLoader<'info, Bank>,
+}
+
+#[derive(Accounts)]
+#[instruction(
+    bank_index: u64,
+)]
+pub struct InitializeInsuranceFundStake<'info> {
+    #[account(
+        seeds = [b"bank", bank_index.to_le_bytes().as_ref()],
+        bump
+    )]
+    pub bank: AccountLoader<'info, Bank>,
+    #[account(
+        init,
+        seeds = [b"insurance_fund_stake", authority.key.as_ref(), bank_index.to_le_bytes().as_ref()],
+        space = std::mem::size_of::<InsuranceFundStake>() + 8,
+        bump,
+        payer = payer
+    )]
+    pub insurance_fund_stake: AccountLoader<'info, InsuranceFundStake>,
+    #[account(
+        mut,
+        has_one = authority
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    pub state: Box<Account<'info, State>>,
+    pub authority: Signer<'info>,
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
 }
