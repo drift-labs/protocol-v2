@@ -28,6 +28,7 @@ export const DefaultEventSubscriptionOptions: EventSubscriptionOptions = {
 		'LiquidationRecord',
 		'OrderRecord',
 		'FundingRateRecord',
+		'SettlePnlRecord',
 	],
 	maxEventsPerType: 4096,
 	orderBy: 'blockchain',
