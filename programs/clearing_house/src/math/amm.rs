@@ -8,9 +8,9 @@ use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64};
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128,
     AMM_TO_QUOTE_PRECISION_RATIO_I128, BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128,
-    K_BPS_DECREASE_MAX, K_BPS_INCREASE_MAX, K_BPS_UPDATE_SCALE, MARK_PRICE_PRECISION,
-    MARK_PRICE_PRECISION_I128, MAX_BID_ASK_INVENTORY_SKEW_FACTOR, ONE_HOUR_I128, PEG_PRECISION,
-    PRICE_TO_PEG_PRECISION_RATIO, PRICE_TO_QUOTE_PRECISION_RATIO, QUOTE_PRECISION,
+    K_BPS_DECREASE_MAX, K_BPS_INCREASE_MAX, K_BPS_UPDATE_SCALE, MARK_PRICE_PRECISION, MARK_PRICE_PRECISION_I128,
+    MAX_BID_ASK_INVENTORY_SKEW_FACTOR, ONE_HOUR_I128, PEG_PRECISION, PRICE_TO_PEG_PRECISION_RATIO,
+    PRICE_TO_QUOTE_PRECISION_RATIO, QUOTE_PRECISION,
 };
 use crate::math::orders::standardize_base_asset_amount;
 use crate::math::position::{_calculate_base_asset_value_and_pnl, calculate_base_asset_value};
@@ -222,6 +222,17 @@ pub fn update_mark_twap(
         },
         None => (trade_price, trade_price),
     };
+
+    // let (bid_price_capped_update, ask_price_capped_update) = (
+    //     cast_to_u128(sanitize_new_price(
+    //         cast_to_i128(bid_price)?,
+    //         cast_to_i128(amm.last_bid_price_twap)?,
+    //     )?)?,
+    //     cast_to_u128(sanitize_new_price(
+    //         cast_to_i128(ask_price)?,
+    //         cast_to_i128(amm.last_ask_price_twap)?,
+    //     )?)?,
+    // );
 
     // update bid and ask twaps
     let bid_twap = calculate_new_twap(
@@ -648,9 +659,17 @@ pub fn get_spread_reserves(
     amm: &AMM,
     direction: PositionDirection,
 ) -> ClearingHouseResult<(u128, u128)> {
-    let (base_asset_reserve, quote_asset_reserve) = match direction {
-        PositionDirection::Long => (amm.ask_base_asset_reserve, amm.ask_quote_asset_reserve),
-        PositionDirection::Short => (amm.bid_base_asset_reserve, amm.bid_quote_asset_reserve),
+    let (base_asset_reserve, quote_asset_reserve) = if amm.base_spread != 0 {
+        match direction {
+            PositionDirection::Long => (amm.ask_base_asset_reserve, amm.ask_quote_asset_reserve),
+            PositionDirection::Short => (amm.bid_base_asset_reserve, amm.bid_quote_asset_reserve),
+        }
+    } else {
+        match direction {
+            PositionDirection::Long => (amm.ask_base_asset_reserve, amm.ask_quote_asset_reserve),
+            PositionDirection::Short => (amm.bid_base_asset_reserve, amm.bid_quote_asset_reserve),
+        }
+        // (amm.base_asset_reserve, amm.quote_asset_reserve)
     };
 
     Ok((base_asset_reserve, quote_asset_reserve))
@@ -881,7 +900,11 @@ pub fn is_oracle_valid(
             .ok_or_else(math_error!())?)
         .gt(&valid_oracle_guard_rails.too_volatile_ratio));
     if is_oracle_price_too_volatile {
-        msg!("Invalid Oracle: Too Volatile (last_oracle_price_twap vs oracle_price)");
+        msg!(
+            "Invalid Oracle: Too Volatile (last_oracle_price_twap={:?} vs oracle_price={:?})",
+            amm.last_oracle_price_twap,
+            oracle_price
+        );
     }
 
     let conf_pct_of_price = cast_to_u128(amm.base_spread)?

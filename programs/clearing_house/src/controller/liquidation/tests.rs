@@ -1900,7 +1900,7 @@ pub mod resolve_perp_bankruptcy {
     };
     use crate::state::bank::{Bank, BankBalanceType};
     use crate::state::bank_map::BankMap;
-    use crate::state::market::{Market, AMM};
+    use crate::state::market::{Market, MarketStatus, AMM};
     use crate::state::market_map::MarketMap;
     use crate::state::oracle::OracleSource;
     use crate::state::oracle_map::OracleMap;
@@ -1954,7 +1954,7 @@ pub mod resolve_perp_bankruptcy {
             margin_ratio_maintenance: 500,
             base_asset_amount_long: 5 * BASE_PRECISION_I128,
             base_asset_amount_short: -5 * BASE_PRECISION_I128,
-            initialized: true,
+            status: MarketStatus::Initialized,
             liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..Market::default()
         };
@@ -2104,7 +2104,7 @@ pub mod resolve_borrow_bankruptcy {
     };
     use crate::state::bank::{Bank, BankBalanceType};
     use crate::state::bank_map::BankMap;
-    use crate::state::market::{Market, AMM};
+    use crate::state::market::{Market, MarketStatus, AMM};
     use crate::state::market_map::MarketMap;
     use crate::state::oracle::OracleSource;
     use crate::state::oracle_map::OracleMap;
@@ -2158,7 +2158,7 @@ pub mod resolve_borrow_bankruptcy {
             margin_ratio_maintenance: 500,
             base_asset_amount_long: 5 * BASE_PRECISION_I128,
             base_asset_amount_short: -5 * BASE_PRECISION_I128,
-            initialized: true,
+            status: MarketStatus::Initialized,
             liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..Market::default()
         };

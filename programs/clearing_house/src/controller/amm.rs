@@ -1,4 +1,5 @@
 use crate::controller::position::PositionDirection;
+use crate::dlog;
 use crate::error::ClearingHouseResult;
 use crate::get_then_update_id;
 use crate::math::amm::{
@@ -158,6 +159,14 @@ pub fn calculate_base_swap_output_with_spread(
         quote_asset_amount,
         direction == SwapDirection::Remove,
     )?;
+
+    dlog!(
+        base_asset_reserve_with_spread,
+        quote_asset_reserve_with_spread,
+        base_asset_swap_amount,
+        new_quote_asset_reserve_with_spread,
+        new_quote_asset_reserve
+    );
 
     Ok((
         new_base_asset_reserve,

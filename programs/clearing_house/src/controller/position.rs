@@ -15,7 +15,7 @@ use crate::math::position::{
     calculate_position_new_quote_base_pnl, get_position_update_type, PositionUpdateType,
 };
 use crate::math_error;
-use crate::state::market::{Market, MarketStatus};
+use crate::state::market::Market;
 use crate::state::user::{User, UserPositions};
 use crate::validate;
 use crate::MarketPosition;

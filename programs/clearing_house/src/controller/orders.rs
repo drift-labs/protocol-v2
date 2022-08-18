@@ -8,6 +8,7 @@ use crate::controller::position::{
     add_new_position, decrease_open_bids_and_asks, get_position_index, increase_open_bids_and_asks,
     update_position_and_market, update_user_and_market_position, PositionDirection,
 };
+use crate::dlog;
 use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
 use crate::get_struct_values;
@@ -1082,6 +1083,8 @@ pub fn fulfill_order_with_amm(
         now,
         maker_limit_price,
     )?;
+
+    dlog!(quote_asset_amount, quote_asset_amount_surplus);
 
     let (user_fee, fee_to_market, filler_reward) =
         fees::calculate_fee_for_order_fulfill_against_amm(

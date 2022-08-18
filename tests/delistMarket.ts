@@ -168,7 +168,7 @@ describe('delist market', () => {
 			new BN(43_133)
 		);
 
-		await clearingHouse.updateMarketBaseSpread(new BN(0), 2000);
+		// await clearingHouse.updateMarketBaseSpread(new BN(0), 2000);
 		// await clearingHouse.updateCurveUpdateIntensity(new BN(0), 100);
 
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
@@ -345,6 +345,14 @@ describe('delist market', () => {
 		);
 		assert(market.expiryTs.eq(expiryTs));
 
+		console.log('totalExchangeFee:', market.amm.totalExchangeFee.toString());
+		console.log('totalFee:', market.amm.totalFee.toString());
+		console.log('totalMMFee:', market.amm.totalMmFee.toString());
+		console.log(
+			'totalFeeMinusDistributions:',
+			market.amm.totalFeeMinusDistributions.toString()
+		);
+
 		// should fail
 		// try {
 		// 	await clearingHouseLoser.openPosition(
@@ -470,12 +478,18 @@ describe('delist market', () => {
 
 		const marketAfter = clearingHouse.getMarketAccount(marketIndex);
 
-		const finalPnlResult = new BN(86426);
+		const finalPnlResultMin = new BN(985694860 - 1090);
 		console.log(marketAfter.pnlPool.balance.toString());
-		// assert(marketAfter.pnlPool.balance.eq(finalPnlResult));
+		assert(marketAfter.pnlPool.balance.gt(finalPnlResultMin));
+		assert(marketAfter.pnlPool.balance.lt(new BN(995694860)));
 
 		const ammPnlResult = new BN(0);
 		console.log(marketAfter.amm.feePool.balance.toString());
-		assert(marketAfter.amm.feePool.balance.eq(new BN(1000000000)));
+		console.log(
+			'totalExchangeFee:',
+			marketAfter.amm.totalExchangeFee.toString()
+		);
+
+		assert(marketAfter.amm.feePool.balance.eq(new BN(0)));
 	});
 });
