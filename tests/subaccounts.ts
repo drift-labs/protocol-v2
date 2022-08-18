@@ -10,7 +10,6 @@ import {
 	BN,
 	EventSubscriber,
 	fetchUserAccounts,
-	fetchUserStatsAccount,
 } from '../sdk/src';
 
 import {
@@ -53,6 +52,7 @@ describe('subaccounts', () => {
 			activeUserId: 0,
 			marketIndexes,
 			bankIndexes,
+			userStats: true,
 		});
 
 		await clearingHouse.initialize(usdcMint.publicKey, true);
@@ -74,11 +74,7 @@ describe('subaccounts', () => {
 		assert(clearingHouse.getUserAccount().userId === userId);
 		assert(decodeName(clearingHouse.getUserAccount().name) === name);
 
-		const userStats = await fetchUserStatsAccount(
-			connection,
-			clearingHouse.program,
-			provider.wallet.publicKey
-		);
+		const userStats = clearingHouse.getUserStats().getAccount();
 
 		assert(userStats.numberOfUsers === 1);
 	});
@@ -93,11 +89,7 @@ describe('subaccounts', () => {
 		assert(clearingHouse.getUserAccount().userId === userId);
 		assert(decodeName(clearingHouse.getUserAccount().name) === name);
 
-		const userStats = await fetchUserStatsAccount(
-			connection,
-			clearingHouse.program,
-			provider.wallet.publicKey
-		);
+		const userStats = clearingHouse.getUserStats().getAccount();
 
 		assert(userStats.numberOfUsers === 2);
 	});

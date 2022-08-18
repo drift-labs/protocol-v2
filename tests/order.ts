@@ -224,6 +224,7 @@ describe('orders', () => {
 			marketIndexes,
 			bankIndexes,
 			oracleInfos,
+			userStats: true,
 		});
 		await whaleClearingHouse.subscribe();
 
@@ -1725,7 +1726,7 @@ describe('orders', () => {
 		await whaleUser.fetchAccounts();
 		await fillerUser.fetchAccounts();
 
-		const whaleStats = await whaleClearingHouse.getUser().getUserStatsAccount();
+		const whaleStats = await whaleClearingHouse.getUserStats().getAccount();
 
 		const expectedFillerReward = new BN(2e6 / 100); //1 cent
 		const fillerReward = fillerClearingHouse

@@ -71,6 +71,7 @@ describe('clearing_house', () => {
 			marketIndexes,
 			bankIndexes,
 			oracleInfos,
+			userStats: true,
 		});
 
 		await clearingHouse.initialize(usdcMint.publicKey, true);
@@ -118,9 +119,10 @@ describe('clearing_house', () => {
 
 		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9947387)));
 		assert(
-			(
-				await clearingHouse.getUser().getUserStatsAccount()
-			).fees.totalFeePaid.eq(new BN(48004))
+			clearingHouse
+				.getUserStats()
+				.getAccountAndSlot()
+				.data.fees.totalFeePaid.eq(new BN(48004))
 		);
 
 		assert.ok(
@@ -188,9 +190,10 @@ describe('clearing_house', () => {
 
 		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9926840)));
 		assert(
-			(
-				await clearingHouse.getUser().getUserStatsAccount()
-			).fees.totalFeePaid.eq(new BN(72007))
+			clearingHouse
+				.getUserStats()
+				.getAccount()
+				.fees.totalFeePaid.eq(new BN(72007))
 		);
 
 		const market = clearingHouse.getMarketAccount(0);
@@ -233,9 +236,10 @@ describe('clearing_house', () => {
 
 		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9878840)));
 		assert(
-			(
-				await clearingHouse.getUser().getUserStatsAccount()
-			).fees.totalFeePaid.eq(new BN(120007))
+			clearingHouse
+				.getUserStats()
+				.getAccount()
+				.fees.totalFeePaid.eq(new BN(120007))
 		);
 		assert.ok(
 			clearingHouse
@@ -299,9 +303,10 @@ describe('clearing_house', () => {
 
 		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9855993)));
 		assert(
-			(
-				await clearingHouse.getUser().getUserStatsAccount()
-			).fees.totalFeePaid.eq(new BN(144005))
+			clearingHouse
+				.getUserStats()
+				.getAccount()
+				.fees.totalFeePaid.eq(new BN(144005))
 		);
 
 		const market = clearingHouse.getMarketAccount(0);

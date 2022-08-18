@@ -63,6 +63,7 @@ import { ClearingHouseUser } from './clearingHouseUser';
 import { ClearingHouseUserAccountSubscriptionConfig } from './clearingHouseUserConfig';
 import { getMarketsBanksAndOraclesForSubscription } from './config';
 import { WRAPPED_SOL_MINT } from './constants/banks';
+import { ClearingHouseUserStats } from './clearingHouseUserStats';
 
 /**
  * # ClearingHouse
@@ -75,6 +76,7 @@ export class ClearingHouse {
 	provider: AnchorProvider;
 	opts?: ConfirmOptions;
 	users = new Map<number, ClearingHouseUser>();
+	userStats?: ClearingHouseUserStats;
 	activeUserId: number;
 	userAccountSubscriptionConfig: ClearingHouseUserAccountSubscriptionConfig;
 	accountSubscriber: ClearingHouseAccountSubscriber;
@@ -118,6 +120,16 @@ export class ClearingHouse {
 						type: 'websocket',
 				  };
 		this.createUsers(userIds, this.userAccountSubscriptionConfig);
+		if (config.userStats) {
+			this.userStats = new ClearingHouseUserStats({
+				clearingHouse: this,
+				userStatsAccountPublicKey: getUserStatsAccountPublicKey(
+					this.program.programId,
+					this.wallet.publicKey
+				),
+				accountSubscription: this.userAccountSubscriptionConfig,
+			});
+		}
 
 		let marketIndexes = config.marketIndexes;
 		let bankIndexes = config.bankIndexes;
@@ -189,6 +201,9 @@ export class ClearingHouse {
 		const subscribePromises = this.subscribeUsers().concat(
 			this.accountSubscriber.subscribe()
 		);
+		if (this.userStats !== undefined) {
+			subscribePromises.concat(this.userStats.subscribe());
+		}
 		this.isSubscribed = (await Promise.all(subscribePromises)).reduce(
 			(success, prevSuccess) => success && prevSuccess
 		);
@@ -214,6 +229,9 @@ export class ClearingHouse {
 		const unsubscribePromises = this.unsubscribeUsers().concat(
 			this.accountSubscriber.unsubscribe()
 		);
+		if (this.userStats !== undefined) {
+			unsubscribePromises.concat(this.userStats.unsubscribe());
+		}
 		await Promise.all(unsubscribePromises);
 		this.isSubscribed = false;
 	}
@@ -387,6 +405,10 @@ export class ClearingHouse {
 
 	public getUsers(): ClearingHouseUser[] {
 		return [...this.users.values()];
+	}
+
+	public getUserStats(): ClearingHouseUserStats {
+		return this.userStats;
 	}
 
 	userStatsAccountPublicKey: PublicKey;

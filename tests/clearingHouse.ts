@@ -80,6 +80,7 @@ describe('clearing_house', () => {
 			marketIndexes: [new BN(0)],
 			bankIndexes: [new BN(0)],
 			oracleInfos: [{ publicKey: solUsd, source: OracleSource.PYTH }],
+			userStats: true,
 		});
 	});
 
@@ -276,9 +277,10 @@ describe('clearing_house', () => {
 		);
 		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(10000000)));
 		assert(
-			(
-				await clearingHouse.getUser().getUserStatsAccount()
-			).fees.totalFeePaid.eq(new BN(48004))
+			clearingHouse
+				.getUserStats()
+				.getAccountAndSlot()
+				.data.fees.totalFeePaid.eq(new BN(48004))
 		);
 
 		assert.ok(user.positions[0].quoteEntryAmount.eq(new BN(-48004609)));
@@ -376,9 +378,10 @@ describe('clearing_house', () => {
 		console.log(clearingHouse.getQuoteAssetTokenAmount().toString());
 		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(10000000)));
 		assert(
-			(
-				await clearingHouse.getUser().getUserStatsAccount()
-			).fees.totalFeePaid.eq(new BN(72007))
+			clearingHouse
+				.getUserStats()
+				.getAccountAndSlot()
+				.data.fees.totalFeePaid.eq(new BN(72007))
 		);
 
 		const market = clearingHouse.getMarketAccount(0);
@@ -437,9 +440,10 @@ describe('clearing_house', () => {
 		console.log(clearingHouse.getQuoteAssetTokenAmount().toString());
 		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9878840)));
 		assert(
-			(
-				await clearingHouse.getUser().getUserStatsAccount()
-			).fees.totalFeePaid.eq(new BN(120007))
+			clearingHouse
+				.getUserStats()
+				.getAccountAndSlot()
+				.data.fees.totalFeePaid.eq(new BN(120007))
 		);
 		console.log(user.positions[0].quoteEntryAmount.toString());
 
@@ -492,9 +496,10 @@ describe('clearing_house', () => {
 		assert.ok(user.positions[0].baseAssetAmount.eq(new BN(0)));
 		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9855993)));
 		assert(
-			(
-				await clearingHouse.getUser().getUserStatsAccount()
-			).fees.totalFeePaid.eq(new BN(144005))
+			clearingHouse
+				.getUserStats()
+				.getAccountAndSlot()
+				.data.fees.totalFeePaid.eq(new BN(144005))
 		);
 
 		const market = clearingHouse.getMarketAccount(0);

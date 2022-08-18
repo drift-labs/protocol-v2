@@ -151,6 +151,7 @@ describe('post only', () => {
 			marketIndexes,
 			bankIndexes,
 			oracleInfos,
+			userStats: true,
 		});
 		await clearingHouse.subscribe();
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
@@ -202,10 +203,7 @@ describe('post only', () => {
 		assert(position.quoteAssetAmount.eq(new BN(-1000001)));
 		assert(clearingHouse.getQuoteAssetTokenAmount().eq(usdcAmount));
 		assert(
-			(await clearingHouseUser.getUserStatsAccount()).fees.totalFeePaid.eq(ZERO)
-		);
-		assert(
-			(await clearingHouseUser.getUserStatsAccount()).fees.totalFeePaid.eq(ZERO)
+			clearingHouse.getUserStats().getAccount().fees.totalFeePaid.eq(ZERO)
 		);
 
 		await fillerClearingHouse.fetchAccounts();
@@ -291,12 +289,7 @@ describe('post only', () => {
 		assert(position.quoteEntryAmount.eq(new BN(1000000)));
 		assert(clearingHouse.getQuoteAssetTokenAmount().eq(usdcAmount));
 		assert(
-			(await clearingHouseUser.getUserStatsAccount()).fees.totalFeePaid.eq(ZERO)
-		);
-		assert(
-			(await clearingHouseUser.getUserStatsAccount()).fees.totalFeePaid.eq(
-				new BN(0)
-			)
+			clearingHouse.getUserStats().getAccount().fees.totalFeePaid.eq(ZERO)
 		);
 
 		await fillerClearingHouse.fetchAccounts();
