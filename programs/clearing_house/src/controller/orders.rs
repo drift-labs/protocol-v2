@@ -823,6 +823,8 @@ fn fulfill_order(
                 filler_stats,
                 fee_structure,
                 &mut order_records,
+                None,
+                None,
             )?,
             FulfillmentMethod::Match => fulfill_order_with_match(
                 market.deref_mut(),
@@ -1013,14 +1015,19 @@ pub fn fulfill_order_with_amm(
     filler_stats: &mut Option<&mut UserStats>,
     fee_structure: &FeeStructure,
     order_records: &mut Vec<OrderRecord>,
+    unload_base_asset_amount: Option<u128>,
+    unload_limit_price: Option<u128>,
 ) -> ClearingHouseResult<(u128, bool)> {
     // Determine the base asset amount the market can fill
-    let base_asset_amount = calculate_base_asset_amount_for_amm_to_fulfill(
-        &user.orders[order_index],
-        market,
-        valid_oracle_price,
-        slot,
-    )?;
+    let base_asset_amount = match unload_base_asset_amount {
+        Some(unload_base_asset_amount) => unload_base_asset_amount,
+        None => calculate_base_asset_amount_for_amm_to_fulfill(
+            &user.orders[order_index],
+            market,
+            valid_oracle_price,
+            slot,
+        )?,
+    };
 
     if base_asset_amount == 0 {
         msg!("Amm cant fulfill order");
@@ -1034,7 +1041,7 @@ pub fn fulfill_order_with_amm(
     let maker_limit_price = if order_post_only {
         Some(user.orders[order_index].get_limit_price(&market.amm, valid_oracle_price, slot)?)
     } else {
-        None
+        unload_limit_price
     };
 
     let (order_post_only, order_ts, order_direction) =
@@ -1080,9 +1087,7 @@ pub fn fulfill_order_with_amm(
     )?;
 
     // Increment the clearing house's total fee variables
-    market.amm.total_fee = market
-        .amm
-        .total_fee
+    market.amm.total_fee = cast_to_i128(market.amm.total_fee)?
         .checked_add(fee_to_market)
         .ok_or_else(math_error!())?;
     market.amm.total_exchange_fee = market
@@ -1090,9 +1095,7 @@ pub fn fulfill_order_with_amm(
         .total_exchange_fee
         .checked_add(user_fee)
         .ok_or_else(math_error!())?;
-    market.amm.total_mm_fee = market
-        .amm
-        .total_mm_fee
+    market.amm.total_mm_fee = cast_to_i128(market.amm.total_mm_fee)?
         .checked_add(quote_asset_amount_surplus)
         .ok_or_else(math_error!())?;
     market.amm.total_fee_minus_distributions = market
@@ -1248,6 +1251,38 @@ pub fn fulfill_order_with_match(
         return Ok((0_u128, false));
     }
 
+    let amm_wants_to_unload = match maker_direction {
+        PositionDirection::Long => market.amm.net_base_asset_amount < 0,
+        PositionDirection::Short => market.amm.net_base_asset_amount > 0,
+    };
+
+    if amm_wants_to_unload {
+        let mark_price_before = 0;
+        let valid_oracle_price = None; //0;
+
+        let unload_amount = base_asset_amount / 2; // todo, dynamic?
+
+        fulfill_order_with_amm(
+            taker,
+            taker_stats,
+            taker_order_index,
+            market,
+            oracle_map,
+            mark_price_before,
+            now,
+            slot,
+            valid_oracle_price,
+            taker_key,
+            filler_key,
+            &mut None,
+            &mut None,
+            fee_structure,
+            order_records,
+            Some(unload_amount),
+            Some(maker_price),
+        )?;
+    }
+
     let maker_position_index = get_position_index(
         &maker.positions,
         maker.orders[maker_order_index].market_index,
@@ -1306,7 +1341,7 @@ pub fn fulfill_order_with_match(
     market.amm.total_fee = market
         .amm
         .total_fee
-        .checked_add(fee_to_market)
+        .checked_add(cast_to_i128(fee_to_market)?)
         .ok_or_else(math_error!())?;
     market.amm.total_fee_minus_distributions = market
         .amm

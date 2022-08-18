@@ -517,7 +517,7 @@ pub fn swap_base_asset_position_delta(
     mark_price_before: u128,
     now: i64,
     maker_limit_price: Option<u128>,
-) -> ClearingHouseResult<(bool, u128, u128, u128, PositionDelta)> {
+) -> ClearingHouseResult<(bool, u128, u128, i128, PositionDelta)> {
     let swap_direction = match direction {
         PositionDirection::Long => SwapDirection::Remove,
         PositionDirection::Short => SwapDirection::Add,
@@ -564,7 +564,7 @@ fn calculate_quote_asset_amount_surplus(
     quote_asset_swapped: u128,
     base_asset_amount: u128,
     limit_price: u128,
-) -> ClearingHouseResult<(u128, u128)> {
+) -> ClearingHouseResult<(u128, i128)> {
     let quote_asset_amount = calculate_quote_asset_amount_for_maker_order(
         base_asset_amount,
         limit_price,
@@ -572,11 +572,11 @@ fn calculate_quote_asset_amount_surplus(
     )?;
 
     let quote_asset_amount_surplus = match swap_direction {
-        SwapDirection::Remove => quote_asset_amount
-            .checked_sub(quote_asset_swapped)
+        SwapDirection::Remove => cast_to_i128(quote_asset_amount)?
+            .checked_sub(cast_to_i128(quote_asset_swapped)?)
             .ok_or_else(math_error!())?,
-        SwapDirection::Add => quote_asset_swapped
-            .checked_sub(quote_asset_amount)
+        SwapDirection::Add => cast_to_i128(quote_asset_swapped)?
+            .checked_sub(cast_to_i128(quote_asset_amount)?)
             .ok_or_else(math_error!())?,
     };
 

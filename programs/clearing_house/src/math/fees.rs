@@ -1,5 +1,5 @@
 use crate::error::ClearingHouseResult;
-use crate::math::casting::cast_to_u128;
+use crate::math::casting::{cast_to_i128, cast_to_u128};
 use crate::math_error;
 use crate::state::state::FeeStructure;
 use crate::state::state::OrderFillerRewardStructure;
@@ -13,12 +13,12 @@ pub fn calculate_fee_for_order_fulfill_against_amm(
     order_ts: i64,
     now: i64,
     reward_filler: bool,
-    quote_asset_amount_surplus: u128,
+    quote_asset_amount_surplus: i128,
     is_post_only: bool,
-) -> ClearingHouseResult<(u128, u128, u128)> {
+) -> ClearingHouseResult<(u128, i128, u128)> {
     // if there was a quote_asset_amount_surplus, the order was a maker order and fee_to_market comes from surplus
     if is_post_only {
-        let fee = quote_asset_amount_surplus;
+        let fee = cast_to_u128(quote_asset_amount_surplus)?;
         let filler_reward: u128 = if !reward_filler {
             0
         } else {
@@ -27,7 +27,7 @@ pub fn calculate_fee_for_order_fulfill_against_amm(
         let fee_to_market = fee.checked_sub(filler_reward).ok_or_else(math_error!())?;
         let user_fee = 0_u128;
 
-        Ok((user_fee, fee_to_market, filler_reward))
+        Ok((user_fee, cast_to_i128(fee_to_market)?, filler_reward))
     } else {
         let fee = quote_asset_amount
             .checked_mul(fee_structure.fee_numerator)
@@ -48,11 +48,13 @@ pub fn calculate_fee_for_order_fulfill_against_amm(
             )?
         };
 
-        let fee_to_market = user_fee
-            .checked_sub(filler_reward)
-            .ok_or_else(math_error!())?
-            .checked_add(quote_asset_amount_surplus)
-            .ok_or_else(math_error!())?;
+        let fee_to_market = cast_to_i128(
+            user_fee
+                .checked_sub(filler_reward)
+                .ok_or_else(math_error!())?,
+        )?
+        .checked_add(quote_asset_amount_surplus)
+        .ok_or_else(math_error!())?;
 
         Ok((user_fee, fee_to_market, filler_reward))
     }
@@ -99,7 +101,7 @@ pub fn calculate_fee_for_fulfillment_with_match(
     order_ts: i64,
     now: i64,
     reward_filler: bool,
-) -> ClearingHouseResult<(u128, u128, u128, u128)> {
+) -> ClearingHouseResult<(u128, u128, i128, u128)> {
     let fee = quote_asset_amount
         .checked_mul(fee_structure.fee_numerator)
         .ok_or_else(math_error!())?
@@ -120,13 +122,19 @@ pub fn calculate_fee_for_fulfillment_with_match(
         calculate_filler_reward(fee, order_ts, now, &fee_structure.filler_reward_structure)?
     };
 
+    // must be non-negative
     let fee_to_market = taker_fee
         .checked_sub(filler_reward)
         .ok_or_else(math_error!())?
         .checked_sub(maker_rebate)
         .ok_or_else(math_error!())?;
 
-    Ok((taker_fee, maker_rebate, fee_to_market, filler_reward))
+    Ok((
+        taker_fee,
+        maker_rebate,
+        cast_to_i128(fee_to_market)?,
+        filler_reward,
+    ))
 }
 
 #[cfg(test)]
