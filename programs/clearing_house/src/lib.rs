@@ -44,7 +44,7 @@ pub mod clearing_house {
     use crate::math;
     use crate::math::bank_balance::get_token_amount;
     use crate::math::casting::{cast, cast_to_i128, cast_to_u128};
-    use crate::optional_accounts::get_maker_and_maker_stats;
+    use crate::optional_accounts::{get_maker_and_maker_stats, get_referrer_and_referrer_stats};
     use crate::state::bank::{Bank, BankBalanceType};
     use crate::state::bank_map::{get_writable_banks, BankMap, WritableBanks};
     use crate::state::events::DepositDirection;
@@ -1949,6 +1949,33 @@ pub mod clearing_house {
             .number_of_users
             .checked_add(1)
             .ok_or_else(math_error!())?;
+
+        // Only try to add referrer if it is the first user
+        if user_stats.number_of_users == 1 {
+            let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+            let (referrer, referrer_stats) =
+                get_referrer_and_referrer_stats(remaining_accounts_iter)?;
+            let referrer =
+                if let (Some(referrer), Some(referrer_stats)) = (referrer, referrer_stats) {
+                    let referrer = load!(referrer)?;
+                    let mut referrer_stats = load_mut!(referrer_stats)?;
+
+                    validate!(referrer.userId == 0, ErrorCode::InvalidReferrer,)?;
+
+                    validate!(
+                        referrer.authority == referrer_stats.authority,
+                        ErrorCode::ReferrerAndReferrerStatsAuthorityUnequal
+                    )?;
+
+                    referrer_stats.is_referrer = true;
+
+                    Pubkey::default()
+                } else {
+                    Pubkey::default()
+                };
+
+            user_stats.referrer = referrer;
+        }
 
         Ok(())
     }

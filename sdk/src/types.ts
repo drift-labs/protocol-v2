@@ -457,6 +457,8 @@ export type UserStatsAccount = {
 		totalReferralReward: BN;
 		totalRefereeDiscount: BN;
 	};
+	referrer: PublicKey;
+	isReferrer: boolean;
 };
 
 export type UserAccount = {
@@ -572,6 +574,11 @@ export type TakerInfo = {
 	taker: PublicKey;
 	takerStats: PublicKey;
 	order: Order;
+};
+
+export type ReferrerInfo = {
+	referrer: PublicKey;
+	referrerStats: PublicKey;
 };
 
 // # Misc Types

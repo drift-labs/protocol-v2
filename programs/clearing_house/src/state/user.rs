@@ -491,6 +491,7 @@ pub struct UserStats {
     pub authority: Pubkey,
     pub number_of_users: u8,
 
+    pub is_referrer: bool,
     pub referrer: Pubkey,
 
     pub fees: UserFees,

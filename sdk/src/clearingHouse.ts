@@ -15,6 +15,7 @@ import {
 	OptionalOrderParams,
 	DefaultOrderParams,
 	OrderType,
+	ReferrerInfo,
 } from './types';
 import * as anchor from '@project-serum/anchor';
 import clearingHouseIDL from './idl/clearing_house.json';
@@ -340,10 +341,11 @@ export class ClearingHouse {
 
 	public async initializeUserAccount(
 		userId = 0,
-		name = DEFAULT_USER_NAME
+		name = DEFAULT_USER_NAME,
+		referrerInfo?: ReferrerInfo
 	): Promise<[TransactionSignature, PublicKey]> {
 		const [userAccountPublicKey, initializeUserAccountIx] =
-			await this.getInitializeUserInstructions(userId, name);
+			await this.getInitializeUserInstructions(userId, name, referrerInfo);
 
 		const tx = new Transaction();
 		if (userId === 0) {
@@ -357,13 +359,28 @@ export class ClearingHouse {
 
 	async getInitializeUserInstructions(
 		userId = 0,
-		name = DEFAULT_USER_NAME
+		name = DEFAULT_USER_NAME,
+		referrerInfo?: ReferrerInfo
 	): Promise<[PublicKey, TransactionInstruction]> {
 		const userAccountPublicKey = await getUserAccountPublicKey(
 			this.program.programId,
 			this.wallet.publicKey,
 			userId
 		);
+
+		const remainingAccounts = new Array<AccountMeta>();
+		if (referrerInfo !== undefined) {
+			remainingAccounts.push({
+				pubkey: referrerInfo.referrer,
+				isWritable: true,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: referrerInfo.referrerStats,
+				isWritable: true,
+				isSigner: false,
+			});
+		}
 
 		const nameBuffer = encodeName(name);
 		const initializeUserAccountIx =
@@ -841,10 +858,11 @@ export class ClearingHouse {
 		bankIndex = new BN(0),
 		userId = 0,
 		name = DEFAULT_USER_NAME,
-		fromUserId?: number
+		fromUserId?: number,
+		referrerInfo?: ReferrerInfo
 	): Promise<[TransactionSignature, PublicKey]> {
 		const [userAccountPublicKey, initializeUserAccountIx] =
-			await this.getInitializeUserInstructions(userId, name);
+			await this.getInitializeUserInstructions(userId, name, referrerInfo);
 
 		const additionalSigners: Array<Signer> = [];
 
@@ -919,7 +937,8 @@ export class ClearingHouse {
 		name = DEFAULT_USER_NAME,
 		bankIndex: BN,
 		tokenFaucet: TokenFaucet,
-		amount: BN
+		amount: BN,
+		referrerInfo?: ReferrerInfo
 	): Promise<[TransactionSignature, PublicKey]> {
 		const [associateTokenPublicKey, createAssociatedAccountIx, mintToIx] =
 			await tokenFaucet.createAssociatedTokenAccountAndMintToInstructions(
@@ -928,7 +947,7 @@ export class ClearingHouse {
 			);
 
 		const [userAccountPublicKey, initializeUserAccountIx] =
-			await this.getInitializeUserInstructions(userId, name);
+			await this.getInitializeUserInstructions(userId, name, referrerInfo);
 
 		const depositCollateralIx = await this.getDepositInstruction(
 			amount,
