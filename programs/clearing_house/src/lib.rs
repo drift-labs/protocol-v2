@@ -1383,6 +1383,7 @@ pub mod clearing_house {
         )?;
 
         let market = &mut market_map.get_ref_mut(&market_index)?;
+        let bank = &mut bank_map.get_ref_mut(&QUOTE_ASSET_BANK_INDEX)?;
 
         let budget = market
             .amm
@@ -1391,9 +1392,29 @@ pub mod clearing_house {
             .ok_or_else(math_error!())?
             .max(0);
 
+        let fee_pool_transfer = budget.min(controller::amm::get_fee_pool_tokens(market, bank)?);
+
+        controller::bank_balance::update_bank_balances(
+            fee_pool_transfer.unsigned_abs(),
+            &BankBalanceType::Borrow,
+            bank,
+            &mut market.amm.fee_pool,
+        )?;
+
+        controller::bank_balance::update_bank_balances(
+            fee_pool_transfer.unsigned_abs(),
+            &BankBalanceType::Deposit,
+            bank,
+            &mut market.pnl_pool,
+        )?;
+
         if budget > 0 {
-            let (k_scale_numerator, k_scale_denominator) =
-                amm::calculate_budgeted_k_scale(market, cast_to_i128(budget)?, 0, 1000000)?;
+            let (k_scale_numerator, k_scale_denominator) = amm::calculate_budgeted_k_scale(
+                market,
+                cast_to_i128(budget)?,
+                0,
+                K_BPS_UPDATE_SCALE * 100,
+            )?;
 
             let new_sqrt_k = bn::U192::from(market.amm.sqrt_k)
                 .checked_mul(bn::U192::from(k_scale_numerator))
@@ -1401,16 +1422,22 @@ pub mod clearing_house {
                 .checked_div(bn::U192::from(k_scale_denominator))
                 .ok_or_else(math_error!())?;
 
-            msg!("updating k: {:?} -> {:?}", market.amm.sqrt_k, new_sqrt_k);
-
             let update_k_result = get_update_k_result(market, new_sqrt_k, true)?;
 
             let adjustment_cost = amm::adjust_k_cost(market, &update_k_result)?;
 
             let cost_applied =
                 controller::repeg::apply_cost_to_market(market, adjustment_cost, true)?;
+
+            msg!(
+                "updating k: {:?} -> {:?} for cost={:?}",
+                market.amm.sqrt_k,
+                new_sqrt_k,
+                adjustment_cost
+            );
             if cost_applied {
                 amm::update_k(market, &update_k_result)?;
+                msg!("updated k");
             }
         }
 
@@ -1442,8 +1469,6 @@ pub mod clearing_house {
         };
 
         msg!("{:?} -> target: {:?}", lateness, target_settlement_price);
-
-        let bank = &mut bank_map.get_ref_mut(&QUOTE_ASSET_BANK_INDEX)?;
 
         let pnl_pool_amount =
             get_token_amount(market.pnl_pool.balance, bank, &BankBalanceType::Deposit)?;

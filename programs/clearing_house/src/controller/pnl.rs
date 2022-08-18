@@ -252,12 +252,13 @@ pub fn settle_expired_position(
 
     emit!(SettlePnlRecord {
         ts: now,
+        user: *user_key,
         market_index,
         pnl: pnl_to_settle_with_user,
         base_asset_amount,
         quote_asset_amount_after,
         quote_entry_amount,
-        oracle_price: market.settlement_price, // todo rename this field?
+        settle_price: market.settlement_price, // todo rename this field?
     });
 
     validate!(

@@ -918,11 +918,11 @@ pub fn calculate_budgeted_k_scale(
     market: &mut Market,
     budget: i128,
     _mark_price: u128, // todo
-    increase_max: i128, 
+    increase_max: i128,
 ) -> ClearingHouseResult<(u128, u128)> {
     let curve_update_intensity = market.amm.curve_update_intensity as i128;
-    let k_pct_upper_bound =
-        K_BPS_UPDATE_SCALE + (increase_max) * curve_update_intensity / 100;
+    let k_pct_upper_bound = increase_max;
+    // K_BPS_UPDATE_SCALE + (increase_max) * curve_update_intensity / 100;
     let k_pct_lower_bound =
         K_BPS_UPDATE_SCALE - (K_BPS_DECREASE_MAX) * curve_update_intensity / 100;
 
@@ -1020,6 +1020,7 @@ pub fn _calculate_budgeted_k_scale(
             msg!("cost exceeds possible amount to spend");
             // let k_pct_upper_bound =
             //     K_BPS_UPDATE_SCALE + (K_BPS_INCREASE_MAX) * curve_update_intensity / 100;
+            msg!("k * {:?}/{:?}", k_pct_upper_bound, K_BPS_UPDATE_SCALE);
             return Ok((
                 cast_to_u128(k_pct_upper_bound)?,
                 cast_to_u128(K_BPS_UPDATE_SCALE)?,

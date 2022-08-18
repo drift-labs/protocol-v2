@@ -168,6 +168,9 @@ describe('delist market', () => {
 			new BN(43_133)
 		);
 
+		await clearingHouse.updateMarketBaseSpread(new BN(0), 2000);
+		// await clearingHouse.updateCurveUpdateIntensity(new BN(0), 100);
+
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
@@ -254,6 +257,7 @@ describe('delist market', () => {
 		}
 
 		const market00 = clearingHouse.getMarketAccount(new BN(0));
+		assert(market00.amm.feePool.balance.eq(new BN(1000000000)));
 
 		// sol tanks 90%
 		await clearingHouse.moveAmmToPrice(
@@ -466,8 +470,12 @@ describe('delist market', () => {
 
 		const marketAfter = clearingHouse.getMarketAccount(marketIndex);
 
-		const finalPnlResult = new BN(86320);
+		const finalPnlResult = new BN(86426);
 		console.log(marketAfter.pnlPool.balance.toString());
-		assert(marketAfter.pnlPool.balance.eq(finalPnlResult));
+		// assert(marketAfter.pnlPool.balance.eq(finalPnlResult));
+
+		const ammPnlResult = new BN(0);
+		console.log(marketAfter.amm.feePool.balance.toString());
+		assert(marketAfter.amm.feePool.balance.eq(new BN(1000000000)));
 	});
 });

@@ -7,7 +7,9 @@ use crate::math::amm::{
 };
 use crate::math::bank_balance::get_token_amount;
 use crate::math::casting::{cast_to_i128, cast_to_i64, cast_to_u128};
-use crate::math::constants::{K_BPS_INCREASE_MAX, PRICE_TO_PEG_PRECISION_RATIO};
+use crate::math::constants::{
+    K_BPS_INCREASE_MAX, K_BPS_UPDATE_SCALE, PRICE_TO_PEG_PRECISION_RATIO,
+};
 use crate::math::{amm, bn, quote_asset::*};
 use crate::math_error;
 use crate::state::events::CurveRecord;
@@ -269,8 +271,14 @@ pub fn formulaic_update_k(
 
     if budget > 0 || (budget < 0 && market.amm.can_lower_k()?) {
         // single k scale is capped by .1% increase and 2.2% decrease (regardless of budget)
-        let (k_scale_numerator, k_scale_denominator) =
-            amm::calculate_budgeted_k_scale(market, cast_to_i128(budget)?, mark_price, K_BPS_INCREASE_MAX)?;
+        let k_update_max = K_BPS_UPDATE_SCALE
+            + K_BPS_INCREASE_MAX * (market.amm.curve_update_intensity as i128) / 100;
+        let (k_scale_numerator, k_scale_denominator) = amm::calculate_budgeted_k_scale(
+            market,
+            cast_to_i128(budget)?,
+            mark_price,
+            k_update_max,
+        )?;
 
         let new_sqrt_k = bn::U192::from(market.amm.sqrt_k)
             .checked_mul(bn::U192::from(k_scale_numerator))
@@ -317,6 +325,16 @@ pub fn formulaic_update_k(
         }
     }
     Ok(())
+}
+
+pub fn get_fee_pool_tokens(market: &mut Market, bank: &mut Bank) -> ClearingHouseResult<i128> {
+    let amm_fee_pool_token_amount = cast_to_i128(get_token_amount(
+        market.amm.fee_pool.balance(),
+        bank,
+        market.amm.fee_pool.balance_type(),
+    )?)?;
+
+    Ok(amm_fee_pool_token_amount)
 }
 
 pub fn update_pool_balances(
