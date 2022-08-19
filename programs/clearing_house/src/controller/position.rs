@@ -595,6 +595,15 @@ pub fn update_quote_asset_amount(
     Ok(())
 }
 
+pub fn update_realized_pnl(position: &mut MarketPosition, delta: i64) -> ClearingHouseResult<()> {
+    position.realized_pnl = position
+        .realized_pnl
+        .checked_add(delta)
+        .ok_or_else(math_error!())?;
+
+    Ok(())
+}
+
 pub fn increase_open_bids_and_asks(
     position: &mut MarketPosition,
     direction: &PositionDirection,

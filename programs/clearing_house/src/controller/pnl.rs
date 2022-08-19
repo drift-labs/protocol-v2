@@ -2,10 +2,12 @@ use crate::controller::amm::{update_pnl_pool_balance, update_pool_balances};
 use crate::controller::bank_balance::{update_bank_balances, update_bank_cumulative_interest};
 use crate::controller::funding::settle_funding_payment;
 use crate::controller::position::{
-    get_position_index, update_position_and_market, update_quote_asset_amount, PositionDelta,
+    get_position_index, update_position_and_market, update_quote_asset_amount, update_realized_pnl,
+    PositionDelta,
 };
 use crate::dlog;
 use crate::error::{ClearingHouseResult, ErrorCode};
+use crate::math::casting::cast;
 // use crate::math::bank_balance::get_token_amount;
 use crate::math::casting::cast_to_i128;
 use crate::math::margin::meets_maintenance_margin_requirement;
@@ -112,6 +114,11 @@ pub fn settle_pnl(
     update_quote_asset_amount(
         &mut user.positions[position_index],
         -pnl_to_settle_with_user,
+    )?;
+
+    update_realized_pnl(
+        &mut user.positions[position_index],
+        cast(pnl_to_settle_with_user)?,
     )?;
 
     let base_asset_amount = user.positions[position_index].base_asset_amount;
