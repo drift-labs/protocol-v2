@@ -839,6 +839,8 @@ fn fulfill_order(
                 filler,
                 filler_stats,
                 filler_key,
+                mark_price_before,
+                valid_oracle_price,
                 now,
                 slot,
                 fee_structure,
@@ -1210,6 +1212,8 @@ pub fn fulfill_order_with_match(
     filler: &mut Option<&mut User>,
     filler_stats: &mut Option<&mut UserStats>,
     filler_key: &Pubkey,
+    mark_price_before: u128,
+    valid_oracle_price: Option<i128>,
     now: i64,
     slot: u64,
     fee_structure: &FeeStructure,
@@ -1257,9 +1261,6 @@ pub fn fulfill_order_with_match(
     };
 
     let base_asset_amount_left_to_fill = if market.toxic_unload && amm_wants_to_unload {
-        let mark_price_before = 0;
-        let valid_oracle_price = None; //0;
-
         let unload_amount = base_asset_amount / 2; // todo, dynamic?
 
         let (base_asset_amount_filled_by_amm, _) = fulfill_order_with_amm(
