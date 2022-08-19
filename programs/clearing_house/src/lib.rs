@@ -952,8 +952,8 @@ pub mod clearing_house {
 
     pub fn add_insurance_liquidity<'info>(
         ctx: Context<AddInsuranceLiquidity>,
-        amount: u64,
         bank_index: u64,
+        amount: u64,
     ) -> Result<()> {
         // let user_key = ctx.accounts.user.key();
         // let user = &mut load_mut!(ctx.accounts.user)?;

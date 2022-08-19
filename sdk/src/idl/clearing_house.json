@@ -504,11 +504,11 @@
       ],
       "args": [
         {
-          "name": "amount",
+          "name": "bankIndex",
           "type": "u64"
         },
         {
-          "name": "bankIndex",
+          "name": "amount",
           "type": "u64"
         }
       ]

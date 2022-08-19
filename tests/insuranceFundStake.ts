@@ -107,8 +107,8 @@ describe('insurance fund stake', () => {
 		const bankIndex = new BN(0);
 		try {
 			const txSig = await clearingHouse.addInsuranceLiquidity(
-				usdcAmount,
 				bankIndex,
+				usdcAmount,
 				userUSDCAccount.publicKey
 			);
 			console.log(

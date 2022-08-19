@@ -366,7 +366,7 @@ pub struct AddRemoveLiquidity<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(bank_index: u64,)]
+#[instruction(bank_index: u64)]
 pub struct AddInsuranceLiquidity<'info> {
     pub bank: AccountLoader<'info, Bank>,
     #[account(

@@ -2422,8 +2422,8 @@ export class ClearingHouse {
 	}
 
 	public async addInsuranceLiquidity(
-		amount: BN,
 		bankIndex: BN,
+		amount: BN,
 		collateralAccountPublicKey: PublicKey
 	): Promise<TransactionSignature> {
 		const bank = this.getBankAccount(bankIndex);
@@ -2437,7 +2437,7 @@ export class ClearingHouse {
 			writableBankIndex: bankIndex,
 		});
 
-		return await this.program.rpc.addInsuranceLiquidity(amount, bankIndex, {
+		return await this.program.rpc.addInsuranceLiquidity(bankIndex, amount, {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				bank: bank.pubkey,
