@@ -3,23 +3,22 @@ import { BulkAccountLoader } from './bulkAccountLoader';
 import { PollingUserStatsAccountSubscriber } from './pollingUserStatsAccountSubscriber';
 
 /**
- * @param users
+ * @param userStats
  * @param accountLoader
  */
 export async function bulkPollingUserStatsSubscribe(
-	users: ClearingHouseUserStats[],
+	userStats: ClearingHouseUserStats[],
 	accountLoader: BulkAccountLoader
 ): Promise<void> {
-	if (users.length === 0) {
+	if (userStats.length === 0) {
 		await accountLoader.load();
 		return;
 	}
 
 	await Promise.all(
-		users.map((user) => {
-			// Pull the keys from the authority map so we can skip fetching them in addToAccountLoader
+		userStats.map((userStat) => {
 			return (
-				user.accountSubscriber as PollingUserStatsAccountSubscriber
+				userStat.accountSubscriber as PollingUserStatsAccountSubscriber
 			).addToAccountLoader();
 		})
 	);
@@ -27,8 +26,8 @@ export async function bulkPollingUserStatsSubscribe(
 	await accountLoader.load();
 
 	await Promise.all(
-		users.map(async (user) => {
-			return user.subscribe();
+		userStats.map(async (userStat) => {
+			return userStat.subscribe();
 		})
 	);
 }
