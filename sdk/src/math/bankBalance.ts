@@ -187,7 +187,7 @@ export function calculateInterestAccumulated(
 			.div(BANK_UTILIZATION_PRECISION);
 	}
 
-	const timeSinceLastUpdate = now.sub(bank.lastUpdated);
+	const timeSinceLastUpdate = now.sub(bank.lastInterestTs);
 
 	const modifiedBorrowRate = interest_rate.mul(timeSinceLastUpdate);
 
@@ -224,7 +224,7 @@ export function calculateWithdrawLimit(
 	);
 
 	const twentyFourHours = new BN(60 * 60 * 24);
-	const sinceLast = now.sub(bank.lastUpdated);
+	const sinceLast = now.sub(bank.lastTwapTs);
 	const sinceStart = BN.max(ZERO, twentyFourHours.sub(sinceLast));
 	const borrowTokenTwapLive = bank.borrowTokenTwap
 		.mul(sinceStart)

@@ -350,7 +350,8 @@ export type BankAccount = {
 	cumulativeBorrowInterest: BN;
 	depositBalance: BN;
 	borrowBalance: BN;
-	lastUpdated: BN;
+	lastInterestTs: BN;
+	lastTwapTs: BN;
 	oracle: PublicKey;
 	initialAssetWeight: BN;
 	maintenanceAssetWeight: BN;
