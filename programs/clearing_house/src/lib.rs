@@ -955,10 +955,6 @@ pub mod clearing_house {
         bank_index: u64,
         amount: u64,
     ) -> Result<()> {
-        // let user_key = ctx.accounts.user.key();
-        // let user = &mut load_mut!(ctx.accounts.user)?;
-        msg!("HI");
-        // let insurance_fund_stake_key = ctx.accounts.insurance_fund_stake.key();
         if amount == 0 {
             return Err(ErrorCode::InsufficientDeposit.into());
         }
@@ -2539,6 +2535,18 @@ pub mod clearing_house {
         )?;
 
         market.liquidation_fee = liquidation_fee;
+        Ok(())
+    }
+
+    pub fn update_bank_insurance_withdraw_escrow_period(
+        ctx: Context<AdminUpdateBank>,
+        insurance_withdraw_escrow_period: i64,
+    ) -> Result<()> {
+        let bank = &mut load_mut!(ctx.accounts.bank)?;
+        let now = Clock::get()?.unix_timestamp;
+
+        bank.insurance_withdraw_escrow_period = insurance_withdraw_escrow_period;
+
         Ok(())
     }
 

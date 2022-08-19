@@ -606,6 +606,22 @@ export class Admin extends ClearingHouse {
 		);
 	}
 
+	public async updateBankInsuranceWithdrawEscrowPeriod(
+		bankIndex: BN,
+		insuranceWithdrawEscrowPeriod: BN
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateBankInsuranceWithdrawEscrowPeriod(
+			insuranceWithdrawEscrowPeriod,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					bank: await getBankPublicKey(this.program.programId, bankIndex),
+				},
+			}
+		);
+	}
+
 	public async updateLpCooldownTime(
 		marketIndex: BN,
 		cooldownTime: BN

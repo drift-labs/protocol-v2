@@ -1631,6 +1631,32 @@
       ]
     },
     {
+      "name": "updateBankInsuranceWithdrawEscrowPeriod",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "bank",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "insuranceWithdrawEscrowPeriod",
+          "type": "i64"
+        }
+      ]
+    },
+    {
       "name": "updateBankLiquidationFee",
       "accounts": [
         {
