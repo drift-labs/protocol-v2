@@ -1391,9 +1391,18 @@ pub mod clearing_house {
             .checked_sub(cast_to_i128(market.amm.total_exchange_fee / 2)?)
             .ok_or_else(math_error!())?
             .max(0);
-        let fee_pool_transfer = budget.min(controller::amm::get_fee_pool_tokens(market, bank)?);
 
-        msg!("budget vs fee_pool_transfer {:?} vs {:?}", budget, fee_pool_transfer);
+        let available_fee_pool = controller::amm::get_fee_pool_tokens(market, bank)?
+            .checked_sub(cast_to_i128(market.amm.total_exchange_fee / 2)?)
+            .ok_or_else(math_error!())?
+            .max(0);
+        let fee_pool_transfer = budget.min(available_fee_pool);
+
+        msg!(
+            "budget vs fee_pool_transfer {:?} vs {:?}",
+            budget,
+            fee_pool_transfer
+        );
         controller::bank_balance::update_bank_balances(
             fee_pool_transfer.unsigned_abs(),
             &BankBalanceType::Borrow,

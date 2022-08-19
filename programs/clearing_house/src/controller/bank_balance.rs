@@ -10,7 +10,7 @@ use crate::math::casting::{cast, cast_to_i128, cast_to_u64};
 use crate::math::constants::TWENTY_FOUR_HOUR;
 use crate::math_error;
 use crate::state::bank::{Bank, BankBalance, BankBalanceType};
-use crate::state::market::{Market};
+use crate::state::market::Market;
 use crate::validate;
 use std::cmp::max;
 
@@ -226,16 +226,16 @@ fn decrease_bank_balance(
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::state::market::{MarketStatus};
     use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BANK_CUMULATIVE_INTEREST_PRECISION, BANK_INTEREST_PRECISION,
-        BANK_WEIGHT_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION, PEG_PRECISION,
-        QUOTE_PRECISION, QUOTE_PRECISION_I128, K_BPS_INCREASE_MAX
+        BANK_WEIGHT_PRECISION, BASE_PRECISION_I128, K_BPS_INCREASE_MAX, LIQUIDATION_FEE_PRECISION,
+        PEG_PRECISION, QUOTE_PRECISION, QUOTE_PRECISION_I128,
     };
     use crate::state::bank::{Bank, BankBalanceType};
     use crate::state::bank_map::BankMap;
+    use crate::state::market::MarketStatus;
     use crate::state::market::{Market, AMM};
     use crate::state::market_map::MarketMap;
     use crate::state::oracle::OracleSource;
