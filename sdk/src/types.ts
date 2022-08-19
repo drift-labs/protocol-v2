@@ -458,6 +458,8 @@ export type UserStatsAccount = {
 		totalReferralReward: BN;
 		totalRefereeDiscount: BN;
 	};
+	authority: PublicKey;
+	referrer: PublicKey;
 };
 
 export type UserAccount = {
