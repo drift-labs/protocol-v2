@@ -43,7 +43,6 @@ pub struct Market {
     pub unsettled_maintenance_asset_weight: u8,
     pub unsettled_imf_factor: u128,
     pub liquidation_fee: u128,
-    pub toxic_unload: bool,
 
     // upgrade-ability
     pub padding0: u32,
@@ -196,6 +195,7 @@ pub struct AMM {
     pub lp_cooldown_time: i64,
     pub user_lp_shares: u128,
     pub market_position_per_lp: MarketPosition,
+    pub toxic_unload: bool,
 
     // funding
     pub last_funding_rate: i128,

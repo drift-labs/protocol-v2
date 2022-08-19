@@ -364,7 +364,6 @@ pub mod clearing_house {
             unsettled_maintenance_asset_weight: 100, // 100%
             unsettled_imf_factor: 0,
             liquidation_fee,
-            toxic_unload: false,
             padding0: 0,
             padding1: 0,
             padding2: 0,
@@ -446,6 +445,7 @@ pub mod clearing_house {
                 net_unsettled_lp_base_asset_amount: 0,
                 user_lp_shares: 0,
                 lp_cooldown_time: 1, // TODO: what should this be?
+                toxic_unload: false,
 
                 last_oracle_valid: false,
                 padding0: 0,
@@ -2442,6 +2442,16 @@ pub mod clearing_house {
         market.amm.base_spread = base_spread;
         market.amm.long_spread = (base_spread / 2) as u128;
         market.amm.short_spread = (base_spread / 2) as u128;
+        Ok(())
+    }
+
+    #[access_control(
+        market_initialized(&ctx.accounts.market)
+    )]
+    pub fn update_toxic_unload(ctx: Context<AdminUpdateMarket>, toxic_unload: bool) -> Result<()> {
+        let market = &mut load_mut!(ctx.accounts.market)?;
+        market.amm.toxic_unload = toxic_unload;
+
         Ok(())
     }
 
