@@ -1,7 +1,11 @@
+use solana_program::msg;
+
 use crate::error::{ClearingHouseResult};
+use crate::math_error;
 use crate::state::bank::{Bank};
 use crate::state::insurance_fund_stake::{InsuranceFundStake};
 use crate::state::user::UserStats;
+
 
 pub fn update_insurance_stake_balances(
     amount: u64,

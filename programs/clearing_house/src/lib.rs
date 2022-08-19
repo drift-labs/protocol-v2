@@ -2508,7 +2508,7 @@ pub mod clearing_house {
         insurance_withdraw_escrow_period: i64,
     ) -> Result<()> {
         let bank = &mut load_mut!(ctx.accounts.bank)?;
-        let now = Clock::get()?.unix_timestamp;
+        let _now = Clock::get()?.unix_timestamp;
 
         bank.insurance_withdraw_escrow_period = insurance_withdraw_escrow_period;
 
