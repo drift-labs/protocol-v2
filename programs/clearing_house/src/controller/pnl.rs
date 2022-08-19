@@ -1,8 +1,11 @@
 use crate::controller::amm::update_pool_balances;
 use crate::controller::bank_balance::{update_bank_balances, update_bank_cumulative_interest};
 use crate::controller::funding::settle_funding_payment;
-use crate::controller::position::{get_position_index, update_quote_asset_amount};
+use crate::controller::position::{
+    get_position_index, update_quote_asset_amount, update_realized_pnl,
+};
 use crate::error::{ClearingHouseResult, ErrorCode};
+use crate::math::casting::cast;
 use crate::math::margin::meets_maintenance_margin_requirement;
 use crate::state::bank::BankBalanceType;
 use crate::state::bank_map::BankMap;
@@ -29,6 +32,8 @@ pub fn settle_pnl(
     oracle_map: &mut OracleMap,
     now: i64,
 ) -> ClearingHouseResult {
+    validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
+
     {
         let bank = &mut bank_map.get_quote_asset_bank_mut()?;
         update_bank_cumulative_interest(bank, now)?;
@@ -51,12 +56,19 @@ pub fn settle_pnl(
     let bank = &mut bank_map.get_quote_asset_bank_mut()?;
     let market = &mut market_map.get_ref_mut(&market_index)?;
 
+    // todo, check amm updated
+    validate!(
+        ((oracle_map.slot == market.amm.last_update_slot && market.amm.last_oracle_valid)
+            || market.amm.curve_update_intensity == 0),
+        ErrorCode::AMMNotUpdatedInSameSlot,
+        "AMM must be updated in a prior instruction within same slot"
+    )?;
+
     let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
     let user_unsettled_pnl: i128 =
         user.positions[position_index].get_unsettled_pnl(oracle_price)?;
 
     let pnl_to_settle_with_user = update_pool_balances(market, bank, user_unsettled_pnl)?;
-
     if user_unsettled_pnl == 0 {
         msg!("User has no unsettled pnl for market {}", market_index);
         return Ok(());
@@ -88,6 +100,11 @@ pub fn settle_pnl(
     update_quote_asset_amount(
         &mut user.positions[position_index],
         -pnl_to_settle_with_user,
+    )?;
+
+    update_realized_pnl(
+        &mut user.positions[position_index],
+        cast(pnl_to_settle_with_user)?,
     )?;
 
     let base_asset_amount = user.positions[position_index].base_asset_amount;

@@ -6,7 +6,7 @@ use crate::math::casting::cast;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, BANK_CUMULATIVE_INTEREST_PRECISION, BANK_INTEREST_PRECISION,
     BANK_WEIGHT_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION, PEG_PRECISION,
-    QUOTE_PRECISION_I128,
+    QUOTE_PRECISION_I128, QUOTE_PRECISION_I64,
 };
 use crate::state::bank::{Bank, BankBalanceType};
 use crate::state::bank_map::BankMap;
@@ -282,6 +282,7 @@ pub fn user_unsettled_negative_pnl() {
 
     let mut expected_user = user;
     expected_user.positions[0].quote_asset_amount = 0;
+    expected_user.positions[0].realized_pnl = -50 * QUOTE_PRECISION_I64;
     expected_user.bank_balances[0].balance = 50 * BANK_INTEREST_PRECISION;
 
     let mut expected_market = market;
@@ -384,6 +385,7 @@ pub fn user_unsettled_positive_pnl_more_than_pool() {
 
     let mut expected_user = user;
     expected_user.positions[0].quote_asset_amount = 50 * QUOTE_PRECISION_I128;
+    expected_user.positions[0].realized_pnl = 50 * QUOTE_PRECISION_I64;
     expected_user.bank_balances[0].balance = 150 * BANK_INTEREST_PRECISION;
 
     let mut expected_market = market;
@@ -486,6 +488,7 @@ pub fn user_unsettled_positive_pnl_less_than_pool() {
 
     let mut expected_user = user;
     expected_user.positions[0].quote_asset_amount = 0;
+    expected_user.positions[0].realized_pnl = 25 * QUOTE_PRECISION_I64;
     expected_user.bank_balances[0].balance = 125 * BANK_INTEREST_PRECISION;
 
     let mut expected_market = market;
@@ -589,6 +592,7 @@ pub fn market_fee_pool_receives_portion() {
 
     let mut expected_user = user;
     expected_user.positions[0].quote_asset_amount = 0;
+    expected_user.positions[0].realized_pnl = -100 * QUOTE_PRECISION_I64;
     expected_user.bank_balances[0].balance = 100 * BANK_INTEREST_PRECISION;
 
     let mut expected_market = market;
@@ -696,6 +700,7 @@ pub fn market_fee_pool_pays_back_to_pnl_pool() {
 
     let mut expected_user = user;
     expected_user.positions[0].quote_asset_amount = 0;
+    expected_user.positions[0].realized_pnl = -100 * QUOTE_PRECISION_I64;
     expected_user.bank_balances[0].balance = 100 * BANK_INTEREST_PRECISION;
 
     let mut expected_market = market;
@@ -801,6 +806,7 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl() {
 
     let mut expected_user = user;
     expected_user.positions[0].quote_asset_amount = -100 * QUOTE_PRECISION_I128;
+    expected_user.positions[0].realized_pnl = 50 * QUOTE_PRECISION_I64;
     expected_user.bank_balances[0].balance = 150 * BANK_INTEREST_PRECISION;
 
     let mut expected_market = market;
@@ -905,6 +911,7 @@ pub fn user_long_negative_unrealized_pnl() {
 
     let mut expected_user = user;
     expected_user.positions[0].quote_asset_amount = -50 * QUOTE_PRECISION_I128;
+    expected_user.positions[0].realized_pnl = -50 * QUOTE_PRECISION_I64;
     expected_user.bank_balances[0].balance = 50 * BANK_INTEREST_PRECISION;
 
     let mut expected_market = market;
@@ -1009,6 +1016,7 @@ pub fn user_short_positive_unrealized_pnl_up_to_max_positive_pnl() {
 
     let mut expected_user = user;
     expected_user.positions[0].quote_asset_amount = 50 * QUOTE_PRECISION_I128;
+    expected_user.positions[0].realized_pnl = 50 * QUOTE_PRECISION_I64;
     expected_user.bank_balances[0].balance = 150 * BANK_INTEREST_PRECISION;
 
     let mut expected_market = market;
@@ -1113,6 +1121,7 @@ pub fn user_short_negative_unrealized_pnl() {
 
     let mut expected_user = user;
     expected_user.positions[0].quote_asset_amount = 100 * QUOTE_PRECISION_I128;
+    expected_user.positions[0].realized_pnl = -50 * QUOTE_PRECISION_I64;
     expected_user.bank_balances[0].balance = 50 * BANK_INTEREST_PRECISION;
 
     let mut expected_market = market;

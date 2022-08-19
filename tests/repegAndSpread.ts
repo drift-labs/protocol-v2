@@ -417,7 +417,7 @@ describe('repeg and spread amm', () => {
 		await clearingHouseUser.unsubscribe();
 	});
 
-	it('5 users, 15 trades, single market, check invariants', async () => {
+	it('5 users, 15 trades, single market, user net win, check invariants', async () => {
 		// create <NUM_USERS> users with 10k that collectively do <NUM_EVENTS> actions
 		const clearingHouseOld = clearingHouse;
 

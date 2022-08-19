@@ -36,7 +36,7 @@ import {
 	getTokenAmount,
 } from '../sdk/src/math/bankBalance';
 import { NATIVE_MINT } from '@solana/spl-token';
-import { ONE, ZERO } from '../sdk';
+import { QUOTE_PRECISION, ZERO, ONE } from '../sdk';
 
 describe('bank deposit and withdraw', () => {
 	const provider = anchor.AnchorProvider.local();
@@ -120,7 +120,11 @@ describe('bank deposit and withdraw', () => {
 			initialLiabilityWeight,
 			maintenanceLiabilityWeight
 		);
-
+		const txSig = await admin.updateBankWithdrawGuardThreshold(
+			new BN(0),
+			new BN(10 ** 10).mul(QUOTE_PRECISION)
+		);
+		await printTxLogs(connection, txSig);
 		await admin.fetchAccounts();
 		const bank = await admin.getBankAccount(0);
 		assert(bank.bankIndex.eq(new BN(0)));
@@ -171,6 +175,11 @@ describe('bank deposit and withdraw', () => {
 			maintenanceLiabilityWeight
 		);
 
+		const txSig = await admin.updateBankWithdrawGuardThreshold(
+			new BN(1),
+			new BN(10 ** 10).mul(QUOTE_PRECISION)
+		);
+		await printTxLogs(connection, txSig);
 		await admin.fetchAccounts();
 		const bank = await admin.getBankAccount(1);
 		assert(bank.bankIndex.eq(new BN(1)));
@@ -337,7 +346,7 @@ describe('bank deposit and withdraw', () => {
 
 		const expectedInterestAccumulated = calculateInterestAccumulated(
 			oldBankAccount,
-			newBankAccount.lastUpdated
+			newBankAccount.lastInterestTs
 		);
 		const expectedCumulativeDepositInterest =
 			oldBankAccount.cumulativeDepositInterest.add(
@@ -389,6 +398,7 @@ describe('bank deposit and withdraw', () => {
 		const withdrawAmount = bankDepositTokenAmountBefore
 			.sub(bankBorrowTokenAmountBefore)
 			.sub(ONE);
+
 		const txSig = await secondUserClearingHouse.withdraw(
 			withdrawAmount,
 			bankIndex,
@@ -405,6 +415,7 @@ describe('bank deposit and withdraw', () => {
 		const expectedUserBankBalance = userBankBalanceBefore.add(
 			increaseInUserBankBalance
 		);
+		console.log('withdrawAmount:', withdrawAmount.toString());
 
 		assert(
 			secondUserClearingHouse
@@ -447,6 +458,11 @@ describe('bank deposit and withdraw', () => {
 			BankBalanceType.BORROW
 		);
 
+		// TODO
+		console.log(
+			bankDepositTokenAmountAfter.toString(),
+			bankBorrowTokenAmountAfter.toString()
+		);
 		assert(bankDepositTokenAmountAfter.eq(bankBorrowTokenAmountAfter));
 	});
 
@@ -466,7 +482,7 @@ describe('bank deposit and withdraw', () => {
 
 		const expectedInterestAccumulated = calculateInterestAccumulated(
 			oldBankAccount,
-			newBankAccount.lastUpdated
+			newBankAccount.lastInterestTs
 		);
 		const expectedCumulativeDepositInterest =
 			oldBankAccount.cumulativeDepositInterest.add(

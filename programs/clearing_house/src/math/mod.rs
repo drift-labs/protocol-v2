@@ -1,6 +1,7 @@
 pub mod amm;
 pub mod auction;
 pub mod bank_balance;
+pub mod bankruptcy;
 pub mod base_asset_amount;
 pub mod bn;
 pub mod casting;
@@ -10,6 +11,7 @@ pub mod fees;
 pub mod fulfillment;
 pub mod funding;
 pub mod liquidation;
+pub mod lp;
 pub mod margin;
 pub mod matching;
 pub mod oracle;

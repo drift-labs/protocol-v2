@@ -189,7 +189,8 @@ export function positionIsAvailable(position: UserPosition): boolean {
 	return (
 		position.baseAssetAmount.eq(ZERO) &&
 		position.openOrders.eq(ZERO) &&
-		position.quoteAssetAmount.eq(ZERO)
+		position.quoteAssetAmount.eq(ZERO) &&
+		position.lpShares.eq(ZERO)
 	);
 }
 

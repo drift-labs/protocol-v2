@@ -18,7 +18,7 @@ pub struct DepositRecord {
     pub to: Option<Pubkey>,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
 pub enum DepositDirection {
     DEPOSIT,
     WITHDRAW,
@@ -105,7 +105,7 @@ pub struct OrderRecord {
     pub oracle_price: i128,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
 pub enum OrderAction {
     Place,
     Cancel,
@@ -114,7 +114,7 @@ pub enum OrderAction {
     Expire,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
 pub enum OrderActionExplanation {
     None,
     BreachedMarginRequirement,
@@ -143,18 +143,23 @@ pub struct LiquidationRecord {
     pub margin_requirement: u128,
     pub total_collateral: i128,
     pub liquidation_id: u16,
+    pub bankrupt: bool,
     pub liquidate_perp: LiquidatePerpRecord,
     pub liquidate_borrow: LiquidateBorrowRecord,
     pub liquidate_borrow_for_perp_pnl: LiquidateBorrowForPerpPnlRecord,
     pub liquidate_perp_pnl_for_deposit: LiquidatePerpPnlForDepositRecord,
+    pub perp_bankruptcy: PerpBankruptcyRecord,
+    pub borrow_bankruptcy: BorrowBankruptcyRecord,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
 pub enum LiquidationType {
     LiquidatePerp,
     LiquidateBorrow,
     LiquidateBorrowForPerpPnl,
     LiquidatePerpPnlForDeposit,
+    PerpBankruptcy,
+    BorrowBankruptcy,
 }
 
 impl Default for LiquidationType {
@@ -207,6 +212,20 @@ pub struct LiquidatePerpPnlForDepositRecord {
     pub asset_bank_index: u64,
     pub asset_price: i128,
     pub asset_transfer: u128,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, Default)]
+pub struct PerpBankruptcyRecord {
+    pub market_index: u64,
+    pub pnl: i128,
+    pub cumulative_funding_rate_delta: i128,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, Default)]
+pub struct BorrowBankruptcyRecord {
+    pub bank_index: u64,
+    pub borrow_amount: u128,
+    pub cumulative_deposit_interest_delta: u128,
 }
 
 #[event]

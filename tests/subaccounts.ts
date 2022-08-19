@@ -52,6 +52,7 @@ describe('subaccounts', () => {
 			activeUserId: 0,
 			marketIndexes,
 			bankIndexes,
+			userStats: true,
 		});
 
 		await clearingHouse.initialize(usdcMint.publicKey, true);
@@ -72,6 +73,10 @@ describe('subaccounts', () => {
 
 		assert(clearingHouse.getUserAccount().userId === userId);
 		assert(decodeName(clearingHouse.getUserAccount().name) === name);
+
+		const userStats = clearingHouse.getUserStats().getAccount();
+
+		assert(userStats.numberOfUsers === 1);
 	});
 
 	it('Initialize second account', async () => {
@@ -83,6 +88,10 @@ describe('subaccounts', () => {
 
 		assert(clearingHouse.getUserAccount().userId === userId);
 		assert(decodeName(clearingHouse.getUserAccount().name) === name);
+
+		const userStats = clearingHouse.getUserStats().getAccount();
+
+		assert(userStats.numberOfUsers === 2);
 	});
 
 	it('Fetch all user account', async () => {
