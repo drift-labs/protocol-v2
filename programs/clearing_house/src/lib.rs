@@ -875,6 +875,12 @@ pub mod clearing_house {
         {
             let market = market_map.get_ref_mut(&market_index)?;
             controller::funding::settle_funding_payment(user, &user_key, &market, now)?;
+
+            validate!(
+                market.status == MarketStatus::Initialized,
+                ErrorCode::DefaultError,
+                "Market Status doesn't allow for new LP liquidity"
+            )?;
         }
 
         let position_index = get_position_index(&user.positions, market_index)
@@ -1383,26 +1389,46 @@ pub mod clearing_house {
         )?;
 
         let market = &mut market_map.get_ref_mut(&market_index)?;
+
+        validate!(
+            market.expiry_ts != 0,
+            ErrorCode::DefaultError,
+            "Market isn't set to expire"
+        )?;
+
+        validate!(
+            market.expiry_ts <= now,
+            ErrorCode::DefaultError,
+            "Market hasn't expired yet"
+        )?;
+
+        validate!(
+            market.amm.net_unsettled_lp_base_asset_amount == 0 && market.amm.user_lp_shares == 0,
+            ErrorCode::DefaultError,
+            "Outstanding LP in market"
+        )?;
+
         let bank = &mut bank_map.get_ref_mut(&QUOTE_ASSET_BANK_INDEX)?;
+        let fee_reserved_for_protocol = cast_to_i128(market.amm.total_exchange_fee / 2)?;
 
         let budget = market
             .amm
             .total_fee_minus_distributions
-            .checked_sub(cast_to_i128(market.amm.total_exchange_fee / 2)?)
+            .checked_sub(fee_reserved_for_protocol)
             .ok_or_else(math_error!())?
             .max(0);
 
-        let available_fee_pool = controller::amm::get_fee_pool_tokens(market, bank)?
-            .checked_sub(cast_to_i128(market.amm.total_exchange_fee / 2)?)
-            .ok_or_else(math_error!())?
-            .max(0);
+        let available_fee_pool = cast_to_i128(get_token_amount(
+            market.amm.fee_pool.balance,
+            bank,
+            &BankBalanceType::Deposit,
+        )?)?
+        .checked_sub(fee_reserved_for_protocol)
+        .ok_or_else(math_error!())?
+        .max(0);
+
         let fee_pool_transfer = budget.min(available_fee_pool);
 
-        msg!(
-            "budget vs fee_pool_transfer {:?} vs {:?}",
-            budget,
-            fee_pool_transfer
-        );
         controller::bank_balance::update_bank_balances(
             fee_pool_transfer.unsigned_abs(),
             &BankBalanceType::Borrow,
@@ -1438,46 +1464,10 @@ pub mod clearing_house {
             let cost_applied =
                 controller::repeg::apply_cost_to_market(market, adjustment_cost, true)?;
 
-            msg!(
-                "updating k: {:?} -> {:?} for cost={:?}",
-                market.amm.sqrt_k,
-                new_sqrt_k,
-                adjustment_cost
-            );
             if cost_applied {
                 amm::update_k(market, &update_k_result)?;
-                msg!("updated k");
             }
         }
-
-        validate!(
-            market.expiry_ts != 0,
-            ErrorCode::DefaultError,
-            "Market isn't set to expire"
-        )?;
-
-        msg!("{:?} vs {:?}", market.expiry_ts, now);
-
-        validate!(
-            market.expiry_ts <= now,
-            ErrorCode::DefaultError,
-            "Market hasn't expired yet"
-        )?;
-
-        let lateness = now
-            .checked_sub(market.expiry_ts)
-            .ok_or_else(math_error!())?;
-        let target_settlement_price: i128;
-
-        // more than 30 seconds late dont update
-        // todo: whats best target settlement? 1hr twap, 5min twap, current (or average of some?)
-        if lateness > 30 {
-            target_settlement_price = market.amm.last_oracle_price_twap;
-        } else {
-            target_settlement_price = market.amm.last_oracle_price_twap;
-        };
-
-        msg!("{:?} -> target: {:?}", lateness, target_settlement_price);
 
         let pnl_pool_amount =
             get_token_amount(market.pnl_pool.balance, bank, &BankBalanceType::Deposit)?;
@@ -1488,10 +1478,13 @@ pub mod clearing_house {
             "Only support bank.decimals == QUOTE_PRECISION"
         )?;
 
+        let target_settlement_price = market.amm.last_oracle_price_twap;
         let settlement_price =
             amm::calculate_settlement_price(&market.amm, target_settlement_price, pnl_pool_amount)?;
+
         market.settlement_price = settlement_price;
         market.status = MarketStatus::Settlement;
+
         Ok(())
     }
 
@@ -1517,10 +1510,10 @@ pub mod clearing_house {
         let user_key = ctx.accounts.user.key();
         let user = &mut load_mut!(ctx.accounts.user)?;
 
+        // todo: liquidate user's open orders in market?
         controller::pnl::settle_expired_position(
             market_index,
             user,
-            ctx.accounts.authority.key,
             &user_key,
             &market_map,
             &bank_map,
@@ -1865,6 +1858,7 @@ pub mod clearing_house {
             "Market expiry ts must later than current clock timestamp"
         )?;
 
+        // if perpeptual market has expiry_ts set, automatically enter reduce only
         if market.contract_type == ContractType::Perpeptual {
             market.status = MarketStatus::ReduceOnly;
         }

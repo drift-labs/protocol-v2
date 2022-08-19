@@ -1,6 +1,5 @@
 use crate::controller::amm::SwapDirection;
 use crate::controller::position::PositionDirection;
-use crate::dlog;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::bn;
 use crate::math::bn::U192;
@@ -8,9 +7,9 @@ use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64};
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128,
     AMM_TO_QUOTE_PRECISION_RATIO_I128, BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128,
-    K_BPS_DECREASE_MAX, K_BPS_INCREASE_MAX, K_BPS_UPDATE_SCALE, MARK_PRICE_PRECISION,
-    MARK_PRICE_PRECISION_I128, MAX_BID_ASK_INVENTORY_SKEW_FACTOR, ONE_HOUR_I128, PEG_PRECISION,
-    PRICE_TO_PEG_PRECISION_RATIO, PRICE_TO_QUOTE_PRECISION_RATIO, QUOTE_PRECISION,
+    K_BPS_DECREASE_MAX, K_BPS_UPDATE_SCALE, MARK_PRICE_PRECISION, MARK_PRICE_PRECISION_I128,
+    MAX_BID_ASK_INVENTORY_SKEW_FACTOR, ONE_HOUR_I128, PEG_PRECISION, PRICE_TO_PEG_PRECISION_RATIO,
+    PRICE_TO_QUOTE_PRECISION_RATIO, QUOTE_PRECISION,
 };
 use crate::math::orders::standardize_base_asset_amount;
 use crate::math::position::{_calculate_base_asset_value_and_pnl, calculate_base_asset_value};
@@ -1365,12 +1364,6 @@ pub fn calculate_settlement_price(
 
     // net_user_unrealized_pnl negative = surplus in market
     // net_user_unrealized_pnl positive = settlement price needs to differ from oracle
-    dlog!(
-        amm.quote_asset_amount_long,
-        amm.quote_asset_amount_short,
-        pnl_pool_amount,
-        amm.net_base_asset_amount
-    );
     let best_settlement_price = -(amm
         .quote_asset_amount_long
         .checked_add(amm.quote_asset_amount_short)
@@ -1404,7 +1397,7 @@ mod test {
     use super::*;
     use crate::controller::amm::update_spreads;
     use crate::controller::lp::settle_lp_position;
-    use crate::math::constants::{MARK_PRICE_PRECISION, QUOTE_PRECISION_I128};
+    use crate::math::constants::{K_BPS_INCREASE_MAX, MARK_PRICE_PRECISION, QUOTE_PRECISION_I128};
     use crate::state::user::MarketPosition;
 
     #[test]

@@ -456,7 +456,7 @@ describe('delist market', () => {
 		const loserUser = clearingHouseLoser.getUserAccount();
 		console.log(loserUser.positions[0]);
 		assert(loserUser.positions[0].baseAssetAmount.eq(new BN(0)));
-		assert(loserUser.positions[0].quoteAssetAmount.lt(new BN(0)));
+		assert(loserUser.positions[0].quoteAssetAmount.eq(new BN(0)));
 
 		const txSig2 = await clearingHouse.settleExpiredPosition(
 			await clearingHouse.getUserAccountPublicKey(),

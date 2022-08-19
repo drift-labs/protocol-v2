@@ -5,7 +5,6 @@ use crate::controller::position::{
     get_position_index, update_position_and_market, update_quote_asset_amount, update_realized_pnl,
     PositionDelta,
 };
-use crate::dlog;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::casting::cast;
 // use crate::math::bank_balance::get_token_amount;
@@ -142,7 +141,6 @@ pub fn settle_pnl(
 pub fn settle_expired_position(
     market_index: u64,
     user: &mut User,
-    authority: &Pubkey,
     user_key: &Pubkey,
     market_map: &MarketMap,
     bank_map: &BankMap,
@@ -183,34 +181,19 @@ pub fn settle_expired_position(
         market.settlement_price,
     )?;
 
-    dlog!(
-        user.positions[position_index].quote_asset_amount,
-        user.positions[position_index].base_asset_amount
-    );
-
     let fee = base_asset_value
         .checked_mul(fee_structure.fee_numerator)
         .ok_or_else(math_error!())?
         .checked_div(fee_structure.fee_denominator)
         .ok_or_else(math_error!())?;
 
-    let pnl_to_settle_with_user = update_pnl_pool_balance(
-        market,
-        bank,
-        unrealized_pnl
-            .checked_sub(cast_to_i128(fee)?)
-            .ok_or_else(math_error!())?,
-    )?;
+    let unrealized_pnl_with_fee = unrealized_pnl
+        .checked_sub(cast_to_i128(fee)?)
+        .ok_or_else(math_error!())?;
 
-    dlog!(
-        _oracle_price,
-        base_asset_value,
-        fee,
-        unrealized_pnl,
-        pnl_to_settle_with_user
-    );
+    let pnl_to_settle_with_user = update_pnl_pool_balance(market, bank, unrealized_pnl_with_fee)?;
 
-    if unrealized_pnl == 0 {
+    if unrealized_pnl_with_fee == 0 {
         msg!("User has no unsettled pnl for market {}", market_index);
         return Ok(());
     } else if pnl_to_settle_with_user == 0 {
@@ -238,24 +221,13 @@ pub fn settle_expired_position(
     let quote_entry_amount = user_position.quote_entry_amount;
 
     let position_delta = PositionDelta {
-        quote_asset_amount: if user_position.base_asset_amount > 0 {
-            base_asset_value as i128
-        } else {
-            -(base_asset_value as i128)
-        },
+        quote_asset_amount: -user_position.quote_asset_amount,
         base_asset_amount: -user_position.base_asset_amount,
     };
 
-    let user_pnl = update_position_and_market(user_position, market, &position_delta)?;
+    let _user_pnl = update_position_and_market(user_position, market, &position_delta)?;
 
     let quote_asset_amount_after = user_position.quote_asset_amount;
-    dlog!(user_pnl);
-    dlog!(
-        user_position.base_asset_amount,
-        user_position.quote_asset_amount
-    );
-
-    // user.positions[position_index] = *user_position;
 
     emit!(SettlePnlRecord {
         ts: now,
@@ -265,11 +237,11 @@ pub fn settle_expired_position(
         base_asset_amount,
         quote_asset_amount_after,
         quote_entry_amount,
-        settle_price: market.settlement_price, // todo rename this field?
+        settle_price: market.settlement_price,
     });
 
     validate!(
-        user.positions[position_index].base_asset_amount == 0,
+        user.positions[position_index].is_available(),
         ErrorCode::DefaultError,
         "Issue occured in expired settlement"
     )?;

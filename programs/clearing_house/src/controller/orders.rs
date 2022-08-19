@@ -8,7 +8,6 @@ use crate::controller::position::{
     add_new_position, decrease_open_bids_and_asks, get_position_index, increase_open_bids_and_asks,
     update_position_and_market, update_user_and_market_position, PositionDirection,
 };
-use crate::dlog;
 use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
 use crate::get_struct_values;
@@ -461,12 +460,6 @@ pub fn fill_order(
     let oracle_price: i128;
     {
         let market = &mut market_map.get_ref_mut(&market_index)?;
-        validate!(
-            ((oracle_map.slot == market.amm.last_update_slot && market.amm.last_oracle_valid)
-                || market.amm.curve_update_intensity == 0),
-            ErrorCode::AMMNotUpdatedInSameSlot,
-            "AMM must be updated in a prior instruction within same slot"
-        )?;
 
         if market.expiry_ts != 0 {
             if market.expiry_ts <= now {
@@ -480,12 +473,6 @@ pub fn fill_order(
                 market.status = MarketStatus::ReduceOnly;
             }
         }
-
-        validate!(
-            (market.status != MarketStatus::Settlement),
-            ErrorCode::InvalidPositionDelta,
-            "Market is in settlement mode",
-        )?;
 
         let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
 
@@ -1083,8 +1070,6 @@ pub fn fulfill_order_with_amm(
         now,
         maker_limit_price,
     )?;
-
-    dlog!(quote_asset_amount, quote_asset_amount_surplus);
 
     let (user_fee, fee_to_market, filler_reward) =
         fees::calculate_fee_for_order_fulfill_against_amm(
