@@ -836,8 +836,8 @@ fn fulfill_order(
                 maker_stats.as_deref_mut().unwrap(),
                 maker_order_index.unwrap(),
                 maker_key.unwrap(),
-                filler.as_deref_mut(),
-                filler_stats.as_deref_mut(),
+                filler,
+                filler_stats,
                 filler_key,
                 now,
                 slot,
@@ -1207,8 +1207,8 @@ pub fn fulfill_order_with_match(
     maker_stats: &mut UserStats,
     maker_order_index: usize,
     maker_key: &Pubkey,
-    filler: Option<&mut User>,
-    filler_stats: Option<&mut UserStats>,
+    filler: &mut Option<&mut User>,
+    filler_stats: &mut Option<&mut UserStats>,
     filler_key: &Pubkey,
     now: i64,
     slot: u64,
@@ -1256,7 +1256,7 @@ pub fn fulfill_order_with_match(
         PositionDirection::Short => market.amm.net_base_asset_amount < 0,
     };
 
-    let base_asset_amount_left_to_fill = if amm_wants_to_unload {
+    let base_asset_amount_left_to_fill = if market.toxic_unload && amm_wants_to_unload {
         let mark_price_before = 0;
         let valid_oracle_price = None; //0;
 
@@ -1274,20 +1274,17 @@ pub fn fulfill_order_with_match(
             valid_oracle_price,
             taker_key,
             filler_key,
-            &mut None,
-            &mut None,
+            filler,
+            filler_stats,
             fee_structure,
             order_records,
             Some(unload_amount),
             Some(maker_price),
         )?;
 
-        let result = base_asset_amount
+        base_asset_amount
             .checked_sub(base_asset_amount_filled_by_amm)
-            .ok_or_else(math_error!())?;
-        // msg!("{:?} < {:?}", result, base_asset_amount);
-        // assert!(result < base_asset_amount);
-        result
+            .ok_or_else(math_error!())?
     } else {
         base_asset_amount
     };
@@ -1412,6 +1409,7 @@ pub fn fulfill_order_with_match(
         )?;
 
         filler_stats
+            .as_mut()
             .unwrap()
             .update_filler_volume(cast(quote_asset_amount)?, now)?;
     }
