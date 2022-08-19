@@ -1241,11 +1241,12 @@ pub mod clearing_house {
         insurance_fund_stake.last_withdraw_request_value = 0;
         insurance_fund_stake.last_withdraw_request_ts = now;
 
-        controller::token::send_from_insurance_vault(
+        controller::token::send_from_staked_insurance_fund_vault(
             &ctx.accounts.token_program,
             &ctx.accounts.insurance_fund_vault,
             &ctx.accounts.user_token_account,
-            &ctx.accounts.authority,
+            &ctx.accounts.insurance_fund_vault_authority,
+            bank_index,
             insurance_fund_vault_authority_nonce,
             amount,
         )?;

@@ -2509,6 +2509,7 @@ export class ClearingHouse {
 				userStats: this.getUserStatsAccountPublicKey(),
 				authority: this.wallet.publicKey,
 				insuranceFundVault: bank.insuranceFundVault,
+				insuranceFundVaultAuthority: bank.insuranceFundVaultAuthority,
 				userTokenAccount: collateralAccountPublicKey,
 				tokenProgram: TOKEN_PROGRAM_ID,
 			},

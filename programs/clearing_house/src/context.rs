@@ -435,6 +435,10 @@ pub struct RemoveInsuranceLiquidity<'info> {
         has_one = authority,
     )]
     pub insurance_fund_stake: AccountLoader<'info, InsuranceFundStake>,
+    #[account(
+        mut,
+        has_one = authority,
+    )]
     pub user_stats: AccountLoader<'info, UserStats>,
     pub authority: Signer<'info>,
     #[account(

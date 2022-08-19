@@ -161,4 +161,42 @@ describe('insurance fund stake', () => {
 
 		assert(ifStakeAccount.lastWithdrawRequestShares.gt(ZERO));
 	});
+
+	it('user if unstake', async () => {
+		const bankIndex = new BN(0);
+		// const nShares = usdcAmount.div(new BN(2));
+		try {
+			const txSig = await clearingHouse.removeInsuranceLiquidity(
+				bankIndex,
+				userUSDCAccount.publicKey
+			);
+			console.log(
+				'tx logs',
+				(await connection.getTransaction(txSig, { commitment: 'confirmed' }))
+					.meta.logMessages
+			);
+		} catch (e) {
+			console.error(e);
+		}
+
+		const bank0 = clearingHouse.getBankAccount(bankIndex);
+		console.log('totalLpShares:', bank0.totalLpShares.toString());
+		console.log('userLpShares:', bank0.userLpShares.toString());
+
+		assert(bank0.totalLpShares.eq(usdcAmount.div(new BN(2))));
+		assert(bank0.userLpShares.eq(usdcAmount.div(new BN(2))));
+
+		const ifStakePublicKey = getInsuranceFundStakeAccountPublicKey(
+			clearingHouse.program.programId,
+			provider.wallet.publicKey,
+			bankIndex
+		);
+
+		const ifStakeAccount =
+			(await clearingHouse.program.account.insuranceFundStake.fetch(
+				ifStakePublicKey
+			)) as InsuranceFundStake;
+
+		assert(ifStakeAccount.lastWithdrawRequestShares.eq(ZERO));
+	});
 });

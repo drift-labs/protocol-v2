@@ -594,7 +594,7 @@
         },
         {
           "name": "userStats",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
