@@ -31,6 +31,11 @@ pub struct Bank {
     pub insurance_fund_vault: Pubkey,
     pub insurance_fund_vault_authority: Pubkey,
     pub insurance_fund_vault_authority_nonce: u8,
+
+    pub total_lp_shares: u128,
+    pub user_lp_shares: u128,
+    pub insurance_withdraw_escrow_period: i64,
+
     pub decimals: u8,
     pub optimal_utilization: u128,
     pub optimal_borrow_rate: u128,

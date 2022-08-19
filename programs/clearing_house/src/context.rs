@@ -366,6 +366,29 @@ pub struct AddRemoveLiquidity<'info> {
 }
 
 #[derive(Accounts)]
+pub struct AddRemoveInsuranceLiquidity<'info> {
+    pub bank: AccountLoader<'info, Bank>,
+    #[account(
+        mut,
+        has_one = authority,
+    )]
+    pub insurance_fund_stake: AccountLoader<'info, InsuranceFundStake>,
+    #[account(
+        mut,
+        has_one = authority,
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    pub authority: Signer<'info>,
+    pub insurance_fund_vault: Box<Account<'info, TokenAccount>>,
+    #[account(
+        mut,
+        constraint = &insurance_fund_vault.mint.eq(&user_token_account.mint)
+    )]
+    pub user_token_account: Box<Account<'info, TokenAccount>>,
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
 pub struct FillOrder<'info> {
     pub state: Box<Account<'info, State>>,
     pub authority: Signer<'info>,
