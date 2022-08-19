@@ -1282,8 +1282,9 @@ pub fn fulfill_order_with_match(
             Some(maker_price),
         )?;
 
-        let result = base_asset_amount.checked_sub(base_asset_amount_filled_by_amm)
-        .ok_or_else(math_error!())?;
+        let result = base_asset_amount
+            .checked_sub(base_asset_amount_filled_by_amm)
+            .ok_or_else(math_error!())?;
         // msg!("{:?} < {:?}", result, base_asset_amount);
         // assert!(result < base_asset_amount);
         result
@@ -1299,7 +1300,7 @@ pub fn fulfill_order_with_match(
         maker_price,
         taker_base_asset_amount,
     )?;
-    
+
     let maker_position_index = get_position_index(
         &maker.positions,
         maker.orders[maker_order_index].market_index,

@@ -1663,7 +1663,7 @@ pub mod fulfill_order {
                 bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
                 ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
                 ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                net_base_asset_amount: -((AMM_RESERVE_PRECISION/2) as i128),
+                net_base_asset_amount: -((AMM_RESERVE_PRECISION / 2) as i128),
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
@@ -1672,7 +1672,7 @@ pub mod fulfill_order {
                 oracle: oracle_price_key,
                 ..AMM::default()
             },
-            base_asset_amount_short: -((AMM_RESERVE_PRECISION/2) as i128),
+            base_asset_amount_short: -((AMM_RESERVE_PRECISION / 2) as i128),
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             initialized: true,
@@ -1791,13 +1791,19 @@ pub mod fulfill_order {
         assert_eq!(taker.orders[0], Order::default());
 
         let maker_position = &maker.positions[0];
-        assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I128 / 2 / 2);
+        assert_eq!(
+            maker_position.base_asset_amount,
+            -BASE_PRECISION_I128 / 2 / 2
+        );
         assert_eq!(maker_position.quote_asset_amount, 50015000 / 2);
-        assert_eq!(maker_position.quote_entry_amount, 50/2 * QUOTE_PRECISION_I128);
+        assert_eq!(
+            maker_position.quote_entry_amount,
+            50 / 2 * QUOTE_PRECISION_I128
+        );
         assert_eq!(maker_position.open_orders, 1);
         assert_eq!(maker_position.open_asks, -2500000000000);
-        assert_eq!(maker_stats.fees.total_fee_rebate, 15000/2);
-        assert_eq!(maker_stats.maker_volume_30d, 50/2 * QUOTE_PRECISION_U64);
+        assert_eq!(maker_stats.fees.total_fee_rebate, 15000 / 2);
+        assert_eq!(maker_stats.maker_volume_30d, 50 / 2 * QUOTE_PRECISION_U64);
         // assert_eq!(maker.orders[0], Order::default());
 
         let market_after = market_map.get_ref(&0).unwrap();
@@ -1809,11 +1815,11 @@ pub mod fulfill_order {
         // assert_eq!(market_after.amm.quote_asset_amount_long, -102284264);
         // assert_eq!(market_after.amm.quote_asset_amount_short, 50000000);
         assert_eq!(market_after.amm.total_fee, 237670); //paid toll to unload?
-        // assert_eq!(market_after.amm.total_fee_minus_distributions, 2064035);
-        // assert_eq!(market_after.amm.net_revenue_since_last_funding, 2064035);
+                                                        // assert_eq!(market_after.amm.total_fee_minus_distributions, 2064035);
+                                                        // assert_eq!(market_after.amm.net_revenue_since_last_funding, 2064035);
 
         assert_eq!(filler_stats.filler_volume_30d, 77284254); // from 102284244, no filler reward for unload amount
-        // assert_eq!(filler.positions[0].quote_asset_amount, 5114);
+                                                              // assert_eq!(filler.positions[0].quote_asset_amount, 5114);
     }
 
     #[test]
