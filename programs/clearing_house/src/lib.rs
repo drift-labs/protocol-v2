@@ -951,13 +951,13 @@ pub mod clearing_house {
     }
 
     pub fn add_insurance_liquidity<'info>(
-        ctx: Context<AddRemoveInsuranceLiquidity>,
-        bank_index: u64,
+        ctx: Context<AddInsuranceLiquidity>,
         amount: u64,
+        bank_index: u64,
     ) -> Result<()> {
         // let user_key = ctx.accounts.user.key();
         // let user = &mut load_mut!(ctx.accounts.user)?;
-
+        msg!("HI");
         // let insurance_fund_stake_key = ctx.accounts.insurance_fund_stake.key();
         if amount == 0 {
             return Err(ErrorCode::InsufficientDeposit.into());
@@ -974,6 +974,13 @@ pub mod clearing_house {
             insurance_fund_stake.bank_index == bank_index,
             ErrorCode::DefaultError,
             "insurance_fund_stake does not match bank_index"
+        )?;
+
+        validate!(
+            insurance_fund_stake.last_withdraw_request_shares == 0
+                && insurance_fund_stake.last_withdraw_request_value == 0,
+            ErrorCode::DefaultError,
+            "withdraw request in progress"
         )?;
 
         let _oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
@@ -993,11 +1000,15 @@ pub mod clearing_house {
             // mint = relative to the entire pool + total amount minted
             // u128 so we can do multiply first without overflow
             // then div and recast back
-            let amount_to_mint = ((amount as u128)
-                .checked_mul(bank.total_lp_shares as u128)
-                .unwrap()
-                .checked_div(insurance_fund_vault_balance as u128)
-                .unwrap()) as u64;
+            let amount_to_mint = if insurance_fund_vault_balance > 0 {
+                ((amount as u128)
+                    .checked_mul(bank.total_lp_shares as u128)
+                    .unwrap()
+                    .checked_div(insurance_fund_vault_balance as u128)
+                    .unwrap()) as u64
+            } else {
+                amount as u64
+            };
 
             let n_shares = amount_to_mint as u128;
 
@@ -1019,7 +1030,7 @@ pub mod clearing_house {
             if bank_index == 0 {
                 user_stats.bank_0_insurance_lp_shares = user_stats
                     .bank_0_insurance_lp_shares
-                    .checked_sub(n_shares)
+                    .checked_add(n_shares)
                     .ok_or_else(math_error!())?;
             }
         }
@@ -1036,7 +1047,7 @@ pub mod clearing_house {
     }
 
     pub fn request_remove_insurance_liquidity<'info>(
-        ctx: Context<AddRemoveInsuranceLiquidity>,
+        ctx: Context<RequestRemoveInsuranceLiquidity>,
         n_shares: u128,
         bank_index: u64,
     ) -> Result<()> {
@@ -1092,7 +1103,7 @@ pub mod clearing_house {
     }
 
     pub fn cancel_request_remove_insurance_liquidity<'info>(
-        ctx: Context<AddRemoveInsuranceLiquidity>,
+        ctx: Context<RequestRemoveInsuranceLiquidity>,
         bank_index: u64,
     ) -> Result<()> {
         // let user_key = ctx.accounts.user.key();
@@ -1136,7 +1147,7 @@ pub mod clearing_house {
     }
 
     pub fn remove_insurance_liquidity<'info>(
-        ctx: Context<AddRemoveInsuranceLiquidity>,
+        ctx: Context<RemoveInsuranceLiquidity>,
         bank_index: u64,
     ) -> Result<()> {
         // let user_key = ctx.accounts.user.key();

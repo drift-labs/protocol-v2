@@ -342,6 +342,14 @@ export type BankAccount = {
 	vault: PublicKey;
 	vaultAuthority: PublicKey;
 	vaultAuthorityNonce: number;
+
+	insuranceFundVault: PublicKey;
+	insuranceFundVaultAuthority: PublicKey;
+	insuranceFundVaultAuthorityNonce: number;
+	insuranceWithdrawEscrowPeriod: BN;
+	totalLpShares: BN;
+	userLpShares: BN;
+
 	decimals: number;
 	optimalUtilization: BN;
 	optimalBorrowRate: BN;
@@ -458,6 +466,7 @@ export type UserStatsAccount = {
 		totalReferralReward: BN;
 		totalRefereeDiscount: BN;
 	};
+	bank0InsuranceLpShares: BN;
 };
 
 export type UserAccount = {
@@ -643,4 +652,9 @@ export type MarginCategory = 'Initial' | 'Maintenance';
 export type InsuranceFundStake = {
 	bankIndex: BN;
 	authority: PublicKey;
+
+	lpShares: BN;
+	lastWithdrawRequestShares: BN;
+	lastWithdrawRequestValue: BN;
+	lastWithdrawRequestTs: BN;
 };

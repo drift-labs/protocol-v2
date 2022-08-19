@@ -12,6 +12,7 @@ import {
 	EventSubscriber,
 	getInsuranceFundStakeAccountPublicKey,
 	InsuranceFundStake,
+	ZERO,
 } from '../sdk/src';
 
 import {
@@ -43,7 +44,11 @@ describe('insurance fund stake', () => {
 
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
-		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
+		userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount.mul(new BN(2)), // 2x it
+			provider
+		);
 
 		solOracle = await mockOracle(100);
 
@@ -96,5 +101,64 @@ describe('insurance fund stake', () => {
 			)) as InsuranceFundStake;
 		assert(ifStakeAccount.bankIndex.eq(bankIndex));
 		assert(ifStakeAccount.authority.equals(provider.wallet.publicKey));
+	});
+
+	it('user if stake', async () => {
+		const bankIndex = new BN(0);
+		try {
+			const txSig = await clearingHouse.addInsuranceLiquidity(
+				usdcAmount,
+				bankIndex,
+				userUSDCAccount.publicKey
+			);
+			console.log(
+				'tx logs',
+				(await connection.getTransaction(txSig, { commitment: 'confirmed' }))
+					.meta.logMessages
+			);
+		} catch (e) {
+			console.error(e);
+		}
+
+		const bank0 = clearingHouse.getBankAccount(bankIndex);
+		assert(bank0.totalLpShares.gt(ZERO));
+		assert(bank0.totalLpShares.eq(usdcAmount));
+		assert(bank0.userLpShares.eq(usdcAmount));
+	});
+
+	it('user request if unstake', async () => {
+		const bankIndex = new BN(0);
+		const nShares = usdcAmount.div(new BN(2));
+		try {
+			const txSig = await clearingHouse.requestRemoveInsuranceLiquidity(
+				nShares,
+				bankIndex
+			);
+			console.log(
+				'tx logs',
+				(await connection.getTransaction(txSig, { commitment: 'confirmed' }))
+					.meta.logMessages
+			);
+		} catch (e) {
+			console.error(e);
+		}
+
+		const bank0 = clearingHouse.getBankAccount(bankIndex);
+		assert(bank0.totalLpShares.gt(ZERO));
+		assert(bank0.totalLpShares.eq(usdcAmount));
+		assert(bank0.userLpShares.eq(usdcAmount));
+
+		const ifStakePublicKey = getInsuranceFundStakeAccountPublicKey(
+			clearingHouse.program.programId,
+			provider.wallet.publicKey,
+			bankIndex
+		);
+
+		const ifStakeAccount =
+			(await clearingHouse.program.account.insuranceFundStake.fetch(
+				ifStakePublicKey
+			)) as InsuranceFundStake;
+
+		assert(ifStakeAccount.lastWithdrawRequestShares.gt(ZERO));
 	});
 });

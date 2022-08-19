@@ -366,7 +366,8 @@ pub struct AddRemoveLiquidity<'info> {
 }
 
 #[derive(Accounts)]
-pub struct AddRemoveInsuranceLiquidity<'info> {
+#[instruction(bank_index: u64,)]
+pub struct AddInsuranceLiquidity<'info> {
     pub bank: AccountLoader<'info, Bank>,
     #[account(
         mut,
@@ -379,7 +380,76 @@ pub struct AddRemoveInsuranceLiquidity<'info> {
     )]
     pub user_stats: AccountLoader<'info, UserStats>,
     pub authority: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"insurance_fund_vault".as_ref(), bank_index.to_le_bytes().as_ref()],
+        bump,
+    )]
     pub insurance_fund_vault: Box<Account<'info, TokenAccount>>,
+    #[account(
+        mut,
+        constraint = &insurance_fund_vault.mint.eq(&user_token_account.mint)
+    )]
+    pub user_token_account: Box<Account<'info, TokenAccount>>,
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+#[instruction(bank_index: u64,)]
+pub struct RequestRemoveInsuranceLiquidity<'info> {
+    pub bank: AccountLoader<'info, Bank>,
+    #[account(
+        mut,
+        has_one = authority,
+    )]
+    pub insurance_fund_stake: AccountLoader<'info, InsuranceFundStake>,
+    pub user_stats: AccountLoader<'info, UserStats>,
+    pub authority: Signer<'info>,
+    // #[account(
+    //     mut,
+    //     seeds = [b"insurance_fund_vault".as_ref(), bank_index.to_le_bytes().as_ref()],
+    //     bump,
+    // )]
+    // pub insurance_fund_vault: Box<Account<'info, TokenAccount>>,
+    // #[account(
+    //     mut,
+    //     seeds = [b"insurance_fund_vault_authority".as_ref(), bank_index.to_le_bytes().as_ref()],
+    //     bump,
+    // )]
+    // /// CHECK: this is the pda for the bank vault
+    // pub insurance_fund_vault_authority: AccountInfo<'info>,
+    // #[account(
+    //     mut,
+    //     constraint = &insurance_fund_vault.mint.eq(&user_token_account.mint)
+    // )]
+    // pub user_token_account: Box<Account<'info, TokenAccount>>,
+    // pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+#[instruction(bank_index: u64,)]
+pub struct RemoveInsuranceLiquidity<'info> {
+    pub bank: AccountLoader<'info, Bank>,
+    #[account(
+        mut,
+        has_one = authority,
+    )]
+    pub insurance_fund_stake: AccountLoader<'info, InsuranceFundStake>,
+    pub user_stats: AccountLoader<'info, UserStats>,
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"insurance_fund_vault".as_ref(), bank_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub insurance_fund_vault: Box<Account<'info, TokenAccount>>,
+    #[account(
+        mut,
+        seeds = [b"insurance_fund_vault_authority".as_ref(), bank_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    /// CHECK: this is the pda for the bank vault
+    pub insurance_fund_vault_authority: AccountInfo<'info>,
     #[account(
         mut,
         constraint = &insurance_fund_vault.mint.eq(&user_token_account.mint)

@@ -2420,4 +2420,99 @@ export class ClearingHouse {
 			}
 		);
 	}
+
+	public async addInsuranceLiquidity(
+		amount: BN,
+		bankIndex: BN,
+		collateralAccountPublicKey: PublicKey
+	): Promise<TransactionSignature> {
+		const bank = this.getBankAccount(bankIndex);
+		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
+			this.program.programId,
+			this.wallet.publicKey,
+			bankIndex
+		);
+
+		const remainingAccounts = this.getRemainingAccounts({
+			writableBankIndex: bankIndex,
+		});
+
+		return await this.program.rpc.addInsuranceLiquidity(amount, bankIndex, {
+			accounts: {
+				state: await this.getStatePublicKey(),
+				bank: bank.pubkey,
+				insuranceFundStake: ifStakeAccountPublicKey,
+				userStats: this.getUserStatsAccountPublicKey(),
+				authority: this.wallet.publicKey,
+				insuranceFundVault: bank.insuranceFundVault,
+				userTokenAccount: collateralAccountPublicKey,
+				tokenProgram: TOKEN_PROGRAM_ID,
+			},
+			remainingAccounts,
+		});
+	}
+
+	public async requestRemoveInsuranceLiquidity(
+		nShares: BN,
+		bankIndex: BN
+	): Promise<TransactionSignature> {
+		const bank = this.getBankAccount(bankIndex);
+		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
+			this.program.programId,
+			this.wallet.publicKey,
+			bankIndex
+		);
+
+		const remainingAccounts = this.getRemainingAccounts({
+			writableBankIndex: bankIndex,
+		});
+
+		return await this.program.rpc.requestRemoveInsuranceLiquidity(
+			nShares,
+			bankIndex,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					bank: bank.pubkey,
+					insuranceFundStake: ifStakeAccountPublicKey,
+					userStats: this.getUserStatsAccountPublicKey(),
+					authority: this.wallet.publicKey,
+					// insuranceFundVault: bank.insuranceFundVault,
+					// userTokenAccount: collateralAccountPublicKey,
+					// tokenProgram: TOKEN_PROGRAM_ID,
+				},
+				remainingAccounts,
+			}
+		);
+	}
+
+	public async removeInsuranceLiquidity(
+		bankIndex: BN,
+		collateralAccountPublicKey: PublicKey
+	): Promise<TransactionSignature> {
+		const bank = this.getBankAccount(bankIndex);
+		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
+			this.program.programId,
+			this.wallet.publicKey,
+			bankIndex
+		);
+
+		const remainingAccounts = this.getRemainingAccounts({
+			writableBankIndex: bankIndex,
+		});
+
+		return await this.program.rpc.removeInsuranceLiquidity(bankIndex, {
+			accounts: {
+				state: await this.getStatePublicKey(),
+				bank: bank.pubkey,
+				insuranceFundStake: ifStakeAccountPublicKey,
+				userStats: this.getUserStatsAccountPublicKey(),
+				authority: this.wallet.publicKey,
+				insuranceFundVault: bank.insuranceFundVault,
+				userTokenAccount: collateralAccountPublicKey,
+				tokenProgram: TOKEN_PROGRAM_ID,
+			},
+			remainingAccounts,
+		});
+	}
 }
