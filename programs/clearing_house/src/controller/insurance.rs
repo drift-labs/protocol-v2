@@ -8,7 +8,7 @@ use crate::state::bank::Bank;
 use crate::state::insurance_fund_stake::InsuranceFundStake;
 use crate::state::user::UserStats;
 
-pub fn stake_in_insurance_fund(
+pub fn add_insurance_fund_stake(
     amount: u64,
     insurance_fund_vault_balance: u64,
     insurance_fund_stake: &mut InsuranceFundStake,
@@ -55,7 +55,7 @@ pub fn stake_in_insurance_fund(
     Ok(())
 }
 
-pub fn unstake_from_insurance_fund(
+pub fn remove_insurance_fund_stake(
     insurance_fund_vault_balance: u64,
     insurance_fund_stake: &mut InsuranceFundStake,
     user_stats: &mut UserStats,
@@ -79,13 +79,14 @@ pub fn unstake_from_insurance_fund(
         ErrorCode::InsufficientLPTokens
     )?;
 
-    let insurance_fund_vault_authority_nonce;
-    let amount: u64;
-
     validate!(
         time_since_withdraw_request >= bank.insurance_withdraw_escrow_period,
         ErrorCode::TryingToRemoveLiquidityTooFast
     )?;
+
+
+    let insurance_fund_vault_authority_nonce;
+    let amount: u64;
 
     amount = n_shares
         .checked_mul(insurance_fund_vault_balance as u128)
@@ -123,4 +124,49 @@ pub fn unstake_from_insurance_fund(
     insurance_fund_stake.last_withdraw_request_ts = now;
 
     Ok((amount, insurance_fund_vault_authority_nonce))
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::state::user::{UserStats};
+    use crate::math::constants::{
+        AMM_RESERVE_PRECISION, BANK_CUMULATIVE_INTEREST_PRECISION, MARK_PRICE_PRECISION,
+        QUOTE_PRECISION,
+    };
+
+    #[test]
+    pub fn stake_if_test() {
+
+        let mut if_balance = 0;
+        let mut if_stake = InsuranceFundStake {
+            lp_shares: 0,
+            ..InsuranceFundStake::default()
+        };
+        let mut user_stats = UserStats {
+            number_of_users: 0,
+            ..UserStats::default()
+        };
+        let amount = QUOTE_PRECISION as u64; // $1
+        let mut bank = Bank {
+            deposit_balance: 0,
+            cumulative_deposit_interest: 1111 * BANK_CUMULATIVE_INTEREST_PRECISION / 1000,
+            insurance_withdraw_escrow_period: 0,
+            ..Bank::default()
+        };
+
+
+        add_insurance_fund_stake(amount, if_balance, &mut if_stake, &mut user_stats, &mut bank).unwrap();
+        assert_eq!(if_stake.lp_shares, amount as u128);
+        if_balance = if_balance + amount;
+
+        // must request first
+        assert!(remove_insurance_fund_stake(if_balance, &mut if_stake, &mut user_stats, &mut bank, 0).is_err());
+        assert_eq!(if_stake.lp_shares, amount as u128);
+
+        if_stake.last_withdraw_request_shares = if_stake.lp_shares;
+        let (amount_returned, _) = (remove_insurance_fund_stake(if_balance, &mut if_stake, &mut user_stats, &mut bank, 0)).unwrap();
+        assert_eq!(amount_returned, amount);
+        if_balance = if_balance - amount_returned;
+    }
 }

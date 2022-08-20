@@ -2651,7 +2651,7 @@ pub mod clearing_house {
         let _oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
         let bank_map = BankMap::load(&get_writable_banks(bank_index), remaining_accounts_iter)?;
 
-        controller::insurance::stake_in_insurance_fund(
+        controller::insurance::add_insurance_fund_stake(
             amount,
             ctx.accounts.insurance_fund_vault.amount,
             insurance_fund_stake,
@@ -2675,17 +2675,8 @@ pub mod clearing_house {
         n_shares: u128,
         bank_index: u64,
     ) -> Result<()> {
-        // let user_key = ctx.accounts.user.key();
-        // let user = &mut load_mut!(ctx.accounts.user)?;
-
-        // let insurance_fund_stake_key = ctx.accounts.insurance_fund_stake.key();
-
         let clock = Clock::get()?;
-        let now = clock.unix_timestamp;
-        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-
         let insurance_fund_stake = &mut load_mut!(ctx.accounts.insurance_fund_stake)?;
-        // let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
 
         validate!(
             insurance_fund_stake.bank_index == bank_index,
@@ -2693,13 +2684,10 @@ pub mod clearing_house {
             "insurance_fund_stake does not match bank_index"
         )?;
 
-        let _oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
-        let _bank_map = BankMap::load(&get_writable_banks(bank_index), remaining_accounts_iter)?;
-
         validate!(
             insurance_fund_stake.last_withdraw_request_shares == 0,
             ErrorCode::DefaultError,
-            "Withdraw request in already in progress"
+            "Withdraw request is already in progress"
         )?;
 
         validate!(
@@ -2715,7 +2703,7 @@ pub mod clearing_house {
 
         insurance_fund_stake.last_withdraw_request_shares = n_shares;
         insurance_fund_stake.last_withdraw_request_value = 0; // todo
-        insurance_fund_stake.last_withdraw_request_ts = now;
+        insurance_fund_stake.last_withdraw_request_ts = clock.unix_timestamp;
 
         Ok(())
     }
@@ -2784,7 +2772,7 @@ pub mod clearing_house {
         let bank_map = BankMap::load(&get_writable_banks(bank_index), remaining_accounts_iter)?;
 
         let (amount, insurance_fund_vault_authority_nonce) =
-            controller::insurance::unstake_from_insurance_fund(
+            controller::insurance::remove_insurance_fund_stake(
                 ctx.accounts.insurance_fund_vault.amount,
                 insurance_fund_stake,
                 user_stats,
