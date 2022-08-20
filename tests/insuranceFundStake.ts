@@ -108,7 +108,7 @@ describe('insurance fund stake', () => {
 	it('user if stake', async () => {
 		const bankIndex = new BN(0);
 		try {
-			const txSig = await clearingHouse.addInsuranceLiquidity(
+			const txSig = await clearingHouse.addInsuranceFundStake(
 				bankIndex,
 				usdcAmount,
 				userUSDCAccount.publicKey
@@ -132,7 +132,7 @@ describe('insurance fund stake', () => {
 		const bankIndex = new BN(0);
 		const nShares = usdcAmount.div(new BN(2));
 		try {
-			const txSig = await clearingHouse.requestRemoveInsuranceLiquidity(
+			const txSig = await clearingHouse.requestRemoveInsuranceFundStake(
 				nShares,
 				bankIndex
 			);
@@ -167,7 +167,7 @@ describe('insurance fund stake', () => {
 	it('user if unstake (half)', async () => {
 		const bankIndex = new BN(0);
 		// const nShares = usdcAmount.div(new BN(2));
-		const txSig = await clearingHouse.removeInsuranceLiquidity(
+		const txSig = await clearingHouse.removeInsuranceFundStake(
 			bankIndex,
 			userUSDCAccount.publicKey
 		);
@@ -207,7 +207,7 @@ describe('insurance fund stake', () => {
 
 		const bankIndex = new BN(0);
 		const nShares = usdcAmount.div(new BN(2));
-		const txSig2 = await clearingHouse.requestRemoveInsuranceLiquidity(
+		const txSig2 = await clearingHouse.requestRemoveInsuranceFundStake(
 			nShares,
 			bankIndex
 		);
@@ -218,7 +218,7 @@ describe('insurance fund stake', () => {
 		);
 
 		try {
-			const txSig3 = await clearingHouse.removeInsuranceLiquidity(
+			const txSig3 = await clearingHouse.removeInsuranceFundStake(
 				bankIndex,
 				userUSDCAccount.publicKey
 			);
@@ -292,7 +292,7 @@ describe('insurance fund stake', () => {
 		}
 
 		// const nShares = usdcAmount.div(new BN(2));
-		const txSig = await clearingHouse.removeInsuranceLiquidity(
+		const txSig = await clearingHouse.removeInsuranceFundStake(
 			bankIndex,
 			userUSDCAccount.publicKey
 		);

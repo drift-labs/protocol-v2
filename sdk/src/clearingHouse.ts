@@ -2421,7 +2421,7 @@ export class ClearingHouse {
 		);
 	}
 
-	public async addInsuranceLiquidity(
+	public async addInsuranceFundStake(
 		bankIndex: BN,
 		amount: BN,
 		collateralAccountPublicKey: PublicKey
@@ -2437,7 +2437,7 @@ export class ClearingHouse {
 			writableBankIndex: bankIndex,
 		});
 
-		return await this.program.rpc.addInsuranceLiquidity(bankIndex, amount, {
+		return await this.program.rpc.addInsuranceFundStake(bankIndex, amount, {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				bank: bank.pubkey,
@@ -2452,7 +2452,7 @@ export class ClearingHouse {
 		});
 	}
 
-	public async requestRemoveInsuranceLiquidity(
+	public async requestRemoveInsuranceFundStake(
 		nShares: BN,
 		bankIndex: BN
 	): Promise<TransactionSignature> {
@@ -2467,7 +2467,7 @@ export class ClearingHouse {
 			writableBankIndex: bankIndex,
 		});
 
-		return await this.program.rpc.requestRemoveInsuranceLiquidity(
+		return await this.program.rpc.requestRemoveInsuranceFundStake(
 			nShares,
 			bankIndex,
 			{
@@ -2486,7 +2486,7 @@ export class ClearingHouse {
 		);
 	}
 
-	public async removeInsuranceLiquidity(
+	public async removeInsuranceFundStake(
 		bankIndex: BN,
 		collateralAccountPublicKey: PublicKey
 	): Promise<TransactionSignature> {
@@ -2501,7 +2501,7 @@ export class ClearingHouse {
 			writableBankIndex: bankIndex,
 		});
 
-		return await this.program.rpc.removeInsuranceLiquidity(bankIndex, {
+		return await this.program.rpc.removeInsuranceFundStake(bankIndex, {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				bank: bank.pubkey,

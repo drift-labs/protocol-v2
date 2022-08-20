@@ -1,6 +1,7 @@
 pub mod amm;
 pub mod bank_balance;
 pub mod funding;
+pub mod insurance;
 pub mod liquidation;
 pub mod lp;
 pub mod orders;
@@ -8,4 +9,3 @@ pub mod pnl;
 pub mod position;
 pub mod repeg;
 pub mod token;
-pub mod insurance;

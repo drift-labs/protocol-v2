@@ -950,271 +950,6 @@ pub mod clearing_house {
         Ok(())
     }
 
-    pub fn add_insurance_liquidity<'info>(
-        ctx: Context<AddInsuranceLiquidity>,
-        bank_index: u64,
-        amount: u64,
-    ) -> Result<()> {
-        if amount == 0 {
-            return Err(ErrorCode::InsufficientDeposit.into());
-        }
-
-        let clock = Clock::get()?;
-        // let now = clock.unix_timestamp;
-        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-
-        let insurance_fund_stake = &mut load_mut!(ctx.accounts.insurance_fund_stake)?;
-        let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
-
-        validate!(
-            insurance_fund_stake.bank_index == bank_index,
-            ErrorCode::DefaultError,
-            "insurance_fund_stake does not match bank_index"
-        )?;
-
-        validate!(
-            insurance_fund_stake.last_withdraw_request_shares == 0
-                && insurance_fund_stake.last_withdraw_request_value == 0,
-            ErrorCode::DefaultError,
-            "withdraw request in progress"
-        )?;
-
-        let _oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
-        let bank_map = BankMap::load(&get_writable_banks(bank_index), remaining_accounts_iter)?;
-
-        let _market_map = MarketMap::load(
-            &WritableBanks::new(),
-            &MarketSet::new(),
-            remaining_accounts_iter,
-        )?;
-
-        controller::insurance::update_insurance_stake_balances(
-            amount,
-            ctx.accounts.insurance_fund_vault.amount,
-            insurance_fund_stake,
-            user_stats,
-            &mut *bank_map.get_ref_mut(&bank_index)?,
-        )?;
-
-        controller::token::receive(
-            &ctx.accounts.token_program,
-            &ctx.accounts.user_token_account,
-            &ctx.accounts.insurance_fund_vault,
-            &ctx.accounts.authority,
-            amount,
-        )?;
-
-        Ok(())
-    }
-
-    pub fn request_remove_insurance_liquidity<'info>(
-        ctx: Context<RequestRemoveInsuranceLiquidity>,
-        n_shares: u128,
-        bank_index: u64,
-    ) -> Result<()> {
-        // let user_key = ctx.accounts.user.key();
-        // let user = &mut load_mut!(ctx.accounts.user)?;
-
-        // let insurance_fund_stake_key = ctx.accounts.insurance_fund_stake.key();
-
-        let clock = Clock::get()?;
-        let now = clock.unix_timestamp;
-        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-
-        let insurance_fund_stake = &mut load_mut!(ctx.accounts.insurance_fund_stake)?;
-        // let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
-
-        validate!(
-            insurance_fund_stake.bank_index == bank_index,
-            ErrorCode::DefaultError,
-            "insurance_fund_stake does not match bank_index"
-        )?;
-
-        let _oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
-        let _bank_map = BankMap::load(&get_writable_banks(bank_index), remaining_accounts_iter)?;
-
-        let _market_map = MarketMap::load(
-            &WritableBanks::new(),
-            &MarketSet::new(),
-            remaining_accounts_iter,
-        )?;
-
-        validate!(
-            insurance_fund_stake.last_withdraw_request_shares == 0,
-            ErrorCode::DefaultError,
-            "Withdraw request in already in progress"
-        )?;
-
-        validate!(
-            n_shares > 0,
-            ErrorCode::DefaultError,
-            "Requested lp_shares = 0"
-        )?;
-
-        validate!(
-            insurance_fund_stake.lp_shares >= n_shares,
-            ErrorCode::InsufficientLPTokens
-        )?;
-
-        insurance_fund_stake.last_withdraw_request_shares = n_shares;
-        insurance_fund_stake.last_withdraw_request_value = 0; // todo
-        insurance_fund_stake.last_withdraw_request_ts = now;
-
-        Ok(())
-    }
-
-    pub fn cancel_request_remove_insurance_liquidity<'info>(
-        ctx: Context<RequestRemoveInsuranceLiquidity>,
-        bank_index: u64,
-    ) -> Result<()> {
-        // let user_key = ctx.accounts.user.key();
-        // let user = &mut load_mut!(ctx.accounts.user)?;
-
-        // let insurance_fund_stake_key = ctx.accounts.insurance_fund_stake.key();
-
-        let clock = Clock::get()?;
-        let now = clock.unix_timestamp;
-        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-
-        let insurance_fund_stake = &mut load_mut!(ctx.accounts.insurance_fund_stake)?;
-        // let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
-
-        validate!(
-            insurance_fund_stake.bank_index == bank_index,
-            ErrorCode::DefaultError,
-            "insurance_fund_stake does not match bank_index"
-        )?;
-
-        let _oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
-        let _bank_map = BankMap::load(&get_writable_banks(bank_index), remaining_accounts_iter)?;
-
-        let _market_map = MarketMap::load(
-            &WritableBanks::new(),
-            &MarketSet::new(),
-            remaining_accounts_iter,
-        )?;
-
-        validate!(
-            insurance_fund_stake.last_withdraw_request_shares != 0,
-            ErrorCode::DefaultError,
-            "No withdraw request in progress"
-        )?;
-
-        insurance_fund_stake.last_withdraw_request_shares = 0;
-        insurance_fund_stake.last_withdraw_request_value = 0;
-        insurance_fund_stake.last_withdraw_request_ts = now;
-
-        Ok(())
-    }
-
-    pub fn remove_insurance_liquidity<'info>(
-        ctx: Context<RemoveInsuranceLiquidity>,
-        bank_index: u64,
-    ) -> Result<()> {
-        // let user_key = ctx.accounts.user.key();
-        // let user = &mut load_mut!(ctx.accounts.user)?;
-
-        // let insurance_fund_stake_key = ctx.accounts.insurance_fund_stake.key();
-
-        let clock = Clock::get()?;
-        let now = clock.unix_timestamp;
-        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-
-        let insurance_fund_stake = &mut load_mut!(ctx.accounts.insurance_fund_stake)?;
-        let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
-
-        validate!(
-            insurance_fund_stake.bank_index == bank_index,
-            ErrorCode::DefaultError,
-            "insurance_fund_stake does not match bank_index"
-        )?;
-
-        let _oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
-        let bank_map = BankMap::load(&get_writable_banks(bank_index), remaining_accounts_iter)?;
-
-        let _market_map = MarketMap::load(
-            &WritableBanks::new(),
-            &MarketSet::new(),
-            remaining_accounts_iter,
-        )?;
-
-        let time_since_withdraw_request = now
-            .checked_sub(insurance_fund_stake.last_withdraw_request_ts)
-            .ok_or_else(math_error!())?;
-
-        let n_shares = insurance_fund_stake.last_withdraw_request_shares;
-
-        validate!(
-            n_shares > 0,
-            ErrorCode::DefaultError,
-            "Must submit withdraw request and wait the escrow period"
-        )?;
-
-        validate!(
-            insurance_fund_stake.lp_shares >= n_shares,
-            ErrorCode::InsufficientLPTokens
-        )?;
-
-        let insurance_fund_vault_balance = ctx.accounts.insurance_fund_vault.amount;
-
-        let insurance_fund_vault_authority_nonce;
-        let amount: u64;
-        {
-            let mut bank = bank_map.get_ref_mut(&bank_index)?;
-
-            validate!(
-                time_since_withdraw_request >= bank.insurance_withdraw_escrow_period,
-                ErrorCode::TryingToRemoveLiquidityTooFast
-            )?;
-
-            amount = n_shares
-                .checked_mul(insurance_fund_vault_balance as u128)
-                .unwrap()
-                .checked_div(bank.total_lp_shares as u128)
-                .unwrap() as u64;
-
-            insurance_fund_stake.lp_shares = insurance_fund_stake
-                .lp_shares
-                .checked_sub(n_shares)
-                .ok_or_else(math_error!())?;
-
-            if bank_index == 0 {
-                user_stats.bank_0_insurance_lp_shares = user_stats
-                    .bank_0_insurance_lp_shares
-                    .checked_sub(n_shares)
-                    .ok_or_else(math_error!())?;
-            }
-
-            bank.total_lp_shares = bank
-                .total_lp_shares
-                .checked_sub(n_shares)
-                .ok_or_else(math_error!())?;
-
-            bank.user_lp_shares = bank
-                .user_lp_shares
-                .checked_sub(n_shares)
-                .ok_or_else(math_error!())?;
-
-            insurance_fund_vault_authority_nonce = bank.insurance_fund_vault_authority_nonce;
-        }
-
-        insurance_fund_stake.last_withdraw_request_shares = 0;
-        insurance_fund_stake.last_withdraw_request_value = 0;
-        insurance_fund_stake.last_withdraw_request_ts = now;
-
-        controller::token::send_from_staked_insurance_fund_vault(
-            &ctx.accounts.token_program,
-            &ctx.accounts.insurance_fund_vault,
-            &ctx.accounts.user_token_account,
-            &ctx.accounts.insurance_fund_vault_authority,
-            bank_index,
-            insurance_fund_vault_authority_nonce,
-            amount,
-        )?;
-
-        Ok(())
-    }
-
     pub fn place_order(ctx: Context<PlaceOrder>, params: OrderParams) -> Result<()> {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
@@ -2880,6 +2615,192 @@ pub mod clearing_house {
             last_withdraw_request_value: 0,
             last_withdraw_request_ts: 0,
         };
+
+        Ok(())
+    }
+
+    pub fn add_insurance_fund_stake<'info>(
+        ctx: Context<AddInsuranceFundStake>,
+        bank_index: u64,
+        amount: u64,
+    ) -> Result<()> {
+        if amount == 0 {
+            return Err(ErrorCode::InsufficientDeposit.into());
+        }
+
+        let clock = Clock::get()?;
+        // let now = clock.unix_timestamp;
+        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+
+        let insurance_fund_stake = &mut load_mut!(ctx.accounts.insurance_fund_stake)?;
+        let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
+
+        validate!(
+            insurance_fund_stake.bank_index == bank_index,
+            ErrorCode::DefaultError,
+            "insurance_fund_stake does not match bank_index"
+        )?;
+
+        validate!(
+            insurance_fund_stake.last_withdraw_request_shares == 0
+                && insurance_fund_stake.last_withdraw_request_value == 0,
+            ErrorCode::DefaultError,
+            "withdraw request in progress"
+        )?;
+
+        let _oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let bank_map = BankMap::load(&get_writable_banks(bank_index), remaining_accounts_iter)?;
+
+        controller::insurance::stake_in_insurance_fund(
+            amount,
+            ctx.accounts.insurance_fund_vault.amount,
+            insurance_fund_stake,
+            user_stats,
+            &mut *bank_map.get_ref_mut(&bank_index)?,
+        )?;
+
+        controller::token::receive(
+            &ctx.accounts.token_program,
+            &ctx.accounts.user_token_account,
+            &ctx.accounts.insurance_fund_vault,
+            &ctx.accounts.authority,
+            amount,
+        )?;
+
+        Ok(())
+    }
+
+    pub fn request_remove_insurance_fund_stake<'info>(
+        ctx: Context<RequestRemoveInsuranceFundStake>,
+        n_shares: u128,
+        bank_index: u64,
+    ) -> Result<()> {
+        // let user_key = ctx.accounts.user.key();
+        // let user = &mut load_mut!(ctx.accounts.user)?;
+
+        // let insurance_fund_stake_key = ctx.accounts.insurance_fund_stake.key();
+
+        let clock = Clock::get()?;
+        let now = clock.unix_timestamp;
+        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+
+        let insurance_fund_stake = &mut load_mut!(ctx.accounts.insurance_fund_stake)?;
+        // let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
+
+        validate!(
+            insurance_fund_stake.bank_index == bank_index,
+            ErrorCode::DefaultError,
+            "insurance_fund_stake does not match bank_index"
+        )?;
+
+        let _oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let _bank_map = BankMap::load(&get_writable_banks(bank_index), remaining_accounts_iter)?;
+
+        validate!(
+            insurance_fund_stake.last_withdraw_request_shares == 0,
+            ErrorCode::DefaultError,
+            "Withdraw request in already in progress"
+        )?;
+
+        validate!(
+            n_shares > 0,
+            ErrorCode::DefaultError,
+            "Requested lp_shares = 0"
+        )?;
+
+        validate!(
+            insurance_fund_stake.lp_shares >= n_shares,
+            ErrorCode::InsufficientLPTokens
+        )?;
+
+        insurance_fund_stake.last_withdraw_request_shares = n_shares;
+        insurance_fund_stake.last_withdraw_request_value = 0; // todo
+        insurance_fund_stake.last_withdraw_request_ts = now;
+
+        Ok(())
+    }
+
+    pub fn cancel_request_remove_insurance_fund_stake<'info>(
+        ctx: Context<RequestRemoveInsuranceFundStake>,
+        bank_index: u64,
+    ) -> Result<()> {
+        // let user_key = ctx.accounts.user.key();
+        // let user = &mut load_mut!(ctx.accounts.user)?;
+
+        // let insurance_fund_stake_key = ctx.accounts.insurance_fund_stake.key();
+
+        let clock = Clock::get()?;
+        let now = clock.unix_timestamp;
+        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+
+        let insurance_fund_stake = &mut load_mut!(ctx.accounts.insurance_fund_stake)?;
+        // let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
+
+        validate!(
+            insurance_fund_stake.bank_index == bank_index,
+            ErrorCode::DefaultError,
+            "insurance_fund_stake does not match bank_index"
+        )?;
+
+        let _oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let _bank_map = BankMap::load(&get_writable_banks(bank_index), remaining_accounts_iter)?;
+
+        validate!(
+            insurance_fund_stake.last_withdraw_request_shares != 0,
+            ErrorCode::DefaultError,
+            "No withdraw request in progress"
+        )?;
+
+        insurance_fund_stake.last_withdraw_request_shares = 0;
+        insurance_fund_stake.last_withdraw_request_value = 0;
+        insurance_fund_stake.last_withdraw_request_ts = now;
+
+        Ok(())
+    }
+
+    pub fn remove_insurance_fund_stake<'info>(
+        ctx: Context<RemoveInsuranceFundStake>,
+        bank_index: u64,
+    ) -> Result<()> {
+        // let user_key = ctx.accounts.user.key();
+        // let user = &mut load_mut!(ctx.accounts.user)?;
+
+        // let insurance_fund_stake_key = ctx.accounts.insurance_fund_stake.key();
+
+        let clock = Clock::get()?;
+        let now = clock.unix_timestamp;
+        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+
+        let insurance_fund_stake = &mut load_mut!(ctx.accounts.insurance_fund_stake)?;
+        let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
+
+        validate!(
+            insurance_fund_stake.bank_index == bank_index,
+            ErrorCode::DefaultError,
+            "insurance_fund_stake does not match bank_index"
+        )?;
+
+        let _oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let bank_map = BankMap::load(&get_writable_banks(bank_index), remaining_accounts_iter)?;
+
+        let (amount, insurance_fund_vault_authority_nonce) =
+            controller::insurance::unstake_from_insurance_fund(
+                ctx.accounts.insurance_fund_vault.amount,
+                insurance_fund_stake,
+                user_stats,
+                &mut *bank_map.get_ref_mut(&bank_index)?,
+                now,
+            )?;
+
+        controller::token::send_from_staked_insurance_fund_vault(
+            &ctx.accounts.token_program,
+            &ctx.accounts.insurance_fund_vault,
+            &ctx.accounts.user_token_account,
+            &ctx.accounts.insurance_fund_vault_authority,
+            bank_index,
+            insurance_fund_vault_authority_nonce,
+            amount,
+        )?;
 
         Ok(())
     }
