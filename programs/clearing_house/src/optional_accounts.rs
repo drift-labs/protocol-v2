@@ -39,6 +39,7 @@ pub fn get_maker_and_maker_stats<'a>(
     Ok((maker, maker_stats))
 }
 
+#[allow(clippy::type_complexity)]
 pub fn get_referrer_and_referrer_stats<'a>(
     account_info_iter: &mut Peekable<Iter<AccountInfo<'a>>>,
 ) -> ClearingHouseResult<(
@@ -51,9 +52,9 @@ pub fn get_referrer_and_referrer_stats<'a>(
     }
 
     let referrer_account_info = referrer_account_info.unwrap();
-    let data = referrer_account_info.try_borrow_data().or_else(|e| {
+    let data = referrer_account_info.try_borrow_data().map_err(|e| {
         msg!("{:?}", e);
-        Err(ErrorCode::CouldNotDeserializeReferrer)
+        ErrorCode::CouldNotDeserializeReferrer
     })?;
 
     if data.len() < std::mem::size_of::<User>() + 8 {
@@ -82,9 +83,9 @@ pub fn get_referrer_and_referrer_stats<'a>(
     }
 
     let referrer_stats_account_info = referrer_stats_account_info.unwrap();
-    let data = referrer_stats_account_info.try_borrow_data().or_else(|e| {
+    let data = referrer_stats_account_info.try_borrow_data().map_err(|e| {
         msg!("{:?}", e);
-        Err(ErrorCode::CouldNotDeserializeReferrerStats)
+        ErrorCode::CouldNotDeserializeReferrerStats
     })?;
 
     if data.len() < std::mem::size_of::<UserStats>() + 8 {

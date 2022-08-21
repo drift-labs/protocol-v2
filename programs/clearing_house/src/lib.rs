@@ -1049,6 +1049,8 @@ pub mod clearing_house {
             None => (None, None),
         };
 
+        let (referrer, referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
+
         let clock = &Clock::get()?;
 
         controller::repeg::update_amm(
@@ -1072,6 +1074,8 @@ pub mod clearing_house {
             maker.as_ref(),
             maker_stats.as_ref(),
             maker_order_id,
+            referrer.as_ref(),
+            referrer_stats.as_ref(),
             &Clock::get()?,
         )?;
 
@@ -1113,6 +1117,8 @@ pub mod clearing_house {
             None => (None, None),
         };
 
+        let (referrer, referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
+
         let is_immediate_or_cancel = params.immediate_or_cancel;
         let base_asset_amount_to_fill = params.base_asset_amount;
 
@@ -1150,6 +1156,8 @@ pub mod clearing_house {
             maker.as_ref(),
             maker_stats.as_ref(),
             maker_order_id,
+            referrer.as_ref(),
+            referrer_stats.as_ref(),
             &Clock::get()?,
         )?;
 
@@ -1182,6 +1190,8 @@ pub mod clearing_house {
             &MarketSet::new(),
             remaining_accounts_iter,
         )?;
+
+        let (referrer, referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
 
         if !params.immediate_or_cancel || !params.post_only || params.order_type != OrderType::Limit
         {
@@ -1222,6 +1232,8 @@ pub mod clearing_house {
             Some(&ctx.accounts.user),
             Some(&ctx.accounts.user_stats),
             Some(order_id),
+            referrer.as_ref(),
+            referrer_stats.as_ref(),
             &Clock::get()?,
         )?;
 

@@ -1420,11 +1420,18 @@ export class ClearingHouse {
 		userAccountPublicKey: PublicKey,
 		user: UserAccount,
 		order?: Order,
-		makerInfo?: MakerInfo
+		makerInfo?: MakerInfo,
+		referrerInfo?: ReferrerInfo
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.txSender.send(
 			wrapInTx(
-				await this.getFillOrderIx(userAccountPublicKey, user, order, makerInfo)
+				await this.getFillOrderIx(
+					userAccountPublicKey,
+					user,
+					order,
+					makerInfo,
+					referrerInfo
+				)
 			),
 			[],
 			this.opts
@@ -1436,7 +1443,8 @@ export class ClearingHouse {
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
 		order: Order,
-		makerInfo?: MakerInfo
+		makerInfo?: MakerInfo,
+		referrerInfo?: ReferrerInfo
 	): Promise<TransactionInstruction> {
 		const userStatsPublicKey = getUserStatsAccountPublicKey(
 			this.program.programId,
@@ -1516,6 +1524,19 @@ export class ClearingHouse {
 			});
 			remainingAccounts.push({
 				pubkey: makerInfo.makerStats,
+				isWritable: true,
+				isSigner: false,
+			});
+		}
+
+		if (referrerInfo) {
+			remainingAccounts.push({
+				pubkey: referrerInfo.referrer,
+				isWritable: true,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: referrerInfo.referrerStats,
 				isWritable: true,
 				isSigner: false,
 			});
@@ -1633,10 +1654,13 @@ export class ClearingHouse {
 
 	public async placeAndTake(
 		orderParams: OptionalOrderParams,
-		makerInfo?: MakerInfo
+		makerInfo?: MakerInfo,
+		referrerInfo?: ReferrerInfo
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.txSender.send(
-			wrapInTx(await this.getPlaceAndTakeIx(orderParams, makerInfo)),
+			wrapInTx(
+				await this.getPlaceAndTakeIx(orderParams, makerInfo, referrerInfo)
+			),
 			[],
 			this.opts
 		);
@@ -1646,7 +1670,8 @@ export class ClearingHouse {
 
 	public async getPlaceAndTakeIx(
 		orderParams: OptionalOrderParams,
-		makerInfo?: MakerInfo
+		makerInfo?: MakerInfo,
+		referrerInfo?: ReferrerInfo
 	): Promise<TransactionInstruction> {
 		orderParams = this.getOrderParams(orderParams);
 		const userStatsPublicKey = await this.getUserStatsAccountPublicKey();
@@ -1672,6 +1697,19 @@ export class ClearingHouse {
 			});
 		}
 
+		if (referrerInfo) {
+			remainingAccounts.push({
+				pubkey: referrerInfo.referrer,
+				isWritable: true,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: referrerInfo.referrerStats,
+				isWritable: true,
+				isSigner: false,
+			});
+		}
+
 		return await this.program.instruction.placeAndTake(
 			orderParams,
 			makerOrderId,
@@ -1689,10 +1727,13 @@ export class ClearingHouse {
 
 	public async placeAndMake(
 		orderParams: OptionalOrderParams,
-		takerInfo: TakerInfo
+		takerInfo: TakerInfo,
+		referrerInfo?: ReferrerInfo
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.txSender.send(
-			wrapInTx(await this.getPlaceAndMakeIx(orderParams, takerInfo)),
+			wrapInTx(
+				await this.getPlaceAndMakeIx(orderParams, takerInfo, referrerInfo)
+			),
 			[],
 			this.opts
 		);
@@ -1704,7 +1745,8 @@ export class ClearingHouse {
 
 	public async getPlaceAndMakeIx(
 		orderParams: OptionalOrderParams,
-		takerInfo: TakerInfo
+		takerInfo: TakerInfo,
+		referrerInfo?: ReferrerInfo
 	): Promise<TransactionInstruction> {
 		orderParams = this.getOrderParams(orderParams);
 		const userStatsPublicKey = this.getUserStatsAccountPublicKey();
@@ -1713,6 +1755,19 @@ export class ClearingHouse {
 		const remainingAccounts = this.getRemainingAccounts({
 			writableMarketIndex: orderParams.marketIndex,
 		});
+
+		if (referrerInfo) {
+			remainingAccounts.push({
+				pubkey: referrerInfo.referrer,
+				isWritable: true,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: referrerInfo.referrerStats,
+				isWritable: true,
+				isSigner: false,
+			});
+		}
 
 		const takerOrderId = takerInfo!.order!.orderId;
 		return await this.program.instruction.placeAndMake(

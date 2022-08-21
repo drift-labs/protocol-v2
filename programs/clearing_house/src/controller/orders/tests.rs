@@ -2470,6 +2470,8 @@ pub mod fill_order {
             None,
             None,
             None,
+            None,
+            None,
             &clock,
         )
         .unwrap();
@@ -2593,6 +2595,8 @@ pub mod fill_order {
             &mut oracle_map,
             &filler_account_loader,
             &filler_stats_account_loader,
+            None,
+            None,
             None,
             None,
             None,

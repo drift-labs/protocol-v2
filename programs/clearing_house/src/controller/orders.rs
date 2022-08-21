@@ -399,6 +399,8 @@ pub fn fill_order(
     maker: Option<&AccountLoader<User>>,
     maker_stats: Option<&AccountLoader<UserStats>>,
     maker_order_id: Option<u64>,
+    _referrer: Option<&AccountLoader<User>>,
+    _referrer_stats: Option<&AccountLoader<UserStats>>,
     clock: &Clock,
 ) -> ClearingHouseResult<(u128, bool)> {
     let now = clock.unix_timestamp;
