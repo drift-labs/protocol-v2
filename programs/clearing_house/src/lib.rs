@@ -1960,7 +1960,7 @@ pub mod clearing_house {
                     let referrer = load!(referrer)?;
                     let mut referrer_stats = load_mut!(referrer_stats)?;
 
-                    validate!(referrer.userId == 0, ErrorCode::InvalidReferrer,)?;
+                    validate!(referrer.user_id == 0, ErrorCode::InvalidReferrer)?;
 
                     validate!(
                         referrer.authority == referrer_stats.authority,
@@ -1969,7 +1969,7 @@ pub mod clearing_house {
 
                     referrer_stats.is_referrer = true;
 
-                    Pubkey::default()
+                    referrer.authority
                 } else {
                     Pubkey::default()
                 };

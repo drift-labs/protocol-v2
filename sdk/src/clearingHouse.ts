@@ -394,6 +394,7 @@ export class ClearingHouse {
 					systemProgram: anchor.web3.SystemProgram.programId,
 					state: await this.getStatePublicKey(),
 				},
+				remainingAccounts,
 			});
 
 		return [userAccountPublicKey, initializeUserAccountIx];
