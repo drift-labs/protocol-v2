@@ -230,8 +230,8 @@ mod test {
     use crate::create_anchor_account_info;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BANK_CUMULATIVE_INTEREST_PRECISION, BANK_INTEREST_PRECISION,
-        BANK_WEIGHT_PRECISION, BASE_PRECISION_I128, K_BPS_INCREASE_MAX, LIQUIDATION_FEE_PRECISION,
-        PEG_PRECISION, QUOTE_PRECISION, QUOTE_PRECISION_I128,
+        BANK_WEIGHT_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION, PEG_PRECISION,
+        QUOTE_PRECISION, QUOTE_PRECISION_I128,
     };
     use crate::state::bank::{Bank, BankBalanceType};
     use crate::state::bank_map::BankMap;

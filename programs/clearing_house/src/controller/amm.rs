@@ -519,7 +519,7 @@ mod test {
 
         let prev_sqrt_k = market.amm.sqrt_k;
 
-        let mark_price = market.amm.mark_price().unwrap();
+        // let mark_price = market.amm.mark_price().unwrap();
         let now = 10000;
         let oracle_price_data = OraclePriceData {
             price: (50 * MARK_PRICE_PRECISION) as i128,
@@ -530,26 +530,12 @@ mod test {
 
         // zero funding cost
         let funding_cost: i128 = 0;
-        formulaic_update_k(
-            &mut market,
-            &oracle_price_data,
-            funding_cost,
-            now,
-            mark_price,
-        )
-        .unwrap();
+        formulaic_update_k(&mut market, &oracle_price_data, funding_cost, now).unwrap();
         assert_eq!(prev_sqrt_k, market.amm.sqrt_k);
 
         // positive means amm supossedly paid $500 in funding payments for interval
         let funding_cost_2: i128 = (500 * QUOTE_PRECISION) as i128;
-        formulaic_update_k(
-            &mut market,
-            &oracle_price_data,
-            funding_cost_2,
-            now,
-            mark_price,
-        )
-        .unwrap();
+        formulaic_update_k(&mut market, &oracle_price_data, funding_cost_2, now).unwrap();
 
         assert!(prev_sqrt_k > market.amm.sqrt_k);
         assert_eq!(market.amm.sqrt_k, 4890000000000000); // max k decrease (2.2%)
@@ -557,28 +543,14 @@ mod test {
 
         // negative means amm recieved $500 in funding payments for interval
         let funding_cost_2: i128 = -((500 * QUOTE_PRECISION) as i128);
-        formulaic_update_k(
-            &mut market,
-            &oracle_price_data,
-            funding_cost_2,
-            now,
-            mark_price,
-        )
-        .unwrap();
+        formulaic_update_k(&mut market, &oracle_price_data, funding_cost_2, now).unwrap();
 
         assert_eq!(market.amm.sqrt_k, 4894890000000000); // max k increase (.1%)
         assert_eq!(market.amm.total_fee_minus_distributions, 1000316988); //$.33 acquired from slippage increase
 
         // negative means amm recieved $.001 in funding payments for interval
         let funding_cost_2: i128 = -((QUOTE_PRECISION / 1000) as i128);
-        formulaic_update_k(
-            &mut market,
-            &oracle_price_data,
-            funding_cost_2,
-            now,
-            mark_price,
-        )
-        .unwrap();
+        formulaic_update_k(&mut market, &oracle_price_data, funding_cost_2, now).unwrap();
 
         // new numbers bc of increased sqrt_k precision
         assert_eq!(market.amm.sqrt_k, 4895052229260015); // increase k by 1.00003314258x

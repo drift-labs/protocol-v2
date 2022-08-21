@@ -43,6 +43,8 @@ pub mod clearing_house {
     use crate::margin_validation::validate_margin;
     use crate::math;
     use crate::math::bank_balance::get_token_amount;
+    use crate::math::liquidation::validate_user_not_being_liquidated;
+
     use crate::math::casting::{cast, cast_to_i128, cast_to_u128};
     use crate::optional_accounts::get_maker_and_maker_stats;
     use crate::state::bank::{Bank, BankBalanceType};
@@ -1388,101 +1390,13 @@ pub mod clearing_house {
             &clock,
         )?;
 
-        let market = &mut market_map.get_ref_mut(&market_index)?;
-
-        validate!(
-            market.expiry_ts != 0,
-            ErrorCode::DefaultError,
-            "Market isn't set to expire"
-        )?;
-
-        validate!(
-            market.expiry_ts <= now,
-            ErrorCode::DefaultError,
-            "Market hasn't expired yet"
-        )?;
-
-        validate!(
-            market.amm.net_unsettled_lp_base_asset_amount == 0 && market.amm.user_lp_shares == 0,
-            ErrorCode::DefaultError,
-            "Outstanding LP in market"
-        )?;
-
-        let bank = &mut bank_map.get_ref_mut(&QUOTE_ASSET_BANK_INDEX)?;
-        let fee_reserved_for_protocol = cast_to_i128(market.amm.total_exchange_fee / 2)?;
-
-        let budget = market
-            .amm
-            .total_fee_minus_distributions
-            .checked_sub(fee_reserved_for_protocol)
-            .ok_or_else(math_error!())?
-            .max(0);
-
-        let available_fee_pool = cast_to_i128(get_token_amount(
-            market.amm.fee_pool.balance,
-            bank,
-            &BankBalanceType::Deposit,
-        )?)?
-        .checked_sub(fee_reserved_for_protocol)
-        .ok_or_else(math_error!())?
-        .max(0);
-
-        let fee_pool_transfer = budget.min(available_fee_pool);
-
-        controller::bank_balance::update_bank_balances(
-            fee_pool_transfer.unsigned_abs(),
-            &BankBalanceType::Borrow,
-            bank,
-            &mut market.amm.fee_pool,
-        )?;
-
-        controller::bank_balance::update_bank_balances(
-            fee_pool_transfer.unsigned_abs(),
-            &BankBalanceType::Deposit,
-            bank,
-            &mut market.pnl_pool,
-        )?;
-
-        if budget > 0 {
-            let (k_scale_numerator, k_scale_denominator) = amm::calculate_budgeted_k_scale(
-                market,
-                cast_to_i128(budget)?,
-                K_BPS_UPDATE_SCALE * 100,
-            )?;
-
-            let new_sqrt_k = bn::U192::from(market.amm.sqrt_k)
-                .checked_mul(bn::U192::from(k_scale_numerator))
-                .ok_or_else(math_error!())?
-                .checked_div(bn::U192::from(k_scale_denominator))
-                .ok_or_else(math_error!())?;
-
-            let update_k_result = get_update_k_result(market, new_sqrt_k, true)?;
-
-            let adjustment_cost = amm::adjust_k_cost(market, &update_k_result)?;
-
-            let cost_applied =
-                controller::repeg::apply_cost_to_market(market, adjustment_cost, true)?;
-
-            if cost_applied {
-                amm::update_k(market, &update_k_result)?;
-            }
-        }
-
-        let pnl_pool_amount =
-            get_token_amount(market.pnl_pool.balance, bank, &BankBalanceType::Deposit)?;
-
-        validate!(
-            10_u128.pow(bank.decimals as u32) == QUOTE_PRECISION,
-            ErrorCode::DefaultError,
-            "Only support bank.decimals == QUOTE_PRECISION"
-        )?;
-
-        let target_settlement_price = market.amm.last_oracle_price_twap;
-        let settlement_price =
-            amm::calculate_settlement_price(&market.amm, target_settlement_price, pnl_pool_amount)?;
-
-        market.settlement_price = settlement_price;
-        market.status = MarketStatus::Settlement;
+        controller::repeg::settle_expired_market(
+            market_index,
+            &market_map, 
+            &mut oracle_map,
+            &bank_map, 
+            &ctx.accounts.state,
+            &clock)?;
 
         Ok(())
     }
@@ -1508,6 +1422,16 @@ pub mod clearing_house {
 
         let user_key = ctx.accounts.user.key();
         let user = &mut load_mut!(ctx.accounts.user)?;
+
+        validate_user_not_being_liquidated(
+            user,
+            &market_map,
+            &bank_map,
+            &mut oracle_map,
+            state.liquidation_margin_buffer_ratio,
+        )?;
+
+        validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
 
         // todo: liquidate user's open orders in market?
         controller::pnl::settle_expired_position(

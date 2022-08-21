@@ -259,12 +259,7 @@ pub fn update_funding_rate(
 
         // todo: finish robust tests
         if market.amm.curve_update_intensity > 0 {
-            formulaic_update_k(
-                market,
-                oracle_price_data,
-                funding_imbalance_cost,
-                now,
-            )?;
+            formulaic_update_k(market, oracle_price_data, funding_imbalance_cost, now)?;
         }
 
         market.amm.cumulative_funding_rate_long = market

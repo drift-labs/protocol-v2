@@ -8,6 +8,7 @@ use crate::controller::position::{
     add_new_position, decrease_open_bids_and_asks, get_position_index, increase_open_bids_and_asks,
     update_position_and_market, update_user_and_market_position, PositionDirection,
 };
+use crate::controller::repeg::update_market_status;
 use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
 use crate::get_struct_values;
@@ -18,7 +19,6 @@ use crate::math::auction::{
     calculate_auction_end_price, calculate_auction_start_price, is_auction_complete,
 };
 use crate::math::casting::{cast, cast_to_i128};
-use crate::math::constants::ONE_HOUR_I128;
 use crate::math::fulfillment::determine_fulfillment_methods;
 use crate::math::liquidation::validate_user_not_being_liquidated;
 use crate::math::matching::{
@@ -460,19 +460,7 @@ pub fn fill_order(
     let oracle_price: i128;
     {
         let market = &mut market_map.get_ref_mut(&market_index)?;
-
-        if market.expiry_ts != 0 {
-            if market.expiry_ts <= now {
-                market.status = MarketStatus::Settlement;
-            } else if market
-                .expiry_ts
-                .checked_sub(now)
-                .ok_or_else(math_error!())?
-                < ONE_HOUR_I128 as i64
-            {
-                market.status = MarketStatus::ReduceOnly;
-            }
-        }
+        update_market_status(market, now)?;
 
         let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
 

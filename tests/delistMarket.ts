@@ -454,9 +454,15 @@ describe('delist market', () => {
 
 		await clearingHouseLoser.fetchAccounts();
 		const loserUser = clearingHouseLoser.getUserAccount();
-		console.log(loserUser.positions[0]);
+		// console.log(loserUser.positions[0]);
 		assert(loserUser.positions[0].baseAssetAmount.eq(new BN(0)));
 		assert(loserUser.positions[0].quoteAssetAmount.eq(new BN(0)));
+		const marketAfter0 = clearingHouse.getMarketAccount(marketIndex);
+
+		const finalPnlResultMin0 = new BN(999978435 - 1090);
+		console.log(marketAfter0.pnlPool.balance.toString());
+		assert(marketAfter0.pnlPool.balance.gt(finalPnlResultMin0));
+		assert(marketAfter0.pnlPool.balance.lt(new BN(999978435 + 1000)));
 
 		const txSig2 = await clearingHouse.settleExpiredPosition(
 			await clearingHouse.getUserAccountPublicKey(),
@@ -466,7 +472,7 @@ describe('delist market', () => {
 		await printTxLogs(connection, txSig2);
 		await clearingHouse.fetchAccounts();
 		const winnerUser = clearingHouse.getUserAccount();
-		console.log(winnerUser.positions[0]);
+		// console.log(winnerUser.positions[0]);
 		assert(winnerUser.positions[0].baseAssetAmount.eq(new BN(0)));
 		// assert(winnerUser.positions[0].quoteAssetAmount.gt(new BN(0))); // todo they lose money too after fees
 

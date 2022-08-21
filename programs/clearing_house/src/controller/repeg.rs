@@ -11,11 +11,21 @@ use crate::state::market::{Market, MarketStatus};
 use crate::state::market_map::MarketMap;
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
+use crate::state::bank_map::BankMap;
+
 use crate::state::state::{OracleGuardRails, State};
 use anchor_lang::prelude::AccountInfo;
 use anchor_lang::prelude::*;
 use solana_program::msg;
 use std::cmp::min;
+use crate::validate;
+use crate::math::constants::{ONE_HOUR_I128, QUOTE_PRECISION, QUOTE_ASSET_BANK_INDEX, K_BPS_UPDATE_SCALE};
+use crate::controller::bank_balance::{update_bank_balances};
+use crate::math::bank_balance::{get_token_amount};
+use crate::math::amm::get_update_k_result;
+use crate::state::bank::{Bank, BankBalanceType};
+use crate::math::bn;
+
 
 pub fn repeg(
     market: &mut Market,
@@ -105,13 +115,18 @@ pub fn update_amm(
 ) -> ClearingHouseResult<i128> {
     let market = &mut market_map.get_ref_mut(&market_index)?;
     let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
-    _update_amm(
+    
+    let cost_of_update = _update_amm(
         market,
         oracle_price_data,
         state,
         clock.unix_timestamp,
         clock.slot,
-    )
+    )?;
+
+    update_market_status(market, clock.unix_timestamp)?;
+    
+    Ok(cost_of_update)
 }
 
 pub fn _update_amm(
@@ -121,7 +136,6 @@ pub fn _update_amm(
     now: i64,
     clock_slot: u64,
 ) -> ClearingHouseResult<i128> {
-    // 0-100
     if market.status == MarketStatus::Settlement || market.status == MarketStatus::Uninitialized {
         return Ok(0);
     }
@@ -216,6 +230,135 @@ pub fn apply_cost_to_market(
         .ok_or_else(math_error!())?;
 
     Ok(true)
+}
+
+pub fn update_market_status(market: &mut Market, now: i64) -> ClearingHouseResult {
+    if market.expiry_ts != 0 {
+        if market.expiry_ts <= now {
+            market.status = MarketStatus::Settlement;
+        } else if market
+            .expiry_ts
+            .checked_sub(now)
+            .ok_or_else(math_error!())?
+            < ONE_HOUR_I128 as i64
+        {
+            market.status = MarketStatus::ReduceOnly;
+        }
+    }
+
+    Ok(())
+}
+
+pub fn settle_expired_market(
+    market_index: u64,
+    market_map: &MarketMap,
+    oracle_map: &mut OracleMap,
+    bank_map: &BankMap,
+    state: &State,
+    clock: &Clock,
+) -> ClearingHouseResult {
+    let now = clock.unix_timestamp;
+    let market = &mut market_map.get_ref_mut(&market_index)?;
+
+    validate!(
+        market.expiry_ts != 0,
+        ErrorCode::DefaultError,
+        "Market isn't set to expire"
+    )?;
+
+    validate!(
+        market.expiry_ts <= now,
+        ErrorCode::DefaultError,
+        "Market hasn't expired yet"
+    )?;
+
+    validate!(
+        market.amm.net_unsettled_lp_base_asset_amount == 0 && market.amm.user_lp_shares == 0,
+        ErrorCode::DefaultError,
+        "Outstanding LP in market"
+    )?;
+
+    let bank = &mut bank_map.get_ref_mut(&QUOTE_ASSET_BANK_INDEX)?;
+    let fee_reserved_for_protocol = cast_to_i128(repeg::get_total_fee_lower_bound(market)?)?;
+    let budget = market
+        .amm
+        .total_fee_minus_distributions
+        .checked_sub(fee_reserved_for_protocol)
+        .ok_or_else(math_error!())?
+        .max(0);
+
+    let available_fee_pool = cast_to_i128(get_token_amount(
+        market.amm.fee_pool.balance,
+        bank,
+        &BankBalanceType::Deposit,
+    )?)?
+    .checked_sub(fee_reserved_for_protocol)
+    .ok_or_else(math_error!())?
+    .max(0);
+
+    let fee_pool_transfer = budget.min(available_fee_pool);
+
+    update_bank_balances(
+        fee_pool_transfer.unsigned_abs(),
+        &BankBalanceType::Borrow,
+        bank,
+        &mut market.amm.fee_pool,
+    )?;
+
+    update_bank_balances(
+        fee_pool_transfer.unsigned_abs(),
+        &BankBalanceType::Deposit,
+        bank,
+        &mut market.pnl_pool,
+    )?;
+
+    if budget > 0 {
+        let (k_scale_numerator, k_scale_denominator) = amm::calculate_budgeted_k_scale(
+            market,
+            cast_to_i128(budget)?,
+            K_BPS_UPDATE_SCALE * 100,
+        )?;
+
+        let new_sqrt_k = bn::U192::from(market.amm.sqrt_k)
+            .checked_mul(bn::U192::from(k_scale_numerator))
+            .ok_or_else(math_error!())?
+            .checked_div(bn::U192::from(k_scale_denominator))
+            .ok_or_else(math_error!())?;
+
+        let update_k_result = get_update_k_result(market, new_sqrt_k, true)?;
+
+        let adjustment_cost = amm::adjust_k_cost(market, &update_k_result)?;
+
+        let cost_applied = apply_cost_to_market(market, adjustment_cost, true)?;
+
+        validate!(
+            cost_applied,
+            ErrorCode::DefaultError,
+            "Issue applying k increase on market"
+        )?;
+
+        if cost_applied {
+            amm::update_k(market, &update_k_result)?;
+        }
+    }
+
+    let pnl_pool_amount =
+        get_token_amount(market.pnl_pool.balance, bank, &BankBalanceType::Deposit)?;
+
+    validate!(
+        10_u128.pow(bank.decimals as u32) == QUOTE_PRECISION,
+        ErrorCode::DefaultError,
+        "Only support bank.decimals == QUOTE_PRECISION"
+    )?;
+
+    let target_settlement_price = market.amm.last_oracle_price_twap;
+    let settlement_price =
+        amm::calculate_settlement_price(&market.amm, target_settlement_price, pnl_pool_amount)?;
+
+    market.settlement_price = settlement_price;
+    market.status = MarketStatus::Settlement;
+
+    Ok(())
 }
 
 #[cfg(test)]
