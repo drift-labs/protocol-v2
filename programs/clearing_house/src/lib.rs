@@ -346,7 +346,7 @@ pub mod clearing_house {
         let state = &mut ctx.accounts.state;
         let market_index = state.number_of_markets;
         **market = Market {
-            contract_type: ContractType::Perpeptual,
+            contract_type: ContractType::Perpetual,
             status: MarketStatus::Initialized,
             settlement_price: 0,
             expiry_ts: 0,
@@ -1447,7 +1447,6 @@ pub mod clearing_house {
             let (k_scale_numerator, k_scale_denominator) = amm::calculate_budgeted_k_scale(
                 market,
                 cast_to_i128(budget)?,
-                0,
                 K_BPS_UPDATE_SCALE * 100,
             )?;
 
@@ -1858,8 +1857,8 @@ pub mod clearing_house {
             "Market expiry ts must later than current clock timestamp"
         )?;
 
-        // if perpeptual market has expiry_ts set, automatically enter reduce only
-        if market.contract_type == ContractType::Perpeptual {
+        // if Perpetual market has expiry_ts set, automatically enter reduce only
+        if market.contract_type == ContractType::Perpetual {
             market.status = MarketStatus::ReduceOnly;
         }
 

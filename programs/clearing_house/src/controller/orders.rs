@@ -101,7 +101,7 @@ pub fn place_order(
     let market = &market_map.get_ref(&market_index)?;
 
     validate!(
-        (market.status != MarketStatus::Settlement),
+        market.status != MarketStatus::Settlement,
         ErrorCode::InvalidPositionDelta,
         "Market is in settlement mode",
     )?;

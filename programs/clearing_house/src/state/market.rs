@@ -38,13 +38,13 @@ impl Default for MarketStatus {
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
 pub enum ContractType {
-    Perpeptual,
+    Perpetual,
     Future,
 }
 
 impl Default for ContractType {
     fn default() -> Self {
-        ContractType::Perpeptual
+        ContractType::Perpetual
     }
 }
 

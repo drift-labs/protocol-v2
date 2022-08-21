@@ -4045,7 +4045,7 @@
         "kind": "enum",
         "variants": [
           {
-            "name": "Perpeptual"
+            "name": "Perpetual"
           },
           {
             "name": "Future"

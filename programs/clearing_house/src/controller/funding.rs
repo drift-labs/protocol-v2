@@ -135,7 +135,7 @@ pub fn update_funding_rate(
     funding_paused: bool,
     precomputed_mark_price: Option<u128>,
 ) -> ClearingHouseResult<bool> {
-    if market.contract_type != ContractType::Perpeptual || market.status == MarketStatus::Settlement
+    if market.contract_type != ContractType::Perpetual || market.status == MarketStatus::Settlement
     {
         return Ok(false);
     }
@@ -264,7 +264,6 @@ pub fn update_funding_rate(
                 oracle_price_data,
                 funding_imbalance_cost,
                 now,
-                mark_price,
             )?;
         }
 

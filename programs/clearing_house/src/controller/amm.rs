@@ -236,7 +236,6 @@ pub fn formulaic_update_k(
     _oracle_price_data: &OraclePriceData,
     funding_imbalance_cost: i128,
     now: i64,
-    mark_price: u128,
 ) -> ClearingHouseResult {
     let peg_multiplier_before = market.amm.peg_multiplier;
     let base_asset_reserve_before = market.amm.base_asset_reserve;
@@ -273,12 +272,8 @@ pub fn formulaic_update_k(
         // single k scale is capped by .1% increase and 2.2% decrease (regardless of budget)
         let k_update_max = K_BPS_UPDATE_SCALE
             + K_BPS_INCREASE_MAX * (market.amm.curve_update_intensity as i128) / 100;
-        let (k_scale_numerator, k_scale_denominator) = amm::calculate_budgeted_k_scale(
-            market,
-            cast_to_i128(budget)?,
-            mark_price,
-            k_update_max,
-        )?;
+        let (k_scale_numerator, k_scale_denominator) =
+            amm::calculate_budgeted_k_scale(market, cast_to_i128(budget)?, k_update_max)?;
 
         let new_sqrt_k = bn::U192::from(market.amm.sqrt_k)
             .checked_mul(bn::U192::from(k_scale_numerator))

@@ -658,17 +658,9 @@ pub fn get_spread_reserves(
     amm: &AMM,
     direction: PositionDirection,
 ) -> ClearingHouseResult<(u128, u128)> {
-    let (base_asset_reserve, quote_asset_reserve) = if amm.base_spread != 0 {
-        match direction {
-            PositionDirection::Long => (amm.ask_base_asset_reserve, amm.ask_quote_asset_reserve),
-            PositionDirection::Short => (amm.bid_base_asset_reserve, amm.bid_quote_asset_reserve),
-        }
-    } else {
-        match direction {
-            PositionDirection::Long => (amm.ask_base_asset_reserve, amm.ask_quote_asset_reserve),
-            PositionDirection::Short => (amm.bid_base_asset_reserve, amm.bid_quote_asset_reserve),
-        }
-        // (amm.base_asset_reserve, amm.quote_asset_reserve)
+    let (base_asset_reserve, quote_asset_reserve) = match direction {
+        PositionDirection::Long => (amm.ask_base_asset_reserve, amm.ask_quote_asset_reserve),
+        PositionDirection::Short => (amm.bid_base_asset_reserve, amm.bid_quote_asset_reserve),
     };
 
     Ok((base_asset_reserve, quote_asset_reserve))
@@ -939,12 +931,10 @@ pub fn is_oracle_valid(
 pub fn calculate_budgeted_k_scale(
     market: &mut Market,
     budget: i128,
-    _mark_price: u128, // todo
     increase_max: i128,
 ) -> ClearingHouseResult<(u128, u128)> {
     let curve_update_intensity = market.amm.curve_update_intensity as i128;
     let k_pct_upper_bound = increase_max;
-    // K_BPS_UPDATE_SCALE + (increase_max) * curve_update_intensity / 100;
     let k_pct_lower_bound =
         K_BPS_UPDATE_SCALE - (K_BPS_DECREASE_MAX) * curve_update_intensity / 100;
 
@@ -967,7 +957,6 @@ pub fn _calculate_budgeted_k_scale(
     budget: i128,
     q: u128,
     d: i128,
-    // curve_update_intensity: u8,
     k_pct_upper_bound: i128,
     k_pct_lower_bound: i128,
 ) -> ClearingHouseResult<(u128, u128)> {
@@ -1040,8 +1029,6 @@ pub fn _calculate_budgeted_k_scale(
         // thus denom1 is negative and solution is unstable
         if x_times_x_d_c > pegged_quote_times_dd.unsigned_abs() {
             msg!("cost exceeds possible amount to spend");
-            // let k_pct_upper_bound =
-            //     K_BPS_UPDATE_SCALE + (K_BPS_INCREASE_MAX) * curve_update_intensity / 100;
             msg!("k * {:?}/{:?}", k_pct_upper_bound, K_BPS_UPDATE_SCALE);
             return Ok((
                 cast_to_u128(k_pct_upper_bound)?,
@@ -1066,9 +1053,6 @@ pub fn _calculate_budgeted_k_scale(
     assert!((numerator > 0 && denominator > 0));
 
     let (numerator, denominator) = if numerator > denominator {
-        // let k_pct_upper_bound =
-        //     K_BPS_UPDATE_SCALE + (K_BPS_INCREASE_MAX) * curve_update_intensity / 100;
-
         let current_pct_change = numerator
             .checked_mul(10000)
             .ok_or_else(math_error!())?
@@ -1087,9 +1071,6 @@ pub fn _calculate_budgeted_k_scale(
             (numerator, denominator)
         }
     } else {
-        // let k_pct_lower_bound =
-        //     K_BPS_UPDATE_SCALE - (K_BPS_DECREASE_MAX) * curve_update_intensity / 100;
-
         let current_pct_change = numerator
             .checked_mul(10000)
             .ok_or_else(math_error!())?
@@ -1325,15 +1306,13 @@ pub fn calculate_net_user_pnl(amm: &AMM, oracle_price: i128) -> ClearingHouseRes
         .checked_div(AMM_RESERVE_PRECISION_I128 * cast_to_i128(PRICE_TO_QUOTE_PRECISION_RATIO)?)
         .ok_or_else(math_error!())?;
 
-    let net_user_unrealized_pnl = net_user_base_asset_value
+    net_user_base_asset_value
         .checked_add(
             amm.quote_asset_amount_long
                 .checked_add(amm.quote_asset_amount_short)
                 .ok_or_else(math_error!())?,
         )
-        .ok_or_else(math_error!())?;
-
-    Ok(net_user_unrealized_pnl)
+        .ok_or_else(math_error!())
 }
 
 pub fn calculate_settlement_price(

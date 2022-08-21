@@ -7,7 +7,6 @@ use crate::controller::position::{
 };
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::casting::cast;
-// use crate::math::bank_balance::get_token_amount;
 use crate::math::casting::cast_to_i128;
 use crate::math::margin::meets_maintenance_margin_requirement;
 use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
@@ -243,7 +242,7 @@ pub fn settle_expired_position(
     validate!(
         user.positions[position_index].is_available(),
         ErrorCode::DefaultError,
-        "Issue occured in expired settlement"
+        "Issue occurred in expired settlement"
     )?;
 
     Ok(())
