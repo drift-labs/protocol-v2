@@ -1320,6 +1320,8 @@ pub fn resolve_perp_bankruptcy(
         oracle_map,
     )?;
 
+    // todo: add bank's insurance fund draw attempt here (before social loss)
+
     let cumulative_funding_rate_delta = calculate_funding_rate_deltas_to_resolve_bankruptcy(
         loss,
         market_map.get_ref(&market_index)?.deref(),
@@ -1433,6 +1435,8 @@ pub fn resolve_bank_bankruptcy(
             &BankBalanceType::Borrow,
         )?
     };
+
+    // todo: add bank's insurance fund draw attempt here (before social loss)
 
     let cumulative_deposit_interest_delta =
         calculate_cumulative_deposit_interest_delta_to_resolve_bankruptcy(

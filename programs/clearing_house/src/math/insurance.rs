@@ -10,6 +10,9 @@ pub fn staked_amount_to_shares(
     total_lp_shares: u128,
     insurance_fund_vault_balance: u64,
 ) -> ClearingHouseResult<u64> {
+    // mint = relative to the entire pool + total amount minted
+    // u128 so we can do multiply first without overflow
+    // then div and recast back
     let n_shares = if insurance_fund_vault_balance > 0 {
         ((amount as u128)
             .checked_mul(total_lp_shares as u128)
@@ -17,6 +20,7 @@ pub fn staked_amount_to_shares(
             .checked_div(insurance_fund_vault_balance as u128)
             .ok_or_else(math_error!())?) as u64
     } else {
+        // assumes total_lp_shares == 0 for nice result for user
         amount as u64
     };
 

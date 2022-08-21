@@ -2614,6 +2614,7 @@ pub mod clearing_house {
             last_withdraw_request_shares: 0,
             last_withdraw_request_value: 0,
             last_withdraw_request_ts: 0,
+            cost_basis: 0,
         };
 
         Ok(())
