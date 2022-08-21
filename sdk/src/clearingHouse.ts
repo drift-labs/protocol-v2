@@ -2477,7 +2477,41 @@ export class ClearingHouse {
 					insuranceFundStake: ifStakeAccountPublicKey,
 					userStats: this.getUserStatsAccountPublicKey(),
 					authority: this.wallet.publicKey,
-					// insuranceFundVault: bank.insuranceFundVault,
+					insuranceFundVault: bank.insuranceFundVault,
+					// userTokenAccount: collateralAccountPublicKey,
+					// tokenProgram: TOKEN_PROGRAM_ID,
+				},
+				remainingAccounts,
+			}
+		);
+	}
+
+	public async cancelRequestRemoveInsuranceFundStake(
+		nShares: BN,
+		bankIndex: BN
+	): Promise<TransactionSignature> {
+		const bank = this.getBankAccount(bankIndex);
+		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
+			this.program.programId,
+			this.wallet.publicKey,
+			bankIndex
+		);
+
+		const remainingAccounts = this.getRemainingAccounts({
+			writableBankIndex: bankIndex,
+		});
+
+		return await this.program.rpc.cancelRequestRemoveInsuranceFundStake(
+			nShares,
+			bankIndex,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					bank: bank.pubkey,
+					insuranceFundStake: ifStakeAccountPublicKey,
+					userStats: this.getUserStatsAccountPublicKey(),
+					authority: this.wallet.publicKey,
+					insuranceFundVault: bank.insuranceFundVault,
 					// userTokenAccount: collateralAccountPublicKey,
 					// tokenProgram: TOKEN_PROGRAM_ID,
 				},

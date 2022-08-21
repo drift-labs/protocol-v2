@@ -2701,9 +2701,15 @@ pub mod clearing_house {
             ErrorCode::InsufficientLPTokens
         )?;
 
-        insurance_fund_stake.last_withdraw_request_shares = n_shares;
-        insurance_fund_stake.last_withdraw_request_value = 0; // todo
-        insurance_fund_stake.last_withdraw_request_ts = clock.unix_timestamp;
+        let bank = &load!(ctx.accounts.bank)?;
+
+        controller::insurance::request_remove_insurance_fund_stake(
+            n_shares,
+            ctx.accounts.insurance_fund_vault.amount,
+            insurance_fund_stake,
+            bank,
+            clock.unix_timestamp,
+        )?;
 
         Ok(())
     }
@@ -2712,17 +2718,10 @@ pub mod clearing_house {
         ctx: Context<RequestRemoveInsuranceFundStake>,
         bank_index: u64,
     ) -> Result<()> {
-        // let user_key = ctx.accounts.user.key();
-        // let user = &mut load_mut!(ctx.accounts.user)?;
-
-        // let insurance_fund_stake_key = ctx.accounts.insurance_fund_stake.key();
-
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-
         let insurance_fund_stake = &mut load_mut!(ctx.accounts.insurance_fund_stake)?;
-        // let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
 
         validate!(
             insurance_fund_stake.bank_index == bank_index,

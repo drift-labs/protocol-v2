@@ -739,6 +739,12 @@ pub struct RequestRemoveInsuranceFundStake<'info> {
     pub insurance_fund_stake: AccountLoader<'info, InsuranceFundStake>,
     pub user_stats: AccountLoader<'info, UserStats>,
     pub authority: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"insurance_fund_vault".as_ref(), bank_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub insurance_fund_vault: Box<Account<'info, TokenAccount>>,
 }
 
 #[derive(Accounts)]
