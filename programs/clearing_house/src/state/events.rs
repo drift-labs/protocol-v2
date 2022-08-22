@@ -6,6 +6,16 @@ use anchor_lang::Discriminator;
 use std::io::Write;
 
 #[event]
+pub struct NewUserRecord {
+    pub ts: i64,
+    pub user_authority: Pubkey,
+    pub user: Pubkey,
+    pub user_id: u8,
+    pub name: [u8; 32],
+    pub referrer: Pubkey,
+}
+
+#[event]
 pub struct DepositRecord {
     pub ts: i64,
     pub user_authority: Pubkey,

@@ -3670,12 +3670,6 @@
             "type": "bool"
           },
           {
-            "name": "discountTier",
-            "type": {
-              "defined": "OrderDiscountTier"
-            }
-          },
-          {
             "name": "triggerPrice",
             "type": "u128"
           },
@@ -3688,10 +3682,6 @@
           {
             "name": "triggered",
             "type": "bool"
-          },
-          {
-            "name": "referrer",
-            "type": "publicKey"
           },
           {
             "name": "oraclePriceOffset",
@@ -3995,29 +3985,6 @@
       }
     },
     {
-      "name": "OrderDiscountTier",
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "None"
-          },
-          {
-            "name": "First"
-          },
-          {
-            "name": "Second"
-          },
-          {
-            "name": "Third"
-          },
-          {
-            "name": "Fourth"
-          }
-        ]
-      }
-    },
-    {
       "name": "OrderTriggerCondition",
       "type": {
         "kind": "enum",
@@ -4033,6 +4000,46 @@
     }
   ],
   "events": [
+    {
+      "name": "NewUserRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "userAuthority",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "user",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "userId",
+          "type": "u8",
+          "index": false
+        },
+        {
+          "name": "name",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          },
+          "index": false
+        },
+        {
+          "name": "referrer",
+          "type": "publicKey",
+          "index": false
+        }
+      ]
+    },
     {
       "name": "DepositRecord",
       "fields": [

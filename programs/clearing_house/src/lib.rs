@@ -47,8 +47,8 @@ pub mod clearing_house {
     use crate::optional_accounts::{get_maker_and_maker_stats, get_referrer_and_referrer_stats};
     use crate::state::bank::{Bank, BankBalanceType};
     use crate::state::bank_map::{get_writable_banks, BankMap, WritableBanks};
-    use crate::state::events::DepositDirection;
     use crate::state::events::{CurveRecord, DepositRecord};
+    use crate::state::events::{DepositDirection, NewUserRecord};
     use crate::state::market::{Market, PoolBalance};
     use crate::state::market_map::{
         get_market_set, get_market_set_for_user_positions, get_market_set_from_list, MarketMap,
@@ -1949,6 +1949,7 @@ pub mod clearing_house {
         user_id: u8,
         name: [u8; 32],
     ) -> Result<()> {
+        let user_key = ctx.accounts.user.key();
         let mut user = ctx
             .accounts
             .user
@@ -1995,6 +1996,15 @@ pub mod clearing_house {
 
             user_stats.referrer = referrer;
         }
+
+        emit!(NewUserRecord {
+            ts: Clock::get()?.unix_timestamp,
+            user_authority: ctx.accounts.authority.key(),
+            user: user_key,
+            user_id,
+            name,
+            referrer: user_stats.referrer
+        });
 
         Ok(())
     }
