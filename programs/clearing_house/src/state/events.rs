@@ -14,6 +14,7 @@ pub struct DepositRecord {
     pub amount: u64,
     pub bank_index: u64,
     pub oracle_price: i128,
+    pub referrer: Pubkey,
     pub from: Option<Pubkey>,
     pub to: Option<Pubkey>,
 }
@@ -101,6 +102,9 @@ pub struct OrderRecord {
     pub maker_rebate: u128,
     pub taker_fee: u128,
     pub filler_reward: u128,
+    pub referrer: Pubkey,
+    pub referrer_reward: u128,
+    pub referee_discount: u128,
     pub quote_asset_amount_surplus: u128,
     pub oracle_price: i128,
 }

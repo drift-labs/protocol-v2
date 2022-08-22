@@ -12,6 +12,7 @@ import {
 	EventSubscriber,
 	ClearingHouse,
 	Wallet,
+	MARK_PRICE_PRECISION,
 } from '../sdk/src';
 
 import {
@@ -20,10 +21,15 @@ import {
 	mockUserUSDCAccount,
 	initializeQuoteAssetBank,
 	createFundedKeyPair,
-	printTxLogs,
+	createUserWithUSDCAccount,
 } from './testHelpers';
+import {
+	BASE_PRECISION,
+	getMarketOrderParams,
+	PositionDirection,
+} from '../sdk';
 
-describe('liquidate borrow', () => {
+describe('referrer', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
 		preflightCommitment: 'confirmed',
 		commitment: 'confirmed',
@@ -35,7 +41,10 @@ describe('liquidate borrow', () => {
 	let referrerClearingHouse: Admin;
 
 	let refereeKeyPair: Keypair;
-	let referreeClearingHouse: ClearingHouse;
+	let refereeClearingHouse: ClearingHouse;
+	let refereeUSDCAccount: Keypair;
+
+	let fillerClearingHouse: ClearingHouse;
 
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
@@ -44,6 +53,17 @@ describe('liquidate borrow', () => {
 	let referrerUSDCAccount;
 
 	let solOracle: PublicKey;
+
+	// ammInvariant == k == x * y
+	const ammReservePrecision = new BN(
+		Math.sqrt(MARK_PRICE_PRECISION.toNumber())
+	);
+	const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
+		ammReservePrecision
+	);
+	const ammInitialBaseAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
+		ammReservePrecision
+	);
 
 	const usdcAmount = new BN(100 * 10 ** 6);
 
@@ -57,7 +77,7 @@ describe('liquidate borrow', () => {
 
 		solOracle = await mockOracle(100);
 
-		const marketIndexes = [];
+		const marketIndexes = [new BN(0)];
 		const bankIndexes = [new BN(0)];
 		const oracleInfos = [
 			{
@@ -81,6 +101,16 @@ describe('liquidate borrow', () => {
 
 		await referrerClearingHouse.initialize(usdcMint.publicKey, true);
 		await referrerClearingHouse.subscribe();
+		await referrerClearingHouse.updateAuctionDuration(0, 10);
+
+		const periodicity = new BN(60 * 60); // 1 HOUR
+
+		await referrerClearingHouse.initializeMarket(
+			solOracle,
+			ammInitialBaseAssetReserve,
+			ammInitialQuoteAssetReserve,
+			periodicity
+		);
 
 		await initializeQuoteAssetBank(referrerClearingHouse, usdcMint.publicKey);
 
@@ -90,14 +120,14 @@ describe('liquidate borrow', () => {
 		);
 
 		refereeKeyPair = await createFundedKeyPair(connection);
-		await mockUserUSDCAccount(
+		refereeUSDCAccount = await mockUserUSDCAccount(
 			usdcMint,
 			usdcAmount,
 			provider,
 			refereeKeyPair.publicKey
 		);
 
-		referreeClearingHouse = new ClearingHouse({
+		refereeClearingHouse = new ClearingHouse({
 			connection,
 			wallet: new Wallet(refereeKeyPair),
 			programID: chProgram.programId,
@@ -110,33 +140,110 @@ describe('liquidate borrow', () => {
 			oracleInfos,
 			userStats: true,
 		});
-		await referreeClearingHouse.subscribe();
+		await refereeClearingHouse.subscribe();
+
+		[fillerClearingHouse] = await createUserWithUSDCAccount(
+			provider,
+			usdcMint,
+			chProgram,
+			usdcAmount,
+			marketIndexes,
+			bankIndexes,
+			oracleInfos
+		);
 	});
 
 	after(async () => {
 		await referrerClearingHouse.unsubscribe();
-		await referreeClearingHouse.unsubscribe();
+		await refereeClearingHouse.unsubscribe();
+		await fillerClearingHouse.unsubscribe();
 		await eventSubscriber.unsubscribe();
 	});
 
 	it('initialize with referrer', async () => {
-		const [txSig] = await referreeClearingHouse.initializeUserAccount(
-			0,
-			'crisp',
+		const [txSig] =
+			await refereeClearingHouse.initializeUserAccountAndDepositCollateral(
+				usdcAmount,
+				refereeUSDCAccount.publicKey,
+				new BN(0),
+				0,
+				'crisp',
+				undefined,
+				{
+					referrer: await referrerClearingHouse.getUserAccountPublicKey(),
+					referrerStats: referrerClearingHouse.getUserStatsAccountPublicKey(),
+				}
+			);
+
+		await eventSubscriber.awaitTx(txSig);
+
+		const depositRecord = eventSubscriber.getEventsArray('DepositRecord')[0];
+		assert(depositRecord.referrer.equals(provider.wallet.publicKey));
+
+		await refereeClearingHouse.fetchAccounts();
+		const refereeStats = refereeClearingHouse.getUserStats().getAccount();
+		assert(refereeStats.referrer.equals(provider.wallet.publicKey));
+
+		const referrerStats = referrerClearingHouse.getUserStats().getAccount();
+		assert(referrerStats.isReferrer == true);
+	});
+
+	it('fill order', async () => {
+		const txSig = await refereeClearingHouse.placeAndTake(
+			getMarketOrderParams({
+				baseAssetAmount: BASE_PRECISION,
+				direction: PositionDirection.LONG,
+				marketIndex: new BN(0),
+			}),
+			undefined,
 			{
 				referrer: await referrerClearingHouse.getUserAccountPublicKey(),
 				referrerStats: referrerClearingHouse.getUserStatsAccountPublicKey(),
 			}
 		);
 
-		await printTxLogs(connection, txSig);
+		await eventSubscriber.awaitTx(txSig);
 
-		await referreeClearingHouse.fetchAccounts();
-		const refereeStats = referreeClearingHouse.getUserStats().getAccount();
-		console.log(refereeStats.referrer.toString());
-		assert(refereeStats.referrer.equals(provider.wallet.publicKey));
+		const eventRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
+		assert(eventRecord.referrer.equals(provider.wallet.publicKey));
+		assert(eventRecord.takerFee.eq(new BN(950)));
+		assert(eventRecord.referrerReward.eq(new BN(50)));
+		assert(eventRecord.refereeDiscount.eq(new BN(50)));
 
 		const referrerStats = referrerClearingHouse.getUserStats().getAccount();
-		assert(referrerStats.isReferrer == true);
+		assert(referrerStats.totalReferrerReward.eq(new BN(50)));
+
+		const referrerPosition = referrerClearingHouse.getUser().getUserAccount()
+			.positions[0];
+		assert(referrerPosition.quoteAssetAmount.eq(new BN(50)));
+
+		const refereeStats = refereeClearingHouse.getUserStats().getAccount();
+		assert(refereeStats.fees.totalRefereeDiscount.eq(new BN(50)));
+
+		await refereeClearingHouse.placeAndTake(
+			getMarketOrderParams({
+				baseAssetAmount: BASE_PRECISION,
+				direction: PositionDirection.SHORT,
+				marketIndex: new BN(0),
+			}),
+			undefined,
+			{
+				referrer: await referrerClearingHouse.getUserAccountPublicKey(),
+				referrerStats: referrerClearingHouse.getUserStatsAccountPublicKey(),
+			}
+		);
+	});
+
+	it('withdraw', async () => {
+		const txSig = await refereeClearingHouse.withdraw(
+			usdcAmount.div(new BN(2)),
+			new BN(0),
+			refereeUSDCAccount.publicKey
+		);
+
+		await eventSubscriber.awaitTx(txSig);
+
+		const withdrawRecord = eventSubscriber.getEventsArray('DepositRecord')[0];
+		assert(withdrawRecord.referrer.equals(provider.wallet.publicKey));
 	});
 });

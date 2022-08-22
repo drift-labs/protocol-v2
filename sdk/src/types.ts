@@ -117,6 +117,7 @@ export type DepositRecord = {
 	bankIndex: BN;
 	amount: BN;
 	oraclePrice: BN;
+	referrer: PublicKey;
 	from?: PublicKey;
 	to?: PublicKey;
 };
@@ -282,6 +283,9 @@ export type OrderRecord = {
 	fillerReward: BN;
 	quoteAssetAmountSurplus: BN;
 	oraclePrice: BN;
+	referrer: PublicKey;
+	referrerReward: BN;
+	refereeDiscount: BN;
 };
 
 export type StateAccount = {
@@ -454,11 +458,11 @@ export type UserStatsAccount = {
 		totalFeePaid: BN;
 		totalFeeRebate: BN;
 		totalTokenDiscount: BN;
-		totalReferralReward: BN;
 		totalRefereeDiscount: BN;
 	};
 	referrer: PublicKey;
 	isReferrer: boolean;
+	totalReferrerReward: BN;
 };
 
 export type UserAccount = {

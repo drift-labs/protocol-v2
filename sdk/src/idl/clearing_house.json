@@ -237,6 +237,11 @@
           "isSigner": false
         },
         {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "authority",
           "isMut": false,
           "isSigner": true
@@ -282,6 +287,11 @@
         },
         {
           "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
           "isMut": true,
           "isSigner": false
         },
@@ -336,6 +346,11 @@
         },
         {
           "name": "toUser",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
           "isMut": true,
           "isSigner": false
         },
@@ -2589,6 +2604,10 @@
             "type": "publicKey"
           },
           {
+            "name": "totalReferrerReward",
+            "type": "u128"
+          },
+          {
             "name": "fees",
             "type": {
               "defined": "UserFees"
@@ -3453,10 +3472,6 @@
             "type": "u128"
           },
           {
-            "name": "totalReferralReward",
-            "type": "u128"
-          },
-          {
             "name": "totalRefereeDiscount",
             "type": "u128"
           }
@@ -4059,6 +4074,11 @@
           "index": false
         },
         {
+          "name": "referrer",
+          "type": "publicKey",
+          "index": false
+        },
+        {
           "name": "from",
           "type": {
             "option": "publicKey"
@@ -4377,6 +4397,21 @@
         },
         {
           "name": "fillerReward",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "referrer",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "referrerReward",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "refereeDiscount",
           "type": "u128",
           "index": false
         },

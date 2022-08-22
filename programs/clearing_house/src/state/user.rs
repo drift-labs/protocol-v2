@@ -139,7 +139,6 @@ pub struct UserFees {
     pub total_lp_fees: u128,
     pub total_fee_rebate: u64,
     pub total_token_discount: u128,
-    pub total_referral_reward: u128,
     pub total_referee_discount: u128,
 }
 
@@ -493,6 +492,7 @@ pub struct UserStats {
 
     pub is_referrer: bool,
     pub referrer: Pubkey,
+    pub total_referrer_reward: u128,
 
     pub fees: UserFees,
 
@@ -571,5 +571,9 @@ impl UserStats {
         self.last_filler_volume_30d_ts = now;
 
         Ok(())
+    }
+
+    pub fn has_referrer(&self) -> bool {
+        !self.referrer.eq(&Pubkey::default())
     }
 }

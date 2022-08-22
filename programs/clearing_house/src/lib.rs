@@ -470,6 +470,7 @@ pub mod clearing_house {
     ) -> Result<()> {
         let user_key = ctx.accounts.user.key();
         let user = &mut load_mut!(ctx.accounts.user)?;
+        let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
 
@@ -533,6 +534,7 @@ pub mod clearing_house {
             amount,
             oracle_price,
             bank_index,
+            referrer: user_stats.referrer,
             from: None,
             to: None,
         };
@@ -552,6 +554,7 @@ pub mod clearing_house {
     ) -> Result<()> {
         let user_key = ctx.accounts.user.key();
         let user = &mut load_mut!(ctx.accounts.user)?;
+        let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
 
@@ -627,6 +630,7 @@ pub mod clearing_house {
             oracle_price,
             amount,
             bank_index,
+            referrer: user_stats.referrer,
             from: None,
             to: None,
         };
@@ -647,6 +651,7 @@ pub mod clearing_house {
 
         let to_user = &mut load_mut!(ctx.accounts.to_user)?;
         let from_user = &mut load_mut!(ctx.accounts.from_user)?;
+        let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
 
         validate!(
             !to_user.bankrupt,
@@ -709,6 +714,7 @@ pub mod clearing_house {
             amount,
             oracle_price,
             bank_index,
+            referrer: user_stats.referrer,
             from: None,
             to: Some(to_user_key),
         };
@@ -737,6 +743,7 @@ pub mod clearing_house {
             amount,
             oracle_price,
             bank_index,
+            referrer: user_stats.referrer,
             from: Some(from_user_key),
             to: None,
         };
