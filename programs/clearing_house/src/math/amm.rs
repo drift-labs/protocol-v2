@@ -1276,9 +1276,22 @@ pub fn calculate_base_asset_amount_to_trade_to_price(
     }
 }
 
-pub fn calculate_max_base_asset_amount_fillable(amm: &AMM) -> ClearingHouseResult<u128> {
+pub fn calculate_max_base_asset_amount_fillable(
+    amm: &AMM,
+    order_direction: &PositionDirection,
+) -> ClearingHouseResult<u128> {
+    let max_fill_size = amm.base_asset_reserve / amm.max_base_asset_amount_ratio as u128;
+    let max_base_asset_amount_on_side = match order_direction {
+        PositionDirection::Long => amm
+            .base_asset_reserve
+            .saturating_sub(amm.min_base_asset_reserve),
+        PositionDirection::Short => amm
+            .max_base_asset_reserve
+            .saturating_sub(amm.base_asset_reserve),
+    };
+
     standardize_base_asset_amount(
-        amm.base_asset_reserve / amm.max_base_asset_amount_ratio as u128,
+        max_fill_size.min(max_base_asset_amount_on_side),
         amm.base_asset_amount_step_size,
     )
 }
