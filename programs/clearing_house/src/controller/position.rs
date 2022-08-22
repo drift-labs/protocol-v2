@@ -10,6 +10,7 @@ use crate::math::constants::{AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128};
 use crate::math::lp::get_proportion_i128;
 use crate::math::orders::{
     calculate_quote_asset_amount_for_maker_order, get_position_delta_for_fill,
+    is_multiple_of_step_size,
 };
 use crate::math::position::{
     calculate_position_new_quote_base_pnl, get_position_update_type, PositionUpdateType,
@@ -120,14 +121,6 @@ pub fn update_position_and_market(
     market: &mut Market,
     delta: &PositionDelta,
 ) -> ClearingHouseResult<i128> {
-    // validate!(
-    //     delta.base_asset_amount != 0 || delta.quote_asset_amount != 0,
-    //     ErrorCode::InvalidPositionDelta,
-    //     "delta.base_asset_amount {} delta.quote_asset_amount {}",
-    //     delta.base_asset_amount,
-    //     delta.quote_asset_amount,
-    // )?;
-
     let update_type = get_position_update_type(position, delta);
 
     // Update User
@@ -406,6 +399,15 @@ pub fn update_position_and_market(
     position.quote_asset_amount = new_quote_asset_amount;
     position.quote_entry_amount = new_quote_entry_amount;
     position.base_asset_amount = new_base_asset_amount;
+
+    validate!(
+        is_multiple_of_step_size(
+            position.base_asset_amount.unsigned_abs(),
+            market.amm.base_asset_amount_step_size
+        )?,
+        ErrorCode::DefaultError,
+        "update_position_and_market left invalid position"
+    )?;
 
     Ok(pnl)
 }
@@ -788,6 +790,7 @@ mod test {
             amm: AMM {
                 cumulative_funding_rate_long: 1,
                 sqrt_k: 1,
+                base_asset_amount_step_size: 1,
                 ..AMM::default()
             },
             open_interest: 0,
@@ -1110,6 +1113,7 @@ mod test {
                 quote_asset_amount_short: 0,
                 cumulative_funding_rate_short: 2,
                 cumulative_funding_rate_long: 1,
+                base_asset_amount_step_size: 1,
                 ..AMM::default()
             },
             open_interest: 1,
@@ -1528,6 +1532,7 @@ mod test {
                 quote_asset_amount_long: -11,
                 quote_entry_amount_long: -8,
                 cumulative_funding_rate_long: 1,
+                base_asset_amount_step_size: 1,
                 ..AMM::default()
             },
             open_interest: 2,
@@ -1574,6 +1579,7 @@ mod test {
                 quote_asset_amount_short: 11,
                 quote_entry_amount_short: 15,
                 cumulative_funding_rate_short: 1,
+                base_asset_amount_step_size: 1,
                 ..AMM::default()
             },
             open_interest: 2,

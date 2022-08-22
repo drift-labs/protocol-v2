@@ -172,6 +172,17 @@ pub fn standardize_base_asset_amount_ceil(
     }
 }
 
+pub fn is_multiple_of_step_size(
+    base_asset_amount: u128,
+    step_size: u128,
+) -> ClearingHouseResult<bool> {
+    let remainder = base_asset_amount
+        .checked_rem_euclid(step_size)
+        .ok_or_else(math_error!())?;
+
+    Ok(remainder == 0)
+}
+
 pub fn get_position_delta_for_fill(
     base_asset_amount: u128,
     quote_asset_amount: u128,
