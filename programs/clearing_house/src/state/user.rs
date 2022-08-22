@@ -316,11 +316,9 @@ pub struct Order {
     pub reduce_only: bool,
     pub post_only: bool,
     pub immediate_or_cancel: bool,
-    pub discount_tier: OrderDiscountTier,
     pub trigger_price: u128,
     pub trigger_condition: OrderTriggerCondition,
     pub triggered: bool,
-    pub referrer: Pubkey,
     pub oracle_price_offset: i128,
     pub auction_start_price: u128,
     pub auction_end_price: u128,
@@ -431,11 +429,9 @@ impl Default for Order {
             reduce_only: false,
             post_only: false,
             immediate_or_cancel: false,
-            discount_tier: OrderDiscountTier::None,
             trigger_price: 0,
             trigger_condition: OrderTriggerCondition::Above,
             triggered: false,
-            referrer: Pubkey::default(),
             oracle_price_offset: 0,
             auction_start_price: 0,
             auction_end_price: 0,
@@ -459,15 +455,6 @@ pub enum OrderType {
     Limit,
     TriggerMarket,
     TriggerLimit,
-}
-
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
-pub enum OrderDiscountTier {
-    None,
-    First,
-    Second,
-    Third,
-    Fourth,
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]

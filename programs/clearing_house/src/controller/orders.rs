@@ -39,8 +39,8 @@ use crate::state::market_map::MarketMap;
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
 use crate::state::state::*;
+use crate::state::user::User;
 use crate::state::user::{MarketPosition, Order, OrderStatus, OrderType, UserStats};
-use crate::state::user::{OrderDiscountTier, User};
 use crate::validate;
 use std::alloc::{alloc_zeroed, Layout};
 use std::cell::RefMut;
@@ -178,11 +178,9 @@ pub fn place_order(
         fee: 0,
         direction: params.direction,
         reduce_only: params.reduce_only,
-        discount_tier: OrderDiscountTier::None,
         trigger_price: params.trigger_price,
         trigger_condition: params.trigger_condition,
         triggered: false,
-        referrer: Pubkey::default(),
         post_only: params.post_only,
         oracle_price_offset: params.oracle_price_offset,
         immediate_or_cancel: params.immediate_or_cancel,

@@ -502,9 +502,7 @@ export type Order = {
 	triggerPrice: BN;
 	triggerCondition: OrderTriggerCondition;
 	triggered: boolean;
-	discountTier: OrderDiscountTier;
 	existingPositionDirection: PositionDirection;
-	referrer: PublicKey;
 	postOnly: boolean;
 	immediateOrCancel: boolean;
 	oraclePriceOffset: BN;
