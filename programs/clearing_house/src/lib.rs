@@ -445,7 +445,7 @@ pub mod clearing_house {
                 net_unsettled_lp_base_asset_amount: 0,
                 user_lp_shares: 0,
                 lp_cooldown_time: 1, // TODO: what should this be?
-                toxic_unload: false,
+                amm_jit: false,
 
                 last_oracle_valid: false,
                 padding0: 0,
@@ -2448,9 +2448,9 @@ pub mod clearing_house {
     #[access_control(
         market_initialized(&ctx.accounts.market)
     )]
-    pub fn update_toxic_unload(ctx: Context<AdminUpdateMarket>, toxic_unload: bool) -> Result<()> {
+    pub fn update_amm_jit(ctx: Context<AdminUpdateMarket>, amm_jit: bool) -> Result<()> {
         let market = &mut load_mut!(ctx.accounts.market)?;
-        market.amm.toxic_unload = toxic_unload;
+        market.amm.amm_jit = amm_jit;
 
         Ok(())
     }

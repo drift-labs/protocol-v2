@@ -195,7 +195,7 @@ pub struct AMM {
     pub lp_cooldown_time: i64,
     pub user_lp_shares: u128,
     pub market_position_per_lp: MarketPosition,
-    pub toxic_unload: bool,
+    pub amm_jit: bool,
 
     // funding
     pub last_funding_rate: i128,

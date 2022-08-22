@@ -85,9 +85,7 @@ pub fn calculate_settled_lp_base_quote(
     Ok((base_asset_amount, quote_asset_amount))
 }
 
-pub fn calculate_market_open_bids_asks(
-    market: &Market,
-) -> ClearingHouseResult<(i128, i128)> {
+pub fn calculate_market_open_bids_asks(market: &Market) -> ClearingHouseResult<(i128, i128)> {
     let base_asset_reserve = market.amm.base_asset_reserve;
 
     // worse case if all asks are filled
@@ -96,22 +94,21 @@ pub fn calculate_market_open_bids_asks(
         -cast_to_i128(
             max_base_asset_reserve
                 .checked_sub(base_asset_reserve)
-                .ok_or_else(math_error!())?
+                .ok_or_else(math_error!())?,
         )?
     } else {
         0
     };
-    
+
     // worst case if all bids are filled
     let min_base_asset_reserve = market.amm.min_base_asset_reserve;
     let max_bids = if base_asset_reserve > min_base_asset_reserve {
         cast_to_i128(
             base_asset_reserve
                 .checked_sub(min_base_asset_reserve)
-                .ok_or_else(math_error!())?
+                .ok_or_else(math_error!())?,
         )?
     } else {
-        
         0
     };
 
