@@ -106,6 +106,15 @@ export type CandleResolution =
 	| 'W'
 	| 'M';
 
+export type NewUserRecord = {
+	ts: BN;
+	userAuthority: PublicKey;
+	user: PublicKey;
+	userId: number;
+	name: number[];
+	referrer: PublicKey;
+};
+
 export type DepositRecord = {
 	ts: BN;
 	userAuthority: PublicKey;

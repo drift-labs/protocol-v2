@@ -177,6 +177,9 @@ describe('referrer', () => {
 
 		await eventSubscriber.awaitTx(txSig);
 
+		const newUserRecord = eventSubscriber.getEventsArray('NewUserRecord')[0];
+		assert(newUserRecord.referrer.equals(provider.wallet.publicKey));
+
 		const depositRecord = eventSubscriber.getEventsArray('DepositRecord')[0];
 		assert(depositRecord.referrer.equals(provider.wallet.publicKey));
 
