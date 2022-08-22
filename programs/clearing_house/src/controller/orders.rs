@@ -18,6 +18,7 @@ use crate::math::auction::{
     calculate_auction_end_price, calculate_auction_start_price, is_auction_complete,
 };
 use crate::math::casting::{cast, cast_to_i128};
+use crate::math::constants::AMM_RESERVE_PRECISION;
 use crate::math::fulfillment::determine_fulfillment_methods;
 use crate::math::liquidation::validate_user_not_being_liquidated;
 use crate::math::matching::{
@@ -1261,8 +1262,62 @@ pub fn fulfill_order_with_match(
     };
 
     let base_asset_amount_left_to_fill = if market.amm.toxic_unload && amm_wants_to_unload {
-        let unload_amount = base_asset_amount / 2; // todo, dynamic?
+        // use crate::math::lp::calculate_market_open_bids_asks;
+        // let (max_bids, max_asks) = calculate_market_open_bids_asks(market)?;
 
+        let origin = market.amm.sqrt_k; // todo need to do the same 
+        let current = market.amm.base_asset_reserve;
+        let min = market.amm.min_base_asset_reserve;
+        let max = market.amm.max_base_asset_reserve;
+
+        // net_baa = origin - current? 
+        // max_net_baa = 
+
+        // probably do an easier approximation of this ? rn its just piece-wise linear
+        // unload curve looks like this,
+        // 49% -  \         /
+        //         \       /
+        //   0% -   \_____/
+
+        let unload_ratio = if current < origin {
+            (origin - current)
+                .checked_mul(AMM_RESERVE_PRECISION)
+                .ok_or_else(math_error!())?
+                .checked_div(origin - min)
+                .ok_or_else(math_error!())?
+        } else { 
+            (current - origin)
+                .checked_mul(AMM_RESERVE_PRECISION)
+                .ok_or_else(math_error!())?
+                .checked_div(max - origin)
+                .ok_or_else(math_error!())?
+        };
+        println!("origin: {} bounds: {} {} x: {}", origin, min, max, current);
+        println!("unload ratio: {:#?}", unload_ratio);
+
+        // dont take more than 49%
+        let max_unload_ratio = AMM_RESERVE_PRECISION / 2 - 1; // ~49%
+        let unload_ratio = std::cmp::min(unload_ratio, max_unload_ratio);
+        // 10%
+        let min_unload_ratio = AMM_RESERVE_PRECISION / 10; // if under this do nothing
+
+        let (unload_base_asset_amount, unload_limit_price) = if unload_ratio > min_unload_ratio {
+            // if market goes long: max(taker, maker) if market goes short: min(taker, maker)
+            let unload_limit_price = match maker_direction {
+                PositionDirection::Long => std::cmp::min(taker_price, maker_price),
+                PositionDirection::Short => std::cmp::max(taker_price, maker_price),
+            };
+            let unload_base_asset_amount = base_asset_amount
+                .checked_mul(unload_ratio)
+                .ok_or_else(math_error!())?
+                .checked_div(AMM_RESERVE_PRECISION)
+                .ok_or_else(math_error!())?;
+
+            (Some(unload_base_asset_amount), Some(unload_limit_price))
+        } else { 
+            (None, None)
+        };
+       
         let (base_asset_amount_filled_by_amm, _) = fulfill_order_with_amm(
             taker,
             taker_stats,
@@ -1279,8 +1334,8 @@ pub fn fulfill_order_with_match(
             filler_stats,
             fee_structure,
             order_records,
-            Some(unload_amount),
-            Some(maker_price),
+            unload_base_asset_amount,
+            unload_limit_price,
         )?;
 
         base_asset_amount
