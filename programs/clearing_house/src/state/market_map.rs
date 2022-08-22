@@ -13,13 +13,18 @@ use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::state::market::Market;
 use crate::state::user::UserPositions;
 
+use solana_program::msg;
+
 pub struct MarketMap<'a>(pub BTreeMap<u64, AccountLoader<'a, Market>>);
 
 impl<'a> MarketMap<'a> {
     pub fn get_ref(&self, market_index: &u64) -> ClearingHouseResult<Ref<Market>> {
         self.0
             .get(market_index)
-            .ok_or(ErrorCode::MarketNotFound)?
+            .ok_or_else(|| {
+                msg!("market not found: {}", market_index);
+                ErrorCode::MarketNotFound
+            })?
             .load()
             .or(Err(ErrorCode::UnableToLoadMarketAccount))
     }
@@ -27,7 +32,10 @@ impl<'a> MarketMap<'a> {
     pub fn get_ref_mut(&self, market_index: &u64) -> ClearingHouseResult<RefMut<Market>> {
         self.0
             .get(market_index)
-            .ok_or(ErrorCode::MarketNotFound)?
+            .ok_or_else(|| {
+                msg!("market not found: {}", market_index);
+                ErrorCode::MarketNotFound
+            })?
             .load_mut()
             .or(Err(ErrorCode::UnableToLoadMarketAccount))
     }

@@ -162,10 +162,7 @@ pub fn remove_insurance_fund_stake(
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::math::constants::{
-        BANK_CUMULATIVE_INTEREST_PRECISION, 
-        QUOTE_PRECISION,
-    };
+    use crate::math::constants::{BANK_CUMULATIVE_INTEREST_PRECISION, QUOTE_PRECISION};
     use crate::state::user::UserStats;
 
     #[test]
