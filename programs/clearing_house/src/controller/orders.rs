@@ -1049,6 +1049,8 @@ pub fn fulfill_order_with_amm(
         }
     };
 
+    println!("{}", base_asset_amount);
+
     if base_asset_amount == 0 {
         msg!("Amm cant fulfill order");
         return Ok((0, false));
@@ -1266,9 +1268,9 @@ pub fn fulfill_order_with_match(
         return Ok((0_u128, false));
     }
 
-    let amm_wants_to_make = match maker_direction {
-        PositionDirection::Long => market.amm.net_base_asset_amount > 0,
-        PositionDirection::Short => market.amm.net_base_asset_amount < 0,
+    let amm_wants_to_make = match taker.orders[taker_order_index].direction {
+        PositionDirection::Long => market.amm.net_base_asset_amount < 0,
+        PositionDirection::Short => market.amm.net_base_asset_amount > 0,
     };
 
     let base_asset_amount_left_to_fill = if market.amm.amm_jit && amm_wants_to_make {
