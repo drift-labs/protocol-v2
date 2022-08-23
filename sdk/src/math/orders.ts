@@ -165,12 +165,15 @@ export function isFillableByVAMM(
 	oraclePriceData: OraclePriceData,
 	slot: number
 ): boolean {
-	return !calculateBaseAssetAmountForAmmToFulfill(
-		order,
-		market,
-		oraclePriceData,
-		slot
-	).eq(ZERO);
+	return (
+		isAuctionComplete(order, slot) &&
+		!calculateBaseAssetAmountForAmmToFulfill(
+			order,
+			market,
+			oraclePriceData,
+			slot
+		).eq(ZERO)
+	);
 }
 
 export function calculateBaseAssetAmountForAmmToFulfill(
