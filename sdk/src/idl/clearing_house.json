@@ -237,6 +237,11 @@
           "isSigner": false
         },
         {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "authority",
           "isMut": false,
           "isSigner": true
@@ -282,6 +287,11 @@
         },
         {
           "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
           "isMut": true,
           "isSigner": false
         },
@@ -336,6 +346,11 @@
         },
         {
           "name": "toUser",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
           "isMut": true,
           "isSigner": false
         },
@@ -2581,8 +2596,16 @@
             "type": "u8"
           },
           {
+            "name": "isReferrer",
+            "type": "bool"
+          },
+          {
             "name": "referrer",
             "type": "publicKey"
+          },
+          {
+            "name": "totalReferrerReward",
+            "type": "u128"
           },
           {
             "name": "fees",
@@ -3449,10 +3472,6 @@
             "type": "u128"
           },
           {
-            "name": "totalReferralReward",
-            "type": "u128"
-          },
-          {
             "name": "totalRefereeDiscount",
             "type": "u128"
           }
@@ -3651,12 +3670,6 @@
             "type": "bool"
           },
           {
-            "name": "discountTier",
-            "type": {
-              "defined": "OrderDiscountTier"
-            }
-          },
-          {
             "name": "triggerPrice",
             "type": "u128"
           },
@@ -3669,10 +3682,6 @@
           {
             "name": "triggered",
             "type": "bool"
-          },
-          {
-            "name": "referrer",
-            "type": "publicKey"
           },
           {
             "name": "oraclePriceOffset",
@@ -3976,29 +3985,6 @@
       }
     },
     {
-      "name": "OrderDiscountTier",
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "None"
-          },
-          {
-            "name": "First"
-          },
-          {
-            "name": "Second"
-          },
-          {
-            "name": "Third"
-          },
-          {
-            "name": "Fourth"
-          }
-        ]
-      }
-    },
-    {
       "name": "OrderTriggerCondition",
       "type": {
         "kind": "enum",
@@ -4014,6 +4000,46 @@
     }
   ],
   "events": [
+    {
+      "name": "NewUserRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "userAuthority",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "user",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "userId",
+          "type": "u8",
+          "index": false
+        },
+        {
+          "name": "name",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          },
+          "index": false
+        },
+        {
+          "name": "referrer",
+          "type": "publicKey",
+          "index": false
+        }
+      ]
+    },
     {
       "name": "DepositRecord",
       "fields": [
@@ -4052,6 +4078,11 @@
         {
           "name": "oraclePrice",
           "type": "i128",
+          "index": false
+        },
+        {
+          "name": "referrer",
+          "type": "publicKey",
           "index": false
         },
         {
@@ -4377,6 +4408,21 @@
           "index": false
         },
         {
+          "name": "referrer",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "referrerReward",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "refereeDiscount",
+          "type": "u128",
+          "index": false
+        },
+        {
           "name": "quoteAssetAmountSurplus",
           "type": "u128",
           "index": false
@@ -4671,426 +4717,451 @@
     },
     {
       "code": 6029,
-      "name": "InvalidReferrer",
-      "msg": "Invalid referrer"
-    },
-    {
-      "code": 6030,
       "name": "ReferrerNotFound",
       "msg": "Referrer not found"
     },
     {
+      "code": 6030,
+      "name": "ReferrerStatsNotFound",
+      "msg": "ReferrerNotFound"
+    },
+    {
       "code": 6031,
+      "name": "ReferrerMustBeWritable",
+      "msg": "ReferrerMustBeWritable"
+    },
+    {
+      "code": 6032,
+      "name": "ReferrerStatsMustBeWritable",
+      "msg": "ReferrerMustBeWritable"
+    },
+    {
+      "code": 6033,
+      "name": "ReferrerAndReferrerStatsAuthorityUnequal",
+      "msg": "ReferrerAndReferrerStatsAuthorityUnequal"
+    },
+    {
+      "code": 6034,
+      "name": "InvalidReferrer",
+      "msg": "InvalidReferrer"
+    },
+    {
+      "code": 6035,
       "name": "InvalidOracle",
       "msg": "InvalidOracle"
     },
     {
-      "code": 6032,
+      "code": 6036,
       "name": "OracleNotFound",
       "msg": "OracleNotFound"
     },
     {
-      "code": 6033,
+      "code": 6037,
       "name": "LiquidationsBlockedByOracle",
       "msg": "Liquidations Blocked By Oracle"
     },
     {
-      "code": 6034,
+      "code": 6038,
       "name": "UserMaxDeposit",
       "msg": "Can not deposit more than max deposit"
     },
     {
-      "code": 6035,
+      "code": 6039,
       "name": "CantDeleteUserWithCollateral",
       "msg": "Can not delete user that still has collateral"
     },
     {
-      "code": 6036,
+      "code": 6040,
       "name": "InvalidFundingProfitability",
       "msg": "AMM funding out of bounds pnl"
     },
     {
-      "code": 6037,
+      "code": 6041,
       "name": "CastingFailure",
       "msg": "Casting Failure"
     },
     {
-      "code": 6038,
+      "code": 6042,
       "name": "InvalidOrder",
       "msg": "Invalid Order"
     },
     {
-      "code": 6039,
+      "code": 6043,
       "name": "UserHasNoOrder",
       "msg": "User has no order"
     },
     {
-      "code": 6040,
+      "code": 6044,
       "name": "OrderAmountTooSmall",
       "msg": "Order Amount Too Small"
     },
     {
-      "code": 6041,
+      "code": 6045,
       "name": "MaxNumberOfOrders",
       "msg": "Max number of orders taken"
     },
     {
-      "code": 6042,
+      "code": 6046,
       "name": "OrderDoesNotExist",
       "msg": "Order does not exist"
     },
     {
-      "code": 6043,
+      "code": 6047,
       "name": "OrderNotOpen",
       "msg": "Order not open"
     },
     {
-      "code": 6044,
+      "code": 6048,
       "name": "FillOrderDidNotUpdateState",
       "msg": "FillOrderDidNotUpdateState"
     },
     {
-      "code": 6045,
+      "code": 6049,
       "name": "ReduceOnlyOrderIncreasedRisk",
       "msg": "Reduce only order increased risk"
     },
     {
-      "code": 6046,
+      "code": 6050,
       "name": "UnableToLoadAccountLoader",
       "msg": "Unable to load AccountLoader"
     },
     {
-      "code": 6047,
+      "code": 6051,
       "name": "TradeSizeTooLarge",
       "msg": "Trade Size Too Large"
     },
     {
-      "code": 6048,
+      "code": 6052,
       "name": "UserCantReferThemselves",
       "msg": "User cant refer themselves"
     },
     {
-      "code": 6049,
+      "code": 6053,
       "name": "DidNotReceiveExpectedReferrer",
       "msg": "Did not receive expected referrer"
     },
     {
-      "code": 6050,
+      "code": 6054,
       "name": "CouldNotDeserializeReferrer",
       "msg": "Could not deserialize referrer"
     },
     {
-      "code": 6051,
+      "code": 6055,
+      "name": "CouldNotDeserializeReferrerStats",
+      "msg": "Could not deserialize referrer stats"
+    },
+    {
+      "code": 6056,
       "name": "UserOrderIdAlreadyInUse",
       "msg": "User Order Id Already In Use"
     },
     {
-      "code": 6052,
+      "code": 6057,
       "name": "NoPositionsLiquidatable",
       "msg": "No positions liquidatable"
     },
     {
-      "code": 6053,
+      "code": 6058,
       "name": "InvalidMarginRatio",
       "msg": "Invalid Margin Ratio"
     },
     {
-      "code": 6054,
+      "code": 6059,
       "name": "CantCancelPostOnlyOrder",
       "msg": "Cant Cancel Post Only Order"
     },
     {
-      "code": 6055,
+      "code": 6060,
       "name": "InvalidOracleOffset",
       "msg": "InvalidOracleOffset"
     },
     {
-      "code": 6056,
+      "code": 6061,
       "name": "CantExpireOrders",
       "msg": "CantExpireOrders"
     },
     {
-      "code": 6057,
+      "code": 6062,
       "name": "CouldNotLoadMarketData",
       "msg": "CouldNotLoadMarketData"
     },
     {
-      "code": 6058,
+      "code": 6063,
       "name": "MarketNotFound",
       "msg": "MarketNotFound"
     },
     {
-      "code": 6059,
+      "code": 6064,
       "name": "InvalidMarketAccount",
       "msg": "InvalidMarketAccount"
     },
     {
-      "code": 6060,
+      "code": 6065,
       "name": "UnableToLoadMarketAccount",
       "msg": "UnableToLoadMarketAccount"
     },
     {
-      "code": 6061,
+      "code": 6066,
       "name": "MarketWrongMutability",
       "msg": "MarketWrongMutability"
     },
     {
-      "code": 6062,
+      "code": 6067,
       "name": "UnableToCastUnixTime",
       "msg": "UnableToCastUnixTime"
     },
     {
-      "code": 6063,
+      "code": 6068,
       "name": "CouldNotFindBankBalance",
       "msg": "CouldNotFindBankBalance"
     },
     {
-      "code": 6064,
+      "code": 6069,
       "name": "NoUserBankBalanceAvailable",
       "msg": "NoUserBankBalanceAvailable"
     },
     {
-      "code": 6065,
+      "code": 6070,
       "name": "InvalidBankInitialization",
       "msg": "InvalidBankInitialization"
     },
     {
-      "code": 6066,
+      "code": 6071,
       "name": "CouldNotLoadBankData",
       "msg": "CouldNotLoadBankData"
     },
     {
-      "code": 6067,
+      "code": 6072,
       "name": "BankNotFound",
       "msg": "BankNotFound"
     },
     {
-      "code": 6068,
+      "code": 6073,
       "name": "InvalidBankAccount",
       "msg": "InvalidBankAccount"
     },
     {
-      "code": 6069,
+      "code": 6074,
       "name": "UnableToLoadBankAccount",
       "msg": "UnableToLoadBankAccount"
     },
     {
-      "code": 6070,
+      "code": 6075,
       "name": "BankWrongMutability",
       "msg": "BankWrongMutability"
     },
     {
-      "code": 6071,
+      "code": 6076,
       "name": "BankInterestNotUpToDate",
       "msg": "BankInterestNotUpToDate"
     },
     {
-      "code": 6072,
+      "code": 6077,
       "name": "BankInsufficientDeposits",
       "msg": "BankInsufficientDeposits"
     },
     {
-      "code": 6073,
+      "code": 6078,
       "name": "UserMustSettleTheirOwnPositiveUnsettledPNL",
       "msg": "UserMustSettleTheirOwnPositiveUnsettledPNL"
     },
     {
-      "code": 6074,
+      "code": 6079,
       "name": "CantUpdatePoolBalanceType",
       "msg": "CantUpdatePoolBalanceType"
     },
     {
-      "code": 6075,
+      "code": 6080,
       "name": "InsufficientCollateralForSettlingPNL",
       "msg": "InsufficientCollateralForSettlingPNL"
     },
     {
-      "code": 6076,
+      "code": 6081,
       "name": "AMMNotUpdatedInSameSlot",
       "msg": "AMMNotUpdatedInSameSlot"
     },
     {
-      "code": 6077,
+      "code": 6082,
       "name": "AuctionNotComplete",
       "msg": "AuctionNotComplete"
     },
     {
-      "code": 6078,
+      "code": 6083,
       "name": "MakerNotFound",
       "msg": "MakerNotFound"
     },
     {
-      "code": 6079,
+      "code": 6084,
       "name": "MakerStatsNotFound",
       "msg": "MakerNotFound"
     },
     {
-      "code": 6080,
+      "code": 6085,
       "name": "MakerMustBeWritable",
       "msg": "MakerMustBeWritable"
     },
     {
-      "code": 6081,
+      "code": 6086,
       "name": "MakerStatsMustBeWritable",
       "msg": "MakerMustBeWritable"
     },
     {
-      "code": 6082,
+      "code": 6087,
       "name": "MakerOrderNotFound",
       "msg": "MakerOrderNotFound"
     },
     {
-      "code": 6083,
+      "code": 6088,
       "name": "CouldNotDeserializeMaker",
       "msg": "CouldNotDeserializeMaker"
     },
     {
-      "code": 6084,
+      "code": 6089,
       "name": "CouldNotDeserializeMakerStats",
       "msg": "CouldNotDeserializeMaker"
     },
     {
-      "code": 6085,
+      "code": 6090,
       "name": "AuctionPriceDoesNotSatisfyMaker",
       "msg": "AuctionPriceDoesNotSatisfyMaker"
     },
     {
-      "code": 6086,
+      "code": 6091,
       "name": "MakerCantFulfillOwnOrder",
       "msg": "MakerCantFulfillOwnOrder"
     },
     {
-      "code": 6087,
+      "code": 6092,
       "name": "MakerOrderMustBePostOnly",
       "msg": "MakerOrderMustBePostOnly"
     },
     {
-      "code": 6088,
+      "code": 6093,
       "name": "CantMatchTwoPostOnlys",
       "msg": "CantMatchTwoPostOnlys"
     },
     {
-      "code": 6089,
+      "code": 6094,
       "name": "OrderBreachesOraclePriceLimits",
       "msg": "OrderBreachesOraclePriceLimits"
     },
     {
-      "code": 6090,
+      "code": 6095,
       "name": "OrderMustBeTriggeredFirst",
       "msg": "OrderMustBeTriggeredFirst"
     },
     {
-      "code": 6091,
+      "code": 6096,
       "name": "OrderNotTriggerable",
       "msg": "OrderNotTriggerable"
     },
     {
-      "code": 6092,
+      "code": 6097,
       "name": "OrderDidNotSatisfyTriggerCondition",
       "msg": "OrderDidNotSatisfyTriggerCondition"
     },
     {
-      "code": 6093,
+      "code": 6098,
       "name": "PositionAlreadyBeingLiquidated",
       "msg": "PositionAlreadyBeingLiquidated"
     },
     {
-      "code": 6094,
+      "code": 6099,
       "name": "PositionDoesntHaveOpenPositionOrOrders",
       "msg": "PositionDoesntHaveOpenPositionOrOrders"
     },
     {
-      "code": 6095,
+      "code": 6100,
       "name": "AllOrdersAreAlreadyLiquidations",
       "msg": "AllOrdersAreAlreadyLiquidations"
     },
     {
-      "code": 6096,
+      "code": 6101,
       "name": "CantCancelLiquidationOrder",
       "msg": "CantCancelLiquidationOrder"
     },
     {
-      "code": 6097,
+      "code": 6102,
       "name": "UserIsBeingLiquidated",
       "msg": "UserIsBeingLiquidated"
     },
     {
-      "code": 6098,
+      "code": 6103,
       "name": "LiquidationsOngoing",
       "msg": "LiquidationsOngoing"
     },
     {
-      "code": 6099,
+      "code": 6104,
       "name": "WrongBankBalanceType",
       "msg": "WrongBankBalanceType"
     },
     {
-      "code": 6100,
+      "code": 6105,
       "name": "UserCantLiquidateThemself",
       "msg": "UserCantLiquidateThemself"
     },
     {
-      "code": 6101,
+      "code": 6106,
       "name": "InvalidPerpPositionToLiquidate",
       "msg": "InvalidPerpPositionToLiquidate"
     },
     {
-      "code": 6102,
+      "code": 6107,
       "name": "InvalidBaseAssetAmountForLiquidatePerp",
       "msg": "InvalidBaseAssetAmountForLiquidatePerp"
     },
     {
-      "code": 6103,
+      "code": 6108,
       "name": "InvalidPositionLastFundingRate",
       "msg": "InvalidPositionLastFundingRate"
     },
     {
-      "code": 6104,
+      "code": 6109,
       "name": "InvalidPositionDelta",
       "msg": "InvalidPositionDelta"
     },
     {
-      "code": 6105,
+      "code": 6110,
       "name": "UserBankrupt",
       "msg": "UserBankrupt"
     },
     {
-      "code": 6106,
+      "code": 6111,
       "name": "UserNotBankrupt",
       "msg": "UserNotBankrupt"
     },
     {
-      "code": 6107,
+      "code": 6112,
       "name": "UserHasInvalidBorrow",
       "msg": "UserHasInvalidBorrow"
     },
     {
-      "code": 6108,
+      "code": 6113,
       "name": "BankDailyWithdrawLimit",
       "msg": "BankDailyWithdrawLimit"
     },
     {
-      "code": 6109,
+      "code": 6114,
       "name": "DefaultError",
       "msg": "DefaultError"
     },
     {
-      "code": 6110,
+      "code": 6115,
       "name": "InsufficientLPTokens",
       "msg": "Insufficient LP tokens"
     },
     {
-      "code": 6111,
+      "code": 6116,
       "name": "CantLPWithMarketPosition",
       "msg": "Cant LP with a market position"
     },
     {
-      "code": 6112,
+      "code": 6117,
       "name": "UnableToBurnLPTokens",
       "msg": "Unable to burn LP tokens"
     },
     {
-      "code": 6113,
+      "code": 6118,
       "name": "TryingToRemoveLiquidityTooFast",
       "msg": "Trying to remove liqudity too fast after adding it"
     }

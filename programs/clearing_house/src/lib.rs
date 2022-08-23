@@ -44,11 +44,11 @@ pub mod clearing_house {
     use crate::math;
     use crate::math::bank_balance::get_token_amount;
     use crate::math::casting::{cast, cast_to_i128, cast_to_u128};
-    use crate::optional_accounts::get_maker_and_maker_stats;
+    use crate::optional_accounts::{get_maker_and_maker_stats, get_referrer_and_referrer_stats};
     use crate::state::bank::{Bank, BankBalanceType};
     use crate::state::bank_map::{get_writable_banks, BankMap, WritableBanks};
-    use crate::state::events::DepositDirection;
     use crate::state::events::{CurveRecord, DepositRecord};
+    use crate::state::events::{DepositDirection, NewUserRecord};
     use crate::state::market::{Market, PoolBalance};
     use crate::state::market_map::{
         get_market_set, get_market_set_for_user_positions, get_market_set_from_list, MarketMap,
@@ -470,6 +470,7 @@ pub mod clearing_house {
     ) -> Result<()> {
         let user_key = ctx.accounts.user.key();
         let user = &mut load_mut!(ctx.accounts.user)?;
+        let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
 
@@ -533,6 +534,7 @@ pub mod clearing_house {
             amount,
             oracle_price,
             bank_index,
+            referrer: user_stats.referrer,
             from: None,
             to: None,
         };
@@ -552,6 +554,7 @@ pub mod clearing_house {
     ) -> Result<()> {
         let user_key = ctx.accounts.user.key();
         let user = &mut load_mut!(ctx.accounts.user)?;
+        let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
 
@@ -627,6 +630,7 @@ pub mod clearing_house {
             oracle_price,
             amount,
             bank_index,
+            referrer: user_stats.referrer,
             from: None,
             to: None,
         };
@@ -647,6 +651,7 @@ pub mod clearing_house {
 
         let to_user = &mut load_mut!(ctx.accounts.to_user)?;
         let from_user = &mut load_mut!(ctx.accounts.from_user)?;
+        let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
 
         validate!(
             !to_user.bankrupt,
@@ -709,6 +714,7 @@ pub mod clearing_house {
             amount,
             oracle_price,
             bank_index,
+            referrer: user_stats.referrer,
             from: None,
             to: Some(to_user_key),
         };
@@ -737,6 +743,7 @@ pub mod clearing_house {
             amount,
             oracle_price,
             bank_index,
+            referrer: user_stats.referrer,
             from: Some(from_user_key),
             to: None,
         };
@@ -1049,6 +1056,8 @@ pub mod clearing_house {
             None => (None, None),
         };
 
+        let (referrer, referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
+
         let clock = &Clock::get()?;
 
         controller::repeg::update_amm(
@@ -1072,6 +1081,8 @@ pub mod clearing_house {
             maker.as_ref(),
             maker_stats.as_ref(),
             maker_order_id,
+            referrer.as_ref(),
+            referrer_stats.as_ref(),
             &Clock::get()?,
         )?;
 
@@ -1113,6 +1124,8 @@ pub mod clearing_house {
             None => (None, None),
         };
 
+        let (referrer, referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
+
         let is_immediate_or_cancel = params.immediate_or_cancel;
         let base_asset_amount_to_fill = params.base_asset_amount;
 
@@ -1150,6 +1163,8 @@ pub mod clearing_house {
             maker.as_ref(),
             maker_stats.as_ref(),
             maker_order_id,
+            referrer.as_ref(),
+            referrer_stats.as_ref(),
             &Clock::get()?,
         )?;
 
@@ -1182,6 +1197,8 @@ pub mod clearing_house {
             &MarketSet::new(),
             remaining_accounts_iter,
         )?;
+
+        let (referrer, referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
 
         if !params.immediate_or_cancel || !params.post_only || params.order_type != OrderType::Limit
         {
@@ -1222,6 +1239,8 @@ pub mod clearing_house {
             Some(&ctx.accounts.user),
             Some(&ctx.accounts.user_stats),
             Some(order_id),
+            referrer.as_ref(),
+            referrer_stats.as_ref(),
             &Clock::get()?,
         )?;
 
@@ -1930,6 +1949,7 @@ pub mod clearing_house {
         user_id: u8,
         name: [u8; 32],
     ) -> Result<()> {
+        let user_key = ctx.accounts.user.key();
         let mut user = ctx
             .accounts
             .user
@@ -1949,6 +1969,42 @@ pub mod clearing_house {
             .number_of_users
             .checked_add(1)
             .ok_or_else(math_error!())?;
+
+        // Only try to add referrer if it is the first user
+        if user_stats.number_of_users == 1 {
+            let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+            let (referrer, referrer_stats) =
+                get_referrer_and_referrer_stats(remaining_accounts_iter)?;
+            let referrer =
+                if let (Some(referrer), Some(referrer_stats)) = (referrer, referrer_stats) {
+                    let referrer = load!(referrer)?;
+                    let mut referrer_stats = load_mut!(referrer_stats)?;
+
+                    validate!(referrer.user_id == 0, ErrorCode::InvalidReferrer)?;
+
+                    validate!(
+                        referrer.authority == referrer_stats.authority,
+                        ErrorCode::ReferrerAndReferrerStatsAuthorityUnequal
+                    )?;
+
+                    referrer_stats.is_referrer = true;
+
+                    referrer.authority
+                } else {
+                    Pubkey::default()
+                };
+
+            user_stats.referrer = referrer;
+        }
+
+        emit!(NewUserRecord {
+            ts: Clock::get()?.unix_timestamp,
+            user_authority: ctx.accounts.authority.key(),
+            user: user_key,
+            user_id,
+            name,
+            referrer: user_stats.referrer
+        });
 
         Ok(())
     }

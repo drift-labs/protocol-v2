@@ -4,7 +4,11 @@ import { DataAndSlot, UserStatsAccountSubscriber } from './accounts/types';
 import { ClearingHouseUserStatsConfig } from './clearingHouseUserStatsConfig';
 import { PollingUserStatsAccountSubscriber } from './accounts/pollingUserStatsAccountSubscriber';
 import { WebSocketUserStatsAccountSubscriber } from './accounts/webSocketUserStatsAccountSubsriber';
-import { UserStatsAccount } from './types';
+import { ReferrerInfo, UserStatsAccount } from './types';
+import {
+	getUserAccountPublicKeySync,
+	getUserStatsAccountPublicKey,
+} from './addresses/pda';
 
 export class ClearingHouseUserStats {
 	clearingHouse: ClearingHouse;
@@ -49,5 +53,23 @@ export class ClearingHouseUserStats {
 
 	public getAccount(): UserStatsAccount {
 		return this.accountSubscriber.getUserStatsAccountAndSlot().data;
+	}
+
+	public getReferrerInfo(): ReferrerInfo | undefined {
+		if (this.getAccount().referrer.equals(PublicKey.default)) {
+			return undefined;
+		} else {
+			return {
+				referrer: getUserAccountPublicKeySync(
+					this.clearingHouse.program.programId,
+					this.getAccount().referrer,
+					0
+				),
+				referrerStats: getUserStatsAccountPublicKey(
+					this.clearingHouse.program.programId,
+					this.getAccount().referrer
+				),
+			};
+		}
 	}
 }

@@ -7,7 +7,7 @@ use crate::controller::amm::SwapDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::casting::{cast, cast_to_i128};
 use crate::math::constants::{AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128};
-use crate::math::lp::get_proportion_i128;
+use crate::math::helpers::get_proportion_i128;
 use crate::math::orders::{
     calculate_quote_asset_amount_for_maker_order, get_position_delta_for_fill,
     is_multiple_of_step_size,
