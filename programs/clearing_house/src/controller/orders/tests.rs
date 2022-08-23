@@ -1662,7 +1662,7 @@ pub mod fulfill_order {
         assert_eq!(filler_stats.filler_volume_30d, 102284244);
         assert_eq!(filler.positions[0].quote_asset_amount, 5114);
     }
-    
+
     #[test]
     fn no_fulfill_with_amm_jit() {
         let now = 0_i64;
@@ -1810,10 +1810,7 @@ pub mod fulfill_order {
         assert_eq!(taker.orders[0], Order::default());
 
         let maker_position = &maker.positions[0];
-        assert_eq!(
-            maker_position.base_asset_amount,
-            BASE_PRECISION_I128 / 2 
-        );
+        assert_eq!(maker_position.base_asset_amount, BASE_PRECISION_I128 / 2);
         assert_eq!(maker_position.quote_asset_amount, -49985000);
         assert_eq!(
             maker_position.quote_entry_amount,
@@ -1842,7 +1839,7 @@ pub mod fulfill_order {
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
 
-        // net users are short 
+        // net users are short
         let mut market = Market {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
