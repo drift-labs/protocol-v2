@@ -1649,6 +1649,7 @@ pub mod fulfill_order {
                 ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_amount_step_size: 1,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -2093,6 +2094,7 @@ pub mod fulfill_order {
                 ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_amount_step_size: 1,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -2111,6 +2113,7 @@ pub mod fulfill_order {
                 ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 20000 * PEG_PRECISION,
+                base_asset_amount_step_size: 1,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,

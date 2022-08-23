@@ -24,7 +24,7 @@ use crate::math::margin::{
     calculate_margin_requirement_and_total_collateral, meets_initial_margin_requirement,
     MarginRequirementType,
 };
-use crate::math::orders::{get_position_delta_for_fill, standardize_base_asset_amount_ceil};
+use crate::math::orders::{get_position_delta_for_fill, standardize_base_asset_amount};
 use crate::math::position::calculate_base_asset_value_with_oracle_price;
 use crate::math_error;
 use crate::state::bank::BankBalanceType;
@@ -258,14 +258,6 @@ pub fn liquidate_perp(
         "liquidator_max_base_asset_amount cant be 0"
     )?;
 
-    let liquidator_max_base_asset_amount = standardize_base_asset_amount_ceil(
-        liquidator_max_base_asset_amount,
-        market_map
-            .get_ref(&market_index)?
-            .amm
-            .base_asset_amount_step_size,
-    )?;
-
     let user_base_asset_amount = user.positions[position_index]
         .base_asset_amount
         .unsigned_abs();
@@ -287,6 +279,14 @@ pub fn liquidate_perp(
     let base_asset_amount = user_base_asset_amount
         .min(liquidator_max_base_asset_amount)
         .min(base_asset_amount_to_cover_margin_shortage);
+
+    let base_asset_amount = standardize_base_asset_amount(
+        base_asset_amount,
+        market_map
+            .get_ref(&market_index)?
+            .amm
+            .base_asset_amount_step_size,
+    )?;
 
     let liquidation_multiplier = calculate_liquidation_multiplier(
         liquidation_fee,
