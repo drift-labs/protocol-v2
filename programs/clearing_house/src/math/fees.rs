@@ -1,5 +1,6 @@
 use crate::error::ClearingHouseResult;
 use crate::math::casting::cast_to_u128;
+use crate::math::helpers::get_proportion_u128;
 use crate::math_error;
 use crate::state::state::FeeStructure;
 use crate::state::state::OrderFillerRewardStructure;
@@ -53,19 +54,7 @@ pub fn calculate_fee_for_order_fulfill_against_amm(
             .ok_or_else(math_error!())?;
 
         let (referrer_reward, referee_discount) = if reward_referrer {
-            let referrer_reward = fee
-                .checked_mul(fee_structure.referral_discount.referrer_reward_numerator)
-                .ok_or_else(math_error!())?
-                .checked_div(fee_structure.referral_discount.referrer_reward_denominator)
-                .ok_or_else(math_error!())?;
-
-            let referee_discount = fee
-                .checked_mul(fee_structure.referral_discount.referee_discount_numerator)
-                .ok_or_else(math_error!())?
-                .checked_div(fee_structure.referral_discount.referee_discount_denominator)
-                .ok_or_else(math_error!())?;
-
-            (referrer_reward, referee_discount)
+            calculate_referrer_reward_and_referee_discount(fee, fee_structure)?
         } else {
             (0, 0)
         };
@@ -97,6 +86,24 @@ pub fn calculate_fee_for_order_fulfill_against_amm(
             referrer_reward,
         })
     }
+}
+
+fn calculate_referrer_reward_and_referee_discount(
+    fee: u128,
+    fee_structure: &FeeStructure,
+) -> ClearingHouseResult<(u128, u128)> {
+    Ok((
+        get_proportion_u128(
+            fee,
+            fee_structure.referral_discount.referrer_reward_numerator,
+            fee_structure.referral_discount.referrer_reward_denominator,
+        )?,
+        get_proportion_u128(
+            fee,
+            fee_structure.referral_discount.referee_discount_numerator,
+            fee_structure.referral_discount.referee_discount_denominator,
+        )?,
+    ))
 }
 
 fn calculate_filler_reward(
@@ -155,19 +162,7 @@ pub fn calculate_fee_for_fulfillment_with_match(
         .ok_or_else(math_error!())?;
 
     let (referrer_reward, referee_discount) = if reward_referrer {
-        let referrer_reward = fee
-            .checked_mul(fee_structure.referral_discount.referrer_reward_numerator)
-            .ok_or_else(math_error!())?
-            .checked_div(fee_structure.referral_discount.referrer_reward_denominator)
-            .ok_or_else(math_error!())?;
-
-        let referee_discount = fee
-            .checked_mul(fee_structure.referral_discount.referee_discount_numerator)
-            .ok_or_else(math_error!())?
-            .checked_div(fee_structure.referral_discount.referee_discount_denominator)
-            .ok_or_else(math_error!())?;
-
-        (referrer_reward, referee_discount)
+        calculate_referrer_reward_and_referee_discount(fee, fee_structure)?
     } else {
         (0, 0)
     };
