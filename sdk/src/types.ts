@@ -330,9 +330,9 @@ export type MarketAccount = {
 	pnlPool: PoolBalance;
 	liquidationFee: BN;
 	imfFactor: BN;
-	unsettledImfFactor: BN;
-	unsettledInitialAssetWeight: number;
-	unsettledMaintenanceAssetWeight: number;
+	unrealizedImfFactor: BN;
+	unrealizedInitialAssetWeight: number;
+	unrealizedMaintenanceAssetWeight: number;
 };
 
 export type BankAccount = {

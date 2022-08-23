@@ -139,9 +139,9 @@ export function calculateMarketMarginRatio(
 	return marginRatio;
 }
 
-export function calculateUnsettledAssetWeight(
+export function calculateUnrealizedAssetWeight(
 	market: MarketAccount,
-	unsettledPnl: BN,
+	unrealizedPnl: BN,
 	marginCategory: MarginCategory
 ): BN {
 	let assetWeight: BN;
@@ -149,13 +149,13 @@ export function calculateUnsettledAssetWeight(
 	switch (marginCategory) {
 		case 'Initial':
 			assetWeight = calculateSizeDiscountAssetWeight(
-				unsettledPnl,
-				market.unsettledImfFactor,
-				new BN(market.unsettledInitialAssetWeight)
+				unrealizedPnl,
+				market.unrealizedImfFactor,
+				new BN(market.unrealizedInitialAssetWeight)
 			);
 			break;
 		case 'Maintenance':
-			assetWeight = new BN(market.unsettledMaintenanceAssetWeight);
+			assetWeight = new BN(market.unrealizedMaintenanceAssetWeight);
 			break;
 	}
 

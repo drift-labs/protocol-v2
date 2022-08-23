@@ -360,9 +360,9 @@ pub mod clearing_house {
             next_funding_rate_record_id: 1,
             next_curve_record_id: 1,
             pnl_pool: PoolBalance { balance: 0 },
-            unsettled_initial_asset_weight: 100,     // 100%
-            unsettled_maintenance_asset_weight: 100, // 100%
-            unsettled_imf_factor: 0,
+            unrealized_initial_asset_weight: 100,     // 100%
+            unrealized_maintenance_asset_weight: 100, // 100%
+            unrealized_imf_factor: 0,
             liquidation_fee,
             padding0: 0,
             padding1: 0,
@@ -2266,29 +2266,29 @@ pub mod clearing_house {
     #[access_control(
         market_initialized(&ctx.accounts.market)
     )]
-    pub fn update_market_unsettled_asset_weight(
+    pub fn update_market_unrealized_asset_weight(
         ctx: Context<AdminUpdateMarket>,
-        unsettled_initial_asset_weight: u8,
-        unsettled_maintenance_asset_weight: u8,
+        unrealized_initial_asset_weight: u8,
+        unrealized_maintenance_asset_weight: u8,
     ) -> Result<()> {
         validate!(
-            unsettled_initial_asset_weight <= 100,
+            unrealized_initial_asset_weight <= 100,
             ErrorCode::DefaultError,
-            "invalid unsettled_initial_asset_weight",
+            "invalid unrealized_initial_asset_weight",
         )?;
         validate!(
-            unsettled_maintenance_asset_weight <= 100,
+            unrealized_maintenance_asset_weight <= 100,
             ErrorCode::DefaultError,
-            "invalid unsettled_maintenance_asset_weight",
+            "invalid unrealized_maintenance_asset_weight",
         )?;
         validate!(
-            unsettled_initial_asset_weight <= unsettled_maintenance_asset_weight,
+            unrealized_initial_asset_weight <= unrealized_maintenance_asset_weight,
             ErrorCode::DefaultError,
-            "must enforce unsettled_initial_asset_weight <= unsettled_maintenance_asset_weight",
+            "must enforce unrealized_initial_asset_weight <= unrealized_maintenance_asset_weight",
         )?;
         let market = &mut load_mut!(ctx.accounts.market)?;
-        market.unsettled_initial_asset_weight = unsettled_initial_asset_weight;
-        market.unsettled_maintenance_asset_weight = unsettled_maintenance_asset_weight;
+        market.unrealized_initial_asset_weight = unrealized_initial_asset_weight;
+        market.unrealized_maintenance_asset_weight = unrealized_maintenance_asset_weight;
         Ok(())
     }
 

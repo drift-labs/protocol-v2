@@ -33,7 +33,7 @@ import {
 	calculateBaseAssetValue,
 	calculatePositionFundingPNL,
 	calculatePositionPNL,
-	calculateUnsettledAssetWeight,
+	calculateUnrealizedAssetWeight,
 	calculateMarketMarginRatio,
 	PositionDirection,
 	calculateTradeSlippage,
@@ -372,11 +372,11 @@ export class ClearingHouseUser {
 			.positions.filter((pos) =>
 				marketIndex ? pos.marketIndex === marketIndex : true
 			)
-			.reduce((pnl, marketPosition) => {
+			.reduce((unrealizedPnl, marketPosition) => {
 				const market = this.clearingHouse.getMarketAccount(
 					marketPosition.marketIndex
 				);
-				let pnl0 = calculatePositionPNL(
+				let positionUnrealizedPnl = calculatePositionPNL(
 					market,
 					marketPosition,
 					withFunding,
@@ -384,12 +384,12 @@ export class ClearingHouseUser {
 				);
 
 				if (withWeightMarginCategory !== undefined) {
-					if (pnl0.gt(ZERO)) {
-						pnl0 = pnl0
+					if (positionUnrealizedPnl.gt(ZERO)) {
+						positionUnrealizedPnl = positionUnrealizedPnl
 							.mul(
-								calculateUnsettledAssetWeight(
+								calculateUnrealizedAssetWeight(
 									market,
-									pnl0,
+									positionUnrealizedPnl,
 									withWeightMarginCategory
 								)
 							)
@@ -397,7 +397,7 @@ export class ClearingHouseUser {
 					}
 				}
 
-				return pnl.add(pnl0);
+				return unrealizedPnl.add(positionUnrealizedPnl);
 			}, ZERO);
 	}
 

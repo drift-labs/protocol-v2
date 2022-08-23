@@ -780,7 +780,7 @@ pub fn liquidate_borrow_for_perp_pnl(
             unsettled_pnl.unsigned_abs(),
             quote_price,
             6_u8,
-            market.unsettled_maintenance_asset_weight, // TODO add market unsettled pnl weight
+            market.unrealized_maintenance_asset_weight, // TODO add market unsettled pnl weight
             calculate_liquidation_multiplier(
                 market.liquidation_fee,
                 LiquidationMultiplierType::Premium,
