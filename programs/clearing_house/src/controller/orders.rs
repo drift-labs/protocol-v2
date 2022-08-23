@@ -49,6 +49,9 @@ use std::ops::{Deref, DerefMut};
 #[cfg(test)]
 mod tests;
 
+#[cfg(test)]
+mod amm_jit_tests;
+
 pub fn place_order(
     state: &State,
     user: &AccountLoader<User>,
