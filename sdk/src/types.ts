@@ -437,6 +437,8 @@ export type AMM = {
 	maxSpread: number;
 	marketPosition: UserPosition;
 	marketPositionPerLp: UserPosition;
+	maxBaseAssetReserve: BN;
+	minBaseAssetReserve: BN;
 };
 
 // # User Account Types
@@ -486,6 +488,7 @@ export type UserAccount = {
 	beingLiquidated: boolean;
 	bankrupt: boolean;
 	nextLiquidationId: number;
+	nextOrderId: BN;
 };
 
 export type UserBankBalance = {

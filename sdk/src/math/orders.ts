@@ -1,10 +1,20 @@
 import { ClearingHouseUser } from '../clearingHouseUser';
-import { isOneOfVariant, isVariant, MarketAccount, Order } from '../types';
+import {
+	isOneOfVariant,
+	isVariant,
+	MarketAccount,
+	Order,
+	PositionDirection,
+} from '../types';
 import { ZERO, TWO } from '../constants/numericConstants';
 import { BN } from '@project-serum/anchor';
 import { OraclePriceData } from '../oracles/types';
 import { getAuctionPrice, isAuctionComplete } from './auction';
 import { calculateAskPrice, calculateBidPrice } from './market';
+import {
+	calculateMaxBaseAssetAmountFillable,
+	calculateMaxBaseAssetAmountToTrade,
+} from './amm';
 
 export function isOrderRiskIncreasing(
 	user: ClearingHouseUser,
@@ -147,4 +157,86 @@ export function getLimitPrice(
 	}
 
 	return limitPrice;
+}
+
+export function isFillableByVAMM(
+	order: Order,
+	market: MarketAccount,
+	oraclePriceData: OraclePriceData,
+	slot: number
+): boolean {
+	return !calculateBaseAssetAmountForAmmToFulfill(
+		order,
+		market,
+		oraclePriceData,
+		slot
+	).eq(ZERO);
+}
+
+export function calculateBaseAssetAmountForAmmToFulfill(
+	order: Order,
+	market: MarketAccount,
+	oraclePriceData: OraclePriceData,
+	slot: number
+): BN {
+	if (
+		isOneOfVariant(order.orderType, ['triggerMarket', 'triggerLimit']) &&
+		order.triggered === false
+	) {
+		return ZERO;
+	}
+
+	const limitPrice = getLimitPrice(order, market, oraclePriceData, slot);
+	const baseAssetAmount = calculateBaseAssetAmountToFillUpToLimitPrice(
+		order,
+		market,
+		limitPrice,
+		oraclePriceData
+	);
+
+	const maxBaseAssetAmount = calculateMaxBaseAssetAmountFillable(
+		market.amm,
+		order.direction
+	);
+
+	return BN.min(maxBaseAssetAmount, baseAssetAmount);
+}
+
+export function calculateBaseAssetAmountToFillUpToLimitPrice(
+	order: Order,
+	market: MarketAccount,
+	limitPrice: BN,
+	oraclePriceData: OraclePriceData
+): BN {
+	const [maxAmountToTrade, direction] = calculateMaxBaseAssetAmountToTrade(
+		market.amm,
+		limitPrice,
+		order.direction,
+		oraclePriceData
+	);
+
+	const baseAssetAmount = standardizeBaseAssetAmount(
+		maxAmountToTrade,
+		market.amm.baseAssetAmountStepSize
+	);
+
+	// Check that directions are the same
+	const sameDirection = isSameDirection(direction, order.direction);
+	if (!sameDirection) {
+		return ZERO;
+	}
+
+	return baseAssetAmount.gt(order.baseAssetAmount)
+		? order.baseAssetAmount
+		: baseAssetAmount;
+}
+
+function isSameDirection(
+	firstDirection: PositionDirection,
+	secondDirection: PositionDirection
+): boolean {
+	return (
+		(isVariant(firstDirection, 'long') && isVariant(secondDirection, 'long')) ||
+		(isVariant(firstDirection, 'short') && isVariant(secondDirection, 'short'))
+	);
 }

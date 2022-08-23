@@ -52,7 +52,11 @@ import {
 } from './accounts/types';
 import { TxSender } from './tx/types';
 import { wrapInTx } from './tx/utils';
-import { QUOTE_ASSET_BANK_INDEX, ZERO } from './constants/numericConstants';
+import {
+	ONE,
+	QUOTE_ASSET_BANK_INDEX,
+	ZERO,
+} from './constants/numericConstants';
 import { findDirectionToClose, positionIsAvailable } from './math/position';
 import { getTokenAmount } from './math/bankBalance';
 import { DEFAULT_USER_NAME, encodeName } from './userName';
@@ -1458,7 +1462,11 @@ export class ClearingHouse {
 		const fillerPublicKey = await this.getUserAccountPublicKey();
 		const fillerStatsPublicKey = this.getUserStatsAccountPublicKey();
 
-		const marketIndex = order.marketIndex;
+		const marketIndex = order
+			? order.marketIndex
+			: userAccount.orders.find((order) =>
+					order.orderId.eq(userAccount.nextOrderId.sub(ONE))
+			  ).marketIndex;
 		const marketAccount = this.getMarketAccount(marketIndex);
 
 		const oracleAccountMap = new Map<string, AccountMeta>();
