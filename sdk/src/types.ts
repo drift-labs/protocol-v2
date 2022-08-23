@@ -343,9 +343,9 @@ export type MarketAccount = {
 	pnlPool: PoolBalance;
 	liquidationFee: BN;
 	imfFactor: BN;
-	unsettledImfFactor: BN;
-	unsettledInitialAssetWeight: number;
-	unsettledMaintenanceAssetWeight: number;
+	unrealizedImfFactor: BN;
+	unrealizedInitialAssetWeight: number;
+	unrealizedMaintenanceAssetWeight: number;
 };
 
 export type BankAccount = {
@@ -363,7 +363,8 @@ export type BankAccount = {
 	cumulativeBorrowInterest: BN;
 	depositBalance: BN;
 	borrowBalance: BN;
-	lastUpdated: BN;
+	lastInterestTs: BN;
+	lastTwapTs: BN;
 	oracle: PublicKey;
 	initialAssetWeight: BN;
 	maintenanceAssetWeight: BN;
@@ -472,6 +473,7 @@ export type UserStatsAccount = {
 	referrer: PublicKey;
 	isReferrer: boolean;
 	totalReferrerReward: BN;
+	authority: PublicKey;
 };
 
 export type UserAccount = {
