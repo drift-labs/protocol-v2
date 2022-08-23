@@ -51,8 +51,8 @@ pub fn add_insurance_fund_stake(
         .ok_or_else(math_error!())?;
 
     if bank.bank_index == 0 {
-        user_stats.bank_0_insurance_lp_shares = user_stats
-            .bank_0_insurance_lp_shares
+        user_stats.quote_asset_insurance_fund_lp_shares = user_stats
+            .quote_asset_insurance_fund_lp_shares
             .checked_add(n_shares)
             .ok_or_else(math_error!())?;
     }
@@ -133,8 +133,8 @@ pub fn remove_insurance_fund_stake(
         .ok_or_else(math_error!())?;
 
     if bank.bank_index == 0 {
-        user_stats.bank_0_insurance_lp_shares = user_stats
-            .bank_0_insurance_lp_shares
+        user_stats.quote_asset_insurance_fund_lp_shares = user_stats
+            .quote_asset_insurance_fund_lp_shares
             .checked_sub(n_shares)
             .ok_or_else(math_error!())?;
     }

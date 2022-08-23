@@ -13,6 +13,7 @@ import {
 	getInsuranceFundStakeAccountPublicKey,
 	InsuranceFundStake,
 	ZERO,
+	QUOTE_ASSET_BANK_INDEX,
 } from '../sdk/src';
 
 import {
@@ -25,10 +26,7 @@ import {
 } from './testHelpers';
 
 describe('insurance fund stake', () => {
-	const provider = anchor.AnchorProvider.local(undefined, {
-		preflightCommitment: 'confirmed',
-		commitment: 'confirmed',
-	});
+	const provider = anchor.AnchorProvider.local();
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.ClearingHouse as Program;
@@ -62,7 +60,7 @@ describe('insurance fund stake', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes: [],
+			marketIndexes: [new BN(0)],
 			bankIndexes: [new BN(0)],
 			oracleInfos: [
 				{
@@ -70,6 +68,7 @@ describe('insurance fund stake', () => {
 					source: OracleSource.PYTH,
 				},
 			],
+			userStats: true,
 		});
 
 		await clearingHouse.initialize(usdcMint.publicKey, true);
@@ -77,8 +76,12 @@ describe('insurance fund stake', () => {
 
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
 
-		await clearingHouse.initializeUserAccountAndDepositCollateral(
+		const userId = 0;
+		const name = 'BIGZ';
+		await clearingHouse.initializeUserAccount(userId, name);
+		await clearingHouse.deposit(
 			usdcAmount,
+			QUOTE_ASSET_BANK_INDEX,
 			userUSDCAccount.publicKey
 		);
 	});
@@ -103,6 +106,10 @@ describe('insurance fund stake', () => {
 			)) as InsuranceFundStake;
 		assert(ifStakeAccount.bankIndex.eq(bankIndex));
 		assert(ifStakeAccount.authority.equals(provider.wallet.publicKey));
+
+		const userStats = clearingHouse.getUserStats().getAccount();
+		assert(userStats.numberOfUsers === 1);
+		assert(userStats.quoteAssetInsuranceFundLpShares.eq(ZERO));
 	});
 
 	it('user if stake', async () => {
@@ -126,6 +133,9 @@ describe('insurance fund stake', () => {
 		assert(bank0.totalLpShares.gt(ZERO));
 		assert(bank0.totalLpShares.eq(usdcAmount));
 		assert(bank0.userLpShares.eq(usdcAmount));
+
+		const userStats = clearingHouse.getUserStats().getAccount();
+		assert(userStats.quoteAssetInsuranceFundLpShares.eq(usdcAmount));
 	});
 
 	it('user request if unstake (half)', async () => {
@@ -149,6 +159,9 @@ describe('insurance fund stake', () => {
 		assert(bank0.totalLpShares.gt(ZERO));
 		assert(bank0.totalLpShares.eq(usdcAmount));
 		assert(bank0.userLpShares.eq(usdcAmount));
+
+		const userStats = clearingHouse.getUserStats().getAccount();
+		assert(userStats.quoteAssetInsuranceFundLpShares.eq(usdcAmount));
 
 		const ifStakePublicKey = getInsuranceFundStakeAccountPublicKey(
 			clearingHouse.program.programId,
@@ -183,6 +196,11 @@ describe('insurance fund stake', () => {
 
 		assert(bank0.totalLpShares.eq(usdcAmount.div(new BN(2))));
 		assert(bank0.userLpShares.eq(usdcAmount.div(new BN(2))));
+
+		const userStats = clearingHouse.getUserStats().getAccount();
+		assert(
+			userStats.quoteAssetInsuranceFundLpShares.eq(usdcAmount.div(new BN(2)))
+		);
 
 		const ifStakePublicKey = getInsuranceFundStakeAccountPublicKey(
 			clearingHouse.program.programId,
@@ -239,6 +257,9 @@ describe('insurance fund stake', () => {
 		assert(bank0.totalLpShares.gt(ZERO));
 		assert(bank0.totalLpShares.eq(usdcAmount.div(new BN(2))));
 		assert(bank0.userLpShares.eq(usdcAmount.div(new BN(2))));
+
+		const userStats = clearingHouse.getUserStats().getAccount();
+		assert(userStats.quoteAssetInsuranceFundLpShares.gt(ZERO));
 
 		const ifStakePublicKey = getInsuranceFundStakeAccountPublicKey(
 			clearingHouse.program.programId,
@@ -320,5 +341,8 @@ describe('insurance fund stake', () => {
 			)) as InsuranceFundStake;
 
 		assert(ifStakeAccount.lastWithdrawRequestShares.eq(ZERO));
+
+		const userStats = clearingHouse.getUserStats().getAccount();
+		assert(userStats.quoteAssetInsuranceFundLpShares.eq(ZERO));
 	});
 });

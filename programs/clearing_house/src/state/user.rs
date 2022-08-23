@@ -503,7 +503,7 @@ pub struct UserStats {
     pub last_taker_volume_30d_ts: i64,
     pub last_filler_volume_30d_ts: i64,
 
-    pub bank_0_insurance_lp_shares: u128, // for bank_index = 0
+    pub quote_asset_insurance_fund_lp_shares: u128, // for bank_index = 0
                                           // todo: offer vip fee status for users who have lp_shares > threshold
                                           //       lower taker fee, higher maker fee etc
 }

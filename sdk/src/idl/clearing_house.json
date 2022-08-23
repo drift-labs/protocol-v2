@@ -2939,7 +2939,7 @@
             "type": "i64"
           },
           {
-            "name": "bank0InsuranceLpShares",
+            "name": "quoteAssetInsuranceFundLpShares",
             "type": "u128"
           }
         ]
