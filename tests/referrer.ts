@@ -199,10 +199,7 @@ describe('referrer', () => {
 				marketIndex: new BN(0),
 			}),
 			undefined,
-			{
-				referrer: await referrerClearingHouse.getUserAccountPublicKey(),
-				referrerStats: referrerClearingHouse.getUserStatsAccountPublicKey(),
-			}
+			refereeClearingHouse.getUserStats().getReferrerInfo()
 		);
 
 		await eventSubscriber.awaitTx(txSig);
@@ -230,10 +227,7 @@ describe('referrer', () => {
 				marketIndex: new BN(0),
 			}),
 			undefined,
-			{
-				referrer: await referrerClearingHouse.getUserAccountPublicKey(),
-				referrerStats: referrerClearingHouse.getUserStatsAccountPublicKey(),
-			}
+			refereeClearingHouse.getUserStats().getReferrerInfo()
 		);
 	});
 
