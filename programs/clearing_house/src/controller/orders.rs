@@ -1254,7 +1254,6 @@ pub fn fulfill_order_with_match(
     let maker_base_asset_amount =
         maker.orders[maker_order_index].get_base_asset_amount_unfilled()?;
 
-    println!("mt: {} {}", maker_price, taker_price);
     let orders_cross = do_orders_cross(maker_direction, maker_price, taker_price);
 
     // todo: maybe we fill the amm even if the maker's price doesnt cross
