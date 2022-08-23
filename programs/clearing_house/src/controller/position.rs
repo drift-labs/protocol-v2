@@ -397,18 +397,20 @@ pub fn update_position_and_market(
         }
     }
 
-    position.quote_asset_amount = new_quote_asset_amount;
-    position.quote_entry_amount = new_quote_entry_amount;
-    position.base_asset_amount = new_base_asset_amount;
-
     validate!(
         is_multiple_of_step_size(
             position.base_asset_amount.unsigned_abs(),
             market.amm.base_asset_amount_step_size
         )?,
         ErrorCode::DefaultError,
-        "update_position_and_market left invalid position"
+        "update_position_and_market left invalid position before {} after {}",
+        position.base_asset_amount,
+        new_base_asset_amount
     )?;
+
+    position.quote_asset_amount = new_quote_asset_amount;
+    position.quote_entry_amount = new_quote_entry_amount;
+    position.base_asset_amount = new_base_asset_amount;
 
     Ok(pnl)
 }
