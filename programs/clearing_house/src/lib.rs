@@ -2673,8 +2673,8 @@ pub mod clearing_house {
 
     pub fn request_remove_insurance_fund_stake<'info>(
         ctx: Context<RequestRemoveInsuranceFundStake>,
-        n_shares: u128,
         bank_index: u64,
+        n_shares: u128,
     ) -> Result<()> {
         let clock = Clock::get()?;
         let insurance_fund_stake = &mut load_mut!(ctx.accounts.insurance_fund_stake)?;
@@ -2711,6 +2711,9 @@ pub mod clearing_house {
             bank,
             clock.unix_timestamp,
         )?;
+
+        // todo: block requests above value-costbasis*proprotion threshold ?
+        // (thus throttles if drain from those w/ large percentage gains, but always allow principle)
 
         Ok(())
     }
@@ -2788,6 +2791,12 @@ pub mod clearing_house {
             bank_index,
             insurance_fund_vault_authority_nonce,
             amount,
+        )?;
+
+        validate!(
+            ctx.accounts.insurance_fund_vault.amount > 0,
+            ErrorCode::DefaultError,
+            "insurance_fund_vault.amount must remain > 0"
         )?;
 
         Ok(())

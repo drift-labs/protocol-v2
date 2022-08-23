@@ -333,9 +333,15 @@ pub fn update_pool_balances(
 
     let mut fraction_for_amm = 100;
 
-    if market.amm.total_fee_minus_distributions <= amm_fee_pool_token_amount {
+    let amm_target_fee_pool_token_amount = market
+        .amm
+        .total_fee_minus_distributions
+        .checked_sub(cast_to_i128(market.amm.total_fee_withdrawn)?)
+        .ok_or_else(math_error!())?;
+
+    if amm_target_fee_pool_token_amount <= amm_fee_pool_token_amount {
         // owe the market pnl pool before settling user
-        let pnl_pool_addition = max(0, market.amm.total_fee_minus_distributions)
+        let pnl_pool_addition = max(0, amm_target_fee_pool_token_amount)
             .checked_sub(amm_fee_pool_token_amount)
             .ok_or_else(math_error!())?;
 

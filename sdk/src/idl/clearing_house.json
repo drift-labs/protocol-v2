@@ -2292,16 +2292,21 @@
           "name": "authority",
           "isMut": false,
           "isSigner": true
+        },
+        {
+          "name": "insuranceFundVault",
+          "isMut": true,
+          "isSigner": false
         }
       ],
       "args": [
         {
-          "name": "nShares",
-          "type": "u128"
-        },
-        {
           "name": "bankIndex",
           "type": "u64"
+        },
+        {
+          "name": "nShares",
+          "type": "u128"
         }
       ]
     },
@@ -2327,6 +2332,11 @@
           "name": "authority",
           "isMut": false,
           "isSigner": true
+        },
+        {
+          "name": "insuranceFundVault",
+          "isMut": true,
+          "isSigner": false
         }
       ],
       "args": [
@@ -2558,11 +2568,15 @@
           },
           {
             "name": "lastWithdrawRequestValue",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "lastWithdrawRequestTs",
             "type": "i64"
+          },
+          {
+            "name": "costBasis",
+            "type": "i128"
           }
         ]
       }

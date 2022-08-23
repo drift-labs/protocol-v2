@@ -133,8 +133,8 @@ describe('insurance fund stake', () => {
 		const nShares = usdcAmount.div(new BN(2));
 		try {
 			const txSig = await clearingHouse.requestRemoveInsuranceFundStake(
-				nShares,
-				bankIndex
+				bankIndex,
+				nShares
 			);
 			console.log(
 				'tx logs',
@@ -208,8 +208,8 @@ describe('insurance fund stake', () => {
 		const bankIndex = new BN(0);
 		const nShares = usdcAmount.div(new BN(2));
 		const txSig2 = await clearingHouse.requestRemoveInsuranceFundStake(
-			nShares,
-			bankIndex
+			bankIndex,
+			nShares
 		);
 		console.log(
 			'tx logs',

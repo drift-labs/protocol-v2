@@ -171,6 +171,8 @@ pub fn calculate_accumulated_interest(
         .checked_add(1)
         .ok_or_else(math_error!())?;
 
+    // todo: add borrowers -> lenders IF fee here
+
     let deposit_interest = bank
         .cumulative_deposit_interest
         .checked_mul(modified_deposit_rate)
