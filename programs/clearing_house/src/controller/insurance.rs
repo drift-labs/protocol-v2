@@ -1,6 +1,8 @@
 use crate::error::ErrorCode;
 use crate::validate;
 use solana_program::msg;
+use crate::math::casting::cast_to_i128;
+
 
 use crate::error::ClearingHouseResult;
 use crate::math::insurance::{staked_amount_to_shares, unstaked_shares_to_amount};
@@ -21,17 +23,19 @@ pub fn add_insurance_fund_stake(
         ErrorCode::DefaultError,
         "Insurance Fund balance should be non-zero for new LPs to enter"
     )?;
-    let n_shares =
-        staked_amount_to_shares(amount, bank.total_lp_shares, insurance_fund_vault_balance)?
-            as u128;
+    let n_shares = staked_amount_to_shares(
+        amount,
+        bank.total_lp_shares,
+        insurance_fund_vault_balance,
+    )?;
 
     // reset cost basis if no shares
     insurance_fund_stake.cost_basis = if insurance_fund_stake.lp_shares == 0 {
-        amount as i128
+        cast_to_i128(amount)?
     } else {
         insurance_fund_stake
             .cost_basis
-            .checked_add(amount as i128)
+            .checked_add(cast_to_i128(amount)?)
             .ok_or_else(math_error!())?
     };
 
@@ -51,8 +55,8 @@ pub fn add_insurance_fund_stake(
         .ok_or_else(math_error!())?;
 
     if bank.bank_index == 0 {
-        user_stats.quote_asset_insurance_fund_lp_shares = user_stats
-            .quote_asset_insurance_fund_lp_shares
+        user_stats.quote_asset_insurance_fund_stake = user_stats
+            .quote_asset_insurance_fund_stake
             .checked_add(n_shares)
             .ok_or_else(math_error!())?;
     }
@@ -71,10 +75,11 @@ pub fn request_remove_insurance_fund_stake(
     insurance_fund_stake.last_withdraw_request_value =
         unstaked_shares_to_amount(n_shares, bank.total_lp_shares, insurance_fund_vault_balance)?;
 
-    assert_eq!(
+    validate!(
         insurance_fund_stake.last_withdraw_request_value < insurance_fund_vault_balance,
-        true
-    );
+        ErrorCode::DefaultError,
+        "Requested withdraw value is not below Insurance Fund balance"
+    )?;
 
     insurance_fund_stake.last_withdraw_request_ts = now;
 
@@ -87,7 +92,7 @@ pub fn remove_insurance_fund_stake(
     user_stats: &mut UserStats,
     bank: &mut Bank,
     now: i64,
-) -> ClearingHouseResult<(u64, u8)> {
+) -> ClearingHouseResult<u64> {
     let time_since_withdraw_request = now
         .checked_sub(insurance_fund_stake.last_withdraw_request_ts)
         .ok_or_else(math_error!())?;
@@ -110,7 +115,6 @@ pub fn remove_insurance_fund_stake(
         ErrorCode::TryingToRemoveLiquidityTooFast
     )?;
 
-    let insurance_fund_vault_authority_nonce;
     let amount =
         unstaked_shares_to_amount(n_shares, bank.total_lp_shares, insurance_fund_vault_balance)?;
     let withdraw_amount = amount.min(insurance_fund_stake.last_withdraw_request_value);
@@ -126,8 +130,8 @@ pub fn remove_insurance_fund_stake(
         .ok_or_else(math_error!())?;
 
     if bank.bank_index == 0 {
-        user_stats.quote_asset_insurance_fund_lp_shares = user_stats
-            .quote_asset_insurance_fund_lp_shares
+        user_stats.quote_asset_insurance_fund_stake = user_stats
+            .quote_asset_insurance_fund_stake
             .checked_sub(n_shares)
             .ok_or_else(math_error!())?;
     }
@@ -142,14 +146,12 @@ pub fn remove_insurance_fund_stake(
         .checked_sub(n_shares)
         .ok_or_else(math_error!())?;
 
-    insurance_fund_vault_authority_nonce = bank.insurance_fund_vault_authority_nonce;
-
     // reset insurance_fund_stake withdraw request info
     insurance_fund_stake.last_withdraw_request_shares = 0;
     insurance_fund_stake.last_withdraw_request_value = 0;
     insurance_fund_stake.last_withdraw_request_ts = now;
 
-    Ok((withdraw_amount, insurance_fund_vault_authority_nonce))
+    Ok(withdraw_amount)
 }
 
 #[cfg(test)]
@@ -210,7 +212,7 @@ mod test {
         assert_eq!(if_stake.last_withdraw_request_shares, if_stake.lp_shares);
         assert_eq!(if_stake.last_withdraw_request_value, if_balance - 1); //rounding in favor
 
-        let (amount_returned, _) =
+        let amount_returned =
             (remove_insurance_fund_stake(if_balance, &mut if_stake, &mut user_stats, &mut bank, 0))
                 .unwrap();
         assert_eq!(amount_returned, amount - 1);
@@ -265,7 +267,7 @@ mod test {
 
         request_remove_insurance_fund_stake(n_shares / 3, if_balance, &mut if_stake, &bank, 0)
             .unwrap();
-        let (amount_returned, _) =
+        let amount_returned =
             (remove_insurance_fund_stake(if_balance, &mut if_stake, &mut user_stats, &mut bank, 0))
                 .unwrap();
         assert_eq!(amount_returned, expected_amount_returned - 1);
@@ -274,7 +276,7 @@ mod test {
 
         request_remove_insurance_fund_stake(n_shares / 3, if_balance, &mut if_stake, &bank, 0)
             .unwrap();
-        let (amount_returned, _) =
+        let amount_returned =
             (remove_insurance_fund_stake(if_balance, &mut if_stake, &mut user_stats, &mut bank, 0))
                 .unwrap();
         assert_eq!(if_stake.lp_shares, n_shares / 3 + 1);
@@ -283,7 +285,7 @@ mod test {
 
         request_remove_insurance_fund_stake(1, if_balance, &mut if_stake, &bank, 0).unwrap();
 
-        let (amount_returned, _) =
+        let amount_returned =
             (remove_insurance_fund_stake(if_balance, &mut if_stake, &mut user_stats, &mut bank, 0))
                 .unwrap();
         assert_eq!(amount_returned, 0);
@@ -291,7 +293,7 @@ mod test {
         request_remove_insurance_fund_stake(n_shares / 3 - 1, if_balance, &mut if_stake, &bank, 0)
             .unwrap();
 
-        let (amount_returned, _) =
+        let amount_returned =
             (remove_insurance_fund_stake(if_balance, &mut if_stake, &mut user_stats, &mut bank, 0))
                 .unwrap();
         assert_eq!(amount_returned, expected_amount_returned + 1);
@@ -340,7 +342,7 @@ mod test {
         request_remove_insurance_fund_stake(n_shares / 3, if_balance, &mut if_stake, &bank, 0)
             .unwrap();
 
-        let (amount_returned, _) =
+        let amount_returned =
             (remove_insurance_fund_stake(if_balance, &mut if_stake, &mut user_stats, &mut bank, 0))
                 .unwrap();
         assert_eq!(amount_returned, expected_amount_returned - 1);
@@ -349,7 +351,7 @@ mod test {
 
         request_remove_insurance_fund_stake(n_shares / 3, if_balance, &mut if_stake, &bank, 0)
             .unwrap();
-        let (amount_returned, _) =
+        let amount_returned =
             (remove_insurance_fund_stake(if_balance, &mut if_stake, &mut user_stats, &mut bank, 0))
                 .unwrap();
         assert_eq!(if_stake.lp_shares, n_shares / 3 + 1);
@@ -358,7 +360,7 @@ mod test {
 
         request_remove_insurance_fund_stake(1, if_balance, &mut if_stake, &bank, 0).unwrap();
 
-        let (amount_returned, _) =
+        let amount_returned =
             (remove_insurance_fund_stake(if_balance, &mut if_stake, &mut user_stats, &mut bank, 0))
                 .unwrap();
         assert_eq!(if_stake.lp_shares, n_shares * 1 / 3);
@@ -366,7 +368,7 @@ mod test {
 
         request_remove_insurance_fund_stake(n_shares / 3, if_balance, &mut if_stake, &bank, 0)
             .unwrap();
-        let (amount_returned, _) =
+        let amount_returned =
             (remove_insurance_fund_stake(if_balance, &mut if_stake, &mut user_stats, &mut bank, 0))
                 .unwrap();
         assert_eq!(amount_returned, expected_amount_returned + 2);
@@ -420,20 +422,20 @@ mod test {
             .unwrap();
 
         // not enough time for withdraw
-        remove_insurance_fund_stake(
+        assert!(remove_insurance_fund_stake(
             if_balance,
             &mut if_stake,
             &mut user_stats,
             &mut bank,
             now + 60 * 60 * 24,
         )
-        .is_err();
+        .is_err());
 
         // more losses
         if_balance = if_balance - if_balance / 2;
 
         // appropriate time for withdraw
-        let (amount_returned, _) = (remove_insurance_fund_stake(
+        let amount_returned = (remove_insurance_fund_stake(
             if_balance,
             &mut if_stake,
             &mut user_stats,
@@ -475,14 +477,14 @@ mod test {
         let now = 7842193748;
         assert_eq!(if_balance, 0);
         // right now other users have claim on a zero balance IF... should not give them your money here
-        add_insurance_fund_stake(
+        assert!(add_insurance_fund_stake(
             amount,
             if_balance,
             &mut if_stake,
             &mut user_stats,
             &mut bank,
         )
-        .is_err();
+        .is_err());
 
         if_balance = 1;
         add_insurance_fund_stake(
@@ -513,14 +515,14 @@ mod test {
         assert_eq!(value_at_req, 107692722239);
 
         // not enough time for withdraw
-        remove_insurance_fund_stake(
+        assert!(remove_insurance_fund_stake(
             if_balance,
             &mut if_stake,
             &mut user_stats,
             &mut bank,
             now + 60 * 60 * 24,
         )
-        .is_err();
+        .is_err());
 
         // more gains
         if_balance = if_balance + if_balance / 412;
@@ -528,7 +530,7 @@ mod test {
         let ideal_amount_returned = (if_balance as u128 * n_shares / bank.total_lp_shares) as u64;
 
         // appropriate time for withdraw
-        let (amount_returned, _) = (remove_insurance_fund_stake(
+        let amount_returned = (remove_insurance_fund_stake(
             if_balance,
             &mut if_stake,
             &mut user_stats,
@@ -575,14 +577,14 @@ mod test {
         assert_eq!(if_balance, 0);
 
         // right now other users have claim on a zero balance IF... should not give them your money here
-        add_insurance_fund_stake(
+        assert!(add_insurance_fund_stake(
             amount,
             if_balance,
             &mut if_stake,
             &mut user_stats,
             &mut bank,
         )
-        .is_err();
+        .is_err());
 
         // make non-zero
         if_balance = 1;
@@ -596,8 +598,8 @@ mod test {
         .unwrap();
 
         // todo, happy w/ dilution logic?
-        assert_eq!(if_stake.lp_shares, 1903205949423024128); //crazy dilution
-        assert_eq!(bank.total_lp_shares, 1903206049423024128);
-        assert_eq!(bank.user_lp_shares, 1903206029423024128);
+        assert_eq!(if_stake.lp_shares, 10000038493900000000000); //crazy dilution
+        assert_eq!(bank.total_lp_shares, 10000038494000000000000);
+        assert_eq!(bank.user_lp_shares, 10000038493980000000000);
     }
 }

@@ -468,7 +468,7 @@ export type UserStatsAccount = {
 	};
 	authority: PublicKey;
 	referrer: PublicKey;
-	quoteAssetInsuranceFundLpShares: BN;
+	quoteAssetInsuranceFundStake: BN;
 };
 
 export type UserAccount = {

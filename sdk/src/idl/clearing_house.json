@@ -3003,7 +3003,7 @@
             "type": "i64"
           },
           {
-            "name": "quoteAssetInsuranceFundLpShares",
+            "name": "quoteAssetInsuranceFundStake",
             "type": "u128"
           }
         ]

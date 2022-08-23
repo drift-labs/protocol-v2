@@ -2662,7 +2662,7 @@ pub mod clearing_house {
                 .ok_or_else(math_error!())?,
             bank.total_lp_shares,
             insurance_vault_amount,
-        )? as u128;
+        )?;
 
         bank.total_lp_shares = bank
             .total_lp_shares
@@ -2836,14 +2836,14 @@ pub mod clearing_house {
         let _oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
         let bank_map = BankMap::load(&get_writable_banks(bank_index), remaining_accounts_iter)?;
 
-        let (amount, insurance_fund_vault_authority_nonce) =
-            controller::insurance::remove_insurance_fund_stake(
-                ctx.accounts.insurance_fund_vault.amount,
-                insurance_fund_stake,
-                user_stats,
-                &mut *bank_map.get_ref_mut(&bank_index)?,
-                now,
-            )?;
+        let bank = &mut *bank_map.get_ref_mut(&bank_index)?;
+        let amount = controller::insurance::remove_insurance_fund_stake(
+            ctx.accounts.insurance_fund_vault.amount,
+            insurance_fund_stake,
+            user_stats,
+            bank,
+            now,
+        )?;
 
         controller::token::send_from_staked_insurance_fund_vault(
             &ctx.accounts.token_program,
@@ -2851,7 +2851,7 @@ pub mod clearing_house {
             &ctx.accounts.user_token_account,
             &ctx.accounts.insurance_fund_vault_authority,
             bank_index,
-            insurance_fund_vault_authority_nonce,
+            bank.insurance_fund_vault_authority_nonce,
             amount,
         )?;
 

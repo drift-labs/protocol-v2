@@ -725,7 +725,6 @@ pub struct SettleBankToInsuranceFund<'info> {
         seeds = [b"bank_vault_authority".as_ref(), bank_index.to_le_bytes().as_ref()],
         bump,
     )]
-
     /// CHECK: this is the pda for the bank vault
     pub bank_vault_authority: AccountInfo<'info>,
     #[account(
@@ -734,11 +733,6 @@ pub struct SettleBankToInsuranceFund<'info> {
         bump,
     )]
     pub insurance_fund_vault: Box<Account<'info, TokenAccount>>,
-    #[account(
-        mut,
-        constraint = &bank_vault.mint.eq(&user_token_account.mint)
-    )]
-    pub user_token_account: Box<Account<'info, TokenAccount>>,
     pub token_program: Program<'info, Token>,
 }
 
@@ -765,7 +759,8 @@ pub struct AddInsuranceFundStake<'info> {
     pub insurance_fund_vault: Box<Account<'info, TokenAccount>>,
     #[account(
         mut,
-        constraint = &insurance_fund_vault.mint.eq(&user_token_account.mint)
+        token::mint = insurance_fund_vault.mint,
+        token::authority = authority
     )]
     pub user_token_account: Box<Account<'info, TokenAccount>>,
     pub token_program: Program<'info, Token>,
@@ -820,7 +815,8 @@ pub struct RemoveInsuranceFundStake<'info> {
     pub insurance_fund_vault_authority: AccountInfo<'info>,
     #[account(
         mut,
-        constraint = &insurance_fund_vault.mint.eq(&user_token_account.mint)
+        token::mint = insurance_fund_vault.mint,
+        token::authority = authority
     )]
     pub user_token_account: Box<Account<'info, TokenAccount>>,
     pub token_program: Program<'info, Token>,

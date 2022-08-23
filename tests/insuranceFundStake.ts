@@ -109,7 +109,7 @@ describe('insurance fund stake', () => {
 
 		const userStats = clearingHouse.getUserStats().getAccount();
 		assert(userStats.numberOfUsers === 1);
-		assert(userStats.quoteAssetInsuranceFundLpShares.eq(ZERO));
+		assert(userStats.quoteAssetInsuranceFundStake.eq(ZERO));
 	});
 
 	it('user if stake', async () => {
@@ -135,7 +135,7 @@ describe('insurance fund stake', () => {
 		assert(bank0.userLpShares.eq(usdcAmount));
 
 		const userStats = clearingHouse.getUserStats().getAccount();
-		assert(userStats.quoteAssetInsuranceFundLpShares.eq(usdcAmount));
+		assert(userStats.quoteAssetInsuranceFundStake.eq(usdcAmount));
 	});
 
 	it('user request if unstake (half)', async () => {
@@ -161,7 +161,7 @@ describe('insurance fund stake', () => {
 		assert(bank0.userLpShares.eq(usdcAmount));
 
 		const userStats = clearingHouse.getUserStats().getAccount();
-		assert(userStats.quoteAssetInsuranceFundLpShares.eq(usdcAmount));
+		assert(userStats.quoteAssetInsuranceFundStake.eq(usdcAmount));
 
 		const ifStakePublicKey = getInsuranceFundStakeAccountPublicKey(
 			clearingHouse.program.programId,
@@ -199,7 +199,7 @@ describe('insurance fund stake', () => {
 
 		const userStats = clearingHouse.getUserStats().getAccount();
 		assert(
-			userStats.quoteAssetInsuranceFundLpShares.eq(usdcAmount.div(new BN(2)))
+			userStats.quoteAssetInsuranceFundStake.eq(usdcAmount.div(new BN(2)))
 		);
 
 		const ifStakePublicKey = getInsuranceFundStakeAccountPublicKey(
@@ -259,7 +259,7 @@ describe('insurance fund stake', () => {
 		assert(bank0.userLpShares.eq(usdcAmount.div(new BN(2))));
 
 		const userStats = clearingHouse.getUserStats().getAccount();
-		assert(userStats.quoteAssetInsuranceFundLpShares.gt(ZERO));
+		assert(userStats.quoteAssetInsuranceFundStake.gt(ZERO));
 
 		const ifStakePublicKey = getInsuranceFundStakeAccountPublicKey(
 			clearingHouse.program.programId,
@@ -343,6 +343,6 @@ describe('insurance fund stake', () => {
 		assert(ifStakeAccount.lastWithdrawRequestShares.eq(ZERO));
 
 		const userStats = clearingHouse.getUserStats().getAccount();
-		assert(userStats.quoteAssetInsuranceFundLpShares.eq(ZERO));
+		assert(userStats.quoteAssetInsuranceFundStake.eq(ZERO));
 	});
 });
