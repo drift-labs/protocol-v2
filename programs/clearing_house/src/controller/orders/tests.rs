@@ -2305,6 +2305,12 @@ pub mod fulfill_order {
         let mut maker_stats = UserStats::default();
         let mut filler_stats = UserStats::default();
 
+        assert_eq!(market.amm.total_fee, 0);
+        assert_eq!(market.amm.total_fee_minus_distributions, 0);
+        assert_eq!(market.amm.net_revenue_since_last_funding, 0);
+        assert_eq!(market.amm.total_mm_fee, 0);
+        assert_eq!(market.amm.total_fee_withdrawn, 0);
+
         let (base_asset_amount, _, _) = fulfill_order(
             &mut taker,
             0,
@@ -2366,9 +2372,21 @@ pub mod fulfill_order {
         // assert_eq!(market_after.base_asset_amount_short, -10000000000000);
         // assert_eq!(market_after.amm.quote_asset_amount_long, -102284264);
         // assert_eq!(market_after.amm.quote_asset_amount_short, 50000000);
+
+        // mm gains from trade
+        let quote_asset_amount_surplus = 
+        market_after.amm.total_mm_fee - market.amm.total_mm_fee;
+
+        assert!(quote_asset_amount_surplus > 0);
+        assert_eq!(quote_asset_amount_surplus, 697892); // todo add negative test as well
+
         assert_eq!(market_after.amm.total_fee, 736645); //paid toll to unload?
-                                                        // assert_eq!(market_after.amm.total_fee_minus_distributions, 2064035);
-                                                        // assert_eq!(market_after.amm.net_revenue_since_last_funding, 2064035);
+        assert_eq!(market_after.amm.total_fee_minus_distributions, 736645);
+        assert_eq!(market_after.amm.net_revenue_since_last_funding, 736645);
+        assert_eq!(market_after.amm.total_mm_fee, 697892);
+        assert_eq!(market_after.amm.total_exchange_fee, 38892);
+        assert_eq!(market_after.amm.total_fee_withdrawn, 0);
+
         assert_eq!(filler_stats.filler_volume_30d, 102784235); // from 102284244, no filler reward for unload amount
                                                                // assert_eq!(filler.positions[0].quote_asset_amount, 5114);
     }
