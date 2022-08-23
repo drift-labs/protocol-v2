@@ -7,7 +7,7 @@ use crate::math::bank_balance::{
     InterestAccumulated,
 };
 use crate::math::casting::{cast, cast_to_i128, cast_to_u64};
-use crate::math::constants::TWENTY_FOUR_HOUR;
+use crate::math::constants::{BANK_INTEREST_PRECISION, TWENTY_FOUR_HOUR};
 use crate::math_error;
 use crate::state::bank::{Bank, BankBalance, BankBalanceType};
 use crate::state::market::Market;
@@ -63,10 +63,21 @@ pub fn update_bank_cumulative_interest(bank: &mut Bank, now: i64) -> ClearingHou
         utilization,
     } = calculate_accumulated_interest(bank, now)?;
 
-    if deposit_interest > 0 && borrow_interest > 1 {
+    // borrowers -> lenders IF fee here
+    let deposit_interest_for_stakers = deposit_interest
+        .checked_mul(bank.total_reserve_factor as u128)
+        .ok_or_else(math_error!())?
+        .checked_div(BANK_INTEREST_PRECISION)
+        .ok_or_else(math_error!())?;
+
+    let deposit_interest_for_lenders = deposit_interest
+        .checked_sub(deposit_interest_for_stakers)
+        .ok_or_else(math_error!())?;
+
+    if deposit_interest_for_lenders > 0 && borrow_interest > 1 {
         bank.cumulative_deposit_interest = bank
             .cumulative_deposit_interest
-            .checked_add(deposit_interest)
+            .checked_add(deposit_interest_for_lenders)
             .ok_or_else(math_error!())?;
 
         bank.cumulative_borrow_interest = bank

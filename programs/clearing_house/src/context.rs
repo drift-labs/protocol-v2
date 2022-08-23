@@ -700,6 +700,49 @@ pub struct InitializeInsuranceFundStake<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(bank_index: u64,)]
+pub struct SettleBankToInsuranceFund<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        mut,
+        has_one = authority,
+    )]
+    pub user: AccountLoader<'info, User>,
+    pub authority: Signer<'info>,
+    #[account(
+        seeds = [b"bank", bank_index.to_le_bytes().as_ref()],
+        bump
+    )]
+    pub bank: AccountLoader<'info, Bank>,
+    #[account(
+        mut,
+        seeds = [b"bank_vault".as_ref(), bank_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub bank_vault: Box<Account<'info, TokenAccount>>,
+    #[account(
+        mut,
+        seeds = [b"bank_vault_authority".as_ref(), bank_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+
+    /// CHECK: this is the pda for the bank vault
+    pub bank_vault_authority: AccountInfo<'info>,
+    #[account(
+        mut,
+        seeds = [b"insurance_fund_vault".as_ref(), bank_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub insurance_fund_vault: Box<Account<'info, TokenAccount>>,
+    #[account(
+        mut,
+        constraint = &bank_vault.mint.eq(&user_token_account.mint)
+    )]
+    pub user_token_account: Box<Account<'info, TokenAccount>>,
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
 #[instruction(bank_index: u64)]
 pub struct AddInsuranceFundStake<'info> {
     pub bank: AccountLoader<'info, Bank>,

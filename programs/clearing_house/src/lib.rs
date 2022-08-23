@@ -10,6 +10,7 @@ use math::{amm, bn, constants::*, margin::*};
 use state::oracle::{get_oracle_price, OracleSource};
 
 use crate::math::amm::get_update_k_result;
+use crate::math::insurance::staked_amount_to_shares; //todo
 use crate::state::market::Market;
 use crate::state::user::MarketPosition;
 use crate::state::{market::AMM, state::*, user::*};
@@ -268,6 +269,8 @@ pub mod clearing_house {
             insurance_fund_vault: *ctx.accounts.insurance_fund_vault.to_account_info().key,
             insurance_fund_vault_authority,
             insurance_fund_vault_authority_nonce,
+            total_reserve_factor: 0,
+            user_reserve_factor: 0,
             total_lp_shares: 0,
             user_lp_shares: 0,
             insurance_withdraw_escrow_period: 0,
@@ -2616,6 +2619,75 @@ pub mod clearing_house {
             last_withdraw_request_ts: 0,
             cost_basis: 0,
         };
+
+        Ok(())
+    }
+
+    pub fn settle_bank_to_insurance_fund<'info>(
+        ctx: Context<SettleBankToInsuranceFund>,
+        bank_index: u64,
+    ) -> Result<()> {
+        let bank = &mut load_mut!(ctx.accounts.bank)?;
+
+        validate!(
+            bank.user_reserve_factor <= bank.total_reserve_factor,
+            ErrorCode::DefaultError,
+            "invalid reserve factor settings on bank"
+        )?;
+
+        validate!(
+            bank.user_reserve_factor > 0 || bank.total_reserve_factor > 0,
+            ErrorCode::DefaultError,
+            "reserve factor = 0 for this bank"
+        )?;
+
+        let bank_vault_amount = ctx.accounts.bank_vault.amount;
+        let depositors_amount =
+            get_token_amount(bank.deposit_balance, bank, &BankBalanceType::Deposit)? as u64;
+
+        validate!(
+            bank_vault_amount >= depositors_amount,
+            ErrorCode::DefaultError,
+            "bank vault holds less than depositor claims"
+        )?;
+
+        let amount = bank_vault_amount
+            .checked_sub(depositors_amount)
+            .ok_or_else(math_error!())?;
+
+        validate!(
+            amount != 0,
+            ErrorCode::DefaultError,
+            "no amount to settle"
+        )?;
+
+        let insurance_vault_amount = ctx.accounts.insurance_fund_vault.amount;
+
+        // give protocol its cut
+        let n_shares = staked_amount_to_shares(
+            amount
+                .checked_mul(bank.user_reserve_factor as u64)
+                .ok_or_else(math_error!())?
+                .checked_div(bank.total_reserve_factor as u64)
+                .ok_or_else(math_error!())?,
+            bank.total_lp_shares,
+            insurance_vault_amount,
+        )? as u128;
+
+        bank.total_lp_shares = bank
+            .total_lp_shares
+            .checked_add(n_shares)
+            .ok_or_else(math_error!())?;
+
+        controller::token::send_from_bank_vault(
+            &ctx.accounts.token_program,
+            &ctx.accounts.bank_vault,
+            &ctx.accounts.insurance_fund_vault,
+            &ctx.accounts.bank_vault_authority,
+            bank_index,
+            bank.vault_authority_nonce,
+            amount,
+        )?;
 
         Ok(())
     }

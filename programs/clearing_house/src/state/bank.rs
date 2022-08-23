@@ -32,6 +32,9 @@ pub struct Bank {
     pub insurance_fund_vault_authority: Pubkey,
     pub insurance_fund_vault_authority_nonce: u8,
 
+    pub total_reserve_factor: u16, // percentage of interest for total insurance
+    pub user_reserve_factor: u16,  // percentage of interest for user staked insurance
+
     pub total_lp_shares: u128,
     pub user_lp_shares: u128,
     pub insurance_withdraw_escrow_period: i64,

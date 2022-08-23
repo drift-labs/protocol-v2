@@ -2221,6 +2221,62 @@
       ]
     },
     {
+      "name": "settleBankToInsuranceFund",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "bank",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "bankVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "bankVaultAuthority",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "bankIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "addInsuranceFundStake",
       "accounts": [
         {
@@ -2449,6 +2505,14 @@
           {
             "name": "insuranceFundVaultAuthorityNonce",
             "type": "u8"
+          },
+          {
+            "name": "totalReserveFactor",
+            "type": "u16"
+          },
+          {
+            "name": "userReserveFactor",
+            "type": "u16"
           },
           {
             "name": "totalLpShares",
