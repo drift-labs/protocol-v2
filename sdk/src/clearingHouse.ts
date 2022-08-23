@@ -1836,7 +1836,7 @@ export class ClearingHouse {
 		const tx = new Transaction()
 			.add(
 				ComputeBudgetProgram.requestUnits({
-					units: 1_200_000,
+					units: 1_000_000,
 					additionalFee: 0,
 				})
 			)
