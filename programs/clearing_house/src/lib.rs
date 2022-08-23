@@ -2246,7 +2246,6 @@ pub mod clearing_house {
         insurance_withdraw_escrow_period: i64,
     ) -> Result<()> {
         let bank = &mut load_mut!(ctx.accounts.bank)?;
-        let _now = Clock::get()?.unix_timestamp;
 
         bank.insurance_withdraw_escrow_period = insurance_withdraw_escrow_period;
 
@@ -2642,24 +2641,15 @@ pub mod clearing_house {
         )?;
 
         let bank_vault_amount = ctx.accounts.bank_vault.amount;
-        let depositors_amount =
-            get_token_amount(bank.deposit_balance, bank, &BankBalanceType::Deposit)? as u64;
 
-        validate!(
-            bank_vault_amount >= depositors_amount,
-            ErrorCode::DefaultError,
-            "bank vault holds less than depositor claims"
-        )?;
+        let depositors_claim =
+            controller::bank_balance::validate_bank_amounts(bank, bank_vault_amount)?;
 
         let amount = bank_vault_amount
-            .checked_sub(depositors_amount)
+            .checked_sub(depositors_claim)
             .ok_or_else(math_error!())?;
 
-        validate!(
-            amount != 0,
-            ErrorCode::DefaultError,
-            "no amount to settle"
-        )?;
+        validate!(amount != 0, ErrorCode::DefaultError, "no amount to settle")?;
 
         let insurance_vault_amount = ctx.accounts.insurance_fund_vault.amount;
 

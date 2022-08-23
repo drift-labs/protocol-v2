@@ -170,6 +170,35 @@ pub fn update_bank_balances_with_limits(
     Ok(())
 }
 
+pub fn validate_bank_amounts(bank: &Bank, bank_vault_amount: u64) -> ClearingHouseResult<u64> {
+    let depositors_amount: u64 = cast(get_token_amount(
+        bank.deposit_balance,
+        bank,
+        &BankBalanceType::Deposit,
+    )?)?;
+    let borrowers_amount: u64 = cast(get_token_amount(
+        bank.borrow_balance,
+        bank,
+        &BankBalanceType::Borrow,
+    )?)?;
+
+    validate!(
+        depositors_amount > borrowers_amount,
+        ErrorCode::DefaultError,
+        "depositors_amount less borrowers_amount"
+    )?;
+
+    let depositors_claim = depositors_amount - borrowers_amount;
+
+    validate!(
+        bank_vault_amount >= depositors_claim,
+        ErrorCode::DefaultError,
+        "bank vault holds less than remaining depositor claims"
+    )?;
+
+    Ok(depositors_claim)
+}
+
 pub fn check_bank_market_valid(
     market: &Market,
     bank: &Bank,

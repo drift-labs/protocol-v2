@@ -111,15 +111,8 @@ pub fn remove_insurance_fund_stake(
     )?;
 
     let insurance_fund_vault_authority_nonce;
-    let amount: u64;
-
-    amount = n_shares
-        .checked_mul(insurance_fund_vault_balance as u128)
-        .unwrap()
-        .checked_div(bank.total_lp_shares as u128)
-        .unwrap()
-        .saturating_sub(1) as u64;
-
+    let amount =
+        unstaked_shares_to_amount(n_shares, bank.total_lp_shares, insurance_fund_vault_balance)?;
     let withdraw_amount = amount.min(insurance_fund_stake.last_withdraw_request_value);
 
     insurance_fund_stake.lp_shares = insurance_fund_stake
