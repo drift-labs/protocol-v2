@@ -1547,7 +1547,7 @@
       ]
     },
     {
-      "name": "updateMarketUnsettledAssetWeight",
+      "name": "updateMarketUnrealizedAssetWeight",
       "accounts": [
         {
           "name": "admin",
@@ -1567,11 +1567,11 @@
       ],
       "args": [
         {
-          "name": "unsettledInitialAssetWeight",
+          "name": "unrealizedInitialAssetWeight",
           "type": "u8"
         },
         {
-          "name": "unsettledMaintenanceAssetWeight",
+          "name": "unrealizedMaintenanceAssetWeight",
           "type": "u8"
         }
       ]
@@ -2338,15 +2338,15 @@
             "type": "u128"
           },
           {
-            "name": "unsettledInitialAssetWeight",
+            "name": "unrealizedInitialAssetWeight",
             "type": "u8"
           },
           {
-            "name": "unsettledMaintenanceAssetWeight",
+            "name": "unrealizedMaintenanceAssetWeight",
             "type": "u8"
           },
           {
-            "name": "unsettledImfFactor",
+            "name": "unrealizedImfFactor",
             "type": "u128"
           },
           {
