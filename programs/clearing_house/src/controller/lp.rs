@@ -48,12 +48,6 @@ pub fn settle_lp_position(
     };
     update_position_and_market(position, market, &position_delta)?;
 
-    market.amm.net_base_asset_amount = market
-        .amm
-        .net_base_asset_amount
-        .checked_add(lp_metrics.base_asset_amount)
-        .ok_or_else(math_error!())?;
-
     market.amm.net_unsettled_lp_base_asset_amount = market
         .amm
         .net_unsettled_lp_base_asset_amount
@@ -76,11 +70,17 @@ pub fn burn_lp_shares(
     // settle
     settle_lp_position(position, market)?;
 
-    // clean up dust
-    let (base_asset_amount, _quote_asset_amount) =
-        calculate_settled_lp_base_quote(&market.amm, position)?;
+    // compute any dust
+    let (base_asset_amount, _) = calculate_settled_lp_base_quote(&market.amm, position)?;
 
     // update stats
+    // user closes the dust
+    market.amm.net_base_asset_amount = market
+        .amm
+        .net_base_asset_amount
+        .checked_sub(base_asset_amount)
+        .ok_or_else(math_error!())?;
+
     market.amm.net_unsettled_lp_base_asset_amount = market
         .amm
         .net_unsettled_lp_base_asset_amount
@@ -169,8 +169,9 @@ mod test {
             og_market.amm.net_unsettled_lp_base_asset_amount - 10 * 100,
             market.amm.net_unsettled_lp_base_asset_amount
         );
+        // net baa doesnt change
         assert_eq!(
-            og_market.amm.net_base_asset_amount + position.base_asset_amount,
+            og_market.amm.net_base_asset_amount,
             market.amm.net_base_asset_amount
         );
 

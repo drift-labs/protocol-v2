@@ -1103,11 +1103,6 @@ pub fn adjust_k_cost(
         &market_clone.amm,
         false,
     )?;
-    msg!(
-        "{:?} -> {:?}",
-        current_net_market_value,
-        _new_net_market_value
-    );
 
     Ok(cost)
 }

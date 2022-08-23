@@ -66,6 +66,7 @@ pub fn get_position_index(
     }
 }
 
+#[derive(Debug)]
 pub struct PositionDelta {
     pub quote_asset_amount: i128,
     pub base_asset_amount: i128,
@@ -422,54 +423,59 @@ pub fn update_user_and_market_position(
     let total_lp_shares = market.amm.sqrt_k;
     let non_amm_lp_shares = market.amm.user_lp_shares;
 
-    // update Market per lp position
-    let lp_delta_base =
-        get_proportion_i128(delta.base_asset_amount, non_amm_lp_shares, total_lp_shares)?;
-    let lp_delta_quote =
-        get_proportion_i128(delta.quote_asset_amount, non_amm_lp_shares, total_lp_shares)?;
+    let (lp_delta_base, lp_delta_quote, lp_fee) = if non_amm_lp_shares > 0 {
+        // update Market per lp position
+        let lp_delta_base =
+            get_proportion_i128(delta.base_asset_amount, non_amm_lp_shares, total_lp_shares)?;
+        let lp_delta_quote =
+            get_proportion_i128(delta.quote_asset_amount, non_amm_lp_shares, total_lp_shares)?;
 
-    //
-    let per_lp_delta_base = -get_proportion_i128(
-        delta.base_asset_amount,
-        AMM_RESERVE_PRECISION,
-        total_lp_shares,
-    )?;
-    let per_lp_delta_quote = -get_proportion_i128(
-        delta.quote_asset_amount,
-        AMM_RESERVE_PRECISION,
-        total_lp_shares,
-    )?;
+        let per_lp_delta_base = -get_proportion_i128(
+            delta.base_asset_amount,
+            AMM_RESERVE_PRECISION,
+            total_lp_shares,
+        )?;
+        let per_lp_delta_quote = -get_proportion_i128(
+            delta.quote_asset_amount,
+            AMM_RESERVE_PRECISION,
+            total_lp_shares,
+        )?;
+        let per_lp_position_delta = PositionDelta {
+            base_asset_amount: per_lp_delta_base,
+            quote_asset_amount: per_lp_delta_quote,
+        };
 
-    let per_lp_position_delta = PositionDelta {
-        base_asset_amount: per_lp_delta_base,
-        quote_asset_amount: per_lp_delta_quote,
-    };
-    update_amm_position(market, &per_lp_position_delta, true)?;
+        update_amm_position(market, &per_lp_position_delta, true)?;
 
-    // 1/5 of fee auto goes to market
-    // the rest goes to lps/market proportional
-    let lp_fee = (fee_to_market - (fee_to_market / 5)) // todo: 80% retained
-        .checked_mul(cast_to_i128(non_amm_lp_shares)?)
-        .ok_or_else(math_error!())?
-        .checked_div(cast_to_i128(total_lp_shares)?)
-        .ok_or_else(math_error!())?;
-
-    let per_lp_fee = if lp_fee > 0 {
-        lp_fee
-            .checked_mul(AMM_RESERVE_PRECISION_I128)
+        // 1/5 of fee auto goes to market
+        // the rest goes to lps/market proportional
+        let lp_fee = (fee_to_market - (fee_to_market / 5)) // todo: 80% retained
+            .checked_mul(cast_to_i128(non_amm_lp_shares)?)
             .ok_or_else(math_error!())?
-            .checked_div(cast_to_i128(market.amm.user_lp_shares)?)
-            .ok_or_else(math_error!())?
+            .checked_div(cast_to_i128(total_lp_shares)?)
+            .ok_or_else(math_error!())?;
+
+        let per_lp_fee = if lp_fee > 0 {
+            lp_fee
+                .checked_mul(AMM_RESERVE_PRECISION_I128)
+                .ok_or_else(math_error!())?
+                .checked_div(cast_to_i128(market.amm.user_lp_shares)?)
+                .ok_or_else(math_error!())?
+        } else {
+            0
+        };
+
+        // update per lp position
+        update_quote_asset_amount(&mut market.amm.market_position_per_lp, per_lp_fee)?;
+
+        (lp_delta_base, lp_delta_quote, lp_fee)
     } else {
-        0
+        (0, 0, 0)
     };
 
     let amm_fee = fee_to_market
         .checked_sub(lp_fee)
         .ok_or_else(math_error!())?;
-
-    // update per lp position
-    update_quote_asset_amount(&mut market.amm.market_position_per_lp, per_lp_fee)?;
 
     // Update AMM position
     let amm_baa = delta
