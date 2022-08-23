@@ -144,7 +144,7 @@ export function calculateUnsettledPnl(
 
 		const maxPositivePnl = BN.max(
 			marketPosition.quoteAssetAmount
-				.add(marketPosition.quoteEntryAmount)
+				.sub(marketPosition.quoteEntryAmount)
 				.add(fundingPnL),
 			ZERO
 		);

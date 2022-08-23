@@ -31,6 +31,7 @@ import {
 	LAMPORTS_PER_SOL,
 	Signer,
 	SystemProgram,
+	ComputeBudgetProgram,
 } from '@solana/web3.js';
 
 import { TokenFaucet } from './tokenFaucet';
@@ -1754,7 +1755,14 @@ export class ClearingHouse {
 			);
 		}
 
-		const tx = new Transaction().add(...ixs);
+		const tx = new Transaction()
+			.add(
+				ComputeBudgetProgram.requestUnits({
+					units: 1_200_000,
+					additionalFee: 0,
+				})
+			)
+			.add(...ixs);
 
 		const { txSig } = await this.txSender.send(tx, [], this.opts);
 		return txSig;

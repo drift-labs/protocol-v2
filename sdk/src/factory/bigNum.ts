@@ -211,7 +211,8 @@ export class BigNum {
 			'Tried to print a BN with precision lower than zero'
 		);
 
-		const plainString = this.toString();
+		const isNeg = this.isNeg();
+		const plainString = this.abs().toString();
 		const precisionNum = this.precision.toNumber();
 
 		// make a string with at least the precisionNum number of zeroes
@@ -230,12 +231,10 @@ export class BigNum {
 		printString = printString.replace(/^0+/, '');
 
 		// add zero if leading delim
-		if (this.isNeg()) {
-			if (printString[1] === BigNum.delim)
-				printString = printString.replace('-.', '-0.');
-		} else {
-			if (printString[0] === BigNum.delim) printString = `0${printString}`;
-		}
+		if (printString[0] === BigNum.delim) printString = `0${printString}`;
+
+		// Add minus if negative
+		if (isNeg) printString = `-${printString}`;
 
 		// remove trailing delim
 		if (printString[printString.length - 1] === BigNum.delim)

@@ -127,6 +127,14 @@ describe('BigNum Tests', () => {
 		expect(BigNum.fromPrint('123456789').toMillified(5)).to.equal('123.45M');
 
 		expect(BigNum.from(-95, 2).print()).to.equal('-0.95');
+
+		// Case 6 strange numbers
+		expect(BigNum.from('-100', 2).print()).to.equal('-1.00');
+		expect(BigNum.from('-8402189', 13).print()).to.equal('-0.0000008402189');
+		expect(BigNum.from('-10000000000000', 13).print()).to.equal(
+			'-1.0000000000000'
+		);
+		expect(BigNum.from('-100', 6).print()).to.equal('-0.000100');
 	});
 
 	it('can initialise from string values correctly', () => {

@@ -625,6 +625,13 @@ describe('repeg and spread amm', () => {
 			QUOTE_PRECISION
 		);
 
+		assert(allUserCollateral == 60207.477328);
+		assert(pnlPoolBalance == 0);
+		assert(feePoolBalance == 0);
+		assert(allUserUnsettledPnl == 599.427405);
+		assert(usdcDepositBalance == 60207.477328);
+		assert(sinceStartTFMD == -601.216949);
+
 		console.log(
 			'sum all money:',
 			allUserCollateral,
