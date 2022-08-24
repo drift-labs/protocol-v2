@@ -46,13 +46,33 @@ pub fn settle_lp_position(
         base_asset_amount: lp_metrics.base_asset_amount,
         quote_asset_amount: lp_metrics.quote_asset_amount,
     };
+
+     
+    msg!("market.base_asset_amount_long: {:?}", market.base_asset_amount_long);
+    msg!("market.base_asset_amount_short: {:?}", market.base_asset_amount_short);
+    msg!("market.amm.net_base_asset_amount: {:?}",
+    market.amm.net_base_asset_amount);
+    msg!("market.amm.net_unsettled_lp_base_asset_amount: {:?}",
+    market.amm.net_unsettled_lp_base_asset_amount);
+
     update_position_and_market(position, market, &position_delta)?;
 
+    // todo: name for this is confusing, but adding is correct as is
+    // definition: net position of users in the market that has the LP as a counterparty (which have NOT settled)
     market.amm.net_unsettled_lp_base_asset_amount = market
         .amm
         .net_unsettled_lp_base_asset_amount
-        .checked_sub(lp_metrics.base_asset_amount)
+        .checked_add(lp_metrics.base_asset_amount)
         .ok_or_else(math_error!())?;
+    
+    msg!("market.base_asset_amount_long: {:?}", market.base_asset_amount_long);
+    msg!("market.base_asset_amount_short: {:?}", market.base_asset_amount_short);
+    msg!("market.amm.net_base_asset_amount: {:?}",
+    market.amm.net_base_asset_amount);
+    msg!("market.amm.net_unsettled_lp_base_asset_amount: {:?}",
+    market.amm.net_unsettled_lp_base_asset_amount);
+
+    msg!("lp_metrics.base_asset_amount: {:?}", lp_metrics.base_asset_amount);
 
     Ok(())
 }

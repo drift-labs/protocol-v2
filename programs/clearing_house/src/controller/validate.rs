@@ -16,9 +16,18 @@ use solana_program::msg;
 pub fn validate_market_account(market: &Market) -> ClearingHouseResult {
     validate!(
         (market.base_asset_amount_long + market.base_asset_amount_short) ==
-        market.amm.net_base_asset_amount,
+        market.amm.net_base_asset_amount + market.amm.net_unsettled_lp_base_asset_amount,
         ErrorCode::DefaultError,
-        "Market NET_BAA Error: market.base_asset_amount_long + market.base_asset_amount_short != market.amm.net_base_asset_amount"
+        "Market NET_BAA Error: 
+        market.base_asset_amount_long={}, 
+        + market.base_asset_amount_short={} 
+        != 
+        market.amm.net_base_asset_amount={}
+        +  market.amm.net_unsettled_lp_base_asset_amount={}",
+        market.base_asset_amount_long,
+        market.base_asset_amount_short,
+        market.amm.net_base_asset_amount,
+        market.amm.net_unsettled_lp_base_asset_amount,
     )?;
 
     validate!(

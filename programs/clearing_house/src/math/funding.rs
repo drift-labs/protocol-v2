@@ -336,4 +336,81 @@ mod test {
         assert!(new_fees > QUOTE_PRECISION as i128 / 2);
         assert_eq!(new_fees, 1012295); // made over $.50
     }
+
+    #[test]
+    fn capped_sym_funding_unsettled_lps_test() {
+        // more shorts than longs, positive funding, 1/3 of fee pool too small
+        let mut market = Market {
+            base_asset_amount_long: 122950819670000,
+            base_asset_amount_short: -122950819670000 * 2,
+            amm: AMM {
+                base_asset_reserve: 5122950819670000,
+                quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
+                sqrt_k: 500 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 50000,
+                net_base_asset_amount: -122950819670000, //~12
+                net_unsettled_lp_base_asset_amount: (AMM_RESERVE_PRECISION * 500) as i128, //wowsers
+                total_exchange_fee: QUOTE_PRECISION / 2,
+                total_fee_minus_distributions: (QUOTE_PRECISION as i128) / 2,
+                
+                last_mark_price_twap: 50 * MARK_PRICE_PRECISION,
+                last_oracle_price_twap: (49 * MARK_PRICE_PRECISION) as i128,
+                funding_period: 3600,
+
+                ..AMM::default()
+            },
+            ..Market::default()
+        };
+
+        let balanced_funding = calculate_funding_rate(
+            market.amm.last_mark_price_twap,
+            market.amm.last_oracle_price_twap,
+            market.amm.funding_period,
+        )
+        .unwrap();
+
+        assert_eq!(balanced_funding, 4166666666666);
+
+        let (long_funding, short_funding, _) =
+            calculate_funding_rate_long_short(&mut market, balanced_funding).unwrap();
+
+        assert_eq!(long_funding, balanced_funding);
+        assert!(long_funding > short_funding);
+        assert_eq!(short_funding, 2422216466708);
+
+        // only spend 1/3 of fee pool, ((.5-.416667)) * 3 < .25
+        assert_eq!(market.amm.total_fee_minus_distributions, 416667);
+
+        // more longs than shorts, positive funding, amm earns funding
+        market = Market {
+            base_asset_amount_long: 122950819670000 * 2,
+            base_asset_amount_short: -122950819670000,
+            amm: AMM {
+                base_asset_reserve: 5122950819670000,
+                quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
+                sqrt_k: 500 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 50000,
+                net_base_asset_amount: 122950819670000,
+                total_exchange_fee: QUOTE_PRECISION / 2,
+                total_fee_minus_distributions: (QUOTE_PRECISION as i128) / 2,
+                last_mark_price_twap: 50 * MARK_PRICE_PRECISION,
+                last_oracle_price_twap: (49 * MARK_PRICE_PRECISION) as i128,
+                funding_period: 3600,
+
+                ..AMM::default()
+            },
+            ..Market::default()
+        };
+
+        assert_eq!(balanced_funding, 4166666666666);
+
+        let (long_funding, short_funding, _) =
+            calculate_funding_rate_long_short(&mut market, balanced_funding).unwrap();
+
+        assert_eq!(long_funding, balanced_funding);
+        assert_eq!(long_funding, short_funding);
+        let new_fees = market.amm.total_fee_minus_distributions;
+        assert!(new_fees > QUOTE_PRECISION as i128 / 2);
+        assert_eq!(new_fees, 1012295); // made over $.50
+    }
 }
