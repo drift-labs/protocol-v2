@@ -1357,7 +1357,6 @@ pub fn fulfill_order_with_match(
 
     let orders_cross = do_orders_cross(maker_direction, maker_price, taker_price);
 
-    // todo: maybe we fill the amm even if the maker's price doesnt cross
     if !orders_cross {
         return Ok((0_u128, false));
     }
@@ -1378,11 +1377,15 @@ pub fn fulfill_order_with_match(
     };
 
     let base_asset_amount_left_to_fill = if market.amm.amm_jit && amm_wants_to_make {
+        // dont flip the amm net baa (want to go at most to zero)
+        let max_unload_base_asset_amount = market.amm.net_base_asset_amount.unsigned_abs();
+
         // todo: dynamic
         let unload_base_asset_amount = standardize_base_asset_amount(
             base_asset_amount.checked_div(2).ok_or_else(math_error!())?,
             market.amm.base_asset_amount_step_size,
-        )?;
+        )?
+        .min(max_unload_base_asset_amount);
 
         let (base_asset_amount_filled_by_amm, _) = fulfill_order_with_amm(
             taker,
