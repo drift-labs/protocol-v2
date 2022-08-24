@@ -1279,8 +1279,10 @@ pub fn fulfill_order_with_match(
     let base_asset_amount_left_to_fill = if market.amm.amm_jit && amm_wants_to_make {
         println!("amm jiting");
         // todo: dynamic
-        let unload_base_asset_amount =
-            Some(base_asset_amount.checked_div(2).ok_or_else(math_error!())?);
+        let unload_base_asset_amount = standardize_base_asset_amount(
+            base_asset_amount.checked_div(2).ok_or_else(math_error!())?,
+            market.amm.base_asset_amount_step_size,
+        )?;
 
         let (base_asset_amount_filled_by_amm, _) = fulfill_order_with_amm(
             taker,
@@ -1298,7 +1300,7 @@ pub fn fulfill_order_with_match(
             filler_stats,
             fee_structure,
             order_records,
-            unload_base_asset_amount,
+            Some(unload_base_asset_amount),
             Some(taker_price), // current auction price
         )?;
 
