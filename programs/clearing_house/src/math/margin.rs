@@ -239,7 +239,7 @@ pub fn calculate_perp_position_value_and_pnl(
         oracle_price_for_upnl,
     )?;
 
-    let total_unsettled_pnl = unrealized_funding
+    let total_unrealized_pnl = unrealized_funding
         .checked_add(unrealized_pnl)
         .ok_or_else(math_error!())?;
 
@@ -261,16 +261,16 @@ pub fn calculate_perp_position_value_and_pnl(
         .checked_div(MARGIN_PRECISION)
         .ok_or_else(math_error!())?;
 
-    let unsettled_asset_weight =
-        market.get_unsettled_asset_weight(total_unsettled_pnl, margin_requirement_type)?;
+    let unrealized_asset_weight =
+        market.get_unrealized_asset_weight(total_unrealized_pnl, margin_requirement_type)?;
 
-    let weighted_unsettled_pnl = total_unsettled_pnl
-        .checked_mul(unsettled_asset_weight as i128)
+    let weighted_unrealized_pnl = total_unrealized_pnl
+        .checked_mul(unrealized_asset_weight as i128)
         .ok_or_else(math_error!())?
         .checked_div(BANK_WEIGHT_PRECISION as i128)
         .ok_or_else(math_error!())?;
 
-    Ok((margin_requirement, weighted_unsettled_pnl))
+    Ok((margin_requirement, weighted_unrealized_pnl))
 }
 
 pub fn calculate_margin_requirement_and_total_collateral(
@@ -540,8 +540,8 @@ mod test {
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             imf_factor: 1000, // 1_000/1_000_000 = .001
-            unsettled_initial_asset_weight: 100,
-            unsettled_maintenance_asset_weight: 100,
+            unrealized_initial_asset_weight: 100,
+            unrealized_maintenance_asset_weight: 100,
             ..Market::default()
         };
 
@@ -620,8 +620,8 @@ mod test {
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             imf_factor: 1000, // 1_000/1_000_000 = .001
-            unsettled_initial_asset_weight: 100,
-            unsettled_maintenance_asset_weight: 100,
+            unrealized_initial_asset_weight: 100,
+            unrealized_maintenance_asset_weight: 100,
             ..Market::default()
         };
 
@@ -665,11 +665,8 @@ mod test {
 
         assert_eq!(position_unrealized_pnl, 22699050901);
 
-        let position_unsettled_pnl = position_unrealized_pnl;
-        assert_eq!(position_unsettled_pnl, 22_699_050_901);
-
         // sqrt of oracle price = 149
-        market.unsettled_imf_factor = market.imf_factor;
+        market.unrealized_imf_factor = market.imf_factor;
 
         let oracle_price_for_margin =
             calculate_oracle_price_for_perp_margin(&market_position, &market, &oracle_price_data)
@@ -677,7 +674,7 @@ mod test {
         assert_eq!(oracle_price_for_margin, 220500000000000);
 
         let uaw = market
-            .get_unsettled_asset_weight(position_unsettled_pnl, MarginRequirementType::Initial)
+            .get_unrealized_asset_weight(position_unrealized_pnl, MarginRequirementType::Initial)
             .unwrap();
         assert_eq!(uaw, 95);
 
@@ -709,36 +706,41 @@ mod test {
         )
         .unwrap();
 
-        let position_unsettled_pnl = position_unrealized_pnl;
         assert_eq!(position_unrealized_pnl, 24276639345); // $24.276k
 
         assert_eq!(
             market
-                .get_unsettled_asset_weight(position_unsettled_pnl, margin_requirement_type)
+                .get_unrealized_asset_weight(position_unrealized_pnl, margin_requirement_type)
                 .unwrap(),
             95
         );
         assert_eq!(
             market
-                .get_unsettled_asset_weight(position_unsettled_pnl * 10, margin_requirement_type)
+                .get_unrealized_asset_weight(position_unrealized_pnl * 10, margin_requirement_type)
                 .unwrap(),
             73
         );
         assert_eq!(
             market
-                .get_unsettled_asset_weight(position_unsettled_pnl * 100, margin_requirement_type)
+                .get_unrealized_asset_weight(position_unrealized_pnl * 100, margin_requirement_type)
                 .unwrap(),
             43
         );
         assert_eq!(
             market
-                .get_unsettled_asset_weight(position_unsettled_pnl * 1000, margin_requirement_type)
+                .get_unrealized_asset_weight(
+                    position_unrealized_pnl * 1000,
+                    margin_requirement_type
+                )
                 .unwrap(),
             18
         );
         assert_eq!(
             market
-                .get_unsettled_asset_weight(position_unsettled_pnl * 10000, margin_requirement_type)
+                .get_unrealized_asset_weight(
+                    position_unrealized_pnl * 10000,
+                    margin_requirement_type
+                )
                 .unwrap(),
             6
         );
@@ -746,14 +748,14 @@ mod test {
 
         assert_eq!(
             market
-                .get_unsettled_asset_weight(
-                    position_unsettled_pnl * 800000,
+                .get_unrealized_asset_weight(
+                    position_unrealized_pnl * 800000,
                     margin_requirement_type
                 )
                 .unwrap(),
             0 // todo want to reduce to zero once sufficiently sized?
         );
-        assert_eq!(position_unsettled_pnl * 800000, 19421311476000000); // 1.9 billion
+        assert_eq!(position_unrealized_pnl * 800000, 19421311476000000); // 1.9 billion
 
         let (pmr_2, upnl_2) = calculate_perp_position_value_and_pnl(
             &market_position,
@@ -764,7 +766,7 @@ mod test {
         .unwrap();
 
         let uaw_2 = market
-            .get_unsettled_asset_weight(upnl_2, MarginRequirementType::Initial)
+            .get_unrealized_asset_weight(upnl_2, MarginRequirementType::Initial)
             .unwrap();
         assert_eq!(uaw_2, 95);
 
@@ -798,8 +800,8 @@ mod test {
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             imf_factor: 1000, // 1_000/1_000_000 = .001
-            unsettled_initial_asset_weight: 100,
-            unsettled_maintenance_asset_weight: 100,
+            unrealized_initial_asset_weight: 100,
+            unrealized_maintenance_asset_weight: 100,
             ..Market::default()
         };
 
@@ -863,8 +865,8 @@ mod test {
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             imf_factor: 1000, // 1_000/1_000_000 = .001
-            unsettled_initial_asset_weight: 100,
-            unsettled_maintenance_asset_weight: 100,
+            unrealized_initial_asset_weight: 100,
+            unrealized_maintenance_asset_weight: 100,
             ..Market::default()
         };
 

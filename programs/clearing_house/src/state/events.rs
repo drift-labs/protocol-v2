@@ -6,6 +6,16 @@ use anchor_lang::Discriminator;
 use std::io::Write;
 
 #[event]
+pub struct NewUserRecord {
+    pub ts: i64,
+    pub user_authority: Pubkey,
+    pub user: Pubkey,
+    pub user_id: u8,
+    pub name: [u8; 32],
+    pub referrer: Pubkey,
+}
+
+#[event]
 pub struct DepositRecord {
     pub ts: i64,
     pub user_authority: Pubkey,
@@ -14,6 +24,7 @@ pub struct DepositRecord {
     pub amount: u64,
     pub bank_index: u64,
     pub oracle_price: i128,
+    pub referrer: Pubkey,
     pub from: Option<Pubkey>,
     pub to: Option<Pubkey>,
 }
@@ -101,6 +112,9 @@ pub struct OrderRecord {
     pub maker_rebate: u128,
     pub taker_fee: u128,
     pub filler_reward: u128,
+    pub referrer: Pubkey,
+    pub referrer_reward: u128,
+    pub referee_discount: u128,
     pub quote_asset_amount_surplus: u128,
     pub oracle_price: i128,
 }

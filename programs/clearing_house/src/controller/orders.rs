@@ -6,7 +6,8 @@ use crate::controller;
 use crate::controller::position;
 use crate::controller::position::{
     add_new_position, decrease_open_bids_and_asks, get_position_index, increase_open_bids_and_asks,
-    update_position_and_market, update_user_and_market_position, PositionDirection,
+    update_position_and_market, update_quote_asset_amount, update_user_and_market_position,
+    PositionDirection,
 };
 use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
@@ -18,6 +19,7 @@ use crate::math::auction::{
     calculate_auction_end_price, calculate_auction_start_price, is_auction_complete,
 };
 use crate::math::casting::{cast, cast_to_i128};
+use crate::math::fees::FillFees;
 use crate::math::fulfillment::determine_fulfillment_methods;
 use crate::math::liquidation::validate_user_not_being_liquidated;
 use crate::math::matching::{
@@ -37,8 +39,8 @@ use crate::state::market_map::MarketMap;
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
 use crate::state::state::*;
+use crate::state::user::User;
 use crate::state::user::{MarketPosition, Order, OrderStatus, OrderType, UserStats};
-use crate::state::user::{OrderDiscountTier, User};
 use crate::validate;
 use std::alloc::{alloc_zeroed, Layout};
 use std::cell::RefMut;
@@ -176,11 +178,9 @@ pub fn place_order(
         fee: 0,
         direction: params.direction,
         reduce_only: params.reduce_only,
-        discount_tier: OrderDiscountTier::None,
         trigger_price: params.trigger_price,
         trigger_condition: params.trigger_condition,
         triggered: false,
-        referrer: Pubkey::default(),
         post_only: params.post_only,
         oracle_price_offset: params.oracle_price_offset,
         immediate_or_cancel: params.immediate_or_cancel,
@@ -221,7 +221,7 @@ pub fn place_order(
     let (taker, taker_order, taker_unsettled_pnl, maker, maker_order, maker_unsettled_pnl) =
         get_taker_and_maker_for_order_record(&user_key, &new_order, 0);
 
-    emit_stack::<_, 984>(OrderRecord {
+    emit_stack::<_, 1064>(OrderRecord {
         ts: now,
         slot,
         taker,
@@ -242,6 +242,9 @@ pub fn place_order(
         maker_rebate: 0,
         quote_asset_amount_surplus: 0,
         oracle_price: oracle_map.get_price_data(&market.amm.oracle)?.price,
+        referrer_reward: 0,
+        referee_discount: 0,
+        referrer: Pubkey::default(),
     });
 
     Ok(())
@@ -345,7 +348,7 @@ pub fn cancel_order(
                 -cast(filler_reward)?,
             );
 
-        emit_stack::<_, 984>(OrderRecord {
+        emit_stack::<_, 1064>(OrderRecord {
             ts: now,
             slot,
             taker,
@@ -369,6 +372,9 @@ pub fn cancel_order(
             maker_rebate: 0,
             quote_asset_amount_surplus: 0,
             oracle_price: oracle_map.get_price_data(&market.amm.oracle)?.price,
+            referrer_reward: 0,
+            referee_discount: 0,
+            referrer: Pubkey::default(),
         });
     }
 
@@ -399,6 +405,8 @@ pub fn fill_order(
     maker: Option<&AccountLoader<User>>,
     maker_stats: Option<&AccountLoader<UserStats>>,
     maker_order_id: Option<u64>,
+    referrer: Option<&AccountLoader<User>>,
+    referrer_stats: Option<&AccountLoader<UserStats>>,
     clock: &Clock,
 ) -> ClearingHouseResult<(u128, bool)> {
     let now = clock.unix_timestamp;
@@ -504,6 +512,9 @@ pub fn fill_order(
         slot,
     )?;
 
+    let (mut referrer, mut referrer_stats) =
+        sanitize_referrer(referrer, referrer_stats, user_stats)?;
+
     let should_expire_order =
         should_expire_order(user, order_index, slot, state.max_auction_duration)?;
     if should_expire_order {
@@ -545,6 +556,8 @@ pub fn fill_order(
         &mut filler.as_deref_mut(),
         &filler_key,
         &mut filler_stats.as_deref_mut(),
+        &mut referrer.as_deref_mut(),
+        &mut referrer_stats.as_deref_mut(),
         bank_map,
         market_map,
         oracle_map,
@@ -737,6 +750,45 @@ fn sanitize_maker_order<'a>(
     ))
 }
 
+#[allow(clippy::type_complexity)]
+fn sanitize_referrer<'a>(
+    referrer: Option<&'a AccountLoader<User>>,
+    referrer_stats: Option<&'a AccountLoader<UserStats>>,
+    user_stats: &UserStats,
+) -> ClearingHouseResult<(Option<RefMut<'a, User>>, Option<RefMut<'a, UserStats>>)> {
+    if referrer.is_none() || referrer_stats.is_none() {
+        validate!(
+            !user_stats.has_referrer(),
+            ErrorCode::InvalidReferrer,
+            "User has referrer but referrer/referrer stats missing"
+        )?;
+
+        return Ok((None, None));
+    }
+
+    let referrer = load_mut!(referrer.unwrap())?;
+    let referrer_stats = load_mut!(referrer_stats.unwrap())?;
+    validate!(
+        referrer.user_id == 0,
+        ErrorCode::InvalidReferrer,
+        "Referrer must be user id 0"
+    )?;
+
+    validate!(
+        referrer.authority.eq(&referrer_stats.authority),
+        ErrorCode::InvalidReferrer,
+        "Referrer authority != Referrer stats authority"
+    )?;
+
+    validate!(
+        referrer.authority.eq(&user_stats.referrer),
+        ErrorCode::InvalidReferrer,
+        "Referrer authority != user stats authority"
+    )?;
+
+    Ok((Some(referrer), Some(referrer_stats)))
+}
+
 fn fulfill_order(
     user: &mut User,
     user_order_index: usize,
@@ -749,6 +801,8 @@ fn fulfill_order(
     filler: &mut Option<&mut User>,
     filler_key: &Pubkey,
     filler_stats: &mut Option<&mut UserStats>,
+    referrer: &mut Option<&mut User>,
+    referrer_stats: &mut Option<&mut UserStats>,
     bank_map: &BankMap,
     market_map: &MarketMap,
     oracle_map: &mut OracleMap,
@@ -821,6 +875,8 @@ fn fulfill_order(
                 filler_key,
                 filler,
                 filler_stats,
+                referrer,
+                referrer_stats,
                 fee_structure,
                 &mut order_records,
             )?,
@@ -837,6 +893,8 @@ fn fulfill_order(
                 filler.as_deref_mut(),
                 filler_stats.as_deref_mut(),
                 filler_key,
+                referrer,
+                referrer_stats,
                 now,
                 slot,
                 fee_structure,
@@ -1011,6 +1069,8 @@ pub fn fulfill_order_with_amm(
     filler_key: &Pubkey,
     filler: &mut Option<&mut User>,
     filler_stats: &mut Option<&mut UserStats>,
+    referrer: &mut Option<&mut User>,
+    referrer_stats: &mut Option<&mut UserStats>,
     fee_structure: &FeeStructure,
     order_records: &mut Vec<OrderRecord>,
 ) -> ClearingHouseResult<(u128, bool)> {
@@ -1057,26 +1117,43 @@ pub fn fulfill_order_with_amm(
         maker_limit_price,
     )?;
 
-    let (user_fee, fee_to_market, filler_reward) =
-        fees::calculate_fee_for_order_fulfill_against_amm(
-            quote_asset_amount,
-            fee_structure,
-            order_ts,
-            now,
-            filler.is_some(),
-            quote_asset_amount_surplus,
-            order_post_only,
-        )?;
+    let reward_referrer = referrer.is_some()
+        && referrer_stats.is_some()
+        && referrer
+            .as_mut()
+            .unwrap()
+            .force_get_position_mut(market.market_index)
+            .is_ok();
 
-    let market_postion_unsettled_pnl_delta = cast_to_i128(user_fee)?
+    let FillFees {
+        user_fee,
+        fee_to_market,
+        filler_reward,
+        referee_discount,
+        referrer_reward,
+        ..
+    } = fees::calculate_fee_for_order_fulfill_against_amm(
+        quote_asset_amount,
+        fee_structure,
+        order_ts,
+        now,
+        filler.is_some(),
+        reward_referrer,
+        quote_asset_amount_surplus,
+        order_post_only,
+    )?;
+
+    let market_position_unsettled_pnl_delta = cast_to_i128(user_fee)?
         .checked_sub(cast_to_i128(filler_reward)?)
+        .ok_or_else(math_error!())?
+        .checked_sub(cast_to_i128(referrer_reward)?)
         .ok_or_else(math_error!())?;
 
     let mut pnl = update_user_and_market_position(
         &mut user.positions[position_index],
         market,
         &position_delta,
-        market_postion_unsettled_pnl_delta,
+        market_position_unsettled_pnl_delta,
     )?;
 
     // Increment the clearing house's total fee variables
@@ -1112,6 +1189,22 @@ pub fn fulfill_order_with_amm(
         .total_fee_paid
         .checked_add(cast(user_fee)?)
         .ok_or_else(math_error!())?;
+    user_stats.fees.total_referee_discount = user_stats
+        .fees
+        .total_referee_discount
+        .checked_add(referee_discount)
+        .ok_or_else(math_error!())?;
+
+    if let (Some(referrer), Some(referrer_stats)) = (referrer.as_mut(), referrer_stats.as_mut()) {
+        if let Ok(referrer_position) = referrer.force_get_position_mut(market.market_index) {
+            update_quote_asset_amount(referrer_position, cast(referrer_reward)?)?;
+
+            referrer_stats.total_referrer_reward = referrer_stats
+                .total_referrer_reward
+                .checked_add(referrer_reward)
+                .ok_or_else(math_error!())?;
+        }
+    }
 
     let position_index = get_position_index(&user.positions, market.market_index)?;
 
@@ -1182,6 +1275,13 @@ pub fn fulfill_order_with_amm(
         maker_rebate: 0,
         quote_asset_amount_surplus,
         oracle_price: oracle_map.get_price_data(&market.amm.oracle)?.price,
+        referrer_reward,
+        referee_discount,
+        referrer: if order_post_only {
+            Pubkey::default()
+        } else {
+            user_stats.referrer
+        },
     });
 
     // Cant reset order until after its logged
@@ -1207,6 +1307,8 @@ pub fn fulfill_order_with_match(
     filler: Option<&mut User>,
     filler_stats: Option<&mut UserStats>,
     filler_key: &Pubkey,
+    referrer: &mut Option<&mut User>,
+    referrer_stats: &mut Option<&mut UserStats>,
     now: i64,
     slot: u64,
     fee_structure: &FeeStructure,
@@ -1286,14 +1388,29 @@ pub fn fulfill_order_with_match(
 
     taker_stats.update_taker_volume_30d(cast(quote_asset_amount)?, now)?;
 
-    let (taker_fee, maker_rebate, fee_to_market, filler_reward) =
-        fees::calculate_fee_for_fulfillment_with_match(
-            quote_asset_amount,
-            fee_structure,
-            taker.orders[taker_order_index].ts,
-            now,
-            filler.is_some(),
-        )?;
+    let reward_referrer = referrer.is_some()
+        && referrer_stats.is_some()
+        && referrer
+            .as_mut()
+            .unwrap()
+            .force_get_position_mut(market.market_index)
+            .is_ok();
+
+    let FillFees {
+        user_fee: taker_fee,
+        maker_rebate,
+        fee_to_market,
+        filler_reward,
+        referrer_reward,
+        referee_discount,
+    } = fees::calculate_fee_for_fulfillment_with_match(
+        quote_asset_amount,
+        fee_structure,
+        taker.orders[taker_order_index].ts,
+        now,
+        filler.is_some(),
+        reward_referrer,
+    )?;
 
     // Increment the markets house's total fee variables
     market.amm.market_position.quote_asset_amount = market
@@ -1329,6 +1446,11 @@ pub fn fulfill_order_with_match(
         .total_fee_paid
         .checked_add(cast(taker_fee)?)
         .ok_or_else(math_error!())?;
+    taker_stats.fees.total_referee_discount = taker_stats
+        .fees
+        .total_referee_discount
+        .checked_add(referee_discount)
+        .ok_or_else(math_error!())?;
 
     taker_pnl = taker_pnl
         .checked_sub(cast(taker_fee)?)
@@ -1361,6 +1483,17 @@ pub fn fulfill_order_with_match(
         filler_stats
             .unwrap()
             .update_filler_volume(cast(quote_asset_amount)?, now)?;
+    }
+
+    if let (Some(referrer), Some(referrer_stats)) = (referrer.as_mut(), referrer_stats.as_mut()) {
+        if let Ok(referrer_position) = referrer.force_get_position_mut(market.market_index) {
+            update_quote_asset_amount(referrer_position, cast(referrer_reward)?)?;
+
+            referrer_stats.total_referrer_reward = referrer_stats
+                .total_referrer_reward
+                .checked_add(referrer_reward)
+                .ok_or_else(math_error!())?;
+        }
     }
 
     update_order_after_fill(
@@ -1413,6 +1546,9 @@ pub fn fulfill_order_with_match(
         maker_rebate,
         quote_asset_amount_surplus: 0,
         oracle_price: oracle_map.get_price_data(&market.amm.oracle)?.price,
+        referrer_reward,
+        referee_discount,
+        referrer: taker_stats.referrer,
     });
 
     if taker.orders[taker_order_index].get_base_asset_amount_unfilled()? == 0 {
@@ -1635,6 +1771,9 @@ pub fn trigger_order(
         maker_rebate: 0,
         quote_asset_amount_surplus: 0,
         oracle_price,
+        referrer_reward: 0,
+        referee_discount: 0,
+        referrer: Pubkey::default(),
     });
 
     Ok(())

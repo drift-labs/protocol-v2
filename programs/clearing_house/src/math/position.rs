@@ -10,7 +10,7 @@ use crate::math::constants::{
     AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, AMM_TO_QUOTE_PRECISION_RATIO,
     MARK_PRICE_PRECISION, PRICE_TO_QUOTE_PRECISION_RATIO,
 };
-use crate::math::lp::get_proportion_u128;
+use crate::math::helpers::get_proportion_u128;
 use crate::math::pnl::calculate_pnl;
 use crate::math_error;
 use crate::state::market::AMM;
