@@ -786,6 +786,8 @@ pub mod clearing_house {
         let position = &mut user.positions[position_index];
 
         settle_lp_position(position, &mut market)?;
+        controller::validate::validate_market_account(&market)?;
+        controller::validate::validate_position_account(&position, &market)?;
 
         Ok(())
     }
