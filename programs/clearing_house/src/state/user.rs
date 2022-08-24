@@ -301,6 +301,7 @@ pub type UserPositions = [MarketPosition; 5];
 pub struct Order {
     pub status: OrderStatus,
     pub order_type: OrderType,
+    pub market_type: MarketType,
     pub ts: i64,
     pub slot: u64,
     pub order_id: u64,
@@ -414,6 +415,7 @@ impl Default for Order {
         Self {
             status: OrderStatus::Init,
             order_type: OrderType::Limit,
+            market_type: MarketType::Perp,
             ts: 0,
             slot: 0,
             order_id: 0,
@@ -464,9 +466,20 @@ pub enum OrderTriggerCondition {
 }
 
 impl Default for OrderTriggerCondition {
-    // UpOnly
     fn default() -> Self {
         OrderTriggerCondition::Above
+    }
+}
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+pub enum MarketType {
+    Spot,
+    Perp,
+}
+
+impl Default for MarketType {
+    fn default() -> Self {
+        MarketType::Spot
     }
 }
 

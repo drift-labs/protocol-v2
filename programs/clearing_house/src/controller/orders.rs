@@ -39,8 +39,8 @@ use crate::state::market_map::MarketMap;
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
 use crate::state::state::*;
-use crate::state::user::User;
 use crate::state::user::{MarketPosition, Order, OrderStatus, OrderType, UserStats};
+use crate::state::user::{MarketType, User};
 use crate::validate;
 use std::alloc::{alloc_zeroed, Layout};
 use std::cell::RefMut;
@@ -162,9 +162,16 @@ pub fn place_order(
         (0_u128, 0_u128)
     };
 
+    validate!(
+        params.market_type == MarketType::Perp,
+        ErrorCode::InvalidOrder,
+        "must be perp order"
+    )?;
+
     let new_order = Order {
         status: OrderStatus::Open,
         order_type: params.order_type,
+        market_type: params.market_type,
         ts: now,
         slot,
         order_id: get_then_update_id!(user, next_order_id),
@@ -323,8 +330,13 @@ pub fn cancel_order(
     filler_reward: u128,
     skip_log: bool,
 ) -> ClearingHouseResult {
-    let (order_status, order_market_index, order_direction) =
-        get_struct_values!(user.orders[order_index], status, market_index, direction);
+    let (order_status, order_market_index, order_direction, order_market_type) = get_struct_values!(
+        user.orders[order_index],
+        status,
+        market_index,
+        direction,
+        market_type
+    );
 
     controller::funding::settle_funding_payment(
         user,
@@ -334,6 +346,12 @@ pub fn cancel_order(
     )?;
 
     validate!(order_status == OrderStatus::Open, ErrorCode::OrderNotOpen)?;
+
+    validate!(
+        order_market_type == MarketType::Perp,
+        ErrorCode::InvalidOrder,
+        "must be perp order"
+    )?;
 
     let market = &market_map.get_ref(&order_market_index)?;
 
@@ -423,8 +441,14 @@ pub fn fill_order(
         .position(|order| order.order_id == order_id)
         .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
 
-    let (order_status, market_index) =
-        get_struct_values!(user.orders[order_index], status, market_index);
+    let (order_status, market_index, order_market_type) =
+        get_struct_values!(user.orders[order_index], status, market_index, market_type);
+
+    validate!(
+        order_market_type == MarketType::Perp,
+        ErrorCode::InvalidOrder,
+        "must be perp order"
+    )?;
 
     controller::funding::settle_funding_payment(
         user,

@@ -5,6 +5,7 @@ if [ "$1" != "--skip-build" ]
 fi
 
 test_files=(
+  order.ts
   referrer.ts
   liquidityProvider.ts
   liquidatePerpPnlForDeposit.ts liquidateBorrowForPerpPnl.ts

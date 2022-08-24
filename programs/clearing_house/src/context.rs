@@ -5,7 +5,7 @@ use crate::controller::position::PositionDirection;
 use crate::state::bank::Bank;
 use crate::state::market::Market;
 use crate::state::state::State;
-use crate::state::user::{OrderTriggerCondition, OrderType, User, UserStats};
+use crate::state::user::{MarketType, OrderTriggerCondition, OrderType, User, UserStats};
 
 #[derive(Accounts)]
 pub struct Initialize<'info> {
@@ -401,6 +401,7 @@ pub struct PlaceOrder<'info> {
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
 pub struct OrderParams {
     pub order_type: OrderType,
+    pub market_type: MarketType,
     pub direction: PositionDirection,
     pub user_order_id: u8,
     pub base_asset_amount: u128,
@@ -411,7 +412,6 @@ pub struct OrderParams {
     pub immediate_or_cancel: bool,
     pub trigger_price: u128,
     pub trigger_condition: OrderTriggerCondition,
-    pub optional_accounts: OrderParamsOptionalAccounts,
     pub position_limit: u128,
     pub oracle_price_offset: i128,
     pub auction_duration: u8,
@@ -420,16 +420,9 @@ pub struct OrderParams {
 }
 
 impl Default for OrderType {
-    // UpOnly
     fn default() -> Self {
         OrderType::Limit
     }
-}
-
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
-pub struct OrderParamsOptionalAccounts {
-    pub discount_token: bool,
-    pub referrer: bool,
 }
 
 #[derive(Accounts)]

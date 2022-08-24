@@ -35,6 +35,11 @@ export class OrderType {
 	static readonly MARKET = { market: {} };
 }
 
+export class MarketType {
+	static readonly SPOT = { spot: {} };
+	static readonly PERP = { perp: {} };
+}
+
 export class OrderStatus {
 	static readonly INIT = { init: {} };
 	static readonly OPEN = { open: {} };
@@ -527,6 +532,7 @@ export type Order = {
 
 export type OrderParams = {
 	orderType: OrderType;
+	marketType: MarketType;
 	userOrderId: number;
 	direction: PositionDirection;
 	baseAssetAmount: BN;
@@ -541,10 +547,6 @@ export type OrderParams = {
 	oraclePriceOffset: BN;
 	padding0: boolean;
 	padding1: BN;
-	optionalAccounts: {
-		discountToken: boolean;
-		referrer: boolean;
-	};
 };
 
 export type NecessaryOrderParams = {
@@ -560,6 +562,7 @@ export type OptionalOrderParams = {
 
 export const DefaultOrderParams = {
 	orderType: OrderType.MARKET,
+	marketType: MarketType.PERP,
 	userOrderId: 0,
 	direction: PositionDirection.LONG,
 	baseAssetAmount: ZERO,
@@ -574,10 +577,6 @@ export const DefaultOrderParams = {
 	oraclePriceOffset: ZERO,
 	padding0: ZERO,
 	padding1: ZERO,
-	optionalAccounts: {
-		discountToken: false,
-		referrer: false,
-	},
 };
 
 export type MakerInfo = {
