@@ -764,10 +764,10 @@ pub fn liquidate_borrow_for_perp_pnl(
             "Cant have open orders for perp position"
         )?;
 
-        let unsettled_pnl = user_position.quote_asset_amount;
+        let pnl = user_position.quote_asset_amount;
 
         validate!(
-            unsettled_pnl > 0,
+            pnl > 0,
             ErrorCode::InvalidPerpPositionToLiquidate,
             "Perp position must have position pnl"
         )?;
@@ -776,11 +776,14 @@ pub fn liquidate_borrow_for_perp_pnl(
 
         let market = market_map.get_ref(&market_index)?;
 
+        let pnl_asset_weight =
+            market.get_unrealized_asset_weight(pnl, MarginRequirementType::Maintenance)?;
+
         (
-            unsettled_pnl.unsigned_abs(),
+            pnl.unsigned_abs(),
             quote_price,
             6_u8,
-            market.unrealized_maintenance_asset_weight, // TODO add market unsettled pnl weight
+            pnl_asset_weight,
             calculate_liquidation_multiplier(
                 market.liquidation_fee,
                 LiquidationMultiplierType::Premium,
