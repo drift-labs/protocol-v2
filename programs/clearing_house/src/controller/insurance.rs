@@ -4,7 +4,9 @@ use crate::validate;
 use solana_program::msg;
 
 use crate::error::ClearingHouseResult;
-use crate::math::insurance::{staked_amount_to_shares, unstaked_shares_to_amount};
+use crate::math::insurance::{
+    calculate_rebase_info, staked_amount_to_shares, unstaked_shares_to_amount,
+};
 use crate::math_error;
 use crate::state::bank::Bank;
 use crate::state::insurance_fund_stake::InsuranceFundStake;
@@ -71,19 +73,13 @@ pub fn apply_rebase_to_insurance_fund(
     )?;
 
     if cast_to_u128(insurance_fund_vault_balance)? < bank.total_lp_shares {
-        let expo_diff = bank
-            .total_lp_shares
-            .checked_div(10)
-            .ok_or_else(math_error!())?
-            .checked_div(cast_to_u128(insurance_fund_vault_balance)?)
-            .ok_or_else(math_error!())?;
-
-        let rebase_divisor = 10_u128.pow(cast_to_u32(expo_diff)?);
+        let (expo_diff, rebase_divisor) =
+            calculate_rebase_info(bank.total_lp_shares, insurance_fund_vault_balance)?;
 
         bank.total_lp_shares = bank.total_lp_shares / rebase_divisor;
         bank.user_lp_shares = bank.user_lp_shares / rebase_divisor;
 
-        bank.lp_shares_expo = bank.lp_shares_expo + expo_diff;
+        bank.lp_shares_expo = bank.lp_shares_expo + expo_diff as u128;
     }
 
     Ok(())

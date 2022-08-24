@@ -2609,10 +2609,10 @@ pub mod clearing_house {
             .insurance_fund_stake
             .load_init()
             .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
-        
+
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
-        
+
         *if_stake = InsuranceFundStake {
             authority: *ctx.accounts.authority.key,
             bank_index,
