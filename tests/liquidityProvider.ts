@@ -404,8 +404,11 @@ describe('liquidity providing', () => {
 		);
 		// await _viewLogs(_sigg);
 
+		console.log('traderUserAccount fully closed');
+
 		const traderUserAccount2 =
 			traderClearingHouse.getUserAccount().positions[0];
+
 		console.log(
 			traderUserAccount2.lpShares.toString(),
 			traderUserAccount2.baseAssetAmount.toString(),

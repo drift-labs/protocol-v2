@@ -647,8 +647,6 @@ pub fn fill_order(
             state.funding_paused,
             Some(mark_price_before),
         )?;
-
-        controller::validate::validate_market_account(&market)?;
     }
 
     Ok((base_asset_amount, updated_user_state))
