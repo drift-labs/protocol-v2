@@ -204,6 +204,328 @@ pub mod amm_jit {
     }
 
     #[test]
+    fn fulfill_with_amm_jit_taker_long_max_amount() {
+        let now = 0_i64;
+        let slot = 0_u64;
+
+        let mut oracle_price = get_pyth_price(100, 10);
+        let oracle_price_key =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        create_account_info!(
+            oracle_price,
+            &oracle_price_key,
+            &pyth_program,
+            oracle_account_info
+        );
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+
+        // net users are short
+        let mut market = Market {
+            amm: AMM {
+                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
+                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
+                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
+                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
+                net_base_asset_amount: -((AMM_RESERVE_PRECISION / 2) as i128),
+                sqrt_k: 100 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 100 * PEG_PRECISION,
+                max_slippage_ratio: 50,
+                max_base_asset_amount_ratio: 100,
+                base_asset_amount_step_size: 10000000,
+                oracle: oracle_price_key,
+                amm_jit: true,
+                ..AMM::default()
+            },
+            base_asset_amount_short: -((AMM_RESERVE_PRECISION / 2) as i128),
+            margin_ratio_initial: 1000,
+            margin_ratio_maintenance: 500,
+            initialized: true,
+            ..Market::default_test()
+        };
+        market.amm.max_base_asset_reserve = u128::MAX;
+        market.amm.min_base_asset_reserve = 0;
+
+        create_anchor_account_info!(market, Market, market_account_info);
+        let market_map = MarketMap::load_one(&market_account_info, true).unwrap();
+
+        let mut bank = Bank {
+            bank_index: 0,
+            oracle_source: OracleSource::QuoteAsset,
+            cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            initial_asset_weight: BANK_WEIGHT_PRECISION,
+            ..Bank::default()
+        };
+        create_anchor_account_info!(bank, Bank, bank_account_info);
+        let bank_map = BankMap::load_one(&bank_account_info, true).unwrap();
+
+        // taker wants to go long (would improve balance)
+        let mut taker = User {
+            orders: get_orders(Order {
+                market_index: 0,
+                status: OrderStatus::Open,
+                order_type: OrderType::Market,
+                direction: PositionDirection::Long,
+                base_asset_amount: BASE_PRECISION * 2, // if amm takes half it would flip
+                ts: 0,
+                slot: 0,
+                auction_start_price: 0,
+                auction_end_price: 100 * MARK_PRICE_PRECISION,
+                auction_duration: 0,
+                ..Order::default()
+            }),
+            positions: get_positions(MarketPosition {
+                market_index: 0,
+                open_orders: 1,
+                open_bids: BASE_PRECISION_I128 * 2,
+                ..MarketPosition::default()
+            }),
+            bank_balances: get_bank_balances(UserBankBalance {
+                bank_index: 0,
+                balance_type: BankBalanceType::Deposit,
+                balance: 100 * BANK_INTEREST_PRECISION,
+            }),
+            ..User::default()
+        };
+
+        let mut maker = User {
+            orders: get_orders(Order {
+                market_index: 0,
+                post_only: true,
+                order_type: OrderType::Limit,
+                direction: PositionDirection::Short,
+                base_asset_amount: BASE_PRECISION * 2, // maker wants full = amm wants BASE_PERCISION
+                ts: 0,
+                price: 100 * MARK_PRICE_PRECISION,
+                ..Order::default()
+            }),
+            positions: get_positions(MarketPosition {
+                market_index: 0,
+                open_orders: 1,
+                open_asks: -BASE_PRECISION_I128 * 2,
+                ..MarketPosition::default()
+            }),
+            ..User::default()
+        };
+
+        let mut filler = User::default();
+
+        let fee_structure = get_fee_structure();
+
+        let (taker_key, maker_key, filler_key) = get_user_keys();
+
+        let mut taker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
+        let mut filler_stats = UserStats::default();
+
+        assert_eq!(market.amm.total_fee, 0);
+        assert_eq!(market.amm.total_fee_minus_distributions, 0);
+        assert_eq!(market.amm.net_revenue_since_last_funding, 0);
+        assert_eq!(market.amm.total_mm_fee, 0);
+        assert_eq!(market.amm.total_fee_withdrawn, 0);
+
+        fulfill_order(
+            &mut taker,
+            0,
+            &taker_key,
+            &mut taker_stats,
+            &mut Some(&mut maker),
+            &mut Some(&mut maker_stats),
+            Some(0),
+            Some(&maker_key),
+            &mut Some(&mut filler),
+            &filler_key,
+            &mut Some(&mut filler_stats),
+            &mut None,
+            &mut None,
+            &bank_map,
+            &market_map,
+            &mut oracle_map,
+            &fee_structure,
+            0,
+            None,
+            now,
+            slot,
+        )
+        .unwrap();
+
+        let market_after = market_map.get_ref(&0).unwrap();
+        // nets to zero
+        assert_eq!(market_after.amm.net_base_asset_amount, 0);
+
+        let maker_position = &maker.positions[0];
+        // maker got (full - net_baa)
+        assert_eq!(
+            maker_position.base_asset_amount,
+            -BASE_PRECISION_I128 * 2 - market.amm.net_base_asset_amount
+        );
+    }
+
+    #[test]
+    fn fulfill_with_amm_jit_taker_short_max_amount() {
+        let now = 0_i64;
+        let slot = 0_u64;
+
+        let mut oracle_price = get_pyth_price(100, 10);
+        let oracle_price_key =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        create_account_info!(
+            oracle_price,
+            &oracle_price_key,
+            &pyth_program,
+            oracle_account_info
+        );
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+
+        // net users are short
+        let mut market = Market {
+            amm: AMM {
+                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
+                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
+                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
+                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
+                net_base_asset_amount: (AMM_RESERVE_PRECISION / 2) as i128,
+                sqrt_k: 100 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 100 * PEG_PRECISION,
+                max_slippage_ratio: 50,
+                max_base_asset_amount_ratio: 100,
+                base_asset_amount_step_size: 10000000,
+                oracle: oracle_price_key,
+                amm_jit: true,
+                ..AMM::default()
+            },
+            base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
+            margin_ratio_initial: 1000,
+            margin_ratio_maintenance: 500,
+            initialized: true,
+            ..Market::default_test()
+        };
+        market.amm.max_base_asset_reserve = u128::MAX;
+        market.amm.min_base_asset_reserve = 0;
+
+        create_anchor_account_info!(market, Market, market_account_info);
+        let market_map = MarketMap::load_one(&market_account_info, true).unwrap();
+
+        let mut bank = Bank {
+            bank_index: 0,
+            oracle_source: OracleSource::QuoteAsset,
+            cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            initial_asset_weight: BANK_WEIGHT_PRECISION,
+            ..Bank::default()
+        };
+        create_anchor_account_info!(bank, Bank, bank_account_info);
+        let bank_map = BankMap::load_one(&bank_account_info, true).unwrap();
+
+        // taker wants to go long (would improve balance)
+        let mut taker = User {
+            orders: get_orders(Order {
+                market_index: 0,
+                status: OrderStatus::Open,
+                order_type: OrderType::Market,
+                direction: PositionDirection::Short,
+                base_asset_amount: BASE_PRECISION * 2, // if amm takes half it would flip
+                ts: 0,
+                slot: 0,
+                auction_start_price: 0,
+                auction_end_price: 100 * MARK_PRICE_PRECISION,
+                auction_duration: 0,
+                ..Order::default()
+            }),
+            positions: get_positions(MarketPosition {
+                market_index: 0,
+                open_orders: 1,
+                open_asks: -BASE_PRECISION_I128 * 2,
+                ..MarketPosition::default()
+            }),
+            bank_balances: get_bank_balances(UserBankBalance {
+                bank_index: 0,
+                balance_type: BankBalanceType::Deposit,
+                balance: 100 * BANK_INTEREST_PRECISION,
+            }),
+            ..User::default()
+        };
+
+        let mut maker = User {
+            orders: get_orders(Order {
+                market_index: 0,
+                post_only: true,
+                order_type: OrderType::Limit,
+                direction: PositionDirection::Long,
+                base_asset_amount: BASE_PRECISION * 2, // maker wants full = amm wants BASE_PERCISION
+                ts: 0,
+                price: 100 * MARK_PRICE_PRECISION,
+                ..Order::default()
+            }),
+            positions: get_positions(MarketPosition {
+                market_index: 0,
+                open_orders: 1,
+                open_bids: BASE_PRECISION_I128 * 2,
+                ..MarketPosition::default()
+            }),
+            ..User::default()
+        };
+
+        let mut filler = User::default();
+
+        let fee_structure = get_fee_structure();
+
+        let (taker_key, maker_key, filler_key) = get_user_keys();
+
+        let mut taker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
+        let mut filler_stats = UserStats::default();
+
+        assert_eq!(market.amm.total_fee, 0);
+        assert_eq!(market.amm.total_fee_minus_distributions, 0);
+        assert_eq!(market.amm.net_revenue_since_last_funding, 0);
+        assert_eq!(market.amm.total_mm_fee, 0);
+        assert_eq!(market.amm.total_fee_withdrawn, 0);
+
+        fulfill_order(
+            &mut taker,
+            0,
+            &taker_key,
+            &mut taker_stats,
+            &mut Some(&mut maker),
+            &mut Some(&mut maker_stats),
+            Some(0),
+            Some(&maker_key),
+            &mut Some(&mut filler),
+            &filler_key,
+            &mut Some(&mut filler_stats),
+            &mut None,
+            &mut None,
+            &bank_map,
+            &market_map,
+            &mut oracle_map,
+            &fee_structure,
+            0,
+            None,
+            now,
+            slot,
+        )
+        .unwrap();
+
+        let market_after = market_map.get_ref(&0).unwrap();
+        // nets to zero
+        assert_eq!(market_after.amm.net_base_asset_amount, 0);
+
+        let maker_position = &maker.positions[0];
+        // maker got (full - net_baa)
+        assert_eq!(
+            maker_position.base_asset_amount,
+            BASE_PRECISION_I128 * 2 - market.amm.net_base_asset_amount
+        );
+    }
+
+    #[test]
     fn no_fulfill_with_amm_jit_taker_short() {
         let now = 0_i64;
         let slot = 0_u64;
