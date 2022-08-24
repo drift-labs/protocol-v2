@@ -212,6 +212,7 @@ describe('referrer', () => {
 		assert(eventRecord.referrerReward.eq(new BN(5000)));
 		assert(eventRecord.refereeDiscount.eq(new BN(5000)));
 
+		await referrerClearingHouse.fetchAccounts();
 		const referrerStats = referrerClearingHouse.getUserStats().getAccount();
 		assert(referrerStats.totalReferrerReward.eq(new BN(5000)));
 
