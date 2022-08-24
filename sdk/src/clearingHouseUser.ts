@@ -33,7 +33,7 @@ import {
 	calculateBaseAssetValue,
 	calculatePositionFundingPNL,
 	calculatePositionPNL,
-	calculateUnsettledAssetWeight,
+	calculateUnrealizedAssetWeight,
 	calculateMarketMarginRatio,
 	PositionDirection,
 	calculateTradeSlippage,
@@ -372,11 +372,11 @@ export class ClearingHouseUser {
 			.positions.filter((pos) =>
 				marketIndex ? pos.marketIndex === marketIndex : true
 			)
-			.reduce((pnl, marketPosition) => {
+			.reduce((unrealizedPnl, marketPosition) => {
 				const market = this.clearingHouse.getMarketAccount(
 					marketPosition.marketIndex
 				);
-				let pnl0 = calculatePositionPNL(
+				let positionUnrealizedPnl = calculatePositionPNL(
 					market,
 					marketPosition,
 					withFunding,
@@ -384,12 +384,12 @@ export class ClearingHouseUser {
 				);
 
 				if (withWeightMarginCategory !== undefined) {
-					if (pnl0.gt(ZERO)) {
-						pnl0 = pnl0
+					if (positionUnrealizedPnl.gt(ZERO)) {
+						positionUnrealizedPnl = positionUnrealizedPnl
 							.mul(
-								calculateUnsettledAssetWeight(
+								calculateUnrealizedAssetWeight(
 									market,
-									pnl0,
+									positionUnrealizedPnl,
 									withWeightMarginCategory
 								)
 							)
@@ -397,7 +397,7 @@ export class ClearingHouseUser {
 					}
 				}
 
-				return pnl.add(pnl0);
+				return unrealizedPnl.add(positionUnrealizedPnl);
 			}, ZERO);
 	}
 
@@ -528,47 +528,9 @@ export class ClearingHouseUser {
 	 * @returns : Precision QUOTE_PRECISION
 	 */
 	public getTotalCollateral(marginCategory: MarginCategory = 'Initial'): BN {
-		return this.getUserAccount()
-			.bankBalances.reduce((totalAssetValue, bankBalance) => {
-				if (
-					bankBalance.balance.eq(ZERO) ||
-					isVariant(bankBalance.balanceType, 'borrow')
-				) {
-					return totalAssetValue;
-				}
-
-				// Todo this needs to account for whether it's based on initial or maintenance requirements
-				const bankAccount: BankAccount = this.clearingHouse.getBankAccount(
-					bankBalance.bankIndex
-				);
-
-				const tokenAmount = getTokenAmount(
-					bankBalance.balance,
-					bankAccount,
-					bankBalance.balanceType
-				);
-
-				const weight = calculateAssetWeight(
-					tokenAmount,
-					bankAccount,
-					marginCategory
-				);
-
-				return totalAssetValue.add(
-					tokenAmount
-						.mul(this.getOracleDataForBank(bankAccount.bankIndex).price)
-						.mul(weight)
-						.div(BANK_WEIGHT_PRECISION)
-						.div(MARK_PRICE_PRECISION)
-						// Adjust for decimals of bank account
-						.div(
-							new BN(10).pow(
-								new BN(bankAccount.decimals).sub(BANK_BALANCE_PRECISION_EXP)
-							)
-						)
-				);
-			}, ZERO)
-			.add(this.getUnrealizedPNL(true, undefined, marginCategory));
+		return this.getBankAssetValue(undefined, marginCategory).add(
+			this.getUnrealizedPNL(true, undefined, marginCategory)
+		);
 	}
 
 	/**

@@ -10,6 +10,7 @@ pub mod constants;
 pub mod fees;
 pub mod fulfillment;
 pub mod funding;
+pub mod helpers;
 pub mod liquidation;
 pub mod lp;
 pub mod margin;

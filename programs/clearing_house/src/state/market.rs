@@ -39,9 +39,9 @@ pub struct Market {
     pub next_curve_record_id: u64,
     pub pnl_pool: PoolBalance,
     pub imf_factor: u128,
-    pub unsettled_initial_asset_weight: u8,
-    pub unsettled_maintenance_asset_weight: u8,
-    pub unsettled_imf_factor: u128,
+    pub unrealized_initial_asset_weight: u8,
+    pub unrealized_maintenance_asset_weight: u8,
+    pub unrealized_imf_factor: u128,
     pub liquidation_fee: u128,
 
     // upgrade-ability
@@ -82,36 +82,36 @@ impl Market {
         }
     }
 
-    pub fn get_unsettled_asset_weight(
+    pub fn get_unrealized_asset_weight(
         &self,
-        unsettled_pnl: i128,
+        unrealized_pnl: i128,
         margin_type: MarginRequirementType,
     ) -> ClearingHouseResult<u128> {
-        // the asset weight for a position's unrealized pnl + unsettled pnl in the margin system
+        // the asset weight for a position's unrealized pnl in the margin system
         // > 0 (positive balance)
         // < 0 (negative balance) always has asset weight = 1
-        let unsettled_asset_weight = if unsettled_pnl > 0 {
+        let unrealized_asset_weight = if unrealized_pnl > 0 {
             // todo: only discount the initial margin s.t. no one gets liquidated over upnl?
 
             // a larger imf factor -> lower asset weight
             match margin_type {
                 MarginRequirementType::Initial => calculate_size_discount_asset_weight(
-                    unsettled_pnl
+                    unrealized_pnl
                         .unsigned_abs()
                         .checked_mul(AMM_TO_QUOTE_PRECISION_RATIO)
                         .ok_or_else(math_error!())?,
-                    self.unsettled_imf_factor,
-                    self.unsettled_initial_asset_weight as u128,
+                    self.unrealized_imf_factor,
+                    self.unrealized_initial_asset_weight as u128,
                 )?,
                 MarginRequirementType::Maintenance => {
-                    self.unsettled_maintenance_asset_weight as u128
+                    self.unrealized_maintenance_asset_weight as u128
                 }
             }
         } else {
             100
         };
 
-        Ok(unsettled_asset_weight)
+        Ok(unrealized_asset_weight)
     }
 
     pub fn get_liquidation_fee_multiplier(

@@ -18,6 +18,7 @@ import {
 	ZERO,
 	calculateQuoteAssetAmountSwapped,
 	EventSubscriber,
+	calculateBaseAssetAmountForAmmToFulfill,
 } from '../sdk/src';
 
 import {
@@ -29,7 +30,6 @@ import {
 	setFeedPrice,
 } from './testHelpers';
 import {
-	calculateBaseAssetAmountMarketCanExecute,
 	calculateMarkPrice,
 	getLimitOrderParams,
 	getSwapDirection,
@@ -400,9 +400,11 @@ describe('amm spread: market order', () => {
 		await clearingHouseUser.fetchAccounts();
 
 		const unfilledOrder = clearingHouseUser.getUserAccount().orders[0];
-		const expectedBaseAssetAmount = calculateBaseAssetAmountMarketCanExecute(
+		const expectedBaseAssetAmount = calculateBaseAssetAmountForAmmToFulfill(
+			unfilledOrder,
 			clearingHouse.getMarketAccount(0),
-			unfilledOrder
+			clearingHouse.getOracleDataForMarket(unfilledOrder.marketIndex),
+			0
 		);
 		assert(expectedBaseAssetAmount.eq(ZERO));
 
@@ -441,9 +443,11 @@ describe('amm spread: market order', () => {
 		await clearingHouseUser.fetchAccounts();
 
 		const unfilledOrder = clearingHouseUser.getUserAccount().orders[0];
-		const expectedBaseAssetAmount = calculateBaseAssetAmountMarketCanExecute(
+		const expectedBaseAssetAmount = calculateBaseAssetAmountForAmmToFulfill(
+			unfilledOrder,
 			clearingHouse.getMarketAccount(0),
-			unfilledOrder
+			clearingHouse.getOracleDataForMarket(unfilledOrder.marketIndex),
+			0
 		);
 		assert(expectedBaseAssetAmount.eq(ZERO));
 
@@ -490,9 +494,11 @@ describe('amm spread: market order', () => {
 			clearingHouseUser.getUserAccount().positions[0].baseAssetAmount.toString()
 		);
 
-		const expectedBaseAssetAmount = calculateBaseAssetAmountMarketCanExecute(
+		const expectedBaseAssetAmount = calculateBaseAssetAmountForAmmToFulfill(
+			order,
 			clearingHouse.getMarketAccount(0),
-			order
+			clearingHouse.getOracleDataForMarket(order.marketIndex),
+			0
 		);
 		assert(expectedBaseAssetAmount.eq(AMM_RESERVE_PRECISION));
 
@@ -569,9 +575,11 @@ describe('amm spread: market order', () => {
 			clearingHouseUser.getUserAccount().positions[0].baseAssetAmount.toString()
 		);
 
-		const expectedBaseAssetAmount = calculateBaseAssetAmountMarketCanExecute(
+		const expectedBaseAssetAmount = calculateBaseAssetAmountForAmmToFulfill(
+			order,
 			clearingHouse.getMarketAccount(0),
-			order
+			clearingHouse.getOracleDataForMarket(order.marketIndex),
+			0
 		);
 		assert(expectedBaseAssetAmount.eq(AMM_RESERVE_PRECISION));
 

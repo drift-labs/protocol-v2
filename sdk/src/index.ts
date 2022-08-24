@@ -41,7 +41,6 @@ export * from './math/trade';
 export * from './math/orders';
 export * from './math/repeg';
 export * from './math/margin';
-export * from './orders';
 export * from './orderParams';
 export * from './slot/SlotSubscriber';
 export * from './wallet';
