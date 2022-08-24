@@ -26,6 +26,7 @@ import {
 import {
 	BASE_PRECISION,
 	getMarketOrderParams,
+	PEG_PRECISION,
 	PositionDirection,
 } from '../sdk';
 
@@ -109,7 +110,8 @@ describe('referrer', () => {
 			solOracle,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
-			periodicity
+			periodicity,
+			new BN(100).mul(PEG_PRECISION)
 		);
 
 		await initializeQuoteAssetBank(referrerClearingHouse, usdcMint.publicKey);
@@ -206,19 +208,19 @@ describe('referrer', () => {
 
 		const eventRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 		assert(eventRecord.referrer.equals(provider.wallet.publicKey));
-		assert(eventRecord.takerFee.eq(new BN(950)));
-		assert(eventRecord.referrerReward.eq(new BN(50)));
-		assert(eventRecord.refereeDiscount.eq(new BN(50)));
+		assert(eventRecord.takerFee.eq(new BN(95000)));
+		assert(eventRecord.referrerReward.eq(new BN(5000)));
+		assert(eventRecord.refereeDiscount.eq(new BN(5000)));
 
 		const referrerStats = referrerClearingHouse.getUserStats().getAccount();
-		assert(referrerStats.totalReferrerReward.eq(new BN(50)));
+		assert(referrerStats.totalReferrerReward.eq(new BN(5000)));
 
 		const referrerPosition = referrerClearingHouse.getUser().getUserAccount()
 			.positions[0];
-		assert(referrerPosition.quoteAssetAmount.eq(new BN(50)));
+		assert(referrerPosition.quoteAssetAmount.eq(new BN(5000)));
 
 		const refereeStats = refereeClearingHouse.getUserStats().getAccount();
-		assert(refereeStats.fees.totalRefereeDiscount.eq(new BN(50)));
+		assert(refereeStats.fees.totalRefereeDiscount.eq(new BN(5000)));
 
 		await refereeClearingHouse.placeAndTake(
 			getMarketOrderParams({
