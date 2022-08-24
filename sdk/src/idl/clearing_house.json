@@ -2259,11 +2259,6 @@
           "isSigner": false
         },
         {
-          "name": "userTokenAccount",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
           "name": "tokenProgram",
           "isMut": false,
           "isSigner": false
@@ -2523,6 +2518,10 @@
             "type": "u128"
           },
           {
+            "name": "lpSharesExpo",
+            "type": "u128"
+          },
+          {
             "name": "insuranceWithdrawEscrowPeriod",
             "type": "i64"
           },
@@ -2625,6 +2624,14 @@
           {
             "name": "lpShares",
             "type": "u128"
+          },
+          {
+            "name": "expo",
+            "type": "u128"
+          },
+          {
+            "name": "lastValidTs",
+            "type": "i64"
           },
           {
             "name": "lastWithdrawRequestShares",
