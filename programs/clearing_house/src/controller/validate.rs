@@ -40,11 +40,21 @@ pub fn validate_market_account(market: &Market) -> ClearingHouseResult {
     )?;
 
     validate!(
-        market.amm.sqrt_k > market.amm.net_base_asset_amount.unsigned_abs()
-            && (market.amm.sqrt_k > market.amm.base_asset_reserve
-                || market.amm.sqrt_k > market.amm.quote_asset_reserve),
+        market.amm.sqrt_k > market.amm.net_base_asset_amount.unsigned_abs(),
         ErrorCode::DefaultError,
-        "k out of wack"
+        "k out of wack: k={}, net_baa={}",
+        market.amm.sqrt_k,
+        market.amm.net_base_asset_amount
+    )?;
+
+    validate!(
+        market.amm.sqrt_k >= market.amm.base_asset_reserve
+            || market.amm.sqrt_k >= market.amm.quote_asset_reserve,
+        ErrorCode::DefaultError,
+        "k out of wack: k={}, bar={}, qar={}",
+        market.amm.sqrt_k,
+        market.amm.base_asset_reserve,
+        market.amm.quote_asset_reserve
     )?;
 
     if market.amm.base_spread > 0 {
@@ -68,13 +78,13 @@ pub fn validate_market_account(market: &Market) -> ClearingHouseResult {
     if market.amm.net_base_asset_amount > 0 {
         // bid quote/base < reserve q/b
         validate!(
-            market.amm.terminal_quote_asset_reserve > market.amm.quote_asset_reserve,
+            market.amm.terminal_quote_asset_reserve < market.amm.quote_asset_reserve,
             ErrorCode::DefaultError,
             "terminal_quote_asset_reserve out of wack"
         )?;
     } else if market.amm.net_base_asset_amount < 0 {
         validate!(
-            market.amm.terminal_quote_asset_reserve < market.amm.quote_asset_reserve,
+            market.amm.terminal_quote_asset_reserve > market.amm.quote_asset_reserve,
             ErrorCode::DefaultError,
             "terminal_quote_asset_reserve out of wack"
         )?;
