@@ -269,20 +269,16 @@ describe('liquidity providing', () => {
 
 	it('burn with standardized baa', async () => {
 		console.log('adding liquidity...');
-		const initMarginReq = clearingHouseUser.getInitialMarginRequirement()
-		assert(initMarginReq.eq(ZERO))
+		const initMarginReq = clearingHouseUser.getInitialMarginRequirement();
+		assert(initMarginReq.eq(ZERO));
 
 		let market = clearingHouse.getMarketAccount(new BN(0));
 		const lpAmount = new BN(100 * 1e13); // 100 / (100 + 300) = 1/4
 		const _sig = await clearingHouse.addLiquidity(lpAmount, market.marketIndex);
 
-		const newInitMarginReq = clearingHouseUser.getInitialMarginRequirement()
-		console.log(
-			initMarginReq.toString(),
-			"->",
-			newInitMarginReq.toString()
-		)
-		assert(newInitMarginReq.eq(new BN(8284000)))
+		const newInitMarginReq = clearingHouseUser.getInitialMarginRequirement();
+		console.log(initMarginReq.toString(), '->', newInitMarginReq.toString());
+		assert(newInitMarginReq.eq(new BN(8284000)));
 
 		const stepSize = new BN(1 * 1e13);
 		await clearingHouse.updateMarketBaseAssetAmountStepSize(ZERO, stepSize);
@@ -442,7 +438,6 @@ describe('liquidity providing', () => {
 
 		console.log('done!');
 	});
-	return;
 
 	it('settles lp', async () => {
 		console.log('adding liquidity...');
@@ -476,7 +471,8 @@ describe('liquidity providing', () => {
 		const trader = traderClearingHouse.getUserAccount();
 		console.log('trader size', trader.positions[0].baseAssetAmount.toString());
 
-		const [settledLPPosition, _, __] = clearingHouseUser.getSettledLPPosition(ZERO);
+		const [settledLPPosition, _, __] =
+			clearingHouseUser.getSettledLPPosition(ZERO);
 
 		console.log('settling...');
 		try {
