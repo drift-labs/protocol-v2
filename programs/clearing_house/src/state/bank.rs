@@ -37,6 +37,7 @@ pub struct Bank {
 
     pub total_lp_shares: u128,
     pub user_lp_shares: u128,
+    pub lp_shares_expo: u128, // exponent for lp shares (for rebasing)
     pub insurance_withdraw_escrow_period: i64,
 
     pub decimals: u8,

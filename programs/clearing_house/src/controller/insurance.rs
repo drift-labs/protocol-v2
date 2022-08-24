@@ -1,8 +1,7 @@
 use crate::error::ErrorCode;
+use crate::math::casting::{cast_to_i128, cast_to_u128, cast_to_u32};
 use crate::validate;
 use solana_program::msg;
-use crate::math::casting::cast_to_i128;
-
 
 use crate::error::ClearingHouseResult;
 use crate::math::insurance::{staked_amount_to_shares, unstaked_shares_to_amount};
@@ -23,11 +22,8 @@ pub fn add_insurance_fund_stake(
         ErrorCode::DefaultError,
         "Insurance Fund balance should be non-zero for new LPs to enter"
     )?;
-    let n_shares = staked_amount_to_shares(
-        amount,
-        bank.total_lp_shares,
-        insurance_fund_vault_balance,
-    )?;
+    let n_shares =
+        staked_amount_to_shares(amount, bank.total_lp_shares, insurance_fund_vault_balance)?;
 
     // reset cost basis if no shares
     insurance_fund_stake.cost_basis = if insurance_fund_stake.lp_shares == 0 {
@@ -59,6 +55,62 @@ pub fn add_insurance_fund_stake(
             .quote_asset_insurance_fund_stake
             .checked_add(n_shares)
             .ok_or_else(math_error!())?;
+    }
+
+    Ok(())
+}
+
+pub fn apply_rebase_to_insurance_fund(
+    insurance_fund_vault_balance: u64,
+    bank: &mut Bank,
+) -> ClearingHouseResult {
+    validate!(
+        insurance_fund_vault_balance > 0,
+        ErrorCode::DefaultError,
+        "insurance_fund_vault_balance is 0"
+    )?;
+
+    if cast_to_u128(insurance_fund_vault_balance)? < bank.total_lp_shares {
+        let expo_diff = bank
+            .total_lp_shares
+            .checked_div(10)
+            .ok_or_else(math_error!())?
+            .checked_div(cast_to_u128(insurance_fund_vault_balance)?)
+            .ok_or_else(math_error!())?;
+
+        let rebase_divisor = 10_u128.pow(cast_to_u32(expo_diff)?);
+
+        bank.total_lp_shares = bank.total_lp_shares / rebase_divisor;
+        bank.user_lp_shares = bank.user_lp_shares / rebase_divisor;
+
+        bank.lp_shares_expo = bank.lp_shares_expo + expo_diff;
+    }
+
+    Ok(())
+}
+
+pub fn apply_rebase_to_insurance_fund_stake(
+    insurance_fund_stake: &mut InsuranceFundStake,
+    user_stats: &mut UserStats,
+    bank: &mut Bank,
+) -> ClearingHouseResult {
+    if bank.lp_shares_expo != insurance_fund_stake.expo {
+        validate!(
+            bank.lp_shares_expo > insurance_fund_stake.expo,
+            ErrorCode::DefaultError,
+            "Rebase expo out of bounds"
+        )?;
+
+        let expo_diff = cast_to_u32(bank.lp_shares_expo - insurance_fund_stake.expo)?;
+
+        let rebase_divisor = 10_u128.pow(expo_diff);
+
+        insurance_fund_stake.lp_shares = insurance_fund_stake.lp_shares / rebase_divisor;
+
+        if bank.bank_index == 0 {
+            user_stats.quote_asset_insurance_fund_stake =
+                user_stats.quote_asset_insurance_fund_stake / rebase_divisor;
+        }
     }
 
     Ok(())

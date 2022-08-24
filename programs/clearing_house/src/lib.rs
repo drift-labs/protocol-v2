@@ -273,6 +273,7 @@ pub mod clearing_house {
             user_reserve_factor: 0,
             total_lp_shares: 0,
             user_lp_shares: 0,
+            lp_shares_expo: 0,
             insurance_withdraw_escrow_period: 0,
             decimals: ctx.accounts.bank_mint.decimals,
             optimal_utilization,
@@ -2608,7 +2609,10 @@ pub mod clearing_house {
             .insurance_fund_stake
             .load_init()
             .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
-
+        
+        let clock = Clock::get()?;
+        let now = clock.unix_timestamp;
+        
         *if_stake = InsuranceFundStake {
             authority: *ctx.accounts.authority.key,
             bank_index,
@@ -2617,6 +2621,8 @@ pub mod clearing_house {
             last_withdraw_request_value: 0,
             last_withdraw_request_ts: 0,
             cost_basis: 0,
+            expo: 0,
+            last_valid_ts: now,
         };
 
         Ok(())
@@ -2692,7 +2698,6 @@ pub mod clearing_house {
         }
 
         let clock = Clock::get()?;
-        // let now = clock.unix_timestamp;
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
 
         let insurance_fund_stake = &mut load_mut!(ctx.accounts.insurance_fund_stake)?;
