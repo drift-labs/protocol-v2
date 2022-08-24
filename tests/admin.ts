@@ -63,6 +63,18 @@ describe('admin', () => {
 		);
 	});
 
+	it('Update Amm Jit', async () => {
+		await clearingHouse.fetchAccounts();
+		const prevMarket = clearingHouse.getMarketAccount(0);
+		assert(prevMarket.amm.ammJit === false);
+
+		await clearingHouse.updateAmmJit(new BN(0), true);
+
+		await clearingHouse.fetchAccounts();
+		const market = clearingHouse.getMarketAccount(0);
+		assert(market.amm.ammJit === true);
+	});
+
 	it('Update Margin Ratio', async () => {
 		const marginRatioInitial = 3000;
 		const marginRatioMaintenance = 1000;
