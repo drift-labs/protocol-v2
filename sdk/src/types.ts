@@ -360,6 +360,7 @@ export type BankAccount = {
 	insuranceFundVaultAuthority: PublicKey;
 	insuranceFundVaultAuthorityNonce: number;
 	insuranceWithdrawEscrowPeriod: BN;
+	insuranceFundPool: PoolBalance;
 	totalLpShares: BN;
 	userLpShares: BN;
 

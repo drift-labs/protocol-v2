@@ -13,6 +13,7 @@ use crate::math::margin::{
     MarginRequirementType,
 };
 use crate::math_error;
+use crate::state::market::PoolBalance;
 use crate::state::oracle::OracleSource;
 use solana_program::msg;
 
@@ -31,9 +32,10 @@ pub struct Bank {
     pub insurance_fund_vault: Pubkey,
     pub insurance_fund_vault_authority: Pubkey,
     pub insurance_fund_vault_authority_nonce: u8,
+    pub insurance_fund_pool: PoolBalance,
 
-    pub total_reserve_factor: u16, // percentage of interest for total insurance
-    pub user_reserve_factor: u16,  // percentage of interest for user staked insurance
+    pub total_reserve_factor: u32, // percentage of interest for total insurance
+    pub user_reserve_factor: u32,  // percentage of interest for user staked insurance
 
     pub total_lp_shares: u128,
     pub user_lp_shares: u128,

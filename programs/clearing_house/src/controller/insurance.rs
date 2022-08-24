@@ -70,8 +70,9 @@ pub fn apply_rebase_to_insurance_fund(
     insurance_fund_vault_balance: u64,
     bank: &mut Bank,
 ) -> ClearingHouseResult {
-
-    if insurance_fund_vault_balance!=0 && cast_to_u128(insurance_fund_vault_balance)? < bank.total_lp_shares {
+    if insurance_fund_vault_balance != 0
+        && cast_to_u128(insurance_fund_vault_balance)? < bank.total_lp_shares
+    {
         let (expo_diff, rebase_divisor) =
             calculate_rebase_info(bank.total_lp_shares, insurance_fund_vault_balance)?;
 
@@ -127,8 +128,8 @@ pub fn request_remove_insurance_fund_stake(
         unstaked_shares_to_amount(n_shares, bank.total_lp_shares, insurance_fund_vault_balance)?;
 
     validate!(
-        insurance_fund_stake.last_withdraw_request_value == 0 
-        || insurance_fund_stake.last_withdraw_request_value < insurance_fund_vault_balance,
+        insurance_fund_stake.last_withdraw_request_value == 0
+            || insurance_fund_stake.last_withdraw_request_value < insurance_fund_vault_balance,
         ErrorCode::DefaultError,
         "Requested withdraw value is not below Insurance Fund balance"
     )?;
@@ -621,7 +622,6 @@ mod test {
         };
         let amount = 100_000_384_939 as u64; // $100k + change
 
-
         let mut orig_if_stake = InsuranceFundStake {
             lp_shares: 80_000 * QUOTE_PRECISION,
             ..InsuranceFundStake::default()
@@ -653,7 +653,7 @@ mod test {
         )
         .is_err());
 
-        assert_eq!(if_stake.lp_shares, 0); 
+        assert_eq!(if_stake.lp_shares, 0);
         assert_eq!(bank.total_lp_shares, 100_000_000_000);
         assert_eq!(bank.user_lp_shares, 80_000 * QUOTE_PRECISION);
 
@@ -672,9 +672,9 @@ mod test {
         // check rebase math
         assert_eq!(bank.total_lp_shares, 1000003849400);
         assert_eq!(bank.user_lp_shares, 1000003849398);
-        assert_eq!(if_stake.lp_shares,  1000003849390); 
-        assert_eq!(if_stake.lp_shares < bank.user_lp_shares,  true); 
-        assert_eq!(bank.user_lp_shares - if_stake.lp_shares,  8); 
+        assert_eq!(if_stake.lp_shares, 1000003849390);
+        assert_eq!(if_stake.lp_shares < bank.user_lp_shares, true);
+        assert_eq!(bank.user_lp_shares - if_stake.lp_shares, 8);
 
         assert_eq!(bank.lp_shares_expo, 10);
         assert_eq!(if_stake.expo, 10);
@@ -682,9 +682,9 @@ mod test {
         // check orig if stake is good (on add)
         assert_eq!(orig_if_stake.expo, 0);
         assert_eq!(orig_if_stake.lp_shares, 80000000000);
-        
+
         let expected_shares_for_amount =
-        staked_amount_to_shares(1, bank.total_lp_shares, if_balance).unwrap();
+            staked_amount_to_shares(1, bank.total_lp_shares, if_balance).unwrap();
         assert_eq!(expected_shares_for_amount, 10);
 
         add_insurance_fund_stake(
@@ -698,7 +698,10 @@ mod test {
 
         assert_eq!(bank.lp_shares_expo, 10);
         assert_eq!(orig_if_stake.expo, 10);
-        assert_eq!(orig_if_stake.lp_shares, 80000000000/10000000000 + expected_shares_for_amount);
+        assert_eq!(
+            orig_if_stake.lp_shares,
+            80000000000 / 10000000000 + expected_shares_for_amount
+        );
         assert_eq!(orig_if_stake.lp_shares, 8 + expected_shares_for_amount);
     }
 
@@ -730,8 +733,13 @@ mod test {
         assert_eq!(bank.total_lp_shares, 100_000_000_000);
         assert_eq!(bank.user_lp_shares, 80_000 * QUOTE_PRECISION);
 
-
-        request_remove_insurance_fund_stake(if_stake.lp_shares, if_balance, &mut if_stake, &bank, 0)
+        request_remove_insurance_fund_stake(
+            if_stake.lp_shares,
+            if_balance,
+            &mut if_stake,
+            &bank,
+            0,
+        )
         .unwrap();
 
         let amount_returned =
@@ -743,8 +751,8 @@ mod test {
         assert_eq!(bank.total_lp_shares, 20000000000);
         assert_eq!(bank.user_lp_shares, 0);
 
-         // make non-zero
-         if_balance = 1;
+        // make non-zero
+        if_balance = 1;
         //  add_insurance_fund_stake(
         //      1,
         //      if_balance,
@@ -759,8 +767,7 @@ mod test {
         //  assert_eq!(bank.total_lp_shares, 40);
         //  assert_eq!(bank.user_lp_shares, 20);
 
-
-         add_insurance_fund_stake(
+        add_insurance_fund_stake(
             10_000_000_000_000, // 10 mil
             if_balance,
             &mut if_stake,
@@ -773,7 +780,6 @@ mod test {
         assert_eq!(bank.lp_shares_expo, 9);
         assert_eq!(bank.total_lp_shares, 200000000000020);
         assert_eq!(bank.user_lp_shares, 200000000000000);
-
     }
 
     #[test]
@@ -800,7 +806,13 @@ mod test {
 
         assert_eq!(if_balance, 0);
 
-        request_remove_insurance_fund_stake(if_stake.lp_shares/2, if_balance, &mut if_stake, &bank, 0)
+        request_remove_insurance_fund_stake(
+            if_stake.lp_shares / 2,
+            if_balance,
+            &mut if_stake,
+            &bank,
+            0,
+        )
         .unwrap();
 
         let amount_returned =
@@ -814,12 +826,18 @@ mod test {
         assert_eq!(bank.lp_shares_expo, 0);
 
         if_balance = QUOTE_PRECISION as u64;
-        request_remove_insurance_fund_stake(if_stake.lp_shares/2, if_balance, &mut if_stake, &bank, 0)
+        request_remove_insurance_fund_stake(
+            if_stake.lp_shares / 2,
+            if_balance,
+            &mut if_stake,
+            &bank,
+            0,
+        )
         .unwrap();
 
         let expected_amount_for_shares =
-            unstaked_shares_to_amount(if_stake.lp_shares/2, bank.total_lp_shares, 
-               if_balance).unwrap();
+            unstaked_shares_to_amount(if_stake.lp_shares / 2, bank.total_lp_shares, if_balance)
+                .unwrap();
         assert_eq!(expected_amount_for_shares, 328244);
 
         let amount_returned =
@@ -843,7 +861,7 @@ mod test {
         if_balance = if_balance + 10_000_000_000_000;
 
         assert_eq!(bank.total_lp_shares, 409300250930021);
-        assert_eq!(bank.user_lp_shares,  409300233021135);
+        assert_eq!(bank.user_lp_shares, 409300233021135);
         assert_eq!(bank.lp_shares_expo, 3);
         assert_eq!(if_balance, 10000001000000);
     }

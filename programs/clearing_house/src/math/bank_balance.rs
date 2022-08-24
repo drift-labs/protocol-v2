@@ -64,6 +64,27 @@ pub fn get_token_amount(
     Ok(token_amount)
 }
 
+pub fn get_interest_token_amount(
+    balance: u128,
+    bank: &Bank,
+    interest: u128,
+) -> ClearingHouseResult<u128> {
+    let precision_decrease = 10_u128.pow(
+        16_u8
+            .checked_sub(bank.decimals)
+            .ok_or_else(math_error!())?
+            .into(),
+    );
+
+    let token_amount = balance
+        .checked_mul(interest)
+        .ok_or_else(math_error!())?
+        .checked_div(precision_decrease)
+        .ok_or_else(math_error!())?;
+
+    Ok(token_amount)
+}
+
 pub struct InterestAccumulated {
     pub borrow_interest: u128,
     pub deposit_interest: u128,

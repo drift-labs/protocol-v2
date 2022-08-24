@@ -269,6 +269,7 @@ pub mod clearing_house {
             insurance_fund_vault: *ctx.accounts.insurance_fund_vault.to_account_info().key,
             insurance_fund_vault_authority,
             insurance_fund_vault_authority_nonce,
+            insurance_fund_pool: PoolBalance { balance: 0 },
             total_reserve_factor: 0,
             user_reserve_factor: 0,
             total_lp_shares: 0,
