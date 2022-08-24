@@ -183,6 +183,9 @@ describe('liquidate borrow', () => {
 			liquidationRecord.liquidateBorrow.liabilityTransfer.eq(new BN(500000000))
 		);
 
+		const bankCumulativeDepositInterestBefore =
+			clearingHouse.getBankAccount(1).cumulativeDepositInterest;
+
 		await liquidatorClearingHouse.resolveBorrowBankruptcy(
 			await clearingHouse.getUserAccountPublicKey(),
 			clearingHouse.getUserAccount(),
@@ -201,14 +204,13 @@ describe('liquidate borrow', () => {
 		console.log(bankruptcyRecord.borrowBankruptcy);
 		assert(bankruptcyRecord.borrowBankruptcy.bankIndex.eq(ONE));
 		assert(bankruptcyRecord.borrowBankruptcy.borrowAmount.eq(new BN(2000)));
-		console.log(
-			bankruptcyRecord.borrowBankruptcy.cumulativeDepositInterestDelta.eq(
-				new BN(39999)
+		const bank = clearingHouse.getBankAccount(1);
+		assert(
+			bank.cumulativeDepositInterest.eq(
+				bankCumulativeDepositInterestBefore.sub(
+					bankruptcyRecord.borrowBankruptcy.cumulativeDepositInterestDelta
+				)
 			)
 		);
-
-		const bank = clearingHouse.getBankAccount(1);
-		console.log(bank.cumulativeDepositInterest.toString());
-		assert(bank.cumulativeDepositInterest.eq(new BN(9999972684)));
 	});
 });
