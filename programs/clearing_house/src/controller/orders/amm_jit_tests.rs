@@ -184,13 +184,6 @@ pub mod amm_jit {
 
         let taker_position = &taker.positions[0];
         assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I128);
-        // assert_eq!(taker_position.quote_asset_amount, -102335406);
-        // assert_eq!(taker_position.quote_entry_amount, -102284264);
-        // assert_eq!(taker_position.open_bids, 0);
-        // assert_eq!(taker_position.open_orders, 0);
-        // assert_eq!(taker_stats.fees.total_fee_paid, 51142);
-        // assert_eq!(taker_stats.fees.total_referee_discount, 0);
-        // assert_eq!(taker_stats.fees.total_token_discount, 0);
         assert_eq!(taker_stats.taker_volume_30d, 102284244);
         assert_eq!(taker.orders[0], Order::default());
 
@@ -201,21 +194,11 @@ pub mod amm_jit {
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_stats.fees.total_fee_rebate, 15000);
         assert_eq!(maker_stats.maker_volume_30d, 50 * QUOTE_PRECISION_U64);
-        // assert_eq!(maker.orders[0], Order::default());
 
         let market_after = market_map.get_ref(&0).unwrap();
         assert_eq!(market_after.amm.net_base_asset_amount, 10000000000000);
-        //inadvertantly got flipped position, todo improve decision/amount to unload based on fufillment criteria
-
-        // assert_eq!(market_after.base_asset_amount_long, 10000000000000);
-        // assert_eq!(market_after.base_asset_amount_short, -10000000000000);
-        // assert_eq!(market_after.amm.quote_asset_amount_long, -102284264);
-        // assert_eq!(market_after.amm.quote_asset_amount_short, 50000000);
-        assert_eq!(market_after.amm.total_fee, 2064035); //paid toll to unload?
-                                                         // assert_eq!(market_after.amm.total_fee_minus_distributions, 2064035);
-                                                         // assert_eq!(market_after.amm.net_revenue_since_last_funding, 2064035);
-        assert_eq!(filler_stats.filler_volume_30d, 102284244); // from 102284244, no filler reward for unload amount
-                                                               // assert_eq!(filler.positions[0].quote_asset_amount, 5114);
+        assert_eq!(market_after.amm.total_fee, 2064035);
+        assert_eq!(filler_stats.filler_volume_30d, 102284244);
     }
 
     #[test]
@@ -545,26 +528,23 @@ pub mod amm_jit {
         assert_eq!(maker_position.open_bids, 2500000000000);
         assert_eq!(maker_stats.fees.total_fee_rebate, 15000 / 2);
         assert_eq!(maker_stats.maker_volume_30d, 50 / 2 * QUOTE_PRECISION_U64);
-        // assert_eq!(maker.orders[0], Order::default());
 
         let market_after = market_map.get_ref(&0).unwrap();
         assert_eq!(market_after.amm.net_base_asset_amount, -2500000000000);
-        //inadvertantly got flipped position, todo improve decision/amount to unload based on fufillment criteria
 
         let quote_asset_amount_surplus = market_after.amm.total_mm_fee - market.amm.total_mm_fee;
 
         assert!(quote_asset_amount_surplus > 0);
-        assert_eq!(quote_asset_amount_surplus, 677570); // todo add negative test as well
+        assert_eq!(quote_asset_amount_surplus, 677570);
 
-        assert_eq!(market_after.amm.total_fee, 713847); //paid toll to unload?
+        assert_eq!(market_after.amm.total_fee, 713847);
         assert_eq!(market_after.amm.total_fee_minus_distributions, 713847);
         assert_eq!(market_after.amm.net_revenue_since_last_funding, 713847);
         assert_eq!(market_after.amm.total_mm_fee, 677570);
         assert_eq!(market_after.amm.total_exchange_fee, 36141);
         assert_eq!(market_after.amm.total_fee_withdrawn, 0);
 
-        assert_eq!(filler_stats.filler_volume_30d, 97283221); // from 102284244, no filler reward for unload amount
-                                                              // assert_eq!(filler.positions[0].quote_asset_amount, 5114);
+        assert_eq!(filler_stats.filler_volume_30d, 97283221);
     }
 
     #[test]
@@ -718,13 +698,6 @@ pub mod amm_jit {
 
         let taker_position = &taker.positions[0];
         assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I128);
-        // assert_eq!(taker_position.quote_asset_amount, -102335406);
-        // assert_eq!(taker_position.quote_entry_amount, -102284264);
-        // assert_eq!(taker_position.open_bids, 0);
-        // assert_eq!(taker_position.open_orders, 0);
-        // assert_eq!(taker_stats.fees.total_fee_paid, 51142);
-        // assert_eq!(taker_stats.fees.total_referee_discount, 0);
-        // assert_eq!(taker_stats.fees.total_token_discount, 0);
         assert_eq!(taker_stats.taker_volume_30d, 102784235);
         assert_eq!(taker.orders[0], Order::default());
 
@@ -742,7 +715,6 @@ pub mod amm_jit {
         assert_eq!(maker_position.open_asks, -2500000000000);
         assert_eq!(maker_stats.fees.total_fee_rebate, 15000 / 2);
         assert_eq!(maker_stats.maker_volume_30d, 50 / 2 * QUOTE_PRECISION_U64);
-        // assert_eq!(maker.orders[0], Order::default());
 
         let market_after = market_map.get_ref(&0).unwrap();
         assert_eq!(market_after.amm.net_base_asset_amount, 2500000000000);
@@ -751,17 +723,16 @@ pub mod amm_jit {
         let quote_asset_amount_surplus = market_after.amm.total_mm_fee - market.amm.total_mm_fee;
 
         assert!(quote_asset_amount_surplus > 0);
-        assert_eq!(quote_asset_amount_surplus, 697892); // todo add negative test as well
+        assert_eq!(quote_asset_amount_surplus, 697892);
 
-        assert_eq!(market_after.amm.total_fee, 736645); //paid toll to unload?
+        assert_eq!(market_after.amm.total_fee, 736645);
         assert_eq!(market_after.amm.total_fee_minus_distributions, 736645);
         assert_eq!(market_after.amm.net_revenue_since_last_funding, 736645);
         assert_eq!(market_after.amm.total_mm_fee, 697892);
         assert_eq!(market_after.amm.total_exchange_fee, 38892);
         assert_eq!(market_after.amm.total_fee_withdrawn, 0);
 
-        assert_eq!(filler_stats.filler_volume_30d, 102784235); // from 102284244, no filler reward for unload amount
-                                                               // assert_eq!(filler.positions[0].quote_asset_amount, 5114);
+        assert_eq!(filler_stats.filler_volume_30d, 102784235);
     }
 
     #[test]
@@ -916,13 +887,6 @@ pub mod amm_jit {
 
         let taker_position = &taker.positions[0];
         assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I128 / 2);
-        // assert_eq!(taker_position.quote_asset_amount, -102335406);
-        // assert_eq!(taker_position.quote_entry_amount, -102284264);
-        // assert_eq!(taker_position.open_bids, 0);
-        // assert_eq!(taker_position.open_orders, 0);
-        // assert_eq!(taker_stats.fees.total_fee_paid, 51142);
-        // assert_eq!(taker_stats.fees.total_referee_discount, 0);
-        // assert_eq!(taker_stats.fees.total_token_discount, 0);
         assert_eq!(taker_stats.taker_volume_30d, 7499999);
 
         let maker_position = &maker.positions[0];
@@ -950,15 +914,14 @@ pub mod amm_jit {
         assert!(quote_asset_amount_surplus < 0);
         assert_eq!(quote_asset_amount_surplus, -21582278);
 
-        assert_eq!(market_after.amm.total_fee, -21579653); //paid toll to unload?
+        assert_eq!(market_after.amm.total_fee, -21579653);
         assert_eq!(market_after.amm.total_fee_minus_distributions, -21579653);
         assert_eq!(market_after.amm.net_revenue_since_last_funding, -21579653);
         assert_eq!(market_after.amm.total_mm_fee, -21582278);
         assert_eq!(market_after.amm.total_exchange_fee, 2500);
         assert_eq!(market_after.amm.total_fee_withdrawn, 0);
 
-        assert_eq!(filler_stats.filler_volume_30d, 7499999); // from 102284244, no filler reward for unload amount
-                                                             // assert_eq!(filler.positions[0].quote_asset_amount, 5114);
+        assert_eq!(filler_stats.filler_volume_30d, 7499999);
     }
 
     #[test]
@@ -1140,15 +1103,14 @@ pub mod amm_jit {
         assert!(quote_asset_amount_surplus < 0);
         assert_eq!(quote_asset_amount_surplus, -16543210);
 
-        assert_eq!(market_after.amm.total_fee, -16517710); //paid toll to unload?
+        assert_eq!(market_after.amm.total_fee, -16517710);
         assert_eq!(market_after.amm.total_fee_minus_distributions, -16517710);
         assert_eq!(market_after.amm.net_revenue_since_last_funding, -16517710);
         assert_eq!(market_after.amm.total_mm_fee, -16543210);
         assert_eq!(market_after.amm.total_exchange_fee, 20000);
         assert_eq!(market_after.amm.total_fee_withdrawn, 0);
 
-        assert_eq!(filler_stats.filler_volume_30d, 89999984); // from 102284244, no filler reward for unload amount
-                                                              // assert_eq!(filler.positions[0].quote_asset_amount, 5114);
+        assert_eq!(filler_stats.filler_volume_30d, 89999984);
     }
 
     #[allow(clippy::comparison_chain)]
@@ -1276,17 +1238,12 @@ pub mod amm_jit {
         assert_eq!(market.amm.total_mm_fee, 0);
         assert_eq!(market.amm.total_fee_withdrawn, 0);
 
-        // set auction slot duration
-        // fufill a slice of the order
-        // check if net_baa decreases to zero
-        // check auction price
-        // if its < mark: assert qas < 0
-        // if its = mark: assert qas = 0
-        // if its > mark: assert qas > 0
-
         let (mut neg, mut pos, mut none) = (false, false, false);
         let mut prev_mm_fee = 0;
         let mut prev_net_baa = market.amm.net_base_asset_amount;
+        // track scaling
+        let mut prev_qas = 0;
+        let mut has_set_prev_qas = false;
         loop {
             println!("------");
 
@@ -1386,6 +1343,15 @@ pub mod amm_jit {
             );
 
             assert_eq!(_quote_asset_amount_surplus, quote_asset_amount_surplus);
+
+            if !has_set_prev_qas {
+                prev_qas = quote_asset_amount_surplus;
+                has_set_prev_qas = true;
+            } else {
+                // decreasing (amm paying less / earning more)
+                assert!(prev_qas < quote_asset_amount_surplus);
+                prev_qas = quote_asset_amount_surplus;
+            }
 
             if quote_asset_amount_surplus < 0 {
                 neg = true;
@@ -1534,17 +1500,13 @@ pub mod amm_jit {
         assert_eq!(market.amm.total_mm_fee, 0);
         assert_eq!(market.amm.total_fee_withdrawn, 0);
 
-        // set auction slot duration
-        // fufill a slice of the order
-        // check if net_baa decreases to zero
-        // check auction price
-        // if its < mark: assert qas < 0
-        // if its = mark: assert qas = 0
-        // if its > mark: assert qas > 0
-
         let (mut neg, mut pos, mut none) = (false, false, false);
         let mut prev_mm_fee = 0;
         let mut prev_net_baa = market.amm.net_base_asset_amount;
+        // track scaling
+        let mut prev_qas = 0;
+        let mut has_set_prev_qas = false;
+
         loop {
             println!("------");
 
@@ -1555,6 +1517,7 @@ pub mod amm_jit {
                 slot,
             )
             .unwrap();
+
             if is_complete {
                 break;
             }
@@ -1644,6 +1607,15 @@ pub mod amm_jit {
             );
 
             assert_eq!(_quote_asset_amount_surplus, quote_asset_amount_surplus);
+
+            if !has_set_prev_qas {
+                prev_qas = quote_asset_amount_surplus;
+                has_set_prev_qas = true;
+            } else {
+                // decreasing (amm paying less / earning more)
+                assert!(prev_qas < quote_asset_amount_surplus);
+                prev_qas = quote_asset_amount_surplus;
+            }
 
             if quote_asset_amount_surplus < 0 {
                 neg = true;

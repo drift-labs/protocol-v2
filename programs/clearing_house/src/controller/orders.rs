@@ -18,7 +18,6 @@ use crate::math::auction::{
     calculate_auction_end_price, calculate_auction_start_price, is_auction_complete,
 };
 use crate::math::casting::{cast, cast_to_i128};
-// use crate::math::constants::AMM_RESERVE_PRECISION;
 use crate::math::fulfillment::determine_fulfillment_methods;
 use crate::math::liquidation::validate_user_not_being_liquidated;
 use crate::math::matching::{
@@ -1052,8 +1051,6 @@ pub fn fulfill_order_with_amm(
         }
     };
 
-    println!("{}", base_asset_amount);
-
     if base_asset_amount == 0 {
         msg!("Amm cant fulfill order");
         return Ok((0, false));
@@ -1104,7 +1101,9 @@ pub fn fulfill_order_with_amm(
     )?;
 
     // Increment the clearing house's total fee variables
-    market.amm.total_fee = cast_to_i128(market.amm.total_fee)?
+    market.amm.total_fee = market
+        .amm
+        .total_fee
         .checked_add(fee_to_market)
         .ok_or_else(math_error!())?;
     market.amm.total_exchange_fee = market
@@ -1277,7 +1276,6 @@ pub fn fulfill_order_with_match(
     };
 
     let base_asset_amount_left_to_fill = if market.amm.amm_jit && amm_wants_to_make {
-        println!("amm jiting");
         // todo: dynamic
         let unload_base_asset_amount = standardize_base_asset_amount(
             base_asset_amount.checked_div(2).ok_or_else(math_error!())?,
