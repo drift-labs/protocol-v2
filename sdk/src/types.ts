@@ -106,6 +106,15 @@ export type CandleResolution =
 	| 'W'
 	| 'M';
 
+export type NewUserRecord = {
+	ts: BN;
+	userAuthority: PublicKey;
+	user: PublicKey;
+	userId: number;
+	name: number[];
+	referrer: PublicKey;
+};
+
 export type DepositRecord = {
 	ts: BN;
 	userAuthority: PublicKey;
@@ -117,6 +126,7 @@ export type DepositRecord = {
 	bankIndex: BN;
 	amount: BN;
 	oraclePrice: BN;
+	referrer: PublicKey;
 	from?: PublicKey;
 	to?: PublicKey;
 };
@@ -282,6 +292,9 @@ export type OrderRecord = {
 	fillerReward: BN;
 	quoteAssetAmountSurplus: BN;
 	oraclePrice: BN;
+	referrer: PublicKey;
+	referrerReward: BN;
+	refereeDiscount: BN;
 };
 
 export type StateAccount = {
@@ -330,9 +343,9 @@ export type MarketAccount = {
 	pnlPool: PoolBalance;
 	liquidationFee: BN;
 	imfFactor: BN;
-	unsettledImfFactor: BN;
-	unsettledInitialAssetWeight: number;
-	unsettledMaintenanceAssetWeight: number;
+	unrealizedImfFactor: BN;
+	unrealizedInitialAssetWeight: number;
+	unrealizedMaintenanceAssetWeight: number;
 };
 
 export type BankAccount = {
@@ -432,6 +445,8 @@ export type AMM = {
 	maxSpread: number;
 	marketPosition: UserPosition;
 	marketPositionPerLp: UserPosition;
+	maxBaseAssetReserve: BN;
+	minBaseAssetReserve: BN;
 };
 
 // # User Account Types
@@ -463,11 +478,12 @@ export type UserStatsAccount = {
 		totalFeePaid: BN;
 		totalFeeRebate: BN;
 		totalTokenDiscount: BN;
-		totalReferralReward: BN;
 		totalRefereeDiscount: BN;
 	};
-	authority: PublicKey;
 	referrer: PublicKey;
+	isReferrer: boolean;
+	totalReferrerReward: BN;
+	authority: PublicKey;
 	quoteAssetInsuranceFundStake: BN;
 };
 
@@ -481,6 +497,7 @@ export type UserAccount = {
 	beingLiquidated: boolean;
 	bankrupt: boolean;
 	nextLiquidationId: number;
+	nextOrderId: BN;
 };
 
 export type UserBankBalance = {
@@ -508,9 +525,7 @@ export type Order = {
 	triggerPrice: BN;
 	triggerCondition: OrderTriggerCondition;
 	triggered: boolean;
-	discountTier: OrderDiscountTier;
 	existingPositionDirection: PositionDirection;
-	referrer: PublicKey;
 	postOnly: boolean;
 	immediateOrCancel: boolean;
 	oraclePriceOffset: BN;
@@ -584,6 +599,11 @@ export type TakerInfo = {
 	taker: PublicKey;
 	takerStats: PublicKey;
 	order: Order;
+};
+
+export type ReferrerInfo = {
+	referrer: PublicKey;
+	referrerStats: PublicKey;
 };
 
 // # Misc Types

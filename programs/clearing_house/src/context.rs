@@ -168,6 +168,11 @@ pub struct Deposit<'info> {
         has_one = authority,
     )]
     pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        has_one = authority
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
     pub authority: Signer<'info>,
     #[account(
         mut,
@@ -192,6 +197,11 @@ pub struct Withdraw<'info> {
         has_one = authority,
     )]
     pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        has_one = authority
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
     pub authority: Signer<'info>,
     #[account(
         mut,
@@ -241,6 +251,11 @@ pub struct TransferDeposit<'info> {
         has_one = authority,
     )]
     pub to_user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        has_one = authority
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
     pub authority: Signer<'info>,
     pub state: Box<Account<'info, State>>,
 }

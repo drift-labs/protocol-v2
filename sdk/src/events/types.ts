@@ -4,6 +4,7 @@ import {
 	FundingPaymentRecord,
 	FundingRateRecord,
 	LiquidationRecord,
+	NewUserRecord,
 	OrderRecord,
 	SettlePnlRecord,
 } from '../index';
@@ -28,6 +29,7 @@ export const DefaultEventSubscriptionOptions: EventSubscriptionOptions = {
 		'LiquidationRecord',
 		'OrderRecord',
 		'FundingRateRecord',
+		'NewUserRecord',
 		'SettlePnlRecord',
 	],
 	maxEventsPerType: 4096,
@@ -62,6 +64,7 @@ export type EventMap = {
 	FundingRateRecord: Event<FundingRateRecord>;
 	OrderRecord: Event<OrderRecord>;
 	SettlePnlRecord: Event<SettlePnlRecord>;
+	NewUserRecord: Event<NewUserRecord>;
 };
 
 export type EventType = keyof EventMap;

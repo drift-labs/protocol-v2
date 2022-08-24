@@ -63,10 +63,18 @@ pub enum ErrorCode {
     InvalidDiscountToken,
     #[msg("Discount token not found")]
     DiscountTokenNotFound,
-    #[msg("Invalid referrer")]
-    InvalidReferrer,
     #[msg("Referrer not found")]
     ReferrerNotFound,
+    #[msg("ReferrerNotFound")]
+    ReferrerStatsNotFound,
+    #[msg("ReferrerMustBeWritable")]
+    ReferrerMustBeWritable,
+    #[msg("ReferrerMustBeWritable")]
+    ReferrerStatsMustBeWritable,
+    #[msg("ReferrerAndReferrerStatsAuthorityUnequal")]
+    ReferrerAndReferrerStatsAuthorityUnequal,
+    #[msg("InvalidReferrer")]
+    InvalidReferrer,
     #[msg("InvalidOracle")]
     InvalidOracle,
     #[msg("OracleNotFound")]
@@ -107,6 +115,8 @@ pub enum ErrorCode {
     DidNotReceiveExpectedReferrer,
     #[msg("Could not deserialize referrer")]
     CouldNotDeserializeReferrer,
+    #[msg("Could not deserialize referrer stats")]
+    CouldNotDeserializeReferrerStats,
     #[msg("User Order Id Already In Use")]
     UserOrderIdAlreadyInUse,
     #[msg("No positions liquidatable")]

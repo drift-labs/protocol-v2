@@ -7,7 +7,7 @@ use crate::controller::amm::SwapDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::casting::{cast, cast_to_i128};
 use crate::math::constants::{AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128};
-use crate::math::lp::get_proportion_i128;
+use crate::math::helpers::get_proportion_i128;
 use crate::math::orders::{
     calculate_quote_asset_amount_for_maker_order, get_position_delta_for_fill,
     is_multiple_of_step_size,
@@ -397,18 +397,20 @@ pub fn update_position_and_market(
         }
     }
 
-    position.quote_asset_amount = new_quote_asset_amount;
-    position.quote_entry_amount = new_quote_entry_amount;
-    position.base_asset_amount = new_base_asset_amount;
-
     validate!(
         is_multiple_of_step_size(
             position.base_asset_amount.unsigned_abs(),
             market.amm.base_asset_amount_step_size
         )?,
         ErrorCode::DefaultError,
-        "update_position_and_market left invalid position"
+        "update_position_and_market left invalid position before {} after {}",
+        position.base_asset_amount,
+        new_base_asset_amount
     )?;
+
+    position.quote_asset_amount = new_quote_asset_amount;
+    position.quote_entry_amount = new_quote_entry_amount;
+    position.base_asset_amount = new_base_asset_amount;
 
     Ok(pnl)
 }

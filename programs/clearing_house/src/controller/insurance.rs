@@ -845,5 +845,6 @@ mod test {
         assert_eq!(bank.total_lp_shares, 409300250930021);
         assert_eq!(bank.user_lp_shares,  409300233021135);
         assert_eq!(bank.lp_shares_expo, 3);
+        assert_eq!(if_balance, 10000001000000);
     }
 }

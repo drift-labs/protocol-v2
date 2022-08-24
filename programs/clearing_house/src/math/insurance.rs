@@ -1,5 +1,5 @@
 use crate::error::ClearingHouseResult;
-use crate::math::lp::get_proportion_u128;
+use crate::math::helpers::get_proportion_u128;
 use solana_program::msg;
 
 use crate::math::casting::{cast_to_u128, cast_to_u32, cast_to_u64};
