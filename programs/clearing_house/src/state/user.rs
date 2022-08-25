@@ -211,15 +211,13 @@ impl UserBankBalance {
             .ok_or_else(math_error!())?;
 
         if token_amount_all_bids_fill.abs() > token_amount_all_asks_fill.abs() {
-            Ok((
-                token_amount_all_bids_fill,
-                get_token_value(self.open_bids, bank.decimals, oracle_price_data)?,
-            ))
+            let worst_case_quote_token_amount =
+                get_token_value(-self.open_bids, bank.decimals, oracle_price_data)?;
+            Ok((token_amount_all_bids_fill, worst_case_quote_token_amount))
         } else {
-            Ok((
-                token_amount_all_asks_fill,
-                get_token_value(self.open_asks, bank.decimals, oracle_price_data)?,
-            ))
+            let worst_case_quote_token_amount =
+                get_token_value(-self.open_asks, bank.decimals, oracle_price_data)?;
+            Ok((token_amount_all_asks_fill, worst_case_quote_token_amount))
         }
     }
 }
