@@ -12,6 +12,7 @@ pub fn staked_amount_to_shares(
 ) -> ClearingHouseResult<u128> {
     // relative to the entire pool + total amount minted
     let n_shares = if insurance_fund_vault_balance > 0 {
+        // assumes total_lp_shares != 0 for nice result for user
         get_proportion_u128(
             cast_to_u128(amount)?,
             total_lp_shares,
@@ -99,7 +100,7 @@ mod test {
         assert_eq!(rebase_div, 100000000000);
         assert_eq!(expo_diff, 11);
 
-        // todo?
+        // todo?: does not rebase the other direction (perhaps unnecessary)
         let (expo_diff, rebase_div) = calculate_rebase_info(12412, 83295723895729080).unwrap();
 
         assert_eq!(rebase_div, 1);

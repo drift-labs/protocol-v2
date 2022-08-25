@@ -2646,4 +2646,26 @@ export class ClearingHouse {
 			remainingAccounts,
 		});
 	}
+
+	public async settleBankToInsuranceFund(
+		bankIndex: BN
+	): Promise<TransactionSignature> {
+		const bank = this.getBankAccount(bankIndex);
+
+		const remainingAccounts = this.getRemainingAccounts({
+			writableBankIndex: bankIndex,
+		});
+
+		return await this.program.rpc.settleBankToInsuranceFund(bankIndex, {
+			accounts: {
+				state: await this.getStatePublicKey(),
+				bank: bank.pubkey,
+				bankVault: bank.vault,
+				bankVaultAuthority: bank.vaultAuthority,
+				insuranceFundVault: bank.insuranceFundVault,
+				tokenProgram: TOKEN_PROGRAM_ID,
+			},
+			remainingAccounts,
+		});
+	}
 }

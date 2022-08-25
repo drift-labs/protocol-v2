@@ -44,7 +44,7 @@ pub mod clearing_house {
     use crate::margin_validation::validate_margin;
     use crate::math;
     use crate::math::bank_balance::get_token_amount;
-    use crate::math::casting::{cast, cast_to_i128, cast_to_u128};
+    use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u32};
     use crate::optional_accounts::{get_maker_and_maker_stats, get_referrer_and_referrer_stats};
     use crate::state::bank::{Bank, BankBalanceType};
     use crate::state::bank_map::{get_writable_banks, BankMap, WritableBanks};
@@ -295,6 +295,7 @@ pub mod clearing_house {
             maintenance_liability_weight,
             imf_factor,
             liquidation_fee,
+            liquidation_reserve_factor: 0,
             withdraw_guard_threshold: 0,
         };
 
@@ -2339,6 +2340,48 @@ pub mod clearing_house {
         Ok(())
     }
 
+    pub fn update_bank_reserve_factor(
+        ctx: Context<AdminUpdateBank>,
+        bank_index: u64,
+        user_reserve_factor: u32,
+        total_reserve_factor: u32,
+    ) -> Result<()> {
+        let bank = &mut load_mut!(ctx.accounts.bank)?;
+
+        validate!(
+            bank.bank_index == bank_index,
+            ErrorCode::DefaultError,
+            "bank_index dne bank.index"
+        )?;
+
+        validate!(
+            user_reserve_factor <= total_reserve_factor,
+            ErrorCode::DefaultError,
+            "user_reserve_factor must be <= total_reserve_factor"
+        )?;
+
+        validate!(
+            total_reserve_factor <= cast_to_u32(BANK_INTEREST_PRECISION)?,
+            ErrorCode::DefaultError,
+            "total_reserve_factor must be less than 100%"
+        )?;
+
+        msg!(
+            "bank.user_reserve_factor: {:?} -> {:?}",
+            bank.user_reserve_factor,
+            user_reserve_factor
+        );
+        msg!(
+            "bank.total_reserve_factor: {:?} -> {:?}",
+            bank.total_reserve_factor,
+            total_reserve_factor
+        );
+
+        bank.user_reserve_factor = user_reserve_factor;
+        bank.total_reserve_factor = total_reserve_factor;
+        Ok(())
+    }
+
     #[access_control(
         market_initialized(&ctx.accounts.market)
     )]
@@ -2705,7 +2748,7 @@ pub mod clearing_house {
 
         let bank_vault_amount = ctx.accounts.bank_vault.amount;
 
-        let depositors_claim =
+        let _depositors_claim =
             controller::bank_balance::validate_bank_amounts(bank, bank_vault_amount)?;
 
         let token_amount = get_token_amount(

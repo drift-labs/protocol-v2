@@ -1,9 +1,9 @@
 import * as anchor from '@project-serum/anchor';
-import { assert } from 'chai';
+import { assert, expect } from 'chai';
 
 import { Program } from '@project-serum/anchor';
 
-import { PublicKey } from '@solana/web3.js';
+import { PublicKey, Keypair } from '@solana/web3.js';
 
 import {
 	Admin,
@@ -14,6 +14,14 @@ import {
 	InsuranceFundStake,
 	ZERO,
 	QUOTE_ASSET_BANK_INDEX,
+	QUOTE_PRECISION,
+	ONE,
+	getTokenAmount,
+	BankBalanceType,
+	getBalance,
+	isVariant,
+	BANK_RATE_PRECISION,
+	BANK_INTEREST_PRECISION,
 } from '../sdk/src';
 
 import {
@@ -21,9 +29,13 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	initializeQuoteAssetBank,
+	initializeSolAssetBank,
+	createUserWithUSDCAndWSOLAccount,
 	printTxLogs,
+	mintToInsuranceFund,
 	sleep,
 } from './testHelpers';
+import { getTokenAccount } from '@project-serum/common';
 
 describe('insurance fund stake', () => {
 	const provider = anchor.AnchorProvider.local();
@@ -36,11 +48,17 @@ describe('insurance fund stake', () => {
 	eventSubscriber.subscribe();
 
 	let usdcMint;
-	let userUSDCAccount;
+	let userUSDCAccount: Keypair;
 
 	let solOracle: PublicKey;
 
-	const usdcAmount = new BN(100 * 10 ** 6);
+	const usdcAmount = new BN(1000000 * 10 ** 6); //1M
+
+	let secondUserClearingHouse: ClearingHouse;
+	let secondUserClearingHouseWSOLAccount: PublicKey;
+	let secondUserClearingHouseUSDCAccount: PublicKey;
+
+	const solAmount = new BN(10000 * 10 ** 9);
 
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
@@ -50,7 +68,7 @@ describe('insurance fund stake', () => {
 			provider
 		);
 
-		solOracle = await mockOracle(100);
+		solOracle = await mockOracle(22500); // a future we all need to believe in
 
 		clearingHouse = new Admin({
 			connection,
@@ -61,7 +79,7 @@ describe('insurance fund stake', () => {
 			},
 			activeUserId: 0,
 			marketIndexes: [new BN(0)],
-			bankIndexes: [new BN(0)],
+			bankIndexes: [new BN(0), new BN(1)],
 			oracleInfos: [
 				{
 					publicKey: solOracle,
@@ -75,6 +93,7 @@ describe('insurance fund stake', () => {
 		await clearingHouse.subscribe();
 
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
+		await initializeSolAssetBank(clearingHouse, solOracle);
 
 		const userId = 0;
 		const name = 'BIGZ';
@@ -130,6 +149,7 @@ describe('insurance fund stake', () => {
 		}
 
 		const bank0 = clearingHouse.getBankAccount(bankIndex);
+		assert(bank0.insuranceFundPool.balance.eq(ZERO));
 		assert(bank0.totalLpShares.gt(ZERO));
 		assert(bank0.totalLpShares.eq(usdcAmount));
 		assert(bank0.userLpShares.eq(usdcAmount));
@@ -208,6 +228,14 @@ describe('insurance fund stake', () => {
 			bankIndex
 		);
 
+		const balance = await connection.getBalance(userUSDCAccount.publicKey);
+		console.log('sol balance:', balance.toString());
+		const usdcbalance = await connection.getTokenAccountBalance(
+			userUSDCAccount.publicKey
+		);
+		console.log('usdc balance:', usdcbalance.value.amount);
+		assert(usdcbalance.value.amount == '499999999999');
+
 		const ifStakeAccount =
 			(await clearingHouse.program.account.insuranceFundStake.fetch(
 				ifStakePublicKey
@@ -278,6 +306,18 @@ describe('insurance fund stake', () => {
 	it('user if unstake with escrow period (last half)', async () => {
 		const bankIndex = new BN(0);
 
+		try {
+			await clearingHouse.updateBankReserveFactor(
+				new BN(0),
+				new BN(90000),
+				new BN(100000)
+			);
+		} catch (e) {
+			console.log('cant set reserve factor');
+			console.error(e);
+			assert(false);
+		}
+
 		let bank0Pre = clearingHouse.getBankAccount(bankIndex);
 		assert(bank0Pre.insuranceWithdrawEscrowPeriod.eq(new BN(10)));
 
@@ -344,5 +384,181 @@ describe('insurance fund stake', () => {
 
 		const userStats = clearingHouse.getUserStats().getAccount();
 		assert(userStats.quoteAssetInsuranceFundStake.eq(ZERO));
+
+		const usdcbalance = await connection.getTokenAccountBalance(
+			userUSDCAccount.publicKey
+		);
+		console.log('usdc balance:', usdcbalance.value.amount);
+		assert(usdcbalance.value.amount == '999999999999');
+	});
+
+	it('Second User Deposit SOL', async () => {
+		[
+			secondUserClearingHouse,
+			secondUserClearingHouseWSOLAccount,
+			secondUserClearingHouseUSDCAccount,
+		] = await createUserWithUSDCAndWSOLAccount(
+			provider,
+			usdcMint,
+			chProgram,
+			solAmount,
+			ZERO,
+			[new BN(0)],
+			[new BN(0), new BN(1)],
+			[
+				{
+					publicKey: solOracle,
+					source: OracleSource.PYTH,
+				},
+			]
+		);
+
+		const bankIndex = new BN(1);
+		const txSig = await secondUserClearingHouse.deposit(
+			solAmount,
+			bankIndex,
+			secondUserClearingHouseWSOLAccount
+		);
+		await printTxLogs(connection, txSig);
+
+		const bank = await clearingHouse.getBankAccount(bankIndex);
+		console.log(bank.depositBalance.toString());
+		// assert(bank.depositBalance.eq('10000000000'));
+
+		const vaultAmount = new BN(
+			(
+				await provider.connection.getTokenAccountBalance(bank.vault)
+			).value.amount
+		);
+		assert(vaultAmount.eq(solAmount));
+
+		const expectedBalance = getBalance(
+			solAmount,
+			bank,
+			BankBalanceType.DEPOSIT
+		);
+		const userBankBalance =
+			secondUserClearingHouse.getUserAccount().bankBalances[1];
+		assert(isVariant(userBankBalance.balanceType, 'deposit'));
+		assert(userBankBalance.balance.eq(expectedBalance));
+	});
+
+	it('Second User Withdraw First half USDC', async () => {
+		const bankIndex = new BN(0);
+		const withdrawAmount = usdcAmount.div(new BN(2));
+		const txSig = await secondUserClearingHouse.withdraw(
+			withdrawAmount,
+			bankIndex,
+			secondUserClearingHouseUSDCAccount
+		);
+		await printTxLogs(connection, txSig);
+
+		const bank = await clearingHouse.getBankAccount(bankIndex);
+		const expectedBorrowBalance = new BN(500000000001);
+		console.log('bank.borrowBalance:', bank.borrowBalance.toString());
+		assert(bank.borrowBalance.eq(expectedBorrowBalance));
+
+		const vaultAmount = new BN(
+			(
+				await provider.connection.getTokenAccountBalance(bank.vault)
+			).value.amount
+		);
+		const expectedVaultAmount = usdcAmount.sub(withdrawAmount);
+		assert(vaultAmount.eq(expectedVaultAmount));
+
+		const expectedBalance = getBalance(
+			withdrawAmount,
+			bank,
+			BankBalanceType.BORROW
+		);
+
+		const userBankBalance =
+			secondUserClearingHouse.getUserAccount().bankBalances[0];
+		assert(isVariant(userBankBalance.balanceType, 'borrow'));
+		assert(userBankBalance.balance.eq(expectedBalance));
+
+		const actualAmountWithdrawn = new BN(
+			(
+				await provider.connection.getTokenAccountBalance(
+					secondUserClearingHouseUSDCAccount
+				)
+			).value.amount
+		);
+
+		assert(withdrawAmount.eq(actualAmountWithdrawn));
+	});
+
+	it('if pool revenue from borrows', async () => {
+		let bank = clearingHouse.getBankAccount(0);
+
+		// await mintToInsuranceFund(
+		// 	bank.insuranceFundVault,
+		// 	usdcMint,
+		// 	new BN(80085).mul(QUOTE_PRECISION),
+		// 	provider
+		// );
+
+		const ifPoolBalance = getTokenAmount(
+			bank.insuranceFundPool.balance,
+			bank,
+			BankBalanceType.DEPOSIT
+		);
+
+		assert(bank.borrowBalance.gt(ZERO));
+		assert(ifPoolBalance.eq(new BN(0)));
+
+		await clearingHouse.updateBankCumulativeInterest(new BN(0));
+
+		await clearingHouse.fetchAccounts();
+		bank = clearingHouse.getBankAccount(0);
+
+		console.log(
+			'cumulativeBorrowInterest:',
+			bank.cumulativeBorrowInterest.toString()
+		);
+		console.log(
+			'cumulativeDepositInterest:',
+			bank.cumulativeDepositInterest.toString()
+		);
+
+		assert(bank.cumulativeBorrowInterest.gt(BANK_INTEREST_PRECISION));
+		assert(bank.cumulativeDepositInterest.gt(BANK_INTEREST_PRECISION));
+
+		const insuranceVaultAmountBefore = new BN(
+			(
+				await provider.connection.getTokenAccountBalance(
+					bank.insuranceFundVault
+				)
+			).value.amount
+		);
+		console.log('insuranceVaultAmount:', insuranceVaultAmountBefore.toString());
+
+		assert(insuranceVaultAmountBefore.eq(ONE));
+
+		try {
+			const txSig = await clearingHouse.settleBankToInsuranceFund(new BN(0));
+			console.log(
+				'tx logs',
+				(await connection.getTransaction(txSig, { commitment: 'confirmed' }))
+					.meta.logMessages
+			);
+		} catch (e) {
+			console.error(e);
+		}
+
+		const insuranceVaultAmount = new BN(
+			(
+				await provider.connection.getTokenAccountBalance(
+					bank.insuranceFundVault
+				)
+			).value.amount
+		);
+		console.log(
+			'insuranceVaultAmount:',
+			insuranceVaultAmountBefore.toString(),
+			'->',
+			insuranceVaultAmount.toString()
+		);
+		assert(insuranceVaultAmount.gt(ONE));
 	});
 });

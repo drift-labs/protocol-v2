@@ -48,6 +48,7 @@ pub struct Bank {
     pub max_borrow_rate: u128,
     pub deposit_balance: u128,
     pub borrow_balance: u128,
+
     pub deposit_token_twap: u128, // 24 hour twap
     pub borrow_token_twap: u128,  // 24 hour twap
     pub utilization_twap: u128,   // 24 hour twap
@@ -55,12 +56,15 @@ pub struct Bank {
     pub cumulative_borrow_interest: u128,
     pub last_interest_ts: u64,
     pub last_twap_ts: u64,
+
     pub initial_asset_weight: u128,
     pub maintenance_asset_weight: u128,
     pub initial_liability_weight: u128,
     pub maintenance_liability_weight: u128,
     pub imf_factor: u128,
+
     pub liquidation_fee: u128,
+    pub liquidation_reserve_factor: u128, // percentage of liquidation fee for total insurance
     pub withdraw_guard_threshold: u128, // no withdraw limits/guards when bank deposits below this threshold
 }
 

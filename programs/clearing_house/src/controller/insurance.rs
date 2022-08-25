@@ -82,6 +82,11 @@ pub fn apply_rebase_to_insurance_fund(
         bank.lp_shares_expo = bank.lp_shares_expo + expo_diff as u128;
     }
 
+    // todo: write test for this
+    if insurance_fund_vault_balance != 0 && bank.total_lp_shares == 0 {
+        bank.total_lp_shares = cast_to_u128(insurance_fund_vault_balance)?;
+    }
+
     Ok(())
 }
 

@@ -1,4 +1,6 @@
-use crate::controller::bank_balance::{update_bank_balances, update_bank_cumulative_interest};
+use crate::controller::bank_balance::{
+    update_bank_balances, update_bank_cumulative_interest, update_insurance_fund_pool_balances,
+};
 use crate::controller::funding::settle_funding_payment;
 use crate::controller::lp::burn_lp_shares;
 use crate::controller::orders::{cancel_order, pay_keeper_flat_reward};
@@ -10,7 +12,12 @@ use crate::get_then_update_id;
 use crate::math::bank_balance::get_token_amount;
 use crate::math::bankruptcy::is_user_bankrupt;
 use crate::math::casting::{cast, cast_to_i128};
-use crate::math::constants::{BANK_WEIGHT_PRECISION, LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION};
+use crate::math::constants::{
+    // BANK_INTEREST_PRECISION,
+    BANK_WEIGHT_PRECISION,
+    LIQUIDATION_FEE_PRECISION,
+    MARGIN_PRECISION,
+};
 use crate::math::liquidation::{
     calculate_asset_transfer_for_liability_transfer,
     calculate_base_asset_amount_to_cover_margin_shortage,
@@ -593,11 +600,30 @@ pub fn liquidate_borrow(
         liability_price,
     )?;
 
+    let liability_transfer_for_user: u128;
     {
         let mut liability_bank = bank_map.get_ref_mut(&liability_bank_index)?;
 
+        // part liquidator liability transfer pays to insurance fund
+        // size will be eventually be 0 for sufficiently small liability size
+        let liability_transfer_for_insurance = liability_transfer
+            .checked_mul(liability_bank.liquidation_reserve_factor as u128)
+            .ok_or_else(math_error!())?
+            .checked_div(LIQUIDATION_FEE_PRECISION)
+            .ok_or_else(math_error!())?;
+
+        liability_transfer_for_user = liability_transfer
+            .checked_sub(liability_transfer_for_insurance)
+            .ok_or_else(math_error!())?;
+
+        update_insurance_fund_pool_balances(
+            liability_transfer_for_insurance,
+            &BankBalanceType::Deposit,
+            &mut liability_bank,
+        )?;
+
         update_bank_balances(
-            liability_transfer,
+            liability_transfer_for_user,
             &BankBalanceType::Deposit,
             &mut liability_bank,
             user.get_bank_balance_mut(liability_bank_index).unwrap(),
@@ -631,7 +657,7 @@ pub fn liquidate_borrow(
         )?;
     }
 
-    if liability_transfer >= liability_transfer_to_cover_margin_shortage {
+    if liability_transfer_for_user >= liability_transfer_to_cover_margin_shortage {
         user.being_liquidated = false;
     } else {
         user.bankrupt = is_user_bankrupt(user);

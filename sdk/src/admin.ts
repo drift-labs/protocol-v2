@@ -606,6 +606,25 @@ export class Admin extends ClearingHouse {
 		);
 	}
 
+	public async updateBankReserveFactor(
+		bankIndex: BN,
+		userReserveFactor: BN,
+		totalReserveFactor: BN
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateBankReserveFactor(
+			bankIndex,
+			userReserveFactor,
+			totalReserveFactor,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					bank: await getBankPublicKey(this.program.programId, bankIndex),
+				},
+			}
+		);
+	}
+
 	public async updateBankInsuranceWithdrawEscrowPeriod(
 		bankIndex: BN,
 		insuranceWithdrawEscrowPeriod: BN

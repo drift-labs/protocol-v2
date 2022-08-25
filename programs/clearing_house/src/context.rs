@@ -719,12 +719,6 @@ pub struct InitializeInsuranceFundStake<'info> {
 pub struct SettleBankToInsuranceFund<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
-        mut,
-        has_one = authority,
-    )]
-    pub user: AccountLoader<'info, User>,
-    pub authority: Signer<'info>,
-    #[account(
         seeds = [b"bank", bank_index.to_le_bytes().as_ref()],
         bump
     )]

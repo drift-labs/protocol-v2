@@ -8,6 +8,7 @@ use crate::math::amm::{
 use crate::math::bank_balance::get_token_amount;
 use crate::math::casting::{cast_to_i128, cast_to_i64, cast_to_u128};
 use crate::math::constants::PRICE_TO_PEG_PRECISION_RATIO;
+use crate::math::repeg::get_total_fee_lower_bound;
 use crate::math::{amm, bn, quote_asset::*};
 use crate::math_error;
 use crate::state::events::CurveRecord;
@@ -17,7 +18,7 @@ use anchor_lang::prelude::*;
 use solana_program::msg;
 use std::cmp::{max, min};
 
-use crate::controller::bank_balance::update_bank_balances;
+use crate::controller::bank_balance::{update_bank_balances, update_insurance_fund_pool_balances};
 use crate::controller::repeg::apply_cost_to_market;
 use crate::state::bank::{Bank, BankBalance, BankBalanceType};
 
@@ -362,6 +363,34 @@ pub fn update_pool_balances(
         }
 
         fraction_for_amm = 0;
+    }
+
+    {
+        let amm_fee_pool_token_amount_2 = cast_to_i128(get_token_amount(
+            market.amm.fee_pool.balance(),
+            bank,
+            market.amm.fee_pool.balance_type(),
+        )?)?;
+
+        let bank_transfer_insurance_pool_token_amount =
+            cast_to_i128(get_total_fee_lower_bound(market)?)?
+                .checked_sub(cast_to_i128(market.amm.total_fee_withdrawn)?)
+                .ok_or_else(math_error!())?
+                .max(0)
+                .min(amm_fee_pool_token_amount_2);
+
+        update_bank_balances(
+            bank_transfer_insurance_pool_token_amount.unsigned_abs(),
+            &BankBalanceType::Borrow,
+            bank,
+            &mut market.amm.fee_pool,
+        )?;
+
+        update_insurance_fund_pool_balances(
+            bank_transfer_insurance_pool_token_amount.unsigned_abs(),
+            &BankBalanceType::Deposit,
+            bank,
+        )?;
     }
 
     // market pnl pool pays (what it can to) user_unsettled_pnl and pnl_to_settle_to_amm
