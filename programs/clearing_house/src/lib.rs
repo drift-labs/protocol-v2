@@ -2708,18 +2708,30 @@ pub mod clearing_house {
         let depositors_claim =
             controller::bank_balance::validate_bank_amounts(bank, bank_vault_amount)?;
 
-        let amount = bank_vault_amount
-            .checked_sub(depositors_claim)
-            .ok_or_else(math_error!())?;
+        let token_amount = get_token_amount(
+            bank.insurance_fund_pool.balance,
+            bank,
+            &BankBalanceType::Deposit,
+            // bank.insurance_fund_pool.balance_type(),
+        )?;
 
-        validate!(amount != 0, ErrorCode::DefaultError, "no amount to settle")?;
+        validate!(
+            token_amount != 0,
+            ErrorCode::DefaultError,
+            "no amount to settle"
+        )?;
 
         let insurance_vault_amount = ctx.accounts.insurance_fund_vault.amount;
 
+        let protocol_reserve_factor = bank
+            .total_reserve_factor
+            .checked_sub(bank.user_reserve_factor)
+            .ok_or_else(math_error!())?;
+
         // give protocol its cut
         let n_shares = staked_amount_to_shares(
-            amount
-                .checked_mul(bank.user_reserve_factor as u64)
+            (token_amount as u64)
+                .checked_mul(protocol_reserve_factor as u64)
                 .ok_or_else(math_error!())?
                 .checked_div(bank.total_reserve_factor as u64)
                 .ok_or_else(math_error!())?,
@@ -2739,7 +2751,13 @@ pub mod clearing_house {
             &ctx.accounts.bank_vault_authority,
             bank_index,
             bank.vault_authority_nonce,
-            amount,
+            token_amount as u64,
+        )?;
+
+        controller::bank_balance::update_insurance_fund_pool_balances(
+            token_amount,
+            &BankBalanceType::Deposit,
+            bank,
         )?;
 
         Ok(())
