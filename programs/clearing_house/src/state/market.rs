@@ -195,7 +195,7 @@ pub struct AMM {
     pub lp_cooldown_time: i64,
     pub user_lp_shares: u128,
     pub market_position_per_lp: MarketPosition,
-    pub amm_jit: bool,
+    pub amm_jit_intensity: u8,
 
     // funding
     pub last_funding_rate: i128,
@@ -269,6 +269,10 @@ impl AMM {
             min_base_asset_reserve: 0,
             ..AMM::default()
         }
+    }
+
+    pub fn amm_jit_is_active(&self) -> bool {
+        self.amm_jit_intensity > 0
     }
 
     pub fn mark_price(&self) -> ClearingHouseResult<u128> {

@@ -65,17 +65,15 @@ describe('admin', () => {
 
 	it('Update Amm Jit', async () => {
 		await clearingHouse.fetchAccounts();
-		assert(clearingHouse.getMarketAccount(0).amm.ammJit === false);
+		assert(clearingHouse.getMarketAccount(0).amm.ammJitIntensity == 0);
 
-		await clearingHouse.updateAmmJit(new BN(0), true);
-
+		await clearingHouse.updateAmmJitIntensity(new BN(0), 100);
 		await clearingHouse.fetchAccounts();
-		assert(clearingHouse.getMarketAccount(0).amm.ammJit === true);
+		assert(clearingHouse.getMarketAccount(0).amm.ammJitIntensity == 100);
 
-		await clearingHouse.updateAmmJit(new BN(0), false);
-
+		await clearingHouse.updateAmmJitIntensity(new BN(0), 50);
 		await clearingHouse.fetchAccounts();
-		assert(clearingHouse.getMarketAccount(0).amm.ammJit === false);
+		assert(clearingHouse.getMarketAccount(0).amm.ammJitIntensity == 50);
 	});
 
 	it('Update Margin Ratio', async () => {

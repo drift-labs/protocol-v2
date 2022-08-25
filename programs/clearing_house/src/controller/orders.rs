@@ -1112,7 +1112,10 @@ pub fn fulfill_order_with_amm(
     };
 
     if base_asset_amount == 0 {
-        msg!("Amm cant fulfill order");
+        // if is an actual swap (and not amm jit order) then msg!
+        if override_base_asset_amount.is_none() {
+            msg!("Amm cant fulfill order");
+        }
         return Ok((0, false));
     }
 
@@ -1368,42 +1371,39 @@ pub fn fulfill_order_with_match(
         PositionDirection::Short => market.amm.net_base_asset_amount > 0,
     };
 
-    let base_asset_amount_left_to_fill = if market.amm.amm_jit && amm_wants_to_make {
-        // dont flip the amm net baa (want to go at most to zero)
-        let max_amm_base_asset_amount = market.amm.net_base_asset_amount.unsigned_abs();
+    let base_asset_amount_left_to_fill = if amm_wants_to_make && market.amm.amm_jit_is_active() {
+        let jit_base_asset_amount =
+            crate::math::amm_jit::calculate_jit_base_asset_amount(market, base_asset_amount)?;
 
-        // todo: dynamic
-        let amm_base_asset_amount = standardize_base_asset_amount(
-            base_asset_amount.checked_div(2).ok_or_else(math_error!())?,
-            market.amm.base_asset_amount_step_size,
-        )?
-        .min(max_amm_base_asset_amount);
+        if jit_base_asset_amount > 0 {
+            let (base_asset_amount_filled_by_amm, _) = fulfill_order_with_amm(
+                taker,
+                taker_stats,
+                taker_order_index,
+                market,
+                oracle_map,
+                mark_price_before,
+                now,
+                slot,
+                valid_oracle_price,
+                taker_key,
+                filler_key,
+                filler,
+                filler_stats,
+                &mut None,
+                &mut None,
+                fee_structure,
+                order_records,
+                Some(jit_base_asset_amount),
+                Some(taker_price), // current auction price
+            )?;
 
-        let (base_asset_amount_filled_by_amm, _) = fulfill_order_with_amm(
-            taker,
-            taker_stats,
-            taker_order_index,
-            market,
-            oracle_map,
-            mark_price_before,
-            now,
-            slot,
-            valid_oracle_price,
-            taker_key,
-            filler_key,
-            filler,
-            filler_stats,
-            &mut None,
-            &mut None,
-            fee_structure,
-            order_records,
-            Some(amm_base_asset_amount),
-            Some(taker_price), // current auction price
-        )?;
-
-        base_asset_amount
-            .checked_sub(base_asset_amount_filled_by_amm)
-            .ok_or_else(math_error!())?
+            base_asset_amount
+                .checked_sub(base_asset_amount_filled_by_amm)
+                .ok_or_else(math_error!())?
+        } else {
+            base_asset_amount
+        }
     } else {
         base_asset_amount
     };

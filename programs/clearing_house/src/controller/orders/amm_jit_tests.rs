@@ -72,7 +72,7 @@ pub mod amm_jit {
                 max_base_asset_amount_ratio: 100,
                 base_asset_amount_step_size: 10000000,
                 oracle: oracle_price_key,
-                amm_jit: true,
+                amm_jit_intensity: 100,
                 ..AMM::default()
             },
             base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
@@ -236,7 +236,7 @@ pub mod amm_jit {
                 max_base_asset_amount_ratio: 100,
                 base_asset_amount_step_size: 10000000,
                 oracle: oracle_price_key,
-                amm_jit: true,
+                amm_jit_intensity: 100,
                 ..AMM::default()
             },
             base_asset_amount_short: -((AMM_RESERVE_PRECISION / 2) as i128),
@@ -397,7 +397,7 @@ pub mod amm_jit {
                 max_base_asset_amount_ratio: 100,
                 base_asset_amount_step_size: 10000000,
                 oracle: oracle_price_key,
-                amm_jit: true,
+                amm_jit_intensity: 100,
                 ..AMM::default()
             },
             base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
@@ -558,7 +558,7 @@ pub mod amm_jit {
                 max_base_asset_amount_ratio: 100,
                 base_asset_amount_step_size: 10000000,
                 oracle: oracle_price_key,
-                amm_jit: true,
+                amm_jit_intensity: 100,
                 ..AMM::default()
             },
             base_asset_amount_short: -((AMM_RESERVE_PRECISION / 2) as i128),
@@ -719,7 +719,7 @@ pub mod amm_jit {
                 max_base_asset_amount_ratio: 100,
                 base_asset_amount_step_size: 10000000,
                 oracle: oracle_price_key,
-                amm_jit: true,
+                amm_jit_intensity: 100,
                 ..AMM::default()
             },
             base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
@@ -908,7 +908,7 @@ pub mod amm_jit {
                 max_base_asset_amount_ratio: 100,
                 base_asset_amount_step_size: 10000000,
                 oracle: oracle_price_key,
-                amm_jit: true,
+                amm_jit_intensity: 100,
                 ..AMM::default()
             },
             base_asset_amount_short: -((AMM_RESERVE_PRECISION / 2) as i128),
@@ -1098,7 +1098,7 @@ pub mod amm_jit {
                 max_base_asset_amount_ratio: 100,
                 base_asset_amount_step_size: 10000000,
                 oracle: oracle_price_key,
-                amm_jit: true,
+                amm_jit_intensity: 100,
                 ..AMM::default()
             },
             base_asset_amount_short: -((AMM_RESERVE_PRECISION / 2) as i128),
@@ -1289,7 +1289,7 @@ pub mod amm_jit {
                 max_base_asset_amount_ratio: 100,
                 base_asset_amount_step_size: 10000000,
                 oracle: oracle_price_key,
-                amm_jit: true,
+                amm_jit_intensity: 100,
                 ..AMM::default()
             },
             base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
@@ -1482,7 +1482,7 @@ pub mod amm_jit {
                 max_spread: 1000000,
                 long_spread: 50000,
                 short_spread: 50000,
-                amm_jit: true,
+                amm_jit_intensity: 100,
                 ..AMM::default()
             },
             base_asset_amount_short: -(100 * AMM_RESERVE_PRECISION as i128),
@@ -1746,7 +1746,7 @@ pub mod amm_jit {
                 max_spread: 1000000,
                 long_spread: 50000,
                 short_spread: 50000,
-                amm_jit: true,
+                amm_jit_intensity: 100,
                 ..AMM::default()
             },
             base_asset_amount_long: 100 * AMM_RESERVE_PRECISION as i128,

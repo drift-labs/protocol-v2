@@ -1899,7 +1899,7 @@
       ]
     },
     {
-      "name": "updateAmmJit",
+      "name": "updateAmmJitIntensity",
       "accounts": [
         {
           "name": "admin",
@@ -1919,8 +1919,8 @@
       ],
       "args": [
         {
-          "name": "ammJit",
-          "type": "bool"
+          "name": "ammJitIntensity",
+          "type": "u8"
         }
       ]
     },
@@ -3084,8 +3084,8 @@
             }
           },
           {
-            "name": "ammJit",
-            "type": "bool"
+            "name": "ammJitIntensity",
+            "type": "u8"
           },
           {
             "name": "lastFundingRate",

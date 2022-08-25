@@ -444,8 +444,8 @@ pub mod clearing_house {
                 // lp stuff
                 net_unsettled_lp_base_asset_amount: 0,
                 user_lp_shares: 0,
-                lp_cooldown_time: 1, // TODO: what should this be?
-                amm_jit: false,
+                lp_cooldown_time: 1,  // TODO: what should this be?
+                amm_jit_intensity: 0, // turn it off at the start
 
                 last_oracle_valid: false,
                 padding0: 0,
@@ -2504,9 +2504,18 @@ pub mod clearing_house {
     #[access_control(
         market_initialized(&ctx.accounts.market)
     )]
-    pub fn update_amm_jit(ctx: Context<AdminUpdateMarket>, amm_jit: bool) -> Result<()> {
+    pub fn update_amm_jit_intensity(
+        ctx: Context<AdminUpdateMarket>,
+        amm_jit_intensity: u8,
+    ) -> Result<()> {
+        validate!(
+            (0..=100).contains(&amm_jit_intensity),
+            ErrorCode::DefaultError,
+            "invalid amm_jit_intensity",
+        )?;
+
         let market = &mut load_mut!(ctx.accounts.market)?;
-        market.amm.amm_jit = amm_jit;
+        market.amm.amm_jit_intensity = amm_jit_intensity;
 
         Ok(())
     }
