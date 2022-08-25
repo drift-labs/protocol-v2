@@ -10,11 +10,6 @@ pub fn determine_fulfillment_methods(
 ) -> ClearingHouseResult<Vec<FulfillmentMethod>> {
     let mut fulfillment_methods = vec![];
 
-    // todo:
-    // 1. can we determine fulfillment ordering based on price?
-    // 2. can we determine whether match will include unload based on amm imbalance and whether amm fulfillment is already occuring?
-    // whats tricky is you dont know how the amm will fill before you fill it...
-
     if maker_available {
         fulfillment_methods.push(FulfillmentMethod::Match)
     }
