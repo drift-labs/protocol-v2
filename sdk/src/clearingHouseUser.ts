@@ -292,7 +292,7 @@ export class ClearingHouseUser {
 	/**
 	 * @returns The margin requirement of a certain type (Initial or Maintenance) in USDC. : QUOTE_PRECISION
 	 */
-	public getMarginRequirement(type: string): BN {
+	public getMarginRequirement(type: MarginCategory): BN {
 		if (type != 'Initial' && type != 'Maintenance') {
 			throw Error(`invalid margin requirement type: ${type}`);
 		}
