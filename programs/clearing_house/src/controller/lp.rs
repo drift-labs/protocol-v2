@@ -51,7 +51,7 @@ pub fn settle_lp_position(
     market.amm.net_unsettled_lp_base_asset_amount = market
         .amm
         .net_unsettled_lp_base_asset_amount
-        .checked_sub(lp_metrics.base_asset_amount)
+        .checked_add(lp_metrics.base_asset_amount)
         .ok_or_else(math_error!())?;
 
     Ok(())
