@@ -224,11 +224,13 @@ export class ClearingHouse {
 	 *	Forces the accountSubscriber to fetch account updates from rpc
 	 */
 	public async fetchAccounts(): Promise<void> {
-		await Promise.all(
-			[...this.users.values()]
-				.map((user) => user.fetchAccounts())
-				.concat(this.accountSubscriber.fetch())
-		);
+		const promises = [...this.users.values()]
+			.map((user) => user.fetchAccounts())
+			.concat(this.accountSubscriber.fetch());
+		if (this.userStats) {
+			promises.concat(this.userStats.fetchAccounts());
+		}
+		await Promise.all(promises);
 	}
 
 	public async unsubscribe(): Promise<void> {

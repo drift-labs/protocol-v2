@@ -14,6 +14,7 @@ pub struct FillFees {
     pub user_fee: u128,
     pub maker_rebate: u128,
     pub fee_to_market: i128,
+    pub fee_to_market_for_lp: i128,
     pub filler_reward: u128,
     pub referee_discount: u128,
     pub referrer_reward: u128,
@@ -45,6 +46,7 @@ pub fn calculate_fee_for_order_fulfill_against_amm(
             user_fee,
             maker_rebate: 0,
             fee_to_market,
+            fee_to_market_for_lp: 0,
             filler_reward,
             referee_discount: 0,
             referrer_reward: 0,
@@ -82,10 +84,15 @@ pub fn calculate_fee_for_order_fulfill_against_amm(
         .checked_add(quote_asset_amount_surplus)
         .ok_or_else(math_error!())?;
 
+        let fee_to_market_for_lp = fee_to_market
+            .checked_sub(quote_asset_amount_surplus)
+            .ok_or_else(math_error!())?;
+
         Ok(FillFees {
             user_fee,
             maker_rebate: 0,
             fee_to_market,
+            fee_to_market_for_lp,
             filler_reward,
             referee_discount,
             referrer_reward,
@@ -200,6 +207,7 @@ pub fn calculate_fee_for_fulfillment_with_match(
         filler_reward,
         referee_discount,
         referrer_reward,
+        fee_to_market_for_lp: 0,
     })
 }
 
@@ -222,6 +230,7 @@ mod test {
                 filler_reward,
                 referee_discount,
                 referrer_reward,
+                ..
             } = calculate_fee_for_fulfillment_with_match(
                 quote_asset_amount,
                 &FeeStructure::default(),
@@ -256,6 +265,7 @@ mod test {
                 filler_reward,
                 referee_discount,
                 referrer_reward,
+                ..
             } = calculate_fee_for_fulfillment_with_match(
                 quote_asset_amount,
                 &fee_structure,
@@ -289,6 +299,7 @@ mod test {
                 filler_reward,
                 referee_discount,
                 referrer_reward,
+                ..
             } = calculate_fee_for_fulfillment_with_match(
                 quote_asset_amount,
                 &fee_structure,
@@ -322,6 +333,7 @@ mod test {
                 filler_reward,
                 referee_discount,
                 referrer_reward,
+                ..
             } = calculate_fee_for_fulfillment_with_match(
                 quote_asset_amount,
                 &fee_structure,
@@ -361,6 +373,7 @@ mod test {
                 filler_reward,
                 referee_discount,
                 referrer_reward,
+                ..
             } = calculate_fee_for_fulfillment_with_match(
                 quote_asset_amount,
                 &fee_structure,
