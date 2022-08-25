@@ -87,6 +87,7 @@ pub fn user_no_position() {
             bank_index: 0,
             balance_type: BankBalanceType::Deposit,
             balance: 50 * BANK_INTEREST_PRECISION,
+            ..UserBankBalance::default()
         }),
         ..User::default()
     };
@@ -180,6 +181,7 @@ pub fn user_does_not_meet_maintenance_requirement() {
             bank_index: 0,
             balance_type: BankBalanceType::Deposit,
             balance: 100 * BANK_INTEREST_PRECISION,
+            ..UserBankBalance::default()
         }),
         ..User::default()
     };
@@ -273,6 +275,7 @@ pub fn user_unsettled_negative_pnl() {
             bank_index: 0,
             balance_type: BankBalanceType::Deposit,
             balance: 100 * BANK_INTEREST_PRECISION,
+            ..UserBankBalance::default()
         }),
         ..User::default()
     };
@@ -376,6 +379,7 @@ pub fn user_unsettled_positive_pnl_more_than_pool() {
             bank_index: 0,
             balance_type: BankBalanceType::Deposit,
             balance: 100 * BANK_INTEREST_PRECISION,
+            ..UserBankBalance::default()
         }),
         ..User::default()
     };
@@ -479,6 +483,7 @@ pub fn user_unsettled_positive_pnl_less_than_pool() {
             bank_index: 0,
             balance_type: BankBalanceType::Deposit,
             balance: 100 * BANK_INTEREST_PRECISION,
+            ..UserBankBalance::default()
         }),
         ..User::default()
     };
@@ -583,6 +588,7 @@ pub fn market_fee_pool_receives_portion() {
             bank_index: 0,
             balance_type: BankBalanceType::Deposit,
             balance: 200 * BANK_INTEREST_PRECISION,
+            ..UserBankBalance::default()
         }),
         ..User::default()
     };
@@ -691,6 +697,7 @@ pub fn market_fee_pool_pays_back_to_pnl_pool() {
             bank_index: 0,
             balance_type: BankBalanceType::Deposit,
             balance: 200 * BANK_INTEREST_PRECISION,
+            ..UserBankBalance::default()
         }),
         ..User::default()
     };
@@ -797,6 +804,7 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl() {
             bank_index: 0,
             balance_type: BankBalanceType::Deposit,
             balance: 100 * BANK_INTEREST_PRECISION,
+            ..UserBankBalance::default()
         }),
         ..User::default()
     };
@@ -902,6 +910,7 @@ pub fn user_long_negative_unrealized_pnl() {
             bank_index: 0,
             balance_type: BankBalanceType::Deposit,
             balance: 100 * BANK_INTEREST_PRECISION,
+            ..UserBankBalance::default()
         }),
         ..User::default()
     };
@@ -1007,6 +1016,7 @@ pub fn user_short_positive_unrealized_pnl_up_to_max_positive_pnl() {
             bank_index: 0,
             balance_type: BankBalanceType::Deposit,
             balance: 100 * BANK_INTEREST_PRECISION,
+            ..UserBankBalance::default()
         }),
         ..User::default()
     };
@@ -1112,6 +1122,7 @@ pub fn user_short_negative_unrealized_pnl() {
             bank_index: 0,
             balance_type: BankBalanceType::Deposit,
             balance: 100 * BANK_INTEREST_PRECISION,
+            ..UserBankBalance::default()
         }),
         ..User::default()
     };

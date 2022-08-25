@@ -6,12 +6,14 @@ use crate::controller::position::{add_new_position, get_position_index, Position
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm::calculate_rolling_sum;
 use crate::math::auction::{calculate_auction_price, is_auction_complete};
+use crate::math::bank_balance::{get_signed_token_amount, get_token_amount, get_token_value};
 use crate::math::casting::cast_to_i128;
 use crate::math::constants::{QUOTE_ASSET_BANK_INDEX, THIRTY_DAY_I128};
 use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
 use crate::math_error;
-use crate::state::bank::{BankBalance, BankBalanceType};
+use crate::state::bank::{Bank, BankBalance, BankBalanceType};
 use crate::state::market::AMM;
+use crate::state::oracle::OraclePriceData;
 use std::cmp::max;
 
 #[cfg(test)]
@@ -34,61 +36,65 @@ pub struct User {
 }
 
 impl User {
-    pub fn get_bank_balance(&self, bank_index: u64) -> Option<&UserBankBalance> {
+    pub fn get_bank_balance_index(&self, bank_index: u64) -> ClearingHouseResult<usize> {
         // first bank balance is always quote asset, which is
         if bank_index == 0 {
-            return Some(&self.bank_balances[0]);
+            return Ok(0);
         }
 
         self.bank_balances
             .iter()
-            .find(|bank_balance| bank_balance.bank_index == bank_index)
+            .position(|bank_balance| bank_balance.bank_index == bank_index)
+            .ok_or(ErrorCode::CouldNotFindBankBalance)
+    }
+
+    pub fn get_bank_balance(&self, bank_index: u64) -> Option<&UserBankBalance> {
+        self.get_bank_balance_index(bank_index)
+            .ok()
+            .map(|bank_index| &self.bank_balances[bank_index])
     }
 
     pub fn get_bank_balance_mut(&mut self, bank_index: u64) -> Option<&mut UserBankBalance> {
-        // first bank balance is always quote asset, which is
-        if bank_index == 0 {
-            return Some(&mut self.bank_balances[0]);
-        }
-
-        self.bank_balances
-            .iter_mut()
-            .find(|bank_balance| bank_balance.bank_index == bank_index)
+        self.get_bank_balance_index(bank_index)
+            .ok()
+            .map(move |bank_index| &mut self.bank_balances[bank_index])
     }
 
     pub fn get_quote_asset_bank_balance_mut(&mut self) -> &mut UserBankBalance {
         self.get_bank_balance_mut(QUOTE_ASSET_BANK_INDEX).unwrap()
     }
 
-    pub fn get_next_available_bank_balance(&mut self) -> Option<&mut UserBankBalance> {
-        let mut next_available_balance = None;
-
-        for (i, bank_balance) in self.bank_balances.iter_mut().enumerate() {
-            if i != 0 && bank_balance.bank_index == 0 {
-                next_available_balance = Some(bank_balance);
-                break;
-            }
-        }
-
-        next_available_balance
-    }
-
     pub fn add_bank_balance(
         &mut self,
         bank_index: u64,
         balance_type: BankBalanceType,
-    ) -> ClearingHouseResult<&mut UserBankBalance> {
-        let next_balance = self
-            .get_next_available_bank_balance()
+    ) -> ClearingHouseResult<usize> {
+        let new_bank_balance_index = self
+            .bank_balances
+            .iter()
+            .enumerate()
+            .position(|(index, bank_balance)| index != 0 && bank_balance.is_available())
             .ok_or(ErrorCode::NoUserBankBalanceAvailable)?;
 
-        *next_balance = UserBankBalance {
+        let new_bank_balance = UserBankBalance {
             bank_index,
             balance_type,
-            balance: 0,
+            ..UserBankBalance::default()
         };
 
-        Ok(next_balance)
+        self.bank_balances[new_bank_balance_index] = new_bank_balance;
+
+        Ok(new_bank_balance_index)
+    }
+
+    pub fn force_get_bank_balance_mut(
+        &mut self,
+        bank_index: u64,
+        balance_type: BankBalanceType,
+    ) -> ClearingHouseResult<&mut UserBankBalance> {
+        self.get_bank_balance_index(bank_index)
+            .or_else(|_| self.add_bank_balance(bank_index, balance_type))
+            .map(move |bank_index| &mut self.bank_balances[bank_index])
     }
 
     pub fn get_position(&self, market_index: u64) -> ClearingHouseResult<&MarketPosition> {
@@ -149,7 +155,12 @@ pub struct UserBankBalance {
     pub bank_index: u64,
     pub balance_type: BankBalanceType,
     pub balance: u128,
+    pub open_orders: u8,
+    pub open_bids: i128,
+    pub open_asks: i128,
 }
+
+pub type UserBankBalances = [UserBankBalance; 8];
 
 impl BankBalance for UserBankBalance {
     fn balance_type(&self) -> &BankBalanceType {
@@ -173,6 +184,43 @@ impl BankBalance for UserBankBalance {
     fn update_balance_type(&mut self, balance_type: BankBalanceType) -> ClearingHouseResult {
         self.balance_type = balance_type;
         Ok(())
+    }
+}
+
+impl UserBankBalance {
+    pub fn is_available(&self) -> bool {
+        self.balance == 0 && self.open_orders == 0
+    }
+
+    pub fn get_worst_case_token_amounts(
+        &self,
+        bank: &Bank,
+        oracle_price_data: &OraclePriceData,
+    ) -> ClearingHouseResult<(i128, i128)> {
+        let token_amount = get_signed_token_amount(
+            get_token_amount(self.balance, bank, &self.balance_type)?,
+            &self.balance_type,
+        )?;
+
+        let token_amount_all_bids_fill = token_amount
+            .checked_add(self.open_bids)
+            .ok_or_else(math_error!())?;
+
+        let token_amount_all_asks_fill = token_amount
+            .checked_add(self.open_asks)
+            .ok_or_else(math_error!())?;
+
+        if token_amount_all_bids_fill.abs() > token_amount_all_asks_fill.abs() {
+            Ok((
+                token_amount_all_bids_fill,
+                get_token_value(self.open_bids, bank.decimals, oracle_price_data)?,
+            ))
+        } else {
+            Ok((
+                token_amount_all_asks_fill,
+                get_token_value(self.open_asks, bank.decimals, oracle_price_data)?,
+            ))
+        }
     }
 }
 

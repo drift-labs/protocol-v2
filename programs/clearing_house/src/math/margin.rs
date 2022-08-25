@@ -11,7 +11,9 @@ use crate::math_error;
 
 use crate::state::user::User;
 
-use crate::math::bank_balance::get_balance_value_and_token_amount;
+use crate::math::bank_balance::{
+    get_balance_value_and_token_amount, get_signed_token_amount, get_token_amount, get_token_value,
+};
 use crate::math::casting::cast_to_i128;
 use crate::math::funding::calculate_funding_payment;
 use crate::math::lp::{calculate_lp_open_bids_asks, calculate_settle_lp_metrics};
@@ -25,6 +27,7 @@ use crate::state::user::{MarketPosition, UserBankBalance};
 use num_integer::Roots;
 use solana_program::msg;
 use std::cmp::{max, min};
+use std::collections::BTreeMap;
 
 #[derive(Clone, Copy, PartialEq, Debug, Eq)]
 pub enum MarginRequirementType {
@@ -283,27 +286,47 @@ pub fn calculate_margin_requirement_and_total_collateral(
     let mut total_collateral: i128 = 0;
     let mut margin_requirement: u128 = 0;
 
-    for user_bank_balance in user.bank_balances.iter() {
-        if user_bank_balance.balance == 0 {
+    let token_value_map = build_token_value_map(user, bank_map, oracle_map)?;
+    for (bank_index, (token_amount, token_value)) in token_value_map.0 {
+        if token_amount == 0 {
             continue;
         }
-        let bank = &bank_map.get_ref(&user_bank_balance.bank_index)?;
-        let oracle_price_data = oracle_map.get_price_data(&bank.oracle)?;
-        let bank_balance_value = calculate_bank_balance_value(
-            user_bank_balance,
-            bank,
-            oracle_price_data,
-            margin_requirement_type,
-        )?;
-        match user_bank_balance.balance_type {
+
+        let bank = &bank_map.get_ref(&bank_index)?;
+        let balance_type = if token_amount > 0 {
+            BankBalanceType::Deposit
+        } else {
+            BankBalanceType::Borrow
+        };
+
+        match balance_type {
             BankBalanceType::Deposit => {
+                let weighted_token_value =
+                    token_value
+                        .unsigned_abs()
+                        .checked_mul(bank.get_asset_weight(
+                            token_amount.unsigned_abs(),
+                            &margin_requirement_type,
+                        )?)
+                        .ok_or_else(math_error!())?
+                        .checked_div(BANK_WEIGHT_PRECISION)
+                        .ok_or_else(math_error!())?;
                 total_collateral = total_collateral
-                    .checked_add(cast_to_i128(bank_balance_value)?)
+                    .checked_add(cast_to_i128(weighted_token_value)?)
                     .ok_or_else(math_error!())?;
             }
             BankBalanceType::Borrow => {
+                let weighted_token_value = token_value
+                    .unsigned_abs()
+                    .checked_mul(bank.get_liability_weight(
+                        token_amount.unsigned_abs(),
+                        &margin_requirement_type,
+                    )?)
+                    .ok_or_else(math_error!())?
+                    .checked_div(BANK_WEIGHT_PRECISION)
+                    .ok_or_else(math_error!())?;
                 margin_requirement = margin_requirement
-                    .checked_add(bank_balance_value)
+                    .checked_add(weighted_token_value)
                     .ok_or_else(math_error!())?;
             }
         }
@@ -339,6 +362,75 @@ pub fn calculate_margin_requirement_and_total_collateral(
     }
 
     Ok((margin_requirement, total_collateral))
+}
+
+pub struct TokenValueMap(pub BTreeMap<u64, (i128, i128)>);
+
+pub fn build_token_value_map(
+    user: &User,
+    bank_map: &BankMap,
+    oracle_map: &mut OracleMap,
+) -> ClearingHouseResult<TokenValueMap> {
+    let mut token_value_map: TokenValueMap = TokenValueMap(BTreeMap::new());
+    token_value_map.0.insert(0, (0, 0));
+    for user_bank_balance in user.bank_balances.iter() {
+        if user_bank_balance.balance == 0 || user_bank_balance.open_orders == 0 {
+            continue;
+        }
+
+        let bank = bank_map.get_ref(&user_bank_balance.bank_index)?;
+        if user_bank_balance.bank_index == 0 {
+            let quote_token_amount = get_signed_token_amount(
+                get_token_amount(
+                    user_bank_balance.balance,
+                    &bank,
+                    &user_bank_balance.balance_type,
+                )?,
+                &user_bank_balance.balance_type,
+            )?;
+
+            let (quote_token_amount_before, quote_token_value_before) =
+                token_value_map.0.get(&0).unwrap();
+            token_value_map.0.insert(
+                0,
+                (
+                    quote_token_amount_before
+                        .checked_add(quote_token_amount)
+                        .ok_or_else(math_error!())?,
+                    quote_token_value_before
+                        .checked_add(quote_token_amount)
+                        .ok_or_else(math_error!())?,
+                ),
+            );
+        } else {
+            let oracle_price_data = oracle_map.get_price_data(&bank.oracle)?;
+            let (worst_case_token_amount, worse_case_quote_token_amount) =
+                user_bank_balance.get_worst_case_token_amounts(&bank, oracle_price_data)?;
+            let worst_case_token_value =
+                get_token_value(worst_case_token_amount, bank.decimals, oracle_price_data)?;
+
+            token_value_map.0.insert(
+                user_bank_balance.bank_index,
+                (worst_case_token_amount, worst_case_token_value),
+            );
+            let (quote_token_amount_before, quote_token_value_before) =
+                token_value_map.0.get(&0).unwrap();
+
+            token_value_map.0.insert(
+                0,
+                (
+                    quote_token_amount_before
+                        .checked_add(worse_case_quote_token_amount)
+                        .ok_or_else(math_error!())?,
+                    quote_token_value_before
+                        .checked_add(worse_case_quote_token_amount)
+                        .ok_or_else(math_error!())?,
+                ),
+            );
+        }
+    }
+
+    Ok(token_value_map)
 }
 
 pub fn calculate_net_quote_balance(

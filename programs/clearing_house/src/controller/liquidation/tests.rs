@@ -109,6 +109,7 @@ pub mod liquidate_perp {
                 bank_index: 0,
                 balance_type: BankBalanceType::Deposit,
                 balance: 50 * BANK_INTEREST_PRECISION,
+                ..UserBankBalance::default()
             }),
             ..User::default()
         };
@@ -242,6 +243,7 @@ pub mod liquidate_perp {
                 bank_index: 0,
                 balance_type: BankBalanceType::Deposit,
                 balance: 50 * BANK_INTEREST_PRECISION,
+                ..UserBankBalance::default()
             }),
             ..User::default()
         };
@@ -369,6 +371,7 @@ pub mod liquidate_perp {
                 bank_index: 0,
                 balance_type: BankBalanceType::Deposit,
                 balance: 50 * BANK_INTEREST_PRECISION,
+                ..UserBankBalance::default()
             }),
             ..User::default()
         };
@@ -378,6 +381,7 @@ pub mod liquidate_perp {
                 bank_index: 0,
                 balance_type: BankBalanceType::Deposit,
                 balance: 50 * BANK_INTEREST_PRECISION,
+                ..UserBankBalance::default()
             }),
             ..User::default()
         };
@@ -500,6 +504,7 @@ pub mod liquidate_perp {
                 bank_index: 0,
                 balance_type: BankBalanceType::Deposit,
                 balance: 50 * BANK_INTEREST_PRECISION,
+                ..UserBankBalance::default()
             }),
             ..User::default()
         };
@@ -623,6 +628,7 @@ pub mod liquidate_perp {
                 bank_index: 0,
                 balance_type: BankBalanceType::Deposit,
                 balance: 5 * BANK_INTEREST_PRECISION,
+                ..UserBankBalance::default()
             }),
 
             ..User::default()
@@ -633,6 +639,7 @@ pub mod liquidate_perp {
                 bank_index: 0,
                 balance_type: BankBalanceType::Deposit,
                 balance: 50 * BANK_INTEREST_PRECISION,
+                ..UserBankBalance::default()
             }),
             ..User::default()
         };
@@ -749,11 +756,13 @@ pub mod liquidate_borrow {
             bank_index: 0,
             balance_type: BankBalanceType::Deposit,
             balance: 100 * BANK_INTEREST_PRECISION,
+            ..UserBankBalance::default()
         };
         user_bank_balances[1] = UserBankBalance {
             bank_index: 1,
             balance_type: BankBalanceType::Borrow,
             balance: BANK_INTEREST_PRECISION,
+            ..UserBankBalance::default()
         };
         let mut user = User {
             orders: [Order::default(); 32],
@@ -767,6 +776,7 @@ pub mod liquidate_borrow {
                 bank_index: 0,
                 balance_type: BankBalanceType::Deposit,
                 balance: 100 * BANK_INTEREST_PRECISION,
+                ..UserBankBalance::default()
             }),
             ..User::default()
         };
@@ -861,11 +871,13 @@ pub mod liquidate_borrow {
             bank_index: 0,
             balance_type: BankBalanceType::Deposit,
             balance: 100 * BANK_INTEREST_PRECISION,
+            ..UserBankBalance::default()
         };
         user_bank_balances[1] = UserBankBalance {
             bank_index: 1,
             balance_type: BankBalanceType::Borrow,
             balance: BANK_INTEREST_PRECISION,
+            ..UserBankBalance::default()
         };
         let mut user = User {
             orders: [Order::default(); 32],
@@ -879,6 +891,7 @@ pub mod liquidate_borrow {
                 bank_index: 0,
                 balance_type: BankBalanceType::Deposit,
                 balance: 100 * BANK_INTEREST_PRECISION,
+                ..UserBankBalance::default()
             }),
             ..User::default()
         };
@@ -973,11 +986,13 @@ pub mod liquidate_borrow {
             bank_index: 0,
             balance_type: BankBalanceType::Deposit,
             balance: 105 * BANK_INTEREST_PRECISION,
+            ..UserBankBalance::default()
         };
         user_bank_balances[1] = UserBankBalance {
             bank_index: 1,
             balance_type: BankBalanceType::Borrow,
             balance: BANK_INTEREST_PRECISION,
+            ..UserBankBalance::default()
         };
         let mut user = User {
             orders: [Order::default(); 32],
@@ -991,6 +1006,7 @@ pub mod liquidate_borrow {
                 bank_index: 0,
                 balance_type: BankBalanceType::Deposit,
                 balance: 100 * BANK_INTEREST_PRECISION,
+                ..UserBankBalance::default()
             }),
             ..User::default()
         };
@@ -1136,6 +1152,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             bank_index: 1,
             balance_type: BankBalanceType::Borrow,
             balance: BANK_INTEREST_PRECISION,
+            ..UserBankBalance::default()
         };
         let mut user = User {
             orders: [Order::default(); 32],
@@ -1153,6 +1170,7 @@ pub mod liquidate_borrow_for_perp_pnl {
                 bank_index: 0,
                 balance_type: BankBalanceType::Deposit,
                 balance: 100 * BANK_INTEREST_PRECISION,
+                ..UserBankBalance::default()
             }),
             ..User::default()
         };
@@ -1271,6 +1289,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             bank_index: 1,
             balance_type: BankBalanceType::Borrow,
             balance: BANK_INTEREST_PRECISION,
+            ..UserBankBalance::default()
         };
         let mut user = User {
             orders: [Order::default(); 32],
@@ -1288,6 +1307,7 @@ pub mod liquidate_borrow_for_perp_pnl {
                 bank_index: 0,
                 balance_type: BankBalanceType::Deposit,
                 balance: 100 * BANK_INTEREST_PRECISION,
+                ..UserBankBalance::default()
             }),
             ..User::default()
         };
@@ -1406,6 +1426,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             bank_index: 1,
             balance_type: BankBalanceType::Borrow,
             balance: BANK_INTEREST_PRECISION,
+            ..UserBankBalance::default()
         };
         let mut user = User {
             orders: [Order::default(); 32],
@@ -1423,6 +1444,7 @@ pub mod liquidate_borrow_for_perp_pnl {
                 bank_index: 0,
                 balance_type: BankBalanceType::Deposit,
                 balance: 100 * BANK_INTEREST_PRECISION,
+                ..UserBankBalance::default()
             }),
             ..User::default()
         };
@@ -1564,6 +1586,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             bank_index: 1,
             balance_type: BankBalanceType::Deposit,
             balance: BANK_INTEREST_PRECISION,
+            ..UserBankBalance::default()
         };
         let mut user = User {
             orders: [Order::default(); 32],
@@ -1581,6 +1604,7 @@ pub mod liquidate_perp_pnl_for_deposit {
                 bank_index: 0,
                 balance_type: BankBalanceType::Deposit,
                 balance: 100 * BANK_INTEREST_PRECISION,
+                ..UserBankBalance::default()
             }),
             ..User::default()
         };
@@ -1699,6 +1723,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             bank_index: 1,
             balance_type: BankBalanceType::Deposit,
             balance: BANK_INTEREST_PRECISION,
+            ..UserBankBalance::default()
         };
         let mut user = User {
             orders: [Order::default(); 32],
@@ -1716,6 +1741,7 @@ pub mod liquidate_perp_pnl_for_deposit {
                 bank_index: 0,
                 balance_type: BankBalanceType::Deposit,
                 balance: 100 * BANK_INTEREST_PRECISION,
+                ..UserBankBalance::default()
             }),
             ..User::default()
         };
@@ -1834,6 +1860,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             bank_index: 1,
             balance_type: BankBalanceType::Deposit,
             balance: BANK_INTEREST_PRECISION,
+            ..UserBankBalance::default()
         };
         let mut user = User {
             orders: [Order::default(); 32],
@@ -1851,6 +1878,7 @@ pub mod liquidate_perp_pnl_for_deposit {
                 bank_index: 0,
                 balance_type: BankBalanceType::Deposit,
                 balance: 100 * BANK_INTEREST_PRECISION,
+                ..UserBankBalance::default()
             }),
             ..User::default()
         };
@@ -2002,6 +2030,7 @@ pub mod resolve_perp_bankruptcy {
                 bank_index: 0,
                 balance_type: BankBalanceType::Deposit,
                 balance: 50 * BANK_INTEREST_PRECISION,
+                ..UserBankBalance::default()
             }),
             ..User::default()
         };
@@ -2194,6 +2223,7 @@ pub mod resolve_borrow_bankruptcy {
                 bank_index: 0,
                 balance: 100 * BANK_INTEREST_PRECISION,
                 balance_type: BankBalanceType::Borrow,
+                ..UserBankBalance::default()
             }),
             bankrupt: true,
             being_liquidated: false,
@@ -2206,6 +2236,7 @@ pub mod resolve_borrow_bankruptcy {
                 bank_index: 0,
                 balance_type: BankBalanceType::Deposit,
                 balance: 50 * BANK_INTEREST_PRECISION,
+                ..UserBankBalance::default()
             }),
             ..User::default()
         };

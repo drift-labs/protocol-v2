@@ -1568,6 +1568,7 @@ pub mod fulfill_order {
                 bank_index: 0,
                 balance_type: BankBalanceType::Deposit,
                 balance: 100 * BANK_INTEREST_PRECISION,
+                ..UserBankBalance::default()
             }),
             ..User::default()
         };
@@ -1725,6 +1726,7 @@ pub mod fulfill_order {
                 bank_index: 0,
                 balance_type: BankBalanceType::Deposit,
                 balance: 100 * BANK_INTEREST_PRECISION,
+                ..UserBankBalance::default()
             }),
             ..User::default()
         };
@@ -1899,6 +1901,7 @@ pub mod fulfill_order {
                 bank_index: 0,
                 balance_type: BankBalanceType::Deposit,
                 balance: 100 * BANK_INTEREST_PRECISION,
+                ..UserBankBalance::default()
             }),
             ..User::default()
         };
@@ -2021,6 +2024,7 @@ pub mod fulfill_order {
                 bank_index: 0,
                 balance_type: BankBalanceType::Deposit,
                 balance: BANK_INTEREST_PRECISION,
+                ..UserBankBalance::default()
             }),
             ..User::default()
         };
@@ -2226,6 +2230,7 @@ pub mod fulfill_order {
                 bank_index: 0,
                 balance_type: BankBalanceType::Deposit,
                 balance: 100 * BANK_INTEREST_PRECISION,
+                ..UserBankBalance::default()
             }),
             ..User::default()
         };
@@ -2470,6 +2475,7 @@ pub mod fill_order {
                 bank_index: 0,
                 balance_type: BankBalanceType::Deposit,
                 balance: 100 * BANK_INTEREST_PRECISION,
+                ..UserBankBalance::default()
             }),
             ..User::default()
         };
@@ -2590,6 +2596,7 @@ pub mod fill_order {
                 bank_index: 0,
                 balance_type: BankBalanceType::Deposit,
                 balance: 100 * BANK_INTEREST_PRECISION,
+                ..UserBankBalance::default()
             }),
             ..User::default()
         };

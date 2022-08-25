@@ -493,10 +493,8 @@ pub mod clearing_house {
         let bank = &mut bank_map.get_ref_mut(&bank_index)?;
         controller::bank_balance::update_bank_cumulative_interest(bank, now)?;
 
-        let user_bank_balance = match user.get_bank_balance_mut(bank.bank_index) {
-            Some(user_bank_balance) => user_bank_balance,
-            None => user.add_bank_balance(bank_index, BankBalanceType::Deposit)?,
-        };
+        let user_bank_balance =
+            user.force_get_bank_balance_mut(bank.bank_index, BankBalanceType::Deposit)?;
 
         // if reduce only, have to compare ix amount to current borrow amount
         let amount = if reduce_only && user_bank_balance.balance_type == BankBalanceType::Borrow {
@@ -573,10 +571,8 @@ pub mod clearing_house {
             let bank = &mut bank_map.get_ref_mut(&bank_index)?;
             controller::bank_balance::update_bank_cumulative_interest(bank, now)?;
 
-            let user_bank_balance = match user.get_bank_balance_mut(bank.bank_index) {
-                Some(user_bank_balance) => user_bank_balance,
-                None => user.add_bank_balance(bank_index, BankBalanceType::Deposit)?,
-            };
+            let user_bank_balance =
+                user.force_get_bank_balance_mut(bank.bank_index, BankBalanceType::Deposit)?;
 
             // if reduce only, have to compare ix amount to current deposit amount
             let amount =
@@ -680,10 +676,8 @@ pub mod clearing_house {
 
         {
             let bank = &mut bank_map.get_ref_mut(&bank_index)?;
-            let from_user_bank_balance = match from_user.get_bank_balance_mut(bank.bank_index) {
-                Some(user_bank_balance) => user_bank_balance,
-                None => from_user.add_bank_balance(bank_index, BankBalanceType::Deposit)?,
-            };
+            let from_user_bank_balance =
+                from_user.force_get_bank_balance_mut(bank.bank_index, BankBalanceType::Deposit)?;
 
             controller::bank_balance::update_bank_balances(
                 amount as u128,
@@ -722,10 +716,8 @@ pub mod clearing_house {
 
         {
             let bank = &mut bank_map.get_ref_mut(&bank_index)?;
-            let to_user_bank_balance = match to_user.get_bank_balance_mut(bank.bank_index) {
-                Some(user_bank_balance) => user_bank_balance,
-                None => to_user.add_bank_balance(bank_index, BankBalanceType::Deposit)?,
-            };
+            let to_user_bank_balance =
+                to_user.force_get_bank_balance_mut(bank.bank_index, BankBalanceType::Deposit)?;
 
             controller::bank_balance::update_bank_balances(
                 amount as u128,
@@ -1298,6 +1290,37 @@ pub mod clearing_house {
             &mut oracle_map,
             &ctx.accounts.filler,
             &Clock::get()?,
+        )?;
+
+        Ok(())
+    }
+
+    pub fn place_spot_order(ctx: Context<PlaceOrder>, params: OrderParams) -> Result<()> {
+        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
+        let bank_map = BankMap::load(
+            &get_writable_banks(params.market_index),
+            remaining_accounts_iter,
+        )?;
+        let market_map = MarketMap::load(
+            &MarketSet::new(),
+            &MarketSet::new(),
+            remaining_accounts_iter,
+        )?;
+
+        if params.immediate_or_cancel {
+            msg!("immediate_or_cancel order must be in place_and_make or place_and_take");
+            return Err(print_error!(ErrorCode::InvalidOrder)().into());
+        }
+
+        controller::orders::place_order(
+            &ctx.accounts.state,
+            &ctx.accounts.user,
+            &market_map,
+            &bank_map,
+            &mut oracle_map,
+            &Clock::get()?,
+            params,
         )?;
 
         Ok(())

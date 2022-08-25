@@ -30,6 +30,7 @@ use crate::math::{amm, fees, margin::*, orders::*};
 use crate::math_error;
 use crate::order_validation::validate_order;
 use crate::print_error;
+use crate::state::bank::BankBalanceType;
 use crate::state::bank_map::BankMap;
 use crate::state::events::{emit_stack, OrderRecord};
 use crate::state::events::{OrderAction, OrderActionExplanation};
@@ -1815,4 +1816,206 @@ pub fn pay_keeper_flat_reward(
     };
 
     Ok(filler_reward)
+}
+
+pub fn place_spot_order(
+    state: &State,
+    user: &AccountLoader<User>,
+    market_map: &MarketMap,
+    bank_map: &BankMap,
+    oracle_map: &mut OracleMap,
+    clock: &Clock,
+    params: OrderParams,
+) -> ClearingHouseResult {
+    let now = clock.unix_timestamp;
+    let slot = clock.slot;
+    let user_key = user.key();
+    let user = &mut load_mut!(user)?;
+
+    validate_user_not_being_liquidated(
+        user,
+        market_map,
+        bank_map,
+        oracle_map,
+        state.liquidation_margin_buffer_ratio,
+    )?;
+
+    validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
+
+    let new_order_index = user
+        .orders
+        .iter()
+        .position(|order| order.status.eq(&OrderStatus::Init))
+        .ok_or(ErrorCode::MaxNumberOfOrders)?;
+
+    if params.user_order_id > 0 {
+        let user_order_id_already_used = user
+            .orders
+            .iter()
+            .position(|order| order.user_order_id == params.user_order_id);
+
+        if user_order_id_already_used.is_some() {
+            msg!("user_order_id is already in use {}", params.user_order_id);
+            return Err(ErrorCode::UserOrderIdAlreadyInUse);
+        }
+    }
+
+    let bank_index = params.market_index;
+    let bank = &bank_map.get_ref(&bank_index)?;
+
+    let bank_balance_index = user
+        .get_bank_balance_index(bank_index)
+        .or_else(|_| user.add_bank_balance(bank_index, BankBalanceType::Deposit))?;
+
+    // let worst_case_base_asset_amount_before =
+    //     user.positions[position_index].worst_case_base_asset_amount()?;
+    //
+    // // Increment open orders for existing position
+    // let (existing_position_direction, order_base_asset_amount) = {
+    //     let market_position = &mut user.positions[position_index];
+    //     market_position.open_orders += 1;
+    //
+    //     let standardized_base_asset_amount = standardize_base_asset_amount(
+    //         params.base_asset_amount,
+    //         bank.amm.base_asset_amount_step_size,
+    //     )?;
+    //
+    //     let base_asset_amount = if params.reduce_only {
+    //         calculate_base_asset_amount_for_reduce_only_order(
+    //             standardized_base_asset_amount,
+    //             params.direction,
+    //             market_position.base_asset_amount,
+    //         )
+    //     } else {
+    //         standardized_base_asset_amount
+    //     };
+    //
+    //     validate!(
+    //         base_asset_amount >= bank.amm.base_asset_amount_step_size,
+    //         ErrorCode::TradeSizeTooSmall,
+    //         "Order base asset amount ({}), smaller than step size ({})",
+    //         params.base_asset_amount,
+    //         bank.amm.base_asset_amount_step_size
+    //     )?;
+    //
+    //     if !matches!(
+    //         &params.order_type,
+    //         OrderType::TriggerMarket | OrderType::TriggerLimit
+    //     ) {
+    //         increase_open_bids_and_asks(market_position, &params.direction, base_asset_amount)?;
+    //     }
+    //
+    //     let existing_position_direction = if market_position.base_asset_amount >= 0 {
+    //         PositionDirection::Long
+    //     } else {
+    //         PositionDirection::Short
+    //     };
+    //     (existing_position_direction, base_asset_amount)
+    // };
+    //
+    // let (auction_start_price, auction_end_price) = if let OrderType::Market = params.order_type {
+    //     let auction_start_price = calculate_auction_start_price(bank, params.direction)?;
+    //     let auction_end_price = if params.price == 0 {
+    //         calculate_auction_end_price(bank, params.direction, order_base_asset_amount)?
+    //     } else {
+    //         params.price
+    //     };
+    //     (auction_start_price, auction_end_price)
+    // } else {
+    //     (0_u128, 0_u128)
+    // };
+    //
+    // validate!(
+    //     params.market_type == MarketType::Spot,
+    //     ErrorCode::InvalidOrder,
+    //     "must be spot order"
+    // )?;
+    //
+    // let new_order = Order {
+    //     status: OrderStatus::Open,
+    //     order_type: params.order_type,
+    //     market_type: params.market_type,
+    //     ts: now,
+    //     slot,
+    //     order_id: get_then_update_id!(user, next_order_id),
+    //     user_order_id: params.user_order_id,
+    //     market_index: params.market_index,
+    //     price: params.price,
+    //     existing_position_direction,
+    //     base_asset_amount: order_base_asset_amount,
+    //     base_asset_amount_filled: 0,
+    //     quote_asset_amount_filled: 0,
+    //     fee: 0,
+    //     direction: params.direction,
+    //     reduce_only: params.reduce_only,
+    //     trigger_price: params.trigger_price,
+    //     trigger_condition: params.trigger_condition,
+    //     triggered: false,
+    //     post_only: params.post_only,
+    //     oracle_price_offset: params.oracle_price_offset,
+    //     immediate_or_cancel: params.immediate_or_cancel,
+    //     auction_start_price,
+    //     auction_end_price,
+    //     auction_duration: min(
+    //         max(state.min_auction_duration, params.auction_duration),
+    //         state.max_auction_duration,
+    //     ),
+    //     padding: [0; 3],
+    // };
+    //
+    // let valid_oracle_price = get_valid_oracle_price(
+    //     oracle_map.get_price_data(&bank.amm.oracle)?,
+    //     bank,
+    //     &new_order,
+    //     &state.oracle_guard_rails.validity,
+    // )?;
+    //
+    // validate_order(&new_order, bank, state, valid_oracle_price, slot)?;
+    //
+    // user.orders[new_order_index] = new_order;
+    //
+    // let worst_case_base_asset_amount_after =
+    //     user.positions[position_index].worst_case_base_asset_amount()?;
+    //
+    // // Order fails if it's risk increasing and it brings the user collateral below the margin requirement
+    // let risk_decreasing = worst_case_base_asset_amount_after.unsigned_abs()
+    //     <= worst_case_base_asset_amount_before.unsigned_abs();
+    //
+    // let meets_initial_maintenance_requirement =
+    //     meets_initial_margin_requirement(user, market_map, bank_map, oracle_map)?;
+    //
+    // if !meets_initial_maintenance_requirement && !risk_decreasing {
+    //     return Err(ErrorCode::InsufficientCollateral);
+    // }
+    //
+    // let (taker, taker_order, taker_unsettled_pnl, maker, maker_order, maker_unsettled_pnl) =
+    //     get_taker_and_maker_for_order_record(&user_key, &new_order, 0);
+    //
+    // emit_stack::<_, 1064>(OrderRecord {
+    //     ts: now,
+    //     slot,
+    //     taker,
+    //     taker_order,
+    //     maker,
+    //     maker_order,
+    //     maker_pnl: maker_unsettled_pnl,
+    //     taker_pnl: taker_unsettled_pnl,
+    //     action: OrderAction::Place,
+    //     action_explanation: OrderActionExplanation::None,
+    //     filler: Pubkey::default(),
+    //     fill_record_id: 0,
+    //     market_index: bank.market_index,
+    //     base_asset_amount_filled: 0,
+    //     quote_asset_amount_filled: 0,
+    //     filler_reward: 0,
+    //     taker_fee: 0,
+    //     maker_rebate: 0,
+    //     quote_asset_amount_surplus: 0,
+    //     oracle_price: oracle_map.get_price_data(&bank.amm.oracle)?.price,
+    //     referrer_reward: 0,
+    //     referee_discount: 0,
+    //     referrer: Pubkey::default(),
+    // });
+
+    Ok(())
 }

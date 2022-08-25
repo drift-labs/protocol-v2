@@ -431,29 +431,19 @@ pub fn liquidate_borrow(
         ErrorCode::CouldNotFindBankBalance
     })?;
 
-    match liquidator.get_bank_balance_mut(asset_bank_index) {
-        Some(_) => {}
-        None => {
-            liquidator
-                .add_bank_balance(asset_bank_index, BankBalanceType::Deposit)
-                .map_err(|e| {
-                    msg!("Liquidator has no available bank balances to take on deposit");
-                    e
-                })?;
-        }
-    };
+    liquidator
+        .force_get_bank_balance_mut(asset_bank_index, BankBalanceType::Deposit)
+        .map_err(|e| {
+            msg!("Liquidator has no available bank balances to take on deposit");
+            e
+        })?;
 
-    match liquidator.get_bank_balance_mut(liability_bank_index) {
-        Some(_) => {}
-        None => {
-            liquidator
-                .add_bank_balance(liability_bank_index, BankBalanceType::Borrow)
-                .map_err(|e| {
-                    msg!("Liquidator has no available bank balances to take on borrow");
-                    e
-                })?;
-        }
-    };
+    liquidator
+        .force_get_bank_balance_mut(liability_bank_index, BankBalanceType::Borrow)
+        .map_err(|e| {
+            msg!("Liquidator has no available bank balances to take on borrow");
+            e
+        })?;
 
     let (asset_amount, asset_price, asset_decimals, asset_weight, asset_liquidation_multiplier) = {
         let mut asset_bank = bank_map.get_ref_mut(&asset_bank_index)?;
@@ -720,17 +710,12 @@ pub fn liquidate_borrow_for_perp_pnl(
             e
         })?;
 
-    match liquidator.get_bank_balance_mut(liability_bank_index) {
-        Some(_) => {}
-        None => {
-            liquidator
-                .add_bank_balance(liability_bank_index, BankBalanceType::Borrow)
-                .map_err(|e| {
-                    msg!("Liquidator has no available bank balances to take on borrow");
-                    e
-                })?;
-        }
-    };
+    liquidator
+        .force_get_bank_balance_mut(liability_bank_index, BankBalanceType::Borrow)
+        .map_err(|e| {
+            msg!("Liquidator has no available bank balances to take on borrow");
+            e
+        })?;
 
     settle_funding_payment(
         user,
@@ -1017,17 +1002,12 @@ pub fn liquidate_perp_pnl_for_deposit(
             e
         })?;
 
-    match liquidator.get_bank_balance_mut(asset_bank_index) {
-        Some(_) => {}
-        None => {
-            liquidator
-                .add_bank_balance(asset_bank_index, BankBalanceType::Borrow)
-                .map_err(|e| {
-                    msg!("Liquidator has no available bank balances to take on deposit");
-                    e
-                })?;
-        }
-    };
+    liquidator
+        .force_get_bank_balance_mut(asset_bank_index, BankBalanceType::Deposit)
+        .map_err(|e| {
+            msg!("Liquidator has no available bank balances to take on deposit");
+            e
+        })?;
 
     settle_funding_payment(
         user,

@@ -331,6 +331,7 @@ mod test {
             bank_index: 0,
             balance_type: BankBalanceType::Deposit,
             balance: BANK_INTEREST_PRECISION,
+            ..UserBankBalance::default()
         };
         let mut user = User {
             orders: [Order::default(); 32],
@@ -437,6 +438,7 @@ mod test {
                 bank_index: 1,
                 balance_type: BankBalanceType::Deposit,
                 balance: 50 * BANK_INTEREST_PRECISION,
+                ..UserBankBalance::default()
             }),
             ..User::default()
         };

@@ -1,7 +1,7 @@
 use solana_program::msg;
 
 use crate::error::{ClearingHouseResult, ErrorCode};
-use crate::math::casting::{cast, cast_to_u64};
+use crate::math::casting::{cast, cast_to_i128, cast_to_u64};
 use crate::math::constants::{BANK_INTEREST_PRECISION, BANK_UTILIZATION_PRECISION, ONE_YEAR};
 use crate::math_error;
 use crate::state::bank::{Bank, BankBalanceType};
@@ -62,6 +62,16 @@ pub fn get_token_amount(
         .ok_or_else(math_error!())?;
 
     Ok(token_amount)
+}
+
+pub fn get_signed_token_amount(
+    token_amount: u128,
+    balance_type: &BankBalanceType,
+) -> ClearingHouseResult<i128> {
+    match balance_type {
+        BankBalanceType::Deposit => cast_to_i128(token_amount),
+        BankBalanceType::Borrow => cast_to_i128(token_amount).map(|token_amount| -token_amount),
+    }
 }
 
 pub struct InterestAccumulated {
@@ -203,6 +213,24 @@ pub fn get_balance_value_and_token_amount(
         .ok_or_else(math_error!())?;
 
     Ok((value, token_amount))
+}
+
+pub fn get_token_value(
+    token_amount: i128,
+    bank_decimals: u8,
+    oracle_price_data: &OraclePriceData,
+) -> ClearingHouseResult<i128> {
+    if token_amount == 0 {
+        return Ok(0);
+    }
+
+    let precision_decrease = 10_i128.pow(10_u32 + (bank_decimals - 6) as u32);
+
+    token_amount
+        .checked_mul(oracle_price_data.price)
+        .ok_or_else(math_error!())?
+        .checked_div(precision_decrease)
+        .ok_or_else(math_error!())
 }
 
 pub fn get_balance_value(
