@@ -1,14 +1,18 @@
 use crate::error::ErrorCode;
-use crate::math::casting::{cast_to_i128, cast_to_u128, cast_to_u32};
+use crate::math::casting::{cast_to_i128, cast_to_u128, cast_to_u32, cast_to_u64};
 use crate::validate;
 use solana_program::msg;
-
+use crate::math::bank_balance::get_token_amount;
+use crate::controller::bank_balance::{
+    update_insurance_fund_pool_balances,
+    validate_bank_amounts,
+};
 use crate::error::ClearingHouseResult;
 use crate::math::insurance::{
     calculate_rebase_info, staked_amount_to_shares, unstaked_shares_to_amount,
 };
 use crate::math_error;
-use crate::state::bank::Bank;
+use crate::state::bank::{Bank, BankBalanceType};
 use crate::state::insurance_fund_stake::InsuranceFundStake;
 use crate::state::user::UserStats;
 
@@ -213,6 +217,64 @@ pub fn remove_insurance_fund_stake(
     insurance_fund_stake.last_withdraw_request_ts = now;
 
     Ok(withdraw_amount)
+}
+
+pub fn settle_bank_to_insurance_fund(
+    bank_vault_amount: u64,
+    insurance_vault_amount: u64,
+    bank: &mut Bank,
+) -> ClearingHouseResult<u64> {
+    validate!(
+        bank.user_reserve_factor <= bank.total_reserve_factor,
+        ErrorCode::DefaultError,
+        "invalid reserve factor settings on bank"
+    )?;
+
+    validate!(
+        bank.user_reserve_factor > 0 || bank.total_reserve_factor > 0,
+        ErrorCode::DefaultError,
+        "reserve factor = 0 for this bank"
+    )?;
+
+    let _depositors_claim = validate_bank_amounts(bank, bank_vault_amount)?;
+
+    let token_amount = get_token_amount(
+        bank.insurance_fund_pool.balance,
+        bank,
+        &BankBalanceType::Deposit,
+        // bank.insurance_fund_pool.balance_type(),
+    )?;
+
+    validate!(
+        token_amount != 0,
+        ErrorCode::DefaultError,
+        "no amount to settle"
+    )?;
+
+    let protocol_reserve_factor = bank
+        .total_reserve_factor
+        .checked_sub(bank.user_reserve_factor)
+        .ok_or_else(math_error!())?;
+
+    // give protocol its cut
+    let n_shares = staked_amount_to_shares(
+        (token_amount as u64)
+            .checked_mul(protocol_reserve_factor as u64)
+            .ok_or_else(math_error!())?
+            .checked_div(bank.total_reserve_factor as u64)
+            .ok_or_else(math_error!())?,
+        bank.total_lp_shares,
+        insurance_vault_amount,
+    )?;
+
+    bank.total_lp_shares = bank
+        .total_lp_shares
+        .checked_add(n_shares)
+        .ok_or_else(math_error!())?;
+
+    update_insurance_fund_pool_balances(token_amount, &BankBalanceType::Deposit, bank)?;
+
+    Ok(cast_to_u64(token_amount)?)
 }
 
 #[cfg(test)]

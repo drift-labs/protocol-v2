@@ -10,7 +10,6 @@ use math::{amm, bn, constants::*, margin::*};
 use state::oracle::{get_oracle_price, OracleSource};
 
 use crate::math::amm::get_update_k_result;
-use crate::math::insurance::staked_amount_to_shares; //todo
 use crate::state::market::Market;
 use crate::state::user::MarketPosition;
 use crate::state::{market::AMM, state::*, user::*};
@@ -2733,59 +2732,14 @@ pub mod clearing_house {
         bank_index: u64,
     ) -> Result<()> {
         let bank = &mut load_mut!(ctx.accounts.bank)?;
-
-        validate!(
-            bank.user_reserve_factor <= bank.total_reserve_factor,
-            ErrorCode::DefaultError,
-            "invalid reserve factor settings on bank"
-        )?;
-
-        validate!(
-            bank.user_reserve_factor > 0 || bank.total_reserve_factor > 0,
-            ErrorCode::DefaultError,
-            "reserve factor = 0 for this bank"
-        )?;
-
         let bank_vault_amount = ctx.accounts.bank_vault.amount;
-
-        let _depositors_claim =
-            controller::bank_balance::validate_bank_amounts(bank, bank_vault_amount)?;
-
-        let token_amount = get_token_amount(
-            bank.insurance_fund_pool.balance,
-            bank,
-            &BankBalanceType::Deposit,
-            // bank.insurance_fund_pool.balance_type(),
-        )?;
-
-        validate!(
-            token_amount != 0,
-            ErrorCode::DefaultError,
-            "no amount to settle"
-        )?;
-
         let insurance_vault_amount = ctx.accounts.insurance_fund_vault.amount;
 
-        let protocol_reserve_factor = bank
-            .total_reserve_factor
-            .checked_sub(bank.user_reserve_factor)
-            .ok_or_else(math_error!())?;
-
-        // give protocol its cut
-        let n_shares = staked_amount_to_shares(
-            (token_amount as u64)
-                .checked_mul(protocol_reserve_factor as u64)
-                .ok_or_else(math_error!())?
-                .checked_div(bank.total_reserve_factor as u64)
-                .ok_or_else(math_error!())?,
-            bank.total_lp_shares,
+        let token_amount = controller::insurance::settle_bank_to_insurance_fund(
+            bank_vault_amount,
             insurance_vault_amount,
+            bank,
         )?;
-
-        bank.total_lp_shares = bank
-            .total_lp_shares
-            .checked_add(n_shares)
-            .ok_or_else(math_error!())?;
 
         controller::token::send_from_bank_vault(
             &ctx.accounts.token_program,
@@ -2795,12 +2749,6 @@ pub mod clearing_house {
             bank_index,
             bank.vault_authority_nonce,
             token_amount as u64,
-        )?;
-
-        controller::bank_balance::update_insurance_fund_pool_balances(
-            token_amount,
-            &BankBalanceType::Deposit,
-            bank,
         )?;
 
         Ok(())
