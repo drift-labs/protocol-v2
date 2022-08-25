@@ -47,13 +47,12 @@ pub fn settle_lp_position(
         quote_asset_amount: lp_metrics.quote_asset_amount,
     };
 
-     
-    msg!("market.base_asset_amount_long: {:?}", market.base_asset_amount_long);
-    msg!("market.base_asset_amount_short: {:?}", market.base_asset_amount_short);
-    msg!("market.amm.net_base_asset_amount: {:?}",
-    market.amm.net_base_asset_amount);
-    msg!("market.amm.net_unsettled_lp_base_asset_amount: {:?}",
-    market.amm.net_unsettled_lp_base_asset_amount);
+    crate::dlog!(
+        market.base_asset_amount_long,
+        market.base_asset_amount_short,
+        market.amm.net_base_asset_amount,
+        market.amm.net_unsettled_lp_base_asset_amount
+    );
 
     update_position_and_market(position, market, &position_delta)?;
 
@@ -64,15 +63,14 @@ pub fn settle_lp_position(
         .net_unsettled_lp_base_asset_amount
         .checked_add(lp_metrics.base_asset_amount)
         .ok_or_else(math_error!())?;
-    
-    msg!("market.base_asset_amount_long: {:?}", market.base_asset_amount_long);
-    msg!("market.base_asset_amount_short: {:?}", market.base_asset_amount_short);
-    msg!("market.amm.net_base_asset_amount: {:?}",
-    market.amm.net_base_asset_amount);
-    msg!("market.amm.net_unsettled_lp_base_asset_amount: {:?}",
-    market.amm.net_unsettled_lp_base_asset_amount);
 
-    msg!("lp_metrics.base_asset_amount: {:?}", lp_metrics.base_asset_amount);
+    crate::dlog!(
+        market.base_asset_amount_long,
+        market.base_asset_amount_short,
+        market.amm.net_base_asset_amount,
+        market.amm.net_unsettled_lp_base_asset_amount,
+        lp_metrics.base_asset_amount
+    );
 
     Ok(())
 }
@@ -104,7 +102,7 @@ pub fn burn_lp_shares(
     market.amm.net_unsettled_lp_base_asset_amount = market
         .amm
         .net_unsettled_lp_base_asset_amount
-        .checked_sub(base_asset_amount)
+        .checked_add(base_asset_amount)
         .ok_or_else(math_error!())?;
 
     // liquidate dust position

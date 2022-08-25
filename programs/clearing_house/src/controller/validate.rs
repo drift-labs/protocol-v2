@@ -7,16 +7,16 @@ use crate::math::orders::{
     calculate_quote_asset_amount_for_maker_order, get_position_delta_for_fill,
     is_multiple_of_step_size,
 };
-use crate::math_error;
 use crate::state::market::{Market, AMM};
 use crate::state::user::{MarketPosition, User, UserStats};
 use crate::validate;
+use crate::{dlog, math_error};
 use solana_program::msg;
 
 pub fn validate_market_account(market: &Market) -> ClearingHouseResult {
     validate!(
-        (market.base_asset_amount_long + market.base_asset_amount_short) ==
-        market.amm.net_base_asset_amount + market.amm.net_unsettled_lp_base_asset_amount,
+        (market.base_asset_amount_long + market.base_asset_amount_short)
+            == market.amm.net_base_asset_amount + market.amm.net_unsettled_lp_base_asset_amount,
         ErrorCode::DefaultError,
         "Market NET_BAA Error: 
         market.base_asset_amount_long={}, 

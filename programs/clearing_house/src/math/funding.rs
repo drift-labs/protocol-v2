@@ -352,7 +352,7 @@ mod test {
                 net_unsettled_lp_base_asset_amount: (AMM_RESERVE_PRECISION * 500) as i128, //wowsers
                 total_exchange_fee: QUOTE_PRECISION / 2,
                 total_fee_minus_distributions: (QUOTE_PRECISION as i128) / 2,
-                
+
                 last_mark_price_twap: 50 * MARK_PRICE_PRECISION,
                 last_oracle_price_twap: (49 * MARK_PRICE_PRECISION) as i128,
                 funding_period: 3600,

@@ -787,6 +787,7 @@ pub mod clearing_house {
 
         controller::validate::validate_market_account(&market)?;
         settle_lp_position(position, &mut market)?;
+
         msg!("settle_lp_position");
         controller::validate::validate_market_account(&market)?;
         controller::validate::validate_position_account(&position, &market)?;
