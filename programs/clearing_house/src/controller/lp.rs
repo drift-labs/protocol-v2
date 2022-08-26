@@ -166,7 +166,7 @@ mod test {
         assert_eq!(position.base_asset_amount, 10 * 100);
         assert_eq!(position.quote_asset_amount, -10 * 100);
         assert_eq!(
-            og_market.amm.net_unsettled_lp_base_asset_amount - 10 * 100,
+            og_market.amm.net_unsettled_lp_base_asset_amount + 10 * 100,
             market.amm.net_unsettled_lp_base_asset_amount
         );
         // net baa doesnt change
