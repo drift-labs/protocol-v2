@@ -2,6 +2,7 @@ import { Commitment, Connection, PublicKey } from '@solana/web3.js';
 import { v4 as uuidv4 } from 'uuid';
 import { BufferAndSlot } from './types';
 import { promiseTimeout } from '../util/promiseTimeout';
+import { MultiConnection } from '../connection';
 
 type AccountToLoad = {
 	publicKey: PublicKey;
@@ -13,7 +14,7 @@ const GET_MULTIPLE_ACCOUNTS_CHUNK_SIZE = 99;
 const oneMinute = 60 * 1000;
 
 export class BulkAccountLoader {
-	connection: Connection;
+	connection: Connection | MultiConnection;
 	commitment: Commitment;
 	pollingFrequency: number;
 	accountsToLoad = new Map<string, AccountToLoad>();
@@ -27,7 +28,7 @@ export class BulkAccountLoader {
 	mostRecentSlot = 0;
 
 	public constructor(
-		connection: Connection,
+		connection: Connection | MultiConnection,
 		commitment: Commitment,
 		pollingFrequency: number
 	) {

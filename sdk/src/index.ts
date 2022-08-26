@@ -54,5 +54,6 @@ export * from './util/tps';
 export * from './math/bankBalance';
 export * from './constants/banks';
 export * from './clearingHouseConfig';
+export * from './connection';
 
 export { BN, PublicKey, pyth };
