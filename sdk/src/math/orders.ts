@@ -139,7 +139,7 @@ export function getLimitPrice(
 	if (!order.oraclePriceOffset.eq(ZERO)) {
 		limitPrice = oraclePriceData.price.add(order.oraclePriceOffset);
 	} else if (isOneOfVariant(order.orderType, ['market', 'triggerMarket'])) {
-		if (isAuctionComplete(order, slot)) {
+		if (!isAuctionComplete(order, slot)) {
 			limitPrice = getAuctionPrice(order, slot);
 		} else if (!order.price.eq(ZERO)) {
 			limitPrice = order.price;
