@@ -243,3 +243,18 @@ function isSameDirection(
 		(isVariant(firstDirection, 'short') && isVariant(secondDirection, 'short'))
 	);
 }
+
+export function isOrderExpired(
+	order: Order,
+	slot: number,
+	maxAuctionDuration: number
+): boolean {
+	if (
+		!isVariant(order.orderType, 'market') ||
+		!isVariant(order.status, 'open')
+	) {
+		return false;
+	}
+
+	return new BN(slot).sub(order.slot).gt(new BN(maxAuctionDuration));
+}
