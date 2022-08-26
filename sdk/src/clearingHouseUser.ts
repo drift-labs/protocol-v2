@@ -144,25 +144,9 @@ export class ClearingHouseUser {
 		};
 	}
 
-	public getClonedPosition(_position: UserPosition): UserPosition {
-		const position = this.getEmptyPosition(_position.marketIndex);
-		position.baseAssetAmount = _position.baseAssetAmount;
-		position.lastCumulativeFundingRate = _position.lastCumulativeFundingRate;
-		position.marketIndex = _position.marketIndex;
-		position.quoteAssetAmount = _position.quoteAssetAmount;
-		position.quoteEntryAmount = _position.quoteEntryAmount;
-		position.openOrders = _position.openOrders;
-		position.openBids = _position.openBids;
-		position.openAsks = _position.openAsks;
-		position.realizedPnl = _position.realizedPnl;
-		position.lpShares = _position.lpShares;
-		position.lastFeePerLp = _position.lastFeePerLp;
-		position.lastNetBaseAssetAmountPerLp =
-			_position.lastNetBaseAssetAmountPerLp;
-		position.lastNetQuoteAssetAmountPerLp =
-			_position.lastNetQuoteAssetAmountPerLp;
-
-		return position;
+	public getClonedPosition(position: UserPosition): UserPosition {
+		const clonedPosition = Object.assign({}, position);
+		return clonedPosition;
 	}
 
 	/**
@@ -317,16 +301,16 @@ export class ClearingHouseUser {
 	 */
 	public getMarginRequirement(type: MarginCategory): BN {
 		return this.getUserAccount()
-			.positions.reduce((marginRequirement, _position) => {
-				// clone so we dont mutate the position
-				const marketPosition = this.getClonedPosition(_position);
-
+			.positions.reduce((marginRequirement, marketPosition) => {
 				const market = this.clearingHouse.getMarketAccount(
 					marketPosition.marketIndex
 				);
 
 				if (marketPosition.lpShares.gt(ZERO)) {
 					// is an lp
+					// clone so we dont mutate the position
+					marketPosition = this.getClonedPosition(marketPosition);
+
 					// settle position
 					const [settledPosition, dustBaa, _] = this.getSettledLPPosition(
 						market.marketIndex
