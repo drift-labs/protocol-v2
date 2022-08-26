@@ -25,6 +25,7 @@ export class EventSubscriber {
 	private awaitTxResolver = new Map<string, () => void>();
 	private logProvider: LogProvider;
 	public eventEmitter: StrictEventEmitter<EventEmitter, EventSubscriberEvents>;
+	public lastSeenTxSig: string;
 
 	public constructor(
 		private connection: Connection,
@@ -98,6 +99,7 @@ export class EventSubscriber {
 			this.awaitTxResolver.delete(txSig);
 		}
 
+		this.lastSeenTxSig = txSig;
 		this.txEventCache.add(txSig, wrappedEvents);
 	}
 
