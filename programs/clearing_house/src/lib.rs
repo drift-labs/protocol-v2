@@ -2367,7 +2367,7 @@ pub mod clearing_house {
         )?;
 
         validate!(
-            liquidation_reserve_factor <= cast_to_u32(LIQUIDATION_FEE_PRECISION/20)?,
+            liquidation_reserve_factor <= cast_to_u32(LIQUIDATION_FEE_PRECISION / 20)?,
             ErrorCode::DefaultError,
             "liquidation_reserve_factor must be <= 5%"
         )?;
@@ -2746,7 +2746,7 @@ pub mod clearing_house {
         bank_index: u64,
     ) -> Result<()> {
         let bank = &mut load_mut!(ctx.accounts.bank)?;
-        
+
         let bank_vault_amount = ctx.accounts.bank_vault.amount;
         let insurance_vault_amount = ctx.accounts.insurance_fund_vault.amount;
 

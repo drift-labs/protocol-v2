@@ -1,4 +1,6 @@
-use crate::controller::bank_balance::{update_insurance_fund_pool_balances, update_bank_cumulative_interest, validate_bank_amounts};
+use crate::controller::bank_balance::{
+    update_bank_cumulative_interest, update_insurance_fund_pool_balances, validate_bank_amounts,
+};
 use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
 use crate::math::bank_balance::get_token_amount;
@@ -77,10 +79,19 @@ pub fn apply_rebase_to_insurance_fund(
         let (expo_diff, rebase_divisor) =
             calculate_rebase_info(bank.total_lp_shares, insurance_fund_vault_balance)?;
 
-        bank.total_lp_shares = bank.total_lp_shares / rebase_divisor;
-        bank.user_lp_shares = bank.user_lp_shares / rebase_divisor;
+        bank.total_lp_shares = bank
+            .total_lp_shares
+            .checked_div(rebase_divisor)
+            .ok_or_else(math_error!())?;
+        bank.user_lp_shares = bank
+            .user_lp_shares
+            .checked_div(rebase_divisor)
+            .ok_or_else(math_error!())?;
 
-        bank.lp_shares_expo = bank.lp_shares_expo + expo_diff as u128;
+        bank.lp_shares_expo = bank
+            .lp_shares_expo
+            .checked_add(cast_to_u128(expo_diff)?)
+            .ok_or_else(math_error!())?;
     }
 
     // todo: write test for this
@@ -107,13 +118,21 @@ pub fn apply_rebase_to_insurance_fund_stake(
 
         let rebase_divisor = 10_u128.pow(expo_diff);
 
-        insurance_fund_stake.lp_shares = insurance_fund_stake.lp_shares / rebase_divisor;
-        insurance_fund_stake.last_withdraw_request_shares =
-            insurance_fund_stake.last_withdraw_request_shares / rebase_divisor;
+        insurance_fund_stake.lp_shares = insurance_fund_stake
+            .lp_shares
+            .checked_div(rebase_divisor)
+            .ok_or_else(math_error!())?;
+
+        insurance_fund_stake.last_withdraw_request_shares = insurance_fund_stake
+            .last_withdraw_request_shares
+            .checked_div(rebase_divisor)
+            .ok_or_else(math_error!())?;
 
         if bank.bank_index == 0 {
-            user_stats.quote_asset_insurance_fund_stake =
-                user_stats.quote_asset_insurance_fund_stake / rebase_divisor;
+            user_stats.quote_asset_insurance_fund_stake = user_stats
+                .quote_asset_insurance_fund_stake
+                .checked_div(rebase_divisor)
+                .ok_or_else(math_error!())?;
         }
 
         insurance_fund_stake.expo = bank.lp_shares_expo;
@@ -222,7 +241,6 @@ pub fn settle_bank_to_insurance_fund(
     bank: &mut Bank,
     now: i64,
 ) -> ClearingHouseResult<u64> {
-
     update_bank_cumulative_interest(bank, now)?;
 
     validate!(
@@ -276,7 +294,7 @@ pub fn settle_bank_to_insurance_fund(
 
     update_insurance_fund_pool_balances(token_amount, &BankBalanceType::Borrow, bank)?;
 
-    Ok(cast_to_u64(token_amount)?)
+    cast_to_u64(token_amount)
 }
 
 #[cfg(test)]

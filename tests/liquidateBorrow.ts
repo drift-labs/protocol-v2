@@ -252,9 +252,6 @@ describe('liquidate borrow', () => {
 	});
 
 	it('resolve bankruptcy', async () => {
-		const bankBefore = clearingHouse.getBankAccount(0);
-		const bank1Before = clearingHouse.getBankAccount(1);
-
 		const bankCumulativeDepositInterestBefore =
 			clearingHouse.getBankAccount(1).cumulativeDepositInterest;
 

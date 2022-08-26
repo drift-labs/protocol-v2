@@ -7,16 +7,20 @@ use crate::math::bank_balance::{
     get_interest_token_amount, get_token_amount, InterestAccumulated,
 };
 use crate::math::casting::{cast, cast_to_i128, cast_to_u64};
-use crate::math::constants::{BANK_INTEREST_PRECISION, BANK_UTILIZATION_PRECISION, TWENTY_FOUR_HOUR};
+use crate::math::constants::{
+    BANK_INTEREST_PRECISION, BANK_UTILIZATION_PRECISION, TWENTY_FOUR_HOUR,
+};
 use crate::math_error;
 use crate::state::bank::{Bank, BankBalance, BankBalanceType};
 use crate::state::market::Market;
 use crate::validate;
 use std::cmp::max;
 
-pub fn update_bank_twap_stats(bank: &mut Bank, 
+pub fn update_bank_twap_stats(
+    bank: &mut Bank,
     // utilization: u128,
-     now: i64) -> ClearingHouseResult {
+    now: i64,
+) -> ClearingHouseResult {
     let since_last = cast_to_i128(max(
         1,
         now.checked_sub(bank.last_twap_ts as i64)
@@ -364,8 +368,8 @@ mod test {
     use crate::create_anchor_account_info;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BANK_CUMULATIVE_INTEREST_PRECISION, BANK_INTEREST_PRECISION,
-        BANK_WEIGHT_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION, PEG_PRECISION,
-        QUOTE_PRECISION, QUOTE_PRECISION_I128, BANK_UTILIZATION_PRECISION
+        BANK_UTILIZATION_PRECISION, BANK_WEIGHT_PRECISION, BASE_PRECISION_I128,
+        LIQUIDATION_FEE_PRECISION, PEG_PRECISION, QUOTE_PRECISION, QUOTE_PRECISION_I128,
     };
     use crate::state::bank::{Bank, BankBalanceType};
     use crate::state::bank_map::BankMap;
@@ -886,17 +890,19 @@ mod test {
             6
         );
 
-
-
         let mut if_balance_2 = 0;
 
         // settle IF pool to 100% utilization boundary
         assert_eq!(bank.insurance_fund_pool.balance, 385);
         assert_eq!(bank.utilization_twap, 462007);
 
-        let settle_amount =
-            settle_bank_to_insurance_fund(deposit_tokens_3 as u64, if_tokens_3 as u64, &mut bank, now + 60)
-                .unwrap();
+        let settle_amount = settle_bank_to_insurance_fund(
+            deposit_tokens_3 as u64,
+            if_tokens_3 as u64,
+            &mut bank,
+            now + 60,
+        )
+        .unwrap();
 
         if_balance_2 = if_balance_2 + settle_amount;
         assert_eq!(if_tokens_3 - (settle_amount as u128), 1689);
@@ -905,7 +911,7 @@ mod test {
         assert_eq!(bank.utilization_twap, 462007);
 
         let deposit_tokens_4 =
-        get_token_amount(bank.deposit_balance, &bank, &BankBalanceType::Deposit).unwrap();
+            get_token_amount(bank.deposit_balance, &bank, &BankBalanceType::Deposit).unwrap();
         let borrow_tokens_4 =
             get_token_amount(bank.borrow_balance, &bank, &BankBalanceType::Borrow).unwrap();
         let if_tokens_4 = get_token_amount(
@@ -913,26 +919,30 @@ mod test {
             &bank,
             &BankBalanceType::Deposit,
         )
-        .unwrap(); 
+        .unwrap();
 
-        assert_eq!(bank.borrow_token_twap,                                       751413); 
-        assert_eq!(bank.deposit_token_twap,                                     1626406);
-        assert_eq!(bank.borrow_token_twap
-            *BANK_UTILIZATION_PRECISION/bank.deposit_token_twap,                462008); // 47.4%
+        assert_eq!(bank.borrow_token_twap, 751413);
+        assert_eq!(bank.deposit_token_twap, 1626406);
+        assert_eq!(
+            bank.borrow_token_twap * BANK_UTILIZATION_PRECISION / bank.deposit_token_twap,
+            462008
+        ); // 47.4%
 
-        assert_eq!(bank.utilization_twap,                                       462007); // 46.2%
-        assert_eq!(borrow_tokens_4*BANK_UTILIZATION_PRECISION/deposit_tokens_4, 462194); // 46.2%
-        assert_eq!(BANK_UTILIZATION_PRECISION,                                 1000000); // 100%
+        assert_eq!(bank.utilization_twap, 462007); // 46.2%
+        assert_eq!(
+            borrow_tokens_4 * BANK_UTILIZATION_PRECISION / deposit_tokens_4,
+            462194
+        ); // 46.2%
+        assert_eq!(BANK_UTILIZATION_PRECISION, 1000000); // 100%
 
-
-        assert_eq!(deposit_tokens_4-borrow_tokens_4, 874368);
+        assert_eq!(deposit_tokens_4 - borrow_tokens_4, 874368);
         assert_eq!(if_tokens_4, 0);
 
         // one more day later, twap update
         update_bank_cumulative_interest(&mut bank, now + 60 + (60 * 60 * 24)).unwrap();
 
         let deposit_tokens_5 =
-        get_token_amount(bank.deposit_balance, &bank, &BankBalanceType::Deposit).unwrap();
+            get_token_amount(bank.deposit_balance, &bank, &BankBalanceType::Deposit).unwrap();
         let borrow_tokens_5 =
             get_token_amount(bank.borrow_balance, &bank, &BankBalanceType::Borrow).unwrap();
         let if_tokens_5 = get_token_amount(
@@ -940,18 +950,21 @@ mod test {
             &bank,
             &BankBalanceType::Deposit,
         )
-        .unwrap(); 
+        .unwrap();
 
-        assert_eq!(bank.borrow_token_twap,                                        789501); 
-        assert_eq!(bank.deposit_token_twap,                                      1663867);
+        assert_eq!(bank.borrow_token_twap, 789501);
+        assert_eq!(bank.deposit_token_twap, 1663867);
 
-        assert_eq!(bank.borrow_token_twap
-            *BANK_UTILIZATION_PRECISION/bank.deposit_token_twap,                474497); // 47.4%
-        assert_eq!(bank.utilization_twap,                                       474496); // 47.4%
-        assert_eq!(borrow_tokens_5*BANK_UTILIZATION_PRECISION/deposit_tokens_5, 474497); // 47.4%
-        assert_eq!(BANK_UTILIZATION_PRECISION,                                 1000000); // 100%
-
-
+        assert_eq!(
+            bank.borrow_token_twap * BANK_UTILIZATION_PRECISION / bank.deposit_token_twap,
+            474497
+        ); // 47.4%
+        assert_eq!(bank.utilization_twap, 474496); // 47.4%
+        assert_eq!(
+            borrow_tokens_5 * BANK_UTILIZATION_PRECISION / deposit_tokens_5,
+            474497
+        ); // 47.4%
+        assert_eq!(BANK_UTILIZATION_PRECISION, 1000000); // 100%
     }
 
     #[test]
@@ -1165,20 +1178,24 @@ mod test {
 
         // settle IF pool to 100% utilization boundary
         assert_eq!(bank.insurance_fund_pool.balance, 102149084835);
-        let settle_amount =
-            settle_bank_to_insurance_fund(deposit_tokens_3 as u64, if_tokens_3 as u64, &mut bank, now + 60)
-                .unwrap();
+        let settle_amount = settle_bank_to_insurance_fund(
+            deposit_tokens_3 as u64,
+            if_tokens_3 as u64,
+            &mut bank,
+            now + 60,
+        )
+        .unwrap();
 
         if_balance_2 = if_balance_2 + settle_amount;
         // assert_eq!(if_tokens_3 - (settle_amount as u128), 766877481557);
-        assert_eq!(if_tokens_3 - (settle_amount as u128), 766877482398); // w/ update interest for settle_bank_to_if 
+        assert_eq!(if_tokens_3 - (settle_amount as u128), 766877482398); // w/ update interest for settle_bank_to_if
 
         assert_eq!(settle_amount, 459485011994);
-        assert_eq!(bank.insurance_fund_pool.balance,       63889301684);
+        assert_eq!(bank.insurance_fund_pool.balance, 63889301684);
         assert_eq!(bank.utilization_twap, 965273);
 
         let deposit_tokens_4 =
-        get_token_amount(bank.deposit_balance, &bank, &BankBalanceType::Deposit).unwrap();
+            get_token_amount(bank.deposit_balance, &bank, &BankBalanceType::Deposit).unwrap();
         let borrow_tokens_4 =
             get_token_amount(bank.borrow_balance, &bank, &BankBalanceType::Borrow).unwrap();
         let if_tokens_4 = get_token_amount(
@@ -1186,10 +1203,9 @@ mod test {
             &bank,
             &BankBalanceType::Deposit,
         )
-        .unwrap(); 
-        
-        assert_eq!(deposit_tokens_4-borrow_tokens_4, 4);
+        .unwrap();
+
+        assert_eq!(deposit_tokens_4 - borrow_tokens_4, 4);
         assert_eq!(if_tokens_4, 767091050279);
-        
     }
 }
