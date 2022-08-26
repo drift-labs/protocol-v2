@@ -364,6 +364,10 @@ export type BankAccount = {
 	totalLpShares: BN;
 	userLpShares: BN;
 
+	userReserveFactor: BN;
+	totalReserveFacotr: BN;
+	liquidationReserveFactor: BN;
+
 	decimals: number;
 	optimalUtilization: BN;
 	optimalBorrowRate: BN;

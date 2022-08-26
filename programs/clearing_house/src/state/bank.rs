@@ -64,7 +64,7 @@ pub struct Bank {
     pub imf_factor: u128,
 
     pub liquidation_fee: u128,
-    pub liquidation_reserve_factor: u128, // percentage of liquidation fee for total insurance
+    pub liquidation_reserve_factor: u32, // percentage of liquidation transfer for total insurance
     pub withdraw_guard_threshold: u128, // no withdraw limits/guards when bank deposits below this threshold
 }
 

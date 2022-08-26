@@ -609,12 +609,14 @@ export class Admin extends ClearingHouse {
 	public async updateBankReserveFactor(
 		bankIndex: BN,
 		userReserveFactor: BN,
-		totalReserveFactor: BN
+		totalReserveFactor: BN,
+		liquidationReserveFactor: BN
 	): Promise<TransactionSignature> {
 		return await this.program.rpc.updateBankReserveFactor(
 			bankIndex,
 			userReserveFactor,
 			totalReserveFactor,
+			liquidationReserveFactor,
 			{
 				accounts: {
 					admin: this.wallet.publicKey,

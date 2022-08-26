@@ -1587,6 +1587,10 @@
         {
           "name": "totalReserveFactor",
           "type": "u32"
+        },
+        {
+          "name": "liquidationReserveFactor",
+          "type": "u32"
         }
       ]
     },
@@ -2648,7 +2652,7 @@
           },
           {
             "name": "liquidationReserveFactor",
-            "type": "u128"
+            "type": "u32"
           },
           {
             "name": "withdrawGuardThreshold",

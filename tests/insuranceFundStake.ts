@@ -7,6 +7,7 @@ import { PublicKey, Keypair } from '@solana/web3.js';
 
 import {
 	Admin,
+	ClearingHouseUser,
 	BN,
 	OracleSource,
 	EventSubscriber,
@@ -22,6 +23,8 @@ import {
 	isVariant,
 	BANK_RATE_PRECISION,
 	BANK_INTEREST_PRECISION,
+	findComputeUnitConsumption,
+	convertToNumber,
 } from '../sdk/src';
 
 import {
@@ -33,7 +36,9 @@ import {
 	createUserWithUSDCAndWSOLAccount,
 	printTxLogs,
 	mintToInsuranceFund,
+	setFeedPrice,
 	sleep,
+	getTokenAmountAsBN,
 } from './testHelpers';
 import { getTokenAccount } from '@project-serum/common';
 
@@ -310,7 +315,8 @@ describe('insurance fund stake', () => {
 			await clearingHouse.updateBankReserveFactor(
 				new BN(0),
 				new BN(90000),
-				new BN(100000)
+				new BN(100000),
+				new BN(50000)
 			);
 		} catch (e) {
 			console.log('cant set reserve factor');
@@ -520,7 +526,12 @@ describe('insurance fund stake', () => {
 			'cumulativeDepositInterest:',
 			bank.cumulativeDepositInterest.toString()
 		);
-
+		const ifPoolBalanceAfterUpdate = getTokenAmount(
+			bank.insuranceFundPool.balance,
+			bank,
+			BankBalanceType.DEPOSIT
+		);
+		assert(ifPoolBalanceAfterUpdate.gt(new BN(0)));
 		assert(bank.cumulativeBorrowInterest.gt(BANK_INTEREST_PRECISION));
 		assert(bank.cumulativeDepositInterest.gt(BANK_INTEREST_PRECISION));
 
@@ -532,7 +543,6 @@ describe('insurance fund stake', () => {
 			).value.amount
 		);
 		console.log('insuranceVaultAmount:', insuranceVaultAmountBefore.toString());
-
 		assert(insuranceVaultAmountBefore.eq(ONE));
 
 		try {
@@ -560,5 +570,291 @@ describe('insurance fund stake', () => {
 			insuranceVaultAmount.toString()
 		);
 		assert(insuranceVaultAmount.gt(ONE));
+
+		await clearingHouse.fetchAccounts();
+		bank = clearingHouse.getBankAccount(0);
+		const ifPoolBalanceAfterSettle = getTokenAmount(
+			bank.insuranceFundPool.balance,
+			bank,
+			BankBalanceType.DEPOSIT
+		);
+		assert(ifPoolBalanceAfterSettle.eq(new BN(0)));
+	});
+
+	it('liquidate borrow (w/ IF revenue)', async () => {
+		const bankBefore = clearingHouse.getBankAccount(0);
+
+		const ifPoolBalance = getTokenAmount(
+			bankBefore.insuranceFundPool.balance,
+			bankBefore,
+			BankBalanceType.DEPOSIT
+		);
+
+		assert(bankBefore.borrowBalance.gt(ZERO));
+		assert(ifPoolBalance.eq(new BN(0)));
+
+		const clearingHouseUser = new ClearingHouseUser({
+			clearingHouse: secondUserClearingHouse,
+			userAccountPublicKey:
+				await secondUserClearingHouse.getUserAccountPublicKey(),
+		});
+		await clearingHouseUser.subscribe();
+
+		const prevTC = clearingHouseUser.getTotalCollateral();
+
+		await setFeedPrice(anchor.workspace.Pyth, 22500 / 10000, solOracle); // down 99.99%
+		await sleep(2000);
+
+		await clearingHouseUser.fetchAccounts();
+
+		const newTC = clearingHouseUser.getTotalCollateral();
+		console.log(
+			"Borrower's TotalCollateral: ",
+			convertToNumber(prevTC, QUOTE_PRECISION),
+			'->',
+			convertToNumber(newTC, QUOTE_PRECISION)
+		);
+		assert(!prevTC.eq(newTC));
+
+		assert(clearingHouseUser.canBeLiquidated()[0]);
+
+		const beforecbb0 = clearingHouse.getUserAccount().bankBalances[0];
+		const beforecbb1 = clearingHouse.getUserAccount().bankBalances[1];
+
+		const beforeLiquiderUSDCDeposit = getTokenAmount(
+			beforecbb0.balance,
+			bankBefore,
+			BankBalanceType.DEPOSIT
+		);
+
+		const beforeLiquiderSOLDeposit = getTokenAmount(
+			beforecbb1.balance,
+			bankBefore,
+			BankBalanceType.DEPOSIT
+		);
+
+		console.log(
+			'LD:',
+			beforeLiquiderUSDCDeposit.toString(),
+			beforeLiquiderSOLDeposit.toString()
+		);
+
+		assert(beforecbb0.bankIndex.eq(ZERO));
+		// assert(beforecbb1.bankIndex.eq(ONE));
+		assert(isVariant(beforecbb0.balanceType, 'deposit'));
+		// assert(isVariant(beforecbb1.balanceType, 'deposit'));
+
+		const beforebb0 = secondUserClearingHouse.getUserAccount().bankBalances[0];
+		const beforebb1 = secondUserClearingHouse.getUserAccount().bankBalances[1];
+
+		const usdcDepositsBefore = getTokenAmount(
+			bankBefore.depositBalance,
+			bankBefore,
+			BankBalanceType.DEPOSIT
+		);
+
+		const beforeLiquiteeUSDCBorrow = getTokenAmount(
+			beforebb0.balance,
+			bankBefore,
+			BankBalanceType.BORROW
+		);
+
+		const beforeLiquiteeSOLDeposit = getTokenAmount(
+			beforebb1.balance,
+			bankBefore,
+			BankBalanceType.DEPOSIT
+		);
+
+		console.log(
+			'LT:',
+			beforeLiquiteeUSDCBorrow.toString(),
+			beforeLiquiteeSOLDeposit.toString()
+		);
+
+		assert(beforebb0.bankIndex.eq(ZERO));
+		assert(beforebb1.bankIndex.eq(ONE));
+		assert(isVariant(beforebb0.balanceType, 'borrow'));
+		assert(isVariant(beforebb1.balanceType, 'deposit'));
+
+		assert(beforeLiquiderUSDCDeposit.gt(new BN('1000000066000')));
+		assert(beforeLiquiderSOLDeposit.eq(new BN('0')));
+		assert(beforeLiquiteeUSDCBorrow.gt(new BN('500000033001')));
+		assert(beforeLiquiteeSOLDeposit.gt(new BN('10000000997')));
+
+		const txSig = await clearingHouse.liquidateBorrow(
+			await secondUserClearingHouse.getUserAccountPublicKey(),
+			secondUserClearingHouse.getUserAccount(),
+			new BN(1),
+			new BN(0),
+			new BN(6 * 10 ** 8)
+		);
+
+		const computeUnits = await findComputeUnitConsumption(
+			clearingHouse.program.programId,
+			connection,
+			txSig,
+			'confirmed'
+		);
+		console.log('compute units', computeUnits);
+		console.log(
+			'tx logs',
+			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
+				.logMessages
+		);
+
+		await clearingHouse.fetchAccounts();
+		await secondUserClearingHouse.fetchAccounts();
+
+		const bank = clearingHouse.getBankAccount(0);
+
+		const cbb0 = clearingHouse.getUserAccount().bankBalances[0];
+		const cbb1 = clearingHouse.getUserAccount().bankBalances[1];
+
+		const afterLiquiderUSDCDeposit = getTokenAmount(
+			cbb0.balance,
+			bank,
+			BankBalanceType.DEPOSIT
+		);
+
+		const afterLiquiderSOLDeposit = getTokenAmount(
+			cbb1.balance,
+			bank,
+			BankBalanceType.DEPOSIT
+		);
+
+		console.log(
+			'LD:',
+			afterLiquiderUSDCDeposit.toString(),
+			afterLiquiderSOLDeposit.toString()
+		);
+
+		assert(cbb0.bankIndex.eq(ZERO));
+		assert(cbb1.bankIndex.eq(ONE));
+		assert(isVariant(cbb0.balanceType, 'deposit'));
+		assert(isVariant(cbb1.balanceType, 'deposit'));
+
+		const bb0 = secondUserClearingHouse.getUserAccount().bankBalances[0];
+		const bb1 = secondUserClearingHouse.getUserAccount().bankBalances[1];
+
+		const afterLiquiteeUSDCBorrow = getTokenAmount(
+			bb0.balance,
+			bank,
+			BankBalanceType.BORROW
+		);
+
+		const afterLiquiteeSOLDeposit = getTokenAmount(
+			bb1.balance,
+			bank,
+			BankBalanceType.DEPOSIT
+		);
+
+		console.log(
+			'LT:',
+			afterLiquiteeUSDCBorrow.toString(),
+			afterLiquiteeSOLDeposit.toString()
+		);
+
+		assert(bb0.bankIndex.eq(ZERO));
+		assert(bb1.bankIndex.eq(ONE));
+		assert(isVariant(bb0.balanceType, 'borrow'));
+		assert(isVariant(bb1.balanceType, 'deposit'));
+
+		assert(afterLiquiderUSDCDeposit.gt(new BN('999400065806')));
+		assert(afterLiquiderSOLDeposit.gt(new BN('266660042')));
+		assert(afterLiquiteeUSDCBorrow.gt(new BN('499430033054')));
+		assert(afterLiquiteeSOLDeposit.gt(new BN('9733336051')));
+
+		// console.log(
+		// 	secondUserClearingHouse
+		// 		.getUserAccount()
+		// 		.bankBalances[0].balance.toString(),
+
+		// 	secondUserClearingHouse
+		// 		.getUserAccount()
+		// 		.bankBalances[0].bankIndex.toString(),
+		// 	secondUserClearingHouse.getUserAccount().bankBalances[0].balanceType
+		// );
+
+		// console.log(
+		// 	secondUserClearingHouse
+		// 		.getUserAccount()
+		// 		.bankBalances[1].balance.toString(),
+
+		// 	secondUserClearingHouse
+		// 		.getUserAccount()
+		// 		.bankBalances[1].bankIndex.toString(),
+		// 	secondUserClearingHouse.getUserAccount().bankBalances[1].balanceType
+		// );
+
+		assert(secondUserClearingHouse.getUserAccount().beingLiquidated);
+		assert(!secondUserClearingHouse.getUserAccount().bankrupt);
+
+		const ifPoolBalanceAfter = getTokenAmount(
+			bank.insuranceFundPool.balance,
+			bank,
+			BankBalanceType.DEPOSIT
+		);
+		console.log('ifPoolBalance: 0 ->', ifPoolBalanceAfter.toString());
+
+		assert(ifPoolBalanceAfter.gt(new BN('20004698')));
+
+		const usdcBefore = ifPoolBalanceAfter
+			.add(afterLiquiderUSDCDeposit)
+			.sub(afterLiquiteeUSDCBorrow);
+
+		const usdcAfter = ZERO.add(beforeLiquiderUSDCDeposit).sub(
+			beforeLiquiteeUSDCBorrow
+		);
+
+		const usdcDepositsAfter = getTokenAmount(
+			bank.depositBalance,
+			bank,
+			BankBalanceType.DEPOSIT
+		);
+
+		console.log(
+			'usdc borrows in bank:',
+			getTokenAmount(
+				bankBefore.borrowBalance,
+				bankBefore,
+				BankBalanceType.BORROW
+			).toString(),
+			'->',
+			getTokenAmount(
+				bank.borrowBalance,
+				bank,
+				BankBalanceType.BORROW
+			).toString()
+		);
+
+		console.log(
+			'usdc balances in bank:',
+			bankBefore.depositBalance.toString(),
+			'->',
+			bank.depositBalance.toString()
+		);
+
+		console.log(
+			'usdc cum dep interest in bank:',
+			bankBefore.cumulativeDepositInterest.toString(),
+			'->',
+			bank.cumulativeDepositInterest.toString()
+		);
+
+		console.log(
+			'usdc deposits in bank:',
+			usdcDepositsBefore.toString(),
+			'->',
+			usdcDepositsAfter.toString()
+		);
+
+		console.log(
+			'usdc for users:',
+			usdcBefore.toString(),
+			'->',
+			usdcAfter.toString()
+		);
+
+		assert(usdcBefore.eq(usdcAfter));
 	});
 });

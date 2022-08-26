@@ -334,6 +334,11 @@ export class ClearingHouseUser {
 				const market = this.clearingHouse.getMarketAccount(
 					marketPosition.marketIndex
 				);
+
+				if (market === undefined) {
+					return ZERO;
+				}
+
 				const worstCaseBaseAssetAmount =
 					calculateWorstCaseBaseAssetAmount(marketPosition);
 
@@ -376,28 +381,32 @@ export class ClearingHouseUser {
 				const market = this.clearingHouse.getMarketAccount(
 					marketPosition.marketIndex
 				);
-				let positionUnrealizedPnl = calculatePositionPNL(
-					market,
-					marketPosition,
-					withFunding,
-					this.getOracleDataForMarket(market.marketIndex)
-				);
+				if (market) {
+					let positionUnrealizedPnl = calculatePositionPNL(
+						market,
+						marketPosition,
+						withFunding,
+						this.getOracleDataForMarket(market.marketIndex)
+					);
 
-				if (withWeightMarginCategory !== undefined) {
-					if (positionUnrealizedPnl.gt(ZERO)) {
-						positionUnrealizedPnl = positionUnrealizedPnl
-							.mul(
-								calculateUnrealizedAssetWeight(
-									market,
-									positionUnrealizedPnl,
-									withWeightMarginCategory
+					if (withWeightMarginCategory !== undefined) {
+						if (positionUnrealizedPnl.gt(ZERO)) {
+							positionUnrealizedPnl = positionUnrealizedPnl
+								.mul(
+									calculateUnrealizedAssetWeight(
+										market,
+										positionUnrealizedPnl,
+										withWeightMarginCategory
+									)
 								)
-							)
-							.div(new BN(BANK_WEIGHT_PRECISION));
+								.div(new BN(BANK_WEIGHT_PRECISION));
+						}
 					}
-				}
 
-				return unrealizedPnl.add(positionUnrealizedPnl);
+					return unrealizedPnl.add(positionUnrealizedPnl);
+				} else {
+					return ZERO;
+				}
 			}, ZERO);
 	}
 
@@ -543,6 +552,11 @@ export class ClearingHouseUser {
 				const market = this.clearingHouse.getMarketAccount(
 					marketPosition.marketIndex
 				);
+
+				if (market === undefined) {
+					return ZERO;
+				}
+
 				const posVal = calculateMarginBaseAssetValue(
 					market,
 					marketPosition,

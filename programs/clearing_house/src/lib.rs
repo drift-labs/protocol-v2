@@ -2344,6 +2344,7 @@ pub mod clearing_house {
         bank_index: u64,
         user_reserve_factor: u32,
         total_reserve_factor: u32,
+        liquidation_reserve_factor: u32,
     ) -> Result<()> {
         let bank = &mut load_mut!(ctx.accounts.bank)?;
 
@@ -2362,7 +2363,13 @@ pub mod clearing_house {
         validate!(
             total_reserve_factor <= cast_to_u32(BANK_INTEREST_PRECISION)?,
             ErrorCode::DefaultError,
-            "total_reserve_factor must be less than 100%"
+            "total_reserve_factor must be <= 100%"
+        )?;
+
+        validate!(
+            liquidation_reserve_factor <= cast_to_u32(LIQUIDATION_FEE_PRECISION/20)?,
+            ErrorCode::DefaultError,
+            "liquidation_reserve_factor must be <= 5%"
         )?;
 
         msg!(
@@ -2375,9 +2382,16 @@ pub mod clearing_house {
             bank.total_reserve_factor,
             total_reserve_factor
         );
+        msg!(
+            "bank.liquidation_reserve_factor: {:?} -> {:?}",
+            bank.liquidation_reserve_factor,
+            liquidation_reserve_factor
+        );
 
         bank.user_reserve_factor = user_reserve_factor;
         bank.total_reserve_factor = total_reserve_factor;
+        bank.liquidation_reserve_factor = liquidation_reserve_factor;
+
         Ok(())
     }
 
