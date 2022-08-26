@@ -71,7 +71,7 @@ pub struct Market {
     pub imf_factor: u128,
     pub unrealized_initial_asset_weight: u8,
     pub unrealized_maintenance_asset_weight: u8,
-    pub unsettled_imf_factor: u128,
+    pub unrealized_imf_factor: u128,
     pub unsettled_max_imbalance: u128,
     pub liquidation_fee: u128,
     pub quote_max_insurance: u128,
@@ -152,7 +152,7 @@ impl Market {
                         .unsigned_abs()
                         .checked_mul(AMM_TO_QUOTE_PRECISION_RATIO)
                         .ok_or_else(math_error!())?,
-                    self.unsettled_imf_factor,
+                    self.unrealized_imf_factor,
                     margin_asset_weight,
                 )?,
                 MarginRequirementType::Maintenance => margin_asset_weight,

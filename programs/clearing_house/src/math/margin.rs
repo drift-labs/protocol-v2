@@ -784,26 +784,26 @@ mod test {
 
         market.unsettled_max_imbalance = (upnl_2 * 100) as u128;
         let uaw_2 = market
-            .get_unsettled_asset_weight(upnl_2, MarginRequirementType::Initial)
+            .get_unrealized_asset_weight(upnl_2, MarginRequirementType::Initial)
             .unwrap();
         assert_eq!(uaw_2, 95);
 
         // calculate_oracle_price_for_perp_margin less attractive than last_oracle_price
         market.unsettled_max_imbalance = (upnl_2 * 2) as u128;
         let uaw_2 = market
-            .get_unsettled_asset_weight(upnl_2, MarginRequirementType::Initial)
+            .get_unrealized_asset_weight(upnl_2, MarginRequirementType::Initial)
             .unwrap();
         assert_eq!(uaw_2, 94);
 
         market.unsettled_max_imbalance = upnl_2 as u128; // only allow upnl_2 of net pnl
         let uaw_2 = market
-            .get_unsettled_asset_weight(upnl_2, MarginRequirementType::Initial)
+            .get_unrealized_asset_weight(upnl_2, MarginRequirementType::Initial)
             .unwrap();
         assert_eq!(uaw_2, 95 / 2);
 
         market.unsettled_max_imbalance = (upnl_2 / 10) as u128; // only allow upnl_2 of net pnl
         let uaw_2 = market
-            .get_unsettled_asset_weight(upnl_2, MarginRequirementType::Initial)
+            .get_unrealized_asset_weight(upnl_2, MarginRequirementType::Initial)
             .unwrap();
         assert_eq!(uaw_2, 95 / 2 / 10);
 
@@ -811,7 +811,7 @@ mod test {
         assert_eq!(market.amm.net_base_asset_amount, -122950819670000);
         // assert_eq!(market.amm.last_oracle_price, 0);
         let uaw_2 = market
-            .get_unsettled_asset_weight(upnl_2, MarginRequirementType::Initial)
+            .get_unrealized_asset_weight(upnl_2, MarginRequirementType::Initial)
             .unwrap();
         assert_eq!(uaw_2, 0);
     }
