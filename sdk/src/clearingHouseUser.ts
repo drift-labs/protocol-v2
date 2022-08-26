@@ -144,6 +144,27 @@ export class ClearingHouseUser {
 		};
 	}
 
+	public getClonedPosition(_position: UserPosition): UserPosition {
+		const position = this.getEmptyPosition(_position.marketIndex);
+		position.baseAssetAmount = _position.baseAssetAmount;
+		position.lastCumulativeFundingRate = _position.lastCumulativeFundingRate;
+		position.marketIndex = _position.marketIndex;
+		position.quoteAssetAmount = _position.quoteAssetAmount;
+		position.quoteEntryAmount = _position.quoteEntryAmount;
+		position.openOrders = _position.openOrders;
+		position.openBids = _position.openBids;
+		position.openAsks = _position.openAsks;
+		position.realizedPnl = _position.realizedPnl;
+		position.lpShares = _position.lpShares;
+		position.lastFeePerLp = _position.lastFeePerLp;
+		position.lastNetBaseAssetAmountPerLp =
+			_position.lastNetBaseAssetAmountPerLp;
+		position.lastNetQuoteAssetAmountPerLp =
+			_position.lastNetQuoteAssetAmountPerLp;
+
+		return position;
+	}
+
 	/**
 	 * @param orderId
 	 * @returns Order
@@ -181,7 +202,9 @@ export class ClearingHouseUser {
 	 * @returns : userPosition
 	 */
 	public getSettledLPPosition(marketIndex: BN): [UserPosition, BN, BN] {
-		const position = this.getUserPosition(marketIndex);
+		const _position = this.getUserPosition(marketIndex);
+		const position = this.getClonedPosition(_position);
+
 		const market = this.clearingHouse.getMarketAccount(position.marketIndex);
 		const nShares = position.lpShares;
 
@@ -293,12 +316,11 @@ export class ClearingHouseUser {
 	 * @returns The margin requirement of a certain type (Initial or Maintenance) in USDC. : QUOTE_PRECISION
 	 */
 	public getMarginRequirement(type: MarginCategory): BN {
-		if (type != 'Initial' && type != 'Maintenance') {
-			throw Error(`invalid margin requirement type: ${type}`);
-		}
-
 		return this.getUserAccount()
-			.positions.reduce((marginRequirement, marketPosition) => {
+			.positions.reduce((marginRequirement, _position) => {
+				// clone so we dont mutate the position
+				const marketPosition = this.getClonedPosition(_position);
+
 				const market = this.clearingHouse.getMarketAccount(
 					marketPosition.marketIndex
 				);

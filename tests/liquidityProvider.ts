@@ -280,6 +280,11 @@ describe('liquidity providing', () => {
 		console.log(initMarginReq.toString(), '->', newInitMarginReq.toString());
 		assert(newInitMarginReq.eq(new BN(8284000)));
 
+		// ensure margin calcs didnt modify user position
+		const _position = clearingHouseUser.getUserPosition(ZERO);
+		assert(_position.openAsks.eq(ZERO));
+		assert(_position.openBids.eq(ZERO));
+
 		const stepSize = new BN(1 * 1e13);
 		await clearingHouse.updateMarketBaseAssetAmountStepSize(ZERO, stepSize);
 
