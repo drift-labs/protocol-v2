@@ -306,6 +306,10 @@ export class ClearingHouseUser {
 					marketPosition.marketIndex
 				);
 
+				if (market === undefined) {
+					return ZERO;
+				}
+
 				if (marketPosition.lpShares.gt(ZERO)) {
 					// is an lp
 					// clone so we dont mutate the position
