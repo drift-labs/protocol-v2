@@ -589,6 +589,7 @@ export type MakerInfo = {
 export type TakerInfo = {
 	taker: PublicKey;
 	takerStats: PublicKey;
+	takerUserAccount: UserAccount;
 	order: Order;
 };
 
