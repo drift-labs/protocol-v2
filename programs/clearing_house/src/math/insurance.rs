@@ -34,6 +34,9 @@ pub fn unstaked_shares_to_amount(
     assert!(n_shares <= total_lp_shares);
 
     let amount = if total_lp_shares > 0 {
+
+        // subtract one on withdraws to avoid rounding in favor for user
+        // either takes off one OR makes user proportional withdraw exact
         cast_to_u64(
             get_proportion_u128(
                 n_shares,
