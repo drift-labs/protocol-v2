@@ -25,6 +25,7 @@ export class EventSubscriber {
 	private awaitTxResolver = new Map<string, () => void>();
 	private logProvider: LogProvider;
 	public eventEmitter: StrictEventEmitter<EventEmitter, EventSubscriberEvents>;
+	private lastSeenSlot: number;
 	public lastSeenTxSig: string;
 
 	public constructor(
@@ -99,7 +100,9 @@ export class EventSubscriber {
 			this.awaitTxResolver.delete(txSig);
 		}
 
-		this.lastSeenTxSig = txSig;
+		if (slot > this.lastSeenSlot) {
+			this.lastSeenTxSig = txSig;
+		}
 		this.txEventCache.add(txSig, wrappedEvents);
 	}
 
