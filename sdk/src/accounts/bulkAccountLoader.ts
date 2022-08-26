@@ -163,7 +163,7 @@ export class BulkAccountLoader {
 					accountsToLoad.map((accountToLoad) => accountToLoad.publicKey),
 					this.commitment
 				),
-				10 * 1000 // 30 second timeout
+				10 * 1000
 			);
 
 		if (rpcResponse === null) {
