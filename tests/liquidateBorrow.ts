@@ -14,6 +14,8 @@ import {
 	ZERO,
 	EventSubscriber,
 	MARK_PRICE_PRECISION,
+	getTokenAmount,
+	BankBalanceType,
 } from '../sdk/src';
 
 import {
@@ -129,6 +131,8 @@ describe('liquidate borrow', () => {
 
 	it('liquidate', async () => {
 		await setFeedPrice(anchor.workspace.Pyth, 200, solOracle);
+		const bankBefore = clearingHouse.getBankAccount(0);
+		const bank1Before = clearingHouse.getBankAccount(1);
 
 		const txSig = await liquidatorClearingHouse.liquidateBorrow(
 			await clearingHouse.getUserAccountPublicKey(),
@@ -182,7 +186,72 @@ describe('liquidate borrow', () => {
 		assert(
 			liquidationRecord.liquidateBorrow.liabilityTransfer.eq(new BN(500000000))
 		);
+		await clearingHouse.fetchAccounts();
+		const bank = clearingHouse.getBankAccount(0);
+		const bank1 = clearingHouse.getBankAccount(1);
 
+		console.log(
+			'usdc borrows in bank:',
+			getTokenAmount(
+				bankBefore.borrowBalance,
+				bankBefore,
+				BankBalanceType.BORROW
+			).toString(),
+			'->',
+			getTokenAmount(
+				bank.borrowBalance,
+				bank,
+				BankBalanceType.BORROW
+			).toString()
+		);
+
+		console.log(
+			'usdc deposits in bank:',
+			getTokenAmount(
+				bankBefore.depositBalance,
+				bankBefore,
+				BankBalanceType.DEPOSIT
+			).toString(),
+			'->',
+			getTokenAmount(
+				bank.depositBalance,
+				bank,
+				BankBalanceType.DEPOSIT
+			).toString()
+		);
+
+		console.log(
+			'sol borrows in bank:',
+			getTokenAmount(
+				bank1Before.borrowBalance,
+				bank1Before,
+				BankBalanceType.BORROW
+			).toString(),
+			'->',
+			getTokenAmount(
+				bank1.borrowBalance,
+				bank1,
+				BankBalanceType.BORROW
+			).toString()
+		);
+
+		console.log(
+			'sol deposits in bank:',
+			getTokenAmount(
+				bank1Before.depositBalance,
+				bank1Before,
+				BankBalanceType.DEPOSIT
+			).toString(),
+			'->',
+			getTokenAmount(
+				bank1.depositBalance,
+				bank1,
+				BankBalanceType.DEPOSIT
+			).toString()
+		);
+	});
+
+	it('resolve bankruptcy', async () => {
 		const bankCumulativeDepositInterestBefore =
 			clearingHouse.getBankAccount(1).cumulativeDepositInterest;
 
