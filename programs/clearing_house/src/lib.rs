@@ -2732,13 +2732,18 @@ pub mod clearing_house {
         bank_index: u64,
     ) -> Result<()> {
         let bank = &mut load_mut!(ctx.accounts.bank)?;
+        
         let bank_vault_amount = ctx.accounts.bank_vault.amount;
         let insurance_vault_amount = ctx.accounts.insurance_fund_vault.amount;
+
+        let clock = Clock::get()?;
+        let now = clock.unix_timestamp;
 
         let token_amount = controller::insurance::settle_bank_to_insurance_fund(
             bank_vault_amount,
             insurance_vault_amount,
             bank,
+            now,
         )?;
 
         controller::token::send_from_bank_vault(

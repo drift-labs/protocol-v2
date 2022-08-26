@@ -1,13 +1,8 @@
-use crate::error::ErrorCode;
-use crate::math::casting::{cast_to_i128, cast_to_u128, cast_to_u32, cast_to_u64};
-use crate::validate;
-use solana_program::msg;
-use crate::math::bank_balance::get_token_amount;
-use crate::controller::bank_balance::{
-    update_insurance_fund_pool_balances,
-    validate_bank_amounts,
-};
+use crate::controller::bank_balance::{update_insurance_fund_pool_balances, update_bank_cumulative_interest, validate_bank_amounts};
 use crate::error::ClearingHouseResult;
+use crate::error::ErrorCode;
+use crate::math::bank_balance::get_token_amount;
+use crate::math::casting::{cast_to_i128, cast_to_u128, cast_to_u32, cast_to_u64};
 use crate::math::insurance::{
     calculate_rebase_info, staked_amount_to_shares, unstaked_shares_to_amount,
 };
@@ -15,6 +10,8 @@ use crate::math_error;
 use crate::state::bank::{Bank, BankBalanceType};
 use crate::state::insurance_fund_stake::InsuranceFundStake;
 use crate::state::user::UserStats;
+use crate::validate;
+use solana_program::msg;
 
 pub fn add_insurance_fund_stake(
     amount: u64,
@@ -223,7 +220,11 @@ pub fn settle_bank_to_insurance_fund(
     bank_vault_amount: u64,
     insurance_vault_amount: u64,
     bank: &mut Bank,
+    now: i64,
 ) -> ClearingHouseResult<u64> {
+
+    update_bank_cumulative_interest(bank, now)?;
+
     validate!(
         bank.user_reserve_factor <= bank.total_reserve_factor,
         ErrorCode::DefaultError,
@@ -236,14 +237,15 @@ pub fn settle_bank_to_insurance_fund(
         "reserve factor = 0 for this bank"
     )?;
 
-    let _depositors_claim = validate_bank_amounts(bank, bank_vault_amount)?;
+    let depositors_claim = cast_to_u128(validate_bank_amounts(bank, bank_vault_amount)?)?;
 
     let token_amount = get_token_amount(
         bank.insurance_fund_pool.balance,
         bank,
         &BankBalanceType::Deposit,
         // bank.insurance_fund_pool.balance_type(),
-    )?;
+    )?
+    .min(depositors_claim);
 
     validate!(
         token_amount != 0,
@@ -272,7 +274,7 @@ pub fn settle_bank_to_insurance_fund(
         .checked_add(n_shares)
         .ok_or_else(math_error!())?;
 
-    update_insurance_fund_pool_balances(token_amount, &BankBalanceType::Deposit, bank)?;
+    update_insurance_fund_pool_balances(token_amount, &BankBalanceType::Borrow, bank)?;
 
     Ok(cast_to_u64(token_amount)?)
 }

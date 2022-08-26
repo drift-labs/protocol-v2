@@ -156,7 +156,9 @@ pub fn update_insurance_fund_pool_balances(
         validate!(
             deposit_token_amount >= borrow_token_amount,
             ErrorCode::BankInsufficientDeposits,
-            "Bank has insufficent deposits to complete withdraw"
+            "Bank has insufficent deposits to complete withdraw ({} < {})",
+            deposit_token_amount,
+            borrow_token_amount
         )?;
     }
 
@@ -257,7 +259,9 @@ pub fn validate_bank_amounts(bank: &Bank, bank_vault_amount: u64) -> ClearingHou
     validate!(
         depositors_amount > borrowers_amount,
         ErrorCode::DefaultError,
-        "depositors_amount less borrowers_amount"
+        "depositors_amount={} less borrowers_amount={}",
+        depositors_amount,
+        borrowers_amount
     )?;
 
     let depositors_claim = depositors_amount - borrowers_amount;
@@ -265,7 +269,9 @@ pub fn validate_bank_amounts(bank: &Bank, bank_vault_amount: u64) -> ClearingHou
     validate!(
         bank_vault_amount >= depositors_claim,
         ErrorCode::DefaultError,
-        "bank vault holds less than remaining depositor claims"
+        "bank vault ={} holds less than remaining depositor claims = {}",
+        bank_vault_amount,
+        depositors_claim
     )?;
 
     Ok(depositors_claim)
@@ -338,6 +344,7 @@ fn decrease_bank_balance(
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::controller::insurance::settle_bank_to_insurance_fund;
     use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
@@ -659,7 +666,7 @@ mod test {
     }
     #[test]
     fn check_fee_collection() {
-        let now = 0_i64;
+        let mut now = 0_i64;
         let slot = 0_u64;
 
         let mut oracle_price = get_pyth_price(100, 10);
@@ -834,6 +841,8 @@ mod test {
 
         update_bank_cumulative_interest(&mut bank, now + 750 + (60 * 60 * 24 * 365)).unwrap();
 
+        now = now + 750 + (60 * 60 * 24 * 365);
+
         assert_eq!(bank.cumulative_deposit_interest, 16257818378);
         assert_eq!(bank.cumulative_borrow_interest, 60112684636);
         assert_eq!(bank.insurance_fund_pool.balance, 385);
@@ -861,11 +870,44 @@ mod test {
             (borrow_tokens_3 - borrow_tokens_2) - (deposit_tokens_3 - deposit_tokens_2),
             6
         );
+
+
+
+        let mut if_balance_2 = 0;
+
+        // settle IF pool to 100% utilization boundary
+        assert_eq!(bank.insurance_fund_pool.balance, 385);
+        assert_eq!(bank.utilization_twap, 125129);
+
+        let settle_amount =
+            settle_bank_to_insurance_fund(deposit_tokens_3 as u64, if_tokens_3 as u64, &mut bank, now + 60)
+                .unwrap();
+
+        if_balance_2 = if_balance_2 + settle_amount;
+        assert_eq!(if_tokens_3 - (settle_amount as u128), 1689);
+        assert_eq!(settle_amount, 625);
+        assert_eq!(bank.insurance_fund_pool.balance, 0);
+        assert_eq!(bank.utilization_twap, 125362);
+
+        let deposit_tokens_4 =
+        get_token_amount(bank.deposit_balance, &bank, &BankBalanceType::Deposit).unwrap();
+        let borrow_tokens_4 =
+            get_token_amount(bank.borrow_balance, &bank, &BankBalanceType::Borrow).unwrap();
+        let if_tokens_4 = get_token_amount(
+            bank.insurance_fund_pool.balance,
+            &bank,
+            &BankBalanceType::Deposit,
+        )
+        .unwrap(); 
+        
+        assert_eq!(deposit_tokens_4-borrow_tokens_4, 874368);
+        assert_eq!(if_tokens_4, 0);
+
     }
 
     #[test]
     fn check_fee_collection_larger_nums() {
-        let now = 0_i64;
+        let mut now = 0_i64;
         let slot = 0_u64;
 
         let mut oracle_price = get_pyth_price(100, 10);
@@ -999,13 +1041,13 @@ mod test {
         let if_tokens_1 = get_token_amount(
             bank.insurance_fund_pool.balance,
             &bank,
-            &BankBalanceType::Borrow,
+            &BankBalanceType::Deposit,
         )
         .unwrap();
 
         assert_eq!(deposit_tokens_1, 1000038444799);
         assert_eq!(borrow_tokens_1, 540548444855);
-        assert_eq!(if_tokens_1, 3844539);
+        assert_eq!(if_tokens_1, 3844399);
 
         update_bank_cumulative_interest(&mut bank, now + 7500).unwrap();
 
@@ -1024,13 +1066,13 @@ mod test {
         let if_tokens_2 = get_token_amount(
             bank.insurance_fund_pool.balance,
             &bank,
-            &BankBalanceType::Borrow,
+            &BankBalanceType::Deposit,
         )
         .unwrap();
 
         assert_eq!(deposit_tokens_2, 1002883690835);
         assert_eq!(borrow_tokens_2, 543393694522);
-        assert_eq!(if_tokens_2, 289166897);
+        assert_eq!(if_tokens_2, 288378835);
 
         //assert >=0
         assert_eq!(
@@ -1039,6 +1081,8 @@ mod test {
         );
 
         update_bank_cumulative_interest(&mut bank, now + 750 + (60 * 60 * 24 * 365)).unwrap();
+
+        now = now + 750 + (60 * 60 * 24 * 365);
 
         assert_eq!(bank.cumulative_deposit_interest, 120056141117);
         assert_eq!(bank.cumulative_borrow_interest, 236304445676);
@@ -1051,13 +1095,13 @@ mod test {
         let if_tokens_3 = get_token_amount(
             bank.insurance_fund_pool.balance,
             &bank,
-            &BankBalanceType::Borrow,
+            &BankBalanceType::Deposit,
         )
         .unwrap();
 
         assert_eq!(deposit_tokens_3, 13231976606092);
         assert_eq!(borrow_tokens_3, 12772491593257);
-        assert_eq!(if_tokens_3, 2413828286824);
+        assert_eq!(if_tokens_3, 1226362494392);
 
         assert_eq!((borrow_tokens_3 - borrow_tokens_2), 12229097898735);
         assert_eq!((deposit_tokens_3 - deposit_tokens_2), 12229092915257);
@@ -1067,5 +1111,36 @@ mod test {
             (borrow_tokens_3 - borrow_tokens_2) - (deposit_tokens_3 - deposit_tokens_2),
             4_983_478 //$4.98 missing
         );
+
+        let mut if_balance_2 = 0;
+
+        // settle IF pool to 100% utilization boundary
+        assert_eq!(bank.insurance_fund_pool.balance, 102149084835);
+        let settle_amount =
+            settle_bank_to_insurance_fund(deposit_tokens_3 as u64, if_tokens_3 as u64, &mut bank, now + 60)
+                .unwrap();
+
+        if_balance_2 = if_balance_2 + settle_amount;
+        // assert_eq!(if_tokens_3 - (settle_amount as u128), 766877481557);
+        assert_eq!(if_tokens_3 - (settle_amount as u128), 766877482398); // w/ update interest for settle_bank_to_if 
+
+        assert_eq!(settle_amount, 459485011994);
+        assert_eq!(bank.insurance_fund_pool.balance,       63889301684);
+        assert_eq!(bank.utilization_twap, 542124);
+
+        let deposit_tokens_4 =
+        get_token_amount(bank.deposit_balance, &bank, &BankBalanceType::Deposit).unwrap();
+        let borrow_tokens_4 =
+            get_token_amount(bank.borrow_balance, &bank, &BankBalanceType::Borrow).unwrap();
+        let if_tokens_4 = get_token_amount(
+            bank.insurance_fund_pool.balance,
+            &bank,
+            &BankBalanceType::Deposit,
+        )
+        .unwrap(); 
+        
+        assert_eq!(deposit_tokens_4-borrow_tokens_4, 4);
+        assert_eq!(if_tokens_4, 767091050279);
+        
     }
 }
