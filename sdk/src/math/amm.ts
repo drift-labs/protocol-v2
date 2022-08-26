@@ -19,7 +19,7 @@ import {
 	isVariant,
 } from '../types';
 import { assert } from '../assert/assert';
-import { squareRootBN } from '..';
+import { squareRootBN, standardizeBaseAssetAmount } from '..';
 
 import { OraclePriceData } from '../oracles/types';
 import {
@@ -622,4 +622,30 @@ export function calculateQuoteAssetAmountSwapped(
 	}
 
 	return quoteAssetAmount;
+}
+
+export function calculateMaxBaseAssetAmountFillable(
+	amm: AMM,
+	orderDirection: PositionDirection
+): BN {
+	const maxFillSize = amm.baseAssetReserve.div(
+		new BN(amm.maxBaseAssetAmountRatio)
+	);
+	let maxBaseAssetAmountOnSide: BN;
+	if (isVariant(orderDirection, 'long')) {
+		maxBaseAssetAmountOnSide = BN.max(
+			ZERO,
+			amm.maxBaseAssetReserve.sub(amm.baseAssetReserve)
+		);
+	} else {
+		maxBaseAssetAmountOnSide = BN.max(
+			ZERO,
+			amm.baseAssetReserve.sub(amm.minBaseAssetReserve)
+		);
+	}
+
+	return standardizeBaseAssetAmount(
+		BN.min(maxFillSize, maxBaseAssetAmountOnSide),
+		amm.baseAssetAmountStepSize
+	);
 }

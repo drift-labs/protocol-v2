@@ -1,10 +1,20 @@
 import { ClearingHouseUser } from '../clearingHouseUser';
-import { isOneOfVariant, isVariant, MarketAccount, Order } from '../types';
+import {
+	isOneOfVariant,
+	isVariant,
+	MarketAccount,
+	Order,
+	PositionDirection,
+} from '../types';
 import { ZERO, TWO } from '../constants/numericConstants';
 import { BN } from '@project-serum/anchor';
 import { OraclePriceData } from '../oracles/types';
 import { getAuctionPrice, isAuctionComplete } from './auction';
 import { calculateAskPrice, calculateBidPrice } from './market';
+import {
+	calculateMaxBaseAssetAmountFillable,
+	calculateMaxBaseAssetAmountToTrade,
+} from './amm';
 
 export function isOrderRiskIncreasing(
 	user: ClearingHouseUser,
@@ -129,7 +139,7 @@ export function getLimitPrice(
 	if (!order.oraclePriceOffset.eq(ZERO)) {
 		limitPrice = oraclePriceData.price.add(order.oraclePriceOffset);
 	} else if (isOneOfVariant(order.orderType, ['market', 'triggerMarket'])) {
-		if (isAuctionComplete(order, slot)) {
+		if (!isAuctionComplete(order, slot)) {
 			limitPrice = getAuctionPrice(order, slot);
 		} else if (!order.price.eq(ZERO)) {
 			limitPrice = order.price;
@@ -147,4 +157,106 @@ export function getLimitPrice(
 	}
 
 	return limitPrice;
+}
+
+export function isFillableByVAMM(
+	order: Order,
+	market: MarketAccount,
+	oraclePriceData: OraclePriceData,
+	slot: number,
+	maxAuctionDuration: number
+): boolean {
+	return (
+		(isAuctionComplete(order, slot) &&
+			!calculateBaseAssetAmountForAmmToFulfill(
+				order,
+				market,
+				oraclePriceData,
+				slot
+			).eq(ZERO)) ||
+		isOrderExpired(order, slot, maxAuctionDuration)
+	);
+}
+
+export function calculateBaseAssetAmountForAmmToFulfill(
+	order: Order,
+	market: MarketAccount,
+	oraclePriceData: OraclePriceData,
+	slot: number
+): BN {
+	if (
+		isOneOfVariant(order.orderType, ['triggerMarket', 'triggerLimit']) &&
+		order.triggered === false
+	) {
+		return ZERO;
+	}
+
+	const limitPrice = getLimitPrice(order, market, oraclePriceData, slot);
+	const baseAssetAmount = calculateBaseAssetAmountToFillUpToLimitPrice(
+		order,
+		market,
+		limitPrice,
+		oraclePriceData
+	);
+
+	const maxBaseAssetAmount = calculateMaxBaseAssetAmountFillable(
+		market.amm,
+		order.direction
+	);
+
+	return BN.min(maxBaseAssetAmount, baseAssetAmount);
+}
+
+export function calculateBaseAssetAmountToFillUpToLimitPrice(
+	order: Order,
+	market: MarketAccount,
+	limitPrice: BN,
+	oraclePriceData: OraclePriceData
+): BN {
+	const [maxAmountToTrade, direction] = calculateMaxBaseAssetAmountToTrade(
+		market.amm,
+		limitPrice,
+		order.direction,
+		oraclePriceData
+	);
+
+	const baseAssetAmount = standardizeBaseAssetAmount(
+		maxAmountToTrade,
+		market.amm.baseAssetAmountStepSize
+	);
+
+	// Check that directions are the same
+	const sameDirection = isSameDirection(direction, order.direction);
+	if (!sameDirection) {
+		return ZERO;
+	}
+
+	return baseAssetAmount.gt(order.baseAssetAmount)
+		? order.baseAssetAmount
+		: baseAssetAmount;
+}
+
+function isSameDirection(
+	firstDirection: PositionDirection,
+	secondDirection: PositionDirection
+): boolean {
+	return (
+		(isVariant(firstDirection, 'long') && isVariant(secondDirection, 'long')) ||
+		(isVariant(firstDirection, 'short') && isVariant(secondDirection, 'short'))
+	);
+}
+
+export function isOrderExpired(
+	order: Order,
+	slot: number,
+	maxAuctionDuration: number
+): boolean {
+	if (
+		!isVariant(order.orderType, 'market') ||
+		!isVariant(order.status, 'open')
+	) {
+		return false;
+	}
+
+	return new BN(slot).sub(order.slot).gt(new BN(maxAuctionDuration));
 }

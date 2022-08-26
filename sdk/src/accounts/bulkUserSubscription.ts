@@ -17,7 +17,6 @@ export async function bulkPollingUserSubscribe(
 
 	await Promise.all(
 		users.map((user) => {
-			// Pull the keys from the authority map so we can skip fetching them in addToAccountLoader
 			return (
 				user.accountSubscriber as PollingUserAccountSubscriber
 			).addToAccountLoader();

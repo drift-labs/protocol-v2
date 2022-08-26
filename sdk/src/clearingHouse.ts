@@ -15,6 +15,7 @@ import {
 	OptionalOrderParams,
 	DefaultOrderParams,
 	OrderType,
+	ReferrerInfo,
 } from './types';
 import * as anchor from '@project-serum/anchor';
 import clearingHouseIDL from './idl/clearing_house.json';
@@ -31,6 +32,7 @@ import {
 	LAMPORTS_PER_SOL,
 	Signer,
 	SystemProgram,
+	ComputeBudgetProgram,
 } from '@solana/web3.js';
 
 import { TokenFaucet } from './tokenFaucet';
@@ -50,7 +52,11 @@ import {
 } from './accounts/types';
 import { TxSender } from './tx/types';
 import { wrapInTx } from './tx/utils';
-import { QUOTE_ASSET_BANK_INDEX, ZERO } from './constants/numericConstants';
+import {
+	ONE,
+	QUOTE_ASSET_BANK_INDEX,
+	ZERO,
+} from './constants/numericConstants';
 import { findDirectionToClose, positionIsAvailable } from './math/position';
 import { getTokenAmount } from './math/bankBalance';
 import { DEFAULT_USER_NAME, encodeName } from './userName';
@@ -218,11 +224,13 @@ export class ClearingHouse {
 	 *	Forces the accountSubscriber to fetch account updates from rpc
 	 */
 	public async fetchAccounts(): Promise<void> {
-		await Promise.all(
-			[...this.users.values()]
-				.map((user) => user.fetchAccounts())
-				.concat(this.accountSubscriber.fetch())
-		);
+		const promises = [...this.users.values()]
+			.map((user) => user.fetchAccounts())
+			.concat(this.accountSubscriber.fetch());
+		if (this.userStats) {
+			promises.concat(this.userStats.fetchAccounts());
+		}
+		await Promise.all(promises);
 	}
 
 	public async unsubscribe(): Promise<void> {
@@ -340,10 +348,11 @@ export class ClearingHouse {
 
 	public async initializeUserAccount(
 		userId = 0,
-		name = DEFAULT_USER_NAME
+		name = DEFAULT_USER_NAME,
+		referrerInfo?: ReferrerInfo
 	): Promise<[TransactionSignature, PublicKey]> {
 		const [userAccountPublicKey, initializeUserAccountIx] =
-			await this.getInitializeUserInstructions(userId, name);
+			await this.getInitializeUserInstructions(userId, name, referrerInfo);
 
 		const tx = new Transaction();
 		if (userId === 0) {
@@ -357,13 +366,28 @@ export class ClearingHouse {
 
 	async getInitializeUserInstructions(
 		userId = 0,
-		name = DEFAULT_USER_NAME
+		name = DEFAULT_USER_NAME,
+		referrerInfo?: ReferrerInfo
 	): Promise<[PublicKey, TransactionInstruction]> {
 		const userAccountPublicKey = await getUserAccountPublicKey(
 			this.program.programId,
 			this.wallet.publicKey,
 			userId
 		);
+
+		const remainingAccounts = new Array<AccountMeta>();
+		if (referrerInfo !== undefined) {
+			remainingAccounts.push({
+				pubkey: referrerInfo.referrer,
+				isWritable: true,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: referrerInfo.referrerStats,
+				isWritable: true,
+				isSigner: false,
+			});
+		}
 
 		const nameBuffer = encodeName(name);
 		const initializeUserAccountIx =
@@ -377,6 +401,7 @@ export class ClearingHouse {
 					systemProgram: anchor.web3.SystemProgram.programId,
 					state: await this.getStatePublicKey(),
 				},
+				remainingAccounts,
 			});
 
 		return [userAccountPublicKey, initializeUserAccountIx];
@@ -710,6 +735,7 @@ export class ClearingHouse {
 					bank: bank.pubkey,
 					bankVault: bank.vault,
 					user: userAccountPublicKey,
+					userStats: this.getUserStatsAccountPublicKey(),
 					userTokenAccount: userTokenAccount,
 					authority: this.wallet.publicKey,
 					tokenProgram: TOKEN_PROGRAM_ID,
@@ -841,10 +867,11 @@ export class ClearingHouse {
 		bankIndex = new BN(0),
 		userId = 0,
 		name = DEFAULT_USER_NAME,
-		fromUserId?: number
+		fromUserId?: number,
+		referrerInfo?: ReferrerInfo
 	): Promise<[TransactionSignature, PublicKey]> {
 		const [userAccountPublicKey, initializeUserAccountIx] =
-			await this.getInitializeUserInstructions(userId, name);
+			await this.getInitializeUserInstructions(userId, name, referrerInfo);
 
 		const additionalSigners: Array<Signer> = [];
 
@@ -919,7 +946,8 @@ export class ClearingHouse {
 		name = DEFAULT_USER_NAME,
 		bankIndex: BN,
 		tokenFaucet: TokenFaucet,
-		amount: BN
+		amount: BN,
+		referrerInfo?: ReferrerInfo
 	): Promise<[TransactionSignature, PublicKey]> {
 		const [associateTokenPublicKey, createAssociatedAccountIx, mintToIx] =
 			await tokenFaucet.createAssociatedTokenAccountAndMintToInstructions(
@@ -928,7 +956,7 @@ export class ClearingHouse {
 			);
 
 		const [userAccountPublicKey, initializeUserAccountIx] =
-			await this.getInitializeUserInstructions(userId, name);
+			await this.getInitializeUserInstructions(userId, name, referrerInfo);
 
 		const depositCollateralIx = await this.getDepositInstruction(
 			amount,
@@ -1037,6 +1065,7 @@ export class ClearingHouse {
 					bankVault: bank.vault,
 					bankVaultAuthority: bank.vaultAuthority,
 					user: userAccountPublicKey,
+					userStats: this.getUserStatsAccountPublicKey(),
 					userTokenAccount: userTokenAccount,
 					authority: this.wallet.publicKey,
 					tokenProgram: TOKEN_PROGRAM_ID,
@@ -1088,6 +1117,7 @@ export class ClearingHouse {
 				authority: this.wallet.publicKey,
 				fromUser,
 				toUser,
+				userStats: this.getUserStatsAccountPublicKey(),
 				state: await this.getStatePublicKey(),
 			},
 			remainingAccounts,
@@ -1448,11 +1478,18 @@ export class ClearingHouse {
 		userAccountPublicKey: PublicKey,
 		user: UserAccount,
 		order?: Order,
-		makerInfo?: MakerInfo
+		makerInfo?: MakerInfo,
+		referrerInfo?: ReferrerInfo
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.txSender.send(
 			wrapInTx(
-				await this.getFillOrderIx(userAccountPublicKey, user, order, makerInfo)
+				await this.getFillOrderIx(
+					userAccountPublicKey,
+					user,
+					order,
+					makerInfo,
+					referrerInfo
+				)
 			),
 			[],
 			this.opts
@@ -1464,7 +1501,8 @@ export class ClearingHouse {
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
 		order: Order,
-		makerInfo?: MakerInfo
+		makerInfo?: MakerInfo,
+		referrerInfo?: ReferrerInfo
 	): Promise<TransactionInstruction> {
 		const userStatsPublicKey = getUserStatsAccountPublicKey(
 			this.program.programId,
@@ -1474,7 +1512,11 @@ export class ClearingHouse {
 		const fillerPublicKey = await this.getUserAccountPublicKey();
 		const fillerStatsPublicKey = this.getUserStatsAccountPublicKey();
 
-		const marketIndex = order.marketIndex;
+		const marketIndex = order
+			? order.marketIndex
+			: userAccount.orders.find((order) =>
+					order.orderId.eq(userAccount.nextOrderId.sub(ONE))
+			  ).marketIndex;
 		const marketAccount = this.getMarketAccount(marketIndex);
 
 		const oracleAccountMap = new Map<string, AccountMeta>();
@@ -1544,6 +1586,19 @@ export class ClearingHouse {
 			});
 			remainingAccounts.push({
 				pubkey: makerInfo.makerStats,
+				isWritable: true,
+				isSigner: false,
+			});
+		}
+
+		if (referrerInfo) {
+			remainingAccounts.push({
+				pubkey: referrerInfo.referrer,
+				isWritable: true,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: referrerInfo.referrerStats,
 				isWritable: true,
 				isSigner: false,
 			});
@@ -1661,10 +1716,13 @@ export class ClearingHouse {
 
 	public async placeAndTake(
 		orderParams: OptionalOrderParams,
-		makerInfo?: MakerInfo
+		makerInfo?: MakerInfo,
+		referrerInfo?: ReferrerInfo
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.txSender.send(
-			wrapInTx(await this.getPlaceAndTakeIx(orderParams, makerInfo)),
+			wrapInTx(
+				await this.getPlaceAndTakeIx(orderParams, makerInfo, referrerInfo)
+			),
 			[],
 			this.opts
 		);
@@ -1674,7 +1732,8 @@ export class ClearingHouse {
 
 	public async getPlaceAndTakeIx(
 		orderParams: OptionalOrderParams,
-		makerInfo?: MakerInfo
+		makerInfo?: MakerInfo,
+		referrerInfo?: ReferrerInfo
 	): Promise<TransactionInstruction> {
 		orderParams = this.getOrderParams(orderParams);
 		const userStatsPublicKey = await this.getUserStatsAccountPublicKey();
@@ -1700,6 +1759,19 @@ export class ClearingHouse {
 			});
 		}
 
+		if (referrerInfo) {
+			remainingAccounts.push({
+				pubkey: referrerInfo.referrer,
+				isWritable: true,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: referrerInfo.referrerStats,
+				isWritable: true,
+				isSigner: false,
+			});
+		}
+
 		return await this.program.instruction.placeAndTake(
 			orderParams,
 			makerOrderId,
@@ -1717,10 +1789,13 @@ export class ClearingHouse {
 
 	public async placeAndMake(
 		orderParams: OptionalOrderParams,
-		takerInfo: TakerInfo
+		takerInfo: TakerInfo,
+		referrerInfo?: ReferrerInfo
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.txSender.send(
-			wrapInTx(await this.getPlaceAndMakeIx(orderParams, takerInfo)),
+			wrapInTx(
+				await this.getPlaceAndMakeIx(orderParams, takerInfo, referrerInfo)
+			),
 			[],
 			this.opts
 		);
@@ -1732,15 +1807,31 @@ export class ClearingHouse {
 
 	public async getPlaceAndMakeIx(
 		orderParams: OptionalOrderParams,
-		takerInfo: TakerInfo
+		takerInfo: TakerInfo,
+		referrerInfo?: ReferrerInfo
 	): Promise<TransactionInstruction> {
 		orderParams = this.getOrderParams(orderParams);
 		const userStatsPublicKey = this.getUserStatsAccountPublicKey();
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 
-		const remainingAccounts = this.getRemainingAccounts({
+		// todo merge this with getRemainingAccounts
+		const remainingAccounts = this.getRemainingAccountsWithCounterparty({
+			counterPartyUserAccount: takerInfo.takerUserAccount,
 			writableMarketIndex: orderParams.marketIndex,
 		});
+
+		if (referrerInfo) {
+			remainingAccounts.push({
+				pubkey: referrerInfo.referrer,
+				isWritable: true,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: referrerInfo.referrerStats,
+				isWritable: true,
+				isSigner: false,
+			});
+		}
 
 		const takerOrderId = takerInfo!.order!.orderId;
 		return await this.program.instruction.placeAndMake(
@@ -1802,7 +1893,14 @@ export class ClearingHouse {
 			);
 		}
 
-		const tx = new Transaction().add(...ixs);
+		const tx = new Transaction()
+			.add(
+				ComputeBudgetProgram.requestUnits({
+					units: 1_000_000,
+					additionalFee: 0,
+				})
+			)
+			.add(...ixs);
 
 		const { txSig } = await this.txSender.send(tx, [], this.opts);
 		return txSig;
@@ -2034,9 +2132,9 @@ export class ClearingHouse {
 		const liquidatorPublicKey = await this.getUserAccountPublicKey();
 		const liquidatorStatsPublicKey = this.getUserStatsAccountPublicKey();
 
-		const remainingAccounts = this.getRemainingAccountsForLiquidation({
+		const remainingAccounts = this.getRemainingAccountsWithCounterparty({
 			writableMarketIndex: marketIndex,
-			userAccount,
+			counterPartyUserAccount: userAccount,
 		});
 
 		return await this.program.instruction.liquidatePerp(
@@ -2088,8 +2186,8 @@ export class ClearingHouse {
 	): Promise<TransactionInstruction> {
 		const liquidatorPublicKey = await this.getUserAccountPublicKey();
 
-		const remainingAccounts = this.getRemainingAccountsForLiquidation({
-			userAccount,
+		const remainingAccounts = this.getRemainingAccountsWithCounterparty({
+			counterPartyUserAccount: userAccount,
 			writableBankIndexes: [liabilityBankIndex, assetBankIndex],
 		});
 
@@ -2141,8 +2239,8 @@ export class ClearingHouse {
 	): Promise<TransactionInstruction> {
 		const liquidatorPublicKey = await this.getUserAccountPublicKey();
 
-		const remainingAccounts = this.getRemainingAccountsForLiquidation({
-			userAccount,
+		const remainingAccounts = this.getRemainingAccountsWithCounterparty({
+			counterPartyUserAccount: userAccount,
 			writableMarketIndex: perpMarketIndex,
 			writableBankIndexes: [liabilityBankIndex],
 		});
@@ -2195,8 +2293,8 @@ export class ClearingHouse {
 	): Promise<TransactionInstruction> {
 		const liquidatorPublicKey = await this.getUserAccountPublicKey();
 
-		const remainingAccounts = this.getRemainingAccountsForLiquidation({
-			userAccount,
+		const remainingAccounts = this.getRemainingAccountsWithCounterparty({
+			counterPartyUserAccount: userAccount,
 			writableMarketIndex: perpMarketIndex,
 			writableBankIndexes: [assetBankIndex],
 		});
@@ -2243,9 +2341,9 @@ export class ClearingHouse {
 	): Promise<TransactionInstruction> {
 		const liquidatorPublicKey = await this.getUserAccountPublicKey();
 
-		const remainingAccounts = this.getRemainingAccountsForLiquidation({
+		const remainingAccounts = this.getRemainingAccountsWithCounterparty({
 			writableMarketIndex: marketIndex,
-			userAccount,
+			counterPartyUserAccount: userAccount,
 		});
 
 		return await this.program.instruction.resolvePerpBankruptcy(marketIndex, {
@@ -2285,9 +2383,9 @@ export class ClearingHouse {
 	): Promise<TransactionInstruction> {
 		const liquidatorPublicKey = await this.getUserAccountPublicKey();
 
-		const remainingAccounts = this.getRemainingAccountsForLiquidation({
+		const remainingAccounts = this.getRemainingAccountsWithCounterparty({
 			writableBankIndexes: [bankIndex],
-			userAccount,
+			counterPartyUserAccount: userAccount,
 		});
 
 		return await this.program.instruction.resolveBorrowBankruptcy(bankIndex, {
@@ -2301,17 +2399,17 @@ export class ClearingHouse {
 		});
 	}
 
-	getRemainingAccountsForLiquidation(params: {
-		userAccount: UserAccount;
+	getRemainingAccountsWithCounterparty(params: {
+		counterPartyUserAccount: UserAccount;
 		writableMarketIndex?: BN;
 		writableBankIndexes?: BN[];
 	}): AccountMeta[] {
-		const liquidateeUserAccount = params.userAccount;
+		const counterPartyUserAccount = params.counterPartyUserAccount;
 
 		const oracleAccountMap = new Map<string, AccountMeta>();
 		const bankAccountMap = new Map<number, AccountMeta>();
 		const marketAccountMap = new Map<number, AccountMeta>();
-		for (const bankBalance of liquidateeUserAccount.bankBalances) {
+		for (const bankBalance of counterPartyUserAccount.bankBalances) {
 			if (!bankBalance.balance.eq(ZERO)) {
 				const bankAccount = this.getBankAccount(bankBalance.bankIndex);
 				bankAccountMap.set(bankBalance.bankIndex.toNumber(), {
@@ -2329,7 +2427,7 @@ export class ClearingHouse {
 				}
 			}
 		}
-		for (const position of liquidateeUserAccount.positions) {
+		for (const position of counterPartyUserAccount.positions) {
 			if (!positionIsAvailable(position)) {
 				const market = this.getMarketAccount(position.marketIndex);
 				marketAccountMap.set(position.marketIndex.toNumber(), {

@@ -1,12 +1,14 @@
+use solana_program::msg;
+
 use crate::error::ClearingHouseResult;
 use crate::math::casting::cast_to_i128;
 use crate::math::constants::AMM_RESERVE_PRECISION_I128;
+use crate::math::helpers;
 use crate::math::orders::standardize_base_asset_amount_with_remainder_i128;
 use crate::math_error;
 use crate::state::market::Market;
 use crate::state::market::AMM;
 use crate::state::user::MarketPosition;
-use solana_program::msg;
 
 #[derive(Debug)]
 pub struct LPMetrics {
@@ -102,7 +104,11 @@ pub fn calculate_lp_open_bids_asks(
     } else {
         0
     };
-    let open_asks = -cast_to_i128(get_proportion_u128(max_asks, lp_shares, total_lp_shares)?)?;
+    let open_asks = -cast_to_i128(helpers::get_proportion_u128(
+        max_asks,
+        lp_shares,
+        total_lp_shares,
+    )?)?;
 
     // worst case if all bids are filled
     let min_base_asset_reserve = market.amm.min_base_asset_reserve;
@@ -113,50 +119,25 @@ pub fn calculate_lp_open_bids_asks(
     } else {
         0
     };
-    let open_bids = cast_to_i128(get_proportion_u128(max_bids, lp_shares, total_lp_shares)?)?;
+    let open_bids = cast_to_i128(helpers::get_proportion_u128(
+        max_bids,
+        lp_shares,
+        total_lp_shares,
+    )?)?;
 
     Ok((open_bids, open_asks))
 }
 
-pub fn get_proportion_i128(
-    value: i128,
-    numerator: u128,
-    denominator: u128,
-) -> ClearingHouseResult<i128> {
-    let proportional_value = cast_to_i128(
-        value
-            .unsigned_abs()
-            .checked_mul(numerator)
-            .ok_or_else(math_error!())?
-            .checked_div(denominator)
-            .ok_or_else(math_error!())?,
-    )?
-    .checked_mul(value.signum())
-    .ok_or_else(math_error!())?;
-    Ok(proportional_value)
-}
-
-pub fn get_proportion_u128(
-    value: u128,
-    numerator: u128,
-    denominator: u128,
-) -> ClearingHouseResult<u128> {
-    let proportional_value = value
-        .checked_mul(numerator)
-        .ok_or_else(math_error!())?
-        .checked_div(denominator)
-        .ok_or_else(math_error!())?;
-
-    Ok(proportional_value)
-}
-
 #[cfg(test)]
 mod test {
-    use super::*;
     use crate::math::constants::AMM_RESERVE_PRECISION;
     use crate::state::user::MarketPosition;
 
+    use super::*;
+
     mod calculate_get_proportion_u128 {
+        use crate::math::helpers::get_proportion_u128;
+
         use super::*;
 
         pub fn get_proportion_u128_safe(

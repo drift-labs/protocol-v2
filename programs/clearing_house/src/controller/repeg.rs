@@ -7,25 +7,26 @@ use crate::load_mut;
 use crate::math::amm;
 use crate::math::repeg;
 use crate::math_error;
+use crate::state::bank_map::BankMap;
 use crate::state::market::{Market, MarketStatus};
 use crate::state::market_map::MarketMap;
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
-use crate::state::bank_map::BankMap;
 
+use crate::controller::bank_balance::update_bank_balances;
+use crate::math::amm::get_update_k_result;
+use crate::math::bank_balance::get_token_amount;
+use crate::math::bn;
+use crate::math::constants::{
+    K_BPS_UPDATE_SCALE, ONE_HOUR_I128, QUOTE_ASSET_BANK_INDEX, QUOTE_PRECISION,
+};
+use crate::state::bank::{Bank, BankBalanceType};
 use crate::state::state::{OracleGuardRails, State};
+use crate::validate;
 use anchor_lang::prelude::AccountInfo;
 use anchor_lang::prelude::*;
 use solana_program::msg;
 use std::cmp::min;
-use crate::validate;
-use crate::math::constants::{ONE_HOUR_I128, QUOTE_PRECISION, QUOTE_ASSET_BANK_INDEX, K_BPS_UPDATE_SCALE};
-use crate::controller::bank_balance::{update_bank_balances};
-use crate::math::bank_balance::{get_token_amount};
-use crate::math::amm::get_update_k_result;
-use crate::state::bank::{Bank, BankBalanceType};
-use crate::math::bn;
-
 
 pub fn repeg(
     market: &mut Market,
@@ -115,7 +116,7 @@ pub fn update_amm(
 ) -> ClearingHouseResult<i128> {
     let market = &mut market_map.get_ref_mut(&market_index)?;
     let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
-    
+
     let cost_of_update = _update_amm(
         market,
         oracle_price_data,
@@ -125,7 +126,7 @@ pub fn update_amm(
     )?;
 
     update_market_status(market, clock.unix_timestamp)?;
-    
+
     Ok(cost_of_update)
 }
 

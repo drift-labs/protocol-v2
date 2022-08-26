@@ -24,9 +24,8 @@ import {
 	getTriggerMarketOrderParams,
 	EventSubscriber,
 	standardizeBaseAssetAmount,
+	calculateBaseAssetAmountForAmmToFulfill,
 } from '../sdk/src';
-
-import { calculateAmountToTradeForLimit } from '../sdk/src/orders';
 
 import {
 	mockOracle,
@@ -631,7 +630,12 @@ describe('orders', () => {
 		await clearingHouseUser.fetchAccounts();
 
 		const order = clearingHouseUser.getUserAccount().orders[0];
-		const amountToFill = calculateAmountToTradeForLimit(market, order);
+		const amountToFill = calculateBaseAssetAmountForAmmToFulfill(
+			order,
+			market,
+			clearingHouse.getOracleDataForMarket(order.marketIndex),
+			0
+		);
 
 		assert(
 			clearingHouseUser
@@ -706,7 +710,12 @@ describe('orders', () => {
 
 		await clearingHouseUser.fetchAccounts();
 		const order = clearingHouseUser.getUserAccount().orders[0];
-		const amountToFill = calculateAmountToTradeForLimit(market, order);
+		const amountToFill = calculateBaseAssetAmountForAmmToFulfill(
+			order,
+			market,
+			clearingHouse.getOracleDataForMarket(order.marketIndex),
+			0
+		);
 
 		assert(
 			clearingHouseUser
@@ -760,7 +769,12 @@ describe('orders', () => {
 		);
 		assert(clearingHouseUser.getUserPosition(marketIndex).openBids.eq(ZERO));
 
-		const amountToFill2 = calculateAmountToTradeForLimit(market2, order2);
+		const amountToFill2 = calculateBaseAssetAmountForAmmToFulfill(
+			order2,
+			market2,
+			clearingHouse.getOracleDataForMarket(order.marketIndex),
+			0
+		);
 		assert(amountToFill2.eq(ZERO));
 
 		await clearingHouse.cancelOrder(orderId);
@@ -818,7 +832,12 @@ describe('orders', () => {
 
 		await clearingHouseUser.fetchAccounts();
 		const order = clearingHouseUser.getUserAccount().orders[0];
-		const amountToFill = calculateAmountToTradeForLimit(market, order);
+		const amountToFill = calculateBaseAssetAmountForAmmToFulfill(
+			order,
+			market,
+			clearingHouse.getOracleDataForMarket(order.marketIndex),
+			0
+		);
 
 		const standardizedBaseAssetAmount = standardizeBaseAssetAmount(
 			baseAssetAmount,
@@ -927,7 +946,12 @@ describe('orders', () => {
 		const order = clearingHouseUser.getUserAccount().orders[0];
 		console.log(order.status);
 		// assert(order.status == OrderStatus.INIT);
-		const amountToFill = calculateAmountToTradeForLimit(market, order);
+		const amountToFill = calculateBaseAssetAmountForAmmToFulfill(
+			order,
+			market,
+			clearingHouse.getOracleDataForMarket(order.marketIndex),
+			0
+		);
 		console.log(amountToFill);
 
 		await clearingHouse.fetchAccounts();
@@ -1068,7 +1092,12 @@ describe('orders', () => {
 		);
 
 		const order = clearingHouseUser.getUserAccount().orders[0];
-		const amountToFill = calculateAmountToTradeForLimit(market, order);
+		const amountToFill = calculateBaseAssetAmountForAmmToFulfill(
+			order,
+			market,
+			clearingHouse.getOracleDataForMarket(order.marketIndex),
+			0
+		);
 
 		assert(clearingHouseUser.getUserPosition(marketIndex).openAsks.eq(ZERO));
 		assert(
@@ -1186,7 +1215,12 @@ describe('orders', () => {
 		const order = clearingHouse.getUserAccount().orders[0];
 		console.log(order.status);
 		// assert(order.status == OrderStatus.INIT);
-		const amountToFill = calculateAmountToTradeForLimit(market, order);
+		const amountToFill = calculateBaseAssetAmountForAmmToFulfill(
+			order,
+			market,
+			clearingHouse.getOracleDataForMarket(order.marketIndex),
+			0
+		);
 		console.log(amountToFill);
 
 		assert(
@@ -1349,7 +1383,12 @@ describe('orders', () => {
 		);
 
 		const order = clearingHouseUser.getUserAccount().orders[0];
-		const amountToFill = calculateAmountToTradeForLimit(market, order);
+		const amountToFill = calculateBaseAssetAmountForAmmToFulfill(
+			order,
+			market,
+			clearingHouse.getOracleDataForMarket(order.marketIndex),
+			0
+		);
 
 		console.log(convertToNumber(amountToFill, AMM_RESERVE_PRECISION));
 
@@ -1429,7 +1468,12 @@ describe('orders', () => {
 		await clearingHouseUser.fetchAccounts();
 
 		const order = clearingHouseUser.getUserAccount().orders[0];
-		const amountToFill = calculateAmountToTradeForLimit(market, order);
+		const amountToFill = calculateBaseAssetAmountForAmmToFulfill(
+			order,
+			market,
+			clearingHouse.getOracleDataForMarket(order.marketIndex),
+			0
+		);
 
 		assert(
 			clearingHouseUser
@@ -1571,7 +1615,12 @@ describe('orders', () => {
 		// fill again
 
 		const order = clearingHouseUser.getUserAccount().orders[0];
-		const amountToFill = calculateAmountToTradeForLimit(market, order);
+		const amountToFill = calculateBaseAssetAmountForAmmToFulfill(
+			order,
+			market,
+			clearingHouse.getOracleDataForMarket(order.marketIndex),
+			0
+		);
 
 		console.log(convertToNumber(amountToFill, AMM_RESERVE_PRECISION));
 		const market2 = clearingHouse.getMarketAccount(marketIndex);
@@ -1635,38 +1684,6 @@ describe('orders', () => {
 			)
 		);
 		await clearingHouse.closePosition(marketIndex);
-	});
-
-	it('Block whale trade > reserves', async () => {
-		const direction = PositionDirection.SHORT;
-
-		// whale trade
-		const baseAssetAmount = new BN(
-			AMM_RESERVE_PRECISION.mul(usdcAmountWhale).div(QUOTE_PRECISION)
-		);
-		const triggerPrice = MARK_PRICE_PRECISION;
-		const triggerCondition = OrderTriggerCondition.ABOVE;
-
-		const orderParams = getTriggerMarketOrderParams({
-			marketIndex,
-			direction,
-			baseAssetAmount,
-			triggerPrice,
-			triggerCondition,
-			userOrderId: 1,
-		});
-		try {
-			await whaleClearingHouse.placeOrder(orderParams);
-			await fillerClearingHouse.fillOrder(
-				userAccountPublicKey,
-				whaleClearingHouse.getUserAccount()
-			);
-		} catch (e) {
-			await whaleClearingHouse.cancelOrderByUserId(1);
-			return;
-		}
-
-		assert(false);
 	});
 
 	it('Time-based fee reward cap', async () => {
