@@ -80,8 +80,7 @@ pub fn calculate_rebase_info(
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::math::constants::{BANK_CUMULATIVE_INTEREST_PRECISION, QUOTE_PRECISION};
-    use crate::state::user::UserStats;
+    // use crate::math::constants::{BANK_CUMULATIVE_INTEREST_PRECISION, QUOTE_PRECISION};
 
     #[test]
     pub fn basic_stake_if_test() {

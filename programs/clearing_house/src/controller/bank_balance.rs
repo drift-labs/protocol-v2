@@ -7,14 +7,16 @@ use crate::math::bank_balance::{
     get_interest_token_amount, get_token_amount, InterestAccumulated,
 };
 use crate::math::casting::{cast, cast_to_i128, cast_to_u64};
-use crate::math::constants::{BANK_INTEREST_PRECISION, TWENTY_FOUR_HOUR};
+use crate::math::constants::{BANK_INTEREST_PRECISION, BANK_UTILIZATION_PRECISION, TWENTY_FOUR_HOUR};
 use crate::math_error;
 use crate::state::bank::{Bank, BankBalance, BankBalanceType};
 use crate::state::market::Market;
 use crate::validate;
 use std::cmp::max;
 
-pub fn update_bank_twap_stats(bank: &mut Bank, utilization: u128, now: i64) -> ClearingHouseResult {
+pub fn update_bank_twap_stats(bank: &mut Bank, 
+    // utilization: u128,
+     now: i64) -> ClearingHouseResult {
     let since_last = cast_to_i128(max(
         1,
         now.checked_sub(bank.last_twap_ts as i64)
@@ -46,6 +48,20 @@ pub fn update_bank_twap_stats(bank: &mut Bank, utilization: u128, now: i64) -> C
         from_start,
     )?)?;
 
+    let utilization = borrow_token_amount
+        .checked_mul(BANK_UTILIZATION_PRECISION)
+        .ok_or_else(math_error!())?
+        .checked_div(deposit_token_amount)
+        .or({
+            if deposit_token_amount == 0 && borrow_token_amount == 0 {
+                Some(0_u128)
+            } else {
+                // if there are borrows without deposits, default to maximum utilization rate
+                Some(BANK_UTILIZATION_PRECISION)
+            }
+        })
+        .unwrap();
+
     bank.utilization_twap = cast(calculate_weighted_average(
         cast(utilization)?,
         cast(bank.utilization_twap)?,
@@ -60,7 +76,6 @@ pub fn update_bank_cumulative_interest(bank: &mut Bank, now: i64) -> ClearingHou
     let InterestAccumulated {
         deposit_interest,
         borrow_interest,
-        utilization,
     } = calculate_accumulated_interest(bank, now)?;
 
     if deposit_interest > 0 && borrow_interest > 1 {
@@ -98,7 +113,7 @@ pub fn update_bank_cumulative_interest(bank: &mut Bank, now: i64) -> ClearingHou
         }
     }
 
-    update_bank_twap_stats(bank, utilization, now)?;
+    update_bank_twap_stats(bank, now)?;
     bank.last_twap_ts = cast_to_u64(now)?;
 
     Ok(())
@@ -350,7 +365,7 @@ mod test {
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BANK_CUMULATIVE_INTEREST_PRECISION, BANK_INTEREST_PRECISION,
         BANK_WEIGHT_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION, PEG_PRECISION,
-        QUOTE_PRECISION, QUOTE_PRECISION_I128,
+        QUOTE_PRECISION, QUOTE_PRECISION_I128, BANK_UTILIZATION_PRECISION
     };
     use crate::state::bank::{Bank, BankBalanceType};
     use crate::state::bank_map::BankMap;
@@ -812,7 +827,7 @@ mod test {
 
         assert_eq!(bank.last_interest_ts, 7500);
         assert_eq!(bank.last_twap_ts, 7500);
-        assert_eq!(bank.utilization_twap, 10837);
+        assert_eq!(bank.utilization_twap, 10848);
 
         assert_eq!(bank.cumulative_deposit_interest, 10001484937);
         assert_eq!(bank.cumulative_borrow_interest, 10011891454);
@@ -877,7 +892,7 @@ mod test {
 
         // settle IF pool to 100% utilization boundary
         assert_eq!(bank.insurance_fund_pool.balance, 385);
-        assert_eq!(bank.utilization_twap, 125129);
+        assert_eq!(bank.utilization_twap, 462007);
 
         let settle_amount =
             settle_bank_to_insurance_fund(deposit_tokens_3 as u64, if_tokens_3 as u64, &mut bank, now + 60)
@@ -887,7 +902,7 @@ mod test {
         assert_eq!(if_tokens_3 - (settle_amount as u128), 1689);
         assert_eq!(settle_amount, 625);
         assert_eq!(bank.insurance_fund_pool.balance, 0);
-        assert_eq!(bank.utilization_twap, 125362);
+        assert_eq!(bank.utilization_twap, 462007);
 
         let deposit_tokens_4 =
         get_token_amount(bank.deposit_balance, &bank, &BankBalanceType::Deposit).unwrap();
@@ -899,9 +914,43 @@ mod test {
             &BankBalanceType::Deposit,
         )
         .unwrap(); 
-        
+
+        assert_eq!(bank.borrow_token_twap,                                       751413); 
+        assert_eq!(bank.deposit_token_twap,                                     1626406);
+        assert_eq!(bank.borrow_token_twap
+            *BANK_UTILIZATION_PRECISION/bank.deposit_token_twap,                462008); // 47.4%
+
+        assert_eq!(bank.utilization_twap,                                       462007); // 46.2%
+        assert_eq!(borrow_tokens_4*BANK_UTILIZATION_PRECISION/deposit_tokens_4, 462194); // 46.2%
+        assert_eq!(BANK_UTILIZATION_PRECISION,                                 1000000); // 100%
+
+
         assert_eq!(deposit_tokens_4-borrow_tokens_4, 874368);
         assert_eq!(if_tokens_4, 0);
+
+        // one more day later, twap update
+        update_bank_cumulative_interest(&mut bank, now + 60 + (60 * 60 * 24)).unwrap();
+
+        let deposit_tokens_5 =
+        get_token_amount(bank.deposit_balance, &bank, &BankBalanceType::Deposit).unwrap();
+        let borrow_tokens_5 =
+            get_token_amount(bank.borrow_balance, &bank, &BankBalanceType::Borrow).unwrap();
+        let if_tokens_5 = get_token_amount(
+            bank.insurance_fund_pool.balance,
+            &bank,
+            &BankBalanceType::Deposit,
+        )
+        .unwrap(); 
+
+        assert_eq!(bank.borrow_token_twap,                                        789501); 
+        assert_eq!(bank.deposit_token_twap,                                      1663867);
+
+        assert_eq!(bank.borrow_token_twap
+            *BANK_UTILIZATION_PRECISION/bank.deposit_token_twap,                474497); // 47.4%
+        assert_eq!(bank.utilization_twap,                                       474496); // 47.4%
+        assert_eq!(borrow_tokens_5*BANK_UTILIZATION_PRECISION/deposit_tokens_5, 474497); // 47.4%
+        assert_eq!(BANK_UTILIZATION_PRECISION,                                 1000000); // 100%
+
 
     }
 
@@ -1053,7 +1102,7 @@ mod test {
 
         assert_eq!(bank.last_interest_ts, 7500);
         assert_eq!(bank.last_twap_ts, 7500);
-        assert_eq!(bank.utilization_twap, 46866);
+        assert_eq!(bank.utilization_twap, 46978);
 
         assert_eq!(bank.cumulative_deposit_interest, 10025953120);
         assert_eq!(bank.cumulative_borrow_interest, 10053351363);
@@ -1126,7 +1175,7 @@ mod test {
 
         assert_eq!(settle_amount, 459485011994);
         assert_eq!(bank.insurance_fund_pool.balance,       63889301684);
-        assert_eq!(bank.utilization_twap, 542124);
+        assert_eq!(bank.utilization_twap, 965273);
 
         let deposit_tokens_4 =
         get_token_amount(bank.deposit_balance, &bank, &BankBalanceType::Deposit).unwrap();

@@ -88,7 +88,6 @@ pub fn get_interest_token_amount(
 pub struct InterestAccumulated {
     pub borrow_interest: u128,
     pub deposit_interest: u128,
-    pub utilization: u128,
 }
 
 pub fn calculate_accumulated_interest(
@@ -118,7 +117,6 @@ pub fn calculate_accumulated_interest(
         return Ok(InterestAccumulated {
             borrow_interest: 0,
             deposit_interest: 0,
-            utilization: 0,
         });
     }
 
@@ -204,7 +202,6 @@ pub fn calculate_accumulated_interest(
     Ok(InterestAccumulated {
         borrow_interest,
         deposit_interest,
-        utilization,
     })
 }
 
