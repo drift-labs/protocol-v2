@@ -1,4 +1,10 @@
-import { Commitment, Connection, PublicKey } from '@solana/web3.js';
+import {
+	Commitment,
+	Connection,
+	PublicKey,
+	RpcResponseAndContext,
+	AccountInfo,
+} from '@solana/web3.js';
 import { v4 as uuidv4 } from 'uuid';
 import { BufferAndSlot } from './types';
 import { promiseTimeout } from '../util/promiseTimeout';
@@ -151,18 +157,21 @@ export class BulkAccountLoader {
 			{ commitment: this.commitment },
 		];
 
-		const rpcResponse: any | null = await promiseTimeout(
-			// @ts-ignore
-			this.connection._rpcRequest('getMultipleAccounts', args),
-			10 * 1000 // 30 second timeout
-		);
+		const rpcResponse: RpcResponseAndContext<(AccountInfo<Buffer> | null)[]> =
+			await promiseTimeout(
+				this.connection.getMultipleAccountsInfoAndContext(
+					accountsToLoad.map((accountToLoad) => accountToLoad.publicKey),
+					this.commitment
+				),
+				10 * 1000 // 30 second timeout
+			);
 
 		if (rpcResponse === null) {
 			this.log('request to rpc timed out');
 			return;
 		}
 
-		const newSlot = rpcResponse.result.context.slot;
+		const newSlot = rpcResponse.context.slot;
 
 		if (newSlot > this.mostRecentSlot) {
 			this.mostRecentSlot = newSlot;
@@ -173,12 +182,9 @@ export class BulkAccountLoader {
 			const key = accountToLoad.publicKey.toString();
 			const oldRPCResponse = this.bufferAndSlotMap.get(key);
 
-			let newBuffer: Buffer | undefined = undefined;
-			if (rpcResponse.result.value[i]) {
-				const raw: string = rpcResponse.result.value[i].data[0];
-				const dataType = rpcResponse.result.value[i].data[1];
-				newBuffer = Buffer.from(raw, dataType);
-			}
+			const newBuffer = rpcResponse.value[i]
+				? rpcResponse.value[i].data
+				: undefined;
 
 			if (!oldRPCResponse) {
 				this.bufferAndSlotMap.set(key, {

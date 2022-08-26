@@ -18,7 +18,7 @@ import {
 } from '@solana/web3.js';
 import { assert } from 'chai';
 import buffer from 'buffer';
-import { BN, Wallet, OraclePriceData, OracleInfo } from '../sdk';
+import { BN, Wallet, OraclePriceData, OracleInfo, isVariant, BASE_PRECISION } from '../sdk';
 import {
 	Admin,
 	BANK_RATE_PRECISION,
@@ -28,6 +28,8 @@ import {
 	ClearingHouse,
 	ClearingHouseUser,
 	OracleSource,
+	UserAccount,
+	convertToNumber,
 } from '../sdk/src';
 
 export async function mockOracle(
@@ -837,4 +839,37 @@ export async function initializeSolAssetBank(
 		bankIndex,
 		new BN(10 ** 10).mul(QUOTE_PRECISION)
 	);
+}
+
+export function printOpenOrders(userAccount: UserAccount) {
+	for (const [i, order] of userAccount.orders.entries()) {
+		if (isVariant(order.status, "init")) {
+			continue;
+		}
+		const orderType = Object.keys(order.orderType)[0];
+		console.log(`[${i}] Open order`)
+		console.log(`  orderType: ${Object.keys(order.orderType)[0]}`);
+		console.log(`  direction: ${Object.keys(order.direction)[0]}`);
+		console.log(`  existingPositionDirection: ${Object.keys(order.existingPositionDirection)[0]}`);
+		console.log(`  ts: ${order.ts.toNumber()}`);
+		console.log(`  slot: ${order.slot.toNumber()}`);
+		console.log(`  orderId: ${order.orderId.toNumber()}`);
+		console.log(`  userOrderId: ${order.userOrderId}`);
+		console.log(`  marketIndex: ${order.marketIndex.toNumber()}`);
+		console.log(`  price: ${convertToNumber(order.price, MARK_PRICE_PRECISION).toString()}`);
+		console.log(`  oraclePriceOffset: ${convertToNumber(order.oraclePriceOffset, MARK_PRICE_PRECISION).toString()}`);
+		console.log(`  triggerPrice:     ${convertToNumber(order.triggerPrice, MARK_PRICE_PRECISION).toString()}`);
+		console.log(`  triggerCondition: ${Object.keys(order.triggerCondition)[0]}`);
+		console.log(`  triggered:        ${order.triggered}`);
+		console.log(`  baseAssetAmount:       ${convertToNumber(order.baseAssetAmount, BASE_PRECISION).toString()}`);
+		console.log(`  baseAssetAmountFilled: ${convertToNumber(order.baseAssetAmountFilled, BASE_PRECISION).toString()}`);
+		console.log(`  quoteAssetAmountFilled: ${convertToNumber(order.quoteAssetAmountFilled, BASE_PRECISION).toString()}`);
+		console.log(`  fee: ${convertToNumber(order.fee, BASE_PRECISION).toString()}`);
+		console.log(`  reduceOnly: ${order.reduceOnly}`);
+		console.log(`  postOnly: ${order.postOnly}`);
+		console.log(`  immediateOrCancel: ${order.immediateOrCancel}`);
+		console.log(`  auctionStartPrice: ${convertToNumber(order.auctionStartPrice, MARK_PRICE_PRECISION).toString()}`);
+		console.log(`  auctionEndPrice:   ${convertToNumber(order.auctionEndPrice, MARK_PRICE_PRECISION).toString()}`);
+		console.log(`  auctionDuration: ${order.auctionDuration}`);
+	}
 }
