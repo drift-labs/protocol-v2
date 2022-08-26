@@ -252,6 +252,9 @@ describe('liquidate borrow', () => {
 	});
 
 	it('resolve bankruptcy', async () => {
+		const bankBefore = clearingHouse.getBankAccount(0);
+		const bank1Before = clearingHouse.getBankAccount(1);
+
 		const bankCumulativeDepositInterestBefore =
 			clearingHouse.getBankAccount(1).cumulativeDepositInterest;
 
@@ -280,6 +283,70 @@ describe('liquidate borrow', () => {
 					bankruptcyRecord.borrowBankruptcy.cumulativeDepositInterestDelta
 				)
 			)
+		);
+
+		await clearingHouse.fetchAccounts();
+		const bank0 = clearingHouse.getBankAccount(0);
+		const bank1 = clearingHouse.getBankAccount(1);
+
+		console.log(
+			'usdc borrows in bank:',
+			getTokenAmount(
+				bankBefore.borrowBalance,
+				bankBefore,
+				BankBalanceType.BORROW
+			).toString(),
+			'->',
+			getTokenAmount(
+				bank0.borrowBalance,
+				bank0,
+				BankBalanceType.BORROW
+			).toString()
+		);
+
+		console.log(
+			'usdc deposits in bank:',
+			getTokenAmount(
+				bankBefore.depositBalance,
+				bankBefore,
+				BankBalanceType.DEPOSIT
+			).toString(),
+			'->',
+			getTokenAmount(
+				bank0.depositBalance,
+				bank0,
+				BankBalanceType.DEPOSIT
+			).toString()
+		);
+
+		console.log(
+			'sol borrows in bank:',
+			getTokenAmount(
+				bank1Before.borrowBalance,
+				bank1Before,
+				BankBalanceType.BORROW
+			).toString(),
+			'->',
+			getTokenAmount(
+				bank1.borrowBalance,
+				bank1,
+				BankBalanceType.BORROW
+			).toString()
+		);
+
+		console.log(
+			'sol deposits in bank:',
+			getTokenAmount(
+				bank1Before.depositBalance,
+				bank1Before,
+				BankBalanceType.DEPOSIT
+			).toString(),
+			'->',
+			getTokenAmount(
+				bank1.depositBalance,
+				bank1,
+				BankBalanceType.DEPOSIT
+			).toString()
 		);
 	});
 });
