@@ -1,6 +1,5 @@
 #[cfg(test)]
 mod test {
-    use super::*;
     use crate::amm::calculate_swap_output;
     use crate::controller::amm::SwapDirection;
     use crate::math::collateral::calculate_updated_collateral;
@@ -513,13 +512,11 @@ mod calculate_margin_requirement_and_total_collateral {
     use crate::tests::utils::get_pyth_price;
     use crate::tests::utils::*;
     use anchor_lang::Owner;
-    use solana_program::native_token::LAMPORTS_PER_SOL;
     use solana_program::pubkey::Pubkey;
     use std::str::FromStr;
 
     #[test]
     pub fn usdc_deposit_and_5x_sol_bid() {
-        let now = 0_i64;
         let slot = 0_u64;
 
         let mut sol_oracle_price = get_pyth_price(100, 10);
@@ -580,7 +577,7 @@ mod calculate_margin_requirement_and_total_collateral {
             open_bids: 500 * 10_i128.pow(9),
             ..UserBankBalance::default()
         };
-        let mut user = User {
+        let user = User {
             orders: [Order::default(); 32],
             positions: [MarketPosition::default(); 5],
             bank_balances: user_bank_balances,
@@ -603,7 +600,6 @@ mod calculate_margin_requirement_and_total_collateral {
 
     #[test]
     pub fn usdc_deposit_and_5x_sol_ask() {
-        let now = 0_i64;
         let slot = 0_u64;
 
         let mut sol_oracle_price = get_pyth_price(100, 10);
@@ -664,7 +660,7 @@ mod calculate_margin_requirement_and_total_collateral {
             open_asks: -500 * 10_i128.pow(9),
             ..UserBankBalance::default()
         };
-        let mut user = User {
+        let user = User {
             orders: [Order::default(); 32],
             positions: [MarketPosition::default(); 5],
             bank_balances: user_bank_balances,
@@ -687,7 +683,6 @@ mod calculate_margin_requirement_and_total_collateral {
 
     #[test]
     pub fn sol_deposit_and_5x_sol_ask() {
-        let now = 0_i64;
         let slot = 0_u64;
 
         let mut sol_oracle_price = get_pyth_price(100, 10);
@@ -749,7 +744,7 @@ mod calculate_margin_requirement_and_total_collateral {
             open_asks: -3000 * 10_i128.pow(9),
             ..UserBankBalance::default()
         };
-        let mut user = User {
+        let user = User {
             orders: [Order::default(); 32],
             positions: [MarketPosition::default(); 5],
             bank_balances: user_bank_balances,

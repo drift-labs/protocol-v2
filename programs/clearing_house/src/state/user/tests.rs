@@ -136,8 +136,8 @@ mod get_unsettled_pnl {
 
 mod get_worst_case_token_amounts {
     use crate::math::constants::{
-        BANK_CUMULATIVE_INTEREST_PRECISION, BANK_INTEREST_PRECISION, BANK_WEIGHT_PRECISION,
-        MARK_PRICE_PRECISION_I128, QUOTE_PRECISION_I128,
+        BANK_CUMULATIVE_INTEREST_PRECISION, BANK_INTEREST_PRECISION, MARK_PRICE_PRECISION_I128,
+        QUOTE_PRECISION_I128,
     };
     use crate::state::bank::{Bank, BankBalanceType};
     use crate::state::oracle::{OraclePriceData, OracleSource};
@@ -150,7 +150,7 @@ mod get_worst_case_token_amounts {
             balance_type: BankBalanceType::Deposit,
             balance: 0,
             open_orders: 1,
-            open_bids: 1 * 10_i128.pow(9),
+            open_bids: 10_i128.pow(9),
             open_asks: 0,
         };
 
@@ -173,7 +173,7 @@ mod get_worst_case_token_amounts {
             .get_worst_case_token_amounts(&bank, &oracle_price_data)
             .unwrap();
 
-        assert_eq!(worst_case_token_amount, 1 * 10_i128.pow(9));
+        assert_eq!(worst_case_token_amount, 10_i128.pow(9));
         assert_eq!(worst_case_quote_token_amount, -100 * QUOTE_PRECISION_I128);
     }
 
@@ -185,7 +185,7 @@ mod get_worst_case_token_amounts {
             balance: 0,
             open_orders: 1,
             open_bids: 0,
-            open_asks: -1 * 10_i128.pow(9),
+            open_asks: -(10_i128.pow(9)),
         };
 
         let bank = Bank {
@@ -207,7 +207,7 @@ mod get_worst_case_token_amounts {
             .get_worst_case_token_amounts(&bank, &oracle_price_data)
             .unwrap();
 
-        assert_eq!(worst_case_token_amount, -1 * 10_i128.pow(9));
+        assert_eq!(worst_case_token_amount, -(10_i128.pow(9)));
         assert_eq!(worst_case_quote_token_amount, 100 * QUOTE_PRECISION_I128);
     }
 
@@ -219,7 +219,7 @@ mod get_worst_case_token_amounts {
             balance: 2 * BANK_INTEREST_PRECISION,
             open_orders: 1,
             open_bids: 0,
-            open_asks: -1 * 10_i128.pow(9),
+            open_asks: -(10_i128.pow(9)),
         };
 
         let bank = Bank {
@@ -250,7 +250,7 @@ mod get_worst_case_token_amounts {
         let user_bank_balance = UserBankBalance {
             bank_index: 0,
             balance_type: BankBalanceType::Deposit,
-            balance: 1 * BANK_INTEREST_PRECISION,
+            balance: BANK_INTEREST_PRECISION,
             open_orders: 1,
             open_bids: 0,
             open_asks: -2 * 10_i128.pow(9),
@@ -275,7 +275,7 @@ mod get_worst_case_token_amounts {
             .get_worst_case_token_amounts(&bank, &oracle_price_data)
             .unwrap();
 
-        assert_eq!(worst_case_token_amount, -1 * 10_i128.pow(9));
+        assert_eq!(worst_case_token_amount, -(10_i128.pow(9)));
         assert_eq!(worst_case_quote_token_amount, 200 * QUOTE_PRECISION_I128);
     }
 
@@ -287,7 +287,7 @@ mod get_worst_case_token_amounts {
             balance: 2 * BANK_INTEREST_PRECISION,
             open_orders: 1,
             open_bids: 0,
-            open_asks: 1 * 10_i128.pow(9),
+            open_asks: 10_i128.pow(9),
         };
 
         let bank = Bank {
@@ -320,7 +320,7 @@ mod get_worst_case_token_amounts {
             balance_type: BankBalanceType::Borrow,
             balance: 2 * BANK_INTEREST_PRECISION,
             open_orders: 1,
-            open_bids: 1 * 10_i128.pow(9),
+            open_bids: 10_i128.pow(9),
             open_asks: 0,
         };
 
@@ -391,7 +391,7 @@ mod get_worst_case_token_amounts {
             balance: 2 * BANK_INTEREST_PRECISION,
             open_orders: 1,
             open_bids: 0,
-            open_asks: -1 * 10_i128.pow(9),
+            open_asks: -(10_i128.pow(9)),
         };
 
         let bank = Bank {
@@ -416,5 +416,44 @@ mod get_worst_case_token_amounts {
 
         assert_eq!(worst_case_token_amount, -3 * 10_i128.pow(9));
         assert_eq!(worst_case_quote_token_amount, 100 * QUOTE_PRECISION_I128);
+    }
+}
+
+mod bank {
+    use crate::math::constants::{BANK_WEIGHT_PRECISION, MARGIN_PRECISION};
+    use crate::math::margin::MarginRequirementType;
+    use crate::state::bank::Bank;
+
+    #[test]
+    fn get_initial_leverage_ratio() {
+        let bank = Bank {
+            initial_liability_weight: 12 * BANK_WEIGHT_PRECISION / 10,
+            ..Bank::default()
+        };
+
+        let initial_leverage_ratio = bank
+            .get_initial_leverage_ratio(MarginRequirementType::Initial)
+            .unwrap();
+
+        assert_eq!(initial_leverage_ratio, 5 * MARGIN_PRECISION);
+    }
+}
+
+mod market {
+    use crate::math::constants::MARGIN_PRECISION;
+    use crate::math::margin::MarginRequirementType;
+    use crate::state::market::Market;
+
+    #[test]
+    fn get_initial_leverage_ratio() {
+        let market = Market {
+            margin_ratio_initial: (MARGIN_PRECISION / 5) as u32,
+            ..Market::default()
+        };
+
+        let initial_leverage_ratio =
+            market.get_initial_leverage_ratio(MarginRequirementType::Initial);
+
+        assert_eq!(initial_leverage_ratio, 5 * MARGIN_PRECISION);
     }
 }

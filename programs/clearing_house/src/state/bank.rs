@@ -6,7 +6,8 @@ use borsh::{BorshDeserialize, BorshSerialize};
 
 use crate::error::ClearingHouseResult;
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION, BANK_WEIGHT_PRECISION, LIQUIDATION_FEE_PRECISION,
+    AMM_RESERVE_PRECISION, BANK_WEIGHT_PRECISION, LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION,
+    MARGIN_PRECISION_TO_BANK_WEIGHT_PRECISION_RATIO,
 };
 use crate::math::margin::{
     calculate_size_discount_asset_weight, calculate_size_premium_liability_weight,
@@ -48,6 +49,7 @@ pub struct Bank {
     pub imf_factor: u128,
     pub liquidation_fee: u128,
     pub withdraw_guard_threshold: u128, // no withdraw limits/guards when bank deposits below this threshold
+    pub order_step_size: u128,
 }
 
 impl Bank {
@@ -112,6 +114,28 @@ impl Bank {
                 .checked_sub(self.liquidation_fee)
                 .ok_or_else(math_error!()),
         }
+    }
+
+    pub fn get_initial_leverage_ratio(
+        &self,
+        margin_type: MarginRequirementType,
+    ) -> ClearingHouseResult<u128> {
+        let liability_weight = match margin_type {
+            MarginRequirementType::Initial => self.initial_liability_weight,
+            MarginRequirementType::Maintenance => self.maintenance_liability_weight,
+        };
+
+        MARGIN_PRECISION
+            .checked_mul(MARGIN_PRECISION)
+            .ok_or_else(math_error!())?
+            .checked_div(
+                liability_weight
+                    .checked_mul(MARGIN_PRECISION_TO_BANK_WEIGHT_PRECISION_RATIO)
+                    .ok_or_else(math_error!())?
+                    .checked_sub(MARGIN_PRECISION)
+                    .ok_or_else(math_error!())?,
+            )
+            .ok_or_else(math_error!())
     }
 }
 

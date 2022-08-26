@@ -74,6 +74,17 @@ impl Market {
         Ok(margin_ratio as u32)
     }
 
+    pub fn get_initial_leverage_ratio(&self, margin_type: MarginRequirementType) -> u128 {
+        match margin_type {
+            MarginRequirementType::Initial => {
+                MARGIN_PRECISION * MARGIN_PRECISION / self.margin_ratio_initial as u128
+            }
+            MarginRequirementType::Maintenance => {
+                MARGIN_PRECISION * MARGIN_PRECISION / self.margin_ratio_maintenance as u128
+            }
+        }
+    }
+
     pub fn default_test() -> Self {
         let amm = AMM::default_test();
         Market {

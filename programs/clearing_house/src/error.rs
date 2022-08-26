@@ -37,8 +37,8 @@ pub enum ErrorCode {
     InvalidRepegProfitability,
     #[msg("Slippage Outside Limit Price")]
     SlippageOutsideLimit,
-    #[msg("Trade Size Too Small")]
-    TradeSizeTooSmall,
+    #[msg("Order Size Too Small")]
+    OrderSizeTooSmall,
     #[msg("Price change too large when updating K")]
     InvalidUpdateK,
     #[msg("Admin tried to withdraw amount larger than fees collected")]

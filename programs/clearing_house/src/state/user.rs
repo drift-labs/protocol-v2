@@ -192,15 +192,19 @@ impl UserBankBalance {
         self.balance == 0 && self.open_orders == 0
     }
 
+    pub fn get_signed_token_amount(&self, bank: &Bank) -> ClearingHouseResult<i128> {
+        get_signed_token_amount(
+            get_token_amount(self.balance, bank, &self.balance_type)?,
+            &self.balance_type,
+        )
+    }
+
     pub fn get_worst_case_token_amounts(
         &self,
         bank: &Bank,
         oracle_price_data: &OraclePriceData,
     ) -> ClearingHouseResult<(i128, i128)> {
-        let token_amount = get_signed_token_amount(
-            get_token_amount(self.balance, bank, &self.balance_type)?,
-            &self.balance_type,
-        )?;
+        let token_amount = self.get_signed_token_amount(bank)?;
 
         let token_amount_all_bids_fill = token_amount
             .checked_add(self.open_bids)
@@ -372,7 +376,6 @@ pub struct Order {
     pub auction_duration: u8,
     pub padding: [u16; 3],
 }
-
 impl Order {
     pub fn has_oracle_price_offset(self) -> bool {
         self.oracle_price_offset != 0
@@ -380,9 +383,9 @@ impl Order {
 
     pub fn get_limit_price(
         &self,
-        amm: &AMM,
         valid_oracle_price: Option<i128>,
         slot: u64,
+        amm: Option<&AMM>,
     ) -> ClearingHouseResult<u128> {
         // the limit price can be hardcoded on order or derived from oracle_price + oracle_price_offset
         let price = if self.has_oracle_price_offset() {
@@ -410,20 +413,41 @@ impl Order {
             } else if self.price != 0 {
                 self.price
             } else {
-                match self.direction {
-                    PositionDirection::Long => {
-                        let ask_price = amm.ask_price(amm.mark_price()?)?;
-                        let delta = ask_price
-                            .checked_div(amm.max_slippage_ratio as u128)
-                            .ok_or_else(math_error!())?;
-                        ask_price.checked_add(delta).ok_or_else(math_error!())?
-                    }
-                    PositionDirection::Short => {
-                        let bid_price = amm.bid_price(amm.mark_price()?)?;
-                        let delta = bid_price
-                            .checked_div(amm.max_slippage_ratio as u128)
-                            .ok_or_else(math_error!())?;
-                        bid_price.checked_sub(delta).ok_or_else(math_error!())?
+                match amm {
+                    Some(amm) => match self.direction {
+                        PositionDirection::Long => {
+                            let ask_price = amm.ask_price(amm.mark_price()?)?;
+                            let delta = ask_price
+                                .checked_div(amm.max_slippage_ratio as u128)
+                                .ok_or_else(math_error!())?;
+                            ask_price.checked_add(delta).ok_or_else(math_error!())?
+                        }
+                        PositionDirection::Short => {
+                            let bid_price = amm.bid_price(amm.mark_price()?)?;
+                            let delta = bid_price
+                                .checked_div(amm.max_slippage_ratio as u128)
+                                .ok_or_else(math_error!())?;
+                            bid_price.checked_sub(delta).ok_or_else(math_error!())?
+                        }
+                    },
+                    None => {
+                        let oracle_price = valid_oracle_price
+                            .ok_or_else(|| {
+                                msg!("No oracle found to generate dynamic limit price");
+                                ErrorCode::OracleNotFound
+                            })?
+                            .unsigned_abs();
+
+                        let oracle_price_1pct = oracle_price / 100;
+
+                        match self.direction {
+                            PositionDirection::Long => oracle_price
+                                .checked_add(oracle_price_1pct)
+                                .ok_or_else(math_error!())?,
+                            PositionDirection::Short => oracle_price
+                                .checked_sub(oracle_price_1pct)
+                                .ok_or_else(math_error!())?,
+                        }
                     }
                 }
             }

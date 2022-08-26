@@ -14,7 +14,7 @@ use crate::math::casting::{cast, cast_to_i128};
 use crate::math::constants::{MARGIN_PRECISION, MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO};
 use crate::math::position::calculate_entry_price;
 use crate::math_error;
-use crate::state::market::Market;
+use crate::state::market::{Market, AMM};
 use crate::state::user::{Order, OrderStatus, OrderTriggerCondition, OrderType, User};
 
 pub fn calculate_base_asset_amount_for_amm_to_fulfill(
@@ -27,7 +27,8 @@ pub fn calculate_base_asset_amount_for_amm_to_fulfill(
         return Ok(0);
     }
 
-    let limit_price = order.get_limit_price(&market.amm, valid_oracle_price, slot)?;
+    let limit_price = order.get_limit_price(valid_oracle_price, slot, Some(&market.amm))?;
+
     let base_asset_amount =
         calculate_base_asset_amount_to_fill_up_to_limit_price(order, market, limit_price)?;
     let max_base_asset_amount =
@@ -229,15 +230,16 @@ pub fn should_expire_order(
 }
 
 pub fn order_breaches_oracle_price_limits(
-    market: &Market,
     order: &Order,
     oracle_price: i128,
     slot: u64,
+    initial_leverage_ratio: u128,
+    amm: Option<&AMM>,
 ) -> ClearingHouseResult<bool> {
-    let order_limit_price = order.get_limit_price(&market.amm, Some(oracle_price), slot)?;
+    let order_limit_price = order.get_limit_price(Some(oracle_price), slot, amm)?;
     let oracle_price = oracle_price.unsigned_abs();
 
-    let max_ratio = MARGIN_PRECISION / (market.margin_ratio_initial as u128 / 2);
+    let max_ratio = initial_leverage_ratio / 2;
     match order.direction {
         PositionDirection::Long => {
             if order_limit_price <= oracle_price {
@@ -245,6 +247,8 @@ pub fn order_breaches_oracle_price_limits(
             }
 
             let ratio = order_limit_price
+                .checked_mul(MARGIN_PRECISION)
+                .ok_or_else(math_error!())?
                 .checked_div(
                     order_limit_price
                         .checked_sub(oracle_price)
@@ -261,6 +265,8 @@ pub fn order_breaches_oracle_price_limits(
             }
 
             let ratio = oracle_price
+                .checked_mul(MARGIN_PRECISION)
+                .ok_or_else(math_error!())?
                 .checked_div(
                     oracle_price
                         .checked_sub(order_limit_price)

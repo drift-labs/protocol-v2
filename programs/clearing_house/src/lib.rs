@@ -241,6 +241,7 @@ pub mod clearing_house {
         let bank = &mut ctx.accounts.bank.load_init()?;
         let now = cast(Clock::get()?.unix_timestamp).or(Err(ErrorCode::UnableToCastUnixTime))?;
 
+        let order_step_size = 10_u128.pow(2 + (bank.decimals - 6) as u32); // 10 for usdc/btc, 10000 for sol
         **bank = Bank {
             bank_index,
             pubkey: bank_pubkey,
@@ -270,6 +271,7 @@ pub mod clearing_house {
             imf_factor,
             liquidation_fee,
             withdraw_guard_threshold: 0,
+            order_step_size,
         };
 
         Ok(())
