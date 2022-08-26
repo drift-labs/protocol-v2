@@ -163,16 +163,18 @@ export function isFillableByVAMM(
 	order: Order,
 	market: MarketAccount,
 	oraclePriceData: OraclePriceData,
-	slot: number
+	slot: number,
+	maxAuctionDuration: number
 ): boolean {
 	return (
-		isAuctionComplete(order, slot) &&
-		!calculateBaseAssetAmountForAmmToFulfill(
-			order,
-			market,
-			oraclePriceData,
-			slot
-		).eq(ZERO)
+		(isAuctionComplete(order, slot) &&
+			!calculateBaseAssetAmountForAmmToFulfill(
+				order,
+				market,
+				oraclePriceData,
+				slot
+			).eq(ZERO)) ||
+		isOrderExpired(order, slot, maxAuctionDuration)
 	);
 }
 
