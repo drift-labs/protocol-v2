@@ -84,7 +84,7 @@ pub fn burn_lp_shares(
     market.amm.net_unsettled_lp_base_asset_amount = market
         .amm
         .net_unsettled_lp_base_asset_amount
-        .checked_sub(base_asset_amount)
+        .checked_add(base_asset_amount)
         .ok_or_else(math_error!())?;
 
     // liquidate dust position
