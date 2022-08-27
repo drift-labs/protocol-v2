@@ -27,3 +27,26 @@ pub fn increase_spot_open_bids_and_asks(
 
     Ok(())
 }
+
+pub fn decrease_spot_open_bids_and_asks(
+    bank_balance: &mut UserBankBalance,
+    direction: &PositionDirection,
+    base_asset_amount_unfilled: u128,
+) -> ClearingHouseResult {
+    match direction {
+        PositionDirection::Long => {
+            bank_balance.open_bids = bank_balance
+                .open_bids
+                .checked_sub(cast(base_asset_amount_unfilled)?)
+                .ok_or_else(math_error!())?;
+        }
+        PositionDirection::Short => {
+            bank_balance.open_asks = bank_balance
+                .open_asks
+                .checked_add(cast(base_asset_amount_unfilled)?)
+                .ok_or_else(math_error!())?;
+        }
+    }
+
+    Ok(())
+}

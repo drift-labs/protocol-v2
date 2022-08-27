@@ -969,7 +969,7 @@ pub mod clearing_house {
     pub fn cancel_order(ctx: Context<CancelOrder>, order_id: Option<u64>) -> Result<()> {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
-        let _bank_map = BankMap::load(&MarketSet::new(), remaining_accounts_iter)?;
+        let bank_map = BankMap::load(&MarketSet::new(), remaining_accounts_iter)?;
         let market_map = MarketMap::load(
             &MarketSet::new(),
             &MarketSet::new(),
@@ -985,6 +985,7 @@ pub mod clearing_house {
             order_id,
             &ctx.accounts.user,
             &market_map,
+            &bank_map,
             &mut oracle_map,
             &Clock::get()?,
         )?;
@@ -995,7 +996,7 @@ pub mod clearing_house {
     pub fn cancel_order_by_user_id(ctx: Context<CancelOrder>, user_order_id: u8) -> Result<()> {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
-        let _bank_map = BankMap::load(&MarketSet::new(), remaining_accounts_iter)?;
+        let bank_map = BankMap::load(&MarketSet::new(), remaining_accounts_iter)?;
         let market_map = MarketMap::load(
             &MarketSet::new(),
             &MarketSet::new(),
@@ -1006,6 +1007,7 @@ pub mod clearing_house {
             user_order_id,
             &ctx.accounts.user,
             &market_map,
+            &bank_map,
             &mut oracle_map,
             &Clock::get()?,
         )?;
@@ -1167,6 +1169,7 @@ pub mod clearing_house {
                 order_id,
                 &ctx.accounts.user,
                 &market_map,
+                &bank_map,
                 &mut oracle_map,
                 &Clock::get()?,
             )?;
@@ -1248,6 +1251,7 @@ pub mod clearing_house {
                 order_id,
                 &ctx.accounts.user,
                 &market_map,
+                &bank_map,
                 &mut oracle_map,
                 &Clock::get()?,
             )?;
@@ -1331,7 +1335,7 @@ pub mod clearing_house {
     pub fn cancel_spot_order(ctx: Context<CancelOrder>, order_id: Option<u64>) -> Result<()> {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
-        let _bank_map = BankMap::load(&MarketSet::new(), remaining_accounts_iter)?;
+        let bank_map = BankMap::load(&MarketSet::new(), remaining_accounts_iter)?;
         let market_map = MarketMap::load(
             &MarketSet::new(),
             &MarketSet::new(),
@@ -1347,6 +1351,7 @@ pub mod clearing_house {
             order_id,
             &ctx.accounts.user,
             &market_map,
+            &bank_map,
             &mut oracle_map,
             &Clock::get()?,
         )?;

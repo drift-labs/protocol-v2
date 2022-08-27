@@ -9,7 +9,9 @@ use crate::controller::position::{
     update_amm_and_lp_market_position, update_position_and_market, update_quote_asset_amount,
     PositionDirection,
 };
-use crate::controller::user_bank_balance::increase_spot_open_bids_and_asks;
+use crate::controller::user_bank_balance::{
+    decrease_spot_open_bids_and_asks, increase_spot_open_bids_and_asks,
+};
 use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
 use crate::get_struct_values;
@@ -256,6 +258,7 @@ pub fn cancel_order_by_order_id(
     order_id: u64,
     user: &AccountLoader<User>,
     market_map: &MarketMap,
+    bank_map: &BankMap,
     oracle_map: &mut OracleMap,
     clock: &Clock,
 ) -> ClearingHouseResult {
@@ -272,6 +275,7 @@ pub fn cancel_order_by_order_id(
         user,
         &user_key,
         market_map,
+        bank_map,
         oracle_map,
         clock.unix_timestamp,
         clock.slot,
@@ -286,6 +290,7 @@ pub fn cancel_order_by_user_order_id(
     user_order_id: u8,
     user: &AccountLoader<User>,
     market_map: &MarketMap,
+    bank_map: &BankMap,
     oracle_map: &mut OracleMap,
     clock: &Clock,
 ) -> ClearingHouseResult {
@@ -302,6 +307,7 @@ pub fn cancel_order_by_user_order_id(
         user,
         &user_key,
         market_map,
+        bank_map,
         oracle_map,
         clock.unix_timestamp,
         clock.slot,
@@ -351,9 +357,9 @@ pub fn cancel_order(
     user.orders[order_index].status = OrderStatus::Canceled;
 
     let oracle = if is_perp_order {
-        &market_map.get_ref(&order_market_index)?.amm.oracle
+        market_map.get_ref(&order_market_index)?.amm.oracle
     } else {
-        &bank_map.get_ref(&order_market_index)?.oracle
+        bank_map.get_ref(&order_market_index)?.oracle
     };
 
     if !skip_log {
@@ -387,23 +393,37 @@ pub fn cancel_order(
             taker_fee: 0,
             maker_rebate: 0,
             quote_asset_amount_surplus: 0,
-            oracle_price: oracle_map.get_price_data(oracle)?.price,
+            oracle_price: oracle_map.get_price_data(&oracle)?.price,
             referrer_reward: 0,
             referee_discount: 0,
             referrer: Pubkey::default(),
         });
     }
 
-    // Decrement open orders for existing position
-    let position_index = get_position_index(&user.positions, order_market_index)?;
-    let base_asset_amount_unfilled = user.orders[order_index].get_base_asset_amount_unfilled()?;
-    position::decrease_open_bids_and_asks(
-        &mut user.positions[position_index],
-        &order_direction,
-        base_asset_amount_unfilled,
-    )?;
-    user.positions[position_index].open_orders -= 1;
-    user.orders[order_index] = Order::default();
+    if is_perp_order {
+        // Decrement open orders for existing position
+        let position_index = get_position_index(&user.positions, order_market_index)?;
+        let base_asset_amount_unfilled =
+            user.orders[order_index].get_base_asset_amount_unfilled()?;
+        position::decrease_open_bids_and_asks(
+            &mut user.positions[position_index],
+            &order_direction,
+            base_asset_amount_unfilled,
+        )?;
+        user.positions[position_index].open_orders -= 1;
+        user.orders[order_index] = Order::default();
+    } else {
+        let bank_balance_index = user.get_bank_balance_index(order_market_index)?;
+        let base_asset_amount_unfilled =
+            user.orders[order_index].get_base_asset_amount_unfilled()?;
+        decrease_spot_open_bids_and_asks(
+            &mut user.bank_balances[bank_balance_index],
+            &order_direction,
+            base_asset_amount_unfilled,
+        )?;
+        user.bank_balances[bank_balance_index].open_orders -= 1;
+        user.orders[order_index] = Order::default();
+    }
 
     Ok(())
 }
@@ -520,6 +540,7 @@ pub fn fill_order(
 
     let (mut maker, mut maker_stats, maker_key, maker_order_index) = sanitize_maker_order(
         market_map,
+        bank_map,
         oracle_map,
         maker,
         maker_stats,
@@ -555,6 +576,7 @@ pub fn fill_order(
             user,
             &user_key,
             market_map,
+            bank_map,
             oracle_map,
             now,
             slot,
@@ -608,6 +630,7 @@ pub fn fill_order(
             user,
             &user_key,
             market_map,
+            bank_map,
             oracle_map,
             now,
             slot,
@@ -677,6 +700,7 @@ pub fn fill_order(
 #[allow(clippy::type_complexity)]
 fn sanitize_maker_order<'a>(
     market_map: &MarketMap,
+    bank_map: &BankMap,
     oracle_map: &mut OracleMap,
     maker: Option<&'a AccountLoader<User>>,
     maker_stats: Option<&'a AccountLoader<UserStats>>,
@@ -759,6 +783,7 @@ fn sanitize_maker_order<'a>(
             maker.deref_mut(),
             &maker_key,
             market_map,
+            bank_map,
             oracle_map,
             now,
             slot,
@@ -994,6 +1019,7 @@ fn fulfill_order(
             user,
             user_key,
             market_map,
+            bank_map,
             oracle_map,
             now,
             slot,

@@ -717,6 +717,62 @@
       ]
     },
     {
+      "name": "placeSpotOrder",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "OrderParams"
+          }
+        }
+      ]
+    },
+    {
+      "name": "cancelSpotOrder",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "orderId",
+          "type": {
+            "option": "u64"
+          }
+        }
+      ]
+    },
+    {
       "name": "updateAmms",
       "accounts": [
         {
@@ -2268,6 +2324,10 @@
           {
             "name": "withdrawGuardThreshold",
             "type": "u128"
+          },
+          {
+            "name": "orderStepSize",
+            "type": "u128"
           }
         ]
       }
@@ -3480,6 +3540,18 @@
           {
             "name": "balance",
             "type": "u128"
+          },
+          {
+            "name": "openOrders",
+            "type": "u8"
+          },
+          {
+            "name": "openBids",
+            "type": "i128"
+          },
+          {
+            "name": "openAsks",
+            "type": "i128"
           }
         ]
       }
@@ -4656,8 +4728,8 @@
     },
     {
       "code": 6016,
-      "name": "TradeSizeTooSmall",
-      "msg": "Trade Size Too Small"
+      "name": "OrderSizeTooSmall",
+      "msg": "Order Size Too Small"
     },
     {
       "code": 6017,

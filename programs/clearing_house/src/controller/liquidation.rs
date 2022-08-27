@@ -167,6 +167,7 @@ pub fn liquidate_perp(
             user,
             user_key,
             market_map,
+            bank_map,
             oracle_map,
             now,
             slot,
