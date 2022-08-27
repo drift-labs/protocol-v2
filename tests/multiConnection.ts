@@ -83,7 +83,6 @@ describe('multiConnection', () => {
 	eventSubscriber.subscribe();
 
 	let usdcMint;
-	let userUSDCAccount;
 	const usdcAmount = new BN(1000000 * 10 ** 6);
 
 	// ammInvariant == k == x * y
@@ -97,7 +96,6 @@ describe('multiConnection', () => {
 
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
-		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
 		const solUsd = await mockOracle(1);
 		const periodicity = new BN(60 * 60); // 1 HOUR

@@ -150,13 +150,6 @@ export class BulkAccountLoader {
 			return;
 		}
 
-		const args = [
-			accountsToLoad.map((accountToLoad) => {
-				return accountToLoad.publicKey.toBase58();
-			}),
-			{ commitment: this.commitment },
-		];
-
 		const rpcResponse: RpcResponseAndContext<(AccountInfo<Buffer> | null)[]> =
 			await promiseTimeout(
 				this.connection.getMultipleAccountsInfoAndContext(

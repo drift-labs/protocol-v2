@@ -7,7 +7,9 @@ import {
 } from '@solana/web3.js';
 import { promiseTimeout } from './util/promiseTimeout';
 
-// interface for solana Connection
+/**
+ * interface for solana/web3.js Connection
+ */
 interface SolanaConnection {
 	rpcEndpoint: string;
 
