@@ -636,6 +636,18 @@ pub mod clearing_house {
         };
         emit!(deposit_record);
 
+        // reload the bank vault balance so it's up-to-date
+        ctx.accounts.bank_vault.reload()?;
+        let available_deposits = bank.get_available_deposits()?;
+
+        validate!(
+            available_deposits <= cast(ctx.accounts.bank_vault.amount)?,
+            ErrorCode::InvalidBankState,
+            "available deposits > bank_vault.amount: {} > {}",
+            available_deposits,
+            ctx.accounts.bank_vault.amount
+        )?;
+
         Ok(())
     }
 

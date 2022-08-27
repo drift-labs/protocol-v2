@@ -84,7 +84,7 @@ pub fn burn_lp_shares(
     market.amm.net_unsettled_lp_base_asset_amount = market
         .amm
         .net_unsettled_lp_base_asset_amount
-        .checked_sub(base_asset_amount)
+        .checked_add(base_asset_amount)
         .ok_or_else(math_error!())?;
 
     // liquidate dust position
@@ -166,7 +166,7 @@ mod test {
         assert_eq!(position.base_asset_amount, 10 * 100);
         assert_eq!(position.quote_asset_amount, -10 * 100);
         assert_eq!(
-            og_market.amm.net_unsettled_lp_base_asset_amount - 10 * 100,
+            og_market.amm.net_unsettled_lp_base_asset_amount + 10 * 100,
             market.amm.net_unsettled_lp_base_asset_amount
         );
         // net baa doesnt change

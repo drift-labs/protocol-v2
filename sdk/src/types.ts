@@ -326,6 +326,8 @@ export type StateAccount = {
 	numberOfMarkets: BN;
 	numberOfBanks: BN;
 	minOrderQuoteAssetAmount: BN;
+	maxAuctionDuration: number;
+	minAuctionDuration: number;
 };
 
 export type MarketAccount = {
@@ -589,6 +591,7 @@ export type MakerInfo = {
 export type TakerInfo = {
 	taker: PublicKey;
 	takerStats: PublicKey;
+	takerUserAccount: UserAccount;
 	order: Order;
 };
 
