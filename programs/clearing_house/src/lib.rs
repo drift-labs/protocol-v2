@@ -1328,6 +1328,32 @@ pub mod clearing_house {
         Ok(())
     }
 
+    pub fn cancel_spot_order(ctx: Context<CancelOrder>, order_id: Option<u64>) -> Result<()> {
+        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
+        let _bank_map = BankMap::load(&MarketSet::new(), remaining_accounts_iter)?;
+        let market_map = MarketMap::load(
+            &MarketSet::new(),
+            &MarketSet::new(),
+            remaining_accounts_iter,
+        )?;
+
+        let order_id = match order_id {
+            Some(order_id) => order_id,
+            None => load!(ctx.accounts.user)?.get_last_order_id(),
+        };
+
+        controller::orders::cancel_order_by_order_id(
+            order_id,
+            &ctx.accounts.user,
+            &market_map,
+            &mut oracle_map,
+            &Clock::get()?,
+        )?;
+
+        Ok(())
+    }
+
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]

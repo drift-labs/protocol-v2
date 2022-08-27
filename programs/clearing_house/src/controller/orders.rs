@@ -317,6 +317,7 @@ pub fn cancel_order(
     user: &mut User,
     user_key: &Pubkey,
     market_map: &MarketMap,
+    bank_map: &BankMap,
     oracle_map: &mut OracleMap,
     now: i64,
     slot: u64,
@@ -333,25 +334,27 @@ pub fn cancel_order(
         market_type
     );
 
-    controller::funding::settle_funding_payment(
-        user,
-        user_key,
-        market_map.get_ref(&order_market_index)?.deref(),
-        now,
-    )?;
+    let is_perp_order = order_market_type == MarketType::Perp;
+
+    if is_perp_order {
+        controller::funding::settle_funding_payment(
+            user,
+            user_key,
+            market_map.get_ref(&order_market_index)?.deref(),
+            now,
+        )?;
+    }
 
     validate!(order_status == OrderStatus::Open, ErrorCode::OrderNotOpen)?;
 
-    validate!(
-        order_market_type == MarketType::Perp,
-        ErrorCode::InvalidOrder,
-        "must be perp order"
-    )?;
-
-    let market = &market_map.get_ref(&order_market_index)?;
-
     // When save in the record, we want the status to be canceled
     user.orders[order_index].status = OrderStatus::Canceled;
+
+    let oracle = if is_perp_order {
+        &market_map.get_ref(&order_market_index)?.amm.oracle
+    } else {
+        &bank_map.get_ref(&order_market_index)?.oracle
+    };
 
     if !skip_log {
         let (taker, taker_order, taker_unsettled_pnl, maker, maker_order, maker_unsettled_pnl) =
@@ -377,14 +380,14 @@ pub fn cancel_order(
                 None => Pubkey::default(),
             },
             fill_record_id: 0,
-            market_index: market.market_index,
+            market_index: order_market_index,
             base_asset_amount_filled: 0,
             quote_asset_amount_filled: 0,
             filler_reward,
             taker_fee: 0,
             maker_rebate: 0,
             quote_asset_amount_surplus: 0,
-            oracle_price: oracle_map.get_price_data(&market.amm.oracle)?.price,
+            oracle_price: oracle_map.get_price_data(oracle)?.price,
             referrer_reward: 0,
             referee_discount: 0,
             referrer: Pubkey::default(),
