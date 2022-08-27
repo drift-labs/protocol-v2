@@ -1081,15 +1081,13 @@ pub fn fulfill_order_with_amm(
     fee_structure: &FeeStructure,
     order_records: &mut Vec<OrderRecord>,
     override_base_asset_amount: Option<u128>,
-    override_maker_limit_price: Option<u128>, // todo probs dont need this since its the user_limit_price / current auction time
+    override_fill_price: Option<u128>, // todo probs dont need this since its the user_limit_price / current auction time
 ) -> ClearingHouseResult<(u128, bool)> {
     // Determine the base asset amount the market can fill
-    let (base_asset_amount, maker_limit_price) = match override_base_asset_amount {
-        Some(override_base_asset_amount) => {
-            (override_base_asset_amount, override_maker_limit_price)
-        }
+    let (base_asset_amount, fill_price) = match override_base_asset_amount {
+        Some(override_base_asset_amount) => (override_base_asset_amount, override_fill_price),
         None => {
-            let maker_limit_price = if user.orders[order_index].post_only {
+            let fill_price = if user.orders[order_index].post_only {
                 Some(user.orders[order_index].get_limit_price(
                     &market.amm,
                     valid_oracle_price,
@@ -1106,7 +1104,7 @@ pub fn fulfill_order_with_amm(
                     valid_oracle_price,
                     slot,
                 )?,
-                maker_limit_price,
+                fill_price,
             )
         }
     };
@@ -1133,7 +1131,7 @@ pub fn fulfill_order_with_amm(
             position_index,
             mark_price_before,
             now,
-            maker_limit_price,
+            fill_price,
         )?;
 
     let reward_referrer = referrer.is_some()

@@ -4,7 +4,7 @@ use crate::math_error;
 use crate::state::market::Market;
 use solana_program::msg;
 
-// assumption: market.amm.amm_jit_is_active() == true  
+// assumption: market.amm.amm_jit_is_active() == true
 // assumption: taker_baa will improve market balance (see orders.rs & amm_wants_to_make)
 pub fn calculate_jit_base_asset_amount(
     market: &Market,
@@ -19,9 +19,14 @@ pub fn calculate_jit_base_asset_amount(
         market.amm.base_asset_amount_step_size,
     )?;
 
-    if jit_base_asset_amount > 0 {
+    if jit_base_asset_amount != 0 {
         jit_base_asset_amount =
             calculate_clampped_jit_base_asset_amount(market, jit_base_asset_amount)?;
+
+        jit_base_asset_amount = standardize_base_asset_amount(
+            jit_base_asset_amount,
+            market.amm.base_asset_amount_step_size,
+        )?;
     }
 
     Ok(jit_base_asset_amount)
