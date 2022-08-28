@@ -23,6 +23,8 @@ describe('token faucet', () => {
 	let clearingHouse: Admin;
 
 	const amount = new BN(10 * 10 ** 6);
+	const maxAmountMint: BN = new BN(10 * 10 ** 6);
+	const maxAmountPerUser: BN = new BN(15 * 10 ** 6);
 
 	before(async () => {
 		clearingHouse = new Admin({
@@ -54,9 +56,6 @@ describe('token faucet', () => {
 	});
 
 	it('Initialize State', async () => {
-		const usdcPrecision: number = (await token.getMintInfo()).decimals;
-		const maxAmountMint: BN = new BN(10_000 * Math.pow(10, usdcPrecision));
-		const maxAmountPerUser: BN = new BN(10_000_000 * Math.pow(10, usdcPrecision));
 		await tokenFaucet.initialize(maxAmountMint, maxAmountPerUser);
 		const state: any = await tokenFaucet.fetchState();
 
@@ -73,6 +72,8 @@ describe('token faucet', () => {
 
 		assert.ok(state.mintAuthority.equals(mintAuthority));
 		assert.ok(mintAuthorityNonce === state.mintAuthorityNonce);
+		assert.ok(state.maxAmountMint.eq(maxAmountMint));
+		assert.ok(state.maxAmountPerUser.eq(maxAmountPerUser));
 
 		const mintInfo = await token.getMintInfo();
 		assert.ok(state.mintAuthority.equals(mintInfo.mintAuthority));
@@ -94,13 +95,46 @@ describe('token faucet', () => {
 		assert.ok(userTokenAccountInfo.amount.eq(amount));
 	});
 
+	it('mints above maxAmountMint to user', async () => {
+		const keyPair = new Keypair()
+		let userTokenAccountInfo = await token.getOrCreateAssociatedAccountInfo(
+			keyPair.publicKey
+		);
+		try {
+			await tokenFaucet.mintToUser(userTokenAccountInfo.address, amount.add(new BN(1)));
+		} catch (e) {}
+		userTokenAccountInfo = await token.getOrCreateAssociatedAccountInfo(
+			keyPair.publicKey
+		);
+		assert.ok(userTokenAccountInfo.amount.eq(new BN(0)))
+	})
+
+	it('mints more than maxAmountPerUser to user', async () => {
+		const keyPair = new Keypair();
+		let userTokenAccountInfo = await token.getOrCreateAssociatedAccountInfo(
+			keyPair.publicKey
+		);
+		try {
+			await tokenFaucet.mintToUser(userTokenAccountInfo.address, amount);
+		} catch (e) {
+			console.error(e);
+		}
+		try {
+			await tokenFaucet.mintToUser(userTokenAccountInfo.address, amount);
+		} catch(e) {}
+		userTokenAccountInfo = await token.getOrCreateAssociatedAccountInfo(
+			keyPair.publicKey
+		);
+		assert.ok(userTokenAccountInfo.amount.eq(amount));
+	})
+
 	it('initialize user for dev net', async () => {
 		const state: any = await tokenFaucet.fetchState();
 
 		await clearingHouse.initialize(state.mint, false);
 		await clearingHouse.subscribe();
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
-		await clearingHouse.initializeUserAccountForDevnet(
+		const [txSig, userAccountPublicKey] = await clearingHouse.initializeUserAccountForDevnet(
 			0,
 			'crisp',
 			new BN(0),

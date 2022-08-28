@@ -116,15 +116,15 @@ pub struct FaucetConfig {
 }
 
 #[derive(Accounts)]
-#[instruction(amount: u64, max_amount_mint: u64)]
+#[instruction(amount: u64)]
 pub struct MintToUser<'info> {
     pub faucet_config: Box<Account<'info, FaucetConfig>>,
     #[account(mut)]
     pub mint_account: Box<Account<'info, Mint>>,
     #[account(
         mut,
-        constraint = amount < max_amount_mint,
-        constraint = user_token_account.amount < faucet_config.max_amount_per_user,
+        constraint = amount <= faucet_config.max_amount_mint,
+        constraint = user_token_account.amount + amount <= faucet_config.max_amount_per_user,
     )]
     pub user_token_account: Box<Account<'info, TokenAccount>>,
     /// CHECK: Checked by spl_token
