@@ -421,6 +421,7 @@ pub struct FillSpotOrder<'info> {
         seeds = [b"bank_vault_authority".as_ref(), 0_u64.to_le_bytes().as_ref()],
         bump,
     )]
+    /// CHECK: signer for quote vault
     pub quote_bank_vault_authority: AccountInfo<'info>,
     /// CHECK: checked in ix because it's based on the order market index
     pub base_bank_vault_authority: AccountInfo<'info>,

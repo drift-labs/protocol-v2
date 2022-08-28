@@ -745,11 +745,26 @@
       ]
     },
     {
-      "name": "cancelSpotOrder",
+      "name": "fillSpotOrder",
       "accounts": [
         {
           "name": "state",
           "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "filler",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "fillerStats",
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -758,14 +773,40 @@
           "isSigner": false
         },
         {
-          "name": "authority",
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "quoteBankVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "baseBankVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "quoteBankVaultAuthority",
           "isMut": false,
-          "isSigner": true
+          "isSigner": false
+        },
+        {
+          "name": "baseBankVaultAuthority",
+          "isMut": false,
+          "isSigner": false
         }
       ],
       "args": [
         {
           "name": "orderId",
+          "type": {
+            "option": "u64"
+          }
+        },
+        {
+          "name": "makerOrderId",
           "type": {
             "option": "u64"
           }
@@ -2328,6 +2369,10 @@
           {
             "name": "orderStepSize",
             "type": "u128"
+          },
+          {
+            "name": "nextFillRecordId",
+            "type": "u64"
           }
         ]
       }
@@ -4007,6 +4052,20 @@
       }
     },
     {
+      "name": "AssetType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Base"
+          },
+          {
+            "name": "Quote"
+          }
+        ]
+      }
+    },
+    {
       "name": "OrderStatus",
       "type": {
         "kind": "enum",
@@ -5240,6 +5299,11 @@
       "code": 6118,
       "name": "TryingToRemoveLiquidityTooFast",
       "msg": "Trying to remove liqudity too fast after adding it"
+    },
+    {
+      "code": 6119,
+      "name": "InvalidBankVault",
+      "msg": "Invalid Bank Vault"
     }
   ]
 }

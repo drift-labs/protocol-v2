@@ -272,6 +272,7 @@ pub mod clearing_house {
             liquidation_fee,
             withdraw_guard_threshold: 0,
             order_step_size,
+            next_fill_record_id: 1,
         };
 
         Ok(())
@@ -495,8 +496,7 @@ pub mod clearing_house {
         let bank = &mut bank_map.get_ref_mut(&bank_index)?;
         controller::bank_balance::update_bank_cumulative_interest(bank, now)?;
 
-        let user_bank_balance =
-            user.force_get_bank_balance_mut(bank.bank_index, BankBalanceType::Deposit)?;
+        let user_bank_balance = user.force_get_bank_balance_mut(bank.bank_index)?;
 
         // if reduce only, have to compare ix amount to current borrow amount
         let amount = if reduce_only && user_bank_balance.balance_type == BankBalanceType::Borrow {
@@ -573,8 +573,7 @@ pub mod clearing_house {
             let bank = &mut bank_map.get_ref_mut(&bank_index)?;
             controller::bank_balance::update_bank_cumulative_interest(bank, now)?;
 
-            let user_bank_balance =
-                user.force_get_bank_balance_mut(bank.bank_index, BankBalanceType::Deposit)?;
+            let user_bank_balance = user.force_get_bank_balance_mut(bank.bank_index)?;
 
             // if reduce only, have to compare ix amount to current deposit amount
             let amount =
@@ -678,8 +677,7 @@ pub mod clearing_house {
 
         {
             let bank = &mut bank_map.get_ref_mut(&bank_index)?;
-            let from_user_bank_balance =
-                from_user.force_get_bank_balance_mut(bank.bank_index, BankBalanceType::Deposit)?;
+            let from_user_bank_balance = from_user.force_get_bank_balance_mut(bank.bank_index)?;
 
             controller::bank_balance::update_bank_balances(
                 amount as u128,
@@ -718,8 +716,7 @@ pub mod clearing_house {
 
         {
             let bank = &mut bank_map.get_ref_mut(&bank_index)?;
-            let to_user_bank_balance =
-                to_user.force_get_bank_balance_mut(bank.bank_index, BankBalanceType::Deposit)?;
+            let to_user_bank_balance = to_user.force_get_bank_balance_mut(bank.bank_index)?;
 
             controller::bank_balance::update_bank_balances(
                 amount as u128,

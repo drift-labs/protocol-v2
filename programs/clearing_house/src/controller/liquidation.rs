@@ -433,14 +433,14 @@ pub fn liquidate_borrow(
     })?;
 
     liquidator
-        .force_get_bank_balance_mut(asset_bank_index, BankBalanceType::Deposit)
+        .force_get_bank_balance_mut(asset_bank_index)
         .map_err(|e| {
             msg!("Liquidator has no available bank balances to take on deposit");
             e
         })?;
 
     liquidator
-        .force_get_bank_balance_mut(liability_bank_index, BankBalanceType::Borrow)
+        .force_get_bank_balance_mut(liability_bank_index)
         .map_err(|e| {
             msg!("Liquidator has no available bank balances to take on borrow");
             e
@@ -712,7 +712,7 @@ pub fn liquidate_borrow_for_perp_pnl(
         })?;
 
     liquidator
-        .force_get_bank_balance_mut(liability_bank_index, BankBalanceType::Borrow)
+        .force_get_bank_balance_mut(liability_bank_index)
         .map_err(|e| {
             msg!("Liquidator has no available bank balances to take on borrow");
             e
@@ -1004,7 +1004,7 @@ pub fn liquidate_perp_pnl_for_deposit(
         })?;
 
     liquidator
-        .force_get_bank_balance_mut(asset_bank_index, BankBalanceType::Deposit)
+        .force_get_bank_balance_mut(asset_bank_index)
         .map_err(|e| {
             msg!("Liquidator has no available bank balances to take on deposit");
             e

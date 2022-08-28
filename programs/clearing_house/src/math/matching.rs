@@ -39,13 +39,16 @@ pub fn calculate_fill_for_matched_orders(
     maker_base_asset_amount: u128,
     maker_price: u128,
     taker_base_asset_amount: u128,
+    base_precision: u32,
 ) -> ClearingHouseResult<(u128, u128)> {
     let base_asset_amount = min(maker_base_asset_amount, taker_base_asset_amount);
+
+    let precision_decrease = 10_u128.pow(10 + base_precision - 6);
 
     let quote_asset_amount = base_asset_amount
         .checked_mul(maker_price)
         .ok_or_else(math_error!())?
-        .checked_div(MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO)
+        .checked_div(precision_decrease)
         .ok_or_else(math_error!())?;
 
     Ok((base_asset_amount, quote_asset_amount))

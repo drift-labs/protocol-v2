@@ -90,10 +90,9 @@ impl User {
     pub fn force_get_bank_balance_mut(
         &mut self,
         bank_index: u64,
-        balance_type: BankBalanceType,
     ) -> ClearingHouseResult<&mut UserBankBalance> {
         self.get_bank_balance_index(bank_index)
-            .or_else(|_| self.add_bank_balance(bank_index, balance_type))
+            .or_else(|_| self.add_bank_balance(bank_index, BankBalanceType::Deposit))
             .map(move |bank_index| &mut self.bank_balances[bank_index])
     }
 
@@ -190,6 +189,10 @@ impl BankBalance for UserBankBalance {
 impl UserBankBalance {
     pub fn is_available(&self) -> bool {
         self.balance == 0 && self.open_orders == 0
+    }
+
+    pub fn get_token_amount(&self, bank: &Bank) -> ClearingHouseResult<u128> {
+        get_token_amount(self.balance, bank, &self.balance_type)
     }
 
     pub fn get_signed_token_amount(&self, bank: &Bank) -> ClearingHouseResult<i128> {
@@ -380,6 +383,13 @@ pub struct Order {
     pub auction_duration: u8,
     pub padding: [u16; 3],
 }
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug)]
+pub enum AssetType {
+    Base,
+    Quote,
+}
+
 impl Order {
     pub fn has_oracle_price_offset(self) -> bool {
         self.oracle_price_offset != 0
@@ -481,6 +491,15 @@ impl Order {
 
     pub fn is_open_order_for_market(&self, market_index: u64) -> bool {
         self.market_index == market_index && self.status == OrderStatus::Open
+    }
+
+    pub fn get_bank_balance_update_direction(&self, asset_type: AssetType) -> BankBalanceType {
+        match (self.direction, asset_type) {
+            (PositionDirection::Long, AssetType::Base) => BankBalanceType::Deposit,
+            (PositionDirection::Long, AssetType::Quote) => BankBalanceType::Borrow,
+            (PositionDirection::Short, AssetType::Base) => BankBalanceType::Borrow,
+            (PositionDirection::Short, AssetType::Quote) => BankBalanceType::Deposit,
+        }
     }
 }
 

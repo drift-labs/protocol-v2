@@ -1603,7 +1603,7 @@ pub mod fulfill_order {
         let mut maker_stats = UserStats::default();
         let mut filler_stats = UserStats::default();
 
-        let (base_asset_amount, _, _) = fulfill_spot_order(
+        let (base_asset_amount, _, _) = fulfill_order(
             &mut taker,
             0,
             &taker_key,
@@ -1761,7 +1761,7 @@ pub mod fulfill_order {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        let (base_asset_amount, _, _) = fulfill_spot_order(
+        let (base_asset_amount, _, _) = fulfill_order(
             &mut taker,
             0,
             &taker_key,
@@ -1912,7 +1912,7 @@ pub mod fulfill_order {
 
         let mut taker_stats = UserStats::default();
 
-        let (base_asset_amount, _, _) = fulfill_spot_order(
+        let (base_asset_amount, _, _) = fulfill_order(
             &mut taker,
             0,
             &taker_key,
@@ -2083,7 +2083,7 @@ pub mod fulfill_order {
         let mut maker_stats = UserStats::default();
         let mut filler_stats = UserStats::default();
 
-        let (base_asset_amount, potentially_risk_increasing, _) = fulfill_spot_order(
+        let (base_asset_amount, potentially_risk_increasing, _) = fulfill_order(
             &mut taker,
             0,
             &taker_key,
@@ -2290,7 +2290,7 @@ pub mod fulfill_order {
 
         let taker_before = taker;
         let maker_before = maker;
-        let (base_asset_amount, _, _) = fulfill_spot_order(
+        let (base_asset_amount, _, _) = fulfill_order(
             &mut taker,
             0,
             &taker_key,

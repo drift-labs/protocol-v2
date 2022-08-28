@@ -50,6 +50,7 @@ pub struct Bank {
     pub liquidation_fee: u128,
     pub withdraw_guard_threshold: u128, // no withdraw limits/guards when bank deposits below this threshold
     pub order_step_size: u128,
+    pub next_fill_record_id: u64,
 }
 
 impl Bank {

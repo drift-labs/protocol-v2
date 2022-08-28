@@ -3,6 +3,7 @@ use solana_program::msg;
 
 use crate::context::*;
 use crate::controller;
+use crate::controller::bank_balance::update_bank_balances;
 use crate::controller::position;
 use crate::controller::position::{
     add_new_position, decrease_open_bids_and_asks, get_position_index, increase_open_bids_and_asks,
@@ -22,6 +23,7 @@ use crate::math::auction::{
     calculate_auction_end_price, calculate_auction_start_price, calculate_spot_auction_end_price,
     is_auction_complete,
 };
+use crate::math::bank_balance::get_token_amount;
 use crate::math::casting::{cast, cast_to_i128};
 use crate::math::fees::FillFees;
 use crate::math::fulfillment::determine_fulfillment_methods;
@@ -34,7 +36,7 @@ use crate::math::{amm, fees, margin::*, orders::*};
 use crate::math_error;
 use crate::order_validation::{validate_order, validate_spot_order};
 use crate::print_error;
-use crate::state::bank::BankBalanceType;
+use crate::state::bank::{Bank, BankBalanceType};
 use crate::state::bank_map::BankMap;
 use crate::state::events::{emit_stack, OrderRecord};
 use crate::state::events::{OrderAction, OrderActionExplanation};
@@ -44,7 +46,7 @@ use crate::state::market_map::MarketMap;
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
 use crate::state::state::*;
-use crate::state::user::{MarketPosition, Order, OrderStatus, OrderType, UserStats};
+use crate::state::user::{AssetType, MarketPosition, Order, OrderStatus, OrderType, UserStats};
 use crate::state::user::{MarketType, User};
 use crate::validate;
 use std::alloc::{alloc_zeroed, Layout};
@@ -588,30 +590,29 @@ pub fn fill_order(
         return Ok((0, true));
     }
 
-    let (base_asset_amount, potentially_risk_increasing, mut updated_user_state) =
-        fulfill_spot_order(
-            user,
-            order_index,
-            &user_key,
-            user_stats,
-            &mut maker.as_deref_mut(),
-            &mut maker_stats.as_deref_mut(),
-            maker_order_index,
-            maker_key.as_ref(),
-            &mut filler.as_deref_mut(),
-            &filler_key,
-            &mut filler_stats.as_deref_mut(),
-            &mut referrer.as_deref_mut(),
-            &mut referrer_stats.as_deref_mut(),
-            bank_map,
-            market_map,
-            oracle_map,
-            &state.fee_structure,
-            mark_price_before,
-            valid_oracle_price,
-            now,
-            slot,
-        )?;
+    let (base_asset_amount, potentially_risk_increasing, mut updated_user_state) = fulfill_order(
+        user,
+        order_index,
+        &user_key,
+        user_stats,
+        &mut maker.as_deref_mut(),
+        &mut maker_stats.as_deref_mut(),
+        maker_order_index,
+        maker_key.as_ref(),
+        &mut filler.as_deref_mut(),
+        &filler_key,
+        &mut filler_stats.as_deref_mut(),
+        &mut referrer.as_deref_mut(),
+        &mut referrer_stats.as_deref_mut(),
+        bank_map,
+        market_map,
+        oracle_map,
+        &state.fee_structure,
+        mark_price_before,
+        valid_oracle_price,
+        now,
+        slot,
+    )?;
 
     if should_cancel_order_after_fulfill(user, order_index, slot)? {
         updated_user_state = true;
@@ -1401,6 +1402,7 @@ pub fn fulfill_order_with_match(
         maker_base_asset_amount,
         maker_price,
         taker_base_asset_amount,
+        13,
     )?;
 
     if base_asset_amount == 0 {
@@ -2129,38 +2131,7 @@ pub fn fill_spot_order(
         state.liquidation_margin_buffer_ratio,
     )?;
 
-    // let mark_price_before: u128;
-    // let oracle_mark_spread_pct_before: i128;
-    // let is_oracle_valid: bool;
-    // let oracle_price: i128;
-    // {
-    //     let market = &mut market_map.get_ref_mut(&market_index)?;
-    //     validate!(
-    //         ((oracle_map.slot == market.amm.last_update_slot && market.amm.last_oracle_valid)
-    //             || market.amm.curve_update_intensity == 0),
-    //         ErrorCode::AMMNotUpdatedInSameSlot,
-    //         "AMM must be updated in a prior instruction within same slot"
-    //     )?;
-    //
-    //     let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
-    //
-    //     is_oracle_valid = amm::is_oracle_valid(
-    //         &market.amm,
-    //         oracle_price_data,
-    //         &state.oracle_guard_rails.validity,
-    //     )?;
-    //
-    //     mark_price_before = market.amm.mark_price()?;
-    //     oracle_mark_spread_pct_before =
-    //         amm::calculate_oracle_twap_5min_mark_spread_pct(&market.amm, Some(mark_price_before))?;
-    //     oracle_price = oracle_price_data.price;
-    // }
-    //
-    // let valid_oracle_price = if is_oracle_valid {
-    //     Some(oracle_price)
-    // } else {
-    //     None
-    // };
+    // TODO SPOT do we need before and after oracle guardrail checks?
 
     let is_filler_taker = user_key == filler_key;
     let is_filler_maker = maker.map_or(false, |maker| maker.key() == filler_key);
@@ -2176,146 +2147,40 @@ pub fn fill_spot_order(
         maker_order_id,
         &user_key,
         &user.orders[order_index],
+        bank_map,
+        oracle_map,
+        slot,
     )?;
 
-    // let should_expire_order =
-    //     should_expire_order(user, order_index, slot, state.max_auction_duration)?;
-    // if should_expire_order {
-    //     let filler_reward = {
-    //         let mut market = market_map.get_ref_mut(&market_index)?;
-    //         pay_keeper_flat_reward(
-    //             user,
-    //             filler.as_deref_mut(),
-    //             market.deref_mut(),
-    //             state.fee_structure.cancel_order_fee,
-    //         )?
-    //     };
-    //
-    //     cancel_order(
-    //         order_index,
-    //         user,
-    //         &user_key,
-    //         market_map,
-    //         bank_map,
-    //         oracle_map,
-    //         now,
-    //         slot,
-    //         OrderActionExplanation::MarketOrderAuctionExpired,
-    //         Some(&filler_key),
-    //         filler_reward,
-    //         false,
-    //     )?;
-    //     return Ok((0, true));
-    // }
-    //
-    // let (base_asset_amount, potentially_risk_increasing, mut updated_user_state) = fulfill_order(
-    //     user,
-    //     order_index,
-    //     &user_key,
-    //     user_stats,
-    //     &mut maker.as_deref_mut(),
-    //     &mut maker_stats.as_deref_mut(),
-    //     maker_order_index,
-    //     maker_key.as_ref(),
-    //     &mut filler.as_deref_mut(),
-    //     &filler_key,
-    //     &mut filler_stats.as_deref_mut(),
-    //     &mut referrer.as_deref_mut(),
-    //     &mut referrer_stats.as_deref_mut(),
-    //     bank_map,
-    //     market_map,
-    //     oracle_map,
-    //     &state.fee_structure,
-    //     mark_price_before,
-    //     valid_oracle_price,
-    //     now,
-    //     slot,
-    // )?;
-    //
-    // if should_cancel_order_after_fulfill(user, order_index, slot)? {
-    //     updated_user_state = true;
-    //
-    //     let filler_reward = {
-    //         let mut market = market_map.get_ref_mut(&market_index)?;
-    //         pay_keeper_flat_reward(
-    //             user,
-    //             filler.as_deref_mut(),
-    //             market.deref_mut(),
-    //             state.fee_structure.cancel_order_fee,
-    //         )?
-    //     };
-    //
-    //     cancel_order(
-    //         order_index,
-    //         user,
-    //         &user_key,
-    //         market_map,
-    //         bank_map,
-    //         oracle_map,
-    //         now,
-    //         slot,
-    //         OrderActionExplanation::MarketOrderFilledToLimitPrice,
-    //         Some(&filler_key),
-    //         filler_reward,
-    //         false,
-    //     )?
-    // }
-    //
-    // if !updated_user_state {
-    //     return Ok((base_asset_amount, updated_user_state));
-    // }
-    //
-    // let mark_price_after: u128;
-    // let oracle_mark_spread_pct_after: i128;
-    // {
-    //     let market = market_map.get_ref_mut(&market_index)?;
-    //     mark_price_after = market.amm.mark_price()?;
-    //     oracle_mark_spread_pct_after =
-    //         amm::calculate_oracle_twap_5min_mark_spread_pct(&market.amm, Some(mark_price_after))?;
-    // }
-    //
-    // let is_oracle_mark_too_divergent_before = amm::is_oracle_mark_too_divergent(
-    //     oracle_mark_spread_pct_before,
-    //     &state.oracle_guard_rails.price_divergence,
-    // )?;
-    //
-    // let is_oracle_mark_too_divergent_after = amm::is_oracle_mark_too_divergent(
-    //     oracle_mark_spread_pct_after,
-    //     &state.oracle_guard_rails.price_divergence,
-    // )?;
-    //
-    // // if oracle-mark divergence pushed outside limit, block order
-    // if is_oracle_mark_too_divergent_after && !is_oracle_mark_too_divergent_before && is_oracle_valid
-    // {
-    //     return Err(ErrorCode::OracleMarkSpreadLimit);
-    // }
-    //
-    // // if oracle-mark divergence outside limit and risk-increasing, block order
-    // if is_oracle_mark_too_divergent_after
-    //     && oracle_mark_spread_pct_after.unsigned_abs()
-    //         >= oracle_mark_spread_pct_before.unsigned_abs()
-    //     && is_oracle_valid
-    //     && potentially_risk_increasing
-    // {
-    //     return Err(ErrorCode::OracleMarkSpreadLimit);
-    // }
-    //
-    // // Try to update the funding rate at the end of every trade
-    // {
-    //     let market = &mut market_map.get_ref_mut(&market_index)?;
-    //     controller::funding::update_funding_rate(
-    //         market_index,
-    //         market,
-    //         oracle_map,
-    //         now,
-    //         &state.oracle_guard_rails,
-    //         state.funding_paused,
-    //         Some(mark_price_before),
-    //     )?;
-    // }
+    // TODO SPOT: pay filler to cancel old order
 
-    let base_asset_amount = 0;
-    let updated_user_state = false;
+    let (base_asset_amount, mut updated_user_state) = fulfill_spot_order(
+        user,
+        order_index,
+        &user_key,
+        user_stats,
+        &mut maker.as_deref_mut(),
+        &mut maker_stats.as_deref_mut(),
+        maker_order_index,
+        maker_key.as_ref(),
+        &mut filler.as_deref_mut(),
+        &filler_key,
+        &mut filler_stats.as_deref_mut(),
+        bank_map,
+        market_map,
+        oracle_map,
+        now,
+        slot,
+    )?;
+
+    // TODO SPT check if fill should cancel order after fill
+
+    if !updated_user_state {
+        return Ok((base_asset_amount, updated_user_state));
+    }
+
+    // TODO SPOT check if we need to check oracle guardrails
+
     Ok((base_asset_amount, updated_user_state))
 }
 
@@ -2326,6 +2191,9 @@ fn sanitize_spot_maker_order<'a>(
     maker_order_id: Option<u64>,
     taker_key: &Pubkey,
     taker_order: &Order,
+    bank_map: &BankMap,
+    oracle_map: &mut OracleMap,
+    slot: u64,
 ) -> ClearingHouseResult<(
     Option<RefMut<'a, User>>,
     Option<RefMut<'a, UserStats>>,
@@ -2371,6 +2239,25 @@ fn sanitize_spot_maker_order<'a>(
         )?
     }
 
+    let breaches_oracle_price_limits = {
+        let bank = bank_map.get_ref(&maker.orders[maker_order_index].market_index)?;
+        let oracle_price = oracle_map.get_price_data(&bank.oracle)?;
+        let initial_leverage_ratio =
+            bank.get_initial_leverage_ratio(MarginRequirementType::Initial)?;
+        order_breaches_oracle_price_limits(
+            &maker.orders[maker_order_index],
+            oracle_price.price,
+            slot,
+            initial_leverage_ratio,
+            None,
+        )?
+    };
+
+    if breaches_oracle_price_limits {
+        // TODO SPOT filler cancels ordres breaching oracle price
+        return Ok((None, None, None, None));
+    }
+
     Ok((
         Some(maker),
         Some(maker_stats),
@@ -2391,187 +2278,228 @@ fn fulfill_spot_order(
     filler: &mut Option<&mut User>,
     filler_key: &Pubkey,
     filler_stats: &mut Option<&mut UserStats>,
-    referrer: &mut Option<&mut User>,
-    referrer_stats: &mut Option<&mut UserStats>,
     bank_map: &BankMap,
     market_map: &MarketMap,
     oracle_map: &mut OracleMap,
-    fee_structure: &FeeStructure,
-    mark_price_before: u128,
-    valid_oracle_price: Option<i128>,
     now: i64,
     slot: u64,
-) -> ClearingHouseResult<(u128, bool, bool)> {
-    Ok((0, false, false))
+) -> ClearingHouseResult<(u128, bool)> {
+    let free_collateral = calculate_free_collateral(user, market_map, bank_map, oracle_map)?;
 
-    // let market_index = user.orders[user_order_index].market_index;
-    //
-    // let position_index = get_position_index(&user.positions, market_index)?;
-    // let worst_case_base_asset_amount_before =
-    //     user.positions[position_index].worst_case_base_asset_amount()?;
-    //
-    // let user_checkpoint = checkpoint_user(user, user_stats, market_index, Some(user_order_index))?;
-    // let maker_checkpoint = if let Some(maker) = maker {
-    //     let maker_order_index = maker_order_index.ok_or(ErrorCode::MakerOrderNotFound)?;
-    //     Some(checkpoint_user(
-    //         maker,
-    //         maker_stats.as_mut().unwrap(),
-    //         market_index,
-    //         Some(maker_order_index),
-    //     )?)
-    // } else {
-    //     None
-    // };
-    // let filler_checkpoint = if let Some(filler) = filler {
-    //     Some(checkpoint_user(
-    //         filler,
-    //         filler_stats.as_mut().unwrap(),
-    //         market_index,
-    //         None,
-    //     )?)
-    // } else {
-    //     None
-    // };
-    //
-    // let market_checkpoint = clone(market_map.get_ref(&market_index)?.deref());
-    //
-    // let fulfillment_methods =
-    //     determine_fulfillment_methods(&user.orders[user_order_index], maker.is_some(), slot)?;
-    //
-    // if fulfillment_methods.is_empty() {
-    //     return Ok((0, false, false));
-    // }
-    //
-    // let mut base_asset_amount = 0_u128;
-    // let mut potentially_risk_increasing = false;
-    // let mut order_records: Vec<OrderRecord> = vec![];
-    // for fulfillment_method in fulfillment_methods.iter() {
-    //     if user.orders[user_order_index].status != OrderStatus::Open {
-    //         break;
-    //     }
-    //
-    //     let mut market = market_map.get_ref_mut(&market_index)?;
-    //
-    //     let (_base_asset_amount, _potentially_risk_increasing) = match fulfillment_method {
-    //         FulfillmentMethod::AMM => fulfill_order_with_amm(
-    //             user,
-    //             user_stats,
-    //             user_order_index,
-    //             market.deref_mut(),
-    //             oracle_map,
-    //             mark_price_before,
-    //             now,
-    //             slot,
-    //             valid_oracle_price,
-    //             user_key,
-    //             filler_key,
-    //             filler,
-    //             filler_stats,
-    //             referrer,
-    //             referrer_stats,
-    //             fee_structure,
-    //             &mut order_records,
-    //         )?,
-    //         FulfillmentMethod::Match => fulfill_order_with_match(
-    //             market.deref_mut(),
-    //             user,
-    //             user_stats,
-    //             user_order_index,
-    //             user_key,
-    //             maker.as_deref_mut().unwrap(),
-    //             maker_stats.as_deref_mut().unwrap(),
-    //             maker_order_index.unwrap(),
-    //             maker_key.unwrap(),
-    //             filler.as_deref_mut(),
-    //             filler_stats.as_deref_mut(),
-    //             filler_key,
-    //             referrer,
-    //             referrer_stats,
-    //             now,
-    //             slot,
-    //             fee_structure,
-    //             oracle_map,
-    //             &mut order_records,
-    //         )?,
-    //     };
-    //
-    //     potentially_risk_increasing = potentially_risk_increasing || _potentially_risk_increasing;
-    //     base_asset_amount = base_asset_amount
-    //         .checked_add(_base_asset_amount)
-    //         .ok_or_else(math_error!())?;
-    // }
-    //
-    // let mut updated_user_state = base_asset_amount != 0;
-    //
-    // let worst_case_base_asset_amount_after =
-    //     user.positions[position_index].worst_case_base_asset_amount()?;
-    //
-    // // Order fails if it's risk increasing and it brings the user collateral below the margin requirement
-    // let risk_decreasing = worst_case_base_asset_amount_after.unsigned_abs()
-    //     < worst_case_base_asset_amount_before.unsigned_abs();
-    //
-    // let meets_initial_margin_requirement =
-    //     meets_initial_margin_requirement(user, market_map, bank_map, oracle_map)?;
-    //
-    // if meets_initial_margin_requirement || risk_decreasing {
-    //     for order_record in order_records {
-    //         emit!(order_record)
-    //     }
-    // } else {
-    //     updated_user_state = true;
-    //
-    //     revert_to_checkpoint(user, user_stats, user_checkpoint)?;
-    //     if let Some(maker) = maker {
-    //         revert_to_checkpoint(
-    //             maker,
-    //             maker_stats.as_mut().unwrap(),
-    //             maker_checkpoint.unwrap(),
-    //         )?;
-    //     }
-    //     if let Some(filler) = filler {
-    //         revert_to_checkpoint(
-    //             filler,
-    //             filler_stats.as_mut().unwrap(),
-    //             filler_checkpoint.unwrap(),
-    //         )?;
-    //     }
-    //     {
-    //         let mut market = market_map.get_ref_mut(&market_index)?;
-    //         *market = *market_checkpoint;
-    //     }
-    //
-    //     base_asset_amount = 0;
-    //     potentially_risk_increasing = false;
-    //
-    //     let filler_reward = {
-    //         let mut market = market_map.get_ref_mut(&market_index)?;
-    //         pay_keeper_flat_reward(
-    //             user,
-    //             filler.as_deref_mut(),
-    //             market.deref_mut(),
-    //             fee_structure.cancel_order_fee,
-    //         )?
-    //     };
-    //
-    //     cancel_order(
-    //         user_order_index,
-    //         user,
-    //         user_key,
-    //         market_map,
-    //         bank_map,
-    //         oracle_map,
-    //         now,
-    //         slot,
-    //         OrderActionExplanation::BreachedMarginRequirement,
-    //         Some(filler_key),
-    //         filler_reward,
-    //         false,
-    //     )?
-    // }
-    //
-    // Ok((
-    //     base_asset_amount,
-    //     potentially_risk_increasing,
-    //     updated_user_state,
-    // ))
+    let base_bank_index = user.orders[user_order_index].market_index;
+    let bank_balance_index = user.get_bank_balance_index(base_bank_index)?;
+    let base_bank = &mut bank_map.get_ref_mut(&base_bank_index)?;
+    let token_amount = user.bank_balances[bank_balance_index].get_token_amount(&base_bank)?;
+    let bank_balance_type: BankBalanceType = user.bank_balances[bank_balance_index].balance_type;
+
+    let risk_decreasing = is_spot_order_risk_decreasing(
+        &user.orders[user_order_index],
+        &bank_balance_type,
+        token_amount,
+    )?;
+
+    let oracle_price_data = oracle_map.get_price_data(&base_bank.oracle)?;
+    let taker_max_base = calculate_max_fill_for_spot_order(
+        &user.orders[user_order_index],
+        base_bank,
+        oracle_price_data,
+        slot,
+        risk_decreasing,
+        free_collateral,
+    )?;
+
+    // TODO SPOT if taker_max_base is 0, cancel order
+    if taker_max_base == 0 {
+        return Ok((0, !risk_decreasing));
+    }
+
+    let quote_bank = &mut bank_map.get_quote_asset_bank_mut()?;
+
+    let mut order_records: Vec<OrderRecord> = vec![];
+    let base_asset_amount = fulfill_spot_order_with_match(
+        taker_max_base,
+        base_bank,
+        quote_bank,
+        user,
+        user_stats,
+        user_order_index,
+        user_key,
+        maker.as_deref_mut().unwrap(),
+        maker_stats.as_deref_mut().unwrap(),
+        maker_order_index.unwrap(),
+        maker_key.unwrap(),
+        filler.as_deref_mut(),
+        filler_stats.as_deref_mut(),
+        filler_key,
+        now,
+        slot,
+        oracle_map,
+        &mut order_records,
+    )?;
+
+    // TODO SPOT check if order should be canceled at the end
+
+    Ok((base_asset_amount, !risk_decreasing))
+}
+
+pub fn fulfill_spot_order_with_match(
+    taker_max_base: u128,
+    base_bank: &mut Bank,
+    quote_bank: &mut Bank,
+    taker: &mut User,
+    taker_stats: &mut UserStats,
+    taker_order_index: usize,
+    taker_key: &Pubkey,
+    maker: &mut User,
+    maker_stats: &mut UserStats,
+    maker_order_index: usize,
+    maker_key: &Pubkey,
+    _filler: Option<&mut User>,
+    _filler_stats: Option<&mut UserStats>,
+    filler_key: &Pubkey,
+    now: i64,
+    slot: u64,
+    oracle_map: &mut OracleMap,
+    order_records: &mut Vec<OrderRecord>,
+) -> ClearingHouseResult<u128> {
+    if !are_orders_same_market_but_different_sides(
+        &maker.orders[maker_order_index],
+        &taker.orders[taker_order_index],
+    ) {
+        return Ok(0_u128);
+    }
+
+    let oracle_price = oracle_map.get_price_data(&base_bank.oracle)?.price;
+    let taker_price =
+        taker.orders[taker_order_index].get_limit_price(Some(oracle_price), slot, None)?;
+    let taker_base_asset_amount =
+        taker_max_base.min(taker.orders[taker_order_index].get_base_asset_amount_unfilled()?);
+
+    let maker_price =
+        maker.orders[maker_order_index].get_limit_price(Some(oracle_price), slot, None)?;
+    let maker_direction = &maker.orders[maker_order_index].direction;
+    let maker_base_asset_amount =
+        maker.orders[maker_order_index].get_base_asset_amount_unfilled()?;
+
+    let orders_cross = do_orders_cross(maker_direction, maker_price, taker_price);
+
+    if !orders_cross {
+        return Ok(0_u128);
+    }
+
+    let (base_asset_amount, quote_asset_amount) = calculate_fill_for_matched_orders(
+        maker_base_asset_amount,
+        maker_price,
+        taker_base_asset_amount,
+        base_bank.decimals as u32,
+    )?;
+
+    if base_asset_amount == 0 {
+        return Ok(0_u128);
+    }
+
+    update_bank_balances(
+        base_asset_amount,
+        &taker.orders[taker_order_index].get_bank_balance_update_direction(AssetType::Base),
+        base_bank,
+        taker.force_get_bank_balance_mut(base_bank.bank_index)?,
+    )?;
+
+    update_bank_balances(
+        quote_asset_amount,
+        &taker.orders[taker_order_index].get_bank_balance_update_direction(AssetType::Quote),
+        quote_bank,
+        taker.get_quote_asset_bank_balance_mut(),
+    )?;
+
+    maker_stats.update_maker_volume_30d(cast(quote_asset_amount)?, now)?;
+
+    update_bank_balances(
+        base_asset_amount,
+        &maker.orders[maker_order_index].get_bank_balance_update_direction(AssetType::Base),
+        base_bank,
+        taker.force_get_bank_balance_mut(base_bank.bank_index)?,
+    )?;
+
+    update_bank_balances(
+        quote_asset_amount,
+        &maker.orders[maker_order_index].get_bank_balance_update_direction(AssetType::Quote),
+        quote_bank,
+        taker.get_quote_asset_bank_balance_mut(),
+    )?;
+
+    taker_stats.update_taker_volume_30d(cast(quote_asset_amount)?, now)?;
+
+    update_order_after_fill(
+        &mut taker.orders[taker_order_index],
+        base_bank.order_step_size,
+        base_asset_amount,
+        quote_asset_amount,
+        0,
+    )?;
+
+    let taker_order_direction = taker.orders[taker_order_index].direction;
+    decrease_spot_open_bids_and_asks(
+        taker.force_get_bank_balance_mut(base_bank.bank_index)?,
+        &taker_order_direction,
+        base_asset_amount,
+    )?;
+
+    update_order_after_fill(
+        &mut maker.orders[maker_order_index],
+        base_bank.order_step_size,
+        base_asset_amount,
+        quote_asset_amount,
+        0,
+    )?;
+
+    let maker_order_direction = maker.orders[maker_order_index].direction;
+    decrease_spot_open_bids_and_asks(
+        maker.force_get_bank_balance_mut(base_bank.bank_index)?,
+        &maker_order_direction,
+        base_asset_amount,
+    )?;
+
+    let fill_record_id = get_then_update_id!(base_bank, next_fill_record_id);
+    order_records.push(OrderRecord {
+        ts: now,
+        slot,
+        taker: *taker_key,
+        taker_order: taker.orders[taker_order_index],
+        taker_pnl: 0,
+        maker: *maker_key,
+        maker_order: maker.orders[maker_order_index],
+        maker_pnl: 0,
+        action: OrderAction::Fill,
+        action_explanation: OrderActionExplanation::OrderFilledWithMatch,
+        filler: *filler_key,
+        fill_record_id,
+        market_index: base_bank.bank_index,
+        base_asset_amount_filled: base_asset_amount,
+        quote_asset_amount_filled: quote_asset_amount,
+        filler_reward: 0,
+        taker_fee: 0,
+        maker_rebate: 0,
+        quote_asset_amount_surplus: 0,
+        oracle_price,
+        referrer_reward: 0,
+        referee_discount: 0,
+        referrer: taker_stats.referrer,
+    });
+
+    if taker.orders[taker_order_index].get_base_asset_amount_unfilled()? == 0 {
+        taker.orders[taker_order_index] = Order::default();
+        taker
+            .force_get_bank_balance_mut(base_bank.bank_index)?
+            .open_orders -= 1;
+    }
+
+    if maker.orders[maker_order_index].get_base_asset_amount_unfilled()? == 0 {
+        maker.orders[maker_order_index] = Order::default();
+        maker
+            .force_get_bank_balance_mut(base_bank.bank_index)?
+            .open_orders -= 1;
+    }
+
+    Ok(base_asset_amount)
 }

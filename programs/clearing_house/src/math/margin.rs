@@ -484,3 +484,22 @@ pub fn meets_maintenance_margin_requirement(
 
     Ok(total_collateral >= cast_to_i128(margin_requirement)?)
 }
+
+pub fn calculate_free_collateral(
+    user: &User,
+    market_map: &MarketMap,
+    bank_map: &BankMap,
+    oracle_map: &mut OracleMap,
+) -> ClearingHouseResult<i128> {
+    let (margin_requirement, total_collateral) = calculate_margin_requirement_and_total_collateral(
+        user,
+        market_map,
+        MarginRequirementType::Initial,
+        bank_map,
+        oracle_map,
+    )?;
+
+    total_collateral
+        .checked_sub(cast_to_i128(margin_requirement)?)
+        .ok_or_else(math_error!())
+}
