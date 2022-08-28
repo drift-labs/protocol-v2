@@ -1433,8 +1433,7 @@ mod test {
         assert_eq!(settlement_price, oracle_price_data.price);
 
 
-        // imbalanced
-
+        // imbalanced short, no longs
         // btc
         let mut oracle_price_data = OraclePriceData {
             price: (22050 * MARK_PRICE_PRECISION) as i128,
@@ -1493,16 +1492,17 @@ mod test {
             111_111_110, // $111
         ).unwrap();
 
-        assert_eq!(settlement_price, 249909629631346); //better price
+        // 250000000000814 - 249909629631346 = 90370369468 (~$9 improved)
+        assert_eq!(settlement_price, 249909629631346); // better price
 
         settlement_price = calculate_settlement_price(
             &market.amm, 
             oracle_price_data.price,
-            1_111_111_110, // $111
+            1_111_111_110, // $1,111
         ).unwrap();
 
-        // 250000000000814 - 249909629631346 = 90370369468 (~$9 improved)
-        assert_eq!(settlement_price, 249909629631346); //better price
+        // 250000000000814 - 249096296297998 = 903703702816 (~$90 improved)
+        assert_eq!(settlement_price, 249096296297998); // even better price
 
         settlement_price = calculate_settlement_price(
             &market.amm, 
@@ -1512,9 +1512,6 @@ mod test {
 
         assert_eq!(settlement_price, 220500000000001);
         assert_eq!(settlement_price, oracle_price+1); // more shorts than longs, bias = +1
-
-
-
 
 
     }
