@@ -71,10 +71,13 @@ export class TokenFaucet {
 		return (await this.getFaucetConfigPublicKeyAndNonce())[0];
 	}
 
-	public async initialize(): Promise<TransactionSignature> {
+	public async initialize(maxAmountMint: number, maxAmountPerUser: number): Promise<TransactionSignature> {
 		const [faucetConfigPublicKey] =
 			await this.getFaucetConfigPublicKeyAndNonce();
-		return await this.program.rpc.initialize({
+		return await this.program.rpc.initialize(
+			new anchor.BN(maxAmountMint),
+			new anchor.BN(maxAmountPerUser),
+			{
 			accounts: {
 				faucetConfig: faucetConfigPublicKey,
 				admin: this.wallet.publicKey,

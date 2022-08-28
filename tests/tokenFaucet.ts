@@ -54,7 +54,10 @@ describe('token faucet', () => {
 	});
 
 	it('Initialize State', async () => {
-		await tokenFaucet.initialize();
+		const usdcPrecision: number = (await token.getMintInfo()).decimals
+		const maxAmountMint: number = 10_000 * Math.pow(10, usdcPrecision)
+		const maxAmountPerUser: number = 10_000_000 * Math.pow(10, usdcPrecision)
+		await tokenFaucet.initialize(maxAmountMint, maxAmountPerUser);
 		const state: any = await tokenFaucet.fetchState();
 
 		assert.ok(state.admin.equals(provider.wallet.publicKey));
