@@ -316,7 +316,7 @@ pub fn calculate_margin_requirement_and_total_collateral(
             }
         } else {
             let (worst_case_token_amount, worst_cast_quote_token_amount): (i128, i128) =
-                user_bank_balance.get_worst_case_token_amounts(&bank, oracle_price_data)?;
+                user_bank_balance.get_worst_case_token_amounts(&bank, oracle_price_data, None)?;
             let worst_case_token_value =
                 get_token_value(worst_case_token_amount, bank.decimals, oracle_price_data)?;
 

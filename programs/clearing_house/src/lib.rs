@@ -1332,29 +1332,75 @@ pub mod clearing_house {
         Ok(())
     }
 
-    pub fn cancel_spot_order(ctx: Context<CancelOrder>, order_id: Option<u64>) -> Result<()> {
+    #[access_control(
+    exchange_not_paused(&ctx.accounts.state)
+    )]
+    pub fn fill_spot_order<'info>(
+        ctx: Context<FillSpotOrder>,
+        order_id: Option<u64>,
+        maker_order_id: Option<u64>,
+    ) -> Result<()> {
+        let (order_id, market_index) = {
+            let user = &load!(ctx.accounts.user)?;
+            // if there is no order id, use the users last order id
+            let order_id = order_id.unwrap_or_else(|| user.get_last_order_id());
+            let market_index = user
+                .get_order(order_id)
+                .map(|order| order.market_index)
+                .ok_or(ErrorCode::OrderDoesNotExist)?;
+
+            (order_id, market_index)
+        };
+
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
-        let bank_map = BankMap::load(&MarketSet::new(), remaining_accounts_iter)?;
+        let bank_map = BankMap::load(&get_writable_banks(market_index), remaining_accounts_iter)?;
         let market_map = MarketMap::load(
             &MarketSet::new(),
             &MarketSet::new(),
             remaining_accounts_iter,
         )?;
 
-        let order_id = match order_id {
-            Some(order_id) => order_id,
-            None => load!(ctx.accounts.user)?.get_last_order_id(),
+        {
+            let bank = bank_map.get_ref(&market_index)?;
+            validate!(
+                bank.vault == ctx.accounts.base_bank_vault.key(),
+                ErrorCode::InvalidBankVault
+            )?;
+
+            validate!(
+                bank.vault_authority == ctx.accounts.base_bank_vault_authority.key(),
+                ErrorCode::InvalidBankVault
+            )?;
+        }
+
+        let (maker, maker_stats) = match maker_order_id {
+            Some(_) => {
+                let (user, user_stats) = get_maker_and_maker_stats(remaining_accounts_iter)?;
+                (Some(user), Some(user_stats))
+            }
+            None => (None, None),
         };
 
-        controller::orders::cancel_order_by_order_id(
+        let (_, updated_user_state) = controller::orders::fill_spot_order(
             order_id,
+            &ctx.accounts.state,
             &ctx.accounts.user,
-            &market_map,
+            &ctx.accounts.user_stats,
             &bank_map,
+            &market_map,
             &mut oracle_map,
+            &ctx.accounts.filler,
+            &ctx.accounts.filler_stats,
+            maker.as_ref(),
+            maker_stats.as_ref(),
+            maker_order_id,
             &Clock::get()?,
         )?;
+
+        if !updated_user_state {
+            return Err(print_error!(ErrorCode::FillOrderDidNotUpdateState)().into());
+        }
 
         Ok(())
     }

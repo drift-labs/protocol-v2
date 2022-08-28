@@ -388,6 +388,45 @@ pub struct FillOrder<'info> {
 }
 
 #[derive(Accounts)]
+pub struct FillSpotOrder<'info> {
+    pub state: Box<Account<'info, State>>,
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        has_one = authority
+    )]
+    pub filler: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        has_one = authority,
+    )]
+    pub filler_stats: AccountLoader<'info, UserStats>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = user_stats.load()?.authority.eq(&user.load()?.authority),
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    #[account(
+        mut,
+        seeds = [b"bank_vault".as_ref(), 0_u64.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub quote_bank_vault: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    /// CHECK: checked in ix because it's based on the order market index
+    pub base_bank_vault: Box<Account<'info, TokenAccount>>,
+    #[account(
+        seeds = [b"bank_vault_authority".as_ref(), 0_u64.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub quote_bank_vault_authority: AccountInfo<'info>,
+    /// CHECK: checked in ix because it's based on the order market index
+    pub base_bank_vault_authority: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
 pub struct PlaceOrder<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(

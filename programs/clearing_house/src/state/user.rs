@@ -203,8 +203,12 @@ impl UserBankBalance {
         &self,
         bank: &Bank,
         oracle_price_data: &OraclePriceData,
+        token_amount: Option<i128>,
     ) -> ClearingHouseResult<(i128, i128)> {
-        let token_amount = self.get_signed_token_amount(bank)?;
+        let token_amount = match token_amount {
+            Some(token_amount) => token_amount,
+            None => self.get_signed_token_amount(bank)?,
+        };
 
         let token_amount_all_bids_fill = token_amount
             .checked_add(self.open_bids)

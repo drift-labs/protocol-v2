@@ -170,7 +170,7 @@ mod get_worst_case_token_amounts {
         };
 
         let (worst_case_token_amount, worst_case_quote_token_amount) = user_bank_balance
-            .get_worst_case_token_amounts(&bank, &oracle_price_data)
+            .get_worst_case_token_amounts(&bank, &oracle_price_data, None)
             .unwrap();
 
         assert_eq!(worst_case_token_amount, 10_i128.pow(9));
@@ -204,7 +204,7 @@ mod get_worst_case_token_amounts {
         };
 
         let (worst_case_token_amount, worst_case_quote_token_amount) = user_bank_balance
-            .get_worst_case_token_amounts(&bank, &oracle_price_data)
+            .get_worst_case_token_amounts(&bank, &oracle_price_data, None)
             .unwrap();
 
         assert_eq!(worst_case_token_amount, -(10_i128.pow(9)));
@@ -238,7 +238,7 @@ mod get_worst_case_token_amounts {
         };
 
         let (worst_case_token_amount, worst_case_quote_token_amount) = user_bank_balance
-            .get_worst_case_token_amounts(&bank, &oracle_price_data)
+            .get_worst_case_token_amounts(&bank, &oracle_price_data, None)
             .unwrap();
 
         assert_eq!(worst_case_token_amount, 2 * 10_i128.pow(9));
@@ -272,7 +272,7 @@ mod get_worst_case_token_amounts {
         };
 
         let (worst_case_token_amount, worst_case_quote_token_amount) = user_bank_balance
-            .get_worst_case_token_amounts(&bank, &oracle_price_data)
+            .get_worst_case_token_amounts(&bank, &oracle_price_data, None)
             .unwrap();
 
         assert_eq!(worst_case_token_amount, -(10_i128.pow(9)));
@@ -306,7 +306,7 @@ mod get_worst_case_token_amounts {
         };
 
         let (worst_case_token_amount, worst_case_quote_token_amount) = user_bank_balance
-            .get_worst_case_token_amounts(&bank, &oracle_price_data)
+            .get_worst_case_token_amounts(&bank, &oracle_price_data, None)
             .unwrap();
 
         assert_eq!(worst_case_token_amount, 3 * 10_i128.pow(9));
@@ -341,7 +341,7 @@ mod get_worst_case_token_amounts {
         };
 
         let (worst_case_token_amount, worst_case_quote_token_amount) = user_bank_balance
-            .get_worst_case_token_amounts(&bank, &oracle_price_data)
+            .get_worst_case_token_amounts(&bank, &oracle_price_data, None)
             .unwrap();
 
         assert_eq!(worst_case_token_amount, -2 * 10_i128.pow(9));
@@ -376,7 +376,7 @@ mod get_worst_case_token_amounts {
         };
 
         let (worst_case_token_amount, worst_case_quote_token_amount) = user_bank_balance
-            .get_worst_case_token_amounts(&bank, &oracle_price_data)
+            .get_worst_case_token_amounts(&bank, &oracle_price_data, None)
             .unwrap();
 
         assert_eq!(worst_case_token_amount, 3 * 10_i128.pow(9));
@@ -411,7 +411,7 @@ mod get_worst_case_token_amounts {
         };
 
         let (worst_case_token_amount, worst_case_quote_token_amount) = user_bank_balance
-            .get_worst_case_token_amounts(&bank, &oracle_price_data)
+            .get_worst_case_token_amounts(&bank, &oracle_price_data, None)
             .unwrap();
 
         assert_eq!(worst_case_token_amount, -3 * 10_i128.pow(9));

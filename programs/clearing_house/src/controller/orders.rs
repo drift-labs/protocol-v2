@@ -588,29 +588,30 @@ pub fn fill_order(
         return Ok((0, true));
     }
 
-    let (base_asset_amount, potentially_risk_increasing, mut updated_user_state) = fulfill_order(
-        user,
-        order_index,
-        &user_key,
-        user_stats,
-        &mut maker.as_deref_mut(),
-        &mut maker_stats.as_deref_mut(),
-        maker_order_index,
-        maker_key.as_ref(),
-        &mut filler.as_deref_mut(),
-        &filler_key,
-        &mut filler_stats.as_deref_mut(),
-        &mut referrer.as_deref_mut(),
-        &mut referrer_stats.as_deref_mut(),
-        bank_map,
-        market_map,
-        oracle_map,
-        &state.fee_structure,
-        mark_price_before,
-        valid_oracle_price,
-        now,
-        slot,
-    )?;
+    let (base_asset_amount, potentially_risk_increasing, mut updated_user_state) =
+        fulfill_spot_order(
+            user,
+            order_index,
+            &user_key,
+            user_stats,
+            &mut maker.as_deref_mut(),
+            &mut maker_stats.as_deref_mut(),
+            maker_order_index,
+            maker_key.as_ref(),
+            &mut filler.as_deref_mut(),
+            &filler_key,
+            &mut filler_stats.as_deref_mut(),
+            &mut referrer.as_deref_mut(),
+            &mut referrer_stats.as_deref_mut(),
+            bank_map,
+            market_map,
+            oracle_map,
+            &state.fee_structure,
+            mark_price_before,
+            valid_oracle_price,
+            now,
+            slot,
+        )?;
 
     if should_cancel_order_after_fulfill(user, order_index, slot)? {
         updated_user_state = true;
@@ -1908,7 +1909,7 @@ pub fn place_spot_order(
 
     let oracle_price_data = *oracle_map.get_price_data(&bank.oracle)?;
     let (worst_case_token_amount_before, _) = user.bank_balances[bank_balance_index]
-        .get_worst_case_token_amounts(bank, &oracle_price_data)?;
+        .get_worst_case_token_amounts(bank, &oracle_price_data, None)?;
 
     let signed_token_amount =
         user.bank_balances[bank_balance_index].get_signed_token_amount(bank)?;
@@ -2023,7 +2024,7 @@ pub fn place_spot_order(
     user.orders[new_order_index] = new_order;
 
     let (worst_case_token_amount_after, _) = user.bank_balances[bank_balance_index]
-        .get_worst_case_token_amounts(bank, &oracle_price_data)?;
+        .get_worst_case_token_amounts(bank, &oracle_price_data, None)?;
 
     // Order fails if it's risk increasing and it brings the user collateral below the margin requirement
     let risk_decreasing = worst_case_token_amount_after.unsigned_abs()
@@ -2066,4 +2067,511 @@ pub fn place_spot_order(
     });
 
     Ok(())
+}
+
+pub fn fill_spot_order(
+    order_id: u64,
+    state: &State,
+    user: &AccountLoader<User>,
+    user_stats: &AccountLoader<UserStats>,
+    bank_map: &BankMap,
+    market_map: &MarketMap,
+    oracle_map: &mut OracleMap,
+    filler: &AccountLoader<User>,
+    filler_stats: &AccountLoader<UserStats>,
+    maker: Option<&AccountLoader<User>>,
+    maker_stats: Option<&AccountLoader<UserStats>>,
+    maker_order_id: Option<u64>,
+    clock: &Clock,
+) -> ClearingHouseResult<(u128, bool)> {
+    let now = clock.unix_timestamp;
+    let slot = clock.slot;
+
+    let filler_key = filler.key();
+    let user_key = user.key();
+    let user = &mut load_mut!(user)?;
+    let user_stats = &mut load_mut!(user_stats)?;
+
+    let order_index = user
+        .orders
+        .iter()
+        .position(|order| order.order_id == order_id)
+        .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
+
+    let (order_status, market_index, order_market_type) =
+        get_struct_values!(user.orders[order_index], status, market_index, market_type);
+
+    validate!(
+        order_market_type == MarketType::Spot,
+        ErrorCode::InvalidOrder,
+        "must be spot order"
+    )?;
+
+    validate!(
+        order_status == OrderStatus::Open,
+        ErrorCode::OrderNotOpen,
+        "Order not open"
+    )?;
+
+    validate!(
+        !user.orders[order_index].must_be_triggered() || user.orders[order_index].triggered,
+        ErrorCode::OrderMustBeTriggeredFirst,
+        "Order must be triggered first"
+    )?;
+
+    validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
+
+    validate_user_not_being_liquidated(
+        user,
+        market_map,
+        bank_map,
+        oracle_map,
+        state.liquidation_margin_buffer_ratio,
+    )?;
+
+    // let mark_price_before: u128;
+    // let oracle_mark_spread_pct_before: i128;
+    // let is_oracle_valid: bool;
+    // let oracle_price: i128;
+    // {
+    //     let market = &mut market_map.get_ref_mut(&market_index)?;
+    //     validate!(
+    //         ((oracle_map.slot == market.amm.last_update_slot && market.amm.last_oracle_valid)
+    //             || market.amm.curve_update_intensity == 0),
+    //         ErrorCode::AMMNotUpdatedInSameSlot,
+    //         "AMM must be updated in a prior instruction within same slot"
+    //     )?;
+    //
+    //     let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
+    //
+    //     is_oracle_valid = amm::is_oracle_valid(
+    //         &market.amm,
+    //         oracle_price_data,
+    //         &state.oracle_guard_rails.validity,
+    //     )?;
+    //
+    //     mark_price_before = market.amm.mark_price()?;
+    //     oracle_mark_spread_pct_before =
+    //         amm::calculate_oracle_twap_5min_mark_spread_pct(&market.amm, Some(mark_price_before))?;
+    //     oracle_price = oracle_price_data.price;
+    // }
+    //
+    // let valid_oracle_price = if is_oracle_valid {
+    //     Some(oracle_price)
+    // } else {
+    //     None
+    // };
+
+    let is_filler_taker = user_key == filler_key;
+    let is_filler_maker = maker.map_or(false, |maker| maker.key() == filler_key);
+    let (mut filler, mut filler_stats) = if !is_filler_maker && !is_filler_taker {
+        (Some(load_mut!(filler)?), Some(load_mut!(filler_stats)?))
+    } else {
+        (None, None)
+    };
+
+    let (mut maker, mut maker_stats, maker_key, maker_order_index) = sanitize_spot_maker_order(
+        maker,
+        maker_stats,
+        maker_order_id,
+        &user_key,
+        &user.orders[order_index],
+    )?;
+
+    // let should_expire_order =
+    //     should_expire_order(user, order_index, slot, state.max_auction_duration)?;
+    // if should_expire_order {
+    //     let filler_reward = {
+    //         let mut market = market_map.get_ref_mut(&market_index)?;
+    //         pay_keeper_flat_reward(
+    //             user,
+    //             filler.as_deref_mut(),
+    //             market.deref_mut(),
+    //             state.fee_structure.cancel_order_fee,
+    //         )?
+    //     };
+    //
+    //     cancel_order(
+    //         order_index,
+    //         user,
+    //         &user_key,
+    //         market_map,
+    //         bank_map,
+    //         oracle_map,
+    //         now,
+    //         slot,
+    //         OrderActionExplanation::MarketOrderAuctionExpired,
+    //         Some(&filler_key),
+    //         filler_reward,
+    //         false,
+    //     )?;
+    //     return Ok((0, true));
+    // }
+    //
+    // let (base_asset_amount, potentially_risk_increasing, mut updated_user_state) = fulfill_order(
+    //     user,
+    //     order_index,
+    //     &user_key,
+    //     user_stats,
+    //     &mut maker.as_deref_mut(),
+    //     &mut maker_stats.as_deref_mut(),
+    //     maker_order_index,
+    //     maker_key.as_ref(),
+    //     &mut filler.as_deref_mut(),
+    //     &filler_key,
+    //     &mut filler_stats.as_deref_mut(),
+    //     &mut referrer.as_deref_mut(),
+    //     &mut referrer_stats.as_deref_mut(),
+    //     bank_map,
+    //     market_map,
+    //     oracle_map,
+    //     &state.fee_structure,
+    //     mark_price_before,
+    //     valid_oracle_price,
+    //     now,
+    //     slot,
+    // )?;
+    //
+    // if should_cancel_order_after_fulfill(user, order_index, slot)? {
+    //     updated_user_state = true;
+    //
+    //     let filler_reward = {
+    //         let mut market = market_map.get_ref_mut(&market_index)?;
+    //         pay_keeper_flat_reward(
+    //             user,
+    //             filler.as_deref_mut(),
+    //             market.deref_mut(),
+    //             state.fee_structure.cancel_order_fee,
+    //         )?
+    //     };
+    //
+    //     cancel_order(
+    //         order_index,
+    //         user,
+    //         &user_key,
+    //         market_map,
+    //         bank_map,
+    //         oracle_map,
+    //         now,
+    //         slot,
+    //         OrderActionExplanation::MarketOrderFilledToLimitPrice,
+    //         Some(&filler_key),
+    //         filler_reward,
+    //         false,
+    //     )?
+    // }
+    //
+    // if !updated_user_state {
+    //     return Ok((base_asset_amount, updated_user_state));
+    // }
+    //
+    // let mark_price_after: u128;
+    // let oracle_mark_spread_pct_after: i128;
+    // {
+    //     let market = market_map.get_ref_mut(&market_index)?;
+    //     mark_price_after = market.amm.mark_price()?;
+    //     oracle_mark_spread_pct_after =
+    //         amm::calculate_oracle_twap_5min_mark_spread_pct(&market.amm, Some(mark_price_after))?;
+    // }
+    //
+    // let is_oracle_mark_too_divergent_before = amm::is_oracle_mark_too_divergent(
+    //     oracle_mark_spread_pct_before,
+    //     &state.oracle_guard_rails.price_divergence,
+    // )?;
+    //
+    // let is_oracle_mark_too_divergent_after = amm::is_oracle_mark_too_divergent(
+    //     oracle_mark_spread_pct_after,
+    //     &state.oracle_guard_rails.price_divergence,
+    // )?;
+    //
+    // // if oracle-mark divergence pushed outside limit, block order
+    // if is_oracle_mark_too_divergent_after && !is_oracle_mark_too_divergent_before && is_oracle_valid
+    // {
+    //     return Err(ErrorCode::OracleMarkSpreadLimit);
+    // }
+    //
+    // // if oracle-mark divergence outside limit and risk-increasing, block order
+    // if is_oracle_mark_too_divergent_after
+    //     && oracle_mark_spread_pct_after.unsigned_abs()
+    //         >= oracle_mark_spread_pct_before.unsigned_abs()
+    //     && is_oracle_valid
+    //     && potentially_risk_increasing
+    // {
+    //     return Err(ErrorCode::OracleMarkSpreadLimit);
+    // }
+    //
+    // // Try to update the funding rate at the end of every trade
+    // {
+    //     let market = &mut market_map.get_ref_mut(&market_index)?;
+    //     controller::funding::update_funding_rate(
+    //         market_index,
+    //         market,
+    //         oracle_map,
+    //         now,
+    //         &state.oracle_guard_rails,
+    //         state.funding_paused,
+    //         Some(mark_price_before),
+    //     )?;
+    // }
+
+    let base_asset_amount = 0;
+    let updated_user_state = false;
+    Ok((base_asset_amount, updated_user_state))
+}
+
+#[allow(clippy::type_complexity)]
+fn sanitize_spot_maker_order<'a>(
+    maker: Option<&'a AccountLoader<User>>,
+    maker_stats: Option<&'a AccountLoader<UserStats>>,
+    maker_order_id: Option<u64>,
+    taker_key: &Pubkey,
+    taker_order: &Order,
+) -> ClearingHouseResult<(
+    Option<RefMut<'a, User>>,
+    Option<RefMut<'a, UserStats>>,
+    Option<Pubkey>,
+    Option<usize>,
+)> {
+    if maker.is_none() || maker_stats.is_none() {
+        return Ok((None, None, None, None));
+    }
+
+    let maker = maker.unwrap();
+    let maker_stats = maker_stats.unwrap();
+    if &maker.key() == taker_key {
+        return Ok((None, None, None, None));
+    }
+
+    let maker_key = maker.key();
+    let mut maker = load_mut!(maker)?;
+    let maker_stats = load_mut!(maker_stats)?;
+    let maker_order_index =
+        maker.get_order_index(maker_order_id.ok_or(ErrorCode::MakerOrderNotFound)?)?;
+
+    {
+        let maker_order = &maker.orders[maker_order_index];
+        if !is_maker_for_taker(maker_order, taker_order)? {
+            return Ok((None, None, None, None));
+        }
+
+        if maker.being_liquidated || maker.bankrupt {
+            return Ok((None, None, None, None));
+        }
+
+        validate!(
+            !maker_order.must_be_triggered() || maker_order.triggered,
+            ErrorCode::OrderMustBeTriggeredFirst,
+            "Maker order not triggered"
+        )?;
+
+        validate!(
+            maker_order.market_type == MarketType::Spot,
+            ErrorCode::InvalidOrder,
+            "Maker order not a spot order"
+        )?
+    }
+
+    Ok((
+        Some(maker),
+        Some(maker_stats),
+        Some(maker_key),
+        Some(maker_order_index),
+    ))
+}
+
+fn fulfill_spot_order(
+    user: &mut User,
+    user_order_index: usize,
+    user_key: &Pubkey,
+    user_stats: &mut UserStats,
+    maker: &mut Option<&mut User>,
+    maker_stats: &mut Option<&mut UserStats>,
+    maker_order_index: Option<usize>,
+    maker_key: Option<&Pubkey>,
+    filler: &mut Option<&mut User>,
+    filler_key: &Pubkey,
+    filler_stats: &mut Option<&mut UserStats>,
+    referrer: &mut Option<&mut User>,
+    referrer_stats: &mut Option<&mut UserStats>,
+    bank_map: &BankMap,
+    market_map: &MarketMap,
+    oracle_map: &mut OracleMap,
+    fee_structure: &FeeStructure,
+    mark_price_before: u128,
+    valid_oracle_price: Option<i128>,
+    now: i64,
+    slot: u64,
+) -> ClearingHouseResult<(u128, bool, bool)> {
+    Ok((0, false, false))
+
+    // let market_index = user.orders[user_order_index].market_index;
+    //
+    // let position_index = get_position_index(&user.positions, market_index)?;
+    // let worst_case_base_asset_amount_before =
+    //     user.positions[position_index].worst_case_base_asset_amount()?;
+    //
+    // let user_checkpoint = checkpoint_user(user, user_stats, market_index, Some(user_order_index))?;
+    // let maker_checkpoint = if let Some(maker) = maker {
+    //     let maker_order_index = maker_order_index.ok_or(ErrorCode::MakerOrderNotFound)?;
+    //     Some(checkpoint_user(
+    //         maker,
+    //         maker_stats.as_mut().unwrap(),
+    //         market_index,
+    //         Some(maker_order_index),
+    //     )?)
+    // } else {
+    //     None
+    // };
+    // let filler_checkpoint = if let Some(filler) = filler {
+    //     Some(checkpoint_user(
+    //         filler,
+    //         filler_stats.as_mut().unwrap(),
+    //         market_index,
+    //         None,
+    //     )?)
+    // } else {
+    //     None
+    // };
+    //
+    // let market_checkpoint = clone(market_map.get_ref(&market_index)?.deref());
+    //
+    // let fulfillment_methods =
+    //     determine_fulfillment_methods(&user.orders[user_order_index], maker.is_some(), slot)?;
+    //
+    // if fulfillment_methods.is_empty() {
+    //     return Ok((0, false, false));
+    // }
+    //
+    // let mut base_asset_amount = 0_u128;
+    // let mut potentially_risk_increasing = false;
+    // let mut order_records: Vec<OrderRecord> = vec![];
+    // for fulfillment_method in fulfillment_methods.iter() {
+    //     if user.orders[user_order_index].status != OrderStatus::Open {
+    //         break;
+    //     }
+    //
+    //     let mut market = market_map.get_ref_mut(&market_index)?;
+    //
+    //     let (_base_asset_amount, _potentially_risk_increasing) = match fulfillment_method {
+    //         FulfillmentMethod::AMM => fulfill_order_with_amm(
+    //             user,
+    //             user_stats,
+    //             user_order_index,
+    //             market.deref_mut(),
+    //             oracle_map,
+    //             mark_price_before,
+    //             now,
+    //             slot,
+    //             valid_oracle_price,
+    //             user_key,
+    //             filler_key,
+    //             filler,
+    //             filler_stats,
+    //             referrer,
+    //             referrer_stats,
+    //             fee_structure,
+    //             &mut order_records,
+    //         )?,
+    //         FulfillmentMethod::Match => fulfill_order_with_match(
+    //             market.deref_mut(),
+    //             user,
+    //             user_stats,
+    //             user_order_index,
+    //             user_key,
+    //             maker.as_deref_mut().unwrap(),
+    //             maker_stats.as_deref_mut().unwrap(),
+    //             maker_order_index.unwrap(),
+    //             maker_key.unwrap(),
+    //             filler.as_deref_mut(),
+    //             filler_stats.as_deref_mut(),
+    //             filler_key,
+    //             referrer,
+    //             referrer_stats,
+    //             now,
+    //             slot,
+    //             fee_structure,
+    //             oracle_map,
+    //             &mut order_records,
+    //         )?,
+    //     };
+    //
+    //     potentially_risk_increasing = potentially_risk_increasing || _potentially_risk_increasing;
+    //     base_asset_amount = base_asset_amount
+    //         .checked_add(_base_asset_amount)
+    //         .ok_or_else(math_error!())?;
+    // }
+    //
+    // let mut updated_user_state = base_asset_amount != 0;
+    //
+    // let worst_case_base_asset_amount_after =
+    //     user.positions[position_index].worst_case_base_asset_amount()?;
+    //
+    // // Order fails if it's risk increasing and it brings the user collateral below the margin requirement
+    // let risk_decreasing = worst_case_base_asset_amount_after.unsigned_abs()
+    //     < worst_case_base_asset_amount_before.unsigned_abs();
+    //
+    // let meets_initial_margin_requirement =
+    //     meets_initial_margin_requirement(user, market_map, bank_map, oracle_map)?;
+    //
+    // if meets_initial_margin_requirement || risk_decreasing {
+    //     for order_record in order_records {
+    //         emit!(order_record)
+    //     }
+    // } else {
+    //     updated_user_state = true;
+    //
+    //     revert_to_checkpoint(user, user_stats, user_checkpoint)?;
+    //     if let Some(maker) = maker {
+    //         revert_to_checkpoint(
+    //             maker,
+    //             maker_stats.as_mut().unwrap(),
+    //             maker_checkpoint.unwrap(),
+    //         )?;
+    //     }
+    //     if let Some(filler) = filler {
+    //         revert_to_checkpoint(
+    //             filler,
+    //             filler_stats.as_mut().unwrap(),
+    //             filler_checkpoint.unwrap(),
+    //         )?;
+    //     }
+    //     {
+    //         let mut market = market_map.get_ref_mut(&market_index)?;
+    //         *market = *market_checkpoint;
+    //     }
+    //
+    //     base_asset_amount = 0;
+    //     potentially_risk_increasing = false;
+    //
+    //     let filler_reward = {
+    //         let mut market = market_map.get_ref_mut(&market_index)?;
+    //         pay_keeper_flat_reward(
+    //             user,
+    //             filler.as_deref_mut(),
+    //             market.deref_mut(),
+    //             fee_structure.cancel_order_fee,
+    //         )?
+    //     };
+    //
+    //     cancel_order(
+    //         user_order_index,
+    //         user,
+    //         user_key,
+    //         market_map,
+    //         bank_map,
+    //         oracle_map,
+    //         now,
+    //         slot,
+    //         OrderActionExplanation::BreachedMarginRequirement,
+    //         Some(filler_key),
+    //         filler_reward,
+    //         false,
+    //     )?
+    // }
+    //
+    // Ok((
+    //     base_asset_amount,
+    //     potentially_risk_increasing,
+    //     updated_user_state,
+    // ))
 }

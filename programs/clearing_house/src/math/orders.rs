@@ -10,12 +10,17 @@ use crate::error::ClearingHouseResult;
 use crate::math;
 use crate::math::amm::calculate_max_base_asset_amount_fillable;
 use crate::math::auction::is_auction_complete;
+use crate::math::bank_balance::{get_signed_token_amount, get_token_amount};
 use crate::math::casting::{cast, cast_to_i128};
 use crate::math::constants::{MARGIN_PRECISION, MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO};
 use crate::math::position::calculate_entry_price;
 use crate::math_error;
+use crate::state::bank::{Bank, BankBalanceType};
 use crate::state::market::{Market, AMM};
-use crate::state::user::{Order, OrderStatus, OrderTriggerCondition, OrderType, User};
+use crate::state::oracle::OraclePriceData;
+use crate::state::user::{
+    Order, OrderStatus, OrderTriggerCondition, OrderType, User, UserBankBalance,
+};
 
 pub fn calculate_base_asset_amount_for_amm_to_fulfill(
     order: &Order,
@@ -287,6 +292,78 @@ pub fn order_satisfies_trigger_condition(order: &Order, oracle_price: u128) -> b
     }
 }
 
+pub fn is_spot_order_risk_decreasing(
+    order: &Order,
+    balance_type: &BankBalanceType,
+    token_amount: u128,
+) -> ClearingHouseResult<bool> {
+    let risk_decreasing = match (balance_type, order.direction) {
+        (BankBalanceType::Deposit, PositionDirection::Short) => {
+            order.base_asset_amount < token_amount.checked_mul(2).ok_or_else(math_error!())?
+        }
+        (BankBalanceType::Borrow, PositionDirection::Long) => {
+            order.base_asset_amount < token_amount.checked_mul(2).ok_or_else(math_error!())?
+        }
+        (_, _) => false,
+    };
+
+    Ok(risk_decreasing)
+}
+
+pub fn calculate_max_fill_for_spot_order(
+    order: &Order,
+    base_bank: &Bank,
+    oracle_price_data: &OraclePriceData,
+    slot: u64,
+    risk_decreasing: bool,
+    free_collateral: i128,
+) -> ClearingHouseResult<u128> {
+    let base_asset_amount_unfilled = order.get_base_asset_amount_unfilled()?;
+
+    if risk_decreasing {
+        return Ok(base_asset_amount_unfilled);
+    }
+
+    // If user has negative free collateral and they enter risk increasing trade at price better than oracle,
+    // this could increase their free collateral since margin system valued entry at oracle
+    // For now we'll still block the fill if the user has no free collateral and the trade is risk increasing
+    if free_collateral <= 0 {
+        return Ok(0);
+    }
+
+    let limit_price = order.get_limit_price(Some(oracle_price_data.price), slot, None)?;
+    let oracle_price = oracle_price_data.price;
+
+    let price_delta = match order.direction {
+        PositionDirection::Long => cast_to_i128(limit_price)?
+            .checked_sub(oracle_price)
+            .ok_or_else(math_error!())?,
+        PositionDirection::Short => oracle_price
+            .checked_sub(cast_to_i128(limit_price)?)
+            .ok_or_else(math_error!())?,
+    };
+
+    if price_delta < 0 {
+        return Ok(base_asset_amount_unfilled);
+    }
+
+    let precision_increase = 10_i128.pow(10 + (base_bank.decimals - 6) as u32);
+
+    let base_asset_amount_to_consume_free_collateral = free_collateral
+        .checked_mul(precision_increase)
+        .ok_or_else(math_error!())?
+        .checked_div(price_delta)
+        .ok_or_else(math_error!())?
+        .unsigned_abs();
+
+    let base_asset_amount_to_consume_free_collateral = standardize_base_asset_amount(
+        base_asset_amount_to_consume_free_collateral,
+        base_bank.order_step_size,
+    )?;
+
+    Ok(base_asset_amount_unfilled.min(base_asset_amount_to_consume_free_collateral))
+}
+
 #[cfg(test)]
 mod test {
 
@@ -398,6 +475,302 @@ mod test {
             let result = standardize_base_asset_amount(base_asset_amount, minimum_size).unwrap();
 
             assert_eq!(result, 0);
+        }
+    }
+
+    mod calculate_max_fill_for_spot_order {
+        use crate::controller::position::PositionDirection;
+        use crate::math::constants::{
+            LAMPORT_PER_SOL, MARK_PRICE_PRECISION, MARK_PRICE_PRECISION_I128, QUOTE_PRECISION_I128,
+        };
+        use crate::math::orders::calculate_max_fill_for_spot_order;
+        use crate::state::bank::{Bank, BankBalanceType};
+        use crate::state::oracle::{OraclePriceData, OracleSource};
+        use crate::state::user::{Order, OrderType, UserBankBalance};
+
+        #[test]
+        fn risk_increasing_no_free_collateral() {
+            let order = Order::default();
+
+            let bank = Bank::default();
+
+            let oracle_price_data = OraclePriceData::default();
+
+            let free_collateral = 0_i128;
+
+            let max_fill = calculate_max_fill_for_spot_order(
+                &order,
+                &bank,
+                &oracle_price_data,
+                0,
+                false,
+                free_collateral,
+            )
+            .unwrap();
+
+            assert_eq!(max_fill, 0);
+        }
+
+        #[test]
+        fn risk_decreasing_no_free_collateral() {
+            let order = Order {
+                base_asset_amount: 5 * LAMPORT_PER_SOL,
+                ..Order::default()
+            };
+
+            let bank = Bank::default();
+
+            let oracle_price_data = OraclePriceData::default();
+
+            let free_collateral = 0_i128;
+
+            let max_fill = calculate_max_fill_for_spot_order(
+                &order,
+                &bank,
+                &oracle_price_data,
+                0,
+                true,
+                free_collateral,
+            )
+            .unwrap();
+
+            assert_eq!(max_fill, 5000000000);
+        }
+
+        #[test]
+        fn risk_increasing_bid_consumes_all_free_collateral() {
+            let order = Order {
+                base_asset_amount: 5 * LAMPORT_PER_SOL,
+                direction: PositionDirection::Long,
+                order_type: OrderType::Limit,
+                price: 150 * MARK_PRICE_PRECISION,
+                ..Order::default()
+            };
+
+            let bank = Bank {
+                decimals: 9,
+                order_step_size: 1,
+                ..Bank::default()
+            };
+
+            let oracle_price_data = OraclePriceData {
+                price: 100 * MARK_PRICE_PRECISION_I128,
+                ..OraclePriceData::default()
+            };
+
+            let free_collateral = 100 * QUOTE_PRECISION_I128;
+
+            let max_fill = calculate_max_fill_for_spot_order(
+                &order,
+                &bank,
+                &oracle_price_data,
+                0,
+                false,
+                free_collateral,
+            )
+            .unwrap();
+
+            // free collateral: $100
+            // price delta: $150 - $100 = $50
+            // order base amount: 5
+            // base to consume free collateral : $100 / $50 = 2
+            // max fill: min(5 , 2) = 2
+            assert_eq!(max_fill, 2000000000);
+        }
+
+        #[test]
+        fn risk_increasing_bid_consumes_subset_of_free_collateral() {
+            let order = Order {
+                base_asset_amount: 5 * LAMPORT_PER_SOL,
+                direction: PositionDirection::Long,
+                order_type: OrderType::Limit,
+                price: 101 * MARK_PRICE_PRECISION,
+                ..Order::default()
+            };
+
+            let bank = Bank {
+                decimals: 9,
+                order_step_size: 1,
+                ..Bank::default()
+            };
+
+            let oracle_price_data = OraclePriceData {
+                price: 100 * MARK_PRICE_PRECISION_I128,
+                ..OraclePriceData::default()
+            };
+
+            let free_collateral = 100 * QUOTE_PRECISION_I128;
+
+            let max_fill = calculate_max_fill_for_spot_order(
+                &order,
+                &bank,
+                &oracle_price_data,
+                0,
+                false,
+                free_collateral,
+            )
+            .unwrap();
+
+            // free collateral: $100
+            // price delta: $101 - $100 = $1
+            // order base amount: 5
+            // base to consume free collateral : $100 / $1 = 100
+            // max fill: min(5 , 100) = 5
+            assert_eq!(max_fill, 5000000000);
+        }
+
+        #[test]
+        fn risk_increasing_bid_better_price_than_oracle() {
+            let order = Order {
+                base_asset_amount: 5 * LAMPORT_PER_SOL,
+                direction: PositionDirection::Long,
+                order_type: OrderType::Limit,
+                price: 99 * MARK_PRICE_PRECISION,
+                ..Order::default()
+            };
+
+            let bank = Bank {
+                decimals: 9,
+                order_step_size: 1,
+                ..Bank::default()
+            };
+
+            let oracle_price_data = OraclePriceData {
+                price: 100 * MARK_PRICE_PRECISION_I128,
+                ..OraclePriceData::default()
+            };
+
+            let free_collateral = 100 * QUOTE_PRECISION_I128;
+
+            let max_fill = calculate_max_fill_for_spot_order(
+                &order,
+                &bank,
+                &oracle_price_data,
+                0,
+                false,
+                free_collateral,
+            )
+            .unwrap();
+
+            assert_eq!(max_fill, 5000000000);
+        }
+
+        #[test]
+        fn risk_increasing_ask_consumes_all_free_collateral() {
+            let order = Order {
+                base_asset_amount: 5 * LAMPORT_PER_SOL,
+                direction: PositionDirection::Short,
+                order_type: OrderType::Limit,
+                price: 50 * MARK_PRICE_PRECISION,
+                ..Order::default()
+            };
+
+            let bank = Bank {
+                decimals: 9,
+                order_step_size: 1,
+                ..Bank::default()
+            };
+
+            let oracle_price_data = OraclePriceData {
+                price: 100 * MARK_PRICE_PRECISION_I128,
+                ..OraclePriceData::default()
+            };
+
+            let free_collateral = 100 * QUOTE_PRECISION_I128;
+
+            let max_fill = calculate_max_fill_for_spot_order(
+                &order,
+                &bank,
+                &oracle_price_data,
+                0,
+                false,
+                free_collateral,
+            )
+            .unwrap();
+
+            // free collateral: $100
+            // price delta: $100 - $50 = $50
+            // order base amount: 5
+            // base to consume free collateral : $100 / $50 = 2
+            // max fill: min(5 , 2) = 2
+            assert_eq!(max_fill, 2000000000);
+        }
+
+        #[test]
+        fn risk_increasing_ask_consumes_subset_of_free_collateral() {
+            let order = Order {
+                base_asset_amount: 5 * LAMPORT_PER_SOL,
+                direction: PositionDirection::Short,
+                order_type: OrderType::Limit,
+                price: 99 * MARK_PRICE_PRECISION,
+                ..Order::default()
+            };
+
+            let bank = Bank {
+                decimals: 9,
+                order_step_size: 1,
+                ..Bank::default()
+            };
+
+            let oracle_price_data = OraclePriceData {
+                price: 100 * MARK_PRICE_PRECISION_I128,
+                ..OraclePriceData::default()
+            };
+
+            let free_collateral = 100 * QUOTE_PRECISION_I128;
+
+            let max_fill = calculate_max_fill_for_spot_order(
+                &order,
+                &bank,
+                &oracle_price_data,
+                0,
+                false,
+                free_collateral,
+            )
+            .unwrap();
+
+            // free collateral: $100
+            // price delta: $100 - $99 = $1
+            // order base amount: 5
+            // base to consume free collateral : $100 / $1 = 100
+            // max fill: min(5 , 100) = 5
+            assert_eq!(max_fill, 5000000000);
+        }
+
+        #[test]
+        fn risk_increasing_ask_better_price_than_oracle() {
+            let order = Order {
+                base_asset_amount: 5 * LAMPORT_PER_SOL,
+                direction: PositionDirection::Short,
+                order_type: OrderType::Limit,
+                price: 101 * MARK_PRICE_PRECISION,
+                ..Order::default()
+            };
+
+            let bank = Bank {
+                decimals: 9,
+                order_step_size: 1,
+                ..Bank::default()
+            };
+
+            let oracle_price_data = OraclePriceData {
+                price: 100 * MARK_PRICE_PRECISION_I128,
+                ..OraclePriceData::default()
+            };
+
+            let free_collateral = 100 * QUOTE_PRECISION_I128;
+
+            let max_fill = calculate_max_fill_for_spot_order(
+                &order,
+                &bank,
+                &oracle_price_data,
+                0,
+                false,
+                free_collateral,
+            )
+            .unwrap();
+
+            assert_eq!(max_fill, 5000000000);
         }
     }
 }
