@@ -54,9 +54,9 @@ describe('token faucet', () => {
 	});
 
 	it('Initialize State', async () => {
-		const usdcPrecision: number = (await token.getMintInfo()).decimals
-		const maxAmountMint: number = 10_000 * Math.pow(10, usdcPrecision)
-		const maxAmountPerUser: number = 10_000_000 * Math.pow(10, usdcPrecision)
+		const usdcPrecision: number = (await token.getMintInfo()).decimals;
+		const maxAmountMint: number = 10_000 * Math.pow(10, usdcPrecision);
+		const maxAmountPerUser: number = 10_000_000 * Math.pow(10, usdcPrecision);
 		await tokenFaucet.initialize(maxAmountMint, maxAmountPerUser);
 		const state: any = await tokenFaucet.fetchState();
 

@@ -71,22 +71,26 @@ export class TokenFaucet {
 		return (await this.getFaucetConfigPublicKeyAndNonce())[0];
 	}
 
-	public async initialize(maxAmountMint: number, maxAmountPerUser: number): Promise<TransactionSignature> {
+	public async initialize(
+		maxAmountMint: number,
+		maxAmountPerUser: number
+	): Promise<TransactionSignature> {
 		const [faucetConfigPublicKey] =
 			await this.getFaucetConfigPublicKeyAndNonce();
 		return await this.program.rpc.initialize(
 			new anchor.BN(maxAmountMint),
 			new anchor.BN(maxAmountPerUser),
 			{
-			accounts: {
-				faucetConfig: faucetConfigPublicKey,
-				admin: this.wallet.publicKey,
-				mintAccount: this.mint,
-				rent: SYSVAR_RENT_PUBKEY,
-				systemProgram: anchor.web3.SystemProgram.programId,
-				tokenProgram: TOKEN_PROGRAM_ID,
-			},
-		});
+				accounts: {
+					faucetConfig: faucetConfigPublicKey,
+					admin: this.wallet.publicKey,
+					mintAccount: this.mint,
+					rent: SYSVAR_RENT_PUBKEY,
+					systemProgram: anchor.web3.SystemProgram.programId,
+					tokenProgram: TOKEN_PROGRAM_ID,
+				},
+			}
+		);
 	}
 
 	public async fetchState(): Promise<any> {
