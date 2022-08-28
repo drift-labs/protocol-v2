@@ -134,7 +134,7 @@ describe('token faucet', () => {
 		await clearingHouse.initialize(state.mint, false);
 		await clearingHouse.subscribe();
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
-		const [txSig, userAccountPublicKey] = await clearingHouse.initializeUserAccountForDevnet(
+		await clearingHouse.initializeUserAccountForDevnet(
 			0,
 			'crisp',
 			new BN(0),
