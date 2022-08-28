@@ -112,7 +112,7 @@ describe('token faucet', () => {
 		assert.ok(userTokenAccountInfo.amount.eq(new BN(0)));
 	});
 
-	it('cannot mint more than maxAmountPerUser to user', async () => {
+	it('user cannot mint if they have more than maxAmountPerUser', async () => {
 		const keyPair = new Keypair();
 		let userTokenAccountInfo = await token.getOrCreateAssociatedAccountInfo(
 			keyPair.publicKey
