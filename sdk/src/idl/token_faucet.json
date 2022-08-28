@@ -36,7 +36,16 @@
           "isSigner": false
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "maxAmountMint",
+          "type": "u64"
+        },
+        {
+          "name": "maxAmountPerUser",
+          "type": "u64"
+        }
+      ]
     },
     {
       "name": "mintToUser",
@@ -127,6 +136,14 @@
           {
             "name": "mintAuthorityNonce",
             "type": "u8"
+          },
+          {
+            "name": "maxAmountMint",
+            "type": "u64"
+          },
+          {
+            "name": "maxAmountPerUser",
+            "type": "u64"
           }
         ]
       }
