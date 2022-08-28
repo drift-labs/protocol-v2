@@ -96,18 +96,21 @@ describe('token faucet', () => {
 	});
 
 	it('cannot mint above maxAmountMint to user', async () => {
-		const keyPair = new Keypair()
+		const keyPair = new Keypair();
 		let userTokenAccountInfo = await token.getOrCreateAssociatedAccountInfo(
 			keyPair.publicKey
 		);
 		try {
-			await tokenFaucet.mintToUser(userTokenAccountInfo.address, amount.add(new BN(1)));
+			await tokenFaucet.mintToUser(
+				userTokenAccountInfo.address,
+				amount.add(new BN(1))
+			);
 		} catch (e) {}
 		userTokenAccountInfo = await token.getOrCreateAssociatedAccountInfo(
 			keyPair.publicKey
 		);
-		assert.ok(userTokenAccountInfo.amount.eq(new BN(0)))
-	})
+		assert.ok(userTokenAccountInfo.amount.eq(new BN(0)));
+	});
 
 	it('cannot mint more than maxAmountPerUser to user', async () => {
 		const keyPair = new Keypair();
@@ -121,12 +124,12 @@ describe('token faucet', () => {
 		}
 		try {
 			await tokenFaucet.mintToUser(userTokenAccountInfo.address, amount);
-		} catch(e) {}
+		} catch (e) {}
 		userTokenAccountInfo = await token.getOrCreateAssociatedAccountInfo(
 			keyPair.publicKey
 		);
 		assert.ok(userTokenAccountInfo.amount.eq(amount));
-	})
+	});
 
 	it('initialize user for dev net', async () => {
 		const state: any = await tokenFaucet.fetchState();
