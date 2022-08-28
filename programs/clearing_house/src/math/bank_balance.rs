@@ -90,15 +90,10 @@ pub struct InterestAccumulated {
     pub deposit_interest: u128,
 }
 
-pub fn calculate_accumulated_interest(
-    bank: &Bank,
-    now: i64,
-) -> ClearingHouseResult<InterestAccumulated> {
-    let deposit_token_amount =
-        get_token_amount(bank.deposit_balance, bank, &BankBalanceType::Deposit)?;
-    let borrow_token_amount =
-        get_token_amount(bank.borrow_balance, bank, &BankBalanceType::Borrow)?;
-
+pub fn calculate_utilization(
+    deposit_token_amount: u128,
+    borrow_token_amount: u128,
+) -> ClearingHouseResult<u128> {
     let utilization = borrow_token_amount
         .checked_mul(BANK_UTILIZATION_PRECISION)
         .ok_or_else(math_error!())?
@@ -112,6 +107,20 @@ pub fn calculate_accumulated_interest(
             }
         })
         .unwrap();
+
+    Ok(utilization)
+}
+
+pub fn calculate_accumulated_interest(
+    bank: &Bank,
+    now: i64,
+) -> ClearingHouseResult<InterestAccumulated> {
+    let deposit_token_amount =
+        get_token_amount(bank.deposit_balance, bank, &BankBalanceType::Deposit)?;
+    let borrow_token_amount =
+        get_token_amount(bank.borrow_balance, bank, &BankBalanceType::Borrow)?;
+
+    let utilization = calculate_utilization(deposit_token_amount, borrow_token_amount)?;
 
     if utilization == 0 {
         return Ok(InterestAccumulated {

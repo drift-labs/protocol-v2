@@ -97,8 +97,8 @@ mod calculate_liability_transfer_to_cover_margin_shortage {
 
     // todo?
     //     #[test]
-    //     pub fn reserve_factor_with_one_percent_asset_and_liability_fee() {
-    //         let liability_liquidation_reserve_factor = LIQUIDATION_FEE_PRECISION / 1000; //.1%, 10bps
+    //     pub fn if_factor_with_one_percent_asset_and_liability_fee() {
+    //         let liability_liquidation_if_factor = LIQUIDATION_FEE_PRECISION / 1000; //.1%, 10bps
 
     //         let margin_shortage = 10 * QUOTE_PRECISION; // $10 shortage
     //         let asset_weight = 8 * BANK_WEIGHT_PRECISION / 10; // .8
@@ -112,7 +112,7 @@ mod calculate_liability_transfer_to_cover_margin_shortage {
     //         let liability_price = 100 * MARK_PRICE_PRECISION_I128;
 
     //         let pct_d_mult =
-    //             liq_fee * liability_liquidation_reserve_factor / LIQUIDATION_FEE_PRECISION;
+    //             liq_fee * liability_liquidation_if_factor / LIQUIDATION_FEE_PRECISION;
     //         // assert_eq!(pct_d_mult, 100);
 
     //         let liability_transfer = calculate_liability_transfer_to_cover_margin_shortage(
@@ -131,7 +131,7 @@ mod calculate_liability_transfer_to_cover_margin_shortage {
     //         // assert_eq!(additional, 2217974); // .25 base
 
     //         assert_eq!(
-    //             liability_liquidation_multiplier / liability_liquidation_reserve_factor,
+    //             liability_liquidation_multiplier / liability_liquidation_if_factor,
     //             900
     //         );
     //         assert_eq!(
@@ -139,7 +139,7 @@ mod calculate_liability_transfer_to_cover_margin_shortage {
     //             4904
     //         ); // .25 base
     //         assert_eq!(
-    //             (liability_transfer * liability_liquidation_reserve_factor) / LIQUIDATION_FEE_PRECISION,
+    //             (liability_transfer * liability_liquidation_if_factor) / LIQUIDATION_FEE_PRECISION,
     //             additional
     //         ); // .25 base
 
@@ -148,7 +148,7 @@ mod calculate_liability_transfer_to_cover_margin_shortage {
     //             asset_weight,
     //             asset_liquidation_multiplier,
     //             liability_weight,
-    //             liability_liquidation_multiplier + liability_liquidation_reserve_factor,
+    //             liability_liquidation_multiplier + liability_liquidation_if_factor,
     //             liability_decimals,
     //             liability_price,
     //         )

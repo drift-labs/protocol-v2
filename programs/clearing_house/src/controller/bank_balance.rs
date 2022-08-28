@@ -3,13 +3,11 @@ use solana_program::msg;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm::calculate_weighted_average;
 use crate::math::bank_balance::{
-    calculate_accumulated_interest, check_withdraw_limits, get_bank_balance,
+    calculate_accumulated_interest, calculate_utilization, check_withdraw_limits, get_bank_balance,
     get_interest_token_amount, get_token_amount, InterestAccumulated,
 };
 use crate::math::casting::{cast, cast_to_i128, cast_to_u64};
-use crate::math::constants::{
-    BANK_INTEREST_PRECISION, BANK_UTILIZATION_PRECISION, TWENTY_FOUR_HOUR,
-};
+use crate::math::constants::{BANK_INTEREST_PRECISION, TWENTY_FOUR_HOUR};
 use crate::math_error;
 use crate::state::bank::{Bank, BankBalance, BankBalanceType};
 use crate::state::market::Market;
@@ -52,19 +50,7 @@ pub fn update_bank_twap_stats(
         from_start,
     )?)?;
 
-    let utilization = borrow_token_amount
-        .checked_mul(BANK_UTILIZATION_PRECISION)
-        .ok_or_else(math_error!())?
-        .checked_div(deposit_token_amount)
-        .or({
-            if deposit_token_amount == 0 && borrow_token_amount == 0 {
-                Some(0_u128)
-            } else {
-                // if there are borrows without deposits, default to maximum utilization rate
-                Some(BANK_UTILIZATION_PRECISION)
-            }
-        })
-        .unwrap();
+    let utilization = calculate_utilization(deposit_token_amount, borrow_token_amount)?;
 
     bank.utilization_twap = cast(calculate_weighted_average(
         cast(utilization)?,
@@ -85,7 +71,7 @@ pub fn update_bank_cumulative_interest(bank: &mut Bank, now: i64) -> ClearingHou
     if deposit_interest > 0 && borrow_interest > 1 {
         // borrowers -> lenders IF fee here
         let deposit_interest_for_stakers = deposit_interest
-            .checked_mul(bank.total_reserve_factor as u128)
+            .checked_mul(bank.total_if_factor as u128)
             .ok_or_else(math_error!())?
             .checked_div(BANK_INTEREST_PRECISION)
             .ok_or_else(math_error!())?;
@@ -276,7 +262,7 @@ pub fn validate_bank_amounts(bank: &Bank, bank_vault_amount: u64) -> ClearingHou
     )?)?;
 
     validate!(
-        depositors_amount > borrowers_amount,
+        depositors_amount >= borrowers_amount,
         ErrorCode::DefaultError,
         "depositors_amount={} less borrowers_amount={}",
         depositors_amount,
@@ -783,8 +769,8 @@ mod test {
             ..User::default()
         };
 
-        bank.user_reserve_factor = 900;
-        bank.total_reserve_factor = 1000; //1_000_000
+        bank.user_if_factor = 900;
+        bank.total_if_factor = 1000; //1_000_000
 
         assert_eq!(bank.utilization_twap, 0);
         assert_eq!(bank.deposit_balance, 1000000);
@@ -1067,8 +1053,8 @@ mod test {
             ..User::default()
         };
 
-        bank.user_reserve_factor = 900_00;
-        bank.total_reserve_factor = 1_000_00;
+        bank.user_if_factor = 900_00;
+        bank.total_if_factor = 1_000_00;
 
         assert_eq!(bank.utilization_twap, 0);
         assert_eq!(bank.deposit_balance, 1000000 * QUOTE_PRECISION);

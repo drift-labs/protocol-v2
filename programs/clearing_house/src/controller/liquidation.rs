@@ -607,7 +607,7 @@ pub fn liquidate_borrow(
         // part liquidator liability transfer pays to insurance fund
         // size will be eventually be 0 for sufficiently small liability size
         let liability_transfer_for_insurance = liability_transfer
-            .checked_mul(liability_bank.liquidation_reserve_factor as u128)
+            .checked_mul(liability_bank.liquidation_if_factor as u128)
             .ok_or_else(math_error!())?
             .checked_div(LIQUIDATION_FEE_PRECISION)
             .ok_or_else(math_error!())?;

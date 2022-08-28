@@ -34,12 +34,12 @@ pub struct Bank {
     pub insurance_fund_vault_authority_nonce: u8,
     pub insurance_fund_pool: PoolBalance,
 
-    pub total_reserve_factor: u32, // percentage of interest for total insurance
-    pub user_reserve_factor: u32,  // percentage of interest for user staked insurance
+    pub total_if_factor: u32, // percentage of interest for total insurance
+    pub user_if_factor: u32,  // percentage of interest for user staked insurance
 
-    pub total_lp_shares: u128,
-    pub user_lp_shares: u128,
-    pub lp_shares_expo: u128, // exponent for lp shares (for rebasing)
+    pub total_if_shares: u128,
+    pub user_if_shares: u128,
+    pub if_shares_base: u128, // exponent for lp shares (for rebasing)
     pub insurance_withdraw_escrow_period: i64,
 
     pub decimals: u8,
@@ -64,7 +64,7 @@ pub struct Bank {
     pub imf_factor: u128,
 
     pub liquidation_fee: u128,
-    pub liquidation_reserve_factor: u32, // percentage of liquidation transfer for total insurance
+    pub liquidation_if_factor: u32, // percentage of liquidation transfer for total insurance
     pub withdraw_guard_threshold: u128, // no withdraw limits/guards when bank deposits below this threshold
 }
 

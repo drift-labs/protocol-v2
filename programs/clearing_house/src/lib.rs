@@ -269,11 +269,11 @@ pub mod clearing_house {
             insurance_fund_vault_authority,
             insurance_fund_vault_authority_nonce,
             insurance_fund_pool: PoolBalance { balance: 0 },
-            total_reserve_factor: 0,
-            user_reserve_factor: 0,
-            total_lp_shares: 0,
-            user_lp_shares: 0,
-            lp_shares_expo: 0,
+            total_if_factor: 0,
+            user_if_factor: 0,
+            total_if_shares: 0,
+            user_if_shares: 0,
+            if_shares_base: 0,
             insurance_withdraw_escrow_period: 0,
             decimals: ctx.accounts.bank_mint.decimals,
             optimal_utilization,
@@ -294,7 +294,7 @@ pub mod clearing_house {
             maintenance_liability_weight,
             imf_factor,
             liquidation_fee,
-            liquidation_reserve_factor: 0,
+            liquidation_if_factor: 0,
             withdraw_guard_threshold: 0,
         };
 
@@ -2339,12 +2339,12 @@ pub mod clearing_house {
         Ok(())
     }
 
-    pub fn update_bank_reserve_factor(
+    pub fn update_bank_if_factor(
         ctx: Context<AdminUpdateBank>,
         bank_index: u64,
-        user_reserve_factor: u32,
-        total_reserve_factor: u32,
-        liquidation_reserve_factor: u32,
+        user_if_factor: u32,
+        total_if_factor: u32,
+        liquidation_if_factor: u32,
     ) -> Result<()> {
         let bank = &mut load_mut!(ctx.accounts.bank)?;
 
@@ -2355,42 +2355,42 @@ pub mod clearing_house {
         )?;
 
         validate!(
-            user_reserve_factor <= total_reserve_factor,
+            user_if_factor <= total_if_factor,
             ErrorCode::DefaultError,
-            "user_reserve_factor must be <= total_reserve_factor"
+            "user_if_factor must be <= total_if_factor"
         )?;
 
         validate!(
-            total_reserve_factor <= cast_to_u32(BANK_INTEREST_PRECISION)?,
+            total_if_factor <= cast_to_u32(BANK_INTEREST_PRECISION)?,
             ErrorCode::DefaultError,
-            "total_reserve_factor must be <= 100%"
+            "total_if_factor must be <= 100%"
         )?;
 
         validate!(
-            liquidation_reserve_factor <= cast_to_u32(LIQUIDATION_FEE_PRECISION / 20)?,
+            liquidation_if_factor <= cast_to_u32(LIQUIDATION_FEE_PRECISION / 20)?,
             ErrorCode::DefaultError,
-            "liquidation_reserve_factor must be <= 5%"
+            "liquidation_if_factor must be <= 5%"
         )?;
 
         msg!(
-            "bank.user_reserve_factor: {:?} -> {:?}",
-            bank.user_reserve_factor,
-            user_reserve_factor
+            "bank.user_if_factor: {:?} -> {:?}",
+            bank.user_if_factor,
+            user_if_factor
         );
         msg!(
-            "bank.total_reserve_factor: {:?} -> {:?}",
-            bank.total_reserve_factor,
-            total_reserve_factor
+            "bank.total_if_factor: {:?} -> {:?}",
+            bank.total_if_factor,
+            total_if_factor
         );
         msg!(
-            "bank.liquidation_reserve_factor: {:?} -> {:?}",
-            bank.liquidation_reserve_factor,
-            liquidation_reserve_factor
+            "bank.liquidation_if_factor: {:?} -> {:?}",
+            bank.liquidation_if_factor,
+            liquidation_if_factor
         );
 
-        bank.user_reserve_factor = user_reserve_factor;
-        bank.total_reserve_factor = total_reserve_factor;
-        bank.liquidation_reserve_factor = liquidation_reserve_factor;
+        bank.user_if_factor = user_if_factor;
+        bank.total_if_factor = total_if_factor;
+        bank.liquidation_if_factor = liquidation_if_factor;
 
         Ok(())
     }
@@ -2729,12 +2729,12 @@ pub mod clearing_house {
         *if_stake = InsuranceFundStake {
             authority: *ctx.accounts.authority.key,
             bank_index,
-            lp_shares: 0,
+            if_shares: 0,
             last_withdraw_request_shares: 0,
             last_withdraw_request_value: 0,
             last_withdraw_request_ts: 0,
             cost_basis: 0,
-            expo: 0,
+            if_base: 0,
             last_valid_ts: now,
         };
 
@@ -2850,7 +2850,7 @@ pub mod clearing_house {
         )?;
 
         validate!(
-            insurance_fund_stake.lp_shares >= n_shares,
+            insurance_fund_stake.if_shares >= n_shares,
             ErrorCode::InsufficientLPTokens
         )?;
 

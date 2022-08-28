@@ -155,9 +155,9 @@ describe('insurance fund stake', () => {
 
 		const bank0 = clearingHouse.getBankAccount(bankIndex);
 		assert(bank0.insuranceFundPool.balance.eq(ZERO));
-		assert(bank0.totalLpShares.gt(ZERO));
-		assert(bank0.totalLpShares.eq(usdcAmount));
-		assert(bank0.userLpShares.eq(usdcAmount));
+		assert(bank0.totalIfShares.gt(ZERO));
+		assert(bank0.totalIfShares.eq(usdcAmount));
+		assert(bank0.userIfShares.eq(usdcAmount));
 
 		const userStats = clearingHouse.getUserStats().getAccount();
 		assert(userStats.quoteAssetInsuranceFundStake.eq(usdcAmount));
@@ -181,9 +181,9 @@ describe('insurance fund stake', () => {
 		}
 
 		const bank0 = clearingHouse.getBankAccount(bankIndex);
-		assert(bank0.totalLpShares.gt(ZERO));
-		assert(bank0.totalLpShares.eq(usdcAmount));
-		assert(bank0.userLpShares.eq(usdcAmount));
+		assert(bank0.totalIfShares.gt(ZERO));
+		assert(bank0.totalIfShares.eq(usdcAmount));
+		assert(bank0.userIfShares.eq(usdcAmount));
 
 		const userStats = clearingHouse.getUserStats().getAccount();
 		assert(userStats.quoteAssetInsuranceFundStake.eq(usdcAmount));
@@ -216,11 +216,11 @@ describe('insurance fund stake', () => {
 		);
 
 		const bank0 = clearingHouse.getBankAccount(bankIndex);
-		console.log('totalLpShares:', bank0.totalLpShares.toString());
-		console.log('userLpShares:', bank0.userLpShares.toString());
+		console.log('totalIfShares:', bank0.totalIfShares.toString());
+		console.log('userIfShares:', bank0.userIfShares.toString());
 
-		assert(bank0.totalLpShares.eq(usdcAmount.div(new BN(2))));
-		assert(bank0.userLpShares.eq(usdcAmount.div(new BN(2))));
+		assert(bank0.totalIfShares.eq(usdcAmount.div(new BN(2))));
+		assert(bank0.userIfShares.eq(usdcAmount.div(new BN(2))));
 
 		const userStats = clearingHouse.getUserStats().getAccount();
 		assert(
@@ -287,9 +287,9 @@ describe('insurance fund stake', () => {
 
 		const bank0 = clearingHouse.getBankAccount(bankIndex);
 		assert(bank0.insuranceWithdrawEscrowPeriod.eq(new BN(10)));
-		assert(bank0.totalLpShares.gt(ZERO));
-		assert(bank0.totalLpShares.eq(usdcAmount.div(new BN(2))));
-		assert(bank0.userLpShares.eq(usdcAmount.div(new BN(2))));
+		assert(bank0.totalIfShares.gt(ZERO));
+		assert(bank0.totalIfShares.eq(usdcAmount.div(new BN(2))));
+		assert(bank0.userIfShares.eq(usdcAmount.div(new BN(2))));
 
 		const userStats = clearingHouse.getUserStats().getAccount();
 		assert(userStats.quoteAssetInsuranceFundStake.gt(ZERO));
@@ -312,7 +312,7 @@ describe('insurance fund stake', () => {
 		const bankIndex = new BN(0);
 
 		try {
-			await clearingHouse.updateBankReserveFactor(
+			await clearingHouse.updateBankIfFactor(
 				new BN(0),
 				new BN(90000),
 				new BN(100000),
@@ -369,11 +369,11 @@ describe('insurance fund stake', () => {
 				.logMessages
 		);
 		const bank0 = clearingHouse.getBankAccount(bankIndex);
-		console.log('totalLpShares:', bank0.totalLpShares.toString());
-		console.log('userLpShares:', bank0.userLpShares.toString());
+		console.log('totalIfShares:', bank0.totalIfShares.toString());
+		console.log('userIfShares:', bank0.userIfShares.toString());
 
-		assert(bank0.totalLpShares.eq(ZERO));
-		assert(bank0.userLpShares.eq(ZERO));
+		assert(bank0.totalIfShares.eq(ZERO));
+		assert(bank0.userIfShares.eq(ZERO));
 
 		const ifStakePublicKey = getInsuranceFundStakeAccountPublicKey(
 			clearingHouse.program.programId,

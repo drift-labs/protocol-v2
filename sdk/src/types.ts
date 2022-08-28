@@ -363,12 +363,13 @@ export type BankAccount = {
 	insuranceFundVaultAuthorityNonce: number;
 	insuranceWithdrawEscrowPeriod: BN;
 	insuranceFundPool: PoolBalance;
-	totalLpShares: BN;
-	userLpShares: BN;
 
-	userReserveFactor: BN;
-	totalReserveFacotr: BN;
-	liquidationReserveFactor: BN;
+	totalIfShares: BN;
+	userIfShares: BN;
+
+	userIfFactor: BN;
+	totalIfFacotr: BN;
+	liquidationIfFactor: BN;
 
 	decimals: number;
 	optimalUtilization: BN;
@@ -683,7 +684,9 @@ export type InsuranceFundStake = {
 	bankIndex: BN;
 	authority: PublicKey;
 
-	lpShares: BN;
+	ifShares: BN;
+	ifBase: BN;
+
 	lastWithdrawRequestShares: BN;
 	lastWithdrawRequestValue: BN;
 	lastWithdrawRequestTs: BN;

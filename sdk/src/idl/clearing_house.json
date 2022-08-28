@@ -1557,7 +1557,7 @@
       ]
     },
     {
-      "name": "updateBankReserveFactor",
+      "name": "updateBankIfFactor",
       "accounts": [
         {
           "name": "admin",
@@ -1581,15 +1581,15 @@
           "type": "u64"
         },
         {
-          "name": "userReserveFactor",
+          "name": "userIfFactor",
           "type": "u32"
         },
         {
-          "name": "totalReserveFactor",
+          "name": "totalIfFactor",
           "type": "u32"
         },
         {
-          "name": "liquidationReserveFactor",
+          "name": "liquidationIfFactor",
           "type": "u32"
         }
       ]
@@ -2379,7 +2379,7 @@
         },
         {
           "name": "userStats",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -2419,7 +2419,7 @@
         },
         {
           "name": "userStats",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -2551,23 +2551,23 @@
             }
           },
           {
-            "name": "totalReserveFactor",
+            "name": "totalIfFactor",
             "type": "u32"
           },
           {
-            "name": "userReserveFactor",
+            "name": "userIfFactor",
             "type": "u32"
           },
           {
-            "name": "totalLpShares",
+            "name": "totalIfShares",
             "type": "u128"
           },
           {
-            "name": "userLpShares",
+            "name": "userIfShares",
             "type": "u128"
           },
           {
-            "name": "lpSharesExpo",
+            "name": "ifSharesBase",
             "type": "u128"
           },
           {
@@ -2651,7 +2651,7 @@
             "type": "u128"
           },
           {
-            "name": "liquidationReserveFactor",
+            "name": "liquidationIfFactor",
             "type": "u32"
           },
           {
@@ -2675,11 +2675,11 @@
             "type": "u64"
           },
           {
-            "name": "lpShares",
+            "name": "ifShares",
             "type": "u128"
           },
           {
-            "name": "expo",
+            "name": "ifBase",
             "type": "u128"
           },
           {

@@ -748,6 +748,10 @@ pub struct SettleBankToInsuranceFund<'info> {
 #[derive(Accounts)]
 #[instruction(bank_index: u64)]
 pub struct AddInsuranceFundStake<'info> {
+    #[account(
+        seeds = [b"bank", bank_index.to_le_bytes().as_ref()],
+        bump
+    )]
     pub bank: AccountLoader<'info, Bank>,
     #[account(
         mut,
@@ -778,12 +782,20 @@ pub struct AddInsuranceFundStake<'info> {
 #[derive(Accounts)]
 #[instruction(bank_index: u64,)]
 pub struct RequestRemoveInsuranceFundStake<'info> {
+    #[account(
+        seeds = [b"bank", bank_index.to_le_bytes().as_ref()],
+        bump
+    )]
     pub bank: AccountLoader<'info, Bank>,
     #[account(
         mut,
         has_one = authority,
     )]
     pub insurance_fund_stake: AccountLoader<'info, InsuranceFundStake>,
+    #[account(
+        mut,
+        has_one = authority,
+    )]
     pub user_stats: AccountLoader<'info, UserStats>,
     pub authority: Signer<'info>,
     #[account(
@@ -797,6 +809,10 @@ pub struct RequestRemoveInsuranceFundStake<'info> {
 #[derive(Accounts)]
 #[instruction(bank_index: u64,)]
 pub struct RemoveInsuranceFundStake<'info> {
+    #[account(
+        seeds = [b"bank", bank_index.to_le_bytes().as_ref()],
+        bump
+    )]
     pub bank: AccountLoader<'info, Bank>,
     #[account(
         mut,

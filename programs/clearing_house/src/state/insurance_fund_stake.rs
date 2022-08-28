@@ -7,8 +7,8 @@ pub struct InsuranceFundStake {
     pub authority: Pubkey,
     pub bank_index: u64,
 
-    pub lp_shares: u128,
-    pub expo: u128, // exponent for lp_shares decimal places (for rebase)
+    pub if_shares: u128,
+    pub if_base: u128, // exponent for if_shares decimal places (for rebase)
     pub last_valid_ts: i64,
 
     pub last_withdraw_request_shares: u128, // get zero as 0 when not in escrow

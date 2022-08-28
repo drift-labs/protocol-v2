@@ -606,17 +606,17 @@ export class Admin extends ClearingHouse {
 		);
 	}
 
-	public async updateBankReserveFactor(
+	public async updateBankIfFactor(
 		bankIndex: BN,
-		userReserveFactor: BN,
-		totalReserveFactor: BN,
-		liquidationReserveFactor: BN
+		userIfFactor: BN,
+		totalIfFactor: BN,
+		liquidationIfFactor: BN
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateBankReserveFactor(
+		return await this.program.rpc.updateBankIfFactor(
 			bankIndex,
-			userReserveFactor,
-			totalReserveFactor,
-			liquidationReserveFactor,
+			userIfFactor,
+			totalIfFactor,
+			liquidationIfFactor,
 			{
 				accounts: {
 					admin: this.wallet.publicKey,
