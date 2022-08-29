@@ -243,6 +243,8 @@ pub enum ErrorCode {
     UnableToBurnLPTokens,
     #[msg("Trying to remove liqudity too fast after adding it")]
     TryingToRemoveLiquidityTooFast,
+    #[msg("Invalid Bank State")]
+    InvalidBankState,
 }
 
 #[macro_export]
