@@ -463,7 +463,9 @@ describe('bank deposit and withdraw', () => {
 			bankDepositTokenAmountAfter.toString(),
 			bankBorrowTokenAmountAfter.toString()
 		);
-		assert(bankDepositTokenAmountAfter.eq(bankBorrowTokenAmountAfter));
+		assert(
+			bankDepositTokenAmountAfter.sub(bankBorrowTokenAmountAfter).lte(ONE)
+		);
 	});
 
 	it('Update Cumulative Interest with 100% utilization', async () => {

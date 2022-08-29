@@ -5164,6 +5164,11 @@
       "code": 6118,
       "name": "TryingToRemoveLiquidityTooFast",
       "msg": "Trying to remove liqudity too fast after adding it"
+    },
+    {
+      "code": 6119,
+      "name": "InvalidBankState",
+      "msg": "Invalid Bank State"
     }
   ]
 }
