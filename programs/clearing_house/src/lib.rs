@@ -880,8 +880,17 @@ pub mod clearing_house {
 
         let position_index = get_position_index(&user.positions, market_index)
             .or_else(|_| add_new_position(&mut user.positions, market_index))?;
-        let position = &mut user.positions[position_index];
 
+        validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
+        math::liquidation::validate_user_not_being_liquidated(
+            user,
+            &market_map,
+            &bank_map,
+            &mut oracle_map,
+            ctx.accounts.state.liquidation_margin_buffer_ratio,
+        )?;
+    
+        let position = &mut user.positions[position_index];
         // update add liquidity time
         position.last_lp_add_time = now;
 

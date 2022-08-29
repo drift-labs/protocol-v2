@@ -31,7 +31,7 @@ import {
 	initializeQuoteAssetBank,
 } from './testHelpers';
 
-describe('liquidate perp', () => {
+describe('liquidate perp and lp', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
 		preflightCommitment: 'confirmed',
 		commitment: 'confirmed',
@@ -210,6 +210,14 @@ describe('liquidate perp', () => {
 		assert(clearingHouse.getUserAccount().beingLiquidated);
 		assert(clearingHouse.getUserAccount().nextLiquidationId === 2);
 
+		// try to add liq when being liquidated -- should fail
+		try {
+			await clearingHouse.addLiquidity(nLpShares, ZERO);
+			assert(false);
+		} catch (err) {
+			assert(err.message.includes("0x17d6"));
+		}
+
 		const liquidationRecord =
 			eventSubscriber.getEventsArray('LiquidationRecord')[0];
 		assert(liquidationRecord.liquidationId === 1);
@@ -247,6 +255,15 @@ describe('liquidate perp', () => {
 				.getUserAccount()
 				.positions[0].quoteAssetAmount.eq(new BN(-6088113))
 		);
+
+		// try to add liq when bankrupt -- should fail
+		try {
+			await clearingHouse.addLiquidity(nLpShares, ZERO);
+			assert(false);
+		} catch (err) {
+			// cant add when bankrupt
+			assert(err.message.includes("0x17de"));
+		}
 
 		await liquidatorClearingHouse.resolvePerpBankruptcy(
 			await clearingHouse.getUserAccountPublicKey(),
