@@ -1043,11 +1043,13 @@ pub mod clearing_house {
             let user = &load!(ctx.accounts.user)?;
             // if there is no order id, use the users last order id
             let order_id = order_id.unwrap_or_else(|| user.get_last_order_id());
-            let market_index = user
-                .get_order(order_id)
-                .map(|order| order.market_index)
-                .ok_or(ErrorCode::OrderDoesNotExist)?;
-
+            let market_index = match user.get_order(order_id) {
+                Some(order) => order.market_index,
+                None => {
+                    msg!("Order does not exist {}", order_id);
+                    return Ok(());
+                }
+            };
             (order_id, market_index)
         };
 
@@ -1080,7 +1082,7 @@ pub mod clearing_house {
             clock,
         )?;
 
-        let (_, updated_user_state) = controller::orders::fill_order(
+        controller::orders::fill_order(
             order_id,
             &ctx.accounts.state,
             &ctx.accounts.user,
@@ -1097,10 +1099,6 @@ pub mod clearing_house {
             referrer_stats.as_ref(),
             &Clock::get()?,
         )?;
-
-        if !updated_user_state {
-            return Err(print_error!(ErrorCode::FillOrderDidNotUpdateState)().into());
-        }
 
         Ok(())
     }
