@@ -26,7 +26,7 @@ pub fn get_proportion_u128(
     numerator: u128,
     denominator: u128,
 ) -> ClearingHouseResult<u128> {
-    let proportional_value = if numerator > denominator / 2 {
+    let proportional_value = if numerator > denominator / 2 && denominator >= numerator {
         value
             .checked_sub(
                 value
