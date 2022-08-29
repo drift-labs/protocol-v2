@@ -373,6 +373,7 @@ pub fn liquidate_perp(
             oracle_price,
             base_asset_amount: user_position_delta.base_asset_amount,
             quote_asset_amount: user_position_delta.quote_asset_amount,
+            lp_shares: user_lp_shares,
             user_pnl,
             liquidator_pnl,
             canceled_orders_fee,

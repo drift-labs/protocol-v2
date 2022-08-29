@@ -2774,6 +2774,10 @@
             "type": "i128"
           },
           {
+            "name": "lpShares",
+            "type": "u128"
+          },
+          {
             "name": "userPnl",
             "type": "i128"
           },

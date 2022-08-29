@@ -214,6 +214,7 @@ export type LiquidatePerpRecord = {
 	oraclePrice: BN;
 	baseAssetAmount: BN;
 	quoteAssetAmount: BN;
+	lpShares: BN;
 	userPnl: BN;
 	liquidatorPnl: BN;
 	canceledOrdersFee: BN;

@@ -240,6 +240,7 @@ describe('liquidate perp and lp', () => {
 		);
 		assert(liquidationRecord.liquidatePerp.userPnl.eq(new BN(-15750613)));
 		assert(liquidationRecord.liquidatePerp.liquidatorPnl.eq(new BN(0)));
+		assert(liquidationRecord.liquidatePerp.lpShares.eq(nLpShares));
 
 		await liquidatorClearingHouse.liquidatePerpPnlForDeposit(
 			await clearingHouse.getUserAccountPublicKey(),

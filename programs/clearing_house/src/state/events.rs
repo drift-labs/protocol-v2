@@ -191,6 +191,7 @@ pub struct LiquidatePerpRecord {
     pub oracle_price: i128,
     pub base_asset_amount: i128,
     pub quote_asset_amount: i128,
+    pub lp_shares: u128,
     pub user_pnl: i128,
     pub liquidator_pnl: i128,
     pub fill_record_id: u64,
