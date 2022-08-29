@@ -1,18 +1,11 @@
 use crate::error::{ClearingHouseResult, ErrorCode};
-use crate::math::bank_balance::get_token_amount;
-use crate::math::bankruptcy::is_user_bankrupt;
-use crate::math::casting::{cast, cast_to_i128};
-use crate::math::constants::{BANK_WEIGHT_PRECISION, LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION};
-use crate::math::orders::{
-    calculate_quote_asset_amount_for_maker_order, get_position_delta_for_fill,
-    is_multiple_of_step_size,
-};
-use crate::state::market::{Market, AMM};
-use crate::state::user::{MarketPosition, User, UserStats};
+use crate::math::orders::is_multiple_of_step_size;
+use crate::state::market::Market;
+use crate::state::user::MarketPosition;
 use crate::validate;
-use crate::{dlog, math_error};
 use solana_program::msg;
 
+#[allow(clippy::comparison_chain)]
 pub fn validate_market_account(market: &Market) -> ClearingHouseResult {
     validate!(
         (market.base_asset_amount_long + market.base_asset_amount_short)
