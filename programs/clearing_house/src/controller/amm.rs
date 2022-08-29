@@ -654,7 +654,7 @@ mod test {
             market.pnl_pool.balance_type(),
         )
         .unwrap();
-        assert_eq!(pnl_pool_token_amount, 99_000_000_000 + 2 - 987_789);
+        assert_eq!(pnl_pool_token_amount, 99_000_000_000 + 1 - 987_789);
         assert_eq!(amm_fee_pool_token_amount, 0);
     }
 }

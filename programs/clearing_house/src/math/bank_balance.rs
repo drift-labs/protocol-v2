@@ -12,6 +12,7 @@ pub fn get_bank_balance(
     token_amount: u128,
     bank: &Bank,
     balance_type: &BankBalanceType,
+    round_up: bool,
 ) -> ClearingHouseResult<u128> {
     let precision_increase = 10_u128.pow(
         16_u8
@@ -31,7 +32,7 @@ pub fn get_bank_balance(
         .checked_div(cumulative_interest)
         .ok_or_else(math_error!())?;
 
-    if balance != 0 && balance_type == &BankBalanceType::Borrow {
+    if round_up && balance != 0 {
         balance = balance.checked_add(1).ok_or_else(math_error!())?;
     }
 

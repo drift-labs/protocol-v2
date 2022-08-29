@@ -90,7 +90,8 @@ pub fn update_bank_balances(
 ) -> ClearingHouseResult {
     let increase_user_existing_balance = update_direction == bank_balance.balance_type();
     if increase_user_existing_balance {
-        let balance_delta = get_bank_balance(token_amount, bank, update_direction)?;
+        let round_up = bank_balance.balance_type() == &BankBalanceType::Borrow;
+        let balance_delta = get_bank_balance(token_amount, bank, update_direction, round_up)?;
         bank_balance.increase_balance(balance_delta)?;
         increase_bank_balance(balance_delta, bank, update_direction)?;
     } else {
@@ -102,7 +103,7 @@ pub fn update_bank_balances(
             // determine how much to reduce balance based on size of current token amount
             let (token_delta, balance_delta) = if current_token_amount > token_amount {
                 let balance_delta =
-                    get_bank_balance(token_amount, bank, bank_balance.balance_type())?;
+                    get_bank_balance(token_amount, bank, bank_balance.balance_type(), true)?;
                 (token_amount, balance_delta)
             } else {
                 (current_token_amount, bank_balance.balance())
@@ -117,7 +118,8 @@ pub fn update_bank_balances(
 
         if token_amount > 0 {
             bank_balance.update_balance_type(*update_direction)?;
-            let balance_delta = get_bank_balance(token_amount, bank, update_direction)?;
+            let round_up = update_direction == &BankBalanceType::Borrow;
+            let balance_delta = get_bank_balance(token_amount, bank, update_direction, round_up)?;
             bank_balance.increase_balance(balance_delta)?;
             increase_bank_balance(balance_delta, bank, update_direction)?;
         }
