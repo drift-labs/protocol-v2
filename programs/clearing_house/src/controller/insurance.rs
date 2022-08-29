@@ -533,7 +533,7 @@ mod test {
         let amount_returned =
             (remove_insurance_fund_stake(if_balance, &mut if_stake, &mut user_stats, &mut bank, 0))
                 .unwrap();
-        assert_eq!(amount_returned, expected_amount_returned - 1);
+        assert_eq!(amount_returned, expected_amount_returned);
         assert_eq!(if_stake.if_shares, n_shares * 2 / 3 + 1);
         if_balance = if_balance - amount_returned;
 
@@ -559,7 +559,7 @@ mod test {
         let amount_returned =
             (remove_insurance_fund_stake(if_balance, &mut if_stake, &mut user_stats, &mut bank, 0))
                 .unwrap();
-        assert_eq!(amount_returned, expected_amount_returned + 2);
+        assert_eq!(amount_returned, expected_amount_returned + 1);
         assert_eq!(if_stake.cost_basis, 52632);
         assert_eq!(if_stake.if_shares, 0);
 

@@ -259,7 +259,7 @@ mod test {
         // take back gain
         let mut if_balance = (1100 * QUOTE_PRECISION) as u64;
         let lost_shares = calculate_if_shares_lost(&if_stake, &bank, if_balance).unwrap();
-        assert_eq!(lost_shares, 10_000_001); // giving up $10 of gains
+        assert_eq!(lost_shares, 10_000_000); // giving up $10 of gains
 
         // doesnt matter if theres a loss
         if_stake.last_withdraw_request_value = (200 * QUOTE_PRECISION) as u64;
@@ -271,7 +271,7 @@ mod test {
         let mut if_balance = (2100 * QUOTE_PRECISION) as u64;
         bank.total_if_shares = bank.total_if_shares * 2;
         let lost_shares = calculate_if_shares_lost(&if_stake, &bank, if_balance).unwrap();
-        assert_eq!(lost_shares, 5_000_001); // giving up $5 of gains
+        assert_eq!(lost_shares, 5_000_000); // giving up $5 of gains
 
         let mut if_balance = (2100 * QUOTE_PRECISION * 10) as u64;
 
