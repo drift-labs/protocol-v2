@@ -68,4 +68,5 @@ export const ONE_YEAR = new BN(31536000);
 
 export const QUOTE_ASSET_BANK_INDEX = new BN(0);
 
+export const LAMPORTS_PRECISION = new BN(LAMPORTS_PER_SOL);
 export const LAMPORTS_EXP = new BN(Math.log10(LAMPORTS_PER_SOL));
