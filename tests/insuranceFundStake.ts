@@ -596,6 +596,176 @@ describe('insurance fund stake', () => {
 		assert(ifPoolBalanceAfterSettle.eq(new BN(0)));
 	});
 
+	it('no user -> user stake when there is a vault balance', async () => {
+		const bankIndex = new BN(0);
+		const bank0Before = clearingHouse.getBankAccount(bankIndex);
+		const insuranceVaultAmountBefore = new BN(
+			(
+				await provider.connection.getTokenAccountBalance(
+					bank0Before.insuranceFundVault
+				)
+			).value.amount
+		);
+		assert(bank0Before.insuranceFundPool.balance.eq(ZERO));
+
+		assert(bank0Before.userIfShares.eq(ZERO));
+		assert(bank0Before.totalIfShares.eq(ZERO));
+
+		const usdcbalance = await connection.getTokenAccountBalance(
+			userUSDCAccount.publicKey
+		);
+		console.log('usdc balance:', usdcbalance.value.amount);
+		assert(usdcbalance.value.amount == '999999999999');
+
+		try {
+			const txSig = await clearingHouse.addInsuranceFundStake(
+				bankIndex,
+				new BN(usdcbalance.value.amount),
+				userUSDCAccount.publicKey
+			);
+			console.log(
+				'tx logs',
+				(await connection.getTransaction(txSig, { commitment: 'confirmed' }))
+					.meta.logMessages
+			);
+		} catch (e) {
+			console.error(e);
+			assert(false);
+		}
+
+		const bank0 = clearingHouse.getBankAccount(bankIndex);
+		assert(bank0.insuranceFundPool.balance.eq(ZERO));
+		const insuranceVaultAmountAfter = new BN(
+			(
+				await provider.connection.getTokenAccountBalance(
+					bank0Before.insuranceFundVault
+				)
+			).value.amount
+		);
+		assert(insuranceVaultAmountAfter.gt(insuranceVaultAmountBefore));
+		console.log(
+			'userIfShares:',
+			bank0.userIfShares.toString(),
+			'totalIfShares:',
+			bank0.totalIfShares.toString()
+		);
+		assert(bank0.totalIfShares.gt(ZERO));
+		assert(bank0.totalIfShares.gt(usdcAmount));
+		assert(bank0.totalIfShares.gt(new BN('1000000004698')));
+		// totalIfShares lower bound, kinda random basd on timestamps
+
+		assert(bank0.userIfShares.eq(new BN(usdcbalance.value.amount)));
+
+		const userStats = clearingHouse.getUserStats().getAccount();
+		assert(
+			userStats.quoteAssetInsuranceFundStake.eq(
+				new BN(usdcbalance.value.amount)
+			)
+		);
+	});
+
+	it('user stake misses out on gains during escrow period after cancel', async () => {
+		const bankIndex = new BN(0);
+		const bank0Before = clearingHouse.getBankAccount(bankIndex);
+		const insuranceVaultAmountBefore = new BN(
+			(
+				await provider.connection.getTokenAccountBalance(
+					bank0Before.insuranceFundVault
+				)
+			).value.amount
+		);
+		assert(bank0Before.insuranceFundPool.balance.eq(ZERO));
+
+		console.log(
+			'cumulativeBorrowInterest:',
+			bank0Before.cumulativeBorrowInterest.toString()
+		);
+		console.log(
+			'cumulativeDepositInterest:',
+			bank0Before.cumulativeDepositInterest.toString()
+		);
+
+		// user requests partial withdraw
+		const ifStakePublicKey = getInsuranceFundStakeAccountPublicKey(
+			clearingHouse.program.programId,
+			provider.wallet.publicKey,
+			bankIndex
+		);
+		const ifStakeAccount =
+			(await clearingHouse.program.account.insuranceFundStake.fetch(
+				ifStakePublicKey
+			)) as InsuranceFundStake;
+
+		const txSig2 = await clearingHouse.requestRemoveInsuranceFundStake(
+			bankIndex,
+			ifStakeAccount.ifShares.div(new BN(10))
+		);
+
+		console.log('letting interest accum (2s)');
+		await sleep(2000);
+		await clearingHouse.updateBankCumulativeInterest(new BN(0));
+		const bankIUpdate = await clearingHouse.getBankAccount(bankIndex);
+
+		console.log(
+			'cumulativeBorrowInterest:',
+			bankIUpdate.cumulativeBorrowInterest.toString()
+		);
+		console.log(
+			'cumulativeDepositInterest:',
+			bankIUpdate.cumulativeDepositInterest.toString()
+		);
+
+		console.log(bankIUpdate.insuranceFundPool.balance.toString());
+		assert(bankIUpdate.insuranceFundPool.balance.gt(ZERO));
+
+		try {
+			const txSig = await clearingHouse.settleBankToInsuranceFund(bankIndex);
+			console.log(
+				'tx logs',
+				(await connection.getTransaction(txSig, { commitment: 'confirmed' }))
+					.meta.logMessages
+			);
+		} catch (e) {
+			console.error(e);
+			assert(false);
+		}
+
+		const insuranceVaultAmountAfter = new BN(
+			(
+				await provider.connection.getTokenAccountBalance(
+					bank0Before.insuranceFundVault
+				)
+			).value.amount
+		);
+		assert(insuranceVaultAmountAfter.gt(insuranceVaultAmountBefore));
+		const txSig3 = await clearingHouse.cancelRequestRemoveInsuranceFundStake(
+			bankIndex
+		);
+
+		const ifStakeAccountAfter =
+			(await clearingHouse.program.account.insuranceFundStake.fetch(
+				ifStakePublicKey
+			)) as InsuranceFundStake;
+		const userStats = clearingHouse.getUserStats().getAccount();
+
+		console.log(
+			'ifshares:',
+			ifStakeAccount.ifShares.toString(),
+			'->',
+			ifStakeAccountAfter.ifShares.toString(),
+			'(quoteAssetInsuranceFundStake=',
+			userStats.quoteAssetInsuranceFundStake.toString(),
+			')'
+		);
+
+		assert(ifStakeAccountAfter.ifShares.lt(ifStakeAccount.ifShares));
+
+		// totalIfShares lower bound, kinda random basd on timestamps
+		assert(
+			userStats.quoteAssetInsuranceFundStake.eq(ifStakeAccountAfter.ifShares)
+		);
+	});
+
 	it('liquidate borrow (w/ IF revenue)', async () => {
 		const bankBefore = clearingHouse.getBankAccount(0);
 
@@ -874,4 +1044,46 @@ describe('insurance fund stake', () => {
 
 		// assert(usdcBefore.eq(usdcAfter));
 	});
+
+	// it('settle bank to insurance vault', async () => {
+	// 	const bankIndex = new BN(0);
+
+	// 	const bank0Before = clearingHouse.getBankAccount(bankIndex);
+
+	// 	const insuranceVaultAmountBefore = new BN(
+	// 		(
+	// 			await provider.connection.getTokenAccountBalance(
+	// 				bank0Before.insuranceFundVault
+	// 			)
+	// 		).value.amount
+	// 	);
+
+	// 	assert(insuranceVaultAmountBefore.gt(ZERO));
+	// 	assert(bank0Before.insuranceFundPool.balance.gt(ZERO));
+
+	// 	console.log(
+	// 		'userIfShares:',
+	// 		bank0Before.userIfShares.toString(),
+	// 		'totalIfShares:',
+	// 		bank0Before.totalIfShares.toString()
+	// 	);
+	// 	assert(bank0Before.userIfShares.eq(ZERO));
+	// 	assert(bank0Before.totalIfShares.eq(ZERO)); // 0_od
+
+	// 	try {
+	// 		const txSig = await clearingHouse.settleBankToInsuranceFund(bankIndex);
+	// 		console.log(
+	// 			'tx logs',
+	// 			(await connection.getTransaction(txSig, { commitment: 'confirmed' }))
+	// 				.meta.logMessages
+	// 		);
+	// 	} catch (e) {
+	// 		console.error(e);
+	// 		assert(false);
+	// 	}
+
+	// 	const bank0 = clearingHouse.getBankAccount(bankIndex);
+	// 	assert(bank0.insuranceFundPool.balance.eq(ZERO));
+	// 	assert(bank0.totalIfShares.eq(ZERO));
+	// });
 });

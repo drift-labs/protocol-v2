@@ -2585,7 +2585,6 @@ export class ClearingHouse {
 	}
 
 	public async cancelRequestRemoveInsuranceFundStake(
-		nShares: BN,
 		bankIndex: BN
 	): Promise<TransactionSignature> {
 		const bank = this.getBankAccount(bankIndex);
@@ -2600,7 +2599,6 @@ export class ClearingHouse {
 		});
 
 		return await this.program.rpc.cancelRequestRemoveInsuranceFundStake(
-			nShares,
 			bankIndex,
 			{
 				accounts: {

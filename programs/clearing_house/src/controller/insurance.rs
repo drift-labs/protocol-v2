@@ -219,6 +219,10 @@ pub fn cancel_request_remove_insurance_fund_stake(
         .checked_sub(if_shares_lost)
         .ok_or_else(math_error!())?;
 
+    if bank.bank_index == 0 {
+        user_stats.quote_asset_insurance_fund_stake = insurance_fund_stake.if_shares;
+    }
+
     insurance_fund_stake.last_withdraw_request_shares = 0;
     insurance_fund_stake.last_withdraw_request_value = 0;
     insurance_fund_stake.last_withdraw_request_ts = now;

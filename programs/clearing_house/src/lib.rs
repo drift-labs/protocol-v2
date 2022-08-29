@@ -2892,6 +2892,7 @@ pub mod clearing_house {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let insurance_fund_stake = &mut load_mut!(ctx.accounts.insurance_fund_stake)?;
         let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
+        let bank = &mut load_mut!(ctx.accounts.bank)?;
 
         validate!(
             insurance_fund_stake.bank_index == bank_index,
@@ -2899,18 +2900,19 @@ pub mod clearing_house {
             "insurance_fund_stake does not match bank_index"
         )?;
 
-        let _oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
-        let _bank_map = BankMap::load(&get_writable_banks(bank_index), remaining_accounts_iter)?;
-
         validate!(
             insurance_fund_stake.last_withdraw_request_shares != 0,
             ErrorCode::DefaultError,
             "No withdraw request in progress"
         )?;
 
-        insurance_fund_stake.last_withdraw_request_shares = 0;
-        insurance_fund_stake.last_withdraw_request_value = 0;
-        insurance_fund_stake.last_withdraw_request_ts = now;
+        controller::insurance::cancel_request_remove_insurance_fund_stake(
+            ctx.accounts.insurance_fund_vault.amount,
+            insurance_fund_stake,
+            user_stats,
+            bank,
+            now,
+        )?;
 
         Ok(())
     }
