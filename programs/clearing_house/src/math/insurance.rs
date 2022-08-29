@@ -71,6 +71,18 @@ pub fn log10(n: u128) -> u128 {
     }
 }
 
+pub fn log10_iter(n: u128) -> u128 {
+    let mut result = 0;
+    let mut n_copy = n;
+
+    while n_copy >= 10 {
+        result += 1;
+        n_copy /= 10;
+    }
+
+    return result;
+}
+
 pub fn calculate_rebase_info(
     total_if_shares: u128,
     insurance_fund_vault_balance: u64,
@@ -127,6 +139,30 @@ pub fn calculate_if_shares_lost(
 mod test {
     use super::*;
     use crate::math::constants::{BANK_CUMULATIVE_INTEREST_PRECISION, QUOTE_PRECISION};
+
+    #[test]
+    pub fn log_test() {
+        assert_eq!(log10_iter(0), 0);
+        assert_eq!(log10(0), 0);
+
+        assert_eq!(log10_iter(9), 0);
+        assert_eq!(log10(9), 0);
+
+        assert_eq!(log10(19), 1);
+        assert_eq!(log10_iter(19), 1);
+
+        assert_eq!(log10_iter(13432429), 7);
+
+        assert_eq!(log10(100), 2);
+        assert_eq!(log10_iter(100), 2);
+
+        // no modify check
+        let n = 1005325523;
+        assert_eq!(log10_iter(n), 9);
+        assert_eq!(log10_iter(n), 9);
+        assert_eq!(log10(n), 9);
+        assert_eq!(log10_iter(n), 9);
+    }
 
     #[test]
     pub fn basic_stake_if_test() {
@@ -191,6 +227,7 @@ mod test {
 
         let (expo_diff, rebase_div) = calculate_rebase_info(99_999, 100).unwrap();
         assert_eq!(log10(100), 2);
+        assert_eq!(log10_iter(100), 2);
         assert_eq!(99_999 / 10 / 100, 99);
         assert_eq!(rebase_div, 10);
         assert_eq!(expo_diff, 1);

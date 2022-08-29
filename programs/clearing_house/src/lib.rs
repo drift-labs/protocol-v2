@@ -2842,6 +2842,8 @@ pub mod clearing_house {
     ) -> Result<()> {
         let clock = Clock::get()?;
         let insurance_fund_stake = &mut load_mut!(ctx.accounts.insurance_fund_stake)?;
+        let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
+        let bank = &mut load_mut!(ctx.accounts.bank)?;
 
         validate!(
             insurance_fund_stake.bank_index == bank_index,
@@ -2866,12 +2868,11 @@ pub mod clearing_house {
             ErrorCode::InsufficientLPTokens
         )?;
 
-        let bank = &load!(ctx.accounts.bank)?;
-
         controller::insurance::request_remove_insurance_fund_stake(
             n_shares,
             ctx.accounts.insurance_fund_vault.amount,
             insurance_fund_stake,
+            user_stats,
             bank,
             clock.unix_timestamp,
         )?;
@@ -2890,6 +2891,7 @@ pub mod clearing_house {
         let now = clock.unix_timestamp;
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let insurance_fund_stake = &mut load_mut!(ctx.accounts.insurance_fund_stake)?;
+        let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
 
         validate!(
             insurance_fund_stake.bank_index == bank_index,

@@ -847,7 +847,7 @@ mod test {
         .unwrap();
 
         // larger margin req in more unbalanced market
-        assert_eq!(pmr,  2062000);
+        assert_eq!(pmr, 2062000);
         assert_eq!(pmr2, 2481600);
         assert!(pmr2 > pmr)
     }
@@ -913,7 +913,7 @@ mod test {
         .unwrap();
 
         // larger margin req in more unbalanced market
-        assert_eq!(pmr,  2062000);
+        assert_eq!(pmr, 2062000);
         assert_eq!(pmr2, 1644800);
 
         // assert!(pmr2 > pmr); //todo
