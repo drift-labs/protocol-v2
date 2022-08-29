@@ -21,13 +21,15 @@ export async function fetchLogs(
 	programId: PublicKey,
 	finality: Finality,
 	beforeTx?: TransactionSignature,
-	untilTx?: TransactionSignature
+	untilTx?: TransactionSignature,
+	limit?: number
 ): Promise<FetchLogsResponse> {
 	const signatures = await connection.getSignaturesForAddress(
 		programId,
 		{
 			before: beforeTx,
 			until: untilTx,
+			limit,
 		},
 		finality
 	);

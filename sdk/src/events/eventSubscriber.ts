@@ -64,19 +64,26 @@ export class EventSubscriber {
 		}
 	}
 
-	public subscribe(): boolean {
-		if (this.logProvider.isSubscribed()) {
-			return true;
-		}
+	public async subscribe(skipHistory = false): Promise<boolean> {
+		try {
+			if (this.logProvider.isSubscribed()) {
+				return true;
+			}
 
-		this.fetchPreviousTx().catch((e) => {
+			this.logProvider.subscribe((txSig, slot, logs) => {
+				this.handleTxLogs(txSig, slot, logs);
+			}, skipHistory);
+
+			if (!skipHistory) {
+				this.fetchPreviousTx();
+			}
+
+			return true;
+		} catch (e) {
 			console.error('Error fetching previous txs in event subscriber');
 			console.error(e);
-		});
-
-		return this.logProvider.subscribe((txSig, slot, logs) => {
-			this.handleTxLogs(txSig, slot, logs);
-		});
+			return false;
+		}
 	}
 
 	private handleTxLogs(
@@ -106,8 +113,8 @@ export class EventSubscriber {
 		this.txEventCache.add(txSig, wrappedEvents);
 	}
 
-	private async fetchPreviousTx(): Promise<void> {
-		if (!this.options.untilTx) {
+	public async fetchPreviousTx(fetchMax?: boolean): Promise<void> {
+		if (!this.options.untilTx && !fetchMax) {
 			return;
 		}
 
