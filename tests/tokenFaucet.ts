@@ -78,15 +78,14 @@ describe('token faucet', () => {
 		const mintInfo = await token.getMintInfo();
 		assert.ok(state.mintAuthority.equals(mintInfo.mintAuthority));
 
-		const [_, faucetConfigNonce] = 
-				await PublicKey.findProgramAddress(
-					[
-						Buffer.from(anchor.utils.bytes.utf8.encode("faucet_config")),
-						state.mint.toBuffer()
-					],
-					tokenFaucet.program.programId
-				);
-		assert.ok(faucetConfigNonce === state.nonce)
+		const [_, faucetConfigNonce] = await PublicKey.findProgramAddress(
+			[
+				Buffer.from(anchor.utils.bytes.utf8.encode('faucet_config')),
+				state.mint.toBuffer(),
+			],
+			tokenFaucet.program.programId
+		);
+		assert.ok(faucetConfigNonce === state.nonce);
 	});
 
 	it('mint to user', async () => {
@@ -164,15 +163,12 @@ describe('token faucet', () => {
 		assert.ok(provider.wallet.publicKey.equals(mintInfo.mintAuthority));
 	});
 
-
 	it('update state', async () => {
 		const newMaxAmountMint = new BN(100 * 10 ** 6);
 		const newMaxAmountPerUser = new BN(150 * 10 ** 6);
-		await tokenFaucet.update(newMaxAmountMint, newMaxAmountPerUser)
-		const state: any = await tokenFaucet.fetchState()
-		assert.ok(state.maxAmountMint.eq(newMaxAmountMint))
-		assert.ok(state.maxAmountPerUser.eq(newMaxAmountPerUser))
-	})
-
-
+		await tokenFaucet.update(newMaxAmountMint, newMaxAmountPerUser);
+		const state: any = await tokenFaucet.fetchState();
+		assert.ok(state.maxAmountMint.eq(newMaxAmountMint));
+		assert.ok(state.maxAmountPerUser.eq(newMaxAmountPerUser));
+	});
 });

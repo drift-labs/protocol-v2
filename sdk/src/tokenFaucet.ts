@@ -101,7 +101,7 @@ export class TokenFaucet {
 				admin: this.wallet.publicKey,
 				mintAccount: this.mint,
 			},
-		}); 
+		});
 	}
 
 	public async fetchState(): Promise<any> {
