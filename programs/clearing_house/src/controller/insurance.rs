@@ -5,8 +5,13 @@ use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
 use crate::math::bank_balance::get_token_amount;
 use crate::math::casting::{cast_to_i128, cast_to_u128, cast_to_u32, cast_to_u64};
+use crate::math::constants::{
+    SHARE_OF_IF_ESCROW_ALLOCATED_TO_PROTOCOL_DENOMINATOR,
+    SHARE_OF_IF_ESCROW_ALLOCATED_TO_PROTOCOL_NUMERATOR,
+};
 use crate::math::insurance::{
-    calculate_rebase_info, staked_amount_to_shares, unstaked_shares_to_amount,
+    calculate_if_shares_lost, calculate_rebase_info, staked_amount_to_shares,
+    unstaked_shares_to_amount,
 };
 use crate::math_error;
 use crate::state::bank::{Bank, BankBalanceType};
@@ -87,7 +92,6 @@ pub fn apply_rebase_to_insurance_fund(
             .user_if_shares
             .checked_div(rebase_divisor)
             .ok_or_else(math_error!())?;
-
         bank.if_shares_base = bank
             .if_shares_base
             .checked_add(cast_to_u128(expo_diff)?)
@@ -164,6 +168,43 @@ pub fn request_remove_insurance_fund_stake(
     Ok(())
 }
 
+pub fn cancel_request_remove_insurance_fund_stake(
+    insurance_fund_vault_balance: u64,
+    insurance_fund_stake: &mut InsuranceFundStake,
+    bank: &mut Bank,
+    now: i64,
+) -> ClearingHouseResult {
+    validate!(
+        insurance_fund_stake.last_withdraw_request_shares != 0,
+        ErrorCode::DefaultError,
+        "No withdraw request in progress"
+    )?;
+
+    let if_shares_lost =
+        calculate_if_shares_lost(&insurance_fund_stake, &bank, insurance_fund_vault_balance)?;
+
+    insurance_fund_stake.if_shares = insurance_fund_stake
+        .if_shares
+        .checked_sub(if_shares_lost)
+        .ok_or_else(math_error!())?;
+
+    bank.total_if_shares = bank
+        .total_if_shares
+        .checked_sub(if_shares_lost)
+        .ok_or_else(math_error!())?;
+
+    bank.user_if_shares = bank
+        .user_if_shares
+        .checked_sub(if_shares_lost)
+        .ok_or_else(math_error!())?;
+
+    insurance_fund_stake.last_withdraw_request_shares = 0;
+    insurance_fund_stake.last_withdraw_request_value = 0;
+    insurance_fund_stake.last_withdraw_request_ts = now;
+
+    Ok(())
+}
+
 pub fn remove_insurance_fund_stake(
     insurance_fund_vault_balance: u64,
     insurance_fund_stake: &mut InsuranceFundStake,
@@ -174,6 +215,11 @@ pub fn remove_insurance_fund_stake(
     let time_since_withdraw_request = now
         .checked_sub(insurance_fund_stake.last_withdraw_request_ts)
         .ok_or_else(math_error!())?;
+
+    validate!(
+        time_since_withdraw_request >= bank.insurance_withdraw_escrow_period,
+        ErrorCode::TryingToRemoveLiquidityTooFast
+    )?;
 
     apply_rebase_to_insurance_fund(insurance_fund_vault_balance, bank)?;
     apply_rebase_to_insurance_fund_stake(insurance_fund_stake, user_stats, bank)?;
@@ -191,13 +237,12 @@ pub fn remove_insurance_fund_stake(
         ErrorCode::InsufficientLPTokens
     )?;
 
-    validate!(
-        time_since_withdraw_request >= bank.insurance_withdraw_escrow_period,
-        ErrorCode::TryingToRemoveLiquidityTooFast
-    )?;
-
     let amount =
         unstaked_shares_to_amount(n_shares, bank.total_if_shares, insurance_fund_vault_balance)?;
+
+    let if_shares_lost =
+        calculate_if_shares_lost(&insurance_fund_stake, &bank, insurance_fund_vault_balance)?;
+
     let withdraw_amount = amount.min(insurance_fund_stake.last_withdraw_request_value);
 
     insurance_fund_stake.if_shares = insurance_fund_stake

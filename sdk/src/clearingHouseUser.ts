@@ -306,10 +306,6 @@ export class ClearingHouseUser {
 					marketPosition.marketIndex
 				);
 
-				if (market === undefined) {
-					return ZERO;
-				}
-
 				if (marketPosition.lpShares.gt(ZERO)) {
 					// is an lp
 					// clone so we dont mutate the position
@@ -405,32 +401,28 @@ export class ClearingHouseUser {
 				const market = this.clearingHouse.getMarketAccount(
 					marketPosition.marketIndex
 				);
-				if (market) {
-					let positionUnrealizedPnl = calculatePositionPNL(
-						market,
-						marketPosition,
-						withFunding,
-						this.getOracleDataForMarket(market.marketIndex)
-					);
+				let positionUnrealizedPnl = calculatePositionPNL(
+					market,
+					marketPosition,
+					withFunding,
+					this.getOracleDataForMarket(market.marketIndex)
+				);
 
-					if (withWeightMarginCategory !== undefined) {
-						if (positionUnrealizedPnl.gt(ZERO)) {
-							positionUnrealizedPnl = positionUnrealizedPnl
-								.mul(
-									calculateUnrealizedAssetWeight(
-										market,
-										positionUnrealizedPnl,
-										withWeightMarginCategory
-									)
+				if (withWeightMarginCategory !== undefined) {
+					if (positionUnrealizedPnl.gt(ZERO)) {
+						positionUnrealizedPnl = positionUnrealizedPnl
+							.mul(
+								calculateUnrealizedAssetWeight(
+									market,
+									positionUnrealizedPnl,
+									withWeightMarginCategory
 								)
-								.div(new BN(BANK_WEIGHT_PRECISION));
-						}
+							)
+							.div(new BN(BANK_WEIGHT_PRECISION));
 					}
-
-					return unrealizedPnl.add(positionUnrealizedPnl);
-				} else {
-					return ZERO;
 				}
+
+				return unrealizedPnl.add(positionUnrealizedPnl);
 			}, ZERO);
 	}
 
@@ -576,10 +568,6 @@ export class ClearingHouseUser {
 				const market = this.clearingHouse.getMarketAccount(
 					marketPosition.marketIndex
 				);
-
-				if (market === undefined) {
-					return ZERO;
-				}
 
 				const posVal = calculateMarginBaseAssetValue(
 					market,

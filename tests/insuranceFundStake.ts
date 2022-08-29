@@ -22,9 +22,11 @@ import {
 	getBalance,
 	isVariant,
 	BANK_RATE_PRECISION,
+	PEG_PRECISION,
 	BANK_INTEREST_PRECISION,
 	findComputeUnitConsumption,
 	convertToNumber,
+	AMM_RESERVE_PRECISION,
 } from '../sdk/src';
 
 import {
@@ -99,6 +101,19 @@ describe('insurance fund stake', () => {
 
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
 		await initializeSolAssetBank(clearingHouse, solOracle);
+
+		const periodicity = new BN(60 * 60); // 1 HOUR
+		await clearingHouse.initializeMarket(
+			solOracle,
+			AMM_RESERVE_PRECISION,
+			AMM_RESERVE_PRECISION,
+			periodicity,
+			new BN(22500 * PEG_PRECISION.toNumber()),
+			undefined,
+			1000
+		);
+		await clearingHouse.updateMarketBaseSpread(new BN(0), 2000);
+		await clearingHouse.updateCurveUpdateIntensity(new BN(0), 100);
 
 		const userId = 0;
 		const name = 'BIGZ';
