@@ -89,6 +89,21 @@ export class TokenFaucet {
 		});
 	}
 
+	public async update(
+		maxAmountMint: BN,
+		maxAmountPerUser: BN
+	): Promise<TransactionSignature> {
+		const [faucetConfigPublicKey] =
+			await this.getFaucetConfigPublicKeyAndNonce();
+		return await this.program.rpc.update(maxAmountMint, maxAmountPerUser, {
+			accounts: {
+				faucetConfig: faucetConfigPublicKey,
+				admin: this.wallet.publicKey,
+				mintAccount: this.mint,
+			},
+		}); 
+	}
+
 	public async fetchState(): Promise<any> {
 		return await this.program.account.faucetConfig.fetch(
 			await this.getFaucetConfigPublicKey()

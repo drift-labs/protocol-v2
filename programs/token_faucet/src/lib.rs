@@ -32,6 +32,11 @@ pub mod token_faucet {
         let cpi_context = CpiContext::new(cpi_program, cpi_accounts);
         token::set_authority(cpi_context, AuthorityType::MintTokens, Some(mint_authority)).unwrap();
 
+        let (_, faucet_config_nonce) = Pubkey::find_program_address(
+            &[b"faucet_config".as_ref(), mint_account_key.as_ref()],
+            ctx.program_id,
+        );
+
         **ctx.accounts.faucet_config = FaucetConfig {
             admin: *ctx.accounts.admin.key,
             mint: *mint_account_key,
@@ -39,8 +44,19 @@ pub mod token_faucet {
             mint_authority_nonce,
             max_amount_mint,
             max_amount_per_user,
+            nonce: faucet_config_nonce,
         };
 
+        Ok(())
+    }
+
+    pub fn update(
+        ctx: Context<UpdateFaucet>,
+        max_amount_mint: u64,
+        max_amount_per_user: u64,
+    ) -> Result<()> {
+        ctx.accounts.faucet_config.max_amount_mint = max_amount_mint;
+        ctx.accounts.faucet_config.max_amount_per_user = max_amount_per_user;
         Ok(())
     }
 
@@ -104,6 +120,21 @@ pub struct InitializeFaucet<'info> {
     pub token_program: Program<'info, Token>,
 }
 
+#[derive(Accounts)]
+pub struct UpdateFaucet<'info> {
+    #[account(
+        mut,
+        seeds = [b"faucet_config".as_ref(), mint_account.key().as_ref()],
+        bump = faucet_config.nonce,
+    )]
+    pub faucet_config: Box<Account<'info, FaucetConfig>>,
+    #[account(
+        constraint = admin.key() == faucet_config.admin
+    )]
+    pub admin: Signer<'info>,
+    pub mint_account: Box<Account<'info, Mint>>,
+}
+
 #[account]
 #[derive(Default)]
 pub struct FaucetConfig {
@@ -113,6 +144,7 @@ pub struct FaucetConfig {
     pub mint_authority_nonce: u8,
     pub max_amount_mint: u64,
     pub max_amount_per_user: u64,
+    pub nonce: u8,
 }
 
 #[derive(Accounts)]
