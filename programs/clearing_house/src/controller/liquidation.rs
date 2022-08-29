@@ -11,7 +11,7 @@ use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::get_then_update_id;
 use crate::math::bank_balance::get_token_amount;
 use crate::math::bankruptcy::is_user_bankrupt;
-use crate::math::casting::{cast, cast_to_i128};
+use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64};
 use crate::math::constants::{
     // BANK_INTEREST_PRECISION,
     BANK_WEIGHT_PRECISION,
@@ -1307,7 +1307,8 @@ pub fn resolve_perp_bankruptcy(
     bank_map: &BankMap,
     oracle_map: &mut OracleMap,
     now: i64,
-) -> ClearingHouseResult {
+    insurance_fund_vault_balance: u64,
+) -> ClearingHouseResult<u64> {
     validate!(
         user.bankrupt,
         ErrorCode::UserNotBankrupt,
@@ -1350,29 +1351,40 @@ pub fn resolve_perp_bankruptcy(
     )?;
 
     // todo: add bank's insurance fund draw attempt here (before social loss)
+    // subtract 1 so insurance_fund_vault_balance always stays >= 1
+    let if_payment = loss.unsigned_abs().min(cast_to_u128(
+        insurance_fund_vault_balance.saturating_sub(1),
+    )?);
+
+    let loss_to_socialize = loss
+        .checked_add(cast_to_i128(if_payment)?)
+        .ok_or_else(math_error!())?;
 
     let cumulative_funding_rate_delta = calculate_funding_rate_deltas_to_resolve_bankruptcy(
-        loss,
+        loss_to_socialize,
         market_map.get_ref(&market_index)?.deref(),
     )?;
 
-    {
-        let user = user.get_position_mut(market_index).unwrap();
-        user.quote_asset_amount = 0;
+    // socialize loss
+    if loss_to_socialize < 0 {
+        {
+            let user = user.get_position_mut(market_index).unwrap();
+            user.quote_asset_amount = 0;
 
-        let mut market = market_map.get_ref_mut(&market_index)?;
+            let mut market = market_map.get_ref_mut(&market_index)?;
 
-        market.amm.cumulative_funding_rate_long = market
-            .amm
-            .cumulative_funding_rate_long
-            .checked_add(cumulative_funding_rate_delta)
-            .ok_or_else(math_error!())?;
+            market.amm.cumulative_funding_rate_long = market
+                .amm
+                .cumulative_funding_rate_long
+                .checked_add(cumulative_funding_rate_delta)
+                .ok_or_else(math_error!())?;
 
-        market.amm.cumulative_funding_rate_short = market
-            .amm
-            .cumulative_funding_rate_short
-            .checked_sub(cumulative_funding_rate_delta)
-            .ok_or_else(math_error!())?;
+            market.amm.cumulative_funding_rate_short = market
+                .amm
+                .cumulative_funding_rate_short
+                .checked_sub(cumulative_funding_rate_delta)
+                .ok_or_else(math_error!())?;
+        }
     }
 
     // exit bankruptcy
@@ -1397,13 +1409,14 @@ pub fn resolve_perp_bankruptcy(
         bankrupt: true,
         perp_bankruptcy: PerpBankruptcyRecord {
             market_index,
+            if_payment,
             pnl: loss,
             cumulative_funding_rate_delta,
         },
         ..LiquidationRecord::default()
     });
 
-    Ok(())
+    cast_to_u64(if_payment)
 }
 
 pub fn resolve_bank_bankruptcy(
@@ -1416,7 +1429,8 @@ pub fn resolve_bank_bankruptcy(
     bank_map: &BankMap,
     oracle_map: &mut OracleMap,
     now: i64,
-) -> ClearingHouseResult {
+    insurance_fund_vault_balance: u64,
+) -> ClearingHouseResult<u64> {
     validate!(
         user.bankrupt,
         ErrorCode::UserNotBankrupt,
@@ -1466,10 +1480,18 @@ pub fn resolve_bank_bankruptcy(
     };
 
     // todo: add bank's insurance fund draw attempt here (before social loss)
+    // subtract 1 so insurance_fund_vault_balance always stays >= 1
+    let if_payment = borrow_amount.min(cast_to_u128(
+        insurance_fund_vault_balance.saturating_sub(1),
+    )?);
+
+    let loss_to_socialize = borrow_amount
+        .checked_sub(if_payment)
+        .ok_or_else(math_error!())?;
 
     let cumulative_deposit_interest_delta =
         calculate_cumulative_deposit_interest_delta_to_resolve_bankruptcy(
-            borrow_amount,
+            loss_to_socialize,
             bank_map.get_ref(&bank_index)?.deref(),
         )?;
 
@@ -1512,10 +1534,11 @@ pub fn resolve_bank_bankruptcy(
         borrow_bankruptcy: BorrowBankruptcyRecord {
             bank_index,
             borrow_amount,
+            if_payment,
             cumulative_deposit_interest_delta,
         },
         ..LiquidationRecord::default()
     });
 
-    Ok(())
+    cast_to_u64(if_payment)
 }

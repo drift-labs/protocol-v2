@@ -5,10 +5,10 @@ use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
 use crate::math::bank_balance::get_token_amount;
 use crate::math::casting::{cast_to_i128, cast_to_u128, cast_to_u32, cast_to_u64};
-use crate::math::constants::{
-    SHARE_OF_IF_ESCROW_ALLOCATED_TO_PROTOCOL_DENOMINATOR,
-    SHARE_OF_IF_ESCROW_ALLOCATED_TO_PROTOCOL_NUMERATOR,
-};
+// use crate::math::constants::{
+//     SHARE_OF_IF_ESCROW_ALLOCATED_TO_PROTOCOL_DENOMINATOR,
+//     SHARE_OF_IF_ESCROW_ALLOCATED_TO_PROTOCOL_NUMERATOR,
+// }; // todo, whether to util
 use crate::math::insurance::{
     calculate_if_shares_lost, calculate_rebase_info, staked_amount_to_shares,
     unstaked_shares_to_amount,
@@ -202,7 +202,7 @@ pub fn cancel_request_remove_insurance_fund_stake(
     )?;
 
     let if_shares_lost =
-        calculate_if_shares_lost(&insurance_fund_stake, &bank, insurance_fund_vault_balance)?;
+        calculate_if_shares_lost(insurance_fund_stake, bank, insurance_fund_vault_balance)?;
 
     insurance_fund_stake.if_shares = insurance_fund_stake
         .if_shares
@@ -265,8 +265,8 @@ pub fn remove_insurance_fund_stake(
     let amount =
         unstaked_shares_to_amount(n_shares, bank.total_if_shares, insurance_fund_vault_balance)?;
 
-    let if_shares_lost =
-        calculate_if_shares_lost(&insurance_fund_stake, &bank, insurance_fund_vault_balance)?;
+    let _if_shares_lost =
+        calculate_if_shares_lost(insurance_fund_stake, bank, insurance_fund_vault_balance)?;
 
     let withdraw_amount = amount.min(insurance_fund_stake.last_withdraw_request_value);
 

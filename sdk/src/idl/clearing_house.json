@@ -962,9 +962,33 @@
           "name": "user",
           "isMut": true,
           "isSigner": false
+        },
+        {
+          "name": "bankVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundVaultAuthority",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
         }
       ],
       "args": [
+        {
+          "name": "bankIndex",
+          "type": "u64"
+        },
         {
           "name": "marketIndex",
           "type": "u64"
@@ -992,6 +1016,26 @@
         {
           "name": "user",
           "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "bankVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundVaultAuthority",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
           "isSigner": false
         }
       ],
@@ -3343,6 +3387,10 @@
             "type": "i128"
           },
           {
+            "name": "ifPayment",
+            "type": "u128"
+          },
+          {
             "name": "cumulativeFundingRateDelta",
             "type": "i128"
           }
@@ -3360,6 +3408,10 @@
           },
           {
             "name": "borrowAmount",
+            "type": "u128"
+          },
+          {
+            "name": "ifPayment",
             "type": "u128"
           },
           {

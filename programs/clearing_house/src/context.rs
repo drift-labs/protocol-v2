@@ -585,6 +585,7 @@ pub struct LiquidatePerpPnlForDeposit<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(bank_index: u64,)]
 pub struct ResolvePerpBankruptcy<'info> {
     pub state: Box<Account<'info, State>>,
     pub authority: Signer<'info>,
@@ -595,6 +596,26 @@ pub struct ResolvePerpBankruptcy<'info> {
     pub liquidator: AccountLoader<'info, User>,
     #[account(mut)]
     pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        seeds = [b"bank_vault".as_ref(), bank_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub bank_vault: Box<Account<'info, TokenAccount>>,
+    #[account(
+        mut,
+        seeds = [b"insurance_fund_vault".as_ref(), bank_index.to_le_bytes().as_ref()], // todo: bank_index=0 hardcode for perps?
+        bump,
+    )]
+    pub insurance_fund_vault: Box<Account<'info, TokenAccount>>,
+    #[account(
+        mut,
+        seeds = [b"insurance_fund_vault_authority".as_ref(), bank_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    /// CHECK: this is the pda for the bank vault
+    pub insurance_fund_vault_authority: AccountInfo<'info>,
+    pub token_program: Program<'info, Token>,
 }
 
 #[derive(Accounts)]

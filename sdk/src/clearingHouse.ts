@@ -2176,6 +2176,7 @@ export class ClearingHouse {
 	public async resolvePerpBankruptcy(
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
+		bankIndex: BN,
 		marketIndex: BN
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.txSender.send(
@@ -2183,6 +2184,7 @@ export class ClearingHouse {
 				await this.getResolvePerpBankruptcyIx(
 					userAccountPublicKey,
 					userAccount,
+					bankIndex,
 					marketIndex
 				)
 			),
@@ -2195,24 +2197,36 @@ export class ClearingHouse {
 	public async getResolvePerpBankruptcyIx(
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
+		bankIndex: BN,
 		marketIndex: BN
 	): Promise<TransactionInstruction> {
 		const liquidatorPublicKey = await this.getUserAccountPublicKey();
 
 		const remainingAccounts = this.getRemainingAccountsWithCounterparty({
 			writableMarketIndex: marketIndex,
+			writableBankIndexes: [bankIndex],
 			counterPartyUserAccount: userAccount,
 		});
 
-		return await this.program.instruction.resolvePerpBankruptcy(marketIndex, {
-			accounts: {
-				state: await this.getStatePublicKey(),
-				authority: this.wallet.publicKey,
-				user: userAccountPublicKey,
-				liquidator: liquidatorPublicKey,
-			},
-			remainingAccounts: remainingAccounts,
-		});
+		const bank = this.getBankAccount(bankIndex);
+
+		return await this.program.instruction.resolvePerpBankruptcy(
+			bankIndex,
+			marketIndex,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					authority: this.wallet.publicKey,
+					user: userAccountPublicKey,
+					liquidator: liquidatorPublicKey,
+					bankVault: bank.vault,
+					insuranceFundVault: bank.insuranceFundVault,
+					insuranceFundVaultAuthority: bank.insuranceFundVaultAuthority,
+					tokenProgram: TOKEN_PROGRAM_ID,
+				},
+				remainingAccounts: remainingAccounts,
+			}
+		);
 	}
 
 	public async resolveBorrowBankruptcy(
@@ -2246,12 +2260,18 @@ export class ClearingHouse {
 			counterPartyUserAccount: userAccount,
 		});
 
+		const bank = this.getBankAccount(bankIndex);
+
 		return await this.program.instruction.resolveBorrowBankruptcy(bankIndex, {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				authority: this.wallet.publicKey,
 				user: userAccountPublicKey,
 				liquidator: liquidatorPublicKey,
+				bankVault: bank.vault,
+				insuranceFundVault: bank.insuranceFundVault,
+				insuranceFundVaultAuthority: bank.insuranceFundVaultAuthority,
+				tokenProgram: TOKEN_PROGRAM_ID,
 			},
 			remainingAccounts: remainingAccounts,
 		});

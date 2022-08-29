@@ -1626,6 +1626,7 @@ pub mod clearing_house {
     )]
     pub fn resolve_perp_bankruptcy(
         ctx: Context<ResolvePerpBankruptcy>,
+        bank_index: u64,
         market_index: u64,
     ) -> Result<()> {
         let clock = Clock::get()?;
@@ -1642,16 +1643,19 @@ pub mod clearing_house {
         let user = &mut load_mut!(ctx.accounts.user)?;
         let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
 
+        msg!("load accts resolve_perp_bankruptcy");
+
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
-        let bank_map = BankMap::load(&WritableBanks::new(), remaining_accounts_iter)?;
+        let bank_map = BankMap::load(&get_writable_banks(bank_index), remaining_accounts_iter)?;
         let market_map = MarketMap::load(
             &get_market_set(market_index),
             &MarketSet::new(),
             remaining_accounts_iter,
         )?;
 
-        controller::liquidation::resolve_perp_bankruptcy(
+        msg!("resolve_perp_bankruptcy");
+        let pay_from_insurance = controller::liquidation::resolve_perp_bankruptcy(
             market_index,
             user,
             &user_key,
@@ -1661,7 +1665,34 @@ pub mod clearing_house {
             &bank_map,
             &mut oracle_map,
             now,
+            ctx.accounts.insurance_fund_vault.amount,
         )?;
+        msg!("resolve_perp_bankruptcy done");
+
+        if pay_from_insurance > 0 {
+            validate!(
+                pay_from_insurance < ctx.accounts.insurance_fund_vault.amount,
+                ErrorCode::InsufficientCollateral,
+                "Insurance Fund balance InsufficientCollateral for payment: !{} < {}",
+                pay_from_insurance,
+                ctx.accounts.insurance_fund_vault.amount
+            )?;
+
+            msg!(
+                "            let bank = bank_map.get_quote_asset_bank_mut()?;
+            "
+            );
+            let bank = bank_map.get_quote_asset_bank_mut()?;
+            controller::token::send_from_staked_insurance_fund_vault(
+                &ctx.accounts.token_program,
+                &ctx.accounts.insurance_fund_vault,
+                &ctx.accounts.bank_vault,
+                &ctx.accounts.insurance_fund_vault_authority,
+                bank.bank_index,
+                bank.insurance_fund_vault_authority_nonce,
+                pay_from_insurance,
+            )?;
+        }
 
         Ok(())
     }
@@ -1696,7 +1727,7 @@ pub mod clearing_house {
             remaining_accounts_iter,
         )?;
 
-        controller::liquidation::resolve_bank_bankruptcy(
+        let pay_from_insurance = controller::liquidation::resolve_bank_bankruptcy(
             bank_index,
             user,
             &user_key,
@@ -1706,7 +1737,21 @@ pub mod clearing_house {
             &bank_map,
             &mut oracle_map,
             now,
+            ctx.accounts.insurance_fund_vault.amount,
         )?;
+
+        if pay_from_insurance > 0 {
+            let bank = bank_map.get_quote_asset_bank_mut()?;
+            controller::token::send_from_staked_insurance_fund_vault(
+                &ctx.accounts.token_program,
+                &ctx.accounts.insurance_fund_vault,
+                &ctx.accounts.bank_vault,
+                &ctx.accounts.insurance_fund_vault_authority,
+                bank.bank_index,
+                bank.insurance_fund_vault_authority_nonce,
+                pay_from_insurance,
+            )?;
+        }
 
         Ok(())
     }
@@ -2889,7 +2934,10 @@ pub mod clearing_house {
     ) -> Result<()> {
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
-        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+
+        // todo
+        let _remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+
         let insurance_fund_stake = &mut load_mut!(ctx.accounts.insurance_fund_stake)?;
         let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
         let bank = &mut load_mut!(ctx.accounts.bank)?;

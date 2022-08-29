@@ -19,6 +19,12 @@ test_files=(
   subaccounts.ts pyth.ts userAccount.ts admin.ts updateK.ts adminWithdraw.ts
   curve.ts idempotentCurve.ts roundInFavor.ts cappedSymFunding.ts
 )
+test_files=(     liquidatePerp.ts
+   liquidateBorrowSocialLoss.ts
+
+  insuranceFundStake.ts
+  )
+  
 for test_file in ${test_files[@]}; do
   export ANCHOR_TEST_FILE=${test_file} && anchor test --skip-build || exit 1;
 done

@@ -232,6 +232,7 @@ pub struct LiquidatePerpPnlForDepositRecord {
 pub struct PerpBankruptcyRecord {
     pub market_index: u64,
     pub pnl: i128,
+    pub if_payment: u128,
     pub cumulative_funding_rate_delta: i128,
 }
 
@@ -239,6 +240,7 @@ pub struct PerpBankruptcyRecord {
 pub struct BorrowBankruptcyRecord {
     pub bank_index: u64,
     pub borrow_amount: u128,
+    pub if_payment: u128,
     pub cumulative_deposit_interest_delta: u128,
 }
 

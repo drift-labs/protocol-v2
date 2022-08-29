@@ -80,7 +80,7 @@ pub fn log10_iter(n: u128) -> u128 {
         n_copy /= 10;
     }
 
-    return result;
+    result
 }
 
 pub fn calculate_rebase_info(
