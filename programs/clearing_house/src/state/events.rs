@@ -149,6 +149,29 @@ impl Default for OrderAction {
 
 #[event]
 #[derive(Default)]
+pub struct LPRecord {
+    pub ts: i64,
+    pub user: Pubkey,
+    pub liquidity_type: LiquidityType,
+    pub n_shares: u128,
+    pub market_index: u64,
+}
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
+pub enum LiquidityType {
+    AddLiquidity,
+    RemoveLiquidity,
+    SettleLiquidity,
+}
+
+impl Default for LiquidityType {
+    fn default() -> Self {
+        LiquidityType::AddLiquidity
+    }
+}
+
+#[event]
+#[derive(Default)]
 pub struct LiquidationRecord {
     pub ts: i64,
     pub liquidation_type: LiquidationType,

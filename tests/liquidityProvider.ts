@@ -8,6 +8,8 @@ import {
 	OracleSource,
 	SwapDirection,
 	Wallet,
+	isVariant,
+	LPRecord,
 } from '../sdk';
 
 import { Program } from '@project-serum/anchor';
@@ -276,6 +278,17 @@ describe('liquidity providing', () => {
 		const lpAmount = new BN(100 * 1e13); // 100 / (100 + 300) = 1/4
 		const _sig = await clearingHouse.addLiquidity(lpAmount, market.marketIndex);
 
+		const addLiquidityRecord: LPRecord =
+			eventSubscriber.getEventsArray('LPRecord')[0];
+		assert(isVariant(addLiquidityRecord.liquidityType, 'addLiquidity'));
+		assert(addLiquidityRecord.nShares.eq(lpAmount));
+		assert(addLiquidityRecord.marketIndex.eq(ZERO));
+		assert(
+			addLiquidityRecord.user.equals(
+				await clearingHouse.getUserAccountPublicKey()
+			)
+		);
+
 		const newInitMarginReq = clearingHouseUser.getInitialMarginRequirement();
 		console.log(initMarginReq.toString(), '->', newInitMarginReq.toString());
 		assert(newInitMarginReq.eq(new BN(8284000)));
@@ -346,6 +359,16 @@ describe('liquidity providing', () => {
 		);
 		await _viewLogs(_txSig);
 
+		const settleLiquidityRecord: LPRecord =
+			eventSubscriber.getEventsArray('LPRecord')[0];
+		assert(isVariant(settleLiquidityRecord.liquidityType, 'settleLiquidity'));
+		assert(settleLiquidityRecord.marketIndex.eq(ZERO));
+		assert(
+			settleLiquidityRecord.user.equals(
+				await clearingHouse.getUserAccountPublicKey()
+			)
+		);
+
 		// net baa doesnt change on settle
 		await clearingHouse.fetchAccounts();
 		assert(
@@ -395,6 +418,17 @@ describe('liquidity providing', () => {
 		console.log('removing liquidity...');
 		await clearingHouse.removeLiquidity(ZERO);
 
+		const removeLiquidityRecord: LPRecord =
+			eventSubscriber.getEventsArray('LPRecord')[0];
+		assert(isVariant(removeLiquidityRecord.liquidityType, 'removeLiquidity'));
+		assert(removeLiquidityRecord.nShares.eq(lpAmount));
+		assert(removeLiquidityRecord.marketIndex.eq(ZERO));
+		assert(
+			removeLiquidityRecord.user.equals(
+				await clearingHouse.getUserAccountPublicKey()
+			)
+		);
+
 		console.log('closing trader ...');
 		await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);
 		const _sigg = await fullClosePosition(
@@ -443,6 +477,7 @@ describe('liquidity providing', () => {
 
 		console.log('done!');
 	});
+	return;
 
 	it('settles lp', async () => {
 		console.log('adding liquidity...');

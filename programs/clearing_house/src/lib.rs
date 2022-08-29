@@ -799,6 +799,14 @@ pub mod clearing_house {
 
         settle_lp_position(position, &mut market)?;
 
+        emit!(state::events::LPRecord {
+            ts: now,
+            liquidity_type: state::events::LiquidityType::SettleLiquidity,
+            user: user_key,
+            market_index,
+            ..state::events::LPRecord::default()
+        });
+
         Ok(())
     }
 
@@ -858,6 +866,14 @@ pub mod clearing_house {
             shares_to_burn,
             oracle_price_data.price,
         )?;
+
+        emit!(state::events::LPRecord {
+            ts: now,
+            liquidity_type: state::events::LiquidityType::RemoveLiquidity,
+            user: user_key,
+            n_shares: shares_to_burn,
+            market_index,
+        });
 
         Ok(())
     }
@@ -953,6 +969,14 @@ pub mod clearing_house {
             ErrorCode::InsufficientCollateral,
             "User does not meet initial margin requirement"
         )?;
+
+        emit!(state::events::LPRecord {
+            ts: now,
+            liquidity_type: state::events::LiquidityType::AddLiquidity,
+            user: user_key,
+            n_shares,
+            market_index,
+        });
 
         Ok(())
     }

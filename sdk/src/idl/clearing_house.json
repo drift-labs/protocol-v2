@@ -3892,6 +3892,23 @@
       }
     },
     {
+      "name": "LiquidityType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "AddLiquidity"
+          },
+          {
+            "name": "RemoveLiquidity"
+          },
+          {
+            "name": "SettleLiquidity"
+          }
+        ]
+      }
+    },
+    {
       "name": "LiquidationType",
       "type": {
         "kind": "enum",
@@ -4434,6 +4451,38 @@
         {
           "name": "oraclePrice",
           "type": "i128",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "LPRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "user",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "liquidityType",
+          "type": {
+            "defined": "LiquidityType"
+          },
+          "index": false
+        },
+        {
+          "name": "nShares",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "marketIndex",
+          "type": "u64",
           "index": false
         }
       ]

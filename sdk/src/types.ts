@@ -151,6 +151,20 @@ export type CurveRecord = {
 	tradeId: BN;
 };
 
+export type LPRecord = {
+	ts: BN;
+	user: PublicKey;
+	liquidityType: LiquidityType;
+	nShares: BN;
+	marketIndex: BN;
+};
+
+export class LiquidityType {
+	static readonly ADD_LIQUIDITY = { addLiquidity: {} };
+	static readonly REMOVE_LIQUIDITY = { removeLiquidity: {} };
+	static readonly SETTLE_LIQUIDITY = { settleLiquidity: {} };
+}
+
 export type FundingRateRecord = {
 	ts: BN;
 	recordId: BN;
