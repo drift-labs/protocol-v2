@@ -338,7 +338,12 @@ describe('update k', () => {
 			marketOld
 		)[0];
 
-		await clearingHouse.updateK(newSqrtK, marketIndex);
+		try {
+			await clearingHouse.updateK(newSqrtK, marketIndex);
+		} catch (e) {
+			console.error(e);
+			assert(false);
+		}
 
 		await clearingHouse.fetchAccounts();
 		const marketKChange = await clearingHouse.getMarketAccount(0);
