@@ -775,8 +775,8 @@ pub fn calculate_oracle_mark_spread_pct(
     precomputed_mark_price: Option<u128>,
 ) -> ClearingHouseResult<i128> {
     let mark_price = match precomputed_mark_price {
-        Some(mark_price) => (mark_price),
-        None => (amm.mark_price()?),
+        Some(mark_price) => mark_price,
+        None => amm.mark_price()?,
     };
     let (_oracle_price, price_spread) =
         calculate_oracle_mark_spread(amm, oracle_price_data, Some(mark_price))?;
@@ -793,8 +793,8 @@ pub fn calculate_oracle_twap_5min_mark_spread_pct(
     precomputed_mark_price: Option<u128>,
 ) -> ClearingHouseResult<i128> {
     let mark_price = match precomputed_mark_price {
-        Some(mark_price) => (mark_price),
-        None => (amm.mark_price()?),
+        Some(mark_price) => mark_price,
+        None => amm.mark_price()?,
     };
     let price_spread = cast_to_i128(mark_price)?
         .checked_sub(amm.last_oracle_price_twap_5min)
