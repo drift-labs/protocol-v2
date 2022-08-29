@@ -61,6 +61,7 @@ describe('liquidate perp', () => {
 	);
 
 	const usdcAmount = new BN(10 * 10 ** 6);
+	const nLpShares = new BN(100_000);
 
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
@@ -113,6 +114,11 @@ describe('liquidate perp', () => {
 			new BN(0)
 		);
 
+		await clearingHouse.addLiquidity(
+			nLpShares, 
+			ZERO,
+		);
+
 		for (let i = 0; i < 32; i++) {
 			await clearingHouse.placeOrder(
 				getLimitOrderParams({
@@ -163,6 +169,9 @@ describe('liquidate perp', () => {
 	});
 
 	it('liquidate', async () => {
+		const lpShares = clearingHouse.getUserAccount().positions[0].lpShares;
+		assert(lpShares.eq(nLpShares));
+
 		const oracle = clearingHouse.getMarketAccount(0).amm.oracle;
 		await setFeedPrice(anchor.workspace.Pyth, 0.1, oracle);
 
@@ -251,6 +260,9 @@ describe('liquidate perp', () => {
 		assert(!clearingHouse.getUserAccount().beingLiquidated);
 		assert(
 			clearingHouse.getUserAccount().positions[0].quoteAssetAmount.eq(ZERO)
+		);
+		assert(
+			clearingHouse.getUserAccount().positions[0].lpShares.eq(ZERO)
 		);
 
 		const perpBankruptcyRecord =
