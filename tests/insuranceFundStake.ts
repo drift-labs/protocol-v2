@@ -169,7 +169,7 @@ describe('insurance fund stake', () => {
 		}
 
 		const bank0 = clearingHouse.getBankAccount(bankIndex);
-		assert(bank0.insuranceFundPool.balance.eq(ZERO));
+		assert(bank0.revenuePool.balance.eq(ZERO));
 		assert(bank0.totalIfShares.gt(ZERO));
 		assert(bank0.totalIfShares.eq(usdcAmount));
 		assert(bank0.userIfShares.eq(usdcAmount));
@@ -520,7 +520,7 @@ describe('insurance fund stake', () => {
 		// );
 
 		const ifPoolBalance = getTokenAmount(
-			bank.insuranceFundPool.balance,
+			bank.revenuePool.balance,
 			bank,
 			BankBalanceType.DEPOSIT
 		);
@@ -542,7 +542,7 @@ describe('insurance fund stake', () => {
 			bank.cumulativeDepositInterest.toString()
 		);
 		const ifPoolBalanceAfterUpdate = getTokenAmount(
-			bank.insuranceFundPool.balance,
+			bank.revenuePool.balance,
 			bank,
 			BankBalanceType.DEPOSIT
 		);
@@ -589,7 +589,7 @@ describe('insurance fund stake', () => {
 		await clearingHouse.fetchAccounts();
 		bank = clearingHouse.getBankAccount(0);
 		const ifPoolBalanceAfterSettle = getTokenAmount(
-			bank.insuranceFundPool.balance,
+			bank.revenuePool.balance,
 			bank,
 			BankBalanceType.DEPOSIT
 		);
@@ -606,7 +606,7 @@ describe('insurance fund stake', () => {
 				)
 			).value.amount
 		);
-		assert(bank0Before.insuranceFundPool.balance.eq(ZERO));
+		assert(bank0Before.revenuePool.balance.eq(ZERO));
 
 		assert(bank0Before.userIfShares.eq(ZERO));
 		assert(bank0Before.totalIfShares.eq(ZERO));
@@ -634,7 +634,7 @@ describe('insurance fund stake', () => {
 		}
 
 		const bank0 = clearingHouse.getBankAccount(bankIndex);
-		assert(bank0.insuranceFundPool.balance.eq(ZERO));
+		assert(bank0.revenuePool.balance.eq(ZERO));
 		const insuranceVaultAmountAfter = new BN(
 			(
 				await provider.connection.getTokenAccountBalance(
@@ -674,7 +674,7 @@ describe('insurance fund stake', () => {
 				)
 			).value.amount
 		);
-		assert(bank0Before.insuranceFundPool.balance.eq(ZERO));
+		assert(bank0Before.revenuePool.balance.eq(ZERO));
 
 		console.log(
 			'cumulativeBorrowInterest:',
@@ -715,8 +715,8 @@ describe('insurance fund stake', () => {
 			bankIUpdate.cumulativeDepositInterest.toString()
 		);
 
-		console.log(bankIUpdate.insuranceFundPool.balance.toString());
-		assert(bankIUpdate.insuranceFundPool.balance.gt(ZERO));
+		console.log(bankIUpdate.revenuePool.balance.toString());
+		assert(bankIUpdate.revenuePool.balance.gt(ZERO));
 
 		try {
 			const txSig = await clearingHouse.settleBankToInsuranceFund(bankIndex);
@@ -770,7 +770,7 @@ describe('insurance fund stake', () => {
 		const bankBefore = clearingHouse.getBankAccount(0);
 
 		const ifPoolBalance = getTokenAmount(
-			bankBefore.insuranceFundPool.balance,
+			bankBefore.revenuePool.balance,
 			bankBefore,
 			BankBalanceType.DEPOSIT
 		);
@@ -975,7 +975,7 @@ describe('insurance fund stake', () => {
 		assert(!secondUserClearingHouse.getUserAccount().bankrupt);
 
 		const ifPoolBalanceAfter = getTokenAmount(
-			bank.insuranceFundPool.balance,
+			bank.revenuePool.balance,
 			bank,
 			BankBalanceType.DEPOSIT
 		);
@@ -1059,7 +1059,7 @@ describe('insurance fund stake', () => {
 	// 	);
 
 	// 	assert(insuranceVaultAmountBefore.gt(ZERO));
-	// 	assert(bank0Before.insuranceFundPool.balance.gt(ZERO));
+	// 	assert(bank0Before.revenuePool.balance.gt(ZERO));
 
 	// 	console.log(
 	// 		'userIfShares:',
@@ -1083,7 +1083,7 @@ describe('insurance fund stake', () => {
 	// 	}
 
 	// 	const bank0 = clearingHouse.getBankAccount(bankIndex);
-	// 	assert(bank0.insuranceFundPool.balance.eq(ZERO));
+	// 	assert(bank0.revenuePool.balance.eq(ZERO));
 	// 	assert(bank0.totalIfShares.eq(ZERO));
 	// });
 });

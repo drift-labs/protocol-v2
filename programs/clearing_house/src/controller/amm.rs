@@ -18,7 +18,7 @@ use anchor_lang::prelude::*;
 use solana_program::msg;
 use std::cmp::{max, min};
 
-use crate::controller::bank_balance::{update_bank_balances, update_insurance_fund_pool_balances};
+use crate::controller::bank_balance::{update_bank_balances, update_revenue_pool_balances};
 use crate::controller::repeg::apply_cost_to_market;
 use crate::state::bank::{Bank, BankBalance, BankBalanceType};
 
@@ -334,15 +334,15 @@ pub fn update_pool_balances(
 
     let mut fraction_for_amm = 100;
 
-    let amm_target_fee_pool_token_amount = market
+    let amm_target_max_fee_pool_token_amount = market
         .amm
         .total_fee_minus_distributions
         .checked_sub(cast_to_i128(market.amm.total_fee_withdrawn)?)
         .ok_or_else(math_error!())?;
 
-    if amm_target_fee_pool_token_amount <= amm_fee_pool_token_amount {
+    if amm_target_max_fee_pool_token_amount <= amm_fee_pool_token_amount {
         // owe the market pnl pool before settling user
-        let pnl_pool_addition = max(0, amm_target_fee_pool_token_amount)
+        let pnl_pool_addition = max(0, amm_target_max_fee_pool_token_amount)
             .checked_sub(amm_fee_pool_token_amount)
             .ok_or_else(math_error!())?;
 
@@ -366,37 +366,103 @@ pub fn update_pool_balances(
     }
 
     {
-        let amm_fee_pool_token_amount = cast_to_i128(get_token_amount(
+        let amm_target_min_fee_pool_token_amount = get_total_fee_lower_bound(market)?
+            .checked_sub(market.amm.total_fee_withdrawn)
+            .ok_or_else(math_error!())?;
+
+        let amm_fee_pool_token_amount = get_token_amount(
             market.amm.fee_pool.balance(),
             bank,
             market.amm.fee_pool.balance_type(),
-        )?)?;
+        )?;
 
-        let bank_transfer_insurance_pool_token_amount =
-            cast_to_i128(get_total_fee_lower_bound(market)?)?
-                .checked_sub(cast_to_i128(market.amm.total_fee_withdrawn)?)
+        if amm_fee_pool_token_amount < amm_target_min_fee_pool_token_amount {
+            let pnl_pool_token_amount = get_token_amount(
+                market.pnl_pool.balance(),
+                bank,
+                market.pnl_pool.balance_type(),
+            )?;
+
+            let pnl_pool_removal = amm_target_min_fee_pool_token_amount
+                .checked_sub(amm_fee_pool_token_amount)
                 .ok_or_else(math_error!())?
-                .max(0)
-                .min(amm_fee_pool_token_amount);
+                .min(pnl_pool_token_amount);
 
-        update_bank_balances(
-            bank_transfer_insurance_pool_token_amount.unsigned_abs(),
-            &BankBalanceType::Borrow,
+            if pnl_pool_removal > 0 {
+                update_bank_balances(
+                    pnl_pool_removal,
+                    &BankBalanceType::Borrow,
+                    bank,
+                    &mut market.pnl_pool,
+                )?;
+
+                update_bank_balances(
+                    pnl_pool_removal,
+                    &BankBalanceType::Deposit,
+                    bank,
+                    &mut market.amm.fee_pool,
+                )?;
+            }
+        }
+
+        let amm_fee_pool_token_amount_after = get_token_amount(
+            market.amm.fee_pool.balance(),
             bank,
-            &mut market.amm.fee_pool,
+            market.amm.fee_pool.balance_type(),
         )?;
 
-        update_insurance_fund_pool_balances(
-            bank_transfer_insurance_pool_token_amount.unsigned_abs(),
-            &BankBalanceType::Deposit,
-            bank,
-        )?;
+        if market.amm.total_fee_minus_distributions < 0 {
+            let bank_revenue_pool_amount = get_token_amount(
+                bank.revenue_pool.balance,
+                bank,
+                &BankBalanceType::Deposit,
+                // bank.revenue_pool.balance_type(),
+            )?;
 
-        market.amm.total_fee_withdrawn = market
-            .amm
-            .total_fee_withdrawn
-            .checked_add(bank_transfer_insurance_pool_token_amount.unsigned_abs())
-            .ok_or_else(math_error!())?;
+            let bank_transfer_insurance_pool_token_amount =
+                (-market.amm.total_fee_minus_distributions)
+                    .min(cast_to_i128(market.max_revenue_withdraw_per_period)?)
+                    .min(cast_to_i128(bank_revenue_pool_amount / 2)?);
+
+            update_revenue_pool_balances(
+                bank_transfer_insurance_pool_token_amount.unsigned_abs(),
+                &BankBalanceType::Borrow,
+                bank,
+            )?;
+
+            update_bank_balances(
+                bank_transfer_insurance_pool_token_amount.unsigned_abs(),
+                &BankBalanceType::Deposit,
+                bank,
+                &mut market.amm.fee_pool,
+            )?;
+        } else {
+            let bank_transfer_insurance_pool_token_amount =
+                cast_to_i128(get_total_fee_lower_bound(market)?)?
+                    .checked_sub(cast_to_i128(market.amm.total_fee_withdrawn)?)
+                    .ok_or_else(math_error!())?
+                    .max(0)
+                    .min(cast_to_i128(amm_fee_pool_token_amount_after)?);
+
+            update_bank_balances(
+                bank_transfer_insurance_pool_token_amount.unsigned_abs(),
+                &BankBalanceType::Borrow,
+                bank,
+                &mut market.amm.fee_pool,
+            )?;
+
+            update_revenue_pool_balances(
+                bank_transfer_insurance_pool_token_amount.unsigned_abs(),
+                &BankBalanceType::Deposit,
+                bank,
+            )?;
+
+            market.amm.total_fee_withdrawn = market
+                .amm
+                .total_fee_withdrawn
+                .checked_add(bank_transfer_insurance_pool_token_amount.unsigned_abs())
+                .ok_or_else(math_error!())?;
+        }
     }
 
     // market pnl pool pays (what it can to) user_unsettled_pnl and pnl_to_settle_to_amm

@@ -1,5 +1,5 @@
 use crate::controller::bank_balance::{
-    update_bank_balances, update_bank_cumulative_interest, update_insurance_fund_pool_balances,
+    update_bank_balances, update_bank_cumulative_interest, update_revenue_pool_balances,
 };
 use crate::controller::funding::settle_funding_payment;
 use crate::controller::lp::burn_lp_shares;
@@ -616,7 +616,7 @@ pub fn liquidate_borrow(
             .checked_sub(liability_transfer_for_insurance)
             .ok_or_else(math_error!())?;
 
-        update_insurance_fund_pool_balances(
+        update_revenue_pool_balances(
             liability_transfer_for_insurance,
             &BankBalanceType::Deposit,
             &mut liability_bank,

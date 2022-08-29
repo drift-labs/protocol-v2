@@ -33,7 +33,7 @@ pub struct Bank {
     pub insurance_fund_vault: Pubkey,
     pub insurance_fund_vault_authority: Pubkey,
     pub insurance_fund_vault_authority_nonce: u8,
-    pub insurance_fund_pool: PoolBalance,
+    pub revenue_pool: PoolBalance,
 
     pub total_if_factor: u32, // percentage of interest for total insurance
     pub user_if_factor: u32,  // percentage of interest for user staked insurance
@@ -42,6 +42,8 @@ pub struct Bank {
     pub user_if_shares: u128,
     pub if_shares_base: u128, // exponent for lp shares (for rebasing)
     pub insurance_withdraw_escrow_period: i64,
+    pub last_revenue_settle_ts: i64,
+    pub revenue_settle_period: i64,
 
     pub decimals: u8,
     pub optimal_utilization: u128,

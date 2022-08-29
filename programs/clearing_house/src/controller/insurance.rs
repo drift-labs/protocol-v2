@@ -1,5 +1,5 @@
 use crate::controller::bank_balance::{
-    update_bank_cumulative_interest, update_insurance_fund_pool_balances, validate_bank_amounts,
+    update_bank_cumulative_interest, update_revenue_pool_balances, validate_bank_amounts,
 };
 use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
@@ -328,10 +328,10 @@ pub fn settle_bank_to_insurance_fund(
     let depositors_claim = cast_to_u128(validate_bank_amounts(bank, bank_vault_amount)?)?;
 
     let token_amount = get_token_amount(
-        bank.insurance_fund_pool.balance,
+        bank.revenue_pool.balance,
         bank,
         &BankBalanceType::Deposit,
-        // bank.insurance_fund_pool.balance_type(),
+        // bank.revenue_pool.balance_type(),
     )?
     .min(depositors_claim);
 
@@ -362,7 +362,7 @@ pub fn settle_bank_to_insurance_fund(
         .checked_add(n_shares)
         .ok_or_else(math_error!())?;
 
-    update_insurance_fund_pool_balances(token_amount, &BankBalanceType::Borrow, bank)?;
+    update_revenue_pool_balances(token_amount, &BankBalanceType::Borrow, bank)?;
 
     cast_to_u64(token_amount)
 }

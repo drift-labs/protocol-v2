@@ -92,14 +92,14 @@ pub fn update_bank_cumulative_interest(bank: &mut Bank, now: i64) -> ClearingHou
                 .ok_or_else(math_error!())?;
             bank.last_interest_ts = cast_to_u64(now)?;
 
-            // add deposit_interest_for_stakers as balance for insurance_fund_pool
+            // add deposit_interest_for_stakers as balance for revenue_pool
             let token_amount = get_interest_token_amount(
                 bank.deposit_balance,
                 bank,
                 deposit_interest_for_stakers,
             )?;
 
-            update_insurance_fund_pool_balances(token_amount, &BankBalanceType::Deposit, bank)?;
+            update_revenue_pool_balances(token_amount, &BankBalanceType::Deposit, bank)?;
         }
     }
 
@@ -109,12 +109,12 @@ pub fn update_bank_cumulative_interest(bank: &mut Bank, now: i64) -> ClearingHou
     Ok(())
 }
 
-pub fn update_insurance_fund_pool_balances(
+pub fn update_revenue_pool_balances(
     mut token_amount: u128,
     update_direction: &BankBalanceType,
     bank: &mut Bank,
 ) -> ClearingHouseResult {
-    let mut bank_balance = bank.insurance_fund_pool;
+    let mut bank_balance = bank.revenue_pool;
 
     let increase_user_existing_balance = update_direction == bank_balance.balance_type();
     if increase_user_existing_balance {
@@ -167,7 +167,7 @@ pub fn update_insurance_fund_pool_balances(
         )?;
     }
 
-    bank.insurance_fund_pool = bank_balance;
+    bank.revenue_pool = bank_balance;
 
     Ok(())
 }
@@ -793,7 +793,7 @@ mod test {
 
         update_bank_cumulative_interest(&mut bank, now + 100).unwrap();
 
-        assert_eq!(bank.insurance_fund_pool.balance, 0);
+        assert_eq!(bank.revenue_pool.balance, 0);
         assert_eq!(bank.cumulative_deposit_interest, 10000019799);
         assert_eq!(bank.cumulative_borrow_interest, 10000158551);
         assert_eq!(bank.last_interest_ts, 100);
@@ -804,12 +804,8 @@ mod test {
             get_token_amount(bank.deposit_balance, &bank, &BankBalanceType::Deposit).unwrap();
         let borrow_tokens_1 =
             get_token_amount(bank.borrow_balance, &bank, &BankBalanceType::Borrow).unwrap();
-        let if_tokens_1 = get_token_amount(
-            bank.insurance_fund_pool.balance,
-            &bank,
-            &BankBalanceType::Borrow,
-        )
-        .unwrap();
+        let if_tokens_1 =
+            get_token_amount(bank.revenue_pool.balance, &bank, &BankBalanceType::Borrow).unwrap();
 
         assert_eq!(deposit_tokens_1, 1000001);
         assert_eq!(borrow_tokens_1, 125002);
@@ -823,18 +819,14 @@ mod test {
 
         assert_eq!(bank.cumulative_deposit_interest, 10001484937);
         assert_eq!(bank.cumulative_borrow_interest, 10011891454);
-        assert_eq!(bank.insurance_fund_pool.balance, 0);
+        assert_eq!(bank.revenue_pool.balance, 0);
 
         let deposit_tokens_2 =
             get_token_amount(bank.deposit_balance, &bank, &BankBalanceType::Deposit).unwrap();
         let borrow_tokens_2 =
             get_token_amount(bank.borrow_balance, &bank, &BankBalanceType::Borrow).unwrap();
-        let if_tokens_2 = get_token_amount(
-            bank.insurance_fund_pool.balance,
-            &bank,
-            &BankBalanceType::Borrow,
-        )
-        .unwrap();
+        let if_tokens_2 =
+            get_token_amount(bank.revenue_pool.balance, &bank, &BankBalanceType::Borrow).unwrap();
 
         assert_eq!(deposit_tokens_2, 1_000_148);
         assert_eq!(borrow_tokens_2, 125_149);
@@ -852,18 +844,14 @@ mod test {
 
         assert_eq!(bank.cumulative_deposit_interest, 16257818378);
         assert_eq!(bank.cumulative_borrow_interest, 60112684636);
-        assert_eq!(bank.insurance_fund_pool.balance, 385);
+        assert_eq!(bank.revenue_pool.balance, 385);
 
         let deposit_tokens_3 =
             get_token_amount(bank.deposit_balance, &bank, &BankBalanceType::Deposit).unwrap();
         let borrow_tokens_3 =
             get_token_amount(bank.borrow_balance, &bank, &BankBalanceType::Borrow).unwrap();
-        let if_tokens_3 = get_token_amount(
-            bank.insurance_fund_pool.balance,
-            &bank,
-            &BankBalanceType::Borrow,
-        )
-        .unwrap();
+        let if_tokens_3 =
+            get_token_amount(bank.revenue_pool.balance, &bank, &BankBalanceType::Borrow).unwrap();
 
         assert_eq!(deposit_tokens_3, 1_626_407);
         assert_eq!(borrow_tokens_3, 751_414);
@@ -881,7 +869,7 @@ mod test {
         let mut if_balance_2 = 0;
 
         // settle IF pool to 100% utilization boundary
-        assert_eq!(bank.insurance_fund_pool.balance, 385);
+        assert_eq!(bank.revenue_pool.balance, 385);
         assert_eq!(bank.utilization_twap, 462007);
 
         let settle_amount = settle_bank_to_insurance_fund(
@@ -895,19 +883,15 @@ mod test {
         if_balance_2 = if_balance_2 + settle_amount;
         assert_eq!(if_tokens_3 - (settle_amount as u128), 1689);
         assert_eq!(settle_amount, 625);
-        assert_eq!(bank.insurance_fund_pool.balance, 0);
+        assert_eq!(bank.revenue_pool.balance, 0);
         assert_eq!(bank.utilization_twap, 462007);
 
         let deposit_tokens_4 =
             get_token_amount(bank.deposit_balance, &bank, &BankBalanceType::Deposit).unwrap();
         let borrow_tokens_4 =
             get_token_amount(bank.borrow_balance, &bank, &BankBalanceType::Borrow).unwrap();
-        let if_tokens_4 = get_token_amount(
-            bank.insurance_fund_pool.balance,
-            &bank,
-            &BankBalanceType::Deposit,
-        )
-        .unwrap();
+        let if_tokens_4 =
+            get_token_amount(bank.revenue_pool.balance, &bank, &BankBalanceType::Deposit).unwrap();
 
         assert_eq!(bank.borrow_token_twap, 751413);
         assert_eq!(bank.deposit_token_twap, 1626406);
@@ -933,12 +917,8 @@ mod test {
             get_token_amount(bank.deposit_balance, &bank, &BankBalanceType::Deposit).unwrap();
         let borrow_tokens_5 =
             get_token_amount(bank.borrow_balance, &bank, &BankBalanceType::Borrow).unwrap();
-        let if_tokens_5 = get_token_amount(
-            bank.insurance_fund_pool.balance,
-            &bank,
-            &BankBalanceType::Deposit,
-        )
-        .unwrap();
+        let if_tokens_5 =
+            get_token_amount(bank.revenue_pool.balance, &bank, &BankBalanceType::Deposit).unwrap();
 
         assert_eq!(bank.borrow_token_twap, 789501);
         assert_eq!(bank.deposit_token_twap, 1663867);
@@ -1077,7 +1057,7 @@ mod test {
 
         update_bank_cumulative_interest(&mut bank, now + 100).unwrap();
 
-        assert_eq!(bank.insurance_fund_pool.balance, 3844266);
+        assert_eq!(bank.revenue_pool.balance, 3844266);
         assert_eq!(bank.cumulative_deposit_interest, 10000346004);
         assert_eq!(bank.cumulative_borrow_interest, 10000711270);
         assert_eq!(bank.last_interest_ts, 100);
@@ -1088,12 +1068,8 @@ mod test {
             get_token_amount(bank.deposit_balance, &bank, &BankBalanceType::Deposit).unwrap();
         let borrow_tokens_1 =
             get_token_amount(bank.borrow_balance, &bank, &BankBalanceType::Borrow).unwrap();
-        let if_tokens_1 = get_token_amount(
-            bank.insurance_fund_pool.balance,
-            &bank,
-            &BankBalanceType::Deposit,
-        )
-        .unwrap();
+        let if_tokens_1 =
+            get_token_amount(bank.revenue_pool.balance, &bank, &BankBalanceType::Deposit).unwrap();
 
         assert_eq!(deposit_tokens_1, 1000038444799);
         assert_eq!(borrow_tokens_1, 540548444855);
@@ -1107,18 +1083,14 @@ mod test {
 
         assert_eq!(bank.cumulative_deposit_interest, 10025953120);
         assert_eq!(bank.cumulative_borrow_interest, 10053351363);
-        assert_eq!(bank.insurance_fund_pool.balance, 287632340);
+        assert_eq!(bank.revenue_pool.balance, 287632340);
 
         let deposit_tokens_2 =
             get_token_amount(bank.deposit_balance, &bank, &BankBalanceType::Deposit).unwrap();
         let borrow_tokens_2 =
             get_token_amount(bank.borrow_balance, &bank, &BankBalanceType::Borrow).unwrap();
-        let if_tokens_2 = get_token_amount(
-            bank.insurance_fund_pool.balance,
-            &bank,
-            &BankBalanceType::Deposit,
-        )
-        .unwrap();
+        let if_tokens_2 =
+            get_token_amount(bank.revenue_pool.balance, &bank, &BankBalanceType::Deposit).unwrap();
 
         assert_eq!(deposit_tokens_2, 1002883690835);
         assert_eq!(borrow_tokens_2, 543393694522);
@@ -1136,18 +1108,14 @@ mod test {
 
         assert_eq!(bank.cumulative_deposit_interest, 120056141117);
         assert_eq!(bank.cumulative_borrow_interest, 236304445676);
-        assert_eq!(bank.insurance_fund_pool.balance, 102149084835);
+        assert_eq!(bank.revenue_pool.balance, 102149084835);
 
         let deposit_tokens_3 =
             get_token_amount(bank.deposit_balance, &bank, &BankBalanceType::Deposit).unwrap();
         let borrow_tokens_3 =
             get_token_amount(bank.borrow_balance, &bank, &BankBalanceType::Borrow).unwrap();
-        let if_tokens_3 = get_token_amount(
-            bank.insurance_fund_pool.balance,
-            &bank,
-            &BankBalanceType::Deposit,
-        )
-        .unwrap();
+        let if_tokens_3 =
+            get_token_amount(bank.revenue_pool.balance, &bank, &BankBalanceType::Deposit).unwrap();
 
         assert_eq!(deposit_tokens_3, 13231976606092);
         assert_eq!(borrow_tokens_3, 12772491593257);
@@ -1165,7 +1133,7 @@ mod test {
         let mut if_balance_2 = 0;
 
         // settle IF pool to 100% utilization boundary
-        assert_eq!(bank.insurance_fund_pool.balance, 102149084835);
+        assert_eq!(bank.revenue_pool.balance, 102149084835);
         let settle_amount = settle_bank_to_insurance_fund(
             deposit_tokens_3 as u64,
             if_tokens_3 as u64,
@@ -1179,19 +1147,15 @@ mod test {
         assert_eq!(if_tokens_3 - (settle_amount as u128), 766877482398); // w/ update interest for settle_bank_to_if
 
         assert_eq!(settle_amount, 459485011994);
-        assert_eq!(bank.insurance_fund_pool.balance, 63889301684);
+        assert_eq!(bank.revenue_pool.balance, 63889301684);
         assert_eq!(bank.utilization_twap, 965273);
 
         let deposit_tokens_4 =
             get_token_amount(bank.deposit_balance, &bank, &BankBalanceType::Deposit).unwrap();
         let borrow_tokens_4 =
             get_token_amount(bank.borrow_balance, &bank, &BankBalanceType::Borrow).unwrap();
-        let if_tokens_4 = get_token_amount(
-            bank.insurance_fund_pool.balance,
-            &bank,
-            &BankBalanceType::Deposit,
-        )
-        .unwrap();
+        let if_tokens_4 =
+            get_token_amount(bank.revenue_pool.balance, &bank, &BankBalanceType::Deposit).unwrap();
 
         assert_eq!(deposit_tokens_4 - borrow_tokens_4, 4);
         assert_eq!(if_tokens_4, 767091050279);

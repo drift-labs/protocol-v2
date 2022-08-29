@@ -2589,7 +2589,7 @@
             "type": "u8"
           },
           {
-            "name": "insuranceFundPool",
+            "name": "revenuePool",
             "type": {
               "defined": "PoolBalance"
             }
@@ -2616,6 +2616,14 @@
           },
           {
             "name": "insuranceWithdrawEscrowPeriod",
+            "type": "i64"
+          },
+          {
+            "name": "lastRevenueSettleTs",
+            "type": "i64"
+          },
+          {
+            "name": "revenueSettlePeriod",
             "type": "i64"
           },
           {

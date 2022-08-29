@@ -268,13 +268,15 @@ pub mod clearing_house {
             insurance_fund_vault: *ctx.accounts.insurance_fund_vault.to_account_info().key,
             insurance_fund_vault_authority,
             insurance_fund_vault_authority_nonce,
-            insurance_fund_pool: PoolBalance { balance: 0 },
+            revenue_pool: PoolBalance { balance: 0 },
             total_if_factor: 0,
             user_if_factor: 0,
             total_if_shares: 0,
             user_if_shares: 0,
             if_shares_base: 0,
             insurance_withdraw_escrow_period: 0,
+            last_revenue_settle_ts: 0,
+            revenue_settle_period: 0, // how often can be settled
             decimals: ctx.accounts.bank_mint.decimals,
             optimal_utilization,
             optimal_borrow_rate,
@@ -386,6 +388,9 @@ pub mod clearing_house {
             next_funding_rate_record_id: 1,
             next_curve_record_id: 1,
             pnl_pool: PoolBalance { balance: 0 },
+            revenue_withdraw_since_last_settle: 0,
+            max_revenue_withdraw_per_period: 0,
+            last_revenue_withdraw_ts: now,
             unrealized_initial_asset_weight: 100,     // 100%
             unrealized_maintenance_asset_weight: 100, // 100%
             unrealized_imf_factor: 0,
@@ -2335,6 +2340,31 @@ pub mod clearing_house {
     #[access_control(
         market_initialized(&ctx.accounts.market)
     )]
+    pub fn update_market_max_revenue_withdraw_per_period(
+        ctx: Context<AdminUpdateMarket>,
+        max_revenue_withdraw_per_period: u128,
+    ) -> Result<()> {
+        let market = &mut load_mut!(ctx.accounts.market)?;
+
+        validate!(
+            max_revenue_withdraw_per_period < 10_000 * QUOTE_PRECISION,
+            ErrorCode::DefaultError,
+            "max_revenue_withdraw_per_period must be less than 10k"
+        )?;
+
+        msg!(
+            "market.max_revenue_withdraw_per_period: {:?} -> {:?}",
+            market.max_revenue_withdraw_per_period,
+            max_revenue_withdraw_per_period
+        );
+
+        market.max_revenue_withdraw_per_period = max_revenue_withdraw_per_period;
+        Ok(())
+    }
+
+    #[access_control(
+        market_initialized(&ctx.accounts.market)
+    )]
     pub fn update_perp_liquidation_fee(
         ctx: Context<AdminUpdateMarket>,
         liquidation_fee: u128,
@@ -2361,9 +2391,7 @@ pub mod clearing_house {
         insurance_withdraw_escrow_period: i64,
     ) -> Result<()> {
         let bank = &mut load_mut!(ctx.accounts.bank)?;
-
         bank.insurance_withdraw_escrow_period = insurance_withdraw_escrow_period;
-
         Ok(())
     }
 
@@ -2449,6 +2477,21 @@ pub mod clearing_house {
         bank.total_if_factor = total_if_factor;
         bank.liquidation_if_factor = liquidation_if_factor;
 
+        Ok(())
+    }
+
+    pub fn update_bank_revenue_settle_period(
+        ctx: Context<AdminUpdateBank>,
+        revenue_settle_period: i64,
+    ) -> Result<()> {
+        let bank = &mut load_mut!(ctx.accounts.bank)?;
+        validate!(revenue_settle_period > 0, ErrorCode::DefaultError)?;
+        msg!(
+            "bank.revenue_settle_period: {:?} -> {:?}",
+            bank.revenue_settle_period,
+            revenue_settle_period
+        );
+        bank.revenue_settle_period = revenue_settle_period;
         Ok(())
     }
 
@@ -2810,6 +2853,16 @@ pub mod clearing_house {
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
 
+        validate!(
+            math::helpers::on_the_hour_update(
+                now,
+                bank.last_revenue_settle_ts,
+                bank.revenue_settle_period
+            )?,
+            ErrorCode::DefaultError,
+            "Not time for next revenue settle"
+        )?;
+
         let token_amount = controller::insurance::settle_bank_to_insurance_fund(
             bank_vault_amount,
             insurance_vault_amount,
@@ -2826,6 +2879,8 @@ pub mod clearing_house {
             bank.vault_authority_nonce,
             token_amount as u64,
         )?;
+
+        bank.last_revenue_settle_ts = now;
 
         Ok(())
     }

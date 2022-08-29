@@ -362,7 +362,7 @@ export type BankAccount = {
 	insuranceFundVaultAuthority: PublicKey;
 	insuranceFundVaultAuthorityNonce: number;
 	insuranceWithdrawEscrowPeriod: BN;
-	insuranceFundPool: PoolBalance;
+	revenuePool: PoolBalance;
 
 	totalIfShares: BN;
 	userIfShares: BN;
