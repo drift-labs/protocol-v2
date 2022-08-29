@@ -133,7 +133,9 @@ pub fn update_bank_balances(
         validate!(
             deposit_token_amount >= borrow_token_amount,
             ErrorCode::BankInsufficientDeposits,
-            "Bank has insufficent deposits to complete withdraw"
+            "Bank has insufficent deposits to complete withdraw: deposits ({}) borrows ({})",
+            deposit_token_amount,
+            borrow_token_amount
         )?;
     }
 

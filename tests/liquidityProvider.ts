@@ -269,9 +269,21 @@ describe('liquidity providing', () => {
 
 	it('burn with standardized baa', async () => {
 		console.log('adding liquidity...');
+		const initMarginReq = clearingHouseUser.getInitialMarginRequirement();
+		assert(initMarginReq.eq(ZERO));
+
 		let market = clearingHouse.getMarketAccount(new BN(0));
 		const lpAmount = new BN(100 * 1e13); // 100 / (100 + 300) = 1/4
 		const _sig = await clearingHouse.addLiquidity(lpAmount, market.marketIndex);
+
+		const newInitMarginReq = clearingHouseUser.getInitialMarginRequirement();
+		console.log(initMarginReq.toString(), '->', newInitMarginReq.toString());
+		assert(newInitMarginReq.eq(new BN(8284000)));
+
+		// ensure margin calcs didnt modify user position
+		const _position = clearingHouseUser.getUserPosition(ZERO);
+		assert(_position.openAsks.eq(ZERO));
+		assert(_position.openBids.eq(ZERO));
 
 		const stepSize = new BN(1 * 1e13);
 		await clearingHouse.updateMarketBaseAssetAmountStepSize(ZERO, stepSize);
@@ -464,7 +476,8 @@ describe('liquidity providing', () => {
 		const trader = traderClearingHouse.getUserAccount();
 		console.log('trader size', trader.positions[0].baseAssetAmount.toString());
 
-		const [settledLPPosition, _] = clearingHouseUser.getSettledLPPosition(ZERO);
+		const [settledLPPosition, _, __] =
+			clearingHouseUser.getSettledLPPosition(ZERO);
 
 		console.log('settling...');
 		try {
@@ -558,7 +571,8 @@ describe('liquidity providing', () => {
 		const prevSqrtK = market.amm.sqrtK;
 		const prevbar = market.amm.baseAssetReserve;
 		const prevqar = market.amm.quoteAssetReserve;
-		const prevQaa = clearingHouse.getUserAccount().positions[0].quoteAssetAmount;
+		const prevQaa =
+			clearingHouse.getUserAccount().positions[0].quoteAssetAmount;
 
 		console.log('adding liquidity...');
 		try {
@@ -609,7 +623,7 @@ describe('liquidity providing', () => {
 		console.log('lp token amount:', lpTokenAmount.toString());
 		assert(lpTokenAmount.eq(ZERO));
 		// dont round down for no change
-		assert(user.positions[0].quoteAssetAmount.eq(prevQaa)) 
+		assert(user.positions[0].quoteAssetAmount.eq(prevQaa));
 
 		console.log('asset reserves:');
 		console.log(prevSqrtK.toString(), market.amm.sqrtK.toString());
@@ -1190,7 +1204,7 @@ describe('liquidity providing', () => {
 			new BN(0)
 		);
 
-		const [settledPosition, result] = clearingHouseUser.getSettledLPPosition(
+		const [settledPosition, result, _] = clearingHouseUser.getSettledLPPosition(
 			new BN(0)
 		);
 

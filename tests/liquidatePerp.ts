@@ -114,10 +114,7 @@ describe('liquidate perp and lp', () => {
 			new BN(0)
 		);
 
-		await clearingHouse.addLiquidity(
-			nLpShares, 
-			ZERO,
-		);
+		await clearingHouse.addLiquidity(nLpShares, ZERO);
 
 		for (let i = 0; i < 32; i++) {
 			await clearingHouse.placeOrder(
@@ -215,7 +212,7 @@ describe('liquidate perp and lp', () => {
 			await clearingHouse.addLiquidity(nLpShares, ZERO);
 			assert(false);
 		} catch (err) {
-			assert(err.message.includes("0x17d6"));
+			assert(err.message.includes('0x17d6'));
 		}
 
 		const liquidationRecord =
@@ -263,7 +260,7 @@ describe('liquidate perp and lp', () => {
 			assert(false);
 		} catch (err) {
 			// cant add when bankrupt
-			assert(err.message.includes("0x17de"));
+			assert(err.message.includes('0x17de'));
 		}
 
 		await liquidatorClearingHouse.resolvePerpBankruptcy(
@@ -279,9 +276,7 @@ describe('liquidate perp and lp', () => {
 		assert(
 			clearingHouse.getUserAccount().positions[0].quoteAssetAmount.eq(ZERO)
 		);
-		assert(
-			clearingHouse.getUserAccount().positions[0].lpShares.eq(ZERO)
-		);
+		assert(clearingHouse.getUserAccount().positions[0].lpShares.eq(ZERO));
 
 		const perpBankruptcyRecord =
 			eventSubscriber.getEventsArray('LiquidationRecord')[0];

@@ -5,6 +5,7 @@ use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 
 use crate::error::ClearingHouseResult;
+use crate::math::bank_balance::get_token_amount;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, BANK_WEIGHT_PRECISION, LIQUIDATION_FEE_PRECISION,
 };
@@ -112,6 +113,18 @@ impl Bank {
                 .checked_sub(self.liquidation_fee)
                 .ok_or_else(math_error!()),
         }
+    }
+
+    pub fn get_available_deposits(&self) -> ClearingHouseResult<u128> {
+        let deposit_token_amount =
+            get_token_amount(self.deposit_balance, self, &BankBalanceType::Deposit)?;
+
+        let borrow_token_amount =
+            get_token_amount(self.borrow_balance, self, &BankBalanceType::Borrow)?;
+
+        deposit_token_amount
+            .checked_sub(borrow_token_amount)
+            .ok_or_else(math_error!())
     }
 }
 

@@ -636,6 +636,18 @@ pub mod clearing_house {
         };
         emit!(deposit_record);
 
+        // reload the bank vault balance so it's up-to-date
+        ctx.accounts.bank_vault.reload()?;
+        let available_deposits = bank.get_available_deposits()?;
+
+        validate!(
+            available_deposits <= cast(ctx.accounts.bank_vault.amount)?,
+            ErrorCode::InvalidBankState,
+            "available deposits > bank_vault.amount: {} > {}",
+            available_deposits,
+            ctx.accounts.bank_vault.amount
+        )?;
+
         Ok(())
     }
 
@@ -889,7 +901,7 @@ pub mod clearing_house {
             &mut oracle_map,
             ctx.accounts.state.liquidation_margin_buffer_ratio,
         )?;
-    
+
         let position = &mut user.positions[position_index];
         // update add liquidity time
         position.last_lp_add_time = now;

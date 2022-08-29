@@ -144,6 +144,11 @@ export class ClearingHouseUser {
 		};
 	}
 
+	public getClonedPosition(position: UserPosition): UserPosition {
+		const clonedPosition = Object.assign({}, position);
+		return clonedPosition;
+	}
+
 	/**
 	 * @param orderId
 	 * @returns Order
@@ -180,8 +185,10 @@ export class ClearingHouseUser {
 	 * calculates the market position if the lp position was settled
 	 * @returns : userPosition
 	 */
-	public getSettledLPPosition(marketIndex: BN): [UserPosition, BN] {
-		const position = this.getUserPosition(marketIndex);
+	public getSettledLPPosition(marketIndex: BN): [UserPosition, BN, BN] {
+		const _position = this.getUserPosition(marketIndex);
+		const position = this.getClonedPosition(_position);
+
 		const market = this.clearingHouse.getMarketAccount(position.marketIndex);
 		const nShares = position.lpShares;
 
@@ -265,7 +272,7 @@ export class ClearingHouseUser {
 			position.lastCumulativeFundingRate = ZERO;
 		}
 
-		return [position, pnl];
+		return [position, remainderBaa, pnl];
 	}
 
 	/**
@@ -289,51 +296,55 @@ export class ClearingHouseUser {
 		return freeCollateral.gte(ZERO) ? freeCollateral : ZERO;
 	}
 
-	public getInitialMarginRequirement(): BN {
-		const postionMarginRequirement = this.getUserAccount().positions.reduce(
-			(marginRequirement, marketPosition) => {
-				const market = this.clearingHouse.getMarketAccount(
-					marketPosition.marketIndex
-				);
-				const worstCaseBaseAssetAmount =
-					calculateWorstCaseBaseAssetAmount(marketPosition);
-
-				const worstCaseAssetValue = worstCaseBaseAssetAmount
-					.abs()
-					.mul(this.getOracleDataForMarket(market.marketIndex).price)
-					.div(AMM_TO_QUOTE_PRECISION_RATIO.mul(MARK_PRICE_PRECISION));
-
-				const marketMarginRatio = new BN(
-					calculateMarketMarginRatio(
-						market,
-						worstCaseBaseAssetAmount.abs(),
-						'Initial'
-					)
-				);
-				return marginRequirement.add(
-					worstCaseAssetValue.mul(marketMarginRatio).div(MARGIN_PRECISION)
-				);
-			},
-			ZERO
-		);
-
-		const bankMarginRequirement = this.getBankLiabilityValue(
-			undefined,
-			'Initial'
-		);
-
-		return bankMarginRequirement.add(postionMarginRequirement);
-	}
-
 	/**
-	 * @returns The maintenance margin requirement in USDC. : QUOTE_PRECISION
+	 * @returns The margin requirement of a certain type (Initial or Maintenance) in USDC. : QUOTE_PRECISION
 	 */
-	public getMaintenanceMarginRequirement(): BN {
+	public getMarginRequirement(type: MarginCategory): BN {
 		return this.getUserAccount()
 			.positions.reduce((marginRequirement, marketPosition) => {
 				const market = this.clearingHouse.getMarketAccount(
 					marketPosition.marketIndex
 				);
+
+				if (marketPosition.lpShares.gt(ZERO)) {
+					// is an lp
+					// clone so we dont mutate the position
+					marketPosition = this.getClonedPosition(marketPosition);
+
+					// settle position
+					const [settledPosition, dustBaa, _] = this.getSettledLPPosition(
+						market.marketIndex
+					);
+					marketPosition.baseAssetAmount =
+						settledPosition.baseAssetAmount.add(dustBaa);
+					marketPosition.quoteAssetAmount = settledPosition.quoteAssetAmount;
+
+					// open orders
+					let openAsks;
+					if (market.amm.maxBaseAssetReserve > market.amm.baseAssetReserve) {
+						openAsks = market.amm.maxBaseAssetReserve
+							.sub(market.amm.baseAssetReserve)
+							.mul(marketPosition.lpShares)
+							.div(market.amm.sqrtK)
+							.mul(new BN(-1));
+					} else {
+						openAsks = ZERO;
+					}
+
+					let openBids;
+					if (market.amm.minBaseAssetReserve < market.amm.baseAssetReserve) {
+						openBids = market.amm.baseAssetReserve
+							.sub(market.amm.minBaseAssetReserve)
+							.mul(marketPosition.lpShares)
+							.div(market.amm.sqrtK);
+					} else {
+						openBids = ZERO;
+					}
+
+					marketPosition.openAsks = marketPosition.openAsks.add(openAsks);
+					marketPosition.openBids = marketPosition.openBids.add(openBids);
+				}
+
 				const worstCaseBaseAssetAmount =
 					calculateWorstCaseBaseAssetAmount(marketPosition);
 
@@ -349,14 +360,28 @@ export class ClearingHouseUser {
 								calculateMarketMarginRatio(
 									market,
 									worstCaseBaseAssetAmount.abs(),
-									'Maintenance'
+									type
 								)
 							)
 						)
 						.div(MARGIN_PRECISION)
 				);
 			}, ZERO)
-			.add(this.getBankLiabilityValue(undefined, 'Maintenance'));
+			.add(this.getBankLiabilityValue(undefined, type));
+	}
+
+	/**
+	 * @returns The initial margin requirement in USDC. : QUOTE_PRECISION
+	 */
+	public getInitialMarginRequirement(): BN {
+		return this.getMarginRequirement('Initial');
+	}
+
+	/**
+	 * @returns The maintenance margin requirement in USDC. : QUOTE_PRECISION
+	 */
+	public getMaintenanceMarginRequirement(): BN {
+		return this.getMarginRequirement('Maintenance');
 	}
 
 	/**

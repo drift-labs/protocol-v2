@@ -139,7 +139,7 @@ export function getLimitPrice(
 	if (!order.oraclePriceOffset.eq(ZERO)) {
 		limitPrice = oraclePriceData.price.add(order.oraclePriceOffset);
 	} else if (isOneOfVariant(order.orderType, ['market', 'triggerMarket'])) {
-		if (isAuctionComplete(order, slot)) {
+		if (!isAuctionComplete(order, slot)) {
 			limitPrice = getAuctionPrice(order, slot);
 		} else if (!order.price.eq(ZERO)) {
 			limitPrice = order.price;
@@ -163,16 +163,18 @@ export function isFillableByVAMM(
 	order: Order,
 	market: MarketAccount,
 	oraclePriceData: OraclePriceData,
-	slot: number
+	slot: number,
+	maxAuctionDuration: number
 ): boolean {
 	return (
-		isAuctionComplete(order, slot) &&
-		!calculateBaseAssetAmountForAmmToFulfill(
-			order,
-			market,
-			oraclePriceData,
-			slot
-		).eq(ZERO)
+		(isAuctionComplete(order, slot) &&
+			!calculateBaseAssetAmountForAmmToFulfill(
+				order,
+				market,
+				oraclePriceData,
+				slot
+			).eq(ZERO)) ||
+		isOrderExpired(order, slot, maxAuctionDuration)
 	);
 }
 
@@ -242,4 +244,19 @@ function isSameDirection(
 		(isVariant(firstDirection, 'long') && isVariant(secondDirection, 'long')) ||
 		(isVariant(firstDirection, 'short') && isVariant(secondDirection, 'short'))
 	);
+}
+
+export function isOrderExpired(
+	order: Order,
+	slot: number,
+	maxAuctionDuration: number
+): boolean {
+	if (
+		!isVariant(order.orderType, 'market') ||
+		!isVariant(order.status, 'open')
+	) {
+		return false;
+	}
+
+	return new BN(slot).sub(order.slot).gt(new BN(maxAuctionDuration));
 }

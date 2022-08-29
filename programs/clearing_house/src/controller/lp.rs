@@ -51,7 +51,7 @@ pub fn settle_lp_position(
     market.amm.net_unsettled_lp_base_asset_amount = market
         .amm
         .net_unsettled_lp_base_asset_amount
-        .checked_sub(lp_metrics.base_asset_amount)
+        .checked_add(lp_metrics.base_asset_amount)
         .ok_or_else(math_error!())?;
 
     Ok(())
@@ -72,7 +72,7 @@ pub fn burn_lp_shares(
 
     // compute any dust
     let (base_asset_amount, _) = calculate_settled_lp_base_quote(&market.amm, position)?;
-    
+
     // update stats
     if base_asset_amount != 0 {
         // user closes the dust
@@ -85,12 +85,18 @@ pub fn burn_lp_shares(
         market.amm.net_unsettled_lp_base_asset_amount = market
             .amm
             .net_unsettled_lp_base_asset_amount
+            .checked_add(base_asset_amount)
+            .ok_or_else(math_error!())?;
+
+        market.amm.net_unsettled_lp_base_asset_amount = market
+            .amm
+            .net_unsettled_lp_base_asset_amount
             .checked_sub(base_asset_amount)
             .ok_or_else(math_error!())?;
 
         let dust_base_asset_value =
             calculate_base_asset_value_with_oracle_price(base_asset_amount, oracle_price)?
-                .checked_add(1) // round up 
+                .checked_add(1) // round up
                 .ok_or_else(math_error!())?;
 
         update_quote_asset_amount(position, -cast_to_i128(dust_base_asset_value)?)?;
@@ -167,7 +173,7 @@ mod test {
         assert_eq!(position.base_asset_amount, 10 * 100);
         assert_eq!(position.quote_asset_amount, -10 * 100);
         assert_eq!(
-            og_market.amm.net_unsettled_lp_base_asset_amount - 10 * 100,
+            og_market.amm.net_unsettled_lp_base_asset_amount + 10 * 100,
             market.amm.net_unsettled_lp_base_asset_amount
         );
         // net baa doesnt change
