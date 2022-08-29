@@ -535,19 +535,20 @@ pub fn calculate_rolling_sum(
     weight1_denom: i128,
 ) -> ClearingHouseResult<u64> {
     // assumes that missing times are zeros (e.g. handle NaN as 0)
-
-    let prev_twap_99 = data1
-        .checked_mul(cast_to_u64(max(
+    let prev_twap_99 = cast_to_u128(data1)?
+        .checked_mul(cast_to_u128(max(
             0,
             weight1_denom
                 .checked_sub(weight1_numer)
                 .ok_or_else(math_error!())?,
         ))?)
         .ok_or_else(math_error!())?
-        .checked_div(cast_to_u64(weight1_denom)?)
+        .checked_div(cast_to_u128(weight1_denom)?)
         .ok_or_else(math_error!())?;
 
-    prev_twap_99.checked_add(data2).ok_or_else(math_error!())
+    cast_to_u64(prev_twap_99)?
+        .checked_add(data2)
+        .ok_or_else(math_error!())
 }
 
 pub fn calculate_swap_output(
@@ -1151,7 +1152,7 @@ pub fn get_update_k_result(
         .ok_or_else(math_error!())?;
 
     // if decreasing k, max decrease ratio for single transaction is 2.5%
-    if bound_update && sqrt_k_ratio < U192::from(975_000_000_000_u128) {
+    if bound_update && sqrt_k_ratio < U192::from(9_750_000_000_000_u128) {
         return Err(ErrorCode::InvalidUpdateK);
     }
 
@@ -1220,7 +1221,7 @@ pub fn update_k(market: &mut Market, update_k_result: &UpdateKResult) -> Clearin
     market.amm.terminal_quote_asset_reserve = new_terminal_quote_reserve;
 
     let (min_base_asset_reserve, max_base_asset_reserve) =
-        calculate_bid_ask_bounds(market.amm.sqrt_k)?;
+        calculate_bid_ask_bounds(market.amm.sqrt_k)?; // todo: use _new_terminal_base_reserve?
     market.amm.min_base_asset_reserve = min_base_asset_reserve;
     market.amm.max_base_asset_reserve = max_base_asset_reserve;
 
