@@ -1497,6 +1497,32 @@
       ]
     },
     {
+      "name": "updateMarketMaxRevenueWithdrawPerPeriod",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "maxRevenueWithdrawPerPeriod",
+          "type": "u128"
+        }
+      ]
+    },
+    {
       "name": "updatePerpLiquidationFee",
       "accounts": [
         {
@@ -1635,6 +1661,32 @@
         {
           "name": "liquidationIfFactor",
           "type": "u32"
+        }
+      ]
+    },
+    {
+      "name": "updateBankRevenueSettlePeriod",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "bank",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "revenueSettlePeriod",
+          "type": "i64"
         }
       ]
     },
@@ -2817,6 +2869,18 @@
             "type": {
               "defined": "PoolBalance"
             }
+          },
+          {
+            "name": "revenueWithdrawSinceLastSettle",
+            "type": "u128"
+          },
+          {
+            "name": "maxRevenueWithdrawPerPeriod",
+            "type": "u128"
+          },
+          {
+            "name": "lastRevenueWithdrawTs",
+            "type": "i64"
           },
           {
             "name": "imfFactor",
