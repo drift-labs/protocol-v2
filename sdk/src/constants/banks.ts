@@ -1,5 +1,6 @@
 import { PublicKey } from '@solana/web3.js';
 import { BN, DriftEnv, OracleSource } from '../';
+import { BANK_BALANCE_PRECISION_EXP, LAMPORTS_EXP } from './numericConstants';
 
 export type BankConfig = {
 	symbol: string;
@@ -7,6 +8,7 @@ export type BankConfig = {
 	oracle: PublicKey;
 	mint: PublicKey;
 	oracleSource: OracleSource;
+	precision: BN;
 };
 
 export const WRAPPED_SOL_MINT = new PublicKey(
@@ -20,6 +22,7 @@ export const DevnetBanks: BankConfig[] = [
 		oracle: PublicKey.default,
 		oracleSource: OracleSource.QUOTE_ASSET,
 		mint: new PublicKey('8zGuJQqwhZafTah7Uc7Z4tXRnguqkn5KLFAP8oV6PHe2'),
+		precision: BANK_BALANCE_PRECISION_EXP,
 	},
 	{
 		symbol: 'SOL',
@@ -27,6 +30,7 @@ export const DevnetBanks: BankConfig[] = [
 		oracle: new PublicKey('J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix'),
 		oracleSource: OracleSource.PYTH,
 		mint: new PublicKey(WRAPPED_SOL_MINT),
+		precision: LAMPORTS_EXP,
 	},
 	{
 		symbol: 'BTC',
@@ -34,6 +38,7 @@ export const DevnetBanks: BankConfig[] = [
 		oracle: new PublicKey('HovQMDrbAgAYPCmHVSrezcSmkMtXSSUsLDFANExrZh2J'),
 		oracleSource: OracleSource.PYTH,
 		mint: new PublicKey('3BZPwbcqB5kKScF3TEXxwNfx5ipV13kbRVDvfVp5c6fv'),
+		precision: BANK_BALANCE_PRECISION_EXP,
 	},
 ];
 
@@ -44,6 +49,7 @@ export const MainnetBanks: BankConfig[] = [
 		oracle: PublicKey.default,
 		oracleSource: OracleSource.QUOTE_ASSET,
 		mint: new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'),
+		precision: BANK_BALANCE_PRECISION_EXP,
 	},
 ];
 
