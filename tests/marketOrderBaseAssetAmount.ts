@@ -117,7 +117,7 @@ describe('clearing_house', () => {
 		);
 		await printTxLogs(connection, txSig);
 
-		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9947387)));
+		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9947386)));
 		assert(
 			clearingHouse
 				.getUserStats()
@@ -188,7 +188,7 @@ describe('clearing_house', () => {
 				.positions[0].baseAssetAmount.eq(new BN(240000000000000))
 		);
 
-		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9926840)));
+		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9926838)));
 		assert(
 			clearingHouse
 				.getUserStats()
@@ -234,7 +234,7 @@ describe('clearing_house', () => {
 			marketIndex
 		);
 
-		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9878840)));
+		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9878837)));
 		assert(
 			clearingHouse
 				.getUserStats()
@@ -301,7 +301,7 @@ describe('clearing_house', () => {
 			clearingHouse.getUserAccount().positions[0].baseAssetAmount.eq(new BN(0))
 		);
 
-		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9855993)));
+		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9855989)));
 		assert(
 			clearingHouse
 				.getUserStats()

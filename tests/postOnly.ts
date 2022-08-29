@@ -238,6 +238,7 @@ describe('post only', () => {
 			marketIndexes,
 			bankIndexes,
 			oracleInfos,
+			userStats: true,
 		});
 		await clearingHouse.subscribe();
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
