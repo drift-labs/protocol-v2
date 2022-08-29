@@ -72,28 +72,29 @@ pub fn burn_lp_shares(
 
     // compute any dust
     let (base_asset_amount, _) = calculate_settled_lp_base_quote(&market.amm, position)?;
-
+    
     // update stats
-    // user closes the dust
-    market.amm.net_base_asset_amount = market
-        .amm
-        .net_base_asset_amount
-        .checked_sub(base_asset_amount)
-        .ok_or_else(math_error!())?;
-
-    market.amm.net_unsettled_lp_base_asset_amount = market
-        .amm
-        .net_unsettled_lp_base_asset_amount
-        .checked_sub(base_asset_amount)
-        .ok_or_else(math_error!())?;
-
-    // liquidate dust position
-    let dust_base_asset_value =
-        calculate_base_asset_value_with_oracle_price(base_asset_amount, oracle_price)?
-            .checked_add(1)
+    if base_asset_amount != 0 {
+        // user closes the dust
+        market.amm.net_base_asset_amount = market
+            .amm
+            .net_base_asset_amount
+            .checked_sub(base_asset_amount)
             .ok_or_else(math_error!())?;
 
-    update_quote_asset_amount(position, -cast_to_i128(dust_base_asset_value)?)?;
+        market.amm.net_unsettled_lp_base_asset_amount = market
+            .amm
+            .net_unsettled_lp_base_asset_amount
+            .checked_sub(base_asset_amount)
+            .ok_or_else(math_error!())?;
+
+        let dust_base_asset_value =
+            calculate_base_asset_value_with_oracle_price(base_asset_amount, oracle_price)?
+                .checked_add(1) // round up 
+                .ok_or_else(math_error!())?;
+
+        update_quote_asset_amount(position, -cast_to_i128(dust_base_asset_value)?)?;
+    }
 
     // update last_ metrics
     position.last_net_base_asset_amount_per_lp =

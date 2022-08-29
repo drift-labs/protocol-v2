@@ -558,6 +558,7 @@ describe('liquidity providing', () => {
 		const prevSqrtK = market.amm.sqrtK;
 		const prevbar = market.amm.baseAssetReserve;
 		const prevqar = market.amm.quoteAssetReserve;
+		const prevQaa = clearingHouse.getUserAccount().positions[0].quoteAssetAmount;
 
 		console.log('adding liquidity...');
 		try {
@@ -607,6 +608,8 @@ describe('liquidity providing', () => {
 		const lpTokenAmount = user.positions[0].lpShares;
 		console.log('lp token amount:', lpTokenAmount.toString());
 		assert(lpTokenAmount.eq(ZERO));
+		// dont round down for no change
+		assert(user.positions[0].quoteAssetAmount.eq(prevQaa)) 
 
 		console.log('asset reserves:');
 		console.log(prevSqrtK.toString(), market.amm.sqrtK.toString());
@@ -738,7 +741,7 @@ describe('liquidity providing', () => {
 
 		assert(lpTokenAmount.eq(new BN(0)));
 		assert(user.positions[0].baseAssetAmount.eq(new BN('100000000000000'))); // lp is long
-		assert(user.positions[0].quoteAssetAmount.eq(new BN(-9550786)));
+		assert(user.positions[0].quoteAssetAmount.eq(new BN(-9550783)));
 
 		console.log('closing trader ...');
 		await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);
@@ -819,7 +822,7 @@ describe('liquidity providing', () => {
 
 		assert(lpTokenAmount.eq(ZERO));
 		assert(user.positions[0].baseAssetAmount.eq(new BN('-100000000000000'))); // lp is short
-		assert(user.positions[0].quoteAssetAmount.eq(new BN('11940739')));
+		assert(user.positions[0].quoteAssetAmount.eq(new BN('11940743')));
 
 		console.log('closing trader...');
 		await adjustOraclePostSwap(tradeSize, SwapDirection.ADD, market);
@@ -880,7 +883,7 @@ describe('liquidity providing', () => {
 		const baa0 = position0.baseAssetAmount;
 		const qaa0 = position0.quoteAssetAmount;
 		assert(baa0.eq(ZERO));
-		assert(qaa0.eq(new BN('2237738')));
+		assert(qaa0.eq(new BN('2237742')));
 
 		console.log('user trading...');
 		const tradeSize = new BN(40 * 1e13);
@@ -925,7 +928,7 @@ describe('liquidity providing', () => {
 		const baa = user.positions[0].baseAssetAmount;
 		const qaa = user.positions[0].quoteAssetAmount;
 		assert(baa.eq(new BN(100000000000000)));
-		assert(qaa.eq(new BN(-6860363)));
+		assert(qaa.eq(new BN(-6860358)));
 
 		console.log('removing the other half of liquidity');
 		await clearingHouse.removeLiquidity(market.marketIndex, otherHalfShares);
