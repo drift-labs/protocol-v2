@@ -198,13 +198,10 @@ pub fn liquidate_perp(
         .checked_sub(worst_case_base_asset_amount_after)
         .ok_or_else(math_error!())?;
 
-    let margin_ratio = {
-        let market = &mut market_map.get_ref(&market_index)?;
-        market.get_margin_ratio(
-            worst_case_base_asset_amount_before.unsigned_abs(),
-            MarginRequirementType::Maintenance,
-        )?
-    };
+    let margin_ratio = market_map.get_ref(&market_index)?.get_margin_ratio(
+        worst_case_base_asset_amount_before.unsigned_abs(),
+        MarginRequirementType::Maintenance,
+    )?;
 
     if worse_case_base_asset_amount_delta != 0 {
         let base_asset_value = calculate_base_asset_value_with_oracle_price(
