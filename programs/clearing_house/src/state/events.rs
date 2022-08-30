@@ -131,6 +131,7 @@ pub enum OrderAction {
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
 pub enum OrderActionExplanation {
     None,
+    InsufficientFreeCollateral,
     BreachedMarginRequirement,
     OraclePriceBreachedLimitPrice,
     MarketOrderFilledToLimitPrice,
