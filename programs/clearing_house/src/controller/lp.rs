@@ -18,7 +18,7 @@ use anchor_lang::prelude::msg;
 pub fn settle_lp_position(
     position: &mut MarketPosition,
     market: &mut Market,
-) -> ClearingHouseResult<()> {
+) -> ClearingHouseResult<PositionDelta> {
     let n_shares = position.lp_shares;
     let n_shares_i128 = cast_to_i128(n_shares)?;
 
@@ -54,7 +54,7 @@ pub fn settle_lp_position(
         .checked_add(lp_metrics.base_asset_amount)
         .ok_or_else(math_error!())?;
 
-    Ok(())
+    Ok(position_delta)
 }
 
 pub fn burn_lp_shares(
@@ -62,13 +62,13 @@ pub fn burn_lp_shares(
     market: &mut Market,
     shares_to_burn: u128,
     oracle_price: i128,
-) -> ClearingHouseResult<()> {
+) -> ClearingHouseResult<PositionDelta> {
     if shares_to_burn == 0 {
-        return Ok(());
+        return Ok(PositionDelta::default());
     }
 
     // settle
-    settle_lp_position(position, market)?;
+    let position_delta = settle_lp_position(position, market)?;
 
     // compute any dust
     let (base_asset_amount, _) = calculate_settled_lp_base_quote(&market.amm, position)?;
@@ -131,7 +131,7 @@ pub fn burn_lp_shares(
     let update_k_result = get_update_k_result(market, new_sqrt_k_u192, false)?;
     update_k(market, &update_k_result)?;
 
-    Ok(())
+    Ok(position_delta)
 }
 
 #[cfg(test)]

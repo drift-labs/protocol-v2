@@ -379,6 +379,15 @@ describe('liquidity providing', () => {
 		user = clearingHouseUser.getUserAccount();
 		const lpPosition = user.positions[0];
 
+		assert(
+			settleLiquidityRecord.deltaBaseAssetAmount.eq(lpPosition.baseAssetAmount)
+		);
+		assert(
+			settleLiquidityRecord.deltaQuoteAssetAmount.eq(
+				lpPosition.quoteAssetAmount
+			)
+		);
+
 		console.log(
 			'lp tokens, baa, qaa:',
 			lpPosition.lpShares.toString(),
@@ -428,6 +437,8 @@ describe('liquidity providing', () => {
 				await clearingHouse.getUserAccountPublicKey()
 			)
 		);
+		assert(removeLiquidityRecord.deltaBaseAssetAmount.eq(ZERO));
+		assert(removeLiquidityRecord.deltaQuoteAssetAmount.eq(ZERO));
 
 		console.log('closing trader ...');
 		await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);
@@ -477,7 +488,6 @@ describe('liquidity providing', () => {
 
 		console.log('done!');
 	});
-	return;
 
 	it('settles lp', async () => {
 		console.log('adding liquidity...');
@@ -786,6 +796,20 @@ describe('liquidity providing', () => {
 			lpPosition.baseAssetAmount.toString(),
 			lpPosition.quoteAssetAmount.toString()
 			// lpPosition.unsettledPnl.toString()
+		);
+
+		const removeLiquidityRecord: LPRecord =
+			eventSubscriber.getEventsArray('LPRecord')[0];
+		assert(isVariant(removeLiquidityRecord.liquidityType, 'removeLiquidity'));
+		assert(
+			removeLiquidityRecord.deltaBaseAssetAmount.eq(
+				lpPosition.baseAssetAmount.sub(position3.baseAssetAmount)
+			)
+		);
+		assert(
+			removeLiquidityRecord.deltaQuoteAssetAmount.eq(
+				lpPosition.quoteAssetAmount.sub(position3.quoteAssetAmount)
+			)
 		);
 
 		assert(lpTokenAmount.eq(new BN(0)));

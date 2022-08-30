@@ -157,6 +157,8 @@ export type LPRecord = {
 	liquidityType: LiquidityType;
 	nShares: BN;
 	marketIndex: BN;
+	deltaBaseAssetAmount: BN;
+	deltaQuoteAssetAmount: BN;
 };
 
 export class LiquidityType {

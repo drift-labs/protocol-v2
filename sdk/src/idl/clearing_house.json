@@ -4484,6 +4484,16 @@
           "name": "marketIndex",
           "type": "u64",
           "index": false
+        },
+        {
+          "name": "deltaBaseAssetAmount",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "deltaQuoteAssetAmount",
+          "type": "i128",
+          "index": false
         }
       ]
     },

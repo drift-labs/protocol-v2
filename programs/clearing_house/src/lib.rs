@@ -797,13 +797,15 @@ pub mod clearing_house {
         let position_index = get_position_index(&user.positions, market_index)?;
         let position = &mut user.positions[position_index];
 
-        settle_lp_position(position, &mut market)?;
+        let position_delta = settle_lp_position(position, &mut market)?;
 
         emit!(state::events::LPRecord {
             ts: now,
             liquidity_type: state::events::LiquidityType::SettleLiquidity,
             user: user_key,
             market_index,
+            delta_base_asset_amount: position_delta.base_asset_amount,
+            delta_quote_asset_amount: position_delta.quote_asset_amount,
             ..state::events::LPRecord::default()
         });
 
@@ -860,7 +862,7 @@ pub mod clearing_house {
         )?;
 
         let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
-        burn_lp_shares(
+        let position_delta = burn_lp_shares(
             position,
             &mut market,
             shares_to_burn,
@@ -873,6 +875,8 @@ pub mod clearing_house {
             user: user_key,
             n_shares: shares_to_burn,
             market_index,
+            delta_base_asset_amount: position_delta.base_asset_amount,
+            delta_quote_asset_amount: position_delta.quote_asset_amount,
         });
 
         Ok(())
@@ -976,6 +980,7 @@ pub mod clearing_house {
             user: user_key,
             n_shares,
             market_index,
+            ..state::events::LPRecord::default()
         });
 
         Ok(())
