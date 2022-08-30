@@ -81,7 +81,7 @@ pub fn add_insurance_fund_stake(
         ts: now,
         user_authority: user_stats.authority,
         action: StakeAction::Stake,
-        amount: amount,
+        amount,
         bank_index: bank.bank_index,
         insurance_vault_amount_before: insurance_vault_amount,
         if_shares_before,

@@ -1698,6 +1698,12 @@ pub mod clearing_house {
             )?;
         }
 
+        validate!(
+            ctx.accounts.insurance_fund_vault.amount > 0,
+            ErrorCode::DefaultError,
+            "insurance_fund_vault.amount must remain > 0"
+        )?;
+
         Ok(())
     }
 
@@ -1756,6 +1762,12 @@ pub mod clearing_house {
                 pay_from_insurance,
             )?;
         }
+
+        validate!(
+            ctx.accounts.insurance_fund_vault.amount > 0,
+            ErrorCode::DefaultError,
+            "insurance_fund_vault.amount must remain > 0"
+        )?;
 
         Ok(())
     }
@@ -2918,10 +2930,10 @@ pub mod clearing_house {
         }
 
         let clock = Clock::get()?;
-        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-
         let insurance_fund_stake = &mut load_mut!(ctx.accounts.insurance_fund_stake)?;
         let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
+        let bank = &mut load_mut!(ctx.accounts.bank)?;
+
 
         validate!(
             insurance_fund_stake.bank_index == bank_index,
@@ -2936,15 +2948,12 @@ pub mod clearing_house {
             "withdraw request in progress"
         )?;
 
-        let _oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
-        let bank_map = BankMap::load(&get_writable_banks(bank_index), remaining_accounts_iter)?;
-
         controller::insurance::add_insurance_fund_stake(
             amount,
             ctx.accounts.insurance_fund_vault.amount,
             insurance_fund_stake,
             user_stats,
-            &mut *bank_map.get_ref_mut(&bank_index)?,
+            bank,
             clock.unix_timestamp,
         )?;
 
@@ -3001,9 +3010,6 @@ pub mod clearing_house {
             clock.unix_timestamp,
         )?;
 
-        // todo: block requests above value-costbasis*proprotion threshold ?
-        // (thus throttles if drain from those w/ large percentage gains, but always allow principle)
-
         Ok(())
     }
 
@@ -3013,10 +3019,6 @@ pub mod clearing_house {
     ) -> Result<()> {
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
-
-        // todo
-        let _remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-
         let insurance_fund_stake = &mut load_mut!(ctx.accounts.insurance_fund_stake)?;
         let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
         let bank = &mut load_mut!(ctx.accounts.bank)?;
@@ -3048,17 +3050,11 @@ pub mod clearing_house {
         ctx: Context<RemoveInsuranceFundStake>,
         bank_index: u64,
     ) -> Result<()> {
-        // let user_key = ctx.accounts.user.key();
-        // let user = &mut load_mut!(ctx.accounts.user)?;
-
-        // let insurance_fund_stake_key = ctx.accounts.insurance_fund_stake.key();
-
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
-        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-
         let insurance_fund_stake = &mut load_mut!(ctx.accounts.insurance_fund_stake)?;
         let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
+        let bank = &mut load_mut!(ctx.accounts.bank)?;
 
         validate!(
             insurance_fund_stake.bank_index == bank_index,
@@ -3066,10 +3062,6 @@ pub mod clearing_house {
             "insurance_fund_stake does not match bank_index"
         )?;
 
-        let _oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
-        let bank_map = BankMap::load(&get_writable_banks(bank_index), remaining_accounts_iter)?;
-
-        let bank = &mut *bank_map.get_ref_mut(&bank_index)?;
         let amount = controller::insurance::remove_insurance_fund_stake(
             ctx.accounts.insurance_fund_vault.amount,
             insurance_fund_stake,

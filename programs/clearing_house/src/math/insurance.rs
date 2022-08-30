@@ -94,7 +94,7 @@ pub fn calculate_rebase_info(
         .ok_or_else(math_error!())?;
 
     //todo
-    let expo_diff = cast_to_u32(log10(rebase_divisor_full))?;
+    let expo_diff = cast_to_u32(log10_iter(rebase_divisor_full))?;
     let rebase_divisor = 10_u128.pow(expo_diff);
 
     Ok((expo_diff, rebase_divisor))
