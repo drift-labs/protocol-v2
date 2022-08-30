@@ -7,6 +7,7 @@ use crate::math_error;
 use crate::state::bank::{Bank, BankBalanceType};
 use crate::state::oracle::OraclePriceData;
 use crate::state::user::UserBankBalance;
+use crate::validate;
 
 pub fn get_bank_balance(
     token_amount: u128,
@@ -285,4 +286,57 @@ pub fn check_withdraw_limits(bank: &Bank) -> ClearingHouseResult<bool> {
     }
 
     Ok(valid_withdrawal)
+}
+
+pub fn validate_bank_balances(bank: &Bank) -> ClearingHouseResult<u64> {
+    let depositors_amount: u64 = cast(get_token_amount(
+        bank.deposit_balance,
+        bank,
+        &BankBalanceType::Deposit,
+    )?)?;
+    let borrowers_amount: u64 = cast(get_token_amount(
+        bank.borrow_balance,
+        bank,
+        &BankBalanceType::Borrow,
+    )?)?;
+
+    validate!(
+        depositors_amount >= borrowers_amount,
+        ErrorCode::DefaultError,
+        "depositors_amount={} less than borrowers_amount={}",
+        depositors_amount,
+        borrowers_amount
+    )?;
+
+    let revenue_amount: u64 = cast(get_token_amount(
+        bank.revenue_pool.balance,
+        bank,
+        &BankBalanceType::Deposit,
+    )?)?;
+
+    validate!(
+        revenue_amount <= depositors_amount,
+        ErrorCode::DefaultError,
+        "revenue_amount={} greater or equal to the depositors_amount={}",
+        revenue_amount,
+        depositors_amount
+    )?;
+
+    let depositors_claim = depositors_amount - borrowers_amount;
+
+    Ok(depositors_claim)
+}
+
+pub fn validate_bank_amounts(bank: &Bank, bank_vault_amount: u64) -> ClearingHouseResult<u64> {
+    let depositors_claim = validate_bank_balances(bank)?;
+
+    validate!(
+        bank_vault_amount >= depositors_claim,
+        ErrorCode::DefaultError,
+        "bank vault ={} holds less than remaining depositor claims = {}",
+        bank_vault_amount,
+        depositors_claim
+    )?;
+
+    Ok(depositors_claim)
 }

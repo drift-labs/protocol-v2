@@ -1,9 +1,10 @@
 use crate::controller::bank_balance::{
-    update_bank_cumulative_interest, update_revenue_pool_balances, validate_bank_amounts,
+    update_bank_cumulative_interest, update_revenue_pool_balances,
 };
 use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
 use crate::math::bank_balance::get_token_amount;
+use crate::math::bank_balance::validate_bank_amounts;
 use crate::math::casting::{cast_to_i128, cast_to_u128, cast_to_u32, cast_to_u64};
 use crate::math::constants::{
     SHARE_OF_REVENUE_ALLOCATED_TO_INSURANCE_FUND_VAULT_DENOMINATOR,
@@ -393,13 +394,13 @@ pub fn settle_revenue_to_insurance_fund(
     validate!(
         bank.user_if_factor <= bank.total_if_factor,
         ErrorCode::DefaultError,
-        "invalid reserve factor settings on bank"
+        "invalid if_factor settings on bank"
     )?;
 
     validate!(
         bank.user_if_factor > 0 || bank.total_if_factor > 0,
         ErrorCode::DefaultError,
-        "reserve factor = 0 for this bank"
+        "if_factor = 0 for this bank"
     )?;
 
     let depositors_claim = cast_to_u128(validate_bank_amounts(bank, bank_vault_amount)?)?;
@@ -423,6 +424,8 @@ pub fn settle_revenue_to_insurance_fund(
         ErrorCode::DefaultError,
         "no amount to settle to insurance fund"
     )?;
+
+    bank.last_revenue_settle_ts = now;
 
     let protocol_if_factor = bank
         .total_if_factor
