@@ -4475,6 +4475,26 @@
       }
     },
     {
+      "name": "StakeAction",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Stake"
+          },
+          {
+            "name": "UnstakeRequest"
+          },
+          {
+            "name": "UnstakeCancelRequest"
+          },
+          {
+            "name": "Unstake"
+          }
+        ]
+      }
+    },
+    {
       "name": "FulfillmentMethod",
       "type": {
         "kind": "enum",
@@ -5125,6 +5145,123 @@
         {
           "name": "settlePrice",
           "type": "i128",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "InsuranceFundRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "bankIndex",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "userIfFactor",
+          "type": "u32",
+          "index": false
+        },
+        {
+          "name": "totalIfFactor",
+          "type": "u32",
+          "index": false
+        },
+        {
+          "name": "bankVaultAmountBefore",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "insuranceVaultAmountBefore",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "totalIfSharesBefore",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "totalIfSharesAfter",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "amount",
+          "type": "u64",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "InsuranceFundStakeRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "userAuthority",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "action",
+          "type": {
+            "defined": "StakeAction"
+          },
+          "index": false
+        },
+        {
+          "name": "amount",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "bankIndex",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "insuranceVaultAmountBefore",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "ifSharesBefore",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "userIfSharesBefore",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "totalIfSharesBefore",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "ifSharesAfter",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "userIfSharesAfter",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "totalIfSharesAfter",
+          "type": "u128",
           "index": false
         }
       ]

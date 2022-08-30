@@ -4,7 +4,7 @@ use crate::controller::bank_balance::{
 use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
 use crate::math::bank_balance::get_token_amount;
-use crate::math::casting::{cast_to_i128, cast_to_u128, cast_to_u32, cast_to_u64};
+use crate::math::casting::{cast_to_i128, cast_to_u128, cast_to_u32, cast_to_u64, cast_to_i64};
 // use crate::math::constants::{
 //     SHARE_OF_IF_ESCROW_ALLOCATED_TO_PROTOCOL_DENOMINATOR,
 //     SHARE_OF_IF_ESCROW_ALLOCATED_TO_PROTOCOL_NUMERATOR,
@@ -13,31 +13,37 @@ use crate::math::insurance::{
     calculate_if_shares_lost, calculate_rebase_info, staked_amount_to_shares,
     unstaked_shares_to_amount,
 };
+use crate::state::events::{InsuranceFundRecord, InsuranceFundStakeRecord, StakeAction};
 use crate::math_error;
 use crate::state::bank::{Bank, BankBalanceType};
 use crate::state::insurance_fund_stake::InsuranceFundStake;
 use crate::state::user::UserStats;
-use crate::validate;
+use crate::{emit, validate};
 use solana_program::msg;
 
 pub fn add_insurance_fund_stake(
     amount: u64,
-    insurance_fund_vault_balance: u64,
+    insurance_vault_amount: u64,
     insurance_fund_stake: &mut InsuranceFundStake,
     user_stats: &mut UserStats,
     bank: &mut Bank,
+    now: i64,
 ) -> ClearingHouseResult {
     validate!(
-        !(insurance_fund_vault_balance == 0 && bank.total_if_shares != 0),
+        !(insurance_vault_amount == 0 && bank.total_if_shares != 0),
         ErrorCode::DefaultError,
         "Insurance Fund balance should be non-zero for new LPs to enter"
     )?;
 
-    apply_rebase_to_insurance_fund(insurance_fund_vault_balance, bank)?;
+    let if_shares_before = insurance_fund_stake.if_shares;
+    let total_if_shares_before = bank.total_if_shares;
+    let user_if_shares_before = bank.user_if_shares;
+
+    apply_rebase_to_insurance_fund(insurance_vault_amount, bank)?;
     apply_rebase_to_insurance_fund_stake(insurance_fund_stake, user_stats, bank)?;
 
     let n_shares =
-        staked_amount_to_shares(amount, bank.total_if_shares, insurance_fund_vault_balance)?;
+        staked_amount_to_shares(amount, bank.total_if_shares, insurance_vault_amount)?;
 
     // reset cost basis if no shares
     insurance_fund_stake.cost_basis = if insurance_fund_stake.if_shares == 0 {
@@ -70,6 +76,21 @@ pub fn add_insurance_fund_stake(
             .checked_add(n_shares)
             .ok_or_else(math_error!())?;
     }
+
+    emit!(InsuranceFundStakeRecord {
+        ts: now,
+        user_authority: user_stats.authority,
+        action: StakeAction::Stake,
+        amount: amount,
+        bank_index: bank.bank_index,
+        insurance_vault_amount_before: insurance_vault_amount, 
+        if_shares_before,
+        user_if_shares_before,
+        total_if_shares_before,
+        if_shares_after: insurance_fund_stake.if_shares,
+        total_if_shares_after: bank.total_if_shares,
+        user_if_shares_after: bank.user_if_shares,
+    });
 
     Ok(())
 }
@@ -160,7 +181,7 @@ pub fn apply_rebase_to_insurance_fund_stake(
 
 pub fn request_remove_insurance_fund_stake(
     n_shares: u128,
-    insurance_fund_vault_balance: u64,
+    insurance_vault_amount: u64,
     insurance_fund_stake: &mut InsuranceFundStake,
     user_stats: &mut UserStats,
     bank: &mut Bank,
@@ -168,17 +189,36 @@ pub fn request_remove_insurance_fund_stake(
 ) -> ClearingHouseResult {
     insurance_fund_stake.last_withdraw_request_shares = n_shares;
     insurance_fund_stake.last_withdraw_request_value =
-        unstaked_shares_to_amount(n_shares, bank.total_if_shares, insurance_fund_vault_balance)?;
+        unstaked_shares_to_amount(n_shares, bank.total_if_shares, insurance_vault_amount)?;
 
-    apply_rebase_to_insurance_fund(insurance_fund_vault_balance, bank)?;
+    let if_shares_before = insurance_fund_stake.if_shares;
+    let total_if_shares_before = bank.total_if_shares;
+    let user_if_shares_before = bank.user_if_shares;
+
+    apply_rebase_to_insurance_fund(insurance_vault_amount, bank)?;
     apply_rebase_to_insurance_fund_stake(insurance_fund_stake, user_stats, bank)?;
 
     validate!(
         insurance_fund_stake.last_withdraw_request_value == 0
-            || insurance_fund_stake.last_withdraw_request_value < insurance_fund_vault_balance,
+            || insurance_fund_stake.last_withdraw_request_value < insurance_vault_amount,
         ErrorCode::DefaultError,
         "Requested withdraw value is not below Insurance Fund balance"
     )?;
+
+    emit!(InsuranceFundStakeRecord {
+        ts: now,
+        user_authority: user_stats.authority,
+        action: StakeAction::UnstakeRequest,
+        amount: insurance_fund_stake.last_withdraw_request_value,
+        bank_index: bank.bank_index,
+        insurance_vault_amount_before: insurance_vault_amount, 
+        if_shares_before,
+        user_if_shares_before,
+        total_if_shares_before,
+        if_shares_after: insurance_fund_stake.if_shares,
+        total_if_shares_after: bank.total_if_shares,
+        user_if_shares_after: bank.user_if_shares,
+    });
 
     insurance_fund_stake.last_withdraw_request_ts = now;
 
@@ -186,13 +226,17 @@ pub fn request_remove_insurance_fund_stake(
 }
 
 pub fn cancel_request_remove_insurance_fund_stake(
-    insurance_fund_vault_balance: u64,
+    insurance_vault_amount: u64,
     insurance_fund_stake: &mut InsuranceFundStake,
     user_stats: &mut UserStats,
     bank: &mut Bank,
     now: i64,
 ) -> ClearingHouseResult {
-    apply_rebase_to_insurance_fund(insurance_fund_vault_balance, bank)?;
+    let if_shares_before = insurance_fund_stake.if_shares;
+    let total_if_shares_before = bank.total_if_shares;
+    let user_if_shares_before = bank.user_if_shares;
+
+    apply_rebase_to_insurance_fund(insurance_vault_amount, bank)?;
     apply_rebase_to_insurance_fund_stake(insurance_fund_stake, user_stats, bank)?;
 
     validate!(
@@ -202,7 +246,7 @@ pub fn cancel_request_remove_insurance_fund_stake(
     )?;
 
     let if_shares_lost =
-        calculate_if_shares_lost(insurance_fund_stake, bank, insurance_fund_vault_balance)?;
+        calculate_if_shares_lost(insurance_fund_stake, bank, insurance_vault_amount)?;
 
     insurance_fund_stake.if_shares = insurance_fund_stake
         .if_shares
@@ -223,6 +267,21 @@ pub fn cancel_request_remove_insurance_fund_stake(
         user_stats.quote_asset_insurance_fund_stake = insurance_fund_stake.if_shares;
     }
 
+    emit!(InsuranceFundStakeRecord {
+        ts: now,
+        user_authority: user_stats.authority,
+        action: StakeAction::UnstakeCancelRequest,
+        amount: 0,
+        bank_index: bank.bank_index,
+        insurance_vault_amount_before: insurance_vault_amount, 
+        if_shares_before,
+        user_if_shares_before,
+        total_if_shares_before,
+        if_shares_after: insurance_fund_stake.if_shares,
+        total_if_shares_after: bank.total_if_shares,
+        user_if_shares_after: bank.user_if_shares,
+    });
+
     insurance_fund_stake.last_withdraw_request_shares = 0;
     insurance_fund_stake.last_withdraw_request_value = 0;
     insurance_fund_stake.last_withdraw_request_ts = now;
@@ -231,7 +290,7 @@ pub fn cancel_request_remove_insurance_fund_stake(
 }
 
 pub fn remove_insurance_fund_stake(
-    insurance_fund_vault_balance: u64,
+    insurance_vault_amount: u64,
     insurance_fund_stake: &mut InsuranceFundStake,
     user_stats: &mut UserStats,
     bank: &mut Bank,
@@ -246,7 +305,11 @@ pub fn remove_insurance_fund_stake(
         ErrorCode::TryingToRemoveLiquidityTooFast
     )?;
 
-    apply_rebase_to_insurance_fund(insurance_fund_vault_balance, bank)?;
+    let if_shares_before = insurance_fund_stake.if_shares;
+    let total_if_shares_before = bank.total_if_shares;
+    let user_if_shares_before = bank.user_if_shares;
+
+    apply_rebase_to_insurance_fund(insurance_vault_amount, bank)?;
     apply_rebase_to_insurance_fund_stake(insurance_fund_stake, user_stats, bank)?;
 
     let n_shares = insurance_fund_stake.last_withdraw_request_shares;
@@ -263,10 +326,10 @@ pub fn remove_insurance_fund_stake(
     )?;
 
     let amount =
-        unstaked_shares_to_amount(n_shares, bank.total_if_shares, insurance_fund_vault_balance)?;
+        unstaked_shares_to_amount(n_shares, bank.total_if_shares, insurance_vault_amount)?;
 
     let _if_shares_lost =
-        calculate_if_shares_lost(insurance_fund_stake, bank, insurance_fund_vault_balance)?;
+        calculate_if_shares_lost(insurance_fund_stake, bank, insurance_vault_amount)?;
 
     let withdraw_amount = amount.min(insurance_fund_stake.last_withdraw_request_value);
 
@@ -287,6 +350,7 @@ pub fn remove_insurance_fund_stake(
             .ok_or_else(math_error!())?;
     }
 
+
     bank.total_if_shares = bank
         .total_if_shares
         .checked_sub(n_shares)
@@ -301,6 +365,21 @@ pub fn remove_insurance_fund_stake(
     insurance_fund_stake.last_withdraw_request_shares = 0;
     insurance_fund_stake.last_withdraw_request_value = 0;
     insurance_fund_stake.last_withdraw_request_ts = now;
+
+    emit!(InsuranceFundStakeRecord {
+        ts: now,
+        user_authority: user_stats.authority,
+        action: StakeAction::Unstake,
+        amount: withdraw_amount,
+        bank_index: bank.bank_index,
+        insurance_vault_amount_before: insurance_vault_amount, 
+        if_shares_before,
+        user_if_shares_before,
+        total_if_shares_before,
+        if_shares_after: insurance_fund_stake.if_shares,
+        total_if_shares_after: bank.total_if_shares,
+        user_if_shares_after: bank.user_if_shares,
+    });
 
     Ok(withdraw_amount)
 }
@@ -357,12 +436,27 @@ pub fn settle_bank_to_insurance_fund(
         insurance_vault_amount,
     )?;
 
+    let total_if_shares_before = bank.total_if_shares;
+
     bank.total_if_shares = bank
         .total_if_shares
         .checked_add(n_shares)
         .ok_or_else(math_error!())?;
 
     update_revenue_pool_balances(token_amount, &BankBalanceType::Borrow, bank)?;
+
+    emit!(InsuranceFundRecord {
+        ts: now,
+        bank_index: bank.bank_index,
+        amount: cast_to_u64(token_amount)?,
+
+        user_if_factor: bank.user_if_factor,
+        total_if_factor: bank.total_if_factor,
+        bank_vault_amount_before: bank_vault_amount,
+        insurance_vault_amount_before: insurance_vault_amount, 
+        total_if_shares_before,
+        total_if_shares_after: bank.total_if_shares,
+    });
 
     cast_to_u64(token_amount)
 }
@@ -398,6 +492,7 @@ mod test {
             &mut if_stake,
             &mut user_stats,
             &mut bank,
+            0,
         )
         .unwrap();
         assert_eq!(if_stake.if_shares, amount as u128);
@@ -438,7 +533,7 @@ mod test {
         assert_eq!(if_stake.last_withdraw_request_value, 0);
         assert_eq!(if_balance, 1);
 
-        add_insurance_fund_stake(1234, if_balance, &mut if_stake, &mut user_stats, &mut bank)
+        add_insurance_fund_stake(1234, if_balance, &mut if_stake, &mut user_stats, &mut bank, 0)
             .unwrap();
         assert_eq!(if_stake.cost_basis, 1234);
     }
@@ -468,6 +563,7 @@ mod test {
             &mut if_stake,
             &mut user_stats,
             &mut bank,
+            0
         )
         .unwrap();
         assert_eq!(if_stake.if_shares, amount as u128);
@@ -571,6 +667,7 @@ mod test {
             &mut if_stake,
             &mut user_stats,
             &mut bank,
+            0
         )
         .unwrap();
         assert_eq!(if_stake.if_shares, amount as u128);
@@ -679,6 +776,7 @@ mod test {
             &mut if_stake,
             &mut user_stats,
             &mut bank,
+            0
         )
         .unwrap();
         assert_eq!(if_stake.if_shares, amount as u128);
@@ -762,6 +860,7 @@ mod test {
             &mut if_stake,
             &mut user_stats,
             &mut bank,
+            0
         )
         .is_err());
 
@@ -772,6 +871,7 @@ mod test {
             &mut if_stake,
             &mut user_stats,
             &mut bank,
+            0
         )
         .unwrap();
 
@@ -880,6 +980,7 @@ mod test {
             &mut if_stake,
             &mut user_stats,
             &mut bank,
+            0,
         )
         .is_err());
 
@@ -895,6 +996,7 @@ mod test {
             &mut if_stake,
             &mut user_stats,
             &mut bank,
+            0
         )
         .unwrap();
         if_balance = if_balance + amount;
@@ -923,6 +1025,7 @@ mod test {
             &mut orig_if_stake,
             &mut orig_user_stats,
             &mut bank,
+            0
         )
         .unwrap();
 
@@ -990,6 +1093,7 @@ mod test {
         //      &mut if_stake,
         //      &mut user_stats,
         //      &mut bank,
+        //      0
         //  )
         //  .unwrap();
         //  if_balance = if_balance + 1;
@@ -1004,6 +1108,7 @@ mod test {
             &mut if_stake,
             &mut user_stats,
             &mut bank,
+            0
         )
         .unwrap();
         if_balance = if_balance + 10_000_000_000_000;
@@ -1185,6 +1290,7 @@ mod test {
             &mut if_stake,
             &mut user_stats,
             &mut bank,
+            0,
         )
         .unwrap();
         if_balance = if_balance + 10_000_000_000_000;

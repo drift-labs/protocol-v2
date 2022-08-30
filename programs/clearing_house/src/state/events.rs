@@ -257,6 +257,52 @@ pub struct SettlePnlRecord {
     pub settle_price: i128,
 }
 
+#[event]
+#[derive(Default)]
+pub struct InsuranceFundRecord {
+    pub ts: i64,
+    pub bank_index: u64,
+    pub user_if_factor: u32,
+    pub total_if_factor: u32,
+    pub bank_vault_amount_before: u64,
+    pub insurance_vault_amount_before: u64, 
+    pub total_if_shares_before: u128,
+    pub total_if_shares_after: u128,
+    pub amount: u64,
+}
+
+#[event]
+#[derive(Default)]
+pub struct InsuranceFundStakeRecord {
+    pub ts: i64,
+    pub user_authority: Pubkey,
+    pub action: StakeAction,
+    pub amount: u64,
+    pub bank_index: u64,
+
+    pub insurance_vault_amount_before: u64, 
+    pub if_shares_before: u128,
+    pub user_if_shares_before: u128,
+    pub total_if_shares_before: u128,
+    pub if_shares_after: u128,
+    pub user_if_shares_after: u128,
+    pub total_if_shares_after: u128,
+}
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
+pub enum StakeAction {
+    Stake,
+    UnstakeRequest,
+    UnstakeCancelRequest,
+    Unstake,
+}
+
+impl Default for StakeAction {
+    fn default() -> Self {
+        StakeAction::Stake
+    }
+}
+
 pub fn emit_stack<T: AnchorSerialize + Discriminator, const N: usize>(event: T) {
     let mut data_buf = [0u8; N];
     let mut out_buf = [0u8; N];
