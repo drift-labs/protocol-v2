@@ -64,7 +64,7 @@ export class EventSubscriber {
 		}
 	}
 
-	public async subscribe(skipHistory = false): Promise<boolean> {
+	public async subscribe(): Promise<boolean> {
 		try {
 			if (this.logProvider.isSubscribed()) {
 				return true;
@@ -72,11 +72,7 @@ export class EventSubscriber {
 
 			this.logProvider.subscribe((txSig, slot, logs) => {
 				this.handleTxLogs(txSig, slot, logs);
-			}, skipHistory);
-
-			if (!skipHistory) {
-				this.fetchPreviousTx();
-			}
+			}, true);
 
 			return true;
 		} catch (e) {
