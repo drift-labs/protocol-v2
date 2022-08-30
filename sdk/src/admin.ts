@@ -452,6 +452,19 @@ export class Admin extends ClearingHouse {
 		});
 	}
 
+	public async updateAmmJitIntensity(
+		marketIndex: BN,
+		ammJitIntensity: number
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateAmmJitIntensity(ammJitIntensity, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				market: await getMarketPublicKey(this.program.programId, marketIndex),
+			},
+		});
+	}
+
 	public async updateMarketMaxSpread(
 		marketIndex: BN,
 		maxSpread: number

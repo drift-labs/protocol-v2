@@ -1899,6 +1899,32 @@
       ]
     },
     {
+      "name": "updateAmmJitIntensity",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "ammJitIntensity",
+          "type": "u8"
+        }
+      ]
+    },
+    {
       "name": "updateMarketMaxSpread",
       "accounts": [
         {
@@ -3058,6 +3084,10 @@
             }
           },
           {
+            "name": "ammJitIntensity",
+            "type": "u8"
+          },
+          {
             "name": "lastFundingRate",
             "type": "i128"
           },
@@ -3193,11 +3223,11 @@
           },
           {
             "name": "totalFee",
-            "type": "u128"
+            "type": "i128"
           },
           {
             "name": "totalMmFee",
-            "type": "u128"
+            "type": "i128"
           },
           {
             "name": "totalExchangeFee",
@@ -4281,7 +4311,7 @@
         },
         {
           "name": "totalFee",
-          "type": "u128",
+          "type": "i128",
           "index": false
         },
         {
@@ -4424,7 +4454,7 @@
         },
         {
           "name": "quoteAssetAmountSurplus",
-          "type": "u128",
+          "type": "i128",
           "index": false
         },
         {

@@ -74,7 +74,7 @@ pub fn swap_base_asset(
     direction: SwapDirection,
     now: i64,
     precomputed_mark_price: Option<u128>,
-) -> ClearingHouseResult<(u128, u128)> {
+) -> ClearingHouseResult<(u128, i128)> {
     let position_direction = match direction {
         SwapDirection::Add => PositionDirection::Short,
         SwapDirection::Remove => PositionDirection::Long,
@@ -105,7 +105,10 @@ pub fn swap_base_asset(
     amm.base_asset_reserve = new_base_asset_reserve;
     amm.quote_asset_reserve = new_quote_asset_reserve;
 
-    Ok((quote_asset_amount, quote_asset_amount_surplus))
+    Ok((
+        quote_asset_amount,
+        cast_to_i128(quote_asset_amount_surplus)?,
+    ))
 }
 
 pub fn calculate_base_swap_output_with_spread(
