@@ -4,7 +4,7 @@ use crate::controller::bank_balance::{
 use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
 use crate::math::bank_balance::get_token_amount;
-use crate::math::casting::{cast_to_i128, cast_to_u128, cast_to_u32, cast_to_u64, cast_to_i64};
+use crate::math::casting::{cast_to_i128, cast_to_i64, cast_to_u128, cast_to_u32, cast_to_u64};
 // use crate::math::constants::{
 //     SHARE_OF_IF_ESCROW_ALLOCATED_TO_PROTOCOL_DENOMINATOR,
 //     SHARE_OF_IF_ESCROW_ALLOCATED_TO_PROTOCOL_NUMERATOR,
@@ -13,9 +13,9 @@ use crate::math::insurance::{
     calculate_if_shares_lost, calculate_rebase_info, staked_amount_to_shares,
     unstaked_shares_to_amount,
 };
-use crate::state::events::{InsuranceFundRecord, InsuranceFundStakeRecord, StakeAction};
 use crate::math_error;
 use crate::state::bank::{Bank, BankBalanceType};
+use crate::state::events::{InsuranceFundRecord, InsuranceFundStakeRecord, StakeAction};
 use crate::state::insurance_fund_stake::InsuranceFundStake;
 use crate::state::user::UserStats;
 use crate::{emit, validate};
@@ -42,8 +42,7 @@ pub fn add_insurance_fund_stake(
     apply_rebase_to_insurance_fund(insurance_vault_amount, bank)?;
     apply_rebase_to_insurance_fund_stake(insurance_fund_stake, user_stats, bank)?;
 
-    let n_shares =
-        staked_amount_to_shares(amount, bank.total_if_shares, insurance_vault_amount)?;
+    let n_shares = staked_amount_to_shares(amount, bank.total_if_shares, insurance_vault_amount)?;
 
     // reset cost basis if no shares
     insurance_fund_stake.cost_basis = if insurance_fund_stake.if_shares == 0 {
@@ -83,7 +82,7 @@ pub fn add_insurance_fund_stake(
         action: StakeAction::Stake,
         amount: amount,
         bank_index: bank.bank_index,
-        insurance_vault_amount_before: insurance_vault_amount, 
+        insurance_vault_amount_before: insurance_vault_amount,
         if_shares_before,
         user_if_shares_before,
         total_if_shares_before,
@@ -211,7 +210,7 @@ pub fn request_remove_insurance_fund_stake(
         action: StakeAction::UnstakeRequest,
         amount: insurance_fund_stake.last_withdraw_request_value,
         bank_index: bank.bank_index,
-        insurance_vault_amount_before: insurance_vault_amount, 
+        insurance_vault_amount_before: insurance_vault_amount,
         if_shares_before,
         user_if_shares_before,
         total_if_shares_before,
@@ -273,7 +272,7 @@ pub fn cancel_request_remove_insurance_fund_stake(
         action: StakeAction::UnstakeCancelRequest,
         amount: 0,
         bank_index: bank.bank_index,
-        insurance_vault_amount_before: insurance_vault_amount, 
+        insurance_vault_amount_before: insurance_vault_amount,
         if_shares_before,
         user_if_shares_before,
         total_if_shares_before,
@@ -325,8 +324,7 @@ pub fn remove_insurance_fund_stake(
         ErrorCode::InsufficientLPTokens
     )?;
 
-    let amount =
-        unstaked_shares_to_amount(n_shares, bank.total_if_shares, insurance_vault_amount)?;
+    let amount = unstaked_shares_to_amount(n_shares, bank.total_if_shares, insurance_vault_amount)?;
 
     let _if_shares_lost =
         calculate_if_shares_lost(insurance_fund_stake, bank, insurance_vault_amount)?;
@@ -350,7 +348,6 @@ pub fn remove_insurance_fund_stake(
             .ok_or_else(math_error!())?;
     }
 
-
     bank.total_if_shares = bank
         .total_if_shares
         .checked_sub(n_shares)
@@ -372,7 +369,7 @@ pub fn remove_insurance_fund_stake(
         action: StakeAction::Unstake,
         amount: withdraw_amount,
         bank_index: bank.bank_index,
-        insurance_vault_amount_before: insurance_vault_amount, 
+        insurance_vault_amount_before: insurance_vault_amount,
         if_shares_before,
         user_if_shares_before,
         total_if_shares_before,
@@ -453,7 +450,7 @@ pub fn settle_bank_to_insurance_fund(
         user_if_factor: bank.user_if_factor,
         total_if_factor: bank.total_if_factor,
         bank_vault_amount_before: bank_vault_amount,
-        insurance_vault_amount_before: insurance_vault_amount, 
+        insurance_vault_amount_before: insurance_vault_amount,
         total_if_shares_before,
         total_if_shares_after: bank.total_if_shares,
     });
@@ -533,8 +530,15 @@ mod test {
         assert_eq!(if_stake.last_withdraw_request_value, 0);
         assert_eq!(if_balance, 1);
 
-        add_insurance_fund_stake(1234, if_balance, &mut if_stake, &mut user_stats, &mut bank, 0)
-            .unwrap();
+        add_insurance_fund_stake(
+            1234,
+            if_balance,
+            &mut if_stake,
+            &mut user_stats,
+            &mut bank,
+            0,
+        )
+        .unwrap();
         assert_eq!(if_stake.cost_basis, 1234);
     }
 
@@ -563,7 +567,7 @@ mod test {
             &mut if_stake,
             &mut user_stats,
             &mut bank,
-            0
+            0,
         )
         .unwrap();
         assert_eq!(if_stake.if_shares, amount as u128);
@@ -667,7 +671,7 @@ mod test {
             &mut if_stake,
             &mut user_stats,
             &mut bank,
-            0
+            0,
         )
         .unwrap();
         assert_eq!(if_stake.if_shares, amount as u128);
@@ -776,7 +780,7 @@ mod test {
             &mut if_stake,
             &mut user_stats,
             &mut bank,
-            0
+            0,
         )
         .unwrap();
         assert_eq!(if_stake.if_shares, amount as u128);
@@ -871,7 +875,7 @@ mod test {
             &mut if_stake,
             &mut user_stats,
             &mut bank,
-            0
+            0,
         )
         .unwrap();
 
@@ -996,7 +1000,7 @@ mod test {
             &mut if_stake,
             &mut user_stats,
             &mut bank,
-            0
+            0,
         )
         .unwrap();
         if_balance = if_balance + amount;
@@ -1025,7 +1029,7 @@ mod test {
             &mut orig_if_stake,
             &mut orig_user_stats,
             &mut bank,
-            0
+            0,
         )
         .unwrap();
 
@@ -1108,7 +1112,7 @@ mod test {
             &mut if_stake,
             &mut user_stats,
             &mut bank,
-            0
+            0,
         )
         .unwrap();
         if_balance = if_balance + 10_000_000_000_000;

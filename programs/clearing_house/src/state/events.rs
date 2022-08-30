@@ -265,7 +265,7 @@ pub struct InsuranceFundRecord {
     pub user_if_factor: u32,
     pub total_if_factor: u32,
     pub bank_vault_amount_before: u64,
-    pub insurance_vault_amount_before: u64, 
+    pub insurance_vault_amount_before: u64,
     pub total_if_shares_before: u128,
     pub total_if_shares_after: u128,
     pub amount: u64,
@@ -280,7 +280,7 @@ pub struct InsuranceFundStakeRecord {
     pub amount: u64,
     pub bank_index: u64,
 
-    pub insurance_vault_amount_before: u64, 
+    pub insurance_vault_amount_before: u64,
     pub if_shares_before: u128,
     pub user_if_shares_before: u128,
     pub total_if_shares_before: u128,

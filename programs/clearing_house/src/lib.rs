@@ -2922,7 +2922,7 @@ pub mod clearing_house {
             insurance_fund_stake,
             user_stats,
             &mut *bank_map.get_ref_mut(&bank_index)?,
-            clock.unix_timestamp
+            clock.unix_timestamp,
         )?;
 
         controller::token::receive(
