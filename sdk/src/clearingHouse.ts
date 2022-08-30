@@ -2667,7 +2667,7 @@ export class ClearingHouse {
 		});
 	}
 
-	public async settleBankToInsuranceFund(
+	public async settleRevenueToInsuranceFund(
 		bankIndex: BN
 	): Promise<TransactionSignature> {
 		const bank = this.getBankAccount(bankIndex);
@@ -2676,7 +2676,7 @@ export class ClearingHouse {
 			writableBankIndex: bankIndex,
 		});
 
-		return await this.program.rpc.settleBankToInsuranceFund(bankIndex, {
+		return await this.program.rpc.settleRevenueToInsuranceFund(bankIndex, {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				bank: bank.pubkey,

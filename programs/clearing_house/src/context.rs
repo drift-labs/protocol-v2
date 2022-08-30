@@ -737,7 +737,7 @@ pub struct InitializeInsuranceFundStake<'info> {
 
 #[derive(Accounts)]
 #[instruction(bank_index: u64,)]
-pub struct SettleBankToInsuranceFund<'info> {
+pub struct SettleRevenueToInsuranceFund<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
         seeds = [b"bank", bank_index.to_le_bytes().as_ref()],

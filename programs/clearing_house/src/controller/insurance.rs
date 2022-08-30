@@ -4,11 +4,12 @@ use crate::controller::bank_balance::{
 use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
 use crate::math::bank_balance::get_token_amount;
-use crate::math::casting::{cast_to_i128, cast_to_i64, cast_to_u128, cast_to_u32, cast_to_u64};
-// use crate::math::constants::{
-//     SHARE_OF_IF_ESCROW_ALLOCATED_TO_PROTOCOL_DENOMINATOR,
-//     SHARE_OF_IF_ESCROW_ALLOCATED_TO_PROTOCOL_NUMERATOR,
-// }; // todo, whether to util
+use crate::math::casting::{cast_to_i128, cast_to_u128, cast_to_u32, cast_to_u64};
+use crate::math::constants::{
+    SHARE_OF_REVENUE_ALLOCATED_TO_INSURANCE_FUND_VAULT_DENOMINATOR,
+    SHARE_OF_REVENUE_ALLOCATED_TO_INSURANCE_FUND_VAULT_NUMERATOR,
+};
+use crate::math::helpers::get_proportion_u128;
 use crate::math::insurance::{
     calculate_if_shares_lost, calculate_rebase_info, staked_amount_to_shares,
     unstaked_shares_to_amount,
@@ -381,7 +382,7 @@ pub fn remove_insurance_fund_stake(
     Ok(withdraw_amount)
 }
 
-pub fn settle_bank_to_insurance_fund(
+pub fn settle_revenue_to_insurance_fund(
     bank_vault_amount: u64,
     insurance_vault_amount: u64,
     bank: &mut Bank,
@@ -411,10 +412,16 @@ pub fn settle_bank_to_insurance_fund(
     )?
     .min(depositors_claim);
 
+    let insurance_fund_token_amount = cast_to_u64(get_proportion_u128(
+        token_amount,
+        SHARE_OF_REVENUE_ALLOCATED_TO_INSURANCE_FUND_VAULT_NUMERATOR,
+        SHARE_OF_REVENUE_ALLOCATED_TO_INSURANCE_FUND_VAULT_DENOMINATOR,
+    )?)?;
+
     validate!(
-        token_amount != 0,
+        insurance_fund_token_amount != 0,
         ErrorCode::DefaultError,
-        "no amount to settle"
+        "no amount to settle to insurance fund"
     )?;
 
     let protocol_if_factor = bank
@@ -424,10 +431,10 @@ pub fn settle_bank_to_insurance_fund(
 
     // give protocol its cut
     let n_shares = staked_amount_to_shares(
-        (token_amount as u64)
-            .checked_mul(protocol_if_factor as u64)
+        insurance_fund_token_amount
+            .checked_mul(cast_to_u64(protocol_if_factor)?)
             .ok_or_else(math_error!())?
-            .checked_div(bank.total_if_factor as u64)
+            .checked_div(cast_to_u64(bank.total_if_factor)?)
             .ok_or_else(math_error!())?,
         bank.total_if_shares,
         insurance_vault_amount,
@@ -440,12 +447,16 @@ pub fn settle_bank_to_insurance_fund(
         .checked_add(n_shares)
         .ok_or_else(math_error!())?;
 
-    update_revenue_pool_balances(token_amount, &BankBalanceType::Borrow, bank)?;
+    update_revenue_pool_balances(
+        cast_to_u128(insurance_fund_token_amount)?,
+        &BankBalanceType::Borrow,
+        bank,
+    )?;
 
     emit!(InsuranceFundRecord {
         ts: now,
         bank_index: bank.bank_index,
-        amount: cast_to_u64(token_amount)?,
+        amount: insurance_fund_token_amount,
 
         user_if_factor: bank.user_if_factor,
         total_if_factor: bank.total_if_factor,
@@ -455,7 +466,7 @@ pub fn settle_bank_to_insurance_fund(
         total_if_shares_after: bank.total_if_shares,
     });
 
-    cast_to_u64(token_amount)
+    cast_to_u64(insurance_fund_token_amount)
 }
 
 #[cfg(test)]

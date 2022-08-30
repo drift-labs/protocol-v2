@@ -351,7 +351,7 @@ fn decrease_bank_balance(
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::controller::insurance::settle_bank_to_insurance_fund;
+    use crate::controller::insurance::settle_revenue_to_insurance_fund;
     use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
@@ -872,7 +872,7 @@ mod test {
         assert_eq!(bank.revenue_pool.balance, 385);
         assert_eq!(bank.utilization_twap, 462007);
 
-        let settle_amount = settle_bank_to_insurance_fund(
+        let settle_amount = settle_revenue_to_insurance_fund(
             deposit_tokens_3 as u64,
             if_tokens_3 as u64,
             &mut bank,
@@ -1134,7 +1134,7 @@ mod test {
 
         // settle IF pool to 100% utilization boundary
         assert_eq!(bank.revenue_pool.balance, 102149084835);
-        let settle_amount = settle_bank_to_insurance_fund(
+        let settle_amount = settle_revenue_to_insurance_fund(
             deposit_tokens_3 as u64,
             if_tokens_3 as u64,
             &mut bank,

@@ -561,7 +561,7 @@ describe('insurance fund stake', () => {
 		assert(insuranceVaultAmountBefore.eq(ONE));
 
 		try {
-			const txSig = await clearingHouse.settleBankToInsuranceFund(new BN(0));
+			const txSig = await clearingHouse.settleRevenueToInsuranceFund(new BN(0));
 			console.log(
 				'tx logs',
 				(await connection.getTransaction(txSig, { commitment: 'confirmed' }))
@@ -719,7 +719,7 @@ describe('insurance fund stake', () => {
 		assert(bankIUpdate.revenuePool.balance.gt(ZERO));
 
 		try {
-			const txSig = await clearingHouse.settleBankToInsuranceFund(bankIndex);
+			const txSig = await clearingHouse.settleRevenueToInsuranceFund(bankIndex);
 			console.log(
 				'tx logs',
 				(await connection.getTransaction(txSig, { commitment: 'confirmed' }))
@@ -1071,7 +1071,7 @@ describe('insurance fund stake', () => {
 	// 	assert(bank0Before.totalIfShares.eq(ZERO)); // 0_od
 
 	// 	try {
-	// 		const txSig = await clearingHouse.settleBankToInsuranceFund(bankIndex);
+	// 		const txSig = await clearingHouse.settleRevenueToInsuranceFund(bankIndex);
 	// 		console.log(
 	// 			'tx logs',
 	// 			(await connection.getTransaction(txSig, { commitment: 'confirmed' }))

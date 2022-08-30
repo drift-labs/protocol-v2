@@ -51,7 +51,7 @@ pub fn on_the_hour_update(
     now: i64,
     last_update_ts: i64,
     update_period: i64,
-) -> ClearingHouseResult<bool> {
+) -> ClearingHouseResult<i64> {
     let time_since_last_update = now.checked_sub(last_update_ts).ok_or_else(math_error!())?;
 
     // round next update time to be available on the hour
@@ -83,5 +83,11 @@ pub fn on_the_hour_update(
             }
         }
     }
-    Ok(time_since_last_update >= next_update_wait)
+
+    let time_remaining_until_update = next_update_wait
+        .checked_sub(time_since_last_update)
+        .ok_or_else(math_error!())?
+        .max(0);
+
+    Ok(time_remaining_until_update)
 }

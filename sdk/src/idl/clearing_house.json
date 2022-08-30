@@ -2370,7 +2370,7 @@
       ]
     },
     {
-      "name": "settleBankToInsuranceFund",
+      "name": "settleRevenueToInsuranceFund",
       "accounts": [
         {
           "name": "state",

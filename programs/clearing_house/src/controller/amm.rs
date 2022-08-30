@@ -324,6 +324,7 @@ pub fn update_pool_balances(
     market: &mut Market,
     bank: &mut Bank,
     user_unsettled_pnl: i128,
+    now: i64,
 ) -> ClearingHouseResult<i128> {
     // current bank balance of amm fee pool
     let amm_fee_pool_token_amount = cast_to_i128(get_token_amount(
@@ -412,30 +413,58 @@ pub fn update_pool_balances(
         )?;
 
         if market.amm.total_fee_minus_distributions < 0 {
-            let bank_revenue_pool_amount = get_token_amount(
-                bank.revenue_pool.balance,
-                bank,
-                &BankBalanceType::Deposit,
-                // bank.revenue_pool.balance_type(),
-            )?;
+            // market can perform withdraw from revenue pool
 
-            let bank_transfer_insurance_pool_token_amount =
-                (-market.amm.total_fee_minus_distributions)
-                    .min(cast_to_i128(market.max_revenue_withdraw_per_period)?)
-                    .min(cast_to_i128(bank_revenue_pool_amount / 2)?);
+            if bank.last_revenue_settle_ts > market.last_revenue_withdraw_ts {
+                market.revenue_withdraw_since_last_settle = 0;
+            }
 
-            update_revenue_pool_balances(
-                bank_transfer_insurance_pool_token_amount.unsigned_abs(),
-                &BankBalanceType::Borrow,
-                bank,
-            )?;
+            let max_revenue_withdraw_allowed = market
+                .max_revenue_withdraw_per_period
+                .checked_sub(market.revenue_withdraw_since_last_settle)
+                .ok_or_else(math_error!())?;
 
-            update_bank_balances(
-                bank_transfer_insurance_pool_token_amount.unsigned_abs(),
-                &BankBalanceType::Deposit,
-                bank,
-                &mut market.amm.fee_pool,
-            )?;
+            if max_revenue_withdraw_allowed > 0 {
+                let bank_revenue_pool_amount = get_token_amount(
+                    bank.revenue_pool.balance,
+                    bank,
+                    &BankBalanceType::Deposit,
+                    // bank.revenue_pool.balance_type(),
+                )?;
+
+                let bank_transfer_insurance_pool_token_amount = market
+                    .amm
+                    .total_fee_minus_distributions
+                    .unsigned_abs()
+                    .min(bank_revenue_pool_amount / 2)
+                    .min(max_revenue_withdraw_allowed);
+
+                update_revenue_pool_balances(
+                    bank_transfer_insurance_pool_token_amount,
+                    &BankBalanceType::Borrow,
+                    bank,
+                )?;
+
+                update_bank_balances(
+                    bank_transfer_insurance_pool_token_amount,
+                    &BankBalanceType::Deposit,
+                    bank,
+                    &mut market.amm.fee_pool,
+                )?;
+
+                market.amm.total_fee_minus_distributions = market
+                    .amm
+                    .total_fee_minus_distributions
+                    .checked_add(cast_to_i128(bank_transfer_insurance_pool_token_amount)?)
+                    .ok_or_else(math_error!())?;
+
+                market.revenue_withdraw_since_last_settle = market
+                    .revenue_withdraw_since_last_settle
+                    .checked_add(bank_transfer_insurance_pool_token_amount)
+                    .ok_or_else(math_error!())?;
+
+                market.last_revenue_withdraw_ts = now;
+            }
         } else {
             let bank_transfer_insurance_pool_token_amount =
                 cast_to_i128(get_total_fee_lower_bound(market)?)?
@@ -666,16 +695,17 @@ mod test {
             },
             ..Market::default()
         };
+        let now = 33928058;
 
         let mut bank = Bank {
             cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
             ..Bank::default()
         };
-        let to_settle_with_user = update_pool_balances(&mut market, &mut bank, 100).unwrap();
+        let to_settle_with_user = update_pool_balances(&mut market, &mut bank, 100, now).unwrap();
         assert_eq!(to_settle_with_user, 0);
 
-        let to_settle_with_user = update_pool_balances(&mut market, &mut bank, -100).unwrap();
+        let to_settle_with_user = update_pool_balances(&mut market, &mut bank, -100, now).unwrap();
         assert_eq!(to_settle_with_user, -100);
         assert!(market.amm.fee_pool.balance() > 0);
 
@@ -694,7 +724,7 @@ mod test {
         assert_eq!(pnl_pool_token_amount, 99);
         assert_eq!(amm_fee_pool_token_amount, 1);
 
-        let to_settle_with_user = update_pool_balances(&mut market, &mut bank, 100).unwrap();
+        let to_settle_with_user = update_pool_balances(&mut market, &mut bank, 100, now).unwrap();
         assert_eq!(to_settle_with_user, 99);
         let amm_fee_pool_token_amount = get_token_amount(
             market.amm.fee_pool.balance(),
@@ -712,7 +742,7 @@ mod test {
         assert_eq!(amm_fee_pool_token_amount, 1);
 
         market.amm.total_fee_minus_distributions = 0;
-        update_pool_balances(&mut market, &mut bank, -1).unwrap();
+        update_pool_balances(&mut market, &mut bank, -1, now).unwrap();
         let amm_fee_pool_token_amount = get_token_amount(
             market.amm.fee_pool.balance(),
             &bank,
@@ -729,7 +759,13 @@ mod test {
         assert_eq!(amm_fee_pool_token_amount, 0);
 
         market.amm.total_fee_minus_distributions = 90_000 * QUOTE_PRECISION as i128;
-        update_pool_balances(&mut market, &mut bank, -(100_000 * QUOTE_PRECISION as i128)).unwrap();
+        update_pool_balances(
+            &mut market,
+            &mut bank,
+            -(100_000 * QUOTE_PRECISION as i128),
+            now,
+        )
+        .unwrap();
         let amm_fee_pool_token_amount = get_token_amount(
             market.amm.fee_pool.balance(),
             &bank,
@@ -748,7 +784,7 @@ mod test {
         // negative fee pool
         market.amm.total_fee_minus_distributions = -8_008_123_456;
 
-        update_pool_balances(&mut market, &mut bank, 1_000_987_789).unwrap();
+        update_pool_balances(&mut market, &mut bank, 1_000_987_789, now).unwrap();
         let amm_fee_pool_token_amount = get_token_amount(
             market.amm.fee_pool.balance(),
             &bank,

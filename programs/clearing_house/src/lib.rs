@@ -2841,8 +2841,8 @@ pub mod clearing_house {
         Ok(())
     }
 
-    pub fn settle_bank_to_insurance_fund<'info>(
-        ctx: Context<SettleBankToInsuranceFund>,
+    pub fn settle_revenue_to_insurance_fund<'info>(
+        ctx: Context<SettleRevenueToInsuranceFund>,
         bank_index: u64,
     ) -> Result<()> {
         let bank = &mut load_mut!(ctx.accounts.bank)?;
@@ -2853,17 +2853,20 @@ pub mod clearing_house {
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
 
+        let time_until_next_update = math::helpers::on_the_hour_update(
+            now,
+            bank.last_revenue_settle_ts,
+            bank.revenue_settle_period,
+        )?;
         validate!(
-            math::helpers::on_the_hour_update(
-                now,
-                bank.last_revenue_settle_ts,
-                bank.revenue_settle_period
-            )?,
+            time_until_next_update == 0,
             ErrorCode::DefaultError,
-            "Not time for next revenue settle"
+            "Must wait {} seconds until next available settlement time",
+            time_until_next_update
         )?;
 
-        let token_amount = controller::insurance::settle_bank_to_insurance_fund(
+        // uses proportion of revenue pool allocated to insurance fund
+        let token_amount = controller::insurance::settle_revenue_to_insurance_fund(
             bank_vault_amount,
             insurance_vault_amount,
             bank,
@@ -2879,6 +2882,8 @@ pub mod clearing_house {
             bank.vault_authority_nonce,
             token_amount as u64,
         )?;
+
+        // todo: settle remaining revenue pool to a revenue vault
 
         bank.last_revenue_settle_ts = now;
 
