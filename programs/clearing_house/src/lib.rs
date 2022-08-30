@@ -1647,8 +1647,6 @@ pub mod clearing_house {
         let user = &mut load_mut!(ctx.accounts.user)?;
         let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
 
-        msg!("load accts resolve_perp_bankruptcy");
-
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
         let bank_map = BankMap::load(&get_writable_banks(bank_index), remaining_accounts_iter)?;
@@ -1658,7 +1656,6 @@ pub mod clearing_house {
             remaining_accounts_iter,
         )?;
 
-        msg!("resolve_perp_bankruptcy");
         let pay_from_insurance = controller::liquidation::resolve_perp_bankruptcy(
             market_index,
             user,
@@ -1671,7 +1668,6 @@ pub mod clearing_house {
             now,
             ctx.accounts.insurance_fund_vault.amount,
         )?;
-        msg!("resolve_perp_bankruptcy done");
 
         if pay_from_insurance > 0 {
             validate!(
@@ -1682,10 +1678,6 @@ pub mod clearing_house {
                 ctx.accounts.insurance_fund_vault.amount
             )?;
 
-            msg!(
-                "            let bank = bank_map.get_quote_asset_bank_mut()?;
-            "
-            );
             let bank = bank_map.get_quote_asset_bank_mut()?;
             controller::token::send_from_staked_insurance_fund_vault(
                 &ctx.accounts.token_program,
@@ -1696,13 +1688,13 @@ pub mod clearing_house {
                 bank.insurance_fund_vault_authority_nonce,
                 pay_from_insurance,
             )?;
-        }
 
-        validate!(
-            ctx.accounts.insurance_fund_vault.amount > 0,
-            ErrorCode::DefaultError,
-            "insurance_fund_vault.amount must remain > 0"
-        )?;
+            validate!(
+                ctx.accounts.insurance_fund_vault.amount > 0,
+                ErrorCode::DefaultError,
+                "insurance_fund_vault.amount must remain > 0"
+            )?;
+        }
 
         Ok(())
     }
@@ -1761,13 +1753,13 @@ pub mod clearing_house {
                 bank.insurance_fund_vault_authority_nonce,
                 pay_from_insurance,
             )?;
-        }
 
-        validate!(
-            ctx.accounts.insurance_fund_vault.amount > 0,
-            ErrorCode::DefaultError,
-            "insurance_fund_vault.amount must remain > 0"
-        )?;
+            validate!(
+                ctx.accounts.insurance_fund_vault.amount > 0,
+                ErrorCode::DefaultError,
+                "insurance_fund_vault.amount must remain > 0"
+            )?;
+        }
 
         Ok(())
     }
@@ -2933,7 +2925,6 @@ pub mod clearing_house {
         let insurance_fund_stake = &mut load_mut!(ctx.accounts.insurance_fund_stake)?;
         let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
         let bank = &mut load_mut!(ctx.accounts.bank)?;
-
 
         validate!(
             insurance_fund_stake.bank_index == bank_index,
