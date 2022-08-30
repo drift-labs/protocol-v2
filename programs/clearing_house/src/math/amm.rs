@@ -81,6 +81,50 @@ pub fn calculate_terminal_price(market: &mut Market) -> ClearingHouseResult<u128
     Ok(terminal_price)
 }
 
+pub fn calculate_market_open_bids_asks(amm: &AMM) -> ClearingHouseResult<(i128, i128)> {
+    let base_asset_reserve = amm.base_asset_reserve;
+    let min_base_asset_reserve = amm.min_base_asset_reserve;
+    let max_base_asset_reserve = amm.max_base_asset_reserve;
+
+    let (max_bids, max_asks) = _calculate_market_open_bids_asks(
+        base_asset_reserve,
+        min_base_asset_reserve,
+        max_base_asset_reserve,
+    )?;
+
+    Ok((max_bids, max_asks))
+}
+
+pub fn _calculate_market_open_bids_asks(
+    base_asset_reserve: u128,
+    min_base_asset_reserve: u128,
+    max_base_asset_reserve: u128,
+) -> ClearingHouseResult<(i128, i128)> {
+    // worse case if all asks are filled
+    let max_asks = if base_asset_reserve < max_base_asset_reserve {
+        -cast_to_i128(
+            max_base_asset_reserve
+                .checked_sub(base_asset_reserve)
+                .ok_or_else(math_error!())?,
+        )?
+    } else {
+        0
+    };
+
+    // worst case if all bids are filled
+    let max_bids = if base_asset_reserve > min_base_asset_reserve {
+        cast_to_i128(
+            base_asset_reserve
+                .checked_sub(min_base_asset_reserve)
+                .ok_or_else(math_error!())?,
+        )?
+    } else {
+        0
+    };
+
+    Ok((max_bids, max_asks))
+}
+
 pub fn calculate_spread(
     base_spread: u16,
     last_oracle_mark_spread_pct: i128,
@@ -92,6 +136,9 @@ pub fn calculate_spread(
     net_base_asset_amount: i128,
     mark_price: u128,
     total_fee_minus_distributions: i128,
+    base_asset_reserve: u128,
+    min_base_asset_reserve: u128,
+    max_base_asset_reserve: u128,
 ) -> ClearingHouseResult<(u128, u128)> {
     let mut long_spread = (base_spread / 2) as u128;
     let mut short_spread = (base_spread / 2) as u128;
@@ -117,6 +164,42 @@ pub fn calculate_spread(
     }
 
     // inventory scale
+    let (max_bids, max_asks) = _calculate_market_open_bids_asks(
+        base_asset_reserve,
+        min_base_asset_reserve,
+        max_base_asset_reserve,
+    )?;
+
+    let total_liquidity = max_bids.checked_add(max_asks).ok_or_else(math_error!())?;
+
+    // inventory scale
+    let inventory_scale = net_base_asset_amount
+        .checked_mul(BID_ASK_SPREAD_PRECISION_I128 * 5)
+        .ok_or_else(math_error!())?
+        .checked_div(total_liquidity)
+        .ok_or_else(math_error!())?;
+    let inventory_scale_capped = min(
+        MAX_BID_ASK_INVENTORY_SKEW_FACTOR,
+        BID_ASK_SPREAD_PRECISION
+            .checked_add(cast_to_u128(max(0, inventory_scale))? + 1)
+            .ok_or_else(math_error!())?,
+    );
+
+    if net_base_asset_amount > 0 {
+        long_spread = long_spread
+            .checked_mul(inventory_scale_capped)
+            .ok_or_else(math_error!())?
+            .checked_div(BID_ASK_SPREAD_PRECISION)
+            .ok_or_else(math_error!())?;
+    } else if net_base_asset_amount < 0 {
+        short_spread = short_spread
+            .checked_mul(inventory_scale_capped)
+            .ok_or_else(math_error!())?
+            .checked_div(BID_ASK_SPREAD_PRECISION)
+            .ok_or_else(math_error!())?;
+    }
+
+    // effective leverage scale
     let net_base_asset_value = cast_to_i128(quote_asset_reserve)?
         .checked_sub(cast_to_i128(terminal_quote_asset_reserve)?)
         .ok_or_else(math_error!())?
@@ -1312,6 +1395,10 @@ mod test {
         let mark_price = 345623040000;
         let mut total_fee_minus_distributions = 0;
 
+        let base_asset_reserve = AMM_RESERVE_PRECISION * 10;
+        let min_base_asset_reserve = AMM_RESERVE_PRECISION * 0;
+        let max_base_asset_reserve = AMM_RESERVE_PRECISION * 100000;
+
         let margin_ratio_initial = 2000; // 5x max leverage
         let max_spread = margin_ratio_initial * 100;
         // at 0 fee be max spread
@@ -1326,6 +1413,9 @@ mod test {
             net_base_asset_amount,
             mark_price,
             total_fee_minus_distributions,
+            base_asset_reserve,
+            min_base_asset_reserve,
+            max_base_asset_reserve,
         )
         .unwrap();
         assert_eq!(long_spread1, (base_spread * 5 / 2) as u128);
@@ -1345,6 +1435,9 @@ mod test {
             net_base_asset_amount,
             mark_price,
             total_fee_minus_distributions,
+            base_asset_reserve,
+            min_base_asset_reserve,
+            max_base_asset_reserve,
         )
         .unwrap();
         assert_eq!(long_spread2, (base_spread * 5 / 2) as u128);
@@ -1365,6 +1458,9 @@ mod test {
             net_base_asset_amount,
             mark_price,
             total_fee_minus_distributions,
+            base_asset_reserve,
+            min_base_asset_reserve,
+            max_base_asset_reserve,
         )
         .unwrap();
         assert!(short_spread3 > long_spread3);
@@ -1389,6 +1485,9 @@ mod test {
             net_base_asset_amount,
             mark_price,
             total_fee_minus_distributions,
+            base_asset_reserve,
+            min_base_asset_reserve,
+            max_base_asset_reserve,
         )
         .unwrap();
         assert!(short_spread4 < long_spread4);
@@ -1409,6 +1508,9 @@ mod test {
             net_base_asset_amount,
             mark_price,
             total_fee_minus_distributions * 2,
+            base_asset_reserve,
+            min_base_asset_reserve,
+            max_base_asset_reserve,
         )
         .unwrap();
 
@@ -1448,6 +1550,9 @@ mod test {
             -1931600000000,
             219277638717000,
             50457675,
+            base_asset_reserve,
+            min_base_asset_reserve,
+            max_base_asset_reserve,
         )
         .unwrap();
 
@@ -1465,6 +1570,9 @@ mod test {
             -1930600000000,
             216710715732581,
             4876326,
+            base_asset_reserve,
+            min_base_asset_reserve,
+            max_base_asset_reserve,
         )
         .unwrap();
 
