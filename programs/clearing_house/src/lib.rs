@@ -475,7 +475,8 @@ pub mod clearing_house {
                 // lp stuff
                 net_unsettled_lp_base_asset_amount: 0,
                 user_lp_shares: 0,
-                lp_cooldown_time: 1, // TODO: what should this be?
+                lp_cooldown_time: 1,  // TODO: what should this be?
+                amm_jit_intensity: 0, // turn it off at the start
 
                 last_oracle_valid: false,
                 padding0: 0,
@@ -1074,11 +1075,13 @@ pub mod clearing_house {
             let user = &load!(ctx.accounts.user)?;
             // if there is no order id, use the users last order id
             let order_id = order_id.unwrap_or_else(|| user.get_last_order_id());
-            let market_index = user
-                .get_order(order_id)
-                .map(|order| order.market_index)
-                .ok_or(ErrorCode::OrderDoesNotExist)?;
-
+            let market_index = match user.get_order(order_id) {
+                Some(order) => order.market_index,
+                None => {
+                    msg!("Order does not exist {}", order_id);
+                    return Ok(());
+                }
+            };
             (order_id, market_index)
         };
 
@@ -1111,7 +1114,7 @@ pub mod clearing_house {
             clock,
         )?;
 
-        let (_, updated_user_state) = controller::orders::fill_order(
+        controller::orders::fill_order(
             order_id,
             &ctx.accounts.state,
             &ctx.accounts.user,
@@ -1128,10 +1131,6 @@ pub mod clearing_house {
             referrer_stats.as_ref(),
             &Clock::get()?,
         )?;
-
-        if !updated_user_state {
-            return Err(print_error!(ErrorCode::FillOrderDidNotUpdateState)().into());
-        }
 
         Ok(())
     }
@@ -2690,6 +2689,25 @@ pub mod clearing_house {
         market.amm.base_spread = base_spread;
         market.amm.long_spread = (base_spread / 2) as u128;
         market.amm.short_spread = (base_spread / 2) as u128;
+        Ok(())
+    }
+
+    #[access_control(
+        market_initialized(&ctx.accounts.market)
+    )]
+    pub fn update_amm_jit_intensity(
+        ctx: Context<AdminUpdateMarket>,
+        amm_jit_intensity: u8,
+    ) -> Result<()> {
+        validate!(
+            (0..=100).contains(&amm_jit_intensity),
+            ErrorCode::DefaultError,
+            "invalid amm_jit_intensity",
+        )?;
+
+        let market = &mut load_mut!(ctx.accounts.market)?;
+        market.amm.amm_jit_intensity = amm_jit_intensity;
+
         Ok(())
     }
 

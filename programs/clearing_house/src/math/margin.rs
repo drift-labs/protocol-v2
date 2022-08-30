@@ -790,11 +790,10 @@ mod test {
         let mut market = Market {
             market_index: 0,
             amm: AMM {
-                base_asset_reserve: 15 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 15 * AMM_RESERVE_PRECISION,
-                sqrt_k: 15 * AMM_RESERVE_PRECISION,
-                user_lp_shares: 10 * AMM_RESERVE_PRECISION,
-                max_base_asset_reserve: 10 * AMM_RESERVE_PRECISION,
+                base_asset_reserve: 110 * AMM_RESERVE_PRECISION,
+                quote_asset_reserve: 110 * AMM_RESERVE_PRECISION,
+                sqrt_k: 110 * AMM_RESERVE_PRECISION,
+                user_lp_shares: 5 * AMM_RESERVE_PRECISION,
                 ..AMM::default_test()
             },
             margin_ratio_initial: 1000,
@@ -804,6 +803,9 @@ mod test {
             unrealized_maintenance_asset_weight: 100,
             ..Market::default()
         };
+        // balanced max/min
+        market.amm.max_base_asset_reserve = 20 * AMM_RESERVE_PRECISION;
+        market.amm.min_base_asset_reserve = 0;
 
         let position = MarketPosition {
             lp_shares: market.amm.user_lp_shares,
@@ -817,6 +819,7 @@ mod test {
             has_sufficient_number_of_data_points: true,
         };
 
+        // pmr = position margin requirement
         let (pmr, _) = calculate_perp_position_value_and_pnl(
             &position,
             &market,
@@ -846,6 +849,8 @@ mod test {
         )
         .unwrap();
 
+        println!("{} > {} ?", pmr2, pmr);
+
         // larger margin req in more unbalanced market
         assert_eq!(pmr, 2062000);
         assert_eq!(pmr2, 2481600);
@@ -857,11 +862,10 @@ mod test {
         let mut market = Market {
             market_index: 0,
             amm: AMM {
-                base_asset_reserve: 15 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 15 * AMM_RESERVE_PRECISION,
-                sqrt_k: 15 * AMM_RESERVE_PRECISION,
-                user_lp_shares: 10 * AMM_RESERVE_PRECISION,
-                max_base_asset_reserve: 10 * AMM_RESERVE_PRECISION,
+                base_asset_reserve: 110 * AMM_RESERVE_PRECISION,
+                quote_asset_reserve: 110 * AMM_RESERVE_PRECISION,
+                sqrt_k: 110 * AMM_RESERVE_PRECISION,
+                user_lp_shares: 5 * AMM_RESERVE_PRECISION,
                 ..AMM::default_test()
             },
             margin_ratio_initial: 1000,
@@ -871,6 +875,9 @@ mod test {
             unrealized_maintenance_asset_weight: 100,
             ..Market::default()
         };
+        // balanced max/min
+        market.amm.max_base_asset_reserve = 20 * AMM_RESERVE_PRECISION;
+        market.amm.min_base_asset_reserve = 0;
 
         let position = MarketPosition {
             lp_shares: market.amm.user_lp_shares,
@@ -893,6 +900,7 @@ mod test {
         .unwrap();
 
         // make the market unbalanced
+        println!("---");
         let trade_size = 3 * AMM_RESERVE_PRECISION;
         let (new_qar, new_bar) = calculate_swap_output(
             trade_size,
@@ -912,10 +920,10 @@ mod test {
         )
         .unwrap();
 
-        // larger margin req in more unbalanced market
-        assert_eq!(pmr, 2062000);
-        assert_eq!(pmr2, 1644800);
+        println!("{} > {} ?", pmr2, pmr);
 
-        // assert!(pmr2 > pmr); //todo
+        // larger margin req in more unbalanced market
+
+        assert!(pmr2 > pmr); //todo
     }
 }

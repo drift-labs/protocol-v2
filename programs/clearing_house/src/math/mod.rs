@@ -1,4 +1,5 @@
 pub mod amm;
+pub mod amm_jit;
 pub mod auction;
 pub mod bank_balance;
 pub mod bankruptcy;

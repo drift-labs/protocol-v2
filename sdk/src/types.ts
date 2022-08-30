@@ -453,6 +453,7 @@ export type AMM = {
 	maxSpread: number;
 	marketPosition: UserPosition;
 	marketPositionPerLp: UserPosition;
+	ammJitIntensity: number;
 	maxBaseAssetReserve: BN;
 	minBaseAssetReserve: BN;
 };

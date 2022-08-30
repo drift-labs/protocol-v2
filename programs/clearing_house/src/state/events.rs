@@ -85,7 +85,7 @@ pub struct CurveRecord {
     pub base_asset_amount_short: u128,
     pub net_base_asset_amount: i128,
     pub open_interest: u128,
-    pub total_fee: u128,
+    pub total_fee: i128,
     pub total_fee_minus_distributions: i128,
     pub adjustment_cost: i128,
     pub oracle_price: i128,
@@ -115,7 +115,7 @@ pub struct OrderRecord {
     pub referrer: Pubkey,
     pub referrer_reward: u128,
     pub referee_discount: u128,
-    pub quote_asset_amount_surplus: u128,
+    pub quote_asset_amount_surplus: i128,
     pub oracle_price: i128,
 }
 
