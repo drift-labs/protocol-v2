@@ -310,7 +310,10 @@ describe('repeg and spread amm', () => {
 			prepegAMM.pegMultiplier,
 			prepegAMM.netBaseAssetAmount,
 			markPrice,
-			prepegAMM.totalFeeMinusDistributions
+			prepegAMM.totalFeeMinusDistributions,
+            prepegAMM.baseAssetReserve
+			prepegAMM.minBaseAssetReserve,
+			prepegAMM.maxBaseAssetReserve,
 		);
 		console.log('spreads:', ls1, ss1);
 		const maxSpread = market0.marginRatioInitial * 100;
