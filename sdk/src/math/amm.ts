@@ -343,10 +343,12 @@ export function calculateInventoryScale(
 		maxBaseAssetReserve
 	);
 
-	const totalLiquidity = openBids.abs().add(openAsks.abs());
-
+	const totalLiquidity = BN.max(openBids.abs().add(openAsks.abs()), new BN(1));
 	const inventoryScale =
-		netBaseAssetAmount.toNumber() / Math.max(1, totalLiquidity.toNumber());
+		BN.max(netBaseAssetAmount.abs(), totalLiquidity)
+			.mul(BID_ASK_SPREAD_PRECISION.mul(new BN(5)))
+			.div(totalLiquidity)
+			.toNumber() / BID_ASK_SPREAD_PRECISION.toNumber();
 
 	return inventoryScale;
 }

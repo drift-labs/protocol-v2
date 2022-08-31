@@ -5,6 +5,8 @@ if [ "$1" != "--skip-build" ]
 fi
 
 test_files=(
+    prepegMarketOrderBaseAssetAmount.ts
+  updateAMM.ts repegAndSpread.ts clearingHouse.ts 
   insuranceFundStake.ts
   liquidateBorrow.ts
   liquidateBorrowSocialLoss.ts
