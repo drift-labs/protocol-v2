@@ -13,6 +13,7 @@ use crate::math::amm::get_update_k_result;
 use crate::state::market::Market;
 use crate::state::user::MarketPosition;
 use crate::state::{market::AMM, state::*, user::*};
+use crate::state::events::{LPAction, LPRecord};
 
 pub mod context;
 pub mod controller;
@@ -823,14 +824,14 @@ pub mod clearing_house {
 
         let position_delta = settle_lp_position(position, &mut market)?;
 
-        emit!(state::events::LPRecord {
+        emit!(LPRecord {
             ts: now,
-            liquidity_type: state::events::LiquidityType::SettleLiquidity,
+            action: LPAction::SettleLiquidity,
             user: user_key,
             market_index,
             delta_base_asset_amount: position_delta.base_asset_amount,
             delta_quote_asset_amount: position_delta.quote_asset_amount,
-            ..state::events::LPRecord::default()
+            ..LPRecord::default()
         });
 
         Ok(())
@@ -893,14 +894,15 @@ pub mod clearing_house {
             oracle_price_data.price,
         )?;
 
-        emit!(state::events::LPRecord {
+        emit!(LPRecord {
             ts: now,
-            liquidity_type: state::events::LiquidityType::RemoveLiquidity,
+            action: LPAction::RemoveLiquidity,
             user: user_key,
             n_shares: shares_to_burn,
             market_index,
             delta_base_asset_amount: position_delta.base_asset_amount,
             delta_quote_asset_amount: position_delta.quote_asset_amount,
+
         });
 
         Ok(())
@@ -998,13 +1000,13 @@ pub mod clearing_house {
             "User does not meet initial margin requirement"
         )?;
 
-        emit!(state::events::LPRecord {
+        emit!(LPRecord {
             ts: now,
-            liquidity_type: state::events::LiquidityType::AddLiquidity,
+            action: LPAction::AddLiquidity,
             user: user_key,
             n_shares,
             market_index,
-            ..state::events::LPRecord::default()
+            ..LPRecord::default()
         });
 
         Ok(())

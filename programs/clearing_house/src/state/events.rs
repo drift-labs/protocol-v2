@@ -155,7 +155,7 @@ impl Default for OrderAction {
 pub struct LPRecord {
     pub ts: i64,
     pub user: Pubkey,
-    pub liquidity_type: LiquidityType,
+    pub action: LPAction,
     pub n_shares: u128,
     pub market_index: u64,
     pub delta_base_asset_amount: i128,
@@ -163,15 +163,15 @@ pub struct LPRecord {
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
-pub enum LiquidityType {
+pub enum LPAction {
     AddLiquidity,
     RemoveLiquidity,
     SettleLiquidity,
 }
 
-impl Default for LiquidityType {
+impl Default for LPAction {
     fn default() -> Self {
-        LiquidityType::AddLiquidity
+        LPAction::AddLiquidity
     }
 }
 
