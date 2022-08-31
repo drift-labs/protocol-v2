@@ -337,6 +337,10 @@ pub fn update_mark_twap(
         amm.last_mark_price_twap_5min,
         60 * 5,
     )?;
+
+    // update std stat
+    update_amm_mark_std(amm, now, trade_price, mid_twap)?;
+
     amm.last_mark_price_twap_ts = now;
 
     Ok(mid_twap)
@@ -550,7 +554,8 @@ pub fn calculate_weighted_average(
 pub fn update_amm_mark_std(
     amm: &mut AMM,
     now: i64,
-    price_change: u128,
+    price: u128,
+    ewma: u128,
 ) -> ClearingHouseResult<bool> {
     let since_last = cast_to_i128(max(
         1,
@@ -558,10 +563,28 @@ pub fn update_amm_mark_std(
             .ok_or_else(math_error!())?,
     ))?;
 
+    let price_change = cast_to_i128(
+        price
+            .checked_mul(price)
+            .ok_or_else(math_error!())?
+            .checked_div(MARK_PRICE_PRECISION)
+            .ok_or_else(math_error!())?,
+    )?
+    .checked_sub(cast_to_i128(ewma)?)
+    .ok_or_else(math_error!())?;
+
+    msg!(
+        "ewma={}: {} {} / {} {}",
+        ewma,
+        since_last,
+        ONE_HOUR_I128,
+        amm.mark_std,
+        price_change
+    );
     amm.mark_std = calculate_rolling_sum(
         amm.mark_std,
-        cast_to_u64(price_change)?,
-        since_last,
+        cast_to_u64(price_change.unsigned_abs())?,
+        max(ONE_HOUR_I128, since_last),
         ONE_HOUR_I128,
     )?;
 
@@ -1793,19 +1816,53 @@ mod test {
     #[test]
     fn calc_mark_std_tests() {
         let prev = 1656682258;
-        let now = prev + 3600;
+        let mut now = prev + 3600;
         let mut amm = AMM {
             // base_asset_reserve: 2 * AMM_RESERVE_PRECISION,
             mark_std: MARK_PRICE_PRECISION as u64,
             last_mark_price_twap_ts: prev,
             ..AMM::default()
         };
-        update_amm_mark_std(&mut amm, now, MARK_PRICE_PRECISION * 23).unwrap();
-        assert_eq!(amm.mark_std, (MARK_PRICE_PRECISION * 23) as u64);
+        update_amm_mark_std(&mut amm, now, MARK_PRICE_PRECISION * 23, 0).unwrap();
+        assert_eq!(amm.mark_std, 5290000000000);
 
         amm.mark_std = MARK_PRICE_PRECISION as u64;
         amm.last_mark_price_twap_ts = now - 60;
-        update_amm_mark_std(&mut amm, now, MARK_PRICE_PRECISION * 2).unwrap();
+        update_amm_mark_std(&mut amm, now, MARK_PRICE_PRECISION * 2, 0).unwrap();
+        assert_eq!(amm.mark_std, 40000000000);
+
+        let mut px = MARK_PRICE_PRECISION;
+        let stop_time = now + 3600 * 2;
+        while now <= stop_time {
+            now += 1;
+            if now % 15 == 0 {
+                px = px * 1012 / 1000;
+            } else {
+                px = px * 100000 / 100133;
+            }
+            let trade_direction = PositionDirection::Long;
+            update_mark_twap(&mut amm, now, Some(px), Some(trade_direction)).unwrap();
+        }
+        assert_eq!(now, 1656693059);
+        assert_eq!(px, 404665520);
+        assert_eq!(amm.mark_std, 186226720);
+
+        // sol price looking thinkg
+        let mut px = 319_366_586_000;
+        let stop_time = now + 3600 * 2;
+        while now <= stop_time {
+            now += 1;
+            if now % 15 == 0 {
+                px = 319_866_586_000;
+            } else {
+                px = 318_836_516_000;
+            }
+            let trade_direction = PositionDirection::Long;
+            update_mark_twap(&mut amm, now, Some(px), Some(trade_direction)).unwrap();
+        }
+        assert_eq!(now, 1656700260);
+        assert_eq!(px, 319866586000);
+        assert_eq!(amm.mark_std, 10071787500570); //todo
     }
 
     #[test]
