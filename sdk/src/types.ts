@@ -58,9 +58,6 @@ export class OrderAction {
 
 export class OrderActionExplanation {
 	static readonly NONE = { none: {} };
-	static readonly BREACHED_MARGIN_REQUIREMENT = {
-		breachedMarginRequirement: {},
-	};
 	static readonly ORACLE_PRICE_BREACHED_LIMIT_PRICE = {
 		oraclePriceBreachedLimitPrice: {},
 	};

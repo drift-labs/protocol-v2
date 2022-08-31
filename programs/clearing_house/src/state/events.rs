@@ -132,7 +132,6 @@ pub enum OrderAction {
 pub enum OrderActionExplanation {
     None,
     InsufficientFreeCollateral,
-    BreachedMarginRequirement,
     OraclePriceBreachedLimitPrice,
     MarketOrderFilledToLimitPrice,
     MarketOrderAuctionExpired,
