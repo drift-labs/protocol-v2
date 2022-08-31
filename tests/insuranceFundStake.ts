@@ -1,5 +1,5 @@
 import * as anchor from '@project-serum/anchor';
-import { assert, expect } from 'chai';
+import { assert } from 'chai';
 
 import { Program } from '@project-serum/anchor';
 
@@ -21,7 +21,6 @@ import {
 	BankBalanceType,
 	getBalance,
 	isVariant,
-	BANK_RATE_PRECISION,
 	PEG_PRECISION,
 	BANK_INTEREST_PRECISION,
 	findComputeUnitConsumption,
@@ -38,12 +37,9 @@ import {
 	initializeSolAssetBank,
 	createUserWithUSDCAndWSOLAccount,
 	printTxLogs,
-	mintToInsuranceFund,
 	setFeedPrice,
 	sleep,
-	getTokenAmountAsBN,
 } from './testHelpers';
-import { getTokenAccount } from '@project-serum/common';
 
 describe('insurance fund stake', () => {
 	const provider = anchor.AnchorProvider.local();
@@ -358,7 +354,7 @@ describe('insurance fund stake', () => {
 			assert(false);
 		}
 
-		let bank0Pre = clearingHouse.getBankAccount(bankIndex);
+		const bank0Pre = clearingHouse.getBankAccount(bankIndex);
 		assert(bank0Pre.insuranceWithdrawEscrowPeriod.eq(new BN(10)));
 
 		let slot = await connection.getSlot();
@@ -370,7 +366,7 @@ describe('insurance fund stake', () => {
 			bankIndex
 		);
 
-		let ifStakeAccountPre =
+		const ifStakeAccountPre =
 			(await clearingHouse.program.account.insuranceFundStake.fetch(
 				ifStakePublicKeyPre
 			)) as InsuranceFundStake;
@@ -721,7 +717,7 @@ describe('insurance fund stake', () => {
 			insuranceVaultAmountBefore
 		);
 
-		const txSig2 = await clearingHouse.requestRemoveInsuranceFundStake(
+		await clearingHouse.requestRemoveInsuranceFundStake(
 			bankIndex,
 			amountFromShare
 		);
@@ -763,9 +759,7 @@ describe('insurance fund stake', () => {
 			).value.amount
 		);
 		assert(insuranceVaultAmountAfter.gt(insuranceVaultAmountBefore));
-		const txSig3 = await clearingHouse.cancelRequestRemoveInsuranceFundStake(
-			bankIndex
-		);
+		await clearingHouse.cancelRequestRemoveInsuranceFundStake(bankIndex);
 
 		const ifStakeAccountAfter =
 			(await clearingHouse.program.account.insuranceFundStake.fetch(
