@@ -1,11 +1,4 @@
-import { AMM, OracleGuardRails } from '../types';
-import { OraclePriceData } from '../oracles/types';
-import {
-	BID_ASK_SPREAD_PRECISION,
-	MARK_PRICE_PRECISION,
-	ONE,
-	ZERO,
-} from '../constants/numericConstants';
+import { ONE, ZERO } from '../constants/numericConstants';
 import { BN } from '../index';
 
 export function stakeAmountToShares(

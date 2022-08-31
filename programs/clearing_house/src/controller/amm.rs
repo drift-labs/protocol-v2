@@ -502,7 +502,6 @@ pub fn update_pool_balances(
                 .ok_or_else(math_error!())?;
         }
 
-        let _depositors_claim = validate_bank_balances(bank)?;
     }
 
     // market pnl pool pays (what it can to) user_unsettled_pnl and pnl_to_settle_to_amm
@@ -547,6 +546,8 @@ pub fn update_pool_balances(
         bank,
         &mut market.pnl_pool,
     )?;
+
+    let _depositors_claim = validate_bank_balances(bank)?;
 
     Ok(pnl_to_settle_with_user)
 }
@@ -872,7 +873,7 @@ mod test {
             100 * QUOTE_PRECISION
         );
 
-        let to_settle_with_user = update_pool_balances(&mut market, &mut bank, 0, now).unwrap();
+        update_pool_balances(&mut market, &mut bank, 0, now).unwrap();
 
         assert_eq!(market.amm.fee_pool.balance, 45000000000000);
         assert_eq!(market.pnl_pool.balance, 50000000000000);
@@ -947,7 +948,7 @@ mod test {
         );
         assert_eq!(bank.revenue_pool.balance, 100000000);
 
-        let to_settle_with_user = update_pool_balances(&mut market, &mut bank, 0, now).unwrap();
+        update_pool_balances(&mut market, &mut bank, 0, now).unwrap();
 
         assert_eq!(market.amm.fee_pool.balance, 5000000);
         assert_eq!(market.pnl_pool.balance, 95000000);
@@ -965,7 +966,7 @@ mod test {
         assert_eq!(bank.deposit_balance, 200000000);
         assert_eq!(bank.revenue_pool.balance, 100000000);
 
-        let to_settle_with_user = update_pool_balances(&mut market, &mut bank, 0, now).unwrap();
+        update_pool_balances(&mut market, &mut bank, 0, now).unwrap();
 
         assert_eq!(market.amm.fee_pool.balance, 105000000);
         assert_eq!(market.pnl_pool.balance, 95000000);
@@ -981,14 +982,14 @@ mod test {
         assert_eq!(bank_vault_amount, 200000000); // total bank deposit balance unchanged during transfers
 
         // calling multiple times doesnt effect other than fee pool -> pnl pool
-        let to_settle_with_user = update_pool_balances(&mut market, &mut bank, 0, now).unwrap();
+        update_pool_balances(&mut market, &mut bank, 0, now).unwrap();
         assert_eq!(market.amm.fee_pool.balance, 5000000);
         assert_eq!(market.pnl_pool.balance, 195000000);
         assert_eq!(market.amm.total_fee_minus_distributions, -9900000000);
         assert_eq!(market.amm.total_fee_withdrawn, 0);
         assert_eq!(bank.revenue_pool.balance, 0);
 
-        let to_settle_with_user = update_pool_balances(&mut market, &mut bank, 0, now).unwrap();
+        update_pool_balances(&mut market, &mut bank, 0, now).unwrap();
         assert_eq!(market.amm.fee_pool.balance, 5000000);
         assert_eq!(market.pnl_pool.balance, 195000000);
         assert_eq!(market.amm.total_fee_minus_distributions, -9900000000);
@@ -998,7 +999,12 @@ mod test {
         // add deposits and revenue to pool
         assert_eq!(bank.deposit_balance, 200000000);
         bank.revenue_pool.balance = 9900000001;
+
+        let bank_backup = bank;
+        let market_backup = market;
         assert!(update_pool_balances(&mut market, &mut bank, 0, now).is_err()); // assert is_err if any way has revenue pool above deposit balances
+        bank = bank_backup;
+        market = market_backup;
         bank.deposit_balance = bank.deposit_balance + 9900000001;
         let bank_vault_amount =
             get_token_amount(bank.deposit_balance, &bank, &BankBalanceType::Deposit).unwrap()
@@ -1006,13 +1012,13 @@ mod test {
         assert_eq!(bank.deposit_balance, 10100000001);
         assert_eq!(bank_vault_amount, 10100000001);
 
-        let to_settle_with_user = update_pool_balances(&mut market, &mut bank, 0, now).unwrap();
+        update_pool_balances(&mut market, &mut bank, 0, now).unwrap();
+        assert_eq!(bank.deposit_balance, 9800000001 + 300000000);
+        assert_eq!(bank.revenue_pool.balance, 9800000001);
         assert_eq!(market.amm.fee_pool.balance, 105000000);
         assert_eq!(market.pnl_pool.balance, 195000000);
         assert_eq!(market.amm.total_fee_minus_distributions, -9800000000);
         assert_eq!(market.amm.total_fee_withdrawn, 0);
-        assert_eq!(bank.deposit_balance, 9800000001 + 300000000);
-        assert_eq!(bank.revenue_pool.balance, 9800000001);
         assert_eq!(
             market.revenue_withdraw_since_last_settle,
             market.max_revenue_withdraw_per_period
@@ -1020,7 +1026,7 @@ mod test {
         assert_eq!(market.last_revenue_withdraw_ts, 33928058);
 
         // calling again only does fee -> pnl pool
-        let to_settle_with_user = update_pool_balances(&mut market, &mut bank, 0, now).unwrap();
+        update_pool_balances(&mut market, &mut bank, 0, now).unwrap();
         assert_eq!(market.amm.fee_pool.balance, 5000000);
         assert_eq!(market.pnl_pool.balance, 295000000);
         assert_eq!(market.amm.total_fee_minus_distributions, -9800000000);
@@ -1033,7 +1039,7 @@ mod test {
         assert_eq!(market.last_revenue_withdraw_ts, 33928058);
 
         // calling again does nothing
-        let to_settle_with_user = update_pool_balances(&mut market, &mut bank, 0, now).unwrap();
+        update_pool_balances(&mut market, &mut bank, 0, now).unwrap();
         assert_eq!(market.amm.fee_pool.balance, 5000000);
         assert_eq!(market.pnl_pool.balance, 295000000);
         assert_eq!(market.amm.total_fee_minus_distributions, -9800000000);
@@ -1067,7 +1073,11 @@ mod test {
 
         // add deposits and revenue to pool
         bank.revenue_pool.balance = 9800000001;
+        let market_backup = market;
+        let bank_backup = bank;
         assert!(update_pool_balances(&mut market, &mut bank, 0, now + 3600).is_err()); // assert is_err if any way has revenue pool above deposit balances
+        market = market_backup;
+        bank = bank_backup;
         bank.deposit_balance = bank.deposit_balance + 9800000001;
 
         assert_eq!(market.amm.fee_pool.balance, 5000000);
@@ -1078,9 +1088,8 @@ mod test {
         assert_eq!(market.last_revenue_withdraw_ts, 33928058);
         assert_eq!(bank.last_revenue_settle_ts, 33928058 + 3600);
 
-        let to_settle_with_user = update_pool_balances(&mut market, &mut bank, 0, now).is_err(); // now is wrong
-        let to_settle_with_user =
-            update_pool_balances(&mut market, &mut bank, 0, now + 3600).unwrap();
+        assert!(update_pool_balances(&mut market, &mut bank, 0, now).is_err()); // now timestamp passed is wrong
+        update_pool_balances(&mut market, &mut bank, 0, now + 3600).unwrap();
 
         assert_eq!(market.last_revenue_withdraw_ts, 33931658);
         assert_eq!(bank.last_revenue_settle_ts, 33931658);
