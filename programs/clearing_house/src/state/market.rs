@@ -38,6 +38,9 @@ pub struct Market {
     pub next_funding_rate_record_id: u64,
     pub next_curve_record_id: u64,
     pub pnl_pool: PoolBalance,
+    pub revenue_withdraw_since_last_settle: u128,
+    pub max_revenue_withdraw_per_period: u128,
+    pub last_revenue_withdraw_ts: i64,
     pub imf_factor: u128,
     pub unrealized_initial_asset_weight: u8,
     pub unrealized_maintenance_asset_weight: u8,
@@ -195,6 +198,7 @@ pub struct AMM {
     pub lp_cooldown_time: i64,
     pub user_lp_shares: u128,
     pub market_position_per_lp: MarketPosition,
+    pub amm_jit_intensity: u8,
 
     // funding
     pub last_funding_rate: i128,
@@ -239,8 +243,8 @@ pub struct AMM {
     pub curve_update_intensity: u8,
 
     // fee tracking
-    pub total_fee: u128,
-    pub total_mm_fee: u128,
+    pub total_fee: i128,
+    pub total_mm_fee: i128,
     pub total_exchange_fee: u128,
     pub total_fee_minus_distributions: i128,
     pub total_fee_withdrawn: u128,
@@ -268,6 +272,10 @@ impl AMM {
             min_base_asset_reserve: 0,
             ..AMM::default()
         }
+    }
+
+    pub fn amm_jit_is_active(&self) -> bool {
+        self.amm_jit_intensity > 0
     }
 
     pub fn mark_price(&self) -> ClearingHouseResult<u128> {

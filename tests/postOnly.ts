@@ -207,7 +207,7 @@ describe('post only', () => {
 		);
 
 		await fillerClearingHouse.fetchAccounts();
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 
 		assert(isVariant(orderRecord.action, 'fill'));
 		assert(orderRecord.takerFee.eq(ZERO));
@@ -294,7 +294,7 @@ describe('post only', () => {
 		);
 
 		await fillerClearingHouse.fetchAccounts();
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 
 		assert(isVariant(orderRecord.action, 'fill'));
 		assert(orderRecord.takerFee.eq(new BN(0)));

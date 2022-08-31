@@ -87,11 +87,11 @@ pub fn limit_price_satisfied(
 
 pub fn calculate_quote_asset_amount_for_maker_order(
     base_asset_amount: u128,
-    limit_price: u128,
+    fill_price: u128,
     swap_direction: SwapDirection,
 ) -> ClearingHouseResult<u128> {
     let mut quote_asset_amount = base_asset_amount
-        .checked_mul(limit_price)
+        .checked_mul(fill_price)
         .ok_or_else(math_error!())?
         .div(MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO);
 
@@ -318,15 +318,23 @@ pub fn calculate_max_fill_for_order(
 ) -> ClearingHouseResult<(u128, u128)> {
     let base_asset_amount_unfilled = order.get_base_asset_amount_unfilled()?;
 
+    let (best_quote_asset_amount_threshold, worst_quote_asset_amount_threshold) =
+        match order.direction {
+            PositionDirection::Long => (u128::MAX, 0),
+            PositionDirection::Short => (0, u128::MAX),
+        };
     if risk_decreasing {
-        return Ok((base_asset_amount_unfilled, u128::MAX));
+        return Ok((
+            base_asset_amount_unfilled,
+            best_quote_asset_amount_threshold,
+        ));
     }
 
     // If user has negative free collateral and they enter risk increasing trade at price better than oracle,
     // this could increase their free collateral since margin system valued entry at oracle
     // For now we'll still block the fill if the user has no free collateral and the trade is risk increasing
     if free_collateral <= 0 {
-        return Ok((0, 0));
+        return Ok((0, worst_quote_asset_amount_threshold));
     }
 
     let limit_price = order.get_limit_price(&market.amm, Some(oracle_price_data.price), slot)?;
@@ -342,7 +350,10 @@ pub fn calculate_max_fill_for_order(
     };
 
     if price_delta < 0 {
-        return Ok((base_asset_amount_unfilled, u128::MAX));
+        return Ok((
+            base_asset_amount_unfilled,
+            best_quote_asset_amount_threshold,
+        ));
     }
 
     let base_asset_amount_to_consume_free_collateral = free_collateral
@@ -801,7 +812,7 @@ mod test {
             .unwrap();
 
             assert_eq!(max_base_asset_amount, 50000000000000);
-            assert_eq!(max_quote_asset_amount, u128::MAX);
+            assert_eq!(max_quote_asset_amount, 0);
         }
     }
 
