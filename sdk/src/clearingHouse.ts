@@ -2572,7 +2572,7 @@ export class ClearingHouse {
 
 	public async requestRemoveInsuranceFundStake(
 		bankIndex: BN,
-		nShares: BN
+		amount: BN
 	): Promise<TransactionSignature> {
 		const bank = this.getBankAccount(bankIndex);
 		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
@@ -2587,7 +2587,7 @@ export class ClearingHouse {
 
 		return await this.program.rpc.requestRemoveInsuranceFundStake(
 			bankIndex,
-			nShares,
+			amount,
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),

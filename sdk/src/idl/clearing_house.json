@@ -2521,8 +2521,8 @@
           "type": "u64"
         },
         {
-          "name": "nShares",
-          "type": "u128"
+          "name": "amount",
+          "type": "u64"
         }
       ]
     },
@@ -2830,7 +2830,7 @@
           },
           {
             "name": "costBasis",
-            "type": "i128"
+            "type": "i64"
           }
         ]
       }

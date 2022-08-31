@@ -14,11 +14,7 @@ use crate::state::market::Market;
 use crate::validate;
 use std::cmp::max;
 
-pub fn update_bank_twap_stats(
-    bank: &mut Bank,
-    // utilization: u128,
-    now: i64,
-) -> ClearingHouseResult {
+pub fn update_bank_twap_stats(bank: &mut Bank, now: i64) -> ClearingHouseResult {
     let since_last = cast_to_i128(max(
         1,
         now.checked_sub(bank.last_twap_ts as i64)

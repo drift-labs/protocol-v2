@@ -15,5 +15,5 @@ pub struct InsuranceFundStake {
     pub last_withdraw_request_value: u64,
     pub last_withdraw_request_ts: i64,
 
-    pub cost_basis: i128,
+    pub cost_basis: i64,
 }

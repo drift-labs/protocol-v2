@@ -5,7 +5,7 @@ use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
 use crate::math::bank_balance::get_token_amount;
 use crate::math::bank_balance::validate_bank_amounts;
-use crate::math::casting::{cast_to_i128, cast_to_u128, cast_to_u32, cast_to_u64};
+use crate::math::casting::{cast_to_i128, cast_to_u128, cast_to_u32, cast_to_u64, cast_to_i64};
 use crate::math::constants::{
     SHARE_OF_REVENUE_ALLOCATED_TO_INSURANCE_FUND_VAULT_DENOMINATOR,
     SHARE_OF_REVENUE_ALLOCATED_TO_INSURANCE_FUND_VAULT_NUMERATOR,
@@ -48,11 +48,11 @@ pub fn add_insurance_fund_stake(
 
     // reset cost basis if no shares
     insurance_fund_stake.cost_basis = if insurance_fund_stake.if_shares == 0 {
-        cast_to_i128(amount)?
+        cast_to_i64(amount)?
     } else {
         insurance_fund_stake
             .cost_basis
-            .checked_add(cast_to_i128(amount)?)
+            .checked_add(cast_to_i64(amount)?)
             .ok_or_else(math_error!())?
     };
 
@@ -340,7 +340,7 @@ pub fn remove_insurance_fund_stake(
 
     insurance_fund_stake.cost_basis = insurance_fund_stake
         .cost_basis
-        .checked_sub(withdraw_amount as i128)
+        .checked_sub(cast_to_i64(withdraw_amount)?)
         .ok_or_else(math_error!())?;
 
     if bank.bank_index == 0 {
@@ -806,6 +806,9 @@ mod test {
         let n_shares = if_stake.if_shares;
         let expected_amount_returned = (amount - amount / 19) / 3;
 
+        let o = unstaked_shares_to_amount(n_shares / 3, bank.total_if_shares, if_balance).unwrap();
+        assert_eq!(if_stake.last_withdraw_request_shares, 0);
+
         request_remove_insurance_fund_stake(
             n_shares / 3,
             if_balance,
@@ -815,6 +818,10 @@ mod test {
             now,
         )
         .unwrap();
+        assert_eq!(if_stake.last_withdraw_request_shares, 33333333333);
+        assert_eq!(if_stake.last_withdraw_request_value, expected_amount_returned);
+        assert_eq!(expected_amount_returned, o);
+        assert_eq!(o, 31578947368);
 
         // not enough time for withdraw
         assert!(remove_insurance_fund_stake(
@@ -906,6 +913,7 @@ mod test {
         let expected_amount_returned =
             (if_balance as u128 * n_shares / bank.total_if_shares) as u64;
 
+        let o = unstaked_shares_to_amount(n_shares, bank.total_if_shares, if_balance).unwrap();
         request_remove_insurance_fund_stake(
             n_shares,
             if_balance,
@@ -917,6 +925,7 @@ mod test {
         .unwrap();
         let value_at_req = if_stake.last_withdraw_request_value;
         assert_eq!(value_at_req, 107692722239);
+        assert_eq!( o , 107692722239);
 
         // not enough time for withdraw
         assert!(remove_insurance_fund_stake(

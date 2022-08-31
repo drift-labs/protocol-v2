@@ -1644,6 +1644,11 @@ pub mod clearing_house {
             ErrorCode::UserCantLiquidateThemself
         )?;
 
+        validate!(
+            bank_index == 0,
+            ErrorCode::InvalidBankAccount
+        )?;
+
         let user = &mut load_mut!(ctx.accounts.user)?;
         let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
 
@@ -2962,7 +2967,7 @@ pub mod clearing_house {
     pub fn request_remove_insurance_fund_stake<'info>(
         ctx: Context<RequestRemoveInsuranceFundStake>,
         bank_index: u64,
-        n_shares: u128,
+        amount: u64,
     ) -> Result<()> {
         let clock = Clock::get()?;
         let insurance_fund_stake = &mut load_mut!(ctx.accounts.insurance_fund_stake)?;
@@ -2981,6 +2986,12 @@ pub mod clearing_house {
             "Withdraw request is already in progress"
         )?;
 
+        let n_shares = math::insurance::staked_amount_to_shares(
+            amount, 
+            bank.total_if_shares,
+            ctx.accounts.insurance_fund_vault.amount
+        )?;
+
         validate!(
             n_shares > 0,
             ErrorCode::DefaultError,
@@ -2991,6 +3002,7 @@ pub mod clearing_house {
             insurance_fund_stake.if_shares >= n_shares,
             ErrorCode::InsufficientLPTokens
         )?;
+
 
         controller::insurance::request_remove_insurance_fund_stake(
             n_shares,

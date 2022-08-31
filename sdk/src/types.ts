@@ -368,7 +368,7 @@ export type BankAccount = {
 	userIfShares: BN;
 
 	userIfFactor: BN;
-	totalIfFacotr: BN;
+	totalIfFactor: BN;
 	liquidationIfFactor: BN;
 
 	decimals: number;

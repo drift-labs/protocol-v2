@@ -27,6 +27,7 @@ import {
 	findComputeUnitConsumption,
 	convertToNumber,
 	AMM_RESERVE_PRECISION,
+	unstakeSharesToAmount,
 } from '../sdk/src';
 
 import {
@@ -181,10 +182,26 @@ describe('insurance fund stake', () => {
 	it('user request if unstake (half)', async () => {
 		const bankIndex = new BN(0);
 		const nShares = usdcAmount.div(new BN(2));
+
+		const bank0Before = clearingHouse.getBankAccount(bankIndex);
+		const insuranceVaultAmountBefore = new BN(
+			(
+				await provider.connection.getTokenAccountBalance(
+					bank0Before.insuranceFundVault
+				)
+			).value.amount
+		);
+
+		const amountFromShare = unstakeSharesToAmount(
+			nShares,
+			bank0Before.totalIfShares,
+			insuranceVaultAmountBefore
+		);
+
 		try {
 			const txSig = await clearingHouse.requestRemoveInsuranceFundStake(
 				bankIndex,
-				nShares
+				amountFromShare.add(ONE)
 			);
 			console.log(
 				'tx logs',
@@ -215,6 +232,8 @@ describe('insurance fund stake', () => {
 			)) as InsuranceFundStake;
 
 		assert(ifStakeAccount.lastWithdrawRequestShares.gt(ZERO));
+		assert(ifStakeAccount.lastWithdrawRequestShares.eq(nShares));
+		assert(ifStakeAccount.lastWithdrawRequestValue.eq(amountFromShare));
 	});
 
 	it('user if unstake (half)', async () => {
@@ -696,9 +715,15 @@ describe('insurance fund stake', () => {
 				ifStakePublicKey
 			)) as InsuranceFundStake;
 
+		const amountFromShare = unstakeSharesToAmount(
+			ifStakeAccount.ifShares.div(new BN(10)),
+			bank0Before.totalIfShares,
+			insuranceVaultAmountBefore
+		);
+
 		const txSig2 = await clearingHouse.requestRemoveInsuranceFundStake(
 			bankIndex,
-			ifStakeAccount.ifShares.div(new BN(10))
+			amountFromShare
 		);
 
 		console.log('letting interest accum (2s)');
