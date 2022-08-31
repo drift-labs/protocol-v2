@@ -832,7 +832,7 @@ fn fulfill_order(
     let free_collateral = calculate_free_collateral(user, market_map, bank_map, oracle_map)?;
     let market = market_map.get_ref(&market_index)?;
     let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
-    let (max_base_asset_amount, quote_asset_amount_threshold) = calculate_max_fill_for_order(
+    let max_base_asset_amount = calculate_max_fill_for_order(
         &user.orders[user_order_index],
         &market,
         oracle_price_data,
@@ -953,46 +953,12 @@ fn fulfill_order(
         return Err(ErrorCode::InsufficientCollateral);
     }
 
-    if breaches_quote_asset_amount_threshold(
-        order_direction,
-        quote_asset_amount,
-        quote_asset_amount_threshold,
-    ) {
-        cancel_risk_increasing_order(
-            user,
-            user_order_index,
-            user_key,
-            filler,
-            filler_key,
-            market_map,
-            oracle_map,
-            fee_structure,
-            now,
-            slot,
-        )?;
-
-        updated_user_state = true;
-    }
-
     let position_base_asset_amount_after = user.positions[position_index].base_asset_amount;
     let risk_increasing = position_base_asset_amount_before == 0
         || position_base_asset_amount_before.signum() == position_base_asset_amount_after.signum()
         || position_base_asset_amount_before.abs() < position_base_asset_amount_after.abs();
 
     Ok((base_asset_amount, risk_increasing, updated_user_state))
-}
-
-fn breaches_quote_asset_amount_threshold(
-    direction: PositionDirection,
-    quote_asset_amount: u128,
-    quote_asset_amount_threshold: u128,
-) -> bool {
-    match direction {
-        PositionDirection::Long => quote_asset_amount > quote_asset_amount_threshold,
-        PositionDirection::Short => {
-            quote_asset_amount != 0 && quote_asset_amount < quote_asset_amount_threshold
-        }
-    }
 }
 
 fn cancel_risk_increasing_order(

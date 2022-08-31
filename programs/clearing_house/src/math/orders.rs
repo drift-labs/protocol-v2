@@ -315,26 +315,18 @@ pub fn calculate_max_fill_for_order(
     slot: u64,
     risk_decreasing: bool,
     free_collateral: i128,
-) -> ClearingHouseResult<(u128, u128)> {
+) -> ClearingHouseResult<u128> {
     let base_asset_amount_unfilled = order.get_base_asset_amount_unfilled()?;
 
-    let (best_quote_asset_amount_threshold, worst_quote_asset_amount_threshold) =
-        match order.direction {
-            PositionDirection::Long => (u128::MAX, 0),
-            PositionDirection::Short => (0, u128::MAX),
-        };
     if risk_decreasing {
-        return Ok((
-            base_asset_amount_unfilled,
-            best_quote_asset_amount_threshold,
-        ));
+        return Ok(base_asset_amount_unfilled);
     }
 
     // If user has negative free collateral and they enter risk increasing trade at price better than oracle,
     // this could increase their free collateral since margin system valued entry at oracle
     // For now we'll still block the fill if the user has no free collateral and the trade is risk increasing
     if free_collateral <= 0 {
-        return Ok((0, worst_quote_asset_amount_threshold));
+        return Ok(0);
     }
 
     let limit_price = order.get_limit_price(&market.amm, Some(oracle_price_data.price), slot)?;
@@ -350,10 +342,7 @@ pub fn calculate_max_fill_for_order(
     };
 
     if price_delta < 0 {
-        return Ok((
-            base_asset_amount_unfilled,
-            best_quote_asset_amount_threshold,
-        ));
+        return Ok(base_asset_amount_unfilled);
     }
 
     let base_asset_amount_to_consume_free_collateral = free_collateral
@@ -370,13 +359,8 @@ pub fn calculate_max_fill_for_order(
 
     let max_base_asset_amount =
         base_asset_amount_unfilled.min(base_asset_amount_to_consume_free_collateral);
-    let max_quote_asset_amount = max_base_asset_amount
-        .checked_mul(limit_price)
-        .ok_or_else(math_error!())?
-        .checked_div(MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO)
-        .ok_or_else(math_error!())?;
 
-    Ok((max_base_asset_amount, max_quote_asset_amount))
+    Ok(max_base_asset_amount)
 }
 
 #[cfg(test)]
@@ -514,7 +498,7 @@ mod test {
 
             let free_collateral = 0_i128;
 
-            let (max_base_asset_amount, max_quote_asset_amount) = calculate_max_fill_for_order(
+            let max_base_asset_amount = calculate_max_fill_for_order(
                 &order,
                 &market,
                 &oracle_price_data,
@@ -525,7 +509,6 @@ mod test {
             .unwrap();
 
             assert_eq!(max_base_asset_amount, 0);
-            assert_eq!(max_quote_asset_amount, 0);
         }
 
         #[test]
@@ -541,7 +524,7 @@ mod test {
 
             let free_collateral = 0_i128;
 
-            let (max_base_asset_amount, max_quote_asset_amount) = calculate_max_fill_for_order(
+            let max_base_asset_amount = calculate_max_fill_for_order(
                 &order,
                 &market,
                 &oracle_price_data,
@@ -552,7 +535,6 @@ mod test {
             .unwrap();
 
             assert_eq!(max_base_asset_amount, 50000000000000);
-            assert_eq!(max_quote_asset_amount, u128::MAX);
         }
 
         #[test]
@@ -581,7 +563,7 @@ mod test {
 
             let free_collateral = 100 * QUOTE_PRECISION_I128;
 
-            let (max_base_asset_amount, max_quote_asset_amount) = calculate_max_fill_for_order(
+            let max_base_asset_amount = calculate_max_fill_for_order(
                 &order,
                 &market,
                 &oracle_price_data,
@@ -597,7 +579,6 @@ mod test {
             // base to consume free collateral : $100 / $50 = 2
             // max fill: min(5 , 2) = 2
             assert_eq!(max_base_asset_amount, 20000000000000);
-            assert_eq!(max_quote_asset_amount, 300000000);
         }
 
         #[test]
@@ -626,7 +607,7 @@ mod test {
 
             let free_collateral = 100 * QUOTE_PRECISION_I128;
 
-            let (max_base_asset_amount, max_quote_asset_amount) = calculate_max_fill_for_order(
+            let max_base_asset_amount = calculate_max_fill_for_order(
                 &order,
                 &market,
                 &oracle_price_data,
@@ -642,7 +623,6 @@ mod test {
             // base to consume free collateral : $100 / $1 = 200
             // max fill: min(5 , 200) = 5
             assert_eq!(max_base_asset_amount, 50000000000000);
-            assert_eq!(max_quote_asset_amount, 505000000);
         }
 
         #[test]
@@ -671,7 +651,7 @@ mod test {
 
             let free_collateral = 100 * QUOTE_PRECISION_I128;
 
-            let (max_base_asset_amount, max_quote_asset_amount) = calculate_max_fill_for_order(
+            let max_base_asset_amount = calculate_max_fill_for_order(
                 &order,
                 &market,
                 &oracle_price_data,
@@ -682,7 +662,6 @@ mod test {
             .unwrap();
 
             assert_eq!(max_base_asset_amount, 50000000000000);
-            assert_eq!(max_quote_asset_amount, u128::MAX);
         }
 
         #[test]
@@ -711,7 +690,7 @@ mod test {
 
             let free_collateral = 100 * QUOTE_PRECISION_I128;
 
-            let (max_base_asset_amount, max_quote_asset_amount) = calculate_max_fill_for_order(
+            let max_base_asset_amount = calculate_max_fill_for_order(
                 &order,
                 &market,
                 &oracle_price_data,
@@ -727,7 +706,6 @@ mod test {
             // base to consume free collateral : $100 / $50 = 2
             // max fill: min(5 , 2) = 4
             assert_eq!(max_base_asset_amount, 20000000000000);
-            assert_eq!(max_quote_asset_amount, 100000000);
         }
 
         #[test]
@@ -756,7 +734,7 @@ mod test {
 
             let free_collateral = 100 * QUOTE_PRECISION_I128;
 
-            let (max_base_asset_amount, max_quote_asset_amount) = calculate_max_fill_for_order(
+            let max_base_asset_amount = calculate_max_fill_for_order(
                 &order,
                 &market,
                 &oracle_price_data,
@@ -772,7 +750,6 @@ mod test {
             // base to consume free collateral : $100 / $1  = 200
             // max fill: min(5 , 200) = 5
             assert_eq!(max_base_asset_amount, 50000000000000);
-            assert_eq!(max_quote_asset_amount, 495000000);
         }
 
         #[test]
@@ -801,7 +778,7 @@ mod test {
 
             let free_collateral = 100 * QUOTE_PRECISION_I128;
 
-            let (max_base_asset_amount, max_quote_asset_amount) = calculate_max_fill_for_order(
+            let max_base_asset_amount = calculate_max_fill_for_order(
                 &order,
                 &market,
                 &oracle_price_data,
@@ -812,7 +789,6 @@ mod test {
             .unwrap();
 
             assert_eq!(max_base_asset_amount, 50000000000000);
-            assert_eq!(max_quote_asset_amount, 0);
         }
     }
 
