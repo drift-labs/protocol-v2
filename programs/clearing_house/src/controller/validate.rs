@@ -73,7 +73,7 @@ pub fn validate_market_account(market: &Market) -> ClearingHouseResult {
             market.amm.ask_base_asset_reserve < market.amm.base_asset_reserve
                 && market.amm.ask_quote_asset_reserve > market.amm.quote_asset_reserve,
             ErrorCode::DefaultError,
-            "bid reserves out of wack"
+            "ask reserves out of wack"
         )?;
     }
 
@@ -88,7 +88,9 @@ pub fn validate_market_account(market: &Market) -> ClearingHouseResult {
         validate!(
             market.amm.terminal_quote_asset_reserve > market.amm.quote_asset_reserve,
             ErrorCode::DefaultError,
-            "terminal_quote_asset_reserve out of wack"
+            "terminal_quote_asset_reserve out of wack (terminal <) {} > {}",
+            market.amm.terminal_quote_asset_reserve,
+            market.amm.quote_asset_reserve
         )?;
     } else {
         validate!(
