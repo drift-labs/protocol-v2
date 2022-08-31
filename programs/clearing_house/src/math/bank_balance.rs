@@ -301,6 +301,9 @@ pub fn validate_bank_balances(bank: &Bank) -> ClearingHouseResult<u64> {
         &BankBalanceType::Borrow,
     )?)?;
 
+    msg!("depositors_amount={}", depositors_amount);
+    msg!("borrowers_amount={}", borrowers_amount);
+
     validate!(
         depositors_amount >= borrowers_amount,
         ErrorCode::DefaultError,
