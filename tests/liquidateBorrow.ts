@@ -16,6 +16,7 @@ import {
 	MARK_PRICE_PRECISION,
 	getTokenAmount,
 	BankBalanceType,
+	isVariant,
 } from '../sdk/src';
 
 import {
@@ -28,7 +29,6 @@ import {
 	createWSolTokenAccountForUser,
 	initializeSolAssetBank,
 } from './testHelpers';
-import { isVariant, ONE } from '../sdk';
 
 describe('liquidate borrow', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {

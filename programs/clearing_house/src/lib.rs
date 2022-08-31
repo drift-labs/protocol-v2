@@ -670,15 +670,7 @@ pub mod clearing_house {
 
         // reload the bank vault balance so it's up-to-date
         ctx.accounts.bank_vault.reload()?;
-        let available_deposits = bank.get_available_deposits()?;
-
-        validate!(
-            available_deposits <= cast(ctx.accounts.bank_vault.amount)?,
-            ErrorCode::InvalidBankState,
-            "available deposits > bank_vault.amount: {} > {}",
-            available_deposits,
-            ctx.accounts.bank_vault.amount
-        )?;
+        math::bank_balance::validate_bank_balances(&bank)?;
 
         Ok(())
     }

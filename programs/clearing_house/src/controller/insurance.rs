@@ -122,7 +122,6 @@ pub fn apply_rebase_to_insurance_fund(
         msg!("rebasing insurance fund: expo_diff={}", expo_diff);
     }
 
-    // todo: write test for this
     if insurance_fund_vault_balance != 0 && bank.total_if_shares == 0 {
         bank.total_if_shares = cast_to_u128(insurance_fund_vault_balance)?;
     }
@@ -543,6 +542,91 @@ mod test {
         assert_eq!(if_stake.last_withdraw_request_shares, 0);
         assert_eq!(if_stake.last_withdraw_request_value, 0);
         assert_eq!(if_balance, 1);
+
+        add_insurance_fund_stake(
+            1234,
+            if_balance,
+            &mut if_stake,
+            &mut user_stats,
+            &mut bank,
+            0,
+        )
+        .unwrap();
+        assert_eq!(if_stake.cost_basis, 1234);
+    }
+
+    #[test]
+    pub fn basic_seeded_stake_if_test() {
+        let mut if_balance = (1000 * QUOTE_PRECISION) as u64;
+        let mut if_stake = InsuranceFundStake {
+            if_shares: 0,
+            ..InsuranceFundStake::default()
+        };
+        let mut user_stats = UserStats {
+            number_of_users: 0,
+            ..UserStats::default()
+        };
+        let amount = QUOTE_PRECISION as u64; // $1
+        let mut bank = Bank {
+            deposit_balance: 0,
+            cumulative_deposit_interest: 1111 * BANK_CUMULATIVE_INTEREST_PRECISION / 1000,
+            insurance_withdraw_escrow_period: 0,
+            ..Bank::default()
+        };
+
+        assert_eq!(bank.total_if_shares, 0);
+        assert_eq!(bank.user_if_shares, 0);
+
+
+        add_insurance_fund_stake(
+            amount,
+            if_balance,
+            &mut if_stake,
+            &mut user_stats,
+            &mut bank,
+            0,
+        )
+        .unwrap();
+
+        assert_eq!(bank.total_if_shares, (1001 * QUOTE_PRECISION)); // seeded works
+        assert_eq!(bank.user_if_shares, (1 * QUOTE_PRECISION));
+        assert_eq!(if_stake.if_shares, amount as u128);
+        if_balance = if_balance + amount;
+
+        // must request first
+        assert!(remove_insurance_fund_stake(
+            if_balance,
+            &mut if_stake,
+            &mut user_stats,
+            &mut bank,
+            0
+        )
+        .is_err());
+        assert_eq!(if_stake.if_shares, amount as u128);
+
+        request_remove_insurance_fund_stake(
+            if_stake.if_shares,
+            if_balance,
+            &mut if_stake,
+            &mut user_stats,
+            &mut bank,
+            0,
+        )
+        .unwrap();
+        assert_eq!(if_stake.last_withdraw_request_shares, if_stake.if_shares);
+        assert_eq!(if_stake.last_withdraw_request_value, 999999); //rounding in favor
+
+        let amount_returned =
+            (remove_insurance_fund_stake(if_balance, &mut if_stake, &mut user_stats, &mut bank, 0))
+                .unwrap();
+        assert_eq!(amount_returned, amount - 1);
+        if_balance = if_balance - amount_returned;
+
+        assert_eq!(if_stake.if_shares, 0);
+        assert_eq!(if_stake.cost_basis, 1);
+        assert_eq!(if_stake.last_withdraw_request_shares, 0);
+        assert_eq!(if_stake.last_withdraw_request_value, 0);
+        assert_eq!(if_balance, 1000000001);
 
         add_insurance_fund_stake(
             1234,
@@ -1212,7 +1296,6 @@ mod test {
 
         // rebase occurs in request
         assert_eq!(if_stake.last_withdraw_request_shares, unstake_amt / 1000);
-        //todo: kinda unintuitive
         // (that rebase occurs when you pass in shares you wanna unstake) :/
         assert_eq!(if_stake.if_shares, 40000000);
         assert_eq!(if_stake.last_withdraw_request_value, 328244);

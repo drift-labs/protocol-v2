@@ -330,8 +330,6 @@ pub fn update_pool_balances(
     user_unsettled_pnl: i128,
     now: i64,
 ) -> ClearingHouseResult<i128> {
-    let _depositors_claim = validate_bank_balances(bank)?;
-
     // current bank balance of amm fee pool
     let amm_fee_pool_token_amount = cast_to_i128(get_token_amount(
         market.amm.fee_pool.balance(),
@@ -503,6 +501,8 @@ pub fn update_pool_balances(
                 .checked_add(revenue_pool_transfer.unsigned_abs())
                 .ok_or_else(math_error!())?;
         }
+
+        let _depositors_claim = validate_bank_balances(bank)?;
     }
 
     // market pnl pool pays (what it can to) user_unsettled_pnl and pnl_to_settle_to_amm
