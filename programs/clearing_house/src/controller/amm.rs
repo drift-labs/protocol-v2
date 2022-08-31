@@ -1,23 +1,25 @@
 use crate::controller::position::PositionDirection;
-use crate::error::ClearingHouseResult;
+use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::get_then_update_id;
 use crate::math::amm::{
     calculate_quote_asset_amount_swapped, calculate_spread_reserves, get_spread_reserves,
     get_update_k_result,
 };
-use crate::math::bank_balance::get_token_amount;
+use crate::math::bank_balance::{get_token_amount, validate_bank_balances};
 use crate::math::casting::{cast_to_i128, cast_to_i64, cast_to_u128};
 use crate::math::constants::PRICE_TO_PEG_PRECISION_RATIO;
+use crate::math::repeg::get_total_fee_lower_bound;
 use crate::math::{amm, bn, quote_asset::*};
 use crate::math_error;
 use crate::state::events::CurveRecord;
 use crate::state::market::{Market, AMM};
 use crate::state::oracle::OraclePriceData;
+use crate::validate;
 use anchor_lang::prelude::*;
 use solana_program::msg;
 use std::cmp::{max, min};
 
-use crate::controller::bank_balance::update_bank_balances;
+use crate::controller::bank_balance::{update_bank_balances, update_revenue_pool_balances};
 use crate::controller::repeg::apply_cost_to_market;
 use crate::state::bank::{Bank, BankBalance, BankBalanceType};
 
@@ -326,6 +328,7 @@ pub fn update_pool_balances(
     market: &mut Market,
     bank: &mut Bank,
     user_unsettled_pnl: i128,
+    now: i64,
 ) -> ClearingHouseResult<i128> {
     // current bank balance of amm fee pool
     let amm_fee_pool_token_amount = cast_to_i128(get_token_amount(
@@ -336,9 +339,15 @@ pub fn update_pool_balances(
 
     let mut fraction_for_amm = 100;
 
-    if market.amm.total_fee_minus_distributions <= amm_fee_pool_token_amount {
+    let amm_target_max_fee_pool_token_amount = market
+        .amm
+        .total_fee_minus_distributions
+        .checked_sub(cast_to_i128(market.amm.total_fee_withdrawn)?)
+        .ok_or_else(math_error!())?;
+
+    if amm_target_max_fee_pool_token_amount <= amm_fee_pool_token_amount {
         // owe the market pnl pool before settling user
-        let pnl_pool_addition = max(0, market.amm.total_fee_minus_distributions)
+        let pnl_pool_addition = max(0, amm_target_max_fee_pool_token_amount)
             .checked_sub(amm_fee_pool_token_amount)
             .ok_or_else(math_error!())?;
 
@@ -359,6 +368,141 @@ pub fn update_pool_balances(
         }
 
         fraction_for_amm = 0;
+    }
+
+    {
+        let amm_target_min_fee_pool_token_amount = get_total_fee_lower_bound(market)?
+            .checked_sub(market.amm.total_fee_withdrawn)
+            .ok_or_else(math_error!())?;
+
+        let amm_fee_pool_token_amount = get_token_amount(
+            market.amm.fee_pool.balance(),
+            bank,
+            market.amm.fee_pool.balance_type(),
+        )?;
+
+        if amm_fee_pool_token_amount < amm_target_min_fee_pool_token_amount {
+            let pnl_pool_token_amount = get_token_amount(
+                market.pnl_pool.balance(),
+                bank,
+                market.pnl_pool.balance_type(),
+            )?;
+
+            let pnl_pool_removal = amm_target_min_fee_pool_token_amount
+                .checked_sub(amm_fee_pool_token_amount)
+                .ok_or_else(math_error!())?
+                .min(pnl_pool_token_amount);
+
+            if pnl_pool_removal > 0 {
+                update_bank_balances(
+                    pnl_pool_removal,
+                    &BankBalanceType::Borrow,
+                    bank,
+                    &mut market.pnl_pool,
+                )?;
+
+                update_bank_balances(
+                    pnl_pool_removal,
+                    &BankBalanceType::Deposit,
+                    bank,
+                    &mut market.amm.fee_pool,
+                )?;
+            }
+        }
+
+        let amm_fee_pool_token_amount_after = get_token_amount(
+            market.amm.fee_pool.balance(),
+            bank,
+            market.amm.fee_pool.balance_type(),
+        )?;
+
+        if market.amm.total_fee_minus_distributions < 0 {
+            // market can perform withdraw from revenue pool
+            if bank.last_revenue_settle_ts > market.last_revenue_withdraw_ts {
+                validate!(now >= market.last_revenue_withdraw_ts && now >= bank.last_revenue_settle_ts,
+                    ErrorCode::DefaultError,
+                    "issue with clock unix timestamp {} < market.last_revenue_withdraw_ts={}/bank.last_revenue_settle_ts={}",
+                    now,
+                    market.last_revenue_withdraw_ts,
+                    bank.last_revenue_settle_ts,
+                )?;
+                market.revenue_withdraw_since_last_settle = 0;
+            }
+
+            let max_revenue_withdraw_allowed = market
+                .max_revenue_withdraw_per_period
+                .checked_sub(market.revenue_withdraw_since_last_settle)
+                .ok_or_else(math_error!())?;
+
+            if max_revenue_withdraw_allowed > 0 {
+                let bank_revenue_pool_amount = get_token_amount(
+                    bank.revenue_pool.balance,
+                    bank,
+                    &BankBalanceType::Deposit,
+                    // bank.revenue_pool.balance_type(),
+                )?;
+
+                let revenue_pool_transfer = market
+                    .amm
+                    .total_fee_minus_distributions
+                    .unsigned_abs()
+                    .min(bank_revenue_pool_amount)
+                    .min(max_revenue_withdraw_allowed);
+
+                update_revenue_pool_balances(
+                    revenue_pool_transfer,
+                    &BankBalanceType::Borrow,
+                    bank,
+                )?;
+
+                update_bank_balances(
+                    revenue_pool_transfer,
+                    &BankBalanceType::Deposit,
+                    bank,
+                    &mut market.amm.fee_pool,
+                )?;
+
+                market.amm.total_fee_minus_distributions = market
+                    .amm
+                    .total_fee_minus_distributions
+                    .checked_add(cast_to_i128(revenue_pool_transfer)?)
+                    .ok_or_else(math_error!())?;
+
+                market.revenue_withdraw_since_last_settle = market
+                    .revenue_withdraw_since_last_settle
+                    .checked_add(revenue_pool_transfer)
+                    .ok_or_else(math_error!())?;
+
+                market.last_revenue_withdraw_ts = now;
+            }
+        } else {
+            let revenue_pool_transfer = cast_to_i128(get_total_fee_lower_bound(market)?)?
+                .checked_sub(cast_to_i128(market.amm.total_fee_withdrawn)?)
+                .ok_or_else(math_error!())?
+                .max(0)
+                .min(cast_to_i128(amm_fee_pool_token_amount_after)?);
+
+            update_bank_balances(
+                revenue_pool_transfer.unsigned_abs(),
+                &BankBalanceType::Borrow,
+                bank,
+                &mut market.amm.fee_pool,
+            )?;
+
+            update_revenue_pool_balances(
+                revenue_pool_transfer.unsigned_abs(),
+                &BankBalanceType::Deposit,
+                bank,
+            )?;
+
+            market.amm.total_fee_withdrawn = market
+                .amm
+                .total_fee_withdrawn
+                .checked_add(revenue_pool_transfer.unsigned_abs())
+                .ok_or_else(math_error!())?;
+        }
+
+        let _depositors_claim = validate_bank_balances(bank)?;
     }
 
     // market pnl pool pays (what it can to) user_unsettled_pnl and pnl_to_settle_to_amm
@@ -458,10 +602,12 @@ pub fn move_to_price(amm: &mut AMM, target_price: u128) -> ClearingHouseResult {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::controller::insurance::settle_revenue_to_insurance_fund;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, BANK_CUMULATIVE_INTEREST_PRECISION, MARK_PRICE_PRECISION,
-        QUOTE_PRECISION,
+        AMM_RESERVE_PRECISION, BANK_CUMULATIVE_INTEREST_PRECISION, BANK_INTEREST_PRECISION,
+        MARK_PRICE_PRECISION, QUOTE_PRECISION,
     };
+    use crate::state::market::PoolBalance;
     #[test]
     fn formualic_k_tests() {
         let mut market = Market {
@@ -562,16 +708,17 @@ mod test {
             },
             ..Market::default()
         };
+        let now = 33928058;
 
         let mut bank = Bank {
             cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
             ..Bank::default()
         };
-        let to_settle_with_user = update_pool_balances(&mut market, &mut bank, 100).unwrap();
+        let to_settle_with_user = update_pool_balances(&mut market, &mut bank, 100, now).unwrap();
         assert_eq!(to_settle_with_user, 0);
 
-        let to_settle_with_user = update_pool_balances(&mut market, &mut bank, -100).unwrap();
+        let to_settle_with_user = update_pool_balances(&mut market, &mut bank, -100, now).unwrap();
         assert_eq!(to_settle_with_user, -100);
         assert!(market.amm.fee_pool.balance() > 0);
 
@@ -590,7 +737,7 @@ mod test {
         assert_eq!(pnl_pool_token_amount, 99);
         assert_eq!(amm_fee_pool_token_amount, 1);
 
-        let to_settle_with_user = update_pool_balances(&mut market, &mut bank, 100).unwrap();
+        let to_settle_with_user = update_pool_balances(&mut market, &mut bank, 100, now).unwrap();
         assert_eq!(to_settle_with_user, 99);
         let amm_fee_pool_token_amount = get_token_amount(
             market.amm.fee_pool.balance(),
@@ -608,7 +755,7 @@ mod test {
         assert_eq!(amm_fee_pool_token_amount, 1);
 
         market.amm.total_fee_minus_distributions = 0;
-        update_pool_balances(&mut market, &mut bank, -1).unwrap();
+        update_pool_balances(&mut market, &mut bank, -1, now).unwrap();
         let amm_fee_pool_token_amount = get_token_amount(
             market.amm.fee_pool.balance(),
             &bank,
@@ -625,7 +772,13 @@ mod test {
         assert_eq!(amm_fee_pool_token_amount, 0);
 
         market.amm.total_fee_minus_distributions = 90_000 * QUOTE_PRECISION as i128;
-        update_pool_balances(&mut market, &mut bank, -(100_000 * QUOTE_PRECISION as i128)).unwrap();
+        update_pool_balances(
+            &mut market,
+            &mut bank,
+            -(100_000 * QUOTE_PRECISION as i128),
+            now,
+        )
+        .unwrap();
         let amm_fee_pool_token_amount = get_token_amount(
             market.amm.fee_pool.balance(),
             &bank,
@@ -644,7 +797,7 @@ mod test {
         // negative fee pool
         market.amm.total_fee_minus_distributions = -8_008_123_456;
 
-        update_pool_balances(&mut market, &mut bank, 1_000_987_789).unwrap();
+        update_pool_balances(&mut market, &mut bank, 1_000_987_789, now).unwrap();
         let amm_fee_pool_token_amount = get_token_amount(
             market.amm.fee_pool.balance(),
             &bank,
@@ -659,5 +812,286 @@ mod test {
         .unwrap();
         assert_eq!(pnl_pool_token_amount, 99_000_000_000 + 2 - 987_789);
         assert_eq!(amm_fee_pool_token_amount, 0);
+    }
+
+    #[test]
+    fn update_pool_balances_fee_to_revenue_test() {
+        let mut market = Market {
+            amm: AMM {
+                base_asset_reserve: 5122950819670000,
+                quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
+                sqrt_k: 500 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 50000,
+                net_base_asset_amount: -122950819670000,
+
+                total_exchange_fee: 10 * QUOTE_PRECISION,
+                total_fee: 10 * QUOTE_PRECISION as i128,
+                total_mm_fee: 990 * QUOTE_PRECISION as i128,
+                total_fee_minus_distributions: 1000 * QUOTE_PRECISION as i128,
+
+                curve_update_intensity: 100,
+
+                fee_pool: PoolBalance {
+                    balance: 50 * QUOTE_PRECISION * BANK_INTEREST_PRECISION,
+                },
+                ..AMM::default()
+            },
+            pnl_pool: PoolBalance {
+                balance: 50 * QUOTE_PRECISION * BANK_INTEREST_PRECISION,
+            },
+            ..Market::default()
+        };
+        let now = 33928058;
+
+        let mut bank = Bank {
+            deposit_balance: 100 * QUOTE_PRECISION * BANK_INTEREST_PRECISION,
+            cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_borrow_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            revenue_pool: PoolBalance { balance: 0 },
+            ..Bank::default()
+        };
+
+        let prev_fee_pool = market.amm.fee_pool.balance;
+        let prev_pnl_pool = market.amm.fee_pool.balance;
+        let prev_rev_pool = bank.revenue_pool.balance;
+
+        assert_eq!(market.amm.total_fee_withdrawn, 0);
+
+        assert_eq!(
+            get_token_amount(
+                market.amm.fee_pool.balance(),
+                &bank,
+                &BankBalanceType::Deposit
+            )
+            .unwrap(),
+            50 * QUOTE_PRECISION
+        );
+
+        assert_eq!(
+            get_token_amount(bank.deposit_balance, &bank, &BankBalanceType::Deposit).unwrap(),
+            100 * QUOTE_PRECISION
+        );
+
+        let to_settle_with_user = update_pool_balances(&mut market, &mut bank, 0, now).unwrap();
+
+        assert_eq!(market.amm.fee_pool.balance, 45000000000000);
+        assert_eq!(market.pnl_pool.balance, 50000000000000);
+        assert_eq!(bank.revenue_pool.balance, 5000000000000);
+        assert_eq!(market.amm.total_fee_withdrawn, 5000000);
+
+        assert_eq!(market.amm.fee_pool.balance < prev_fee_pool, true);
+        assert_eq!(market.pnl_pool.balance == prev_pnl_pool, true);
+        assert_eq!(bank.revenue_pool.balance > prev_rev_pool, true);
+    }
+
+    #[test]
+    fn update_pool_balances_revenue_to_fee_test() {
+        let mut market = Market {
+            amm: AMM {
+                base_asset_reserve: 5122950819670000,
+                quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
+                sqrt_k: 500 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 50000,
+                net_base_asset_amount: -122950819670000,
+
+                total_exchange_fee: 10 * QUOTE_PRECISION,
+                total_fee: 10 * QUOTE_PRECISION as i128,
+                total_mm_fee: 990 * QUOTE_PRECISION as i128,
+                total_fee_minus_distributions: -(10000 * QUOTE_PRECISION as i128),
+
+                curve_update_intensity: 100,
+
+                fee_pool: PoolBalance {
+                    balance: 50 * BANK_INTEREST_PRECISION,
+                },
+                ..AMM::default()
+            },
+            pnl_pool: PoolBalance {
+                balance: 50 * BANK_INTEREST_PRECISION,
+            },
+            ..Market::default()
+        };
+        let now = 33928058;
+
+        let mut bank = Bank {
+            deposit_balance: 200 * BANK_INTEREST_PRECISION,
+            cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_borrow_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            revenue_pool: PoolBalance {
+                balance: 100 * BANK_INTEREST_PRECISION,
+            },
+            decimals: 6,
+            ..Bank::default()
+        };
+
+        let prev_fee_pool = market.amm.fee_pool.balance;
+        let prev_pnl_pool = market.amm.fee_pool.balance;
+        let prev_rev_pool = bank.revenue_pool.balance;
+        let prev_tfmd = market.amm.total_fee_minus_distributions;
+
+        assert_eq!(market.amm.total_fee_withdrawn, 0);
+
+        assert_eq!(
+            get_token_amount(
+                market.amm.fee_pool.balance(),
+                &bank,
+                &BankBalanceType::Deposit
+            )
+            .unwrap(),
+            50 * QUOTE_PRECISION
+        );
+
+        assert_eq!(
+            get_token_amount(bank.deposit_balance, &bank, &BankBalanceType::Deposit).unwrap(),
+            200 * QUOTE_PRECISION
+        );
+        assert_eq!(bank.revenue_pool.balance, 100000000);
+
+        let to_settle_with_user = update_pool_balances(&mut market, &mut bank, 0, now).unwrap();
+
+        assert_eq!(market.amm.fee_pool.balance, 5000000);
+        assert_eq!(market.pnl_pool.balance, 95000000);
+        assert_eq!(bank.revenue_pool.balance, 100000000);
+        assert_eq!(market.amm.total_fee_withdrawn, 0);
+        assert_eq!(market.amm.total_fee_minus_distributions, prev_tfmd);
+
+        assert_eq!(market.amm.fee_pool.balance < prev_fee_pool, true);
+        assert_eq!(market.pnl_pool.balance > prev_pnl_pool, true);
+        assert_eq!(bank.revenue_pool.balance == prev_rev_pool, true);
+        assert_eq!(market.revenue_withdraw_since_last_settle, 0);
+        assert_eq!(market.last_revenue_withdraw_ts, 0);
+
+        market.max_revenue_withdraw_per_period = 100000000 * 2;
+        assert_eq!(bank.deposit_balance, 200000000);
+        assert_eq!(bank.revenue_pool.balance, 100000000);
+
+        let to_settle_with_user = update_pool_balances(&mut market, &mut bank, 0, now).unwrap();
+
+        assert_eq!(market.amm.fee_pool.balance, 105000000);
+        assert_eq!(market.pnl_pool.balance, 95000000);
+        assert_eq!(bank.revenue_pool.balance, 0);
+        assert_eq!(market.amm.total_fee_withdrawn, 0);
+        assert_eq!(market.amm.total_fee_minus_distributions, -9900000000);
+        assert_eq!(market.revenue_withdraw_since_last_settle, 100000000);
+        assert_eq!(market.last_revenue_withdraw_ts, 33928058);
+
+        let bank_vault_amount =
+            get_token_amount(bank.deposit_balance, &bank, &BankBalanceType::Deposit).unwrap()
+                as u64;
+        assert_eq!(bank_vault_amount, 200000000); // total bank deposit balance unchanged during transfers
+
+        // calling multiple times doesnt effect other than fee pool -> pnl pool
+        let to_settle_with_user = update_pool_balances(&mut market, &mut bank, 0, now).unwrap();
+        assert_eq!(market.amm.fee_pool.balance, 5000000);
+        assert_eq!(market.pnl_pool.balance, 195000000);
+        assert_eq!(market.amm.total_fee_minus_distributions, -9900000000);
+        assert_eq!(market.amm.total_fee_withdrawn, 0);
+        assert_eq!(bank.revenue_pool.balance, 0);
+
+        let to_settle_with_user = update_pool_balances(&mut market, &mut bank, 0, now).unwrap();
+        assert_eq!(market.amm.fee_pool.balance, 5000000);
+        assert_eq!(market.pnl_pool.balance, 195000000);
+        assert_eq!(market.amm.total_fee_minus_distributions, -9900000000);
+        assert_eq!(market.amm.total_fee_withdrawn, 0);
+        assert_eq!(bank.revenue_pool.balance, 0);
+
+        // add deposits and revenue to pool
+        assert_eq!(bank.deposit_balance, 200000000);
+        bank.revenue_pool.balance = 9900000001;
+        assert!(update_pool_balances(&mut market, &mut bank, 0, now).is_err()); // assert is_err if any way has revenue pool above deposit balances
+        bank.deposit_balance = bank.deposit_balance + 9900000001;
+        let bank_vault_amount =
+            get_token_amount(bank.deposit_balance, &bank, &BankBalanceType::Deposit).unwrap()
+                as u64;
+        assert_eq!(bank.deposit_balance, 10100000001);
+        assert_eq!(bank_vault_amount, 10100000001);
+
+        let to_settle_with_user = update_pool_balances(&mut market, &mut bank, 0, now).unwrap();
+        assert_eq!(market.amm.fee_pool.balance, 105000000);
+        assert_eq!(market.pnl_pool.balance, 195000000);
+        assert_eq!(market.amm.total_fee_minus_distributions, -9800000000);
+        assert_eq!(market.amm.total_fee_withdrawn, 0);
+        assert_eq!(bank.deposit_balance, 9800000001 + 300000000);
+        assert_eq!(bank.revenue_pool.balance, 9800000001);
+        assert_eq!(
+            market.revenue_withdraw_since_last_settle,
+            market.max_revenue_withdraw_per_period
+        );
+        assert_eq!(market.last_revenue_withdraw_ts, 33928058);
+
+        // calling again only does fee -> pnl pool
+        let to_settle_with_user = update_pool_balances(&mut market, &mut bank, 0, now).unwrap();
+        assert_eq!(market.amm.fee_pool.balance, 5000000);
+        assert_eq!(market.pnl_pool.balance, 295000000);
+        assert_eq!(market.amm.total_fee_minus_distributions, -9800000000);
+        assert_eq!(market.amm.total_fee_withdrawn, 0);
+        assert_eq!(bank.revenue_pool.balance, 9800000001);
+        assert_eq!(
+            market.revenue_withdraw_since_last_settle,
+            market.max_revenue_withdraw_per_period
+        );
+        assert_eq!(market.last_revenue_withdraw_ts, 33928058);
+
+        // calling again does nothing
+        let to_settle_with_user = update_pool_balances(&mut market, &mut bank, 0, now).unwrap();
+        assert_eq!(market.amm.fee_pool.balance, 5000000);
+        assert_eq!(market.pnl_pool.balance, 295000000);
+        assert_eq!(market.amm.total_fee_minus_distributions, -9800000000);
+        assert_eq!(market.amm.total_fee_withdrawn, 0);
+        assert_eq!(bank.revenue_pool.balance, 9800000001);
+        assert_eq!(
+            market.revenue_withdraw_since_last_settle,
+            market.max_revenue_withdraw_per_period
+        );
+        assert_eq!(market.last_revenue_withdraw_ts, 33928058);
+
+        // do a revenue settlement to allow up to max again
+        assert_eq!(bank.last_revenue_settle_ts, 0);
+        assert_eq!(bank.deposit_balance, 9800000001 + 300000000);
+
+        bank.total_if_factor = 1;
+        let res =
+            settle_revenue_to_insurance_fund(bank_vault_amount, 0, &mut bank, now + 3600).unwrap();
+        assert_eq!(res, 9800000001);
+
+        let bank_vault_amount =
+            get_token_amount(bank.deposit_balance, &bank, &BankBalanceType::Deposit).unwrap()
+                as u64;
+
+        assert_eq!(bank.deposit_balance, 300000000); // 100000000 was added to market fee/pnl pool
+        assert_eq!(bank.borrow_balance, 0);
+        assert_eq!(bank_vault_amount, 300000000);
+
+        assert_eq!(bank.revenue_pool.balance, 0);
+        assert_eq!(bank.last_revenue_settle_ts, now + 3600);
+
+        // add deposits and revenue to pool
+        bank.revenue_pool.balance = 9800000001;
+        assert!(update_pool_balances(&mut market, &mut bank, 0, now + 3600).is_err()); // assert is_err if any way has revenue pool above deposit balances
+        bank.deposit_balance = bank.deposit_balance + 9800000001;
+
+        assert_eq!(market.amm.fee_pool.balance, 5000000);
+        assert_eq!(market.pnl_pool.balance, 295000000);
+        assert_eq!(market.amm.total_fee_minus_distributions, -9800000000);
+        assert_eq!(market.amm.total_fee_withdrawn, 0);
+        assert_eq!(bank.revenue_pool.balance, 9800000001);
+        assert_eq!(market.last_revenue_withdraw_ts, 33928058);
+        assert_eq!(bank.last_revenue_settle_ts, 33928058 + 3600);
+
+        let to_settle_with_user = update_pool_balances(&mut market, &mut bank, 0, now).is_err(); // now is wrong
+        let to_settle_with_user =
+            update_pool_balances(&mut market, &mut bank, 0, now + 3600).unwrap();
+
+        assert_eq!(market.last_revenue_withdraw_ts, 33931658);
+        assert_eq!(bank.last_revenue_settle_ts, 33931658);
+        assert_eq!(market.amm.fee_pool.balance, 205000000);
+        assert_eq!(market.pnl_pool.balance, 295000000);
+        assert_eq!(market.amm.total_fee_minus_distributions, -9600000000);
+        assert_eq!(market.amm.total_fee_withdrawn, 0);
+        assert_eq!(bank.revenue_pool.balance, 9600000001);
+        assert_eq!(
+            market.revenue_withdraw_since_last_settle,
+            market.max_revenue_withdraw_per_period
+        );
     }
 }

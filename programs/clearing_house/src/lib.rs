@@ -43,7 +43,7 @@ pub mod clearing_house {
     use crate::margin_validation::validate_margin;
     use crate::math;
     use crate::math::bank_balance::get_token_amount;
-    use crate::math::casting::{cast, cast_to_i128, cast_to_u128};
+    use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u32};
     use crate::optional_accounts::{get_maker_and_maker_stats, get_referrer_and_referrer_stats};
     use crate::state::bank::{Bank, BankBalanceType};
     use crate::state::bank_map::{get_writable_banks, BankMap, WritableBanks};
@@ -59,6 +59,7 @@ pub mod clearing_house {
     use crate::state::state::OrderFillerRewardStructure;
 
     use super::*;
+    use crate::state::insurance_fund_stake::InsuranceFundStake;
 
     pub fn initialize(ctx: Context<Initialize>, admin_controls_prices: bool) -> Result<()> {
         let insurance_account_key = ctx.accounts.insurance_vault.to_account_info().key;
@@ -67,7 +68,7 @@ pub mod clearing_house {
 
         // clearing house must be authority of insurance vault
         if ctx.accounts.insurance_vault.owner != insurance_account_authority {
-            return Err(ErrorCode::InvalidInsuranceAccountAuthority.into());
+            return Err(ErrorCode::InvalidInsuranceFundAuthority.into());
         }
 
         **ctx.accounts.state = State {
@@ -133,6 +134,20 @@ pub mod clearing_house {
         // clearing house must be authority of collateral vault
         if ctx.accounts.bank_vault.owner != vault_authority {
             return Err(ErrorCode::InvalidBankAuthority.into());
+        }
+
+        let (insurance_fund_vault_authority, insurance_fund_vault_authority_nonce) =
+            Pubkey::find_program_address(
+                &[
+                    b"insurance_fund_vault_authority".as_ref(),
+                    state.number_of_banks.to_le_bytes().as_ref(),
+                ],
+                ctx.program_id,
+            );
+
+        // clearing house must be authority of collateral vault
+        if ctx.accounts.insurance_fund_vault.owner != insurance_fund_vault_authority {
+            return Err(ErrorCode::InvalidInsuranceFundAuthority.into());
         }
 
         validate!(
@@ -250,6 +265,18 @@ pub mod clearing_house {
             vault: *ctx.accounts.bank_vault.to_account_info().key,
             vault_authority,
             vault_authority_nonce,
+            insurance_fund_vault: *ctx.accounts.insurance_fund_vault.to_account_info().key,
+            insurance_fund_vault_authority,
+            insurance_fund_vault_authority_nonce,
+            revenue_pool: PoolBalance { balance: 0 },
+            total_if_factor: 0,
+            user_if_factor: 0,
+            total_if_shares: 0,
+            user_if_shares: 0,
+            if_shares_base: 0,
+            insurance_withdraw_escrow_period: 0,
+            last_revenue_settle_ts: 0,
+            revenue_settle_period: 0, // how often can be settled
             decimals: ctx.accounts.bank_mint.decimals,
             optimal_utilization,
             optimal_borrow_rate,
@@ -269,6 +296,7 @@ pub mod clearing_house {
             maintenance_liability_weight,
             imf_factor,
             liquidation_fee,
+            liquidation_if_factor: 0,
             withdraw_guard_threshold: 0,
         };
 
@@ -360,6 +388,9 @@ pub mod clearing_house {
             next_funding_rate_record_id: 1,
             next_curve_record_id: 1,
             pnl_pool: PoolBalance { balance: 0 },
+            revenue_withdraw_since_last_settle: 0,
+            max_revenue_withdraw_per_period: 0,
+            last_revenue_withdraw_ts: now,
             unrealized_initial_asset_weight: 100,     // 100%
             unrealized_maintenance_asset_weight: 100, // 100%
             unrealized_imf_factor: 0,
@@ -639,15 +670,7 @@ pub mod clearing_house {
 
         // reload the bank vault balance so it's up-to-date
         ctx.accounts.bank_vault.reload()?;
-        let available_deposits = bank.get_available_deposits()?;
-
-        validate!(
-            available_deposits <= cast(ctx.accounts.bank_vault.amount)?,
-            ErrorCode::InvalidBankState,
-            "available deposits > bank_vault.amount: {} > {}",
-            available_deposits,
-            ctx.accounts.bank_vault.amount
-        )?;
+        math::bank_balance::validate_bank_balances(&bank)?;
 
         Ok(())
     }
@@ -1599,6 +1622,7 @@ pub mod clearing_house {
     )]
     pub fn resolve_perp_bankruptcy(
         ctx: Context<ResolvePerpBankruptcy>,
+        bank_index: u64,
         market_index: u64,
     ) -> Result<()> {
         let clock = Clock::get()?;
@@ -1612,19 +1636,21 @@ pub mod clearing_house {
             ErrorCode::UserCantLiquidateThemself
         )?;
 
+        validate!(bank_index == 0, ErrorCode::InvalidBankAccount)?;
+
         let user = &mut load_mut!(ctx.accounts.user)?;
         let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
-        let bank_map = BankMap::load(&WritableBanks::new(), remaining_accounts_iter)?;
+        let bank_map = BankMap::load(&get_writable_banks(bank_index), remaining_accounts_iter)?;
         let market_map = MarketMap::load(
             &get_market_set(market_index),
             &MarketSet::new(),
             remaining_accounts_iter,
         )?;
 
-        controller::liquidation::resolve_perp_bankruptcy(
+        let pay_from_insurance = controller::liquidation::resolve_perp_bankruptcy(
             market_index,
             user,
             &user_key,
@@ -1634,7 +1660,35 @@ pub mod clearing_house {
             &bank_map,
             &mut oracle_map,
             now,
+            ctx.accounts.insurance_fund_vault.amount,
         )?;
+
+        if pay_from_insurance > 0 {
+            validate!(
+                pay_from_insurance < ctx.accounts.insurance_fund_vault.amount,
+                ErrorCode::InsufficientCollateral,
+                "Insurance Fund balance InsufficientCollateral for payment: !{} < {}",
+                pay_from_insurance,
+                ctx.accounts.insurance_fund_vault.amount
+            )?;
+
+            let bank = bank_map.get_quote_asset_bank_mut()?;
+            controller::token::send_from_staked_insurance_fund_vault(
+                &ctx.accounts.token_program,
+                &ctx.accounts.insurance_fund_vault,
+                &ctx.accounts.bank_vault,
+                &ctx.accounts.insurance_fund_vault_authority,
+                bank.bank_index,
+                bank.insurance_fund_vault_authority_nonce,
+                pay_from_insurance,
+            )?;
+
+            validate!(
+                ctx.accounts.insurance_fund_vault.amount > 0,
+                ErrorCode::DefaultError,
+                "insurance_fund_vault.amount must remain > 0"
+            )?;
+        }
 
         Ok(())
     }
@@ -1669,7 +1723,7 @@ pub mod clearing_house {
             remaining_accounts_iter,
         )?;
 
-        controller::liquidation::resolve_bank_bankruptcy(
+        let pay_from_insurance = controller::liquidation::resolve_bank_bankruptcy(
             bank_index,
             user,
             &user_key,
@@ -1679,7 +1733,27 @@ pub mod clearing_house {
             &bank_map,
             &mut oracle_map,
             now,
+            ctx.accounts.insurance_fund_vault.amount,
         )?;
+
+        if pay_from_insurance > 0 {
+            let bank = bank_map.get_quote_asset_bank_mut()?;
+            controller::token::send_from_staked_insurance_fund_vault(
+                &ctx.accounts.token_program,
+                &ctx.accounts.insurance_fund_vault,
+                &ctx.accounts.bank_vault,
+                &ctx.accounts.insurance_fund_vault_authority,
+                bank.bank_index,
+                bank.insurance_fund_vault_authority_nonce,
+                pay_from_insurance,
+            )?;
+
+            validate!(
+                ctx.accounts.insurance_fund_vault.amount > 0,
+                ErrorCode::DefaultError,
+                "insurance_fund_vault.amount must remain > 0"
+            )?;
+        }
 
         Ok(())
     }
@@ -2263,6 +2337,31 @@ pub mod clearing_house {
     #[access_control(
         market_initialized(&ctx.accounts.market)
     )]
+    pub fn update_market_max_revenue_withdraw_per_period(
+        ctx: Context<AdminUpdateMarket>,
+        max_revenue_withdraw_per_period: u128,
+    ) -> Result<()> {
+        let market = &mut load_mut!(ctx.accounts.market)?;
+
+        validate!(
+            max_revenue_withdraw_per_period < 10_000 * QUOTE_PRECISION,
+            ErrorCode::DefaultError,
+            "max_revenue_withdraw_per_period must be less than 10k"
+        )?;
+
+        msg!(
+            "market.max_revenue_withdraw_per_period: {:?} -> {:?}",
+            market.max_revenue_withdraw_per_period,
+            max_revenue_withdraw_per_period
+        );
+
+        market.max_revenue_withdraw_per_period = max_revenue_withdraw_per_period;
+        Ok(())
+    }
+
+    #[access_control(
+        market_initialized(&ctx.accounts.market)
+    )]
     pub fn update_perp_liquidation_fee(
         ctx: Context<AdminUpdateMarket>,
         liquidation_fee: u128,
@@ -2281,6 +2380,15 @@ pub mod clearing_house {
         )?;
 
         market.liquidation_fee = liquidation_fee;
+        Ok(())
+    }
+
+    pub fn update_bank_insurance_withdraw_escrow_period(
+        ctx: Context<AdminUpdateBank>,
+        insurance_withdraw_escrow_period: i64,
+    ) -> Result<()> {
+        let bank = &mut load_mut!(ctx.accounts.bank)?;
+        bank.insurance_withdraw_escrow_period = insurance_withdraw_escrow_period;
         Ok(())
     }
 
@@ -2310,6 +2418,77 @@ pub mod clearing_house {
             withdraw_guard_threshold
         );
         bank.withdraw_guard_threshold = withdraw_guard_threshold;
+        Ok(())
+    }
+
+    pub fn update_bank_if_factor(
+        ctx: Context<AdminUpdateBank>,
+        bank_index: u64,
+        user_if_factor: u32,
+        total_if_factor: u32,
+        liquidation_if_factor: u32,
+    ) -> Result<()> {
+        let bank = &mut load_mut!(ctx.accounts.bank)?;
+
+        validate!(
+            bank.bank_index == bank_index,
+            ErrorCode::DefaultError,
+            "bank_index dne bank.index"
+        )?;
+
+        validate!(
+            user_if_factor <= total_if_factor,
+            ErrorCode::DefaultError,
+            "user_if_factor must be <= total_if_factor"
+        )?;
+
+        validate!(
+            total_if_factor <= cast_to_u32(BANK_INTEREST_PRECISION)?,
+            ErrorCode::DefaultError,
+            "total_if_factor must be <= 100%"
+        )?;
+
+        validate!(
+            liquidation_if_factor <= cast_to_u32(LIQUIDATION_FEE_PRECISION / 20)?,
+            ErrorCode::DefaultError,
+            "liquidation_if_factor must be <= 5%"
+        )?;
+
+        msg!(
+            "bank.user_if_factor: {:?} -> {:?}",
+            bank.user_if_factor,
+            user_if_factor
+        );
+        msg!(
+            "bank.total_if_factor: {:?} -> {:?}",
+            bank.total_if_factor,
+            total_if_factor
+        );
+        msg!(
+            "bank.liquidation_if_factor: {:?} -> {:?}",
+            bank.liquidation_if_factor,
+            liquidation_if_factor
+        );
+
+        bank.user_if_factor = user_if_factor;
+        bank.total_if_factor = total_if_factor;
+        bank.liquidation_if_factor = liquidation_if_factor;
+
+        Ok(())
+    }
+
+    pub fn update_bank_revenue_settle_period(
+        ctx: Context<AdminUpdateBank>,
+        revenue_settle_period: i64,
+    ) -> Result<()> {
+        let bank = &mut load_mut!(ctx.accounts.bank)?;
+        validate!(revenue_settle_period > 0, ErrorCode::DefaultError)?;
+        msg!(
+            "bank.revenue_settle_period: {:?} -> {:?}",
+            bank.revenue_settle_period,
+            revenue_settle_period
+        );
+        bank.revenue_settle_period = revenue_settle_period;
         Ok(())
     }
 
@@ -2647,6 +2826,257 @@ pub mod clearing_house {
 
         ctx.accounts.state.min_auction_duration = min_auction_duration;
         ctx.accounts.state.max_auction_duration = max_auction_duration;
+        Ok(())
+    }
+
+    pub fn initialize_insurance_fund_stake(
+        ctx: Context<InitializeInsuranceFundStake>,
+        bank_index: u64,
+    ) -> Result<()> {
+        let mut if_stake = ctx
+            .accounts
+            .insurance_fund_stake
+            .load_init()
+            .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
+
+        let clock = Clock::get()?;
+        let now = clock.unix_timestamp;
+
+        *if_stake = InsuranceFundStake {
+            authority: *ctx.accounts.authority.key,
+            bank_index,
+            if_shares: 0,
+            last_withdraw_request_shares: 0,
+            last_withdraw_request_value: 0,
+            last_withdraw_request_ts: 0,
+            cost_basis: 0,
+            if_base: 0,
+            last_valid_ts: now,
+        };
+
+        Ok(())
+    }
+
+    pub fn settle_revenue_to_insurance_fund<'info>(
+        ctx: Context<SettleRevenueToInsuranceFund>,
+        bank_index: u64,
+    ) -> Result<()> {
+        let bank = &mut load_mut!(ctx.accounts.bank)?;
+
+        let bank_vault_amount = ctx.accounts.bank_vault.amount;
+        let insurance_vault_amount = ctx.accounts.insurance_fund_vault.amount;
+
+        let clock = Clock::get()?;
+        let now = clock.unix_timestamp;
+
+        let time_until_next_update = math::helpers::on_the_hour_update(
+            now,
+            bank.last_revenue_settle_ts,
+            bank.revenue_settle_period,
+        )?;
+        validate!(
+            time_until_next_update == 0,
+            ErrorCode::DefaultError,
+            "Must wait {} seconds until next available settlement time",
+            time_until_next_update
+        )?;
+
+        // uses proportion of revenue pool allocated to insurance fund
+        let token_amount = controller::insurance::settle_revenue_to_insurance_fund(
+            bank_vault_amount,
+            insurance_vault_amount,
+            bank,
+            now,
+        )?;
+
+        controller::token::send_from_bank_vault(
+            &ctx.accounts.token_program,
+            &ctx.accounts.bank_vault,
+            &ctx.accounts.insurance_fund_vault,
+            &ctx.accounts.bank_vault_authority,
+            bank_index,
+            bank.vault_authority_nonce,
+            token_amount as u64,
+        )?;
+
+        // todo: settle remaining revenue pool to a revenue vault
+
+        bank.last_revenue_settle_ts = now;
+
+        Ok(())
+    }
+
+    pub fn add_insurance_fund_stake<'info>(
+        ctx: Context<AddInsuranceFundStake>,
+        bank_index: u64,
+        amount: u64,
+    ) -> Result<()> {
+        if amount == 0 {
+            return Err(ErrorCode::InsufficientDeposit.into());
+        }
+
+        let clock = Clock::get()?;
+        let insurance_fund_stake = &mut load_mut!(ctx.accounts.insurance_fund_stake)?;
+        let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
+        let bank = &mut load_mut!(ctx.accounts.bank)?;
+
+        validate!(
+            insurance_fund_stake.bank_index == bank_index,
+            ErrorCode::DefaultError,
+            "insurance_fund_stake does not match bank_index"
+        )?;
+
+        validate!(
+            insurance_fund_stake.last_withdraw_request_shares == 0
+                && insurance_fund_stake.last_withdraw_request_value == 0,
+            ErrorCode::DefaultError,
+            "withdraw request in progress"
+        )?;
+
+        controller::insurance::add_insurance_fund_stake(
+            amount,
+            ctx.accounts.insurance_fund_vault.amount,
+            insurance_fund_stake,
+            user_stats,
+            bank,
+            clock.unix_timestamp,
+        )?;
+
+        controller::token::receive(
+            &ctx.accounts.token_program,
+            &ctx.accounts.user_token_account,
+            &ctx.accounts.insurance_fund_vault,
+            &ctx.accounts.authority,
+            amount,
+        )?;
+
+        Ok(())
+    }
+
+    pub fn request_remove_insurance_fund_stake<'info>(
+        ctx: Context<RequestRemoveInsuranceFundStake>,
+        bank_index: u64,
+        amount: u64,
+    ) -> Result<()> {
+        let clock = Clock::get()?;
+        let insurance_fund_stake = &mut load_mut!(ctx.accounts.insurance_fund_stake)?;
+        let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
+        let bank = &mut load_mut!(ctx.accounts.bank)?;
+
+        validate!(
+            insurance_fund_stake.bank_index == bank_index,
+            ErrorCode::DefaultError,
+            "insurance_fund_stake does not match bank_index"
+        )?;
+
+        validate!(
+            insurance_fund_stake.last_withdraw_request_shares == 0,
+            ErrorCode::DefaultError,
+            "Withdraw request is already in progress"
+        )?;
+
+        let n_shares = math::insurance::staked_amount_to_shares(
+            amount,
+            bank.total_if_shares,
+            ctx.accounts.insurance_fund_vault.amount,
+        )?;
+
+        validate!(
+            n_shares > 0,
+            ErrorCode::DefaultError,
+            "Requested lp_shares = 0"
+        )?;
+
+        validate!(
+            insurance_fund_stake.if_shares >= n_shares,
+            ErrorCode::InsufficientLPTokens
+        )?;
+
+        controller::insurance::request_remove_insurance_fund_stake(
+            n_shares,
+            ctx.accounts.insurance_fund_vault.amount,
+            insurance_fund_stake,
+            user_stats,
+            bank,
+            clock.unix_timestamp,
+        )?;
+
+        Ok(())
+    }
+
+    pub fn cancel_request_remove_insurance_fund_stake<'info>(
+        ctx: Context<RequestRemoveInsuranceFundStake>,
+        bank_index: u64,
+    ) -> Result<()> {
+        let clock = Clock::get()?;
+        let now = clock.unix_timestamp;
+        let insurance_fund_stake = &mut load_mut!(ctx.accounts.insurance_fund_stake)?;
+        let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
+        let bank = &mut load_mut!(ctx.accounts.bank)?;
+
+        validate!(
+            insurance_fund_stake.bank_index == bank_index,
+            ErrorCode::DefaultError,
+            "insurance_fund_stake does not match bank_index"
+        )?;
+
+        validate!(
+            insurance_fund_stake.last_withdraw_request_shares != 0,
+            ErrorCode::DefaultError,
+            "No withdraw request in progress"
+        )?;
+
+        controller::insurance::cancel_request_remove_insurance_fund_stake(
+            ctx.accounts.insurance_fund_vault.amount,
+            insurance_fund_stake,
+            user_stats,
+            bank,
+            now,
+        )?;
+
+        Ok(())
+    }
+
+    pub fn remove_insurance_fund_stake<'info>(
+        ctx: Context<RemoveInsuranceFundStake>,
+        bank_index: u64,
+    ) -> Result<()> {
+        let clock = Clock::get()?;
+        let now = clock.unix_timestamp;
+        let insurance_fund_stake = &mut load_mut!(ctx.accounts.insurance_fund_stake)?;
+        let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
+        let bank = &mut load_mut!(ctx.accounts.bank)?;
+
+        validate!(
+            insurance_fund_stake.bank_index == bank_index,
+            ErrorCode::DefaultError,
+            "insurance_fund_stake does not match bank_index"
+        )?;
+
+        let amount = controller::insurance::remove_insurance_fund_stake(
+            ctx.accounts.insurance_fund_vault.amount,
+            insurance_fund_stake,
+            user_stats,
+            bank,
+            now,
+        )?;
+
+        controller::token::send_from_staked_insurance_fund_vault(
+            &ctx.accounts.token_program,
+            &ctx.accounts.insurance_fund_vault,
+            &ctx.accounts.user_token_account,
+            &ctx.accounts.insurance_fund_vault_authority,
+            bank_index,
+            bank.insurance_fund_vault_authority_nonce,
+            amount,
+        )?;
+
+        validate!(
+            ctx.accounts.insurance_fund_vault.amount > 0,
+            ErrorCode::DefaultError,
+            "insurance_fund_vault.amount must remain > 0"
+        )?;
+
         Ok(())
     }
 }

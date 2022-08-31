@@ -77,6 +77,16 @@
           "isSigner": false
         },
         {
+          "name": "insuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundVaultAuthority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
           "name": "state",
           "isMut": true,
           "isSigner": false
@@ -952,9 +962,33 @@
           "name": "user",
           "isMut": true,
           "isSigner": false
+        },
+        {
+          "name": "bankVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundVaultAuthority",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
         }
       ],
       "args": [
+        {
+          "name": "bankIndex",
+          "type": "u64"
+        },
         {
           "name": "marketIndex",
           "type": "u64"
@@ -982,6 +1016,26 @@
         {
           "name": "user",
           "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "bankVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundVaultAuthority",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
           "isSigner": false
         }
       ],
@@ -1443,6 +1497,32 @@
       ]
     },
     {
+      "name": "updateMarketMaxRevenueWithdrawPerPeriod",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "maxRevenueWithdrawPerPeriod",
+          "type": "u128"
+        }
+      ]
+    },
+    {
       "name": "updatePerpLiquidationFee",
       "accounts": [
         {
@@ -1465,6 +1545,32 @@
         {
           "name": "liquidationFee",
           "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "updateBankInsuranceWithdrawEscrowPeriod",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "bank",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "insuranceWithdrawEscrowPeriod",
+          "type": "i64"
         }
       ]
     },
@@ -1517,6 +1623,70 @@
         {
           "name": "withdrawGuardThreshold",
           "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "updateBankIfFactor",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "bank",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "bankIndex",
+          "type": "u64"
+        },
+        {
+          "name": "userIfFactor",
+          "type": "u32"
+        },
+        {
+          "name": "totalIfFactor",
+          "type": "u32"
+        },
+        {
+          "name": "liquidationIfFactor",
+          "type": "u32"
+        }
+      ]
+    },
+    {
+      "name": "updateBankRevenueSettlePeriod",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "bank",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "revenueSettlePeriod",
+          "type": "i64"
         }
       ]
     },
@@ -2173,6 +2343,275 @@
           "type": "u8"
         }
       ]
+    },
+    {
+      "name": "initializeInsuranceFundStake",
+      "accounts": [
+        {
+          "name": "bank",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundStake",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "bankIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "settleRevenueToInsuranceFund",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "bank",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "bankVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "bankVaultAuthority",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "bankIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "addInsuranceFundStake",
+      "accounts": [
+        {
+          "name": "bank",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundStake",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "insuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "bankIndex",
+          "type": "u64"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "requestRemoveInsuranceFundStake",
+      "accounts": [
+        {
+          "name": "bank",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundStake",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "insuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "bankIndex",
+          "type": "u64"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "cancelRequestRemoveInsuranceFundStake",
+      "accounts": [
+        {
+          "name": "bank",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundStake",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "insuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "bankIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "removeInsuranceFundStake",
+      "accounts": [
+        {
+          "name": "bank",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundStake",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "insuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundVaultAuthority",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "bankIndex",
+          "type": "u64"
+        }
+      ]
     }
   ],
   "accounts": [
@@ -2214,6 +2653,56 @@
           {
             "name": "vaultAuthorityNonce",
             "type": "u8"
+          },
+          {
+            "name": "insuranceFundVault",
+            "type": "publicKey"
+          },
+          {
+            "name": "insuranceFundVaultAuthority",
+            "type": "publicKey"
+          },
+          {
+            "name": "insuranceFundVaultAuthorityNonce",
+            "type": "u8"
+          },
+          {
+            "name": "revenuePool",
+            "type": {
+              "defined": "PoolBalance"
+            }
+          },
+          {
+            "name": "totalIfFactor",
+            "type": "u32"
+          },
+          {
+            "name": "userIfFactor",
+            "type": "u32"
+          },
+          {
+            "name": "totalIfShares",
+            "type": "u128"
+          },
+          {
+            "name": "userIfShares",
+            "type": "u128"
+          },
+          {
+            "name": "ifSharesBase",
+            "type": "u128"
+          },
+          {
+            "name": "insuranceWithdrawEscrowPeriod",
+            "type": "i64"
+          },
+          {
+            "name": "lastRevenueSettleTs",
+            "type": "i64"
+          },
+          {
+            "name": "revenueSettlePeriod",
+            "type": "i64"
           },
           {
             "name": "decimals",
@@ -2292,8 +2781,56 @@
             "type": "u128"
           },
           {
+            "name": "liquidationIfFactor",
+            "type": "u32"
+          },
+          {
             "name": "withdrawGuardThreshold",
             "type": "u128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "InsuranceFundStake",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "publicKey"
+          },
+          {
+            "name": "bankIndex",
+            "type": "u64"
+          },
+          {
+            "name": "ifShares",
+            "type": "u128"
+          },
+          {
+            "name": "ifBase",
+            "type": "u128"
+          },
+          {
+            "name": "lastValidTs",
+            "type": "i64"
+          },
+          {
+            "name": "lastWithdrawRequestShares",
+            "type": "u128"
+          },
+          {
+            "name": "lastWithdrawRequestValue",
+            "type": "u64"
+          },
+          {
+            "name": "lastWithdrawRequestTs",
+            "type": "i64"
+          },
+          {
+            "name": "costBasis",
+            "type": "i64"
           }
         ]
       }
@@ -2358,6 +2895,18 @@
             "type": {
               "defined": "PoolBalance"
             }
+          },
+          {
+            "name": "revenueWithdrawSinceLastSettle",
+            "type": "u128"
+          },
+          {
+            "name": "maxRevenueWithdrawPerPeriod",
+            "type": "u128"
+          },
+          {
+            "name": "lastRevenueWithdrawTs",
+            "type": "i64"
           },
           {
             "name": "imfFactor",
@@ -2662,6 +3211,10 @@
           {
             "name": "lastFillerVolume30dTs",
             "type": "i64"
+          },
+          {
+            "name": "quoteAssetInsuranceFundStake",
+            "type": "u128"
           }
         ]
       }
@@ -2932,6 +3485,10 @@
             "type": "i128"
           },
           {
+            "name": "ifPayment",
+            "type": "u128"
+          },
+          {
             "name": "cumulativeFundingRateDelta",
             "type": "i128"
           }
@@ -2949,6 +3506,10 @@
           },
           {
             "name": "borrowAmount",
+            "type": "u128"
+          },
+          {
+            "name": "ifPayment",
             "type": "u128"
           },
           {
@@ -3944,6 +4505,26 @@
       }
     },
     {
+      "name": "StakeAction",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Stake"
+          },
+          {
+            "name": "UnstakeRequest"
+          },
+          {
+            "name": "UnstakeCancelRequest"
+          },
+          {
+            "name": "Unstake"
+          }
+        ]
+      }
+    },
+    {
       "name": "FulfillmentMethod",
       "type": {
         "kind": "enum",
@@ -4597,6 +5178,123 @@
           "index": false
         }
       ]
+    },
+    {
+      "name": "InsuranceFundRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "bankIndex",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "userIfFactor",
+          "type": "u32",
+          "index": false
+        },
+        {
+          "name": "totalIfFactor",
+          "type": "u32",
+          "index": false
+        },
+        {
+          "name": "bankVaultAmountBefore",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "insuranceVaultAmountBefore",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "totalIfSharesBefore",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "totalIfSharesAfter",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "amount",
+          "type": "u64",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "InsuranceFundStakeRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "userAuthority",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "action",
+          "type": {
+            "defined": "StakeAction"
+          },
+          "index": false
+        },
+        {
+          "name": "amount",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "bankIndex",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "insuranceVaultAmountBefore",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "ifSharesBefore",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "userIfSharesBefore",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "totalIfSharesBefore",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "ifSharesAfter",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "userIfSharesAfter",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "totalIfSharesAfter",
+          "type": "u128",
+          "index": false
+        }
+      ]
     }
   ],
   "errors": [
@@ -4607,8 +5305,8 @@
     },
     {
       "code": 6001,
-      "name": "InvalidInsuranceAccountAuthority",
-      "msg": "Clearing house not insurance account owner"
+      "name": "InvalidInsuranceFundAuthority",
+      "msg": "Clearing house not insurance fund authority"
     },
     {
       "code": 6002,

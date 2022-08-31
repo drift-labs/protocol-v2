@@ -323,7 +323,7 @@ export async function printTxLogs(
 }
 
 export async function mintToInsuranceFund(
-	chInsuranceAccount: Keypair,
+	chInsuranceAccountPubkey: PublicKey,
 	fakeUSDCMint: Keypair,
 	amount: BN,
 	provider: Provider
@@ -331,7 +331,7 @@ export async function mintToInsuranceFund(
 	const mintToUserAccountTx = await Token.createMintToInstruction(
 		TOKEN_PROGRAM_ID,
 		fakeUSDCMint.publicKey,
-		chInsuranceAccount.publicKey,
+		chInsuranceAccountPubkey,
 		provider.wallet.publicKey,
 		[],
 		amount.toNumber()
