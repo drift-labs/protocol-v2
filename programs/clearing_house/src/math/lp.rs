@@ -87,43 +87,46 @@ pub fn calculate_settled_lp_base_quote(
     Ok((base_asset_amount, quote_asset_amount))
 }
 
+pub fn calculate_market_open_bids_asks(market: &Market) -> ClearingHouseResult<(i128, i128)> {
+    let base_asset_reserve = market.amm.base_asset_reserve;
+
+    // worse case if all asks are filled
+    let max_base_asset_reserve = market.amm.max_base_asset_reserve;
+    let max_asks = if base_asset_reserve < max_base_asset_reserve {
+        -cast_to_i128(
+            max_base_asset_reserve
+                .checked_sub(base_asset_reserve)
+                .ok_or_else(math_error!())?,
+        )?
+    } else {
+        0
+    };
+
+    // worst case if all bids are filled
+    let min_base_asset_reserve = market.amm.min_base_asset_reserve;
+    let max_bids = if base_asset_reserve > min_base_asset_reserve {
+        cast_to_i128(
+            base_asset_reserve
+                .checked_sub(min_base_asset_reserve)
+                .ok_or_else(math_error!())?,
+        )?
+    } else {
+        0
+    };
+
+    Ok((max_bids, max_asks))
+}
+
 pub fn calculate_lp_open_bids_asks(
     market_position: &MarketPosition,
     market: &Market,
 ) -> ClearingHouseResult<(i128, i128)> {
     let total_lp_shares = market.amm.sqrt_k;
     let lp_shares = market_position.lp_shares;
-    let base_asset_reserve = market.amm.base_asset_reserve;
 
-    // worse case if all asks are filled
-    let max_base_asset_reserve = market.amm.max_base_asset_reserve;
-    let max_asks = if max_base_asset_reserve > base_asset_reserve {
-        max_base_asset_reserve
-            .checked_sub(base_asset_reserve)
-            .ok_or_else(math_error!())?
-    } else {
-        0
-    };
-    let open_asks = -cast_to_i128(helpers::get_proportion_u128(
-        max_asks,
-        lp_shares,
-        total_lp_shares,
-    )?)?;
-
-    // worst case if all bids are filled
-    let min_base_asset_reserve = market.amm.min_base_asset_reserve;
-    let max_bids = if min_base_asset_reserve < base_asset_reserve {
-        base_asset_reserve
-            .checked_sub(min_base_asset_reserve)
-            .ok_or_else(math_error!())?
-    } else {
-        0
-    };
-    let open_bids = cast_to_i128(helpers::get_proportion_u128(
-        max_bids,
-        lp_shares,
-        total_lp_shares,
-    )?)?;
+    let (max_bids, max_asks) = calculate_market_open_bids_asks(market)?;
+    let open_asks = helpers::get_proportion_i128(max_asks, lp_shares, total_lp_shares)?;
+    let open_bids = helpers::get_proportion_i128(max_bids, lp_shares, total_lp_shares)?;
 
     Ok((open_bids, open_asks))
 }

@@ -3,18 +3,18 @@ use solana_program::msg;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm::calculate_weighted_average;
 use crate::math::bank_balance::{
-    calculate_accumulated_interest, check_withdraw_limits, get_bank_balance, get_token_amount,
-    InterestAccumulated,
+    calculate_accumulated_interest, calculate_utilization, check_withdraw_limits, get_bank_balance,
+    get_interest_token_amount, get_token_amount, InterestAccumulated,
 };
 use crate::math::casting::{cast, cast_to_i128, cast_to_u64};
-use crate::math::constants::TWENTY_FOUR_HOUR;
+use crate::math::constants::{BANK_INTEREST_PRECISION, TWENTY_FOUR_HOUR};
 use crate::math_error;
 use crate::state::bank::{Bank, BankBalance, BankBalanceType};
 use crate::state::market::Market;
 use crate::validate;
 use std::cmp::max;
 
-pub fn update_bank_twap_stats(bank: &mut Bank, utilization: u128, now: i64) -> ClearingHouseResult {
+pub fn update_bank_twap_stats(bank: &mut Bank, now: i64) -> ClearingHouseResult {
     let since_last = cast_to_i128(max(
         1,
         now.checked_sub(bank.last_twap_ts as i64)
@@ -46,6 +46,8 @@ pub fn update_bank_twap_stats(bank: &mut Bank, utilization: u128, now: i64) -> C
         from_start,
     )?)?;
 
+    let utilization = calculate_utilization(deposit_token_amount, borrow_token_amount)?;
+
     bank.utilization_twap = cast(calculate_weighted_average(
         cast(utilization)?,
         cast(bank.utilization_twap)?,
@@ -60,24 +62,57 @@ pub fn update_bank_cumulative_interest(bank: &mut Bank, now: i64) -> ClearingHou
     let InterestAccumulated {
         deposit_interest,
         borrow_interest,
-        utilization,
     } = calculate_accumulated_interest(bank, now)?;
 
     if deposit_interest > 0 && borrow_interest > 1 {
-        bank.cumulative_deposit_interest = bank
-            .cumulative_deposit_interest
-            .checked_add(deposit_interest)
+        // borrowers -> lenders IF fee here
+        let deposit_interest_for_stakers = deposit_interest
+            .checked_mul(bank.total_if_factor as u128)
+            .ok_or_else(math_error!())?
+            .checked_div(BANK_INTEREST_PRECISION)
             .ok_or_else(math_error!())?;
 
-        bank.cumulative_borrow_interest = bank
-            .cumulative_borrow_interest
-            .checked_add(borrow_interest)
+        let deposit_interest_for_lenders = deposit_interest
+            .checked_sub(deposit_interest_for_stakers)
             .ok_or_else(math_error!())?;
-        bank.last_interest_ts = cast_to_u64(now)?;
+
+        if deposit_interest_for_lenders > 0 {
+            bank.cumulative_deposit_interest = bank
+                .cumulative_deposit_interest
+                .checked_add(deposit_interest_for_lenders)
+                .ok_or_else(math_error!())?;
+
+            bank.cumulative_borrow_interest = bank
+                .cumulative_borrow_interest
+                .checked_add(borrow_interest)
+                .ok_or_else(math_error!())?;
+            bank.last_interest_ts = cast_to_u64(now)?;
+
+            // add deposit_interest_for_stakers as balance for revenue_pool
+            let token_amount = get_interest_token_amount(
+                bank.deposit_balance,
+                bank,
+                deposit_interest_for_stakers,
+            )?;
+
+            update_revenue_pool_balances(token_amount, &BankBalanceType::Deposit, bank)?;
+        }
     }
 
-    update_bank_twap_stats(bank, utilization, now)?;
+    update_bank_twap_stats(bank, now)?;
     bank.last_twap_ts = cast_to_u64(now)?;
+
+    Ok(())
+}
+
+pub fn update_revenue_pool_balances(
+    token_amount: u128,
+    update_direction: &BankBalanceType,
+    bank: &mut Bank,
+) -> ClearingHouseResult {
+    let mut bank_balance = bank.revenue_pool;
+    update_bank_balances(token_amount, update_direction, bank, &mut bank_balance)?;
+    bank.revenue_pool = bank_balance;
 
     Ok(())
 }
@@ -228,12 +263,13 @@ fn decrease_bank_balance(
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::controller::insurance::settle_revenue_to_insurance_fund;
     use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BANK_CUMULATIVE_INTEREST_PRECISION, BANK_INTEREST_PRECISION,
-        BANK_WEIGHT_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION, PEG_PRECISION,
-        QUOTE_PRECISION, QUOTE_PRECISION_I128,
+        BANK_UTILIZATION_PRECISION, BANK_WEIGHT_PRECISION, BASE_PRECISION_I128,
+        LIQUIDATION_FEE_PRECISION, PEG_PRECISION, QUOTE_PRECISION, QUOTE_PRECISION_I128,
     };
     use crate::state::bank::{Bank, BankBalanceType};
     use crate::state::bank_map::BankMap;
@@ -546,5 +582,494 @@ mod test {
 
         check_bank_market_valid(&market, &sol_bank, &mut user.bank_balances[1], 100000_u64)
             .unwrap();
+    }
+    #[test]
+    fn check_fee_collection() {
+        let mut now = 0_i64;
+        let slot = 0_u64;
+
+        let mut oracle_price = get_pyth_price(100, 10);
+        let oracle_price_key =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        create_account_info!(
+            oracle_price,
+            &oracle_price_key,
+            &pyth_program,
+            oracle_account_info
+        );
+        let _oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+
+        let mut market = Market {
+            amm: AMM {
+                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
+                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
+                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
+                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
+                sqrt_k: 100 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 100 * PEG_PRECISION,
+                max_slippage_ratio: 50,
+                max_base_asset_amount_ratio: 100,
+                base_asset_amount_step_size: 10000000,
+                quote_asset_amount_short: 50 * QUOTE_PRECISION_I128,
+                net_base_asset_amount: BASE_PRECISION_I128,
+                oracle: oracle_price_key,
+                ..AMM::default()
+            },
+            margin_ratio_initial: 1000,
+            margin_ratio_maintenance: 500,
+            open_interest: 1,
+            initialized: true,
+            liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            ..Market::default()
+        };
+        create_anchor_account_info!(market, Market, market_account_info);
+        let _market_map = MarketMap::load_one(&market_account_info, true).unwrap();
+
+        let mut bank = Bank {
+            bank_index: 0,
+            oracle_source: OracleSource::QuoteAsset,
+            cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_borrow_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            initial_asset_weight: BANK_WEIGHT_PRECISION,
+            maintenance_asset_weight: BANK_WEIGHT_PRECISION,
+            deposit_balance: QUOTE_PRECISION,
+            borrow_balance: 0,
+            deposit_token_twap: QUOTE_PRECISION / 2,
+
+            // const optimalUtilization = BANK_RATE_PRECISION.div(new BN(2)); // 50% utilization
+            // const optimalRate = BANK_RATE_PRECISION.mul(new BN(20)); // 2000% APR
+            // const maxRate = BANK_RATE_PRECISION.mul(new BN(50)); // 5000% APR
+            optimal_utilization: BANK_INTEREST_PRECISION / 2,
+            optimal_borrow_rate: BANK_INTEREST_PRECISION * 20,
+            max_borrow_rate: BANK_INTEREST_PRECISION * 50,
+            ..Bank::default()
+        };
+
+        create_anchor_account_info!(bank, Bank, bank_account_info);
+        let mut sol_bank = Bank {
+            bank_index: 1,
+            oracle_source: OracleSource::Pyth,
+            oracle: oracle_price_key,
+            cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_borrow_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 10,
+            initial_asset_weight: 8 * BANK_WEIGHT_PRECISION / 10,
+            maintenance_asset_weight: 9 * BANK_WEIGHT_PRECISION / 10,
+            initial_liability_weight: 12 * BANK_WEIGHT_PRECISION / 10,
+            maintenance_liability_weight: 11 * BANK_WEIGHT_PRECISION / 10,
+            deposit_balance: BANK_INTEREST_PRECISION,
+            borrow_balance: BANK_INTEREST_PRECISION,
+            liquidation_fee: LIQUIDATION_FEE_PRECISION / 1000,
+            ..Bank::default()
+        };
+        create_anchor_account_info!(sol_bank, Bank, sol_bank_account_info);
+        let bank_account_infos = Vec::from([&bank_account_info, &sol_bank_account_info]);
+        let _bank_map = BankMap::load_multiple(bank_account_infos, true).unwrap();
+
+        let mut user_bank_balances = [UserBankBalance::default(); 8];
+        user_bank_balances[0] = UserBankBalance {
+            bank_index: 1,
+            balance_type: BankBalanceType::Deposit,
+            balance: BANK_INTEREST_PRECISION,
+        };
+        let mut user = User {
+            orders: [Order::default(); 32],
+            positions: [MarketPosition::default(); 5],
+            bank_balances: user_bank_balances,
+            ..User::default()
+        };
+
+        bank.user_if_factor = 900;
+        bank.total_if_factor = 1000; //1_000_000
+
+        assert_eq!(bank.utilization_twap, 0);
+        assert_eq!(bank.deposit_balance, 1000000);
+        assert_eq!(bank.borrow_balance, 0);
+
+        let amount = QUOTE_PRECISION / 4;
+        update_bank_balances_with_limits(
+            (amount / 2) as u128,
+            &BankBalanceType::Borrow,
+            &mut bank,
+            &mut user.bank_balances[1],
+        )
+        .unwrap();
+
+        assert_eq!(bank.deposit_balance, 1000000);
+        assert_eq!(bank.borrow_balance, 125001);
+        assert_eq!(bank.utilization_twap, 0);
+
+        update_bank_cumulative_interest(&mut bank, now + 100).unwrap();
+
+        assert_eq!(bank.revenue_pool.balance, 0);
+        assert_eq!(bank.cumulative_deposit_interest, 10000019799);
+        assert_eq!(bank.cumulative_borrow_interest, 10000158551);
+        assert_eq!(bank.last_interest_ts, 100);
+        assert_eq!(bank.last_twap_ts, 100);
+        assert_eq!(bank.utilization_twap, 144);
+
+        let deposit_tokens_1 =
+            get_token_amount(bank.deposit_balance, &bank, &BankBalanceType::Deposit).unwrap();
+        let borrow_tokens_1 =
+            get_token_amount(bank.borrow_balance, &bank, &BankBalanceType::Borrow).unwrap();
+        let if_tokens_1 =
+            get_token_amount(bank.revenue_pool.balance, &bank, &BankBalanceType::Borrow).unwrap();
+
+        assert_eq!(deposit_tokens_1, 1000001);
+        assert_eq!(borrow_tokens_1, 125002);
+        assert_eq!(if_tokens_1, 0);
+
+        update_bank_cumulative_interest(&mut bank, now + 7500).unwrap();
+
+        assert_eq!(bank.last_interest_ts, 7500);
+        assert_eq!(bank.last_twap_ts, 7500);
+        assert_eq!(bank.utilization_twap, 10848);
+
+        assert_eq!(bank.cumulative_deposit_interest, 10001484937);
+        assert_eq!(bank.cumulative_borrow_interest, 10011891454);
+        assert_eq!(bank.revenue_pool.balance, 0);
+
+        let deposit_tokens_2 =
+            get_token_amount(bank.deposit_balance, &bank, &BankBalanceType::Deposit).unwrap();
+        let borrow_tokens_2 =
+            get_token_amount(bank.borrow_balance, &bank, &BankBalanceType::Borrow).unwrap();
+        let if_tokens_2 =
+            get_token_amount(bank.revenue_pool.balance, &bank, &BankBalanceType::Borrow).unwrap();
+
+        assert_eq!(deposit_tokens_2, 1_000_148);
+        assert_eq!(borrow_tokens_2, 125_149);
+        assert_eq!(if_tokens_2, 0);
+
+        //assert >=0
+        assert_eq!(
+            (borrow_tokens_2 - borrow_tokens_1) - (deposit_tokens_2 - deposit_tokens_1),
+            0
+        );
+
+        update_bank_cumulative_interest(&mut bank, now + 750 + (60 * 60 * 24 * 365)).unwrap();
+
+        now = now + 750 + (60 * 60 * 24 * 365);
+
+        assert_eq!(bank.cumulative_deposit_interest, 16257818378);
+        assert_eq!(bank.cumulative_borrow_interest, 60112684636);
+        assert_eq!(bank.revenue_pool.balance, 385);
+
+        let deposit_tokens_3 =
+            get_token_amount(bank.deposit_balance, &bank, &BankBalanceType::Deposit).unwrap();
+        let borrow_tokens_3 =
+            get_token_amount(bank.borrow_balance, &bank, &BankBalanceType::Borrow).unwrap();
+        let if_tokens_3 =
+            get_token_amount(bank.revenue_pool.balance, &bank, &BankBalanceType::Borrow).unwrap();
+
+        assert_eq!(deposit_tokens_3, 1_626_407);
+        assert_eq!(borrow_tokens_3, 751_414);
+        assert_eq!(if_tokens_3, 2_314);
+
+        assert_eq!((borrow_tokens_3 - borrow_tokens_2), 626265);
+        assert_eq!((deposit_tokens_3 - deposit_tokens_2), 626259);
+
+        // assert >= 0
+        assert_eq!(
+            (borrow_tokens_3 - borrow_tokens_2) - (deposit_tokens_3 - deposit_tokens_2),
+            6
+        );
+
+        let mut if_balance_2 = 0;
+
+        // settle IF pool to 100% utilization boundary
+        assert_eq!(bank.revenue_pool.balance, 385);
+        assert_eq!(bank.utilization_twap, 462007);
+
+        let settle_amount = settle_revenue_to_insurance_fund(
+            deposit_tokens_3 as u64,
+            if_tokens_3 as u64,
+            &mut bank,
+            now + 60,
+        )
+        .unwrap();
+
+        if_balance_2 = if_balance_2 + settle_amount;
+        assert_eq!(if_tokens_3 - (settle_amount as u128), 1689);
+        assert_eq!(settle_amount, 625);
+        assert_eq!(bank.revenue_pool.balance, 0);
+        assert_eq!(bank.utilization_twap, 462007);
+
+        let deposit_tokens_4 =
+            get_token_amount(bank.deposit_balance, &bank, &BankBalanceType::Deposit).unwrap();
+        let borrow_tokens_4 =
+            get_token_amount(bank.borrow_balance, &bank, &BankBalanceType::Borrow).unwrap();
+        let if_tokens_4 =
+            get_token_amount(bank.revenue_pool.balance, &bank, &BankBalanceType::Deposit).unwrap();
+
+        assert_eq!(bank.borrow_token_twap, 751413);
+        assert_eq!(bank.deposit_token_twap, 1626406);
+        assert_eq!(
+            bank.borrow_token_twap * BANK_UTILIZATION_PRECISION / bank.deposit_token_twap,
+            462008
+        ); // 47.4%
+
+        assert_eq!(bank.utilization_twap, 462007); // 46.2%
+        assert_eq!(
+            borrow_tokens_4 * BANK_UTILIZATION_PRECISION / deposit_tokens_4,
+            462194
+        ); // 46.2%
+        assert_eq!(BANK_UTILIZATION_PRECISION, 1000000); // 100%
+
+        assert_eq!(deposit_tokens_4 - borrow_tokens_4, 874368);
+        assert_eq!(if_tokens_4, 0);
+
+        // one more day later, twap update
+        update_bank_cumulative_interest(&mut bank, now + 60 + (60 * 60 * 24)).unwrap();
+
+        let deposit_tokens_5 =
+            get_token_amount(bank.deposit_balance, &bank, &BankBalanceType::Deposit).unwrap();
+        let borrow_tokens_5 =
+            get_token_amount(bank.borrow_balance, &bank, &BankBalanceType::Borrow).unwrap();
+        let if_tokens_5 =
+            get_token_amount(bank.revenue_pool.balance, &bank, &BankBalanceType::Deposit).unwrap();
+
+        assert_eq!(bank.borrow_token_twap, 789501);
+        assert_eq!(bank.deposit_token_twap, 1663867);
+
+        assert_eq!(
+            bank.borrow_token_twap * BANK_UTILIZATION_PRECISION / bank.deposit_token_twap,
+            474497
+        ); // 47.4%
+        assert_eq!(bank.utilization_twap, 474496); // 47.4%
+        assert_eq!(
+            borrow_tokens_5 * BANK_UTILIZATION_PRECISION / deposit_tokens_5,
+            474497
+        ); // 47.4%
+        assert_eq!(BANK_UTILIZATION_PRECISION, 1000000); // 100%
+    }
+
+    #[test]
+    fn check_fee_collection_larger_nums() {
+        let mut now = 0_i64;
+        let slot = 0_u64;
+
+        let mut oracle_price = get_pyth_price(100, 10);
+        let oracle_price_key =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        create_account_info!(
+            oracle_price,
+            &oracle_price_key,
+            &pyth_program,
+            oracle_account_info
+        );
+        let _oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+
+        let mut market = Market {
+            amm: AMM {
+                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
+                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
+                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
+                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
+                sqrt_k: 100 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 100 * PEG_PRECISION,
+                max_slippage_ratio: 50,
+                max_base_asset_amount_ratio: 100,
+                base_asset_amount_step_size: 10000000,
+                quote_asset_amount_short: 50 * QUOTE_PRECISION_I128,
+                net_base_asset_amount: BASE_PRECISION_I128,
+                oracle: oracle_price_key,
+                ..AMM::default()
+            },
+            margin_ratio_initial: 1000,
+            margin_ratio_maintenance: 500,
+            open_interest: 1,
+            initialized: true,
+            liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            ..Market::default()
+        };
+        create_anchor_account_info!(market, Market, market_account_info);
+        let _market_map = MarketMap::load_one(&market_account_info, true).unwrap();
+
+        let mut bank = Bank {
+            bank_index: 0,
+            oracle_source: OracleSource::QuoteAsset,
+            cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_borrow_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            initial_asset_weight: BANK_WEIGHT_PRECISION,
+            maintenance_asset_weight: BANK_WEIGHT_PRECISION,
+            deposit_balance: 1000000 * QUOTE_PRECISION,
+            borrow_balance: 0,
+            deposit_token_twap: QUOTE_PRECISION / 2,
+
+            // const optimalUtilization = BANK_RATE_PRECISION.div(new BN(2)); // 50% utilization
+            // const optimalRate = BANK_RATE_PRECISION.mul(new BN(20)); // 2000% APR
+            // const maxRate = BANK_RATE_PRECISION.mul(new BN(50)); // 5000% APR
+            optimal_utilization: BANK_INTEREST_PRECISION / 2,
+            optimal_borrow_rate: BANK_INTEREST_PRECISION * 20,
+            max_borrow_rate: BANK_INTEREST_PRECISION * 50,
+            ..Bank::default()
+        };
+
+        create_anchor_account_info!(bank, Bank, bank_account_info);
+        let mut sol_bank = Bank {
+            bank_index: 1,
+            oracle_source: OracleSource::Pyth,
+            oracle: oracle_price_key,
+            cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_borrow_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 10,
+            initial_asset_weight: 8 * BANK_WEIGHT_PRECISION / 10,
+            maintenance_asset_weight: 9 * BANK_WEIGHT_PRECISION / 10,
+            initial_liability_weight: 12 * BANK_WEIGHT_PRECISION / 10,
+            maintenance_liability_weight: 11 * BANK_WEIGHT_PRECISION / 10,
+            deposit_balance: BANK_INTEREST_PRECISION,
+            borrow_balance: BANK_INTEREST_PRECISION,
+            liquidation_fee: LIQUIDATION_FEE_PRECISION / 1000,
+            ..Bank::default()
+        };
+        create_anchor_account_info!(sol_bank, Bank, sol_bank_account_info);
+        let bank_account_infos = Vec::from([&bank_account_info, &sol_bank_account_info]);
+        let _bank_map = BankMap::load_multiple(bank_account_infos, true).unwrap();
+
+        let mut user_bank_balances = [UserBankBalance::default(); 8];
+        user_bank_balances[0] = UserBankBalance {
+            bank_index: 1,
+            balance_type: BankBalanceType::Deposit,
+            balance: BANK_INTEREST_PRECISION,
+        };
+        let mut user = User {
+            orders: [Order::default(); 32],
+            positions: [MarketPosition::default(); 5],
+            bank_balances: user_bank_balances,
+            ..User::default()
+        };
+
+        bank.user_if_factor = 900_00;
+        bank.total_if_factor = 1_000_00;
+
+        assert_eq!(bank.utilization_twap, 0);
+        assert_eq!(bank.deposit_balance, 1000000 * QUOTE_PRECISION);
+        assert_eq!(bank.borrow_balance, 0);
+
+        let amount = 540510 * QUOTE_PRECISION;
+        update_bank_balances(
+            amount as u128,
+            &BankBalanceType::Borrow,
+            &mut bank,
+            &mut user.bank_balances[1],
+        )
+        .unwrap();
+
+        assert_eq!(bank.deposit_balance, 1000000 * QUOTE_PRECISION);
+        assert_eq!(bank.borrow_balance, 540510000001);
+        assert_eq!(bank.utilization_twap, 0);
+
+        update_bank_cumulative_interest(&mut bank, now + 100).unwrap();
+
+        assert_eq!(bank.revenue_pool.balance, 3844266);
+        assert_eq!(bank.cumulative_deposit_interest, 10000346004);
+        assert_eq!(bank.cumulative_borrow_interest, 10000711270);
+        assert_eq!(bank.last_interest_ts, 100);
+        assert_eq!(bank.last_twap_ts, 100);
+        assert_eq!(bank.utilization_twap, 625);
+
+        let deposit_tokens_1 =
+            get_token_amount(bank.deposit_balance, &bank, &BankBalanceType::Deposit).unwrap();
+        let borrow_tokens_1 =
+            get_token_amount(bank.borrow_balance, &bank, &BankBalanceType::Borrow).unwrap();
+        let if_tokens_1 =
+            get_token_amount(bank.revenue_pool.balance, &bank, &BankBalanceType::Deposit).unwrap();
+
+        assert_eq!(deposit_tokens_1, 1000038444799);
+        assert_eq!(borrow_tokens_1, 540548444855);
+        assert_eq!(if_tokens_1, 3844399);
+
+        update_bank_cumulative_interest(&mut bank, now + 7500).unwrap();
+
+        assert_eq!(bank.last_interest_ts, 7500);
+        assert_eq!(bank.last_twap_ts, 7500);
+        assert_eq!(bank.utilization_twap, 46978);
+
+        assert_eq!(bank.cumulative_deposit_interest, 10025953120);
+        assert_eq!(bank.cumulative_borrow_interest, 10053351363);
+        assert_eq!(bank.revenue_pool.balance, 287632340);
+
+        let deposit_tokens_2 =
+            get_token_amount(bank.deposit_balance, &bank, &BankBalanceType::Deposit).unwrap();
+        let borrow_tokens_2 =
+            get_token_amount(bank.borrow_balance, &bank, &BankBalanceType::Borrow).unwrap();
+        let if_tokens_2 =
+            get_token_amount(bank.revenue_pool.balance, &bank, &BankBalanceType::Deposit).unwrap();
+
+        assert_eq!(deposit_tokens_2, 1002883690835);
+        assert_eq!(borrow_tokens_2, 543393694522);
+        assert_eq!(if_tokens_2, 288378835);
+
+        //assert >=0
+        assert_eq!(
+            (borrow_tokens_2 - borrow_tokens_1) - (deposit_tokens_2 - deposit_tokens_1),
+            3631
+        );
+
+        update_bank_cumulative_interest(&mut bank, now + 750 + (60 * 60 * 24 * 365)).unwrap();
+
+        now = now + 750 + (60 * 60 * 24 * 365);
+
+        assert_eq!(bank.cumulative_deposit_interest, 120056141117);
+        assert_eq!(bank.cumulative_borrow_interest, 236304445676);
+        assert_eq!(bank.revenue_pool.balance, 102149084835);
+
+        let deposit_tokens_3 =
+            get_token_amount(bank.deposit_balance, &bank, &BankBalanceType::Deposit).unwrap();
+        let borrow_tokens_3 =
+            get_token_amount(bank.borrow_balance, &bank, &BankBalanceType::Borrow).unwrap();
+        let if_tokens_3 =
+            get_token_amount(bank.revenue_pool.balance, &bank, &BankBalanceType::Deposit).unwrap();
+
+        assert_eq!(deposit_tokens_3, 13231976606092);
+        assert_eq!(borrow_tokens_3, 12772491593257);
+        assert_eq!(if_tokens_3, 1226362494392);
+
+        assert_eq!((borrow_tokens_3 - borrow_tokens_2), 12229097898735);
+        assert_eq!((deposit_tokens_3 - deposit_tokens_2), 12229092915257);
+
+        // assert >= 0
+        assert_eq!(
+            (borrow_tokens_3 - borrow_tokens_2) - (deposit_tokens_3 - deposit_tokens_2),
+            4_983_478 //$4.98 missing
+        );
+
+        let mut if_balance_2 = 0;
+
+        // settle IF pool to 100% utilization boundary
+        assert_eq!(bank.revenue_pool.balance, 102149084835);
+        let settle_amount = settle_revenue_to_insurance_fund(
+            deposit_tokens_3 as u64,
+            if_tokens_3 as u64,
+            &mut bank,
+            now + 60,
+        )
+        .unwrap();
+
+        if_balance_2 = if_balance_2 + settle_amount;
+        // assert_eq!(if_tokens_3 - (settle_amount as u128), 766877481557);
+        assert_eq!(if_tokens_3 - (settle_amount as u128), 766877482398); // w/ update interest for settle_bank_to_if
+
+        assert_eq!(settle_amount, 459485011994);
+        assert_eq!(bank.revenue_pool.balance, 63889301684);
+        assert_eq!(bank.utilization_twap, 965273);
+
+        let deposit_tokens_4 =
+            get_token_amount(bank.deposit_balance, &bank, &BankBalanceType::Deposit).unwrap();
+        let borrow_tokens_4 =
+            get_token_amount(bank.borrow_balance, &bank, &BankBalanceType::Borrow).unwrap();
+        let if_tokens_4 =
+            get_token_amount(bank.revenue_pool.balance, &bank, &BankBalanceType::Deposit).unwrap();
+
+        assert_eq!(deposit_tokens_4 - borrow_tokens_4, 4);
+        assert_eq!(if_tokens_4, 767091050279);
     }
 }

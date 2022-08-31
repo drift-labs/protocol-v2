@@ -568,6 +568,7 @@ export class ClearingHouseUser {
 				const market = this.clearingHouse.getMarketAccount(
 					marketPosition.marketIndex
 				);
+
 				const posVal = calculateMarginBaseAssetValue(
 					market,
 					marketPosition,
