@@ -69,6 +69,9 @@ pub struct FundingRateRecord {
     pub oracle_price_twap: i128,
     pub mark_price_twap: u128,
     pub period_revenue: i64,
+    pub net_base_asset_amount: i128,
+    pub net_unsettled_lp_base_asset_amount: i128,
+
 }
 
 #[event]

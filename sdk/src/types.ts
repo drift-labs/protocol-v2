@@ -163,6 +163,8 @@ export type FundingRateRecord = {
 	oraclePriceTwap: BN;
 	markPriceTwap: BN;
 	periodRevenue: BN;
+	netBaseAssetAmount: BN;
+	netUnsettledLpBaseAssetAmount: BN;
 };
 
 export type FundingPaymentRecord = {
