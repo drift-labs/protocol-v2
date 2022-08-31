@@ -4926,42 +4926,25 @@
           "index": false
         },
         {
-          "name": "slot",
-          "type": "u64",
-          "index": false
-        },
-        {
-          "name": "taker",
+          "name": "user",
           "type": "publicKey",
           "index": false
         },
         {
-          "name": "maker",
-          "type": "publicKey",
-          "index": false
-        },
-        {
-          "name": "takerOrder",
+          "name": "order",
           "type": {
             "defined": "Order"
           },
           "index": false
-        },
+        }
+      ]
+    },
+    {
+      "name": "OrderActionRecord",
+      "fields": [
         {
-          "name": "makerOrder",
-          "type": {
-            "defined": "Order"
-          },
-          "index": false
-        },
-        {
-          "name": "makerPnl",
-          "type": "i128",
-          "index": false
-        },
-        {
-          "name": "takerPnl",
-          "type": "i128",
+          "name": "ts",
+          "type": "i64",
           "index": false
         },
         {
@@ -4979,63 +4962,183 @@
           "index": false
         },
         {
-          "name": "filler",
-          "type": "publicKey",
-          "index": false
-        },
-        {
-          "name": "fillRecordId",
-          "type": "u64",
-          "index": false
-        },
-        {
           "name": "marketIndex",
           "type": "u64",
           "index": false
         },
         {
-          "name": "baseAssetAmountFilled",
-          "type": "u128",
-          "index": false
-        },
-        {
-          "name": "quoteAssetAmountFilled",
-          "type": "u128",
-          "index": false
-        },
-        {
-          "name": "makerRebate",
-          "type": "u128",
-          "index": false
-        },
-        {
-          "name": "takerFee",
-          "type": "u128",
+          "name": "filler",
+          "type": {
+            "option": "publicKey"
+          },
           "index": false
         },
         {
           "name": "fillerReward",
-          "type": "u128",
+          "type": {
+            "option": "u64"
+          },
+          "index": false
+        },
+        {
+          "name": "fillRecordId",
+          "type": {
+            "option": "u64"
+          },
           "index": false
         },
         {
           "name": "referrer",
-          "type": "publicKey",
+          "type": {
+            "option": "publicKey"
+          },
+          "index": false
+        },
+        {
+          "name": "baseAssetAmountFilled",
+          "type": {
+            "option": "u128"
+          },
+          "index": false
+        },
+        {
+          "name": "quoteAssetAmountFilled",
+          "type": {
+            "option": "u64"
+          },
+          "index": false
+        },
+        {
+          "name": "takerPnl",
+          "type": {
+            "option": "i64"
+          },
+          "index": false
+        },
+        {
+          "name": "makerPnl",
+          "type": {
+            "option": "i64"
+          },
+          "index": false
+        },
+        {
+          "name": "takerFee",
+          "type": {
+            "option": "u64"
+          },
+          "index": false
+        },
+        {
+          "name": "makerRebate",
+          "type": {
+            "option": "u64"
+          },
           "index": false
         },
         {
           "name": "referrerReward",
-          "type": "u128",
+          "type": {
+            "option": "u64"
+          },
           "index": false
         },
         {
           "name": "refereeDiscount",
-          "type": "u128",
+          "type": {
+            "option": "u64"
+          },
           "index": false
         },
         {
           "name": "quoteAssetAmountSurplus",
-          "type": "i128",
+          "type": {
+            "option": "i64"
+          },
+          "index": false
+        },
+        {
+          "name": "taker",
+          "type": {
+            "option": "publicKey"
+          },
+          "index": false
+        },
+        {
+          "name": "takerOrderId",
+          "type": {
+            "option": "u64"
+          },
+          "index": false
+        },
+        {
+          "name": "takerOrderBaseAssetAmount",
+          "type": {
+            "option": "u128"
+          },
+          "index": false
+        },
+        {
+          "name": "takerOrderBaseAssetAmountFilled",
+          "type": {
+            "option": "u128"
+          },
+          "index": false
+        },
+        {
+          "name": "takerOrderQuoteAssetAmountFilled",
+          "type": {
+            "option": "u64"
+          },
+          "index": false
+        },
+        {
+          "name": "takerOrderFee",
+          "type": {
+            "option": "i64"
+          },
+          "index": false
+        },
+        {
+          "name": "maker",
+          "type": {
+            "option": "publicKey"
+          },
+          "index": false
+        },
+        {
+          "name": "makerOrderId",
+          "type": {
+            "option": "u64"
+          },
+          "index": false
+        },
+        {
+          "name": "makerOrderBaseAssetAmount",
+          "type": {
+            "option": "u128"
+          },
+          "index": false
+        },
+        {
+          "name": "makerOrderBaseAssetAmountFilled",
+          "type": {
+            "option": "u128"
+          },
+          "index": false
+        },
+        {
+          "name": "makerOrderQuoteAssetAmountFilled",
+          "type": {
+            "option": "u64"
+          },
+          "index": false
+        },
+        {
+          "name": "makerOrderFee",
+          "type": {
+            "option": "i64"
+          },
           "index": false
         },
         {

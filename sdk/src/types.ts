@@ -279,27 +279,41 @@ export type SettlePnlRecord = {
 
 export type OrderRecord = {
 	ts: BN;
-	taker: PublicKey;
-	maker: PublicKey;
-	takerOrder: Order;
-	makerOrder: Order;
-	takerPnl: BN;
-	makerPnl: BN;
+	user: PublicKey;
+	order: Order;
+};
+
+export type OrderActionRecord = {
+	ts: BN;
 	action: OrderAction;
 	actionExplanation: OrderActionExplanation;
-	filler: PublicKey;
-	fillRecordId: BN;
 	marketIndex: BN;
-	baseAssetAmountFilled: BN;
-	quoteAssetAmountFilled: BN;
-	makerRebate: BN;
-	takerFee: BN;
-	fillerReward: BN;
-	quoteAssetAmountSurplus: BN;
+	filler: PublicKey | null;
+	fillerReward: BN | null;
+	fillRecordId: BN | null;
+	referrer: PublicKey | null;
+	baseAssetAmountFilled: BN | null;
+	quoteAssetAmountFilled: BN | null;
+	takerPnl: BN | null;
+	makerPnl: BN | null;
+	takerFee: BN | null;
+	makerRebate: BN | null;
+	referrerReward: BN | null;
+	refereeDiscount: BN | null;
+	quoteAssetAmountSurplus: BN | null;
+	taker: PublicKey | null;
+	takerOrderId: BN | null;
+	takerOrderBaseAssetAmount: BN | null;
+	takerOrderBaseAssetAmountFilled: BN | null;
+	takerOrderQuoteAssetAmountFilled: BN | null;
+	takerOrderFee: BN | null;
+	maker: PublicKey | null;
+	makerOrderId: BN | null;
+	makerOrderBaseAssetAmount: BN | null;
+	makerOrderBaseAssetAmountFilled: BN | null;
+	makerOrderQuoteAssetAmountFilled: BN | null;
+	makerOrderFee: BN | null;
 	oraclePrice: BN;
-	referrer: PublicKey;
-	referrerReward: BN;
-	refereeDiscount: BN;
 };
 
 export type StateAccount = {
